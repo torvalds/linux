@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: scan.c,v 1.118 2005/02/09 09:23:53 pavlov Exp $
+ * $Id: scan.c,v 1.119 2005/02/17 17:51:13 dedekind Exp $
  *
  */
 #include <linux/kernel.h>
@@ -433,7 +433,7 @@ scan_more:
 			/* If we're only checking the beginning of a block with a cleanmarker,
 			   bail now */
 			if (buf_ofs == jeb->offset && jeb->used_size == PAD(c->cleanmarker_size) && 
-			    c->cleanmarker_size && !jeb->dirty_size && !jeb->first_node->next_in_ino) {
+			    c->cleanmarker_size && !jeb->dirty_size && !jeb->first_node->next_phys) {
 				D1(printk(KERN_DEBUG "%d bytes at start of block seems clean... assuming all clean\n", EMPTY_SCAN_SIZE(c->sector_size)));
 				return BLK_STATE_CLEANMARKER;
 			}
@@ -629,7 +629,7 @@ scan_more:
 	}
 
 	if ((jeb->used_size + jeb->unchecked_size) == PAD(c->cleanmarker_size) && !jeb->dirty_size 
-		&& (!jeb->first_node || !jeb->first_node->next_in_ino) )
+		&& (!jeb->first_node || !jeb->first_node->next_phys) )
 		return BLK_STATE_CLEANMARKER;
 		
 	/* move blocks with max 4 byte dirty space to cleanlist */	
