@@ -1,7 +1,7 @@
 /**
  * dir.c - NTFS kernel directory operations. Part of the Linux-NTFS project.
  *
- * Copyright (c) 2001-2004 Anton Altaparmakov
+ * Copyright (c) 2001-2005 Anton Altaparmakov
  * Copyright (c) 2002 Richard Russon
  *
  * This program/include file is free software; you can redistribute it and/or
@@ -610,7 +610,7 @@ dir_err_out:
 // TODO: (AIA)
 // The algorithm embedded in this code will be required for the time when we
 // want to support adding of entries to directories, where we require correct
-// collation of file names in order not to cause corruption of the file system.
+// collation of file names in order not to cause corruption of the filesystem.
 
 /**
  * ntfs_lookup_inode_by_name - find an inode in a directory given its name

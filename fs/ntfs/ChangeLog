@@ -56,6 +56,10 @@ ToDo/Notes:
 	  this only works until the data attribute becomes too big for the mft
 	  record after which we abort the write returning -EOPNOTSUPP from
 	  ntfs_prepare_write().
+	- Add disable_sparse mount option together with a per volume sparse
+	  enable bit which is set appropriately and a per inode sparse disable
+	  bit which is preset on some system file inodes as appropriate.
+	- Enforce that sparse support is disabled on NTFS volumes pre 3.0.
 
 2.1.22 - Many bug and race fixes and error handling improvements.
 
@@ -1062,7 +1066,7 @@ tng-0.0.8 - 08/03/2002 - Now using BitKeeper, http://linux-ntfs.bkbits.net/
 	- Further runlist merging work. (Richard Russon)
 	- Backwards compatibility for gcc-2.95. (Richard Russon)
 	- Update to kernel 2.5.5-pre1 and rediff the now tiny patch.
-	- Convert to new file system declaration using ->ntfs_get_sb() and
+	- Convert to new filesystem declaration using ->ntfs_get_sb() and
 	  replacing ntfs_read_super() with ntfs_fill_super().
 	- Set s_maxbytes to MAX_LFS_FILESIZE to avoid page cache page index
 	  overflow on 32-bit architectures.
@@ -1358,7 +1362,7 @@ tng-0.0.1 - The first useful version.
 	The driver is now actually useful! Yey. (-: It undoubtedly has got bugs
 	though and it doesn't implement accesssing compressed files yet. Also,
 	accessing files with attribute list attributes is not implemented yet
-	either. But for small or simple file systems it should work and allow
+	either. But for small or simple filesystems it should work and allow
 	you to list directories, use stat on directory entries and the file
 	system, open, read, mmap and llseek around in files. A big mile stone
 	has been reached!
@@ -1366,7 +1370,7 @@ tng-0.0.1 - The first useful version.
 tng-0.0.0 - Initial version tag.
 
 	Initial driver implementation. The driver can mount and umount simple
-	NTFS file systems (i.e. ones without attribute lists in the system
+	NTFS filesystems (i.e. ones without attribute lists in the system
 	files). If the mount fails there might be problems in the error handling
 	code paths, so be warned. Otherwise it seems to be loading the system
 	files nicely and the mft record read mapping/unmapping seems to be

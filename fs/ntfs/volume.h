@@ -2,7 +2,7 @@
  * volume.h - Defines for volume structures in NTFS Linux kernel driver. Part
  *	      of the Linux-NTFS project.
  *
- * Copyright (c) 2001-2004 Anton Altaparmakov
+ * Copyright (c) 2001-2005 Anton Altaparmakov
  * Copyright (c) 2002 Richard Russon
  *
  * This program/include file is free software; you can redistribute it and/or
@@ -54,7 +54,7 @@ typedef struct {
 	mode_t dmask;			/* The mask for directory
 					   permissions. */
 	u8 mft_zone_multiplier;		/* Initial mft zone multiplier. */
-	u8 on_errors;			/* What to do on file system errors. */
+	u8 on_errors;			/* What to do on filesystem errors. */
 	/* NTFS bootsector provided information. */
 	u16 sector_size;		/* in bytes */
 	u8 sector_size_bits;		/* log2(sector_size) */
@@ -141,6 +141,7 @@ typedef enum {
 				      file names in WIN32 namespace. */
 	NV_LogFileEmpty,	/* 1: $LogFile journal is empty. */
 	NV_QuotaOutOfDate,	/* 1: $Quota is out of date. */
+	NV_SparseEnabled,	/* 1: May create sparse files. */
 } ntfs_volume_flags;
 
 /*
@@ -167,5 +168,6 @@ NVOL_FNS(ShowSystemFiles)
 NVOL_FNS(CaseSensitive)
 NVOL_FNS(LogFileEmpty)
 NVOL_FNS(QuotaOutOfDate)
+NVOL_FNS(SparseEnabled)
 
 #endif /* _LINUX_NTFS_VOLUME_H */

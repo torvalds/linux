@@ -21,7 +21,7 @@ Overview
 ========
 
 Linux-NTFS comes with a number of user-space programs known as ntfsprogs.
-These include mkntfs, a full-featured ntfs file system format utility,
+These include mkntfs, a full-featured ntfs filesystem format utility,
 ntfsundelete used for recovering files that were unintentionally deleted
 from an NTFS volume and ntfsresize which is used to resize an NTFS partition.
 See the web site for more information.
@@ -149,7 +149,14 @@ case_sensitive=<BOOL>	If case_sensitive is specified, treat all file names as
 			name, if it exists.  If case_sensitive, you will need
 			to provide the correct case of the short file name.
 
-errors=opt		What to do when critical file system errors are found.
+disable_sparse=<BOOL>	If disable_sparse is specified, creation of sparse
+			regions, i.e. holes, inside files is disabled for the
+			volume (for the duration of this mount only).  By
+			default, creation of sparse regions is enabled, which
+			is consistent with the behaviour of traditional Unix
+			filesystems.
+
+errors=opt		What to do when critical filesystem errors are found.
 			Following values can be used for "opt":
 			  continue: DEFAULT, try to clean-up as much as
 				    possible, e.g. marking a corrupt inode as

@@ -1,7 +1,7 @@
 /**
  * inode.c - NTFS kernel inode handling. Part of the Linux-NTFS project.
  *
- * Copyright (c) 2001-2004 Anton Altaparmakov
+ * Copyright (c) 2001-2005 Anton Altaparmakov
  *
  * This program/include file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as published
@@ -1731,6 +1731,7 @@ int ntfs_read_inode_mount(struct inode *vi)
 	/* Setup the data attribute. It is special as it is mst protected. */
 	NInoSetNonResident(ni);
 	NInoSetMstProtected(ni);
+	NInoSetSparseDisabled(ni);
 	ni->type = AT_DATA;
 	ni->name = NULL;
 	ni->name_len = 0;
@@ -2279,6 +2280,8 @@ int ntfs_show_options(struct seq_file *sf, struct vfsmount *mnt)
 		seq_printf(sf, ",case_sensitive");
 	if (NVolShowSystemFiles(vol))
 		seq_printf(sf, ",show_sys_files");
+	if (!NVolSparseEnabled(vol))
+		seq_printf(sf, ",disable_sparse");
 	for (i = 0; on_errors_arr[i].val; i++) {
 		if (on_errors_arr[i].val & vol->on_errors)
 			seq_printf(sf, ",errors=%s", on_errors_arr[i].str);

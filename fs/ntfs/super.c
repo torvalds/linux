@@ -1,7 +1,7 @@
 /*
  * super.c - NTFS kernel super block handling. Part of the Linux-NTFS project.
  *
- * Copyright (c) 2001-2004 Anton Altaparmakov
+ * Copyright (c) 2001-2005 Anton Altaparmakov
  * Copyright (c) 2001,2002 Richard Russon
  *
  * This program/include file is free software; you can redistribute it and/or
@@ -41,7 +41,7 @@
 #include "malloc.h"
 #include "ntfs.h"
 
-/* Number of mounted file systems which have compression enabled. */
+/* Number of mounted filesystems which have compression enabled. */
 static unsigned long ntfs_nr_compression_users;
 
 /* A global default upcase table and a corresponding reference count. */
@@ -102,7 +102,7 @@ static BOOL parse_options(ntfs_volume *vol, char *opt)
 	gid_t gid = (gid_t)-1;
 	mode_t fmask = (mode_t)-1, dmask = (mode_t)-1;
 	int mft_zone_multiplier = -1, on_errors = -1;
-	int show_sys_files = -1, case_sensitive = -1;
+	int show_sys_files = -1, case_sensitive = -1, disable_sparse = -1;
 	struct nls_table *nls_map = NULL, *old_nls;
 
 	/* I am lazy... (-8 */
@@ -162,6 +162,7 @@ static BOOL parse_options(ntfs_volume *vol, char *opt)
 		else NTFS_GETOPT_WITH_DEFAULT("sloppy", sloppy, TRUE)
 		else NTFS_GETOPT_BOOL("show_sys_files", show_sys_files)
 		else NTFS_GETOPT_BOOL("case_sensitive", case_sensitive)
+		else NTFS_GETOPT_BOOL("disable_sparse", disable_sparse)
 		else NTFS_GETOPT_OPTIONS_ARRAY("errors", on_errors,
 				on_errors_arr)
 		else if (!strcmp(p, "posix") || !strcmp(p, "show_inodes"))
@@ -290,6 +291,21 @@ no_mount_options:
 			NVolSetCaseSensitive(vol);
 		else
 			NVolClearCaseSensitive(vol);
+	}
+	if (disable_sparse != -1) {
+		if (disable_sparse)
+			NVolClearSparseEnabled(vol);
+		else {
+			if (!NVolSparseEnabled(vol) &&
+					vol->major_ver && vol->major_ver < 3)
+				ntfs_warning(vol->sb, "Not enabling sparse "
+						"support due to NTFS volume "
+						"version %i.%i (need at least "
+						"version 3.0).", vol->major_ver,
+						vol->minor_ver);
+			else
+				NVolSetSparseEnabled(vol);
+		}
 	}
 	return TRUE;
 needs_arg:
@@ -967,6 +983,7 @@ static BOOL load_and_init_mft_mirror(ntfs_volume *vol)
 	tmp_ni = NTFS_I(tmp_ino);
 	/* The $MFTMirr, like the $MFT is multi sector transfer protected. */
 	NInoSetMstProtected(tmp_ni);
+	NInoSetSparseDisabled(tmp_ni);
 	/*
 	 * Set up our little cheat allowing us to reuse the async read io
 	 * completion handler for directories.
@@ -1122,6 +1139,7 @@ static BOOL load_and_check_logfile(ntfs_volume *vol)
 		/* ntfs_check_logfile() will have displayed error output. */
 		return FALSE;
 	}
+	NInoSetSparseDisabled(NTFS_I(tmp_ino));
 	vol->logfile_ino = tmp_ino;
 	ntfs_debug("Done.");
 	return TRUE;
@@ -1220,6 +1238,7 @@ static BOOL load_and_init_attrdef(ntfs_volume *vol)
 			iput(ino);
 		goto failed;
 	}
+	NInoSetSparseDisabled(NTFS_I(ino));
 	/* The size of FILE_AttrDef must be above 0 and fit inside 31 bits. */
 	i_size = i_size_read(ino);
 	if (i_size <= 0 || i_size > 0x7fffffff)
@@ -1439,6 +1458,7 @@ static BOOL load_system_files(ntfs_volume *vol)
 			iput(vol->lcnbmp_ino);
 		goto bitmap_failed;
 	}
+	NInoSetSparseDisabled(NTFS_I(vol->lcnbmp_ino));
 	if ((vol->nr_clusters + 7) >> 3 > i_size_read(vol->lcnbmp_ino)) {
 		iput(vol->lcnbmp_ino);
 bitmap_failed:
@@ -1490,6 +1510,12 @@ get_ctx_vol_failed:
 	unmap_mft_record(NTFS_I(vol->vol_ino));
 	printk(KERN_INFO "NTFS volume version %i.%i.\n", vol->major_ver,
 			vol->minor_ver);
+	if (vol->major_ver < 3 && NVolSparseEnabled(vol)) {
+		ntfs_warning(vol->sb, "Disabling sparse support due to NTFS "
+				"volume version %i.%i (need at least version "
+				"3.0).", vol->major_ver, vol->minor_ver);
+		NVolClearSparseEnabled(vol);
+	}
 #ifdef NTFS_RW
 	/* Make sure that no unsupported volume flags are set. */
 	if (vol->vol_flags & VOLUME_MUST_MOUNT_RO_MASK) {
@@ -2033,7 +2059,7 @@ static s64 get_nr_free_clusters(ntfs_volume *vol)
 /**
  * __get_nr_free_mft_records - return the number of free inodes on a volume
  * @vol:	ntfs volume for which to obtain free inode count
- * @nr_free:	number of mft records in file system
+ * @nr_free:	number of mft records in filesystem
  * @max_index:	maximum number of pages containing set bits
  *
  * Calculate the number of free mft records (inodes) on the mounted NTFS
@@ -2138,13 +2164,13 @@ static int ntfs_statfs(struct super_block *sb, struct kstatfs *sfs)
 	/* Optimal transfer block size. */
 	sfs->f_bsize  = PAGE_CACHE_SIZE;
 	/*
-	 * Total data blocks in file system in units of f_bsize and since
+	 * Total data blocks in filesystem in units of f_bsize and since
 	 * inodes are also stored in data blocs ($MFT is a file) this is just
 	 * the total clusters.
 	 */
 	sfs->f_blocks = vol->nr_clusters << vol->cluster_size_bits >>
 				PAGE_CACHE_SHIFT;
-	/* Free data blocks in file system in units of f_bsize. */
+	/* Free data blocks in filesystem in units of f_bsize. */
 	size	      = get_nr_free_clusters(vol) << vol->cluster_size_bits >>
 				PAGE_CACHE_SHIFT;
 	if (size < 0LL)
@@ -2163,7 +2189,7 @@ static int ntfs_statfs(struct super_block *sb, struct kstatfs *sfs)
 	max_index = ((((mft_ni->initialized_size >> vol->mft_record_size_bits)
 			+ 7) >> 3) + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 	read_unlock_irqrestore(&mft_ni->size_lock, flags);
-	/* Number of inodes in file system (at this point in time). */
+	/* Number of inodes in filesystem (at this point in time). */
 	sfs->f_files = size;
 	/* Free inodes in fs (based on current total count). */
 	sfs->f_ffree = __get_nr_free_mft_records(vol, size, max_index);
@@ -2172,8 +2198,8 @@ static int ntfs_statfs(struct super_block *sb, struct kstatfs *sfs)
 	 * File system id. This is extremely *nix flavour dependent and even
 	 * within Linux itself all fs do their own thing. I interpret this to
 	 * mean a unique id associated with the mounted fs and not the id
-	 * associated with the file system driver, the latter is already given
-	 * by the file system type in sfs->f_type. Thus we use the 64-bit
+	 * associated with the filesystem driver, the latter is already given
+	 * by the filesystem type in sfs->f_type. Thus we use the 64-bit
 	 * volume serial number splitting it into two 32-bit parts. We enter
 	 * the least significant 32-bits in f_fsid[0] and the most significant
 	 * 32-bits in f_fsid[1].
@@ -2259,18 +2285,18 @@ static struct export_operations ntfs_export_ops = {
 };
 
 /**
- * ntfs_fill_super - mount an ntfs files system
- * @sb:		super block of ntfs file system to mount
+ * ntfs_fill_super - mount an ntfs filesystem
+ * @sb:		super block of ntfs filesystem to mount
  * @opt:	string containing the mount options
  * @silent:	silence error output
  *
  * ntfs_fill_super() is called by the VFS to mount the device described by @sb
- * with the mount otions in @data with the NTFS file system.
+ * with the mount otions in @data with the NTFS filesystem.
  *
  * If @silent is true, remain silent even if errors are detected. This is used
- * during bootup, when the kernel tries to mount the root file system with all
- * registered file systems one after the other until one succeeds. This implies
- * that all file systems except the correct one will quite correctly and
+ * during bootup, when the kernel tries to mount the root filesystem with all
+ * registered filesystems one after the other until one succeeds. This implies
+ * that all filesystems except the correct one will quite correctly and
  * expectedly return an error, but nobody wants to see error messages when in
  * fact this is what is supposed to happen.
  *
@@ -2329,6 +2355,9 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 	vol->dmask = 0077;
 
 	unlock_kernel();
+
+	/* By default, enable sparse support. */
+	NVolSetSparseEnabled(vol);
 
 	/* Important to get the mount options dealt with now. */
 	if (!parse_options(vol, (char*)opt))
@@ -2711,7 +2740,7 @@ static int __init init_ntfs_fs(void)
 		ntfs_debug("NTFS driver registered successfully.");
 		return 0; /* Success! */
 	}
-	printk(KERN_CRIT "NTFS: Failed to register NTFS file system driver!\n");
+	printk(KERN_CRIT "NTFS: Failed to register NTFS filesystem driver!\n");
 
 sysctl_err_out:
 	kmem_cache_destroy(ntfs_big_inode_cache);
@@ -2725,7 +2754,7 @@ actx_err_out:
 	kmem_cache_destroy(ntfs_index_ctx_cache);
 ictx_err_out:
 	if (!err) {
-		printk(KERN_CRIT "NTFS: Aborting NTFS file system driver "
+		printk(KERN_CRIT "NTFS: Aborting NTFS filesystem driver "
 				"registration...\n");
 		err = -ENOMEM;
 	}
@@ -2765,7 +2794,7 @@ static void __exit exit_ntfs_fs(void)
 }
 
 MODULE_AUTHOR("Anton Altaparmakov <aia21@cantab.net>");
-MODULE_DESCRIPTION("NTFS 1.2/3.x driver - Copyright (c) 2001-2004 Anton Altaparmakov");
+MODULE_DESCRIPTION("NTFS 1.2/3.x driver - Copyright (c) 2001-2005 Anton Altaparmakov");
 MODULE_VERSION(NTFS_VERSION);
 MODULE_LICENSE("GPL");
 #ifdef DEBUG

@@ -2,7 +2,7 @@
  * layout.h - All NTFS associated on-disk structures. Part of the Linux-NTFS
  *	      project.
  *
- * Copyright (c) 2001-2004 Anton Altaparmakov
+ * Copyright (c) 2001-2005 Anton Altaparmakov
  * Copyright (c) 2002 Richard Russon
  *
  * This program/include file is free software; you can redistribute it and/or
@@ -834,7 +834,7 @@ enum {
 	/* Note, this is a copy of the corresponding bit from the mft record,
 	   telling us whether this file has a view index present (eg. object id
 	   index, quota index, one of the security indexes or the encrypting
-	   file system related indexes). */
+	   filesystem related indexes). */
 };
 
 typedef le32 FILE_ATTR_FLAGS;
