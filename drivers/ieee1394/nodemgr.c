@@ -695,14 +695,15 @@ static void nodemgr_remove_ne(struct node_entry *ne)
 	put_device(dev);
 }
 
+static int __nodemgr_remove_host_dev(struct device *dev, void *data)
+{
+	nodemgr_remove_ne(container_of(dev, struct node_entry, device));
+	return 0;
+}
 
 static void nodemgr_remove_host_dev(struct device *dev)
 {
-	struct device *ne_dev, *next;
-
-	list_for_each_entry_safe(ne_dev, next, &dev->children, node)
-		nodemgr_remove_ne(container_of(ne_dev, struct node_entry, device));
-
+	device_for_each_child(dev, NULL, __nodemgr_remove_host_dev);
 	sysfs_remove_link(&dev->kobj, "irm_id");
 	sysfs_remove_link(&dev->kobj, "busmgr_id");
 	sysfs_remove_link(&dev->kobj, "host_id");
