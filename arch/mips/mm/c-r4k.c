@@ -376,6 +376,13 @@ static inline void local_r4k_flush_cache_page(void *args)
 	pmd_t *pmdp;
 	pte_t *ptep;
 
+	/*
+	 * If ownes no valid ASID yet, cannot possibly have gotten
+	 * this page into the cache.
+	 */
+	if (cpu_context(smp_processor_id(), vma->vm_mm) == 0)
+		return;
+
 	page &= PAGE_MASK;
 	pgdp = pgd_offset(mm, page);
 	pudp = pud_offset(pgdp, page);
@@ -431,13 +438,6 @@ static inline void local_r4k_flush_cache_page(void *args)
 static void r4k_flush_cache_page(struct vm_area_struct *vma, unsigned long page, unsigned long pfn)
 {
 	struct flush_cache_page_args args;
-
-	/*
-	 * If ownes no valid ASID yet, cannot possibly have gotten
-	 * this page into the cache.
-	 */
-	if (cpu_context(smp_processor_id(), vma->vm_mm) == 0)
-		return;
 
 	args.vma = vma;
 	args.page = page;
