@@ -9,7 +9,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: wbuf.c,v 1.82 2004/11/20 22:08:31 dwmw2 Exp $
+ * $Id: wbuf.c,v 1.83 2005/01/24 21:24:15 hammache Exp $
  *
  */
 
@@ -130,7 +130,10 @@ static inline void jffs2_refile_wbuf_blocks(struct jffs2_sb_info *c)
 	}
 }
 
-static void jffs2_block_refile(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb)
+#define REFILE_NOTEMPTY 0
+#define REFILE_ANYWAY   1
+
+static void jffs2_block_refile(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb, int allow_empty)
 {
 	D1(printk("About to refile bad block at %08x\n", jeb->offset));
 
@@ -144,7 +147,8 @@ static void jffs2_block_refile(struct jffs2_sb_info *c, struct jffs2_eraseblock 
 		D1(printk("Refiling block at %08x to bad_used_list\n", jeb->offset));
 		list_add(&jeb->list, &c->bad_used_list);
 	} else {
-		BUG();
+		if (allow_empty == REFILE_NOTEMPTY)
+			BUG();
 		/* It has to have had some nodes or we couldn't be here */
 		D1(printk("Refiling block at %08x to erase_pending_list\n", jeb->offset));
 		list_add(&jeb->list, &c->erase_pending_list);
@@ -179,7 +183,7 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 
 	jeb = &c->blocks[c->wbuf_ofs / c->sector_size];
 
-	jffs2_block_refile(c, jeb);
+	jffs2_block_refile(c, jeb, REFILE_NOTEMPTY);
 
 	/* Find the first node to be recovered, by skipping over every
 	   node which ends before the wbuf starts, or which is obsolete. */
@@ -269,12 +273,12 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 		return;
 	}
 	if (end-start >= c->wbuf_pagesize) {
-		/* Need to do another write immediately. This, btw,
-		 means that we'll be writing from 'buf' and not from
-		 the wbuf. Since if we're writing from the wbuf there
-		 won't be more than a wbuf full of data, now will
-		 there? :) */
-
+		/* Need to do another write immediately, but it's possible
+		that this is just because the wbuf itself is completely
+		full, and there's nothing earlier read back from the 
+		flash. Hence 'buf' isn't necessarily what we're writing 
+		from. */
+		unsigned char *rewrite_buf = buf?:c->wbuf;
 		uint32_t towrite = (end-start) - ((end-start)%c->wbuf_pagesize);
 
 		D1(printk(KERN_DEBUG "Write 0x%x bytes at 0x%08x in wbuf recover\n",
@@ -292,14 +296,15 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 #endif
 		if (jffs2_cleanmarker_oob(c))
 			ret = c->mtd->write_ecc(c->mtd, ofs, towrite, &retlen,
-						buf, NULL, c->oobinfo);
+						rewrite_buf, NULL, c->oobinfo);
 		else
-			ret = c->mtd->write(c->mtd, ofs, towrite, &retlen, buf);
+			ret = c->mtd->write(c->mtd, ofs, towrite, &retlen, rewrite_buf);
 
 		if (ret || retlen != towrite) {
 			/* Argh. We tried. Really we did. */
 			printk(KERN_CRIT "Recovery of wbuf failed due to a second write error\n");
-			kfree(buf);
+			if (buf)
+				kfree(buf);
 
 			if (retlen) {
 				struct jffs2_raw_node_ref *raw2;
@@ -321,10 +326,10 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 
 		c->wbuf_len = (end - start) - towrite;
 		c->wbuf_ofs = ofs + towrite;
-		memcpy(c->wbuf, buf + towrite, c->wbuf_len);
+		memmove(c->wbuf, rewrite_buf + towrite, c->wbuf_len);
 		/* Don't muck about with c->wbuf_inodes. False positives are harmless. */
-
-		kfree(buf);
+		if (buf)
+			kfree(buf);
 	} else {
 		/* OK, now we're left with the dregs in whichever buffer we're using */
 		if (buf) {
@@ -547,6 +552,12 @@ int jffs2_flush_wbuf_gc(struct jffs2_sb_info *c, uint32_t ino)
 		D1(printk(KERN_DEBUG "jffs2_flush_wbuf_gc() padding. Not finished checking\n"));
 		down_write(&c->wbuf_sem);
 		ret = __jffs2_flush_wbuf(c, PAD_ACCOUNTING);
+		/* retry flushing wbuf in case jffs2_wbuf_recover
+		   left some data in the wbuf */
+		if (ret)
+		{
+			ret = __jffs2_flush_wbuf(c, PAD_ACCOUNTING);
+		}
 		up_write(&c->wbuf_sem);
 	} else while (old_wbuf_len &&
 		      old_wbuf_ofs == c->wbuf_ofs) {
@@ -561,6 +572,12 @@ int jffs2_flush_wbuf_gc(struct jffs2_sb_info *c, uint32_t ino)
 			down(&c->alloc_sem);
 			down_write(&c->wbuf_sem);
 			ret = __jffs2_flush_wbuf(c, PAD_ACCOUNTING);
+			/* retry flushing wbuf in case jffs2_wbuf_recover
+			   left some data in the wbuf */
+			if (ret)
+			{
+				ret = __jffs2_flush_wbuf(c, PAD_ACCOUNTING);
+			}
 			up_write(&c->wbuf_sem);
 			break;
 		}
@@ -580,6 +597,9 @@ int jffs2_flush_wbuf_pad(struct jffs2_sb_info *c)
 
 	down_write(&c->wbuf_sem);
 	ret = __jffs2_flush_wbuf(c, PAD_NOACCOUNT);
+	/* retry - maybe wbuf recover left some data in wbuf. */
+	if (ret)
+		ret = __jffs2_flush_wbuf(c, PAD_NOACCOUNT);
 	up_write(&c->wbuf_sem);
 
 	return ret;
@@ -762,9 +782,18 @@ int jffs2_flash_writev(struct jffs2_sb_info *c, const struct kvec *invecs, unsig
 		
 		if (ret < 0 || wbuf_retlen != PAGE_DIV(totlen)) {
 			/* At this point we have no problem,
-			   c->wbuf is empty. 
+			   c->wbuf is empty. However refile nextblock to avoid
+			   writing again to same address.
 			*/
-			*retlen = donelen;
+			struct jffs2_eraseblock *jeb;
+
+			spin_lock(&c->erase_completion_lock);
+
+			jeb = &c->blocks[outvec_to / c->sector_size];
+			jffs2_block_refile(c, jeb, REFILE_ANYWAY);
+
+			*retlen = 0;
+			spin_unlock(&c->erase_completion_lock);
 			goto exit;
 		}
 		
