@@ -9,7 +9,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: wbuf.c,v 1.87 2005/02/09 09:09:02 pavlov Exp $
+ * $Id: wbuf.c,v 1.88 2005/02/09 09:17:41 pavlov Exp $
  *
  */
 
@@ -435,7 +435,7 @@ static int __jffs2_flush_wbuf(struct jffs2_sb_info *c, int pad)
 	   if we have a switch to next page, we will not have
 	   enough remaining space for this. 
 	*/
-	if (pad) {
+	if (pad && !jffs2_dataflash(c)) {
 		c->wbuf_len = PAD(c->wbuf_len);
 
 		/* Pad with JFFS2_DIRTY_BITMASK initially.  this helps out ECC'd NOR
@@ -486,7 +486,7 @@ static int __jffs2_flush_wbuf(struct jffs2_sb_info *c, int pad)
 	spin_lock(&c->erase_completion_lock);
 
 	/* Adjust free size of the block if we padded. */
-	if (pad) {
+	if (pad && !jffs2_dataflash(c)) {
 		struct jffs2_eraseblock *jeb;
 
 		jeb = &c->blocks[c->wbuf_ofs / c->sector_size];
@@ -604,8 +604,14 @@ int jffs2_flush_wbuf_pad(struct jffs2_sb_info *c)
 	return ret;
 }
 
+#ifdef CONFIG_JFFS2_FS_DATAFLASH
+#define PAGE_DIV(x) ( ((unsigned long)(x) / (unsigned long)(c->wbuf_pagesize)) * (unsigned long)(c->wbuf_pagesize) )
+#define PAGE_MOD(x) ( (unsigned long)(x) % (unsigned long)(c->wbuf_pagesize) )
+#else
 #define PAGE_DIV(x) ( (x) & (~(c->wbuf_pagesize - 1)) )
 #define PAGE_MOD(x) ( (x) & (c->wbuf_pagesize - 1) )
+#endif
+
 int jffs2_flash_writev(struct jffs2_sb_info *c, const struct kvec *invecs, unsigned long count, loff_t to, size_t *retlen, uint32_t ino)
 {
 	struct kvec outvecs[3];
@@ -1191,6 +1197,29 @@ void jffs2_nand_flash_cleanup(struct jffs2_sb_info *c)
 {
 	kfree(c->wbuf);
 }
+
+#ifdef CONFIG_JFFS2_FS_DATAFLASH
+int jffs2_dataflash_setup(struct jffs2_sb_info *c) {
+	c->cleanmarker_size = 0;		/* No cleanmarkers needed */
+	
+	/* Initialize write buffer */
+	init_rwsem(&c->wbuf_sem);
+	c->wbuf_pagesize = c->sector_size;
+	c->wbuf_ofs = 0xFFFFFFFF;
+
+	c->wbuf = kmalloc(c->wbuf_pagesize, GFP_KERNEL);
+	if (!c->wbuf)
+		return -ENOMEM;
+
+	printk(KERN_INFO "JFFS2 write-buffering enabled (%i)\n", c->wbuf_pagesize);
+
+	return 0;
+}
+
+void jffs2_dataflash_cleanup(struct jffs2_sb_info *c) {
+	kfree(c->wbuf);
+}
+#endif
 
 #ifdef CONFIG_JFFS2_FS_NOR_ECC
 int jffs2_nor_ecc_flash_setup(struct jffs2_sb_info *c) {

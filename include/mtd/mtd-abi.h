@@ -1,5 +1,5 @@
 /*
- * $Id: mtd-abi.h,v 1.9 2005/02/08 17:45:52 nico Exp $
+ * $Id: mtd-abi.h,v 1.10 2005/02/09 09:17:42 pavlov Exp $
  *
  * Portions of MTD ABI definition which are shared by kernel and user space 
  */
@@ -29,6 +29,7 @@ struct mtd_oob_buf {
 #define MTD_NORFLASH		3
 #define MTD_NANDFLASH		4
 #define MTD_PEROM		5
+#define MTD_DATAFLASH		6
 #define MTD_OTHER		14
 #define MTD_UNKNOWN		15
 

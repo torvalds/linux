@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: erase.c,v 1.70 2005/02/09 09:09:01 pavlov Exp $
+ * $Id: erase.c,v 1.71 2005/02/09 09:17:40 pavlov Exp $
  *
  */
 
@@ -310,7 +310,7 @@ static void jffs2_mark_erased_block(struct jffs2_sb_info *c, struct jffs2_eraseb
 	int ret;
 	uint32_t bad_offset;
 
-	if (!jffs2_cleanmarker_oob(c)) {
+	if ((!jffs2_cleanmarker_oob(c)) && (c->cleanmarker_size > 0)) {
 		marker_ref = jffs2_alloc_raw_node_ref();
 		if (!marker_ref) {
 			printk(KERN_WARNING "Failed to allocate raw node ref for clean marker\n");
@@ -351,7 +351,7 @@ static void jffs2_mark_erased_block(struct jffs2_sb_info *c, struct jffs2_eraseb
 					bad_offset += i;
 					printk(KERN_WARNING "Newly-erased block contained word 0x%lx at offset 0x%08x\n", datum, bad_offset);
 				bad: 
-					if (!jffs2_cleanmarker_oob(c))
+					if ((!jffs2_cleanmarker_oob(c)) && (c->cleanmarker_size > 0))
 						jffs2_free_raw_node_ref(marker_ref);
 					kfree(ebuf);
 				bad2:
@@ -381,6 +381,13 @@ static void jffs2_mark_erased_block(struct jffs2_sb_info *c, struct jffs2_eraseb
 		if (jffs2_write_nand_cleanmarker(c, jeb))
 			goto bad2;
 			
+		jeb->first_node = jeb->last_node = NULL;
+
+		jeb->free_size = c->sector_size;
+		jeb->used_size = 0;
+		jeb->dirty_size = 0;
+		jeb->wasted_size = 0;
+	} else if (c->cleanmarker_size == 0) {
 		jeb->first_node = jeb->last_node = NULL;
 
 		jeb->free_size = c->sector_size;

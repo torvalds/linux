@@ -1084,6 +1084,13 @@ config JFFS2_FS_NOR_ECC
           ECC for JFFS2. This type of flash chip is not common, however it is
           available from ST Microelectronics.
 
+config JFFS2_FS_DATAFLASH
+	bool "JFFS2 support for DataFlash (EXPERIMENTAL)"
+	depends on JFFS2_FS && EXPERIMENTAL
+	default n
+	help
+	  This enables the experimental support for JFFS2 on DataFlash devices.
+
 config JFFS2_COMPRESSION_OPTIONS
 	bool "Advanced compression options for JFFS2"
 	depends on JFFS2_FS

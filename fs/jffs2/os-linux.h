@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: os-linux.h,v 1.52 2005/02/09 09:09:01 pavlov Exp $
+ * $Id: os-linux.h,v 1.53 2005/02/09 09:17:41 pavlov Exp $
  *
  */
 
@@ -97,12 +97,16 @@ static inline void jffs2_init_inode_info(struct jffs2_inode_info *f)
 #endif
 }
 
+#ifdef CONFIG_JFFS2_FS_DATAFLASH
+#define SECTOR_ADDR(x) ( ((unsigned long)(x) / (unsigned long)(c->sector_size)) * c->sector_size )
+#else
 #define SECTOR_ADDR(x) ( ((unsigned long)(x) & ~(c->sector_size-1)) )
+#endif
 
 #define jffs2_is_readonly(c) (OFNI_BS_2SFFJ(c)->s_flags & MS_RDONLY)
 #define jffs2_is_writebuffered(c) (c->wbuf != NULL)
 
-#if (!defined CONFIG_JFFS2_FS_NAND && !defined CONFIG_JFFS2_FS_NOR_ECC)
+#if (!defined CONFIG_JFFS2_FS_NAND && !defined CONFIG_JFFS2_FS_NOR_ECC && !defined CONFIG_JFFS2_FS_DATAFLASH)
 #define jffs2_can_mark_obsolete(c) (1)
 #define jffs2_cleanmarker_oob(c) (0)
 #define jffs2_write_nand_cleanmarker(c,jeb) (-EIO)
@@ -119,6 +123,7 @@ static inline void jffs2_init_inode_info(struct jffs2_inode_info *f)
 #define jffs2_wbuf_timeout NULL
 #define jffs2_wbuf_process NULL
 #define jffs2_nor_ecc(c) (0)
+#define jffs2_dataflash(c) (0)
 #define jffs2_nor_ecc_flash_setup(c) (0)
 #define jffs2_nor_ecc_flash_cleanup(c) do {} while (0)
 
@@ -154,6 +159,15 @@ void jffs2_nor_ecc_flash_cleanup(struct jffs2_sb_info *c);
 #define jffs2_nor_ecc_flash_setup(c) (0)
 #define jffs2_nor_ecc_flash_cleanup(c) do {} while (0)
 #endif /* NOR ECC */
+#ifdef CONFIG_JFFS2_FS_DATAFLASH
+#define jffs2_dataflash(c) (c->mtd->type == MTD_DATAFLASH)
+int jffs2_dataflash_setup(struct jffs2_sb_info *c);
+void jffs2_dataflash_cleanup(struct jffs2_sb_info *c);
+#else
+#define jffs2_dataflash(c) (0)
+#define jffs2_dataflash_setup(c) (0)
+#define jffs2_dataflash_cleanup(c) do {} while (0)
+#endif /* DATAFLASH */
 #endif /* NAND */
 
 /* erase.c */

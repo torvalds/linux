@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: fs.c,v 1.51 2004/11/28 12:19:37 dedekind Exp $
+ * $Id: fs.c,v 1.52 2005/02/09 09:17:40 pavlov Exp $
  *
  */
 
@@ -456,6 +456,12 @@ int jffs2_do_fill_super(struct super_block *sb, void *data, int silent)
 		return -EINVAL;
 	}
 #endif
+#ifndef CONFIG_JFFS2_FS_DATAFLASH
+	if (c->mtd->type == MTD_DATAFLASH) {
+		printk(KERN_ERR "jffs2: Cannot operate on DataFlash unless jffs2 DataFlash support is compiled in.\n");
+		return -EINVAL;
+	}
+#endif
 
 	c->flash_size = c->mtd->size;
 
@@ -661,6 +667,14 @@ static int jffs2_flash_setup(struct jffs2_sb_info *c) {
 		if (ret)
 			return ret;
 	}
+	
+	/* and Dataflash */
+	if (jffs2_dataflash(c)) {
+		ret = jffs2_dataflash_setup(c);
+		if (ret)
+			return ret;
+	}
+	
 	return ret;
 }
 
@@ -673,5 +687,10 @@ void jffs2_flash_cleanup(struct jffs2_sb_info *c) {
 	/* add cleanups for other bizarre flashes here... */
 	if (jffs2_nor_ecc(c)) {
 		jffs2_nor_ecc_flash_cleanup(c);
+	}
+	
+	/* and DataFlash */
+	if (jffs2_dataflash(c)) {
+		jffs2_dataflash_cleanup(c);
 	}
 }
