@@ -1036,7 +1036,11 @@ static void __init probe_pcache(void)
 		c->icache.flags |= MIPS_CACHE_VTAG;
 		break;
 
+	case CPU_AU1000:
 	case CPU_AU1500:
+	case CPU_AU1100:
+	case CPU_AU1550:
+	case CPU_AU1200:
 		c->icache.flags |= MIPS_CACHE_IC_F_DC;
 		break;
 	}

@@ -116,6 +116,8 @@ static inline void check_wait(void)
 	case CPU_AU1000:
 	case CPU_AU1100:
 	case CPU_AU1500:
+	case CPU_AU1550:
+	case CPU_AU1200:
 		if (au1k_wait_ptr != NULL) {
 			cpu_wait = au1k_wait_ptr;
 			printk(" available.\n");
@@ -504,6 +506,9 @@ static inline void cpu_probe_alchemy(struct cpuinfo_mips *c)
 			break;
 		case 3:
 			c->cputype = CPU_AU1550;
+			break;
+		case 4:
+			c->cputype = CPU_AU1200;
 			break;
 		default:
 			panic("Unknown Au Core!");

@@ -266,6 +266,13 @@ cflags-$(CONFIG_MIPS_PB1550)	+= -Iinclude/asm-mips/mach-pb1x00
 load-$(CONFIG_MIPS_PB1550)	+= 0xffffffff80100000
 
 #
+# AMD Alchemy Pb1200 eval board
+#
+libs-$(CONFIG_MIPS_PB1200)	+= arch/mips/au1000/pb1200/
+cflags-$(CONFIG_MIPS_PB1200)	+= -Iinclude/asm-mips/mach-pb1x00
+load-$(CONFIG_MIPS_PB1200)	+= 0xffffffff80100000
+
+#
 # AMD Alchemy Db1000 eval board
 #
 libs-$(CONFIG_MIPS_DB1000)	+= arch/mips/au1000/db1x00/
@@ -292,6 +299,13 @@ load-$(CONFIG_MIPS_DB1500)	+= 0xffffffff80100000
 libs-$(CONFIG_MIPS_DB1550)	+= arch/mips/au1000/db1x00/
 cflags-$(CONFIG_MIPS_DB1550)	+= -Iinclude/asm-mips/mach-db1x00
 load-$(CONFIG_MIPS_DB1550)	+= 0xffffffff80100000
+
+#
+# AMD Alchemy Db1200 eval board
+#
+libs-$(CONFIG_MIPS_DB1200)	+= arch/mips/au1000/pb1200/
+cflags-$(CONFIG_MIPS_DB1200)	+= -Iinclude/asm-mips/mach-db1x00
+load-$(CONFIG_MIPS_DB1200)	+= 0xffffffff80100000
 
 #
 # AMD Alchemy Bosporus eval board

@@ -177,6 +177,8 @@
 #define  MACH_MTX1		7       /* 4G MTX-1 Au1500-based board */
 #define  MACH_PB1550		8       /* Au1550-based eval board */
 #define  MACH_DB1550		9       /* Au1550-based eval board */
+#define  MACH_PB1200		10       /* Au1200-based eval board */
+#define  MACH_DB1200		11       /* Au1200-based eval board */
 
 /*
  * Valid machtype for group NEC_VR41XX

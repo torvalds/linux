@@ -488,7 +488,7 @@ void intc0_req0_irqdispatch(struct pt_regs *regs)
 	intc0_req0 |= au_readl(IC0_REQ0INT);
 
 	if (!intc0_req0) return;
-
+#ifdef AU1000_USB_DEV_REQ_INT
 	/*
 	 * Because of the tight timing of SETUP token to reply
 	 * transactions, the USB devices-side packet complete
@@ -499,7 +499,7 @@ void intc0_req0_irqdispatch(struct pt_regs *regs)
 		do_IRQ(AU1000_USB_DEV_REQ_INT, regs);
 		return;
 	}
-
+#endif
 	irq = au_ffs(intc0_req0) - 1;
 	intc0_req0 &= ~(1<<irq);
 	do_IRQ(irq, regs);
