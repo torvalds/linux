@@ -153,7 +153,7 @@ void agp_free_memory(struct agp_memory *curr)
 	}
 	if (curr->page_count != 0) {
 		for (i = 0; i < curr->page_count; i++) {
-			curr->bridge->driver->agp_destroy_page(phys_to_virt(curr->memory[i]));
+			curr->bridge->driver->agp_destroy_page(gart_to_virt(curr->memory[i]));
 		}
 	}
 	agp_free_key(curr->key);
@@ -209,7 +209,7 @@ struct agp_memory *agp_allocate_memory(struct agp_bridge_data *bridge,
 			agp_free_memory(new);
 			return NULL;
 		}
-		new->memory[i] = virt_to_phys(addr);
+		new->memory[i] = virt_to_gart(addr);
 		new->page_count++;
 	}
        new->bridge = bridge;
@@ -806,8 +806,7 @@ int agp_generic_create_gatt_table(struct agp_bridge_data *bridge)
 				break;
 			}
 
-			table = (char *) __get_free_pages(GFP_KERNEL,
-							  page_order);
+			table = alloc_gatt_pages(page_order);
 
 			if (table == NULL) {
 				i++;
@@ -838,7 +837,7 @@ int agp_generic_create_gatt_table(struct agp_bridge_data *bridge)
 		size = ((struct aper_size_info_fixed *) temp)->size;
 		page_order = ((struct aper_size_info_fixed *) temp)->page_order;
 		num_entries = ((struct aper_size_info_fixed *) temp)->num_entries;
-		table = (char *) __get_free_pages(GFP_KERNEL, page_order);
+		table = alloc_gatt_pages(page_order);
 	}
 
 	if (table == NULL)
@@ -853,7 +852,7 @@ int agp_generic_create_gatt_table(struct agp_bridge_data *bridge)
 	agp_gatt_table = (void *)table;
 
 	bridge->driver->cache_flush();
-	bridge->gatt_table = ioremap_nocache(virt_to_phys(table),
+	bridge->gatt_table = ioremap_nocache(virt_to_gart(table),
 					(PAGE_SIZE * (1 << page_order)));
 	bridge->driver->cache_flush();
 
@@ -861,11 +860,11 @@ int agp_generic_create_gatt_table(struct agp_bridge_data *bridge)
 		for (page = virt_to_page(table); page <= virt_to_page(table_end); page++)
 			ClearPageReserved(page);
 
-		free_pages((unsigned long) table, page_order);
+		free_gatt_pages(table, page_order);
 
 		return -ENOMEM;
 	}
-	bridge->gatt_bus_addr = virt_to_phys(bridge->gatt_table_real);
+	bridge->gatt_bus_addr = virt_to_gart(bridge->gatt_table_real);
 
 	/* AK: bogus, should encode addresses > 4GB */
 	for (i = 0; i < num_entries; i++) {
@@ -919,7 +918,7 @@ int agp_generic_free_gatt_table(struct agp_bridge_data *bridge)
 	for (page = virt_to_page(table); page <= virt_to_page(table_end); page++)
 		ClearPageReserved(page);
 
-	free_pages((unsigned long) bridge->gatt_table_real, page_order);
+	free_gatt_pages(bridge->gatt_table_real, page_order);
 
 	agp_gatt_table = NULL;
 	bridge->gatt_table = NULL;
