@@ -72,9 +72,10 @@ ToDo/Notes:
 	  runlist.  This allows us to find runlist elements with the runlist
 	  lock already held without having to drop and reacquire it around the
 	  call.  Adapt all callers.
-	- Change time to u64 time.h::ntfs2utc() as it otherwise generates a
+	- Change time to u64 in time.h::ntfs2utc() as it otherwise generates a
 	  warning in the do_div() call on sparc32.  Thanks to Meelis Roos for
 	  the report and analysis of the warning.
+	- Fix a nasty runlist merge bug when merging two holes.
 
 2.1.22 - Many bug and race fixes and error handling improvements.
 

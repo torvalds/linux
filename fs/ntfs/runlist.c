@@ -113,8 +113,11 @@ static inline BOOL ntfs_are_rl_mergeable(runlist_element *dst,
 	BUG_ON(!dst);
 	BUG_ON(!src);
 
-	if ((dst->lcn < 0) || (src->lcn < 0))     /* Are we merging holes? */
+	if ((dst->lcn < 0) || (src->lcn < 0)) {   /* Are we merging holes? */
+		if (dst->lcn == LCN_HOLE && src->lcn == LCN_HOLE)
+			return TRUE;
 		return FALSE;
+	}
 	if ((dst->lcn + dst->length) != src->lcn) /* Are the runs contiguous? */
 		return FALSE;
 	if ((dst->vcn + dst->length) != src->vcn) /* Are the runs misaligned? */
