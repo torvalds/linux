@@ -16,7 +16,7 @@
  *  
  * Interface to generic NAND code for M-Systems DiskOnChip devices
  *
- * $Id: diskonchip.c,v 1.46 2005/01/31 20:36:42 gleixner Exp $
+ * $Id: diskonchip.c,v 1.47 2005/01/31 22:21:15 gleixner Exp $
  */
 
 #include <linux/kernel.h>
@@ -1122,8 +1122,6 @@ static inline int __init nftl_partscan(struct mtd_info *mtd,
 	if (!(numheaders=find_media_headers(mtd, buf, "ANAND", 1))) goto out;
 	mh = (struct NFTLMediaHeader *) buf;
 
-//#ifdef CONFIG_MTD_DEBUG_VERBOSE
-//	if (CONFIG_MTD_DEBUG_VERBOSE >= 2)
 	printk(KERN_INFO "    DataOrgID        = %s\n"
 			 "    NumEraseUnits    = %d\n"
 			 "    FirstPhysicalEUN = %d\n"
@@ -1132,7 +1130,6 @@ static inline int __init nftl_partscan(struct mtd_info *mtd,
 		mh->DataOrgID, mh->NumEraseUnits,
 		mh->FirstPhysicalEUN, mh->FormattedSize,
 		mh->UnitSizeFactor);
-//#endif
 
 	blocks = mtd->size >> this->phys_erase_shift;
 	maxblocks = min(32768U, mtd->erasesize - psize);
@@ -1174,10 +1171,6 @@ static inline int __init nftl_partscan(struct mtd_info *mtd,
 	offs = max(doc->mh0_page, doc->mh1_page);
 	offs <<= this->page_shift;
 	offs += mtd->erasesize;
-
-	//parts[0].name = " DiskOnChip Boot / Media Header partition";
-	//parts[0].offset = 0;
-	//parts[0].size = offs;
 
 	parts[0].name = " DiskOnChip BDTL partition";
 	parts[0].offset = offs;
@@ -1233,8 +1226,6 @@ static inline int __init inftl_partscan(struct mtd_info *mtd,
 	mh->FormatFlags = le32_to_cpu(mh->FormatFlags);
 	mh->PercentUsed = le32_to_cpu(mh->PercentUsed);
  
-//#ifdef CONFIG_MTD_DEBUG_VERBOSE
-//	if (CONFIG_MTD_DEBUG_VERBOSE >= 2)
 	printk(KERN_INFO "    bootRecordID          = %s\n"
 			 "    NoOfBootImageBlocks   = %d\n"
 			 "    NoOfBinaryPartitions  = %d\n"
@@ -1252,7 +1243,6 @@ static inline int __init inftl_partscan(struct mtd_info *mtd,
 		((unsigned char *) &mh->OsakVersion)[2] & 0xf,
 		((unsigned char *) &mh->OsakVersion)[3] & 0xf,
 		mh->PercentUsed);
-//#endif
 
 	vshift = this->phys_erase_shift + mh->BlockMultiplierBits;
 
@@ -1278,8 +1268,6 @@ static inline int __init inftl_partscan(struct mtd_info *mtd,
 		ip->spareUnits = le32_to_cpu(ip->spareUnits);
 		ip->Reserved0 = le32_to_cpu(ip->Reserved0);
 
-//#ifdef CONFIG_MTD_DEBUG_VERBOSE
-//		if (CONFIG_MTD_DEBUG_VERBOSE >= 2)
 		printk(KERN_INFO	"    PARTITION[%d] ->\n"
 			"        virtualUnits    = %d\n"
 			"        firstUnit       = %d\n"
@@ -1289,16 +1277,15 @@ static inline int __init inftl_partscan(struct mtd_info *mtd,
 			i, ip->virtualUnits, ip->firstUnit,
 			ip->lastUnit, ip->flags,
 			ip->spareUnits);
-//#endif
 
-/*
+#if 0
 		if ((i == 0) && (ip->firstUnit > 0)) {
 			parts[0].name = " DiskOnChip IPL / Media Header partition";
 			parts[0].offset = 0;
 			parts[0].size = mtd->erasesize * ip->firstUnit;
 			numparts = 1;
 		}
-*/
+#endif
 
 		if (ip->flags & INFTL_BINARY)
 			parts[numparts].name = " DiskOnChip BDK partition";
