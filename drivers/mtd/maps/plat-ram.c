@@ -6,7 +6,7 @@
  *
  * Generic platfrom device based RAM map
  *
- * $Id: plat-ram.c,v 1.1 2005/01/24 00:37:02 bjd Exp $
+ * $Id: plat-ram.c,v 1.2 2005/03/14 20:33:19 bjd Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,8 +22,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
-
-#define DEBUG
 
 #include <linux/module.h>
 #include <linux/types.h>
@@ -192,18 +190,12 @@ static int platram_probe(struct device *dev)
 	/* remap the memory area */
 
 	info->map.virt = ioremap(res->start, info->map.size);
-	dev_dbg(dev, "virt %p, %d bytes\n", info->map.virt, info->map.size);
+	dev_dbg(dev, "virt %p, %lu bytes\n", info->map.virt, info->map.size);
 
 	if (info->map.virt == NULL) {
 		dev_err(dev, "failed to ioremap() region\n");
 		err = -EIO;
 		goto exit_free;
-	}
-
-	{
-		unsigned int *p = (unsigned int *)info->map.virt;
-		printk("%08x %08x %08x %08x\n",
-		       readl(p), readl(p+1), readl(p+2), readl(p+3));
 	}
 
 	simple_map_init(&info->map);
