@@ -43,6 +43,10 @@ ToDo/Notes:
 	  same way and protect access to the two sizes using the size_lock.
 	- Use i_size_read() in fs/ntfs/dir.c once and then use the cached
 	  value afterwards.
+	- Use i_size_read() in fs/ntfs/super.c once and then use the cached
+	  value afterwards.  Cache the initialized_size in the same way and
+	  protect access to the two sizes using the size_lock.
+	- Minor optimization to fs/ntfs/super.c::ntfs_statfs() and its helpers.
 
 2.1.22 - Many bug and race fixes and error handling improvements.
 
