@@ -492,7 +492,7 @@ static int __find_interface(struct device * dev, void * data)
  */
 struct usb_interface *usb_find_interface(struct usb_driver *drv, int minor)
 {
-	struct usb_interface *intf = (struct usb_interface *)minor;
+	struct usb_interface *intf = (struct usb_interface *)(long)minor;
 	int ret;
 
 	ret = driver_for_each_device(&drv->driver, NULL, &intf, __find_interface);
