@@ -194,17 +194,23 @@ static int show_debug_level(char *page, char **start, off_t offset,
 	return snprintf(page, count, "0x%08X\n", ieee80211_debug_level);
 }
 
-static int store_debug_level(struct file *file, const char *buffer,
+static int store_debug_level(struct file *file, const char __user *buffer,
 			     unsigned long count, void *data)
 {
 	char buf[] = "0x00000000";
-	unsigned long len = min(sizeof(buf) - 1, (u32)count);
 	char *p = (char *)buf;
 	unsigned long val;
 
-	if (copy_from_user(buf, buffer, len))
+	if (count > sizeof(buf) - 1)
+		count = sizeof(buf) - 1;
+
+	if (copy_from_user(buf, buffer, count))
 		return count;
-	buf[len] = 0;
+	buf[count] = 0;
+	/*
+	 * what a FPOS...  What, sscanf(buf, "%i", &val) would be too
+	 * scary?
+	 */
 	if (p[1] == 'x' || p[1] == 'X' || p[0] == 'x' || p[0] == 'X') {
 		p++;
 		if (p[0] == 'x' || p[0] == 'X')
@@ -218,7 +224,7 @@ static int store_debug_level(struct file *file, const char *buffer,
 	else
 		ieee80211_debug_level = val;
 
-	return strnlen(buf, count);
+	return strlen(buf);
 }
 
 static int __init ieee80211_init(void)
