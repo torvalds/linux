@@ -489,7 +489,7 @@ void scsi_log_completion(struct scsi_cmnd *cmd, int disposition)
 			scsi_print_command(cmd);
 			if (status_byte(cmd->result) & CHECK_CONDITION) {
 				/*
-				 * XXX The print_sense formatting/prefix
+				 * XXX The scsi_print_sense formatting/prefix
 				 * doesn't match this function.
 				 */
 				scsi_print_sense("", cmd);

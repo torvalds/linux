@@ -150,6 +150,7 @@
 #include <asm/ecard.h>
 
 #include "../scsi.h"
+#include <scsi/scsi_dbg.h>
 #include <scsi/scsi_host.h>
 #include "acornscsi.h"
 #include "msgqueue.h"
@@ -866,7 +867,7 @@ void acornscsi_done(AS_Host *host, Scsi_Cmnd **SCpntp, unsigned int result)
 		    default:
 			printk(KERN_ERR "scsi%d.H: incomplete data transfer detected: result=%08X command=",
 				host->host->host_no, SCpnt->result);
-			print_command(SCpnt->cmnd);
+			__scsi_print_command(SCpnt->cmnd);
 			acornscsi_dumpdma(host, "done");
 		 	acornscsi_dumplog(host, SCpnt->device->id);
 			SCpnt->result &= 0xffff;
@@ -1369,7 +1370,7 @@ void acornscsi_sendmessage(AS_Host *host)
 
 	host->scsi.last_message = msg->msg[0];
 #if (DEBUG & DEBUG_MESSAGES)
-	print_msg(msg->msg);
+	scsi_print_msg(msg->msg);
 #endif
 	break;
 
@@ -1391,7 +1392,7 @@ void acornscsi_sendmessage(AS_Host *host)
 	while ((msg = msgqueue_getmsg(&host->scsi.msgs, msgnr++)) != NULL) {
 	    unsigned int i;
 #if (DEBUG & DEBUG_MESSAGES)
-	    print_msg(msg);
+	    scsi_print_msg(msg);
 #endif
 	    i = 0;
 	    if (acornscsi_write_pio(host, msg->msg, &i, msg->length, 1000000))
@@ -1487,7 +1488,7 @@ void acornscsi_message(AS_Host *host)
 #if (DEBUG & DEBUG_MESSAGES)
     printk("scsi%d.%c: message in: ",
 	    host->host->host_no, acornscsi_target(host));
-    print_msg(message);
+    scsi_print_msg(message);
     printk("\n");
 #endif
 

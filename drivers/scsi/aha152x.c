@@ -257,6 +257,7 @@
 #include <scsi/scsicam.h>
 
 #include "scsi.h"
+#include <scsi/scsi_dbg.h>
 #include <scsi/scsi_host.h>
 #include "aha152x.h"
 
@@ -986,7 +987,7 @@ static int aha152x_internal_queue(Scsi_Cmnd *SCpnt, struct semaphore *sem, int p
 	if (HOSTDATA(shpnt)->debug & debug_queue) {
 		printk(INFO_LEAD "queue: %p; cmd_len=%d pieces=%d size=%u cmnd=",
 		       CMDINFO(SCpnt), SCpnt, SCpnt->cmd_len, SCpnt->use_sg, SCpnt->request_bufflen);
-		print_command(SCpnt->cmnd);
+		__scsi_print_command(SCpnt->cmnd);
 	}
 #endif
 
@@ -1560,7 +1561,7 @@ static void busfree_run(struct Scsi_Host *shpnt)
 #if 0
 			if(HOSTDATA(shpnt)->debug & debug_eh) {
 				printk(ERR_LEAD "received sense: ", CMDINFO(DONE_SC));
-				print_sense("bh", DONE_SC);
+				scsi_print_sense("bh", DONE_SC);
 			}
 #endif
 
@@ -1846,7 +1847,7 @@ static void msgi_run(struct Scsi_Host *shpnt)
 #if defined(AHA152X_DEBUG)
 		if (HOSTDATA(shpnt)->debug & debug_msgi) {
 			printk(INFO_LEAD "inbound message %02x ", CMDINFO(CURRENT_SC), MSGI(0));
-			print_msg(&MSGI(0));
+			scsi_print_msg(&MSGI(0));
 			printk("\n");
 		}
 #endif
@@ -1934,7 +1935,7 @@ static void msgi_run(struct Scsi_Host *shpnt)
 						break;
 
 					printk(INFO_LEAD, CMDINFO(CURRENT_SC));
-					print_msg(&MSGI(0));
+					scsi_print_msg(&MSGI(0));
 					printk("\n");
 
 					ticks = (MSGI(3) * 4 + 49) / 50;
@@ -2032,7 +2033,7 @@ static void msgo_init(struct Scsi_Host *shpnt)
 		int i;
 
 		printk(DEBUG_LEAD "messages( ", CMDINFO(CURRENT_SC));
-		for (i=0; i<MSGOLEN; i+=print_msg(&MSGO(i)), printk(" "))
+		for (i=0; i<MSGOLEN; i+=scsi_print_msg(&MSGO(i)), printk(" "))
 			;
 		printk(")\n");
 	}
@@ -2104,7 +2105,7 @@ static void cmd_init(struct Scsi_Host *shpnt)
 #if defined(AHA152X_DEBUG)
 	if (HOSTDATA(shpnt)->debug & debug_cmd) {
 		printk(DEBUG_LEAD "cmd_init: ", CMDINFO(CURRENT_SC));
-		print_command(CURRENT_SC->cmnd);
+		__scsi_print_command(CURRENT_SC->cmnd);
 	}
 #endif
 
@@ -2158,7 +2159,7 @@ static void status_run(struct Scsi_Host *shpnt)
 #if defined(AHA152X_DEBUG)
 	if (HOSTDATA(shpnt)->debug & debug_status) {
 		printk(DEBUG_LEAD "inbound status %02x ", CMDINFO(CURRENT_SC), CURRENT_SC->SCp.Status);
-		print_status(CURRENT_SC->SCp.Status);
+		scsi_print_status(CURRENT_SC->SCp.Status);
 		printk("\n");
 	}
 #endif
@@ -2925,7 +2926,7 @@ static void show_command(Scsi_Cmnd *ptr)
 	printk(KERN_DEBUG "0x%08x: target=%d; lun=%d; cmnd=(",
 	       (unsigned int) ptr, ptr->device->id, ptr->device->lun);
 
-	print_command(ptr->cmnd);
+	__scsi_print_command(ptr->cmnd);
 
 	printk(KERN_DEBUG "); request_bufflen=%d; resid=%d; phase |",
 	       ptr->request_bufflen, ptr->resid);
