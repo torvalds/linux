@@ -1030,6 +1030,10 @@ running once the system is up.
 		irqmask=0xMMMM		[IA-32] Set a bit mask of IRQs allowed to be assigned
 					automatically to PCI devices. You can make the kernel
 					exclude IRQs of your ISA cards this way.
+		pirqaddr=0xAAAAA	[IA-32] Specify the physical address
+					of the PIRQ table (normally generated
+					by the BIOS) if it is outside the
+					F0000h-100000h range.
 		lastbus=N		[IA-32] Scan all buses till bus #N. Can be useful
 					if the kernel is unable to find your secondary buses
 					and you want to tell it explicitly which ones they are.
