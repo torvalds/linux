@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: fs.c,v 1.52 2005/02/09 09:17:40 pavlov Exp $
+ * $Id: fs.c,v 1.53 2005/02/09 09:23:53 pavlov Exp $
  *
  */
 
@@ -450,13 +450,11 @@ int jffs2_do_fill_super(struct super_block *sb, void *data, int silent)
 
 	c = JFFS2_SB_INFO(sb);
 
-#ifndef CONFIG_JFFS2_FS_NAND
+#ifndef CONFIG_JFFS2_FS_WRITEBUFFER
 	if (c->mtd->type == MTD_NANDFLASH) {
 		printk(KERN_ERR "jffs2: Cannot operate on NAND flash unless jffs2 NAND support is compiled in.\n");
 		return -EINVAL;
 	}
-#endif
-#ifndef CONFIG_JFFS2_FS_DATAFLASH
 	if (c->mtd->type == MTD_DATAFLASH) {
 		printk(KERN_ERR "jffs2: Cannot operate on DataFlash unless jffs2 DataFlash support is compiled in.\n");
 		return -EINVAL;

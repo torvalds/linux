@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: super.c,v 1.104 2004/11/23 15:37:31 gleixner Exp $
+ * $Id: super.c,v 1.105 2005/02/09 09:23:54 pavlov Exp $
  *
  */
 
@@ -309,7 +309,7 @@ static int __init init_jffs2_fs(void)
 	int ret;
 
 	printk(KERN_INFO "JFFS2 version 2.2."
-#ifdef CONFIG_JFFS2_FS_NAND
+#ifdef CONFIG_JFFS2_FS_WRITEBUFFER
 	       " (NAND)"
 #endif
 	       " (C) 2001-2003 Red Hat, Inc.\n");

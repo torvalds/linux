@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: os-linux.h,v 1.53 2005/02/09 09:17:41 pavlov Exp $
+ * $Id: os-linux.h,v 1.54 2005/02/09 09:23:53 pavlov Exp $
  *
  */
 
@@ -97,16 +97,12 @@ static inline void jffs2_init_inode_info(struct jffs2_inode_info *f)
 #endif
 }
 
-#ifdef CONFIG_JFFS2_FS_DATAFLASH
-#define SECTOR_ADDR(x) ( ((unsigned long)(x) / (unsigned long)(c->sector_size)) * c->sector_size )
-#else
-#define SECTOR_ADDR(x) ( ((unsigned long)(x) & ~(c->sector_size-1)) )
-#endif
 
 #define jffs2_is_readonly(c) (OFNI_BS_2SFFJ(c)->s_flags & MS_RDONLY)
 #define jffs2_is_writebuffered(c) (c->wbuf != NULL)
 
-#if (!defined CONFIG_JFFS2_FS_NAND && !defined CONFIG_JFFS2_FS_NOR_ECC && !defined CONFIG_JFFS2_FS_DATAFLASH)
+#ifndef CONFIG_JFFS2_FS_WRITEBUFFER
+#define SECTOR_ADDR(x) ( ((unsigned long)(x) & ~(c->sector_size-1)) )
 #define jffs2_can_mark_obsolete(c) (1)
 #define jffs2_cleanmarker_oob(c) (0)
 #define jffs2_write_nand_cleanmarker(c,jeb) (-EIO)
@@ -129,6 +125,7 @@ static inline void jffs2_init_inode_info(struct jffs2_inode_info *f)
 
 #else /* NAND and/or ECC'd NOR support present */
 
+#define SECTOR_ADDR(x) ( ((unsigned long)(x) / (unsigned long)(c->sector_size)) * c->sector_size )
 #define jffs2_can_mark_obsolete(c) ((c->mtd->type == MTD_NORFLASH && !(c->mtd->flags & MTD_ECC)) || c->mtd->type == MTD_RAM)
 #define jffs2_cleanmarker_oob(c) (c->mtd->type == MTD_NANDFLASH)
 
@@ -150,25 +147,16 @@ int jffs2_flush_wbuf_gc(struct jffs2_sb_info *c, uint32_t ino);
 int jffs2_flush_wbuf_pad(struct jffs2_sb_info *c);
 int jffs2_nand_flash_setup(struct jffs2_sb_info *c);
 void jffs2_nand_flash_cleanup(struct jffs2_sb_info *c);
-#ifdef CONFIG_JFFS2_FS_NOR_ECC
+
 #define jffs2_nor_ecc(c) (c->mtd->type == MTD_NORFLASH && (c->mtd->flags & MTD_ECC))
 int jffs2_nor_ecc_flash_setup(struct jffs2_sb_info *c);
 void jffs2_nor_ecc_flash_cleanup(struct jffs2_sb_info *c);
-#else
-#define jffs2_nor_ecc(c) (0)
-#define jffs2_nor_ecc_flash_setup(c) (0)
-#define jffs2_nor_ecc_flash_cleanup(c) do {} while (0)
-#endif /* NOR ECC */
-#ifdef CONFIG_JFFS2_FS_DATAFLASH
+
 #define jffs2_dataflash(c) (c->mtd->type == MTD_DATAFLASH)
 int jffs2_dataflash_setup(struct jffs2_sb_info *c);
 void jffs2_dataflash_cleanup(struct jffs2_sb_info *c);
-#else
-#define jffs2_dataflash(c) (0)
-#define jffs2_dataflash_setup(c) (0)
-#define jffs2_dataflash_cleanup(c) do {} while (0)
-#endif /* DATAFLASH */
-#endif /* NAND */
+
+#endif /* WRITEBUFFER */
 
 /* erase.c */
 static inline void jffs2_erase_pending_trigger(struct jffs2_sb_info *c)

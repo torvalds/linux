@@ -9,7 +9,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: wbuf.c,v 1.88 2005/02/09 09:17:41 pavlov Exp $
+ * $Id: wbuf.c,v 1.89 2005/02/09 09:23:54 pavlov Exp $
  *
  */
 
@@ -604,7 +604,7 @@ int jffs2_flush_wbuf_pad(struct jffs2_sb_info *c)
 	return ret;
 }
 
-#ifdef CONFIG_JFFS2_FS_DATAFLASH
+#ifdef CONFIG_JFFS2_FS_WRITEBUFFER
 #define PAGE_DIV(x) ( ((unsigned long)(x) / (unsigned long)(c->wbuf_pagesize)) * (unsigned long)(c->wbuf_pagesize) )
 #define PAGE_MOD(x) ( (unsigned long)(x) % (unsigned long)(c->wbuf_pagesize) )
 #else
@@ -1198,7 +1198,6 @@ void jffs2_nand_flash_cleanup(struct jffs2_sb_info *c)
 	kfree(c->wbuf);
 }
 
-#ifdef CONFIG_JFFS2_FS_DATAFLASH
 int jffs2_dataflash_setup(struct jffs2_sb_info *c) {
 	c->cleanmarker_size = 0;		/* No cleanmarkers needed */
 	
@@ -1219,9 +1218,7 @@ int jffs2_dataflash_setup(struct jffs2_sb_info *c) {
 void jffs2_dataflash_cleanup(struct jffs2_sb_info *c) {
 	kfree(c->wbuf);
 }
-#endif
 
-#ifdef CONFIG_JFFS2_FS_NOR_ECC
 int jffs2_nor_ecc_flash_setup(struct jffs2_sb_info *c) {
 	/* Cleanmarker is actually larger on the flashes */
 	c->cleanmarker_size = 16;
@@ -1241,4 +1238,3 @@ int jffs2_nor_ecc_flash_setup(struct jffs2_sb_info *c) {
 void jffs2_nor_ecc_flash_cleanup(struct jffs2_sb_info *c) {
 	kfree(c->wbuf);
 }
-#endif

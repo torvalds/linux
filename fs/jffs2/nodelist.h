@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: nodelist.h,v 1.126 2004/11/19 15:06:29 dedekind Exp $
+ * $Id: nodelist.h,v 1.127 2005/02/09 09:23:53 pavlov Exp $
  *
  */
 
@@ -462,7 +462,7 @@ int jffs2_do_mount_fs(struct jffs2_sb_info *c);
 /* erase.c */
 void jffs2_erase_pending_blocks(struct jffs2_sb_info *c, int count);
 
-#ifdef CONFIG_JFFS2_FS_NAND
+#ifdef CONFIG_JFFS2_FS_WRITEBUFFER
 /* wbuf.c */
 int jffs2_flush_wbuf_gc(struct jffs2_sb_info *c, uint32_t ino);
 int jffs2_flush_wbuf_pad(struct jffs2_sb_info *c);
