@@ -6,7 +6,7 @@
  *   
  *  Copyright (C) 2004 Thomas Gleixner (tglx@linutronix.de)
  *
- * $Id: nand_bbt.c,v 1.30 2005/02/11 10:14:12 dedekind Exp $
+ * $Id: nand_bbt.c,v 1.31 2005/02/16 17:09:36 dedekind Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -77,17 +77,17 @@
 */
 static int check_pattern (uint8_t *buf, int len, int paglen, struct nand_bbt_descr *td)
 {
-	int i, end;
+	int i, end = 0;
 	uint8_t *p = buf;
 
-	end = paglen + td->offs;
 	if (td->options & NAND_BBT_SCANEMPTY) {
+		end = paglen + td->offs;
 		for (i = 0; i < end; i++) {
 			if (p[i] != 0xff)
 				return -1;
 		}
+		p += end;
 	}	
-	p += end;
 	
 	/* Compare the pattern */
 	for (i = 0; i < td->len; i++) {
@@ -95,9 +95,9 @@ static int check_pattern (uint8_t *buf, int len, int paglen, struct nand_bbt_des
 			return -1;
 	}
 
-	p += td->len;
-	end += td->len;
 	if (td->options & NAND_BBT_SCANEMPTY) {
+		p += td->len;
+		end += td->len;
 		for (i = end; i < len; i++) {
 			if (*p++ != 0xff)
 				return -1;
@@ -255,7 +255,7 @@ static int read_abs_bbts (struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_de
 static int create_bbt (struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_descr *bd, int chip)
 {
 	struct nand_chip *this = mtd->priv;
-	int i, j, numblocks, len, scanlen, pagelen;
+	int i, j, numblocks, len, scanlen;
 	int startblock;
 	loff_t from;
 	size_t readlen, ooblen;
@@ -270,17 +270,16 @@ static int create_bbt (struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_descr
 		else	
 			len = 1;
 	}
-	
-	if (bd->options == 0) {
-		/* Memory-based BBT. We may read only needed bytes from the OOB area to
-		 * test if block is bad, no need to read the whole page content. */
-		scanlen	= ooblen = pagelen = 0;
+
+	if (!(bd->options & NAND_BBT_SCANEMPTY)) {
+		/* We need only read few bytes from the OOB area */
+		scanlen = ooblen = 0;
 		readlen = bd->len;
 	} else {
+		/* Full page content should be read */
 		scanlen	= mtd->oobblock + mtd->oobsize;
 		readlen = len * mtd->oobblock;
 		ooblen = len * mtd->oobsize;
-		pagelen = mtd->oobblock;
 	}
 
 	if (chip == -1) {
@@ -293,7 +292,7 @@ static int create_bbt (struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_descr
 		if (chip >= this->numchips) {
 			printk (KERN_WARNING "create_bbt(): chipnr (%d) > available chips (%d)\n",
 				chip + 1, this->numchips);
-			return -EINVAL;	
+			return -EINVAL;
 		}
 		numblocks = this->chipsize >> (this->bbt_erase_shift - 1);
 		startblock = chip * numblocks;
@@ -304,16 +303,21 @@ static int create_bbt (struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_descr
 	for (i = startblock; i < numblocks;) {
 		int ret;
 		
-		if (bd->options == 0) {
-			size_t retlen;
-			if ((ret = mtd->read_oob(mtd, from + bd->offs, bd->len, &retlen, &buf[bd->offs])))
-				return ret;
-		} else {
+		if (bd->options & NAND_BBT_SCANEMPTY)
 			if ((ret = nand_read_raw (mtd, buf, from, readlen, ooblen)))
 				return ret;
-		}
+
 		for (j = 0; j < len; j++) {
-			if (check_pattern (&buf[j * scanlen], scanlen, pagelen, bd)) {
+			if (!(bd->options & NAND_BBT_SCANEMPTY)) {
+				size_t retlen;
+				
+				/* No need to read pages fully, just read required OOB bytes */
+				ret = mtd->read_oob(mtd, from + j * mtd->oobblock + bd->offs,
+							readlen, &retlen, &buf[0]);
+				if (ret)
+					return ret;
+			}
+			if (check_pattern (&buf[j * scanlen], scanlen, mtd->oobblock, bd)) {
 				this->bbt[i >> 3] |= 0x03 << (i & 0x6);
 				printk (KERN_WARNING "Bad eraseblock %d at 0x%08x\n", 
 					i >> 1, (unsigned int) from);
@@ -323,6 +327,7 @@ static int create_bbt (struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_descr
 		i += 2;
 		from += (1 << this->bbt_erase_shift);
 	}
+
 	return 0;
 }
 
@@ -608,12 +613,11 @@ write:
  * The function creates a memory based bbt by scanning the device 
  * for manufacturer / software marked good / bad blocks
 */
-static int nand_memory_bbt (struct mtd_info *mtd, struct nand_bbt_descr *bd)
+static inline int nand_memory_bbt (struct mtd_info *mtd, struct nand_bbt_descr *bd)
 {
 	struct nand_chip *this = mtd->priv;
 
-	/* Ensure that we only scan for the pattern and nothing else */
-	bd->options = 0;
+	bd->options &= ~NAND_BBT_SCANEMPTY;
 	return create_bbt (mtd, this->data_buf, bd, -1);
 }
 
@@ -928,14 +932,11 @@ out:
 }
 
 /* Define some generic bad / good block scan pattern which are used 
- * while scanning a device for factory marked good / bad blocks
- * 
- * The memory based patterns just 
- */
+ * while scanning a device for factory marked good / bad blocks. */
 static uint8_t scan_ff_pattern[] = { 0xff, 0xff };
 
 static struct nand_bbt_descr smallpage_memorybased = {
-	.options = 0,
+	.options = NAND_BBT_SCAN2NDPAGE,
 	.offs = 5,
 	.len = 1,
 	.pattern = scan_ff_pattern
