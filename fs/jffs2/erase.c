@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: erase.c,v 1.71 2005/02/09 09:17:40 pavlov Exp $
+ * $Id: erase.c,v 1.72 2005/02/27 23:01:32 dwmw2 Exp $
  *
  */
 
@@ -277,11 +277,8 @@ static inline void jffs2_remove_node_refs_from_ino_list(struct jffs2_sb_info *c,
 		printk("\n");
 	});
 
-	if (ic->nodes == (void *)ic) {
-		D1(printk(KERN_DEBUG "inocache for ino #%u is all gone now. Freeing\n", ic->ino));
+	if (ic->nodes == (void *)ic)
 		jffs2_del_ino_cache(c, ic);
-		jffs2_free_inode_cache(ic);
-	}
 }
 
 static void jffs2_free_all_node_refs(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb)

@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: nodelist.c,v 1.92 2005/01/19 19:22:00 tpoynor Exp $
+ * $Id: nodelist.c,v 1.93 2005/02/27 23:01:32 dwmw2 Exp $
  *
  */
 
@@ -506,7 +506,7 @@ void jffs2_add_ino_cache (struct jffs2_sb_info *c, struct jffs2_inode_cache *new
 void jffs2_del_ino_cache(struct jffs2_sb_info *c, struct jffs2_inode_cache *old)
 {
 	struct jffs2_inode_cache **prev;
-	D2(printk(KERN_DEBUG "jffs2_del_ino_cache: Del %p (ino #%u)\n", old, old->ino));
+	D1(printk(KERN_DEBUG "jffs2_del_ino_cache: Del %p (ino #%u)\n", old, old->ino));
 	spin_lock(&c->inocache_lock);
 	
 	prev = &c->inocache_list[old->ino % INOCACHE_HASHSIZE];
@@ -517,6 +517,14 @@ void jffs2_del_ino_cache(struct jffs2_sb_info *c, struct jffs2_inode_cache *old)
 	if ((*prev) == old) {
 		*prev = old->next;
 	}
+
+	/* Free it now unless it's in READING or CLEARING state, which
+	   are the transitions upon read_inode() and clear_inode(). The
+	   rest of the time we know nobody else is looking at it, and 
+	   if it's held by read_inode() or clear_inode() they'll free it
+	   for themselves. */
+	if (old->state != INO_STATE_READING && old->state != INO_STATE_CLEARING)
+		jffs2_free_inode_cache(old);
 
 	spin_unlock(&c->inocache_lock);
 }
@@ -530,7 +538,6 @@ void jffs2_free_ino_caches(struct jffs2_sb_info *c)
 		this = c->inocache_list[i];
 		while (this) {
 			next = this->next;
-			D2(printk(KERN_DEBUG "jffs2_free_ino_caches: Freeing ino #%u at %p\n", this->ino, this));
 			jffs2_free_inode_cache(this);
 			this = next;
 		}

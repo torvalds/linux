@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: nodelist.h,v 1.127 2005/02/09 09:23:53 pavlov Exp $
+ * $Id: nodelist.h,v 1.128 2005/02/27 23:01:32 dwmw2 Exp $
  *
  */
 
@@ -135,6 +135,7 @@ struct jffs2_inode_cache {
 #define INO_STATE_CHECKEDABSENT	3	/* Checked, cleared again */
 #define INO_STATE_GC		4	/* GCing a 'pristine' node */
 #define INO_STATE_READING	5	/* In read_inode() */
+#define INO_STATE_CLEARING	6	/* In clear_inode() */
 
 #define INOCACHE_HASHSIZE 128
 

@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: nodemgmt.c,v 1.117 2005/01/25 20:11:11 hammache Exp $
+ * $Id: nodemgmt.c,v 1.118 2005/02/27 23:01:32 dwmw2 Exp $
  *
  */
 
@@ -593,11 +593,8 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 		*p = ref->next_in_ino;
 		ref->next_in_ino = NULL;
 
-		if (ic->nodes == (void *)ic) {
-			D1(printk(KERN_DEBUG "inocache for ino #%u is all gone now. Freeing\n", ic->ino));
+		if (ic->nodes == (void *)ic)
 			jffs2_del_ino_cache(c, ic);
-			jffs2_free_inode_cache(ic);
-		}
 
 		spin_unlock(&c->erase_completion_lock);
 	}

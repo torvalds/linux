@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: readinode.c,v 1.117 2004/11/20 18:06:54 dwmw2 Exp $
+ * $Id: readinode.c,v 1.118 2005/02/27 23:01:33 dwmw2 Exp $
  *
  */
 
@@ -672,6 +672,9 @@ void jffs2_do_clear_inode(struct jffs2_sb_info *c, struct jffs2_inode_info *f)
 	down(&f->sem);
 	deleted = f->inocache && !f->inocache->nlink;
 
+	if (f->inocache && f->inocache->state != INO_STATE_CHECKING)
+		jffs2_set_inocache_state(c, f->inocache, INO_STATE_CLEARING);
+
 	if (f->metadata) {
 		if (deleted)
 			jffs2_mark_node_obsolete(c, f->metadata->raw);
@@ -688,8 +691,11 @@ void jffs2_do_clear_inode(struct jffs2_sb_info *c, struct jffs2_inode_info *f)
 		jffs2_free_full_dirent(fd);
 	}
 
-	if (f->inocache && f->inocache->state != INO_STATE_CHECKING)
+	if (f->inocache && f->inocache->state != INO_STATE_CHECKING) {
 		jffs2_set_inocache_state(c, f->inocache, INO_STATE_CHECKEDABSENT);
+		if (f->inocache->nodes == (void *)f->inocache)
+			jffs2_del_ino_cache(c, f->inocache);
+	}
 
 	up(&f->sem);
 }
