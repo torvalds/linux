@@ -72,10 +72,12 @@ struct acpi_pci_link_irq {
 	u8			active;			/* Current IRQ */
 	u8			edge_level;		/* All IRQs */
 	u8			active_high_low;	/* All IRQs */
-	u8			initialized;
 	u8			resource_type;
 	u8			possible_count;
 	u8			possible[ACPI_PCI_LINK_MAX_POSSIBLE];
+	u8			initialized:1;
+	u8			suspend_resume:1;
+	u8			reserved:6;
 };
 
 struct acpi_pci_link {
@@ -530,6 +532,10 @@ static int acpi_pci_link_allocate(
 
 	ACPI_FUNCTION_TRACE("acpi_pci_link_allocate");
 
+	if (link->irq.suspend_resume) {
+		acpi_pci_link_set(link, link->irq.active);
+		link->irq.suspend_resume = 0;
+	}
 	if (link->irq.initialized)
 		return_VALUE(0);
 
@@ -713,38 +719,24 @@ end:
 	return_VALUE(result);
 }
 
-
 static int
-acpi_pci_link_resume (
-	struct acpi_pci_link	*link)
-{
-	ACPI_FUNCTION_TRACE("acpi_pci_link_resume");
-	
-	if (link->irq.active && link->irq.initialized)
-		return_VALUE(acpi_pci_link_set(link, link->irq.active));
-	else
-		return_VALUE(0);
-}
-
-
-static int
-irqrouter_resume(
-	struct sys_device *dev)
+irqrouter_suspend(
+	struct sys_device *dev,
+	u32	state)
 {
 	struct list_head        *node = NULL;
 	struct acpi_pci_link    *link = NULL;
 
-	ACPI_FUNCTION_TRACE("irqrouter_resume");
+	ACPI_FUNCTION_TRACE("irqrouter_suspend");
 
 	list_for_each(node, &acpi_link.entries) {
-
 		link = list_entry(node, struct acpi_pci_link, node);
 		if (!link) {
 			ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid link context\n"));
 			continue;
 		}
-
-		acpi_pci_link_resume(link);
+		if (link->irq.active && link->irq.initialized)
+			link->irq.suspend_resume = 1;
 	}
 	return_VALUE(0);
 }
@@ -856,7 +848,7 @@ __setup("acpi_irq_balance", acpi_irq_balance_set);
 
 static struct sysdev_class irqrouter_sysdev_class = {
         set_kset_name("irqrouter"),
-        .resume = irqrouter_resume,
+        .suspend = irqrouter_suspend,
 };
 
 
