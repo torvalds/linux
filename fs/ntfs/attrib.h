@@ -2,7 +2,7 @@
  * attrib.h - Defines for attribute handling in NTFS Linux kernel driver.
  *	      Part of the Linux-NTFS project.
  *
- * Copyright (c) 2001-2004 Anton Altaparmakov
+ * Copyright (c) 2001-2005 Anton Altaparmakov
  * Copyright (c) 2002 Richard Russon
  *
  * This program/include file is free software; you can redistribute it and/or
@@ -62,6 +62,9 @@ typedef struct {
 
 extern int ntfs_map_runlist_nolock(ntfs_inode *ni, VCN vcn);
 extern int ntfs_map_runlist(ntfs_inode *ni, VCN vcn);
+
+extern LCN ntfs_attr_vcn_to_lcn_nolock(ntfs_inode *ni, const VCN vcn,
+		const BOOL write_locked);
 
 extern runlist_element *ntfs_find_vcn_nolock(ntfs_inode *ni, const VCN vcn,
 		const BOOL write_locked);

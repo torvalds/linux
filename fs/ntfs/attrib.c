@@ -106,6 +106,93 @@ int ntfs_map_runlist(ntfs_inode *ni, VCN vcn)
 }
 
 /**
+ * ntfs_attr_vcn_to_lcn_nolock - convert a vcn into a lcn given an ntfs inode
+ * @ni:			ntfs inode of the attribute whose runlist to search
+ * @vcn:		vcn to convert
+ * @write_locked:	true if the runlist is locked for writing
+ *
+ * Find the virtual cluster number @vcn in the runlist of the ntfs attribute
+ * described by the ntfs inode @ni and return the corresponding logical cluster
+ * number (lcn).
+ *
+ * If the @vcn is not mapped yet, the attempt is made to map the attribute
+ * extent containing the @vcn and the vcn to lcn conversion is retried.
+ *
+ * If @write_locked is true the caller has locked the runlist for writing and
+ * if false for reading.
+ *
+ * Since lcns must be >= 0, we use negative return codes with special meaning:
+ *
+ * Return code	Meaning / Description
+ * ==========================================
+ *  LCN_HOLE	Hole / not allocated on disk.
+ *  LCN_ENOENT	There is no such vcn in the runlist, i.e. @vcn is out of bounds.
+ *  LCN_ENOMEM	Not enough memory to map runlist.
+ *  LCN_EIO	Critical error (runlist/file is corrupt, i/o error, etc).
+ *
+ * Locking: - The runlist must be locked on entry and is left locked on return.
+ *	    - If @write_locked is FALSE, i.e. the runlist is locked for reading,
+ *	      the lock may be dropped inside the function so you cannot rely on
+ *	      the runlist still being the same when this function returns.
+ */
+LCN ntfs_attr_vcn_to_lcn_nolock(ntfs_inode *ni, const VCN vcn,
+		const BOOL write_locked)
+{
+	LCN lcn;
+	BOOL is_retry = FALSE;
+
+	ntfs_debug("Entering for i_ino 0x%lx, vcn 0x%llx, %s_locked.",
+			ni->mft_no, (unsigned long long)vcn,
+			write_locked ? "write" : "read");
+	BUG_ON(!ni);
+	BUG_ON(!NInoNonResident(ni));
+	BUG_ON(vcn < 0);
+retry_remap:
+	/* Convert vcn to lcn.  If that fails map the runlist and retry once. */
+	lcn = ntfs_rl_vcn_to_lcn(ni->runlist.rl, vcn);
+	if (likely(lcn >= LCN_HOLE)) {
+		ntfs_debug("Done, lcn 0x%llx.", (long long)lcn);
+		return lcn;
+	}
+	if (lcn != LCN_RL_NOT_MAPPED) {
+		if (lcn != LCN_ENOENT)
+			lcn = LCN_EIO;
+	} else if (!is_retry) {
+		int err;
+
+		if (!write_locked) {
+			up_read(&ni->runlist.lock);
+			down_write(&ni->runlist.lock);
+			if (unlikely(ntfs_rl_vcn_to_lcn(ni->runlist.rl, vcn) !=
+					LCN_RL_NOT_MAPPED)) {
+				up_write(&ni->runlist.lock);
+				down_read(&ni->runlist.lock);
+				goto retry_remap;
+			}
+		}
+		err = ntfs_map_runlist_nolock(ni, vcn);
+		if (!write_locked) {
+			up_write(&ni->runlist.lock);
+			down_read(&ni->runlist.lock);
+		}
+		if (likely(!err)) {
+			is_retry = TRUE;
+			goto retry_remap;
+		}
+		if (err == -ENOENT)
+			lcn = LCN_ENOENT;
+		else if (err == -ENOMEM)
+			lcn = LCN_ENOMEM;
+		else
+			lcn = LCN_EIO;
+	}
+	if (lcn != LCN_ENOENT)
+		ntfs_error(ni->vol->sb, "Failed with error code %lli.",
+				(long long)lcn);
+	return lcn;
+}
+
+/**
  * ntfs_find_vcn_nolock - find a vcn in the runlist described by an ntfs inode
  * @ni:			ntfs inode describing the runlist to search
  * @vcn:		vcn to find
