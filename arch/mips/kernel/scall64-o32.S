@@ -316,7 +316,7 @@ sys_call_table:
 	PTR	sys_vhangup
 	PTR	sys_ni_syscall			/* was sys_idle	 */
 	PTR	sys_ni_syscall			/* sys_vm86 */
-	PTR	sys32_wait4
+	PTR	compat_sys_wait4
 	PTR	sys_swapoff			/* 4115 */
 	PTR	sys32_sysinfo
 	PTR	sys32_ipc

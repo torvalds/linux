@@ -176,7 +176,7 @@ EXPORT(sysn32_call_table)
 	PTR	sys_fork
 	PTR	sys32_execve
 	PTR	sys_exit
-	PTR	sys32_wait4
+	PTR	compat_sys_wait4
 	PTR	sys_kill			/* 6060 */
 	PTR	sys32_newuname
 	PTR	sys_semget

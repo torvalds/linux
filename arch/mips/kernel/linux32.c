@@ -215,81 +215,10 @@ sys32_readdir(unsigned int fd, void * dirent32, unsigned int count)
 	return(n);
 }
 
-struct rusage32 {
-        struct compat_timeval ru_utime;
-        struct compat_timeval ru_stime;
-        int    ru_maxrss;
-        int    ru_ixrss;
-        int    ru_idrss;
-        int    ru_isrss;
-        int    ru_minflt;
-        int    ru_majflt;
-        int    ru_nswap;
-        int    ru_inblock;
-        int    ru_oublock;
-        int    ru_msgsnd;
-        int    ru_msgrcv;
-        int    ru_nsignals;
-        int    ru_nvcsw;
-        int    ru_nivcsw;
-};
-
-static int
-put_rusage (struct rusage32 *ru, struct rusage *r)
-{
-	int err;
-
-	if (!access_ok(VERIFY_WRITE, ru, sizeof *ru))
-		return -EFAULT;
-
-	err = __put_user (r->ru_utime.tv_sec, &ru->ru_utime.tv_sec);
-	err |= __put_user (r->ru_utime.tv_usec, &ru->ru_utime.tv_usec);
-	err |= __put_user (r->ru_stime.tv_sec, &ru->ru_stime.tv_sec);
-	err |= __put_user (r->ru_stime.tv_usec, &ru->ru_stime.tv_usec);
-	err |= __put_user (r->ru_maxrss, &ru->ru_maxrss);
-	err |= __put_user (r->ru_ixrss, &ru->ru_ixrss);
-	err |= __put_user (r->ru_idrss, &ru->ru_idrss);
-	err |= __put_user (r->ru_isrss, &ru->ru_isrss);
-	err |= __put_user (r->ru_minflt, &ru->ru_minflt);
-	err |= __put_user (r->ru_majflt, &ru->ru_majflt);
-	err |= __put_user (r->ru_nswap, &ru->ru_nswap);
-	err |= __put_user (r->ru_inblock, &ru->ru_inblock);
-	err |= __put_user (r->ru_oublock, &ru->ru_oublock);
-	err |= __put_user (r->ru_msgsnd, &ru->ru_msgsnd);
-	err |= __put_user (r->ru_msgrcv, &ru->ru_msgrcv);
-	err |= __put_user (r->ru_nsignals, &ru->ru_nsignals);
-	err |= __put_user (r->ru_nvcsw, &ru->ru_nvcsw);
-	err |= __put_user (r->ru_nivcsw, &ru->ru_nivcsw);
-
-	return err;
-}
-
-asmlinkage int
-sys32_wait4(compat_pid_t pid, unsigned int * stat_addr, int options,
-	    struct rusage32 * ru)
-{
-	if (!ru)
-		return sys_wait4(pid, stat_addr, options, NULL);
-	else {
-		struct rusage r;
-		int ret;
-		unsigned int status;
-		mm_segment_t old_fs = get_fs();
-
-		set_fs(KERNEL_DS);
-		ret = sys_wait4(pid, stat_addr ? &status : NULL, options, &r);
-		set_fs(old_fs);
-		if (put_rusage (ru, &r)) return -EFAULT;
-		if (stat_addr && put_user (status, stat_addr))
-			return -EFAULT;
-		return ret;
-	}
-}
-
 asmlinkage int
 sys32_waitpid(compat_pid_t pid, unsigned int *stat_addr, int options)
 {
-	return sys32_wait4(pid, stat_addr, options, NULL);
+	return compat_sys_wait4(pid, stat_addr, options, NULL);
 }
 
 struct sysinfo32 {
