@@ -4,7 +4,7 @@
  *
  * (C) 2000 Red Hat. GPL'd
  *
- * $Id: cfi_cmdset_0001.c,v 1.169 2005/03/15 19:07:18 gleixner Exp $
+ * $Id: cfi_cmdset_0001.c,v 1.170 2005/03/16 22:41:05 nico Exp $
  *
  * 
  * 10/10/2000	Nicolas Pitre <nico@cam.org>
@@ -1789,6 +1789,7 @@ static void cfi_intelext_sync (struct mtd_info *mtd)
 		
 		if (chip->state == FL_SYNCING) {
 			chip->state = chip->oldstate;
+			chip->oldstate = FL_READY;
 			wake_up(&chip->wq);
 		}
 		spin_unlock(chip->mutex);
