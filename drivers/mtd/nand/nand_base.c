@@ -59,7 +59,7 @@
  *	The AG-AND chips have nice features for speed improvement,
  *	which are not supported yet. Read / program 4 pages in one go.
  *
- * $Id: nand_base.c,v 1.136 2005/03/14 18:30:44 bjd Exp $
+ * $Id: nand_base.c,v 1.137 2005/03/24 14:33:22 dedekind Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -855,7 +855,7 @@ static int nand_write_page (struct mtd_info *mtd, struct nand_chip *this, int pa
 	u_char *oob_buf,  struct nand_oobinfo *oobsel, int cached)
 {
 	int 	i, status;
-	u_char	ecc_code[32];
+	u_char	ecc_code[oobsel->eccbytes];
 	int	eccmode = oobsel->useecc ? this->eccmode : NAND_ECC_NONE;
 	int  	*oob_config = oobsel->eccpos;
 	int	datidx = 0, eccidx = 0, eccsteps = this->eccsteps;
@@ -961,7 +961,7 @@ static int nand_verify_pages (struct mtd_info *mtd, struct nand_chip *this, int 
 	int 	i, j, datidx = 0, oobofs = 0, res = -EIO;
 	int	eccsteps = this->eccsteps;
 	int	hweccbytes; 
-	u_char 	oobdata[64];
+	u_char 	oobdata[mtd->oobsize];
 
 	hweccbytes = (this->options & NAND_HWECC_SYNDROME) ? (oobsel->eccbytes / eccsteps) : 0;
 
@@ -1107,8 +1107,8 @@ int nand_do_read_ecc (struct mtd_info *mtd, loff_t from, size_t len,
 	int read = 0, oob = 0, ecc_status = 0, ecc_failed = 0;
 	struct nand_chip *this = mtd->priv;
 	u_char *data_poi, *oob_data = oob_buf;
-	u_char ecc_calc[32];
-	u_char ecc_code[32];
+	u_char ecc_calc[oobsel->eccbytes];
+	u_char ecc_code[oobsel->eccbytes];
         int eccmode, eccsteps;
 	int	*oob_config, datidx;
 	int	blockcheck = (1 << (this->phys_erase_shift - this->page_shift)) - 1;
