@@ -872,6 +872,7 @@ static int ntfs_write_mst_block(struct page *page,
 		if (likely(block < rec_block)) {
 			if (unlikely(block >= dblock)) {
 				clear_buffer_dirty(bh);
+				set_buffer_uptodate(bh);
 				continue;
 			}
 			/*
@@ -1830,6 +1831,7 @@ static int ntfs_prepare_write(struct file *file, struct page *page,
 		unsigned from, unsigned to)
 {
 	s64 new_size;
+	unsigned long flags;
 	struct inode *vi = page->mapping->host;
 	ntfs_inode *base_ni = NULL, *ni = NTFS_I(vi);
 	ntfs_volume *vol = ni->vol;
@@ -1903,12 +1905,6 @@ static int ntfs_prepare_write(struct file *file, struct page *page,
 	/* If we do not need to resize the attribute allocation we are done. */
 	if (new_size <= i_size_read(vi))
 		goto done;
-
-	// FIXME: We abort for now as this code is not safe.
-	ntfs_error(vi->i_sb, "Changing the file size is not supported yet.  "
-			"Sorry.");
-	return -EOPNOTSUPP;
-
 	/* Map, pin, and lock the (base) mft record. */
 	if (!NInoAttr(ni))
 		base_ni = ni;
@@ -1937,7 +1933,17 @@ static int ntfs_prepare_write(struct file *file, struct page *page,
 	a = ctx->attr;
 	/* The total length of the attribute value. */
 	attr_len = le32_to_cpu(a->data.resident.value_length);
-	BUG_ON(i_size_read(vi) != attr_len);
+	/* Fix an eventual previous failure of ntfs_commit_write(). */
+	read_lock_irqsave(&ni->size_lock, flags);
+	if (unlikely(ni->initialized_size < attr_len)) {
+		attr_len = ni->initialized_size;
+		a->data.resident.value_length = cpu_to_le32(attr_len);
+		BUG_ON(attr_len < i_size_read(vi));
+	}
+	read_unlock_irqrestore(&ni->size_lock, flags);
+	/* If we do not need to resize the attribute allocation we are done. */
+	if (new_size <= attr_len)
+		goto done_unm;
 	/* Check if new size is allowed in $AttrDef. */
 	err = ntfs_attr_size_bounds_check(vol, ni->type, new_size);
 	if (unlikely(err)) {
@@ -1995,6 +2001,7 @@ static int ntfs_prepare_write(struct file *file, struct page *page,
 	}
 	flush_dcache_mft_record_page(ctx->ntfs_ino);
 	mark_mft_record_dirty(ctx->ntfs_ino);
+done_unm:
 	ntfs_attr_put_search_ctx(ctx);
 	unmap_mft_record(base_ni);
 	/*

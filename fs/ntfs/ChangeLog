@@ -51,6 +51,11 @@ ToDo/Notes:
 	  value afterwards when reading the size of the bitmap inode.
 	- Use i_size_{read,write}() in fs/ntfs/{aops.c,mft.c} and protect
 	  access to the i_size and other size fields using the size_lock.
+	- Implement extension of resident files in the regular file write code
+	  paths (fs/ntfs/aops.c::ntfs_{prepare,commit}_write()).  At present
+	  this only works until the data attribute becomes too big for the mft
+	  record after which we abort the write returning -EOPNOTSUPP from
+	  ntfs_prepare_write().
 
 2.1.22 - Many bug and race fixes and error handling improvements.
 
