@@ -2518,18 +2518,18 @@ int ntfs_write_inode(struct inode *vi, int sync)
 	nt = utc2ntfs(vi->i_mtime);
 	if (si->last_data_change_time != nt) {
 		ntfs_debug("Updating mtime for inode 0x%lx: old = 0x%llx, "
-				"new = 0x%llx", vi->i_ino,
+				"new = 0x%llx", vi->i_ino, (long long)
 				sle64_to_cpu(si->last_data_change_time),
-				sle64_to_cpu(nt));
+				(long long)sle64_to_cpu(nt));
 		si->last_data_change_time = nt;
 		modified = TRUE;
 	}
 	nt = utc2ntfs(vi->i_ctime);
 	if (si->last_mft_change_time != nt) {
 		ntfs_debug("Updating ctime for inode 0x%lx: old = 0x%llx, "
-				"new = 0x%llx", vi->i_ino,
+				"new = 0x%llx", vi->i_ino, (long long)
 				sle64_to_cpu(si->last_mft_change_time),
-				sle64_to_cpu(nt));
+				(long long)sle64_to_cpu(nt));
 		si->last_mft_change_time = nt;
 		modified = TRUE;
 	}
@@ -2537,8 +2537,8 @@ int ntfs_write_inode(struct inode *vi, int sync)
 	if (si->last_access_time != nt) {
 		ntfs_debug("Updating atime for inode 0x%lx: old = 0x%llx, "
 				"new = 0x%llx", vi->i_ino,
-				sle64_to_cpu(si->last_access_time),
-				sle64_to_cpu(nt));
+				(long long)sle64_to_cpu(si->last_access_time),
+				(long long)sle64_to_cpu(nt));
 		si->last_access_time = nt;
 		modified = TRUE;
 	}

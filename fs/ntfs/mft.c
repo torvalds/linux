@@ -1802,7 +1802,7 @@ static int ntfs_mft_data_extend_allocation_nolock(ntfs_volume *vol)
 		return PTR_ERR(rl);
 	}
 	mft_ni->runlist.rl = rl;
-	ntfs_debug("Allocated %lli clusters.", nr);
+	ntfs_debug("Allocated %lli clusters.", (long long)nr);
 	/* Find the last run in the new runlist. */
 	for (; rl[1].length; rl++)
 		;

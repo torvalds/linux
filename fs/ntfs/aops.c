@@ -965,7 +965,8 @@ lock_retry_remap:
 						"attribute type 0x%x) because "
 						"its location on disk could "
 						"not be determined (error "
-						"code %lli).", (s64)block <<
+						"code %lli).",
+						(long long)block <<
 						bh_size_bits >>
 						vol->mft_record_size_bits,
 						ni->mft_no, ni->type,

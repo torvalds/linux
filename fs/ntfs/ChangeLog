@@ -29,6 +29,7 @@ ToDo/Notes:
 	  compiled without debug.  This avoids a possible denial of service
 	  attack.  Thanks to Carl-Daniel Hailfinger from SuSE for pointing this
 	  out.
+	- Fix compilation warnings on ia64.  (Randy Dunlap)
 	- Use i_size_read() in fs/ntfs/attrib.c::ntfs_attr_set().
 	- Use i_size_read() in fs/ntfs/logfile.c::ntfs_{check,empty}_logfile().
 	- Use i_size_read() once and then use the cached value in

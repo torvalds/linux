@@ -763,7 +763,7 @@ out:
 					"could allocate up to 0x%llx "
 					"clusters.",
 					(unsigned long long)rl[0].lcn,
-					(unsigned long long)count - clusters);
+					(unsigned long long)(count - clusters));
 		/* Deallocate all allocated clusters. */
 		ntfs_debug("Attempting rollback...");
 		err2 = ntfs_cluster_free_from_rl_nolock(vol, rl);
