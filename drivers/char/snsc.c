@@ -437,7 +437,7 @@ scdrv_init(void)
 				continue;
 			}
 
-			class__device_create(snsc_class, dev, NULL,
+			class_device_create(snsc_class, dev, NULL,
 						"%s", devname);
 
 			ia64_sn_irtr_intr_enable(scd->scd_nasid,
