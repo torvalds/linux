@@ -1312,7 +1312,7 @@ static int class_setup_req(struct fsg_dev *fsg,
 			}
 			VDBG(fsg, "get max LUN\n");
 			*(u8 *) req->buf = fsg->nluns - 1;
-			value = min(w_length, (u16) 1);
+			value = 1;
 			break;
 		}
 	}
@@ -1360,7 +1360,6 @@ static int standard_setup_req(struct fsg_dev *fsg,
 	int			value = -EOPNOTSUPP;
 	u16			w_index = ctrl->wIndex;
 	u16			w_value = ctrl->wValue;
-	u16			w_length = ctrl->wLength;
 
 	/* Usually this just stores reply data in the pre-allocated ep0 buffer,
 	 * but config change events will also reconfigure hardware. */
@@ -1374,7 +1373,7 @@ static int standard_setup_req(struct fsg_dev *fsg,
 
 		case USB_DT_DEVICE:
 			VDBG(fsg, "get device descriptor\n");
-			value = min(w_length, (u16) sizeof device_desc);
+			value = sizeof device_desc;
 			memcpy(req->buf, &device_desc, value);
 			break;
 #ifdef CONFIG_USB_GADGET_DUALSPEED
@@ -1382,7 +1381,7 @@ static int standard_setup_req(struct fsg_dev *fsg,
 			VDBG(fsg, "get device qualifier\n");
 			if (!fsg->gadget->is_dualspeed)
 				break;
-			value = min(w_length, (u16) sizeof dev_qualifier);
+			value = sizeof dev_qualifier;
 			memcpy(req->buf, &dev_qualifier, value);
 			break;
 
@@ -1401,8 +1400,6 @@ static int standard_setup_req(struct fsg_dev *fsg,
 					req->buf,
 					w_value >> 8,
 					w_value & 0xff);
-			if (value >= 0)
-				value = min(w_length, (u16) value);
 			break;
 
 		case USB_DT_STRING:
@@ -1411,8 +1408,6 @@ static int standard_setup_req(struct fsg_dev *fsg,
 			/* wIndex == language code */
 			value = usb_gadget_get_string(&stringtab,
 					w_value & 0xff, req->buf);
-			if (value >= 0)
-				value = min(w_length, (u16) value);
 			break;
 		}
 		break;
@@ -1438,7 +1433,7 @@ static int standard_setup_req(struct fsg_dev *fsg,
 			break;
 		VDBG(fsg, "get configuration\n");
 		*(u8 *) req->buf = fsg->config;
-		value = min(w_length, (u16) 1);
+		value = 1;
 		break;
 
 	case USB_REQ_SET_INTERFACE:
@@ -1466,14 +1461,14 @@ static int standard_setup_req(struct fsg_dev *fsg,
 		}
 		VDBG(fsg, "get interface\n");
 		*(u8 *) req->buf = 0;
-		value = min(w_length, (u16) 1);
+		value = 1;
 		break;
 
 	default:
 		VDBG(fsg,
 			"unknown control req %02x.%02x v%04x i%04x l%u\n",
 			ctrl->bRequestType, ctrl->bRequest,
-			w_value, w_index, w_length);
+			w_value, w_index, ctrl->wLength);
 	}
 
 	return value;
@@ -1485,6 +1480,7 @@ static int fsg_setup(struct usb_gadget *gadget,
 {
 	struct fsg_dev		*fsg = get_gadget_data(gadget);
 	int			rc;
+	int			w_length = ctrl->wLength;
 
 	++fsg->ep0_req_tag;		// Record arrival of a new request
 	fsg->ep0req->context = NULL;
@@ -1498,8 +1494,9 @@ static int fsg_setup(struct usb_gadget *gadget,
 
 	/* Respond with data/status or defer until later? */
 	if (rc >= 0 && rc != DELAYED_STATUS) {
+		rc = min(rc, w_length);
 		fsg->ep0req->length = rc;
-		fsg->ep0req->zero = (rc < ctrl->wLength &&
+		fsg->ep0req->zero = (rc < w_length &&
 				(rc % gadget->ep0->maxpacket) == 0);
 		fsg->ep0req_name = (ctrl->bRequestType & USB_DIR_IN ?
 				"ep0-in" : "ep0-out");
