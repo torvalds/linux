@@ -28,6 +28,20 @@
  *		among multiple independend devices. Suggestions and initial patch
  *		from Ben Dooks <ben-mtd@fluff.org>
  *
+ *  12-05-2004	dmarlin: add workaround for Renesas AG-AND chips "disturb" issue.
+ *		Basically, any block not rewritten may lose data when surrounding blocks
+ *		are rewritten many times.  JFFS2 ensures this doesn't happen for blocks 
+ *		it uses, but the Bad Block Table(s) may not be rewritten.  To ensure they
+ *		do not lose data, force them to be rewritten when some of the surrounding
+ *		blocks are erased.  Rather than tracking a specific nearby block (which 
+ *		could itself go bad), use a page address 'mask' to select several blocks 
+ *		in the same area, and rewrite the BBT when any of them are erased.
+ *
+ *  01-03-2005	dmarlin: added support for the device recovery command sequence for Renesas 
+ *		AG-AND chips.  If there was a sudden loss of power during an erase operation,
+ * 		a "device recovery" operation must be performed when power is restored
+ * 		to ensure correct operation.
+ *
  * Credits:
  *	David Woodhouse for adding multichip support  
  *	
@@ -41,7 +55,7 @@
  *	The AG-AND chips have nice features for speed improvement,
  *	which are not supported yet. Read / program 4 pages in one go.
  *
- * $Id: nand_base.c,v 1.126 2004/12/13 11:22:25 lavinen Exp $
+ * $Id: nand_base.c,v 1.127 2005/01/17 18:35:22 dmarlin Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -619,7 +633,7 @@ static void nand_command_lp (struct mtd_info *mtd, unsigned command, int column,
 	/* Begin command latch cycle */
 	this->hwcontrol(mtd, NAND_CTL_SETCLE);
 	/* Write out the command to the device. */
-	this->write_byte(mtd, command);
+	this->write_byte(mtd, (command & 0xff));
 	/* End command latch cycle */
 	this->hwcontrol(mtd, NAND_CTL_CLRCLE);
 
@@ -647,8 +661,8 @@ static void nand_command_lp (struct mtd_info *mtd, unsigned command, int column,
 	
 	/* 
 	 * program and erase have their own busy handlers 
-	 * status and sequential in needs no delay
-	*/
+	 * status, sequential in, and deplete1 need no delay
+	 */
 	switch (command) {
 			
 	case NAND_CMD_CACHEDPROG:
@@ -657,8 +671,19 @@ static void nand_command_lp (struct mtd_info *mtd, unsigned command, int column,
 	case NAND_CMD_ERASE2:
 	case NAND_CMD_SEQIN:
 	case NAND_CMD_STATUS:
+	case NAND_CMD_DEPLETE1:
 		return;
 
+	/* 
+	 * read error status commands require only a short delay
+	 */
+	case NAND_CMD_STATUS_ERROR:
+	case NAND_CMD_STATUS_ERROR0:
+	case NAND_CMD_STATUS_ERROR1:
+	case NAND_CMD_STATUS_ERROR2:
+	case NAND_CMD_STATUS_ERROR3:
+		udelay(this->chip_delay);
+		return;
 
 	case NAND_CMD_RESET:
 		if (this->dev_ready)	
@@ -1051,7 +1076,7 @@ static int nand_read_ecc (struct mtd_info *mtd, loff_t from, size_t len,
 	}
 
 	/* Grab the lock and see if the device is available */
-	nand_get_device (this, mtd ,FL_READING);
+	nand_get_device (this, mtd, FL_READING);
 
 	/* use userspace supplied oobinfo, if zero */
 	if (oobsel == NULL)
@@ -1987,6 +2012,7 @@ static int nand_erase (struct mtd_info *mtd, struct erase_info *instr)
 	return nand_erase_nand (mtd, instr, 0);
 }
  
+#define BBT_PAGE_MASK	0xffffff3f
 /**
  * nand_erase_intern - [NAND Interface] erase block(s)
  * @mtd:	MTD device structure
@@ -1999,6 +2025,10 @@ int nand_erase_nand (struct mtd_info *mtd, struct erase_info *instr, int allowbb
 {
 	int page, len, status, pages_per_block, ret, chipnr;
 	struct nand_chip *this = mtd->priv;
+	int rewrite_bbt[NAND_MAX_CHIPS]={0};	/* flags to indicate the page, if bbt needs to be rewritten. */
+	unsigned int bbt_masked_page;		/* bbt mask to compare to page being erased. */
+						/* It is used to see if the current page is in the same */
+						/*   256 block group and the same bank as the bbt. */
 
 	DEBUG (MTD_DEBUG_LEVEL3,
 	       "nand_erase: start = 0x%08x, len = %i\n", (unsigned int) instr->addr, (unsigned int) instr->len);
@@ -2044,6 +2074,13 @@ int nand_erase_nand (struct mtd_info *mtd, struct erase_info *instr, int allowbb
 		goto erase_exit;
 	}
 
+	/* if BBT requires refresh, set the BBT page mask to see if the BBT should be rewritten */
+	if (this->options & BBT_AUTO_REFRESH) {
+		bbt_masked_page = this->bbt_td->pages[chipnr] & BBT_PAGE_MASK;
+	} else {
+		bbt_masked_page = 0xffffffff;	/* should not match anything */
+	}
+
 	/* Loop through the pages */
 	len = instr->len;
 
@@ -2073,6 +2110,14 @@ int nand_erase_nand (struct mtd_info *mtd, struct erase_info *instr, int allowbb
 			instr->fail_addr = (page << this->page_shift);
 			goto erase_exit;
 		}
+
+		/* if BBT requires refresh, set the BBT rewrite flag to the page being erased */
+		if (this->options & BBT_AUTO_REFRESH) {
+			if (((page & BBT_PAGE_MASK) == bbt_masked_page) && 
+			     (page != this->bbt_td->pages[chipnr])) {
+				rewrite_bbt[chipnr] = (page << this->page_shift);
+			}
+		}
 		
 		/* Increment page address and decrement length */
 		len -= (1 << this->phys_erase_shift);
@@ -2083,6 +2128,13 @@ int nand_erase_nand (struct mtd_info *mtd, struct erase_info *instr, int allowbb
 			chipnr++;
 			this->select_chip(mtd, -1);
 			this->select_chip(mtd, chipnr);
+
+			/* if BBT requires refresh and BBT-PERCHIP, 
+			 *   set the BBT page mask to see if this BBT should be rewritten */
+			if ((this->options & BBT_AUTO_REFRESH) && (this->bbt_td->options & NAND_BBT_PERCHIP)) {
+				bbt_masked_page = this->bbt_td->pages[chipnr] & BBT_PAGE_MASK;
+			}
+
 		}
 	}
 	instr->state = MTD_ERASE_DONE;
@@ -2096,6 +2148,18 @@ erase_exit:
 
 	/* Deselect and wake up anyone waiting on the device */
 	nand_release_device(mtd);
+
+	/* if BBT requires refresh and erase was successful, rewrite any selected bad block tables */
+	if ((this->options & BBT_AUTO_REFRESH) && (!ret)) {
+		for (chipnr = 0; chipnr < this->numchips; chipnr++) {
+			if (rewrite_bbt[chipnr]) {
+				/* update the BBT for chip */
+				DEBUG (MTD_DEBUG_LEVEL0, "nand_erase_nand: nand_update_bbt (%d:0x%0x 0x%0x)\n", 
+					chipnr, rewrite_bbt[chipnr], this->bbt_td->pages[chipnr]);
+				nand_update_bbt (mtd, rewrite_bbt[chipnr]);
+			}
+		}
+	}
 
 	/* Return more or less happy */
 	return ret;
