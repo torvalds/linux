@@ -1,5 +1,5 @@
 # drivers/mtd/maps/Kconfig
-# $Id: Kconfig,v 1.43 2005/01/24 00:35:21 bjd Exp $
+# $Id: Kconfig,v 1.44 2005/02/18 11:03:45 bjd Exp $
 
 menu "Mapping drivers for chip access"
 	depends on MTD!=n
@@ -637,13 +637,14 @@ config MTD_DMV182
           Map driver for Dy-4 SVME/DMV-182 board.
 
 config MTD_BAST
-	tristate "Map driver for Simtec BAST (EB2410ITX)"
-	depends on ARCH_BAST
+	tristate "Map driver for Simtec BAST (EB2410ITX) or Thorcom VR1000"
+	depends on ARCH_BAST || MACH_VR1000
 	select MTD_PARTITIONS
 	select MTD_MAP_BANK_WIDTH_16
 	select MTD_JEDECPROBE
 	help
-	  Map driver for NOR flash on the Simtec BAST (EB2410ITX).
+	  Map driver for NOR flash on the Simtec BAST (EB2410ITX), or the
+	  Thorcom VR1000
 
 	  Note, this driver *cannot* over-ride the WP link on the
 	  board, or currently detect the state of the link.
