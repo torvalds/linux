@@ -21,6 +21,12 @@
 
 extern void build_tlb_refill_handler(void);
 
+/*
+ * Make sure all entries differ.  If they're not different
+ * MIPS32 will take revenge ...
+ */
+#define UNIQUE_ENTRYHI(idx) (CKSEG0 + ((idx) << (PAGE_SHIFT + 1)))
+
 /* CP0 hazard avoidance. */
 #define BARRIER __asm__ __volatile__(".set noreorder\n\t" \
 				     "nop; nop; nop; nop; nop; nop;\n\t" \
@@ -42,11 +48,8 @@ void local_flush_tlb_all(void)
 
 	/* Blast 'em all away. */
 	while (entry < current_cpu_data.tlbsize) {
-		/*
-		 * Make sure all entries differ.  If they're not different
-		 * MIPS32 will take revenge ...
-		 */
-		write_c0_entryhi(CKSEG0 + (entry << (PAGE_SHIFT + 1)));
+		/* Make sure all entries differ. */
+		write_c0_entryhi(UNIQUE_ENTRYHI(entry));
 		write_c0_index(entry);
 		mtc0_tlbw_hazard();
 		tlb_write_indexed();
@@ -57,12 +60,21 @@ void local_flush_tlb_all(void)
 	local_irq_restore(flags);
 }
 
+/* All entries common to a mm share an asid.  To effectively flush
+   these entries, we just bump the asid. */
 void local_flush_tlb_mm(struct mm_struct *mm)
 {
-	int cpu = smp_processor_id();
+	int cpu;
 
-	if (cpu_context(cpu, mm) != 0)
-		drop_mmu_context(mm,cpu);
+	preempt_disable();
+
+	cpu = smp_processor_id();
+
+	if (cpu_context(cpu, mm) != 0) {
+		drop_mmu_context(mm, cpu);
+	}
+
+	preempt_enable();
 }
 
 void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
@@ -75,9 +87,9 @@ void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 		unsigned long flags;
 		int size;
 
-		local_irq_save(flags);
 		size = (end - start + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
 		size = (size + 1) >> 1;
+		local_irq_save(flags);
 		if (size <= current_cpu_data.tlbsize/2) {
 			int oldpid = read_c0_entryhi();
 			int newpid = cpu_asid(cpu, mm);
@@ -99,8 +111,7 @@ void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 				if (idx < 0)
 					continue;
 				/* Make sure all entries differ. */
-				write_c0_entryhi(CKSEG0 +
-						 (idx << (PAGE_SHIFT + 1)));
+				write_c0_entryhi(UNIQUE_ENTRYHI(idx));
 				mtc0_tlbw_hazard();
 				tlb_write_indexed();
 			}
@@ -118,9 +129,9 @@ void local_flush_tlb_kernel_range(unsigned long start, unsigned long end)
 	unsigned long flags;
 	int size;
 
-	local_irq_save(flags);
 	size = (end - start + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
 	size = (size + 1) >> 1;
+	local_irq_save(flags);
 	if (size <= current_cpu_data.tlbsize / 2) {
 		int pid = read_c0_entryhi();
 
@@ -142,7 +153,7 @@ void local_flush_tlb_kernel_range(unsigned long start, unsigned long end)
 			if (idx < 0)
 				continue;
 			/* Make sure all entries differ. */
-			write_c0_entryhi(CKSEG0 + (idx << (PAGE_SHIFT + 1)));
+			write_c0_entryhi(UNIQUE_ENTRYHI(idx));
 			mtc0_tlbw_hazard();
 			tlb_write_indexed();
 		}
@@ -176,7 +187,7 @@ void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 		if (idx < 0)
 			goto finish;
 		/* Make sure all entries differ. */
-		write_c0_entryhi(CKSEG0 + (idx << (PAGE_SHIFT + 1)));
+		write_c0_entryhi(UNIQUE_ENTRYHI(idx));
 		mtc0_tlbw_hazard();
 		tlb_write_indexed();
 		tlbw_use_hazard();
@@ -197,8 +208,8 @@ void local_flush_tlb_one(unsigned long page)
 	int oldpid, idx;
 
 	local_irq_save(flags);
-	page &= (PAGE_MASK << 1);
 	oldpid = read_c0_entryhi();
+	page &= (PAGE_MASK << 1);
 	write_c0_entryhi(page);
 	mtc0_tlbw_hazard();
 	tlb_probe();
@@ -208,7 +219,7 @@ void local_flush_tlb_one(unsigned long page)
 	write_c0_entrylo1(0);
 	if (idx >= 0) {
 		/* Make sure all entries differ. */
-		write_c0_entryhi(CKSEG0 + (idx << (PAGE_SHIFT + 1)));
+		write_c0_entryhi(UNIQUE_ENTRYHI(idx));
 		mtc0_tlbw_hazard();
 		tlb_write_indexed();
 		tlbw_use_hazard();
@@ -238,9 +249,9 @@ void __update_tlb(struct vm_area_struct * vma, unsigned long address, pte_t pte)
 	if (current->active_mm != vma->vm_mm)
 		return;
 
-	pid = read_c0_entryhi() & ASID_MASK;
-
 	local_irq_save(flags);
+
+	pid = read_c0_entryhi() & ASID_MASK;
 	address &= (PAGE_MASK << 1);
 	write_c0_entryhi(address | pid);
 	pgdp = pgd_offset(vma->vm_mm, address);
@@ -260,14 +271,12 @@ void __update_tlb(struct vm_area_struct * vma, unsigned long address, pte_t pte)
 	write_c0_entrylo0(pte_val(*ptep++) >> 6);
 	write_c0_entrylo1(pte_val(*ptep) >> 6);
 #endif
-	write_c0_entryhi(address | pid);
 	mtc0_tlbw_hazard();
 	if (idx < 0)
 		tlb_write_random();
 	else
 		tlb_write_indexed();
 	tlbw_use_hazard();
-	write_c0_entryhi(pid);
 	local_irq_restore(flags);
 }
 
