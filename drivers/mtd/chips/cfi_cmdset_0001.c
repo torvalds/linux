@@ -4,7 +4,7 @@
  *
  * (C) 2000 Red Hat. GPL'd
  *
- * $Id: cfi_cmdset_0001.c,v 1.171 2005/03/19 22:39:49 gleixner Exp $
+ * $Id: cfi_cmdset_0001.c,v 1.172 2005/03/29 22:06:37 tpoynor Exp $
  *
  * 
  * 10/10/2000	Nicolas Pitre <nico@cam.org>
@@ -1823,6 +1823,7 @@ static int __xipram do_xxlock_oneblock(struct map_info *map, struct flchip *chip
 				       unsigned long adr, int len, void *thunk)
 {
 	struct cfi_private *cfi = map->fldrv_priv;
+	struct cfi_pri_intelext *extp = cfi->cmdset_priv;
 	map_word status, status_OK;
 	unsigned long timeo = jiffies + HZ;
 	int ret;
@@ -1852,9 +1853,16 @@ static int __xipram do_xxlock_oneblock(struct map_info *map, struct flchip *chip
 	} else
 		BUG();
 
-	spin_unlock(chip->mutex);
-	UDELAY(map, chip, adr, 1000000/HZ);
-	spin_lock(chip->mutex);
+	/*
+	 * If Instant Individual Block Locking supported then no need
+	 * to delay.
+	 */
+
+	if (!extp || !(extp->FeatureSupport & (1 << 5))) {
+		spin_unlock(chip->mutex);
+		UDELAY(map, chip, adr, 1000000/HZ);
+		spin_lock(chip->mutex);
+	}
 
 	/* FIXME. Use a timer to check this, and return immediately. */
 	/* Once the state machine's known to be working I'll do that */
