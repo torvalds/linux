@@ -405,7 +405,7 @@ static int snd_virmidi_dev_attach_seq(snd_virmidi_dev_t *rdev)
 	pcallbacks.unuse = snd_virmidi_unuse;
 	pcallbacks.event_input = snd_virmidi_event_input;
 	pinfo->kernel = &pcallbacks;
-	err = snd_seq_kernel_client_ctl(client, SNDRV_SEQ_IOCTL_CREATE_PORT, &pinfo);
+	err = snd_seq_kernel_client_ctl(client, SNDRV_SEQ_IOCTL_CREATE_PORT, pinfo);
 	if (err < 0) {
 		snd_seq_delete_kernel_client(client);
 		rdev->client = -1;
