@@ -1,7 +1,7 @@
 /*
  * time.h - NTFS time conversion functions.  Part of the Linux-NTFS project.
  *
- * Copyright (c) 2001-2004 Anton Altaparmakov
+ * Copyright (c) 2001-2005 Anton Altaparmakov
  *
  * This program/include file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as published
@@ -87,7 +87,7 @@ static inline struct timespec ntfs2utc(const sle64 time)
 	struct timespec ts;
 
 	/* Subtract the NTFS time offset. */
-	s64 t = sle64_to_cpu(time) - NTFS_TIME_OFFSET;
+	u64 t = (u64)(sle64_to_cpu(time) - NTFS_TIME_OFFSET);
 	/*
 	 * Convert the time to 1-second intervals and the remainder to
 	 * 1-nano-second intervals.
