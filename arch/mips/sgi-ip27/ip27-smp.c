@@ -156,8 +156,11 @@ void __init prom_prepare_cpus(unsigned int max_cpus)
 {
 	cnodeid_t	cnode;
 
-	for_each_online_node(cnode)
+	for_each_online_node(cnode) {
+		if (cnode == 0)
+			continue;
 		intr_clear_all(COMPACT_TO_NASID_NODEID(cnode));
+	}
 
 	replicate_kernel_text();
 
