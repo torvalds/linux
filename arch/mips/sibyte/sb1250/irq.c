@@ -96,11 +96,11 @@ void sb1250_mask_irq(int cpu, int irq)
 	u64 cur_ints;
 
 	spin_lock_irqsave(&sb1250_imr_lock, flags);
-	cur_ints = __bus_readq(IOADDR(A_IMR_MAPPER(cpu) +
-				      R_IMR_INTERRUPT_MASK));
+	cur_ints = ____raw_readq(IOADDR(A_IMR_MAPPER(cpu) +
+					R_IMR_INTERRUPT_MASK));
 	cur_ints |= (((u64) 1) << irq);
-	__bus_writeq(cur_ints, IOADDR(A_IMR_MAPPER(cpu) +
-				      R_IMR_INTERRUPT_MASK));
+	____raw_writeq(cur_ints, IOADDR(A_IMR_MAPPER(cpu) +
+					R_IMR_INTERRUPT_MASK));
 	spin_unlock_irqrestore(&sb1250_imr_lock, flags);
 }
 
@@ -110,11 +110,11 @@ void sb1250_unmask_irq(int cpu, int irq)
 	u64 cur_ints;
 
 	spin_lock_irqsave(&sb1250_imr_lock, flags);
-	cur_ints = __bus_readq(IOADDR(A_IMR_MAPPER(cpu) +
-				      R_IMR_INTERRUPT_MASK));
+	cur_ints = ____raw_readq(IOADDR(A_IMR_MAPPER(cpu) +
+					R_IMR_INTERRUPT_MASK));
 	cur_ints &= ~(((u64) 1) << irq);
-	__bus_writeq(cur_ints, IOADDR(A_IMR_MAPPER(cpu) +
-				      R_IMR_INTERRUPT_MASK));
+	____raw_writeq(cur_ints, IOADDR(A_IMR_MAPPER(cpu) +
+					R_IMR_INTERRUPT_MASK));
 	spin_unlock_irqrestore(&sb1250_imr_lock, flags);
 }
 
@@ -149,23 +149,23 @@ static void sb1250_set_affinity(unsigned int irq, unsigned long mask)
 
 	/* Swizzle each CPU's IMR (but leave the IP selection alone) */
 	old_cpu = sb1250_irq_owner[irq];
-	cur_ints = __bus_readq(IOADDR(A_IMR_MAPPER(old_cpu) +
-			       R_IMR_INTERRUPT_MASK));
+	cur_ints = ____raw_readq(IOADDR(A_IMR_MAPPER(old_cpu) +
+					R_IMR_INTERRUPT_MASK));
 	int_on = !(cur_ints & (((u64) 1) << irq));
 	if (int_on) {
 		/* If it was on, mask it */
 		cur_ints |= (((u64) 1) << irq);
-		__bus_writeq(cur_ints, IOADDR(A_IMR_MAPPER(old_cpu) +
-					      R_IMR_INTERRUPT_MASK));
+		____raw_writeq(cur_ints, IOADDR(A_IMR_MAPPER(old_cpu) +
+					R_IMR_INTERRUPT_MASK));
 	}
 	sb1250_irq_owner[irq] = cpu;
 	if (int_on) {
 		/* unmask for the new CPU */
-		cur_ints = __bus_readq(IOADDR(A_IMR_MAPPER(cpu) +
-				       R_IMR_INTERRUPT_MASK));
+		cur_ints = ____raw_readq(IOADDR(A_IMR_MAPPER(cpu) +
+					R_IMR_INTERRUPT_MASK));
 		cur_ints &= ~(((u64) 1) << irq);
-		__bus_writeq(cur_ints, IOADDR(A_IMR_MAPPER(cpu) +
-					      R_IMR_INTERRUPT_MASK));
+		____raw_writeq(cur_ints, IOADDR(A_IMR_MAPPER(cpu) +
+					R_IMR_INTERRUPT_MASK));
 	}
 	spin_unlock(&sb1250_imr_lock);
 	spin_unlock_irqrestore(&desc->lock, flags);
@@ -208,8 +208,8 @@ static void ack_sb1250_irq(unsigned int irq)
 	 * deliver the interrupts to all CPUs (which makes affinity
 	 * changing easier for us)
 	 */
-	pending = bus_readq(IOADDR(A_IMR_REGISTER(sb1250_irq_owner[irq],
-						  R_IMR_LDT_INTERRUPT)));
+	pending = __raw_readq(IOADDR(A_IMR_REGISTER(sb1250_irq_owner[irq],
+						    R_IMR_LDT_INTERRUPT)));
 	pending &= ((u64)1 << (irq));
 	if (pending) {
 		int i;
@@ -224,8 +224,8 @@ static void ack_sb1250_irq(unsigned int irq)
 			 * Clear for all CPUs so an affinity switch
 			 * doesn't find an old status
 			 */
-			bus_writeq(pending,
-				   IOADDR(A_IMR_REGISTER(cpu,
+			__raw_writeq(pending,
+				     IOADDR(A_IMR_REGISTER(cpu,
 						R_IMR_LDT_INTERRUPT_CLR)));
 		}
 
@@ -340,12 +340,14 @@ void __init arch_init_irq(void)
 
 	/* Default everything to IP2 */
 	for (i = 0; i < SB1250_NR_IRQS; i++) {	/* was I0 */
-		bus_writeq(IMR_IP2_VAL,
-			   IOADDR(A_IMR_REGISTER(0, R_IMR_INTERRUPT_MAP_BASE) +
-				  (i << 3)));
-		bus_writeq(IMR_IP2_VAL,
-			   IOADDR(A_IMR_REGISTER(1, R_IMR_INTERRUPT_MAP_BASE) +
-				  (i << 3)));
+		__raw_writeq(IMR_IP2_VAL,
+			     IOADDR(A_IMR_REGISTER(0,
+						   R_IMR_INTERRUPT_MAP_BASE) +
+				    (i << 3)));
+		__raw_writeq(IMR_IP2_VAL,
+			     IOADDR(A_IMR_REGISTER(1,
+						   R_IMR_INTERRUPT_MAP_BASE) +
+				    (i << 3)));
 	}
 
 	init_sb1250_irqs();
@@ -355,23 +357,23 @@ void __init arch_init_irq(void)
 	 * inter-cpu messages
 	 */
 	/* Was I1 */
-	bus_writeq(IMR_IP3_VAL,
-		   IOADDR(A_IMR_REGISTER(0, R_IMR_INTERRUPT_MAP_BASE) +
-			  (K_INT_MBOX_0 << 3)));
-	bus_writeq(IMR_IP3_VAL,
-		   IOADDR(A_IMR_REGISTER(1, R_IMR_INTERRUPT_MAP_BASE) +
-			  (K_INT_MBOX_0 << 3)));
+	__raw_writeq(IMR_IP3_VAL,
+		     IOADDR(A_IMR_REGISTER(0, R_IMR_INTERRUPT_MAP_BASE) +
+			    (K_INT_MBOX_0 << 3)));
+	__raw_writeq(IMR_IP3_VAL,
+		     IOADDR(A_IMR_REGISTER(1, R_IMR_INTERRUPT_MAP_BASE) +
+			    (K_INT_MBOX_0 << 3)));
 
 	/* Clear the mailboxes.  The firmware may leave them dirty */
-	bus_writeq(0xffffffffffffffffULL,
-		   IOADDR(A_IMR_REGISTER(0, R_IMR_MAILBOX_CLR_CPU)));
-	bus_writeq(0xffffffffffffffffULL,
-		   IOADDR(A_IMR_REGISTER(1, R_IMR_MAILBOX_CLR_CPU)));
+	__raw_writeq(0xffffffffffffffffULL,
+		     IOADDR(A_IMR_REGISTER(0, R_IMR_MAILBOX_CLR_CPU)));
+	__raw_writeq(0xffffffffffffffffULL,
+		     IOADDR(A_IMR_REGISTER(1, R_IMR_MAILBOX_CLR_CPU)));
 
 	/* Mask everything except the mailbox registers for both cpus */
 	tmp = ~((u64) 0) ^ (((u64) 1) << K_INT_MBOX_0);
-	bus_writeq(tmp, IOADDR(A_IMR_REGISTER(0, R_IMR_INTERRUPT_MASK)));
-	bus_writeq(tmp, IOADDR(A_IMR_REGISTER(1, R_IMR_INTERRUPT_MASK)));
+	__raw_writeq(tmp, IOADDR(A_IMR_REGISTER(0, R_IMR_INTERRUPT_MASK)));
+	__raw_writeq(tmp, IOADDR(A_IMR_REGISTER(1, R_IMR_INTERRUPT_MASK)));
 
 	sb1250_steal_irq(K_INT_MBOX_0);
 
@@ -396,12 +398,14 @@ void __init arch_init_irq(void)
 		sb1250_duart_present[kgdb_port] = 0;
 #endif
 		/* Setup uart 1 settings, mapper */
-		bus_writeq(M_DUART_IMR_BRK, IOADDR(A_DUART_IMRREG(kgdb_port)));
+		__raw_writeq(M_DUART_IMR_BRK,
+			     IOADDR(A_DUART_IMRREG(kgdb_port)));
 
 		sb1250_steal_irq(kgdb_irq);
-		bus_writeq(IMR_IP6_VAL,
-			   IOADDR(A_IMR_REGISTER(0, R_IMR_INTERRUPT_MAP_BASE) +
-				  (kgdb_irq<<3)));
+		__raw_writeq(IMR_IP6_VAL,
+			     IOADDR(A_IMR_REGISTER(0,
+						   R_IMR_INTERRUPT_MAP_BASE) +
+				    (kgdb_irq << 3)));
 		sb1250_unmask_irq(0, kgdb_irq);
 	}
 #endif

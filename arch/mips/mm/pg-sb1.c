@@ -214,12 +214,12 @@ void sb1_dma_init(void)
 	int cpu = smp_processor_id();
 	u64 base_val = CPHYSADDR(&page_descr[cpu]) | V_DM_DSCR_BASE_RINGSZ(1);
 
-	bus_writeq(base_val,
-		   (void *)IOADDR(A_DM_REGISTER(cpu, R_DM_DSCR_BASE)));
-	bus_writeq(base_val | M_DM_DSCR_BASE_RESET,
-		   (void *)IOADDR(A_DM_REGISTER(cpu, R_DM_DSCR_BASE)));
-	bus_writeq(base_val | M_DM_DSCR_BASE_ENABL,
-		   (void *)IOADDR(A_DM_REGISTER(cpu, R_DM_DSCR_BASE)));
+	__raw_writeq(base_val,
+		     IOADDR(A_DM_REGISTER(cpu, R_DM_DSCR_BASE)));
+	__raw_writeq(base_val | M_DM_DSCR_BASE_RESET,
+		     IOADDR(A_DM_REGISTER(cpu, R_DM_DSCR_BASE)));
+	__raw_writeq(base_val | M_DM_DSCR_BASE_ENABL,
+		     IOADDR(A_DM_REGISTER(cpu, R_DM_DSCR_BASE)));
 }
 
 void clear_page(void *page)
@@ -232,16 +232,16 @@ void clear_page(void *page)
 
 	page_descr[cpu].dscr_a = CPHYSADDR(page) | M_DM_DSCRA_ZERO_MEM | M_DM_DSCRA_L2C_DEST | M_DM_DSCRA_INTERRUPT;
 	page_descr[cpu].dscr_b = V_DM_DSCRB_SRC_LENGTH(PAGE_SIZE);
-	bus_writeq(1, (void *)IOADDR(A_DM_REGISTER(cpu, R_DM_DSCR_COUNT)));
+	__raw_writeq(1, IOADDR(A_DM_REGISTER(cpu, R_DM_DSCR_COUNT)));
 
 	/*
 	 * Don't really want to do it this way, but there's no
 	 * reliable way to delay completion detection.
 	 */
-	while (!(bus_readq((void *)(IOADDR(A_DM_REGISTER(cpu, R_DM_DSCR_BASE_DEBUG)) &
-			   M_DM_DSCR_BASE_INTERRUPT))))
+	while (!(__raw_readq(IOADDR(A_DM_REGISTER(cpu, R_DM_DSCR_BASE_DEBUG)))
+		 M_DM_DSCR_BASE_INTERRUPT)))
 		;
-	bus_readq((void *)IOADDR(A_DM_REGISTER(cpu, R_DM_DSCR_BASE)));
+	__raw_readq(IOADDR(A_DM_REGISTER(cpu, R_DM_DSCR_BASE)));
 }
 
 void copy_page(void *to, void *from)
@@ -257,16 +257,16 @@ void copy_page(void *to, void *from)
 
 	page_descr[cpu].dscr_a = CPHYSADDR(to_phys) | M_DM_DSCRA_L2C_DEST | M_DM_DSCRA_INTERRUPT;
 	page_descr[cpu].dscr_b = CPHYSADDR(from_phys) | V_DM_DSCRB_SRC_LENGTH(PAGE_SIZE);
-	bus_writeq(1, (void *)IOADDR(A_DM_REGISTER(cpu, R_DM_DSCR_COUNT)));
+	__raw_writeq(1, IOADDR(A_DM_REGISTER(cpu, R_DM_DSCR_COUNT)));
 
 	/*
 	 * Don't really want to do it this way, but there's no
 	 * reliable way to delay completion detection.
 	 */
-	while (!(bus_readq((void *)(IOADDR(A_DM_REGISTER(cpu, R_DM_DSCR_BASE_DEBUG)) &
-				    M_DM_DSCR_BASE_INTERRUPT))))
+	while (!(__raw_readq(IOADDR(A_DM_REGISTER(cpu, R_DM_DSCR_BASE_DEBUG)) &
+			     M_DM_DSCR_BASE_INTERRUPT)))
 		;
-	bus_readq((void *)IOADDR(A_DM_REGISTER(cpu, R_DM_DSCR_BASE)));
+	__raw_readq(IOADDR(A_DM_REGISTER(cpu, R_DM_DSCR_BASE)));
 }
 
 #else /* !CONFIG_SIBYTE_DMA_PAGEOPS */

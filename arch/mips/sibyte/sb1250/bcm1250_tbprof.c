@@ -65,24 +65,25 @@ static void arm_tb(void)
 	u_int64_t tb_options = M_SCD_TRACE_CFG_FREEZE_FULL;
 	/* Generate an SCD_PERFCNT interrupt in TB_PERIOD Zclks to
 	   trigger start of trace.  XXX vary sampling period */
-	bus_writeq(0, IOADDR(A_SCD_PERF_CNT_1));
-	scdperfcnt = bus_readq(IOADDR(A_SCD_PERF_CNT_CFG));
+	__raw_writeq(0, IOADDR(A_SCD_PERF_CNT_1));
+	scdperfcnt = __raw_readq(IOADDR(A_SCD_PERF_CNT_CFG));
 	/* Unfortunately, in Pass 2 we must clear all counters to knock down
 	   a previous interrupt request.  This means that bus profiling
 	   requires ALL of the SCD perf counters. */
-	bus_writeq((scdperfcnt & ~M_SPC_CFG_SRC1) | // keep counters 0,2,3 as is
-		   M_SPC_CFG_ENABLE |		 // enable counting
-		   M_SPC_CFG_CLEAR |		 // clear all counters
-		   V_SPC_CFG_SRC1(1),		 // counter 1 counts cycles
-		   IOADDR(A_SCD_PERF_CNT_CFG));
-	bus_writeq(next, IOADDR(A_SCD_PERF_CNT_1));
+	__raw_writeq((scdperfcnt & ~M_SPC_CFG_SRC1) |
+						// keep counters 0,2,3 as is
+		     M_SPC_CFG_ENABLE |		// enable counting
+		     M_SPC_CFG_CLEAR |		// clear all counters
+		     V_SPC_CFG_SRC1(1),		// counter 1 counts cycles
+		     IOADDR(A_SCD_PERF_CNT_CFG));
+	__raw_writeq(next, IOADDR(A_SCD_PERF_CNT_1));
 	/* Reset the trace buffer */
-	bus_writeq(M_SCD_TRACE_CFG_RESET, IOADDR(A_SCD_TRACE_CFG));
+	__raw_writeq(M_SCD_TRACE_CFG_RESET, IOADDR(A_SCD_TRACE_CFG));
 #if 0 && defined(M_SCD_TRACE_CFG_FORCECNT)
 	/* XXXKW may want to expose control to the data-collector */
 	tb_options |= M_SCD_TRACE_CFG_FORCECNT;
 #endif
-	bus_writeq(tb_options, IOADDR(A_SCD_TRACE_CFG));
+	__raw_writeq(tb_options, IOADDR(A_SCD_TRACE_CFG));
 	sbp.tb_armed = 1;
 }
 
@@ -94,23 +95,30 @@ static irqreturn_t sbprof_tb_intr(int irq, void *dev_id, struct pt_regs *regs)
 		/* XXX should use XKPHYS to make writes bypass L2 */
 		u_int64_t *p = sbp.sbprof_tbbuf[sbp.next_tb_sample++];
 		/* Read out trace */
-		bus_writeq(M_SCD_TRACE_CFG_START_READ, IOADDR(A_SCD_TRACE_CFG));
+		__raw_writeq(M_SCD_TRACE_CFG_START_READ,
+			     IOADDR(A_SCD_TRACE_CFG));
 		__asm__ __volatile__ ("sync" : : : "memory");
 		/* Loop runs backwards because bundles are read out in reverse order */
 		for (i = 256 * 6; i > 0; i -= 6) {
 			// Subscripts decrease to put bundle in the order
 			//   t0 lo, t0 hi, t1 lo, t1 hi, t2 lo, t2 hi
-			p[i-1] = bus_readq(IOADDR(A_SCD_TRACE_READ)); // read t2 hi
-			p[i-2] = bus_readq(IOADDR(A_SCD_TRACE_READ)); // read t2 lo
-			p[i-3] = bus_readq(IOADDR(A_SCD_TRACE_READ)); // read t1 hi
-			p[i-4] = bus_readq(IOADDR(A_SCD_TRACE_READ)); // read t1 lo
-			p[i-5] = bus_readq(IOADDR(A_SCD_TRACE_READ)); // read t0 hi
-			p[i-6] = bus_readq(IOADDR(A_SCD_TRACE_READ)); // read t0 lo
+			p[i - 1] = __raw_readq(IOADDR(A_SCD_TRACE_READ));
+								// read t2 hi
+			p[i - 2] = __raw_readq(IOADDR(A_SCD_TRACE_READ));
+								// read t2 lo
+			p[i - 3] = __raw_readq(IOADDR(A_SCD_TRACE_READ));
+								// read t1 hi
+			p[i - 4] = __raw_readq(IOADDR(A_SCD_TRACE_READ));
+								// read t1 lo
+			p[i - 5] = __raw_readq(IOADDR(A_SCD_TRACE_READ));
+								// read t0 hi
+			p[i - 6] = __raw_readq(IOADDR(A_SCD_TRACE_READ));
+								// read t0 lo
 		}
 		if (!sbp.tb_enable) {
 			DBG(printk(DEVNAME ": tb_intr shutdown\n"));
-			bus_writeq(M_SCD_TRACE_CFG_RESET,
-				   IOADDR(A_SCD_TRACE_CFG));
+			__raw_writeq(M_SCD_TRACE_CFG_RESET,
+				     IOADDR(A_SCD_TRACE_CFG));
 			sbp.tb_armed = 0;
 			wake_up(&sbp.tb_sync);
 		} else {
@@ -119,7 +127,7 @@ static irqreturn_t sbprof_tb_intr(int irq, void *dev_id, struct pt_regs *regs)
 	} else {
 		/* No more trace buffer samples */
 		DBG(printk(DEVNAME ": tb_intr full\n"));
-		bus_writeq(M_SCD_TRACE_CFG_RESET, IOADDR(A_SCD_TRACE_CFG));
+		__raw_writeq(M_SCD_TRACE_CFG_RESET, IOADDR(A_SCD_TRACE_CFG));
 		sbp.tb_armed = 0;
 		if (!sbp.tb_enable) {
 			wake_up(&sbp.tb_sync);
@@ -153,13 +161,11 @@ int sbprof_zbprof_start(struct file *filp)
 		return -EBUSY;
 	}
 	/* Make sure there isn't a perf-cnt interrupt waiting */
-	scdperfcnt = bus_readq(IOADDR(A_SCD_PERF_CNT_CFG));
+	scdperfcnt = __raw_readq(IOADDR(A_SCD_PERF_CNT_CFG));
 	/* Disable and clear counters, override SRC_1 */
-	bus_writeq((scdperfcnt & ~(M_SPC_CFG_SRC1 | M_SPC_CFG_ENABLE)) |
-		   M_SPC_CFG_ENABLE |
-		   M_SPC_CFG_CLEAR |
-		   V_SPC_CFG_SRC1(1),
-		   IOADDR(A_SCD_PERF_CNT_CFG));
+	__raw_writeq((scdperfcnt & ~(M_SPC_CFG_SRC1 | M_SPC_CFG_ENABLE)) |
+		     M_SPC_CFG_ENABLE | M_SPC_CFG_CLEAR | V_SPC_CFG_SRC1(1),
+		     IOADDR(A_SCD_PERF_CNT_CFG));
 
 	/* We grab this interrupt to prevent others from trying to use
            it, even though we don't want to service the interrupts
@@ -173,55 +179,55 @@ int sbprof_zbprof_start(struct file *filp)
 	/* I need the core to mask these, but the interrupt mapper to
 	   pass them through.  I am exploiting my knowledge that
 	   cp0_status masks out IP[5]. krw */
-	bus_writeq(K_INT_MAP_I3,
-		   IOADDR(A_IMR_REGISTER(0, R_IMR_INTERRUPT_MAP_BASE) +
-			  (K_INT_PERF_CNT << 3)));
+	__raw_writeq(K_INT_MAP_I3,
+		     IOADDR(A_IMR_REGISTER(0, R_IMR_INTERRUPT_MAP_BASE) +
+			    (K_INT_PERF_CNT << 3)));
 
 	/* Initialize address traps */
-	bus_writeq(0, IOADDR(A_ADDR_TRAP_UP_0));
-	bus_writeq(0, IOADDR(A_ADDR_TRAP_UP_1));
-	bus_writeq(0, IOADDR(A_ADDR_TRAP_UP_2));
-	bus_writeq(0, IOADDR(A_ADDR_TRAP_UP_3));
+	__raw_writeq(0, IOADDR(A_ADDR_TRAP_UP_0));
+	__raw_writeq(0, IOADDR(A_ADDR_TRAP_UP_1));
+	__raw_writeq(0, IOADDR(A_ADDR_TRAP_UP_2));
+	__raw_writeq(0, IOADDR(A_ADDR_TRAP_UP_3));
 
-	bus_writeq(0, IOADDR(A_ADDR_TRAP_DOWN_0));
-	bus_writeq(0, IOADDR(A_ADDR_TRAP_DOWN_1));
-	bus_writeq(0, IOADDR(A_ADDR_TRAP_DOWN_2));
-	bus_writeq(0, IOADDR(A_ADDR_TRAP_DOWN_3));
+	__raw_writeq(0, IOADDR(A_ADDR_TRAP_DOWN_0));
+	__raw_writeq(0, IOADDR(A_ADDR_TRAP_DOWN_1));
+	__raw_writeq(0, IOADDR(A_ADDR_TRAP_DOWN_2));
+	__raw_writeq(0, IOADDR(A_ADDR_TRAP_DOWN_3));
 
-	bus_writeq(0, IOADDR(A_ADDR_TRAP_CFG_0));
-	bus_writeq(0, IOADDR(A_ADDR_TRAP_CFG_1));
-	bus_writeq(0, IOADDR(A_ADDR_TRAP_CFG_2));
-	bus_writeq(0, IOADDR(A_ADDR_TRAP_CFG_3));
+	__raw_writeq(0, IOADDR(A_ADDR_TRAP_CFG_0));
+	__raw_writeq(0, IOADDR(A_ADDR_TRAP_CFG_1));
+	__raw_writeq(0, IOADDR(A_ADDR_TRAP_CFG_2));
+	__raw_writeq(0, IOADDR(A_ADDR_TRAP_CFG_3));
 
 	/* Initialize Trace Event 0-7 */
 	//				when interrupt
-	bus_writeq(M_SCD_TREVT_INTERRUPT, IOADDR(A_SCD_TRACE_EVENT_0));
-	bus_writeq(0, IOADDR(A_SCD_TRACE_EVENT_1));
-	bus_writeq(0, IOADDR(A_SCD_TRACE_EVENT_2));
-	bus_writeq(0, IOADDR(A_SCD_TRACE_EVENT_3));
-	bus_writeq(0, IOADDR(A_SCD_TRACE_EVENT_4));
-	bus_writeq(0, IOADDR(A_SCD_TRACE_EVENT_5));
-	bus_writeq(0, IOADDR(A_SCD_TRACE_EVENT_6));
-	bus_writeq(0, IOADDR(A_SCD_TRACE_EVENT_7));
+	__raw_writeq(M_SCD_TREVT_INTERRUPT, IOADDR(A_SCD_TRACE_EVENT_0));
+	__raw_writeq(0, IOADDR(A_SCD_TRACE_EVENT_1));
+	__raw_writeq(0, IOADDR(A_SCD_TRACE_EVENT_2));
+	__raw_writeq(0, IOADDR(A_SCD_TRACE_EVENT_3));
+	__raw_writeq(0, IOADDR(A_SCD_TRACE_EVENT_4));
+	__raw_writeq(0, IOADDR(A_SCD_TRACE_EVENT_5));
+	__raw_writeq(0, IOADDR(A_SCD_TRACE_EVENT_6));
+	__raw_writeq(0, IOADDR(A_SCD_TRACE_EVENT_7));
 
 	/* Initialize Trace Sequence 0-7 */
 	//				     Start on event 0 (interrupt)
-	bus_writeq(V_SCD_TRSEQ_FUNC_START | 0x0fff,
-		   IOADDR(A_SCD_TRACE_SEQUENCE_0));
+	__raw_writeq(V_SCD_TRSEQ_FUNC_START | 0x0fff,
+		     IOADDR(A_SCD_TRACE_SEQUENCE_0));
 	//			  dsamp when d used | asamp when a used
-	bus_writeq(M_SCD_TRSEQ_ASAMPLE | M_SCD_TRSEQ_DSAMPLE |
-		   K_SCD_TRSEQ_TRIGGER_ALL,
-		   IOADDR(A_SCD_TRACE_SEQUENCE_1));
-	bus_writeq(0, IOADDR(A_SCD_TRACE_SEQUENCE_2));
-	bus_writeq(0, IOADDR(A_SCD_TRACE_SEQUENCE_3));
-	bus_writeq(0, IOADDR(A_SCD_TRACE_SEQUENCE_4));
-	bus_writeq(0, IOADDR(A_SCD_TRACE_SEQUENCE_5));
-	bus_writeq(0, IOADDR(A_SCD_TRACE_SEQUENCE_6));
-	bus_writeq(0, IOADDR(A_SCD_TRACE_SEQUENCE_7));
+	__raw_writeq(M_SCD_TRSEQ_ASAMPLE | M_SCD_TRSEQ_DSAMPLE |
+		     K_SCD_TRSEQ_TRIGGER_ALL,
+		     IOADDR(A_SCD_TRACE_SEQUENCE_1));
+	__raw_writeq(0, IOADDR(A_SCD_TRACE_SEQUENCE_2));
+	__raw_writeq(0, IOADDR(A_SCD_TRACE_SEQUENCE_3));
+	__raw_writeq(0, IOADDR(A_SCD_TRACE_SEQUENCE_4));
+	__raw_writeq(0, IOADDR(A_SCD_TRACE_SEQUENCE_5));
+	__raw_writeq(0, IOADDR(A_SCD_TRACE_SEQUENCE_6));
+	__raw_writeq(0, IOADDR(A_SCD_TRACE_SEQUENCE_7));
 
 	/* Now indicate the PERF_CNT interrupt as a trace-relevant interrupt */
-	bus_writeq((1ULL << K_INT_PERF_CNT),
-		   IOADDR(A_IMR_REGISTER(0, R_IMR_INTERRUPT_TRACE)));
+	__raw_writeq(1ULL << K_INT_PERF_CNT,
+		     IOADDR(A_IMR_REGISTER(0, R_IMR_INTERRUPT_TRACE)));
 
 	arm_tb();
 
