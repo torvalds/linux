@@ -1,5 +1,5 @@
 /**
- * $Id: phram.c,v 1.11 2005/01/05 18:05:13 dwmw2 Exp $
+ * $Id: phram.c,v 1.12 2005/02/23 19:37:07 joern Exp $
  *
  * Copyright (c) ????		Jochen Schäuble <psionic@psionic.de>
  * Copyright (c) 2003-2004	Jörn Engel <joern@wh.fh-wedel.de>
@@ -107,9 +107,9 @@ static int phram_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 static void unregister_devices(void)
 {
-	struct phram_mtd_list *this;
+	struct phram_mtd_list *this, *safe;
 
-	list_for_each_entry(this, &phram_list, list) {
+	list_for_each_entry_safe(this, safe, &phram_list, list) {
 		del_mtd_device(&this->mtd);
 		iounmap(this->mtd.priv);
 		kfree(this);
