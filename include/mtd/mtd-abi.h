@@ -1,5 +1,5 @@
 /*
- * $Id: mtd-abi.h,v 1.7 2004/11/23 15:37:32 gleixner Exp $
+ * $Id: mtd-abi.h,v 1.8 2005/02/08 17:11:16 nico Exp $
  *
  * Portions of MTD ABI definition which are shared by kernel and user space 
  */
@@ -78,6 +78,12 @@ struct region_info_user {
 	uint32_t erasesize;		/* For this region */
 	uint32_t numblocks;		/* Number of blocks in this region */
 	uint32_t regionindex;
+};
+
+struct otp_info {
+	uint32_t start;
+	uint32_t length;
+	uint32_t locked;
 };
 
 #define MEMGETINFO              _IOR('M', 1, struct mtd_info_user)

@@ -1,6 +1,6 @@
 
 /* Overhauled routines for dealing with different mmap regions of flash */
-/* $Id: map.h,v 1.46 2005/01/05 17:09:44 dwmw2 Exp $ */
+/* $Id: map.h,v 1.47 2005/02/08 17:11:15 nico Exp $ */
 
 #ifndef __LINUX_MTD_MAP_H__
 #define __LINUX_MTD_MAP_H__
@@ -263,6 +263,17 @@ static inline map_word map_word_and(struct map_info *map, map_word val1, map_wor
 	return r;
 }
 
+static inline map_word map_word_clr(struct map_info *map, map_word val1, map_word val2)
+{
+	map_word r;
+	int i;
+
+	for (i=0; i<map_words(map); i++) {
+		r.x[i] = val1.x[i] & ~val2.x[i];
+	}
+	return r;
+}
+
 static inline map_word map_word_or(struct map_info *map, map_word val1, map_word val2)
 {
 	map_word r;
@@ -273,6 +284,7 @@ static inline map_word map_word_or(struct map_info *map, map_word val1, map_word
 	}
 	return r;
 }
+
 #define map_word_andequal(m, a, b, z) map_word_equal(m, z, map_word_and(m, a, b))
 
 static inline int map_word_bitsset(struct map_info *map, map_word val1, map_word val2)
@@ -338,6 +350,7 @@ static inline map_word map_word_ff(struct map_info *map)
 	}
 	return r;
 }
+
 static inline map_word inline_map_read(struct map_info *map, unsigned long ofs)
 {
 	map_word r;

@@ -1,5 +1,5 @@
 # drivers/mtd/chips/Kconfig
-# $Id: Kconfig,v 1.13 2004/12/01 15:49:10 nico Exp $
+# $Id: Kconfig,v 1.14 2005/02/08 17:11:15 nico Exp $
 
 menu "RAM/ROM/Flash chip drivers"
 	depends on MTD!=n
@@ -154,6 +154,31 @@ config MTD_CFI_I8
 	help
 	  If your flash chips are interleaved in eights - i.e. you have eight
 	  flash chips addressed by each bus cycle, then say 'Y'.
+
+config MTD_OTP
+	bool "Protection Registers aka one-time programmable (OTP) bits"
+	depends on MTD_CFI_ADV_OPTIONS
+	default n
+	help
+	  This enables support for reading, writing and locking so called
+	  "Protection Registers" present on some flash chips.
+	  A subset of them are pre-programmed at the factory with a
+	  unique set of values. The rest is user-programmable.
+
+	  The user-programmable Protection Registers contain one-time
+	  programmable (OTP) bits; when programmed, register bits cannot be
+	  erased. Each Protection Register can be accessed multiple times to
+	  program individual bits, as long as the register remains unlocked.
+
+	  Each Protection Register has an associated Lock Register bit. When a
+	  Lock Register bit is programmed, the associated Protection Register
+	  can only be read; it can no longer be programmed. Additionally,
+	  because the Lock Register bits themselves are OTP, when programmed,
+	  Lock Register bits cannot be erased. Therefore, when a Protection
+	  Register is locked, it cannot be unlocked.
+
+	  This feature should therefore be used with extreme care. Any mistake
+	  in the programming of OTP bits will waste them.
 
 config MTD_CFI_INTELEXT
 	tristate "Support for Intel/Sharp flash chips"

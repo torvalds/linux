@@ -4,7 +4,7 @@
  *
  * (C) 2000 Red Hat. GPL'd
  *
- * $Id: cfi_cmdset_0001.c,v 1.165 2005/02/05 02:06:15 nico Exp $
+ * $Id: cfi_cmdset_0001.c,v 1.167 2005/02/08 17:11:15 nico Exp $
  *
  * 
  * 10/10/2000	Nicolas Pitre <nico@cam.org>
@@ -48,14 +48,20 @@
 #define M50LPW080       0x002F
 
 static int cfi_intelext_read (struct mtd_info *, loff_t, size_t, size_t *, u_char *);
-//static int cfi_intelext_read_user_prot_reg (struct mtd_info *, loff_t, size_t, size_t *, u_char *);
-//static int cfi_intelext_read_fact_prot_reg (struct mtd_info *, loff_t, size_t, size_t *, u_char *);
 static int cfi_intelext_write_words(struct mtd_info *, loff_t, size_t, size_t *, const u_char *);
 static int cfi_intelext_write_buffers(struct mtd_info *, loff_t, size_t, size_t *, const u_char *);
 static int cfi_intelext_erase_varsize(struct mtd_info *, struct erase_info *);
 static void cfi_intelext_sync (struct mtd_info *);
 static int cfi_intelext_lock(struct mtd_info *mtd, loff_t ofs, size_t len);
 static int cfi_intelext_unlock(struct mtd_info *mtd, loff_t ofs, size_t len);
+static int cfi_intelext_read_fact_prot_reg (struct mtd_info *, loff_t, size_t, size_t *, u_char *);
+static int cfi_intelext_read_user_prot_reg (struct mtd_info *, loff_t, size_t, size_t *, u_char *);
+static int cfi_intelext_write_user_prot_reg (struct mtd_info *, loff_t, size_t, size_t *, u_char *);
+static int cfi_intelext_lock_user_prot_reg (struct mtd_info *, loff_t, size_t);
+static int cfi_intelext_get_fact_prot_info (struct mtd_info *,
+					    struct otp_info *, size_t);
+static int cfi_intelext_get_user_prot_info (struct mtd_info *,
+					    struct otp_info *, size_t);
 static int cfi_intelext_suspend (struct mtd_info *);
 static void cfi_intelext_resume (struct mtd_info *);
 
@@ -423,9 +429,13 @@ static struct mtd_info *cfi_intelext_setup(struct mtd_info *mtd)
 		       mtd->eraseregions[i].numblocks);
 	}
 
-#if 0
-	mtd->read_user_prot_reg = cfi_intelext_read_user_prot_reg;
+#ifdef CONFIG_MTD_OTP
 	mtd->read_fact_prot_reg = cfi_intelext_read_fact_prot_reg;
+	mtd->read_user_prot_reg = cfi_intelext_read_user_prot_reg;
+	mtd->write_user_prot_reg = cfi_intelext_write_user_prot_reg;
+	mtd->lock_user_prot_reg = cfi_intelext_lock_user_prot_reg;
+	mtd->get_fact_prot_info = cfi_intelext_get_fact_prot_info;
+	mtd->get_user_prot_info = cfi_intelext_get_user_prot_info;
 #endif
 
 	/* This function has the potential to distort the reality
@@ -565,7 +575,7 @@ static int get_chip(struct map_info *map, struct flchip *chip, unsigned long adr
  resettime:
 	timeo = jiffies + HZ;
  retry:
-	if (chip->priv && (mode == FL_WRITING || mode == FL_ERASING)) {
+	if (chip->priv && (mode == FL_WRITING || mode == FL_ERASING || mode == FL_OTP_WRITE)) {
 		/*
 		 * OK. We have possibility for contension on the write/erase
 		 * operations which are global to the real chip and not per
@@ -1178,111 +1188,11 @@ static int cfi_intelext_read (struct mtd_info *mtd, loff_t from, size_t len, siz
 	return ret;
 }
 
-#if 0
-static int __xipram cfi_intelext_read_prot_reg (struct mtd_info *mtd,
-						loff_t from, size_t len,
-						size_t *retlen,
-						u_char *buf,
-						int base_offst, int reg_sz)
-{
-	struct map_info *map = mtd->priv;
-	struct cfi_private *cfi = map->fldrv_priv;
-	struct cfi_pri_intelext *extp = cfi->cmdset_priv;
-	struct flchip *chip;
-	int ofs_factor = cfi->interleave * cfi->device_type;
-	int count = len;
-	int chip_num, offst;
-	int ret;
-
-	chip_num = ((unsigned int)from/reg_sz);
-	offst = from - (reg_sz*chip_num)+base_offst;
-
-	while (count) {
-	/* Calculate which chip & protection register offset we need */
-
-		if (chip_num >= cfi->numchips)
-			goto out;
-
-		chip = &cfi->chips[chip_num];
-		
-		spin_lock(chip->mutex);
-		ret = get_chip(map, chip, chip->start, FL_JEDEC_QUERY);
-		if (ret) {
-			spin_unlock(chip->mutex);
-			return (len-count)?:ret;
-		}
-
-		xip_disable(map, chip, chip->start);
-
-		if (chip->state != FL_JEDEC_QUERY) {
-			map_write(map, CMD(0x90), chip->start);
-			chip->state = FL_JEDEC_QUERY;
-		}
-
-		while (count && ((offst-base_offst) < reg_sz)) {
-			*buf = map_read8(map,(chip->start+((extp->ProtRegAddr+1)*ofs_factor)+offst));
-			buf++;
-			offst++;
-			count--;
-		}
-
-		xip_enable(map, chip, chip->start);
-		put_chip(map, chip, chip->start);
-		spin_unlock(chip->mutex);
-
-		/* Move on to the next chip */
-		chip_num++;
-		offst = base_offst;
-	}
-	
- out:	
-	return len-count;
-}
-	
-static int cfi_intelext_read_user_prot_reg (struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, u_char *buf)
-{
-	struct map_info *map = mtd->priv;
-	struct cfi_private *cfi = map->fldrv_priv;
-	struct cfi_pri_intelext *extp=cfi->cmdset_priv;
-	int base_offst,reg_sz;
-	
-	/* Check that we actually have some protection registers */
-	if(!extp || !(extp->FeatureSupport&64)){
-		printk(KERN_WARNING "%s: This flash device has no protection data to read!\n",map->name);
-		return 0;
-	}
-
-	base_offst=(1<<extp->FactProtRegSize);
-	reg_sz=(1<<extp->UserProtRegSize);
-
-	return cfi_intelext_read_prot_reg(mtd, from, len, retlen, buf, base_offst, reg_sz);
-}
-
-static int cfi_intelext_read_fact_prot_reg (struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, u_char *buf)
-{
-	struct map_info *map = mtd->priv;
-	struct cfi_private *cfi = map->fldrv_priv;
-	struct cfi_pri_intelext *extp=cfi->cmdset_priv;
-	int base_offst,reg_sz;
-	
-	/* Check that we actually have some protection registers */
-	if(!extp || !(extp->FeatureSupport&64)){
-		printk(KERN_WARNING "%s: This flash device has no protection data to read!\n",map->name);
-		return 0;
-	}
-
-	base_offst=0;
-	reg_sz=(1<<extp->FactProtRegSize);
-
-	return cfi_intelext_read_prot_reg(mtd, from, len, retlen, buf, base_offst, reg_sz);
-}
-#endif
-
 static int __xipram do_write_oneword(struct map_info *map, struct flchip *chip,
-				     unsigned long adr, map_word datum)
+				     unsigned long adr, map_word datum, int mode)
 {
 	struct cfi_private *cfi = map->fldrv_priv;
-	map_word status, status_OK;
+	map_word status, status_OK, write_cmd;
 	unsigned long timeo;
 	int z, ret=0;
 
@@ -1290,9 +1200,14 @@ static int __xipram do_write_oneword(struct map_info *map, struct flchip *chip,
 
 	/* Let's determine this according to the interleave only once */
 	status_OK = CMD(0x80);
+	switch (mode) {
+	case FL_WRITING:   write_cmd = CMD(0x40); break;
+	case FL_OTP_WRITE: write_cmd = CMD(0xc0); break;
+	default: return -EINVAL;
+	}
 
 	spin_lock(chip->mutex);
-	ret = get_chip(map, chip, adr, FL_WRITING);
+	ret = get_chip(map, chip, adr, mode);
 	if (ret) {
 		spin_unlock(chip->mutex);
 		return ret;
@@ -1301,9 +1216,9 @@ static int __xipram do_write_oneword(struct map_info *map, struct flchip *chip,
 	XIP_INVAL_CACHED_RANGE(map, adr, map_bankwidth(map));
 	ENABLE_VPP(map);
 	xip_disable(map, chip, adr);
-	map_write(map, CMD(0x40), adr);
+	map_write(map, write_cmd, adr);
 	map_write(map, datum, adr);
-	chip->state = FL_WRITING;
+	chip->state = mode;
 
 	spin_unlock(chip->mutex);
 	INVALIDATE_CACHED_RANGE(map, adr, map_bankwidth(map));
@@ -1313,7 +1228,7 @@ static int __xipram do_write_oneword(struct map_info *map, struct flchip *chip,
 	timeo = jiffies + (HZ/2);
 	z = 0;
 	for (;;) {
-		if (chip->state != FL_WRITING) {
+		if (chip->state != mode) {
 			/* Someone's suspended the write. Sleep */
 			DECLARE_WAITQUEUE(wait, current);
 
@@ -1401,7 +1316,7 @@ static int cfi_intelext_write_words (struct mtd_info *mtd, loff_t to , size_t le
 		datum = map_word_load_partial(map, datum, buf, gap, n);
 
 		ret = do_write_oneword(map, &cfi->chips[chipnum],
-					       bus_ofs, datum);
+					       bus_ofs, datum, FL_WRITING);
 		if (ret) 
 			return ret;
 
@@ -1422,7 +1337,7 @@ static int cfi_intelext_write_words (struct mtd_info *mtd, loff_t to , size_t le
 		map_word datum = map_word_load(map, buf);
 
 		ret = do_write_oneword(map, &cfi->chips[chipnum],
-				ofs, datum);
+				       ofs, datum, FL_WRITING);
 		if (ret)
 			return ret;
 
@@ -1446,7 +1361,7 @@ static int cfi_intelext_write_words (struct mtd_info *mtd, loff_t to , size_t le
 		datum = map_word_load_partial(map, datum, buf, 0, len);
 
 		ret = do_write_oneword(map, &cfi->chips[chipnum],
-					       ofs, datum);
+				       ofs, datum, FL_WRITING);
 		if (ret) 
 			return ret;
 		
@@ -2035,6 +1950,262 @@ static int cfi_intelext_unlock(struct mtd_info *mtd, loff_t ofs, size_t len)
 	
 	return ret;
 }
+
+#ifdef CONFIG_MTD_OTP
+
+typedef int (*otp_op_t)(struct map_info *map, struct flchip *chip, 
+			u_long data_offset, u_char *buf, u_int size,
+			u_long prot_offset, u_int groupno, u_int groupsize);
+
+static int __xipram
+do_otp_read(struct map_info *map, struct flchip *chip, u_long offset,
+	    u_char *buf, u_int size, u_long prot, u_int grpno, u_int grpsz)
+{
+	struct cfi_private *cfi = map->fldrv_priv;
+	int ret;
+
+	spin_lock(chip->mutex);
+	ret = get_chip(map, chip, chip->start, FL_JEDEC_QUERY);
+	if (ret) {
+		spin_unlock(chip->mutex);
+		return ret;
+	}
+
+	/* let's ensure we're not reading back cached data from array mode */
+	if (map->inval_cache)
+		map->inval_cache(map, chip->start + offset, size);
+
+	xip_disable(map, chip, chip->start);
+	if (chip->state != FL_JEDEC_QUERY) {
+		map_write(map, CMD(0x90), chip->start);
+		chip->state = FL_JEDEC_QUERY;
+	}
+	map_copy_from(map, buf, chip->start + offset, size);
+	xip_enable(map, chip, chip->start);
+
+	/* then ensure we don't keep OTP data in the cache */
+	if (map->inval_cache)
+		map->inval_cache(map, chip->start + offset, size);
+
+	put_chip(map, chip, chip->start);
+	spin_unlock(chip->mutex);
+	return 0;
+}
+
+static int
+do_otp_write(struct map_info *map, struct flchip *chip, u_long offset,
+	     u_char *buf, u_int size, u_long prot, u_int grpno, u_int grpsz)
+{
+	int ret;
+
+	while (size) {
+		unsigned long bus_ofs = offset & ~(map_bankwidth(map)-1);
+		int gap = offset - bus_ofs;
+		int n = min_t(int, size, map_bankwidth(map)-gap);
+		map_word datum = map_word_ff(map);
+
+		datum = map_word_load_partial(map, datum, buf, gap, n);
+		ret = do_write_oneword(map, chip, bus_ofs, datum, FL_OTP_WRITE);
+		if (ret) 
+			return ret;
+
+		offset += n;
+		buf += n;
+		size -= n;
+	}
+
+	return 0;
+}
+
+static int
+do_otp_lock(struct map_info *map, struct flchip *chip, u_long offset,
+	    u_char *buf, u_int size, u_long prot, u_int grpno, u_int grpsz)
+{
+	struct cfi_private *cfi = map->fldrv_priv;
+	map_word datum;
+
+	/* make sure area matches group boundaries */
+	if (offset != 0 || size != grpsz)
+		return -EXDEV;
+
+	datum = map_word_ff(map);
+	datum = map_word_clr(map, datum, CMD(1 << grpno));
+	return do_write_oneword(map, chip, prot, datum, FL_OTP_WRITE);
+}
+
+static int cfi_intelext_otp_walk(struct mtd_info *mtd, loff_t from, size_t len,
+				 size_t *retlen, u_char *buf,
+				 otp_op_t action, int user_regs)
+{
+	struct map_info *map = mtd->priv;
+	struct cfi_private *cfi = map->fldrv_priv;
+	struct cfi_pri_intelext *extp = cfi->cmdset_priv;
+	struct flchip *chip;
+	struct cfi_intelext_otpinfo *otp;
+	u_long devsize, reg_prot_offset, data_offset;
+	u_int chip_num, chip_step, field, reg_fact_size, reg_user_size;
+	u_int groups, groupno, groupsize, reg_fact_groups, reg_user_groups;
+	int ret;
+
+	*retlen = 0;
+
+	/* Check that we actually have some OTP registers */
+	if (!extp || !(extp->FeatureSupport & 64) || !extp->NumProtectionFields)
+		return -ENODATA;
+
+	/* we need real chips here not virtual ones */
+	devsize = (1 << cfi->cfiq->DevSize) * cfi->interleave;
+	chip_step = devsize >> cfi->chipshift;
+
+	for (chip_num = 0; chip_num < cfi->numchips; chip_num += chip_step) {
+		chip = &cfi->chips[chip_num];
+		otp = (struct cfi_intelext_otpinfo *)&extp->extra[0];
+
+		/* first OTP region */
+		field = 0;
+		reg_prot_offset = extp->ProtRegAddr;
+		reg_fact_groups = 1;
+		reg_fact_size = 1 << extp->FactProtRegSize;
+		reg_user_groups = 1;
+		reg_user_size = 1 << extp->UserProtRegSize;
+
+		while (len > 0) {
+			/* flash geometry fixup */
+			data_offset = reg_prot_offset + 1;
+			data_offset *= cfi->interleave * cfi->device_type;
+			reg_prot_offset *= cfi->interleave * cfi->device_type;
+			reg_fact_size *= cfi->interleave;
+			reg_user_size *= cfi->interleave;
+
+			if (user_regs) {
+				groups = reg_user_groups;
+				groupsize = reg_user_size;
+				/* skip over factory reg area */
+				groupno = reg_fact_groups;
+				data_offset += reg_fact_groups * reg_fact_size;
+			} else {
+				groups = reg_fact_groups;
+				groupsize = reg_fact_size;
+				groupno = 0;
+			}
+
+			while (groups > 0) {
+				if (!action) {
+					/*
+					 * Special case: if action is NULL
+					 * we fill buf with otp_info records.
+					 */
+					struct otp_info *otpinfo;
+					map_word lockword;
+					len -= sizeof(struct otp_info);
+					if (len <= 0)
+						return -ENOSPC;
+					ret = do_otp_read(map, chip,
+							  reg_prot_offset,
+							  (u_char *)&lockword,
+							  map_bankwidth(map),
+							  0, 0,  0);
+					if (ret)
+						return ret;
+					otpinfo = (struct otp_info *)buf;
+					otpinfo->start = from;
+					otpinfo->length = groupsize;
+					otpinfo->locked =
+					   !map_word_bitsset(map, lockword,
+							     CMD(1 << groupno));
+					from += groupsize;
+					buf += sizeof(*otpinfo);
+					*retlen += sizeof(*otpinfo);
+				} else if (from >= groupsize) {
+					from -= groupsize;
+				} else {
+					int size = groupsize;
+					data_offset += from;
+					size -= from;
+					from = 0;
+					if (size > len)
+						size = len;
+					ret = action(map, chip, data_offset,
+						     buf, size, reg_prot_offset,
+						     groupno, groupsize);
+					if (ret < 0)
+						return ret;
+					buf += size;
+					len -= size;
+					*retlen += size;
+				}
+				groupno++;
+				groups--;
+			}
+
+			/* next OTP region */
+			if (++field == extp->NumProtectionFields)
+				break;
+			reg_prot_offset = otp->ProtRegAddr;
+			reg_fact_groups = otp->FactGroups;
+			reg_fact_size = 1 << otp->FactProtRegSize;
+			reg_user_groups = otp->UserGroups;
+			reg_user_size = 1 << otp->UserProtRegSize;
+			otp++;
+		}
+	}
+
+	return 0;
+}
+
+static int cfi_intelext_read_fact_prot_reg(struct mtd_info *mtd, loff_t from,
+					   size_t len, size_t *retlen,
+					    u_char *buf)
+{
+	return cfi_intelext_otp_walk(mtd, from, len, retlen,
+				     buf, do_otp_read, 0);
+}
+
+static int cfi_intelext_read_user_prot_reg(struct mtd_info *mtd, loff_t from,
+					   size_t len, size_t *retlen,
+					    u_char *buf)
+{
+	return cfi_intelext_otp_walk(mtd, from, len, retlen,
+				     buf, do_otp_read, 1);
+}
+
+static int cfi_intelext_write_user_prot_reg(struct mtd_info *mtd, loff_t from,
+					    size_t len, size_t *retlen,
+					     u_char *buf)
+{
+	return cfi_intelext_otp_walk(mtd, from, len, retlen,
+				     buf, do_otp_write, 1);
+}
+
+static int cfi_intelext_lock_user_prot_reg(struct mtd_info *mtd,
+					   loff_t from, size_t len)
+{
+	size_t retlen;
+	return cfi_intelext_otp_walk(mtd, from, len, &retlen,
+				     NULL, do_otp_lock, 1);
+}
+
+static int cfi_intelext_get_fact_prot_info(struct mtd_info *mtd, 
+					   struct otp_info *buf, size_t len)
+{
+	size_t retlen;
+	int ret;
+
+	ret = cfi_intelext_otp_walk(mtd, 0, len, &retlen, (u_char *)buf, NULL, 0);
+	return ret ? : retlen;
+}
+
+static int cfi_intelext_get_user_prot_info(struct mtd_info *mtd,
+					   struct otp_info *buf, size_t len)
+{
+	size_t retlen;
+	int ret;
+
+	ret = cfi_intelext_otp_walk(mtd, 0, len, &retlen, (u_char *)buf, NULL, 1);
+	return ret ? : retlen;
+}
+
+#endif
 
 static int cfi_intelext_suspend(struct mtd_info *mtd)
 {

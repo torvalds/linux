@@ -1,7 +1,7 @@
 
 /* Common Flash Interface structures 
  * See http://support.intel.com/design/flash/technote/index.htm
- * $Id: cfi.h,v 1.51 2005/02/05 02:06:16 nico Exp $
+ * $Id: cfi.h,v 1.52 2005/02/08 17:11:15 nico Exp $
  */
 
 #ifndef __MTD_CFI_H__
@@ -252,7 +252,7 @@ static inline uint32_t cfi_build_cmd_addr(uint32_t cmd_ofs, int interleave, int 
  * It looks too long to be inline, but in the common case it should almost all
  * get optimised away. 
  */
-static inline map_word cfi_build_cmd(u_char cmd, struct map_info *map, struct cfi_private *cfi)
+static inline map_word cfi_build_cmd(u_long cmd, struct map_info *map, struct cfi_private *cfi)
 {
 	map_word val = { {0} };
 	int wordwidth, words_per_bus, chip_mode, chips_per_word;

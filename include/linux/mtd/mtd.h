@@ -1,5 +1,5 @@
 /* 
- * $Id: mtd.h,v 1.56 2004/08/09 18:46:04 dmarlin Exp $
+ * $Id: mtd.h,v 1.57 2005/02/08 17:11:15 nico Exp $
  *
  * Copyright (C) 1999-2003 David Woodhouse <dwmw2@infradead.org> et al.
  *
@@ -113,12 +113,12 @@ struct mtd_info {
 	 * flash devices. The user data is one time programmable but the
 	 * factory data is read only. 
 	 */
-	int (*read_user_prot_reg) (struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, u_char *buf);
-
+	int (*get_fact_prot_info) (struct mtd_info *mtd, struct otp_info *buf, size_t len);
 	int (*read_fact_prot_reg) (struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, u_char *buf);
-
-	/* This function is not yet implemented */
+	int (*get_user_prot_info) (struct mtd_info *mtd, struct otp_info *buf, size_t len);
+	int (*read_user_prot_reg) (struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, u_char *buf);
 	int (*write_user_prot_reg) (struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, u_char *buf);
+	int (*lock_user_prot_reg) (struct mtd_info *mtd, loff_t from, size_t len);
 
 	/* kvec-based read/write methods. We need these especially for NAND flash,
 	   with its limited number of write cycles per erase.

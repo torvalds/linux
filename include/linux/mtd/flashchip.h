@@ -6,7 +6,7 @@
  *
  * (C) 2000 Red Hat. GPLd.
  *
- * $Id: flashchip.h,v 1.15 2004/11/05 22:41:06 nico Exp $
+ * $Id: flashchip.h,v 1.16 2005/02/08 17:11:15 nico Exp $
  *
  */
 
@@ -29,6 +29,7 @@ typedef enum {
 	FL_ERASE_SUSPENDED,
 	FL_WRITING,
 	FL_WRITING_TO_BUFFER,
+	FL_OTP_WRITE,
 	FL_WRITE_SUSPENDING,
 	FL_WRITE_SUSPENDED,
 	FL_PM_SUSPENDED,
