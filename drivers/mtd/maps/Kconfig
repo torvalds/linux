@@ -1,5 +1,5 @@
 # drivers/mtd/maps/Kconfig
-# $Id: Kconfig,v 1.45 2005/02/27 21:50:21 ppopov Exp $
+# $Id: Kconfig,v 1.46 2005/03/02 14:51:04 dvrabel Exp $
 
 menu "Mapping drivers for chip access"
 	depends on MTD!=n
@@ -121,16 +121,6 @@ config MTD_SBC_GXX
 	  as separate MTD devices. This board utilizes Intel StrataFlash.
 	  More info at
 	  <http://www.arcomcontrols.com/products/icp/pc104/processors/SBC_GX1.htm>.
-
-config MTD_ELAN_104NC
-	tristate "CFI Flash device mapped on Arcom ELAN-104NC"
-	depends on X86 && MTD_CFI_INTELEXT && MTD_PARTITIONS && MTD_COMPLEX_MAPPINGS
-	help
-	  This provides a driver for the on-board flash of the Arcom Control
-	  System's ELAN-104NC development board. By default the flash
-	  is split into 3 partitions which are accessed as separate MTD
-	  devices. This board utilizes Intel StrataFlash. More info at
-	  <http://www.arcomcontrols.com/products/icp/pc104/processors/ELAN104NC.htm>.
 
 config MTD_LUBBOCK
 	tristate "CFI Flash device mapped on Intel Lubbock XScale eval board"
