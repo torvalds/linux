@@ -56,6 +56,12 @@ DECLARE_PER_CPU(short, __sn_cnodeid_to_nasid[MAX_NUMNODES]);
 #define sn_cnodeid_to_nasid	(&__get_cpu_var(__sn_cnodeid_to_nasid[0]))
 
 
+
+extern u8 sn_partition_id;
+extern u8 sn_system_size;
+extern u8 sn_sharing_domain_size;
+extern u8 sn_region_size;
+
 extern void sn_flush_all_caches(long addr, long bytes);
 
 #endif /* _ASM_IA64_SN_ARCH_H */
