@@ -41,6 +41,8 @@ ToDo/Notes:
 	- Use i_size_read() in fs/ntfs/compress.c at the start of the read and
 	  use the cached value afterwards.  Cache the initialized_size in the
 	  same way and protect access to the two sizes using the size_lock.
+	- Use i_size_read() in fs/ntfs/dir.c once and then use the cached
+	  value afterwards.
 
 2.1.22 - Many bug and race fixes and error handling improvements.
 

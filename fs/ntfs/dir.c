@@ -1101,7 +1101,7 @@ static inline int ntfs_filldir(ntfs_volume *vol, loff_t fpos,
 static int ntfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
 	s64 ia_pos, ia_start, prev_ia_pos, bmp_pos;
-	loff_t fpos;
+	loff_t fpos, i_size;
 	struct inode *bmp_vi, *vdir = filp->f_dentry->d_inode;
 	struct super_block *sb = vdir->i_sb;
 	ntfs_inode *ndir = NTFS_I(vdir);
@@ -1122,7 +1122,8 @@ static int ntfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 			vdir->i_ino, fpos);
 	rc = err = 0;
 	/* Are we at end of dir yet? */
-	if (fpos >= vdir->i_size + vol->mft_record_size)
+	i_size = i_size_read(vdir);
+	if (fpos >= i_size + vol->mft_record_size)
 		goto done;
 	/* Emulate . and .. for all directories. */
 	if (!fpos) {
@@ -1264,7 +1265,7 @@ skip_index_root:
 	bmp_mapping = bmp_vi->i_mapping;
 	/* Get the starting bitmap bit position and sanity check it. */
 	bmp_pos = ia_pos >> ndir->itype.index.block_size_bits;
-	if (unlikely(bmp_pos >> 3 >= bmp_vi->i_size)) {
+	if (unlikely(bmp_pos >> 3 >= i_size_read(bmp_vi))) {
 		ntfs_error(sb, "Current index allocation position exceeds "
 				"index bitmap size.");
 		goto err_out;
@@ -1301,7 +1302,7 @@ find_next_index_buffer:
 			goto get_next_bmp_page;
 		}
 		/* If we have reached the end of the bitmap, we are done. */
-		if (unlikely(((bmp_pos + cur_bmp_pos) >> 3) >= vdir->i_size))
+		if (unlikely(((bmp_pos + cur_bmp_pos) >> 3) >= i_size))
 			goto unm_EOD;
 		ia_pos = (bmp_pos + cur_bmp_pos) <<
 				ndir->itype.index.block_size_bits;
@@ -1441,7 +1442,7 @@ unm_EOD:
 	ntfs_unmap_page(bmp_page);
 EOD:
 	/* We are finished, set fpos to EOD. */
-	fpos = vdir->i_size + vol->mft_record_size;
+	fpos = i_size + vol->mft_record_size;
 abort:
 	kfree(name);
 done:
@@ -1495,7 +1496,7 @@ err_out:
 static int ntfs_dir_open(struct inode *vi, struct file *filp)
 {
 	if (sizeof(unsigned long) < 8) {
-		if (vi->i_size > MAX_LFS_FILESIZE)
+		if (i_size_read(vi) > MAX_LFS_FILESIZE)
 			return -EFBIG;
 	}
 	return 0;
