@@ -81,6 +81,9 @@ ToDo/Notes:
 	  mft record for resident attributes (fs/ntfs/inode.c).
 	- Small readability cleanup to use "a" instead of "ctx->attr"
 	  everywhere (fs/ntfs/inode.c).
+	- Make fs/ntfs/namei.c::ntfs_get_{parent,dentry} static and move the
+	  definition of ntfs_export_ops from fs/ntfs/super.c to namei.c.  Also,
+	  declare ntfs_export_ops in fs/ntfs/ntfs.h.
 
 2.1.22 - Many bug and race fixes and error handling improvements.
 

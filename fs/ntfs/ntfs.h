@@ -65,6 +65,8 @@ extern struct inode_operations ntfs_dir_inode_ops;
 extern struct  file_operations ntfs_empty_file_ops;
 extern struct inode_operations ntfs_empty_inode_ops;
 
+extern struct export_operations ntfs_export_ops;
+
 /**
  * NTFS_SB - return the ntfs volume given a vfs super block
  * @sb:		VFS super block

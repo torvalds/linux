@@ -380,7 +380,7 @@ struct inode_operations ntfs_dir_inode_ops = {
  * Return the dentry of the parent directory on success or the error code on
  * error (IS_ERR() is true).
  */
-struct dentry *ntfs_get_parent(struct dentry *child_dent)
+static struct dentry *ntfs_get_parent(struct dentry *child_dent)
 {
 	struct inode *vi = child_dent->d_inode;
 	ntfs_inode *ni = NTFS_I(vi);
@@ -465,7 +465,7 @@ try_next:
  *
  * Return the dentry on success or the error code on error (IS_ERR() is true).
  */
-struct dentry *ntfs_get_dentry(struct super_block *sb, void *fh)
+static struct dentry *ntfs_get_dentry(struct super_block *sb, void *fh)
 {
 	struct inode *vi;
 	struct dentry *dent;
@@ -496,3 +496,30 @@ struct dentry *ntfs_get_dentry(struct super_block *sb, void *fh)
 	ntfs_debug("Done for inode 0x%lx, generation 0x%x.", ino, gen);
 	return dent;
 }
+
+/**
+ * Export operations allowing NFS exporting of mounted NTFS partitions.
+ *
+ * We use the default ->decode_fh() and ->encode_fh() for now.  Note that they
+ * use 32 bits to store the inode number which is an unsigned long so on 64-bit
+ * architectures is usually 64 bits so it would all fail horribly on huge
+ * volumes.  I guess we need to define our own encode and decode fh functions
+ * that store 64-bit inode numbers at some point but for now we will ignore the
+ * problem...
+ *
+ * We also use the default ->get_name() helper (used by ->decode_fh() via
+ * fs/exportfs/expfs.c::find_exported_dentry()) as that is completely fs
+ * independent.
+ *
+ * The default ->get_parent() just returns -EACCES so we have to provide our
+ * own and the default ->get_dentry() is incompatible with NTFS due to not
+ * allowing the inode number 0 which is used in NTFS for the system file $MFT
+ * and due to using iget() whereas NTFS needs ntfs_iget().
+ */
+struct export_operations ntfs_export_ops = {
+	.get_parent	= ntfs_get_parent,	/* Find the parent of a given
+						   directory. */
+	.get_dentry	= ntfs_get_dentry,	/* Find a dentry for the inode
+						   given a file handle
+						   sub-fragment. */
+};
