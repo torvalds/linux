@@ -59,7 +59,7 @@
  *	The AG-AND chips have nice features for speed improvement,
  *	which are not supported yet. Read / program 4 pages in one go.
  *
- * $Id: nand_base.c,v 1.137 2005/03/24 14:33:22 dedekind Exp $
+ * $Id: nand_base.c,v 1.138 2005/04/01 07:21:44 gleixner Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -2512,12 +2512,9 @@ int nand_scan (struct mtd_info *mtd, int maxchips)
 	
 	/* The number of bytes available for the filesystem to place fs dependend
 	 * oob data */
-	if (this->options & NAND_BUSWIDTH_16) {
-		mtd->oobavail = mtd->oobsize - (this->autooob->eccbytes + 2);
-		if (this->autooob->eccbytes & 0x01)
-			mtd->oobavail--;
-	} else
-		mtd->oobavail = mtd->oobsize - (this->autooob->eccbytes + 1);
+	mtd->oobavail = 0;
+	for (i = 0; this->autooob->oobfree[i][1]; i++)
+		mtd->oobavail += this->autooob->oobfree[i][1];
 
 	/* 
 	 * check ECC mode, default to software
