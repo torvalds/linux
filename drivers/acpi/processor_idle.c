@@ -519,6 +519,29 @@ static int acpi_processor_get_power_info_fadt (struct acpi_processor *pr)
 }
 
 
+static int acpi_processor_get_power_info_default_c1 (struct acpi_processor *pr)
+{
+	int i;
+
+	ACPI_FUNCTION_TRACE("acpi_processor_get_power_info_default_c1");
+
+	for (i = 0; i < ACPI_PROCESSOR_MAX_POWER; i++)
+		memset(pr->power.states, 0, sizeof(struct acpi_processor_cx));
+
+	/* if info is obtained from pblk/fadt, type equals state */
+	pr->power.states[ACPI_STATE_C1].type = ACPI_STATE_C1;
+	pr->power.states[ACPI_STATE_C2].type = ACPI_STATE_C2;
+	pr->power.states[ACPI_STATE_C3].type = ACPI_STATE_C3;
+
+	/* the C0 state only exists as a filler in our array,
+	 * and all processors need to support C1 */
+	pr->power.states[ACPI_STATE_C0].valid = 1;
+	pr->power.states[ACPI_STATE_C1].valid = 1;
+
+	return_VALUE(0);
+}
+
+
 static int acpi_processor_get_power_info_cst (struct acpi_processor *pr)
 {
 	acpi_status		status = 0;
@@ -787,10 +810,7 @@ static int acpi_processor_get_power_info (
 	if ((result) || (acpi_processor_power_verify(pr) < 2)) {
 		result = acpi_processor_get_power_info_fadt(pr);
 		if (result)
-			return_VALUE(result);
-
-		if (acpi_processor_power_verify(pr) < 2)
-			return_VALUE(-ENODEV);
+			result = acpi_processor_get_power_info_default_c1(pr);
 	}
 
 	/*
@@ -810,11 +830,10 @@ static int acpi_processor_get_power_info (
 	 * CPU as being "idle manageable"
 	 */
 	for (i = 1; i < ACPI_PROCESSOR_MAX_POWER; i++) {
-		if (pr->power.states[i].valid)
+		if (pr->power.states[i].valid) {
 			pr->power.count = i;
-		if ((pr->power.states[i].valid) &&
-		    (pr->power.states[i].type >= ACPI_STATE_C2))
 			pr->flags.power = 1;
+		}
 	}
 
 	return_VALUE(0);
