@@ -7486,23 +7486,13 @@ static int ncr53c8xx_abort(struct scsi_cmnd *cmd)
 	struct scsi_cmnd *done_list;
 
 #if defined SCSI_RESET_SYNCHRONOUS && defined SCSI_RESET_ASYNCHRONOUS
-	printk("ncr53c8xx_abort: pid=%lu serial_number=%ld serial_number_at_timeout=%ld\n",
-		cmd->pid, cmd->serial_number, cmd->serial_number_at_timeout);
+	printk("ncr53c8xx_abort: pid=%lu serial_number=%ld\n",
+		cmd->pid, cmd->serial_number);
 #else
 	printk("ncr53c8xx_abort: command pid %lu\n", cmd->pid);
 #endif
 
 	NCR_LOCK_NCB(np, flags);
-
-#if defined SCSI_RESET_SYNCHRONOUS && defined SCSI_RESET_ASYNCHRONOUS
-	/*
-	 * We have to just ignore abort requests in some situations.
-	 */
-	if (cmd->serial_number != cmd->serial_number_at_timeout) {
-		sts = SCSI_ABORT_NOT_RUNNING;
-		goto out;
-	}
-#endif
 
 	sts = ncr_abort_command(np, cmd);
 out:

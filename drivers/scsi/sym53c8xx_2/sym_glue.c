@@ -799,12 +799,6 @@ static int sym_eh_handler(int op, char *opname, struct scsi_cmnd *cmd)
 
 	dev_warn(&cmd->device->sdev_gendev, "%s operation started.\n", opname);
 
-#if 0
-	/* This one should be the result of some race, thus to ignore */
-	if (cmd->serial_number != cmd->serial_number_at_timeout)
-		goto prepare;
-#endif
-
 	/* This one is queued in some place -> to wait for completion */
 	FOR_EACH_QUEUED_ELEMENT(&np->busy_ccbq, qp) {
 		struct sym_ccb *cp = sym_que_entry(qp, struct sym_ccb, link_ccbq);
