@@ -59,7 +59,7 @@
  *	The AG-AND chips have nice features for speed improvement,
  *	which are not supported yet. Read / program 4 pages in one go.
  *
- * $Id: nand_base.c,v 1.139 2005/04/04 18:02:23 dbrown Exp $
+ * $Id: nand_base.c,v 1.140 2005/04/04 18:56:29 gleixner Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -1060,8 +1060,8 @@ out:
  */
 static int nand_read (struct mtd_info *mtd, loff_t from, size_t len, size_t * retlen, u_char * buf)
 {
-	return nand_do_read_ecc (mtd, from, len, retlen, buf, NULL, NULL, 0xff);
-}			   
+	return nand_do_read_ecc (mtd, from, len, retlen, buf, NULL, &mtd->oobinfo, 0xff);
+}
 
 
 /**
@@ -1079,6 +1079,9 @@ static int nand_read (struct mtd_info *mtd, loff_t from, size_t len, size_t * re
 static int nand_read_ecc (struct mtd_info *mtd, loff_t from, size_t len,
 			  size_t * retlen, u_char * buf, u_char * oob_buf, struct nand_oobinfo *oobsel)
 {
+	/* use userspace supplied oobinfo, if zero */
+	if (oobsel == NULL)
+		oobsel = &mtd->oobinfo;
 	return nand_do_read_ecc(mtd, from, len, retlen, buf, oob_buf, oobsel, 0xff);
 }
 
@@ -1091,7 +1094,7 @@ static int nand_read_ecc (struct mtd_info *mtd, loff_t from, size_t len,
  * @retlen:	pointer to variable to store the number of read bytes
  * @buf:	the databuffer to put data
  * @oob_buf:	filesystem supplied oob data buffer (can be NULL)
- * @oobsel:	oob selection structure (can be NULL)
+ * @oobsel:	oob selection structure
  * @flags:	flag to indicate if nand_get_device/nand_release_device should be preformed
  *		and how many corrected error bits are acceptable:
  *		  bits 0..7 - number of tolerable errors
@@ -1103,10 +1106,7 @@ int nand_do_read_ecc (struct mtd_info *mtd, loff_t from, size_t len,
 			     size_t * retlen, u_char * buf, u_char * oob_buf, 
 			     struct nand_oobinfo *oobsel, int flags)
 {
-	/* use userspace supplied oobinfo, if zero */
-	if (oobsel == NULL)
-		oobsel = &mtd->oobinfo;
-	
+
 	int i, j, col, realpage, page, end, ecc, chipnr, sndcmd = 1;
 	int read = 0, oob = 0, ecc_status = 0, ecc_failed = 0;
 	struct nand_chip *this = mtd->priv;
