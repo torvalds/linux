@@ -736,16 +736,12 @@ static inline void parity_protection_init(void)
 {
 	switch (current_cpu_data.cputype) {
 	case CPU_24K:
-		/* 24K cache parity not currently implemented in FPGA */
-		printk(KERN_INFO "Disable cache parity protection for "
-		       "MIPS 24K CPU.\n");
-		write_c0_ecc(read_c0_ecc() & ~0x80000000);
-		break;
 	case CPU_5KC:
-		/* Set the PE bit (bit 31) in the c0_ecc register. */
-		printk(KERN_INFO "Enable cache parity protection for "
-		       "MIPS 5KC/24K CPUs.\n");
-		write_c0_ecc(read_c0_ecc() | 0x80000000);
+		write_c0_ecc(0x80000000);
+		back_to_back_c0_hazard();
+		/* Set the PE bit (bit 31) in the c0_errctl register. */
+		printk(KERN_INFO "Cache parity protection %sabled\n",
+		       (read_c0_ecc() & 0x80000000) ? "en" : "dis");
 		break;
 	case CPU_20KC:
 	case CPU_25KF:
