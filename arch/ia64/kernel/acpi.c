@@ -11,6 +11,7 @@
  *  Copyright (C) 2001 Jenna Hall <jenna.s.hall@intel.com>
  *  Copyright (C) 2001 Takayoshi Kochi <t-kochi@bq.jp.nec.com>
  *  Copyright (C) 2002 Erich Focht <efocht@ess.nec.de>
+ *  Copyright (C) 2004 Ashok Raj <ashok.raj@intel.com>
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
@@ -66,6 +67,11 @@ EXPORT_SYMBOL(pm_power_off);
 
 unsigned char acpi_kbd_controller_present = 1;
 unsigned char acpi_legacy_devices;
+
+static unsigned int __initdata acpi_madt_rev;
+
+unsigned int acpi_cpei_override;
+unsigned int acpi_cpei_phys_cpuid;
 
 #define MAX_SAPICS 256
 u16 ia64_acpiid_to_sapicid[MAX_SAPICS] =
@@ -267,9 +273,55 @@ acpi_parse_plat_int_src (
 						(plintsrc->flags.trigger == 1) ? IOSAPIC_EDGE : IOSAPIC_LEVEL);
 
 	platform_intr_list[plintsrc->type] = vector;
+	if (acpi_madt_rev > 1) {
+		acpi_cpei_override = plintsrc->plint_flags.cpei_override_flag;
+	}
+
+	/*
+	 * Save the physical id, so we can check when its being removed
+	 */
+	acpi_cpei_phys_cpuid = ((plintsrc->id << 8) | (plintsrc->eid)) & 0xffff;
+
 	return 0;
 }
 
+
+unsigned int can_cpei_retarget(void)
+{
+	extern int cpe_vector;
+
+	/*
+	 * Only if CPEI is supported and the override flag
+	 * is present, otherwise return that its re-targettable
+	 * if we are in polling mode.
+	 */
+	if (cpe_vector > 0 && !acpi_cpei_override)
+		return 0;
+	else
+		return 1;
+}
+
+unsigned int is_cpu_cpei_target(unsigned int cpu)
+{
+	unsigned int logical_id;
+
+	logical_id = cpu_logical_id(acpi_cpei_phys_cpuid);
+
+	if (logical_id == cpu)
+		return 1;
+	else
+		return 0;
+}
+
+void set_cpei_target_cpu(unsigned int cpu)
+{
+	acpi_cpei_phys_cpuid = cpu_physical_id(cpu);
+}
+
+unsigned int get_cpei_target_cpu(void)
+{
+	return acpi_cpei_phys_cpuid;
+}
 
 static int __init
 acpi_parse_int_src_ovr (
@@ -327,6 +379,8 @@ acpi_parse_madt (unsigned long phys_addr, unsigned long size)
 		return -EINVAL;
 
 	acpi_madt = (struct acpi_table_madt *) __va(phys_addr);
+
+	acpi_madt_rev = acpi_madt->header.revision;
 
 	/* remember the value for reference after free_initmem() */
 #ifdef CONFIG_ITANIUM
