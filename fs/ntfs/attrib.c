@@ -1,7 +1,7 @@
 /**
  * attrib.c - NTFS attribute operations.  Part of the Linux-NTFS project.
  *
- * Copyright (c) 2001-2004 Anton Altaparmakov
+ * Copyright (c) 2001-2005 Anton Altaparmakov
  * Copyright (c) 2002 Richard Russon
  *
  * This program/include file is free software; you can redistribute it and/or
@@ -30,7 +30,7 @@
 #include "types.h"
 
 /**
- * ntfs_map_runlist - map (a part of) a runlist of an ntfs inode
+ * ntfs_map_runlist_nolock - map (a part of) a runlist of an ntfs inode
  * @ni:		ntfs inode for which to map (part of) a runlist
  * @vcn:	map runlist part containing this vcn
  *
@@ -38,24 +38,23 @@
  *
  * Return 0 on success and -errno on error.
  *
- * Locking: - The runlist must be unlocked on entry and is unlocked on return.
- *	    - This function takes the lock for writing and modifies the runlist.
+ * Locking: - The runlist must be locked for writing.
+ *	    - This function modifies the runlist.
  */
-int ntfs_map_runlist(ntfs_inode *ni, VCN vcn)
+int ntfs_map_runlist_nolock(ntfs_inode *ni, VCN vcn)
 {
 	ntfs_inode *base_ni;
-	ntfs_attr_search_ctx *ctx;
 	MFT_RECORD *mrec;
+	ntfs_attr_search_ctx *ctx;
+	runlist_element *rl;
 	int err = 0;
 
 	ntfs_debug("Mapping runlist part containing vcn 0x%llx.",
 			(unsigned long long)vcn);
-
 	if (!NInoAttr(ni))
 		base_ni = ni;
 	else
 		base_ni = ni->ext.base_ntfs_ino;
-
 	mrec = map_mft_record(base_ni);
 	if (IS_ERR(mrec))
 		return PTR_ERR(mrec);
@@ -66,15 +65,7 @@ int ntfs_map_runlist(ntfs_inode *ni, VCN vcn)
 	}
 	err = ntfs_attr_lookup(ni->type, ni->name, ni->name_len,
 			CASE_SENSITIVE, vcn, NULL, 0, ctx);
-	if (unlikely(err))
-		goto put_err_out;
-
-	down_write(&ni->runlist.lock);
-	/* Make sure someone else didn't do the work while we were sleeping. */
-	if (likely(ntfs_rl_vcn_to_lcn(ni->runlist.rl, vcn) <=
-			LCN_RL_NOT_MAPPED)) {
-		runlist_element *rl;
-
+	if (likely(!err)) {
 		rl = ntfs_mapping_pairs_decompress(ni->vol, ctx->attr,
 				ni->runlist.rl);
 		if (IS_ERR(rl))
@@ -82,9 +73,6 @@ int ntfs_map_runlist(ntfs_inode *ni, VCN vcn)
 		else
 			ni->runlist.rl = rl;
 	}
-	up_write(&ni->runlist.lock);
-
-put_err_out:
 	ntfs_attr_put_search_ctx(ctx);
 err_out:
 	unmap_mft_record(base_ni);
@@ -92,17 +80,45 @@ err_out:
 }
 
 /**
- * ntfs_find_vcn - find a vcn in the runlist described by an ntfs inode
- * @ni:		ntfs inode describing the runlist to search
- * @vcn:	vcn to find
- * @need_write:	if false, lock for reading and if true, lock for writing
+ * ntfs_map_runlist - map (a part of) a runlist of an ntfs inode
+ * @ni:		ntfs inode for which to map (part of) a runlist
+ * @vcn:	map runlist part containing this vcn
+ *
+ * Map the part of a runlist containing the @vcn of the ntfs inode @ni.
+ *
+ * Return 0 on success and -errno on error.
+ *
+ * Locking: - The runlist must be unlocked on entry and is unlocked on return.
+ *	    - This function takes the runlist lock for writing and modifies the
+ *	      runlist.
+ */
+int ntfs_map_runlist(ntfs_inode *ni, VCN vcn)
+{
+	int err = 0;
+
+	down_write(&ni->runlist.lock);
+	/* Make sure someone else didn't do the work while we were sleeping. */
+	if (likely(ntfs_rl_vcn_to_lcn(ni->runlist.rl, vcn) <=
+			LCN_RL_NOT_MAPPED))
+		err = ntfs_map_runlist_nolock(ni, vcn);
+	up_write(&ni->runlist.lock);
+	return err;
+}
+
+/**
+ * ntfs_find_vcn_nolock - find a vcn in the runlist described by an ntfs inode
+ * @ni:			ntfs inode describing the runlist to search
+ * @vcn:		vcn to find
+ * @write_locked:	true if the runlist is locked for writing
  *
  * Find the virtual cluster number @vcn in the runlist described by the ntfs
  * inode @ni and return the address of the runlist element containing the @vcn.
- * The runlist is left locked and the caller has to unlock it.  If @need_write
- * is true, the runlist is locked for writing and if @need_write is false, the
- * runlist is locked for reading.  In the error case, the runlist is not left
- * locked.
+ * The runlist is left locked and the caller has to unlock it.  In the error
+ * case, the runlist is left in the same locking state as on entry.
+ *
+ * Note if @write_locked is FALSE the lock may be dropped inside the function
+ * so you cannot rely on the runlist still being the same when this function
+ * returns.
  *
  * Note you need to distinguish between the lcn of the returned runlist element
  * being >= 0 and LCN_HOLE.  In the later case you have to return zeroes on
@@ -124,28 +140,24 @@ err_out:
  *	      true, it is locked for writing.  Otherwise is is locked for
  *	      reading.
  */
-runlist_element *ntfs_find_vcn(ntfs_inode *ni, const VCN vcn,
-		const BOOL need_write)
+runlist_element *ntfs_find_vcn_nolock(ntfs_inode *ni, const VCN vcn,
+		const BOOL write_locked)
 {
 	runlist_element *rl;
 	int err = 0;
 	BOOL is_retry = FALSE;
 
-	ntfs_debug("Entering for i_ino 0x%lx, vcn 0x%llx, lock for %sing.",
+	ntfs_debug("Entering for i_ino 0x%lx, vcn 0x%llx, %s_locked.",
 			ni->mft_no, (unsigned long long)vcn,
-			!need_write ? "read" : "writ");
+			write_locked ? "write" : "read");
 	BUG_ON(!ni);
 	BUG_ON(!NInoNonResident(ni));
 	BUG_ON(vcn < 0);
-lock_retry_remap:
-	if (!need_write)
-		down_read(&ni->runlist.lock);
-	else
-		down_write(&ni->runlist.lock);
+retry_remap:
 	rl = ni->runlist.rl;
 	if (likely(rl && vcn >= rl[0].vcn)) {
 		while (likely(rl->length)) {
-			if (likely(vcn < rl[1].vcn)) {
+			if (unlikely(vcn < rl[1].vcn)) {
 				if (likely(rl->lcn >= LCN_HOLE)) {
 					ntfs_debug("Done.");
 					return rl;
@@ -161,19 +173,23 @@ lock_retry_remap:
 				err = -EIO;
 		}
 	}
-	if (!need_write)
-		up_read(&ni->runlist.lock);
-	else
-		up_write(&ni->runlist.lock);
 	if (!err && !is_retry) {
 		/*
 		 * The @vcn is in an unmapped region, map the runlist and
 		 * retry.
 		 */
-		err = ntfs_map_runlist(ni, vcn);
+		if (!write_locked) {
+			up_read(&ni->runlist.lock);
+			down_write(&ni->runlist.lock);
+		}
+		err = ntfs_map_runlist_nolock(ni, vcn);
+		if (!write_locked) {
+			up_write(&ni->runlist.lock);
+			down_read(&ni->runlist.lock);
+		}
 		if (likely(!err)) {
 			is_retry = TRUE;
-			goto lock_retry_remap;
+			goto retry_remap;
 		}
 		/*
 		 * -EINVAL and -ENOENT coming from a failed mapping attempt are
@@ -184,7 +200,8 @@ lock_retry_remap:
 			err = -EIO;
 	} else if (!err)
 		err = -EIO;
-	ntfs_error(ni->vol->sb, "Failed with error code %i.", err);
+	if (err != -ENOENT)
+		ntfs_error(ni->vol->sb, "Failed with error code %i.", err);
 	return ERR_PTR(err);
 }
 

@@ -63,6 +63,15 @@ ToDo/Notes:
 	- Fix a bug in fs/ntfs/runlist.c::ntfs_mapping_pairs_decompress() in
 	  the creation of the unmapped runlist element for the base attribute
 	  extent.
+	- Split ntfs_map_runlist() into ntfs_map_runlist() and a non-locking
+	  helper ntfs_map_runlist_nolock() which is used by ntfs_map_runlist().
+	  This allows us to map runlist fragments with the runlist lock already
+	  held without having to drop and reacquire it around the call.  Adapt
+	  all callers.
+	- Change ntfs_find_vcn() to ntfs_find_vcn_nolock() which takes a locked
+	  runlist.  This allows us to find runlist elements with the runlist
+	  lock already held without having to drop and reacquire it around the
+	  call.  Adapt all callers.
 
 2.1.22 - Many bug and race fixes and error handling improvements.
 

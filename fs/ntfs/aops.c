@@ -2,7 +2,7 @@
  * aops.c - NTFS kernel address space operations and page cache handling.
  *	    Part of the Linux-NTFS project.
  *
- * Copyright (c) 2001-2004 Anton Altaparmakov
+ * Copyright (c) 2001-2005 Anton Altaparmakov
  * Copyright (c) 2002 Richard Russon
  *
  * This program/include file is free software; you can redistribute it and/or
@@ -135,7 +135,7 @@ static void ntfs_end_buffer_async_read(struct buffer_head *bh, int uptodate)
 					i * rec_size), rec_size);
 		flush_dcache_page(page);
 		kunmap_atomic(addr, KM_BIO_SRC_IRQ);
-		if (likely(!PageError(page) && page_uptodate))
+		if (likely(page_uptodate && !PageError(page)))
 			SetPageUptodate(page);
 	}
 	unlock_page(page);
@@ -347,11 +347,11 @@ handle_zblock:
  */
 static int ntfs_readpage(struct file *file, struct page *page)
 {
-	loff_t i_size;
 	ntfs_inode *ni, *base_ni;
 	u8 *kaddr;
 	ntfs_attr_search_ctx *ctx;
 	MFT_RECORD *mrec;
+	unsigned long flags;
 	u32 attr_len;
 	int err = 0;
 
@@ -389,9 +389,9 @@ static int ntfs_readpage(struct file *file, struct page *page)
 	 * Attribute is resident, implying it is not compressed or encrypted.
 	 * This also means the attribute is smaller than an mft record and
 	 * hence smaller than a page, so can simply zero out any pages with
-	 * index above 0.  We can also do this if the file size is 0.
+	 * index above 0.
 	 */
-	if (unlikely(page->index > 0 || !i_size_read(VFS_I(ni)))) {
+	if (unlikely(page->index > 0)) {
 		kaddr = kmap_atomic(page, KM_USER0);
 		memset(kaddr, 0, PAGE_CACHE_SIZE);
 		flush_dcache_page(page);
@@ -418,9 +418,10 @@ static int ntfs_readpage(struct file *file, struct page *page)
 	if (unlikely(err))
 		goto put_unm_err_out;
 	attr_len = le32_to_cpu(ctx->attr->data.resident.value_length);
-	i_size = i_size_read(VFS_I(ni));
-	if (unlikely(attr_len > i_size))
-		attr_len = i_size;
+	read_lock_irqsave(&ni->size_lock, flags);
+	if (unlikely(attr_len > ni->initialized_size))
+		attr_len = ni->initialized_size;
+	read_unlock_irqrestore(&ni->size_lock, flags);
 	kaddr = kmap_atomic(page, KM_USER0);
 	/* Copy the data to the page. */
 	memcpy(kaddr, (u8*)ctx->attr +
@@ -1247,20 +1248,6 @@ static int ntfs_writepage(struct page *page, struct writeback_control *wbc)
 	int err;
 
 	BUG_ON(!PageLocked(page));
-	/*
-	 * If a previous ntfs_truncate() failed, repeat it and abort if it
-	 * fails again.
-	 */
-	if (unlikely(NInoTruncateFailed(ni))) {
-		down_write(&vi->i_alloc_sem);
-		err = ntfs_truncate(vi);
-		up_write(&vi->i_alloc_sem);
-		if (err || NInoTruncateFailed(ni)) {
-			if (!err)
-				err = -EIO;
-			goto err_out;
-		}
-	}
 	i_size = i_size_read(vi);
 	/* Is the page fully outside i_size? (truncate in progress) */
 	if (unlikely(page->index >= (i_size + PAGE_CACHE_SIZE - 1) >>
@@ -1490,13 +1477,12 @@ static int ntfs_prepare_nonresident_write(struct page *page,
 
 	read_lock_irqsave(&ni->size_lock, flags);
 	/*
-	 * The first out of bounds block for the allocated size. No need to
+	 * The first out of bounds block for the allocated size.  No need to
 	 * round up as allocated_size is in multiples of cluster size and the
 	 * minimum cluster size is 512 bytes, which is equal to the smallest
 	 * blocksize.
 	 */
 	ablock = ni->allocated_size >> blocksize_bits;
-
 	i_size = i_size_read(vi);
 	initialized_size = ni->initialized_size;
 	read_unlock_irqrestore(&ni->size_lock, flags);

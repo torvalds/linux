@@ -849,7 +849,8 @@ s64 __ntfs_cluster_free(struct inode *vi, const VCN start_vcn, s64 count,
 	total_freed = real_freed = 0;
 
 	/* This returns with ni->runlist locked for reading on success. */
-	rl = ntfs_find_vcn(ni, start_vcn, FALSE);
+	down_read(&ni->runlist.lock);
+	rl = ntfs_find_vcn_nolock(ni, start_vcn, FALSE);
 	if (IS_ERR(rl)) {
 		if (!is_rollback)
 			ntfs_error(vol->sb, "Failed to find first runlist "
@@ -863,7 +864,7 @@ s64 __ntfs_cluster_free(struct inode *vi, const VCN start_vcn, s64 count,
 			ntfs_error(vol->sb, "First runlist element has "
 					"invalid lcn, aborting.");
 		err = -EIO;
-		goto unl_err_out;
+		goto err_out;
 	}
 	/* Find the starting cluster inside the run that needs freeing. */
 	delta = start_vcn - rl->vcn;
@@ -881,7 +882,7 @@ s64 __ntfs_cluster_free(struct inode *vi, const VCN start_vcn, s64 count,
 			if (!is_rollback)
 				ntfs_error(vol->sb, "Failed to clear first run "
 						"(error %i), aborting.", err);
-			goto unl_err_out;
+			goto err_out;
 		}
 		/* We have freed @to_free real clusters. */
 		real_freed = to_free;
@@ -901,30 +902,15 @@ s64 __ntfs_cluster_free(struct inode *vi, const VCN start_vcn, s64 count,
 		if (unlikely(rl->lcn < LCN_HOLE)) {
 			VCN vcn;
 
-			/*
-			 * Attempt to map runlist, dropping runlist lock for
-			 * the duration.
-			 */
+			/* Attempt to map runlist. */
 			vcn = rl->vcn;
-			up_read(&ni->runlist.lock);
-			err = ntfs_map_runlist(ni, vcn);
-			if (err) {
-				if (!is_rollback)
-					ntfs_error(vol->sb, "Failed to map "
-							"runlist fragment.");
-				if (err == -EINVAL || err == -ENOENT)
-					err = -EIO;
-				goto err_out;
-			}
-			/*
-			 * This returns with ni->runlist locked for reading on
-			 * success.
-			 */
-			rl = ntfs_find_vcn(ni, vcn, FALSE);
+			rl = ntfs_find_vcn_nolock(ni, vcn, FALSE);
 			if (IS_ERR(rl)) {
 				err = PTR_ERR(rl);
 				if (!is_rollback)
-					ntfs_error(vol->sb, "Failed to find "
+					ntfs_error(vol->sb, "Failed to map "
+							"runlist fragment or "
+							"failed to find "
 							"subsequent runlist "
 							"element.");
 				goto err_out;
@@ -937,7 +923,7 @@ s64 __ntfs_cluster_free(struct inode *vi, const VCN start_vcn, s64 count,
 							(unsigned long long)
 							rl->lcn);
 				err = -EIO;
-				goto unl_err_out;
+				goto err_out;
 			}
 		}
 		/* The number of clusters in this run that need freeing. */
@@ -953,7 +939,7 @@ s64 __ntfs_cluster_free(struct inode *vi, const VCN start_vcn, s64 count,
 				if (!is_rollback)
 					ntfs_error(vol->sb, "Failed to clear "
 							"subsequent run.");
-				goto unl_err_out;
+				goto err_out;
 			}
 			/* We have freed @to_free real clusters. */
 			real_freed += to_free;
@@ -974,9 +960,8 @@ s64 __ntfs_cluster_free(struct inode *vi, const VCN start_vcn, s64 count,
 	/* We are done.  Return the number of actually freed clusters. */
 	ntfs_debug("Done.");
 	return real_freed;
-unl_err_out:
-	up_read(&ni->runlist.lock);
 err_out:
+	up_read(&ni->runlist.lock);
 	if (is_rollback)
 		return err;
 	/* If no real clusters were freed, no need to rollback. */

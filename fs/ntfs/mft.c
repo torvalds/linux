@@ -1,7 +1,7 @@
 /**
  * mft.c - NTFS kernel mft record operations. Part of the Linux-NTFS project.
  *
- * Copyright (c) 2001-2004 Anton Altaparmakov
+ * Copyright (c) 2001-2005 Anton Altaparmakov
  * Copyright (c) 2002 Richard Russon
  *
  * This program/include file is free software; you can redistribute it and/or
@@ -287,7 +287,7 @@ MFT_RECORD *map_extent_mft_record(ntfs_inode *base_ni, MFT_REF mref,
 			}
 			unmap_mft_record(ni);
 			ntfs_error(base_ni->vol->sb, "Found stale extent mft "
-					"reference! Corrupt file system. "
+					"reference! Corrupt filesystem. "
 					"Run chkdsk.");
 			return ERR_PTR(-EIO);
 		}
@@ -318,7 +318,7 @@ map_err_out:
 	/* Verify the sequence number if it is present. */
 	if (seq_no && (le16_to_cpu(m->sequence_number) != seq_no)) {
 		ntfs_error(base_ni->vol->sb, "Found stale extent mft "
-				"reference! Corrupt file system. Run chkdsk.");
+				"reference! Corrupt filesystem. Run chkdsk.");
 		destroy_ni = TRUE;
 		m = ERR_PTR(-EIO);
 		goto unm_err_out;
@@ -1292,19 +1292,20 @@ static int ntfs_mft_bitmap_extend_allocation_nolock(ntfs_volume *vol)
 	/*
 	 * Determine the last lcn of the mft bitmap.  The allocated size of the
 	 * mft bitmap cannot be zero so we are ok to do this.
-	 * ntfs_find_vcn() returns the runlist locked on success.
 	 */
+	down_write(&mftbmp_ni->runlist.lock);
 	read_lock_irqsave(&mftbmp_ni->size_lock, flags);
 	ll = mftbmp_ni->allocated_size;
 	read_unlock_irqrestore(&mftbmp_ni->size_lock, flags);
-	rl = ntfs_find_vcn(mftbmp_ni, (ll - 1) >> vol->cluster_size_bits, TRUE);
+	rl = ntfs_find_vcn_nolock(mftbmp_ni,
+			(ll - 1) >> vol->cluster_size_bits, TRUE);
 	if (unlikely(IS_ERR(rl) || !rl->length || rl->lcn < 0)) {
+		up_write(&mftbmp_ni->runlist.lock);
 		ntfs_error(vol->sb, "Failed to determine last allocated "
 				"cluster of mft bitmap attribute.");
-		if (!IS_ERR(rl)) {
-			up_write(&mftbmp_ni->runlist.lock);
+		if (!IS_ERR(rl))
 			ret = -EIO;
-		} else
+		else
 			ret = PTR_ERR(rl);
 		return ret;
 	}
@@ -1428,6 +1429,8 @@ static int ntfs_mft_bitmap_extend_allocation_nolock(ntfs_volume *vol)
 		// TODO: Deal with this by moving this extent to a new mft
 		// record or by starting a new extent in a new mft record or by
 		// moving other attributes out of this mft record.
+		// Note: It will need to be a special mft record and if none of
+		// those are available it gets rather complicated...
 		ntfs_error(vol->sb, "Not enough space in this mft record to "
 				"accomodate extended mft bitmap attribute "
 				"extent.  Cannot handle this yet.");
@@ -1719,19 +1722,20 @@ static int ntfs_mft_data_extend_allocation_nolock(ntfs_volume *vol)
 	 * Determine the preferred allocation location, i.e. the last lcn of
 	 * the mft data attribute.  The allocated size of the mft data
 	 * attribute cannot be zero so we are ok to do this.
-	 * ntfs_find_vcn() returns the runlist locked on success.
 	 */
+	down_write(&mft_ni->runlist.lock);
 	read_lock_irqsave(&mft_ni->size_lock, flags);
 	ll = mft_ni->allocated_size;
 	read_unlock_irqrestore(&mft_ni->size_lock, flags);
-	rl = ntfs_find_vcn(mft_ni, (ll - 1) >> vol->cluster_size_bits, TRUE);
+	rl = ntfs_find_vcn_nolock(mft_ni, (ll - 1) >> vol->cluster_size_bits,
+			TRUE);
 	if (unlikely(IS_ERR(rl) || !rl->length || rl->lcn < 0)) {
+		up_write(&mft_ni->runlist.lock);
 		ntfs_error(vol->sb, "Failed to determine last allocated "
 				"cluster of mft data attribute.");
-		if (!IS_ERR(rl)) {
-			up_write(&mft_ni->runlist.lock);
+		if (!IS_ERR(rl))
 			ret = -EIO;
-		} else
+		else
 			ret = PTR_ERR(rl);
 		return ret;
 	}
@@ -1858,7 +1862,11 @@ static int ntfs_mft_data_extend_allocation_nolock(ntfs_volume *vol)
 		// moving other attributes out of this mft record.
 		// Note: Use the special reserved mft records and ensure that
 		// this extent is not required to find the mft record in
-		// question.
+		// question.  If no free special records left we would need to
+		// move an existing record away, insert ours in its place, and
+		// then place the moved record into the newly allocated space
+		// and we would then need to update all references to this mft
+		// record appropriately.  This is rather complicated...
 		ntfs_error(vol->sb, "Not enough space in this mft record to "
 				"accomodate extended mft data attribute "
 				"extent.  Cannot handle this yet.");
@@ -2021,7 +2029,7 @@ static int ntfs_mft_record_layout(const ntfs_volume *vol, const s64 mft_no,
 				"reports this as corruption, please email "
 				"linux-ntfs-dev@lists.sourceforge.net stating "
 				"that you saw this message and that the "
-				"modified file system created was corrupt.  "
+				"modified filesystem created was corrupt.  "
 				"Thank you.");
 	}
 	/* Set the update sequence number to 1. */
