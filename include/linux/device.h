@@ -325,7 +325,6 @@ extern int device_for_each_child(struct device *, void *,
  * Manual binding of a device to driver. See drivers/base/bus.c
  * for information on use.
  */
-extern int  driver_probe_device(struct device_driver * drv, struct device * dev);
 extern void device_bind_driver(struct device * dev);
 extern void device_release_driver(struct device * dev);
 extern int  device_attach(struct device * dev);

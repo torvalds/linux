@@ -35,6 +35,8 @@
  *	nor take the bus's rwsem. Please verify those are accounted
  *	for before calling this. (It is ok to call with no other effort
  *	from a driver's probe() method.)
+ *
+ *	This function must be called with @dev->sem held.
  */
 void device_bind_driver(struct device * dev)
 {
@@ -57,54 +59,56 @@ void device_bind_driver(struct device * dev)
  *	because we don't know the format of the ID structures, nor what
  *	is to be considered a match and what is not.
  *
- *	If we find a match, we call @drv->probe(@dev) if it exists, and
- *	call device_bind_driver() above.
+ *
+ *	This function returns 1 if a match is found, an error if one
+ *	occurs (that is not -ENODEV or -ENXIO), and 0 otherwise.
+ *
+ *	This function must be called with @dev->sem held.
  */
-int driver_probe_device(struct device_driver * drv, struct device * dev)
+static int driver_probe_device(struct device_driver * drv, struct device * dev)
 {
-	int error = 0;
+	int ret = 0;
 
 	if (drv->bus->match && !drv->bus->match(dev, drv))
-		return -ENODEV;
+		goto Done;
 
-	down(&dev->sem);
+	pr_debug("%s: Matched Device %s with Driver %s\n",
+		 drv->bus->name, dev->bus_id, drv->name);
 	dev->driver = drv;
 	if (drv->probe) {
-		error = drv->probe(dev);
-		if (error) {
+		ret = drv->probe(dev);
+		if (ret) {
 			dev->driver = NULL;
-			up(&dev->sem);
-			return error;
+			goto ProbeFailed;
 		}
 	}
-	up(&dev->sem);
 	device_bind_driver(dev);
-	return 0;
+	ret = 1;
+	pr_debug("%s: Bound Device %s to Driver %s\n",
+		 drv->bus->name, dev->bus_id, drv->name);
+	goto Done;
+
+ ProbeFailed:
+	if (ret == -ENODEV || ret == -ENXIO) {
+		/* Driver matched, but didn't support device
+		 * or device not found.
+		 * Not an error; keep going.
+		 */
+		ret = 0;
+	} else {
+		/* driver matched but the probe failed */
+		printk(KERN_WARNING
+		       "%s: probe of %s failed with error %d\n",
+		       drv->name, dev->bus_id, ret);
+	}
+ Done:
+	return ret;
 }
 
 static int __device_attach(struct device_driver * drv, void * data)
 {
 	struct device * dev = data;
-	int error;
-
-	error = driver_probe_device(drv, dev);
-	if (error) {
-		if ((error == -ENODEV) || (error == -ENXIO)) {
-			/* Driver matched, but didn't support device
-			 * or device not found.
-			 * Not an error; keep going.
-			 */
-			error = 0;
-		} else {
-			/* driver matched but the probe failed */
-			printk(KERN_WARNING
-			       "%s: probe of %s failed with error %d\n",
-			       drv->name, dev->bus_id, error);
-		}
-		return error;
-	}
-	/* stop looking, this device is attached */
-	return 1;
+	return driver_probe_device(drv, dev);
 }
 
 /**
@@ -114,37 +118,43 @@ static int __device_attach(struct device_driver * drv, void * data)
  *	Walk the list of drivers that the bus has and call
  *	driver_probe_device() for each pair. If a compatible
  *	pair is found, break out and return.
+ *
+ *	Returns 1 if the device was bound to a driver; 0 otherwise.
  */
 int device_attach(struct device * dev)
 {
+	int ret = 0;
+
+	down(&dev->sem);
 	if (dev->driver) {
 		device_bind_driver(dev);
-		return 1;
-	}
-
-	return bus_for_each_drv(dev->bus, NULL, dev, __device_attach);
+		ret = 1;
+	} else
+		ret = bus_for_each_drv(dev->bus, NULL, dev, __device_attach);
+	up(&dev->sem);
+	return ret;
 }
 
 static int __driver_attach(struct device * dev, void * data)
 {
 	struct device_driver * drv = data;
-	int error = 0;
 
-	if (!dev->driver) {
-		error = driver_probe_device(drv, dev);
-		if (error) {
-			if (error != -ENODEV) {
-				/* driver matched but the probe failed */
-				printk(KERN_WARNING
-				       "%s: probe of %s failed with error %d\n",
-				       drv->name, dev->bus_id, error);
-			} else
-				error = 0;
-			return error;
-		}
-		/* stop looking, this driver is attached */
-		return 1;
-	}
+	/*
+	 * Lock device and try to bind to it. We drop the error
+	 * here and always return 0, because we need to keep trying
+	 * to bind to devices and some drivers will return an error
+	 * simply if it didn't support the device.
+	 *
+	 * driver_probe_device() will spit a warning if there
+	 * is an error.
+	 */
+
+	down(&dev->sem);
+	if (!dev->driver)
+		driver_probe_device(drv, dev);
+	up(&dev->sem);
+
+
 	return 0;
 }
 
@@ -156,9 +166,6 @@ static int __driver_attach(struct device * dev, void * data)
  *	match the driver with each one.  If driver_probe_device()
  *	returns 0 and the @dev->driver is set, we've found a
  *	compatible pair.
- *
- *	Note that we ignore the -ENODEV error from driver_probe_device(),
- *	since it's perfectly valid for a driver not to bind to any devices.
  */
 void driver_attach(struct device_driver * drv)
 {
@@ -176,19 +183,19 @@ void driver_attach(struct device_driver * drv)
  */
 void device_release_driver(struct device * dev)
 {
-	struct device_driver * drv = dev->driver;
-
-	if (!drv)
-		return;
-
-	sysfs_remove_link(&drv->kobj, kobject_name(&dev->kobj));
-	sysfs_remove_link(&dev->kobj, "driver");
-	klist_del(&dev->knode_driver);
+	struct device_driver * drv;
 
 	down(&dev->sem);
-	if (drv->remove)
-		drv->remove(dev);
-	dev->driver = NULL;
+	if (dev->driver) {
+		drv = dev->driver;
+		sysfs_remove_link(&drv->kobj, kobject_name(&dev->kobj));
+		sysfs_remove_link(&dev->kobj, "driver");
+		klist_del(&dev->knode_driver);
+
+		if (drv->remove)
+			drv->remove(dev);
+		dev->driver = NULL;
+	}
 	up(&dev->sem);
 }
 
@@ -208,7 +215,6 @@ void driver_detach(struct device_driver * drv)
 }
 
 
-EXPORT_SYMBOL_GPL(driver_probe_device);
 EXPORT_SYMBOL_GPL(device_bind_driver);
 EXPORT_SYMBOL_GPL(device_release_driver);
 EXPORT_SYMBOL_GPL(device_attach);
