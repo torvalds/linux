@@ -16,7 +16,7 @@
  *  
  * Interface to generic NAND code for M-Systems DiskOnChip devices
  *
- * $Id: diskonchip.c,v 1.48 2005/01/31 22:22:21 gleixner Exp $
+ * $Id: diskonchip.c,v 1.49 2005/02/22 21:48:21 gleixner Exp $
  */
 
 #include <linux/kernel.h>
@@ -410,7 +410,12 @@ static uint16_t __init doc200x_ident_chip(struct mtd_info *mtd, int nr)
 	doc200x_hwcontrol(mtd, NAND_CTL_SETALE);
 	this->write_byte(mtd, 0);
 	doc200x_hwcontrol(mtd, NAND_CTL_CLRALE);
-
+	
+	/* We cant' use dev_ready here, but at least we wait for the
+	 * command to complete 
+	 */
+	udelay(50);
+	
 	ret = this->read_byte(mtd) << 8;
 	ret |= this->read_byte(mtd);
 
@@ -428,6 +433,8 @@ static uint16_t __init doc200x_ident_chip(struct mtd_info *mtd, int nr)
 		doc200x_hwcontrol(mtd, NAND_CTL_SETALE);
 		doc2000_write_byte(mtd, 0);
 		doc200x_hwcontrol(mtd, NAND_CTL_CLRALE);
+
+		udelay(50);
 
 		ident.dword = readl(docptr + DoC_2k_CDSN_IO);
 		if (((ident.byte[0] << 8) | ident.byte[1]) == ret) {
