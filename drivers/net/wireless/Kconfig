@@ -190,6 +190,58 @@ config IPW_DEBUG
 	  If you are not trying to debug or develop the IPW2100 driver, you 
 	  most likely want to say N here.
 
+config IPW2200
+	tristate "Intel PRO/Wireless 2200BG and 2915ABG Network Connection"
+	depends on NET_RADIO && PCI
+	select FW_LOADER
+	select IEEE80211
+	---help---
+          A driver for the Intel PRO/Wireless 2200BG and 2915ABG Network
+	  Connection adapters. 
+
+          See <file:Documentation/networking/README.ipw2200> for 
+	  information on the capabilities currently enabled in this 
+	  driver and for tips for debugging issues and problems.
+
+	  In order to use this driver, you will need a firmware image for it.
+          You can obtain the firmware from
+	  <http://ipw2200.sf.net/>.  See the above referenced README.ipw2200 
+	  for information on where to install the firmare images.
+
+          You will also very likely need the Wireless Tools in order to
+          configure your card:
+
+          <http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Tools.html>.
+ 
+          If you want to compile the driver as a module ( = code which can be
+          inserted in and remvoed from the running kernel whenever you want),
+          say M here and read <file:Documentation/modules.txt>.  The module
+          will be called ipw2200.ko.
+
+config IPW_DEBUG
+	bool "Enable full debugging output in IPW2200 module."
+	depends on IPW2200
+	---help---
+	  This option will enable debug tracing output for the IPW2200.  
+
+	  This will result in the kernel module being ~100k larger.  You can 
+	  control which debug output is sent to the kernel log by setting the 
+	  value in 
+
+	  /sys/bus/pci/drivers/ipw2200/debug_level
+
+	  This entry will only exist if this option is enabled.
+
+	  To set a value, simply echo an 8-byte hex value to the same file:
+
+	  % echo 0x00000FFO > /sys/bus/pci/drivers/ipw2200/debug_level
+
+	  You can find the list of debug mask values in 
+	  drivers/net/wireless/ipw2200.h
+
+	  If you are not trying to debug or develop the IPW2200 driver, you 
+	  most likely want to say N here.
+
 config AIRO
 	tristate "Cisco/Aironet 34X/35X/4500/4800 ISA and PCI cards"
 	depends on NET_RADIO && ISA && (PCI || BROKEN)
