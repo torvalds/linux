@@ -3,6 +3,7 @@
 #
 
 menu "ACPI (Advanced Configuration and Power Interface) Support"
+	depends on PM
 	depends on !X86_VISWS
 	depends on !IA64_HP_SIM
 	depends on IA64 || X86
@@ -56,7 +57,7 @@ if ACPI_INTERPRETER
 config ACPI_SLEEP
 	bool "Sleep States (EXPERIMENTAL)"
 	depends on X86
-	depends on EXPERIMENTAL && PM
+	depends on EXPERIMENTAL
 	default y
 	---help---
 	  This option adds support for ACPI suspend states. 
