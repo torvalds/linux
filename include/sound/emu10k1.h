@@ -1050,8 +1050,9 @@ typedef struct {
 	unsigned char spdif_bug;    /* Has Spdif phasing bug */
 	unsigned char ac97_chip;    /* Has an AC97 chip */
 	unsigned char ecard;        /* APS EEPROM */
-	char * driver;
-	char * name;
+	const char *driver;
+	const char *name;
+	const char *id;		/* for backward compatibility - can be NULL if not needed */
 } emu_chip_details_t;
 
 struct _snd_emu10k1 {
