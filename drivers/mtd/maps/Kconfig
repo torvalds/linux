@@ -1,5 +1,5 @@
 # drivers/mtd/maps/Kconfig
-# $Id: Kconfig,v 1.46 2005/03/02 14:51:04 dvrabel Exp $
+# $Id: Kconfig,v 1.51 2005/03/18 02:07:22 gleixner Exp $
 
 menu "Mapping drivers for chip access"
 	depends on MTD!=n
@@ -588,7 +588,7 @@ config MTD_SHARP_SL
 	  This enables access to the flash chip on the Sharp SL Series of PDAs.
 
 config MTD_PLATRAM
-	tristate "Map driver for platfrom device RAM (mtd-ram)"
+	tristate "Map driver for platform device RAM (mtd-ram)"
 	depends on MTD
 	select MTD_RAM
 	help
