@@ -1,6 +1,6 @@
 /*
  * File:	pci-acpi.c
- * Purpose:	Provide PCI support in ACPI
+ * Purpose:	Provde PCI support in ACPI
  *
  * Copyright (C) 2005 David Shaohua Li <shaohua.li@intel.com>
  * Copyright (C) 2004 Tom Long Nguyen <tom.l.nguyen@intel.com>
@@ -17,6 +17,7 @@
 #include <acpi/acpi_bus.h>
 
 #include <linux/pci-acpi.h>
+#include "pci.h"
 
 static u32 ctrlset_buf[3] = {0, 0, 0};
 static u32 global_ctrlsets = 0;
@@ -209,6 +210,49 @@ acpi_status pci_osc_control_set(u32 flags)
 }
 EXPORT_SYMBOL(pci_osc_control_set);
 
+/*
+ * _SxD returns the D-state with the highest power
+ * (lowest D-state number) supported in the S-state "x".
+ *
+ * If the devices does not have a _PRW
+ * (Power Resources for Wake) supporting system wakeup from "x"
+ * then the OS is free to choose a lower power (higher number
+ * D-state) than the return value from _SxD.
+ *
+ * But if _PRW is enabled at S-state "x", the OS
+ * must not choose a power lower than _SxD --
+ * unless the device has an _SxW method specifying
+ * the lowest power (highest D-state number) the device
+ * may enter while still able to wake the system.
+ *
+ * ie. depending on global OS policy:
+ *
+ * if (_PRW at S-state x)
+ *	choose from highest power _SxD to lowest power _SxW
+ * else // no _PRW at S-state x
+ * 	choose highest power _SxD or any lower power
+ *
+ * currently we simply return _SxD, if present.
+ */
+
+static int acpi_pci_choose_state(struct pci_dev *pdev, pm_message_t state)
+{
+	char dstate_str[] = "_S0D";
+	acpi_status status;
+	unsigned long val;
+	struct device *dev = &pdev->dev;
+
+	/* Fixme: the check is wrong after pm_message_t is a struct */
+	if ((state >= PM_SUSPEND_MAX) || !DEVICE_ACPI_HANDLE(dev))
+		return -EINVAL;
+	dstate_str[2] += state;	/* _S1D, _S2D, _S3D, _S4D */
+	status = acpi_evaluate_integer(DEVICE_ACPI_HANDLE(dev), dstate_str,
+		NULL, &val);
+	if (ACPI_SUCCESS(status))
+		return val;
+	return -ENODEV;
+}
+
 /* ACPI bus type */
 static int pci_acpi_find_device(struct device *dev, acpi_handle *handle)
 {
@@ -255,6 +299,7 @@ static int __init pci_acpi_init(void)
 	ret = register_acpi_bus_type(&pci_acpi_bus);
 	if (ret)
 		return 0;
+	platform_pci_choose_state = acpi_pci_choose_state;
 	return 0;
 }
 arch_initcall(pci_acpi_init);

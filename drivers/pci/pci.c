@@ -304,6 +304,8 @@ pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	return 0;
 }
 
+int (*platform_pci_choose_state)(struct pci_dev *dev, pm_message_t state) = NULL;
+ 
 /**
  * pci_choose_state - Choose the power state of a PCI device
  * @dev: PCI device to be suspended
@@ -316,10 +318,17 @@ pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 
 pci_power_t pci_choose_state(struct pci_dev *dev, pm_message_t state)
 {
+	int ret;
+
 	if (!pci_find_capability(dev, PCI_CAP_ID_PM))
 		return PCI_D0;
 
-	switch (state) {
+	if (platform_pci_choose_state) {
+		ret = platform_pci_choose_state(dev, state);
+		if (ret >= 0)
+			state = ret;
+	}
+ 	switch (state) {
 	case 0: return PCI_D0;
 	case 3: return PCI_D3hot;
 	default:

@@ -11,6 +11,9 @@ extern int pci_bus_alloc_resource(struct pci_bus *bus, struct resource *res,
 				  void (*alignf)(void *, struct resource *,
 					  	 unsigned long, unsigned long),
 				  void *alignf_data);
+/* Firmware callbacks */
+extern int (*platform_pci_choose_state)(struct pci_dev *dev, pm_message_t state);
+
 /* PCI /proc functions */
 #ifdef CONFIG_PROC_FS
 extern int pci_proc_attach_device(struct pci_dev *dev);
