@@ -1051,13 +1051,15 @@ acpi_bus_add (
 	/*
 	 * Status
 	 * ------
-	 * See if the device is present.  We always assume that non-Device()
-	 * objects (e.g. thermal zones, power resources, processors, etc.) are
-	 * present, functioning, etc. (at least when parent object is present).
-	 * Note that _STA has a different meaning for some objects (e.g.
-	 * power resources) so we need to be careful how we use it.
+	 * See if the device is present.  We always assume that non-Device
+	 * and non-Processor objects (e.g. thermal zones, power resources,
+	 * etc.) are present, functioning, etc. (at least when parent object
+	 * is present).  Note that _STA has a different meaning for some
+	 * objects (e.g. power resources) so we need to be careful how we use
+	 * it.
 	 */
 	switch (type) {
+	case ACPI_BUS_TYPE_PROCESSOR:
 	case ACPI_BUS_TYPE_DEVICE:
 		result = acpi_bus_get_status(device);
 		if (ACPI_FAILURE(result) || !device->status.present) {
