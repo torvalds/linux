@@ -578,7 +578,7 @@ einval:	li	v0, -EINVAL
 	sys	sys_fremovexattr	2	/* 4235 */
 	sys	sys_tkill		2
 	sys	sys_sendfile64		5
-	sys	sys_futex		2
+	sys	sys_futex		6
 	sys	sys_sched_setaffinity	3
 	sys	sys_sched_getaffinity	3	/* 4240 */
 	sys	sys_io_setup		2
