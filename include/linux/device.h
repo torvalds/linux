@@ -262,8 +262,8 @@ extern void class_device_destroy(struct class *cls, dev_t devt);
 
 
 struct device {
-	struct list_head node;		/* node in sibling list */
-	struct list_head children;
+	struct klist		klist_children;
+	struct klist_node	knode_parent;		/* node in sibling list */
 	struct klist_node	knode_driver;
 	struct klist_node	knode_bus;
 	struct device 	* parent;
@@ -297,12 +297,6 @@ struct device {
 
 	void	(*release)(struct device * dev);
 };
-
-static inline struct device *
-list_to_dev(struct list_head *node)
-{
-	return list_entry(node, struct device, node);
-}
 
 static inline void *
 dev_get_drvdata (struct device *dev)

@@ -207,8 +207,7 @@ void device_initialize(struct device *dev)
 {
 	kobj_set_kset_s(dev, devices_subsys);
 	kobject_init(&dev->kobj);
-	INIT_LIST_HEAD(&dev->node);
-	INIT_LIST_HEAD(&dev->children);
+	klist_init(&dev->klist_children);
 	INIT_LIST_HEAD(&dev->dma_pools);
 	init_MUTEX(&dev->sem);
 }
@@ -249,10 +248,8 @@ int device_add(struct device *dev)
 		goto PMError;
 	if ((error = bus_add_device(dev)))
 		goto BusError;
-	down_write(&devices_subsys.rwsem);
 	if (parent)
-		list_add_tail(&dev->node, &parent->children);
-	up_write(&devices_subsys.rwsem);
+		klist_add_tail(&parent->klist_children, &dev->knode_parent);
 
 	/* notify platform of device entry */
 	if (platform_notify)
@@ -335,10 +332,8 @@ void device_del(struct device * dev)
 {
 	struct device * parent = dev->parent;
 
-	down_write(&devices_subsys.rwsem);
 	if (parent)
-		list_del_init(&dev->node);
-	up_write(&devices_subsys.rwsem);
+		klist_remove(&dev->knode_parent);
 
 	/* Notify the platform of the removal, in case they
 	 * need to do anything...
@@ -372,6 +367,12 @@ void device_unregister(struct device * dev)
 }
 
 
+static struct device * next_device(struct klist_iter * i)
+{
+	struct klist_node * n = klist_next(i);
+	return n ? container_of(n, struct device, knode_parent) : NULL;
+}
+
 /**
  *	device_for_each_child - device child iterator.
  *	@dev:	parent struct device.
@@ -384,18 +385,17 @@ void device_unregister(struct device * dev)
  *	We check the return of @fn each time. If it returns anything
  *	other than 0, we break out and return that value.
  */
-int device_for_each_child(struct device * dev, void * data,
+int device_for_each_child(struct device * parent, void * data,
 		     int (*fn)(struct device *, void *))
 {
+	struct klist_iter i;
 	struct device * child;
 	int error = 0;
 
-	down_read(&devices_subsys.rwsem);
-	list_for_each_entry(child, &dev->children, node) {
-		if((error = fn(child, data)))
-			break;
-	}
-	up_read(&devices_subsys.rwsem);
+	klist_iter_init(&parent->klist_children, &i);
+	while ((child = next_device(&i)) && !error)
+		error = fn(child, data);
+	klist_iter_exit(&i);
 	return error;
 }
 
