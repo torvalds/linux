@@ -78,7 +78,12 @@
 		MFC0	k1, CP0_CONTEXT
 		dsrl	k1, 23
 		dsll	k1, k1, 3
-		LONG_L	k1, kernelsp(k1)
+		lui	k0, %highest(kernelsp)
+		daddiu	k0, %higher(kernelsp)
+		dsll	k0, k0, 16
+		daddiu	k0, %hi(kernelsp)
+		daddu	k1, k1, k0
+		LONG_L	k1, %lo(kernelsp)(k1)
 #endif
 		.endm
 
