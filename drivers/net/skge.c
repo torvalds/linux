@@ -2376,7 +2376,7 @@ static int skge_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	skge_write8(hw, Q_ADDR(txqaddr[skge->port], Q_CSR), CSR_START);
 
 	if (netif_msg_tx_queued(skge))
-		printk(KERN_DEBUG "%s: tx queued, slot %d, len %d\n",
+		printk(KERN_DEBUG "%s: tx queued, slot %td, len %d\n",
 		       dev->name, e - ring->start, skb->len);
 
 	ring->to_use = e->next;
@@ -2607,7 +2607,7 @@ static int skge_poll(struct net_device *dev, int *budget)
 		}
 
 		if (netif_msg_rx_status(skge))
-		    printk(KERN_DEBUG PFX "%s: rx slot %d status 0x%x len %d\n",
+		    printk(KERN_DEBUG PFX "%s: rx slot %td status 0x%x len %d\n",
 			   dev->name, e - ring->start, rd->status, len);
 
 		skb_put(skb, len);
@@ -2667,7 +2667,7 @@ static inline void skge_tx_intr(struct net_device *dev)
 			break;
 
 		if (unlikely(netif_msg_tx_done(skge)))
-			printk(KERN_DEBUG PFX "%s: tx done slot %d status 0x%x\n",
+			printk(KERN_DEBUG PFX "%s: tx done slot %td status 0x%x\n",
 			       dev->name, e - ring->start, td->status);
 
 		skge_tx_free(hw, e);
