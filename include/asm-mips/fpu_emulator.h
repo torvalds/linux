@@ -35,4 +35,6 @@ struct mips_fpu_emulator_private {
 	} stats;
 };
 
+extern struct mips_fpu_emulator_private fpuemuprivate;
+
 #endif /* _ASM_FPU_EMULATOR_H */

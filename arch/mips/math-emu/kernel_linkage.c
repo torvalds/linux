@@ -27,8 +27,6 @@
 
 #include <asm/fpu_emulator.h>
 
-extern struct mips_fpu_emulator_private fpuemuprivate;
-
 #define SIGNALLING_NAN 0x7ff800007ff80000LL
 
 void fpu_emulator_init_fpu(void)

@@ -28,9 +28,6 @@
 #endif
 #define __mips 4
 
-extern struct mips_fpu_emulator_private fpuemuprivate;
-
-
 /*
  * Emulate the arbritrary instruction ir at xcp->cp0_epc.  Required when
  * we have to emulate the instruction in a COP1 branch delay slot.  Do
