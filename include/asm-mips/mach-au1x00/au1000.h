@@ -1647,6 +1647,12 @@ extern au1xxx_irq_map_t au1xxx_irq_map[];
   #define SYS_CS_MI2_MASK           (0x7<<SYS_CS_MI2_BIT)
   #define SYS_CS_DI2                (1<<16)
   #define SYS_CS_CI2                (1<<15)
+#ifdef CONFIG_SOC_AU1100
+  #define SYS_CS_ML_BIT             7
+  #define SYS_CS_ML_MASK            (0x7<<SYS_CS_ML_BIT)
+  #define SYS_CS_DL                 (1<<6)
+  #define SYS_CS_CL                 (1<<5)
+#else
   #define SYS_CS_MUH_BIT            12
   #define SYS_CS_MUH_MASK           (0x7<<SYS_CS_MUH_BIT)
   #define SYS_CS_DUH                (1<<11)
@@ -1655,6 +1661,7 @@ extern au1xxx_irq_map_t au1xxx_irq_map[];
   #define SYS_CS_MUD_MASK           (0x7<<SYS_CS_MUD_BIT)
   #define SYS_CS_DUD                (1<<6)
   #define SYS_CS_CUD                (1<<5)
+#endif
   #define SYS_CS_MIR_BIT            2
   #define SYS_CS_MIR_MASK           (0x7<<SYS_CS_MIR_BIT)
   #define SYS_CS_DIR                (1<<1)

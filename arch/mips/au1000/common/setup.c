@@ -106,8 +106,6 @@ void __init plat_setup(void)
         /*strcat(argptr, " video=au1100fb:panel:Sharp_320x240_16");*/
 #ifdef CONFIG_MIPS_HYDROGEN3
          strcat(argptr, " video=au1100fb:panel:Hydrogen_3_NEC_panel_320x240,nohwcursor");
-#else
-        strcat(argptr, " video=au1100fb:panel:s10,nohwcursor");
 #endif
     }
 #endif
