@@ -444,6 +444,7 @@ pnpacpi_parse_fixed_mem32_option(struct pnp_option *option,
 
 struct acpipnp_parse_option_s {
 	struct pnp_option *option;
+	struct pnp_option *option_independent;
 	struct pnp_dev *dev;
 };
 
@@ -507,7 +508,14 @@ static acpi_status pnpacpi_option_resource(struct acpi_resource *res,
 			parse_data->option = option;	
 			break;
 		case ACPI_RSTYPE_END_DPF:
-			return AE_CTRL_TERMINATE;
+			/*only one EndDependentFn is allowed*/
+			if (!parse_data->option_independent) {
+				pnp_warn("PnPACPI: more than one EndDependentFn");
+				return AE_ERROR;
+			}
+			parse_data->option = parse_data->option_independent;
+			parse_data->option_independent = NULL;
+			break;
 		default:
 			pnp_warn("PnPACPI: unknown resource type %d", res->id);
 			return AE_ERROR;
@@ -525,6 +533,7 @@ acpi_status pnpacpi_parse_resource_option_data(acpi_handle handle,
 	parse_data.option = pnp_register_independent_option(dev);
 	if (!parse_data.option)
 		return AE_ERROR;
+	parse_data.option_independent = parse_data.option;
 	parse_data.dev = dev;
 	status = acpi_walk_resources(handle, METHOD_NAME__PRS, 
 		pnpacpi_option_resource, &parse_data);
