@@ -2377,22 +2377,20 @@ have_alloc_rec:
 	 * first written to so it optimizes away nicely in the common case.
 	 */
 	read_lock_irqsave(&mft_ni->size_lock, flags);
-	old_data_size = mft_ni->allocated_size;
 	ntfs_debug("Status of mft data before extension: "
 			"allocated_size 0x%llx, data_size 0x%llx, "
 			"initialized_size 0x%llx.",
-			(long long)old_data_size,
+			(long long)mft_ni->allocated_size,
 			(long long)i_size_read(vol->mft_ino),
 			(long long)mft_ni->initialized_size);
-	read_unlock_irqrestore(&mft_ni->size_lock, flags);
-	while (ll > old_data_size) {
+	while (ll > mft_ni->allocated_size) {
+		read_unlock_irqrestore(&mft_ni->size_lock, flags);
 		err = ntfs_mft_data_extend_allocation_nolock(vol);
 		if (unlikely(err)) {
 			ntfs_error(vol->sb, "Failed to extend mft data "
 					"allocation.");
 			goto undo_mftbmp_alloc_nolock;
 		}
-#ifdef DEBUG
 		read_lock_irqsave(&mft_ni->size_lock, flags);
 		ntfs_debug("Status of mft data after allocation extension: "
 				"allocated_size 0x%llx, data_size 0x%llx, "
@@ -2400,9 +2398,8 @@ have_alloc_rec:
 				(long long)mft_ni->allocated_size,
 				(long long)i_size_read(vol->mft_ino),
 				(long long)mft_ni->initialized_size);
-		read_unlock_irqrestore(&mft_ni->size_lock, flags);
-#endif /* DEBUG */
 	}
+	read_unlock_irqrestore(&mft_ni->size_lock, flags);
 	/*
 	 * Extend mft data initialized size (and data size of course) to reach
 	 * the allocated mft record, formatting the mft records allong the way.
