@@ -1,10 +1,9 @@
 /*
- * $Id: block2mtd.c,v 1.23 2005/01/05 17:05:46 dwmw2 Exp $
+ * $Id: block2mtd.c,v 1.25 2005/03/07 20:29:05 joern Exp $
  *
  * block2mtd.c - create an mtd from a block device
  *
  * Copyright (C) 2001,2002	Simon Evans <spse@secret.org.uk>
- * Copyright (C) 2004		Gareth Bult <Gareth@Encryptec.net>
  * Copyright (C) 2004,2005	Jörn Engel <joern@wh.fh-wedel.de>
  *
  * Licence: GPL
@@ -20,7 +19,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/buffer_head.h>
 
-#define VERSION "$Revision: 1.23 $"
+#define VERSION "$Revision: 1.24 $"
 
 
 #define ERROR(fmt, args...) printk(KERN_ERR "block2mtd: " fmt "\n" , ## args)
@@ -157,7 +156,7 @@ static int block2mtd_read(struct mtd_info *mtd, loff_t from, size_t len,
 	struct block2mtd_dev *dev = mtd->priv;
 	struct page *page;
 	int index = from >> PAGE_SHIFT;
-	int offset = from & (PAGE_SHIFT-1);
+	int offset = from & (PAGE_SIZE-1);
 	int cpylen;
 
 	if (from > mtd->size)
