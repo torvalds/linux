@@ -787,8 +787,22 @@ int __devinit snd_emu10k1_create(snd_card_t * card,
 	else
 		snd_printdd("Sound card name=%s, vendor=0x%x, device=0x%x, subsystem=0x%x\n", c->name, pci->vendor, pci->device, emu->serial);
 	
-	if (!*card->id && c->id)
+	if (!*card->id && c->id) {
+		int i, n = 0;
 		strlcpy(card->id, c->id, sizeof(card->id));
+		for (;;) {
+			for (i = 0; i < snd_ecards_limit; i++) {
+				if (snd_cards[i] && !strcmp(snd_cards[i]->id, card->id))
+					break;
+			}
+			if (i >= snd_ecards_limit)
+				break;
+			n++;
+			if (n >= SNDRV_CARDS)
+				break;
+			snprintf(card->id, sizeof(card->id), "%s_%d", c->id, n);
+		}
+	}
 
 	is_audigy = emu->audigy = c->emu10k2_chip;
 
