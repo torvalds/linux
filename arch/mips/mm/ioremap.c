@@ -79,9 +79,14 @@ static int remap_area_pages(unsigned long address, phys_t phys_addr,
 		BUG();
 	spin_lock(&init_mm.page_table_lock);
 	do {
+		pud_t *pud;
 		pmd_t *pmd;
-		pmd = pmd_alloc(&init_mm, dir, address);
+
 		error = -ENOMEM;
+		pud = pud_alloc(&init_mm, dir, address);
+		if (!pud)
+			break;
+		pmd = pmd_alloc(&init_mm, pud, address);
 		if (!pmd)
 			break;
 		if (remap_area_pmd(pmd, address, end - address,
@@ -141,7 +146,7 @@ void * __ioremap(phys_t phys_addr, phys_t size, unsigned long flags)
 	 */
 	if (IS_LOW512(phys_addr) && IS_LOW512(last_addr) &&
 	    flags == _CACHE_UNCACHED)
-		return (void *) KSEG1ADDR(phys_addr);
+		return (void *) CKSEG1ADDR(phys_addr);
 
 	/*
 	 * Don't allow anybody to remap normal RAM that we're using..
@@ -180,7 +185,7 @@ void * __ioremap(phys_t phys_addr, phys_t size, unsigned long flags)
 	return (void *) (offset + (char *)addr);
 }
 
-#define IS_KSEG1(addr) (((unsigned long)(addr) & ~0x1fffffffUL) == KSEG1)
+#define IS_KSEG1(addr) (((unsigned long)(addr) & ~0x1fffffffUL) == CKSEG1)
 
 void __iounmap(volatile void __iomem *addr)
 {
@@ -190,10 +195,8 @@ void __iounmap(volatile void __iomem *addr)
 		return;
 
 	p = remove_vm_area((void *) (PAGE_MASK & (unsigned long __force) addr));
-	if (!p) {
+	if (!p)
 		printk(KERN_ERR "iounmap: bad address %p\n", addr);
-		return;
-	}
 
         kfree(p);
 }

@@ -35,6 +35,7 @@ void __init pagetable_init(void)
 #ifdef CONFIG_HIGHMEM
 	unsigned long vaddr;
 	pgd_t *pgd, *pgd_base;
+	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
 #endif
@@ -60,7 +61,8 @@ void __init pagetable_init(void)
 	fixrange_init(vaddr, vaddr + PAGE_SIZE*LAST_PKMAP, pgd_base);
 
 	pgd = swapper_pg_dir + __pgd_offset(vaddr);
-	pmd = pmd_offset(pgd, vaddr);
+	pud = pud_offset(pgd, vaddr);
+	pmd = pmd_offset(pud, vaddr);
 	pte = pte_offset_kernel(pmd, vaddr);
 	pkmap_page_table = pte;
 #endif

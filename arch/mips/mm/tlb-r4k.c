@@ -227,6 +227,7 @@ void __update_tlb(struct vm_area_struct * vma, unsigned long address, pte_t pte)
 {
 	unsigned long flags;
 	pgd_t *pgdp;
+	pud_t *pudp;
 	pmd_t *pmdp;
 	pte_t *ptep;
 	int idx, pid;
@@ -246,7 +247,8 @@ void __update_tlb(struct vm_area_struct * vma, unsigned long address, pte_t pte)
 	mtc0_tlbw_hazard();
 	tlb_probe();
 	BARRIER;
-	pmdp = pmd_offset(pgdp, address);
+	pudp = pud_offset(pgdp, address);
+	pmdp = pmd_offset(pudp, address);
 	idx = read_c0_index();
 	ptep = pte_offset_map(pmdp, address);
 

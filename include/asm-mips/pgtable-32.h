@@ -17,6 +17,8 @@
 #include <asm/cachectl.h>
 #include <asm/fixmap.h>
 
+#include <asm-generic/pgtable-nopmd.h>
+
 /*
  * - add_wired_entry() add a fixed TLB entry, and move wired register
  */
@@ -42,35 +44,35 @@ extern int add_temporary_entry(unsigned long entrylo0, unsigned long entrylo1,
  */
 
 /* PMD_SHIFT determines the size of the area a second-level page table can map */
-#ifdef CONFIG_64BIT_PHYS_ADDR
-#define PMD_SHIFT	21
-#else
-#define PMD_SHIFT	22
-#endif
 #define PMD_SIZE	(1UL << PMD_SHIFT)
 #define PMD_MASK	(~(PMD_SIZE-1))
 
 /* PGDIR_SHIFT determines what a third-level page table entry can map */
-#define PGDIR_SHIFT	PMD_SHIFT
+#ifdef CONFIG_64BIT_PHYS_ADDR
+#define PGDIR_SHIFT	21
+#else
+#define PGDIR_SHIFT	22
+#endif
 #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
 /*
  * Entries per page directory level: we use two-level, so
- * we don't really have any PMD directory physically.
+ * we don't really have any PUD/PMD directory physically.
  */
 #ifdef CONFIG_64BIT_PHYS_ADDR
 #define PGD_ORDER	1
-#define PMD_ORDER	0
+#define PUD_ORDER	aieeee_attempt_to_allocate_pud
+#define PMD_ORDER	1
 #define PTE_ORDER	0
 #else
 #define PGD_ORDER	0
-#define PMD_ORDER	0
+#define PUD_ORDER	aieeee_attempt_to_allocate_pud
+#define PMD_ORDER	1
 #define PTE_ORDER	0
 #endif
 
 #define PTRS_PER_PGD	((PAGE_SIZE << PGD_ORDER) / sizeof(pgd_t))
-#define PTRS_PER_PMD	1
 #define PTRS_PER_PTE	((PAGE_SIZE << PTE_ORDER) / sizeof(pte_t))
 
 #define USER_PTRS_PER_PGD	(0x80000000UL/PGDIR_SIZE)
@@ -91,8 +93,6 @@ extern int add_temporary_entry(unsigned long entrylo0, unsigned long entrylo1,
 #define pte_ERROR(e) \
 	printk("%s:%d: bad pte %08lx.\n", __FILE__, __LINE__, pte_val(e))
 #endif
-#define pmd_ERROR(e) \
-	printk("%s:%d: bad pmd %08lx.\n", __FILE__, __LINE__, pmd_val(e))
 #define pgd_ERROR(e) \
 	printk("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, pgd_val(e))
 
@@ -119,16 +119,6 @@ static inline void pmd_clear(pmd_t *pmdp)
 {
 	pmd_val(*pmdp) = ((unsigned long) invalid_pte_table);
 }
-
-/*
- * The "pgd_xxx()" functions here are trivial for a folded two-level
- * setup: the pgd is never bad, and a pmd always exists (as it's folded
- * into the pgd entry)
- */
-static inline int pgd_none(pgd_t pgd)		{ return 0; }
-static inline int pgd_bad(pgd_t pgd)		{ return 0; }
-static inline int pgd_present(pgd_t pgd)	{ return 1; }
-static inline void pgd_clear(pgd_t *pgdp)	{ }
 
 #if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32)
 #define pte_page(x)		pfn_to_page(pte_pfn(x))
@@ -165,12 +155,6 @@ pfn_pte(unsigned long pfn, pgprot_t prot)
 
 /* to find an entry in a page-table-directory */
 #define pgd_offset(mm,addr)	((mm)->pgd + pgd_index(addr))
-
-/* Find an entry in the second-level page table.. */
-static inline pmd_t *pmd_offset(pgd_t *dir, unsigned long address)
-{
-	return (pmd_t *) dir;
-}
 
 /* Find an entry in the third-level page table.. */
 #define __pte_offset(address)						\

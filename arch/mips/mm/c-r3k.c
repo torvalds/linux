@@ -221,12 +221,14 @@ static inline unsigned long get_phys_page (unsigned long addr,
 					   struct mm_struct *mm)
 {
 	pgd_t *pgd;
+	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
 	unsigned long physpage;
 
 	pgd = pgd_offset(mm, addr);
-	pmd = pmd_offset(pgd, addr);
+	pud = pud_offset(pgd, addr);
+	pmd = pmd_offset(pud, addr);
 	pte = pte_offset(pmd, addr);
 
 	if ((physpage = pte_val(*pte)) & _PAGE_VALID)
