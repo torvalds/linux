@@ -266,13 +266,19 @@ static void print_codec_info(snd_info_entry_t *entry, snd_info_buffer_t *buffer)
 
 		if (wid_caps & AC_WCAP_CONN_LIST) {
 			hda_nid_t conn[HDA_MAX_CONNECTIONS];
-			int c, conn_len;
+			int c, conn_len, curr = -1;
 			conn_len = snd_hda_get_connections(codec, nid, conn,
 							   HDA_MAX_CONNECTIONS);
+			if (conn_len > 1 && wid_type != AC_WID_AUD_MIX)
+				curr = snd_hda_codec_read(codec, nid, 0,
+					AC_VERB_GET_CONNECT_SEL, 0);
 			snd_iprintf(buffer, "  Connection: %d\n", conn_len);
 			snd_iprintf(buffer, "    ");
-			for (c = 0; c < conn_len; c++)
+			for (c = 0; c < conn_len; c++) {
 				snd_iprintf(buffer, " 0x%02x", conn[c]);
+				if (c == curr)
+					snd_iprintf(buffer, "*");
+			}
 			snd_iprintf(buffer, "\n");
 		}
 	}
