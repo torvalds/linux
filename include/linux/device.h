@@ -126,7 +126,6 @@ struct device_driver {
 	const char		* name;
 	struct bus_type		* bus;
 
-	struct completion	unloaded;
 	struct kobject		kobj;
 	struct klist		klist_devices;
 	struct klist_node	knode_bus;

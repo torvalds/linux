@@ -63,8 +63,19 @@ static struct sysfs_ops driver_sysfs_ops = {
 
 static void driver_release(struct kobject * kobj)
 {
-	struct device_driver * drv = to_driver(kobj);
-	complete(&drv->unloaded);
+	/*
+	 * Yes this is an empty release function, it is this way because struct
+	 * device is always a static object, not a dynamic one.  Yes, this is
+	 * not nice and bad, but remember, drivers are code, reference counted
+	 * by the module count, not a device, which is really data.  And yes,
+	 * in the future I do want to have all drivers be created dynamically,
+	 * and am working toward that goal, but it will take a bit longer...
+	 *
+	 * But do not let this example give _anyone_ the idea that they can
+	 * create a release function without any code in it at all, to do that
+	 * is almost always wrong.  If you have any questions about this,
+	 * please send an email to <greg@kroah.com>
+	 */
 }
 
 static struct kobj_type ktype_driver = {
