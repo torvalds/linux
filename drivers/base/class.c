@@ -173,6 +173,17 @@ static void class_device_create_release(struct class_device *class_dev)
 	kfree(class_dev);
 }
 
+/**
+ * class_create - create a struct class structure
+ * @owner: pointer to the module that is to "own" this struct class
+ * @name: pointer to a string for the name of this class.
+ *
+ * This is used to create a struct class pointer that can then be used
+ * in calls to class_device_create().
+ *
+ * Note, the pointer created here is to be destroyed when finished by
+ * making a call to class_destroy().
+ */
 struct class *class_create(struct module *owner, char *name)
 {
 	struct class *cls;
@@ -201,6 +212,13 @@ error:
 	return ERR_PTR(retval);
 }
 
+/**
+ * class_destroy - destroys a struct class structure
+ * @cs: pointer to the struct class that is to be destroyed
+ *
+ * Note, the pointer to be destroyed must have been created with a call
+ * to class_create().
+ */
 void class_destroy(struct class *cls)
 {
 	if ((cls == NULL) || (IS_ERR(cls)))
@@ -505,6 +523,23 @@ int class_device_register(struct class_device *class_dev)
 	return class_device_add(class_dev);
 }
 
+/**
+ * class_device_create - creates a class device and registers it with sysfs
+ * @cs: pointer to the struct class that this device should be registered to.
+ * @dev: the dev_t for the char device to be added.
+ * @device: a pointer to a struct device that is assiociated with this class device.
+ * @fmt: string for the class device's name
+ *
+ * This function can be used by char device classes.  A struct
+ * class_device will be created in sysfs, registered to the specified
+ * class.  A "dev" file will be created, showing the dev_t for the
+ * device.  The pointer to the struct class_device will be returned from
+ * the call.  Any further sysfs files that might be required can be
+ * created using this pointer.
+ *
+ * Note: the struct class passed to this function must have previously
+ * been created with a call to class_create().
+ */
 struct class_device *class_device_create(struct class *cls, dev_t devt,
 					 struct device *device, char *fmt, ...)
 {
@@ -578,6 +613,14 @@ void class_device_unregister(struct class_device *class_dev)
 	class_device_put(class_dev);
 }
 
+/**
+ * class_device_destroy - removes a class device that was created with class_device_create()
+ * @cls: the pointer to the struct class that this device was registered * with.
+ * @dev: the dev_t of the device that was previously registered.
+ *
+ * This call unregisters and cleans up a class device that was created with a
+ * call to class_device_create()
+ */
 void class_device_destroy(struct class *cls, dev_t devt)
 {
 	struct class_device *class_dev = NULL;
