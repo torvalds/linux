@@ -145,9 +145,10 @@ EXPORT_SYMBOL_GPL(klist_del);
 
 void klist_remove(struct klist_node * n)
 {
-	spin_lock(&n->n_klist->k_lock);
+	struct klist * k = n->n_klist;
+	spin_lock(&k->k_lock);
 	klist_dec_and_del(n);
-	spin_unlock(&n->n_klist->k_lock);
+	spin_unlock(&k->k_lock);
 	wait_for_completion(&n->n_removed);
 }
 
