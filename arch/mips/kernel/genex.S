@@ -82,7 +82,7 @@ NESTED(except_vec3_r4000, 0, sp)
 	 li	k0, 14<<2
 	beq	k1, k0, handle_vcei
 #ifdef CONFIG_64BIT
-	dsll	k1, k1, 1
+	 dsll	k1, k1, 1
 #endif
 	.set	pop
 	PTR_L	k0, exception_handlers(k1)
@@ -90,17 +90,17 @@ NESTED(except_vec3_r4000, 0, sp)
 
 	/*
 	 * Big shit, we now may have two dirty primary cache lines for the same
-	 * physical address.  We can savely invalidate the line pointed to by
+	 * physical address.  We can safely invalidate the line pointed to by
 	 * c0_badvaddr because after return from this exception handler the
 	 * load / store will be re-executed.
 	 */
 handle_vced:
-	DMFC0	k0, CP0_BADVADDR
+	MFC0	k0, CP0_BADVADDR
 	li	k1, -4					# Is this ...
 	and	k0, k1					# ... really needed?
 	mtc0	zero, CP0_TAGLO
-	cache	Index_Store_Tag_D,(k0)
-	cache	Hit_Writeback_Inv_SD,(k0)
+	cache	Index_Store_Tag_D, (k0)
+	cache	Hit_Writeback_Inv_SD, (k0)
 #ifdef CONFIG_PROC_FS
 	PTR_LA	k0, vced_count
 	lw	k1, (k0)
