@@ -1,6 +1,6 @@
 /*
  * File:	pci-acpi.c
- * Purpose:	Provde PCI support in ACPI
+ * Purpose:	Provide PCI support in ACPI
  *
  * Copyright (C) 2005 David Shaohua Li <shaohua.li@intel.com>
  * Copyright (C) 2004 Tom Long Nguyen <tom.l.nguyen@intel.com>
@@ -237,19 +237,8 @@ EXPORT_SYMBOL(pci_osc_control_set);
 
 static int acpi_pci_choose_state(struct pci_dev *pdev, pm_message_t state)
 {
-	char dstate_str[] = "_S0D";
-	acpi_status status;
-	unsigned long val;
-	struct device *dev = &pdev->dev;
+	/* TBD */
 
-	/* Fixme: the check is wrong after pm_message_t is a struct */
-	if ((state >= PM_SUSPEND_MAX) || !DEVICE_ACPI_HANDLE(dev))
-		return -EINVAL;
-	dstate_str[2] += state;	/* _S1D, _S2D, _S3D, _S4D */
-	status = acpi_evaluate_integer(DEVICE_ACPI_HANDLE(dev), dstate_str,
-		NULL, &val);
-	if (ACPI_SUCCESS(status))
-		return val;
 	return -ENODEV;
 }
 
