@@ -357,6 +357,8 @@ static struct file_operations scdrv_fops = {
 	.release =	scdrv_release,
 };
 
+static struct class *snsc_class;
+
 /*
  * scdrv_init
  *
@@ -372,7 +374,6 @@ scdrv_init(void)
 	char *devnamep;
 	struct sysctl_data_s *scd;
 	void *salbuf;
-	struct class_simple *snsc_class;
 	dev_t first_dev, dev;
 	nasid_t event_nasid = ia64_sn_get_console_nasid();
 
@@ -382,7 +383,7 @@ scdrv_init(void)
 		       __FUNCTION__);
 		return -ENODEV;
 	}
-	snsc_class = class_simple_create(THIS_MODULE, SYSCTL_BASENAME);
+	snsc_class = class_create(THIS_MODULE, SYSCTL_BASENAME);
 
 	for (cnode = 0; cnode < numionodes; cnode++) {
 			geoid = cnodeid_get_geoid(cnode);
@@ -436,7 +437,7 @@ scdrv_init(void)
 				continue;
 			}
 
-			class_simple_device_add(snsc_class, dev, NULL,
+			class__device_create(snsc_class, dev, NULL,
 						"%s", devname);
 
 			ia64_sn_irtr_intr_enable(scd->scd_nasid,
