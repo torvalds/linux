@@ -133,10 +133,13 @@ static int sgi_tioca_insert_memory(struct agp_memory *mem, off_t pg_start,
 	off_t j;
 	void *temp;
 	struct agp_bridge_data *bridge;
+	u64 *table;
 
 	bridge = mem->bridge;
 	if (!bridge)
 		return -EINVAL;
+
+	table = (u64 *)bridge->gatt_table;
 
 	temp = bridge->current_size;
 
@@ -175,7 +178,7 @@ static int sgi_tioca_insert_memory(struct agp_memory *mem, off_t pg_start,
 	j = pg_start;
 
 	while (j < (pg_start + mem->page_count)) {
-		if (*(bridge->gatt_table + j))
+		if (table[j])
 			return -EBUSY;
 		j++;
 	}
@@ -186,7 +189,7 @@ static int sgi_tioca_insert_memory(struct agp_memory *mem, off_t pg_start,
 	}
 
 	for (i = 0, j = pg_start; i < mem->page_count; i++, j++) {
-		*(bridge->gatt_table + j) =
+		table[j] =
 		    bridge->driver->mask_memory(bridge, mem->memory[i],
 						mem->type);
 	}
@@ -200,6 +203,7 @@ static int sgi_tioca_remove_memory(struct agp_memory *mem, off_t pg_start,
 {
 	size_t i;
 	struct agp_bridge_data *bridge;
+	u64 *table;
 
 	bridge = mem->bridge;
 	if (!bridge)
@@ -209,8 +213,10 @@ static int sgi_tioca_remove_memory(struct agp_memory *mem, off_t pg_start,
 		return -EINVAL;
 	}
 
+	table = (u64 *)bridge->gatt_table;
+
 	for (i = pg_start; i < (mem->page_count + pg_start); i++) {
-		*(bridge->gatt_table + i) = 0;
+		table[i] = 0;
 	}
 
 	bridge->driver->tlb_flush(mem);
