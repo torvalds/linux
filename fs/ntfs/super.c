@@ -561,9 +561,9 @@ static BOOL is_boot_sector_ntfs(const struct super_block *sb,
 	default:
 		goto not_ntfs;
 	}
-	/* Check the cluster size is not above 65536 bytes. */
+	/* Check the cluster size is not above the maximum (64kiB). */
 	if ((u32)le16_to_cpu(b->bpb.bytes_per_sector) *
-			b->bpb.sectors_per_cluster > 0x10000)
+			b->bpb.sectors_per_cluster > NTFS_MAX_CLUSTER_SIZE)
 		goto not_ntfs;
 	/* Check reserved/unused fields are really zero. */
 	if (le16_to_cpu(b->bpb.reserved_sectors) ||
@@ -2585,7 +2585,7 @@ err_out_now:
  */
 kmem_cache_t *ntfs_name_cache;
 
-/* Slab caches for efficient allocation/deallocation of of inodes. */
+/* Slab caches for efficient allocation/deallocation of inodes. */
 kmem_cache_t *ntfs_inode_cache;
 kmem_cache_t *ntfs_big_inode_cache;
 

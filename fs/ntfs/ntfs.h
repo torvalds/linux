@@ -31,6 +31,7 @@
 #include <linux/fs.h>
 #include <linux/nls.h>
 #include <linux/smp.h>
+#include <linux/pagemap.h>
 
 #include "types.h"
 #include "volume.h"
@@ -42,6 +43,8 @@ typedef enum {
 	NTFS_SB_MAGIC		= 0x5346544e,	/* 'NTFS' */
 	NTFS_MAX_NAME_LEN	= 255,
 	NTFS_MAX_ATTR_NAME_LEN	= 255,
+	NTFS_MAX_CLUSTER_SIZE	= 64 * 1024,	/* 64kiB */
+	NTFS_MAX_PAGES_PER_CLUSTER = NTFS_MAX_CLUSTER_SIZE / PAGE_CACHE_SIZE,
 } NTFS_CONSTANTS;
 
 /* Global variables. */

@@ -111,6 +111,8 @@ ToDo/Notes:
 	  refusing the mount.  Thanks to Bernd Casimir for pointing this
 	  problem out.
 	- Update attribute definition handling.
+	- Add NTFS_MAX_CLUSTER_SIZE and NTFS_MAX_PAGES_PER_CLUSTER constants.
+	- Use NTFS_MAX_CLUSTER_SIZE in super.c instead of hard coding 0x10000.
 
 2.1.22 - Many bug and race fixes and error handling improvements.
 
