@@ -44,6 +44,7 @@ typedef struct _ntfs_inode ntfs_inode;
  * fields already provided in the VFS inode.
  */
 struct _ntfs_inode {
+	rwlock_t size_lock;	/* Lock serializing access to inode sizes. */
 	s64 initialized_size;	/* Copy from the attribute record. */
 	s64 allocated_size;	/* Copy from the attribute record. */
 	unsigned long state;	/* NTFS specific flags describing this inode.
