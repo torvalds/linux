@@ -1193,8 +1193,7 @@ static BOOL load_and_init_quota(ntfs_volume *vol)
 		return FALSE;
 	}
 	/* We do not care for the type of match that was found. */
-	if (name)
-		kfree(name);
+	kfree(name);
 	/* Get the inode. */
 	tmp_ino = ntfs_iget(vol->sb, MREF(mref));
 	if (IS_ERR(tmp_ino) || is_bad_inode(tmp_ino)) {

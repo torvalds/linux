@@ -103,6 +103,8 @@ ToDo/Notes:
 	- Modify ->readpage and ->writepage (fs/ntfs/aops.c) so they detect and
 	  handle the case where an attribute is converted from resident to
 	  non-resident by a concurrent file write.
+	- Remove checks for NULL before calling kfree() since kfree() does the
+	  checking itself.  (Jesper Juhl)
 
 2.1.22 - Many bug and race fixes and error handling improvements.
 

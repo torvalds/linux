@@ -183,8 +183,7 @@ found_it:
 				name->len = 0;
 				*res = name;
 			} else {
-				if (name)
-					kfree(name);
+				kfree(name);
 				*res = NULL;
 			}
 			mref = le64_to_cpu(ie->data.dir.indexed_file);
@@ -444,8 +443,7 @@ found_it2:
 				name->len = 0;
 				*res = name;
 			} else {
-				if (name)
-					kfree(name);
+				kfree(name);
 				*res = NULL;
 			}
 			mref = le64_to_cpu(ie->data.dir.indexed_file);
@@ -1462,10 +1460,8 @@ err_out:
 		unlock_page(ia_page);
 		ntfs_unmap_page(ia_page);
 	}
-	if (ir)
-		kfree(ir);
-	if (name)
-		kfree(name);
+	kfree(ir);
+	kfree(name);
 	if (ctx)
 		ntfs_attr_put_search_ctx(ctx);
 	if (m)
