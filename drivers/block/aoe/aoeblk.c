@@ -63,21 +63,26 @@ static struct disk_attribute disk_attr_fwver = {
 	.show = aoedisk_show_fwver
 };
 
-static void
+static struct attribute *aoe_attrs[] = {
+	&disk_attr_state.attr,
+	&disk_attr_mac.attr,
+	&disk_attr_netif.attr,
+	&disk_attr_fwver.attr,
+};
+
+static const struct attribute_group attr_group = {
+	.attrs = aoe_attrs,
+};
+
+static int
 aoedisk_add_sysfs(struct aoedev *d)
 {
-	sysfs_create_file(&d->gd->kobj, &disk_attr_state.attr);
-	sysfs_create_file(&d->gd->kobj, &disk_attr_mac.attr);
-	sysfs_create_file(&d->gd->kobj, &disk_attr_netif.attr);
-	sysfs_create_file(&d->gd->kobj, &disk_attr_fwver.attr);
+	return sysfs_create_group(&d->gd->kobj, &attr_group);
 }
 void
 aoedisk_rm_sysfs(struct aoedev *d)
 {
-	sysfs_remove_link(&d->gd->kobj, "state");
-	sysfs_remove_link(&d->gd->kobj, "mac");
-	sysfs_remove_link(&d->gd->kobj, "netif");
-	sysfs_remove_link(&d->gd->kobj, "firmware-version");
+	sysfs_remove_group(&d->gd->kobj, &attr_group);
 }
 
 static int
