@@ -52,7 +52,7 @@ int driver_for_each_device(struct device_driver * drv, struct device * start,
 	return error;
 }
 
-EXPORT_SYMBOL(driver_for_each_device);
+EXPORT_SYMBOL_GPL(driver_for_each_device);
 
 
 /**
