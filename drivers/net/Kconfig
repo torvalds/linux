@@ -2080,6 +2080,25 @@ endmenu
 menu "Ethernet (10000 Mbit)"
 	depends on NETDEVICES && !UML
 
+config CHELSIO_T1
+        tristate "Chelsio 10Gb Ethernet support"
+        depends on PCI
+        help
+          This driver supports Chelsio N110 and N210 models 10Gb Ethernet
+          cards. More information about adapter features and performance
+          tuning is in <file:Documentation/networking/cxgb.txt>.
+
+          For general information about Chelsio and our products, visit
+          our website at <http://www.chelsio.com>.
+
+          For customer support, please visit our customer support page at
+          <http://www.chelsio.com/support.htm>.
+
+          Please send feedback to <linux-bugs@chelsio.com>.
+
+          To compile this driver as a module, choose M here: the module
+          will be called cxgb.
+
 config IXGB
 	tristate "Intel(R) PRO/10GbE support"
 	depends on PCI
