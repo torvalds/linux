@@ -1472,8 +1472,8 @@ static int get_hub_descriptor(struct usb_hcd *hcd,
 		0x0010 |	/* No over current protection */
 		0);
 
-	desc->DeviceRemovable[0] = 1 << 1;
-	desc->DeviceRemovable[1] = ~0;
+	desc->u.hs.DeviceRemovable[0] = 1 << 1;
+	desc->u.hs.DeviceRemovable[1] = ~0;
 	return 0;
 }
 

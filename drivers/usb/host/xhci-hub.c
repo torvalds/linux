@@ -45,8 +45,8 @@ static void xhci_hub_descriptor(struct xhci_hcd *xhci,
 	temp = 1 + (ports / 8);
 	desc->bDescLength = 7 + 2 * temp;
 
-	memset(&desc->DeviceRemovable[0], 0, temp);
-	memset(&desc->DeviceRemovable[temp], 0xff, temp);
+	memset(&desc->u.hs.DeviceRemovable[0], 0, temp);
+	memset(&desc->u.hs.DeviceRemovable[temp], 0xff, temp);
 
 	/* Ugh, these should be #defines, FIXME */
 	/* Using table 11-13 in USB 2.0 spec. */

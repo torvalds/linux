@@ -1112,8 +1112,8 @@ sl811h_hub_descriptor (
 	desc->wHubCharacteristics = cpu_to_le16(temp);
 
 	/* ports removable, and legacy PortPwrCtrlMask */
-	desc->DeviceRemovable[0] = 0 << 1;
-	desc->DeviceRemovable[1] = ~0;
+	desc->u.hs.DeviceRemovable[0] = 0 << 1;
+	desc->u.hs.DeviceRemovable[1] = ~0;
 }
 
 static void

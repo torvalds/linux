@@ -582,13 +582,14 @@ ohci_hub_descriptor (
 
 	/* ports removable, and usb 1.0 legacy PortPwrCtrlMask */
 	rh = roothub_b (ohci);
-	memset(desc->DeviceRemovable, 0xff, sizeof(desc->DeviceRemovable));
-	desc->DeviceRemovable[0] = rh & RH_B_DR;
+	memset(desc->u.hs.DeviceRemovable, 0xff,
+			sizeof(desc->u.hs.DeviceRemovable));
+	desc->u.hs.DeviceRemovable[0] = rh & RH_B_DR;
 	if (ohci->num_ports > 7) {
-		desc->DeviceRemovable[1] = (rh & RH_B_DR) >> 8;
-		desc->DeviceRemovable[2] = 0xff;
+		desc->u.hs.DeviceRemovable[1] = (rh & RH_B_DR) >> 8;
+		desc->u.hs.DeviceRemovable[2] = 0xff;
 	} else
-		desc->DeviceRemovable[1] = 0xff;
+		desc->u.hs.DeviceRemovable[1] = 0xff;
 }
 
 /*-------------------------------------------------------------------------*/

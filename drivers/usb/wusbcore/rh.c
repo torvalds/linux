@@ -184,8 +184,8 @@ static int wusbhc_rh_get_hub_descr(struct wusbhc *wusbhc, u16 wValue,
 	descr->bPwrOn2PwrGood = 0;
 	descr->bHubContrCurrent = 0;
 	/* two bitmaps:  ports removable, and usb 1.0 legacy PortPwrCtrlMask */
-	memset(&descr->DeviceRemovable[0], 0, temp);
-	memset(&descr->DeviceRemovable[temp], 0xff, temp);
+	memset(&descr->u.hs.DeviceRemovable[0], 0, temp);
+	memset(&descr->u.hs.DeviceRemovable[temp], 0xff, temp);
 	return 0;
 }
 

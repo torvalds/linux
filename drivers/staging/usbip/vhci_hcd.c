@@ -255,8 +255,8 @@ static inline void hub_descriptor(struct usb_hub_descriptor *desc)
 	desc->wHubCharacteristics = (__force __u16)
 		(__constant_cpu_to_le16(0x0001));
 	desc->bNbrPorts = VHCI_NPORTS;
-	desc->DeviceRemovable[0] = 0xff;
-	desc->DeviceRemovable[1] = 0xff;
+	desc->u.hs.DeviceRemovable[0] = 0xff;
+	desc->u.hs.DeviceRemovable[1] = 0xff;
 }
 
 static int vhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,

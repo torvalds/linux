@@ -1752,8 +1752,8 @@ static void isp1760_hub_descriptor(struct isp1760_hcd *priv,
 	desc->bDescLength = 7 + 2 * temp;
 
 	/* ports removable, and usb 1.0 legacy PortPwrCtrlMask */
-	memset(&desc->DeviceRemovable[0], 0, temp);
-	memset(&desc->DeviceRemovable[temp], 0xff, temp);
+	memset(&desc->u.hs.DeviceRemovable[0], 0, temp);
+	memset(&desc->u.hs.DeviceRemovable[temp], 0xff, temp);
 
 	/* per-port overcurrent reporting */
 	temp = 0x0008;

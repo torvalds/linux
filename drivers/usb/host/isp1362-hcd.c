@@ -1553,8 +1553,8 @@ static void isp1362_hub_descriptor(struct isp1362_hcd *isp1362_hcd,
 	DBG(0, "%s: hubcharacteristics = %02x\n", __func__, cpu_to_le16((reg >> 8) & 0x1f));
 	desc->bPwrOn2PwrGood = (reg >> 24) & 0xff;
 	/* ports removable, and legacy PortPwrCtrlMask */
-	desc->DeviceRemovable[0] = desc->bNbrPorts == 1 ? 1 << 1 : 3 << 1;
-	desc->DeviceRemovable[1] = ~0;
+	desc->u.hs.DeviceRemovable[0] = desc->bNbrPorts == 1 ? 1 << 1 : 3 << 1;
+	desc->u.hs.DeviceRemovable[1] = ~0;
 
 	DBG(3, "%s: exit\n", __func__);
 }
