@@ -4,7 +4,7 @@
  *
  * (C) 2000 Red Hat. GPL'd
  *
- * $Id: cfi_cmdset_0001.c,v 1.172 2005/03/29 22:06:37 tpoynor Exp $
+ * $Id: cfi_cmdset_0001.c,v 1.173 2005/03/30 23:57:30 tpoynor Exp $
  *
  * 
  * 10/10/2000	Nicolas Pitre <nico@cam.org>
@@ -54,6 +54,7 @@ static int cfi_intelext_erase_varsize(struct mtd_info *, struct erase_info *);
 static void cfi_intelext_sync (struct mtd_info *);
 static int cfi_intelext_lock(struct mtd_info *mtd, loff_t ofs, size_t len);
 static int cfi_intelext_unlock(struct mtd_info *mtd, loff_t ofs, size_t len);
+#ifdef CONFIG_MTD_OTP
 static int cfi_intelext_read_fact_prot_reg (struct mtd_info *, loff_t, size_t, size_t *, u_char *);
 static int cfi_intelext_read_user_prot_reg (struct mtd_info *, loff_t, size_t, size_t *, u_char *);
 static int cfi_intelext_write_user_prot_reg (struct mtd_info *, loff_t, size_t, size_t *, u_char *);
@@ -62,6 +63,7 @@ static int cfi_intelext_get_fact_prot_info (struct mtd_info *,
 					    struct otp_info *, size_t);
 static int cfi_intelext_get_user_prot_info (struct mtd_info *,
 					    struct otp_info *, size_t);
+#endif
 static int cfi_intelext_suspend (struct mtd_info *);
 static void cfi_intelext_resume (struct mtd_info *);
 
