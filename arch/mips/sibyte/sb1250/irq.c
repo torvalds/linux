@@ -71,17 +71,15 @@ extern char sb1250_duart_present[];
 #endif
 
 static struct hw_interrupt_type sb1250_irq_type = {
-	"SB1250-IMR",
-	startup_sb1250_irq,
-	shutdown_sb1250_irq,
-	enable_sb1250_irq,
-	disable_sb1250_irq,
-	ack_sb1250_irq,
-	end_sb1250_irq,
+	.typename = "SB1250-IMR",
+	.startup = startup_sb1250_irq,
+	.shutdown = shutdown_sb1250_irq,
+	.enable = enable_sb1250_irq,
+	.disable = disable_sb1250_irq,
+	.ack = ack_sb1250_irq,
+	.end = end_sb1250_irq,
 #ifdef CONFIG_SMP
-	sb1250_set_affinity
-#else
-	NULL
+	.set_affinity = sb1250_set_affinity
 #endif
 };
 

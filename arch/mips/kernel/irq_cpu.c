@@ -93,14 +93,13 @@ static void mips_cpu_irq_end(unsigned int irq)
 }
 
 static hw_irq_controller mips_cpu_irq_controller = {
-	"MIPS",
-	mips_cpu_irq_startup,
-	mips_cpu_irq_shutdown,
-	mips_cpu_irq_enable,
-	mips_cpu_irq_disable,
-	mips_cpu_irq_ack,
-	mips_cpu_irq_end,
-	NULL			/* no affinity stuff for UP */
+	.typename = "MIPS",
+	.startup = mips_cpu_irq_startup,
+	.shutdown = mips_cpu_irq_shutdown,
+	.enable = mips_cpu_irq_enable,
+	.disable = mips_cpu_irq_disable,
+	.ack = mips_cpu_irq_ack,
+	.end = mips_cpu_irq_end,
 };
 
 

@@ -253,47 +253,43 @@ void restore_local_and_enable(int controller, unsigned long mask)
 
 
 static struct hw_interrupt_type rise_edge_irq_type = {
-	"Au1000 Rise Edge",
-	startup_irq,
-	shutdown_irq,
-	local_enable_irq,
-	local_disable_irq,
-	mask_and_ack_rise_edge_irq,
-	end_irq,
-	NULL
+	.typename = "Au1000 Rise Edge",
+	.startup = startup_irq,
+	.shutdown = shutdown_irq,
+	.enable = local_enable_irq,
+	.disable = local_disable_irq,
+	.ack = mask_and_ack_rise_edge_irq,
+	.end = end_irq,
 };
 
 static struct hw_interrupt_type fall_edge_irq_type = {
-	"Au1000 Fall Edge",
-	startup_irq,
-	shutdown_irq,
-	local_enable_irq,
-	local_disable_irq,
-	mask_and_ack_fall_edge_irq,
-	end_irq,
-	NULL
+	.typename = "Au1000 Fall Edge",
+	.startup = startup_irq,
+	.shutdown = shutdown_irq,
+	.enable = local_enable_irq,
+	.disable = local_disable_irq,
+	.ack = mask_and_ack_fall_edge_irq,
+	.end = end_irq,
 };
 
 static struct hw_interrupt_type either_edge_irq_type = {
-	"Au1000 Rise or Fall Edge",
-	startup_irq,
-	shutdown_irq,
-	local_enable_irq,
-	local_disable_irq,
-	mask_and_ack_either_edge_irq,
-	end_irq,
-	NULL
+	.typename = "Au1000 Rise or Fall Edge",
+	.startup = startup_irq,
+	.shutdown = shutdown_irq,
+	.enable = local_enable_irq,
+	.disable = local_disable_irq,
+	.ack = mask_and_ack_either_edge_irq,
+	.end = end_irq,
 };
 
 static struct hw_interrupt_type level_irq_type = {
-	"Au1000 Level",
-	startup_irq,
-	shutdown_irq,
-	local_enable_irq,
-	local_disable_irq,
-	mask_and_ack_level_irq,
-	end_irq,
-	NULL
+	.typename = "Au1000 Level",
+	.startup = startup_irq,
+	.shutdown = shutdown_irq,
+	.enable = local_enable_irq,
+	.disable = local_disable_irq,
+	.ack = mask_and_ack_level_irq,
+	.end = end_irq,
 };
 
 #ifdef CONFIG_PM

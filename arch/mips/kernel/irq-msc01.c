@@ -129,25 +129,23 @@ msc_bind_eic_interrupt (unsigned int irq, unsigned int set)
 #define shutdown_msc_irq	disable_msc_irq
 
 struct hw_interrupt_type msc_levelirq_type = {
-	"SOC-it-Level",
-	startup_msc_irq,
-	shutdown_msc_irq,
-	enable_msc_irq,
-	disable_msc_irq,
-	level_mask_and_ack_msc_irq,
-	end_msc_irq,
-	NULL
+	.typename = "SOC-it-Level",
+	.startup = startup_msc_irq,
+	.shutdown = shutdown_msc_irq,
+	.enable = enable_msc_irq,
+	.disable = disable_msc_irq,
+	.ack = level_mask_and_ack_msc_irq,
+	.end = end_msc_irq,
 };
 
 struct hw_interrupt_type msc_edgeirq_type = {
-	"SOC-it-Edge",
-	startup_msc_irq,
-	shutdown_msc_irq,
-	enable_msc_irq,
-	disable_msc_irq,
-	edge_mask_and_ack_msc_irq,
-	end_msc_irq,
-	NULL
+	.typename = "SOC-it-Edge",
+	.startup =startup_msc_irq,
+	.shutdown = shutdown_msc_irq,
+	.enable = enable_msc_irq,
+	.disable = disable_msc_irq,
+	.ack = edge_mask_and_ack_msc_irq,
+	.end = end_msc_irq,
 };
 
 

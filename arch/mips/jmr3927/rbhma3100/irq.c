@@ -412,13 +412,13 @@ void __init arch_init_irq(void)
 }
 
 static hw_irq_controller jmr3927_irq_controller = {
-	"jmr3927_irq",
-	jmr3927_irq_startup,
-	jmr3927_irq_shutdown,
-	jmr3927_irq_enable,
-	jmr3927_irq_disable,
-	jmr3927_irq_ack,
-	jmr3927_irq_end,
+	.typename = "jmr3927_irq",
+	.startup = jmr3927_irq_startup,
+	.shutdown = jmr3927_irq_shutdown,
+	.enable = jmr3927_irq_enable,
+	.disable = jmr3927_irq_disable,
+	.ack = jmr3927_irq_ack,
+	.end = jmr3927_irq_end,
 };
 
 void jmr3927_irq_init(u32 irq_base)
