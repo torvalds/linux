@@ -217,9 +217,9 @@
 #define JAGUAR_ATX_SERIAL1_BASE	0xfd000023L
 
 #define _JAGUAR_ATX_SERIAL_INIT(int, base)				\
-	{ baud_base: JAGUAR_ATX_BASE_BAUD, irq: int,			\
-	  flags: (ASYNC_BOOT_AUTOCONF | ASYNC_SKIP_TEST),		\
-	  iomem_base: (u8 *) base, iomem_reg_shift: 2,			\
+	{ .baud_base = JAGUAR_ATX_BASE_BAUD, irq: int,			\
+	  .flags = (ASYNC_BOOT_AUTOCONF | ASYNC_SKIP_TEST),		\
+	  .iomem_base = (u8 *) base, iomem_reg_shift: 2,			\
 	  io_type: SERIAL_IO_MEM }
 #define MOMENCO_JAGUAR_ATX_SERIAL_PORT_DEFNS				\
 	_JAGUAR_ATX_SERIAL_INIT(JAGUAR_ATX_SERIAL1_IRQ, JAGUAR_ATX_SERIAL1_BASE)
@@ -233,9 +233,9 @@
 #define OCELOT_3_SERIAL_BASE	(signed)0xfd000020
 
 #define _OCELOT_3_SERIAL_INIT(int, base)				\
-	{ baud_base: OCELOT_3_BASE_BAUD, irq: int, 			\
-	  flags: STD_COM_FLAGS,						\
-	  iomem_base: (u8 *) base, iomem_reg_shift: 2,			\
+	{ .baud_base = OCELOT_3_BASE_BAUD, irq: int, 			\
+	  .flags = STD_COM_FLAGS,						\
+	  .iomem_base = (u8 *) base, iomem_reg_shift: 2,			\
 	  io_type: SERIAL_IO_MEM }
 
 #define MOMENCO_OCELOT_3_SERIAL_PORT_DEFNS				\

@@ -202,10 +202,10 @@ extern unsigned long isa_slot_offset;
  */
 #define page_to_phys(page)	((dma_addr_t)page_to_pfn(page) << PAGE_SHIFT)
 
-extern void * __ioremap(phys_t offset, phys_t size, unsigned long flags);
+extern void __iomem * __ioremap(phys_t offset, phys_t size, unsigned long flags);
 extern void __iounmap(volatile void __iomem *addr);
 
-static inline void * __ioremap_mode(phys_t offset, unsigned long size,
+static inline void __iomem * __ioremap_mode(phys_t offset, unsigned long size,
 	unsigned long flags)
 {
 	if (cpu_has_64bit_addresses) {
