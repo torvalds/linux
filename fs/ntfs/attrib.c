@@ -1138,28 +1138,21 @@ int ntfs_attr_size_bounds_check(const ntfs_volume *vol, const ATTR_TYPE type,
  * Check whether the attribute of @type on the ntfs volume @vol is allowed to
  * be non-resident.  This information is obtained from $AttrDef system file.
  *
- * Return 0 if the attribute is allowed to be non-resident, -EPERM if not, or
+ * Return 0 if the attribute is allowed to be non-resident, -EPERM if not, and
  * -ENOENT if the attribute is not listed in $AttrDef.
  */
 int ntfs_attr_can_be_non_resident(const ntfs_volume *vol, const ATTR_TYPE type)
 {
 	ATTR_DEF *ad;
 
-	/*
-	 * $DATA and $EA are always allowed to be non-resident even if $AttrDef
-	 * does not specify this in the flags of the $DATA attribute definition
-	 * record.
-	 */
-	if (type == AT_DATA || type == AT_EA)
-		return 0;
 	/* Find the attribute definition record in $AttrDef. */
 	ad = ntfs_attr_find_in_attrdef(vol, type);
 	if (unlikely(!ad))
 		return -ENOENT;
 	/* Check the flags and return the result. */
-	if (ad->flags & CAN_BE_NON_RESIDENT)
-		return 0;
-	return -EPERM;
+	if (ad->flags & ATTR_DEF_RESIDENT)
+		return -EPERM;
+	return 0;
 }
 
 /**
@@ -1182,9 +1175,9 @@ int ntfs_attr_can_be_non_resident(const ntfs_volume *vol, const ATTR_TYPE type)
  */
 int ntfs_attr_can_be_resident(const ntfs_volume *vol, const ATTR_TYPE type)
 {
-	if (type != AT_INDEX_ALLOCATION && type != AT_EA)
-		return 0;
-	return -EPERM;
+	if (type == AT_INDEX_ALLOCATION || type == AT_EA)
+		return -EPERM;
+	return 0;
 }
 
 /**

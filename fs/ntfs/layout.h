@@ -547,26 +547,44 @@ enum {
 	COLLATION_NTOFS_ULONG		= const_cpu_to_le32(0x10),
 	COLLATION_NTOFS_SID		= const_cpu_to_le32(0x11),
 	COLLATION_NTOFS_SECURITY_HASH	= const_cpu_to_le32(0x12),
-	COLLATION_NTOFS_ULONGS		= const_cpu_to_le32(0x13)
+	COLLATION_NTOFS_ULONGS		= const_cpu_to_le32(0x13),
 };
 
 typedef le32 COLLATION_RULE;
 
 /*
  * The flags (32-bit) describing attribute properties in the attribute
- * definition structure.  FIXME: This information is from Regis's information
- * and, according to him, it is not certain and probably incomplete.
- * The INDEXABLE flag is fairly certainly correct as only the file name
- * attribute has this flag set and this is the only attribute indexed in NT4.
+ * definition structure.  FIXME: This information is based on Regis's
+ * information and, according to him, it is not certain and probably
+ * incomplete.  The INDEXABLE flag is fairly certainly correct as only the file
+ * name attribute has this flag set and this is the only attribute indexed in
+ * NT4.
  */
 enum {
-	INDEXABLE	    = const_cpu_to_le32(0x02), /* Attribute can be
-							  indexed. */
-	NEED_TO_REGENERATE  = const_cpu_to_le32(0x40), /* Need to regenerate
-							  during regeneration
-							  phase. */
-	CAN_BE_NON_RESIDENT = const_cpu_to_le32(0x80), /* Attribute can be
-							  non-resident. */
+	ATTR_DEF_INDEXABLE	= const_cpu_to_le32(0x02), /* Attribute can be
+					indexed. */
+	ATTR_DEF_MULTIPLE	= const_cpu_to_le32(0x04), /* Attribute type
+					can be present multiple times in the
+					mft records of an inode. */
+	ATTR_DEF_NOT_ZERO	= const_cpu_to_le32(0x08), /* Attribute value
+					must contain at least one non-zero
+					byte. */
+	ATTR_DEF_INDEXED_UNIQUE	= const_cpu_to_le32(0x10), /* Attribute must be
+					indexed and the attribute value must be
+					unique for the attribute type in all of
+					the mft records of an inode. */
+	ATTR_DEF_NAMED_UNIQUE	= const_cpu_to_le32(0x20), /* Attribute must be
+					named and the name must be unique for
+					the attribute type in all of the mft
+					records of an inode. */
+	ATTR_DEF_RESIDENT	= const_cpu_to_le32(0x40), /* Attribute must be
+					resident. */
+	ATTR_DEF_ALWAYS_LOG	= const_cpu_to_le32(0x80), /* Always log
+					modifications to this attribute,
+					regardless of whether it is resident or
+					non-resident.  Without this, only log
+					modifications if the attribute is
+					resident. */
 };
 
 typedef le32 ATTR_DEF_FLAGS;

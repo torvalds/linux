@@ -2,7 +2,7 @@
  * ntfs.h - Defines for NTFS Linux kernel driver. Part of the Linux-NTFS
  *	    project.
  *
- * Copyright (c) 2001-2004 Anton Altaparmakov
+ * Copyright (c) 2001-2005 Anton Altaparmakov
  * Copyright (C) 2002 Richard Russon
  *
  * This program/include file is free software; you can redistribute it and/or
@@ -41,6 +41,7 @@ typedef enum {
 	NTFS_BLOCK_SIZE_BITS	= 9,
 	NTFS_SB_MAGIC		= 0x5346544e,	/* 'NTFS' */
 	NTFS_MAX_NAME_LEN	= 255,
+	NTFS_MAX_ATTR_NAME_LEN	= 255,
 } NTFS_CONSTANTS;
 
 /* Global variables. */

@@ -110,6 +110,7 @@ ToDo/Notes:
 	  only emit a warning when the checksum is incorrect rather than
 	  refusing the mount.  Thanks to Bernd Casimir for pointing this
 	  problem out.
+	- Update attribute definition handling.
 
 2.1.22 - Many bug and race fixes and error handling improvements.
 
