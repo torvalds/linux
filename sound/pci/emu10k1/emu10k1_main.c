@@ -170,7 +170,7 @@ static int __devinit snd_emu10k1_init(emu10k1_t * emu, int enable_ir)
 			SPCS_GENERATIONSTATUS | 0x00001200 |
 			0x00000000 | SPCS_EMPHASIS_NONE | SPCS_COPYRIGHT);
 
-	if (emu->audigy && emu->revision == 4) { /* audigy2 */
+	if (emu->card_capabilities->ca0151_chip) { /* audigy2 */
 		/* Hacks for Alice3 to work independent of haP16V driver */
 		u32 tmp;
 
@@ -600,7 +600,7 @@ static int snd_emu10k1_free(emu10k1_t *emu)
 	if (emu->port)
 		pci_release_regions(emu->pci);
 	pci_disable_device(emu->pci);
-	if (emu->audigy && emu->revision == 4) /* P16V */	
+	if (emu->card_capabilities->ca0151_chip) /* P16V */	
 		snd_p16v_free(emu);
 	kfree(emu);
 	return 0;
@@ -611,8 +611,6 @@ static int snd_emu10k1_dev_free(snd_device_t *device)
 	emu10k1_t *emu = device->device_data;
 	return snd_emu10k1_free(emu);
 }
-
-/* vendor, device, subsystem, emu10k1_chip, emu10k2_chip, ca0102_chip, ca0108_chip, ca0151_chip, spk71, spdif_bug, ac97_chip, ecard, driver, name */
 
 static emu_chip_details_t emu_chip_details[] = {
 	/* Audigy 2 Value AC3 out does not work yet. Need to find out how to turn off interpolators.*/
@@ -688,15 +686,22 @@ static emu_chip_details_t emu_chip_details[] = {
 	{.vendor = 0x1102, .device = 0x0002, .subsystem = 0x80641102,
 	 .driver = "EMU10K1", .name = "SB Live 5.1", 
 	 .emu10k1_chip = 1,
-	 .ac97_chip = 1} ,
+	 .ac97_chip = 1,
+	 .sblive51 = 1} ,
 	{.vendor = 0x1102, .device = 0x0002, .subsystem = 0x80401102,
 	 .driver = "EMU10K1", .name = "SBLive! Platinum [CT4760P]", 
 	 .emu10k1_chip = 1,
 	 .ac97_chip = 1} ,
+	{.vendor = 0x1102, .device = 0x0002, .subsystem = 0x80271102,
+	 .driver = "EMU10K1", .name = "SBLive! Value [CT4832]", 
+	 .emu10k1_chip = 1,
+	 .ac97_chip = 1,
+	 .sblive51 = 1} ,
 	{.vendor = 0x1102, .device = 0x0002,
 	 .driver = "EMU10K1", .name = "SB Live [Unknown]", 
 	 .emu10k1_chip = 1,
-	 .ac97_chip = 1} ,
+	 .ac97_chip = 1,
+	 .sblive51 = 1} ,
 	{ } /* terminator */
 };
 
@@ -747,7 +752,6 @@ int __devinit snd_emu10k1_create(snd_card_t * card,
 	emu->revision = revision;
 	pci_read_config_dword(pci, PCI_SUBSYSTEM_VENDOR_ID, &emu->serial);
 	pci_read_config_word(pci, PCI_SUBSYSTEM_ID, &emu->model);
-	emu->card_type = EMU10K1_CARD_CREATIVE;
 	snd_printdd("vendor=0x%x, device=0x%x, subsystem_vendor_id=0x%x, subsystem_id=0x%x\n",pci->vendor, pci->device, emu->serial, emu->model);
 
 	for (c = emu_chip_details; c->vendor; c++) {
@@ -825,15 +829,6 @@ int __devinit snd_emu10k1_create(snd_card_t * card,
 
 	pci_set_master(pci);
 
-	if (c->ecard) {
-		emu->card_type = EMU10K1_CARD_EMUAPS;
-		emu->APS = 1;
-	}
-	if (! c->ac97_chip)
-		emu->no_ac97 = 1;
-	
-	emu->spk71 = c->spk71;
-	
 	emu->fx8010.fxbus_mask = 0x303f;
 	if (extin_mask == 0)
 		extin_mask = 0x3fcf;
@@ -842,7 +837,7 @@ int __devinit snd_emu10k1_create(snd_card_t * card,
 	emu->fx8010.extin_mask = extin_mask;
 	emu->fx8010.extout_mask = extout_mask;
 
-	if (emu->APS) {
+	if (emu->card_capabilities->ecard) {
 		if ((err = snd_emu10k1_ecard_init(emu)) < 0) {
 			snd_emu10k1_free(emu);
 			return err;

@@ -1046,6 +1046,7 @@ typedef struct {
 	unsigned char ca0108_chip;  /* Audigy 2 Value */
 	unsigned char ca0151_chip;  /* P16V */
 	unsigned char spk71;        /* Has 7.1 speakers */
+	unsigned char sblive51;	    /* SBLive! 5.1 - extout 0x11 -> center, 0x12 -> lfe */
 	unsigned char spdif_bug;    /* Has Spdif phasing bug */
 	unsigned char ac97_chip;    /* Has an AC97 chip */
 	unsigned char ecard;        /* APS EEPROM */
@@ -1057,11 +1058,8 @@ struct _snd_emu10k1 {
 	int irq;
 
 	unsigned long port;			/* I/O port number */
-	unsigned int APS: 1,			/* APS flag */
-	    no_ac97: 1,				/* no AC'97 */
-	    tos_link: 1,			/* tos link detected */
-	    rear_ac97: 1,			/* rear channels are on AC'97 */
-	    spk71:1;				/* 7.1 configuration (Audigy 2 ZS) */
+	unsigned int tos_link: 1,		/* tos link detected */
+	    rear_ac97: 1;			/* rear channels are on AC'97 */
 	const emu_chip_details_t *card_capabilities;	/* Contains profile of card capabilities */
 	unsigned int audigy;			/* is Audigy? */
 	unsigned int revision;			/* chip revision */
@@ -1456,7 +1454,6 @@ int snd_emu10k1_fx8010_unregister_irq_handler(emu10k1_t *emu,
 #endif
 
 typedef struct {
-	unsigned int card;			/* card type */
 	unsigned int internal_tram_size;	/* in samples */
 	unsigned int external_tram_size;	/* in samples */
 	char fxbus_names[16][32];		/* names of FXBUSes */
