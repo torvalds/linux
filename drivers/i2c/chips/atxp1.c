@@ -99,7 +99,7 @@ static struct atxp1_data * atxp1_update_device(struct device *dev)
 }
 
 /* sys file functions for cpu0_vid */
-ssize_t atxp1_showvcore(struct device *dev, char *buf)
+static ssize_t atxp1_showvcore(struct device *dev, char *buf)
 {
 	int size;
 	struct atxp1_data *data;
@@ -111,7 +111,7 @@ ssize_t atxp1_showvcore(struct device *dev, char *buf)
 	return size;
 }
 
-ssize_t atxp1_storevcore(struct device *dev, const char* buf, size_t count)
+static ssize_t atxp1_storevcore(struct device *dev, const char* buf, size_t count)
 {
 	struct atxp1_data *data;
 	struct i2c_client *client;
@@ -169,7 +169,7 @@ ssize_t atxp1_storevcore(struct device *dev, const char* buf, size_t count)
 static DEVICE_ATTR(cpu0_vid, S_IRUGO | S_IWUSR, atxp1_showvcore, atxp1_storevcore);
 
 /* sys file functions for GPIO1 */
-ssize_t atxp1_showgpio1(struct device *dev, char *buf)
+static ssize_t atxp1_showgpio1(struct device *dev, char *buf)
 {
 	int size;
 	struct atxp1_data *data;
@@ -181,7 +181,7 @@ ssize_t atxp1_showgpio1(struct device *dev, char *buf)
 	return size;
 }
 
-ssize_t atxp1_storegpio1(struct device *dev, const char* buf, size_t count)
+static ssize_t atxp1_storegpio1(struct device *dev, const char* buf, size_t count)
 {
 	struct atxp1_data *data;
 	struct i2c_client *client;
@@ -211,7 +211,7 @@ ssize_t atxp1_storegpio1(struct device *dev, const char* buf, size_t count)
 static DEVICE_ATTR(gpio1, S_IRUGO | S_IWUSR, atxp1_showgpio1, atxp1_storegpio1);
 
 /* sys file functions for GPIO2 */
-ssize_t atxp1_showgpio2(struct device *dev, char *buf)
+static ssize_t atxp1_showgpio2(struct device *dev, char *buf)
 {
 	int size;
 	struct atxp1_data *data;
@@ -223,7 +223,7 @@ ssize_t atxp1_showgpio2(struct device *dev, char *buf)
 	return size;
 }
 
-ssize_t atxp1_storegpio2(struct device *dev, const char* buf, size_t count)
+static ssize_t atxp1_storegpio2(struct device *dev, const char* buf, size_t count)
 {
 	struct atxp1_data *data;
 	struct i2c_client *client;
