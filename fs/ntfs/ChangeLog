@@ -31,6 +31,7 @@ ToDo/Notes:
 	  compiled without debug.  This avoids a possible denial of service
 	  attack.  Thanks to Carl-Daniel Hailfinger from SuSE for pointing this
 	  out.
+	- Use i_size_read() in fs/ntfs/attrib.c::ntfs_attr_set().
 
 2.1.22 - Many bug and race fixes and error handling improvements.
 

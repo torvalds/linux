@@ -1127,6 +1127,10 @@ int ntfs_attr_record_resize(MFT_RECORD *m, ATTR_RECORD *a, u32 new_size)
  * byte offset @ofs inside the attribute with the constant byte @val.
  *
  * This function is effectively like memset() applied to an ntfs attribute.
+ * Note thie function actually only operates on the page cache pages belonging
+ * to the ntfs attribute and it marks them dirty after doing the memset().
+ * Thus it relies on the vm dirty page write code paths to cause the modified
+ * pages to be written to the mft record/disk.
  *
  * Return 0 on success and -errno on error.  An error code of -ESPIPE means
  * that @ofs + @cnt were outside the end of the attribute and no write was
@@ -1155,7 +1159,7 @@ int ntfs_attr_set(ntfs_inode *ni, const s64 ofs, const s64 cnt, const u8 val)
 	end = ofs + cnt;
 	end_ofs = end & ~PAGE_CACHE_MASK;
 	/* If the end is outside the inode size return -ESPIPE. */
-	if (unlikely(end > VFS_I(ni)->i_size)) {
+	if (unlikely(end > i_size_read(VFS_I(ni)))) {
 		ntfs_error(vol->sb, "Request exceeds end of attribute.");
 		return -ESPIPE;
 	}
