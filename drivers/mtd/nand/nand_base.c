@@ -59,7 +59,7 @@
  *	The AG-AND chips have nice features for speed improvement,
  *	which are not supported yet. Read / program 4 pages in one go.
  *
- * $Id: nand_base.c,v 1.134 2005/02/22 21:56:46 gleixner Exp $
+ * $Id: nand_base.c,v 1.135 2005/03/01 09:32:45 gleixner Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -830,7 +830,7 @@ static int nand_wait(struct mtd_info *mtd, struct nand_chip *this, int state)
 			if (this->read_byte(mtd) & NAND_STATUS_READY)
 				break;
 		}
-		msleep(1);
+		cond_resched();
 	}
 	status = (int) this->read_byte(mtd);
 	return status;
