@@ -58,9 +58,8 @@ need_resched:
 	LONG_L	t0, PT_STATUS(sp)		# Interrupts off?
 	andi	t0, 1
 	beqz	t0, restore_all
-	li	t0, PREEMPT_ACTIVE
-	sw	t0, TI_PRE_COUNT($28)
 	jal	preempt_schedule_irq
+	b	need_resched
 #endif
 
 FEXPORT(ret_from_fork)
