@@ -9,7 +9,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: wbuf.c,v 1.84 2005/01/25 20:11:11 hammache Exp $
+ * $Id: wbuf.c,v 1.85 2005/02/02 22:12:04 dwmw2 Exp $
  *
  */
 
@@ -534,6 +534,9 @@ int jffs2_flush_wbuf_gc(struct jffs2_sb_info *c, uint32_t ino)
 
 	D1(printk(KERN_DEBUG "jffs2_flush_wbuf_gc() called for ino #%u...\n", ino));
 
+	if (!c->wbuf)
+		return 0;
+
 	down(&c->alloc_sem);
 	if (!jffs2_wbuf_pending_for_ino(c, ino)) {
 		D1(printk(KERN_DEBUG "Ino #%d not pending in wbuf. Returning\n", ino));
@@ -587,6 +590,9 @@ int jffs2_flush_wbuf_gc(struct jffs2_sb_info *c, uint32_t ino)
 int jffs2_flush_wbuf_pad(struct jffs2_sb_info *c)
 {
 	int ret;
+
+	if (!c->wbuf)
+		return 0;
 
 	down_write(&c->wbuf_sem);
 	ret = __jffs2_flush_wbuf(c, PAD_NOACCOUNT);
