@@ -6,7 +6,7 @@
  *
  * Generic platfrom device based RAM map
  *
- * $Id: plat-ram.c,v 1.2 2005/03/14 20:33:19 bjd Exp $
+ * $Id: plat-ram.c,v 1.3 2005/03/19 22:41:27 gleixner Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -153,7 +153,7 @@ static int platram_probe(struct device *dev)
 		goto exit_error;
 	}
 
-	memzero(info, sizeof(*info));
+	memset(info, 0, sizeof(*info));
 	dev_set_drvdata(dev, info);
 
 	info->dev = dev;
