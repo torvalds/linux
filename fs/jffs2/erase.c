@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: erase.c,v 1.74 2005/03/20 17:46:20 dedekind Exp $
+ * $Id: erase.c,v 1.75 2005/04/05 12:51:54 dedekind Exp $
  *
  */
 
@@ -332,7 +332,11 @@ static void jffs2_mark_erased_block(struct jffs2_sb_info *c, struct jffs2_eraseb
 
 			bad_offset = ofs;
 
-			ret = jffs2_flash_read(c, ofs, readlen, &retlen, ebuf);
+			if (!jffs2_is_writebuffered(c) || !jffs2_cleanmarker_oob(c))
+				ret = c->mtd->read(c->mtd, ofs, readlen, &retlen, ebuf);
+			else
+				ret = c->mtd->read_ecc(c->mtd, ofs, readlen, &retlen, ebuf, NULL, c->oobinfo);
+
 			if (ret) {
 				printk(KERN_WARNING "Read of newly-erased block at 0x%08x failed: %d. Putting on bad_list\n", ofs, ret);
 				goto bad;
