@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: nodemgmt.c,v 1.119 2005/02/28 08:21:05 dedekind Exp $
+ * $Id: nodemgmt.c,v 1.120 2005/03/20 17:46:20 dedekind Exp $
  *
  */
 
@@ -594,7 +594,7 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 		*p = ref->next_in_ino;
 		ref->next_in_ino = NULL;
 
-		if (ic->nodes == (void *)ic)
+		if (ic->nodes == (void *)ic && ic->nlink == 0)
 			jffs2_del_ino_cache(c, ic);
 
 		spin_unlock(&c->erase_completion_lock);

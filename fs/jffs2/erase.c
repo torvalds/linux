@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: erase.c,v 1.72 2005/02/27 23:01:32 dwmw2 Exp $
+ * $Id: erase.c,v 1.74 2005/03/20 17:46:20 dedekind Exp $
  *
  */
 
@@ -277,7 +277,7 @@ static inline void jffs2_remove_node_refs_from_ino_list(struct jffs2_sb_info *c,
 		printk("\n");
 	});
 
-	if (ic->nodes == (void *)ic)
+	if (ic->nodes == (void *)ic && ic->nlink == 0)
 		jffs2_del_ino_cache(c, ic);
 }
 
