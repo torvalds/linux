@@ -135,30 +135,6 @@ static struct kobj_type ktype_bus = {
 decl_subsys(bus, &ktype_bus, NULL);
 
 
-static int __bus_for_each_drv(struct bus_type *bus, struct device_driver *start,
-			      void * data, int (*fn)(struct device_driver *, void *))
-{
-	struct list_head *head;
-	struct device_driver *drv;
-	int error = 0;
-
-	if (!(bus = get_bus(bus)))
-		return -EINVAL;
-
-	head = &bus->drivers.list;
-	drv = list_prepare_entry(start, head, kobj.entry);
-	list_for_each_entry_continue(drv, head, kobj.entry) {
-		get_driver(drv);
-		error = fn(drv, data);
-		put_driver(drv);
-		if (error)
-			break;
-	}
-	put_bus(bus);
-	return error;
-}
-
-
 static struct device * next_device(struct klist_iter * i)
 {
 	struct klist_node * n = klist_next(i);
@@ -203,6 +179,14 @@ int bus_for_each_dev(struct bus_type * bus, struct device * start,
 	return error;
 }
 
+
+
+static struct device_driver * next_driver(struct klist_iter * i)
+{
+	struct klist_node * n = klist_next(i);
+	return n ? container_of(n, struct device_driver, knode_bus) : NULL;
+}
+
 /**
  *	bus_for_each_drv - driver iterator
  *	@bus:	bus we're dealing with.
@@ -226,12 +210,19 @@ int bus_for_each_dev(struct bus_type * bus, struct device * start,
 int bus_for_each_drv(struct bus_type * bus, struct device_driver * start,
 		     void * data, int (*fn)(struct device_driver *, void *))
 {
-	int ret;
+	struct klist_iter i;
+	struct device_driver * drv;
+	int error = 0;
 
-	down_read(&bus->subsys.rwsem);
-	ret = __bus_for_each_drv(bus, start, data, fn);
-	up_read(&bus->subsys.rwsem);
-	return ret;
+	if (!bus)
+		return -EINVAL;
+
+	klist_iter_init_node(&bus->klist_drivers, &i,
+			     start ? &start->knode_bus : NULL);
+	while ((drv = next_driver(&i)) && !error)
+		error = fn(drv, data);
+	klist_iter_exit(&i);
+	return error;
 }
 
 static int device_add_attrs(struct bus_type * bus, struct device * dev)
@@ -376,6 +367,7 @@ int bus_add_driver(struct device_driver * drv)
 		down_write(&bus->subsys.rwsem);
 		driver_attach(drv);
 		up_write(&bus->subsys.rwsem);
+		klist_add_tail(&bus->klist_drivers, &drv->knode_bus);
 		module_add_driver(drv->owner, drv);
 
 		driver_add_attrs(bus, drv);
@@ -397,6 +389,7 @@ void bus_remove_driver(struct device_driver * drv)
 {
 	if (drv->bus) {
 		driver_remove_attrs(drv->bus, drv);
+		klist_remove(&drv->knode_bus);
 		down_write(&drv->bus->subsys.rwsem);
 		pr_debug("bus %s: remove driver %s\n", drv->bus->name, drv->name);
 		driver_detach(drv);
@@ -536,6 +529,7 @@ int bus_register(struct bus_type * bus)
 		goto bus_drivers_fail;
 
 	klist_init(&bus->klist_devices);
+	klist_init(&bus->klist_drivers);
 	bus_add_attrs(bus);
 
 	pr_debug("bus type '%s' registered\n", bus->name);

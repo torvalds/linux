@@ -53,6 +53,7 @@ struct bus_type {
 	struct kset		drivers;
 	struct kset		devices;
 	struct klist		klist_devices;
+	struct klist		klist_drivers;
 
 	struct bus_attribute	* bus_attrs;
 	struct device_attribute	* dev_attrs;
@@ -105,6 +106,7 @@ struct device_driver {
 	struct completion	unloaded;
 	struct kobject		kobj;
 	struct list_head	devices;
+	struct klist_node	knode_bus;
 
 	struct module		* owner;
 
