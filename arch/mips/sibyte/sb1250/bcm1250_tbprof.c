@@ -28,6 +28,7 @@
 #include <linux/fs.h>
 #include <linux/errno.h>
 #include <linux/reboot.h>
+#include <linux/wait.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/sibyte/sb1250.h>
@@ -231,6 +232,7 @@ int sbprof_zbprof_start(struct file *filp)
 
 int sbprof_zbprof_stop(void)
 {
+	DEFINE_WAIT(wait);
 	DBG(printk(DEVNAME ": stopping\n"));
 
 	if (sbp.tb_enable) {
@@ -240,7 +242,9 @@ int sbprof_zbprof_stop(void)
 		   this sleep happens. */
 		if (sbp.tb_armed) {
 			DBG(printk(DEVNAME ": wait for disarm\n"));
-			interruptible_sleep_on(&sbp.tb_sync);
+			prepare_to_wait(&sbp.tb_sync, &wait, TASK_INTERRUPTIBLE);
+			schedule();
+			finish_wait(&sbp.tb_sync, &wait);
 			DBG(printk(DEVNAME ": disarm complete\n"));
 		}
 		free_irq(K_INT_TRACE_FREEZE, &sbp);
@@ -348,7 +352,10 @@ static int sbprof_tb_ioctl(struct inode *inode,
 		error = sbprof_zbprof_stop();
 		break;
 	case SBPROF_ZBWAITFULL:
-		interruptible_sleep_on(&sbp.tb_read);
+		DEFINE_WAIT(wait);
+		prepare_to_wait(&sbp.tb_read, &wait, TASK_INTERRUPTIBLE);
+		schedule();
+		finish_wait(&sbp.tb_read, &wait);
 		/* XXXKW check if interrupted? */
 		return put_user(TB_FULL, (int *) arg);
 	default:
