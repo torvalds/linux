@@ -248,44 +248,32 @@ void __devinit smp_prepare_boot_cpu(void)
 }
 
 /*
- * Startup the CPU with this logical number
- */
-static int __init do_boot_cpu(int cpu)
-{
-	struct task_struct *idle;
-
-	/*
-	 * The following code is purely to make sure
-	 * Linux can schedule processes on this slave.
-	 */
-	idle = fork_idle(cpu);
-	if (IS_ERR(idle))
-		panic("failed fork for CPU %d\n", cpu);
-
-	prom_boot_secondary(cpu, idle);
-
-	/* XXXKW timeout */
-	while (!cpu_isset(cpu, cpu_callin_map))
-		udelay(100);
-
-	cpu_set(cpu, cpu_online_map);
-
-	return 0;
-}
-
-/*
  * Called once for each "cpu_possible(cpu)".  Needs to spin up the cpu
  * and keep control until "cpu_online(cpu)" is set.  Note: cpu is
  * physical, not logical.
  */
 int __devinit __cpu_up(unsigned int cpu)
 {
-	int ret;
+	struct task_struct *idle;
 
-	/* Processor goes to start_secondary(), sets online flag */
-	ret = do_boot_cpu(cpu);
-	if (ret < 0)
-		return ret;
+	/*
+	 * Processor goes to start_secondary(), sets online flag
+	 * The following code is purely to make sure
+	 * Linux can schedule processes on this slave.
+	 */
+	idle = fork_idle(cpu);
+	if (IS_ERR(idle))
+		panic(KERN_ERR "Fork failed for CPU %d", cpu);
+
+	prom_boot_secondary(cpu, idle);
+
+	/*
+	 * Trust is futile.  We should really have timeouts ...
+	 */
+	while (!cpu_isset(cpu, cpu_callin_map))
+		udelay(100);
+
+	cpu_set(cpu, cpu_online_map);
 
 	return 0;
 }
