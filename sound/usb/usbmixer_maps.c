@@ -91,6 +91,33 @@ static struct usbmix_name_map extigy_map[] = {
 	{ 0 } /* terminator */
 };
 
+/* Sound Blaster MP3+ controls mapping
+ * The default mixer channels have totally misleading names,
+ * e.g. no Master and fake PCM volume
+ *			Pavel Mihaylov <bin@bash.info>
+ */
+static struct usbmix_name_map mp3plus_map[] = {
+	/* 1: IT pcm */
+	/* 2: IT mic */
+	/* 3: IT line */
+	/* 4: IT digital in */
+	/* 5: OT digital out */
+	/* 6: OT speaker */
+	/* 7: OT pcm capture */
+	{ 8, "Capture Input Source" }, /* FU, default PCM Capture Source */
+		/* (Mic, Input 1 = Line input, Input 2 = Optical input) */
+	{ 9, "Master Playback" }, /* FU, default Speaker 1 */
+	/* { 10, "Mic Capture", 1 }, */ /* FU, Mic Capture */
+	/* { 10, "Mic Capture", 2 }, */ /* FU, Mic Capture */
+	{ 10, "Mic Boost", 7 }, /* FU, default Auto Gain Input */
+	{ 11, "Line Capture" }, /* FU, default PCM Capture */
+	{ 12, "Digital In Playback" }, /* FU, default PCM 1 */
+	/* { 13, "Mic Playback" }, */ /* FU, default Mic Playback */
+	{ 14, "Line Playback" }, /* FU, default Speaker */
+	/* 15: MU */
+	{ 0 } /* terminator */
+};
+
 /* LineX FM Transmitter entry - needed to bypass controls bug */
 static struct usbmix_name_map linex_map[] = {
 	/* 1: IT pcm */
@@ -128,6 +155,7 @@ static struct usbmix_name_map justlink_map[] = {
 
 static struct usbmix_ctl_map usbmix_ctl_maps[] = {
 	{ 0x41e, 0x3000, extigy_map, 1 },
+	{ 0x41e, 0x3010, mp3plus_map, 0 },
 	{ 0x8bb, 0x2702, linex_map, 1 },
 	{ 0xc45, 0x1158, justlink_map, 0 },
 	{ 0 } /* terminator */
