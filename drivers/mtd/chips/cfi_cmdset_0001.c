@@ -4,7 +4,7 @@
  *
  * (C) 2000 Red Hat. GPL'd
  *
- * $Id: cfi_cmdset_0001.c,v 1.167 2005/02/08 17:11:15 nico Exp $
+ * $Id: cfi_cmdset_0001.c,v 1.168 2005/02/17 20:34:59 nico Exp $
  *
  * 
  * 10/10/2000	Nicolas Pitre <nico@cam.org>
@@ -2025,7 +2025,7 @@ do_otp_lock(struct map_info *map, struct flchip *chip, u_long offset,
 	map_word datum;
 
 	/* make sure area matches group boundaries */
-	if (offset != 0 || size != grpsz)
+	if (size != grpsz)
 		return -EXDEV;
 
 	datum = map_word_ff(map);
@@ -2089,7 +2089,7 @@ static int cfi_intelext_otp_walk(struct mtd_info *mtd, loff_t from, size_t len,
 				groupno = 0;
 			}
 
-			while (groups > 0) {
+			while (len > 0 && groups > 0) {
 				if (!action) {
 					/*
 					 * Special case: if action is NULL
@@ -2118,6 +2118,7 @@ static int cfi_intelext_otp_walk(struct mtd_info *mtd, loff_t from, size_t len,
 					*retlen += sizeof(*otpinfo);
 				} else if (from >= groupsize) {
 					from -= groupsize;
+					data_offset += groupsize;
 				} else {
 					int size = groupsize;
 					data_offset += from;
@@ -2133,6 +2134,7 @@ static int cfi_intelext_otp_walk(struct mtd_info *mtd, loff_t from, size_t len,
 					buf += size;
 					len -= size;
 					*retlen += size;
+					data_offset += size;
 				}
 				groupno++;
 				groups--;
