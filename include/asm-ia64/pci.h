@@ -47,7 +47,7 @@ pcibios_set_master (struct pci_dev *dev)
 }
 
 static inline void
-pcibios_penalize_isa_irq (int irq)
+pcibios_penalize_isa_irq (int irq, int active)
 {
 	/* We don't do dynamic PCI IRQ allocation */
 }

@@ -160,7 +160,7 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 				acpi_register_gsi(res->data.irq.interrupts[0],
 					res->data.irq.edge_level,
 					res->data.irq.active_high_low));
-			pcibios_penalize_isa_irq(res->data.irq.interrupts[0]);
+			pcibios_penalize_isa_irq(res->data.irq.interrupts[0], 1);
 		}
 		break;
 
@@ -171,7 +171,7 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 				acpi_register_gsi(res->data.extended_irq.interrupts[0],
 					res->data.extended_irq.edge_level,
 					res->data.extended_irq.active_high_low));
-			pcibios_penalize_isa_irq(res->data.extended_irq.interrupts[0]);
+			pcibios_penalize_isa_irq(res->data.extended_irq.interrupts[0], 1);
 		}
 		break;
 	case ACPI_RSTYPE_DMA:

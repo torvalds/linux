@@ -804,9 +804,12 @@ static int __init acpi_irq_penalty_update(char *str, int used)
  * There is no ISA_POSSIBLE weight, so we simply use
  * the (small) PCI_USING penalty.
  */
-void acpi_penalize_isa_irq(int irq)
+void acpi_penalize_isa_irq(int irq, int active)
 {
-	acpi_irq_penalty[irq] += PIRQ_PENALTY_PCI_USING;
+	if (active)
+		acpi_irq_penalty[irq] += PIRQ_PENALTY_ISA_USED;
+	else
+		acpi_irq_penalty[irq] += PIRQ_PENALTY_PCI_USING;
 }
 
 /*

@@ -1006,24 +1006,28 @@ static int __init pcibios_irq_init(void)
 subsys_initcall(pcibios_irq_init);
 
 
-static void pirq_penalize_isa_irq(int irq)
+static void pirq_penalize_isa_irq(int irq, int active)
 {
 	/*
 	 *  If any ISAPnP device reports an IRQ in its list of possible
 	 *  IRQ's, we try to avoid assigning it to PCI devices.
 	 */
-	if (irq < 16)
-		pirq_penalty[irq] += 100;
+	if (irq < 16) {
+		if (active)
+			pirq_penalty[irq] += 1000;
+		else
+			pirq_penalty[irq] += 100;
+	}
 }
 
-void pcibios_penalize_isa_irq(int irq)
+void pcibios_penalize_isa_irq(int irq, int active)
 {
 #ifdef CONFIG_ACPI_PCI
 	if (!acpi_noirq)
-		acpi_penalize_isa_irq(irq);
+		acpi_penalize_isa_irq(irq, active);
 	else
 #endif
-		pirq_penalize_isa_irq(irq);
+		pirq_penalize_isa_irq(irq, active);
 }
 
 static int pirq_enable_irq(struct pci_dev *dev)

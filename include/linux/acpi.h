@@ -465,7 +465,7 @@ struct acpi_prt_list {
 struct pci_dev;
 
 int acpi_pci_irq_enable (struct pci_dev *dev);
-void acpi_penalize_isa_irq(int irq);
+void acpi_penalize_isa_irq(int irq, int active);
 
 #ifdef CONFIG_ACPI_DEALLOCATE_IRQ
 void acpi_pci_irq_disable (struct pci_dev *dev);
