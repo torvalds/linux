@@ -16,7 +16,7 @@
  *  
  * Interface to generic NAND code for M-Systems DiskOnChip devices
  *
- * $Id: diskonchip.c,v 1.45 2005/01/05 18:05:14 dwmw2 Exp $
+ * $Id: diskonchip.c,v 1.46 2005/01/31 20:36:42 gleixner Exp $
  */
 
 #include <linux/kernel.h>
@@ -35,13 +35,13 @@
 #include <linux/mtd/inftl.h>
 
 /* Where to look for the devices? */
-#ifndef CONFIG_MTD_DISKONCHIP_PROBE_ADDRESS
-#define CONFIG_MTD_DISKONCHIP_PROBE_ADDRESS 0
+#ifndef CONFIG_MTD_NAND_DISKONCHIP_PROBE_ADDRESS
+#define CONFIG_MTD_NAND_DISKONCHIP_PROBE_ADDRESS 0
 #endif
 
 static unsigned long __initdata doc_locations[] = {
 #if defined (__alpha__) || defined(__i386__) || defined(__x86_64__)
-#ifdef CONFIG_MTD_DISKONCHIP_PROBE_HIGH
+#ifdef CONFIG_MTD_NAND_DISKONCHIP_PROBE_HIGH
 	0xfffc8000, 0xfffca000, 0xfffcc000, 0xfffce000, 
 	0xfffd0000, 0xfffd2000, 0xfffd4000, 0xfffd6000,
 	0xfffd8000, 0xfffda000, 0xfffdc000, 0xfffde000, 
@@ -123,7 +123,7 @@ static int inftl_bbt_write=0;
 #endif
 module_param(inftl_bbt_write, int, 0);
 
-static unsigned long doc_config_location = CONFIG_MTD_DISKONCHIP_PROBE_ADDRESS;
+static unsigned long doc_config_location = CONFIG_MTD_NAND_DISKONCHIP_PROBE_ADDRESS;
 module_param(doc_config_location, ulong, 0);
 MODULE_PARM_DESC(doc_config_location, "Physical memory address at which to probe for DiskOnChip");
 
