@@ -389,8 +389,7 @@ NCR_700_detect(struct scsi_host_template *tpnt,
 	host->max_lun = NCR_700_MAX_LUNS;
 	BUG_ON(NCR_700_transport_template == NULL);
 	host->transportt = NCR_700_transport_template;
-	host->unique_id = hostdata->base;
-	host->base = hostdata->base;
+	host->unique_id = (unsigned long)hostdata->base;
 	hostdata->eh_complete = NULL;
 	host->hostdata[0] = (unsigned long)hostdata;
 	/* kick the chip */

@@ -942,11 +942,6 @@ config SCSI_NCR_D700
 	  Unless you have an NCR manufactured machine, the chances are that
 	  you do not have this SCSI card, so say N.
 
-config 53C700_IO_MAPPED
-	bool
-	depends on SCSI_NCR_D700
-	default y
-
 config SCSI_LASI700
 	tristate "HP Lasi SCSI support for 53c700/710"
 	depends on GSC && SCSI
@@ -955,11 +950,6 @@ config SCSI_LASI700
 	  This is a driver for the SCSI controller in the Lasi chip found in
 	  many PA-RISC workstations & servers.  If you do not know whether you
 	  have a Lasi chip, it is safe to say "Y" here.
-
-config 53C700_MEM_MAPPED
-	bool
-	depends on SCSI_LASI700
-	default y
 
 config 53C700_LE_ON_BE
 	bool

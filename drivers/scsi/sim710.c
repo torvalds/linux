@@ -120,11 +120,10 @@ sim710_probe_common(struct device *dev, unsigned long base_addr,
 	}
 
 	/* Fill in the three required pieces of hostdata */
-	hostdata->base = base_addr;
+	hostdata->base = ioport_map(base_addr, 64);
 	hostdata->differential = differential;
 	hostdata->clock = clock;
 	hostdata->chip710 = 1;
-	NCR_700_set_io_mapped(hostdata);
 
 	/* and register the chip */
 	if((host = NCR_700_detect(&sim710_driver_template, hostdata, dev))
@@ -133,6 +132,7 @@ sim710_probe_common(struct device *dev, unsigned long base_addr,
 		goto out_release;
 	}
 	host->this_id = scsi_id;
+	host->base = base_addr;
 	host->irq = irq;
 	if (request_irq(irq, NCR_700_intr, SA_SHIRQ, "sim710", host)) {
 		printk(KERN_ERR "sim710: request_irq failed\n");
@@ -164,6 +164,7 @@ sim710_device_remove(struct device *dev)
 	NCR_700_release(host);
 	kfree(hostdata);
 	free_irq(host->irq, host);
+	release_region(host->base, 64);
 	return 0;
 }
 

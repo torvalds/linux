@@ -197,11 +197,9 @@ NCR_D700_probe_one(struct NCR_D700_private *p, int siop, int irq,
 	}
 		
 	/* Fill in the three required pieces of hostdata */
-	hostdata->base = region;
+	hostdata->base = ioport_map(region, 64);
 	hostdata->differential = (((1<<siop) & differential) != 0);
 	hostdata->clock = NCR_D700_CLOCK_MHZ;
-
-	NCR_700_set_io_mapped(hostdata);
 
 	/* and register the siop */
 	host = NCR_700_detect(&NCR_D700_driver_template, hostdata, p->dev);
@@ -214,6 +212,7 @@ NCR_D700_probe_one(struct NCR_D700_private *p, int siop, int irq,
 	/* FIXME: read this from SUS */
 	host->this_id = id_array[slot * 2 + siop];
 	host->irq = irq;
+	host->base = region;
 	scsi_scan_host(host);
 
 	return 0;
