@@ -25,6 +25,7 @@
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/ptrace.h>
+#include <asm/highmem.h>		/* For VMALLOC_END */
 
 /*
  * This routine handles page faults.  It determines the address,
@@ -57,7 +58,7 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long write,
 	 * only copy the information from the master page table,
 	 * nothing more.
 	 */
-	if (unlikely(address >= VMALLOC_START))
+	if (unlikely(address >= VMALLOC_START && address <= VMALLOC_END))
 		goto vmalloc_fault;
 
 	/*
