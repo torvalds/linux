@@ -22,12 +22,17 @@
    spec.
 */
 
-#define PRID_COMP_LEGACY       0x000000
-#define PRID_COMP_MIPS         0x010000
-#define PRID_COMP_BROADCOM     0x020000
-#define PRID_COMP_ALCHEMY      0x030000
-#define PRID_COMP_SIBYTE       0x040000
-#define PRID_COMP_SANDCRAFT    0x050000
+#define PRID_COMP_LEGACY	0x000000
+#define PRID_COMP_MIPS		0x010000
+#define PRID_COMP_BROADCOM	0x020000
+#define PRID_COMP_ALCHEMY	0x030000
+#define PRID_COMP_SIBYTE	0x040000
+#define PRID_COMP_SANDCRAFT	0x050000
+#define PRID_COMP_PHILIPS	0x060000
+#define PRID_COMP_TOSHIBA	0x070000
+#define PRID_COMP_LSI		0x080000
+#define PRID_COMP_LEXRA		0x0b0000
+
 
 /*
  * Assigned values for the product ID register.  In order to detect a
