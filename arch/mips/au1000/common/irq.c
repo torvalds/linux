@@ -293,8 +293,30 @@ static struct hw_interrupt_type level_irq_type = {
 };
 
 #ifdef CONFIG_PM
-void startup_match20_interrupt(void)
+void startup_match20_interrupt(void (*handler)(int, void *, struct pt_regs *))
 {
+	static struct irqaction action;
+	/* This is a big problem.... since we didn't use request_irq
+	   when kernel/irq.c calls probe_irq_xxx this interrupt will
+	   be probed for usage. This will end up disabling the device :(
+
+       Give it a bogus "action" pointer -- this will keep it from
+	   getting auto-probed!
+
+       By setting the status to match that of request_irq() we
+       can avoid it.  --cgray
+	*/
+	action.dev_id = handler;
+	action.flags = 0;
+	action.mask = 0;
+	action.name = "Au1xxx TOY";
+	action.handler = handler;
+	action.next = NULL;
+
+	irq_desc[AU1000_TOY_MATCH2_INT].action = &action; 
+	irq_desc[AU1000_TOY_MATCH2_INT].status 
+		 &= ~(IRQ_DISABLED | IRQ_AUTODETECT | IRQ_WAITING | IRQ_INPROGRESS);
+
 	local_enable_irq(AU1000_TOY_MATCH2_INT);
 }
 #endif
@@ -517,17 +539,7 @@ void intc0_req1_irqdispatch(struct pt_regs *regs)
 
 	irq = au_ffs(intc0_req1) - 1;
 	intc0_req1 &= ~(1<<irq);
-#ifdef CONFIG_PM
-	if (irq == AU1000_TOY_MATCH2_INT) {
-		mask_and_ack_rise_edge_irq(irq);
-		counter0_irq(irq, NULL, regs);
-		local_enable_irq(irq);
-	}
-	else
-#endif
-	{
-		do_IRQ(irq, regs);
-	}
+	do_IRQ(irq, regs);
 }
 
 

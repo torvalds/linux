@@ -50,7 +50,6 @@
 #include <linux/mc146818rtc.h>
 #include <linux/timex.h>
 
-extern void startup_match20_interrupt(void);
 extern void do_softirq(void);
 extern volatile unsigned long wall_jiffies;
 unsigned long missed_heart_beats = 0;
@@ -65,7 +64,7 @@ static unsigned int timerhi = 0, timerlo = 0;
 
 #ifdef CONFIG_PM
 #define MATCH20_INC 328
-extern void startup_match20_interrupt(void);
+extern void startup_match20_interrupt(void (*handler)(int, void *, struct pt_regs *));
 static unsigned long last_pc0, last_match20;
 #endif
 
@@ -446,7 +445,7 @@ void au1xxx_timer_setup(struct irqaction *irq)
 		au_writel(last_match20 + MATCH20_INC, SYS_TOYMATCH2);
 		au_sync();
 		while (au_readl(SYS_COUNTER_CNTRL) & SYS_CNTRL_M20);
-		startup_match20_interrupt();
+		startup_match20_interrupt(counter0_irq);
 
 		do_gettimeoffset = do_fast_pm_gettimeoffset;
 
