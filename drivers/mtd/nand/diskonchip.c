@@ -16,7 +16,7 @@
  *  
  * Interface to generic NAND code for M-Systems DiskOnChip devices
  *
- * $Id: diskonchip.c,v 1.51 2005/04/06 18:10:20 dbrown Exp $
+ * $Id: diskonchip.c,v 1.52 2005/04/06 20:14:19 dbrown Exp $
  */
 
 #include <linux/kernel.h>
@@ -1055,7 +1055,7 @@ static struct nand_oobinfo doc200x_oobinfo = {
         .useecc = MTD_NANDECC_AUTOPLACE,
         .eccbytes = 6,
         .eccpos = {0, 1, 2, 3, 4, 5},
-        .oobfree = { {6, 10} }
+        .oobfree = { {8, 8}, {6, 2} }
 };
  
 /* Find the (I)NFTL Media Header, and optionally also the mirror media header.
