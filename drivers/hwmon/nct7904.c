@@ -398,22 +398,22 @@ static int nct7904_read_temp(struct device *dev, u32 attr, int channel,
 		}
 		return 0;
 	case hwmon_temp_max:
-		reg1 = LTD_HV_HL_REG;
+		reg1 = LTD_HV_LL_REG;
 		reg2 = TEMP_CH1_W_REG;
 		reg3 = DTS_T_CPU1_W_REG;
 		break;
 	case hwmon_temp_max_hyst:
-		reg1 = LTD_LV_HL_REG;
+		reg1 = LTD_LV_LL_REG;
 		reg2 = TEMP_CH1_WH_REG;
 		reg3 = DTS_T_CPU1_WH_REG;
 		break;
 	case hwmon_temp_crit:
-		reg1 = LTD_HV_LL_REG;
+		reg1 = LTD_HV_HL_REG;
 		reg2 = TEMP_CH1_C_REG;
 		reg3 = DTS_T_CPU1_C_REG;
 		break;
 	case hwmon_temp_crit_hyst:
-		reg1 = LTD_LV_LL_REG;
+		reg1 = LTD_LV_HL_REG;
 		reg2 = TEMP_CH1_CH_REG;
 		reg3 = DTS_T_CPU1_CH_REG;
 		break;
@@ -507,22 +507,22 @@ static int nct7904_write_temp(struct device *dev, u32 attr, int channel,
 
 	switch (attr) {
 	case hwmon_temp_max:
-		reg1 = LTD_HV_HL_REG;
+		reg1 = LTD_HV_LL_REG;
 		reg2 = TEMP_CH1_W_REG;
 		reg3 = DTS_T_CPU1_W_REG;
 		break;
 	case hwmon_temp_max_hyst:
-		reg1 = LTD_LV_HL_REG;
+		reg1 = LTD_LV_LL_REG;
 		reg2 = TEMP_CH1_WH_REG;
 		reg3 = DTS_T_CPU1_WH_REG;
 		break;
 	case hwmon_temp_crit:
-		reg1 = LTD_HV_LL_REG;
+		reg1 = LTD_HV_HL_REG;
 		reg2 = TEMP_CH1_C_REG;
 		reg3 = DTS_T_CPU1_C_REG;
 		break;
 	case hwmon_temp_crit_hyst:
-		reg1 = LTD_LV_LL_REG;
+		reg1 = LTD_LV_HL_REG;
 		reg2 = TEMP_CH1_CH_REG;
 		reg3 = DTS_T_CPU1_CH_REG;
 		break;
