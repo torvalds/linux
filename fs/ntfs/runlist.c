@@ -980,6 +980,39 @@ LCN ntfs_rl_vcn_to_lcn(const runlist_element *rl, const VCN vcn)
 	return LCN_ENOENT;
 }
 
+#ifdef NTFS_RW
+
+/**
+ * ntfs_rl_find_vcn_nolock - find a vcn in a runlist
+ * @rl:		runlist to search
+ * @vcn:	vcn to find
+ *
+ * Find the virtual cluster number @vcn in the runlist @rl and return the
+ * address of the runlist element containing the @vcn on success.
+ *
+ * Return NULL if @rl is NULL or @vcn is in an unmapped part/out of bounds of
+ * the runlist.
+ *
+ * Locking: The runlist must be locked on entry.
+ */
+runlist_element *ntfs_rl_find_vcn_nolock(runlist_element *rl, const VCN vcn)
+{
+	BUG_ON(vcn < 0);
+	if (unlikely(!rl || vcn < rl[0].vcn))
+		return NULL;
+	while (likely(rl->length)) {
+		if (unlikely(vcn < rl[1].vcn)) {
+			if (likely(rl->lcn >= LCN_HOLE))
+				return rl;
+			return NULL;
+		}
+		rl++;
+	}
+	if (likely(rl->lcn == LCN_ENOENT))
+		return rl;
+	return NULL;
+}
+
 /**
  * ntfs_get_nr_significant_bytes - get number of bytes needed to store a number
  * @n:		number for which to get the number of bytes for
@@ -1452,3 +1485,5 @@ int ntfs_rl_truncate_nolock(const ntfs_volume *vol, runlist *const runlist,
 	ntfs_debug("Done.");
 	return 0;
 }
+
+#endif /* NTFS_RW */

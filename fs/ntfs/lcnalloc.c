@@ -848,7 +848,6 @@ s64 __ntfs_cluster_free(struct inode *vi, const VCN start_vcn, s64 count,
 
 	total_freed = real_freed = 0;
 
-	/* This returns with ni->runlist locked for reading on success. */
 	down_read(&ni->runlist.lock);
 	rl = ntfs_attr_find_vcn_nolock(ni, start_vcn, FALSE);
 	if (IS_ERR(rl)) {

@@ -1057,6 +1057,8 @@ void ntfs_attr_put_search_ctx(ntfs_attr_search_ctx *ctx)
 	return;
 }
 
+#ifdef NTFS_RW
+
 /**
  * ntfs_attr_find_in_attrdef - find an attribute in the $AttrDef system file
  * @vol:	ntfs volume to which the attribute belongs
@@ -1243,6 +1245,13 @@ int ntfs_attr_record_resize(MFT_RECORD *m, ATTR_RECORD *a, u32 new_size)
  *	-ENOSPC	- Not enough disk space.
  *	-EINVAL	- Attribute not defined on the volume.
  *	-EIO	- I/o error or other error.
+ * Note that -ENOSPC is also returned in the case that there is not enough
+ * space in the mft record to do the conversion.  This can happen when the mft
+ * record is already very full.  The caller is responsible for trying to make
+ * space in the mft record and trying again.  FIXME: Do we need a separate
+ * error return code for this kind of -ENOSPC or is it always worth trying
+ * again in case the attribute may then fit in a resident state so no need to
+ * make it non-resident at all?  Ho-hum...  (AIA)
  *
  * NOTE to self: No changes in the attribute list are required to move from
  *		 a resident to a non-resident attribute.
@@ -1520,13 +1529,13 @@ err_out:
 rl_err_out:
 	if (rl) {
 		if (ntfs_cluster_free_from_rl(vol, rl) < 0) {
-			ntfs_free(rl);
 			ntfs_error(vol->sb, "Failed to release allocated "
 					"cluster(s) in error code path.  Run "
 					"chkdsk to recover the lost "
 					"cluster(s).");
 			NVolSetErrors(vol);
 		}
+		ntfs_free(rl);
 page_err_out:
 		unlock_page(page);
 		page_cache_release(page);
@@ -1680,3 +1689,5 @@ done:
 	ntfs_debug("Done.");
 	return 0;
 }
+
+#endif /* NTFS_RW */

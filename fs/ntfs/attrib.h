@@ -89,6 +89,8 @@ extern ntfs_attr_search_ctx *ntfs_attr_get_search_ctx(ntfs_inode *ni,
 		MFT_RECORD *mrec);
 extern void ntfs_attr_put_search_ctx(ntfs_attr_search_ctx *ctx);
 
+#ifdef NTFS_RW
+
 extern int ntfs_attr_size_bounds_check(const ntfs_volume *vol,
 		const ATTR_TYPE type, const s64 size);
 extern int ntfs_attr_can_be_non_resident(const ntfs_volume *vol,
@@ -102,5 +104,7 @@ extern int ntfs_attr_make_non_resident(ntfs_inode *ni);
 
 extern int ntfs_attr_set(ntfs_inode *ni, const s64 ofs, const s64 cnt,
 		const u8 val);
+
+#endif /* NTFS_RW */
 
 #endif /* _LINUX_NTFS_ATTRIB_H */
