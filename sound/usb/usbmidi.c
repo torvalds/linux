@@ -1229,6 +1229,9 @@ static int snd_usbmidi_detect_endpoints(snd_usb_midi_t* umidi,
 	if (le16_to_cpu(umidi->chip->dev->descriptor.idVendor) == 0x0582)
 		snd_usbmidi_switch_roland_altsetting(umidi);
 
+	if (endpoint[0].out_ep || endpoint[0].in_ep)
+		return 0;	
+
 	intf = umidi->iface;
 	if (!intf || intf->num_altsetting < 1)
 		return -ENOENT;
