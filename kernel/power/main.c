@@ -190,7 +190,7 @@ int software_suspend(void)
 
 int pm_suspend(suspend_state_t state)
 {
-	if (state > PM_SUSPEND_ON && state < PM_SUSPEND_MAX)
+	if (state > PM_SUSPEND_ON && state <= PM_SUSPEND_MAX)
 		return enter_state(state);
 	return -EINVAL;
 }

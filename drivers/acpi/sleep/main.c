@@ -1,6 +1,7 @@
 /*
  * sleep.c - ACPI sleep support.
  *
+ * Copyright (c) 2005 Alexey Starikovskiy <alexey.y.starikovskiy@intel.com>
  * Copyright (c) 2004 David Shaohua Li <shaohua.li@intel.com>
  * Copyright (c) 2000-2003 Patrick Mochel
  * Copyright (c) 2003 Open Source Development Lab
@@ -14,7 +15,6 @@
 #include <linux/dmi.h>
 #include <linux/device.h>
 #include <linux/suspend.h>
-#include <asm/io.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
 #include "sleep.h"
@@ -27,10 +27,11 @@ extern void do_suspend_lowlevel_s4bios(void);
 extern void do_suspend_lowlevel(void);
 
 static u32 acpi_suspend_states[] = {
-	[PM_SUSPEND_ON]		= ACPI_STATE_S0,
-	[PM_SUSPEND_STANDBY]	= ACPI_STATE_S1,
-	[PM_SUSPEND_MEM]	= ACPI_STATE_S3,
-	[PM_SUSPEND_DISK]	= ACPI_STATE_S4,
+	[PM_SUSPEND_ON] = ACPI_STATE_S0,
+	[PM_SUSPEND_STANDBY] = ACPI_STATE_S1,
+	[PM_SUSPEND_MEM] = ACPI_STATE_S3,
+	[PM_SUSPEND_DISK] = ACPI_STATE_S4,
+	[PM_SUSPEND_MAX] = ACPI_STATE_S5
 };
 
 static int init_8259A_after_S1;
@@ -44,29 +45,19 @@ static int init_8259A_after_S1;
  *	wakeup code to the waking vector. 
  */
 
+extern int acpi_sleep_prepare(u32 acpi_state);
+extern void acpi_power_off(void);
+
 static int acpi_pm_prepare(suspend_state_t pm_state)
 {
 	u32 acpi_state = acpi_suspend_states[pm_state];
 
-	if (!sleep_states[acpi_state])
+	if (!sleep_states[acpi_state]) {
+		printk("acpi_pm_prepare does not support %d \n", pm_state);
 		return -EPERM;
-
-	/* do we have a wakeup address for S2 and S3? */
-	/* Here, we support only S4BIOS, those we set the wakeup address */
-	/* S4OS is only supported for now via swsusp.. */
-	if (pm_state == PM_SUSPEND_MEM || pm_state == PM_SUSPEND_DISK) {
-		if (!acpi_wakeup_address)
-			return -EFAULT;
-		acpi_set_firmware_waking_vector(
-			(acpi_physical_address) virt_to_phys(
-				(void *)acpi_wakeup_address));
 	}
-	ACPI_FLUSH_CPU_CACHE();
-	acpi_enable_wakeup_device_prep(acpi_state);
-	acpi_enter_sleep_state_prep(acpi_state);
-	return 0;
+	return acpi_sleep_prepare(acpi_state);
 }
-
 
 /**
  *	acpi_pm_enter - Actually enter a sleep state.
@@ -92,11 +83,9 @@ static int acpi_pm_enter(suspend_state_t pm_state)
 			return error;
 	}
 
-
 	local_irq_save(flags);
 	acpi_enable_wakeup_device(acpi_state);
-	switch (pm_state)
-	{
+	switch (pm_state) {
 	case PM_SUSPEND_STANDBY:
 		barrier();
 		status = acpi_enter_sleep_state(acpi_state);
@@ -112,6 +101,10 @@ static int acpi_pm_enter(suspend_state_t pm_state)
 		else
 			do_suspend_lowlevel_s4bios();
 		break;
+	case PM_SUSPEND_MAX:
+		acpi_power_off();
+		break;
+
 	default:
 		return -EINVAL;
 	}
@@ -126,10 +119,8 @@ static int acpi_pm_enter(suspend_state_t pm_state)
 	if (pm_state > PM_SUSPEND_STANDBY)
 		acpi_restore_state_mem();
 
-
 	return ACPI_SUCCESS(status) ? 0 : -EFAULT;
 }
-
 
 /**
  *	acpi_pm_finish - Finish up suspend sequence.
@@ -156,26 +147,25 @@ static int acpi_pm_finish(suspend_state_t pm_state)
 	return 0;
 }
 
-
 int acpi_suspend(u32 acpi_state)
 {
 	suspend_state_t states[] = {
-		[1]	= PM_SUSPEND_STANDBY,
-		[3]	= PM_SUSPEND_MEM,
-		[4]	= PM_SUSPEND_DISK,
+		[1] = PM_SUSPEND_STANDBY,
+		[3] = PM_SUSPEND_MEM,
+		[4] = PM_SUSPEND_DISK,
+		[5] = PM_SUSPEND_MAX
 	};
 
-	if (acpi_state <= 4 && states[acpi_state])
+	if (acpi_state < 6 && states[acpi_state])
 		return pm_suspend(states[acpi_state]);
 	return -EINVAL;
 }
 
 static struct pm_ops acpi_pm_ops = {
-	.prepare	= acpi_pm_prepare,
-	.enter		= acpi_pm_enter,
-	.finish		= acpi_pm_finish,
+	.prepare = acpi_pm_prepare,
+	.enter = acpi_pm_enter,
+	.finish = acpi_pm_finish,
 };
-
 
 /*
  * Toshiba fails to preserve interrupts over S1, reinitialization
@@ -190,16 +180,16 @@ static int __init init_ints_after_s1(struct dmi_system_id *d)
 
 static struct dmi_system_id __initdata acpisleep_dmi_table[] = {
 	{
-		.callback = init_ints_after_s1,
-		.ident = "Toshiba Satellite 4030cdt",
-		.matches = { DMI_MATCH(DMI_PRODUCT_NAME, "S4030CDT/4.3"), },
-	},
-	{ },
+	 .callback = init_ints_after_s1,
+	 .ident = "Toshiba Satellite 4030cdt",
+	 .matches = {DMI_MATCH(DMI_PRODUCT_NAME, "S4030CDT/4.3"),},
+	 },
+	{},
 };
 
 static int __init acpi_sleep_init(void)
 {
-	int			i = 0;
+	int i = 0;
 
 	dmi_check_system(acpisleep_dmi_table);
 
@@ -207,7 +197,7 @@ static int __init acpi_sleep_init(void)
 		return 0;
 
 	printk(KERN_INFO PREFIX "(supports");
-	for (i=0; i < ACPI_S_STATE_COUNT; i++) {
+	for (i = 0; i < ACPI_S_STATE_COUNT; i++) {
 		acpi_status status;
 		u8 type_a, type_b;
 		status = acpi_get_sleep_type_data(i, &type_a, &type_b);
