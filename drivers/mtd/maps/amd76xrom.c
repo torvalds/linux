@@ -2,7 +2,7 @@
  * amd76xrom.c
  *
  * Normal mappings of chips in physical memory
- * $Id: amd76xrom.c,v 1.19 2004/11/28 09:40:39 dwmw2 Exp $
+ * $Id: amd76xrom.c,v 1.20 2005/03/18 14:04:35 gleixner Exp $
  */
 
 #include <linux/module.h>
@@ -314,7 +314,7 @@ static int __init init_amd76xrom(void)
 	}
 	return -ENXIO;
 #if 0
-	return pci_module_init(&amd76xrom_driver);
+	return pci_register_driver(&amd76xrom_driver);
 #endif
 }
 

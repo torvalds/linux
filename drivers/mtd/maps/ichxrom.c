@@ -2,7 +2,7 @@
  * ichxrom.c
  *
  * Normal mappings of chips in physical memory
- * $Id: ichxrom.c,v 1.16 2004/11/28 09:40:39 dwmw2 Exp $
+ * $Id: ichxrom.c,v 1.17 2005/03/18 14:04:35 gleixner Exp $
  */
 
 #include <linux/module.h>
@@ -366,7 +366,7 @@ static int __init init_ichxrom(void)
 	}
 	return -ENXIO;
 #if 0
-	return pci_module_init(&ichxrom_driver);
+	return pci_register_driver(&ichxrom_driver);
 #endif
 }
 
