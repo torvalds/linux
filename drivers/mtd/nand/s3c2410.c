@@ -1,7 +1,8 @@
 /* linux/drivers/mtd/nand/s3c2410.c
  *
  * Copyright (c) 2004 Simtec Electronics
- * Ben Dooks <ben@simtec.co.uk>
+ *	http://www.simtec.co.uk/products/SWLINUX/
+ *	Ben Dooks <ben@simtec.co.uk>
  *
  * Samsung S3C2410 NAND driver
  *
@@ -10,8 +11,9 @@
  *	23-Sep-2004  BJD  Mulitple device support
  *	28-Sep-2004  BJD  Fixed ECC placement for Hardware mode
  *	12-Oct-2004  BJD  Fixed errors in use of platform data
+ *	18-Feb-2004  BJD  Fix sparse errors
  *
- * $Id: s3c2410.c,v 1.7 2005/01/05 18:05:14 dwmw2 Exp $
+ * $Id: s3c2410.c,v 1.8 2005/02/18 14:46:12 bjd Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -69,10 +71,10 @@ static int hardware_ecc = 0;
  */
 
 static struct nand_oobinfo nand_hw_eccoob = {
-	.useecc = MTD_NANDECC_AUTOPLACE,
-	.eccbytes = 3,
-	.eccpos = {0, 1, 2 },
-	.oobfree = { {8, 8} }
+	.useecc		= MTD_NANDECC_AUTOPLACE,
+	.eccbytes	= 3,
+	.eccpos		= {0, 1, 2 },
+	.oobfree	= { {8, 8} }
 };
 
 /* controller and mtd information */
@@ -99,7 +101,7 @@ struct s3c2410_nand_info {
 	struct device			*device;
 	struct resource			*area;
 	struct clk			*clk;
-	void				*regs;
+	void __iomem			*regs;
 	int				mtd_count;
 };
 
@@ -523,8 +525,8 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 {
 	struct nand_chip *chip = &nmtd->chip;
 
-	chip->IO_ADDR_R	   = (char *)info->regs + S3C2410_NFDATA;
-	chip->IO_ADDR_W    = (char *)info->regs + S3C2410_NFDATA;
+	chip->IO_ADDR_R	   = info->regs + S3C2410_NFDATA;
+	chip->IO_ADDR_W    = info->regs + S3C2410_NFDATA;
 	chip->hwcontrol    = s3c2410_nand_hwcontrol;
 	chip->dev_ready    = s3c2410_nand_devready;
 	chip->cmdfunc      = s3c2410_nand_command;
