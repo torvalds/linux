@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: gc.c,v 1.146 2005/03/20 17:45:25 dedekind Exp $
+ * $Id: gc.c,v 1.147 2005/03/20 21:43:22 dedekind Exp $
  *
  */
 
@@ -83,7 +83,9 @@ again:
 	} else if (!list_empty(&c->erasable_pending_wbuf_list)) {
 		/* There are blocks are wating for the wbuf sync */
 		D1(printk(KERN_DEBUG "Synching wbuf in order to reuse erasable_pending_wbuf_list blocks\n"));
+		spin_unlock(&c->erase_completion_lock);
 		jffs2_flush_wbuf_pad(c);
+		spin_lock(&c->erase_completion_lock);
 		goto again;
 	} else {
 		/* Eep. All were empty */
