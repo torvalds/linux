@@ -638,7 +638,7 @@ next_byte:
 		if (function == ACPI_WRITE)
 			temp >>= 8;
 		i++;
-		(u8)address ++;
+		address++;
 		goto next_byte;
 	}
 
