@@ -221,6 +221,28 @@ sys32_waitpid(compat_pid_t pid, unsigned int *stat_addr, int options)
 	return compat_sys_wait4(pid, stat_addr, options, NULL);
 }
 
+asmlinkage long
+sysn32_waitid(int which, compat_pid_t pid,
+	      siginfo_t __user *uinfo, int options,
+	      struct compat_rusage __user *uru)
+{
+	struct rusage ru;
+	long ret;
+	mm_segment_t old_fs = get_fs();
+
+	set_fs (KERNEL_DS);
+	ret = sys_waitid(which, pid, uinfo, options,
+			 uru ? (struct rusage __user *) &ru : NULL);
+	set_fs (old_fs);
+
+	if (ret < 0 || uinfo->si_signo == 0)
+		return ret;
+
+	if (uru)
+		ret = put_compat_rusage(&ru, uru);
+	return ret;
+}
+
 struct sysinfo32 {
         s32 uptime;
         u32 loads[3];
