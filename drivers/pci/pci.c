@@ -235,7 +235,7 @@ pci_find_parent_resource(const struct pci_dev *dev, struct resource *res)
  * -EIO if device does not support PCI PM.
  * 0 if we can successfully change the power state.
  */
-int (*platform_pci_set_power_state)(struct pci_dev *dev, pci_power_t t) = NULL;
+int (*platform_pci_set_power_state)(struct pci_dev *dev, pci_power_t t);
 int
 pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 {
@@ -311,7 +311,7 @@ pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	return 0;
 }
 
-int (*platform_pci_choose_state)(struct pci_dev *dev, pm_message_t state) = NULL;
+int (*platform_pci_choose_state)(struct pci_dev *dev, pm_message_t state);
  
 /**
  * pci_choose_state - Choose the power state of a PCI device
