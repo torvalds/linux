@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: nodemgmt.c,v 1.118 2005/02/27 23:01:32 dwmw2 Exp $
+ * $Id: nodemgmt.c,v 1.119 2005/02/28 08:21:05 dedekind Exp $
  *
  */
 
@@ -403,7 +403,7 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 	jeb = &c->blocks[blocknr];
 
 	if (jffs2_can_mark_obsolete(c) && !jffs2_is_readonly(c) &&
-	    !(c->flags & JFFS2_SB_FLAG_MOUNTING)) {
+	    !(c->flags & (JFFS2_SB_FLAG_SCANNING | JFFS2_SB_FLAG_BUILDING))) {
 		/* Hm. This may confuse static lock analysis. If any of the above 
 		   three conditions is false, we're going to return from this 
 		   function without actually obliterating any nodes or freeing
@@ -470,8 +470,8 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 
 	D1(ACCT_PARANOIA_CHECK(jeb));
 
-	if (c->flags & JFFS2_SB_FLAG_MOUNTING) {
-		/* Mount in progress. Don't muck about with the block
+	if (c->flags & JFFS2_SB_FLAG_SCANNING) {
+		/* Flash scanning is in progress. Don't muck about with the block
 		   lists because they're not ready yet, and don't actually
 		   obliterate nodes that look obsolete. If they weren't 
 		   marked obsolete on the flash at the time they _became_
@@ -530,7 +530,8 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 
 	spin_unlock(&c->erase_completion_lock);
 
-	if (!jffs2_can_mark_obsolete(c) || jffs2_is_readonly(c)) {
+	if (!jffs2_can_mark_obsolete(c) || jffs2_is_readonly(c) ||
+		(c->flags & JFFS2_SB_FLAG_BUILDING)) {
 		/* We didn't lock the erase_free_sem */
 		return;
 	}

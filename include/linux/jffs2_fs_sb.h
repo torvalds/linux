@@ -1,4 +1,4 @@
-/* $Id: jffs2_fs_sb.h,v 1.50 2005/02/09 09:23:55 pavlov Exp $ */
+/* $Id: jffs2_fs_sb.h,v 1.51 2005/02/28 08:21:06 dedekind Exp $ */
 
 #ifndef _JFFS2_FS_SB
 #define _JFFS2_FS_SB
@@ -14,7 +14,8 @@
 #include <linux/rwsem.h>
 
 #define JFFS2_SB_FLAG_RO 1
-#define JFFS2_SB_FLAG_MOUNTING 2
+#define JFFS2_SB_FLAG_SCANNING 2 /* Flash scanning is in progress */
+#define JFFS2_SB_FLAG_BUILDING 4 /* File system building is in progress */
 
 struct jffs2_inodirty;
 
