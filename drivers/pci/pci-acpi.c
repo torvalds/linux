@@ -253,6 +253,24 @@ static int acpi_pci_choose_state(struct pci_dev *pdev, pm_message_t state)
 	return -ENODEV;
 }
 
+static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
+{
+	acpi_handle handle = DEVICE_ACPI_HANDLE(&dev->dev);
+	static int state_conv[] = {
+		[0] = 0,
+		[1] = 1,
+		[2] = 2,
+		[3] = 3,
+		[4] = 3
+	};
+	int acpi_state = state_conv[(int __force) state];
+
+	if (!handle)
+		return -ENODEV;
+	return acpi_bus_set_power(handle, acpi_state);
+}
+
+
 /* ACPI bus type */
 static int pci_acpi_find_device(struct device *dev, acpi_handle *handle)
 {
@@ -300,6 +318,7 @@ static int __init pci_acpi_init(void)
 	if (ret)
 		return 0;
 	platform_pci_choose_state = acpi_pci_choose_state;
+	platform_pci_set_power_state = acpi_pci_set_power_state;
 	return 0;
 }
 arch_initcall(pci_acpi_init);

@@ -235,7 +235,7 @@ pci_find_parent_resource(const struct pci_dev *dev, struct resource *res)
  * -EIO if device does not support PCI PM.
  * 0 if we can successfully change the power state.
  */
-
+int (*platform_pci_set_power_state)(struct pci_dev *dev, pci_power_t t) = NULL;
 int
 pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 {
@@ -299,8 +299,15 @@ pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 		msleep(10);
 	else if (state == PCI_D2 || dev->current_state == PCI_D2)
 		udelay(200);
-	dev->current_state = state;
 
+	/*
+	 * Give firmware a chance to be called, such as ACPI _PRx, _PSx
+	 * Firmware method after natice method ?
+	 */
+	if (platform_pci_set_power_state)
+		platform_pci_set_power_state(dev, state);
+
+	dev->current_state = state;
 	return 0;
 }
 
