@@ -1,7 +1,7 @@
 /* 
    Common Flash Interface probe code.
    (C) 2000 Red Hat. GPL'd.
-   $Id: jedec_probe.c,v 1.61 2004/11/19 20:52:16 thayne Exp $
+   $Id: jedec_probe.c,v 1.62 2005/02/14 16:27:34 bjd Exp $
    See JEDEC (http://www.jedec.org/) standard JESD21C (section 3.5)
    for the standard this probe goes back to.
 
@@ -1856,6 +1856,16 @@ static inline int jedec_match( __u32 base,
 	case CFI_DEVICETYPE_X8:
 		mfr = (__u8)finfo->mfr_id;
 		id = (__u8)finfo->dev_id;
+
+		/* bjd: it seems that if we do this, we can end up
+		 * detecting 16bit flashes as an 8bit device, even though
+		 * there aren't.
+		 */
+		if (finfo->dev_id > 0xff) {
+			DEBUG( MTD_DEBUG_LEVEL3, "%s(): ID is not 8bit\n",
+			       __func__);
+			goto match_done;
+		}
 		break;
 	case CFI_DEVICETYPE_X16:
 		mfr = (__u16)finfo->mfr_id;
