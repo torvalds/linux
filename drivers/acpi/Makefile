@@ -36,7 +36,7 @@ processor-objs	+= processor_perflib.o
 endif
 
 obj-$(CONFIG_ACPI_BUS)		+= sleep/
-obj-$(CONFIG_ACPI_BUS)		+= bus.o
+obj-$(CONFIG_ACPI_BUS)		+= bus.o glue.o
 obj-$(CONFIG_ACPI_AC) 		+= ac.o
 obj-$(CONFIG_ACPI_BATTERY)	+= battery.o
 obj-$(CONFIG_ACPI_BUTTON)	+= button.o

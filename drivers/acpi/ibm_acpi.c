@@ -1025,7 +1025,7 @@ static int setup_notify(struct ibm_struct *ibm)
 	return 0;
 }
 
-static int device_add(struct acpi_device *device)
+static int ibmacpi_device_add(struct acpi_device *device)
 {
 	return 0;
 }
@@ -1043,7 +1043,7 @@ static int register_driver(struct ibm_struct *ibm)
 	memset(ibm->driver, 0, sizeof(struct acpi_driver));
 	sprintf(ibm->driver->name, "%s/%s", IBM_NAME, ibm->name);
 	ibm->driver->ids = ibm->hid;
-	ibm->driver->ops.add = &device_add;
+	ibm->driver->ops.add = &ibmacpi_device_add;
 
 	ret = acpi_bus_register_driver(ibm->driver);
 	if (ret < 0) {

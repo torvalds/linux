@@ -336,6 +336,27 @@ int acpi_match_ids (struct acpi_device	*device, char	*ids);
 int acpi_create_dir(struct acpi_device *);
 void acpi_remove_dir(struct acpi_device *);
 
+
+/*
+ * Bind physical devices with ACPI devices
+ */
+#include <linux/device.h>
+struct acpi_bus_type {
+	struct list_head	list;
+	struct bus_type		*bus;
+	/* For general devices under the bus*/
+	int (*find_device)(struct device *, acpi_handle*);
+	/* For bridges, such as PCI root bridge, IDE controller */
+	int (*find_bridge)(struct device *, acpi_handle *);
+};
+int register_acpi_bus_type(struct acpi_bus_type *);
+int unregister_acpi_bus_type(struct acpi_bus_type *);
+struct device *acpi_get_physical_device(acpi_handle);
+/* helper */
+acpi_handle acpi_get_child(acpi_handle, acpi_integer);
+acpi_handle acpi_get_pci_rootbridge_handle(unsigned int, unsigned int);
+#define DEVICE_ACPI_HANDLE(dev) ((acpi_handle)((dev)->firmware_data))
+
 #endif /*CONFIG_ACPI_BUS*/
 
 #endif /*__ACPI_BUS_H__*/
