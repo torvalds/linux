@@ -36,7 +36,7 @@ static int emsgs_head_idx, emsgs_tail_idx;
 static struct semaphore emsgs_sema;
 static spinlock_t emsgs_lock;
 static int nblocked_emsgs_readers;
-static struct class_simple *aoe_class;
+static struct class *aoe_class;
 static struct aoe_chardev chardevs[] = {
 	{ MINOR_ERR, "err" },
 	{ MINOR_DISCOVER, "discover" },
@@ -218,13 +218,13 @@ aoechr_init(void)
 	}
 	sema_init(&emsgs_sema, 0);
 	spin_lock_init(&emsgs_lock);
-	aoe_class = class_simple_create(THIS_MODULE, "aoe");
+	aoe_class = class_create(THIS_MODULE, "aoe");
 	if (IS_ERR(aoe_class)) {
 		unregister_chrdev(AOE_MAJOR, "aoechr");
 		return PTR_ERR(aoe_class);
 	}
 	for (i = 0; i < ARRAY_SIZE(chardevs); ++i)
-		class_simple_device_add(aoe_class,
+		class_device_create(aoe_class,
 					MKDEV(AOE_MAJOR, chardevs[i].minor),
 					NULL, chardevs[i].name);
 
@@ -237,8 +237,8 @@ aoechr_exit(void)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(chardevs); ++i)
-		class_simple_device_remove(MKDEV(AOE_MAJOR, chardevs[i].minor));
-	class_simple_destroy(aoe_class);
+		class_device_destroy(aoe_class, MKDEV(AOE_MAJOR, chardevs[i].minor));
+	class_destroy(aoe_class);
 	unregister_chrdev(AOE_MAJOR, "aoechr");
 }
 
