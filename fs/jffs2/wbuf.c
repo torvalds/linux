@@ -9,7 +9,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: wbuf.c,v 1.85 2005/02/02 22:12:04 dwmw2 Exp $
+ * $Id: wbuf.c,v 1.86 2005/02/05 18:23:37 hammache Exp $
  *
  */
 
@@ -865,7 +865,6 @@ int jffs2_flash_read(struct jffs2_sb_info *c, loff_t ofs, size_t len, size_t *re
 
 	/* Read flash */
 	if (!jffs2_can_mark_obsolete(c)) {
-		down_read(&c->wbuf_sem);
 
 		if (jffs2_cleanmarker_oob(c))
 			ret = c->mtd->read_ecc(c->mtd, ofs, len, retlen, buf, NULL, c->oobinfo);
@@ -892,11 +891,16 @@ int jffs2_flash_read(struct jffs2_sb_info *c, loff_t ofs, size_t len, size_t *re
 
 	/* if no writebuffer available or write buffer empty, return */
 	if (!c->wbuf_pagesize || !c->wbuf_len)
-		goto exit;
+		return ret;;
 
 	/* if we read in a different block, return */
 	if ( (ofs & ~(c->sector_size-1)) != (c->wbuf_ofs & ~(c->sector_size-1)) ) 
-		goto exit;
+		return ret;
+
+	/* Lock only if we have reason to believe wbuf contains relevant data,
+	   so that checking an erased block during wbuf recovery space allocation
+	   does not deadlock. */
+	down_read(&c->wbuf_sem);
 
 	if (ofs >= c->wbuf_ofs) {
 		owbf = (ofs - c->wbuf_ofs);	/* offset in write buffer */
