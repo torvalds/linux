@@ -140,6 +140,7 @@ runlist_element *ntfs_cluster_alloc(ntfs_volume *vol, const VCN start_vcn,
 	LCN zone_start, zone_end, bmp_pos, bmp_initial_pos, last_read_pos, lcn;
 	LCN prev_lcn = 0, prev_run_len = 0, mft_zone_size;
 	s64 clusters;
+	loff_t i_size;
 	struct inode *lcnbmp_vi;
 	runlist_element *rl = NULL;
 	struct address_space *mapping;
@@ -249,6 +250,7 @@ runlist_element *ntfs_cluster_alloc(ntfs_volume *vol, const VCN start_vcn,
 	clusters = count;
 	rlpos = rlsize = 0;
 	mapping = lcnbmp_vi->i_mapping;
+	i_size = i_size_read(lcnbmp_vi);
 	while (1) {
 		ntfs_debug("Start of outer while loop: done_zones 0x%x, "
 				"search_zone %i, pass %i, zone_start 0x%llx, "
@@ -263,7 +265,7 @@ runlist_element *ntfs_cluster_alloc(ntfs_volume *vol, const VCN start_vcn,
 		last_read_pos = bmp_pos >> 3;
 		ntfs_debug("last_read_pos 0x%llx.",
 				(unsigned long long)last_read_pos);
-		if (last_read_pos > lcnbmp_vi->i_size) {
+		if (last_read_pos > i_size) {
 			ntfs_debug("End of attribute reached.  "
 					"Skipping to zone_pass_done.");
 			goto zone_pass_done;
@@ -287,8 +289,8 @@ runlist_element *ntfs_cluster_alloc(ntfs_volume *vol, const VCN start_vcn,
 		buf_size = last_read_pos & ~PAGE_CACHE_MASK;
 		buf = page_address(page) + buf_size;
 		buf_size = PAGE_CACHE_SIZE - buf_size;
-		if (unlikely(last_read_pos + buf_size > lcnbmp_vi->i_size))
-			buf_size = lcnbmp_vi->i_size - last_read_pos;
+		if (unlikely(last_read_pos + buf_size > i_size))
+			buf_size = i_size - last_read_pos;
 		buf_size <<= 3;
 		lcn = bmp_pos & 7;
 		bmp_pos &= ~7;
