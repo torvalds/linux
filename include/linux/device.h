@@ -105,7 +105,7 @@ struct device_driver {
 
 	struct completion	unloaded;
 	struct kobject		kobj;
-	struct list_head	devices;
+	struct klist		klist_devices;
 	struct klist_node	knode_bus;
 
 	struct module		* owner;
@@ -266,6 +266,7 @@ struct device {
 	struct list_head bus_list;	/* node in bus's list */
 	struct list_head driver_list;
 	struct list_head children;
+	struct klist_node	knode_driver;
 	struct klist_node	knode_bus;
 	struct device 	* parent;
 

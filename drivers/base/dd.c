@@ -40,7 +40,7 @@ void device_bind_driver(struct device * dev)
 {
 	pr_debug("bound device '%s' to driver '%s'\n",
 		 dev->bus_id, dev->driver->name);
-	list_add_tail(&dev->driver_list, &dev->driver->devices);
+	klist_add_tail(&dev->driver->klist_devices, &dev->knode_driver);
 	sysfs_create_link(&dev->driver->kobj, &dev->kobj,
 			  kobject_name(&dev->kobj));
 	sysfs_create_link(&dev->kobj, &dev->driver->kobj, "driver");
@@ -164,19 +164,26 @@ void driver_attach(struct device_driver * drv)
  */
 void device_release_driver(struct device * dev)
 {
-	struct device_driver * drv;
+	struct device_driver * drv = dev->driver;
+
+	if (!drv)
+		return;
+
+	sysfs_remove_link(&drv->kobj, kobject_name(&dev->kobj));
+	sysfs_remove_link(&dev->kobj, "driver");
+	klist_remove(&dev->knode_driver);
 
 	down(&dev->sem);
-	drv = dev->driver;
-	if (drv) {
-		sysfs_remove_link(&drv->kobj, kobject_name(&dev->kobj));
-		sysfs_remove_link(&dev->kobj, "driver");
-		list_del_init(&dev->driver_list);
-		if (drv->remove)
-			drv->remove(dev);
-		dev->driver = NULL;
-	}
+	if (drv->remove)
+		drv->remove(dev);
+	dev->driver = NULL;
 	up(&dev->sem);
+}
+
+static int __remove_driver(struct device * dev, void * unused)
+{
+	device_release_driver(dev);
+	return 0;
 }
 
 /**
@@ -185,10 +192,7 @@ void device_release_driver(struct device * dev)
  */
 void driver_detach(struct device_driver * drv)
 {
-	while (!list_empty(&drv->devices)) {
-		struct device * dev = container_of(drv->devices.next, struct device, driver_list);
-		device_release_driver(dev);
-	}
+	driver_for_each_device(drv, NULL, NULL, __remove_driver);
 }
 
 

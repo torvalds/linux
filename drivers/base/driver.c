@@ -19,6 +19,12 @@
 #define to_drv(obj) container_of(obj, struct device_driver, kobj)
 
 
+static struct device * next_device(struct klist_iter * i)
+{
+	struct klist_node * n = klist_next(i);
+	return n ? container_of(n, struct device, knode_driver) : NULL;
+}
+
 /**
  *	driver_for_each_device - Iterator for devices bound to a driver.
  *	@drv:	Driver we're iterating.
@@ -32,21 +38,18 @@
 int driver_for_each_device(struct device_driver * drv, struct device * start, 
 			   void * data, int (*fn)(struct device *, void *))
 {
-	struct list_head * head;
+	struct klist_iter i;
 	struct device * dev;
 	int error = 0;
 
-	down_read(&drv->bus->subsys.rwsem);
-	head = &drv->devices;
-	dev = list_prepare_entry(start, head, driver_list);
-	list_for_each_entry_continue(dev, head, driver_list) {
-		get_device(dev);
+	if (!drv)
+		return -EINVAL;
+
+	klist_iter_init_node(&drv->klist_devices, &i,
+			     start ? &start->knode_driver : NULL);
+	while ((dev = next_device(&i)) && !error)
 		error = fn(dev, data);
-		put_device(dev);
-		if (error)
-			break;
-	}
-	up_read(&drv->bus->subsys.rwsem);
+	klist_iter_exit(&i);
 	return error;
 }
 
@@ -120,7 +123,7 @@ void put_driver(struct device_driver * drv)
  */
 int driver_register(struct device_driver * drv)
 {
-	INIT_LIST_HEAD(&drv->devices);
+	klist_init(&drv->klist_devices);
 	init_completion(&drv->unloaded);
 	return bus_add_driver(drv);
 }
