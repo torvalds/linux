@@ -6,7 +6,7 @@
  *
  * (C) 2000 Red Hat. GPLd.
  *
- * $Id: flashchip.h,v 1.16 2005/02/08 17:11:15 nico Exp $
+ * $Id: flashchip.h,v 1.17 2005/03/14 18:27:15 bjd Exp $
  *
  */
 
@@ -63,8 +63,8 @@ struct flchip {
 	flstate_t state;
 	flstate_t oldstate;
 
-	int write_suspended:1;
-	int erase_suspended:1;
+	unsigned int write_suspended:1;
+	unsigned int erase_suspended:1;
 	unsigned long in_progress_block_addr;
 
 	spinlock_t *mutex;
