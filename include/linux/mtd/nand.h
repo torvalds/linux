@@ -5,7 +5,7 @@
  *                     Steven J. Hill <sjhill@realitydiluted.com>
  *		       Thomas Gleixner <tglx@linutronix.de>
  *
- * $Id: nand.h,v 1.70 2005/01/24 03:07:42 dmarlin Exp $
+ * $Id: nand.h,v 1.71 2005/02/09 12:12:59 gleixner Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -223,7 +223,8 @@ extern int nand_read_raw (struct mtd_info *mtd, uint8_t *buf, loff_t from, size_
  * This can only work if we have the ecc bytes directly behind the 
  * data bytes. Applies for DOC and AG-AND Renesas HW Reed Solomon generators */
 #define NAND_HWECC_SYNDROME	0x00020000
-
+/* This option skips the bbt scan during initialization. */
+#define NAND_SKIP_BBTSCAN	0x00040000
 
 /* Options set by nand scan */
 /* Nand scan has allocated oob_buf */

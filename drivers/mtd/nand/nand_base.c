@@ -59,7 +59,7 @@
  *	The AG-AND chips have nice features for speed improvement,
  *	which are not supported yet. Read / program 4 pages in one go.
  *
- * $Id: nand_base.c,v 1.130 2005/01/24 03:07:43 dmarlin Exp $
+ * $Id: nand_base.c,v 1.131 2005/02/09 12:19:56 gleixner Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -2631,6 +2631,10 @@ int nand_scan (struct mtd_info *mtd, int maxchips)
 	memcpy(&mtd->oobinfo, this->autooob, sizeof(mtd->oobinfo));
 
 	mtd->owner = THIS_MODULE;
+	
+	/* Check, if we should skip the bad block table scan */
+	if (this->options & NAND_SKIP_BBTSCAN)
+		return 0;
 
 	/* Build bad block table */
 	return this->scan_bbt (mtd);
