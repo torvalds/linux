@@ -76,8 +76,10 @@ typedef struct compat_siginfo {
 
 		/* POSIX.1b timers */
 		struct {
-			unsigned int _timer1;
-			unsigned int _timer2;
+			timer_t _tid;		/* timer id */
+			int _overrun;		/* overrun count */
+			sigval_t32 _sigval;	/* same as below */
+			int _sys_private;       /* not to be passed to user */
 		} _timer;
 
 		/* POSIX.1b signals */
@@ -411,6 +413,11 @@ int copy_siginfo_to_user32(compat_siginfo_t *to, siginfo_t *from)
 		err |= __copy_to_user(&to->_sifields._pad, &from->_sifields._pad, SI_PAD_SIZE);
 	else {
 		switch (from->si_code >> 16) {
+		case __SI_TIMER >> 16:
+			err |= __put_user(from->si_tid, &to->si_tid);
+			err |= __put_user(from->si_overrun, &to->si_overrun);
+			err |= __put_user(from->si_int, &to->si_int);
+			break;
 		case __SI_CHLD >> 16:
 			err |= __put_user(from->si_utime, &to->si_utime);
 			err |= __put_user(from->si_stime, &to->si_stime);
