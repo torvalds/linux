@@ -16,7 +16,7 @@
  *  
  * Interface to generic NAND code for M-Systems DiskOnChip devices
  *
- * $Id: diskonchip.c,v 1.49 2005/02/22 21:48:21 gleixner Exp $
+ * $Id: diskonchip.c,v 1.50 2005/03/29 20:57:45 dbrown Exp $
  */
 
 #include <linux/kernel.h>
@@ -81,11 +81,6 @@ struct doc_priv {
 	struct mtd_info *nextdoc;
 };
 
-/* Max number of eraseblocks to scan (from start of device) for the (I)NFTL
-   MediaHeader.  The spec says to just keep going, I think, but that's just
-   silly. */
-#define MAX_MEDIAHEADER_SCAN 8
-
 /* This is the syndrome computed by the HW ecc generator upon reading an empty
    page, one with all 0xff for data and stored ecc code. */
 static u_char empty_read_syndrome[6] = { 0x26, 0xff, 0x6d, 0x47, 0x73, 0x7a };
@@ -114,6 +109,9 @@ module_param(no_ecc_failures, int, 0);
 #ifdef CONFIG_MTD_PARTITIONS
 static int no_autopart=0;
 module_param(no_autopart, int, 0);
+
+static int show_firmware_partition=0;
+module_param(show_firmware_partition, int, 0);
 #endif
 
 #ifdef MTD_NAND_DISKONCHIP_BBTWRITE
@@ -1071,12 +1069,11 @@ static int __init find_media_headers(struct mtd_info *mtd, u_char *buf,
 {
 	struct nand_chip *this = mtd->priv;
 	struct doc_priv *doc = this->priv;
-	unsigned offs, end = (MAX_MEDIAHEADER_SCAN << this->phys_erase_shift);
+	unsigned offs;
 	int ret;
 	size_t retlen;
 
-	end = min(end, mtd->size); // paranoia
-	for (offs = 0; offs < end; offs += mtd->erasesize) {
+	for (offs = 0; offs < mtd->size; offs += mtd->erasesize) {
 		ret = mtd->read(mtd, offs, mtd->oobblock, &retlen, buf);
 		if (retlen != mtd->oobblock) continue;
 		if (ret) {
@@ -1118,6 +1115,7 @@ static inline int __init nftl_partscan(struct mtd_info *mtd,
 	u_char *buf;
 	struct NFTLMediaHeader *mh;
 	const unsigned psize = 1 << this->page_shift;
+	int numparts = 0;
 	unsigned blocks, maxblocks;
 	int offs, numheaders;
 
@@ -1183,19 +1181,28 @@ static inline int __init nftl_partscan(struct mtd_info *mtd,
 	offs <<= this->page_shift;
 	offs += mtd->erasesize;
 
-	parts[0].name = " DiskOnChip BDTL partition";
-	parts[0].offset = offs;
-	parts[0].size = (mh->NumEraseUnits - numheaders) << this->bbt_erase_shift;
-
-	offs += parts[0].size;
-	if (offs < mtd->size) {
-		parts[1].name = " DiskOnChip Remainder partition";
-		parts[1].offset = offs;
-		parts[1].size = mtd->size - offs;
-		ret = 2;
-		goto out;
+	if (show_firmware_partition == 1) {
+		parts[0].name = " DiskOnChip Firmware / Media Header partition";
+		parts[0].offset = 0;
+		parts[0].size = offs;
+		numparts = 1;
 	}
-	ret = 1;
+
+	parts[numparts].name = " DiskOnChip BDTL partition";
+	parts[numparts].offset = offs;
+	parts[numparts].size = (mh->NumEraseUnits - numheaders) << this->bbt_erase_shift;
+
+	offs += parts[numparts].size;
+	numparts++;
+
+	if (offs < mtd->size) {
+		parts[numparts].name = " DiskOnChip Remainder partition";
+		parts[numparts].offset = offs;
+		parts[numparts].size = mtd->size - offs;
+		numparts++;
+	}
+
+	ret = numparts;
 out:
 	kfree(buf);
 	return ret;
@@ -1289,14 +1296,13 @@ static inline int __init inftl_partscan(struct mtd_info *mtd,
 			ip->lastUnit, ip->flags,
 			ip->spareUnits);
 
-#if 0
-		if ((i == 0) && (ip->firstUnit > 0)) {
+		if ((show_firmware_partition == 1) &&
+		    (i == 0) && (ip->firstUnit > 0)) {
 			parts[0].name = " DiskOnChip IPL / Media Header partition";
 			parts[0].offset = 0;
 			parts[0].size = mtd->erasesize * ip->firstUnit;
 			numparts = 1;
 		}
-#endif
 
 		if (ip->flags & INFTL_BINARY)
 			parts[numparts].name = " DiskOnChip BDK partition";
