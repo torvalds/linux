@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: nodemgmt.c,v 1.120 2005/03/20 17:46:20 dedekind Exp $
+ * $Id: nodemgmt.c,v 1.121 2005/04/06 16:02:52 dedekind Exp $
  *
  */
 
@@ -437,7 +437,7 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 
 	// Take care, that wasted size is taken into concern
 	if ((jeb->dirty_size || ISDIRTY(jeb->wasted_size + ref_totlen(c, jeb, ref))) && jeb != c->nextblock) {
-		D1(printk("Dirtying\n"));
+		D1(printk(KERN_DEBUG "Dirtying\n"));
 		addedsize = ref_totlen(c, jeb, ref);
 		jeb->dirty_size += ref_totlen(c, jeb, ref);
 		c->dirty_size += ref_totlen(c, jeb, ref);
@@ -459,7 +459,7 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 			}
 		}
 	} else {
-		D1(printk("Wasting\n"));
+		D1(printk(KERN_DEBUG "Wasting\n"));
 		addedsize = 0;
 		jeb->wasted_size += ref_totlen(c, jeb, ref);
 		c->wasted_size += ref_totlen(c, jeb, ref);	
