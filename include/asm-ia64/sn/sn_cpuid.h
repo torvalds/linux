@@ -4,7 +4,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2000-2004 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 2000-2005 Silicon Graphics, Inc. All rights reserved.
  */
 
 
@@ -123,11 +123,8 @@ extern int nasid_slice_to_cpuid(int, int);
 
 /*
  * cnodeid_to_nasid - convert a cnodeid to a NASID
- *	Macro relies on pg_data for a node being on the node itself.
- *	Just extract the NASID from the pointer.
- *
  */
-#define cnodeid_to_nasid(cnodeid)	pda->cnodeid_to_nasid_table[cnodeid]
+#define cnodeid_to_nasid(cnodeid)	(sn_cnodeid_to_nasid[cnodeid])
  
 /*
  * nasid_to_cnodeid - convert a NASID to a cnodeid

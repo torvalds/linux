@@ -49,7 +49,6 @@ typedef struct pda_s {
 
 	unsigned long	sn_soft_irr[4];
 	unsigned long	sn_in_service_ivecs[4];
-	short		cnodeid_to_nasid_table[MAX_NUMNODES];
 	int		sn_lb_int_war_ticks;
 	int		sn_last_irq;
 	int		sn_first_irq;

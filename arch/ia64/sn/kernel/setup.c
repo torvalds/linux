@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 1999,2001-2004 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 1999,2001-2005 Silicon Graphics, Inc. All rights reserved.
  */
 
 #include <linux/config.h>
@@ -72,6 +72,9 @@ EXPORT_SYMBOL(sn_rtc_cycles_per_second);
 
 DEFINE_PER_CPU(struct sn_hub_info_s, __sn_hub_info);
 EXPORT_PER_CPU_SYMBOL(__sn_hub_info);
+
+DEFINE_PER_CPU(short, __sn_cnodeid_to_nasid[MAX_NUMNODES]);
+EXPORT_PER_CPU_SYMBOL(__sn_cnodeid_to_nasid);
 
 partid_t sn_partid = -1;
 EXPORT_SYMBOL(sn_partid);
@@ -373,11 +376,11 @@ static void __init sn_init_pdas(char **cmdline_p)
 {
 	cnodeid_t cnode;
 
-	memset(pda->cnodeid_to_nasid_table, -1,
-	       sizeof(pda->cnodeid_to_nasid_table));
+	memset(sn_cnodeid_to_nasid, -1,
+			sizeof(__ia64_per_cpu_var(__sn_cnodeid_to_nasid)));
 	for_each_online_node(cnode)
-		pda->cnodeid_to_nasid_table[cnode] =
-		    pxm_to_nasid(nid_to_pxm_map[cnode]);
+		sn_cnodeid_to_nasid[cnode] =
+				pxm_to_nasid(nid_to_pxm_map[cnode]);
 
 	numionodes = num_online_nodes();
 	scan_for_ionodes();
@@ -486,15 +489,18 @@ void __init sn_cpu_init(void)
 	pda->idle_flag = 0;
 
 	if (cpuid != 0) {
-		memcpy(pda->cnodeid_to_nasid_table,
-		       pdacpu(0)->cnodeid_to_nasid_table,
-		       sizeof(pda->cnodeid_to_nasid_table));
+		/* copy cpu 0's sn_cnodeid_to_nasid table to this cpu's */
+		memcpy(sn_cnodeid_to_nasid,
+		       (&per_cpu(__sn_cnodeid_to_nasid, 0)),
+		       sizeof(__ia64_per_cpu_var(__sn_cnodeid_to_nasid)));
 	}
 
 	/*
 	 * Check for WARs.
 	 * Only needs to be done once, on BSP.
-	 * Has to be done after loop above, because it uses pda.cnodeid_to_nasid_table[i].
+	 * Has to be done after loop above, because it uses this cpu's
+	 * sn_cnodeid_to_nasid table which was just initialized if this
+	 * isn't cpu 0.
 	 * Has to be done before assignment below.
 	 */
 	if (!wars_have_been_checked) {
@@ -580,8 +586,7 @@ static void __init scan_for_ionodes(void)
 		brd = find_lboard_any(brd, KLTYPE_SNIA);
 
 		while (brd) {
-			pda->cnodeid_to_nasid_table[numionodes] =
-			    brd->brd_nasid;
+			sn_cnodeid_to_nasid[numionodes] = brd->brd_nasid;
 			physical_node_map[brd->brd_nasid] = numionodes;
 			root_lboard[numionodes] = brd;
 			numionodes++;
@@ -602,8 +607,7 @@ static void __init scan_for_ionodes(void)
 				      root_lboard[nasid_to_cnodeid(nasid)],
 				      KLTYPE_TIO);
 		while (brd) {
-			pda->cnodeid_to_nasid_table[numionodes] =
-			    brd->brd_nasid;
+			sn_cnodeid_to_nasid[numionodes] = brd->brd_nasid;
 			physical_node_map[brd->brd_nasid] = numionodes;
 			root_lboard[numionodes] = brd;
 			numionodes++;
@@ -614,7 +618,6 @@ static void __init scan_for_ionodes(void)
 			brd = find_lboard_any(brd, KLTYPE_TIO);
 		}
 	}
-
 }
 
 int
