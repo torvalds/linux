@@ -6,7 +6,7 @@
  *  Derived from drivers/mtd/nand/spia.c
  *       Copyright (C) 2000 Steven J. Hill (sjhill@realitydiluted.com)
  *
- * $Id: rtc_from4.c,v 1.8 2005/01/17 19:44:36 dmarlin Exp $
+ * $Id: rtc_from4.c,v 1.9 2005/01/24 20:40:11 dmarlin Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -83,8 +83,13 @@ static struct mtd_info *rtc_from4_mtd = NULL;
 #define RTC_FROM4_RS_ECC_CHK		(RTC_FROM4_NAND_ADDR_FPGA | 0x00000070)
 #define RTC_FROM4_RS_ECC_CHK_ERROR	(1 << 7)
 
+#define ERR_STAT_ECC_AVAILABLE		0x20
+
 /* Undefine for software ECC */
 #define RTC_FROM4_HWECC	1
+
+/* Define as 1 for no virtual erase blocks (in JFFS2) */
+#define RTC_FROM4_NO_VIRTBLOCKS	0
 
 /*
  * Module stuff
@@ -267,7 +272,6 @@ static void rtc_from4_nand_select_chip(struct mtd_info *mtd, int chip)
 }
 
 
-
 /*
  * rtc_from4_nand_device_ready - hardware specific ready/busy check
  * @mtd:	MTD device structure
@@ -363,6 +367,7 @@ static void rtc_from4_enable_hwecc(struct mtd_info *mtd, int mode)
 
 }
 
+
 /*
  * rtc_from4_calculate_ecc - hardware specific code to read ECC code
  * @mtd:	MTD device structure
@@ -390,6 +395,7 @@ static void rtc_from4_calculate_ecc(struct mtd_info *mtd, const u_char *dat, u_c
 	ecc_code[7] |= 0x0f;	/* set the last four bits (not used) */
 }
 
+
 /*
  * rtc_from4_correct_data - hardware specific code to correct data using ECC code
  * @mtd:	MTD device structure
@@ -399,10 +405,8 @@ static void rtc_from4_calculate_ecc(struct mtd_info *mtd, const u_char *dat, u_c
  *
  * The FPGA tells us fast, if there's an error or not. If no, we go back happy
  * else we read the ecc results from the fpga and call the rs library to decode
- * and hopefully correct the error
+ * and hopefully correct the error.
  *
- * For now I use the code, which we read from the FLASH to use the RS lib,
- * as the syndrom conversion has a unresolved issue.
  */
 static int rtc_from4_correct_data(struct mtd_info *mtd, const u_char *buf, u_char *ecc1, u_char *ecc2)
 {
@@ -457,7 +461,78 @@ static int rtc_from4_correct_data(struct mtd_info *mtd, const u_char *buf, u_cha
 	}
 	return res;
 }
+
+
+/**
+ * rtc_from4_errstat - perform additional error status checks
+ * @mtd:	MTD device structure
+ * @this:	NAND chip structure
+ * @state:	state or the operation
+ * @status:	status code returned from read status
+ * @page:	startpage inside the chip, must be called with (page & this->pagemask)
+ * 
+ * Perform additional error status checks on erase and write failures 
+ * to determine if errors are correctable.  For this device, correctable 
+ * 1-bit errors on erase and write are considered acceptable.
+ *
+ * note: see pages 34..37 of data sheet for details.
+ *
+ */
+static int rtc_from4_errstat(struct mtd_info *mtd, struct nand_chip *this, int state, int status, int page)
+{
+	int	er_stat=0;
+	int	rtn, retlen;
+	size_t	len;
+	uint8_t *buf;
+	int	i;
+
+	this->cmdfunc (mtd, NAND_CMD_STATUS_CLEAR, -1, -1);
+
+        if (state == FL_ERASING) {
+		for (i=0; i<4; i++) {
+			if (status & 1<<(i+1)) {
+				this->cmdfunc (mtd, (NAND_CMD_STATUS_ERROR + i + 1), -1, -1);
+				rtn = this->read_byte(mtd);
+				this->cmdfunc (mtd, NAND_CMD_STATUS_RESET, -1, -1);
+				if (!(rtn & ERR_STAT_ECC_AVAILABLE)) {
+					er_stat |= 1<<(i+1);	/* err_ecc_not_avail */
+				}
+			}
+		}
+	} else if (state == FL_WRITING) {
+		/* single bank write logic */
+		this->cmdfunc (mtd, NAND_CMD_STATUS_ERROR, -1, -1);
+		rtn = this->read_byte(mtd);
+		this->cmdfunc (mtd, NAND_CMD_STATUS_RESET, -1, -1);
+		if (!(rtn & ERR_STAT_ECC_AVAILABLE)) {
+			er_stat |= 1<<1;	/* err_ecc_not_avail */
+		} else {
+			len = mtd->oobblock;
+			buf = kmalloc (len, GFP_KERNEL);
+			if (!buf) {
+				printk (KERN_ERR "rtc_from4_errstat: Out of memory!\n");
+				er_stat = 1;			/* if we can't check, assume failed */
+			} else {
+				/* recovery read */
+				/* page read */
+				rtn = nand_do_read_ecc (mtd, page, len, &retlen, buf, NULL, this->autooob, 1);
+				if (rtn) {	/* if read failed or > 1-bit error corrected */
+					er_stat |= 1<<1;	/* ECC read failed */
+				}
+				kfree(buf);
+			}
+		}
+	}
+
+	rtn = status;
+	if (er_stat == 0) {				/* if ECC is available   */
+		rtn = (status & ~NAND_STATUS_FAIL);	/*   clear the error bit */
+	}
+
+	return rtn;
+}
 #endif
+
 
 /*
  * Main initialization routine
@@ -518,6 +593,8 @@ int __init rtc_from4_init (void)
 
         this->eccmode = NAND_ECC_HW8_512;
 	this->options |= NAND_HWECC_SYNDROME;
+	/* return the status of extra status and ECC checks */
+	this->errstat = rtc_from4_errstat;
 	/* set the nand_oobinfo to support FPGA H/W error detection */
 	this->autooob = &rtc_from4_nand_oobinfo;
 	this->enable_hwecc = rtc_from4_enable_hwecc;
@@ -543,6 +620,13 @@ int __init rtc_from4_init (void)
 	for (i=0; i < this->numchips; i++) {
 		deplete(rtc_from4_mtd, i);
 	}
+
+#if RTC_FROM4_NO_VIRTBLOCKS
+	/* use a smaller erase block to minimize wasted space when a block is bad */
+	/* note: this uses eight times as much RAM as using the default and makes */
+	/*       mounts take four times as long. */
+	rtc_from4_mtd->flags |= MTD_NO_VIRTBLOCKS;
+#endif
 
 	/* Register the partitions */
 	add_mtd_partitions(rtc_from4_mtd, partition_info, NUM_PARTITIONS);
