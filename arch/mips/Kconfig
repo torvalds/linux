@@ -786,6 +786,7 @@ config TOSHIBA_FPCIB0
 	bool "FPCIB0 Backplane Support"
 	depends on TOSHIBA_RBTX4927
 
+source "arch/mips/sgi-ip27/Kconfig"
 source "arch/mips/sibyte/Kconfig"
 
 config RWSEM_GENERIC_SPINLOCK
