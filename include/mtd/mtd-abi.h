@@ -1,5 +1,5 @@
 /*
- * $Id: mtd-abi.h,v 1.8 2005/02/08 17:11:16 nico Exp $
+ * $Id: mtd-abi.h,v 1.9 2005/02/08 17:45:52 nico Exp $
  *
  * Portions of MTD ABI definition which are shared by kernel and user space 
  */
@@ -61,6 +61,11 @@ struct mtd_oob_buf {
 #define MTD_NANDECC_AUTOPLACE	2	// Use the default placement scheme
 #define MTD_NANDECC_PLACEONLY	3	// Use the given placement in the structure (Do not store ecc result on read)
 
+/* OTP mode selection */
+#define MTD_OTP_OFF		0
+#define MTD_OTP_FACTORY		1
+#define MTD_OTP_USER		2
+
 struct mtd_info_user {
 	uint8_t type;
 	uint32_t flags;
@@ -98,6 +103,10 @@ struct otp_info {
 #define MEMGETOOBSEL		_IOR('M', 10, struct nand_oobinfo)
 #define MEMGETBADBLOCK		_IOW('M', 11, loff_t)
 #define MEMSETBADBLOCK		_IOW('M', 12, loff_t)
+#define OTPSELECT		_IOR('M', 13, int)
+#define OTPGETREGIONCOUNT	_IOW('M', 14, int)
+#define OTPGETREGIONINFO	_IOW('M', 15, struct otp_info)
+#define OTPLOCK		_IOR('M', 16, struct otp_info)
 
 struct nand_oobinfo {
 	uint32_t useecc;

@@ -1,5 +1,5 @@
 /*
- * $Id: mtdchar.c,v 1.66 2005/01/05 18:05:11 dwmw2 Exp $
+ * $Id: mtdchar.c,v 1.67 2005/02/08 17:45:51 nico Exp $
  *
  * Character-device access to raw MTD devices.
  *
@@ -59,6 +59,12 @@ static inline void mtdchar_devfs_exit(void)
 #define mtdchar_devfs_exit() do { } while(0)
 #endif
 
+
+/* Well... let's abuse the unused bits in file->f_mode for those */
+#define MTD_MODE_OTP_FACT	0x1000
+#define MTD_MODE_OTP_USER	0x2000
+#define MTD_MODE_MASK		0xf000
+
 static loff_t mtd_lseek (struct file *file, loff_t offset, int orig)
 {
 	struct mtd_info *mtd = file->private_data;
@@ -104,6 +110,10 @@ static int mtd_open(struct inode *inode, struct file *file)
 	/* You can't open the RO devices RW */
 	if ((file->f_mode & 2) && (minor & 1))
 		return -EACCES;
+
+	/* make sure the locally abused bits are initialy clear */
+	if (file->f_mode & MTD_MODE_MASK)
+		return -EWOULDBLOCK;
 
 	mtd = get_mtd_device(NULL, devnum);
 	
@@ -178,7 +188,16 @@ static ssize_t mtd_read(struct file *file, char __user *buf, size_t count,loff_t
 		if (!kbuf)
 			return -ENOMEM;
 		
-		ret = MTD_READ(mtd, *ppos, len, &retlen, kbuf);
+		switch (file->f_mode & MTD_MODE_MASK) {
+		case MTD_MODE_OTP_FACT:
+			ret = mtd->read_fact_prot_reg(mtd, *ppos, len, &retlen, kbuf);
+			break;
+		case MTD_MODE_OTP_USER:
+			ret = mtd->read_user_prot_reg(mtd, *ppos, len, &retlen, kbuf);
+			break;
+		default:
+			ret = MTD_READ(mtd, *ppos, len, &retlen, kbuf);
+		}
 		/* Nand returns -EBADMSG on ecc errors, but it returns
 		 * the data. For our userspace tools it is important
 		 * to dump areas with ecc errors ! 
@@ -196,6 +215,8 @@ static ssize_t mtd_read(struct file *file, char __user *buf, size_t count,loff_t
 
 			count -= retlen;
 			buf += retlen;
+			if (retlen == 0)
+				count = 0;
 		}
 		else {
 			kfree(kbuf);
@@ -245,7 +266,20 @@ static ssize_t mtd_write(struct file *file, const char __user *buf, size_t count
 			return -EFAULT;
 		}
 		
-	        ret = (*(mtd->write))(mtd, *ppos, len, &retlen, kbuf);
+		switch (file->f_mode & MTD_MODE_MASK) {
+		case MTD_MODE_OTP_FACT:
+			ret = -EROFS;
+			break;
+		case MTD_MODE_OTP_USER:
+			if (!mtd->write_user_prot_reg) {
+				ret = -EOPNOTSUPP;
+				break;
+			}
+			ret = mtd->write_user_prot_reg(mtd, *ppos, len, &retlen, kbuf);
+			break;
+		default:
+			ret = (*(mtd->write))(mtd, *ppos, len, &retlen, kbuf);
+		}
 		if (!ret) {
 			*ppos += retlen;
 			total_retlen += retlen;
@@ -517,6 +551,79 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 			return mtd->block_markbad(mtd, offs);
 		break;
 	}
+
+#ifdef CONFIG_MTD_OTP
+	case OTPSELECT:
+	{
+		int mode;
+		if (copy_from_user(&mode, argp, sizeof(int)))
+			return -EFAULT;
+		file->f_mode &= ~MTD_MODE_MASK;
+		switch (mode) {
+		case MTD_OTP_FACTORY:
+			if (!mtd->read_fact_prot_reg)
+				ret = -EOPNOTSUPP;
+			else
+				file->f_mode |= MTD_MODE_OTP_FACT;
+			break;
+		case MTD_OTP_USER:
+			if (!mtd->read_fact_prot_reg)
+				ret = -EOPNOTSUPP;
+			else
+				file->f_mode |= MTD_MODE_OTP_USER;
+			break;
+		default:
+			ret = -EINVAL;
+		case MTD_OTP_OFF:
+			break;
+		}
+		break;
+	}
+
+	case OTPGETREGIONCOUNT:
+	case OTPGETREGIONINFO:
+	{
+		struct otp_info *buf = kmalloc(4096, GFP_KERNEL);
+		if (!buf)
+			return -ENOMEM;
+		ret = -EOPNOTSUPP;
+		switch (file->f_mode & MTD_MODE_MASK) {
+		case MTD_MODE_OTP_FACT:
+			if (mtd->get_fact_prot_info)
+				ret = mtd->get_fact_prot_info(mtd, buf, 4096);
+			break;
+		case MTD_MODE_OTP_USER:
+			if (mtd->get_user_prot_info)
+				ret = mtd->get_user_prot_info(mtd, buf, 4096);
+			break;
+		}
+		if (ret >= 0) {
+			if (cmd == OTPGETREGIONCOUNT) {
+				int nbr = ret / sizeof(struct otp_info);
+				ret = copy_to_user(argp, &nbr, sizeof(int));
+			} else
+				ret = copy_to_user(argp, buf, ret);
+			if (ret)
+				ret = -EFAULT;
+		}
+		kfree(buf);
+		break;
+	}
+
+	case OTPLOCK:
+	{
+		struct otp_info info;
+
+		if ((file->f_mode & MTD_MODE_MASK) != MTD_MODE_OTP_USER)
+			return -EINVAL;
+		if (copy_from_user(&info, argp, sizeof(info)))
+			return -EFAULT;
+		if (!mtd->lock_user_prot_reg)
+			return -EOPNOTSUPP;
+		ret = mtd->lock_user_prot_reg(mtd, info.start, info.length);
+		break;
+	}
+#endif
 
 	default:
 		ret = -ENOTTY;
