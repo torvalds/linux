@@ -9,7 +9,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: wbuf.c,v 1.89 2005/02/09 09:23:54 pavlov Exp $
+ * $Id: wbuf.c,v 1.91 2005/03/18 09:58:06 dedekind Exp $
  *
  */
 
@@ -83,7 +83,7 @@ static void jffs2_wbuf_dirties_inode(struct jffs2_sb_info *c, uint32_t ino)
 	struct jffs2_inodirty *new;
 
 	/* Mark the superblock dirty so that kupdated will flush... */
-	OFNI_BS_2SFFJ(c)->s_dirt = 1;
+	jffs2_erase_pending_trigger(c);
 
 	if (jffs2_wbuf_pending_for_ino(c, ino))
 		return;
