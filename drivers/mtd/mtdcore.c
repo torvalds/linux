@@ -1,5 +1,5 @@
 /*
- * $Id: mtdcore.c,v 1.44 2004/11/16 18:28:59 dwmw2 Exp $
+ * $Id: mtdcore.c,v 1.45 2005/02/18 14:34:50 dedekind Exp $
  *
  * Core registration and callback routines for MTD
  * drivers and users.
@@ -149,8 +149,8 @@ void register_mtd_user (struct mtd_notifier *new)
 }
 
 /**
- *	register_mtd_user - unregister a 'user' of MTD devices.
- *	@new: pointer to notifier info structure
+ *	unregister_mtd_user - unregister a 'user' of MTD devices.
+ *	@old: pointer to notifier info structure
  *
  *	Removes a callback function pair from the list of 'users' to be
  *	notified upon addition or removal of MTD devices. Causes the
