@@ -3,6 +3,8 @@
  * Author: Jun Sun, jsun@mvista.com or jsun@junsun.net
  *
  * Copyright (C) 2001 Ralf Baechle
+ * Copyright (C) 2005  MIPS Technologies, Inc.  All rights reserved.
+ *      Author: Maciej W. Rozycki <macro@mips.com>
  *
  * This file define the irq handler for MIPS CPU interrupts.
  *
@@ -37,7 +39,6 @@ static int mips_cpu_irq_base;
 
 static inline void unmask_mips_irq(unsigned int irq)
 {
-	clear_c0_cause(0x100 << (irq - mips_cpu_irq_base));
 	set_c0_status(0x100 << (irq - mips_cpu_irq_base));
 }
 
@@ -106,6 +107,10 @@ static hw_irq_controller mips_cpu_irq_controller = {
 void __init mips_cpu_irq_init(int irq_base)
 {
 	int i;
+
+	/* Mask interrupts. */
+	clear_c0_status(ST0_IM);
+	clear_c0_cause(CAUSEF_IP);
 
 	for (i = irq_base; i < irq_base + 8; i++) {
 		irq_desc[i].status = IRQ_DISABLED;
