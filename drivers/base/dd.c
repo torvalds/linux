@@ -88,20 +88,23 @@ static int __device_attach(struct device_driver * drv, void * data)
 	int error;
 
 	error = driver_probe_device(drv, dev);
-
-	if (error == -ENODEV && error == -ENXIO) {
-		/* Driver matched, but didn't support device
-		 * or device not found.
-		 * Not an error; keep going.
-		 */
-		error = 0;
-	} else {
-		/* driver matched but the probe failed */
-		printk(KERN_WARNING
-		       "%s: probe of %s failed with error %d\n",
-		       drv->name, dev->bus_id, error);
+	if (error) {
+		if ((error == -ENODEV) || (error == -ENXIO)) {
+			/* Driver matched, but didn't support device
+			 * or device not found.
+			 * Not an error; keep going.
+			 */
+			error = 0;
+		} else {
+			/* driver matched but the probe failed */
+			printk(KERN_WARNING
+			       "%s: probe of %s failed with error %d\n",
+			       drv->name, dev->bus_id, error);
+		}
+		return error;
 	}
-	return 0;
+	/* stop looking, this device is attached */
+	return 1;
 }
 
 /**
@@ -137,7 +140,10 @@ static int __driver_attach(struct device * dev, void * data)
 				       drv->name, dev->bus_id, error);
 			} else
 				error = 0;
+			return error;
 		}
+		/* stop looking, this driver is attached */
+		return 1;
 	}
 	return 0;
 }
