@@ -123,6 +123,15 @@ config ACPI_VIDEO
 	  Note that this is an ref. implementation only.  It may or may not work
 	  for your integrated video device.
 
+config ACPI_HOTKEY
+	tristate "Generic Hotkey"
+	depends on ACPI_INTERPRETER
+	depends on EXPERIMENTAL
+	depends on !IA64_SGI_SN
+	default m
+	help
+	ACPI generic hotkey
+
 config ACPI_FAN
 	tristate "Fan"
 	depends on !IA64_SGI_SN

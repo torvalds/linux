@@ -1185,6 +1185,10 @@ static int __init acpi_ibm_init(void)
 	if (acpi_disabled)
 		return -ENODEV;
 
+	if (!acpi_specific_hotkey_enabled){
+		printk(IBM_ERR "Using generic hotkey driver\n");
+		return -ENODEV;	
+	}
 	/* these handles are required */
 	if (IBM_HANDLE_INIT(ec,	  1) < 0 ||
 	    IBM_HANDLE_INIT(hkey, 1) < 0 ||

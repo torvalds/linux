@@ -108,5 +108,10 @@ int acpi_ec_ecdt_probe (void);
 
 int acpi_processor_set_thermal_limit(acpi_handle handle, int type);
 
+/* --------------------------------------------------------------------------
+                                    Hot Keys
+   -------------------------------------------------------------------------- */
+
+extern int acpi_specific_hotkey_enabled;
 
 #endif /*__ACPI_DRIVERS_H__*/
