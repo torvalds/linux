@@ -14,9 +14,10 @@ cache_dir="${XDG_CACHE_HOME:-"$HOME"/.cache}"
 download_location="${cache_dir}/crosstools/"
 build_location="$(realpath "${cache_dir}"/nolibc-tests/)"
 perform_download=0
+test_mode=system
 archs="i386 x86_64 arm64 arm mips32le mips32be ppc ppc64 ppc64le riscv s390 loongarch"
 
-TEMP=$(getopt -o 'j:d:c:b:a:ph' -n "$0" -- "$@")
+TEMP=$(getopt -o 'j:d:c:b:a:m:ph' -n "$0" -- "$@")
 
 eval set -- "$TEMP"
 unset TEMP
@@ -38,6 +39,7 @@ Options:
  -c [VERSION]   Version of toolchains to use (default: ${crosstool_version})
  -a [ARCH]      Host architecture of toolchains to use (default: ${hostarch})
  -b [DIR]       Build location (default: ${build_location})
+ -m [MODE]      Test mode user/system (default: ${test_mode})
 EOF
 }
 
@@ -60,6 +62,9 @@ while true; do
 			shift 2; continue ;;
 		'-b')
 			build_location="$(realpath "$2")"
+			shift 2; continue ;;
+		'-m')
+			test_mode="$2"
 			shift 2; continue ;;
 		'-h')
 			print_usage
@@ -133,11 +138,22 @@ test_arch() {
 	MAKE=(make -j"${nproc}" XARCH="${arch}" CROSS_COMPILE="${cross_compile}" O="${build_dir}")
 
 	mkdir -p "$build_dir"
-	if [ ! -f "${build_dir}/.config" ]; then
+	if [ "$test_mode" = "system" ] && [ ! -f "${build_dir}/.config" ]; then
 		swallow_output "${MAKE[@]}" defconfig
 	fi
+	case "$test_mode" in
+		'system')
+			test_target=run
+			;;
+		'user')
+			test_target=run-user
+			;;
+		*)
+			echo "Unknown mode $test_mode"
+			exit 1
+	esac
 	printf '%-15s' "$arch:"
-	swallow_output "${MAKE[@]}" run V=1
+	swallow_output "${MAKE[@]}" "$test_target" V=1
 	cp run.out run.out."${arch}"
 	"${MAKE[@]}" report | grep passed
 }
