@@ -73,32 +73,30 @@ asmlinkage int irix_sysmp(struct pt_regs *regs)
 }
 
 /* The prctl commands. */
-#define PR_MAXPROCS          1 /* Tasks/user. */
-#define PR_ISBLOCKED         2 /* If blocked, return 1. */
-#define PR_SETSTACKSIZE      3 /* Set largest task stack size. */
-#define PR_GETSTACKSIZE      4 /* Get largest task stack size. */
-#define PR_MAXPPROCS         5 /* Num parallel tasks. */
-#define PR_UNBLKONEXEC       6 /* When task exec/exit's, unblock. */
-#define PR_SETEXITSIG        8 /* When task exit's, set signal. */
-#define PR_RESIDENT          9 /* Make task unswappable. */
-#define PR_ATTACHADDR       10 /* (Re-)Connect a vma to a task. */
-#define PR_DETACHADDR       11 /* Disconnect a vma from a task. */
-#define PR_TERMCHILD        12 /* When parent sleeps with fishes, kill child. */
-#define PR_GETSHMASK        13 /* Get the sproc() share mask. */
-#define PR_GETNSHARE        14 /* Number of share group members. */
-#define PR_COREPID          15 /* Add task pid to name when it core. */
-#define	PR_ATTACHADDRPERM   16 /* (Re-)Connect vma, with specified prot. */
-#define PR_PTHREADEXIT      17 /* Kill a pthread without prejudice. */
+#define PR_MAXPROCS		 1 /* Tasks/user. */
+#define PR_ISBLOCKED		 2 /* If blocked, return 1. */
+#define PR_SETSTACKSIZE		 3 /* Set largest task stack size. */
+#define PR_GETSTACKSIZE		 4 /* Get largest task stack size. */
+#define PR_MAXPPROCS		 5 /* Num parallel tasks. */
+#define PR_UNBLKONEXEC		 6 /* When task exec/exit's, unblock. */
+#define PR_SETEXITSIG		 8 /* When task exit's, set signal. */
+#define PR_RESIDENT		 9 /* Make task unswappable. */
+#define PR_ATTACHADDR		10 /* (Re-)Connect a vma to a task. */
+#define PR_DETACHADDR		11 /* Disconnect a vma from a task. */
+#define PR_TERMCHILD		12 /* Kill child if the parent dies. */
+#define PR_GETSHMASK		13 /* Get the sproc() share mask. */
+#define PR_GETNSHARE		14 /* Number of share group members. */
+#define PR_COREPID		15 /* Add task pid to name when it core. */
+#define PR_ATTACHADDRPERM	16 /* (Re-)Connect vma, with specified prot. */
+#define PR_PTHREADEXIT		17 /* Kill a pthread, only for IRIX 6.[234] */
 
-asmlinkage int irix_prctl(struct pt_regs *regs)
+asmlinkage int irix_prctl(unsigned option, ...)
 {
-	unsigned long cmd;
-	int error = 0, base = 0;
+	va_list args;
+	int error = 0;
 
-	if (regs->regs[2] == 1000)
-		base = 1;
-	cmd = regs->regs[base + 4];
-	switch (cmd) {
+	va_start(args, option);
+	switch (option) {
 	case PR_MAXPROCS:
 		printk("irix_prctl[%s:%d]: Wants PR_MAXPROCS\n",
 		       current->comm, current->pid);
@@ -111,7 +109,7 @@ asmlinkage int irix_prctl(struct pt_regs *regs)
 		printk("irix_prctl[%s:%d]: Wants PR_ISBLOCKED\n",
 		       current->comm, current->pid);
 		read_lock(&tasklist_lock);
-		task = find_task_by_pid(regs->regs[base + 5]);
+		task = find_task_by_pid(va_arg(args, pid_t));
 		error = -ESRCH;
 		if (error)
 			error = (task->run_list.next != NULL);
@@ -121,7 +119,7 @@ asmlinkage int irix_prctl(struct pt_regs *regs)
 	}
 
 	case PR_SETSTACKSIZE: {
-		long value = regs->regs[base + 5];
+		long value = va_arg(args, long);
 
 		printk("irix_prctl[%s:%d]: Wants PR_SETSTACKSIZE<%08lx>\n",
 		       current->comm, current->pid, (unsigned long) value);
@@ -222,17 +220,13 @@ asmlinkage int irix_prctl(struct pt_regs *regs)
 		error = -EINVAL;
 		break;
 
-	case PR_PTHREADEXIT:
-		printk("irix_prctl[%s:%d]: Wants PR_PTHREADEXIT\n",
-		       current->comm, current->pid);
-		do_exit(regs->regs[base + 5]);
-
 	default:
 		printk("irix_prctl[%s:%d]: Non-existant opcode %d\n",
-		       current->comm, current->pid, (int)cmd);
+		       current->comm, current->pid, option);
 		error = -EINVAL;
 		break;
 	}
+	va_end(args);
 
 	return error;
 }
