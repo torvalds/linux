@@ -235,7 +235,7 @@ static inline void __sb1_flush_icache_range(unsigned long start,
 /*
  * Invalidate all caches on this CPU
  */
-static void local_sb1___flush_cache_all(void)
+static void __attribute_used__ local_sb1___flush_cache_all(void)
 {
 	__sb1_writeback_inv_dcache_all();
 	__sb1_flush_icache_all();
