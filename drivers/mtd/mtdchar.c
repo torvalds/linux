@@ -1,5 +1,5 @@
 /*
- * $Id: mtdchar.c,v 1.68 2005/02/08 19:12:50 nico Exp $
+ * $Id: mtdchar.c,v 1.70 2005/04/01 15:36:11 nico Exp $
  *
  * Character-device access to raw MTD devices.
  *
@@ -583,6 +583,7 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 		case MTD_OTP_OFF:
 			break;
 		}
+		file->f_pos = 0;
 		break;
 	}
 
