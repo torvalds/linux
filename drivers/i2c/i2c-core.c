@@ -742,18 +742,6 @@ int i2c_probe(struct i2c_adapter *adapter,
 				found = 1;
 			}
 		}
-		for (i = 0;
-		     !found && (address_data->ignore_range[i] != I2C_CLIENT_END);
-		     i += 3) {
-			if (((adap_id == address_data->ignore_range[i]) ||
-			    ((address_data->ignore_range[i]==ANY_I2C_BUS))) &&
-			    (addr >= address_data->ignore_range[i+1]) &&
-			    (addr <= address_data->ignore_range[i+2])) {
-				dev_dbg(&adapter->dev, "found ignore_range parameter for adapter %d, "
-					"addr %04x\n", adap_id,addr);
-				found = 1;
-			}
-		}
 		if (found) 
 			continue;
 
@@ -770,17 +758,6 @@ int i2c_probe(struct i2c_adapter *adapter,
 		}
 
 		for (i = 0;
-		     !found && (address_data->normal_i2c_range[i] != I2C_CLIENT_END);
-		     i += 2) {
-			if ((addr >= address_data->normal_i2c_range[i]) &&
-			    (addr <= address_data->normal_i2c_range[i+1])) {
-				found = 1;
-				dev_dbg(&adapter->dev, "found normal i2c_range entry for adapter %d, "
-					"addr %04x\n", adap_id,addr);
-			}
-		}
-
-		for (i = 0;
 		     !found && (address_data->probe[i] != I2C_CLIENT_END);
 		     i += 2) {
 			if (((adap_id == address_data->probe[i]) ||
@@ -788,18 +765,6 @@ int i2c_probe(struct i2c_adapter *adapter,
 			    (addr == address_data->probe[i+1])) {
 				found = 1;
 				dev_dbg(&adapter->dev, "found probe parameter for adapter %d, "
-					"addr %04x\n", adap_id,addr);
-			}
-		}
-		for (i = 0;
-		     !found && (address_data->probe_range[i] != I2C_CLIENT_END);
-		     i += 3) {
-			if (((adap_id == address_data->probe_range[i]) ||
-			   (address_data->probe_range[i] == ANY_I2C_BUS)) &&
-			   (addr >= address_data->probe_range[i+1]) &&
-			   (addr <= address_data->probe_range[i+2])) {
-				found = 1;
-				dev_dbg(&adapter->dev, "found probe_range parameter for adapter %d, "
 					"addr %04x\n", adap_id,addr);
 			}
 		}
