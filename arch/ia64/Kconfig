@@ -261,6 +261,15 @@ config HOTPLUG_CPU
 	  can be controlled through /sys/devices/system/cpu/cpu#.
 	  Say N if you want to disable CPU hotplug.
 
+config SCHED_SMT
+	bool "SMT scheduler support"
+	depends on SMP
+	default off
+	help
+	  Improves the CPU scheduler's decision making when dealing with
+	  Intel IA64 chips with MultiThreading at a cost of slightly increased
+	  overhead in some places. If unsure say N here.
+
 config PREEMPT
 	bool "Preemptible Kernel"
         help
