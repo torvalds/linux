@@ -1,7 +1,7 @@
 #
 # linux/drivers/maps/Makefile
 #
-# $Id: Makefile.common,v 1.24 2005/01/24 00:35:21 bjd Exp $
+# $Id: Makefile.common,v 1.25 2005/02/27 21:50:21 ppopov Exp $
 
 ifeq ($(CONFIG_MTD_COMPLEX_MAPPINGS),y)
 obj-$(CONFIG_MTD)		+= map_funcs.o
@@ -44,10 +44,7 @@ obj-$(CONFIG_MTD_DBOX2)		+= dbox2-flash.o
 obj-$(CONFIG_MTD_OCELOT)	+= ocelot.o
 obj-$(CONFIG_MTD_SOLUTIONENGINE)+= solutionengine.o
 obj-$(CONFIG_MTD_PCI)		+= pci.o
-obj-$(CONFIG_MTD_PB1XXX)	+= pb1xxx-flash.o
-obj-$(CONFIG_MTD_DB1X00)        += db1x00-flash.o
-obj-$(CONFIG_MTD_PB1550)        += pb1550-flash.o
-obj-$(CONFIG_MTD_DB1550)        += db1550-flash.o
+obj-$(CONFIG_MTD_ALCHEMY)       += alchemy-flash.o
 obj-$(CONFIG_MTD_LASAT)		+= lasat.o
 obj-$(CONFIG_MTD_AUTCPU12)	+= autcpu12-nvram.o
 obj-$(CONFIG_MTD_EDB7312)	+= edb7312.o

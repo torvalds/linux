@@ -1,5 +1,5 @@
 # drivers/mtd/maps/Kconfig
-# $Id: Kconfig,v 1.44 2005/02/18 11:03:45 bjd Exp $
+# $Id: Kconfig,v 1.45 2005/02/27 21:50:21 ppopov Exp $
 
 menu "Mapping drivers for chip access"
 	depends on MTD!=n
@@ -213,74 +213,11 @@ config MTD_NETtel
 	help
 	  Support for flash chips on NETtel/SecureEdge/SnapGear boards.
 
-config MTD_PB1XXX
-	tristate "Flash devices on Alchemy PB1xxx boards"
-	depends on MIPS && ( MIPS_PB1000 || MIPS_PB1100 || MIPS_PB1500 )
+config MTD_ALCHEMY
+	tristate '  AMD Alchemy Pb1xxx/Db1xxx/RDK MTD support' 
+	depends on MIPS && SOC_AU1X00
 	help
-	  Flash memory access on Alchemy Pb1000/Pb1100/Pb1500 boards
-
-config MTD_PB1XXX_BOOT
-	bool "PB1x00 boot flash device"
-	depends on MTD_PB1XXX && ( MIPS_PB1100 || MIPS_PB1500 )
-	help
-	  Use the first of the two 32MiB flash banks on Pb1100/Pb1500 board.
-	  You can say 'Y' to both this and 'MTD_PB1XXX_USER' below, to use
-	  both banks.
-
-config MTD_PB1XXX_USER
-	bool "PB1x00 user flash device"
-	depends on MTD_PB1XXX && ( MIPS_PB1100 || MIPS_PB1500 )
-	default y if MTD_PB1XX_BOOT = n
-	help
-	  Use the second of the two 32MiB flash banks on Pb1100/Pb1500 board.
-	  You can say 'Y' to both this and 'MTD_PB1XXX_BOOT' above, to use
-	  both banks.
-
-config MTD_PB1550
-	tristate "Flash devices on Alchemy PB1550 board"
-	depends on MIPS && MIPS_PB1550
-	help
-	  Flash memory access on Alchemy Pb1550 board
-
-config MTD_PB1550_BOOT
-	bool "PB1550 boot flash device"
-	depends on MTD_PB1550
-	help
-	  Use the first of the two 64MiB flash banks on Pb1550 board.
-	  You can say 'Y' to both this and 'MTD_PB1550_USER' below, to use
-	  both banks.
-
-config MTD_PB1550_USER
-	bool "PB1550 user flash device"
-	depends on MTD_PB1550
-	default y if MTD_PB1550_BOOT = n
-	help
-	  Use the second of the two 64MiB flash banks on Pb1550 board.
-	  You can say 'Y' to both this and 'MTD_PB1550_BOOT' above, to use
-	  both banks.
-
-config MTD_DB1550
-	tristate "Flash devices on Alchemy DB1550 board"
-	depends on MIPS && MIPS_DB1550
-	help
-	  Flash memory access on Alchemy Db1550 board
-
-config MTD_DB1550_BOOT
-	bool "DB1550 boot flash device"
-	depends on MTD_DB1550
-	help
-	  Use the first of the two 64MiB flash banks on Db1550 board.
-	  You can say 'Y' to both this and 'MTD_DB1550_USER' below, to use
-	  both banks.
-
-config MTD_DB1550_USER
-	bool "DB1550 user flash device"
-	depends on MTD_DB1550
-	default y if MTD_DB1550_BOOT = n
-	help
-	  Use the second of the two 64MiB flash banks on Db1550 board.
-	  You can say 'Y' to both this and 'MTD_DB1550_BOOT' above, to use
-	  both banks.
+	  Flash memory access on AMD Alchemy Pb/Db/RDK Reference Boards
 
 config MTD_DILNETPC
 	tristate "CFI Flash device mapped on DIL/Net PC"
