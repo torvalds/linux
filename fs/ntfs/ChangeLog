@@ -113,6 +113,8 @@ ToDo/Notes:
 	- Update attribute definition handling.
 	- Add NTFS_MAX_CLUSTER_SIZE and NTFS_MAX_PAGES_PER_CLUSTER constants.
 	- Use NTFS_MAX_CLUSTER_SIZE in super.c instead of hard coding 0x10000.
+	- Use MAX_BUF_PER_PAGE instead of variable sized array allocation for
+	  better code generation and one less sparse warning in fs/ntfs/aops.c.
 
 2.1.22 - Many bug and race fixes and error handling improvements.
 

@@ -825,17 +825,15 @@ static int ntfs_write_mst_block(struct page *page,
 	ntfs_inode *ni = NTFS_I(vi);
 	ntfs_volume *vol = ni->vol;
 	u8 *kaddr;
-	unsigned char bh_size_bits = vi->i_blkbits;
-	unsigned int bh_size = 1 << bh_size_bits;
 	unsigned int rec_size = ni->itype.index.block_size;
 	ntfs_inode *locked_nis[PAGE_CACHE_SIZE / rec_size];
 	struct buffer_head *bh, *head, *tbh, *rec_start_bh;
-	int max_bhs = PAGE_CACHE_SIZE / bh_size;
-	struct buffer_head *bhs[max_bhs];
+	struct buffer_head *bhs[MAX_BUF_PER_PAGE];
 	runlist_element *rl;
-	int i, nr_locked_nis, nr_recs, nr_bhs, bhs_per_rec, err, err2;
-	unsigned rec_size_bits;
+	int i, nr_locked_nis, nr_recs, nr_bhs, max_bhs, bhs_per_rec, err, err2;
+	unsigned bh_size, rec_size_bits;
 	BOOL sync, is_mft, page_is_dirty, rec_is_dirty;
+	unsigned char bh_size_bits;
 
 	ntfs_debug("Entering for inode 0x%lx, attribute type 0x%x, page index "
 			"0x%lx.", vi->i_ino, ni->type, page->index);
@@ -850,7 +848,11 @@ static int ntfs_write_mst_block(struct page *page,
 	 */
 	BUG_ON(!(is_mft || S_ISDIR(vi->i_mode) ||
 			(NInoAttr(ni) && ni->type == AT_INDEX_ALLOCATION)));
+	bh_size_bits = vi->i_blkbits;
+	bh_size = 1 << bh_size_bits;
+	max_bhs = PAGE_CACHE_SIZE / bh_size;
 	BUG_ON(!max_bhs);
+	BUG_ON(max_bhs > MAX_BUF_PER_PAGE);
 
 	/* Were we called for sync purposes? */
 	sync = (wbc->sync_mode == WB_SYNC_ALL);
