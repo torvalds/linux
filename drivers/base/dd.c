@@ -82,6 +82,28 @@ int driver_probe_device(struct device_driver * drv, struct device * dev)
 	return 0;
 }
 
+static int __device_attach(struct device_driver * drv, void * data)
+{
+	struct device * dev = data;
+	int error;
+
+	error = driver_probe_device(drv, dev);
+
+	if (error == -ENODEV && error == -ENXIO) {
+		/* Driver matched, but didn't support device
+		 * or device not found.
+		 * Not an error; keep going.
+		 */
+		error = 0;
+	} else {
+		/* driver matched but the probe failed */
+		printk(KERN_WARNING
+		       "%s: probe of %s failed with error %d\n",
+		       drv->name, dev->bus_id, error);
+	}
+	return 0;
+}
+
 /**
  *	device_attach - try to attach device to a driver.
  *	@dev:	device.
@@ -92,30 +114,31 @@ int driver_probe_device(struct device_driver * drv, struct device * dev)
  */
 int device_attach(struct device * dev)
 {
- 	struct bus_type * bus = dev->bus;
-	struct list_head * entry;
-	int error;
-
 	if (dev->driver) {
 		device_bind_driver(dev);
 		return 1;
 	}
 
-	if (bus->match) {
-		list_for_each(entry, &bus->drivers.list) {
-			struct device_driver * drv = to_drv(entry);
-			error = driver_probe_device(drv, dev);
-			if (!error)
-				/* success, driver matched */
-				return 1;
-			if (error != -ENODEV && error != -ENXIO)
+	return bus_for_each_drv(dev->bus, NULL, dev, __device_attach);
+}
+
+static int __driver_attach(struct device * dev, void * data)
+{
+	struct device_driver * drv = data;
+	int error = 0;
+
+	if (!dev->driver) {
+		error = driver_probe_device(drv, dev);
+		if (error) {
+			if (error != -ENODEV) {
 				/* driver matched but the probe failed */
 				printk(KERN_WARNING
-				    "%s: probe of %s failed with error %d\n",
-				    drv->name, dev->bus_id, error);
+				       "%s: probe of %s failed with error %d\n",
+				       drv->name, dev->bus_id, error);
+			} else
+				error = 0;
 		}
 	}
-
 	return 0;
 }
 
@@ -133,24 +156,7 @@ int device_attach(struct device * dev)
  */
 void driver_attach(struct device_driver * drv)
 {
-	struct bus_type * bus = drv->bus;
-	struct list_head * entry;
-	int error;
-
-	if (!bus->match)
-		return;
-
-	list_for_each(entry, &bus->devices.list) {
-		struct device * dev = container_of(entry, struct device, bus_list);
-		if (!dev->driver) {
-			error = driver_probe_device(drv, dev);
-			if (error && (error != -ENODEV))
-				/* driver matched but the probe failed */
-				printk(KERN_WARNING
-				    "%s: probe of %s failed with error %d\n",
-				    drv->name, dev->bus_id, error);
-		}
-	}
+	bus_for_each_dev(drv->bus, NULL, drv, __driver_attach);
 }
 
 /**
