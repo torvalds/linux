@@ -132,8 +132,7 @@ mca_handler_bh(unsigned long paddr)
 	spin_unlock(&mca_bh_lock);
 
 	/* This process is about to be killed itself */
-	force_sig(SIGKILL, current);
-	schedule();
+	do_exit(SIGKILL);
 }
 
 /**
@@ -439,6 +438,7 @@ recover_from_read_error(slidx_table_t *slidx, peidx_table_t *peidx, pal_bus_chec
 			psr2 = (struct ia64_psr *)&pmsa->pmsa_ipsr;
 			psr2->cpl = 0;
 			psr2->ri  = 0;
+			psr2->i  = 0;
 
 			return 1;
 		}
