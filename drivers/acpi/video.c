@@ -1585,7 +1585,7 @@ acpi_video_switch_output(
 	ACPI_FUNCTION_TRACE("acpi_video_switch_output");
 
 	list_for_each_safe(node, next, &video->video_device_list) {
-		struct acpi_video_device * dev = container_of(node, struct acpi_video_device, entry);
+		dev = container_of(node, struct acpi_video_device, entry);
 		status = acpi_video_device_get_state(dev, &state);
 		if (state & 0x2){
 			dev_next = container_of(node->next, struct acpi_video_device, entry);
