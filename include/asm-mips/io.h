@@ -319,7 +319,8 @@ static inline type pfx##read##bwlq(volatile void __iomem *mem)		\
 	else if (cpu_has_64bits) {					\
 		unsigned long __flags;					\
 									\
-		local_irq_save(__flags);				\
+		if (irq)						\
+			local_irq_save(__flags);			\
 		__asm__ __volatile__(					\
 			".set	mips3"		"\t\t# __readq"	"\n\t"	\
 			"ld	%L0, %1"			"\n\t"	\
@@ -328,7 +329,8 @@ static inline type pfx##read##bwlq(volatile void __iomem *mem)		\
 			".set	mips0"				"\n"	\
 			: "=r" (__val)					\
 			: "m" (*__mem));				\
-		local_irq_restore(__flags);				\
+		if (irq)						\
+			local_irq_restore(__flags);			\
 	} else {							\
 		__val = 0;						\
 		BUG();							\
