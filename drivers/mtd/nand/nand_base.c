@@ -59,7 +59,7 @@
  *	The AG-AND chips have nice features for speed improvement,
  *	which are not supported yet. Read / program 4 pages in one go.
  *
- * $Id: nand_base.c,v 1.138 2005/04/01 07:21:44 gleixner Exp $
+ * $Id: nand_base.c,v 1.139 2005/04/04 18:02:23 dbrown Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -1090,8 +1090,8 @@ static int nand_read_ecc (struct mtd_info *mtd, loff_t from, size_t len,
  * @len:	number of bytes to read
  * @retlen:	pointer to variable to store the number of read bytes
  * @buf:	the databuffer to put data
- * @oob_buf:	filesystem supplied oob data buffer
- * @oobsel:	oob selection structure
+ * @oob_buf:	filesystem supplied oob data buffer (can be NULL)
+ * @oobsel:	oob selection structure (can be NULL)
  * @flags:	flag to indicate if nand_get_device/nand_release_device should be preformed
  *		and how many corrected error bits are acceptable:
  *		  bits 0..7 - number of tolerable errors
@@ -1103,6 +1103,10 @@ int nand_do_read_ecc (struct mtd_info *mtd, loff_t from, size_t len,
 			     size_t * retlen, u_char * buf, u_char * oob_buf, 
 			     struct nand_oobinfo *oobsel, int flags)
 {
+	/* use userspace supplied oobinfo, if zero */
+	if (oobsel == NULL)
+		oobsel = &mtd->oobinfo;
+	
 	int i, j, col, realpage, page, end, ecc, chipnr, sndcmd = 1;
 	int read = 0, oob = 0, ecc_status = 0, ecc_failed = 0;
 	struct nand_chip *this = mtd->priv;
@@ -1130,10 +1134,6 @@ int nand_do_read_ecc (struct mtd_info *mtd, loff_t from, size_t len,
 	if (flags & NAND_GET_DEVICE)
 		nand_get_device (this, mtd, FL_READING);
 
-	/* use userspace supplied oobinfo, if zero */
-	if (oobsel == NULL)
-		oobsel = &mtd->oobinfo;
-	
 	/* Autoplace of oob data ? Use the default placement scheme */
 	if (oobsel->useecc == MTD_NANDECC_AUTOPLACE)
 		oobsel = this->autooob;
