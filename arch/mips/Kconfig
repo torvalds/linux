@@ -692,7 +692,7 @@ config MIPS_PB1100
 config MIPS_PB1500
 	bool "PB1500 board"
 	depends on SOC_AU1500
-	select DMA_COHERENT
+	select DMA_NONCOHERENT
 	select HW_HAS_PCI
 
 config MIPS_PB1550
@@ -716,7 +716,7 @@ config MIPS_DB1100
 config MIPS_DB1500
 	bool "DB1500 board"
 	depends on SOC_AU1500
-	select DMA_COHERENT
+	select DMA_NONCOHERENT
 	select HW_HAS_PCI
 	select MIPS_DISABLE_OBSOLETE_IDE
 
@@ -724,7 +724,7 @@ config MIPS_DB1550
 	bool "DB1550 board"
 	depends on SOC_AU1550
 	select HW_HAS_PCI
-	select DMA_COHERENT
+	select DMA_NONCOHERENT
 	select MIPS_DISABLE_OBSOLETE_IDE
 
 config MIPS_BOSPORUS
