@@ -301,7 +301,7 @@ void sn_dma_flush(uint64_t addr)
 		spin_lock_irqsave(&((struct sn_flush_device_list *)p)->
 				  sfdl_flush_lock, flags);
 
-		p->sfdl_flush_value = 0;
+		*p->sfdl_flush_addr = 0;
 
 		/* force an interrupt. */
 		*(volatile uint32_t *)(p->sfdl_force_int_addr) = 1;
