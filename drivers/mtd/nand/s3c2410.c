@@ -11,9 +11,10 @@
  *	23-Sep-2004  BJD  Mulitple device support
  *	28-Sep-2004  BJD  Fixed ECC placement for Hardware mode
  *	12-Oct-2004  BJD  Fixed errors in use of platform data
- *	18-Feb-2004  BJD  Fix sparse errors
+ *	18-Feb-2005  BJD  Fix sparse errors
+ *	14-Mar-2005  BJD  Applied tglx's code reduction patch
  *
- * $Id: s3c2410.c,v 1.8 2005/02/18 14:46:12 bjd Exp $
+ * $Id: s3c2410.c,v 1.12 2005/03/17 11:31:26 bjd Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -236,6 +237,7 @@ static void s3c2410_nand_select_chip(struct mtd_info *mtd, int chip)
 static void s3c2410_nand_hwcontrol(struct mtd_info *mtd, int cmd)
 {
 	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
+	struct nand_chip *chip = mtd->priv;
 	unsigned long cur;
 
 	switch (cmd) {
@@ -251,116 +253,21 @@ static void s3c2410_nand_hwcontrol(struct mtd_info *mtd, int cmd)
 		writel(cur, info->regs + S3C2410_NFCONF);
 		break;
 
-		/* we don't need to implement these */
 	case NAND_CTL_SETCLE:
-	case NAND_CTL_CLRCLE:
+		chip->IO_ADDR_W    = info->regs + S3C2410_NFCMD;
+		break;
+
 	case NAND_CTL_SETALE:
-	case NAND_CTL_CLRALE:
-		pr_debug(PFX "s3c2410_nand_hwcontrol(%d) unusedn", cmd);
+		chip->IO_ADDR_W    = info->regs + S3C2410_NFADDR;
+		break;
+
+		/* NAND_CTL_CLRCLE: */
+		/* NAND_CTL_CLRALE: */
+	default:
+		chip->IO_ADDR_W    = info->regs + S3C2410_NFDATA;
 		break;
 	}
 }
-
-/* s3c2410_nand_command
- *
- * This function implements sending commands and the relevant address
- * information to the chip, via the hardware controller. Since the
- * S3C2410 generates the correct ALE/CLE signaling automatically, we
- * do not need to use hwcontrol.
-*/
-
-static void s3c2410_nand_command (struct mtd_info *mtd, unsigned command,
-				  int column, int page_addr)
-{
-	register struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
-	register struct nand_chip *this = mtd->priv;
-
-	/*
-	 * Write out the command to the device.
-	 */
-	if (command == NAND_CMD_SEQIN) {
-		int readcmd;
-
-		if (column >= mtd->oobblock) {
-			/* OOB area */
-			column -= mtd->oobblock;
-			readcmd = NAND_CMD_READOOB;
-		} else if (column < 256) {
-			/* First 256 bytes --> READ0 */
-			readcmd = NAND_CMD_READ0;
-		} else {
-			column -= 256;
-			readcmd = NAND_CMD_READ1;
-		}
-		
-		writeb(readcmd, info->regs + S3C2410_NFCMD);
-	}
-	writeb(command, info->regs + S3C2410_NFCMD);
-
-	/* Set ALE and clear CLE to start address cycle */
-
-	if (column != -1 || page_addr != -1) {
-
-		/* Serially input address */
-		if (column != -1) {
-			/* Adjust columns for 16 bit buswidth */
-			if (this->options & NAND_BUSWIDTH_16)
-				column >>= 1;
-			writeb(column, info->regs + S3C2410_NFADDR);
-		}
-		if (page_addr != -1) {
-			writeb((unsigned char) (page_addr), info->regs + S3C2410_NFADDR);
-			writeb((unsigned char) (page_addr >> 8), info->regs + S3C2410_NFADDR);
-			/* One more address cycle for higher density devices */
-			if (this->chipsize & 0x0c000000) 
-				writeb((unsigned char) ((page_addr >> 16) & 0x0f),
-				       info->regs + S3C2410_NFADDR);
-		}
-		/* Latch in address */
-	}
-	
-	/* 
-	 * program and erase have their own busy handlers 
-	 * status and sequential in needs no delay
-	*/
-	switch (command) {
-			
-	case NAND_CMD_PAGEPROG:
-	case NAND_CMD_ERASE1:
-	case NAND_CMD_ERASE2:
-	case NAND_CMD_SEQIN:
-	case NAND_CMD_STATUS:
-		return;
-
-	case NAND_CMD_RESET:
-		if (this->dev_ready)	
-			break;
-
-		udelay(this->chip_delay);
-		writeb(NAND_CMD_STATUS, info->regs + S3C2410_NFCMD);
-
-		while ( !(this->read_byte(mtd) & 0x40));
-		return;
-
-	/* This applies to read commands */	
-	default:
-		/* 
-		 * If we don't have access to the busy pin, we apply the given
-		 * command delay
-		*/
-		if (!this->dev_ready) {
-			udelay (this->chip_delay);
-			return;
-		}	
-	}
-	
-	/* Apply this short delay always to ensure that we do wait tWB in
-	 * any case on any machine. */
-	ndelay (100);
-	/* wait until command is processed */
-	while (!this->dev_ready(mtd));
-}
-
 
 /* s3c2410_nand_devready()
  *
@@ -529,7 +436,6 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 	chip->IO_ADDR_W    = info->regs + S3C2410_NFDATA;
 	chip->hwcontrol    = s3c2410_nand_hwcontrol;
 	chip->dev_ready    = s3c2410_nand_devready;
-	chip->cmdfunc      = s3c2410_nand_command;
 	chip->write_buf    = s3c2410_nand_write_buf;
 	chip->read_buf     = s3c2410_nand_read_buf;
 	chip->select_chip  = s3c2410_nand_select_chip;
