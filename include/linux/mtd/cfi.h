@@ -1,7 +1,7 @@
 
 /* Common Flash Interface structures 
  * See http://support.intel.com/design/flash/technote/index.htm
- * $Id: cfi.h,v 1.50 2004/11/20 12:46:51 dwmw2 Exp $
+ * $Id: cfi.h,v 1.51 2005/02/05 02:06:16 nico Exp $
  */
 
 #ifndef __MTD_CFI_H__
@@ -146,6 +146,14 @@ struct cfi_pri_intelext {
 	uint8_t  FactProtRegSize;
 	uint8_t  UserProtRegSize;
 	uint8_t  extra[0];
+} __attribute__((packed));
+
+struct cfi_intelext_otpinfo {
+	uint32_t ProtRegAddr;
+	uint16_t FactGroups;
+	uint8_t  FactProtRegSize;
+	uint16_t UserGroups;
+	uint8_t  UserProtRegSize;
 } __attribute__((packed));
 
 struct cfi_intelext_blockinfo {

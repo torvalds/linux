@@ -4,7 +4,7 @@
  *
  * (C) 2000 Red Hat. GPL'd
  *
- * $Id: cfi_cmdset_0001.c,v 1.164 2004/11/16 18:29:00 dwmw2 Exp $
+ * $Id: cfi_cmdset_0001.c,v 1.165 2005/02/05 02:06:15 nico Exp $
  *
  * 
  * 10/10/2000	Nicolas Pitre <nico@cam.org>
@@ -252,7 +252,8 @@ read_pri_intelext(struct map_info *map, __u16 adr)
 		int nb_parts, i;
 
 		/* Protection Register info */
-		extra_size += (extp->NumProtectionFields - 1) * (4 + 6);
+		extra_size += (extp->NumProtectionFields - 1) *
+			      sizeof(struct cfi_intelext_otpinfo);
 
 		/* Burst Read info */
 		extra_size += 6;
@@ -471,7 +472,8 @@ static int cfi_intelext_partition_fixup(struct mtd_info *mtd,
 		int offs, numregions, numparts, partshift, numvirtchips, i, j;
 
 		/* Protection Register info */
-		offs = (extp->NumProtectionFields - 1) * (4 + 6);
+		offs = (extp->NumProtectionFields - 1) *
+		       sizeof(struct cfi_intelext_otpinfo);
 
 		/* Burst Read info */
 		offs += 6;
