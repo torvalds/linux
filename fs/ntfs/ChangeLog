@@ -60,6 +60,9 @@ ToDo/Notes:
 	  enable bit which is set appropriately and a per inode sparse disable
 	  bit which is preset on some system file inodes as appropriate.
 	- Enforce that sparse support is disabled on NTFS volumes pre 3.0.
+	- Fix a bug in fs/ntfs/runlist.c::ntfs_mapping_pairs_decompress() in
+	  the creation of the unmapped runlist element for the base attribute
+	  extent.
 
 2.1.22 - Many bug and race fixes and error handling improvements.
 

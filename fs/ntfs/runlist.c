@@ -1,7 +1,7 @@
 /**
  * runlist.c - NTFS runlist handling code.  Part of the Linux-NTFS project.
  *
- * Copyright (c) 2001-2004 Anton Altaparmakov
+ * Copyright (c) 2001-2005 Anton Altaparmakov
  * Copyright (c) 2002 Richard Russon
  *
  * This program/include file is free software; you can redistribute it and/or
@@ -59,7 +59,7 @@ static inline void ntfs_rl_mc(runlist_element *dstbase, int dst,
  *
  * As the runlists grow, more memory will be required.  To prevent the
  * kernel having to allocate and reallocate large numbers of small bits of
- * memory, this function returns and entire page of memory.
+ * memory, this function returns an entire page of memory.
  *
  * It is up to the caller to serialize access to the runlist @rl.
  *
@@ -855,30 +855,42 @@ mpa_err:
 	if (!attr->data.non_resident.lowest_vcn) {
 		VCN max_cluster;
 
-		max_cluster = (sle64_to_cpu(
+		max_cluster = ((sle64_to_cpu(
 				attr->data.non_resident.allocated_size) +
 				vol->cluster_size - 1) >>
-				vol->cluster_size_bits;
+				vol->cluster_size_bits) - 1;
 		/*
-		 * If there is a difference between the highest_vcn and the
-		 * highest cluster, the runlist is either corrupt or, more
-		 * likely, there are more extents following this one.
+		 * A highest_vcn of zero means this is a single extent
+		 * attribute so simply terminate the runlist with LCN_ENOENT).
 		 */
-		if (deltaxcn < --max_cluster) {
-			ntfs_debug("More extents to follow; deltaxcn = 0x%llx, "
-					"max_cluster = 0x%llx",
-					(unsigned long long)deltaxcn,
-					(unsigned long long)max_cluster);
-			rl[rlpos].vcn = vcn;
-			vcn += rl[rlpos].length = max_cluster - deltaxcn;
-			rl[rlpos].lcn = LCN_RL_NOT_MAPPED;
-			rlpos++;
-		} else if (unlikely(deltaxcn > max_cluster)) {
-			ntfs_error(vol->sb, "Corrupt attribute. deltaxcn = "
-					"0x%llx, max_cluster = 0x%llx",
-					(unsigned long long)deltaxcn,
-					(unsigned long long)max_cluster);
-			goto mpa_err;
+		if (deltaxcn) {
+			/*
+			 * If there is a difference between the highest_vcn and
+			 * the highest cluster, the runlist is either corrupt
+			 * or, more likely, there are more extents following
+			 * this one.
+			 */
+			if (deltaxcn < max_cluster) {
+				ntfs_debug("More extents to follow; deltaxcn "
+						"= 0x%llx, max_cluster = "
+						"0x%llx",
+						(unsigned long long)deltaxcn,
+						(unsigned long long)
+						max_cluster);
+				rl[rlpos].vcn = vcn;
+				vcn += rl[rlpos].length = max_cluster -
+						deltaxcn;
+				rl[rlpos].lcn = LCN_RL_NOT_MAPPED;
+				rlpos++;
+			} else if (unlikely(deltaxcn > max_cluster)) {
+				ntfs_error(vol->sb, "Corrupt attribute.  "
+						"deltaxcn = 0x%llx, "
+						"max_cluster = 0x%llx",
+						(unsigned long long)deltaxcn,
+						(unsigned long long)
+						max_cluster);
+				goto mpa_err;
+			}
 		}
 		rl[rlpos].lcn = LCN_ENOENT;
 	} else /* Not the base extent. There may be more extents to follow. */
