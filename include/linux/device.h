@@ -263,7 +263,6 @@ extern void class_device_destroy(struct class *cls, dev_t devt);
 
 struct device {
 	struct list_head node;		/* node in sibling list */
-	struct list_head driver_list;
 	struct list_head children;
 	struct klist_node	knode_driver;
 	struct klist_node	knode_bus;
