@@ -88,6 +88,8 @@ ToDo/Notes:
 	  checked and set in the ntfs inode as done for compressed files and
 	  the compressed size needs to be used for vfs inode->i_blocks instead
 	  of the allocated size, again, as done for compressed files.
+	- Add AT_EA in addition to AT_DATA to whitelist for being allowed to
+	  be non-resident in fs/ntfs/attrib.c::ntfs_attr_can_be_non_resident().
 
 2.1.22 - Many bug and race fixes and error handling improvements.
 
