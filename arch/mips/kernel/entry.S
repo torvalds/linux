@@ -19,11 +19,11 @@
 #include <asm/war.h>
 
 #ifdef CONFIG_PREEMPT
-	.macro	preempt_stop reg=t0
+	.macro	preempt_stop
 	.endm
 #else
-	.macro	preempt_stop reg=t0
-	local_irq_disable \reg
+	.macro	preempt_stop
+	local_irq_disable
 	.endm
 #define resume_kernel	restore_all
 #endif
@@ -37,17 +37,17 @@ FEXPORT(ret_from_irq)
 	andi	t0, t0, KU_USER
 	beqz	t0, resume_kernel
 
-FEXPORT(resume_userspace)
-	local_irq_disable	t0	# make sure we dont miss an
+resume_userspace:
+	local_irq_disable		# make sure we dont miss an
 					# interrupt setting need_resched
 					# between sampling and return
 	LONG_L	a2, TI_FLAGS($28)	# current->work
-	andi	a2, _TIF_WORK_MASK	# (ignoring syscall_trace)
-	bnez	a2, work_pending
+	andi	t0, a2, _TIF_WORK_MASK	# (ignoring syscall_trace)
+	bnez	t0, work_pending
 	j	restore_all
 
 #ifdef CONFIG_PREEMPT
-ENTRY(resume_kernel)
+resume_kernel:
 	lw	t0, TI_PRE_COUNT($28)
 	bnez	t0, restore_all
 need_resched:
@@ -59,10 +59,10 @@ need_resched:
 	beqz	t0, restore_all
 	li	t0, PREEMPT_ACTIVE
 	sw	t0, TI_PRE_COUNT($28)
-	local_irq_enable t0
+	local_irq_enable
 	jal	schedule
 	sw	zero, TI_PRE_COUNT($28)
-	local_irq_disable t0
+	local_irq_disable
 	b	need_resched
 #endif
 
@@ -88,13 +88,13 @@ FEXPORT(restore_partial)		# restore partial frame
 	RESTORE_SP_AND_RET
 	.set	at
 
-FEXPORT(work_pending)
-	andi	t0, a2, _TIF_NEED_RESCHED
+work_pending:
+	andi	t0, a2, _TIF_NEED_RESCHED # a2 is preloaded with TI_FLAGS
 	beqz	t0, work_notifysig
 work_resched:
 	jal	schedule
 
-	local_irq_disable t0		# make sure need_resched and
+	local_irq_disable		# make sure need_resched and
 					# signals dont change between
 					# sampling and return
 	LONG_L	a2, TI_FLAGS($28)
@@ -113,11 +113,10 @@ work_notifysig:				# deal with pending signals and
 
 FEXPORT(syscall_exit_work_partial)
 	SAVE_STATIC
-FEXPORT(syscall_exit_work)
-	LONG_L	t0, TI_FLAGS($28)
-	li	t1, _TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT
-	and	t0, t1
-	beqz	t0, work_pending	# trace bit is set
+syscall_exit_work:
+	li	t0, _TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT
+	and	t0, a2			# a2 is preloaded with TI_FLAGS
+	beqz	t0, work_pending	# trace bit set?
 	local_irq_enable		# could let do_syscall_trace()
 					# call schedule() instead
 	move	a0, sp
