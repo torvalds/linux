@@ -48,6 +48,7 @@ resume_userspace:
 
 #ifdef CONFIG_PREEMPT
 resume_kernel:
+	local_irq_disable
 	lw	t0, TI_PRE_COUNT($28)
 	bnez	t0, restore_all
 need_resched:
@@ -59,11 +60,7 @@ need_resched:
 	beqz	t0, restore_all
 	li	t0, PREEMPT_ACTIVE
 	sw	t0, TI_PRE_COUNT($28)
-	local_irq_enable
-	jal	schedule
-	sw	zero, TI_PRE_COUNT($28)
-	local_irq_disable
-	b	need_resched
+	jal	preempt_schedule_irq
 #endif
 
 FEXPORT(ret_from_fork)
