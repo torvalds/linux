@@ -9,7 +9,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: wbuf.c,v 1.83 2005/01/24 21:24:15 hammache Exp $
+ * $Id: wbuf.c,v 1.84 2005/01/25 20:11:11 hammache Exp $
  *
  */
 
@@ -147,8 +147,7 @@ static void jffs2_block_refile(struct jffs2_sb_info *c, struct jffs2_eraseblock 
 		D1(printk("Refiling block at %08x to bad_used_list\n", jeb->offset));
 		list_add(&jeb->list, &c->bad_used_list);
 	} else {
-		if (allow_empty == REFILE_NOTEMPTY)
-			BUG();
+		BUG_ON(allow_empty == REFILE_NOTEMPTY);
 		/* It has to have had some nodes or we couldn't be here */
 		D1(printk("Refiling block at %08x to erase_pending_list\n", jeb->offset));
 		list_add(&jeb->list, &c->erase_pending_list);
@@ -268,16 +267,15 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 	ret = jffs2_reserve_space_gc(c, end-start, &ofs, &len);
 	if (ret) {
 		printk(KERN_WARNING "Failed to allocate space for wbuf recovery. Data loss ensues.\n");
-		if (buf)
-			kfree(buf);
+		kfree(buf);
 		return;
 	}
 	if (end-start >= c->wbuf_pagesize) {
 		/* Need to do another write immediately, but it's possible
-		that this is just because the wbuf itself is completely
-		full, and there's nothing earlier read back from the 
-		flash. Hence 'buf' isn't necessarily what we're writing 
-		from. */
+		   that this is just because the wbuf itself is completely
+		   full, and there's nothing earlier read back from the 
+		   flash. Hence 'buf' isn't necessarily what we're writing 
+		   from. */
 		unsigned char *rewrite_buf = buf?:c->wbuf;
 		uint32_t towrite = (end-start) - ((end-start)%c->wbuf_pagesize);
 
@@ -303,8 +301,7 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 		if (ret || retlen != towrite) {
 			/* Argh. We tried. Really we did. */
 			printk(KERN_CRIT "Recovery of wbuf failed due to a second write error\n");
-			if (buf)
-				kfree(buf);
+			kfree(buf);
 
 			if (retlen) {
 				struct jffs2_raw_node_ref *raw2;
@@ -555,9 +552,7 @@ int jffs2_flush_wbuf_gc(struct jffs2_sb_info *c, uint32_t ino)
 		/* retry flushing wbuf in case jffs2_wbuf_recover
 		   left some data in the wbuf */
 		if (ret)
-		{
 			ret = __jffs2_flush_wbuf(c, PAD_ACCOUNTING);
-		}
 		up_write(&c->wbuf_sem);
 	} else while (old_wbuf_len &&
 		      old_wbuf_ofs == c->wbuf_ofs) {
@@ -575,9 +570,7 @@ int jffs2_flush_wbuf_gc(struct jffs2_sb_info *c, uint32_t ino)
 			/* retry flushing wbuf in case jffs2_wbuf_recover
 			   left some data in the wbuf */
 			if (ret)
-			{
 				ret = __jffs2_flush_wbuf(c, PAD_ACCOUNTING);
-			}
 			up_write(&c->wbuf_sem);
 			break;
 		}

@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: write.c,v 1.88 2005/01/24 21:13:39 hammache Exp $
+ * $Id: write.c,v 1.90 2005/01/28 18:53:01 hammache Exp $
  *
  */
 
@@ -136,19 +136,13 @@ struct jffs2_full_dnode *jffs2_write_dnode(struct jffs2_sb_info *c, struct jffs2
 	raw->__totlen = PAD(sizeof(*ri)+datalen);
 	raw->next_phys = NULL;
 
-	if ((alloc_mode!=ALLOC_GC) && (je32_to_cpu(ri->version) < f->highest_version))
-	{
-		if (! retried)
-		{
-			BUG();
-		}
-		else
-		{
-			D1(printk(KERN_DEBUG "jffs2_write_dnode : dnode_version %d,  highest version %d -> updating dnode\n", 
-					     je32_to_cpu(ri->version), f->highest_version));
-			ri->version = cpu_to_je32(++f->highest_version);
-			ri->node_crc = cpu_to_je32(crc32(0, ri, sizeof(*ri)-8));
-		}
+	if ((alloc_mode!=ALLOC_GC) && (je32_to_cpu(ri->version) < f->highest_version)) {
+		BUG_ON(!retried);
+		D1(printk(KERN_DEBUG "jffs2_write_dnode : dnode_version %d, "
+				"highest version %d -> updating dnode\n", 
+				je32_to_cpu(ri->version), f->highest_version));
+		ri->version = cpu_to_je32(++f->highest_version);
+		ri->node_crc = cpu_to_je32(crc32(0, ri, sizeof(*ri)-8));
 	}
 
 	ret = jffs2_flash_writev(c, vecs, cnt, flash_ofs, &retlen,
@@ -295,20 +289,14 @@ struct jffs2_full_dirent *jffs2_write_dirent(struct jffs2_sb_info *c, struct jff
 	raw->__totlen = PAD(sizeof(*rd)+namelen);
 	raw->next_phys = NULL;
 
-	if ((alloc_mode!=ALLOC_GC) && (je32_to_cpu(rd->version) < f->highest_version))
-	{
-		if (! retried)
-		{
-			BUG();
-		}
-		else
-		{
-			D1(printk(KERN_DEBUG "jffs2_write_dirent : dirent_version %d,  highest version %d -> updating dirent\n", 
-					     je32_to_cpu(rd->version), f->highest_version));
-			rd->version = cpu_to_je32(++f->highest_version);
-			fd->version = je32_to_cpu(rd->version);
-			rd->node_crc = cpu_to_je32(crc32(0, rd, sizeof(*rd)-8));
-		}
+	if ((alloc_mode!=ALLOC_GC) && (je32_to_cpu(rd->version) < f->highest_version)) {
+		BUG_ON(!retried);
+		D1(printk(KERN_DEBUG "jffs2_write_dirent : dirent_version %d, "
+				     "highest version %d -> updating dirent\n",
+				     je32_to_cpu(rd->version), f->highest_version));
+		rd->version = cpu_to_je32(++f->highest_version);
+		fd->version = je32_to_cpu(rd->version);
+		rd->node_crc = cpu_to_je32(crc32(0, rd, sizeof(*rd)-8));
 	}
 
 	ret = jffs2_flash_writev(c, vecs, 2, flash_ofs, &retlen,

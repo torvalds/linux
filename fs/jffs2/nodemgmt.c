@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: nodemgmt.c,v 1.116 2005/01/24 21:30:22 hammache Exp $
+ * $Id: nodemgmt.c,v 1.117 2005/01/25 20:11:11 hammache Exp $
  *
  */
 
@@ -310,8 +310,8 @@ int jffs2_add_physical_node_ref(struct jffs2_sb_info *c, struct jffs2_raw_node_r
 #if 1
 	/* we could get some obsolete nodes after nextblock was refiled
 	   in wbuf.c */
-	if (  (c->nextblock || !ref_obsolete(new))
-	    &&(jeb != c->nextblock || (ref_offset(new)) != jeb->offset + (c->sector_size - jeb->free_size))) {
+	if ((c->nextblock || !ref_obsolete(new))
+	    &&(jeb != c->nextblock || ref_offset(new) != jeb->offset + (c->sector_size - jeb->free_size))) {
 		printk(KERN_WARNING "argh. node added in wrong place\n");
 		jffs2_free_raw_node_ref(new);
 		return -EINVAL;
@@ -335,7 +335,7 @@ int jffs2_add_physical_node_ref(struct jffs2_sb_info *c, struct jffs2_raw_node_r
 		c->used_size += len;
 	}
 
-	if (!jeb->free_size && !jeb->dirty_size && !jeb->wasted_size) {
+	if (!jeb->free_size && !jeb->dirty_size && !ISDIRTY(jeb->wasted_size)) {
 		/* If it lives on the dirty_list, jffs2_reserve_space will put it there */
 		D1(printk(KERN_DEBUG "Adding full erase block at 0x%08x to clean_list (free 0x%08x, dirty 0x%08x, used 0x%08x\n",
 			  jeb->offset, jeb->free_size, jeb->dirty_size, jeb->used_size));
