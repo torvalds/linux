@@ -84,6 +84,10 @@ ToDo/Notes:
 	- Make fs/ntfs/namei.c::ntfs_get_{parent,dentry} static and move the
 	  definition of ntfs_export_ops from fs/ntfs/super.c to namei.c.  Also,
 	  declare ntfs_export_ops in fs/ntfs/ntfs.h.
+	- Correct sparse file handling.  The compressed values need to be
+	  checked and set in the ntfs inode as done for compressed files and
+	  the compressed size needs to be used for vfs inode->i_blocks instead
+	  of the allocated size, again, as done for compressed files.
 
 2.1.22 - Many bug and race fixes and error handling improvements.
 

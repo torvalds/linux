@@ -749,10 +749,11 @@ typedef struct {
 				record header aligned to 8-byte boundary. */
 /* 34*/			u8 compression_unit; /* The compression unit expressed
 				as the log to the base 2 of the number of
-				clusters in a compression unit. 0 means not
-				compressed. (This effectively limits the
+				clusters in a compression unit.  0 means not
+				compressed.  (This effectively limits the
 				compression unit size to be a power of two
-				clusters.) WinNT4 only uses a value of 4. */
+				clusters.)  WinNT4 only uses a value of 4.
+				Sparse files also have this set to 4. */
 /* 35*/			u8 reserved[5];		/* Align to 8-byte boundary. */
 /* The sizes below are only used when lowest_vcn is zero, as otherwise it would
    be difficult to keep them up-to-date.*/
@@ -772,10 +773,10 @@ typedef struct {
 				data_size. */
 /* sizeof(uncompressed attr) = 64*/
 /* 64*/			sle64 compressed_size;	/* Byte size of the attribute
-				value after compression. Only present when
-				compressed. Always is a multiple of the
-				cluster size. Represents the actual amount of
-				disk space being used on the disk. */
+				value after compression.  Only present when
+				compressed or sparse.  Always is a multiple of
+				the cluster size.  Represents the actual amount
+				of disk space being used on the disk. */
 /* sizeof(compressed attr) = 72*/
 		} __attribute__ ((__packed__)) non_resident;
 	} __attribute__ ((__packed__)) data;

@@ -1016,26 +1016,31 @@ skip_large_dir_stuff:
 		/* Setup the state. */
 		if (a->non_resident) {
 			NInoSetNonResident(ni);
-			if (a->flags & ATTR_COMPRESSION_MASK) {
-				NInoSetCompressed(ni);
-				if (vol->cluster_size > 4096) {
-					ntfs_error(vi->i_sb, "Found "
-						"compressed data but "
-						"compression is disabled due "
-						"to cluster size (%i) > 4kiB.",
-						vol->cluster_size);
-					goto unm_err_out;
+			if (a->flags & (ATTR_COMPRESSION_MASK |
+					ATTR_IS_SPARSE)) {
+				if (a->flags & ATTR_COMPRESSION_MASK) {
+					NInoSetCompressed(ni);
+					if (vol->cluster_size > 4096) {
+						ntfs_error(vi->i_sb, "Found "
+							"compressed data but "
+							"compression is "
+							"disabled due to "
+							"cluster size (%i) > "
+							"4kiB.",
+							vol->cluster_size);
+						goto unm_err_out;
+					}
+					if ((a->flags & ATTR_COMPRESSION_MASK)
+							!= ATTR_IS_COMPRESSED) {
+						ntfs_error(vi->i_sb, "Found "
+							"unknown compression "
+							"method or corrupt "
+							"file.");
+						goto unm_err_out;
+					}
 				}
-				if ((a->flags & ATTR_COMPRESSION_MASK)
-						!= ATTR_IS_COMPRESSED) {
-					ntfs_error(vi->i_sb, "Found "
-						"unknown compression method or "
-						"corrupt file.");
-					goto unm_err_out;
-				}
-				ni->itype.compressed.block_clusters = 1U <<
-						a->data.non_resident.
-						compression_unit;
+				if (a->flags & ATTR_IS_SPARSE)
+					NInoSetSparse(ni);
 				if (a->data.non_resident.compression_unit !=
 						4) {
 					ntfs_error(vi->i_sb, "Found "
@@ -1047,12 +1052,19 @@ skip_large_dir_stuff:
 					err = -EOPNOTSUPP;
 					goto unm_err_out;
 				}
+				ni->itype.compressed.block_clusters = 1U <<
+						a->data.non_resident.
+						compression_unit;
 				ni->itype.compressed.block_size = 1U << (
 						a->data.non_resident.
 						compression_unit +
 						vol->cluster_size_bits);
 				ni->itype.compressed.block_size_bits = ffs(
-					ni->itype.compressed.block_size) - 1;
+						ni->itype.compressed.
+						block_size) - 1;
+				ni->itype.compressed.size = sle64_to_cpu(
+						a->data.non_resident.
+						compressed_size);
 			}
 			if (a->flags & ATTR_IS_ENCRYPTED) {
 				if (a->flags & ATTR_COMPRESSION_MASK) {
@@ -1062,27 +1074,19 @@ skip_large_dir_stuff:
 				}
 				NInoSetEncrypted(ni);
 			}
-			if (a->flags & ATTR_IS_SPARSE)
-				NInoSetSparse(ni);
 			if (a->data.non_resident.lowest_vcn) {
 				ntfs_error(vi->i_sb, "First extent of $DATA "
 						"attribute has non zero "
 						"lowest_vcn.");
 				goto unm_err_out;
 			}
-			/* Setup all the sizes. */
 			vi->i_size = sle64_to_cpu(
 					a->data.non_resident.data_size);
 			ni->initialized_size = sle64_to_cpu(
 					a->data.non_resident.initialized_size);
 			ni->allocated_size = sle64_to_cpu(
 					a->data.non_resident.allocated_size);
-			if (NInoCompressed(ni))
-				ni->itype.compressed.size = sle64_to_cpu(
-						a->data.non_resident.
-						compressed_size);
 		} else { /* Resident attribute. */
-			/* Setup all the sizes. */
 			vi->i_size = ni->initialized_size = le32_to_cpu(
 					a->data.resident.value_length);
 			ni->allocated_size = le32_to_cpu(a->length) -
@@ -1120,11 +1124,10 @@ no_data_attr_special_case:
 	 * sizes of all non-resident attributes present to give us the Linux
 	 * correct size that should go into i_blocks (after division by 512).
 	 */
-	if (S_ISDIR(vi->i_mode) || !NInoCompressed(ni))
-		vi->i_blocks = ni->allocated_size >> 9;
-	else
+	if (S_ISREG(vi->i_mode) && (NInoCompressed(ni) || NInoSparse(ni)))
 		vi->i_blocks = ni->itype.compressed.size >> 9;
-
+	else
+		vi->i_blocks = ni->allocated_size >> 9;
 	ntfs_debug("Done.");
 	return 0;
 
@@ -1226,14 +1229,13 @@ static int ntfs_read_locked_attr_inode(struct inode *base_vi, struct inode *vi)
 					"linux-ntfs-dev@lists.sourceforge.net");
 			goto unm_err_out;
 		}
-		/* Resident attribute.  Setup all the sizes. */
 		vi->i_size = ni->initialized_size = le32_to_cpu(
 				a->data.resident.value_length);
 		ni->allocated_size = le32_to_cpu(a->length) -
 				le16_to_cpu(a->data.resident.value_offset);
 		if (vi->i_size > ni->allocated_size) {
-			ntfs_error(vi->i_sb, "Resident data attribute is "
-					"corrupt (size exceeds allocation).");
+			ntfs_error(vi->i_sb, "Resident attribute is corrupt "
+					"(size exceeds allocation).");
 			goto unm_err_out;
 		}
 	} else {
@@ -1249,43 +1251,50 @@ static int ntfs_read_locked_attr_inode(struct inode *base_vi, struct inode *vi)
 					"the mapping pairs array.");
 			goto unm_err_out;
 		}
-		if (a->flags & ATTR_COMPRESSION_MASK) {
+		if (a->flags & (ATTR_COMPRESSION_MASK | ATTR_IS_SPARSE)) {
+			if (a->flags & ATTR_COMPRESSION_MASK) {
+				NInoSetCompressed(ni);
+				if ((ni->type != AT_DATA) || (ni->type ==
+						AT_DATA && ni->name_len)) {
+					ntfs_error(vi->i_sb, "Found compressed "
+							"non-data or named "
+							"data attribute.  "
+							"Please report you "
+							"saw this message to "
+							"linux-ntfs-dev@lists."
+							"sourceforge.net");
+					goto unm_err_out;
+				}
+				if (vol->cluster_size > 4096) {
+					ntfs_error(vi->i_sb, "Found compressed "
+							"attribute but "
+							"compression is "
+							"disabled due to "
+							"cluster size (%i) > "
+							"4kiB.",
+							vol->cluster_size);
+					goto unm_err_out;
+				}
+				if ((a->flags & ATTR_COMPRESSION_MASK) !=
+						ATTR_IS_COMPRESSED) {
+					ntfs_error(vi->i_sb, "Found unknown "
+							"compression method.");
+					goto unm_err_out;
+				}
+			}
 			if (NInoMstProtected(ni)) {
 				ntfs_error(vi->i_sb, "Found mst protected "
 						"attribute but the attribute "
-						"is compressed.  Please report "
-						"you saw this message to "
+						"is %s.  Please report you "
+						"saw this message to "
 						"linux-ntfs-dev@lists."
-						"sourceforge.net");
+						"sourceforge.net",
+						NInoCompressed(ni) ?
+						"compressed" : "sparse");
 				goto unm_err_out;
 			}
-			NInoSetCompressed(ni);
-			if ((ni->type != AT_DATA) || (ni->type == AT_DATA &&
-					ni->name_len)) {
-				ntfs_error(vi->i_sb, "Found compressed "
-						"non-data or named data "
-						"attribute.  Please report "
-						"you saw this message to "
-						"linux-ntfs-dev@lists."
-						"sourceforge.net");
-				goto unm_err_out;
-			}
-			if (vol->cluster_size > 4096) {
-				ntfs_error(vi->i_sb, "Found compressed "
-						"attribute but compression is "
-						"disabled due to cluster size "
-						"(%i) > 4kiB.",
-						vol->cluster_size);
-				goto unm_err_out;
-			}
-			if ((a->flags & ATTR_COMPRESSION_MASK) !=
-					ATTR_IS_COMPRESSED) {
-				ntfs_error(vi->i_sb, "Found unknown "
-						"compression method.");
-				goto unm_err_out;
-			}
-			ni->itype.compressed.block_clusters = 1U <<
-					a->data.non_resident.compression_unit;
+			if (a->flags & ATTR_IS_SPARSE)
+				NInoSetSparse(ni);
 			if (a->data.non_resident.compression_unit != 4) {
 				ntfs_error(vi->i_sb, "Found nonstandard "
 						"compression unit (%u instead "
@@ -1295,11 +1304,15 @@ static int ntfs_read_locked_attr_inode(struct inode *base_vi, struct inode *vi)
 				err = -EOPNOTSUPP;
 				goto unm_err_out;
 			}
+			ni->itype.compressed.block_clusters = 1U <<
+					a->data.non_resident.compression_unit;
 			ni->itype.compressed.block_size = 1U << (
 					a->data.non_resident.compression_unit +
 					vol->cluster_size_bits);
 			ni->itype.compressed.block_size_bits = ffs(
 					ni->itype.compressed.block_size) - 1;
+			ni->itype.compressed.size = sle64_to_cpu(
+					a->data.non_resident.compressed_size);
 		}
 		if (a->flags & ATTR_IS_ENCRYPTED) {
 			if (a->flags & ATTR_COMPRESSION_MASK) {
@@ -1318,34 +1331,17 @@ static int ntfs_read_locked_attr_inode(struct inode *base_vi, struct inode *vi)
 			}
 			NInoSetEncrypted(ni);
 		}
-		if (a->flags & ATTR_IS_SPARSE) {
-			if (NInoMstProtected(ni)) {
-				ntfs_error(vi->i_sb, "Found mst protected "
-						"attribute but the attribute "
-						"is sparse.  Please report "
-						"you saw this message to "
-						"linux-ntfs-dev@lists."
-						"sourceforge.net");
-				goto unm_err_out;
-			}
-			NInoSetSparse(ni);
-		}
 		if (a->data.non_resident.lowest_vcn) {
 			ntfs_error(vi->i_sb, "First extent of attribute has "
 					"non-zero lowest_vcn.");
 			goto unm_err_out;
 		}
-		/* Setup all the sizes. */
 		vi->i_size = sle64_to_cpu(a->data.non_resident.data_size);
 		ni->initialized_size = sle64_to_cpu(
 				a->data.non_resident.initialized_size);
 		ni->allocated_size = sle64_to_cpu(
 				a->data.non_resident.allocated_size);
-		if (NInoCompressed(ni))
-			ni->itype.compressed.size = sle64_to_cpu(
-					a->data.non_resident.compressed_size);
 	}
-
 	/* Setup the operations for this attribute inode. */
 	vi->i_op = NULL;
 	vi->i_fop = NULL;
@@ -1353,12 +1349,10 @@ static int ntfs_read_locked_attr_inode(struct inode *base_vi, struct inode *vi)
 		vi->i_mapping->a_ops = &ntfs_mst_aops;
 	else
 		vi->i_mapping->a_ops = &ntfs_aops;
-
-	if (!NInoCompressed(ni))
-		vi->i_blocks = ni->allocated_size >> 9;
-	else
+	if (NInoCompressed(ni) || NInoSparse(ni))
 		vi->i_blocks = ni->itype.compressed.size >> 9;
-
+	else
+		vi->i_blocks = ni->allocated_size >> 9;
 	/*
 	 * Make sure the base inode doesn't go away and attach it to the
 	 * attribute inode.
@@ -1643,7 +1637,6 @@ skip_large_index_stuff:
 	vi->i_fop = NULL;
 	vi->i_mapping->a_ops = &ntfs_mst_aops;
 	vi->i_blocks = ni->allocated_size >> 9;
-
 	/*
 	 * Make sure the base inode doesn't go away and attach it to the
 	 * index inode.
@@ -1728,7 +1721,6 @@ int ntfs_read_inode_mount(struct inode *vi)
 	ni->type = AT_DATA;
 	ni->name = NULL;
 	ni->name_len = 0;
-
 	/*
 	 * This sets up our little cheat allowing us to reuse the async read io
 	 * completion handler for directories.
