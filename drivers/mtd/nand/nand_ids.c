@@ -3,7 +3,7 @@
  *
  *  Copyright (C) 2002 Thomas Gleixner (tglx@linutronix.de)
   *
- * $Id: nand_ids.c,v 1.10 2004/05/26 13:40:12 gleixner Exp $
+ * $Id: nand_ids.c,v 1.11 2005/01/17 18:26:27 dmarlin Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -103,7 +103,7 @@ struct nand_flash_dev nand_flash_ids[] = {
 	 * Anyway JFFS2 would increase the eraseblock size so we chose a combined one which can be erased in one go
 	 * There are more speed improvements for reads and writes possible, but not implemented now 
 	 */
-	{"AND 128MiB 3,3V 8-bit",	0x01, 2048, 128, 0x4000, NAND_IS_AND | NAND_NO_AUTOINCR | NAND_4PAGE_ARRAY},
+	{"AND 128MiB 3,3V 8-bit",	0x01, 2048, 128, 0x4000, NAND_IS_AND | NAND_NO_AUTOINCR | NAND_4PAGE_ARRAY | BBT_AUTO_REFRESH},
 
 	{NULL,}
 };

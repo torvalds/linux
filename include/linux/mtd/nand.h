@@ -5,7 +5,7 @@
  *                     Steven J. Hill <sjhill@realitydiluted.com>
  *		       Thomas Gleixner <tglx@linutronix.de>
  *
- * $Id: nand.h,v 1.68 2004/11/12 10:40:37 gleixner Exp $
+ * $Id: nand.h,v 1.69 2005/01/17 18:29:18 dmarlin Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -48,6 +48,8 @@
  *  02-08-2004 tglx 	added option field to nand structure for chip anomalities
  *  05-25-2004 tglx 	added bad block table support, ST-MICRO manufacturer id
  *			update of nand_chip structure description
+ *  01-17-2005 dmarlin	added extended commands for AG-AND device and added option 
+ * 			for BBT_AUTO_REFRESH.
  */
 #ifndef __LINUX_MTD_NAND_H
 #define __LINUX_MTD_NAND_H
@@ -115,6 +117,25 @@ extern int nand_read_raw (struct mtd_info *mtd, uint8_t *buf, loff_t from, size_
 #define NAND_CMD_READSTART	0x30
 #define NAND_CMD_CACHEDPROG	0x15
 
+/* Extended commands for AG-AND device */
+/* 
+ * Note: the command for NAND_CMD_DEPLETE1 is really 0x00 but 
+ *       there is no way to distinguish that from NAND_CMD_READ0
+ *       until the remaining sequence of commands has been completed
+ *       so add a high order bit and mask it off in the command.
+ */
+#define NAND_CMD_DEPLETE1	0x100
+#define NAND_CMD_DEPLETE2	0x38
+#define NAND_CMD_STATUS_MULTI	0x71
+#define NAND_CMD_STATUS_ERROR	0x72
+/* multi-bank error status (banks 0-3) */
+#define NAND_CMD_STATUS_ERROR0	0x73
+#define NAND_CMD_STATUS_ERROR1	0x74
+#define NAND_CMD_STATUS_ERROR2	0x75
+#define NAND_CMD_STATUS_ERROR3	0x76
+#define NAND_CMD_STATUS_RESET	0x7f
+#define NAND_CMD_STATUS_CLEAR	0xff
+
 /* Status bits */
 #define NAND_STATUS_FAIL	0x01
 #define NAND_STATUS_FAIL_N1	0x02
@@ -170,6 +191,10 @@ extern int nand_read_raw (struct mtd_info *mtd, uint8_t *buf, loff_t from, size_
 /* Chip has a array of 4 pages which can be read without
  * additional ready /busy waits */
 #define NAND_4PAGE_ARRAY	0x00000040 
+/* Chip requires that BBT is periodically rewritten to prevent
+ * bits from adjacent blocks from 'leaking' in altering data.
+ * This happens with the Renesas AG-AND chips, possibly others.  */
+#define BBT_AUTO_REFRESH	0x00000080
 
 /* Options valid for Samsung large page devices */
 #define NAND_SAMSUNG_LP_OPTIONS \
