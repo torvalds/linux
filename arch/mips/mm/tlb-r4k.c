@@ -100,7 +100,7 @@ void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 					continue;
 				/* Make sure all entries differ. */
 				write_c0_entryhi(CKSEG0 +
-				                 (idx << (PAGE_SHIFT + 1)));
+						 (idx << (PAGE_SHIFT + 1)));
 				mtc0_tlbw_hazard();
 				tlb_write_indexed();
 			}
@@ -250,13 +250,13 @@ void __update_tlb(struct vm_area_struct * vma, unsigned long address, pte_t pte)
 	idx = read_c0_index();
 	ptep = pte_offset_map(pmdp, address);
 
- #if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32)
- 	write_c0_entrylo0(ptep->pte_high);
- 	ptep++;
- 	write_c0_entrylo1(ptep->pte_high);
+#if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32)
+	write_c0_entrylo0(ptep->pte_high);
+	ptep++;
+	write_c0_entrylo1(ptep->pte_high);
 #else
-  	write_c0_entrylo0(pte_val(*ptep++) >> 6);
-  	write_c0_entrylo1(pte_val(*ptep) >> 6);
+	write_c0_entrylo0(pte_val(*ptep++) >> 6);
+	write_c0_entrylo1(pte_val(*ptep) >> 6);
 #endif
 	write_c0_entryhi(address | pid);
 	mtc0_tlbw_hazard();
@@ -357,7 +357,8 @@ __init int add_temporary_entry(unsigned long entrylo0, unsigned long entrylo1,
 	old_pagemask = read_c0_pagemask();
 	wired = read_c0_wired();
 	if (--temp_tlb_entry < wired) {
-		printk(KERN_WARNING "No TLB space left for add_temporary_entry\n");
+		printk(KERN_WARNING
+		       "No TLB space left for add_temporary_entry\n");
 		ret = -ENOSPC;
 		goto out;
 	}
@@ -388,7 +389,7 @@ static void __init probe_tlb(unsigned long config)
 	 * is not supported, we assume R4k style.  Cpu probing already figured
 	 * out the number of tlb entries.
 	 */
-	if ((c->processor_id  & 0xff0000) == PRID_COMP_LEGACY)
+	if ((c->processor_id & 0xff0000) == PRID_COMP_LEGACY)
 		return;
 
 	reg = read_c0_config1();
