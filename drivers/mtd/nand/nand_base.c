@@ -59,7 +59,7 @@
  *	The AG-AND chips have nice features for speed improvement,
  *	which are not supported yet. Read / program 4 pages in one go.
  *
- * $Id: nand_base.c,v 1.131 2005/02/09 12:19:56 gleixner Exp $
+ * $Id: nand_base.c,v 1.132 2005/02/09 14:49:56 dedekind Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -461,7 +461,8 @@ static int nand_default_block_markbad(struct mtd_info *mtd, loff_t ofs)
 	
 	/* Get block number */
 	block = ((int) ofs) >> this->bbt_erase_shift;
-	this->bbt[block >> 2] |= 0x01 << ((block & 0x03) << 1);
+	if (this->bbt)
+		this->bbt[block >> 2] |= 0x01 << ((block & 0x03) << 1);
 
 	/* Do we have a flash based bad block table ? */
 	if (this->options & NAND_USE_FLASH_BBT)
