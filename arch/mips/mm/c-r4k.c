@@ -380,7 +380,7 @@ static inline void local_r4k_flush_cache_page(void *args)
 	 * If ownes no valid ASID yet, cannot possibly have gotten
 	 * this page into the cache.
 	 */
-	if (cpu_context(smp_processor_id(), vma->vm_mm) == 0)
+	if (cpu_context(smp_processor_id(), mm) == 0)
 		return;
 
 	page &= PAGE_MASK;
@@ -428,8 +428,8 @@ static inline void local_r4k_flush_cache_page(void *args)
 		if (cpu_has_vtag_icache) {
 			int cpu = smp_processor_id();
 
-			if (cpu_context(cpu, vma->vm_mm) != 0)
-				drop_mmu_context(vma->vm_mm, cpu);
+			if (cpu_context(cpu, mm) != 0)
+				drop_mmu_context(mm, cpu);
 		} else
 			r4k_blast_icache_page_indexed(page);
 	}
