@@ -31,7 +31,7 @@ void disable_8259A_irq(unsigned int irq);
  * moves to arch independent land
  */
 
-spinlock_t DEFINE_SPINLOCK(i8259A_lock);
+DEFINE_SPINLOCK(i8259A_lock);
 
 static void end_8259A_irq (unsigned int irq)
 {
