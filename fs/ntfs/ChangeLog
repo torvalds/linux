@@ -97,6 +97,7 @@ ToDo/Notes:
 	  whether someone else did not already do the work we wanted to do.
 	- Rename fs/ntfs/attrib.c::ntfs_find_vcn_nolock() to
 	  ntfs_attr_find_vcn_nolock() and update all callers.
+	- Add fs/ntfs/attrib.[hc]::ntfs_attr_make_non_resident().
 
 2.1.22 - Many bug and race fixes and error handling improvements.
 

@@ -25,6 +25,8 @@
 #include "attrib.h"
 #include "debug.h"
 #include "layout.h"
+#include "lcnalloc.h"
+#include "malloc.h"
 #include "mft.h"
 #include "ntfs.h"
 #include "types.h"
@@ -1224,6 +1226,304 @@ int ntfs_attr_record_resize(MFT_RECORD *m, ATTR_RECORD *a, u32 new_size)
 			a->length = cpu_to_le32(new_size);
 	}
 	return 0;
+}
+
+/**
+ * ntfs_attr_make_non_resident - convert a resident to a non-resident attribute
+ * @ni:		ntfs inode describing the attribute to convert
+ *
+ * Convert the resident ntfs attribute described by the ntfs inode @ni to a
+ * non-resident one.
+ *
+ * Return 0 on success and -errno on error.  The following error return codes
+ * are defined:
+ *	-EPERM	- The attribute is not allowed to be non-resident.
+ *	-ENOMEM	- Not enough memory.
+ *	-ENOSPC	- Not enough disk space.
+ *	-EINVAL	- Attribute not defined on the volume.
+ *	-EIO	- I/o error or other error.
+ *
+ * NOTE to self: No changes in the attribute list are required to move from
+ *		 a resident to a non-resident attribute.
+ *
+ * Locking: - The caller must hold i_sem on the inode.
+ */
+int ntfs_attr_make_non_resident(ntfs_inode *ni)
+{
+	s64 new_size;
+	struct inode *vi = VFS_I(ni);
+	ntfs_volume *vol = ni->vol;
+	ntfs_inode *base_ni;
+	MFT_RECORD *m;
+	ATTR_RECORD *a;
+	ntfs_attr_search_ctx *ctx;
+	struct page *page;
+	runlist_element *rl;
+	u8 *kaddr;
+	unsigned long flags;
+	int mp_size, mp_ofs, name_ofs, arec_size, err, err2;
+	u32 attr_size;
+	u8 old_res_attr_flags;
+
+	/* Check that the attribute is allowed to be non-resident. */
+	err = ntfs_attr_can_be_non_resident(vol, ni->type);
+	if (unlikely(err)) {
+		if (err == -EPERM)
+			ntfs_debug("Attribute is not allowed to be "
+					"non-resident.");
+		else
+			ntfs_debug("Attribute not defined on the NTFS "
+					"volume!");
+		return err;
+	}
+	/*
+	 * The size needs to be aligned to a cluster boundary for allocation
+	 * purposes.
+	 */
+	new_size = (i_size_read(vi) + vol->cluster_size - 1) &
+			~(vol->cluster_size - 1);
+	if (new_size > 0) {
+		/*
+		 * Will need the page later and since the page lock nests
+		 * outside all ntfs locks, we need to get the page now.
+		 */
+		page = find_or_create_page(vi->i_mapping, 0,
+				mapping_gfp_mask(vi->i_mapping));
+		if (unlikely(!page))
+			return -ENOMEM;
+		/* Start by allocating clusters to hold the attribute value. */
+		rl = ntfs_cluster_alloc(vol, 0, new_size >>
+				vol->cluster_size_bits, -1, DATA_ZONE);
+		if (IS_ERR(rl)) {
+			err = PTR_ERR(rl);
+			ntfs_debug("Failed to allocate cluster%s, error code "
+					"%i.\n", (new_size >>
+					vol->cluster_size_bits) > 1 ? "s" : "",
+					err);
+			goto page_err_out;
+		}
+	} else {
+		rl = NULL;
+		page = NULL;
+	}
+	/* Determine the size of the mapping pairs array. */
+	mp_size = ntfs_get_size_for_mapping_pairs(vol, rl, 0);
+	if (unlikely(mp_size < 0)) {
+		err = mp_size;
+		ntfs_debug("Failed to get size for mapping pairs array, error "
+				"code %i.", err);
+		goto rl_err_out;
+	}
+	down_write(&ni->runlist.lock);
+	if (!NInoAttr(ni))
+		base_ni = ni;
+	else
+		base_ni = ni->ext.base_ntfs_ino;
+	m = map_mft_record(base_ni);
+	if (IS_ERR(m)) {
+		err = PTR_ERR(m);
+		m = NULL;
+		ctx = NULL;
+		goto err_out;
+	}
+	ctx = ntfs_attr_get_search_ctx(base_ni, m);
+	if (unlikely(!ctx)) {
+		err = -ENOMEM;
+		goto err_out;
+	}
+	err = ntfs_attr_lookup(ni->type, ni->name, ni->name_len,
+			CASE_SENSITIVE, 0, NULL, 0, ctx);
+	if (unlikely(err)) {
+		if (err == -ENOENT)
+			err = -EIO;
+		goto err_out;
+	}
+	m = ctx->mrec;
+	a = ctx->attr;
+	BUG_ON(NInoNonResident(ni));
+	BUG_ON(a->non_resident);
+	/*
+	 * Calculate new offsets for the name and the mapping pairs array.
+	 * We assume the attribute is not compressed or sparse.
+	 */
+	name_ofs = (offsetof(ATTR_REC,
+			data.non_resident.compressed_size) + 7) & ~7;
+	mp_ofs = (name_ofs + a->name_length * sizeof(ntfschar) + 7) & ~7;
+	/*
+	 * Determine the size of the resident part of the now non-resident
+	 * attribute record.
+	 */
+	arec_size = (mp_ofs + mp_size + 7) & ~7;
+	/*
+	 * If the page is not uptodate bring it uptodate by copying from the
+	 * attribute value.
+	 */
+	attr_size = le32_to_cpu(a->data.resident.value_length);
+	BUG_ON(attr_size != i_size_read(vi));
+	if (page && !PageUptodate(page)) {
+		kaddr = kmap_atomic(page, KM_USER0);
+		memcpy(kaddr, (u8*)a +
+				le16_to_cpu(a->data.resident.value_offset),
+				attr_size);
+		memset(kaddr + attr_size, 0, PAGE_CACHE_SIZE - attr_size);
+		kunmap_atomic(kaddr, KM_USER0);
+		flush_dcache_page(page);
+		SetPageUptodate(page);
+	}
+	/* Backup the attribute flag. */
+	old_res_attr_flags = a->data.resident.flags;
+	/* Resize the resident part of the attribute record. */
+	err = ntfs_attr_record_resize(m, a, arec_size);
+	if (unlikely(err))
+		goto err_out;
+	/* Setup the in-memory attribute structure to be non-resident. */
+	NInoSetNonResident(ni);
+	ni->runlist.rl = rl;
+	write_lock_irqsave(&ni->size_lock, flags);
+	ni->allocated_size = new_size;
+	write_unlock_irqrestore(&ni->size_lock, flags);
+	/*
+	 * FIXME: For now just clear all of these as we do not support them
+	 * when writing.
+	 */
+	NInoClearCompressed(ni);
+	NInoClearSparse(ni);
+	NInoClearEncrypted(ni);
+	/*
+	 * Convert the resident part of the attribute record to describe a
+	 * non-resident attribute.
+	 */
+	a->non_resident = 1;
+	/* Move the attribute name if it exists and update the offset. */
+	if (a->name_length)
+		memmove((u8*)a + name_ofs, (u8*)a + le16_to_cpu(a->name_offset),
+				a->name_length * sizeof(ntfschar));
+	a->name_offset = cpu_to_le16(name_ofs);
+	/* Update the flags to match the in-memory ones. */
+	a->flags &= cpu_to_le16(0xffff & ~le16_to_cpu(ATTR_IS_SPARSE |
+			ATTR_IS_ENCRYPTED | ATTR_COMPRESSION_MASK));
+	/* Setup the fields specific to non-resident attributes. */
+	a->data.non_resident.lowest_vcn = 0;
+	a->data.non_resident.highest_vcn = cpu_to_sle64((new_size - 1) >>
+			vol->cluster_size_bits);
+	a->data.non_resident.mapping_pairs_offset = cpu_to_le16(mp_ofs);
+	a->data.non_resident.compression_unit = 0;
+	memset(&a->data.non_resident.reserved, 0,
+			sizeof(a->data.non_resident.reserved));
+	a->data.non_resident.allocated_size = cpu_to_sle64(new_size);
+	a->data.non_resident.data_size =
+			a->data.non_resident.initialized_size =
+			cpu_to_sle64(attr_size);
+	/* Generate the mapping pairs array into the attribute record. */
+	err = ntfs_mapping_pairs_build(vol, (u8*)a + mp_ofs,
+			arec_size - mp_ofs, rl, 0, NULL);
+	if (unlikely(err)) {
+		ntfs_debug("Failed to build mapping pairs, error code %i.",
+				err);
+		goto undo_err_out;
+	}
+	/* Mark the mft record dirty, so it gets written back. */
+	flush_dcache_mft_record_page(ctx->ntfs_ino);
+	mark_mft_record_dirty(ctx->ntfs_ino);
+	ntfs_attr_put_search_ctx(ctx);
+	unmap_mft_record(base_ni);
+	up_write(&ni->runlist.lock);
+	if (page) {
+		set_page_dirty(page);
+		unlock_page(page);
+		page_cache_release(page);
+	}
+	ntfs_debug("Done.");
+	return 0;
+undo_err_out:
+	/* Convert the attribute back into a resident attribute. */
+	a->non_resident = 0;
+	/* Move the attribute name if it exists and update the offset. */
+	name_ofs = (offsetof(ATTR_RECORD, data.resident.reserved) +
+			sizeof(a->data.resident.reserved) + 7) & ~7;
+	if (a->name_length)
+		memmove((u8*)a + name_ofs, (u8*)a + le16_to_cpu(a->name_offset),
+				a->name_length * sizeof(ntfschar));
+	mp_ofs = (name_ofs + a->name_length * sizeof(ntfschar) + 7) & ~7;
+	a->name_offset = cpu_to_le16(name_ofs);
+	arec_size = (mp_ofs + attr_size + 7) & ~7;
+	/* Resize the resident part of the attribute record. */
+	err2 = ntfs_attr_record_resize(m, a, arec_size);
+	if (unlikely(err2)) {
+		/*
+		 * This cannot happen (well if memory corruption is at work it
+		 * could happen in theory), but deal with it as well as we can.
+		 * If the old size is too small, truncate the attribute,
+		 * otherwise simply give it a larger allocated size.
+		 * FIXME: Should check whether chkdsk complains when the
+		 * allocated size is much bigger than the resident value size.
+		 */
+		arec_size = le32_to_cpu(a->length);
+		if ((mp_ofs + attr_size) > arec_size) {
+			err2 = attr_size;
+			attr_size = arec_size - mp_ofs;
+			ntfs_error(vol->sb, "Failed to undo partial resident "
+					"to non-resident attribute "
+					"conversion.  Truncating inode 0x%lx, "
+					"attribute type 0x%x from %i bytes to "
+					"%i bytes to maintain metadata "
+					"consistency.  THIS MEANS YOU ARE "
+					"LOSING %i BYTES DATA FROM THIS %s.",
+					vi->i_ino,
+					(unsigned)le32_to_cpu(ni->type),
+					err2, attr_size, err2 - attr_size,
+					((ni->type == AT_DATA) &&
+					!ni->name_len) ? "FILE": "ATTRIBUTE");
+			write_lock_irqsave(&ni->size_lock, flags);
+			ni->initialized_size = attr_size;
+			i_size_write(vi, attr_size);
+			write_unlock_irqrestore(&ni->size_lock, flags);
+		}
+	}
+	/* Setup the fields specific to resident attributes. */
+	a->data.resident.value_length = cpu_to_le32(attr_size);
+	a->data.resident.value_offset = cpu_to_le16(mp_ofs);
+	a->data.resident.flags = old_res_attr_flags;
+	memset(&a->data.resident.reserved, 0,
+			sizeof(a->data.resident.reserved));
+	/* Copy the data from the page back to the attribute value. */
+	if (page) {
+		kaddr = kmap_atomic(page, KM_USER0);
+		memcpy((u8*)a + mp_ofs, kaddr, attr_size);
+		kunmap_atomic(kaddr, KM_USER0);
+	}
+	/* Finally setup the ntfs inode appropriately. */
+	write_lock_irqsave(&ni->size_lock, flags);
+	ni->allocated_size = arec_size - mp_ofs;
+	write_unlock_irqrestore(&ni->size_lock, flags);
+	NInoClearNonResident(ni);
+	/* Mark the mft record dirty, so it gets written back. */
+	flush_dcache_mft_record_page(ctx->ntfs_ino);
+	mark_mft_record_dirty(ctx->ntfs_ino);
+err_out:
+	if (ctx)
+		ntfs_attr_put_search_ctx(ctx);
+	if (m)
+		unmap_mft_record(base_ni);
+	ni->runlist.rl = NULL;
+	up_write(&ni->runlist.lock);
+rl_err_out:
+	if (rl) {
+		if (ntfs_cluster_free_from_rl(vol, rl) < 0) {
+			ntfs_free(rl);
+			ntfs_error(vol->sb, "Failed to release allocated "
+					"cluster(s) in error code path.  Run "
+					"chkdsk to recover the lost "
+					"cluster(s).");
+			NVolSetErrors(vol);
+		}
+page_err_out:
+		unlock_page(page);
+		page_cache_release(page);
+	}
+	if (err == -EINVAL)
+		err = -EIO;
+	return err;
 }
 
 /**
