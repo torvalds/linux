@@ -107,6 +107,7 @@ __asm__(
 	"	.endm						\n\t");
 
 #ifdef CONFIG_CPU_RM9000
+
 /*
  * RM9000 hazards.  When the JTLB is updated by tlbwi or tlbwr, a subsequent
  * use of the JTLB for instructions should not occur for 4 cpu cycles and use
@@ -143,12 +144,6 @@ __asm__(
 		".set noreorder\n\t"					\
 		"nop; nop; nop; nop; nop; nop;\n\t"			\
 		".set reorder\n\t")
-
-#define back_to_back_c0_hazard()					\
-	__asm__ __volatile__(						\
-	"	.set noreorder				\n"		\
-	"	nop; nop; nop				\n"		\
-	"	.set reorder				\n")
 
 #endif
 
