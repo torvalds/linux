@@ -330,19 +330,6 @@ EXPORT_SYMBOL(tiocx_bus_type);
 EXPORT_SYMBOL(tiocx_dma_addr);
 EXPORT_SYMBOL(tiocx_swin_base);
 
-static uint64_t tiocx_get_hubdev_info(u64 handle, u64 address)
-{
-
-	struct ia64_sal_retval ret_stuff;
-	ret_stuff.status = 0;
-	ret_stuff.v0 = 0;
-
-	ia64_sal_oemcall_nolock(&ret_stuff,
-				SN_SAL_IOIF_GET_HUBDEV_INFO,
-				handle, address, 0, 0, 0, 0, 0);
-	return ret_stuff.v0;
-}
-
 static void tio_conveyor_set(nasid_t nasid, int enable_flag)
 {
 	uint64_t ice_frz;
@@ -477,18 +464,12 @@ static int __init tiocx_init(void)
 
 		if (nasid & 0x1) {	/* TIO's are always odd */
 			struct hubdev_info *hubdev;
-			uint64_t status;
 			struct xwidget_info *widgetp;
 
 			DBG("Found TIO at nasid 0x%x\n", nasid);
 
 			hubdev =
 			    (struct hubdev_info *)(NODEPDA(cnodeid)->pdinfo);
-			status =
-			    tiocx_get_hubdev_info(nasid,
-						  (uint64_t) __pa(hubdev));
-			if (status)
-				continue;
 
 			widgetp = &hubdev->hdi_xwidget_info[TIOCX_CORELET];
 
