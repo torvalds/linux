@@ -293,7 +293,7 @@ int usb_driver_claim_interface(struct usb_driver *driver,
 	/* if interface was already added, bind now; else let
 	 * the future device_add() bind it, bypassing probe()
 	 */
-	if (!list_empty (&dev->bus_list))
+	if (!klist_node_attached (&dev->knode_bus))
 		device_bind_driver(dev);
 
 	return 0;
@@ -323,7 +323,7 @@ void usb_driver_release_interface(struct usb_driver *driver,
 		return;
 
 	/* don't disconnect from disconnect(), or before dev_add() */
-	if (!list_empty (&dev->driver_list) && !list_empty (&dev->bus_list))
+	if (!klist_node_attached(&dev->knode_driver) && !klist_node_attached(&dev->knode_bus))
 		device_release_driver(dev);
 
 	dev->driver = NULL;
