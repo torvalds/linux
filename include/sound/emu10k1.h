@@ -83,7 +83,8 @@
 #define IPR			0x08		/* Global interrupt pending register		*/
 						/* Clear pending interrupts by writing a 1 to	*/
 						/* the relevant bits and zero to the other bits	*/
-
+#define IPR_P16V		0x80000000	/* Bit set when the CA0151 P16V chip wishes
+						   to interrupt */
 #define IPR_GPIOMSG		0x20000000	/* GPIO message interrupt (RE'd, still not sure 
 						   which INTE bits enable it)			*/
 
@@ -1109,7 +1110,9 @@ struct _snd_emu10k1 {
 
 	emu10k1_voice_t voices[NUM_G];
 	emu10k1_voice_t p16v_voices[4];
+	emu10k1_voice_t p16v_capture_voice;
 	int p16v_device_offset;
+	u32 p16v_capture_source;
 	emu10k1_pcm_mixer_t pcm_mixer[32];
 	emu10k1_pcm_mixer_t efx_pcm_mixer[NUM_EFX_PLAYBACK];
 	snd_kcontrol_t *ctl_send_routing;
