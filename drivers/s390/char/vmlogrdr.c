@@ -703,7 +703,7 @@ static struct attribute_group vmlogrdr_attr_group = {
 	.attrs = vmlogrdr_attrs,
 };
 
-static struct class_simple *vmlogrdr_class;
+static struct class *vmlogrdr_class;
 static struct device_driver vmlogrdr_driver = {
 	.name = "vmlogrdr",
 	.bus  = &iucv_bus,
@@ -727,7 +727,7 @@ vmlogrdr_register_driver(void) {
 		goto unregdriver;
 	}
 
-	vmlogrdr_class = class_simple_create(THIS_MODULE, "vmlogrdr");
+	vmlogrdr_class = class_create(THIS_MODULE, "vmlogrdr");
 	if (IS_ERR(vmlogrdr_class)) {
 		printk(KERN_ERR "vmlogrdr: failed to create class.\n");
 		ret=PTR_ERR(vmlogrdr_class);
@@ -746,7 +746,7 @@ unregdriver:
 
 static void
 vmlogrdr_unregister_driver(void) {
-	class_simple_destroy(vmlogrdr_class);
+	class_destroy(vmlogrdr_class);
 	vmlogrdr_class = NULL;
 	driver_remove_file(&vmlogrdr_driver, &driver_attr_recording_status);
 	driver_unregister(&vmlogrdr_driver);
@@ -786,7 +786,7 @@ vmlogrdr_register_device(struct vmlogrdr_priv_t *priv) {
 		device_unregister(dev);
 		return ret;
 	}
-	priv->class_device = class_simple_device_add(
+	priv->class_device = class_device_create(
 				vmlogrdr_class,
 				MKDEV(vmlogrdr_major, priv->minor_num),
 				dev,
@@ -806,7 +806,7 @@ vmlogrdr_register_device(struct vmlogrdr_priv_t *priv) {
 
 static int
 vmlogrdr_unregister_device(struct vmlogrdr_priv_t *priv ) {
-	class_simple_device_remove(MKDEV(vmlogrdr_major, priv->minor_num));
+	class_device_destroy(vmlogrdr_class, MKDEV(vmlogrdr_major, priv->minor_num));
 	if (priv->device != NULL) {
 		sysfs_remove_group(&priv->device->kobj, &vmlogrdr_attr_group);
 		device_unregister(priv->device);
