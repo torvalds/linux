@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: nodelist.c,v 1.90 2004/12/08 17:59:20 dwmw2 Exp $
+ * $Id: nodelist.c,v 1.92 2005/01/19 19:22:00 tpoynor Exp $
  *
  */
 
@@ -127,7 +127,7 @@ int jffs2_get_inode_nodes(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 
 	valid_ref = jffs2_first_valid_node(f->inocache->nodes);
 
-	if (!valid_ref)
+	if (!valid_ref && (f->inocache->ino != 1))
 		printk(KERN_WARNING "Eep. No valid nodes for ino #%u\n", f->inocache->ino);
 
 	while (valid_ref) {
