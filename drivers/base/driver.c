@@ -31,8 +31,7 @@ static struct device * next_device(struct klist_iter * i)
  *	@data:	Data to pass to the callback.
  *	@fn:	Function to call for each device.
  *
- *	Take the bus's rwsem and iterate over the @drv's list of devices,
- *	calling @fn for each one.
+ *	Iterate over the @drv's list of devices calling @fn for each one.
  */
 
 int driver_for_each_device(struct device_driver * drv, struct device * start, 
