@@ -327,8 +327,13 @@ config ACPI_CONTAINER
 	depends on EXPERIMENTAL
 	default (ACPI_HOTPLUG_MEMORY || ACPI_HOTPLUG_CPU || ACPI_HOTPLUG_IO)
 	 ---help---
-	 	This is the ACPI generic container driver which supports
-		ACPI0004, PNP0A05 and PNP0A06 devices
+	  This allows _physical_ insertion and removal of CPUs and memory.
+	  This can be useful, for example, on NUMA machines that support
+	  ACPI based physical hotplug of nodes, or non-NUMA machines that
+	  support physical cpu/memory hot-plug.
+
+	  If one selects "m", this driver can be loaded with
+	  "modprobe acpi_container".
 
 config ACPI_HOTPLUG_MEMORY
 	tristate "Memory Hotplug"
