@@ -174,7 +174,7 @@ struct inode *ntfs_iget(struct super_block *sb, unsigned long mft_no)
 
 	vi = iget5_locked(sb, mft_no, (test_t)ntfs_test_inode,
 			(set_t)ntfs_init_locked_inode, &na);
-	if (!vi)
+	if (unlikely(!vi))
 		return ERR_PTR(-ENOMEM);
 
 	err = 0;
@@ -188,7 +188,7 @@ struct inode *ntfs_iget(struct super_block *sb, unsigned long mft_no)
 	 * There is no point in keeping bad inodes around if the failure was
 	 * due to ENOMEM. We want to be able to retry again later.
 	 */
-	if (err == -ENOMEM) {
+	if (unlikely(err == -ENOMEM)) {
 		iput(vi);
 		vi = ERR_PTR(err);
 	}
@@ -235,7 +235,7 @@ struct inode *ntfs_attr_iget(struct inode *base_vi, ATTR_TYPE type,
 
 	vi = iget5_locked(base_vi->i_sb, na.mft_no, (test_t)ntfs_test_inode,
 			(set_t)ntfs_init_locked_inode, &na);
-	if (!vi)
+	if (unlikely(!vi))
 		return ERR_PTR(-ENOMEM);
 
 	err = 0;
@@ -250,7 +250,7 @@ struct inode *ntfs_attr_iget(struct inode *base_vi, ATTR_TYPE type,
 	 * simplifies things in that we never need to check for bad attribute
 	 * inodes elsewhere.
 	 */
-	if (err) {
+	if (unlikely(err)) {
 		iput(vi);
 		vi = ERR_PTR(err);
 	}
@@ -290,7 +290,7 @@ struct inode *ntfs_index_iget(struct inode *base_vi, ntfschar *name,
 
 	vi = iget5_locked(base_vi->i_sb, na.mft_no, (test_t)ntfs_test_inode,
 			(set_t)ntfs_init_locked_inode, &na);
-	if (!vi)
+	if (unlikely(!vi))
 		return ERR_PTR(-ENOMEM);
 
 	err = 0;
@@ -305,7 +305,7 @@ struct inode *ntfs_index_iget(struct inode *base_vi, ntfschar *name,
 	 * simplifies things in that we never need to check for bad index
 	 * inodes elsewhere.
 	 */
-	if (err) {
+	if (unlikely(err)) {
 		iput(vi);
 		vi = ERR_PTR(err);
 	}
@@ -742,6 +742,7 @@ skip_attr_list_load:
 	 * in ntfs_ino->attr_list and it is ntfs_ino->attr_list_size bytes.
 	 */
 	if (S_ISDIR(vi->i_mode)) {
+		loff_t bvi_size;
 		struct inode *bvi;
 		ntfs_inode *bni;
 		INDEX_ROOT *ir;
@@ -959,11 +960,12 @@ skip_attr_list_load:
 			goto unm_err_out;
 		}
 		/* Consistency check bitmap size vs. index allocation size. */
-		if ((bvi->i_size << 3) < (vi->i_size >>
+		bvi_size = i_size_read(bvi);
+		if ((bvi_size << 3) < (vi->i_size >>
 				ni->itype.index.block_size_bits)) {
 			ntfs_error(vi->i_sb, "Index bitmap too small (0x%llx) "
 					"for index allocation (0x%llx).",
-					bvi->i_size << 3, vi->i_size);
+					bvi_size << 3, vi->i_size);
 			goto unm_err_out;
 		}
 skip_large_dir_stuff:
@@ -1430,6 +1432,7 @@ err_out:
  */
 static int ntfs_read_locked_index_inode(struct inode *base_vi, struct inode *vi)
 {
+	loff_t bvi_size;
 	ntfs_volume *vol = NTFS_SB(vi->i_sb);
 	ntfs_inode *ni, *base_ni, *bni;
 	struct inode *bvi;
@@ -1633,10 +1636,10 @@ static int ntfs_read_locked_index_inode(struct inode *base_vi, struct inode *vi)
 		goto iput_unm_err_out;
 	}
 	/* Consistency check bitmap size vs. index allocation size. */
-	if ((bvi->i_size << 3) < (vi->i_size >>
-			ni->itype.index.block_size_bits)) {
+	bvi_size = i_size_read(bvi);
+	if ((bvi_size << 3) < (vi->i_size >> ni->itype.index.block_size_bits)) {
 		ntfs_error(vi->i_sb, "Index bitmap too small (0x%llx) for "
-				"index allocation (0x%llx).", bvi->i_size << 3,
+				"index allocation (0x%llx).", bvi_size << 3,
 				vi->i_size);
 		goto iput_unm_err_out;
 	}

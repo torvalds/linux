@@ -47,6 +47,8 @@ ToDo/Notes:
 	  value afterwards.  Cache the initialized_size in the same way and
 	  protect access to the two sizes using the size_lock.
 	- Minor optimization to fs/ntfs/super.c::ntfs_statfs() and its helpers.
+	- Use i_size_read() in fs/ntfs/inode.c once and then use the cached
+	  value afterwards when reading the size of the bitmap inode.
 
 2.1.22 - Many bug and race fixes and error handling improvements.
 
