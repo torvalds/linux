@@ -210,6 +210,7 @@ config MACH_DECSTATION
 	bool "Support for DECstations"
 	select BOOT_ELF32
 	select DMA_NONCOHERENT
+	select EARLY_PRINTK
 	select IRQ_CPU
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL if EXPERIMENTAL
