@@ -59,7 +59,7 @@
  *	The AG-AND chips have nice features for speed improvement,
  *	which are not supported yet. Read / program 4 pages in one go.
  *
- * $Id: nand_base.c,v 1.133 2005/02/16 09:39:35 gleixner Exp $
+ * $Id: nand_base.c,v 1.134 2005/02/22 21:56:46 gleixner Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -509,6 +509,22 @@ static int nand_block_checkbad (struct mtd_info *mtd, loff_t ofs, int getchip, i
 	return nand_isbad_bbt (mtd, ofs, allowbbt);
 }
 
+/* 
+ * Wait for the ready pin, after a command
+ * The timeout is catched later.
+ */
+static void nand_wait_ready(struct mtd_info *mtd)
+{
+	struct nand_chip *this = mtd->priv;
+	unsigned long	timeo = jiffies + 2;
+
+	/* wait until command is processed or timeout occures */
+	do {
+		if (this->dev_ready(mtd))
+			return;
+	} while (time_before(jiffies, timeo));	
+}
+
 /**
  * nand_command - [DEFAULT] Send command to NAND device
  * @mtd:	MTD device structure
@@ -604,12 +620,11 @@ static void nand_command (struct mtd_info *mtd, unsigned command, int column, in
 			return;
 		}	
 	}
-	
 	/* Apply this short delay always to ensure that we do wait tWB in
 	 * any case on any machine. */
 	ndelay (100);
-	/* wait until command is processed */
-	while (!this->dev_ready(mtd));
+
+	nand_wait_ready(mtd);
 }
 
 /**
@@ -720,12 +735,12 @@ static void nand_command_lp (struct mtd_info *mtd, unsigned command, int column,
 			return;
 		}	
 	}
-	
+
 	/* Apply this short delay always to ensure that we do wait tWB in
 	 * any case on any machine. */
 	ndelay (100);
-	/* wait until command is processed */
-	while (!this->dev_ready(mtd));
+
+	nand_wait_ready(mtd);
 }
 
 /**
@@ -1011,7 +1026,7 @@ static int nand_verify_pages (struct mtd_info *mtd, struct nand_chip *this, int 
 		if (!this->dev_ready) 
 			udelay (this->chip_delay);
 		else
-			while (!this->dev_ready(mtd));	
+			nand_wait_ready(mtd);
 
 		/* All done, return happy */
 		if (!numpages)
@@ -1302,7 +1317,7 @@ int nand_do_read_ecc (struct mtd_info *mtd, loff_t from, size_t len,
 		if (!this->dev_ready) 
 			udelay (this->chip_delay);
 		else
-			while (!this->dev_ready(mtd));	
+			nand_wait_ready(mtd);
 			
 		if (read == len)
 			break;	
@@ -1401,7 +1416,7 @@ static int nand_read_oob (struct mtd_info *mtd, loff_t from, size_t len, size_t 
 		if (!this->dev_ready) 
 			udelay (this->chip_delay);
 		else
-			while (!this->dev_ready(mtd));	
+			nand_wait_ready(mtd);
 
 		/* Read more ? */
 		if (i < len) {
@@ -1481,7 +1496,7 @@ int nand_read_raw (struct mtd_info *mtd, uint8_t *buf, loff_t from, size_t len, 
 		if (!this->dev_ready) 
 			udelay (this->chip_delay);
 		else
-			while (!this->dev_ready(mtd));	
+			nand_wait_ready(mtd);
 			
 		/* Check, if the chip supports auto page increment */ 
 		if (!NAND_CANAUTOINCR(this) || !(page & blockcheck))
