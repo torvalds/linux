@@ -710,17 +710,6 @@ struct sysfs_ops kobj_sysfs_ops = {
 };
 
 /**
- *	kset_add - add a kset object to the hierarchy.
- *	@k:	kset.
- */
-
-int kset_add(struct kset * k)
-{
-	return kobject_add_internal(&k->kobj);
-}
-
-
-/**
  *	kset_register - initialize and add a kset.
  *	@k:	kset.
  */
@@ -733,7 +722,7 @@ int kset_register(struct kset * k)
 		return -EINVAL;
 
 	kset_init(k);
-	err = kset_add(k);
+	err = kobject_add_internal(&k->kobj);
 	if (err)
 		return err;
 	kobject_uevent(&k->kobj, KOBJ_ADD);

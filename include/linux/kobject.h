@@ -158,7 +158,6 @@ struct kset {
 };
 
 extern void kset_init(struct kset * k);
-extern int __must_check kset_add(struct kset * k);
 extern int __must_check kset_register(struct kset * k);
 extern void kset_unregister(struct kset * k);
 extern struct kset * __must_check kset_create_and_add(const char *name,
