@@ -16,7 +16,7 @@
  *  
  * Interface to generic NAND code for M-Systems DiskOnChip devices
  *
- * $Id: diskonchip.c,v 1.47 2005/01/31 22:21:15 gleixner Exp $
+ * $Id: diskonchip.c,v 1.48 2005/01/31 22:22:21 gleixner Exp $
  */
 
 #include <linux/kernel.h>
@@ -1121,6 +1121,10 @@ static inline int __init nftl_partscan(struct mtd_info *mtd,
 	}
 	if (!(numheaders=find_media_headers(mtd, buf, "ANAND", 1))) goto out;
 	mh = (struct NFTLMediaHeader *) buf;
+
+	mh->NumEraseUnits = le16_to_cpu(mh->NumEraseUnits);
+	mh->FirstPhysicalEUN = le16_to_cpu(mh->FirstPhysicalEUN);
+	mh->FormattedSize = le32_to_cpu(mh->FormattedSize);
 
 	printk(KERN_INFO "    DataOrgID        = %s\n"
 			 "    NumEraseUnits    = %d\n"
