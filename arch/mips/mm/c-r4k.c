@@ -1212,9 +1212,6 @@ void __init ld_mmu_r4xx0(void)
 	probe_pcache();
 	setup_scache();
 
-	if (c->dcache.sets * c->dcache.ways > PAGE_SIZE)
-		c->dcache.flags |= MIPS_CACHE_ALIASES;
-
 	r4k_blast_dcache_page_setup();
 	r4k_blast_dcache_page_indexed_setup();
 	r4k_blast_dcache_setup();
