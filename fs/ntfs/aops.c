@@ -355,6 +355,7 @@ static int ntfs_readpage(struct file *file, struct page *page)
 	u32 attr_len;
 	int err = 0;
 
+retry_readpage:
 	BUG_ON(!PageLocked(page));
 	/*
 	 * This can potentially happen because we clear PageUptodate() during
@@ -407,6 +408,14 @@ static int ntfs_readpage(struct file *file, struct page *page)
 	if (IS_ERR(mrec)) {
 		err = PTR_ERR(mrec);
 		goto err_out;
+	}
+	/*
+	 * If a parallel write made the attribute non-resident, drop the mft
+	 * record and retry the readpage.
+	 */
+	if (unlikely(NInoNonResident(ni))) {
+		unmap_mft_record(base_ni);
+		goto retry_readpage;
 	}
 	ctx = ntfs_attr_get_search_ctx(base_ni, mrec);
 	if (unlikely(!ctx)) {
@@ -1248,6 +1257,7 @@ static int ntfs_writepage(struct page *page, struct writeback_control *wbc)
 	u32 attr_len;
 	int err;
 
+retry_writepage:
 	BUG_ON(!PageLocked(page));
 	i_size = i_size_read(vi);
 	/* Is the page fully outside i_size? (truncate in progress) */
@@ -1337,6 +1347,14 @@ static int ntfs_writepage(struct page *page, struct writeback_control *wbc)
 		m = NULL;
 		ctx = NULL;
 		goto err_out;
+	}
+	/*
+	 * If a parallel write made the attribute non-resident, drop the mft
+	 * record and retry the writepage.
+	 */
+	if (unlikely(NInoNonResident(ni))) {
+		unmap_mft_record(base_ni);
+		goto retry_writepage;
 	}
 	ctx = ntfs_attr_get_search_ctx(base_ni, m);
 	if (unlikely(!ctx)) {

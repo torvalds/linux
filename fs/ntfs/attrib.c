@@ -1376,19 +1376,6 @@ int ntfs_attr_make_non_resident(ntfs_inode *ni)
 	err = ntfs_attr_record_resize(m, a, arec_size);
 	if (unlikely(err))
 		goto err_out;
-	/* Setup the in-memory attribute structure to be non-resident. */
-	NInoSetNonResident(ni);
-	ni->runlist.rl = rl;
-	write_lock_irqsave(&ni->size_lock, flags);
-	ni->allocated_size = new_size;
-	write_unlock_irqrestore(&ni->size_lock, flags);
-	/*
-	 * FIXME: For now just clear all of these as we do not support them
-	 * when writing.
-	 */
-	NInoClearCompressed(ni);
-	NInoClearSparse(ni);
-	NInoClearEncrypted(ni);
 	/*
 	 * Convert the resident part of the attribute record to describe a
 	 * non-resident attribute.
@@ -1399,7 +1386,10 @@ int ntfs_attr_make_non_resident(ntfs_inode *ni)
 		memmove((u8*)a + name_ofs, (u8*)a + le16_to_cpu(a->name_offset),
 				a->name_length * sizeof(ntfschar));
 	a->name_offset = cpu_to_le16(name_ofs);
-	/* Update the flags to match the in-memory ones. */
+	/*
+	 * FIXME: For now just clear all of these as we do not support them
+	 * when writing.
+	 */
 	a->flags &= cpu_to_le16(0xffff & ~le16_to_cpu(ATTR_IS_SPARSE |
 			ATTR_IS_ENCRYPTED | ATTR_COMPRESSION_MASK));
 	/* Setup the fields specific to non-resident attributes. */
@@ -1422,6 +1412,25 @@ int ntfs_attr_make_non_resident(ntfs_inode *ni)
 				err);
 		goto undo_err_out;
 	}
+	/* Setup the in-memory attribute structure to be non-resident. */
+	/*
+	 * FIXME: For now just clear all of these as we do not support them
+	 * when writing.
+	 */
+	NInoClearSparse(ni);
+	NInoClearEncrypted(ni);
+	NInoClearCompressed(ni);
+	ni->runlist.rl = rl;
+	write_lock_irqsave(&ni->size_lock, flags);
+	ni->allocated_size = new_size;
+	write_unlock_irqrestore(&ni->size_lock, flags);
+	/*
+	 * This needs to be last since the address space operations ->readpage
+	 * and ->writepage can run concurrently with us as they are not
+	 * serialized on i_sem.  Note, we are not allowed to fail once we flip
+	 * this switch, which is another reason to do this last.
+	 */
+	NInoSetNonResident(ni);
 	/* Mark the mft record dirty, so it gets written back. */
 	flush_dcache_mft_record_page(ctx->ntfs_ino);
 	mark_mft_record_dirty(ctx->ntfs_ino);
@@ -1431,6 +1440,7 @@ int ntfs_attr_make_non_resident(ntfs_inode *ni)
 	if (page) {
 		set_page_dirty(page);
 		unlock_page(page);
+		mark_page_accessed(page);
 		page_cache_release(page);
 	}
 	ntfs_debug("Done.");
@@ -1492,11 +1502,10 @@ undo_err_out:
 		memcpy((u8*)a + mp_ofs, kaddr, attr_size);
 		kunmap_atomic(kaddr, KM_USER0);
 	}
-	/* Finally setup the ntfs inode appropriately. */
+	/* Setup the allocated size in the ntfs inode in case it changed. */
 	write_lock_irqsave(&ni->size_lock, flags);
 	ni->allocated_size = arec_size - mp_ofs;
 	write_unlock_irqrestore(&ni->size_lock, flags);
-	NInoClearNonResident(ni);
 	/* Mark the mft record dirty, so it gets written back. */
 	flush_dcache_mft_record_page(ctx->ntfs_ino);
 	mark_mft_record_dirty(ctx->ntfs_ino);
