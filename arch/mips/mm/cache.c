@@ -23,7 +23,8 @@ void (*__flush_cache_all)(void);
 void (*flush_cache_mm)(struct mm_struct *mm);
 void (*flush_cache_range)(struct vm_area_struct *vma, unsigned long start,
 	unsigned long end);
-void (*flush_cache_page)(struct vm_area_struct *vma, unsigned long page, unsigned long pfn);
+void (*flush_cache_page)(struct vm_area_struct *vma, unsigned long page,
+	unsigned long pfn);
 void (*flush_icache_range)(unsigned long __user start,
 	unsigned long __user end);
 void (*flush_icache_page)(struct vm_area_struct *vma, struct page *page);
