@@ -1072,9 +1072,9 @@ static void check_volume_resolution(ac97_t *ac97, int reg, unsigned char *lo_max
 		unsigned short val;
 		snd_ac97_write(ac97, reg, 0x8080 | cbit[i] | (cbit[i] << 8));
 		val = snd_ac97_read(ac97, reg);
-		if (! *lo_max && (val & cbit[i]))
+		if (! *lo_max && (val & 0x7f) == cbit[i])
 			*lo_max = max[i];
-		if (! *hi_max && (val & (cbit[i] << 8)))
+		if (! *hi_max && ((val >> 8) & 0x7f) == cbit[i])
 			*hi_max = max[i];
 		if (*lo_max && *hi_max)
 			break;
