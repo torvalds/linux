@@ -268,7 +268,7 @@ nodata:
 struct sk_buff *__netdev_alloc_skb(struct net_device *dev,
 		unsigned int length, gfp_t gfp_mask)
 {
-	int node = dev->class_dev.dev ? dev_to_node(dev->class_dev.dev) : -1;
+	int node = dev->dev.parent ? dev_to_node(dev->dev.parent) : -1;
 	struct sk_buff *skb;
 
  	skb = __alloc_skb(length + NET_SKB_PAD, gfp_mask, 0, node);

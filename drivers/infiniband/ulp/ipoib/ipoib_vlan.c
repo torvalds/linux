@@ -42,15 +42,15 @@
 
 #include "ipoib.h"
 
-static ssize_t show_parent(struct class_device *class_dev, char *buf)
+static ssize_t show_parent(struct device *d, struct device_attribute *attr,
+			   char *buf)
 {
-	struct net_device *dev =
-		container_of(class_dev, struct net_device, class_dev);
+	struct net_device *dev = to_net_dev(d);
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 
 	return sprintf(buf, "%s\n", priv->parent->name);
 }
-static CLASS_DEVICE_ATTR(parent, S_IRUGO, show_parent, NULL);
+static DEVICE_ATTR(parent, S_IRUGO, show_parent, NULL);
 
 int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
 {
@@ -118,8 +118,7 @@ int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
 	if (ipoib_add_pkey_attr(priv->dev))
 		goto sysfs_failed;
 
-	if (class_device_create_file(&priv->dev->class_dev,
-				     &class_device_attr_parent))
+	if (device_create_file(&priv->dev->dev, &dev_attr_parent))
 		goto sysfs_failed;
 
 	list_add_tail(&priv->list, &ppriv->child_intfs);

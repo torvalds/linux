@@ -587,7 +587,7 @@ static void etherh_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *i
 {
 	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
 	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
-	strlcpy(info->bus_info, dev->class_dev.dev->bus_id,
+	strlcpy(info->bus_info, dev->dev.parent->bus_id,
 		sizeof(info->bus_info));
 }
 

@@ -211,7 +211,7 @@ int br_sysfs_addif(struct net_bridge_port *p)
 	struct brport_attribute **a;
 	int err;
 
-	err = sysfs_create_link(&p->kobj, &br->dev->class_dev.kobj, 
+	err = sysfs_create_link(&p->kobj, &br->dev->dev.kobj,
 				SYSFS_BRIDGE_PORT_LINK);
 	if (err)
 		goto out2;
