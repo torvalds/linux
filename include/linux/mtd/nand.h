@@ -5,7 +5,7 @@
  *                     Steven J. Hill <sjhill@realitydiluted.com>
  *		       Thomas Gleixner <tglx@linutronix.de>
  *
- * $Id: nand.h,v 1.69 2005/01/17 18:29:18 dmarlin Exp $
+ * $Id: nand.h,v 1.70 2005/01/24 03:07:42 dmarlin Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -50,6 +50,8 @@
  *			update of nand_chip structure description
  *  01-17-2005 dmarlin	added extended commands for AG-AND device and added option 
  * 			for BBT_AUTO_REFRESH.
+ *  01-20-2005 dmarlin	added optional pointer to hardware specific callback for 
+ *			extra error status checks.
  */
 #ifndef __LINUX_MTD_NAND_H
 #define __LINUX_MTD_NAND_H
@@ -164,13 +166,17 @@ extern int nand_read_raw (struct mtd_info *mtd, uint8_t *buf, loff_t from, size_
 
 /*
  * Constants for Hardware ECC
-*/
+ */
 /* Reset Hardware ECC for read */
 #define NAND_ECC_READ		0
 /* Reset Hardware ECC for write */
 #define NAND_ECC_WRITE		1
 /* Enable Hardware ECC before syndrom is read back from flash */
 #define NAND_ECC_READSYN	2
+
+/* Bit mask for flags passed to do_nand_read_ecc */
+#define NAND_GET_DEVICE		0x80
+
 
 /* Option constants for bizarre disfunctionality and real
 *  features
@@ -308,6 +314,8 @@ struct nand_hw_control {
  * @badblock_pattern:	[REPLACEABLE] bad block scan pattern used for initial bad block scan 
  * @controller:		[OPTIONAL] a pointer to a hardware controller structure which is shared among multiple independend devices
  * @priv:		[OPTIONAL] pointer to private chip date
+ * @errstat:		[OPTIONAL] hardware specific function to perform additional error status checks 
+ *			(determine if errors are correctable)
  */
  
 struct nand_chip {
@@ -363,6 +371,7 @@ struct nand_chip {
 	struct nand_bbt_descr	*badblock_pattern;
 	struct nand_hw_control  *controller;
 	void		*priv;
+	int		(*errstat)(struct mtd_info *mtd, struct nand_chip *this, int state, int status, int page);
 };
 
 /*
@@ -484,6 +493,9 @@ extern int nand_update_bbt (struct mtd_info *mtd, loff_t offs);
 extern int nand_default_bbt (struct mtd_info *mtd);
 extern int nand_isbad_bbt (struct mtd_info *mtd, loff_t offs, int allowbbt);
 extern int nand_erase_nand (struct mtd_info *mtd, struct erase_info *instr, int allowbbt);
+extern int nand_do_read_ecc (struct mtd_info *mtd, loff_t from, size_t len,
+                             size_t * retlen, u_char * buf, u_char * oob_buf,
+                             struct nand_oobinfo *oobsel, int flags);
 
 /*
 * Constants for oob configuration

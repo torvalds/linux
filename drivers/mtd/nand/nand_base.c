@@ -42,6 +42,10 @@
  * 		a "device recovery" operation must be performed when power is restored
  * 		to ensure correct operation.
  *
+ *  01-20-2005	dmarlin: added support for optional hardware specific callback routine to 
+ *		perform extra error status checks on erase and write failures.  This required
+ *		adding a wrapper function for nand_read_ecc.
+ *
  * Credits:
  *	David Woodhouse for adding multichip support  
  *	
@@ -55,7 +59,7 @@
  *	The AG-AND chips have nice features for speed improvement,
  *	which are not supported yet. Read / program 4 pages in one go.
  *
- * $Id: nand_base.c,v 1.129 2005/01/23 18:30:50 dmarlin Exp $
+ * $Id: nand_base.c,v 1.130 2005/01/24 03:07:43 dmarlin Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -896,6 +900,12 @@ static int nand_write_page (struct mtd_info *mtd, struct nand_chip *this, int pa
 	if (!cached) {
 		/* call wait ready function */
 		status = this->waitfunc (mtd, this, FL_WRITING);
+
+		/* See if operation failed and additional status checks are available */
+		if ((status & NAND_STATUS_FAIL) && (this->errstat)) {
+			status = this->errstat(mtd, this, FL_WRITING, status, page);
+		}
+
 		/* See if device thinks it succeeded */
 		if (status & NAND_STATUS_FAIL) {
 			DEBUG (MTD_DEBUG_LEVEL0, "%s: " "Failed write, page 0x%08x, ", __FUNCTION__, page);
@@ -1022,23 +1032,24 @@ out:
 #endif
 
 /**
- * nand_read - [MTD Interface] MTD compability function for nand_read_ecc
+ * nand_read - [MTD Interface] MTD compability function for nand_do_read_ecc
  * @mtd:	MTD device structure
  * @from:	offset to read from
  * @len:	number of bytes to read
  * @retlen:	pointer to variable to store the number of read bytes
  * @buf:	the databuffer to put data
  *
- * This function simply calls nand_read_ecc with oob buffer and oobsel = NULL
-*/
+ * This function simply calls nand_do_read_ecc with oob buffer and oobsel = NULL
+ * and flags = 0xff
+ */
 static int nand_read (struct mtd_info *mtd, loff_t from, size_t len, size_t * retlen, u_char * buf)
 {
-	return nand_read_ecc (mtd, from, len, retlen, buf, NULL, NULL);
+	return nand_do_read_ecc (mtd, from, len, retlen, buf, NULL, NULL, 0xff);
 }			   
 
 
 /**
- * nand_read_ecc - [MTD Interface] Read data with ECC
+ * nand_read_ecc - [MTD Interface] MTD compability function for nand_do_read_ecc
  * @mtd:	MTD device structure
  * @from:	offset to read from
  * @len:	number of bytes to read
@@ -1047,10 +1058,34 @@ static int nand_read (struct mtd_info *mtd, loff_t from, size_t len, size_t * re
  * @oob_buf:	filesystem supplied oob data buffer
  * @oobsel:	oob selection structure
  *
- * NAND read with ECC
+ * This function simply calls nand_do_read_ecc with flags = 0xff
  */
 static int nand_read_ecc (struct mtd_info *mtd, loff_t from, size_t len,
 			  size_t * retlen, u_char * buf, u_char * oob_buf, struct nand_oobinfo *oobsel)
+{
+	return nand_do_read_ecc(mtd, from, len, retlen, buf, oob_buf, oobsel, 0xff);
+}
+
+
+/**
+ * nand_do_read_ecc - [MTD Interface] Read data with ECC
+ * @mtd:	MTD device structure
+ * @from:	offset to read from
+ * @len:	number of bytes to read
+ * @retlen:	pointer to variable to store the number of read bytes
+ * @buf:	the databuffer to put data
+ * @oob_buf:	filesystem supplied oob data buffer
+ * @oobsel:	oob selection structure
+ * @flags:	flag to indicate if nand_get_device/nand_release_device should be preformed
+ *		and how many corrected error bits are acceptable:
+ *		  bits 0..7 - number of tolerable errors
+ *		  bit  8    - 0 == do not get/release chip, 1 == get/release chip
+ *
+ * NAND read with ECC
+ */
+int nand_do_read_ecc (struct mtd_info *mtd, loff_t from, size_t len,
+			     size_t * retlen, u_char * buf, u_char * oob_buf, 
+			     struct nand_oobinfo *oobsel, int flags)
 {
 	int i, j, col, realpage, page, end, ecc, chipnr, sndcmd = 1;
 	int read = 0, oob = 0, ecc_status = 0, ecc_failed = 0;
@@ -1076,7 +1111,8 @@ static int nand_read_ecc (struct mtd_info *mtd, loff_t from, size_t len,
 	}
 
 	/* Grab the lock and see if the device is available */
-	nand_get_device (this, mtd, FL_READING);
+	if (flags & NAND_GET_DEVICE)
+		nand_get_device (this, mtd, FL_READING);
 
 	/* use userspace supplied oobinfo, if zero */
 	if (oobsel == NULL)
@@ -1180,7 +1216,8 @@ static int nand_read_ecc (struct mtd_info *mtd, loff_t from, size_t len,
 					/* We calc error correction directly, it checks the hw
 					 * generator for an error, reads back the syndrome and
 					 * does the error correction on the fly */
-					if (this->correct_data(mtd, &data_poi[datidx], &oob_data[i], &ecc_code[i]) == -1) {
+					ecc_status = this->correct_data(mtd, &data_poi[datidx], &oob_data[i], &ecc_code[i]);
+					if ((ecc_status == -1) || (ecc_status > (flags && 0xff))) {
 						DEBUG (MTD_DEBUG_LEVEL0, "nand_read_ecc: " 
 							"Failed ECC read, page 0x%08x on chip %d\n", page, chipnr);
 						ecc_failed++;
@@ -1219,7 +1256,7 @@ static int nand_read_ecc (struct mtd_info *mtd, loff_t from, size_t len,
 				p[i] = ecc_status;
 			}
 			
-			if (ecc_status == -1) {	
+			if ((ecc_status == -1) || (ecc_status > (flags && 0xff))) {	
 				DEBUG (MTD_DEBUG_LEVEL0, "nand_read_ecc: " "Failed ECC read, page 0x%08x\n", page);
 				ecc_failed++;
 			}
@@ -1289,7 +1326,8 @@ static int nand_read_ecc (struct mtd_info *mtd, loff_t from, size_t len,
 	}
 
 	/* Deselect and wake up anyone waiting on the device */
-	nand_release_device(mtd);
+	if (flags & NAND_GET_DEVICE)
+		nand_release_device(mtd);
 
 	/*
 	 * Return success, if no ECC failures, else -EBADMSG
@@ -2102,6 +2140,11 @@ int nand_erase_nand (struct mtd_info *mtd, struct erase_info *instr, int allowbb
 		this->erase_cmd (mtd, page & this->pagemask);
 		
 		status = this->waitfunc (mtd, this, FL_ERASING);
+
+		/* See if operation failed and additional status checks are available */
+		if ((status & NAND_STATUS_FAIL) && (this->errstat)) {
+			status = this->errstat(mtd, this, FL_ERASING, status, page);
+		}
 
 		/* See if block erase succeeded */
 		if (status & NAND_STATUS_FAIL) {
