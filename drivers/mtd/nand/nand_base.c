@@ -55,7 +55,7 @@
  *	The AG-AND chips have nice features for speed improvement,
  *	which are not supported yet. Read / program 4 pages in one go.
  *
- * $Id: nand_base.c,v 1.128 2005/01/18 16:14:56 gleixner Exp $
+ * $Id: nand_base.c,v 1.129 2005/01/23 18:30:50 dmarlin Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -480,7 +480,7 @@ static int nand_check_wp (struct mtd_info *mtd)
 	struct nand_chip *this = mtd->priv;
 	/* Check the WP bit */
 	this->cmdfunc (mtd, NAND_CMD_STATUS, -1, -1);
-	return (this->read_byte(mtd) & 0x80) ? 0 : 1; 
+	return (this->read_byte(mtd) & NAND_STATUS_WP) ? 0 : 1; 
 }
 
 /**
@@ -585,7 +585,7 @@ static void nand_command (struct mtd_info *mtd, unsigned command, int column, in
 		this->hwcontrol(mtd, NAND_CTL_SETCLE);
 		this->write_byte(mtd, NAND_CMD_STATUS);
 		this->hwcontrol(mtd, NAND_CTL_CLRCLE);
-		while ( !(this->read_byte(mtd) & 0x40));
+		while ( !(this->read_byte(mtd) & NAND_STATUS_READY));
 		return;
 
 	/* This applies to read commands */	
@@ -692,7 +692,7 @@ static void nand_command_lp (struct mtd_info *mtd, unsigned command, int column,
 		this->hwcontrol(mtd, NAND_CTL_SETCLE);
 		this->write_byte(mtd, NAND_CMD_STATUS);
 		this->hwcontrol(mtd, NAND_CTL_CLRCLE);
-		while ( !(this->read_byte(mtd) & 0x40));
+		while ( !(this->read_byte(mtd) & NAND_STATUS_READY));
 		return;
 
 	case NAND_CMD_READ0:
@@ -897,7 +897,7 @@ static int nand_write_page (struct mtd_info *mtd, struct nand_chip *this, int pa
 		/* call wait ready function */
 		status = this->waitfunc (mtd, this, FL_WRITING);
 		/* See if device thinks it succeeded */
-		if (status & 0x01) {
+		if (status & NAND_STATUS_FAIL) {
 			DEBUG (MTD_DEBUG_LEVEL0, "%s: " "Failed write, page 0x%08x, ", __FUNCTION__, page);
 			return -EIO;
 		}
@@ -1758,7 +1758,7 @@ static int nand_write_oob (struct mtd_info *mtd, loff_t to, size_t len, size_t *
 	status = this->waitfunc (mtd, this, FL_WRITING);
 
 	/* See if device thinks it succeeded */
-	if (status & 0x01) {
+	if (status & NAND_STATUS_FAIL) {
 		DEBUG (MTD_DEBUG_LEVEL0, "nand_write_oob: " "Failed write, page 0x%08x\n", page);
 		ret = -EIO;
 		goto out;
@@ -2104,7 +2104,7 @@ int nand_erase_nand (struct mtd_info *mtd, struct erase_info *instr, int allowbb
 		status = this->waitfunc (mtd, this, FL_ERASING);
 
 		/* See if block erase succeeded */
-		if (status & 0x01) {
+		if (status & NAND_STATUS_FAIL) {
 			DEBUG (MTD_DEBUG_LEVEL0, "nand_erase: " "Failed erase, page 0x%08x\n", page);
 			instr->state = MTD_ERASE_FAILED;
 			instr->fail_addr = (page << this->page_shift);
