@@ -17,8 +17,6 @@
 #include "base.h"
 #include "power/power.h"
 
-#define to_dev(node) container_of(node, struct device, bus_list)
-
 #define to_bus_attr(_attr) container_of(_attr, struct bus_attribute, attr)
 #define to_bus(obj) container_of(obj, struct bus_type, subsys.kset.kobj)
 
@@ -271,11 +269,8 @@ int bus_add_device(struct device * dev)
 	int error = 0;
 
 	if (bus) {
-		down_write(&dev->bus->subsys.rwsem);
 		pr_debug("bus %s: add device %s\n", bus->name, dev->bus_id);
-		list_add_tail(&dev->bus_list, &dev->bus->devices.list);
 		device_attach(dev);
-		up_write(&dev->bus->subsys.rwsem);
 		klist_add_tail(&bus->klist_devices, &dev->knode_bus);
 		device_add_attrs(bus, dev);
 		sysfs_create_link(&bus->devices.kobj, &dev->kobj, dev->bus_id);
@@ -300,11 +295,8 @@ void bus_remove_device(struct device * dev)
 		sysfs_remove_link(&dev->bus->devices.kobj, dev->bus_id);
 		device_remove_attrs(dev->bus, dev);
 		klist_remove(&dev->knode_bus);
-		down_write(&dev->bus->subsys.rwsem);
 		pr_debug("bus %s: remove device %s\n", dev->bus->name, dev->bus_id);
 		device_release_driver(dev);
-		list_del_init(&dev->bus_list);
-		up_write(&dev->bus->subsys.rwsem);
 		put_bus(dev->bus);
 	}
 }
@@ -364,9 +356,7 @@ int bus_add_driver(struct device_driver * drv)
 			return error;
 		}
 
-		down_write(&bus->subsys.rwsem);
 		driver_attach(drv);
-		up_write(&bus->subsys.rwsem);
 		klist_add_tail(&bus->klist_drivers, &drv->knode_bus);
 		module_add_driver(drv->owner, drv);
 
@@ -390,10 +380,8 @@ void bus_remove_driver(struct device_driver * drv)
 	if (drv->bus) {
 		driver_remove_attrs(drv->bus, drv);
 		klist_remove(&drv->knode_bus);
-		down_write(&drv->bus->subsys.rwsem);
 		pr_debug("bus %s: remove driver %s\n", drv->bus->name, drv->name);
 		driver_detach(drv);
-		up_write(&drv->bus->subsys.rwsem);
 		module_remove_driver(drv);
 		kobject_unregister(&drv->kobj);
 		put_bus(drv->bus);
