@@ -59,7 +59,7 @@
  * two levels would be easy to implement.
  *
  * For 16kB page size we use a 2 level page tree which permits a total of
- * 36 bits of virtual address space.  We could add a third leve. but it seems
+ * 36 bits of virtual address space.  We could add a third level but it seems
  * like at the moment there's no need for this.
  *
  * For 64kB page size we use a 2 level page table tree for a total of 42 bits
@@ -97,7 +97,7 @@
 #define USER_PTRS_PER_PGD	(TASK_SIZE / PGDIR_SIZE)
 #define FIRST_USER_ADDRESS	0
 
-#define VMALLOC_START		XKSEG
+#define VMALLOC_START		MAP_BASE
 #define VMALLOC_END	\
 	(VMALLOC_START + PTRS_PER_PGD * PTRS_PER_PMD * PTRS_PER_PTE * PAGE_SIZE)
 
@@ -134,7 +134,7 @@ static inline void pmd_clear(pmd_t *pmdp)
 }
 
 /*
- * Empty pgd entries point to the invalid_pmd_table.
+ * Empty pud entries point to the invalid_pmd_table.
  */
 static inline int pud_none(pud_t pud)
 {
@@ -166,12 +166,13 @@ static inline void pud_clear(pud_t *pudp)
 #endif
 
 #define __pgd_offset(address)	pgd_index(address)
+#define __pud_offset(address)	(((address) >> PUD_SHIFT) & (PTRS_PER_PUD-1))
 #define page_pte(page) page_pte_prot(page, __pgprot(0))
 
 /* to find an entry in a kernel page-table-directory */
 #define pgd_offset_k(address) pgd_offset(&init_mm, 0)
 
-#define pgd_index(address)		(((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD-1))
+#define pgd_index(address)	(((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD-1))
 
 /* to find an entry in a page-table-directory */
 #define pgd_offset(mm,addr)	((mm)->pgd + pgd_index(addr))
