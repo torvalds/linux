@@ -114,7 +114,7 @@ extern pmd_t invalid_pmd_table[PTRS_PER_PMD];
 extern pmd_t empty_bad_pmd_table[PTRS_PER_PMD];
 
 /*
- * Empty pmd entries point to the invalid_pte_table.
+ * Empty pgd/pmd entries point to the invalid_pte_table.
  */
 static inline int pmd_none(pmd_t pmd)
 {
@@ -156,7 +156,8 @@ static inline void pud_clear(pud_t *pudp)
 	pud_val(*pudp) = ((unsigned long) invalid_pmd_table);
 }
 
-#define pte_page(x)		pfn_to_page((unsigned long)((pte_val(x) >> PAGE_SHIFT)))
+#define pte_page(x)		pfn_to_page(pte_pfn(x))
+
 #ifdef CONFIG_CPU_VR41XX
 #define pte_pfn(x)		((unsigned long)((x).pte >> (PAGE_SHIFT + 2)))
 #define pfn_pte(pfn, prot)	__pte(((pfn) << (PAGE_SHIFT + 2)) | pgprot_val(prot))
@@ -167,12 +168,14 @@ static inline void pud_clear(pud_t *pudp)
 
 #define __pgd_offset(address)	pgd_index(address)
 #define __pud_offset(address)	(((address) >> PUD_SHIFT) & (PTRS_PER_PUD-1))
+#define __pmd_offset(address)	pmd_index(address)
 #define page_pte(page) page_pte_prot(page, __pgprot(0))
 
 /* to find an entry in a kernel page-table-directory */
 #define pgd_offset_k(address) pgd_offset(&init_mm, 0)
 
 #define pgd_index(address)	(((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD-1))
+#define pmd_index(address)	(((address) >> PMD_SHIFT) & (PTRS_PER_PMD-1))
 
 /* to find an entry in a page-table-directory */
 #define pgd_offset(mm,addr)	((mm)->pgd + pgd_index(addr))
@@ -185,8 +188,7 @@ static inline unsigned long pud_page(pud_t pud)
 /* Find an entry in the second-level page table.. */
 static inline pmd_t *pmd_offset(pud_t * pud, unsigned long address)
 {
-	return (pmd_t *) pud_page(*pud) +
-	       ((address >> PMD_SHIFT) & (PTRS_PER_PMD - 1));
+	return (pmd_t *) pud_page(*pud) + pmd_index(address);
 }
 
 /* Find an entry in the third-level page table.. */

@@ -157,6 +157,7 @@ NESTED(kernel_entry, 16, sp)			# kernel entry point
 	LONG_S		a2, fw_arg2
 	LONG_S		a3, fw_arg3
 
+	MTC0		zero, CP0_CONTEXT	# clear context register
 	PTR_LA		$28, init_thread_union
 	PTR_ADDIU	sp, $28, _THREAD_SIZE - 32
 	set_saved_sp	sp, t0, t1
