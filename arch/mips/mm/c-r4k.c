@@ -1013,6 +1013,7 @@ static void __init probe_pcache(void)
 	 */
 	switch (c->cputype) {
 	case CPU_20KC:
+	case CPU_25KF:
 	case CPU_R10000:
 	case CPU_R12000:
 	case CPU_SB1:
