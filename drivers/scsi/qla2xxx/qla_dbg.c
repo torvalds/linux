@@ -1050,10 +1050,8 @@ qla2x00_print_scsi_cmd(struct scsi_cmnd * cmd)
 	for (i = 0; i < cmd->cmd_len; i++) {
 		printk("0x%02x ", cmd->cmnd[i]);
 	}
-	printk("\n  seg_cnt=%d, allowed=%d, retries=%d, "
-	    "serial_number_at_timeout=0x%lx\n",
-	    cmd->use_sg, cmd->allowed, cmd->retries,
-	    cmd->serial_number_at_timeout);
+	printk("\n  seg_cnt=%d, allowed=%d, retries=%d\n",
+	    cmd->use_sg, cmd->allowed, cmd->retries);
 	printk("  request buffer=0x%p, request buffer len=0x%x\n",
 	    cmd->request_buffer, cmd->request_bufflen);
 	printk("  tag=%d, transfersize=0x%x\n",

@@ -43,21 +43,17 @@ struct scsi_cmnd {
 	void (*done) (struct scsi_cmnd *);	/* Mid-level done function */
 
 	/*
-	 * A SCSI Command is assigned a nonzero serial_number when internal_cmnd
-	 * passes it to the driver's queue command function.  The serial_number
-	 * is cleared when scsi_done is entered indicating that the command has
-	 * been completed.  If a timeout occurs, the serial number at the moment
-	 * of timeout is copied into serial_number_at_timeout.  By subsequently
-	 * comparing the serial_number and serial_number_at_timeout fields
-	 * during abort or reset processing, we can detect whether the command
-	 * has already completed.  This also detects cases where the command has
-	 * completed and the SCSI Command structure has already being reused
-	 * for another command, so that we can avoid incorrectly aborting or
-	 * resetting the new command.
-	 * The serial number is only unique per host.
+	 * A SCSI Command is assigned a nonzero serial_number before passed
+	 * to the driver's queue command function.  The serial_number is
+	 * cleared when scsi_done is entered indicating that the command
+	 * has been completed.  It currently doesn't have much use other
+	 * than printk's.  Some lldd's use this number for other purposes.
+	 * It's almost certain that such usages are either incorrect or
+	 * meaningless.  Please kill all usages other than printk's.  Also,
+	 * as this number is always identical to ->pid, please convert
+	 * printk's to use ->pid, so that we can kill this field.
 	 */
 	unsigned long serial_number;
-	unsigned long serial_number_at_timeout;
 
 	int retries;
 	int allowed;
