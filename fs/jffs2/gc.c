@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: gc.c,v 1.145 2005/02/09 09:09:01 pavlov Exp $
+ * $Id: gc.c,v 1.146 2005/03/20 17:45:25 dedekind Exp $
  *
  */
 
@@ -50,6 +50,7 @@ static struct jffs2_eraseblock *jffs2_find_gc_block(struct jffs2_sb_info *c)
 	   put the clever wear-levelling algorithms. Eventually.  */
 	/* We possibly want to favour the dirtier blocks more when the
 	   number of free blocks is low. */
+again:
 	if (!list_empty(&c->bad_used_list) && c->nr_free_blocks > c->resv_blocks_gcbad) {
 		D1(printk(KERN_DEBUG "Picking block from bad_used_list to GC next\n"));
 		nextlist = &c->bad_used_list;
@@ -79,6 +80,11 @@ static struct jffs2_eraseblock *jffs2_find_gc_block(struct jffs2_sb_info *c)
 		D1(printk(KERN_DEBUG "Picking block from erasable_list to GC next (clean_list and {very_,}dirty_list were empty)\n"));
 
 		nextlist = &c->erasable_list;
+	} else if (!list_empty(&c->erasable_pending_wbuf_list)) {
+		/* There are blocks are wating for the wbuf sync */
+		D1(printk(KERN_DEBUG "Synching wbuf in order to reuse erasable_pending_wbuf_list blocks\n"));
+		jffs2_flush_wbuf_pad(c);
+		goto again;
 	} else {
 		/* Eep. All were empty */
 		D1(printk(KERN_NOTICE "jffs2: No clean, dirty _or_ erasable blocks to GC from! Where are they all?\n"));
