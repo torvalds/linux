@@ -600,7 +600,7 @@ acpi_ec_space_handler (
 {
 	int			result = 0;
 	struct acpi_ec		*ec = NULL;
-	u32			temp = 0;
+	u64			temp = *value;
 	acpi_integer		f_v = 0;
 	int 			i = 0;
 
@@ -609,10 +609,9 @@ acpi_ec_space_handler (
 	if ((address > 0xFF) || !value || !handler_context)
 		return_VALUE(AE_BAD_PARAMETER);
 
-	if(bit_width != 8) {
+	if (bit_width != 8 && acpi_strict) {
 		printk(KERN_WARNING PREFIX "acpi_ec_space_handler: bit_width should be 8\n");
-		if (acpi_strict)
-			return_VALUE(AE_BAD_PARAMETER);
+		return_VALUE(AE_BAD_PARAMETER);
 	}
 
 	ec = (struct acpi_ec *) handler_context;
@@ -620,11 +619,11 @@ acpi_ec_space_handler (
 next_byte:
 	switch (function) {
 	case ACPI_READ:
-		result = acpi_ec_read(ec, (u8) address, &temp);
-		*value = (acpi_integer) temp;
+		temp = 0;
+		result = acpi_ec_read(ec, (u8) address, (u32 *)&temp);
 		break;
 	case ACPI_WRITE:
-		result = acpi_ec_write(ec, (u8) address, (u8) *value);
+		result = acpi_ec_write(ec, (u8) address, (u8) temp);
 		break;
 	default:
 		result = -EINVAL;
@@ -633,19 +632,18 @@ next_byte:
 	}
 
 	bit_width -= 8;
-	if(bit_width){
-
-		if(function == ACPI_READ)
-			f_v |= (acpi_integer) (*value) << 8*i;
-		if(function == ACPI_WRITE)
-			(*value) >>=8; 
+	if (bit_width) {
+		if (function == ACPI_READ)
+			f_v |= temp << 8 * i;
+		if (function == ACPI_WRITE)
+			temp >>= 8;
 		i++;
+		(u8)address ++;
 		goto next_byte;
 	}
 
-
-	if(function == ACPI_READ){
-		f_v |= (acpi_integer) (*value) << 8*i;
+	if (function == ACPI_READ) {
+		f_v |= temp << 8 * i;
 		*value = f_v;
 	}
 
@@ -664,8 +662,6 @@ out:
 	default:
 		return_VALUE(AE_OK);
 	}
-	
-
 }
 
 
