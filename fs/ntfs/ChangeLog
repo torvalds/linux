@@ -49,6 +49,8 @@ ToDo/Notes:
 	- Minor optimization to fs/ntfs/super.c::ntfs_statfs() and its helpers.
 	- Use i_size_read() in fs/ntfs/inode.c once and then use the cached
 	  value afterwards when reading the size of the bitmap inode.
+	- Use i_size_{read,write}() in fs/ntfs/{aops.c,mft.c} and protect
+	  access to the i_size and other size fields using the size_lock.
 
 2.1.22 - Many bug and race fixes and error handling improvements.
 
