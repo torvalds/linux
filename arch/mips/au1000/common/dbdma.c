@@ -39,11 +39,11 @@
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/module.h>
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-au1x00/au1xxx_dbdma.h>
 #include <asm/system.h>
 
-/* #include <linux/module.h> */
 
 #if defined(CONFIG_SOC_AU1550) || defined(CONFIG_SOC_AU1200)
 
@@ -596,10 +596,10 @@ _au1xxx_dbdma_put_source(u32 chanid, void *buf, int nbytes, u32 flags)
 	 * these parts. If it is fixedin the future, these dma_cache_inv will
 	 * just be nothing more than empty macros. See io.h.
 	 * */
-	dma_cache_wback_inv(buf,nbytes);
+	dma_cache_wback_inv((unsigned long)buf, nbytes);
         dp->dscr_cmd0 |= DSCR_CMD0_V;        /* Let it rip */
 	au_sync();
-	dma_cache_wback_inv(dp, sizeof(dp));
+	dma_cache_wback_inv((unsigned long)dp, sizeof(dp));
         ctp->chan_ptr->ddma_dbell = 0;
 
 	/* return something not zero.
@@ -657,10 +657,10 @@ _au1xxx_dbdma_put_dest(u32 chanid, void *buf, int nbytes, u32 flags)
 	 * parts. If it is fixedin the future, these dma_cache_inv will just
 	 * be nothing more than empty macros. See io.h.
 	 * */
-	dma_cache_inv(buf,nbytes);
+	dma_cache_inv((unsigned long)buf,nbytes);
 	dp->dscr_cmd0 |= DSCR_CMD0_V;	/* Let it rip */
 	au_sync();
-	dma_cache_wback_inv(dp, sizeof(dp));
+	dma_cache_wback_inv((unsigned long)dp, sizeof(dp));
         ctp->chan_ptr->ddma_dbell = 0;
 
 	/* Get next descriptor pointer.
@@ -820,8 +820,7 @@ au1xxx_dbdma_chan_free(u32 chanid)
 
 	au1xxx_dbdma_stop(chanid);
 
-	if (ctp->chan_desc_base != NULL)
-		kfree(ctp->chan_desc_base);
+	kfree((void *)ctp->chan_desc_base);
 
 	stp->dev_flags &= ~DEV_FLAGS_INUSE;
 	dtp->dev_flags &= ~DEV_FLAGS_INUSE;
@@ -831,11 +830,11 @@ au1xxx_dbdma_chan_free(u32 chanid)
 }
 EXPORT_SYMBOL(au1xxx_dbdma_chan_free);
 
-static void
+static irqreturn_t
 dbdma_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
-	u32        				intstat, flags;
-	u32	chan_index;
+	u32 intstat;
+	u32 chan_index;
 	chan_tab_t		*ctp;
 	au1x_ddma_desc_t	*dp;
 	au1x_dma_chan_t *cp;
@@ -857,6 +856,7 @@ dbdma_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		(ctp->chan_callback)(irq, ctp->chan_callparam, regs);
 
 	ctp->cur_ptr = phys_to_virt(DSCR_GET_NXTPTR(dp->dscr_nxtptr));
+	return IRQ_RETVAL(1);
 }
 
 static void au1xxx_dbdma_init(void)

@@ -757,6 +757,12 @@ extern au1xxx_irq_map_t au1xxx_irq_map[];
 #define AU1500_GPIO_207           62
 #define AU1500_GPIO_208_215       63
 
+/* shortcuts */
+#define INTA AU1000_PCI_INTA
+#define INTB AU1000_PCI_INTB
+#define INTC AU1000_PCI_INTC
+#define INTD AU1000_PCI_INTD
+
 #define UART0_ADDR                0xB1100000
 #define UART3_ADDR                0xB1400000
 
@@ -907,6 +913,12 @@ extern au1xxx_irq_map_t au1xxx_irq_map[];
 #define AU1500_GPIO_207           62
 #define AU1500_GPIO_208_218       63	// Logical or of GPIO208:218
 
+/* shortcuts */
+#define INTA AU1550_PCI_INTA
+#define INTB AU1550_PCI_INTB
+#define INTC AU1550_PCI_INTC
+#define INTD AU1550_PCI_INTD
+
 #define UART0_ADDR                0xB1100000
 #define UART1_ADDR                0xB1200000
 #define UART3_ADDR                0xB1400000
@@ -1019,6 +1031,7 @@ extern au1xxx_irq_map_t au1xxx_irq_map[];
 #define AU1000_LAST_INTC0_INT     31
 #define AU1000_LAST_INTC1_INT     63
 #define AU1000_MAX_INTR           63
+#define INTX    		0xFF /* not valid */
 
 /* Programmable Counters 0 and 1 */
 #define SYS_BASE                   0xB1900000
