@@ -36,6 +36,7 @@
 #include <linux/ip.h>
 #include <linux/delay.h>
 #include <linux/crc32.h>
+#include <linux/dma-mapping.h>
 #include <asm/irq.h>
 
 #include "skge.h"
