@@ -456,8 +456,8 @@ static void r4k_flush_data_cache_page(unsigned long addr)
 }
 
 struct flush_icache_range_args {
-	unsigned long start;
-	unsigned long end;
+	unsigned long __user start;
+	unsigned long __user end;
 };
 
 static inline void local_r4k_flush_icache_range(void *args)
@@ -519,7 +519,8 @@ static inline void local_r4k_flush_icache_range(void *args)
 	}
 }
 
-static void r4k_flush_icache_range(unsigned long start, unsigned long end)
+static void r4k_flush_icache_range(unsigned long __user start,
+	unsigned long __user end)
 {
 	struct flush_icache_range_args args;
 

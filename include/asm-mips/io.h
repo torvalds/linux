@@ -25,6 +25,7 @@
 #include <asm/page.h>
 #include <asm/pgtable-bits.h>
 #include <asm/processor.h>
+#include <asm/string.h>
 
 #include <mangle-port.h>
 
@@ -217,7 +218,7 @@ static inline void __iomem * __ioremap_mode(phys_t offset, unsigned long size,
 		 */
 		if (flags == _CACHE_UNCACHED)
 			base = (u64) IO_BASE;
-		return (void *) (unsigned long) (base + offset);
+		return (void __iomem *) (unsigned long) (base + offset);
 	}
 
 	return __ioremap(offset, size, flags);
@@ -486,9 +487,18 @@ BUILDSTRING(q, u64)
 /* Depends on MIPS II instruction set */
 #define mmiowb() asm volatile ("sync" ::: "memory")
 
-#define memset_io(a,b,c)	memset((void *)(a),(b),(c))
-#define memcpy_fromio(a,b,c)	memcpy((a),(void *)(b),(c))
-#define memcpy_toio(a,b,c)	memcpy((void *)(a),(b),(c))
+static inline void memset_io(volatile void __iomem *addr, unsigned char val, int count)
+{
+	memset((void __force *) addr, val, count);
+}
+static inline void memcpy_fromio(void *dst, const volatile void __iomem *src, int count)
+{
+	memcpy(dst, (void __force *) src, count);
+}
+static inline void memcpy_toio(volatile void __iomem *dst, const void *src, int count)
+{
+	memcpy((void __force *) dst, src, count);
+}
 
 /*
  * Memory Mapped I/O

@@ -147,7 +147,7 @@ static void padzero(unsigned long elf_bss)
 	nbyte = elf_bss & (PAGE_SIZE-1);
 	if (nbyte) {
 		nbyte = PAGE_SIZE - nbyte;
-		clear_user((void *) elf_bss, nbyte);
+		clear_user((void __user *) elf_bss, nbyte);
 	}
 }
 
@@ -878,10 +878,10 @@ static int load_irix_library(struct file *file)
  * phdrs there are in the USER_PHDRP array.  We return the vaddr the
  * first phdr was successfully mapped to.
  */
-unsigned long irix_mapelf(int fd, struct elf_phdr *user_phdrp, int cnt)
+unsigned long irix_mapelf(int fd, struct elf_phdr __user *user_phdrp, int cnt)
 {
 	unsigned long type, vaddr, filesz, offset, flags;
-	struct elf_phdr *hp;
+	struct elf_phdr __user *hp;
 	struct file *filp;
 	int i, retval;
 
@@ -968,9 +968,9 @@ unsigned long irix_mapelf(int fd, struct elf_phdr *user_phdrp, int cnt)
 /* These are the only things you should do on a core-file: use only these
  * functions to write out all the necessary info.
  */
-static int dump_write(struct file *file, const void *addr, int nr)
+static int dump_write(struct file *file, const void __user *addr, int nr)
 {
-	return file->f_op->write(file, (const char *) addr, nr, &file->f_pos) == nr;
+	return file->f_op->write(file, (const char __user *) addr, nr, &file->f_pos) == nr;
 }
 
 static int dump_seek(struct file *file, off_t off)
@@ -1204,7 +1204,7 @@ static int irix_core_dump(long signr, struct pt_regs * regs, struct file *file)
 		len = current->mm->arg_end - current->mm->arg_start;
 		len = len >= ELF_PRARGSZ ? ELF_PRARGSZ : len;
 		(void *) copy_from_user(&psinfo.pr_psargs,
-			       (const char *)current->mm->arg_start, len);
+			       (const char __user *)current->mm->arg_start, len);
 		for (i = 0; i < len; i++)
 			if (psinfo.pr_psargs[i] == 0)
 				psinfo.pr_psargs[i] = ' ';
@@ -1301,7 +1301,7 @@ static int irix_core_dump(long signr, struct pt_regs * regs, struct file *file)
 #ifdef DEBUG
 		printk("elf_core_dump: writing %08lx %lx\n", addr, len);
 #endif
-		DUMP_WRITE((void *)addr, len);
+		DUMP_WRITE((void __user *)addr, len);
 	}
 
 	if ((off_t) file->f_pos != offset) {

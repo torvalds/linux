@@ -47,9 +47,10 @@ save_static_function(sys_sigsuspend);
 __attribute_used__ noinline static int
 _sys_sigsuspend(nabi_no_regargs struct pt_regs regs)
 {
-	sigset_t *uset, saveset, newset;
+	sigset_t saveset, newset;
+	sigset_t __user *uset;
 
-	uset = (sigset_t *) regs.regs[4];
+	uset = (sigset_t __user *) regs.regs[4];
 	if (copy_from_user(&newset, uset, sizeof(sigset_t)))
 		return -EFAULT;
 	sigdelsetmask(&newset, ~_BLOCKABLE);
@@ -75,7 +76,8 @@ save_static_function(sys_rt_sigsuspend);
 __attribute_used__ noinline static int
 _sys_rt_sigsuspend(nabi_no_regargs struct pt_regs regs)
 {
-	sigset_t *unewset, saveset, newset;
+	sigset_t saveset, newset;
+	sigset_t __user *unewset;
 	size_t sigsetsize;
 
 	/* XXX Don't preclude handling different sized sigset_t's.  */
@@ -83,7 +85,7 @@ _sys_rt_sigsuspend(nabi_no_regargs struct pt_regs regs)
 	if (sigsetsize != sizeof(sigset_t))
 		return -EINVAL;
 
-	unewset = (sigset_t *) regs.regs[4];
+	unewset = (sigset_t __user *) regs.regs[4];
 	if (copy_from_user(&newset, unewset, sizeof(newset)))
 		return -EFAULT;
 	sigdelsetmask(&newset, ~_BLOCKABLE);
@@ -147,8 +149,8 @@ asmlinkage int sys_sigaction(int sig, const struct sigaction *act,
 
 asmlinkage int sys_sigaltstack(nabi_no_regargs struct pt_regs regs)
 {
-	const stack_t *uss = (const stack_t *) regs.regs[4];
-	stack_t *uoss = (stack_t *) regs.regs[5];
+	const stack_t __user *uss = (const stack_t __user *) regs.regs[4];
+	stack_t __user *uoss = (stack_t __user *) regs.regs[5];
 	unsigned long usp = regs.regs[29];
 
 	return do_sigaltstack(uss, uoss, usp);

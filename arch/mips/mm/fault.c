@@ -141,7 +141,7 @@ bad_area_nosemaphore:
 		info.si_signo = SIGSEGV;
 		info.si_errno = 0;
 		/* info.si_code has been set above */
-		info.si_addr = (void *) address;
+		info.si_addr = (void __user *) address;
 		force_sig_info(SIGSEGV, &info, tsk);
 		return;
 	}
@@ -197,7 +197,7 @@ do_sigbus:
 	info.si_signo = SIGBUS;
 	info.si_errno = 0;
 	info.si_code = BUS_ADRERR;
-	info.si_addr = (void *) address;
+	info.si_addr = (void __user *) address;
 	force_sig_info(SIGBUS, &info, tsk);
 
 	return;

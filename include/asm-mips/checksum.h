@@ -34,8 +34,9 @@ unsigned int csum_partial(const unsigned char *buff, int len, unsigned int sum);
  * this is a new version of the above that records errors it finds in *errp,
  * but continues and zeros the rest of the buffer.
  */
-unsigned int csum_partial_copy_from_user(const unsigned char *src, unsigned char *dst, int len,
-                                         unsigned int sum, int *errp);
+unsigned int csum_partial_copy_from_user(const unsigned char __user *src,
+					 unsigned char *dst, int len,
+					 unsigned int sum, int *errp);
 
 /*
  * Copy and checksum to user

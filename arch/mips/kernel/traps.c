@@ -339,9 +339,9 @@ asmlinkage void do_be(struct pt_regs *regs)
 
 static inline int get_insn_opcode(struct pt_regs *regs, unsigned int *opcode)
 {
-	unsigned int *epc;
+	unsigned int __user *epc;
 
-	epc = (unsigned int *) regs->cp0_epc +
+	epc = (unsigned int __user *) regs->cp0_epc +
 	      ((regs->cp0_cause & CAUSEF_BD) != 0);
 	if (!get_user(*opcode, epc))
 		return 0;
@@ -371,7 +371,7 @@ static struct task_struct *ll_task = NULL;
 
 static inline void simulate_ll(struct pt_regs *regs, unsigned int opcode)
 {
-	unsigned long value, *vaddr;
+	unsigned long value, __user *vaddr;
 	long offset;
 	int signal = 0;
 
@@ -385,7 +385,8 @@ static inline void simulate_ll(struct pt_regs *regs, unsigned int opcode)
 	offset <<= 16;
 	offset >>= 16;
 
-	vaddr = (unsigned long *)((long)(regs->regs[(opcode & BASE) >> 21]) + offset);
+	vaddr = (unsigned long __user *)
+	        ((unsigned long)(regs->regs[(opcode & BASE) >> 21]) + offset);
 
 	if ((unsigned long)vaddr & 3) {
 		signal = SIGBUS;
@@ -418,7 +419,8 @@ sig:
 
 static inline void simulate_sc(struct pt_regs *regs, unsigned int opcode)
 {
-	unsigned long *vaddr, reg;
+	unsigned long __user *vaddr;
+	unsigned long reg;
 	long offset;
 	int signal = 0;
 
@@ -432,7 +434,8 @@ static inline void simulate_sc(struct pt_regs *regs, unsigned int opcode)
 	offset <<= 16;
 	offset >>= 16;
 
-	vaddr = (unsigned long *)((long)(regs->regs[(opcode & BASE) >> 21]) + offset);
+	vaddr = (unsigned long __user *)
+	        ((unsigned long)(regs->regs[(opcode & BASE) >> 21]) + offset);
 	reg = (opcode & RT) >> 16;
 
 	if ((unsigned long)vaddr & 3) {
@@ -498,7 +501,7 @@ asmlinkage void do_ov(struct pt_regs *regs)
 	info.si_code = FPE_INTOVF;
 	info.si_signo = SIGFPE;
 	info.si_errno = 0;
-	info.si_addr = (void *)regs->cp0_epc;
+	info.si_addr = (void __user *) regs->cp0_epc;
 	force_sig_info(SIGFPE, &info, current);
 }
 
@@ -584,7 +587,7 @@ asmlinkage void do_bp(struct pt_regs *regs)
 			info.si_code = FPE_INTOVF;
 		info.si_signo = SIGFPE;
 		info.si_errno = 0;
-		info.si_addr = (void *)regs->cp0_epc;
+		info.si_addr = (void __user *) regs->cp0_epc;
 		force_sig_info(SIGFPE, &info, current);
 		break;
 	default:
@@ -621,7 +624,7 @@ asmlinkage void do_tr(struct pt_regs *regs)
 			info.si_code = FPE_INTOVF;
 		info.si_signo = SIGFPE;
 		info.si_errno = 0;
-		info.si_addr = (void *)regs->cp0_epc;
+		info.si_addr = (void __user *) regs->cp0_epc;
 		force_sig_info(SIGFPE, &info, current);
 		break;
 	default:

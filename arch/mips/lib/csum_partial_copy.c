@@ -33,7 +33,7 @@ unsigned int csum_partial_copy_nocheck(const unsigned char *src,
  * Copy from userspace and compute checksum.  If we catch an exception
  * then zero the rest of the buffer.
  */
-unsigned int csum_partial_copy_from_user (const unsigned char *src,
+unsigned int csum_partial_copy_from_user (const unsigned char __user *src,
 	unsigned char *dst, int len, unsigned int sum, int *err_ptr)
 {
 	int missing;

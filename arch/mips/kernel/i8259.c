@@ -321,7 +321,7 @@ void __init init_i8259_irqs (void)
 
 	for (i = 0; i < 16; i++) {
 		irq_desc[i].status = IRQ_DISABLED;
-		irq_desc[i].action = 0;
+		irq_desc[i].action = NULL;
 		irq_desc[i].depth = 1;
 		irq_desc[i].handler = &i8259A_irq_type;
 	}

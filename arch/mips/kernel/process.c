@@ -39,14 +39,6 @@
 #include <asm/inst.h>
 
 /*
- * We use this if we don't have any better idle routine..
- * (This to kill: kernel/platform.c.
- */
-void default_idle (void)
-{
-}
-
-/*
  * The idle thread. There's no useful work to be done, so just try to conserve
  * power and have a low exit latency (ie sit in a loop waiting for somebody to
  * say that they'd like to reschedule)
