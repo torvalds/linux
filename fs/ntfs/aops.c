@@ -1392,14 +1392,11 @@ static int ntfs_writepage(struct page *page, struct writeback_control *wbc)
 
 	attr_len = le32_to_cpu(ctx->attr->data.resident.value_length);
 	i_size = i_size_read(vi);
-	kaddr = kmap_atomic(page, KM_USER0);
 	if (unlikely(attr_len > i_size)) {
-		/* Zero out of bounds area in the mft record. */
-		memset((u8*)ctx->attr + le16_to_cpu(
-				ctx->attr->data.resident.value_offset) +
-				i_size, 0, attr_len - i_size);
 		attr_len = i_size;
+		ctx->attr->data.resident.value_length = cpu_to_le32(attr_len);
 	}
+	kaddr = kmap_atomic(page, KM_USER0);
 	/* Copy the data from the page to the mft record. */
 	memcpy((u8*)ctx->attr +
 			le16_to_cpu(ctx->attr->data.resident.value_offset),
@@ -1831,7 +1828,7 @@ static int ntfs_prepare_write(struct file *file, struct page *page,
 		unsigned from, unsigned to)
 {
 	s64 new_size;
-	unsigned long flags;
+	loff_t i_size;
 	struct inode *vi = page->mapping->host;
 	ntfs_inode *base_ni = NULL, *ni = NTFS_I(vi);
 	ntfs_volume *vol = ni->vol;
@@ -1934,13 +1931,11 @@ static int ntfs_prepare_write(struct file *file, struct page *page,
 	/* The total length of the attribute value. */
 	attr_len = le32_to_cpu(a->data.resident.value_length);
 	/* Fix an eventual previous failure of ntfs_commit_write(). */
-	read_lock_irqsave(&ni->size_lock, flags);
-	if (unlikely(ni->initialized_size < attr_len)) {
-		attr_len = ni->initialized_size;
+	i_size = i_size_read(vi);
+	if (unlikely(attr_len > i_size)) {
+		attr_len = i_size;
 		a->data.resident.value_length = cpu_to_le32(attr_len);
-		BUG_ON(attr_len < i_size_read(vi));
 	}
-	read_unlock_irqrestore(&ni->size_lock, flags);
 	/* If we do not need to resize the attribute allocation we are done. */
 	if (new_size <= attr_len)
 		goto done_unm;
