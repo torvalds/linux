@@ -2,20 +2,18 @@ ToDo/Notes:
 	- Find and fix bugs.
 	- Checkpoint or disable the user space journal ($UsnJrnl).
 	- In between ntfs_prepare/commit_write, need exclusion between
-	  simultaneous file extensions. Need perhaps an NInoResizeUnderway()
-	  flag which we can set in ntfs_prepare_write() and clear again in
-	  ntfs_commit_write(). Just have to be careful in readpage/writepage,
-	  as well as in truncate, that we play nice... We might need to have
-	  a data_size field in the ntfs_inode to store the real attribute
-	  length. Also need to be careful with initialized_size extention in
+	  simultaneous file extensions.  This is given to us by holding i_sem
+	  on the inode.  The only places in the kernel when a file is resized
+	  are prepare/commit write and truncate for both of which i_sem is
+	  held.  Just have to be careful in readpage/writepage and all other
+	  helpers not running under i_sem that we play nice...
+	  Also need to be careful with initialized_size extention in
 	  ntfs_prepare_write. Basically, just be _very_ careful in this code...
-	  OTOH, perhaps i_sem, which is held accross generic_file_write is
-	  sufficient for synchronisation here. We then just need to make sure
-	  ntfs_readpage/writepage/truncate interoperate properly with us.
-	  UPDATE: The above is all ok as it is due to i_sem held.  The only
-	  thing that needs to be checked is ntfs_writepage() which does not
-	  hold i_sem.  It cannot change i_size but it needs to cope with a
-	  concurrent i_size change.
+	  UPDATE: The only things that need to be checked are read/writepage
+	  which do not hold i_sem.  Note writepage cannot change i_size but it
+	  needs to cope with a concurrent i_size change, just like readpage.
+	  Also both need to cope with concurrent changes to the other sizes,
+	  i.e. initialized/allocated/compressed size, as well.
 	- Implement mft.c::sync_mft_mirror_umount().  We currently will just
 	  leave the volume dirty on umount if the final iput(vol->mft_ino)
 	  causes a write of any mirrored mft records due to the mft mirror
@@ -32,6 +30,7 @@ ToDo/Notes:
 	  attack.  Thanks to Carl-Daniel Hailfinger from SuSE for pointing this
 	  out.
 	- Use i_size_read() in fs/ntfs/attrib.c::ntfs_attr_set().
+	- Use i_size_read() in fs/ntfs/logfile.c::ntfs_{check,empty}_logfile().
 
 2.1.22 - Many bug and race fixes and error handling improvements.
 

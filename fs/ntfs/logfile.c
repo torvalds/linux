@@ -443,7 +443,7 @@ BOOL ntfs_check_logfile(struct inode *log_vi)
 	/* An empty $LogFile must have been clean before it got emptied. */
 	if (NVolLogFileEmpty(vol))
 		goto is_empty;
-	size = log_vi->i_size;
+	size = i_size_read(log_vi);
 	/* Make sure the file doesn't exceed the maximum allowed size. */
 	if (size > MaxLogFileSize)
 		size = MaxLogFileSize;
@@ -689,7 +689,8 @@ BOOL ntfs_empty_logfile(struct inode *log_vi)
 	if (!NVolLogFileEmpty(vol)) {
 		int err;
 		
-		err = ntfs_attr_set(NTFS_I(log_vi), 0, log_vi->i_size, 0xff);
+		err = ntfs_attr_set(NTFS_I(log_vi), 0, i_size_read(log_vi),
+				0xff);
 		if (unlikely(err)) {
 			ntfs_error(vol->sb, "Failed to fill $LogFile with "
 					"0xff bytes (error code %i).", err);
