@@ -329,9 +329,10 @@ static int auto_hotkey_remove(struct acpi_device *device, int type)
 static int create_polling_proc(union acpi_hotkey *device)
 {
 	struct proc_dir_entry *proc;
+	mode_t mode;
 
 	ACPI_FUNCTION_TRACE("create_polling_proc");
-	mode_t mode = S_IFREG | S_IRUGO | S_IWUGO;
+	mode = S_IFREG | S_IRUGO | S_IWUGO;
 
 	proc = create_proc_entry(device->poll_hotkey.action_method,
 				 mode, hotkey_proc_dir);
