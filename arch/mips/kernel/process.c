@@ -167,6 +167,14 @@ void dump_regs(elf_greg_t *gp, struct pt_regs *regs)
 #endif
 }
 
+int dump_task_regs (struct task_struct *tsk, elf_gregset_t *regs)
+{
+	struct thread_info *ti = tsk->thread_info;
+	long ksp = (unsigned long)ti + THREAD_SIZE - 32;
+	dump_regs(&(*regs)[0], (struct pt_regs *) ksp - 1);
+	return 1;
+}
+
 int dump_task_fpu (struct task_struct *t, elf_fpregset_t *fpr)
 {
 	memcpy(fpr, &t->thread.fpu, sizeof(current->thread.fpu));

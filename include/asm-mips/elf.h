@@ -225,10 +225,12 @@ do {	current->thread.mflags &= ~MF_ABI_MASK;			\
 #endif /* CONFIG_64BIT */
 
 extern void dump_regs(elf_greg_t *, struct pt_regs *regs);
+extern int dump_task_regs (struct task_struct *, elf_gregset_t *);
 extern int dump_task_fpu(struct task_struct *, elf_fpregset_t *);
 
 #define ELF_CORE_COPY_REGS(elf_regs, regs)			\
 	dump_regs((elf_greg_t *)&(elf_regs), regs);
+#define ELF_CORE_COPY_TASK_REGS(tsk, elf_regs) dump_task_regs(tsk, elf_regs)
 #define ELF_CORE_COPY_FPREGS(tsk, elf_fpregs)			\
 	dump_task_fpu(tsk, elf_fpregs)
 
