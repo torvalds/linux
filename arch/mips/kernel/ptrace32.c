@@ -24,7 +24,6 @@
 #include <linux/smp_lock.h>
 #include <linux/user.h>
 #include <linux/security.h>
-#include <linux/signal.h>
 
 #include <asm/cpu.h>
 #include <asm/fpu.h>
@@ -271,6 +270,11 @@ asmlinkage int sys32_ptrace(int request, int pid, int addr, int data)
 
 	case PTRACE_DETACH: /* detach a process that was attached. */
 		ret = ptrace_detach(child, data);
+		break;
+
+	case PTRACE_GETEVENTMSG:
+		ret = put_user(child->ptrace_message,
+			       (unsigned int __user *) (unsigned long) data);
 		break;
 
 	default:
