@@ -243,8 +243,8 @@ EXPORT(sysn32_call_table)
 	PTR	sys_capget
 	PTR	sys_capset
 	PTR	sys32_rt_sigpending		/* 6125 */
-	PTR	compat_sys_rt_sigtimedwait
-	PTR	sys32_rt_sigqueueinfo
+	PTR	sysn32_rt_sigtimedwait
+	PTR	sys_rt_sigqueueinfo
 	PTR	sys32_rt_sigsuspend
 	PTR	sys32_sigaltstack
 	PTR	compat_sys_utime		/* 6130 */
@@ -337,15 +337,15 @@ EXPORT(sysn32_call_table)
 	PTR	compat_sys_statfs64
 	PTR	compat_sys_fstatfs64
 	PTR	sys_sendfile64
-	PTR	sys_timer_create		/* 6220 */
-	PTR	sys_timer_settime
-	PTR	sys_timer_gettime
+	PTR	sys32_timer_create		/* 6220 */
+	PTR	compat_sys_timer_settime
+	PTR	compat_sys_timer_gettime
 	PTR	sys_timer_getoverrun
 	PTR	sys_timer_delete
-	PTR	sys_clock_settime		/* 6225 */
-	PTR	sys_clock_gettime
-	PTR	sys_clock_getres
-	PTR	sys_clock_nanosleep
+	PTR	compat_sys_clock_settime		/* 6225 */
+	PTR	compat_sys_clock_gettime
+	PTR	compat_sys_clock_getres
+	PTR	compat_sys_clock_nanosleep
 	PTR	sys_tgkill
 	PTR	compat_sys_utimes		/* 6230 */
 	PTR	sys_ni_syscall			/* sys_mbind */

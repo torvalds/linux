@@ -1418,3 +1418,53 @@ asmlinkage long sys32_socketcall(int call, unsigned int *args32)
 	}
 	return err;
 }
+
+struct sigevent32 {
+	u32 sigev_value;
+	u32 sigev_signo;
+	u32 sigev_notify;
+	u32 payload[(64 / 4) - 3];
+};
+
+extern asmlinkage long
+sys_timer_create(clockid_t which_clock,
+		 struct sigevent __user *timer_event_spec,
+		 timer_t __user * created_timer_id);
+
+long
+sys32_timer_create(u32 clock, struct sigevent32 __user *se32, timer_t __user *timer_id)
+{
+	struct sigevent __user *p = NULL;
+	if (se32) {
+		struct sigevent se;
+		p = compat_alloc_user_space(sizeof(struct sigevent));
+		memset(&se, 0, sizeof(struct sigevent));
+		if (get_user(se.sigev_value.sival_int,  &se32->sigev_value) ||
+		    __get_user(se.sigev_signo, &se32->sigev_signo) ||
+		    __get_user(se.sigev_notify, &se32->sigev_notify) ||
+		    __copy_from_user(&se._sigev_un._pad, &se32->payload,
+				     sizeof(se32->payload)) ||
+		    copy_to_user(p, &se, sizeof(se)))
+			return -EFAULT;
+	}
+	return sys_timer_create(clock, p, timer_id);
+}
+
+asmlinkage long
+sysn32_rt_sigtimedwait(const sigset_t __user *uthese,
+		       siginfo_t __user *uinfo,
+		       const struct compat_timespec __user *uts32,
+		       size_t sigsetsize)
+{
+	struct timespec __user *uts = NULL;
+
+	if (uts32) {
+		struct timespec ts;
+		uts = compat_alloc_user_space(sizeof(struct timespec));
+		if (get_user(ts.tv_sec, &uts32->tv_sec) ||
+		    get_user(ts.tv_nsec, &uts32->tv_nsec) ||
+		    copy_to_user (uts, &ts, sizeof (ts)))
+			return -EFAULT;
+	}
+	return sys_rt_sigtimedwait(uthese, uinfo, uts, sigsetsize);
+}
