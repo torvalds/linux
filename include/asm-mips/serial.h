@@ -52,16 +52,6 @@
 #define JAZZ_SERIAL_PORT_DEFNS
 #endif
 
-#ifdef CONFIG_MIPS_COBALT
-#include <asm/cobalt/cobalt.h>
-#define COBALT_BASE_BAUD  (18432000 / 16)
-#define COBALT_SERIAL_PORT_DEFNS		\
-	/* UART CLK   PORT  IRQ  FLAGS    */ 		\
-	{ 0, COBALT_BASE_BAUD, 0xc800000, COBALT_SERIAL_IRQ, STD_COM_FLAGS },   /* ttyS0 */
-#else
-#define COBALT_SERIAL_PORT_DEFNS
-#endif
-
 /*
  * Both Galileo boards have the same UART mappings.
  */
@@ -342,7 +332,6 @@
 #endif /* CONFIG_SGI_IP32 */
 
 #define SERIAL_PORT_DFNS				\
-	COBALT_SERIAL_PORT_DEFNS			\
 	DDB5477_SERIAL_PORT_DEFNS			\
 	EV96100_SERIAL_PORT_DEFNS			\
 	IP32_SERIAL_PORT_DEFNS                          \

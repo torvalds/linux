@@ -575,8 +575,8 @@ static inline int button_pressed(void)
 
 static int lcd_waiters = 0;
 
-static long lcd_read(struct inode *inode, struct file *file, char *buf,
-		     unsigned long count)
+static ssize_t lcd_read(struct file *file, char *buf,
+		     size_t count, loff_t *ofs)
 {
 	long buttons_now;
 
