@@ -14,6 +14,7 @@
 #include <linux/config.h>
 #include <linux/ioport.h>
 #include <linux/kobject.h>
+#include <linux/klist.h>
 #include <linux/list.h>
 #include <linux/types.h>
 #include <linux/module.h>
@@ -51,6 +52,7 @@ struct bus_type {
 	struct subsystem	subsys;
 	struct kset		drivers;
 	struct kset		devices;
+	struct klist		klist_devices;
 
 	struct bus_attribute	* bus_attrs;
 	struct device_attribute	* dev_attrs;
@@ -262,6 +264,7 @@ struct device {
 	struct list_head bus_list;	/* node in bus's list */
 	struct list_head driver_list;
 	struct list_head children;
+	struct klist_node	knode_bus;
 	struct device 	* parent;
 
 	struct kobject kobj;

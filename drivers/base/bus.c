@@ -134,28 +134,6 @@ static struct kobj_type ktype_bus = {
 
 decl_subsys(bus, &ktype_bus, NULL);
 
-static int __bus_for_each_dev(struct bus_type *bus, struct device *start,
-			      void *data, int (*fn)(struct device *, void *))
-{
-	struct list_head *head;
-	struct device *dev;
-	int error = 0;
-
-	if (!(bus = get_bus(bus)))
-		return -EINVAL;
-
-	head = &bus->devices.list;
-	dev = list_prepare_entry(start, head, bus_list);
-	list_for_each_entry_continue(dev, head, bus_list) {
-		get_device(dev);
-		error = fn(dev, data);
-		put_device(dev);
-		if (error)
-			break;
-	}
-	put_bus(bus);
-	return error;
-}
 
 static int __bus_for_each_drv(struct bus_type *bus, struct device_driver *start,
 			      void * data, int (*fn)(struct device_driver *, void *))
@@ -178,6 +156,13 @@ static int __bus_for_each_drv(struct bus_type *bus, struct device_driver *start,
 	}
 	put_bus(bus);
 	return error;
+}
+
+
+static struct device * next_device(struct klist_iter * i)
+{
+	struct klist_node * n = klist_next(i);
+	return n ? container_of(n, struct device, knode_bus) : NULL;
 }
 
 /**
@@ -203,12 +188,19 @@ static int __bus_for_each_drv(struct bus_type *bus, struct device_driver *start,
 int bus_for_each_dev(struct bus_type * bus, struct device * start,
 		     void * data, int (*fn)(struct device *, void *))
 {
-	int ret;
+	struct klist_iter i;
+	struct device * dev;
+	int error = 0;
 
-	down_read(&bus->subsys.rwsem);
-	ret = __bus_for_each_dev(bus, start, data, fn);
-	up_read(&bus->subsys.rwsem);
-	return ret;
+	if (!bus)
+		return -EINVAL;
+
+	klist_iter_init_node(&bus->klist_devices, &i,
+			     (start ? &start->knode_bus : NULL));
+	while ((dev = next_device(&i)) && !error)
+		error = fn(dev, data);
+	klist_iter_exit(&i);
+	return error;
 }
 
 /**
@@ -293,6 +285,7 @@ int bus_add_device(struct device * dev)
 		list_add_tail(&dev->bus_list, &dev->bus->devices.list);
 		device_attach(dev);
 		up_write(&dev->bus->subsys.rwsem);
+		klist_add_tail(&bus->klist_devices, &dev->knode_bus);
 		device_add_attrs(bus, dev);
 		sysfs_create_link(&bus->devices.kobj, &dev->kobj, dev->bus_id);
 		sysfs_create_link(&dev->kobj, &dev->bus->subsys.kset.kobj, "bus");
@@ -315,6 +308,7 @@ void bus_remove_device(struct device * dev)
 		sysfs_remove_link(&dev->kobj, "bus");
 		sysfs_remove_link(&dev->bus->devices.kobj, dev->bus_id);
 		device_remove_attrs(dev->bus, dev);
+		klist_remove(&dev->knode_bus);
 		down_write(&dev->bus->subsys.rwsem);
 		pr_debug("bus %s: remove device %s\n", dev->bus->name, dev->bus_id);
 		device_release_driver(dev);
@@ -439,9 +433,7 @@ int bus_rescan_devices(struct bus_type * bus)
 {
 	int count = 0;
 
-	down_write(&bus->subsys.rwsem);
-	__bus_for_each_dev(bus, NULL, &count, bus_rescan_devices_helper);
-	up_write(&bus->subsys.rwsem);
+	bus_for_each_dev(bus, NULL, &count, bus_rescan_devices_helper);
 
 	return count;
 }
@@ -542,6 +534,8 @@ int bus_register(struct bus_type * bus)
 	retval = kset_register(&bus->drivers);
 	if (retval)
 		goto bus_drivers_fail;
+
+	klist_init(&bus->klist_devices);
 	bus_add_attrs(bus);
 
 	pr_debug("bus type '%s' registered\n", bus->name);
