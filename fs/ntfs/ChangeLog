@@ -33,6 +33,7 @@ ToDo/Notes:
 	- Use i_size_read() in fs/ntfs/logfile.c::ntfs_{check,empty}_logfile().
 	- Use i_size_read() once and then use the cached value in
 	  fs/ntfs/lcnalloc.c::ntfs_cluster_alloc().
+	- Use i_size_read() in fs/ntfs/file.c::ntfs_file_open().
 
 2.1.22 - Many bug and race fixes and error handling improvements.
 
