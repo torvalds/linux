@@ -372,7 +372,6 @@ extern int (*platform_notify_remove)(struct device * dev);
  */
 extern struct device * get_device(struct device * dev);
 extern void put_device(struct device * dev);
-extern struct device *device_find(const char *name, struct bus_type *bus);
 
 
 /* drivers/base/platform.c */

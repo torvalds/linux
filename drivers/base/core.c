@@ -401,24 +401,6 @@ int device_for_each_child(struct device * dev, void * data,
 	return error;
 }
 
-/**
- *	device_find - locate device on a bus by name.
- *	@name:	name of the device.
- *	@bus:	bus to scan for the device.
- *
- *	Call kset_find_obj() to iterate over list of devices on
- *	a bus to find device by name. Return device if found.
- *
- *	Note that kset_find_obj increments device's reference count.
- */
-struct device *device_find(const char *name, struct bus_type *bus)
-{
-	struct kobject *k = kset_find_obj(&bus->devices, name);
-	if (k)
-		return to_dev(k);
-	return NULL;
-}
-
 int __init devices_init(void)
 {
 	return subsystem_register(&devices_subsys);
@@ -434,7 +416,6 @@ EXPORT_SYMBOL_GPL(device_del);
 EXPORT_SYMBOL_GPL(device_unregister);
 EXPORT_SYMBOL_GPL(get_device);
 EXPORT_SYMBOL_GPL(put_device);
-EXPORT_SYMBOL_GPL(device_find);
 
 EXPORT_SYMBOL_GPL(device_create_file);
 EXPORT_SYMBOL_GPL(device_remove_file);
