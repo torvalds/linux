@@ -59,7 +59,7 @@
  *	The AG-AND chips have nice features for speed improvement,
  *	which are not supported yet. Read / program 4 pages in one go.
  *
- * $Id: nand_base.c,v 1.135 2005/03/01 09:32:45 gleixner Exp $
+ * $Id: nand_base.c,v 1.136 2005/03/14 18:30:44 bjd Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -2291,7 +2291,7 @@ static int nand_block_markbad (struct mtd_info *mtd, loff_t ofs)
  */
 int nand_scan (struct mtd_info *mtd, int maxchips)
 {
-	int i, j, nand_maf_id, nand_dev_id, busw, maf_id;
+	int i, nand_maf_id, nand_dev_id, busw, maf_id;
 	struct nand_chip *this = mtd->priv;
 
 	/* Get buswidth to select the correct functions*/
