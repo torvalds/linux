@@ -278,8 +278,10 @@ static struct hda_verb cmi9880_basic_init[] = {
 	{ 0x0e, AC_VERB_SET_PIN_WIDGET_CONTROL, 0xc0 },
 	/* port-G for CLFE (rear panel) */
 	{ 0x1f, AC_VERB_SET_PIN_WIDGET_CONTROL, 0xc0 },
+	{ 0x1f, AC_VERB_SET_CONNECT_SEL, 0x02 },
 	/* port-H for side (rear panel) */
 	{ 0x20, AC_VERB_SET_PIN_WIDGET_CONTROL, 0xc0 },
+	{ 0x20, AC_VERB_SET_CONNECT_SEL, 0x01 },
 	/* port-C for line-in (rear panel) */
 	{ 0x0c, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20 },
 	/* port-B for mic-in (rear panel) with vref */
@@ -305,6 +307,10 @@ static struct hda_verb cmi9880_allout_init[] = {
 	{ 0x0e, AC_VERB_SET_PIN_WIDGET_CONTROL, 0xc0 },
 	/* port-G for CLFE (rear panel) */
 	{ 0x1f, AC_VERB_SET_PIN_WIDGET_CONTROL, 0xc0 },
+	{ 0x1f, AC_VERB_SET_CONNECT_SEL, 0x02 },
+	/* port-H for side (rear panel) */
+	{ 0x20, AC_VERB_SET_PIN_WIDGET_CONTROL, 0xc0 },
+	{ 0x20, AC_VERB_SET_CONNECT_SEL, 0x01 },
 	/* port-C for surround (rear panel) */
 	{ 0x0c, AC_VERB_SET_PIN_WIDGET_CONTROL, 0xc0 },
 	/* port-B for mic-in (rear panel) with vref */
