@@ -234,9 +234,6 @@ extern int dump_task_fpu(struct task_struct *, elf_fpregset_t *);
 
 #endif /* __KERNEL__ */
 
-/* This one accepts IRIX binaries.  */
-#define irix_elf_check_arch(hdr)	((hdr)->e_flags & RHF_SGI_ONLY)
-
 #define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE	PAGE_SIZE
 
