@@ -121,7 +121,19 @@ struct call_data_struct *call_data;
  * or are or have executed.
  *
  * You must not call this function with disabled interrupts or from a
- * hardware interrupt handler or from a bottom half handler.
+ * hardware interrupt handler or from a bottom half handler:
+ *
+ * CPU A                               CPU B
+ * Disable interrupts
+ *                                     smp_call_function()
+ *                                     Take call_lock
+ *                                     Send IPIs
+ *                                     Wait for all cpus to acknowledge IPI
+ *                                     CPU A has not responded, spin waiting
+ *                                     for cpu A to respond, holding call_lock
+ * smp_call_function()
+ * Spin waiting for call_lock
+ * Deadlock                            Deadlock
  */
 int smp_call_function (void (*func) (void *info), void *info, int retry,
 								int wait)
