@@ -438,8 +438,8 @@ int Pci2000_QueueCommand (Scsi_Cmnd *SCpnt, void (*done)(Scsi_Cmnd *))
 	if ( bus )
 		{
 		DEB (if(*cdb) printk ("\nCDB: %X-  %X %X %X %X %X %X %X %X %X %X ", SCpnt->cmd_len, cdb[0], cdb[1], cdb[2], cdb[3], cdb[4], cdb[5], cdb[6], cdb[7], cdb[8], cdb[9]));
-		DEB (if(*cdb) printk ("\ntimeout_per_command: %d, timeout_total: %d, timeout: %d, internal_timout: %d", SCpnt->timeout_per_command,
-							  SCpnt->timeout_total, SCpnt->timeout, SCpnt->internal_timeout));
+		DEB (if(*cdb) printk ("\ntimeout_per_command: %d, timeout_total: %d, timeout: %d", SCpnt->timeout_per_command,
+							  SCpnt->timeout_total, SCpnt->timeout));
 		outl (SCpnt->timeout_per_command, padapter->mb1);
 		outb_p (CMD_SCSI_TIMEOUT, padapter->cmd);
 		if ( WaitReady (padapter) )

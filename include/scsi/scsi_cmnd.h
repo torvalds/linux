@@ -65,12 +65,6 @@ struct scsi_cmnd {
 	int timeout_total;
 	int timeout;
 
-	/*
-	 * We handle the timeout differently if it happens when a reset, 
-	 * abort, etc are in process. 
-	 */
-	unsigned volatile char internal_timeout;
-
 	unsigned char cmd_len;
 	unsigned char old_cmd_len;
 	enum dma_data_direction sc_data_direction;

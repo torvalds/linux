@@ -9206,8 +9206,6 @@ asc_prt_scsi_cmnd(struct scsi_cmnd *s)
 " timeout_per_command %d, timeout_total %d, timeout %d\n",
         s->timeout_per_command, s->timeout_total, s->timeout);
 
-    printk(" internal_timeout %u\n", s->internal_timeout);
-
     printk(
 " scsi_done 0x%lx, done 0x%lx, host_scribble 0x%lx, result 0x%x\n",
         (ulong) s->scsi_done, (ulong) s->done,
