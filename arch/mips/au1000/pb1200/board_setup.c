@@ -59,8 +59,6 @@ extern void _board_init_irq(void);
 extern void	(*board_init_irq)(void);
 
 #ifdef CONFIG_BLK_DEV_IDE_AU1XXX
-extern struct ide_ops *ide_ops;
-extern struct ide_ops au1xxx_ide_ops;
 extern u32 au1xxx_ide_virtbase;
 extern u64 au1xxx_ide_physbase;
 extern int au1xxx_ide_irq;
@@ -147,7 +145,6 @@ void __init board_setup(void)
 	/*
 	 * Iniz IDE parameters
 	 */
-	ide_ops = &au1xxx_ide_ops;
 	au1xxx_ide_irq = PB1200_IDE_INT;
 	au1xxx_ide_physbase = AU1XXX_ATA_PHYS_ADDR;
 	au1xxx_ide_virtbase = KSEG1ADDR(AU1XXX_ATA_PHYS_ADDR);
@@ -176,12 +173,11 @@ void __init board_setup(void)
 #ifdef CONFIG_MIPS_DB1200
 	printk("AMD Alchemy Db1200 Board\n");
 #endif
-#if 0
+
 	/* Setup Pb1200 External Interrupt Controller */
 	{
 		extern void (*board_init_irq)(void);
 		extern void _board_init_irq(void);
 		board_init_irq = _board_init_irq;
 	}
-#endif
 }
