@@ -6,7 +6,7 @@
  *   
  *  Copyright (C) 2004 Thomas Gleixner (tglx@linutronix.de)
  *
- * $Id: nand_bbt.c,v 1.28 2004/11/13 10:19:09 gleixner Exp $
+ * $Id: nand_bbt.c,v 1.30 2005/02/11 10:14:12 dedekind Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -252,10 +252,10 @@ static int read_abs_bbts (struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_de
  * Create a bad block table by scanning the device
  * for the given good/bad block identify pattern
  */
-static void create_bbt (struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_descr *bd, int chip)
+static int create_bbt (struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_descr *bd, int chip)
 {
 	struct nand_chip *this = mtd->priv;
-	int i, j, numblocks, len, scanlen;
+	int i, j, numblocks, len, scanlen, pagelen;
 	int startblock;
 	loff_t from;
 	size_t readlen, ooblen;
@@ -270,9 +270,18 @@ static void create_bbt (struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_desc
 		else	
 			len = 1;
 	}
-	scanlen	= mtd->oobblock + mtd->oobsize;
-	readlen = len * mtd->oobblock;
-	ooblen = len * mtd->oobsize;
+	
+	if (bd->options == 0) {
+		/* Memory-based BBT. We may read only needed bytes from the OOB area to
+		 * test if block is bad, no need to read the whole page content. */
+		scanlen	= ooblen = pagelen = 0;
+		readlen = bd->len;
+	} else {
+		scanlen	= mtd->oobblock + mtd->oobsize;
+		readlen = len * mtd->oobblock;
+		ooblen = len * mtd->oobsize;
+		pagelen = mtd->oobblock;
+	}
 
 	if (chip == -1) {
 		/* Note that numblocks is 2 * (real numblocks) here, see i+=2 below as it
@@ -284,7 +293,7 @@ static void create_bbt (struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_desc
 		if (chip >= this->numchips) {
 			printk (KERN_WARNING "create_bbt(): chipnr (%d) > available chips (%d)\n",
 				chip + 1, this->numchips);
-			return;	
+			return -EINVAL;	
 		}
 		numblocks = this->chipsize >> (this->bbt_erase_shift - 1);
 		startblock = chip * numblocks;
@@ -293,9 +302,18 @@ static void create_bbt (struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_desc
 	}
 	
 	for (i = startblock; i < numblocks;) {
-		nand_read_raw (mtd, buf, from, readlen, ooblen);
+		int ret;
+		
+		if (bd->options == 0) {
+			size_t retlen;
+			if ((ret = mtd->read_oob(mtd, from + bd->offs, bd->len, &retlen, &buf[bd->offs])))
+				return ret;
+		} else {
+			if ((ret = nand_read_raw (mtd, buf, from, readlen, ooblen)))
+				return ret;
+		}
 		for (j = 0; j < len; j++) {
-			if (check_pattern (&buf[j * scanlen], scanlen, mtd->oobblock, bd)) {
+			if (check_pattern (&buf[j * scanlen], scanlen, pagelen, bd)) {
 				this->bbt[i >> 3] |= 0x03 << (i & 0x6);
 				printk (KERN_WARNING "Bad eraseblock %d at 0x%08x\n", 
 					i >> 1, (unsigned int) from);
@@ -305,6 +323,7 @@ static void create_bbt (struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_desc
 		i += 2;
 		from += (1 << this->bbt_erase_shift);
 	}
+	return 0;
 }
 
 /**
@@ -595,8 +614,7 @@ static int nand_memory_bbt (struct mtd_info *mtd, struct nand_bbt_descr *bd)
 
 	/* Ensure that we only scan for the pattern and nothing else */
 	bd->options = 0;
-	create_bbt (mtd, this->data_buf, bd, -1);
-	return 0;
+	return create_bbt (mtd, this->data_buf, bd, -1);
 }
 
 /**
@@ -808,8 +826,14 @@ int nand_scan_bbt (struct mtd_info *mtd, struct nand_bbt_descr *bd)
 	/* If no primary table decriptor is given, scan the device
 	 * to build a memory based bad block table
 	 */
-	if (!td)
-		return nand_memory_bbt(mtd, bd);
+	if (!td) {
+		if ((res = nand_memory_bbt(mtd, bd))) {
+			printk (KERN_ERR "nand_bbt: Can't scan flash and build the RAM-based BBT\n");
+			kfree (this->bbt);
+			this->bbt = NULL;
+		}
+		return res;
+	}
 
 	/* Allocate a temporary buffer for one eraseblock incl. oob */
 	len = (1 << this->bbt_erase_shift);
@@ -1042,7 +1066,7 @@ int nand_isbad_bbt (struct mtd_info *mtd, loff_t offs, int allowbbt)
 	res = (this->bbt[block >> 3] >> (block & 0x06)) & 0x03;
 
 	DEBUG (MTD_DEBUG_LEVEL2, "nand_isbad_bbt(): bbt info for offs 0x%08x: (block %d) 0x%02x\n", 
-		(unsigned int)offs, res, block >> 1);
+		(unsigned int)offs, block >> 1, res);
 
 	switch ((int)res) {
 	case 0x00:	return 0;
