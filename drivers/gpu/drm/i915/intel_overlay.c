@@ -375,10 +375,26 @@ static int intel_overlay_off(struct intel_overlay *overlay)
 	if (ret != 0)
 		return ret;
 
-	overlay->active = 0;
 	overlay->hw_wedged = 0;
 	overlay->last_flip_req = 0;
 	return ret;
+}
+
+static void intel_overlay_off_tail(struct intel_overlay *overlay)
+{
+	struct drm_gem_object *obj;
+
+	/* never have the overlay hw on without showing a frame */
+	BUG_ON(!overlay->vid_bo);
+	obj = overlay->vid_bo->obj;
+
+	i915_gem_object_unpin(obj);
+	drm_gem_object_unreference(obj);
+	overlay->vid_bo = NULL;
+
+	overlay->crtc->overlay = NULL;
+	overlay->crtc = NULL;
+	overlay->active = 0;
 }
 
 /* recover from an interruption due to a signal
@@ -438,17 +454,7 @@ int intel_overlay_recover_from_interrupt(struct intel_overlay *overlay,
 				return ret;
 
 		case SWITCH_OFF_STAGE_2:
-			BUG_ON(!overlay->vid_bo);
-			obj = overlay->vid_bo->obj;
-
-			i915_gem_object_unpin(obj);
-			drm_gem_object_unreference(obj);
-			overlay->vid_bo = NULL;
-
-			overlay->crtc->overlay = NULL;
-			overlay->crtc = NULL;
-
-			overlay->active = 0;
+			intel_overlay_off_tail(overlay);
 			break;
 		default:
 			BUG_ON(overlay->hw_wedged != NEEDS_WAIT_FOR_FLIP);
@@ -831,7 +837,6 @@ int intel_overlay_switch_off(struct intel_overlay *overlay)
 {
 	int ret;
 	struct overlay_registers *regs;
-	struct drm_gem_object *obj;
 	struct drm_device *dev = overlay->dev;
 
 	BUG_ON(!mutex_is_locked(&dev->struct_mutex));
@@ -855,16 +860,7 @@ int intel_overlay_switch_off(struct intel_overlay *overlay)
 	if (ret != 0)
 		return ret;
 
-	/* never have the overlay hw on without showing a frame */
-	BUG_ON(!overlay->vid_bo);
-	obj = overlay->vid_bo->obj;
-
-	i915_gem_object_unpin(obj);
-	drm_gem_object_unreference(obj);
-	overlay->vid_bo = NULL;
-
-	overlay->crtc->overlay = NULL;
-	overlay->crtc = NULL;
+	intel_overlay_off_tail(overlay);
 
 	return 0;
 }
