@@ -119,6 +119,18 @@ static inline unsigned int __raw_spin_trylock(raw_spinlock_t *lock)
  * read-locks.
  */
 
+/*
+ * read_can_lock - would read_trylock() succeed?
+ * @lock: the rwlock in question.
+ */
+#define __raw_read_can_lock(rw)	((rw)->lock >= 0)
+
+/*
+ * write_can_lock - would write_trylock() succeed?
+ * @lock: the rwlock in question.
+ */
+#define __raw_write_can_lock(rw)	(!(rw)->lock)
+
 static inline void __raw_read_lock(raw_rwlock_t *rw)
 {
 	unsigned int tmp;
