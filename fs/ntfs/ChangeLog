@@ -105,6 +105,11 @@ ToDo/Notes:
 	  non-resident by a concurrent file write.
 	- Remove checks for NULL before calling kfree() since kfree() does the
 	  checking itself.  (Jesper Juhl)
+	- Some utilities modify the boot sector but do not update the checksum.
+	  Thus, relax the checking in fs/ntfs/super.c::is_boot_sector_ntfs() to
+	  only emit a warning when the checksum is incorrect rather than
+	  refusing the mount.  Thanks to Bernd Casimir for pointing this
+	  problem out.
 
 2.1.22 - Many bug and race fixes and error handling improvements.
 

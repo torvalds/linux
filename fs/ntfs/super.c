@@ -38,6 +38,7 @@
 #include "debug.h"
 #include "index.h"
 #include "aops.h"
+#include "layout.h"
 #include "malloc.h"
 #include "ntfs.h"
 
@@ -532,16 +533,19 @@ static BOOL is_boot_sector_ntfs(const struct super_block *sb,
 {
 	/*
 	 * Check that checksum == sum of u32 values from b to the checksum
-	 * field. If checksum is zero, no checking is done.
+	 * field.  If checksum is zero, no checking is done.  We will work when
+	 * the checksum test fails, since some utilities update the boot sector
+	 * ignoring the checksum which leaves the checksum out-of-date.  We
+	 * report a warning if this is the case.
 	 */
-	if ((void*)b < (void*)&b->checksum && b->checksum) {
+	if ((void*)b < (void*)&b->checksum && b->checksum && !silent) {
 		le32 *u;
 		u32 i;
 
 		for (i = 0, u = (le32*)b; u < (le32*)(&b->checksum); ++u)
 			i += le32_to_cpup(u);
 		if (le32_to_cpu(b->checksum) != i)
-			goto not_ntfs;
+			ntfs_warning(sb, "Invalid boot sector checksum.");
 	}
 	/* Check OEMidentifier is "NTFS    " */
 	if (b->oem_id != magicNTFS)
@@ -591,7 +595,7 @@ static BOOL is_boot_sector_ntfs(const struct super_block *sb,
 	 * many BIOSes will refuse to boot from a bootsector if the magic is
 	 * incorrect, so we emit a warning.
 	 */
-	if (!silent && b->end_of_sector_marker != cpu_to_le16(0xaa55))
+	if (!silent && b->end_of_sector_marker != const_cpu_to_le16(0xaa55))
 		ntfs_warning(sb, "Invalid end of sector marker.");
 	return TRUE;
 not_ntfs:
