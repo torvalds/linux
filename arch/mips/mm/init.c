@@ -96,8 +96,8 @@ static void __init kmap_init(void)
 	kmap_prot = PAGE_KERNEL;
 }
 
-#ifdef CONFIG_64BIT
-static void __init fixrange_init(unsigned long start, unsigned long end,
+#ifdef CONFIG_32BIT
+void __init fixrange_init(unsigned long start, unsigned long end,
 	pgd_t *pgd_base)
 {
 	pgd_t *pgd;
