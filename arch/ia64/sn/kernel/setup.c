@@ -76,6 +76,9 @@ EXPORT_PER_CPU_SYMBOL(__sn_hub_info);
 DEFINE_PER_CPU(short, __sn_cnodeid_to_nasid[MAX_NUMNODES]);
 EXPORT_PER_CPU_SYMBOL(__sn_cnodeid_to_nasid);
 
+DEFINE_PER_CPU(struct nodepda_s *, __sn_nodepda);
+EXPORT_PER_CPU_SYMBOL(__sn_nodepda);
+
 partid_t sn_partid = -1;
 EXPORT_SYMBOL(sn_partid);
 char sn_system_serial_number_string[128];
@@ -480,7 +483,8 @@ void __init sn_cpu_init(void)
 
 	cnode = nasid_to_cnodeid(nasid);
 
-	pda->p_nodepda = nodepdaindr[cnode];
+	sn_nodepda = nodepdaindr[cnode];
+
 	pda->led_address =
 	    (typeof(pda->led_address)) (LED0 + (slice << LED_CPU_SHIFT));
 	pda->led_state = LED_ALWAYS_SET;
@@ -626,7 +630,8 @@ nasid_slice_to_cpuid(int nasid, int slice)
 	long cpu;
 	
 	for (cpu=0; cpu < NR_CPUS; cpu++) 
-		if (nodepda->phys_cpuid[cpu].nasid == nasid && nodepda->phys_cpuid[cpu].slice == slice)
+		if (cpuid_to_nasid(cpu) == nasid &&
+					cpuid_to_slice(cpu) == slice)
 			return cpu;
 
 	return -1;
