@@ -1,7 +1,7 @@
 /*
  * lcnalloc.c - Cluster (de)allocation code.  Part of the Linux-NTFS project.
  *
- * Copyright (c) 2004 Anton Altaparmakov
+ * Copyright (c) 2004-2005 Anton Altaparmakov
  *
  * This program/include file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as published
@@ -60,7 +60,7 @@ int ntfs_cluster_free_from_rl_nolock(ntfs_volume *vol,
 		if (rl->lcn < 0)
 			continue;
 		err = ntfs_bitmap_clear_run(lcnbmp_vi, rl->lcn, rl->length);
-		if (unlikely(err && (!ret || ret == ENOMEM) && ret != err))
+		if (unlikely(err && (!ret || ret == -ENOMEM) && ret != err))
 			ret = err;
 	}
 	ntfs_debug("Done.");
@@ -693,7 +693,7 @@ switch_to_data1_zone:		search_zone = 2;
 		if (zone == MFT_ZONE || mft_zone_size <= 0) {
 			ntfs_debug("No free clusters left, going to out.");
 			/* Really no more space left on device. */
-			err = ENOSPC;
+			err = -ENOSPC;
 			goto out;
 		} /* zone == DATA_ZONE && mft_zone_size > 0 */
 		ntfs_debug("Shrinking mft zone.");
@@ -757,9 +757,9 @@ out:
 	if (rl) {
 		int err2;
 
-		if (err == ENOSPC)
+		if (err == -ENOSPC)
 			ntfs_debug("Not enough space to complete allocation, "
-					"err ENOSPC, first free lcn 0x%llx, "
+					"err -ENOSPC, first free lcn 0x%llx, "
 					"could allocate up to 0x%llx "
 					"clusters.",
 					(unsigned long long)rl[0].lcn,
@@ -775,10 +775,10 @@ out:
 		}
 		/* Free the runlist. */
 		ntfs_free(rl);
-	} else if (err == ENOSPC)
-		ntfs_debug("No space left at all, err = ENOSPC, "
-				"first free lcn = 0x%llx.",
-				(unsigned long long)vol->data1_zone_pos);
+	} else if (err == -ENOSPC)
+		ntfs_debug("No space left at all, err = -ENOSPC, first free "
+				"lcn = 0x%llx.",
+				(long long)vol->data1_zone_pos);
 	up_write(&vol->lcnbmp_lock);
 	return ERR_PTR(err);
 }

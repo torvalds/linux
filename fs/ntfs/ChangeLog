@@ -98,6 +98,8 @@ ToDo/Notes:
 	- Rename fs/ntfs/attrib.c::ntfs_find_vcn_nolock() to
 	  ntfs_attr_find_vcn_nolock() and update all callers.
 	- Add fs/ntfs/attrib.[hc]::ntfs_attr_make_non_resident().
+	- Fix sign of various error return values to be negative in
+	  fs/ntfs/lcnalloc.c.
 
 2.1.22 - Many bug and race fixes and error handling improvements.
 
