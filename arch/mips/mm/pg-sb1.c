@@ -60,7 +60,8 @@ static inline void clear_page_cpu(void *page)
 	"	.set	noreorder	\n"
 #ifdef CONFIG_CPU_HAS_PREFETCH
 	"	daddiu	%0, %0, 128	\n"
-	"	pref	" SB1_PREF_STORE_STREAMED_HINT ", -128(%0)  \n"  /* Prefetch the first 4 lines */
+	"	pref	" SB1_PREF_STORE_STREAMED_HINT ", -128(%0)  \n"
+					     /* Prefetch the first 4 lines */
 	"	pref	" SB1_PREF_STORE_STREAMED_HINT ",  -96(%0)  \n"
 	"	pref	" SB1_PREF_STORE_STREAMED_HINT ",  -64(%0)  \n"
 	"	pref	" SB1_PREF_STORE_STREAMED_HINT ",  -32(%0)  \n"
@@ -106,7 +107,8 @@ static inline void copy_page_cpu(void *to, void *from)
 #ifdef CONFIG_CPU_HAS_PREFETCH
 	"	daddiu	%0, %0, 128	\n"
 	"	daddiu	%1, %1, 128	\n"
-	"	pref	" SB1_PREF_LOAD_STREAMED_HINT  ", -128(%0)\n"  /* Prefetch the first 4 lines */
+	"	pref	" SB1_PREF_LOAD_STREAMED_HINT  ", -128(%0)\n"
+					     /* Prefetch the first 4 lines */
 	"	pref	" SB1_PREF_STORE_STREAMED_HINT ", -128(%1)\n"
 	"	pref	" SB1_PREF_LOAD_STREAMED_HINT  ",  -96(%0)\n"
 	"	pref	" SB1_PREF_STORE_STREAMED_HINT ",  -96(%1)\n"
@@ -207,15 +209,18 @@ typedef struct dmadscr_s {
 	u64 pad_b;
 } dmadscr_t;
 
-static dmadscr_t page_descr[DM_NUM_CHANNELS] __attribute__((aligned(SMP_CACHE_BYTES)));
+static dmadscr_t page_descr[DM_NUM_CHANNELS]
+	__attribute__((aligned(SMP_CACHE_BYTES)));
 
 void sb1_dma_init(void)
 {
 	int i;
 
 	for (i = 0; i < DM_NUM_CHANNELS; i++) {
-		u64 base_val = (u64)CPHYSADDR(&page_descr[i]) | V_DM_DSCR_BASE_RINGSZ(1);
-		void *base_reg = (void *)IOADDR(A_DM_REGISTER(i, R_DM_DSCR_BASE));
+		const u64 base_val = CPHYSADDR(&page_descr[i]) |
+				     V_DM_DSCR_BASE_RINGSZ(1);
+		volatile void *base_reg =
+			IOADDR(A_DM_REGISTER(i, R_DM_DSCR_BASE));
 
 		__raw_writeq(base_val, base_reg);
 		__raw_writeq(base_val | M_DM_DSCR_BASE_RESET, base_reg);
@@ -225,14 +230,15 @@ void sb1_dma_init(void)
 
 void clear_page(void *page)
 {
-	u64 to_phys = (u64)CPHYSADDR(page);
+	u64 to_phys = CPHYSADDR(page);
 	unsigned int cpu = smp_processor_id();
 
 	/* if the page is not in KSEG0, use old way */
 	if ((long)KSEGX(page) != (long)CKSEG0)
 		return clear_page_cpu(page);
 
-	page_descr[cpu].dscr_a = to_phys | M_DM_DSCRA_ZERO_MEM | M_DM_DSCRA_L2C_DEST | M_DM_DSCRA_INTERRUPT;
+	page_descr[cpu].dscr_a = to_phys | M_DM_DSCRA_ZERO_MEM |
+				 M_DM_DSCRA_L2C_DEST | M_DM_DSCRA_INTERRUPT;
 	page_descr[cpu].dscr_b = V_DM_DSCRB_SRC_LENGTH(PAGE_SIZE);
 	__raw_writeq(1, IOADDR(A_DM_REGISTER(cpu, R_DM_DSCR_COUNT)));
 
@@ -248,8 +254,8 @@ void clear_page(void *page)
 
 void copy_page(void *to, void *from)
 {
-	u64 from_phys = (u64)CPHYSADDR(from);
-	u64 to_phys = (u64)CPHYSADDR(to);
+	u64 from_phys = CPHYSADDR(from);
+	u64 to_phys = CPHYSADDR(to);
 	unsigned int cpu = smp_processor_id();
 
 	/* if any page is not in KSEG0, use old way */
@@ -257,15 +263,16 @@ void copy_page(void *to, void *from)
 	    || (long)KSEGX(from) != (long)CKSEG0)
 		return copy_page_cpu(to, from);
 
-	page_descr[cpu].dscr_a = to_phys | M_DM_DSCRA_L2C_DEST | M_DM_DSCRA_INTERRUPT;
+	page_descr[cpu].dscr_a = to_phys | M_DM_DSCRA_L2C_DEST |
+				 M_DM_DSCRA_INTERRUPT;
 	page_descr[cpu].dscr_b = from_phys | V_DM_DSCRB_SRC_LENGTH(PAGE_SIZE);
-	__raw_writeq(1, (void *)IOADDR(A_DM_REGISTER(cpu, R_DM_DSCR_COUNT)));
+	__raw_writeq(1, IOADDR(A_DM_REGISTER(cpu, R_DM_DSCR_COUNT)));
 
 	/*
 	 * Don't really want to do it this way, but there's no
 	 * reliable way to delay completion detection.
 	 */
-	while (!(__raw_readq((void *)IOADDR(A_DM_REGISTER(cpu, R_DM_DSCR_BASE_DEBUG)))
+	while (!(__raw_readq(IOADDR(A_DM_REGISTER(cpu, R_DM_DSCR_BASE_DEBUG)))
 		 & M_DM_DSCR_BASE_INTERRUPT))
 		;
 	__raw_readq(IOADDR(A_DM_REGISTER(cpu, R_DM_DSCR_BASE)));
