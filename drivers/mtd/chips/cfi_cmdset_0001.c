@@ -4,7 +4,7 @@
  *
  * (C) 2000 Red Hat. GPL'd
  *
- * $Id: cfi_cmdset_0001.c,v 1.174 2005/04/01 01:59:52 nico Exp $
+ * $Id: cfi_cmdset_0001.c,v 1.175 2005/04/01 16:36:25 nico Exp $
  *
  * 
  * 10/10/2000	Nicolas Pitre <nico@cam.org>
@@ -2062,8 +2062,20 @@ static int cfi_intelext_otp_walk(struct mtd_info *mtd, loff_t from, size_t len,
 	/* we need real chips here not virtual ones */
 	devsize = (1 << cfi->cfiq->DevSize) * cfi->interleave;
 	chip_step = devsize >> cfi->chipshift;
+	chip_num = 0;
 
-	for (chip_num = 0; chip_num < cfi->numchips; chip_num += chip_step) {
+	/* Some chips have OTP located in the _top_ partition only.
+	   For example: Intel 28F256L18T (T means top-parameter device) */
+	if (cfi->mfr == MANUFACTURER_INTEL) {
+		switch (cfi->id) {
+		case 0x880b:
+		case 0x880c:
+		case 0x880d:
+			chip_num = chip_step - 1;
+		}
+	}
+
+	for ( ; chip_num < cfi->numchips; chip_num += chip_step) {
 		chip = &cfi->chips[chip_num];
 		otp = (struct cfi_intelext_otpinfo *)&extp->extra[0];
 
