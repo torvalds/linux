@@ -776,9 +776,11 @@ retry_tur:
 		__FUNCTION__, scmd, rtn));
 	if (rtn == SUCCESS)
 		return 0;
-	else if (rtn == NEEDS_RETRY)
+	else if (rtn == NEEDS_RETRY) {
 		if (retry_cnt--)
 			goto retry_tur;
+		return 0;
+	}
 	return 1;
 }
 
