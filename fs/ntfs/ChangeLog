@@ -76,6 +76,10 @@ ToDo/Notes:
 	  warning in the do_div() call on sparc32.  Thanks to Meelis Roos for
 	  the report and analysis of the warning.
 	- Fix a nasty runlist merge bug when merging two holes.
+	- Set the ntfs_inode->allocated_size to the real allocated size in the
+	  mft record for resident attributes (fs/ntfs/inode.c).
+	- Small readability cleanup to use "a" instead of "ctx->attr"
+	  everywhere (fs/ntfs/inode.c).
 
 2.1.22 - Many bug and race fixes and error handling improvements.
 
