@@ -620,11 +620,6 @@ int __devinit snd_ca0106_mixer(ca0106_t *emu)
 		return -ENOMEM;
 	if ((err = snd_ctl_add(card, kctl)))
 		return err;
-	if ((kctl = ctl_find(card, SNDRV_CTL_NAME_IEC958("",PLAYBACK,DEFAULT))) != NULL) {
-		/* already defined by ac97, remove it */
-		/* FIXME: or do we need both controls? */
-		remove_ctl(card, SNDRV_CTL_NAME_IEC958("",PLAYBACK,DEFAULT));
-	}
 	if ((kctl = snd_ctl_new1(&snd_ca0106_spdif_control, emu)) == NULL)
 		return -ENOMEM;
 	if ((err = snd_ctl_add(card, kctl)))
