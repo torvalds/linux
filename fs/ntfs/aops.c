@@ -1237,19 +1237,30 @@ done:
 static int ntfs_writepage(struct page *page, struct writeback_control *wbc)
 {
 	loff_t i_size;
-	struct inode *vi;
-	ntfs_inode *ni, *base_ni;
+	struct inode *vi = page->mapping->host;
+	ntfs_inode *base_ni = NULL, *ni = NTFS_I(vi);
 	char *kaddr;
-	ntfs_attr_search_ctx *ctx;
-	MFT_RECORD *m;
+	ntfs_attr_search_ctx *ctx = NULL;
+	MFT_RECORD *m = NULL;
 	u32 attr_len;
 	int err;
 
 	BUG_ON(!PageLocked(page));
-
-	vi = page->mapping->host;
+	/*
+	 * If a previous ntfs_truncate() failed, repeat it and abort if it
+	 * fails again.
+	 */
+	if (unlikely(NInoTruncateFailed(ni))) {
+		down_write(&vi->i_alloc_sem);
+		err = ntfs_truncate(vi);
+		up_write(&vi->i_alloc_sem);
+		if (err || NInoTruncateFailed(ni)) {
+			if (!err)
+				err = -EIO;
+			goto err_out;
+		}
+	}
 	i_size = i_size_read(vi);
-
 	/* Is the page fully outside i_size? (truncate in progress) */
 	if (unlikely(page->index >= (i_size + PAGE_CACHE_SIZE - 1) >>
 			PAGE_CACHE_SHIFT)) {
@@ -1262,8 +1273,6 @@ static int ntfs_writepage(struct page *page, struct writeback_control *wbc)
 		ntfs_debug("Write outside i_size - truncated?");
 		return 0;
 	}
-	ni = NTFS_I(vi);
-
 	/* NInoNonResident() == NInoIndexAllocPresent() */
 	if (NInoNonResident(ni)) {
 		/*
@@ -1419,8 +1428,10 @@ err_out:
 		err = 0;
 	} else {
 		ntfs_error(vi->i_sb, "Resident attribute write failed with "
-				"error %i.  Setting page error flag.", err);
+				"error %i.", err);
 		SetPageError(page);
+		NVolSetErrors(ni->vol);
+		make_bad_inode(vi);
 	}
 	unlock_page(page);
 	if (ctx)
