@@ -408,7 +408,7 @@ config SGI_TIOCX
 
 config SGI_MBCS
        tristate "SGI FPGA Core Services driver support"
-       depends on (IA64_SGI_SN2 || IA64_GENERIC)
+       depends on SGI_TIOCX
        help
          If you have an SGI Altix with an attached SABrick
          say Y or M here, otherwise say N.
