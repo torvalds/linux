@@ -1,5 +1,5 @@
 /**
- * $Id: phram.c,v 1.12 2005/02/23 19:37:07 joern Exp $
+ * $Id: phram.c,v 1.14 2005/03/07 21:43:38 joern Exp $
  *
  * Copyright (c) ????		Jochen Schäuble <psionic@psionic.de>
  * Copyright (c) 2003-2004	Jörn Engel <joern@wh.fh-wedel.de>
@@ -15,9 +15,7 @@
  *
  * Example:
  *	phram=swap,64Mi,128Mi phram=test,900Mi,1Mi
- *
  */
-
 #include <asm/io.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -34,7 +32,6 @@ struct phram_mtd_list {
 };
 
 static LIST_HEAD(phram_list);
-
 
 
 static int phram_erase(struct mtd_info *mtd, struct erase_info *instr)
@@ -71,7 +68,8 @@ static int phram_point(struct mtd_info *mtd, loff_t from, size_t len,
 	return 0;
 }
 
-static void phram_unpoint(struct mtd_info *mtd, u_char *addr, loff_t from, size_t len)
+static void phram_unpoint(struct mtd_info *mtd, u_char *addr, loff_t from,
+		size_t len)
 {
 }
 
@@ -80,8 +78,11 @@ static int phram_read(struct mtd_info *mtd, loff_t from, size_t len,
 {
 	u_char *start = mtd->priv;
 
-	if (from + len > mtd->size)
+	if (from >= mtd->size)
 		return -EINVAL;
+
+	if (len > mtd->size - from)
+		len = mtd->size - from;
 	
 	memcpy(buf, start + from, len);
 
@@ -94,8 +95,11 @@ static int phram_write(struct mtd_info *mtd, loff_t to, size_t len,
 {
 	u_char *start = mtd->priv;
 
-	if (to + len > mtd->size)
+	if (to >= mtd->size)
 		return -EINVAL;
+
+	if (len > mtd->size - to)
+		len = mtd->size - to;
 	
 	memcpy(start + to, buf, len);
 
@@ -145,7 +149,7 @@ static int register_device(char *name, unsigned long start, unsigned long len)
 	new->mtd.write = phram_write;
 	new->mtd.owner = THIS_MODULE;
 	new->mtd.type = MTD_RAM;
-	new->mtd.erasesize = 0;
+	new->mtd.erasesize = PAGE_SIZE;
 
 	ret = -EAGAIN;
 	if (add_mtd_device(&new->mtd)) {
@@ -214,6 +218,15 @@ static int parse_name(char **pname, const char *token)
 	return 0;
 }
 
+
+static inline void kill_final_newline(char *str)
+{
+	char *newline = strrchr(str, '\n');
+	if (newline && !newline[1])
+		*newline = 0;
+}
+
+
 #define parse_err(fmt, args...) do {	\
 	ERROR(fmt , ## args);	\
 	return 0;		\
@@ -232,6 +245,7 @@ static int phram_setup(const char *val, struct kernel_param *kp)
 		parse_err("parameter too long\n");
 
 	strcpy(str, val);
+	kill_final_newline(str);
 
 	for (i=0; i<3; i++)
 		token[i] = strsep(&str, ",");
