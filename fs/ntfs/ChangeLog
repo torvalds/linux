@@ -92,6 +92,11 @@ ToDo/Notes:
 	  non-resident in fs/ntfs/attrib.c::ntfs_attr_can_be_non_resident().
 	- Add fs/ntfs/attrib.c::ntfs_attr_vcn_to_lcn_nolock() used by the new
 	  write code.
+	- Fix bug in fs/ntfs/attrib.c::ntfs_find_vcn_nolock() where after
+	  dropping the read lock and taking the write lock we were not checking
+	  whether someone else did not already do the work we wanted to do.
+	- Rename fs/ntfs/attrib.c::ntfs_find_vcn_nolock() to
+	  ntfs_attr_find_vcn_nolock() and update all callers.
 
 2.1.22 - Many bug and race fixes and error handling improvements.
 

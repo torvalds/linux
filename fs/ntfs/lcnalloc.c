@@ -850,7 +850,7 @@ s64 __ntfs_cluster_free(struct inode *vi, const VCN start_vcn, s64 count,
 
 	/* This returns with ni->runlist locked for reading on success. */
 	down_read(&ni->runlist.lock);
-	rl = ntfs_find_vcn_nolock(ni, start_vcn, FALSE);
+	rl = ntfs_attr_find_vcn_nolock(ni, start_vcn, FALSE);
 	if (IS_ERR(rl)) {
 		if (!is_rollback)
 			ntfs_error(vol->sb, "Failed to find first runlist "
@@ -904,7 +904,7 @@ s64 __ntfs_cluster_free(struct inode *vi, const VCN start_vcn, s64 count,
 
 			/* Attempt to map runlist. */
 			vcn = rl->vcn;
-			rl = ntfs_find_vcn_nolock(ni, vcn, FALSE);
+			rl = ntfs_attr_find_vcn_nolock(ni, vcn, FALSE);
 			if (IS_ERR(rl)) {
 				err = PTR_ERR(rl);
 				if (!is_rollback)

@@ -193,19 +193,19 @@ retry_remap:
 }
 
 /**
- * ntfs_find_vcn_nolock - find a vcn in the runlist described by an ntfs inode
+ * ntfs_attr_find_vcn_nolock - find a vcn in the runlist of an ntfs inode
  * @ni:			ntfs inode describing the runlist to search
  * @vcn:		vcn to find
  * @write_locked:	true if the runlist is locked for writing
  *
  * Find the virtual cluster number @vcn in the runlist described by the ntfs
  * inode @ni and return the address of the runlist element containing the @vcn.
- * The runlist is left locked and the caller has to unlock it.  In the error
- * case, the runlist is left in the same locking state as on entry.
  *
- * Note if @write_locked is FALSE the lock may be dropped inside the function
- * so you cannot rely on the runlist still being the same when this function
- * returns.
+ * If the @vcn is not mapped yet, the attempt is made to map the attribute
+ * extent containing the @vcn and the vcn to lcn conversion is retried.
+ *
+ * If @write_locked is true the caller has locked the runlist for writing and
+ * if false for reading.
  *
  * Note you need to distinguish between the lcn of the returned runlist element
  * being >= 0 and LCN_HOLE.  In the later case you have to return zeroes on
@@ -221,13 +221,12 @@ retry_remap:
  *	-ENOMEM - Not enough memory to map runlist.
  *	-EIO	- Critical error (runlist/file is corrupt, i/o error, etc).
  *
- * Locking: - The runlist must be unlocked on entry.
- *	    - On failing return, the runlist is unlocked.
- *	    - On successful return, the runlist is locked.  If @need_write us
- *	      true, it is locked for writing.  Otherwise is is locked for
- *	      reading.
+ * Locking: - The runlist must be locked on entry and is left locked on return.
+ *	    - If @write_locked is FALSE, i.e. the runlist is locked for reading,
+ *	      the lock may be dropped inside the function so you cannot rely on
+ *	      the runlist still being the same when this function returns.
  */
-runlist_element *ntfs_find_vcn_nolock(ntfs_inode *ni, const VCN vcn,
+runlist_element *ntfs_attr_find_vcn_nolock(ntfs_inode *ni, const VCN vcn,
 		const BOOL write_locked)
 {
 	runlist_element *rl;
@@ -268,6 +267,12 @@ retry_remap:
 		if (!write_locked) {
 			up_read(&ni->runlist.lock);
 			down_write(&ni->runlist.lock);
+			if (unlikely(ntfs_rl_vcn_to_lcn(ni->runlist.rl, vcn) !=
+					LCN_RL_NOT_MAPPED)) {
+				up_write(&ni->runlist.lock);
+				down_read(&ni->runlist.lock);
+				goto retry_remap;
+			}
 		}
 		err = ntfs_map_runlist_nolock(ni, vcn);
 		if (!write_locked) {

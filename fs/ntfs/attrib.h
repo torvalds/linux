@@ -66,8 +66,8 @@ extern int ntfs_map_runlist(ntfs_inode *ni, VCN vcn);
 extern LCN ntfs_attr_vcn_to_lcn_nolock(ntfs_inode *ni, const VCN vcn,
 		const BOOL write_locked);
 
-extern runlist_element *ntfs_find_vcn_nolock(ntfs_inode *ni, const VCN vcn,
-		const BOOL write_locked);
+extern runlist_element *ntfs_attr_find_vcn_nolock(ntfs_inode *ni,
+		const VCN vcn, const BOOL write_locked);
 
 int ntfs_attr_lookup(const ATTR_TYPE type, const ntfschar *name,
 		const u32 name_len, const IGNORE_CASE_BOOL ic,

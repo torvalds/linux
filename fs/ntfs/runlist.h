@@ -66,6 +66,8 @@ typedef enum {
 	LCN_HOLE		= -1,	/* Keep this as highest value or die! */
 	LCN_RL_NOT_MAPPED	= -2,
 	LCN_ENOENT		= -3,
+	LCN_ENOMEM		= -4,
+	LCN_EIO			= -5,
 } LCN_SPECIAL_VALUES;
 
 extern runlist_element *ntfs_runlists_merge(runlist_element *drl,

@@ -933,17 +933,18 @@ err_out:
  *
  * It is up to the caller to serialize access to the runlist @rl.
  *
- * Since lcns must be >= 0, we use negative return values with special meaning:
+ * Since lcns must be >= 0, we use negative return codes with special meaning:
  *
- * Return value			Meaning / Description
+ * Return code		Meaning / Description
  * ==================================================
- *  -1 = LCN_HOLE		Hole / not allocated on disk.
- *  -2 = LCN_RL_NOT_MAPPED	This is part of the runlist which has not been
- *				inserted into the runlist yet.
- *  -3 = LCN_ENOENT		There is no such vcn in the attribute.
+ *  LCN_HOLE		Hole / not allocated on disk.
+ *  LCN_RL_NOT_MAPPED	This is part of the runlist which has not been
+ *			inserted into the runlist yet.
+ *  LCN_ENOENT		There is no such vcn in the attribute.
  *
  * Locking: - The caller must have locked the runlist (for reading or writing).
- *	    - This function does not touch the lock.
+ *	    - This function does not touch the lock, nor does it modify the
+ *	      runlist.
  */
 LCN ntfs_rl_vcn_to_lcn(const runlist_element *rl, const VCN vcn)
 {
