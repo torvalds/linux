@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: gc.c,v 1.144 2004/12/21 11:18:50 dwmw2 Exp $
+ * $Id: gc.c,v 1.145 2005/02/09 09:09:01 pavlov Exp $
  *
  */
 
@@ -816,8 +816,7 @@ static int jffs2_garbage_collect_deletion_dirent(struct jffs2_sb_info *c, struct
 
 			/* Doesn't matter if there's one in the same erase block. We're going to 
 			   delete it too at the same time. */
-			if ((raw->flash_offset & ~(c->sector_size-1)) ==
-			    (fd->raw->flash_offset & ~(c->sector_size-1)))
+			if (SECTOR_ADDR(raw->flash_offset) == SECTOR_ADDR(fd->raw->flash_offset))
 				continue;
 
 			D1(printk(KERN_DEBUG "Check potential deletion dirent at %08x\n", ref_offset(raw)));

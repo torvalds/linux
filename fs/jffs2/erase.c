@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: erase.c,v 1.66 2004/11/16 20:36:11 dwmw2 Exp $
+ * $Id: erase.c,v 1.70 2005/02/09 09:09:01 pavlov Exp $
  *
  */
 
@@ -233,7 +233,7 @@ static inline void jffs2_remove_node_refs_from_ino_list(struct jffs2_sb_info *c,
 			continue;
 		} 
 
-		if (((*prev)->flash_offset & ~(c->sector_size -1)) == jeb->offset) {
+		if (SECTOR_ADDR((*prev)->flash_offset) == jeb->offset) {
 			/* It's in the block we're erasing */
 			struct jffs2_raw_node_ref *this;
 

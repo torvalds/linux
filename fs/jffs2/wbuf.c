@@ -9,7 +9,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: wbuf.c,v 1.86 2005/02/05 18:23:37 hammache Exp $
+ * $Id: wbuf.c,v 1.87 2005/02/09 09:09:02 pavlov Exp $
  *
  */
 
@@ -415,9 +415,9 @@ static int __jffs2_flush_wbuf(struct jffs2_sb_info *c, int pad)
 	int ret;
 	size_t retlen;
 
-	/* Nothing to do if not NAND flash. In particular, we shouldn't
+	/* Nothing to do if not write-buffering the flash. In particular, we shouldn't
 	   del_timer() the timer we never initialised. */
-	if (jffs2_can_mark_obsolete(c))
+	if (!jffs2_is_writebuffered(c))
 		return 0;
 
 	if (!down_trylock(&c->alloc_sem)) {
@@ -426,7 +426,7 @@ static int __jffs2_flush_wbuf(struct jffs2_sb_info *c, int pad)
 		BUG();
 	}
 
-	if(!c->wbuf || !c->wbuf_len)
+	if (!c->wbuf_len)	/* already checked c->wbuf above */
 		return 0;
 
 	/* claim remaining space on the page
@@ -620,7 +620,7 @@ int jffs2_flash_writev(struct jffs2_sb_info *c, const struct kvec *invecs, unsig
 	uint32_t outvec_to = to;
 
 	/* If not NAND flash, don't bother */
-	if (!c->wbuf)
+	if (!jffs2_is_writebuffered(c))
 		return jffs2_flash_direct_writev(c, invecs, count, to, retlen);
 	
 	down_write(&c->wbuf_sem);
@@ -649,7 +649,7 @@ int jffs2_flash_writev(struct jffs2_sb_info *c, const struct kvec *invecs, unsig
 	   erase block. Anything else, and you die.
 	   New block starts at xxx000c (0-b = block header)
 	*/
-	if ( (to & ~(c->sector_size-1)) != (c->wbuf_ofs & ~(c->sector_size-1)) ) {
+	if (SECTOR_ADDR(to) != SECTOR_ADDR(c->wbuf_ofs)) {
 		/* It's a write to a new block */
 		if (c->wbuf_len) {
 			D1(printk(KERN_DEBUG "jffs2_flash_writev() to 0x%lx causes flush of wbuf at 0x%08x\n", (unsigned long)to, c->wbuf_ofs));
@@ -847,7 +847,7 @@ int jffs2_flash_write(struct jffs2_sb_info *c, loff_t ofs, size_t len, size_t *r
 {
 	struct kvec vecs[1];
 
-	if (jffs2_can_mark_obsolete(c))
+	if (!jffs2_is_writebuffered(c))
 		return c->mtd->write(c->mtd, ofs, len, retlen, buf);
 
 	vecs[0].iov_base = (unsigned char *) buf;
@@ -863,38 +863,37 @@ int jffs2_flash_read(struct jffs2_sb_info *c, loff_t ofs, size_t len, size_t *re
 	loff_t	orbf = 0, owbf = 0, lwbf = 0;
 	int	ret;
 
-	/* Read flash */
-	if (!jffs2_can_mark_obsolete(c)) {
-
-		if (jffs2_cleanmarker_oob(c))
-			ret = c->mtd->read_ecc(c->mtd, ofs, len, retlen, buf, NULL, c->oobinfo);
-		else
-			ret = c->mtd->read(c->mtd, ofs, len, retlen, buf);
-
-		if ( (ret == -EBADMSG) && (*retlen == len) ) {
-			printk(KERN_WARNING "mtd->read(0x%zx bytes from 0x%llx) returned ECC error\n",
-			       len, ofs);
-			/* 
-			 * We have the raw data without ECC correction in the buffer, maybe 
-			 * we are lucky and all data or parts are correct. We check the node.
-			 * If data are corrupted node check will sort it out.
-			 * We keep this block, it will fail on write or erase and the we
-			 * mark it bad. Or should we do that now? But we should give him a chance.
-			 * Maybe we had a system crash or power loss before the ecc write or  
-			 * a erase was completed.
-			 * So we return success. :)
-			 */
-		 	ret = 0;
-		 }	
-	} else
+	if (!jffs2_is_writebuffered(c))
 		return c->mtd->read(c->mtd, ofs, len, retlen, buf);
+
+	/* Read flash */
+	if (jffs2_cleanmarker_oob(c))
+		ret = c->mtd->read_ecc(c->mtd, ofs, len, retlen, buf, NULL, c->oobinfo);
+	else
+		ret = c->mtd->read(c->mtd, ofs, len, retlen, buf);
+
+	if ( (ret == -EBADMSG) && (*retlen == len) ) {
+		printk(KERN_WARNING "mtd->read(0x%zx bytes from 0x%llx) returned ECC error\n",
+		       len, ofs);
+		/* 
+		 * We have the raw data without ECC correction in the buffer, maybe 
+		 * we are lucky and all data or parts are correct. We check the node.
+		 * If data are corrupted node check will sort it out.
+		 * We keep this block, it will fail on write or erase and the we
+		 * mark it bad. Or should we do that now? But we should give him a chance.
+		 * Maybe we had a system crash or power loss before the ecc write or  
+		 * a erase was completed.
+		 * So we return success. :)
+		 */
+	 	ret = 0;
+	}	
 
 	/* if no writebuffer available or write buffer empty, return */
 	if (!c->wbuf_pagesize || !c->wbuf_len)
 		return ret;;
 
 	/* if we read in a different block, return */
-	if ( (ofs & ~(c->sector_size-1)) != (c->wbuf_ofs & ~(c->sector_size-1)) ) 
+	if (SECTOR_ADDR(ofs) != SECTOR_ADDR(c->wbuf_ofs))
 		return ret;
 
 	/* Lock only if we have reason to believe wbuf contains relevant data,

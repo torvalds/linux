@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: scan.c,v 1.115 2004/11/17 12:59:08 dedekind Exp $
+ * $Id: scan.c,v 1.116 2005/02/09 09:09:02 pavlov Exp $
  *
  */
 #include <linux/kernel.h>
@@ -19,7 +19,7 @@
 #include <linux/compiler.h>
 #include "nodelist.h"
 
-#define EMPTY_SCAN_SIZE 1024
+#define DEFAULT_EMPTY_SCAN_SIZE 1024
 
 #define DIRTY_SPACE(x) do { typeof(x) _x = (x); \
 		c->free_size -= _x; c->dirty_size += _x; \
@@ -75,6 +75,14 @@ static inline int min_free(struct jffs2_sb_info *c)
 	return min;
 
 }
+
+static inline uint32_t EMPTY_SCAN_SIZE(uint32_t sector_size) {
+	if (sector_size < DEFAULT_EMPTY_SCAN_SIZE)
+		return sector_size;
+	else
+		return DEFAULT_EMPTY_SCAN_SIZE;
+}
+
 int jffs2_scan_medium(struct jffs2_sb_info *c)
 {
 	int i, ret;
@@ -316,7 +324,7 @@ static int jffs2_scan_eraseblock (struct jffs2_sb_info *c, struct jffs2_eraseblo
 	if (!buf_size) {
 		buf_len = c->sector_size;
 	} else {
-		buf_len = EMPTY_SCAN_SIZE;
+		buf_len = EMPTY_SCAN_SIZE(c->sector_size);
 		err = jffs2_fill_scan_buf(c, buf, buf_ofs, buf_len);
 		if (err)
 			return err;
@@ -326,10 +334,10 @@ static int jffs2_scan_eraseblock (struct jffs2_sb_info *c, struct jffs2_eraseblo
 	ofs = 0;
 
 	/* Scan only 4KiB of 0xFF before declaring it's empty */
-	while(ofs < EMPTY_SCAN_SIZE && *(uint32_t *)(&buf[ofs]) == 0xFFFFFFFF)
+	while(ofs < EMPTY_SCAN_SIZE(c->sector_size) && *(uint32_t *)(&buf[ofs]) == 0xFFFFFFFF)
 		ofs += 4;
 
-	if (ofs == EMPTY_SCAN_SIZE) {
+	if (ofs == EMPTY_SCAN_SIZE(c->sector_size)) {
 #ifdef CONFIG_JFFS2_FS_NAND
 		if (jffs2_cleanmarker_oob(c)) {
 			/* scan oob, take care of cleanmarker */
@@ -423,7 +431,7 @@ scan_more:
 			   bail now */
 			if (buf_ofs == jeb->offset && jeb->used_size == PAD(c->cleanmarker_size) && 
 			    c->cleanmarker_size && !jeb->dirty_size && !jeb->first_node->next_in_ino) {
-				D1(printk(KERN_DEBUG "%d bytes at start of block seems clean... assuming all clean\n", EMPTY_SCAN_SIZE));
+				D1(printk(KERN_DEBUG "%d bytes at start of block seems clean... assuming all clean\n", EMPTY_SCAN_SIZE(c->sector_size)));
 				return BLK_STATE_CLEANMARKER;
 			}
 
