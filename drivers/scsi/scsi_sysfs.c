@@ -669,6 +669,13 @@ void __scsi_remove_target(struct scsi_target *starget)
 	scsi_target_reap(starget);
 }
 
+static int __remove_child (struct device * dev, void * data)
+{
+	if (scsi_is_target_device(dev))
+		__scsi_remove_target(to_scsi_target(dev));
+	return 0;
+}
+
 /**
  * scsi_remove_target - try to remove a target and all its devices
  * @dev: generic starget or parent of generic stargets to be removed
@@ -679,7 +686,7 @@ void __scsi_remove_target(struct scsi_target *starget)
  */
 void scsi_remove_target(struct device *dev)
 {
-	struct device *rdev, *idev, *next;
+	struct device *rdev;
 
 	if (scsi_is_target_device(dev)) {
 		__scsi_remove_target(to_scsi_target(dev));
@@ -687,10 +694,7 @@ void scsi_remove_target(struct device *dev)
 	}
 
 	rdev = get_device(dev);
-	list_for_each_entry_safe(idev, next, &dev->children, node) {
-		if (scsi_is_target_device(idev))
-			__scsi_remove_target(to_scsi_target(idev));
-	}
+	device_for_each_child(dev, NULL, __remove_child);
 	put_device(rdev);
 }
 EXPORT_SYMBOL(scsi_remove_target);
