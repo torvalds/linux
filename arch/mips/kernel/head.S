@@ -200,19 +200,13 @@ NESTED(smp_bootstrap, 16, sp)
 	.comm	fw_arg2, SZREG, SZREG
 	.comm	fw_arg3, SZREG, SZREG
 
-	.macro	page name, order=0
-	.globl	\name
-\name:	.size	\name, (_PAGE_SIZE << \order)
-	.org	. + (_PAGE_SIZE << \order)
-	.type	\name, @object
+	.macro page name, order
+	.comm	\name, (_PAGE_SIZE << \order), (_PAGE_SIZE << \order)
 	.endm
 
-	.data
-	.align	PAGE_SHIFT
-
 	/*
-	 * ... but on 64-bit we've got three-level pagetables with a
-	 * slightly different layout ...
+	 * On 64-bit we've got three-level pagetables with a slightly
+	 * different layout ...
 	 */
 	page	swapper_pg_dir, _PGD_ORDER
 #ifdef CONFIG_64BIT
