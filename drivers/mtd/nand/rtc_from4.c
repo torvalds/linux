@@ -6,7 +6,7 @@
  *  Derived from drivers/mtd/nand/spia.c
  *       Copyright (C) 2000 Steven J. Hill (sjhill@realitydiluted.com)
  *
- * $Id: rtc_from4.c,v 1.7 2004/11/04 12:53:10 gleixner Exp $
+ * $Id: rtc_from4.c,v 1.8 2005/01/17 19:44:36 dmarlin Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -89,7 +89,7 @@ static struct mtd_info *rtc_from4_mtd = NULL;
 /*
  * Module stuff
  */
-static void __iomem *rtc_from4_fio_base = P2SEGADDR(RTC_FROM4_FIO_BASE);
+static void __iomem *rtc_from4_fio_base = (void *)P2SEGADDR(RTC_FROM4_FIO_BASE);
 
 const static struct mtd_partition partition_info[] = {
         {
@@ -286,6 +286,40 @@ static int rtc_from4_nand_device_ready(struct mtd_info *mtd)
 
 }
 
+
+/*
+ * deplete - code to perform device recovery in case there was a power loss
+ * @mtd:	MTD device structure
+ * @chip:	Chip to select (0 == slot 3, 1 == slot 4)
+ *
+ * If there was a sudden loss of power during an erase operation, a 
+ * "device recovery" operation must be performed when power is restored
+ * to ensure correct operation.  This routine performs the required steps
+ * for the requested chip.
+ *
+ * See page 86 of the data sheet for details.
+ *
+ */
+static void deplete(struct mtd_info *mtd, int chip)
+{
+        struct nand_chip *this = mtd->priv;
+
+        /* wait until device is ready */
+        while (!this->dev_ready(mtd));
+
+	this->select_chip(mtd, chip);
+                                                                                                                                              
+	/* Send the commands for device recovery, phase 1 */
+	this->cmdfunc (mtd, NAND_CMD_DEPLETE1, 0x0000, 0x0000);
+	this->cmdfunc (mtd, NAND_CMD_DEPLETE2, -1, -1);
+
+	/* Send the commands for device recovery, phase 2 */
+	this->cmdfunc (mtd, NAND_CMD_DEPLETE1, 0x0000, 0x0004);
+	this->cmdfunc (mtd, NAND_CMD_DEPLETE2, -1, -1);
+
+}
+
+
 #ifdef RTC_FROM4_HWECC
 /*
  * rtc_from4_enable_hwecc - hardware specific hardware ECC enable function
@@ -374,7 +408,7 @@ static int rtc_from4_correct_data(struct mtd_info *mtd, const u_char *buf, u_cha
 {
 	int i, j, res;
 	unsigned short status; 
-	uint16_t par[6], syn[6], tmp;
+	uint16_t par[6], syn[6];
 	uint8_t ecc[8];
         volatile unsigned short *rs_ecc;
 
@@ -416,7 +450,7 @@ static int rtc_from4_correct_data(struct mtd_info *mtd, const u_char *buf, u_cha
 	}
 
 	/* Let the library code do its magic.*/
-	res = decode_rs8(rs_decoder, buf, par, 512, syn, 0, NULL, 0xff, NULL);
+	res = decode_rs8(rs_decoder, (uint8_t *)buf, par, 512, syn, 0, NULL, 0xff, NULL);
 	if (res > 0) {
 		DEBUG (MTD_DEBUG_LEVEL0, "rtc_from4_correct_data: " 
 			"ECC corrected %d errors on read\n", res);
@@ -432,6 +466,7 @@ int __init rtc_from4_init (void)
 {
 	struct nand_chip *this;
 	unsigned short bcr1, bcr2, wcr2;
+	int i;
 
 	/* Allocate memory for MTD device structure and private data */
 	rtc_from4_mtd = kmalloc(sizeof(struct mtd_info) + sizeof (struct nand_chip),
@@ -502,6 +537,11 @@ int __init rtc_from4_init (void)
 	if (nand_scan(rtc_from4_mtd, RTC_FROM4_MAX_CHIPS)) {
 		kfree(rtc_from4_mtd);
 		return -ENXIO;
+	}
+
+	/* Perform 'device recovery' for each chip in case there was a power loss. */
+	for (i=0; i < this->numchips; i++) {
+		deplete(rtc_from4_mtd, i);
 	}
 
 	/* Register the partitions */
