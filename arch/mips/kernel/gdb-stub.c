@@ -637,15 +637,18 @@ static struct gdb_bp_save async_bp;
  * and only one can be active at a time.
  */
 extern spinlock_t smp_call_lock;
+
 void set_async_breakpoint(unsigned long *epc)
 {
 	/* skip breaking into userland */
 	if ((*epc & 0x80000000) == 0)
 		return;
 
+#ifdef CONFIG_SMP
 	/* avoid deadlock if someone is make IPC */
 	if (spin_is_locked(&smp_call_lock))
 		return;
+#endif
 
 	async_bp.addr = *epc;
 	*epc = (unsigned long)async_breakpoint;
