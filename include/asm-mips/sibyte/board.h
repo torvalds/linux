@@ -66,4 +66,6 @@ extern void setleds(char *str);
 
 #endif /* CONFIG_SIBYTE_BOARD */
 
+#endif /* __ASSEMBLY__ */
+
 #endif /* _SIBYTE_BOARD_H */
