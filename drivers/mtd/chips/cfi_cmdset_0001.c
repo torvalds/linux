@@ -4,7 +4,7 @@
  *
  * (C) 2000 Red Hat. GPL'd
  *
- * $Id: cfi_cmdset_0001.c,v 1.168 2005/02/17 20:34:59 nico Exp $
+ * $Id: cfi_cmdset_0001.c,v 1.169 2005/03/15 19:07:18 gleixner Exp $
  *
  * 
  * 10/10/2000	Nicolas Pitre <nico@cam.org>
@@ -1697,24 +1697,14 @@ static int __xipram do_erase_oneblock(struct map_info *map, struct flchip *chip,
 
 	/* check for lock bit */
 	if (map_word_bitsset(map, status, CMD(0x3a))) {
-		unsigned char chipstatus;
+		unsigned long chipstatus;
 
 		/* Reset the error bits */
 		map_write(map, CMD(0x50), adr);
 		map_write(map, CMD(0x70), adr);
 		xip_enable(map, chip, adr);
 
-		chipstatus = status.x[0];
-		if (!map_word_equal(map, status, CMD(chipstatus))) {
-			int i, w;
-			for (w=0; w<map_words(map); w++) {
-				for (i = 0; i<cfi_interleave(cfi); i++) {
-					chipstatus |= status.x[w] >> (cfi->device_type * 8);
-				}
-			}
-			printk(KERN_WARNING "Status is not identical for all chips: 0x%lx. Merging to give 0x%02x\n",
-			       status.x[0], chipstatus);
-		}
+		chipstatus = MERGESTATUS(status);
 
 		if ((chipstatus & 0x30) == 0x30) {
 			printk(KERN_NOTICE "Chip reports improper command sequence: status 0x%x\n", chipstatus);
