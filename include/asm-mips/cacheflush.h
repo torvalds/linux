@@ -55,11 +55,17 @@ extern void (*flush_icache_range)(unsigned long start, unsigned long end);
 
 #define copy_to_user_page(vma, page, vaddr, dst, src, len)		\
 do {									\
+	if (cpu_has_dc_aliases)						\
+		flush_cache_page(vma, vaddr);				\
 	memcpy(dst, (void *) src, len);					\
 	flush_icache_page(vma, page);					\
 } while (0)
 #define copy_from_user_page(vma, page, vaddr, dst, src, len)		\
-	memcpy(dst, src, len)
+do {									\
+	if (cpu_has_dc_aliases)						\
+		flush_cache_page(vma, vaddr);				\
+	memcpy(dst, src, len);						\
+} while (0)
 
 extern void (*flush_cache_sigtramp)(unsigned long addr);
 extern void (*flush_icache_all)(void);
