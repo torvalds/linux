@@ -3,7 +3,7 @@
  *
  *  Copyright (C) 2002 Thomas Gleixner (tglx@linutronix.de)
   *
- * $Id: nand_ids.c,v 1.11 2005/01/17 18:26:27 dmarlin Exp $
+ * $Id: nand_ids.c,v 1.12 2005/02/16 09:33:27 gleixner Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -62,8 +62,6 @@ struct nand_flash_dev nand_flash_ids[] = {
 	
 	{"NAND 256MiB 3,3V 8-bit", 	0x71, 512, 256, 0x4000, 0},
 
-	{"NAND 512MiB 3,3V 8-bit", 	0xDC, 512, 512, 0x4000, 0},
-	
 	/* These are the new chips with large page size. The pagesize
 	* and the erasesize is determined from the extended id bytes
 	*/

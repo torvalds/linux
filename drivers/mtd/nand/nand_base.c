@@ -59,7 +59,7 @@
  *	The AG-AND chips have nice features for speed improvement,
  *	which are not supported yet. Read / program 4 pages in one go.
  *
- * $Id: nand_base.c,v 1.132 2005/02/09 14:49:56 dedekind Exp $
+ * $Id: nand_base.c,v 1.133 2005/02/16 09:39:35 gleixner Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -2276,7 +2276,7 @@ static int nand_block_markbad (struct mtd_info *mtd, loff_t ofs)
  */
 int nand_scan (struct mtd_info *mtd, int maxchips)
 {
-	int i, j, nand_maf_id, nand_dev_id, busw;
+	int i, j, nand_maf_id, nand_dev_id, busw, maf_id;
 	struct nand_chip *this = mtd->priv;
 
 	/* Get buswidth to select the correct functions*/
@@ -2364,12 +2364,18 @@ int nand_scan (struct mtd_info *mtd, int maxchips)
 			busw = nand_flash_ids[i].options & NAND_BUSWIDTH_16;
 		}
 
+		/* Try to identify manufacturer */
+		for (maf_id = 0; nand_manuf_ids[maf_id].id != 0x0; maf_id++) {
+			if (nand_manuf_ids[maf_id].id == nand_maf_id)
+				break;
+		}
+
 		/* Check, if buswidth is correct. Hardware drivers should set
 		 * this correct ! */
 		if (busw != (this->options & NAND_BUSWIDTH_16)) {
 			printk (KERN_INFO "NAND device: Manufacturer ID:"
 				" 0x%02x, Chip ID: 0x%02x (%s %s)\n", nand_maf_id, nand_dev_id, 
-				nand_manuf_ids[i].name , mtd->name);
+				nand_manuf_ids[maf_id].name , mtd->name);
 			printk (KERN_WARNING 
 				"NAND bus width %d instead %d bit\n", 
 					(this->options & NAND_BUSWIDTH_16) ? 16 : 8,
@@ -2408,14 +2414,9 @@ int nand_scan (struct mtd_info *mtd, int maxchips)
 		if (mtd->oobblock > 512 && this->cmdfunc == nand_command)
 			this->cmdfunc = nand_command_lp;
 				
-		/* Try to identify manufacturer */
-		for (j = 0; nand_manuf_ids[j].id != 0x0; j++) {
-			if (nand_manuf_ids[j].id == nand_maf_id)
-				break;
-		}
 		printk (KERN_INFO "NAND device: Manufacturer ID:"
 			" 0x%02x, Chip ID: 0x%02x (%s %s)\n", nand_maf_id, nand_dev_id, 
-			nand_manuf_ids[j].name , nand_flash_ids[i].name);
+			nand_manuf_ids[maf_id].name , nand_flash_ids[i].name);
 		break;
 	}
 
