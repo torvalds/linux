@@ -1,6 +1,6 @@
 
 /* Overhauled routines for dealing with different mmap regions of flash */
-/* $Id: map.h,v 1.47 2005/02/08 17:11:15 nico Exp $ */
+/* $Id: map.h,v 1.48 2005/02/16 15:54:59 nico Exp $ */
 
 #ifndef __LINUX_MTD_MAP_H__
 #define __LINUX_MTD_MAP_H__
@@ -418,7 +418,7 @@ extern void simple_map_init(struct map_info *);
 
 
 #define simple_map_init(map) BUG_ON(!map_bankwidth_supported((map)->bankwidth))
-#define map_is_linear(map) (1)
+#define map_is_linear(map) ({ (void)(map); 1; })
 
 #endif /* !CONFIG_MTD_COMPLEX_MAPPINGS */
 
