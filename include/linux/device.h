@@ -143,6 +143,7 @@ extern void driver_remove_file(struct device_driver *, struct driver_attribute *
  */
 struct class {
 	const char		* name;
+	struct module		* owner;
 
 	struct subsystem	subsys;
 	struct list_head	children;
@@ -185,6 +186,7 @@ struct class_device {
 	struct kobject		kobj;
 	struct class		* class;	/* required */
 	dev_t			devt;		/* dev_t, creates the sysfs "dev" */
+	struct class_device_attribute *devt_attr;
 	struct device		* dev;		/* not necessary, but nice to have */
 	void			* class_data;	/* class-specific data */
 
@@ -244,6 +246,13 @@ struct class_interface {
 
 extern int class_interface_register(struct class_interface *);
 extern void class_interface_unregister(struct class_interface *);
+
+extern struct class *class_create(struct module *owner, char *name);
+extern void class_destroy(struct class *cls);
+extern struct class_device *class_device_create(struct class *cls, dev_t devt,
+						struct device *device, char *fmt, ...)
+					__attribute__((format(printf,4,5)));
+extern void class_device_destroy(struct class *cls, dev_t devt);
 
 /* interface for class simple stuff */
 extern struct class_simple *class_simple_create(struct module *owner, char *name);
