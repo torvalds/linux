@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: write.c,v 1.90 2005/01/28 18:53:01 hammache Exp $
+ * $Id: write.c,v 1.91 2005/03/01 10:34:03 dedekind Exp $
  *
  */
 
@@ -644,20 +644,23 @@ int jffs2_do_unlink(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f,
 
 		down(&dead_f->sem);
 
-		while (dead_f->dents) {
-			/* There can be only deleted ones */
-			fd = dead_f->dents;
-			
-			dead_f->dents = fd->next;
-			
-			if (fd->ino) {
-				printk(KERN_WARNING "Deleting inode #%u with active dentry \"%s\"->ino #%u\n",
-				       dead_f->inocache->ino, fd->name, fd->ino);
-			} else {
-				D1(printk(KERN_DEBUG "Removing deletion dirent for \"%s\" from dir ino #%u\n", fd->name, dead_f->inocache->ino));
+		if (S_ISDIR(OFNI_EDONI_2SFFJ(dead_f)->i_mode)) {
+			while (dead_f->dents) {
+				/* There can be only deleted ones */
+				fd = dead_f->dents;
+				
+				dead_f->dents = fd->next;
+				
+				if (fd->ino) {
+					printk(KERN_WARNING "Deleting inode #%u with active dentry \"%s\"->ino #%u\n",
+					       dead_f->inocache->ino, fd->name, fd->ino);
+				} else {
+					D1(printk(KERN_DEBUG "Removing deletion dirent for \"%s\" from dir ino #%u\n",
+						fd->name, dead_f->inocache->ino));
+				}
+				jffs2_mark_node_obsolete(c, fd->raw);
+				jffs2_free_full_dirent(fd);
 			}
-			jffs2_mark_node_obsolete(c, fd->raw);
-			jffs2_free_full_dirent(fd);
 		}
 
 		dead_f->inocache->nlink--;

@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: readinode.c,v 1.118 2005/02/27 23:01:33 dwmw2 Exp $
+ * $Id: readinode.c,v 1.119 2005/03/01 10:34:03 dedekind Exp $
  *
  */
 
@@ -623,6 +623,40 @@ static int jffs2_do_read_inode_internal(struct jffs2_sb_info *c,
 		   case. */
 		if (!je32_to_cpu(latest_node->isize))
 			latest_node->isize = latest_node->dsize;
+
+		if (f->inocache->state != INO_STATE_CHECKING) {
+			/* Symlink's inode data is the target path. Read it and
+			 * keep in RAM to facilitate quick follow symlink operation.
+			 * We use f->dents field to store the target path, which
+			 * is somewhat ugly. */
+			f->dents = kmalloc(je32_to_cpu(latest_node->csize) + 1, GFP_KERNEL);
+			if (!f->dents) {
+				printk(KERN_WARNING "Can't allocate %d bytes of memory "
+						"for the symlink target path cache\n",
+						je32_to_cpu(latest_node->csize));
+				up(&f->sem);
+				jffs2_do_clear_inode(c, f);
+				return -ENOMEM;
+			}
+			
+			ret = jffs2_flash_read(c, ref_offset(fn->raw) + sizeof(*latest_node),
+						je32_to_cpu(latest_node->csize), &retlen, (char *)f->dents);
+			
+			if (ret  || retlen != je32_to_cpu(latest_node->csize)) {
+				if (retlen != je32_to_cpu(latest_node->csize))
+					ret = -EIO;
+				kfree(f->dents);
+				f->dents = NULL;
+				up(&f->sem);
+				jffs2_do_clear_inode(c, f);
+				return -ret;
+			}
+
+			((char *)f->dents)[je32_to_cpu(latest_node->csize)] = '\0';
+			D1(printk(KERN_DEBUG "jffs2_do_read_inode(): symlink's target '%s' cached\n",
+						(char *)f->dents));
+		}
+		
 		/* fall through... */
 
 	case S_IFBLK:
@@ -683,12 +717,20 @@ void jffs2_do_clear_inode(struct jffs2_sb_info *c, struct jffs2_inode_info *f)
 
 	jffs2_kill_fragtree(&f->fragtree, deleted?c:NULL);
 
-	fds = f->dents;
+	/* For symlink inodes we us f->dents to store the target path name */
+	if (S_ISLNK(OFNI_EDONI_2SFFJ(f)->i_mode)) {
+		if (f->dents) {
+			kfree(f->dents);
+			f->dents = NULL;
+		}
+	} else {
+		fds = f->dents;
 
-	while(fds) {
-		fd = fds;
-		fds = fd->next;
-		jffs2_free_full_dirent(fd);
+		while(fds) {
+			fd = fds;
+			fds = fd->next;
+			jffs2_free_full_dirent(fd);
+		}
 	}
 
 	if (f->inocache && f->inocache->state != INO_STATE_CHECKING) {

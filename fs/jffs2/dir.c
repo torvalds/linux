@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: dir.c,v 1.84 2004/11/16 20:36:11 dwmw2 Exp $
+ * $Id: dir.c,v 1.85 2005/03/01 10:34:03 dedekind Exp $
  *
  */
 
@@ -296,11 +296,11 @@ static int jffs2_symlink (struct inode *dir_i, struct dentry *dentry, const char
 	struct jffs2_full_dirent *fd;
 	int namelen;
 	uint32_t alloclen, phys_ofs;
-	int ret;
+	int ret, targetlen = strlen(target);
 
 	/* FIXME: If you care. We'd need to use frags for the target
 	   if it grows much more than this */
-	if (strlen(target) > 254)
+	if (targetlen > 254)
 		return -EINVAL;
 
 	ri = jffs2_alloc_raw_inode();
@@ -314,7 +314,7 @@ static int jffs2_symlink (struct inode *dir_i, struct dentry *dentry, const char
 	 * Just the node will do for now, though 
 	 */
 	namelen = dentry->d_name.len;
-	ret = jffs2_reserve_space(c, sizeof(*ri) + strlen(target), &phys_ofs, &alloclen, ALLOC_NORMAL);
+	ret = jffs2_reserve_space(c, sizeof(*ri) + targetlen, &phys_ofs, &alloclen, ALLOC_NORMAL);
 
 	if (ret) {
 		jffs2_free_raw_inode(ri);
@@ -333,16 +333,16 @@ static int jffs2_symlink (struct inode *dir_i, struct dentry *dentry, const char
 
 	f = JFFS2_INODE_INFO(inode);
 
-	inode->i_size = strlen(target);
+	inode->i_size = targetlen;
 	ri->isize = ri->dsize = ri->csize = cpu_to_je32(inode->i_size);
 	ri->totlen = cpu_to_je32(sizeof(*ri) + inode->i_size);
 	ri->hdr_crc = cpu_to_je32(crc32(0, ri, sizeof(struct jffs2_unknown_node)-4));
 
 	ri->compr = JFFS2_COMPR_NONE;
-	ri->data_crc = cpu_to_je32(crc32(0, target, strlen(target)));
+	ri->data_crc = cpu_to_je32(crc32(0, target, targetlen));
 	ri->node_crc = cpu_to_je32(crc32(0, ri, sizeof(*ri)-8));
 	
-	fn = jffs2_write_dnode(c, f, ri, target, strlen(target), phys_ofs, ALLOC_NORMAL);
+	fn = jffs2_write_dnode(c, f, ri, target, targetlen, phys_ofs, ALLOC_NORMAL);
 
 	jffs2_free_raw_inode(ri);
 
@@ -353,6 +353,20 @@ static int jffs2_symlink (struct inode *dir_i, struct dentry *dentry, const char
 		jffs2_clear_inode(inode);
 		return PTR_ERR(fn);
 	}
+
+	/* We use f->dents field to store the target path. */
+	f->dents = kmalloc(targetlen + 1, GFP_KERNEL);
+	if (!f->dents) {
+		printk(KERN_WARNING "Can't allocate %d bytes of memory\n", targetlen + 1);
+		up(&f->sem);
+		jffs2_complete_reservation(c);
+		jffs2_clear_inode(inode);
+		return -ENOMEM;
+	}
+
+	memcpy(f->dents, target, targetlen + 1);
+	D1(printk(KERN_DEBUG "jffs2_symlink: symlink's target '%s' cached\n", (char *)f->dents));
+
 	/* No data here. Only a metadata node, which will be 
 	   obsoleted by the first data write
 	*/
