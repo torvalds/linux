@@ -821,15 +821,13 @@ saa7114_command (struct i2c_client *client,
 static unsigned short normal_i2c[] =
     { I2C_SAA7114 >> 1, I2C_SAA7114A >> 1, I2C_CLIENT_END };
 
-static unsigned short probe[2] = { I2C_CLIENT_END, I2C_CLIENT_END };
-static unsigned short ignore[2] = { I2C_CLIENT_END, I2C_CLIENT_END };
-static unsigned short force[2] = { I2C_CLIENT_END , I2C_CLIENT_END };
+static unsigned short ignore = I2C_CLIENT_END;
                                                                                 
 static struct i2c_client_address_data addr_data = {
 	.normal_i2c		= normal_i2c,
-	.probe			= probe,
-	.ignore			= ignore,
-	.force			= force
+	.probe			= &ignore,
+	.ignore			= &ignore,
+	.force			= &ignore,
 };
 
 static struct i2c_driver i2c_driver_saa7114;
