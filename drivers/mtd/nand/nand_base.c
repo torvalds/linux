@@ -59,7 +59,7 @@
  *	The AG-AND chips have nice features for speed improvement,
  *	which are not supported yet. Read / program 4 pages in one go.
  *
- * $Id: nand_base.c,v 1.140 2005/04/04 18:56:29 gleixner Exp $
+ * $Id: nand_base.c,v 1.141 2005/04/06 20:13:05 dbrown Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -1285,13 +1285,12 @@ int nand_do_read_ecc (struct mtd_info *mtd, loff_t from, size_t len,
 			switch(oobsel->useecc) {
 			case MTD_NANDECC_AUTOPLACE:
 				/* Walk through the autoplace chunks */
-				for (i = 0, j = 0; j < mtd->oobavail; i++) {
+				for (i = 0; oobsel->oobfree[i][1]; i++) {
 					int from = oobsel->oobfree[i][0];
 					int num = oobsel->oobfree[i][1];
 					memcpy(&oob_buf[oob], &oob_data[from], num);
-					j+= num;
+					oob += num;
 				}
-				oob += mtd->oobavail;
 				break;
 			case MTD_NANDECC_PLACE:
 				/* YAFFS1 legacy mode */
