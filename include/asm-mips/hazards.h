@@ -124,6 +124,9 @@ __asm__(
 		".set\tmips32\n\t"					\
 		"_ssnop; _ssnop; _ssnop; _ssnop\n\t"			\
 		".set\tmips0")
+
+#define back_to_back_c0_hazard()	do { } while (0)
+
 #else
 
 /*
@@ -140,6 +143,12 @@ __asm__(
 		".set noreorder\n\t"					\
 		"nop; nop; nop; nop; nop; nop;\n\t"			\
 		".set reorder\n\t")
+
+#define back_to_back_c0_hazard()					\
+	__asm__ __volatile__(						\
+	"	.set noreorder				\n"		\
+	"	nop; nop; nop				\n"		\
+	"	.set reorder				\n")
 
 #endif
 
@@ -170,6 +179,10 @@ __asm__(
 	__asm__ __volatile__(						\
 	"_ehb\t\t\t\t# irq_disable_hazard")
 
+#define back_to_back_c0_hazard()					\
+	__asm__ __volatile__(						\
+	"_ehb\t\t\t\t# back_to_back_c0_hazard")
+
 #elif defined(CONFIG_CPU_R10000) || defined(CONFIG_CPU_RM9000)
 
 /*
@@ -185,6 +198,8 @@ __asm__(
 
 #define irq_enable_hazard()	do { } while (0)
 #define irq_disable_hazard()	do { } while (0)
+
+#define back_to_back_c0_hazard()	do { } while (0)
 
 #else
 
@@ -209,6 +224,12 @@ __asm__(
 #define irq_disable_hazard()						\
 	__asm__ __volatile__(						\
 	"_ssnop; _ssnop; _ssnop;\t\t# irq_disable_hazard")
+
+#define back_to_back_c0_hazard()					\
+	__asm__ __volatile__(						\
+	"	.set noreorder				\n"		\
+	"	nop; nop; nop				\n"		\
+	"	.set reorder				\n")
 
 #endif
 
