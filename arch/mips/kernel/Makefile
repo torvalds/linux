@@ -11,11 +11,7 @@ obj-y		+= cpu-probe.o branch.o entry.o genex.o irq.o process.o \
 binfmt_irix-objs	:= irixelf.o irixinv.o irixioctl.o irixsig.o	\
 			   irix5sys.o sysirix.o
 
-ifdef CONFIG_MODULES
-obj-y				+= mips_ksyms.o module.o
-obj-$(CONFIG_32BIT)		+= module-elf32.o
-obj-$(CONFIG_64BIT)		+= module-elf64.o
-endif
+obj-$(CONFIG_MODULES)		+= mips_ksyms.o module.o
 
 obj-$(CONFIG_CPU_R3000)		+= r2300_fpu.o r2300_switch.o
 obj-$(CONFIG_CPU_TX39XX)	+= r2300_fpu.o r2300_switch.o
