@@ -103,17 +103,6 @@
 #define IVR_SERIAL_PORT_DEFNS
 #endif
 
-#ifdef CONFIG_TOSHIBA_JMR3927
-#include <asm/jmr3927/jmr3927.h>
-#define TXX927_SERIAL_PORT_DEFNS                              \
-    { .baud_base = JMR3927_BASE_BAUD, .port = UART0_ADDR, .irq = UART0_INT,  \
-      .flags = UART0_FLAGS, .type = 1 },                        \
-    { .baud_base = JMR3927_BASE_BAUD, .port = UART1_ADDR, .irq = UART1_INT,  \
-      .flags = UART1_FLAGS, .type = 1 },
-#else
-#define TXX927_SERIAL_PORT_DEFNS
-#endif
-
 #ifdef CONFIG_SERIAL_AU1X00
 #include <asm/mach-au1x00/au1000.h>
 #ifdef CONFIG_SOC_AU1000
@@ -343,7 +332,6 @@
 	MOMENCO_OCELOT_C_SERIAL_PORT_DEFNS		\
 	MOMENCO_OCELOT_SERIAL_PORT_DEFNS		\
 	MOMENCO_OCELOT_3_SERIAL_PORT_DEFNS		\
-	TXX927_SERIAL_PORT_DEFNS                        \
 	AU1000_SERIAL_PORT_DEFNS
 
 #endif /* _ASM_SERIAL_H */
