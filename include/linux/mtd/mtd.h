@@ -1,5 +1,5 @@
 /* 
- * $Id: mtd.h,v 1.57 2005/02/08 17:11:15 nico Exp $
+ * $Id: mtd.h,v 1.58 2005/04/01 01:59:54 nico Exp $
  *
  * Copyright (C) 1999-2003 David Woodhouse <dwmw2@infradead.org> et al.
  *
@@ -18,6 +18,7 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/uio.h>
+#include <linux/notifier.h>
 
 #include <linux/mtd/compatmac.h>
 #include <mtd/mtd-abi.h>
@@ -146,6 +147,8 @@ struct mtd_info {
 	/* Bad block management functions */
 	int (*block_isbad) (struct mtd_info *mtd, loff_t ofs);
 	int (*block_markbad) (struct mtd_info *mtd, loff_t ofs);
+
+	struct notifier_block reboot_notifier;  /* default mode before reboot */
 
 	void *priv;
 

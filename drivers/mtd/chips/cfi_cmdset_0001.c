@@ -4,7 +4,7 @@
  *
  * (C) 2000 Red Hat. GPL'd
  *
- * $Id: cfi_cmdset_0001.c,v 1.173 2005/03/30 23:57:30 tpoynor Exp $
+ * $Id: cfi_cmdset_0001.c,v 1.174 2005/04/01 01:59:52 nico Exp $
  *
  * 
  * 10/10/2000	Nicolas Pitre <nico@cam.org>
@@ -29,6 +29,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/reboot.h>
 #include <linux/mtd/xip.h>
 #include <linux/mtd/map.h>
 #include <linux/mtd/mtd.h>
@@ -66,6 +67,7 @@ static int cfi_intelext_get_user_prot_info (struct mtd_info *,
 #endif
 static int cfi_intelext_suspend (struct mtd_info *);
 static void cfi_intelext_resume (struct mtd_info *);
+static int cfi_intelext_reboot (struct notifier_block *, unsigned long, void *);
 
 static void cfi_intelext_destroy(struct mtd_info *);
 
@@ -333,7 +335,9 @@ struct mtd_info *cfi_cmdset_0001(struct map_info *map, int primary)
 	mtd->resume  = cfi_intelext_resume;
 	mtd->flags   = MTD_CAP_NORFLASH;
 	mtd->name    = map->name;
-	
+
+	mtd->reboot_notifier.notifier_call = cfi_intelext_reboot;
+
 	if (cfi->cfi_mode == CFI_MODE_CFI) {
 		/* 
 		 * It's a real CFI chip, not one for which the probe
@@ -446,6 +450,7 @@ static struct mtd_info *cfi_intelext_setup(struct mtd_info *mtd)
 		goto setup_err;
 
 	__module_get(THIS_MODULE);
+	register_reboot_notifier(&mtd->reboot_notifier);
 	return mtd;
 
  setup_err:
@@ -2301,10 +2306,46 @@ static void cfi_intelext_resume(struct mtd_info *mtd)
 	}
 }
 
+static int cfi_intelext_reset(struct mtd_info *mtd)
+{
+	struct map_info *map = mtd->priv;
+	struct cfi_private *cfi = map->fldrv_priv;
+	int i, ret;
+
+	for (i=0; i < cfi->numchips; i++) {
+		struct flchip *chip = &cfi->chips[i];
+
+		/* force the completion of any ongoing operation
+		   and switch to array mode so any bootloader in 
+		   flash is accessible for soft reboot. */
+		spin_lock(chip->mutex);
+		ret = get_chip(map, chip, chip->start, FL_SYNCING);
+		if (!ret) {
+			map_write(map, CMD(0xff), chip->start);
+			chip->state = FL_READY;
+		}
+		spin_unlock(chip->mutex);
+	}
+
+	return 0;
+}
+
+static int cfi_intelext_reboot(struct notifier_block *nb, unsigned long val,
+			       void *v)
+{
+	struct mtd_info *mtd;
+
+	mtd = container_of(nb, struct mtd_info, reboot_notifier);
+	cfi_intelext_reset(mtd);
+	return NOTIFY_DONE;
+}
+
 static void cfi_intelext_destroy(struct mtd_info *mtd)
 {
 	struct map_info *map = mtd->priv;
 	struct cfi_private *cfi = map->fldrv_priv;
+	cfi_intelext_reset(mtd);
+	unregister_reboot_notifier(&mtd->reboot_notifier);
 	kfree(cfi->cmdset_priv);
 	kfree(cfi->cfiq);
 	kfree(cfi->chips[0].priv);
