@@ -112,6 +112,7 @@ static void klist_release(struct kref * kref)
 	struct klist_node * n = container_of(kref, struct klist_node, n_ref);
 	list_del(&n->n_node);
 	complete(&n->n_removed);
+	n->n_klist = NULL;
 }
 
 static int klist_dec_and_del(struct klist_node * n)
@@ -151,6 +152,19 @@ void klist_remove(struct klist_node * n)
 }
 
 EXPORT_SYMBOL_GPL(klist_remove);
+
+
+/**
+ *	klist_node_attached - Say whether a node is bound to a list or not.
+ *	@n:	Node that we're testing.
+ */
+
+int klist_node_attached(struct klist_node * n)
+{
+	return (n->n_klist != NULL);
+}
+
+EXPORT_SYMBOL_GPL(klist_node_attached);
 
 
 /**
@@ -246,3 +260,5 @@ struct klist_node * klist_next(struct klist_iter * i)
 }
 
 EXPORT_SYMBOL_GPL(klist_next);
+
+

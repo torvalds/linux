@@ -37,6 +37,8 @@ extern void klist_add_head(struct klist * k, struct klist_node * n);
 extern void klist_del(struct klist_node * n);
 extern void klist_remove(struct klist_node * n);
 
+extern int klist_node_attached(struct klist_node * n);
+
 
 struct klist_iter {
 	struct klist		* i_klist;
