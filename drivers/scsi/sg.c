@@ -51,6 +51,7 @@ static int sg_version_num = 30532;	/* 2 digits for each component */
 #include <linux/delay.h>
 
 #include "scsi.h"
+#include <scsi/scsi_dbg.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_driver.h>
 #include <scsi/scsi_ioctl.h>
@@ -1311,7 +1312,7 @@ sg_cmd_done(Scsi_Cmnd * SCpnt)
 		if ((sdp->sgdebug > 0) &&
 		    ((CHECK_CONDITION == srp->header.masked_status) ||
 		     (COMMAND_TERMINATED == srp->header.masked_status)))
-			print_req_sense("sg_cmd_done", SRpnt);
+			scsi_print_req_sense("sg_cmd_done", SRpnt);
 
 		/* Following if statement is a patch supplied by Eric Youngdale */
 		if (driver_byte(SRpnt->sr_result) != 0

@@ -23,7 +23,6 @@
 #include <linux/config.h>	    /* for CONFIG_SCSI_LOGGING */
 
 #include <scsi/scsi_cmnd.h>
-#include <scsi/scsi_dbg.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_request.h>
@@ -60,42 +59,6 @@ struct scatterlist;
 
 #define scsi_to_pci_dma_dir(scsi_dir)	((int)(scsi_dir))
 #define scsi_to_sbus_dma_dir(scsi_dir)	((int)(scsi_dir))
-
-/*
- * Old names for debug prettyprinting functions.
- */
-static inline void print_Scsi_Cmnd(struct scsi_cmnd *cmd)
-{
-	return scsi_print_command(cmd);
-}
-static inline void print_command(unsigned char *cdb)
-{
-	return __scsi_print_command(cdb);
-}
-static inline void print_sense(const char *devclass, struct scsi_cmnd *cmd)
-{
-	return scsi_print_sense(devclass, cmd);
-}
-static inline void print_req_sense(const char *devclass, struct scsi_request *req)
-{
-	return scsi_print_req_sense(devclass, req);
-}
-static inline void print_driverbyte(int scsiresult)
-{
-	return scsi_print_driverbyte(scsiresult);
-}
-static inline void print_hostbyte(int scsiresult)
-{
-	return scsi_print_hostbyte(scsiresult);
-}
-static inline void print_status(unsigned char status)
-{
-	return scsi_print_status(status);
-}
-static inline int print_msg(const unsigned char *msg)
-{
-	return scsi_print_msg(msg);
-}
 
 /*
  * This is the crap from the old error handling code.  We have it in a special

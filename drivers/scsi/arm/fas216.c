@@ -52,6 +52,7 @@
 #include <asm/ecard.h>
 
 #include "../scsi.h"
+#include <scsi/scsi_dbg.h>
 #include <scsi/scsi_host.h>
 #include "fas216.h"
 #include "scsi.h"
@@ -309,7 +310,7 @@ fas216_log_command(FAS216_Info *info, int level, Scsi_Cmnd *SCpnt, char *fmt, ..
 	va_end(args);
 
 	printk(" CDB: ");
-	print_command(SCpnt->cmnd);
+	__scsi_print_command(SCpnt->cmnd);
 }
 
 static void
@@ -2081,7 +2082,7 @@ fas216_std_done(FAS216_Info *info, Scsi_Cmnd *SCpnt, unsigned int result)
 				info->host->host_no, '0' + SCpnt->device->id,
 				SCpnt->result, info->scsi.SCp.ptr,
 				info->scsi.SCp.this_residual);
-			print_command(SCpnt->cmnd);
+			__scsi_print_command(SCpnt->cmnd);
 			SCpnt->result &= ~(255 << 16);
 			SCpnt->result |= DID_BAD_TARGET << 16;
 			goto request_sense;
@@ -2170,7 +2171,7 @@ static void fas216_done(FAS216_Info *info, unsigned int result)
 		       info->host->host_no, '0' + SCpnt->device->id,
 		       info->scsi.SCp.ptr, info->scsi.SCp.this_residual);
 		info->scsi.SCp.ptr = NULL;
-		print_command(SCpnt->cmnd);
+		__scsi_print_command(SCpnt->cmnd);
 	}
 
 	/*
@@ -2426,7 +2427,7 @@ int fas216_eh_abort(Scsi_Cmnd *SCpnt)
 	info->stats.aborts += 1;
 
 	printk(KERN_WARNING "scsi%d: abort command ", info->host->host_no);
-	print_command(SCpnt->data_cmnd);
+	__scsi_print_command(SCpnt->data_cmnd);
 
 	print_debug_list();
 	fas216_dumpstate(info);

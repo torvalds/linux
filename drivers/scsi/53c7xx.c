@@ -280,6 +280,7 @@
 #endif
 
 #include "scsi.h"
+#include <scsi/scsi_dbg.h>
 #include <scsi/scsi_host.h>
 #include "53c7xx.h"
 #include <linux/stat.h>
@@ -1721,9 +1722,9 @@ NCR53c7xx_run_tests (struct Scsi_Host *host) {
 		printk ("scsi%d : test 2 INQUIRY to target %d, lun 0 : %s\n",
 		    host->host_no, i, data + 8);
 		printk ("scsi%d : status ", host->host_no);
-		print_status (status);
+		scsi_print_status (status);
 		printk ("\nscsi%d : message ", host->host_no);
-		print_msg (&msg);
+		scsi_print_msg (&msg);
 		printk ("\n");
 	    } else if (hostdata->test_completed == 3) {
 		printk("scsi%d : test 2 no connection with target %d\n",
@@ -2312,7 +2313,7 @@ NCR53c7x0_dstat_sir_intr (struct Scsi_Host *host, struct
 	    printk ("scsi%d : received message", host->host_no);
 	    if (c) 
 	    	printk (" from target %d lun %d ", c->device->id, c->device->lun);
-	    print_msg ((unsigned char *) hostdata->msg_buf);
+	    scsi_print_msg ((unsigned char *) hostdata->msg_buf);
 	    printk("\n");
 	}
 	
@@ -3204,7 +3205,7 @@ create_cmd (Scsi_Cmnd *cmd) {
     case WRITE_10:
 #if 0
 	printk("scsi%d : command is ", host->host_no);
-	print_command(cmd->cmnd);
+	__scsi_print_command(cmd->cmnd);
 #endif
 #if 0
 	printk ("scsi%d : %d scatter/gather segments\n", host->host_no,
@@ -3232,7 +3233,7 @@ create_cmd (Scsi_Cmnd *cmd) {
      */
     default:
 	printk("scsi%d : datain+dataout for command ", host->host_no);
-	print_command(cmd->cmnd);
+	__scsi_print_command(cmd->cmnd);
 	datain = dataout = 2 * (cmd->use_sg ? cmd->use_sg : 1) + 3;
     }
 
@@ -3938,7 +3939,7 @@ intr_scsi (struct Scsi_Host *host, struct NCR53c7x0_cmd *cmd) {
     	    if (cmd) {
     	    	printk("scsi%d : target %d, lun %d, command ",
 		    host->host_no, cmd->cmd->device->id, cmd->cmd->device->lun);
-    	    	print_command (cmd->cmd->cmnd);
+    	    	__scsi_print_command (cmd->cmd->cmnd);
 		printk("scsi%d : dsp = 0x%x (virt 0x%p)\n", host->host_no,
 		    NCR53c7x0_read32(DSP_REG),
 		    bus_to_virt(NCR53c7x0_read32(DSP_REG)));
@@ -4208,7 +4209,7 @@ restart:
 	if (hostdata->options & OPTION_DEBUG_INTR) {
 	    printk ("scsi%d : command complete : pid %lu, id %d,lun %d result 0x%x ", 
 		  host->host_no, tmp->pid, tmp->device->id, tmp->device->lun, tmp->result);
-	    print_command (tmp->cmnd);
+	    __scsi_print_command (tmp->cmnd);
 	}
 
 	tmp->scsi_done(tmp);
@@ -4297,7 +4298,7 @@ NCR53c7x0_intr (int irq, void *dev_id, struct pt_regs * regs)
 		printk("scsi%d : interrupt for pid %lu, id %d, lun %d ", 
 		    host->host_no, cmd->cmd->pid, (int) cmd->cmd->device->id,
 		    (int) cmd->cmd->device->lun);
-		print_command (cmd->cmd->cmnd);
+		__scsi_print_command (cmd->cmd->cmnd);
 	    } else {
 		printk("scsi%d : no active command\n", host->host_no);
 	    }
@@ -5539,7 +5540,7 @@ print_dsa (struct Scsi_Host *host, u32 *dsa, const char *prefix) {
 	    i > 0 && !check_address ((unsigned long) ptr, 1);
 	    ptr += len, i -= len) {
 	    printk("               ");
-	    len = print_msg (ptr);
+	    len = scsi_print_msg (ptr);
 	    printk("\n");
 	    if (!len)
 		break;
@@ -5554,7 +5555,7 @@ print_dsa (struct Scsi_Host *host, u32 *dsa, const char *prefix) {
     if (cmd) {
 	printk("               result = 0x%x, target = %d, lun = %d, cmd = ",
 	    cmd->result, cmd->device->id, cmd->device->lun);
-	print_command(cmd->cmnd);
+	__scsi_print_command(cmd->cmnd);
     } else
 	printk("\n");
     printk("        + %d : dsa_next = 0x%x\n", hostdata->dsa_next,
@@ -6028,7 +6029,7 @@ dump_events (struct Scsi_Host *host, int count) {
 		    virt_to_bus(event.dsa), event.dsa);
 	    if (event.pid != -1) {
 		printk ("         event for pid %ld ", event.pid);
-		print_command (event.cmnd);
+		__scsi_print_command (event.cmnd);
 	    }
 	}
     }
