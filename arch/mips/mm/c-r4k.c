@@ -1012,15 +1012,14 @@ static void __init probe_pcache(void)
 	 * with that for us so we don't need to take care ourselves.
 	 */
 	switch (c->cputype) {
-		if (c->dcache.waysize > PAGE_SIZE)
-
 	case CPU_R10000:
 	case CPU_R12000:
 		break;
 	case CPU_24K:
 		if (!(read_c0_config7() & (1 << 16)))
 	default:
-			c->dcache.flags |= MIPS_CACHE_ALIASES;
+			if (c->dcache.waysize > PAGE_SIZE)
+				c->dcache.flags |= MIPS_CACHE_ALIASES;
 	}
 
 	switch (c->cputype) {
