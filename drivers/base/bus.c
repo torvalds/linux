@@ -283,18 +283,22 @@ void device_bind_driver(struct device * dev)
  */
 int driver_probe_device(struct device_driver * drv, struct device * dev)
 {
+	int error = 0;
+
 	if (drv->bus->match && !drv->bus->match(dev, drv))
 		return -ENODEV;
 
+	down(&dev->sem);
 	dev->driver = drv;
 	if (drv->probe) {
-		int error = drv->probe(dev);
+		error = drv->probe(dev);
 		if (error) {
 			dev->driver = NULL;
+			up(&dev->sem);
 			return error;
 		}
 	}
-
+	up(&dev->sem);
 	device_bind_driver(dev);
 	return 0;
 }
@@ -385,7 +389,10 @@ void driver_attach(struct device_driver * drv)
 
 void device_release_driver(struct device * dev)
 {
-	struct device_driver * drv = dev->driver;
+	struct device_driver * drv;
+
+	down(&dev->sem);
+	drv = dev->driver;
 	if (drv) {
 		sysfs_remove_link(&drv->kobj, kobject_name(&dev->kobj));
 		sysfs_remove_link(&dev->kobj, "driver");
@@ -394,6 +401,7 @@ void device_release_driver(struct device * dev)
 			drv->remove(dev);
 		dev->driver = NULL;
 	}
+	up(&dev->sem);
 }
 
 

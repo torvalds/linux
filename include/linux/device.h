@@ -264,6 +264,10 @@ struct device {
 	struct kobject kobj;
 	char	bus_id[BUS_ID_SIZE];	/* position on parent bus */
 
+	struct semaphore	sem;	/* semaphore to synchronize calls to
+					 * its driver.
+					 */
+
 	struct bus_type	* bus;		/* type of bus device is on */
 	struct device_driver *driver;	/* which driver has allocated this
 					   device */

@@ -39,6 +39,7 @@ int suspend_device(struct device * dev, pm_message_t state)
 {
 	int error = 0;
 
+	down(&dev->sem);
 	if (dev->power.power_state) {
 		dev_dbg(dev, "PM: suspend %d-->%d\n",
 			dev->power.power_state, state);
@@ -58,7 +59,7 @@ int suspend_device(struct device * dev, pm_message_t state)
 		dev_dbg(dev, "suspending\n");
 		error = dev->bus->suspend(dev, state);
 	}
-
+	up(&dev->sem);
 	return error;
 }
 
