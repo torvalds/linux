@@ -618,7 +618,7 @@ einval:	li	v0, -EINVAL
 	sys	sys_mq_notify		2	/* 4275 */
 	sys	sys_mq_getsetattr	3
 	sys	sys_ni_syscall		0	/* sys_vserver */
-	sys	sys_waitid		4
+	sys	sys_waitid		5
 	sys	sys_ni_syscall		0	/* available, was setaltroot */
 	sys	sys_add_key		5
 	sys	sys_request_key		4
