@@ -4,7 +4,7 @@
  *
  * (C) 2000 Red Hat. GPL'd
  *
- * $Id: cfi_cmdset_0001.c,v 1.170 2005/03/16 22:41:05 nico Exp $
+ * $Id: cfi_cmdset_0001.c,v 1.171 2005/03/19 22:39:49 gleixner Exp $
  *
  * 
  * 10/10/2000	Nicolas Pitre <nico@cam.org>
@@ -1707,24 +1707,24 @@ static int __xipram do_erase_oneblock(struct map_info *map, struct flchip *chip,
 		chipstatus = MERGESTATUS(status);
 
 		if ((chipstatus & 0x30) == 0x30) {
-			printk(KERN_NOTICE "Chip reports improper command sequence: status 0x%x\n", chipstatus);
+			printk(KERN_NOTICE "Chip reports improper command sequence: status 0x%lx\n", chipstatus);
 			ret = -EIO;
 		} else if (chipstatus & 0x02) {
 			/* Protection bit set */
 			ret = -EROFS;
 		} else if (chipstatus & 0x8) {
 			/* Voltage */
-			printk(KERN_WARNING "Chip reports voltage low on erase: status 0x%x\n", chipstatus);
+			printk(KERN_WARNING "Chip reports voltage low on erase: status 0x%lx\n", chipstatus);
 			ret = -EIO;
 		} else if (chipstatus & 0x20) {
 			if (retries--) {
-				printk(KERN_DEBUG "Chip erase failed at 0x%08lx: status 0x%x. Retrying...\n", adr, chipstatus);
+				printk(KERN_DEBUG "Chip erase failed at 0x%08lx: status 0x%lx. Retrying...\n", adr, chipstatus);
 				timeo = jiffies + HZ;
 				put_chip(map, chip, adr);
 				spin_unlock(chip->mutex);
 				goto retry;
 			}
-			printk(KERN_DEBUG "Chip erase failed at 0x%08lx: status 0x%x\n", adr, chipstatus);
+			printk(KERN_DEBUG "Chip erase failed at 0x%08lx: status 0x%lx\n", adr, chipstatus);
 			ret = -EIO;
 		}
 	} else {
