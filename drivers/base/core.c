@@ -24,8 +24,6 @@
 #include "base.h"
 #include "power/power.h"
 
-extern const char *kobject_actions[];
-
 int (*platform_notify)(struct device * dev) = NULL;
 int (*platform_notify_remove)(struct device * dev) = NULL;
 

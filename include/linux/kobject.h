@@ -56,6 +56,9 @@ enum kobject_action {
 	KOBJ_MAX
 };
 
+/* The list of strings defining the valid kobject actions as specified above */
+extern const char *kobject_actions[];
+
 struct kobject {
 	const char		* k_name;
 	char			name[KOBJ_NAME_LEN];
