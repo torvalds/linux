@@ -33,6 +33,8 @@ void (*flush_cache_sigtramp)(unsigned long addr);
 void (*flush_data_cache_page)(unsigned long addr);
 void (*flush_icache_all)(void);
 
+EXPORT_SYMBOL(flush_data_cache_page);
+
 #ifdef CONFIG_DMA_NONCOHERENT
 
 /* DMA cache operations. */

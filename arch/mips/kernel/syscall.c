@@ -26,6 +26,7 @@
 #include <linux/msg.h>
 #include <linux/shm.h>
 #include <linux/compiler.h>
+#include <linux/module.h>
 
 #include <asm/branch.h>
 #include <asm/cachectl.h>
@@ -55,6 +56,8 @@ out:
 }
 
 unsigned long shm_align_mask = PAGE_SIZE - 1;	/* Sane caches */
+
+EXPORT_SYMBOL(shm_align_mask);
 
 #define COLOUR_ALIGN(addr,pgoff)				\
 	((((addr) + shm_align_mask) & ~shm_align_mask) +	\
