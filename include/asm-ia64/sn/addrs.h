@@ -136,6 +136,7 @@
  */
 #define CAC_BASE		(CACHED   | AS_CAC_SPACE)
 #define AMO_BASE		(UNCACHED | AS_AMO_SPACE)
+#define AMO_PHYS_BASE		(UNCACHED_PHYS | AS_AMO_SPACE)
 #define GET_BASE		(CACHED   | AS_GET_SPACE)
 
 /*
@@ -158,6 +159,13 @@
  */
 #define PHYS_TO_TIODMA(x)	( (((u64)(NASID_GET(x))) << 40) | NODE_OFFSET(x))
 #define PHYS_TO_DMA(x)          ( (((u64)(x) & NASID_MASK) >> 2) | NODE_OFFSET(x))
+
+
+/*
+ * Macros to test for address type.
+ */
+#define IS_AMO_ADDRESS(x)	(((u64)(x) & (REGION_BITS | AS_MASK)) == AMO_BASE)
+#define IS_AMO_PHYS_ADDRESS(x)	(((u64)(x) & (REGION_BITS | AS_MASK)) == AMO_PHYS_BASE)
 
 
 /*

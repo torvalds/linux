@@ -204,6 +204,19 @@ xpc_rsvd_page_init(void)
 				return NULL;
 			}
 		}
+	} else if (!IS_AMO_ADDRESS((u64) amos_page)) {
+		/*
+		 * EFI's XPBOOT can also set amos_page in the reserved page,
+		 * but it happens to leave it as an uncached physical address
+		 * and we need it to be an uncached virtual, so we'll have to
+		 * convert it.
+		 */
+		if (!IS_AMO_PHYS_ADDRESS((u64) amos_page)) {
+			dev_err(xpc_part, "previously used amos_page address "
+				"is bad = 0x%p\n", (void *) amos_page);
+			return NULL;
+		}
+		amos_page = (AMO_t *) TO_AMO((u64) amos_page);
 	}
 
 	memset(xpc_vars, 0, sizeof(struct xpc_vars));
@@ -944,7 +957,7 @@ xpc_discovery(void)
 
 /*
  * Given a partid, get the nasids owned by that partition from the
- * remote partitions reserved page.
+ * remote partition's reserved page.
  */
 enum xpc_retval
 xpc_initiate_partid_to_nasids(partid_t partid, void *nasid_mask)
