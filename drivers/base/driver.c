@@ -18,6 +18,41 @@
 #define to_dev(node) container_of(node, struct device, driver_list)
 #define to_drv(obj) container_of(obj, struct device_driver, kobj)
 
+
+/**
+ *	driver_for_each_device - Iterator for devices bound to a driver.
+ *	@drv:	Driver we're iterating.
+ *	@data:	Data to pass to the callback.
+ *	@fn:	Function to call for each device.
+ *
+ *	Take the bus's rwsem and iterate over the @drv's list of devices,
+ *	calling @fn for each one.
+ */
+
+int driver_for_each_device(struct device_driver * drv, struct device * start, 
+			   void * data, int (*fn)(struct device *, void *))
+{
+	struct list_head * head;
+	struct device * dev;
+	int error = 0;
+
+	down_read(&drv->bus->subsys.rwsem);
+	head = &drv->devices;
+	dev = list_prepare_entry(start, head, driver_list);
+	list_for_each_entry_continue(dev, head, driver_list) {
+		get_device(dev);
+		error = fn(dev, data);
+		put_device(dev);
+		if (error)
+			break;
+	}
+	up_read(&drv->bus->subsys.rwsem);
+	return error;
+}
+
+EXPORT_SYMBOL(driver_for_each_device);
+
+
 /**
  *	driver_create_file - create sysfs file for driver.
  *	@drv:	driver.

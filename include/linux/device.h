@@ -136,6 +136,9 @@ struct driver_attribute driver_attr_##_name = __ATTR(_name,_mode,_show,_store)
 extern int driver_create_file(struct device_driver *, struct driver_attribute *);
 extern void driver_remove_file(struct device_driver *, struct driver_attribute *);
 
+extern int driver_for_each_device(struct device_driver * drv, struct device * start,
+				  void * data, int (*fn)(struct device *, void *));
+
 
 /*
  * device classes
