@@ -120,6 +120,7 @@ static const ac97_codec_id_t snd_ac97_codec_ids[] = {
 { 0x414c4770, 0xfffffff0, "ALC203",		NULL,		NULL },
 { 0x434d4941, 0xffffffff, "CMI9738",		patch_cm9738,	NULL },
 { 0x434d4961, 0xffffffff, "CMI9739",		patch_cm9739,	NULL },
+{ 0x434d4969, 0xffffffff, "CMI9780",		patch_cm9780,	NULL },
 { 0x434d4978, 0xffffffff, "CMI9761",		patch_cm9761,	NULL },
 { 0x434d4982, 0xffffffff, "CMI9761",		patch_cm9761,	NULL },
 { 0x434d4983, 0xffffffff, "CMI9761",		patch_cm9761,	NULL },
@@ -462,12 +463,14 @@ int snd_ac97_get_enum_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * u
 {
 	ac97_t *ac97 = snd_kcontrol_chip(kcontrol);
 	struct ac97_enum *e = (struct ac97_enum *)kcontrol->private_value;
-	unsigned short val;
+	unsigned short val, bitmask;
 	
+	for (bitmask = 1; bitmask > e->mask; bitmask <<= 1)
+		;
 	val = snd_ac97_read_cache(ac97, e->reg);
-	ucontrol->value.enumerated.item[0] = (val >> e->shift_l) & (e->mask - 1);
+	ucontrol->value.enumerated.item[0] = (val >> e->shift_l) & (bitmask - 1);
 	if (e->shift_l != e->shift_r)
-		ucontrol->value.enumerated.item[1] = (val >> e->shift_r) & (e->mask - 1);
+		ucontrol->value.enumerated.item[1] = (val >> e->shift_r) & (bitmask - 1);
 
 	return 0;
 }
@@ -477,17 +480,19 @@ int snd_ac97_put_enum_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * u
 	ac97_t *ac97 = snd_kcontrol_chip(kcontrol);
 	struct ac97_enum *e = (struct ac97_enum *)kcontrol->private_value;
 	unsigned short val;
-	unsigned short mask;
+	unsigned short mask, bitmask;
 	
+	for (bitmask = 1; bitmask > e->mask; bitmask <<= 1)
+		;
 	if (ucontrol->value.enumerated.item[0] > e->mask - 1)
 		return -EINVAL;
 	val = ucontrol->value.enumerated.item[0] << e->shift_l;
-	mask = (e->mask - 1) << e->shift_l;
+	mask = (bitmask - 1) << e->shift_l;
 	if (e->shift_l != e->shift_r) {
 		if (ucontrol->value.enumerated.item[1] > e->mask - 1)
 			return -EINVAL;
 		val |= ucontrol->value.enumerated.item[1] << e->shift_r;
-		mask |= (e->mask - 1) << e->shift_r;
+		mask |= (bitmask - 1) << e->shift_r;
 	}
 	return snd_ac97_update_bits(ac97, e->reg, mask, val);
 }

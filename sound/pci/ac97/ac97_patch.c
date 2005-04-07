@@ -2087,12 +2087,13 @@ int patch_cm9739(ac97_t * ac97)
 }
 
 #define AC97_CM9761_MULTI_CHAN	0x64
+#define AC97_CM9761_FUNC	0x66
 #define AC97_CM9761_SPDIF_CTRL	0x6c
 
 static int snd_ac97_cm9761_linein_rear_get(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
 {
 	ac97_t *ac97 = snd_kcontrol_chip(kcontrol);
-	if (ac97->regs[AC97_CM9739_MULTI_CHAN] & 0x0400)
+	if (ac97->regs[AC97_CM9761_MULTI_CHAN] & 0x0400)
 		ucontrol->value.integer.value[0] = 1;
 	else
 		ucontrol->value.integer.value[0] = 0;
@@ -2106,14 +2107,14 @@ static int snd_ac97_cm9761_linein_rear_put(snd_kcontrol_t * kcontrol, snd_ctl_el
 		{ 0x0008, 0x0400 }, /* off, on */
 		{ 0x0000, 0x0408 }, /* off, on (9761-82 rev.B) */
 	};
-	return snd_ac97_update_bits(ac97, AC97_CM9739_MULTI_CHAN, 0x0408,
+	return snd_ac97_update_bits(ac97, AC97_CM9761_MULTI_CHAN, 0x0408,
 				    vals[ac97->spec.dev_flags][!!ucontrol->value.integer.value[0]]);
 }
 
 static int snd_ac97_cm9761_center_mic_get(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
 {
 	ac97_t *ac97 = snd_kcontrol_chip(kcontrol);
-	if (ac97->regs[AC97_CM9739_MULTI_CHAN] & 0x1000)
+	if (ac97->regs[AC97_CM9761_MULTI_CHAN] & 0x1000)
 		ucontrol->value.integer.value[0] = 1;
 	else
 		ucontrol->value.integer.value[0] = 0;
@@ -2129,7 +2130,7 @@ static int snd_ac97_cm9761_center_mic_put(snd_kcontrol_t * kcontrol, snd_ctl_ele
 		{ 0x2000, 0x1880 }, /* off, on */
 		{ 0x1000, 0x2880 }, /* off, on (9761-82 rev.B) */
 	};
-	return snd_ac97_update_bits(ac97, AC97_CM9739_MULTI_CHAN, 0x3880,
+	return snd_ac97_update_bits(ac97, AC97_CM9761_MULTI_CHAN, 0x3880,
 				    vals[ac97->spec.dev_flags][!!ucontrol->value.integer.value[0]]);
 }
 
@@ -2152,6 +2153,70 @@ static const snd_kcontrol_new_t snd_ac97_cm9761_controls[] = {
 	},
 };
 
+static int cm9761_spdif_out_source_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+{
+	static char *texts[] = { "AC-Link", "ADC", "SPDIF-In" };
+
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	uinfo->count = 1;
+	uinfo->value.enumerated.items = 3;
+	if (uinfo->value.enumerated.item > 2)
+		uinfo->value.enumerated.item = 2;
+	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
+	return 0;
+}
+
+static int cm9761_spdif_out_source_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+{
+	ac97_t *ac97 = snd_kcontrol_chip(kcontrol);
+
+	if (ac97->regs[AC97_CM9761_FUNC] & 0x1)
+		ucontrol->value.enumerated.item[0] = 2; /* SPDIF-loopback */
+	else if (ac97->regs[AC97_CM9761_SPDIF_CTRL] & 0x2)
+		ucontrol->value.enumerated.item[0] = 1; /* ADC loopback */
+	else
+		ucontrol->value.enumerated.item[0] = 0; /* AC-link */
+	return 0;
+}
+
+static int cm9761_spdif_out_source_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+{
+	ac97_t *ac97 = snd_kcontrol_chip(kcontrol);
+
+	if (ucontrol->value.enumerated.item[0] == 2)
+		return snd_ac97_update_bits(ac97, AC97_CM9761_FUNC, 0x1, 0x1);
+	snd_ac97_update_bits(ac97, AC97_CM9761_FUNC, 0x1, 0);
+	return snd_ac97_update_bits(ac97, AC97_CM9761_SPDIF_CTRL, 0x2,
+				    ucontrol->value.enumerated.item[0] == 1 ? 0x2 : 0);
+}
+
+static const char *cm9761_dac_clock[] = { "AC-Link", "SPDIF-In", "Both" };
+static const struct ac97_enum cm9761_dac_clock_enum =
+	AC97_ENUM_SINGLE(AC97_CM9761_SPDIF_CTRL, 9, 3, cm9761_dac_clock);
+
+static const snd_kcontrol_new_t snd_ac97_cm9761_controls_spdif[] = {
+	{ /* BIT 1: SPDIFS */
+		.iface	= SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name	= SNDRV_CTL_NAME_IEC958("",PLAYBACK,NONE) "Source",
+		.info = cm9761_spdif_out_source_info,
+		.get = cm9761_spdif_out_source_get,
+		.put = cm9761_spdif_out_source_put,
+	},
+	/* BIT 2: IG_SPIV */
+	AC97_SINGLE(SNDRV_CTL_NAME_IEC958("",CAPTURE,NONE) "Valid Switch", AC97_CM9761_SPDIF_CTRL, 2, 1, 0),
+	/* BIT 3: SPI2F */
+	AC97_SINGLE(SNDRV_CTL_NAME_IEC958("",CAPTURE,NONE) "Monitor", AC97_CM9761_SPDIF_CTRL, 3, 1, 0), 
+	/* BIT 4: SPI2SDI */
+	AC97_SINGLE(SNDRV_CTL_NAME_IEC958("",CAPTURE,SWITCH), AC97_CM9761_SPDIF_CTRL, 4, 1, 0),
+	/* BIT 9-10: DAC_CTL */
+	AC97_ENUM("DAC Clock Source", cm9761_dac_clock_enum),
+};
+
+static int patch_cm9761_post_spdif(ac97_t * ac97)
+{
+	return patch_build_controls(ac97, snd_ac97_cm9761_controls_spdif, ARRAY_SIZE(snd_ac97_cm9761_controls_spdif));
+}
+
 static int patch_cm9761_specific(ac97_t * ac97)
 {
 	return patch_build_controls(ac97, snd_ac97_cm9761_controls, ARRAY_SIZE(snd_ac97_cm9761_controls));
@@ -2159,7 +2224,7 @@ static int patch_cm9761_specific(ac97_t * ac97)
 
 static struct snd_ac97_build_ops patch_cm9761_ops = {
 	.build_specific	= patch_cm9761_specific,
-	.build_post_spdif = patch_cm9739_post_spdif /* hope it's identical... */
+	.build_post_spdif = patch_cm9761_post_spdif
 };
 
 int patch_cm9761(ac97_t *ac97)
@@ -2193,24 +2258,25 @@ int patch_cm9761(ac97_t *ac97)
 	/* to be sure: we overwrite the ext status bits */
 	snd_ac97_write_cache(ac97, AC97_EXTENDED_STATUS, 0x05c0);
 	/* Don't set 0x0200 here.  This results in the silent analog output */
-	snd_ac97_write_cache(ac97, AC97_CM9761_SPDIF_CTRL, 0x0009);
+	snd_ac97_write_cache(ac97, AC97_CM9761_SPDIF_CTRL, 0x0001); /* enable spdif-in */
 	ac97->rates[AC97_RATES_SPDIF] = SNDRV_PCM_RATE_48000; /* 48k only */
 
 	/* set-up multi channel */
 	/* bit 15: pc master beep off
-	 * bit 14: ??
+	 * bit 14: pin47 = EAPD/SPDIF
 	 * bit 13: vref ctl [= cm9739]
-	 * bit 12: center/mic [= cm9739] (reverted on rev B)
-	 * bit 11: ?? (mic/center/lfe) (reverted on rev B)
-	 * bit 10: suddound/line [= cm9739]
-	 * bit  9: mix 2 surround
-	 * bit  8: ?
-	 * bit  7: ?? (mic/center/lfe)
-	 * bit  4: ?? (front)
-	 * bit  3: ?? (line-in/rear share) (revereted with rev B)
-	 * bit  2: ?? (surround)
-	 * bit  1: front mic
-	 * bit  0: mic boost
+	 * bit 12: CLFE control (reverted on rev B)
+	 * bit 11: Mic/center share (reverted on rev B)
+	 * bit 10: suddound/line share
+	 * bit  9: Analog-in mix -> surround
+	 * bit  8: Analog-in mix -> CLFE
+	 * bit  7: Mic/LFE share (mic/center/lfe)
+	 * bit  5: vref select (9761A)
+	 * bit  4: front control
+	 * bit  3: surround control (revereted with rev B)
+	 * bit  2: front mic
+	 * bit  1: stereo mic
+	 * bit  0: mic boost level (0=20dB, 1=30dB)
 	 */
 
 #if 0
@@ -2230,6 +2296,47 @@ int patch_cm9761(ac97_t *ac97)
 	return 0;
 }
        
+#define AC97_CM9780_SIDE	0x60
+#define AC97_CM9780_JACK	0x62
+#define AC97_CM9780_MIXER	0x64
+#define AC97_CM9780_MULTI_CHAN	0x66
+#define AC97_CM9780_SPDIF	0x6c
+
+static const char *cm9780_ch_select[] = { "Front", "Side", "Center/LFE", "Rear" };
+static const struct ac97_enum cm9780_ch_select_enum =
+	AC97_ENUM_SINGLE(AC97_CM9780_MULTI_CHAN, 6, 4, cm9780_ch_select);
+static const snd_kcontrol_new_t cm9780_controls[] = {
+	AC97_DOUBLE("Side Playback Switch", AC97_CM9780_SIDE, 15, 7, 1, 1),
+	AC97_DOUBLE("Side Playback Volume", AC97_CM9780_SIDE, 8, 0, 31, 0),
+	AC97_ENUM("Side Playback Route", cm9780_ch_select_enum),
+};
+
+static int patch_cm9780_specific(ac97_t *ac97)
+{
+	return patch_build_controls(ac97, cm9780_controls, ARRAY_SIZE(cm9780_controls));
+}
+
+static struct snd_ac97_build_ops patch_cm9780_ops = {
+	.build_specific	= patch_cm9780_specific,
+	.build_post_spdif = patch_cm9761_post_spdif	/* identical with CM9761 */
+};
+
+int patch_cm9780(ac97_t *ac97)
+{
+	unsigned short val;
+
+	ac97->build_ops = &patch_cm9780_ops;
+
+	/* enable spdif */
+	if (ac97->ext_id & AC97_EI_SPDIF) {
+		ac97->rates[AC97_RATES_SPDIF] = SNDRV_PCM_RATE_48000; /* 48k only */
+		val = snd_ac97_read(ac97, AC97_CM9780_SPDIF);
+		val |= 0x1; /* SPDI_EN */
+		snd_ac97_write_cache(ac97, AC97_CM9780_SPDIF, val);
+	}
+
+	return 0;
+}
 
 /*
  * VIA VT1616 codec
