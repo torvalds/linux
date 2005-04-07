@@ -1872,7 +1872,11 @@ int snd_ac97_mixer(ac97_bus_t *bus, ac97_template_t *template, ac97_t **rac97)
 			goto __access_ok;
 	}
 
-	snd_ac97_write(ac97, AC97_RESET, 0);	/* reset to defaults */
+	/* reset to defaults */
+	if (!(ac97->scaps & AC97_SCAP_SKIP_AUDIO))
+		snd_ac97_write(ac97, AC97_RESET, 0);
+	if (!(ac97->scaps & AC97_SCAP_SKIP_MODEM))
+		snd_ac97_write(ac97, AC97_EXTENDED_MID, 0);
 	if (bus->ops->wait)
 		bus->ops->wait(ac97);
 	else {
