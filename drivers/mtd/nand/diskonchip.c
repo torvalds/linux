@@ -16,7 +16,7 @@
  *  
  * Interface to generic NAND code for M-Systems DiskOnChip devices
  *
- * $Id: diskonchip.c,v 1.52 2005/04/06 20:14:19 dbrown Exp $
+ * $Id: diskonchip.c,v 1.53 2005/04/07 13:39:13 dbrown Exp $
  */
 
 #include <linux/kernel.h>
@@ -106,13 +106,11 @@ module_param(try_dword, int, 0);
 static int no_ecc_failures=0;
 module_param(no_ecc_failures, int, 0);
 
-#ifdef CONFIG_MTD_PARTITIONS
 static int no_autopart=0;
 module_param(no_autopart, int, 0);
 
 static int show_firmware_partition=0;
 module_param(show_firmware_partition, int, 0);
-#endif
 
 #ifdef MTD_NAND_DISKONCHIP_BBTWRITE
 static int inftl_bbt_write=1;
