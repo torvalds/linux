@@ -500,6 +500,8 @@ static unsigned short snd_intel8x0_codec_read(ac97_t *ac97,
 			res = 0xffff;
 		}
 	}
+	if (reg == AC97_GPIO_STATUS)
+		iagetword(chip, 0); /* clear semaphore */
 	return res;
 }
 
