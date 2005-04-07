@@ -57,7 +57,7 @@ unsigned long missed_heart_beats = 0;
 static unsigned long r4k_offset; /* Amount to increment compare reg each time */
 static unsigned long r4k_cur;    /* What counter should be at next timer irq */
 int	no_au1xxx_32khz;
-void	(*au1k_wait_ptr)(void);
+int allow_au1k_wait = 0; /* default off for CP0 Counter */
 
 /* Cycle counter value at the previous timer interrupt.. */
 static unsigned int timerhi = 0, timerlo = 0;
@@ -387,7 +387,6 @@ void au1xxx_timer_setup(struct irqaction *irq)
 {
         unsigned int est_freq;
 	extern unsigned long (*do_gettimeoffset)(void);
-	extern void au1k_wait(void);
 
 	printk("calculating r4koff... ");
 	r4k_offset = cal_r4koff();
@@ -451,7 +450,7 @@ void au1xxx_timer_setup(struct irqaction *irq)
 
 		/* We can use the real 'wait' instruction.
 		*/
-		au1k_wait_ptr = au1k_wait;
+		allow_au1k_wait = 1;
 	}
 
 #else

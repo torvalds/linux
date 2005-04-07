@@ -297,7 +297,6 @@ static int pm_do_suspend(ctl_table * ctl, int write, struct file *file,
 			 void *buffer, size_t * len)
 {
 	int retval = 0;
-	void	au1k_wait(void);
 
 	if (!write) {
 		*len = 0;
@@ -306,7 +305,7 @@ static int pm_do_suspend(ctl_table * ctl, int write, struct file *file,
 		if (retval)
 			return retval;
 		suspend_mode = 1;
-		au1k_wait();
+
 		retval = pm_send_all(PM_RESUME, (void *) 0);
 	}
 	return retval;
