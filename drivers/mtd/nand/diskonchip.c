@@ -16,7 +16,7 @@
  *  
  * Interface to generic NAND code for M-Systems DiskOnChip devices
  *
- * $Id: diskonchip.c,v 1.53 2005/04/07 13:39:13 dbrown Exp $
+ * $Id: diskonchip.c,v 1.54 2005/04/07 14:22:55 dbrown Exp $
  */
 
 #include <linux/kernel.h>
@@ -1049,6 +1049,16 @@ static int doc200x_correct_data(struct mtd_info *mtd, u_char *dat, u_char *read_
 		
 //u_char mydatabuf[528];
 
+/* The strange out-of-order .oobfree list below is a (possibly unneeded)
+ * attempt to retain compatibility.  It used to read:
+ * 	.oobfree = { {8, 8} }
+ * Since that leaves two bytes unusable, it was changed.  But the following
+ * scheme might affect existing jffs2 installs by moving the cleanmarker:
+ * 	.oobfree = { {6, 10} }
+ * jffs2 seems to handle the above gracefully, but the current scheme seems
+ * safer.  The only problem with it is that any code that parses oobfree must
+ * be able to handle out-of-order segments.
+ */
 static struct nand_oobinfo doc200x_oobinfo = {
         .useecc = MTD_NANDECC_AUTOPLACE,
         .eccbytes = 6,
