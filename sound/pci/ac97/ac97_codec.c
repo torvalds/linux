@@ -1964,21 +1964,21 @@ int snd_ac97_mixer(ac97_bus_t *bus, ac97_template_t *template, ac97_t **rac97)
 		/* note: it's important to set the rate at first */
 		tmp = AC97_MEA_GPIO;
 		if (ac97->ext_mid & AC97_MEI_LINE1) {
-			snd_ac97_write_cache(ac97, AC97_LINE1_RATE, 12000);
+			snd_ac97_write_cache(ac97, AC97_LINE1_RATE, 8000);
 			tmp |= AC97_MEA_ADC1 | AC97_MEA_DAC1;
 		}
 		if (ac97->ext_mid & AC97_MEI_LINE2) {
-			snd_ac97_write_cache(ac97, AC97_LINE2_RATE, 12000);
+			snd_ac97_write_cache(ac97, AC97_LINE2_RATE, 8000);
 			tmp |= AC97_MEA_ADC2 | AC97_MEA_DAC2;
 		}
 		if (ac97->ext_mid & AC97_MEI_HANDSET) {
-			snd_ac97_write_cache(ac97, AC97_HANDSET_RATE, 12000);
+			snd_ac97_write_cache(ac97, AC97_HANDSET_RATE, 8000);
 			tmp |= AC97_MEA_HADC | AC97_MEA_HDAC;
 		}
-		snd_ac97_write_cache(ac97, AC97_EXTENDED_MSTATUS, 0xff00 & ~(tmp << 8));
+		snd_ac97_write_cache(ac97, AC97_EXTENDED_MSTATUS, 0);
 		udelay(100);
 		/* nothing should be in powerdown mode */
-		snd_ac97_write_cache(ac97, AC97_EXTENDED_MSTATUS, 0xff00 & ~(tmp << 8));
+		snd_ac97_write_cache(ac97, AC97_EXTENDED_MSTATUS, 0);
 		end_time = jiffies + (HZ / 10);
 		do {
 			if ((snd_ac97_read(ac97, AC97_EXTENDED_MSTATUS) & tmp) == tmp)
