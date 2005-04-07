@@ -679,6 +679,14 @@ static emu_chip_details_t emu_chip_details[] = {
 	 .spk71 = 1,
 	 .spdif_bug = 1,
 	 .ac97_chip = 1} ,
+	{.vendor = 0x1102, .device = 0x0004, .revision = 0x04,
+	 .driver = "Audigy2", .name = "Audigy 2 [Unknown]",
+	 .id = "Audigy2",
+	 .emu10k2_chip = 1,
+	 .ca0102_chip = 1,
+	 .ca0151_chip = 1,
+	 .spdif_bug = 1,
+	 .ac97_chip = 1} ,
 	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x10020052,
 	 .driver = "Audigy", .name = "Audigy 1 ES [SB0160]", 
 	 .id = "Audigy",
@@ -693,11 +701,10 @@ static emu_chip_details_t emu_chip_details[] = {
 	 .ca0102_chip = 1,
 	 .ac97_chip = 1} ,
 	{.vendor = 0x1102, .device = 0x0004,
-	 .driver = "Audigy", .name = "Audigy 1 or 2 [Unknown]", 
+	 .driver = "Audigy", .name = "Audigy 1 [Unknown]", 
 	 .id = "Audigy",
 	 .emu10k2_chip = 1,
 	 .ca0102_chip = 1,
-	 .spdif_bug = 1,
 	 .ac97_chip = 1} ,
 	{.vendor = 0x1102, .device = 0x0002, .subsystem = 0x40011102,
 	 .driver = "EMU10K1", .name = "E-mu APS [4001]", 
@@ -781,8 +788,11 @@ int __devinit snd_emu10k1_create(snd_card_t * card,
 
 	for (c = emu_chip_details; c->vendor; c++) {
 		if (c->vendor == pci->vendor && c->device == pci->device) {
-			if (c->subsystem == emu->serial) break;
-			if (c->subsystem == 0) break;
+			if (c->subsystem && c->subsystem != emu->serial)
+				continue;
+			if (c->revision && c->revision != emu->revision)
+				continue;
+			break;
 		}
 	}
 	if (c->vendor == 0) {

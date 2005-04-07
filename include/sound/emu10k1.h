@@ -1040,6 +1040,7 @@ typedef struct {
 	u32 vendor;
 	u32 device;
 	u32 subsystem;
+	unsigned char revision;
 	unsigned char emu10k1_chip; /* Original SB Live. Not SB Live 24bit. */
 	unsigned char emu10k2_chip; /* Audigy 1 or Audigy 2. */
 	unsigned char ca0102_chip;  /* Audigy 1 or Audigy 2. Not SB Audigy 2 Value. */
