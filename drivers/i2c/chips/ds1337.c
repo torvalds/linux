@@ -95,7 +95,6 @@ static inline int ds1337_read(struct i2c_client *client, u8 reg, u8 *value)
  */
 static int ds1337_get_datetime(struct i2c_client *client, struct rtc_time *dt)
 {
-	struct ds1337_data *data = i2c_get_clientdata(client);
 	int result;
 	u8 buf[7];
 	u8 val;
@@ -103,9 +102,7 @@ static int ds1337_get_datetime(struct i2c_client *client, struct rtc_time *dt)
 	u8 offs = 0;
 
 	if (!dt) {
-		dev_dbg(&client->adapter->dev, "%s: EINVAL: dt=NULL\n",
-			__FUNCTION__);
-
+		dev_dbg(&client->dev, "%s: EINVAL: dt=NULL\n", __FUNCTION__);
 		return -EINVAL;
 	}
 
@@ -121,8 +118,7 @@ static int ds1337_get_datetime(struct i2c_client *client, struct rtc_time *dt)
 
 	result = i2c_transfer(client->adapter, msg, 2);
 
-	dev_dbg(&client->adapter->dev,
-		"%s: [%d] %02x %02x %02x %02x %02x %02x %02x\n",
+	dev_dbg(&client->dev, "%s: [%d] %02x %02x %02x %02x %02x %02x %02x\n",
 		__FUNCTION__, result, buf[0], buf[1], buf[2], buf[3],
 		buf[4], buf[5], buf[6]);
 
@@ -139,14 +135,13 @@ static int ds1337_get_datetime(struct i2c_client *client, struct rtc_time *dt)
 		if (buf[5] & 0x80)
 			dt->tm_year += 100;
 
-		dev_dbg(&client->adapter->dev, "%s: secs=%d, mins=%d, "
+		dev_dbg(&client->dev, "%s: secs=%d, mins=%d, "
 			"hours=%d, mday=%d, mon=%d, year=%d, wday=%d\n",
 			__FUNCTION__, dt->tm_sec, dt->tm_min,
 			dt->tm_hour, dt->tm_mday,
 			dt->tm_mon, dt->tm_year, dt->tm_wday);
 	} else {
-		dev_err(&client->adapter->dev, "ds1337[%d]: error reading "
-			"data! %d\n", data->id, result);
+		dev_err(&client->dev, "error reading data! %d\n", result);
 		result = -EIO;
 	}
 
@@ -155,20 +150,17 @@ static int ds1337_get_datetime(struct i2c_client *client, struct rtc_time *dt)
 
 static int ds1337_set_datetime(struct i2c_client *client, struct rtc_time *dt)
 {
-	struct ds1337_data *data = i2c_get_clientdata(client);
 	int result;
 	u8 buf[8];
 	u8 val;
 	struct i2c_msg msg[1];
 
 	if (!dt) {
-		dev_dbg(&client->adapter->dev, "%s: EINVAL: dt=NULL\n",
-			__FUNCTION__);
-
+		dev_dbg(&client->dev, "%s: EINVAL: dt=NULL\n", __FUNCTION__);
 		return -EINVAL;
 	}
 
-	dev_dbg(&client->adapter->dev, "%s: secs=%d, mins=%d, hours=%d, "
+	dev_dbg(&client->dev, "%s: secs=%d, mins=%d, hours=%d, "
 		"mday=%d, mon=%d, year=%d, wday=%d\n", __FUNCTION__,
 		dt->tm_sec, dt->tm_min, dt->tm_hour,
 		dt->tm_mday, dt->tm_mon, dt->tm_year, dt->tm_wday);
@@ -195,8 +187,7 @@ static int ds1337_set_datetime(struct i2c_client *client, struct rtc_time *dt)
 
 	result = i2c_transfer(client->adapter, msg, 1);
 	if (result < 0) {
-		dev_err(&client->adapter->dev, "ds1337[%d]: error "
-			"writing data! %d\n", data->id, result);
+		dev_err(&client->dev, "error writing data! %d\n", result);
 		result = -EIO;
 	} else {
 		result = 0;
@@ -208,7 +199,7 @@ static int ds1337_set_datetime(struct i2c_client *client, struct rtc_time *dt)
 static int ds1337_command(struct i2c_client *client, unsigned int cmd,
 			  void *arg)
 {
-	dev_dbg(&client->adapter->dev, "%s: cmd=%d\n", __FUNCTION__, cmd);
+	dev_dbg(&client->dev, "%s: cmd=%d\n", __FUNCTION__, cmd);
 
 	switch (cmd) {
 	case DS1337_GET_DATE:
