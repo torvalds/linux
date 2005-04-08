@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <asm/dma.h>	/* isa_dma_bridge_buggy */
+#include "pci.h"
 
 
 /**

@@ -15,6 +15,7 @@
 
 #include <asm/uaccess.h>
 #include <asm/byteorder.h>
+#include "pci.h"
 
 static int proc_initialized;	/* = 0 */
 
