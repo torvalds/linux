@@ -456,6 +456,10 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c)
 		c->cputype = CPU_4KEC;
 		c->isa_level = MIPS_CPU_ISA_M32;
 		break;
+	case PRID_IMP_4KECR2:
+		c->cputype = CPU_4KEC;
+		c->isa_level = MIPS_CPU_ISA_M32;
+		break;
 	case PRID_IMP_4KSC:
 		c->cputype = CPU_4KSC;
 		c->isa_level = MIPS_CPU_ISA_M32;
