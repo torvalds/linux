@@ -384,7 +384,7 @@ static int snd_virmidi_dev_attach_seq(snd_virmidi_dev_t *rdev)
 	info->client = client;
 	info->type = KERNEL_CLIENT;
 	sprintf(info->name, "%s %d-%d", rdev->rmidi->name, rdev->card->number, rdev->device);
-	snd_seq_kernel_client_ctl(client, SNDRV_SEQ_IOCTL_SET_CLIENT_INFO, &info);
+	snd_seq_kernel_client_ctl(client, SNDRV_SEQ_IOCTL_SET_CLIENT_INFO, info);
 
 	/* create a port */
 	memset(pinfo, 0, sizeof(*pinfo));
