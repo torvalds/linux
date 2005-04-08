@@ -3,7 +3,7 @@
  *
  *  Copyright (C) 2005 James Chapman <jchapman@katalix.com>
  *
- *	based on linux/drivers/acron/char/pcf8583.c
+ *	based on linux/drivers/acorn/char/pcf8583.c
  *  Copyright (C) 2000 Russell King
  *
  * This program is free software; you can redistribute it and/or modify
@@ -119,8 +119,7 @@ static int ds1337_get_datetime(struct i2c_client *client, struct rtc_time *dt)
 	msg[1].len = sizeof(buf);
 	msg[1].buf = &buf[0];
 
-	result = client->adapter->algo->master_xfer(client->adapter,
-						    &msg[0], 2);
+	result = i2c_transfer(client->adapter, msg, 2);
 
 	dev_dbg(&client->adapter->dev,
 		"%s: [%d] %02x %02x %02x %02x %02x %02x %02x\n",
@@ -194,8 +193,7 @@ static int ds1337_set_datetime(struct i2c_client *client, struct rtc_time *dt)
 	msg[0].len = sizeof(buf);
 	msg[0].buf = &buf[0];
 
-	result = client->adapter->algo->master_xfer(client->adapter,
-						    &msg[0], 1);
+	result = i2c_transfer(client->adapter, msg, 1);
 	if (result < 0) {
 		dev_err(&client->adapter->dev, "ds1337[%d]: error "
 			"writing data! %d\n", data->id, result);
