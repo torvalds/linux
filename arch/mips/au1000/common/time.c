@@ -57,7 +57,7 @@ unsigned long missed_heart_beats = 0;
 static unsigned long r4k_offset; /* Amount to increment compare reg each time */
 static unsigned long r4k_cur;    /* What counter should be at next timer irq */
 int	no_au1xxx_32khz;
-int allow_au1k_wait = 0; /* default off for CP0 Counter */
+extern int allow_au1k_wait; /* default off for CP0 Counter */
 
 /* Cycle counter value at the previous timer interrupt.. */
 static unsigned int timerhi = 0, timerlo = 0;

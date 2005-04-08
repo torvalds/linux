@@ -53,9 +53,10 @@ static void r4k_wait(void)
 
 /* The Au1xxx wait is available only if using 32khz counter or
  * external timer source, but specifically not CP0 Counter. */
+int allow_au1k_wait;
 static void au1k_wait(void)
 {
-	unsigned long addr;
+	unsigned long addr = 0;
 	/* using the wait instruction makes CP0 counter unusable */
 	__asm__("la %0,au1k_wait\n\t"
 		".set mips3\n\t"
@@ -113,14 +114,11 @@ static inline void check_wait(void)
 	case CPU_AU1500:
 	case CPU_AU1550:
 	case CPU_AU1200:
-		{
-			extern int allow_au1k_wait; /* au1000/common/time.c */
-			if (allow_au1k_wait) {
-				cpu_wait = au1k_wait;
-				printk(" available.\n");
-			} else
-				printk(" unavailable.\n");
-		}
+		if (allow_au1k_wait) {
+			cpu_wait = au1k_wait;
+			printk(" available.\n");
+		} else
+			printk(" unavailable.\n");
 		break;
 	default:
 		printk(" unavailable.\n");
