@@ -398,10 +398,10 @@ pci_enable_device(struct pci_dev *dev)
 {
 	int err;
 
-	dev->is_enabled = 1;
 	if ((err = pci_enable_device_bars(dev, (1 << PCI_NUM_RESOURCES) - 1)))
 		return err;
 	pci_fixup_device(pci_fixup_enable, dev);
+	dev->is_enabled = 1;
 	return 0;
 }
 
@@ -427,16 +427,15 @@ pci_disable_device(struct pci_dev *dev)
 {
 	u16 pci_command;
 	
-	dev->is_enabled = 0;
-	dev->is_busmaster = 0;
-
 	pci_read_config_word(dev, PCI_COMMAND, &pci_command);
 	if (pci_command & PCI_COMMAND_MASTER) {
 		pci_command &= ~PCI_COMMAND_MASTER;
 		pci_write_config_word(dev, PCI_COMMAND, pci_command);
 	}
+	dev->is_busmaster = 0;
 
 	pcibios_disable_device(dev);
+	dev->is_enabled = 0;
 }
 
 /**
