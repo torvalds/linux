@@ -1537,3 +1537,26 @@ static void uhci_scan_schedule(struct uhci_hcd *uhci, struct pt_regs *regs)
 	/* Wake up anyone waiting for an URB to complete */
 	wake_up_all(&uhci->waitqh);
 }
+
+static void check_fsbr(struct uhci_hcd *uhci)
+{
+	struct urb_priv *up;
+
+	list_for_each_entry(up, &uhci->urb_list, urb_list) {
+		struct urb *u = up->urb;
+
+		spin_lock(&u->lock);
+
+		/* Check if the FSBR timed out */
+		if (up->fsbr && !up->fsbr_timeout && time_after_eq(jiffies, up->fsbrtime + IDLE_TIMEOUT))
+			uhci_fsbr_timeout(uhci, u);
+
+		spin_unlock(&u->lock);
+	}
+
+	/* Really disable FSBR */
+	if (!uhci->fsbr && uhci->fsbrtimeout && time_after_eq(jiffies, uhci->fsbrtimeout)) {
+		uhci->fsbrtimeout = 0;
+		uhci->skel_term_qh->link = UHCI_PTR_TERM;
+	}
+}

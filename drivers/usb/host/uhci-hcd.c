@@ -100,21 +100,14 @@ static void uhci_get_current_frame_number(struct uhci_hcd *uhci);
 /* to make sure it doesn't hog all of the bandwidth */
 #define DEPTH_INTERVAL 5
 
+static inline void restart_timer(struct uhci_hcd *uhci)
+{
+	mod_timer(&uhci->stall_timer, jiffies + msecs_to_jiffies(100));
+}
+
 #include "uhci-hub.c"
 #include "uhci-debug.c"
 #include "uhci-q.c"
-
-static int ports_active(struct uhci_hcd *uhci)
-{
-	unsigned long io_addr = uhci->io_addr;
-	int connection = 0;
-	int i;
-
-	for (i = 0; i < uhci->rh_numports; i++)
-		connection |= (inw(io_addr + USBPORTSC1 + i * 2) & USBPORTSC_CCS);
-
-	return connection;
-}
 
 static int suspend_allowed(struct uhci_hcd *uhci)
 {
@@ -270,14 +263,14 @@ static void hc_state_transitions(struct uhci_hcd *uhci)
 		case UHCI_RUNNING:
 
 			/* global suspend if nothing connected for 1 second */
-			if (!ports_active(uhci) && suspend_allowed(uhci)) {
+			if (!any_ports_active(uhci) && suspend_allowed(uhci)) {
 				uhci->state = UHCI_SUSPENDING_GRACE;
 				uhci->state_end = jiffies + HZ;
 			}
 			break;
 
 		case UHCI_SUSPENDING_GRACE:
-			if (ports_active(uhci))
+			if (any_ports_active(uhci))
 				uhci->state = UHCI_RUNNING;
 			else if (time_after_eq(jiffies, uhci->state_end))
 				suspend_hc(uhci);
@@ -302,56 +295,22 @@ static void hc_state_transitions(struct uhci_hcd *uhci)
 	}
 }
 
-static int init_stall_timer(struct usb_hcd *hcd);
-
-static void stall_callback(unsigned long ptr)
+static void stall_callback(unsigned long _uhci)
 {
-	struct usb_hcd *hcd = (struct usb_hcd *)ptr;
-	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
-	struct urb_priv *up;
+	struct uhci_hcd *uhci = (struct uhci_hcd *) _uhci;
 	unsigned long flags;
 
 	spin_lock_irqsave(&uhci->lock, flags);
 	uhci_scan_schedule(uhci, NULL);
-
-	list_for_each_entry(up, &uhci->urb_list, urb_list) {
-		struct urb *u = up->urb;
-
-		spin_lock(&u->lock);
-
-		/* Check if the FSBR timed out */
-		if (up->fsbr && !up->fsbr_timeout && time_after_eq(jiffies, up->fsbrtime + IDLE_TIMEOUT))
-			uhci_fsbr_timeout(uhci, u);
-
-		spin_unlock(&u->lock);
-	}
-
-	/* Really disable FSBR */
-	if (!uhci->fsbr && uhci->fsbrtimeout && time_after_eq(jiffies, uhci->fsbrtimeout)) {
-		uhci->fsbrtimeout = 0;
-		uhci->skel_term_qh->link = UHCI_PTR_TERM;
-	}
+	check_fsbr(uhci);
 
 	/* Poll for and perform state transitions */
 	hc_state_transitions(uhci);
 	if (unlikely(uhci->suspended_ports && uhci->state != UHCI_SUSPENDED))
 		uhci_check_ports(uhci);
 
-	init_stall_timer(hcd);
+	restart_timer(uhci);
 	spin_unlock_irqrestore(&uhci->lock, flags);
-}
-
-static int init_stall_timer(struct usb_hcd *hcd)
-{
-	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
-
-	init_timer(&uhci->stall_timer);
-	uhci->stall_timer.function = stall_callback;
-	uhci->stall_timer.data = (unsigned long)hcd;
-	uhci->stall_timer.expires = jiffies + msecs_to_jiffies(100);
-	add_timer(&uhci->stall_timer);
-
-	return 0;
 }
 
 static irqreturn_t uhci_irq(struct usb_hcd *hcd, struct pt_regs *regs)
@@ -509,6 +468,10 @@ static int uhci_start(struct usb_hcd *hcd)
 
 	init_waitqueue_head(&uhci->waitqh);
 
+	init_timer(&uhci->stall_timer);
+	uhci->stall_timer.function = stall_callback;
+	uhci->stall_timer.data = (unsigned long) uhci;
+
 	uhci->fl = dma_alloc_coherent(uhci_dev(uhci), sizeof(*uhci->fl),
 			&dma_handle, 0);
 	if (!uhci->fl) {
@@ -646,7 +609,7 @@ static int uhci_start(struct usb_hcd *hcd)
 	if ((retval = start_hc(uhci)) != 0)
 		goto err_alloc_skelqh;
 
-	init_stall_timer(hcd);
+	restart_timer(uhci);
 
 	udev->speed = USB_SPEED_FULL;
 

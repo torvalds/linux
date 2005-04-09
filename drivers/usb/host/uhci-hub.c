@@ -33,6 +33,22 @@ static __u8 root_hub_hub_des[] =
 /* status change bits:  nonzero writes will clear */
 #define RWC_BITS	(USBPORTSC_OCC | USBPORTSC_PEC | USBPORTSC_CSC)
 
+/* A port that either is connected or has a changed-bit set will prevent
+ * us from AUTO_STOPPING.
+ */
+static int any_ports_active(struct uhci_hcd *uhci)
+{
+	int port;
+
+	for (port = 0; port < uhci->rh_numports; ++port) {
+		if ((inw(uhci->io_addr + USBPORTSC1 + port * 2) &
+				(USBPORTSC_CCS | RWC_BITS)) ||
+				test_bit(port, &uhci->port_c_suspend))
+			return 1;
+	}
+	return 0;
+}
+
 static int uhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 {
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
