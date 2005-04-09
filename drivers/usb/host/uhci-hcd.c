@@ -64,7 +64,7 @@
 /*
  * Version Information
  */
-#define DRIVER_VERSION "v2.2"
+#define DRIVER_VERSION "v2.3"
 #define DRIVER_AUTHOR "Linus 'Frodo Rabbit' Torvalds, Johannes Erdfelt, \
 Randy Dunlap, Georg Acher, Deti Fliegl, Thomas Sailer, Roman Weissgaerber, \
 Alan Stern"
@@ -109,33 +109,6 @@ static inline void restart_timer(struct uhci_hcd *uhci)
 #include "uhci-debug.c"
 #include "uhci-q.c"
 
-static int suspend_allowed(struct uhci_hcd *uhci)
-{
-	unsigned long io_addr = uhci->io_addr;
-	int i;
-
-	if (to_pci_dev(uhci_dev(uhci))->vendor != PCI_VENDOR_ID_INTEL)
-		return 1;
-
-	/* Some of Intel's USB controllers have a bug that causes false
-	 * resume indications if any port has an over current condition.
-	 * To prevent problems, we will not allow a global suspend if
-	 * any ports are OC.
-	 *
-	 * Some motherboards using Intel's chipsets (but not using all
-	 * the USB ports) appear to hardwire the over current inputs active
-	 * to disable the USB ports.
-	 */
-
-	/* check for over current condition on any port */
-	for (i = 0; i < uhci->rh_numports; i++) {
-		if (inw(io_addr + USBPORTSC1 + i * 2) & USBPORTSC_OC)
-			return 0;
-	}
-
-	return 1;
-}
-
 static void reset_hc(struct uhci_hcd *uhci)
 {
 	unsigned long io_addr = uhci->io_addr;
@@ -147,7 +120,6 @@ static void reset_hc(struct uhci_hcd *uhci)
 	outw(0, uhci->io_addr + USBINTR);
 
 	/* Global reset for 50ms */
-	uhci->state = UHCI_RESET;
 	outw(USBCMD_GRESET, io_addr + USBCMD);
 	msleep(50);
 	outw(0, io_addr + USBCMD);
@@ -156,63 +128,130 @@ static void reset_hc(struct uhci_hcd *uhci)
 	msleep(10);
 	uhci->resume_detect = 0;
 	uhci->is_stopped = UHCI_IS_STOPPED;
+	uhci->rh_state = UHCI_RH_RESET;
 }
 
-static void suspend_hc(struct uhci_hcd *uhci)
+static int resume_detect_interrupts_are_broken(struct uhci_hcd *uhci)
 {
-	unsigned long io_addr = uhci->io_addr;
+	int port;
 
-	dev_dbg(uhci_dev(uhci), "%s\n", __FUNCTION__);
-	uhci->state = UHCI_SUSPENDED;
-	uhci->resume_detect = 0;
-	outw(USBCMD_EGSM, io_addr + USBCMD);
+	switch (to_pci_dev(uhci_dev(uhci))->vendor) {
+	    default:
+		break;
 
-	/* FIXME: Wait for the controller to actually stop */
+	    case PCI_VENDOR_ID_GENESYS:
+		/* Genesys Logic's GL880S controllers don't generate
+		 * resume-detect interrupts.
+		 */
+		return 1;
+
+	    case PCI_VENDOR_ID_INTEL:
+		/* Some of Intel's USB controllers have a bug that causes
+		 * resume-detect interrupts if any port has an over-current
+		 * condition.  To make matters worse, some motherboards
+		 * hardwire unused USB ports' over-current inputs active!
+		 * To prevent problems, we will not enable resume-detect
+		 * interrupts if any ports are OC.
+		 */
+		for (port = 0; port < uhci->rh_numports; ++port) {
+			if (inw(uhci->io_addr + USBPORTSC1 + port * 2) &
+					USBPORTSC_OC)
+				return 1;
+		}
+		break;
+	}
+	return 0;
+}
+
+static void suspend_hc(struct uhci_hcd *uhci, enum uhci_rh_state new_state)
+__releases(uhci->lock)
+__acquires(uhci->lock)
+{
+	int auto_stop;
+	int int_enable;
+
+	auto_stop = (new_state == UHCI_RH_AUTO_STOPPED);
+	dev_dbg(uhci_dev(uhci), "%s%s\n", __FUNCTION__,
+			(auto_stop ? " (auto-stop)" : ""));
+
+	/* If we get a suspend request when we're already auto-stopped
+	 * then there's nothing to do.
+	 */
+	if (uhci->rh_state == UHCI_RH_AUTO_STOPPED) {
+		uhci->rh_state = new_state;
+		return;
+	}
+
+	/* Enable resume-detect interrupts if they work.
+	 * Then enter Global Suspend mode, still configured.
+	 */
+	int_enable = (resume_detect_interrupts_are_broken(uhci) ?
+			0 : USBINTR_RESUME);
+	outw(int_enable, uhci->io_addr + USBINTR);
+	outw(USBCMD_EGSM | USBCMD_CF, uhci->io_addr + USBCMD);
+	udelay(5);
+
+	/* If we're auto-stopping then no devices have been attached
+	 * for a while, so there shouldn't be any active URBs and the
+	 * controller should stop after a few microseconds.  Otherwise
+	 * we will give the controller one frame to stop.
+	 */
+	if (!auto_stop && !(inw(uhci->io_addr + USBSTS) & USBSTS_HCH)) {
+		uhci->rh_state = UHCI_RH_SUSPENDING;
+		spin_unlock_irq(&uhci->lock);
+		msleep(1);
+		spin_lock_irq(&uhci->lock);
+	}
+	if (!(inw(uhci->io_addr + USBSTS) & USBSTS_HCH))
+		dev_warn(uhci_dev(uhci), "Controller not stopped yet!\n");
+
 	uhci_get_current_frame_number(uhci);
+	smp_wmb();
+
+	uhci->rh_state = new_state;
 	uhci->is_stopped = UHCI_IS_STOPPED;
+	uhci->resume_detect = 0;
 
 	uhci_scan_schedule(uhci, NULL);
 }
 
 static void wakeup_hc(struct uhci_hcd *uhci)
+__releases(uhci->lock)
+__acquires(uhci->lock)
 {
-	unsigned long io_addr = uhci->io_addr;
+	dev_dbg(uhci_dev(uhci), "%s%s\n", __FUNCTION__,
+			uhci->rh_state == UHCI_RH_AUTO_STOPPED ?
+				" (auto-start)" : "");
 
-	switch (uhci->state) {
-		case UHCI_SUSPENDED:		/* Start the resume */
-			dev_dbg(uhci_dev(uhci), "%s\n", __FUNCTION__);
+	/* If we are auto-stopped then no devices are attached so there's
+	 * no need for wakeup signals.  Otherwise we send Global Resume
+	 * for 20 ms.
+	 */
+	if (uhci->rh_state == UHCI_RH_SUSPENDED) {
+		uhci->rh_state = UHCI_RH_RESUMING;
+		outw(USBCMD_FGR | USBCMD_EGSM | USBCMD_CF,
+				uhci->io_addr + USBCMD);
+		spin_unlock_irq(&uhci->lock);
+		msleep(20);
+		spin_lock_irq(&uhci->lock);
 
-			/* Global resume for >= 20ms */
-			outw(USBCMD_FGR | USBCMD_EGSM, io_addr + USBCMD);
-			uhci->state = UHCI_RESUMING_1;
-			uhci->state_end = jiffies + msecs_to_jiffies(20);
-			uhci->is_stopped = 0;
-			break;
-
-		case UHCI_RESUMING_1:		/* End global resume */
-			uhci->state = UHCI_RESUMING_2;
-			outw(0, io_addr + USBCMD);
-			/* Falls through */
-
-		case UHCI_RESUMING_2:		/* Wait for EOP to be sent */
-			if (inw(io_addr + USBCMD) & USBCMD_FGR)
-				break;
-
-			/* Run for at least 1 second, and
-			 * mark it configured with a 64-byte max packet */
-			uhci->state = UHCI_RUNNING_GRACE;
-			uhci->state_end = jiffies + HZ;
-			outw(USBCMD_RS | USBCMD_CF | USBCMD_MAXP,
-					io_addr + USBCMD);
-			break;
-
-		case UHCI_RUNNING_GRACE:	/* Now allowed to suspend */
-			uhci->state = UHCI_RUNNING;
-			break;
-
-		default:
-			break;
+		/* End Global Resume and wait for EOP to be sent */
+		outw(USBCMD_CF, uhci->io_addr + USBCMD);
+		udelay(4);
+		if (inw(uhci->io_addr + USBCMD) & USBCMD_FGR)
+			dev_warn(uhci_dev(uhci), "FGR not stopped yet!\n");
 	}
+
+	uhci->rh_state = UHCI_RH_RUNNING;
+	uhci->is_stopped = 0;
+	smp_wmb();
+
+	/* Mark it configured and running with a 64-byte max packet.
+	 * All interrupts are enabled, even though RD won't do anything.
+	 */
+	outw(USBCMD_RS | USBCMD_CF | USBCMD_MAXP, uhci->io_addr + USBCMD);
+	outw(USBINTR_TIMEOUT | USBINTR_RESUME | USBINTR_IOC | USBINTR_SP,
+			uhci->io_addr + USBINTR);
 }
 
 static int start_hc(struct uhci_hcd *uhci)
@@ -249,49 +288,40 @@ static int start_hc(struct uhci_hcd *uhci)
 	outl(uhci->fl->dma_handle, io_addr + USBFLBASEADD);
 
 	/* Run and mark it configured with a 64-byte max packet */
-	uhci->state = UHCI_RUNNING_GRACE;
-	uhci->state_end = jiffies + HZ;
+	uhci->rh_state = UHCI_RH_RUNNING;
 	outw(USBCMD_RS | USBCMD_CF | USBCMD_MAXP, io_addr + USBCMD);
 	uhci->is_stopped = 0;
 
 	return 0;
 }
 
-static void hc_state_transitions(struct uhci_hcd *uhci)
+static void rh_state_transitions(struct uhci_hcd *uhci)
 {
-	switch (uhci->state) {
-		case UHCI_RUNNING:
+	switch (uhci->rh_state) {
+	    case UHCI_RH_RUNNING:
+		/* are any devices attached? */
+		if (!any_ports_active(uhci)) {
+			uhci->rh_state = UHCI_RH_RUNNING_NODEVS;
+			uhci->auto_stop_time = jiffies + HZ;
+		}
+		break;
 
-			/* global suspend if nothing connected for 1 second */
-			if (!any_ports_active(uhci) && suspend_allowed(uhci)) {
-				uhci->state = UHCI_SUSPENDING_GRACE;
-				uhci->state_end = jiffies + HZ;
-			}
-			break;
+	    case UHCI_RH_RUNNING_NODEVS:
+		/* auto-stop if nothing connected for 1 second */
+		if (any_ports_active(uhci))
+			uhci->rh_state = UHCI_RH_RUNNING;
+		else if (time_after_eq(jiffies, uhci->auto_stop_time))
+			suspend_hc(uhci, UHCI_RH_AUTO_STOPPED);
+		break;
 
-		case UHCI_SUSPENDING_GRACE:
-			if (any_ports_active(uhci))
-				uhci->state = UHCI_RUNNING;
-			else if (time_after_eq(jiffies, uhci->state_end))
-				suspend_hc(uhci);
-			break;
+	    case UHCI_RH_AUTO_STOPPED:
+		/* wakeup if requested by a device */
+		if (uhci->resume_detect)
+			wakeup_hc(uhci);
+		break;
 
-		case UHCI_SUSPENDED:
-
-			/* wakeup if requested by a device */
-			if (uhci->resume_detect)
-				wakeup_hc(uhci);
-			break;
-
-		case UHCI_RESUMING_1:
-		case UHCI_RESUMING_2:
-		case UHCI_RUNNING_GRACE:
-			if (time_after_eq(jiffies, uhci->state_end))
-				wakeup_hc(uhci);
-			break;
-
-		default:
-			break;
+	    default:
+		break;
 	}
 }
 
@@ -305,8 +335,8 @@ static void stall_callback(unsigned long _uhci)
 	check_fsbr(uhci);
 
 	/* Poll for and perform state transitions */
-	hc_state_transitions(uhci);
-	if (unlikely(uhci->suspended_ports && uhci->state != UHCI_SUSPENDED))
+	rh_state_transitions(uhci);
+	if (unlikely(uhci->suspended_ports))
 		uhci_check_ports(uhci);
 
 	restart_timer(uhci);
@@ -336,7 +366,8 @@ static irqreturn_t uhci_irq(struct usb_hcd *hcd, struct pt_regs *regs)
 		if (status & USBSTS_HCPE)
 			dev_err(uhci_dev(uhci), "host controller process "
 					"error, something bad happened!\n");
-		if ((status & USBSTS_HCH) && uhci->state > 0) {
+		if ((status & USBSTS_HCH) &&
+				uhci->rh_state >= UHCI_RH_RUNNING) {
 			dev_err(uhci_dev(uhci), "host controller halted, "
 					"very bad!\n");
 			/* FIXME: Reset the controller, fix the offending TD */
@@ -683,17 +714,7 @@ static int uhci_suspend(struct usb_hcd *hcd, pm_message_t message)
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
 
 	spin_lock_irq(&uhci->lock);
-
-	/* Don't try to suspend broken motherboards, reset instead */
-	if (suspend_allowed(uhci))
-		suspend_hc(uhci);
-	else {
-		spin_unlock_irq(&uhci->lock);
-		reset_hc(uhci);
-		spin_lock_irq(&uhci->lock);
-		uhci_scan_schedule(uhci, NULL);
-	}
-
+	suspend_hc(uhci, UHCI_RH_SUSPENDED);
 	spin_unlock_irq(&uhci->lock);
 	return 0;
 }
@@ -701,13 +722,9 @@ static int uhci_suspend(struct usb_hcd *hcd, pm_message_t message)
 static int uhci_resume(struct usb_hcd *hcd)
 {
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
-	int rc;
-
-	pci_set_master(to_pci_dev(uhci_dev(uhci)));
 
 	spin_lock_irq(&uhci->lock);
-
-	if (uhci->state == UHCI_SUSPENDED) {
+	if (uhci->rh_state == UHCI_RH_SUSPENDED) {
 
 		/*
 		 * Some systems don't maintain the UHCI register values
@@ -721,19 +738,13 @@ static int uhci_resume(struct usb_hcd *hcd)
 		outl(uhci->fl->dma_handle, uhci->io_addr + USBFLBASEADD);
 		outw(USBINTR_TIMEOUT | USBINTR_RESUME | USBINTR_IOC |
 				USBINTR_SP, uhci->io_addr + USBINTR);
-		uhci->resume_detect = 1;
 		pci_write_config_word(to_pci_dev(uhci_dev(uhci)), USBLEGSUP,
 				USBLEGSUP_DEFAULT);
-	} else {
-		spin_unlock_irq(&uhci->lock);
-		reset_hc(uhci);
-		if ((rc = start_hc(uhci)) != 0)
-			return rc;
-		spin_lock_irq(&uhci->lock);
+		wakeup_hc(uhci);
 	}
-	hcd->state = HC_STATE_RUNNING;
-
 	spin_unlock_irq(&uhci->lock);
+
+	hcd->state = HC_STATE_RUNNING;
 	return 0;
 }
 #endif
@@ -750,13 +761,15 @@ static void uhci_hcd_endpoint_disable(struct usb_hcd *hcd,
 static int uhci_hcd_get_frame_number(struct usb_hcd *hcd)
 {
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
-	int frame_number;
 	unsigned long flags;
+	int is_stopped;
+	int frame_number;
 
 	/* Minimize latency by avoiding the spinlock */
 	local_irq_save(flags);
-	rmb();
-	frame_number = (uhci->is_stopped ? uhci->frame_number :
+	is_stopped = uhci->is_stopped;
+	smp_rmb();
+	frame_number = (is_stopped ? uhci->frame_number :
 			inw(uhci->io_addr + USBFRNUM));
 	local_irq_restore(flags);
 	return frame_number;

@@ -60,7 +60,7 @@ static int uhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 				test_bit(port, &uhci->port_c_suspend))
 			*buf |= (1 << (port + 1));
 	}
-	if (*buf && uhci->state == UHCI_SUSPENDED)
+	if (*buf && uhci->is_stopped)
 		uhci->resume_detect = 1;
 	return !!*buf;
 }
