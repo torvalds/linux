@@ -90,7 +90,6 @@ static char *errbuf;
 static kmem_cache_t *uhci_up_cachep;	/* urb_priv */
 
 static void uhci_get_current_frame_number(struct uhci_hcd *uhci);
-static void hc_state_transitions(struct uhci_hcd *uhci);
 
 /* If a transfer is still active after this much time, turn off FSBR */
 #define IDLE_TIMEOUT	msecs_to_jiffies(50)
@@ -104,6 +103,204 @@ static void hc_state_transitions(struct uhci_hcd *uhci);
 #include "uhci-hub.c"
 #include "uhci-debug.c"
 #include "uhci-q.c"
+
+static int ports_active(struct uhci_hcd *uhci)
+{
+	unsigned long io_addr = uhci->io_addr;
+	int connection = 0;
+	int i;
+
+	for (i = 0; i < uhci->rh_numports; i++)
+		connection |= (inw(io_addr + USBPORTSC1 + i * 2) & USBPORTSC_CCS);
+
+	return connection;
+}
+
+static int suspend_allowed(struct uhci_hcd *uhci)
+{
+	unsigned long io_addr = uhci->io_addr;
+	int i;
+
+	if (to_pci_dev(uhci_dev(uhci))->vendor != PCI_VENDOR_ID_INTEL)
+		return 1;
+
+	/* Some of Intel's USB controllers have a bug that causes false
+	 * resume indications if any port has an over current condition.
+	 * To prevent problems, we will not allow a global suspend if
+	 * any ports are OC.
+	 *
+	 * Some motherboards using Intel's chipsets (but not using all
+	 * the USB ports) appear to hardwire the over current inputs active
+	 * to disable the USB ports.
+	 */
+
+	/* check for over current condition on any port */
+	for (i = 0; i < uhci->rh_numports; i++) {
+		if (inw(io_addr + USBPORTSC1 + i * 2) & USBPORTSC_OC)
+			return 0;
+	}
+
+	return 1;
+}
+
+static void reset_hc(struct uhci_hcd *uhci)
+{
+	unsigned long io_addr = uhci->io_addr;
+
+	/* Turn off PIRQ, SMI, and all interrupts.  This also turns off
+	 * the BIOS's USB Legacy Support.
+	 */
+	pci_write_config_word(to_pci_dev(uhci_dev(uhci)), USBLEGSUP, 0);
+	outw(0, uhci->io_addr + USBINTR);
+
+	/* Global reset for 50ms */
+	uhci->state = UHCI_RESET;
+	outw(USBCMD_GRESET, io_addr + USBCMD);
+	msleep(50);
+	outw(0, io_addr + USBCMD);
+
+	/* Another 10ms delay */
+	msleep(10);
+	uhci->resume_detect = 0;
+	uhci->is_stopped = UHCI_IS_STOPPED;
+}
+
+static void suspend_hc(struct uhci_hcd *uhci)
+{
+	unsigned long io_addr = uhci->io_addr;
+
+	dev_dbg(uhci_dev(uhci), "%s\n", __FUNCTION__);
+	uhci->state = UHCI_SUSPENDED;
+	uhci->resume_detect = 0;
+	outw(USBCMD_EGSM, io_addr + USBCMD);
+
+	/* FIXME: Wait for the controller to actually stop */
+	uhci_get_current_frame_number(uhci);
+	uhci->is_stopped = UHCI_IS_STOPPED;
+
+	uhci_scan_schedule(uhci, NULL);
+}
+
+static void wakeup_hc(struct uhci_hcd *uhci)
+{
+	unsigned long io_addr = uhci->io_addr;
+
+	switch (uhci->state) {
+		case UHCI_SUSPENDED:		/* Start the resume */
+			dev_dbg(uhci_dev(uhci), "%s\n", __FUNCTION__);
+
+			/* Global resume for >= 20ms */
+			outw(USBCMD_FGR | USBCMD_EGSM, io_addr + USBCMD);
+			uhci->state = UHCI_RESUMING_1;
+			uhci->state_end = jiffies + msecs_to_jiffies(20);
+			uhci->is_stopped = 0;
+			break;
+
+		case UHCI_RESUMING_1:		/* End global resume */
+			uhci->state = UHCI_RESUMING_2;
+			outw(0, io_addr + USBCMD);
+			/* Falls through */
+
+		case UHCI_RESUMING_2:		/* Wait for EOP to be sent */
+			if (inw(io_addr + USBCMD) & USBCMD_FGR)
+				break;
+
+			/* Run for at least 1 second, and
+			 * mark it configured with a 64-byte max packet */
+			uhci->state = UHCI_RUNNING_GRACE;
+			uhci->state_end = jiffies + HZ;
+			outw(USBCMD_RS | USBCMD_CF | USBCMD_MAXP,
+					io_addr + USBCMD);
+			break;
+
+		case UHCI_RUNNING_GRACE:	/* Now allowed to suspend */
+			uhci->state = UHCI_RUNNING;
+			break;
+
+		default:
+			break;
+	}
+}
+
+static int start_hc(struct uhci_hcd *uhci)
+{
+	unsigned long io_addr = uhci->io_addr;
+	int timeout = 10;
+
+	/*
+	 * Reset the HC - this will force us to get a
+	 * new notification of any already connected
+	 * ports due to the virtual disconnect that it
+	 * implies.
+	 */
+	outw(USBCMD_HCRESET, io_addr + USBCMD);
+	while (inw(io_addr + USBCMD) & USBCMD_HCRESET) {
+		if (--timeout < 0) {
+			dev_err(uhci_dev(uhci), "USBCMD_HCRESET timed out!\n");
+			return -ETIMEDOUT;
+		}
+		msleep(1);
+	}
+
+	/* Mark controller as running before we enable interrupts */
+	uhci_to_hcd(uhci)->state = HC_STATE_RUNNING;
+
+	/* Turn on PIRQ and all interrupts */
+	pci_write_config_word(to_pci_dev(uhci_dev(uhci)), USBLEGSUP,
+			USBLEGSUP_DEFAULT);
+	outw(USBINTR_TIMEOUT | USBINTR_RESUME | USBINTR_IOC | USBINTR_SP,
+		io_addr + USBINTR);
+
+	/* Start at frame 0 */
+	outw(0, io_addr + USBFRNUM);
+	outl(uhci->fl->dma_handle, io_addr + USBFLBASEADD);
+
+	/* Run and mark it configured with a 64-byte max packet */
+	uhci->state = UHCI_RUNNING_GRACE;
+	uhci->state_end = jiffies + HZ;
+	outw(USBCMD_RS | USBCMD_CF | USBCMD_MAXP, io_addr + USBCMD);
+	uhci->is_stopped = 0;
+
+	return 0;
+}
+
+static void hc_state_transitions(struct uhci_hcd *uhci)
+{
+	switch (uhci->state) {
+		case UHCI_RUNNING:
+
+			/* global suspend if nothing connected for 1 second */
+			if (!ports_active(uhci) && suspend_allowed(uhci)) {
+				uhci->state = UHCI_SUSPENDING_GRACE;
+				uhci->state_end = jiffies + HZ;
+			}
+			break;
+
+		case UHCI_SUSPENDING_GRACE:
+			if (ports_active(uhci))
+				uhci->state = UHCI_RUNNING;
+			else if (time_after_eq(jiffies, uhci->state_end))
+				suspend_hc(uhci);
+			break;
+
+		case UHCI_SUSPENDED:
+
+			/* wakeup if requested by a device */
+			if (uhci->resume_detect)
+				wakeup_hc(uhci);
+			break;
+
+		case UHCI_RESUMING_1:
+		case UHCI_RESUMING_2:
+		case UHCI_RUNNING_GRACE:
+			if (time_after_eq(jiffies, uhci->state_end))
+				wakeup_hc(uhci);
+			break;
+
+		default:
+			break;
+	}
+}
 
 static int init_stall_timer(struct usb_hcd *hcd);
 
@@ -197,162 +394,6 @@ static irqreturn_t uhci_irq(struct usb_hcd *hcd, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-static void reset_hc(struct uhci_hcd *uhci)
-{
-	unsigned long io_addr = uhci->io_addr;
-
-	/* Turn off PIRQ, SMI, and all interrupts.  This also turns off
-	 * the BIOS's USB Legacy Support.
-	 */
-	pci_write_config_word(to_pci_dev(uhci_dev(uhci)), USBLEGSUP, 0);
-	outw(0, uhci->io_addr + USBINTR);
-
-	/* Global reset for 50ms */
-	uhci->state = UHCI_RESET;
-	outw(USBCMD_GRESET, io_addr + USBCMD);
-	msleep(50);
-	outw(0, io_addr + USBCMD);
-
-	/* Another 10ms delay */
-	msleep(10);
-	uhci->resume_detect = 0;
-	uhci->is_stopped = UHCI_IS_STOPPED;
-}
-
-static void suspend_hc(struct uhci_hcd *uhci)
-{
-	unsigned long io_addr = uhci->io_addr;
-
-	dev_dbg(uhci_dev(uhci), "%s\n", __FUNCTION__);
-	uhci->state = UHCI_SUSPENDED;
-	uhci->resume_detect = 0;
-	outw(USBCMD_EGSM, io_addr + USBCMD);
-
-	/* FIXME: Wait for the controller to actually stop */
-	uhci_get_current_frame_number(uhci);
-	uhci->is_stopped = UHCI_IS_STOPPED;
-
-	uhci_scan_schedule(uhci, NULL);
-}
-
-static void wakeup_hc(struct uhci_hcd *uhci)
-{
-	unsigned long io_addr = uhci->io_addr;
-
-	switch (uhci->state) {
-		case UHCI_SUSPENDED:		/* Start the resume */
-			dev_dbg(uhci_dev(uhci), "%s\n", __FUNCTION__);
-
-			/* Global resume for >= 20ms */
-			outw(USBCMD_FGR | USBCMD_EGSM, io_addr + USBCMD);
-			uhci->state = UHCI_RESUMING_1;
-			uhci->state_end = jiffies + msecs_to_jiffies(20);
-			uhci->is_stopped = 0;
-			break;
-
-		case UHCI_RESUMING_1:		/* End global resume */
-			uhci->state = UHCI_RESUMING_2;
-			outw(0, io_addr + USBCMD);
-			/* Falls through */
-
-		case UHCI_RESUMING_2:		/* Wait for EOP to be sent */
-			if (inw(io_addr + USBCMD) & USBCMD_FGR)
-				break;
-
-			/* Run for at least 1 second, and
-			 * mark it configured with a 64-byte max packet */
-			uhci->state = UHCI_RUNNING_GRACE;
-			uhci->state_end = jiffies + HZ;
-			outw(USBCMD_RS | USBCMD_CF | USBCMD_MAXP,
-					io_addr + USBCMD);
-			break;
-
-		case UHCI_RUNNING_GRACE:	/* Now allowed to suspend */
-			uhci->state = UHCI_RUNNING;
-			break;
-
-		default:
-			break;
-	}
-}
-
-static int ports_active(struct uhci_hcd *uhci)
-{
-	unsigned long io_addr = uhci->io_addr;
-	int connection = 0;
-	int i;
-
-	for (i = 0; i < uhci->rh_numports; i++)
-		connection |= (inw(io_addr + USBPORTSC1 + i * 2) & USBPORTSC_CCS);
-
-	return connection;
-}
-
-static int suspend_allowed(struct uhci_hcd *uhci)
-{
-	unsigned long io_addr = uhci->io_addr;
-	int i;
-
-	if (to_pci_dev(uhci_dev(uhci))->vendor != PCI_VENDOR_ID_INTEL)
-		return 1;
-
-	/* Some of Intel's USB controllers have a bug that causes false
-	 * resume indications if any port has an over current condition.
-	 * To prevent problems, we will not allow a global suspend if
-	 * any ports are OC.
-	 *
-	 * Some motherboards using Intel's chipsets (but not using all
-	 * the USB ports) appear to hardwire the over current inputs active
-	 * to disable the USB ports.
-	 */
-
-	/* check for over current condition on any port */
-	for (i = 0; i < uhci->rh_numports; i++) {
-		if (inw(io_addr + USBPORTSC1 + i * 2) & USBPORTSC_OC)
-			return 0;
-	}
-
-	return 1;
-}
-
-static void hc_state_transitions(struct uhci_hcd *uhci)
-{
-	switch (uhci->state) {
-		case UHCI_RUNNING:
-
-			/* global suspend if nothing connected for 1 second */
-			if (!ports_active(uhci) && suspend_allowed(uhci)) {
-				uhci->state = UHCI_SUSPENDING_GRACE;
-				uhci->state_end = jiffies + HZ;
-			}
-			break;
-
-		case UHCI_SUSPENDING_GRACE:
-			if (ports_active(uhci))
-				uhci->state = UHCI_RUNNING;
-			else if (time_after_eq(jiffies, uhci->state_end))
-				suspend_hc(uhci);
-			break;
-
-		case UHCI_SUSPENDED:
-
-			/* wakeup if requested by a device */
-			if (uhci->resume_detect)
-				wakeup_hc(uhci);
-			break;
-
-		case UHCI_RESUMING_1:
-		case UHCI_RESUMING_2:
-		case UHCI_RUNNING_GRACE:
-			if (time_after_eq(jiffies, uhci->state_end))
-				wakeup_hc(uhci);
-			break;
-
-		default:
-			break;
-	}
-}
-
 /*
  * Store the current frame number in uhci->frame_number if the controller
  * is runnning
@@ -361,48 +402,6 @@ static void uhci_get_current_frame_number(struct uhci_hcd *uhci)
 {
 	if (!uhci->is_stopped)
 		uhci->frame_number = inw(uhci->io_addr + USBFRNUM);
-}
-
-static int start_hc(struct uhci_hcd *uhci)
-{
-	unsigned long io_addr = uhci->io_addr;
-	int timeout = 10;
-
-	/*
-	 * Reset the HC - this will force us to get a
-	 * new notification of any already connected
-	 * ports due to the virtual disconnect that it
-	 * implies.
-	 */
-	outw(USBCMD_HCRESET, io_addr + USBCMD);
-	while (inw(io_addr + USBCMD) & USBCMD_HCRESET) {
-		if (--timeout < 0) {
-			dev_err(uhci_dev(uhci), "USBCMD_HCRESET timed out!\n");
-			return -ETIMEDOUT;
-		}
-		msleep(1);
-	}
-
-	/* Mark controller as running before we enable interrupts */
-	uhci_to_hcd(uhci)->state = HC_STATE_RUNNING;
-
-	/* Turn on PIRQ and all interrupts */
-	pci_write_config_word(to_pci_dev(uhci_dev(uhci)), USBLEGSUP,
-			USBLEGSUP_DEFAULT);
-	outw(USBINTR_TIMEOUT | USBINTR_RESUME | USBINTR_IOC | USBINTR_SP,
-		io_addr + USBINTR);
-
-	/* Start at frame 0 */
-	outw(0, io_addr + USBFRNUM);
-	outl(uhci->fl->dma_handle, io_addr + USBFLBASEADD);
-
-	/* Run and mark it configured with a 64-byte max packet */
-	uhci->state = UHCI_RUNNING_GRACE;
-	uhci->state_end = jiffies + HZ;
-	outw(USBCMD_RS | USBCMD_CF | USBCMD_MAXP, io_addr + USBCMD);
-	uhci->is_stopped = 0;
-
-	return 0;
 }
 
 /*
