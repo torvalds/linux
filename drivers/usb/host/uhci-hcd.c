@@ -109,27 +109,112 @@ static inline void restart_timer(struct uhci_hcd *uhci)
 #include "uhci-debug.c"
 #include "uhci-q.c"
 
+/*
+ * Make sure the controller is completely inactive, unable to
+ * generate interrupts or do DMA.
+ */
 static void reset_hc(struct uhci_hcd *uhci)
 {
-	unsigned long io_addr = uhci->io_addr;
-
-	/* Turn off PIRQ, SMI, and all interrupts.  This also turns off
-	 * the BIOS's USB Legacy Support.
+	/* Turn off PIRQ enable and SMI enable.  (This also turns off the
+	 * BIOS's USB Legacy Support.)  Turn off all the R/WC bits too.
 	 */
-	pci_write_config_word(to_pci_dev(uhci_dev(uhci)), USBLEGSUP, 0);
+	pci_write_config_word(to_pci_dev(uhci_dev(uhci)), USBLEGSUP,
+			USBLEGSUP_RWC);
+
+	/* Reset the HC - this will force us to get a
+	 * new notification of any already connected
+	 * ports due to the virtual disconnect that it
+	 * implies.
+	 */
+	outw(USBCMD_HCRESET, uhci->io_addr + USBCMD);
+	mb();
+	udelay(5);
+	if (inw(uhci->io_addr + USBCMD) & USBCMD_HCRESET)
+		dev_warn(uhci_dev(uhci), "HCRESET not completed yet!\n");
+
+	/* Just to be safe, disable interrupt requests and
+	 * make sure the controller is stopped.
+	 */
 	outw(0, uhci->io_addr + USBINTR);
+	outw(0, uhci->io_addr + USBCMD);
 
-	/* Global reset for 50ms */
-	outw(USBCMD_GRESET, io_addr + USBCMD);
-	msleep(50);
-	outw(0, io_addr + USBCMD);
-
-	/* Another 10ms delay */
-	msleep(10);
 	uhci->resume_detect = 0;
-	uhci->is_stopped = UHCI_IS_STOPPED;
+	uhci->port_c_suspend = uhci->suspended_ports =
+			uhci->resuming_ports = 0;
 	uhci->rh_state = UHCI_RH_RESET;
+	uhci->is_stopped = UHCI_IS_STOPPED;
+	uhci_to_hcd(uhci)->state = HC_STATE_HALT;
 }
+
+/*
+ * Initialize a controller that was newly discovered or has just been
+ * resumed.  In either case we can't be sure of its previous state.
+ */
+static void check_and_reset_hc(struct uhci_hcd *uhci)
+{
+	u16 legsup;
+	unsigned int cmd, intr;
+
+	/*
+	 * When restarting a suspended controller, we expect all the
+	 * settings to be the same as we left them:
+	 *
+	 *	PIRQ and SMI disabled, no R/WC bits set in USBLEGSUP;
+	 *	Controller is stopped and configured with EGSM set;
+	 *	No interrupts enabled except possibly Resume Detect.
+	 *
+	 * If any of these conditions are violated we do a complete reset.
+	 */
+	pci_read_config_word(to_pci_dev(uhci_dev(uhci)), USBLEGSUP, &legsup);
+	if (legsup & ~USBLEGSUP_RO) {
+		dev_dbg(uhci_dev(uhci), "%s: legsup = 0x%04x\n",
+				__FUNCTION__, legsup);
+		goto reset_needed;
+	}
+
+	cmd = inw(uhci->io_addr + USBCMD);
+	if ((cmd & USBCMD_RS) || !(cmd & USBCMD_CF) || !(cmd & USBCMD_EGSM)) {
+		dev_dbg(uhci_dev(uhci), "%s: cmd = 0x%04x\n",
+				__FUNCTION__, cmd);
+		goto reset_needed;
+	}
+
+	intr = inw(uhci->io_addr + USBINTR);
+	if (intr & (~USBINTR_RESUME)) {
+		dev_dbg(uhci_dev(uhci), "%s: intr = 0x%04x\n",
+				__FUNCTION__, intr);
+		goto reset_needed;
+	}
+	return;
+
+reset_needed:
+	dev_dbg(uhci_dev(uhci), "Performing full reset\n");
+	reset_hc(uhci);
+}
+
+/*
+ * Store the basic register settings needed by the controller.
+ */
+static void configure_hc(struct uhci_hcd *uhci)
+{
+	/* Set the frame length to the default: 1 ms exactly */
+	outb(USBSOF_DEFAULT, uhci->io_addr + USBSOF);
+
+	/* Store the frame list base address */
+	outl(uhci->fl->dma_handle, uhci->io_addr + USBFLBASEADD);
+
+	/* Set the current frame number */
+	outw(uhci->frame_number, uhci->io_addr + USBFRNUM);
+
+	/* Mark controller as running before we enable interrupts */
+	uhci_to_hcd(uhci)->state = HC_STATE_RUNNING;
+	mb();
+
+	/* Enable PIRQ */
+	pci_write_config_word(to_pci_dev(uhci_dev(uhci)), USBLEGSUP,
+			USBLEGSUP_DEFAULT);
+}
+
 
 static int resume_detect_interrupts_are_broken(struct uhci_hcd *uhci)
 {
@@ -163,7 +248,7 @@ static int resume_detect_interrupts_are_broken(struct uhci_hcd *uhci)
 	return 0;
 }
 
-static void suspend_hc(struct uhci_hcd *uhci, enum uhci_rh_state new_state)
+static void suspend_rh(struct uhci_hcd *uhci, enum uhci_rh_state new_state)
 __releases(uhci->lock)
 __acquires(uhci->lock)
 {
@@ -189,6 +274,7 @@ __acquires(uhci->lock)
 			0 : USBINTR_RESUME);
 	outw(int_enable, uhci->io_addr + USBINTR);
 	outw(USBCMD_EGSM | USBCMD_CF, uhci->io_addr + USBCMD);
+	mb();
 	udelay(5);
 
 	/* If we're auto-stopping then no devices have been attached
@@ -215,7 +301,22 @@ __acquires(uhci->lock)
 	uhci_scan_schedule(uhci, NULL);
 }
 
-static void wakeup_hc(struct uhci_hcd *uhci)
+static void start_rh(struct uhci_hcd *uhci)
+{
+	uhci->rh_state = UHCI_RH_RUNNING;
+	uhci->is_stopped = 0;
+	smp_wmb();
+
+	/* Mark it configured and running with a 64-byte max packet.
+	 * All interrupts are enabled, even though RESUME won't do anything.
+	 */
+	outw(USBCMD_RS | USBCMD_CF | USBCMD_MAXP, uhci->io_addr + USBCMD);
+	outw(USBINTR_TIMEOUT | USBINTR_RESUME | USBINTR_IOC | USBINTR_SP,
+			uhci->io_addr + USBINTR);
+	mb();
+}
+
+static void wakeup_rh(struct uhci_hcd *uhci)
 __releases(uhci->lock)
 __acquires(uhci->lock)
 {
@@ -237,62 +338,13 @@ __acquires(uhci->lock)
 
 		/* End Global Resume and wait for EOP to be sent */
 		outw(USBCMD_CF, uhci->io_addr + USBCMD);
+		mb();
 		udelay(4);
 		if (inw(uhci->io_addr + USBCMD) & USBCMD_FGR)
 			dev_warn(uhci_dev(uhci), "FGR not stopped yet!\n");
 	}
 
-	uhci->rh_state = UHCI_RH_RUNNING;
-	uhci->is_stopped = 0;
-	smp_wmb();
-
-	/* Mark it configured and running with a 64-byte max packet.
-	 * All interrupts are enabled, even though RD won't do anything.
-	 */
-	outw(USBCMD_RS | USBCMD_CF | USBCMD_MAXP, uhci->io_addr + USBCMD);
-	outw(USBINTR_TIMEOUT | USBINTR_RESUME | USBINTR_IOC | USBINTR_SP,
-			uhci->io_addr + USBINTR);
-}
-
-static int start_hc(struct uhci_hcd *uhci)
-{
-	unsigned long io_addr = uhci->io_addr;
-	int timeout = 10;
-
-	/*
-	 * Reset the HC - this will force us to get a
-	 * new notification of any already connected
-	 * ports due to the virtual disconnect that it
-	 * implies.
-	 */
-	outw(USBCMD_HCRESET, io_addr + USBCMD);
-	while (inw(io_addr + USBCMD) & USBCMD_HCRESET) {
-		if (--timeout < 0) {
-			dev_err(uhci_dev(uhci), "USBCMD_HCRESET timed out!\n");
-			return -ETIMEDOUT;
-		}
-		msleep(1);
-	}
-
-	/* Mark controller as running before we enable interrupts */
-	uhci_to_hcd(uhci)->state = HC_STATE_RUNNING;
-
-	/* Turn on PIRQ and all interrupts */
-	pci_write_config_word(to_pci_dev(uhci_dev(uhci)), USBLEGSUP,
-			USBLEGSUP_DEFAULT);
-	outw(USBINTR_TIMEOUT | USBINTR_RESUME | USBINTR_IOC | USBINTR_SP,
-		io_addr + USBINTR);
-
-	/* Start at frame 0 */
-	outw(0, io_addr + USBFRNUM);
-	outl(uhci->fl->dma_handle, io_addr + USBFLBASEADD);
-
-	/* Run and mark it configured with a 64-byte max packet */
-	uhci->rh_state = UHCI_RH_RUNNING;
-	outw(USBCMD_RS | USBCMD_CF | USBCMD_MAXP, io_addr + USBCMD);
-	uhci->is_stopped = 0;
-
-	return 0;
+	start_rh(uhci);
 }
 
 static void rh_state_transitions(struct uhci_hcd *uhci)
@@ -311,13 +363,13 @@ static void rh_state_transitions(struct uhci_hcd *uhci)
 		if (any_ports_active(uhci))
 			uhci->rh_state = UHCI_RH_RUNNING;
 		else if (time_after_eq(jiffies, uhci->auto_stop_time))
-			suspend_hc(uhci, UHCI_RH_AUTO_STOPPED);
+			suspend_rh(uhci, UHCI_RH_AUTO_STOPPED);
 		break;
 
 	    case UHCI_RH_AUTO_STOPPED:
 		/* wakeup if requested by a device */
 		if (uhci->resume_detect)
-			wakeup_hc(uhci);
+			wakeup_rh(uhci);
 		break;
 
 	    default:
@@ -336,7 +388,7 @@ static void stall_callback(unsigned long _uhci)
 
 	/* Poll for and perform state transitions */
 	rh_state_transitions(uhci);
-	if (unlikely(uhci->suspended_ports))
+	if (uhci->suspended_ports && !uhci->hc_inaccessible)
 		uhci_check_ports(uhci);
 
 	restart_timer(uhci);
@@ -346,7 +398,6 @@ static void stall_callback(unsigned long _uhci)
 static irqreturn_t uhci_irq(struct usb_hcd *hcd, struct pt_regs *regs)
 {
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
-	unsigned long io_addr = uhci->io_addr;
 	unsigned short status;
 
 	/*
@@ -354,10 +405,10 @@ static irqreturn_t uhci_irq(struct usb_hcd *hcd, struct pt_regs *regs)
 	 * interrupt cause.  Contrary to the UHCI specification, the
 	 * "HC Halted" status bit is persistent: it is RO, not R/WC.
 	 */
-	status = inw(io_addr + USBSTS);
+	status = inw(uhci->io_addr + USBSTS);
 	if (!(status & ~USBSTS_HCH))	/* shared interrupt, not mine */
 		return IRQ_NONE;
-	outw(status, io_addr + USBSTS);		/* Clear it */
+	outw(status, uhci->io_addr + USBSTS);		/* Clear it */
 
 	if (status & ~(USBSTS_USBINT | USBSTS_ERROR | USBSTS_RD)) {
 		if (status & USBSTS_HSE)
@@ -440,10 +491,10 @@ static int uhci_reset(struct usb_hcd *hcd)
 
 	uhci->io_addr = (unsigned long) hcd->rsrc_start;
 
-	/* Kick BIOS off this hardware and reset, so we won't get
-	 * interrupts from any previous setup.
+	/* Kick BIOS off this hardware and reset if the controller
+	 * isn't already safely quiescent.
 	 */
-	reset_hc(uhci);
+	check_and_reset_hc(uhci);
 	return 0;
 }
 
@@ -634,11 +685,12 @@ static int uhci_start(struct usb_hcd *hcd)
 
 	/*
 	 * Some architectures require a full mb() to enforce completion of
-	 * the memory writes above before the I/O transfers in start_hc().
+	 * the memory writes above before the I/O transfers in configure_hc().
 	 */
 	mb();
-	if ((retval = start_hc(uhci)) != 0)
-		goto err_alloc_skelqh;
+
+	configure_hc(uhci);
+	start_rh(uhci);
 
 	restart_timer(uhci);
 
@@ -656,9 +708,8 @@ static int uhci_start(struct usb_hcd *hcd)
  * error exits:
  */
 err_start_root_hub:
-	reset_hc(uhci);
-
 	del_timer_sync(&uhci->stall_timer);
+	reset_hc(uhci);
 
 err_alloc_skelqh:
 	for (i = 0; i < UHCI_NUM_SKELQH; i++)
@@ -699,9 +750,9 @@ static void uhci_stop(struct usb_hcd *hcd)
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
 
 	del_timer_sync(&uhci->stall_timer);
-	reset_hc(uhci);
 
 	spin_lock_irq(&uhci->lock);
+	reset_hc(uhci);
 	uhci_scan_schedule(uhci, NULL);
 	spin_unlock_irq(&uhci->lock);
 	
@@ -709,12 +760,47 @@ static void uhci_stop(struct usb_hcd *hcd)
 }
 
 #ifdef CONFIG_PM
-static int uhci_suspend(struct usb_hcd *hcd, pm_message_t message)
+static int uhci_rh_suspend(struct usb_hcd *hcd)
 {
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
 
 	spin_lock_irq(&uhci->lock);
-	suspend_hc(uhci, UHCI_RH_SUSPENDED);
+	suspend_rh(uhci, UHCI_RH_SUSPENDED);
+	spin_unlock_irq(&uhci->lock);
+	return 0;
+}
+
+static int uhci_rh_resume(struct usb_hcd *hcd)
+{
+	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
+
+	spin_lock_irq(&uhci->lock);
+	wakeup_rh(uhci);
+	spin_unlock_irq(&uhci->lock);
+	return 0;
+}
+
+static int uhci_suspend(struct usb_hcd *hcd, pm_message_t message)
+{
+	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
+
+	dev_dbg(uhci_dev(uhci), "%s\n", __FUNCTION__);
+
+	spin_lock_irq(&uhci->lock);
+
+#ifndef CONFIG_USB_SUSPEND
+	/* Otherwise this would never happen */
+	suspend_rh(uhci, UHCI_RH_SUSPENDED);
+#endif
+
+	/* All PCI host controllers are required to disable IRQ generation
+	 * at the source, so we must turn off PIRQ.
+	 */
+	pci_write_config_word(to_pci_dev(uhci_dev(uhci)), USBLEGSUP, 0);
+	uhci->hc_inaccessible = 1;
+
+	/* FIXME: Enable non-PME# remote wakeup? */
+
 	spin_unlock_irq(&uhci->lock);
 	return 0;
 }
@@ -723,28 +809,28 @@ static int uhci_resume(struct usb_hcd *hcd)
 {
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
 
+	dev_dbg(uhci_dev(uhci), "%s\n", __FUNCTION__);
+
 	spin_lock_irq(&uhci->lock);
-	if (uhci->rh_state == UHCI_RH_SUSPENDED) {
 
-		/*
-		 * Some systems don't maintain the UHCI register values
-		 * during a PM suspend/resume cycle, so reinitialize
-		 * the Frame Number, Framelist Base Address, Interrupt
-		 * Enable, and Legacy Support registers.
-		 */
-		pci_write_config_word(to_pci_dev(uhci_dev(uhci)), USBLEGSUP,
-				0);
-		outw(uhci->frame_number, uhci->io_addr + USBFRNUM);
-		outl(uhci->fl->dma_handle, uhci->io_addr + USBFLBASEADD);
-		outw(USBINTR_TIMEOUT | USBINTR_RESUME | USBINTR_IOC |
-				USBINTR_SP, uhci->io_addr + USBINTR);
-		pci_write_config_word(to_pci_dev(uhci_dev(uhci)), USBLEGSUP,
-				USBLEGSUP_DEFAULT);
-		wakeup_hc(uhci);
-	}
+	/* FIXME: Disable non-PME# remote wakeup? */
+
+	uhci->hc_inaccessible = 0;
+
+	/* The BIOS may have changed the controller settings during a
+	 * system wakeup.  Check it and reconfigure to avoid problems.
+	 */
+	check_and_reset_hc(uhci);
+	configure_hc(uhci);
+
+#ifndef CONFIG_USB_SUSPEND
+	/* Otherwise this would never happen */
+	wakeup_rh(uhci);
+#endif
+	if (uhci->rh_state == UHCI_RH_RESET)
+		suspend_rh(uhci, UHCI_RH_SUSPENDED);
+
 	spin_unlock_irq(&uhci->lock);
-
-	hcd->state = HC_STATE_RUNNING;
 	return 0;
 }
 #endif
@@ -792,6 +878,8 @@ static const struct hc_driver uhci_driver = {
 #ifdef CONFIG_PM
 	.suspend =		uhci_suspend,
 	.resume =		uhci_resume,
+	.hub_suspend =		uhci_rh_suspend,
+	.hub_resume =		uhci_rh_resume,
 #endif
 	.stop =			uhci_stop,
 

@@ -54,6 +54,9 @@ static int uhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
 	int port;
 
+	if (uhci->hc_inaccessible)
+		return 0;
+
 	*buf = 0;
 	for (port = 0; port < uhci->rh_numports; ++port) {
 		if ((inw(uhci->io_addr + USBPORTSC1 + port * 2) & RWC_BITS) ||
@@ -149,6 +152,9 @@ static int uhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 	unsigned long port_addr = uhci->io_addr + USBPORTSC1 + 2 * port;
 	u16 wPortChange, wPortStatus;
 	unsigned long flags;
+
+	if (uhci->hc_inaccessible)
+		return -ETIMEDOUT;
 
 	spin_lock_irqsave(&uhci->lock, flags);
 	switch (typeReq) {

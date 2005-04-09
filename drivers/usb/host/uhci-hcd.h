@@ -41,6 +41,7 @@
 #define USBFRNUM	6
 #define USBFLBASEADD	8
 #define USBSOF		12
+#define   USBSOF_DEFAULT	64	/* Frame length is exactly 1 ms */
 
 /* USB port status and control registers */
 #define USBPORTSC1	16
@@ -66,6 +67,8 @@
 /* Legacy support register */
 #define USBLEGSUP		0xc0
 #define   USBLEGSUP_DEFAULT	0x2000	/* only PIRQ enable set */
+#define   USBLEGSUP_RWC		0x8f00	/* the R/WC bits */
+#define   USBLEGSUP_RO		0x5040	/* R/O and reserved bits */
 
 #define UHCI_NULL_DATA_SIZE	0x7FF	/* for UHCI controller TD */
 
@@ -325,8 +328,9 @@ static inline int __interval_to_skel(int interval)
  */
 enum uhci_rh_state {
 	/* In the next 4 states the HC must be halted */
-	UHCI_RH_RESET,
+	UHCI_RH_RESET,			/* These two must come first */
 	UHCI_RH_SUSPENDED,
+
 	UHCI_RH_AUTO_STOPPED,
 	UHCI_RH_RESUMING,
 
@@ -334,7 +338,8 @@ enum uhci_rh_state {
 	 * can legally appear either way */
 	UHCI_RH_SUSPENDING,
 
-	/* In the next two states it's an error if the HC is halted */
+	/* In the next two states it's an error if the HC is halted.
+	 * These two must come last */
 	UHCI_RH_RUNNING,		/* The normal state */
 	UHCI_RH_RUNNING_NODEVS,		/* Running with no devices attached */
 };
@@ -376,6 +381,7 @@ struct uhci_hcd {
 	unsigned int scan_in_progress:1;	/* Schedule scan is running */
 	unsigned int need_rescan:1;		/* Redo the schedule scan */
 	unsigned int resume_detect:1;		/* Need a Global Resume */
+	unsigned int hc_inaccessible:1;		/* HC is suspended or dead */
 
 	/* Support for port suspend/resume/reset */
 	unsigned long port_c_suspend;		/* Bit-arrays of ports */
