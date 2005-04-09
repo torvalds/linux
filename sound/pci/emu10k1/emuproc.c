@@ -30,6 +30,7 @@
 #include <linux/init.h>
 #include <sound/core.h>
 #include <sound/emu10k1.h>
+#include "p16v.h"
 
 static void snd_emu10k1_proc_spdif_status(emu10k1_t * emu,
 					  snd_info_buffer_t * buffer,
@@ -62,6 +63,7 @@ static void snd_emu10k1_proc_spdif_status(emu10k1_t * emu,
 
 		if (rate_reg > 0) {
 			rate = snd_emu10k1_ptr_read(emu, rate_reg, 0);
+			snd_iprintf(buffer, "S/PDIF Valid          : %s\n", rate & SRCS_SPDIFVALID ? "on" : "off");
 			snd_iprintf(buffer, "S/PDIF Locked         : %s\n", rate & SRCS_SPDIFLOCKED ? "on" : "off");
 			snd_iprintf(buffer, "Rate Locked           : %s\n", rate & SRCS_RATELOCKED ? "on" : "off");
 			/* From ((Rate * 48000 ) / 262144); */
@@ -242,6 +244,21 @@ static void snd_emu10k1_proc_spdif_read(snd_info_entry_t *entry,
 	snd_iprintf(buffer, "Rate Locked           : %s\n", val & SRCS_RATELOCKED ? "on" : "off");
 	snd_iprintf(buffer, "Estimated Sample Rate : 0x%x\n", val & SRCS_ESTSAMPLERATE);
 #endif
+}
+
+static void snd_emu10k1_proc_rates_read(snd_info_entry_t *entry, 
+				  snd_info_buffer_t * buffer)
+{
+	static int samplerate[8] = { 44100, 48000, 96000, 192000, 4, 5, 6, 7 };
+	emu10k1_t *emu = entry->private_data;
+	unsigned int val, tmp, n;
+	val = snd_emu10k1_ptr20_read(emu, CAPTURE_RATE_STATUS, 0);
+	tmp = (val >> 16) & 0x8;
+	for (n=0;n<4;n++) {
+		tmp = val >> (16 + (n*4));
+		if (tmp & 0x8) snd_iprintf(buffer, "Channel %d: Rate=%d\n", n, samplerate[tmp & 0x7]);
+		else snd_iprintf(buffer, "Channel %d: No input\n", n);
+	}
 }
 
 static void snd_emu10k1_proc_acode_read(snd_info_entry_t *entry, 
@@ -539,6 +556,10 @@ int __devinit snd_emu10k1_proc_init(emu10k1_t * emu)
 	if (emu->card_capabilities->emu10k2_chip) {
 		if (! snd_card_proc_new(emu->card, "spdif-in", &entry))
 			snd_info_set_text_ops(entry, emu, 2048, snd_emu10k1_proc_spdif_read);
+	}
+	if (emu->card_capabilities->ca0151_chip) {
+		if (! snd_card_proc_new(emu->card, "capture-rates", &entry))
+			snd_info_set_text_ops(entry, emu, 2048, snd_emu10k1_proc_rates_read);
 	}
 
 	if (! snd_card_proc_new(emu->card, "voices", &entry))
