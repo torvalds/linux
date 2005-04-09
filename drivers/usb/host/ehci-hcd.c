@@ -346,6 +346,22 @@ ehci_reboot (struct notifier_block *self, unsigned long code, void *null)
 	return 0;
 }
 
+static void ehci_port_power (struct ehci_hcd *ehci, int is_on)
+{
+	unsigned port;
+
+	if (!HCS_PPC (ehci->hcs_params))
+		return;
+
+	ehci_dbg (ehci, "...power%s ports...\n", is_on ? "up" : "down");
+	for (port = HCS_N_PORTS (ehci->hcs_params); port > 0; )
+		(void) ehci_hub_control(ehci_to_hcd(ehci),
+				is_on ? SetPortFeature : ClearPortFeature,
+				USB_PORT_FEAT_POWER,
+				port--, NULL, 0);
+	msleep(20);
+}
+
 
 /* called by khubd or root hub init threads */
 
@@ -362,8 +378,10 @@ static int ehci_hc_reset (struct usb_hcd *hcd)
 	dbg_hcs_params (ehci, "reset");
 	dbg_hcc_params (ehci, "reset");
 
+	/* cache this readonly data; minimize chip reads */
+	ehci->hcs_params = readl (&ehci->caps->hcs_params);
+
 #ifdef	CONFIG_PCI
-	/* EHCI 0.96 and later may have "extended capabilities" */
 	if (hcd->self.controller->bus == &pci_bus_type) {
 		struct pci_dev	*pdev = to_pci_dev(hcd->self.controller);
 
@@ -383,9 +401,30 @@ static int ehci_hc_reset (struct usb_hcd *hcd)
 			break;
 		}
 
+		/* optional debug port, normally in the first BAR */
+		temp = pci_find_capability (pdev, 0x0a);
+		if (temp) {
+			pci_read_config_dword(pdev, temp, &temp);
+			temp >>= 16;
+			if ((temp & (3 << 13)) == (1 << 13)) {
+				temp &= 0x1fff;
+				ehci->debug = hcd->regs + temp;
+				temp = readl (&ehci->debug->control);
+				ehci_info (ehci, "debug port %d%s\n",
+					HCS_DEBUG_PORT(ehci->hcs_params),
+					(temp & DBGP_ENABLED)
+						? " IN USE"
+						: "");
+				if (!(temp & DBGP_ENABLED))
+					ehci->debug = NULL;
+			}
+		}
+
 		temp = HCC_EXT_CAPS (readl (&ehci->caps->hcc_params));
 	} else
 		temp = 0;
+
+	/* EHCI 0.96 and later may have "extended capabilities" */
 	while (temp && count--) {
 		u32		cap;
 
@@ -414,8 +453,7 @@ static int ehci_hc_reset (struct usb_hcd *hcd)
 		ehci_reset (ehci);
 #endif
 
-	/* cache this readonly data; minimize PCI reads */
-	ehci->hcs_params = readl (&ehci->caps->hcs_params);
+	ehci_port_power (ehci, 0);
 
 	/* at least the Genesys GL880S needs fixup here */
 	temp = HCS_N_CC(ehci->hcs_params) * HCS_N_PCC(ehci->hcs_params);
@@ -657,16 +695,11 @@ done2:
 static void ehci_stop (struct usb_hcd *hcd)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci (hcd);
-	u8			rh_ports, port;
 
 	ehci_dbg (ehci, "stop\n");
 
 	/* Turn off port power on all root hub ports. */
-	rh_ports = HCS_N_PORTS (ehci->hcs_params);
-	for (port = 1; port <= rh_ports; port++)
-		(void) ehci_hub_control(hcd,
-			ClearPortFeature, USB_PORT_FEAT_POWER,
-			port, NULL, 0);
+	ehci_port_power (ehci, 0);
 
 	/* no more interrupts ... */
 	del_timer_sync (&ehci->watchdog);
@@ -748,7 +781,6 @@ static int ehci_resume (struct usb_hcd *hcd)
 	unsigned		port;
 	struct usb_device	*root = hcd->self.root_hub;
 	int			retval = -EINVAL;
-	int			powerup = 0;
 
 	// maybe restore (PCI) FLADJ
 
@@ -766,8 +798,6 @@ static int ehci_resume (struct usb_hcd *hcd)
 			up (&hcd->self.root_hub->serialize);
 			break;
 		}
-		if ((status & PORT_POWER) == 0)
-			powerup = 1;
 		if (!root->children [port])
 			continue;
 		dbg_port (ehci, __FUNCTION__, port + 1, status);
@@ -794,16 +824,9 @@ static int ehci_resume (struct usb_hcd *hcd)
 		retval = ehci_start (hcd);
 
 		/* here we "know" root ports should always stay powered;
-		 * but some controllers may lost all power.
+		 * but some controllers may lose all power.
 		 */
-		if (powerup) {
-			ehci_dbg (ehci, "...powerup ports...\n");
-			for (port = HCS_N_PORTS (ehci->hcs_params); port > 0; )
-				(void) ehci_hub_control(hcd,
-					SetPortFeature, USB_PORT_FEAT_POWER,
-						port--, NULL, 0);
-			msleep(20);
-		}
+		ehci_port_power (ehci, 1);
 	}
 
 	return retval;
