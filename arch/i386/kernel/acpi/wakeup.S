@@ -74,8 +74,9 @@ wakeup_code:
 	movw	%ax,%fs
 	movw	$0x0e00 + 'i', %fs:(0x12)
 	
-	# need a gdt
-	lgdt	real_save_gdt - wakeup_code
+	# need a gdt -- use lgdtl to force 32-bit operands, in case
+	# the GDT is located past 16 megabytes.
+	lgdtl	real_save_gdt - wakeup_code
 
 	movl	real_save_cr0 - wakeup_code, %eax
 	movl	%eax, %cr0
