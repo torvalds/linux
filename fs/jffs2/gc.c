@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: gc.c,v 1.147 2005/03/20 21:43:22 dedekind Exp $
+ * $Id: gc.c,v 1.148 2005/04/09 10:47:00 dedekind Exp $
  *
  */
 
@@ -669,9 +669,10 @@ static int jffs2_garbage_collect_metadata(struct jffs2_sb_info *c, struct jffs2_
 {
 	struct jffs2_full_dnode *new_fn;
 	struct jffs2_raw_inode ri;
+	struct jffs2_node_frag *last_frag;
 	jint16_t dev;
 	char *mdata = NULL, mdatalen = 0;
-	uint32_t alloclen, phys_ofs;
+	uint32_t alloclen, phys_ofs, ilen;
 	int ret;
 
 	if (S_ISBLK(JFFS2_F_I_MODE(f)) ||
@@ -707,6 +708,14 @@ static int jffs2_garbage_collect_metadata(struct jffs2_sb_info *c, struct jffs2_
 		goto out;
 	}
 	
+	last_frag = frag_last(&f->fragtree);
+	if (last_frag)
+		/* Fetch the inode length from the fragtree rather then
+		 * from i_size since i_size may have not been updated yet */
+		ilen = last_frag->ofs + last_frag->size;
+	else
+		ilen = JFFS2_F_I_SIZE(f);
+	
 	memset(&ri, 0, sizeof(ri));
 	ri.magic = cpu_to_je16(JFFS2_MAGIC_BITMASK);
 	ri.nodetype = cpu_to_je16(JFFS2_NODETYPE_INODE);
@@ -718,7 +727,7 @@ static int jffs2_garbage_collect_metadata(struct jffs2_sb_info *c, struct jffs2_
 	ri.mode = cpu_to_jemode(JFFS2_F_I_MODE(f));
 	ri.uid = cpu_to_je16(JFFS2_F_I_UID(f));
 	ri.gid = cpu_to_je16(JFFS2_F_I_GID(f));
-	ri.isize = cpu_to_je32(JFFS2_F_I_SIZE(f));
+	ri.isize = cpu_to_je32(ilen);
 	ri.atime = cpu_to_je32(JFFS2_F_I_ATIME(f));
 	ri.ctime = cpu_to_je32(JFFS2_F_I_CTIME(f));
 	ri.mtime = cpu_to_je32(JFFS2_F_I_MTIME(f));
@@ -898,7 +907,7 @@ static int jffs2_garbage_collect_hole(struct jffs2_sb_info *c, struct jffs2_eras
 	struct jffs2_raw_inode ri;
 	struct jffs2_node_frag *frag;
 	struct jffs2_full_dnode *new_fn;
-	uint32_t alloclen, phys_ofs;
+	uint32_t alloclen, phys_ofs, ilen;
 	int ret;
 
 	D1(printk(KERN_DEBUG "Writing replacement hole node for ino #%u from offset 0x%x to 0x%x\n",
@@ -958,10 +967,19 @@ static int jffs2_garbage_collect_hole(struct jffs2_sb_info *c, struct jffs2_eras
 		ri.csize = cpu_to_je32(0);
 		ri.compr = JFFS2_COMPR_ZERO;
 	}
+	
+	frag = frag_last(&f->fragtree);
+	if (frag)
+		/* Fetch the inode length from the fragtree rather then
+		 * from i_size since i_size may have not been updated yet */
+		ilen = frag->ofs + frag->size;
+	else
+		ilen = JFFS2_F_I_SIZE(f);
+
 	ri.mode = cpu_to_jemode(JFFS2_F_I_MODE(f));
 	ri.uid = cpu_to_je16(JFFS2_F_I_UID(f));
 	ri.gid = cpu_to_je16(JFFS2_F_I_GID(f));
-	ri.isize = cpu_to_je32(JFFS2_F_I_SIZE(f));
+	ri.isize = cpu_to_je32(ilen);
 	ri.atime = cpu_to_je32(JFFS2_F_I_ATIME(f));
 	ri.ctime = cpu_to_je32(JFFS2_F_I_CTIME(f));
 	ri.mtime = cpu_to_je32(JFFS2_F_I_MTIME(f));
@@ -1168,7 +1186,7 @@ static int jffs2_garbage_collect_dnode(struct jffs2_sb_info *c, struct jffs2_era
 		D1(printk(KERN_DEBUG "Expanded dnode to write from (0x%x-0x%x) to (0x%x-0x%x)\n", 
 			  orig_start, orig_end, start, end));
 
-		BUG_ON(end > JFFS2_F_I_SIZE(f));
+		D1(BUG_ON(end > frag_last(&f->fragtree)->ofs + frag_last(&f->fragtree)->size));
 		BUG_ON(end < orig_end);
 		BUG_ON(start > orig_start);
 	}

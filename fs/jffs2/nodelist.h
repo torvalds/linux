@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: nodelist.h,v 1.128 2005/02/27 23:01:32 dwmw2 Exp $
+ * $Id: nodelist.h,v 1.130 2005/04/09 10:46:59 dedekind Exp $
  *
  */
 
@@ -363,6 +363,18 @@ static inline struct jffs2_node_frag *frag_first(struct rb_root *root)
 		node = node->rb_left;
 	return rb_entry(node, struct jffs2_node_frag, rb);
 }
+
+static inline struct jffs2_node_frag *frag_last(struct rb_root *root)
+{
+	struct rb_node *node = root->rb_node;
+
+	if (!node)
+		return NULL;
+	while(node->rb_right)
+		node = node->rb_right;
+	return rb_entry(node, struct jffs2_node_frag, rb);
+}
+
 #define rb_parent(rb) ((rb)->rb_parent)
 #define frag_next(frag) rb_entry(rb_next(&(frag)->rb), struct jffs2_node_frag, rb)
 #define frag_prev(frag) rb_entry(rb_prev(&(frag)->rb), struct jffs2_node_frag, rb)
