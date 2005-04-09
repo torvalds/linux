@@ -13,18 +13,13 @@
  * (C) Copyright 2000 Yggdrasil Computing, Inc. (port of new PCI interface
  *               support from usb-ohci.c by Adam Richter, adam@yggdrasil.com).
  * (C) Copyright 1999 Gregory P. Smith (from usb-ohci.c)
- * (C) Copyright 2004 Alan Stern, stern@rowland.harvard.edu
+ * (C) Copyright 2004-2005 Alan Stern, stern@rowland.harvard.edu
  *
  * Intel documents this fairly well, and as far as I know there
  * are no royalties or anything like that, but even so there are
  * people who decided that they want to do the same thing in a
  * completely different way.
  *
- * WARNING! The USB documentation is downright evil. Most of it
- * is just crap, written by a committee. You're better off ignoring
- * most of it, the important stuff is:
- *  - the low-level protocol (fairly simple but lots of small details)
- *  - working around the horridness of the rest
  */
 
 #include <linux/config.h>
@@ -144,6 +139,15 @@ static void reset_hc(struct uhci_hcd *uhci)
 	uhci->rh_state = UHCI_RH_RESET;
 	uhci->is_stopped = UHCI_IS_STOPPED;
 	uhci_to_hcd(uhci)->state = HC_STATE_HALT;
+}
+
+/*
+ * Last rites for a defunct/nonfunctional controller
+ */
+static void hc_died(struct uhci_hcd *uhci)
+{
+	reset_hc(uhci);
+	uhci->hc_inaccessible = 1;
 }
 
 /*
@@ -287,6 +291,8 @@ __acquires(uhci->lock)
 		spin_unlock_irq(&uhci->lock);
 		msleep(1);
 		spin_lock_irq(&uhci->lock);
+		if (uhci->hc_inaccessible)	/* Died */
+			return;
 	}
 	if (!(inw(uhci->io_addr + USBSTS) & USBSTS_HCH))
 		dev_warn(uhci_dev(uhci), "Controller not stopped yet!\n");
@@ -335,6 +341,8 @@ __acquires(uhci->lock)
 		spin_unlock_irq(&uhci->lock);
 		msleep(20);
 		spin_lock_irq(&uhci->lock);
+		if (uhci->hc_inaccessible)	/* Died */
+			return;
 
 		/* End Global Resume and wait for EOP to be sent */
 		outw(USBCMD_CF, uhci->io_addr + USBCMD);
@@ -387,9 +395,11 @@ static void stall_callback(unsigned long _uhci)
 	check_fsbr(uhci);
 
 	/* Poll for and perform state transitions */
-	rh_state_transitions(uhci);
-	if (uhci->suspended_ports && !uhci->hc_inaccessible)
-		uhci_check_ports(uhci);
+	if (!uhci->hc_inaccessible) {
+		rh_state_transitions(uhci);
+		if (uhci->suspended_ports)
+			uhci_check_ports(uhci);
+	}
 
 	restart_timer(uhci);
 	spin_unlock_irqrestore(&uhci->lock, flags);
@@ -399,6 +409,7 @@ static irqreturn_t uhci_irq(struct usb_hcd *hcd, struct pt_regs *regs)
 {
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
 	unsigned short status;
+	unsigned long flags;
 
 	/*
 	 * Read the interrupt status, and write it back to clear the
@@ -417,20 +428,26 @@ static irqreturn_t uhci_irq(struct usb_hcd *hcd, struct pt_regs *regs)
 		if (status & USBSTS_HCPE)
 			dev_err(uhci_dev(uhci), "host controller process "
 					"error, something bad happened!\n");
-		if ((status & USBSTS_HCH) &&
-				uhci->rh_state >= UHCI_RH_RUNNING) {
-			dev_err(uhci_dev(uhci), "host controller halted, "
+		if (status & USBSTS_HCH) {
+			spin_lock_irqsave(&uhci->lock, flags);
+			if (uhci->rh_state >= UHCI_RH_RUNNING) {
+				dev_err(uhci_dev(uhci),
+					"host controller halted, "
 					"very bad!\n");
-			/* FIXME: Reset the controller, fix the offending TD */
+				hc_died(uhci);
+				spin_unlock_irqrestore(&uhci->lock, flags);
+				return IRQ_HANDLED;
+			}
+			spin_unlock_irqrestore(&uhci->lock, flags);
 		}
 	}
 
 	if (status & USBSTS_RD)
 		uhci->resume_detect = 1;
 
-	spin_lock(&uhci->lock);
+	spin_lock_irqsave(&uhci->lock, flags);
 	uhci_scan_schedule(uhci, regs);
-	spin_unlock(&uhci->lock);
+	spin_unlock_irqrestore(&uhci->lock, flags);
 
 	return IRQ_HANDLED;
 }
@@ -525,10 +542,15 @@ static int uhci_start(struct usb_hcd *hcd)
 	struct dentry *dentry;
 
 	io_size = (unsigned) hcd->rsrc_len;
+	if (pci_find_capability(to_pci_dev(uhci_dev(uhci)), PCI_CAP_ID_PM))
+		hcd->can_wakeup = 1;		/* Assume it supports PME# */
 
-	dentry = debugfs_create_file(hcd->self.bus_name, S_IFREG|S_IRUGO|S_IWUSR, uhci_debugfs_root, uhci, &uhci_debug_operations);
+	dentry = debugfs_create_file(hcd->self.bus_name,
+			S_IFREG|S_IRUGO|S_IWUSR, uhci_debugfs_root, uhci,
+			&uhci_debug_operations);
 	if (!dentry) {
-		dev_err(uhci_dev(uhci), "couldn't create uhci debugfs entry\n");
+		dev_err(uhci_dev(uhci),
+				"couldn't create uhci debugfs entry\n");
 		retval = -ENOMEM;
 		goto err_create_debug_entry;
 	}
@@ -765,7 +787,8 @@ static int uhci_rh_suspend(struct usb_hcd *hcd)
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
 
 	spin_lock_irq(&uhci->lock);
-	suspend_rh(uhci, UHCI_RH_SUSPENDED);
+	if (!uhci->hc_inaccessible)		/* Not dead */
+		suspend_rh(uhci, UHCI_RH_SUSPENDED);
 	spin_unlock_irq(&uhci->lock);
 	return 0;
 }
@@ -773,25 +796,43 @@ static int uhci_rh_suspend(struct usb_hcd *hcd)
 static int uhci_rh_resume(struct usb_hcd *hcd)
 {
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
+	int rc = 0;
 
 	spin_lock_irq(&uhci->lock);
-	wakeup_rh(uhci);
+	if (uhci->hc_inaccessible) {
+		if (uhci->rh_state == UHCI_RH_SUSPENDED) {
+			dev_warn(uhci_dev(uhci), "HC isn't running!\n");
+			rc = -ENODEV;
+		}
+		/* Otherwise the HC is dead */
+	} else
+		wakeup_rh(uhci);
 	spin_unlock_irq(&uhci->lock);
-	return 0;
+	return rc;
 }
 
 static int uhci_suspend(struct usb_hcd *hcd, pm_message_t message)
 {
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
+	int rc = 0;
 
 	dev_dbg(uhci_dev(uhci), "%s\n", __FUNCTION__);
 
 	spin_lock_irq(&uhci->lock);
+	if (uhci->hc_inaccessible)	/* Dead or already suspended */
+		goto done;
 
 #ifndef CONFIG_USB_SUSPEND
 	/* Otherwise this would never happen */
 	suspend_rh(uhci, UHCI_RH_SUSPENDED);
 #endif
+
+	if (uhci->rh_state > UHCI_RH_SUSPENDED) {
+		dev_warn(uhci_dev(uhci), "Root hub isn't suspended!\n");
+		hcd->state = HC_STATE_RUNNING;
+		rc = -EBUSY;
+		goto done;
+	};
 
 	/* All PCI host controllers are required to disable IRQ generation
 	 * at the source, so we must turn off PIRQ.
@@ -801,8 +842,9 @@ static int uhci_suspend(struct usb_hcd *hcd, pm_message_t message)
 
 	/* FIXME: Enable non-PME# remote wakeup? */
 
+done:
 	spin_unlock_irq(&uhci->lock);
-	return 0;
+	return rc;
 }
 
 static int uhci_resume(struct usb_hcd *hcd)
@@ -811,6 +853,8 @@ static int uhci_resume(struct usb_hcd *hcd)
 
 	dev_dbg(uhci_dev(uhci), "%s\n", __FUNCTION__);
 
+	if (uhci->rh_state == UHCI_RH_RESET)	/* Dead */
+		return 0;
 	spin_lock_irq(&uhci->lock);
 
 	/* FIXME: Disable non-PME# remote wakeup? */
