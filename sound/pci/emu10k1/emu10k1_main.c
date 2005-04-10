@@ -189,7 +189,7 @@ static int __devinit snd_emu10k1_init(emu10k1_t * emu, int enable_ir)
 		/* Enabled Phased (8-channel) P16V playback */
 		outl(0x0201, emu->port + HCFG2);
 		/* Set playback routing. */
-		snd_emu10k1_ptr_write(emu, CAPTURE_P16V_SOURCE, 0, 78e4);
+		snd_emu10k1_ptr20_write(emu, CAPTURE_P16V_SOURCE, 0, 0x78e4);
 	}
 	if (emu->audigy && (emu->serial == 0x10011102) ) { /* audigy2 Value */
 		/* Hacks for Alice3 to work independent of haP16V driver */
