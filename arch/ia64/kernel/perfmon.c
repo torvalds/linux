@@ -1265,6 +1265,8 @@ out:
 }
 EXPORT_SYMBOL(pfm_unregister_buffer_fmt);
 
+extern void update_pal_halt_status(int);
+
 static int
 pfm_reserve_session(struct task_struct *task, int is_syswide, unsigned int cpu)
 {
@@ -1310,6 +1312,11 @@ pfm_reserve_session(struct task_struct *task, int is_syswide, unsigned int cpu)
 		pfm_sessions.pfs_sys_use_dbregs,
 		is_syswide,
 		cpu));
+
+	/*
+	 * disable default_idle() to go to PAL_HALT
+	 */
+	update_pal_halt_status(0);
 
 	UNLOCK_PFS(flags);
 
@@ -1365,6 +1372,12 @@ pfm_unreserve_session(pfm_context_t *ctx, int is_syswide, unsigned int cpu)
 		pfm_sessions.pfs_sys_use_dbregs,
 		is_syswide,
 		cpu));
+
+	/*
+	 * if possible, enable default_idle() to go into PAL_HALT
+	 */
+	if (pfm_sessions.pfs_task_sessions == 0 && pfm_sessions.pfs_sys_sessions == 0)
+		update_pal_halt_status(1);
 
 	UNLOCK_PFS(flags);
 

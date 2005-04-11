@@ -173,7 +173,9 @@ do_notify_resume_user (sigset_t *oldset, struct sigscratch *scr, long in_syscall
 		ia64_do_signal(oldset, scr, in_syscall);
 }
 
-static int pal_halt = 1;
+static int pal_halt        = 1;
+static int can_do_pal_halt = 1;
+
 static int __init nohalt_setup(char * str)
 {
 	pal_halt = 0;
@@ -181,16 +183,22 @@ static int __init nohalt_setup(char * str)
 }
 __setup("nohalt", nohalt_setup);
 
+int
+update_pal_halt_status(int status)
+{
+	can_do_pal_halt = pal_halt && status;
+}
+
 /*
  * We use this if we don't have any better idle routine..
  */
 void
 default_idle (void)
 {
-	unsigned long pmu_active = ia64_getreg(_IA64_REG_PSR) & (IA64_PSR_PP | IA64_PSR_UP);
+	int can_do_pal;
 
 	while (!need_resched())
-		if (pal_halt && !pmu_active)
+		if (can_do_pal_halt)
 			safe_halt();
 		else
 			cpu_relax();
