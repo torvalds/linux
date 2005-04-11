@@ -68,6 +68,7 @@ static int snd_emu10k1_spdif_get_mask(snd_kcontrol_t * kcontrol,
 	return 0;
 }
 
+#if 0
 static int snd_audigy_spdif_output_rate_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
 {
 	static char *texts[] = {"44100", "48000", "96000"};
@@ -152,6 +153,7 @@ static snd_kcontrol_new_t snd_audigy_spdif_output_rate =
 	.get =          snd_audigy_spdif_output_rate_get,
 	.put =          snd_audigy_spdif_output_rate_put
 };
+#endif
 
 static int snd_emu10k1_spdif_put(snd_kcontrol_t * kcontrol,
                                  snd_ctl_elem_value_t * ucontrol)
