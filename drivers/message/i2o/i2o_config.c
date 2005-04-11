@@ -54,6 +54,9 @@
 
 extern int i2o_parm_issue(struct i2o_device *, int, void *, int, void *, int);
 
+static int i2o_cfg_ioctl(struct inode *inode, struct file *fp, unsigned int cmd,
+			 unsigned long arg);
+
 static spinlock_t i2o_config_lock;
 
 #define MODINC(x,y) ((x) = ((x) + 1) % (y))
@@ -538,8 +541,7 @@ static int i2o_cfg_evt_get(unsigned long arg, struct file *fp)
 }
 
 #ifdef CONFIG_COMPAT
-static int i2o_cfg_passthru32(unsigned fd, unsigned cmnd, unsigned long arg,
-			      struct file *file)
+static int i2o_cfg_passthru32(struct file *file, unsigned cmnd, unsigned long arg)
 {
 	struct i2o_cmd_passthru32 __user *cmd;
 	struct i2o_controller *c;
@@ -752,7 +754,26 @@ static int i2o_cfg_passthru32(unsigned fd, unsigned cmnd, unsigned long arg,
 	return rcode;
 }
 
-#else
+static long i2o_cfg_compat_ioctl(struct file *file, unsigned cmd, unsigned long arg)
+{
+	int ret;
+	lock_kernel();		
+	switch (cmd) { 
+	case I2OGETIOPS:
+		ret = i2o_cfg_ioctl(NULL, file, cmd, arg);
+		break;
+	case I2OPASSTHRU32:
+		ret = i2o_cfg_passthru32(file, cmd, arg);
+		break;
+	default:
+		ret = -ENOIOCTLCMD;
+		break;
+	}
+	unlock_kernel();
+	return ret;
+}
+
+#endif
 
 static int i2o_cfg_passthru(unsigned long arg)
 {
@@ -958,7 +979,6 @@ static int i2o_cfg_passthru(unsigned long arg)
 	kfree(reply);
 	return rcode;
 }
-#endif
 
 /*
  * IOCTL Handler
@@ -1013,11 +1033,9 @@ static int i2o_cfg_ioctl(struct inode *inode, struct file *fp, unsigned int cmd,
 		ret = i2o_cfg_evt_get(arg, fp);
 		break;
 
-#ifndef CONFIG_COMPAT
 	case I2OPASSTHRU:
 		ret = i2o_cfg_passthru(arg);
 		break;
-#endif
 
 	default:
 		osm_debug("unknown ioctl called!\n");
@@ -1105,6 +1123,9 @@ static struct file_operations config_fops = {
 	.owner = THIS_MODULE,
 	.llseek = no_llseek,
 	.ioctl = i2o_cfg_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = i2o_cfg_compat_ioctl,
+#endif
 	.open = cfg_open,
 	.release = cfg_release,
 	.fasync = cfg_fasync,
@@ -1134,19 +1155,11 @@ static int __init i2o_config_init(void)
 		misc_deregister(&i2o_miscdev);
 		return -EBUSY;
 	}
-#ifdef CONFIG_COMPAT
-	register_ioctl32_conversion(I2OPASSTHRU32, i2o_cfg_passthru32);
-	register_ioctl32_conversion(I2OGETIOPS, (void *)sys_ioctl);
-#endif
 	return 0;
 }
 
 static void i2o_config_exit(void)
 {
-#ifdef CONFIG_COMPAT
-	unregister_ioctl32_conversion(I2OPASSTHRU32);
-	unregister_ioctl32_conversion(I2OGETIOPS);
-#endif
 	misc_deregister(&i2o_miscdev);
 	i2o_driver_unregister(&i2o_config_driver);
 }
