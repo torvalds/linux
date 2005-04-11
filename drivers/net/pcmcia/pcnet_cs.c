@@ -1155,11 +1155,13 @@ static int set_config(struct net_device *dev, struct ifmap *map)
 static irqreturn_t ei_irq_wrapper(int irq, void *dev_id, struct pt_regs *regs)
 {
     struct net_device *dev = dev_id;
-    pcnet_dev_t *info = PRIV(dev);
+    pcnet_dev_t *info;
     irqreturn_t ret = ei_interrupt(irq, dev_id, regs);
 
-    if (ret == IRQ_HANDLED)
+    if (ret == IRQ_HANDLED) {
+	    info = PRIV(dev);
 	    info->stale = 0;
+    }
     return ret;
 }
 
@@ -1350,7 +1352,7 @@ static void dma_block_input(struct net_device *dev, int count,
     if (count & 0x01)
 	buf[count-1] = inb(nic_base + PCNET_DATAPORT), xfer_count++;
 
-    /* This was for the ALPHA version only, but enough people have
+    /* This was for the ALPHA version only, but enough people have been
        encountering problems that it is still here. */
 #ifdef PCMCIA_DEBUG
     if (ei_debug > 4) {		/* DMA termination address check... */
@@ -1424,7 +1426,7 @@ static void dma_block_output(struct net_device *dev, int count,
     dma_start = jiffies;
 
 #ifdef PCMCIA_DEBUG
-    /* This was for the ALPHA version only, but enough people have
+    /* This was for the ALPHA version only, but enough people have been
        encountering problems that it is still here. */
     if (ei_debug > 4) {	/* DMA termination address check... */
 	int addr, tries = 20;
