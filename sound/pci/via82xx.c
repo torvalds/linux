@@ -935,7 +935,8 @@ static int snd_via8233_playback_prepare(snd_pcm_substream_t *substream)
 	if (rate_changed) {
 		snd_ac97_set_rate(chip->ac97, AC97_PCM_FRONT_DAC_RATE,
 				  chip->no_vra ? 48000 : runtime->rate);
-		snd_ac97_set_rate(chip->ac97, AC97_SPDIF, ac97_rate);
+		snd_ac97_set_rate(chip->ac97, AC97_SPDIF,
+				  chip->no_vra ? 48000 : runtime->rate);
 	}
 	if (runtime->rate == 48000)
 		rbits = 0xfffff;
