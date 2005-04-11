@@ -60,12 +60,6 @@ struct scatterlist;
 #define scsi_to_pci_dma_dir(scsi_dir)	((int)(scsi_dir))
 #define scsi_to_sbus_dma_dir(scsi_dir)	((int)(scsi_dir))
 
-/*
- * This is the crap from the old error handling code.  We have it in a special
- * place so that we can more easily delete it later on.
- */
-#include "scsi_obsolete.h"
-
 /* obsolete typedef junk. */
 #include "scsi_typedefs.h"
 
