@@ -89,10 +89,10 @@ MODULE_DESCRIPTION
     ("FCP (SCSI over Fibre Channel) HBA driver for IBM eServer zSeries");
 MODULE_LICENSE("GPL");
 
-module_param(device, charp, 0);
+module_param(device, charp, 0400);
 MODULE_PARM_DESC(device, "specify initial device");
 
-module_param(loglevel, uint, 0);
+module_param(loglevel, uint, 0400);
 MODULE_PARM_DESC(loglevel,
 		 "log levels, 8 nibbles: "
 		 "FC ERP QDIO CIO Config FSF SCSI Other, "
