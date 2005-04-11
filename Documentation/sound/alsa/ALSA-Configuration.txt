@@ -1211,16 +1211,18 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
   ------------------
 
     Module for AC'97 motherboards based on VIA 82C686A/686B, 8233,
-    8233A, 8233C, 8235 (south) bridge.
+    8233A, 8233C, 8235, 8237 (south) bridge.
 
     mpu_port	- 0x300,0x310,0x320,0x330, otherwise obtain BIOS setup
 		  [VIA686A/686B only]
     joystick	- Enable joystick (default off) [VIA686A/686B only]
     ac97_clock	- AC'97 codec clock base (default 48000Hz)
     dxs_support	- support DXS channels,
-		  0 = auto (defalut), 1 = enable, 2 = disable,
-		  3 = 48k only, 4 = no VRA
-		  [VIA8233/C,8235 only]
+		  0 = auto (default), 1 = enable, 2 = disable,
+		  3 = 48k only, 4 = no VRA, 5 = enable any sample
+		  rate and different sample rates on different
+		  channels
+		  [VIA8233/C, 8235, 8237 only]
     ac97_quirk  - AC'97 workaround for strange hardware
                   See the description of intel8x0 module for details.
 
@@ -1232,18 +1234,21 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
           default value 1.4.  Then the interrupt number will be
           assigned under 15. You might also upgrade your BIOS.
     
-    Note: VIA8233/5 (not VIA8233A) can support DXS (direct sound)
+    Note: VIA8233/5/7 (not VIA8233A) can support DXS (direct sound)
 	  channels as the first PCM.  On these channels, up to 4
-	  streams can be played at the same time.
+	  streams can be played at the same time, and the controller
+	  can perform sample rate conversion with separate rates for
+	  each channel.
 	  As default (dxs_support = 0), 48k fixed rate is chosen
 	  except for the known devices since the output is often
 	  noisy except for 48k on some mother boards due to the
 	  bug of BIOS.
-	  Please try once dxs_support=1 and if it works on other
+	  Please try once dxs_support=5 and if it works on other
 	  sample rates (e.g. 44.1kHz of mp3 playback), please let us
 	  know the PCI subsystem vendor/device id's (output of
 	  "lspci -nv").
-	  If it doesn't work, try dxs_support=4.  If it still doesn't
+	  If dxs_support=5 does not work, try dxs_support=1; if it
+	  doesn't work too, try dxs_support=4.  If it still doesn't
 	  work and the default setting is ok, dxs_support=3 is the
 	  right choice.  If the default setting doesn't work at all,
 	  try dxs_support=2 to disable the DXS channels.
