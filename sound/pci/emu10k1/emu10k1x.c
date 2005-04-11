@@ -1627,7 +1627,7 @@ static int __init alsa_card_emu10k1x_init(void)
 {
 	int err;
 
-	if ((err = pci_module_init(&driver)) > 0)
+	if ((err = pci_register_driver(&driver)) > 0)
 		return err;
 
 	return 0;
