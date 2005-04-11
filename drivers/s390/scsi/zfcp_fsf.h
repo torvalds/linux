@@ -129,6 +129,7 @@
 #define FSF_SQ_NO_RETRY_POSSIBLE		0x07
 
 /* FSF status qualifier for CFDC commands */
+#define FSF_SQ_CFDC_HARDENED_ON_SE		0x00000000
 #define FSF_SQ_CFDC_COULD_NOT_HARDEN_ON_SE	0x00000001
 #define FSF_SQ_CFDC_COULD_NOT_HARDEN_ON_SE2	0x00000002
 /* CFDC subtable codes */
@@ -357,7 +358,6 @@ struct fsf_nport_serv_param {
 	u8  class3_serv_param[16];
 	u8  class4_serv_param[16];
 	u8  vendor_version_level[16];
-	u8  res1[16];
 } __attribute__ ((packed));
 
 struct fsf_plogi {
@@ -415,11 +415,13 @@ struct fsf_qtcb_bottom_config {
 	u8 res2[12];
 	u32 s_id;
 	struct fsf_nport_serv_param nport_serv_param;
+	u8 reserved_nport_serv_param[16];
 	u8 res3[8];
 	u32 adapter_ports;
 	u32 hardware_version;
 	u8 serial_number[32];
-	u8 res4[272];
+	struct fsf_nport_serv_param plogi_payload;
+	u8 res4[160];
 } __attribute__ ((packed));
 
 struct fsf_qtcb_bottom_port {
