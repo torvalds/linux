@@ -295,6 +295,8 @@ struct scsi_lun {
 #define DID_PASSTHROUGH 0x0a	/* Force command past mid-layer            */
 #define DID_SOFT_ERROR  0x0b	/* The low level driver just wish a retry  */
 #define DID_IMM_RETRY   0x0c	/* Retry without decrementing retry count  */
+#define DID_REQUEUE	0x0d	/* Requeue command (no immediate retry) also
+				 * without decrementing the retry count	   */
 #define DRIVER_OK       0x00	/* Driver status                           */
 
 /*
