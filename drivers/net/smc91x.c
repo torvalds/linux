@@ -792,17 +792,20 @@ static void smc_tx(struct net_device *dev)
 	DBG(2, "%s: TX STATUS 0x%04x PNR 0x%02x\n",
 		dev->name, tx_status, packet_no);
 
-	if (!(tx_status & TS_SUCCESS))
+	if (!(tx_status & ES_TX_SUC))
 		lp->stats.tx_errors++;
-	if (tx_status & TS_LOSTCAR)
+
+	if (tx_status & ES_LOSTCARR)
 		lp->stats.tx_carrier_errors++;
 
-	if (tx_status & TS_LATCOL) {
-		PRINTK("%s: late collision occurred on last xmit\n", dev->name);
+	if (tx_status & (ES_LATCOL | ES_16COL)) {
+		PRINTK("%s: %s occurred on last xmit\n", dev->name,
+		       (tx_status & ES_LATCOL) ?
+			"late collision" : "too many collisions");
 		lp->stats.tx_window_errors++;
 		if (!(lp->stats.tx_window_errors & 63) && net_ratelimit()) {
-			printk(KERN_INFO "%s: unexpectedly large numbers of "
-			       "late collisions. Please check duplex "
+			printk(KERN_INFO "%s: unexpectedly large number of "
+			       "bad collisions. Please check duplex "
 			       "setting.\n", dev->name);
 		}
 	}
@@ -1236,7 +1239,7 @@ static void smc_10bt_check_media(struct net_device *dev, int init)
 	old_carrier = netif_carrier_ok(dev) ? 1 : 0;
 
 	SMC_SELECT_BANK(0);
-	new_carrier = SMC_inw(ioaddr, EPH_STATUS_REG) & ES_LINK_OK ? 1 : 0;
+	new_carrier = (SMC_GET_EPH_STATUS() & ES_LINK_OK) ? 1 : 0;
 	SMC_SELECT_BANK(2);
 
 	if (init || (old_carrier != new_carrier)) {
@@ -1337,7 +1340,10 @@ static irqreturn_t smc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 			/* multiple collisions */
 			lp->stats.collisions += card_stats & 0xF;
 		} else if (status & IM_RX_OVRN_INT) {
-			DBG(1, "%s: RX overrun\n", dev->name);
+			DBG(1, "%s: RX overrun (EPH_ST 0x%04x)\n", dev->name,
+			       ({ int eph_st; SMC_SELECT_BANK(0);
+				  eph_st = SMC_GET_EPH_STATUS();
+				  SMC_SELECT_BANK(2); eph_st; }) );
 			SMC_ACK_INT(IM_RX_OVRN_INT);
 			lp->stats.rx_errors++;
 			lp->stats.rx_fifo_errors++;
@@ -1389,7 +1395,7 @@ static void smc_timeout(struct net_device *dev)
 {
 	struct smc_local *lp = netdev_priv(dev);
 	void __iomem *ioaddr = lp->base;
-	int status, mask, meminfo, fifo;
+	int status, mask, eph_st, meminfo, fifo;
 
 	DBG(2, "%s: %s\n", dev->name, __FUNCTION__);
 
@@ -1398,11 +1404,13 @@ static void smc_timeout(struct net_device *dev)
 	mask = SMC_GET_INT_MASK();
 	fifo = SMC_GET_FIFO();
 	SMC_SELECT_BANK(0);
+	eph_st = SMC_GET_EPH_STATUS();
 	meminfo = SMC_GET_MIR();
 	SMC_SELECT_BANK(2);
 	spin_unlock_irq(&lp->lock);
-	PRINTK( "%s: INT 0x%02x MASK 0x%02x MEM 0x%04x FIFO 0x%04x\n",
-		dev->name, status, mask, meminfo, fifo );
+	PRINTK( "%s: TX timeout (INT 0x%02x INTMASK 0x%02x "
+		"MEM 0x%04x FIFO 0x%04x EPH_ST 0x%04x)\n",
+		dev->name, status, mask, meminfo, fifo, eph_st );
 
 	smc_reset(dev);
 	smc_enable(dev);

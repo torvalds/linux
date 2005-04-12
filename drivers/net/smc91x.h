@@ -681,14 +681,6 @@ static const char * chip_ids[ 16 ] =  {
 
 
 /*
- . Transmit status bits
-*/
-#define TS_SUCCESS 0x0001
-#define TS_LOSTCAR 0x0400
-#define TS_LATCOL  0x0200
-#define TS_16COL   0x0010
-
-/*
  . Receive status bits
 */
 #define RS_ALGNERR	0x8000
@@ -845,6 +837,7 @@ static const char * chip_ids[ 16 ] =  {
 #define SMC_GET_FIFO()		SMC_inw( ioaddr, FIFO_REG )
 #define SMC_GET_PTR()		SMC_inw( ioaddr, PTR_REG )
 #define SMC_SET_PTR(x)		SMC_outw( x, ioaddr, PTR_REG )
+#define SMC_GET_EPH_STATUS()	SMC_inw( ioaddr, EPH_STATUS_REG )
 #define SMC_GET_RCR()		SMC_inw( ioaddr, RCR_REG )
 #define SMC_SET_RCR(x)		SMC_outw( x, ioaddr, RCR_REG )
 #define SMC_GET_REV()		SMC_inw( ioaddr, REV_REG )
