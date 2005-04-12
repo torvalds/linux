@@ -447,9 +447,9 @@ static inline void simulate_sc(struct pt_regs *regs, unsigned int opcode)
 	preempt_disable();
 
 	if (ll_bit == 0 || ll_task != current) {
+		compute_return_epc(regs);
 		regs->regs[reg] = 0;
 		preempt_enable();
-		compute_return_epc(regs);
 		return;
 	}
 
