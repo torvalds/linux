@@ -171,6 +171,9 @@ void scsi_device_dev_release(struct device *dev)
 	if (sdev->request_queue) {
 		sdev->request_queue->queuedata = NULL;
 		scsi_free_queue(sdev->request_queue);
+		/* temporary expedient, try to catch use of queue lock
+		 * after free of sdev */
+		sdev->request_queue = NULL;
 	}
 
 	scsi_target_reap(scsi_target(sdev));
