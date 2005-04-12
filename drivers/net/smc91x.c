@@ -129,7 +129,7 @@ MODULE_PARM_DESC(nowait, "set to 1 for no wait state");
 /*
  * Transmit timeout, default 5 seconds.
  */
-static int watchdog = 5000;
+static int watchdog = 1000;
 module_param(watchdog, int, 0400);
 MODULE_PARM_DESC(watchdog, "transmit timeout in milliseconds");
 
@@ -660,15 +660,14 @@ static void smc_hardware_send_pkt(unsigned long data)
 	SMC_outw(((len & 1) ? (0x2000 | buf[len-1]) : 0), ioaddr, DATA_REG);
 
 	/*
-	 * If THROTTLE_TX_PKTS is set, we look at the TX_EMPTY flag
-	 * before queueing this packet for TX, and if it's clear then
-	 * we stop the queue here.  This will have the effect of
-	 * having at most 2 packets queued for TX in the chip's memory
-	 * at all time. If THROTTLE_TX_PKTS is not set then the queue
-	 * is stopped only when memory allocation (MC_ALLOC) does not
-	 * succeed right away.
+	 * If THROTTLE_TX_PKTS is set, we stop the queue here. This will
+	 * have the effect of having at most one packet queued for TX
+	 * in the chip's memory at all time.
+	 *
+	 * If THROTTLE_TX_PKTS is not set then the queue is stopped only
+	 * when memory allocation (MC_ALLOC) does not succeed right away.
 	 */
-	if (THROTTLE_TX_PKTS && !(SMC_GET_INT() & IM_TX_EMPTY_INT))
+	if (THROTTLE_TX_PKTS)
 		netif_stop_queue(dev);
 
 	/* queue the packet for TX */
@@ -1311,15 +1310,16 @@ static irqreturn_t smc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		if (!status)
 			break;
 
-		if (status & IM_RCV_INT) {
-			DBG(3, "%s: RX irq\n", dev->name);
-			smc_rcv(dev);
-		} else if (status & IM_TX_INT) {
+		if (status & IM_TX_INT) {
+			/* do this before RX as it will free memory quickly */
 			DBG(3, "%s: TX int\n", dev->name);
 			smc_tx(dev);
 			SMC_ACK_INT(IM_TX_INT);
 			if (THROTTLE_TX_PKTS)
 				netif_wake_queue(dev);
+		} else if (status & IM_RCV_INT) {
+			DBG(3, "%s: RX irq\n", dev->name);
+			smc_rcv(dev);
 		} else if (status & IM_ALLOC_INT) {
 			DBG(3, "%s: Allocation irq\n", dev->name);
 			tasklet_hi_schedule(&lp->tx_task);
