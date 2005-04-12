@@ -1715,6 +1715,15 @@ request_queue_t *blk_init_queue(request_fn_proc *rfn, spinlock_t *lock)
 	if (blk_init_free_list(q))
 		goto out_init;
 
+	/*
+	 * if caller didn't supply a lock, they get per-queue locking with
+	 * our embedded lock
+	 */
+	if (!lock) {
+		spin_lock_init(&q->__queue_lock);
+		lock = &q->__queue_lock;
+	}
+
 	q->request_fn		= rfn;
 	q->back_merge_fn       	= ll_back_merge_fn;
 	q->front_merge_fn      	= ll_front_merge_fn;
