@@ -527,26 +527,31 @@ int __devinit snd_emu10k1_proc_init(emu10k1_t * emu)
 		snd_info_set_text_ops(entry, emu, 1024, snd_emu_proc_io_reg_read);
 		entry->c.text.write_size = 64;
 		entry->c.text.write = snd_emu_proc_io_reg_write;
+		entry->mode |= S_IWUSR;
 	}
 	if (! snd_card_proc_new(emu->card, "ptr_regs00a", &entry)) {
 		snd_info_set_text_ops(entry, emu, 65536, snd_emu_proc_ptr_reg_read00a);
 		entry->c.text.write_size = 64;
 		entry->c.text.write = snd_emu_proc_ptr_reg_write00;
+		entry->mode |= S_IWUSR;
 	}
 	if (! snd_card_proc_new(emu->card, "ptr_regs00b", &entry)) {
 		snd_info_set_text_ops(entry, emu, 65536, snd_emu_proc_ptr_reg_read00b);
 		entry->c.text.write_size = 64;
 		entry->c.text.write = snd_emu_proc_ptr_reg_write00;
+		entry->mode |= S_IWUSR;
 	}
 	if (! snd_card_proc_new(emu->card, "ptr_regs20a", &entry)) {
 		snd_info_set_text_ops(entry, emu, 65536, snd_emu_proc_ptr_reg_read20a);
 		entry->c.text.write_size = 64;
 		entry->c.text.write = snd_emu_proc_ptr_reg_write20;
+		entry->mode |= S_IWUSR;
 	}
 	if (! snd_card_proc_new(emu->card, "ptr_regs20b", &entry)) {
 		snd_info_set_text_ops(entry, emu, 65536, snd_emu_proc_ptr_reg_read20b);
 		entry->c.text.write_size = 64;
 		entry->c.text.write = snd_emu_proc_ptr_reg_write20;
+		entry->mode |= S_IWUSR;
 	}
 #endif
 	

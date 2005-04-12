@@ -451,6 +451,7 @@ static int snd_pcm_stream_proc_init(snd_pcm_str_t *pstr)
 		entry->c.text.read = snd_pcm_xrun_debug_read;
 		entry->c.text.write_size = 64;
 		entry->c.text.write = snd_pcm_xrun_debug_write;
+		entry->mode |= S_IWUSR;
 		entry->private_data = pstr;
 		if (snd_info_register(entry) < 0) {
 			snd_info_free_entry(entry);

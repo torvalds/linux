@@ -1075,6 +1075,7 @@ static int __devinit snd_emu10k1x_proc_init(emu10k1x_t * emu)
 		snd_info_set_text_ops(entry, emu, 1024, snd_emu10k1x_proc_reg_read);
 		entry->c.text.write_size = 64;
 		entry->c.text.write = snd_emu10k1x_proc_reg_write;
+		entry->mode |= S_IWUSR;
 		entry->private_data = emu;
 	}
 	

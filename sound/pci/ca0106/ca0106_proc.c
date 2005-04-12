@@ -418,6 +418,7 @@ int __devinit snd_ca0106_proc_init(ca0106_t * emu)
 		snd_info_set_text_ops(entry, emu, 1024, snd_ca0106_proc_reg_read32);
 		entry->c.text.write_size = 64;
 		entry->c.text.write = snd_ca0106_proc_reg_write32;
+		entry->mode |= S_IWUSR;
 	}
 	if(! snd_card_proc_new(emu->card, "ca0106_reg16", &entry))
 		snd_info_set_text_ops(entry, emu, 1024, snd_ca0106_proc_reg_read16);
@@ -427,6 +428,7 @@ int __devinit snd_ca0106_proc_init(ca0106_t * emu)
 		snd_info_set_text_ops(entry, emu, 1024, snd_ca0106_proc_reg_read1);
 		entry->c.text.write_size = 64;
 		entry->c.text.write = snd_ca0106_proc_reg_write;
+		entry->mode |= S_IWUSR;
 //		entry->private_data = emu;
 	}
 	if(! snd_card_proc_new(emu->card, "ca0106_regs2", &entry)) 
