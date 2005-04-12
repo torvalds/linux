@@ -1306,6 +1306,9 @@ int scsi_decide_disposition(struct scsi_cmnd *scmd)
 	case DID_IMM_RETRY:
 		return NEEDS_RETRY;
 
+	case DID_REQUEUE:
+		return ADD_TO_MLQUEUE;
+
 	case DID_ERROR:
 		if (msg_byte(scmd->result) == COMMAND_COMPLETE &&
 		    status_byte(scmd->result) == RESERVATION_CONFLICT)
