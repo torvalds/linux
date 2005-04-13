@@ -89,6 +89,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 	struct thread_info *ti = p->thread_info;
 	struct pt_regs *childregs;
 	long childksp;
+	p->set_child_tid = p->clear_child_tid = NULL;
 
 	childksp = (unsigned long)ti + THREAD_SIZE - 32;
 
@@ -133,6 +134,9 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 	p->thread.cp0_status = read_c0_status() & ~(ST0_CU2|ST0_CU1);
 	childregs->cp0_status &= ~(ST0_CU2|ST0_CU1);
 	clear_tsk_thread_flag(p, TIF_USEDFPU);
+
+	if (clone_flags & CLONE_SETTLS)
+		ti->tp_value = regs->regs[7];
 
 	return 0;
 }

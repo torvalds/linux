@@ -1468,3 +1468,30 @@ sysn32_rt_sigtimedwait(const sigset_t __user *uthese,
 	}
 	return sys_rt_sigtimedwait(uthese, uinfo, uts, sigsetsize);
 }
+
+save_static_function(sys32_clone);
+__attribute_used__ noinline static int
+_sys32_clone(nabi_no_regargs struct pt_regs regs)
+{
+	unsigned long clone_flags;
+	unsigned long newsp;
+	int __user *parent_tidptr, *child_tidptr;
+
+	clone_flags = regs.regs[4];
+	newsp = regs.regs[5];
+	if (!newsp)
+		newsp = regs.regs[29];
+	parent_tidptr = (int *) regs.regs[6];
+
+	/* Use __dummy4 instead of getting it off the stack, so that
+	   syscall() works.  */
+	child_tidptr = (int __user *) __dummy4;
+	return do_fork(clone_flags, newsp, &regs, 0,
+	               parent_tidptr, child_tidptr);
+}
+
+extern asmlinkage void sys_set_thread_area(u32 addr);
+asmlinkage void sys32_set_thread_area(u32 addr)
+{
+	sys_set_thread_area(AA(addr));
+}

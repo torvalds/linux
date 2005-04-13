@@ -95,6 +95,7 @@ void output_thread_info_defines(void)
 	offset("#define TI_PRE_COUNT       ", struct thread_info, preempt_count);
 	offset("#define TI_ADDR_LIMIT      ", struct thread_info, addr_limit);
 	offset("#define TI_RESTART_BLOCK   ", struct thread_info, restart_block);
+	offset("#define TI_TP_VALUE        ", struct thread_info, tp_value);
 	constant("#define _THREAD_SIZE_ORDER ", THREAD_SIZE_ORDER);
 	constant("#define _THREAD_SIZE       ", THREAD_SIZE);
 	constant("#define _THREAD_MASK       ", THREAD_MASK);

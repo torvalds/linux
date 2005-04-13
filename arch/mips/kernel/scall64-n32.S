@@ -363,3 +363,4 @@ EXPORT(sysn32_call_table)
 	PTR	sys_add_key
 	PTR	sys_request_key
 	PTR	sys_keyctl			/* 6245 */
+	PTR	sys_set_thread_area

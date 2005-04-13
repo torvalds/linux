@@ -322,7 +322,7 @@ sys_call_table:
 	PTR	sys32_ipc
 	PTR	sys_fsync
 	PTR	sys32_sigreturn
-	PTR	sys_clone			/* 4120 */
+	PTR	sys32_clone			/* 4120 */
 	PTR	sys_setdomainname
 	PTR	sys32_newuname
 	PTR	sys_ni_syscall			/* sys_modify_ldt */
@@ -485,4 +485,5 @@ sys_call_table:
 	PTR	sys_add_key			/* 4280 */
 	PTR	sys_request_key
 	PTR	sys_keyctl
+	PTR	sys_set_thread_area
 	.size	sys_call_table,.-sys_call_table

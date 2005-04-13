@@ -360,6 +360,10 @@ static inline int get_insn_opcode(struct pt_regs *regs, unsigned int *opcode)
 #define OFFSET 0x0000ffff
 #define LL     0xc0000000
 #define SC     0xe0000000
+#define SPEC3  0x7c000000
+#define RD     0x0000f800
+#define FUNC   0x0000003f
+#define RDHWR  0x0000003b
 
 /*
  * The ll_bit is cleared by r*_switch.S
@@ -493,6 +497,37 @@ static inline int simulate_llsc(struct pt_regs *regs)
 	}
 
 	return -EFAULT;			/* Strange things going on ... */
+}
+
+/*
+ * Simulate trapping 'rdhwr' instructions to provide user accessible
+ * registers not implemented in hardware.  The only current use of this
+ * is the thread area pointer.
+ */
+static inline int simulate_rdhwr(struct pt_regs *regs)
+{
+	struct thread_info *ti = current->thread_info;
+	unsigned int opcode;
+
+	if (unlikely(get_insn_opcode(regs, &opcode)))
+		return -EFAULT;
+
+	if (unlikely(compute_return_epc(regs)))
+		return -EFAULT;
+
+	if ((opcode & OPCODE) == SPEC3 && (opcode & FUNC) == RDHWR) {
+		int rd = (opcode & RD) >> 11;
+		int rt = (opcode & RT) >> 16;
+		switch (rd) {
+			case 29:
+				regs->regs[rt] = ti->tp_value;
+				break;
+			default:
+				return -EFAULT;
+		}
+	}
+
+	return 0;
 }
 
 asmlinkage void do_ov(struct pt_regs *regs)
@@ -641,6 +676,9 @@ asmlinkage void do_ri(struct pt_regs *regs)
 		if (!simulate_llsc(regs))
 			return;
 
+	if (!simulate_rdhwr(regs))
+		return;
+
 	force_sig(SIGILL, current);
 }
 
@@ -654,11 +692,13 @@ asmlinkage void do_cpu(struct pt_regs *regs)
 
 	switch (cpid) {
 	case 0:
-		if (cpu_has_llsc)
-			break;
+		if (!cpu_has_llsc)
+			if (!simulate_llsc(regs))
+				return;
 
-		if (!simulate_llsc(regs))
+		if (!simulate_rdhwr(regs))
 			return;
+
 		break;
 
 	case 1:

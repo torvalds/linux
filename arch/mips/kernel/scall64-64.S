@@ -449,3 +449,4 @@ sys_call_table:
 	PTR	sys_add_key
 	PTR	sys_request_key			/* 5240 */
 	PTR	sys_keyctl
+	PTR	sys_set_thread_area

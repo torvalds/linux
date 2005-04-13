@@ -268,6 +268,11 @@ asmlinkage int sys32_ptrace(int request, int pid, int addr, int data)
 		wake_up_process(child);
 		break;
 
+	case PTRACE_GET_THREAD_AREA:
+		ret = put_user(child->thread_info->tp_value,
+				(unsigned int __user *) (unsigned long) data);
+		break;
+
 	case PTRACE_DETACH: /* detach a process that was attached. */
 		ret = ptrace_detach(child, data);
 		break;

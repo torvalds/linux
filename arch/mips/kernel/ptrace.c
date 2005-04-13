@@ -289,6 +289,11 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 		ret = ptrace_detach(child, data);
 		break;
 
+	case PTRACE_GET_THREAD_AREA:
+		ret = put_user(child->thread_info->tp_value,
+				(unsigned long __user *) data);
+		break;
+
 	default:
 		ret = ptrace_request(child, request, addr, data);
 		break;
