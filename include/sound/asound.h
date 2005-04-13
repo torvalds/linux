@@ -344,7 +344,7 @@ enum sndrv_pcm_hw_param {
 	SNDRV_PCM_HW_PARAM_LAST_INTERVAL = SNDRV_PCM_HW_PARAM_TICK_TIME
 };
 
-#define SNDRV_PCM_HW_PARAMS_RUNTIME		(1<<0)
+#define SNDRV_PCM_HW_PARAMS_NORESAMPLE		(1<<0)	/* avoid rate resampling */
 
 struct sndrv_interval {
 	unsigned int min, max;
