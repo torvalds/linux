@@ -329,7 +329,7 @@ EXPORT(sysn32_call_table)
 	PTR	sys_epoll_wait
 	PTR	sys_remap_file_pages		/* 6210 */
 	PTR	sysn32_rt_sigreturn
-	PTR	sys_fcntl
+	PTR	compat_sys_fcntl64
 	PTR	sys_set_tid_address
 	PTR	sys_restart_syscall
 	PTR	sys_semtimedop			/* 6215 */
