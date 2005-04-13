@@ -437,6 +437,7 @@ struct snd_ac97_build_ops {
 	void (*suspend) (ac97_t *ac97);
 	void (*resume) (ac97_t *ac97);
 #endif
+	void (*update_jacks) (ac97_t *ac97);	/* for jack-sharing */
 };
 
 struct _snd_ac97_bus_ops {
@@ -516,6 +517,9 @@ struct _snd_ac97 {
 		} ad18xx;
 		unsigned int dev_flags;		/* device specific */
 	} spec;
+	/* jack-sharing info */
+	unsigned char indep_surround;
+	unsigned char channel_mode;
 };
 
 /* conditions */

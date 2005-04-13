@@ -64,6 +64,116 @@ static int ac97_update_bits_page(ac97_t *ac97, unsigned short reg, unsigned shor
 	return ret;
 }
 
+/*
+ * shared line-in/mic controls
+ */
+static int ac97_enum_text_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo,
+			       const char **texts, unsigned int nums)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	uinfo->count = 1;
+	uinfo->value.enumerated.items = nums;
+	if (uinfo->value.enumerated.item > nums - 1)
+		uinfo->value.enumerated.item = nums - 1;
+	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
+	return 0;
+}
+
+static int ac97_surround_jack_mode_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+{
+	static const char *texts[] = { "Shared", "Independent" };
+	return ac97_enum_text_info(kcontrol, uinfo, texts, 2);
+}
+
+static int ac97_surround_jack_mode_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+{
+	ac97_t *ac97 = snd_kcontrol_chip(kcontrol);
+
+	ucontrol->value.enumerated.item[0] = ac97->indep_surround;
+	return 0;
+}
+
+static int ac97_surround_jack_mode_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+{
+	ac97_t *ac97 = snd_kcontrol_chip(kcontrol);
+	unsigned char indep = !!ucontrol->value.enumerated.item[0];
+
+	if (indep != ac97->indep_surround) {
+		ac97->indep_surround = indep;
+		if (ac97->build_ops->update_jacks)
+			ac97->build_ops->update_jacks(ac97);
+		return 1;
+	}
+	return 0;
+}
+
+static int ac97_channel_mode_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+{
+	static const char *texts[] = { "2ch", "4ch", "6ch" };
+	if (kcontrol->private_value)
+		return ac97_enum_text_info(kcontrol, uinfo, texts, 2); /* 4ch only */
+	return ac97_enum_text_info(kcontrol, uinfo, texts, 3);
+}
+
+static int ac97_channel_mode_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+{
+	ac97_t *ac97 = snd_kcontrol_chip(kcontrol);
+
+	ucontrol->value.enumerated.item[0] = ac97->channel_mode;
+	return 0;
+}
+
+static int ac97_channel_mode_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+{
+	ac97_t *ac97 = snd_kcontrol_chip(kcontrol);
+	unsigned char mode = ucontrol->value.enumerated.item[0];
+
+	if (mode != ac97->channel_mode) {
+		ac97->channel_mode = mode;
+		if (ac97->build_ops->update_jacks)
+			ac97->build_ops->update_jacks(ac97);
+		return 1;
+	}
+	return 0;
+}
+
+#define AC97_SURROUND_JACK_MODE_CTL \
+	{ \
+		.iface	= SNDRV_CTL_ELEM_IFACE_MIXER, \
+		.name	= "Surround Jack Mode", \
+		.info = ac97_surround_jack_mode_info, \
+		.get = ac97_surround_jack_mode_get, \
+		.put = ac97_surround_jack_mode_put, \
+	}
+#define AC97_CHANNEL_MODE_CTL \
+	{ \
+		.iface	= SNDRV_CTL_ELEM_IFACE_MIXER, \
+		.name	= "Channel Mode", \
+		.info = ac97_channel_mode_info, \
+		.get = ac97_channel_mode_get, \
+		.put = ac97_channel_mode_put, \
+	}
+#define AC97_CHANNEL_MODE_4CH_CTL \
+	{ \
+		.iface	= SNDRV_CTL_ELEM_IFACE_MIXER, \
+		.name	= "Channel Mode", \
+		.info = ac97_channel_mode_info, \
+		.get = ac97_channel_mode_get, \
+		.put = ac97_channel_mode_put, \
+		.private_value = 1, \
+	}
+
+static inline int is_shared_linein(ac97_t *ac97)
+{
+	return ! ac97->indep_surround && ac97->channel_mode >= 1;
+}
+
+static inline int is_shared_micin(ac97_t *ac97)
+{
+	return ! ac97->indep_surround && ac97->channel_mode >= 2;
+}
+
+
 /* The following snd_ac97_ymf753_... items added by David Shust (dshust@shustring.com) */
 
 /* It is possible to indicate to the Yamaha YMF753 the type of speakers being used. */
@@ -1390,6 +1500,16 @@ static int snd_ac97_ad1888_downmix_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_va
 				    AC97_AD198X_DMIX0 | AC97_AD198X_DMIX1, val);
 }
 
+static void ad1888_update_jacks(ac97_t *ac97)
+{
+	/* shared Line-In */
+	snd_ac97_update_bits(ac97, AC97_AD_MISC, 1 << 12,
+			     is_shared_linein(ac97) ? 0 : 1 << 12);
+	/* shared Mic */
+	snd_ac97_update_bits(ac97, AC97_AD_MISC, 1 << 11,
+			     is_shared_micin(ac97) ? 0 : 1 << 13);
+}
+
 static const snd_kcontrol_new_t snd_ac97_ad1888_controls[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -1406,8 +1526,13 @@ static const snd_kcontrol_new_t snd_ac97_ad1888_controls[] = {
 		.get = snd_ac97_ad1888_downmix_get,
 		.put = snd_ac97_ad1888_downmix_put
 	},
+#if 0
 	AC97_SINGLE("Surround Jack as Input", AC97_AD_MISC, 12, 1, 0),
 	AC97_SINGLE("Center/LFE Jack as Input", AC97_AD_MISC, 11, 1, 0),
+#else
+	AC97_SURROUND_JACK_MODE_CTL,
+	AC97_CHANNEL_MODE_CTL,
+#endif
 };
 
 static int patch_ad1888_specific(ac97_t *ac97)
@@ -1422,8 +1547,9 @@ static struct snd_ac97_build_ops patch_ad1888_build_ops = {
 	.build_post_spdif = patch_ad198x_post_spdif,
 	.build_specific = patch_ad1888_specific,
 #ifdef CONFIG_PM
-	.resume = ad18xx_resume
+	.resume = ad18xx_resume,
 #endif
+	.update_jacks = ad1888_update_jacks,
 };
 
 int patch_ad1888(ac97_t * ac97)
@@ -1521,31 +1647,25 @@ int patch_ad1985(ac97_t * ac97)
 /*
  * realtek ALC65x/850 codecs
  */
-static int snd_ac97_alc650_mic_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t * ucontrol)
+static void alc650_update_jacks(ac97_t *ac97)
 {
-        ac97_t *ac97 = snd_kcontrol_chip(kcontrol);
-        ucontrol->value.integer.value[0] = (ac97->regs[AC97_ALC650_MULTICH] >> 10) & 1;
-        return 0;
-}
-
-static int snd_ac97_alc650_mic_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t * ucontrol)
-{
-        ac97_t *ac97 = snd_kcontrol_chip(kcontrol);
-	int change, val;
-	val = !!(snd_ac97_read(ac97, AC97_ALC650_MULTICH) & (1 << 10));
-	change = (ucontrol->value.integer.value[0] != val);
-	if (change) {
-		/* disable/enable vref */
-		snd_ac97_update_bits(ac97, AC97_ALC650_CLOCK, 1 << 12,
-				     ucontrol->value.integer.value[0] ? (1 << 12) : 0);
-		/* turn on/off center-on-mic */
-		snd_ac97_update_bits(ac97, AC97_ALC650_MULTICH, 1 << 10,
-				     ucontrol->value.integer.value[0] ? (1 << 10) : 0);
-		/* GPIO0 high for mic */
-		snd_ac97_update_bits(ac97, AC97_ALC650_GPIO_STATUS, 0x100,
-				     ucontrol->value.integer.value[0] ? 0 : 0x100);
-        }
-        return change;
+	int shared;
+	
+	/* shared Line-In */
+	shared = is_shared_linein(ac97);
+	snd_ac97_update_bits(ac97, AC97_ALC650_MULTICH, 1 << 9,
+			     shared ? (1 << 9) : 0);
+	/* update shared Mic */
+	shared = is_shared_micin(ac97);
+	/* disable/enable vref */
+	snd_ac97_update_bits(ac97, AC97_ALC650_CLOCK, 1 << 12,
+			     shared ? (1 << 12) : 0);
+	/* turn on/off center-on-mic */
+	snd_ac97_update_bits(ac97, AC97_ALC650_MULTICH, 1 << 10,
+			     shared ? (1 << 10) : 0);
+	/* GPIO0 high for mic */
+	snd_ac97_update_bits(ac97, AC97_ALC650_GPIO_STATUS, 0x100,
+			     shared ? 0 : 0x100);
 }
 
 static const snd_kcontrol_new_t snd_ac97_controls_alc650[] = {
@@ -1558,8 +1678,8 @@ static const snd_kcontrol_new_t snd_ac97_controls_alc650[] = {
 	/* 6: Independent Master Volume Right */
 	/* 7: Independent Master Volume Left */
 	/* 8: reserved */
-	AC97_SINGLE("Line-In As Surround", AC97_ALC650_MULTICH, 9, 1, 0),
-	/* 10: mic, see below */
+	/* 9: Line-In/Surround share */
+	/* 10: Mic/CLFE share */
 	/* 11-13: in IEC958 controls */
 	AC97_SINGLE("Swap Surround Slot", AC97_ALC650_MULTICH, 14, 1, 0),
 #if 0 /* always set in patch_alc650 */
@@ -1570,14 +1690,8 @@ static const snd_kcontrol_new_t snd_ac97_controls_alc650[] = {
 	AC97_SINGLE("Center/LFE DAC Switch", AC97_ALC650_LFE_DAC_VOL, 15, 1, 1),
 	AC97_DOUBLE("Center/LFE DAC Volume", AC97_ALC650_LFE_DAC_VOL, 8, 0, 31, 1),
 #endif
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Mic As Center/LFE",
-		.info = snd_ac97_info_volsw,
-		.get = snd_ac97_alc650_mic_get,
-		.put = snd_ac97_alc650_mic_put,
-		.private_value = AC97_SINGLE_VALUE(0, 0, 1, 0) /* only mask needed */
-	},
+	AC97_SURROUND_JACK_MODE_CTL,
+	AC97_CHANNEL_MODE_CTL,
 };
 
 static const snd_kcontrol_new_t snd_ac97_spdif_controls_alc650[] = {
@@ -1601,7 +1715,8 @@ static int patch_alc650_specific(ac97_t * ac97)
 }
 
 static struct snd_ac97_build_ops patch_alc650_ops = {
-	.build_specific	= patch_alc650_specific
+	.build_specific	= patch_alc650_specific,
+	.update_jacks = alc650_update_jacks
 };
 
 int patch_alc650(ac97_t * ac97)
@@ -1659,37 +1774,27 @@ int patch_alc650(ac97_t * ac97)
 	return 0;
 }
 
-static int snd_ac97_alc655_mic_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t * ucontrol)
+static void alc655_update_jacks(ac97_t *ac97)
 {
-        ac97_t *ac97 = snd_kcontrol_chip(kcontrol);
-        ucontrol->value.integer.value[0] = (ac97->regs[AC97_ALC650_MULTICH] >> 10) & 1;
-        return 0;
-}
-
-static int snd_ac97_alc655_mic_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t * ucontrol)
-{
-        ac97_t *ac97 = snd_kcontrol_chip(kcontrol);
-
+	int shared;
+	
+	/* shared Line-In */
+	shared = is_shared_linein(ac97);
+	ac97_update_bits_page(ac97, AC97_ALC650_MULTICH, 1 << 9,
+			      shared ? (1 << 9) : 0, 0);
+	/* update shared mic */
+	shared = is_shared_micin(ac97);
 	/* misc control; vrefout disable */
 	snd_ac97_update_bits(ac97, AC97_ALC650_CLOCK, 1 << 12,
-			     ucontrol->value.integer.value[0] ? (1 << 12) : 0);
-	return ac97_update_bits_page(ac97, AC97_ALC650_MULTICH, 1 << 10,
-				     ucontrol->value.integer.value[0] ? (1 << 10) : 0,
-				     0);
+			     shared ? (1 << 12) : 0);
+	ac97_update_bits_page(ac97, AC97_ALC650_MULTICH, 1 << 10,
+			      shared ? (1 << 10) : 0, 0);
 }
-
 
 static const snd_kcontrol_new_t snd_ac97_controls_alc655[] = {
 	AC97_PAGE_SINGLE("Duplicate Front", AC97_ALC650_MULTICH, 0, 1, 0, 0),
-	AC97_PAGE_SINGLE("Line-In As Surround", AC97_ALC650_MULTICH, 9, 1, 0, 0),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Mic As Center/LFE",
-		.info = snd_ac97_info_volsw,
-		.get = snd_ac97_alc655_mic_get,
-		.put = snd_ac97_alc655_mic_put,
-		.private_value = AC97_SINGLE_VALUE(0, 0, 1, 0) /* only mask needed */
-	},
+	AC97_SURROUND_JACK_MODE_CTL,
+	AC97_CHANNEL_MODE_CTL,
 };
 
 static int alc655_iec958_route_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
@@ -1759,7 +1864,8 @@ static int patch_alc655_specific(ac97_t * ac97)
 }
 
 static struct snd_ac97_build_ops patch_alc655_ops = {
-	.build_specific	= patch_alc655_specific
+	.build_specific	= patch_alc655_specific,
+	.update_jacks = alc655_update_jacks
 };
 
 int patch_alc655(ac97_t * ac97)
@@ -1798,63 +1904,32 @@ int patch_alc655(ac97_t * ac97)
 #define AC97_ALC850_JACK_SELECT	0x76
 #define AC97_ALC850_MISC1	0x7a
 
-static int ac97_alc850_surround_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t * ucontrol)
+static void alc850_update_jacks(ac97_t *ac97)
 {
-        ac97_t *ac97 = snd_kcontrol_chip(kcontrol);
-        ucontrol->value.integer.value[0] = ((ac97->regs[AC97_ALC850_JACK_SELECT] >> 12) & 7) == 2;
-        return 0;
-}
-
-static int ac97_alc850_surround_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t * ucontrol)
-{
-        ac97_t *ac97 = snd_kcontrol_chip(kcontrol);
-
+	int shared;
+	
+	/* shared Line-In */
+	shared = is_shared_linein(ac97);
 	/* SURR 1kOhm (bit4), Amp (bit5) */
 	snd_ac97_update_bits(ac97, AC97_ALC850_MISC1, (1<<4)|(1<<5),
-			     ucontrol->value.integer.value[0] ? (1<<5) : (1<<4));
+			     shared ? (1<<5) : (1<<4));
 	/* LINE-IN = 0, SURROUND = 2 */
-	return snd_ac97_update_bits(ac97, AC97_ALC850_JACK_SELECT, 7 << 12,
-				    ucontrol->value.integer.value[0] ? (2<<12) : (0<<12));
-}
-
-static int ac97_alc850_mic_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t * ucontrol)
-{
-        ac97_t *ac97 = snd_kcontrol_chip(kcontrol);
-        ucontrol->value.integer.value[0] = ((ac97->regs[AC97_ALC850_JACK_SELECT] >> 4) & 7) == 2;
-        return 0;
-}
-
-static int ac97_alc850_mic_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t * ucontrol)
-{
-        ac97_t *ac97 = snd_kcontrol_chip(kcontrol);
-
+	snd_ac97_update_bits(ac97, AC97_ALC850_JACK_SELECT, 7 << 12,
+			     shared ? (2<<12) : (0<<12));
+	/* update shared mic */
+	shared = is_shared_micin(ac97);
 	/* Vref disable (bit12), 1kOhm (bit13) */
 	snd_ac97_update_bits(ac97, AC97_ALC850_MISC1, (1<<12)|(1<<13),
-			     ucontrol->value.integer.value[0] ? (1<<12) : (1<<13));
+			     shared ? (1<<12) : (1<<13));
 	/* MIC-IN = 1, CENTER-LFE = 2 */
-	return snd_ac97_update_bits(ac97, AC97_ALC850_JACK_SELECT, 7 << 4,
-				    ucontrol->value.integer.value[0] ? (2<<4) : (1<<4));
+	snd_ac97_update_bits(ac97, AC97_ALC850_JACK_SELECT, 7 << 4,
+			     shared ? (2<<4) : (1<<4));
 }
 
 static const snd_kcontrol_new_t snd_ac97_controls_alc850[] = {
 	AC97_PAGE_SINGLE("Duplicate Front", AC97_ALC650_MULTICH, 0, 1, 0, 0),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Line-In As Surround",
-		.info = snd_ac97_info_volsw,
-		.get = ac97_alc850_surround_get,
-		.put = ac97_alc850_surround_put,
-		.private_value = AC97_SINGLE_VALUE(0, 0, 1, 0) /* only mask needed */
-	},
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Mic As Center/LFE",
-		.info = snd_ac97_info_volsw,
-		.get = ac97_alc850_mic_get,
-		.put = ac97_alc850_mic_put,
-		.private_value = AC97_SINGLE_VALUE(0, 0, 1, 0) /* only mask needed */
-	},
-
+	AC97_SURROUND_JACK_MODE_CTL,
+	AC97_CHANNEL_MODE_CTL,
 };
 
 static int patch_alc850_specific(ac97_t *ac97)
@@ -1871,7 +1946,8 @@ static int patch_alc850_specific(ac97_t *ac97)
 }
 
 static struct snd_ac97_build_ops patch_alc850_ops = {
-	.build_specific	= patch_alc850_specific
+	.build_specific	= patch_alc850_specific,
+	.update_jacks = alc850_update_jacks
 };
 
 int patch_alc850(ac97_t *ac97)
@@ -1911,9 +1987,17 @@ int patch_alc850(ac97_t *ac97)
 /*
  * C-Media CM97xx codecs
  */
+static void cm9738_update_jacks(ac97_t *ac97)
+{
+	/* shared Line-In */
+	snd_ac97_update_bits(ac97, AC97_CM9738_VENDOR_CTRL, 1 << 10,
+			     is_shared_linein(ac97) ? (1 << 10) : 0);
+}
+
 static const snd_kcontrol_new_t snd_ac97_cm9738_controls[] = {
-	AC97_SINGLE("Line-In As Surround", AC97_CM9738_VENDOR_CTRL, 10, 1, 0),
 	AC97_SINGLE("Duplicate Front", AC97_CM9738_VENDOR_CTRL, 13, 1, 0),
+	AC97_SURROUND_JACK_MODE_CTL,
+	AC97_CHANNEL_MODE_4CH_CTL,
 };
 
 static int patch_cm9738_specific(ac97_t * ac97)
@@ -1922,7 +2006,8 @@ static int patch_cm9738_specific(ac97_t * ac97)
 }
 
 static struct snd_ac97_build_ops patch_cm9738_ops = {
-	.build_specific	= patch_cm9738_specific
+	.build_specific	= patch_cm9738_specific,
+	.update_jacks = cm9738_update_jacks
 };
 
 int patch_cm9738(ac97_t * ac97)
@@ -1986,34 +2071,19 @@ static const snd_kcontrol_new_t snd_ac97_cm9739_controls_spdif[] = {
 	/* BIT 8: SPD32 - 32bit SPDIF - not supported yet */
 };
 
-static int snd_ac97_cm9739_center_mic_get(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static void cm9739_update_jacks(ac97_t *ac97)
 {
-	ac97_t *ac97 = snd_kcontrol_chip(kcontrol);
-	if (ac97->regs[AC97_CM9739_MULTI_CHAN] & 0x1000)
-		ucontrol->value.integer.value[0] = 1;
-	else
-		ucontrol->value.integer.value[0] = 0;
-	return 0;
-}
-
-static int snd_ac97_cm9739_center_mic_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
-{
-	ac97_t *ac97 = snd_kcontrol_chip(kcontrol);
-	return snd_ac97_update_bits(ac97, AC97_CM9739_MULTI_CHAN, 0x3000,
-				    ucontrol->value.integer.value[0] ? 
-				    0x1000 : 0x2000);
+	/* shared Line-In */
+	snd_ac97_update_bits(ac97, AC97_CM9739_MULTI_CHAN, 1 << 10,
+			     is_shared_linein(ac97) ? (1 << 10) : 0);
+	/* shared Mic */
+	snd_ac97_update_bits(ac97, AC97_CM9739_MULTI_CHAN, 0x3000,
+			     is_shared_micin(ac97) ? 0x1000 : 0x2000);
 }
 
 static const snd_kcontrol_new_t snd_ac97_cm9739_controls[] = {
-	AC97_SINGLE("Line-In As Surround", AC97_CM9739_MULTI_CHAN, 10, 1, 0),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Mic As Center/LFE",
-		.info = snd_ac97_info_volsw,
-		.get = snd_ac97_cm9739_center_mic_get,
-		.put = snd_ac97_cm9739_center_mic_put,
-		.private_value = AC97_SINGLE_VALUE(0, 0, 1, 0) /* only mask needed */
-	},
+	AC97_SURROUND_JACK_MODE_CTL,
+	AC97_CHANNEL_MODE_CTL,
 };
 
 static int patch_cm9739_specific(ac97_t * ac97)
@@ -2028,7 +2098,8 @@ static int patch_cm9739_post_spdif(ac97_t * ac97)
 
 static struct snd_ac97_build_ops patch_cm9739_ops = {
 	.build_specific	= patch_cm9739_specific,
-	.build_post_spdif = patch_cm9739_post_spdif
+	.build_post_spdif = patch_cm9739_post_spdif,
+	.update_jacks = cm9739_update_jacks
 };
 
 int patch_cm9739(ac97_t * ac97)
@@ -2090,67 +2161,28 @@ int patch_cm9739(ac97_t * ac97)
 #define AC97_CM9761_FUNC	0x66
 #define AC97_CM9761_SPDIF_CTRL	0x6c
 
-static int snd_ac97_cm9761_linein_rear_get(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static void cm9761_update_jacks(ac97_t *ac97)
 {
-	ac97_t *ac97 = snd_kcontrol_chip(kcontrol);
-	if (ac97->regs[AC97_CM9761_MULTI_CHAN] & 0x0400)
-		ucontrol->value.integer.value[0] = 1;
-	else
-		ucontrol->value.integer.value[0] = 0;
-	return 0;
-}
-
-static int snd_ac97_cm9761_linein_rear_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
-{
-	ac97_t *ac97 = snd_kcontrol_chip(kcontrol);
-	unsigned short vals[2][2] = {
+	unsigned short surr_vals[2][2] = {
 		{ 0x0008, 0x0400 }, /* off, on */
 		{ 0x0000, 0x0408 }, /* off, on (9761-82 rev.B) */
 	};
-	return snd_ac97_update_bits(ac97, AC97_CM9761_MULTI_CHAN, 0x0408,
-				    vals[ac97->spec.dev_flags][!!ucontrol->value.integer.value[0]]);
-}
-
-static int snd_ac97_cm9761_center_mic_get(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
-{
-	ac97_t *ac97 = snd_kcontrol_chip(kcontrol);
-	if (ac97->regs[AC97_CM9761_MULTI_CHAN] & 0x1000)
-		ucontrol->value.integer.value[0] = 1;
-	else
-		ucontrol->value.integer.value[0] = 0;
-	if (ac97->spec.dev_flags) /* 9761-82 rev.B */
-		ucontrol->value.integer.value[0] = !ucontrol->value.integer.value[0];
-	return 0;
-}
-
-static int snd_ac97_cm9761_center_mic_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
-{
-	ac97_t *ac97 = snd_kcontrol_chip(kcontrol);
-	unsigned short vals[2][2] = {
+	unsigned short clfe_vals[2][2] = {
 		{ 0x2000, 0x1880 }, /* off, on */
 		{ 0x1000, 0x2880 }, /* off, on (9761-82 rev.B) */
 	};
-	return snd_ac97_update_bits(ac97, AC97_CM9761_MULTI_CHAN, 0x3880,
-				    vals[ac97->spec.dev_flags][!!ucontrol->value.integer.value[0]]);
+
+	/* shared Line-In */
+	snd_ac97_update_bits(ac97, AC97_CM9761_MULTI_CHAN, 0x0408,
+			     surr_vals[ac97->spec.dev_flags][is_shared_linein(ac97)]);
+	/* shared Mic */
+	snd_ac97_update_bits(ac97, AC97_CM9761_MULTI_CHAN, 0x3880,
+			     clfe_vals[ac97->spec.dev_flags][is_shared_micin(ac97)]);
 }
 
 static const snd_kcontrol_new_t snd_ac97_cm9761_controls[] = {
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Line-In As Surround",
-		.info = snd_ac97_info_volsw,
-		.get = snd_ac97_cm9761_linein_rear_get,
-		.put = snd_ac97_cm9761_linein_rear_put,
-		.private_value = AC97_SINGLE_VALUE(0, 0, 1, 0) /* only mask needed */
-	},
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Mic As Center/LFE",
-		.info = snd_ac97_info_volsw,
-		.get = snd_ac97_cm9761_center_mic_get,
-		.put = snd_ac97_cm9761_center_mic_put,
-		.private_value = AC97_SINGLE_VALUE(0, 0, 1, 0) /* only mask needed */
-	},
+	AC97_SURROUND_JACK_MODE_CTL,
+	AC97_CHANNEL_MODE_CTL,
 };
 
 static int cm9761_spdif_out_source_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
@@ -2224,7 +2256,8 @@ static int patch_cm9761_specific(ac97_t * ac97)
 
 static struct snd_ac97_build_ops patch_cm9761_ops = {
 	.build_specific	= patch_cm9761_specific,
-	.build_post_spdif = patch_cm9761_post_spdif
+	.build_post_spdif = patch_cm9761_post_spdif,
+	.update_jacks = cm9761_update_jacks
 };
 
 int patch_cm9761(ac97_t *ac97)
@@ -2370,9 +2403,21 @@ int patch_vt1616(ac97_t * ac97)
 	return 0;
 }
 
+/*
+ */
+static void it2646_update_jacks(ac97_t *ac97)
+{
+	/* shared Line-In */
+	snd_ac97_update_bits(ac97, 0x76, 1 << 9,
+			     is_shared_linein(ac97) ? (1<<9) : 0);
+	/* shared Mic */
+	snd_ac97_update_bits(ac97, 0x76, 1 << 10,
+			     is_shared_micin(ac97) ? (1<<10) : 0);
+}
+
 static const snd_kcontrol_new_t snd_ac97_controls_it2646[] = {
-	AC97_SINGLE("Line-In As Surround", 0x76, 9, 1, 0),
-	AC97_SINGLE("Mic As Center/LFE", 0x76, 10, 1, 0),
+	AC97_SURROUND_JACK_MODE_CTL,
+	AC97_CHANNEL_MODE_CTL,
 };
 
 static const snd_kcontrol_new_t snd_ac97_spdif_controls_it2646[] = {
@@ -2392,7 +2437,8 @@ static int patch_it2646_specific(ac97_t * ac97)
 }
 
 static struct snd_ac97_build_ops patch_it2646_ops = {
-	.build_specific	= patch_it2646_specific
+	.build_specific	= patch_it2646_specific,
+	.update_jacks = it2646_update_jacks
 };
 
 int patch_it2646(ac97_t * ac97)
