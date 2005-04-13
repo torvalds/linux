@@ -15,8 +15,6 @@
 
 #include <asm/compiler.h>
 
-extern unsigned long loops_per_jiffy;
-
 static inline void __delay(unsigned long loops)
 {
 	if (sizeof(long) == 4)
@@ -82,11 +80,7 @@ static inline void __udelay(unsigned long usecs, unsigned long lpj)
 	__delay(usecs);
 }
 
-#ifdef CONFIG_SMP
 #define __udelay_val cpu_data[smp_processor_id()].udelay_val
-#else
-#define __udelay_val loops_per_jiffy
-#endif
 
 #define udelay(usecs) __udelay((usecs),__udelay_val)
 

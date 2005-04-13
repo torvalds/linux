@@ -226,7 +226,6 @@ void __init smp_cpus_done(unsigned int max_cpus)
 /* called from main before smp_init() */
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
-	cpu_data[0].udelay_val = loops_per_jiffy;
 	init_new_context(current, &init_mm);
 	current_thread_info()->cpu = 0;
 	smp_tune_scheduling();
