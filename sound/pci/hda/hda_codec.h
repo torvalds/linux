@@ -176,15 +176,21 @@ enum {
 #define AC_PINCAP_OUT			(1<<4)	/* output capable */
 #define AC_PINCAP_IN			(1<<5)	/* input capable */
 #define AC_PINCAP_BALANCE		(1<<6)	/* balanced I/O capable */
-#define AC_PINCAP_VREF			(7<<8)
+#define AC_PINCAP_VREF			(0x37<<8)
 #define AC_PINCAP_VREF_SHIFT		8
 #define AC_PINCAP_EAPD			(1<<16)	/* EAPD capable */
-/* Vref status (used in pin cap and pin ctl) */
-#define AC_PIN_VREF_HIZ			(1<<0)	/* Hi-Z */
-#define AC_PIN_VREF_50			(1<<1)	/* 50% */
-#define AC_PIN_VREF_GRD			(1<<2)	/* ground */
-#define AC_PIN_VREF_80			(1<<4)	/* 80% */
-#define AC_PIN_VREF_100			(1<<5)	/* 100% */
+/* Vref status (used in pin cap) */
+#define AC_PINCAP_VREF_HIZ		(1<<0)	/* Hi-Z */
+#define AC_PINCAP_VREF_50		(1<<1)	/* 50% */
+#define AC_PINCAP_VREF_GRD		(1<<2)	/* ground */
+#define AC_PINCAP_VREF_80		(1<<4)	/* 80% */
+#define AC_PINCAP_VREF_100		(1<<5)	/* 100% */
+/* Vref setting (used in pin ctl) */
+#define AC_PINCTL_VREF_HIZ		(0)	/* Hi-Z */
+#define AC_PINCTL_VREF_50		(1)	/* 50% */
+#define AC_PINCTL_VREF_GRD		(2)	/* ground */
+#define AC_PINCTL_VREF_80		(4)	/* 80% */
+#define AC_PINCTL_VREF_100		(5)	/* 100% */
 
 
 /* Amplifier capabilities */
