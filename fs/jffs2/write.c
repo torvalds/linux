@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: write.c,v 1.91 2005/03/01 10:34:03 dedekind Exp $
+ * $Id: write.c,v 1.92 2005/04/13 13:22:35 dwmw2 Exp $
  *
  */
 
@@ -35,13 +35,12 @@ int jffs2_do_new_inode(struct jffs2_sb_info *c, struct jffs2_inode_info *f, uint
 	f->inocache = ic;
 	f->inocache->nlink = 1;
 	f->inocache->nodes = (struct jffs2_raw_node_ref *)f->inocache;
-	f->inocache->ino = ++c->highest_ino;
 	f->inocache->state = INO_STATE_PRESENT;
 
-	ri->ino = cpu_to_je32(f->inocache->ino);
 
-	D1(printk(KERN_DEBUG "jffs2_do_new_inode(): Assigned ino# %d\n", f->inocache->ino));
 	jffs2_add_ino_cache(c, f->inocache);
+	D1(printk(KERN_DEBUG "jffs2_do_new_inode(): Assigned ino# %d\n", f->inocache->ino));
+	ri->ino = cpu_to_je32(f->inocache->ino);
 
 	ri->magic = cpu_to_je16(JFFS2_MAGIC_BITMASK);
 	ri->nodetype = cpu_to_je16(JFFS2_NODETYPE_INODE);

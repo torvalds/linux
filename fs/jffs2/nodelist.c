@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: nodelist.c,v 1.93 2005/02/27 23:01:32 dwmw2 Exp $
+ * $Id: nodelist.c,v 1.94 2005/04/13 13:22:35 dwmw2 Exp $
  *
  */
 
@@ -491,6 +491,10 @@ void jffs2_add_ino_cache (struct jffs2_sb_info *c, struct jffs2_inode_cache *new
 	struct jffs2_inode_cache **prev;
 	D2(printk(KERN_DEBUG "jffs2_add_ino_cache: Add %p (ino #%u)\n", new, new->ino));
 	spin_lock(&c->inocache_lock);
+ 	if (!new->ino)
+ 		new->ino = ++c->highest_ino;
+ 
+ 	D2(printk(KERN_DEBUG "jffs2_add_ino_cache: Add %p (ino #%u)\n", new, new->ino));
 	
 	prev = &c->inocache_list[new->ino % INOCACHE_HASHSIZE];
 
