@@ -1449,10 +1449,6 @@ static int set_pcm_default_values(struct hda_codec *codec, struct hda_pcm_stream
 		snd_assert(info->nid, return -EINVAL);
 		info->ops.prepare = hda_pcm_default_prepare;
 	}
-	if (info->ops.prepare == NULL) {
-		snd_assert(info->nid, return -EINVAL);
-		info->ops.prepare = hda_pcm_default_prepare;
-	}
 	if (info->ops.cleanup == NULL) {
 		snd_assert(info->nid, return -EINVAL);
 		info->ops.cleanup = hda_pcm_default_cleanup;
