@@ -559,7 +559,7 @@ enum {
  *  Timer section - /dev/snd/timer
  */
 
-#define SNDRV_TIMER_VERSION		SNDRV_PROTOCOL_VERSION(2, 0, 2)
+#define SNDRV_TIMER_VERSION		SNDRV_PROTOCOL_VERSION(2, 0, 3)
 
 enum sndrv_timer_class {
 	SNDRV_TIMER_CLASS_NONE = -1,
