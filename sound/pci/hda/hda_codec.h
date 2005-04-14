@@ -185,13 +185,6 @@ enum {
 #define AC_PINCAP_VREF_GRD		(1<<2)	/* ground */
 #define AC_PINCAP_VREF_80		(1<<4)	/* 80% */
 #define AC_PINCAP_VREF_100		(1<<5)	/* 100% */
-/* Vref setting (used in pin ctl) */
-#define AC_PINCTL_VREF_HIZ		(0)	/* Hi-Z */
-#define AC_PINCTL_VREF_50		(1)	/* 50% */
-#define AC_PINCTL_VREF_GRD		(2)	/* ground */
-#define AC_PINCTL_VREF_80		(4)	/* 80% */
-#define AC_PINCTL_VREF_100		(5)	/* 100% */
-
 
 /* Amplifier capabilities */
 #define AC_AMPCAP_OFFSET		(0x7f<<0)  /* 0dB offset */
@@ -254,6 +247,11 @@ enum {
 
 /* Pin widget control - 8bit */
 #define AC_PINCTL_VREFEN		(0x7<<0)
+#define AC_PINCTL_VREF_HIZ		0	/* Hi-Z */
+#define AC_PINCTL_VREF_50		1	/* 50% */
+#define AC_PINCTL_VREF_GRD		2	/* ground */
+#define AC_PINCTL_VREF_80		4	/* 80% */
+#define AC_PINCTL_VREF_100		5	/* 100% */
 #define AC_PINCTL_IN_EN			(1<<5)
 #define AC_PINCTL_OUT_EN		(1<<6)
 #define AC_PINCTL_HP_EN			(1<<7)
