@@ -10,8 +10,6 @@
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/types.h>
-#include <linux/interrupt.h>
-#include <linux/pci.h>
 #include <linux/delay.h>
 #include <asm/bootinfo.h>
 
