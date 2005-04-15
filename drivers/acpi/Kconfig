@@ -80,6 +80,14 @@ config ACPI_SLEEP_PROC_FS
 	depends on ACPI_SLEEP && PROC_FS
 	default y
 
+config ACPI_SLEEP_PROC_SLEEP
+	bool "/proc/acpi/sleep (deprecated)"
+	depends on ACPI_SLEEP_PROC_FS
+	default n
+	---help---
+	  Create /proc/acpi/sleep
+	  Deprecated by /sys/power/state
+
 config ACPI_AC
 	tristate "AC Adapter"
 	depends on X86
