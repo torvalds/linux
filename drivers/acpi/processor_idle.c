@@ -6,6 +6,8 @@
  *  Copyright (C) 2004       Dominik Brodowski <linux@brodo.de>
  *  Copyright (C) 2004  Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>
  *  			- Added processor hotplug support
+ *  Copyright (C) 2005  Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>
+ *  			- Added support for C3 on SMP
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
@@ -142,7 +144,7 @@ acpi_processor_power_activate (
 		switch (old->type) {
 		case ACPI_STATE_C3:
 			/* Disable bus master reload */
-			if (new->type != ACPI_STATE_C3)
+			if (new->type != ACPI_STATE_C3 && pr->flags.bm_check)
 				acpi_set_register(ACPI_BITREG_BUS_MASTER_RLD, 0, ACPI_MTX_DO_NOT_LOCK);
 			break;
 		}
@@ -152,7 +154,7 @@ acpi_processor_power_activate (
 	switch (new->type) {
 	case ACPI_STATE_C3:
 		/* Enable bus master reload */
-		if (old->type != ACPI_STATE_C3)
+		if (old->type != ACPI_STATE_C3 && pr->flags.bm_check)
 			acpi_set_register(ACPI_BITREG_BUS_MASTER_RLD, 1, ACPI_MTX_DO_NOT_LOCK);
 		break;
 	}
@@ -161,6 +163,9 @@ acpi_processor_power_activate (
 
 	return;
 }
+
+
+static atomic_t 	c3_cpu_count;
 
 
 static void acpi_processor_idle (void)
@@ -297,8 +302,22 @@ static void acpi_processor_idle (void)
 		break;
 
 	case ACPI_STATE_C3:
-		/* Disable bus master arbitration */
-		acpi_set_register(ACPI_BITREG_ARB_DISABLE, 1, ACPI_MTX_DO_NOT_LOCK);
+		
+		if (pr->flags.bm_check) {
+			if (atomic_inc_return(&c3_cpu_count) ==
+					num_online_cpus()) {
+				/*
+				 * All CPUs are trying to go to C3
+				 * Disable bus master arbitration
+				 */
+				acpi_set_register(ACPI_BITREG_ARB_DISABLE, 1,
+					ACPI_MTX_DO_NOT_LOCK);
+			}
+		} else {
+			/* SMP with no shared cache... Invalidate cache  */
+			ACPI_FLUSH_CPU_CACHE();
+		}
+		
 		/* Get start time (ticks) */
 		t1 = inl(acpi_fadt.xpm_tmr_blk.address);
 		/* Invoke C3 */
@@ -307,8 +326,12 @@ static void acpi_processor_idle (void)
 		t2 = inl(acpi_fadt.xpm_tmr_blk.address);
 		/* Get end time (ticks) */
 		t2 = inl(acpi_fadt.xpm_tmr_blk.address);
-		/* Enable bus master arbitration */
-		acpi_set_register(ACPI_BITREG_ARB_DISABLE, 0, ACPI_MTX_DO_NOT_LOCK);
+		if (pr->flags.bm_check) {
+			/* Enable bus master arbitration */
+			atomic_dec(&c3_cpu_count);
+			acpi_set_register(ACPI_BITREG_ARB_DISABLE, 0, ACPI_MTX_DO_NOT_LOCK);
+		}
+
 		/* Re-enable interrupts */
 		local_irq_enable();
 		/* Compute time (ticks) that we were actually asleep */
@@ -552,9 +575,6 @@ static int acpi_processor_get_power_info_cst (struct acpi_processor *pr)
 
 	ACPI_FUNCTION_TRACE("acpi_processor_get_power_info_cst");
 
-	if (errata.smp)
-		return_VALUE(-ENODEV);
-
 	if (nocst)
 		return_VALUE(-ENODEV);
 
@@ -687,13 +707,6 @@ static void acpi_processor_power_verify_c2(struct acpi_processor_cx *cx)
 		return_VOID;
 	}
 
-	/* We're (currently) only supporting C2 on UP */
-	else if (errata.smp) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "C2 not supported in SMP mode\n"));
-		return_VOID;
-	}
-
 	/*
 	 * Otherwise we've met all of our C2 requirements.
 	 * Normalize the C2 latency to expidite policy
@@ -709,6 +722,8 @@ static void acpi_processor_power_verify_c3(
 	struct acpi_processor *pr,
 	struct acpi_processor_cx *cx)
 {
+	static int bm_check_flag;
+
 	ACPI_FUNCTION_TRACE("acpi_processor_get_power_verify_c3");
 
 	if (!cx->address)
@@ -725,20 +740,6 @@ static void acpi_processor_power_verify_c3(
 		return_VOID;
 	}
 
-	/* bus mastering control is necessary */
-	else if (!pr->flags.bm_control) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "C3 support requires bus mastering control\n"));
-		return_VOID;
-	}
-
-	/* We're (currently) only supporting C2 on UP */
-	else if (errata.smp) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "C3 not supported in SMP mode\n"));
-		return_VOID;
-	}
-
 	/*
 	 * PIIX4 Erratum #18: We don't support C3 when Type-F (fast)
 	 * DMA transfers are used by any ISA device to avoid livelock.
@@ -752,6 +753,39 @@ static void acpi_processor_power_verify_c3(
 		return_VOID;
 	}
 
+	/* All the logic here assumes flags.bm_check is same across all CPUs */
+	if (!bm_check_flag) {
+		/* Determine whether bm_check is needed based on CPU  */
+		acpi_processor_power_init_bm_check(&(pr->flags), pr->id);
+		bm_check_flag = pr->flags.bm_check;
+	} else {
+		pr->flags.bm_check = bm_check_flag;
+	}
+
+	if (pr->flags.bm_check) {
+		printk("Disabling BM access before entering C3\n");
+		/* bus mastering control is necessary */
+		if (!pr->flags.bm_control) {
+			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+			  "C3 support requires bus mastering control\n"));
+			return_VOID;
+		}
+	} else {
+		printk("Invalidating cache before entering C3\n");
+		/*
+		 * WBINVD should be set in fadt, for C3 state to be
+		 * supported on when bm_check is not required.
+		 */
+		if (acpi_fadt.wb_invd != 1) {
+			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+			  "Cache invalidation should work properly"
+			  " for C3 to be enabled on SMP systems\n"));
+			return_VOID;
+		}
+		acpi_set_register(ACPI_BITREG_BUS_MASTER_RLD,
+				0, ACPI_MTX_DO_NOT_LOCK);
+	}
+
 	/*
 	 * Otherwise we've met all of our C3 requirements.
 	 * Normalize the C3 latency to expidite policy.  Enable
@@ -760,7 +794,6 @@ static void acpi_processor_power_verify_c3(
 	 */
 	cx->valid = 1;
 	cx->latency_ticks = US_TO_PM_TIMER_TICKS(cx->latency);
-	pr->flags.bm_check = 1;
 
 	return_VOID;
 }
@@ -848,7 +881,7 @@ int acpi_processor_cst_has_changed (struct acpi_processor *pr)
 	if (!pr)
  		return_VALUE(-EINVAL);
 
-	if (errata.smp || nocst) {
+	if ( nocst) {
 		return_VALUE(-ENODEV);
 	}
 
@@ -948,7 +981,6 @@ static struct file_operations acpi_processor_power_fops = {
 	.release	= single_release,
 };
 
-
 int acpi_processor_power_init(struct acpi_processor *pr, struct acpi_device *device)
 {
 	acpi_status		status = 0;
@@ -965,7 +997,10 @@ int acpi_processor_power_init(struct acpi_processor *pr, struct acpi_device *dev
 		first_run++;
 	}
 
-	if (!errata.smp && (pr->id == 0) && acpi_fadt.cst_cnt && !nocst) {
+	if (!pr)
+		return_VALUE(-EINVAL);
+
+	if (acpi_fadt.cst_cnt && !nocst) {
 		status = acpi_os_write_port(acpi_fadt.smi_cmd, acpi_fadt.cst_cnt, 8);
 		if (ACPI_FAILURE(status)) {
 			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
@@ -973,6 +1008,8 @@ int acpi_processor_power_init(struct acpi_processor *pr, struct acpi_device *dev
 		}
 	}
 
+	acpi_processor_power_init_pdc(&(pr->power), pr->id);
+	acpi_processor_set_pdc(pr, pr->power.pdc);
 	acpi_processor_get_power_info(pr);
 
 	/*
