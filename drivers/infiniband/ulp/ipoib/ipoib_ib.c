@@ -201,7 +201,7 @@ static void ipoib_ib_handle_wc(struct net_device *dev,
 			if (wc->slid != priv->local_lid ||
 			    wc->src_qp != priv->qp->qp_num) {
 				skb->protocol = ((struct ipoib_header *) skb->data)->proto;
-
+				skb->mac.raw = skb->data;
 				skb_pull(skb, IPOIB_ENCAP_LEN);
 
 				dev->last_rx = jiffies;
