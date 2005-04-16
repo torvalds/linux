@@ -1113,8 +1113,12 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		seq_printf(m, "cache size\t: %d KB\n", c->x86_cache_size);
 	
 #ifdef CONFIG_SMP
-	seq_printf(m, "physical id\t: %d\n", phys_proc_id[c - cpu_data]);
-	seq_printf(m, "siblings\t: %d\n", c->x86_num_cores * smp_num_siblings);
+	if (smp_num_siblings * c->x86_num_cores > 1) {
+		int cpu = c - cpu_data;
+		seq_printf(m, "physical id\t: %d\n", phys_proc_id[cpu]);
+		seq_printf(m, "siblings\t: %d\n",
+				c->x86_num_cores * smp_num_siblings);
+	}
 #endif	
 
 	seq_printf(m,
