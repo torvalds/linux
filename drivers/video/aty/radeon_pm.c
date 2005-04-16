@@ -2520,13 +2520,10 @@ static int radeon_restore_pci_cfg(struct radeonfb_info *rinfo)
 }
 
 
-static/*extern*/ int susdisking = 0;
-
 int radeonfb_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 {
         struct fb_info *info = pci_get_drvdata(pdev);
         struct radeonfb_info *rinfo = info->par;
-	u8 agp;
 	int i;
 
 	if (state == pdev->dev.power.power_state)
@@ -2542,11 +2539,6 @@ int radeonfb_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	 */
 	if (state != PM_SUSPEND_MEM)
 		goto done;
-	if (susdisking) {
-		printk("radeonfb (%s): suspending to disk but state = %d\n",
-		       pci_name(pdev), state);
-		goto done;
-	}
 
 	acquire_console_sem();
 
@@ -2567,27 +2559,13 @@ int radeonfb_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	rinfo->lock_blank = 1;
 	del_timer_sync(&rinfo->lvds_timer);
 
-	/* Disable AGP. The AGP host should have done it, but since ordering
-	 * isn't always properly guaranteed in this specific case, let's make
-	 * sure it's disabled on card side now. Ultimately, when merging fbdev
-	 * and dri into some common infrastructure, this will be handled
-	 * more nicely. The host bridge side will (or will not) be dealt with
-	 * by the bridge AGP driver, we don't attempt to touch it here.
+#ifdef CONFIG_PPC_PMAC
+	/* On powermac, we have hooks to properly suspend/resume AGP now,
+	 * use them here. We'll ultimately need some generic support here,
+	 * but the generic code isn't quite ready for that yet
 	 */
-	agp = pci_find_capability(pdev, PCI_CAP_ID_AGP);
-	if (agp) {
-		u32 cmd;
-
-		pci_read_config_dword(pdev, agp + PCI_AGP_COMMAND, &cmd);
-		if (cmd & PCI_AGP_COMMAND_AGP) {
-			printk(KERN_INFO "radeonfb (%s): AGP was enabled, "
-			       "disabling ...\n",
-			       pci_name(pdev));
-			cmd &= ~PCI_AGP_COMMAND_AGP;
-			pci_write_config_dword(pdev, agp + PCI_AGP_COMMAND,
-					       cmd);
-		}
-	}
+	pmac_suspend_agp_for_card(pdev);
+#endif /* CONFIG_PPC_PMAC */
 
 	/* If we support wakeup from poweroff, we save all regs we can including cfg
 	 * space
@@ -2698,6 +2676,15 @@ int radeonfb_pci_resume(struct pci_dev *pdev)
 	/* Unblank */
 	rinfo->lock_blank = 0;
 	radeon_screen_blank(rinfo, FB_BLANK_UNBLANK, 1);
+
+#ifdef CONFIG_PPC_PMAC
+	/* On powermac, we have hooks to properly suspend/resume AGP now,
+	 * use them here. We'll ultimately need some generic support here,
+	 * but the generic code isn't quite ready for that yet
+	 */
+	pmac_resume_agp_for_card(pdev);
+#endif /* CONFIG_PPC_PMAC */
+
 
 	/* Check status of dynclk */
 	if (rinfo->dynclk == 1)

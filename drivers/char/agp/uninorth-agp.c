@@ -10,6 +10,7 @@
 #include <asm/uninorth.h>
 #include <asm/pci-bridge.h>
 #include <asm/prom.h>
+#include <asm/pmac_feature.h>
 #include "agp.h"
 
 /*
@@ -25,6 +26,7 @@
  */
 static int uninorth_rev;
 static int is_u3;
+
 
 static int uninorth_fetch_size(void)
 {
@@ -264,7 +266,8 @@ static void uninorth_agp_enable(struct agp_bridge_data *bridge, u32 mode)
 				       &scratch);
 	} while ((scratch & PCI_AGP_COMMAND_AGP) == 0 && ++timeout < 1000);
 	if ((scratch & PCI_AGP_COMMAND_AGP) == 0)
-		printk(KERN_ERR PFX "failed to write UniNorth AGP command reg\n");
+		printk(KERN_ERR PFX "failed to write UniNorth AGP"
+		       " command register\n");
 
 	if (uninorth_rev >= 0x30) {
 		/* This is an AGP V3 */
@@ -278,13 +281,24 @@ static void uninorth_agp_enable(struct agp_bridge_data *bridge, u32 mode)
 }
 
 #ifdef CONFIG_PM
-static int agp_uninorth_suspend(struct pci_dev *pdev, pm_message_t state)
+/*
+ * These Power Management routines are _not_ called by the normal PCI PM layer,
+ * but directly by the video driver through function pointers in the device
+ * tree.
+ */
+static int agp_uninorth_suspend(struct pci_dev *pdev)
 {
+	struct agp_bridge_data *bridge;
 	u32 cmd;
 	u8 agp;
 	struct pci_dev *device = NULL;
 
-	if (state != PMSG_SUSPEND)
+	bridge = agp_find_bridge(pdev);
+	if (bridge == NULL)
+		return -ENODEV;
+
+	/* Only one suspend supported */
+	if (bridge->dev_private_data)
 		return 0;
 
 	/* turn off AGP on the video chip, if it was enabled */
@@ -315,6 +329,7 @@ static int agp_uninorth_suspend(struct pci_dev *pdev, pm_message_t state)
 	/* turn off AGP on the bridge */
 	agp = pci_find_capability(pdev, PCI_CAP_ID_AGP);
 	pci_read_config_dword(pdev, agp + PCI_AGP_COMMAND, &cmd);
+	bridge->dev_private_data = (void *)cmd;
 	if (cmd & PCI_AGP_COMMAND_AGP) {
 		printk("uninorth-agp: disabling AGP on bridge %s\n",
 				pci_name(pdev));
@@ -329,9 +344,23 @@ static int agp_uninorth_suspend(struct pci_dev *pdev, pm_message_t state)
 
 static int agp_uninorth_resume(struct pci_dev *pdev)
 {
+	struct agp_bridge_data *bridge;
+	u32 command;
+
+	bridge = agp_find_bridge(pdev);
+	if (bridge == NULL)
+		return -ENODEV;
+
+	command = (u32)bridge->dev_private_data;
+	bridge->dev_private_data = NULL;
+	if (!(command & PCI_AGP_COMMAND_AGP))
+		return 0;
+
+	uninorth_agp_enable(bridge, command);
+
 	return 0;
 }
-#endif
+#endif /* CONFIG_PM */
 
 static int uninorth_create_gatt_table(struct agp_bridge_data *bridge)
 {
@@ -575,6 +604,12 @@ static int __devinit agp_uninorth_probe(struct pci_dev *pdev,
 		of_node_put(uninorth_node);
 	}
 
+#ifdef CONFIG_PM
+	/* Inform platform of our suspend/resume caps */
+	pmac_register_agp_pm(pdev, agp_uninorth_suspend, agp_uninorth_resume);
+#endif
+
+	/* Allocate & setup our driver */
 	bridge = agp_alloc_bridge();
 	if (!bridge)
 		return -ENOMEM;
@@ -599,6 +634,11 @@ static void __devexit agp_uninorth_remove(struct pci_dev *pdev)
 {
 	struct agp_bridge_data *bridge = pci_get_drvdata(pdev);
 
+#ifdef CONFIG_PM
+	/* Inform platform of our suspend/resume caps */
+	pmac_register_agp_pm(pdev, NULL, NULL);
+#endif
+
 	agp_remove_bridge(bridge);
 	agp_put_bridge(bridge);
 }
@@ -622,10 +662,6 @@ static struct pci_driver agp_uninorth_pci_driver = {
 	.id_table	= agp_uninorth_pci_table,
 	.probe		= agp_uninorth_probe,
 	.remove		= agp_uninorth_remove,
-#ifdef CONFIG_PM
-	.suspend	= agp_uninorth_suspend,
-	.resume		= agp_uninorth_resume,
-#endif
 };
 
 static int __init agp_uninorth_init(void)

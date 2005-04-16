@@ -2331,7 +2331,6 @@ static int aty128_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct fb_info *info = pci_get_drvdata(pdev);
 	struct aty128fb_par *par = info->par;
-	u8 agp;
 
 	/* We don't do anything but D2, for now we return 0, but
 	 * we may want to change that. How do we know if the BIOS
@@ -2369,26 +2368,13 @@ static int aty128_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	par->asleep = 1;
 	par->lock_blank = 1;
 
-	/* Disable AGP. The AGP host should have done it, but since ordering
-	 * isn't always properly guaranteed in this specific case, let's make
-	 * sure it's disabled on card side now. Ultimately, when merging fbdev
-	 * and dri into some common infrastructure, this will be handled
-	 * more nicely. The host bridge side will (or will not) be dealt with
-	 * by the bridge AGP driver, we don't attempt to touch it here.
+#ifdef CONFIG_PPC_PMAC
+	/* On powermac, we have hooks to properly suspend/resume AGP now,
+	 * use them here. We'll ultimately need some generic support here,
+	 * but the generic code isn't quite ready for that yet
 	 */
-	agp = pci_find_capability(pdev, PCI_CAP_ID_AGP);
-	if (agp) {
-		u32 cmd;
-
-		pci_read_config_dword(pdev, agp + PCI_AGP_COMMAND, &cmd);
-		if (cmd & PCI_AGP_COMMAND_AGP) {
-			printk(KERN_INFO "aty128fb: AGP was enabled, "
-			       "disabling ...\n");
-			cmd &= ~PCI_AGP_COMMAND_AGP;
-			pci_write_config_dword(pdev, agp + PCI_AGP_COMMAND,
-					       cmd);
-		}
-	}
+	pmac_suspend_agp_for_card(pdev);
+#endif /* CONFIG_PPC_PMAC */
 
 	/* We need a way to make sure the fbdev layer will _not_ touch the
 	 * framebuffer before we put the chip to suspend state. On 2.4, I
@@ -2431,6 +2417,14 @@ static int aty128_do_resume(struct pci_dev *pdev)
 	/* Unblank */
 	par->lock_blank = 0;
 	aty128fb_blank(0, info);
+
+#ifdef CONFIG_PPC_PMAC
+	/* On powermac, we have hooks to properly suspend/resume AGP now,
+	 * use them here. We'll ultimately need some generic support here,
+	 * but the generic code isn't quite ready for that yet
+	 */
+	pmac_resume_agp_for_card(pdev);
+#endif /* CONFIG_PPC_PMAC */
 
 	pdev->dev.power.power_state = PMSG_ON;
 

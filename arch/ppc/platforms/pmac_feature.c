@@ -2944,3 +2944,48 @@ void __pmac pmac_call_early_video_resume(void)
 	if (pmac_early_vresume_proc)
 		pmac_early_vresume_proc(pmac_early_vresume_data);
 }
+
+/*
+ * AGP related suspend/resume code
+ */
+
+static struct pci_dev *pmac_agp_bridge __pmacdata;
+static int (*pmac_agp_suspend)(struct pci_dev *bridge) __pmacdata;
+static int (*pmac_agp_resume)(struct pci_dev *bridge) __pmacdata;
+
+void __pmac pmac_register_agp_pm(struct pci_dev *bridge,
+				 int (*suspend)(struct pci_dev *bridge),
+				 int (*resume)(struct pci_dev *bridge))
+{
+	if (suspend || resume) {
+		pmac_agp_bridge = bridge;
+		pmac_agp_suspend = suspend;
+		pmac_agp_resume = resume;
+		return;
+	}
+	if (bridge != pmac_agp_bridge)
+		return;
+	pmac_agp_suspend = pmac_agp_resume = NULL;
+	return;
+}
+EXPORT_SYMBOL(pmac_register_agp_pm);
+
+void __pmac pmac_suspend_agp_for_card(struct pci_dev *dev)
+{
+	if (pmac_agp_bridge == NULL || pmac_agp_suspend == NULL)
+		return;
+	if (pmac_agp_bridge->bus != dev->bus)
+		return;
+	pmac_agp_suspend(pmac_agp_bridge);
+}
+EXPORT_SYMBOL(pmac_suspend_agp_for_card);
+
+void __pmac pmac_resume_agp_for_card(struct pci_dev *dev)
+{
+	if (pmac_agp_bridge == NULL || pmac_agp_resume == NULL)
+		return;
+	if (pmac_agp_bridge->bus != dev->bus)
+		return;
+	pmac_agp_resume(pmac_agp_bridge);
+}
+EXPORT_SYMBOL(pmac_resume_agp_for_card);

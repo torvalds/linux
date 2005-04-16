@@ -305,6 +305,17 @@ extern void pmac_call_early_video_resume(void);
 
 #define PMAC_FTR_DEF(x) ((_MACH_Pmac << 16) | (x))
 
+/* The AGP driver registers itself here */
+extern void pmac_register_agp_pm(struct pci_dev *bridge,
+				 int (*suspend)(struct pci_dev *bridge),
+				 int (*resume)(struct pci_dev *bridge));
+
+/* Those are meant to be used by video drivers to deal with AGP
+ * suspend resume properly
+ */
+extern void pmac_suspend_agp_for_card(struct pci_dev *dev);
+extern void pmac_resume_agp_for_card(struct pci_dev *dev);
+
 
 /*
  * The part below is for use by macio_asic.c only, do not rely
