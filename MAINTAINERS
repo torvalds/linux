@@ -172,14 +172,6 @@ L:	linux-sound@vger.kernel.org
 W:	http://www.stud.uni-karlsruhe.de/~uh1b/
 S:	Maintained
 
-ACP/MWAVE MODEM
-P:	Paul B Schroeder
-M:	paulsch@us.ibm.com
-P:	Mike Sullivan
-M:	sullivam@us.ibm.com
-W:	http://www.ibm.com/linux/ltc/
-S:	Supported
-
 AACRAID SCSI RAID DRIVER
 P:	Adaptec OEM Raid Solutions
 L:	linux-scsi@vger.kernel.org
