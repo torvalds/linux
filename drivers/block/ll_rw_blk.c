@@ -2559,7 +2559,7 @@ EXPORT_SYMBOL(__blk_attempt_remerge);
 static int __make_request(request_queue_t *q, struct bio *bio)
 {
 	struct request *req, *freereq = NULL;
-	int el_ret, rw, nr_sectors, cur_nr_sectors, barrier, err;
+	int el_ret, rw, nr_sectors, cur_nr_sectors, barrier, err, sync;
 	sector_t sector;
 
 	sector = bio->bi_sector;
@@ -2567,6 +2567,7 @@ static int __make_request(request_queue_t *q, struct bio *bio)
 	cur_nr_sectors = bio_cur_sectors(bio);
 
 	rw = bio_data_dir(bio);
+	sync = bio_sync(bio);
 
 	/*
 	 * low level driver can indicate that it wants pages above a
@@ -2698,7 +2699,7 @@ get_rq:
 out:
 	if (freereq)
 		__blk_put_request(q, freereq);
-	if (bio_sync(bio))
+	if (sync)
 		__generic_unplug_device(q);
 
 	spin_unlock_irq(q->queue_lock);
