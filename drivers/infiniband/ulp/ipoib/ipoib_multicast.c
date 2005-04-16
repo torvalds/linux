@@ -258,13 +258,12 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 				.traffic_class = mcast->mcmember.traffic_class
 			}
 		};
+		int path_rate = ib_sa_rate_enum_to_int(mcast->mcmember.rate);
 
 		av.grh.dgid = mcast->mcmember.mgid;
 
-		if (ib_sa_rate_enum_to_int(mcast->mcmember.rate) > 0)
-			av.static_rate = (2 * priv->local_rate -
-					  ib_sa_rate_enum_to_int(mcast->mcmember.rate) - 1) /
-				(priv->local_rate ? priv->local_rate : 1);
+		if (path_rate > 0 && priv->local_rate > path_rate)
+			av.static_rate = (priv->local_rate - 1) / path_rate;
 
 		ipoib_dbg_mcast(priv, "static_rate %d for local port %dX, mcmember %dX\n",
 				av.static_rate, priv->local_rate,
