@@ -515,7 +515,7 @@ static struct timespec s3c2410_rtc_delta;
 
 static int ticnt_save;
 
-static int s3c2410_rtc_suspend(struct device *dev, u32 state, u32 level)
+static int s3c2410_rtc_suspend(struct device *dev, pm_message_t state, u32 level)
 {
 	struct rtc_time tm;
 	struct timespec time;

@@ -408,7 +408,7 @@ static void __devexit agp_efficeon_remove(struct pci_dev *pdev)
 	agp_put_bridge(bridge);
 }
 
-static int agp_efficeon_suspend(struct pci_dev *dev, u32 state)
+static int agp_efficeon_suspend(struct pci_dev *dev, pm_message_t state)
 {
 	return 0;
 }

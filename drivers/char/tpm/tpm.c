@@ -567,7 +567,7 @@ static u8 savestate[] = {
  * We are about to suspend. Save the TPM state
  * so that it can be restored.
  */
-int tpm_pm_suspend(struct pci_dev *pci_dev, u32 pm_state)
+int tpm_pm_suspend(struct pci_dev *pci_dev, pm_message_t pm_state)
 {
 	struct tpm_chip *chip = pci_get_drvdata(pci_dev);
 	if (chip == NULL)

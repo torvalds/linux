@@ -1103,7 +1103,7 @@ static int sonypi_disable(void)
 #ifdef CONFIG_PM
 static int old_camera_power;
 
-static int sonypi_suspend(struct device *dev, u32 state, u32 level)
+static int sonypi_suspend(struct device *dev, pm_message_t state, u32 level)
 {
 	if (level == SUSPEND_DISABLE) {
 		old_camera_power = sonypi_device.camera_power;

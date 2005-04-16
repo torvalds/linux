@@ -89,5 +89,5 @@ extern ssize_t tpm_write(struct file *, const char __user *, size_t,
 			 loff_t *);
 extern ssize_t tpm_read(struct file *, char __user *, size_t, loff_t *);
 extern void __devexit tpm_remove(struct pci_dev *);
-extern int tpm_pm_suspend(struct pci_dev *, u32);
+extern int tpm_pm_suspend(struct pci_dev *, pm_message_t);
 extern int tpm_pm_resume(struct pci_dev *);
