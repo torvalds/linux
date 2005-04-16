@@ -437,7 +437,7 @@ static int __devinit mthca_init_icm(struct mthca_dev *mdev,
 	if (!mdev->qp_table.rdb_table) {
 		mthca_err(mdev, "Failed to map RDB context memory, aborting\n");
 		err = -ENOMEM;
-		goto err_unmap_rdb;
+		goto err_unmap_eqp;
 	}
 
        mdev->cq_table.table = mthca_alloc_icm_table(mdev, init_hca->cqc_base,
