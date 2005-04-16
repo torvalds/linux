@@ -1779,32 +1779,6 @@ core99_sleep_state(struct device_node* node, long param, long value)
 	if ((pmac_mb.board_flags & PMAC_MB_CAN_SLEEP) == 0)
 		return -EPERM;
 
-#ifdef CONFIG_CPU_FREQ_PMAC
-	/* XXX should be elsewhere */
-	if (machine_is_compatible("PowerBook6,5") ||
-	    machine_is_compatible("PowerBook6,4") ||
-	    machine_is_compatible("PowerBook5,5") ||
-	    machine_is_compatible("PowerBook5,4")) {
-		struct device_node *volt_gpio_np;
-		u32 *reg = NULL;
-
-		volt_gpio_np = of_find_node_by_name(NULL, "cpu-vcore-select");
-		if (volt_gpio_np != NULL)
-			reg = (u32 *)get_property(volt_gpio_np, "reg", NULL);
-		if (reg != NULL) {
-			/* Set the CPU voltage high if sleeping */
-			if (value == 1) {
-				pmac_call_feature(PMAC_FTR_WRITE_GPIO, NULL,
-						  *reg, 0x05);
-			} else if (value == 0 && (mfspr(SPRN_HID1) & HID1_DFS)) {
-				pmac_call_feature(PMAC_FTR_WRITE_GPIO, NULL,
-						  *reg, 0x04);
-			}
-			mdelay(2);
-		}
-	}
-#endif /* CONFIG_CPU_FREQ_PMAC */
-
 	if (value == 1)
 		return core99_sleep();
 	else if (value == 0)

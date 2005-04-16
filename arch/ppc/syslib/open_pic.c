@@ -78,7 +78,6 @@ static void openpic_mapirq(u_int irq, cpumask_t cpumask, cpumask_t keepmask);
  */
 #ifdef notused
 static void openpic_enable_8259_pass_through(void);
-static u_int openpic_get_priority(void);
 static u_int openpic_get_spurious(void);
 static void openpic_set_sense(u_int irq, int sense);
 #endif /* notused */
@@ -465,8 +464,7 @@ void openpic_eoi(void)
 	(void)openpic_read(&OpenPIC->THIS_CPU.EOI);
 }
 
-#ifdef notused
-static u_int openpic_get_priority(void)
+u_int openpic_get_priority(void)
 {
 	DECL_THIS_CPU;
 
@@ -474,7 +472,6 @@ static u_int openpic_get_priority(void)
 	return openpic_readfield(&OpenPIC->THIS_CPU.Current_Task_Priority,
 				 OPENPIC_CURRENT_TASK_PRIORITY_MASK);
 }
-#endif /* notused */
 
 void openpic_set_priority(u_int pri)
 {

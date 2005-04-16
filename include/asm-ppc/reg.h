@@ -181,6 +181,7 @@
 #define HID1_PC3	(1<<13)		/* 7450 PLL_CFG[3] */
 #define HID1_SYNCBE	(1<<11)		/* 7450 ABE for sync, eieio */
 #define HID1_ABE	(1<<10)		/* 7450 Address Broadcast Enable */
+#define HID1_PS		(1<<16)		/* 750FX PLL selection */
 #define SPRN_HID2	0x3F8		/* Hardware Implementation Register 2 */
 #define SPRN_IABR	0x3F2	/* Instruction Address Breakpoint Register */
 #define SPRN_HID4	0x3F4		/* 970 HID4 */
