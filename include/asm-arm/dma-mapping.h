@@ -21,6 +21,9 @@ extern void consistent_sync(void *kaddr, size_t size, int rw);
  * properly.  For example, if your device can only drive the low 24-bits
  * during bus mastering, then you would pass 0x00ffffff as the mask
  * to this function.
+ *
+ * FIXME: This should really be a platform specific issue - we should
+ * return false if GFP_DMA allocations may not satisfy the supplied 'mask'.
  */
 static inline int dma_supported(struct device *dev, u64 mask)
 {
