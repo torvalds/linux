@@ -15,7 +15,7 @@
 #include <linux/pcieport_if.h>
 
 static int pcie_port_bus_match(struct device *dev, struct device_driver *drv);
-static int pcie_port_bus_suspend(struct device *dev, u32 state);
+static int pcie_port_bus_suspend(struct device *dev, pm_message_t state);
 static int pcie_port_bus_resume(struct device *dev);
 
 struct bus_type pcie_port_bus_type = {
@@ -46,7 +46,7 @@ static int pcie_port_bus_match(struct device *dev, struct device_driver *drv)
 	return 1;
 }
 
-static int pcie_port_bus_suspend(struct device *dev, u32 state)
+static int pcie_port_bus_suspend(struct device *dev, pm_message_t state)
 {
 	struct pcie_device *pciedev;
 	struct pcie_port_service_driver *driver;

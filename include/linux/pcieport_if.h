@@ -59,7 +59,7 @@ struct pcie_port_service_driver {
 	int (*probe) (struct pcie_device *dev, 
 		const struct pcie_port_service_id *id);
 	void (*remove) (struct pcie_device *dev);
-	int (*suspend) (struct pcie_device *dev, u32 state);
+	int (*suspend) (struct pcie_device *dev, pm_message_t state);
 	int (*resume) (struct pcie_device *dev);
 
 	const struct pcie_port_service_id *id_table;

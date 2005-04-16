@@ -61,7 +61,7 @@ static int pcie_port_remove_service(struct device *dev)
 
 static void pcie_port_shutdown_service(struct device *dev) {}
 
-static int pcie_port_suspend_service(struct device *dev, u32 state, u32 level)
+static int pcie_port_suspend_service(struct device *dev, pm_message_t state, u32 level)
 {
 	struct pcie_device *pciedev;
 	struct pcie_port_service_driver *driver;
@@ -76,7 +76,7 @@ static int pcie_port_suspend_service(struct device *dev, u32 state, u32 level)
 	return 0;
 }
 
-static int pcie_port_resume_service(struct device *dev, u32 state)
+static int pcie_port_resume_service(struct device *dev, u32 level)
 {
 	struct pcie_device *pciedev;
 	struct pcie_port_service_driver *driver;
@@ -317,7 +317,7 @@ int pcie_port_device_register(struct pci_dev *dev)
 }
 
 #ifdef CONFIG_PM
-int pcie_port_device_suspend(struct pci_dev *dev, u32 state)
+int pcie_port_device_suspend(struct pci_dev *dev, pm_message_t state)
 {
 	struct list_head 		*head, *tmp;
 	struct device 			*parent, *child;

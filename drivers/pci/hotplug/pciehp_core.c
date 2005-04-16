@@ -578,7 +578,7 @@ static void pciehp_remove (struct pcie_device *device)
 }
 
 #ifdef CONFIG_PM
-static int pciehp_suspend (struct pcie_device *dev, u32 state)
+static int pciehp_suspend (struct pcie_device *dev, pm_message_t state)
 {
 	printk("%s ENTRY\n", __FUNCTION__);	
 	return 0;
