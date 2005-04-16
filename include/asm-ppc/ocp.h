@@ -119,7 +119,7 @@ struct ocp_driver {
 	const struct ocp_device_id *id_table;	/* NULL if wants all devices */
 	int  (*probe)  (struct ocp_device *dev);	/* New device inserted */
 	void (*remove) (struct ocp_device *dev);	/* Device removed (NULL if not a hot-plug capable driver) */
-	int  (*suspend) (struct ocp_device *dev, u32 state);	/* Device suspended */
+	int  (*suspend) (struct ocp_device *dev, pm_message_t state);	/* Device suspended */
 	int  (*resume) (struct ocp_device *dev);	                /* Device woken up */
 	struct device_driver driver;
 };

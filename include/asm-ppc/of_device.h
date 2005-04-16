@@ -55,7 +55,7 @@ struct of_platform_driver
 	int	(*probe)(struct of_device* dev, const struct of_match *match);
 	int	(*remove)(struct of_device* dev);
 
-	int	(*suspend)(struct of_device* dev, u32 state);
+	int	(*suspend)(struct of_device* dev, pm_message_t state);
 	int	(*resume)(struct of_device* dev);
 	int	(*shutdown)(struct of_device* dev);
 

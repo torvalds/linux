@@ -126,7 +126,7 @@ struct macio_driver
 	int	(*probe)(struct macio_dev* dev, const struct of_match *match);
 	int	(*remove)(struct macio_dev* dev);
 
-	int	(*suspend)(struct macio_dev* dev, u32 state);
+	int	(*suspend)(struct macio_dev* dev, pm_message_t state);
 	int	(*resume)(struct macio_dev* dev);
 	int	(*shutdown)(struct macio_dev* dev);
 
