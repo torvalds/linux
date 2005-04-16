@@ -744,7 +744,7 @@ struct snd_generic_device {
 
 #define SND_GENERIC_NAME	"snd_generic_pm"
 
-static int snd_generic_suspend(struct device *dev, u32 state, u32 level);
+static int snd_generic_suspend(struct device *dev, pm_message_t state, u32 level);
 static int snd_generic_resume(struct device *dev, u32 level);
 
 static struct device_driver snd_generic_driver = {
@@ -800,7 +800,7 @@ static void snd_generic_device_unregister(struct snd_generic_device *dev)
 }
 
 /* suspend/resume callbacks for snd_generic platform device */
-static int snd_generic_suspend(struct device *dev, u32 state, u32 level)
+static int snd_generic_suspend(struct device *dev, pm_message_t state, u32 level)
 {
 	snd_card_t *card;
 
