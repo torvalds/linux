@@ -1029,11 +1029,16 @@ static int mthca_alloc_memfree(struct mthca_dev *dev,
 		if (ret)
 			goto err_qpc;
 
+		ret = mthca_table_get(dev, dev->qp_table.rdb_table,
+				      qp->qpn << dev->qp_table.rdb_shift);
+		if (ret)
+			goto err_eqpc;
+
 		qp->rq.db_index = mthca_alloc_db(dev, MTHCA_DB_TYPE_RQ,
 						 qp->qpn, &qp->rq.db);
 		if (qp->rq.db_index < 0) {
 			ret = -ENOMEM;
-			goto err_eqpc;
+			goto err_rdb;
 		}
 
 		qp->sq.db_index = mthca_alloc_db(dev, MTHCA_DB_TYPE_SQ,
@@ -1048,6 +1053,10 @@ static int mthca_alloc_memfree(struct mthca_dev *dev,
 
 err_rq_db:
 	mthca_free_db(dev, MTHCA_DB_TYPE_RQ, qp->rq.db_index);
+
+err_rdb:
+	mthca_table_put(dev, dev->qp_table.rdb_table,
+			qp->qpn << dev->qp_table.rdb_shift);
 
 err_eqpc:
 	mthca_table_put(dev, dev->qp_table.eqp_table, qp->qpn);
@@ -1064,6 +1073,8 @@ static void mthca_free_memfree(struct mthca_dev *dev,
 	if (mthca_is_memfree(dev)) {
 		mthca_free_db(dev, MTHCA_DB_TYPE_SQ, qp->sq.db_index);
 		mthca_free_db(dev, MTHCA_DB_TYPE_RQ, qp->rq.db_index);
+		mthca_table_put(dev, dev->qp_table.rdb_table,
+				qp->qpn << dev->qp_table.rdb_shift);
 		mthca_table_put(dev, dev->qp_table.eqp_table, qp->qpn);
 		mthca_table_put(dev, dev->qp_table.qp_table, qp->qpn);
 	}

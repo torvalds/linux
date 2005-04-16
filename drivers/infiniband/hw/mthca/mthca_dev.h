@@ -222,6 +222,7 @@ struct mthca_qp_table {
 	struct mthca_array     	qp;
 	struct mthca_icm_table *qp_table;
 	struct mthca_icm_table *eqp_table;
+	struct mthca_icm_table *rdb_table;
 };
 
 struct mthca_av_table {
