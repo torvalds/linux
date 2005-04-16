@@ -318,7 +318,7 @@ static pageout_t pageout(struct page *page, struct address_space *mapping)
 		 * Some data journaling orphaned pages can have
 		 * page->mapping == NULL while being dirty with clean buffers.
 		 */
-		if (PageDirty(page) && PagePrivate(page)) {
+		if (PagePrivate(page)) {
 			if (try_to_free_buffers(page)) {
 				ClearPageDirty(page);
 				printk("%s: orphaned page\n", __FUNCTION__);
