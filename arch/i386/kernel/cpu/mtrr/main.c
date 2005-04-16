@@ -614,40 +614,21 @@ static int __init mtrr_init(void)
 		mtrr_if = &generic_mtrr_ops;
 		size_or_mask = 0xff000000;	/* 36 bits */
 		size_and_mask = 0x00f00000;
-			
-		switch (boot_cpu_data.x86_vendor) {
-		case X86_VENDOR_AMD:
-			/* The original Athlon docs said that
-			   total addressable memory is 44 bits wide.
-			   It was not really clear whether its MTRRs
-			   follow this or not. (Read: 44 or 36 bits).
-			   However, "x86-64_overview.pdf" explicitly
-			   states that "previous implementations support
-			   36 bit MTRRs" and also provides a way to
-			   query the width (in bits) of the physical
-			   addressable memory on the Hammer family.
-			 */
-			if (boot_cpu_data.x86 == 15
-			    && (cpuid_eax(0x80000000) >= 0x80000008)) {
-				u32 phys_addr;
-				phys_addr = cpuid_eax(0x80000008) & 0xff;
-				size_or_mask =
-				    ~((1 << (phys_addr - PAGE_SHIFT)) - 1);
-				size_and_mask = ~size_or_mask & 0xfff00000;
-			}
-			/* Athlon MTRRs use an Intel-compatible interface for 
-			 * getting and setting */
-			break;
-		case X86_VENDOR_CENTAUR:
-			if (boot_cpu_data.x86 == 6) {
-				/* VIA Cyrix family have Intel style MTRRs, but don't support PAE */
-				size_or_mask = 0xfff00000;	/* 32 bits */
-				size_and_mask = 0;
-			}
-			break;
-		
-		default:
-			break;
+
+		/* This is an AMD specific MSR, but we assume(hope?) that
+		   Intel will implement it to when they extend the address
+		   bus of the Xeon. */
+		if (cpuid_eax(0x80000000) >= 0x80000008) {
+			u32 phys_addr;
+			phys_addr = cpuid_eax(0x80000008) & 0xff;
+			size_or_mask = ~((1 << (phys_addr - PAGE_SHIFT)) - 1);
+			size_and_mask = ~size_or_mask & 0xfff00000;
+		} else if (boot_cpu_data.x86_vendor == X86_VENDOR_CENTAUR &&
+			   boot_cpu_data.x86 == 6) {
+			/* VIA C* family have Intel style MTRRs, but
+			   don't support PAE */
+			size_or_mask = 0xfff00000;	/* 32 bits */
+			size_and_mask = 0;
 		}
 	} else {
 		switch (boot_cpu_data.x86_vendor) {
