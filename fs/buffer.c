@@ -2838,14 +2838,14 @@ void ll_rw_block(int rw, int nr, struct buffer_head *bhs[])
 
 		get_bh(bh);
 		if (rw == WRITE) {
-			bh->b_end_io = end_buffer_write_sync;
 			if (test_clear_buffer_dirty(bh)) {
+				bh->b_end_io = end_buffer_write_sync;
 				submit_bh(WRITE, bh);
 				continue;
 			}
 		} else {
-			bh->b_end_io = end_buffer_read_sync;
 			if (!buffer_uptodate(bh)) {
+				bh->b_end_io = end_buffer_read_sync;
 				submit_bh(rw, bh);
 				continue;
 			}
