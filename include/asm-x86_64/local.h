@@ -45,7 +45,8 @@ static __inline__ void local_sub(unsigned long i, local_t *v)
 		:"ir" (i), "m" (v->counter));
 }
 
-/* On x86, these are no better than the atomic variants. */
+/* On x86-64 these are better than the atomic variants on SMP kernels
+   because they dont use a lock prefix. */
 #define __local_inc(l)		local_inc(l)
 #define __local_dec(l)		local_dec(l)
 #define __local_add(i,l)	local_add((i),(l))
