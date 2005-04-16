@@ -1649,8 +1649,6 @@ void ptrace_notify(int exit_code)
 	spin_unlock_irq(&current->sighand->siglock);
 }
 
-#ifndef HAVE_ARCH_GET_SIGNAL_TO_DELIVER
-
 static void
 finish_stop(int stop_count)
 {
@@ -1961,8 +1959,6 @@ relock:
 	spin_unlock_irq(&current->sighand->siglock);
 	return signr;
 }
-
-#endif
 
 EXPORT_SYMBOL(recalc_sigpending);
 EXPORT_SYMBOL_GPL(dequeue_signal);
