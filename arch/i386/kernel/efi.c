@@ -46,8 +46,8 @@ extern efi_status_t asmlinkage efi_call_phys(void *, ...);
 
 struct efi efi;
 EXPORT_SYMBOL(efi);
-static struct efi efi_phys __initdata;
-struct efi_memory_map memmap __initdata;
+static struct efi efi_phys;
+struct efi_memory_map memmap;
 
 /*
  * We require an early boot_ioremap mapping mechanism initially
