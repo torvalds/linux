@@ -1432,7 +1432,7 @@ void cpuset_exit(struct task_struct *tsk)
  * tasks cpuset.
  **/
 
-const cpumask_t cpuset_cpus_allowed(const struct task_struct *tsk)
+cpumask_t cpuset_cpus_allowed(const struct task_struct *tsk)
 {
 	cpumask_t mask;
 
