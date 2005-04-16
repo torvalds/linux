@@ -58,7 +58,10 @@
 int smp_num_siblings = 1;
 /* Package ID of each logical CPU */
 u8 phys_proc_id[NR_CPUS] = { [0 ... NR_CPUS-1] = BAD_APICID };
+/* Core ID of each logical CPU */
+u8 cpu_core_id[NR_CPUS] = { [0 ... NR_CPUS-1] = BAD_APICID };
 EXPORT_SYMBOL(phys_proc_id);
+EXPORT_SYMBOL(cpu_core_id);
 
 /* Bitmask of currently online CPUs */
 cpumask_t cpu_online_map;
@@ -71,6 +74,7 @@ static cpumask_t smp_commenced_mask;
 struct cpuinfo_x86 cpu_data[NR_CPUS] __cacheline_aligned;
 
 cpumask_t cpu_sibling_map[NR_CPUS] __cacheline_aligned;
+cpumask_t cpu_core_map[NR_CPUS] __cacheline_aligned;
 
 /*
  * Trampoline 80x86 program as an array.
@@ -713,6 +717,7 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 		io_apic_irqs = 0;
 		cpu_online_map = cpumask_of_cpu(0);
 		cpu_set(0, cpu_sibling_map[0]);
+		cpu_set(0, cpu_core_map[0]);
 		phys_cpu_present_map = physid_mask_of_physid(0);
 		if (APIC_init_uniprocessor())
 			printk(KERN_NOTICE "Local APIC not detected."
@@ -740,6 +745,7 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 		io_apic_irqs = 0;
 		cpu_online_map = cpumask_of_cpu(0);
 		cpu_set(0, cpu_sibling_map[0]);
+		cpu_set(0, cpu_core_map[0]);
 		phys_cpu_present_map = physid_mask_of_physid(0);
 		disable_apic = 1;
 		goto smp_done;
@@ -756,6 +762,7 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 		io_apic_irqs = 0;
 		cpu_online_map = cpumask_of_cpu(0);
 		cpu_set(0, cpu_sibling_map[0]);
+		cpu_set(0, cpu_core_map[0]);
 		phys_cpu_present_map = physid_mask_of_physid(0);
 		disable_apic = 1;
 		goto smp_done;
@@ -833,10 +840,13 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 	 * Construct cpu_sibling_map[], so that we can tell the
 	 * sibling CPU efficiently.
 	 */
-	for (cpu = 0; cpu < NR_CPUS; cpu++)
+	for (cpu = 0; cpu < NR_CPUS; cpu++) {
 		cpus_clear(cpu_sibling_map[cpu]);
+		cpus_clear(cpu_core_map[cpu]);
+	}
 
 	for (cpu = 0; cpu < NR_CPUS; cpu++) {
+  		struct cpuinfo_x86 *c = cpu_data + cpu;
 		int siblings = 0;
 		int i;
 		if (!cpu_isset(cpu, cpu_callout_map))
@@ -846,7 +856,7 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 			for (i = 0; i < NR_CPUS; i++) {
 				if (!cpu_isset(i, cpu_callout_map))
 					continue;
-				if (phys_proc_id[cpu] == phys_proc_id[i]) {
+				if (phys_proc_id[cpu] == cpu_core_id[i]) {
 					siblings++;
 					cpu_set(i, cpu_sibling_map[cpu]);
 				}
@@ -862,6 +872,16 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 			       siblings, cpu, smp_num_siblings);
 			smp_num_siblings = siblings;
 		}       
+ 		if (c->x86_num_cores > 1) {
+			for (i = 0; i < NR_CPUS; i++) {
+				if (!cpu_isset(i, cpu_callout_map))
+					continue;
+ 				if (phys_proc_id[cpu] == phys_proc_id[i]) {
+ 					cpu_set(i, cpu_core_map[cpu]);
+ 				}
+ 			}
+ 		} else
+ 			cpu_core_map[cpu] = cpu_sibling_map[cpu];
 	}
 
 	Dprintk("Boot done.\n");

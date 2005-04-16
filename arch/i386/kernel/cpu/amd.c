@@ -188,6 +188,13 @@ static void __init init_amd(struct cpuinfo_x86 *c)
 	}
 
 	display_cacheinfo(c);
+
+	if (cpuid_eax(0x80000000) >= 0x80000008) {
+		c->x86_num_cores = (cpuid_ecx(0x80000008) & 0xff) + 1;
+		if (c->x86_num_cores & (c->x86_num_cores - 1))
+			c->x86_num_cores = 1;
+	}
+
 	detect_ht(c);
 
 #ifdef CONFIG_X86_HT
@@ -199,12 +206,6 @@ static void __init init_amd(struct cpuinfo_x86 *c)
 	if (cpu_has(c, X86_FEATURE_CMP_LEGACY))
 		smp_num_siblings = 1;
 #endif
-
-	if (cpuid_eax(0x80000000) >= 0x80000008) {
-		c->x86_num_cores = (cpuid_ecx(0x80000008) & 0xff) + 1;
-		if (c->x86_num_cores & (c->x86_num_cores - 1))
-			c->x86_num_cores = 1;
-	}
 }
 
 static unsigned int amd_size_cache(struct cpuinfo_x86 * c, unsigned int size)

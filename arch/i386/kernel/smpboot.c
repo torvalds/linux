@@ -62,6 +62,8 @@ static int __initdata smp_b_stepping;
 int smp_num_siblings = 1;
 int phys_proc_id[NR_CPUS]; /* Package ID of each logical CPU */
 EXPORT_SYMBOL(phys_proc_id);
+int cpu_core_id[NR_CPUS]; /* Core ID of each logical CPU */
+EXPORT_SYMBOL(cpu_core_id);
 
 /* bitmap of online cpus */
 cpumask_t cpu_online_map;
@@ -885,6 +887,7 @@ static int boot_cpu_logical_apicid;
 void *xquad_portio;
 
 cpumask_t cpu_sibling_map[NR_CPUS] __cacheline_aligned;
+cpumask_t cpu_core_map[NR_CPUS] __cacheline_aligned;
 
 static void __init smp_boot_cpus(unsigned int max_cpus)
 {
@@ -907,6 +910,9 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 	cpus_clear(cpu_sibling_map[0]);
 	cpu_set(0, cpu_sibling_map[0]);
 
+	cpus_clear(cpu_core_map[0]);
+	cpu_set(0, cpu_core_map[0]);
+
 	/*
 	 * If we couldn't find an SMP configuration at boot time,
 	 * get out of here now!
@@ -919,6 +925,8 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 			printk(KERN_NOTICE "Local APIC not detected."
 					   " Using dummy APIC emulation.\n");
 		map_cpu_to_logical_apicid();
+		cpu_set(0, cpu_sibling_map[0]);
+		cpu_set(0, cpu_core_map[0]);
 		return;
 	}
 
@@ -942,6 +950,8 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 		printk(KERN_ERR "... forcing use of dummy APIC emulation. (tell your hw vendor)\n");
 		smpboot_clear_io_apic_irqs();
 		phys_cpu_present_map = physid_mask_of_physid(0);
+		cpu_set(0, cpu_sibling_map[0]);
+		cpu_set(0, cpu_core_map[0]);
 		return;
 	}
 
@@ -955,6 +965,8 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 		printk(KERN_INFO "SMP mode deactivated, forcing use of dummy APIC emulation.\n");
 		smpboot_clear_io_apic_irqs();
 		phys_cpu_present_map = physid_mask_of_physid(0);
+		cpu_set(0, cpu_sibling_map[0]);
+		cpu_set(0, cpu_core_map[0]);
 		return;
 	}
 
@@ -1035,10 +1047,13 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 	 * construct cpu_sibling_map[], so that we can tell sibling CPUs
 	 * efficiently.
 	 */
-	for (cpu = 0; cpu < NR_CPUS; cpu++)
+	for (cpu = 0; cpu < NR_CPUS; cpu++) {
 		cpus_clear(cpu_sibling_map[cpu]);
+		cpus_clear(cpu_core_map[cpu]);
+	}
 
 	for (cpu = 0; cpu < NR_CPUS; cpu++) {
+		struct cpuinfo_x86 *c = cpu_data + cpu;
 		int siblings = 0;
 		int i;
 		if (!cpu_isset(cpu, cpu_callout_map))
@@ -1048,7 +1063,7 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 			for (i = 0; i < NR_CPUS; i++) {
 				if (!cpu_isset(i, cpu_callout_map))
 					continue;
-				if (phys_proc_id[cpu] == phys_proc_id[i]) {
+				if (cpu_core_id[cpu] == cpu_core_id[i]) {
 					siblings++;
 					cpu_set(i, cpu_sibling_map[cpu]);
 				}
@@ -1060,6 +1075,18 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 
 		if (siblings != smp_num_siblings)
 			printk(KERN_WARNING "WARNING: %d siblings found for CPU%d, should be %d\n", siblings, cpu, smp_num_siblings);
+
+		if (c->x86_num_cores > 1) {
+			for (i = 0; i < NR_CPUS; i++) {
+				if (!cpu_isset(i, cpu_callout_map))
+					continue;
+				if (phys_proc_id[cpu] == phys_proc_id[i]) {
+					cpu_set(i, cpu_core_map[cpu]);
+				}
+			}
+		} else {
+			cpu_core_map[cpu] = cpu_sibling_map[cpu];
+		}
 	}
 
 	if (nmi_watchdog == NMI_LOCAL_APIC)

@@ -77,6 +77,27 @@ static void __init Intel_errata_workarounds(struct cpuinfo_x86 *c)
 }
 
 
+/*
+ * find out the number of processor cores on the die
+ */
+static int __init num_cpu_cores(struct cpuinfo_x86 *c)
+{
+	unsigned int eax;
+
+	if (c->cpuid_level < 4)
+		return 1;
+
+	__asm__("cpuid"
+		: "=a" (eax)
+		: "0" (4), "c" (0)
+		: "bx", "dx");
+
+	if (eax & 0x1f)
+		return ((eax >> 26) + 1);
+	else
+		return 1;
+}
+
 static void __init init_intel(struct cpuinfo_x86 *c)
 {
 	unsigned int l2 = 0;
@@ -139,6 +160,8 @@ static void __init init_intel(struct cpuinfo_x86 *c)
 	if ( p )
 		strcpy(c->x86_model_id, p);
 	
+	c->x86_num_cores = num_cpu_cores(c);
+
 	detect_ht(c);
 
 	/* Work around errata */

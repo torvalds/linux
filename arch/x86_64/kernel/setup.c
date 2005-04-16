@@ -774,7 +774,7 @@ static void __init detect_ht(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_SMP
 	u32 	eax, ebx, ecx, edx;
-	int 	index_lsb, index_msb, tmp;
+	int 	index_msb, tmp;
 	int 	cpu = smp_processor_id();
 	
 	if (!cpu_has(c, X86_FEATURE_HT))
@@ -786,7 +786,6 @@ static void __init detect_ht(struct cpuinfo_x86 *c)
 	if (smp_num_siblings == 1) {
 		printk(KERN_INFO  "CPU: Hyper-Threading is disabled\n");
 	} else if (smp_num_siblings > 1) {
-		index_lsb = 0;
 		index_msb = 31;
 		/*
 		 * At this point we only support two siblings per
@@ -798,21 +797,33 @@ static void __init detect_ht(struct cpuinfo_x86 *c)
 			return;
 		}
 		tmp = smp_num_siblings;
-		while ((tmp & 1) == 0) {
-			tmp >>=1 ;
-			index_lsb++;
-		}
-		tmp = smp_num_siblings;
 		while ((tmp & 0x80000000 ) == 0) {
 			tmp <<=1 ;
 			index_msb--;
 		}
-		if (index_lsb != index_msb )
+		if (smp_num_siblings & (smp_num_siblings - 1))
 			index_msb++;
 		phys_proc_id[cpu] = phys_pkg_id(index_msb);
 		
 		printk(KERN_INFO  "CPU: Physical Processor ID: %d\n",
 		       phys_proc_id[cpu]);
+
+		smp_num_siblings = smp_num_siblings / c->x86_num_cores;
+
+		tmp = smp_num_siblings;
+		index_msb = 31;
+		while ((tmp & 0x80000000) == 0) {
+			tmp <<=1 ;
+			index_msb--;
+		}
+		if (smp_num_siblings & (smp_num_siblings - 1))
+			index_msb++;
+
+		cpu_core_id[cpu] = phys_pkg_id(index_msb);
+
+		if (c->x86_num_cores > 1)
+			printk(KERN_INFO  "CPU: Processor Core ID: %d\n",
+			       cpu_core_id[cpu]);
 	}
 #endif
 }
@@ -829,7 +840,28 @@ static void __init sched_cmp_hack(struct cpuinfo_x86 *c)
 		smp_num_siblings = 1;
 #endif
 }
-	
+
+/*
+ * find out the number of processor cores on the die
+ */
+static int __init intel_num_cpu_cores(struct cpuinfo_x86 *c)
+{
+	unsigned int eax;
+
+	if (c->cpuid_level < 4)
+		return 1;
+
+	__asm__("cpuid"
+		: "=a" (eax)
+		: "0" (4), "c" (0)
+		: "bx", "dx");
+
+	if (eax & 0x1f)
+		return ((eax >> 26) + 1);
+	else
+		return 1;
+}
+
 static void __init init_intel(struct cpuinfo_x86 *c)
 {
 	/* Cache sizes */
@@ -847,6 +879,7 @@ static void __init init_intel(struct cpuinfo_x86 *c)
 		c->x86_cache_alignment = c->x86_clflush_size * 2;
 	if (c->x86 >= 15)
 		set_bit(X86_FEATURE_CONSTANT_TSC, &c->x86_capability);
+ 	c->x86_num_cores = intel_num_cpu_cores(c);
 }
 
 void __init get_cpu_vendor(struct cpuinfo_x86 *c)
@@ -1153,13 +1186,16 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 					seq_printf(m, " [%d]", i);
 			}
 	}
+
 	seq_printf(m, "\n");
 
-	if (c->x86_num_cores > 1)
-		seq_printf(m, "cpu cores\t: %d\n", c->x86_num_cores);
-
-	seq_printf(m, "\n\n"); 
-
+#ifdef CONFIG_SMP
+	/* Put new fields at the end to lower the probability of
+	   breaking user space parsers. */
+	seq_printf(m, "core id\t\t: %d\n", cpu_core_id[c - cpu_data]);
+	seq_printf(m, "cpu cores\t: %d\n", c->x86_num_cores);
+#endif
+	seq_printf(m, "\n");
 	return 0;
 }
 

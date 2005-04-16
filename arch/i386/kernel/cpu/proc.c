@@ -129,6 +129,14 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, "\nbogomips\t: %lu.%02lu\n\n",
 		     c->loops_per_jiffy/(500000/HZ),
 		     (c->loops_per_jiffy/(5000/HZ)) % 100);
+
+#ifdef CONFIG_SMP
+	/* Put new fields at the end to lower the probability of
+	   breaking user space parsers. */
+	seq_printf(m, "core id\t\t: %d\n", cpu_core_id[n]);
+	seq_printf(m, "cpu cores\t: %d\n", c->x86_num_cores);
+#endif
+
 	return 0;
 }
 
