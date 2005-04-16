@@ -488,24 +488,8 @@ DO_ERROR(10, SIGSEGV, "invalid TSS", invalid_TSS)
 DO_ERROR(11, SIGBUS,  "segment not present", segment_not_present)
 DO_ERROR_INFO(17, SIGBUS, "alignment check", alignment_check, BUS_ADRALN, 0)
 DO_ERROR(18, SIGSEGV, "reserved", reserved)
-
-#define DO_ERROR_STACK(trapnr, signr, str, name) \
-asmlinkage void *do_##name(struct pt_regs * regs, long error_code) \
-{ \
-	struct pt_regs *pr = ((struct pt_regs *)(current->thread.rsp0))-1; \
-	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr) \
-							== NOTIFY_STOP) \
-		return regs; \
-	if (regs->cs & 3) { \
-		memcpy(pr, regs, sizeof(struct pt_regs)); \
-		regs = pr; \
-	} \
-	do_trap(trapnr, signr, str, regs, error_code, NULL); \
-	return regs;		\
-}
-
-DO_ERROR_STACK(12, SIGBUS,  "stack segment", stack_segment)
-DO_ERROR_STACK( 8, SIGSEGV, "double fault", double_fault)
+DO_ERROR(12, SIGBUS,  "stack segment", stack_segment)
+DO_ERROR( 8, SIGSEGV, "double fault", double_fault)
 
 asmlinkage void do_general_protection(struct pt_regs * regs, long error_code)
 {
@@ -584,6 +568,8 @@ static void unknown_nmi_error(unsigned char reason, struct pt_regs * regs)
 	printk("Do you have a strange power saving mode enabled?\n");
 }
 
+/* Runs on IST stack. This code must keep interrupts off all the time.
+   Nested NMIs are prevented by the CPU. */
 asmlinkage void default_do_nmi(struct pt_regs *regs)
 {
 	unsigned char reason = 0;
@@ -629,19 +615,33 @@ asmlinkage void do_int3(struct pt_regs * regs, long error_code)
 	return;
 }
 
-/* runs on IST stack. */
-asmlinkage void *do_debug(struct pt_regs * regs, unsigned long error_code)
+/* Help handler running on IST stack to switch back to user stack
+   for scheduling or signal handling. The actual stack switch is done in
+   entry.S */
+asmlinkage struct pt_regs *sync_regs(struct pt_regs *eregs)
 {
-	struct pt_regs *pr;
+	struct pt_regs *regs = eregs;
+	/* Did already sync */
+	if (eregs == (struct pt_regs *)eregs->rsp)
+		;
+	/* Exception from user space */
+	else if (eregs->cs & 3)
+		regs = ((struct pt_regs *)current->thread.rsp0) - 1;
+	/* Exception from kernel and interrupts are enabled. Move to
+ 	   kernel process stack. */
+	else if (eregs->eflags & X86_EFLAGS_IF)
+		regs = (struct pt_regs *)(eregs->rsp -= sizeof(struct pt_regs));
+	if (eregs != regs)
+		*regs = *eregs;
+	return regs;
+}
+
+/* runs on IST stack. */
+asmlinkage void do_debug(struct pt_regs * regs, unsigned long error_code)
+{
 	unsigned long condition;
 	struct task_struct *tsk = current;
 	siginfo_t info;
-
-	pr = (struct pt_regs *)(current->thread.rsp0)-1;
-	if (regs->cs & 3) {
-		memcpy(pr, regs, sizeof(struct pt_regs));
-		regs = pr;
-	}	
 
 #ifdef CONFIG_CHECKING
        { 
@@ -660,7 +660,7 @@ asmlinkage void *do_debug(struct pt_regs * regs, unsigned long error_code)
 
 	if (notify_die(DIE_DEBUG, "debug", regs, condition, error_code,
 						SIGTRAP) == NOTIFY_STOP) {
-		return regs;
+		return;
 	}
 	conditional_sti(regs);
 
@@ -712,7 +712,7 @@ asmlinkage void *do_debug(struct pt_regs * regs, unsigned long error_code)
 clear_dr7:
 	asm volatile("movq %0,%%db7"::"r"(0UL));
 	notify_die(DIE_DEBUG, "debug", regs, condition, 1, SIGTRAP);
-	return regs;
+	return;
 
 clear_TF_reenable:
 	set_tsk_thread_flag(tsk, TIF_SINGLESTEP);
@@ -722,7 +722,6 @@ clear_TF:
 	if (notify_die(DIE_DEBUG, "debug2", regs, condition, 1, SIGTRAP) 
 								!= NOTIFY_STOP)
 	regs->eflags &= ~TF_MASK;
-	return regs;	
 }
 
 static int kernel_math_error(struct pt_regs *regs, char *str)

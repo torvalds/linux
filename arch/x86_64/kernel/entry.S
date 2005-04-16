@@ -579,6 +579,7 @@ ENTRY(spurious_interrupt)
 	movq ORIG_RAX(%rsp),%rsi
 	movq $-1,ORIG_RAX(%rsp)
 	call \sym
+	cli
 	.endm
 	
 /*
@@ -794,10 +795,6 @@ ENTRY(debug)
 	pushq $0
 	CFI_ADJUST_CFA_OFFSET 8		
 	paranoidentry do_debug
-	/* switch back to process stack to restore the state ptrace touched */
-	movq %rax,%rsp	
-	testl $3,CS(%rsp)
-	jnz   paranoid_userspace	
 	jmp paranoid_exit
 	CFI_ENDPROC
 
@@ -807,35 +804,49 @@ ENTRY(nmi)
 	pushq $-1
 	CFI_ADJUST_CFA_OFFSET 8		
 	paranoidentry do_nmi
+	/*
+ 	 * "Paranoid" exit path from exception stack.
+  	 * Paranoid because this is used by NMIs and cannot take
+	 * any kernel state for granted.
+	 * We don't do kernel preemption checks here, because only
+	 * NMI should be common and it does not enable IRQs and
+	 * cannot get reschedule ticks.
+	 */
 	/* ebx:	no swapgs flag */
 paranoid_exit:
 	testl %ebx,%ebx				/* swapgs needed? */
 	jnz paranoid_restore
+	testl $3,CS(%rsp)
+	jnz   paranoid_userspace
 paranoid_swapgs:	
-	cli
 	swapgs
 paranoid_restore:	
 	RESTORE_ALL 8
 	iretq
 paranoid_userspace:	
-	cli
 	GET_THREAD_INFO(%rcx)
-	movl threadinfo_flags(%rcx),%edx
-	testl $_TIF_WORK_MASK,%edx
+	movl threadinfo_flags(%rcx),%ebx
+	andl $_TIF_WORK_MASK,%ebx
 	jz paranoid_swapgs
-	testl $_TIF_NEED_RESCHED,%edx
-	jnz paranoid_resched
+	movq %rsp,%rdi			/* &pt_regs */
+	call sync_regs
+	movq %rax,%rsp			/* switch stack for scheduling */
+	testl $_TIF_NEED_RESCHED,%ebx
+	jnz paranoid_schedule
+	movl %ebx,%edx			/* arg3: thread flags */
 	sti
-	xorl %esi,%esi /* oldset */
-	movq %rsp,%rdi /* &pt_regs */
+	xorl %esi,%esi 			/* arg2: oldset */
+	movq %rsp,%rdi 			/* arg1: &pt_regs */
 	call do_notify_resume
-	jmp paranoid_exit
-paranoid_resched:
+	cli
+	jmp paranoid_userspace
+paranoid_schedule:
 	sti
 	call schedule
-	jmp paranoid_exit
+	cli
+	jmp paranoid_userspace
 	CFI_ENDPROC
-	
+
 ENTRY(int3)
 	zeroentry do_int3	
 
@@ -858,9 +869,6 @@ ENTRY(reserved)
 ENTRY(double_fault)
 	CFI_STARTPROC
 	paranoidentry do_double_fault
-	movq %rax,%rsp
-	testl $3,CS(%rsp)
-	jnz paranoid_userspace		
 	jmp paranoid_exit
 	CFI_ENDPROC
 
@@ -874,9 +882,6 @@ ENTRY(segment_not_present)
 ENTRY(stack_segment)
 	CFI_STARTPROC
 	paranoidentry do_stack_segment
-	movq %rax,%rsp
-	testl $3,CS(%rsp)
-	jnz paranoid_userspace
 	jmp paranoid_exit
 	CFI_ENDPROC
 
