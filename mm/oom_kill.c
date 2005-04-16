@@ -145,7 +145,7 @@ static struct task_struct * select_bad_process(void)
 	do_posix_clock_monotonic_gettime(&uptime);
 	do_each_thread(g, p)
 		/* skip the init task with pid == 1 */
-		if (p->pid > 1) {
+		if (p->pid > 1 && p->oomkilladj != OOM_DISABLE) {
 			unsigned long points;
 
 			/*
