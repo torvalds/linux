@@ -336,7 +336,7 @@ void setup_apic_nmi_watchdog(void)
 {
 	switch (boot_cpu_data.x86_vendor) {
 	case X86_VENDOR_AMD:
-		if (boot_cpu_data.x86 < 6)
+		if (boot_cpu_data.x86 != 15)
 			return;
 		if (strstr(boot_cpu_data.x86_model_id, "Screwdriver"))
 			return;
