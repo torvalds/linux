@@ -245,6 +245,9 @@ syscall_exit:
 
 restore_all:
 	movl EFLAGS(%esp), %eax		# mix EFLAGS, SS and CS
+	# Warning: OLDSS(%esp) contains the wrong/random values if we
+	# are returning to the kernel.
+	# See comments in process.c:copy_thread() for details.
 	movb OLDSS(%esp), %ah
 	movb CS(%esp), %al
 	andl $(VM_MASK | (4 << 8) | 3), %eax

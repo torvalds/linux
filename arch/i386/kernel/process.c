@@ -405,7 +405,17 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long esp,
 	childregs->esp = esp;
 
 	p->thread.esp = (unsigned long) childregs;
-	p->thread.esp0 = (unsigned long) (childregs+1);
+	/*
+	 * The below -8 is to reserve 8 bytes on top of the ring0 stack.
+	 * This is necessary to guarantee that the entire "struct pt_regs"
+	 * is accessable even if the CPU haven't stored the SS/ESP registers
+	 * on the stack (interrupt gate does not save these registers
+	 * when switching to the same priv ring).
+	 * Therefore beware: accessing the xss/esp fields of the
+	 * "struct pt_regs" is possible, but they may contain the
+	 * completely wrong values.
+	 */
+	p->thread.esp0 = (unsigned long) (childregs+1) - 8;
 
 	p->thread.eip = (unsigned long) ret_from_fork;
 
