@@ -162,7 +162,6 @@ struct mthca_dev_lim {
 	int cqc_entry_sz;
 	int srq_entry_sz;
 	int uar_scratch_entry_sz;
-	int mtt_seg_sz;
 	int mpt_entry_sz;
 	union {
 		struct {

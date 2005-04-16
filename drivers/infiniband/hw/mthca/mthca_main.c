@@ -390,7 +390,7 @@ static int __devinit mthca_init_icm(struct mthca_dev *mdev,
 	}
 
 	mdev->mr_table.mtt_table = mthca_alloc_icm_table(mdev, init_hca->mtt_base,
-							 dev_lim->mtt_seg_sz,
+							 MTHCA_MTT_SEG_SIZE,
 							 mdev->limits.num_mtt_segs,
 							 mdev->limits.reserved_mtts, 1);
 	if (!mdev->mr_table.mtt_table) {

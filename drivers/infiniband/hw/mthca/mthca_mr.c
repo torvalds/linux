@@ -263,7 +263,7 @@ int mthca_mr_alloc_phys(struct mthca_dev *dev, u32 pd,
 			goto err_out_mpt_free;
 	}
 
-	for (i = dev->limits.mtt_seg_size / 8, mr->order = 0;
+	for (i = MTHCA_MTT_SEG_SIZE / 8, mr->order = 0;
 	     i < list_len;
 	     i <<= 1, ++mr->order)
 		; /* nothing */
@@ -286,7 +286,7 @@ int mthca_mr_alloc_phys(struct mthca_dev *dev, u32 pd,
 	mtt_entry = MAILBOX_ALIGN(mailbox);
 
 	mtt_entry[0] = cpu_to_be64(dev->mr_table.mtt_base +
-				   mr->first_seg * dev->limits.mtt_seg_size);
+				   mr->first_seg * MTHCA_MTT_SEG_SIZE);
 	mtt_entry[1] = 0;
 	for (i = 0; i < list_len; ++i)
 		mtt_entry[i + 2] = cpu_to_be64(buffer_list[i] |
@@ -330,7 +330,7 @@ int mthca_mr_alloc_phys(struct mthca_dev *dev, u32 pd,
 	memset(&mpt_entry->lkey, 0,
 	       sizeof *mpt_entry - offsetof(struct mthca_mpt_entry, lkey));
 	mpt_entry->mtt_seg   = cpu_to_be64(dev->mr_table.mtt_base +
-					   mr->first_seg * dev->limits.mtt_seg_size);
+					   mr->first_seg * MTHCA_MTT_SEG_SIZE);
 
 	if (0) {
 		mthca_dbg(dev, "Dumping MPT entry %08x:\n", mr->ibmr.lkey);
