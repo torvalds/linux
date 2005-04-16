@@ -88,6 +88,19 @@ enum {
 	MTHCA_NUM_EQ
 };
 
+enum {
+	MTHCA_OPCODE_NOP            = 0x00,
+	MTHCA_OPCODE_RDMA_WRITE     = 0x08,
+	MTHCA_OPCODE_RDMA_WRITE_IMM = 0x09,
+	MTHCA_OPCODE_SEND           = 0x0a,
+	MTHCA_OPCODE_SEND_IMM       = 0x0b,
+	MTHCA_OPCODE_RDMA_READ      = 0x10,
+	MTHCA_OPCODE_ATOMIC_CS      = 0x11,
+	MTHCA_OPCODE_ATOMIC_FA      = 0x12,
+	MTHCA_OPCODE_BIND_MW        = 0x18,
+	MTHCA_OPCODE_INVALID        = 0xff
+};
+
 struct mthca_cmd {
 	int                       use_events;
 	struct semaphore          hcr_sem;

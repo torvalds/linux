@@ -473,7 +473,41 @@ static inline int mthca_poll_one(struct mthca_dev *dev,
 	}
 
 	if (is_send) {
-		entry->opcode = IB_WC_SEND; /* XXX */
+		entry->wc_flags = 0;
+		switch (cqe->opcode) {
+		case MTHCA_OPCODE_RDMA_WRITE:
+			entry->opcode    = IB_WC_RDMA_WRITE;
+			break;
+		case MTHCA_OPCODE_RDMA_WRITE_IMM:
+			entry->opcode    = IB_WC_RDMA_WRITE;
+			entry->wc_flags |= IB_WC_WITH_IMM;
+			break;
+		case MTHCA_OPCODE_SEND:
+			entry->opcode    = IB_WC_SEND;
+			break;
+		case MTHCA_OPCODE_SEND_IMM:
+			entry->opcode    = IB_WC_SEND;
+			entry->wc_flags |= IB_WC_WITH_IMM;
+			break;
+		case MTHCA_OPCODE_RDMA_READ:
+			entry->opcode    = IB_WC_RDMA_READ;
+			entry->byte_len  = be32_to_cpu(cqe->byte_cnt);
+			break;
+		case MTHCA_OPCODE_ATOMIC_CS:
+			entry->opcode    = IB_WC_COMP_SWAP;
+			entry->byte_len  = be32_to_cpu(cqe->byte_cnt);
+			break;
+		case MTHCA_OPCODE_ATOMIC_FA:
+			entry->opcode    = IB_WC_FETCH_ADD;
+			entry->byte_len  = be32_to_cpu(cqe->byte_cnt);
+			break;
+		case MTHCA_OPCODE_BIND_MW:
+			entry->opcode    = IB_WC_BIND_MW;
+			break;
+		default:
+			entry->opcode    = MTHCA_OPCODE_INVALID;
+			break;
+		}
 	} else {
 		entry->byte_len = be32_to_cpu(cqe->byte_cnt);
 		switch (cqe->opcode & 0x1f) {

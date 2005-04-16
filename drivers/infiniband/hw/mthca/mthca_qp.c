@@ -171,19 +171,6 @@ enum {
 };
 
 enum {
-	MTHCA_OPCODE_NOP            = 0x00,
-	MTHCA_OPCODE_RDMA_WRITE     = 0x08,
-	MTHCA_OPCODE_RDMA_WRITE_IMM = 0x09,
-	MTHCA_OPCODE_SEND           = 0x0a,
-	MTHCA_OPCODE_SEND_IMM       = 0x0b,
-	MTHCA_OPCODE_RDMA_READ      = 0x10,
-	MTHCA_OPCODE_ATOMIC_CS      = 0x11,
-	MTHCA_OPCODE_ATOMIC_FA      = 0x12,
-	MTHCA_OPCODE_BIND_MW        = 0x18,
-	MTHCA_OPCODE_INVALID        = 0xff
-};
-
-enum {
 	MTHCA_NEXT_DBD       = 1 << 7,
 	MTHCA_NEXT_FENCE     = 1 << 6,
 	MTHCA_NEXT_CQ_UPDATE = 1 << 3,
