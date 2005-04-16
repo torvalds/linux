@@ -192,6 +192,40 @@ void mthca_table_put(struct mthca_dev *dev, struct mthca_icm_table *table, int o
 	up(&table->mutex);
 }
 
+void *mthca_table_find(struct mthca_icm_table *table, int obj)
+{
+	int idx, offset, i;
+	struct mthca_icm_chunk *chunk;
+	struct mthca_icm *icm;
+	struct page *page = NULL;
+
+	if (!table->lowmem)
+		return NULL;
+
+	down(&table->mutex);
+
+	idx = (obj & (table->num_obj - 1)) * table->obj_size;
+	icm = table->icm[idx / MTHCA_TABLE_CHUNK_SIZE];
+	offset = idx % MTHCA_TABLE_CHUNK_SIZE;
+
+	if (!icm)
+		goto out;
+
+	list_for_each_entry(chunk, &icm->chunk_list, list) {
+		for (i = 0; i < chunk->npages; ++i) {
+			if (chunk->mem[i].length >= offset) {
+				page = chunk->mem[i].page;
+				break;
+			}
+			offset -= chunk->mem[i].length;
+		}
+	}
+
+out:
+	up(&table->mutex);
+	return page ? lowmem_page_address(page) + offset : NULL;
+}
+
 int mthca_table_get_range(struct mthca_dev *dev, struct mthca_icm_table *table,
 			  int start, int end)
 {
