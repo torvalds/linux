@@ -125,8 +125,15 @@ void irda_device_set_media_busy(struct net_device *dev, int status)
 
 	self = (struct irlap_cb *) dev->atalk_ptr;
 
-	IRDA_ASSERT(self != NULL, return;);
-	IRDA_ASSERT(self->magic == LAP_MAGIC, return;);
+	/* Some drivers may enable the receive interrupt before calling
+	 * irlap_open(), or they may disable the receive interrupt
+	 * after calling irlap_close().
+	 * The IrDA stack is protected from this in irlap_driver_rcv().
+	 * However, the driver calls directly the wrapper, that calls
+	 * us directly. Make sure we protect ourselves.
+	 * Jean II */
+	if (!self || self->magic != LAP_MAGIC)
+		return;
 
 	if (status) {
 		self->media_busy = TRUE;
