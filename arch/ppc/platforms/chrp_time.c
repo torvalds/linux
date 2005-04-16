@@ -115,8 +115,6 @@ int __chrp chrp_set_rtc_time(unsigned long nowtime)
 	chrp_cmos_clock_write(save_control, RTC_CONTROL);
 	chrp_cmos_clock_write(save_freq_select, RTC_FREQ_SELECT);
 
-	if ( (time_state == TIME_ERROR) || (time_state == TIME_BAD) )
-		time_state = TIME_OK;
 	spin_unlock(&rtc_lock);
 	return 0;
 }

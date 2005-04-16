@@ -433,9 +433,6 @@ gemini_set_rtc_time( unsigned long now )
 	/* done writing */
 	gemini_rtc_write(reg, M48T35_RTC_CONTROL);
 
-	if ((time_state == TIME_ERROR) || (time_state == TIME_BAD))
-		time_state = TIME_OK;
-
 	return 0;
 }
 
