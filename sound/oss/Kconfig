@@ -556,7 +556,7 @@ config SOUND_AD1816
 
 config SOUND_AD1889
 	tristate "AD1889 based cards (AD1819 codec) (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && SOUND_OSS
+	depends on EXPERIMENTAL && SOUND_OSS && PCI
 	help
 	  Say M here if you have a sound card based on the Analog Devices
 	  AD1889 chip.
