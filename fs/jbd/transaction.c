@@ -1812,7 +1812,17 @@ static int journal_unmap_buffer(journal_t *journal, struct buffer_head *bh)
 			}
 		}
 	} else if (transaction == journal->j_committing_transaction) {
-		/* If it is committing, we simply cannot touch it.  We
+		if (jh->b_jlist == BJ_Locked) {
+			/*
+			 * The buffer is on the committing transaction's locked
+			 * list.  We have the buffer locked, so I/O has
+			 * completed.  So we can nail the buffer now.
+			 */
+			may_free = __dispose_buffer(jh, transaction);
+			goto zap_buffer;
+		}
+		/*
+		 * If it is committing, we simply cannot touch it.  We
 		 * can remove it's next_transaction pointer from the
 		 * running transaction if that is set, but nothing
 		 * else. */
@@ -1887,7 +1897,6 @@ int journal_invalidatepage(journal_t *journal,
 		unsigned int next_off = curr_off + bh->b_size;
 		next = bh->b_this_page;
 
-		/* AKPM: doing lock_buffer here may be overly paranoid */
 		if (offset <= curr_off) {
 		 	/* This block is wholly outside the truncation point */
 			lock_buffer(bh);
