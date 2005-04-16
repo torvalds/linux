@@ -33,9 +33,6 @@
  */
 
 #include <linux/dma-mapping.h>
-#include <linux/interrupt.h>
-
-#include <ib_mad.h>
 
 #include "mad_priv.h"
 #include "smi.h"
