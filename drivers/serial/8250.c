@@ -1065,8 +1065,10 @@ receive_chars(struct uart_8250_port *up, int *status, struct pt_regs *regs)
 				tty_flip_buffer_push(tty);
 				spin_lock(&up->port.lock);
 			}
-			/* If this failed then we will throw away the
-			   bytes but must do so to clear interrupts */
+			/*
+			 * If this failed then we will throw away the
+			 * bytes but must do so to clear interrupts
+			 */
 		}
 		ch = serial_inp(up, UART_RX);
 		flag = TTY_NORMAL;
@@ -1106,7 +1108,7 @@ receive_chars(struct uart_8250_port *up, int *status, struct pt_regs *regs)
 				up->port.icount.overrun++;
 
 			/*
-			 * Mask off conditions which should be ingored.
+			 * Mask off conditions which should be ignored.
 			 */
 			lsr &= up->port.read_status_mask;
 
@@ -2570,6 +2572,9 @@ MODULE_ALIAS_CHARDEV_MAJOR(TTY_MAJOR);
  *	If this fails an error is returned.
  *
  *	On success the port is ready to use and the line number is returned.
+ *
+ *	Note: this function is deprecated - use serial8250_register_port
+ *	instead.
  */
 int register_serial(struct serial_struct *req)
 {
@@ -2624,6 +2629,9 @@ EXPORT_SYMBOL(register_serial);
  *
  *	Remove one serial port.  This may not be called from interrupt
  *	context.  We hand the port back to our local PM control.
+ *
+ *	Note: this function is deprecated - use serial8250_unregister_port
+ *	instead.
  */
 void unregister_serial(int line)
 {
