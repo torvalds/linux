@@ -108,14 +108,15 @@ __do_kernel_fault(struct mm_struct *mm, unsigned long addr, unsigned int fsr,
  */
 static void
 __do_user_fault(struct task_struct *tsk, unsigned long addr,
-		unsigned int fsr, int code, struct pt_regs *regs)
+		unsigned int fsr, unsigned int sig, int code,
+		struct pt_regs *regs)
 {
 	struct siginfo si;
 
 #ifdef CONFIG_DEBUG_USER
 	if (user_debug & UDBG_SEGV) {
-		printk(KERN_DEBUG "%s: unhandled page fault at 0x%08lx, code 0x%03x\n",
-		       tsk->comm, addr, fsr);
+		printk(KERN_DEBUG "%s: unhandled page fault (%d) at 0x%08lx, code 0x%03x\n",
+		       tsk->comm, sig, addr, fsr);
 		show_pte(tsk->mm, addr);
 		show_regs(regs);
 	}
@@ -124,11 +125,11 @@ __do_user_fault(struct task_struct *tsk, unsigned long addr,
 	tsk->thread.address = addr;
 	tsk->thread.error_code = fsr;
 	tsk->thread.trap_no = 14;
-	si.si_signo = SIGSEGV;
+	si.si_signo = sig;
 	si.si_errno = 0;
 	si.si_code = code;
 	si.si_addr = (void __user *)addr;
-	force_sig_info(SIGSEGV, &si, tsk);
+	force_sig_info(sig, &si, tsk);
 }
 
 void
@@ -140,7 +141,7 @@ do_bad_area(struct task_struct *tsk, struct mm_struct *mm, unsigned long addr,
 	 * have no context to handle this fault with.
 	 */
 	if (user_mode(regs))
-		__do_user_fault(tsk, addr, fsr, SEGV_MAPERR, regs);
+		__do_user_fault(tsk, addr, fsr, SIGSEGV, SEGV_MAPERR, regs);
 	else
 		__do_kernel_fault(mm, addr, fsr, regs);
 }
@@ -201,10 +202,11 @@ survive:
 		goto out;
 
 	/*
-	 * If we are out of memory for pid1,
-	 * sleep for a while and retry
+	 * If we are out of memory for pid1, sleep for a while and retry
 	 */
+	up_read(&mm->mmap_sem);
 	yield();
+	down_read(&mm->mmap_sem);
 	goto survive;
 
 check_stack:
@@ -219,7 +221,7 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 {
 	struct task_struct *tsk;
 	struct mm_struct *mm;
-	int fault;
+	int fault, sig, code;
 
 	tsk = current;
 	mm  = tsk->mm;
@@ -242,55 +244,45 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 		return 0;
 
 	/*
-	 * We had some memory, but were unable to
-	 * successfully fix up this page fault.
-	 */
-	if (fault == 0)
-		goto do_sigbus;
-
-	/*
 	 * If we are in kernel mode at this point, we
 	 * have no context to handle this fault with.
 	 */
 	if (!user_mode(regs))
 		goto no_context;
 
-	if (fault == VM_FAULT_OOM) {
+	switch (fault) {
+	case VM_FAULT_OOM:
 		/*
-		 * We ran out of memory, or some other thing happened to
-		 * us that made us unable to handle the page fault gracefully.
+		 * We ran out of memory, or some other thing
+		 * happened to us that made us unable to handle
+		 * the page fault gracefully.
 		 */
 		printk("VM: killing process %s\n", tsk->comm);
 		do_exit(SIGKILL);
-	} else
-		__do_user_fault(tsk, addr, fsr, fault == VM_FAULT_BADACCESS ?
-				SEGV_ACCERR : SEGV_MAPERR, regs);
-	return 0;
-
-
-/*
- * We ran out of memory, or some other thing happened to us that made
- * us unable to handle the page fault gracefully.
- */
-do_sigbus:
-	/*
-	 * Send a sigbus, regardless of whether we were in kernel
-	 * or user mode.
-	 */
-	tsk->thread.address = addr;
-	tsk->thread.error_code = fsr;
-	tsk->thread.trap_no = 14;
-	force_sig(SIGBUS, tsk);
-#ifdef CONFIG_DEBUG_USER
-	if (user_debug & UDBG_BUS) {
-		printk(KERN_DEBUG "%s: sigbus at 0x%08lx, pc=0x%08lx\n",
-			current->comm, addr, instruction_pointer(regs));
-	}
-#endif
-
-	/* Kernel mode? Handle exceptions or die */
-	if (user_mode(regs))
 		return 0;
+
+	case 0:
+		/*
+		 * We had some memory, but were unable to
+		 * successfully fix up this page fault.
+		 */
+		sig = SIGBUS;
+		code = BUS_ADRERR;
+		break;
+
+	default:
+		/*
+		 * Something tried to access memory that
+		 * isn't in our memory map..
+		 */
+		sig = SIGSEGV;
+		code = fault == VM_FAULT_BADACCESS ?
+			SEGV_ACCERR : SEGV_MAPERR;
+		break;
+	}
+
+	__do_user_fault(tsk, addr, fsr, sig, code, regs);
+	return 0;
 
 no_context:
 	__do_kernel_fault(mm, addr, fsr, regs);
