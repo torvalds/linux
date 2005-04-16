@@ -1958,7 +1958,8 @@ S: Germany
 N: Colin Leroy
 E: colin@colino.net
 W: http://www.geekounet.org/
-D: PowerMac adt7467 fan driver
+D: PowerMac adt746x fan driver
+D: Random fixing of various drivers (macintosh, usb, sound)
 S: Toulouse
 S: France
 
