@@ -198,13 +198,15 @@ again:
 
 	dst = child;
 	if (dst) {
+		int nohash = dst->flags & DST_NOHASH;
+
 		if (atomic_dec_and_test(&dst->__refcnt)) {
 			/* We were real parent of this dst, so kill child. */
-			if (dst->flags&DST_NOHASH)
+			if (nohash)
 				goto again;
 		} else {
 			/* Child is still referenced, return it for freeing. */
-			if (dst->flags&DST_NOHASH)
+			if (nohash)
 				return dst;
 			/* Child is still in his hash table */
 		}
