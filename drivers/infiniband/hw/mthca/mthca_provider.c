@@ -494,7 +494,7 @@ static struct ib_mr *mthca_reg_phys_mr(struct ib_pd       *pd,
 	mask = 0;
 	total_size = 0;
 	for (i = 0; i < num_phys_buf; ++i) {
-		if (buffer_list[i].addr & ~PAGE_MASK)
+		if (i != 0 && buffer_list[i].addr & ~PAGE_MASK)
 			return ERR_PTR(-EINVAL);
 		if (i != 0 && i != num_phys_buf - 1 &&
 		    (buffer_list[i].size & ~PAGE_MASK))
