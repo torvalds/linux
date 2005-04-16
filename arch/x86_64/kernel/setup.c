@@ -673,7 +673,7 @@ static int __init get_model_name(struct cpuinfo_x86 *c)
 {
 	unsigned int *v;
 
-	if (c->x86_cpuid_level < 0x80000004)
+	if (c->extended_cpuid_level < 0x80000004)
 		return 0;
 
 	v = (unsigned int *) c->x86_model_id;
@@ -689,7 +689,7 @@ static void __init display_cacheinfo(struct cpuinfo_x86 *c)
 {
 	unsigned int n, dummy, eax, ebx, ecx, edx;
 
-	n = c->x86_cpuid_level;
+	n = c->extended_cpuid_level;
 
 	if (n >= 0x80000005) {
 		cpuid(0x80000005, &dummy, &ebx, &ecx, &edx);
@@ -781,7 +781,7 @@ static int __init init_amd(struct cpuinfo_x86 *c)
 	} 
 	display_cacheinfo(c);
 
-	if (c->x86_cpuid_level >= 0x80000008) {
+	if (c->extended_cpuid_level >= 0x80000008) {
 		c->x86_num_cores = (cpuid_ecx(0x80000008) & 0xff) + 1;
 		if (c->x86_num_cores & (c->x86_num_cores - 1))
 			c->x86_num_cores = 1;
@@ -841,7 +841,6 @@ static void __init detect_ht(struct cpuinfo_x86 *c)
 		if (smp_num_siblings & (smp_num_siblings - 1))
 			index_msb++;
 
-		/* RED-PEN surely this must run in the non HT case too! -AK */
 		cpu_core_id[cpu] = phys_pkg_id(index_msb);
 
 		if (c->x86_num_cores > 1)
@@ -878,7 +877,7 @@ static void __init init_intel(struct cpuinfo_x86 *c)
 	unsigned n;
 
 	init_intel_cacheinfo(c);
-	n = c->x86_cpuid_level;
+	n = c->extended_cpuid_level;
 	if (n >= 0x80000008) {
 		unsigned eax = cpuid_eax(0x80000008);
 		c->x86_virt_bits = (eax >> 8) & 0xff;
@@ -927,7 +926,7 @@ void __init early_identify_cpu(struct cpuinfo_x86 *c)
 	c->x86_cache_alignment = c->x86_clflush_size;
 	c->x86_num_cores = 1;
 	c->x86_apicid = c == &boot_cpu_data ? 0 : c - cpu_data;
-	c->x86_cpuid_level = 0;
+	c->extended_cpuid_level = 0;
 	memset(&c->x86_capability, 0, sizeof c->x86_capability);
 
 	/* Get vendor name */
@@ -974,7 +973,7 @@ void __init identify_cpu(struct cpuinfo_x86 *c)
 
 	/* AMD-defined flags: level 0x80000001 */
 	xlvl = cpuid_eax(0x80000000);
-	c->x86_cpuid_level = xlvl;
+	c->extended_cpuid_level = xlvl;
 	if ((xlvl & 0xffff0000) == 0x80000000) {
 		if (xlvl >= 0x80000001) {
 			c->x86_capability[1] = cpuid_edx(0x80000001);

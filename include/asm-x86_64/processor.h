@@ -64,7 +64,7 @@ struct cpuinfo_x86 {
 	__u8	x86_num_cores;
 	__u8	x86_apicid;
         __u32   x86_power; 	
-	__u32   x86_cpuid_level;	/* Max CPUID function supported */
+	__u32   extended_cpuid_level;	/* Max extended CPUID function supported */
 	unsigned long loops_per_jiffy;
 } ____cacheline_aligned;
 
