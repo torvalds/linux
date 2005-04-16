@@ -89,8 +89,6 @@ unsigned long tb_to_ns_scale;
 
 extern unsigned long wall_jiffies;
 
-static long time_offset;
-
 DEFINE_SPINLOCK(rtc_lock);
 
 EXPORT_SYMBOL(rtc_lock);
