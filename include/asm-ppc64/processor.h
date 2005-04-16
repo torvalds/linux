@@ -642,11 +642,17 @@ static inline unsigned long __pack_fe01(unsigned int fpmode)
 
 static inline void prefetch(const void *x)
 {
+	if (unlikely(!x))
+		return;
+
 	__asm__ __volatile__ ("dcbt 0,%0" : : "r" (x));
 }
 
 static inline void prefetchw(const void *x)
 {
+	if (unlikely(!x))
+		return;
+
 	__asm__ __volatile__ ("dcbtst 0,%0" : : "r" (x));
 }
 
