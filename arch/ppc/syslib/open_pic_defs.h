@@ -172,9 +172,6 @@ struct OpenPIC {
     OpenPIC_Processor Processor[OPENPIC_MAX_PROCESSORS];
 };
 
-extern volatile struct OpenPIC __iomem *OpenPIC;
-
-
     /*
      *  Current Task Priority Register
      */
