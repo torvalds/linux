@@ -116,6 +116,8 @@ static unsigned int core99_tb_gpio;
 
 /* Sync flag for HW tb sync */
 static volatile int sec_tb_reset = 0;
+static unsigned int pri_tb_hi, pri_tb_lo;
+static unsigned int pri_tb_stamp;
 
 static void __init core99_init_caches(int cpu)
 {
@@ -453,7 +455,7 @@ static int __init smp_core99_probe(void)
 #endif
 	struct device_node *cpus, *firstcpu;
 	int i, ncpus = 0, boot_cpu = -1;
-	u32 *tbprop;
+	u32 *tbprop = NULL;
 
 	if (ppc_md.progress) ppc_md.progress("smp_core99_probe", 0x345);
 	cpus = firstcpu = find_type_devices("cpu");
@@ -576,46 +578,74 @@ static void __init smp_core99_setup_cpu(int cpu_nr)
 	}
 }
 
-void __init smp_core99_take_timebase(void)
+/* not __init, called in sleep/wakeup code */
+void smp_core99_take_timebase(void)
 {
-	/* Secondary processor "takes" the timebase by freezing
-	 * it, resetting its local TB and telling CPU 0 to go on
-	 */
+	unsigned long flags;
+
+	/* tell the primary we're here */
+	sec_tb_reset = 1;
+	mb();
+
+	/* wait for the primary to set pri_tb_hi/lo */
+	while (sec_tb_reset < 2)
+		mb();
+
+	/* set our stuff the same as the primary */
+	local_irq_save(flags);
+	set_dec(1);
+	set_tb(pri_tb_hi, pri_tb_lo);
+	last_jiffy_stamp(smp_processor_id()) = pri_tb_stamp;
+	mb();
+
+	/* tell the primary we're done */
+       	sec_tb_reset = 0;
+	mb();
+	local_irq_restore(flags);
+}
+
+/* not __init, called in sleep/wakeup code */
+void smp_core99_give_timebase(void)
+{
+	unsigned long flags;
+	unsigned int t;
+
+	/* wait for the secondary to be in take_timebase */
+	for (t = 100000; t > 0 && !sec_tb_reset; --t)
+		udelay(10);
+	if (!sec_tb_reset) {
+		printk(KERN_WARNING "Timeout waiting sync on second CPU\n");
+		return;
+	}
+
+	/* freeze the timebase and read it */
+	/* disable interrupts so the timebase is disabled for the
+	   shortest possible time */
+	local_irq_save(flags);
 	pmac_call_feature(PMAC_FTR_WRITE_GPIO, NULL, core99_tb_gpio, 4);
 	pmac_call_feature(PMAC_FTR_READ_GPIO, NULL, core99_tb_gpio, 0);
 	mb();
-
-	set_dec(tb_ticks_per_jiffy);
-	set_tb(0, 0);
-	last_jiffy_stamp(smp_processor_id()) = 0;
-
+	pri_tb_hi = get_tbu();
+	pri_tb_lo = get_tbl();
+	pri_tb_stamp = last_jiffy_stamp(smp_processor_id());
 	mb();
-       	sec_tb_reset = 1;
-}
 
-void __init smp_core99_give_timebase(void)
-{
-	unsigned int t;
-
-	/* Primary processor waits for secondary to have frozen
-	 * the timebase, resets local TB, and kick timebase again
-	 */
-	/* wait for the secondary to have reset its TB before proceeding */
-	for (t = 1000; t > 0 && !sec_tb_reset; --t)
-		udelay(1000);
-	if (t == 0)
-		printk(KERN_WARNING "Timeout waiting sync on second CPU\n");
-
-       	set_dec(tb_ticks_per_jiffy);
-	set_tb(0, 0);
-	last_jiffy_stamp(smp_processor_id()) = 0;
+	/* tell the secondary we're ready */
+	sec_tb_reset = 2;
 	mb();
+
+	/* wait for the secondary to have taken it */
+	for (t = 100000; t > 0 && sec_tb_reset; --t)
+		udelay(10);
+	if (sec_tb_reset)
+		printk(KERN_WARNING "Timeout waiting sync(2) on second CPU\n");
+	else
+		smp_tb_synchronized = 1;
 
 	/* Now, restart the timebase by leaving the GPIO to an open collector */
        	pmac_call_feature(PMAC_FTR_WRITE_GPIO, NULL, core99_tb_gpio, 0);
         pmac_call_feature(PMAC_FTR_READ_GPIO, NULL, core99_tb_gpio, 0);
-
-	smp_tb_synchronized = 1;
+	local_irq_restore(flags);
 }
 
 
