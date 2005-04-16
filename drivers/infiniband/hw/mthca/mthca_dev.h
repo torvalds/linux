@@ -470,4 +470,9 @@ static inline struct mthca_dev *to_mdev(struct ib_device *ibdev)
 	return container_of(ibdev, struct mthca_dev, ib_dev);
 }
 
+static inline int mthca_is_memfree(struct mthca_dev *dev)
+{
+	return dev->hca_type == ARBEL_NATIVE;
+}
+
 #endif /* MTHCA_DEV_H */

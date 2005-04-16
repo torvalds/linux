@@ -639,7 +639,7 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 	else if (attr_mask & IB_QP_PATH_MTU)
 		qp_context->mtu_msgmax = (attr->path_mtu << 5) | 31;
 
-	if (dev->hca_type == ARBEL_NATIVE) {
+	if (mthca_is_memfree(dev)) {
 		qp_context->rq_size_stride =
 			((ffs(qp->rq.max) - 1) << 3) | (qp->rq.wqe_shift - 4);
 		qp_context->sq_size_stride =
@@ -731,7 +731,7 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 		qp_context->next_send_psn = cpu_to_be32(attr->sq_psn);
 	qp_context->cqn_snd = cpu_to_be32(to_mcq(ibqp->send_cq)->cqn);
 
-	if (dev->hca_type == ARBEL_NATIVE) {
+	if (mthca_is_memfree(dev)) {
 		qp_context->snd_wqe_base_l = cpu_to_be32(qp->send_wqe_offset);
 		qp_context->snd_db_index   = cpu_to_be32(qp->sq.db_index);
 	}
@@ -822,7 +822,7 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 
 	qp_context->cqn_rcv = cpu_to_be32(to_mcq(ibqp->recv_cq)->cqn);
 
-	if (dev->hca_type == ARBEL_NATIVE)
+	if (mthca_is_memfree(dev))
 		qp_context->rcv_db_index   = cpu_to_be32(qp->rq.db_index);
 
 	if (attr_mask & IB_QP_QKEY) {
@@ -897,7 +897,7 @@ static int mthca_alloc_wqe_buf(struct mthca_dev *dev,
 		size += 2 * sizeof (struct mthca_data_seg);
 		break;
 	case UD:
-		if (dev->hca_type == ARBEL_NATIVE)
+		if (mthca_is_memfree(dev))
 			size += sizeof (struct mthca_arbel_ud_seg);
 		else
 			size += sizeof (struct mthca_tavor_ud_seg);
@@ -1016,7 +1016,7 @@ static int mthca_alloc_memfree(struct mthca_dev *dev,
 {
 	int ret = 0;
 
-	if (dev->hca_type == ARBEL_NATIVE) {
+	if (mthca_is_memfree(dev)) {
 		ret = mthca_table_get(dev, dev->qp_table.qp_table, qp->qpn);
 		if (ret)
 			return ret;
@@ -1057,7 +1057,7 @@ err_qpc:
 static void mthca_free_memfree(struct mthca_dev *dev,
 			       struct mthca_qp *qp)
 {
-	if (dev->hca_type == ARBEL_NATIVE) {
+	if (mthca_is_memfree(dev)) {
 		mthca_free_db(dev, MTHCA_DB_TYPE_SQ, qp->sq.db_index);
 		mthca_free_db(dev, MTHCA_DB_TYPE_RQ, qp->rq.db_index);
 		mthca_table_put(dev, dev->qp_table.eqp_table, qp->qpn);
@@ -1104,7 +1104,7 @@ static int mthca_alloc_qp_common(struct mthca_dev *dev,
 		return ret;
 	}
 
-	if (dev->hca_type == ARBEL_NATIVE) {
+	if (mthca_is_memfree(dev)) {
 		for (i = 0; i < qp->rq.max; ++i) {
 			wqe = get_recv_wqe(qp, i);
 			wqe->nda_op = cpu_to_be32(((i + 1) & (qp->rq.max - 1)) <<
@@ -1127,7 +1127,7 @@ static void mthca_align_qp_size(struct mthca_dev *dev, struct mthca_qp *qp)
 {
 	int i;
 
-	if (dev->hca_type != ARBEL_NATIVE)
+	if (!mthca_is_memfree(dev))
 		return;
 
 	for (i = 0; 1 << i < qp->rq.max; ++i)
@@ -2011,7 +2011,7 @@ int mthca_free_err_wqe(struct mthca_dev *dev, struct mthca_qp *qp, int is_send,
 	else
 		next = get_recv_wqe(qp, index);
 
-	if (dev->hca_type == ARBEL_NATIVE)
+	if (mthca_is_memfree(dev))
 		*dbd = 1;
 	else
 		*dbd = !!(next->ee_nds & cpu_to_be32(MTHCA_NEXT_DBD));

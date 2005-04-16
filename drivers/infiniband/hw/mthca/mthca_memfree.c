@@ -472,7 +472,7 @@ int mthca_init_db_tab(struct mthca_dev *dev)
 {
 	int i;
 
-	if (dev->hca_type != ARBEL_NATIVE)
+	if (!mthca_is_memfree(dev))
 		return 0;
 
 	dev->db_tab = kmalloc(sizeof *dev->db_tab, GFP_KERNEL);
@@ -504,7 +504,7 @@ void mthca_cleanup_db_tab(struct mthca_dev *dev)
 	int i;
 	u8 status;
 
-	if (dev->hca_type != ARBEL_NATIVE)
+	if (!mthca_is_memfree(dev))
 		return;
 
 	/*

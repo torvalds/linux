@@ -180,7 +180,7 @@ static inline void update_cons_index(struct mthca_dev *dev, struct mthca_cq *cq,
 {
 	u32 doorbell[2];
 
-	if (dev->hca_type == ARBEL_NATIVE) {
+	if (mthca_is_memfree(dev)) {
 		*cq->set_ci_db = cpu_to_be32(cq->cons_index);
 		wmb();
 	} else {
@@ -760,7 +760,7 @@ int mthca_init_cq(struct mthca_dev *dev, int nent,
 	if (cq->cqn == -1)
 		return -ENOMEM;
 
-	if (dev->hca_type == ARBEL_NATIVE) {
+	if (mthca_is_memfree(dev)) {
 		cq->arm_sn = 1;
 
 		err = mthca_table_get(dev, dev->cq_table.table, cq->cqn);
@@ -811,7 +811,7 @@ int mthca_init_cq(struct mthca_dev *dev, int nent,
 	cq_context->lkey            = cpu_to_be32(cq->mr.ibmr.lkey);
 	cq_context->cqn             = cpu_to_be32(cq->cqn);
 
-	if (dev->hca_type == ARBEL_NATIVE) {
+	if (mthca_is_memfree(dev)) {
 		cq_context->ci_db    = cpu_to_be32(cq->set_ci_db_index);
 		cq_context->state_db = cpu_to_be32(cq->arm_db_index);
 	}
@@ -851,11 +851,11 @@ err_out_free_mr:
 err_out_mailbox:
 	kfree(mailbox);
 
-	if (dev->hca_type == ARBEL_NATIVE)
+	if (mthca_is_memfree(dev))
 		mthca_free_db(dev, MTHCA_DB_TYPE_CQ_ARM, cq->arm_db_index);
 
 err_out_ci:
-	if (dev->hca_type == ARBEL_NATIVE)
+	if (mthca_is_memfree(dev))
 		mthca_free_db(dev, MTHCA_DB_TYPE_CQ_SET_CI, cq->set_ci_db_index);
 
 err_out_icm:
@@ -916,7 +916,7 @@ void mthca_free_cq(struct mthca_dev *dev,
 	mthca_free_mr(dev, &cq->mr);
 	mthca_free_cq_buf(dev, cq);
 
-	if (dev->hca_type == ARBEL_NATIVE) {
+	if (mthca_is_memfree(dev)) {
 		mthca_free_db(dev, MTHCA_DB_TYPE_CQ_ARM,    cq->arm_db_index);
 		mthca_free_db(dev, MTHCA_DB_TYPE_CQ_SET_CI, cq->set_ci_db_index);
 		mthca_table_put(dev, dev->cq_table.table, cq->cqn);

@@ -198,7 +198,7 @@ static inline void arbel_set_eq_ci(struct mthca_dev *dev, struct mthca_eq *eq, u
 
 static inline void set_eq_ci(struct mthca_dev *dev, struct mthca_eq *eq, u32 ci)
 {
-	if (dev->hca_type == ARBEL_NATIVE)
+	if (mthca_is_memfree(dev))
 		arbel_set_eq_ci(dev, eq, ci);
 	else
 		tavor_set_eq_ci(dev, eq, ci);
@@ -223,7 +223,7 @@ static inline void arbel_eq_req_not(struct mthca_dev *dev, u32 eqn_mask)
 
 static inline void disarm_cq(struct mthca_dev *dev, int eqn, int cqn)
 {
-	if (dev->hca_type != ARBEL_NATIVE) {
+	if (!mthca_is_memfree(dev)) {
 		u32 doorbell[2];
 
 		doorbell[0] = cpu_to_be32(MTHCA_EQ_DB_DISARM_CQ | eqn);
@@ -535,11 +535,11 @@ static int __devinit mthca_create_eq(struct mthca_dev *dev,
 						  MTHCA_EQ_OWNER_HW    |
 						  MTHCA_EQ_STATE_ARMED |
 						  MTHCA_EQ_FLAG_TR);
-	if (dev->hca_type == ARBEL_NATIVE)
+	if (mthca_is_memfree(dev))
 		eq_context->flags  |= cpu_to_be32(MTHCA_EQ_STATE_ARBEL);
 
 	eq_context->logsize_usrpage = cpu_to_be32((ffs(nent) - 1) << 24);
-	if (dev->hca_type == ARBEL_NATIVE) {
+	if (mthca_is_memfree(dev)) {
 		eq_context->arbel_pd = cpu_to_be32(dev->driver_pd.pd_num);
 	} else {
 		eq_context->logsize_usrpage |= cpu_to_be32(dev->driver_uar.index);
@@ -686,7 +686,7 @@ static int __devinit mthca_map_eq_regs(struct mthca_dev *dev)
 
 	mthca_base = pci_resource_start(dev->pdev, 0);
 
-	if (dev->hca_type == ARBEL_NATIVE) {
+	if (mthca_is_memfree(dev)) {
 		/*
 		 * We assume that the EQ arm and EQ set CI registers
 		 * fall within the first BAR.  We can't trust the
@@ -756,7 +756,7 @@ static int __devinit mthca_map_eq_regs(struct mthca_dev *dev)
 
 static void __devexit mthca_unmap_eq_regs(struct mthca_dev *dev)
 {
-	if (dev->hca_type == ARBEL_NATIVE) {
+	if (mthca_is_memfree(dev)) {
 		mthca_unmap_reg(dev, (pci_resource_len(dev->pdev, 0) - 1) &
 				dev->fw.arbel.eq_set_ci_base,
 				MTHCA_EQ_SET_CI_SIZE,
@@ -880,7 +880,7 @@ int __devinit mthca_init_eq_table(struct mthca_dev *dev)
 
 		for (i = 0; i < MTHCA_NUM_EQ; ++i) {
 			err = request_irq(dev->eq_table.eq[i].msi_x_vector,
-					  dev->hca_type == ARBEL_NATIVE ?
+					  mthca_is_memfree(dev) ?
 					  mthca_arbel_msi_x_interrupt :
 					  mthca_tavor_msi_x_interrupt,
 					  0, eq_name[i], dev->eq_table.eq + i);
@@ -890,7 +890,7 @@ int __devinit mthca_init_eq_table(struct mthca_dev *dev)
 		}
 	} else {
 		err = request_irq(dev->pdev->irq,
-				  dev->hca_type == ARBEL_NATIVE ?
+				  mthca_is_memfree(dev) ?
 				  mthca_arbel_interrupt :
 				  mthca_tavor_interrupt,
 				  SA_SHIRQ, DRV_NAME, dev);
@@ -918,7 +918,7 @@ int __devinit mthca_init_eq_table(struct mthca_dev *dev)
 			   dev->eq_table.eq[MTHCA_EQ_CMD].eqn, status);
 
 	for (i = 0; i < MTHCA_EQ_CMD; ++i)
-		if (dev->hca_type == ARBEL_NATIVE)
+		if (mthca_is_memfree(dev))
 			arbel_eq_req_not(dev, dev->eq_table.eq[i].eqn_mask);
 		else
 			tavor_eq_req_not(dev, dev->eq_table.eq[i].eqn);

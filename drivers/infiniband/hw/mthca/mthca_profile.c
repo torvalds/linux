@@ -116,11 +116,11 @@ u64 mthca_make_profile(struct mthca_dev *dev,
 		profile[i].type     = i;
 		profile[i].log_num  = max(ffs(profile[i].num) - 1, 0);
 		profile[i].size    *= profile[i].num;
-		if (dev->hca_type == ARBEL_NATIVE)
+		if (mthca_is_memfree(dev))
 			profile[i].size = max(profile[i].size, (u64) PAGE_SIZE);
 	}
 
-	if (dev->hca_type == ARBEL_NATIVE) {
+	if (mthca_is_memfree(dev)) {
 		mem_base  = 0;
 		mem_avail = dev_lim->hca.arbel.max_icm_sz;
 	} else {
@@ -165,7 +165,7 @@ u64 mthca_make_profile(struct mthca_dev *dev,
 				  (unsigned long long) profile[i].size);
 	}
 
-	if (dev->hca_type == ARBEL_NATIVE)
+	if (mthca_is_memfree(dev))
 		mthca_dbg(dev, "HCA context memory: reserving %d KB\n",
 			  (int) (total_size >> 10));
 	else
@@ -267,7 +267,7 @@ u64 mthca_make_profile(struct mthca_dev *dev,
 	 * out of the MR pool. They don't use additional memory, but
 	 * we assign them as part of the HCA profile anyway.
 	 */
-	if (dev->hca_type == ARBEL_NATIVE)
+	if (mthca_is_memfree(dev))
 		dev->limits.fmr_reserved_mtts = 0;
 	else
 		dev->limits.fmr_reserved_mtts = request->fmr_reserved_mtts;

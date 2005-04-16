@@ -62,7 +62,7 @@ int mthca_create_ah(struct mthca_dev *dev,
 
 	ah->type = MTHCA_AH_PCI_POOL;
 
-	if (dev->hca_type == ARBEL_NATIVE) {
+	if (mthca_is_memfree(dev)) {
 		ah->av   = kmalloc(sizeof *ah->av, GFP_ATOMIC);
 		if (!ah->av)
 			return -ENOMEM;
@@ -192,7 +192,7 @@ int __devinit mthca_init_av_table(struct mthca_dev *dev)
 {
 	int err;
 
-	if (dev->hca_type == ARBEL_NATIVE)
+	if (mthca_is_memfree(dev))
 		return 0;
 
 	err = mthca_alloc_init(&dev->av_table.alloc,
@@ -231,7 +231,7 @@ int __devinit mthca_init_av_table(struct mthca_dev *dev)
 
 void __devexit mthca_cleanup_av_table(struct mthca_dev *dev)
 {
-	if (dev->hca_type == ARBEL_NATIVE)
+	if (mthca_is_memfree(dev))
 		return;
 
 	if (dev->av_table.av_map)

@@ -601,7 +601,7 @@ err_disable:
 
 static int __devinit mthca_init_hca(struct mthca_dev *mdev)
 {
-	if (mdev->hca_type == ARBEL_NATIVE)
+	if (mthca_is_memfree(mdev))
 		return mthca_init_arbel(mdev);
 	else
 		return mthca_init_tavor(mdev);
@@ -835,7 +835,7 @@ static void mthca_close_hca(struct mthca_dev *mdev)
 
 	mthca_CLOSE_HCA(mdev, 0, &status);
 
-	if (mdev->hca_type == ARBEL_NATIVE) {
+	if (mthca_is_memfree(mdev)) {
 		mthca_free_icm_table(mdev, mdev->cq_table.table);
 		mthca_free_icm_table(mdev, mdev->qp_table.eqp_table);
 		mthca_free_icm_table(mdev, mdev->qp_table.qp_table);
@@ -939,7 +939,7 @@ static int __devinit mthca_init_one(struct pci_dev *pdev,
 	mdev->pdev     = pdev;
 	mdev->hca_type = id->driver_data;
 
-	if (mdev->hca_type == ARBEL_NATIVE && !mthca_memfree_warned++)
+	if (mthca_is_memfree(mdev) && !mthca_memfree_warned++)
 		mthca_warn(mdev, "Warning: native MT25208 mode support is incomplete.  "
 			   "Your HCA may not work properly.\n");
 

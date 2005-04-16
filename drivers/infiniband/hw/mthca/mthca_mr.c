@@ -181,7 +181,7 @@ static u32 mthca_alloc_mtt(struct mthca_dev *dev, int order,
 	if (seg == -1)
 		return -1;
 
-	if (dev->hca_type == ARBEL_NATIVE)
+	if (mthca_is_memfree(dev))
 		if (mthca_table_get_range(dev, dev->mr_table.mtt_table, seg,
 					  seg + (1 << order) - 1)) {
 			mthca_buddy_free(buddy, seg, order);
@@ -196,7 +196,7 @@ static void mthca_free_mtt(struct mthca_dev *dev, u32 seg, int order,
 {
 	mthca_buddy_free(buddy, seg, order);
 
-	if (dev->hca_type == ARBEL_NATIVE)
+	if (mthca_is_memfree(dev))
 		mthca_table_put_range(dev, dev->mr_table.mtt_table, seg,
 				      seg + (1 << order) - 1);
 }
@@ -223,7 +223,7 @@ static inline u32 arbel_key_to_hw_index(u32 key)
 
 static inline u32 hw_index_to_key(struct mthca_dev *dev, u32 ind)
 {
-	if (dev->hca_type == ARBEL_NATIVE)
+	if (mthca_is_memfree(dev))
 		return arbel_hw_index_to_key(ind);
 	else
 		return tavor_hw_index_to_key(ind);
@@ -231,7 +231,7 @@ static inline u32 hw_index_to_key(struct mthca_dev *dev, u32 ind)
 
 static inline u32 key_to_hw_index(struct mthca_dev *dev, u32 key)
 {
-	if (dev->hca_type == ARBEL_NATIVE)
+	if (mthca_is_memfree(dev))
 		return arbel_key_to_hw_index(key);
 	else
 		return tavor_key_to_hw_index(key);
@@ -254,7 +254,7 @@ int mthca_mr_alloc_notrans(struct mthca_dev *dev, u32 pd,
 		return -ENOMEM;
 	mr->ibmr.rkey = mr->ibmr.lkey = hw_index_to_key(dev, key);
 
-	if (dev->hca_type == ARBEL_NATIVE) {
+	if (mthca_is_memfree(dev)) {
 		err = mthca_table_get(dev, dev->mr_table.mpt_table, key);
 		if (err)
 			goto err_out_mpt_free;
@@ -299,7 +299,7 @@ int mthca_mr_alloc_notrans(struct mthca_dev *dev, u32 pd,
 	return err;
 
 err_out_table:
-	if (dev->hca_type == ARBEL_NATIVE)
+	if (mthca_is_memfree(dev))
 		mthca_table_put(dev, dev->mr_table.mpt_table, key);
 
 err_out_mpt_free:
@@ -329,7 +329,7 @@ int mthca_mr_alloc_phys(struct mthca_dev *dev, u32 pd,
 		return -ENOMEM;
 	mr->ibmr.rkey = mr->ibmr.lkey = hw_index_to_key(dev, key);
 
-	if (dev->hca_type == ARBEL_NATIVE) {
+	if (mthca_is_memfree(dev)) {
 		err = mthca_table_get(dev, dev->mr_table.mpt_table, key);
 		if (err)
 			goto err_out_mpt_free;
@@ -437,7 +437,7 @@ err_out_free_mtt:
 	mthca_free_mtt(dev, mr->first_seg, mr->order, &dev->mr_table.mtt_buddy);
 
 err_out_table:
-	if (dev->hca_type == ARBEL_NATIVE)
+	if (mthca_is_memfree(dev))
 		mthca_table_put(dev, dev->mr_table.mpt_table, key);
 
 err_out_mpt_free:
@@ -452,7 +452,7 @@ static void mthca_free_region(struct mthca_dev *dev, u32 lkey, int order,
 	if (order >= 0)
 		mthca_free_mtt(dev, first_seg, order, buddy);
 
-	if (dev->hca_type == ARBEL_NATIVE)
+	if (mthca_is_memfree(dev))
 		mthca_table_put(dev, dev->mr_table.mpt_table,
 				arbel_key_to_hw_index(lkey));
 
@@ -498,7 +498,7 @@ int mthca_fmr_alloc(struct mthca_dev *dev, u32 pd,
 		return -EINVAL;
 
 	/* For Arbel, all MTTs must fit in the same page. */
-	if (dev->hca_type == ARBEL_NATIVE &&
+	if (mthca_is_memfree(dev) &&
 	    mr->attr.max_pages * sizeof *mr->mem.arbel.mtts > PAGE_SIZE)
 		return -EINVAL;
 
@@ -511,7 +511,7 @@ int mthca_fmr_alloc(struct mthca_dev *dev, u32 pd,
 	idx = key & (dev->limits.num_mpts - 1);
 	mr->ibmr.rkey = mr->ibmr.lkey = hw_index_to_key(dev, key);
 
-	if (dev->hca_type == ARBEL_NATIVE) {
+	if (mthca_is_memfree(dev)) {
 		err = mthca_table_get(dev, dev->mr_table.mpt_table, key);
 		if (err)
 			goto err_out_mpt_free;
@@ -534,7 +534,7 @@ int mthca_fmr_alloc(struct mthca_dev *dev, u32 pd,
 
 	mtt_seg = mr->first_seg * MTHCA_MTT_SEG_SIZE;
 
-	if (dev->hca_type == ARBEL_NATIVE) {
+	if (mthca_is_memfree(dev)) {
 		mr->mem.arbel.mtts = mthca_table_find(dev->mr_table.mtt_table,
 						      mr->first_seg);
 		BUG_ON(!mr->mem.arbel.mtts);
@@ -596,7 +596,7 @@ err_out_free_mtt:
 		       dev->mr_table.fmr_mtt_buddy);
 
 err_out_table:
-	if (dev->hca_type == ARBEL_NATIVE)
+	if (mthca_is_memfree(dev))
 		mthca_table_put(dev, dev->mr_table.mpt_table, key);
 
 err_out_mpt_free:
@@ -765,7 +765,7 @@ int __devinit mthca_init_mr_table(struct mthca_dev *dev)
 	if (err)
 		return err;
 
-	if (dev->hca_type != ARBEL_NATIVE &&
+	if (!mthca_is_memfree(dev) &&
 	    (dev->mthca_flags & MTHCA_FLAG_DDR_HIDDEN))
 		dev->limits.fmr_reserved_mtts = 0;
 	else

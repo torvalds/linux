@@ -625,7 +625,7 @@ static int mthca_unmap_fmr(struct list_head *fmr_list)
 	if (!mdev)
 		return 0;
 
-	if (mdev->hca_type == ARBEL_NATIVE) {
+	if (mthca_is_memfree(mdev)) {
 		list_for_each_entry(fmr, fmr_list, list)
 			mthca_arbel_fmr_unmap(mdev, to_mfmr(fmr));
 
@@ -710,7 +710,7 @@ int mthca_register_device(struct mthca_dev *dev)
 		dev->ib_dev.alloc_fmr            = mthca_alloc_fmr;
 		dev->ib_dev.unmap_fmr            = mthca_unmap_fmr;
 		dev->ib_dev.dealloc_fmr          = mthca_dealloc_fmr;
-		if (dev->hca_type == ARBEL_NATIVE)
+		if (mthca_is_memfree(dev))
 			dev->ib_dev.map_phys_fmr = mthca_arbel_map_phys_fmr;
 		else
 			dev->ib_dev.map_phys_fmr = mthca_tavor_map_phys_fmr;
@@ -720,7 +720,7 @@ int mthca_register_device(struct mthca_dev *dev)
 	dev->ib_dev.detach_mcast         = mthca_multicast_detach;
 	dev->ib_dev.process_mad          = mthca_process_mad;
 
-	if (dev->hca_type == ARBEL_NATIVE) {
+	if (mthca_is_memfree(dev)) {
 		dev->ib_dev.req_notify_cq = mthca_arbel_arm_cq;
 		dev->ib_dev.post_send     = mthca_arbel_post_send;
 		dev->ib_dev.post_recv     = mthca_arbel_post_receive;
