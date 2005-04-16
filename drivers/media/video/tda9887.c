@@ -478,9 +478,9 @@ static int tda9887_set_pinnacle(struct tda9887 *t, char *buf)
 /* ---------------------------------------------------------------------- */
 
 static char pal[] = "-";
-module_param_string(pal, pal, 0644, sizeof(pal));
+module_param_string(pal, pal, sizeof(pal), 0644);
 static char secam[] = "-";
-module_param_string(secam, secam, 0644, sizeof(secam));
+module_param_string(secam, secam, sizeof(secam), 0644);
 
 static int tda9887_fixup_std(struct tda9887 *t)
 {
