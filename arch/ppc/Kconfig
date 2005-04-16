@@ -98,13 +98,19 @@ config FSL_BOOKE
 
 config PTE_64BIT
 	bool
-	depends on 44x
-	default y
+	depends on 44x || E500
+	default y if 44x
+	default y if E500 && PHYS_64BIT
 
 config PHYS_64BIT
-	bool
-	depends on 44x
-	default y
+	bool 'Large physical address support' if E500
+	depends on 44x || E500
+	default y if 44x
+	---help---
+	  This option enables kernel support for larger than 32-bit physical
+	  addresses.  This features is not be available on all e500 cores.
+
+	  If in doubt, say N here.
 
 config ALTIVEC
 	bool "AltiVec Support"

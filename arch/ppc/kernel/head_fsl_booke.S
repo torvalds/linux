@@ -347,6 +347,38 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	mtspr	SPRN_SRR1,r3
 	rfi			/* change context and jump to start_kernel */
 
+/* Macros to hide the PTE size differences
+ *
+ * FIND_PTE -- walks the page tables given EA & pgdir pointer
+ *   r10 -- EA of fault
+ *   r11 -- PGDIR pointer
+ *   r12 -- free
+ *   label 2: is the bailout case
+ *
+ * if we find the pte (fall through):
+ *   r11 is low pte word
+ *   r12 is pointer to the pte
+ */
+#ifdef CONFIG_PTE_64BIT
+#define PTE_FLAGS_OFFSET	4
+#define FIND_PTE	\
+	rlwinm 	r12, r10, 13, 19, 29;	/* Compute pgdir/pmd offset */	\
+	lwzx	r11, r12, r11;		/* Get pgd/pmd entry */		\
+	rlwinm.	r12, r11, 0, 0, 20;	/* Extract pt base address */	\
+	beq	2f;			/* Bail if no table */		\
+	rlwimi	r12, r10, 23, 20, 28;	/* Compute pte address */	\
+	lwz	r11, 4(r12);		/* Get pte entry */
+#else
+#define PTE_FLAGS_OFFSET	0
+#define FIND_PTE	\
+	rlwimi	r11, r10, 12, 20, 29;	/* Create L1 (pgdir/pmd) address */	\
+	lwz	r11, 0(r11);		/* Get L1 entry */			\
+	rlwinm.	r12, r11, 0, 0, 19;	/* Extract L2 (pte) base address */	\
+	beq	2f;			/* Bail if no table */			\
+	rlwimi	r12, r10, 22, 20, 29;	/* Compute PTE address */		\
+	lwz	r11, 0(r12);		/* Get Linux PTE */
+#endif
+
 /*
  * Interrupt vector entry code
  *
@@ -405,13 +437,7 @@ interrupt_base:
 	mfspr	r11,SPRN_SPRG3
 	lwz	r11,PGDIR(r11)
 4:
-	rlwimi	r11, r10, 12, 20, 29	/* Create L1 (pgdir/pmd) address */
-	lwz	r11, 0(r11)		/* Get L1 entry */
-	rlwinm.	r12, r11, 0, 0, 19	/* Extract L2 (pte) base address */
-	beq	2f			/* Bail if no table */
-
-	rlwimi	r12, r10, 22, 20, 29	/* Compute PTE address */
-	lwz	r11, 0(r12)		/* Get Linux PTE */
+	FIND_PTE
 
 	/* Are _PAGE_USER & _PAGE_RW set & _PAGE_HWWRITE not? */
 	andi.	r13, r11, _PAGE_RW|_PAGE_USER|_PAGE_HWWRITE
@@ -420,14 +446,12 @@ interrupt_base:
 
 	/* Update 'changed'. */
 	ori	r11, r11, _PAGE_DIRTY|_PAGE_ACCESSED|_PAGE_HWWRITE
-	stw	r11, 0(r12)		/* Update Linux page table */
+	stw	r11, PTE_FLAGS_OFFSET(r12) /* Update Linux page table */
 
 	/* MAS2 not updated as the entry does exist in the tlb, this
 	   fault taken to detect state transition (eg: COW -> DIRTY)
 	 */
-	lis	r12, MAS3_RPN@h
-	ori	r12, r12, _PAGE_HWEXEC | MAS3_RPN@l
-	and	r11, r11, r12
+	andi.	r11, r11, _PAGE_HWEXEC
 	rlwimi	r11, r11, 31, 27, 27	/* SX <- _PAGE_HWEXEC */
 	ori     r11, r11, (MAS3_UW|MAS3_SW|MAS3_UR|MAS3_SR)@l /* set static perms */
 
@@ -439,7 +463,10 @@ interrupt_base:
 	/* find the TLB index that caused the fault.  It has to be here. */
 	tlbsx	0, r10
 
-	mtspr	SPRN_MAS3,r11
+	/* only update the perm bits, assume the RPN is fine */
+	mfspr	r12, SPRN_MAS3
+	rlwimi	r12, r11, 0, 20, 31
+	mtspr	SPRN_MAS3,r12
 	tlbwe
 
 	/* Done...restore registers and get out of here.  */
@@ -530,18 +557,15 @@ interrupt_base:
 	lwz	r11,PGDIR(r11)
 
 4:
-	rlwimi	r11, r10, 12, 20, 29	/* Create L1 (pgdir/pmd) address */
-	lwz	r11, 0(r11)		/* Get L1 entry */
-	rlwinm.	r12, r11, 0, 0, 19	/* Extract L2 (pte) base address */
-	beq	2f			/* Bail if no table */
+	FIND_PTE
+	andi.	r13, r11, _PAGE_PRESENT	/* Is the page present? */
+	beq	2f			/* Bail if not present */
 
-	rlwimi	r12, r10, 22, 20, 29	/* Compute PTE address */
-	lwz	r11, 0(r12)		/* Get Linux PTE */
-	andi.	r13, r11, _PAGE_PRESENT
-	beq	2f
-
+#ifdef CONFIG_PTE_64BIT
+	lwz	r13, 0(r12)
+#endif
 	ori	r11, r11, _PAGE_ACCESSED
-	stw	r11, 0(r12)
+	stw	r11, PTE_FLAGS_OFFSET(r12)
 
 	 /* Jump to common tlb load */
 	b	finish_tlb_load
@@ -594,18 +618,15 @@ interrupt_base:
 	lwz	r11,PGDIR(r11)
 
 4:
-	rlwimi	r11, r10, 12, 20, 29	/* Create L1 (pgdir/pmd) address */
-	lwz	r11, 0(r11)		/* Get L1 entry */
-	rlwinm.	r12, r11, 0, 0, 19	/* Extract L2 (pte) base address */
-	beq	2f			/* Bail if no table */
+	FIND_PTE
+	andi.	r13, r11, _PAGE_PRESENT	/* Is the page present? */
+	beq	2f			/* Bail if not present */
 
-	rlwimi	r12, r10, 22, 20, 29	/* Compute PTE address */
-	lwz	r11, 0(r12)		/* Get Linux PTE */
-	andi.	r13, r11, _PAGE_PRESENT
-	beq	2f
-
+#ifdef CONFIG_PTE_64BIT
+	lwz	r13, 0(r12)
+#endif
 	ori	r11, r11, _PAGE_ACCESSED
-	stw	r11, 0(r12)
+	stw	r11, PTE_FLAGS_OFFSET(r12)
 
 	/* Jump to common TLB load point */
 	b	finish_tlb_load
@@ -690,27 +711,39 @@ finish_tlb_load:
 	 */
 
 	mfspr	r12, SPRN_MAS2
+#ifdef CONFIG_PTE_64BIT
+	rlwimi	r12, r11, 26, 24, 31	/* extract ...WIMGE from pte */
+#else
 	rlwimi	r12, r11, 26, 27, 31	/* extract WIMGE from pte */
+#endif
 	mtspr	SPRN_MAS2, r12
 
 	bge	5, 1f
 
-	/* addr > TASK_SIZE */
-	li	r10, (MAS3_UX | MAS3_UW | MAS3_UR)
-	andi.	r13, r11, (_PAGE_USER | _PAGE_HWWRITE | _PAGE_HWEXEC)
-	andi.	r12, r11, _PAGE_USER	/* Test for _PAGE_USER */
-	iseleq	r12, 0, r10
-	and	r10, r12, r13
-	srwi	r12, r10, 1
+	/* is user addr */
+	andi.	r12, r11, (_PAGE_USER | _PAGE_HWWRITE | _PAGE_HWEXEC)
+	andi.	r10, r11, _PAGE_USER	/* Test for _PAGE_USER */
+	srwi	r10, r12, 1
 	or	r12, r12, r10	/* Copy user perms into supervisor */
+	iseleq	r12, 0, r12
 	b	2f
 
-	/* addr <= TASK_SIZE */
+	/* is kernel addr */
 1:	rlwinm	r12, r11, 31, 29, 29	/* Extract _PAGE_HWWRITE into SW */
 	ori	r12, r12, (MAS3_SX | MAS3_SR)
 
+#ifdef CONFIG_PTE_64BIT
+2:	rlwimi	r12, r13, 24, 0, 7	/* grab RPN[32:39] */
+	rlwimi	r12, r11, 24, 8, 19	/* grab RPN[40:51] */
+	mtspr	SPRN_MAS3, r12
+BEGIN_FTR_SECTION
+	srwi	r10, r13, 8		/* grab RPN[8:31] */
+	mtspr	SPRN_MAS7, r10
+END_FTR_SECTION_IFSET(CPU_FTR_BIG_PHYS)
+#else
 2:	rlwimi	r11, r12, 0, 20, 31	/* Extract RPN from PTE and merge with perms */
 	mtspr	SPRN_MAS3, r11
+#endif
 	tlbwe
 
 	/* Done...restore registers and get out of here.  */

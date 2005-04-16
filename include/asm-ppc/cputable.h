@@ -86,8 +86,9 @@ static inline unsigned int cpu_has_feature(unsigned int feature)
 #define CPU_FTR_DUAL_PLL_750FX		0x00004000
 #define CPU_FTR_NO_DPM			0x00008000
 #define CPU_FTR_HAS_HIGH_BATS		0x00010000
-#define CPU_FTR_NEED_COHERENT           0x00020000
+#define CPU_FTR_NEED_COHERENT		0x00020000
 #define CPU_FTR_NO_BTIC			0x00040000
+#define CPU_FTR_BIG_PHYS		0x00080000
 
 #ifdef __ASSEMBLY__
 
