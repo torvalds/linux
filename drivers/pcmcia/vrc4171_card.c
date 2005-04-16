@@ -774,7 +774,7 @@ static int __devinit vrc4171_card_setup(char *options)
 
 __setup("vrc4171_card=", vrc4171_card_setup);
 
-static int vrc4171_card_suspend(struct device *dev, u32 state, u32 level)
+static int vrc4171_card_suspend(struct device *dev, pm_message_t state, u32 level)
 {
 	int retval = 0;
 

@@ -158,7 +158,7 @@ static int __devexit pcmcia_remove(struct sa1111_dev *dev)
 	return 0;
 }
 
-static int pcmcia_suspend(struct sa1111_dev *dev, u32 state)
+static int pcmcia_suspend(struct sa1111_dev *dev, pm_message_t state)
 {
 	return pcmcia_socket_dev_suspend(&dev->dev, state);
 }

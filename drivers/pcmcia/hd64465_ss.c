@@ -845,7 +845,7 @@ static void hs_exit_socket(hs_socket_t *sp)
 	local_irq_restore(flags);
 }
 
-static int hd64465_suspend(struct device *dev, u32 state, u32 level)
+static int hd64465_suspend(struct device *dev, pm_message_t state, u32 level)
 {
 	int ret = 0;
 	if (level == SUSPEND_SAVE_STATE)
