@@ -405,7 +405,8 @@ nfsd4_probe_callback(struct nfs4_client *clp)
 	timeparms.to_exponential = 1;
 
 	/* Create RPC transport */
-	if (!(xprt = xprt_create_proto(IPPROTO_TCP, &addr, &timeparms))) {
+	xprt = xprt_create_proto(IPPROTO_TCP, &addr, &timeparms);
+	if (IS_ERR(xprt)) {
 		dprintk("NFSD: couldn't create callback transport!\n");
 		goto out_err;
 	}
@@ -426,7 +427,8 @@ nfsd4_probe_callback(struct nfs4_client *clp)
 	 * XXX AUTH_UNIX only - need AUTH_GSS....
 	 */
 	sprintf(hostname, "%u.%u.%u.%u", NIPQUAD(addr.sin_addr.s_addr));
-	if (!(clnt = rpc_create_client(xprt, hostname, program, 1, RPC_AUTH_UNIX))) {
+	clnt = rpc_create_client(xprt, hostname, program, 1, RPC_AUTH_UNIX);
+	if (IS_ERR(clnt)) {
 		dprintk("NFSD: couldn't create callback client\n");
 		goto out_xprt;
 	}
