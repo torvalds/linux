@@ -36,7 +36,6 @@
  * 2004-01-31  Code review and approval. (Jean Delvare)
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>

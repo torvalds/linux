@@ -13,7 +13,6 @@
  * Driver for Dallas Semiconductor DS1337 and DS1339 real time clock chip
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>

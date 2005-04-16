@@ -31,7 +31,6 @@
     type at module load time.
 */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>

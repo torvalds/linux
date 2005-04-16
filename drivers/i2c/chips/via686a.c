@@ -30,7 +30,6 @@
     Warning - only supports a single device.
 */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
