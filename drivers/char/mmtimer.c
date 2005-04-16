@@ -485,7 +485,7 @@ void mmtimer_tasklet(unsigned long data) {
 		goto out;
 	t->it_overrun = 0;
 
-	if (tasklist_lock.write_lock || posix_timer_event(t, 0) != 0) {
+	if (posix_timer_event(t, 0) != 0) {
 
 		// printk(KERN_WARNING "mmtimer: cannot deliver signal.\n");
 
