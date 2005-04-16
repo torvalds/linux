@@ -15,11 +15,13 @@
  * virtual/physical addressing like 32-bit virtual / 36-bit
  * physical need a larger than native word size type. -Matt
  */
-#ifndef CONFIG_PTE_64BIT
+#ifndef CONFIG_PHYS_64BIT
 typedef unsigned long phys_addr_t;
+#define PHYS_FMT	"%.8lx"
 #else
 typedef unsigned long long phys_addr_t;
 extern phys_addr_t fixup_bigphys_addr(phys_addr_t, phys_addr_t);
+#define PHYS_FMT	"%16Lx"
 #endif
 
 /* Default "unsigned long" context */
