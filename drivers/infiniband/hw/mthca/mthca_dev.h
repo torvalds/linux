@@ -170,10 +170,15 @@ struct mthca_pd_table {
 	struct mthca_alloc alloc;
 };
 
+struct mthca_buddy {
+	unsigned long **bits;
+	int             max_order;
+	spinlock_t      lock;
+};
+
 struct mthca_mr_table {
 	struct mthca_alloc      mpt_alloc;
-	int                     max_mtt_order;
-	unsigned long         **mtt_buddy;
+	struct mthca_buddy	mtt_buddy;
 	u64                     mtt_base;
 	struct mthca_icm_table *mtt_table;
 	struct mthca_icm_table *mpt_table;
