@@ -40,3 +40,11 @@ Why:	Replaced by io_remap_pfn_range() which allows more memory space
 	addressabilty (by using a pfn) and supports sparc & sparc64
 	iospace as part of the pfn.
 Who:	Randy Dunlap <rddunlap@osdl.org>
+
+---------------------------
+
+What:	register_ioctl32_conversion() / unregister_ioctl32_conversion()
+When:	April 2005
+Why:	Replaced by ->compat_ioctl in file_operations and other method
+	vecors.
+Who:	Andi Kleen <ak@muc.de>, Christoph Hellwig <hch@lst.de>

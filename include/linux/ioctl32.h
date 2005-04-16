@@ -1,6 +1,8 @@
 #ifndef IOCTL32_H
 #define IOCTL32_H 1
 
+#include <linux/compiler.h>	/* for __deprecated */
+
 struct file;
 
 typedef int (*ioctl_trans_handler_t)(unsigned int, unsigned int,
@@ -23,9 +25,9 @@ struct ioctl_trans {
  */ 
 
 #ifdef CONFIG_COMPAT
-extern int register_ioctl32_conversion(unsigned int cmd,
+extern int __deprecated register_ioctl32_conversion(unsigned int cmd,
 				ioctl_trans_handler_t handler);
-extern int unregister_ioctl32_conversion(unsigned int cmd);
+extern int __deprecated unregister_ioctl32_conversion(unsigned int cmd);
 
 #else
 
