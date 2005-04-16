@@ -603,7 +603,7 @@ static int mmci_remove(struct amba_device *dev)
 }
 
 #ifdef CONFIG_PM
-static int mmci_suspend(struct amba_device *dev, u32 state)
+static int mmci_suspend(struct amba_device *dev, pm_message_t state)
 {
 	struct mmc_host *mmc = amba_get_drvdata(dev);
 	int ret = 0;

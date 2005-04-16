@@ -884,7 +884,7 @@ EXPORT_SYMBOL(mmc_free_host);
  *	@host: mmc host
  *	@state: suspend mode (PM_SUSPEND_xxx)
  */
-int mmc_suspend_host(struct mmc_host *host, u32 state)
+int mmc_suspend_host(struct mmc_host *host, pm_message_t state)
 {
 	mmc_claim_host(host);
 	mmc_deselect_cards(host);

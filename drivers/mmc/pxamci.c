@@ -558,7 +558,7 @@ static int pxamci_remove(struct device *dev)
 }
 
 #ifdef CONFIG_PM
-static int pxamci_suspend(struct device *dev, u32 state, u32 level)
+static int pxamci_suspend(struct device *dev, pm_message_t state, u32 level)
 {
 	struct mmc_host *mmc = dev_get_drvdata(dev);
 	int ret = 0;

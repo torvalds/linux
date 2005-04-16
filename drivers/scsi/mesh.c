@@ -1757,7 +1757,7 @@ static void set_mesh_power(struct mesh_state *ms, int state)
 
 
 #ifdef CONFIG_PM
-static int mesh_suspend(struct macio_dev *mdev, u32 state)
+static int mesh_suspend(struct macio_dev *mdev, pm_message_t state)
 {
 	struct mesh_state *ms = (struct mesh_state *)macio_get_drvdata(mdev);
 	unsigned long flags;

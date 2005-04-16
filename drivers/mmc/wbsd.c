@@ -1563,7 +1563,7 @@ static int wbsd_remove(struct device* dev)
  */
 
 #ifdef CONFIG_PM
-static int wbsd_suspend(struct device *dev, u32 state, u32 level)
+static int wbsd_suspend(struct device *dev, pm_message_t state, u32 level)
 {
 	DBGF("Not yet supported\n");
 

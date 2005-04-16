@@ -3435,7 +3435,7 @@ static int nsp32_prom_read_bit(nsp32_hw_data *data)
 #ifdef CONFIG_PM
 
 /* Device suspended */
-static int nsp32_suspend(struct pci_dev *pdev, u32 state)
+static int nsp32_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct Scsi_Host *host = pci_get_drvdata(pdev);
 
@@ -3443,7 +3443,7 @@ static int nsp32_suspend(struct pci_dev *pdev, u32 state)
 
 	pci_save_state     (pdev);
 	pci_disable_device (pdev);
-	pci_set_power_state(pdev, state);
+	pci_set_power_state(pdev, pci_choose_state(pdev, state));
 
 	return 0;
 }
@@ -3457,8 +3457,8 @@ static int nsp32_resume(struct pci_dev *pdev)
 
 	nsp32_msg(KERN_INFO, "pci-resume: pdev=0x%p, slot=%s, host=0x%p", pdev, pci_name(pdev), host);
 
-	pci_set_power_state(pdev, 0);
-	pci_enable_wake    (pdev, 0, 0);
+	pci_set_power_state(pdev, PCI_D0);
+	pci_enable_wake    (pdev, PCI_D0, 0);
 	pci_restore_state  (pdev);
 
 	reg = nsp32_read2(data->BaseAddress, INDEX_REG);
@@ -3479,7 +3479,7 @@ static int nsp32_resume(struct pci_dev *pdev)
 }
 
 /* Enable wake event */
-static int nsp32_enable_wake(struct pci_dev *pdev, u32 state, int enable)
+static int nsp32_enable_wake(struct pci_dev *pdev, pci_power_t state, int enable)
 {
 	struct Scsi_Host *host = pci_get_drvdata(pdev);
 

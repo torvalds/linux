@@ -403,7 +403,7 @@ static int __exit sa1100_mtd_remove(struct device *dev)
 }
 
 #ifdef CONFIG_PM
-static int sa1100_mtd_suspend(struct device *dev, u32 state, u32 level)
+static int sa1100_mtd_suspend(struct device *dev, pm_message_t state, u32 level)
 {
 	struct sa_info *info = dev_get_drvdata(dev);
 	int ret = 0;
