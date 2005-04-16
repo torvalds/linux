@@ -881,6 +881,7 @@ static int __init snd_pmac_detect(pmac_t *chip)
 {
 	struct device_node *sound;
 	unsigned int *prop, l;
+	u32 layout_id = 0;
 
 	if (_machine != _MACH_Pmac)
 		return -ENODEV;
@@ -929,6 +930,9 @@ static int __init snd_pmac_detect(pmac_t *chip)
 	prop = (unsigned int *) get_property(sound, "sub-frame", NULL);
 	if (prop && *prop < 16)
 		chip->subframe = *prop;
+	prop = (unsigned int *) get_property(sound, "layout-id", NULL);
+	if (prop)
+		layout_id = *prop;
 	/* This should be verified on older screamers */
 	if (device_is_compatible(sound, "screamer")) {
 		chip->model = PMAC_SCREAMER;
@@ -961,12 +965,22 @@ static int __init snd_pmac_detect(pmac_t *chip)
 		chip->freq_table = tumbler_freqs;
 		chip->control_mask = MASK_IEPC | 0x11; /* disable IEE */
 	}
-	if (device_is_compatible(sound, "AOAKeylargo")) {
-		/* Seems to support the stock AWACS frequencies, but has
-		   a snapper mixer */
-		chip->model = PMAC_SNAPPER;
-		// chip->can_byte_swap = 0; /* FIXME: check this */
-		chip->control_mask = MASK_IEPC | 0x11; /* disable IEE */
+	if (device_is_compatible(sound, "AOAKeylargo") ||
+	    device_is_compatible(sound, "AOAbase")) {
+		/* For now, only support very basic TAS3004 based machines with
+		 * single frequency until proper i2s control is implemented
+		 */
+		switch(layout_id) {
+		case 0x48:
+		case 0x46:
+		case 0x33:
+		case 0x29:
+			chip->num_freqs = ARRAY_SIZE(tumbler_freqs);
+			chip->model = PMAC_SNAPPER;
+			chip->can_byte_swap = 0; /* FIXME: check this */
+			chip->control_mask = MASK_IEPC | 0x11; /* disable IEE */
+			break;
+		}
 	}
 	prop = (unsigned int *)get_property(sound, "device-id", NULL);
 	if (prop)

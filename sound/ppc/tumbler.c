@@ -37,6 +37,8 @@
 #include <asm/irq.h>
 #ifdef CONFIG_PPC_HAS_FEATURE_CALLS
 #include <asm/pmac_feature.h>
+#else
+#error old crap
 #endif
 #include "pmac.h"
 #include "tumbler_volume.h"
@@ -950,10 +952,10 @@ static struct device_node *find_compatible_audio_device(const char *name)
 }
 
 /* find an audio device and get its address */
-static unsigned long tumbler_find_device(const char *device, pmac_gpio_t *gp, int is_compatible)
+static long tumbler_find_device(const char *device, pmac_gpio_t *gp, int is_compatible)
 {
 	struct device_node *node;
-	u32 *base;
+	u32 *base, addr;
 
 	if (is_compatible)
 		node = find_compatible_audio_device(device);
@@ -966,21 +968,31 @@ static unsigned long tumbler_find_device(const char *device, pmac_gpio_t *gp, in
 
 	base = (u32 *)get_property(node, "AAPL,address", NULL);
 	if (! base) {
-		snd_printd("cannot find address for device %s\n", device);
-		return -ENODEV;
-	}
+		base = (u32 *)get_property(node, "reg", NULL);
+		if (!base) {
+			snd_printd("cannot find address for device %s\n", device);
+			return -ENODEV;
+		}
+		/* this only work if PPC_HAS_FEATURE_CALLS is set as we
+		 * are only getting the low part of the address
+		 */
+		addr = *base;
+		if (addr < 0x50)
+			addr += 0x50;
+	} else
+		addr = *base;
 
 #ifdef CONFIG_PPC_HAS_FEATURE_CALLS
-	gp->addr = (*base) & 0x0000ffff;
+	gp->addr = addr & 0x0000ffff;
 #else
-	gp->addr = ioremap((unsigned long)(*base), 1);
+	gp->addr = ioremap((unsigned long)addr, 1);
 #endif
+	/* Try to find the active state, default to 0 ! */
 	base = (u32 *)get_property(node, "audio-gpio-active-state", NULL);
 	if (base)
 		gp->active_state = *base;
 	else
-		gp->active_state = 1;
-
+		gp->active_state = 0;
 
 	return (node->n_intrs > 0) ? node->intrs[0].line : 0;
 }
@@ -1039,10 +1051,15 @@ static int __init tumbler_init(pmac_t *chip)
 	pmac_tumbler_t *mix = chip->mixer_data;
 	snd_assert(mix, return -EINVAL);
 
-	tumbler_find_device("audio-hw-reset", &mix->audio_reset, 0);
-	tumbler_find_device("amp-mute", &mix->amp_mute, 0);
-	tumbler_find_device("headphone-mute", &mix->hp_mute, 0);
+	if (tumbler_find_device("audio-hw-reset", &mix->audio_reset, 0) < 0)
+		tumbler_find_device("hw-reset", &mix->audio_reset, 1);
+	if (tumbler_find_device("amp-mute", &mix->amp_mute, 0) < 0)
+		tumbler_find_device("amp-mute", &mix->amp_mute, 1);
+	if (tumbler_find_device("headphone-mute", &mix->hp_mute, 0) < 0)
+		tumbler_find_device("headphone-mute", &mix->hp_mute, 1);
 	irq = tumbler_find_device("headphone-detect", &mix->hp_detect, 0);
+	if (irq < 0)
+		irq = tumbler_find_device("headphone-detect", &mix->hp_detect, 1);
 	if (irq < 0)
 		irq = tumbler_find_device("keywest-gpio15", &mix->hp_detect, 1);
 
@@ -1109,9 +1126,13 @@ int __init snd_pmac_tumbler_init(pmac_t *chip)
 	/* set up TAS */
 	tas_node = find_devices("deq");
 	if (tas_node == NULL)
+		tas_node = find_devices("codec");
+	if (tas_node == NULL)
 		return -ENODEV;
 
 	paddr = (u32 *)get_property(tas_node, "i2c-address", NULL);
+	if (paddr == NULL)
+		paddr = (u32 *)get_property(tas_node, "reg", NULL);
 	if (paddr)
 		mix->i2c.addr = (*paddr) >> 1;
 	else
@@ -1155,7 +1176,6 @@ int __init snd_pmac_tumbler_init(pmac_t *chip)
 	chip->drc_sw_ctl = snd_ctl_new1(&tumbler_drc_sw, chip);
 	if ((err = snd_ctl_add(chip->card, chip->drc_sw_ctl)) < 0)
 		return err;
-
 
 #ifdef CONFIG_PMAC_PBOOK
 	chip->resume = tumbler_resume;
