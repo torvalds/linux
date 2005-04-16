@@ -1600,7 +1600,8 @@ static void ib_mad_recv_done_handler(struct ib_mad_port_private *port_priv,
 			 DMA_FROM_DEVICE);
 
 	/* Setup MAD receive work completion from "normal" work completion */
-	recv->header.recv_wc.wc = wc;
+	recv->header.wc = *wc;
+	recv->header.recv_wc.wc = &recv->header.wc;
 	recv->header.recv_wc.mad_len = sizeof(struct ib_mad);
 	recv->header.recv_wc.recv_buf.mad = &recv->mad.mad;
 	recv->header.recv_wc.recv_buf.grh = &recv->grh;

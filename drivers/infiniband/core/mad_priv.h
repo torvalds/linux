@@ -69,6 +69,7 @@ struct ib_mad_list_head {
 struct ib_mad_private_header {
 	struct ib_mad_list_head mad_list;
 	struct ib_mad_recv_wc recv_wc;
+	struct ib_wc wc;
 	DECLARE_PCI_UNMAP_ADDR(mapping)
 } __attribute__ ((packed));
 
