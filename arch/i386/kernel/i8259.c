@@ -262,7 +262,7 @@ static int i8259A_resume(struct sys_device *dev)
 	return 0;
 }
 
-static int i8259A_suspend(struct sys_device *dev, u32 state)
+static int i8259A_suspend(struct sys_device *dev, pm_message_t state)
 {
 	save_ELCR(irq_trigger);
 	return 0;

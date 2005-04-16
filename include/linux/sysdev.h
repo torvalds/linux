@@ -22,6 +22,7 @@
 #define _SYSDEV_H_
 
 #include <linux/kobject.h>
+#include <linux/pm.h>
 
 
 struct sys_device;
@@ -31,7 +32,7 @@ struct sysdev_class {
 
 	/* Default operations for these types of devices */
 	int	(*shutdown)(struct sys_device *);
-	int	(*suspend)(struct sys_device *, u32 state);
+	int	(*suspend)(struct sys_device *, pm_message_t state);
 	int	(*resume)(struct sys_device *);
 	struct kset		kset;
 };
@@ -50,7 +51,7 @@ struct sysdev_driver {
 	int	(*add)(struct sys_device *);
 	int	(*remove)(struct sys_device *);
 	int	(*shutdown)(struct sys_device *);
-	int	(*suspend)(struct sys_device *, u32 state);
+	int	(*suspend)(struct sys_device *, pm_message_t state);
 	int	(*resume)(struct sys_device *);
 };
 

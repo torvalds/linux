@@ -20,6 +20,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/pm.h>
 
 
 extern struct subsystem devices_subsys;
@@ -302,7 +303,7 @@ void sysdev_shutdown(void)
  *	all synchronization.
  */
 
-int sysdev_suspend(u32 state)
+int sysdev_suspend(pm_message_t state)
 {
 	struct sysdev_class * cls;
 

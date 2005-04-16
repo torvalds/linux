@@ -32,7 +32,7 @@ static int nmi_enabled = 0;
 
 #ifdef CONFIG_PM
 
-static int nmi_suspend(struct sys_device *dev, u32 state)
+static int nmi_suspend(struct sys_device *dev, pm_message_t state)
 {
 	if (nmi_enabled == 1)
 		nmi_stop();
