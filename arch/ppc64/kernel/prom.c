@@ -544,12 +544,6 @@ static int __devinit finish_node(struct device_node *np,
 	if (ip != NULL)
 		nsizec = *ip;
 
-	/* the f50 sets the name to 'display' and 'compatible' to what we
-	 * expect for the name -- Cort
-	 */
-	if (!strcmp(np->name, "display"))
-		np->name = get_property(np, "compatible", NULL);
-
 	if (!strcmp(np->name, "device-tree") || np->parent == NULL)
 		ifunc = interpret_root_props;
 	else if (np->type == 0)
