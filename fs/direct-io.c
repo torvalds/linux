@@ -66,6 +66,7 @@ struct dio {
 	struct bio *bio;		/* bio under assembly */
 	struct inode *inode;
 	int rw;
+	loff_t i_size;			/* i_size when submitted */
 	int lock_type;			/* doesn't change */
 	unsigned blkbits;		/* doesn't change */
 	unsigned blkfactor;		/* When we're using an alignment which
@@ -230,17 +231,29 @@ static void finished_one_bio(struct dio *dio)
 	spin_lock_irqsave(&dio->bio_lock, flags);
 	if (dio->bio_count == 1) {
 		if (dio->is_async) {
+			ssize_t transferred;
+			loff_t offset;
+
 			/*
 			 * Last reference to the dio is going away.
 			 * Drop spinlock and complete the DIO.
 			 */
 			spin_unlock_irqrestore(&dio->bio_lock, flags);
-			dio_complete(dio, dio->block_in_file << dio->blkbits,
-					dio->result);
+
+			/* Check for short read case */
+			transferred = dio->result;
+			offset = dio->iocb->ki_pos;
+
+			if ((dio->rw == READ) &&
+			    ((offset + transferred) > dio->i_size))
+				transferred = dio->i_size - offset;
+
+			dio_complete(dio, offset, transferred);
+
 			/* Complete AIO later if falling back to buffered i/o */
 			if (dio->result == dio->size ||
 				((dio->rw == READ) && dio->result)) {
-				aio_complete(dio->iocb, dio->result, 0);
+				aio_complete(dio->iocb, transferred, 0);
 				kfree(dio);
 				return;
 			} else {
@@ -951,6 +964,7 @@ direct_io_worker(int rw, struct kiocb *iocb, struct inode *inode,
 	dio->page_errors = 0;
 	dio->result = 0;
 	dio->iocb = iocb;
+	dio->i_size = i_size_read(inode);
 
 	/*
 	 * BIO completion state.
