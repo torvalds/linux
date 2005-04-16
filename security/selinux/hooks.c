@@ -672,6 +672,8 @@ static inline u16 socket_type_to_security_class(int family, int type, int protoc
 			return SECCLASS_NETLINK_IP6FW_SOCKET;
 		case NETLINK_DNRTMSG:
 			return SECCLASS_NETLINK_DNRT_SOCKET;
+		case NETLINK_KOBJECT_UEVENT:
+			return SECCLASS_NETLINK_KOBJECT_UEVENT_SOCKET;
 		default:
 			return SECCLASS_NETLINK_SOCKET;
 		}

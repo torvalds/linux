@@ -56,3 +56,5 @@
     S_("netlink_dnrt_socket")
     S_("dbus")
     S_("nscd")
+    S_("association")
+    S_("netlink_kobject_uevent_socket")
