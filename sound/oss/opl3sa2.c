@@ -199,7 +199,7 @@ module_param(mpu_io, int, 0);
 MODULE_PARM_DESC(mpu_io, "Set MIDI I/O base (0x330 or other. Address must be even and must be from 0x300 to 0x334)");
 
 module_param(irq, int, 0);
-MODULE_PARM_DESC(mss_irq, "Set MSS (audio) IRQ (5, 7, 9, 10, 11, 12)");
+MODULE_PARM_DESC(irq, "Set MSS (audio) IRQ (5, 7, 9, 10, 11, 12)");
 
 module_param(dma, int, 0);
 MODULE_PARM_DESC(dma, "Set MSS (audio) first DMA channel (0, 1, 3)");
