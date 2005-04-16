@@ -327,6 +327,10 @@ static __init void parse_cmdline_early (char ** cmdline_p)
 		else if (!memcmp(from, "acpi=strict", 11)) {
 			acpi_strict = 1;
 		}
+#ifdef CONFIG_X86_IO_APIC
+		else if (!memcmp(from, "acpi_skip_timer_override", 24))
+			acpi_skip_timer_override = 1;
+#endif
 #endif
 
 		if (!memcmp(from, "nolapic", 7) ||
