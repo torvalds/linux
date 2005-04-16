@@ -31,7 +31,7 @@ static int sh_bus_match(struct device *dev, struct device_driver *drv)
 	return shdev->dev_id == shdrv->dev_id;
 }
 
-static int sh_bus_suspend(struct device *dev, u32 state)
+static int sh_bus_suspend(struct device *dev, pm_message_t state)
 {
 	struct sh_dev *shdev = to_sh_dev(dev);
 	struct sh_driver *shdrv = to_sh_driver(dev->driver);

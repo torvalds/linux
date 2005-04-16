@@ -98,7 +98,7 @@ extern void mmc_free_host(struct mmc_host *);
 #define mmc_priv(x)	((void *)((x) + 1))
 #define mmc_dev(x)	((x)->dev)
 
-extern int mmc_suspend_host(struct mmc_host *, u32);
+extern int mmc_suspend_host(struct mmc_host *, pm_message_t);
 extern int mmc_resume_host(struct mmc_host *);
 
 extern void mmc_detect_change(struct mmc_host *);

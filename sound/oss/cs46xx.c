@@ -3640,7 +3640,7 @@ static int cs46xx_restart_part(struct cs_card *card)
 
 static void cs461x_reset(struct cs_card *card);
 static void cs461x_proc_stop(struct cs_card *card);
-static int cs46xx_suspend(struct cs_card *card, u32 state)
+static int cs46xx_suspend(struct cs_card *card, pm_message_t state)
 {
 	unsigned int tmp;
 	CS_DBGOUT(CS_PM | CS_FUNCTION, 4, 

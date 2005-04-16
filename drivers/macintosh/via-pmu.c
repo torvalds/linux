@@ -3052,7 +3052,7 @@ pmu_polled_request(struct adb_request *req)
 
 static int pmu_sys_suspended = 0;
 
-static int pmu_sys_suspend(struct sys_device *sysdev, u32 state)
+static int pmu_sys_suspend(struct sys_device *sysdev, pm_message_t state)
 {
 	if (state != PM_SUSPEND_DISK || pmu_sys_suspended)
 		return 0;

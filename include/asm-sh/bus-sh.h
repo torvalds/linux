@@ -34,7 +34,7 @@ struct sh_driver {
 	unsigned int		bus_id;
 	int (*probe)(struct sh_dev *);
 	int (*remove)(struct sh_dev *);
-	int (*suspend)(struct sh_dev *, u32);
+	int (*suspend)(struct sh_dev *, pm_message_t);
 	int (*resume)(struct sh_dev *);
 };
 

@@ -346,7 +346,7 @@ typedef struct sc1200_saved_state_s {
 } sc1200_saved_state_t;
 
 
-static int sc1200_suspend (struct pci_dev *dev, u32 state)
+static int sc1200_suspend (struct pci_dev *dev, pm_message_t state)
 {
 	ide_hwif_t		*hwif = NULL;
 
