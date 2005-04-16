@@ -126,6 +126,7 @@ static int meminfo_read_proc(char *page, char **start, off_t off,
 	unsigned long committed;
 	unsigned long allowed;
 	struct vmalloc_info vmi;
+	long cached;
 
 	get_page_state(&ps);
 	get_zone_counts(&active, &inactive, &free);
@@ -139,6 +140,10 @@ static int meminfo_read_proc(char *page, char **start, off_t off,
 	committed = atomic_read(&vm_committed_space);
 	allowed = ((totalram_pages - hugetlb_total_pages())
 		* sysctl_overcommit_ratio / 100) + total_swap_pages;
+
+	cached = get_page_cache_size() - total_swapcache_pages - i.bufferram;
+	if (cached < 0)
+		cached = 0;
 
 	get_vmalloc_info(&vmi);
 
@@ -172,7 +177,7 @@ static int meminfo_read_proc(char *page, char **start, off_t off,
 		K(i.totalram),
 		K(i.freeram),
 		K(i.bufferram),
-		K(get_page_cache_size()-total_swapcache_pages-i.bufferram),
+		K(cached),
 		K(total_swapcache_pages),
 		K(active),
 		K(inactive),
