@@ -76,9 +76,6 @@ int __initdata acpi_force = 0;
 
 int acpi_numa __initdata;
 
-/* For PCI or other memory-mapped resources */
-unsigned long pci_mem_start = 0x10000000;
-
 /* Boot loader ID as an integer, for the benefit of proc_dointvec */
 int bootloader_type;
 
@@ -495,7 +492,6 @@ static void __init reserve_ebda_region(void)
 
 void __init setup_arch(char **cmdline_p)
 {
-	unsigned long low_mem_size;
 	unsigned long kernel_end;
 
  	ROOT_DEV = old_decode_dev(ORIG_ROOT_DEV);
@@ -654,13 +650,7 @@ void __init setup_arch(char **cmdline_p)
 		request_resource(&ioport_resource, &standard_io_resources[i]);
 	}
 
-	/* Will likely break when you have unassigned resources with more
-	   than 4GB memory and bridges that don't support more than 4GB. 
-	   Doing it properly would require to use pci_alloc_consistent
-	   in this case. */
-	low_mem_size = ((end_pfn << PAGE_SHIFT) + 0xfffff) & ~0xfffff;
-	if (low_mem_size > pci_mem_start)
-		pci_mem_start = low_mem_size;
+	e820_setup_gap();
 
 #ifdef CONFIG_GART_IOMMU
        iommu_hole_init();

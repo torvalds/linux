@@ -511,3 +511,62 @@ void __init parse_memopt(char *p, char **from)
 	end_user_pfn >>= PAGE_SHIFT;	
 } 
 
+unsigned long pci_mem_start = 0xaeedbabe;
+
+/*
+ * Search for the biggest gap in the low 32 bits of the e820
+ * memory space.  We pass this space to PCI to assign MMIO resources
+ * for hotplug or unconfigured devices in.
+ * Hopefully the BIOS let enough space left.
+ */
+__init void e820_setup_gap(void)
+{
+	unsigned long gapstart, gapsize;
+	unsigned long last;
+	int i;
+	int found = 0;
+
+	last = 0x100000000ull;
+	gapstart = 0x10000000;
+	gapsize = 0x400000;
+	i = e820.nr_map;
+	while (--i >= 0) {
+		unsigned long long start = e820.map[i].addr;
+		unsigned long long end = start + e820.map[i].size;
+
+		/*
+		 * Since "last" is at most 4GB, we know we'll
+		 * fit in 32 bits if this condition is true
+		 */
+		if (last > end) {
+			unsigned long gap = last - end;
+
+			if (gap > gapsize) {
+				gapsize = gap;
+				gapstart = end;
+				found = 1;
+			}
+		}
+		if (start < last)
+			last = start;
+	}
+
+	if (!found) {
+		gapstart = (end_pfn << PAGE_SHIFT) + 1024*1024;
+		printk(KERN_ERR "PCI: Warning: Cannot find a gap in the 32bit address range\n"
+		       KERN_ERR "PCI: Unassigned devices with 32bit resource registers may break!\n");
+	}
+
+	/*
+	 * Start allocating dynamic PCI memory a bit into the gap,
+	 * aligned up to the nearest megabyte.
+	 *
+	 * Question: should we try to pad it up a bit (do something
+	 * like " + (gapsize >> 3)" in there too?). We now have the
+	 * technology.
+	 */
+	pci_mem_start = (gapstart + 0xfffff) & ~0xfffff;
+
+	printk(KERN_INFO "Allocating PCI resources starting at %lx (gap: %lx:%lx)\n",
+		pci_mem_start, gapstart, gapsize);
+}
