@@ -63,7 +63,7 @@ int mthca_create_ah(struct mthca_dev *dev,
 	ah->type = MTHCA_AH_PCI_POOL;
 
 	if (dev->hca_type == ARBEL_NATIVE) {
-		ah->av   = kmalloc(sizeof *ah->av, GFP_KERNEL);
+		ah->av   = kmalloc(sizeof *ah->av, GFP_ATOMIC);
 		if (!ah->av)
 			return -ENOMEM;
 
@@ -77,7 +77,7 @@ int mthca_create_ah(struct mthca_dev *dev,
 		if (index == -1)
 			goto on_hca_fail;
 
-		av = kmalloc(sizeof *av, GFP_KERNEL);
+		av = kmalloc(sizeof *av, GFP_ATOMIC);
 		if (!av)
 			goto on_hca_fail;
 
@@ -89,7 +89,7 @@ int mthca_create_ah(struct mthca_dev *dev,
 on_hca_fail:
 	if (ah->type == MTHCA_AH_PCI_POOL) {
 		ah->av = pci_pool_alloc(dev->av_table.pool,
-					SLAB_KERNEL, &ah->avdma);
+					SLAB_ATOMIC, &ah->avdma);
 		if (!ah->av)
 			return -ENOMEM;
 

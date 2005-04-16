@@ -315,7 +315,7 @@ static struct ib_ah *mthca_ah_create(struct ib_pd *pd,
 	int err;
 	struct mthca_ah *ah;
 
-	ah = kmalloc(sizeof *ah, GFP_KERNEL);
+	ah = kmalloc(sizeof *ah, GFP_ATOMIC);
 	if (!ah)
 		return ERR_PTR(-ENOMEM);
 
