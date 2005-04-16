@@ -379,11 +379,15 @@ static void collect_tscs(void *data)
 
 static ssize_t mce_read(struct file *filp, char __user *ubuf, size_t usize, loff_t *off)
 {
-	unsigned long cpu_tsc[NR_CPUS];
+	unsigned long *cpu_tsc;
 	static DECLARE_MUTEX(mce_read_sem);
 	unsigned next;
 	char __user *buf = ubuf;
 	int i, err;
+
+	cpu_tsc = kmalloc(NR_CPUS * sizeof(long), GFP_KERNEL);
+	if (!cpu_tsc)
+		return -ENOMEM;
 
 	down(&mce_read_sem); 
 	next = rcu_dereference(mcelog.next);
@@ -391,6 +395,7 @@ static ssize_t mce_read(struct file *filp, char __user *ubuf, size_t usize, loff
 	/* Only supports full reads right now */
 	if (*off != 0 || usize < MCE_LOG_LEN*sizeof(struct mce)) { 
 		up(&mce_read_sem);
+		kfree(cpu_tsc);
 		return -EINVAL;
 	}
 
@@ -421,6 +426,7 @@ static ssize_t mce_read(struct file *filp, char __user *ubuf, size_t usize, loff
 		}
 	} 	
 	up(&mce_read_sem);
+	kfree(cpu_tsc);
 	return err ? -EFAULT : buf - ubuf; 
 }
 
