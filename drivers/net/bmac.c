@@ -455,7 +455,7 @@ static void bmac_init_chip(struct net_device *dev)
 }
 
 #ifdef CONFIG_PM
-static int bmac_suspend(struct macio_dev *mdev, u32 state)
+static int bmac_suspend(struct macio_dev *mdev, pm_message_t state)
 {
 	struct net_device* dev = macio_get_drvdata(mdev);	
 	struct bmac_data *bp = netdev_priv(dev);

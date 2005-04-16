@@ -81,7 +81,7 @@ MODULE_DEVICE_TABLE(pci, prism54_id_tbl);
 
 static int prism54_probe(struct pci_dev *, const struct pci_device_id *);
 static void prism54_remove(struct pci_dev *);
-static int prism54_suspend(struct pci_dev *, u32 state);
+static int prism54_suspend(struct pci_dev *, pm_message_t state);
 static int prism54_resume(struct pci_dev *);
 
 static struct pci_driver prism54_driver = {
@@ -261,7 +261,7 @@ prism54_remove(struct pci_dev *pdev)
 }
 
 int
-prism54_suspend(struct pci_dev *pdev, u32 state)
+prism54_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct net_device *ndev = pci_get_drvdata(pdev);
 	islpci_private *priv = ndev ? netdev_priv(ndev) : NULL;

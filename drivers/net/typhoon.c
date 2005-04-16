@@ -1906,7 +1906,7 @@ typhoon_sleep(struct typhoon *tp, pci_power_t state, u16 events)
 	 */
 	netif_carrier_off(tp->dev);
 
-	pci_enable_wake(tp->pdev, state, 1);
+	pci_enable_wake(tp->pdev, pci_choose_state(pdev, state), 1);
 	pci_disable_device(pdev);
 	return pci_set_power_state(pdev, pci_choose_state(pdev, state));
 }
@@ -2287,7 +2287,7 @@ need_resume:
 }
 
 static int
-typhoon_enable_wake(struct pci_dev *pdev, u32 state, int enable)
+typhoon_enable_wake(struct pci_dev *pdev, pci_power_t state, int enable)
 {
 	return pci_enable_wake(pdev, state, enable);
 }

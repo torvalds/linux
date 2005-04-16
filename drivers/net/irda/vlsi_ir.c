@@ -1744,7 +1744,7 @@ static void __devexit vlsi_irda_remove(struct pci_dev *pdev)
  */
 
 
-static int vlsi_irda_suspend(struct pci_dev *pdev, u32 state)
+static int vlsi_irda_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct net_device *ndev = pci_get_drvdata(pdev);
 	vlsi_irda_dev_t *idev;

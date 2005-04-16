@@ -294,7 +294,7 @@ static void __devexit orinoco_pci_remove_one(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-static int orinoco_pci_suspend(struct pci_dev *pdev, u32 state)
+static int orinoco_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct orinoco_private *priv = netdev_priv(dev);
@@ -323,7 +323,7 @@ static int orinoco_pci_suspend(struct pci_dev *pdev, u32 state)
 	orinoco_unlock(priv, &flags);
 
 	pci_save_state(pdev);
-	pci_set_power_state(pdev, 3);
+	pci_set_power_state(pdev, PCI_D3hot);
 
 	return 0;
 }

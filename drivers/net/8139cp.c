@@ -1824,7 +1824,7 @@ static void cp_remove_one (struct pci_dev *pdev)
 }
 
 #ifdef CONFIG_PM
-static int cp_suspend (struct pci_dev *pdev, u32 state)
+static int cp_suspend (struct pci_dev *pdev, pm_message_t state)
 {
 	struct net_device *dev;
 	struct cp_private *cp;

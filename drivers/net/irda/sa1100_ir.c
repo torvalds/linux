@@ -291,7 +291,7 @@ static void sa1100_irda_shutdown(struct sa1100_irda *si)
 /*
  * Suspend the IrDA interface.
  */
-static int sa1100_irda_suspend(struct device *_dev, u32 state, u32 level)
+static int sa1100_irda_suspend(struct device *_dev, pm_message_t state, u32 level)
 {
 	struct net_device *dev = dev_get_drvdata(_dev);
 	struct sa1100_irda *si;

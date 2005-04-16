@@ -50,7 +50,7 @@ struct airport {
 };
 
 static int
-airport_suspend(struct macio_dev *mdev, u32 state)
+airport_suspend(struct macio_dev *mdev, pm_message_t state)
 {
 	struct net_device *dev = dev_get_drvdata(&mdev->ofdev.dev);
 	struct orinoco_private *priv = netdev_priv(dev);
