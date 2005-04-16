@@ -198,20 +198,40 @@ static void mthca_free_mtt(struct mthca_dev *dev, u32 seg, int order,
 				      seg + (1 << order) - 1);
 }
 
+static inline u32 tavor_hw_index_to_key(u32 ind)
+{
+	return ind;
+}
+
+static inline u32 tavor_key_to_hw_index(u32 key)
+{
+	return key;
+}
+
+static inline u32 arbel_hw_index_to_key(u32 ind)
+{
+	return (ind >> 24) | (ind << 8);
+}
+
+static inline u32 arbel_key_to_hw_index(u32 key)
+{
+	return (key << 24) | (key >> 8);
+}
+
 static inline u32 hw_index_to_key(struct mthca_dev *dev, u32 ind)
 {
 	if (dev->hca_type == ARBEL_NATIVE)
-		return (ind >> 24) | (ind << 8);
+		return arbel_hw_index_to_key(ind);
 	else
-		return ind;
+		return tavor_hw_index_to_key(ind);
 }
 
 static inline u32 key_to_hw_index(struct mthca_dev *dev, u32 key)
 {
 	if (dev->hca_type == ARBEL_NATIVE)
-		return (key << 24) | (key >> 8);
+		return arbel_key_to_hw_index(key);
 	else
-		return key;
+		return tavor_key_to_hw_index(key);
 }
 
 int mthca_mr_alloc_notrans(struct mthca_dev *dev, u32 pd,
