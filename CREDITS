@@ -3298,6 +3298,7 @@ D: Author of the new e2fsck
 D: Author of job control and system call restart code
 D: Author of ramdisk device driver
 D: Author of loopback device driver
+D: Author of /dev/random driver
 S: MIT Room E40-343
 S: 1 Amherst Street
 S: Cambridge, Massachusetts 02139

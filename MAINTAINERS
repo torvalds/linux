@@ -1877,6 +1877,11 @@ M:	corey@world.std.com
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
+RANDOM NUMBER DRIVER
+P:	Matt Mackall
+M:	mpm@selenic.com
+S:	Maintained
+
 REAL TIME CLOCK DRIVER
 P:	Paul Gortmaker
 M:	p_gortmaker@yahoo.com
