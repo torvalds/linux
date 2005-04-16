@@ -32,19 +32,16 @@
  * $Id: ipoib_fs.c 1389 2004-12-27 22:56:47Z roland $
  */
 
-#include <linux/pagemap.h>
+#include <linux/err.h>
 #include <linux/seq_file.h>
+
+struct file_operations;
+
+#include <linux/debugfs.h>
 
 #include "ipoib.h"
 
-enum {
-	IPOIB_MAGIC = 0x49504942 /* "IPIB" */
-};
-
-static DECLARE_MUTEX(ipoib_fs_mutex);
 static struct dentry *ipoib_root;
-static struct super_block *ipoib_sb;
-static LIST_HEAD(ipoib_device_list);
 
 static void *ipoib_mcg_seq_start(struct seq_file *file, loff_t *pos)
 {
@@ -145,143 +142,34 @@ static struct file_operations ipoib_fops = {
 	.release = seq_release
 };
 
-static struct inode *ipoib_get_inode(void)
-{
-	struct inode *inode = new_inode(ipoib_sb);
-
-	if (inode) {
-		inode->i_mode 	 = S_IFREG | S_IRUGO;
-		inode->i_uid 	 = 0;
-		inode->i_gid 	 = 0;
-		inode->i_blksize = PAGE_CACHE_SIZE;
-		inode->i_blocks  = 0;
-		inode->i_atime 	 = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
-		inode->i_fop     = &ipoib_fops;
-	}
-
-	return inode;
-}
-
-static int __ipoib_create_debug_file(struct net_device *dev)
+int ipoib_create_debug_file(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
-	struct dentry *dentry;
-	struct inode *inode;
 	char name[IFNAMSIZ + sizeof "_mcg"];
 
 	snprintf(name, sizeof name, "%s_mcg", dev->name);
 
-	dentry = d_alloc_name(ipoib_root, name);
-	if (!dentry)
-		return -ENOMEM;
+	priv->mcg_dentry = debugfs_create_file(name, S_IFREG | S_IRUGO,
+					       ipoib_root, dev, &ipoib_fops);
 
-	inode = ipoib_get_inode();
-	if (!inode) {
-		dput(dentry);
-		return -ENOMEM;
-	}
-
-	inode->u.generic_ip = dev;
-	priv->mcg_dentry = dentry;
-
-	d_add(dentry, inode);
-
-	return 0;
-}
-
-int ipoib_create_debug_file(struct net_device *dev)
-{
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
-
-	down(&ipoib_fs_mutex);
-
-	list_add_tail(&priv->fs_list, &ipoib_device_list);
-
-	if (!ipoib_sb) {
-		up(&ipoib_fs_mutex);
-		return 0;
-	}
-
-	up(&ipoib_fs_mutex);
-
-	return __ipoib_create_debug_file(dev);
+	return priv->mcg_dentry ? 0 : -ENOMEM;
 }
 
 void ipoib_delete_debug_file(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 
-	down(&ipoib_fs_mutex);
-	list_del(&priv->fs_list);
-	if (!ipoib_sb) {
-		up(&ipoib_fs_mutex);
-		return;
-	}
-	up(&ipoib_fs_mutex);
-
-	if (priv->mcg_dentry) {
-		d_drop(priv->mcg_dentry);
-		simple_unlink(ipoib_root->d_inode, priv->mcg_dentry);
-	}
+	if (priv->mcg_dentry)
+		debugfs_remove(priv->mcg_dentry);
 }
-
-static int ipoib_fill_super(struct super_block *sb, void *data, int silent)
-{
-	static struct tree_descr ipoib_files[] = {
-		{ "" }
-	};
-	struct ipoib_dev_priv *priv;
-	int ret;
-
-	ret = simple_fill_super(sb, IPOIB_MAGIC, ipoib_files);
-	if (ret)
-		return ret;
-
-	ipoib_root = sb->s_root;
-
-	down(&ipoib_fs_mutex);
-
-	ipoib_sb = sb;
-
-	list_for_each_entry(priv, &ipoib_device_list, fs_list) {
-		ret = __ipoib_create_debug_file(priv->dev);
-		if (ret)
-			break;
-	}
-
-	up(&ipoib_fs_mutex);
-
-	return ret;
-}
-
-static struct super_block *ipoib_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
-{
-	return get_sb_single(fs_type, flags, data, ipoib_fill_super);
-}
-
-static void ipoib_kill_sb(struct super_block *sb)
-{
-	down(&ipoib_fs_mutex);
-	ipoib_sb = NULL;
-	up(&ipoib_fs_mutex);
-
-	kill_litter_super(sb);
-}
-
-static struct file_system_type ipoib_fs_type = {
-	.owner		= THIS_MODULE,
-	.name		= "ipoib_debugfs",
-	.get_sb		= ipoib_get_sb,
-	.kill_sb	= ipoib_kill_sb,
-};
 
 int ipoib_register_debugfs(void)
 {
-	return register_filesystem(&ipoib_fs_type);
+	ipoib_root = debugfs_create_dir("ipoib", NULL);
+	return ipoib_root ? 0 : -ENOMEM;
 }
 
 void ipoib_unregister_debugfs(void)
 {
-	unregister_filesystem(&ipoib_fs_type);
+	debugfs_remove(ipoib_root);
 }

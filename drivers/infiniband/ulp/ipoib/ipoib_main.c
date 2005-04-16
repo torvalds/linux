@@ -1082,19 +1082,19 @@ static int __init ipoib_init_module(void)
 
 	return 0;
 
-err_fs:
-	ipoib_unregister_debugfs();
-
 err_wq:
 	destroy_workqueue(ipoib_workqueue);
+
+err_fs:
+	ipoib_unregister_debugfs();
 
 	return ret;
 }
 
 static void __exit ipoib_cleanup_module(void)
 {
-	ipoib_unregister_debugfs();
 	ib_unregister_client(&ipoib_client);
+	ipoib_unregister_debugfs();
 	destroy_workqueue(ipoib_workqueue);
 }
 
