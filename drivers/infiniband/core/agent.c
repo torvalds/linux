@@ -129,7 +129,6 @@ static int agent_mad_send(struct ib_mad_agent *mad_agent,
 		goto out;
 	agent_send_wr->mad = mad_priv;
 
-	/* PCI mapping */
 	gather_list.addr = dma_map_single(mad_agent->device->dma_device,
 					  &mad_priv->mad,
 					  sizeof(mad_priv->mad),
@@ -261,7 +260,6 @@ static void agent_send_handler(struct ib_mad_agent *mad_agent,
 	list_del(&agent_send_wr->send_list);
 	spin_unlock_irqrestore(&port_priv->send_list_lock, flags);
 
-	/* Unmap PCI */
 	dma_unmap_single(mad_agent->device->dma_device,
 			 pci_unmap_addr(agent_send_wr, mapping),
 			 sizeof(agent_send_wr->mad->mad),

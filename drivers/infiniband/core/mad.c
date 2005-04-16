@@ -2283,7 +2283,6 @@ static void cleanup_recv_queue(struct ib_mad_qp_info *qp_info)
 		/* Remove from posted receive MAD list */
 		list_del(&mad_list->list);
 
-		/* Undo PCI mapping */
 		dma_unmap_single(qp_info->port_priv->device->dma_device,
 				 pci_unmap_addr(&recv->header, mapping),
 				 sizeof(struct ib_mad_private) -
