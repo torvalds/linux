@@ -1012,27 +1012,3 @@ int jsm_tty_write(struct uart_port *port)
 
 	return data_count;
 }
-
-static ssize_t jsm_driver_version_show(struct device_driver *ddp, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%s\n", JSM_VERSION);
-}
-static DRIVER_ATTR(version, S_IRUSR, jsm_driver_version_show, NULL);
-
-static ssize_t jsm_driver_state_show(struct device_driver *ddp, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%s\n", jsm_driver_state_text[jsm_driver_state]);
-}
-static DRIVER_ATTR(state, S_IRUSR, jsm_driver_state_show, NULL);
-
-void jsm_create_driver_sysfiles(struct device_driver *driverfs)
-{
-	driver_create_file(driverfs, &driver_attr_version);
-	driver_create_file(driverfs, &driver_attr_state);
-}
-
-void jsm_remove_driver_sysfiles(struct device_driver *driverfs)
-{
-	driver_remove_file(driverfs, &driver_attr_version);
-	driver_remove_file(driverfs, &driver_attr_state);
-}

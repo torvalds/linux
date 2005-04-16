@@ -93,28 +93,6 @@ enum {
 #define JSM_VERSION	"jsm: 1.1-1-INKERNEL"
 #define JSM_PARTNUM	"40002438_A-INKERNEL"
 
-/*
- * All the possible states the driver can be while being loaded.
- */
-enum {
-	DRIVER_INITIALIZED = 0,
-	DRIVER_READY
-};
-
-/*
- * All the possible states the board can be while booting up.
- */
-enum {
-	BOARD_FAILED = 0,
-	BOARD_FOUND,
-	BOARD_READY
-};
-
-struct board_id {
-	u8 *name;
-	u32 maxports;
-};
-
 struct jsm_board;
 struct jsm_channel;
 
@@ -149,7 +127,6 @@ struct jsm_board
 	int		boardnum;	/* Board number: 0-32 */
 
 	int		type;		/* Type of board */
-	char		*name;		/* Product Name */
 	u8		rev;		/* PCI revision ID */
 	struct pci_dev	*pci_dev;
 	u32		maxports;	/* MAX ports this board can handle */
@@ -159,9 +136,6 @@ struct jsm_board
 	spinlock_t	bd_intr_lock;	/* Used to protect the poller tasklet and
 					 * the interrupt routine from each other.
 					 */
-
-	u32		state;		/* State of card. */
-	wait_queue_head_t state_wait;	/* Place to sleep on for state change */
 
 	u32		nasync;		/* Number of ports on card */
 
@@ -180,9 +154,6 @@ struct jsm_board
 
 	struct jsm_channel *channels[MAXPORTS]; /* array of pointers to our channels. */
 	char		*flipbuf;	/* Our flip buffer, alloced if board is found */
-
-	u16		dpatype;	/* The board "type", as defined by DPA */
-	u16		dpastatus;	/* The board "status", as defined by DPA */
 
 	u32		bd_dividend;	/* Board/UARTs specific dividend */
 
@@ -412,12 +383,6 @@ extern struct	board_ops jsm_neo_ops;
 extern int	jsm_debug;
 extern int	jsm_rawreadok;
 
-extern int	jsm_driver_state;	/* The state of the driver	*/
-extern char	*jsm_driver_state_text[];/* Array of driver state text */
-
-extern spinlock_t jsm_board_head_lock;
-extern struct list_head jsm_board_head;
-
 /*************************************************************************
  *
  * Prototypes for non-static functions used in more than one module
@@ -430,8 +395,5 @@ int jsm_remove_uart_port(struct jsm_board *);
 void jsm_input(struct jsm_channel *ch);
 void jsm_carrier(struct jsm_channel *ch);
 void jsm_check_queue_flow_control(struct jsm_channel *ch);
-
-void jsm_create_driver_sysfiles(struct device_driver *);
-void jsm_remove_driver_sysfiles(struct device_driver *);
 
 #endif
