@@ -442,7 +442,7 @@ struct ib_pool_fmr *ib_fmr_pool_map_phys(struct ib_fmr_pool *pool_handle,
 		list_add(&fmr->list, &pool->free_list);
 		spin_unlock_irqrestore(&pool->pool_lock, flags);
 
-		printk(KERN_WARNING "fmr_map returns %d",
+		printk(KERN_WARNING "fmr_map returns %d\n",
 		       result);
 
 		return ERR_PTR(result);
