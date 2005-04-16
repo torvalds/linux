@@ -200,14 +200,22 @@ init_rsp:
 	.quad  init_thread_union+THREAD_SIZE-8
 
 ENTRY(early_idt_handler)
+	cmpl $2,early_recursion_flag(%rip)
+	jz  1f
+	incl early_recursion_flag(%rip)
 	xorl %eax,%eax
 	movq 8(%rsp),%rsi	# get rip
 	movq (%rsp),%rdx
 	movq %cr2,%rcx
 	leaq early_idt_msg(%rip),%rdi
 	call early_printk
+	cmpl $2,early_recursion_flag(%rip)
+	jz  1f
+	call dump_stack
 1:	hlt
 	jmp 1b
+early_recursion_flag:
+	.long 0
 
 early_idt_msg:
 	.asciz "PANIC: early exception rip %lx error %lx cr2 %lx\n"
