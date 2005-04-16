@@ -733,14 +733,8 @@ static int kernel_math_error(struct pt_regs *regs, char *str)
 		return 1;
 	}
 	notify_die(DIE_GPF, str, regs, 0, 16, SIGFPE);
-#if 0
-	/* This should be a die, but warn only for now */
+	/* Illegal floating point operation in the kernel */
 	die(str, regs, 0);
-#else
-	printk(KERN_DEBUG "%s: %s at ", current->comm, str);
-	printk_address(regs->rip);
-	printk("\n");
-#endif
 	return 0;
 }
 
@@ -824,7 +818,7 @@ asmlinkage void do_simd_coprocessor_error(struct pt_regs *regs)
 
 	conditional_sti(regs);
 	if ((regs->cs & 3) == 0 &&
-        	kernel_math_error(regs, "simd math error"))
+        	kernel_math_error(regs, "kernel simd math error"))
 		return;
 
 	/*
