@@ -1245,8 +1245,13 @@ prep_pcibios_fixup(void)
 		pci_write_config_byte(dev, PCI_INTERRUPT_LINE, dev->irq);
 	}
 
-	/* Setup the Winbond or Via PIB */
-	prep_pib_init();
+	/* Setup the Winbond or Via PIB - prep_pib_init() is coded for
+	 * the non-openpic case, but it breaks (at least) the Utah
+	 * (Powerstack II Pro4000), so only call it if we have an
+	 * openpic.
+	 */
+	if (have_openpic)
+		prep_pib_init();
 }
 
 static void __init
