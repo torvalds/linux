@@ -51,6 +51,11 @@
 #define MTHCA_INIT_DOORBELL_LOCK(ptr)    do { } while (0)
 #define MTHCA_GET_DOORBELL_LOCK(ptr)      (NULL)
 
+static inline void mthca_write64_raw(__be64 val, void __iomem *dest)
+{
+	__raw_writeq((__force u64) val, dest);
+}
+
 static inline void mthca_write64(u32 val[2], void __iomem *dest,
 				 spinlock_t *doorbell_lock)
 {
@@ -73,6 +78,12 @@ static inline void mthca_write_db_rec(u32 val[2], u32 *db)
 #define MTHCA_DECLARE_DOORBELL_LOCK(name) spinlock_t name;
 #define MTHCA_INIT_DOORBELL_LOCK(ptr)     spin_lock_init(ptr)
 #define MTHCA_GET_DOORBELL_LOCK(ptr)      (ptr)
+
+static inline void mthca_write64_raw(__be64 val, void __iomem *dest)
+{
+	__raw_writel(((__force u32 *) &val)[0], dest);
+	__raw_writel(((__force u32 *) &val)[1], dest + 4);
+}
 
 static inline void mthca_write64(u32 val[2], void __iomem *dest,
 				 spinlock_t *doorbell_lock)
