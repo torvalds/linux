@@ -286,6 +286,8 @@ ext3_check_acl(struct inode *inode, int mask)
 {
 	struct posix_acl *acl = ext3_get_acl(inode, ACL_TYPE_ACCESS);
 
+	if (IS_ERR(acl))
+		return PTR_ERR(acl);
 	if (acl) {
 		int error = posix_acl_permission(inode, acl, mask);
 		posix_acl_release(acl);
