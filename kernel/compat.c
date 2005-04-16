@@ -640,7 +640,7 @@ long compat_sys_clock_nanosleep(clockid_t which_clock, int flags,
 int get_compat_sigevent(struct sigevent *event,
 		const struct compat_sigevent __user *u_event)
 {
-	memset(&event, 0, sizeof(*event));
+	memset(event, 0, sizeof(*event));
 	return (!access_ok(VERIFY_READ, u_event, sizeof(*u_event)) ||
 		__get_user(event->sigev_value.sival_int,
 			&u_event->sigev_value.sival_int) ||
