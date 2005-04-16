@@ -208,8 +208,7 @@ u64 mthca_make_profile(struct mthca_dev *dev,
 			break;
 		case MTHCA_RES_RDB:
 			for (dev->qp_table.rdb_shift = 0;
-			     profile[MTHCA_RES_QP].num << dev->qp_table.rdb_shift <
-				     profile[i].num;
+			     request->num_qp << dev->qp_table.rdb_shift < profile[i].num;
 			     ++dev->qp_table.rdb_shift)
 				; /* nothing */
 			dev->qp_table.rdb_base    = (u32) profile[i].start;
