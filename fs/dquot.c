@@ -1443,6 +1443,7 @@ static int vfs_quota_on_inode(struct inode *inode, int type, int format_id)
 	oldflags = inode->i_flags & (S_NOATIME | S_IMMUTABLE | S_NOQUOTA);
 	inode->i_flags |= S_NOQUOTA | S_NOATIME | S_IMMUTABLE;
 	up_write(&dqopt->dqptr_sem);
+	sb->dq_op->drop(inode);
 
 	error = -EIO;
 	dqopt->files[type] = igrab(inode);
