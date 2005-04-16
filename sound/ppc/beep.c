@@ -24,6 +24,8 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/input.h>
+#include <linux/pci.h>
+#include <linux/dma-mapping.h>
 #include <sound/core.h>
 #include <sound/control.h>
 #include "pmac.h"
@@ -35,7 +37,7 @@ struct snd_pmac_beep {
 	int hz;
 	int nsamples;
 	short *buf;		/* allocated wave buffer */
-	unsigned long addr;	/* physical address of buffer */
+	dma_addr_t addr;	/* physical address of buffer */
 	struct input_dev dev;
 };
 
@@ -217,12 +219,8 @@ int __init snd_pmac_attach_beep(pmac_t *chip)
 		return -ENOMEM;
 
 	memset(beep, 0, sizeof(*beep));
-	beep->buf = (short *) kmalloc(BEEP_BUFLEN * 4, GFP_KERNEL);
-	if (! beep->buf) {
-		kfree(beep);
-		return -ENOMEM;
-	}
-	beep->addr = virt_to_bus(beep->buf);
+	beep->buf = dma_alloc_coherent(&chip->pdev->dev, BEEP_BUFLEN * 4,
+					&beep->addr, GFP_KERNEL);
 
 	beep->dev.evbit[0] = BIT(EV_SND);
 	beep->dev.sndbit[0] = BIT(SND_BELL) | BIT(SND_TONE);
@@ -255,7 +253,8 @@ void snd_pmac_detach_beep(pmac_t *chip)
 {
 	if (chip->beep) {
 		input_unregister_device(&chip->beep->dev);
-		kfree(chip->beep->buf);
+		dma_free_coherent(&chip->pdev->dev, BEEP_BUFLEN * 4,
+				  chip->beep->buf, chip->beep->addr);
 		kfree(chip->beep);
 		chip->beep = NULL;
 	}

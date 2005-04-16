@@ -60,7 +60,8 @@ typedef struct snd_pmac_dbdma pmac_dbdma_t;
  * DBDMA space
  */
 struct snd_pmac_dbdma {
-	unsigned long addr;
+	dma_addr_t dma_base;
+	dma_addr_t addr;
 	struct dbdma_cmd __iomem *cmds;
 	void *space;
 	int size;
@@ -101,6 +102,7 @@ struct snd_pmac {
 
 	/* h/w info */
 	struct device_node *node;
+	struct pci_dev *pdev;
 	unsigned int revision;
 	unsigned int manufacturer;
 	unsigned int subframe;
@@ -110,6 +112,7 @@ struct snd_pmac {
 	unsigned int has_iic : 1;
 	unsigned int is_pbook_3400 : 1;
 	unsigned int is_pbook_G3 : 1;
+	unsigned int is_k2 : 1;
 
 	unsigned int can_byte_swap : 1;
 	unsigned int can_duplex : 1;
@@ -157,6 +160,7 @@ struct snd_pmac {
 	snd_kcontrol_t *speaker_sw_ctl;
 	snd_kcontrol_t *drc_sw_ctl;	/* only used for tumbler -ReneR */
 	snd_kcontrol_t *hp_detect_ctl;
+	snd_kcontrol_t *lineout_sw_ctl;
 
 	/* lowlevel callbacks */
 	void (*set_format)(pmac_t *chip);

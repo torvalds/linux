@@ -88,7 +88,7 @@ struct dbdma_cmd {
 #define WAIT_ALWAYS	3	/* always wait */
 
 /* Align an address for a DBDMA command structure */
-#define DBDMA_ALIGN(x)	(((unsigned)(x) + sizeof(struct dbdma_cmd) - 1) \
+#define DBDMA_ALIGN(x)	(((unsigned long)(x) + sizeof(struct dbdma_cmd) - 1) \
 			 & -sizeof(struct dbdma_cmd))
 
 /* Useful macros */

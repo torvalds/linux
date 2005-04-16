@@ -27,14 +27,13 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
+#include <linux/pci.h>
+#include <linux/dma-mapping.h>
 #include <sound/core.h>
 #include "pmac.h"
 #include <sound/pcm_params.h>
-#ifdef CONFIG_PPC_HAS_FEATURE_CALLS
 #include <asm/pmac_feature.h>
-#else
-#include <asm/feature.h>
-#endif
+#include <asm/pci-bridge.h>
 
 
 #if defined(CONFIG_PM) && defined(CONFIG_PMAC_PBOOK)
@@ -57,22 +56,29 @@ static int tumbler_freqs[1] = {
 /*
  * allocate DBDMA command arrays
  */
-static int snd_pmac_dbdma_alloc(pmac_dbdma_t *rec, int size)
+static int snd_pmac_dbdma_alloc(pmac_t *chip, pmac_dbdma_t *rec, int size)
 {
-	rec->space = kmalloc(sizeof(struct dbdma_cmd) * (size + 1), GFP_KERNEL);
+	unsigned int rsize = sizeof(struct dbdma_cmd) * (size + 1);
+
+	rec->space = dma_alloc_coherent(&chip->pdev->dev, rsize,
+					&rec->dma_base, GFP_KERNEL);
 	if (rec->space == NULL)
 		return -ENOMEM;
 	rec->size = size;
-	memset(rec->space, 0, sizeof(struct dbdma_cmd) * (size + 1));
+	memset(rec->space, 0, rsize);
 	rec->cmds = (void __iomem *)DBDMA_ALIGN(rec->space);
-	rec->addr = virt_to_bus(rec->cmds);
+	rec->addr = rec->dma_base + (unsigned long)((char *)rec->cmds - (char *)rec->space);
+
 	return 0;
 }
 
-static void snd_pmac_dbdma_free(pmac_dbdma_t *rec)
+static void snd_pmac_dbdma_free(pmac_t *chip, pmac_dbdma_t *rec)
 {
-	if (rec)
-		kfree(rec->space);
+	if (rec) {
+		unsigned int rsize = sizeof(struct dbdma_cmd) * (rec->size + 1);
+
+		dma_free_coherent(&chip->pdev->dev, rsize, rec->space, rec->dma_base);
+	}
 }
 
 
@@ -237,7 +243,7 @@ static int snd_pmac_pcm_prepare(pmac_t *chip, pmac_stream_t *rec, snd_pcm_substr
 	/* continuous DMA memory type doesn't provide the physical address,
 	 * so we need to resolve the address here...
 	 */
-	offset = virt_to_bus(runtime->dma_area);
+	offset = runtime->dma_addr;
 	for (i = 0, cp = rec->cmd.cmds; i < rec->nperiods; i++, cp++) {
 		st_le32(&cp->phy_addr, offset);
 		st_le16(&cp->req_count, rec->period_size);
@@ -664,8 +670,8 @@ int __init snd_pmac_pcm_new(pmac_t *chip)
 	chip->capture.cur_freqs = chip->freqs_ok;
 
 	/* preallocate 64k buffer */
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS, 
-					      snd_dma_continuous_data(GFP_KERNEL),
+	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
+					      &chip->pdev->dev,
 					      64 * 1024, 64 * 1024);
 
 	return 0;
@@ -757,28 +763,10 @@ snd_pmac_ctrl_intr(int irq, void *devid, struct pt_regs *regs)
 /*
  * a wrapper to feature call for compatibility
  */
-#if defined(CONFIG_PM) && defined(CONFIG_PMAC_PBOOK)
 static void snd_pmac_sound_feature(pmac_t *chip, int enable)
 {
-#ifdef CONFIG_PPC_HAS_FEATURE_CALLS
 	ppc_md.feature_call(PMAC_FTR_SOUND_CHIP_ENABLE, chip->node, 0, enable);
-#else
-	if (chip->is_pbook_G3) {
-		pmu_suspend();
-		feature_clear(chip->node, FEATURE_Sound_power);
-		feature_clear(chip->node, FEATURE_Sound_CLK_enable);
-		big_mdelay(1000); /* XXX */
-		pmu_resume();
-	}
-	if (chip->is_pbook_3400) {
-		feature_set(chip->node, FEATURE_IOBUS_enable);
-		udelay(10);
-	}
-#endif
 }
-#else /* CONFIG_PM && CONFIG_PMAC_PBOOK */
-#define snd_pmac_sound_feature(chip,enable) /**/
-#endif /* CONFIG_PM && CONFIG_PMAC_PBOOK */
 
 /*
  * release resources
@@ -786,8 +774,6 @@ static void snd_pmac_sound_feature(pmac_t *chip, int enable)
 
 static int snd_pmac_free(pmac_t *chip)
 {
-	int i;
-
 	/* stop sounds */
 	if (chip->initialized) {
 		snd_pmac_dbdma_reset(chip);
@@ -813,9 +799,9 @@ static int snd_pmac_free(pmac_t *chip)
 		free_irq(chip->tx_irq, (void*)chip);
 	if (chip->rx_irq >= 0)
 		free_irq(chip->rx_irq, (void*)chip);
-	snd_pmac_dbdma_free(&chip->playback.cmd);
-	snd_pmac_dbdma_free(&chip->capture.cmd);
-	snd_pmac_dbdma_free(&chip->extra_dma);
+	snd_pmac_dbdma_free(chip, &chip->playback.cmd);
+	snd_pmac_dbdma_free(chip, &chip->capture.cmd);
+	snd_pmac_dbdma_free(chip, &chip->extra_dma);
 	if (chip->macio_base)
 		iounmap(chip->macio_base);
 	if (chip->latch_base)
@@ -826,12 +812,23 @@ static int snd_pmac_free(pmac_t *chip)
 		iounmap(chip->playback.dma);
 	if (chip->capture.dma)
 		iounmap(chip->capture.dma);
+#ifndef CONFIG_PPC64
 	if (chip->node) {
+		int i;
+
 		for (i = 0; i < 3; i++) {
-			if (chip->of_requested & (1 << i))
-				release_OF_resource(chip->node, i);
+			if (chip->of_requested & (1 << i)) {
+				if (chip->is_k2)
+					release_OF_resource(chip->node->parent,
+							    i);
+				else
+					release_OF_resource(chip->node, i);
+			}
 		}
 	}
+#endif /* CONFIG_PPC64 */
+	if (chip->pdev)
+		pci_dev_put(chip->pdev);
 	kfree(chip);
 	return 0;
 }
@@ -881,6 +878,8 @@ static int __init snd_pmac_detect(pmac_t *chip)
 {
 	struct device_node *sound;
 	unsigned int *prop, l;
+	struct macio_chip* macio;
+
 	u32 layout_id = 0;
 
 	if (_machine != _MACH_Pmac)
@@ -918,10 +917,17 @@ static int __init snd_pmac_detect(pmac_t *chip)
 	 * if we didn't find a davbus device, try 'i2s-a' since
 	 * this seems to be what iBooks have
 	 */
-	if (! chip->node)
+	if (! chip->node) {
 		chip->node = find_devices("i2s-a");
+		if (chip->node && chip->node->parent && chip->node->parent->parent) {
+			if (device_is_compatible(chip->node->parent->parent,
+						 "K2-Keylargo"))
+				chip->is_k2 = 1;
+		}
+	}
 	if (! chip->node)
 		return -ENODEV;
+
 	sound = find_devices("sound");
 	while (sound && sound->parent != chip->node)
 		sound = sound->next;
@@ -966,7 +972,8 @@ static int __init snd_pmac_detect(pmac_t *chip)
 		chip->control_mask = MASK_IEPC | 0x11; /* disable IEE */
 	}
 	if (device_is_compatible(sound, "AOAKeylargo") ||
-	    device_is_compatible(sound, "AOAbase")) {
+	    device_is_compatible(sound, "AOAbase") ||
+	    device_is_compatible(sound, "AOAK2")) {
 		/* For now, only support very basic TAS3004 based machines with
 		 * single frequency until proper i2s control is implemented
 		 */
@@ -975,6 +982,7 @@ static int __init snd_pmac_detect(pmac_t *chip)
 		case 0x46:
 		case 0x33:
 		case 0x29:
+		case 0x24:
 			chip->num_freqs = ARRAY_SIZE(tumbler_freqs);
 			chip->model = PMAC_SNAPPER;
 			chip->can_byte_swap = 0; /* FIXME: check this */
@@ -986,6 +994,26 @@ static int __init snd_pmac_detect(pmac_t *chip)
 	if (prop)
 		chip->device_id = *prop;
 	chip->has_iic = (find_devices("perch") != NULL);
+
+	/* We need the PCI device for DMA allocations, let's use a crude method
+	 * for now ...
+	 */
+	macio = macio_find(chip->node, macio_unknown);
+	if (macio == NULL)
+		printk(KERN_WARNING "snd-powermac: can't locate macio !\n");
+	else {
+		struct pci_dev *pdev = NULL;
+
+		for_each_pci_dev(pdev) {
+			struct device_node *np = pci_device_to_OF_node(pdev);
+			if (np && np == macio->of_node) {
+				chip->pdev = pdev;
+				break;
+			}
+		}
+	}
+	if (chip->pdev == NULL)
+		printk(KERN_WARNING "snd-powermac: can't locate macio PCI device !\n");
 
 	detect_byte_swap(chip);
 
@@ -1091,8 +1119,10 @@ int __init snd_pmac_add_automute(pmac_t *chip)
 	int err;
 	chip->auto_mute = 1;
 	err = snd_ctl_add(chip->card, snd_ctl_new1(&auto_mute_controls[0], chip));
-	if (err < 0)
+	if (err < 0) {
+		printk(KERN_ERR "snd-powermac: Failed to add automute control\n");
 		return err;
+	}
 	chip->hp_detect_ctl = snd_ctl_new1(&auto_mute_controls[1], chip);
 	return snd_ctl_add(chip->card, chip->hp_detect_ctl);
 }
@@ -1106,6 +1136,7 @@ int __init snd_pmac_new(snd_card_t *card, pmac_t **chip_return)
 	pmac_t *chip;
 	struct device_node *np;
 	int i, err;
+	unsigned long ctrl_addr, txdma_addr, rxdma_addr;
 	static snd_device_ops_t ops = {
 		.dev_free =	snd_pmac_dev_free,
 	};
@@ -1127,32 +1158,59 @@ int __init snd_pmac_new(snd_card_t *card, pmac_t **chip_return)
 	if ((err = snd_pmac_detect(chip)) < 0)
 		goto __error;
 
-	if (snd_pmac_dbdma_alloc(&chip->playback.cmd, PMAC_MAX_FRAGS + 1) < 0 ||
-	    snd_pmac_dbdma_alloc(&chip->capture.cmd, PMAC_MAX_FRAGS + 1) < 0 ||
-	    snd_pmac_dbdma_alloc(&chip->extra_dma, 2) < 0) {
+	if (snd_pmac_dbdma_alloc(chip, &chip->playback.cmd, PMAC_MAX_FRAGS + 1) < 0 ||
+	    snd_pmac_dbdma_alloc(chip, &chip->capture.cmd, PMAC_MAX_FRAGS + 1) < 0 ||
+	    snd_pmac_dbdma_alloc(chip, &chip->extra_dma, 2) < 0) {
 		err = -ENOMEM;
 		goto __error;
 	}
 
 	np = chip->node;
-	if (np->n_addrs < 3 || np->n_intrs < 3) {
-		err = -ENODEV;
-		goto __error;
-	}
-
-	for (i = 0; i < 3; i++) {
-		static char *name[3] = { NULL, "- Tx DMA", "- Rx DMA" };
-		if (! request_OF_resource(np, i, name[i])) {
-			snd_printk(KERN_ERR "pmac: can't request resource %d!\n", i);
+	if (chip->is_k2) {
+		if (np->parent->n_addrs < 2 || np->n_intrs < 3) {
 			err = -ENODEV;
 			goto __error;
 		}
-		chip->of_requested |= (1 << i);
+		for (i = 0; i < 2; i++) {
+#ifndef CONFIG_PPC64
+			static char *name[2] = { "- Control", "- DMA" };
+			if (! request_OF_resource(np->parent, i, name[i])) {
+				snd_printk(KERN_ERR "pmac: can't request resource %d!\n", i);
+				err = -ENODEV;
+				goto __error;
+			}
+			chip->of_requested |= (1 << i);
+#endif /* CONFIG_PPC64 */
+			ctrl_addr = np->parent->addrs[0].address;
+			txdma_addr = np->parent->addrs[1].address;
+			rxdma_addr = txdma_addr + 0x100;
+		}
+
+	} else {
+		if (np->n_addrs < 3 || np->n_intrs < 3) {
+			err = -ENODEV;
+			goto __error;
+		}
+
+		for (i = 0; i < 3; i++) {
+#ifndef CONFIG_PPC64
+			static char *name[3] = { "- Control", "- Tx DMA", "- Rx DMA" };
+			if (! request_OF_resource(np, i, name[i])) {
+				snd_printk(KERN_ERR "pmac: can't request resource %d!\n", i);
+				err = -ENODEV;
+				goto __error;
+			}
+			chip->of_requested |= (1 << i);
+#endif /* CONFIG_PPC64 */
+			ctrl_addr = np->addrs[0].address;
+			txdma_addr = np->addrs[1].address;
+			rxdma_addr = np->addrs[2].address;
+		}
 	}
 
-	chip->awacs = ioremap(np->addrs[0].address, 0x1000);
-	chip->playback.dma = ioremap(np->addrs[1].address, 0x100);
-	chip->capture.dma = ioremap(np->addrs[2].address, 0x100);
+	chip->awacs = ioremap(ctrl_addr, 0x1000);
+	chip->playback.dma = ioremap(txdma_addr, 0x100);
+	chip->capture.dma = ioremap(rxdma_addr, 0x100);
 	if (chip->model <= PMAC_BURGUNDY) {
 		if (request_irq(np->intrs[0].line, snd_pmac_ctrl_intr, 0,
 				"PMac", (void*)chip)) {
@@ -1180,7 +1238,8 @@ int __init snd_pmac_new(snd_card_t *card, pmac_t **chip_return)
 	snd_pmac_sound_feature(chip, 1);
 
 	/* reset */
-	out_le32(&chip->awacs->control, 0x11);
+	if (chip->model == PMAC_AWACS)
+		out_le32(&chip->awacs->control, 0x11);
 
 	/* Powerbooks have odd ways of enabling inputs such as
 	   an expansion-bay CD or sound from an internal modem
@@ -1232,6 +1291,8 @@ int __init snd_pmac_new(snd_card_t *card, pmac_t **chip_return)
 	return 0;
 
  __error:
+	if (chip->pdev)
+		pci_dev_put(chip->pdev);
 	snd_pmac_free(chip);
 	return err;
 }
