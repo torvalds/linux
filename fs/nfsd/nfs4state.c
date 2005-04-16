@@ -190,7 +190,8 @@ nfs4_close_delegation(struct nfs4_delegation *dp)
 	dp->dl_vfs_file = NULL;
 	/* The following nfsd_close may not actually close the file,
 	 * but we want to remove the lease in any case. */
-	setlease(filp, F_UNLCK, &dp->dl_flock);
+	if (dp->dl_flock)
+		setlease(filp, F_UNLCK, &dp->dl_flock);
 	nfsd_close(filp);
 	vfsclose++;
 }
@@ -1673,10 +1674,7 @@ nfs4_open_delegation(struct svc_fh *fh, struct nfsd4_open *open, struct nfs4_sta
 	if ((status = setlease(stp->st_vfs_file,
 		flag == NFS4_OPEN_DELEGATE_READ? F_RDLCK: F_WRLCK, &flp))) {
 		dprintk("NFSD: setlease failed [%d], no delegation\n", status);
-		list_del(&dp->dl_del_perfile);
-		list_del(&dp->dl_del_perclnt);
-		nfs4_put_delegation(dp);
-		free_delegation++;
+		unhash_delegation(dp);
 		flag = NFS4_OPEN_DELEGATE_NONE;
 		goto out;
 	}
