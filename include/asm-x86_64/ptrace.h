@@ -86,6 +86,11 @@ struct pt_regs {
 extern unsigned long profile_pc(struct pt_regs *regs);
 void signal_fault(struct pt_regs *regs, void __user *frame, char *where);
 
+struct task_struct;
+
+extern unsigned long
+convert_rip_to_linear(struct task_struct *child, struct pt_regs *regs);
+
 enum {
         EF_CF   = 0x00000001,
         EF_PF   = 0x00000004,

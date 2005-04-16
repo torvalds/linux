@@ -62,21 +62,19 @@ void bust_spinlocks(int yes)
 static noinline int is_prefetch(struct pt_regs *regs, unsigned long addr,
 				unsigned long error_code)
 { 
-	unsigned char *instr = (unsigned char *)(regs->rip);
+	unsigned char *instr;
 	int scan_more = 1;
 	int prefetch = 0; 
-	unsigned char *max_instr = instr + 15;
+	unsigned char *max_instr;
 
 	/* If it was a exec fault ignore */
 	if (error_code & (1<<4))
 		return 0;
 	
-	/* Code segments in LDT could have a non zero base. Don't check
-	   when that's possible */
-	if (regs->cs & (1<<2))
-		return 0;
+	instr = (unsigned char *)convert_rip_to_linear(current, regs);
+	max_instr = instr + 15;
 
-	if ((regs->cs & 3) != 0 && regs->rip >= TASK_SIZE)
+	if ((regs->cs & 3) != 0 && instr >= (unsigned char *)TASK_SIZE)
 		return 0;
 
 	while (scan_more && instr < max_instr) { 
