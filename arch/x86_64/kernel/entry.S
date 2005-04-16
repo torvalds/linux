@@ -284,6 +284,7 @@ int_careful:
 	pushq %rdi
 	call schedule
 	popq %rdi
+	cli
 	jmp int_with_check
 
 	/* handle signals and tracing -- both require a full stack frame */
@@ -453,7 +454,6 @@ retint_check:
 	andl %edi,%edx
 	jnz  retint_careful
 retint_swapgs:	 	
-	cli
 	swapgs 
 retint_restore_args:				
 	cli
