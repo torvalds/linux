@@ -26,7 +26,6 @@
 #include <linux/smp_lock.h>
 #include <linux/user.h>
 #include <linux/security.h>
-#include <linux/audit.h>
 
 #include <asm/cpu.h>
 #include <asm/fpu.h>
