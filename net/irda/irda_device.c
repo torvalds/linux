@@ -470,11 +470,10 @@ void irda_device_unregister_dongle(struct dongle_reg *dongle)
 }
 EXPORT_SYMBOL(irda_device_unregister_dongle);
 
-#ifdef CONFIG_ISA
 /*
  * Function setup_dma (idev, buffer, count, mode)
  *
- *    Setup the DMA channel. Commonly used by ISA FIR drivers
+ *    Setup the DMA channel. Commonly used by LPC FIR drivers
  *
  */
 void irda_setup_dma(int channel, dma_addr_t buffer, int count, int mode)
@@ -493,4 +492,3 @@ void irda_setup_dma(int channel, dma_addr_t buffer, int count, int mode)
 	release_dma_lock(flags);
 }
 EXPORT_SYMBOL(irda_setup_dma);
-#endif
