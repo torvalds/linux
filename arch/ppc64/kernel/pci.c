@@ -547,8 +547,9 @@ static void __devinit pci_process_ISA_OF_ranges(struct device_node *isa_node,
 	if (range == NULL || (rlen < sizeof(struct isa_range))) {
 		printk(KERN_ERR "no ISA ranges or unexpected isa range size,"
 		       "mapping 64k\n");
-		__ioremap_explicit(phb_io_base_phys, (unsigned long)phb_io_base_virt, 
-				   0x10000, _PAGE_NO_CACHE);
+		__ioremap_explicit(phb_io_base_phys,
+				   (unsigned long)phb_io_base_virt,
+				   0x10000, _PAGE_NO_CACHE | _PAGE_GUARDED);
 		return;	
 	}
 	
@@ -576,7 +577,7 @@ static void __devinit pci_process_ISA_OF_ranges(struct device_node *isa_node,
 
 		__ioremap_explicit(phb_io_base_phys, 
 				   (unsigned long) phb_io_base_virt, 
-				   size, _PAGE_NO_CACHE);
+				   size, _PAGE_NO_CACHE | _PAGE_GUARDED);
 	}
 }
 
@@ -692,7 +693,7 @@ void __devinit pci_setup_phb_io_dynamic(struct pci_controller *hose,
 	struct resource *res;
 
 	hose->io_base_virt = __ioremap(hose->io_base_phys, size,
-					_PAGE_NO_CACHE);
+					_PAGE_NO_CACHE | _PAGE_GUARDED);
 	DBG("phb%d io_base_phys 0x%lx io_base_virt 0x%lx\n",
 		hose->global_number, hose->io_base_phys,
 		(unsigned long) hose->io_base_virt);
@@ -780,7 +781,8 @@ int remap_bus_range(struct pci_bus *bus)
 	if (get_bus_io_range(bus, &start_phys, &start_virt, &size))
 		return 1;
 	printk("mapping IO %lx -> %lx, size: %lx\n", start_phys, start_virt, size);
-	if (__ioremap_explicit(start_phys, start_virt, size, _PAGE_NO_CACHE))
+	if (__ioremap_explicit(start_phys, start_virt, size,
+			       _PAGE_NO_CACHE | _PAGE_GUARDED))
 		return 1;
 
 	return 0;

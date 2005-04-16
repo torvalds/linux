@@ -155,7 +155,8 @@ static void map_io_page(unsigned long ea, unsigned long pa, int flags)
 		ptep = pte_alloc_kernel(&ioremap_mm, pmdp, ea);
 
 		pa = abs_to_phys(pa);
-		set_pte_at(&ioremap_mm, ea, ptep, pfn_pte(pa >> PAGE_SHIFT, __pgprot(flags)));
+		set_pte_at(&ioremap_mm, ea, ptep, pfn_pte(pa >> PAGE_SHIFT,
+							  __pgprot(flags)));
 		spin_unlock(&ioremap_mm.page_table_lock);
 	} else {
 		unsigned long va, vpn, hash, hpteg;
@@ -191,12 +192,9 @@ static void __iomem * __ioremap_com(unsigned long addr, unsigned long pa,
 
 	if ((flags & _PAGE_PRESENT) == 0)
 		flags |= pgprot_val(PAGE_KERNEL);
-	if (flags & (_PAGE_NO_CACHE | _PAGE_WRITETHRU))
-		flags |= _PAGE_GUARDED;
 
-	for (i = 0; i < size; i += PAGE_SIZE) {
+	for (i = 0; i < size; i += PAGE_SIZE)
 		map_io_page(ea+i, pa+i, flags);
-	}
 
 	return (void __iomem *) (ea + (addr & ~PAGE_MASK));
 }
@@ -205,7 +203,7 @@ static void __iomem * __ioremap_com(unsigned long addr, unsigned long pa,
 void __iomem *
 ioremap(unsigned long addr, unsigned long size)
 {
-	return __ioremap(addr, size, _PAGE_NO_CACHE);
+	return __ioremap(addr, size, _PAGE_NO_CACHE | _PAGE_GUARDED);
 }
 
 void __iomem *
@@ -272,7 +270,8 @@ int __ioremap_explicit(unsigned long pa, unsigned long ea,
 			return 1;
 		}
 		if (ea != (unsigned long) area->addr) {
-			printk(KERN_ERR "unexpected addr return from im_get_area\n");
+			printk(KERN_ERR "unexpected addr return from "
+			       "im_get_area\n");
 			return 1;
 		}
 	}
@@ -315,7 +314,8 @@ static void unmap_im_area_pte(pmd_t *pmd, unsigned long address,
 			continue;
 		if (pte_present(page))
 			continue;
-		printk(KERN_CRIT "Whee.. Swapped out page in kernel page table\n");
+		printk(KERN_CRIT "Whee.. Swapped out page in kernel page"
+		       " table\n");
 	} while (address < end);
 }
 
@@ -352,7 +352,7 @@ static void unmap_im_area_pmd(pgd_t *dir, unsigned long address,
  * Access to IO memory should be serialized by driver.
  * This code is modeled after vmalloc code - unmap_vm_area()
  *
- * XXX	what about calls before mem_init_done (ie python_countermeasures())	
+ * XXX	what about calls before mem_init_done (ie python_countermeasures())
  */
 void iounmap(volatile void __iomem *token)
 {

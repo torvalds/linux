@@ -363,7 +363,7 @@ static void __init pSeries_init_early(void)
 		find_udbg_vterm();
 	else if (physport) {
 		/* Map the uart for udbg. */
-		comport = (void *)__ioremap(physport, 16, _PAGE_NO_CACHE);
+		comport = (void *)ioremap(physport, 16);
 		udbg_init_uart(comport, default_speed);
 
 		ppc_md.udbg_putc = udbg_putc;
