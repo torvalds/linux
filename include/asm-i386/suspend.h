@@ -36,11 +36,6 @@ struct saved_context {
 	unsigned long return_address;
 } __attribute__((packed));
 
-#define loaddebug(thread,register) \
-               __asm__("movl %0,%%db" #register  \
-                       : /* no output */ \
-                       :"r" ((thread)->debugreg[register]))
-
 #ifdef CONFIG_ACPI_SLEEP
 extern unsigned long saved_eip;
 extern unsigned long saved_esp;

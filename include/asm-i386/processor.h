@@ -499,6 +499,14 @@ static inline void load_esp0(struct tss_struct *tss, struct thread_struct *threa
 	regs->esp = new_esp;					\
 } while (0)
 
+/*
+ * This special macro can be used to load a debugging register
+ */
+#define loaddebug(thread,register) \
+               __asm__("movl %0,%%db" #register  \
+                       : /* no output */ \
+                       :"r" ((thread)->debugreg[register]))
+
 /* Forward declaration, a strange C thing */
 struct task_struct;
 struct mm_struct;

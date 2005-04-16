@@ -618,7 +618,7 @@ int fastcall do_signal(struct pt_regs *regs, sigset_t *oldset)
 		 * inside the kernel.
 		 */
 		if (unlikely(current->thread.debugreg[7])) {
-			__asm__("movl %0,%%db7"	: : "r" (current->thread.debugreg[7]));
+			loaddebug(&current->thread, 7);
 		}
 
 		/* Whee!  Actually deliver the signal.  */
