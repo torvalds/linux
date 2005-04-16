@@ -1589,7 +1589,8 @@ void blk_run_queue(struct request_queue *q)
 
 	spin_lock_irqsave(q->queue_lock, flags);
 	blk_remove_plug(q);
-	q->request_fn(q);
+	if (!elv_queue_empty(q))
+		q->request_fn(q);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 EXPORT_SYMBOL(blk_run_queue);
