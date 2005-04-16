@@ -126,7 +126,7 @@ int selinux_nlmsg_lookup(u16 sclass, u16 nlmsg_type, u32 *perm)
 		break;
 
 	case SECCLASS_NETLINK_FIREWALL_SOCKET:
-	case NETLINK_IP6_FW:
+	case SECCLASS_NETLINK_IP6FW_SOCKET:
 		err = nlmsg_perm(nlmsg_type, perm, nlmsg_firewall_perms,
 				 sizeof(nlmsg_firewall_perms));
 		break;
