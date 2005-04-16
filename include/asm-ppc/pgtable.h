@@ -431,10 +431,15 @@ extern unsigned long bad_call_to_PMD_PAGE_SIZE(void);
  * Conversions between PTE values and page frame numbers.
  */
 
-#define pte_pfn(x)		(pte_val(x) >> PAGE_SHIFT)
+/* in some case we want to additionaly adjust where the pfn is in the pte to
+ * allow room for more flags */
+#define PFN_SHIFT_OFFSET	(PAGE_SHIFT)
+
+#define pte_pfn(x)		(pte_val(x) >> PFN_SHIFT_OFFSET)
 #define pte_page(x)		pfn_to_page(pte_pfn(x))
 
-#define pfn_pte(pfn, prot)	__pte(((pte_t)(pfn) << PAGE_SHIFT) | pgprot_val(prot))
+#define pfn_pte(pfn, prot)	__pte(((pte_basic_t)(pfn) << PFN_SHIFT_OFFSET) |\
+					pgprot_val(prot))
 #define mk_pte(page, prot)	pfn_pte(page_to_pfn(page), prot)
 
 /*
