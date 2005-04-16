@@ -11,12 +11,19 @@
 
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <asm/8xx_immap.h>
 #include <syslib/m8xx_wdt.h>
 
 static int wdt_timeout;
+
+static irqreturn_t m8xx_wdt_interrupt(int, void *, struct pt_regs *);
+static struct irqaction m8xx_wdt_irqaction = {
+	.handler = m8xx_wdt_interrupt,
+	.name = "watchdog",
+};
 
 void m8xx_wdt_reset(void)
 {
@@ -84,8 +91,8 @@ void __init m8xx_wdt_handler_install(bd_t * binfo)
 	imap->im_sit.sit_piscr =
 	    (mk_int_int_mask(PIT_INTERRUPT) << 8) | PISCR_PIE | PISCR_PTE;
 
-	if (request_irq(PIT_INTERRUPT, m8xx_wdt_interrupt, 0, "watchdog", NULL))
-		panic("m8xx_wdt: could not allocate watchdog irq!");
+	if (setup_irq(PIT_INTERRUPT, &m8xx_wdt_irqaction))
+		panic("m8xx_wdt: error setting up the watchdog irq!");
 
 	printk(KERN_NOTICE
 	       "m8xx_wdt: keep-alive trigger installed (PITC: 0x%04X)\n", pitc);
