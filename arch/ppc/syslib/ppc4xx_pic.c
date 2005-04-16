@@ -41,7 +41,10 @@ extern unsigned char ppc4xx_uic_ext_irq_cfg[] __attribute__ ((weak));
 #define UIC_HANDLERS(n)							\
 static void ppc4xx_uic##n##_enable(unsigned int irq)			\
 {									\
-	ppc_cached_irq_mask[n] |= IRQ_MASK_UIC##n(irq);			\
+	u32 mask = IRQ_MASK_UIC##n(irq);				\
+	if (irq_desc[irq].status & IRQ_LEVEL)				\
+		mtdcr(DCRN_UIC_SR(UIC##n), mask);			\
+	ppc_cached_irq_mask[n] |= mask;					\
 	mtdcr(DCRN_UIC_ER(UIC##n), ppc_cached_irq_mask[n]);		\
 }									\
 									\
