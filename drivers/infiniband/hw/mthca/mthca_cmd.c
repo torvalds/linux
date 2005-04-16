@@ -1404,6 +1404,11 @@ int mthca_WRITE_MTT(struct mthca_dev *dev, u64 *mtt_entry,
 	return err;
 }
 
+int mthca_SYNC_TPT(struct mthca_dev *dev, u8 *status)
+{
+	return mthca_cmd(dev, 0, 0, 0, CMD_SYNC_TPT, CMD_TIME_CLASS_B, status);
+}
+
 int mthca_MAP_EQ(struct mthca_dev *dev, u64 event_mask, int unmap,
 		 int eq_num, u8 *status)
 {
