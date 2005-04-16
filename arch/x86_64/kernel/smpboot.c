@@ -652,7 +652,7 @@ static __cpuinit void detect_siblings(void)
 		int i;
 		if (smp_num_siblings > 1) {
 			for_each_online_cpu (i) {
-				if (cpu_core_id[cpu] == phys_proc_id[i]) {
+				if (cpu_core_id[cpu] == cpu_core_id[i]) {
 					siblings++;
 					cpu_set(i, cpu_sibling_map[cpu]);
 				}

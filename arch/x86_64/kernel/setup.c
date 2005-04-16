@@ -1152,6 +1152,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		seq_printf(m, "physical id\t: %d\n", phys_proc_id[cpu]);
 		seq_printf(m, "siblings\t: %d\n",
 				c->x86_num_cores * smp_num_siblings);
+		seq_printf(m, "core id\t\t: %d\n", cpu_core_id[cpu]);
+		seq_printf(m, "cpu cores\t: %d\n", c->x86_num_cores);
 	}
 #endif	
 
@@ -1195,15 +1197,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 			}
 	}
 
-	seq_printf(m, "\n");
+	seq_printf(m, "\n\n");
 
-#ifdef CONFIG_SMP
-	/* Put new fields at the end to lower the probability of
-	   breaking user space parsers. */
-	seq_printf(m, "core id\t\t: %d\n", cpu_core_id[c - cpu_data]);
-	seq_printf(m, "cpu cores\t: %d\n", c->x86_num_cores);
-#endif
-	seq_printf(m, "\n");
 	return 0;
 }
 
