@@ -344,10 +344,10 @@ static int mthca_eq_int(struct mthca_dev *dev, struct mthca_eq *eq)
 			break;
 
 		case MTHCA_EVENT_TYPE_CQ_ERROR:
-			mthca_warn(dev, "CQ %s on CQN %08x\n",
+			mthca_warn(dev, "CQ %s on CQN %06x\n",
 				   eqe->event.cq_err.syndrome == 1 ?
 				   "overrun" : "access violation",
-				   be32_to_cpu(eqe->event.cq_err.cqn));
+				   be32_to_cpu(eqe->event.cq_err.cqn) & 0xffffff);
 			break;
 
 		case MTHCA_EVENT_TYPE_EQ_OVERFLOW:
