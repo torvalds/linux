@@ -213,13 +213,14 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int executable_stack)
 		vdso_base = VDSO64_MBASE;
 	}
 
+	current->thread.vdso_base = 0;
+
 	/* vDSO has a problem and was disabled, just don't "enable" it for the
 	 * process
 	 */
-	if (vdso_pages == 0) {
-		current->thread.vdso_base = 0;
+	if (vdso_pages == 0)
 		return 0;
-	}
+
 	vma = kmem_cache_alloc(vm_area_cachep, SLAB_KERNEL);
 	if (vma == NULL)
 		return -ENOMEM;
@@ -230,12 +231,16 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int executable_stack)
 	memset(vma, 0, sizeof(*vma));
 
 	/*
-	 * pick a base address for the vDSO in process space. We have a default
-	 * base of 1Mb on which we had a random offset up to 1Mb.
-	 * XXX: Add possibility for a program header to specify that location
+	 * pick a base address for the vDSO in process space. We try to put it
+	 * at vdso_base which is the "natural" base for it, but we might fail
+	 * and end up putting it elsewhere.
 	 */
+	vdso_base = get_unmapped_area(NULL, vdso_base,
+				      vdso_pages << PAGE_SHIFT, 0, 0);
+	if (vdso_base & ~PAGE_MASK)
+		return (int)vdso_base;
+
 	current->thread.vdso_base = vdso_base;
-	/*  + ((unsigned long)vma & 0x000ff000); */
 
 	vma->vm_mm = mm;
 	vma->vm_start = current->thread.vdso_base;

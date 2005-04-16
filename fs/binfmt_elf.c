@@ -782,14 +782,6 @@ static int load_elf_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 		goto out_free_dentry;
 	}
 	
-#ifdef ARCH_HAS_SETUP_ADDITIONAL_PAGES
-	retval = arch_setup_additional_pages(bprm, executable_stack);
-	if (retval < 0) {
-		send_sig(SIGKILL, current, 0);
-		goto out_free_dentry;
-	}
-#endif /* ARCH_HAS_SETUP_ADDITIONAL_PAGES */
-
 	current->mm->start_stack = bprm->p;
 
 	/* Now we do a little grungy work by mmaping the ELF image into
@@ -948,6 +940,14 @@ static int load_elf_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 		sys_close(elf_exec_fileno);
 
 	set_binfmt(&elf_format);
+
+#ifdef ARCH_HAS_SETUP_ADDITIONAL_PAGES
+	retval = arch_setup_additional_pages(bprm, executable_stack);
+	if (retval < 0) {
+		send_sig(SIGKILL, current, 0);
+		goto out_free_dentry;
+	}
+#endif /* ARCH_HAS_SETUP_ADDITIONAL_PAGES */
 
 	compute_creds(bprm);
 	current->flags &= ~PF_FORKNOEXEC;
