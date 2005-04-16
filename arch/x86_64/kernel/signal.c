@@ -185,7 +185,6 @@ static inline int
 setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs, unsigned long mask, struct task_struct *me)
 {
 	int err = 0;
-	unsigned long eflags;
 
 	err |= __put_user(0, &sc->gs);
 	err |= __put_user(0, &sc->fs);
@@ -209,11 +208,7 @@ setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs, unsigned lo
 	err |= __put_user(me->thread.trap_no, &sc->trapno);
 	err |= __put_user(me->thread.error_code, &sc->err);
 	err |= __put_user(regs->rip, &sc->rip);
-	eflags = regs->eflags;
-	if (current->ptrace & PT_PTRACED) {
-		eflags &= ~TF_MASK;
-	}
-	err |= __put_user(eflags, &sc->eflags);
+	err |= __put_user(regs->eflags, &sc->eflags);
 	err |= __put_user(mask, &sc->oldmask);
 	err |= __put_user(me->thread.cr2, &sc->cr2);
 
@@ -323,14 +318,9 @@ static void setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	regs->rsp = (unsigned long)frame;
 
 	set_fs(USER_DS);
-	if (regs->eflags & TF_MASK) {
-		if ((current->ptrace & (PT_PTRACED | PT_DTRACE)) == (PT_PTRACED | PT_DTRACE)) {
-			ptrace_notify(SIGTRAP);
-		} else {
-			regs->eflags &= ~TF_MASK;
-		}
-	}
-
+	regs->eflags &= ~TF_MASK;
+	if (test_thread_flag(TIF_SINGLESTEP))
+		ptrace_notify(SIGTRAP);
 #ifdef DEBUG_SIG
 	printk("SIG deliver (%s:%d): sp=%p pc=%p ra=%p\n",
 		current->comm, current->pid, frame, regs->rip, frame->pretcode);
