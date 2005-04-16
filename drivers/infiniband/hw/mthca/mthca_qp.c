@@ -1775,6 +1775,53 @@ int mthca_arbel_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		size = sizeof (struct mthca_next_seg) / 16;
 
 		switch (qp->transport) {
+		case RC:
+			switch (wr->opcode) {
+			case IB_WR_ATOMIC_CMP_AND_SWP:
+			case IB_WR_ATOMIC_FETCH_AND_ADD:
+				((struct mthca_raddr_seg *) wqe)->raddr =
+					cpu_to_be64(wr->wr.atomic.remote_addr);
+				((struct mthca_raddr_seg *) wqe)->rkey =
+					cpu_to_be32(wr->wr.atomic.rkey);
+				((struct mthca_raddr_seg *) wqe)->reserved = 0;
+
+				wqe += sizeof (struct mthca_raddr_seg);
+
+				if (wr->opcode == IB_WR_ATOMIC_CMP_AND_SWP) {
+					((struct mthca_atomic_seg *) wqe)->swap_add =
+						cpu_to_be64(wr->wr.atomic.swap);
+					((struct mthca_atomic_seg *) wqe)->compare =
+						cpu_to_be64(wr->wr.atomic.compare_add);
+				} else {
+					((struct mthca_atomic_seg *) wqe)->swap_add =
+						cpu_to_be64(wr->wr.atomic.compare_add);
+					((struct mthca_atomic_seg *) wqe)->compare = 0;
+				}
+
+				wqe += sizeof (struct mthca_atomic_seg);
+				size += sizeof (struct mthca_raddr_seg) / 16 +
+					sizeof (struct mthca_atomic_seg);
+				break;
+
+			case IB_WR_RDMA_WRITE:
+			case IB_WR_RDMA_WRITE_WITH_IMM:
+			case IB_WR_RDMA_READ:
+				((struct mthca_raddr_seg *) wqe)->raddr =
+					cpu_to_be64(wr->wr.rdma.remote_addr);
+				((struct mthca_raddr_seg *) wqe)->rkey =
+					cpu_to_be32(wr->wr.rdma.rkey);
+				((struct mthca_raddr_seg *) wqe)->reserved = 0;
+				wqe += sizeof (struct mthca_raddr_seg);
+				size += sizeof (struct mthca_raddr_seg) / 16;
+				break;
+
+			default:
+				/* No extra segments required for sends */
+				break;
+			}
+
+			break;
+
 		case UD:
 			memcpy(((struct mthca_arbel_ud_seg *) wqe)->av,
 			       to_mah(wr->wr.ud.ah)->av, MTHCA_AV_SIZE);
