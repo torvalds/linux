@@ -692,7 +692,7 @@ static inline void hlist_add_after(struct hlist_node *n,
  * @member:	the name of the hlist_node within the struct.
  *
  * This list-traversal primitive may safely run concurrently with
- * the _rcu list-mutation primitives such as hlist_add_rcu()
+ * the _rcu list-mutation primitives such as hlist_add_head_rcu()
  * as long as the traversal is guarded by rcu_read_lock().
  */
 #define hlist_for_each_entry_rcu(tpos, pos, head, member)		 \
