@@ -33,6 +33,7 @@ static int banks;
 static unsigned long bank[NR_BANKS] = { [0 ... NR_BANKS-1] = ~0UL };
 static unsigned long console_logged;
 static int notify_user;
+static int rip_msr;
 
 /*
  * Lockless MCE logging infrastructure.
@@ -124,6 +125,23 @@ static int mce_available(struct cpuinfo_x86 *c)
 	       test_bit(X86_FEATURE_MCA, &c->x86_capability);
 }
 
+static inline void mce_get_rip(struct mce *m, struct pt_regs *regs)
+{
+	if (regs && (m->mcgstatus & MCG_STATUS_RIPV)) {
+		m->rip = regs->rip;
+		m->cs = regs->cs;
+	} else {
+		m->rip = 0;
+		m->cs = 0;
+	}
+	if (rip_msr) {
+		/* Assume the RIP in the MSR is exact. Is this true? */
+		m->mcgstatus |= MCG_STATUS_EIPV;
+		rdmsrl(rip_msr, m->rip);
+		m->cs = 0;
+	}
+}
+
 /* 
  * The actual machine check handler
  */
@@ -176,14 +194,7 @@ void do_machine_check(struct pt_regs * regs, long error_code)
 		if (m.status & MCI_STATUS_ADDRV)
 			rdmsrl(MSR_IA32_MC0_ADDR + i*4, m.addr);
 
-		if (regs && (m.mcgstatus & MCG_STATUS_RIPV)) {
-			m.rip = regs->rip;
-			m.cs = regs->cs;
-		} else {
-			m.rip = 0;
-			m.cs = 0;
-		}
-
+		mce_get_rip(&m, regs);
 		if (error_code != -1)
 			rdtscll(m.tsc);
 		wrmsrl(MSR_IA32_MC0_STATUS + i*4, 0);
@@ -296,6 +307,9 @@ static void mce_init(void *dummy)
 		printk(KERN_INFO "MCE: warning: using only %d banks\n", banks);
 		banks = NR_BANKS; 
 	}
+	/* Use accurate RIP reporting if available. */
+	if ((cap & (1<<9)) && ((cap >> 16) & 0xff) >= 9)
+		rip_msr = MSR_IA32_MCG_EIP;
 
 	/* Log the machine checks left over from the previous reset.
 	   This also clears all registers */
