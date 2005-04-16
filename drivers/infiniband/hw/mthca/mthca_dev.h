@@ -49,20 +49,15 @@
 #define DRV_VERSION	"0.06-pre"
 #define DRV_RELDATE	"November 8, 2004"
 
-/* Types of supported HCA */
-enum {
-	TAVOR,			/* MT23108                        */
-	ARBEL_COMPAT,		/* MT25208 in Tavor compat mode   */
-	ARBEL_NATIVE		/* MT25208 with extended features */
-};
-
 enum {
 	MTHCA_FLAG_DDR_HIDDEN = 1 << 1,
 	MTHCA_FLAG_SRQ        = 1 << 2,
 	MTHCA_FLAG_MSI        = 1 << 3,
 	MTHCA_FLAG_MSI_X      = 1 << 4,
 	MTHCA_FLAG_NO_LAM     = 1 << 5,
-	MTHCA_FLAG_FMR        = 1 << 6
+	MTHCA_FLAG_FMR        = 1 << 6,
+	MTHCA_FLAG_MEMFREE    = 1 << 7,
+	MTHCA_FLAG_PCIE       = 1 << 8
 };
 
 enum {
@@ -473,7 +468,7 @@ static inline struct mthca_dev *to_mdev(struct ib_device *ibdev)
 
 static inline int mthca_is_memfree(struct mthca_dev *dev)
 {
-	return dev->hca_type == ARBEL_NATIVE;
+	return dev->mthca_flags & MTHCA_FLAG_MEMFREE;
 }
 
 #endif /* MTHCA_DEV_H */

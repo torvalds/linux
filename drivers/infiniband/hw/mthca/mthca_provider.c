@@ -659,11 +659,18 @@ static ssize_t show_fw_ver(struct class_device *cdev, char *buf)
 static ssize_t show_hca(struct class_device *cdev, char *buf)
 {
 	struct mthca_dev *dev = container_of(cdev, struct mthca_dev, ib_dev.class_dev);
-	switch (dev->hca_type) {
-	case TAVOR:        return sprintf(buf, "MT23108\n");
-	case ARBEL_COMPAT: return sprintf(buf, "MT25208 (MT23108 compat mode)\n");
-	case ARBEL_NATIVE: return sprintf(buf, "MT25208\n");
-	default:           return sprintf(buf, "unknown\n");
+	switch (dev->pdev->device) {
+	case PCI_DEVICE_ID_MELLANOX_TAVOR:
+		return sprintf(buf, "MT23108\n");
+	case PCI_DEVICE_ID_MELLANOX_ARBEL_COMPAT:
+		return sprintf(buf, "MT25208 (MT23108 compat mode)\n");
+	case PCI_DEVICE_ID_MELLANOX_ARBEL:
+		return sprintf(buf, "MT25208\n");
+	case PCI_DEVICE_ID_MELLANOX_SINAI:
+	case PCI_DEVICE_ID_MELLANOX_SINAI_OLD:
+		return sprintf(buf, "MT25204\n");
+	default:
+		return sprintf(buf, "unknown\n");
 	}
 }
 

@@ -63,7 +63,7 @@ int mthca_reset(struct mthca_dev *mdev)
 	 * header as well.
 	 */
 
-	if (mdev->hca_type == TAVOR) {
+	if (!(mdev->mthca_flags & MTHCA_FLAG_PCIE)) {
 		/* Look for the bridge -- its device ID will be 2 more
 		   than HCA's device ID. */
 		while ((bridge = pci_get_device(mdev->pdev->vendor,
