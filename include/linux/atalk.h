@@ -1,8 +1,6 @@
 #ifndef __LINUX_ATALK_H__
 #define __LINUX_ATALK_H__
 
-#include <net/sock.h>
-
 /*
  * AppleTalk networking structures
  *
@@ -38,6 +36,10 @@ struct atalk_netrange {
 	__u16	nr_firstnet;
 	__u16	nr_lastnet;
 };
+
+#ifdef __KERNEL__
+
+#include <net/sock.h>
 
 struct atalk_route {
 	struct net_device  *dev;
@@ -80,8 +82,6 @@ static inline struct atalk_sock *at_sk(struct sock *sk)
 {
 	return (struct atalk_sock *)sk;
 }
-
-#ifdef __KERNEL__
 
 #include <asm/byteorder.h>
 
