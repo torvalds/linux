@@ -446,7 +446,7 @@ int mthca_init_db_tab(struct mthca_dev *dev)
 
 	init_MUTEX(&dev->db_tab->mutex);
 
-	dev->db_tab->npages     = dev->uar_table.uarc_size / PAGE_SIZE;
+	dev->db_tab->npages     = dev->uar_table.uarc_size / 4096;
 	dev->db_tab->max_group1 = 0;
 	dev->db_tab->min_group2 = dev->db_tab->npages - 1;
 
