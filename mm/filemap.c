@@ -1379,8 +1379,13 @@ retry_find:
 	 * Ok, found a page in the page cache, now we need to check
 	 * that it's up-to-date.
 	 */
-	if (!PageUptodate(page))
+	if (!PageUptodate(page)) {
+		if (nonblock) {
+			page_cache_release(page);
+			return NULL;
+		}
 		goto page_not_uptodate;
+	}
 
 success:
 	/*
