@@ -855,6 +855,8 @@ static void __init init_intel(struct cpuinfo_x86 *c)
 
 	if (c->x86 == 15)
 		c->x86_cache_alignment = c->x86_clflush_size * 2;
+	if (c->x86 >= 15)
+		set_bit(X86_FEATURE_CONSTANT_TSC, &c->x86_capability);
 }
 
 void __init get_cpu_vendor(struct cpuinfo_x86 *c)
@@ -1055,7 +1057,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 
 		/* Other (Linux-defined) */
-		"cxmmx", "k6_mtrr", "cyrix_arr", "centaur_mcr", NULL, NULL, NULL, NULL,
+		"cxmmx", NULL, "cyrix_arr", "centaur_mcr", "k8c+",
+		"constant_tsc", NULL, NULL,
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,

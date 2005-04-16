@@ -614,6 +614,9 @@ static int time_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
         struct cpufreq_freqs *freq = data;
 	unsigned long *lpj, dummy;
 
+	if (cpu_has(&cpu_data[freq->cpu], X86_FEATURE_CONSTANT_TSC))
+		return 0;
+
 	lpj = &dummy;
 	if (!(freq->flags & CPUFREQ_CONST_LOOPS))
 #ifdef CONFIG_SMP
@@ -621,8 +624,6 @@ static int time_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 #else
 	lpj = &boot_cpu_data.loops_per_jiffy;
 #endif
-
-
 
 	if (!ref_freq) {
 		ref_freq = freq->old;
