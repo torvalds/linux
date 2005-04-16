@@ -52,6 +52,8 @@ static int mthca_query_device(struct ib_device *ibdev,
 	if (!in_mad || !out_mad)
 		goto out;
 
+	memset(props, 0, sizeof props);
+
 	props->fw_ver              = mdev->fw_ver;
 
 	memset(in_mad, 0, sizeof *in_mad);
@@ -71,13 +73,25 @@ static int mthca_query_device(struct ib_device *ibdev,
 		goto out;
 	}
 
-	props->device_cap_flags = mdev->device_cap_flags;
-	props->vendor_id        = be32_to_cpup((u32 *) (out_mad->data + 36)) &
+	props->device_cap_flags    = mdev->device_cap_flags;
+	props->vendor_id           = be32_to_cpup((u32 *) (out_mad->data + 36)) &
 		0xffffff;
-	props->vendor_part_id   = be16_to_cpup((u16 *) (out_mad->data + 30));
-	props->hw_ver           = be16_to_cpup((u16 *) (out_mad->data + 32));
+	props->vendor_part_id      = be16_to_cpup((u16 *) (out_mad->data + 30));
+	props->hw_ver              = be16_to_cpup((u16 *) (out_mad->data + 32));
 	memcpy(&props->sys_image_guid, out_mad->data +  4, 8);
 	memcpy(&props->node_guid,      out_mad->data + 12, 8);
+
+	props->max_mr_size         = ~0ull;
+	props->max_qp              = mdev->limits.num_qps - mdev->limits.reserved_qps;
+	props->max_qp_wr           = 0xffff;
+	props->max_sge             = mdev->limits.max_sg;
+	props->max_cq              = mdev->limits.num_cqs - mdev->limits.reserved_cqs;
+	props->max_cqe             = 0xffff;
+	props->max_mr              = mdev->limits.num_mpts - mdev->limits.reserved_mrws;
+	props->max_pd              = mdev->limits.num_pds - mdev->limits.reserved_pds;
+	props->max_qp_rd_atom      = 1 << mdev->qp_table.rdb_shift;
+	props->max_qp_init_rd_atom = 1 << mdev->qp_table.rdb_shift;
+	props->local_ca_ack_delay  = mdev->limits.local_ca_ack_delay;
 
 	err = 0;
  out:
