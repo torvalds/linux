@@ -103,9 +103,8 @@ struct ib_fmr_pool {
 
 static inline u32 ib_fmr_hash(u64 first_page)
 {
-	return jhash_2words((u32) first_page,
-			    (u32) (first_page >> 32),
-			    0);
+	return jhash_2words((u32) first_page, (u32) (first_page >> 32), 0) &
+		(IB_FMR_HASH_SIZE - 1);
 }
 
 /* Caller must hold pool_lock */
