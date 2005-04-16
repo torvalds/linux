@@ -312,6 +312,10 @@ MODULE_AUTHOR("Eric Youngdale, Andi Kleen");
 
 static void elf32_init(struct pt_regs *);
 
+#define ARCH_HAS_SETUP_ADDITIONAL_PAGES 1
+#define arch_setup_additional_pages syscall32_setup_pages
+extern int syscall32_setup_pages(struct linux_binprm *, int exstack);
+
 #include "../../../fs/binfmt_elf.c" 
 
 static void elf32_init(struct pt_regs *regs)

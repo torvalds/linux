@@ -458,17 +458,6 @@ bad_area:
 	up_read(&mm->mmap_sem);
 
 bad_area_nosemaphore:
-
-#ifdef CONFIG_IA32_EMULATION
-	/* 32bit vsyscall. map on demand. */
-	if (test_thread_flag(TIF_IA32) &&
-	    address >= VSYSCALL32_BASE && address < VSYSCALL32_END) {
-		if (map_syscall32(mm, address) < 0)
-			goto out_of_memory2;
-		return;
-	}
-#endif
-
 	/* User mode accesses just cause a SIGSEGV */
 	if (error_code & 4) {
 		if (is_prefetch(regs, address, error_code))
@@ -550,7 +539,6 @@ no_context:
  */
 out_of_memory:
 	up_read(&mm->mmap_sem);
-out_of_memory2:
 	if (current->pid == 1) { 
 		yield();
 		goto again;

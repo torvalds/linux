@@ -583,9 +583,9 @@ static __init int x8664_sysctl_init(void)
 __initcall(x8664_sysctl_init);
 #endif
 
-/* Pseudo VMAs to allow ptrace access for the vsyscall pages.  x86-64 has two
-   different ones: one for 32bit and one for 64bit. Use the appropiate
-   for the target task. */
+/* A pseudo VMAs to allow ptrace access for the vsyscall page.   This only
+   covers the 64bit vsyscall page now. 32bit has a real VMA now and does
+   not need special handling anymore. */
 
 static struct vm_area_struct gate_vma = {
 	.vm_start = VSYSCALL_START,
@@ -593,22 +593,11 @@ static struct vm_area_struct gate_vma = {
 	.vm_page_prot = PAGE_READONLY
 };
 
-static struct vm_area_struct gate32_vma = {
-	.vm_start = VSYSCALL32_BASE,
-	.vm_end = VSYSCALL32_END,
-	.vm_page_prot = PAGE_READONLY
-};
-
 struct vm_area_struct *get_gate_vma(struct task_struct *tsk)
 {
 #ifdef CONFIG_IA32_EMULATION
-	if (test_tsk_thread_flag(tsk, TIF_IA32)) {
-		/* lookup code assumes the pages are present. set them up
-		   now */
-		if (__map_syscall32(tsk->mm, VSYSCALL32_BASE) < 0)
-			return NULL;
-		return &gate32_vma;
-	}
+	if (test_tsk_thread_flag(tsk, TIF_IA32))
+		return NULL;
 #endif
 	return &gate_vma;
 }
@@ -616,6 +605,8 @@ struct vm_area_struct *get_gate_vma(struct task_struct *tsk)
 int in_gate_area(struct task_struct *task, unsigned long addr)
 {
 	struct vm_area_struct *vma = get_gate_vma(task);
+	if (!vma)
+		return 0;
 	return (addr >= vma->vm_start) && (addr < vma->vm_end);
 }
 
@@ -625,6 +616,5 @@ int in_gate_area(struct task_struct *task, unsigned long addr)
  */
 int in_gate_area_no_task(unsigned long addr)
 {
-	return (((addr >= VSYSCALL_START) && (addr < VSYSCALL_END)) ||
-		((addr >= VSYSCALL32_BASE) && (addr < VSYSCALL32_END)));
+	return (addr >= VSYSCALL_START) && (addr < VSYSCALL_END);
 }
