@@ -181,6 +181,10 @@ enum {
 	MTHCA_MLX_SLR        = 1 << 16
 };
 
+enum {
+	MTHCA_INVAL_LKEY = 0x100
+};
+
 struct mthca_next_seg {
 	u32 nda_op;		/* [31:6] next WQE [4:0] next opcode */
 	u32 ee_nds;		/* [31:8] next EE  [7] DBD [6] F [5:0] next WQE size */
@@ -1082,7 +1086,6 @@ static int mthca_alloc_qp_common(struct mthca_dev *dev,
 				 enum ib_sig_type send_policy,
 				 struct mthca_qp *qp)
 {
-	struct mthca_next_seg *wqe;
 	int ret;
 	int i;
 
@@ -1105,18 +1108,28 @@ static int mthca_alloc_qp_common(struct mthca_dev *dev,
 	}
 
 	if (mthca_is_memfree(dev)) {
+		struct mthca_next_seg *next;
+		struct mthca_data_seg *scatter;
+		int size = (sizeof (struct mthca_next_seg) +
+			    qp->rq.max_gs * sizeof (struct mthca_data_seg)) / 16;
+
 		for (i = 0; i < qp->rq.max; ++i) {
-			wqe = get_recv_wqe(qp, i);
-			wqe->nda_op = cpu_to_be32(((i + 1) & (qp->rq.max - 1)) <<
-						  qp->rq.wqe_shift);
-			wqe->ee_nds = cpu_to_be32(1 << (qp->rq.wqe_shift - 4));
+			next = get_recv_wqe(qp, i);
+			next->nda_op = cpu_to_be32(((i + 1) & (qp->rq.max - 1)) <<
+						   qp->rq.wqe_shift);
+			next->ee_nds = cpu_to_be32(size);
+
+			for (scatter = (void *) (next + 1);
+			     (void *) scatter < (void *) next + (1 << qp->rq.wqe_shift);
+			     ++scatter)
+				scatter->lkey = cpu_to_be32(MTHCA_INVAL_LKEY);
 		}
 
 		for (i = 0; i < qp->sq.max; ++i) {
-			wqe = get_send_wqe(qp, i);
-			wqe->nda_op = cpu_to_be32((((i + 1) & (qp->sq.max - 1)) <<
-						   qp->sq.wqe_shift) +
-						  qp->send_wqe_offset);
+			next = get_send_wqe(qp, i);
+			next->nda_op = cpu_to_be32((((i + 1) & (qp->sq.max - 1)) <<
+						    qp->sq.wqe_shift) +
+						   qp->send_wqe_offset);
 		}
 	}
 
@@ -1975,7 +1988,7 @@ int mthca_arbel_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 
 		if (i < qp->rq.max_gs) {
 			((struct mthca_data_seg *) wqe)->byte_count = 0;
-			((struct mthca_data_seg *) wqe)->lkey = cpu_to_be32(0x100);
+			((struct mthca_data_seg *) wqe)->lkey = cpu_to_be32(MTHCA_INVAL_LKEY);
 			((struct mthca_data_seg *) wqe)->addr = 0;
 		}
 
