@@ -215,7 +215,7 @@ struct mpt_pci_driver{
 	void (*shutdown) (struct device * dev);
 #ifdef CONFIG_PM
 	int  (*resume) (struct pci_dev *dev);
-	int  (*suspend) (struct pci_dev *dev, u32 state);
+	int  (*suspend) (struct pci_dev *dev, pm_message_t state);
 #endif
 };
 

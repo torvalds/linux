@@ -220,7 +220,7 @@ static int  mptscsih_probe (struct pci_dev *, const struct pci_device_id *);
 static void mptscsih_remove(struct pci_dev *);
 static void mptscsih_shutdown(struct device *);
 #ifdef CONFIG_PM
-static int mptscsih_suspend(struct pci_dev *pdev, u32 state);
+static int mptscsih_suspend(struct pci_dev *pdev, pm_message_t state);
 static int mptscsih_resume(struct pci_dev *pdev);
 #endif
 
@@ -1389,7 +1389,7 @@ mptscsih_shutdown(struct device * dev)
  *
  */
 static int
-mptscsih_suspend(struct pci_dev *pdev, u32 state)
+mptscsih_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	mptscsih_shutdown(&pdev->dev);
 	return 0;

@@ -1429,7 +1429,7 @@ mptbase_shutdown(struct device * dev)
  *
  */
 static int
-mptbase_suspend(struct pci_dev *pdev, u32 state)
+mptbase_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	u32 device_state;
 	MPT_ADAPTER *ioc = pci_get_drvdata(pdev);
