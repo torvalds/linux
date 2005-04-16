@@ -73,14 +73,15 @@ static const char mthca_version[] __devinitdata =
 	DRV_VERSION " (" DRV_RELDATE ")\n";
 
 static struct mthca_profile default_profile = {
-	.num_qp     = 1 << 16,
-	.rdb_per_qp = 4,
-	.num_cq     = 1 << 16,
-	.num_mcg    = 1 << 13,
-	.num_mpt    = 1 << 17,
-	.num_mtt    = 1 << 20,
-	.num_udav   = 1 << 15,	/* Tavor only */
-	.uarc_size  = 1 << 18,	/* Arbel only */
+	.num_qp		   = 1 << 16,
+	.rdb_per_qp	   = 4,
+	.num_cq		   = 1 << 16,
+	.num_mcg	   = 1 << 13,
+	.num_mpt	   = 1 << 17,
+	.num_mtt	   = 1 << 20,
+	.num_udav	   = 1 << 15,	/* Tavor only */
+	.fmr_reserved_mtts = 1 << 18,	/* Tavor only */
+	.uarc_size	   = 1 << 18,	/* Arbel only */
 };
 
 static int __devinit mthca_tune_pci(struct mthca_dev *mdev)

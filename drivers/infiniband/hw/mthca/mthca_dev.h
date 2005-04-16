@@ -61,7 +61,8 @@ enum {
 	MTHCA_FLAG_SRQ        = 1 << 2,
 	MTHCA_FLAG_MSI        = 1 << 3,
 	MTHCA_FLAG_MSI_X      = 1 << 4,
-	MTHCA_FLAG_NO_LAM     = 1 << 5
+	MTHCA_FLAG_NO_LAM     = 1 << 5,
+	MTHCA_FLAG_FMR        = 1 << 6
 };
 
 enum {
@@ -134,6 +135,7 @@ struct mthca_limits {
 	int      reserved_eqs;
 	int      num_mpts;
 	int      num_mtt_segs;
+	int      fmr_reserved_mtts;
 	int      reserved_mtts;
 	int      reserved_mrws;
 	int      reserved_uars;
@@ -178,10 +180,17 @@ struct mthca_buddy {
 
 struct mthca_mr_table {
 	struct mthca_alloc      mpt_alloc;
-	struct mthca_buddy	mtt_buddy;
+	struct mthca_buddy      mtt_buddy;
+	struct mthca_buddy     *fmr_mtt_buddy;
 	u64                     mtt_base;
+	u64                     mpt_base;
 	struct mthca_icm_table *mtt_table;
 	struct mthca_icm_table *mpt_table;
+	struct {
+		void __iomem   *mpt_base;
+		void __iomem   *mtt_base;
+		struct mthca_buddy mtt_buddy;
+	} tavor_fmr;
 };
 
 struct mthca_eq_table {
@@ -380,7 +389,17 @@ int mthca_mr_alloc_phys(struct mthca_dev *dev, u32 pd,
 			u64 *buffer_list, int buffer_size_shift,
 			int list_len, u64 iova, u64 total_size,
 			u32 access, struct mthca_mr *mr);
-void mthca_free_mr(struct mthca_dev *dev, struct mthca_mr *mr);
+void mthca_free_mr(struct mthca_dev *dev,  struct mthca_mr *mr);
+
+int mthca_fmr_alloc(struct mthca_dev *dev, u32 pd,
+		    u32 access, struct mthca_fmr *fmr);
+int mthca_tavor_map_phys_fmr(struct ib_fmr *ibfmr, u64 *page_list,
+			     int list_len, u64 iova);
+void mthca_tavor_fmr_unmap(struct mthca_dev *dev, struct mthca_fmr *fmr);
+int mthca_arbel_map_phys_fmr(struct ib_fmr *ibfmr, u64 *page_list,
+			     int list_len, u64 iova);
+void mthca_arbel_fmr_unmap(struct mthca_dev *dev, struct mthca_fmr *fmr);
+int mthca_free_fmr(struct mthca_dev *dev,  struct mthca_fmr *fmr);
 
 int mthca_map_eq_icm(struct mthca_dev *dev, u64 icm_virt);
 void mthca_unmap_eq_icm(struct mthca_dev *dev);

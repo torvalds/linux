@@ -48,6 +48,7 @@ struct mthca_profile {
 	int num_udav;
 	int num_uar;
 	int uarc_size;
+	int fmr_reserved_mtts;
 };
 
 u64 mthca_make_profile(struct mthca_dev *mdev,

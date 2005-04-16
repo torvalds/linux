@@ -223,9 +223,10 @@ u64 mthca_make_profile(struct mthca_dev *dev,
 			init_hca->mc_hash_sz      = 1 << (profile[i].log_num - 1);
 			break;
 		case MTHCA_RES_MPT:
-			dev->limits.num_mpts = profile[i].num;
-			init_hca->mpt_base   = profile[i].start;
-			init_hca->log_mpt_sz = profile[i].log_num;
+			dev->limits.num_mpts   = profile[i].num;
+			dev->mr_table.mpt_base = profile[i].start;
+			init_hca->mpt_base     = profile[i].start;
+			init_hca->log_mpt_sz   = profile[i].log_num;
 			break;
 		case MTHCA_RES_MTT:
 			dev->limits.num_mtt_segs = profile[i].num;
@@ -258,6 +259,18 @@ u64 mthca_make_profile(struct mthca_dev *dev,
 	 * of the HCA profile anyway.
 	 */
 	dev->limits.num_pds = MTHCA_NUM_PDS;
+
+	/*
+	 * For Tavor, FMRs use ioremapped PCI memory. For 32 bit
+	 * systems it may use too much vmalloc space to map all MTT
+	 * memory, so we reserve some MTTs for FMR access, taking them
+	 * out of the MR pool. They don't use additional memory, but
+	 * we assign them as part of the HCA profile anyway.
+	 */
+	if (dev->hca_type == ARBEL_NATIVE)
+		dev->limits.fmr_reserved_mtts = 0;
+	else
+		dev->limits.fmr_reserved_mtts = request->fmr_reserved_mtts;
 
 	kfree(profile);
 	return total_size;

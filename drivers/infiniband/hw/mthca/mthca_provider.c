@@ -574,6 +574,74 @@ static int mthca_dereg_mr(struct ib_mr *mr)
 	return 0;
 }
 
+static struct ib_fmr *mthca_alloc_fmr(struct ib_pd *pd, int mr_access_flags,
+				      struct ib_fmr_attr *fmr_attr)
+{
+	struct mthca_fmr *fmr;
+	int err;
+
+	fmr = kmalloc(sizeof *fmr, GFP_KERNEL);
+	if (!fmr)
+		return ERR_PTR(-ENOMEM);
+
+	memcpy(&fmr->attr, fmr_attr, sizeof *fmr_attr);
+	err = mthca_fmr_alloc(to_mdev(pd->device), to_mpd(pd)->pd_num,
+			     convert_access(mr_access_flags), fmr);
+
+	if (err) {
+		kfree(fmr);
+		return ERR_PTR(err);
+	}
+
+	return &fmr->ibmr;
+}
+
+static int mthca_dealloc_fmr(struct ib_fmr *fmr)
+{
+	struct mthca_fmr *mfmr = to_mfmr(fmr);
+	int err;
+
+	err = mthca_free_fmr(to_mdev(fmr->device), mfmr);
+	if (err)
+		return err;
+
+	kfree(mfmr);
+	return 0;
+}
+
+static int mthca_unmap_fmr(struct list_head *fmr_list)
+{
+	struct ib_fmr *fmr;
+	int err;
+	u8 status;
+	struct mthca_dev *mdev = NULL;
+
+	list_for_each_entry(fmr, fmr_list, list) {
+		if (mdev && to_mdev(fmr->device) != mdev)
+			return -EINVAL;
+		mdev = to_mdev(fmr->device);
+	}
+
+	if (!mdev)
+		return 0;
+
+	if (mdev->hca_type == ARBEL_NATIVE) {
+		list_for_each_entry(fmr, fmr_list, list)
+			mthca_arbel_fmr_unmap(mdev, to_mfmr(fmr));
+
+		wmb();
+	} else
+		list_for_each_entry(fmr, fmr_list, list)
+			mthca_tavor_fmr_unmap(mdev, to_mfmr(fmr));
+
+	err = mthca_SYNC_TPT(mdev, &status);
+	if (err)
+		return err;
+	if (status)
+		return -EINVAL;
+	return 0;
+}
+
 static ssize_t show_rev(struct class_device *cdev, char *buf)
 {
 	struct mthca_dev *dev = container_of(cdev, struct mthca_dev, ib_dev.class_dev);
@@ -637,6 +705,17 @@ int mthca_register_device(struct mthca_dev *dev)
 	dev->ib_dev.get_dma_mr           = mthca_get_dma_mr;
 	dev->ib_dev.reg_phys_mr          = mthca_reg_phys_mr;
 	dev->ib_dev.dereg_mr             = mthca_dereg_mr;
+
+	if (dev->mthca_flags & MTHCA_FLAG_FMR) {
+		dev->ib_dev.alloc_fmr            = mthca_alloc_fmr;
+		dev->ib_dev.unmap_fmr            = mthca_unmap_fmr;
+		dev->ib_dev.dealloc_fmr          = mthca_dealloc_fmr;
+		if (dev->hca_type == ARBEL_NATIVE)
+			dev->ib_dev.map_phys_fmr = mthca_arbel_map_phys_fmr;
+		else
+			dev->ib_dev.map_phys_fmr = mthca_tavor_map_phys_fmr;
+	}
+
 	dev->ib_dev.attach_mcast         = mthca_multicast_attach;
 	dev->ib_dev.detach_mcast         = mthca_multicast_detach;
 	dev->ib_dev.process_mad          = mthca_process_mad;

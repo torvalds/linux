@@ -60,6 +60,24 @@ struct mthca_mr {
 	u32 first_seg;
 };
 
+struct mthca_fmr {
+	struct ib_fmr ibmr;
+	struct ib_fmr_attr attr;
+	int order;
+	u32 first_seg;
+	int maps;
+	union {
+		struct {
+			struct mthca_mpt_entry __iomem *mpt;
+			u64 __iomem *mtts;
+		} tavor;
+		struct {
+			struct mthca_mpt_entry *mpt;
+			__be64 *mtts;
+		} arbel;
+	} mem;
+};
+
 struct mthca_pd {
 	struct ib_pd    ibpd;
 	u32             pd_num;
@@ -217,6 +235,11 @@ struct mthca_sqp {
 	void           *header_buf;
 	dma_addr_t      header_dma;
 };
+
+static inline struct mthca_fmr *to_mfmr(struct ib_fmr *ibmr)
+{
+	return container_of(ibmr, struct mthca_fmr, ibmr);
+}
 
 static inline struct mthca_mr *to_mmr(struct ib_mr *ibmr)
 {
