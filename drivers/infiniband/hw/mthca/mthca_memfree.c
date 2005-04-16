@@ -337,7 +337,8 @@ int mthca_alloc_db(struct mthca_dev *dev, int type, u32 qn, u32 **db)
 		break;
 
 	default:
-		return -1;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	for (i = start; i != end; i += dir)
