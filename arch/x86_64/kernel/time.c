@@ -916,9 +916,16 @@ void __init time_init(void)
 	setup_irq(0, &irq0);
 
 	set_cyc2ns_scale(cpu_khz / 1000);
+
+#ifndef CONFIG_SMP
+	time_init_gtod();
+#endif
 }
 
-void __init time_init_smp(void)
+/*
+ * Decide after all CPUs are booted what mode gettimeofday should use.
+ */
+void __init time_init_gtod(void)
 {
 	char *timetype;
 

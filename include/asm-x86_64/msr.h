@@ -163,6 +163,7 @@ extern inline unsigned int cpuid_edx(unsigned int op)
 #define EFER_NX (1<<_EFER_NX)
 
 /* Intel MSRs. Some also available on other CPUs */
+#define MSR_IA32_TSC		0x10
 #define MSR_IA32_PLATFORM_ID	0x17
 
 #define MSR_IA32_PERFCTR0      0xc1

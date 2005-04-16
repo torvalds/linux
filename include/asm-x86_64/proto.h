@@ -29,7 +29,7 @@ extern void config_acpi_tables(void);
 extern void ia32_syscall(void);
 extern void iommu_hole_init(void);
 
-extern void time_init_smp(void);
+extern void time_init_gtod(void);
 
 extern void do_softirq_thunk(void);
 

@@ -27,6 +27,7 @@
 #include <asm/mach_apic.h>
 #include <asm/mmu_context.h>
 #include <asm/proto.h>
+#include <asm/apicdef.h>
 
 /*
  *	Smarter SMP flushing macros. 
@@ -412,4 +413,28 @@ asmlinkage void smp_call_function_interrupt(void)
 		mb();
 		atomic_inc(&call_data->finished);
 	}
+}
+
+int safe_smp_processor_id(void)
+{
+	int apicid, i;
+
+	if (disable_apic)
+		return 0;
+
+	apicid = hard_smp_processor_id();
+	if (x86_cpu_to_apicid[apicid] == apicid)
+		return apicid;
+
+	for (i = 0; i < NR_CPUS; ++i) {
+		if (x86_cpu_to_apicid[i] == apicid)
+			return i;
+	}
+
+	/* No entries in x86_cpu_to_apicid?  Either no MPS|ACPI,
+	 * or called too early.  Either way, we must be CPU 0. */
+      	if (x86_cpu_to_apicid[0] == BAD_APICID)
+		return 0;
+
+	return 0; /* Should not happen */
 }
