@@ -44,10 +44,7 @@
 
 	.code64
 
-#ifdef CONFIG_PREEMPT
-#define preempt_stop cli
-#else
-#define preempt_stop
+#ifndef CONFIG_PREEMPT
 #define retint_kernel retint_restore_args
 #endif	
 	
