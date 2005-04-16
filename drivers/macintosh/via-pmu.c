@@ -2371,7 +2371,7 @@ pmac_suspend_devices(void)
 	 * use this but still... This will take care of sysdev's as well, so
 	 * we exit from here with local irqs disabled and PIC off.
 	 */
-	ret = device_power_down(PM_SUSPEND_MEM);
+	ret = device_power_down(PMSG_SUSPEND);
 	if (ret) {
 		wakeup_decrementer();
 		local_irq_enable();
