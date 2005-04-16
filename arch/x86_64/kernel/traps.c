@@ -659,9 +659,9 @@ asmlinkage void do_debug(struct pt_regs * regs, unsigned long error_code)
 	asm("movq %%db6,%0" : "=r" (condition));
 
 	if (notify_die(DIE_DEBUG, "debug", regs, condition, error_code,
-						SIGTRAP) == NOTIFY_STOP) {
+						SIGTRAP) == NOTIFY_STOP)
 		return;
-	}
+
 	conditional_sti(regs);
 
 	/* Mask out spurious debug traps due to lazy DR7 setting */
@@ -674,9 +674,7 @@ asmlinkage void do_debug(struct pt_regs * regs, unsigned long error_code)
 	tsk->thread.debugreg6 = condition;
 
 	/* Mask out spurious TF errors due to lazy TF clearing */
-	if ((condition & DR_STEP) &&
-	    (notify_die(DIE_DEBUGSTEP, "debugstep", regs, condition,
-			1, SIGTRAP) != NOTIFY_STOP)) {
+	if (condition & DR_STEP) {
 		/*
 		 * The TF error should be masked out only if the current
 		 * process is not traced and if the TRAP flag has been set
@@ -711,16 +709,10 @@ asmlinkage void do_debug(struct pt_regs * regs, unsigned long error_code)
 	force_sig_info(SIGTRAP, &info, tsk);	
 clear_dr7:
 	asm volatile("movq %0,%%db7"::"r"(0UL));
-	notify_die(DIE_DEBUG, "debug", regs, condition, 1, SIGTRAP);
 	return;
 
 clear_TF_reenable:
 	set_tsk_thread_flag(tsk, TIF_SINGLESTEP);
-
-clear_TF:
-	/* RED-PEN could cause spurious errors */
-	if (notify_die(DIE_DEBUG, "debug2", regs, condition, 1, SIGTRAP) 
-								!= NOTIFY_STOP)
 	regs->eflags &= ~TF_MASK;
 }
 

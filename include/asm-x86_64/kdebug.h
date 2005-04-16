@@ -23,7 +23,6 @@ enum die_val {
 	DIE_OOPS = 1,
 	DIE_INT3,
 	DIE_DEBUG,
-	DIE_DEBUGSTEP,
 	DIE_PANIC,
 	DIE_NMI,
 	DIE_DIE,
