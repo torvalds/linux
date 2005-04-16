@@ -23,7 +23,7 @@ SECTIONS
   . = VSYSCALL_BASE + 0x400;
 
   .text           : { *(.text) }		:text =0x90909090
-
+  .note		  : { *(.note.*) }		:text :note
   .eh_frame_hdr   : { *(.eh_frame_hdr) }	:text :eh_frame_hdr
   .eh_frame       : { KEEP (*(.eh_frame)) }	:text
   .dynamic        : { *(.dynamic) }		:text :dynamic
@@ -43,6 +43,7 @@ PHDRS
 {
   text PT_LOAD FILEHDR PHDRS FLAGS(5); /* PF_R|PF_X */
   dynamic PT_DYNAMIC FLAGS(4); /* PF_R */
+  note PT_NOTE FLAGS(4); /* PF_R */
   eh_frame_hdr 0x6474e550; /* PT_GNU_EH_FRAME, but ld doesn't match the name */
 }
 
