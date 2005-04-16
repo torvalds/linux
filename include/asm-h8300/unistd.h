@@ -310,163 +310,155 @@ do { \
 	return (type) (res); \
 } while (0)
 
-#define _syscall0(type, name)							\
-type name(void)									\
-{										\
-  register long __res __asm__("er0");						\
-  __asm__ __volatile__ ("mov.l	%1,er0\n\t"					\
-  			"trapa	#0\n\t"						\
-			: "=r" (__res)						\
-			: "ir" (__NR_##name)					\
-			: "cc");						\
-  if ((unsigned long)(__res) >= (unsigned long)(-125)) {			\
-    errno = -__res;								\
-    __res = -1;									\
-  }										\
-  return (type)__res;								\
+#define _syscall0(type, name)				\
+type name(void)						\
+{							\
+  register long __res __asm__("er0");			\
+  __asm__ __volatile__ ("mov.l %1,er0\n\t"		\
+                        "trapa	#0\n\t"			\
+			: "=r" (__res)			\
+			: "g" (__NR_##name)		\
+			: "cc", "memory");		\
+  __syscall_return(type, __res);			\
 }
 
-#define _syscall1(type, name, atype, a)						\
-type name(atype a)								\
-{										\
-  register long __res __asm__("er0");						\
-  __asm__ __volatile__ ("mov.l	%2, er1\n\t"					\
-  			"mov.l	%1, er0\n\t"					\
-  			"trapa	#0\n\t"						\
-			: "=r" (__res)						\
-			: "ir" (__NR_##name),					\
-			  "g" ((long)a)						\
-			: "cc", "er1");					\
-  if ((unsigned long)(__res) >= (unsigned long)(-125)) {			\
-    errno = -__res;								\
-    __res = -1;									\
-  }										\
-  return (type)__res;								\
+#define _syscall1(type, name, atype, a)			\
+type name(atype a)					\
+{							\
+  register long __res __asm__("er0");			\
+  register long _a __asm__("er1");			\
+  _a = (long)a;						\
+  __asm__ __volatile__ ("mov.l %1,er0\n\t"		\
+                        "trapa	#0\n\t"			\
+			: "=r" (__res)			\
+			: "g" (__NR_##name),		\
+			  "g" (_a)			\
+			: "cc", "memory");	 	\
+  __syscall_return(type, __res);			\
 }
 
-#define _syscall2(type, name, atype, a, btype, b)				\
-type name(atype a, btype b)							\
-{										\
-  register long __res __asm__("er0");						\
-  __asm__ __volatile__ ("mov.l	%3, er2\n\t"					\
-  			"mov.l	%2, er1\n\t"					\
-			"mov.l	%1, er0\n\t"					\
-  			"trapa	#0\n\t"						\
-			: "=r" (__res)						\
-			: "ir" (__NR_##name),					\
-			  "g" ((long)a),					\
-			  "g" ((long)b)						\
-			: "cc", "er1", "er2"); 				\
-  if ((unsigned long)(__res) >= (unsigned long)(-125)) {			\
-    errno = -__res;								\
-    __res = -1;									\
-  }										\
-  return (type)__res;								\
+#define _syscall2(type, name, atype, a, btype, b)	\
+type name(atype a, btype b)				\
+{							\
+  register long __res __asm__("er0");			\
+  register long _a __asm__("er1");			\
+  register long _b __asm__("er2");			\
+  _a = (long)a;						\
+  _b = (long)b;						\
+  __asm__ __volatile__ ("mov.l %1,er0\n\t"		\
+                        "trapa	#0\n\t"			\
+			: "=r" (__res)			\
+			: "g" (__NR_##name),		\
+			  "g" (_a),			\
+			  "g" (_b)			\
+			: "cc", "memory");	 	\
+  __syscall_return(type, __res);			\
 }
 
-#define _syscall3(type, name, atype, a, btype, b, ctype, c)			\
-type name(atype a, btype b, ctype c)						\
-{										\
-  register long __res __asm__("er0");						\
-  __asm__ __volatile__ ("mov.l	%4, er3\n\t"					\
-			"mov.l	%3, er2\n\t"					\
-  			"mov.l	%2, er1\n\t"					\
-			"mov.l	%1, er0\n\t"					\
-  			"trapa	#0\n\t"						\
-			: "=r" (__res)						\
-			: "ir" (__NR_##name),					\
-			  "g" ((long)a),					\
-			  "g" ((long)b),					\
-			  "g" ((long)c)						\
-			: "cc", "er1", "er2", "er3");  			\
-  if ((unsigned long)(__res) >= (unsigned long)(-125)) {			\
-    errno = -__res;								\
-    __res = -1;									\
-  }										\
-  return (type)__res;								\
+#define _syscall3(type, name, atype, a, btype, b, ctype, c)	\
+type name(atype a, btype b, ctype c)			\
+{							\
+  register long __res __asm__("er0");			\
+  register long _a __asm__("er1");			\
+  register long _b __asm__("er2");			\
+  register long _c __asm__("er3");			\
+  _a = (long)a;						\
+  _b = (long)b;						\
+  _c = (long)c;						\
+  __asm__ __volatile__ ("mov.l %1,er0\n\t"		\
+                        "trapa	#0\n\t"			\
+			: "=r" (__res)			\
+			: "g" (__NR_##name),		\
+			  "g" (_a),			\
+			  "g" (_b),			\
+			  "g" (_c)			\
+			: "cc", "memory");		\
+  __syscall_return(type, __res);			\
 }
 
-#define _syscall4(type, name, atype, a, btype, b, ctype, c, dtype, d)		\
-type name(atype a, btype b, ctype c, dtype d)					\
-{										\
-  register long __res __asm__("er0");						\
-  __asm__ __volatile__ ("mov.l	%5, er4\n\t"					\
-			"mov.l	%4, er3\n\t"					\
-			"mov.l	%3, er2\n\t"					\
-  			"mov.l	%2, er1\n\t"					\
-			"mov.l	%1, er0\n\t"					\
-  			"trapa	#0\n\t"						\
-			: "=r" (__res)						\
-			: "ir" (__NR_##name),					\
-			  "g" ((long)a),					\
-			  "g" ((long)b),					\
-			  "g" ((long)c),					\
-			  "g" ((long)d)						\
-			: "cc", "er1", "er2", "er3", "er4");			\
-  if ((unsigned long)(__res) >= (unsigned long)(-125)) {			\
-    errno = -__res;								\
-    __res = -1;									\
-  }										\
-  return (type)__res;								\
+#define _syscall4(type, name, atype, a, btype, b,	\
+                  ctype, c, dtype, d)			\
+type name(atype a, btype b, ctype c, dtype d)		\
+{							\
+  register long __res __asm__("er0");			\
+  register long _a __asm__("er1");			\
+  register long _b __asm__("er2");			\
+  register long _c __asm__("er3");			\
+  register long _d __asm__("er4");			\
+  _a = (long)a;						\
+  _b = (long)b;						\
+  _c = (long)c;						\
+  _d = (long)d;						\
+  __asm__ __volatile__ ("mov.l	%1,er0\n\t"		\
+                        "trapa	#0\n\t"			\
+			: "=r" (__res)			\
+			: "g" (__NR_##name),		\
+			  "g" (_a),			\
+			  "g" (_b),			\
+			  "g" (_c),			\
+			  "g" (_d)			\
+			: "cc", "memory");		\
+  __syscall_return(type, __res);			\
 }
 
-#define _syscall5(type, name, atype, a, btype, b, ctype, c, dtype, d, etype, e)	\
-type name(atype a, btype b, ctype c, dtype d, etype e)				\
-{										\
-  register long __res __asm__("er0");						\
-  __asm__ __volatile__ ("mov.l	%6, er5\n\t"					\
-			"mov.l	%5, er4\n\t"					\
-			"mov.l	%4, er3\n\t"					\
-			"mov.l	%3, er2\n\t"					\
-  			"mov.l	%2, er1\n\t"					\
-			"mov.l	%1, er0\n\t"					\
-  			"trapa	#0\n\t"						\
-			: "=r" (__res)						\
-			: "ir" (__NR_##name),					\
-			  "g" ((long)a),					\
-			  "g" ((long)b),					\
-			  "g" ((long)c),					\
-			  "g" ((long)d),					\
-			  "m" ((long)e)						\
-			: "cc", "er1", "er2", "er3", "er4", "er5");		\
-  if ((unsigned long)(__res) >= (unsigned long)(-125)) {		       	\
-    errno = -__res;								\
-    __res = -1;									\
-  }										\
-  return (type)__res;								\
+#define _syscall5(type, name, atype, a, btype, b,	\
+                  ctype, c, dtype, d, etype, e)		\
+type name(atype a, btype b, ctype c, dtype d, etype e)	\
+{							\
+  register long __res __asm__("er0");			\
+  register long _a __asm__("er1");			\
+  register long _b __asm__("er2");			\
+  register long _c __asm__("er3");			\
+  register long _d __asm__("er4");			\
+  register long _e __asm__("er5");			\
+  _a = (long)a;                                       	\
+  _b = (long)b;                                       	\
+  _c = (long)c;                                       	\
+  _d = (long)d;                                       	\
+  _e = (long)e;                                       	\
+  __asm__ __volatile__ ("mov.l	%1,er0\n\t"		\
+                        "trapa	#0\n\t"			\
+			: "=r" (__res)			\
+			: "g" (__NR_##name),		\
+			  "g" (_a),			\
+			  "g" (_b),			\
+			  "g" (_c),			\
+			  "g" (_d),			\
+			  "g" (_e)			\
+			: "cc", "memory");		\
+  __syscall_return(type, __res);			\
 }
-		
-#define _syscall6(type, name, atype, a, btype, b, ctype, c, dtype, d,           \
-                              etype, e, ftype, f)	                        \
-type name(atype a, btype b, ctype c, dtype d, etype e, ftype f)			\
-{										\
-  register long __res __asm__("er0");						\
-  __asm__ __volatile__ ("mov.l	er6,@-sp\n\t"					\
-                        "mov.l	%7, er6\n\t"					\
-                        "mov.l	%6, er5\n\t"					\
-			"mov.l	%5, er4\n\t"					\
-			"mov.l	%4, er3\n\t"					\
-			"mov.l	%3, er2\n\t"					\
-  			"mov.l	%2, er1\n\t"					\
-			"mov.l	%1, er0\n\t"					\
-  			"trapa	#0\n\t"						\
-  			"mov.l	@sp+,er6"					\
-			: "=r" (__res)						\
-			: "ir" (__NR_##name),					\
-			  "g" ((long)a),					\
-			  "g" ((long)b),					\
-			  "g" ((long)c),					\
-			  "g" ((long)d),					\
-			  "m" ((long)e),					\
-			  "m" ((long)e)						\
-			: "cc", "er1", "er2", "er3", "er4", "er5");		\
-  if ((unsigned long)(__res) >= (unsigned long)(-125)) {		       	\
-    errno = -__res;								\
-    __res = -1;									\
-  }										\
-  return (type)__res;								\
+
+#define _syscall6(type, name, atype, a, btype, b,	\
+                  ctype, c, dtype, d, etype, e, ftype, f)	\
+type name(atype a, btype b, ctype c, dtype d, etype e, ftype f)	\
+{							\
+  register long __res __asm__("er0");			\
+  register long _a __asm__("er1");			\
+  register long _b __asm__("er2");			\
+  register long _c __asm__("er3");			\
+  register long _d __asm__("er4");			\
+  register long _e __asm__("er5");			\
+  register long _f __asm__("er6");			\
+  _a = (long)a;                                       	\
+  _b = (long)b;                                       	\
+  _c = (long)c;                                       	\
+  _d = (long)d;                                       	\
+  _e = (long)e;                                       	\
+  _f = (long)f;                                       	\
+  __asm__ __volatile__ ("mov.l	%1,er0\n\t"		\
+                        "trapa	#0\n\t"			\
+			: "=r" (__res)			\
+			: "g" (__NR_##name),		\
+			  "g" (_a),			\
+			  "g" (_b),			\
+			  "g" (_c),			\
+			  "g" (_d),			\
+			  "g" (_e)			\
+			  "g" (_f)			\
+			: "cc", "memory");		\
+  __syscall_return(type, __res);			\
 }
-		
 
 #ifdef __KERNEL__
 #define __ARCH_WANT_IPC_PARSE_VERSION
