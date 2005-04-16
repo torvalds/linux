@@ -368,6 +368,18 @@ handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 		}
 	}
 
+	/*
+	 * If TF is set due to a debugger (PT_DTRACE), clear the TF
+	 * flag so that register information in the sigcontext is
+	 * correct.
+	 */
+	if (unlikely(regs->eflags & TF_MASK)) {
+		if (likely(current->ptrace & PT_DTRACE)) {
+			current->ptrace &= ~PT_DTRACE;
+			regs->eflags &= ~TF_MASK;
+		}
+	}
+
 #ifdef CONFIG_IA32_EMULATION
 	if (test_thread_flag(TIF_IA32)) {
 		if (ka->sa.sa_flags & SA_SIGINFO)
