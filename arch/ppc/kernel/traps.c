@@ -805,6 +805,13 @@ void AltivecAssistException(struct pt_regs *regs)
 	if (regs->msr & MSR_VEC)
 		giveup_altivec(current);
 	preempt_enable();
+	if (!user_mode(regs)) {
+		printk(KERN_ERR "altivec assist exception in kernel mode"
+		       " at %lx\n", regs->nip);
+		debugger(regs);
+		die("altivec assist exception", regs, SIGFPE);
+		return;
+	}
 
 	err = emulate_altivec(regs);
 	if (err == 0) {
