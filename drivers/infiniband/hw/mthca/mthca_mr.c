@@ -38,6 +38,7 @@
 
 #include "mthca_dev.h"
 #include "mthca_cmd.h"
+#include "mthca_memfree.h"
 
 /*
  * Must be packed because mtt_seg is 64 bits but only aligned to 32 bits.
@@ -71,7 +72,7 @@ struct mthca_mpt_entry {
  * through the bitmaps)
  */
 
-static u32 mthca_alloc_mtt(struct mthca_dev *dev, int order)
+static u32 __mthca_alloc_mtt(struct mthca_dev *dev, int order)
 {
 	int o;
 	int m;
@@ -105,7 +106,7 @@ static u32 mthca_alloc_mtt(struct mthca_dev *dev, int order)
 	return seg;
 }
 
-static void mthca_free_mtt(struct mthca_dev *dev, u32 seg, int order)
+static void __mthca_free_mtt(struct mthca_dev *dev, u32 seg, int order)
 {
 	seg >>= order;
 
@@ -120,6 +121,32 @@ static void mthca_free_mtt(struct mthca_dev *dev, u32 seg, int order)
 	set_bit(seg, dev->mr_table.mtt_buddy[order]);
 
 	spin_unlock(&dev->mr_table.mpt_alloc.lock);
+}
+
+static u32 mthca_alloc_mtt(struct mthca_dev *dev, int order)
+{
+	u32 seg = __mthca_alloc_mtt(dev, order);
+
+	if (seg == -1)
+		return -1;
+
+	if (dev->hca_type == ARBEL_NATIVE)
+		if (mthca_table_get_range(dev, dev->mr_table.mtt_table, seg,
+					  seg + (1 << order) - 1)) {
+			__mthca_free_mtt(dev, seg, order);
+			seg = -1;
+		}
+
+	return seg;
+}
+
+static void mthca_free_mtt(struct mthca_dev *dev, u32 seg, int order)
+{
+	__mthca_free_mtt(dev, seg, order);
+
+	if (dev->hca_type == ARBEL_NATIVE)
+		mthca_table_put_range(dev, dev->mr_table.mtt_table, seg,
+				      seg + (1 << order) - 1);
 }
 
 static inline u32 hw_index_to_key(struct mthca_dev *dev, u32 ind)
@@ -141,7 +168,7 @@ static inline u32 key_to_hw_index(struct mthca_dev *dev, u32 key)
 int mthca_mr_alloc_notrans(struct mthca_dev *dev, u32 pd,
 			   u32 access, struct mthca_mr *mr)
 {
-	void *mailbox;
+	void *mailbox = NULL;
 	struct mthca_mpt_entry *mpt_entry;
 	u32 key;
 	int err;
@@ -155,11 +182,17 @@ int mthca_mr_alloc_notrans(struct mthca_dev *dev, u32 pd,
 		return -ENOMEM;
 	mr->ibmr.rkey = mr->ibmr.lkey = hw_index_to_key(dev, key);
 
+	if (dev->hca_type == ARBEL_NATIVE) {
+		err = mthca_table_get(dev, dev->mr_table.mpt_table, key);
+		if (err)
+			goto err_out_mpt_free;
+	}
+
 	mailbox = kmalloc(sizeof *mpt_entry + MTHCA_CMD_MAILBOX_EXTRA,
 			  GFP_KERNEL);
 	if (!mailbox) {
-		mthca_free(&dev->mr_table.mpt_alloc, mr->ibmr.lkey);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto err_out_table;
 	}
 	mpt_entry = MAILBOX_ALIGN(mailbox);
 
@@ -180,14 +213,25 @@ int mthca_mr_alloc_notrans(struct mthca_dev *dev, u32 pd,
 	err = mthca_SW2HW_MPT(dev, mpt_entry,
 			      key & (dev->limits.num_mpts - 1),
 			      &status);
-	if (err)
+	if (err) {
 		mthca_warn(dev, "SW2HW_MPT failed (%d)\n", err);
-	else if (status) {
+		goto err_out_table;
+	} else if (status) {
 		mthca_warn(dev, "SW2HW_MPT returned status 0x%02x\n",
 			   status);
 		err = -EINVAL;
+		goto err_out_table;
 	}
 
+	kfree(mailbox);
+	return err;
+
+err_out_table:
+	if (dev->hca_type == ARBEL_NATIVE)
+		mthca_table_put(dev, dev->mr_table.mpt_table, key);
+
+err_out_mpt_free:
+	mthca_free(&dev->mr_table.mpt_alloc, mr->ibmr.lkey);
 	kfree(mailbox);
 	return err;
 }
@@ -213,6 +257,12 @@ int mthca_mr_alloc_phys(struct mthca_dev *dev, u32 pd,
 		return -ENOMEM;
 	mr->ibmr.rkey = mr->ibmr.lkey = hw_index_to_key(dev, key);
 
+	if (dev->hca_type == ARBEL_NATIVE) {
+		err = mthca_table_get(dev, dev->mr_table.mpt_table, key);
+		if (err)
+			goto err_out_mpt_free;
+	}
+
 	for (i = dev->limits.mtt_seg_size / 8, mr->order = 0;
 	     i < list_len;
 	     i <<= 1, ++mr->order)
@@ -220,7 +270,7 @@ int mthca_mr_alloc_phys(struct mthca_dev *dev, u32 pd,
 
 	mr->first_seg = mthca_alloc_mtt(dev, mr->order);
 	if (mr->first_seg == -1)
-		goto err_out_mpt_free;
+		goto err_out_table;
 
 	/*
 	 * If list_len is odd, we add one more dummy entry for
@@ -307,13 +357,17 @@ int mthca_mr_alloc_phys(struct mthca_dev *dev, u32 pd,
 	kfree(mailbox);
 	return err;
 
- err_out_mailbox_free:
+err_out_mailbox_free:
 	kfree(mailbox);
 
- err_out_free_mtt:
+err_out_free_mtt:
 	mthca_free_mtt(dev, mr->first_seg, mr->order);
 
- err_out_mpt_free:
+err_out_table:
+	if (dev->hca_type == ARBEL_NATIVE)
+		mthca_table_put(dev, dev->mr_table.mpt_table, key);
+
+err_out_mpt_free:
 	mthca_free(&dev->mr_table.mpt_alloc, mr->ibmr.lkey);
 	return err;
 }
@@ -338,6 +392,9 @@ void mthca_free_mr(struct mthca_dev *dev, struct mthca_mr *mr)
 	if (mr->order >= 0)
 		mthca_free_mtt(dev, mr->first_seg, mr->order);
 
+	if (dev->hca_type == ARBEL_NATIVE)
+		mthca_table_put(dev, dev->mr_table.mpt_table,
+				key_to_hw_index(dev, mr->ibmr.lkey));
 	mthca_free(&dev->mr_table.mpt_alloc, key_to_hw_index(dev, mr->ibmr.lkey));
 }
 
