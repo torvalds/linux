@@ -58,13 +58,23 @@ unsigned int fastcall ioread16(void __iomem *addr)
 {
 	IO_COND(addr, return inw(port), return readw(addr));
 }
+unsigned int fastcall ioread16be(void __iomem *addr)
+{
+	IO_COND(addr, return inw(port), return be16_to_cpu(__raw_readw(addr)));
+}
 unsigned int fastcall ioread32(void __iomem *addr)
 {
 	IO_COND(addr, return inl(port), return readl(addr));
 }
+unsigned int fastcall ioread32be(void __iomem *addr)
+{
+	IO_COND(addr, return inl(port), return be32_to_cpu(__raw_readl(addr)));
+}
 EXPORT_SYMBOL(ioread8);
 EXPORT_SYMBOL(ioread16);
+EXPORT_SYMBOL(ioread16be);
 EXPORT_SYMBOL(ioread32);
+EXPORT_SYMBOL(ioread32be);
 
 void fastcall iowrite8(u8 val, void __iomem *addr)
 {
@@ -74,13 +84,23 @@ void fastcall iowrite16(u16 val, void __iomem *addr)
 {
 	IO_COND(addr, outw(val,port), writew(val, addr));
 }
+void fastcall iowrite16be(u16 val, void __iomem *addr)
+{
+	IO_COND(addr, outw(val,port), __raw_writew(cpu_to_be16(val), addr));
+}
 void fastcall iowrite32(u32 val, void __iomem *addr)
 {
 	IO_COND(addr, outl(val,port), writel(val, addr));
 }
+void fastcall iowrite32be(u32 val, void __iomem *addr)
+{
+	IO_COND(addr, outl(val,port), __raw_writel(cpu_to_be32(val), addr));
+}
 EXPORT_SYMBOL(iowrite8);
 EXPORT_SYMBOL(iowrite16);
+EXPORT_SYMBOL(iowrite16be);
 EXPORT_SYMBOL(iowrite32);
+EXPORT_SYMBOL(iowrite32be);
 
 /*
  * These are the "repeat MMIO read/write" functions.

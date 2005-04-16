@@ -2,6 +2,7 @@
 #define __GENERIC_IO_H
 
 #include <linux/linkage.h>
+#include <asm/byteorder.h>
 
 /*
  * These are the "generic" interfaces for doing new-style
@@ -26,11 +27,15 @@
  */
 extern unsigned int fastcall ioread8(void __iomem *);
 extern unsigned int fastcall ioread16(void __iomem *);
+extern unsigned int fastcall ioread16be(void __iomem *);
 extern unsigned int fastcall ioread32(void __iomem *);
+extern unsigned int fastcall ioread32be(void __iomem *);
 
 extern void fastcall iowrite8(u8, void __iomem *);
 extern void fastcall iowrite16(u16, void __iomem *);
+extern void fastcall iowrite16be(u16, void __iomem *);
 extern void fastcall iowrite32(u32, void __iomem *);
+extern void fastcall iowrite32be(u32, void __iomem *);
 
 /*
  * "string" versions of the above. Note that they
