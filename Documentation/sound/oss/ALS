@@ -1,0 +1,66 @@
+ALS-007/ALS-100/ALS-200 based sound cards
+=========================================
+
+Support for sound cards based around the Avance Logic
+ALS-007/ALS-100/ALS-200 chip is included.  These chips are a single
+chip PnP sound solution which is mostly hardware compatible with the
+Sound Blaster 16 card, with most differences occurring in the use of
+the mixer registers.  For this reason the ALS code is integrated
+as part of the Sound Blaster 16 driver (adding only 800 bytes to the
+SB16 driver).
+
+To use an ALS sound card under Linux, enable the following options as
+modules in the sound configuration section of the kernel config:
+  - 100% Sound Blaster compatibles (SB16/32/64, ESS, Jazz16) support
+  - FM synthesizer (YM3812/OPL-3) support 
+  - standalone MPU401 support may be required for some cards; for the
+    ALS-007, when using isapnptools, it is required
+Since the ALS-007/100/200 are PnP cards, ISAPnP support should probably be
+compiled in.  If kernel level PnP support is not included, isapnptools will
+be required to configure the card before the sound modules are loaded.
+
+When using kernel level ISAPnP, the kernel should correctly identify and
+configure all resources required by the card when the "sb" module is
+inserted.  Note that the ALS-007 does not have a 16 bit DMA channel and that
+the MPU401 interface on this card uses a different interrupt to the audio
+section.  This should all be correctly configured by the kernel; if problems
+with the MPU401 interface surface, try using the standalone MPU401 module,
+passing "0" as the "sb" module's "mpu_io" module parameter to prevent the
+soundblaster driver attempting to register the MPU401 itself.  The onboard
+synth device can be accessed using the "opl3" module.
+
+If isapnptools is used to wake up the sound card (as in 2.2.x), the settings
+of the card's resources should be passed to the kernel modules ("sb", "opl3"
+and "mpu401") using the module parameters.  When configuring an ALS-007, be
+sure to specify different IRQs for the audio and MPU401 sections - this card
+requires they be different.  For "sb", "io", "irq" and "dma" should be set
+to the same values used to configure the audio section of the card with
+isapnp.  "dma16" should be explicitly set to "-1" for an ALS-007 since this
+card does not have a 16 bit dma channel; if not specified the kernel will
+default to using channel 5 anyway which will cause audio not to work. 
+"mpu_io" should be set to 0.  The "io" parameter of the "opl3" module should
+also agree with the setting used by isapnp.  To get the MPU401 interface
+working on an ALS-007 card, the "mpu401" module will be required since this
+card uses separate IRQs for the audio and MPU401 sections and there is no
+parameter available to pass a different IRQ to the "sb" driver (whose
+inbuilt MPU401 driver would otherwise be fine).  Insert the mpu401 module
+passing appropriate values using the "io" and "irq" parameters.
+
+The resulting sound driver will provide the following capabilities:
+  - 8 and 16 bit audio playback
+  - 8 and 16 bit audio recording
+  - Software selection of record source (line in, CD, FM, mic, master)
+  - Record and playback of midi data via the external MPU-401
+  - Playback of midi data using inbuilt FM synthesizer
+  - Control of the ALS-007 mixer via any OSS-compatible mixer programs. 
+    Controls available are Master (L&R), Line in (L&R), CD (L&R), 
+    DSP/PCM/audio out (L&R), FM (L&R) and Mic in (mono).
+
+Jonathan Woithe
+jwoithe@physics.adelaide.edu.au
+30 March 1998
+
+Modified 2000-02-26 by Dave Forrest, drf5n@virginia.edu to add ALS100/ALS200
+Modified 2000-04-10 by Paul Laufer, pelaufer@csupomona.edu to add ISAPnP info.
+Modified 2000-11-19 by Jonathan Woithe, jwoithe@physics.adelaide.edu.au
+ - updated information for kernel 2.4.x.

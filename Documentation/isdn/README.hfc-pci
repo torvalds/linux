@@ -1,0 +1,41 @@
+The driver for the HFC-PCI and HFC-PCI-A chips from CCD may be used
+for many OEM cards using this chips.
+Additionally the driver has a special feature which makes it possible
+to read the echo-channel of the isdn bus. So all frames in both directions
+may be logged.
+When the echo logging feature is used the number of available B-channels
+for a HFC-PCI card is reduced to 1. Of course this is only relevant to
+the card, not to the isdn line.
+To activate the echo mode the following ioctls must be entered:
+
+hisaxctrl <driver/cardname> 10 1
+
+This reduces the available channels to 1. There must not be open connections
+through this card when entering the command.
+And then:
+
+hisaxctrl <driver/cardname> 12 1
+
+This enables the echo mode. If Hex logging is activated the isdnctrlx 
+devices show a output with a line beginning of HEX: for the providers
+exchange and ECHO: for isdn devices sending to the provider.
+
+If more than one HFC-PCI cards are installed, a specific card may be selected
+at the hisax module load command line. Supply the load command with the desired
+IO-address of the desired card. 
+Example:
+There tree cards installed in your machine at IO-base addresses 0xd000, 0xd400 
+and 0xdc00
+If you want to use the card at 0xd400 standalone you should supply the insmod
+or depmod with type=35 io=0xd400.
+If you want to use all three cards, but the order needs to be at 0xdc00,0xd400,
+0xd000 you may give the parameters type=35,35,35 io=0xdc00,0xd400,0xd00 
+Then the desired card will be the initialised in the desired order.
+If the io parameter is used the io addresses of all used cards should be 
+supplied else the parameter is assumed 0 and a auto search for a free card is
+invoked which may not give the wanted result. 
+
+Comments and reports to werner@isdn4linux.de or werner@isdn-development.de
+
+
+

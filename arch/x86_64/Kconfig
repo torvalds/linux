@@ -1,0 +1,477 @@
+#
+# For a description of the syntax of this configuration file,
+# see Documentation/kbuild/kconfig-language.txt.
+#
+# Note: ISA is disabled and will hopefully never be enabled.
+# If you managed to buy an ISA x86-64 box you'll have to fix all the
+# ISA drivers you need yourself.
+#
+
+mainmenu "Linux Kernel Configuration"
+
+config X86_64
+	bool
+	default y
+	help
+	  Port to the x86-64 architecture. x86-64 is a 64-bit extension to the
+	  classical 32-bit x86 architecture. For details see
+	  <http://www.x86-64.org/>.
+
+config 64BIT
+	def_bool y
+
+config X86
+	bool
+	default y
+
+config MMU
+	bool
+	default y
+
+config ISA
+	bool
+
+config SBUS
+	bool
+
+config RWSEM_GENERIC_SPINLOCK
+	bool
+	default y
+
+config RWSEM_XCHGADD_ALGORITHM
+	bool
+
+config GENERIC_CALIBRATE_DELAY
+	bool
+	default y
+
+config X86_CMPXCHG
+	bool
+	default y
+
+config EARLY_PRINTK
+	bool
+	default y
+
+config GENERIC_ISA_DMA
+	bool
+	default y
+
+config GENERIC_IOMAP
+	bool
+	default y
+
+source "init/Kconfig"
+
+
+menu "Processor type and features"
+
+choice
+	prompt "Processor family"
+	default MK8
+
+config MK8
+	bool "AMD-Opteron/Athlon64"
+	help
+	  Optimize for AMD Opteron/Athlon64/Hammer/K8 CPUs.
+
+config MPSC
+       bool "Intel EM64T"
+       help
+	  Optimize for Intel Pentium 4 and Xeon CPUs with Intel
+	  Extended Memory 64 Technology(EM64T). For details see
+	  <http://www.intel.com/technology/64bitextensions/>.
+
+config GENERIC_CPU
+	bool "Generic-x86-64"
+	help
+	  Generic x86-64 CPU.
+
+endchoice
+
+#
+# Define implied options from the CPU selection here
+#
+config X86_L1_CACHE_BYTES
+	int
+	default "128" if GENERIC_CPU || MPSC
+	default "64" if MK8
+
+config X86_L1_CACHE_SHIFT
+	int
+	default "7" if GENERIC_CPU || MPSC
+	default "6" if MK8
+
+config X86_TSC
+	bool
+	default y
+
+config X86_GOOD_APIC
+	bool
+	default y
+
+config MICROCODE
+	tristate "/dev/cpu/microcode - Intel CPU microcode support"
+	---help---
+	  If you say Y here the 'File systems' section, you will be
+	  able to update the microcode on Intel processors. You will
+	  obviously need the actual microcode binary data itself which is
+	  not shipped with the Linux kernel.
+
+	  For latest news and information on obtaining all the required
+	  ingredients for this driver, check:
+	  <http://www.urbanmyth.org/microcode/>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called microcode.
+	  If you use modprobe or kmod you may also want to add the line
+	  'alias char-major-10-184 microcode' to your /etc/modules.conf file.
+
+config X86_MSR
+	tristate "/dev/cpu/*/msr - Model-specific register support"
+	help
+	  This device gives privileged processes access to the x86
+	  Model-Specific Registers (MSRs).  It is a character device with
+	  major 202 and minors 0 to 31 for /dev/cpu/0/msr to /dev/cpu/31/msr.
+	  MSR accesses are directed to a specific CPU on multi-processor
+	  systems.
+
+config X86_CPUID
+	tristate "/dev/cpu/*/cpuid - CPU information support"
+	help
+	  This device gives processes access to the x86 CPUID instruction to
+	  be executed on a specific processor.  It is a character device
+	  with major 203 and minors 0 to 31 for /dev/cpu/0/cpuid to
+	  /dev/cpu/31/cpuid.
+
+# disable it for opteron optimized builds because it pulls in ACPI_BOOT
+config X86_HT
+	bool
+	depends on SMP && !MK8
+	default y
+
+config MATH_EMULATION
+	bool
+
+config MCA
+	bool
+
+config EISA
+	bool
+
+config X86_IO_APIC
+	bool
+	default y
+
+config X86_LOCAL_APIC
+	bool
+	default y
+
+config MTRR
+	bool "MTRR (Memory Type Range Register) support"
+	---help---
+	  On Intel P6 family processors (Pentium Pro, Pentium II and later)
+	  the Memory Type Range Registers (MTRRs) may be used to control
+	  processor access to memory ranges. This is most useful if you have
+	  a video (VGA) card on a PCI or AGP bus. Enabling write-combining
+	  allows bus write transfers to be combined into a larger transfer
+	  before bursting over the PCI/AGP bus. This can increase performance
+	  of image write operations 2.5 times or more. Saying Y here creates a
+	  /proc/mtrr file which may be used to manipulate your processor's
+	  MTRRs. Typically the X server should use this.
+
+	  This code has a reasonably generic interface so that similar
+	  control registers on other processors can be easily supported
+	  as well.
+
+	  Saying Y here also fixes a problem with buggy SMP BIOSes which only
+	  set the MTRRs for the boot CPU and not for the secondary CPUs. This
+	  can lead to all sorts of problems, so it's good to say Y here.
+
+	  Just say Y here, all x86-64 machines support MTRRs.
+
+	  See <file:Documentation/mtrr.txt> for more information.
+
+config SMP
+	bool "Symmetric multi-processing support"
+	---help---
+	  This enables support for systems with more than one CPU. If you have
+	  a system with only one CPU, like most personal computers, say N. If
+	  you have a system with more than one CPU, say Y.
+
+	  If you say N here, the kernel will run on single and multiprocessor
+	  machines, but will use only one CPU of a multiprocessor machine. If
+	  you say Y here, the kernel will run on many, but not all,
+	  singleprocessor machines. On a singleprocessor machine, the kernel
+	  will run faster if you say N here.
+
+	  If you don't know what to do here, say N.
+
+config PREEMPT
+	bool "Preemptible Kernel"
+	---help---
+	  This option reduces the latency of the kernel when reacting to
+	  real-time or interactive events by allowing a low priority process to
+	  be preempted even if it is in kernel mode executing a system call.
+	  This allows applications to run more reliably even when the system is
+	  under load. On contrary it may also break your drivers and add
+	  priority inheritance problems to your system. Don't select it if
+	  you rely on a stable system or have slightly obscure hardware.
+	  It's also not very well tested on x86-64 currently.
+	  You have been warned.
+
+	  Say Y here if you are feeling brave and building a kernel for a
+	  desktop, embedded or real-time system.  Say N if you are unsure.
+
+config PREEMPT_BKL
+	bool "Preempt The Big Kernel Lock"
+	depends on PREEMPT
+	default y
+	help
+	  This option reduces the latency of the kernel by making the
+	  big kernel lock preemptible.
+
+	  Say Y here if you are building a kernel for a desktop system.
+	  Say N if you are unsure.
+
+config SCHED_SMT
+	bool "SMT (Hyperthreading) scheduler support"
+	depends on SMP
+	default n
+	help
+	  SMT scheduler support improves the CPU scheduler's decision making
+	  when dealing with Intel Pentium 4 chips with HyperThreading at a
+	  cost of slightly increased overhead in some places. If unsure say
+	  N here.
+
+config K8_NUMA
+       bool "K8 NUMA support"
+       select NUMA
+       depends on SMP
+       help
+	  Enable NUMA (Non Unified Memory Architecture) support for
+	  AMD Opteron Multiprocessor systems. The kernel will try to allocate
+	  memory used by a CPU on the local memory controller of the CPU
+	  and add some more NUMA awareness to the kernel.
+	  This code is recommended on all multiprocessor Opteron systems
+	  and normally doesn't hurt on others.
+
+config NUMA_EMU
+	bool "NUMA emulation support"
+	select NUMA
+	depends on SMP
+	help
+	  Enable NUMA emulation. A flat machine will be split
+	  into virtual nodes when booted with "numa=fake=N", where N is the
+	  number of nodes. This is only useful for debugging.
+
+config DISCONTIGMEM
+       bool
+       depends on NUMA
+       default y
+
+config NUMA
+       bool
+       default n
+
+config HAVE_DEC_LOCK
+	bool
+	depends on SMP
+	default y
+
+config NR_CPUS
+	int "Maximum number of CPUs (2-256)"
+	range 2 256
+	depends on SMP
+	default "8"
+	help
+	  This allows you to specify the maximum number of CPUs which this
+	  kernel will support. Current maximum is 256 CPUs due to
+	  APIC addressing limits. Less depending on the hardware.
+
+	  This is purely to save memory - each supported CPU requires
+	  memory in the static kernel configuration.
+
+config HPET_TIMER
+	bool
+	default y
+	help
+	  Use the IA-PC HPET (High Precision Event Timer) to manage
+	  time in preference to the PIT and RTC, if a HPET is
+	  present.  The HPET provides a stable time base on SMP
+	  systems, unlike the TSC, but it is more expensive to access,
+	  as it is off-chip.  You can find the HPET spec at
+	  <http://www.intel.com/labs/platcomp/hpet/hpetspec.htm>.
+
+config HPET_EMULATE_RTC
+	bool "Provide RTC interrupt"
+	depends on HPET_TIMER && RTC=y
+
+config GART_IOMMU
+	bool "IOMMU support"
+	depends on PCI
+	help
+	  Support the K8 IOMMU. Needed to run systems with more than 4GB of memory
+	  properly with 32-bit PCI devices that do not support DAC (Double Address
+	  Cycle). The IOMMU can be turned off at runtime with the iommu=off parameter.
+	  Normally the kernel will take the right choice by itself.
+	  If unsure, say Y.
+
+# need this always enabled with GART_IOMMU for the VIA workaround
+config SWIOTLB
+       bool
+       depends on GART_IOMMU
+       default y
+
+config DUMMY_IOMMU
+	bool
+	depends on !GART_IOMMU && !SWIOTLB
+	default y
+	help
+	  Don't use IOMMU code. This will cause problems when you have more than 4GB
+	  of memory and any 32-bit devices. Don't turn on unless you know what you
+	  are doing.
+
+config X86_MCE
+	bool "Machine check support" if EMBEDDED
+	default y
+	help
+	   Include a machine check error handler to report hardware errors.
+	   This version will require the mcelog utility to decode some
+	   machine check error logs. See
+	   ftp://ftp.x86-64.org/pub/linux/tools/mcelog
+
+config X86_MCE_INTEL
+	bool "Intel MCE features"
+	depends on X86_MCE && X86_LOCAL_APIC
+	default y
+	help
+	   Additional support for intel specific MCE features such as
+	   the thermal monitor.
+
+config SECCOMP
+	bool "Enable seccomp to safely compute untrusted bytecode"
+	depends on PROC_FS
+	default y
+	help
+	  This kernel feature is useful for number crunching applications
+	  that may need to compute untrusted bytecode during their
+	  execution. By using pipes or other transports made available to
+	  the process as file descriptors supporting the read/write
+	  syscalls, it's possible to isolate those applications in
+	  their own address space using seccomp. Once seccomp is
+	  enabled via /proc/<pid>/seccomp, it cannot be disabled
+	  and the task is only allowed to execute a few safe syscalls
+	  defined by each seccomp mode.
+
+	  If unsure, say Y. Only embedded should say N here.
+
+endmenu
+
+#
+# Use the generic interrupt handling code in kernel/irq/:
+#
+config GENERIC_HARDIRQS
+	bool
+	default y
+
+config GENERIC_IRQ_PROBE
+	bool
+	default y
+
+menu "Power management options"
+
+source kernel/power/Kconfig
+
+source "drivers/acpi/Kconfig"
+
+source "arch/x86_64/kernel/cpufreq/Kconfig"
+
+endmenu
+
+menu "Bus options (PCI etc.)"
+
+config PCI
+	bool "PCI support"
+
+# x86-64 doesn't support PCI BIOS access from long mode so always go direct.
+config PCI_DIRECT
+	bool
+	depends on PCI
+	default y
+
+config PCI_MMCONFIG
+	bool "Support mmconfig PCI config space access"
+	depends on PCI
+	select ACPI_BOOT
+
+config UNORDERED_IO
+       bool "Unordered IO mapping access"
+       depends on EXPERIMENTAL
+       help
+         Use unordered stores to access IO memory mappings in device drivers.
+	 Still very experimental. When a driver works on IA64/ppc64/pa-risc it should
+	 work with this option, but it makes the drivers behave differently
+	 from i386. Requires that the driver writer used memory barriers
+	 properly.
+
+source "drivers/pci/pcie/Kconfig"
+
+source "drivers/pci/Kconfig"
+
+source "drivers/pcmcia/Kconfig"
+
+source "drivers/pci/hotplug/Kconfig"
+
+endmenu
+
+
+menu "Executable file formats / Emulations"
+
+source "fs/Kconfig.binfmt"
+
+config IA32_EMULATION
+	bool "IA32 Emulation"
+	help
+	  Include code to run 32-bit programs under a 64-bit kernel. You should likely
+	  turn this on, unless you're 100% sure that you don't have any 32-bit programs
+	  left.
+
+config IA32_AOUT
+       bool "IA32 a.out support"
+       depends on IA32_EMULATION
+       help
+         Support old a.out binaries in the 32bit emulation.
+
+config COMPAT
+	bool
+	depends on IA32_EMULATION
+	default y
+
+config SYSVIPC_COMPAT
+	bool
+	depends on COMPAT && SYSVIPC
+	default y
+
+config UID16
+	bool
+	depends on IA32_EMULATION
+	default y
+
+endmenu
+
+source drivers/Kconfig
+
+source "drivers/firmware/Kconfig"
+
+source fs/Kconfig
+
+source "arch/x86_64/oprofile/Kconfig"
+
+source "arch/x86_64/Kconfig.debug"
+
+source "security/Kconfig"
+
+source "crypto/Kconfig"
+
+source "lib/Kconfig"

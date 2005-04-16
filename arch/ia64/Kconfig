@@ -1,0 +1,420 @@
+#
+# For a description of the syntax of this configuration file,
+# see Documentation/kbuild/kconfig-language.txt.
+#
+
+mainmenu "IA-64 Linux Kernel Configuration"
+
+source "init/Kconfig"
+
+menu "Processor type and features"
+
+config IA64
+	bool
+	default y
+	help
+	  The Itanium Processor Family is Intel's 64-bit successor to
+	  the 32-bit X86 line.  The IA-64 Linux project has a home
+	  page at <http://www.linuxia64.org/> and a mailing list at
+	  <linux-ia64@vger.kernel.org>.
+
+config 64BIT
+	bool
+	default y
+
+config MMU
+	bool
+	default y
+
+config RWSEM_XCHGADD_ALGORITHM
+	bool
+	default y
+
+config GENERIC_CALIBRATE_DELAY
+	bool
+	default y
+
+config TIME_INTERPOLATION
+	bool
+	default y
+
+config EFI
+	bool
+	default y
+
+config GENERIC_IOMAP
+	bool
+	default y
+
+choice
+	prompt "System type"
+	default IA64_GENERIC
+
+config IA64_GENERIC
+	bool "generic"
+	select NUMA
+	select ACPI_NUMA
+	select VIRTUAL_MEM_MAP
+	select DISCONTIGMEM
+	help
+	  This selects the system type of your hardware.  A "generic" kernel
+	  will run on any supported IA-64 system.  However, if you configure
+	  a kernel for your specific system, it will be faster and smaller.
+
+	  generic		For any supported IA-64 system
+	  DIG-compliant		For DIG ("Developer's Interface Guide") compliant systems
+	  HP-zx1/sx1000		For HP systems
+	  HP-zx1/sx1000+swiotlb	For HP systems with (broken) DMA-constrained devices.
+	  SGI-SN2		For SGI Altix systems
+	  Ski-simulator		For the HP simulator <http://www.hpl.hp.com/research/linux/ski/>
+
+	  If you don't know what to do, choose "generic".
+
+config IA64_DIG
+	bool "DIG-compliant"
+
+config IA64_HP_ZX1
+	bool "HP-zx1/sx1000"
+	help
+	  Build a kernel that runs on HP zx1 and sx1000 systems.  This adds
+	  support for the HP I/O MMU.
+
+config IA64_HP_ZX1_SWIOTLB
+	bool "HP-zx1/sx1000 with software I/O TLB"
+	help
+	  Build a kernel that runs on HP zx1 and sx1000 systems even when they
+	  have broken PCI devices which cannot DMA to full 32 bits.  Apart
+	  from support for the HP I/O MMU, this includes support for the software
+	  I/O TLB, which allows supporting the broken devices at the expense of
+	  wasting some kernel memory (about 2MB by default).
+
+config IA64_SGI_SN2
+	bool "SGI-SN2"
+	help
+	  Selecting this option will optimize the kernel for use on sn2 based
+	  systems, but the resulting kernel binary will not run on other
+	  types of ia64 systems.  If you have an SGI Altix system, it's safe
+	  to select this option.  If in doubt, select ia64 generic support
+	  instead.
+
+config IA64_HP_SIM
+	bool "Ski-simulator"
+
+endchoice
+
+choice
+	prompt "Processor type"
+	default ITANIUM
+
+config ITANIUM
+	bool "Itanium"
+	help
+	  Select your IA-64 processor type.  The default is Itanium.
+	  This choice is safe for all IA-64 systems, but may not perform
+	  optimally on systems with, say, Itanium 2 or newer processors.
+
+config MCKINLEY
+	bool "Itanium 2"
+	help
+	  Select this to configure for an Itanium 2 (McKinley) processor.
+
+endchoice
+
+choice
+	prompt "Kernel page size"
+	default IA64_PAGE_SIZE_16KB
+
+config IA64_PAGE_SIZE_4KB
+	bool "4KB"
+	help
+	  This lets you select the page size of the kernel.  For best IA-64
+	  performance, a page size of 8KB or 16KB is recommended.  For best
+	  IA-32 compatibility, a page size of 4KB should be selected (the vast
+	  majority of IA-32 binaries work perfectly fine with a larger page
+	  size).  For Itanium 2 or newer systems, a page size of 64KB can also
+	  be selected.
+
+	  4KB                For best IA-32 compatibility
+	  8KB                For best IA-64 performance
+	  16KB               For best IA-64 performance
+	  64KB               Requires Itanium 2 or newer processor.
+
+	  If you don't know what to do, choose 16KB.
+
+config IA64_PAGE_SIZE_8KB
+	bool "8KB"
+
+config IA64_PAGE_SIZE_16KB
+	bool "16KB"
+
+config IA64_PAGE_SIZE_64KB
+	depends on !ITANIUM
+	bool "64KB"
+
+endchoice
+
+config IA64_BRL_EMU
+	bool
+	depends on ITANIUM
+	default y
+
+# align cache-sensitive data to 128 bytes
+config IA64_L1_CACHE_SHIFT
+	int
+	default "7" if MCKINLEY
+	default "6" if ITANIUM
+
+# align cache-sensitive data to 64 bytes
+config NUMA
+	bool "NUMA support"
+	depends on !IA64_HP_SIM
+	default y if IA64_SGI_SN2
+	select ACPI_NUMA
+	help
+	  Say Y to compile the kernel to support NUMA (Non-Uniform Memory
+	  Access).  This option is for configuring high-end multiprocessor
+	  server systems.  If in doubt, say N.
+
+config VIRTUAL_MEM_MAP
+	bool "Virtual mem map"
+	default y if !IA64_HP_SIM
+	help
+	  Say Y to compile the kernel with support for a virtual mem map.
+	  This code also only takes effect if a memory hole of greater than
+	  1 Gb is found during boot.  You must turn this option on if you
+	  require the DISCONTIGMEM option for your machine. If you are
+	  unsure, say Y.
+
+config HOLES_IN_ZONE
+	bool
+	default y if VIRTUAL_MEM_MAP
+
+config DISCONTIGMEM
+	bool "Discontiguous memory support"
+	depends on (IA64_DIG || IA64_SGI_SN2 || IA64_GENERIC || IA64_HP_ZX1 || IA64_HP_ZX1_SWIOTLB) && NUMA && VIRTUAL_MEM_MAP
+	default y if (IA64_SGI_SN2 || IA64_GENERIC) && NUMA
+	help
+	  Say Y to support efficient handling of discontiguous physical memory,
+	  for architectures which are either NUMA (Non-Uniform Memory Access)
+	  or have huge holes in the physical address space for other reasons.
+	  See <file:Documentation/vm/numa> for more.
+
+config IA64_CYCLONE
+	bool "Cyclone (EXA) Time Source support"
+	help
+	  Say Y here to enable support for IBM EXA Cyclone time source.
+	  If you're unsure, answer N.
+
+config IOSAPIC
+	bool
+	depends on !IA64_HP_SIM
+	default y
+
+config IA64_SGI_SN_SIM
+	bool "SGI Medusa Simulator Support"
+	depends on IA64_SGI_SN2
+	help
+	  If you are compiling a kernel that will run under SGI's IA-64
+	  simulator (Medusa) then say Y, otherwise say N.
+
+config FORCE_MAX_ZONEORDER
+	int
+	default "18"
+
+config SMP
+	bool "Symmetric multi-processing support"
+	help
+	  This enables support for systems with more than one CPU. If you have
+	  a system with only one CPU, say N.  If you have a system with more
+	  than one CPU, say Y.
+
+	  If you say N here, the kernel will run on single and multiprocessor
+	  systems, but will use only one CPU of a multiprocessor system.  If
+	  you say Y here, the kernel will run on many, but not all,
+	  single processor systems.  On a single processor system, the kernel
+	  will run faster if you say N here.
+
+	  See also the <file:Documentation/smp.txt> and the SMP-HOWTO
+	  available at <http://www.tldp.org/docs.html#howto>.
+
+	  If you don't know what to do here, say N.
+
+config NR_CPUS
+	int "Maximum number of CPUs (2-512)"
+	range 2 512
+	depends on SMP
+	default "64"
+	help
+	  You should set this to the number of CPUs in your system, but
+	  keep in mind that a kernel compiled for, e.g., 2 CPUs will boot but
+	  only use 2 CPUs on a >2 CPU system.  Setting this to a value larger
+	  than 64 will cause the use of a CPU mask array, causing a small
+	  performance hit.
+
+config HOTPLUG_CPU
+	bool "Support for hot-pluggable CPUs (EXPERIMENTAL)"
+	depends on SMP && EXPERIMENTAL
+	select HOTPLUG
+	default n
+	---help---
+	  Say Y here to experiment with turning CPUs off and on.  CPUs
+	  can be controlled through /sys/devices/system/cpu/cpu#.
+	  Say N if you want to disable CPU hotplug.
+
+config PREEMPT
+	bool "Preemptible Kernel"
+        help
+          This option reduces the latency of the kernel when reacting to
+          real-time or interactive events by allowing a low priority process to
+          be preempted even if it is in kernel mode executing a system call.
+          This allows applications to run more reliably even when the system is
+          under load.
+
+          Say Y here if you are building a kernel for a desktop, embedded
+          or real-time system.  Say N if you are unsure.
+
+config HAVE_DEC_LOCK
+	bool
+	depends on (SMP || PREEMPT)
+	default y
+
+config IA32_SUPPORT
+	bool "Support for Linux/x86 binaries"
+	help
+	  IA-64 processors can execute IA-32 (X86) instructions.  By
+	  saying Y here, the kernel will include IA-32 system call
+	  emulation support which makes it possible to transparently
+	  run IA-32 Linux binaries on an IA-64 Linux system.
+	  If in doubt, say Y.
+
+config COMPAT
+	bool
+	depends on IA32_SUPPORT
+	default y
+
+config IA64_MCA_RECOVERY
+	tristate "MCA recovery from errors other than TLB."
+
+config PERFMON
+	bool "Performance monitor support"
+	help
+	  Selects whether support for the IA-64 performance monitor hardware
+	  is included in the kernel.  This makes some kernel data-structures a
+	  little bigger and slows down execution a bit, but it is generally
+	  a good idea to turn this on.  If you're unsure, say Y.
+
+config IA64_PALINFO
+	tristate "/proc/pal support"
+	help
+	  If you say Y here, you are able to get PAL (Processor Abstraction
+	  Layer) information in /proc/pal.  This contains useful information
+	  about the processors in your systems, such as cache and TLB sizes
+	  and the PAL firmware version in use.
+
+	  To use this option, you have to ensure that the "/proc file system
+	  support" (CONFIG_PROC_FS) is enabled, too.
+
+config ACPI_DEALLOCATE_IRQ
+	bool
+	depends on IOSAPIC && EXPERIMENTAL
+	default y
+
+source "drivers/firmware/Kconfig"
+
+source "fs/Kconfig.binfmt"
+
+endmenu
+
+menu "Power management and ACPI"
+
+config PM
+	bool "Power Management support"
+	depends on IA64_GENERIC || IA64_DIG || IA64_HP_ZX1 || IA64_HP_ZX1_SWIOTLB
+	default y
+	help
+	  "Power Management" means that parts of your computer are shut
+	  off or put into a power conserving "sleep" mode if they are not
+	  being used.  There are two competing standards for doing this: APM
+	  and ACPI.  If you want to use either one, say Y here and then also
+	  to the requisite support below.
+
+	  Power Management is most important for battery powered laptop
+	  computers; if you have a laptop, check out the Linux Laptop home
+	  page on the WWW at <http://www.linux-on-laptops.com/> and the
+	  Battery Powered Linux mini-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>.
+
+	  Note that, even if you say N here, Linux on the x86 architecture
+	  will issue the hlt instruction if nothing is to be done, thereby
+	  sending the processor to sleep and saving power.
+
+config ACPI
+	bool
+	depends on !IA64_HP_SIM
+	default y
+
+if !IA64_HP_SIM
+
+source "drivers/acpi/Kconfig"
+
+endif
+
+endmenu
+
+if !IA64_HP_SIM
+
+menu "Bus options (PCI, PCMCIA)"
+
+config PCI
+	bool "PCI support"
+	help
+	  Find out whether you have a PCI motherboard. PCI is the name of a
+	  bus system, i.e. the way the CPU talks to the other stuff inside
+	  your box. Other bus systems are ISA, EISA, MicroChannel (MCA) or
+	  VESA. If you have PCI, say Y, otherwise N.
+
+	  The PCI-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>, contains valuable
+	  information about which PCI hardware does work under Linux and which
+	  doesn't.
+
+config PCI_DOMAINS
+	bool
+	default PCI
+
+source "drivers/pci/Kconfig"
+
+source "drivers/pci/hotplug/Kconfig"
+
+source "drivers/pcmcia/Kconfig"
+
+endmenu
+
+endif
+
+source "drivers/Kconfig"
+
+source "fs/Kconfig"
+
+source "lib/Kconfig"
+
+#
+# Use the generic interrupt handling code in kernel/irq/:
+#
+config GENERIC_HARDIRQS
+	bool
+	default y
+
+config GENERIC_IRQ_PROBE
+	bool
+	default y
+
+source "arch/ia64/hp/sim/Kconfig"
+
+source "arch/ia64/oprofile/Kconfig"
+
+source "arch/ia64/Kconfig.debug"
+
+source "security/Kconfig"
+
+source "crypto/Kconfig"

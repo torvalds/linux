@@ -1,0 +1,210 @@
+Mounting the root filesystem via NFS (nfsroot)
+===============================================
+
+Written 1996 by Gero Kuhlmann <gero@gkminix.han.de>
+Updated 1997 by Martin Mares <mj@atrey.karlin.mff.cuni.cz>
+
+
+
+If you want to use a diskless system, as an X-terminal or printer
+server for example, you have to put your root filesystem onto a
+non-disk device. This can either be a ramdisk (see initrd.txt in
+this directory for further information) or a filesystem mounted
+via NFS. The following text describes on how to use NFS for the
+root filesystem. For the rest of this text 'client' means the
+diskless system, and 'server' means the NFS server.
+
+
+
+
+1.) Enabling nfsroot capabilities
+    -----------------------------
+
+In order to use nfsroot you have to select support for NFS during
+kernel configuration. Note that NFS cannot be loaded as a module
+in this case. The configuration script will then ask you whether
+you want to use nfsroot, and if yes what kind of auto configuration
+system you want to use. Selecting both BOOTP and RARP is safe.
+
+
+
+
+2.) Kernel command line
+    -------------------
+
+When the kernel has been loaded by a boot loader (either by loadlin,
+LILO or a network boot program) it has to be told what root fs device
+to use, and where to find the server and the name of the directory
+on the server to mount as root. This can be established by a couple
+of kernel command line parameters:
+
+
+root=/dev/nfs
+
+  This is necessary to enable the pseudo-NFS-device. Note that it's not a
+  real device but just a synonym to tell the kernel to use NFS instead of
+  a real device.
+
+
+nfsroot=[<server-ip>:]<root-dir>[,<nfs-options>]
+
+  If the `nfsroot' parameter is NOT given on the command line, the default
+  "/tftpboot/%s" will be used.
+
+  <server-ip>	Specifies the IP address of the NFS server. If this field
+		is not given, the default address as determined by the
+		`ip' variable (see below) is used. One use of this
+		parameter is for example to allow using different servers
+		for RARP and NFS. Usually you can leave this blank.
+
+  <root-dir>	Name of the directory on the server to mount as root. If
+		there is a "%s" token in the string, the token will be
+		replaced by the ASCII-representation of the client's IP
+		address.
+
+  <nfs-options>	Standard NFS options. All options are separated by commas.
+		If the options field is not given, the following defaults
+		will be used:
+			port		= as given by server portmap daemon
+			rsize		= 1024
+			wsize		= 1024
+			timeo		= 7
+			retrans		= 3
+			acregmin	= 3
+			acregmax	= 60
+			acdirmin	= 30
+			acdirmax	= 60
+			flags		= hard, nointr, noposix, cto, ac
+
+
+ip=<client-ip>:<server-ip>:<gw-ip>:<netmask>:<hostname>:<device>:<autoconf>
+
+  This parameter tells the kernel how to configure IP addresses of devices
+  and also how to set up the IP routing table. It was originally called `nfsaddrs',
+  but now the boot-time IP configuration works independently of NFS, so it
+  was renamed to `ip' and the old name remained as an alias for compatibility
+  reasons.
+
+  If this parameter is missing from the kernel command line, all fields are
+  assumed to be empty, and the defaults mentioned below apply. In general
+  this means that the kernel tries to configure everything using both
+  RARP and BOOTP (depending on what has been enabled during kernel confi-
+  guration, and if both what protocol answer got in first).
+
+  <client-ip>	IP address of the client. If empty, the address will either
+		be determined by RARP or BOOTP. What protocol is used de-
+		pends on what has been enabled during kernel configuration
+		and on the <autoconf> parameter. If this parameter is not
+		empty, neither RARP nor BOOTP will be used.
+
+  <server-ip>	IP address of the NFS server. If RARP is used to determine
+		the client address and this parameter is NOT empty only
+		replies from the specified server are accepted. To use
+		different RARP and NFS server, specify your RARP server
+		here (or leave it blank), and specify your NFS server in
+		the `nfsroot' parameter (see above). If this entry is blank
+		the address of the server is used which answered the RARP
+		or BOOTP request.
+
+  <gw-ip>	IP address of a gateway if the server is on a different
+		subnet. If this entry is empty no gateway is used and the
+		server is assumed to be on the local network, unless a
+		value has been received by BOOTP.
+
+  <netmask>	Netmask for local network interface. If this is empty,
+		the netmask is derived from the client IP address assuming
+		classful addressing, unless overridden in BOOTP reply.
+
+  <hostname>	Name of the client. If empty, the client IP address is
+		used in ASCII notation, or the value received by BOOTP.
+
+  <device>	Name of network device to use. If this is empty, all
+		devices are used for RARP and BOOTP requests, and the
+		first one we receive a reply on is configured. If you have
+		only one device, you can safely leave this blank.
+
+  <autoconf>	Method to use for autoconfiguration. If this is either
+		'rarp' or 'bootp', the specified protocol is used.
+		If the value is 'both' or empty, both protocols are used
+		so far as they have been enabled during kernel configura-
+		tion. 'off' means no autoconfiguration.
+
+  The <autoconf> parameter can appear alone as the value to the `ip'
+  parameter (without all the ':' characters before) in which case auto-
+  configuration is used.
+
+
+
+
+3.) Kernel loader
+    -------------
+
+To get the kernel into memory different approaches can be used. They
+depend on what facilities are available:
+
+
+3.1)  Writing the kernel onto a floppy using dd:
+	As always you can just write the kernel onto a floppy using dd,
+	but then it's not possible to use kernel command lines at all.
+	To substitute the 'root=' parameter, create a dummy device on any
+	linux system with major number 0 and minor number 255 using mknod:
+
+		mknod /dev/boot255 c 0 255
+
+	Then copy the kernel zImage file onto a floppy using dd:
+
+		dd if=/usr/src/linux/arch/i386/boot/zImage of=/dev/fd0
+
+	And finally use rdev to set the root device:
+
+		rdev /dev/fd0 /dev/boot255
+
+	You can then remove the dummy device /dev/boot255 again. There
+	is no real device available for it.
+	The other two kernel command line parameters cannot be substi-
+	tuted with rdev. Therefore, using this method the kernel will
+	by default use RARP and/or BOOTP, and if it gets an answer via
+	RARP will mount the directory /tftpboot/<client-ip>/ as its
+	root. If it got a BOOTP answer the directory name in that answer
+	is used.
+
+
+3.2) Using LILO
+	When using LILO you can specify all necessary command line
+	parameters with the 'append=' command in the LILO configuration
+	file. However, to use the 'root=' command you also need to
+	set up a dummy device as described in 3.1 above. For how to use
+	LILO and its 'append=' command please refer to the LILO
+	documentation.
+
+3.3) Using loadlin
+	When you want to boot Linux from a DOS command prompt without
+	having a local hard disk to mount as root, you can use loadlin.
+	I was told that it works, but haven't used it myself yet. In
+	general you should be able to create a kernel command line simi-
+	lar to how LILO is doing it. Please refer to the loadlin docu-
+	mentation for further information.
+
+3.4) Using a boot ROM
+	This is probably the most elegant way of booting a diskless
+	client. With a boot ROM the kernel gets loaded using the TFTP
+	protocol. As far as I know, no commercial boot ROMs yet
+	support booting Linux over the network, but there are two
+	free implementations of a boot ROM available on sunsite.unc.edu
+	and its mirrors. They are called 'netboot-nfs' and 'etherboot'.
+	Both contain everything you need to boot a diskless Linux client.
+
+
+
+
+4.) Credits
+    -------
+
+  The nfsroot code in the kernel and the RARP support have been written
+  by Gero Kuhlmann <gero@gkminix.han.de>.
+
+  The rest of the IP layer autoconfiguration code has been written
+  by Martin Mares <mj@atrey.karlin.mff.cuni.cz>.
+
+  In order to write the initial version of nfsroot I would like to thank
+  Jens-Uwe Mager <jum@anubis.han.de> for his help.

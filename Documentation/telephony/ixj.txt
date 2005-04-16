@@ -1,0 +1,406 @@
+Linux Quicknet-Drivers-Howto
+Quicknet Technologies, Inc. (www.quicknet.net)
+Version 0.3.4  December 18, 1999
+
+1.0  Introduction
+
+This document describes the first GPL release version of the Linux
+driver for the Quicknet Internet PhoneJACK and Internet LineJACK
+cards.  More information about these cards is available at
+www.quicknet.net.  The driver version discussed in this document is
+0.3.4.
+
+These cards offer nice telco style interfaces to use your standard
+telephone/key system/PBX as the user interface for VoIP applications.
+The Internet LineJACK also offers PSTN connectivity for a single line
+Internet to PSTN gateway.  Of course, you can add more than one card
+to a system to obtain multi-line functionality.  At this time, the
+driver supports the POTS port on both the Internet PhoneJACK and the
+Internet LineJACK, but the PSTN port on the latter card is not yet
+supported.
+
+This document, and the drivers for the cards, are intended for a
+limited audience that includes technically capable programmers who
+would like to experiment with Quicknet cards.  The drivers are
+considered in ALPHA status and are not yet considered stable enough
+for general, widespread use in an unlimited audience.
+
+That's worth saying again:
+
+THE LINUX DRIVERS FOR QUICKNET CARDS ARE PRESENTLY IN A ALPHA STATE
+AND SHOULD NOT BE CONSIDERED AS READY FOR NORMAL WIDESPREAD USE.
+
+They are released early in the spirit of Internet development and to
+make this technology available to innovators who would benefit from
+early exposure.
+
+When we promote the device driver to "beta" level it will be
+considered ready for non-programmer, non-technical users.  Until then,
+please be aware that these drivers may not be stable and may affect
+the performance of your system.
+
+
+1.1 Latest Additions/Improvements
+
+The 0.3.4 version of the driver is the first GPL release.  Several
+features had to be removed from the prior binary only module, mostly
+for reasons of Intellectual Property rights.  We can't release
+information that is not ours - so certain aspects of the driver had to
+be removed to protect the rights of others.  
+
+Specifically, very old Internet PhoneJACK cards have non-standard
+G.723.1 codecs (due to the early nature of the DSPs in those days).
+The auto-conversion code to bring those cards into compliance with
+todays standards is available as a binary only module to those people
+needing it.  If you bought your card after 1997 or so, you are OK -
+it's only the very old cards that are affected.
+
+Also, the code to download G.728/G.729/G.729a codecs to the DSP is
+available as a binary only module as well.  This IP is not ours to
+release.  
+
+Hooks are built into the GPL driver to allow it to work with other
+companion modules that are completely separate from this module.
+
+1.2 Copyright, Trademarks, Disclaimer, & Credits 
+
+Copyright
+
+Copyright (c) 1999 Quicknet Technologies, Inc.  Permission is granted
+to freely copy and distribute this document provided you preserve it
+in its original form. For corrections and minor changes contact the
+maintainer at linux@quicknet.net.
+
+Trademarks
+
+Internet PhoneJACK and Internet LineJACK are registered trademarks of
+Quicknet Technologies, Inc.
+
+Disclaimer
+
+Much of the info in this HOWTO is early information released by
+Quicknet Technologies, Inc. for the express purpose of allowing early
+testing and use of the Linux drivers developed for their products.
+While every attempt has been made to be thorough, complete and
+accurate, the information contained here may be unreliable and there
+are likely a number of errors in this document. Please let the
+maintainer know about them. Since this is free documentation, it
+should be obvious that neither I nor previous authors can be held
+legally responsible for any errors.
+
+Credits
+
+This HOWTO was written by:
+
+	Greg Herlein <gherlein@quicknet.net>
+	Ed Okerson <eokerson@quicknet.net> 
+
+1.3  Future Plans: You Can Help 
+
+Please let the maintainer know of any errors in facts, opinions,
+logic, spelling, grammar, clarity, links, etc.  But first, if the date
+is over a month old, check to see that you have the latest
+version. Please send any info that you think belongs in this document.
+
+You can also contribute code and/or bug-fixes for the sample
+applications.
+
+
+1.4  Where to get things
+
+You can download the latest versions of the driver from:
+
+http://www.quicknet.net/develop.htm
+
+You can download the latest version of this document from:
+
+http://www.quicknet.net/develop.htm
+
+
+1.5  Mailing List
+
+Quicknet operates a mailing list to provide a public forum on using
+these drivers.
+
+To subscribe to the linux-sdk mailing list, send an email to:
+
+   majordomo@linux.quicknet.net
+
+In the body of the email, type:
+
+   subscribe linux-sdk <your-email-address>
+
+Please delete any signature block that you would normally add to the
+bottom of your email - it tends to confuse majordomo.
+
+To send mail to the list, address your mail to 
+
+   linux-sdk@linux.quicknet.net
+
+Your message will go out to everyone on the list.
+
+To unsubscribe to the linux-sdk mailing list, send an email to:
+
+   majordomo@linux.quicknet.net
+
+In the body of the email, type:
+
+   unsubscribe linux-sdk <your-email-address>
+
+
+
+2.0  Requirements
+
+2.1  Quicknet Card(s)
+
+You will need at least one Internet PhoneJACK or Internet LineJACK
+cards.  These are ISA or PCI bus devices that use Plug-n-Play for
+configuration, and use no IRQs.  The driver will support up to 16
+cards in any one system, of any mix between the two types.
+
+Note that you will need two cards to do any useful testing alone, since
+you will need a card on both ends of the connection.  Of course, if
+you are doing collaborative work, perhaps your friends or coworkers
+have cards too.  If not, we'll gladly sell them some!
+
+
+2.2  ISAPNP
+
+Since the Quicknet cards are Plug-n-Play devices, you will need the
+isapnp tools package to configure the cards, or you can use the isapnp
+module to autoconfigure them.  The former package probably came with
+your Linux distribution.  Documentation on this package is available
+online at:
+
+http://mailer.wiwi.uni-marburg.de/linux/LDP/HOWTO/Plug-and-Play-HOWTO.html
+
+The isapnp autoconfiguration is available on the Quicknet website at:
+
+    http://www.quicknet.net/develop.htm
+
+though it may be in the kernel by the time you read this.
+
+
+3.0  Card Configuration 
+
+If you did not get your drivers as part of the linux kernel, do the
+following to install them:
+
+   a.  untar the distribution file.  We use the following command:
+        tar -xvzf ixj-0.x.x.tgz
+
+This creates a subdirectory holding all the necessary files.  Go to that
+subdirectory.
+
+   b.  run the "ixj_dev_create" script to remove any stray device
+files left in the /dev directory, and to create the new officially
+designated device files.  Note that the old devices were called 
+/dev/ixj, and the new method uses /dev/phone.  
+
+   c.  type "make;make install" - this will compile and install the
+module.
+
+   d.  type "depmod -av" to rebuild all your kernel version dependencies.
+
+   e.  if you are using the isapnp module to configure the cards
+       automatically, then skip to step f.  Otherwise, ensure that you
+       have run the isapnp configuration utility to properly configure
+       the cards.
+
+       e1. The Internet PhoneJACK has one configuration register that
+           requires 16 IO ports.  The Internet LineJACK card has two
+           configuration registers and isapnp reports that IO 0
+           requires 16 IO ports and IO 1 requires 8.  The Quicknet
+           driver assumes that these registers are configured to be
+           contiguous, i.e. if IO 0 is set to 0x340 then IO 1 should
+           be set to 0x350.
+
+           Make sure that none of the cards overlap if you have
+           multiple cards in the system.
+
+           If you are new to the isapnp tools, you can jumpstart
+           yourself by doing the following:
+
+      e2.  go to the /etc directory and run pnpdump to get a blank
+           isapnp.conf file.
+
+	   	pnpdump > /etc/isapnp.conf
+
+      e3.  edit the /etc/isapnp.conf file to set the IO warnings and
+           the register IO addresses. The IO warnings means that you
+           should find the line in the file that looks like this:
+
+	   (CONFLICT (IO FATAL)(IRQ FATAL)(DMA FATAL)(MEM FATAL)) # or WARNING
+
+	   and you should edit the line to look like this:
+
+	   (CONFLICT (IO WARNING)(IRQ FATAL)(DMA FATAL)(MEM FATAL)) #
+	   or WARNING
+
+           The next step is to set the IO port addresses.  The issue
+           here is that isapnp does not identify all of the ports out
+           there.  Specifically any device that does not have a driver
+           or module loaded by Linux will not be registered.  This
+           includes older sound cards and network cards.  We have
+           found that the IO port 0x300 is often used even though
+           isapnp claims that no-one is using those ports.  We
+           recommend that for a single card installation that port
+           0x340 (and 0x350) be used.  The IO port line should change
+           from this:
+
+	   (IO 0 (SIZE 16) (BASE 0x0300) (CHECK))
+
+	   to this:
+
+	   (IO 0 (SIZE 16) (BASE 0x0340) )
+
+       e4.  if you have multiple Quicknet cards, make sure that you do
+            not have any overlaps.  Be especially careful if you are
+            mixing Internet PhoneJACK and Internet LineJACK cards in
+            the same system.  In these cases we recommend moving the
+            IO port addresses to the 0x400 block.  Please note that on
+            a few machines the 0x400 series are used.  Feel free to
+            experiment with other addresses.  Our cards have been
+            proven to work using IO addresses of up to 0xFF0.
+
+       e5.  the last step is to uncomment the activation line so the
+            drivers will be associated with the port.  This means the
+            line (immediately below) the IO line should go from this:
+
+            # (ACT Y)
+
+            to this:
+
+	    (ACT Y)
+
+            Once you have finished editing the isapnp.conf file you
+            must submit it into the pnp driverconfigure the cards.
+            This is done using the following command:
+
+	    isapnp isapnp.conf
+
+	    If this works you should see a line that identifies the
+            Quicknet device, the IO port(s) chosen, and a message
+            "Enabled OK".
+
+   f.  if you are loading the module by hand, use insmod.  An example
+of this would look like this:
+
+	insmod phonedev
+	insmod ixj dspio=0x320,0x310 xio=0,0x330
+
+Then verify the module loaded by running lsmod. If you are not using a
+module that matches your kernel version, you may need to "force" the
+load using the -f option in the insmod command.
+
+	insmod phonedev
+	insmod -f ixj dspio=0x320,0x310 xio=0,0x330
+
+
+If you are using isapnp to autoconfigure your card, then you do NOT
+need any of the above, though you need to use depmod to load the
+driver, like this:
+
+	depmod ixj
+
+which will result in the needed drivers getting loaded automatically.
+
+   g.  if you are planning on using kerneld to automatically load the 
+module for you, then you need to edit /etc/conf.modules and add the 
+following lines:
+
+	options ixj dspio=0x340 xio=0x330 ixjdebug=0
+
+If you do this, then when you execute an application that uses the
+module kerneld will load the module for you.  Note that to do this,
+you need to have your kernel set to support kerneld.  You can check
+for this by looking at /usr/src/linux/.config and you should see this:
+
+	# Loadable module support
+	#
+	<snip>
+	CONFIG_KMOD=y
+
+  h.  if you want non-root users to be able to read and write to the 
+ixj devices (this is a good idea!) you should do the following:
+
+     - decide upon a group name to use and create that group if 
+       needed.  Add the user names to that group that you wish to 
+       have access to the device.  For example, we typically will
+       create a group named "ixj" in /etc/group and add all users
+       to that group that we want to run software that can use the 
+       ixjX devices.
+
+     - change the permissions on the device files, like this:
+	
+       chgrp ixj /dev/ixj*	
+       chmod 660 /dev/ixj*
+	
+Once this is done, then non-root users should be able to use the
+devices.  If you have enabled autoloading of modules, then the user
+should be able to open the device and have the module loaded
+automatically for them.
+
+
+4.0 Driver Installation problems.
+
+We have tested these drivers on the 2.2.9, 2.2.10, 2.2.12, and 2.2.13 kernels
+and in all cases have eventually been able to get the drivers to load and 
+run.  We have found four types of problems that prevent this from happening.
+The problems and solutions are:
+
+  a. A step was missed in the installation.  Go back and use section 3
+as a checklist.  Many people miss running the ixj_dev_create script and thus
+never load the device names into the filesystem.
+
+  b. The kernel is inconsistently linked.  We have found this problem in
+the Out Of the Box installation of several distributions.  The symptoms 
+are that neither driver will load, and that the unknown symbols include "jiffy"
+and "kmalloc".  The solution is to recompile both the kernel and the
+modules.  The command string for the final compile looks like this:
+
+    In the kernel directory:
+    1.  cp .config /tmp
+    2.  make mrproper
+    3.  cp /tmp/.config .
+    4.	make clean;make bzImage;make modules;make modules_install
+
+This rebuilds both the kernel and all the modules and makes sure they all 
+have the same linkages.  This generally solves the problem once the new 
+kernel is installed and the system rebooted.
+
+  c. The kernel has been patched, then unpatched.  This happens when
+someone decides to use an earlier kernel after they load a later kernel.
+The symptoms are proceeding through all three above steps and still not
+being able to load the driver.  What has happened is that the generated
+header files are out of sync with the kernel itself.  The solution is
+to recompile (again) using "make mrproper".  This will remove and then
+regenerate all the necessary header files.  Once this is done, then you 
+need to install and reboot the kernel.  We have not seen any problem
+loading one of our drivers after this treatment.
+
+5.0  Known Limitations
+
+We cannot currently play "dial-tone" and listen for DTMF digits at the
+same time using the ISA PhoneJACK.  This is a bug in the 8020 DSP chip
+used on that product.  All other Quicknet products function normally
+in this regard.  We have a work-around, but it's not done yet.  Until
+then, if you want dial-tone, you can always play a recorded dial-tone
+sound into the audio until you have gathered the DTMF digits.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

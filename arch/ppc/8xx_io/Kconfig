@@ -1,0 +1,138 @@
+#
+# MPC8xx Communication options
+#
+
+menu "MPC8xx CPM Options"
+	depends on 8xx
+
+config SCC_ENET
+	bool "CPM SCC Ethernet"
+	depends on NET_ETHERNET
+	help
+	  Enable Ethernet support via the Motorola MPC8xx serial
+	  communications controller.
+
+choice
+	prompt "SCC used for Ethernet"
+	depends on SCC_ENET
+	default SCC1_ENET
+
+config SCC1_ENET
+	bool "SCC1"
+	help
+	  Use MPC8xx serial communications controller 1 to drive Ethernet
+	  (default).
+
+config SCC2_ENET
+	bool "SCC2"
+	help
+	  Use MPC8xx serial communications controller 2 to drive Ethernet.
+
+config SCC3_ENET
+	bool "SCC3"
+	help
+	  Use MPC8xx serial communications controller 3 to drive Ethernet.
+
+endchoice
+
+config FEC_ENET
+	bool "860T FEC Ethernet"
+	depends on NET_ETHERNET
+	help
+	  Enable Ethernet support via the Fast Ethernet Controller (FCC) on
+	  the Motorola MPC8260.
+
+config USE_MDIO
+	bool "Use MDIO for PHY configuration"
+	depends on FEC_ENET
+	help
+	  On some boards the hardware configuration of the ethernet PHY can be
+	  used without any software interaction over the MDIO interface, so
+	  all MII code can be omitted. Say N here if unsure or if you don't
+	  need link status reports.
+
+config  FEC_AM79C874
+	bool "Support AMD79C874 PHY"
+	depends on USE_MDIO
+
+config FEC_LXT970
+	bool "Support LXT970 PHY"
+	depends on USE_MDIO
+
+config FEC_LXT971
+	bool "Support LXT971 PHY"
+	depends on USE_MDIO
+	
+config FEC_QS6612
+	bool "Support QS6612 PHY"
+	depends on USE_MDIO
+	
+config ENET_BIG_BUFFERS
+	bool "Use Big CPM Ethernet Buffers"
+	depends on NET_ETHERNET
+	help
+	  Allocate large buffers for MPC8xx Etherenet.  Increases throughput
+	  and decreases the likelihood of dropped packets, but costs memory.
+
+config HTDMSOUND
+	bool "Embedded Planet HIOX Audio"
+	depends on SOUND=y
+
+# This doesn't really belong here, but it is convenient to ask
+# 8xx specific questions.
+comment "Generic MPC8xx Options"
+
+config 8xx_COPYBACK
+	bool "Copy-Back Data Cache (else Writethrough)"
+	help
+	  Saying Y here will cause the cache on an MPC8xx processor to be used
+	  in Copy-Back mode.  If you say N here, it is used in Writethrough
+	  mode.
+
+	  If in doubt, say Y here.
+
+config 8xx_CPU6
+	bool "CPU6 Silicon Errata (860 Pre Rev. C)"
+	help
+	  MPC860 CPUs, prior to Rev C have some bugs in the silicon, which
+	  require workarounds for Linux (and most other OSes to work).  If you
+	  get a BUG() very early in boot, this might fix the problem.  For
+	  more details read the document entitled "MPC860 Family Device Errata
+	  Reference" on Motorola's website.  This option also incurs a
+	  performance hit.
+
+	  If in doubt, say N here.
+
+choice
+	prompt "Microcode patch selection"
+	default NO_UCODE_PATCH
+	help
+	  Help not implemented yet, coming soon.
+
+config NO_UCODE_PATCH
+	bool "None"
+
+config USB_SOF_UCODE_PATCH
+	bool "USB SOF patch"
+	help
+	  Help not implemented yet, coming soon.
+
+config I2C_SPI_UCODE_PATCH
+	bool "I2C/SPI relocation patch"
+	help
+	  Help not implemented yet, coming soon.
+
+config I2C_SPI_SMC1_UCODE_PATCH
+	bool "I2C/SPI/SMC1 relocation patch"
+	help
+	  Help not implemented yet, coming soon.
+
+endchoice
+
+config UCODE_PATCH
+	bool
+	default y
+	depends on !NO_UCODE_PATCH
+
+endmenu
+

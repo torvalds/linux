@@ -1,0 +1,89 @@
+#
+# SCTP configuration
+#
+
+menu "SCTP Configuration (EXPERIMENTAL)"
+	depends on INET && EXPERIMENTAL
+
+config IP_SCTP
+	tristate "The SCTP Protocol (EXPERIMENTAL)"
+	depends on IPV6 || IPV6=n
+	select CRYPTO if SCTP_HMAC_SHA1 || SCTP_HMAC_MD5
+	select CRYPTO_HMAC if SCTP_HMAC_SHA1 || SCTP_HMAC_MD5
+	select CRYPTO_SHA1 if SCTP_HMAC_SHA1
+	select CRYPTO_MD5 if SCTP_HMAC_MD5
+	---help---
+	  Stream Control Transmission Protocol
+
+	  From RFC 2960 <http://www.ietf.org/rfc/rfc2960.txt>.
+
+	  "SCTP is a reliable transport protocol operating on top of a
+	  connectionless packet network such as IP.  It offers the following
+	  services to its users:
+
+	  -- acknowledged error-free non-duplicated transfer of user data,
+	  -- data fragmentation to conform to discovered path MTU size,
+	  -- sequenced delivery of user messages within multiple streams,
+	  with an option for order-of-arrival delivery of individual user
+	  messages,
+	  -- optional bundling of multiple user messages into a single SCTP
+	  packet, and
+	  -- network-level fault tolerance through supporting of multi-
+	  homing at either or both ends of an association."
+
+	  To compile this protocol support as a module, choose M here: the
+	  module will be called sctp.
+
+	  If in doubt, say N.
+
+config SCTP_DBG_MSG
+	bool "SCTP: Debug messages"
+	depends on IP_SCTP
+	help
+	  If you say Y, this will enable verbose debugging messages. 
+
+	  If unsure, say N.  However, if you are running into problems, use 
+	  this option to gather detailed trace information
+
+config SCTP_DBG_OBJCNT
+	bool "SCTP: Debug object counts"
+	depends on IP_SCTP
+	help
+	  If you say Y, this will enable debugging support for counting the 
+	  type of objects that are currently allocated.  This is useful for 
+	  identifying memory leaks.   If the /proc filesystem is enabled this 
+	  debug information can be viewed by 
+	  'cat /proc/net/sctp/sctp_dbg_objcnt'
+
+	  If unsure, say N
+
+choice
+	prompt "SCTP: Cookie HMAC Algorithm"
+	depends on IP_SCTP
+	default SCTP_HMAC_MD5
+	help
+	  HMAC algorithm to be used during association initialization.  It
+	  is strongly recommended to use HMAC-SHA1 or HMAC-MD5.  See 
+	  configuration for Cryptographic API and enable those algorithms
+          to make usable by SCTP. 
+
+config SCTP_HMAC_NONE
+	bool "None"
+	help 
+	  Choosing this disables the use of an HMAC during association 
+	  establishment.  It is advised to use either HMAC-MD5 or HMAC-SHA1.
+
+config SCTP_HMAC_SHA1
+	bool "HMAC-SHA1"
+	help 
+	  Enable the use of HMAC-SHA1 during association establishment.  It 
+	  is advised to use either HMAC-MD5 or HMAC-SHA1.
+
+config SCTP_HMAC_MD5
+	bool "HMAC-MD5"
+	help
+	  Enable the use of HMAC-MD5 during association establishment.  It is 
+	  advised to use either HMAC-MD5 or HMAC-SHA1.
+
+endchoice
+endmenu

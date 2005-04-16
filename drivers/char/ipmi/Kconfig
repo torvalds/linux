@@ -1,0 +1,67 @@
+#
+# IPMI device configuration
+#
+
+menu "IPMI"
+config IPMI_HANDLER
+       tristate 'IPMI top-level message handler'
+       help
+         This enables the central IPMI message handler, required for IPMI
+	 to work.
+
+         IPMI is a standard for managing sensors (temperature,
+         voltage, etc.) in a system.
+
+         See <file:Documentation/IPMI.txt> for more details on the driver.
+
+	 If unsure, say N.
+
+config IPMI_PANIC_EVENT
+       bool 'Generate a panic event to all BMCs on a panic'
+       depends on IPMI_HANDLER
+       help
+         When a panic occurs, this will cause the IPMI message handler to
+	 generate an IPMI event describing the panic to each interface
+	 registered with the message handler.
+
+config IPMI_PANIC_STRING
+	bool 'Generate OEM events containing the panic string'
+	depends on IPMI_PANIC_EVENT
+	help
+	  When a panic occurs, this will cause the IPMI message handler to
+	  generate IPMI OEM type f0 events holding the IPMB address of the
+	  panic generator (byte 4 of the event), a sequence number for the
+	  string (byte 5 of the event) and part of the string (the rest of the
+	  event).  Bytes 1, 2, and 3 are the normal usage for an OEM event.
+	  You can fetch these events and use the sequence numbers to piece the
+	  string together.
+
+config IPMI_DEVICE_INTERFACE
+       tristate 'Device interface for IPMI'
+       depends on IPMI_HANDLER
+       help
+         This provides an IOCTL interface to the IPMI message handler so
+	 userland processes may use IPMI.  It supports poll() and select().
+
+config IPMI_SI
+       tristate 'IPMI System Interface handler'
+       depends on IPMI_HANDLER
+       help
+         Provides a driver for System Interfaces (KCS, SMIC, BT).
+	 Currently, only KCS and SMIC are supported.  If
+	 you are using IPMI, you should probably say "y" here.
+
+config IPMI_WATCHDOG
+       tristate 'IPMI Watchdog Timer'
+       depends on IPMI_HANDLER
+       help
+         This enables the IPMI watchdog timer.
+
+config IPMI_POWEROFF
+       tristate 'IPMI Poweroff'
+       depends on IPMI_HANDLER
+       help
+         This enables a function to power off the system with IPMI if
+	 the IPMI management controller is capable of this.
+
+endmenu

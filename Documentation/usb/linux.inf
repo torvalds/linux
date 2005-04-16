@@ -1,0 +1,200 @@
+; MS-Windows driver config matching some basic modes of the
+; Linux-USB Ethernet/RNDIS gadget firmware:
+;
+;  - RNDIS plus CDC Ethernet ... this may be familiar as a DOCSIS
+;    cable modem profile, and supports most non-Microsoft USB hosts
+;
+;  - RNDIS plus CDC Subset ... used by hardware that incapable of
+;    full CDC Ethernet support.
+;
+; Microsoft only directly supports RNDIS drivers, and bundled them into XP.
+; The Microsoft "Remote NDIS USB Driver Kit" is currently found at:
+;   http://www.microsoft.com/whdc/hwdev/resources/HWservices/rndis.mspx
+
+
+[Version]
+Signature           = "$CHICAGO$"
+Class               = Net
+ClassGUID           = {4d36e972-e325-11ce-bfc1-08002be10318}
+Provider            = %Linux%
+Compatible          = 1
+MillenniumPreferred = .ME
+DriverVer           = 03/30/2004,0.0.0.0
+; catalog file would be used by WHQL
+;CatalogFile         = Linux.cat
+
+[Manufacturer]
+%Linux%          = LinuxDevices,NT.5.1
+
+[LinuxDevices]
+; NetChip IDs, used by both firmware modes
+%LinuxDevice%    = RNDIS, USB\VID_0525&PID_a4a2
+
+[LinuxDevices.NT.5.1]
+%LinuxDevice%    = RNDIS.NT.5.1, USB\VID_0525&PID_a4a2
+
+[ControlFlags]
+ExcludeFromSelect=*
+
+; Windows 98, Windows 98 Second Edition specific sections --------
+
+[RNDIS]
+DeviceID        = usb8023
+MaxInstance     = 512
+DriverVer           = 03/30/2004,0.0.0.0
+AddReg          = RNDIS_AddReg_98, RNDIS_AddReg_Common
+
+[RNDIS_AddReg_98]
+HKR, ,               DevLoader,        0, *ndis
+HKR, ,               DeviceVxDs,       0, usb8023.sys
+HKR, NDIS,           LogDriverName,    0, "usb8023"
+HKR, NDIS,           MajorNdisVersion, 1, 5
+HKR, NDIS,           MinorNdisVersion, 1, 0
+HKR, Ndi\Interfaces, DefUpper,         0, "ndis3,ndis4,ndis5"
+HKR, Ndi\Interfaces, DefLower,         0, "ethernet"
+HKR, Ndi\Interfaces, UpperRange,       0, "ndis3,ndis4,ndis5"
+HKR, Ndi\Interfaces, LowerRange,       0, "ethernet"
+HKR, Ndi\Install,    ndis3,            0, "RNDIS_Install_98"
+HKR, Ndi\Install,    ndis4,            0, "RNDIS_Install_98"
+HKR, Ndi\Install,    ndis5,            0, "RNDIS_Install_98"
+HKR, Ndi,            DeviceId,         0, "USB\VID_0525&PID_a4a2"
+
+[RNDIS_Install_98]
+CopyFiles=RNDIS_CopyFiles_98
+
+[RNDIS_CopyFiles_98]
+usb8023.sys, usb8023w.sys, , 0 
+rndismp.sys, rndismpw.sys, , 0 
+
+; Windows Millennium Edition specific sections --------------------
+
+[RNDIS.ME]
+DeviceID        = usb8023
+MaxInstance     = 512
+DriverVer           = 03/30/2004,0.0.0.0
+AddReg          = RNDIS_AddReg_ME, RNDIS_AddReg_Common
+Characteristics = 0x84   ; NCF_PHYSICAL + NCF_HAS_UI
+BusType         = 15
+
+[RNDIS_AddReg_ME]
+HKR, ,               DevLoader,        0, *ndis
+HKR, ,               DeviceVxDs,       0, usb8023.sys
+HKR, NDIS,           LogDriverName,    0, "usb8023"
+HKR, NDIS,           MajorNdisVersion, 1, 5
+HKR, NDIS,           MinorNdisVersion, 1, 0
+HKR, Ndi\Interfaces, DefUpper,         0, "ndis3,ndis4,ndis5"
+HKR, Ndi\Interfaces, DefLower,         0, "ethernet"
+HKR, Ndi\Interfaces, UpperRange,       0, "ndis3,ndis4,ndis5"
+HKR, Ndi\Interfaces, LowerRange,       0, "ethernet"
+HKR, Ndi\Install,    ndis3,            0, "RNDIS_Install_ME"
+HKR, Ndi\Install,    ndis4,            0, "RNDIS_Install_ME"
+HKR, Ndi\Install,    ndis5,            0, "RNDIS_Install_ME"
+HKR, Ndi,            DeviceId,         0, "USB\VID_0525&PID_a4a2"
+
+[RNDIS_Install_ME]
+CopyFiles=RNDIS_CopyFiles_ME
+
+[RNDIS_CopyFiles_ME]
+usb8023.sys, usb8023m.sys, , 0 
+rndismp.sys, rndismpm.sys, , 0 
+
+; Windows 2000 specific sections ---------------------------------
+
+[RNDIS.NT]
+Characteristics = 0x84   ; NCF_PHYSICAL + NCF_HAS_UI
+BusType         = 15
+DriverVer           = 03/30/2004,0.0.0.0
+AddReg          = RNDIS_AddReg_NT, RNDIS_AddReg_Common
+CopyFiles       = RNDIS_CopyFiles_NT
+
+[RNDIS.NT.Services]
+AddService = USB_RNDIS, 2, RNDIS_ServiceInst_NT, RNDIS_EventLog
+
+[RNDIS_CopyFiles_NT]
+; no rename of files on Windows 2000, use the 'k' names as is
+usb8023k.sys, , , 0 
+rndismpk.sys, , , 0 
+
+[RNDIS_ServiceInst_NT]
+DisplayName     = %ServiceDisplayName%
+ServiceType     = 1 
+StartType       = 3 
+ErrorControl    = 1 
+ServiceBinary   = %12%\usb8023k.sys    
+LoadOrderGroup  = NDIS
+AddReg          = RNDIS_WMI_AddReg_NT
+
+[RNDIS_WMI_AddReg_NT]
+HKR, , MofImagePath, 0x00020000, "System32\drivers\rndismpk.sys"
+
+; Windows XP specific sections -----------------------------------
+
+[RNDIS.NT.5.1]
+Characteristics = 0x84   ; NCF_PHYSICAL + NCF_HAS_UI
+BusType         = 15
+DriverVer           = 03/30/2004,0.0.0.0
+AddReg          = RNDIS_AddReg_NT, RNDIS_AddReg_Common
+; no copyfiles - the files are already in place
+
+[RNDIS.NT.5.1.Services]
+AddService      = USB_RNDIS, 2, RNDIS_ServiceInst_51, RNDIS_EventLog
+
+[RNDIS_ServiceInst_51]
+DisplayName     = %ServiceDisplayName%
+ServiceType     = 1 
+StartType       = 3 
+ErrorControl    = 1 
+ServiceBinary   = %12%\usb8023.sys    
+LoadOrderGroup  = NDIS
+AddReg          = RNDIS_WMI_AddReg_51
+
+[RNDIS_WMI_AddReg_51]
+HKR, , MofImagePath, 0x00020000, "System32\drivers\rndismp.sys"
+
+; Windows 2000 and Windows XP common sections --------------------
+
+[RNDIS_AddReg_NT]
+HKR, Ndi,               Service,        0, "USB_RNDIS"
+HKR, Ndi\Interfaces,    UpperRange,     0, "ndis5" 
+HKR, Ndi\Interfaces,    LowerRange,     0, "ethernet"
+
+[RNDIS_EventLog]
+AddReg = RNDIS_EventLog_AddReg
+
+[RNDIS_EventLog_AddReg]
+HKR, , EventMessageFile, 0x00020000, "%%SystemRoot%%\System32\netevent.dll"
+HKR, , TypesSupported,   0x00010001, 7
+
+; Common Sections -------------------------------------------------
+
+[RNDIS_AddReg_Common]
+HKR, NDI\params\NetworkAddress, ParamDesc,  0, %NetworkAddress%
+HKR, NDI\params\NetworkAddress, type,       0, "edit"
+HKR, NDI\params\NetworkAddress, LimitText,  0, "12"
+HKR, NDI\params\NetworkAddress, UpperCase,  0, "1"
+HKR, NDI\params\NetworkAddress, default,    0, " "
+HKR, NDI\params\NetworkAddress, optional,   0, "1"
+
+[SourceDisksNames]
+1=%SourceDisk%,,1
+
+[SourceDisksFiles]
+usb8023m.sys=1
+rndismpm.sys=1
+usb8023w.sys=1
+rndismpw.sys=1
+usb8023k.sys=1
+rndismpk.sys=1
+
+[DestinationDirs]
+RNDIS_CopyFiles_98    = 10, system32/drivers
+RNDIS_CopyFiles_ME    = 10, system32/drivers
+RNDIS_CopyFiles_NT    = 12
+
+[Strings]
+ServiceDisplayName    = "USB Remote NDIS Network Device Driver"
+NetworkAddress        = "Network Address"
+Linux                 = "Linux Developer Community"
+LinuxDevice           = "Linux USB Ethernet/RNDIS Gadget"
+SourceDisk            = "Ethernet/RNDIS Gadget Driver Install Disk"
+

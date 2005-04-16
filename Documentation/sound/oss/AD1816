@@ -1,0 +1,84 @@
+Documentation for the AD1816(A) sound driver
+============================================
+
+Installation:
+-------------
+
+To get your AD1816(A) based sound card work, you'll have to enable support for
+experimental code ("Prompt for development and/or incomplete code/drivers")
+and isapnp ("Plug and Play support", "ISA Plug and Play support"). Enable
+"Sound card support", "OSS modules support" and "Support for AD1816(A) based
+cards (EXPERIMENTAL)" in the sound configuration menu, too. Now build, install
+and reboot the new kernel as usual.
+
+Features:
+---------
+
+List of features supported by this driver:
+- full-duplex support
+- supported audio formats: unsigned 8bit, signed 16bit little endian, 
+                           signed 16bit big endian, µ-law, A-law
+- supported channels: mono and stereo
+- supported recording sources: Master, CD, Line, Line1, Line2, Mic
+- supports phat 3d stereo circuit (Line 3)
+
+
+Supported cards:
+----------------
+
+The following cards are known to work with this driver:
+- Terratec Base 1 
+- Terratec Base 64 
+- HP Kayak 
+- Acer FX-3D
+- SY-1816 
+- Highscreen Sound-Boostar 32 Wave 3D
+- Highscreen Sound-Boostar 16 
+- AVM Apex Pro card 
+- (Aztech SC-16 3D) 
+- (Newcom SC-16 3D) 
+- (Terratec EWS64S) 
+
+Cards listed in brackets are not supported reliable. If you have such a card 
+you should add the extra parameter:
+  options=1
+when loading the ad1816 module via modprobe. 
+
+
+Troubleshooting:
+----------------
+
+First of all you should check, if the driver has been loaded
+properly.
+
+If loading of the driver succeeds, but playback/capture fails, check
+if you used the correct values for irq, dma and dma2 when loading the module.
+If one of them is wrong you usually get the following error message:
+
+Nov  6 17:06:13 tek01 kernel: Sound: DMA (output) timed out - IRQ/DRQ config error?
+
+If playback/capture is too fast or to slow, you should have a look at
+the clock chip of your sound card. The AD1816 was designed for a 33MHz
+oscillator, however most sound card manufacturer use slightly
+different oscillators as they are cheaper than 33MHz oscillators. If
+you have such a card you have to adjust the ad1816_clockfreq parameter
+above. For example: For a card using a 32.875MHz oscillator use
+ad1816_clockfreq=32875 instead of ad1816_clockfreq=33000.
+
+
+Updates, bugfixes and bugreports:
+--------------------------------
+
+As the driver is still experimental and under development, you should
+watch out for updates.  Updates of the driver are available on the
+Internet from one of my home pages:
+  http://www.student.informatik.tu-darmstadt.de/~tek/projects/linux.html
+or:
+  http://www.tu-darmstadt.de/~tek01/projects/linux.html
+
+Bugreports, bugfixes and related questions should be sent via E-Mail to:
+  tek@rbg.informatik.tu-darmstadt.de
+
+Thorsten Knabe <tek@rbg.informatik.tu-darmstadt.de>
+Christoph Hellwig <hch@infradead.org>
+	Last modified: 2000/09/20

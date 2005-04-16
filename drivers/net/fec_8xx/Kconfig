@@ -1,0 +1,14 @@
+config FEC_8XX
+	tristate "Motorola 8xx FEC driver"
+	depends on NET_ETHERNET && 8xx && (NETTA || NETPHONE)
+	select MII
+
+config FEC_8XX_GENERIC_PHY
+	bool "Support any generic PHY"
+	depends on FEC_8XX
+	default y
+
+config FEC_8XX_DM9161_PHY
+	bool "Support DM9161 PHY"
+	depends on FEC_8XX
+	default n

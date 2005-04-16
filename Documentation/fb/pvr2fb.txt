@@ -1,0 +1,61 @@
+$Id: pvr2fb.txt,v 1.1 2001/05/24 05:09:16 mrbrown Exp $
+
+What is pvr2fb?
+===============
+
+This is a driver for PowerVR 2 based graphics frame buffers, such as the
+one found in the Dreamcast.
+
+Advantages:
+
+ * It provides a nice large console (128 cols + 48 lines with 1024x768)
+   without using tiny, unreadable fonts.
+ * You can run XF86_FBDev on top of /dev/fb0
+ * Most important: boot logo :-)
+
+Disadvantages:
+
+ * Driver is currently limited to the Dreamcast PowerVR 2 implementation
+   at the time of this writing.
+
+Configuration
+=============
+
+You can pass kernel command line options to pvr2fb with
+`video=pvr2fb:option1,option2:value2,option3' (multiple options should be
+separated by comma, values are separated from options by `:').
+Accepted options:
+
+font:X    - default font to use. All fonts are supported, including the
+            SUN12x22 font which is very nice at high resolutions.
+
+mode:X    - default video mode. The following video modes are supported:
+            640x240-60, 640x480-60.
+	    
+            Note: the 640x240 mode is currently broken, and should not be
+            used for any reason. It is only mentioned as a reference.
+
+inverse   - invert colors on screen (for LCD displays)
+
+nomtrr    - disables write combining on frame buffer. This slows down driver
+            but there is reported minor incompatibility between GUS DMA and
+            XFree under high loads if write combining is enabled (sound
+            dropouts). MTRR is enabled by default on systems that have it
+            configured and that support it.
+
+cable:X   - cable type. This can be any of the following: vga, rgb, and
+            composite. If none is specified, we guess.
+
+output:X  - output type. This can be any of the following: pal, ntsc, and
+            vga. If none is specified, we guess.
+
+X11
+===
+
+XF86_FBDev should work, in theory. At the time of this writing it is
+totally untested and may or may not even portray the beginnings of
+working. If you end up testing this, please let me know!
+
+--
+Paul Mundt <lethal@linuxdc.org>
+

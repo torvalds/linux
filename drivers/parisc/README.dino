@@ -1,0 +1,28 @@
+/*
+** HP VISUALIZE Workstation PCI Bus Defect
+**
+** "HP has discovered a potential system defect that can affect
+** the behavior of five models of HP VISUALIZE workstations when
+** equipped with third-party or customer-installed PCI I/O expansion
+** cards. The defect is limited to the HP C180, C160, C160L, B160L,
+** and B132L VISUALIZE workstations, and will only be encountered
+** when data is transmitted through PCI I/O expansion cards on the
+** PCI bus. HP-supplied graphics cards that utilize the PCI bus are
+** not affected."
+**
+** REVISIT: "go/pci_defect" link below is stale.
+**	HP Internal can use <http://hpfcdma.fc.hp.com:80/Dino/>
+**
+**	Product		First Good Serial Number
+**  C200/C240 (US)	US67350000
+**B132L+/B180 (US)	US67390000
+**   C200 (Europe)	3713G01000
+**  B180L (Europe)	3720G01000
+**
+** Note that many boards were fixed/replaced under a free replacement
+** program. Assume a machine is only "suspect" until proven otherwise.
+**
+** "The pci_check program will also be available as application
+**  patch PHSS_12295"
+*/
+

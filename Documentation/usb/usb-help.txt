@@ -1,0 +1,19 @@
+usb-help.txt
+2000-July-12
+
+For USB help other than the readme files that are located in
+Documentation/usb/*, see the following:
+
+Linux-USB project:  http://www.linux-usb.org
+  mirrors at        http://www.suse.cz/development/linux-usb/
+         and        http://usb.in.tum.de/linux-usb/
+         and        http://it.linux-usb.org
+Linux USB Guide:    http://linux-usb.sourceforge.net
+Linux-USB device overview (working devices and drivers):
+                    http://www.qbik.ch/usb/devices/
+    
+The Linux-USB mailing lists are:
+  linux-usb-users@lists.sourceforge.net   for general user help
+  linux-usb-devel@lists.sourceforge.net   for developer discussions
+
+###

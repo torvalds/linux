@@ -1,0 +1,369 @@
+
+SliceCOM adapter user's documentation - for the 0.51 driver version
+
+Written by Bartók István <bartoki@itc.hu>
+
+English translation: Lakatos György <gyuri@itc.hu>
+Mon Dec 11 15:28:42 CET 2000
+
+Last modified: Wed Aug 29 17:25:37 CEST 2001
+
+-----------------------------------------------------------------
+
+Usage:
+
+Compiling the kernel:
+
+Code maturity level options
+	[*] Prompt for development and/or incomplete code/drivers
+
+Network device support
+	Wan interfaces
+		<M> MultiGate (COMX) synchronous
+			<M> Support for MUNICH based boards: SliceCOM, PCICOM (NEW)
+			<M> Support for HDLC and syncPPP...
+
+
+Loading the modules:
+
+modprobe comx
+
+modprobe comx-proto-ppp		# module for  Cisco-HDLC and SyncPPP protocols
+
+modprobe comx-hw-munich		# the module logs information by the kernel
+				# about the detected boards
+
+
+Configuring the board:
+
+# This interface will use the Cisco-HDLC line protocol,
+# the timeslices assigned are 1,2 (128 KiBit line speed)
+# (the first data timeslice in the G.703 frame is no. 1)
+#
+mkdir /proc/comx/comx0.1/
+echo slicecom	>/proc/comx/comx0.1/boardtype
+echo hdlc	>/proc/comx/comx0.1/protocol
+echo 1 2	>/proc/comx/comx0.1/timeslots
+
+
+# This interface uses SyncPPP line protocol, the assigned 
+# is no. 3 (64 KiBit line speed)
+#
+mkdir /proc/comx/comx0.2/
+echo slicecom	>/proc/comx/comx0.2/boardtype
+echo ppp	>/proc/comx/comx0.2/protocol
+echo 3		>/proc/comx/comx0.2/timeslots
+
+...
+
+ifconfig comx0.1 up
+ifconfig comx0.2 up
+
+-----------------------------------------------------------------
+
+The COMX interfaces use a 10 packet transmit queue by default, however WAN
+networks sometimes use bigger values (20 to 100), to utilize the line better
+by large traffic (though the line delay increases because of more packets
+join the queue).
+
+# ifconfig comx0 txqueuelen 50
+
+This option is only supported by the ifconfig command of the later 
+distributions, which came with 2.2 kernels, such as RedHat 6.1 or Debian 2.2.
+
+You can download a newer netbase packet from 
+http://www.debian.org/~rcw/2.2/netbase/ for Debian 2.1, which has a new
+ifconfig. You can get further information about using 2.2 kernel with
+Debian 2.1 from http://www.debian.org/releases/stable/running-kernel-2.2
+
+-----------------------------------------------------------------
+
+The SliceCom LEDs:
+
+red	- on, if the interface is unconfigured, or it gets Remote Alarm-s
+green	- on, if the board finds frame-sync in the received signal 	
+
+A bit more detailed:
+
+red:	green:	meaning:
+
+-	-	no frame-sync, no signal received, or signal SNAFU.
+-	on	"Everything is OK"
+on	on	Recepion is ok, but the remote end sends Remote Alarm
+on	-	The interface is unconfigured
+
+-----------------------------------------------------------------
+
+A more detailed description of the hardware setting options:
+
+The general and the protocol layer options described in the 'comx.txt' file
+apply to the SliceCom as well, I only summarize the SliceCom hardware specific
+settings below.
+
+The '/proc/comx' configuring interface:
+
+An interface directory should be created for every timeslot group with
+'mkdir', e,g: 'comx0', 'comx1' etc. The timeslots can be assigned here to the
+specific interface. The Cisco-like naming convention (serial3:1 - first
+timeslot group of the 3rd. board) can't be used here, because these mean IP
+aliasing in Linux.
+
+You can give any meaningful name to keep the configuration clear; 
+e.g: 'comx0.1', 'comx0.2', 'comx1.1', comx1.2', if you have two boards
+with two interfaces each.
+
+Settings, which apply to the board:
+
+Neither 'io' nor 'irq' settings required, the driver uses the resources
+given by the PCI BIOS.
+
+comx0/boardnum	- board number of the SliceCom in the PC (using the 'natural'
+		PCI order) as listed in '/proc/pci' or the output of the
+	 	'lspci' command, generally the slots nearer to the motherboard
+		PCI driver chips have the lower numbers.
+		
+		Default: 0 (the counting starts with 0)
+
+Though the options below are to be set on a single interface, they apply to the
+whole board. The restriction, to use them on 'UP' interfaces, is because the 
+command sequence below could lead to unpredicable results.
+
+	# echo 0        >boardnum
+	# echo internal >clock_source
+	# echo 1        >boardnum
+
+The sequence would set the clock source of board 0.
+
+These settings will persist after all the interfaces are cleared, but are
+cleared when the driver module is unloaded and loaded again.
+
+comx0/clock_source - source of the transmit clock
+	Usage:
+
+	# echo line     >/proc/comx/comx0/clock_source
+	# echo internal >/proc/comx/comx0/clock_source
+
+	line	- The Tx clock is being decoded if the input data stream,
+		if no clock seen on the input, then the board will use it's
+		own clock generator.
+
+	internal - The Tx clock is supplied by the builtin clock generator. 	
+
+	Default: line
+
+	Normally, the telecommunication company's end device (the HDSL
+	modem) provides the Tx clock, that's why 'line' is the default.
+
+comx0/framing	- Switching CRC4 off/on
+
+	CRC4: 16 PCM frames (The 32 64Kibit channels are multiplexed into a
+	PCM frame, nothing to do with HDLC frames) are divided into 2x8
+	groups, each group has a 4 bit CRC.
+
+	# echo crc4	>/proc/comx/comx0/framing
+	# echo no-crc4	>/proc/comx/comx0/framing
+
+	Default is 'crc4', the Hungarian MATAV lines behave like this. 
+	The traffic generally passes if this setting on both ends don't match.
+
+comx0/linecode	- Setting the line coding
+
+	# echo hdb3	>/proc/comx/comx0/linecode
+	# echo ami	>/proc/comx/comx0/linecode
+
+	Default a 'hdb3', MATAV lines use this.
+	
+	(AMI coding is rarely used with E1 lines). Frame sync may occur, if
+	this setting doesn't match the other end's, but CRC4 and data errors
+	will come, which will result in CRC errors on HDLC/SyncPPP level. 
+
+comx0/reg	- direct access to the board's MUNICH (reg) and FALC (lbireg)
+comx0/lbireg	circuit's registers  
+
+	# echo >reg 0x04 0x0	- write 0 to register 4
+	# echo >reg 0x104	- write the contents of register 4 with
+				printk() to syslog
+
+WARNING! These are only for development purposes, messing with this will
+	result much trouble!
+
+comx0/loopback - Places a loop to the board's G.703 signals
+
+	# echo none   >/proc/comx/comx0/loopback
+	# echo local  >/proc/comx/comx0/loopback
+	# echo remote >/proc/comx/comx0/loopback
+
+	none   - normal operation, no loop
+	local  - the board receives it's own output
+	remote - the board sends the received data to the remote side
+
+	Default: none
+
+-----------------------------------------------------------------
+
+Interface (channel group in Cisco terms) settings: 
+
+comx0/timeslots	- which timeslots belong to the given interface
+
+	Setting:
+
+	# echo '1 5 2 6 7 8' >/proc/comx/comx0/timeslots
+
+	# cat /proc/comx/comx0/timeslots
+	1 2 5 6 7 8 
+	#
+
+	Finding a timeslot: 
+
+	# grep ' 4' /proc/comx/comx*/timeslots
+	/proc/comx/comx0/timeslots:1 3 4 5 6
+	#
+
+	The timeslots can be in any order, '1 2 3' is the same as '1 3 2'.
+
+	The interface has to be DOWN during the setting ('ifconfig comx0
+	down'), but the other interfaces could operate normally.
+
+	The driver checks if the assigned timeslots are vacant, if not, then
+	the setting won't be applied.
+
+	The timeslot values are treated as decimal numbers, not to misunderstand
+	values of 08, 09 form.
+
+-----------------------------------------------------------------
+
+Checking the interface and board status:
+
+- Lines beginning with ' ' (space) belong to the original output, the lines
+which begin with '//' are the comments.
+
+ papaya:~$ cat /proc/comx/comx1/status
+ Interface administrative status is UP, modem status is UP, protocol is UP
+ Modem status changes: 0, Transmitter status is IDLE, tbusy: 0
+ Interface load (input): 978376 / 947808 / 951024 bits/s (5s/5m/15m)
+               (output): 978376 / 947848 / 951024 bits/s (5s/5m/15m)
+ Debug flags: none
+ RX errors: len: 22, overrun: 1, crc: 0, aborts: 0
+            buffer overrun: 0, pbuffer overrun: 0
+ TX errors: underrun: 0
+ Line keepalive (value: 10) status UP [0]
+
+// The hardware specific part starts here:
+ Controller status:
+         No alarms
+
+// Alarm: 
+//
+// No alarms - Everything OK
+//
+// LOS  - Loss Of Signal - No signal sensed on the input
+// AIS  - Alarm Indication Signal - The remot side sends '11111111'-s, 
+//	it tells, that there's an error condition, or it's not
+//	initialised.
+// AUXP - Auxiliary Pattern Indication - 01010101.. received.
+// LFA  - Loss of Frame Alignment - no frame sync received.
+// RRA  - Receive Remote Alarm - the remote end's OK, but singnals error cond.
+// LMFA - Loss of CRC4 Multiframe Alignment - no CRC4 multiframe sync.
+// NMF  - No Multiframe alignment Found after 400 msec - no such alarm using
+//	no-crc4 or crc4 framing, see below.
+//
+// Other possible error messages:
+//
+// Transmit Line Short - the board felt, that it's output is short-circuited,
+// 	so it switched the transmission off. (The board can't definitely tell,
+//	that it's output is short-circuited.)
+
+// Chained list of the received packets, for debug purposes:
+
+ Rx ring:
+         rafutott: 0
+         lastcheck: 50845731, jiffies: 51314281
+         base: 017b1858
+         rx_desc_ptr: 0
+         rx_desc_ptr: 017b1858
+         hw_curr_ptr: 017b1858
+         06040000 017b1868 017b1898 c016ff00
+         06040000 017b1878 017b1e9c c016ff00
+         46040000 017b1888 017b24a0 c016ff00
+         06040000 017b1858 017b2aa4 c016ff00
+
+// All the interfaces using the board: comx1, using the 1,2,...16 timeslots,
+// comx2, using timeslot 17, etc.
+
+ Interfaces using this board: (channel-group, interface, timeslots)
+          0 comx1: 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+          1 comx2: 17
+          2 comx3: 18
+          3 comx4: 19
+          4 comx5: 20
+          5 comx6: 21
+          6 comx7: 22
+          7 comx8: 23
+          8 comx9: 24
+          9 comx10: 25
+         10 comx11: 26
+         11 comx12: 27
+         12 comx13: 28
+         13 comx14: 29
+         14 comx15: 30
+         15 comx16: 31
+
+// The number of events handled by the driver during an interrupt cycle:
+
+ Interrupt work histogram:
+ hist[ 0]:        0 hist[ 1]:        2 hist[ 2]:    18574 hist[ 3]:       79
+ hist[ 4]:       14 hist[ 5]:        1 hist[ 6]:        0 hist[ 7]:        1
+ hist[ 8]:        0 hist[ 9]:        7
+
+// The number of packets to send in the Tx ring, when a new one arrived:
+
+ Tx ring histogram:
+ hist[ 0]:     2329 hist[ 1]:        0 hist[ 2]:        0 hist[ 3]:        0
+
+// The error counters of the E1 interface, according to the RFC2495,
+// (similar to the Cisco "show controllers e1" command's output:
+// http://www.cisco.com/univercd/cc/td/doc/product/software/ios11/rbook/rinterfc.htm#xtocid25669126)
+
+Data in current interval (91 seconds elapsed):
+   9516 Line Code Violations, 65 Path Code Violations, 2 E-Bit Errors
+   0 Slip Secs, 2 Fr Loss Secs, 2 Line Err Secs, 0 Degraded Mins
+   0 Errored Secs, 0 Bursty Err Secs, 0 Severely Err Secs, 11 Unavail Secs
+Data in Interval 1 (15 minutes):
+   0 Line Code Violations, 0 Path Code Violations, 0 E-Bit Errors
+   0 Slip Secs, 0 Fr Loss Secs, 0 Line Err Secs, 0 Degraded Mins
+   0 Errored Secs, 0 Bursty Err Secs, 0 Severely Err Secs, 0 Unavail Secs
+Data in last 4 intervals (1 hour):
+   0 Line Code Violations, 0 Path Code Violations, 0 E-Bit Errors
+   0 Slip Secs, 0 Fr Loss Secs, 0 Line Err Secs, 0 Degraded Mins
+   0 Errored Secs, 0 Bursty Err Secs, 0 Severely Err Secs, 0 Unavail Secs
+Data in last 96 intervals (24 hours):
+   0 Line Code Violations, 0 Path Code Violations, 0 E-Bit Errors
+   0 Slip Secs, 0 Fr Loss Secs, 0 Line Err Secs, 0 Degraded Mins
+   0 Errored Secs, 0 Bursty Err Secs, 0 Severely Err Secs, 0 Unavail Secs
+
+-----------------------------------------------------------------
+
+Some unique options, (may get into the driver later):
+Treat them very carefully, these can cause much trouble!
+
+	modified CRC-4, for improved interworking of CRC-4 and non-CRC-4
+	devices: (see page 107 and g706 Annex B)
+		lbireg[ 0x1b ] |= 0x08
+		lbireg[ 0x1c ] |= 0xc0
+
+	- The NMF - 'No Multiframe alignment Found after 400 msec' alarm 
+	comes into account.
+
+	FALC - the line driver chip.
+	local loop - I hear my transmission back.
+	remote loop - I echo the remote transmission back.
+
+	Something useful for finding errors:
+	
+		- local loop for timeslot 1 in the FALC chip:
+
+	# echo >lbireg 0x1d 0x21
+
+		- Swithing the loop off:
+
+	# echo >lbireg 0x1d 0x00

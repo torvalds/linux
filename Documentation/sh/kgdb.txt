@@ -1,0 +1,179 @@
+
+This file describes the configuration and behavior of KGDB for the SH
+kernel. Based on a description from Henry Bell <henry.bell@st.com>, it
+has been modified to account for quirks in the current implementation.
+
+Version
+=======
+
+This version of KGDB was written for 2.4.xx kernels for the SH architecture.
+Further documentation is available from the linux-sh project website.
+
+
+Debugging Setup: Host
+======================
+
+The two machines will be connected together via a serial line - this
+should be a null modem cable i.e. with a twist.
+
+On your DEVELOPMENT machine, go to your kernel source directory and
+build the kernel, enabling KGDB support in the "kernel hacking" section.
+This includes the KGDB code, and also makes the kernel be compiled with
+the "-g" option set -- necessary for debugging.
+
+To install this new kernel, use the following installation procedure.
+
+Decide on which tty port you want the machines to communicate, then
+cable them up back-to-back using the null modem.  On the DEVELOPMENT
+machine, you may wish to create an initialization file called .gdbinit
+(in the kernel source directory or in your home directory) to execute 
+commonly-used commands at startup.
+
+A minimal .gdbinit might look like this:
+
+  file vmlinux
+  set remotebaud 115200
+  target remote /dev/ttyS0
+
+Change the "target" definition so that it specifies the tty port that
+you intend to use.  Change the "remotebaud" definition to match the
+data rate that you are going to use for the com line (115200 is the
+default). 
+
+Debugging Setup: Target
+========================
+
+By default, the KGDB stub will communicate with the host GDB using
+ttySC1 at 115200 baud, 8 databits, no parity; these defaults can be
+changed in the kernel configuration. As the kernel starts up, KGDB will
+initialize so that breakpoints, kernel segfaults, and so forth will
+generally enter the debugger.
+
+This behavior can be modified by including the "kgdb" option in the
+kernel command line; this option has the general form:
+
+  kgdb=<ttyspec>,<action>
+
+The <ttyspec> indicates the port to use, and can optionally specify
+baud, parity and databits -- e.g. "ttySC0,9600N8" or "ttySC1,19200".
+
+The <action> can be "halt" or "disabled".  The "halt" action enters the
+debugger via a breakpoint as soon as kgdb is initialized; the "disabled"
+action causes kgdb to ignore kernel segfaults and such until explicitly
+entered by a breakpoint in the code or by external action (sysrq or NMI). 
+
+(Both <ttyspec> and <action> can appear alone, w/o the separating comma.)
+
+For example, if you wish to debug early in kernel startup code, you
+might specify the halt option:
+
+  kgdb=halt
+
+Boot the TARGET machinem, which will appear to hang. 
+
+On your DEVELOPMENT machine, cd to the source directory and run the gdb
+program.  (This is likely to be a cross GDB which runs on your host but
+is built for an SH target.) If everything is working correctly you
+should see gdb print out a few lines indicating that a breakpoint has
+been taken.  It will actually show a line of code in the target kernel
+inside the gdbstub activation code.
+
+NOTE: BE SURE TO TERMINATE OR SUSPEND any other host application which
+may be using the same serial port (for example, a terminal emulator you
+have been using to connect to the target boot code.)  Otherwise, data
+from the target may not all get to GDB!
+
+You can now use whatever gdb commands you like to set breakpoints.
+Enter "continue" to start your target machine executing again.  At this
+point the target system will run at full speed until it encounters
+your breakpoint or gets a segment violation in the kernel, or whatever.
+
+Serial Ports: KGDB, Console
+============================
+
+This version of KGDB may not gracefully handle conflict with other
+drivers in the kernel using the same port. If KGDB is configured on the
+same port (and with the same parameters) as the kernel console, or if
+CONFIG_SH_KGDB_CONSOLE is configured, things should be fine (though in
+some cases console messages may appear twice through GDB).  But if the
+KGDB port is not the kernel console and used by another serial driver
+which assumes different serial parameters (e.g. baud rate) KGDB may not
+recover.
+
+Also, when KGDB is entered via sysrq-g (requires CONFIG_KGDB_SYSRQ) and
+the kgdb port uses the same port as the console, detaching GDB will not
+restore the console to working order without the port being re-opened.
+
+Another serious consequence of this is that GDB currently CANNOT break
+into KGDB externally (e.g. via ^C or <BREAK>); unless a breakpoint or
+error is encountered, the only way to enter KGDB after the initial halt
+(see above) is via NMI (CONFIG_KGDB_NMI) or sysrq-g (CONFIG_KGDB_SYSRQ).
+
+Code is included for the basic Hitachi Solution Engine boards to allow
+the use of ttyS0 for KGDB if desired; this is less robust, but may be
+useful in some cases.  (This cannot be selected using the config file, 
+but only through the kernel command line, e.g. "kgdb=ttyS0", though the
+configured defaults for baud rate etc. still apply if not overridden.)
+
+If gdbstub Does Not Work
+========================
+
+If it doesn't work, you will have to troubleshoot it.  Do the easy
+things first like double checking your cabling and data rates.  You
+might try some non-kernel based programs to see if the back-to-back
+connection works properly.  Just something simple like cat /etc/hosts
+/dev/ttyS0 on one machine and cat /dev/ttyS0 on the other will tell you
+if you can send data from one machine to the other.  There is no point
+in tearing out your hair in the kernel if the line doesn't work.
+
+If you need to debug the GDB/KGDB communication itself, the gdb commands
+"set debug remote 1" and "set debug serial 1" may be useful, but be
+warned: they produce a lot of output.
+
+Threads
+=======
+
+Each process in a target machine is seen as a gdb thread. gdb thread related
+commands (info threads, thread n) can be used. CONFIG_KGDB_THREAD must
+be defined for this to work.
+
+In this version, kgdb reports PID_MAX (32768) as the process ID for the
+idle process (pid 0), since GDB does not accept 0 as an ID.
+
+Detaching (exiting KGDB)
+=========================
+
+There are two ways to resume full-speed target execution: "continue" and
+"detach". With "continue", GDB inserts any specified breakpoints in the
+target code and resumes execution; the target is still in "gdb mode".
+If a breakpoint or other debug event (e.g. NMI) happens, the target
+halts and communicates with GDB again, which is waiting for it.
+
+With "detach", GDB does *not* insert any breakpoints; target execution
+is resumed and GDB stops communicating (does not wait for the target).
+In this case, the target is no longer in "gdb mode" -- for example,
+console messages no longer get sent separately to the KGDB port, or
+encapsulated for GDB.  If a debug event (e.g. NMI) occurs, the target
+will re-enter "gdb mode" and will display this fact on the console; you
+must give a new "target remote" command to gdb.
+
+NOTE: TO AVOID LOSSING CONSOLE MESSAGES IN CASE THE KERNEL CONSOLE AND
+KGDB USING THE SAME PORT, THE TARGET WAITS FOR ANY INPUT CHARACTER ON
+THE KGDB PORT AFTER A DETACH COMMAND.  For example, after the detach you
+could start a terminal emulator on the same host port and enter a <cr>;
+however, this program must then be terminated or suspended in order to
+use GBD again if KGDB is re-entered.
+
+
+Acknowledgements
+================
+
+This code was mostly generated by Henry Bell <henry.bell@st.com>;
+largely from KGDB by Amit S. Kale <akale@veritas.com> - extracts from
+code by Glenn Engel, Jim Kingdon, David Grothe <dave@gcom.com>, Tigran
+Aivazian <tigran@sco.com>, William Gatliff <bgat@open-widgets.com>, Ben
+Lee, Steve Chamberlain and Benoit Miller <fulg@iname.com> are also
+included. 
+
+Jeremy Siegel
+<jsiegel@mvista.com>

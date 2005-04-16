@@ -1,0 +1,31 @@
+#
+# IPX configuration
+#
+config IPX_INTERN
+	bool "IPX: Full internal IPX network"
+	depends on IPX
+	---help---
+	  Every IPX network has an address that identifies it. Sometimes it is
+	  useful to give an IPX "network" address to your Linux box as well
+	  (for example if your box is acting as a file server for different
+	  IPX networks: it will then be accessible from everywhere using the
+	  same address). The way this is done is to create a virtual internal
+	  "network" inside your box and to assign an IPX address to this
+	  network. Say Y here if you want to do this; read the IPX-HOWTO at
+	  <http://www.tldp.org/docs.html#howto> for details.
+
+	  The full internal IPX network enables you to allocate sockets on
+	  different virtual nodes of the internal network. This is done by
+	  evaluating the field sipx_node of the socket address given to the
+	  bind call. So applications should always initialize the node field
+	  to 0 when binding a socket on the primary network. In this case the
+	  socket is assigned the default node that has been given to the
+	  kernel when the internal network was created. By enabling the full
+	  internal IPX network the cross-forwarding of packets targeted at
+	  'special' sockets to sockets listening on the primary network is
+	  disabled. This might break existing applications, especially RIP/SAP
+	  daemons. A RIP/SAP daemon that works well with the full internal net
+	  can be found on <ftp://ftp.gwdg.de/pub/linux/misc/ncpfs/>.
+
+	  If you don't know what you are doing, say N.
+

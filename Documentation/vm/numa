@@ -1,0 +1,41 @@
+Started Nov 1999 by Kanoj Sarcar <kanoj@sgi.com>
+
+The intent of this file is to have an uptodate, running commentary 
+from different people about NUMA specific code in the Linux vm.
+
+What is NUMA? It is an architecture where the memory access times
+for different regions of memory from a given processor varies
+according to the "distance" of the memory region from the processor.
+Each region of memory to which access times are the same from any 
+cpu, is called a node. On such architectures, it is beneficial if
+the kernel tries to minimize inter node communications. Schemes
+for this range from kernel text and read-only data replication
+across nodes, and trying to house all the data structures that
+key components of the kernel need on memory on that node.
+
+Currently, all the numa support is to provide efficient handling
+of widely discontiguous physical memory, so architectures which 
+are not NUMA but can have huge holes in the physical address space
+can use the same code. All this code is bracketed by CONFIG_DISCONTIGMEM.
+
+The initial port includes NUMAizing the bootmem allocator code by
+encapsulating all the pieces of information into a bootmem_data_t
+structure. Node specific calls have been added to the allocator. 
+In theory, any platform which uses the bootmem allocator should 
+be able to to put the bootmem and mem_map data structures anywhere
+it deems best.
+
+Each node's page allocation data structures have also been encapsulated
+into a pg_data_t. The bootmem_data_t is just one part of this. To 
+make the code look uniform between NUMA and regular UMA platforms, 
+UMA platforms have a statically allocated pg_data_t too (contig_page_data).
+For the sake of uniformity, the function num_online_nodes() is also defined
+for all platforms. As we run benchmarks, we might decide to NUMAize 
+more variables like low_on_memory, nr_free_pages etc into the pg_data_t.
+
+The NUMA aware page allocation code currently tries to allocate pages 
+from different nodes in a round robin manner.  This will be changed to 
+do concentratic circle search, starting from current node, once the 
+NUMA port achieves more maturity. The call alloc_pages_node has been 
+added, so that drivers can make the call and not worry about whether 
+it is running on a NUMA or UMA platform.

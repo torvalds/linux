@@ -1,0 +1,48 @@
+Traffic Shaper For Linux
+
+This is the current BETA release of the traffic shaper for Linux. It works
+within the following limits:
+
+o	Minimum shaping speed is currently about 9600 baud (it can only
+shape down to 1 byte per clock tick)
+
+o	Maximum is about 256K, it will go above this but get a bit blocky.
+
+o	If you ifconfig the master device that a shaper is attached to down
+then your machine will follow.
+
+o	The shaper must be a module.
+
+
+Setup:
+
+	A shaper device is configured using the shapeconfig program.
+Typically you will do something like this
+
+shapecfg attach shaper0 eth1
+shapecfg speed shaper0 64000
+ifconfig shaper0 myhost netmask 255.255.255.240 broadcast 1.2.3.4.255 up
+route add -net some.network netmask a.b.c.d dev shaper0
+
+The shaper should have the same IP address as the device it is attached to
+for normal use.
+
+Gotchas:
+
+	The shaper shapes transmitted traffic. It's rather impossible to
+shape received traffic except at the end (or a router) transmitting it.
+
+	Gated/routed/rwhod/mrouted all see the shaper as an additional device
+and will treat it as such unless patched. Note that for mrouted you can run
+mrouted tunnels via a traffic shaper to control bandwidth usage.
+
+	The shaper is device/route based. This makes it very easy to use
+with any setup BUT less flexible. You may need to use iproute2 to set up
+multiple route tables to get the flexibility.
+
+	There is no "borrowing" or "sharing" scheme. This is a simple
+traffic limiter. We implement Van Jacobson and Sally Floyd's CBQ
+architecture into Linux 2.2. This is the preferred solution. Shaper is
+for simple or back compatible setups.
+
+Alan

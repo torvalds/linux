@@ -1,0 +1,846 @@
+#
+# Serial device configuration
+#
+# $Id: Kconfig,v 1.11 2004/03/11 18:08:04 lethal Exp $
+#
+
+menu "Serial drivers"
+
+#
+# The new 8250/16550 serial drivers
+config SERIAL_8250
+	tristate "8250/16550 and compatible serial support"
+	depends on (BROKEN || !(SPARC64 || SPARC32))
+	select SERIAL_CORE
+	---help---
+	  This selects whether you want to include the driver for the standard
+	  serial ports.  The standard answer is Y.  People who might say N
+	  here are those that are setting up dedicated Ethernet WWW/FTP
+	  servers, or users that have one of the various bus mice instead of a
+	  serial mouse and don't intend to use their machine's standard serial
+	  port for anything.  (Note that the Cyclades and Stallion multi
+	  serial port drivers do not need this driver built in for them to
+	  work.)
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called serial.
+	  [WARNING: Do not compile this driver as a module if you are using
+	  non-standard serial ports, since the configuration information will
+	  be lost when the driver is unloaded.  This limitation may be lifted
+	  in the future.]
+
+	  BTW1: If you have a mouseman serial mouse which is not recognized by
+	  the X window system, try running gpm first.
+
+	  BTW2: If you intend to use a software modem (also called Winmodem)
+	  under Linux, forget it.  These modems are crippled and require
+	  proprietary drivers which are only available under Windows.
+
+	  Most people will say Y or M here, so that they can use serial mice,
+	  modems and similar devices connecting to the standard serial ports.
+
+config SERIAL_8250_CONSOLE
+	bool "Console on 8250/16550 and compatible serial port"
+	depends on SERIAL_8250=y
+	select SERIAL_CORE_CONSOLE
+	---help---
+	  If you say Y here, it will be possible to use a serial port as the
+	  system console (the system console is the device which receives all
+	  kernel messages and warnings and which allows logins in single user
+	  mode). This could be useful if some terminal or printer is connected
+	  to that serial port.
+
+	  Even if you say Y here, the currently visible virtual console
+	  (/dev/tty0) will still be used as the system console by default, but
+	  you can alter that using a kernel command line option such as
+	  "console=ttyS1". (Try "man bootparam" or see the documentation of
+	  your boot loader (grub or lilo or loadlin) about how to pass options
+	  to the kernel at boot time.)
+
+	  If you don't have a VGA card installed and you say Y here, the
+	  kernel will automatically use the first serial line, /dev/ttyS0, as
+	  system console.
+
+	  If unsure, say N.
+
+config SERIAL_8250_CS
+	tristate "8250/16550 PCMCIA device support"
+	depends on PCMCIA && SERIAL_8250
+	---help---
+	  Say Y here to enable support for 16-bit PCMCIA serial devices,
+	  including serial port cards, modems, and the modem functions of
+	  multi-function Ethernet/modem cards. (PCMCIA- or PC-cards are
+	  credit-card size devices often used with laptops.)
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called serial_cs.
+
+	  If unsure, say N.
+
+config SERIAL_8250_ACPI
+	bool "8250/16550 device discovery via ACPI namespace"
+	default y if IA64
+	depends on ACPI_BUS && SERIAL_8250
+	---help---
+	  If you wish to enable serial port discovery via the ACPI
+	  namespace, say Y here.  If unsure, say N.
+
+config SERIAL_8250_NR_UARTS
+	int "Maximum number of non-legacy 8250/16550 serial ports"
+	depends on SERIAL_8250
+	default "4"
+	---help---
+	  Set this to the number of non-legacy serial ports you want
+	  the driver to support.  This includes any ports discovered
+	  via ACPI or PCI enumeration and any ports that may be added
+	  at run-time via hot-plug.
+
+config SERIAL_8250_EXTENDED
+	bool "Extended 8250/16550 serial driver options"
+	depends on SERIAL_8250
+	help
+	  If you wish to use any non-standard features of the standard "dumb"
+	  driver, say Y here. This includes HUB6 support, shared serial
+	  interrupts, special multiport support, support for more than the
+	  four COM 1/2/3/4 boards, etc.
+
+	  Note that the answer to this question won't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about serial driver options. If unsure, say N.
+
+config SERIAL_8250_MANY_PORTS
+	bool "Support more than 4 legacy serial ports"
+	depends on SERIAL_8250_EXTENDED && !IA64
+	help
+	  Say Y here if you have dumb serial boards other than the four
+	  standard COM 1/2/3/4 ports. This may happen if you have an AST
+	  FourPort, Accent Async, Boca (read the Boca mini-HOWTO, available
+	  from <http://www.tldp.org/docs.html#howto>), or other custom
+	  serial port hardware which acts similar to standard serial port
+	  hardware. If you only use the standard COM 1/2/3/4 ports, you can
+	  say N here to save some memory. You can also say Y if you have an
+	  "intelligent" multiport card such as Cyclades, Digiboards, etc.
+
+config SERIAL_8250_SHARE_IRQ
+	bool "Support for sharing serial interrupts"
+	depends on SERIAL_8250_EXTENDED
+	help
+	  Some serial boards have hardware support which allows multiple dumb
+	  serial ports on the same board to share a single IRQ. To enable
+	  support for this in the serial driver, say Y here.
+
+config SERIAL_8250_DETECT_IRQ
+	bool "Autodetect IRQ on standard ports (unsafe)"
+	depends on SERIAL_8250_EXTENDED
+	help
+	  Say Y here if you want the kernel to try to guess which IRQ
+	  to use for your serial port.
+
+	  This is considered unsafe; it is far better to configure the IRQ in
+	  a boot script using the setserial command.
+
+	  If unsure, say N.
+
+config SERIAL_8250_MULTIPORT
+	bool "Support special multiport boards"
+	depends on SERIAL_8250_EXTENDED
+	help
+	  Some multiport serial ports have special ports which are used to
+	  signal when there are any serial ports on the board which need
+	  servicing. Say Y here to enable the serial driver to take advantage
+	  of those special I/O ports.
+
+config SERIAL_8250_RSA
+	bool "Support RSA serial ports"
+	depends on SERIAL_8250_EXTENDED
+	help
+	  ::: To be written :::
+
+comment "Non-8250 serial port support"
+
+config SERIAL_8250_ACORN
+	tristate "Acorn expansion card serial port support"
+	depends on ARM && ARCH_ACORN && SERIAL_8250
+	help
+	  If you have an Atomwide Serial card or Serial Port card for an Acorn
+	  system, say Y to this option.  The driver can handle 1, 2, or 3 port
+	  cards.  If unsure, say N.
+
+config SERIAL_AMBA_PL010
+	tristate "ARM AMBA PL010 serial port support"
+	depends on ARM_AMBA
+	select SERIAL_CORE
+	help
+	  This selects the ARM(R) AMBA(R) PrimeCell PL010 UART.  If you have
+	  an Integrator/AP or Integrator/PP2 platform, say Y or M here.
+
+	  If unsure, say N.
+
+config SERIAL_AMBA_PL010_CONSOLE
+	bool "Support for console on AMBA serial port"
+	depends on SERIAL_AMBA_PL010=y
+	select SERIAL_CORE_CONSOLE
+	---help---
+	  Say Y here if you wish to use an AMBA PrimeCell UART as the system
+	  console (the system console is the device which receives all kernel
+	  messages and warnings and which allows logins in single user mode).
+
+	  Even if you say Y here, the currently visible framebuffer console
+	  (/dev/tty0) will still be used as the system console by default, but
+	  you can alter that using a kernel command line option such as
+	  "console=ttyAM0". (Try "man bootparam" or see the documentation of
+	  your boot loader (lilo or loadlin) about how to pass options to the
+	  kernel at boot time.)
+
+config SERIAL_AMBA_PL011
+	tristate "ARM AMBA PL011 serial port support"
+	depends on ARM_AMBA
+	select SERIAL_CORE
+	help
+	  This selects the ARM(R) AMBA(R) PrimeCell PL011 UART.  If you have
+	  an Integrator/PP2, Integrator/CP or Versatile platform, say Y or M
+	  here.
+
+	  If unsure, say N.
+
+config SERIAL_AMBA_PL011_CONSOLE
+	bool "Support for console on AMBA serial port"
+	depends on SERIAL_AMBA_PL011=y
+	select SERIAL_CORE_CONSOLE
+	---help---
+	  Say Y here if you wish to use an AMBA PrimeCell UART as the system
+	  console (the system console is the device which receives all kernel
+	  messages and warnings and which allows logins in single user mode).
+
+	  Even if you say Y here, the currently visible framebuffer console
+	  (/dev/tty0) will still be used as the system console by default, but
+	  you can alter that using a kernel command line option such as
+	  "console=ttyAM0". (Try "man bootparam" or see the documentation of
+	  your boot loader (lilo or loadlin) about how to pass options to the
+	  kernel at boot time.)
+
+config SERIAL_CLPS711X
+	tristate "CLPS711X serial port support"
+	depends on ARM && ARCH_CLPS711X
+	select SERIAL_CORE
+	help
+	  ::: To be written :::
+
+config SERIAL_CLPS711X_CONSOLE
+	bool "Support for console on CLPS711X serial port"
+	depends on SERIAL_CLPS711X=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  Even if you say Y here, the currently visible virtual console
+	  (/dev/tty0) will still be used as the system console by default, but
+	  you can alter that using a kernel command line option such as
+	  "console=ttyCL1". (Try "man bootparam" or see the documentation of
+	  your boot loader (lilo or loadlin) about how to pass options to the
+	  kernel at boot time.)
+
+config SERIAL_S3C2410
+	tristate "Samsung S3C2410 Serial port support"
+	depends on ARM && ARCH_S3C2410
+	select SERIAL_CORE
+	help
+	  Support for the on-chip UARTs on the Samsung S3C2410X CPU,
+	  providing /dev/ttySAC0, 1 and 2 (note, some machines may not
+	  provide all of these ports, depending on how the serial port
+	  pins are configured.
+
+config SERIAL_S3C2410_CONSOLE
+	bool "Support for console on S3C2410 serial port"
+	depends on SERIAL_S3C2410=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  Allow selection of the S3C2410 on-board serial ports for use as
+	  an virtual console.
+
+	  Even if you say Y here, the currently visible virtual console
+	  (/dev/tty0) will still be used as the system console by default, but
+	  you can alter that using a kernel command line option such as
+	  "console=ttySACx". (Try "man bootparam" or see the documentation of
+	  your boot loader about how to pass options to the kernel at
+	  boot time.)
+
+config SERIAL_BAST_SIO
+	bool "Support for BAST SuperIO serial ports"
+	depends on ARCH_BAST && SERIAL_8250=y
+	help
+	  Support for registerin the SuperIO chip on BAST board with
+	  the 8250/16550 uart code.
+
+config SERIAL_DZ
+	bool "DECstation DZ serial driver"
+	depends on MACH_DECSTATION && MIPS32
+	select SERIAL_CORE
+	help
+	  DZ11-family serial controllers for VAXstations, including the
+	  DC7085, M7814, and M7819.
+
+config SERIAL_DZ_CONSOLE
+	bool "Support console on DECstation DZ serial driver"
+	depends on SERIAL_DZ=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  If you say Y here, it will be possible to use a serial port as the
+	  system console (the system console is the device which receives all
+	  kernel messages and warnings and which allows logins in single user
+	  mode).  Note that the firmware uses ttyS0 as the serial console on
+	  the Maxine and ttyS2 on the others.
+
+	  If unsure, say Y.
+
+config SERIAL_21285
+	tristate "DC21285 serial port support"
+	depends on ARM && FOOTBRIDGE
+	select SERIAL_CORE
+	help
+	  If you have a machine based on a 21285 (Footbridge) StrongARM(R)/
+	  PCI bridge you can enable its onboard serial port by enabling this
+	  option.
+
+config SERIAL_21285_CONSOLE
+	bool "Console on DC21285 serial port"
+	depends on SERIAL_21285=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  If you have enabled the serial port on the 21285 footbridge you can
+	  make it the console by answering Y to this option.
+
+	  Even if you say Y here, the currently visible virtual console
+	  (/dev/tty0) will still be used as the system console by default, but
+	  you can alter that using a kernel command line option such as
+	  "console=ttyFB". (Try "man bootparam" or see the documentation of
+	  your boot loader (lilo or loadlin) about how to pass options to the
+	  kernel at boot time.)
+
+config SERIAL_UART00
+	bool "Excalibur serial port (uart00) support"
+	depends on ARM && ARCH_CAMELOT
+	select SERIAL_CORE
+	help
+	  Say Y here if you want to use the hard logic uart on Excalibur. This
+	  driver also supports soft logic implementations of this uart core.
+
+config SERIAL_UART00_CONSOLE
+	bool "Support for console on Excalibur serial port"
+	depends on SERIAL_UART00
+	select SERIAL_CORE_CONSOLE
+	help
+	  Say Y here if you want to support a serial console on an Excalibur
+	  hard logic uart or uart00 IP core.
+
+	  Even if you say Y here, the currently visible virtual console
+	  (/dev/tty0) will still be used as the system console by default, but
+	  you can alter that using a kernel command line option such as
+	  "console=ttyS1". (Try "man bootparam" or see the documentation of
+	  your boot loader (lilo or loadlin) about how to pass options to the
+	  kernel at boot time.)
+
+config SERIAL_MPSC
+	bool "Marvell MPSC serial port support"
+	depends on PPC32 && MV64X60
+	select SERIAL_CORE
+	help
+	  Say Y here if you want to use the Marvell MPSC serial controller.
+
+config SERIAL_MPSC_CONSOLE
+	bool "Support for console on Marvell MPSC serial port"
+	depends on SERIAL_MPSC
+	select SERIAL_CORE_CONSOLE
+	help
+	  Say Y here if you want to support a serial console on a Marvell MPSC.
+
+config SERIAL_PXA
+	bool "PXA serial port support"
+	depends on ARM && ARCH_PXA
+	select SERIAL_CORE
+	help
+	  If you have a machine based on an Intel XScale PXA2xx CPU you
+	  can enable its onboard serial ports by enabling this option.
+
+config SERIAL_PXA_CONSOLE
+	bool "Console on PXA serial port"
+	depends on SERIAL_PXA
+	select SERIAL_CORE_CONSOLE
+	help
+	  If you have enabled the serial port on the Intel XScale PXA
+	  CPU you can make it the console by answering Y to this option.
+
+	  Even if you say Y here, the currently visible virtual console
+	  (/dev/tty0) will still be used as the system console by default, but
+	  you can alter that using a kernel command line option such as
+	  "console=ttySA0". (Try "man bootparam" or see the documentation of
+	  your boot loader (lilo or loadlin) about how to pass options to the
+	  kernel at boot time.)
+
+config SERIAL_SA1100
+	bool "SA1100 serial port support"
+	depends on ARM && ARCH_SA1100
+	select SERIAL_CORE
+	help
+	  If you have a machine based on a SA1100/SA1110 StrongARM(R) CPU you
+	  can enable its onboard serial port by enabling this option.
+	  Please read <file:Documentation/arm/SA1100/serial_UART> for further
+	  info.
+
+config SERIAL_SA1100_CONSOLE
+	bool "Console on SA1100 serial port"
+	depends on SERIAL_SA1100
+	select SERIAL_CORE_CONSOLE
+	help
+	  If you have enabled the serial port on the SA1100/SA1110 StrongARM
+	  CPU you can make it the console by answering Y to this option.
+
+	  Even if you say Y here, the currently visible virtual console
+	  (/dev/tty0) will still be used as the system console by default, but
+	  you can alter that using a kernel command line option such as
+	  "console=ttySA0". (Try "man bootparam" or see the documentation of
+	  your boot loader (lilo or loadlin) about how to pass options to the
+	  kernel at boot time.)
+
+config SERIAL_IMX
+	bool "IMX serial port support"
+	depends on ARM && ARCH_IMX
+	select SERIAL_CORE
+	help
+	  If you have a machine based on a Motorola IMX CPU you
+	  can enable its onboard serial port by enabling this option.
+
+config SERIAL_IMX_CONSOLE
+	bool "Console on IMX serial port"
+	depends on SERIAL_IMX
+	select SERIAL_CORE_CONSOLE
+	help
+	  If you have enabled the serial port on the Motorola IMX
+	  CPU you can make it the console by answering Y to this option.
+
+	  Even if you say Y here, the currently visible virtual console
+	  (/dev/tty0) will still be used as the system console by default, but
+	  you can alter that using a kernel command line option such as
+	  "console=ttySA0". (Try "man bootparam" or see the documentation of
+	  your boot loader (lilo or loadlin) about how to pass options to the
+	  kernel at boot time.)
+
+config SERIAL_SUNCORE
+	bool
+	depends on SPARC32 || SPARC64
+	select SERIAL_CORE
+	select SERIAL_CORE_CONSOLE
+	default y
+
+config SERIAL_SUNZILOG
+	tristate "Sun Zilog8530 serial support"
+	depends on SPARC32 || SPARC64
+	help
+	  This driver supports the Zilog8530 serial ports found on many Sparc
+	  systems.  Say Y or M if you want to be able to these serial ports.
+
+config SERIAL_SUNZILOG_CONSOLE
+	bool "Console on Sun Zilog8530 serial port"
+	depends on SERIAL_SUNZILOG=y
+	help
+	  If you would like to be able to use the Zilog8530 serial port
+	  on your Sparc system as the console, you can do so by answering
+	  Y to this option.
+
+config SERIAL_SUNSU
+	tristate "Sun SU serial support"
+	depends on (SPARC32 || SPARC64) && PCI
+	help
+	  This driver supports the 8250 serial ports that run the keyboard and
+	  mouse on (PCI) UltraSPARC systems.  Say Y or M if you want to be able
+	  to these serial ports.
+
+config SERIAL_SUNSU_CONSOLE
+	bool "Console on Sun SU serial port"
+	depends on SERIAL_SUNSU=y
+	help
+	  If you would like to be able to use the SU serial port
+	  on your Sparc system as the console, you can do so by answering
+	  Y to this option.
+
+config SERIAL_MUX
+	tristate "Serial MUX support"
+	depends on PARISC
+	select SERIAL_CORE
+	default y
+	---help---
+	  Saying Y here will enable the hardware MUX serial driver for
+	  the Nova and K class systems.  The hardware MUX is not 8250/16550 
+	  compatible therefore the /dev/ttyB0 device is shared between the 
+	  Serial MUX and the PDC software console.  The following steps 
+	  need to be completed to use the Serial MUX:
+
+	    1. create the device entry (mknod /dev/ttyB0 c 11 0)
+	    2. Edit the /etc/inittab to start a getty listening on /dev/ttyB0
+	    3. Add device ttyB0 to /etc/securetty (if you want to log on as
+		 root on this console.)
+	    4. Change the kernel command console parameter to: console=ttyB0
+
+config SERIAL_MUX_CONSOLE
+        bool "Support for console on serial MUX"
+        depends on SERIAL_MUX
+	select SERIAL_CORE_CONSOLE
+        default y
+
+config PDC_CONSOLE
+	bool "PDC software console support"
+	depends on PARISC && !SERIAL_MUX && VT
+	default n
+	help
+	  Saying Y here will enable the software based PDC console to be 
+	  used as the system console.  This is useful for machines in 
+	  which the hardware based console has not been written yet.  The
+	  following steps must be competed to use the PDC console:
+
+	    1. create the device entry (mknod /dev/ttyB0 c 11 0)
+	    2. Edit the /etc/inittab to start a getty listening on /dev/ttyB0
+	    3. Add device ttyB0 to /etc/securetty (if you want to log on as
+		 root on this console.)
+	    4. Change the kernel command console parameter to: console=ttyB0
+
+config SERIAL_SUNSAB
+	tristate "Sun Siemens SAB82532 serial support"
+	depends on (SPARC32 || SPARC64) && PCI
+	help
+	  This driver supports the Siemens SAB82532 DUSCC serial ports on newer
+	  (PCI) UltraSPARC systems.  Say Y or M if you want to be able to these
+	  serial ports.
+
+config SERIAL_SUNSAB_CONSOLE
+	bool "Console on Sun Siemens SAB82532 serial port"
+	depends on SERIAL_SUNSAB=y
+	help
+	  If you would like to be able to use the SAB82532 serial port
+	  on your Sparc system as the console, you can do so by answering
+	  Y to this option.
+
+config SERIAL_IP22_ZILOG
+	tristate "IP22 Zilog8530 serial support"
+	depends on SGI_IP22
+	select SERIAL_CORE
+	help
+	  This driver supports the Zilog8530 serial ports found on SGI IP22
+	  systems.  Say Y or M if you want to be able to these serial ports.
+
+config SERIAL_IP22_ZILOG_CONSOLE
+	bool "Console on IP22 Zilog8530 serial port"
+	depends on SERIAL_IP22_ZILOG=y
+	select SERIAL_CORE_CONSOLE
+
+config V850E_UART
+	bool "NEC V850E on-chip UART support"
+	depends on V850E_MA1 || V850E_ME2 || V850E_TEG || V850E2_ANNA || V850E_AS85EP1
+	select SERIAL_CORE
+	default y
+
+config V850E_UARTB
+        bool
+	depends V850E_UART && V850E_ME2
+	default y
+
+config V850E_UART_CONSOLE
+	bool "Use NEC V850E on-chip UART for console"
+	depends on V850E_UART
+	select SERIAL_CORE_CONSOLE
+
+config SERIAL_SH_SCI
+	tristate "SH SCI(F) serial port support"
+	depends on SUPERH || H8300
+	select SERIAL_CORE
+
+config SERIAL_SH_SCI_CONSOLE
+	bool "Support for console on SH SCI(F)"
+	depends on SERIAL_SH_SCI=y
+	select SERIAL_CORE_CONSOLE
+
+config SERIAL_AU1X00
+	bool "Enable Au1x00 UART Support"
+	depends on MIPS && SOC_AU1X00
+	select SERIAL_CORE
+	help
+	  If you have an Alchemy AU1X00 processor (MIPS based) and you want
+	  to use serial ports, say Y.  Otherwise, say N.
+
+config SERIAL_AU1X00_CONSOLE
+	bool "Enable Au1x00 serial console"
+	depends on SERIAL_AU1X00
+	select SERIAL_CORE_CONSOLE
+	help
+	  If you have an Alchemy AU1X00 processor (MIPS based) and you want
+	  to use a console on a serial port, say Y.  Otherwise, say N.
+
+config SERIAL_CORE
+	tristate
+
+config SERIAL_CORE_CONSOLE
+	bool
+
+config SERIAL_68328
+	bool "68328 serial support"
+	depends on M68328 || M68EZ328 || M68VZ328
+	help
+	  This driver supports the built-in serial port of the Motorola 68328
+	  (standard, EZ and VZ varities).
+
+config SERIAL_68328_RTS_CTS
+	bool "Support RTS/CTS on 68328 serial port"
+	depends on SERIAL_68328
+
+config SERIAL_COLDFIRE
+	bool "ColdFire serial support"
+	depends on COLDFIRE
+	help
+	  This driver supports the built-in serial ports of the Motorola ColdFire
+	  family of CPUs.
+
+config SERIAL_68360_SMC
+	bool "68360 SMC uart support"
+	depends on M68360
+	help
+	  This driver supports the SMC serial ports of the Motorola 68360 CPU.
+
+config SERIAL_68360_SCC
+	bool "68360 SCC uart support"
+	depends on M68360
+	help
+	  This driver supports the SCC serial ports of the Motorola 68360 CPU.
+
+config SERIAL_68360
+	bool
+	depends on SERIAL_68360_SMC || SERIAL_68360_SCC
+	default y
+
+config SERIAL_PMACZILOG
+	tristate "PowerMac z85c30 ESCC support"
+	depends on PPC_OF && PPC_PMAC
+	select SERIAL_CORE
+	help
+	  This driver supports the Zilog z85C30 serial ports found on
+	  PowerMac machines.
+	  Say Y or M if you want to be able to these serial ports.
+
+config SERIAL_PMACZILOG_CONSOLE
+	bool "Console on PowerMac z85c30 serial port"
+	depends on SERIAL_PMACZILOG=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  If you would like to be able to use the z85c30 serial port
+	  on your PowerMac as the console, you can do so by answering
+	  Y to this option.
+
+config SERIAL_LH7A40X
+	tristate "Sharp LH7A40X embedded UART support"
+	depends on ARM && ARCH_LH7A40X
+	select SERIAL_CORE
+	help
+	  This enables support for the three on-board UARTs of the
+	  Sharp LH7A40X series CPUs.  Choose Y or M.
+
+config SERIAL_LH7A40X_CONSOLE
+	bool "Support for console on Sharp LH7A40X serial port"
+	depends on SERIAL_LH7A40X=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  Say Y here if you wish to use one of the serial ports as the
+	  system console--the system console is the device which
+	  receives all kernel messages and warnings and which allows
+	  logins in single user mode.
+
+	  Even if you say Y here, the currently visible framebuffer console
+	  (/dev/tty0) will still be used as the default system console, but
+	  you can alter that using a kernel command line, for example
+	  "console=ttyAM1".
+
+config SERIAL_CPM
+	tristate "CPM SCC/SMC serial port support"
+	depends on CPM2 || 8xx
+	select SERIAL_CORE
+	help
+	  This driver supports the SCC and SMC serial ports on Motorola 
+	  embedded PowerPC that contain a CPM1 (8xx) or CPM2 (8xxx)
+
+config SERIAL_CPM_CONSOLE
+	bool "Support for console on CPM SCC/SMC serial port"
+	depends on SERIAL_CPM=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  Say Y here if you wish to use a SCC or SMC CPM UART as the system
+	  console (the system console is the device which receives all kernel
+	  messages and warnings and which allows logins in single user mode).
+
+	  Even if you say Y here, the currently visible framebuffer console
+	  (/dev/tty0) will still be used as the system console by default, but
+	  you can alter that using a kernel command line option such as
+	  "console=ttyCPM0". (Try "man bootparam" or see the documentation of
+	  your boot loader (lilo or loadlin) about how to pass options to the
+	  kernel at boot time.)
+
+config SERIAL_CPM_SCC1
+	bool "Support for SCC1 serial port"
+	depends on SERIAL_CPM=y
+	help
+	  Select the is option to use SCC1 as a serial port
+
+config SERIAL_CPM_SCC2
+	bool "Support for SCC2 serial port"
+	depends on SERIAL_CPM=y
+	help
+	  Select the is option to use SCC2 as a serial port
+
+config SERIAL_CPM_SCC3
+	bool "Support for SCC3 serial port"
+	depends on SERIAL_CPM=y
+	help
+	  Select the is option to use SCC3 as a serial port
+
+config SERIAL_CPM_SCC4
+	bool "Support for SCC4 serial port"
+	depends on SERIAL_CPM=y
+	help
+	  Select the is option to use SCC4 as a serial port
+
+config SERIAL_CPM_SMC1
+	bool "Support for SMC1 serial port"
+	depends on SERIAL_CPM=y
+	help
+	  Select the is option to use SMC1 as a serial port
+
+config SERIAL_CPM_SMC2
+	bool "Support for SMC2 serial port"
+	depends on SERIAL_CPM=y
+	help
+	  Select the is option to use SMC2 as a serial port
+
+config SERIAL_SGI_L1_CONSOLE
+	bool "SGI Altix L1 serial console support"
+	depends on IA64_GENERIC || IA64_SGI_SN2
+	select SERIAL_CORE
+	select SERIAL_CORE_CONSOLE
+	help
+		If you have an SGI Altix and you would like to use the system
+		controller serial port as your console (you want this!),
+		say Y.  Otherwise, say N.
+
+config SERIAL_MPC52xx
+	tristate "Freescale MPC52xx family PSC serial support"
+	depends on PPC_MPC52xx
+	select SERIAL_CORE
+	help
+	  This drivers support the MPC52xx PSC serial ports. If you would
+	  like to use them, you must answer Y or M to this option. Not that
+	  for use as console, it must be included in kernel and not as a
+	  module.
+
+config SERIAL_MPC52xx_CONSOLE
+	bool "Console on a Freescale MPC52xx family PSC serial port"
+	depends on SERIAL_MPC52xx=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  Select this options if you'd like to use one of the PSC serial port
+	  of the Freescale MPC52xx family as a console.
+
+config SERIAL_MPC52xx_CONSOLE_BAUD
+	int "Freescale MPC52xx family PSC serial port baud"
+	depends on SERIAL_MPC52xx_CONSOLE=y
+	default "9600"
+	help
+	  Select the MPC52xx console baud rate.
+	  This value is only used if the bootloader doesn't pass in the
+	  console baudrate
+
+config SERIAL_ICOM
+	tristate "IBM Multiport Serial Adapter"
+	depends on PPC_ISERIES || PPC_PSERIES
+	select SERIAL_CORE
+	help
+	  This driver is for a family of multiport serial adapters
+	  including 2 port RVX, 2 port internal modem, 4 port internal
+	  modem and a split 1 port RVX and 1 port internal modem.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called icom.
+
+config SERIAL_M32R_SIO
+	bool "M32R SIO I/F"
+	depends on M32R
+	default y
+	select SERIAL_CORE
+	help
+	  Say Y here if you want to use the M32R serial controller.
+
+config SERIAL_M32R_SIO_CONSOLE
+	bool "use SIO console"
+	depends on SERIAL_M32R_SIO=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  Say Y here if you want to support a serial console.
+
+	  If you use an M3T-M32700UT or an OPSPUT platform,
+	  please say also y for SERIAL_M32R_PLDSIO.
+
+config SERIAL_M32R_PLDSIO
+	bool "M32R SIO I/F on a PLD"
+	depends on SERIAL_M32R_SIO=y
+	default n
+	help
+	  Say Y here if you want to use the M32R serial controller
+	  on a PLD (Programmable Logic Device).
+
+	  If you use an M3T-M32700UT or an OPSPUT platform,
+	  please say Y.
+
+config SERIAL_TXX9
+	bool "TMPTX39XX/49XX SIO support"
+	depends HAS_TXX9_SERIAL
+	select SERIAL_CORE
+	default y
+
+config HAS_TXX9_SERIAL
+	bool
+
+config SERIAL_TXX9_CONSOLE
+	bool "TMPTX39XX/49XX SIO Console support"
+	depends on SERIAL_TXX9=y
+	select SERIAL_CORE_CONSOLE
+
+config SERIAL_TXX9_STDSERIAL
+	bool "TX39XX/49XX SIO act as standard serial"
+	depends on !SERIAL_8250 && SERIAL_TXX9
+
+config SERIAL_VR41XX
+	tristate "NEC VR4100 series Serial Interface Unit support"
+	depends on CPU_VR41XX
+	select SERIAL_CORE
+	help
+	  If you have a NEC VR4100 series processor and you want to use
+	  Serial Interface Unit(SIU) or Debug Serial Interface Unit(DSIU)
+	  (not include VR4111/VR4121 DSIU), say Y.  Otherwise, say N.
+
+config SERIAL_VR41XX_CONSOLE
+	bool "Enable NEC VR4100 series Serial Interface Unit console"
+	depends on SERIAL_VR41XX
+	select SERIAL_CORE_CONSOLE
+	help
+	  If you have a NEC VR4100 series processor and you want to use
+	  a console on a serial port, say Y.  Otherwise, say N.
+
+config SERIAL_JSM
+        tristate "Digi International NEO PCI Support"
+	depends on PCI
+        select SERIAL_CORE
+        help
+          This is a driver for Digi International's Neo series
+          of cards which provide multiple serial ports. You would need
+          something like this to connect more than two modems to your Linux
+          box, for instance in order to become a dial-in server. This driver
+          supports PCI boards only.
+          If you have a card like this, say Y here and read the file
+          <file:Documentation/jsm.txt>.
+
+          To compile this driver as a module, choose M here: the
+          module will be called jsm.
+
+endmenu

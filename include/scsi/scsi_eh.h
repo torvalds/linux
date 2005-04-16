@@ -1,0 +1,63 @@
+#ifndef _SCSI_SCSI_EH_H
+#define _SCSI_SCSI_EH_H
+
+struct scsi_cmnd;
+struct scsi_device;
+struct scsi_request;
+struct Scsi_Host;
+
+/*
+ * This is a slightly modified SCSI sense "descriptor" format header.
+ * The addition is to allow the 0x70 and 0x71 response codes. The idea
+ * is to place the salient data from either "fixed" or "descriptor" sense
+ * format into one structure to ease application processing.
+ *
+ * The original sense buffer should be kept around for those cases
+ * in which more information is required (e.g. the LBA of a MEDIUM ERROR).
+ */
+struct scsi_sense_hdr {		/* See SPC-3 section 4.5 */
+	u8 response_code;	/* permit: 0x0, 0x70, 0x71, 0x72, 0x73 */
+	u8 sense_key;
+	u8 asc;
+	u8 ascq;
+	u8 byte4;
+	u8 byte5;
+	u8 byte6;
+	u8 additional_length;	/* always 0 for fixed sense format */
+};
+
+
+extern void scsi_add_timer(struct scsi_cmnd *, int,
+		void (*)(struct scsi_cmnd *));
+extern int scsi_delete_timer(struct scsi_cmnd *);
+extern void scsi_report_bus_reset(struct Scsi_Host *, int);
+extern void scsi_report_device_reset(struct Scsi_Host *, int, int);
+extern int scsi_block_when_processing_errors(struct scsi_device *);
+extern int scsi_normalize_sense(const u8 *sense_buffer, int sb_len,
+		struct scsi_sense_hdr *sshdr);
+extern int scsi_request_normalize_sense(struct scsi_request *sreq,
+		struct scsi_sense_hdr *sshdr);
+extern int scsi_command_normalize_sense(struct scsi_cmnd *cmd,
+		struct scsi_sense_hdr *sshdr);
+
+static inline int scsi_sense_is_deferred(struct scsi_sense_hdr *sshdr)
+{
+	return ((sshdr->response_code >= 0x70) && (sshdr->response_code & 1));
+}
+
+extern const u8 * scsi_sense_desc_find(const u8 * sense_buffer, int sb_len,
+				       int desc_type);
+
+extern int scsi_get_sense_info_fld(const u8 * sense_buffer, int sb_len,
+				   u64 * info_out);
+ 
+/*
+ * Reset request from external source
+ */
+#define SCSI_TRY_RESET_DEVICE	1
+#define SCSI_TRY_RESET_BUS	2
+#define SCSI_TRY_RESET_HOST	3
+
+extern int scsi_reset_provider(struct scsi_device *, int);
+
+#endif /* _SCSI_SCSI_EH_H */

@@ -1,0 +1,988 @@
+#
+# Character device configuration
+#
+
+menu "Character devices"
+
+config VT
+	bool "Virtual terminal" if EMBEDDED
+	select INPUT
+	default y if !VIOCONS
+	---help---
+	  If you say Y here, you will get support for terminal devices with
+	  display and keyboard devices. These are called "virtual" because you
+	  can run several virtual terminals (also called virtual consoles) on
+	  one physical terminal. This is rather useful, for example one
+	  virtual terminal can collect system messages and warnings, another
+	  one can be used for a text-mode user session, and a third could run
+	  an X session, all in parallel. Switching between virtual terminals
+	  is done with certain key combinations, usually Alt-<function key>.
+
+	  The setterm command ("man setterm") can be used to change the
+	  properties (such as colors or beeping) of a virtual terminal. The
+	  man page console_codes(4) ("man console_codes") contains the special
+	  character sequences that can be used to change those properties
+	  directly. The fonts used on virtual terminals can be changed with
+	  the setfont ("man setfont") command and the key bindings are defined
+	  with the loadkeys ("man loadkeys") command.
+
+	  You need at least one virtual terminal device in order to make use
+	  of your keyboard and monitor. Therefore, only people configuring an
+	  embedded system would want to say N here in order to save some
+	  memory; the only way to log into such a system is then via a serial
+	  or network connection.
+
+	  If unsure, say Y, or else you won't be able to do much with your new
+	  shiny Linux system :-)
+
+config VT_CONSOLE
+	bool "Support for console on virtual terminal" if EMBEDDED
+	depends on VT
+	default y
+	---help---
+	  The system console is the device which receives all kernel messages
+	  and warnings and which allows logins in single user mode. If you
+	  answer Y here, a virtual terminal (the device used to interact with
+	  a physical terminal) can be used as system console. This is the most
+	  common mode of operations, so you should say Y here unless you want
+	  the kernel messages be output only to a serial port (in which case
+	  you should say Y to "Console on serial port", below).
+
+	  If you do say Y here, by default the currently visible virtual
+	  terminal (/dev/tty0) will be used as system console. You can change
+	  that with a kernel command line option such as "console=tty3" which
+	  would use the third virtual terminal as system console. (Try "man
+	  bootparam" or see the documentation of your boot loader (lilo or
+	  loadlin) about how to pass options to the kernel at boot time.)
+
+	  If unsure, say Y.
+
+config HW_CONSOLE
+	bool
+	depends on VT && !S390 && !UML
+	default y
+
+config SERIAL_NONSTANDARD
+	bool "Non-standard serial port support"
+	---help---
+	  Say Y here if you have any non-standard serial boards -- boards
+	  which aren't supported using the standard "dumb" serial driver.
+	  This includes intelligent serial boards such as Cyclades,
+	  Digiboards, etc. These are usually used for systems that need many
+	  serial ports because they serve many terminals or dial-in
+	  connections.
+
+	  Note that the answer to this question won't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about non-standard serial boards.
+
+	  Most people can say N here.
+
+config COMPUTONE
+	tristate "Computone IntelliPort Plus serial support"
+	depends on SERIAL_NONSTANDARD && BROKEN_ON_SMP
+	---help---
+	  This driver supports the entire family of Intelliport II/Plus
+	  controllers with the exception of the MicroChannel controllers and
+	  products previous to the Intelliport II. These are multiport cards,
+	  which give you many serial ports. You would need something like this
+	  to connect more than two modems to your Linux box, for instance in
+	  order to become a dial-in server. If you have a card like that, say
+	  Y here and read <file:Documentation/computone.txt>.
+
+	  To compile this driver as modules, choose M here: the
+	  modules will be called ip2 and ip2main.
+
+config ROCKETPORT
+	tristate "Comtrol RocketPort support"
+	depends on SERIAL_NONSTANDARD
+	help
+	  This driver supports Comtrol RocketPort and RocketModem PCI boards.   
+          These boards provide 2, 4, 8, 16, or 32 high-speed serial ports or
+          modems.  For information about the RocketPort/RocketModem  boards
+          and this driver read <file:Documentation/rocket.txt>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rocket.
+
+	  If you want to compile this driver into the kernel, say Y here.  If
+          you don't have a Comtrol RocketPort/RocketModem card installed, say N.
+
+config CYCLADES
+	tristate "Cyclades async mux support"
+	depends on SERIAL_NONSTANDARD
+	---help---
+	  This driver supports Cyclades Z and Y multiserial boards.
+	  You would need something like this to connect more than two modems to
+	  your Linux box, for instance in order to become a dial-in server.
+
+	  For information about the Cyclades-Z card, read
+	  <file:drivers/char/README.cycladesZ>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cyclades.
+
+	  If you haven't heard about it, it's safe to say N.
+
+config CYZ_INTR
+	bool "Cyclades-Z interrupt mode operation (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && CYCLADES
+	help
+	  The Cyclades-Z family of multiport cards allows 2 (two) driver op
+	  modes: polling and interrupt. In polling mode, the driver will check
+	  the status of the Cyclades-Z ports every certain amount of time
+	  (which is called polling cycle and is configurable). In interrupt
+	  mode, it will use an interrupt line (IRQ) in order to check the
+	  status of the Cyclades-Z ports. The default op mode is polling. If
+	  unsure, say N.
+
+config DIGIEPCA
+	tristate "Digiboard Intelligent Async Support"
+	depends on SERIAL_NONSTANDARD && BROKEN_ON_SMP
+	---help---
+	  This is a driver for Digi International's Xx, Xeve, and Xem series
+	  of cards which provide multiple serial ports. You would need
+	  something like this to connect more than two modems to your Linux
+	  box, for instance in order to become a dial-in server. This driver
+	  supports the original PC (ISA) boards as well as PCI, and EISA. If
+	  you have a card like this, say Y here and read the file
+	  <file:Documentation/digiepca.txt>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called epca.
+
+config ESPSERIAL
+	tristate "Hayes ESP serial port support"
+	depends on SERIAL_NONSTANDARD && ISA && BROKEN_ON_SMP
+	help
+	  This is a driver which supports Hayes ESP serial ports.  Both single
+	  port cards and multiport cards are supported.  Make sure to read
+	  <file:Documentation/hayes-esp.txt>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called esp.
+
+	  If unsure, say N.
+
+config MOXA_INTELLIO
+	tristate "Moxa Intellio support"
+	depends on SERIAL_NONSTANDARD && BROKEN_ON_SMP
+	help
+	  Say Y here if you have a Moxa Intellio multiport serial card.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called moxa.
+
+config MOXA_SMARTIO
+	tristate "Moxa SmartIO support"
+	depends on SERIAL_NONSTANDARD
+	help
+	  Say Y here if you have a Moxa SmartIO multiport serial card.
+
+	  This driver can also be built as a module ( = code which can be
+	  inserted in and removed from the running kernel whenever you want).
+	  The module will be called mxser. If you want to do that, say M
+	  here.
+
+config ISI
+	tristate "Multi-Tech multiport card support (EXPERIMENTAL)"
+	depends on SERIAL_NONSTANDARD
+	help
+	  This is a driver for the Multi-Tech cards which provide several
+	  serial ports.  The driver is experimental and can currently only be
+	  built as a module. The module will be called isicom.
+	  If you want to do that, choose M here.
+
+config SYNCLINK
+	tristate "Microgate SyncLink card support"
+	depends on SERIAL_NONSTANDARD && PCI
+	help
+	  Provides support for the SyncLink ISA and PCI multiprotocol serial
+	  adapters. These adapters support asynchronous and HDLC bit
+	  synchronous communication up to 10Mbps (PCI adapter).
+
+	  This driver can only be built as a module ( = code which can be
+	  inserted in and removed from the running kernel whenever you want).
+	  The module will be called synclink.  If you want to do that, say M
+	  here.
+
+config SYNCLINKMP
+	tristate "SyncLink Multiport support"
+	depends on SERIAL_NONSTANDARD
+	help
+	  Enable support for the SyncLink Multiport (2 or 4 ports)
+	  serial adapter, running asynchronous and HDLC communications up
+	  to 2.048Mbps. Each ports is independently selectable for
+	  RS-232, V.35, RS-449, RS-530, and X.21
+
+	  This driver may be built as a module ( = code which can be
+	  inserted in and removed from the running kernel whenever you want).
+	  The module will be called synclinkmp.  If you want to do that, say M
+	  here.
+
+config N_HDLC
+	tristate "HDLC line discipline support"
+	depends on SERIAL_NONSTANDARD
+	help
+	  Allows synchronous HDLC communications with tty device drivers that
+	  support synchronous HDLC such as the Microgate SyncLink adapter.
+
+	  This driver can only be built as a module ( = code which can be
+	  inserted in and removed from the running kernel whenever you want).
+	  The module will be called n_hdlc. If you want to do that, say M
+	  here.
+
+config RISCOM8
+	tristate "SDL RISCom/8 card support"
+	depends on SERIAL_NONSTANDARD && BROKEN_ON_SMP
+	help
+	  This is a driver for the SDL Communications RISCom/8 multiport card,
+	  which gives you many serial ports. You would need something like
+	  this to connect more than two modems to your Linux box, for instance
+	  in order to become a dial-in server. If you have a card like that,
+	  say Y here and read the file <file:Documentation/riscom8.txt>.
+
+	  Also it's possible to say M here and compile this driver as kernel
+	  loadable module; the module will be called riscom8.
+
+config SPECIALIX
+	tristate "Specialix IO8+ card support"
+	depends on SERIAL_NONSTANDARD
+	help
+	  This is a driver for the Specialix IO8+ multiport card (both the
+	  ISA and the PCI version) which gives you many serial ports. You
+	  would need something like this to connect more than two modems to
+	  your Linux box, for instance in order to become a dial-in server.
+
+	  If you have a card like that, say Y here and read the file
+	  <file:Documentation/specialix.txt>. Also it's possible to say M here
+	  and compile this driver as kernel loadable module which will be
+	  called specialix.
+
+config SPECIALIX_RTSCTS
+	bool "Specialix DTR/RTS pin is RTS"
+	depends on SPECIALIX
+	help
+	  The Specialix IO8+ card can only support either RTS or DTR. If you
+	  say N here, the driver will use the pin as "DTR" when the tty is in
+	  software handshake mode.  If you say Y here or hardware handshake is
+	  on, it will always be RTS.  Read the file
+	  <file:Documentation/specialix.txt> for more information.
+
+config SX
+	tristate "Specialix SX (and SI) card support"
+	depends on SERIAL_NONSTANDARD
+	help
+	  This is a driver for the SX and SI multiport serial cards.
+	  Please read the file <file:Documentation/sx.txt> for details.
+
+	  This driver can only be built as a module ( = code which can be
+	  inserted in and removed from the running kernel whenever you want).
+	  The module will be called sx. If you want to do that, say M here.
+
+config RIO
+	tristate "Specialix RIO system support"
+	depends on SERIAL_NONSTANDARD && BROKEN_ON_SMP
+	help
+	  This is a driver for the Specialix RIO, a smart serial card which
+	  drives an outboard box that can support up to 128 ports.  Product
+	  information is at <http://www.perle.com/support/documentation.html#multiport>.
+	  There are both ISA and PCI versions.
+
+config RIO_OLDPCI
+	bool "Support really old RIO/PCI cards"
+	depends on RIO
+	help
+	  Older RIO PCI cards need some initialization-time configuration to
+	  determine the IRQ and some control addresses.  If you have a RIO and
+	  this doesn't seem to work, try setting this to Y.
+
+config STALDRV
+	bool "Stallion multiport serial support"
+	depends on SERIAL_NONSTANDARD
+	help
+	  Stallion cards give you many serial ports.  You would need something
+	  like this to connect more than two modems to your Linux box, for
+	  instance in order to become a dial-in server.  If you say Y here,
+	  you will be asked for your specific card model in the next
+	  questions.  Make sure to read <file:Documentation/stallion.txt> in
+	  this case.  If you have never heard about all this, it's safe to
+	  say N.
+
+config STALLION
+	tristate "Stallion EasyIO or EC8/32 support"
+	depends on STALDRV && BROKEN_ON_SMP
+	help
+	  If you have an EasyIO or EasyConnection 8/32 multiport Stallion
+	  card, then this is for you; say Y.  Make sure to read
+	  <file:Documentation/stallion.txt>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called stallion.
+
+config ISTALLION
+	tristate "Stallion EC8/64, ONboard, Brumby support"
+	depends on STALDRV && BROKEN_ON_SMP
+	help
+	  If you have an EasyConnection 8/64, ONboard, Brumby or Stallion
+	  serial multiport card, say Y here. Make sure to read
+	  <file:Documentation/stallion.txt>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called istallion.
+
+config AU1000_UART
+	bool "Enable Au1000 UART Support"
+	depends on SERIAL_NONSTANDARD && MIPS
+	help
+	  If you have an Alchemy AU1000 processor (MIPS based) and you want
+	  to use serial ports, say Y.  Otherwise, say N.
+
+config AU1000_SERIAL_CONSOLE
+	bool "Enable Au1000 serial console"
+	depends on AU1000_UART
+	help
+	  If you have an Alchemy AU1000 processor (MIPS based) and you want
+	  to use a console on a serial port, say Y.  Otherwise, say N.
+
+config QTRONIX_KEYBOARD
+	bool "Enable Qtronix 990P Keyboard Support"
+	depends on IT8712
+	help
+	  Images of Qtronix keyboards are at
+	  <http://www.qtronix.com/keyboard.html>.
+
+config IT8172_CIR
+	bool
+	depends on QTRONIX_KEYBOARD
+	default y
+
+config IT8172_SCR0
+	bool "Enable Smart Card Reader 0 Support "
+	depends on IT8712
+	help
+	  Say Y here to support smart-card reader 0 (SCR0) on the Integrated
+	  Technology Express, Inc. ITE8172 SBC.  Vendor page at
+	  <http://www.ite.com.tw/ia/brief_it8172bsp.htm>; picture of the
+	  board at <http://www.mvista.com/partners/semiconductor/ite.html>.
+
+config IT8172_SCR1
+	bool "Enable Smart Card Reader 1 Support "
+	depends on IT8712
+	help
+	  Say Y here to support smart-card reader 1 (SCR1) on the Integrated
+	  Technology Express, Inc. ITE8172 SBC.  Vendor page at
+	  <http://www.ite.com.tw/ia/brief_it8172bsp.htm>; picture of the
+	  board at <http://www.mvista.com/partners/semiconductor/ite.html>.
+
+config A2232
+	tristate "Commodore A2232 serial support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && ZORRO && BROKEN_ON_SMP
+	---help---
+	  This option supports the 2232 7-port serial card shipped with the
+	  Amiga 2000 and other Zorro-bus machines, dating from 1989.  At
+	  a max of 19,200 bps, the ports are served by a 6551 ACIA UART chip
+	  each, plus a 8520 CIA, and a master 6502 CPU and buffer as well. The
+	  ports were connected with 8 pin DIN connectors on the card bracket,
+	  for which 8 pin to DB25 adapters were supplied. The card also had
+	  jumpers internally to toggle various pinning configurations.
+
+	  This driver can be built as a module; but then "generic_serial"
+	  will also be built as a module. This has to be loaded before
+	  "ser_a2232". If you want to do this, answer M here.
+
+config SGI_SNSC
+	bool "SGI Altix system controller communication support"
+	depends on (IA64_SGI_SN2 || IA64_GENERIC)
+	help
+	  If you have an SGI Altix and you want to enable system
+	  controller communication from user space (you want this!),
+	  say Y.  Otherwise, say N.
+
+source "drivers/serial/Kconfig"
+
+config UNIX98_PTYS
+	bool "Unix98 PTY support" if EMBEDDED
+	default y
+	---help---
+	  A pseudo terminal (PTY) is a software device consisting of two
+	  halves: a master and a slave. The slave device behaves identical to
+	  a physical terminal; the master device is used by a process to
+	  read data from and write data to the slave, thereby emulating a
+	  terminal. Typical programs for the master side are telnet servers
+	  and xterms.
+
+	  Linux has traditionally used the BSD-like names /dev/ptyxx for
+	  masters and /dev/ttyxx for slaves of pseudo terminals. This scheme
+	  has a number of problems. The GNU C library glibc 2.1 and later,
+	  however, supports the Unix98 naming standard: in order to acquire a
+	  pseudo terminal, a process opens /dev/ptmx; the number of the pseudo
+	  terminal is then made available to the process and the pseudo
+	  terminal slave can be accessed as /dev/pts/<number>. What was
+	  traditionally /dev/ttyp2 will then be /dev/pts/2, for example.
+
+	  All modern Linux systems use the Unix98 ptys.  Say Y unless
+	  you're on an embedded system and want to conserve memory.
+
+config LEGACY_PTYS
+	bool "Legacy (BSD) PTY support"
+	default y
+	---help---
+	  A pseudo terminal (PTY) is a software device consisting of two
+	  halves: a master and a slave. The slave device behaves identical to
+	  a physical terminal; the master device is used by a process to
+	  read data from and write data to the slave, thereby emulating a
+	  terminal. Typical programs for the master side are telnet servers
+	  and xterms.
+
+	  Linux has traditionally used the BSD-like names /dev/ptyxx
+	  for masters and /dev/ttyxx for slaves of pseudo
+	  terminals. This scheme has a number of problems, including
+	  security.  This option enables these legacy devices; on most
+	  systems, it is safe to say N.
+
+
+config LEGACY_PTY_COUNT
+	int "Maximum number of legacy PTY in use"
+	depends on LEGACY_PTYS
+	range 1 256
+	default "256"
+	---help---
+	  The maximum number of legacy PTYs that can be used at any one time.
+	  The default is 256, and should be more than enough.  Embedded
+	  systems may want to reduce this to save memory.
+
+	  When not in use, each legacy PTY occupies 12 bytes on 32-bit
+	  architectures and 24 bytes on 64-bit architectures.
+
+config PRINTER
+	tristate "Parallel printer support"
+	depends on PARPORT
+	---help---
+	  If you intend to attach a printer to the parallel port of your Linux
+	  box (as opposed to using a serial printer; if the connector at the
+	  printer has 9 or 25 holes ["female"], then it's serial), say Y.
+	  Also read the Printing-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>.
+
+	  It is possible to share one parallel port among several devices
+	  (e.g. printer and ZIP drive) and it is safe to compile the
+	  corresponding drivers into the kernel.
+
+	  To compile this driver as a module, choose M here and read
+	  <file:Documentation/parport.txt>.  The module will be called lp.
+
+	  If you have several parallel ports, you can specify which ports to
+	  use with the "lp" kernel command line option.  (Try "man bootparam"
+	  or see the documentation of your boot loader (lilo or loadlin) about
+	  how to pass options to the kernel at boot time.)  The syntax of the
+	  "lp" command line option can be found in <file:drivers/char/lp.c>.
+
+	  If you have more than 8 printers, you need to increase the LP_NO
+	  macro in lp.c and the PARPORT_MAX macro in parport.h.
+
+config LP_CONSOLE
+	bool "Support for console on line printer"
+	depends on PRINTER
+	---help---
+	  If you want kernel messages to be printed out as they occur, you
+	  can have a console on the printer. This option adds support for
+	  doing that; to actually get it to happen you need to pass the
+	  option "console=lp0" to the kernel at boot time.
+
+	  If the printer is out of paper (or off, or unplugged, or too
+	  busy..) the kernel will stall until the printer is ready again.
+	  By defining CONSOLE_LP_STRICT to 0 (at your own risk) you
+	  can make the kernel continue when this happens,
+	  but it'll lose the kernel messages.
+
+	  If unsure, say N.
+
+config PPDEV
+	tristate "Support for user-space parallel port device drivers"
+	depends on PARPORT
+	---help---
+	  Saying Y to this adds support for /dev/parport device nodes.  This
+	  is needed for programs that want portable access to the parallel
+	  port, for instance deviceid (which displays Plug-and-Play device
+	  IDs).
+
+	  This is the parallel port equivalent of SCSI generic support (sg).
+	  It is safe to say N to this -- it is not needed for normal printing
+	  or parallel port CD-ROM/disk support.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ppdev.
+
+	  If unsure, say N.
+
+config TIPAR
+	tristate "Texas Instruments parallel link cable support"
+	depends on PARPORT
+	---help---
+	  If you own a Texas Instruments graphing calculator and use a
+	  parallel link cable, then you might be interested in this driver.
+
+	  If you enable this driver, you will be able to communicate with
+	  your calculator through a set of device nodes under /dev. The
+	  main advantage of this driver is that you don't have to be root
+	  to use this precise link cable (depending on the permissions on
+	  the device nodes, though).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tipar.
+
+	  If you don't know what a parallel link cable is or what a Texas
+	  Instruments graphing calculator is, then you probably don't need this
+	  driver.
+
+	  If unsure, say N.
+
+config HVC_CONSOLE
+	bool "pSeries Hypervisor Virtual Console support"
+	depends on PPC_PSERIES
+	help
+	  pSeries machines when partitioned support a hypervisor virtual
+	  console. This driver allows each pSeries partition to have a console
+	  which is accessed via the HMC.
+
+config HVCS
+	tristate "IBM Hypervisor Virtual Console Server support"
+	depends on PPC_PSERIES
+	help
+	  Partitionable IBM Power5 ppc64 machines allow hosting of
+	  firmware virtual consoles from one Linux partition by
+	  another Linux partition.  This driver allows console data
+	  from Linux partitions to be accessed through TTY device
+	  interfaces in the device tree of a Linux partition running
+	  this driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called hvcs.ko.  Additionally, this module
+	  will depend on arch specific APIs exported from hvcserver.ko
+	  which will also be compiled when this driver is built as a
+	  module.
+
+source "drivers/char/ipmi/Kconfig"
+
+source "drivers/char/watchdog/Kconfig"
+
+config DS1620
+	tristate "NetWinder thermometer support"
+	depends on ARCH_NETWINDER
+	help
+	  Say Y here to include support for the thermal management hardware
+	  found in the NetWinder. This driver allows the user to control the
+	  temperature set points and to read the current temperature.
+
+	  It is also possible to say M here to build it as a module (ds1620)
+	  It is recommended to be used on a NetWinder, but it is not a
+	  necessity.
+
+config NWBUTTON
+	tristate "NetWinder Button"
+	depends on ARCH_NETWINDER
+	---help---
+	  If you say Y here and create a character device node /dev/nwbutton
+	  with major and minor numbers 10 and 158 ("man mknod"), then every
+	  time the orange button is pressed a number of times, the number of
+	  times the button was pressed will be written to that device.
+
+	  This is most useful for applications, as yet unwritten, which
+	  perform actions based on how many times the button is pressed in a
+	  row.
+
+	  Do not hold the button down for too long, as the driver does not
+	  alter the behaviour of the hardware reset circuitry attached to the
+	  button; it will still execute a hard reset if the button is held
+	  down for longer than approximately five seconds.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called nwbutton.
+
+	  Most people will answer Y to this question and "Reboot Using Button"
+	  below to be able to initiate a system shutdown from the button.
+
+config NWBUTTON_REBOOT
+	bool "Reboot Using Button"
+	depends on NWBUTTON
+	help
+	  If you say Y here, then you will be able to initiate a system
+	  shutdown and reboot by pressing the orange button a number of times.
+	  The number of presses to initiate the shutdown is two by default,
+	  but this can be altered by modifying the value of NUM_PRESSES_REBOOT
+	  in nwbutton.h and recompiling the driver or, if you compile the
+	  driver as a module, you can specify the number of presses at load
+	  time with "insmod button reboot_count=<something>".
+
+config NWFLASH
+	tristate "NetWinder flash support"
+	depends on ARCH_NETWINDER
+	---help---
+	  If you say Y here and create a character device /dev/flash with
+	  major 10 and minor 160 you can manipulate the flash ROM containing
+	  the NetWinder firmware. Be careful as accidentally overwriting the
+	  flash contents can render your computer unbootable. On no account
+	  allow random users access to this device. :-)
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called nwflash.
+
+	  If you're not sure, say N.
+
+config HW_RANDOM
+	tristate "Intel/AMD/VIA HW Random Number Generator support"
+	depends on (X86 || IA64) && PCI
+	---help---
+	  This driver provides kernel-side support for the Random Number
+	  Generator hardware found on Intel i8xx-based motherboards,
+	  AMD 76x-based motherboards, and Via Nehemiah CPUs.
+
+	  Provides a character driver, used to read() entropy data.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called hw_random.
+
+	  If unsure, say N.
+
+config NVRAM
+	tristate "/dev/nvram support"
+	depends on ATARI || X86 || X86_64 || ARM || GENERIC_NVRAM
+	---help---
+	  If you say Y here and create a character special file /dev/nvram
+	  with major number 10 and minor number 144 using mknod ("man mknod"),
+	  you get read and write access to the extra bytes of non-volatile
+	  memory in the real time clock (RTC), which is contained in every PC
+	  and most Ataris.  The actual number of bytes varies, depending on the
+	  nvram in the system, but is usually 114 (128-14 for the RTC).
+
+	  This memory is conventionally called "CMOS RAM" on PCs and "NVRAM"
+	  on Ataris. /dev/nvram may be used to view settings there, or to
+	  change them (with some utility). It could also be used to frequently
+	  save a few bits of very important data that may not be lost over
+	  power-off and for which writing to disk is too insecure. Note
+	  however that most NVRAM space in a PC belongs to the BIOS and you
+	  should NEVER idly tamper with it. See Ralf Brown's interrupt list
+	  for a guide to the use of CMOS bytes by your BIOS.
+
+	  On Atari machines, /dev/nvram is always configured and does not need
+	  to be selected.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called nvram.
+
+config RTC
+	tristate "Enhanced Real Time Clock Support"
+	depends on !PPC32 && !PARISC && !IA64 && !M68K
+	---help---
+	  If you say Y here and create a character special file /dev/rtc with
+	  major number 10 and minor number 135 using mknod ("man mknod"), you
+	  will get access to the real time clock (or hardware clock) built
+	  into your computer.
+
+	  Every PC has such a clock built in. It can be used to generate
+	  signals from as low as 1Hz up to 8192Hz, and can also be used
+	  as a 24 hour alarm. It reports status information via the file
+	  /proc/driver/rtc and its behaviour is set by various ioctls on
+	  /dev/rtc.
+
+	  If you run Linux on a multiprocessor machine and said Y to
+	  "Symmetric Multi Processing" above, you should say Y here to read
+	  and set the RTC in an SMP compatible fashion.
+
+	  If you think you have a use for such a device (such as periodic data
+	  sampling), then say Y here, and read <file:Documentation/rtc.txt>
+	  for details.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rtc.
+
+config SGI_DS1286
+	tristate "SGI DS1286 RTC support"
+	depends on SGI_IP22
+	help
+	  If you say Y here and create a character special file /dev/rtc with
+	  major number 10 and minor number 135 using mknod ("man mknod"), you
+	  will get access to the real time clock built into your computer.
+	  Every SGI has such a clock built in. It reports status information
+	  via the file /proc/rtc and its behaviour is set by various ioctls on
+	  /dev/rtc.
+
+config SGI_IP27_RTC
+	bool "SGI M48T35 RTC support"
+	depends on SGI_IP27
+	help
+	  If you say Y here and create a character special file /dev/rtc with
+	  major number 10 and minor number 135 using mknod ("man mknod"), you
+	  will get access to the real time clock built into your computer.
+	  Every SGI has such a clock built in. It reports status information
+	  via the file /proc/rtc and its behaviour is set by various ioctls on
+	  /dev/rtc.
+
+config GEN_RTC
+	tristate "Generic /dev/rtc emulation"
+	depends on RTC!=y && !IA64 && !ARM
+	---help---
+	  If you say Y here and create a character special file /dev/rtc with
+	  major number 10 and minor number 135 using mknod ("man mknod"), you
+	  will get access to the real time clock (or hardware clock) built
+	  into your computer.
+
+	  It reports status information via the file /proc/driver/rtc and its
+	  behaviour is set by various ioctls on /dev/rtc. If you enable the
+	  "extended RTC operation" below it will also provide an emulation
+	  for RTC_UIE which is required by some programs and may improve
+	  precision in some cases.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called genrtc.
+
+config GEN_RTC_X
+	bool "Extended RTC operation"
+	depends on GEN_RTC
+	help
+	  Provides an emulation for RTC_UIE which is required by some programs
+	  and may improve precision of the generic RTC support in some cases.
+
+config EFI_RTC
+	bool "EFI Real Time Clock Services"
+	depends on IA64
+
+config DS1302
+	tristate "DS1302 RTC support"
+	depends on M32R && (PLAT_M32700UT || PLAT_OPSPUT)
+	help
+	  If you say Y here and create a character special file /dev/rtc with
+	  major number 121 and minor number 0 using mknod ("man mknod"), you
+	  will get access to the real time clock (or hardware clock) built
+	  into your computer.
+
+config S3C2410_RTC
+	bool "S3C2410 RTC Driver"
+	depends on ARCH_S3C2410
+	help
+	  RTC (Realtime Clock) driver for the clock inbuilt into the
+	  Samsung S3C2410. This can provide periodic interrupt rates
+	  from 1Hz to 64Hz for user programs, and wakeup from Alarm.
+
+config RTC_VR41XX
+	tristate "NEC VR4100 series Real Time Clock Support"
+	depends on CPU_VR41XX
+
+config COBALT_LCD
+	bool "Support for Cobalt LCD"
+	depends on MIPS_COBALT
+	help
+	  This option enables support for the LCD display and buttons found
+	  on Cobalt systems through a misc device.
+
+config DTLK
+	tristate "Double Talk PC internal speech card support"
+	help
+	  This driver is for the DoubleTalk PC, a speech synthesizer
+	  manufactured by RC Systems (<http://www.rcsys.com/>).  It is also
+	  called the `internal DoubleTalk'.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called dtlk.
+
+config R3964
+	tristate "Siemens R3964 line discipline"
+	---help---
+	  This driver allows synchronous communication with devices using the
+	  Siemens R3964 packet protocol. Unless you are dealing with special
+	  hardware like PLCs, you are unlikely to need this.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called n_r3964.
+
+	  If unsure, say N.
+
+config APPLICOM
+	tristate "Applicom intelligent fieldbus card support"
+	depends on PCI
+	---help---
+	  This driver provides the kernel-side support for the intelligent
+	  fieldbus cards made by Applicom International. More information
+	  about these cards can be found on the WWW at the address
+	  <http://www.applicom-int.com/>, or by email from David Woodhouse
+	  <dwmw2@infradead.org>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called applicom.
+
+	  If unsure, say N.
+
+config SONYPI
+	tristate "Sony Vaio Programmable I/O Control Device support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && X86 && PCI && INPUT && !64BIT
+	---help---
+	  This driver enables access to the Sony Programmable I/O Control
+	  Device which can be found in many (all ?) Sony Vaio laptops.
+
+	  If you have one of those laptops, read
+	  <file:Documentation/sonypi.txt>, and say Y or M here.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sonypi.
+
+config TANBAC_TB0219
+	tristate "TANBAC TB0219 base board support"
+	depends TANBAC_TB0229
+
+
+menu "Ftape, the floppy tape device driver"
+
+config FTAPE
+	tristate "Ftape (QIC-80/Travan) support"
+	depends on BROKEN_ON_SMP && (ALPHA || X86)
+	---help---
+	  If you have a tape drive that is connected to your floppy
+	  controller, say Y here.
+
+	  Some tape drives (like the Seagate "Tape Store 3200" or the Iomega
+	  "Ditto 3200" or the Exabyte "Eagle TR-3") come with a "high speed"
+	  controller of their own. These drives (and their companion
+	  controllers) are also supported if you say Y here.
+
+	  If you have a special controller (such as the CMS FC-10, FC-20,
+	  Mountain Mach-II, or any controller that is based on the Intel 82078
+	  FDC like the high speed controllers by Seagate and Exabyte and
+	  Iomega's "Ditto Dash") you must configure it by selecting the
+	  appropriate entries from the "Floppy tape controllers" sub-menu
+	  below and possibly modify the default values for the IRQ and DMA
+	  channel and the IO base in ftape's configuration menu.
+
+	  If you want to use your floppy tape drive on a PCI-bus based system,
+	  please read the file <file:drivers/char/ftape/README.PCI>.
+
+	  The ftape kernel driver is also available as a runtime loadable
+	  module. To compile this driver as a module, choose M here: the
+	  module will be called ftape.
+
+	  Note that the Ftape-HOWTO is out of date (sorry) and documents the
+	  older version 2.08 of this software but still contains useful
+	  information.  There is a web page with more recent documentation at
+	  <http://www.instmath.rwth-aachen.de/~heine/ftape/>.  This page
+	  always contains the latest release of the ftape driver and useful
+	  information (backup software, ftape related patches and
+	  documentation, FAQ).  Note that the file system interface has
+	  changed quite a bit compared to previous versions of ftape.  Please
+	  read <file:Documentation/ftape.txt>.
+
+source "drivers/char/ftape/Kconfig"
+
+endmenu
+
+source "drivers/char/agp/Kconfig"
+
+source "drivers/char/drm/Kconfig"
+
+source "drivers/char/pcmcia/Kconfig"
+
+config MWAVE
+	tristate "ACP Modem (Mwave) support"
+	depends on X86
+	select SERIAL_8250
+	---help---
+	  The ACP modem (Mwave) for Linux is a WinModem. It is composed of a
+	  kernel driver and a user level application. Together these components
+	  support direct attachment to public switched telephone networks (PSTNs)
+	  and support selected world wide countries.
+
+	  This version of the ACP Modem driver supports the IBM Thinkpad 600E,
+	  600, and 770 that include on board ACP modem hardware.
+
+	  The modem also supports the standard communications port interface
+	  (ttySx) and is compatible with the Hayes AT Command Set.
+
+	  The user level application needed to use this driver can be found at
+	  the IBM Linux Technology Center (LTC) web site:
+	  <http://www.ibm.com/linux/ltc/>.
+
+	  If you own one of the above IBM Thinkpads which has the Mwave chipset
+	  in it, say Y.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mwave.
+
+config SCx200_GPIO
+	tristate "NatSemi SCx200 GPIO Support"
+	depends on SCx200
+	help
+	  Give userspace access to the GPIO pins on the National
+	  Semiconductor SCx200 processors.
+
+	  If compiled as a module, it will be called scx200_gpio.
+
+config RAW_DRIVER
+	tristate "RAW driver (/dev/raw/rawN) (OBSOLETE)"
+	help
+	  The raw driver permits block devices to be bound to /dev/raw/rawN. 
+	  Once bound, I/O against /dev/raw/rawN uses efficient zero-copy I/O. 
+	  See the raw(8) manpage for more details.
+
+          The raw driver is deprecated and may be removed from 2.7
+          kernels.  Applications should simply open the device (eg /dev/hda1)
+          with the O_DIRECT flag.
+
+config HPET
+	bool "HPET - High Precision Event Timer" if (X86 || IA64)
+	default n
+	depends on ACPI
+	help
+	  If you say Y here, you will have a miscdevice named "/dev/hpet/".  Each
+	  open selects one of the timers supported by the HPET.  The timers are
+	  non-periodioc and/or periodic.
+
+config HPET_RTC_IRQ
+	bool "HPET Control RTC IRQ" if !HPET_EMULATE_RTC
+	default n
+	depends on HPET
+	help
+	  If you say Y here, you will disable RTC_IRQ in drivers/char/rtc.c. It
+	  is assumed the platform called hpet_alloc with the RTC IRQ values for
+	  the HPET timers.
+
+config HPET_MMAP
+	bool "Allow mmap of HPET"
+	default y
+	depends on HPET
+	help
+	  If you say Y here, user applications will be able to mmap
+	  the HPET registers.
+
+	  In some hardware implementations, the page containing HPET
+	  registers may also contain other things that shouldn't be
+	  exposed to the user.  If this applies to your hardware,
+	  say N here.
+
+config MAX_RAW_DEVS
+	int "Maximum number of RAW devices to support (1-8192)"
+	depends on RAW_DRIVER
+	default "256"
+	help
+	  The maximum number of RAW devices that are supported.
+	  Default is 256. Increase this number in case you need lots of
+	  raw devices.
+
+config HANGCHECK_TIMER
+	tristate "Hangcheck timer"
+	depends on X86_64 || X86
+	help
+	  The hangcheck-timer module detects when the system has gone
+	  out to lunch past a certain margin.  It can reboot the system
+	  or merely print a warning.
+
+config MMTIMER
+	tristate "MMTIMER Memory mapped RTC for SGI Altix"
+	depends on IA64_GENERIC || IA64_SGI_SN2
+	default y
+	help
+	  The mmtimer device allows direct userspace access to the
+	  Altix system timer.
+
+source "drivers/char/tpm/Kconfig"
+
+endmenu
+

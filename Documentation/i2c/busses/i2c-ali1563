@@ -1,0 +1,27 @@
+Kernel driver i2c-ali1563
+
+Supported adapters:
+  * Acer Labs, Inc. ALI 1563 (south bridge)
+    Datasheet: Now under NDA
+	http://www.ali.com.tw/eng/support/datasheet_request.php
+
+Author: Patrick Mochel <mochel@digitalimplant.org>
+
+Description
+-----------
+
+This is the driver for the SMB Host controller on Acer Labs Inc. (ALI)
+M1563 South Bridge.
+
+For an overview of these chips see http://www.acerlabs.com
+
+The M1563 southbridge is deceptively similar to the M1533, with a few
+notable exceptions. One of those happens to be the fact they upgraded the
+i2c core to be SMBus 2.0 compliant, and happens to be almost identical to
+the i2c controller found in the Intel 801 south bridges. 
+
+Features
+--------
+
+This driver controls the SMB Host only. This driver does not use
+interrupts.

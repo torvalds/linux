@@ -1,0 +1,150 @@
+Documentation for /proc/sys/fs/*	kernel version 2.2.10
+	(c) 1998, 1999,  Rik van Riel <riel@nl.linux.org>
+
+For general info and legal blurb, please look in README.
+
+==============================================================
+
+This file contains documentation for the sysctl files in
+/proc/sys/fs/ and is valid for Linux kernel version 2.2.
+
+The files in this directory can be used to tune and monitor
+miscellaneous and general things in the operation of the Linux
+kernel. Since some of the files _can_ be used to screw up your
+system, it is advisable to read both documentation and source
+before actually making adjustments.
+
+Currently, these files are in /proc/sys/fs:
+- dentry-state
+- dquot-max
+- dquot-nr
+- file-max
+- file-nr
+- inode-max
+- inode-nr
+- inode-state
+- overflowuid
+- overflowgid
+- super-max
+- super-nr
+
+Documentation for the files in /proc/sys/fs/binfmt_misc is
+in Documentation/binfmt_misc.txt.
+
+==============================================================
+
+dentry-state:
+
+From linux/fs/dentry.c:
+--------------------------------------------------------------
+struct {
+        int nr_dentry;
+        int nr_unused;
+        int age_limit;         /* age in seconds */
+        int want_pages;        /* pages requested by system */
+        int dummy[2];
+} dentry_stat = {0, 0, 45, 0,};
+-------------------------------------------------------------- 
+
+Dentries are dynamically allocated and deallocated, and
+nr_dentry seems to be 0 all the time. Hence it's safe to
+assume that only nr_unused, age_limit and want_pages are
+used. Nr_unused seems to be exactly what its name says.
+Age_limit is the age in seconds after which dcache entries
+can be reclaimed when memory is short and want_pages is
+nonzero when shrink_dcache_pages() has been called and the
+dcache isn't pruned yet.
+
+==============================================================
+
+dquot-max & dquot-nr:
+
+The file dquot-max shows the maximum number of cached disk
+quota entries.
+
+The file dquot-nr shows the number of allocated disk quota
+entries and the number of free disk quota entries.
+
+If the number of free cached disk quotas is very low and
+you have some awesome number of simultaneous system users,
+you might want to raise the limit.
+
+==============================================================
+
+file-max & file-nr:
+
+The kernel allocates file handles dynamically, but as yet it
+doesn't free them again.
+
+The value in file-max denotes the maximum number of file-
+handles that the Linux kernel will allocate. When you get lots
+of error messages about running out of file handles, you might
+want to increase this limit.
+
+The three values in file-nr denote the number of allocated
+file handles, the number of unused file handles and the maximum
+number of file handles. When the allocated file handles come
+close to the maximum, but the number of unused file handles is
+significantly greater than 0, you've encountered a peak in your 
+usage of file handles and you don't need to increase the maximum.
+
+==============================================================
+
+inode-max, inode-nr & inode-state:
+
+As with file handles, the kernel allocates the inode structures
+dynamically, but can't free them yet.
+
+The value in inode-max denotes the maximum number of inode
+handlers. This value should be 3-4 times larger than the value
+in file-max, since stdin, stdout and network sockets also
+need an inode struct to handle them. When you regularly run
+out of inodes, you need to increase this value.
+
+The file inode-nr contains the first two items from
+inode-state, so we'll skip to that file...
+
+Inode-state contains three actual numbers and four dummies.
+The actual numbers are, in order of appearance, nr_inodes,
+nr_free_inodes and preshrink.
+
+Nr_inodes stands for the number of inodes the system has
+allocated, this can be slightly more than inode-max because
+Linux allocates them one pageful at a time.
+
+Nr_free_inodes represents the number of free inodes (?) and
+preshrink is nonzero when the nr_inodes > inode-max and the
+system needs to prune the inode list instead of allocating
+more.
+
+==============================================================
+
+overflowgid & overflowuid:
+
+Some filesystems only support 16-bit UIDs and GIDs, although in Linux
+UIDs and GIDs are 32 bits. When one of these filesystems is mounted
+with writes enabled, any UID or GID that would exceed 65535 is translated
+to a fixed value before being written to disk.
+
+These sysctls allow you to change the value of the fixed UID and GID.
+The default is 65534.
+
+==============================================================
+
+super-max & super-nr:
+
+These numbers control the maximum number of superblocks, and
+thus the maximum number of mounted filesystems the kernel
+can have. You only need to increase super-max if you need to
+mount more filesystems than the current value in super-max
+allows you to.
+
+==============================================================
+
+aio-nr & aio-max-nr:
+
+aio-nr shows the current system-wide number of asynchronous io
+requests.  aio-max-nr allows you to change the maximum value
+aio-nr can grow to.
+
+==============================================================

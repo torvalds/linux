@@ -1,0 +1,46 @@
+#
+# Acorn Network device configuration
+#  These are for Acorn's Expansion card network interfaces
+#
+config ARM_AM79C961A
+	bool "ARM EBSA110 AM79C961A support"
+	depends on NET_ETHERNET && ARM && ARCH_EBSA110
+	select CRC32
+	help
+	  If you wish to compile a kernel for the EBSA-110, then you should
+	  always answer Y to this.
+
+config ARM_ETHER1
+	tristate "Acorn Ether1 support"
+	depends on NET_ETHERNET && ARM && ARCH_ACORN
+	help
+	  If you have an Acorn system with one of these (AKA25) network cards,
+	  you should say Y to this option if you wish to use it with Linux.
+
+config ARM_ETHER3
+	tristate "Acorn/ANT Ether3 support"
+	depends on NET_ETHERNET && ARM && ARCH_ACORN
+	help
+	  If you have an Acorn system with one of these network cards, you
+	  should say Y to this option if you wish to use it with Linux.
+
+config ARM_ETHERH
+	tristate "I-cubed EtherH/ANT EtherM support"
+	depends on NET_ETHERNET && ARM && ARCH_ACORN
+	select CRC32
+	help
+	  If you have an Acorn system with one of these network cards, you
+	  should say Y to this option if you wish to use it with Linux.
+
+config ARM_ETHER00
+	tristate "Altera Ether00 support"
+	depends on NET_ETHERNET && ARM && ARCH_CAMELOT
+	help
+	  This is the driver for Altera's ether00 ethernet mac IP core. Say
+	  Y here if you want to build support for this into the kernel. It
+	  is also available as a module (say M here) that can be inserted/
+	  removed from the kernel at the same time as the PLD is configured.
+	  If this driver is running on an epxa10 development board then it
+	  will generate a suitable hw address based on the board serial
+	  number (MTD support is required for this). Otherwise you will
+	  need to set a suitable hw address using ifconfig.

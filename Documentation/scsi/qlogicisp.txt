@@ -1,0 +1,30 @@
+Notes for the QLogic ISP1020 PCI SCSI Driver:
+
+This driver works well in practice, but does not support disconnect/
+reconnect, which makes using it with tape drives impractical.
+
+It should work for most host adaptors with the ISP1020 chip.  The
+QLogic Corporation produces several PCI SCSI adapters which should
+work:
+
+	* IQ-PCI
+	* IQ-PCI-10
+	* IQ-PCI-D
+
+This driver may work with boards containing the ISP1020A or ISP1040A
+chips, but that has not been tested.
+
+This driver will NOT work with:
+
+	* ISA or VL Bus Qlogic cards (they use the 'qlogicfas' driver)
+	* PCI-basic (it uses the 'am53c974' driver)
+
+Much thanks to QLogic's tech support for providing the latest ISP1020
+firmware, and for taking the time to review my code.
+
+Erik Moe
+ehm@cris.com
+
+Revised:
+Michael A. Griffith
+grif@cs.ucr.edu

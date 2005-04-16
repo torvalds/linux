@@ -1,0 +1,282 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.1.2//EN"
+	"http://www.oasis-open.org/docbook/xml/4.1.2/docbookx.dtd" []>
+
+<book id="libataDevGuide">
+ <bookinfo>
+  <title>libATA Developer's Guide</title>
+  
+  <authorgroup>
+   <author>
+    <firstname>Jeff</firstname>
+    <surname>Garzik</surname>
+   </author>
+  </authorgroup>
+
+  <copyright>
+   <year>2003</year>
+   <holder>Jeff Garzik</holder>
+  </copyright>
+
+  <legalnotice>
+   <para>
+   The contents of this file are subject to the Open
+   Software License version 1.1 that can be found at
+   <ulink url="http://www.opensource.org/licenses/osl-1.1.txt">http://www.opensource.org/licenses/osl-1.1.txt</ulink> and is included herein
+   by reference.
+   </para>
+
+   <para>
+   Alternatively, the contents of this file may be used under the terms
+   of the GNU General Public License version 2 (the "GPL") as distributed
+   in the kernel source COPYING file, in which case the provisions of
+   the GPL are applicable instead of the above.  If you wish to allow
+   the use of your version of this file only under the terms of the
+   GPL and not to allow others to use your version of this file under
+   the OSL, indicate your decision by deleting the provisions above and
+   replace them with the notice and other provisions required by the GPL.
+   If you do not delete the provisions above, a recipient may use your
+   version of this file under either the OSL or the GPL.
+   </para>
+
+  </legalnotice>
+ </bookinfo>
+
+<toc></toc>
+
+  <chapter id="libataThanks">
+     <title>Thanks</title>
+  <para>
+  The bulk of the ATA knowledge comes thanks to long conversations with
+  Andre Hedrick (www.linux-ide.org).
+  </para>
+  <para>
+  Thanks to Alan Cox for pointing out similarities 
+  between SATA and SCSI, and in general for motivation to hack on
+  libata.
+  </para>
+  <para>
+  libata's device detection
+  method, ata_pio_devchk, and in general all the early probing was
+  based on extensive study of Hale Landis's probe/reset code in his
+  ATADRVR driver (www.ata-atapi.com).
+  </para>
+  </chapter>
+
+  <chapter id="libataDriverApi">
+     <title>libata Driver API</title>
+     <sect1>
+        <title>struct ata_port_operations</title>
+
+	<programlisting>
+void (*port_disable) (struct ata_port *);
+	</programlisting>
+
+	<para>
+	Called from ata_bus_probe() and ata_bus_reset() error paths,
+	as well as when unregistering from the SCSI module (rmmod, hot
+	unplug).
+	</para>
+
+	<programlisting>
+void (*dev_config) (struct ata_port *, struct ata_device *);
+	</programlisting>
+
+	<para>
+	Called after IDENTIFY [PACKET] DEVICE is issued to each device
+	found.  Typically used to apply device-specific fixups prior to
+	issue of SET FEATURES - XFER MODE, and prior to operation.
+	</para>
+
+	<programlisting>
+void (*set_piomode) (struct ata_port *, struct ata_device *);
+void (*set_dmamode) (struct ata_port *, struct ata_device *);
+void (*post_set_mode) (struct ata_port *ap);
+	</programlisting>
+
+	<para>
+	Hooks called prior to the issue of SET FEATURES - XFER MODE
+	command.  dev->pio_mode is guaranteed to be valid when
+	->set_piomode() is called, and dev->dma_mode is guaranteed to be
+	valid when ->set_dmamode() is called.  ->post_set_mode() is
+	called unconditionally, after the SET FEATURES - XFER MODE
+	command completes successfully.
+	</para>
+
+	<para>
+	->set_piomode() is always called (if present), but
+	->set_dma_mode() is only called if DMA is possible.
+	</para>
+
+	<programlisting>
+void (*tf_load) (struct ata_port *ap, struct ata_taskfile *tf);
+void (*tf_read) (struct ata_port *ap, struct ata_taskfile *tf);
+	</programlisting>
+
+	<para>
+	->tf_load() is called to load the given taskfile into hardware
+	registers / DMA buffers.  ->tf_read() is called to read the
+	hardware registers / DMA buffers, to obtain the current set of
+	taskfile register values.
+	</para>
+
+	<programlisting>
+void (*exec_command)(struct ata_port *ap, struct ata_taskfile *tf);
+	</programlisting>
+
+	<para>
+	causes an ATA command, previously loaded with
+	->tf_load(), to be initiated in hardware.
+	</para>
+
+	<programlisting>
+u8   (*check_status)(struct ata_port *ap);
+void (*dev_select)(struct ata_port *ap, unsigned int device);
+	</programlisting>
+
+	<para>
+	Reads the Status ATA shadow register from hardware.  On some
+	hardware, this has the side effect of clearing the interrupt
+	condition.
+	</para>
+
+	<programlisting>
+void (*dev_select)(struct ata_port *ap, unsigned int device);
+	</programlisting>
+
+	<para>
+	Issues the low-level hardware command(s) that causes one of N
+	hardware devices to be considered 'selected' (active and
+	available for use) on the ATA bus.
+	</para>
+
+	<programlisting>
+void (*phy_reset) (struct ata_port *ap);
+	</programlisting>
+
+	<para>
+	The very first step in the probe phase.  Actions vary depending
+	on the bus type, typically.  After waking up the device and probing
+	for device presence (PATA and SATA), typically a soft reset
+	(SRST) will be performed.  Drivers typically use the helper
+	functions ata_bus_reset() or sata_phy_reset() for this hook.
+	</para>
+
+	<programlisting>
+void (*bmdma_setup) (struct ata_queued_cmd *qc);
+void (*bmdma_start) (struct ata_queued_cmd *qc);
+	</programlisting>
+
+	<para>
+	When setting up an IDE BMDMA transaction, these hooks arm
+	(->bmdma_setup) and fire (->bmdma_start) the hardware's DMA
+	engine.
+	</para>
+
+	<programlisting>
+void (*qc_prep) (struct ata_queued_cmd *qc);
+int (*qc_issue) (struct ata_queued_cmd *qc);
+	</programlisting>
+
+	<para>
+	Higher-level hooks, these two hooks can potentially supercede
+	several of the above taskfile/DMA engine hooks.  ->qc_prep is
+	called after the buffers have been DMA-mapped, and is typically
+	used to populate the hardware's DMA scatter-gather table.
+	Most drivers use the standard ata_qc_prep() helper function, but
+	more advanced drivers roll their own.
+	</para>
+	<para>
+	->qc_issue is used to make a command active, once the hardware
+	and S/G tables have been prepared.  IDE BMDMA drivers use the
+	helper function ata_qc_issue_prot() for taskfile protocol-based
+	dispatch.  More advanced drivers roll their own ->qc_issue
+	implementation, using this as the "issue new ATA command to
+	hardware" hook.
+	</para>
+
+	<programlisting>
+void (*eng_timeout) (struct ata_port *ap);
+	</programlisting>
+
+	<para>
+	This is a high level error handling function, called from the
+	error handling thread, when a command times out.
+	</para>
+
+	<programlisting>
+irqreturn_t (*irq_handler)(int, void *, struct pt_regs *);
+void (*irq_clear) (struct ata_port *);
+	</programlisting>
+
+	<para>
+	->irq_handler is the interrupt handling routine registered with
+	the system, by libata.  ->irq_clear is called during probe just
+	before the interrupt handler is registered, to be sure hardware
+	is quiet.
+	</para>
+
+	<programlisting>
+u32 (*scr_read) (struct ata_port *ap, unsigned int sc_reg);
+void (*scr_write) (struct ata_port *ap, unsigned int sc_reg,
+                   u32 val);
+	</programlisting>
+
+	<para>
+	Read and write standard SATA phy registers.  Currently only used
+	if ->phy_reset hook called the sata_phy_reset() helper function.
+	</para>
+
+	<programlisting>
+int (*port_start) (struct ata_port *ap);
+void (*port_stop) (struct ata_port *ap);
+void (*host_stop) (struct ata_host_set *host_set);
+	</programlisting>
+
+	<para>
+	->port_start() is called just after the data structures for each
+	port are initialized.  Typically this is used to alloc per-port
+	DMA buffers / tables / rings, enable DMA engines, and similar
+	tasks.  
+	</para>
+	<para>
+	->host_stop() is called when the rmmod or hot unplug process
+	begins.  The hook must stop all hardware interrupts, DMA
+	engines, etc.
+	</para>
+	<para>
+	->port_stop() is called after ->host_stop().  It's sole function
+	is to release DMA/memory resources, now that they are no longer
+	actively being used.
+	</para>
+
+     </sect1>
+  </chapter>
+
+  <chapter id="libataExt">
+     <title>libata Library</title>
+!Edrivers/scsi/libata-core.c
+  </chapter>
+
+  <chapter id="libataInt">
+     <title>libata Core Internals</title>
+!Idrivers/scsi/libata-core.c
+  </chapter>
+
+  <chapter id="libataScsiInt">
+     <title>libata SCSI translation/emulation</title>
+!Edrivers/scsi/libata-scsi.c
+!Idrivers/scsi/libata-scsi.c
+  </chapter>
+
+  <chapter id="PiixInt">
+     <title>ata_piix Internals</title>
+!Idrivers/scsi/ata_piix.c
+  </chapter>
+
+  <chapter id="SILInt">
+     <title>sata_sil Internals</title>
+!Idrivers/scsi/sata_sil.c
+  </chapter>
+
+</book>

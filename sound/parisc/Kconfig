@@ -1,0 +1,15 @@
+# ALSA PA-RISC drivers
+
+menu "GSC devices"
+	depends on SND!=n && GSC
+
+config SND_HARMONY
+	tristate "Harmony/Vivace sound chip"
+	depends on SND
+	select SND_PCM
+	help
+	  Say 'Y' or 'M' to include support for the Harmony/Vivace sound
+	  chip found in most GSC-based PA-RISC workstations.  It's frequently
+	  provided as part of the Lasi multi-function IC.
+
+endmenu

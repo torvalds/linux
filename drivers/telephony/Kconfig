@@ -1,0 +1,47 @@
+#
+# Telephony device configuration
+#
+
+menu "Telephony Support"
+
+config PHONE
+	tristate "Linux telephony support"
+	---help---
+	  Say Y here if you have a telephony card, which for example allows
+	  you to use a regular phone for voice-over-IP applications.
+
+	  Note: this has nothing to do with modems.  You do not need to say Y
+	  here in order to be able to use a modem under Linux.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called phonedev.
+
+config PHONE_IXJ
+	tristate "QuickNet Internet LineJack/PhoneJack support"
+	depends on PHONE
+	---help---
+	  Say M if you have a telephony card manufactured by Quicknet
+	  Technologies, Inc.  These include the Internet PhoneJACK and
+	  Internet LineJACK Telephony Cards. You will get a module called
+	  ixj.
+
+	  For the ISA versions of these products, you can configure the
+	  cards using the isapnp tools (pnpdump/isapnp) or you can use the
+	  isapnp support.  Please read <file:Documentation/telephony/ixj.txt>.
+
+	  For more information on these cards, see Quicknet's web site at:
+	  <http://www.quicknet.net/>.
+
+	  If you do not have any Quicknet telephony cards, you can safely
+	  say N here.
+
+config PHONE_IXJ_PCMCIA
+	tristate "QuickNet Internet LineJack/PhoneJack PCMCIA support"
+	depends on PHONE_IXJ && PCMCIA
+	help
+	  Say Y here to configure in PCMCIA service support for the Quicknet
+	  cards manufactured by Quicknet Technologies, Inc.  This changes the
+	  card initialization code to work with the card manager daemon.
+
+endmenu
+

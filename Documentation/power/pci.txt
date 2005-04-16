@@ -1,0 +1,332 @@
+
+PCI Power Management
+~~~~~~~~~~~~~~~~~~~~
+
+An overview of the concepts and the related functions in the Linux kernel
+
+Patrick Mochel <mochel@transmeta.com>
+(and others)
+
+---------------------------------------------------------------------------
+
+1. Overview
+2. How the PCI Subsystem Does Power Management
+3. PCI Utility Functions
+4. PCI Device Drivers
+5. Resources
+
+1. Overview
+~~~~~~~~~~~
+
+The PCI Power Management Specification was introduced between the PCI 2.1 and
+PCI 2.2 Specifications. It a standard interface for controlling various 
+power management operations.
+
+Implementation of the PCI PM Spec is optional, as are several sub-components of
+it. If a device supports the PCI PM Spec, the device will have an 8 byte
+capability field in its PCI configuration space. This field is used to describe
+and control the standard PCI power management features.
+
+The PCI PM spec defines 4 operating states for devices (D0 - D3) and for buses
+(B0 - B3). The higher the number, the less power the device consumes. However,
+the higher the number, the longer the latency is for the device to return to 
+an operational state (D0).
+
+There are actually two D3 states.  When someone talks about D3, they usually
+mean D3hot, which corresponds to an ACPI D2 state (power is reduced, the
+device may lose some context).  But they may also mean D3cold, which is an
+ACPI D3 state (power is fully off, all state was discarded); or both.
+
+Bus power management is not covered in this version of this document.
+
+Note that all PCI devices support D0 and D3cold by default, regardless of
+whether or not they implement any of the PCI PM spec.
+
+The possible state transitions that a device can undergo are:
+
++---------------------------+
+| Current State | New State |
++---------------------------+
+| D0            | D1, D2, D3|
++---------------------------+
+| D1            | D2, D3    |
++---------------------------+
+| D2            | D3        |
++---------------------------+
+| D1, D2, D3    | D0        |
++---------------------------+
+
+Note that when the system is entering a global suspend state, all devices will
+be placed into D3 and when resuming, all devices will be placed into D0.
+However, when the system is running, other state transitions are possible.
+
+2. How The PCI Subsystem Handles Power Management
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The PCI suspend/resume functionality is accessed indirectly via the Power
+Management subsystem. At boot, the PCI driver registers a power management
+callback with that layer. Upon entering a suspend state, the PM layer iterates
+through all of its registered callbacks. This currently takes place only during
+APM state transitions.
+
+Upon going to sleep, the PCI subsystem walks its device tree twice. Both times,
+it does a depth first walk of the device tree. The first walk saves each of the
+device's state and checks for devices that will prevent the system from entering
+a global power state. The next walk then places the devices in a low power
+state.
+
+The first walk allows a graceful recovery in the event of a failure, since none
+of the devices have actually been powered down.
+
+In both walks, in particular the second, all children of a bridge are touched
+before the actual bridge itself. This allows the bridge to retain power while
+its children are being accessed.
+
+Upon resuming from sleep, just the opposite must be true: all bridges must be
+powered on and restored before their children are powered on. This is easily
+accomplished with a breadth-first walk of the PCI device tree.
+
+
+3. PCI Utility Functions
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+These are helper functions designed to be called by individual device drivers.
+Assuming that a device behaves as advertised, these should be applicable in most
+cases. However, results may vary.
+
+Note that these functions are never implicitly called for the driver. The driver
+is always responsible for deciding when and if to call these.
+
+
+pci_save_state
+--------------
+
+Usage:
+	pci_save_state(dev, buffer);
+
+Description:
+	Save first 64 bytes of PCI config space. Buffer must be allocated by
+	caller.
+
+
+pci_restore_state
+-----------------
+
+Usage:
+	pci_restore_state(dev, buffer);
+
+Description:
+	Restore previously saved config space. (First 64 bytes only);
+
+	If buffer is NULL, then restore what information we know about the
+	device from bootup: BARs and interrupt line.
+
+
+pci_set_power_state
+-------------------
+
+Usage:
+	pci_set_power_state(dev, state);
+
+Description:
+	Transition device to low power state using PCI PM Capabilities
+	registers.
+
+	Will fail under one of the following conditions:
+	- If state is less than current state, but not D0 (illegal transition)
+	- Device doesn't support PM Capabilities
+	- Device does not support requested state
+
+
+pci_enable_wake
+---------------
+
+Usage:
+	pci_enable_wake(dev, state, enable);
+
+Description:
+	Enable device to generate PME# during low power state using PCI PM 
+	Capabilities.
+
+	Checks whether if device supports generating PME# from requested state
+	and fail if it does not, unless enable == 0 (request is to disable wake
+	events, which is implicit if it doesn't even support it in the first
+	place).
+
+	Note that the PMC Register in the device's PM Capabilties has a bitmask
+	of the states it supports generating PME# from. D3hot is bit 3 and
+	D3cold is bit 4. So, while a value of 4 as the state may not seem
+	semantically correct, it is. 
+
+
+4. PCI Device Drivers
+~~~~~~~~~~~~~~~~~~~~~
+
+These functions are intended for use by individual drivers, and are defined in 
+struct pci_driver:
+
+        int  (*save_state) (struct pci_dev *dev, u32 state);
+        int  (*suspend) (struct pci_dev *dev, u32 state);
+        int  (*resume) (struct pci_dev *dev);
+        int  (*enable_wake) (struct pci_dev *dev, u32 state, int enable);
+
+
+save_state
+----------
+
+Usage:
+
+if (dev->driver && dev->driver->save_state)
+	dev->driver->save_state(dev,state);
+
+The driver should use this callback to save device state. It should take into
+account the current state of the device and the requested state in order to
+avoid any unnecessary operations.
+
+For example, a video card that supports all 4 states (D0-D3), all controller
+context is preserved when entering D1, but the screen is placed into a low power
+state (blanked). 
+
+The driver can also interpret this function as a notification that it may be
+entering a sleep state in the near future. If it knows that the device cannot
+enter the requested state, either because of lack of support for it, or because
+the device is middle of some critical operation, then it should fail.
+
+This function should not be used to set any state in the device or the driver
+because the device may not actually enter the sleep state (e.g. another driver
+later causes causes a global state transition to fail).
+
+Note that in intermediate low power states, a device's I/O and memory spaces may
+be disabled and may not be available in subsequent transitions to lower power
+states.
+
+
+suspend
+-------
+
+Usage:
+
+if (dev->driver && dev->driver->suspend)
+	dev->driver->suspend(dev,state);
+
+A driver uses this function to actually transition the device into a low power
+state. This should include disabling I/O, IRQs, and bus-mastering, as well as
+physically transitioning the device to a lower power state; it may also include
+calls to pci_enable_wake().
+
+Bus mastering may be disabled by doing:
+
+pci_disable_device(dev);
+
+For devices that support the PCI PM Spec, this may be used to set the device's
+power state to match the suspend() parameter:
+
+pci_set_power_state(dev,state);
+
+The driver is also responsible for disabling any other device-specific features
+(e.g blanking screen, turning off on-card memory, etc).
+
+The driver should be sure to track the current state of the device, as it may
+obviate the need for some operations.
+
+The driver should update the current_state field in its pci_dev structure in
+this function, except for PM-capable devices when pci_set_power_state is used.
+
+resume
+------
+
+Usage:
+
+if (dev->driver && dev->driver->suspend)
+	dev->driver->resume(dev)
+
+The resume callback may be called from any power state, and is always meant to
+transition the device to the D0 state. 
+
+The driver is responsible for reenabling any features of the device that had
+been disabled during previous suspend calls, such as IRQs and bus mastering,
+as well as calling pci_restore_state().
+
+If the device is currently in D3, it may need to be reinitialized in resume().
+
+  * Some types of devices, like bus controllers, will preserve context in D3hot
+    (using Vcc power).  Their drivers will often want to avoid re-initializing
+    them after re-entering D0 (perhaps to avoid resetting downstream devices).
+
+  * Other kinds of devices in D3hot will discard device context as part of a
+    soft reset when re-entering the D0 state.
+    
+  * Devices resuming from D3cold always go through a power-on reset.  Some
+    device context can also be preserved using Vaux power.
+
+  * Some systems hide D3cold resume paths from drivers.  For example, on PCs
+    the resume path for suspend-to-disk often runs BIOS powerup code, which
+    will sometimes re-initialize the device.
+
+To handle resets during D3 to D0 transitions, it may be convenient to share
+device initialization code between probe() and resume().  Device parameters
+can also be saved before the driver suspends into D3, avoiding re-probe.
+
+If the device supports the PCI PM Spec, it can use this to physically transition
+the device to D0:
+
+pci_set_power_state(dev,0);
+
+Note that if the entire system is transitioning out of a global sleep state, all
+devices will be placed in the D0 state, so this is not necessary. However, in
+the event that the device is placed in the D3 state during normal operation,
+this call is necessary. It is impossible to determine which of the two events is
+taking place in the driver, so it is always a good idea to make that call.
+
+The driver should take note of the state that it is resuming from in order to
+ensure correct (and speedy) operation.
+
+The driver should update the current_state field in its pci_dev structure in
+this function, except for PM-capable devices when pci_set_power_state is used.
+
+
+enable_wake
+-----------
+
+Usage:
+
+if (dev->driver && dev->driver->enable_wake)
+	dev->driver->enable_wake(dev,state,enable);
+
+This callback is generally only relevant for devices that support the PCI PM
+spec and have the ability to generate a PME# (Power Management Event Signal)
+to wake the system up. (However, it is possible that a device may support 
+some non-standard way of generating a wake event on sleep.)
+
+Bits 15:11 of the PMC (Power Mgmt Capabilities) Register in a device's
+PM Capabilties describe what power states the device supports generating a 
+wake event from:
+
++------------------+
+|  Bit  |  State   |
++------------------+
+|  11   |   D0     |
+|  12   |   D1     |
+|  13   |   D2     |
+|  14   |   D3hot  |
+|  15   |   D3cold |
++------------------+
+
+A device can use this to enable wake events:
+
+	 pci_enable_wake(dev,state,enable);
+
+Note that to enable PME# from D3cold, a value of 4 should be passed to 
+pci_enable_wake (since it uses an index into a bitmask). If a driver gets
+a request to enable wake events from D3, two calls should be made to 
+pci_enable_wake (one for both D3hot and D3cold).
+
+
+5. Resources
+~~~~~~~~~~~~
+
+PCI Local Bus Specification 
+PCI Bus Power Management Interface Specification
+
+  http://pcisig.org
+

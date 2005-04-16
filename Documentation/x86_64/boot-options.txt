@@ -1,0 +1,180 @@
+AMD64 specific boot options
+
+There are many others (usually documented in driver documentation), but
+only the AMD64 specific ones are listed here.
+
+Machine check
+
+   mce=off disable machine check
+
+   nomce (for compatibility with i386): same as mce=off
+
+   Everything else is in sysfs now.
+
+APICs
+
+   apic		 Use IO-APIC. Default
+
+   noapic	 Don't use the IO-APIC.
+
+   disableapic	 Don't use the local APIC
+
+   nolapic	 Don't use the local APIC (alias for i386 compatibility)
+
+   pirq=...	 See Documentation/i386/IO-APIC.txt
+
+   noapictimer	 Don't set up the APIC timer
+
+Early Console
+
+   syntax: earlyprintk=vga
+           earlyprintk=serial[,ttySn[,baudrate]]
+
+   The early console is useful when the kernel crashes before the
+   normal console is initialized. It is not enabled by
+   default because it has some cosmetic problems.
+   Append ,keep to not disable it when the real console takes over.
+   Only vga or serial at a time, not both.
+   Currently only ttyS0 and ttyS1 are supported.
+   Interaction with the standard serial driver is not very good.
+   The VGA output is eventually overwritten by the real console.
+
+Timing
+
+  notsc
+  Don't use the CPU time stamp counter to read the wall time.
+  This can be used to work around timing problems on multiprocessor systems
+  with not properly synchronized CPUs. Only useful with a SMP kernel
+
+  report_lost_ticks
+  Report when timer interrupts are lost because some code turned off
+  interrupts for too long.
+
+  nmi_watchdog=NUMBER[,panic]
+  NUMBER can be:
+  0 don't use an NMI watchdog
+  1 use the IO-APIC timer for the NMI watchdog
+  2 use the local APIC for the NMI watchdog using a performance counter. Note
+  This will use one performance counter and the local APIC's performance
+  vector.
+  When panic is specified panic when an NMI watchdog timeout occurs.
+  This is useful when you use a panic=... timeout and need the box
+  quickly up again.
+
+  nohpet
+  Don't use the HPET timer.
+
+Idle loop
+
+  idle=poll
+  Don't do power saving in the idle loop using HLT, but poll for rescheduling
+  event. This will make the CPUs eat a lot more power, but may be useful
+  to get slightly better performance in multiprocessor benchmarks. It also
+  makes some profiling using performance counters more accurate.
+
+Rebooting
+
+   reboot=b[ios] | t[riple] | k[bd] [, [w]arm | [c]old]
+   bios	  Use the CPU reboto vector for warm reset
+   warm   Don't set the cold reboot flag
+   cold   Set the cold reboot flag
+   triple Force a triple fault (init)
+   kbd    Use the keyboard controller. cold reset (default)
+
+   Using warm reset will be much faster especially on big memory
+   systems because the BIOS will not go through the memory check.
+   Disadvantage is that not all hardware will be completely reinitialized
+   on reboot so there may be boot problems on some systems.
+
+   reboot=force
+
+   Don't stop other CPUs on reboot. This can make reboot more reliable
+   in some cases.
+
+Non Executable Mappings
+
+  noexec=on|off
+
+  on      Enable(default)
+  off     Disable
+
+SMP
+
+  nosmp	Only use a single CPU
+
+  maxcpus=NUMBER only use upto NUMBER CPUs
+
+  cpumask=MASK   only use cpus with bits set in mask
+
+NUMA
+
+  numa=off	Only set up a single NUMA node spanning all memory.
+
+  numa=noacpi   Don't parse the SRAT table for NUMA setup
+
+  numa=fake=X   Fake X nodes and ignore NUMA setup of the actual machine.
+
+ACPI
+
+  acpi=off	Don't enable ACPI
+  acpi=ht	Use ACPI boot table parsing, but don't enable ACPI
+		interpreter
+  acpi=force	Force ACPI on (currently not needed)
+
+  acpi=strict   Disable out of spec ACPI workarounds.
+
+  acpi_sci={edge,level,high,low}  Set up ACPI SCI interrupt.
+
+  acpi=noirq	Don't route interrupts
+
+PCI
+
+  pci=off	Don't use PCI
+  pci=conf1	Use conf1 access.
+  pci=conf2	Use conf2 access.
+  pci=rom	Assign ROMs.
+  pci=assign-busses    Assign busses
+  pci=irqmask=MASK	       Set PCI interrupt mask to MASK
+  pci=lastbus=NUMBER	       Scan upto NUMBER busses, no matter what the mptable says.
+  pci=noacpi		Don't use ACPI to set up PCI interrupt routing.
+
+IOMMU
+
+ iommu=[size][,noagp][,off][,force][,noforce][,leak][,memaper[=order]][,merge]
+         [,forcesac][,fullflush][,nomerge][,noaperture]
+   size  set size of iommu (in bytes)
+   noagp don't initialize the AGP driver and use full aperture.
+   off   don't use the IOMMU
+   leak  turn on simple iommu leak tracing (only when CONFIG_IOMMU_LEAK is on)
+   memaper[=order] allocate an own aperture over RAM with size 32MB^order.
+   noforce don't force IOMMU usage. Default.
+   force  Force IOMMU.
+   merge  Do SG merging. Implies force (experimental)
+   nomerge Don't do SG merging.
+   forcesac For SAC mode for masks <40bits  (experimental)
+   fullflush Flush IOMMU on each allocation (default)
+   nofullflush Don't use IOMMU fullflush
+   allowed  overwrite iommu off workarounds for specific chipsets.
+   soft	 Use software bounce buffering (default for Intel machines)
+   noaperture Don't touch the aperture for AGP.
+
+  swiotlb=pages[,force]
+
+  pages  Prereserve that many 128K pages for the software IO bounce buffering.
+  force  Force all IO through the software TLB.
+
+Debugging
+
+  oops=panic Always panic on oopses. Default is to just kill the process,
+	     but there is a small probability of deadlocking the machine.
+	     This will also cause panics on machine check exceptions.
+	     Useful together with panic=30 to trigger a reboot.
+
+  kstack=N   Print that many words from the kernel stack in oops dumps.
+
+Misc
+
+  noreplacement  Don't replace instructions with more appropiate ones
+  				 for the CPU. This may be useful on asymmetric MP systems
+				 where some CPU have less capabilities than the others.
+

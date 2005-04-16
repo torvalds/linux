@@ -1,0 +1,30 @@
+		Auerswald USB kernel driver
+		===========================
+
+What is it? What can I do with it?
+==================================
+The auerswald USB kernel driver connects your linux 2.4.x
+system to the auerswald usb-enabled devices.
+
+There are two types of auerswald usb devices:
+a) small PBX systems (ISDN)
+b) COMfort system telephones (ISDN)
+
+The driver installation creates the devices
+/dev/usb/auer0..15. These devices carry a vendor-
+specific protocol. You may run all auerswald java
+software on it. The java software needs a native
+library "libAuerUsbJNINative.so" installed on
+your system. This library is available from
+auerswald and shipped as part of the java software.
+
+You may create the devices with:
+	mknod -m 666 /dev/usb/auer0 c 180 112
+	...
+	mknod -m 666 /dev/usb/auer15 c 180 127
+
+Future plans
+============
+- Connection to ISDN4LINUX (the hisax interface)
+
+The maintainer of this driver is wolfgang@iksw-muees.de

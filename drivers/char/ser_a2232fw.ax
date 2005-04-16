@@ -1,0 +1,529 @@
+;.lib "axm"
+;
+;begin
+;title "A2232 serial board driver"
+;
+;set modules "2232"
+;set executable "2232.bin"
+;
+;;;;set nolink
+;
+;set temporary directory "t:"
+;
+;set assembly options "-m6502 -l60:t:list"
+;set link options "bin"; loadadr"
+;;;bin2c 2232.bin msc6502.h msc6502code
+;end
+;
+;
+; ### Commodore A2232 serial board driver for NetBSD by JM v1.3 ###
+;
+; - Created 950501 by JM -
+;
+;
+; Serial board driver software.
+;
+;
+% Copyright (c) 1995 Jukka Marin <jmarin@jmp.fi>.
+% All rights reserved.
+%
+% Redistribution and use in source and binary forms, with or without
+% modification, are permitted provided that the following conditions
+% are met:
+% 1. Redistributions of source code must retain the above copyright
+%    notice, and the entire permission notice in its entirety,
+%    including the disclaimer of warranties.
+% 2. Redistributions in binary form must reproduce the above copyright
+%    notice, this list of conditions and the following disclaimer in the
+%    documentation and/or other materials provided with the distribution.
+% 3. The name of the author may not be used to endorse or promote
+%    products derived from this software without specific prior
+%    written permission.
+%
+% ALTERNATIVELY, this product may be distributed under the terms of
+% the GNU General Public License, in which case the provisions of the
+% GPL are required INSTEAD OF the above restrictions.  (This clause is
+% necessary due to a potential bad interaction between the GPL and
+% the restrictions contained in a BSD-style copyright.)
+%
+% THIS SOFTWARE IS PROVIDED `AS IS'' AND ANY EXPRESS OR IMPLIED
+% WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+% OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+% DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+% INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+% (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+% SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+% HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+% STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+% ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+% OF THE POSSIBILITY OF SUCH DAMAGE.
+;
+;
+; Bugs:
+;
+; - Can't send a break yet
+;
+;
+;
+; Edited:
+;
+; - 950501 by JM -> v0.1	- Created this file.
+; - 951029 by JM -> v1.3	- Carrier Detect events now queued in a separate
+;				  queue.
+;
+;
+
+
+CODE		equ	$3800		; start address for program code
+
+
+CTL_CHAR	equ	$00		; byte in ibuf is a character
+CTL_EVENT	equ	$01		; byte in ibuf is an event
+
+EVENT_BREAK	equ	$01
+EVENT_CDON	equ	$02
+EVENT_CDOFF	equ	$03
+EVENT_SYNC	equ	$04
+
+XON		equ	$11
+XOFF		equ	$13
+
+
+VARBASE		macro	*starting_address	; was VARINIT
+_varbase	set	\1
+		endm
+
+VARDEF		macro	*name space_needs
+\1		equ	_varbase
+_varbase	set	_varbase+\2
+		endm
+
+
+stz		macro	* address
+		 db	$64,\1
+		endm
+
+stzax		macro	* address
+		 db	$9e,<\1,>\1
+		endm
+
+
+biti		macro	* immediate value
+		db	$89,\1
+		endm
+
+smb0		macro	* address
+		db	$87,\1
+		endm
+smb1		macro	* address
+		db	$97,\1
+		endm
+smb2		macro	* address
+		db	$a7,\1
+		endm
+smb3		macro	* address
+		db	$b7,\1
+		endm
+smb4		macro	* address
+		db	$c7,\1
+		endm
+smb5		macro	* address
+		db	$d7,\1
+		endm
+smb6		macro	* address
+		db	$e7,\1
+		endm
+smb7		macro	* address
+		db	$f7,\1
+		endm
+
+
+
+;-----------------------------------------------------------------------;
+;									;
+; stuff common for all ports, non-critical (run once / loop)		;
+;									;
+DO_SLOW		macro	* port_number					;
+		.local			;				;
+		lda	CIA+C_PA	; check all CD inputs		;
+		cmp	CommonCDo	; changed from previous accptd?	;
+		beq	=over		; nope, do nothing else here	;
+					;				;
+		cmp	CommonCDb	; bouncing?			;
+		beq	=nobounce	; nope ->			;
+					;				;
+		sta	CommonCDb	; save current state		;
+		lda	#64		; reinitialize counter		;
+		sta	CommonCDc	;				;
+		jmp	=over		; skip CD save			;
+					;				;
+=nobounce	dec	CommonCDc	; no, decrement bounce counter	;
+		bpl	=over		; not done yet, so skip CD save	;
+					;				;
+=saveCD		ldx	CDHead		; get write index		;
+		sta	cdbuf,x		; save status in buffer		;
+		inx			;				;
+		cpx	CDTail		; buffer full?			;
+		.if	ne		; no: preserve status:		;
+		 stx	CDHead		; update index in RAM		;
+		 sta	CommonCDo	; save state for the next check	;
+		.end			;				;
+=over		.end	local						;
+		endm							;
+									;
+;-----------------------------------------------------------------------;
+
+
+; port specific stuff (no data transfer)
+
+DO_PORT		macro	* port_number
+		.local			;				;
+		lda	SetUp\1		; reconfiguration request?	;
+		.if	ne		; yes:				;
+		 lda	SoftFlow\1	; get XON/XOFF flag		;
+		 sta	XonOff\1	; save it			;
+		 lda	Param\1		; get parameter			;
+		 ora	#%00010000	; use baud generator for Rx	;
+		 sta	ACIA\1+A_CTRL	; store in control register	;
+		 stz	OutDisable\1	; enable transmit output	;
+		 stz	SetUp\1		; no reconfiguration no more	;
+		.end			;				;
+					;				;
+		lda	InHead\1	; get write index		;
+		sbc	InTail\1	; buffer full soon?		;
+		cmp	#200		; 200 chars or more in buffer?	;
+		lda	Command\1	; get Command reg value		;
+		and	#%11110011	; turn RTS OFF by default	;
+		.if	cc		; still room in buffer:		;
+		 ora	#%00001000	; turn RTS ON			;
+		.end			;				;
+		sta	ACIA\1+A_CMD	; set/clear RTS			;
+					;				;
+		lda	OutFlush\1	; request to flush output buffer;
+		.if	ne		; yessh!			;
+		 lda	OutHead\1	; get head			;
+		 sta	OutTail\1	; save as tail			;
+		 stz	OutDisable\1	; enable transmit output	;
+		 stz	OutFlush\1	; clear request			;
+		.end
+		.end	local
+		endm
+
+
+DO_DATA		macro	* port number
+		.local
+		lda	ACIA\1+A_SR	; read ACIA status register	;
+		biti	[1<<3]		; something received?		;
+		.if	ne		; yes:				;
+		 biti	[1<<1]		; framing error?		;
+		 .if	ne		; yes:				;
+		  lda	ACIA\1+A_DATA	; read received character	;
+		  bne	=SEND		; not break -> ignore it	;
+		  ldx	InHead\1	; get write pointer		;
+		  lda	#CTL_EVENT	; get type of byte		;
+		  sta	ictl\1,x	; save it in InCtl buffer	;
+		  lda	#EVENT_BREAK	; event code			;
+		  sta	ibuf\1,x	; save it as well		;
+		  inx			;				;
+		  cpx	InTail\1	; still room in buffer?		;
+		  .if	ne		; absolutely:			;
+		   stx	InHead\1	; update index in memory	;
+		  .end			;				;
+		  jmp	=SEND		; go check if anything to send	;
+		 .end			;				;
+		 			; normal char received:		;
+		 ldx	InHead\1	; get write index		;
+		 lda	ACIA\1+A_DATA	; read received character	;
+		 sta	ibuf\1,x	; save char in buffer		;
+		 stzax	ictl\1		; set type to CTL_CHAR		;
+		 inx			;				;
+		 cpx	InTail\1	; buffer full?			;
+		 .if	ne		; no: preserve character:	;
+		  stx	InHead\1	; update index in RAM		;
+		 .end			;				;
+		 and	#$7f		; mask off parity if any	;
+		 cmp	#XOFF		; XOFF from remote host?	;
+		 .if	eq		; yes:				;
+		  lda	XonOff\1	; if XON/XOFF handshaking..	;
+		  sta	OutDisable\1	; ..disable transmitter		;
+		 .end			;				;
+		.end			;				;
+					;				;
+					; BUFFER FULL CHECK WAS HERE	;
+					;				;
+=SEND		lda	ACIA\1+A_SR	; transmit register empty?	;
+		and	#[1<<4]		;				;
+		.if	ne		; yes:				;
+		 ldx	OutCtrl\1	; sending out XON/XOFF?		;
+		 .if	ne		; yes:				;
+		  lda	CIA+C_PB	; check CTS signal		;
+		  and	#[1<<\1]	; (for this port only)		;
+		  bne	=DONE		; not allowed to send -> done	;
+		  stx	ACIA\1+A_DATA	; transmit control char		;
+		  stz	OutCtrl\1	; clear flag			;
+		  jmp	=DONE		; and we're done		;
+		 .end			;				;
+					;				;
+		 ldx	OutTail\1	; anything to transmit?		;
+		 cpx	OutHead\1	;				;
+		 .if	ne		; yes:				;
+		  lda	OutDisable\1	; allowed to transmit?		;
+		  .if	eq		; yes:				;
+		   lda	CIA+C_PB	; check CTS signal		;
+		   and	#[1<<\1]	; (for this port only)		;
+		   bne	=DONE		; not allowed to send -> done	;
+		   lda	obuf\1,x	; get a char from buffer	;
+		   sta	ACIA\1+A_DATA	; send it away			;
+		   inc	OutTail\1	; update read index		;
+		  .end			;				;
+		 .end			;				;
+		.end			;				;
+=DONE		.end	local
+		endm
+
+
+
+PORTVAR		macro	* port number
+		VARDEF	InHead\1 1
+		VARDEF	InTail\1 1
+		VARDEF	OutDisable\1 1
+		VARDEF	OutHead\1 1
+		VARDEF	OutTail\1 1
+		VARDEF	OutCtrl\1 1
+		VARDEF	OutFlush\1 1
+		VARDEF	SetUp\1 1
+		VARDEF	Param\1 1
+		VARDEF	Command\1 1
+		VARDEF	SoftFlow\1 1
+		; private:
+		VARDEF	XonOff\1 1
+		endm
+
+
+ VARBASE 0	; start variables at address $0000
+ PORTVAR 0	; define variables for port 0
+ PORTVAR 1	; define variables for port 1
+ PORTVAR 2	; define variables for port 2
+ PORTVAR 3	; define variables for port 3
+ PORTVAR 4	; define variables for port 4
+ PORTVAR 5	; define variables for port 5
+ PORTVAR 6	; define variables for port 6
+
+
+
+ VARDEF	Crystal	1	; 0 = unknown, 1 = normal, 2 = turbo
+ VARDEF	Pad_a	1
+ VARDEF	TimerH	1
+ VARDEF	TimerL	1
+ VARDEF	CDHead	1
+ VARDEF	CDTail	1
+ VARDEF	CDStatus 1
+ VARDEF	Pad_b	1
+
+ VARDEF	CommonCDo 1	; for carrier detect optimization
+ VARDEF	CommonCDc 1	; for carrier detect debouncing
+ VARDEF	CommonCDb 1	; for carrier detect debouncing
+
+
+ VARBASE $0200
+ VARDEF	obuf0 256	; output data (characters only)
+ VARDEF	obuf1 256
+ VARDEF	obuf2 256
+ VARDEF	obuf3 256
+ VARDEF	obuf4 256
+ VARDEF	obuf5 256
+ VARDEF	obuf6 256
+
+ VARDEF	ibuf0 256	; input data (characters, events etc - see ictl)
+ VARDEF	ibuf1 256
+ VARDEF	ibuf2 256
+ VARDEF	ibuf3 256
+ VARDEF	ibuf4 256
+ VARDEF	ibuf5 256
+ VARDEF	ibuf6 256
+
+ VARDEF	ictl0 256	; input control information (type of data in ibuf)
+ VARDEF	ictl1 256
+ VARDEF	ictl2 256
+ VARDEF	ictl3 256
+ VARDEF	ictl4 256
+ VARDEF	ictl5 256
+ VARDEF	ictl6 256
+
+ VARDEF	cdbuf 256	; CD event queue
+
+
+ACIA0		equ	$4400
+ACIA1		equ	$4c00
+ACIA2		equ	$5400
+ACIA3		equ	$5c00
+ACIA4		equ	$6400
+ACIA5		equ	$6c00
+ACIA6		equ	$7400
+
+A_DATA		equ	$00
+A_SR		equ	$02
+A_CMD		equ	$04
+A_CTRL		equ	$06
+;  00	write transmit data	read received data
+;  02	reset ACIA		read status register
+;  04	write command register	read command register
+;  06	write control register	read control register
+
+CIA		equ	$7c00		; 8520 CIA
+C_PA		equ	$00		; port A data register
+C_PB		equ	$02		; port B data register
+C_DDRA		equ	$04		; data direction register for port A
+C_DDRB		equ	$06		; data direction register for port B
+C_TAL		equ	$08		; timer A
+C_TAH		equ	$0a
+C_TBL		equ	$0c		; timer B
+C_TBH		equ	$0e
+C_TODL		equ	$10		; TOD LSB
+C_TODM		equ	$12		; TOD middle byte
+C_TODH		equ	$14		; TOD MSB
+C_DATA		equ	$18		; serial data register
+C_INTCTRL	equ	$1a		; interrupt control register
+C_CTRLA		equ	$1c		; control register A
+C_CTRLB		equ	$1e		; control register B
+
+
+
+
+
+		section	main,code,CODE-2
+
+		db	>CODE,<CODE
+
+;-----------------------------------------------------------------------;
+; here's the initialization code:					;
+;									;
+R_RESET		ldx	#$ff						;
+		txs			; initialize stack pointer	;
+		cld			; in case a 6502 is used...	;
+		ldx	#0		;				;
+		lda	#0		;				;
+		ldy	#Crystal	; this many bytes to clear	;
+clr_loop	sta	0,x		; clear zero page variables	;
+		inx			;				;
+		dey			;				;
+		bne	clr_loop	;				;
+					;				;
+		stz	CommonCDo	; force CD test at boot		;
+		stz	CommonCDb	;				;
+		stz	CDHead		; clear queue			;
+		stz	CDTail		;				;
+					;				;
+		lda	#0		;				;
+		sta	Pad_a		;				;
+		lda	#170		; test cmp			;
+		cmp	#100		;				;
+		.if	cs		;				;
+		 inc	Pad_a		; C was set			;
+		.end			;				;
+									;
+;-----------------------------------------------------------------------;
+; Speed check								;
+;-----------------------------------------------------------------------;
+									;
+		lda	Crystal		; speed already set?		;
+		beq	DoSpeedy	;				;
+		jmp	LOOP		; yes, skip speed test		;
+					;				;
+DoSpeedy	lda	#%10011000	; 8N1, 1200/2400 bps		;
+		sta	ACIA0+A_CTRL	;				;
+		lda	#%00001011	; enable DTR			;
+		sta	ACIA0+A_CMD	;				;
+		lda	ACIA0+A_SR	; read status register		;
+					;				;
+		lda	#%10000000	; disable all ints (unnecessary);
+		sta	CIA+C_INTCTRL	;				;
+		lda	#255		; program the timer		;
+		sta	CIA+C_TAL	;				;
+		sta	CIA+C_TAH	;				;
+					;				;
+		ldx	#0		;				;
+		stx	ACIA0+A_DATA	; transmit a zero		;
+		nop			;				;
+		nop			;				;
+		lda	ACIA0+A_SR	; read status			;
+		nop			;				;
+		nop			;				;
+		stx	ACIA0+A_DATA	; transmit a zero		;
+Speedy1		lda	ACIA0+A_SR	; read status			;
+		and	#[1<<4]		; transmit data reg empty?	;
+		beq	Speedy1		; not yet, wait more		;
+					;				;
+		lda	#%00010001	; load & start the timer	;
+		stx	ACIA0+A_DATA	; transmit one more zero	;
+		sta	CIA+C_CTRLA	;				;
+Speedy2		lda	ACIA0+A_SR	; read status			;
+		and	#[1<<4]		; transmit data reg empty?	;
+		beq	Speedy2		; not yet, wait more		;
+		stx	CIA+C_CTRLA	; stop the timer		;
+					;				;
+		lda	CIA+C_TAL	; copy timer value for 68k	;
+		sta	TimerL		;				;
+		lda	CIA+C_TAH	;				;
+		sta	TimerH		;				;
+		cmp	#$d0		; turbo or normal?		;
+		.if	cs		;				;
+		 lda	#2		; turbo! :-)			;
+		.else			;				;
+		 lda	#1		; normal :-(			;
+		.end			;				;
+		sta	Crystal		;				;
+		lda	#0		;				;
+		sta	ACIA0+A_SR	;				;
+		sta	ACIA0+A_CTRL	; reset UART			;
+		sta	ACIA0+A_CMD	;				;
+									;
+		jmp	LOOP						;
+									;
+;									;
+;-----------------------------------------------------------------------;
+;									;
+; The Real Thing:							;
+;									;
+LOOP		DO_SLOW			; do non-critical things	;
+		jsr	do_input	; check for received data
+		DO_PORT	0
+		jsr	do_input
+		DO_PORT	1
+		jsr	do_input
+		DO_PORT	2
+		jsr	do_input
+		DO_PORT	3
+		jsr	do_input
+		DO_PORT	4
+		jsr	do_input
+		DO_PORT	5
+		jsr	do_input
+		DO_PORT	6
+		jsr	do_input
+		jmp	LOOP
+
+
+do_input	DO_DATA	0
+		DO_DATA	1
+		DO_DATA	2
+		DO_DATA	3
+		DO_DATA	4
+		DO_DATA	5
+		DO_DATA	6
+		rts
+
+
+;-----------------------------------------------------------------------;
+		section	vectors,data,$3ffa
+		dw	$d0d0
+		dw	R_RESET
+		dw	$c0ce
+;-----------------------------------------------------------------------;
+
+
+
+		end
+
+
+

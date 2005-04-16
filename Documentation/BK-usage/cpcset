@@ -1,0 +1,36 @@
+#!/bin/sh
+#
+# Purpose: Copy changeset patch and description from one
+#	   repository to another, unrelated one.
+#
+# usage:  cpcset [revision] [from-repository] [to-repository]
+#
+
+REV=$1
+FROM=$2
+TO=$3
+TMPF=/tmp/cpcset.$$
+
+rm -f $TMPF*
+
+CWD_SAVE=`pwd`
+cd $FROM
+bk changes -r$REV			|	\
+	grep -v '^ChangeSet'		|	\
+	sed -e 's/^  //g' > $TMPF.log
+
+USERHOST=`bk changes -r$REV | grep '^ChangeSet' | awk '{print $4}'`
+export BK_USER=`echo $USERHOST | awk '-F@' '{print $1}'`
+export BK_HOST=`echo $USERHOST | awk '-F@' '{print $2}'`
+
+bk export -tpatch -hdu -r$REV > $TMPF.patch && \
+cd $CWD_SAVE && \
+cd $TO && \
+bk import -tpatch -CFR -y"`cat $TMPF.log`" $TMPF.patch . && \
+bk commit -y"`cat $TMPF.log`"
+
+rm -f $TMPF*
+
+echo changeset $REV copied.
+echo ""
+

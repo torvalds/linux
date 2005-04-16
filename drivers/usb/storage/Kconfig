@@ -1,0 +1,113 @@
+#
+# USB Storage driver configuration
+#
+
+comment "NOTE: USB_STORAGE enables SCSI, and 'SCSI disk support' may also be needed; see USB_STORAGE Help for more information"
+	depends on USB
+
+config USB_STORAGE
+	tristate "USB Mass Storage support"
+	depends on USB
+	select SCSI
+	---help---
+	  Say Y here if you want to connect USB mass storage devices to your
+	  computer's USB port. This is the driver you need for USB
+	  floppy drives, USB hard disks, USB tape drives, USB CD-ROMs,
+	  USB flash devices, and memory sticks, along with
+	  similar devices. This driver may also be used for some cameras
+	  and card readers.
+
+	  This option 'selects' (turns on, enables) 'SCSI', but you
+	  probably also need 'SCSI device support: SCSI disk support'
+	  (BLK_DEV_SD) for most USB storage devices.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called usb-storage.
+
+config USB_STORAGE_DEBUG
+	bool "USB Mass Storage verbose debug"
+	depends on USB_STORAGE
+	help
+	  Say Y here in order to have the USB Mass Storage code generate
+	  verbose debugging messages.
+
+config USB_STORAGE_DATAFAB
+	bool "Datafab Compact Flash Reader support (EXPERIMENTAL)"
+	depends on USB_STORAGE && EXPERIMENTAL
+	help
+	  Support for certain Datafab CompactFlash readers.
+	  Datafab has a web page at <http://www.datafabusa.com/>.
+
+config USB_STORAGE_FREECOM
+	bool "Freecom USB/ATAPI Bridge support"
+	depends on USB_STORAGE
+	help
+	  Support for the Freecom USB to IDE/ATAPI adaptor.
+	  Freecom has a web page at <http://www.freecom.de/>.
+
+config USB_STORAGE_ISD200
+	bool "ISD-200 USB/ATA Bridge support"
+	depends on USB_STORAGE && BLK_DEV_IDE
+	---help---
+	  Say Y here if you want to use USB Mass Store devices based
+	  on the In-Systems Design ISD-200 USB/ATA bridge.
+
+	  Some of the products that use this chip are:
+
+	  - Archos Jukebox 6000
+	  - ISD SmartCable for Storage
+	  - Taiwan Skymaster CD530U/DEL-0241 IDE bridge
+	  - Sony CRX10U CD-R/RW drive
+	  - CyQ've CQ8060A CDRW drive
+	  - Planex eXtreme Drive RX-25HU USB-IDE cable (not model RX-25U)
+
+config USB_STORAGE_DPCM
+	bool "Microtech/ZiO! CompactFlash/SmartMedia support"
+	depends on USB_STORAGE
+	help
+	  Say Y here to support the Microtech/ZiO! CompactFlash reader.
+	  There is a web page at <http://www.ziocorp.com/products/>.
+
+config USB_STORAGE_USBAT
+	bool "USBAT/USBAT02-based storage support (EXPERIMENTAL)"
+	depends on USB_STORAGE && EXPERIMENTAL
+	help
+	  Say Y here to include additional code to support storage devices
+	  based on the SCM/Shuttle USBAT/USBAT02 processors.
+
+	  Devices reported to work with this driver include:
+	  - CompactFlash reader included with Kodak DC3800 camera
+	  - Dane-Elec Zmate CompactFlash reader
+	  - Delkin Efilm reader2
+	  - HP 8200e/8210e/8230e CD-Writer Plus drives
+	  - I-JAM JS-50U
+	  - Jessops CompactFlash JESDCFRU BLACK
+	  - Kingston Technology PCREAD-USB/CF
+	  - Maxell UA4 CompactFlash reader
+	  - Memorex UCF-100
+	  - Microtech ZiO! ICS-45 CF2
+	  - RCA LYRA MP3 portable
+	  - Sandisk ImageMate SDDR-05b
+
+config USB_STORAGE_SDDR09
+	bool "SanDisk SDDR-09 (and other SmartMedia) support (EXPERIMENTAL)"
+	depends on USB_STORAGE && EXPERIMENTAL
+	help
+	  Say Y here to include additional code to support the Sandisk SDDR-09
+	  SmartMedia reader in the USB Mass Storage driver.
+	  Also works for the Microtech Zio! SmartMedia reader.
+
+config USB_STORAGE_SDDR55
+	bool "SanDisk SDDR-55 SmartMedia support (EXPERIMENTAL)"
+	depends on USB_STORAGE && EXPERIMENTAL
+	help
+	  Say Y here to include additional code to support the Sandisk SDDR-55
+	  SmartMedia reader in the USB Mass Storage driver.
+
+config USB_STORAGE_JUMPSHOT
+	bool "Lexar Jumpshot Compact Flash Reader (EXPERIMENTAL)"
+	depends on USB_STORAGE && EXPERIMENTAL
+	help
+	  Say Y here to include additional code to support the Lexar Jumpshot
+	  USB CompactFlash reader.
+

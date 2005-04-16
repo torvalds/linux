@@ -1,0 +1,229 @@
+
+/*
+ * IBM ASM Service Processor Device Driver
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ *
+ * Copyright (C) IBM Corporation, 2004
+ *
+ * Author: Max Asböck <amax@us.ibm.com> 
+ *
+ */
+
+#include <linux/kernel.h>
+#include <linux/types.h>
+#include <linux/errno.h>
+#include <linux/list.h>
+#include <linux/wait.h>
+#include <linux/spinlock.h>
+#include <linux/slab.h>
+#include <linux/config.h>
+#include <linux/module.h>
+#include <linux/version.h>
+#include <linux/interrupt.h>
+#include <linux/device.h>
+
+/* Driver identification */
+#define DRIVER_NAME	"ibmasm"
+#define DRIVER_VERSION  "0.4"
+#define DRIVER_AUTHOR   "Max Asbock"
+#define DRIVER_DESC     "IBM ASM Service Processor Driver"
+
+#define err(msg) printk(KERN_ERR "%s: " msg "\n", DRIVER_NAME)
+#define info(msg) printk(KERN_INFO "%s: " msg "\n", DRIVER_NAME)
+
+
+#define IBMASM_CMD_PENDING	0	
+#define IBMASM_CMD_COMPLETE	1	
+#define IBMASM_CMD_FAILED	2
+
+#define IBMASM_CMD_TIMEOUT_NORMAL	45
+#define IBMASM_CMD_TIMEOUT_EXTRA	240
+
+#define IBMASM_CMD_MAX_BUFFER_SIZE	0x4000
+
+#define REVERSE_HEARTBEAT_TIMEOUT	120
+
+#define HEARTBEAT_BUFFER_SIZE		0x400
+
+#ifdef IA64
+#define IBMASM_DRIVER_VPD "Lin64 6.08      "
+#else
+#define IBMASM_DRIVER_VPD "Lin32 6.08      "
+#endif
+
+#define SYSTEM_STATE_OS_UP      5
+#define SYSTEM_STATE_OS_DOWN    4
+
+#define IBMASM_NAME_SIZE	16
+
+#define IBMASM_NUM_EVENTS	10
+#define IBMASM_EVENT_MAX_SIZE	2048u
+
+
+struct command {
+	struct list_head	queue_node;
+	wait_queue_head_t	wait;
+	unsigned char		*buffer;
+	size_t			buffer_size;
+	int			status;
+	struct kobject		kobj;
+};
+#define to_command(c) container_of(c, struct command, kobj)
+
+static inline void command_put(struct command *cmd)
+{
+        kobject_put(&cmd->kobj);
+}
+
+static inline void command_get(struct command *cmd)
+{
+        kobject_get(&cmd->kobj);
+}
+
+
+struct ibmasm_event {
+	unsigned int	serial_number;
+	unsigned int	data_size;
+	unsigned char	data[IBMASM_EVENT_MAX_SIZE];
+};
+
+struct event_buffer {
+	struct ibmasm_event	events[IBMASM_NUM_EVENTS];
+	unsigned int		next_serial_number;
+	unsigned int		next_index;
+	struct list_head	readers;
+};
+
+struct event_reader {
+	unsigned int		next_serial_number;
+	wait_queue_head_t	wait;
+	struct list_head	node;
+	unsigned int		data_size;
+	unsigned char		data[IBMASM_EVENT_MAX_SIZE];
+};
+
+struct reverse_heartbeat {
+	wait_queue_head_t	wait;
+	unsigned int		stopped;
+};
+
+
+/* remote console events */
+struct mouse_event {
+	long		x;
+	long		y;
+	unsigned char	buttons;
+	unsigned char	transitions;
+};
+
+struct keyboard_event {
+	unsigned long	key_code;
+	unsigned char	key_down;
+};
+
+struct remote_event {
+	unsigned long	type;
+	union {
+		struct mouse_event	mouse;
+		struct keyboard_event	keyboard;
+	} data;
+};
+
+#define DRIVER_REMOTE_QUEUE_SIZE 240
+
+struct remote_queue {
+	struct remote_event	*start;
+	struct remote_event	*end;
+	struct remote_event	*reader;
+	struct remote_event	*writer;
+	unsigned int		size;
+	int			open;
+	wait_queue_head_t	wait;
+};
+
+
+struct service_processor {
+	struct list_head	node;
+	spinlock_t		lock;
+	void __iomem		*base_address;
+	unsigned int		irq;
+	struct command		*current_command;
+	struct command		*heartbeat;
+	struct list_head	command_queue;
+	struct event_buffer	*event_buffer;
+	char			dirname[IBMASM_NAME_SIZE];
+	char			devname[IBMASM_NAME_SIZE];
+	unsigned int		number;
+	struct remote_queue	remote_queue;
+	int			serial_line;
+	struct device		*dev;
+};
+
+/* command processing */
+extern struct command *ibmasm_new_command(size_t buffer_size);
+extern void ibmasm_exec_command(struct service_processor *sp, struct command *cmd);
+extern void ibmasm_wait_for_response(struct command *cmd, int timeout);
+extern void ibmasm_receive_command_response(struct service_processor *sp, void *response,  size_t size);
+
+/* event processing */
+extern int ibmasm_event_buffer_init(struct service_processor *sp);
+extern void ibmasm_event_buffer_exit(struct service_processor *sp);
+extern void ibmasm_receive_event(struct service_processor *sp, void *data,  unsigned int data_size);
+extern void ibmasm_event_reader_register(struct service_processor *sp, struct event_reader *reader);
+extern void ibmasm_event_reader_unregister(struct service_processor *sp, struct event_reader *reader);
+extern int ibmasm_get_next_event(struct service_processor *sp, struct event_reader *reader);
+
+/* heartbeat - from SP to OS */
+extern void ibmasm_register_panic_notifier(void);
+extern void ibmasm_unregister_panic_notifier(void);
+extern int ibmasm_heartbeat_init(struct service_processor *sp);
+extern void ibmasm_heartbeat_exit(struct service_processor *sp);
+extern void ibmasm_receive_heartbeat(struct service_processor *sp,  void *message, size_t size);
+
+/* reverse heartbeat - from OS to SP */
+extern void ibmasm_init_reverse_heartbeat(struct service_processor *sp, struct reverse_heartbeat *rhb);
+extern int ibmasm_start_reverse_heartbeat(struct service_processor *sp, struct reverse_heartbeat *rhb);
+extern void ibmasm_stop_reverse_heartbeat(struct reverse_heartbeat *rhb);
+
+/* dot commands */
+extern void ibmasm_receive_message(struct service_processor *sp, void *data, int data_size);
+extern int ibmasm_send_driver_vpd(struct service_processor *sp);
+extern int ibmasm_send_os_state(struct service_processor *sp, int os_state);
+
+/* low level message processing */
+extern int ibmasm_send_i2o_message(struct service_processor *sp);
+extern irqreturn_t ibmasm_interrupt_handler(int irq, void * dev_id, struct pt_regs *regs);
+
+/* remote console */
+extern void ibmasm_handle_mouse_interrupt(struct service_processor *sp);
+extern int ibmasm_init_remote_queue(struct service_processor *sp);
+extern void ibmasm_free_remote_queue(struct service_processor *sp);
+extern void ibmasm_advance_reader(struct remote_queue *q, unsigned int n);
+extern size_t ibmasm_events_available(struct remote_queue *q);
+
+/* file system */
+extern int ibmasmfs_register(void);
+extern void ibmasmfs_unregister(void);
+extern void ibmasmfs_add_sp(struct service_processor *sp);
+
+/* uart */
+#ifdef CONFIG_SERIAL_8250
+extern void ibmasm_register_uart(struct service_processor *sp);
+extern void ibmasm_unregister_uart(struct service_processor *sp);
+#else
+#define ibmasm_register_uart(sp)	do { } while(0)
+#define ibmasm_unregister_uart(sp)	do { } while(0)
+#endif

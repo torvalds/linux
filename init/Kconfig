@@ -1,0 +1,463 @@
+menu "Code maturity level options"
+
+config EXPERIMENTAL
+	bool "Prompt for development and/or incomplete code/drivers"
+	---help---
+	  Some of the various things that Linux supports (such as network
+	  drivers, file systems, network protocols, etc.) can be in a state
+	  of development where the functionality, stability, or the level of
+	  testing is not yet high enough for general use. This is usually
+	  known as the "alpha-test" phase among developers. If a feature is
+	  currently in alpha-test, then the developers usually discourage
+	  uninformed widespread use of this feature by the general public to
+	  avoid "Why doesn't this work?" type mail messages. However, active
+	  testing and use of these systems is welcomed. Just be aware that it
+	  may not meet the normal level of reliability or it may fail to work
+	  in some special cases. Detailed bug reports from people familiar
+	  with the kernel internals are usually welcomed by the developers
+	  (before submitting bug reports, please read the documents
+	  <file:README>, <file:MAINTAINERS>, <file:REPORTING-BUGS>,
+	  <file:Documentation/BUG-HUNTING>, and
+	  <file:Documentation/oops-tracing.txt> in the kernel source).
+
+	  This option will also make obsoleted drivers available. These are
+	  drivers that have been replaced by something else, and/or are
+	  scheduled to be removed in a future kernel release.
+
+	  Unless you intend to help test and develop a feature or driver that
+	  falls into this category, or you have a situation that requires
+	  using these features, you should probably say N here, which will
+	  cause the configurator to present you with fewer choices. If
+	  you say Y here, you will be offered the choice of using features or
+	  drivers that are currently considered to be in the alpha-test phase.
+
+config CLEAN_COMPILE
+	bool "Select only drivers expected to compile cleanly" if EXPERIMENTAL
+	default y
+	help
+	  Select this option if you don't even want to see the option
+	  to configure known-broken drivers.
+
+	  If unsure, say Y
+
+config BROKEN
+	bool
+	depends on !CLEAN_COMPILE
+	default y
+
+config BROKEN_ON_SMP
+	bool
+	depends on BROKEN || !SMP
+	default y
+
+config LOCK_KERNEL
+	bool
+	depends on SMP || PREEMPT
+	default y
+
+config INIT_ENV_ARG_LIMIT
+	int
+	default 32 if !USERMODE
+	default 128 if USERMODE
+	help
+	  This is the value of the two limits on the number of argument and of
+	  env.var passed to init from the kernel command line.
+
+endmenu
+
+menu "General setup"
+
+config LOCALVERSION
+	string "Local version - append to kernel release"
+	help
+	  Append an extra string to the end of your kernel version.
+	  This will show up when you type uname, for example.
+	  The string you set here will be appended after the contents of
+	  any files with a filename matching localversion* in your
+	  object and source tree, in that order.  Your total string can
+	  be a maximum of 64 characters.
+
+config SWAP
+	bool "Support for paging of anonymous memory (swap)"
+	depends on MMU
+	default y
+	help
+	  This option allows you to choose whether you want to have support
+	  for socalled swap devices or swap files in your kernel that are
+	  used to provide more virtual memory than the actual RAM present
+	  in your computer.  If unsure say Y.
+
+config SYSVIPC
+	bool "System V IPC"
+	depends on MMU
+	---help---
+	  Inter Process Communication is a suite of library functions and
+	  system calls which let processes (running programs) synchronize and
+	  exchange information. It is generally considered to be a good thing,
+	  and some programs won't run unless you say Y here. In particular, if
+	  you want to run the DOS emulator dosemu under Linux (read the
+	  DOSEMU-HOWTO, available from <http://www.tldp.org/docs.html#howto>),
+	  you'll need to say Y here.
+
+	  You can find documentation about IPC with "info ipc" and also in
+	  section 6.4 of the Linux Programmer's Guide, available from
+	  <http://www.tldp.org/guides.html>.
+
+config POSIX_MQUEUE
+	bool "POSIX Message Queues"
+	depends on NET && EXPERIMENTAL
+	---help---
+	  POSIX variant of message queues is a part of IPC. In POSIX message
+	  queues every message has a priority which decides about succession
+	  of receiving it by a process. If you want to compile and run
+	  programs written e.g. for Solaris with use of its POSIX message
+	  queues (functions mq_*) say Y here. To use this feature you will
+	  also need mqueue library, available from
+	  <http://www.mat.uni.torun.pl/~wrona/posix_ipc/>
+
+	  POSIX message queues are visible as a filesystem called 'mqueue'
+	  and can be mounted somewhere if you want to do filesystem
+	  operations on message queues.
+
+	  If unsure, say Y.
+
+config BSD_PROCESS_ACCT
+	bool "BSD Process Accounting"
+	help
+	  If you say Y here, a user level program will be able to instruct the
+	  kernel (via a special system call) to write process accounting
+	  information to a file: whenever a process exits, information about
+	  that process will be appended to the file by the kernel.  The
+	  information includes things such as creation time, owning user,
+	  command name, memory usage, controlling terminal etc. (the complete
+	  list is in the struct acct in <file:include/linux/acct.h>).  It is
+	  up to the user level program to do useful things with this
+	  information.  This is generally a good idea, so say Y.
+
+config BSD_PROCESS_ACCT_V3
+	bool "BSD Process Accounting version 3 file format"
+	depends on BSD_PROCESS_ACCT
+	default n
+	help
+	  If you say Y here, the process accounting information is written
+	  in a new file format that also logs the process IDs of each
+	  process and it's parent. Note that this file format is incompatible
+	  with previous v0/v1/v2 file formats, so you will need updated tools
+	  for processing it. A preliminary version of these tools is available
+	  at <http://www.physik3.uni-rostock.de/tim/kernel/utils/acct/>.
+
+config SYSCTL
+	bool "Sysctl support"
+	---help---
+	  The sysctl interface provides a means of dynamically changing
+	  certain kernel parameters and variables on the fly without requiring
+	  a recompile of the kernel or reboot of the system.  The primary
+	  interface consists of a system call, but if you say Y to "/proc
+	  file system support", a tree of modifiable sysctl entries will be
+	  generated beneath the /proc/sys directory. They are explained in the
+	  files in <file:Documentation/sysctl/>.  Note that enabling this
+	  option will enlarge the kernel by at least 8 KB.
+
+	  As it is generally a good thing, you should say Y here unless
+	  building a kernel for install/rescue disks or your system is very
+	  limited in memory.
+
+config AUDIT
+	bool "Auditing support"
+	default y if SECURITY_SELINUX
+	help
+	  Enable auditing infrastructure that can be used with another
+	  kernel subsystem, such as SELinux (which requires this for
+	  logging of avc messages output).  Does not do system-call
+	  auditing without CONFIG_AUDITSYSCALL.
+
+config AUDITSYSCALL
+	bool "Enable system-call auditing support"
+	depends on AUDIT && (X86 || PPC64 || ARCH_S390 || IA64)
+	default y if SECURITY_SELINUX
+	help
+	  Enable low-overhead system-call auditing infrastructure that
+	  can be used independently or with another kernel subsystem,
+	  such as SELinux.
+
+config HOTPLUG
+	bool "Support for hot-pluggable devices" if !ARCH_S390
+	default ARCH_S390
+	help
+	  This option is provided for the case where no in-kernel-tree
+	  modules require HOTPLUG functionality, but a module built
+	  outside the kernel tree does. Such modules require Y here.
+
+config KOBJECT_UEVENT
+	bool "Kernel Userspace Events"
+	depends on NET
+	default y
+	help
+	  This option enables the kernel userspace event layer, which is a
+	  simple mechanism for kernel-to-user communication over a netlink
+	  socket.
+	  The goal of the kernel userspace events layer is to provide a simple
+	  and efficient events system, that notifies userspace about kobject
+	  state changes. This will enable applications to just listen for
+	  events instead of polling system devices and files.
+	  Hotplug events (kobject addition and removal) are also available on
+	  the netlink socket in addition to the execution of /sbin/hotplug if
+	  CONFIG_HOTPLUG is enabled.
+
+	  Say Y, unless you are building a system requiring minimal memory
+	  consumption.
+
+config IKCONFIG
+	bool "Kernel .config support"
+	---help---
+	  This option enables the complete Linux kernel ".config" file
+	  contents to be saved in the kernel. It provides documentation
+	  of which kernel options are used in a running kernel or in an
+	  on-disk kernel.  This information can be extracted from the kernel
+	  image file with the script scripts/extract-ikconfig and used as
+	  input to rebuild the current kernel or to build another kernel.
+	  It can also be extracted from a running kernel by reading
+	  /proc/config.gz if enabled (below).
+
+config IKCONFIG_PROC
+	bool "Enable access to .config through /proc/config.gz"
+	depends on IKCONFIG && PROC_FS
+	---help---
+	  This option enables access to the kernel configuration file
+	  through /proc/config.gz.
+
+config CPUSETS
+	bool "Cpuset support"
+	depends on SMP
+	help
+	  This options will let you create and manage CPUSET's which
+	  allow dynamically partitioning a system into sets of CPUs and
+	  Memory Nodes and assigning tasks to run only within those sets.
+	  This is primarily useful on large SMP or NUMA systems.
+
+	  Say N if unsure.
+
+menuconfig EMBEDDED
+	bool "Configure standard kernel features (for small systems)"
+	help
+	  This option allows certain base kernel options and settings
+          to be disabled or tweaked. This is for specialized
+          environments which can tolerate a "non-standard" kernel.
+          Only use this if you really know what you are doing.
+
+config KALLSYMS
+	 bool "Load all symbols for debugging/kksymoops" if EMBEDDED
+	 default y
+	 help
+	   Say Y here to let the kernel print out symbolic crash information and
+	   symbolic stack backtraces. This increases the size of the kernel
+	   somewhat, as all symbols have to be loaded into the kernel image.
+
+config KALLSYMS_ALL
+	bool "Include all symbols in kallsyms"
+	depends on DEBUG_KERNEL && KALLSYMS
+	help
+	   Normally kallsyms only contains the symbols of functions, for nicer
+	   OOPS messages.  Some debuggers can use kallsyms for other
+	   symbols too: say Y here to include all symbols, and you
+	   don't care about adding 300k to the size of your kernel.
+
+	   Say N.
+
+config KALLSYMS_EXTRA_PASS
+	bool "Do an extra kallsyms pass"
+	depends on KALLSYMS
+	help
+	   If kallsyms is not working correctly, the build will fail with
+	   inconsistent kallsyms data.  If that occurs, log a bug report and
+	   turn on KALLSYMS_EXTRA_PASS which should result in a stable build.
+	   Always say N here unless you find a bug in kallsyms, which must be
+	   reported.  KALLSYMS_EXTRA_PASS is only a temporary workaround while
+	   you wait for kallsyms to be fixed.
+
+config BASE_FULL
+	default y
+	bool "Enable full-sized data structures for core" if EMBEDDED
+	help
+	  Disabling this option reduces the size of miscellaneous core
+	  kernel data structures. This saves memory on small machines,
+	  but may reduce performance.
+
+config FUTEX
+	bool "Enable futex support" if EMBEDDED
+	default y
+	help
+	  Disabling this option will cause the kernel to be built without
+	  support for "fast userspace mutexes".  The resulting kernel may not
+	  run glibc-based applications correctly.
+
+config EPOLL
+	bool "Enable eventpoll support" if EMBEDDED
+	default y
+	help
+	  Disabling this option will cause the kernel to be built without
+	  support for epoll family of system calls.
+
+config CC_OPTIMIZE_FOR_SIZE
+	bool "Optimize for size" if EMBEDDED
+	default y if ARM || H8300
+	help
+	  Enabling this option will pass "-Os" instead of "-O2" to gcc
+	  resulting in a smaller kernel.
+
+	  WARNING: some versions of gcc may generate incorrect code with this
+	  option.  If problems are observed, a gcc upgrade may be needed.
+
+	  If unsure, say N.
+
+config SHMEM
+	bool "Use full shmem filesystem" if EMBEDDED
+	default y
+	depends on MMU
+	help
+	  The shmem is an internal filesystem used to manage shared memory.
+	  It is backed by swap and manages resource limits. It is also exported
+	  to userspace as tmpfs if TMPFS is enabled. Disabling this
+	  option replaces shmem and tmpfs with the much simpler ramfs code,
+	  which may be appropriate on small systems without swap.
+
+config CC_ALIGN_FUNCTIONS
+	int "Function alignment" if EMBEDDED
+	default 0
+	help
+	  Align the start of functions to the next power-of-two greater than n,
+	  skipping up to n bytes.  For instance, 32 aligns functions
+	  to the next 32-byte boundary, but 24 would align to the next
+	  32-byte boundary only if this can be done by skipping 23 bytes or less.
+	  Zero means use compiler's default.
+
+config CC_ALIGN_LABELS
+	int "Label alignment" if EMBEDDED
+	default 0
+	help
+	  Align all branch targets to a power-of-two boundary, skipping
+	  up to n bytes like ALIGN_FUNCTIONS.  This option can easily
+	  make code slower, because it must insert dummy operations for
+	  when the branch target is reached in the usual flow of the code.
+	  Zero means use compiler's default.
+
+config CC_ALIGN_LOOPS
+	int "Loop alignment" if EMBEDDED
+	default 0
+	help
+	  Align loops to a power-of-two boundary, skipping up to n bytes.
+	  Zero means use compiler's default.
+
+config CC_ALIGN_JUMPS
+	int "Jump alignment" if EMBEDDED
+	default 0
+	help
+	  Align branch targets to a power-of-two boundary, for branch
+	  targets where the targets can only be reached by jumping,
+	  skipping up to n bytes like ALIGN_FUNCTIONS.  In this case,
+	  no dummy operations need be executed.
+	  Zero means use compiler's default.
+
+endmenu		# General setup
+
+config TINY_SHMEM
+	default !SHMEM
+	bool
+
+config BASE_SMALL
+	int
+	default 0 if BASE_FULL
+	default 1 if !BASE_FULL
+
+menu "Loadable module support"
+
+config MODULES
+	bool "Enable loadable module support"
+	help
+	  Kernel modules are small pieces of compiled code which can
+	  be inserted in the running kernel, rather than being
+	  permanently built into the kernel.  You use the "modprobe"
+	  tool to add (and sometimes remove) them.  If you say Y here,
+	  many parts of the kernel can be built as modules (by
+	  answering M instead of Y where indicated): this is most
+	  useful for infrequently used options which are not required
+	  for booting.  For more information, see the man pages for
+	  modprobe, lsmod, modinfo, insmod and rmmod.
+
+	  If you say Y here, you will need to run "make
+	  modules_install" to put the modules under /lib/modules/
+	  where modprobe can find them (you may need to be root to do
+	  this).
+
+	  If unsure, say Y.
+
+config MODULE_UNLOAD
+	bool "Module unloading"
+	depends on MODULES
+	help
+	  Without this option you will not be able to unload any
+	  modules (note that some modules may not be unloadable
+	  anyway), which makes your kernel slightly smaller and
+	  simpler.  If unsure, say Y.
+
+config MODULE_FORCE_UNLOAD
+	bool "Forced module unloading"
+	depends on MODULE_UNLOAD && EXPERIMENTAL
+	help
+	  This option allows you to force a module to unload, even if the
+	  kernel believes it is unsafe: the kernel will remove the module
+	  without waiting for anyone to stop using it (using the -f option to
+	  rmmod).  This is mainly for kernel developers and desperate users.
+	  If unsure, say N.
+
+config OBSOLETE_MODPARM
+	bool
+	default y
+	depends on MODULES
+	help
+	  You need this option to use module parameters on modules which
+	  have not been converted to the new module parameter system yet.
+	  If unsure, say Y.
+
+config MODVERSIONS
+	bool "Module versioning support (EXPERIMENTAL)"
+	depends on MODULES && EXPERIMENTAL && !UML
+	help
+	  Usually, you have to use modules compiled with your kernel.
+	  Saying Y here makes it sometimes possible to use modules
+	  compiled for different kernels, by adding enough information
+	  to the modules to (hopefully) spot any changes which would
+	  make them incompatible with the kernel you are running.  If
+	  unsure, say N.
+
+config MODULE_SRCVERSION_ALL
+	bool "Source checksum for all modules"
+	depends on MODULES
+	help
+	  Modules which contain a MODULE_VERSION get an extra "srcversion"
+	  field inserted into their modinfo section, which contains a
+    	  sum of the source files which made it.  This helps maintainers
+	  see exactly which source was used to build a module (since
+	  others sometimes change the module source without updating
+	  the version).  With this option, such a "srcversion" field
+	  will be created for all modules.  If unsure, say N.
+
+config KMOD
+	bool "Automatic kernel module loading"
+	depends on MODULES
+	help
+	  Normally when you have selected some parts of the kernel to
+	  be created as kernel modules, you must load them (using the
+	  "modprobe" command) before you can use them. If you say Y
+	  here, some parts of the kernel will be able to load modules
+	  automatically: when a part of the kernel needs a module, it
+	  runs modprobe with the appropriate arguments, thereby
+	  loading the module if it is available.  If unsure, say Y.
+
+config STOP_MACHINE
+	bool
+	default y
+	depends on (SMP && MODULE_UNLOAD) || HOTPLUG_CPU
+	help
+	  Need stop_machine() primitive.
+endmenu

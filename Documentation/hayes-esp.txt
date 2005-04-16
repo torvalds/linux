@@ -1,0 +1,154 @@
+HAYES ESP DRIVER VERSION 2.1
+
+A big thanks to the people at Hayes, especially Alan Adamson.  Their support
+has enabled me to provide enhancements to the driver.
+
+Please report your experiences with this driver to me (arobinso@nyx.net).  I
+am looking for both positive and negative feedback.
+
+*** IMPORTANT CHANGES FOR 2.1 ***
+Support for PIO mode.  Five situations will cause PIO mode to be used:
+1) A multiport card is detected.  PIO mode will always be used.  (8 port cards
+do not support DMA).
+2) The DMA channel is set to an invalid value (anything other than 1 or 3).
+3) The DMA buffer/channel could not be allocated.  The port will revert to PIO
+mode until it is reopened.
+4) Less than a specified number of bytes need to be transferred to/from the
+FIFOs.  PIO mode will be used for that transfer only.
+5) A port needs to do a DMA transfer and another port is already using the
+DMA channel.  PIO mode will be used for that transfer only.
+
+Since the Hayes ESP seems to conflict with other cards (notably sound cards)
+when using DMA, DMA is turned off by default.  To use DMA, it must be turned
+on explicitly, either with the "dma=" option described below or with
+setserial.  A multiport card can be forced into DMA mode by using setserial;
+however, most multiport cards don't support DMA.
+
+The latest version of setserial allows the enhanced configuration of the ESP
+card to be viewed and modified.
+***
+
+This package contains the files needed to compile a module to support the Hayes
+ESP card.  The drivers are basically a modified version of the serial drivers.
+
+Features:
+
+- Uses the enhanced mode of the ESP card, allowing a wider range of
+  interrupts and features than compatibility mode
+- Uses DMA and 16 bit PIO mode to transfer data to and from the ESP's FIFOs,
+  reducing CPU load
+- Supports primary and secondary ports
+
+
+If the driver is compiled as a module, the IRQs to use can be specified by
+using the irq= option.  The format is:
+
+irq=[0x100],[0x140],[0x180],[0x200],[0x240],[0x280],[0x300],[0x380]
+
+The address in brackets is the base address of the card.  The IRQ of
+nonexistent cards can be set to 0.  If an IRQ of a card that does exist is set
+to 0, the driver will attempt to guess at the correct IRQ.  For example, to set
+the IRQ of the card at address 0x300 to 12, the insmod command would be:
+
+insmod esp irq=0,0,0,0,0,0,12,0
+
+The custom divisor can be set by using the divisor= option.  The format is the
+same as for the irq= option.  Each divisor value is a series of hex digits,
+with each digit representing the divisor to use for a corresponding port.  The
+divisor value is constructed RIGHT TO LEFT.  Specifying a nonzero divisor value
+will automatically set the spd_cust flag.  To calculate the divisor to use for
+a certain baud rate, divide the port's base baud (generally 921600) by the
+desired rate.  For example, to set the divisor of the primary port at 0x300 to
+4 and the divisor of the secondary port at 0x308 to 8, the insmod command would
+be:
+
+insmod esp divisor=0,0,0,0,0,0,0x84,0
+
+The dma= option can be used to set the DMA channel.  The channel can be either
+1 or 3.  Specifying any other value will force the driver to use PIO mode.
+For example, to set the DMA channel to 3, the insmod command would be:
+
+insmod esp dma=3
+
+The rx_trigger= and tx_trigger= options can be used to set the FIFO trigger
+levels.  They specify when the ESP card should send an interrupt.  Larger
+values will decrease the number of interrupts; however, a value too high may
+result in data loss.  Valid values are 1 through 1023, with 768 being the
+default.  For example, to set the receive trigger level to 512 bytes and the
+transmit trigger level to 700 bytes, the insmod command would be:
+
+insmod esp rx_trigger=512 tx_trigger=700
+
+The flow_off= and flow_on= options can be used to set the hardware flow off/
+flow on levels.  The flow on level must be lower than the flow off level, and
+the flow off level should be higher than rx_trigger.  Valid values are 1
+through 1023, with 1016 being the default flow off level and 944 being the
+default flow on level.  For example, to set the flow off level to 1000 bytes
+and the flow on level to 935 bytes, the insmod command would be:
+
+insmod esp flow_off=1000 flow_on=935
+
+The rx_timeout= option can be used to set the receive timeout value.  This
+value indicates how long after receiving the last character that the ESP card
+should wait before signalling an interrupt.  Valid values are 0 though 255,
+with 128 being the default.  A value too high will increase latency, and a
+value too low will cause unnecessary interrupts.  For example, to set the
+receive timeout to 255, the insmod command would be:
+
+insmod esp rx_timeout=255
+
+The pio_threshold= option sets the threshold (in number of characters) for
+using PIO mode instead of DMA mode.  For example, if this value is 32,
+transfers of 32 bytes or less will always use PIO mode.
+
+insmod esp pio_threshold=32
+
+Multiple options can be listed on the insmod command line by separating each
+option with a space.  For example:
+
+insmod esp dma=3 trigger=512
+
+The esp module can be automatically loaded when needed.  To cause this to
+happen, add the following lines to /etc/modprobe.conf (replacing the last line
+with options for your configuration):
+
+alias char-major-57 esp
+alias char-major-58 esp
+options esp irq=0,0,0,0,0,0,3,0 divisor=0,0,0,0,0,0,0x4,0
+
+You may also need to run 'depmod -a'.
+
+Devices must be created manually.  To create the devices, note the output from
+the module after it is inserted.  The output will appear in the location where
+kernel messages usually appear (usually /var/adm/messages).  Create two devices
+for each 'tty' mentioned, one with major of 57 and the other with major of 58.
+The minor number should be the same as the tty number reported.  The commands
+would be (replace ? with the tty number):
+
+mknod /dev/ttyP? c 57 ?
+mknod /dev/cup? c 58 ?
+
+For example, if the following line appears:
+
+Oct 24 18:17:23 techno kernel: ttyP8 at 0x0140 (irq = 3) is an ESP primary port
+
+...two devices should be created:
+
+mknod /dev/ttyP8 c 57 8
+mknod /dev/cup8 c 58 8
+
+You may need to set the permissions on the devices:
+
+chmod 666 /dev/ttyP*
+chmod 666 /dev/cup*
+
+The ESP module and the serial module should not conflict (they can be used at
+the same time).  After the ESP module has been loaded the ports on the ESP card
+will no longer be accessible by the serial driver.
+
+If I/O errors are experienced when accessing the port, check for IRQ and DMA
+conflicts ('cat /proc/interrupts' and 'cat /proc/dma' for a list of IRQs and
+DMAs currently in use).
+
+Enjoy!
+Andrew J. Robinson <arobinso@nyx.net>

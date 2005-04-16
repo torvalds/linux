@@ -1,0 +1,122 @@
+			S3C2410 GPIO Control
+			====================
+
+Introduction
+------------
+
+  The s3c2410 kernel provides an interface to configure and
+  manipulate the state of the GPIO pins, and find out other
+  information about them.
+
+  There are a number of conditions attached to the configuration
+  of the s3c2410 GPIO system, please read the Samsung provided
+  data-sheet/users manual to find out the complete list.
+
+
+Headers
+-------
+
+  See include/asm-arm/arch-s3c2410/regs-gpio.h for the list
+  of GPIO pins, and the configuration values for them. This
+  is included by using #include <asm/arch/regs-gpio.h>
+
+  The GPIO management functions are defined in the hardware
+  header include/asm-arm/arch-s3c2410/hardware.h which can be
+  included by #include <asm/arch/hardware.h>
+
+  A useful ammount of documentation can be found in the hardware
+  header on how the GPIO functions (and others) work.
+
+  Whilst a number of these functions do make some checks on what
+  is passed to them, for speed of use, they may not always ensure
+  that the user supplied data to them is correct.
+
+
+PIN Numbers
+-----------
+
+  Each pin has an unique number associated with it in regs-gpio.h,
+  eg S3C2410_GPA0 or S3C2410_GPF1. These defines are used to tell
+  the GPIO functions which pin is to be used.
+
+
+Configuring a pin
+-----------------
+
+  The following function allows the configuration of a given pin to
+  be changed.
+
+    void s3c2410_gpio_cfgpin(unsigned int pin, unsigned int function);
+
+  Eg:
+
+     s3c2410_gpio_cfgpin(S3C2410_GPA0, S3C2410_GPA0_ADDR0);
+     s3c2410_gpio_cfgpin(S3C2410_GPE8, S3C2410_GPE8_SDDAT1);
+
+   which would turn GPA0 into the lowest Address line A0, and set
+   GPE8 to be connected to the SDIO/MMC controller's SDDAT1 line.
+
+
+Reading the current configuration
+---------------------------------
+
+  The current configuration of a pin can be read by using:
+
+  s3c2410_gpio_getcfg(unsigned int pin);
+
+  The return value will be from the same set of values which can be
+  passed to s3c2410_gpio_cfgpin().
+
+
+Configuring a pull-up resistor
+------------------------------
+
+  A large proportion of the GPIO pins on the S3C2410 can have weak
+  pull-up resistors enabled. This can be configured by the following
+  function:
+
+    void s3c2410_gpio_pullup(unsigned int pin, unsigned int to);
+
+  Where the to value is zero to set the pull-up off, and 1 to enable
+  the specified pull-up. Any other values are currently undefined.
+
+
+Getting the state of a PIN
+--------------------------
+
+  The state of a pin can be read by using the function:
+
+    unsigned int s3c2410_gpio_getpin(unsigned int pin);
+
+  This will return either zero or non-zero. Do not count on this
+  function returning 1 if the pin is set.
+
+
+Setting the state of a PIN
+--------------------------
+
+  The value an pin is outputing can be modified by using the following:
+
+    void s3c2410_gpio_setpin(unsigned int pin, unsigned int to);
+
+  Which sets the given pin to the value. Use 0 to write 0, and 1 to
+  set the output to 1.
+
+
+Getting the IRQ number associated with a PIN
+--------------------------------------------
+
+  The following function can map the given pin number to an IRQ
+  number to pass to the IRQ system.
+
+   int s3c2410_gpio_getirq(unsigned int pin);
+
+  Note, not all pins have an IRQ.
+
+
+Authour
+-------
+
+
+Ben Dooks, 03 October 2004
+(c) 2004 Ben Dooks, Simtec Electronics

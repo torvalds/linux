@@ -1,0 +1,63 @@
+#
+# Bluetooth subsystem configuration
+#
+
+menuconfig BT
+	depends on NET
+	tristate "Bluetooth subsystem support"
+	help
+	  Bluetooth is low-cost, low-power, short-range wireless technology.
+	  It was designed as a replacement for cables and other short-range
+	  technologies like IrDA.  Bluetooth operates in personal area range
+	  that typically extends up to 10 meters.  More information about
+	  Bluetooth can be found at <http://www.bluetooth.com/>.
+
+	  Linux Bluetooth subsystem consist of several layers:
+	     Bluetooth Core (HCI device and connection manager, scheduler)
+	     HCI Device drivers (Interface to the hardware)
+	     SCO Module (SCO audio links)
+	     L2CAP Module (Logical Link Control and Adaptation Protocol)
+	     RFCOMM Module (RFCOMM Protocol)  
+	     BNEP Module (Bluetooth Network Encapsulation Protocol)
+	     CMTP Module (CAPI Message Transport Protocol)
+	     HIDP Module (Human Interface Device Protocol)
+
+	  Say Y here to compile Bluetooth support into the kernel or say M to
+	  compile it as module (bluetooth).
+
+	  To use Linux Bluetooth subsystem, you will need several user-space
+	  utilities like hciconfig and hcid.  These utilities and updates to
+	  Bluetooth kernel modules are provided in the BlueZ packages.
+	  For more information, see <http://www.bluez.org/>.
+
+config BT_L2CAP
+	tristate "L2CAP protocol support"
+	depends on BT
+	help
+	  L2CAP (Logical Link Control and Adaptation Protocol) provides
+	  connection oriented and connection-less data transport.  L2CAP
+	  support is required for most Bluetooth applications.
+
+	  Say Y here to compile L2CAP support into the kernel or say M to
+	  compile it as module (l2cap).
+
+config BT_SCO
+	tristate "SCO links support"
+	depends on BT
+	help
+	  SCO link provides voice transport over Bluetooth.  SCO support is
+	  required for voice applications like Headset and Audio.
+
+	  Say Y here to compile SCO support into the kernel or say M to
+	  compile it as module (sco).
+
+source "net/bluetooth/rfcomm/Kconfig"
+
+source "net/bluetooth/bnep/Kconfig"
+
+source "net/bluetooth/cmtp/Kconfig"
+
+source "net/bluetooth/hidp/Kconfig"
+
+source "drivers/bluetooth/Kconfig"
+

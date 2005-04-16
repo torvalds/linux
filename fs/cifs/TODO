@@ -1,0 +1,104 @@
+version 1.22 July 30, 2004 
+
+A Partial List of Missing Features
+==================================
+
+Contributions are welcome.  There are plenty of opportunities
+for visible, important contributions to this module.  Here
+is a partial list of the known problems and missing features:
+
+a) Support for SecurityDescriptors for chmod/chgrp/chown so
+these can be supported for Windows servers
+
+b) Better pam/winbind integration (e.g. to handle uid mapping
+better)
+
+c) multi-user mounts - multiplexed sessionsetups over single vc
+(ie tcp session) - prettying up needed, and more testing needed
+
+d) Kerberos/SPNEGO session setup support - (started)
+
+e) NTLMv2 authentication (mostly implemented)
+
+f) MD5-HMAC signing SMB PDUs when SPNEGO style SessionSetup 
+used (Kerberos or NTLMSSP). Signing alreadyimplemented for NTLM
+and raw NTLMSSP already. This is important when enabling
+extended security and mounting to Windows 2003 Servers
+
+f) Directory entry caching relies on a 1 second timer, rather than 
+using FindNotify or equivalent.  - (started)
+
+g) A few byte range testcases fail due to POSIX vs. Windows/CIFS
+style byte range lock differences
+
+h) quota support
+
+j) finish writepages support (multi-page write behind for improved
+performance) and syncpage
+
+k) hook lower into the sockets api (as NFS/SunRPC does) to avoid the
+extra copy in/out of the socket buffers in some cases.
+
+l) finish support for IPv6.  This is mostly complete but
+needs a simple conversion of ipv6 to sin6_addr from the
+address in string representation.
+
+m) Better optimize open (and pathbased setfilesize) to reduce the
+oplock breaks coming from windows srv.  Piggyback identical file
+opens on top of each other by incrementing reference count rather
+than resending (helps reduce server resource utilization and avoid
+spurious oplock breaks).
+
+o) Improve performance of readpages by sending more than one read
+at a time when 8 pages or more are requested. In conjuntion
+add support for async_cifs_readpages.
+
+p) Add support for storing symlink and fifo info to Windows servers 
+in the Extended Attribute format their SFU clients would recognize.
+
+q) Finish fcntl D_NOTIFY support so kde and gnome file list windows
+will autorefresh (started)
+
+r) Add GUI tool to configure /proc/fs/cifs settings and for display of
+the CIFS statistics (started)
+
+q) implement support for security and trusted categories of xattrs
+(requires minor protocol extension) to enable better support for SELINUX
+
+r) Implement O_DIRECT flag on open (already supported on mount)
+
+KNOWN BUGS (updated December 10, 2004)
+====================================
+1) existing symbolic links (Windows reparse points) are recognized but
+can not be created remotely. They are implemented for Samba and those that
+support the CIFS Unix extensions but Samba has a bug currently handling
+symlink text beginning with slash
+2) follow_link and readdir code does not follow dfs junctions
+but recognizes them
+3) create of new files to FAT partitions on Windows servers can
+succeed but still return access denied (appears to be Windows 
+server not cifs client problem) and has not been reproduced recently.
+NTFS partitions do not have this problem.
+4) debug connectathon lock test case 10 which fails against
+Samba (may be unmappable due to POSIX to Windows lock model
+differences but worth investigating).  Also debug Samba to 
+see why lock test case 7 takes longer to complete to Samba
+than to Windows.
+
+Misc testing to do
+==================
+1) check out max path names and max path name components against various server
+types. Try nested symlinks (8 deep). Return max path name in stat -f information
+
+2) Modify file portion of ltp so it can run against a mounted network
+share and run it against cifs vfs.
+
+3) Additional performance testing and optimization using iozone and similar - 
+there are some easy changes that can be done to parallelize sequential writes,
+and when signing is disabled to request larger read sizes (larger than 
+negotiated size) and send larger write sizes to modern servers.
+
+4) More exhaustively test the recently added NT4 support against various
+NT4 service pack levels, and fix cifs_setattr for setting file times and 
+size to fall back to level 1 when error invalid level returned.
+

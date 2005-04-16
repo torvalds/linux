@@ -1,0 +1,17 @@
+This file contain idea and things I don't want to forget
+
+Possible bug in fs/read_write.c
+Function sys_readdir()
+
+	There is a call the verify_area that does not take in account
+	the count parameter. I guess it should read
+
+	error = verify_area(VERIFY_WRITE, dirent, count*sizeof (*dirent));
+
+	instead of
+
+	error = verify_area(VERIFY_WRITE, dirent, sizeof (*dirent));
+
+	Of course, now , count is always 1
+
+

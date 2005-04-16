@@ -1,0 +1,89 @@
+# sound/Config.in
+#
+
+menu "Sound"
+
+config SOUND
+	tristate "Sound card support"
+	help
+	  If you have a sound card in your computer, i.e. if it can say more
+	  than an occasional beep, say Y.  Be sure to have all the information
+	  about your sound card and its configuration down (I/O port,
+	  interrupt and DMA channel), because you will be asked for it.
+
+	  You want to read the Sound-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>. General information about
+	  the modular sound system is contained in the files
+	  <file:Documentation/sound/oss/Introduction>.  The file
+	  <file:Documentation/sound/oss/README.OSS> contains some slightly
+	  outdated but still useful information as well.  Newer sound
+	  driver documentation is found in <file:Documentation/sound/alsa/*>.
+
+	  If you have a PnP sound card and you want to configure it at boot
+	  time using the ISA PnP tools (read
+	  <http://www.roestock.demon.co.uk/isapnptools/>), then you need to
+	  compile the sound card support as a module and load that module
+	  after the PnP configuration is finished.  To do this, choose M here
+	  and read <file:Documentation/sound/oss/README.modules>; the module
+	  will be called soundcore.
+
+	  I'm told that even without a sound card, you can make your computer
+	  say more than an occasional beep, by programming the PC speaker.
+	  Kernel patches and supporting utilities to do that are in the pcsp
+	  package, available at <ftp://ftp.infradead.org/pub/pcsp/>.
+
+source "sound/oss/dmasound/Kconfig"
+
+if !M68K
+
+menu "Advanced Linux Sound Architecture"
+	depends on SOUND!=n
+
+config SND
+	tristate "Advanced Linux Sound Architecture"
+	depends on SOUND
+
+source "sound/core/Kconfig"
+
+source "sound/drivers/Kconfig"
+
+source "sound/isa/Kconfig"
+
+source "sound/pci/Kconfig"
+
+source "sound/ppc/Kconfig"
+
+source "sound/arm/Kconfig"
+
+source "sound/mips/Kconfig"
+
+# the following will depenend on the order of config.
+# here assuming USB is defined before ALSA
+source "sound/usb/Kconfig"
+
+# the following will depenend on the order of config.
+# here assuming PCMCIA is defined before ALSA
+source "sound/pcmcia/Kconfig"
+
+source "sound/sparc/Kconfig"
+
+source "sound/parisc/Kconfig"
+
+endmenu
+
+menu "Open Sound System"
+	depends on SOUND!=n && (BROKEN || (!SPARC32 && !SPARC64))
+
+config SOUND_PRIME
+	tristate "Open Sound System (DEPRECATED)"
+	depends on SOUND
+	help
+	  Say 'Y' or 'M' to enable Open Sound System drivers.
+
+source "sound/oss/Kconfig"
+
+endmenu
+
+endif
+
+endmenu

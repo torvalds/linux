@@ -1,0 +1,52 @@
+These instructions are deliberately very basic. If you want something clever,
+go read the real docs ;-) Please don't add more stuff, but feel free to 
+correct my mistakes ;-)    (mbligh@aracnet.com)
+Thanks to John Levon, Dave Hansen, et al. for help writing this.
+
+<test> is the thing you're trying to measure.
+Make sure you have the correct System.map / vmlinux referenced!
+
+It is probably easiest to use "make install" for linux and hack
+/sbin/installkernel to copy vmlinux to /boot, in addition to vmlinuz,
+config, System.map, which are usually installed by default.
+
+Readprofile
+-----------
+A recent readprofile command is needed for 2.6, such as found in util-linux
+2.12a, which can be downloaded from:
+
+http://www.kernel.org/pub/linux/utils/util-linux/
+
+Most distributions will ship it already.
+
+Add "profile=2" to the kernel command line.
+
+clear		readprofile -r
+		<test>
+dump output	readprofile -m /boot/System.map > captured_profile
+
+Oprofile
+--------
+Get the source (I use 0.8) from http://oprofile.sourceforge.net/
+and add "idle=poll" to the kernel command line
+Configure with CONFIG_PROFILING=y and CONFIG_OPROFILE=y & reboot on new kernel
+./configure --with-kernel-support
+make install
+
+For superior results, be sure to enable the local APIC. If opreport sees
+a 0Hz CPU, APIC was not on. Be aware that idle=poll may mean a performance
+penalty.
+
+One time setup:
+		opcontrol --setup --vmlinux=/boot/vmlinux
+
+clear		opcontrol --reset
+start		opcontrol --start
+		<test>
+stop		opcontrol --stop
+dump output	opreport >  output_file
+
+To only report on the kernel, run opreport /boot/vmlinux > output_file
+
+A reset is needed to clear old statistics, which survive a reboot.
+

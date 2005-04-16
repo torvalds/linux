@@ -1,0 +1,124 @@
+menu "Kernel hacking"
+
+source "lib/Kconfig.debug"
+
+config SH_STANDARD_BIOS
+	bool "Use LinuxSH standard BIOS"
+	help
+	  Say Y here if your target has the gdb-sh-stub
+	  package from www.m17n.org (or any conforming standard LinuxSH BIOS)
+	  in FLASH or EPROM.  The kernel will use standard BIOS calls during
+	  boot for various housekeeping tasks (including calls to read and
+	  write characters to a system console, get a MAC address from an
+	  on-board Ethernet interface, and shut down the hardware).  Note this
+	  does not work with machines with an existing operating system in
+	  mask ROM and no flash (WindowsCE machines fall in this category).
+	  If unsure, say N.
+
+config EARLY_SCIF_CONSOLE
+	bool "Use early SCIF console"
+	depends on CPU_SH4
+
+config EARLY_PRINTK
+	bool "Early printk support"
+	depends on SH_STANDARD_BIOS || EARLY_SCIF_CONSOLE
+	help
+	  Say Y here to redirect kernel printk messages to the serial port
+	  used by the SH-IPL bootloader, starting very early in the boot
+	  process and ending when the kernel's serial console is initialised.
+	  This option is only useful porting the kernel to a new machine,
+	  when the kernel may crash or hang before the serial console is
+	  initialised. If unsure, say N.
+
+config KGDB
+	bool "Include KGDB kernel debugger"
+	help
+	  Include in-kernel hooks for kgdb, the Linux kernel source level
+	  debugger.  See <http://kgdb.sourceforge.net/> for more information.
+	  Unless you are intending to debug the kernel, say N here.
+
+menu "KGDB configuration options"
+	depends on KGDB
+
+config MORE_COMPILE_OPTIONS
+	bool "Add any additional compile options"
+	help
+	  If you want to add additional CFLAGS to the kernel build, enable this
+	  option and then enter what you would like to add in the next question.
+	  Note however that -g is already appended with the selection of KGDB.
+
+config COMPILE_OPTIONS
+	string "Additional compile arguments"
+	depends on MORE_COMPILE_OPTIONS
+
+config KGDB_NMI
+	bool "Enter KGDB on NMI"
+	default n
+
+config KGDB_THREAD
+	bool "Include KGDB thread support"
+	default y
+
+config SH_KGDB_CONSOLE
+	bool "Console messages through GDB"
+	default n
+
+config KGDB_SYSRQ
+	bool "Allow SysRq 'G' to enter KGDB"
+	default y
+
+config KGDB_KERNEL_ASSERTS
+	bool "Include KGDB kernel assertions"
+	default n
+
+comment "Serial port setup"
+
+config KGDB_DEFPORT
+	int "Port number (ttySCn)"
+	default "1"
+
+config KGDB_DEFBAUD
+	int "Baud rate"
+	default "115200"
+
+choice
+	prompt "Parity"
+	depends on KGDB
+	default KGDB_DEFPARITY_N
+
+config KGDB_DEFPARITY_N
+	bool "None"
+
+config KGDB_DEFPARITY_E
+	bool "Even"
+
+config KGDB_DEFPARITY_O
+	bool "Odd"
+
+endchoice
+
+choice
+	prompt "Data bits"
+	depends on KGDB
+	default KGDB_DEFBITS_8
+
+config KGDB_DEFBITS_8
+	bool "8"
+
+config KGDB_DEFBITS_7
+	bool "7"
+
+endchoice
+
+endmenu
+
+config FRAME_POINTER
+	bool "Compile the kernel with frame pointers"
+	default y if KGDB
+	help
+	  If you say Y here the resulting kernel image will be slightly larger
+	  and slower, but it will give very useful debugging information.
+	  If you don't debug the kernel, you can say N, but we may not be able
+	  to solve problems without frame pointers.
+
+endmenu

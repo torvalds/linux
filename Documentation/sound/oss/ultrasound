@@ -1,0 +1,30 @@
+modprobe sound
+insmod ad1848
+insmod gus io=* irq=* dma=* ...
+
+This loads the driver for the Gravis Ultrasound family of sound cards.
+
+The gus module takes the following arguments
+
+io		I/O address of the Ultrasound card (eg. io=0x220)
+irq		IRQ of the Sound Blaster card 
+dma     	DMA channel for the Sound Blaster
+dma16   	2nd DMA channel, only needed for full duplex operation
+type		1 for PnP card
+gus16		1 for using 16 bit sampling daughter board
+no_wave_dma	Set to disable DMA usage for wavetable (see note)
+db16		???
+
+
+no_wave_dma option
+
+This option defaults to a value of 0, which allows the Ultrasound wavetable
+DSP to use DMA for for playback and downloading samples. This is the same
+as the old behaviour. If set to 1, no DMA is needed for downloading samples,
+and allows owners of a GUS MAX to make use of simultaneous digital audio
+(/dev/dsp), MIDI, and wavetable playback.
+
+
+If you have problems in recording with GUS MAX, you could try to use
+just one 8 bit DMA channel. Recording will not work with one DMA
+channel if it's a 16 bit one.

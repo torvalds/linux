@@ -1,0 +1,87 @@
+#
+# NCP Filesystem configuration
+#
+config NCPFS_PACKET_SIGNING
+	bool "Packet signatures"
+	depends on NCP_FS
+	help
+	  NCP allows packets to be signed for stronger security. If you want
+	  security, say Y.  Normal users can leave it off.  To be able to use
+	  packet signing you must use ncpfs > 2.0.12.
+
+config NCPFS_IOCTL_LOCKING
+	bool "Proprietary file locking"
+	depends on NCP_FS
+	help
+	  Allows locking of records on remote volumes.  Say N unless you have
+	  special applications which are able to utilize this locking scheme.
+
+config NCPFS_STRONG
+	bool "Clear remove/delete inhibit when needed"
+	depends on NCP_FS
+	help
+	  Allows manipulation of files flagged as Delete or Rename Inhibit.
+	  To use this feature you must mount volumes with the ncpmount
+	  parameter "-s" (ncpfs-2.0.12 and newer).  Say Y unless you are not
+	  mounting volumes with -f 444.
+
+config NCPFS_NFS_NS
+	bool "Use NFS namespace if available"
+	depends on NCP_FS
+	help
+	  Allows you to utilize NFS namespace on NetWare servers.  It brings
+	  you case sensitive filenames.  Say Y.  You can disable it at
+	  mount-time with the `-N nfs' parameter of ncpmount.
+
+config NCPFS_OS2_NS
+	bool "Use LONG (OS/2) namespace if available"
+	depends on NCP_FS
+	help
+	  Allows you to utilize OS2/LONG namespace on NetWare servers.
+	  Filenames in this namespace are limited to 255 characters, they are
+	  case insensitive, and case in names is preserved.  Say Y.  You can
+	  disable it at mount time with the -N os2 parameter of ncpmount.
+
+config NCPFS_SMALLDOS
+	bool "Lowercase DOS filenames"
+	depends on NCP_FS
+	---help---
+	  If you say Y here, every filename on a NetWare server volume using
+	  the OS2/LONG namespace and created under DOS or on a volume using
+	  DOS namespace will be converted to lowercase characters.
+	  Saying N here will give you these filenames in uppercase.
+
+	  This is only a cosmetic option since the OS2/LONG namespace is case
+	  insensitive. The only major reason for this option is backward
+	  compatibility when moving from DOS to OS2/LONG namespace support.
+	  Long filenames (created by Win95) will not be affected.
+
+	  This option does not solve the problem that filenames appear
+	  differently under Linux and under Windows, since Windows does an
+	  additional conversions on the client side. You can achieve similar
+	  effects by saying Y to "Allow using of Native Language Support"
+	  below.
+
+config NCPFS_NLS
+	bool "Use Native Language Support"
+	depends on NCP_FS
+	select NLS
+	help
+	  Allows you to use codepages and I/O charsets for file name
+	  translation between the server file system and input/output. This
+	  may be useful, if you want to access the server with other operating
+	  systems, e.g. Windows 95. See also NLS for more Information.
+
+	  To select codepages and I/O charsets use ncpfs-2.2.0.13 or newer.
+
+config NCPFS_EXTRAS
+	bool "Enable symbolic links and execute flags"
+	depends on NCP_FS
+	help
+	  This enables the use of symbolic links and an execute permission
+	  bit on NCPFS. The file server need not have long name space or NFS
+	  name space loaded for these to work.
+
+	  To use the new attributes, it is recommended to use the flags
+	  '-f 600 -d 755' on the ncpmount command line.
+

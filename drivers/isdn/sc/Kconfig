@@ -1,0 +1,12 @@
+#
+# Config.in for Spellcaster ISDN driver
+#
+config ISDN_DRV_SC
+	tristate "Spellcaster support"
+	depends on ISDN_I4L && ISA
+	help
+	  This enables support for the Spellcaster BRI ISDN boards.  This
+	  driver currently builds only in a modularized version.
+	  To build it, choose M here: the module will be called sc.
+	  See <file:Documentation/isdn/README.sc> for more information.
+

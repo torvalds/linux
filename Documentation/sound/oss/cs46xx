@@ -1,0 +1,138 @@
+
+Documentation for the Cirrus Logic/Crystal SoundFusion cs46xx/cs4280 audio 
+controller chips (2001/05/11)
+
+The cs46xx audio driver supports the DSP line of Cirrus controllers. 
+Specifically, the cs4610, cs4612, cs4614, cs4622, cs4624, cs4630 and the cs4280
+products.  This driver uses the generic ac97_codec driver for AC97 codec
+support.  
+
+
+Features:
+
+Full Duplex Playback/Capture supported from 8k-48k.
+16Bit Signed LE & 8Bit Unsigned, with Mono or Stereo supported.
+
+APM/PM - 2.2.x PM is enabled and functional. APM can also
+be enabled for 2.4.x by modifying the CS46XX_ACPI_SUPPORT macro
+definition.
+
+DMA playback buffer size is configurable from 16k (defaultorder=2) up to 2Meg 
+(defaultorder=11).  DMA capture buffer size is fixed at a single 4k page as
+two 2k fragments.
+
+MMAP seems to work well with QuakeIII, and test XMMS plugin.
+
+Myth2 works, but the polling logic is not fully correct, but is functional.
+
+The 2.4.4-ac6 gameport code in the cs461x joystick driver has been tested 
+with a Microsoft Sidewinder joystick (cs461x.o and sidewinder.o).  This 
+audio driver must be loaded prior to the joystick driver to enable the
+DSP task image supporting the joystick device.
+
+
+Limitations:
+
+SPDIF is currently not supported.
+
+Primary codec support only.  No secondary codec support is implemented.
+
+
+
+NOTES:
+
+Hercules Game Theatre XP - the EGPIO2 pin controls the external Amp,
+and has been tested.
+Module parameter hercules_egpio_disable set to 1, will force a 0 to EGPIODR
+to disable the external amplifier.
+
+VTB Santa Cruz - the GPIO7/GPIO8 on the Secondary Codec control
+the external amplifier for the "back" speakers, since we do not
+support the secondary codec then this external amp is not
+turned on.  The primary codec external amplifier is supported but
+note that the AC97 EAPD bit is inverted logic (amp_voyetra()).
+
+DMA buffer size - there are issues with many of the Linux applications
+concerning the optimal buffer size.  Several applications request a 
+certain fragment size and number and then do not verify that the driver
+has the ability to support the requested configuration.  
+SNDCTL_DSP_SETFRAGMENT ioctl is used to request a fragment size and
+number of fragments.  Some applications exit if an error is returned
+on this particular ioctl. Therefore, in alignment with the other OSS audio 
+drivers, no error is returned when a SETFRAGs IOCTL is received, but the 
+values passed from the app are not used in any buffer calculation 
+(ossfragshift/ossmaxfrags are not used).
+Use the "defaultorder=N" module parameter to change the buffer size if
+you have an application that requires a specific number of fragments
+or a specific buffer size (see below).
+
+Debug Interface
+---------------
+There is an ioctl debug interface to allow runtime modification of the 
+debug print levels.  This debug interface code can be disabled from the 
+compilation process with commenting the following define:
+#define CSDEBUG_INTERFACE 1
+There is also a debug print methodolgy to select printf statements from
+different areas of the driver.  A debug print level is also used to allow
+additional printfs to be active.  Comment out the following line in the
+driver to disable compilation of the CS_DBGOUT print statements:
+#define CSDEBUG 1
+ 
+Please see the definitions for cs_debuglevel and cs_debugmask for additional
+information on the debug levels and sections.
+
+There is also a csdbg executable to allow runtime manipulation of these 
+parameters.  for a copy email: twoller@crystal.cirrus.com
+
+
+
+MODULE_PARMS definitions
+------------------------
+MODULE_PARM(defaultorder, "i");
+defaultorder=N
+where N is a value from 1 to 12
+The buffer order determines the size of the dma buffer for the driver.
+under Linux, a smaller buffer allows more responsiveness from many of the 
+applications (e.g. games).  A larger buffer allows some of the apps (esound) 
+to not underrun the dma buffer as easily.  As default, use 32k (order=3)
+rather than 64k as some of the games work more responsively.
+(2^N) * PAGE_SIZE = allocated buffer size
+
+MODULE_PARM(cs_debuglevel, "i");
+MODULE_PARM(cs_debugmask, "i");
+cs_debuglevel=N
+cs_debugmask=0xMMMMMMMM
+where N is a value from 0 (no debug printfs), to 9 (maximum)
+0xMMMMMMMM is a debug mask corresponding to the CS_xxx bits (see driver source).
+
+MODULE_PARM(hercules_egpio_disable, "i");
+hercules_egpio_disable=N
+where N is a 0 (enable egpio), or a 1 (disable egpio support)
+
+MODULE_PARM(initdelay, "i");
+initdelay=N
+This value is used to determine the millescond delay during the initialization
+code prior to powering up the PLL.  On laptops this value can be used to
+assist with errors on resume, mostly with IBM laptops.  Basically, if the 
+system is booted under battery power then the mdelay()/udelay() functions fail to 
+properly delay the required time.  Also, if the system is booted under AC power
+and then the power removed, the mdelay()/udelay() functions will not delay properly.
+ 
+MODULE_PARM(powerdown, "i");
+powerdown=N
+where N is 0 (disable any powerdown of the internal blocks) or 1 (enable powerdown)
+
+
+MODULE_PARM(external_amp, "i");
+external_amp=1
+if N is set to 1, then force enabling the EAPD support in the primary AC97 codec.
+override the detection logic and force the external amp bit in the AC97 0x26 register
+to be reset (0).  EAPD should be 0 for powerup, and 1 for powerdown.  The VTB Santa Cruz
+card has inverted logic, so there is a special function for these cards.
+
+MODULE_PARM(thinkpad, "i");
+thinkpad=1
+if N is set to 1, then force enabling the clkrun functionality.
+Currently, when the part is being used, then clkrun is disabled for the entire system,
+but re-enabled when the driver is released or there is no outstanding open count.
+

@@ -1,0 +1,349 @@
+Release Date	: Thu Feb 03 12:27:22 EST 2005 - Seokmann Ju <sju@lsil.com>
+Current Version	: 2.20.4.5 (scsi module), 2.20.2.5 (cmm module)
+Older Version	: 2.20.4.4 (scsi module), 2.20.2.4 (cmm module)
+
+1.	Modified name of two attributes in scsi_host_template.
+	On Wed, 2005-02-02 at 10:56 -0500, Ju, Seokmann wrote:
+	> +	.sdev_attrs			= megaraid_device_attrs,
+	> +	.shost_attrs			= megaraid_class_device_attrs,
+
+	These are, perhaps, slightly confusing names.
+	The terms device and class_device have well defined meanings in the
+	generic device model, neither of which is what you mean here.
+	Why not simply megaraid_sdev_attrs and megaraid_shost_attrs?
+
+	Other than this, it looks fine to me too.
+
+Release Date	: Thu Jan 27 00:01:03 EST 2005 - Atul Mukker <atulm@lsil.com>
+Current Version	: 2.20.4.4 (scsi module), 2.20.2.5 (cmm module)
+Older Version	: 2.20.4.3 (scsi module), 2.20.2.4 (cmm module)
+
+1.	Bump up the version of scsi module due to its conflict.
+
+Release Date	: Thu Jan 21 00:01:03 EST 2005 - Atul Mukker <atulm@lsil.com>
+Current Version	: 2.20.4.3 (scsi module), 2.20.2.5 (cmm module)
+Older Version	: 2.20.4.2 (scsi module), 2.20.2.4 (cmm module)
+
+1.	Remove driver ioctl for logical drive to scsi address translation and
+	replace with the sysfs attribute. To remove drives and change
+	capacity, application shall now use the device attribute to get the
+	logical drive number for a scsi device. For adding newly created
+	logical drives, class device attribute would be required to uniquely
+	identify each controller.
+		- Atul Mukker <atulm@lsil.com>
+
+	"James, I've been thinking about this a little more, and you may be on
+	to something here. Let each driver add files as such:"
+
+		- Matt Domsch <Matt_Domsch@dell.com>, 12.15.2004
+		 linux-scsi mailing list
+
+
+	"Then, if you simply publish your LD number as an extra parameter of
+	the device, you can look through /sys to find it."
+
+		- James Bottomley <James.Bottomley@SteelEye.com>, 01.03.2005
+		 linux-scsi mailing list
+
+
+	"I don't see why not ... it's your driver, you can publish whatever
+	extra information you need as scsi_device attributes; that was one of
+	the designs of the extensible attribute system."
+
+		- James Bottomley <James.Bottomley@SteelEye.com>, 01.06.2005
+		 linux-scsi mailing list
+
+2.	Add AMI megaraid support - Brian King <brking@charter.net>
+		PCI_VENDOR_ID_AMI, PCI_DEVICE_ID_AMI_MEGARAID3,
+		PCI_VENDOR_ID_AMI, PCI_SUBSYS_ID_PERC3_DC,
+
+3.	Make some code static - Adrian Bunk <bunk@stusta.de>
+	Date:	Mon, 15 Nov 2004 03:14:57 +0100
+
+	The patch below makes some needlessly global code static.
+	-wait_queue_head_t wait_q;
+	+static wait_queue_head_t wait_q;
+
+	Signed-off-by: Adrian Bunk <bunk@stusta.de>
+
+4.	Added NEC ROMB support - NEC MegaRAID PCI Express ROMB controller
+		PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_MEGARAID_NEC_ROMB_2E,
+		PCI_SUBSYS_ID_NEC, PCI_SUBSYS_ID_MEGARAID_NEC_ROMB_2E,
+
+5.	Fixed Tape drive issue : For any Direct CDB command to physical device
+	including tape, timeout value set by driver was 10 minutes. With this 
+	value, most of command will return within timeout. However, for those
+	command like ERASE or FORMAT, it takes more than an hour depends on
+	capacity of the device and the command could be terminated before it 
+	completes.
+	To address this issue, the 'timeout' field in the DCDB command will 
+	have NO TIMEOUT (i.e., 4) value as its timeout on DCDB command.
+
+
+
+Release Date	: Thu Dec  9 19:10:23 EST 2004
+	- Sreenivas Bagalkote <sreenib@lsil.com>
+
+Current Version	: 2.20.4.2 (scsi module), 2.20.2.4 (cmm module)
+Older Version	: 2.20.4.1 (scsi module), 2.20.2.3 (cmm module)
+
+i.	Introduced driver ioctl that returns scsi address for a given ld.
+	
+	"Why can't the existing sysfs interfaces be used to do this?"
+		- Brian King (brking@us.ibm.com)
+	
+	"I've looked into solving this another way, but I cannot see how
+	to get this driver-private mapping of logical drive number-> HCTL
+	without putting code something like this into the driver."
+
+	"...and by providing a mapping a function to userspace, the driver
+	is free to change its mapping algorithm in the future if necessary .."
+		- Matt Domsch (Matt_Domsch@dell.com)
+
+Release Date	: Thu Dec  9 19:02:14 EST 2004 - Sreenivas Bagalkote <sreenib@lsil.com>
+
+Current Version	: 2.20.4.1 (scsi module), 2.20.2.3 (cmm module)
+Older Version	: 2.20.4.1 (scsi module), 2.20.2.2 (cmm module)
+
+i.	Fix a bug in kioc's dma buffer deallocation
+
+Release Date	: Thu Nov  4 18:24:56 EST 2004 - Sreenivas Bagalkote <sreenib@lsil.com>
+
+Current Version	: 2.20.4.1 (scsi module), 2.20.2.2 (cmm module)
+Older Version	: 2.20.4.0 (scsi module), 2.20.2.1 (cmm module)
+
+i.	Handle IOCTL cmd timeouts more properly.
+
+ii.	pci_dma_sync_{sg,single}_for_cpu was introduced into megaraid_mbox
+	incorrectly (instead of _for_device). Changed to appropriate 
+	pci_dma_sync_{sg,single}_for_device.
+
+Release Date	: Wed Oct 06 11:15:29 EDT 2004 - Sreenivas Bagalkote <sreenib@lsil.com>
+Current Version	: 2.20.4.0 (scsi module), 2.20.2.1 (cmm module)
+Older Version	: 2.20.4.0 (scsi module), 2.20.2.0 (cmm module)
+
+i.	Remove CONFIG_COMPAT around register_ioctl32_conversion
+
+Release Date	: Mon Sep 27 22:15:07 EDT 2004 - Atul Mukker <atulm@lsil.com>
+Current Version	: 2.20.4.0 (scsi module), 2.20.2.0 (cmm module)
+Older Version	: 2.20.3.1 (scsi module), 2.20.2.0 (cmm module)
+
+i.	Fix data corruption. Because of a typo in the driver, the IO packets
+	were wrongly shared by the ioctl path. This causes a whole IO command
+	to be replaced by an incoming ioctl command.
+
+Release Date	: Tue Aug 24 09:43:35 EDT 2004 - Atul Mukker <atulm@lsil.com>
+Current Version	: 2.20.3.1 (scsi module), 2.20.2.0 (cmm module)
+Older Version	: 2.20.3.0 (scsi module), 2.20.2.0 (cmm module)
+
+i.	Function reordering so that inline functions are defined before they
+	are actually used. It is now mandatory for GCC 3.4.1 (current stable)
+
+	Declare some heavy-weight functions to be non-inlined,
+	megaraid_mbox_build_cmd, megaraid_mbox_runpendq,
+	megaraid_mbox_prepare_pthru, megaraid_mbox_prepare_epthru,
+	megaraid_busywait_mbox
+
+		- Andrew Morton <akpm@osdl.org>, 08.19.2004
+		linux-scsi mailing list
+
+	"Something else to clean up after inclusion: every instance of an
+	inline function is actually rendered as a full function call, because
+	the function is always used before it is defined.  Atul, please
+	re-arrange the code to eliminate the need for most (all) of the
+	function prototypes at the top of each file, and define (not just
+	declare with a prototype) each inline function before its first use"
+
+		- Matt Domsch <Matt_Domsch@dell.com>, 07.27.2004
+		linux-scsi mailing list
+
+
+ii.	Display elapsed time (countdown) while waiting for FW to boot.
+
+iii.	Module compilation reorder in Makefile so that unresolved symbols do
+	not occur when driver is compiled non-modular.
+
+		Patrick J. LoPresti <patl@users.sourceforge.net>, 8.22.2004
+		linux-scsi mailing list
+
+
+Release Date	: Thu Aug 19 09:58:33 EDT 2004 - Atul Mukker <atulm@lsil.com>
+Current Version	: 2.20.3.0 (scsi module), 2.20.2.0 (cmm module)
+Older Version	: 2.20.2.0 (scsi module), 2.20.1.0 (cmm module)
+
+i.	When copying the mailbox packets, copy only first 14 bytes (for 32-bit
+	mailboxes) and only first 22 bytes (for 64-bit mailboxes). This is to
+	avoid getting the stale values for busy bit. We want to set the busy
+	bit just before issuing command to the FW.
+
+ii.	In the reset handling, if the reseted command is not owned by the
+	driver, do not (wrongly) print information for the "attached" driver
+	packet.
+
+iii.	Have extended wait when issuing command in synchronous mode. This is
+	required for the cases where the option ROM is disabled and there is
+	no BIOS to start the controller. The FW starts to boot after receiving
+	the first command from the driver. The current driver has 1 second
+	timeout for the synchronous commands, which is far less than what is
+	actually required. We now wait up to MBOX_RESET_TIME (180 seconds) for
+	FW boot process.
+
+iv.	In megaraid_mbox_product_info, clear the mailbox contents completely
+	before preparing the command for inquiry3. This is to ensure that the
+	FW does not get junk values in the command.
+
+v.	Do away with the redundant LSI_CONFIG_COMPAT redefinition for
+	CONFIG_COMPAT. Replace <asm/ioctl32.h> with <linux/ioctl32.h>
+
+		- James Bottomley <James.Bottomley@SteelEye.com>, 08.17.2004
+		 linux-scsi mailing list
+
+vi.	Add support for 64-bit applications. Current drivers assume only
+	32-bit applications, even on 64-bit platforms. Use the "data" and
+	"buffer" fields of the mimd_t structure, instead of embedded 32-bit
+	addresses in application mailbox and passthru structures.
+
+vii.	Move the function declarations for the management module from
+	megaraid_mm.h to megaraid_mm.c
+
+		- Andrew Morton <akpm@osdl.org>, 08.19.2004
+		linux-scsi mailing list
+
+viii.	Change default values for MEGARAID_NEWGEN, MEGARAID_MM, and
+	MEGARAID_MAILBOX to 'n' in Kconfig.megaraid
+
+		- Andrew Morton <akpm@osdl.org>, 08.19.2004
+		linux-scsi mailing list
+
+ix.	replace udelay with msleep
+
+x.	Typos corrected in comments and whitespace adjustments, explicit
+	grouping of expressions.
+
+
+Release Date	: Fri Jul 23 15:22:07 EDT 2004 - Atul Mukker <atulm@lsil.com>
+Current Version	: 2.20.2.0 (scsi module), 2.20.1.0 (cmm module)
+Older Version	: 2.20.1.0 (scsi module), 2.20.0.0 (cmm module)
+
+i.	Add PCI ids for Acer ROMB 2E solution
+
+ii.	Add PCI ids for I4
+
+iii.	Typo corrected for subsys id for megaraid sata 300-4x
+
+iv.	Remove yield() while mailbox handshake in synchronous commands
+
+
+	"My other main gripe is things like this:
+
+	+	// wait for maximum 1 second for status to post
+	+	for (i = 0; i < 40000; i++) {
+	+		if (mbox->numstatus != 0xFF) break;
+	+		udelay(25); yield();
+	+	}
+
+	which litter the driver.  Use of yield() in drivers is deprecated."
+
+		- James Bottomley <James.Bottomley@SteelEye.com>, 07.14.2004
+		 linux-scsi mailing list
+
+v.	Remove redundant __megaraid_busywait_mbox routine
+
+vi.	Fix bug in the managment module, which causes a system lockup when the
+	IO module is loaded and then unloaded, followed by executing any
+	management utility. The current version of management module does not
+	handle the adapter unregister properly.
+
+	Specifically, it still keeps a reference to the unregistered
+	controllers. To avoid this, the static array adapters has been
+	replaced by a dynamic list, which gets updated every time an adapter
+	is added or removed.
+
+	Also, during unregistration of the IO module, the resources are
+	now released in the exact reverse order of the allocation time
+	sequence.
+
+
+Release Date	: Fri Jun 25 18:58:43 EDT 2004 - Atul Mukker <atulm@lsil.com>
+Current Version	: 2.20.1.0
+Older Version	: megaraid 2.20.0.1
+
+i.	Stale list pointer in adapter causes kernel panic when module
+	megaraid_mbox is unloaded
+
+
+Release Date	: Thu Jun 24 20:37:11 EDT 2004 - Atul Mukker <atulm@lsil.com>
+Current Version	: 2.20.0.1
+Older Version	: megaraid 2.20.0.00
+
+i.	Modules are not 'y' by default, but depend on current definition of
+	SCSI & PCI.
+
+ii.	Redundant structure mraid_driver_t removed.
+
+iii.	Miscellaneous indentation and goto/label fixes.
+		- Christoph Hellwig <hch@infradead.org>, 06.24.2004 linux-scsi
+
+iv.	scsi_host_put(), do just before completing HBA shutdown.
+
+
+
+Release Date	: Mon Jun 21 19:53:54 EDT 2004 - Atul Mukker <atulm@lsil.com>
+Current Version	: 2.20.0.0
+Older Version	: megaraid 2.20.0.rc2 and 2.00.3
+
+i.	Independent module to interact with userland applications and
+	multiplex command to low level RAID module(s).
+
+	"Shared code in a third module, a "library module", is an acceptable
+	solution. modprobe automatically loads dependent modules, so users
+	running "modprobe driver1" or "modprobe driver2" would automatically
+	load the shared library module."
+
+		- Jeff Garzik <jgarzik@pobox.com> 02.25.2004 LKML
+
+	"As Jeff hinted, if your userspace<->driver API is consistent between
+	your new MPT-based RAID controllers and your existing megaraid driver,
+	then perhaps you need a single small helper module (lsiioctl or some
+	better name), loaded by both mptraid and megaraid automatically, which
+	handles registering the /dev/megaraid node dynamically. In this case,
+	both mptraid and megaraid would register with lsiioctl for each
+	adapter discovered, and lsiioctl would essentially be a switch,
+	redirecting userspace tool ioctls to the appropriate driver."
+
+		- Matt Domsch <Matt_Domsch@dell.com> 02.25.2004 LKML
+
+ii.	Remove C99 initializations from pci_device id.
+
+	"pci_id_table_g would be much more readable when not using C99
+	initializers.
+	PCI table doesn't change, there's lots of users that prefer the more
+	readable variant.  And it's really far less and much easier to grok
+	lines without C99 initializers."
+
+		- Christoph Hellwig <hch@infradead.org>, 05.28.2004 linux-scsi
+
+iii.	Many fixes as suggested by Christoph Hellwig <hch@infradead.org> on
+	linux-scsi, 05.28.2004
+
+iv.	We now support up to 32 parallel ioctl commands instead of current 1.
+	There is a conscious effort to let memory allocation not fail for ioctl
+	commands.
+
+v.	Do away with internal memory management. Use pci_pool_(create|alloc)
+	instead.
+
+vi.	Kill tasklet when unloading the driver.
+
+vii.	Do not use "host_lock', driver has fine-grain locks now to protect all
+	data structures.
+
+viii.	Optimize the build scatter-gather list routine. The callers already
+	know the data transfer address and length.
+
+ix.	Better implementation of error handling and recovery. Driver now
+	performs extended errors recovery for instances like scsi cable pull.
+
+x.	Disassociate the management commands with an overlaid scsi command.
+	Driver now treats the management packets as special packets and has a
+	dedicated callback routine.

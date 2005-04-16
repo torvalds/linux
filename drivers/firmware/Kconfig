@@ -1,0 +1,61 @@
+#
+# For a description of the syntax of this configuration file,
+# see Documentation/kbuild/kconfig-language.txt.
+#
+
+menu "Firmware Drivers"
+
+config EDD
+	tristate "BIOS Enhanced Disk Drive calls determine boot disk (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	depends on !IA64
+	help
+	  Say Y or M here if you want to enable BIOS Enhanced Disk Drive
+	  Services real mode BIOS calls to determine which disk
+	  BIOS tries boot from.  This information is then exported via sysfs.
+
+	  This option is experimental and is known to fail to boot on some
+          obscure configurations. Most disk controller BIOS vendors do
+          not yet implement this feature.
+
+config EFI_VARS
+	tristate "EFI Variable Support via sysfs"
+	depends on EFI
+	default n
+	help
+	  If you say Y here, you are able to get EFI (Extensible Firmware
+	  Interface) variable information via sysfs.  You may read,
+	  write, create, and destroy EFI variables through this interface.
+
+	  Note that using this driver in concert with efibootmgr requires
+	  at least test release version 0.5.0-test3 or later, which is
+	  available from Matt Domsch's website located at:
+	  <http://linux.dell.com/efibootmgr/testing/efibootmgr-0.5.0-test3.tar.gz>
+
+	  Subsequent efibootmgr releases may be found at:
+	  <http://linux.dell.com/efibootmgr>
+
+config EFI_PCDP
+	bool "Console device selection via EFI PCDP or HCDP table"
+	depends on ACPI && EFI && IA64
+	default y if IA64
+	help
+	  If your firmware supplies the PCDP table, and you want to
+	  automatically use the primary console device it describes
+	  as the Linux console, say Y here.
+
+	  If your firmware supplies the HCDP table, and you want to
+	  use the first serial port it describes as the Linux console,
+	  say Y here.  If your EFI ConOut path contains only a UART
+	  device, it will become the console automatically.  Otherwise,
+	  you must specify the "console=hcdp" kernel boot argument.
+
+	  Neither the PCDP nor the HCDP affects naming of serial devices,
+	  so a serial console may be /dev/ttyS0, /dev/ttyS1, etc, depending
+	  on how the driver discovers devices.
+
+	  You must also enable the appropriate drivers (serial, VGA, etc.)
+
+	  See <http://www.dig64.org/specifications/DIG64_HCDPv20_042804.pdf>
+
+endmenu

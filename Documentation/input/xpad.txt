@@ -1,0 +1,116 @@
+xpad - Linux USB driver for X-Box gamepads
+
+This is the very first release of a driver for X-Box gamepads.
+Basically, this was hacked away in just a few hours, so don't expect
+miracles.
+In particular, there is currently NO support for the rumble pack.
+You won't find many ff-aware linux applications anyway.
+
+
+0. Status
+---------
+
+For now, this driver has only been tested on just one Linux-Box.
+This one is running a 2.4.18 kernel with usb-uhci on an amd athlon 600.
+
+The jstest-program from joystick-1.2.15 (jstest-version 2.1.0) reports
+8 axes and 10 buttons.
+
+Alls 8 axes work, though they all have the same range (-32768..32767)
+and the zero-setting is not correct for the triggers (I don't know if that
+is some limitation of jstest, since the input device setup should be fine. I
+didn't have a look at jstest itself yet).
+
+All of the 10 buttons work (in digital mode). The six buttons on the
+right side (A, B, X, Y, black, white) are said to be "analog" and
+report their values as 8 bit unsigned, not sure what this is good for.
+
+I tested the controller with quake3, and configuration and
+in game functionality were OK. However, I find it rather difficult to
+play first person shooters with a pad. Your mileage may vary.
+
+
+1. USB adapter
+--------------
+
+Before you can actually use the driver, you need to get yourself an
+adapter cable to connect the X-Box controller to your Linux-Box.
+
+Such a cable is pretty easy to build. The Controller itself is a USB compound
+device (a hub with three ports for two expansion slots and the controller
+device) with the only difference in a nonstandard connector (5 pins vs. 4 on
+standard USB connector).
+
+You just need to solder a USB connector onto the cable and keep the
+yellow wire unconnected. The other pins have the same order on both
+connectors so there is no magic to it. Detailed info on these matters
+can be found on the net ([1], [2], [3]).
+
+Thanks to the trip splitter found on the cable you don't even need to cut the
+original one. You can buy an extension cable and cut that instead. That way,
+you can still use the controller with your X-Box, if you have one ;)
+
+
+2. driver installation
+----------------------
+
+Once you have the adapter cable and the controller is connected, you need
+to load your USB subsystem and should cat /proc/bus/usb/devices.
+There should be an entry like the one at the end [4].
+
+Currently (as of version 0.0.4), the following three devices are included:
+ original Microsoft XBOX controller (US), vendor=0x045e, product=0x0202
+ original Microsoft XBOX controller (Japan), vendor=0x045e, product=0x0285
+ InterAct PowerPad Pro (Germany), vendor=0x05fd, product=0x107a
+
+If you have another controller that is not listed above and is not recognized
+by the driver, please drop me a line with the appropriate info (that is, include
+the name, vendor and product ID, as well as the country where you bought it;
+sending the whole dump out of /proc/bus/usb/devices along would be even better).
+
+In theory, the driver should work with other controllers than mine
+(InterAct PowerPad pro, bought in Germany) just fine, but I cannot test this
+for I only have this one controller.
+
+If you compiled and installed the driver, test the functionality:
+> modprobe xpad
+> modprobe joydev
+> jstest /dev/js0
+
+There should be a single line showing 18 inputs (8 axes, 10 buttons), and
+it's values should change if you move the sticks and push the buttons.
+
+It works? Voila, your done ;)
+
+
+3. Thanks
+---------
+
+I have to thank ITO Takayuki for the detailed info on his site
+ http://euc.jp/periphs/xbox-controller.ja.html.
+ 
+His useful info and both the usb-skeleton as well as the iforce input driver
+(Greg Kroah-Hartmann; Vojtech Pavlik) helped a lot in rapid prototyping
+the basic functionality.
+
+
+4. References
+-------------
+
+1. http://euc.jp/periphs/xbox-controller.ja.html (ITO Takayuki)
+2. http://xpad.xbox-scene.com/
+3. http://www.xboxhackz.com/Hackz-Reference.htm
+
+4. /proc/bus/usb/devices - dump from InterAct PowerPad Pro (Germany):
+
+T:  Bus=01 Lev=03 Prnt=04 Port=00 Cnt=01 Dev#=  5 Spd=12  MxCh= 0
+D:  Ver= 1.10 Cls=00(>ifc ) Sub=00 Prot=00 MxPS=32 #Cfgs=  1
+P:  Vendor=05fd ProdID=107a Rev= 1.00
+C:* #Ifs= 1 Cfg#= 1 Atr=80 MxPwr=100mA
+I:  If#= 0 Alt= 0 #EPs= 2 Cls=58(unk. ) Sub=42 Prot=00 Driver=(none)
+E:  Ad=81(I) Atr=03(Int.) MxPS=  32 Ivl= 10ms
+E:  Ad=02(O) Atr=03(Int.) MxPS=  32 Ivl= 10ms
+
+-- 
+Marko Friedemann <mfr@bmx-chemnitz.de>
+2002-07-16

@@ -1,0 +1,172 @@
+menu "Customise DVB Frontends"
+	depends on DVB_CORE
+
+comment "DVB-S (satellite) frontends"
+	depends on DVB_CORE
+
+config DVB_STV0299
+	tristate "ST STV0299 based"
+	depends on DVB_CORE
+	help
+	  A DVB-S tuner module. Say Y when you want to support this frontend.
+
+config DVB_CX24110
+	tristate "Conexant CX24110 based"
+ 	depends on DVB_CORE
+ 	help
+	  A DVB-S tuner module. Say Y when you want to support this frontend.
+ 
+config DVB_TDA8083
+	tristate "Philips TDA8083 based"
+	depends on DVB_CORE
+	help
+	  A DVB-S tuner module. Say Y when you want to support this frontend.
+
+config DVB_TDA80XX
+	tristate "Philips TDA8044 or TDA8083 based"
+	depends on DVB_CORE
+	help
+	  A DVB-S tuner module. Say Y when you want to support this frontend.
+
+config DVB_MT312
+	tristate "Zarlink MT312 based"
+	depends on DVB_CORE
+	help
+	  A DVB-S tuner module. Say Y when you want to support this frontend.
+
+config DVB_VES1X93
+	tristate "VLSI VES1893 or VES1993 based"
+	depends on DVB_CORE
+	help
+	  A DVB-S tuner module. Say Y when you want to support this frontend.
+
+comment "DVB-T (terrestrial) frontends"
+	depends on DVB_CORE
+
+config DVB_SP8870
+ 	tristate "Spase sp8870 based"
+	depends on DVB_CORE
+	select FW_LOADER
+	help
+ 	  A DVB-T tuner module. Say Y when you want to support this frontend.
+
+	  This driver needs external firmware. Please use the command
+	  "<kerneldir>/Documentation/dvb/get_dvb_firmware sp8870" to
+	  download/extract it, and then copy it to /usr/lib/hotplug/firmware.
+
+config DVB_SP887X
+ 	tristate "Spase sp887x based"
+	depends on DVB_CORE
+	select FW_LOADER
+	help
+	  A DVB-T tuner module. Say Y when you want to support this frontend.
+
+	  This driver needs external firmware. Please use the command
+	  "<kerneldir>/Documentation/dvb/get_dvb_firmware sp887x" to
+	  download/extract it, and then copy it to /usr/lib/hotplug/firmware.
+
+config DVB_CX22700
+	tristate "Conexant CX22700 based"
+	depends on DVB_CORE
+	help
+	  A DVB-T tuner module. Say Y when you want to support this frontend.
+
+config DVB_CX22702
+ 	tristate "Conexant cx22702 demodulator (OFDM)"
+ 	depends on DVB_CORE
+ 	help
+ 	  A DVB-T tuner module. Say Y when you want to support this frontend.
+
+config DVB_L64781
+	tristate "LSI L64781"
+	depends on DVB_CORE
+	help
+	  A DVB-T tuner module. Say Y when you want to support this frontend.
+
+config DVB_TDA1004X
+	tristate "Philips TDA10045H/TDA10046H based"
+	depends on DVB_CORE
+	select FW_LOADER
+	help
+	  A DVB-T tuner module. Say Y when you want to support this frontend.
+
+	  This driver needs external firmware. Please use the commands
+	  "<kerneldir>/Documentation/dvb/get_dvb_firmware tda10045",
+  	  "<kerneldir>/Documentation/dvb/get_dvb_firmware tda10046" to
+	  download/extract them, and then copy them to /usr/lib/hotplug/firmware.
+
+config DVB_NXT6000
+	tristate "NxtWave Communications NXT6000 based"
+	depends on DVB_CORE
+	help
+	  A DVB-T tuner module. Say Y when you want to support this frontend.
+
+config DVB_MT352
+	tristate "Zarlink MT352 based"
+	depends on DVB_CORE
+	help
+	  A DVB-T tuner module. Say Y when you want to support this frontend.
+
+config DVB_DIB3000MB
+	tristate "DiBcom 3000M-B"
+	depends on DVB_CORE
+	help
+	  A DVB-T tuner module. Designed for mobile usage. Say Y when you want
+	  to support this frontend.
+
+config DVB_DIB3000MC
+	tristate "DiBcom 3000P/M-C"
+	depends on DVB_CORE
+	help
+	  A DVB-T tuner module. Designed for mobile usage. Say Y when you want
+	  to support this frontend.
+
+comment "DVB-C (cable) frontends"
+	depends on DVB_CORE
+
+config DVB_ATMEL_AT76C651
+	tristate "Atmel AT76C651 based"
+	depends on DVB_CORE
+        help
+ 	  A DVB-C tuner module. Say Y when you want to support this frontend.
+
+config DVB_VES1820
+	tristate "VLSI VES1820 based"
+	depends on DVB_CORE
+	help
+ 	  A DVB-C tuner module. Say Y when you want to support this frontend.
+
+config DVB_TDA10021
+	tristate "Philips TDA10021 based"
+	depends on DVB_CORE
+	help
+ 	  A DVB-C tuner module. Say Y when you want to support this frontend.
+
+config DVB_STV0297
+	tristate "ST STV0297 based"
+	depends on DVB_CORE
+	help
+	  A DVB-C tuner module. Say Y when you want to support this frontend.
+
+comment "ATSC (North American/Korean Terresterial DTV) frontends"
+	depends on DVB_CORE
+
+config DVB_NXT2002
+	tristate "Nxt2002 based"
+	depends on DVB_CORE
+	select FW_LOADER
+	help
+	  An ATSC 8VSB tuner module. Say Y when you want to support this frontend.
+
+config DVB_OR51132
+	tristate "OR51132 based (pcHDTV)"
+	depends on DVB_CORE
+
+config DVB_OR51211
+	tristate "or51211 based (pcHDTV HD2000 card)"
+	depends on DVB_CORE
+	select FW_LOADER
+	help
+	  An ATSC 8VSB tuner module. Say Y when you want to support this frontend.
+
+endmenu

@@ -1,0 +1,55 @@
+menu "DMA support"
+
+config SH_DMA
+	bool "DMA controller (DMAC) support"
+	help
+	  Selecting this option will provide same API as PC's Direct Memory
+	  Access Controller(8237A) for SuperH DMAC.
+
+	  If unsure, say N.
+
+config NR_ONCHIP_DMA_CHANNELS
+	depends on SH_DMA
+	int "Number of on-chip DMAC channels"
+	default "4"
+	help
+	  This allows you to specify the number of channels that the on-chip
+	  DMAC supports. This will be 4 for SH7750/SH7751 and 8 for the
+	  SH7750R/SH7751R.
+
+config NR_DMA_CHANNELS_BOOL
+	depends on SH_DMA
+	bool "Override default number of maximum DMA channels"
+	help
+	  This allows you to forcibly update the maximum number of supported
+	  DMA channels for a given board. If this is unset, this will default
+	  to the number of channels that the on-chip DMAC has.
+
+config NR_DMA_CHANNELS
+	int "Maximum number of DMA channels"
+	depends on SH_DMA && NR_DMA_CHANNELS_BOOL
+	default NR_ONCHIP_DMA_CHANNELS
+	help
+	  This allows you to specify the maximum number of DMA channels to
+	  support. Setting this to a higher value allows for cascading DMACs
+	  with additional channels.
+
+config DMA_PAGE_OPS
+	bool "Use DMAC for page copy/clear"
+	depends on SH_DMA && BROKEN
+	help
+	  Selecting this option will use a dual-address mode configured channel
+	  in the SH DMAC for copy_page()/clear_page(). Primarily a performance
+	  hack.
+
+config DMA_PAGE_OPS_CHANNEL
+	depends on DMA_PAGE_OPS
+	int "DMA channel for sh memory-manager page copy/clear"
+	default "3"
+	help
+	  This allows the specification of the dual address dma channel,
+	  in case channel 3 is unavailable. On the SH4, channels 1,2, and 3
+	  are dual-address capable.
+
+endmenu
+

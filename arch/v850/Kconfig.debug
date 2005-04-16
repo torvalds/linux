@@ -1,0 +1,10 @@
+menu "Kernel hacking"
+
+source "lib/Kconfig.debug"
+
+config NO_KERNEL_MSG
+	bool "Suppress Kernel BUG Messages"
+	help
+	  Do not output any debug BUG messages within the kernel.
+
+endmenu

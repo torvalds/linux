@@ -1,0 +1,60 @@
+Mon, 15 Dec 1997	  Krzysztof G. Baranowski <kgb@manjak.knm.org.pl>
+	*    namei.c: struct sysv_dir_inode_operations updated to use dentries.
+
+Fri, 23 Jan 1998   Krzysztof G. Baranowski <kgb@manjak.knm.org.pl>
+	*    inode.c: corrected 1 track offset setting (in sb->sv_block_base).
+		      Originally it was overridden (by setting to zero)
+		      in detected_[xenix,sysv4,sysv2,coherent]. Thanks
+		      to Andrzej Krzysztofowicz <ankry@mif.pg.gda.pl>
+		      for identifying the problem.
+
+Tue, 27 Jan 1998   Krzysztof G. Baranowski <kgb@manjak.knm.org.pl>
+        *    inode.c: added 2048-byte block support to SystemV FS.
+		      Merged detected_bs[512,1024,2048]() into one function:
+		      void detected_bs (u_char type, struct super_block *sb).
+		      Thanks to Andrzej Krzysztofowicz <ankry@mif.pg.gda.pl>
+		      for the patch.
+
+Wed, 4 Feb 1998   Krzysztof G. Baranowski <kgb@manjak.knm.org.pl>
+	*    namei.c: removed static subdir(); is_subdir() from dcache.c
+		      is used instead. Cosmetic changes.
+
+Thu, 3 Dec 1998   Al Viro (viro@parcelfarce.linux.theplanet.co.uk)
+	*    namei.c (sysv_rmdir):
+		      Bugectomy: old check for victim being busy
+		      (inode->i_count) wasn't replaced (with checking
+		      dentry->d_count) and escaped Linus in the last round
+		      of changes. Shot and buried.
+
+Wed, 9 Dec 1998   AV
+	*    namei.c (do_sysv_rename):
+		       Fixed incorrect check for other owners + race.
+		       Removed checks that went to VFS.
+	*    namei.c (sysv_unlink):
+		       Removed checks that went to VFS.
+
+Thu, 10 Dec 1998   AV
+	*    namei.c (do_mknod):
+			Removed dead code - mknod is never asked to
+			create a symlink or directory. Incidentially,
+			it wouldn't do it right if it would be called.
+
+Sat, 26 Dec 1998   KGB
+	*    inode.c (detect_sysv4):
+			Added detection of expanded s_type field (0x10,
+			0x20 and 0x30).  Forced read-only access in this case.
+
+Sun, 21 Mar 1999   AV
+	*    namei.c (sysv_link):
+			Fixed i_count usage that resulted in dcache corruption.
+	*    inode.c:
+			Filled ->delete_inode() method with sysv_delete_inode().
+			sysv_put_inode() is gone, as it tried to do ->delete_
+			_inode()'s job.
+	*    ialloc.c: (sysv_free_inode):
+			Fixed race.
+
+Sun, 30 Apr 1999   AV
+	*    namei.c (sysv_mknod):
+			Removed dead code (S_IFREG case is now passed to
+			->create() by VFS).

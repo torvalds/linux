@@ -1,0 +1,97 @@
+BSD Secure Levels Linux Security Module
+Michael A. Halcrow <mike@halcrow.us>
+
+
+Introduction
+
+Under the BSD Secure Levels security model, sets of policies are
+associated with levels. Levels range from -1 to 2, with -1 being the
+weakest and 2 being the strongest. These security policies are
+enforced at the kernel level, so not even the superuser is able to
+disable or circumvent them. This hardens the machine against attackers
+who gain root access to the system.
+
+
+Levels and Policies
+
+Level -1 (Permanently Insecure):
+ - Cannot increase the secure level
+
+Level 0 (Insecure):
+ - Cannot ptrace the init process
+
+Level 1 (Default):
+ - /dev/mem and /dev/kmem are read-only
+ - IMMUTABLE and APPEND extended attributes, if set, may not be unset
+ - Cannot load or unload kernel modules
+ - Cannot write directly to a mounted block device
+ - Cannot perform raw I/O operations
+ - Cannot perform network administrative tasks
+ - Cannot setuid any file
+
+Level 2 (Secure):
+ - Cannot decrement the system time
+ - Cannot write to any block device, whether mounted or not
+ - Cannot unmount any mounted filesystems
+
+
+Compilation
+
+To compile the BSD Secure Levels LSM, seclvl.ko, enable the
+SECURITY_SECLVL configuration option.  This is found under Security
+options -> BSD Secure Levels in the kernel configuration menu.
+
+
+Basic Usage
+
+Once the machine is in a running state, with all the necessary modules
+loaded and all the filesystems mounted, you can load the seclvl.ko
+module:
+
+# insmod seclvl.ko
+
+The module defaults to secure level 1, except when compiled directly
+into the kernel, in which case it defaults to secure level 0. To raise
+the secure level to 2, the administrator writes ``2'' to the
+seclvl/seclvl file under the sysfs mount point (assumed to be /sys in
+these examples):
+
+# echo -n "2" > /sys/seclvl/seclvl
+
+Alternatively, you can initialize the module at secure level 2 with
+the initlvl module parameter:
+
+# insmod seclvl.ko initlvl=2
+
+At this point, it is impossible to remove the module or reduce the
+secure level.  If the administrator wishes to have the option of doing
+so, he must provide a module parameter, sha1_passwd, that specifies
+the SHA1 hash of the password that can be used to reduce the secure
+level to 0.
+
+To generate this SHA1 hash, the administrator can use OpenSSL:
+
+# echo -n "boogabooga" | openssl sha1
+abeda4e0f33defa51741217592bf595efb8d289c
+
+In order to use password-instigated secure level reduction, the SHA1
+crypto module must be loaded or compiled into the kernel:
+
+# insmod sha1.ko
+
+The administrator can then insmod the seclvl module, including the
+SHA1 hash of the password:
+
+# insmod seclvl.ko
+         sha1_passwd=abeda4e0f33defa51741217592bf595efb8d289c
+
+To reduce the secure level, write the password to seclvl/passwd under
+your sysfs mount point:
+
+# echo -n "boogabooga" > /sys/seclvl/passwd
+
+The September 2004 edition of Sys Admin Magazine has an article about
+the BSD Secure Levels LSM.  I encourage you to refer to that article
+for a more in-depth treatment of this security module:
+
+http://www.samag.com/documents/s=9304/sam0409a/0409a.htm

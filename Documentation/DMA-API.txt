@@ -1,0 +1,526 @@
+               Dynamic DMA mapping using the generic device
+               ============================================
+
+        James E.J. Bottomley <James.Bottomley@HansenPartnership.com>
+
+This document describes the DMA API.  For a more gentle introduction
+phrased in terms of the pci_ equivalents (and actual examples) see
+DMA-mapping.txt
+
+This API is split into two pieces.  Part I describes the API and the
+corresponding pci_ API.  Part II describes the extensions to the API
+for supporting non-consistent memory machines.  Unless you know that
+your driver absolutely has to support non-consistent platforms (this
+is usually only legacy platforms) you should only use the API
+described in part I.
+
+Part I - pci_ and dma_ Equivalent API 
+-------------------------------------
+
+To get the pci_ API, you must #include <linux/pci.h>
+To get the dma_ API, you must #include <linux/dma-mapping.h>
+
+
+Part Ia - Using large dma-coherent buffers
+------------------------------------------
+
+void *
+dma_alloc_coherent(struct device *dev, size_t size,
+			     dma_addr_t *dma_handle, int flag)
+void *
+pci_alloc_consistent(struct pci_dev *dev, size_t size,
+			     dma_addr_t *dma_handle)
+
+Consistent memory is memory for which a write by either the device or
+the processor can immediately be read by the processor or device
+without having to worry about caching effects.
+
+This routine allocates a region of <size> bytes of consistent memory.
+it also returns a <dma_handle> which may be cast to an unsigned
+integer the same width as the bus and used as the physical address
+base of the region.
+
+Returns: a pointer to the allocated region (in the processor's virtual
+address space) or NULL if the allocation failed.
+
+Note: consistent memory can be expensive on some platforms, and the
+minimum allocation length may be as big as a page, so you should
+consolidate your requests for consistent memory as much as possible.
+The simplest way to do that is to use the dma_pool calls (see below).
+
+The flag parameter (dma_alloc_coherent only) allows the caller to
+specify the GFP_ flags (see kmalloc) for the allocation (the
+implementation may chose to ignore flags that affect the location of
+the returned memory, like GFP_DMA).  For pci_alloc_consistent, you
+must assume GFP_ATOMIC behaviour.
+
+void
+dma_free_coherent(struct device *dev, size_t size, void *cpu_addr
+			   dma_addr_t dma_handle)
+void
+pci_free_consistent(struct pci_dev *dev, size_t size, void *cpu_addr
+			   dma_addr_t dma_handle)
+
+Free the region of consistent memory you previously allocated.  dev,
+size and dma_handle must all be the same as those passed into the
+consistent allocate.  cpu_addr must be the virtual address returned by
+the consistent allocate
+
+
+Part Ib - Using small dma-coherent buffers
+------------------------------------------
+
+To get this part of the dma_ API, you must #include <linux/dmapool.h>
+
+Many drivers need lots of small dma-coherent memory regions for DMA
+descriptors or I/O buffers.  Rather than allocating in units of a page
+or more using dma_alloc_coherent(), you can use DMA pools.  These work
+much like a kmem_cache_t, except that they use the dma-coherent allocator
+not __get_free_pages().  Also, they understand common hardware constraints
+for alignment, like queue heads needing to be aligned on N byte boundaries.
+
+
+	struct dma_pool *
+	dma_pool_create(const char *name, struct device *dev,
+			size_t size, size_t align, size_t alloc);
+
+	struct pci_pool *
+	pci_pool_create(const char *name, struct pci_device *dev,
+			size_t size, size_t align, size_t alloc);
+
+The pool create() routines initialize a pool of dma-coherent buffers
+for use with a given device.  It must be called in a context which
+can sleep.
+
+The "name" is for diagnostics (like a kmem_cache_t name); dev and size
+are like what you'd pass to dma_alloc_coherent().  The device's hardware
+alignment requirement for this type of data is "align" (which is expressed
+in bytes, and must be a power of two).  If your device has no boundary
+crossing restrictions, pass 0 for alloc; passing 4096 says memory allocated
+from this pool must not cross 4KByte boundaries.
+
+
+	void *dma_pool_alloc(struct dma_pool *pool, int gfp_flags,
+			dma_addr_t *dma_handle);
+
+	void *pci_pool_alloc(struct pci_pool *pool, int gfp_flags,
+			dma_addr_t *dma_handle);
+
+This allocates memory from the pool; the returned memory will meet the size
+and alignment requirements specified at creation time.  Pass GFP_ATOMIC to
+prevent blocking, or if it's permitted (not in_interrupt, not holding SMP locks)
+pass GFP_KERNEL to allow blocking.  Like dma_alloc_coherent(), this returns
+two values:  an address usable by the cpu, and the dma address usable by the
+pool's device.
+
+
+	void dma_pool_free(struct dma_pool *pool, void *vaddr,
+			dma_addr_t addr);
+
+	void pci_pool_free(struct pci_pool *pool, void *vaddr,
+			dma_addr_t addr);
+
+This puts memory back into the pool.  The pool is what was passed to
+the the pool allocation routine; the cpu and dma addresses are what
+were returned when that routine allocated the memory being freed.
+
+
+	void dma_pool_destroy(struct dma_pool *pool);
+
+	void pci_pool_destroy(struct pci_pool *pool);
+
+The pool destroy() routines free the resources of the pool.  They must be
+called in a context which can sleep.  Make sure you've freed all allocated
+memory back to the pool before you destroy it.
+
+
+Part Ic - DMA addressing limitations
+------------------------------------
+
+int
+dma_supported(struct device *dev, u64 mask)
+int
+pci_dma_supported(struct device *dev, u64 mask)
+
+Checks to see if the device can support DMA to the memory described by
+mask.
+
+Returns: 1 if it can and 0 if it can't.
+
+Notes: This routine merely tests to see if the mask is possible.  It
+won't change the current mask settings.  It is more intended as an
+internal API for use by the platform than an external API for use by
+driver writers.
+
+int
+dma_set_mask(struct device *dev, u64 mask)
+int
+pci_set_dma_mask(struct pci_device *dev, u64 mask)
+
+Checks to see if the mask is possible and updates the device
+parameters if it is.
+
+Returns: 0 if successful and a negative error if not.
+
+u64
+dma_get_required_mask(struct device *dev)
+
+After setting the mask with dma_set_mask(), this API returns the
+actual mask (within that already set) that the platform actually
+requires to operate efficiently.  Usually this means the returned mask
+is the minimum required to cover all of memory.  Examining the
+required mask gives drivers with variable descriptor sizes the
+opportunity to use smaller descriptors as necessary.
+
+Requesting the required mask does not alter the current mask.  If you
+wish to take advantage of it, you should issue another dma_set_mask()
+call to lower the mask again.
+
+
+Part Id - Streaming DMA mappings
+--------------------------------
+
+dma_addr_t
+dma_map_single(struct device *dev, void *cpu_addr, size_t size,
+		      enum dma_data_direction direction)
+dma_addr_t
+pci_map_single(struct device *dev, void *cpu_addr, size_t size,
+		      int direction)
+
+Maps a piece of processor virtual memory so it can be accessed by the
+device and returns the physical handle of the memory.
+
+The direction for both api's may be converted freely by casting.
+However the dma_ API uses a strongly typed enumerator for its
+direction:
+
+DMA_NONE		= PCI_DMA_NONE		no direction (used for
+						debugging)
+DMA_TO_DEVICE		= PCI_DMA_TODEVICE	data is going from the
+						memory to the device
+DMA_FROM_DEVICE		= PCI_DMA_FROMDEVICE	data is coming from
+						the device to the
+						memory
+DMA_BIDIRECTIONAL	= PCI_DMA_BIDIRECTIONAL	direction isn't known
+
+Notes:  Not all memory regions in a machine can be mapped by this
+API.  Further, regions that appear to be physically contiguous in
+kernel virtual space may not be contiguous as physical memory.  Since
+this API does not provide any scatter/gather capability, it will fail
+if the user tries to map a non physically contiguous piece of memory.
+For this reason, it is recommended that memory mapped by this API be
+obtained only from sources which guarantee to be physically contiguous
+(like kmalloc).
+
+Further, the physical address of the memory must be within the
+dma_mask of the device (the dma_mask represents a bit mask of the
+addressable region for the device.  i.e. if the physical address of
+the memory anded with the dma_mask is still equal to the physical
+address, then the device can perform DMA to the memory).  In order to
+ensure that the memory allocated by kmalloc is within the dma_mask,
+the driver may specify various platform dependent flags to restrict
+the physical memory range of the allocation (e.g. on x86, GFP_DMA
+guarantees to be within the first 16Mb of available physical memory,
+as required by ISA devices).
+
+Note also that the above constraints on physical contiguity and
+dma_mask may not apply if the platform has an IOMMU (a device which
+supplies a physical to virtual mapping between the I/O memory bus and
+the device).  However, to be portable, device driver writers may *not*
+assume that such an IOMMU exists.
+
+Warnings:  Memory coherency operates at a granularity called the cache
+line width.  In order for memory mapped by this API to operate
+correctly, the mapped region must begin exactly on a cache line
+boundary and end exactly on one (to prevent two separately mapped
+regions from sharing a single cache line).  Since the cache line size
+may not be known at compile time, the API will not enforce this
+requirement.  Therefore, it is recommended that driver writers who
+don't take special care to determine the cache line size at run time
+only map virtual regions that begin and end on page boundaries (which
+are guaranteed also to be cache line boundaries).
+
+DMA_TO_DEVICE synchronisation must be done after the last modification
+of the memory region by the software and before it is handed off to
+the driver.  Once this primitive is used.  Memory covered by this
+primitive should be treated as read only by the device.  If the device
+may write to it at any point, it should be DMA_BIDIRECTIONAL (see
+below).
+
+DMA_FROM_DEVICE synchronisation must be done before the driver
+accesses data that may be changed by the device.  This memory should
+be treated as read only by the driver.  If the driver needs to write
+to it at any point, it should be DMA_BIDIRECTIONAL (see below).
+
+DMA_BIDIRECTIONAL requires special handling: it means that the driver
+isn't sure if the memory was modified before being handed off to the
+device and also isn't sure if the device will also modify it.  Thus,
+you must always sync bidirectional memory twice: once before the
+memory is handed off to the device (to make sure all memory changes
+are flushed from the processor) and once before the data may be
+accessed after being used by the device (to make sure any processor
+cache lines are updated with data that the device may have changed.
+
+void
+dma_unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
+		 enum dma_data_direction direction)
+void
+pci_unmap_single(struct pci_dev *hwdev, dma_addr_t dma_addr,
+		 size_t size, int direction)
+
+Unmaps the region previously mapped.  All the parameters passed in
+must be identical to those passed in (and returned) by the mapping
+API.
+
+dma_addr_t
+dma_map_page(struct device *dev, struct page *page,
+		    unsigned long offset, size_t size,
+		    enum dma_data_direction direction)
+dma_addr_t
+pci_map_page(struct pci_dev *hwdev, struct page *page,
+		    unsigned long offset, size_t size, int direction)
+void
+dma_unmap_page(struct device *dev, dma_addr_t dma_address, size_t size,
+	       enum dma_data_direction direction)
+void
+pci_unmap_page(struct pci_dev *hwdev, dma_addr_t dma_address,
+	       size_t size, int direction)
+
+API for mapping and unmapping for pages.  All the notes and warnings
+for the other mapping APIs apply here.  Also, although the <offset>
+and <size> parameters are provided to do partial page mapping, it is
+recommended that you never use these unless you really know what the
+cache width is.
+
+int
+dma_mapping_error(dma_addr_t dma_addr)
+
+int
+pci_dma_mapping_error(dma_addr_t dma_addr)
+
+In some circumstances dma_map_single and dma_map_page will fail to create
+a mapping. A driver can check for these errors by testing the returned
+dma address with dma_mapping_error(). A non zero return value means the mapping
+could not be created and the driver should take appropriate action (eg
+reduce current DMA mapping usage or delay and try again later).
+
+int
+dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
+	   enum dma_data_direction direction)
+int
+pci_map_sg(struct pci_dev *hwdev, struct scatterlist *sg,
+	   int nents, int direction)
+
+Maps a scatter gather list from the block layer.
+
+Returns: the number of physical segments mapped (this may be shorted
+than <nents> passed in if the block layer determines that some
+elements of the scatter/gather list are physically adjacent and thus
+may be mapped with a single entry).
+
+Please note that the sg cannot be mapped again if it has been mapped once.
+The mapping process is allowed to destroy information in the sg.
+
+As with the other mapping interfaces, dma_map_sg can fail. When it
+does, 0 is returned and a driver must take appropriate action. It is
+critical that the driver do something, in the case of a block driver
+aborting the request or even oopsing is better than doing nothing and
+corrupting the filesystem.
+
+void
+dma_unmap_sg(struct device *dev, struct scatterlist *sg, int nhwentries,
+	     enum dma_data_direction direction)
+void
+pci_unmap_sg(struct pci_dev *hwdev, struct scatterlist *sg,
+	     int nents, int direction)
+
+unmap the previously mapped scatter/gather list.  All the parameters
+must be the same as those and passed in to the scatter/gather mapping
+API.
+
+Note: <nents> must be the number you passed in, *not* the number of
+physical entries returned.
+
+void
+dma_sync_single(struct device *dev, dma_addr_t dma_handle, size_t size,
+		enum dma_data_direction direction)
+void
+pci_dma_sync_single(struct pci_dev *hwdev, dma_addr_t dma_handle,
+			   size_t size, int direction)
+void
+dma_sync_sg(struct device *dev, struct scatterlist *sg, int nelems,
+			  enum dma_data_direction direction)
+void
+pci_dma_sync_sg(struct pci_dev *hwdev, struct scatterlist *sg,
+		       int nelems, int direction)
+
+synchronise a single contiguous or scatter/gather mapping.  All the
+parameters must be the same as those passed into the single mapping
+API.
+
+Notes:  You must do this:
+
+- Before reading values that have been written by DMA from the device
+  (use the DMA_FROM_DEVICE direction)
+- After writing values that will be written to the device using DMA
+  (use the DMA_TO_DEVICE) direction
+- before *and* after handing memory to the device if the memory is
+  DMA_BIDIRECTIONAL
+
+See also dma_map_single().
+
+
+Part II - Advanced dma_ usage
+-----------------------------
+
+Warning: These pieces of the DMA API have no PCI equivalent.  They
+should also not be used in the majority of cases, since they cater for
+unlikely corner cases that don't belong in usual drivers.
+
+If you don't understand how cache line coherency works between a
+processor and an I/O device, you should not be using this part of the
+API at all.
+
+void *
+dma_alloc_noncoherent(struct device *dev, size_t size,
+			       dma_addr_t *dma_handle, int flag)
+
+Identical to dma_alloc_coherent() except that the platform will
+choose to return either consistent or non-consistent memory as it sees
+fit.  By using this API, you are guaranteeing to the platform that you
+have all the correct and necessary sync points for this memory in the
+driver should it choose to return non-consistent memory.
+
+Note: where the platform can return consistent memory, it will
+guarantee that the sync points become nops.
+
+Warning:  Handling non-consistent memory is a real pain.  You should
+only ever use this API if you positively know your driver will be
+required to work on one of the rare (usually non-PCI) architectures
+that simply cannot make consistent memory.
+
+void
+dma_free_noncoherent(struct device *dev, size_t size, void *cpu_addr,
+			      dma_addr_t dma_handle)
+
+free memory allocated by the nonconsistent API.  All parameters must
+be identical to those passed in (and returned by
+dma_alloc_noncoherent()).
+
+int
+dma_is_consistent(dma_addr_t dma_handle)
+
+returns true if the memory pointed to by the dma_handle is actually
+consistent.
+
+int
+dma_get_cache_alignment(void)
+
+returns the processor cache alignment.  This is the absolute minimum
+alignment *and* width that you must observe when either mapping
+memory or doing partial flushes.
+
+Notes: This API may return a number *larger* than the actual cache
+line, but it will guarantee that one or more cache lines fit exactly
+into the width returned by this call.  It will also always be a power
+of two for easy alignment
+
+void
+dma_sync_single_range(struct device *dev, dma_addr_t dma_handle,
+		      unsigned long offset, size_t size,
+		      enum dma_data_direction direction)
+
+does a partial sync.  starting at offset and continuing for size.  You
+must be careful to observe the cache alignment and width when doing
+anything like this.  You must also be extra careful about accessing
+memory you intend to sync partially.
+
+void
+dma_cache_sync(void *vaddr, size_t size,
+	       enum dma_data_direction direction)
+
+Do a partial sync of memory that was allocated by
+dma_alloc_noncoherent(), starting at virtual address vaddr and
+continuing on for size.  Again, you *must* observe the cache line
+boundaries when doing this.
+
+int
+dma_declare_coherent_memory(struct device *dev, dma_addr_t bus_addr,
+			    dma_addr_t device_addr, size_t size, int
+			    flags)
+
+
+Declare region of memory to be handed out by dma_alloc_coherent when
+it's asked for coherent memory for this device.
+
+bus_addr is the physical address to which the memory is currently
+assigned in the bus responding region (this will be used by the
+platform to perform the mapping)
+
+device_addr is the physical address the device needs to be programmed
+with actually to address this memory (this will be handed out as the
+dma_addr_t in dma_alloc_coherent())
+
+size is the size of the area (must be multiples of PAGE_SIZE).
+
+flags can be or'd together and are
+
+DMA_MEMORY_MAP - request that the memory returned from
+dma_alloc_coherent() be directly writeable.
+
+DMA_MEMORY_IO - request that the memory returned from
+dma_alloc_coherent() be addressable using read/write/memcpy_toio etc.
+
+One or both of these flags must be present
+
+DMA_MEMORY_INCLUDES_CHILDREN - make the declared memory be allocated by
+dma_alloc_coherent of any child devices of this one (for memory residing
+on a bridge).
+
+DMA_MEMORY_EXCLUSIVE - only allocate memory from the declared regions. 
+Do not allow dma_alloc_coherent() to fall back to system memory when
+it's out of memory in the declared region.
+
+The return value will be either DMA_MEMORY_MAP or DMA_MEMORY_IO and
+must correspond to a passed in flag (i.e. no returning DMA_MEMORY_IO
+if only DMA_MEMORY_MAP were passed in) for success or zero for
+failure.
+
+Note, for DMA_MEMORY_IO returns, all subsequent memory returned by
+dma_alloc_coherent() may no longer be accessed directly, but instead
+must be accessed using the correct bus functions.  If your driver
+isn't prepared to handle this contingency, it should not specify
+DMA_MEMORY_IO in the input flags.
+
+As a simplification for the platforms, only *one* such region of
+memory may be declared per device.
+
+For reasons of efficiency, most platforms choose to track the declared
+region only at the granularity of a page.  For smaller allocations,
+you should use the dma_pool() API.
+
+void
+dma_release_declared_memory(struct device *dev)
+
+Remove the memory region previously declared from the system.  This
+API performs *no* in-use checking for this region and will return
+unconditionally having removed all the required structures.  It is the
+drivers job to ensure that no parts of this memory region are
+currently in use.
+
+void *
+dma_mark_declared_memory_occupied(struct device *dev,
+				  dma_addr_t device_addr, size_t size)
+
+This is used to occupy specific regions of the declared space
+(dma_alloc_coherent() will hand out the first free region it finds).
+
+device_addr is the *device* address of the region requested
+
+size is the size (and should be a page sized multiple).
+
+The return value will be either a pointer to the processor virtual
+address of the memory, or an error (via PTR_ERR()) if any part of the
+region is occupied.
+
+

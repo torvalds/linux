@@ -1,0 +1,8 @@
+In order to use the Ethernet bridging functionality, you'll need the
+userspace tools. These programs and documentation are available
+at http://bridge.sourceforge.net.  The download page is
+http://prdownloads.sourceforge.net/bridge.
+
+If you still have questions, don't hesitate to post to the mailing list 
+(more info http://lists.osdl.org/mailman/listinfo/bridge).
+

@@ -1,0 +1,40 @@
+$Id: TODO,v 1.10 2002/09/09 16:31:21 dwmw2 Exp $
+
+ - disable compression in commit_write()?
+ - fine-tune the allocation / GC thresholds
+ - chattr support - turning on/off and tuning compression per-inode
+ - checkpointing (do we need this? scan is quite fast)
+ - make the scan code populate real inodes so read_inode just after 
+	mount doesn't have to read the flash twice for large files.
+	Make this a per-inode option, changable with chattr, so you can
+	decide which inodes should be in-core immediately after mount.
+ - test, test, test
+
+ - NAND flash support:
+	- flush_wbuf using GC to fill it, don't just pad.
+	- Deal with write errors. Data don't get lost - we just have to write 
+	  the affected node(s) out again somewhere else.
+	- make fsync flush only if actually required
+	- make sys_sync() work.
+	- reboot notifier
+	- timed flush of old wbuf
+	- fix magical second arg of jffs2_flush_wbuf(). Split into two or more functions instead.
+
+
+ - Optimisations:
+   - Stop GC from decompressing and immediately recompressing nodes which could
+     just be copied intact. (We now keep track of REF_PRISTINE flag. Easy now.)
+   - Furthermore, in the case where it could be copied intact we don't even need
+     to call iget() for it -- if we use (raw_node_raw->flash_offset & 2) as a flag
+     to show a node can be copied intact and it's _not_ in icache, we could just do
+     it, fix up the next_in_ino list and move on. We would need a way to find out
+     _whether_ it's in icache though -- if it's in icache we also need to do the 
+     fragment lists, etc. P'raps a flag or pointer in the jffs2_inode_cache could
+     help. (We have half of this now.)
+   - Stop keeping name in-core with struct jffs2_full_dirent. If we keep the hash in 
+     the full dirent, we only need to go to the flash in lookup() when we think we've
+     got a match, and in readdir(). 
+   - Doubly-linked next_in_ino list to allow us to free obsoleted raw_node_refs immediately?
+   - Remove totlen from jffs2_raw_node_ref? Need to have totlen passed into
+	jffs2_mark_node_obsolete(). Can all callers work it out?
+   - Remove size from jffs2_raw_node_frag. 

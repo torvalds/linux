@@ -1,0 +1,212 @@
+Linux* Base Driver for the Intel(R) PRO/10GbE Family of Adapters
+================================================================
+
+November 17, 2004
+
+
+Contents
+========
+
+- In This Release
+- Identifying Your Adapter
+- Command Line Parameters
+- Improving Performance
+- Support
+
+
+In This Release
+===============
+
+This file describes the Linux* Base Driver for the Intel(R) PRO/10GbE Family 
+of Adapters, version 1.0.x.  
+
+For questions related to hardware requirements, refer to the documentation 
+supplied with your Intel PRO/10GbE adapter. All hardware requirements listed 
+apply to use with Linux.
+
+Identifying Your Adapter
+========================
+
+To verify your Intel adapter is supported, find the board ID number on the 
+adapter. Look for a label that has a barcode and a number in the format  
+A12345-001. 
+
+Use the above information and the Adapter & Driver ID Guide at:
+
+  http://support.intel.com/support/network/adapter/pro100/21397.htm
+
+For the latest Intel network drivers for Linux, go to:
+
+    http://downloadfinder.intel.com/scripts-df/support_intel.asp
+
+Command Line Parameters
+=======================
+
+If the driver is built as a module, the  following optional parameters are 
+used by entering them on the command line with the modprobe or insmod command
+using this syntax:
+
+     modprobe ixgb [<option>=<VAL1>,<VAL2>,...]
+
+     insmod ixgb [<option>=<VAL1>,<VAL2>,...]
+
+For example, with two PRO/10GbE PCI adapters, entering:
+
+    insmod ixgb TxDescriptors=80,128
+
+loads the ixgb driver with 80 TX resources for the first adapter and 128 TX 
+resources for the second adapter.
+
+The default value for each parameter is generally the recommended setting,
+unless otherwise noted. Also, if the driver is statically built into the
+kernel, the driver is loaded with the default values for all the parameters.
+Ethtool can be used to change some of the parameters at runtime.
+
+FlowControl
+Valid Range: 0-3 (0=none, 1=Rx only, 2=Tx only, 3=Rx&Tx)
+Default: Read from the EEPROM
+         If EEPROM is not detected, default is 3
+    This parameter controls the automatic generation(Tx) and response(Rx) to 
+    Ethernet PAUSE frames.
+
+RxDescriptors
+Valid Range: 64-512
+Default Value: 512
+    This value is the number of receive descriptors allocated by the driver. 
+    Increasing this value allows the driver to buffer more incoming packets. 
+    Each descriptor is 16 bytes.  A receive buffer is also allocated for 
+    each descriptor and can be either 2048, 4056, 8192, or 16384 bytes, 
+    depending on the MTU setting. When the MTU size is 1500 or less, the 
+    receive buffer size is 2048 bytes. When the MTU is greater than 1500 the
+    receive buffer size will be either 4056, 8192, or 16384 bytes. The 
+    maximum MTU size is 16114.
+
+RxIntDelay
+Valid Range: 0-65535 (0=off)
+Default Value: 6
+    This value delays the generation of receive interrupts in units of 
+    0.8192 microseconds.  Receive interrupt reduction can improve CPU 
+    efficiency if properly tuned for specific network traffic. Increasing 
+    this value adds extra latency to frame reception and can end up 
+    decreasing the throughput of TCP traffic. If the system is reporting 
+    dropped receives, this value may be set too high, causing the driver to 
+    run out of available receive descriptors.
+
+TxDescriptors
+Valid Range: 64-4096
+Default Value: 256
+    This value is the number of transmit descriptors allocated by the driver.
+    Increasing this value allows the driver to queue more transmits. Each 
+    descriptor is 16 bytes.
+
+XsumRX
+Valid Range: 0-1
+Default Value: 1
+    A value of '1' indicates that the driver should enable IP checksum
+    offload for received packets (both UDP and TCP) to the adapter hardware.
+
+XsumTX
+Valid Range: 0-1
+Default Value: 1
+    A value of '1' indicates that the driver should enable IP checksum
+    offload for transmitted packets (both UDP and TCP) to the adapter 
+    hardware.
+
+Improving Performance
+=====================
+
+With the Intel PRO/10 GbE adapter, the default Linux configuration will very 
+likely limit the total available throughput artificially.  There is a set of 
+things that when applied together increase the ability of Linux to transmit 
+and receive data.  The following enhancements were originally acquired from
+settings published at http://www.spec.org/web99 for various submitted results 
+using Linux.
+
+NOTE: These changes are only suggestions, and serve as a starting point for 
+tuning your network performance.
+
+The changes are made in three major ways, listed in order of greatest effect:
+- Use ifconfig to modify the mtu (maximum transmission unit) and the txqueuelen 
+  parameter.
+- Use sysctl to modify /proc parameters (essentially kernel tuning)
+- Use setpci to modify the MMRBC field in PCI-X configuration space to increase 
+  transmit burst lengths on the bus.
+
+NOTE: setpci modifies the adapter's configuration registers to allow it to read 
+up to 4k bytes at a time (for transmits).  However, for some systems the 
+behavior after modifying this register may be undefined (possibly errors of some 
+kind). A power-cycle, hard reset or explicitly setting the e6 register back to 
+22 (setpci -d 8086:1048 e6.b=22) may be required to get back to a stable 
+configuration.
+
+- COPY these lines and paste them into ixgb_perf.sh:
+#!/bin/bash
+echo "configuring network performance , edit this file to change the interface"
+# set mmrbc to 4k reads, modify only Intel 10GbE device IDs
+setpci -d 8086:1048 e6.b=2e
+# set the MTU (max transmission unit) - it requires your switch and clients to change too!
+# set the txqueuelen
+# your ixgb adapter should be loaded as eth1 for this to work, change if needed
+ifconfig eth1 mtu 9000 txqueuelen 1000 up
+# call the sysctl utility to modify /proc/sys entries 
+sysctl -p ./sysctl_ixgb.conf 
+- END ixgb_perf.sh
+
+- COPY these lines and paste them into sysctl_ixgb.conf:
+# some of the defaults may be different for your kernel
+# call this file with sysctl -p <this file>
+# these are just suggested values that worked well to increase throughput in
+# several network benchmark tests, your mileage may vary
+
+### IPV4 specific settings
+net.ipv4.tcp_timestamps = 0 # turns TCP timestamp support off, default 1, reduces CPU use
+net.ipv4.tcp_sack = 0 # turn SACK support off, default on
+# on systems with a VERY fast bus -> memory interface this is the big gainer 
+net.ipv4.tcp_rmem = 10000000 10000000 10000000 # sets min/default/max TCP read buffer, default 4096 87380 174760
+net.ipv4.tcp_wmem = 10000000 10000000 10000000 # sets min/pressure/max TCP write buffer, default 4096 16384 131072
+net.ipv4.tcp_mem = 10000000 10000000 10000000 # sets min/pressure/max TCP buffer space, default 31744 32256 32768
+
+### CORE settings (mostly for socket and UDP effect)
+net.core.rmem_max = 524287 # maximum receive socket buffer size, default 131071
+net.core.wmem_max = 524287 # maximum send socket buffer size, default 131071
+net.core.rmem_default = 524287 # default receive socket buffer size, default 65535
+net.core.wmem_default = 524287 # default send socket buffer size, default 65535
+net.core.optmem_max = 524287 # maximum amount of option memory buffers, default 10240
+net.core.netdev_max_backlog = 300000 # number of unprocessed input packets before kernel starts dropping them, default 300
+- END sysctl_ixgb.conf
+
+Edit the ixgb_perf.sh script if necessary to change eth1 to whatever interface 
+your ixgb driver is using.
+
+NOTE: Unless these scripts are added to the boot process, these changes will 
+only last only until the next system reboot.
+
+
+Resolving Slow UDP Traffic
+--------------------------
+
+If your server does not seem to be able to receive UDP traffic as fast as it 
+can receive TCP traffic, it could be because Linux, by default, does not set 
+the network stack buffers as large as they need to be to support high UDP 
+transfer rates. One way to alleviate this problem is to allow more memory to 
+be used by the IP stack to store incoming data. 
+
+For instance, use the commands: 
+    sysctl -w net.core.rmem_max=262143
+and
+    sysctl -w net.core.rmem_default=262143
+to increase the read buffer memory max and default to 262143 (256k - 1) from 
+defaults of max=131071 (128k - 1) and default=65535 (64k - 1). These variables 
+will increase the amount of memory used by the network stack for receives, and 
+can be increased significantly more if necessary for your application.
+
+Support
+=======
+
+For general information and support, go to the Intel support website at:
+
+    http://support.intel.com
+
+If an issue is identified with the released source code on the supported
+kernel with a supported adapter, email the specific information related to 
+the issue to linux.nics@intel.com.

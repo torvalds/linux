@@ -1,0 +1,272 @@
+
+		Writing SBUS Drivers
+
+	    David S. Miller (davem@redhat.com)
+
+	The SBUS driver interfaces of the Linux kernel have been
+revamped completely for 2.4.x for several reasons.  Foremost were
+performance and complexity concerns.  This document details these
+new interfaces and how they are used to write an SBUS device driver.
+
+	SBUS drivers need to include <asm/sbus.h> to get access
+to functions and structures described here.
+
+		Probing and Detection
+
+	Each SBUS device inside the machine is described by a
+structure called "struct sbus_dev".  Likewise, each SBUS bus
+found in the system is described by a "struct sbus_bus".  For
+each SBUS bus, the devices underneath are hung in a tree-like
+fashion off of the bus structure.
+
+	The SBUS device structure contains enough information
+for you to implement your device probing algorithm and obtain
+the bits necessary to run your device.  The most commonly
+used members of this structure, and their typical usage,
+will be detailed below.
+
+	Here is how probing is performed by an SBUS driver
+under Linux:
+
+	static void init_one_mydevice(struct sbus_dev *sdev)
+	{
+		...
+	}
+
+	static int mydevice_match(struct sbus_dev *sdev)
+	{
+		if (some_criteria(sdev))
+			return 1;
+		return 0;
+	}
+
+	static void mydevice_probe(void)
+	{
+		struct sbus_bus *sbus;
+		struct sbus_dev *sdev;
+
+		for_each_sbus(sbus) {
+			for_each_sbusdev(sdev, sbus) {
+				if (mydevice_match(sdev))
+					init_one_mydevice(sdev);
+			}
+		}
+	}
+
+	All this does is walk through all SBUS devices in the
+system, checks each to see if it is of the type which
+your driver is written for, and if so it calls the init
+routine to attach the device and prepare to drive it.
+
+	"init_one_mydevice" might do things like allocate software
+state structures, map in I/O registers, place the hardware
+into an initialized state, etc.
+
+		Mapping and Accessing I/O Registers
+
+	Each SBUS device structure contains an array of descriptors
+which describe each register set. We abuse struct resource for that.
+They each correspond to the "reg" properties provided by the OBP firmware.
+
+	Before you can access your device's registers you must map
+them.  And later if you wish to shutdown your driver (for module
+unload or similar) you must unmap them.  You must treat them as
+a resource, which you allocate (map) before using and free up
+(unmap) when you are done with it.
+
+	The mapping information is stored in an opaque value
+typed as an "unsigned long".  This is the type of the return value
+of the mapping interface, and the arguments to the unmapping
+interface.  Let's say you want to map the first set of registers.
+Perhaps part of your driver software state structure looks like:
+
+	struct mydevice {
+		unsigned long control_regs;
+	   ...
+		struct sbus_dev *sdev;
+	   ...
+	};
+
+	At initialization time you then use the sbus_ioremap
+interface to map in your registers, like so:
+
+	static void init_one_mydevice(struct sbus_dev *sdev)
+	{
+		struct mydevice *mp;
+		...
+
+		mp->control_regs = sbus_ioremap(&sdev->resource[0], 0,
+					CONTROL_REGS_SIZE, "mydevice regs");
+		if (!mp->control_regs) {
+			/* Failure, cleanup and return. */
+		}
+	}
+
+	Second argument to sbus_ioremap is an offset for
+cranky devices with broken OBP PROM. The sbus_ioremap uses only
+a start address and flags from the resource structure.
+Therefore it is possible to use the same resource to map
+several sets of registers or even to fabricate a resource
+structure if driver gets physical address from some private place.
+This practice is discouraged though. Use whatever OBP PROM
+provided to you.
+
+	And here is how you might unmap these registers later at
+driver shutdown or module unload time, using the sbus_iounmap
+interface:
+
+	static void mydevice_unmap_regs(struct mydevice *mp)
+	{
+		sbus_iounmap(mp->control_regs, CONTROL_REGS_SIZE);
+	}
+
+	Finally, to actually access your registers there are 6
+interface routines at your disposal.  Accesses are byte (8 bit),
+word (16 bit), or longword (32 bit) sized.  Here they are:
+
+	u8 sbus_readb(unsigned long reg)		/* read byte */
+	u16 sbus_readw(unsigned long reg)		/* read word */
+	u32 sbus_readl(unsigned long reg)		/* read longword */
+	void sbus_writeb(u8 value, unsigned long reg)	/* write byte */
+	void sbus_writew(u16 value, unsigned long reg)	/* write word */
+	void sbus_writel(u32 value, unsigned long reg)	/* write longword */
+
+	So, let's say your device has a control register of some sort
+at offset zero.  The following might implement resetting your device:
+
+	#define CONTROL		0x00UL
+
+	#define CONTROL_RESET	0x00000001	/* Reset hardware */
+
+	static void mydevice_reset(struct mydevice *mp)
+	{
+		sbus_writel(CONTROL_RESET, mp->regs + CONTROL);
+	}
+
+	Or perhaps there is a data port register at an offset of
+16 bytes which allows you to read bytes from a fifo in the device:
+
+	#define DATA		0x10UL
+
+	static u8 mydevice_get_byte(struct mydevice *mp)
+	{
+		return sbus_readb(mp->regs + DATA);
+	}
+
+	It's pretty straightforward, and clueful readers may have
+noticed that these interfaces mimick the PCI interfaces of the
+Linux kernel.  This was not by accident.
+
+	WARNING:
+
+		DO NOT try to treat these opaque register mapping
+		values as a memory mapped pointer to some structure
+		which you can dereference.
+
+		It may be memory mapped, it may not be.  In fact it
+		could be a physical address, or it could be the time
+		of day xor'd with 0xdeadbeef.  :-)
+
+		Whatever it is, it's an implementation detail.  The
+		interface was done this way to shield the driver
+		author from such complexities.
+
+			Doing DVMA
+
+	SBUS devices can perform DMA transactions in a way similar
+to PCI but dissimilar to ISA, e.g. DMA masters supply address.
+In contrast to PCI, however, that address (a bus address) is
+translated by IOMMU before a memory access is performed and therefore
+it is virtual. Sun calls this procedure DVMA.
+
+	Linux supports two styles of using SBUS DVMA: "consistent memory"
+and "streaming DVMA". CPU view of consistent memory chunk is, well,
+consistent with a view of a device. Think of it as an uncached memory.
+Typically this way of doing DVMA is not very fast and drivers use it
+mostly for control blocks or queues. On some CPUs we cannot flush or
+invalidate individual pages or cache lines and doing explicit flushing
+over ever little byte in every control block would be wasteful.
+
+Streaming DVMA is a preferred way to transfer large amounts of data.
+This process works in the following way:
+1. a CPU stops accessing a certain part of memory,
+   flushes its caches covering that memory;
+2. a device does DVMA accesses, then posts an interrupt;
+3. CPU invalidates its caches and starts to access the memory.
+
+A single streaming DVMA operation can touch several discontiguous
+regions of a virtual bus address space. This is called a scatter-gather
+DVMA.
+
+[TBD: Why do not we neither Solaris attempt to map disjoint pages
+into a single virtual chunk with the help of IOMMU, so that non SG
+DVMA masters would do SG? It'd be very helpful for RAID.]
+
+	In order to perform a consistent DVMA a driver does something
+like the following:
+
+	char *mem;		/* Address in the CPU space */
+	u32 busa;		/* Address in the SBus space */
+
+	mem = (char *) sbus_alloc_consistent(sdev, MYMEMSIZE, &busa);
+
+	Then mem is used when CPU accesses this memory and u32
+is fed to the device so that it can do DVMA. This is typically
+done with an sbus_writel() into some device register.
+
+	Do not forget to free the DVMA resources once you are done:
+
+	sbus_free_consistent(sdev, MYMEMSIZE, mem, busa);
+
+	Streaming DVMA is more interesting. First you allocate some
+memory suitable for it or pin down some user pages. Then it all works
+like this:
+
+	char *mem = argumen1;
+	unsigned int size = argument2;
+	u32 busa;		/* Address in the SBus space */
+
+	*mem = 1;		/* CPU can access */
+	busa = sbus_map_single(sdev, mem, size);
+	if (busa == 0) .......
+
+	/* Tell the device to use busa here */
+	/* CPU cannot access the memory without sbus_dma_sync_single() */
+
+	sbus_unmap_single(sdev, busa, size);
+	if (*mem == 0) ....	/* CPU can access again */
+
+	It is possible to retain mappings and ask the device to
+access data again and again without calling sbus_unmap_single.
+However, CPU caches must be invalidated with sbus_dma_sync_single
+before such access.
+
+[TBD but what about writeback caches here... do we have any?]
+
+	There is an equivalent set of functions doing the same thing
+only with several memory segments at once for devices capable of
+scatter-gather transfers. Use the Source, Luke.
+
+			Examples
+
+	drivers/net/sunhme.c
+	This is a complicated driver which illustrates many concepts
+discussed above and plus it handles both PCI and SBUS boards.
+
+	drivers/scsi/esp.c
+	Check it out for scatter-gather DVMA.
+
+	drivers/sbus/char/bpp.c
+	A non-DVMA device.
+
+	drivers/net/sunlance.c
+	Lance driver abuses consistent mappings for data transfer.
+It is a nifty trick which we do not particularly recommend...
+Just check it out and know that it's legal.
+
+			Bad examples, do NOT use
+
+	drivers/video/cgsix.c
+	This one uses result of sbus_ioremap as if it is an address.
+This does NOT work on sparc64 and therefore is broken. We will
+convert it at a later date.

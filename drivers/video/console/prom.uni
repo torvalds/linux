@@ -1,0 +1,11 @@
+#
+# Unicode mapping table for font in Sun PROM
+# 
+#
+0x20-0x7e	idem
+0xa0-0xff	idem
+#
+0x7c		U+2502
+0x2d		U+2500
+0x2b		U+250c U+2510 U+2514 U+2518 U+251c U+2524 U+252c U+2534 U+253c
+0xa4		U+fffd

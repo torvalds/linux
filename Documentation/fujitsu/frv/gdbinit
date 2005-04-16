@@ -1,0 +1,102 @@
+set remotebreak 1
+
+define _amr
+
+printf "AMRx           DAMR                    IAMR         \n"
+printf "====   =====================   =====================\n"
+printf "amr0 : L:%08lx P:%08lx : L:%08lx P:%08lx\n",__debug_mmu.damr[0x0].L,__debug_mmu.damr[0x0].P,__debug_mmu.iamr[0x0].L,__debug_mmu.iamr[0x0].P
+printf "amr1 : L:%08lx P:%08lx : L:%08lx P:%08lx\n",__debug_mmu.damr[0x1].L,__debug_mmu.damr[0x1].P,__debug_mmu.iamr[0x1].L,__debug_mmu.iamr[0x1].P
+printf "amr2 : L:%08lx P:%08lx : L:%08lx P:%08lx\n",__debug_mmu.damr[0x2].L,__debug_mmu.damr[0x2].P,__debug_mmu.iamr[0x2].L,__debug_mmu.iamr[0x2].P
+printf "amr3 : L:%08lx P:%08lx : L:%08lx P:%08lx\n",__debug_mmu.damr[0x3].L,__debug_mmu.damr[0x3].P,__debug_mmu.iamr[0x3].L,__debug_mmu.iamr[0x3].P
+printf "amr4 : L:%08lx P:%08lx : L:%08lx P:%08lx\n",__debug_mmu.damr[0x4].L,__debug_mmu.damr[0x4].P,__debug_mmu.iamr[0x4].L,__debug_mmu.iamr[0x4].P
+printf "amr5 : L:%08lx P:%08lx : L:%08lx P:%08lx\n",__debug_mmu.damr[0x5].L,__debug_mmu.damr[0x5].P,__debug_mmu.iamr[0x5].L,__debug_mmu.iamr[0x5].P
+printf "amr6 : L:%08lx P:%08lx : L:%08lx P:%08lx\n",__debug_mmu.damr[0x6].L,__debug_mmu.damr[0x6].P,__debug_mmu.iamr[0x6].L,__debug_mmu.iamr[0x6].P
+printf "amr7 : L:%08lx P:%08lx : L:%08lx P:%08lx\n",__debug_mmu.damr[0x7].L,__debug_mmu.damr[0x7].P,__debug_mmu.iamr[0x7].L,__debug_mmu.iamr[0x7].P
+
+printf "amr8 : L:%08lx P:%08lx\n",__debug_mmu.damr[0x8].L,__debug_mmu.damr[0x8].P
+printf "amr9 : L:%08lx P:%08lx\n",__debug_mmu.damr[0x9].L,__debug_mmu.damr[0x9].P
+printf "amr10: L:%08lx P:%08lx\n",__debug_mmu.damr[0xa].L,__debug_mmu.damr[0xa].P
+printf "amr11: L:%08lx P:%08lx\n",__debug_mmu.damr[0xb].L,__debug_mmu.damr[0xb].P
+
+end
+
+
+define _tlb
+printf "tlb[0x00]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x0].L,__debug_mmu.tlb[0x0].P,__debug_mmu.tlb[0x40+0x0].L,__debug_mmu.tlb[0x40+0x0].P
+printf "tlb[0x01]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x1].L,__debug_mmu.tlb[0x1].P,__debug_mmu.tlb[0x40+0x1].L,__debug_mmu.tlb[0x40+0x1].P
+printf "tlb[0x02]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x2].L,__debug_mmu.tlb[0x2].P,__debug_mmu.tlb[0x40+0x2].L,__debug_mmu.tlb[0x40+0x2].P
+printf "tlb[0x03]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x3].L,__debug_mmu.tlb[0x3].P,__debug_mmu.tlb[0x40+0x3].L,__debug_mmu.tlb[0x40+0x3].P
+printf "tlb[0x04]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x4].L,__debug_mmu.tlb[0x4].P,__debug_mmu.tlb[0x40+0x4].L,__debug_mmu.tlb[0x40+0x4].P
+printf "tlb[0x05]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x5].L,__debug_mmu.tlb[0x5].P,__debug_mmu.tlb[0x40+0x5].L,__debug_mmu.tlb[0x40+0x5].P
+printf "tlb[0x06]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x6].L,__debug_mmu.tlb[0x6].P,__debug_mmu.tlb[0x40+0x6].L,__debug_mmu.tlb[0x40+0x6].P
+printf "tlb[0x07]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x7].L,__debug_mmu.tlb[0x7].P,__debug_mmu.tlb[0x40+0x7].L,__debug_mmu.tlb[0x40+0x7].P
+printf "tlb[0x08]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x8].L,__debug_mmu.tlb[0x8].P,__debug_mmu.tlb[0x40+0x8].L,__debug_mmu.tlb[0x40+0x8].P
+printf "tlb[0x09]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x9].L,__debug_mmu.tlb[0x9].P,__debug_mmu.tlb[0x40+0x9].L,__debug_mmu.tlb[0x40+0x9].P
+printf "tlb[0x0a]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0xa].L,__debug_mmu.tlb[0xa].P,__debug_mmu.tlb[0x40+0xa].L,__debug_mmu.tlb[0x40+0xa].P
+printf "tlb[0x0b]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0xb].L,__debug_mmu.tlb[0xb].P,__debug_mmu.tlb[0x40+0xb].L,__debug_mmu.tlb[0x40+0xb].P
+printf "tlb[0x0c]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0xc].L,__debug_mmu.tlb[0xc].P,__debug_mmu.tlb[0x40+0xc].L,__debug_mmu.tlb[0x40+0xc].P
+printf "tlb[0x0d]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0xd].L,__debug_mmu.tlb[0xd].P,__debug_mmu.tlb[0x40+0xd].L,__debug_mmu.tlb[0x40+0xd].P
+printf "tlb[0x0e]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0xe].L,__debug_mmu.tlb[0xe].P,__debug_mmu.tlb[0x40+0xe].L,__debug_mmu.tlb[0x40+0xe].P
+printf "tlb[0x0f]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0xf].L,__debug_mmu.tlb[0xf].P,__debug_mmu.tlb[0x40+0xf].L,__debug_mmu.tlb[0x40+0xf].P
+printf "tlb[0x10]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x10].L,__debug_mmu.tlb[0x10].P,__debug_mmu.tlb[0x40+0x10].L,__debug_mmu.tlb[0x40+0x10].P
+printf "tlb[0x11]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x11].L,__debug_mmu.tlb[0x11].P,__debug_mmu.tlb[0x40+0x11].L,__debug_mmu.tlb[0x40+0x11].P
+printf "tlb[0x12]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x12].L,__debug_mmu.tlb[0x12].P,__debug_mmu.tlb[0x40+0x12].L,__debug_mmu.tlb[0x40+0x12].P
+printf "tlb[0x13]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x13].L,__debug_mmu.tlb[0x13].P,__debug_mmu.tlb[0x40+0x13].L,__debug_mmu.tlb[0x40+0x13].P
+printf "tlb[0x14]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x14].L,__debug_mmu.tlb[0x14].P,__debug_mmu.tlb[0x40+0x14].L,__debug_mmu.tlb[0x40+0x14].P
+printf "tlb[0x15]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x15].L,__debug_mmu.tlb[0x15].P,__debug_mmu.tlb[0x40+0x15].L,__debug_mmu.tlb[0x40+0x15].P
+printf "tlb[0x16]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x16].L,__debug_mmu.tlb[0x16].P,__debug_mmu.tlb[0x40+0x16].L,__debug_mmu.tlb[0x40+0x16].P
+printf "tlb[0x17]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x17].L,__debug_mmu.tlb[0x17].P,__debug_mmu.tlb[0x40+0x17].L,__debug_mmu.tlb[0x40+0x17].P
+printf "tlb[0x18]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x18].L,__debug_mmu.tlb[0x18].P,__debug_mmu.tlb[0x40+0x18].L,__debug_mmu.tlb[0x40+0x18].P
+printf "tlb[0x19]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x19].L,__debug_mmu.tlb[0x19].P,__debug_mmu.tlb[0x40+0x19].L,__debug_mmu.tlb[0x40+0x19].P
+printf "tlb[0x1a]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x1a].L,__debug_mmu.tlb[0x1a].P,__debug_mmu.tlb[0x40+0x1a].L,__debug_mmu.tlb[0x40+0x1a].P
+printf "tlb[0x1b]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x1b].L,__debug_mmu.tlb[0x1b].P,__debug_mmu.tlb[0x40+0x1b].L,__debug_mmu.tlb[0x40+0x1b].P
+printf "tlb[0x1c]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x1c].L,__debug_mmu.tlb[0x1c].P,__debug_mmu.tlb[0x40+0x1c].L,__debug_mmu.tlb[0x40+0x1c].P
+printf "tlb[0x1d]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x1d].L,__debug_mmu.tlb[0x1d].P,__debug_mmu.tlb[0x40+0x1d].L,__debug_mmu.tlb[0x40+0x1d].P
+printf "tlb[0x1e]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x1e].L,__debug_mmu.tlb[0x1e].P,__debug_mmu.tlb[0x40+0x1e].L,__debug_mmu.tlb[0x40+0x1e].P
+printf "tlb[0x1f]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x1f].L,__debug_mmu.tlb[0x1f].P,__debug_mmu.tlb[0x40+0x1f].L,__debug_mmu.tlb[0x40+0x1f].P
+printf "tlb[0x20]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x20].L,__debug_mmu.tlb[0x20].P,__debug_mmu.tlb[0x40+0x20].L,__debug_mmu.tlb[0x40+0x20].P
+printf "tlb[0x21]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x21].L,__debug_mmu.tlb[0x21].P,__debug_mmu.tlb[0x40+0x21].L,__debug_mmu.tlb[0x40+0x21].P
+printf "tlb[0x22]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x22].L,__debug_mmu.tlb[0x22].P,__debug_mmu.tlb[0x40+0x22].L,__debug_mmu.tlb[0x40+0x22].P
+printf "tlb[0x23]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x23].L,__debug_mmu.tlb[0x23].P,__debug_mmu.tlb[0x40+0x23].L,__debug_mmu.tlb[0x40+0x23].P
+printf "tlb[0x24]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x24].L,__debug_mmu.tlb[0x24].P,__debug_mmu.tlb[0x40+0x24].L,__debug_mmu.tlb[0x40+0x24].P
+printf "tlb[0x25]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x25].L,__debug_mmu.tlb[0x25].P,__debug_mmu.tlb[0x40+0x25].L,__debug_mmu.tlb[0x40+0x25].P
+printf "tlb[0x26]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x26].L,__debug_mmu.tlb[0x26].P,__debug_mmu.tlb[0x40+0x26].L,__debug_mmu.tlb[0x40+0x26].P
+printf "tlb[0x27]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x27].L,__debug_mmu.tlb[0x27].P,__debug_mmu.tlb[0x40+0x27].L,__debug_mmu.tlb[0x40+0x27].P
+printf "tlb[0x28]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x28].L,__debug_mmu.tlb[0x28].P,__debug_mmu.tlb[0x40+0x28].L,__debug_mmu.tlb[0x40+0x28].P
+printf "tlb[0x29]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x29].L,__debug_mmu.tlb[0x29].P,__debug_mmu.tlb[0x40+0x29].L,__debug_mmu.tlb[0x40+0x29].P
+printf "tlb[0x2a]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x2a].L,__debug_mmu.tlb[0x2a].P,__debug_mmu.tlb[0x40+0x2a].L,__debug_mmu.tlb[0x40+0x2a].P
+printf "tlb[0x2b]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x2b].L,__debug_mmu.tlb[0x2b].P,__debug_mmu.tlb[0x40+0x2b].L,__debug_mmu.tlb[0x40+0x2b].P
+printf "tlb[0x2c]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x2c].L,__debug_mmu.tlb[0x2c].P,__debug_mmu.tlb[0x40+0x2c].L,__debug_mmu.tlb[0x40+0x2c].P
+printf "tlb[0x2d]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x2d].L,__debug_mmu.tlb[0x2d].P,__debug_mmu.tlb[0x40+0x2d].L,__debug_mmu.tlb[0x40+0x2d].P
+printf "tlb[0x2e]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x2e].L,__debug_mmu.tlb[0x2e].P,__debug_mmu.tlb[0x40+0x2e].L,__debug_mmu.tlb[0x40+0x2e].P
+printf "tlb[0x2f]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x2f].L,__debug_mmu.tlb[0x2f].P,__debug_mmu.tlb[0x40+0x2f].L,__debug_mmu.tlb[0x40+0x2f].P
+printf "tlb[0x30]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x30].L,__debug_mmu.tlb[0x30].P,__debug_mmu.tlb[0x40+0x30].L,__debug_mmu.tlb[0x40+0x30].P
+printf "tlb[0x31]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x31].L,__debug_mmu.tlb[0x31].P,__debug_mmu.tlb[0x40+0x31].L,__debug_mmu.tlb[0x40+0x31].P
+printf "tlb[0x32]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x32].L,__debug_mmu.tlb[0x32].P,__debug_mmu.tlb[0x40+0x32].L,__debug_mmu.tlb[0x40+0x32].P
+printf "tlb[0x33]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x33].L,__debug_mmu.tlb[0x33].P,__debug_mmu.tlb[0x40+0x33].L,__debug_mmu.tlb[0x40+0x33].P
+printf "tlb[0x34]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x34].L,__debug_mmu.tlb[0x34].P,__debug_mmu.tlb[0x40+0x34].L,__debug_mmu.tlb[0x40+0x34].P
+printf "tlb[0x35]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x35].L,__debug_mmu.tlb[0x35].P,__debug_mmu.tlb[0x40+0x35].L,__debug_mmu.tlb[0x40+0x35].P
+printf "tlb[0x36]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x36].L,__debug_mmu.tlb[0x36].P,__debug_mmu.tlb[0x40+0x36].L,__debug_mmu.tlb[0x40+0x36].P
+printf "tlb[0x37]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x37].L,__debug_mmu.tlb[0x37].P,__debug_mmu.tlb[0x40+0x37].L,__debug_mmu.tlb[0x40+0x37].P
+printf "tlb[0x38]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x38].L,__debug_mmu.tlb[0x38].P,__debug_mmu.tlb[0x40+0x38].L,__debug_mmu.tlb[0x40+0x38].P
+printf "tlb[0x39]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x39].L,__debug_mmu.tlb[0x39].P,__debug_mmu.tlb[0x40+0x39].L,__debug_mmu.tlb[0x40+0x39].P
+printf "tlb[0x3a]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x3a].L,__debug_mmu.tlb[0x3a].P,__debug_mmu.tlb[0x40+0x3a].L,__debug_mmu.tlb[0x40+0x3a].P
+printf "tlb[0x3b]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x3b].L,__debug_mmu.tlb[0x3b].P,__debug_mmu.tlb[0x40+0x3b].L,__debug_mmu.tlb[0x40+0x3b].P
+printf "tlb[0x3c]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x3c].L,__debug_mmu.tlb[0x3c].P,__debug_mmu.tlb[0x40+0x3c].L,__debug_mmu.tlb[0x40+0x3c].P
+printf "tlb[0x3d]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x3d].L,__debug_mmu.tlb[0x3d].P,__debug_mmu.tlb[0x40+0x3d].L,__debug_mmu.tlb[0x40+0x3d].P
+printf "tlb[0x3e]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x3e].L,__debug_mmu.tlb[0x3e].P,__debug_mmu.tlb[0x40+0x3e].L,__debug_mmu.tlb[0x40+0x3e].P
+printf "tlb[0x3f]: %08lx %08lx  %08lx %08lx\n",__debug_mmu.tlb[0x3f].L,__debug_mmu.tlb[0x3f].P,__debug_mmu.tlb[0x40+0x3f].L,__debug_mmu.tlb[0x40+0x3f].P
+end
+
+
+define _pgd
+p (pgd_t[0x40])*(pgd_t*)(__debug_mmu.damr[0x3].L)
+end
+
+define _ptd_i
+p (pte_t[0x1000])*(pte_t*)(__debug_mmu.damr[0x4].L)
+end
+
+define _ptd_d
+p (pte_t[0x1000])*(pte_t*)(__debug_mmu.damr[0x5].L)
+end

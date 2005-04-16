@@ -1,0 +1,21 @@
+config DVB_TTUSB_DEC
+	tristate "Technotrend/Hauppauge USB DEC devices"
+	depends on DVB_CORE && USB
+	select FW_LOADER
+	select CRC32
+	help
+	  Support for external USB adapters designed by Technotrend and
+	  produced by Hauppauge, shipped under the brand name 'DEC2000-t'
+	  and 'DEC3000-s'.
+
+          Even if these devices have a MPEG decoder built in, they transmit
+	  only compressed MPEG data over the USB bus, so you need
+	  an external software decoder to watch TV on your computer.
+
+          This driver needs external firmware. Please use the commands
+          "<kerneldir>/Documentation/dvb/get_dvb_firmware dec2000t",
+          "<kerneldir>/Documentation/dvb/get_dvb_firmware dec2540t",
+          "<kerneldir>/Documentation/dvb/get_dvb_firmware dec3000s",
+          download/extract them, and then copy them to /usr/lib/hotplug/firmware.
+
+	  Say Y if you own such a device and want to use it.

@@ -1,0 +1,91 @@
+#
+# Security configuration
+#
+
+menu "Security options"
+
+config KEYS
+	bool "Enable access key retention support"
+	help
+	  This option provides support for retaining authentication tokens and
+	  access keys in the kernel.
+
+	  It also includes provision of methods by which such keys might be
+	  associated with a process so that network filesystems, encryption
+	  support and the like can find them.
+
+	  Furthermore, a special type of key is available that acts as keyring:
+	  a searchable sequence of keys. Each process is equipped with access
+	  to five standard keyrings: UID-specific, GID-specific, session,
+	  process and thread.
+
+	  If you are unsure as to whether this is required, answer N.
+
+config KEYS_DEBUG_PROC_KEYS
+	bool "Enable the /proc/keys file by which all keys may be viewed"
+	depends on KEYS
+	help
+	  This option turns on support for the /proc/keys file through which
+	  all the keys on the system can be listed.
+
+	  This option is a slight security risk in that it makes it possible
+	  for anyone to see all the keys on the system. Normally the manager
+	  pretends keys that are inaccessible to a process don't exist as far
+	  as that process is concerned.
+
+config SECURITY
+	bool "Enable different security models"
+	help
+	  This allows you to choose different security modules to be
+	  configured into your kernel.
+
+	  If this option is not selected, the default Linux security
+	  model will be used.
+
+	  If you are unsure how to answer this question, answer N.
+
+config SECURITY_NETWORK
+	bool "Socket and Networking Security Hooks"
+	depends on SECURITY
+	help
+	  This enables the socket and networking security hooks.
+	  If enabled, a security module can use these hooks to
+	  implement socket and networking access controls.
+	  If you are unsure how to answer this question, answer N.
+
+config SECURITY_CAPABILITIES
+	tristate "Default Linux Capabilities"
+	depends on SECURITY
+	help
+	  This enables the "default" Linux capabilities functionality.
+	  If you are unsure how to answer this question, answer Y.
+
+config SECURITY_ROOTPLUG
+	tristate "Root Plug Support"
+	depends on USB && SECURITY
+	help
+	  This is a sample LSM module that should only be used as such.
+	  It prevents any programs running with egid == 0 if a specific
+	  USB device is not present in the system.
+
+	  See <http://www.linuxjournal.com/article.php?sid=6279> for
+	  more information about this module.
+	  
+	  If you are unsure how to answer this question, answer N.
+
+config SECURITY_SECLVL
+	tristate "BSD Secure Levels"
+	depends on SECURITY
+	select CRYPTO
+	select CRYPTO_SHA1
+	help
+	  Implements BSD Secure Levels as an LSM.  See
+	  <file:Documentation/seclvl.txt> for instructions on how to use this
+	  module.
+
+	  If you are unsure how to answer this question, answer N.
+
+source security/selinux/Kconfig
+
+endmenu
+

@@ -1,0 +1,816 @@
+This is a small guide for those who want to write kernel drivers for I2C
+or SMBus devices.
+
+To set up a driver, you need to do several things. Some are optional, and
+some things can be done slightly or completely different. Use this as a
+guide, not as a rule book!
+
+
+General remarks
+===============
+
+Try to keep the kernel namespace as clean as possible. The best way to
+do this is to use a unique prefix for all global symbols. This is 
+especially important for exported symbols, but it is a good idea to do
+it for non-exported symbols too. We will use the prefix `foo_' in this
+tutorial, and `FOO_' for preprocessor variables.
+
+
+The driver structure
+====================
+
+Usually, you will implement a single driver structure, and instantiate
+all clients from it. Remember, a driver structure contains general access 
+routines, a client structure specific information like the actual I2C
+address.
+
+static struct i2c_driver foo_driver = {
+	.owner		= THIS_MODULE,
+	.name		= "Foo version 2.3 driver",
+	.id		= I2C_DRIVERID_FOO, /* from i2c-id.h, optional */
+	.flags		= I2C_DF_NOTIFY,
+	.attach_adapter	= &foo_attach_adapter,
+	.detach_client	= &foo_detach_client,
+	.command	= &foo_command /* may be NULL */
+}
+ 
+The name can be chosen freely, and may be upto 40 characters long. Please
+use something descriptive here.
+
+If used, the id should be a unique ID. The range 0xf000 to 0xffff is
+reserved for local use, and you can use one of those until you start
+distributing the driver, at which time you should contact the i2c authors
+to get your own ID(s). Note that most of the time you don't need an ID
+at all so you can just omit it.
+
+Don't worry about the flags field; just put I2C_DF_NOTIFY into it. This
+means that your driver will be notified when new adapters are found.
+This is almost always what you want.
+
+All other fields are for call-back functions which will be explained 
+below.
+
+There use to be two additional fields in this structure, inc_use et dec_use,
+for module usage count, but these fields were obsoleted and removed.
+
+
+Extra client data
+=================
+
+The client structure has a special `data' field that can point to any
+structure at all. You can use this to keep client-specific data. You
+do not always need this, but especially for `sensors' drivers, it can
+be very useful.
+
+An example structure is below.
+
+  struct foo_data {
+    struct semaphore lock; /* For ISA access in `sensors' drivers. */
+    int sysctl_id;         /* To keep the /proc directory entry for 
+                              `sensors' drivers. */
+    enum chips type;       /* To keep the chips type for `sensors' drivers. */
+   
+    /* Because the i2c bus is slow, it is often useful to cache the read
+       information of a chip for some time (for example, 1 or 2 seconds).
+       It depends of course on the device whether this is really worthwhile
+       or even sensible. */
+    struct semaphore update_lock; /* When we are reading lots of information,
+                                     another process should not update the
+                                     below information */
+    char valid;                   /* != 0 if the following fields are valid. */
+    unsigned long last_updated;   /* In jiffies */
+    /* Add the read information here too */
+  };
+
+
+Accessing the client
+====================
+
+Let's say we have a valid client structure. At some time, we will need
+to gather information from the client, or write new information to the
+client. How we will export this information to user-space is less 
+important at this moment (perhaps we do not need to do this at all for
+some obscure clients). But we need generic reading and writing routines.
+
+I have found it useful to define foo_read and foo_write function for this.
+For some cases, it will be easier to call the i2c functions directly,
+but many chips have some kind of register-value idea that can easily
+be encapsulated. Also, some chips have both ISA and I2C interfaces, and
+it useful to abstract from this (only for `sensors' drivers).
+
+The below functions are simple examples, and should not be copied
+literally.
+
+  int foo_read_value(struct i2c_client *client, u8 reg)
+  {
+    if (reg < 0x10) /* byte-sized register */
+      return i2c_smbus_read_byte_data(client,reg);
+    else /* word-sized register */
+      return i2c_smbus_read_word_data(client,reg);
+  }
+
+  int foo_write_value(struct i2c_client *client, u8 reg, u16 value)
+  {
+    if (reg == 0x10) /* Impossible to write - driver error! */ {
+      return -1;
+    else if (reg < 0x10) /* byte-sized register */
+      return i2c_smbus_write_byte_data(client,reg,value);
+    else /* word-sized register */
+      return i2c_smbus_write_word_data(client,reg,value);
+  }
+
+For sensors code, you may have to cope with ISA registers too. Something
+like the below often works. Note the locking! 
+
+  int foo_read_value(struct i2c_client *client, u8 reg)
+  {
+    int res;
+    if (i2c_is_isa_client(client)) {
+      down(&(((struct foo_data *) (client->data)) -> lock));
+      outb_p(reg,client->addr + FOO_ADDR_REG_OFFSET);
+      res = inb_p(client->addr + FOO_DATA_REG_OFFSET);
+      up(&(((struct foo_data *) (client->data)) -> lock));
+      return res;
+    } else
+      return i2c_smbus_read_byte_data(client,reg);
+  }
+
+Writing is done the same way.
+
+
+Probing and attaching
+=====================
+
+Most i2c devices can be present on several i2c addresses; for some this
+is determined in hardware (by soldering some chip pins to Vcc or Ground),
+for others this can be changed in software (by writing to specific client
+registers). Some devices are usually on a specific address, but not always;
+and some are even more tricky. So you will probably need to scan several
+i2c addresses for your clients, and do some sort of detection to see
+whether it is actually a device supported by your driver.
+
+To give the user a maximum of possibilities, some default module parameters
+are defined to help determine what addresses are scanned. Several macros
+are defined in i2c.h to help you support them, as well as a generic
+detection algorithm.
+
+You do not have to use this parameter interface; but don't try to use
+function i2c_probe() (or i2c_detect()) if you don't.
+
+NOTE: If you want to write a `sensors' driver, the interface is slightly
+      different! See below.
+
+
+
+Probing classes (i2c)
+---------------------
+
+All parameters are given as lists of unsigned 16-bit integers. Lists are
+terminated by I2C_CLIENT_END.
+The following lists are used internally:
+
+  normal_i2c: filled in by the module writer. 
+     A list of I2C addresses which should normally be examined.
+   normal_i2c_range: filled in by the module writer.
+     A list of pairs of I2C addresses, each pair being an inclusive range of
+     addresses which should normally be examined.
+   probe: insmod parameter. 
+     A list of pairs. The first value is a bus number (-1 for any I2C bus), 
+     the second is the address. These addresses are also probed, as if they 
+     were in the 'normal' list.
+   probe_range: insmod parameter. 
+     A list of triples. The first value is a bus number (-1 for any I2C bus), 
+     the second and third are addresses.  These form an inclusive range of 
+     addresses that are also probed, as if they were in the 'normal' list.
+   ignore: insmod parameter.
+     A list of pairs. The first value is a bus number (-1 for any I2C bus), 
+     the second is the I2C address. These addresses are never probed. 
+     This parameter overrules 'normal' and 'probe', but not the 'force' lists.
+   ignore_range: insmod parameter. 
+     A list of triples. The first value is a bus number (-1 for any I2C bus), 
+     the second and third are addresses. These form an inclusive range of 
+     I2C addresses that are never probed.
+     This parameter overrules 'normal' and 'probe', but not the 'force' lists.
+   force: insmod parameter. 
+     A list of pairs. The first value is a bus number (-1 for any I2C bus),
+     the second is the I2C address. A device is blindly assumed to be on
+     the given address, no probing is done. 
+
+Fortunately, as a module writer, you just have to define the `normal' 
+and/or `normal_range' parameters. The complete declaration could look
+like this:
+
+  /* Scan 0x20 to 0x2f, 0x37, and 0x40 to 0x4f */
+  static unsigned short normal_i2c[] = { 0x37,I2C_CLIENT_END }; 
+  static unsigned short normal_i2c_range[] = { 0x20, 0x2f, 0x40, 0x4f, 
+                                               I2C_CLIENT_END };
+
+  /* Magic definition of all other variables and things */
+  I2C_CLIENT_INSMOD;
+
+Note that you *have* to call the two defined variables `normal_i2c' and
+`normal_i2c_range', without any prefix!
+
+
+Probing classes (sensors)
+-------------------------
+
+If you write a `sensors' driver, you use a slightly different interface.
+As well as I2C addresses, we have to cope with ISA addresses. Also, we
+use a enum of chip types. Don't forget to include `sensors.h'.
+
+The following lists are used internally. They are all lists of integers.
+
+   normal_i2c: filled in by the module writer. Terminated by SENSORS_I2C_END.
+     A list of I2C addresses which should normally be examined.
+   normal_i2c_range: filled in by the module writer. Terminated by 
+     SENSORS_I2C_END
+     A list of pairs of I2C addresses, each pair being an inclusive range of
+     addresses which should normally be examined.
+   normal_isa: filled in by the module writer. Terminated by SENSORS_ISA_END.
+     A list of ISA addresses which should normally be examined.
+   normal_isa_range: filled in by the module writer. Terminated by 
+     SENSORS_ISA_END
+     A list of triples. The first two elements are ISA addresses, being an
+     range of addresses which should normally be examined. The third is the
+     modulo parameter: only addresses which are 0 module this value relative
+     to the first address of the range are actually considered.
+   probe: insmod parameter. Initialize this list with SENSORS_I2C_END values.
+     A list of pairs. The first value is a bus number (SENSORS_ISA_BUS for
+     the ISA bus, -1 for any I2C bus), the second is the address. These
+     addresses are also probed, as if they were in the 'normal' list.
+   probe_range: insmod parameter. Initialize this list with SENSORS_I2C_END 
+     values.
+     A list of triples. The first value is a bus number (SENSORS_ISA_BUS for
+     the ISA bus, -1 for any I2C bus), the second and third are addresses. 
+     These form an inclusive range of addresses that are also probed, as
+     if they were in the 'normal' list.
+   ignore: insmod parameter. Initialize this list with SENSORS_I2C_END values.
+     A list of pairs. The first value is a bus number (SENSORS_ISA_BUS for
+     the ISA bus, -1 for any I2C bus), the second is the I2C address. These
+     addresses are never probed. This parameter overrules 'normal' and 
+     'probe', but not the 'force' lists.
+   ignore_range: insmod parameter. Initialize this list with SENSORS_I2C_END 
+      values.
+     A list of triples. The first value is a bus number (SENSORS_ISA_BUS for
+     the ISA bus, -1 for any I2C bus), the second and third are addresses. 
+     These form an inclusive range of I2C addresses that are never probed.
+     This parameter overrules 'normal' and 'probe', but not the 'force' lists.
+
+Also used is a list of pointers to sensors_force_data structures:
+   force_data: insmod parameters. A list, ending with an element of which
+     the force field is NULL.
+     Each element contains the type of chip and a list of pairs.
+     The first value is a bus number (SENSORS_ISA_BUS for the ISA bus, 
+     -1 for any I2C bus), the second is the address. 
+     These are automatically translated to insmod variables of the form
+     force_foo.
+
+So we have a generic insmod variabled `force', and chip-specific variables
+`force_CHIPNAME'.
+
+Fortunately, as a module writer, you just have to define the `normal' 
+and/or `normal_range' parameters, and define what chip names are used. 
+The complete declaration could look like this:
+  /* Scan i2c addresses 0x20 to 0x2f, 0x37, and 0x40 to 0x4f
+  static unsigned short normal_i2c[] = {0x37,SENSORS_I2C_END};
+  static unsigned short normal_i2c_range[] = {0x20,0x2f,0x40,0x4f,
+                                              SENSORS_I2C_END};
+  /* Scan ISA address 0x290 */
+  static unsigned int normal_isa[] = {0x0290,SENSORS_ISA_END};
+  static unsigned int normal_isa_range[] = {SENSORS_ISA_END};
+
+  /* Define chips foo and bar, as well as all module parameters and things */
+  SENSORS_INSMOD_2(foo,bar);
+
+If you have one chip, you use macro SENSORS_INSMOD_1(chip), if you have 2
+you use macro SENSORS_INSMOD_2(chip1,chip2), etc. If you do not want to
+bother with chip types, you can use SENSORS_INSMOD_0.
+
+A enum is automatically defined as follows:
+  enum chips { any_chip, chip1, chip2, ... }
+
+
+Attaching to an adapter
+-----------------------
+
+Whenever a new adapter is inserted, or for all adapters if the driver is
+being registered, the callback attach_adapter() is called. Now is the
+time to determine what devices are present on the adapter, and to register
+a client for each of them.
+
+The attach_adapter callback is really easy: we just call the generic
+detection function. This function will scan the bus for us, using the
+information as defined in the lists explained above. If a device is
+detected at a specific address, another callback is called.
+
+  int foo_attach_adapter(struct i2c_adapter *adapter)
+  {
+    return i2c_probe(adapter,&addr_data,&foo_detect_client);
+  }
+
+For `sensors' drivers, use the i2c_detect function instead:
+  
+  int foo_attach_adapter(struct i2c_adapter *adapter)
+  { 
+    return i2c_detect(adapter,&addr_data,&foo_detect_client);
+  }
+
+Remember, structure `addr_data' is defined by the macros explained above,
+so you do not have to define it yourself.
+
+The i2c_probe or i2c_detect function will call the foo_detect_client
+function only for those i2c addresses that actually have a device on
+them (unless a `force' parameter was used). In addition, addresses that
+are already in use (by some other registered client) are skipped.
+
+
+The detect client function
+--------------------------
+
+The detect client function is called by i2c_probe or i2c_detect.
+The `kind' parameter contains 0 if this call is due to a `force'
+parameter, and -1 otherwise (for i2c_detect, it contains 0 if
+this call is due to the generic `force' parameter, and the chip type
+number if it is due to a specific `force' parameter).
+
+Below, some things are only needed if this is a `sensors' driver. Those
+parts are between /* SENSORS ONLY START */ and /* SENSORS ONLY END */
+markers. 
+
+This function should only return an error (any value != 0) if there is
+some reason why no more detection should be done anymore. If the
+detection just fails for this address, return 0.
+
+For now, you can ignore the `flags' parameter. It is there for future use.
+
+  int foo_detect_client(struct i2c_adapter *adapter, int address, 
+                        unsigned short flags, int kind)
+  {
+    int err = 0;
+    int i;
+    struct i2c_client *new_client;
+    struct foo_data *data;
+    const char *client_name = ""; /* For non-`sensors' drivers, put the real
+                                     name here! */
+   
+    /* Let's see whether this adapter can support what we need.
+       Please substitute the things you need here! 
+       For `sensors' drivers, add `! is_isa &&' to the if statement */
+    if (!i2c_check_functionality(adapter,I2C_FUNC_SMBUS_WORD_DATA |
+                                        I2C_FUNC_SMBUS_WRITE_BYTE))
+       goto ERROR0;
+
+    /* SENSORS ONLY START */
+    const char *type_name = "";
+    int is_isa = i2c_is_isa_adapter(adapter);
+
+    if (is_isa) {
+
+      /* If this client can't be on the ISA bus at all, we can stop now
+         (call `goto ERROR0'). But for kicks, we will assume it is all
+         right. */
+
+      /* Discard immediately if this ISA range is already used */
+      if (check_region(address,FOO_EXTENT))
+        goto ERROR0;
+
+      /* Probe whether there is anything on this address.
+         Some example code is below, but you will have to adapt this
+         for your own driver */
+
+      if (kind < 0) /* Only if no force parameter was used */ {
+        /* We may need long timeouts at least for some chips. */
+        #define REALLY_SLOW_IO
+        i = inb_p(address + 1);
+        if (inb_p(address + 2) != i)
+          goto ERROR0;
+        if (inb_p(address + 3) != i)
+          goto ERROR0;
+        if (inb_p(address + 7) != i)
+          goto ERROR0;
+        #undef REALLY_SLOW_IO
+
+        /* Let's just hope nothing breaks here */
+        i = inb_p(address + 5) & 0x7f;
+        outb_p(~i & 0x7f,address+5);
+        if ((inb_p(address + 5) & 0x7f) != (~i & 0x7f)) {
+          outb_p(i,address+5);
+          return 0;
+        }
+      }
+    }
+
+    /* SENSORS ONLY END */
+
+    /* OK. For now, we presume we have a valid client. We now create the
+       client structure, even though we cannot fill it completely yet.
+       But it allows us to access several i2c functions safely */
+    
+    /* Note that we reserve some space for foo_data too. If you don't
+       need it, remove it. We do it here to help to lessen memory
+       fragmentation. */
+    if (! (new_client = kmalloc(sizeof(struct i2c_client) + 
+                                sizeof(struct foo_data),
+                                GFP_KERNEL))) {
+      err = -ENOMEM;
+      goto ERROR0;
+    }
+
+    /* This is tricky, but it will set the data to the right value. */
+    client->data = new_client + 1;
+    data = (struct foo_data *) (client->data);
+
+    new_client->addr = address;
+    new_client->data = data;
+    new_client->adapter = adapter;
+    new_client->driver = &foo_driver;
+    new_client->flags = 0;
+
+    /* Now, we do the remaining detection. If no `force' parameter is used. */
+
+    /* First, the generic detection (if any), that is skipped if any force
+       parameter was used. */
+    if (kind < 0) {
+      /* The below is of course bogus */
+      if (foo_read(new_client,FOO_REG_GENERIC) != FOO_GENERIC_VALUE)
+         goto ERROR1;
+    }
+
+    /* SENSORS ONLY START */
+
+    /* Next, specific detection. This is especially important for `sensors'
+       devices. */
+
+    /* Determine the chip type. Not needed if a `force_CHIPTYPE' parameter
+       was used. */
+    if (kind <= 0) {
+      i = foo_read(new_client,FOO_REG_CHIPTYPE);
+      if (i == FOO_TYPE_1) 
+        kind = chip1; /* As defined in the enum */
+      else if (i == FOO_TYPE_2)
+        kind = chip2;
+      else {
+        printk("foo: Ignoring 'force' parameter for unknown chip at "
+               "adapter %d, address 0x%02x\n",i2c_adapter_id(adapter),address);
+        goto ERROR1;
+      }
+    }
+
+    /* Now set the type and chip names */
+    if (kind == chip1) {
+      type_name = "chip1"; /* For /proc entry */
+      client_name = "CHIP 1";
+    } else if (kind == chip2) {
+      type_name = "chip2"; /* For /proc entry */
+      client_name = "CHIP 2";
+    }
+   
+    /* Reserve the ISA region */
+    if (is_isa)
+      request_region(address,FOO_EXTENT,type_name);
+
+    /* SENSORS ONLY END */
+
+    /* Fill in the remaining client fields. */
+    strcpy(new_client->name,client_name);
+
+    /* SENSORS ONLY BEGIN */
+    data->type = kind;
+    /* SENSORS ONLY END */
+
+    data->valid = 0; /* Only if you use this field */
+    init_MUTEX(&data->update_lock); /* Only if you use this field */
+
+    /* Any other initializations in data must be done here too. */
+
+    /* Tell the i2c layer a new client has arrived */
+    if ((err = i2c_attach_client(new_client)))
+      goto ERROR3;
+
+    /* SENSORS ONLY BEGIN */
+    /* Register a new directory entry with module sensors. See below for
+       the `template' structure. */
+    if ((i = i2c_register_entry(new_client, type_name,
+                                    foo_dir_table_template,THIS_MODULE)) < 0) {
+      err = i;
+      goto ERROR4;
+    }
+    data->sysctl_id = i;
+
+    /* SENSORS ONLY END */
+
+    /* This function can write default values to the client registers, if
+       needed. */
+    foo_init_client(new_client);
+    return 0;
+
+    /* OK, this is not exactly good programming practice, usually. But it is
+       very code-efficient in this case. */
+
+    ERROR4:
+      i2c_detach_client(new_client);
+    ERROR3:
+    ERROR2:
+    /* SENSORS ONLY START */
+      if (is_isa)
+        release_region(address,FOO_EXTENT);
+    /* SENSORS ONLY END */
+    ERROR1:
+      kfree(new_client);
+    ERROR0:
+      return err;
+  }
+
+
+Removing the client
+===================
+
+The detach_client call back function is called when a client should be
+removed. It may actually fail, but only when panicking. This code is
+much simpler than the attachment code, fortunately!
+
+  int foo_detach_client(struct i2c_client *client)
+  {
+    int err,i;
+
+    /* SENSORS ONLY START */
+    /* Deregister with the `i2c-proc' module. */
+    i2c_deregister_entry(((struct lm78_data *)(client->data))->sysctl_id);
+    /* SENSORS ONLY END */
+
+    /* Try to detach the client from i2c space */
+    if ((err = i2c_detach_client(client))) {
+      printk("foo.o: Client deregistration failed, client not detached.\n");
+      return err;
+    }
+
+    /* SENSORS ONLY START */
+    if i2c_is_isa_client(client)
+      release_region(client->addr,LM78_EXTENT);
+    /* SENSORS ONLY END */
+
+    kfree(client); /* Frees client data too, if allocated at the same time */
+    return 0;
+  }
+
+
+Initializing the module or kernel
+=================================
+
+When the kernel is booted, or when your foo driver module is inserted, 
+you have to do some initializing. Fortunately, just attaching (registering)
+the driver module is usually enough.
+
+  /* Keep track of how far we got in the initialization process. If several
+     things have to initialized, and we fail halfway, only those things
+     have to be cleaned up! */
+  static int __initdata foo_initialized = 0;
+
+  static int __init foo_init(void)
+  {
+    int res;
+    printk("foo version %s (%s)\n",FOO_VERSION,FOO_DATE);
+    
+    if ((res = i2c_add_driver(&foo_driver))) {
+      printk("foo: Driver registration failed, module not inserted.\n");
+      foo_cleanup();
+      return res;
+    }
+    foo_initialized ++;
+    return 0;
+  }
+
+  void foo_cleanup(void)
+  {
+    if (foo_initialized == 1) {
+      if ((res = i2c_del_driver(&foo_driver))) {
+        printk("foo: Driver registration failed, module not removed.\n");
+        return;
+      }
+      foo_initialized --;
+    }
+  }
+
+  /* Substitute your own name and email address */
+  MODULE_AUTHOR("Frodo Looijaard <frodol@dds.nl>"
+  MODULE_DESCRIPTION("Driver for Barf Inc. Foo I2C devices");
+
+  module_init(foo_init);
+  module_exit(foo_cleanup);
+
+Note that some functions are marked by `__init', and some data structures
+by `__init_data'.  Hose functions and structures can be removed after
+kernel booting (or module loading) is completed.
+
+Command function
+================
+
+A generic ioctl-like function call back is supported. You will seldom
+need this. You may even set it to NULL.
+
+  /* No commands defined */
+  int foo_command(struct i2c_client *client, unsigned int cmd, void *arg)
+  {
+    return 0;
+  }
+
+
+Sending and receiving
+=====================
+
+If you want to communicate with your device, there are several functions
+to do this. You can find all of them in i2c.h.
+
+If you can choose between plain i2c communication and SMBus level
+communication, please use the last. All adapters understand SMBus level
+commands, but only some of them understand plain i2c!
+
+
+Plain i2c communication
+-----------------------
+
+  extern int i2c_master_send(struct i2c_client *,const char* ,int);
+  extern int i2c_master_recv(struct i2c_client *,char* ,int);
+
+These routines read and write some bytes from/to a client. The client
+contains the i2c address, so you do not have to include it. The second
+parameter contains the bytes the read/write, the third the length of the
+buffer. Returned is the actual number of bytes read/written.
+  
+  extern int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msg,
+                          int num);
+
+This sends a series of messages. Each message can be a read or write,
+and they can be mixed in any way. The transactions are combined: no
+stop bit is sent between transaction. The i2c_msg structure contains
+for each message the client address, the number of bytes of the message
+and the message data itself.
+
+You can read the file `i2c-protocol' for more information about the
+actual i2c protocol.
+
+
+SMBus communication
+-------------------
+
+  extern s32 i2c_smbus_xfer (struct i2c_adapter * adapter, u16 addr, 
+                             unsigned short flags,
+                             char read_write, u8 command, int size,
+                             union i2c_smbus_data * data);
+
+  This is the generic SMBus function. All functions below are implemented
+  in terms of it. Never use this function directly!
+
+
+  extern s32 i2c_smbus_write_quick(struct i2c_client * client, u8 value);
+  extern s32 i2c_smbus_read_byte(struct i2c_client * client);
+  extern s32 i2c_smbus_write_byte(struct i2c_client * client, u8 value);
+  extern s32 i2c_smbus_read_byte_data(struct i2c_client * client, u8 command);
+  extern s32 i2c_smbus_write_byte_data(struct i2c_client * client,
+                                       u8 command, u8 value);
+  extern s32 i2c_smbus_read_word_data(struct i2c_client * client, u8 command);
+  extern s32 i2c_smbus_write_word_data(struct i2c_client * client,
+                                       u8 command, u16 value);
+  extern s32 i2c_smbus_write_block_data(struct i2c_client * client,
+                                        u8 command, u8 length,
+                                        u8 *values);
+
+These ones were removed in Linux 2.6.10 because they had no users, but could
+be added back later if needed:
+
+  extern s32 i2c_smbus_read_i2c_block_data(struct i2c_client * client,
+                                           u8 command, u8 *values);
+  extern s32 i2c_smbus_read_block_data(struct i2c_client * client,
+                                       u8 command, u8 *values);
+  extern s32 i2c_smbus_write_i2c_block_data(struct i2c_client * client,
+                                            u8 command, u8 length,
+                                            u8 *values);
+  extern s32 i2c_smbus_process_call(struct i2c_client * client,
+                                    u8 command, u16 value);
+  extern s32 i2c_smbus_block_process_call(struct i2c_client *client,
+                                          u8 command, u8 length,
+                                          u8 *values)
+
+All these transactions return -1 on failure. The 'write' transactions 
+return 0 on success; the 'read' transactions return the read value, except 
+for read_block, which returns the number of values read. The block buffers 
+need not be longer than 32 bytes.
+
+You can read the file `smbus-protocol' for more information about the
+actual SMBus protocol.
+
+
+General purpose routines
+========================
+
+Below all general purpose routines are listed, that were not mentioned
+before.
+
+  /* This call returns a unique low identifier for each registered adapter,
+   * or -1 if the adapter was not registered.
+   */
+  extern int i2c_adapter_id(struct i2c_adapter *adap);
+
+
+The sensors sysctl/proc interface
+=================================
+
+This section only applies if you write `sensors' drivers.
+
+Each sensors driver creates a directory in /proc/sys/dev/sensors for each
+registered client. The directory is called something like foo-i2c-4-65.
+The sensors module helps you to do this as easily as possible.
+
+The template
+------------
+
+You will need to define a ctl_table template. This template will automatically
+be copied to a newly allocated structure and filled in where necessary when
+you call sensors_register_entry.
+
+First, I will give an example definition.
+  static ctl_table foo_dir_table_template[] = {
+    { FOO_SYSCTL_FUNC1, "func1", NULL, 0, 0644, NULL, &i2c_proc_real,
+      &i2c_sysctl_real,NULL,&foo_func },
+    { FOO_SYSCTL_FUNC2, "func2", NULL, 0, 0644, NULL, &i2c_proc_real,
+      &i2c_sysctl_real,NULL,&foo_func },
+    { FOO_SYSCTL_DATA, "data", NULL, 0, 0644, NULL, &i2c_proc_real,
+      &i2c_sysctl_real,NULL,&foo_data },
+    { 0 }
+  };
+
+In the above example, three entries are defined. They can either be
+accessed through the /proc interface, in the /proc/sys/dev/sensors/*
+directories, as files named func1, func2 and data, or alternatively 
+through the sysctl interface, in the appropriate table, with identifiers
+FOO_SYSCTL_FUNC1, FOO_SYSCTL_FUNC2 and FOO_SYSCTL_DATA.
+
+The third, sixth and ninth parameters should always be NULL, and the
+fourth should always be 0. The fifth is the mode of the /proc file;
+0644 is safe, as the file will be owned by root:root. 
+
+The seventh and eighth parameters should be &i2c_proc_real and
+&i2c_sysctl_real if you want to export lists of reals (scaled
+integers). You can also use your own function for them, as usual.
+Finally, the last parameter is the call-back to gather the data
+(see below) if you use the *_proc_real functions. 
+
+
+Gathering the data
+------------------
+
+The call back functions (foo_func and foo_data in the above example)
+can be called in several ways; the operation parameter determines
+what should be done:
+
+  * If operation == SENSORS_PROC_REAL_INFO, you must return the
+    magnitude (scaling) in nrels_mag;
+  * If operation == SENSORS_PROC_REAL_READ, you must read information
+    from the chip and return it in results. The number of integers
+    to display should be put in nrels_mag;
+  * If operation == SENSORS_PROC_REAL_WRITE, you must write the
+    supplied information to the chip. nrels_mag will contain the number
+    of integers, results the integers themselves.
+
+The *_proc_real functions will display the elements as reals for the
+/proc interface. If you set the magnitude to 2, and supply 345 for
+SENSORS_PROC_REAL_READ, it would display 3.45; and if the user would
+write 45.6 to the /proc file, it would be returned as 4560 for
+SENSORS_PROC_REAL_WRITE. A magnitude may even be negative!
+
+An example function:
+
+  /* FOO_FROM_REG and FOO_TO_REG translate between scaled values and
+     register values. Note the use of the read cache. */
+  void foo_in(struct i2c_client *client, int operation, int ctl_name, 
+              int *nrels_mag, long *results)
+  {
+    struct foo_data *data = client->data;
+    int nr = ctl_name - FOO_SYSCTL_FUNC1; /* reduce to 0 upwards */
+    
+    if (operation == SENSORS_PROC_REAL_INFO)
+      *nrels_mag = 2;
+    else if (operation == SENSORS_PROC_REAL_READ) {
+      /* Update the readings cache (if necessary) */
+      foo_update_client(client);
+      /* Get the readings from the cache */
+      results[0] = FOO_FROM_REG(data->foo_func_base[nr]);
+      results[1] = FOO_FROM_REG(data->foo_func_more[nr]);
+      results[2] = FOO_FROM_REG(data->foo_func_readonly[nr]);
+      *nrels_mag = 2;
+    } else if (operation == SENSORS_PROC_REAL_WRITE) {
+      if (*nrels_mag >= 1) {
+        /* Update the cache */
+        data->foo_base[nr] = FOO_TO_REG(results[0]);
+        /* Update the chip */
+        foo_write_value(client,FOO_REG_FUNC_BASE(nr),data->foo_base[nr]);
+      }
+      if (*nrels_mag >= 2) {
+        /* Update the cache */
+        data->foo_more[nr] = FOO_TO_REG(results[1]);
+        /* Update the chip */
+        foo_write_value(client,FOO_REG_FUNC_MORE(nr),data->foo_more[nr]);
+      }
+    }
+  }

@@ -1,0 +1,18 @@
+# ALSA Sparc drivers
+
+menu "ALSA Sparc devices"
+	depends on SND!=n && (SPARC32 || SPARC64)
+
+config SND_SUN_AMD7930
+	tristate "Sun AMD7930"
+	depends on SBUS && SND
+	select SND_PCM
+
+#  dep_tristate 'Sun DBRI' CONFIG_SND_SUN_DBRI $CONFIG_SND
+config SND_SUN_CS4231
+	tristate "Sun CS4231"
+	depends on SND
+	select SND_PCM
+
+endmenu
+

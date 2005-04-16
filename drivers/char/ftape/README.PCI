@@ -1,0 +1,81 @@
+Some notes for ftape users with PCI motherboards:
+=================================================
+
+The problem:
+------------
+
+There have been some problem reports from people using PCI-bus based
+systems getting overrun errors.
+I wasn't able to reproduce these until I ran ftape on a Intel Plato
+(Premiere PCI II) motherboard with bios version 1.00.08AX1.
+It turned out that if GAT (Guaranteed Access Timing) is enabled (?)
+ftape gets a lot of overrun errors.
+The problem disappears when disabling GAT in the bios.
+Note that Intel removed this setting (permanently disabled) from the
+1.00.10AX1 bios !
+
+It looks like that if GAT is enabled there are often large periods
+(greater than 120 us !??) on the ISA bus that the DMA controller cannot
+service the floppy disk controller.
+I cannot imagine this being acceptable in a decent PCI implementation.
+Maybe this is a `feature' of the chipset. I can only speculate why
+Intel choose to remove the option from the latest Bios...
+
+The lesson of this all is that there may be other motherboard
+implementations having the same of similar problems.
+If you experience a lot of overrun errors during a backup to tape,
+see if there is some setting in the Bios that may influence the
+bus timing.
+
+I judge this a hardware problem and not a limitation of ftape ;-)
+My DOS backup software seems to be suffering from the same problems
+and even refuses to run at 1 Mbps !
+Ftape will reduce the data-rate from 1 Mbps to 500 Kbps if the number
+of overrun errors on a track exceeds a threshold.
+
+
+Possible solutions:
+-------------------
+
+Some of the problems were solved by upgrading the (flash) bios.
+Other suggest that it has to do with the FDC being on the PCI
+bus, but that is not the case with the Intel Premiere II boards.
+[If upgrading the bios doesn't solve the problem you could try
+a floppy disk controller on the isa-bus].
+
+Here is a list of systems and recommended BIOS settings:
+
+
+        Intel Premiere PCI (Revenge):
+
+Bios version 1.00.09.AF2 is reported to work.
+
+
+
+        Intel Premiere PCI II (Plato):
+
+Bios version 1.00.10.AX1 and version 11 beta are ok.
+If using version 1.00.08.AX1, GAT must be disabled !
+
+
+
+        ASUS PCI/I-SP3G:
+
+Preferred settings:     ISA-GAT-mode : disabled
+                        DMA-linebuffer-mode : standard
+                        ISA-masterbuffer-mode : standard
+
+
+        DELL Dimension XPS P90
+
+Bios version A2 is reported to be broken, while bios version A5 works.
+You can get a flash bios upgrade from http://www.dell.com
+
+
+To see if you're having the GAT problem, try making a backup
+under DOS. If it's very slow and often repositions you're
+probably having this problem.
+
+                        --//--
+ LocalWords:  ftape PCI bios GAT ISA DMA chipset Mbps Kbps FDC isa AF ok ASUS
+ LocalWords:  SP linebuffer masterbuffer XPS http www com

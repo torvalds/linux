@@ -1,0 +1,316 @@
+#############################################################################
+#
+# For a description of the syntax of this configuration file,
+# see Documentation/kbuild/kconfig-language.txt.
+#
+#############################################################################
+
+mainmenu "uClinux/v850 (w/o MMU) Kernel Configuration"
+
+config MMU
+       	bool
+	default n
+config UID16
+	bool
+	default n
+config RWSEM_GENERIC_SPINLOCK
+	bool
+	default y
+config RWSEM_XCHGADD_ALGORITHM
+	bool
+	default n
+config GENERIC_CALIBRATE_DELAY
+	bool
+	default y
+
+# Turn off some random 386 crap that can affect device config
+config ISA
+	bool
+	default n
+config ISAPNP
+	bool
+	default n
+config EISA
+	bool
+	default n
+config MCA
+	bool
+	default n
+
+
+#############################################################################
+#### v850-specific config
+
+# Define the architecture
+config V850
+	bool
+	default y
+
+menu "Processor type and features"
+
+   choice
+	  prompt "Platform"
+	  default GDB
+      config V850E_SIM
+      	     bool "GDB"
+      config RTE_CB_MA1
+      	     bool "RTE-V850E/MA1-CB"
+      config RTE_CB_NB85E
+      	     bool "RTE-V850E/NB85E-CB"
+      config RTE_CB_ME2
+      	     bool "RTE-V850E/ME2-CB"
+      config V850E_AS85EP1
+      	     bool "AS85EP1"
+      config V850E2_SIM85E2C
+      	     bool "sim85e2c"
+      config V850E2_SIM85E2S
+      	     bool "sim85e2s"
+      config V850E2_FPGA85E2C
+      	     bool "NA85E2C-FPGA"
+      config V850E2_ANNA
+      	     bool "Anna"
+   endchoice
+
+   #### V850E processor-specific config
+
+   # All CPUs currently supported use the v850e architecture
+   config V850E
+   	  bool
+	  default y
+
+   # The RTE-V850E/MA1-CB is the only type of V850E/MA1 platform we
+   # currently support
+   config V850E_MA1
+   	  bool
+	  depends RTE_CB_MA1
+	  default y
+   # Similarly for the RTE-V850E/NB85E-CB - V850E/TEG
+   config V850E_TEG
+   	  bool
+	  depends RTE_CB_NB85E
+	  default y
+   # ... and the RTE-V850E/ME2-CB - V850E/ME2
+   config V850E_ME2
+   	  bool
+	  depends RTE_CB_ME2
+	  default y
+
+
+   #### sim85e2-specific config
+
+   config V850E2_SIM85E2
+   	  bool
+	  depends V850E2_SIM85E2C || V850E2_SIM85E2S
+	  default y
+
+
+   #### V850E2 processor-specific config
+
+   # V850E2 processors
+   config V850E2
+   	  bool
+	  depends V850E2_SIM85E2 || V850E2_FPGA85E2C || V850E2_ANNA
+	  default y
+
+
+   #### RTE-CB platform-specific config
+
+   # Boards in the RTE-x-CB series
+   config RTE_CB
+   	  bool
+	  depends RTE_CB_MA1 || RTE_CB_NB85E || RTE_CB_ME2
+	  default y
+
+   config RTE_CB_MULTI
+   	  bool
+	  # RTE_CB_NB85E can either have multi ROM support or not, but
+	  # other platforms (currently only RTE_CB_MA1) require it.
+	  prompt "Multi monitor ROM support" if RTE_CB_NB85E
+	  depends RTE_CB_MA1 || RTE_CB_NB85E
+	  default y
+
+   config RTE_CB_MULTI_DBTRAP
+   	  bool "Pass illegal insn trap / dbtrap to kernel"
+	  depends RTE_CB_MULTI
+	  default n
+
+   config RTE_CB_MA1_KSRAM
+   	  bool "Kernel in SRAM (limits size of kernel)"
+	  depends RTE_CB_MA1 && RTE_CB_MULTI
+	  default n
+
+   config RTE_MB_A_PCI
+   	  bool "Mother-A PCI support"
+	  depends RTE_CB
+	  default y
+
+   # The GBUS is used to talk to the RTE-MOTHER-A board
+   config RTE_GBUS_INT
+   	  bool
+	  depends RTE_MB_A_PCI
+	  default y
+
+   # The only PCI bus we support is on the RTE-MOTHER-A board
+   config PCI
+   	  bool
+	  default RTE_MB_A_PCI
+
+   #### Some feature-specific configs
+
+   # Everything except for the GDB simulator uses the same interrupt controller
+   config V850E_INTC
+   	  bool
+	  default !V850E_SIM
+
+   # Everything except for the various simulators uses the "Timer D" unit
+   config V850E_TIMER_D
+   	  bool
+	  default !V850E_SIM && !V850E2_SIM85E2
+
+   # Cache control used on some v850e1 processors
+   config V850E_CACHE
+          bool
+	  default V850E_TEG || V850E_ME2
+
+   # Cache control used on v850e2 processors; I think this should
+   # actually apply to more, but currently only the SIM85E2S uses it
+   config V850E2_CACHE
+   	  bool
+	  default V850E2_SIM85E2S
+
+   config NO_CACHE
+   	  bool
+	  default !V850E_CACHE && !V850E2_CACHE
+
+   #### Misc config
+
+   config ROM_KERNEL
+   	  bool "Kernel in ROM"
+	  depends V850E2_ANNA || V850E_AS85EP1 || RTE_CB_ME2
+
+   # Some platforms pre-zero memory, in which case the kernel doesn't need to
+   config ZERO_BSS
+   	  bool
+	  depends !V850E2_SIM85E2C
+	  default y
+
+   # The crappy-ass zone allocator requires that the start of allocatable
+   # memory be aligned to the largest possible allocation.
+   config FORCE_MAX_ZONEORDER
+   	  int
+	  default 8 if V850E2_SIM85E2C || V850E2_FPGA85E2C
+
+   config V850E_HIGHRES_TIMER
+   	  bool "High resolution timer support"
+	  depends V850E_TIMER_D
+   config TIME_BOOTUP
+   	  bool "Time bootup"
+	  depends V850E_HIGHRES_TIMER
+
+   config RESET_GUARD
+   	  bool "Reset Guard"
+
+   config LARGE_ALLOCS
+	  bool "Allow allocating large blocks (> 1MB) of memory"
+	  help
+	     Allow the slab memory allocator to keep chains for very large
+	     memory sizes - upto 32MB. You may need this if your system has
+	     a lot of RAM, and you need to able to allocate very large
+	     contiguous chunks. If unsure, say N.
+
+endmenu
+
+
+#############################################################################
+
+source init/Kconfig
+
+#############################################################################
+
+menu "Bus options (PCI, PCMCIA, EISA, MCA, ISA)"
+
+#    config PCI
+# 	   bool "PCI support"
+# 	   help
+# 	     Support for PCI bus.
+
+source "drivers/pci/Kconfig"
+
+source "drivers/pcmcia/Kconfig"
+
+source "drivers/pci/hotplug/Kconfig"
+
+endmenu
+
+menu "Executable file formats"
+
+source "fs/Kconfig.binfmt"
+
+endmenu
+
+#############################################################################
+
+source "drivers/base/Kconfig"
+
+source drivers/mtd/Kconfig
+
+source drivers/parport/Kconfig
+
+#source drivers/pnp/Kconfig
+
+source drivers/block/Kconfig
+
+#############################################################################
+
+menu "Disk device support"
+
+source "drivers/ide/Kconfig"
+
+source "drivers/scsi/Kconfig"
+
+endmenu
+
+#############################################################################
+
+
+source "drivers/md/Kconfig"
+
+source "drivers/message/fusion/Kconfig"
+
+source "drivers/ieee1394/Kconfig"
+
+source "drivers/message/i2o/Kconfig"
+
+source "net/Kconfig"
+
+source "drivers/isdn/Kconfig"
+
+#source "drivers/telephony/Kconfig"
+
+#
+# input before char - char/joystick depends on it. As does USB.
+#
+source "drivers/input/Kconfig"
+
+source "drivers/char/Kconfig"
+
+#source drivers/misc/Config.in
+source "drivers/media/Kconfig"
+
+source "fs/Kconfig"
+
+source "drivers/video/Kconfig"
+
+source "sound/Kconfig"
+
+source "drivers/usb/Kconfig"
+
+source "arch/v850/Kconfig.debug"
+
+source "security/Kconfig"
+
+source "crypto/Kconfig"
+
+source "lib/Kconfig"
+
+#############################################################################

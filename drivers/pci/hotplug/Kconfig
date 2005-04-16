@@ -1,0 +1,197 @@
+#
+# PCI Hotplug support
+#
+
+menu "PCI Hotplug Support"
+
+config HOTPLUG_PCI
+	tristate "Support for PCI Hotplug (EXPERIMENTAL)"
+	depends on PCI && EXPERIMENTAL
+	select HOTPLUG
+	---help---
+	  Say Y here if you have a motherboard with a PCI Hotplug controller.
+	  This allows you to add and remove PCI cards while the machine is
+	  powered up and running.  The file system pcihpfs must be mounted
+	  in order to interact with any PCI Hotplug controllers.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pci_hotplug.
+
+	  When in doubt, say N.
+
+config HOTPLUG_PCI_FAKE
+	tristate "Fake PCI Hotplug driver"
+	depends on HOTPLUG_PCI
+	help
+	  Say Y here if you want to use the fake PCI hotplug driver. It can
+	  be used to simulate PCI hotplug events if even if your system is
+	  not PCI hotplug capable.
+
+	  This driver will "emulate" removing PCI devices from the system.
+	  If the "power" file is written to with "0" then the specified PCI
+	  device will be completely removed from the kernel.
+
+	  WARNING, this does NOT turn off the power to the PCI device.
+	  This is a "logical" removal, not a physical or electrical
+	  removal.
+
+	  Use this module at your own risk.  You have been warned!
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called fakephp.
+
+	  When in doubt, say N.
+
+config HOTPLUG_PCI_COMPAQ
+	tristate "Compaq PCI Hotplug driver"
+	depends on HOTPLUG_PCI && X86 && PCI_BIOS
+	help
+	  Say Y here if you have a motherboard with a Compaq PCI Hotplug
+	  controller.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cpqphp.
+
+	  When in doubt, say N.
+
+config HOTPLUG_PCI_COMPAQ_NVRAM
+	bool "Save configuration into NVRAM on Compaq servers"
+	depends on HOTPLUG_PCI_COMPAQ
+	help
+	  Say Y here if you have a Compaq server that has a PCI Hotplug
+	  controller.  This will allow the PCI Hotplug driver to store the PCI
+	  system configuration options in NVRAM.
+
+	  When in doubt, say N.
+
+config HOTPLUG_PCI_IBM
+	tristate "IBM PCI Hotplug driver"
+	depends on HOTPLUG_PCI && X86_IO_APIC && X86 && PCI_BIOS
+	help
+	  Say Y here if you have a motherboard with a IBM PCI Hotplug
+	  controller.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ibmphp.
+
+	  When in doubt, say N.
+
+config HOTPLUG_PCI_ACPI
+	tristate "ACPI PCI Hotplug driver"
+	depends on ACPI_BUS && HOTPLUG_PCI
+	help
+	  Say Y here if you have a system that supports PCI Hotplug using
+	  ACPI.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called acpiphp.
+
+	  When in doubt, say N.
+
+config HOTPLUG_PCI_ACPI_IBM
+	tristate "ACPI PCI Hotplug driver IBM extensions"
+	depends on HOTPLUG_PCI_ACPI
+	help
+	  Say Y here if you have an IBM system that supports PCI Hotplug using
+	  ACPI.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called acpiphp_ibm.
+
+	  When in doubt, say N.
+
+config HOTPLUG_PCI_CPCI
+	bool "CompactPCI Hotplug driver"
+	depends on HOTPLUG_PCI
+	help
+	  Say Y here if you have a CompactPCI system card with CompactPCI
+	  hotswap support per the PICMG 2.1 specification.
+
+	  When in doubt, say N.
+
+config HOTPLUG_PCI_CPCI_ZT5550
+	tristate "Ziatech ZT5550 CompactPCI Hotplug driver"
+	depends on HOTPLUG_PCI && HOTPLUG_PCI_CPCI && X86
+	help
+	  Say Y here if you have an Performance Technologies (formerly Intel,
+          formerly just Ziatech) Ziatech ZT5550 CompactPCI system card.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cpcihp_zt5550.
+
+	  When in doubt, say N.
+
+config HOTPLUG_PCI_CPCI_GENERIC
+	tristate "Generic port I/O CompactPCI Hotplug driver"
+	depends on HOTPLUG_PCI && HOTPLUG_PCI_CPCI && X86
+	help
+	  Say Y here if you have a CompactPCI system card that exposes the #ENUM
+	  hotswap signal as a bit in a system register that can be read through
+	  standard port I/O.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cpcihp_generic.
+
+	  When in doubt, say N.
+
+config HOTPLUG_PCI_SHPC
+	tristate "SHPC PCI Hotplug driver"
+	depends on HOTPLUG_PCI
+	help
+	  Say Y here if you have a motherboard with a SHPC PCI Hotplug
+	  controller.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called shpchp.
+
+	  When in doubt, say N.
+
+config HOTPLUG_PCI_SHPC_POLL_EVENT_MODE
+	bool "Use polling mechanism for hot-plug events (for testing purpose)"
+	depends on HOTPLUG_PCI_SHPC
+	help
+	  Say Y here if you want to use the polling mechanism for hot-plug 
+	  events for early platform testing.
+
+	  When in doubt, say N.
+
+config HOTPLUG_PCI_SHPC_PHPRM_LEGACY
+	bool "For AMD SHPC only: Use $HRT for resource/configuration"
+	depends on HOTPLUG_PCI_SHPC && !ACPI_BUS 
+	help
+	  Say Y here for AMD SHPC. You have to select this option if you are 
+	  using this driver on platform with AMD SHPC.
+
+config HOTPLUG_PCI_RPA
+	tristate "RPA PCI Hotplug driver"
+	depends on HOTPLUG_PCI && PPC_PSERIES && PPC64 && !HOTPLUG_PCI_FAKE
+	help
+	  Say Y here if you have a a RPA system that supports PCI Hotplug.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rpaphp.
+
+	  When in doubt, say N.
+
+config HOTPLUG_PCI_RPA_DLPAR
+	tristate "RPA Dynamic Logical Partitioning for I/O slots"
+	depends on HOTPLUG_PCI_RPA
+	help
+	  Say Y here if your system supports Dynamic Logical Partitioning
+	  for I/O slots.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rpadlpar_io.
+ 
+ 	  When in doubt, say N.
+
+config HOTPLUG_PCI_SGI
+	tristate "SGI PCI Hotplug Support"
+	depends on HOTPLUG_PCI && IA64_SGI_SN2
+	help
+	  Say Y here if you have an SGI IA64 Altix system.
+
+	  When in doubt, say N.
+
+endmenu
+

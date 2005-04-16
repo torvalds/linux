@@ -1,0 +1,72 @@
+menu "Kernel hacking"
+
+source "lib/Kconfig.debug"
+
+config KGDB
+	bool "Include kgdb kernel debugger"
+	depends on DEBUG_KERNEL && (BROKEN || PPC_GEN550 || 4xx)
+	select DEBUG_INFO
+	help
+	  Include in-kernel hooks for kgdb, the Linux kernel source level
+	  debugger.  See <http://kgdb.sourceforge.net/> for more information.
+	  Unless you are intending to debug the kernel, say N here.
+
+choice
+	prompt "Serial Port"
+	depends on KGDB
+	default KGDB_TTYS1
+
+config KGDB_TTYS0
+	bool "ttyS0"
+
+config KGDB_TTYS1
+	bool "ttyS1"
+
+config KGDB_TTYS2
+	bool "ttyS2"
+
+config KGDB_TTYS3
+	bool "ttyS3"
+
+endchoice
+
+config KGDB_CONSOLE
+	bool "Enable serial console thru kgdb port"
+	depends on KGDB && 8xx || CPM2
+	help
+	  If you enable this, all serial console messages will be sent
+	  over the gdb stub.
+	  If unsure, say N.
+
+config XMON
+	bool "Include xmon kernel debugger"
+	depends on DEBUG_KERNEL
+	help
+	  Include in-kernel hooks for the xmon kernel monitor/debugger.
+	  Unless you are intending to debug the kernel, say N here.
+
+config BDI_SWITCH
+	bool "Include BDI-2000 user context switcher"
+	depends on DEBUG_KERNEL
+	help
+	  Include in-kernel support for the Abatron BDI2000 debugger.
+	  Unless you are intending to debug the kernel with one of these
+	  machines, say N here.
+
+config BOOTX_TEXT
+	bool "Support for early boot text console (BootX or OpenFirmware only)"
+	depends PPC_OF
+	help
+	  Say Y here to see progress messages from the boot firmware in text
+	  mode. Requires either BootX or Open Firmware.
+
+config SERIAL_TEXT_DEBUG
+	bool "Support for early boot texts over serial port"
+	depends on 4xx || GT64260 || LOPEC || PPLUS || PRPMC800 || PPC_GEN550 || PPC_MPC52xx
+
+config PPC_OCP
+	bool
+	depends on IBM_OCP || FSL_OCP || XILINX_OCP
+	default y
+
+endmenu

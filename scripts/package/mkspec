@@ -1,0 +1,82 @@
+#!/bin/sh
+#
+#	Output a simple RPM spec file that uses no fancy features requring
+#	RPM v4. This is intended to work with any RPM distro.
+#
+#	The only gothic bit here is redefining install_post to avoid
+#	stripping the symbols from files in the kernel which we want
+#
+#	Patched for non-x86 by Opencon (L) 2002 <opencon@rio.skydome.net>
+#
+
+# how we were called determines which rpms we build and how we build them
+if [ "$1" = "prebuilt" ]; then
+	PREBUILT=true
+else
+	PREBUILT=false
+fi
+
+# starting to output the spec
+if [ "`grep CONFIG_DRM=y .config | cut -f2 -d\=`" = "y" ]; then
+	PROVIDES=kernel-drm
+fi
+
+PROVIDES="$PROVIDES kernel-$KERNELRELEASE"
+__KERNELRELEASE=`echo $KERNELRELEASE | sed -e "s/-//g"`
+
+echo "Name: kernel"
+echo "Summary: The Linux Kernel"
+echo "Version: $__KERNELRELEASE"
+# we need to determine the NEXT version number so that uname and
+# rpm -q will agree
+echo "Release: `. $srctree/scripts/mkversion`"
+echo "License: GPL"
+echo "Group: System Environment/Kernel"
+echo "Vendor: The Linux Community"
+echo "URL: http://www.kernel.org"
+
+if ! $PREBUILT; then
+echo "Source: kernel-$__KERNELRELEASE.tar.gz"
+fi
+
+echo "BuildRoot: /var/tmp/%{name}-%{PACKAGE_VERSION}-root"
+echo "Provides: $PROVIDES"
+echo "%define __spec_install_post /usr/lib/rpm/brp-compress || :"
+echo "%define debug_package %{nil}"
+echo ""
+echo "%description"
+echo "The Linux Kernel, the operating system core itself"
+echo ""
+
+if ! $PREBUILT; then
+echo "%prep"
+echo "%setup -q"
+echo ""
+fi
+
+echo "%build"
+
+if ! $PREBUILT; then
+echo "make clean && make %{_smp_mflags}"
+echo ""
+fi
+
+echo "%install"
+echo 'mkdir -p $RPM_BUILD_ROOT/boot $RPM_BUILD_ROOT/lib $RPM_BUILD_ROOT/lib/modules'
+
+echo 'INSTALL_MOD_PATH=$RPM_BUILD_ROOT make %{_smp_mflags} modules_install'
+echo 'cp $KBUILD_IMAGE $RPM_BUILD_ROOT'"/boot/vmlinuz-$KERNELRELEASE"
+
+echo 'cp System.map $RPM_BUILD_ROOT'"/boot/System.map-$KERNELRELEASE"
+
+echo 'cp .config $RPM_BUILD_ROOT'"/boot/config-$KERNELRELEASE"
+echo ""
+echo "%clean"
+echo '#echo -rf $RPM_BUILD_ROOT'
+echo ""
+echo "%files"
+echo '%defattr (-, root, root)'
+echo "%dir /lib/modules"
+echo "/lib/modules/$KERNELRELEASE"
+echo "/boot/*"
+echo ""

@@ -1,0 +1,132 @@
+This driver is for Compaq's SMART Array Controllers.
+
+Supported Cards:
+----------------
+
+This driver is known to work with the following cards:
+
+	* SA 5300
+	* SA 5i 
+	* SA 532
+	* SA 5312
+	* SA 641
+	* SA 642
+	* SA 6400
+	* SA 6400 U320 Expansion Module
+	* SA 6i
+	* SA P600
+	* SA P800
+	* SA E400
+
+If nodes are not already created in the /dev/cciss directory, run as root:
+
+# cd /dev
+# ./MAKEDEV cciss
+
+Device Naming:
+--------------
+
+You need some entries in /dev for the cciss device.  The MAKEDEV script
+can make device nodes for you automatically.  Currently the device setup
+is as follows:
+
+Major numbers:
+	104	cciss0	
+	105	cciss1	
+	106	cciss2
+	105	cciss3
+	108	cciss4
+	109	cciss5
+	110	cciss6
+	111	cciss7
+
+Minor numbers:
+        b7 b6 b5 b4 b3 b2 b1 b0
+        |----+----| |----+----|
+             |           |
+             |           +-------- Partition ID (0=wholedev, 1-15 partition)
+             |
+             +-------------------- Logical Volume number
+
+The device naming scheme is:
+/dev/cciss/c0d0			Controller 0, disk 0, whole device
+/dev/cciss/c0d0p1		Controller 0, disk 0, partition 1
+/dev/cciss/c0d0p2		Controller 0, disk 0, partition 2
+/dev/cciss/c0d0p3		Controller 0, disk 0, partition 3
+
+/dev/cciss/c1d1			Controller 1, disk 1, whole device
+/dev/cciss/c1d1p1		Controller 1, disk 1, partition 1
+/dev/cciss/c1d1p2		Controller 1, disk 1, partition 2
+/dev/cciss/c1d1p3		Controller 1, disk 1, partition 3
+
+SCSI tape drive and medium changer support
+------------------------------------------
+
+SCSI sequential access devices and medium changer devices are supported and 
+appropriate device nodes are automatically created.  (e.g.  
+/dev/st0, /dev/st1, etc.  See the "st" man page for more details.) 
+You must enable "SCSI tape drive support for Smart Array 5xxx" and 
+"SCSI support" in your kernel configuration to be able to use SCSI
+tape drives with your Smart Array 5xxx controller.
+
+Additionally, note that the driver will not engage the SCSI core at init 
+time.  The driver must be directed to dynamically engage the SCSI core via 
+the /proc filesystem entry which the "block" side of the driver creates as 
+/proc/driver/cciss/cciss* at runtime.  This is because at driver init time, 
+the SCSI core may not yet be initialized (because the driver is a block 
+driver) and attempting to register it with the SCSI core in such a case 
+would cause a hang.  This is best done via an initialization script 
+(typically in /etc/init.d, but could vary depending on distibution). 
+For example:
+
+	for x in /proc/driver/cciss/cciss[0-9]*
+	do
+		echo "engage scsi" > $x
+	done
+
+Once the SCSI core is engaged by the driver, it cannot be disengaged 
+(except by unloading the driver, if it happens to be linked as a module.)
+
+Note also that if no sequential access devices or medium changers are
+detected, the SCSI core will not be engaged by the action of the above
+script.
+
+Hot plug support for SCSI tape drives
+-------------------------------------
+
+Hot plugging of SCSI tape drives is supported, with some caveats.
+The cciss driver must be informed that changes to the SCSI bus
+have been made, in addition to and prior to informing the SCSI 
+mid layer.  This may be done via the /proc filesystem.  For example:
+
+	echo "rescan" > /proc/scsi/cciss0/1
+
+This causes the adapter to query the adapter about changes to the 
+physical SCSI buses and/or fibre channel arbitrated loop and the 
+driver to make note of any new or removed sequential access devices
+or medium changers.  The driver will output messages indicating what 
+devices have been added or removed and the controller, bus, target and 
+lun used to address the device.  Once this is done, the SCSI mid layer 
+can be informed of changes to the virtual SCSI bus which the driver 
+presents to it in the usual way. For example: 
+
+	echo scsi add-single-device 3 2 1 0 > /proc/scsi/scsi
+ 
+to add a device on controller 3, bus 2, target 1, lun 0.   Note that
+the driver makes an effort to preserve the devices positions
+in the virtual SCSI bus, so if you are only moving tape drives 
+around on the same adapter and not adding or removing tape drives 
+from the adapter, informing the SCSI mid layer may not be necessary.
+
+Note that the naming convention of the /proc filesystem entries 
+contains a number in addition to the driver name.  (E.g. "cciss0" 
+instead of just "cciss" which you might expect.)
+
+Note: ONLY sequential access devices and medium changers are presented 
+as SCSI devices to the SCSI mid layer by the cciss driver.  Specifically, 
+physical SCSI disk drives are NOT presented to the SCSI mid layer.  The 
+physical SCSI disk drives are controlled directly by the array controller 
+hardware and it is important to prevent the kernel from attempting to directly
+access these devices too, as if the array controller were merely a SCSI 
+controller in the same way that we are allowing it to access SCSI tape drives.
+

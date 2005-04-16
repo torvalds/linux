@@ -1,0 +1,83 @@
+
+Below is what the bt878 data book says about the PCI bug compatibility
+modes of the bt878 chip.
+
+The triton1 insmod option sets the EN_TBFX bit in the control register.
+The vsfx insmod option does the same for EN_VSFX bit.  If you have
+stability problems you can try if one of these options makes your box
+work solid.
+
+drivers/pci/quirks.c knows about these issues, this way these bits are
+enabled automagically for known-buggy chipsets (look at the kernel
+messages, bttv tells you).
+
+HTH,
+
+  Gerd
+
+---------------------------- cut here --------------------------
+
+Normal PCI Mode
+---------------
+
+The PCI REQ signal is the logical-or of the incoming function requests.
+The inter-nal GNT[0:1] signals are gated asynchronously with GNT and
+demultiplexed by the audio request signal. Thus the arbiter defaults to
+the video function at power-up and parks there during no requests for
+bus access. This is desirable since the video will request the bus more
+often. However, the audio will have highest bus access priority. Thus
+the audio will have first access to the bus even when issuing a request
+after the video request but before the PCI external arbiter has granted
+access to the Bt879. Neither function can preempt the other once on the
+bus. The duration to empty the entire video PCI FIFO onto the PCI bus is
+very short compared to the bus access latency the audio PCI FIFO can
+tolerate.
+
+
+430FX Compatibility Mode
+------------------------
+
+When using the 430FX PCI, the following rules will ensure
+compatibility: 
+
+ (1) Deassert REQ at the same time as asserting FRAME. 
+ (2) Do not reassert REQ to request another bus transaction until after
+     finish-ing the previous transaction.
+
+Since the individual bus masters do not have direct control of REQ, a
+simple logical-or of video and audio requests would violate the rules.
+Thus, both the arbiter and the initiator contain 430FX compatibility
+mode logic. To enable 430FX mode, set the EN_TBFX bit as indicated in
+Device Control Register on page 104.
+
+When EN_TBFX is enabled, the arbiter ensures that the two compatibility
+rules are satisfied. Before GNT is asserted by the PCI arbiter, this
+internal arbiter may still logical-or the two requests. However, once
+the GNT is issued, this arbiter must lock in its decision and now route
+only the granted request to the REQ pin. The arbiter decision lock
+happens regardless of the state of FRAME because it does not know when
+FRAME will be asserted (typically - each initiator will assert FRAME on
+the cycle following GNT). When FRAME is asserted, it is the initiator s
+responsibility to remove its request at the same time. It is the
+arbiters responsibility to allow this request to flow through to REQ and
+not allow the other request to hold REQ asserted. The decision lock may
+be removed at the end of the transaction: for example, when the bus is
+idle (FRAME and IRDY). The arbiter decision may then continue
+asynchronously until GNT is again asserted.
+
+
+Interfacing with Non-PCI 2.1 Compliant Core Logic
+-------------------------------------------------
+
+A small percentage of core logic devices may start a bus transaction
+during the same cycle that GNT is de-asserted. This is non PCI 2.1
+compliant. To ensure compatibility when using PCs with these PCI
+controllers, the EN_VSFX bit must be enabled (refer to Device Control
+Register on page 104). When in this mode, the arbiter does not pass GNT
+to the internal functions unless REQ is asserted. This prevents a bus
+transaction from starting the same cycle as GNT is de-asserted. This
+also has the side effect of not being able to take advantage of bus
+parking, thus lowering arbitration performance. The Bt879 drivers must
+query for these non-compliant devices, and set the EN_VSFX bit only if
+required.
+

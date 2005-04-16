@@ -1,0 +1,52 @@
+#
+# Backlight & LCD drivers configuration
+#
+
+menuconfig BACKLIGHT_LCD_SUPPORT
+	bool "Backlight & LCD device support"
+	help
+	  Enable this to be able to choose the drivers for controlling the
+	  backlight and the LCD panel on some platforms, for example on PDAs.
+
+config BACKLIGHT_CLASS_DEVICE
+        tristate "Lowlevel Backlight controls"
+	depends on BACKLIGHT_LCD_SUPPORT
+	default m
+	help
+	  This framework adds support for low-level control of the LCD
+          backlight. This includes support for brightness and power.
+
+	  To have support for your specific LCD panel you will have to
+	  select the proper drivers which depend on this option.
+
+config BACKLIGHT_DEVICE
+	bool
+	depends on BACKLIGHT_CLASS_DEVICE
+	default y
+
+config LCD_CLASS_DEVICE
+        tristate "Lowlevel LCD controls"
+	depends on BACKLIGHT_LCD_SUPPORT
+	default m
+	help
+	  This framework adds support for low-level control of LCD.
+	  Some framebuffer devices connect to platform-specific LCD modules
+	  in order to have a platform-specific way to control the flat panel
+	  (contrast and applying power to the LCD (not to the backlight!)).
+
+	  To have support for your specific LCD panel you will have to
+	  select the proper drivers which depend on this option.
+
+config LCD_DEVICE
+	bool
+	depends on LCD_CLASS_DEVICE
+	default y
+
+config BACKLIGHT_CORGI
+	tristate "Sharp Corgi Backlight Driver (SL-C7xx Series)"
+	depends on BACKLIGHT_DEVICE && PXA_SHARPSL
+	default y
+	help
+	  If you have a Sharp Zaurus SL-C7xx, say y to enable the
+	  backlight driver.
+

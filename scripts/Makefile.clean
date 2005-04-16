@@ -1,0 +1,94 @@
+# ==========================================================================
+# Cleaning up
+# ==========================================================================
+
+src := $(obj)
+
+.PHONY: __clean
+__clean:
+
+include $(if $(wildcard $(obj)/Kbuild), $(obj)/Kbuild, $(obj)/Makefile)
+
+# Figure out what we need to build from the various variables
+# ==========================================================================
+
+__subdir-y	:= $(patsubst %/,%,$(filter %/, $(obj-y)))
+subdir-y	+= $(__subdir-y)
+__subdir-m	:= $(patsubst %/,%,$(filter %/, $(obj-m)))
+subdir-m	+= $(__subdir-m)
+__subdir-n	:= $(patsubst %/,%,$(filter %/, $(obj-n)))
+subdir-n	+= $(__subdir-n)
+__subdir-	:= $(patsubst %/,%,$(filter %/, $(obj-)))
+subdir-		+= $(__subdir-)
+
+# Subdirectories we need to descend into
+
+subdir-ym	:= $(sort $(subdir-y) $(subdir-m))
+subdir-ymn      := $(sort $(subdir-ym) $(subdir-n) $(subdir-))
+
+# Add subdir path
+
+subdir-ymn	:= $(addprefix $(obj)/,$(subdir-ymn))
+
+# build a list of files to remove, usually releative to the current
+# directory
+
+__clean-files	:= $(extra-y) $(EXTRA_TARGETS) $(always) \
+		   $(targets) $(clean-files)             \
+		   $(host-progs)                         \
+		   $(hostprogs-y) $(hostprogs-m) $(hostprogs-)
+
+# as clean-files is given relative to the current directory, this adds
+# a $(obj) prefix, except for absolute paths
+
+__clean-files   := $(wildcard                                               \
+                   $(addprefix $(obj)/, $(filter-out /%, $(__clean-files))) \
+		   $(filter /%, $(__clean-files)))
+
+# as clean-dirs is given relative to the current directory, this adds
+# a $(obj) prefix, except for absolute paths
+
+__clean-dirs    := $(wildcard                                               \
+                   $(addprefix $(obj)/, $(filter-out /%, $(clean-dirs)))    \
+		   $(filter /%, $(clean-dirs)))
+
+# ==========================================================================
+
+quiet_cmd_clean    = CLEAN   $(obj)
+      cmd_clean    = rm -f $(__clean-files)
+quiet_cmd_cleandir = CLEAN   $(__clean-dirs)
+      cmd_cleandir = rm -rf $(__clean-dirs)
+
+
+__clean: $(subdir-ymn)
+ifneq ($(strip $(__clean-files)),)
+	+$(call cmd,clean)
+endif
+ifneq ($(strip $(__clean-dirs)),)
+	+$(call cmd,cleandir)
+endif
+ifneq ($(strip $(clean-rule)),)
+	+$(clean-rule)
+endif
+	@:
+
+
+# ===========================================================================
+# Generic stuff
+# ===========================================================================
+
+# Descending
+# ---------------------------------------------------------------------------
+
+.PHONY: $(subdir-ymn)
+$(subdir-ymn):
+	$(Q)$(MAKE) $(clean)=$@
+
+# If quiet is set, only print short version of command
+
+cmd = @$(if $($(quiet)cmd_$(1)),echo '  $($(quiet)cmd_$(1))' &&) $(cmd_$(1))
+
+# Shorthand for $(Q)$(MAKE) scripts/Makefile.clean obj=dir
+# Usage:
+# $(Q)$(MAKE) $(clean)=dir
+clean := -f $(if $(KBUILD_SRC),$(srctree)/)scripts/Makefile.clean obj

@@ -1,0 +1,59 @@
+menu "Kernel hacking"
+
+source "lib/Kconfig.debug"
+
+config EARLY_PRINTK
+	bool
+	depends on ALPHA_GENERIC || ALPHA_SRM
+	default y
+
+config DEBUG_RWLOCK
+	bool "Read-write spinlock debugging"
+	depends on DEBUG_KERNEL
+	help
+	  If you say Y here then read-write lock processing will count how many
+	  times it has tried to get the lock and issue an error message after
+	  too many attempts.  If you suspect a rwlock problem or a kernel
+	  hacker asks for this option then say Y.  Otherwise say N.
+
+config DEBUG_SEMAPHORE
+	bool "Semaphore debugging"
+	depends on DEBUG_KERNEL
+	help
+	  If you say Y here then semaphore processing will issue lots of
+	  verbose debugging messages.  If you suspect a semaphore problem or a
+	  kernel hacker asks for this option then say Y.  Otherwise say N.
+
+config ALPHA_LEGACY_START_ADDRESS
+	bool "Legacy kernel start address"
+	depends on ALPHA_GENERIC
+	default n
+	---help---
+	  The 2.4 kernel changed the kernel start address from 0x310000
+	  to 0x810000 to make room for the Wildfire's larger SRM console.
+	  Recent consoles on Titan and Marvel machines also require the
+	  extra room.
+
+	  If you're using aboot 0.7 or later, the bootloader will examine the
+	  ELF headers to determine where to transfer control. Unfortunately,
+	  most older bootloaders -- APB or MILO -- hardcoded the kernel start
+	  address rather than examining the ELF headers, and the result is a
+	  hard lockup.
+
+	  Say Y if you have a broken bootloader.  Say N if you do not, or if
+	  you wish to run on Wildfire, Titan, or Marvel.
+
+config ALPHA_LEGACY_START_ADDRESS
+	bool
+	depends on !ALPHA_GENERIC && !ALPHA_TITAN && !ALPHA_MARVEL && !ALPHA_WILDFIRE
+	default y
+
+config MATHEMU
+	tristate "Kernel FP software completion" if DEBUG_KERNEL && !SMP
+	default y if !DEBUG_KERNEL || SMP
+	help
+	  This option is required for IEEE compliant floating point arithmetic
+	  on the Alpha. The only time you would ever not say Y is to say M in
+	  order to debug the code. Say Y unless you know what you are doing.
+
+endmenu

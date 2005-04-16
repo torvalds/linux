@@ -1,0 +1,48 @@
+S2IO Technologies XFrame 10 Gig adapter.
+-------------------------------------------
+
+I. Module loadable parameters.
+When loaded as a module, the driver provides a host of Module loadable
+parameters, so the device can be tuned as per the users needs.
+A list of the Module params is given below.
+(i)	ring_num: This can be used to program the number of
+		 receive rings used in the driver.
+(ii)	ring_len: This defines the number of descriptors each ring
+		 can have. There can be a maximum of 8 rings.
+(iii)	frame_len: This is an array of size 8. Using this we can 
+		 set the maximum size of the received frame that can
+		 be steered into the corrsponding receive ring.	
+(iv)	fifo_num: This defines the number of Tx FIFOs thats used in
+		 the driver. 
+(v)	fifo_len: Each element defines the number of 
+ 		 Tx descriptors that can be associated with each 
+		 corresponding FIFO. There are a maximum of 8 FIFOs.
+(vi)	tx_prio: This is a bool, if module is loaded with a non-zero
+		value for tx_prio multi FIFO scheme is activated.
+(vii)	rx_prio: This is a bool, if module is loaded with a non-zero
+		value for tx_prio multi RING scheme is activated.
+(viii)	latency_timer: The value given against this param will be
+		 loaded	into the latency timer register in PCI Config
+		 space, else the register is left with its reset value.
+
+II. Performance tuning.
+ By changing a few sysctl parameters.
+	Copy the following lines into a file and run the following command,
+	"sysctl -p <file_name>"
+### IPV4 specific settings
+net.ipv4.tcp_timestamps = 0 # turns TCP timestamp support off, default 1, reduces CPU use
+net.ipv4.tcp_sack = 0 # turn SACK support off, default on
+# on systems with a VERY fast bus -> memory interface this is the big gainer
+net.ipv4.tcp_rmem = 10000000 10000000 10000000 # sets min/default/max TCP read buffer, default 4096 87380 174760
+net.ipv4.tcp_wmem = 10000000 10000000 10000000 # sets min/pressure/max TCP write buffer, default 4096 16384 131072
+net.ipv4.tcp_mem = 10000000 10000000 10000000 # sets min/pressure/max TCP buffer space, default 31744 32256 32768
+                                                                                
+### CORE settings (mostly for socket and UDP effect)
+net.core.rmem_max = 524287 # maximum receive socket buffer size, default 131071
+net.core.wmem_max = 524287 # maximum send socket buffer size, default 131071
+net.core.rmem_default = 524287 # default receive socket buffer size, default 65535
+net.core.wmem_default = 524287 # default send socket buffer size, default 65535
+net.core.optmem_max = 524287 # maximum amount of option memory buffers, default 10240
+net.core.netdev_max_backlog = 300000 # number of unprocessed input packets before kernel starts dropping them, default 300
+---End of performance tuning file---
+

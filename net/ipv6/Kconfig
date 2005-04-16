@@ -1,0 +1,79 @@
+#
+# IPv6 configuration
+# 
+config IPV6_PRIVACY
+	bool "IPv6: Privacy Extensions (RFC 3041) support"
+	depends on IPV6
+	---help---
+	  Privacy Extensions for Stateless Address Autoconfiguration in IPv6
+	  support.  With this option, additional periodically-alter 
+	  pseudo-random global-scope unicast address(es) will assigned to
+	  your interface(s).
+	
+	  By default, kernel do not generate temporary addresses.
+	  To use temporary addresses, do
+	
+	        echo 2 >/proc/sys/net/ipv6/conf/all/use_tempaddr 
+
+	  See <file:Documentation/networking/ip-sysctl.txt> for details.
+
+config INET6_AH
+	tristate "IPv6: AH transformation"
+	depends on IPV6
+	select XFRM
+	select CRYPTO
+	select CRYPTO_HMAC
+	select CRYPTO_MD5
+	select CRYPTO_SHA1
+	---help---
+	  Support for IPsec AH.
+
+	  If unsure, say Y.
+
+config INET6_ESP
+	tristate "IPv6: ESP transformation"
+	depends on IPV6
+	select XFRM
+	select CRYPTO
+	select CRYPTO_HMAC
+	select CRYPTO_MD5
+	select CRYPTO_SHA1
+	select CRYPTO_DES
+	---help---
+	  Support for IPsec ESP.
+
+	  If unsure, say Y.
+
+config INET6_IPCOMP
+	tristate "IPv6: IPComp transformation"
+	depends on IPV6
+	select XFRM
+	select INET6_TUNNEL
+	select CRYPTO
+	select CRYPTO_DEFLATE
+	---help---
+	  Support for IP Payload Compression Protocol (IPComp) (RFC3173),
+	  typically needed for IPsec.
+
+	  If unsure, say Y.
+
+config INET6_TUNNEL
+	tristate "IPv6: tunnel transformation"
+	depends on IPV6
+	select XFRM
+	---help---
+	  Support for generic IPv6-in-IPv6 tunnel transformation, which is
+	  required by the IPv6-in-IPv6 tunneling module as well as tunnel mode
+	  IPComp.
+	  
+	  If unsure, say Y.
+
+config IPV6_TUNNEL
+	tristate "IPv6: IPv6-in-IPv6 tunnel"
+	depends on IPV6
+	select INET6_TUNNEL
+	---help---
+	  Support for IPv6-in-IPv6 tunnels described in RFC 2473.
+
+	  If unsure, say N.
+

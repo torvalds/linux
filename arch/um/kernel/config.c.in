@@ -1,0 +1,32 @@
+/* 
+ * Copyright (C) 2002 Jeff Dike (jdike@karaya.com)
+ * Licensed under the GPL
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include "init.h"
+
+static __initdata char *config = "CONFIG";
+
+static int __init print_config(char *line, int *add)
+{
+	printf("%s", config);
+	exit(0);
+}
+
+__uml_setup("--showconfig", print_config,
+"--showconfig\n"
+"    Prints the config file that this UML binary was generated from.\n\n"
+);
+
+/*
+ * Overrides for Emacs so that we follow Linus's tabbing style.
+ * Emacs will notice this stuff at the end of the file and automatically
+ * adjust the settings for this buffer only.  This must remain at the end
+ * of the file.
+ * ---------------------------------------------------------------------------
+ * Local variables:
+ * c-file-style: "linux"
+ * End:
+ */

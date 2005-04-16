@@ -1,0 +1,55 @@
+Linux driver for STV0680 based USB cameras
+
+Copyright, 2001, Kevin Sisson
+
+
+INTRODUCTION:
+
+STMicroelectronics produces the STV0680B chip, which comes in two 
+types, -001 and -003. The -003 version allows the recording and downloading 
+of sound clips from the camera, and allows a flash attachment. Otherwise, 
+it uses the same commands as the -001 version. Both versions support a 
+variety of SDRAM sizes and sensors, allowing for a maximum of 26 VGA or 20 
+CIF pictures. The STV0680 supports either a serial or a usb interface, and 
+video is possible through the usb interface.
+
+The following cameras are known to work with this driver, although any 
+camera with Vendor/Product codes of 0553/0202 should work:
+
+Aiptek Pencam (various models)
+Nisis QuickPix 2
+Radio Shack 'Kid's digital camera' (#60-1207)
+At least one Trust Spycam model
+Several other European brand models
+
+WHAT YOU NEED:
+
+-	USB support
+-	VIDEO4LINUX support
+
+More information about USB support for linux can be found at:
+http://www.linux-usb.org
+
+
+MODULE OPTIONS:
+
+When the driver is compiled as a module, you can set a "swapRGB=1"
+option, if necessary, for those applications that require it 
+(such as xawtv). However, the driver should detect and set this 
+automatically, so this option should not normally be used.
+
+
+KNOWN PROBLEMS:
+
+The driver seems to work better with the usb-ohci than the usb-uhci host 
+controller driver. 
+
+HELP:
+
+The latest info on this driver can be found at:
+http://personal.clt.bellsouth.net/~kjsisson or at
+http://stv0680-usb.sourceforge.net
+
+Any questions to me can be send to:  kjsisson@bellsouth.net
+
+

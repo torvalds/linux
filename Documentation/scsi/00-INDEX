@@ -1,0 +1,70 @@
+00-INDEX
+	- this file
+53c700.txt
+	- info on driver for 53c700 based adapters
+AM53C974.txt
+	- info on driver for AM53c974 based adapters
+BusLogic.txt
+	- info on driver for adapters with BusLogic chips
+ChangeLog
+	- Changes to scsi files, if not listed elsewhere
+ChangeLog.ips
+	- IBM ServeRAID driver Changelog
+ChangeLog.ncr53c8xx
+	- Changes to ncr53c8xx driver
+ChangeLog.sym53c8xx
+	- Changes to sym53c8xx driver
+ChangeLog.sym53c8xx_2
+	- Changes to second generation of sym53c8xx driver
+FlashPoint.txt
+	- info on driver for BusLogic FlashPoint adapters
+LICENSE.FlashPoint
+	- Licence of the Flashpoint driver
+Mylex.txt
+	- info on driver for Mylex adapters
+NinjaSCSI.txt
+	- info on WorkBiT NinjaSCSI-32/32Bi driver
+aha152x.txt
+	- info on driver for Adaptec AHA152x based adapters
+aic7xxx.txt
+	- info on driver for Adaptec controllers
+aic7xxx_old.txt
+	- info on driver for Adaptec controllers, old generation
+cpqfc.txt
+	- info on driver for Compaq Tachyon TS adapters
+dpti.txt
+	- info on driver for DPT SmartRAID and Adaptec I2O RAID based adapters
+dtc3x80.txt
+	- info on driver for DTC 2x80 based adapters
+g_NCR5380.txt
+	- info on driver for NCR5380 and NCR53c400 based adapters
+ibmmca.txt
+	- info on driver for IBM adapters with MCA bus
+in2000.txt
+	- info on in2000 driver
+ncr53c7xx.txt
+	- info on driver for NCR53c7xx based adapters
+ncr53c8xx.txt
+	- info on driver for NCR53c8xx based adapters
+osst.txt
+	- info on driver for OnStream SC-x0 SCSI tape
+ppa.txt
+	- info on driver for IOmega zip drive
+qlogicfas.txt
+	- info on driver for QLogic FASxxx based adapters
+qlogicisp.txt
+	- info on driver for QLogic ISP 1020 based adapters
+scsi-generic.txt
+	- info on the sg driver for generic (non-disk/CD/tape) SCSI devices.
+scsi.txt
+	- short blurb on using SCSI support as a module.
+scsi_mid_low_api.txt
+	- info on API between SCSI layer and low level drivers
+st.txt
+	- info on scsi tape driver
+sym53c500_cs.txt
+	- info on PCMCIA driver for Symbios Logic 53c500 based adapters
+sym53c8xx_2.txt
+	- info on second generation driver for sym53c8xx based adapters
+tmscsim.txt
+	- info on driver for AM53c974 based adapters

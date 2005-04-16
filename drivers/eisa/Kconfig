@@ -1,0 +1,56 @@
+#
+# EISA configuration
+#
+config EISA_VLB_PRIMING
+	bool "Vesa Local Bus priming"
+	depends on X86_PC && EISA
+	default n
+	---help---
+	  Activate this option if your system contains a Vesa Local
+	  Bus (VLB) card that identify itself as an EISA card (such as
+	  the Adaptec AHA-284x).
+
+	  When in doubt, say N.
+
+config EISA_PCI_EISA
+	bool "Generic PCI/EISA bridge"
+	depends on !PARISC && PCI && EISA
+	default y
+	---help---
+	  Activate this option if your system contains a PCI to EISA
+	  bridge. If your system have both PCI and EISA slots, you
+	  certainly need this option.
+
+	  When in doubt, say Y.
+
+# Using EISA_VIRTUAL_ROOT on something other than an Alpha or
+# an X86_PC may lead to crashes...
+
+config EISA_VIRTUAL_ROOT
+	bool "EISA virtual root device"
+	depends on EISA && (ALPHA || X86_PC)
+	default y
+	---help---
+	  Activate this option if your system only have EISA bus
+	  (no PCI slots). The Alpha Jensen is an example of such
+	  a system.
+
+	  When in doubt, say Y.
+
+config EISA_NAMES
+	bool "EISA device name database"
+	depends on EISA
+	default y
+	---help---
+	  By default, the kernel contains a database of all known EISA
+	  device names to make the information in sysfs comprehensible
+	  to the user. This database increases size of the kernel
+	  image by about 40KB, but it gets freed after the system
+	  boots up, so it doesn't take up kernel memory. Anyway, if
+	  you are building an installation floppy or kernel for an
+	  embedded system where kernel image size really matters, you
+	  can disable this feature and you'll get device ID instead of
+	  names.
+
+	  When in doubt, say Y.
+

@@ -1,0 +1,8 @@
+#!/bin/sh
+#
+# Purpose: Generate GNU diff of local changes versus canonical top-of-tree
+#
+# Usage: gcapatch > foo.patch
+#
+
+bk export -tpatch -hdu -r`bk repogca bk://linux.bkbits.net/linux-2.5`,+

@@ -1,0 +1,22 @@
+#
+# PCMCIA character device configuration
+#
+
+menu "PCMCIA character devices"
+	depends on HOTPLUG && PCMCIA!=n
+
+config SYNCLINK_CS
+	tristate "SyncLink PC Card support"
+	depends on PCMCIA
+	help
+	  Enable support for the SyncLink PC Card serial adapter, running
+	  asynchronous and HDLC communications up to 512Kbps. The port is
+	  selectable for RS-232, V.35, RS-449, RS-530, and X.21
+
+	  This driver may be built as a module ( = code which can be
+	  inserted in and removed from the running kernel whenever you want).
+	  The module will be called synclinkmp.  If you want to do that, say M
+	  here.
+
+endmenu
+

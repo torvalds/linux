@@ -1,0 +1,196 @@
+
+		CDU31A/CDU33A Driver Info
+		-------------------------
+
+Information on the Sony CDU31A/CDU33A CDROM driver for the Linux
+kernel.
+
+   Corey Minyard (minyard@metronet.com)
+  
+   Colossians 3:17
+
+Crude Table of Contents
+-----------------------
+
+  Setting Up the Hardware
+  Configuring the Kernel
+  Configuring as a Module
+  Driver Special Features
+
+  
+This device driver handles Sony CDU31A/CDU33A CDROM drives and
+provides a complete block-level interface as well as an ioctl()
+interface as specified in include/linux/cdrom.h).  With this
+interface, CDROMs can be accessed, standard audio CDs can be played
+back normally, and CD audio information can be read off the drive.
+
+Note that this will only work for CDU31A/CDU33A drives.  Some vendors
+market their drives as CDU31A compatible.  They lie.  Their drives are
+really CDU31A hardware interface compatible (they can plug into the
+same card).  They are not software compatible.
+
+Setting Up the Hardware
+-----------------------
+
+The CDU31A driver is unable to safely tell if an interface card is
+present that it can use because the interface card does not announce
+its presence in any way besides placing 4 I/O locations in memory.  It
+used to just probe memory and attempt commands, but Linus wisely asked
+me to remove that because it could really screw up other hardware in
+the system.
+
+Because of this, you must tell the kernel where the drive interface
+is, what interrupts are used, and possibly if you are on a PAS-16
+soundcard.
+
+If you have the Sony CDU31A/CDU33A drive interface card, the following
+diagram will help you set it up.  If you have another card, you are on
+your own.  You need to make sure that the I/O address and interrupt is
+not used by another card in the system.  You will need to know the I/O
+address and interrupt you have set.  Note that use of interrupts is
+highly recommended, if possible, it really cuts down on CPU used.
+Unfortunately, most soundcards do not support interrupts for their
+CDROM interfaces.  By default, the Sony interface card comes with
+interrupts disabled.
+   
+        +----------+-----------------+----------------------+
+        |  JP1     |  34 Pin Conn    |                      |
+        |  JP2     +-----------------+                      |
+        |  JP3                                              |
+        |  JP4                                              |
+        |                                                   +--+
+        |                                                   |  +-+
+        |                                                   |  | |  External
+        |                                                   |  | |  Connector
+        |                                                   |  | |
+        |                                                   |  +-+
+        |                                                   +--+
+        |                                                   |
+        |                                          +--------+
+        |                                          |
+        +------------------------------------------+
+   
+      JP1 sets the Base Address, using the following settings:
+   
+        Address         Pin 1           Pin 2
+        -------         -----           -----
+        0x320           Short           Short
+        0x330           Short           Open
+        0x340           Open            Short
+        0x360           Open            Open
+   
+      JP2 and JP3 configure the DMA channel; they must be set the same.
+   
+        DMA             Pin 1           Pin 2           Pin 3
+        ---             -----           -----           -----
+        1               On              Off             On
+        2               Off             On              Off
+        3               Off             Off             On
+   
+      JP4 Configures the IRQ:
+   
+        IRQ     Pin 1           Pin 2           Pin 3           Pin 4
+        ---     -----           -----           -----           -----
+        3       Off             Off             On              Off
+        4       Off             Off*            Off             On
+        5       On              Off             Off             Off
+        6       Off             On              Off             Off
+   
+                  The documentation states to set this for interrupt
+                  4, but I think that is a mistake.
+
+Note that if you have another interface card, you will need to look at
+the documentation to find the I/O base address.  This is specified to
+the SLCD.SYS driver for DOS with the /B: parameter, so you can look at
+you DOS driver setup to find the address, if necessary.
+
+Configuring the Kernel
+----------------------
+
+You must tell the kernel where the drive is at boot time.  This can be
+done at the Linux boot prompt, by using LILO, or by using Bootlin.
+Note that this is no substitute for HOWTOs and LILO documentation, if
+you are confused please read those for info on bootline configuration
+and LILO.
+
+At the linux boot prompt, press the ALT key and add the following line
+after the boot name (you can let the kernel boot, it will tell you the
+default boot name while booting):
+
+	cdu31a=<base address>,<interrupt>[,PAS]
+
+The base address needs to have "0x" in front of it, since it is in
+hex.  For instance, to configure a drive at address 320 on interrupt 5,
+use the following:
+
+	cdu31a=0x320,5
+
+I use the following boot line:
+
+	cdu31a=0x1f88,0,PAS
+
+because I have a PAS-16 which does not support interrupt for the
+CDU31A interface.
+
+Adding this as an append line at the beginning of the /etc/lilo.conf
+file will set it for lilo configurations.  I have the following as the
+first line in my lilo.conf file:
+
+	append="cdu31a=0x1f88,0"
+
+I'm not sure how to set up Bootlin (I have never used it), if someone
+would like to fill in this section please do.
+
+
+Configuring as a Module
+-----------------------
+
+The driver supports loading as a module.  However, you must specify
+the boot address and interrupt on the boot line to insmod.  You can't
+use modprobe to load it, since modprobe doesn't support setting
+variables.
+
+Anyway, I use the following line to load my driver as a module
+
+  /sbin/insmod /lib/modules/`uname -r`/misc/cdu31a.o cdu31a_port=0x1f88
+
+You can set the following variables in the driver:
+
+  cdu31a_port=<I/O address> - sets the base I/O.  If hex, put 0x in
+			      front of it.  This must be specified.
+
+  cdu31a_irq=<interrupt> - Sets the interrupt number.  Leaving this
+			   off will turn interrupts off.
+
+
+Driver Special Features
+-----------------------
+
+This section describes features beyond the normal audio and CD-ROM
+functions of the drive.
+
+2048 byte buffer mode
+
+If a disk is mounted with -o block=2048, data is copied straight from
+the drive data port to the buffer.  Otherwise, the readahead buffer
+must be involved to hold the other 1K of data when a 1K block
+operation is done.  Note that with 2048 byte blocks you cannot execute
+files from the CD.
+
+XA compatibility
+
+The driver should support XA disks for both the CDU31A and CDU33A.  It
+does this transparently, the using program doesn't need to set it.
+
+Multi-Session
+
+A multi-session disk looks just like a normal disk to the user.  Just
+mount one normally, and all the data should be there.  A special
+thanks to Koen for help with this!
+
+Raw sector I/O
+
+Using the CDROMREADAUDIO it is possible to read raw audio and data
+tracks.  Both operations return 2352 bytes per sector.  On the data
+tracks, the first 12 bytes is not returned by the drive and the value
+of that data is indeterminate.

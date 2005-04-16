@@ -1,0 +1,25 @@
+#!/bin/sh
+
+# unbz64wrap - the receiving side of a bzip2 | base64 stream
+# Andreas Dilger <adilger@clusterfs.com>   Jan 2002
+
+# Sadly, mimencode does not appear to have good "begin" and "end" markers
+# like uuencode does, and it is picky about getting the right start/end of
+# the base64 stream, so we handle this explicitly here.
+
+PATH=$PATH:/usr/bin:/usr/local/bin:/usr/freeware/bin
+
+if mimencode -u < /dev/null > /dev/null 2>&1 ; then
+	SHOW=
+	while read LINE; do
+		case $LINE in
+		begin-base64*) SHOW=YES ;;
+		====) SHOW= ;;
+		*) [ "$SHOW" ] && echo "$LINE" ;;
+		esac
+	done | mimencode -u | bunzip2
+	exit $?
+else
+	cat - | uudecode -o /dev/stdout | bunzip2
+	exit $?
+fi

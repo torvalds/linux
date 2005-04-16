@@ -1,0 +1,31 @@
+#!/bin/bash
+# A script to dump mixed source code & assembly
+# with correct relocations from System.map
+# Requires the following lines in Rules.make.
+# Author(s): DJ Barrow (djbarrow@de.ibm.com,barrow_dj@yahoo.com) 
+#            William Stearns <wstearns@pobox.com>
+#%.lst: %.c
+#	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $(CFLAGS_$@) -g -c -o $*.o $<
+#	$(TOPDIR)/scripts/makelst $*.o $(TOPDIR)/System.map $(OBJDUMP)
+#
+#    Copyright (C) 2000 IBM Corporation
+#    Author(s): DJ Barrow (djbarrow@de.ibm.com,barrow_dj@yahoo.com) 
+#
+
+t1=`$3 --syms $1 | grep .text | grep " F " | head -n 1`
+if [ -n "$t1" ]; then
+  t2=`echo $t1 | gawk '{ print $6 }'`
+  if [ ! -r $2 ]; then
+    echo "No System.map" >&2
+    t7=0
+  else
+    t3=`grep $t2 $2`
+    t4=`echo $t3 | gawk '{ print $1 }'`
+    t5=`echo $t1 | gawk '{ print $1 }'`
+    t6=`echo $t4 - $t5 | tr a-f A-F`
+    t7=`( echo  ibase=16 ; echo $t6 ) | bc`
+  fi
+else
+  t7=0
+fi
+$3 -r --source --adjust-vma=$t7 $1

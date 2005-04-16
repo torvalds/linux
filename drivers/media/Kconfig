@@ -1,0 +1,54 @@
+#
+# Multimedia device configuration
+#
+
+menu "Multimedia devices"
+
+config VIDEO_DEV
+	tristate "Video For Linux"
+	---help---
+	  Support for audio/video capture and overlay devices and FM radio
+	  cards. The exact capabilities of each device vary. User tools for
+	  this are available from
+	  <ftp://ftp.uk.linux.org/pub/linux/video4linux/>.
+
+	  This kernel includes support for the new Video for Linux Two API,
+	  (V4L2) as well as the original system. Drivers and applications
+	  need to be rewritten to use V4L2, but drivers for popular cards
+	  and applications for most video capture functions already exist.
+
+	  Documentation for the original API is included in the file
+	  <file:Documentation/video4linux/API.html>.  Documentation for V4L2 is
+	  available on the web at <http://bytesex.org/v4l/>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called videodev.
+
+source "drivers/media/video/Kconfig"
+
+source "drivers/media/radio/Kconfig"
+
+source "drivers/media/dvb/Kconfig"
+
+source "drivers/media/common/Kconfig"
+
+config VIDEO_TUNER
+	tristate
+
+config VIDEO_BUF
+	tristate
+
+config VIDEO_BUF_DVB
+	tristate
+
+config VIDEO_BTCX
+	tristate
+
+config VIDEO_IR
+	tristate
+
+config VIDEO_TVEEPROM
+	tristate
+
+endmenu
+

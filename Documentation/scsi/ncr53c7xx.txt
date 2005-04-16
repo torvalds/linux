@@ -1,0 +1,40 @@
+README for WarpEngine/A4000T/A4091 SCSI kernels.
+
+Use the following options to disable options in the SCSI driver.
+
+Using amiboot for example.....
+
+To disable Synchronous Negotiation....
+
+	amiboot -k kernel 53c7xx=nosync:0	
+
+To disable Disconnection....
+	
+	amiboot -k kernel 53c7xx=nodisconnect:0
+
+To disable certain SCSI devices...
+
+	amiboot -k kernel 53c7xx=validids:0x3F
+
+	this allows only device ID's 0,1,2,3,4 and 5 for linux to handle.
+	(this is a bitmasked field - i.e. each bit represents a SCSI ID)
+
+These commands work on a per controller basis and use the option 'next' to
+move to the next controller in the system.
+
+e.g.
+	amiboot -k kernel 53c7xx=nodisconnect:0,next,nosync:0
+
+	this uses No Disconnection on the first controller and Asynchronous
+	SCSI on the second controller.
+
+Known Issues:
+
+Two devices are known not to function with the default settings of using
+synchronous SCSI. These are the Archive Viper 150 Tape Drive and the 
+SyQuest SQ555 removeable hard drive. When using these devices on a controller
+use the 'nosync:0' option.
+
+Please try these options and post any problems/successes to me.
+
+Alan Hourihane <alanh@fairlite.demon.co.uk>

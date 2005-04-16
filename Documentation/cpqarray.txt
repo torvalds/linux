@@ -1,0 +1,93 @@
+This driver is for Compaq's SMART2 Intelligent Disk Array Controllers.
+
+Supported Cards:
+----------------
+
+This driver is known to work with the following cards:
+
+	* SMART (EISA)
+	* SMART-2/E (EISA)
+	* SMART-2/P
+	* SMART-2DH
+	* SMART-2SL
+	* SMART-221
+	* SMART-3100ES
+	* SMART-3200
+	* Integrated Smart Array Controller
+	* SA 4200
+	* SA 4250ES
+	* SA 431
+	* RAID LC2 Controller
+
+It should also work with some really old Disk array adapters, but I am
+unable to test against these cards:
+
+	* IDA
+	* IDA-2
+	* IAES
+
+
+EISA Controllers:
+-----------------
+
+If you want to use an EISA controller you'll have to supply some
+modprobe/lilo parameters.  If the driver is compiled into the kernel, must
+give it the controller's IO port address at boot time (it is not
+necessary to specify the IRQ).  For example, if you had two SMART-2/E
+controllers, in EISA slots 1 and 2 you'd give it a boot argument like
+this:
+
+	smart2=0x1000,0x2000
+
+If you were loading the driver as a module, you'd give load it like this:
+
+	modprobe cpqarray eisa=0x1000,0x2000
+
+You can use EISA and PCI adapters at the same time.
+
+
+Device Naming:
+--------------
+
+You need some entries in /dev for the ida device.  MAKEDEV in the /dev
+directory can make device nodes for you automatically.  The device setup is
+as follows:
+
+Major numbers:
+	72	ida0
+	73	ida1
+	74	ida2
+	75	ida3
+	76	ida4
+	77	ida5
+	78	ida6
+	79	ida7
+
+Minor numbers:
+        b7 b6 b5 b4 b3 b2 b1 b0
+        |----+----| |----+----|
+             |           |
+             |           +-------- Partition ID (0=wholedev, 1-15 partition)
+             |
+             +-------------------- Logical Volume number
+
+The device naming scheme is:
+/dev/ida/c0d0		Controller 0, disk 0, whole device
+/dev/ida/c0d0p1		Controller 0, disk 0, partition 1
+/dev/ida/c0d0p2		Controller 0, disk 0, partition 2
+/dev/ida/c0d0p3		Controller 0, disk 0, partition 3
+
+/dev/ida/c1d1		Controller 1, disk 1, whole device
+/dev/ida/c1d1p1		Controller 1, disk 1, partition 1
+/dev/ida/c1d1p2		Controller 1, disk 1, partition 2
+/dev/ida/c1d1p3		Controller 1, disk 1, partition 3
+
+
+Changelog:
+==========
+
+10-28-2004 :	General cleanup, syntax fixes for in-kernel driver version.
+		James Nelson <james4765@gmail.com>
+
+
+1999 :		Original Document

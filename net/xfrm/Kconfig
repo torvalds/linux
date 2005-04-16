@@ -1,0 +1,12 @@
+#
+# XFRM configuration
+#
+config XFRM_USER
+	tristate "IPsec user configuration interface"
+	depends on INET && XFRM
+	---help---
+	  Support for IPsec user configuration interface used
+	  by native Linux tools.
+
+	  If unsure, say Y.
+

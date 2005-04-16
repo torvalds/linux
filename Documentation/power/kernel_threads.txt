@@ -1,0 +1,41 @@
+KERNEL THREADS
+
+
+Freezer
+
+Upon entering a suspended state the system will freeze all
+tasks. This is done by delivering pseudosignals. This affects
+kernel threads, too. To successfully freeze a kernel thread
+the thread has to check for the pseudosignal and enter the
+refrigerator. Code to do this looks like this:
+
+	do {
+		hub_events();
+		wait_event_interruptible(khubd_wait, !list_empty(&hub_event_list));
+		if (current->flags & PF_FREEZE)
+			refrigerator(PF_FREEZE);
+	} while (!signal_pending(current));
+
+from drivers/usb/core/hub.c::hub_thread()
+
+
+The Unfreezable
+
+Some kernel threads however, must not be frozen. The kernel must
+be able to finish pending IO operations and later on be able to
+write the memory image to disk. Kernel threads needed to do IO
+must stay awake. Such threads must mark themselves unfreezable
+like this:
+
+	/*
+	 * This thread doesn't need any user-level access,
+	 * so get rid of all our resources.
+	 */
+	daemonize("usb-storage");
+
+	current->flags |= PF_NOFREEZE;
+
+from drivers/usb/storage/usb.c::usb_stor_control_thread()
+
+Such drivers are themselves responsible for staying quiet during
+the actual snapshotting.

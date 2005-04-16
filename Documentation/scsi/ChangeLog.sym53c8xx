@@ -1,0 +1,593 @@
+Sat May 12 12:00 2001 Gerard Roudier (groudier@club-internet.fr)
+	* version sym53c8xx-1.7.3c
+	- Ensure LEDC bit in GPCNTL is cleared when reading the NVRAM.
+	  Fix sent by Stig Telfer <stig@api-networks.com>.
+	- Backport from SYM-2 the work-around that allows to support 
+	  hardwares that fail PCI parity checking.
+	- Check that we received at least 8 bytes of INQUIRY response 
+	  for byte 7, that contains device capabilities, to be valid.
+	- Define scsi_set_pci_device() as nil for kernel < 2.4.4.
+	- + A couple of minor changes.
+	  
+Sat Apr 7 19:30 2001 Gerard Roudier (groudier@club-internet.fr)
+	* version sym53c8xx-1.7.3b
+	- Fix an unaligned LOAD from scripts (was used as dummy read).
+	- In ncr_soft_reset(), only try to ABORT the current operation 
+	  for chips that support SRUN bit in ISTAT1 and if SCRIPTS are 
+	  currently running, as 896 and 1010 manuals suggest.
+	- In the CCB abort path, do not assume that the CCB is currently 
+	  queued to SCRIPTS. This is not always true, notably after a 
+	  QUEUE FULL status or when using untagged commands.
+
+Sun Mar 4 18:30 2001 Gerard Roudier (groudier@club-internet.fr)
+	* version sym53c8xx-1.7.3a
+	- Fix an issue in the ncr_int_udc() (unexpected disconnect)
+	  handling. If the DSA didn't match a CCB, a bad write to 
+	  memory could happen.
+
+Mon Feb 12 22:30 2001 Gerard Roudier (groudier@club-internet.fr)
+	* version sym53c8xx-1.7.3
+	- Support for hppa.
+	  Tiny patch sent to me by Robert Hirst.
+	- Tiny patch for ia64 sent to me by Pamela Delaney.
+
+Tue Feb 6 13:30 2001 Gerard Roudier (groudier@club-internet.fr)
+	* version sym53c8xx-1.7.3-pre1
+	- Call pci_enable_device() as AC wants this to be done.
+	- Get both the BAR cookies used by CPU and actual PCI BAR 
+	  values used from SCRIPTS. Recent PCI chips are able to 
+	  access themselves using internal cycles, but they compare 
+	  BAR values to destination address to make decision.
+	  Earlier chips simply use PCI transactions to access IO 
+	  registers from SCRIPTS.
+	  The bus_dvma_to_mem() interface that reverses the actual 
+	  PCI BAR value from the BAR cookie is now useless.
+	  This point had been discussed at the list and the solution 
+	  got approved by PCI code maintainer (Martin Mares).
+	- Merge changes for linux-2.4 that declare the host template 
+	  in the driver object also when the driver is statically 
+	  linked with the kernel.
+	- Increase SCSI message size up to 12 bytes, given that 8 
+	  bytes was not enough for the PPR message (fix).
+	- Add field 'maxoffs_st' (max offset for ST data transfers).
+	  The C1010 supports offset 62 in DT mode but only 31 in 
+	  ST mode, to 2 different values for the max SCSI offset 
+	  are needed. Replace the obviously wrong masking of the 
+	  offset against 0x1f for ST mode by a lowering to 
+	  maxoffs_st of the SCSI offset in ST mode.
+	- Refine a work-around for the C1010-66. Revision 1 does 
+	  not requires extra cycles in DT DATA OUT phase.
+	- Add a missing endian-ization (abrt_tbl.addr).
+	- Minor clean-up in the np structure for fields accessed 
+	  from SCRIPTS that requires special alignments.
+
+Sun Sep 24 21:30 2000 Gerard Roudier (groudier@club-internet.fr)
+	* version sym53c8xx-1.7.2
+	- Remove the hack for PPC added in previous driver version.
+	- Add FE_DAC feature bit to distinguish between 64 bit PCI 
+	  addressing (FE_DAC) and 64 bit PCI interface (FE_64BIT).
+	- Get rid of the boot command line "ultra:" argument.
+	  This parameter wasn't that clever since we can use "sync:" 
+	  for Ultra/Ultra2 settings, and for Ultra3 we may want to 
+	  pass PPR options (for now only DT clocking).
+	- Add FE_VARCLK feature bit that indicates that SCSI clock 
+	  frequency may vary depending on board design and thus, 
+	  the driver should try to evaluate the SCSI clock.
+	- Simplify the way the driver determine the SCSI clock:
+	  ULTRA3 -> 160 MHz, ULTRA2 -> 80 MHz otherwise 40 MHz.
+	  Measure the SCSI clock frequency if FE_VARCLK is set.
+	- Remove FE_CLK80 feature bit that got useless.
+	- Add support for the SYM53C875A (Pamela Delaney).
+
+Wed Jul 26 23:30 2000 Gerard Roudier (groudier@club-internet.fr)
+	* version sym53c8xx-1.7.1
+	- Provide OpenFirmare path through the proc FS on PPC.
+	- Download of on-chip SRAM using memcpy_toio() doesn't work 
+	  on PPC. Restore previous method (MEMORY MOVE from SCRIPTS).
+	- Remove trailing argument #2 from a couple of #undefs.
+
+Sun Jul 09 16:30 2000 Gerard Roudier (groudier@club-internet.fr)
+	* version sym53c8xx-1.7.0
+	- Remove the PROFILE C and SCRIPTS code.
+	  This facility was not this useful and thus was not longer 
+	  desirable given the increasing complexity of the driver code.
+	- Merges from FreeBSD sym-1.6.2 driver:
+	  * Clarify memory barriers needed by the driver for architectures 
+	    that implement a weak memory ordering.
+	  * Simpler handling of illegal phases and data overrun from 
+	    SCRIPTS. These errors are now immediately reported to 
+	    the C code by an interrupt.
+	  * Sync the residual handling code with sym-1.6.2 and now 
+	    report `resid' to user for linux version >= 2.3.99 
+	- General cleanup:
+	  Move definitions for barriers and IO/MMIO operations to the 
+	  sym53c8xx_defs.h header files. They are now shared by the 
+	  both drivers.
+	  Remove unused options that claimed to optimize for the 896.
+	  If fact, they were not this clever. :)
+	  Use SCSI_NCR_IOMAPPED instead of NCR_IOMAPPED.
+	  Remove a couple of unused fields from data structures.
+
+Thu May 11 12:40 2000 Pam Delaney (pam.delaney@lsil.com)
+	* version sym53c8xx-1.6b
+	- Merged version.
+
+Mon Apr 24 12:00 2000 Gerard Roudier (groudier@club-internet.fr)
+	* version sym53c8xx-1.5m
+	- Return value 1 (instead of 0) from the driver setup routine.
+	- Do not enable PCI DAC cycles. This just broke support for 
+	  SYM534C896 on sparc64. Problem fixed by David S. Miller.
+
+Fri Apr 14 9:00 2000 Pam Delaney (pam.delaney@lsil.com)
+	* version sym53c8xx-1.6b-9
+	- Added 53C1010_66 support.
+	- Small fix to integrity checking code.
+	- Removed requirement for integrity checking if want to run
+	  at ultra 3.
+ 
+Sat Apr 1  12:00 2000 Gerard Roudier (groudier@club-internet.fr)
+	* version sym53c8xx-1.5l
+	- Tiny change for __sparc__ appeared in 2.3.99-pre4.1 that 
+	  applies to cache line size (? Probably from David S Miller).
+	- Make sure no data transfer will happen for Scsi_Cmnd requests 
+	  that supply SCSI_DATA_NONE direction (this avoids some BUG() 
+	  statement in the PCI code when a data buffer is also supplied).
+
+Sat Mar 11 12:00 2000 Gerard Roudier (groudier@club-internet.fr)
+	* version sym53c8xx-1.6b-5
+	- Test against expected data transfer direction from SCRIPTS.
+	- Add support for the new dynamic dma mapping kernel interface.
+	  Requires Linux-2.3.47 (tested with pre-2.3.47-6).
+	  Many thanks to David S. Miller for his preliminary changes 
+	  that have been useful guidelines.
+	- Get data transfer direction from the scsi command structure 
+	  (Scsi_Cmnd) with kernels that provide this information.
+
+Mon Mar  6 23:30 2000 Gerard Roudier (groudier@club-internet.fr)
+	* version sym53c8xx-1.5k
+	- Test against expected data transfer direction from SCRIPTS.
+	- Revert the change in 'ncr_flush_done_cmds()' but unmap the 
+	  scsi dma buffer prior to queueing the command to our done 
+	  list.
+	- Miscellaneous (minor) fixes in the code added in driver 
+	  version 1.5j.
+
+Mon Feb 14 4:00 2000 Pam Delaney (pam.delaney@lsil.com)
+ 	* version sym53c8xx-pre-1.6b-2.
+	- Updated the SCRIPTS error handling of the SWIDE
+	  condition - to remove any reads of the sbdl
+	  register. Changes needed because the 896 and 1010
+	  chips will check parity in some special circumstances.
+	  This will cause a parity error interrupt if not in
+	  data phase.  Changes based on those made in the
+	  FreeBSD driver version 1.3.2.
+
+Sun Feb 20 11:00 2000 Gerard Roudier (groudier@club-internet.fr)
+	* version sym53c8xx-1.5j
+	- Add support for the new dynamic dma mapping kernel interface.
+	  Requires Linux-2.3.47 (tested with pre-2.3.47-6).
+	  Many thanks to David S. Miller for his preliminary changes 
+	  that have been useful guidelines, for having reviewed the 
+	  code and having tested this driver version on Ultra-Sparc.
+	- 2 tiny bugs fixed in the PCI wrapper that provides support 
+	  for early kernels without pci device structure.
+	- Get data transfer direction from the scsi command structure 
+	  (Scsi_Cmnd) with kernels that provide this information.
+	- Fix an old bug that only affected 896 rev. 1 when driver 
+	  profile support option was set in kernel configuration.
+
+Fri Jan 14 14:00 2000 Pam Delaney (pam.delaney@lsil.com)
+ 	* version sym53c8xx-pre-1.6b-1.
+	- Merge parallel driver series 1.61 and 1.5e 
+
+Tue Jan 11 14:00 2000 Pam Delaney (pam.delaney@lsil.com)
+	* version sym53c8xx-1.61
+	- Added support for mounting disks on wide-narrow-wide
+	  scsi configurations. 
+	- Modified offset to be a maximum of 31 in ST mode, 
+	  62 in DT mode.
+	- Based off of 1.60
+
+Mon Jan 10 10:00 2000 Pam Delaney (pam.delaney@lsil.com)
+	* version sym53c8xx-1.60
+	- Added capability to use the integrity checking code
+	  in the kernel (optional).
+	-  Added PPR negotiation.
+	- Added support for 53C1010 Ultra 3 part.
+	- Based off of 1.5f
+
+Sat Jan 8  22:00 2000 Gerard Roudier (groudier@club-internet.fr)
+	* version sym53c8xx-1.5h
+	- Add year 2000 copyright.
+	- Display correctly bus signals when bus is detected wrong.
+	- Some fix for Sparc from DSM that went directly to kernel tree.
+
+Mon Dec 6  22:00 1999 Gerard Roudier (groudier@club-internet.fr)
+	* version sym53c8xx-1.5g
+	- Change messages written by the driver at initialisation and 
+	  through the /proc FS (rather cosmetic changes that consist in
+	  printing out the PCI bus number and PCI device/function).
+	- Ensure the SCRIPTS processor is stopped while calibrating the 
+	  SCSI clock (the initialisation code has been a bit reworked).
+	  Change moved to the FreeBSD sym_hipd driver).
+	- Some fixes in the MODIFY_DP/IGN_RESIDUE code and residual 
+	  calculation (moved from FreeBSD sym_hipd driver).
+	- Add NVRAM support for Tekram boards that use 24C16 EEPROM.
+	  Code moved from the FreeBSD sym_hipd driver, since it has 
+	  been that one that got this feature first.
+	- Definitely disable overlapped PCI arbitration for all dual 
+	  function chips, since I cannot make sure for what chip revisions 
+	  it is actually safe.
+	- Add support for the SYM53C1510D (also for ncr53c8xx).
+	- Fix up properly the PCI latency timer when needed or asked for.
+	- Get rid of the old PCI bios interface, but preserve kernel 2.0 
+	  compatibility from a simple wrapper.
+	- Update the poor Tekram sync factor table.
+	- Fix in a tiny 'printk' bug that may oops in case of extended 
+	  errors (unrecovered parity error, data overrun, etc ...)
+	  (Sent by Pamela Delaney from LSILOGIC)
+	- Remove the compilation condition about having to acquire the 
+	  io_request_lock since it seems to be a definite feature now.:)
+	- Change get_pages by GetPages since Linux >= 2.3.27 now wants 
+	  get_pages to ever be used as a kernel symbol (from 2.3.27).
+	- proc_dir structure no longer needed for kernel >= 2.3.27.
+
+Sun Oct  3  19:00 1999 Gerard Roudier (groudier@club-internet.fr)
+	* version sym53c8xx-1.5f
+	- Change the way the driver checks the PCI clock frequency, so 
+	  that overclocked PCI BUS up to 48 MHz will not be refused.
+	  The more the BUS is overclocked, the less the driver will 
+	  guarantee that its measure of the SCSI clock is correct.
+	- Backport some minor improvements of SCRIPTS from the sym_hipd 
+	  driver.
+	- Backport the code rewrite of the START QUEUE dequeuing (on 
+	  bad scsi status received) from the sym_hipd driver.
+
+Sat Sep 11  11:00 1999 Gerard Roudier (groudier@club-internet.fr)
+	* version sym53c8xx-1.5e
+	- New linux-2.3.13 __setup scheme support added.
+	- Cleanup of the extended error status handling:
+	  Use 1 bit per error type.
+	- Also save the extended error status prior to auto-sense.
+	- Add the FE_DIFF chip feature bit to indicate support of 
+	  diff probing from GPIO3 (825/825A/876/875).
+	- Remove the quirk handling that has been useless since day one.
+	- Work-around PCI chips being reported twice on some platforms.
+	- Add some redundant PCI reads in order to deal with common 
+	  bridge misbehaviour regarding posted write flushing.
+	- Add some other conditionnal code for people who have to deal 
+	  with really broken bridges (they will have to edit a source 
+	  file to try these options).
+	- Handle correctly (hopefully) jiffies wrap-around.
+	- Restore the entry used to detect 875 until revision 0xff.
+	  (I removed it inadvertently, it seems :) )
+	- Replace __initfunc() which is deprecated stuff by __init which 
+	  is not yet so. ;-)
+	- Rewrite the MESSAGE IN scripts more generic by using a MOVE 
+	  table indirect. Extended messages of any size are accepted now.
+	  (Size is limited to 8 for now, but a constant is just to be 
+	  increased if necessary)
+	- Fix some bug in the fully untested MDP handling:) and share 
+	  some code between MDP handling and residual calculation.
+	- Calculate the data transfer residual as the 2's complement 
+	  integer (A positive value in returned on data overrun, and 
+	  a negative one on underrun).
+	- Add support of some 'resource handling' for linux-2.3.13.
+	  Basically the BARs have been changed to something more complex 
+	  in the pci_dev structure.
+	- Remove some deprecated code.
+
+Sat Jun  5  11:00 1999 Gerard Roudier (groudier@club-internet.fr)
+	* version sym53c8xx-1.5c
+	- Do not negotiate on auto-sense if we are currently using 8 bit 
+	  async transfer for the target.
+	- Only check for SISL/RAID on i386 platforms.
+	  (A problem has been reported on PPC with that code).
+	- On MSG REJECT for a negotiation, the driver attempted to restart 
+	  the SCRIPT processor when this one was already running.
+
+Sat May 29  12:00 1999 Gerard Roudier (groudier@club-internet.fr)
+	* version sym53c8xx-1.5b
+	- Force negotiation prior auto-sense.
+	  This ensures that the driver will be able to grab the sense data 
+	  from a device that has received a BUS DEVICE RESET message from 
+	  another initiator.
+	- Complete all disconnected CCBs for a logical UNIT if we are told 
+	  about a UNIT ATTENTION for a RESET condition by this target.
+	- Add the control command 'cleardev' that allows to send a ABORT  
+	  message to a logical UNIT (for test purpose).
+
+Tue May 25  23:00 1999 Gerard Roudier (groudier@club-internet.fr)
+	* version sym53c8xx-1.5a
+	- Add support for task abort and bus device reset SCSI message 
+	  and implement proper synchonisation with SCRIPTS to handle 
+          correctly task abortion without races.
+	- Send an ABORT message (if untagged) or ABORT TAG message (if tagged)
+	  when the driver is told to abort a command that is disconnected and 
+	  complete the command with appropriate error.
+	  If the aborted command is not yet started, remove it from the start 
+	  queue and complete it with error.
+	- Add the control command 'resetdev' that allows to send a BUS 
+	  DEVICE RESET message to a target (for test purpose).
+	- Clean-up some unused or useless code.
+
+Fri May 21  23:00 1999 Gerard Roudier (groudier@club-internet.fr)
+	* version sym53c8xx-1.5
+	- Add support for CHMOV with Wide controllers.
+	- Handling of the SWIDE (low byte residue at the end of a CHMOV 
+	  in DATA IN phase with WIDE transfer when the byte count gets odd).
+	- Handling of the IGNORE WIDE RESIDUE message.
+	  Handled from SCRIPTS as possible with some optimizations when both 
+	  a wide device and the controller are odd at the same time (SWIDE 
+	  present and IGNORE WIDE RESIDUE message on the BUS at the same time).
+	- Check against data OVERRUN/UNDERRUN condition at the end of a data 
+	  transfer, whatever a SWIDE is present (OVERRUN in DATA IN phase) 
+	  or the SODL is full (UNDERRUN in DATA out phase).
+	- Handling of the MODIFY DATA POINTER message.
+	  This one cannot be handled from SCRIPTS, but hopefully it will not
+	  happen very often. :)
+	- Large rewrite of the SCSI MESSAGE handling.
+
+Sun May 9  11:00 1999 Gerard Roudier (groudier@club-internet.fr)
+	* version sym53c8xx-1.4
+	- Support for IMMEDIATE ARBITRATION.
+	  See the README file for detailed information about this feature.
+	  Requires both a compile option and a boot option.
+	- Minor SCRIPTS optimization in reselection pattern for LUN 0.
+	- Simpler algorithm to deal with SCSI command starvation.
+	  Just use 2 tag counters in flip/flop and switch to the other 
+	  one every 3 seconds.
+	- Do some work in SCRIPTS after the SELECT instruction and prior 
+	  to testing for a PHASE. SYMBIOS say this feature is working fine. 
+	  (Btw, only problems with Toshiba 3401B had been reported).
+	- Measure the PCI clock speed and do not attach controllers if 
+	  result is greater than 37 MHz. Since the precision of the 
+	  algorithm (from Stefan Esser) is better than 2%, this should 
+	  be fine.
+	- Fix the misdetection of SYM53C875E (was detected as a 876).
+	- Fix the misdetection of SYM53C810 not A (was detected as a 810A).
+	- Support for up to 256 TAGS per LUN (CMD_PER_LUN).
+	  Currently limited to 255 due to Linux limitation. :)
+	- Support for up to 508 active commands (CAN_QUEUE).
+	- Support for the 53C895A by Pamela Delaney <pam.delaney@lsil.com>
+	  The 53C895A contains all of the features of the 896 but has only 
+	  one channel and has a 32 bit PCI bus. It does 64 bit PCI addressing 
+	  using dual cycle PCI data transfers.
+	- Miscellaneous minor fixes.
+	- Some additions to the README.ncr53c8xx file.
+
+Tue Apr 15  10:00 1999 Gerard Roudier (groudier@club-internet.fr)
+	* version sym53c8xx-1.3e
+	- Support for any number of LUNs (64) (SPI2-compliant).
+	  (Btw, this may only be ever useful under linux-2.2 ;-))
+
+Sun Apr 11  10:00 1999 Gerard Roudier (groudier@club-internet.fr)
+	* version sym53c8xx-1.3d
+	- Add 'hostid:#id' boot option. This option allows to change the 
+	  default SCSI id the driver uses for controllers.
+	- Make SCRIPTS not use self-mastering for PCI.
+	  There were still 2 places the driver used this feature of the 
+	  53C8XX family.
+	- Move some data structures (nvram layouts and driver set-up) to 
+	  the sym53c8xx_defs.h file. So, the both drivers will share them.
+	- Set MAX LUNS to 16 (instead of 8).
+
+Sat Mar 20  21:00 1999 Gerard Roudier (groudier@club-internet.fr)
+	* version sym53c8xx-1.3b
+	- Add support for NCR PQS PDS.
+	  James Bottomley <James.Bottomley@columbiasc.ncr.com>
+	- Allow value 0 for host ID.
+	- Support more than 8 controllers (> 40 in fact :-) )
+	- Add 'excl=#ioaddr' boot option: exclude controller.
+	  (Version 1.3a driver)
+
+Thu Mar 11  23:00 1999 Gerard Roudier (groudier@club-internet.fr)
+	* version sym53c8xx-1.3   (8xx-896 driver bundle)
+	- Equivalent changes as ncr53c8xx-3.2 due to the driver bundle.
+	  (See Changelog.ncr53c8xx)
+	- Do a normal soft reset as first chip reset, since aborting current 
+	  operation may raise an interrupt we are not able to handle since 
+	  the interrupt handler is not yet established.
+
+Sat Mar 6  11:00 1999 Gerard Roudier (groudier@club-internet.fr)
+	* version sym53c8xx-1.2b
+	- Fix some oooold bug that hangs the bus if a device rejects a 
+	  negotiation. Btw, the corresponding stuff also needed some cleanup 
+	  and thus the change is a bit larger than it could have been.
+	- Still some typo that made compilation fail for 64 bit (trivial fix).
+
+Sun Feb 21  20:00 1999 Gerard Roudier (groudier@club-internet.fr)
+	* version sym53c8xx-1.2a
+	- The rewrite of the interrupt handling broke the SBMC interrupt 
+	  handling due to a 1 bit mask tiny error. Hopefully fixed.
+	- If INQUIRY came from a scatter list, the driver looked into 
+	  the scatterlist instead of the data.:) Since this should never
+	  happen, we just discard the data if use_sg is not zero.
+
+Fri Feb 12  23:00 1999 Gerard Roudier (groudier@club-internet.fr)
+	* version sym53c8xx-1.2
+	- Major rewrite of the interrupt handling and recovery stuff for 
+	  the support of non compliant SCSI removal, insertion and all 
+	  kinds of screw-up that may happen on the SCSI BUS.
+	  Hopefully, the driver is now unbreakable or may-be, it is just 
+	  quite brocken. :-)
+	  Many thanks to Johnson Russel (Symbios) for having responded to 
+	  my questions and for his interesting advices and comments about 
+	  support of SCSI hot-plug.
+	- Add 'recovery' option to driver set-up.
+	- Negotiate SYNC data transfers with CCS devices.
+	- Deal correctly with 64 bit PCI address registers on Linux 2.2.
+	  Pointed out by Leonard Zubkoff.
+
+Sun Jan 31  18:00 1999 Gerard Roudier (groudier@club-internet.fr)
+	* version sym53c8xx-1.1a
+	- Some 896 chip revisions (all for now :-)), may hang-up if the 
+	  soft reset bit is set at the wrong time while SCRIPTS are running.
+	  We need to first abort the current SCRIPTS operation prior to 
+	  resetting the chip. This fix has been sent to me by SYMBIOS/LSI 
+	  and I just translated it into ncr53c8xx syntax.
+	  Must be considered 100 % trustable, unless I did some mistake 
+	  when translating it. :-)
+
+Sun Jan 24  18:00 1999 Gerard Roudier (groudier@club-internet.fr)
+	* version sym53c8xx-1.1
+	- Major rewrite of the SCSI parity error handling.
+	  The informations contained in the data manuals are incomplete about 
+	  this feature.
+	  I asked SYMBIOS about and got in reply the explanations that are 
+	  _indeed_ missing in the data manuals.
+	- Allow to tune request_irq() flags from the boot command line using 
+	  ncr53c8xx=irqm:??, as follows:
+	  a) If bit 0x10 is set in irqm, SA_SHIRQ flag is not used.
+	  b) If bit 0x20 is set in irqm, SA_INTERRUPT flag is not used.
+	  By default the driver uses both SA_SHIRQ and SA_INTERRUPT.
+	  Option 'ncr53c8xx=irqm:0x20' may be used when an IRQ is shared by 
+	  a 53C8XX adapter and a network board.
+	- Fix for 64 bit PCI address register calculation. (Lance Robinson)
+	- Fix for big-endian in phase mismatch handling. (Michal Jaegermann)
+
+Fri Jan  1  20:00 1999 Gerard Roudier (groudier@club-internet.fr)
+	* version sym53c8xx-1.0a
+	- Waiting list look-up didn't work for the first command of the list.
+	  Hopefully fixed, but tested on paper only. ;)
+	- Remove the most part of PPC specific code for Linux-2.2.
+	  Thanks to Cort.
+	- Some other minors changes.
+
+Sat Dec 19  21:00 1998 Gerard Roudier (groudier@club-internet.fr)
+	* version sym53c8xx-1.0
+	- Define some new IO registers for the 896 (istat1, mbox0, mbox1)
+	- Revamp slighly the Symbios NVRAM lay-out based on the excerpt of 
+	  the header file I received from Symbios.
+	- Check the PCI bus number for the boot order (Using a fast 
+	  PCI controller behing a PCI-PCI bridge seems sub-optimal).
+	- Disable overlapped PCI arbitration for the 896 revision 1.
+	- Reduce a bit the number of IO register reads for phase mismatch 
+	  by reading DWORDS at a time instead of BYTES.
+
+Thu Dec  3  24:00 1998 Gerard Roudier (groudier@club-internet.fr)
+	* version pre-sym53c8xx-0.18
+	- I received this afternoon a 896 from SYMBIOS and started testing  
+	  the driver with this beast. After having fixed 3 buglets, it worked  
+	  with all features enabled including the phase mismatch handling 
+	  from SCRIPTS. Since this feature is not yet tested enough, the 
+	  boot option 'ncr53c8xx=specf:1' is still required to enable the 
+	  driver to handle PM from SCRIPTS. 
+
+Sun Nov 29  18:00 1998 Gerard Roudier (groudier@club-internet.fr)
+	* version pre-sym53c8xx-0.17
+	- The SISL RAID change requires now remap_pci_mem() stuff to be 
+	  compiled for __i386__ when normal IOs are used.
+	- The PCI memory read from SCRIPTS that should ensure ordering 
+	  was in fact misplaced. BTW, this may explain why broken PCI 
+	  device drivers regarding ordering are working so well. ;-)
+	- Rewrite ncr53c8xx_setup (boot command line options) since the  
+	  binary code was a bit too bloated in my opinion.
+	- Make the code simpler in the wakeup_done routine.
+
+Tue Nov 24  23:00 1998 Gerard Roudier (groudier@club-internet.fr)
+	* version pre-sym53c8xx-0.16
+	- Add SCSI_NCR_OPTIMIZE_896_1 compile option and 'optim' boot option.
+	  When set, the driver unconditionnaly assumes that the interrupt 
+	  handler is called for command completion, then clears INTF, scans 
+	  the done queue and returns if some completed CCB is found. If no 
+	  completed CCB are found, interrupt handling will proceed normally.
+	  With a 896 that handles MA from SCRIPTS, this can be a great win, 
+	  since the driver will never performs PCI read transactions, but 
+	  only PCI write transactions that may be posted.
+	  If the driver haven't to also raise the SIGP this would be perfect.
+	  Even with this penalty, I think that this will work great.
+	  Obviously this optimization makes sense only if the IRQ is not 
+	  shared with another device.
+	- Still a buglet in the tags initial settings that needed to be fixed.
+	  It was not possible to disable TGQ at system startup for devices 
+	  that claim TGQ support. The driver used at least 2 for the queue 
+	  depth but did'nt keep track of user settings for tags depth lower 
+	  than 2.
+
+Thu Nov 19  23:00 1998 Gerard Roudier (groudier@club-internet.fr)
+	* version pre-sym53c8xx-0.15
+	- Add support for hardware LED control of the 896.
+	- Ignore chips that are driven by SISL RAID (DAC 960).
+	  Change sent by Leonard Zubkoff and slightly reworked.
+	- Prevent 810A rev 11 and 860 rev 1 from using cache line based 
+	  transactions since those early chip revisions may use such on 
+	  LOAD/STORE instructions (work-around).
+	- Remove some useless and bloat code from the pci init stuff.
+	- Do not use the readX()/writeX() kernel functions for __i386__, 
+	  since they perform useless masking operations in order to deal 
+	  with broken driver in 2.1.X kernel.
+
+Wed Nov 11  10:00 1998 Gerard Roudier (groudier@club-internet.fr)
+	* version pre-sym53c8xx-0.14
+	- The driver was unhappy when configured with default_tags > MAX_TAGS
+	  Hopefully doubly-fixed.
+	- Set PCI_PARITY in PCI_COMMAND register in not set (PCI fix-up).
+	- Print out some message if phase mismatch is handled from SCRIPTS.
+
+Sun Nov 1  14H00 1998 Gerard Roudier (groudier@club-internet.fr)
+	* version pre-sym53c8xx-0.13
+	- Some rewrite of the device detection code. This code had been 
+	  patched too much and needed to be face-lifted a bit.
+	  Remove all platform dependent fix-ups that was not needed or
+	  conflicted with some other driver code as work-arounds.
+	  Reread the NVRAM before the calling of ncr_attach(). This spares 
+	  stack space and so allows to handle more boards.
+	  Handle 64 bit base addresses under linux-2.0.X.
+	  Set MASTER bit in PCI COMMAND register if not set.
+
+Wed Oct 30 22H00 1998 Gerard Roudier (groudier@club-internet.fr)
+	* version pre-sym53c8xx-0.12
+	- Damned! I just broke the driver for Alpha by leaving a stale 
+	  instruction in the source code. Hopefully fixed.
+	- Do not set PFEN when it is useless. Doing so we are sure that BOF 
+	  will be active, since the manual appears to be very unclear on what 
+	  feature is actually used by the chip when both PFEN and BOF are 
+	  set.
+
+Sat Oct 24 16H00 1998 Gerard Roudier (groudier@club-internet.fr)
+	* version pre-sym53c8xx-0.11
+	- LOAD/STORE instructions were miscompiled for register offsets 
+	  beyond 0x7f. This broke accesses to 896' new registers.
+	- Disable by default Phase Mismatch handling from SCRIPTS, since 
+	  current 896 rev.1 seems not to operate safely with the driver
+	  when this feature is enabled (and above LOAD/STORE fix applied).
+	  I will change the default to 'enabled' when this problem will be 
+	  solved.
+	  Using boot option 'ncr53c8xx=specf:1' enables this feature.
+	- Implement a work-around (DEL 472 - ITEM 5) that should allow the 
+	  driver to safely enable hardware phase mismatch with 896 rev. 1.
+
+Tue Oct 20 22H00 1998 Gerard Roudier (groudier@club-internet.fr)
+	* version pre-sym53c8xx-0.10
+	- Add the 53c876 description to the chip table. This is only useful 
+	  for printing the right name of the controller.
+	- Add additional checking of INQUIRY data:
+	  Check INQUIRY data received length is at least 7. Byte 7 of 
+	  inquiry data contains device features bits and the driver might 
+	  be confused by garbage. Also check peripheral qualifier.
+	- Use a 1,3,5,...MAXTAGS*2+1 tag numbering. Previous driver could  
+	  use any tag number from 1 to 253 and some non conformant devices  
+	  might have problems with large tag numbers.
+	- Use NAME53C and NAME53C8XX for chip name prefix chip family name.
+	  Just give a try using "sym53c" and "sym53c8xx" instead of "ncr53c" 
+	  and "ncr53c8xx". :-)
+
+Sun Oct 11 17H00 1998 Gerard Roudier (groudier@club-internet.fr)
+	* version pre-sym53c8xx-0.9
+	- DEL-441 Item 2 work-around for the 53c876 rev <= 5 (0x15).
+	- Break ncr_scatter() into 2 functions in order to guarantee best 
+	  possible code optimization for the case we get a scatter list.
+	- Add the code intended to support up to 1 tera-byte for 64 bit systems.
+	  It is probably too early, but I wanted to complete the thing.
+
+Sat Oct 3 14H00 1998 Gerard Roudier (groudier@club-internet.fr)
+	* version pre-sym53c8xx-0.8
+	- Do some testing with io_mapped and fix what needed to be so.
+	- Wait for SCSI selection to complete or time-out immediately after 
+	  the chip won arbitration, since executing SCRIPTS while the SCSI 
+	  core is performing SCSI selection breaks the selection procedure 
+	  at least for some chip revisions.
+	- Interrupt the SCRIPTS if a device does not go to MSG OUT phase after 
+	  having been selected with ATN. Such a situation is not recoverable, 
+	  better to fail when we are stuck.

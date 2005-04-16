@@ -1,0 +1,6 @@
+A pure OPL3 card is nice and easy to configure. Simply do
+
+insmod opl3 io=0x388
+
+Change the I/O address in the very unlikely case this card is differently
+configured

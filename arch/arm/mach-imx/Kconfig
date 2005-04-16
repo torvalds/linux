@@ -1,0 +1,10 @@
+menu "IMX Implementations"
+	depends on ARCH_IMX
+
+config ARCH_MX1ADS
+	bool "mx1ads"
+	depends on ARCH_IMX
+	help
+	  Say Y here if you are using the Motorola MX1ADS board
+
+endmenu

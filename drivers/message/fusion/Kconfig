@@ -1,0 +1,66 @@
+
+menu "Fusion MPT device support"
+
+config FUSION
+	tristate "Fusion MPT (base + ScsiHost) drivers"
+	depends on PCI && SCSI
+	---help---
+	  LSI Logic Fusion(TM) Message Passing Technology (MPT) device support
+	  provides high performance SCSI host initiator, and LAN [1] interface
+	  services to a host system.  The Fusion architecture is capable of
+	  duplexing these protocols on high-speed Fibre Channel
+	  (up to 2 GHz x 2 ports = 4 GHz) and parallel SCSI (up to Ultra-320)
+	  physical medium.
+
+	  [1] LAN is not supported on parallel SCSI medium.
+
+config FUSION_MAX_SGE
+	int "Maximum number of scatter gather entries"
+	depends on FUSION
+	default "40"
+	help
+	  This option allows you to specify the maximum number of scatter-
+	  gather entries per I/O. The driver defaults to 40, a reasonable number
+	  for most systems. However, the user may increase this up to 128.
+	  Increasing this parameter will require significantly more memory 
+	  on a per controller instance. Increasing the parameter is not
+	  necessary (or recommended) unless the user will be running 
+	  large I/O's via the raw interface.
+
+config FUSION_CTL
+	tristate "Fusion MPT misc device (ioctl) driver"
+	depends on FUSION
+	---help---
+	  The Fusion MPT misc device driver provides specialized control
+	  of MPT adapters via system ioctl calls.  Use of ioctl calls to
+	  the MPT driver requires that you create and use a misc device
+	  node ala:
+	  mknod /dev/mptctl c 10 240
+
+	  One use of this ioctl interface is to perform an upgrade (reflash)
+	  of the MPT adapter firmware.  Refer to readme file(s) distributed
+	  with the Fusion MPT linux driver for additional details.
+
+	  If enabled by saying M to this, a driver named: mptctl
+	  will be compiled.
+
+	  If unsure whether you really want or need this, say N.
+
+config FUSION_LAN
+	tristate "Fusion MPT LAN driver"
+	depends on FUSION && NET_FC
+	---help---
+	  This module supports LAN IP traffic over Fibre Channel port(s)
+	  on Fusion MPT compatible hardware (LSIFC9xx chips).
+	  The physical interface used is defined in RFC 2625.
+	  Please refer to that document for details.
+
+	  Installing this driver requires the knowledge to configure and
+	  activate a new network interface, "fc0", using standard Linux tools.
+
+	  If enabled by saying M to this, a driver named: mptlan
+	  will be compiled.
+
+	  If unsure whether you really want or need this, say N.
+
+endmenu

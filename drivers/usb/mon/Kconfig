@@ -1,0 +1,22 @@
+#
+# USB Monitor configuration
+#
+
+# In normal life, it makes little sense to have usbmon as a module, and in fact
+# it is harmful, because there is no way to autoload the module.
+# The 'm' option is allowed for hackers who debug the usbmon itself,
+# and for those who have usbcore as a module.
+config USB_MON
+	tristate "USB Monitor"
+	depends on USB
+	default y
+	help
+	  If you say Y here, a component which captures the USB traffic
+	  between peripheral-specific drivers and HC drivers will be built.
+	  The USB_MON is similar in spirit and may be compatible with Dave
+	  Harding's USBMon.
+
+	  This is somewhat experimental at this time, but it should be safe,
+	  as long as you aren't building this as a module and then removing it.
+
+	  If unsure, say Y. Do not say M.

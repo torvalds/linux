@@ -1,0 +1,455 @@
+#
+# USB Serial device configuration
+#
+
+menu "USB Serial Converter support"
+	depends on USB!=n
+
+config USB_SERIAL
+	tristate "USB Serial Converter support"
+	depends on USB
+	---help---
+	  Say Y here if you have a USB device that provides normal serial
+	  ports, or acts like a serial device, and you want to connect it to
+	  your USB bus.
+
+	  Please read <file:Documentation/usb/usb-serial.txt> for more
+	  information on the specifics of the different devices that are
+	  supported, and on how to use them.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called usbserial.
+
+config USB_SERIAL_CONSOLE
+	bool "USB Serial Console device support (EXPERIMENTAL)"
+	depends on USB_SERIAL=y && EXPERIMENTAL
+	---help---
+	  If you say Y here, it will be possible to use a USB to serial
+	  converter port as the system console (the system console is the
+	  device which receives all kernel messages and warnings and which
+	  allows logins in single user mode). This could be useful if some
+	  terminal or printer is connected to that serial port.
+
+	  Even if you say Y here, the currently visible virtual console
+	  (/dev/tty0) will still be used as the system console by default, but
+	  you can alter that using a kernel command line option such as
+	  "console=ttyUSB0". (Try "man bootparam" or see the documentation of
+	  your boot loader (lilo or loadlin) about how to pass options to the
+	  kernel at boot time.)
+
+	  If you don't have a VGA card installed and you say Y here, the
+	  kernel will automatically use the first USB to serial converter
+	  port, /dev/ttyUSB0, as system console.
+
+	  If unsure, say N.
+
+config USB_SERIAL_GENERIC
+	bool "USB Generic Serial Driver"
+	depends on USB_SERIAL
+	help
+	  Say Y here if you want to use the generic USB serial driver.  Please
+	  read <file:Documentation/usb/usb-serial.txt> for more information on
+	  using this driver.  It is recommended that the "USB Serial converter
+	  support" be compiled as a module for this driver to be used
+	  properly.
+
+config USB_SERIAL_BELKIN
+	tristate "USB Belkin and Peracom Single Port Serial Driver"
+	depends on USB_SERIAL
+	help
+	  Say Y here if you want to use a Belkin USB Serial single port
+	  adaptor (F5U103 is one of the model numbers) or the Peracom single
+	  port USB to serial adapter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called belkin_sa.
+
+config USB_SERIAL_WHITEHEAT
+	tristate "USB ConnectTech WhiteHEAT Serial Driver"
+	depends on USB_SERIAL && BROKEN_ON_SMP
+	help
+	  Say Y here if you want to use a ConnectTech WhiteHEAT 4 port
+	  USB to serial converter device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called whiteheat.
+
+config USB_SERIAL_DIGI_ACCELEPORT
+	tristate "USB Digi International AccelePort USB Serial Driver"
+	depends on USB_SERIAL
+	---help---
+	  Say Y here if you want to use Digi AccelePort USB 2 or 4 devices,
+	  2 port (plus parallel port) and 4 port USB serial converters.  The
+	  parallel port on the USB 2 appears as a third serial port on Linux.
+	  The Digi Acceleport USB 8 is not yet supported by this driver.
+
+	  This driver works under SMP with the usb-uhci driver.  It does not
+	  work under SMP with the uhci driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called digi_acceleport.
+
+config USB_SERIAL_CP2101
+	tristate "USB CP2101 UART Bridge Controller"
+	depends on USB_SERIAL && EXPERIMENTAL
+	help
+	  Say Y here if you want to use a CP2101/CP2102 based USB to RS232
+	  converter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cp2101.
+
+config USB_SERIAL_CYPRESS_M8
+	tristate "USB Cypress M8 USB Serial Driver"
+	depends on USB_SERIAL && EXPERIMENTAL
+	help
+	  Say Y here if you want to use a device that contains the Cypress
+	  USB to Serial microcontroller, such as the DeLorme Earthmate GPS.
+
+		Attempted SMP support... send bug reports!
+
+	  Supported microcontrollers in the CY4601 family are:
+		CY7C63741 CY7C63742 CY7C63743 CY7C64013
+	
+	  To compile this driver as a module, choose M here: the
+	  module will be called cypress_m8.
+
+config USB_SERIAL_EMPEG
+	tristate "USB Empeg empeg-car Mark I/II Driver"
+	depends on USB_SERIAL
+	help
+	  Say Y here if you want to connect to your Empeg empeg-car Mark I/II
+	  mp3 player via USB.  The driver uses a single ttyUSB{0,1,2,...}
+	  device node.  See <file:Documentation/usb/usb-serial.txt> for more
+	  tidbits of information.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called empeg.
+
+config USB_SERIAL_FTDI_SIO
+	tristate "USB FTDI Single Port Serial Driver (EXPERIMENTAL)"
+	depends on USB_SERIAL && EXPERIMENTAL
+	---help---
+	  Say Y here if you want to use a FTDI SIO single port USB to serial
+	  converter device. The implementation I have is called the USC-1000.
+	  This driver has also be tested with the 245 and 232 devices.
+
+	  See <http://ftdi-usb-sio.sourceforge.net/> for more
+	  information on this driver and the device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ftdi_sio.
+
+config USB_SERIAL_VISOR
+	tristate "USB Handspring Visor / Palm m50x / Sony Clie Driver"
+	depends on USB_SERIAL
+	help
+	  Say Y here if you want to connect to your HandSpring Visor, Palm
+	  m500 or m505 through its USB docking station. See
+	  <http://usbvisor.sourceforge.net/> for more information on using this
+	  driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called visor.
+
+config USB_SERIAL_IPAQ
+	tristate "USB PocketPC PDA Driver"
+	depends on USB_SERIAL
+	help
+	  Say Y here if you want to connect to your Compaq iPAQ, HP Jornada
+	  or any other PDA running Windows CE 3.0 or PocketPC 2002
+	  using a USB cradle/cable. For information on using the driver,
+	  read <file:Documentation/usb/usb-serial.txt>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ipaq.
+
+config USB_SERIAL_IR
+	tristate "USB IR Dongle Serial Driver (EXPERIMENTAL)"
+	depends on USB_SERIAL && EXPERIMENTAL
+	help
+	  Say Y here if you want to enable simple serial support for USB IrDA
+	  devices.  This is useful if you do not want to use the full IrDA
+	  stack.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ir-usb.
+
+config USB_SERIAL_EDGEPORT
+	tristate "USB Inside Out Edgeport Serial Driver"
+	depends on USB_SERIAL
+	---help---
+	  Say Y here if you want to use any of the following devices from
+	  Inside Out Networks (Digi):
+	  Edgeport/4
+	  Rapidport/4
+	  Edgeport/4t
+	  Edgeport/2
+	  Edgeport/4i
+	  Edgeport/2i
+	  Edgeport/421
+	  Edgeport/21
+	  Edgeport/8
+	  Edgeport/8 Dual
+	  Edgeport/2D8
+	  Edgeport/4D8
+	  Edgeport/8i
+	  Edgeport/2 DIN
+	  Edgeport/4 DIN
+	  Edgeport/16 Dual
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called io_edgeport.
+
+config USB_SERIAL_EDGEPORT_TI
+	tristate "USB Inside Out Edgeport Serial Driver (TI devices)"
+	depends on USB_SERIAL
+	help
+	  Say Y here if you want to use any of the devices from Inside Out
+	  Networks (Digi) that are not supported by the io_edgeport driver.
+	  This includes the Edgeport/1 device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called io_ti.
+
+config USB_SERIAL_GARMIN
+       tristate "USB Garmin GPS driver"
+       depends on USB_SERIAL
+       help
+         Say Y here if you want to connect to your Garmin GPS.
+         Should work with most Garmin GPS devices which have a native USB port.
+
+         See <http://sourceforge.net/projects/garmin-gps> for the latest
+         version of the driver.
+
+         To compile this driver as a module, choose M here: the
+         module will be called garmin_gps.
+
+config USB_SERIAL_IPW
+        tristate "USB IPWireless (3G UMTS TDD) Driver (EXPERIMENTAL)"
+	depends on USB_SERIAL && EXPERIMENTAL
+	help
+	  Say Y here if you want to use a IPWireless USB modem such as
+	  the ones supplied by Axity3G/Sentech South Africa.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ipw.
+
+config USB_SERIAL_KEYSPAN_PDA
+	tristate "USB Keyspan PDA Single Port Serial Driver"
+	depends on USB_SERIAL
+	help
+	  Say Y here if you want to use a Keyspan PDA single port USB to
+	  serial converter device.  This driver makes use of firmware
+	  developed from scratch by Brian Warner.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called keyspan_pda.
+
+config USB_SERIAL_KEYSPAN
+	tristate "USB Keyspan USA-xxx Serial Driver"
+	depends on USB_SERIAL
+	---help---
+	  Say Y here if you want to use Keyspan USB to serial converter
+	  devices.  This driver makes use of Keyspan's official firmware
+	  and was developed with their support.  You must also include
+	  firmware to support your particular device(s).
+
+	  See <http://misc.nu/hugh/keyspan.html> for more information.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called keyspan.
+
+config USB_SERIAL_KEYSPAN_MPR
+	bool "USB Keyspan MPR Firmware"
+	depends on USB_SERIAL_KEYSPAN
+	help
+	  Say Y here to include firmware for the Keyspan MPR converter.
+
+config USB_SERIAL_KEYSPAN_USA28
+	bool "USB Keyspan USA-28 Firmware"
+	depends on USB_SERIAL_KEYSPAN
+	help
+	  Say Y here to include firmware for the USA-28 converter.
+
+config USB_SERIAL_KEYSPAN_USA28X
+	bool "USB Keyspan USA-28X Firmware"
+	depends on USB_SERIAL_KEYSPAN
+	help
+	  Say Y here to include firmware for the USA-28X converter.
+	  Be sure you have a USA-28X, there are also 28XA and 28XB
+	  models, the label underneath has the actual part number.
+
+config USB_SERIAL_KEYSPAN_USA28XA
+	bool "USB Keyspan USA-28XA Firmware"
+	depends on USB_SERIAL_KEYSPAN
+	help
+	  Say Y here to include firmware for the USA-28XA converter.
+	  Be sure you have a USA-28XA, there are also 28X and 28XB
+	  models, the label underneath has the actual part number.
+
+config USB_SERIAL_KEYSPAN_USA28XB
+	bool "USB Keyspan USA-28XB Firmware"
+	depends on USB_SERIAL_KEYSPAN
+	help
+	  Say Y here to include firmware for the USA-28XB converter.
+	  Be sure you have a USA-28XB, there are also 28X and 28XA
+	  models, the label underneath has the actual part number.
+
+config USB_SERIAL_KEYSPAN_USA19
+	bool "USB Keyspan USA-19 Firmware"
+	depends on USB_SERIAL_KEYSPAN
+	help
+	  Say Y here to include firmware for the USA-19 converter.
+
+config USB_SERIAL_KEYSPAN_USA18X
+	bool "USB Keyspan USA-18X Firmware"
+	depends on USB_SERIAL_KEYSPAN
+	help
+	  Say Y here to include firmware for the USA-18X converter.
+
+config USB_SERIAL_KEYSPAN_USA19W
+	bool "USB Keyspan USA-19W Firmware"
+	depends on USB_SERIAL_KEYSPAN
+	help
+	  Say Y here to include firmware for the USA-19W converter.
+
+config USB_SERIAL_KEYSPAN_USA19QW
+	bool "USB Keyspan USA-19QW Firmware"
+	depends on USB_SERIAL_KEYSPAN
+	help
+	  Say Y here to include firmware for the USA-19QW converter.
+
+config USB_SERIAL_KEYSPAN_USA19QI
+	bool "USB Keyspan USA-19QI Firmware"
+	depends on USB_SERIAL_KEYSPAN
+	help
+	  Say Y here to include firmware for the USA-19QI converter.
+
+config USB_SERIAL_KEYSPAN_USA49W
+	bool "USB Keyspan USA-49W Firmware"
+	depends on USB_SERIAL_KEYSPAN
+	help
+	  Say Y here to include firmware for the USA-49W converter.
+
+config USB_SERIAL_KEYSPAN_USA49WLC
+	bool "USB Keyspan USA-49WLC Firmware"
+	depends on USB_SERIAL_KEYSPAN
+	help
+	  Say Y here to include firmware for the USA-49WLC converter.
+
+config USB_SERIAL_KLSI
+	tristate "USB KL5KUSB105 (Palmconnect) Driver (EXPERIMENTAL)"
+	depends on USB_SERIAL && EXPERIMENTAL
+	---help---
+	  Say Y here if you want to use a KL5KUSB105 - based single port
+	  serial adapter. The most widely known -- and currently the only
+	  tested -- device in this category is the PalmConnect USB Serial
+	  adapter sold by Palm Inc. for use with their Palm III and Palm V
+	  series PDAs.
+
+	  Please read <file:Documentation/usb/usb-serial.txt> for more
+	  information.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called kl5kusb105.
+
+config USB_SERIAL_KOBIL_SCT
+        tristate "USB KOBIL chipcard reader"
+        depends on USB_SERIAL
+        ---help---
+          Say Y here if you want to use one of the following KOBIL USB chipcard
+          readers:
+
+            - USB TWIN
+            - KAAN Standard Plus
+            - KAAN SIM
+            - SecOVID Reader Plus
+            - B1 Professional
+            - KAAN Professional
+
+          Note that you need a current CT-API.
+          To compile this driver as a module, choose M here: the
+	  module will be called kobil_sct.
+
+config USB_SERIAL_MCT_U232
+	tristate "USB MCT Single Port Serial Driver"
+	depends on USB_SERIAL
+	---help---
+	  Say Y here if you want to use a USB Serial single port adapter from
+	  Magic Control Technology Corp. (U232 is one of the model numbers).
+
+	  This driver also works with Sitecom U232-P25 and D-Link DU-H3SP USB
+	  BAY devices.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mct_u232.
+
+config USB_SERIAL_PL2303
+	tristate "USB Prolific 2303 Single Port Serial Driver"
+	depends on USB_SERIAL
+	help
+	  Say Y here if you want to use the PL2303 USB Serial single port
+	  adapter from Prolific.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pl2303.
+
+config USB_SERIAL_SAFE
+	tristate "USB Safe Serial (Encapsulated) Driver (EXPERIMENTAL)"
+	depends on USB_SERIAL && EXPERIMENTAL
+
+config USB_SERIAL_SAFE_PADDED
+	bool "USB Secure Encapsulated Driver - Padded"
+	depends on USB_SERIAL_SAFE
+
+config USB_SERIAL_TI
+	tristate "USB TI 3410/5052 Serial Driver"
+	depends on USB_SERIAL
+	help
+	  Say Y here if you want to use the TI USB 3410 or 5052
+	  serial devices.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ti_usb_3410_5052.
+
+config USB_SERIAL_CYBERJACK
+	tristate "USB REINER SCT cyberJack pinpad/e-com chipcard reader (EXPERIMENTAL)"
+	depends on USB_SERIAL && EXPERIMENTAL
+	---help---
+	  Say Y here if you want to use a cyberJack pinpad/e-com USB chipcard
+	  reader. This is an interface to ISO 7816 compatible contactbased
+	  chipcards, e.g. GSM SIMs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cyberjack.
+
+	  If unsure, say N.
+
+config USB_SERIAL_XIRCOM
+	tristate "USB Xircom / Entregra Single Port Serial Driver"
+	depends on USB_SERIAL
+	help
+	  Say Y here if you want to use a Xircom or Entregra single port USB to
+	  serial converter device.  This driver makes use of firmware
+	  developed from scratch by Brian Warner.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called keyspan_pda.
+
+config USB_SERIAL_OMNINET
+	tristate "USB ZyXEL omni.net LCD Plus Driver (EXPERIMENTAL)"
+	depends on USB_SERIAL && EXPERIMENTAL
+	help
+	  Say Y here if you want to use a ZyXEL omni.net LCD ISDN TA.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called omninet.
+
+config USB_EZUSB
+	bool
+	depends on USB_SERIAL_KEYSPAN_PDA || USB_SERIAL_XIRCOM || USB_SERIAL_KEYSPAN || USB_SERIAL_WHITEHEAT
+	default y
+
+endmenu
+

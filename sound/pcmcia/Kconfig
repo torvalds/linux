@@ -1,0 +1,39 @@
+# ALSA PCMCIA drivers
+
+menu "PCMCIA devices"
+	depends on SND!=n && PCMCIA
+
+config SND_VXPOCKET
+	tristate "Digigram VXpocket"
+	depends on SND && PCMCIA && ISA
+	select SND_VX_LIB
+	help
+	  Say Y here to include support for Digigram VXpocket
+	  soundcards.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-vxpocket.
+
+config SND_VXP440
+	tristate "Digigram VXpocket 440"
+	depends on SND && PCMCIA && ISA
+	select SND_VX_LIB
+	help
+	  Say Y here to include support for Digigram VXpocket 440
+	  soundcards.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-vxp440.
+
+config SND_PDAUDIOCF
+	tristate "Sound Core PDAudioCF"
+	depends on SND && PCMCIA && ISA
+	select SND_PCM
+	help
+	  Say Y here to include support for Sound Core PDAudioCF
+	  soundcards.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-pdaudiocf.
+
+endmenu

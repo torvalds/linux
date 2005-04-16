@@ -1,0 +1,32 @@
+README on the Compact Flash for Card Engines
+============================================
+
+There are three challenges in supporting the CF interface of the Card
+Engines.  First, every IO operation must be followed with IO to
+another memory region.  Second, the slot is wired for one-to-one
+address mapping *and* it is wired for 16 bit access only.  Second, the
+interrupt request line from the CF device isn't wired.
+
+The IOBARRIER issue is covered in README.IOBARRIER.  This isn't an
+onerous problem.  Enough said here.
+
+The addressing issue is solved in the
+arch/arm/mach-lh7a40x/ide-lpd7a40x.c file with some awkward
+work-arounds.  We implement a special SELECT_DRIVE routine that is
+called before the IDE driver performs its own SELECT_DRIVE.  Our code
+recognizes that the SELECT register cannot be modified without also
+writing a command.  It send an IDLE_IMMEDIATE command on selecting a
+drive.  The function also prevents drive select to the slave drive
+since there can be only one.  The awkward part is that the IDE driver,
+even though we have a select procedure, also attempts to change the
+drive by writing directly the SELECT register.  This attempt is
+explicitly blocked by the OUTB function--not pretty, but effective.
+
+The lack of interrupts is a more serious problem.  Even though the CF
+card is fast when compared to a normal IDE device, we don't know that
+the CF is really flash.  A user could use one of the very small hard
+drives being shipped with a CF interface.  The IDE code includes a
+check for interfaces that lack an IRQ.  In these cases, submitting a
+command to the IDE controller is followed by a call to poll for
+completion.  If the device isn't immediately ready, it schedules a
+timer to poll again later.

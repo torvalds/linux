@@ -1,0 +1,227 @@
+#
+# For a description of the syntax of this configuration file,
+# see Documentation/kbuild/kconfig-language.txt.
+#
+
+mainmenu "Linux Kernel Configuration"
+
+config ARM
+	bool
+	default y
+
+config ARM26
+	bool
+	default y
+
+config MMU
+	bool
+	default y
+
+config ARCH_ACORN
+        bool
+        default y
+
+config CPU_26
+        bool
+        default y
+
+config FIQ
+        bool
+        default y
+
+# 9 = 512 pages 8 = 256 pages 7 = 128 pages
+config FORCE_MAX_ZONEORDER
+        int
+        default 9
+
+config UID16
+	bool
+	default y
+
+config RWSEM_GENERIC_SPINLOCK
+	bool
+	default y
+
+config RWSEM_XCHGADD_ALGORITHM
+	bool
+
+config GENERIC_CALIBRATE_DELAY
+	bool
+	default y
+
+config GENERIC_BUST_SPINLOCK
+	bool
+
+config GENERIC_ISA_DMA
+	bool
+
+source "init/Kconfig"
+
+
+menu "System Type"
+
+comment "Archimedes/A5000 Implementations (select only ONE)"
+
+config ARCH_ARC
+        bool "Archimedes"
+        help
+          Say Y to support the Acorn Archimedes.
+
+	  The Acorn Archimedes was an personal computer based on an 8MHz ARM2
+          processor, released in 1987.  It supported up to 16MB of RAM in
+	  later models and floppy, harddisc, ethernet etc.
+
+config ARCH_A5K
+        bool "A5000"
+        help
+          Say Y here to to support the Acorn A5000.
+
+	  Linux can support the
+          internal IDE disk and CD-ROM interface, serial and parallel port,
+          and the floppy drive.  Note that on some A5000s the floppy is
+          plugged into the wrong socket on the motherboard.
+
+config PAGESIZE_16
+        bool "2MB physical memory (broken)"
+        help
+          Say Y here if your Archimedes or A5000 system has only 2MB of
+          memory, otherwise say N.  The resulting kernel will not run on a
+          machine with 4MB of memory.
+endmenu
+
+menu "General setup"
+
+# Compressed boot loader in ROM.  Yes, we really want to ask about
+# TEXT and BSS so we preserve their values in the config files.
+config ZBOOT_ROM
+	bool "Compressed boot loader in ROM/flash"
+	help
+	  Say Y here if you intend to execute your compressed kernel image (zImage)
+	  directly from ROM or flash.  If unsure, say N.
+
+config ZBOOT_ROM_TEXT
+	depends on ZBOOT_ROM
+	hex "Compressed ROM boot loader base address"
+	default "0"
+	help
+	  The base address for zImage.  Unless you have special requirements, you
+	  should not change this value.
+
+config ZBOOT_ROM_BSS
+	depends on ZBOOT_ROM
+	hex "Compressed ROM boot loader BSS address"
+	default "0"
+	help
+	  The base address of 64KiB of read/write memory, which must be available
+	  while the decompressor is running.  Unless you have special requirements,
+	  you should not change this value.
+
+config XIP_KERNEL
+	bool "Execute In Place (XIP) kernel image"
+	help
+	  Select this option to create a kernel that can be programed into
+	  the OS ROMs.
+
+comment "At least one math emulation must be selected"
+
+config FPE_NWFPE
+	tristate "NWFPE math emulation"
+	---help---
+	  Say Y to include the NWFPE floating point emulator in the kernel.
+	  This is necessary to run most binaries. Linux does not currently
+	  support floating point hardware so you need to say Y here even if
+	  your machine has an FPA or floating point co-processor podule.
+
+	  It is also possible to say M to build the emulator as a module
+	  (nwfpe) or indeed to leave it out altogether. However, unless you
+	  know what you are doing this can easily render your machine
+	  unbootable. Saying Y is the safe option.
+
+	  You may say N here if you are going to load the Acorn FPEmulator
+	  early in the bootup.
+
+source "fs/Kconfig.binfmt"
+
+config PREEMPT
+	bool "Preemptible Kernel (EXPERIMENTAL)"
+	depends on CPU_32 && EXPERIMENTAL
+	help
+	  This option reduces the latency of the kernel when reacting to
+	  real-time or interactive events by allowing a low priority process to
+	  be preempted even if it is in kernel mode executing a system call.
+	  This allows applications to run more reliably even when the system is
+	  under load.
+
+	  Say Y here if you are building a kernel for a desktop, embedded
+	  or real-time system.  Say N if you are unsure.
+
+config ARTHUR
+	tristate "RISC OS personality"
+	depends on CPU_32
+	help
+	  Say Y here to include the kernel code necessary if you want to run
+	  Acorn RISC OS/Arthur binaries under Linux. This code is still very
+	  experimental; if this sounds frightening, say N and sleep in peace.
+	  You can also say M here to compile this support as a module (which
+	  will be called arthur).
+
+config CMDLINE
+	string "Default kernel command string"
+	default ""
+	help
+	  On some architectures (EBSA110 and CATS), there is currently no way
+	  for the boot loader to pass arguments to the kernel. For these
+	  architectures, you should supply some command-line options at build
+	  time by entering them here. As a minimum, you should specify the
+	  memory size and the root device (e.g., mem=64M root=/dev/nfs).
+
+endmenu
+
+source "drivers/base/Kconfig"
+
+source "drivers/parport/Kconfig"
+
+source "drivers/pnp/Kconfig"
+
+source "drivers/block/Kconfig"
+
+source "drivers/md/Kconfig"
+
+source "net/Kconfig"
+
+source "drivers/ide/Kconfig"
+
+source "drivers/scsi/Kconfig"
+
+source "drivers/isdn/Kconfig"
+
+#
+# input before char - char/joystick depends on it. As does USB.
+#
+source "drivers/input/Kconfig"
+
+source "drivers/char/Kconfig"
+
+source "drivers/media/Kconfig"
+
+source "fs/Kconfig"
+
+source "drivers/video/Kconfig"
+
+if ARCH_ACORN
+
+source "sound/Kconfig"
+
+endif
+
+source "drivers/misc/Kconfig"
+
+source "drivers/usb/Kconfig"
+
+source "arch/arm26/Kconfig.debug"
+
+source "security/Kconfig"
+
+source "crypto/Kconfig"
+
+source "lib/Kconfig"

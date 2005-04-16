@@ -1,0 +1,14 @@
+menu "InfiniBand support"
+
+config INFINIBAND
+	tristate "InfiniBand support"
+	---help---
+	  Core support for InfiniBand (IB).  Make sure to also select
+	  any protocols you wish to use as well as drivers for your
+	  InfiniBand hardware.
+
+source "drivers/infiniband/hw/mthca/Kconfig"
+
+source "drivers/infiniband/ulp/ipoib/Kconfig"
+
+endmenu

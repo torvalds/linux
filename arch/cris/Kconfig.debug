@@ -1,0 +1,41 @@
+menu "Kernel hacking"
+
+#bool 'Debug kmalloc/kfree' CONFIG_DEBUG_MALLOC
+config PROFILING
+	bool "Kernel profiling support"
+
+config SYSTEM_PROFILER
+        bool "System profiling support"
+
+config ETRAX_KGDB
+	bool "Use kernel GDB debugger"
+	---help---
+	  The CRIS version of gdb can be used to remotely debug a running
+	  Linux kernel via the serial debug port.  Provided you have gdb-cris
+	  installed, run gdb-cris vmlinux, then type
+
+	  (gdb) set remotebaud 115200           <- kgdb uses 115200 as default
+	  (gdb) target remote /dev/ttyS0        <- maybe you use another port
+
+	  This should connect you to your booted kernel (or boot it now if you
+	  didn't before).  The kernel halts when it boots, waiting for gdb if
+	  this option is turned on!
+
+
+config DEBUG_INFO
+        bool "Compile the kernel with debug info"
+        help
+          If you say Y here the resulting kernel image will include
+          debugging info resulting in a larger kernel image.
+          Say Y here only if you plan to use gdb to debug the kernel.
+          If you don't debug the kernel, you can say N.
+
+config FRAME_POINTER
+        bool "Compile the kernel with frame pointers"
+        help
+          If you say Y here the resulting kernel image will be slightly larger
+          and slower, but it will give very useful debugging information.
+          If you don't debug the kernel, you can say N, but we may not be able
+          to solve problems without frame pointers.
+
+endmenu

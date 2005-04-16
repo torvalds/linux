@@ -1,0 +1,365 @@
+#
+# Wireless LAN device configuration
+#
+
+menu "Wireless LAN (non-hamradio)"
+	depends on NETDEVICES
+
+config NET_RADIO
+	bool "Wireless LAN drivers (non-hamradio) & Wireless Extensions"
+	---help---
+	  Support for wireless LANs and everything having to do with radio,
+	  but not with amateur radio or FM broadcasting.
+
+	  Saying Y here also enables the Wireless Extensions (creates
+	  /proc/net/wireless and enables iwconfig access). The Wireless
+	  Extension is a generic API allowing a driver to expose to the user
+	  space configuration and statistics specific to common Wireless LANs.
+	  The beauty of it is that a single set of tool can support all the
+	  variations of Wireless LANs, regardless of their type (as long as
+	  the driver supports Wireless Extension). Another advantage is that
+	  these parameters may be changed on the fly without restarting the
+	  driver (or Linux). If you wish to use Wireless Extensions with
+	  wireless PCMCIA (PC-) cards, you need to say Y here; you can fetch
+	  the tools from
+	  <http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Tools.html>.
+
+	  Some user-level drivers for scarab devices which don't require
+	  special kernel support are available from
+	  <ftp://shadow.cabi.net/pub/Linux/>.
+
+# Note : the cards are obsolete (can't buy them anymore), but the drivers
+# are not, as people are still using them...
+comment "Obsolete Wireless cards support (pre-802.11)"
+	depends on NET_RADIO && (INET || ISA || PCMCIA)
+
+config STRIP
+	tristate "STRIP (Metricom starmode radio IP)"
+	depends on NET_RADIO && INET
+	---help---
+	  Say Y if you have a Metricom radio and intend to use Starmode Radio
+	  IP. STRIP is a radio protocol developed for the MosquitoNet project
+	  (on the WWW at <http://mosquitonet.stanford.edu/>) to send Internet
+	  traffic using Metricom radios.  Metricom radios are small, battery
+	  powered, 100kbit/sec packet radio transceivers, about the size and
+	  weight of a cellular telephone. (You may also have heard them called
+	  "Metricom modems" but we avoid the term "modem" because it misleads
+	  many people into thinking that you can plug a Metricom modem into a
+	  phone line and use it as a modem.)
+
+	  You can use STRIP on any Linux machine with a serial port, although
+	  it is obviously most useful for people with laptop computers. If you
+	  think you might get a Metricom radio in the future, there is no harm
+	  in saying Y to STRIP now, except that it makes the kernel a bit
+	  bigger.
+
+	  To compile this as a module, choose M here: the module will be
+	  called strip.
+
+config ARLAN
+	tristate "Aironet Arlan 655 & IC2200 DS support"
+	depends on NET_RADIO && ISA && !64BIT
+	---help---
+	  Aironet makes Arlan, a class of wireless LAN adapters. These use the
+	  www.Telxon.com chip, which is also used on several similar cards.
+	  This driver is tested on the 655 and IC2200 series cards. Look at
+	  <http://www.ylenurme.ee/~elmer/655/> for the latest information.
+
+	  The driver is built as two modules, arlan and arlan-proc. The latter
+	  is the /proc interface and is not needed most of time.
+
+	  On some computers the card ends up in non-valid state after some
+	  time. Use a ping-reset script to clear it.
+
+config WAVELAN
+	tristate "AT&T/Lucent old WaveLAN & DEC RoamAbout DS ISA support"
+	depends on NET_RADIO && ISA
+	---help---
+	  The Lucent WaveLAN (formerly NCR and AT&T; or DEC RoamAbout DS) is
+	  a Radio LAN (wireless Ethernet-like Local Area Network) using the
+	  radio frequencies 900 MHz and 2.4 GHz.
+
+	  This driver support the ISA version of the WaveLAN card.  A separate
+	  driver for the PCMCIA (PC-card) hardware is available in David
+	  Hinds' pcmcia-cs package (see the file <file:Documentation/Changes>
+	  for location).
+
+	  If you want to use an ISA WaveLAN card under Linux, say Y and read
+	  the Ethernet-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>. Some more specific
+	  information is contained in
+	  <file:Documentation/networking/wavelan.txt> and in the source code
+	  <file:drivers/net/wavelan.p.h>.
+
+	  You will also need the wireless tools package available from
+	  <http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Tools.html>.
+	  Please read the man pages contained therein.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called wavelan.
+
+config PCMCIA_WAVELAN
+	tristate "AT&T/Lucent old WaveLAN Pcmcia wireless support"
+	depends on NET_RADIO && PCMCIA
+	help
+	  Say Y here if you intend to attach an AT&T/Lucent Wavelan PCMCIA
+	  (PC-card) wireless Ethernet networking card to your computer.  This
+	  driver is for the non-IEEE-802.11 Wavelan cards.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called wavelan_cs.  If unsure, say N.
+
+config PCMCIA_NETWAVE
+	tristate "Xircom Netwave AirSurfer Pcmcia wireless support"
+	depends on NET_RADIO && PCMCIA
+	help
+	  Say Y here if you intend to attach this type of PCMCIA (PC-card)
+	  wireless Ethernet networking card to your computer.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called netwave_cs.  If unsure, say N.
+
+comment "Wireless 802.11 Frequency Hopping cards support"
+	depends on NET_RADIO && PCMCIA
+
+config PCMCIA_RAYCS
+	tristate "Aviator/Raytheon 2.4MHz wireless support"
+	depends on NET_RADIO && PCMCIA
+	---help---
+	  Say Y here if you intend to attach an Aviator/Raytheon PCMCIA
+	  (PC-card) wireless Ethernet networking card to your computer.
+	  Please read the file <file:Documentation/networking/ray_cs.txt> for
+	  details.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ray_cs.  If unsure, say N.
+
+comment "Wireless 802.11b ISA/PCI cards support"
+	depends on NET_RADIO && (ISA || PCI || PPC_PMAC || PCMCIA)
+
+config AIRO
+	tristate "Cisco/Aironet 34X/35X/4500/4800 ISA and PCI cards"
+	depends on NET_RADIO && ISA && (PCI || BROKEN)
+	---help---
+	  This is the standard Linux driver to support Cisco/Aironet ISA and
+	  PCI 802.11 wireless cards.
+	  It supports the new 802.11b cards from Cisco (Cisco 34X, Cisco 35X
+	  - with or without encryption) as well as card before the Cisco
+	  aquisition (Aironet 4500, Aironet 4800, Aironet 4800B).
+
+	  This driver support both the standard Linux Wireless Extensions
+	  and Cisco proprietary API, so both the Linux Wireless Tools and the
+	  Cisco Linux utilities can be used to configure the card.
+
+	  The driver can be compiled as a module and will be named "airo".
+
+config HERMES
+	tristate "Hermes chipset 802.11b support (Orinoco/Prism2/Symbol)"
+	depends on NET_RADIO && (PPC_PMAC || PCI || PCMCIA)
+	---help---
+	  A driver for 802.11b wireless cards based based on the "Hermes" or
+	  Intersil HFA384x (Prism 2) MAC controller.  This includes the vast
+	  majority of the PCMCIA 802.11b cards (which are nearly all rebadges)
+	  - except for the Cisco/Aironet cards.  Cards supported include the
+	  Apple Airport (not a PCMCIA card), WavelanIEEE/Orinoco,
+	  Cabletron/EnteraSys Roamabout, ELSA AirLancer, MELCO Buffalo, Avaya,
+	  IBM High Rate Wireless, Farralon Syyline, Samsung MagicLAN, Netgear
+	  MA401, LinkSys WPC-11, D-Link DWL-650, 3Com AirConnect, Intel
+	  PRO/Wireless, and Symbol Spectrum24 High Rate amongst others.
+
+	  This option includes the guts of the driver, but in order to
+	  actually use a card you will also need to enable support for PCMCIA
+	  Hermes cards, PLX9052 based PCI adaptors or the Apple Airport below.
+
+	  You will also very likely also need the Wireless Tools in order to
+	  configure your card and that /etc/pcmcia/wireless.opts works :
+	  <http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Tools.html>
+
+config APPLE_AIRPORT
+	tristate "Apple Airport support (built-in)"
+	depends on PPC_PMAC && HERMES
+	help
+	  Say Y here to support the Airport 802.11b wireless Ethernet hardware
+	  built into the Macintosh iBook and other recent PowerPC-based
+	  Macintosh machines. This is essentially a Lucent Orinoco card with 
+	  a non-standard interface
+
+config PLX_HERMES
+	tristate "Hermes in PLX9052 based PCI adaptor support (Netgear MA301 etc.) (EXPERIMENTAL)"
+	depends on PCI && HERMES && EXPERIMENTAL
+	help
+	  Enable support for PCMCIA cards supported by the "Hermes" (aka
+	  orinoco) driver when used in PLX9052 based PCI adaptors.  These
+	  adaptors are not a full PCMCIA controller but act as a more limited
+	  PCI <-> PCMCIA bridge.  Several vendors sell such adaptors so that
+	  802.11b PCMCIA cards can be used in desktop machines.  The Netgear
+	  MA301 is such an adaptor.
+
+	  Support for these adaptors is so far still incomplete and buggy.
+	  You have been warned.
+
+config TMD_HERMES
+	tristate "Hermes in TMD7160 based PCI adaptor support (EXPERIMENTAL)"
+	depends on PCI && HERMES && EXPERIMENTAL
+	help
+	  Enable support for PCMCIA cards supported by the "Hermes" (aka
+	  orinoco) driver when used in TMD7160 based PCI adaptors.  These
+	  adaptors are not a full PCMCIA controller but act as a more limited
+	  PCI <-> PCMCIA bridge.  Several vendors sell such adaptors so that
+	  802.11b PCMCIA cards can be used in desktop machines.
+
+	  Support for these adaptors is so far still incomplete and buggy.
+	  You have been warned.
+
+config PCI_HERMES
+	tristate "Prism 2.5 PCI 802.11b adaptor support (EXPERIMENTAL)"
+	depends on PCI && HERMES && EXPERIMENTAL
+	help
+	  Enable support for PCI and mini-PCI 802.11b wireless NICs based on
+	  the Prism 2.5 chipset.  These are true PCI cards, not the 802.11b
+	  PCMCIA cards bundled with PCI<->PCMCIA adaptors which are also
+	  common.  Some of the built-in wireless adaptors in laptops are of
+	  this variety.
+
+config ATMEL
+      tristate "Atmel at76c50x chipset  802.11b support"
+      depends on NET_RADIO && EXPERIMENTAL
+      select FW_LOADER
+      select CRC32
+       ---help---
+        A driver 802.11b wireless cards based on the Atmel fast-vnet
+        chips. This driver supports standard Linux wireless extensions. 
+ 
+        Many  cards based on this chipset do not have flash memory
+        and need their firmware loaded at start-up. If yours is 
+        one of these, you will need to provide a firmware image
+        to be loaded into the card by the driver. The Atmel
+        firmware package can be downloaded from
+        <http://www.thekelleys.org.uk/atmel>
+
+config PCI_ATMEL
+      tristate "Atmel at76c506 PCI cards"
+      depends on ATMEL && PCI
+       ---help---
+        Enable support for PCI and mini-PCI cards containing the
+        Atmel at76c506 chip.
+
+# If Pcmcia is compiled in, offer Pcmcia cards...
+comment "Wireless 802.11b Pcmcia/Cardbus cards support"
+	depends on NET_RADIO && PCMCIA
+
+config PCMCIA_HERMES
+	tristate "Hermes PCMCIA card support"
+	depends on NET_RADIO && PCMCIA && HERMES
+	---help---
+	  A driver for "Hermes" chipset based PCMCIA wireless adaptors, such
+	  as the Lucent WavelanIEEE/Orinoco cards and their OEM (Cabletron/
+	  EnteraSys RoamAbout 802.11, ELSA Airlancer, Melco Buffalo and
+	  others).  It should also be usable on various Prism II based cards
+	  such as the Linksys, D-Link and Farallon Skyline.  It should also
+	  work on Symbol cards such as the 3Com AirConnect and Ericsson WLAN.
+
+	  To use your PC-cards, you will need supporting software from David
+	  Hinds' pcmcia-cs package (see the file <file:Documentation/Changes>
+	  for location).  You also want to check out the PCMCIA-HOWTO,
+	  available from <http://www.tldp.org/docs.html#howto>.
+
+	  You will also very likely also need the Wireless Tools in order to
+	  configure your card and that /etc/pcmcia/wireless.opts works:
+	  <http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Tools.html>.
+
+config AIRO_CS
+	tristate "Cisco/Aironet 34X/35X/4500/4800 PCMCIA cards"
+	depends on NET_RADIO && PCMCIA
+	---help---
+	  This is the standard Linux driver to support Cisco/Aironet PCMCIA
+	  802.11 wireless cards.  This driver is the same as the Aironet
+	  driver part of the Linux Pcmcia package.
+	  It supports the new 802.11b cards from Cisco (Cisco 34X, Cisco 35X
+	  - with or without encryption) as well as card before the Cisco
+	  aquisition (Aironet 4500, Aironet 4800, Aironet 4800B). It also
+	  supports OEM of Cisco such as the DELL TrueMobile 4800 and Xircom
+	  802.11b cards.
+
+	  This driver support both the standard Linux Wireless Extensions
+	  and Cisco proprietary API, so both the Linux Wireless Tools and the
+	  Cisco Linux utilities can be used to configure the card.
+
+	  To use your PC-cards, you will need supporting software from David
+	  Hinds' pcmcia-cs package (see the file <file:Documentation/Changes>
+	  for location).  You also want to check out the PCMCIA-HOWTO,
+	  available from <http://www.tldp.org/docs.html#howto>.
+
+config PCMCIA_ATMEL
+	tristate "Atmel at76c502/at76c504 PCMCIA cards"
+	depends on NET_RADIO && ATMEL && PCMCIA
+	select FW_LOADER
+	select CRC32
+	---help---
+	  Enable support for PCMCIA cards containing the
+	  Atmel at76c502 and at76c504 chips.
+
+config PCMCIA_WL3501
+      tristate "Planet WL3501 PCMCIA cards"
+      depends on NET_RADIO && EXPERIMENTAL && PCMCIA
+       ---help---
+         A driver for WL3501 PCMCIA 802.11 wireless cards made by Planet.
+	 It has basic support for Linux wireless extensions and initial
+	 micro support for ethtool.
+
+comment "Prism GT/Duette 802.11(a/b/g) PCI/Cardbus support"
+	depends on NET_RADIO && PCI
+config PRISM54
+	tristate 'Intersil Prism GT/Duette/Indigo PCI/Cardbus' 
+	depends on PCI && NET_RADIO && EXPERIMENTAL
+	select FW_LOADER
+	---help---
+	  Enable PCI and Cardbus support for the following chipset based cards:
+
+	  ISL3880 - Prism GT            802.11 b/g
+	  ISL3877 - Prism Indigo        802.11 a
+	  ISL3890 - Prism Duette        802.11 a/b/g
+	  
+	  For a complete list of supported cards visit <http://prism54.org>.
+	  Here is the latest confirmed list of supported cards:
+
+	  3com OfficeConnect 11g Cardbus Card aka 3CRWE154G72
+	  Allnet ALL0271 PCI Card
+	  Compex WL54G Cardbus Card
+	  Corega CG-WLCB54GT Cardbus Card
+	  D-Link Air Plus Xtreme G A1 Cardbus Card aka DWL-g650
+	  I-O Data WN-G54/CB Cardbus Card
+	  Kobishi XG-300 aka Z-Com Cardbus Card
+	  Netgear WG511 Cardbus Card
+	  Ovislink WL-5400PCI PCI Card
+	  Peabird WLG-PCI PCI Card
+	  Sitecom WL-100i Cardbus Card
+	  Sitecom WL-110i PCI Card
+	  SMC2802W -    EZ Connect g 2.4GHz 54 Mbps Wireless PCI Card
+	  SMC2835W -    EZ Connect g 2.4GHz 54 Mbps Wireless Cardbus Card
+	  SMC2835W-V2 - EZ Connect g 2.4GHz 54 Mbps Wireless Cardbus Card
+	  Z-Com XG-900 PCI Card
+	  Zyxel G-100 Cardbus Card
+
+	  If you enable this you will need a firmware file as well.
+	  You will need to copy this to /usr/lib/hotplug/firmware/isl3890.
+	  You can get this non-GPL'd firmware file from the Prism54 project page:
+	  <http://prism54.org>
+	  You will also need the /etc/hotplug/firmware.agent script from
+	  a current hotplug package.
+
+	  Note: You need a motherboard with DMA support to use any of these cards 
+	  
+	  If you want to compile the driver as a module ( = code which can be
+	  inserted in and removed from the running kernel whenever you want),
+	  say M here and read <file:Documentation/modules.txt>.  The module
+	  will be called prism54.ko.
+
+# yes, this works even when no drivers are selected
+config NET_WIRELESS
+	bool
+	depends on NET_RADIO && (ISA || PCI || PPC_PMAC || PCMCIA)
+	default y
+
+endmenu
+

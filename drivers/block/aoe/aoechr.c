@@ -1,0 +1,244 @@
+/* Copyright (c) 2004 Coraid, Inc.  See COPYING for GPL terms. */
+/*
+ * aoechr.c
+ * AoE character device driver
+ */
+
+#include <linux/hdreg.h>
+#include <linux/blkdev.h>
+#include "aoe.h"
+
+enum {
+	//MINOR_STAT = 1, (moved to sysfs)
+	MINOR_ERR = 2,
+	MINOR_DISCOVER,
+	MINOR_INTERFACES,
+	MSGSZ = 2048,
+	NARGS = 10,
+	NMSG = 100,		/* message backlog to retain */
+};
+
+struct aoe_chardev {
+	ulong minor;
+	char name[32];
+};
+
+enum { EMFL_VALID = 1 };
+
+struct ErrMsg {
+	short flags;
+	short len;
+	char *msg;
+};
+
+static struct ErrMsg emsgs[NMSG];
+static int emsgs_head_idx, emsgs_tail_idx;
+static struct semaphore emsgs_sema;
+static spinlock_t emsgs_lock;
+static int nblocked_emsgs_readers;
+static struct class_simple *aoe_class;
+static struct aoe_chardev chardevs[] = {
+	{ MINOR_ERR, "err" },
+	{ MINOR_DISCOVER, "discover" },
+	{ MINOR_INTERFACES, "interfaces" },
+};
+
+static int
+discover(void)
+{
+	aoecmd_cfg(0xffff, 0xff);
+	return 0;
+}
+
+static int
+interfaces(const char __user *str, size_t size)
+{
+	if (set_aoe_iflist(str, size)) {
+		printk(KERN_CRIT
+		       "%s: could not set interface list: %s\n",
+		       __FUNCTION__, "too many interfaces");
+		return -EINVAL;
+	}
+	return 0;
+}
+
+void
+aoechr_error(char *msg)
+{
+	struct ErrMsg *em;
+	char *mp;
+	ulong flags, n;
+
+	n = strlen(msg);
+
+	spin_lock_irqsave(&emsgs_lock, flags);
+
+	em = emsgs + emsgs_tail_idx;
+	if ((em->flags & EMFL_VALID)) {
+bail:		spin_unlock_irqrestore(&emsgs_lock, flags);
+		return;
+	}
+
+	mp = kmalloc(n, GFP_ATOMIC);
+	if (mp == NULL) {
+		printk(KERN_CRIT "aoe: aoechr_error: allocation failure, len=%ld\n", n);
+		goto bail;
+	}
+
+	memcpy(mp, msg, n);
+	em->msg = mp;
+	em->flags |= EMFL_VALID;
+	em->len = n;
+
+	emsgs_tail_idx++;
+	emsgs_tail_idx %= ARRAY_SIZE(emsgs);
+
+	spin_unlock_irqrestore(&emsgs_lock, flags);
+
+	if (nblocked_emsgs_readers)
+		up(&emsgs_sema);
+}
+
+static ssize_t
+aoechr_write(struct file *filp, const char __user *buf, size_t cnt, loff_t *offp)
+{
+	int ret = -EINVAL;
+
+	switch ((unsigned long) filp->private_data) {
+	default:
+		printk(KERN_INFO "aoe: aoechr_write: can't write to that file.\n");
+		break;
+	case MINOR_DISCOVER:
+		ret = discover();
+		break;
+	case MINOR_INTERFACES:
+		ret = interfaces(buf, cnt);
+		break;
+	}
+	if (ret == 0)
+		ret = cnt;
+	return ret;
+}
+
+static int
+aoechr_open(struct inode *inode, struct file *filp)
+{
+	int n, i;
+
+	n = MINOR(inode->i_rdev);
+	filp->private_data = (void *) (unsigned long) n;
+
+	for (i = 0; i < ARRAY_SIZE(chardevs); ++i)
+		if (chardevs[i].minor == n)
+			return 0;
+	return -EINVAL;
+}
+
+static int
+aoechr_rel(struct inode *inode, struct file *filp)
+{
+	return 0;
+}
+
+static ssize_t
+aoechr_read(struct file *filp, char __user *buf, size_t cnt, loff_t *off)
+{
+	unsigned long n;
+	char *mp;
+	struct ErrMsg *em;
+	ssize_t len;
+	ulong flags;
+
+	n = (unsigned long) filp->private_data;
+	switch (n) {
+	case MINOR_ERR:
+		spin_lock_irqsave(&emsgs_lock, flags);
+loop:
+		em = emsgs + emsgs_head_idx;
+		if ((em->flags & EMFL_VALID) == 0) {
+			if (filp->f_flags & O_NDELAY) {
+				spin_unlock_irqrestore(&emsgs_lock, flags);
+				return -EAGAIN;
+			}
+			nblocked_emsgs_readers++;
+
+			spin_unlock_irqrestore(&emsgs_lock, flags);
+
+			n = down_interruptible(&emsgs_sema);
+
+			spin_lock_irqsave(&emsgs_lock, flags);
+
+			nblocked_emsgs_readers--;
+
+			if (n) {
+				spin_unlock_irqrestore(&emsgs_lock, flags);
+				return -ERESTARTSYS;
+			}
+			goto loop;
+		}
+		if (em->len > cnt) {
+			spin_unlock_irqrestore(&emsgs_lock, flags);
+			return -EAGAIN;
+		}
+		mp = em->msg;
+		len = em->len;
+		em->msg = NULL;
+		em->flags &= ~EMFL_VALID;
+
+		emsgs_head_idx++;
+		emsgs_head_idx %= ARRAY_SIZE(emsgs);
+
+		spin_unlock_irqrestore(&emsgs_lock, flags);
+
+		n = copy_to_user(buf, mp, len);
+		kfree(mp);
+		return n == 0 ? len : -EFAULT;
+	default:
+		return -EFAULT;
+	}
+}
+
+static struct file_operations aoe_fops = {
+	.write = aoechr_write,
+	.read = aoechr_read,
+	.open = aoechr_open,
+	.release = aoechr_rel,
+	.owner = THIS_MODULE,
+};
+
+int __init
+aoechr_init(void)
+{
+	int n, i;
+
+	n = register_chrdev(AOE_MAJOR, "aoechr", &aoe_fops);
+	if (n < 0) { 
+		printk(KERN_ERR "aoe: aoechr_init: can't register char device\n");
+		return n;
+	}
+	sema_init(&emsgs_sema, 0);
+	spin_lock_init(&emsgs_lock);
+	aoe_class = class_simple_create(THIS_MODULE, "aoe");
+	if (IS_ERR(aoe_class)) {
+		unregister_chrdev(AOE_MAJOR, "aoechr");
+		return PTR_ERR(aoe_class);
+	}
+	for (i = 0; i < ARRAY_SIZE(chardevs); ++i)
+		class_simple_device_add(aoe_class,
+					MKDEV(AOE_MAJOR, chardevs[i].minor),
+					NULL, chardevs[i].name);
+
+	return 0;
+}
+
+void
+aoechr_exit(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(chardevs); ++i)
+		class_simple_device_remove(MKDEV(AOE_MAJOR, chardevs[i].minor));
+	class_simple_destroy(aoe_class);
+	unregister_chrdev(AOE_MAJOR, "aoechr");
+}
+

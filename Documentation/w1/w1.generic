@@ -1,0 +1,19 @@
+Any w1 device must be connected to w1 bus master device - for example
+ds9490 usb device or w1-over-GPIO or RS232 converter.
+Driver for w1 bus master must provide several functions(you can find
+them in struct w1_bus_master definition in w1.h) which then will be
+called by w1 core to send various commands over w1 bus(by default it is
+reset and search commands). When some device is found on the bus, w1 core
+checks if driver for it's family is loaded.
+If driver is loaded w1 core creates new w1_slave object and registers it
+in the system(creates some generic sysfs files(struct w1_family_ops in
+w1_family.h), notifies any registered listener and so on...).
+It is device driver's business to provide any communication method
+upstream.
+For example w1_therm driver(ds18?20 thermal sensor family driver)
+provides temperature reading function which is bound to ->rbin() method
+of the above w1_family_ops structure.
+w1_smem - driver for simple 64bit memory cell provides ID reading
+method.
+
+You can call above methods by reading appropriate sysfs files.

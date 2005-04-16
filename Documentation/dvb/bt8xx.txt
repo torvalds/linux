@@ -1,0 +1,90 @@
+How to get the Nebula, PCTV and Twinhan DST cards working
+=========================================================
+
+This class of cards has a bt878a as the PCI interface, and
+require the bttv driver.
+
+Please pay close attention to the warning about the bttv module
+options below for the DST card.
+
+1) General informations
+=======================
+
+These drivers require the bttv driver to provide the means to access
+the i2c bus and the gpio pins of the bt8xx chipset.
+
+Because of this, you need to enable
+"Device drivers" => "Multimedia devices"
+  => "Video For Linux" => "BT848 Video For Linux"
+
+2) Loading Modules
+==================
+
+In general you need to load the bttv driver, which will handle the gpio and
+i2c communication for us. Next you need the common dvb-bt8xx device driver
+and one frontend driver.
+
+The bttv driver will HANG YOUR SYSTEM IF YOU DO NOT SPECIFY THE CORRECT 
+CARD ID!
+
+(If you don't get your card running and you suspect that the card id you're
+using is wrong, have a look at "bttv-cards.c" for a list of possible card
+ids.)
+
+Pay attention to failures when you load the frontend drivers
+(e.g. dmesg, /var/log/messages).
+
+3a) Nebula / Pinnacle PCTV
+--------------------------
+
+   $ modprobe bttv i2c_hw=1 card=0x68
+   $ modprobe dvb-bt8xx
+   
+For Nebula cards use the "nxt6000" frontend driver:
+   $ modprobe nxt6000
+
+For Pinnacle PCTV cards use the "cx24110" frontend driver:
+   $ modprobe cx24110
+
+3b) TwinHan
+-----------
+
+   $ modprobe bttv i2c_hw=1 card=0x71
+   $ modprobe dvb-bt8xx
+   $ modprobe dst
+
+The value 0x71 will override the PCI type detection for dvb-bt8xx, which 
+is necessary for TwinHan cards.#
+
+If you're having an older card (blue color circuit) and card=0x71 locks your
+machine, try using 0x68, too. If that does not work, ask on the DVB mailing list.
+
+The DST module takes a couple of useful parameters, in case the
+dst drivers fails to detect your type of card correctly.
+
+dst_type takes values 0 (satellite), 1 (terrestial TV), 2 (cable).
+
+dst_type_flags takes bit combined values:
+1 = new tuner type packets. You can use this if your card is detected
+    and you have debug and you continually see the tuner packets not
+    working (make sure not a basic problem like dish alignment etc.)
+
+2 = TS 204. If your card tunes OK, but the picture is terrible, seemingly
+    breaking up in one half continually, and crc fails a lot, then
+    this is worth a try (or trying to turn off)
+
+4 = has symdiv. Some cards, mostly without new tuner packets, require
+    a symbol division algorithm. Doesn't apply to terrestial TV.
+
+You can also specify a value to have the autodetected values turned off
+(e.g. 0). The autodected values are determined bythe cards 'response
+string' which you can see in your logs e.g.
+
+dst_check_ci: recognize DST-MOT
+
+or 
+
+dst_check_ci: unable to recognize DSTXCI or STXCI
+
+--
+Authors: Richard Walker, Jamie Honan, Michael Hunold

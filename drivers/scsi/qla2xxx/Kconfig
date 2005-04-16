@@ -1,0 +1,41 @@
+config SCSI_QLA2XXX
+	tristate
+	default (SCSI && PCI)
+	depends on SCSI && PCI
+
+config SCSI_QLA21XX
+	tristate "QLogic ISP2100 host adapter family support"
+	depends on SCSI_QLA2XXX
+        select SCSI_FC_ATTRS
+	---help---
+	This driver supports the QLogic 21xx (ISP2100) host adapter family.
+
+config SCSI_QLA22XX
+	tristate "QLogic ISP2200 host adapter family support"
+	depends on SCSI_QLA2XXX
+        select SCSI_FC_ATTRS
+	---help---
+	This driver supports the QLogic 22xx (ISP2200) host adapter family.
+
+config SCSI_QLA2300
+	tristate "QLogic ISP2300 host adapter family support"
+	depends on SCSI_QLA2XXX
+        select SCSI_FC_ATTRS
+	---help---
+	This driver supports the QLogic 2300 (ISP2300 and ISP2312) host
+	adapter family.
+
+config SCSI_QLA2322
+	tristate "QLogic ISP2322 host adapter family support"
+	depends on SCSI_QLA2XXX
+        select SCSI_FC_ATTRS
+	---help---
+	This driver supports the QLogic 2322 (ISP2322) host adapter family.
+
+config SCSI_QLA6312
+	tristate "QLogic ISP63xx host adapter family support"
+	depends on SCSI_QLA2XXX
+        select SCSI_FC_ATTRS
+	---help---
+	This driver supports the QLogic 63xx (ISP6312 and ISP6322) host
+	adapter family.

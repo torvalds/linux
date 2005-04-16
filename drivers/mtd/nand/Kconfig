@@ -1,0 +1,207 @@
+# drivers/mtd/nand/Kconfig
+# $Id: Kconfig,v 1.26 2005/01/05 12:42:24 dwmw2 Exp $
+
+menu "NAND Flash Device Drivers"
+	depends on MTD!=n
+
+config MTD_NAND
+	tristate "NAND Device Support"
+	depends on MTD
+	select MTD_NAND_IDS
+	help
+	  This enables support for accessing all type of NAND flash
+	  devices. For further information see
+	  <http://www.linux-mtd.infradead.org/tech/nand.html>.
+
+config MTD_NAND_VERIFY_WRITE
+	bool "Verify NAND page writes"
+	depends on MTD_NAND
+	help
+	  This adds an extra check when data is written to the flash. The
+	  NAND flash device internally checks only bits transitioning
+	  from 1 to 0. There is a rare possibility that even though the
+	  device thinks the write was successful, a bit could have been
+	  flipped accidentaly due to device wear or something else.
+
+config MTD_NAND_AUTCPU12
+	tristate "SmartMediaCard on autronix autcpu12 board"
+	depends on ARM && MTD_NAND && ARCH_AUTCPU12
+	help
+	  This enables the driver for the autronix autcpu12 board to 
+	  access the SmartMediaCard.
+
+config MTD_NAND_EDB7312
+	tristate "Support for Cirrus Logic EBD7312 evaluation board"
+	depends on ARM && MTD_NAND && ARCH_EDB7312
+	help
+	  This enables the driver for the Cirrus Logic EBD7312 evaluation 
+	  board to access the onboard NAND Flash.
+
+config MTD_NAND_H1900
+	tristate "iPAQ H1900 flash"
+	depends on ARM && MTD_NAND && ARCH_PXA && MTD_PARTITIONS
+	help
+	  This enables the driver for the iPAQ h1900 flash.
+
+config MTD_NAND_SPIA
+	tristate "NAND Flash device on SPIA board"
+	depends on ARM && ARCH_P720T && MTD_NAND
+	help
+	  If you had to ask, you don't have one. Say 'N'.
+
+config MTD_NAND_TOTO
+	tristate "NAND Flash device on TOTO board"
+	depends on ARM && ARCH_OMAP && MTD_NAND
+	help
+	  Support for NAND flash on Texas Instruments Toto platform.
+
+config MTD_NAND_IDS
+	tristate
+
+config MTD_NAND_TX4925NDFMC
+	tristate "SmartMedia Card on Toshiba RBTX4925 reference board"
+	depends on TOSHIBA_RBTX4925 && MTD_NAND && TOSHIBA_RBTX4925_MPLEX_NAND
+	help
+	  This enables the driver for the NAND flash device found on the
+	  Toshiba RBTX4925 reference board, which is a SmartMediaCard.
+
+config MTD_NAND_TX4938NDFMC
+	tristate "NAND Flash device on Toshiba RBTX4938 reference board"
+	depends on TOSHIBA_RBTX4938 && MTD_NAND && TOSHIBA_RBTX4938_MPLEX_NAND 
+	help
+	  This enables the driver for the NAND flash device found on the
+	  Toshiba RBTX4938 reference board.
+
+config MTD_NAND_AU1550
+	tristate "Au1550 NAND support"
+	depends on SOC_AU1550 && MTD_NAND
+	help
+	  This enables the driver for the NAND flash controller on the
+	  AMD/Alchemy 1550 SOC.
+
+config MTD_NAND_RTC_FROM4
+	tristate "Renesas Flash ROM 4-slot interface board (FROM_BOARD4)"
+	depends on MTD_NAND && SH_SOLUTION_ENGINE
+	select REED_SOLOMON
+	select REED_SOLOMON_DEC8
+	help
+	  This enables the driver for the Renesas Technology AG-AND 
+	  flash interface board (FROM_BOARD4)
+
+config MTD_NAND_PPCHAMELEONEVB
+	tristate "NAND Flash device on PPChameleonEVB board"
+	depends on PPCHAMELEONEVB && MTD_NAND
+	help
+	  This enables the NAND flash driver on the PPChameleon EVB Board.
+
+config MTD_NAND_S3C2410
+	tristate "NAND Flash support for S3C2410 SoC"
+	depends on ARCH_S3C2410 && MTD_NAND
+	help
+	  This enables the NAND flash controller on the S3C2410.
+
+	  No board specfic support is done by this driver, each board
+	  must advertise a platform_device for the driver to attach. 
+
+config MTD_NAND_S3C2410_DEBUG
+	bool "S3C2410 NAND driver debug"
+	depends on MTD_NAND_S3C2410
+	help
+	  Enable debugging of the S3C2410 NAND driver
+
+config MTD_NAND_S3C2410_HWECC
+	bool "S3C2410 NAND Hardware ECC"
+	depends on MTD_NAND_S3C2410
+	help
+	  Enable the use of the S3C2410's internal ECC generator when
+	  using NAND. Early versions of the chip have had problems with
+	  incorrect ECC generation, and if using these, the default of
+	  software ECC is preferable.
+
+	  If you lay down a device with the hardware ECC, then you will
+	  currently not be able to switch to software, as there is no
+	  implementation for ECC method used by the S3C2410
+
+config MTD_NAND_DISKONCHIP
+	tristate "DiskOnChip 2000, Millennium and Millennium Plus (NAND reimplementation) (EXPERIMENTAL)"
+	depends on MTD_NAND && EXPERIMENTAL
+	select REED_SOLOMON
+	select REED_SOLOMON_DEC16
+	help
+	  This is a reimplementation of M-Systems DiskOnChip 2000,
+	  Millennium and Millennium Plus as a standard NAND device driver,
+	  as opposed to the earlier self-contained MTD device drivers.
+	  This should enable, among other things, proper JFFS2 operation on
+	  these devices.
+
+config MTD_NAND_DISKONCHIP_PROBE_ADVANCED
+        bool "Advanced detection options for DiskOnChip"
+        depends on MTD_NAND_DISKONCHIP
+        help
+          This option allows you to specify nonstandard address at which to
+          probe for a DiskOnChip, or to change the detection options.  You
+          are unlikely to need any of this unless you are using LinuxBIOS.
+          Say 'N'.
+
+config MTD_NAND_DISKONCHIP_PROBE_ADDRESS
+        hex "Physical address of DiskOnChip" if MTD_NAND_DISKONCHIP_PROBE_ADVANCED
+        depends on MTD_NAND_DISKONCHIP
+        default "0"
+        ---help---
+        By default, the probe for DiskOnChip devices will look for a
+        DiskOnChip at every multiple of 0x2000 between 0xC8000 and 0xEE000.
+        This option allows you to specify a single address at which to probe
+        for the device, which is useful if you have other devices in that
+        range which get upset when they are probed.
+
+        (Note that on PowerPC, the normal probe will only check at
+        0xE4000000.)
+
+        Normally, you should leave this set to zero, to allow the probe at
+        the normal addresses.
+
+config MTD_NAND_DISKONCHIP_PROBE_HIGH
+        bool "Probe high addresses"
+        depends on MTD_NAND_DISKONCHIP_PROBE_ADVANCED
+        help
+          By default, the probe for DiskOnChip devices will look for a
+          DiskOnChip at every multiple of 0x2000 between 0xC8000 and 0xEE000.
+          This option changes to make it probe between 0xFFFC8000 and
+          0xFFFEE000.  Unless you are using LinuxBIOS, this is unlikely to be
+          useful to you.  Say 'N'.
+
+config MTD_NAND_DISKONCHIP_BBTWRITE
+	bool "Allow BBT writes on DiskOnChip Millennium and 2000TSOP"
+	depends on MTD_NAND_DISKONCHIP
+	help
+	  On DiskOnChip devices shipped with the INFTL filesystem (Millennium
+	  and 2000 TSOP/Alon), Linux reserves some space at the end of the
+	  device for the Bad Block Table (BBT).  If you have existing INFTL
+	  data on your device (created by non-Linux tools such as M-Systems'
+	  DOS drivers), your data might overlap the area Linux wants to use for
+	  the BBT.  If this is a concern for you, leave this option disabled and
+	  Linux will not write BBT data into this area.
+	  The downside of leaving this option disabled is that if bad blocks
+	  are detected by Linux, they will not be recorded in the BBT, which
+	  could cause future problems.
+	  Once you enable this option, new filesystems (INFTL or others, created
+	  in Linux or other operating systems) will not use the reserved area.
+	  The only reason not to enable this option is to prevent damage to
+	  preexisting filesystems.
+	  Even if you leave this disabled, you can enable BBT writes at module
+	  load time (assuming you build diskonchip as a module) with the module
+	  parameter "inftl_bbt_write=1".
+	  
+ config MTD_NAND_SHARPSL
+ 	bool "Support for NAND Flash on Sharp SL Series (C7xx + others)"
+ 	depends on MTD_NAND	&& ARCH_PXA
+ 
+ config MTD_NAND_NANDSIM
+ 	bool "Support for NAND Flash Simulator"
+ 	depends on MTD_NAND && MTD_PARTITIONS
+
+	help
+	  The simulator may simulate verious NAND flash chips for the
+	  MTD nand layer.
+ 
+endmenu

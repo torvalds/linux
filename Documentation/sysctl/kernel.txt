@@ -1,0 +1,314 @@
+Documentation for /proc/sys/kernel/*	kernel version 2.2.10
+	(c) 1998, 1999,  Rik van Riel <riel@nl.linux.org>
+
+For general info and legal blurb, please look in README.
+
+==============================================================
+
+This file contains documentation for the sysctl files in
+/proc/sys/kernel/ and is valid for Linux kernel version 2.2.
+
+The files in this directory can be used to tune and monitor
+miscellaneous and general things in the operation of the Linux
+kernel. Since some of the files _can_ be used to screw up your
+system, it is advisable to read both documentation and source
+before actually making adjustments.
+
+Currently, these files might (depending on your configuration)
+show up in /proc/sys/kernel:
+- acct
+- core_pattern
+- core_uses_pid
+- ctrl-alt-del
+- dentry-state
+- domainname
+- hostname
+- hotplug
+- java-appletviewer           [ binfmt_java, obsolete ]
+- java-interpreter            [ binfmt_java, obsolete ]
+- l2cr                        [ PPC only ]
+- modprobe                    ==> Documentation/kmod.txt
+- msgmax
+- msgmnb
+- msgmni
+- osrelease
+- ostype
+- overflowgid
+- overflowuid
+- panic
+- pid_max
+- powersave-nap               [ PPC only ]
+- printk
+- real-root-dev               ==> Documentation/initrd.txt
+- reboot-cmd                  [ SPARC only ]
+- rtsig-max
+- rtsig-nr
+- sem
+- sg-big-buff                 [ generic SCSI device (sg) ]
+- shmall
+- shmmax                      [ sysv ipc ]
+- shmmni
+- stop-a                      [ SPARC only ]
+- sysrq                       ==> Documentation/sysrq.txt
+- tainted
+- threads-max
+- version
+
+==============================================================
+
+acct:
+
+highwater lowwater frequency
+
+If BSD-style process accounting is enabled these values control
+its behaviour. If free space on filesystem where the log lives
+goes below <lowwater>% accounting suspends. If free space gets
+above <highwater>% accounting resumes. <Frequency> determines
+how often do we check the amount of free space (value is in
+seconds). Default:
+4 2 30
+That is, suspend accounting if there left <= 2% free; resume it
+if we got >=4%; consider information about amount of free space
+valid for 30 seconds.
+
+==============================================================
+
+core_pattern:
+
+core_pattern is used to specify a core dumpfile pattern name.
+. max length 64 characters; default value is "core"
+. core_pattern is used as a pattern template for the output filename;
+  certain string patterns (beginning with '%') are substituted with
+  their actual values.
+. backward compatibility with core_uses_pid:
+	If core_pattern does not include "%p" (default does not)
+	and core_uses_pid is set, then .PID will be appended to
+	the filename.
+. corename format specifiers:
+	%<NUL>	'%' is dropped
+	%%	output one '%'
+	%p	pid
+	%u	uid
+	%g	gid
+	%s	signal number
+	%t	UNIX time of dump
+	%h	hostname
+	%e	executable filename
+	%<OTHER> both are dropped
+
+==============================================================
+
+core_uses_pid:
+
+The default coredump filename is "core".  By setting
+core_uses_pid to 1, the coredump filename becomes core.PID.
+If core_pattern does not include "%p" (default does not)
+and core_uses_pid is set, then .PID will be appended to
+the filename.
+
+==============================================================
+
+ctrl-alt-del:
+
+When the value in this file is 0, ctrl-alt-del is trapped and
+sent to the init(1) program to handle a graceful restart.
+When, however, the value is > 0, Linux's reaction to a Vulcan
+Nerve Pinch (tm) will be an immediate reboot, without even
+syncing its dirty buffers.
+
+Note: when a program (like dosemu) has the keyboard in 'raw'
+mode, the ctrl-alt-del is intercepted by the program before it
+ever reaches the kernel tty layer, and it's up to the program
+to decide what to do with it.
+
+==============================================================
+
+domainname & hostname:
+
+These files can be used to set the NIS/YP domainname and the
+hostname of your box in exactly the same way as the commands
+domainname and hostname, i.e.:
+# echo "darkstar" > /proc/sys/kernel/hostname
+# echo "mydomain" > /proc/sys/kernel/domainname
+has the same effect as
+# hostname "darkstar"
+# domainname "mydomain"
+
+Note, however, that the classic darkstar.frop.org has the
+hostname "darkstar" and DNS (Internet Domain Name Server)
+domainname "frop.org", not to be confused with the NIS (Network
+Information Service) or YP (Yellow Pages) domainname. These two
+domain names are in general different. For a detailed discussion
+see the hostname(1) man page.
+
+==============================================================
+
+hotplug:
+
+Path for the hotplug policy agent.
+Default value is "/sbin/hotplug".
+
+==============================================================
+
+l2cr: (PPC only)
+
+This flag controls the L2 cache of G3 processor boards. If
+0, the cache is disabled. Enabled if nonzero.
+
+==============================================================
+
+osrelease, ostype & version:
+
+# cat osrelease
+2.1.88
+# cat ostype
+Linux
+# cat version
+#5 Wed Feb 25 21:49:24 MET 1998
+
+The files osrelease and ostype should be clear enough. Version
+needs a little more clarification however. The '#5' means that
+this is the fifth kernel built from this source base and the
+date behind it indicates the time the kernel was built.
+The only way to tune these values is to rebuild the kernel :-)
+
+==============================================================
+
+overflowgid & overflowuid:
+
+if your architecture did not always support 32-bit UIDs (i.e. arm, i386,
+m68k, sh, and sparc32), a fixed UID and GID will be returned to
+applications that use the old 16-bit UID/GID system calls, if the actual
+UID or GID would exceed 65535.
+
+These sysctls allow you to change the value of the fixed UID and GID.
+The default is 65534.
+
+==============================================================
+
+panic:
+
+The value in this file represents the number of seconds the
+kernel waits before rebooting on a panic. When you use the
+software watchdog, the recommended setting is 60.
+
+==============================================================
+
+panic_on_oops:
+
+Controls the kernel's behaviour when an oops or BUG is encountered.
+
+0: try to continue operation
+
+1: delay a few seconds (to give klogd time to record the oops output) and
+   then panic.  If the `panic' sysctl is also non-zero then the machine will
+   be rebooted.
+
+==============================================================
+
+pid_max:
+
+PID allocation wrap value.  When the kenrel's next PID value
+reaches this value, it wraps back to a minimum PID value.
+PIDs of value pid_max or larger are not allocated.
+
+==============================================================
+
+powersave-nap: (PPC only)
+
+If set, Linux-PPC will use the 'nap' mode of powersaving,
+otherwise the 'doze' mode will be used.
+
+==============================================================
+
+printk:
+
+The four values in printk denote: console_loglevel,
+default_message_loglevel, minimum_console_loglevel and
+default_console_loglevel respectively.
+
+These values influence printk() behavior when printing or
+logging error messages. See 'man 2 syslog' for more info on
+the different loglevels.
+
+- console_loglevel: messages with a higher priority than
+  this will be printed to the console
+- default_message_level: messages without an explicit priority
+  will be printed with this priority
+- minimum_console_loglevel: minimum (highest) value to which
+  console_loglevel can be set
+- default_console_loglevel: default value for console_loglevel
+
+==============================================================
+
+printk_ratelimit:
+
+Some warning messages are rate limited. printk_ratelimit specifies
+the minimum length of time between these messages (in jiffies), by
+default we allow one every 5 seconds.
+
+A value of 0 will disable rate limiting.
+
+==============================================================
+
+printk_ratelimit_burst:
+
+While long term we enforce one message per printk_ratelimit
+seconds, we do allow a burst of messages to pass through.
+printk_ratelimit_burst specifies the number of messages we can
+send before ratelimiting kicks in.
+
+==============================================================
+
+reboot-cmd: (Sparc only)
+
+??? This seems to be a way to give an argument to the Sparc
+ROM/Flash boot loader. Maybe to tell it what to do after
+rebooting. ???
+
+==============================================================
+
+rtsig-max & rtsig-nr:
+
+The file rtsig-max can be used to tune the maximum number
+of POSIX realtime (queued) signals that can be outstanding
+in the system.
+
+rtsig-nr shows the number of RT signals currently queued.
+
+==============================================================
+
+sg-big-buff:
+
+This file shows the size of the generic SCSI (sg) buffer.
+You can't tune it just yet, but you could change it on
+compile time by editing include/scsi/sg.h and changing
+the value of SG_BIG_BUFF.
+
+There shouldn't be any reason to change this value. If
+you can come up with one, you probably know what you
+are doing anyway :)
+
+==============================================================
+
+shmmax: 
+
+This value can be used to query and set the run time limit
+on the maximum shared memory segment size that can be created.
+Shared memory segments up to 1Gb are now supported in the 
+kernel.  This value defaults to SHMMAX.
+
+==============================================================
+
+tainted: 
+
+Non-zero if the kernel has been tainted.  Numeric values, which
+can be ORed together:
+
+  1 - A module with a non-GPL license has been loaded, this
+      includes modules with no license.
+      Set by modutils >= 2.4.9 and module-init-tools.
+  2 - A module was force loaded by insmod -f.
+      Set by modutils >= 2.4.9 and module-init-tools.
+  4 - Unsafe SMP processors: SMP with CPUs not designed for SMP.
+

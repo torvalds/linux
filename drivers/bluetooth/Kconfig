@@ -1,0 +1,168 @@
+
+menu "Bluetooth device drivers"
+	depends on BT
+
+config BT_HCIUSB
+	tristate "HCI USB driver"
+	depends on USB
+	help
+	  Bluetooth HCI USB driver.
+	  This driver is required if you want to use Bluetooth devices with
+	  USB interface.
+
+	  Say Y here to compile support for Bluetooth USB devices into the
+	  kernel or say M to compile it as module (hci_usb).
+
+config BT_HCIUSB_SCO
+	bool "SCO (voice) support"
+	depends on BT_HCIUSB
+	help
+	  This option enables the SCO support in the HCI USB driver. You need this
+	  to transmit voice data with your Bluetooth USB device.
+
+	  Say Y here to compile support for SCO over HCI USB.
+
+config BT_HCIUART
+	tristate "HCI UART driver"
+	help
+	  Bluetooth HCI UART driver.
+	  This driver is required if you want to use Bluetooth devices with
+	  serial port interface. You will also need this driver if you have 
+	  UART based Bluetooth PCMCIA and CF devices like Xircom Credit Card 
+	  adapter and BrainBoxes Bluetooth PC Card.
+
+	  Say Y here to compile support for Bluetooth UART devices into the
+	  kernel or say M to compile it as module (hci_uart).
+
+config BT_HCIUART_H4
+	bool "UART (H4) protocol support"
+	depends on BT_HCIUART
+	help
+	  UART (H4) is serial protocol for communication between Bluetooth 
+	  device and host. This protocol is required for most Bluetooth devices 
+	  with UART interface, including PCMCIA and CF cards. 
+
+	  Say Y here to compile support for HCI UART (H4) protocol.
+
+config BT_HCIUART_BCSP
+	bool "BCSP protocol support"
+	depends on BT_HCIUART
+	help
+	  BCSP (BlueCore Serial Protocol) is serial protocol for communication 
+	  between Bluetooth device and host. This protocol is required for non
+	  USB Bluetooth devices based on CSR BlueCore chip, including PCMCIA and
+	  CF cards.
+
+	  Say Y here to compile support for HCI BCSP protocol.
+
+config BT_HCIUART_BCSP_TXCRC
+	bool "Transmit CRC with every BCSP packet"
+	depends on BT_HCIUART_BCSP
+	help
+	  If you say Y here, a 16-bit CRC checksum will be transmitted along with
+	  every BCSP (BlueCore Serial Protocol) packet sent to the Bluetooth chip.
+	  This increases reliability, but slightly reduces efficiency.
+
+config BT_HCIBCM203X
+	tristate "HCI BCM203x USB driver"
+	depends on USB
+	select FW_LOADER
+	help
+	  Bluetooth HCI BCM203x USB driver.
+	  This driver provides the firmware loading mechanism for the Broadcom
+	  Blutonium based devices.
+
+	  Say Y here to compile support for HCI BCM203x devices into the
+	  kernel or say M to compile it as module (bcm203x).
+
+config BT_HCIBPA10X
+	tristate "HCI BPA10x USB driver"
+	depends on USB
+	help
+	  Bluetooth HCI BPA10x USB driver.
+	  This driver provides support for the Digianswer BPA 100/105 Bluetooth
+	  sniffer devices.
+
+	  Say Y here to compile support for HCI BPA10x devices into the
+	  kernel or say M to compile it as module (bpa10x).
+
+config BT_HCIBFUSB
+	tristate "HCI BlueFRITZ! USB driver"
+	depends on USB
+	select FW_LOADER
+	help
+	  Bluetooth HCI BlueFRITZ! USB driver.
+	  This driver provides support for Bluetooth USB devices with AVM
+	  interface:
+	     AVM BlueFRITZ! USB
+
+	  Say Y here to compile support for HCI BFUSB devices into the
+	  kernel or say M to compile it as module (bfusb).
+
+config BT_HCIDTL1
+	tristate "HCI DTL1 (PC Card) driver"
+	depends on PCMCIA
+	help
+	  Bluetooth HCI DTL1 (PC Card) driver.
+	  This driver provides support for Bluetooth PCMCIA devices with
+	  Nokia DTL1 interface:
+	     Nokia Bluetooth Card
+	     Socket Bluetooth CF Card
+
+	  Say Y here to compile support for HCI DTL1 devices into the
+	  kernel or say M to compile it as module (dtl1_cs).
+
+config BT_HCIBT3C
+	tristate "HCI BT3C (PC Card) driver"
+	depends on PCMCIA
+	select FW_LOADER
+	help
+	  Bluetooth HCI BT3C (PC Card) driver.
+	  This driver provides support for Bluetooth PCMCIA devices with
+	  3Com BT3C interface:
+	     3Com Bluetooth Card (3CRWB6096)
+	     HP Bluetooth Card
+
+	  Say Y here to compile support for HCI BT3C devices into the
+	  kernel or say M to compile it as module (bt3c_cs).
+
+config BT_HCIBLUECARD
+	tristate "HCI BlueCard (PC Card) driver"
+	depends on PCMCIA
+	help
+	  Bluetooth HCI BlueCard (PC Card) driver.
+	  This driver provides support for Bluetooth PCMCIA devices with
+	  Anycom BlueCard interface:
+	     Anycom Bluetooth PC Card
+	     Anycom Bluetooth CF Card
+
+	  Say Y here to compile support for HCI BlueCard devices into the
+	  kernel or say M to compile it as module (bluecard_cs).
+
+config BT_HCIBTUART
+	tristate "HCI UART (PC Card) device driver"
+	depends on PCMCIA
+	help
+	  Bluetooth HCI UART (PC Card) driver.
+	  This driver provides support for Bluetooth PCMCIA devices with
+	  an UART interface:
+	     Xircom CreditCard Bluetooth Adapter
+	     Xircom RealPort2 Bluetooth Adapter
+	     Sphinx PICO Card
+	     H-Soft blue+Card
+	     Cyber-blue Compact Flash Card
+
+	  Say Y here to compile support for HCI UART devices into the
+	  kernel or say M to compile it as module (btuart_cs).
+
+config BT_HCIVHCI
+	tristate "HCI VHCI (Virtual HCI device) driver"
+	help
+	  Bluetooth Virtual HCI device driver.
+	  This driver is required if you want to use HCI Emulation software.
+
+	  Say Y here to compile support for virtual HCI devices into the
+	  kernel or say M to compile it as module (hci_vhci).
+
+endmenu
+

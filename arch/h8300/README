@@ -1,0 +1,37 @@
+linux-2.6 for H8/300 README
+Yoshinori Sato <ysato@users.sourceforge.jp>
+
+* Supported CPU
+H8/300H and H8S
+
+* Supported Target
+1.simulator of GDB
+  require patches.
+
+2.AE 3068/AE 3069
+  more information 
+  MICROTRONIQUE <http://www.microtronique.com/>
+  Akizuki Denshi Tsusho Ltd. <http://www.akizuki.ne.jp> (Japanese Only)
+
+3.H8MAX 
+  see http://ip-sol.jp/h8max/ (Japanese Only)
+
+4.EDOSK2674
+  see http://www.eu.renesas.com/products/mpumcu/tool/edk/support/edosk2674.html
+      http://www.azpower.com/H8-uClinux/
+
+* Toolchain Version
+gcc-3.1 or higher and patch
+see arch/h8300/tools_patch/README
+binutils-2.12 or higher
+gdb-5.2 or higher
+The environment that can compile a h8300-elf binary is necessary.
+
+* Userland Develop environment
+used h8300-elf toolchains.
+see http://www.uclinux.org/pub/uClinux/ports/h8/
+
+* A few words of thanks
+Porting to H8/300 serieses is support of Information-technology Promotion Agency, Japan.
+I thank support.
+and All developer/user.

@@ -1,0 +1,61 @@
+/* XPM */
+/*****************************************************************************/
+/**       This pixmap was made by Torsten Poulin - 1996 - torsten@diku.dk   **/
+/**       It was made by combining xterm-blank.xpm with                     **/
+/**       the wonderfully cute Linux penguin mascot by Larry Ewing.         **/
+/**       I had to change Larry's penguin a little to make it fit.          **/
+/**       xterm-blank.xpm contained the following comment:                  **/
+/**       This pixmap is kindly offered by Ion Cionca - 1992 -              **/
+/**       Swiss Federal Institute of Technology                             **/
+/**       Central Computing Service                                         **/
+/*****************************************************************************/
+static char * image_name [] = {
+/**/
+"64 38 8 1",
+/**/
+" 	s mask	c none",
+".	c gray70",
+"X	c gray85",
+"o	c gray50",
+"O	c yellow",
+"+	c darkolivegreen",
+"@	c white",
+"#	c black",
+"              ######                                            ",
+"             ########                                           ",
+"            ##########    ...........................           ",
+"            ###########  .XXXXXXXXXXXXXXXXXXXXXXXXXXX.          ",
+"            ########### .XXXXXXXXXXXXXXXXXXXXXXXXXXXXXoo        ",
+"            #@@@#@@@### .XX+++++++++++++++++++++++XXXXoo        ",
+"            #@#@#@#@### .XX++++++++++++++++++++++++XXXooo       ",
+"            #@#####@### .XX++@@+@++@+@@@@++@+++++++XXXooo       ",
+"            ###OOO######.XX++++++++++++++++++++++++XXXoooo      ",
+"            ##OOOOOO####.XX++@@@@+@@+@@@+++++++++++XXXoooo      ",
+"            #O#OOO#O####.XX++++++++++++++++++++++++XXXooooo     ",
+"            ##O###OO####.XX++@@@@@@@@@@+@@@@@++++++XXXooooo     ",
+"            ###OOOO@#####XX++++++++++++++++++++++++XXXooooo     ",
+"           ##@###@@@@####XX++@@@+@@@@+@@++@@@++++++XXXooooo     ",
+"           #@@@@@@@@@@####X++++++++++++++++++++++++XXXooooo     ",
+"          ##@@@@@@@@@@#####++@+++++++++++++++++++++XXXooooo     ",
+"         ###@@@@@@@@@@######+++++++++++++++++++++++XXXooooo     ",
+"        ####@@@@@@@@@@@#####+@@@@+@+@@@+@++++++++++XXXooooo     ",
+"        ###@@@@@@@@@@@@######++++++++++++++++++++++XXXooooo     ",
+"        ##@@@@@@@@@@@@@@#####@+@@@@++++++++++++++++XXXooooo     ",
+"       ###@@@@@@@@@@@@@@######++++++++++++++++++++XXXXoooo      ",
+"       ###@@@@@@@@@@@@@@######XXXXXXXXXXXXXXXXXXXXXXXXooo       ",
+"      ###@@@@@@@@@@@@@@@######XXXXXXXXXXXXXXXXXXXXXXXooo        ",
+"      ###@@@@@@@@@@@@@@@@#####ooooooooooooooooooooooo...oo      ",
+"      ###@@@@@@@@@@@@@@@######.........................ooo      ",
+"     #OO##@@@@@@@@@@@@@#######oooooooooooooooooooooooooooo      ",
+"     #OOO##@@@@@@@@@@@#OO####O#XXXXXXXXXXXXXXXXXXXXXXXoooo.. .. ",
+"  ###OOOOO##@@@@@@@@@@#OOO#OOO#XXXXXXXXXXXXXX#######XXoooo  .  .",
+" #OOOOOOOO###@@@@@@@@@#OOOOOOO#ooooooooooooooooooooXXXooo     . ",
+" #OOOOOOOOO###@@@@@@@@@#OOOOOOO##XXXXXXXXXXXXXXXXXooooo      .  ",
+"  #OOOOOOOOO#@@@@@@@@###OOOOOOOOO#XXXXXXXXXXXXXXXoo      oooooo ",
+"  #OOOOOOOOO#@@@@@@@####OOOOOOOO#@@@@@@@@@@@XXXXXoo   ooooo...o ",
+" #OOOOOOOOOOO###########OOOOOO##XXXXXXXXXXXXXXXXoo   ooXXXoo..o ",
+"  ##OOOOOOOOO###########OOOO##@@@@@@@@@@@@@XXXXoo    oXXXXX..o  ",
+"     ###OOOO###    oXX##OOO#XXXXXXXXXXXXXXXXXXoo     o.....oo   ",
+"         ####      oooo####oooooooooooooooooooo      ooooooo    ",
+"                                                                ",
+"                                                                "};

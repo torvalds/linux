@@ -1,0 +1,104 @@
+Documentation for /proc/sys/vm/*	kernel version 2.2.10
+	(c) 1998, 1999,  Rik van Riel <riel@nl.linux.org>
+
+For general info and legal blurb, please look in README.
+
+==============================================================
+
+This file contains the documentation for the sysctl files in
+/proc/sys/vm and is valid for Linux kernel version 2.2.
+
+The files in this directory can be used to tune the operation
+of the virtual memory (VM) subsystem of the Linux kernel and
+the writeout of dirty data to disk.
+
+Default values and initialization routines for most of these
+files can be found in mm/swap.c.
+
+Currently, these files are in /proc/sys/vm:
+- overcommit_memory
+- page-cluster
+- dirty_ratio
+- dirty_background_ratio
+- dirty_expire_centisecs
+- dirty_writeback_centisecs
+- max_map_count
+- min_free_kbytes
+- laptop_mode
+- block_dump
+
+==============================================================
+
+dirty_ratio, dirty_background_ratio, dirty_expire_centisecs,
+dirty_writeback_centisecs, vfs_cache_pressure, laptop_mode,
+block_dump, swap_token_timeout:
+
+See Documentation/filesystems/proc.txt
+
+==============================================================
+
+overcommit_memory:
+
+This value contains a flag that enables memory overcommitment.
+
+When this flag is 0, the kernel attempts to estimate the amount
+of free memory left when userspace requests more memory.
+
+When this flag is 1, the kernel pretends there is always enough
+memory until it actually runs out.
+
+When this flag is 2, the kernel uses a "never overcommit"
+policy that attempts to prevent any overcommit of memory.  
+
+This feature can be very useful because there are a lot of
+programs that malloc() huge amounts of memory "just-in-case"
+and don't use much of it.
+
+The default value is 0.
+
+See Documentation/vm/overcommit-accounting and
+security/commoncap.c::cap_vm_enough_memory() for more information.
+
+==============================================================
+
+overcommit_ratio:
+
+When overcommit_memory is set to 2, the committed address
+space is not permitted to exceed swap plus this percentage
+of physical RAM.  See above.
+
+==============================================================
+
+page-cluster:
+
+The Linux VM subsystem avoids excessive disk seeks by reading
+multiple pages on a page fault. The number of pages it reads
+is dependent on the amount of memory in your machine.
+
+The number of pages the kernel reads in at once is equal to
+2 ^ page-cluster. Values above 2 ^ 5 don't make much sense
+for swap because we only cluster swap data in 32-page groups.
+
+==============================================================
+
+max_map_count:
+
+This file contains the maximum number of memory map areas a process
+may have. Memory map areas are used as a side-effect of calling
+malloc, directly by mmap and mprotect, and also when loading shared
+libraries.
+
+While most applications need less than a thousand maps, certain
+programs, particularly malloc debuggers, may consume lots of them,
+e.g., up to one or two maps per allocation.
+
+The default value is 65536.
+
+==============================================================
+
+min_free_kbytes:
+
+This is used to force the Linux VM to keep a minimum number 
+of kilobytes free.  The VM uses this number to compute a pages_min
+value for each lowmem zone in the system.  Each lowmem zone gets 
+a number of reserved free pages based proportionally on its size.

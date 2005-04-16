@@ -1,0 +1,92 @@
+[Sat Mar  2 10:32:33 PST 1996 KERNEL_BUG-HOWTO lm@sgi.com (Larry McVoy)]
+
+This is how to track down a bug if you know nothing about kernel hacking.  
+It's a brute force approach but it works pretty well.
+
+You need:
+
+        . A reproducible bug - it has to happen predictably (sorry)
+        . All the kernel tar files from a revision that worked to the
+          revision that doesn't
+
+You will then do:
+
+        . Rebuild a revision that you believe works, install, and verify that.
+        . Do a binary search over the kernels to figure out which one
+          introduced the bug.  I.e., suppose 1.3.28 didn't have the bug, but 
+          you know that 1.3.69 does.  Pick a kernel in the middle and build
+          that, like 1.3.50.  Build & test; if it works, pick the mid point
+          between .50 and .69, else the mid point between .28 and .50.
+        . You'll narrow it down to the kernel that introduced the bug.  You
+          can probably do better than this but it gets tricky.  
+
+        . Narrow it down to a subdirectory
+
+          - Copy kernel that works into "test".  Let's say that 3.62 works,
+            but 3.63 doesn't.  So you diff -r those two kernels and come
+            up with a list of directories that changed.  For each of those
+            directories:
+
+                Copy the non-working directory next to the working directory
+                as "dir.63".  
+                One directory at time, try moving the working directory to
+                "dir.62" and mv dir.63 dir"time, try 
+
+                        mv dir dir.62
+                        mv dir.63 dir
+                        find dir -name '*.[oa]' -print | xargs rm -f
+
+                And then rebuild and retest.  Assuming that all related
+                changes were contained in the sub directory, this should 
+                isolate the change to a directory.  
+
+                Problems: changes in header files may have occurred; I've
+                found in my case that they were self explanatory - you may 
+                or may not want to give up when that happens.
+
+        . Narrow it down to a file
+
+          - You can apply the same technique to each file in the directory,
+            hoping that the changes in that file are self contained.  
+            
+        . Narrow it down to a routine
+
+          - You can take the old file and the new file and manually create
+            a merged file that has
+
+                #ifdef VER62
+                routine()
+                {
+                        ...
+                }
+                #else
+                routine()
+                {
+                        ...
+                }
+                #endif
+
+            And then walk through that file, one routine at a time and
+            prefix it with
+
+                #define VER62
+                /* both routines here */
+                #undef VER62
+
+            Then recompile, retest, move the ifdefs until you find the one
+            that makes the difference.
+
+Finally, you take all the info that you have, kernel revisions, bug
+description, the extent to which you have narrowed it down, and pass 
+that off to whomever you believe is the maintainer of that section.
+A post to linux.dev.kernel isn't such a bad idea if you've done some
+work to narrow it down.
+
+If you get it down to a routine, you'll probably get a fix in 24 hours.
+
+My apologies to Linus and the other kernel hackers for describing this
+brute force approach, it's hardly what a kernel hacker would do.  However,
+it does work and it lets non-hackers help fix bugs.  And it is cool
+because Linux snapshots will let you do this - something that you can't
+do with vendor supplied releases.
+

@@ -1,0 +1,16 @@
+To use the amateur radio protocols within Linux you will need to get a
+suitable copy of the AX.25 Utilities. More detailed information about these
+and associated programs can be found on http://zone.pspt.fi/~jsn/.
+
+For more information about the AX.25, NET/ROM and ROSE protocol stacks, see
+the AX25-HOWTO written by Terry Dawson <terry@perf.no.itg.telstra.com.au>
+who is also the AX.25 Utilities maintainer.
+
+There is an active mailing list for discussing Linux amateur radio matters
+called linux-hams. To subscribe to it, send a message to
+majordomo@vger.kernel.org with the words "subscribe linux-hams" in the body
+of the message, the subject field is ignored.
+
+Jonathan G4KLX
+
+g4klx@g4klx.demon.co.uk

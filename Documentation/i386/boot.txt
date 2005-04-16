@@ -1,0 +1,441 @@
+		     THE LINUX/I386 BOOT PROTOCOL
+		     ----------------------------
+
+		    H. Peter Anvin <hpa@zytor.com>
+			Last update 2002-01-01
+
+On the i386 platform, the Linux kernel uses a rather complicated boot
+convention.  This has evolved partially due to historical aspects, as
+well as the desire in the early days to have the kernel itself be a
+bootable image, the complicated PC memory model and due to changed
+expectations in the PC industry caused by the effective demise of
+real-mode DOS as a mainstream operating system.
+
+Currently, four versions of the Linux/i386 boot protocol exist.
+
+Old kernels:	zImage/Image support only.  Some very early kernels
+		may not even support a command line.
+
+Protocol 2.00:	(Kernel 1.3.73) Added bzImage and initrd support, as
+		well as a formalized way to communicate between the
+		boot loader and the kernel.  setup.S made relocatable,
+		although the traditional setup area still assumed
+		writable.
+
+Protocol 2.01:	(Kernel 1.3.76) Added a heap overrun warning.
+
+Protocol 2.02:	(Kernel 2.4.0-test3-pre3) New command line protocol.
+		Lower the conventional memory ceiling.	No overwrite
+		of the traditional setup area, thus making booting
+		safe for systems which use the EBDA from SMM or 32-bit
+		BIOS entry points.  zImage deprecated but still
+		supported.
+
+Protocol 2.03:	(Kernel 2.4.18-pre1) Explicitly makes the highest possible
+		initrd address available to the bootloader.
+
+
+**** MEMORY LAYOUT
+
+The traditional memory map for the kernel loader, used for Image or
+zImage kernels, typically looks like:
+
+	|			 |
+0A0000	+------------------------+
+	|  Reserved for BIOS	 |	Do not use.  Reserved for BIOS EBDA.
+09A000	+------------------------+
+	|  Stack/heap/cmdline	 |	For use by the kernel real-mode code.
+098000	+------------------------+	
+	|  Kernel setup		 |	The kernel real-mode code.
+090200	+------------------------+
+	|  Kernel boot sector	 |	The kernel legacy boot sector.
+090000	+------------------------+
+	|  Protected-mode kernel |	The bulk of the kernel image.
+010000	+------------------------+
+	|  Boot loader		 |	<- Boot sector entry point 0000:7C00
+001000	+------------------------+
+	|  Reserved for MBR/BIOS |
+000800	+------------------------+
+	|  Typically used by MBR |
+000600	+------------------------+ 
+	|  BIOS use only	 |
+000000	+------------------------+
+
+
+When using bzImage, the protected-mode kernel was relocated to
+0x100000 ("high memory"), and the kernel real-mode block (boot sector,
+setup, and stack/heap) was made relocatable to any address between
+0x10000 and end of low memory.	Unfortunately, in protocols 2.00 and
+2.01 the command line is still required to live in the 0x9XXXX memory
+range, and that memory range is still overwritten by the early kernel.
+The 2.02 protocol resolves that problem.
+
+It is desirable to keep the "memory ceiling" -- the highest point in
+low memory touched by the boot loader -- as low as possible, since
+some newer BIOSes have begun to allocate some rather large amounts of
+memory, called the Extended BIOS Data Area, near the top of low
+memory.	 The boot loader should use the "INT 12h" BIOS call to verify
+how much low memory is available.
+
+Unfortunately, if INT 12h reports that the amount of memory is too
+low, there is usually nothing the boot loader can do but to report an
+error to the user.  The boot loader should therefore be designed to
+take up as little space in low memory as it reasonably can.  For
+zImage or old bzImage kernels, which need data written into the
+0x90000 segment, the boot loader should make sure not to use memory
+above the 0x9A000 point; too many BIOSes will break above that point.
+
+
+**** THE REAL-MODE KERNEL HEADER
+
+In the following text, and anywhere in the kernel boot sequence, "a
+sector" refers to 512 bytes.  It is independent of the actual sector
+size of the underlying medium.
+
+The first step in loading a Linux kernel should be to load the
+real-mode code (boot sector and setup code) and then examine the
+following header at offset 0x01f1.  The real-mode code can total up to
+32K, although the boot loader may choose to load only the first two
+sectors (1K) and then examine the bootup sector size.
+
+The header looks like:
+
+Offset	Proto	Name		Meaning
+/Size
+
+01F1/1	ALL	setup_sects	The size of the setup in sectors
+01F2/2	ALL	root_flags	If set, the root is mounted readonly
+01F4/2	ALL	syssize		DO NOT USE - for bootsect.S use only
+01F6/2	ALL	swap_dev	DO NOT USE - obsolete
+01F8/2	ALL	ram_size	DO NOT USE - for bootsect.S use only
+01FA/2	ALL	vid_mode	Video mode control
+01FC/2	ALL	root_dev	Default root device number
+01FE/2	ALL	boot_flag	0xAA55 magic number
+0200/2	2.00+	jump		Jump instruction
+0202/4	2.00+	header		Magic signature "HdrS"
+0206/2	2.00+	version		Boot protocol version supported
+0208/4	2.00+	realmode_swtch	Boot loader hook (see below)
+020C/2	2.00+	start_sys	The load-low segment (0x1000) (obsolete)
+020E/2	2.00+	kernel_version	Pointer to kernel version string
+0210/1	2.00+	type_of_loader	Boot loader identifier
+0211/1	2.00+	loadflags	Boot protocol option flags
+0212/2	2.00+	setup_move_size	Move to high memory size (used with hooks)
+0214/4	2.00+	code32_start	Boot loader hook (see below)
+0218/4	2.00+	ramdisk_image	initrd load address (set by boot loader)
+021C/4	2.00+	ramdisk_size	initrd size (set by boot loader)
+0220/4	2.00+	bootsect_kludge	DO NOT USE - for bootsect.S use only
+0224/2	2.01+	heap_end_ptr	Free memory after setup end
+0226/2	N/A	pad1		Unused
+0228/4	2.02+	cmd_line_ptr	32-bit pointer to the kernel command line
+022C/4	2.03+	initrd_addr_max	Highest legal initrd address
+
+For backwards compatibility, if the setup_sects field contains 0, the
+real value is 4.
+
+If the "HdrS" (0x53726448) magic number is not found at offset 0x202,
+the boot protocol version is "old".  Loading an old kernel, the
+following parameters should be assumed:
+
+	Image type = zImage
+	initrd not supported
+	Real-mode kernel must be located at 0x90000.
+
+Otherwise, the "version" field contains the protocol version,
+e.g. protocol version 2.01 will contain 0x0201 in this field.  When
+setting fields in the header, you must make sure only to set fields
+supported by the protocol version in use.
+
+The "kernel_version" field, if set to a nonzero value, contains a
+pointer to a null-terminated human-readable kernel version number
+string, less 0x200.  This can be used to display the kernel version to
+the user.  This value should be less than (0x200*setup_sects).  For
+example, if this value is set to 0x1c00, the kernel version number
+string can be found at offset 0x1e00 in the kernel file.  This is a
+valid value if and only if the "setup_sects" field contains the value
+14 or higher.
+
+Most boot loaders will simply load the kernel at its target address
+directly.  Such boot loaders do not need to worry about filling in
+most of the fields in the header.  The following fields should be
+filled out, however:
+
+  vid_mode:
+	Please see the section on SPECIAL COMMAND LINE OPTIONS.
+
+  type_of_loader:
+	If your boot loader has an assigned id (see table below), enter
+	0xTV here, where T is an identifier for the boot loader and V is
+	a version number.  Otherwise, enter 0xFF here.
+
+	Assigned boot loader ids:
+	0  LILO
+	1  Loadlin
+	2  bootsect-loader
+	3  SYSLINUX
+	4  EtherBoot
+	5  ELILO
+	7  GRuB
+	8  U-BOOT
+
+	Please contact <hpa@zytor.com> if you need a bootloader ID
+	value assigned.
+
+  loadflags, heap_end_ptr:
+	If the protocol version is 2.01 or higher, enter the
+	offset limit of the setup heap into heap_end_ptr and set the
+	0x80 bit (CAN_USE_HEAP) of loadflags.  heap_end_ptr appears to
+	be relative to the start of setup (offset 0x0200).
+
+  setup_move_size: 
+	When using protocol 2.00 or 2.01, if the real mode
+	kernel is not loaded at 0x90000, it gets moved there later in
+	the loading sequence.  Fill in this field if you want
+	additional data (such as the kernel command line) moved in
+	addition to the real-mode kernel itself.
+
+  ramdisk_image, ramdisk_size:
+	If your boot loader has loaded an initial ramdisk (initrd),
+	set ramdisk_image to the 32-bit pointer to the ramdisk data
+	and the ramdisk_size to the size of the ramdisk data.
+
+	The initrd should typically be located as high in memory as
+	possible, as it may otherwise get overwritten by the early
+	kernel initialization sequence.	 However, it must never be
+	located above the address specified in the initrd_addr_max
+	field.	The initrd should be at least 4K page aligned.
+
+  cmd_line_ptr:
+	If the protocol version is 2.02 or higher, this is a 32-bit
+	pointer to the kernel command line.  The kernel command line
+	can be located anywhere between the end of setup and 0xA0000.
+	Fill in this field even if your boot loader does not support a
+	command line, in which case you can point this to an empty
+	string (or better yet, to the string "auto".)  If this field
+	is left at zero, the kernel will assume that your boot loader
+	does not support the 2.02+ protocol.
+
+  ramdisk_max:
+	The maximum address that may be occupied by the initrd
+	contents.  For boot protocols 2.02 or earlier, this field is
+	not present, and the maximum address is 0x37FFFFFF.  (This
+	address is defined as the address of the highest safe byte, so
+	if your ramdisk is exactly 131072 bytes long and this field is
+	0x37FFFFFF, you can start your ramdisk at 0x37FE0000.)
+
+
+**** THE KERNEL COMMAND LINE
+
+The kernel command line has become an important way for the boot
+loader to communicate with the kernel.  Some of its options are also
+relevant to the boot loader itself, see "special command line options"
+below.
+
+The kernel command line is a null-terminated string up to 255
+characters long, plus the final null.
+
+If the boot protocol version is 2.02 or later, the address of the
+kernel command line is given by the header field cmd_line_ptr (see
+above.)
+
+If the protocol version is *not* 2.02 or higher, the kernel
+command line is entered using the following protocol:
+
+	At offset 0x0020 (word), "cmd_line_magic", enter the magic
+	number 0xA33F.
+
+	At offset 0x0022 (word), "cmd_line_offset", enter the offset
+	of the kernel command line (relative to the start of the
+	real-mode kernel).
+	
+	The kernel command line *must* be within the memory region
+	covered by setup_move_size, so you may need to adjust this
+	field.
+
+
+**** SAMPLE BOOT CONFIGURATION
+
+As a sample configuration, assume the following layout of the real
+mode segment:
+
+	0x0000-0x7FFF	Real mode kernel
+	0x8000-0x8FFF	Stack and heap
+	0x9000-0x90FF	Kernel command line
+
+Such a boot loader should enter the following fields in the header:
+
+	unsigned long base_ptr;	/* base address for real-mode segment */
+
+	if ( setup_sects == 0 ) {
+		setup_sects = 4;
+	}
+
+	if ( protocol >= 0x0200 ) {
+		type_of_loader = <type code>;
+		if ( loading_initrd ) {
+			ramdisk_image = <initrd_address>;
+			ramdisk_size = <initrd_size>;
+		}
+		if ( protocol >= 0x0201 ) {
+			heap_end_ptr = 0x9000 - 0x200;
+			loadflags |= 0x80; /* CAN_USE_HEAP */
+		}
+		if ( protocol >= 0x0202 ) {
+			cmd_line_ptr = base_ptr + 0x9000;
+		} else {
+			cmd_line_magic	= 0xA33F;
+			cmd_line_offset = 0x9000;
+			setup_move_size = 0x9100;
+		}
+	} else {
+		/* Very old kernel */
+
+		cmd_line_magic	= 0xA33F;
+		cmd_line_offset = 0x9000;
+
+		/* A very old kernel MUST have its real-mode code
+		   loaded at 0x90000 */
+
+		if ( base_ptr != 0x90000 ) {
+			/* Copy the real-mode kernel */
+			memcpy(0x90000, base_ptr, (setup_sects+1)*512);
+			/* Copy the command line */
+			memcpy(0x99000, base_ptr+0x9000, 256);
+
+			base_ptr = 0x90000;		 /* Relocated */
+		}
+
+		/* It is recommended to clear memory up to the 32K mark */
+		memset(0x90000 + (setup_sects+1)*512, 0,
+		       (64-(setup_sects+1))*512);
+	}
+
+
+**** LOADING THE REST OF THE KERNEL
+
+The non-real-mode kernel starts at offset (setup_sects+1)*512 in the
+kernel file (again, if setup_sects == 0 the real value is 4.)  It
+should be loaded at address 0x10000 for Image/zImage kernels and
+0x100000 for bzImage kernels.
+
+The kernel is a bzImage kernel if the protocol >= 2.00 and the 0x01
+bit (LOAD_HIGH) in the loadflags field is set:
+
+	is_bzImage = (protocol >= 0x0200) && (loadflags & 0x01);
+	load_address = is_bzImage ? 0x100000 : 0x10000;
+
+Note that Image/zImage kernels can be up to 512K in size, and thus use
+the entire 0x10000-0x90000 range of memory.  This means it is pretty
+much a requirement for these kernels to load the real-mode part at
+0x90000.  bzImage kernels allow much more flexibility.
+
+
+**** SPECIAL COMMAND LINE OPTIONS
+
+If the command line provided by the boot loader is entered by the
+user, the user may expect the following command line options to work.
+They should normally not be deleted from the kernel command line even
+though not all of them are actually meaningful to the kernel.  Boot
+loader authors who need additional command line options for the boot
+loader itself should get them registered in
+Documentation/kernel-parameters.txt to make sure they will not
+conflict with actual kernel options now or in the future.
+
+  vga=<mode>
+	<mode> here is either an integer (in C notation, either
+	decimal, octal, or hexadecimal) or one of the strings
+	"normal" (meaning 0xFFFF), "ext" (meaning 0xFFFE) or "ask"
+	(meaning 0xFFFD).  This value should be entered into the
+	vid_mode field, as it is used by the kernel before the command
+	line is parsed.
+
+  mem=<size>
+	<size> is an integer in C notation optionally followed by K, M
+	or G (meaning << 10, << 20 or << 30).  This specifies the end
+	of memory to the kernel. This affects the possible placement
+	of an initrd, since an initrd should be placed near end of
+	memory.  Note that this is an option to *both* the kernel and
+	the bootloader!
+
+  initrd=<file>
+	An initrd should be loaded.  The meaning of <file> is
+	obviously bootloader-dependent, and some boot loaders
+	(e.g. LILO) do not have such a command.
+
+In addition, some boot loaders add the following options to the
+user-specified command line:
+
+  BOOT_IMAGE=<file>
+	The boot image which was loaded.  Again, the meaning of <file>
+	is obviously bootloader-dependent.
+
+  auto
+	The kernel was booted without explicit user intervention.
+
+If these options are added by the boot loader, it is highly
+recommended that they are located *first*, before the user-specified
+or configuration-specified command line.  Otherwise, "init=/bin/sh"
+gets confused by the "auto" option.
+
+
+**** RUNNING THE KERNEL
+
+The kernel is started by jumping to the kernel entry point, which is
+located at *segment* offset 0x20 from the start of the real mode
+kernel.  This means that if you loaded your real-mode kernel code at
+0x90000, the kernel entry point is 9020:0000.
+
+At entry, ds = es = ss should point to the start of the real-mode
+kernel code (0x9000 if the code is loaded at 0x90000), sp should be
+set up properly, normally pointing to the top of the heap, and
+interrupts should be disabled.  Furthermore, to guard against bugs in
+the kernel, it is recommended that the boot loader sets fs = gs = ds =
+es = ss.
+
+In our example from above, we would do:
+
+	/* Note: in the case of the "old" kernel protocol, base_ptr must
+	   be == 0x90000 at this point; see the previous sample code */
+
+	seg = base_ptr >> 4;
+
+	cli();	/* Enter with interrupts disabled! */
+
+	/* Set up the real-mode kernel stack */
+	_SS = seg;
+	_SP = 0x9000;	/* Load SP immediately after loading SS! */
+
+	_DS = _ES = _FS = _GS = seg;
+	jmp_far(seg+0x20, 0);	/* Run the kernel */
+
+If your boot sector accesses a floppy drive, it is recommended to
+switch off the floppy motor before running the kernel, since the
+kernel boot leaves interrupts off and thus the motor will not be
+switched off, especially if the loaded kernel has the floppy driver as
+a demand-loaded module!
+
+
+**** ADVANCED BOOT TIME HOOKS
+
+If the boot loader runs in a particularly hostile environment (such as
+LOADLIN, which runs under DOS) it may be impossible to follow the
+standard memory location requirements.  Such a boot loader may use the
+following hooks that, if set, are invoked by the kernel at the
+appropriate time.  The use of these hooks should probably be
+considered an absolutely last resort!
+
+IMPORTANT: All the hooks are required to preserve %esp, %ebp, %esi and
+%edi across invocation.
+
+  realmode_swtch:
+	A 16-bit real mode far subroutine invoked immediately before
+	entering protected mode.  The default routine disables NMI, so
+	your routine should probably do so, too.
+
+  code32_start:
+	A 32-bit flat-mode routine *jumped* to immediately after the
+	transition to protected mode, but before the kernel is
+	uncompressed.  No segments, except CS, are set up; you should
+	set them up to KERNEL_DS (0x18) yourself.
+
+	After completing your hook, you should jump to the address
+	that was in this field before your boot loader overwrote it.

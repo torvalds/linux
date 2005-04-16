@@ -1,0 +1,46 @@
+The directory ftp.inr.ac.ru:/ip-routing contains:
+
+- iproute.c - "professional" routing table maintenance utility.
+
+- rdisc.tar.gz - rdisc daemon, ported from Sun.
+	STRONGLY RECOMMENDED FOR ALL HOSTS.
+
+- routing.tgz - original Mike McLagan's route by source patch.
+		Currently it is obsolete.
+
+- gated.dif-ss<NEWEST>.gz - gated-R3_6Alpha_2 fixes.
+	        Look at README.gated
+
+- mrouted-3.8.dif.gz - mrouted-3.8 fixes.
+
+- rtmon.c - trivial debugging utility: reads and stores netlink.
+
+
+NEWS for user.
+
+- Policy based routing. Routing decisions are made on the basis
+  not only of destination address, but also source address,
+  TOS and incoming interface.
+- Complete set of IP level control messages.
+  Now Linux is the only OS in the world complying to RFC requirements.
+  Great win 8)
+- New interface addressing paradigm.
+  Assignment of address ranges to interface,
+  multiple prefixes etc. etc.
+  Do not bother, it is compatible with the old one. Moreover:
+- You don't need to do "route add aaa.bbb.ccc... eth0" anymore,
+  it is done automatically.
+- "Abstract" UNIX sockets and security enhancements.
+  This is necessary to use TIRPC and TLI emulation library.
+
+NEWS for hacker.
+
+- New destination cache. Flexible, robust and just beautiful.
+- Network stack is reordered, simplified, optimized, a lot of bugs fixed.
+  (well, and new bugs were introduced, but I haven't seen them yet 8))
+  It is difficult to describe all the changes, look into source.
+
+If you see this file, then this patch works 8)
+
+Alexey Kuznetsov.
+kuznet@ms2.inr.ac.ru

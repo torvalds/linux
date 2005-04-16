@@ -1,0 +1,70 @@
+#!/bin/sh
+#
+# This script can be used to build "jumbo" modules that contain the
+# base PARIDE support, one protocol module and one high-level driver.
+#
+echo -n "High level driver [pcd] : "
+read X
+HLD=${X:-pcd}
+#
+echo -n "Protocol module [bpck] : "
+read X
+PROTO=${X:-bpck}
+#
+echo -n "Use MODVERSIONS [y] ? "
+read X
+UMODV=${X:-y}
+#
+echo -n "For SMP kernel [n] ? "
+read X
+USMP=${X:-n}
+#
+echo -n "Support PARPORT [n] ? "
+read X
+UPARP=${X:-n}
+#
+echo
+#
+case $USMP in
+	y* | Y* ) FSMP="-DCONFIG_SMP"
+		  ;;
+	*)	  FSMP=""
+		  ;;
+esac
+#
+MODI="-include ../../../include/linux/modversions.h"
+#
+case $UMODV in
+	y* | Y* ) FMODV="-DMODVERSIONS $MODI"
+		  ;;
+	*)	  FMODV=""
+		  ;;
+esac
+#
+case $UPARP in
+	y* | Y* ) FPARP="-DCONFIG_PARPORT"
+		  ;;
+	*)	  FPARP=""
+		  ;;
+esac
+#
+TARG=$HLD-$PROTO.o
+FPROTO=-DCONFIG_PARIDE_`echo "$PROTO" | tr [a-z] [A-Z]`
+FK="-D__KERNEL__ -I ../../../include"
+FLCH=-D_LINUX_CONFIG_H
+#
+echo cc $FK $FSMP $FLCH $FPARP $FPROTO $FMODV -Wall -O2 -o Jb.o -c paride.c
+cc $FK $FSMP $FLCH $FPARP $FPROTO $FMODV -Wall -O2 -o Jb.o -c paride.c
+#
+echo cc $FK $FSMP $FMODV -Wall -O2 -o Jp.o -c $PROTO.c
+cc $FK $FSMP $FMODV -Wall -O2 -o Jp.o -c $PROTO.c
+#
+echo cc $FK $FSMP $FMODV -DMODULE -DPARIDE_JUMBO -Wall -O2 -o Jd.o -c $HLD.c
+cc $FK $FSMP $FMODV -DMODULE -DPARIDE_JUMBO -Wall -O2 -o Jd.o -c $HLD.c
+#
+echo ld -r -o $TARG Jp.o Jb.o Jd.o
+ld -r -o $TARG Jp.o Jb.o Jd.o
+#
+#
+rm Jp.o Jb.o Jd.o
+#

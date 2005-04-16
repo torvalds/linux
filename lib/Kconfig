@@ -1,0 +1,61 @@
+#
+# Library configuration
+#
+
+menu "Library routines"
+
+config CRC_CCITT
+	tristate "CRC-CCITT functions"
+	help
+	  This option is provided for the case where no in-kernel-tree
+	  modules require CRC-CCITT functions, but a module built outside
+	  the kernel tree does. Such modules that use library CRC-CCITT
+	  functions require M here.
+
+config CRC32
+	tristate "CRC32 functions"
+	default y
+	help
+	  This option is provided for the case where no in-kernel-tree
+	  modules require CRC32 functions, but a module built outside the
+	  kernel tree does. Such modules that use library CRC32 functions
+	  require M here.
+
+config LIBCRC32C
+	tristate "CRC32c (Castagnoli, et al) Cyclic Redundancy-Check"
+	help
+	  This option is provided for the case where no in-kernel-tree
+	  modules require CRC32c functions, but a module built outside the
+	  kernel tree does. Such modules that use library CRC32c functions
+	  require M here.  See Castagnoli93.
+	  Module will be libcrc32c.
+
+#
+# compression support is select'ed if needed
+#
+config ZLIB_INFLATE
+	tristate
+
+config ZLIB_DEFLATE
+	tristate
+
+#
+# reed solomon support is select'ed if needed
+#
+config REED_SOLOMON
+	tristate
+	
+config REED_SOLOMON_ENC8
+	boolean
+
+config REED_SOLOMON_DEC8
+	boolean
+
+config REED_SOLOMON_ENC16
+	boolean
+
+config REED_SOLOMON_DEC16
+	boolean
+
+endmenu
+

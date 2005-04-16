@@ -1,0 +1,96 @@
+#
+# CPU Frequency scaling
+#
+
+menu "CPU Frequency scaling"
+
+source "drivers/cpufreq/Kconfig"
+
+if CPU_FREQ
+
+comment "CPUFreq processor drivers"
+
+config X86_POWERNOW_K8
+	tristate "AMD Opteron/Athlon64 PowerNow!"
+	select CPU_FREQ_TABLE
+	help
+	  This adds the CPUFreq driver for mobile AMD Opteron/Athlon64 processors.
+
+	  For details, take a look at <file:Documentation/cpu-freq/>. 
+
+	  If in doubt, say N.
+
+config X86_POWERNOW_K8_ACPI
+	bool
+	depends on X86_POWERNOW_K8 && ACPI_PROCESSOR
+	depends on !(X86_POWERNOW_K8 = y && ACPI_PROCESSOR = m)
+	default y
+
+config X86_SPEEDSTEP_CENTRINO
+	tristate "Intel Enhanced SpeedStep"
+	select CPU_FREQ_TABLE
+	depends on ACPI_PROCESSOR
+	help
+	  This adds the CPUFreq driver for Enhanced SpeedStep enabled
+	  mobile CPUs.  This means Intel Pentium M (Centrino) CPUs
+	  or 64bit enabled Intel Xeons.
+
+	  For details, take a look at <file:Documentation/cpu-freq/>.
+
+	  If in doubt, say N.
+
+config X86_SPEEDSTEP_CENTRINO_ACPI
+	bool
+	depends on X86_SPEEDSTEP_CENTRINO
+	default y
+
+config X86_ACPI_CPUFREQ
+	tristate "ACPI Processor P-States driver"
+	depends on ACPI_PROCESSOR
+	help
+	  This driver adds a CPUFreq driver which utilizes the ACPI
+	  Processor Performance States.
+
+	  For details, take a look at <file:Documentation/cpu-freq/>.
+
+	  If in doubt, say N.
+
+comment "shared options"
+
+config X86_ACPI_CPUFREQ_PROC_INTF
+        bool "/proc/acpi/processor/../performance interface (deprecated)"
+	depends on PROC_FS
+	depends on X86_ACPI_CPUFREQ || X86_SPEEDSTEP_CENTRINO_ACPI || X86_POWERNOW_K8_ACPI
+	help
+	  This enables the deprecated /proc/acpi/processor/../performance
+	  interface. While it is helpful for debugging, the generic,
+	  cross-architecture cpufreq interfaces should be used.
+
+	  If in doubt, say N.
+
+config X86_P4_CLOCKMOD
+	tristate "Intel Pentium 4 clock modulation"
+	depends on EMBEDDED
+	help
+	  This adds the clock modulation driver for Intel Pentium 4 / XEON
+	  processors.  When enabled it will lower CPU temperature by skipping
+	  clocks.
+
+	  This driver should be only used in exceptional
+	  circumstances when very low power is needed because it causes severe
+	  slowdowns and noticeable latencies.  Normally Speedstep should be used
+	  instead.
+
+	  For details, take a look at <file:Documentation/cpu-freq/>.
+
+	  Unless you are absolutely sure say N.
+
+
+config X86_SPEEDSTEP_LIB
+        tristate
+        default X86_P4_CLOCKMOD
+
+endif
+
+endmenu
+

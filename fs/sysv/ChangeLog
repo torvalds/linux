@@ -1,0 +1,106 @@
+Thu Feb 14 2002  Andrew Morton  <akpm@zip.com.au>
+
+	* dir_commit_chunk(): call writeout_one_page() as well as
+	  waitfor_one_page() for IS_SYNC directories, so that we
+	  actually do sync the directory. (forward-port from 2.4).
+
+Thu Feb  7 2002  Alexander Viro  <viro@parcelfarce.linux.theplanet.co.uk>
+
+	* super.c: switched to ->get_sb()
+	* ChangeLog: fixed dates ;-)
+
+2002-01-24  David S. Miller  <davem@redhat.com>
+
+	* inode.c: Include linux/init.h
+
+Mon Jan 21 2002  Alexander Viro  <viro@parcelfarce.linux.theplanet.co.uk>
+	* ialloc.c (sysv_new_inode): zero SYSV_I(inode)->i_data out.
+	* i_vnode renamed to vfs_inode.  Sorry, but let's keep that
+	  consistent.
+
+Sat Jan 19 2002  Christoph Hellwig  <hch@infradead.org>
+
+	* include/linux/sysv_fs.h (SYSV_I): Get fs-private inode data using
+		list_entry() instead of inode->u.
+	* include/linux/sysv_fs_i.h: Add 'struct inode  i_vnode' field to
+		sysv_inode_info structure.
+	* inode.c: Include <linux/slab.h>, implement alloc_inode/destroy_inode
+		sop methods, add infrastructure for per-fs inode slab cache.
+	* super.c (init_sysv_fs): Initialize inode cache, recover properly
+		in the case of failed register_filesystem for V7.
+	(exit_sysv_fs): Destroy inode cache.
+
+Sat Jan 19 2002  Christoph Hellwig  <hch@infradead.org>
+
+	* include/linux/sysv_fs.h: Include <linux/sysv_fs_i.h>, declare SYSV_I().
+	* dir.c (sysv_find_entry): Use SYSV_I() instead of ->u.sysv_i to
+		access fs-private inode data.
+	* ialloc.c (sysv_new_inode): Likewise.
+	* inode.c (sysv_read_inode): Likewise.
+	(sysv_update_inode): Likewise.
+	* itree.c (get_branch): Likewise.
+	(sysv_truncate): Likewise.
+	* symlink.c (sysv_readlink): Likewise.
+	(sysv_follow_link): Likewise.
+
+Fri Jan  4 2002  Alexander Viro  <viro@parcelfarce.linux.theplanet.co.uk>
+
+	* ialloc.c (sysv_free_inode): Use sb->s_id instead of bdevname().
+	* inode.c (sysv_read_inode): Likewise.
+	  (sysv_update_inode): Likewise.
+	  (sysv_sync_inode): Likewise.
+	* super.c (detect_sysv): Likewise.
+	  (complete_read_super): Likewise.
+	  (sysv_read_super): Likewise.
+	  (v7_read_super): Likewise.
+
+Sun Dec 30 2001  Manfred Spraul  <manfreds@colorfullife.com>
+
+	* dir.c (dir_commit_chunk): Do not set dir->i_version.
+	(sysv_readdir): Likewise.
+
+Thu Dec 27 2001  Alexander Viro  <viro@parcelfarce.linux.theplanet.co.uk>
+
+	* itree.c (get_block): Use map_bh() to fill out bh_result.
+
+Tue Dec 25 2001  Alexander Viro  <viro@parcelfarce.linux.theplanet.co.uk>
+
+	* super.c (sysv_read_super): Use sb_set_blocksize() to set blocksize.
+	  (v7_read_super): Likewise.
+
+Tue Nov 27 2001  Alexander Viro  <viro@parcelfarce.linux.theplanet.co.uk>
+
+	* itree.c (get_block): Change type for iblock argument to sector_t.
+	* super.c (sysv_read_super): Set s_blocksize early.
+	  (v7_read_super): Likewise.
+	* balloc.c (sysv_new_block): Use sb_bread(). instead of bread().
+	  (sysv_count_free_blocks): Likewise.
+	* ialloc.c (sysv_raw_inode): Likewise.
+	* itree.c (get_branch): Likewise.
+	  (free_branches): Likewise.
+	* super.c (sysv_read_super): Likewise.
+	  (v7_read_super): Likewise.
+
+Sat Dec 15 2001  Christoph Hellwig  <hch@infradead.org>
+
+	* inode.c (sysv_read_inode): Mark inode as bad in case of failure.
+	* super.c (complete_read_super): Check for bad root inode.
+
+Wed Nov 21 2001  Andrew Morton  <andrewm@uow.edu.au>
+
+	* file.c (sysv_sync_file): Call fsync_inode_data_buffers.
+
+Fri Oct 26 2001  Christoph Hellwig  <hch@infradead.org>
+
+	* dir.c, ialloc.c, namei.c, include/linux/sysv_fs_i.h:
+	Implement per-Inode lookup offset cache.
+	Modelled after Ted's ext2 patch.
+
+Fri Oct 26 2001  Christoph Hellwig  <hch@infradead.org>
+
+	* inode.c, super.c, include/linux/sysv_fs.h,
+	  include/linux/sysv_fs_sb.h:
+	Remove symlink faking.	Noone really wants to use these as
+	linux filesystems and native OSes don't support it anyway.
+
+

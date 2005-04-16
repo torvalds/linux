@@ -1,0 +1,265 @@
+# $Id: Kconfig,v 1.7 2004/11/22 11:33:56 ijc Exp $
+
+menu "Memory Technology Devices (MTD)"
+
+config MTD
+	tristate "Memory Technology Device (MTD) support"
+	help
+	  Memory Technology Devices are flash, RAM and similar chips, often
+	  used for solid state file systems on embedded devices. This option
+	  will provide the generic support for MTD drivers to register
+	  themselves with the kernel and for potential users of MTD devices
+	  to enumerate the devices which are present and obtain a handle on
+	  them. It will also allow you to select individual drivers for 
+	  particular hardware and users of MTD devices. If unsure, say N.
+
+config MTD_DEBUG
+	bool "Debugging"
+	depends on MTD
+	help
+	  This turns on low-level debugging for the entire MTD sub-system.
+	  Normally, you should say 'N'.
+
+config MTD_DEBUG_VERBOSE
+	int "Debugging verbosity (0 = quiet, 3 = noisy)"
+	depends on MTD_DEBUG
+	default "0"
+	help
+	  Determines the verbosity level of the MTD debugging messages.
+
+config MTD_CONCAT
+	tristate "MTD concatenating support"
+	depends on MTD
+	help
+	  Support for concatenating several MTD devices into a single
+	  (virtual) one. This allows you to have -for example- a JFFS(2)
+	  file system spanning multiple physical flash chips. If unsure,
+	  say 'Y'.
+
+config MTD_PARTITIONS
+	bool "MTD partitioning support"
+	depends on MTD
+	help
+	  If you have a device which needs to divide its flash chip(s) up
+	  into multiple 'partitions', each of which appears to the user as
+	  a separate MTD device, you require this option to be enabled. If
+	  unsure, say 'Y'.
+
+	  Note, however, that you don't need this option for the DiskOnChip
+	  devices. Partitioning on NFTL 'devices' is a different - that's the
+	  'normal' form of partitioning used on a block device.
+
+config MTD_REDBOOT_PARTS
+	tristate "RedBoot partition table parsing"
+	depends on MTD_PARTITIONS
+	---help---
+	  RedBoot is a ROM monitor and bootloader which deals with multiple
+	  'images' in flash devices by putting a table one of the erase
+	  blocks on the device, similar to a partition table, which gives
+	  the offsets, lengths and names of all the images stored in the
+	  flash.
+
+	  If you need code which can detect and parse this table, and register
+	  MTD 'partitions' corresponding to each image in the table, enable
+	  this option. 
+
+	  You will still need the parsing functions to be called by the driver
+	  for your particular device. It won't happen automatically. The 
+	  SA1100 map driver (CONFIG_MTD_SA1100) has an option for this, for 
+	  example.
+
+config MTD_REDBOOT_DIRECTORY_BLOCK
+	int "Location of RedBoot partition table"
+	depends on MTD_REDBOOT_PARTS
+	default "-1"
+	---help---
+	  This option is the Linux counterpart to the
+	  CYGNUM_REDBOOT_FIS_DIRECTORY_BLOCK RedBoot compile time
+	  option.
+
+	  The option specifies which Flash sectors holds the RedBoot
+	  partition table.  A zero or positive value gives an absolete
+	  erase block number. A negative value specifies a number of
+	  sectors before the end of the device.
+	  
+	  For example "2" means block number 2, "-1" means the last
+	  block and "-2" means the penultimate block.
+	  
+config MTD_REDBOOT_PARTS_UNALLOCATED
+	bool "  Include unallocated flash regions"
+	depends on MTD_REDBOOT_PARTS
+	help
+	  If you need to register each unallocated flash region as a MTD
+	  'partition', enable this option.
+
+config MTD_REDBOOT_PARTS_READONLY
+	bool "  Force read-only for RedBoot system images"
+	depends on MTD_REDBOOT_PARTS
+	help
+	  If you need to force read-only for 'RedBoot', 'RedBoot Config' and
+	  'FIS directory' images, enable this option.
+
+config MTD_CMDLINE_PARTS
+	bool "Command line partition table parsing"
+	depends on MTD_PARTITIONS = "y"
+	---help---
+	  Allow generic configuration of the MTD paritition tables via the kernel
+	  command line. Multiple flash resources are supported for hardware where
+	  different kinds of flash memory are available. 
+
+	  You will still need the parsing functions to be called by the driver
+	  for your particular device. It won't happen automatically. The 
+	  SA1100 map driver (CONFIG_MTD_SA1100) has an option for this, for 
+	  example.
+
+	  The format for the command line is as follows:
+
+	  mtdparts=<mtddef>[;<mtddef]
+	  <mtddef>  := <mtd-id>:<partdef>[,<partdef>]
+	  <partdef> := <size>[@offset][<name>][ro]
+	  <mtd-id>  := unique id used in mapping driver/device
+	  <size>    := standard linux memsize OR "-" to denote all 
+	  remaining space
+	  <name>    := (NAME)
+
+	  Due to the way Linux handles the command line, no spaces are 
+	  allowed in the partition definition, including mtd id's and partition 
+	  names.
+
+	  Examples:
+
+	  1 flash resource (mtd-id "sa1100"), with 1 single writable partition:
+	  mtdparts=sa1100:-
+
+	  Same flash, but 2 named partitions, the first one being read-only:
+	  mtdparts=sa1100:256k(ARMboot)ro,-(root)
+
+	  If unsure, say 'N'.
+
+config MTD_AFS_PARTS
+	tristate "ARM Firmware Suite partition parsing"
+	depends on ARM && MTD_PARTITIONS
+	---help---
+	  The ARM Firmware Suite allows the user to divide flash devices into
+	  multiple 'images'. Each such image has a header containing its name
+	  and offset/size etc.
+
+	  If you need code which can detect and parse these tables, and
+	  register MTD 'partitions' corresponding to each image detected,
+	  enable this option.
+
+	  You will still need the parsing functions to be called by the driver
+	  for your particular device. It won't happen automatically. The
+	  'armflash' map driver (CONFIG_MTD_ARMFLASH) does this, for example.
+
+comment "User Modules And Translation Layers"
+	depends on MTD
+
+config MTD_CHAR
+	tristate "Direct char device access to MTD devices"
+	depends on MTD
+	help
+	  This provides a character device for each MTD device present in
+	  the system, allowing the user to read and write directly to the
+	  memory chips, and also use ioctl() to obtain information about
+	  the device, or to erase parts of it.
+
+config MTD_BLOCK
+	tristate "Caching block device access to MTD devices"
+	depends on MTD
+	---help---
+	  Although most flash chips have an erase size too large to be useful
+	  as block devices, it is possible to use MTD devices which are based
+	  on RAM chips in this manner. This block device is a user of MTD
+	  devices performing that function.
+
+	  At the moment, it is also required for the Journalling Flash File
+	  System(s) to obtain a handle on the MTD device when it's mounted
+	  (although JFFS and JFFS2 don't actually use any of the functionality
+	  of the mtdblock device).
+
+	  Later, it may be extended to perform read/erase/modify/write cycles
+	  on flash chips to emulate a smaller block size. Needless to say,
+	  this is very unsafe, but could be useful for file systems which are
+	  almost never written to.
+
+	  You do not need this option for use with the DiskOnChip devices. For
+	  those, enable NFTL support (CONFIG_NFTL) instead.
+
+config MTD_BLOCK_RO
+	tristate "Readonly block device access to MTD devices"
+	depends on MTD_BLOCK!=y && MTD
+	help
+	  This allows you to mount read-only file systems (such as cramfs)
+	  from an MTD device, without the overhead (and danger) of the caching
+	  driver.
+
+	  You do not need this option for use with the DiskOnChip devices. For
+	  those, enable NFTL support (CONFIG_NFTL) instead.
+
+config FTL
+	tristate "FTL (Flash Translation Layer) support"
+	depends on MTD
+	---help---
+	  This provides support for the original Flash Translation Layer which
+	  is part of the PCMCIA specification. It uses a kind of pseudo-
+	  file system on a flash device to emulate a block device with
+	  512-byte sectors, on top of which you put a 'normal' file system.
+
+	  You may find that the algorithms used in this code are patented
+	  unless you live in the Free World where software patents aren't
+	  legal - in the USA you are only permitted to use this on PCMCIA
+	  hardware, although under the terms of the GPL you're obviously
+	  permitted to copy, modify and distribute the code as you wish. Just
+	  not use it.
+
+config NFTL
+	tristate "NFTL (NAND Flash Translation Layer) support"
+	depends on MTD
+	---help---
+	  This provides support for the NAND Flash Translation Layer which is
+	  used on M-Systems' DiskOnChip devices. It uses a kind of pseudo-
+	  file system on a flash device to emulate a block device with
+	  512-byte sectors, on top of which you put a 'normal' file system.
+
+	  You may find that the algorithms used in this code are patented
+	  unless you live in the Free World where software patents aren't
+	  legal - in the USA you are only permitted to use this on DiskOnChip
+	  hardware, although under the terms of the GPL you're obviously
+	  permitted to copy, modify and distribute the code as you wish. Just
+	  not use it.
+
+config NFTL_RW
+	bool "Write support for NFTL"
+	depends on NFTL
+	help
+	  Support for writing to the NAND Flash Translation Layer, as used
+	  on the DiskOnChip.
+
+config INFTL
+	tristate "INFTL (Inverse NAND Flash Translation Layer) support"
+	depends on MTD
+	---help---
+	  This provides support for the Inverse NAND Flash Translation 
+	  Layer which is used on M-Systems' newer DiskOnChip devices. It
+	  uses a kind of pseudo-file system on a flash device to emulate
+	  a block device with 512-byte sectors, on top of which you put
+	  a 'normal' file system.
+
+	  You may find that the algorithms used in this code are patented
+	  unless you live in the Free World where software patents aren't
+	  legal - in the USA you are only permitted to use this on DiskOnChip
+	  hardware, although under the terms of the GPL you're obviously
+	  permitted to copy, modify and distribute the code as you wish. Just
+	  not use it.
+
+source "drivers/mtd/chips/Kconfig"
+
+source "drivers/mtd/maps/Kconfig"
+
+source "drivers/mtd/devices/Kconfig"
+
+source "drivers/mtd/nand/Kconfig"
+
+endmenu
+

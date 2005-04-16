@@ -1,0 +1,42 @@
+Original Author
+===============
+Steve French (sfrench@samba.org)
+
+The author wishes to express his appreciation and thanks to:
+Andrew Tridgell (Samba team) for his early suggestions about smb/cifs VFS
+improvements. Thanks to IBM for allowing me the time and test resources to pursue
+this project. Jim McDonough from IBM (and the Samba Team) for his help.
+The IBM Linux JFS team for explaining many esoteric Linux filesystem features.
+Dave Boutcher of IBM Rochester (author of the OS/400 smb/cifs filesystem client)
+for proving years ago that a very good smb/cifs client could be done on a Unix like 
+operating system.  Volker Lendecke, Andrew Tridgell, Urban Widmark, John Newbigin 
+and others for their work on the Linux smbfs module over the years. Thanks to
+the other members of the Storage Network Industry Association CIFS Technical
+Workgroup for their work specifying this highly complex protocol and finally
+thanks to the Samba team for their technical advice and encouragement.
+
+Patch Contributors
+------------------
+Zwane Mwaikambo
+Andi Kleen
+Amrut Joshi
+Shobhit Dayal
+Sergey Vlasov
+Richard Hughes
+Yury Umanets
+Mark Hamzy
+Domen Puncer
+Jesper Juhl
+
+Test case and Bug Report contributors
+-------------------------------------
+Thanks to those in the community who have submitted detailed bug reports
+and debug of problems they have found:  Jochen Dolze, David Blaine,
+Rene Scharfe, Martin Josefsson, Alexander Wild, Anthony Liguori,
+Lars Muller, Urban Widmark, Massimiliano Ferrero, Howard Owen,
+Olaf Kirch, Kieron Briggs, Nick Millington and others. Also special
+mention to the Stanford Checker (SWAT) which pointed out many minor
+bugs in error paths.
+
+And thanks to the IBM LTC and Power test teams and SuSE testers for
+finding multiple bugs during excellent stress test runs.

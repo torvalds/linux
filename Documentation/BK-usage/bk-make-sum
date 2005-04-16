@@ -1,0 +1,34 @@
+#!/bin/sh -e
+# DIR=$HOME/BK/axp-2.5
+# cd $DIR
+
+LINUS_REPO=$1
+DIRBASE=`basename $PWD`
+
+{
+cat <<EOT
+Please do a
+
+	bk pull bk://gkernel.bkbits.net/$DIRBASE
+
+This will update the following files:
+
+EOT
+
+bk export -tpatch -hdu -r`bk repogca $LINUS_REPO`,+ | diffstat -p1 2>/dev/null
+
+cat <<EOT
+
+through these ChangeSets:
+
+EOT
+
+bk changes -L -d'$unless(:MERGE:){ChangeSet|:CSETREV:\n}' $LINUS_REPO |
+bk -R prs -h -d'$unless(:MERGE:){<:P:@:HOST:> (:D: :I:)\n$each(:C:){   (:C:)\n}\n}' -
+
+} > /tmp/linus.txt
+
+cat <<EOT
+Mail text in /tmp/linus.txt; please check and send using your favourite
+mailer.
+EOT

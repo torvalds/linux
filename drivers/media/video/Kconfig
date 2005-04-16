@@ -1,0 +1,360 @@
+#
+# Multimedia Video device configuration
+#
+
+menu "Video For Linux"
+	depends on VIDEO_DEV
+
+comment "Video Adapters"
+
+config VIDEO_BT848
+	tristate "BT848 Video For Linux"
+	depends on VIDEO_DEV && PCI && I2C
+	select I2C_ALGOBIT
+	select FW_LOADER
+	select VIDEO_BTCX
+	select VIDEO_BUF
+	select VIDEO_IR
+	select VIDEO_TUNER
+	select VIDEO_TVEEPROM
+	---help---
+	  Support for BT848 based frame grabber/overlay boards. This includes
+	  the Miro, Hauppauge and STB boards. Please read the material in
+	  <file:Documentation/video4linux/bttv/> for more information.
+
+	  If you say Y or M here, you need to say Y or M to "I2C support" and
+	  "I2C bit-banging interfaces" in the device drivers section.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bttv.
+
+config VIDEO_PMS
+	tristate "Mediavision Pro Movie Studio Video For Linux"
+	depends on VIDEO_DEV && ISA
+	help
+	  Say Y if you have such a thing.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pms.
+
+config VIDEO_PLANB
+	tristate "PlanB Video-In on PowerMac"
+	depends on PPC_PMAC && VIDEO_DEV && BROKEN
+	help
+	  PlanB is the V4L driver for the PowerMac 7x00/8x00 series video
+	  input hardware. If you want to experiment with this, say Y.
+	  Otherwise, or if you don't understand a word, say N. See
+	  <http://www.cpu.lu/~mlan/linux/dev/planb.html> for more info.
+
+	  Saying M will compile this driver as a module (planb).
+
+config VIDEO_BWQCAM
+	tristate "Quickcam BW Video For Linux"
+	depends on VIDEO_DEV && PARPORT
+	help
+	  Say Y have if you the black and white version of the QuickCam
+	  camera. See the next option for the color version.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bw-qcam.
+
+config VIDEO_CQCAM
+	tristate "QuickCam Colour Video For Linux (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && VIDEO_DEV && PARPORT
+	help
+	  This is the video4linux driver for the colour version of the
+	  Connectix QuickCam.  If you have one of these cameras, say Y here,
+	  otherwise say N.  This driver does not work with the original
+	  monochrome QuickCam, QuickCam VC or QuickClip.  It is also available
+	  as a module (c-qcam).
+	  Read <file:Documentation/video4linux/CQcam.txt> for more information.
+
+config VIDEO_W9966
+	tristate "W9966CF Webcam (FlyCam Supra and others) Video For Linux"
+	depends on PARPORT_1284 && VIDEO_DEV && PARPORT
+	help
+	  Video4linux driver for Winbond's w9966 based Webcams.
+	  Currently tested with the LifeView FlyCam Supra.
+	  If you have one of these cameras, say Y here
+	  otherwise say N.
+	  This driver is also available as a module (w9966).
+
+	  Check out <file:Documentation/video4linux/w9966.txt> for more
+	  information.
+
+config VIDEO_CPIA
+	tristate "CPiA Video For Linux"
+	depends on VIDEO_DEV
+	---help---
+	  This is the video4linux driver for cameras based on Vision's CPiA
+	  (Colour Processor Interface ASIC), such as the Creative Labs Video
+	  Blaster Webcam II. If you have one of these cameras, say Y here
+	  and select parallel port and/or USB lowlevel support below,
+	  otherwise say N. This will not work with the Creative Webcam III.
+
+	  Please read <file:Documentation/video4linux/README.cpia> for more
+	  information.
+
+	  This driver is also available as a module (cpia).
+
+config VIDEO_CPIA_PP
+	tristate "CPiA Parallel Port Lowlevel Support"
+	depends on PARPORT_1284 && VIDEO_CPIA && PARPORT
+	help
+	  This is the lowlevel parallel port support for cameras based on
+	  Vision's CPiA (Colour Processor Interface ASIC), such as the
+	  Creative Webcam II. If you have the parallel port version of one
+	  of these cameras, say Y here, otherwise say N. It is also available
+	  as a module (cpia_pp).
+
+config VIDEO_CPIA_USB
+	tristate "CPiA USB Lowlevel Support"
+	depends on VIDEO_CPIA && USB
+	help
+	  This is the lowlevel USB support for cameras based on Vision's CPiA
+	  (Colour Processor Interface ASIC), such as the Creative Webcam II.
+	  If you have the USB version of one of these cameras, say Y here,
+	  otherwise say N. This will not work with the Creative Webcam III.
+	  It is also available as a module (cpia_usb).
+
+config VIDEO_SAA5246A
+	tristate "SAA5246A, SAA5281 Teletext processor"
+	depends on VIDEO_DEV && I2C
+	help
+	  Support for I2C bus based teletext using the SAA5246A or SAA5281
+	  chip. Useful only if you live in Europe.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called saa5246a.
+
+config VIDEO_SAA5249
+	tristate "SAA5249 Teletext processor"
+	depends on VIDEO_DEV && I2C
+	help
+	  Support for I2C bus based teletext using the SAA5249 chip. At the
+	  moment this is only useful on some European WinTV cards.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called saa5249.
+
+config TUNER_3036
+	tristate "SAB3036 tuner"
+	depends on VIDEO_DEV && I2C
+	help
+	  Say Y here to include support for Philips SAB3036 compatible tuners.
+	  If in doubt, say N.
+
+config VIDEO_VINO
+	tristate "SGI Vino Video For Linux (EXPERIMENTAL)"
+	depends on VIDEO_DEV && I2C && SGI_IP22 && EXPERIMENTAL
+	select I2C_ALGO_SGI
+	help
+	  Say Y here to build in support for the Vino video input system found
+	  on SGI Indy machines.
+
+config VIDEO_STRADIS
+	tristate "Stradis 4:2:2 MPEG-2 video driver  (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && VIDEO_DEV && PCI
+	help
+	  Say Y here to enable support for the Stradis 4:2:2 MPEG-2 video
+	  driver for PCI.  There is a product page at
+	  <http://www.stradis.com/decoder.html>.
+
+config VIDEO_ZORAN
+	tristate "Zoran ZR36057/36067 Video For Linux"
+	depends on VIDEO_DEV && PCI && I2C_ALGOBIT
+	help
+	  Say Y for support for MJPEG capture cards based on the Zoran
+	  36057/36067 PCI controller chipset. This includes the Iomega
+	  Buz, Pinnacle DC10+ and the Linux Media Labs LML33. There is
+	  a driver homepage at <http://mjpeg.sf.net/driver-zoran/>. For
+	  more information, check <file:Documentation/video4linux/Zoran>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called zr36067.
+ 
+config VIDEO_ZORAN_BUZ
+	tristate "Iomega Buz support"
+	depends on VIDEO_ZORAN
+	help
+	  Support for the Iomega Buz MJPEG capture/playback card.
+
+config VIDEO_ZORAN_DC10
+	tristate "Pinnacle/Miro DC10(+) support"
+	depends on VIDEO_ZORAN
+	help
+	  Support for the Pinnacle/Miro DC10(+) MJPEG capture/playback
+	  card.
+
+config VIDEO_ZORAN_DC30
+	tristate "Pinnacle/Miro DC30(+) support"
+ 	depends on VIDEO_ZORAN
+ 	help
+	  Support for the Pinnacle/Miro DC30(+) MJPEG capture/playback
+	  card. This also supports really old DC10 cards based on the
+	  zr36050 MJPEG codec and zr36016 VFE.
+
+config VIDEO_ZORAN_LML33
+	tristate "Linux Media Labs LML33 support"
+	depends on VIDEO_ZORAN
+	help
+	  Support for the Linux Media Labs LML33 MJPEG capture/playback
+	  card.
+
+config VIDEO_ZORAN_LML33R10
+	tristate "Linux Media Labs LML33R10 support"
+	depends on VIDEO_ZORAN
+	help
+	  support for the Linux Media Labs LML33R10 MJPEG capture/playback
+	  card.
+
+config VIDEO_ZR36120
+	tristate "Zoran ZR36120/36125 Video For Linux"
+	depends on VIDEO_DEV && PCI && I2C && BROKEN
+	help
+	  Support for ZR36120/ZR36125 based frame grabber/overlay boards.
+	  This includes the Victor II, WaveWatcher, Video Wonder, Maxi-TV,
+	  and Buster boards. Please read the material in
+	  <file:Documentation/video4linux/zr36120.txt> for more information.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called zr36120.
+
+config VIDEO_MEYE
+	tristate "Sony Vaio Picturebook Motion Eye Video For Linux"
+	depends on VIDEO_DEV && PCI && SONYPI
+	---help---
+	  This is the video4linux driver for the Motion Eye camera found
+	  in the Vaio Picturebook laptops. Please read the material in
+	  <file:Documentation/video4linux/meye.txt> for more information.
+
+	  If you say Y or M here, you need to say Y or M to "Sony Programmable
+	  I/O Control Device" in the character device section.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called meye.
+
+config VIDEO_SAA7134
+	tristate "Philips SAA7134 support"
+	depends on VIDEO_DEV && PCI && I2C
+	select VIDEO_BUF
+	select VIDEO_IR
+	select VIDEO_TUNER
+	---help---
+	  This is a video4linux driver for Philips SAA7130/7134 based
+	  TV cards.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called saa7134.
+
+config VIDEO_SAA7134_DVB
+	tristate "DVB Support for saa7134 based TV cards"
+	depends on VIDEO_SAA7134 && DVB_CORE
+	select VIDEO_BUF_DVB
+	select DVB_MT352
+	---help---
+	  This adds support for DVB cards based on the
+	  Philips saa7134 chip.
+
+config VIDEO_MXB
+	tristate "Siemens-Nixdorf 'Multimedia eXtension Board'"
+	depends on VIDEO_DEV && PCI
+	select VIDEO_SAA7146_VV
+	select VIDEO_TUNER
+	---help---
+	  This is a video4linux driver for the 'Multimedia eXtension Board'
+	  TV card by Siemens-Nixdorf.
+	  
+	  To compile this driver as a module, choose M here: the
+	  module will be called mxb.
+
+config VIDEO_DPC
+	tristate "Philips-Semiconductors 'dpc7146 demonstration board'"
+	depends on VIDEO_DEV && PCI
+	select VIDEO_SAA7146_VV
+	---help---
+	  This is a video4linux driver for the 'dpc7146 demonstration
+	  board' by Philips-Semiconductors. It's the reference design
+	  for SAA7146 bases boards, so if you have some unsupported
+	  saa7146 based, analog video card, chances are good that it
+	  will work with this skeleton driver.
+	  
+	  To compile this driver as a module, choose M here: the
+	  module will be called dpc7146.
+
+config VIDEO_HEXIUM_ORION
+	tristate "Hexium HV-PCI6 and Orion frame grabber"
+	depends on VIDEO_DEV && PCI
+	select VIDEO_SAA7146_VV
+	---help---
+	  This is a video4linux driver for the Hexium HV-PCI6 and
+	  Orion frame grabber cards by Hexium.
+	  
+	  To compile this driver as a module, choose M here: the
+	  module will be called hexium_orion.
+
+config VIDEO_HEXIUM_GEMINI
+	tristate "Hexium Gemini frame grabber"
+	depends on VIDEO_DEV && PCI
+	select VIDEO_SAA7146_VV
+	---help---
+	  This is a video4linux driver for the Hexium Gemini frame
+	  grabber card by Hexium. Please note that the Gemini Dual
+	  card is *not* fully supported.
+	  
+	  To compile this driver as a module, choose M here: the
+	  module will be called hexium_gemini.
+
+config VIDEO_CX88
+	tristate "Conexant 2388x (bt878 successor) support"
+	depends on VIDEO_DEV && PCI && I2C && EXPERIMENTAL
+	select I2C_ALGOBIT
+	select FW_LOADER
+	select VIDEO_BTCX
+	select VIDEO_BUF
+	select VIDEO_TUNER
+	select VIDEO_TVEEPROM
+	select VIDEO_IR
+	---help---
+	  This is a video4linux driver for Conexant 2388x based
+	  TV cards.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cx8800
+
+config VIDEO_CX88_DVB
+	tristate "DVB Support for cx2388x based TV cards"
+	depends on VIDEO_CX88 && DVB_CORE
+	select VIDEO_BUF_DVB
+	select DVB_MT352
+	select DVB_OR51132
+	---help---
+	  This adds support for DVB/ATSC cards based on the
+	  Connexant 2388x chip.
+
+config VIDEO_OVCAMCHIP
+	tristate "OmniVision Camera Chip support"
+	depends on VIDEO_DEV && I2C
+	---help---
+	  Support for the OmniVision OV6xxx and OV7xxx series of camera chips.
+	  This driver is intended to be used with the ov511 and w9968cf USB
+	  camera drivers.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ovcamchip
+
+config VIDEO_M32R_AR
+	tristate "AR devices"
+	depends on M32R
+	---help---
+	  This is a video4linux driver for the Renesas AR (Artificial Retina)
+	  camera module.
+
+config VIDEO_M32R_AR_M64278
+	tristate "Use Colour AR module M64278(VGA)"
+	depends on VIDEO_M32R_AR
+	---help---
+	  Say Y here to use the Renesas M64278E-800 camera module,
+	  which supports VGA(640x480 pixcels) size of images.
+
+endmenu

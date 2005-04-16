@@ -1,0 +1,39 @@
+How the new TCP output machine [nyi] works.
+
+
+Data is kept on a single queue. The skb->users flag tells us if the frame is
+one that has been queued already. To add a frame we throw it on the end. Ack
+walks down the list from the start.
+
+We keep a set of control flags
+
+
+	sk->tcp_pend_event
+
+		TCP_PEND_ACK			Ack needed
+		TCP_ACK_NOW			Needed now
+		TCP_WINDOW			Window update check
+		TCP_WINZERO			Zero probing
+
+
+	sk->transmit_queue		The transmission frame begin
+	sk->transmit_new		First new frame pointer
+	sk->transmit_end		Where to add frames
+
+	sk->tcp_last_tx_ack		Last ack seen
+	sk->tcp_dup_ack			Dup ack count for fast retransmit
+
+
+Frames are queued for output by tcp_write. We do our best to send the frames
+off immediately if possible, but otherwise queue and compute the body
+checksum in the copy. 
+
+When a write is done we try to clear any pending events and piggy back them.
+If the window is full we queue full sized frames. On the first timeout in
+zero window we split this.
+
+On a timer we walk the retransmit list to send any retransmits, update the
+backoff timers etc. A change of route table stamp causes a change of header
+and recompute. We add any new tcp level headers and refinish the checksum
+before sending. 
+

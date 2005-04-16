@@ -1,0 +1,266 @@
+Changes since 2.5.0:
+
+--- 
+[recommended]
+
+New helpers: sb_bread(), sb_getblk(), sb_find_get_block(), set_bh(),
+	sb_set_blocksize() and sb_min_blocksize().
+
+Use them.
+
+(sb_find_get_block() replaces 2.4's get_hash_table())
+
+--- 
+[recommended]
+
+New methods: ->alloc_inode() and ->destroy_inode().
+
+Remove inode->u.foo_inode_i
+Declare
+	struct foo_inode_info {
+		/* fs-private stuff */
+		struct inode vfs_inode;
+	};
+	static inline struct foo_inode_info *FOO_I(struct inode *inode)
+	{
+		return list_entry(inode, struct foo_inode_info, vfs_inode);
+	}
+
+Use FOO_I(inode) instead of &inode->u.foo_inode_i;
+
+Add foo_alloc_inode() and foo_destory_inode() - the former should allocate
+foo_inode_info and return the address of ->vfs_inode, the latter should free
+FOO_I(inode) (see in-tree filesystems for examples).
+
+Make them ->alloc_inode and ->destroy_inode in your super_operations.
+
+Keep in mind that now you need explicit initialization of private data -
+typically in ->read_inode() and after getting an inode from new_inode().
+
+At some point that will become mandatory.
+
+---
+[mandatory]
+
+Change of file_system_type method (->read_super to ->get_sb)
+
+->read_super() is no more.  Ditto for DECLARE_FSTYPE and DECLARE_FSTYPE_DEV.
+
+Turn your foo_read_super() into a function that would return 0 in case of
+success and negative number in case of error (-EINVAL unless you have more
+informative error value to report).  Call it foo_fill_super().  Now declare
+
+struct super_block foo_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
+{
+	return get_sb_bdev(fs_type, flags, dev_name, data, ext2_fill_super);
+}
+
+(or similar with s/bdev/nodev/ or s/bdev/single/, depending on the kind of
+filesystem).
+
+Replace DECLARE_FSTYPE... with explicit initializer and have ->get_sb set as
+foo_get_sb.
+
+---
+[mandatory]
+
+Locking change: ->s_vfs_rename_sem is taken only by cross-directory renames.
+Most likely there is no need to change anything, but if you relied on
+global exclusion between renames for some internal purpose - you need to
+change your internal locking.  Otherwise exclusion warranties remain the
+same (i.e. parents and victim are locked, etc.).
+
+---
+[informational]
+
+Now we have the exclusion between ->lookup() and directory removal (by
+->rmdir() and ->rename()).  If you used to need that exclusion and do
+it by internal locking (most of filesystems couldn't care less) - you
+can relax your locking.
+
+---
+[mandatory]
+
+->lookup(), ->truncate(), ->create(), ->unlink(), ->mknod(), ->mkdir(),
+->rmdir(), ->link(), ->lseek(), ->symlink(), ->rename()
+and ->readdir() are called without BKL now.  Grab it on entry, drop upon return
+- that will guarantee the same locking you used to have.  If your method or its
+parts do not need BKL - better yet, now you can shift lock_kernel() and
+unlock_kernel() so that they would protect exactly what needs to be
+protected.
+
+---
+[mandatory]
+
+BKL is also moved from around sb operations.  ->write_super() Is now called 
+without BKL held.  BKL should have been shifted into individual fs sb_op
+functions.  If you don't need it, remove it.  
+
+---
+[informational]
+
+check for ->link() target not being a directory is done by callers.  Feel
+free to drop it...
+
+---
+[informational]
+
+->link() callers hold ->i_sem on the object we are linking to.  Some of your
+problems might be over...
+
+---
+[mandatory]
+
+new file_system_type method - kill_sb(superblock).  If you are converting
+an existing filesystem, set it according to ->fs_flags:
+	FS_REQUIRES_DEV		-	kill_block_super
+	FS_LITTER		-	kill_litter_super
+	neither			-	kill_anon_super
+FS_LITTER is gone - just remove it from fs_flags.
+
+---
+[mandatory]
+
+	FS_SINGLE is gone (actually, that had happened back when ->get_sb()
+went in - and hadn't been documented ;-/).  Just remove it from fs_flags
+(and see ->get_sb() entry for other actions).
+
+---
+[mandatory]
+
+->setattr() is called without BKL now.  Caller _always_ holds ->i_sem, so
+watch for ->i_sem-grabbing code that might be used by your ->setattr().
+Callers of notify_change() need ->i_sem now.
+
+---
+[recommended]
+
+New super_block field "struct export_operations *s_export_op" for
+explicit support for exporting, e.g. via NFS.  The structure is fully
+documented at its declaration in include/linux/fs.h, and in
+Documentation/filesystems/Exporting.
+
+Briefly it allows for the definition of decode_fh and encode_fh operations
+to encode and decode filehandles, and allows the filesystem to use
+a standard helper function for decode_fh, and provide file-system specific
+support for this helper, particularly get_parent.
+
+It is planned that this will be required for exporting once the code
+settles down a bit.
+
+[mandatory]
+
+s_export_op is now required for exporting a filesystem.
+isofs, ext2, ext3, resierfs, fat
+can be used as examples of very different filesystems.
+
+---
+[mandatory]
+
+iget4() and the read_inode2 callback have been superseded by iget5_locked()
+which has the following prototype,
+
+    struct inode *iget5_locked(struct super_block *sb, unsigned long ino,
+				int (*test)(struct inode *, void *),
+				int (*set)(struct inode *, void *),
+				void *data);
+
+'test' is an additional function that can be used when the inode
+number is not sufficient to identify the actual file object. 'set'
+should be a non-blocking function that initializes those parts of a
+newly created inode to allow the test function to succeed. 'data' is
+passed as an opaque value to both test and set functions.
+
+When the inode has been created by iget5_locked(), it will be returned with
+the I_NEW flag set and will still be locked. read_inode has not been
+called so the file system still has to finalize the initialization. Once
+the inode is initialized it must be unlocked by calling unlock_new_inode().
+
+The filesystem is responsible for setting (and possibly testing) i_ino
+when appropriate. There is also a simpler iget_locked function that
+just takes the superblock and inode number as arguments and does the
+test and set for you.
+
+e.g.
+       inode = iget_locked(sb, ino);
+       if (inode->i_state & I_NEW) {
+               read_inode_from_disk(inode);
+               unlock_new_inode(inode);
+       }
+
+---
+[recommended]
+
+->getattr() finally getting used.  See instances in nfs, minix, etc.
+
+---
+[mandatory]
+
+->revalidate() is gone.  If your filesystem had it - provide ->getattr()
+and let it call whatever you had as ->revlidate() + (for symlinks that
+had ->revalidate()) add calls in ->follow_link()/->readlink().
+
+---
+[mandatory]
+
+->d_parent changes are not protected by BKL anymore.  Read access is safe
+if at least one of the following is true:
+	* filesystem has no cross-directory rename()
+	* dcache_lock is held
+	* we know that parent had been locked (e.g. we are looking at
+->d_parent of ->lookup() argument).
+	* we are called from ->rename().
+	* the child's ->d_lock is held
+Audit your code and add locking if needed.  Notice that any place that is
+not protected by the conditions above is risky even in the old tree - you
+had been relying on BKL and that's prone to screwups.  Old tree had quite
+a few holes of that kind - unprotected access to ->d_parent leading to
+anything from oops to silent memory corruption.
+
+---
+[mandatory]
+
+	FS_NOMOUNT is gone.  If you use it - just set MS_NOUSER in flags
+(see rootfs for one kind of solution and bdev/socket/pipe for another).
+
+---
+[recommended]
+
+	Use bdev_read_only(bdev) instead of is_read_only(kdev).  The latter
+is still alive, but only because of the mess in drivers/s390/block/dasd.c.
+As soon as it gets fixed is_read_only() will die.
+
+---
+[mandatory]
+
+->permission() is called without BKL now. Grab it on entry, drop upon
+return - that will guarantee the same locking you used to have.  If
+your method or its parts do not need BKL - better yet, now you can
+shift lock_kernel() and unlock_kernel() so that they would protect
+exactly what needs to be protected.
+
+---
+[mandatory]
+
+->statfs() is now called without BKL held.  BKL should have been
+shifted into individual fs sb_op functions where it's not clear that
+it's safe to remove it.  If you don't need it, remove it.
+
+---
+[mandatory]
+
+	is_read_only() is gone; use bdev_read_only() instead.
+
+---
+[mandatory]
+
+	destroy_buffers() is gone; use invalidate_bdev().
+
+---
+[mandatory]
+
+	fsync_dev() is gone; use fsync_bdev().  NOTE: lvm breakage is
+deliberate; as soon as struct block_device * is propagated in a reasonable
+way by that code fixing will become trivial; until then nothing can be
+done.

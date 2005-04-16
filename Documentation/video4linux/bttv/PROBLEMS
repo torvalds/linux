@@ -1,0 +1,62 @@
+- Start capturing by pressing "c" or by selecting it via a menu!
+
+- Start capturing by pressing "c" or by selecting it via a menu!!!
+
+- The memory of some S3 cards is not recognized right:
+  
+  First of all, if you are not using XFree-3.2 or newer, upgrade AT LEAST to
+  XFree-3.2A! This solved the problem for most people.
+
+  Start up X11 like this: "XF86_S3 -probeonly" and write down where the
+  linear frame buffer is.
+  If it is different to the address found by bttv install bttv like this:
+  "insmod bttv vidmem=0xfb0"
+  if the linear frame buffer is at 0xfb000000 (i.e. omit the last 5 zeros!)
+
+  Some S3 cards even take up 64MB of memory but only report 32MB to the BIOS.
+  If this 64MB area overlaps the IO memory of the Bt848 you also have to
+  remap this. E.g.: insmod bttv vidmem=0xfb0 remap=0xfa0
+
+  If the video memory is found at the right place and there are no address
+  conflicts but still no picture (or the computer even crashes),
+  try disabling features of your PCI chipset in the BIOS setup.
+
+  Frank Kapahnke <frank@kapahnke.prima.ruhr.de> also reported that problems
+  with his S3 868 went away when he upgraded to XFree 3.2.
+
+
+- I still only get a black picture with my S3 card!
+
+  Even with XFree-3.2A some people have problems with their S3 cards
+  (mostly with Trio 64 but also with some others)
+  Get the free demo version of Accelerated X from www.xinside.com and try
+  bttv with it. bttv seems to work with most S3 cards with Accelerated X.
+  
+  Since I do not know much (better make that almost nothing) about VGA card
+  programming I do not know the reason for this.
+  Looks like XFree does something different when setting up the video memory?
+  Maybe somebody can enlighten me?  
+  Would be nice if somebody could get this to work with XFree since 
+  Accelerated X costs more than some of the grabber cards ... 
+ 
+  Better linear frame buffer support for S3 cards will probably be in
+  XFree 4.0.
+  
+- Grabbing is not switched off when changing consoles with XFree.
+  That's because XFree and some AcceleratedX versions do not send unmap
+  events.
+
+- Some popup windows (e.g. of the window manager) are not refreshed.
+  
+  Disable backing store by starting X with the option "-bs"
+
+- When using 32 bpp in XFree or 24+8bpp mode in AccelX 3.1 the system
+  can sometimes lock up if you use more than 1 bt848 card at the same time.
+  You will always get pixel errors when e.g. using more than 1 card in full
+  screen mode. Maybe we need something faster than the PCI bus ...
+
+
+- Some S3 cards and the Matrox Mystique will produce pixel errors with
+  full resolution in 32-bit mode.
+
+- Some video cards have problems with Accelerated X 4.1

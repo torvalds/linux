@@ -1,0 +1,41 @@
+#
+# Plug and Play configuration
+#
+
+menu "Plug and Play support"
+
+config PNP
+	bool "Plug and Play support"
+	depends on ISA || ACPI_BUS
+	---help---
+	  Plug and Play (PnP) is a standard for peripherals which allows those
+	  peripherals to be configured by software, e.g. assign IRQ's or other
+	  parameters. No jumpers on the cards are needed, instead the values
+	  are provided to the cards from the BIOS, from the operating system,
+	  or using a user-space utility.
+
+	  Say Y here if you would like Linux to configure your Plug and Play
+	  devices. You should then also say Y to all of the protocols below.
+	  Alternatively, you can say N here and configure your PnP devices
+	  using user space utilities such as the isapnptools package.
+
+	  If unsure, say Y.
+
+config PNP_DEBUG
+	bool "PnP Debug Messages"
+	depends on PNP
+	help
+	  Say Y if you want the Plug and Play Layer to print debug messages.
+	  This is useful if you are developing a PnP driver or troubleshooting.
+
+comment "Protocols"
+	depends on PNP
+
+source "drivers/pnp/isapnp/Kconfig"
+
+source "drivers/pnp/pnpbios/Kconfig"
+
+source "drivers/pnp/pnpacpi/Kconfig"
+
+endmenu
+

@@ -1,0 +1,41 @@
+config PCI
+	bool "PCI support"
+	help
+	  Find out whether you have a PCI motherboard. PCI is the name of a
+	  bus system, i.e. the way the CPU talks to the other stuff inside
+	  your box. If you have PCI, say Y, otherwise N.
+
+	  The PCI-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>, contains valuable
+	  information about which PCI hardware does work under Linux and which
+	  doesn't.
+
+config SH_PCIDMA_NONCOHERENT
+	bool "Cache and PCI noncoherent"
+	depends on PCI
+	default y
+	help
+	  Enable this option if your platform does not have a CPU cache which
+	  remains coherent with PCI DMA. It is safest to say 'Y', although you
+	  will see better performance if you can say 'N', because the PCI DMA
+	  code will not have to flush the CPU's caches. If you have a PCI host
+	  bridge integrated with your SH CPU, refer carefully to the chip specs
+	  to see if you can say 'N' here. Otherwise, leave it as 'Y'.
+
+# This is also board-specific
+config PCI_AUTO
+	bool
+	depends on PCI
+	default y
+
+config PCI_AUTO_UPDATE_RESOURCES
+	bool
+	depends on PCI_AUTO
+	default y if !SH_DREAMCAST
+	help
+	  Selecting this option will cause the PCI auto code to leave your
+	  BAR values alone. Otherwise they will be updated automatically. If
+	  for some reason, you have a board that simply refuses to work
+	  with its resources updated beyond what they are when the device
+	  is powered up, set this to N. Everyone else will want this as Y.
+

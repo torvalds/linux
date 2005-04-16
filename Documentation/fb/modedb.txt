@@ -1,0 +1,61 @@
+
+
+			modedb default video mode support
+
+
+Currently all frame buffer device drivers have their own video mode databases,
+which is a mess and a waste of resources. The main idea of modedb is to have
+
+  - one routine to probe for video modes, which can be used by all frame buffer
+    devices
+  - one generic video mode database with a fair amount of standard videomodes
+    (taken from XFree86)
+  - the possibility to supply your own mode database for graphics hardware that
+    needs non-standard modes, like amifb and Mac frame buffer drivers (which
+    use macmodes.c)
+
+When a frame buffer device receives a video= option it doesn't know, it should
+consider that to be a video mode option. If no frame buffer device is specified
+in a video= option, fbmem considers that to be a global video mode option.
+
+Valid mode specifiers (mode_option argument):
+
+    <xres>x<yres>[-<bpp>][@<refresh>]
+    <name>[-<bpp>][@<refresh>]
+
+with <xres>, <yres>, <bpp> and <refresh> decimal numbers and <name> a string.
+Things between square brackets are optional.
+
+To find a suitable video mode, you just call
+
+int __init fb_find_mode(struct fb_var_screeninfo *var,
+                        struct fb_info *info, const char *mode_option,
+                        const struct fb_videomode *db, unsigned int dbsize,
+                        const struct fb_videomode *default_mode,
+                        unsigned int default_bpp)
+
+with db/dbsize your non-standard video mode database, or NULL to use the
+standard video mode database.
+
+fb_find_mode() first tries the specified video mode (or any mode that matches,
+e.g. there can be multiple 640x480 modes, each of them is tried). If that
+fails, the default mode is tried. If that fails, it walks over all modes.
+
+To specify a video mode at bootup, use the following boot options:
+    video=<driver>:<xres>x<yres>[-<bpp>][@refresh]
+
+where <driver> is a name from the table below.  Valid default modes can be
+found in linux/drivers/video/modedb.c.  Check your driver's documentation.
+There may be more modes.
+
+    Drivers that support modedb boot options
+    Boot Name	  Cards Supported
+
+    amifb	- Amiga chipset frame buffer
+    aty128fb	- ATI Rage128 / Pro frame buffer
+    atyfb	- ATI Mach64 frame buffer
+    tdfxfb	- 3D Fx frame buffer
+    tridentfb	- Trident (Cyber)blade chipset frame buffer
+
+BTW, only a few drivers use this at the moment. Others are to follow
+(feel free to send patches).

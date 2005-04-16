@@ -1,0 +1,14 @@
+menu "Kernel hacking"
+
+source "lib/Kconfig.debug"
+
+config DEBUG_RWLOCK
+        bool "Read-write spinlock debugging"
+        depends on DEBUG_KERNEL && SMP
+        help
+          If you say Y here then read-write lock processing will count how many
+          times it has tried to get the lock and issue an error message after
+          too many attempts.  If you suspect a rwlock problem or a kernel
+          hacker asks for this option then say Y.  Otherwise say N.
+
+endmenu

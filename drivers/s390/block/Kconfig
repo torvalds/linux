@@ -1,0 +1,68 @@
+if ARCH_S390
+
+comment "S/390 block device drivers"
+	depends on ARCH_S390
+
+config BLK_DEV_XPRAM
+	tristate "XPRAM disk support"
+	depends on ARCH_S390
+	help
+	  Select this option if you want to use your expanded storage on S/390
+	  or zSeries as a disk.  This is useful as a _fast_ swap device if you
+	  want to access more than 2G of memory when running in 31 bit mode.
+	  This option is also available as a module which will be called
+	  xpram.  If unsure, say "N".
+
+config DCSSBLK
+	tristate "DCSSBLK support"
+	help
+	  Support for dcss block device
+
+config DASD
+	tristate "Support for DASD devices"
+	depends on CCW
+	help
+	  Enable this option if you want to access DASDs directly utilizing
+	  S/390s channel subsystem commands. This is necessary for running
+	  natively on a single image or an LPAR.
+
+config DASD_PROFILE
+	bool "Profiling support for dasd devices"
+	depends on DASD
+	help
+	  Enable this option if you want to see profiling information
+          in /proc/dasd/statistics.
+
+config DASD_ECKD
+	tristate "Support for ECKD Disks"
+	depends on DASD
+	help
+	  ECKD devices are the most commonly used devices. You should enable
+	  this option unless you are very sure to have no ECKD device.
+
+config DASD_FBA
+	tristate "Support for FBA  Disks"
+	depends on DASD
+	help
+	  Select this option to be able to access FBA devices. It is safe to
+	  say "Y".
+
+config DASD_DIAG
+	tristate "Support for DIAG access to Disks"
+	depends on DASD && ARCH_S390X = 'n'
+	help
+	  Select this option if you want to use Diagnose250 command to access
+	  Disks under VM.  If you are not running under VM or unsure what it is,
+	  say "N".
+
+config DASD_CMB
+	tristate "Compatibility interface for DASD channel measurement blocks"
+	depends on DASD
+	help
+	  This driver provides an additional interface to the channel measurement
+	  facility, which is normally accessed though sysfs, with a set of
+	  ioctl functions specific to the dasd driver.
+	  This is only needed if you want to use applications written for
+	  linux-2.4 dasd channel measurement facility interface.
+
+endif

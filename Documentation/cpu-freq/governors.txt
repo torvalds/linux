@@ -1,0 +1,155 @@
+     CPU frequency and voltage scaling code in the Linux(TM) kernel
+
+
+		         L i n u x    C P U F r e q
+
+		      C P U F r e q   G o v e r n o r s
+
+		   - information for users and developers -
+
+
+		    Dominik Brodowski  <linux@brodo.de>
+
+
+
+   Clock scaling allows you to change the clock speed of the CPUs on the
+    fly. This is a nice method to save battery power, because the lower
+            the clock speed, the less power the CPU consumes.
+
+
+Contents:
+---------
+1.   What is a CPUFreq Governor?
+
+2.   Governors In the Linux Kernel
+2.1  Performance
+2.2  Powersave
+2.3  Userspace
+
+3.   The Governor Interface in the CPUfreq Core
+
+
+
+1. What Is A CPUFreq Governor?
+==============================
+
+Most cpufreq drivers (in fact, all except one, longrun) or even most
+cpu frequency scaling algorithms only offer the CPU to be set to one
+frequency. In order to offer dynamic frequency scaling, the cpufreq
+core must be able to tell these drivers of a "target frequency". So
+these specific drivers will be transformed to offer a "->target"
+call instead of the existing "->setpolicy" call. For "longrun", all
+stays the same, though.
+
+How to decide what frequency within the CPUfreq policy should be used?
+That's done using "cpufreq governors". Two are already in this patch
+-- they're the already existing "powersave" and "performance" which
+set the frequency statically to the lowest or highest frequency,
+respectively. At least two more such governors will be ready for
+addition in the near future, but likely many more as there are various
+different theories and models about dynamic frequency scaling
+around. Using such a generic interface as cpufreq offers to scaling
+governors, these can be tested extensively, and the best one can be
+selected for each specific use.
+
+Basically, it's the following flow graph:
+
+CPU can be set to switch independetly	 |	   CPU can only be set
+      within specific "limits"		 |       to specific frequencies
+
+                                 "CPUfreq policy"
+		consists of frequency limits (policy->{min,max})
+  		     and CPUfreq governor to be used
+			 /		      \
+			/		       \
+		       /		       the cpufreq governor decides
+		      /			       (dynamically or statically)
+		     /			       what target_freq to set within
+		    /			       the limits of policy->{min,max}
+		   /			            \
+		  /				     \
+	Using the ->setpolicy call,		 Using the ->target call,
+	    the limits and the			  the frequency closest
+	     "policy" is set.			  to target_freq is set.
+						  It is assured that it
+						  is within policy->{min,max}
+
+
+2. Governors In the Linux Kernel
+================================
+
+2.1 Performance
+---------------
+
+The CPUfreq governor "performance" sets the CPU statically to the
+highest frequency within the borders of scaling_min_freq and
+scaling_max_freq.
+
+
+2.1 Powersave
+-------------
+
+The CPUfreq governor "powersave" sets the CPU statically to the
+lowest frequency within the borders of scaling_min_freq and
+scaling_max_freq.
+
+
+2.2 Userspace
+-------------
+
+The CPUfreq governor "userspace" allows the user, or any userspace
+program running with UID "root", to set the CPU to a specific frequency
+by making a sysfs file "scaling_setspeed" available in the CPU-device
+directory.
+
+
+
+3. The Governor Interface in the CPUfreq Core
+=============================================
+
+A new governor must register itself with the CPUfreq core using
+"cpufreq_register_governor". The struct cpufreq_governor, which has to
+be passed to that function, must contain the following values:
+
+governor->name -	    A unique name for this governor
+governor->governor -	    The governor callback function
+governor->owner	-	    .THIS_MODULE for the governor module (if 
+			    appropriate)
+
+The governor->governor callback is called with the current (or to-be-set)
+cpufreq_policy struct for that CPU, and an unsigned int event. The
+following events are currently defined:
+
+CPUFREQ_GOV_START:   This governor shall start its duty for the CPU
+		     policy->cpu
+CPUFREQ_GOV_STOP:    This governor shall end its duty for the CPU
+		     policy->cpu
+CPUFREQ_GOV_LIMITS:  The limits for CPU policy->cpu have changed to
+		     policy->min and policy->max.
+
+If you need other "events" externally of your driver, _only_ use the
+cpufreq_governor_l(unsigned int cpu, unsigned int event) call to the
+CPUfreq core to ensure proper locking.
+
+
+The CPUfreq governor may call the CPU processor driver using one of
+these two functions:
+
+int cpufreq_driver_target(struct cpufreq_policy *policy,
+                                 unsigned int target_freq,
+                                 unsigned int relation);
+
+int __cpufreq_driver_target(struct cpufreq_policy *policy,
+                                   unsigned int target_freq,
+                                   unsigned int relation);
+
+target_freq must be within policy->min and policy->max, of course.
+What's the difference between these two functions? When your governor
+still is in a direct code path of a call to governor->governor, the
+per-CPU cpufreq lock is still held in the cpufreq core, and there's
+no need to lock it again (in fact, this would cause a deadlock). So
+use __cpufreq_driver_target only in these cases. In all other cases 
+(for example, when there's a "daemonized" function that wakes up 
+every second), use cpufreq_driver_target to lock the cpufreq per-CPU
+lock before the command is passed to the cpufreq processor driver.
+

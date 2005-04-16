@@ -1,0 +1,26 @@
+Kernel driver i2c-savage4
+
+Supported adapters:
+  * Savage4
+  * Savage2000
+
+Authors: 
+	Alexander Wold <awold@bigfoot.com>,
+	Mark D. Studebaker <mdsxyz123@yahoo.com> 
+
+Description
+-----------
+
+The Savage4 chips contain two I2C interfaces (aka a I2C 'master'
+or 'host'). 
+
+The first interface is used for DDC (Data Display Channel) which is a
+serial channel through the VGA monitor connector to a DDC-compliant
+monitor. This interface is defined by the Video Electronics Standards
+Association (VESA). The standards are available for purchase at
+http://www.vesa.org . The DDC bus is not yet supported because its register
+is not directly memory-mapped.
+
+The second interface is a general-purpose I2C bus. This is the only
+interface supported by the driver at the moment.
+

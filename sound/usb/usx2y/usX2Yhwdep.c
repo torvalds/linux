@@ -1,0 +1,280 @@
+/*
+ * Driver for Tascam US-X2Y USB soundcards
+ *
+ * FPGA Loader + ALSA Startup
+ *
+ * Copyright (c) 2003 by Karsten Wiese <annabellesgarden@yahoo.de>
+ *
+ *   This program is free software; you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation; either version 2 of the License, or
+ *   (at your option) any later version.
+ *
+ *   This program is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU General Public License for more details.
+ *
+ *   You should have received a copy of the GNU General Public License
+ *   along with this program; if not, write to the Free Software
+ *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+ */
+
+#include <sound/driver.h>
+#include <linux/interrupt.h>
+#include <linux/usb.h>
+#include <sound/core.h>
+#include <sound/memalloc.h>
+#include <sound/pcm.h>
+#include <sound/hwdep.h>
+#include "usx2y.h"
+#include "usbusx2y.h"
+#include "usX2Yhwdep.h"
+
+int usX2Y_hwdep_pcm_new(snd_card_t* card);
+
+
+static struct page * snd_us428ctls_vm_nopage(struct vm_area_struct *area, unsigned long address, int *type)
+{
+	unsigned long offset;
+	struct page * page;
+	void *vaddr;
+
+	snd_printdd("ENTER, start %lXh, ofs %lXh, pgoff %ld, addr %lXh\n",
+		   area->vm_start,
+		   address - area->vm_start,
+		   (address - area->vm_start) >> PAGE_SHIFT,
+		   address);
+	
+	offset = area->vm_pgoff << PAGE_SHIFT;
+	offset += address - area->vm_start;
+	snd_assert((offset % PAGE_SIZE) == 0, return NOPAGE_OOM);
+	vaddr = (char*)((usX2Ydev_t*)area->vm_private_data)->us428ctls_sharedmem + offset;
+	page = virt_to_page(vaddr);
+	get_page(page);
+	snd_printdd( "vaddr=%p made us428ctls_vm_nopage() return %p; offset=%lX\n", vaddr, page, offset);
+
+	if (type)
+		*type = VM_FAULT_MINOR;
+
+	return page;
+}
+
+static struct vm_operations_struct us428ctls_vm_ops = {
+	.nopage = snd_us428ctls_vm_nopage,
+};
+
+static int snd_us428ctls_mmap(snd_hwdep_t * hw, struct file *filp, struct vm_area_struct *area)
+{
+	unsigned long	size = (unsigned long)(area->vm_end - area->vm_start);
+	usX2Ydev_t	*us428 = (usX2Ydev_t*)hw->private_data;
+
+	// FIXME this hwdep interface is used twice: fpga download and mmap for controlling Lights etc. Maybe better using 2 hwdep devs?
+	// so as long as the device isn't fully initialised yet we return -EBUSY here.
+ 	if (!(((usX2Ydev_t*)hw->private_data)->chip_status & USX2Y_STAT_CHIP_INIT))
+		return -EBUSY;
+
+	/* if userspace tries to mmap beyond end of our buffer, fail */ 
+        if (size > ((PAGE_SIZE - 1 + sizeof(us428ctls_sharedmem_t)) / PAGE_SIZE) * PAGE_SIZE) {
+		snd_printd( "%lu > %lu\n", size, (unsigned long)sizeof(us428ctls_sharedmem_t)); 
+                return -EINVAL;
+	}
+
+	if (!us428->us428ctls_sharedmem) {
+		init_waitqueue_head(&us428->us428ctls_wait_queue_head);
+		if(!(us428->us428ctls_sharedmem = snd_malloc_pages(sizeof(us428ctls_sharedmem_t), GFP_KERNEL)))
+			return -ENOMEM;
+		memset(us428->us428ctls_sharedmem, -1, sizeof(us428ctls_sharedmem_t));
+		us428->us428ctls_sharedmem->CtlSnapShotLast = -2;
+	}
+	area->vm_ops = &us428ctls_vm_ops;
+	area->vm_flags |= VM_RESERVED;
+	area->vm_private_data = hw->private_data;
+	return 0;
+}
+
+static unsigned int snd_us428ctls_poll(snd_hwdep_t *hw, struct file *file, poll_table *wait)
+{
+	unsigned int	mask = 0;
+	usX2Ydev_t	*us428 = (usX2Ydev_t*)hw->private_data;
+	us428ctls_sharedmem_t *shm = us428->us428ctls_sharedmem;
+	if (us428->chip_status & USX2Y_STAT_CHIP_HUP)
+		return POLLHUP;
+
+	poll_wait(file, &us428->us428ctls_wait_queue_head, wait);
+
+	if (shm != NULL && shm->CtlSnapShotLast != shm->CtlSnapShotRed)
+		mask |= POLLIN;
+
+	return mask;
+}
+
+
+static int snd_usX2Y_hwdep_open(snd_hwdep_t *hw, struct file *file)
+{
+	return 0;
+}
+
+static int snd_usX2Y_hwdep_release(snd_hwdep_t *hw, struct file *file)
+{
+	return 0;
+}
+
+static int snd_usX2Y_hwdep_dsp_status(snd_hwdep_t *hw, snd_hwdep_dsp_status_t *info)
+{
+	static char *type_ids[USX2Y_TYPE_NUMS] = {
+		[USX2Y_TYPE_122] = "us122",
+		[USX2Y_TYPE_224] = "us224",
+		[USX2Y_TYPE_428] = "us428",
+	};
+	int id = -1;
+
+	switch (le16_to_cpu(((usX2Ydev_t*)hw->private_data)->chip.dev->descriptor.idProduct)) {
+	case USB_ID_US122:
+		id = USX2Y_TYPE_122;
+		break;
+	case USB_ID_US224:
+		id = USX2Y_TYPE_224;
+		break;
+	case USB_ID_US428:
+		id = USX2Y_TYPE_428;
+		break;
+	}
+	if (0 > id)
+		return -ENODEV;
+	strcpy(info->id, type_ids[id]);
+	info->num_dsps = 2;		// 0: Prepad Data, 1: FPGA Code
+ 	if (((usX2Ydev_t*)hw->private_data)->chip_status & USX2Y_STAT_CHIP_INIT) 
+		info->chip_ready = 1;
+ 	info->version = USX2Y_DRIVER_VERSION; 
+	return 0;
+}
+
+
+static int usX2Y_create_usbmidi(snd_card_t* card )
+{
+	static snd_usb_midi_endpoint_info_t quirk_data_1 = {
+		.out_ep =0x06,
+		.in_ep = 0x06,
+		.out_cables =	0x001,
+		.in_cables =	0x001
+	};
+	static snd_usb_audio_quirk_t quirk_1 = {
+		.vendor_name =	"TASCAM",
+		.product_name =	NAME_ALLCAPS,
+		.ifnum = 	0,
+       		.type = QUIRK_MIDI_FIXED_ENDPOINT,
+		.data = &quirk_data_1
+	};
+	static snd_usb_midi_endpoint_info_t quirk_data_2 = {
+		.out_ep =0x06,
+		.in_ep = 0x06,
+		.out_cables =	0x003,
+		.in_cables =	0x003
+	};
+	static snd_usb_audio_quirk_t quirk_2 = {
+		.vendor_name =	"TASCAM",
+		.product_name =	"US428",
+		.ifnum = 	0,
+       		.type = QUIRK_MIDI_FIXED_ENDPOINT,
+		.data = &quirk_data_2
+	};
+	struct usb_device *dev = usX2Y(card)->chip.dev;
+	struct usb_interface *iface = usb_ifnum_to_if(dev, 0);
+	snd_usb_audio_quirk_t *quirk = le16_to_cpu(dev->descriptor.idProduct) == USB_ID_US428 ? &quirk_2 : &quirk_1;
+
+	snd_printdd("usX2Y_create_usbmidi \n");
+	return snd_usb_create_midi_interface(&usX2Y(card)->chip, iface, quirk);
+}
+
+static int usX2Y_create_alsa_devices(snd_card_t* card)
+{
+	int err;
+
+	do {
+		if ((err = usX2Y_create_usbmidi(card)) < 0) {
+			snd_printk("usX2Y_create_alsa_devices: usX2Y_create_usbmidi error %i \n", err);
+			break;
+		}
+		if ((err = usX2Y_audio_create(card)) < 0) 
+			break;
+		if ((err = usX2Y_hwdep_pcm_new(card)) < 0)
+			break;
+		if ((err = snd_card_register(card)) < 0)
+			break;
+	} while (0);
+
+	return err;
+} 
+
+static int snd_usX2Y_hwdep_dsp_load(snd_hwdep_t *hw, snd_hwdep_dsp_image_t *dsp)
+{
+	usX2Ydev_t *priv = hw->private_data;
+	int	lret, err = -EINVAL;
+	snd_printdd( "dsp_load %s\n", dsp->name);
+
+	if (access_ok(VERIFY_READ, dsp->image, dsp->length)) {
+		struct usb_device* dev = priv->chip.dev;
+		char *buf = kmalloc(dsp->length, GFP_KERNEL);
+		if (!buf)
+			return -ENOMEM;
+		if (copy_from_user(buf, dsp->image, dsp->length)) {
+			kfree(buf);
+			return -EFAULT;
+		}
+		err = usb_set_interface(dev, 0, 1);
+		if (err)
+			snd_printk("usb_set_interface error \n");
+		else
+			err = usb_bulk_msg(dev, usb_sndbulkpipe(dev, 2), buf, dsp->length, &lret, 6000);
+		kfree(buf);
+	}
+	if (err)
+		return err;
+	if (dsp->index == 1) {
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_timeout(HZ/4);			// give the device some time 
+		err = usX2Y_AsyncSeq04_init(priv);
+		if (err) {
+			snd_printk("usX2Y_AsyncSeq04_init error \n");
+			return err;
+		}
+		err = usX2Y_In04_init(priv);
+		if (err) {
+			snd_printk("usX2Y_In04_init error \n");
+			return err;
+		}
+		err = usX2Y_create_alsa_devices(hw->card);
+		if (err) {
+			snd_printk("usX2Y_create_alsa_devices error %i \n", err);
+			snd_card_free(hw->card);
+			return err;
+		}
+		priv->chip_status |= USX2Y_STAT_CHIP_INIT; 
+		snd_printdd("%s: alsa all started\n", hw->name);
+	}
+	return err;
+}
+
+
+int usX2Y_hwdep_new(snd_card_t* card, struct usb_device* device)
+{
+	int err;
+	snd_hwdep_t *hw;
+
+	if ((err = snd_hwdep_new(card, SND_USX2Y_LOADER_ID, 0, &hw)) < 0)
+		return err;
+
+	hw->iface = SNDRV_HWDEP_IFACE_USX2Y;
+	hw->private_data = usX2Y(card);
+	hw->ops.open = snd_usX2Y_hwdep_open;
+	hw->ops.release = snd_usX2Y_hwdep_release;
+	hw->ops.dsp_status = snd_usX2Y_hwdep_dsp_status;
+	hw->ops.dsp_load = snd_usX2Y_hwdep_dsp_load;
+	hw->ops.mmap = snd_us428ctls_mmap;
+	hw->ops.poll = snd_us428ctls_poll;
+	hw->exclusive = 1;
+	sprintf(hw->name, "/proc/bus/usb/%03d/%03d", device->bus->busnum, device->devnum);
+	return 0;
+}
+

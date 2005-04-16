@@ -1,0 +1,1940 @@
+------------------------------------------------------------------------------
+                       T H E  /proc   F I L E S Y S T E M
+------------------------------------------------------------------------------
+/proc/sys         Terrehon Bowden <terrehon@pacbell.net>        October 7 1999
+                  Bodo Bauer <bb@ricochet.net>
+
+2.4.x update	  Jorge Nerin <comandante@zaralinux.com>      November 14 2000
+------------------------------------------------------------------------------
+Version 1.3                                              Kernel version 2.2.12
+					      Kernel version 2.4.0-test11-pre4
+------------------------------------------------------------------------------
+
+Table of Contents
+-----------------
+
+  0     Preface
+  0.1	Introduction/Credits
+  0.2	Legal Stuff
+
+  1	Collecting System Information
+  1.1	Process-Specific Subdirectories
+  1.2	Kernel data
+  1.3	IDE devices in /proc/ide
+  1.4	Networking info in /proc/net
+  1.5	SCSI info
+  1.6	Parallel port info in /proc/parport
+  1.7	TTY info in /proc/tty
+  1.8	Miscellaneous kernel statistics in /proc/stat
+
+  2	Modifying System Parameters
+  2.1	/proc/sys/fs - File system data
+  2.2	/proc/sys/fs/binfmt_misc - Miscellaneous binary formats
+  2.3	/proc/sys/kernel - general kernel parameters
+  2.4	/proc/sys/vm - The virtual memory subsystem
+  2.5	/proc/sys/dev - Device specific parameters
+  2.6	/proc/sys/sunrpc - Remote procedure calls
+  2.7	/proc/sys/net - Networking stuff
+  2.8	/proc/sys/net/ipv4 - IPV4 settings
+  2.9	Appletalk
+  2.10	IPX
+  2.11	/proc/sys/fs/mqueue - POSIX message queues filesystem
+
+------------------------------------------------------------------------------
+Preface
+------------------------------------------------------------------------------
+
+0.1 Introduction/Credits
+------------------------
+
+This documentation is  part of a soon (or  so we hope) to be  released book on
+the SuSE  Linux distribution. As  there is  no complete documentation  for the
+/proc file system and we've used  many freely available sources to write these
+chapters, it  seems only fair  to give the work  back to the  Linux community.
+This work is  based on the 2.2.*  kernel version and the  upcoming 2.4.*. I'm
+afraid it's still far from complete, but we  hope it will be useful. As far as
+we know, it is the first 'all-in-one' document about the /proc file system. It
+is focused  on the Intel  x86 hardware,  so if you  are looking for  PPC, ARM,
+SPARC, AXP, etc., features, you probably  won't find what you are looking for.
+It also only covers IPv4 networking, not IPv6 nor other protocols - sorry. But
+additions and patches  are welcome and will  be added to this  document if you
+mail them to Bodo.
+
+We'd like  to  thank Alan Cox, Rik van Riel, and Alexey Kuznetsov and a lot of
+other people for help compiling this documentation. We'd also like to extend a
+special thank  you to Andi Kleen for documentation, which we relied on heavily
+to create  this  document,  as well as the additional information he provided.
+Thanks to  everybody  else  who contributed source or docs to the Linux kernel
+and helped create a great piece of software... :)
+
+If you  have  any comments, corrections or additions, please don't hesitate to
+contact Bodo  Bauer  at  bb@ricochet.net.  We'll  be happy to add them to this
+document.
+
+The   latest   version    of   this   document   is    available   online   at
+http://skaro.nightcrawler.com/~bb/Docs/Proc as HTML version.
+
+If  the above  direction does  not works  for you,  ypu could  try the  kernel
+mailing  list  at  linux-kernel@vger.kernel.org  and/or try  to  reach  me  at
+comandante@zaralinux.com.
+
+0.2 Legal Stuff
+---------------
+
+We don't  guarantee  the  correctness  of this document, and if you come to us
+complaining about  how  you  screwed  up  your  system  because  of  incorrect
+documentation, we won't feel responsible...
+
+------------------------------------------------------------------------------
+CHAPTER 1: COLLECTING SYSTEM INFORMATION
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+In This Chapter
+------------------------------------------------------------------------------
+* Investigating  the  properties  of  the  pseudo  file  system  /proc and its
+  ability to provide information on the running Linux system
+* Examining /proc's structure
+* Uncovering  various  information  about the kernel and the processes running
+  on the system
+------------------------------------------------------------------------------
+
+
+The proc  file  system acts as an interface to internal data structures in the
+kernel. It  can  be  used to obtain information about the system and to change
+certain kernel parameters at runtime (sysctl).
+
+First, we'll  take  a  look  at the read-only parts of /proc. In Chapter 2, we
+show you how you can use /proc/sys to change settings.
+
+1.1 Process-Specific Subdirectories
+-----------------------------------
+
+The directory  /proc  contains  (among other things) one subdirectory for each
+process running on the system, which is named after the process ID (PID).
+
+The link  self  points  to  the  process reading the file system. Each process
+subdirectory has the entries listed in Table 1-1.
+
+
+Table 1-1: Process specific entries in /proc 
+..............................................................................
+ File    Content                                        
+ cmdline Command line arguments                         
+ cpu	 Current and last cpu in wich it was executed		(2.4)(smp)
+ cwd	 Link to the current working directory
+ environ Values of environment variables      
+ exe	 Link to the executable of this process
+ fd      Directory, which contains all file descriptors 
+ maps	 Memory maps to executables and library files		(2.4)
+ mem     Memory held by this process                    
+ root	 Link to the root directory of this process
+ stat    Process status                                 
+ statm   Process memory status information              
+ status  Process status in human readable form          
+ wchan   If CONFIG_KALLSYMS is set, a pre-decoded wchan
+..............................................................................
+
+For example, to get the status information of a process, all you have to do is
+read the file /proc/PID/status:
+
+  >cat /proc/self/status 
+  Name:   cat 
+  State:  R (running) 
+  Pid:    5452 
+  PPid:   743 
+  TracerPid:      0						(2.4)
+  Uid:    501     501     501     501 
+  Gid:    100     100     100     100 
+  Groups: 100 14 16 
+  VmSize:     1112 kB 
+  VmLck:         0 kB 
+  VmRSS:       348 kB 
+  VmData:       24 kB 
+  VmStk:        12 kB 
+  VmExe:         8 kB 
+  VmLib:      1044 kB 
+  SigPnd: 0000000000000000 
+  SigBlk: 0000000000000000 
+  SigIgn: 0000000000000000 
+  SigCgt: 0000000000000000 
+  CapInh: 00000000fffffeff 
+  CapPrm: 0000000000000000 
+  CapEff: 0000000000000000 
+
+
+This shows you nearly the same information you would get if you viewed it with
+the ps  command.  In  fact,  ps  uses  the  proc  file  system  to  obtain its
+information. The  statm  file  contains  more  detailed  information about the
+process memory usage. Its seven fields are explained in Table 1-2.
+
+
+Table 1-2: Contents of the statm files (as of 2.6.8-rc3)
+..............................................................................
+ Field    Content
+ size     total program size (pages)		(same as VmSize in status)
+ resident size of memory portions (pages)	(same as VmRSS in status)
+ shared   number of pages that are shared	(i.e. backed by a file)
+ trs      number of pages that are 'code'	(not including libs; broken,
+							includes data segment)
+ lrs      number of pages of library		(always 0 on 2.6)
+ drs      number of pages of data/stack		(including libs; broken,
+							includes library text)
+ dt       number of dirty pages			(always 0 on 2.6)
+..............................................................................
+
+1.2 Kernel data
+---------------
+
+Similar to  the  process entries, the kernel data files give information about
+the running kernel. The files used to obtain this information are contained in
+/proc and  are  listed  in Table 1-3. Not all of these will be present in your
+system. It  depends  on the kernel configuration and the loaded modules, which
+files are there, and which are missing.
+
+Table 1-3: Kernel info in /proc 
+..............................................................................
+ File        Content                                           
+ apm         Advanced power management info                    
+ buddyinfo   Kernel memory allocator information (see text)	(2.5)
+ bus         Directory containing bus specific information     
+ cmdline     Kernel command line                               
+ cpuinfo     Info about the CPU                                
+ devices     Available devices (block and character)           
+ dma         Used DMS channels                                 
+ filesystems Supported filesystems                             
+ driver	     Various drivers grouped here, currently rtc (2.4)
+ execdomains Execdomains, related to security			(2.4)
+ fb	     Frame Buffer devices				(2.4)
+ fs	     File system parameters, currently nfs/exports	(2.4)
+ ide         Directory containing info about the IDE subsystem 
+ interrupts  Interrupt usage                                   
+ iomem	     Memory map						(2.4)
+ ioports     I/O port usage                                    
+ irq	     Masks for irq to cpu affinity			(2.4)(smp?)
+ isapnp	     ISA PnP (Plug&Play) Info				(2.4)
+ kcore       Kernel core image (can be ELF or A.OUT(deprecated in 2.4))   
+ kmsg        Kernel messages                                   
+ ksyms       Kernel symbol table                               
+ loadavg     Load average of last 1, 5 & 15 minutes                
+ locks       Kernel locks                                      
+ meminfo     Memory info                                       
+ misc        Miscellaneous                                     
+ modules     List of loaded modules                            
+ mounts      Mounted filesystems                               
+ net         Networking info (see text)                        
+ partitions  Table of partitions known to the system           
+ pci	     Depreciated info of PCI bus (new way -> /proc/bus/pci/, 
+             decoupled by lspci					(2.4)
+ rtc         Real time clock                                   
+ scsi        SCSI info (see text)                              
+ slabinfo    Slab pool info                                    
+ stat        Overall statistics                                
+ swaps       Swap space utilization                            
+ sys         See chapter 2                                     
+ sysvipc     Info of SysVIPC Resources (msg, sem, shm)		(2.4)
+ tty	     Info of tty drivers
+ uptime      System uptime                                     
+ version     Kernel version                                    
+ video	     bttv info of video resources			(2.4)
+..............................................................................
+
+You can,  for  example,  check  which interrupts are currently in use and what
+they are used for by looking in the file /proc/interrupts:
+
+  > cat /proc/interrupts 
+             CPU0        
+    0:    8728810          XT-PIC  timer 
+    1:        895          XT-PIC  keyboard 
+    2:          0          XT-PIC  cascade 
+    3:     531695          XT-PIC  aha152x 
+    4:    2014133          XT-PIC  serial 
+    5:      44401          XT-PIC  pcnet_cs 
+    8:          2          XT-PIC  rtc 
+   11:          8          XT-PIC  i82365 
+   12:     182918          XT-PIC  PS/2 Mouse 
+   13:          1          XT-PIC  fpu 
+   14:    1232265          XT-PIC  ide0 
+   15:          7          XT-PIC  ide1 
+  NMI:          0 
+
+In 2.4.* a couple of lines where added to this file LOC & ERR (this time is the
+output of a SMP machine):
+
+  > cat /proc/interrupts 
+
+             CPU0       CPU1       
+    0:    1243498    1214548    IO-APIC-edge  timer
+    1:       8949       8958    IO-APIC-edge  keyboard
+    2:          0          0          XT-PIC  cascade
+    5:      11286      10161    IO-APIC-edge  soundblaster
+    8:          1          0    IO-APIC-edge  rtc
+    9:      27422      27407    IO-APIC-edge  3c503
+   12:     113645     113873    IO-APIC-edge  PS/2 Mouse
+   13:          0          0          XT-PIC  fpu
+   14:      22491      24012    IO-APIC-edge  ide0
+   15:       2183       2415    IO-APIC-edge  ide1
+   17:      30564      30414   IO-APIC-level  eth0
+   18:        177        164   IO-APIC-level  bttv
+  NMI:    2457961    2457959 
+  LOC:    2457882    2457881 
+  ERR:       2155
+
+NMI is incremented in this case because every timer interrupt generates a NMI
+(Non Maskable Interrupt) which is used by the NMI Watchdog to detect lockups.
+
+LOC is the local interrupt counter of the internal APIC of every CPU.
+
+ERR is incremented in the case of errors in the IO-APIC bus (the bus that
+connects the CPUs in a SMP system. This means that an error has been detected,
+the IO-APIC automatically retry the transmission, so it should not be a big
+problem, but you should read the SMP-FAQ.
+
+In this context it could be interesting to note the new irq directory in 2.4.
+It could be used to set IRQ to CPU affinity, this means that you can "hook" an
+IRQ to only one CPU, or to exclude a CPU of handling IRQs. The contents of the
+irq subdir is one subdir for each IRQ, and one file; prof_cpu_mask
+
+For example 
+  > ls /proc/irq/
+  0  10  12  14  16  18  2  4  6  8  prof_cpu_mask
+  1  11  13  15  17  19  3  5  7  9
+  > ls /proc/irq/0/
+  smp_affinity
+
+The contents of the prof_cpu_mask file and each smp_affinity file for each IRQ
+is the same by default:
+
+  > cat /proc/irq/0/smp_affinity 
+  ffffffff
+
+It's a bitmask, in wich you can specify wich CPUs can handle the IRQ, you can
+set it by doing:
+
+  > echo 1 > /proc/irq/prof_cpu_mask
+
+This means that only the first CPU will handle the IRQ, but you can also echo 5
+wich means that only the first and fourth CPU can handle the IRQ.
+
+The way IRQs are routed is handled by the IO-APIC, and it's Round Robin
+between all the CPUs which are allowed to handle it. As usual the kernel has
+more info than you and does a better job than you, so the defaults are the
+best choice for almost everyone.
+
+There are  three  more  important subdirectories in /proc: net, scsi, and sys.
+The general  rule  is  that  the  contents,  or  even  the  existence of these
+directories, depend  on your kernel configuration. If SCSI is not enabled, the
+directory scsi  may  not  exist. The same is true with the net, which is there
+only when networking support is present in the running kernel.
+
+The slabinfo  file  gives  information  about  memory usage at the slab level.
+Linux uses  slab  pools for memory management above page level in version 2.2.
+Commonly used  objects  have  their  own  slab  pool (such as network buffers,
+directory cache, and so on).
+
+..............................................................................
+
+> cat /proc/buddyinfo
+
+Node 0, zone      DMA      0      4      5      4      4      3 ...
+Node 0, zone   Normal      1      0      0      1    101      8 ...
+Node 0, zone  HighMem      2      0      0      1      1      0 ...
+
+Memory fragmentation is a problem under some workloads, and buddyinfo is a 
+useful tool for helping diagnose these problems.  Buddyinfo will give you a 
+clue as to how big an area you can safely allocate, or why a previous
+allocation failed.
+
+Each column represents the number of pages of a certain order which are 
+available.  In this case, there are 0 chunks of 2^0*PAGE_SIZE available in 
+ZONE_DMA, 4 chunks of 2^1*PAGE_SIZE in ZONE_DMA, 101 chunks of 2^4*PAGE_SIZE 
+available in ZONE_NORMAL, etc... 
+
+..............................................................................
+
+meminfo:
+
+Provides information about distribution and utilization of memory.  This
+varies by architecture and compile options.  The following is from a
+16GB PIII, which has highmem enabled.  You may not have all of these fields.
+
+> cat /proc/meminfo
+
+
+MemTotal:     16344972 kB
+MemFree:      13634064 kB
+Buffers:          3656 kB
+Cached:        1195708 kB
+SwapCached:          0 kB
+Active:         891636 kB
+Inactive:      1077224 kB
+HighTotal:    15597528 kB
+HighFree:     13629632 kB
+LowTotal:       747444 kB
+LowFree:          4432 kB
+SwapTotal:           0 kB
+SwapFree:            0 kB
+Dirty:             968 kB
+Writeback:           0 kB
+Mapped:         280372 kB
+Slab:           684068 kB
+CommitLimit:   7669796 kB
+Committed_AS:   100056 kB
+PageTables:      24448 kB
+VmallocTotal:   112216 kB
+VmallocUsed:       428 kB
+VmallocChunk:   111088 kB
+
+    MemTotal: Total usable ram (i.e. physical ram minus a few reserved
+              bits and the kernel binary code)
+     MemFree: The sum of LowFree+HighFree
+     Buffers: Relatively temporary storage for raw disk blocks
+              shouldn't get tremendously large (20MB or so)
+      Cached: in-memory cache for files read from the disk (the
+              pagecache).  Doesn't include SwapCached
+  SwapCached: Memory that once was swapped out, is swapped back in but
+              still also is in the swapfile (if memory is needed it
+              doesn't need to be swapped out AGAIN because it is already
+              in the swapfile. This saves I/O)
+      Active: Memory that has been used more recently and usually not
+              reclaimed unless absolutely necessary.
+    Inactive: Memory which has been less recently used.  It is more
+              eligible to be reclaimed for other purposes
+   HighTotal:
+    HighFree: Highmem is all memory above ~860MB of physical memory
+              Highmem areas are for use by userspace programs, or
+              for the pagecache.  The kernel must use tricks to access
+              this memory, making it slower to access than lowmem.
+    LowTotal:
+     LowFree: Lowmem is memory which can be used for everything that
+              highmem can be used for, but it is also availble for the
+              kernel's use for its own data structures.  Among many
+              other things, it is where everything from the Slab is
+              allocated.  Bad things happen when you're out of lowmem.
+   SwapTotal: total amount of swap space available
+    SwapFree: Memory which has been evicted from RAM, and is temporarily
+              on the disk
+       Dirty: Memory which is waiting to get written back to the disk
+   Writeback: Memory which is actively being written back to the disk
+      Mapped: files which have been mmaped, such as libraries
+              Slab: in-kernel data structures cache
+ CommitLimit: Based on the overcommit ratio ('vm.overcommit_ratio'),
+              this is the total amount of  memory currently available to
+              be allocated on the system. This limit is only adhered to
+              if strict overcommit accounting is enabled (mode 2 in
+              'vm.overcommit_memory').
+              The CommitLimit is calculated with the following formula:
+              CommitLimit = ('vm.overcommit_ratio' * Physical RAM) + Swap
+              For example, on a system with 1G of physical RAM and 7G
+              of swap with a `vm.overcommit_ratio` of 30 it would
+              yield a CommitLimit of 7.3G.
+              For more details, see the memory overcommit documentation
+              in vm/overcommit-accounting.
+Committed_AS: The amount of memory presently allocated on the system.
+              The committed memory is a sum of all of the memory which
+              has been allocated by processes, even if it has not been
+              "used" by them as of yet. A process which malloc()'s 1G
+              of memory, but only touches 300M of it will only show up
+              as using 300M of memory even if it has the address space
+              allocated for the entire 1G. This 1G is memory which has
+              been "committed" to by the VM and can be used at any time
+              by the allocating application. With strict overcommit
+              enabled on the system (mode 2 in 'vm.overcommit_memory'),
+              allocations which would exceed the CommitLimit (detailed
+              above) will not be permitted. This is useful if one needs
+              to guarantee that processes will not fail due to lack of
+              memory once that memory has been successfully allocated.
+  PageTables: amount of memory dedicated to the lowest level of page
+              tables.
+VmallocTotal: total size of vmalloc memory area
+ VmallocUsed: amount of vmalloc area which is used
+VmallocChunk: largest contigious block of vmalloc area which is free
+
+
+1.3 IDE devices in /proc/ide
+----------------------------
+
+The subdirectory /proc/ide contains information about all IDE devices of which
+the kernel  is  aware.  There is one subdirectory for each IDE controller, the
+file drivers  and a link for each IDE device, pointing to the device directory
+in the controller specific subtree.
+
+The file  drivers  contains general information about the drivers used for the
+IDE devices:
+
+  > cat /proc/ide/drivers
+  ide-cdrom version 4.53
+  ide-disk version 1.08
+
+More detailed  information  can  be  found  in  the  controller  specific
+subdirectories. These  are  named  ide0,  ide1  and  so  on.  Each  of  these
+directories contains the files shown in table 1-4.
+
+
+Table 1-4: IDE controller info in  /proc/ide/ide? 
+..............................................................................
+ File    Content                                 
+ channel IDE channel (0 or 1)                    
+ config  Configuration (only for PCI/IDE bridge) 
+ mate    Mate name                               
+ model   Type/Chipset of IDE controller          
+..............................................................................
+
+Each device  connected  to  a  controller  has  a separate subdirectory in the
+controllers directory.  The  files  listed in table 1-5 are contained in these
+directories.
+
+
+Table 1-5: IDE device information 
+..............................................................................
+ File             Content                                    
+ cache            The cache                                  
+ capacity         Capacity of the medium (in 512Byte blocks) 
+ driver           driver and version                         
+ geometry         physical and logical geometry              
+ identify         device identify block                      
+ media            media type                                 
+ model            device identifier                          
+ settings         device setup                               
+ smart_thresholds IDE disk management thresholds             
+ smart_values     IDE disk management values                 
+..............................................................................
+
+The most  interesting  file is settings. This file contains a nice overview of
+the drive parameters:
+
+  # cat /proc/ide/ide0/hda/settings 
+  name                    value           min             max             mode 
+  ----                    -----           ---             ---             ---- 
+  bios_cyl                526             0               65535           rw 
+  bios_head               255             0               255             rw 
+  bios_sect               63              0               63              rw 
+  breada_readahead        4               0               127             rw 
+  bswap                   0               0               1               r 
+  file_readahead          72              0               2097151         rw 
+  io_32bit                0               0               3               rw 
+  keepsettings            0               0               1               rw 
+  max_kb_per_request      122             1               127             rw 
+  multcount               0               0               8               rw 
+  nice1                   1               0               1               rw 
+  nowerr                  0               0               1               rw 
+  pio_mode                write-only      0               255             w 
+  slow                    0               0               1               rw 
+  unmaskirq               0               0               1               rw 
+  using_dma               0               0               1               rw 
+
+
+1.4 Networking info in /proc/net
+--------------------------------
+
+The subdirectory  /proc/net  follows  the  usual  pattern. Table 1-6 shows the
+additional values  you  get  for  IP  version 6 if you configure the kernel to
+support this. Table 1-7 lists the files and their meaning.
+
+
+Table 1-6: IPv6 info in /proc/net 
+..............................................................................
+ File       Content                                               
+ udp6       UDP sockets (IPv6)                                    
+ tcp6       TCP sockets (IPv6)                                    
+ raw6       Raw device statistics (IPv6)                          
+ igmp6      IP multicast addresses, which this host joined (IPv6) 
+ if_inet6   List of IPv6 interface addresses                      
+ ipv6_route Kernel routing table for IPv6                         
+ rt6_stats  Global IPv6 routing tables statistics                 
+ sockstat6  Socket statistics (IPv6)                              
+ snmp6      Snmp data (IPv6)                                      
+..............................................................................
+
+
+Table 1-7: Network info in /proc/net 
+..............................................................................
+ File          Content                                                         
+ arp           Kernel  ARP table                                               
+ dev           network devices with statistics                                 
+ dev_mcast     the Layer2 multicast groups a device is listening too
+               (interface index, label, number of references, number of bound
+               addresses). 
+ dev_stat      network device status                                           
+ ip_fwchains   Firewall chain linkage                                          
+ ip_fwnames    Firewall chain names                                            
+ ip_masq       Directory containing the masquerading tables                    
+ ip_masquerade Major masquerading table                                        
+ netstat       Network statistics                                              
+ raw           raw device statistics                                           
+ route         Kernel routing table                                            
+ rpc           Directory containing rpc info                                   
+ rt_cache      Routing cache                                                   
+ snmp          SNMP data                                                       
+ sockstat      Socket statistics                                               
+ tcp           TCP  sockets                                                    
+ tr_rif        Token ring RIF routing table                                    
+ udp           UDP sockets                                                     
+ unix          UNIX domain sockets                                             
+ wireless      Wireless interface data (Wavelan etc)                           
+ igmp          IP multicast addresses, which this host joined                  
+ psched        Global packet scheduler parameters.                             
+ netlink       List of PF_NETLINK sockets                                      
+ ip_mr_vifs    List of multicast virtual interfaces                            
+ ip_mr_cache   List of multicast routing cache                                 
+..............................................................................
+
+You can  use  this  information  to see which network devices are available in
+your system and how much traffic was routed over those devices:
+
+  > cat /proc/net/dev 
+  Inter-|Receive                                                   |[... 
+   face |bytes    packets errs drop fifo frame compressed multicast|[... 
+      lo:  908188   5596     0    0    0     0          0         0 [...         
+    ppp0:15475140  20721   410    0    0   410          0         0 [...  
+    eth0:  614530   7085     0    0    0     0          0         1 [... 
+   
+  ...] Transmit 
+  ...] bytes    packets errs drop fifo colls carrier compressed 
+  ...]  908188     5596    0    0    0     0       0          0 
+  ...] 1375103    17405    0    0    0     0       0          0 
+  ...] 1703981     5535    0    0    0     3       0          0 
+
+In addition, each Channel Bond interface has it's own directory.  For
+example, the bond0 device will have a directory called /proc/net/bond0/.
+It will contain information that is specific to that bond, such as the
+current slaves of the bond, the link status of the slaves, and how
+many times the slaves link has failed.
+
+1.5 SCSI info
+-------------
+
+If you  have  a  SCSI  host adapter in your system, you'll find a subdirectory
+named after  the driver for this adapter in /proc/scsi. You'll also see a list
+of all recognized SCSI devices in /proc/scsi:
+
+  >cat /proc/scsi/scsi 
+  Attached devices: 
+  Host: scsi0 Channel: 00 Id: 00 Lun: 00 
+    Vendor: IBM      Model: DGHS09U          Rev: 03E0 
+    Type:   Direct-Access                    ANSI SCSI revision: 03 
+  Host: scsi0 Channel: 00 Id: 06 Lun: 00 
+    Vendor: PIONEER  Model: CD-ROM DR-U06S   Rev: 1.04 
+    Type:   CD-ROM                           ANSI SCSI revision: 02 
+
+
+The directory  named  after  the driver has one file for each adapter found in
+the system.  These  files  contain information about the controller, including
+the used  IRQ  and  the  IO  address range. The amount of information shown is
+dependent on  the adapter you use. The example shows the output for an Adaptec
+AHA-2940 SCSI adapter:
+
+  > cat /proc/scsi/aic7xxx/0 
+   
+  Adaptec AIC7xxx driver version: 5.1.19/3.2.4 
+  Compile Options: 
+    TCQ Enabled By Default : Disabled 
+    AIC7XXX_PROC_STATS     : Disabled 
+    AIC7XXX_RESET_DELAY    : 5 
+  Adapter Configuration: 
+             SCSI Adapter: Adaptec AHA-294X Ultra SCSI host adapter 
+                             Ultra Wide Controller 
+      PCI MMAPed I/O Base: 0xeb001000 
+   Adapter SEEPROM Config: SEEPROM found and used. 
+        Adaptec SCSI BIOS: Enabled 
+                      IRQ: 10 
+                     SCBs: Active 0, Max Active 2, 
+                           Allocated 15, HW 16, Page 255 
+               Interrupts: 160328 
+        BIOS Control Word: 0x18b6 
+     Adapter Control Word: 0x005b 
+     Extended Translation: Enabled 
+  Disconnect Enable Flags: 0xffff 
+       Ultra Enable Flags: 0x0001 
+   Tag Queue Enable Flags: 0x0000 
+  Ordered Queue Tag Flags: 0x0000 
+  Default Tag Queue Depth: 8 
+      Tagged Queue By Device array for aic7xxx host instance 0: 
+        {255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255} 
+      Actual queue depth per device for aic7xxx host instance 0: 
+        {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1} 
+  Statistics: 
+  (scsi0:0:0:0) 
+    Device using Wide/Sync transfers at 40.0 MByte/sec, offset 8 
+    Transinfo settings: current(12/8/1/0), goal(12/8/1/0), user(12/15/1/0) 
+    Total transfers 160151 (74577 reads and 85574 writes) 
+  (scsi0:0:6:0) 
+    Device using Narrow/Sync transfers at 5.0 MByte/sec, offset 15 
+    Transinfo settings: current(50/15/0/0), goal(50/15/0/0), user(50/15/0/0) 
+    Total transfers 0 (0 reads and 0 writes) 
+
+
+1.6 Parallel port info in /proc/parport
+---------------------------------------
+
+The directory  /proc/parport  contains information about the parallel ports of
+your system.  It  has  one  subdirectory  for  each port, named after the port
+number (0,1,2,...).
+
+These directories contain the four files shown in Table 1-8.
+
+
+Table 1-8: Files in /proc/parport 
+..............................................................................
+ File      Content                                                             
+ autoprobe Any IEEE-1284 device ID information that has been acquired.         
+ devices   list of the device drivers using that port. A + will appear by the
+           name of the device currently using the port (it might not appear
+           against any). 
+ hardware  Parallel port's base address, IRQ line and DMA channel.             
+ irq       IRQ that parport is using for that port. This is in a separate
+           file to allow you to alter it by writing a new value in (IRQ
+           number or none). 
+..............................................................................
+
+1.7 TTY info in /proc/tty
+-------------------------
+
+Information about  the  available  and actually used tty's can be found in the
+directory /proc/tty.You'll  find  entries  for drivers and line disciplines in
+this directory, as shown in Table 1-9.
+
+
+Table 1-9: Files in /proc/tty 
+..............................................................................
+ File          Content                                        
+ drivers       list of drivers and their usage                
+ ldiscs        registered line disciplines                    
+ driver/serial usage statistic and status of single tty lines 
+..............................................................................
+
+To see  which  tty's  are  currently in use, you can simply look into the file
+/proc/tty/drivers:
+
+  > cat /proc/tty/drivers 
+  pty_slave            /dev/pts      136   0-255 pty:slave 
+  pty_master           /dev/ptm      128   0-255 pty:master 
+  pty_slave            /dev/ttyp       3   0-255 pty:slave 
+  pty_master           /dev/pty        2   0-255 pty:master 
+  serial               /dev/cua        5   64-67 serial:callout 
+  serial               /dev/ttyS       4   64-67 serial 
+  /dev/tty0            /dev/tty0       4       0 system:vtmaster 
+  /dev/ptmx            /dev/ptmx       5       2 system 
+  /dev/console         /dev/console    5       1 system:console 
+  /dev/tty             /dev/tty        5       0 system:/dev/tty 
+  unknown              /dev/tty        4    1-63 console 
+
+
+1.8 Miscellaneous kernel statistics in /proc/stat
+-------------------------------------------------
+
+Various pieces   of  information about  kernel activity  are  available in the
+/proc/stat file.  All  of  the numbers reported  in  this file are  aggregates
+since the system first booted.  For a quick look, simply cat the file:
+
+  > cat /proc/stat
+  cpu  2255 34 2290 22625563 6290 127 456
+  cpu0 1132 34 1441 11311718 3675 127 438
+  cpu1 1123 0 849 11313845 2614 0 18
+  intr 114930548 113199788 3 0 5 263 0 4 [... lots more numbers ...]
+  ctxt 1990473
+  btime 1062191376
+  processes 2915
+  procs_running 1
+  procs_blocked 0
+
+The very first  "cpu" line aggregates the  numbers in all  of the other "cpuN"
+lines.  These numbers identify the amount of time the CPU has spent performing
+different kinds of work.  Time units are in USER_HZ (typically hundredths of a
+second).  The meanings of the columns are as follows, from left to right:
+
+- user: normal processes executing in user mode
+- nice: niced processes executing in user mode
+- system: processes executing in kernel mode
+- idle: twiddling thumbs
+- iowait: waiting for I/O to complete
+- irq: servicing interrupts
+- softirq: servicing softirqs
+
+The "intr" line gives counts of interrupts  serviced since boot time, for each
+of the  possible system interrupts.   The first  column  is the  total of  all
+interrupts serviced; each  subsequent column is the  total for that particular
+interrupt.
+
+The "ctxt" line gives the total number of context switches across all CPUs.
+
+The "btime" line gives  the time at which the  system booted, in seconds since
+the Unix epoch.
+
+The "processes" line gives the number  of processes and threads created, which
+includes (but  is not limited  to) those  created by  calls to the  fork() and
+clone() system calls.
+
+The  "procs_running" line gives the  number of processes  currently running on
+CPUs.
+
+The   "procs_blocked" line gives  the  number of  processes currently blocked,
+waiting for I/O to complete.
+
+
+------------------------------------------------------------------------------
+Summary
+------------------------------------------------------------------------------
+The /proc file system serves information about the running system. It not only
+allows access to process data but also allows you to request the kernel status
+by reading files in the hierarchy.
+
+The directory  structure  of /proc reflects the types of information and makes
+it easy, if not obvious, where to look for specific data.
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+CHAPTER 2: MODIFYING SYSTEM PARAMETERS
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+In This Chapter
+------------------------------------------------------------------------------
+* Modifying kernel parameters by writing into files found in /proc/sys
+* Exploring the files which modify certain parameters
+* Review of the /proc/sys file tree
+------------------------------------------------------------------------------
+
+
+A very  interesting part of /proc is the directory /proc/sys. This is not only
+a source  of  information,  it also allows you to change parameters within the
+kernel. Be  very  careful  when attempting this. You can optimize your system,
+but you  can  also  cause  it  to  crash.  Never  alter kernel parameters on a
+production system.  Set  up  a  development machine and test to make sure that
+everything works  the  way  you want it to. You may have no alternative but to
+reboot the machine once an error has been made.
+
+To change  a  value,  simply  echo  the new value into the file. An example is
+given below  in the section on the file system data. You need to be root to do
+this. You  can  create  your  own  boot script to perform this every time your
+system boots.
+
+The files  in /proc/sys can be used to fine tune and monitor miscellaneous and
+general things  in  the operation of the Linux kernel. Since some of the files
+can inadvertently  disrupt  your  system,  it  is  advisable  to  read  both
+documentation and  source  before actually making adjustments. In any case, be
+very careful  when  writing  to  any  of these files. The entries in /proc may
+change slightly between the 2.1.* and the 2.2 kernel, so if there is any doubt
+review the kernel documentation in the directory /usr/src/linux/Documentation.
+This chapter  is  heavily  based  on the documentation included in the pre 2.2
+kernels, and became part of it in version 2.2.1 of the Linux kernel.
+
+2.1 /proc/sys/fs - File system data
+-----------------------------------
+
+This subdirectory  contains  specific  file system, file handle, inode, dentry
+and quota information.
+
+Currently, these files are in /proc/sys/fs:
+
+dentry-state
+------------
+
+Status of  the  directory  cache.  Since  directory  entries  are  dynamically
+allocated and  deallocated,  this  file indicates the current status. It holds
+six values, in which the last two are not used and are always zero. The others
+are listed in table 2-1.
+
+
+Table 2-1: Status files of the directory cache 
+..............................................................................
+ File       Content                                                            
+ nr_dentry  Almost always zero                                                 
+ nr_unused  Number of unused cache entries                                     
+ age_limit  
+            in seconds after the entry may be reclaimed, when memory is short 
+ want_pages internally                                                         
+..............................................................................
+
+dquot-nr and dquot-max
+----------------------
+
+The file dquot-max shows the maximum number of cached disk quota entries.
+
+The file  dquot-nr  shows  the  number of allocated disk quota entries and the
+number of free disk quota entries.
+
+If the number of available cached disk quotas is very low and you have a large
+number of simultaneous system users, you might want to raise the limit.
+
+file-nr and file-max
+--------------------
+
+The kernel  allocates file handles dynamically, but doesn't free them again at
+this time.
+
+The value  in  file-max  denotes  the  maximum number of file handles that the
+Linux kernel will allocate. When you get a lot of error messages about running
+out of  file handles, you might want to raise this limit. The default value is
+10% of  RAM in kilobytes.  To  change it, just  write the new number  into the
+file:
+
+  # cat /proc/sys/fs/file-max 
+  4096 
+  # echo 8192 > /proc/sys/fs/file-max 
+  # cat /proc/sys/fs/file-max 
+  8192 
+
+
+This method  of  revision  is  useful  for  all customizable parameters of the
+kernel - simply echo the new value to the corresponding file.
+
+Historically, the three values in file-nr denoted the number of allocated file
+handles,  the number of  allocated but  unused file  handles, and  the maximum
+number of file handles. Linux 2.6 always  reports 0 as the number of free file
+handles -- this  is not an error,  it just means that the  number of allocated
+file handles exactly matches the number of used file handles.
+
+Attempts to  allocate more  file descriptors than  file-max are  reported with
+printk, look for "VFS: file-max limit <number> reached".
+
+inode-state and inode-nr
+------------------------
+
+The file inode-nr contains the first two items from inode-state, so we'll skip
+to that file...
+
+inode-state contains  two  actual numbers and five dummy values. The numbers
+are nr_inodes and nr_free_inodes (in order of appearance).
+
+nr_inodes
+~~~~~~~~~
+
+Denotes the  number  of  inodes the system has allocated. This number will
+grow and shrink dynamically.
+
+nr_free_inodes
+--------------
+
+Represents the  number of free inodes. Ie. The number of inuse inodes is
+(nr_inodes - nr_free_inodes).
+
+super-nr and super-max
+----------------------
+
+Again, super  block structures are allocated by the kernel, but not freed. The
+file super-max  contains  the  maximum  number  of super block handlers, where
+super-nr shows the number of currently allocated ones.
+
+Every mounted file system needs a super block, so if you plan to mount lots of
+file systems, you may want to increase these numbers.
+
+aio-nr and aio-max-nr
+---------------------
+
+aio-nr is the running total of the number of events specified on the
+io_setup system call for all currently active aio contexts.  If aio-nr
+reaches aio-max-nr then io_setup will fail with EAGAIN.  Note that
+raising aio-max-nr does not result in the pre-allocation or re-sizing
+of any kernel data structures.
+
+2.2 /proc/sys/fs/binfmt_misc - Miscellaneous binary formats
+-----------------------------------------------------------
+
+Besides these  files, there is the subdirectory /proc/sys/fs/binfmt_misc. This
+handles the kernel support for miscellaneous binary formats.
+
+Binfmt_misc provides  the ability to register additional binary formats to the
+Kernel without  compiling  an additional module/kernel. Therefore, binfmt_misc
+needs to  know magic numbers at the beginning or the filename extension of the
+binary.
+
+It works by maintaining a linked list of structs that contain a description of
+a binary  format,  including  a  magic  with size (or the filename extension),
+offset and  mask,  and  the  interpreter name. On request it invokes the given
+interpreter with  the  original  program  as  argument,  as  binfmt_java  and
+binfmt_em86 and  binfmt_mz  do.  Since binfmt_misc does not define any default
+binary-formats, you have to register an additional binary-format.
+
+There are two general files in binfmt_misc and one file per registered format.
+The two general files are register and status.
+
+Registering a new binary format
+-------------------------------
+
+To register a new binary format you have to issue the command
+
+  echo :name:type:offset:magic:mask:interpreter: > /proc/sys/fs/binfmt_misc/register 
+
+
+
+with appropriate  name (the name for the /proc-dir entry), offset (defaults to
+0, if  omitted),  magic, mask (which can be omitted, defaults to all 0xff) and
+last but  not  least,  the  interpreter that is to be invoked (for example and
+testing /bin/echo).  Type  can be M for usual magic matching or E for filename
+extension matching (give extension in place of magic).
+
+Check or reset the status of the binary format handler
+------------------------------------------------------
+
+If you  do a cat on the file /proc/sys/fs/binfmt_misc/status, you will get the
+current status (enabled/disabled) of binfmt_misc. Change the status by echoing
+0 (disables)  or  1  (enables)  or  -1  (caution:  this  clears all previously
+registered binary  formats)  to status. For example echo 0 > status to disable
+binfmt_misc (temporarily).
+
+Status of a single handler
+--------------------------
+
+Each registered  handler has an entry in /proc/sys/fs/binfmt_misc. These files
+perform the  same function as status, but their scope is limited to the actual
+binary format.  By  cating this file, you also receive all related information
+about the interpreter/magic of the binfmt.
+
+Example usage of binfmt_misc (emulate binfmt_java)
+--------------------------------------------------
+
+  cd /proc/sys/fs/binfmt_misc  
+  echo ':Java:M::\xca\xfe\xba\xbe::/usr/local/java/bin/javawrapper:' > register  
+  echo ':HTML:E::html::/usr/local/java/bin/appletviewer:' > register  
+  echo ':Applet:M::<!--applet::/usr/local/java/bin/appletviewer:' > register 
+  echo ':DEXE:M::\x0eDEX::/usr/bin/dosexec:' > register 
+
+
+These four  lines  add  support  for  Java  executables and Java applets (like
+binfmt_java, additionally  recognizing the .html extension with no need to put
+<!--applet> to  every  applet  file).  You  have  to  install  the JDK and the
+shell-script /usr/local/java/bin/javawrapper  too.  It  works  around  the
+brokenness of  the Java filename handling. To add a Java binary, just create a
+link to the class-file somewhere in the path.
+
+2.3 /proc/sys/kernel - general kernel parameters
+------------------------------------------------
+
+This directory  reflects  general  kernel  behaviors. As I've said before, the
+contents depend  on  your  configuration.  Here you'll find the most important
+files, along with descriptions of what they mean and how to use them.
+
+acct
+----
+
+The file contains three values; highwater, lowwater, and frequency.
+
+It exists  only  when  BSD-style  process  accounting is enabled. These values
+control its behavior. If the free space on the file system where the log lives
+goes below  lowwater  percentage,  accounting  suspends.  If  it  goes  above
+highwater percentage,  accounting  resumes. Frequency determines how often you
+check the amount of free space (value is in seconds). Default settings are: 4,
+2, and  30.  That is, suspend accounting if there is less than 2 percent free;
+resume it  if we have a value of 3 or more percent; consider information about
+the amount of free space valid for 30 seconds
+
+ctrl-alt-del
+------------
+
+When the value in this file is 0, ctrl-alt-del is trapped and sent to the init
+program to  handle a graceful restart. However, when the value is greater that
+zero, Linux's  reaction  to  this key combination will be an immediate reboot,
+without syncing its dirty buffers.
+
+[NOTE]
+    When a  program  (like  dosemu)  has  the  keyboard  in  raw  mode,  the
+    ctrl-alt-del is  intercepted  by  the  program  before it ever reaches the
+    kernel tty  layer,  and  it is up to the program to decide what to do with
+    it.
+
+domainname and hostname
+-----------------------
+
+These files  can  be controlled to set the NIS domainname and hostname of your
+box. For the classic darkstar.frop.org a simple:
+
+  # echo "darkstar" > /proc/sys/kernel/hostname 
+  # echo "frop.org" > /proc/sys/kernel/domainname 
+
+
+would suffice to set your hostname and NIS domainname.
+
+osrelease, ostype and version
+-----------------------------
+
+The names make it pretty obvious what these fields contain:
+
+  > cat /proc/sys/kernel/osrelease 
+  2.2.12 
+   
+  > cat /proc/sys/kernel/ostype 
+  Linux 
+   
+  > cat /proc/sys/kernel/version 
+  #4 Fri Oct 1 12:41:14 PDT 1999 
+
+
+The files  osrelease and ostype should be clear enough. Version needs a little
+more clarification.  The  #4 means that this is the 4th kernel built from this
+source base and the date after it indicates the time the kernel was built. The
+only way to tune these values is to rebuild the kernel.
+
+panic
+-----
+
+The value  in  this  file  represents  the  number of seconds the kernel waits
+before rebooting  on  a  panic.  When  you  use  the  software  watchdog,  the
+recommended setting  is  60. If set to 0, the auto reboot after a kernel panic
+is disabled, which is the default setting.
+
+printk
+------
+
+The four values in printk denote
+* console_loglevel,
+* default_message_loglevel,
+* minimum_console_loglevel and
+* default_console_loglevel
+respectively.
+
+These values  influence  printk()  behavior  when  printing  or  logging error
+messages, which  come  from  inside  the  kernel.  See  syslog(2)  for  more
+information on the different log levels.
+
+console_loglevel
+----------------
+
+Messages with a higher priority than this will be printed to the console.
+
+default_message_level
+---------------------
+
+Messages without an explicit priority will be printed with this priority.
+
+minimum_console_loglevel
+------------------------
+
+Minimum (highest) value to which the console_loglevel can be set.
+
+default_console_loglevel
+------------------------
+
+Default value for console_loglevel.
+
+sg-big-buff
+-----------
+
+This file  shows  the size of the generic SCSI (sg) buffer. At this point, you
+can't tune  it  yet,  but  you  can  change  it  at  compile  time  by editing
+include/scsi/sg.h and changing the value of SG_BIG_BUFF.
+
+If you use a scanner with SANE (Scanner Access Now Easy) you might want to set
+this to a higher value. Refer to the SANE documentation on this issue.
+
+modprobe
+--------
+
+The location  where  the  modprobe  binary  is  located.  The kernel uses this
+program to load modules on demand.
+
+unknown_nmi_panic
+-----------------
+
+The value in this file affects behavior of handling NMI. When the value is
+non-zero, unknown NMI is trapped and then panic occurs. At that time, kernel
+debugging information is displayed on console.
+
+NMI switch that most IA32 servers have fires unknown NMI up, for example.
+If a system hangs up, try pressing the NMI switch.
+
+[NOTE]
+   This function and oprofile share a NMI callback. Therefore this function
+   cannot be enabled when oprofile is activated.
+   And NMI watchdog will be disabled when the value in this file is set to
+   non-zero.
+
+
+2.4 /proc/sys/vm - The virtual memory subsystem
+-----------------------------------------------
+
+The files  in  this directory can be used to tune the operation of the virtual
+memory (VM)  subsystem  of  the  Linux  kernel.
+
+vfs_cache_pressure
+------------------
+
+Controls the tendency of the kernel to reclaim the memory which is used for
+caching of directory and inode objects.
+
+At the default value of vfs_cache_pressure=100 the kernel will attempt to
+reclaim dentries and inodes at a "fair" rate with respect to pagecache and
+swapcache reclaim.  Decreasing vfs_cache_pressure causes the kernel to prefer
+to retain dentry and inode caches.  Increasing vfs_cache_pressure beyond 100
+causes the kernel to prefer to reclaim dentries and inodes.
+
+dirty_background_ratio
+----------------------
+
+Contains, as a percentage of total system memory, the number of pages at which
+the pdflush background writeback daemon will start writing out dirty data.
+
+dirty_ratio
+-----------------
+
+Contains, as a percentage of total system memory, the number of pages at which
+a process which is generating disk writes will itself start writing out dirty
+data.
+
+dirty_writeback_centisecs
+-------------------------
+
+The pdflush writeback daemons will periodically wake up and write `old' data
+out to disk.  This tunable expresses the interval between those wakeups, in
+100'ths of a second.
+
+Setting this to zero disables periodic writeback altogether.
+
+dirty_expire_centisecs
+----------------------
+
+This tunable is used to define when dirty data is old enough to be eligible
+for writeout by the pdflush daemons.  It is expressed in 100'ths of a second. 
+Data which has been dirty in-memory for longer than this interval will be
+written out next time a pdflush daemon wakes up.
+
+legacy_va_layout
+----------------
+
+If non-zero, this sysctl disables the new 32-bit mmap mmap layout - the kernel
+will use the legacy (2.4) layout for all processes.
+
+lower_zone_protection
+---------------------
+
+For some specialised workloads on highmem machines it is dangerous for
+the kernel to allow process memory to be allocated from the "lowmem"
+zone.  This is because that memory could then be pinned via the mlock()
+system call, or by unavailability of swapspace.
+
+And on large highmem machines this lack of reclaimable lowmem memory
+can be fatal.
+
+So the Linux page allocator has a mechanism which prevents allocations
+which _could_ use highmem from using too much lowmem.  This means that
+a certain amount of lowmem is defended from the possibility of being
+captured into pinned user memory.
+
+(The same argument applies to the old 16 megabyte ISA DMA region.  This
+mechanism will also defend that region from allocations which could use
+highmem or lowmem).
+
+The `lower_zone_protection' tunable determines how aggressive the kernel is
+in defending these lower zones.  The default value is zero - no
+protection at all.
+
+If you have a machine which uses highmem or ISA DMA and your
+applications are using mlock(), or if you are running with no swap then
+you probably should increase the lower_zone_protection setting.
+
+The units of this tunable are fairly vague.  It is approximately equal
+to "megabytes".  So setting lower_zone_protection=100 will protect around 100
+megabytes of the lowmem zone from user allocations.  It will also make
+those 100 megabytes unavaliable for use by applications and by
+pagecache, so there is a cost.
+
+The effects of this tunable may be observed by monitoring
+/proc/meminfo:LowFree.  Write a single huge file and observe the point
+at which LowFree ceases to fall.
+
+A reasonable value for lower_zone_protection is 100.
+
+page-cluster
+------------
+
+page-cluster controls the number of pages which are written to swap in
+a single attempt.  The swap I/O size.
+
+It is a logarithmic value - setting it to zero means "1 page", setting
+it to 1 means "2 pages", setting it to 2 means "4 pages", etc.
+
+The default value is three (eight pages at a time).  There may be some
+small benefits in tuning this to a different value if your workload is
+swap-intensive.
+
+overcommit_memory
+-----------------
+
+This file  contains  one  value.  The following algorithm is used to decide if
+there's enough  memory:  if  the  value of overcommit_memory is positive, then
+there's always  enough  memory. This is a useful feature, since programs often
+malloc() huge  amounts  of  memory 'just in case', while they only use a small
+part of  it.  Leaving  this value at 0 will lead to the failure of such a huge
+malloc(), when in fact the system has enough memory for the program to run.
+
+On the  other  hand,  enabling this feature can cause you to run out of memory
+and thrash the system to death, so large and/or important servers will want to
+set this value to 0.
+
+nr_hugepages and hugetlb_shm_group
+----------------------------------
+
+nr_hugepages configures number of hugetlb page reserved for the system.
+
+hugetlb_shm_group contains group id that is allowed to create SysV shared
+memory segment using hugetlb page.
+
+laptop_mode
+-----------
+
+laptop_mode is a knob that controls "laptop mode". All the things that are
+controlled by this knob are discussed in Documentation/laptop-mode.txt.
+
+block_dump
+----------
+
+block_dump enables block I/O debugging when set to a nonzero value. More
+information on block I/O debugging is in Documentation/laptop-mode.txt.
+
+swap_token_timeout
+------------------
+
+This file contains valid hold time of swap out protection token. The Linux
+VM has token based thrashing control mechanism and uses the token to prevent
+unnecessary page faults in thrashing situation. The unit of the value is
+second. The value would be useful to tune thrashing behavior.
+
+2.5 /proc/sys/dev - Device specific parameters
+----------------------------------------------
+
+Currently there is only support for CDROM drives, and for those, there is only
+one read-only  file containing information about the CD-ROM drives attached to
+the system:
+
+  >cat /proc/sys/dev/cdrom/info 
+  CD-ROM information, Id: cdrom.c 2.55 1999/04/25 
+   
+  drive name:             sr0     hdb 
+  drive speed:            32      40 
+  drive # of slots:       1       0 
+  Can close tray:         1       1 
+  Can open tray:          1       1 
+  Can lock tray:          1       1 
+  Can change speed:       1       1 
+  Can select disk:        0       1 
+  Can read multisession:  1       1 
+  Can read MCN:           1       1 
+  Reports media changed:  1       1 
+  Can play audio:         1       1 
+
+
+You see two drives, sr0 and hdb, along with a list of their features.
+
+2.6 /proc/sys/sunrpc - Remote procedure calls
+---------------------------------------------
+
+This directory  contains four files, which enable or disable debugging for the
+RPC functions NFS, NFS-daemon, RPC and NLM. The default values are 0. They can
+be set to one to turn debugging on. (The default value is 0 for each)
+
+2.7 /proc/sys/net - Networking stuff
+------------------------------------
+
+The interface  to  the  networking  parts  of  the  kernel  is  located  in
+/proc/sys/net. Table  2-3  shows all possible subdirectories. You may see only
+some of them, depending on your kernel's configuration.
+
+
+Table 2-3: Subdirectories in /proc/sys/net 
+..............................................................................
+ Directory Content             Directory  Content            
+ core      General parameter   appletalk  Appletalk protocol 
+ unix      Unix domain sockets netrom     NET/ROM            
+ 802       E802 protocol       ax25       AX25               
+ ethernet  Ethernet protocol   rose       X.25 PLP layer     
+ ipv4      IP version 4        x25        X.25 protocol      
+ ipx       IPX                 token-ring IBM token ring     
+ bridge    Bridging            decnet     DEC net            
+ ipv6      IP version 6                   
+..............................................................................
+
+We will  concentrate  on IP networking here. Since AX15, X.25, and DEC Net are
+only minor players in the Linux world, we'll skip them in this chapter. You'll
+find some  short  info on Appletalk and IPX further on in this chapter. Review
+the online  documentation  and the kernel source to get a detailed view of the
+parameters for  those  protocols.  In  this  section  we'll  discuss  the
+subdirectories printed  in  bold letters in the table above. As default values
+are suitable for most needs, there is no need to change these values.
+
+/proc/sys/net/core - Network core options
+-----------------------------------------
+
+rmem_default
+------------
+
+The default setting of the socket receive buffer in bytes.
+
+rmem_max
+--------
+
+The maximum receive socket buffer size in bytes.
+
+wmem_default
+------------
+
+The default setting (in bytes) of the socket send buffer.
+
+wmem_max
+--------
+
+The maximum send socket buffer size in bytes.
+
+message_burst and message_cost
+------------------------------
+
+These parameters  are used to limit the warning messages written to the kernel
+log from  the  networking  code.  They  enforce  a  rate  limit  to  make  a
+denial-of-service attack  impossible. A higher message_cost factor, results in
+fewer messages that will be written. Message_burst controls when messages will
+be dropped.  The  default  settings  limit  warning messages to one every five
+seconds.
+
+netdev_max_backlog
+------------------
+
+Maximum number  of  packets,  queued  on  the  INPUT  side, when the interface
+receives packets faster than kernel can process them.
+
+optmem_max
+----------
+
+Maximum ancillary buffer size allowed per socket. Ancillary data is a sequence
+of struct cmsghdr structures with appended data.
+
+/proc/sys/net/unix - Parameters for Unix domain sockets
+-------------------------------------------------------
+
+There are  only  two  files  in this subdirectory. They control the delays for
+deleting and destroying socket descriptors.
+
+2.8 /proc/sys/net/ipv4 - IPV4 settings
+--------------------------------------
+
+IP version  4  is  still the most used protocol in Unix networking. It will be
+replaced by  IP version 6 in the next couple of years, but for the moment it's
+the de  facto  standard  for  the  internet  and  is  used  in most networking
+environments around  the  world.  Because  of the importance of this protocol,
+we'll have a deeper look into the subtree controlling the behavior of the IPv4
+subsystem of the Linux kernel.
+
+Let's start with the entries in /proc/sys/net/ipv4.
+
+ICMP settings
+-------------
+
+icmp_echo_ignore_all and icmp_echo_ignore_broadcasts
+----------------------------------------------------
+
+Turn on (1) or off (0), if the kernel should ignore all ICMP ECHO requests, or
+just those to broadcast and multicast addresses.
+
+Please note that if you accept ICMP echo requests with a broadcast/multi\-cast
+destination address  your  network  may  be  used as an exploder for denial of
+service packet flooding attacks to other hosts.
+
+icmp_destunreach_rate, icmp_echoreply_rate, icmp_paramprob_rate and icmp_timeexeed_rate
+---------------------------------------------------------------------------------------
+
+Sets limits  for  sending  ICMP  packets  to specific targets. A value of zero
+disables all  limiting.  Any  positive  value sets the maximum package rate in
+hundredth of a second (on Intel systems).
+
+IP settings
+-----------
+
+ip_autoconfig
+-------------
+
+This file contains the number one if the host received its IP configuration by
+RARP, BOOTP, DHCP or a similar mechanism. Otherwise it is zero.
+
+ip_default_ttl
+--------------
+
+TTL (Time  To  Live) for IPv4 interfaces. This is simply the maximum number of
+hops a packet may travel.
+
+ip_dynaddr
+----------
+
+Enable dynamic  socket  address rewriting on interface address change. This is
+useful for dialup interface with changing IP addresses.
+
+ip_forward
+----------
+
+Enable or  disable forwarding of IP packages between interfaces. Changing this
+value resets  all other parameters to their default values. They differ if the
+kernel is configured as host or router.
+
+ip_local_port_range
+-------------------
+
+Range of  ports  used  by  TCP  and UDP to choose the local port. Contains two
+numbers, the  first  number  is the lowest port, the second number the highest
+local port.  Default  is  1024-4999.  Should  be  changed  to  32768-61000 for
+high-usage systems.
+
+ip_no_pmtu_disc
+---------------
+
+Global switch  to  turn  path  MTU  discovery off. It can also be set on a per
+socket basis by the applications or on a per route basis.
+
+ip_masq_debug
+-------------
+
+Enable/disable debugging of IP masquerading.
+
+IP fragmentation settings
+-------------------------
+
+ipfrag_high_trash and ipfrag_low_trash
+--------------------------------------
+
+Maximum memory  used to reassemble IP fragments. When ipfrag_high_thresh bytes
+of memory  is  allocated  for  this  purpose,  the  fragment handler will toss
+packets until ipfrag_low_thresh is reached.
+
+ipfrag_time
+-----------
+
+Time in seconds to keep an IP fragment in memory.
+
+TCP settings
+------------
+
+tcp_ecn
+-------
+
+This file controls the use of the ECN bit in the IPv4 headers, this is a new
+feature about Explicit Congestion Notification, but some routers and firewalls
+block trafic that has this bit set, so it could be necessary to echo 0 to
+/proc/sys/net/ipv4/tcp_ecn, if you want to talk to this sites. For more info
+you could read RFC2481.
+
+tcp_retrans_collapse
+--------------------
+
+Bug-to-bug compatibility with some broken printers. On retransmit, try to send
+larger packets to work around bugs in certain TCP stacks. Can be turned off by
+setting it to zero.
+
+tcp_keepalive_probes
+--------------------
+
+Number of  keep  alive  probes  TCP  sends  out,  until  it  decides  that the
+connection is broken.
+
+tcp_keepalive_time
+------------------
+
+How often  TCP  sends out keep alive messages, when keep alive is enabled. The
+default is 2 hours.
+
+tcp_syn_retries
+---------------
+
+Number of  times  initial  SYNs  for  a  TCP  connection  attempt  will  be
+retransmitted. Should  not  be  higher  than 255. This is only the timeout for
+outgoing connections,  for  incoming  connections the number of retransmits is
+defined by tcp_retries1.
+
+tcp_sack
+--------
+
+Enable select acknowledgments after RFC2018.
+
+tcp_timestamps
+--------------
+
+Enable timestamps as defined in RFC1323.
+
+tcp_stdurg
+----------
+
+Enable the  strict  RFC793 interpretation of the TCP urgent pointer field. The
+default is  to  use  the  BSD  compatible interpretation of the urgent pointer
+pointing to the first byte after the urgent data. The RFC793 interpretation is
+to have  it  point  to  the last byte of urgent data. Enabling this option may
+lead to interoperatibility problems. Disabled by default.
+
+tcp_syncookies
+--------------
+
+Only valid  when  the  kernel  was  compiled  with CONFIG_SYNCOOKIES. Send out
+syncookies when  the  syn backlog queue of a socket overflows. This is to ward
+off the common 'syn flood attack'. Disabled by default.
+
+Note that  the  concept  of a socket backlog is abandoned. This means the peer
+may not  receive  reliable  error  messages  from  an  over loaded server with
+syncookies enabled.
+
+tcp_window_scaling
+------------------
+
+Enable window scaling as defined in RFC1323.
+
+tcp_fin_timeout
+---------------
+
+The length  of  time  in  seconds  it  takes to receive a final FIN before the
+socket is  always  closed.  This  is  strictly  a  violation  of  the  TCP
+specification, but required to prevent denial-of-service attacks.
+
+tcp_max_ka_probes
+-----------------
+
+Indicates how  many  keep alive probes are sent per slow timer run. Should not
+be set too high to prevent bursts.
+
+tcp_max_syn_backlog
+-------------------
+
+Length of  the per socket backlog queue. Since Linux 2.2 the backlog specified
+in listen(2)  only  specifies  the  length  of  the  backlog  queue of already
+established sockets. When more connection requests arrive Linux starts to drop
+packets. When  syncookies  are  enabled the packets are still answered and the
+maximum queue is effectively ignored.
+
+tcp_retries1
+------------
+
+Defines how  often  an  answer  to  a  TCP connection request is retransmitted
+before giving up.
+
+tcp_retries2
+------------
+
+Defines how often a TCP packet is retransmitted before giving up.
+
+Interface specific settings
+---------------------------
+
+In the directory /proc/sys/net/ipv4/conf you'll find one subdirectory for each
+interface the  system  knows about and one directory calls all. Changes in the
+all subdirectory  affect  all  interfaces,  whereas  changes  in  the  other
+subdirectories affect  only  one  interface.  All  directories  have  the same
+entries:
+
+accept_redirects
+----------------
+
+This switch  decides  if the kernel accepts ICMP redirect messages or not. The
+default is 'yes' if the kernel is configured for a regular host and 'no' for a
+router configuration.
+
+accept_source_route
+-------------------
+
+Should source  routed  packages  be  accepted  or  declined.  The  default  is
+dependent on  the  kernel  configuration.  It's 'yes' for routers and 'no' for
+hosts.
+
+bootp_relay
+~~~~~~~~~~~
+
+Accept packets  with source address 0.b.c.d with destinations not to this host
+as local ones. It is supposed that a BOOTP relay daemon will catch and forward
+such packets.
+
+The default  is  0,  since this feature is not implemented yet (kernel version
+2.2.12).
+
+forwarding
+----------
+
+Enable or disable IP forwarding on this interface.
+
+log_martians
+------------
+
+Log packets with source addresses with no known route to kernel log.
+
+mc_forwarding
+-------------
+
+Do multicast routing. The kernel needs to be compiled with CONFIG_MROUTE and a
+multicast routing daemon is required.
+
+proxy_arp
+---------
+
+Does (1) or does not (0) perform proxy ARP.
+
+rp_filter
+---------
+
+Integer value determines if a source validation should be made. 1 means yes, 0
+means no.  Disabled by default, but local/broadcast address spoofing is always
+on.
+
+If you  set this to 1 on a router that is the only connection for a network to
+the net,  it  will  prevent  spoofing  attacks  against your internal networks
+(external addresses  can  still  be  spoofed), without the need for additional
+firewall rules.
+
+secure_redirects
+----------------
+
+Accept ICMP  redirect  messages  only  for gateways, listed in default gateway
+list. Enabled by default.
+
+shared_media
+------------
+
+If it  is  not  set  the kernel does not assume that different subnets on this
+device can communicate directly. Default setting is 'yes'.
+
+send_redirects
+--------------
+
+Determines whether to send ICMP redirects to other hosts.
+
+Routing settings
+----------------
+
+The directory  /proc/sys/net/ipv4/route  contains  several  file  to  control
+routing issues.
+
+error_burst and error_cost
+--------------------------
+
+These  parameters  are used to limit how many ICMP destination unreachable to 
+send  from  the  host  in question. ICMP destination unreachable messages are 
+sent  when  we can not reach the next hop, while trying to transmit a packet. 
+It  will also print some error messages to kernel logs if someone is ignoring 
+our   ICMP  redirects.  The  higher  the  error_cost  factor  is,  the  fewer 
+destination  unreachable  and error messages will be let through. Error_burst 
+controls  when  destination  unreachable  messages and error messages will be
+dropped. The default settings limit warning messages to five every second.
+
+flush
+-----
+
+Writing to this file results in a flush of the routing cache.
+
+gc_elasticity, gc_interval, gc_min_interval_ms, gc_timeout, gc_thresh
+---------------------------------------------------------------------
+
+Values to  control  the  frequency  and  behavior  of  the  garbage collection
+algorithm for the routing cache. gc_min_interval is deprecated and replaced
+by gc_min_interval_ms.
+
+
+max_size
+--------
+
+Maximum size  of  the routing cache. Old entries will be purged once the cache
+reached has this size.
+
+max_delay, min_delay
+--------------------
+
+Delays for flushing the routing cache.
+
+redirect_load, redirect_number
+------------------------------
+
+Factors which  determine  if  more ICPM redirects should be sent to a specific
+host. No  redirects  will be sent once the load limit or the maximum number of
+redirects has been reached.
+
+redirect_silence
+----------------
+
+Timeout for redirects. After this period redirects will be sent again, even if
+this has been stopped, because the load or number limit has been reached.
+
+Network Neighbor handling
+-------------------------
+
+Settings about how to handle connections with direct neighbors (nodes attached
+to the same link) can be found in the directory /proc/sys/net/ipv4/neigh.
+
+As we  saw  it  in  the  conf directory, there is a default subdirectory which
+holds the  default  values, and one directory for each interface. The contents
+of the  directories  are identical, with the single exception that the default
+settings contain additional options to set garbage collection parameters.
+
+In the interface directories you'll find the following entries:
+
+base_reachable_time, base_reachable_time_ms
+-------------------------------------------
+
+A base  value  used for computing the random reachable time value as specified
+in RFC2461.
+
+Expression of base_reachable_time, which is deprecated, is in seconds.
+Expression of base_reachable_time_ms is in milliseconds.
+
+retrans_time, retrans_time_ms
+-----------------------------
+
+The time between retransmitted Neighbor Solicitation messages.
+Used for address resolution and to determine if a neighbor is
+unreachable.
+
+Expression of retrans_time, which is deprecated, is in 1/100 seconds (for
+IPv4) or in jiffies (for IPv6).
+Expression of retrans_time_ms is in milliseconds.
+
+unres_qlen
+----------
+
+Maximum queue  length  for a pending arp request - the number of packets which
+are accepted from other layers while the ARP address is still resolved.
+
+anycast_delay
+-------------
+
+Maximum for  random  delay  of  answers  to  neighbor solicitation messages in
+jiffies (1/100  sec). Not yet implemented (Linux does not have anycast support
+yet).
+
+ucast_solicit
+-------------
+
+Maximum number of retries for unicast solicitation.
+
+mcast_solicit
+-------------
+
+Maximum number of retries for multicast solicitation.
+
+delay_first_probe_time
+----------------------
+
+Delay for  the  first  time  probe  if  the  neighbor  is  reachable.  (see
+gc_stale_time)
+
+locktime
+--------
+
+An ARP/neighbor  entry  is only replaced with a new one if the old is at least
+locktime old. This prevents ARP cache thrashing.
+
+proxy_delay
+-----------
+
+Maximum time  (real  time is random [0..proxytime]) before answering to an ARP
+request for  which  we have an proxy ARP entry. In some cases, this is used to
+prevent network flooding.
+
+proxy_qlen
+----------
+
+Maximum queue length of the delayed proxy arp timer. (see proxy_delay).
+
+app_solcit
+----------
+
+Determines the  number of requests to send to the user level ARP daemon. Use 0
+to turn off.
+
+gc_stale_time
+-------------
+
+Determines how  often  to  check  for stale ARP entries. After an ARP entry is
+stale it  will  be resolved again (which is useful when an IP address migrates
+to another  machine).  When  ucast_solicit is greater than 0 it first tries to
+send an  ARP  packet  directly  to  the  known  host  When  that  fails  and
+mcast_solicit is greater than 0, an ARP request is broadcasted.
+
+2.9 Appletalk
+-------------
+
+The /proc/sys/net/appletalk  directory  holds the Appletalk configuration data
+when Appletalk is loaded. The configurable parameters are:
+
+aarp-expiry-time
+----------------
+
+The amount  of  time  we keep an ARP entry before expiring it. Used to age out
+old hosts.
+
+aarp-resolve-time
+-----------------
+
+The amount of time we will spend trying to resolve an Appletalk address.
+
+aarp-retransmit-limit
+---------------------
+
+The number of times we will retransmit a query before giving up.
+
+aarp-tick-time
+--------------
+
+Controls the rate at which expires are checked.
+
+The directory  /proc/net/appletalk  holds the list of active Appletalk sockets
+on a machine.
+
+The fields  indicate  the DDP type, the local address (in network:node format)
+the remote  address,  the  size of the transmit pending queue, the size of the
+received queue  (bytes waiting for applications to read) the state and the uid
+owning the socket.
+
+/proc/net/atalk_iface lists  all  the  interfaces  configured for appletalk.It
+shows the  name  of the interface, its Appletalk address, the network range on
+that address  (or  network number for phase 1 networks), and the status of the
+interface.
+
+/proc/net/atalk_route lists  each  known  network  route.  It lists the target
+(network) that the route leads to, the router (may be directly connected), the
+route flags, and the device the route is using.
+
+2.10 IPX
+--------
+
+The IPX protocol has no tunable values in proc/sys/net.
+
+The IPX  protocol  does,  however,  provide  proc/net/ipx. This lists each IPX
+socket giving  the  local  and  remote  addresses  in  Novell  format (that is
+network:node:port). In  accordance  with  the  strange  Novell  tradition,
+everything but the port is in hex. Not_Connected is displayed for sockets that
+are not  tied to a specific remote address. The Tx and Rx queue sizes indicate
+the number  of  bytes  pending  for  transmission  and  reception.  The  state
+indicates the  state  the  socket  is  in and the uid is the owning uid of the
+socket.
+
+The /proc/net/ipx_interface  file lists all IPX interfaces. For each interface
+it gives  the network number, the node number, and indicates if the network is
+the primary  network.  It  also  indicates  which  device  it  is bound to (or
+Internal for  internal  networks)  and  the  Frame  Type if appropriate. Linux
+supports 802.3,  802.2,  802.2  SNAP  and DIX (Blue Book) ethernet framing for
+IPX.
+
+The /proc/net/ipx_route  table  holds  a list of IPX routes. For each route it
+gives the  destination  network, the router node (or Directly) and the network
+address of the router (or Connected) for internal networks.
+
+2.11 /proc/sys/fs/mqueue - POSIX message queues filesystem
+----------------------------------------------------------
+
+The "mqueue"  filesystem provides  the necessary kernel features to enable the
+creation of a  user space  library that  implements  the  POSIX message queues
+API (as noted by the  MSG tag in the  POSIX 1003.1-2001 version  of the System
+Interfaces specification.)
+
+The "mqueue" filesystem contains values for determining/setting  the amount of
+resources used by the file system.
+
+/proc/sys/fs/mqueue/queues_max is a read/write  file for  setting/getting  the
+maximum number of message queues allowed on the system.
+
+/proc/sys/fs/mqueue/msg_max  is  a  read/write file  for  setting/getting  the
+maximum number of messages in a queue value.  In fact it is the limiting value
+for another (user) limit which is set in mq_open invocation. This attribute of
+a queue must be less or equal then msg_max.
+
+/proc/sys/fs/mqueue/msgsize_max is  a read/write  file for setting/getting the
+maximum  message size value (it is every  message queue's attribute set during
+its creation).
+
+
+------------------------------------------------------------------------------
+Summary
+------------------------------------------------------------------------------
+Certain aspects  of  kernel  behavior  can be modified at runtime, without the
+need to  recompile  the kernel, or even to reboot the system. The files in the
+/proc/sys tree  can  not only be read, but also modified. You can use the echo
+command to write value into these files, thereby changing the default settings
+of the kernel.
+------------------------------------------------------------------------------

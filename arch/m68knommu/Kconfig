@@ -1,0 +1,581 @@
+#
+# For a description of the syntax of this configuration file,
+# see Documentation/kbuild/kconfig-language.txt.
+#
+
+mainmenu "uClinux/68k (w/o MMU) Kernel Configuration"
+
+config M68KNOMMU
+	bool
+	default y
+
+config MMU
+	bool
+	default n
+
+config FPU
+	bool
+	default n
+
+config UID16
+	bool
+	default y
+
+config RWSEM_GENERIC_SPINLOCK
+	bool
+	default y
+
+config RWSEM_XCHGADD_ALGORITHM
+	bool
+	default n
+
+config GENERIC_CALIBRATE_DELAY
+	bool
+	default y
+
+source "init/Kconfig"
+
+menu "Processor type and features"
+
+choice
+	prompt "CPU"
+	default M68EZ328
+
+config M68328
+	bool "MC68328"
+	help
+	  Motorola 68328 processor support.
+
+config M68EZ328
+	bool "MC68EZ328"
+	help
+	  Motorola 68EX328 processor support.
+
+config M68VZ328
+	bool "MC68VZ328"
+	help
+	  Motorola 68VZ328 processor support.
+
+config M68360
+	bool "MC68360"
+	help
+	  Motorola 68360 processor support.
+
+config M5206
+	bool "MCF5206"
+	help
+	  Motorola ColdFire 5206 processor support.
+
+config M5206e
+	bool "MCF5206e"
+	help
+	  Motorola ColdFire 5206e processor support.
+
+config M5249
+	bool "MCF5249"
+	help
+	  Motorola ColdFire 5249 processor support.
+
+config M527x
+	bool "MCF527x"
+	help
+	  Freescale (Motorola) ColdFire 5270/5271/5274/5275 processor support.
+
+config M5272
+	bool "MCF5272"
+	help
+	  Motorola ColdFire 5272 processor support.
+
+config M528x
+	bool "MCF528x"
+	help
+	  Motorola ColdFire 5280/5282 processor support.
+
+config M5307
+	bool "MCF5307"
+	help
+	  Motorola ColdFire 5307 processor support.
+
+config M5407
+	bool "MCF5407"
+	help
+	  Motorola ColdFire 5407 processor support.
+
+endchoice
+
+config COLDFIRE
+	bool
+	depends on (M5206 || M5206e || M5249 || M527x || M5272 || M528x || M5307 || M5407)
+	default y
+
+choice
+	prompt "CPU CLOCK Frequency"
+	default AUTO
+
+config CLOCK_AUTO
+	bool "AUTO"
+	---help---
+	  Define the CPU clock frequency in use. On many boards you don't
+	  really need to know, so you can select the AUTO option. On some
+	  boards you need to know the real clock frequency to determine other
+	  system timing (for example baud rate dividors, etc). Some processors
+	  have an internal PLL and you can select a frequency to run at.
+	  You need to know a little about the internals of your processor to
+	  set this. If in doubt choose the AUTO option.
+
+config CLOCK_11MHz
+	bool "11MHz"
+	help
+	  Select a 11MHz CPU clock frequency.
+
+config CLOCK_16MHz
+	bool "16MHz"
+	help
+	  Select a 16MHz CPU clock frequency.
+
+config CLOCK_20MHz
+	bool "20MHz"
+	help
+	  Select a 20MHz CPU clock frequency.
+
+config CLOCK_24MHz
+	bool "24MHz"
+	help
+	  Select a 24MHz CPU clock frequency.
+
+config CLOCK_25MHz
+	bool "25MHz"
+	help
+	  Select a 25MHz CPU clock frequency.
+
+config CLOCK_33MHz
+	bool "33MHz"
+	help
+	  Select a 33MHz CPU clock frequency.
+
+config CLOCK_40MHz
+	bool "40MHz"
+	help
+	  Select a 40MHz CPU clock frequency.
+
+config CLOCK_45MHz
+	bool "45MHz"
+	help
+	  Select a 45MHz CPU clock frequency.
+
+config CLOCK_48MHz
+	bool "48MHz"
+	help
+	  Select a 48MHz CPU clock frequency.
+
+config CLOCK_50MHz
+	bool "50MHz"
+	help
+	  Select a 50MHz CPU clock frequency.
+
+config CLOCK_54MHz
+	bool "54MHz"
+	help
+	  Select a 54MHz CPU clock frequency.
+
+config CLOCK_60MHz
+	bool "60MHz"
+	help
+	  Select a 60MHz CPU clock frequency.
+
+config CLOCK_64MHz
+	bool "64MHz"
+	help
+	  Select a 64MHz CPU clock frequency.
+
+config CLOCK_66MHz
+	bool "66MHz"
+	help
+	  Select a 66MHz CPU clock frequency.
+
+config CLOCK_70MHz
+	bool "70MHz"
+	help
+	  Select a 70MHz CPU clock frequency.
+
+config CLOCK_100MHz
+	bool "100MHz"
+	help
+	  Select a 100MHz CPU clock frequency.
+
+config CLOCK_140MHz
+	bool "140MHz"
+	help
+	  Select a 140MHz CPU clock frequency.
+
+config CLOCK_150MHz
+	bool "150MHz"
+	help
+	  Select a 150MHz CPU clock frequency.
+
+config CLOCK_166MHz
+	bool "166MHz"
+	help
+	  Select a 166MHz CPU clock frequency.
+
+endchoice
+
+config OLDMASK
+	bool "Old mask 5307 (1H55J) silicon"
+	depends on M5307
+	help
+	  Build support for the older revision ColdFire 5307 silicon.
+	  Specifically this is the 1H55J mask revision.
+
+comment "Platform"
+
+config PILOT3
+	bool "Pilot 1000/5000, PalmPilot Personal/Pro, or PalmIII support"
+	depends on M68328
+	help
+	  Support for the Palm Pilot 1000/5000, Personal/Pro and PalmIII.
+
+config XCOPILOT_BUGS
+	bool "  (X)Copilot support"
+	depends on PILOT3
+	help
+	  Support the bugs of Xcopilot.
+
+config UCSIMM
+	bool "uCsimm module support"
+	depends on M68EZ328
+	help
+	  Support for the Arcturus Networks uCsimm module.
+
+config UCDIMM
+	bool "uDsimm module support"
+	depends on M68VZ328
+	help
+	  Support for the Arcturus Networks uDsimm module.
+
+config DRAGEN2
+	bool "DragenEngine II board support"
+	depends on M68VZ328
+	help
+	  Support for the DragenEngine II board.
+
+config DIRECT_IO_ACCESS
+	bool "  Allow user to access IO directly"
+	depends on (UCSIMM || UCDIMM || DRAGEN2)
+	help
+	  Disable the CPU internal registers protection in user mode,
+          to allow a user application to read/write them.
+
+config INIT_LCD
+	bool "  Initialize LCD"
+	depends on (UCSIMM || UCDIMM || DRAGEN2)
+	help
+	  Initialize the LCD controller of the 68x328 processor.
+
+config MEMORY_RESERVE
+	int "  Memory reservation (MiB)"
+	depends on (UCSIMM || UCDIMM)
+	help
+	  Reserve certain memory regions on 68x328 based boards.
+
+config UCQUICC
+	bool "Lineo uCquicc board support"
+	depends on M68360
+	help
+	  Support for the Lineo uCquicc board.
+
+config ARN5206
+	bool "Arnewsh 5206 board support"
+	depends on M5206
+	help
+	  Support for the Arnewsh 5206 board.
+
+config M5206eC3
+	bool "Motorola M5206eC3 board support"
+	depends on M5206e
+	help
+	  Support for the Motorola M5206eC3 board.
+
+config ELITE
+	bool "Motorola M5206eLITE board support"
+	depends on M5206e
+	help
+	  Support for the Motorola M5206eLITE board.
+
+config M5249C3
+	bool "Motorola M5249C3 board support"
+	depends on M5249
+	help
+	  Support for the Motorola M5249C3 board.
+
+config M5271EVB
+	bool "Freescale (Motorola) M5271EVB board support"
+	depends on M527x
+	help
+	  Support for the Freescale (Motorola) M5271EVB board.
+
+config M5275EVB
+	bool "Freescale (Motorola) M5275EVB board support"
+	depends on M527x
+	help
+	  Support for the Freescale (Motorola) M5275EVB board.
+
+config M5272C3
+	bool "Motorola M5272C3 board support"
+	depends on M5272
+	help
+	  Support for the Motorola M5272C3 board.
+
+config COBRA5272
+	bool "senTec COBRA5272 board support"
+	depends on M5272
+	help
+	  Support for the senTec COBRA5272 board.
+
+config M5282EVB
+	bool "Motorola M5282EVB board support"
+	depends on M528x
+	help
+	  Support for the Motorola M5282EVB board.
+
+config COBRA5282
+	bool "senTec COBRA5282 board support"
+	depends on M528x
+	help
+	  Support for the senTec COBRA5282 board.
+
+config ARN5307
+	bool "Arnewsh 5307 board support"
+	depends on M5307
+	help
+	  Support for the Arnewsh 5307 board.
+
+config M5307C3
+	bool "Motorola M5307C3 board support"
+	depends on M5307
+	help
+	  Support for the Motorola M5307C3 board.
+
+config eLIA
+	bool "Moreton Bay eLIA board support"
+	depends on M5307
+	help
+	  Support for the Moreton Bay eLIA board.
+
+config SECUREEDGEMP3
+	bool "SnapGear SecureEdge/MP3 platform support"
+	depends on M5307
+	help
+	  Support for the SnapGear SecureEdge/MP3 platform.
+
+config M5407C3
+	bool "Motorola M5407C3 board support"
+	depends on M5407
+	help
+	  Support for the Motorola M5407C3 board.
+
+config CLEOPATRA
+	bool "Feith CLEOPATRA board support"
+	depends on (M5307 || M5407)
+	help
+	  Support for the Feith Cleopatra boards.
+
+config CANCam
+	bool "Feith CANCam board support"
+	depends on M5272
+	help
+	  Support for the Feith CANCam board.
+
+config SCALES
+	bool "Feith SCALES board support"
+	depends on M5272
+	help
+	  Support for the Feith SCALES board.
+
+config NETtel
+	bool "SecureEdge/NETtel board support"
+	depends on (M5206e || M5272 || M5307)
+	help
+	  Support for the SnapGear NETtel/SecureEdge/SnapGear boards.
+
+config SNAPGEAR
+	bool "SnapGear router board support"
+	depends on NETtel
+	help
+	  Special additional support for SnapGear router boards.
+
+config CPU16B
+	bool "Sneha Technologies S.L. Sarasvati board support"
+	depends on M5272
+	help
+	  Support for the SNEHA CPU16B board.
+
+config ROMFS_FROM_ROM
+	bool "  ROMFS image not RAM resident"
+	depends on (NETtel || SNAPGEAR)
+	help
+	  The ROMfs filesystem will stay resident in the FLASH/ROM, not be
+	  moved into RAM.
+
+config PILOT
+	bool
+	default y
+	depends on (PILOT3 || PILOT5)
+
+config ARNEWSH
+	bool
+	default y
+	depends on (ARN5206 || ARN5307)
+
+config MOTOROLA
+	bool
+	default y
+	depends on (M5206eC3 || M5249C3 || M5271EVB || M5272C3 || M5275EVB || M5282EVB || M5307C3 || M5407C3)
+
+config HW_FEITH
+	bool
+	default y
+	depends on (CLEOPATRA || CANCam || SCALES)
+
+config senTec
+	bool
+	default y
+	depends on (COBRA5272 || COBRA5282)
+
+config SNEHA
+        bool
+	default y
+	depends on CPU16B
+
+config LARGE_ALLOCS
+	bool "Allow allocating large blocks (> 1MB) of memory"
+	help
+	  Allow the slab memory allocator to keep chains for very large
+	  memory sizes - upto 32MB. You may need this if your system has
+	  a lot of RAM, and you need to able to allocate very large
+	  contiguous chunks. If unsure, say N.
+
+choice
+	prompt "RAM size"
+	default AUTO
+
+config RAMAUTO
+	bool "AUTO"
+	---help---
+	  Configure the RAM size on your platform. Many platforms can auto
+	  detect this, on those choose the AUTO option. Otherwise set the
+	  RAM size you intend using.
+
+config RAM4MB
+	bool "4MiB"
+	help
+	  Set RAM size to be 4MiB.
+
+config RAM8MB
+	bool "8MiB"
+	help
+	  Set RAM size to be 8MiB.
+
+config RAM16MB
+	bool "16MiB"
+	help
+	  Set RAM size to be 16MiB.
+
+config RAM32MB
+	bool "32MiB"
+	help
+	  Set RAM size to be 32MiB.
+
+endchoice
+
+choice
+	prompt "RAM bus width"
+	default RAMAUTOBIT
+
+config RAMAUTOBIT
+	bool "AUTO"
+	---help---
+	  Select the physical RAM data bus size. Not needed on most platforms,
+	  so you can generally choose AUTO.
+
+config RAM8BIT
+	bool "8bit"
+	help
+	  Configure RAM bus to be 8 bits wide.
+
+config RAM16BIT
+	bool "16bit"
+	help
+	  Configure RAM bus to be 16 bits wide.
+
+config RAM32BIT
+	bool "32bit"
+	help
+	  Configure RAM bus to be 32 bits wide.
+
+endchoice
+
+choice
+	prompt "Kernel executes from"
+	---help---
+	  Choose the memory type that the kernel will be running in.
+
+config RAMKERNEL
+	bool "RAM"
+	help
+	  The kernel will be resident in RAM when running.
+
+config ROMKERNEL
+	bool "ROM"
+	help
+	  The kernel will be resident in FLASH/ROM when running.
+
+endchoice
+
+endmenu
+
+menu "Bus options (PCI, PCMCIA, EISA, MCA, ISA)"
+
+config PCI
+	bool "PCI support"
+	help
+	  Support for PCI bus.
+
+config COMEMPCI
+	bool "CO-MEM lite PCI controller support"
+	depends on (M5307 || M5407)
+
+source "drivers/pci/Kconfig"
+
+source "drivers/pcmcia/Kconfig"
+
+source "drivers/pci/hotplug/Kconfig"
+
+endmenu
+
+menu "Executable file formats"
+
+source "fs/Kconfig.binfmt"
+
+endmenu
+
+menu "Power management options"
+
+config PM
+	bool "Power Management support"
+	help
+	  Support processor power management modes
+
+endmenu
+
+source "drivers/Kconfig"
+
+source "fs/Kconfig"
+
+source "arch/m68knommu/Kconfig.debug"
+
+source "security/Kconfig"
+
+source "crypto/Kconfig"
+
+source "lib/Kconfig"

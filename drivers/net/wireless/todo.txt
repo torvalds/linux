@@ -1,0 +1,15 @@
+	Wireless Todo
+	-------------
+
+1) Bring other kernel Wireless LAN drivers here
+	Completed
+
+2) Bring new Wireless LAN driver not yet in the kernel there
+	See my web page for details
+	In particular : HostAP
+
+3) Misc
+	o Mark wavelan, wavelan_cs, netwave_cs drivers as obsolete
+	o Maybe arlan.c, ray_cs.c and strip.c also deserve to be obsolete
+
+	Jean II

@@ -1,0 +1,41 @@
+#!/bin/sh
+
+# bz64wrap - the sending side of a bzip2 | base64 stream
+# Andreas Dilger <adilger@clusterfs.com>   Jan 2002
+
+
+PATH=$PATH:/usr/bin:/usr/local/bin:/usr/freeware/bin
+
+# A program to generate base64 encoding on stdout
+BASE64_ENCODE="uuencode -m /dev/stdout"
+BASE64_BEGIN=
+BASE64_END=
+
+BZIP=NO
+BASE64=NO
+
+# Test if we have the bzip program installed
+bzip2 -c /dev/null > /dev/null 2>&1 && BZIP=YES
+
+# Test if uuencode can handle the -m (MIME) encoding option
+$BASE64_ENCODE < /dev/null > /dev/null 2>&1 && BASE64=YES
+
+if [ $BASE64 = NO ]; then
+	BASE64_ENCODE=mimencode
+	BASE64_BEGIN="begin-base64 644 -"
+	BASE64_END="===="
+
+	$BASE64_ENCODE < /dev/null > /dev/null 2>&1 && BASE64=YES
+fi
+
+if [ $BZIP = NO -o $BASE64 = NO ]; then
+	echo "$0: can't use bz64 encoding: bzip2=$BZIP, $BASE64_ENCODE=$BASE64"
+	exit 1
+fi
+
+# Sadly, mimencode does not appear to have good "begin" and "end" markers
+# like uuencode does, and it is picky about getting the right start/end of
+# the base64 stream, so we handle this internally.
+echo "$BASE64_BEGIN"
+bzip2 -9 | $BASE64_ENCODE
+echo "$BASE64_END"

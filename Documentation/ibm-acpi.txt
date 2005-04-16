@@ -1,0 +1,474 @@
+		    IBM ThinkPad ACPI Extras Driver
+
+                            Version 0.8
+                          8 November 2004
+
+               Borislav Deianov <borislav@users.sf.net>
+		      http://ibm-acpi.sf.net/
+
+
+This is a Linux ACPI driver for the IBM ThinkPad laptops. It aims to
+support various features of these laptops which are accessible through
+the ACPI framework but not otherwise supported by the generic Linux
+ACPI drivers.
+
+
+Status
+------
+
+The features currently supported are the following (see below for
+detailed description):
+
+	- Fn key combinations
+	- Bluetooth enable and disable
+	- video output switching, expansion control	
+	- ThinkLight on and off
+	- limited docking and undocking
+	- UltraBay eject
+	- Experimental: CMOS control
+	- Experimental: LED control
+	- Experimental: ACPI sounds
+
+A compatibility table by model and feature is maintained on the web
+site, http://ibm-acpi.sf.net/. I appreciate any success or failure
+reports, especially if they add to or correct the compatibility table.
+Please include the following information in your report:
+
+	- ThinkPad model name
+	- a copy of your DSDT, from /proc/acpi/dsdt
+	- which driver features work and which don't
+	- the observed behavior of non-working features
+
+Any other comments or patches are also more than welcome.
+
+
+Installation
+------------
+
+If you are compiling this driver as included in the Linux kernel
+sources, simply enable the CONFIG_ACPI_IBM option (Power Management /
+ACPI / IBM ThinkPad Laptop Extras). The rest of this section describes
+how to install this driver when downloaded from the web site.
+
+First, you need to get a kernel with ACPI support up and running.
+Please refer to http://acpi.sourceforge.net/ for help with this
+step. How successful you will be depends a lot on you ThinkPad model,
+the kernel you are using and any additional patches applied. The
+kernel provided with your distribution may not be good enough. I
+needed to compile a 2.6.7 kernel with the 20040715 ACPI patch to get
+ACPI working reliably on my ThinkPad X40. Old ThinkPad models may not
+be supported at all.
+
+Assuming you have the basic ACPI support working (e.g. you can see the
+/proc/acpi directory), follow the following steps to install this
+driver:
+
+	- unpack the archive:
+
+		tar xzvf ibm-acpi-x.y.tar.gz; cd ibm-acpi-x.y
+
+	- compile the driver:
+
+		make
+
+	- install the module in your kernel modules directory:
+
+		make install
+
+	- load the module:
+
+		modprobe ibm_acpi
+
+After loading the module, check the "dmesg" output for any error messages.
+
+
+Features
+--------
+
+The driver creates the /proc/acpi/ibm directory. There is a file under
+that directory for each feature described below. Note that while the
+driver is still in the alpha stage, the exact proc file format and
+commands supported by the various features is guaranteed to change
+frequently.
+
+Driver Version -- /proc/acpi/ibm/driver
+--------------------------------------
+
+The driver name and version. No commands can be written to this file.
+
+Hot Keys -- /proc/acpi/ibm/hotkey
+---------------------------------
+
+Without this driver, only the Fn-F4 key (sleep button) generates an
+ACPI event. With the driver loaded, the hotkey feature enabled and the
+mask set (see below), the various hot keys generate ACPI events in the
+following format:
+
+	ibm/hotkey HKEY 00000080 0000xxxx
+
+The last four digits vary depending on the key combination pressed.
+All labeled Fn-Fx key combinations generate distinct events. In
+addition, the lid microswitch and some docking station buttons may
+also generate such events.
+
+The following commands can be written to this file:
+
+	echo enable > /proc/acpi/ibm/hotkey -- enable the hot keys feature
+	echo disable > /proc/acpi/ibm/hotkey -- disable the hot keys feature
+	echo 0xffff > /proc/acpi/ibm/hotkey -- enable all possible hot keys
+	echo 0x0000 > /proc/acpi/ibm/hotkey -- disable all possible hot keys
+	... any other 4-hex-digit mask ...
+	echo reset > /proc/acpi/ibm/hotkey -- restore the original mask
+
+The bit mask allows some control over which hot keys generate ACPI
+events. Not all bits in the mask can be modified. Not all bits that
+can be modified do anything. Not all hot keys can be individually
+controlled by the mask. Most recent ThinkPad models honor the
+following bits (assuming the hot keys feature has been enabled):
+
+	key	bit	behavior when set	behavior when unset
+
+	Fn-F3			always generates ACPI event
+	Fn-F4			always generates ACPI event
+	Fn-F5	0010	generate ACPI event	enable/disable Bluetooth
+	Fn-F7	0040	generate ACPI event	switch LCD and external display
+	Fn-F8	0080	generate ACPI event	expand screen or none
+	Fn-F9	0100	generate ACPI event	none
+	Fn-F12			always generates ACPI event
+
+Some models do not support all of the above. For example, the T30 does
+not support Fn-F5 and Fn-F9. Other models do not support the mask at
+all. On those models, hot keys cannot be controlled individually.
+
+Note that enabling ACPI events for some keys prevents their default
+behavior. For example, if events for Fn-F5 are enabled, that key will
+no longer enable/disable Bluetooth by itself. This can still be done
+from an acpid handler for the ibm/hotkey event.
+
+Note also that not all Fn key combinations are supported through
+ACPI. For example, on the X40, the brightness, volume and "Access IBM"
+buttons do not generate ACPI events even with this driver. They *can*
+be used through the "ThinkPad Buttons" utility, see
+http://www.nongnu.org/tpb/
+
+Bluetooth -- /proc/acpi/ibm/bluetooth
+-------------------------------------
+
+This feature shows the presence and current state of a Bluetooth
+device. If Bluetooth is installed, the following commands can be used:
+
+	echo enable > /proc/acpi/ibm/bluetooth
+	echo disable > /proc/acpi/ibm/bluetooth
+
+Video output control -- /proc/acpi/ibm/video
+--------------------------------------------
+
+This feature allows control over the devices used for video output -
+LCD, CRT or DVI (if available). The following commands are available:
+
+	echo lcd_enable > /proc/acpi/ibm/video
+	echo lcd_disable > /proc/acpi/ibm/video
+	echo crt_enable > /proc/acpi/ibm/video
+	echo crt_disable > /proc/acpi/ibm/video
+	echo dvi_enable > /proc/acpi/ibm/video
+	echo dvi_disable > /proc/acpi/ibm/video
+	echo auto_enable > /proc/acpi/ibm/video
+	echo auto_disable > /proc/acpi/ibm/video
+	echo expand_toggle > /proc/acpi/ibm/video
+	echo video_switch > /proc/acpi/ibm/video
+
+Each video output device can be enabled or disabled individually.
+Reading /proc/acpi/ibm/video shows the status of each device.
+
+Automatic video switching can be enabled or disabled.  When automatic
+video switching is enabled, certain events (e.g. opening the lid,
+docking or undocking) cause the video output device to change
+automatically. While this can be useful, it also causes flickering
+and, on the X40, video corruption. By disabling automatic switching,
+the flickering or video corruption can be avoided.
+
+The video_switch command cycles through the available video outputs
+(it sumulates the behavior of Fn-F7).
+
+Video expansion can be toggled through this feature. This controls
+whether the display is expanded to fill the entire LCD screen when a
+mode with less than full resolution is used. Note that the current
+video expansion status cannot be determined through this feature.
+
+Note that on many models (particularly those using Radeon graphics
+chips) the X driver configures the video card in a way which prevents
+Fn-F7 from working. This also disables the video output switching
+features of this driver, as it uses the same ACPI methods as
+Fn-F7. Video switching on the console should still work.
+
+ThinkLight control -- /proc/acpi/ibm/light
+------------------------------------------
+
+The current status of the ThinkLight can be found in this file. A few
+models which do not make the status available will show it as
+"unknown". The available commands are:
+
+	echo on  > /proc/acpi/ibm/light
+	echo off > /proc/acpi/ibm/light
+
+Docking / Undocking -- /proc/acpi/ibm/dock
+------------------------------------------
+
+Docking and undocking (e.g. with the X4 UltraBase) requires some
+actions to be taken by the operating system to safely make or break
+the electrical connections with the dock.
+
+The docking feature of this driver generates the following ACPI events:
+
+	ibm/dock GDCK 00000003 00000001 -- eject request
+	ibm/dock GDCK 00000003 00000002 -- undocked
+	ibm/dock GDCK 00000000 00000003 -- docked
+
+NOTE: These events will only be generated if the laptop was docked
+when originally booted. This is due to the current lack of support for
+hot plugging of devices in the Linux ACPI framework. If the laptop was
+booted while not in the dock, the following message is shown in the
+logs: "ibm_acpi: dock device not present". No dock-related events are
+generated but the dock and undock commands described below still
+work. They can be executed manually or triggered by Fn key
+combinations (see the example acpid configuration files included in
+the driver tarball package available on the web site).
+
+When the eject request button on the dock is pressed, the first event
+above is generated. The handler for this event should issue the
+following command:
+
+	echo undock > /proc/acpi/ibm/dock
+
+After the LED on the dock goes off, it is safe to eject the laptop.
+Note: if you pressed this key by mistake, go ahead and eject the
+laptop, then dock it back in. Otherwise, the dock may not function as
+expected.
+
+When the laptop is docked, the third event above is generated. The
+handler for this event should issue the following command to fully
+enable the dock:
+
+	echo dock > /proc/acpi/ibm/dock
+
+The contents of the /proc/acpi/ibm/dock file shows the current status
+of the dock, as provided by the ACPI framework.
+
+The docking support in this driver does not take care of enabling or
+disabling any other devices you may have attached to the dock. For
+example, a CD drive plugged into the UltraBase needs to be disabled or
+enabled separately. See the provided example acpid configuration files
+for how this can be accomplished.
+
+There is no support yet for PCI devices that may be attached to a
+docking station, e.g. in the ThinkPad Dock II. The driver currently
+does not recognize, enable or disable such devices. This means that
+the only docking stations currently supported are the X-series
+UltraBase docks and "dumb" port replicators like the Mini Dock (the
+latter don't need any ACPI support, actually).
+
+UltraBay Eject -- /proc/acpi/ibm/bay
+------------------------------------
+
+Inserting or ejecting an UltraBay device requires some actions to be
+taken by the operating system to safely make or break the electrical
+connections with the device.
+
+This feature generates the following ACPI events:
+
+	ibm/bay MSTR 00000003 00000000 -- eject request
+	ibm/bay MSTR 00000001 00000000 -- eject lever inserted
+
+NOTE: These events will only be generated if the UltraBay was present
+when the laptop was originally booted (on the X series, the UltraBay
+is in the dock, so it may not be present if the laptop was undocked).
+This is due to the current lack of support for hot plugging of devices
+in the Linux ACPI framework. If the laptop was booted without the
+UltraBay, the following message is shown in the logs: "ibm_acpi: bay
+device not present". No bay-related events are generated but the eject
+command described below still works. It can be executed manually or
+triggered by a hot key combination.
+
+Sliding the eject lever generates the first event shown above. The
+handler for this event should take whatever actions are necessary to
+shut down the device in the UltraBay (e.g. call idectl), then issue
+the following command:
+
+	echo eject > /proc/acpi/ibm/bay
+
+After the LED on the UltraBay goes off, it is safe to pull out the
+device.
+
+When the eject lever is inserted, the second event above is
+generated. The handler for this event should take whatever actions are
+necessary to enable the UltraBay device (e.g. call idectl).
+
+The contents of the /proc/acpi/ibm/bay file shows the current status
+of the UltraBay, as provided by the ACPI framework.
+
+Experimental Features
+---------------------
+
+The following features are marked experimental because using them
+involves guessing the correct values of some parameters. Guessing
+incorrectly may have undesirable effects like crashing your
+ThinkPad. USE THESE WITH CAUTION! To activate them, you'll need to
+supply the experimental=1 parameter when loading the module.
+
+Experimental: CMOS control - /proc/acpi/ibm/cmos
+------------------------------------------------
+
+This feature is used internally by the ACPI firmware to control the
+ThinkLight on most newer ThinkPad models. It appears that it can also
+control LCD brightness, sounds volume and more, but only on some
+models.
+
+The commands are non-negative integer numbers:
+
+	echo 0 >/proc/acpi/ibm/cmos
+	echo 1 >/proc/acpi/ibm/cmos
+	echo 2 >/proc/acpi/ibm/cmos
+	...
+
+The range of numbers which are used internally by various models is 0
+to 21, but it's possible that numbers outside this range have
+interesting behavior. Here is the behavior on the X40 (tpb is the
+ThinkPad Buttons utility):
+
+	0 - no effect but tpb reports "Volume down"
+	1 - no effect but tpb reports "Volume up"
+	2 - no effect but tpb reports "Mute on"
+	3 - simulate pressing the "Access IBM" button
+	4 - LCD brightness up
+	5 - LCD brightness down
+	11 - toggle screen expansion
+	12 - ThinkLight on
+	13 - ThinkLight off
+	14 - no effect but tpb reports ThinkLight status change
+
+If you try this feature, please send me a report similar to the
+above. On models which allow control of LCD brightness or sound
+volume, I'd like to provide this functionality in an user-friendly
+way, but first I need a way to identify the models which this is
+possible.
+
+Experimental: LED control - /proc/acpi/ibm/LED
+----------------------------------------------
+
+Some of the LED indicators can be controlled through this feature. The
+available commands are:
+
+	echo <led number> on >/proc/acpi/ibm/led
+	echo <led number> off >/proc/acpi/ibm/led
+	echo <led number> blink >/proc/acpi/ibm/led
+
+The <led number> parameter is a non-negative integer. The range of LED
+numbers used internally by various models is 0 to 7 but it's possible
+that numbers outside this range are also valid. Here is the mapping on
+the X40:
+
+	0 - power
+	1 - battery (orange)
+	2 - battery (green)
+	3 - UltraBase
+	4 - UltraBay
+	7 - standby
+
+All of the above can be turned on and off and can be made to blink.
+
+If you try this feature, please send me a report similar to the
+above. I'd like to provide this functionality in an user-friendly way,
+but first I need to identify the which numbers correspond to which
+LEDs on various models.
+
+Experimental: ACPI sounds - /proc/acpi/ibm/beep
+-----------------------------------------------
+
+The BEEP method is used internally by the ACPI firmware to provide
+audible alerts in various situtation. This feature allows the same
+sounds to be triggered manually.
+
+The commands are non-negative integer numbers:
+
+	echo 0 >/proc/acpi/ibm/beep
+	echo 1 >/proc/acpi/ibm/beep
+	echo 2 >/proc/acpi/ibm/beep
+	...
+
+The range of numbers which are used internally by various models is 0
+to 17, but it's possible that numbers outside this range are also
+valid. Here is the behavior on the X40:
+
+	2 - two beeps, pause, third beep
+	3 - single beep
+	4 - "unable"	
+	5 - single beep
+	6 - "AC/DC"
+	7 - high-pitched beep
+	9 - three short beeps
+	10 - very long beep
+	12 - low-pitched beep
+
+(I've only been able to identify a couple of them).
+
+If you try this feature, please send me a report similar to the
+above. I'd like to provide this functionality in an user-friendly way,
+but first I need to identify the which numbers correspond to which
+sounds on various models.
+
+
+Multiple Command, Module Parameters
+-----------------------------------
+
+Multiple commands can be written to the proc files in one shot by
+separating them with commas, for example:
+
+	echo enable,0xffff > /proc/acpi/ibm/hotkey
+	echo lcd_disable,crt_enable > /proc/acpi/ibm/video
+
+Commands can also be specified when loading the ibm_acpi module, for
+example:
+
+	modprobe ibm_acpi hotkey=enable,0xffff video=auto_disable
+
+
+Example Configuration
+---------------------
+
+The ACPI support in the kernel is intended to be used in conjunction
+with a user-space daemon, acpid. The configuration files for this
+daemon control what actions are taken in response to various ACPI
+events. An example set of configuration files are included in the
+config/ directory of the tarball package available on the web
+site. Note that these are provided for illustration purposes only and
+may need to be adapted to your particular setup.
+
+The following utility scripts are used by the example action
+scripts (included with ibm-acpi for completeness):
+
+	/usr/local/sbin/idectl -- from the hdparm source distribution,
+		see http://www.ibiblio.org/pub/Linux/system/hardware
+	/usr/local/sbin/laptop_mode -- from the Linux kernel source
+		distribution, see Documentation/laptop-mode.txt
+	/sbin/service -- comes with Redhat/Fedora distributions
+
+Toan T Nguyen <ntt@control.uchicago.edu> has written a SuSE powersave
+script for the X20, included in config/usr/sbin/ibm_hotkeys_X20
+
+Henrik Brix Andersen <brix@gentoo.org> has written a Gentoo ACPI event
+handler script for the X31. You can get the latest version from
+http://dev.gentoo.org/~brix/files/x31.sh
+
+David Schweikert <dws@ee.eth.ch> has written an alternative blank.sh
+script which works on Debian systems, included in
+configs/etc/acpi/actions/blank-debian.sh
+
+
+TODO
+----
+
+I'd like to implement the following features but haven't yet found the
+time and/or I don't yet know how to implement them:
+
+- UltraBay floppy drive support
+

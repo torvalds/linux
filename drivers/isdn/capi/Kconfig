@@ -1,0 +1,53 @@
+#
+# Config.in for the CAPI subsystem
+#
+config ISDN_DRV_AVMB1_VERBOSE_REASON
+	bool "Verbose reason code reporting (kernel size +=7K)"
+	depends on ISDN_CAPI
+	help
+	  If you say Y here, the AVM B1 driver will give verbose reasons for
+	  disconnecting. This will increase the size of the kernel by 7 KB. If
+	  unsure, say Y.
+
+config ISDN_CAPI_MIDDLEWARE
+	bool "CAPI2.0 Middleware support (EXPERIMENTAL)"
+	depends on ISDN_CAPI && EXPERIMENTAL
+	help
+	  This option will enhance the capabilities of the /dev/capi20
+	  interface.  It will provide a means of moving a data connection,
+	  established via the usual /dev/capi20 interface to a special tty
+	  device.  If you want to use pppd with pppdcapiplugin to dial up to
+	  your ISP, say Y here.
+
+config ISDN_CAPI_CAPI20
+	tristate "CAPI2.0 /dev/capi support"
+	depends on ISDN_CAPI
+	help
+	  This option will provide the CAPI 2.0 interface to userspace
+	  applications via /dev/capi20. Applications should use the
+	  standardized libcapi20 to access this functionality.  You should say
+	  Y/M here.
+
+config ISDN_CAPI_CAPIFS_BOOL
+	bool "CAPI2.0 filesystem support"
+	depends on ISDN_CAPI_MIDDLEWARE && ISDN_CAPI_CAPI20
+
+config ISDN_CAPI_CAPIFS
+	tristate
+	depends on ISDN_CAPI_CAPIFS_BOOL
+	default ISDN_CAPI_CAPI20
+	help
+	  This option provides a special file system, similar to /dev/pts with
+	  device nodes for the special ttys established by using the
+	  middleware extension above. If you want to use pppd with
+	  pppdcapiplugin to dial up to your ISP, say Y here.
+
+config ISDN_CAPI_CAPIDRV
+	tristate "CAPI2.0 capidrv interface support"
+	depends on ISDN_CAPI && ISDN_I4L
+	help
+	  This option provides the glue code to hook up CAPI driven cards to
+	  the legacy isdn4linux link layer.  If you have a card which is
+	  supported by a CAPI driver, but still want to use old features like
+	  ippp interfaces or ttyI emulation, say Y/M here.
+

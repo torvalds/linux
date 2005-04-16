@@ -1,0 +1,107 @@
+Legacy audio driver for YMF7xx PCI cards.
+
+
+FIRST OF ALL
+============
+
+  This code references YAMAHA's sample codes and data sheets.
+  I respect and thank for all people they made open the informations
+  about YMF7xx cards.
+
+  And this codes heavily based on Jeff Garzik <jgarzik@pobox.com>'s
+  old VIA 82Cxxx driver (via82cxxx.c). I also respect him.
+
+
+DISCLIMER
+=========
+
+ This driver is currently at early ALPHA stage. It may cause serious
+ damage to your computer when used.
+ PLEASE USE IT AT YOUR OWN RISK.
+
+
+ABOUT THIS DRIVER
+=================
+
+  This code enables you to use your YMF724[A-F], YMF740[A-C], YMF744, YMF754
+ cards. When enabled, your card acts as "SoundBlaster Pro" compatible card.
+ It can only play 22.05kHz / 8bit / Stereo samples, control external MIDI
+ port.
+ If you want to use your card as recent "16-bit" card, you should use
+ Alsa or OSS/Linux driver. Of course you can write native PCI driver for
+ your cards :)
+
+
+USAGE
+=====
+
+ # modprobe ymfsb (options)
+
+
+OPTIONS FOR MODULE
+==================
+
+  io           : SB base address     (0x220, 0x240, 0x260, 0x280)
+  synth_io     : OPL3 base address   (0x388, 0x398, 0x3a0, 0x3a8)
+  dma          : DMA number          (0,1,3)
+  master_volume: AC'97 PCM out Vol   (0-100)
+  spdif_out    : SPDIF-out flag      (0:disable 1:enable)
+
+ These options will change in future...
+
+
+FREQUENCY
+=========
+
+  When playing sounds via this driver, you will hear its pitch is slightly
+ lower than original sounds. Since this driver recognizes your card acts
+ with 21.739kHz sample rates rather than 22.050kHz (I think it must be
+ hardware restriction). So many players become tone deafness.
+ To prevent this, you should express some options to your sound player
+ that specify correct sample frequency. For example, to play your MP3 file
+ correctly with mpg123, specify the frequency like following:
+
+  %  mpg123 -r 21739 foo.mp3
+
+
+SPDIF OUT
+=========
+
+  With installing modules with option 'spdif_out=1', you can enjoy your
+ sounds from SPDIF-out of your card (if it had).
+ Its Fs is fixed to 48kHz (It never means the sample frequency become 
+ up to 48kHz. All sounds via SPDIF-out also 22kHz samples). So your
+ digital-in capable components has to be able to handle 48kHz Fs.
+
+
+COPYING
+=======
+
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2, or (at your option)
+ any later version.
+
+ This program is distributed in the hope that it will be useful, but
+ WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+
+TODO
+====
+ * support for multiple cards
+   (set the different SB_IO,MPU_IO,OPL_IO for each cards)
+
+ * support for OPL (dmfm) : There will be no requirements... :-<
+
+
+AUTHOR
+======
+
+ Daisuke Nagano <breeze.nagano@nifty.ne.jp>
+

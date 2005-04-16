@@ -1,0 +1,457 @@
+/*
+ * QLogic ISP2200 and ISP2300 Linux Driver Revision List File.
+ *
+ ********************************************************************
+ *
+ * Revision History
+ *
+ *  Rev  8.00.00b8	December 5, 2003	AV
+ *	- Instruct mid-layer to perform initial scan.
+ *
+ *  Rev  8.00.00b7	December 5, 2003	AV
+ *	- Resync with Linux Kernel 2.6.0-test11.
+ *	- Add basic NVRAM parser (extras/qla_nvr).
+ *
+ *  Rev  8.00.00b7-pre11 December 3, 2003	AV
+ *	- Sanitize the scsi_qla_host structure:
+ *	  - Purge unused elements.
+ *	  - Reorganize high-priority members (cache coherency).
+ *	- Add support for NVRAM access via a sysfs binary attribute:
+ *	  - Consolidate semaphore locking access.
+ *	- Fix more PCI posting issues.
+ *	- Add extras directory for dump/NVRAM tools.
+ *	- Remove unused qla_vendor.c file.
+ *
+ *  Rev  8.00.00b7-pre11 November 26, 2003	DG/AV
+ *	- Merge several patches from Christoph Hellwig [hch@lst.de]:
+ *	  - in Linux 2.6 both pci and the scsi layer use the generic
+ *	    dma direction bits, use them directly instead of the scsi
+ *	    and pci variants and the (noop) conversion routines.
+ *	- Fix _IOXX_BAD() usage for external IOCTL interface.
+ *	- Use atomic construct for HA loop_state member.
+ *	- Add generic model description text for HBA types.
+ *
+ *  Rev  8.00.00b7-pre5	November 17, 2003	AV
+ *	- Merge several patches from Christoph Hellwig [hch@lst.de]:
+ *	  - patch to split the driver into a common qla2xxx.ko and a
+ *	    qla2?00.ko for each HBA type - the latter modules are
+ *	    only very small wrappers, mostly for the firmware
+ *	    images, all the meat is in the common qla2xxx.ko.
+ *	  - make the failover code optional.
+ *	  - kill useless lock_kernel in dpc thread startup.
+ *	  - no need for modversions hacks in 2.6 (or 2.4).
+ *	  - kill qla2x00_register_with_Linux.
+ *	  - simplify EH code, cmd or it's hostdata can't be NULL, no
+ *	    need to search whether the host it's ours, the midlayer
+ *	    makes sure it won't call into a driver for some else
+ *	    host.
+ *	- Merge several patches from Jes Sorensen
+ *	  [jes@wildopensource.com]:
+ *	  - Call qla2x00_config_dma_addressing() before performing
+ *	    any consistent allocations. This is required since the
+ *	    dma mask settings will affect the memory
+ *	    pci_alloc_consistent() will return.
+ *	  - Call pci_set_consistent_dma_mask() to allow for 64 bit
+ *	    consistent allocations, required on some platforms such
+ *	    as the SN2.
+ *	  - Wait 20 usecs (not sure how long is really necessary,
+ *	    but this seems safe) after setting CSR_ISP_SOFT_RESET in
+ *	    the ctrl_status register as the card doesn't respond to
+ *	    PCI reads while in reset state. This causes a machine
+ *	    check on some architectures.
+ *	  - Flush PCI writes before calling udelay() to ensure the
+ *	    write is not sitting idle in-flight for a while before
+ *	    hitting the hardware.
+ *	  - Include linux/vmalloc.h in qla_os.c since it uses
+ *	    vmalloc().
+ *	  - Use auto-negotiate link speed when using default
+ *	    parameters rather than NVRAM settings. Disable NVRAM
+ *	    reading on SN2 since it's not possible to execute the
+ *	    HBA's BIOS on an SN2. I suggest doing something similar
+ *	    for all architectures that do not provide x86 BIOS
+ *	    emulation.
+ *	- Clean-up slab-cache allocations:
+ *	  - locking.
+ *	  - mempool allocations in case of low-memory situations.
+ *	- Fallback to GA_NXT scan if GID_PT call returns more than
+ *	  MAX_FIBRE_DEVICES.
+ *	- Preserve iterating port ID across GA_NXT calls in
+ *	  qla2x00_find_all_fabric_devs().
+ *	- Pre-calculate ASCII firmware dump length as to not incur the
+ *	  cost-to-calculate at each invocation of a read().
+ *
+ *  Rev  8.00.00b6	November 4, 2003	AV
+ *	- Add new 2300 TPX firmware (3.02.18).
+ *
+ *  Rev  8.00.00b6-pre25 October 20, 2003	RA/AV
+ *	- Resync with Linux Kernel 2.6.0-test9.
+ *	- Rework firmware dump process:
+ *	  - Use binary attribute within sysfs tree.
+ *	  - Add user-space tool (gdump.sh) to retrieve formatted
+ *	    buffer.
+ *	  - Add ISP2100 support.
+ *	- Use a slab cache for SRB allocations to reduce memory
+ *	  pressure.
+ *	- Initial conversion of driver logging methods to a new
+ *	  qla_printk() function which uses dev_printk (Daniel
+ *	  Stekloff, IBM).
+ *	- Further reduce stack usage in qla2x00_configure_local_loop()
+ *	  and qla2x00_find_all_fabric_devs().
+ *	- Separate port state used for routing of I/O's from port
+ *	  mgmt-login retry etc.
+ *
+ *  Rev  8.00.00b6-pre19 October 13, 2003	AV
+ *	- Resync with Linux Kernel 2.6.0-test7-bk5.
+ *	- Add intelligent RSCN event handling:
+ *	  - reduce scan time during 'port' RSCN events by only
+ *	    querying specified port ids.
+ *	  - Available on ISP23xx cards only.
+ *	- Increase maximum number of recognizable targets from 256
+ *	  to 512.
+ *	  - Backend changes were previously added to support TPX
+ *	    (2K logins) firmware.  Mid-layer can now scan for targets
+ *	    (H, B, T, L) where 512 < T >= 0.
+ *	- Remove IP support from driver.
+ *	  - Switch firmware types from IP->TP for ISP22xx and
+ *	    IPX->TPX for ISP23xx cards.
+ *	  - Remove files qla_ip.[ch].
+ *	- Remove type designations from firmware filenames.
+ *
+ *  Rev  8.00.00b6-pre11 September 15, 2003	DG/AV
+ *	- Resync with 6.06.00.
+ *	- Resync with Linux Kernel 2.6.0-test5-bk3.
+ *	- Add new 2300 IPX firmware (3.02.15).
+ *
+ *  Rev  8.00.00b5	July 31, 2003		AV
+ *	- Always create an fc_lun_t entry for lun 0 - as the mid-
+ *	  layer requires access to this lun for discovery to occur.
+ *	- General sanitizing:
+ *	  - Add generic firmware option definitions.
+ *	  - Generalize retrieval/update of firmware options.
+ *	  - Fix compile errors which occur with extended debug.
+ *	  - Handle failure cases for scsi_add_host() and
+ *	    down_interruptible().
+ *	- Host template updates:
+ *	  - Use standard bios_param callback function.
+ *	  - Disable clustering.
+ *	  - Remove unchecked_is_dma entry.
+ *
+ *  Rev  8.00.00b5-pre5	July 29, 2003		DG/AV
+ *	- Resync with 6.06.00b13.
+ *	- Resync with Linux Kernel 2.6.0-test2.
+ *	- Pass the complete loop_id, not the masked (0xff) value
+ *	  while issuing mailbox commands (qla_mbx.c/qla_fo.c/
+ *	  qla_iocb.c/qla_init.c).
+ *	- Properly handle zero-length return status for an RLC CDB.
+ *	- Create an fclun_t structure for 'disconnected' luns,
+ *	  peripheral-qualifier of 001b.
+ *	- Remove unused LIP-sequence register access during AE 8010.
+ *	- Generalize qla2x00_mark_device_lost() to handle forced 
+ *	  login request -- modify all direct/indirect invocations 
+ *	  with proper flag.
+ *	- Save RSCN notification (AE 8015h) data in a proper and 
+ *	  consistent format (domain, area, al_pa).
+ *	- General sanitizing:
+ *	  - scsi_qla_host structure member reordering for cache-line
+ *	    coherency.
+ *	  - Remove unused SCSI opcodes, endian-swap definitions.
+ *	  - Remove CMD_* pre-processor defines.
+ *	  - Remove unused SCSIFCHOTSWAP/GAMAP/MULTIHOST codes.
+ *	- Backout patch which added a per-scsi_qla_host scsi host
+ *	  spinlock, since mid-layer already defines one.
+ *	- Add new 2300 IPX firmware (3.02.15).
+ *
+ *  Rev  8.00.00b4	July 14, 2003		RA/DG/AV
+ *	- Resync with 6.06.00b12.
+ *	- Resync with Linux Kernel 2.6.0-test1.
+ *	- Remove IOCB throttling code -- originally #if'd.
+ *	- Remove apidev_*() routines since proc_mknod() has been
+ *	  removed -- need alternate IOCTL interface.
+ *	- Merge several performance/fix patches from Arjan van de
+ *	  Ven:
+ *	  - Undefined operation >> 32.
+ *	  - No need to acquire mid-layer lock during command
+ *	    callback. 
+ *	  - Use a per-HBA mid-layer lock.
+ *	  - Use a non-locked cycle for setting the count of the
+ *	    newly allocated sp (qla2x00_get_new_sp()).
+ *	  - Modify semantic behavior of qla2x00_queuecommand():
+ *	    - Reduce cacheline bouncing by having I/Os submitted
+ *	      by the IRQ handler.
+ *	    - Remove extraneous calls to qla2x00_next() during I/O
+ *	      queuing.
+ *	  - Use list_splice_init() during qla2x00_done() handling
+ *	    of commands to reduce list_lock contention.
+ *	  - RIO mode support for ISP2200:
+ *	    - Implementation differs slightly from original patch.
+ *	  - Do not use bottom-half handler (tasklet/work queue)
+ *	    for qla2x00_done() processing.
+ *
+ *  Rev  8.00.00b4-pre22 July 12, 2003		AV
+ *	- Check for 'Process Response Queue' requests early during
+ *	  the Host Status check.
+ *	- General sanitizing:
+ *	  - srb_t structure rewrite, removal of unused members.
+ *	  - Remove unused fcdev array, fabricid, and PORT_*
+ *	    definitions.
+ *	  - Remove unused config_reg_t PCI definitions.
+ *	- Add new 2200 IP firmware (2.02.06).
+ *	- Add new 2300 IPX firmware (3.02.14).
+ *
+ *  Rev  8.00.00b4-pre19 June 30, 2003		AV
+ *	- Resync with Linux Kernel 2.5.73-bk8.
+ *	- Rework IOCB command queuing methods:
+ *	  - Upper-layer driver *MUST* properly set the direction
+ *	    bit of SCSI commands.
+ *	  - Generalize 32bit/64bit queuing path functions.
+ *	  - Remove costly page-boundary cross check when using
+ *	    64bit address capable IOCBs.
+ *
+ *  Rev  8.00.00b4-pre15 June 19, 2003		AV
+ *	- Resync with 6.06.00b11.
+ *	- Continue fcport list consolidation work:
+ *	  - Updated IOCTL implementations to use new fcports 
+ *	    list.
+ *	- Modified product ID check to not verify ISP chip
+ *	  revision -- ISP2312 v3 (qla2x00_chip_diag()).
+ *	- Add new 2300 IPX firmware (3.02.13):
+ *
+ *  Rev  8.00.00b4-pre13 June 19, 2003		AV
+ *	- Fix build process for qla2100 driver -- no support
+ *	  for IP.
+ *	- SCSI host template modifications:
+ *	  - Set sg_tablesize based on the derived DMA mask.
+ *	  - Increase max_sectors since only limit within RISC
+ *	    is transfer of (((2^32) - 1) >> 9) sectors.
+ *
+ *  Rev  8.00.00b4-pre12 June 18, 2003		RA, DG, RL, AV
+ *	- Resync with 6.06.00b10.
+ *	- Resync with Linux Kernel 2.5.72.
+ *	- Initial fcport list consolidation work:
+ *	  - fcports/fcinitiators/fcdev/fc_ip --> ha->fcports
+ *	    list.
+ *
+ *  Rev  8.00.00b4-pre7	 June 05, 2003		AV
+ *	- Properly release PCI resouces in init-failure case.
+ *	- Reconcile disparite function return code definitions.
+ *
+ *  Rev  8.00.00b4-pre4	 June 03, 2003		AV
+ *	- Resync with Linux Kernel 2.5.70-bk8:
+ *	  - SHT proc_info() changes.
+ *	- Restructure SNS Generic Services routines:
+ *	  - Add qla_gs.c file to driver distribution.
+ *	- Configure PCI latency timer for ISP23xx.
+ *
+ *  Rev  8.00.00b4-pre3	 June 02, 2003		RA, DG, RL, AV
+ *	- Resync with 6.06.00b5.
+ *	- Rework (again) PCI I/O space configuration
+ *	  (Anton Blanchard):
+ *	  - Use pci_set_mwi() routine;
+ *	    - Remove uneeded qla2x00_set_cache_line() function.
+ *	  - Remove extraneous modification of PCI_COMMAND word.
+ *
+ *  Rev  8.00.00b3 	 May 29, 2003		AV
+ *	- Resync with Linux Kernel 2.5.70.
+ *	- Move RISC paused check from ISR fast-path.
+ *
+ *  Rev  8.00.00b3-pre8 May 26, 2003		AV
+ *	- Add new 2300 IPX firmware (3.02.12):
+ *	- Rework PCI I/O space configuration.
+ *
+ *  Rev  8.00.00b3-pre6	May 22, 2003		RA, DG, RL, AV
+ *	- Resync with 6.06.00b3.
+ *
+ *  Rev  8.00.00b3-pre4	May 21 2003		AV
+ *	- Add new 2300 IPX firmware (3.02.11):
+ *	  - Remove 2300 TPX firmware from distribution.
+ *
+ *  Rev  8.00.00b3-pre3	May 21 2003		AV
+ *	- Properly setup PCI configuation space during
+ *	  initialization:
+ *	  - Properly configure Memory-Mapped I/O during early
+ *	    configuration stage.
+ *	- Rework IP functionality to support 2k logins.
+ *	- Add new 2300 IPX firmware (3.02.11):
+ *	  - Remove 2300 TPX firmware from distribution.
+ *
+ *  Rev  8.00.00b3-pre2	May ??, 2003		RA, DG, RL, AV
+ *	- Resync with 6.06.00b1.
+ *
+ *  Rev  8.00.00b3-pre1	May ??, 2003		RA, DG, RL, AV
+ *	- Resync with 6.05.00.
+ *
+ *  Rev  8.00.00b2	May 19, 2003		AV
+ *	- Simplify dma_addr_t handling during command queuing given
+ *	  new block-layer defined restrictions:
+ *	  - Physical addresses not spanning 4GB boundaries.
+ *	- Firmware versions: 2100 TP (1.19.24), 2200 IP (2.02.05),
+ *	  2300 TPX (3.02.10).
+ *
+ *  Rev  8.00.00b2-pre1	May 13, 2003		AV
+ *	- Add support for new 'Hotplug initialization' model. 
+ *	- Simplify host template by removing unused callbacks.
+ *	- Use scsicam facilities to determine geometry.
+ *	- Fix compilation issues for non-ISP23xx builds:
+ *	  - Correct register references in qla_dbg.c.
+ *	  - Correct Makefile build process.
+ *
+ *  Rev  8.00.00b1	May 05, 2003		AV
+ *	- Resync with Linux Kernel 2.5.69.
+ *	- Firmware versions: 2100 TP (1.19.24), 2200 TP (2.02.05),
+ *	  2300 TPX (3.02.10).
+ *
+ *  Rev  8.00.00b1-pre45 April ??, 2003		AV
+ *	- Resync with Linux Kernel 2.5.68-bk11:
+ *	- Fix improper return-code assignment during fabric
+ *	  discovery.
+ *	- Remove additional extraneous #defines from
+ *	  qla_settings.h.
+ *	  - USE_PORTNAME -- FO will always use portname.
+ *	- Default queue depth size set to 64.
+ *
+ *  Rev  8.00.00b1-pre42 April ??, 2003		AV
+ *	- Convert bottom-half tasklet to a work_queue.
+ *	- Initial basic coding of dynamic queue depth handling
+ *	  during QUEUE FULL statuses.
+ *	- Fix mailbox interface problem with
+ *	  qla2x00_get_retry_cnt().
+ *
+ *  Rev  8.00.00b1-pre41 April ??, 2003		AV
+ *	- Convert build defines qla2[1|2|3]00 macros to
+ *	  qla2[1|2|3]xx due to module name stringification clashes.
+ *	- Add additional ISP2322 checks during board configuration.
+ *
+ *  Rev  8.00.00b1-pre40 April ??, 2003		AV
+ *	- Resync with Linux Kernel 2.5.68-bk8:
+ *	  - Updated IRQ handler interface.
+ *	- Add ISP dump code (stub) in case of SYSTEM_ERROR on
+ *	  ISP2100.
+ *	- Add new 2200 IP firmware (2.02.05).
+ *
+ *  Rev  8.00.00b1-pre39 April ??, 2003		AV
+ *	- Resync with Linux Kernel 2.5.68.
+ *	- Add simple build.sh script to aid in external compilation.
+ *	- Clean-break with Kernel 2.4 compatibility.
+ *	  - Rework DPC routine -- completion routines for signaling.
+ *	- Re-add HBAAPI character device node for IOCTL support.
+ *	- Remove residual QLA2X_PERFORMANCE defines.
+ *	- Allocate SP pool via __get_free_pages() rather than
+ *	  individual kmalloc()'s.
+ *	- Inform SCSI mid-layer of 16-byte CDB support
+ *	  (host->max_cmd_len):
+ *	  - Remove unecessary 'more_cdb' handling code from
+ *	    qla_iocb.c and qla_xioct.c.
+ *	- Reduce duplicate code in fabric scanning logic (MS IOCB
+ *	  preparation).
+ *	- Add ISP dump code in case of SYSTEM_ERROR.
+ *	- Remove 2300 VIX firmware from distribution:
+ *	  - Add initial code for IPX support.
+ *	- Add new 2300 TPX firmware (3.02.10).
+ *
+ *  Rev  8.00.00b1-pre34 April ??, 2003		AV
+ *	- Resync with Linux Kernel 2.5.67.
+ *	- Use domain/area/al_pa fields when displaying PortID 
+ *	  values -- addresses endianess issues.
+ *	- Rework large case statement to check 'common' CDB commands
+ *	  early in qla2x00_get_cmd_direction().
+ *
+ *  Rev  8.00.00b1-pre31 April ??, 2003		AV
+ *	- Update makefile to support PPC64 build.
+ *	- Retool NVRAM configuration routine and structures:
+ *	  - Consoldate ISP21xx/ISP22xx/ISP23xx configuration
+ *	    (struct nvram_t).
+ *	  - Remove big/little endian support structures in favor of
+ *	    simplified bit-operations within byte fields.
+ *	- Fix long-standing 'static' buffer sharing problem in 
+ *	  qla2x00_configure_fabric().
+ *
+ *  Rev  8.00.00b1-pre30 April ??, 2003		AV
+ *	- Complete implementation of GID_PT scan.
+ *	- Use consistent MS IOCB invocation method to query SNS:
+ *	  - Add RNN_ID and RSNN_NN registrations in a fabric.
+ *	- Remove unused Mailbox Command 6Eh (Send SNS) support
+ *	  structures.
+ *	- Use 64bit safe IOCBs while issuing INQUIRY and RLC during
+ *	  topology scan.
+ *	- Until reimplementation of fcdev_t/fcport list
+ *	  consolidation, valid loop_id ranges are still limited from
+ *	  0x00 through 0xFF -- enforce this within the code.
+ *
+ *  Rev  8.00.00b1-pre27 March ??, 2003		AV
+ *	- Resync with 6.05.00b9.
+ *	- Retool HBA PCI configuration -- qla2x00_pci_config().
+ *	- Remove inconsistent use of delay routines (UDELAY/SYS*).
+ *	- Continue to teardown/clean/add comments and debug
+ *	  routines.
+ *	- Properly swap bytes of the device's nodename in
+ *	  qla2x00_configure_local_loop().
+ *
+ *  Rev  8.00.00b1-pre25 March ??, 2003		AV
+ *	- Resync with 6.05.00b8.
+ *
+ *  Rev  8.00.00b1-pre23 March ??, 2003		AV
+ *	- Remove (#define) IOCB usage throttling.
+ *	- Abstract interrupt polling with qla2x00_poll().
+ *	- Modify lun scanning logic:
+ *	  - If the device does not support the SCSI Report Luns
+ *	    command, the driver will now only scan from 0 to the
+ *	    max#-luns as defined in the NVRAM (BIOS), rather than
+ *	    blindly scanning from 0 to 255 -- which could result in
+ *	    an increase in startup time when running against slow
+ *	    (JBOD) devices.
+ *	- Rework reset logic in qla2x00_reset_chip() (spec).
+ *
+ *  Rev  8.00.00b1-pre22 March ??, 2003		AV
+ *	- Resync with 6.05.00b7.
+ *	- Cleanup (rewrite) ISR handler.
+ *	- Rename kmem_zalloc --> qla2x00_kmem_zalloc():
+ *	  - This function will eventually be removed.
+ *	- Add new 2300 VIX firmware (3.02.09):
+ *	  - Support for Tape, Fabric, 2K logins, IP, and VI.
+ *
+ *  Rev  8.00.00b1-pre18 March ??, 2003		AV
+ *	- Support 232x type ISPs.
+ *	- Support single firmware for each ISP type:
+ *	  - Restructure brd_info/fw_info methods.
+ *	  - Streamline firmware load process.
+ *	  - Properly query firmware for version information.
+ *	- Remove extraneous scsi_qla_host members:
+ *	  - device_id ==> pdev->device
+ *	- Fix fc4 features (RFF_ID) registration.
+ *	- Convert kmem_zalloc --> qla2x00_kmem_zalloc().
+ *	- Remove unused/extraneous #defines (USE_PORTNAME).
+ *
+ *  Rev  8.00.00b1-pre14 March ??, 2003		AV
+ *	- Resync with 6.05.00b6.
+ *	- Initial source-code restructuring effort.
+ *	  - Build procedure.
+ *	  - Source file layout -- intuitive component layout.
+ *	  - Remove unused #defines (*PERFORMANCE, WORD_FW_LOAD, etc).
+ *	- Add support for 2K logins (TPX -- firmware).
+ *	- Add module parameter ql2xsuspendcount.
+ *	- Add new 2200 IP/TP firmware (2.02.04).
+ *
+ *  Rev  8.00.00b1-pre9	March ??, 2003	RL/DG/RA/AV
+ *	- Use kernel struct list_head for fcport and fclun lists.
+ *	- Remove extraneous (L|M)S_64BITS() and QL21_64*() defines.
+ *
+ *  Rev  8.00.00b1-pre8	February 28, 2003	RL/DG/RA/AV
+ *	- Resync with 6.05.00b3.
+ *
+ *  Rev  8.00.00b1-pre7	February 23, 2003	RL/DG/RA/AV
+ *	- Add alternate fabric scanning logic (GID_PT/GNN_ID/GPN_ID).
+ *	- Remove use of deprecated function check_region().
+ *	- Add new 2300 IP/TP firmware (3.02.08).
+ *
+ *  Rev  8.00.00b1-pre5	January 28, 2003	RL/DG/RA/AV
+ *	- Resync with 6.05.00b3.
+ *	- Consolidate device_reg structure definitions for ISP types.
+ *	- Add support for new queue-depth selection.
+ *	- Add new 2300 IP/TP firmware (3.02.07).
+ *
+ *  Rev  8.00.00b1-pre1	January 17, 2003	AV
+ *	- Initial branch from 6.04.00b8 driver.
+ *	- Remove VMWARE specific code.
+ *	- Add support for pci_driver interface.
+ *
+ ********************************************************************/

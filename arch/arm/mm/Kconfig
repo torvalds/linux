@@ -1,0 +1,411 @@
+comment "Processor Type"
+
+config CPU_32
+	bool
+	default y
+
+# Select CPU types depending on the architecture selected.  This selects
+# which CPUs we support in the kernel image, and the compiler instruction
+# optimiser behaviour.
+
+# ARM610
+config CPU_ARM610
+	bool "Support ARM610 processor"
+	depends on ARCH_RPC
+	select CPU_32v3
+	select CPU_CACHE_V3
+	select CPU_CACHE_VIVT
+	select CPU_COPY_V3
+	select CPU_TLB_V3
+	help
+	  The ARM610 is the successor to the ARM3 processor
+	  and was produced by VLSI Technology Inc.
+
+	  Say Y if you want support for the ARM610 processor.
+	  Otherwise, say N.
+
+# ARM710
+config CPU_ARM710
+	bool "Support ARM710 processor" if !ARCH_CLPS7500 && ARCH_RPC
+	default y if ARCH_CLPS7500
+	select CPU_32v3
+	select CPU_CACHE_V3
+	select CPU_CACHE_VIVT
+	select CPU_COPY_V3
+	select CPU_TLB_V3
+	help
+	  A 32-bit RISC microprocessor based on the ARM7 processor core
+	  designed by Advanced RISC Machines Ltd. The ARM710 is the
+	  successor to the ARM610 processor. It was released in
+	  July 1994 by VLSI Technology Inc.
+
+	  Say Y if you want support for the ARM710 processor.
+	  Otherwise, say N.
+
+# ARM720T
+config CPU_ARM720T
+	bool "Support ARM720T processor" if !ARCH_CLPS711X && !ARCH_L7200 && !ARCH_CDB89712 && ARCH_INTEGRATOR
+	default y if ARCH_CLPS711X || ARCH_L7200 || ARCH_CDB89712 || ARCH_H720X
+	select CPU_32v4
+	select CPU_ABRT_LV4T
+	select CPU_CACHE_V4
+	select CPU_CACHE_VIVT
+	select CPU_COPY_V4WT
+	select CPU_TLB_V4WT
+	help
+	  A 32-bit RISC processor with 8kByte Cache, Write Buffer and
+	  MMU built around an ARM7TDMI core.
+
+	  Say Y if you want support for the ARM720T processor.
+	  Otherwise, say N.
+
+# ARM920T
+config CPU_ARM920T
+	bool "Support ARM920T processor" if !ARCH_S3C2410
+	depends on ARCH_INTEGRATOR || ARCH_S3C2410 || ARCH_IMX
+	default y if ARCH_S3C2410
+	select CPU_32v4
+	select CPU_ABRT_EV4T
+	select CPU_CACHE_V4WT
+	select CPU_CACHE_VIVT
+	select CPU_COPY_V4WB
+	select CPU_TLB_V4WBI
+	help
+	  The ARM920T is licensed to be produced by numerous vendors,
+	  and is used in the Maverick EP9312 and the Samsung S3C2410.
+
+	  More information on the Maverick EP9312 at
+	  <http://linuxdevices.com/products/PD2382866068.html>.
+
+	  Say Y if you want support for the ARM920T processor.
+	  Otherwise, say N.
+
+# ARM922T
+config CPU_ARM922T
+	bool "Support ARM922T processor" if ARCH_INTEGRATOR
+	depends on ARCH_CAMELOT || ARCH_LH7A40X || ARCH_INTEGRATOR
+	default y if ARCH_CAMELOT || ARCH_LH7A40X
+	select CPU_32v4
+	select CPU_ABRT_EV4T
+	select CPU_CACHE_V4WT
+	select CPU_CACHE_VIVT
+	select CPU_COPY_V4WB
+	select CPU_TLB_V4WBI
+	help
+	  The ARM922T is a version of the ARM920T, but with smaller
+	  instruction and data caches. It is used in Altera's
+	  Excalibur XA device family.
+
+	  Say Y if you want support for the ARM922T processor.
+	  Otherwise, say N.
+
+# ARM925T
+config CPU_ARM925T
+ 	bool "Support ARM925T processor" if ARCH_OMAP
+ 	depends on ARCH_OMAP1510
+ 	default y if ARCH_OMAP1510
+	select CPU_32v4
+	select CPU_ABRT_EV4T
+	select CPU_CACHE_V4WT
+	select CPU_CACHE_VIVT
+	select CPU_COPY_V4WB
+	select CPU_TLB_V4WBI
+ 	help
+ 	  The ARM925T is a mix between the ARM920T and ARM926T, but with
+	  different instruction and data caches. It is used in TI's OMAP
+ 	  device family.
+
+ 	  Say Y if you want support for the ARM925T processor.
+ 	  Otherwise, say N.
+
+# ARM926T
+config CPU_ARM926T
+	bool "Support ARM926T processor" if ARCH_INTEGRATOR
+	depends on ARCH_INTEGRATOR || ARCH_VERSATILE_PB || MACH_VERSATILE_AB || ARCH_OMAP730 || ARCH_OMAP16XX
+	default y if ARCH_VERSATILE_PB || MACH_VERSATILE_AB || ARCH_OMAP730 || ARCH_OMAP16XX
+	select CPU_32v5
+	select CPU_ABRT_EV5TJ
+	select CPU_CACHE_VIVT
+	select CPU_COPY_V4WB
+	select CPU_TLB_V4WBI
+	help
+	  This is a variant of the ARM920.  It has slightly different
+	  instruction sequences for cache and TLB operations.  Curiously,
+	  there is no documentation on it at the ARM corporate website.
+
+	  Say Y if you want support for the ARM926T processor.
+	  Otherwise, say N.
+
+# ARM1020 - needs validating
+config CPU_ARM1020
+	bool "Support ARM1020T (rev 0) processor"
+	depends on ARCH_INTEGRATOR
+	select CPU_32v5
+	select CPU_ABRT_EV4T
+	select CPU_CACHE_V4WT
+	select CPU_CACHE_VIVT
+	select CPU_COPY_V4WB
+	select CPU_TLB_V4WBI
+	help
+	  The ARM1020 is the 32K cached version of the ARM10 processor,
+	  with an addition of a floating-point unit.
+
+	  Say Y if you want support for the ARM1020 processor.
+	  Otherwise, say N.
+
+# ARM1020E - needs validating
+config CPU_ARM1020E
+	bool "Support ARM1020E processor"
+	depends on ARCH_INTEGRATOR
+	select CPU_32v5
+	select CPU_ABRT_EV4T
+	select CPU_CACHE_V4WT
+	select CPU_CACHE_VIVT
+	select CPU_COPY_V4WB
+	select CPU_TLB_V4WBI
+	depends on n
+
+# ARM1022E
+config CPU_ARM1022
+	bool "Support ARM1022E processor"
+	depends on ARCH_INTEGRATOR
+	select CPU_32v5
+	select CPU_ABRT_EV4T
+	select CPU_CACHE_VIVT
+	select CPU_COPY_V4WB # can probably do better
+	select CPU_TLB_V4WBI
+	help
+	  The ARM1022E is an implementation of the ARMv5TE architecture
+	  based upon the ARM10 integer core with a 16KiB L1 Harvard cache,
+	  embedded trace macrocell, and a floating-point unit.
+
+	  Say Y if you want support for the ARM1022E processor.
+	  Otherwise, say N.
+
+# ARM1026EJ-S
+config CPU_ARM1026
+	bool "Support ARM1026EJ-S processor"
+	depends on ARCH_INTEGRATOR
+	select CPU_32v5
+	select CPU_ABRT_EV5T # But need Jazelle, but EV5TJ ignores bit 10
+	select CPU_CACHE_VIVT
+	select CPU_COPY_V4WB # can probably do better
+	select CPU_TLB_V4WBI
+	help
+	  The ARM1026EJ-S is an implementation of the ARMv5TEJ architecture
+	  based upon the ARM10 integer core.
+
+	  Say Y if you want support for the ARM1026EJ-S processor.
+	  Otherwise, say N.
+
+# SA110
+config CPU_SA110
+	bool "Support StrongARM(R) SA-110 processor" if !ARCH_EBSA110 && !FOOTBRIDGE && !ARCH_TBOX && !ARCH_SHARK && !ARCH_NEXUSPCI && ARCH_RPC
+	default y if ARCH_EBSA110 || FOOTBRIDGE || ARCH_TBOX || ARCH_SHARK || ARCH_NEXUSPCI
+	select CPU_32v3 if ARCH_RPC
+	select CPU_32v4 if !ARCH_RPC
+	select CPU_ABRT_EV4
+	select CPU_CACHE_V4WB
+	select CPU_CACHE_VIVT
+	select CPU_COPY_V4WB
+	select CPU_TLB_V4WB
+	help
+	  The Intel StrongARM(R) SA-110 is a 32-bit microprocessor and
+	  is available at five speeds ranging from 100 MHz to 233 MHz.
+	  More information is available at
+	  <http://developer.intel.com/design/strong/sa110.htm>.
+
+	  Say Y if you want support for the SA-110 processor.
+	  Otherwise, say N.
+
+# SA1100
+config CPU_SA1100
+	bool
+	depends on ARCH_SA1100
+	default y
+	select CPU_32v4
+	select CPU_ABRT_EV4
+	select CPU_CACHE_V4WB
+	select CPU_CACHE_VIVT
+	select CPU_TLB_V4WB
+	select CPU_MINICACHE
+
+# XScale
+config CPU_XSCALE
+	bool
+	depends on ARCH_IOP3XX || ARCH_PXA || ARCH_IXP4XX || ARCH_IXP2000
+	default y
+	select CPU_32v5
+	select CPU_ABRT_EV5T
+	select CPU_CACHE_VIVT
+	select CPU_TLB_V4WBI
+	select CPU_MINICACHE
+
+# ARMv6
+config CPU_V6
+	bool "Support ARM V6 processor"
+	depends on ARCH_INTEGRATOR
+	select CPU_32v6
+	select CPU_ABRT_EV6
+	select CPU_CACHE_V6
+	select CPU_CACHE_VIPT
+	select CPU_COPY_V6
+	select CPU_TLB_V6
+
+# Figure out what processor architecture version we should be using.
+# This defines the compiler instruction set which depends on the machine type.
+config CPU_32v3
+	bool
+
+config CPU_32v4
+	bool
+
+config CPU_32v5
+	bool
+
+config CPU_32v6
+	bool
+
+# The abort model
+config CPU_ABRT_EV4
+	bool
+
+config CPU_ABRT_EV4T
+	bool
+
+config CPU_ABRT_LV4T
+	bool
+
+config CPU_ABRT_EV5T
+	bool
+
+config CPU_ABRT_EV5TJ
+	bool
+
+config CPU_ABRT_EV6
+	bool
+
+# The cache model
+config CPU_CACHE_V3
+	bool
+
+config CPU_CACHE_V4
+	bool
+
+config CPU_CACHE_V4WT
+	bool
+
+config CPU_CACHE_V4WB
+	bool
+
+config CPU_CACHE_V6
+	bool
+
+config CPU_CACHE_VIVT
+	bool
+
+config CPU_CACHE_VIPT
+	bool
+
+# The copy-page model
+config CPU_COPY_V3
+	bool
+
+config CPU_COPY_V4WT
+	bool
+
+config CPU_COPY_V4WB
+	bool
+
+config CPU_COPY_V6
+	bool
+
+# This selects the TLB model
+config CPU_TLB_V3
+	bool
+	help
+	  ARM Architecture Version 3 TLB.
+
+config CPU_TLB_V4WT
+	bool
+	help
+	  ARM Architecture Version 4 TLB with writethrough cache.
+
+config CPU_TLB_V4WB
+	bool
+	help
+	  ARM Architecture Version 4 TLB with writeback cache.
+
+config CPU_TLB_V4WBI
+	bool
+	help
+	  ARM Architecture Version 4 TLB with writeback cache and invalidate
+	  instruction cache entry.
+
+config CPU_TLB_V6
+	bool
+
+config CPU_MINICACHE
+	bool
+	help
+	  Processor has a minicache.
+
+comment "Processor Features"
+
+config ARM_THUMB
+	bool "Support Thumb user binaries"
+	depends on CPU_ARM720T || CPU_ARM920T || CPU_ARM922T || CPU_ARM925T || CPU_ARM926T || CPU_ARM1020 || CPU_ARM1020E || CPU_ARM1022 || CPU_ARM1026 || CPU_XSCALE || CPU_V6
+	default y
+	help
+	  Say Y if you want to include kernel support for running user space
+	  Thumb binaries.
+
+	  The Thumb instruction set is a compressed form of the standard ARM
+	  instruction set resulting in smaller binaries at the expense of
+	  slightly less efficient code.
+
+	  If you don't know what this all is, saying Y is a safe choice.
+
+config CPU_BIG_ENDIAN
+	bool "Build big-endian kernel"
+	depends on ARCH_SUPPORTS_BIG_ENDIAN
+	help
+	  Say Y if you plan on running a kernel in big-endian mode.
+	  Note that your board must be properly built and your board
+	  port must properly enable any big-endian related features
+	  of your chipset/board/processor.
+
+config CPU_ICACHE_DISABLE
+	bool "Disable I-Cache"
+	depends on CPU_ARM920T || CPU_ARM922T || CPU_ARM925T || CPU_ARM926T || CPU_ARM1020
+	help
+	  Say Y here to disable the processor instruction cache. Unless
+	  you have a reason not to or are unsure, say N.
+
+config CPU_DCACHE_DISABLE
+	bool "Disable D-Cache"
+	depends on CPU_ARM920T || CPU_ARM922T || CPU_ARM925T || CPU_ARM926T || CPU_ARM1020
+	help
+	  Say Y here to disable the processor data cache. Unless
+	  you have a reason not to or are unsure, say N.
+
+config CPU_DCACHE_WRITETHROUGH
+	bool "Force write through D-cache"
+	depends on (CPU_ARM920T || CPU_ARM922T || CPU_ARM925T || CPU_ARM926T || CPU_ARM1020) && !CPU_DISABLE_DCACHE
+	default y if CPU_ARM925T
+	help
+	  Say Y here to use the data cache in writethrough mode. Unless you
+	  specifically require this or are unsure, say N.
+
+config CPU_CACHE_ROUND_ROBIN
+	bool "Round robin I and D cache replacement algorithm"
+	depends on (CPU_ARM926T || CPU_ARM1020) && (!CPU_ICACHE_DISABLE || !CPU_DCACHE_DISABLE)
+	help
+	  Say Y here to use the predictable round-robin cache replacement
+	  policy.  Unless you specifically require this or are unsure, say N.
+
+config CPU_BPREDICT_DISABLE
+	bool "Disable branch prediction"
+	depends on CPU_ARM1020
+	help
+	  Say Y here to disable branch prediction.  If unsure, say N.

@@ -1,0 +1,69 @@
+	Hardware driver for Intel/AMD/VIA Random Number Generators (RNG)
+	Copyright 2000,2001 Jeff Garzik <jgarzik@pobox.com>
+	Copyright 2000,2001 Philipp Rumpf <prumpf@mandrakesoft.com>
+
+Introduction:
+
+	The hw_random device driver is software that makes use of a
+	special hardware feature on your CPU or motherboard,
+	a Random Number Generator (RNG).
+
+	In order to make effective use of this device driver, you
+	should download the support software as well.  Download the
+	latest version of the "rng-tools" package from the
+	hw_random driver's official Web site:
+
+		http://sourceforge.net/projects/gkernel/
+
+About the Intel RNG hardware, from the firmware hub datasheet:
+
+	The Firmware Hub integrates a Random Number Generator (RNG)
+	using thermal noise generated from inherently random quantum
+	mechanical properties of silicon. When not generating new random
+	bits the RNG circuitry will enter a low power state. Intel will
+	provide a binary software driver to give third party software
+	access to our RNG for use as a security feature. At this time,
+	the RNG is only to be used with a system in an OS-present state.
+
+Theory of operation:
+
+	Character driver.  Using the standard open()
+	and read() system calls, you can read random data from
+	the hardware RNG device.  This data is NOT CHECKED by any
+	fitness tests, and could potentially be bogus (if the
+	hardware is faulty or has been tampered with).  Data is only
+	output if the hardware "has-data" flag is set, but nevertheless
+	a security-conscious person would run fitness tests on the
+	data before assuming it is truly random.
+
+	/dev/hwrandom is char device major 10, minor 183.
+
+Driver notes:
+
+	* FIXME: support poll(2)
+
+	NOTE: request_mem_region was removed, for two reasons:
+	1) Only one RNG is supported by this driver, 2) The location
+	used by the RNG is a fixed location in MMIO-addressable memory,
+	3) users with properly working BIOS e820 handling will always
+	have the region in which the RNG is located reserved, so
+	request_mem_region calls always fail for proper setups.
+	However, for people who use mem=XX, BIOS e820 information is
+	-not- in /proc/iomem, and request_mem_region(RNG_ADDR) can
+	succeed.
+
+Driver details:
+
+	Based on:
+	Intel 82802AB/82802AC Firmware Hub (FWH) Datasheet
+		May 1999 Order Number: 290658-002 R
+
+	Intel 82802 Firmware Hub: Random Number Generator
+	Programmer's Reference Manual
+		December 1999 Order Number: 298029-001 R
+
+	Intel 82802 Firmware HUB Random Number Generator Driver
+	Copyright (c) 2000 Matt Sottek <msottek@quiknet.com>
+
+	Special thanks to Matt Sottek.  I did the "guts", he
+	did the "brains" and all the testing.

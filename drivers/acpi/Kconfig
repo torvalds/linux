@@ -1,0 +1,356 @@
+#
+# ACPI Configuration
+#
+
+menu "ACPI (Advanced Configuration and Power Interface) Support"
+	depends on !X86_VISWS
+	depends on !IA64_HP_SIM
+	depends on IA64 || X86
+
+config ACPI
+	bool "ACPI Support"
+	depends on IA64 || X86
+
+	default y
+	---help---
+	  Advanced Configuration and Power Interface (ACPI) support for 
+	  Linux requires an ACPI compliant platform (hardware/firmware),
+	  and assumes the presence of OS-directed configuration and power
+	  management (OSPM) software.  This option will enlarge your 
+	  kernel by about 70K.
+
+	  Linux ACPI provides a robust functional replacement for several 
+	  legacy configuration and power management interfaces, including
+	  the Plug-and-Play BIOS specification (PnP BIOS), the 
+	  MultiProcessor Specification (MPS), and the Advanced Power 
+	  Management (APM) specification.  If both ACPI and APM support 
+	  are configured, whichever is loaded first shall be used.
+
+	  The ACPI SourceForge project contains the latest source code, 
+	  documentation, tools, mailing list subscription, and other 
+	  information.  This project is available at:
+	  <http://sourceforge.net/projects/acpi>
+
+	  Linux support for ACPI is based on Intel Corporation's ACPI
+	  Component Architecture (ACPI CA).  For more information see:
+	  <http://developer.intel.com/technology/iapc/acpi>
+
+	  ACPI is an open industry specification co-developed by Compaq, 
+	  Intel, Microsoft, Phoenix, and Toshiba.  The specification is 
+	  available at:
+	  <http://www.acpi.info>
+
+config ACPI_BOOT
+	bool
+	depends on ACPI || X86_HT
+	default y
+
+if ACPI
+
+config ACPI_INTERPRETER
+	bool
+	depends on !IA64_SGI_SN
+	default y
+
+if ACPI_INTERPRETER
+
+config ACPI_SLEEP
+	bool "Sleep States (EXPERIMENTAL)"
+	depends on X86
+	depends on EXPERIMENTAL && PM
+	default y
+	---help---
+	  This option adds support for ACPI suspend states. 
+
+	  With this option, you will be able to put the system "to sleep". 
+	  Sleep states are low power states for the system and devices. All
+	  of the system operating state is saved to either memory or disk
+	  (depending on the state), to allow the system to resume operation
+	  quickly at your request.
+
+	  Although this option sounds really nifty, barely any of the device
+	  drivers have been converted to the new driver model and hence few
+	  have proper power management support. 
+
+	  This option is not recommended for anyone except those doing driver
+	  power management development.
+
+config ACPI_SLEEP_PROC_FS
+	bool
+	depends on ACPI_SLEEP && PROC_FS
+	default y
+
+config ACPI_AC
+	tristate "AC Adapter"
+	depends on X86
+	default m
+	help
+	  This driver adds support for the AC Adapter object, which indicates
+	  whether a system is on AC, or not.  Typically, only mobile systems 
+	  have this object, since desktops are always on AC.
+
+config ACPI_BATTERY
+	tristate "Battery"
+	depends on X86
+	default m
+	help
+	  This driver adds support for battery information through
+	  /proc/acpi/battery. If you have a mobile system with a battery, 
+	  say Y.
+
+config ACPI_BUTTON
+	tristate "Button"
+	depends on !IA64_SGI_SN
+	default m
+	help
+	  This driver registers for events based on buttons, such as the
+	  power, sleep, and lid switch.  In the future, a daemon will read
+	  /proc/acpi/event and perform user-defined actions such as shutting
+	  down the system.  Until then, you can cat it, and see output when
+	  a button is pressed.
+
+config ACPI_VIDEO
+	tristate "Video"
+	depends on EXPERIMENTAL
+	depends on !IA64_SGI_SN
+	default m
+	help
+	  This driver implement the ACPI Extensions For Display Adapters
+	  for integrated graphics devices on motherboard, as specified in
+	  ACPI 2.0 Specification, Appendix B, allowing to perform some basic
+	  control like defining the video POST device, retrieving EDID information
+	  or to setup a video output, etc.
+	  Note that this is an ref. implementation only.  It may or may not work
+	  for your integrated video device.
+
+config ACPI_FAN
+	tristate "Fan"
+	depends on !IA64_SGI_SN
+	default m
+	help
+	  This driver adds support for ACPI fan devices, allowing user-mode 
+	  applications to perform basic fan control (on, off, status).
+
+config ACPI_PROCESSOR
+	tristate "Processor"
+	depends on !IA64_SGI_SN
+	default m
+	help
+	  This driver installs ACPI as the idle handler for Linux, and uses
+	  ACPI C2 and C3 processor states to save power, on systems that
+	  support it.
+
+config ACPI_HOTPLUG_CPU
+	bool "Processor Hotplug (EXPERIMENTAL)"
+	depends on ACPI_PROCESSOR && HOTPLUG_CPU && EXPERIMENTAL
+	depends on !IA64_SGI_SN
+	select ACPI_CONTAINER
+	default n
+	 ---help---
+	 Select this option if your platform support physical CPU hotplug.
+
+config ACPI_THERMAL
+	tristate "Thermal Zone"
+	depends on ACPI_PROCESSOR
+	default m
+	help
+	  This driver adds support for ACPI thermal zones.  Most mobile and
+	  some desktop systems support ACPI thermal zones.  It is HIGHLY
+	  recommended that this option be enabled, as your processor(s)
+	  may be damaged without it.
+
+config ACPI_NUMA
+	bool "NUMA support"
+	depends on NUMA
+	depends on (IA64 || X86_64)
+	default y if IA64_GENERIC || IA64_SGI_SN2
+
+config ACPI_ASUS
+        tristate "ASUS/Medion Laptop Extras"
+	depends on X86
+	default m
+        ---help---
+          This driver provides support for extra features of ACPI-compatible
+          ASUS laptops. As some of Medion laptops are made by ASUS, it may also
+          support some Medion laptops (such as 9675 for example).  It makes all
+          the extra buttons generate standard ACPI events that go through
+          /proc/acpi/events, and (on some models) adds support for changing the
+          display brightness and output, switching the LCD backlight on and off,
+          and most importantly, allows you to blink those fancy LEDs intended
+          for reporting mail and wireless status.
+
+	  Note: display switching code is currently considered EXPERIMENTAL,
+	  toying with these values may even lock your machine.
+          
+          All settings are changed via /proc/acpi/asus directory entries. Owner
+          and group for these entries can be set with asus_uid and asus_gid
+          parameters.
+          
+          More information and a userspace daemon for handling the extra buttons
+          at <http://sourceforge.net/projects/acpi4asus/>.
+          
+          If you have an ACPI-compatible ASUS laptop, say Y or M here. This
+          driver is still under development, so if your laptop is unsupported or
+          something works not quite as expected, please use the mailing list
+          available on the above page (acpi4asus-user@lists.sourceforge.net)
+          
+config ACPI_IBM
+	tristate "IBM ThinkPad Laptop Extras"
+	depends on X86
+	default m
+	---help---
+	  This is a Linux ACPI driver for the IBM ThinkPad laptops. It adds
+	  support for Fn-Fx key combinations, Bluetooth control, video
+	  output switching, ThinkLight control, UltraBay eject and more.
+	  For more information about this driver see <file:Documentation/ibm-acpi.txt>
+	  and <http://ibm-acpi.sf.net/> .
+
+	  If you have an IBM ThinkPad laptop, say Y or M here.
+
+config ACPI_TOSHIBA
+	tristate "Toshiba Laptop Extras"
+	depends on X86
+	default m
+	---help---
+	  This driver adds support for access to certain system settings
+	  on "legacy free" Toshiba laptops.  These laptops can be recognized by
+	  their lack of a BIOS setup menu and APM support.
+
+	  On these machines, all system configuration is handled through the
+	  ACPI.  This driver is required for access to controls not covered
+	  by the general ACPI drivers, such as LCD brightness, video output,
+	  etc.
+
+	  This driver differs from the non-ACPI Toshiba laptop driver (located
+	  under "Processor type and features") in several aspects.
+	  Configuration is accessed by reading and writing text files in the
+	  /proc tree instead of by program interface to /dev.  Furthermore, no
+	  power management functions are exposed, as those are handled by the
+	  general ACPI drivers.
+
+	  More information about this driver is available at
+	  <http://memebeam.org/toys/ToshibaAcpiDriver>.
+
+	  If you have a legacy free Toshiba laptop (such as the Libretto L1
+	  series), say Y.
+
+config ACPI_CUSTOM_DSDT
+	bool "Include Custom DSDT"
+	depends on !STANDALONE
+	default n 
+	help
+	  Thist option is to load a custom ACPI DSDT
+	  If you don't know what that is, say N.
+
+config ACPI_CUSTOM_DSDT_FILE
+	string "Custom DSDT Table file to include"
+	depends on ACPI_CUSTOM_DSDT
+	default ""
+	help
+	  Enter the full path name to the file wich includes the AmlCode declaration.
+
+config ACPI_BLACKLIST_YEAR
+	int "Disable ACPI for systems before Jan 1st this year"
+	depends on ACPI_INTERPRETER
+	default 0
+	help
+	  enter a 4-digit year, eg. 2001 to disable ACPI by default
+	  on platforms with DMI BIOS date before January 1st that year.
+	  "acpi=force" can be used to override this mechanism.
+
+	  Enter 0 to disable this mechanism and allow ACPI to
+	  run by default no matter what the year.  (default)
+
+config ACPI_DEBUG
+	bool "Debug Statements"
+	depends on !IA64_SGI_SN
+	default n
+	help
+	  The ACPI driver can optionally report errors with a great deal
+	  of verbosity. Saying Y enables these statements. This will increase
+	  your kernel size by around 50K.
+
+config ACPI_BUS
+	bool
+	depends on !IA64_SGI_SN
+	default y
+
+config ACPI_EC
+	bool
+	depends on X86
+	default y
+	help
+	  This driver is required on some systems for the proper operation of
+	  the battery and thermal drivers.  If you are compiling for a 
+	  mobile system, say Y.
+
+config ACPI_POWER
+	bool
+	depends on !IA64_SGI_SN
+	default y
+
+config ACPI_PCI
+	bool
+	depends on !IA64_SGI_SN
+	default PCI
+
+config ACPI_SYSTEM
+	bool
+	depends on !IA64_SGI_SN
+	default y
+	help
+	  This driver will enable your system to shut down using ACPI, and
+	  dump your ACPI DSDT table using /proc/acpi/dsdt.
+
+endif	# ACPI_INTERPRETER
+
+config X86_PM_TIMER
+	bool "Power Management Timer Support"
+	depends on X86
+	depends on ACPI_BOOT && EXPERIMENTAL
+	depends on !X86_64
+	default n
+	help
+	  The Power Management Timer is available on all ACPI-capable,
+	  in most cases even if ACPI is unusable or blacklisted.
+
+	  This timing source is not affected by powermanagement features
+	  like aggressive processor idling, throttling, frequency and/or
+	  voltage scaling, unlike the commonly used Time Stamp Counter
+	  (TSC) timing source.
+
+	  So, if you see messages like 'Losing too many ticks!' in the
+	  kernel logs, and/or you are using this on a notebook which
+	  does not yet have an HPET, you should say "Y" here.
+
+config ACPI_CONTAINER
+	tristate "ACPI0004,PNP0A05 and PNP0A06 Container Driver (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	default (ACPI_HOTPLUG_MEMORY || ACPI_HOTPLUG_CPU || ACPI_HOTPLUG_IO)
+	 ---help---
+	 	This is the ACPI generic container driver which supports
+		ACPI0004, PNP0A05 and PNP0A06 devices
+
+config ACPI_HOTPLUG_MEMORY
+	tristate "Memory Hotplug"
+	depends on ACPI
+	depends on MEMORY_HOTPLUG
+	default n
+	help
+	  This driver adds supports for ACPI Memory Hotplug.  This driver
+	  provides support for fielding notifications on ACPI memory
+	  devices (PNP0C80) which represent memory ranges that may be
+	  onlined or offlined during runtime.  
+
+	  Enabling this driver assumes that your platform hardware
+	  and firmware have support for hot-plugging physical memory. If
+	  your system does not support physically adding or ripping out 
+	  memory DIMMs at some platfrom defined granularity (individually 
+	  or as a bank) at runtime, then you need not enable this driver.
+
+	  If one selects "m," this driver can be loaded using the following
+	  command: 
+		$>modprobe acpi_memhotplug 
+endif	# ACPI
+
+endmenu

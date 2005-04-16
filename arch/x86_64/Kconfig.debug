@@ -1,0 +1,57 @@
+menu "Kernel hacking"
+
+source "lib/Kconfig.debug"
+
+# !SMP for now because the context switch early causes GPF in segment reloading
+# and the GS base checking does the wrong thing then, causing a hang.
+config CHECKING
+	bool "Additional run-time checks"
+	depends on DEBUG_KERNEL && !SMP
+	help
+	  Enables some internal consistency checks for kernel debugging.
+	  You should normally say N.
+
+config INIT_DEBUG
+	bool "Debug __init statements"
+	depends on DEBUG_KERNEL
+	help
+	  Fill __init and __initdata at the end of boot. This helps debugging
+	  illegal uses of __init and __initdata after initialization.
+
+config IOMMU_DEBUG
+       depends on GART_IOMMU && DEBUG_KERNEL
+       bool "Enable IOMMU debugging"
+       help
+         Force the IOMMU to on even when you have less than 4GB of
+	 memory and add debugging code. On overflow always panic. And
+	 allow to enable IOMMU leak tracing. Can be disabled at boot
+	 time with iommu=noforce. This will also enable scatter gather
+	 list merging.  Currently not recommended for production
+	 code. When you use it make sure you have a big enough
+	 IOMMU/AGP aperture.  Most of the options enabled by this can
+	 be set more finegrained using the iommu= command line
+	 options. See Documentation/x86_64/boot-options.txt for more
+	 details.
+
+config KPROBES
+	bool "Kprobes"
+	depends on DEBUG_KERNEL
+	help
+	  Kprobes allows you to trap at almost any kernel address and
+	  execute a callback function.  register_kprobe() establishes
+	  a probepoint and specifies the callback.  Kprobes is useful
+	  for kernel debugging, non-intrusive instrumentation and testing.
+	  If in doubt, say "N".
+
+config IOMMU_LEAK
+       bool "IOMMU leak tracing"
+       depends on DEBUG_KERNEL
+       depends on IOMMU_DEBUG
+       help
+         Add a simple leak tracer to the IOMMU code. This is useful when you
+	 are debugging a buggy device driver that leaks IOMMU mappings.
+
+#config X86_REMOTE_DEBUG
+#       bool "kgdb debugging stub"
+
+endmenu

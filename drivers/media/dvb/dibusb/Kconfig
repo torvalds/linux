@@ -1,0 +1,62 @@
+config DVB_DIBUSB
+	tristate "DiBcom USB DVB-T devices (see help for a complete device list)"
+	depends on DVB_CORE && USB
+	select FW_LOADER
+	select DVB_DIB3000MB
+	select DVB_DIB3000MC
+	select DVB_MT352
+	help
+	  Support for USB 1.1 and 2.0 DVB-T devices based on reference designs made by
+	  DiBcom (http://www.dibcom.fr) and C&E.
+
+	  Devices supported by this driver:
+
+	    TwinhanDTV USB-Ter (VP7041)
+		TwinhanDTV Magic Box (VP7041e)
+	    KWorld/JetWay/ADSTech V-Stream XPERT DTV - DVB-T USB1.1 and USB2.0
+	    Hama DVB-T USB-Box
+	    DiBcom reference devices (non-public)
+	    Ultima Electronic/Artec T1 USB TVBOX
+	    Compro Videomate DVB-U2000 - DVB-T USB
+	    Grandtec DVB-T USB
+	    Avermedia AverTV DVBT USB
+	    Artec T1 USB1.1 and USB2.0 boxes
+	    Yakumo/Typhoon DVB-T USB2.0
+	    Hanftek UMT-010 USB2.0
+	    Hauppauge WinTV NOVA-T USB2
+
+	  The VP7041 seems to be identical to "CTS Portable" (Chinese
+	  Television System).
+
+	  These devices can be understood as budget ones, they "only" deliver
+	  (a part of) the MPEG2 transport stream.
+
+	  A firmware is needed to get the device working. See Documentation/dvb/README.dibusb
+	  details.
+
+	  Say Y if you own such a device and want to use it. You should build it as
+	  a module.
+
+config DVB_DIBUSB_MISDESIGNED_DEVICES
+	bool "Enable support for some misdesigned (see help) devices, which identify with wrong IDs"
+	depends on DVB_DIBUSB
+	help
+	  Somehow Artec/Ultima Electronic forgot to program the eeprom of some of their
+	  USB1.1/USB2.0 devices.
+	  So comes that they identify with the default Vendor and Product ID of the Cypress
+	  CY7C64613 (AN2235) or Cypress FX2.
+
+	  Affected device IDs:
+	    0x0574:0x2235 (Artec T1 USB1.1, cold)
+	    0x04b4:0x8613 (Artec T1 USB2.0, cold)
+	    0x0574:0x1002 (Artec T1 USB2.0, warm)
+	    0x0574:0x2131 (aged DiBcom USB1.1 test device)
+
+	  Say Y if your device has one of the mentioned IDs.
+
+config DVB_DIBCOM_DEBUG
+	bool "Enable extended debug support for DiBcom USB device"
+	depends on DVB_DIBUSB
+	help
+	  Say Y if you want to enable debuging. See modinfo dvb-dibusb for
+	  debug levels.

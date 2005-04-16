@@ -1,0 +1,210 @@
+Documentation for the OPL3-SA2, SA3, and SAx driver (opl3sa2.o)
+---------------------------------------------------------------
+
+Scott Murray, scott@spiteful.org
+January 7, 2001
+
+NOTE: All trade-marked terms mentioned below are properties of their
+      respective owners.
+
+
+Supported Devices
+-----------------
+
+This driver is for PnP soundcards based on the following Yamaha audio
+controller chipsets:
+
+YMF711 aka OPL3-SA2
+YMF715 and YMF719 aka OPL3-SA3
+
+Up until recently (December 2000), I'd thought the 719 to be a
+different chipset, the OPL3-SAx.  After an email exhange with
+Yamaha, however, it turns out that the 719 is just a re-badged
+715, and the chipsets are identical.  The chipset detection code
+has been updated to reflect this.
+
+Anyways, all of these chipsets implement the following devices:
+
+OPL3 FM synthesizer
+Soundblaster Pro
+Microsoft/Windows Sound System
+MPU401 MIDI interface
+
+Note that this driver uses the MSS device, and to my knowledge these
+chipsets enforce an either/or situation with the Soundblaster Pro
+device and the MSS device.  Since the MSS device has better
+capabilities, I have implemented the driver to use it.
+
+
+Mixer Channels
+--------------
+
+Older versions of this driver (pre-December 2000) had two mixers,
+an OPL3-SA2 or SA3 mixer and a MSS mixer.  The OPL3-SA[23] mixer
+device contained a superset of mixer channels consisting of its own
+channels and all of the MSS mixer channels.  To simplify the driver
+considerably, and to partition functionality better, the OPL3-SA[23]
+mixer device now contains has its own specific mixer channels.  They
+are:
+
+Volume     - Hardware master volume control
+Bass       - SA3 only, now supports left and right channels
+Treble     - SA3 only, now supports left and right channels
+Microphone - Hardware microphone input volume control
+Digital1   - Yamaha 3D enhancement "Wide" mixer
+
+All other mixer channels (e.g. "PCM", "CD", etc.) now have to be
+controlled via the "MS Sound System (CS4231)" mixer.  To facilitate
+this, the mixer device creation order has been switched so that
+the MSS mixer is created first.  This allows accessing the majority
+of the useful mixer channels even via single mixer-aware tools
+such as "aumix".
+
+
+Plug 'n Play
+------------
+
+In previous kernels (2.2.x), some configuration was required to
+get the driver to talk to the card.  Being the new millennium and
+all, the 2.4.x kernels now support auto-configuration if ISA PnP
+support is configured in.  Theoretically, the driver even supports
+having more than one card in this case.
+
+With the addition of PnP support to the driver, two new parameters
+have been added to control it:
+
+isapnp   - set to 0 to disable ISA PnP card detection
+
+multiple - set to 0 to disable multiple PnP card detection
+
+
+Optional Parameters
+-------------------
+
+Recent (December 2000) additions to the driver (based on a patch
+provided by Peter Englmaier) are two new parameters:
+
+ymode -    Set Yamaha 3D enhancement mode:
+           0 = Desktop/Normal  5-12 cm speakers
+           1 = Notebook PC (1) 3 cm speakers
+           2 = Notebook PC (2) 1.5 cm speakers
+           3 = Hi-Fi           16-38 cm speakers
+
+loopback - Set A/D input source. Useful for echo cancellation:
+           0 = Mic Right channel (default)
+           1 = Mono output loopback
+
+The ymode parameter has been tested and does work.  The loopback
+parameter, however, is untested.  Any feedback on its usefulness
+would be appreciated.
+
+
+Manual Configuration
+--------------------
+
+If for some reason you decide not to compile ISA PnP support into
+your kernel, or disabled the driver's usage of it by setting the
+isapnp parameter as discussed above, then you will need to do some
+manual configuration.  There are two ways of doing this.  The most
+common is to use the isapnptools package to initialize the card, and
+use the kernel module form of the sound subsystem and sound drivers.
+Alternatively, some BIOS's allow manual configuration of installed
+PnP devices in a BIOS menu, which should allow using the non-modular
+sound drivers, i.e. built into the kernel.
+
+I personally use isapnp and modules, and do not have access to a PnP
+BIOS machine to test.  If you have such a beast, configuring the
+driver to be built into the kernel should just work (thanks to work
+done by David Luyer <luyer@ucs.uwa.edu.au>).  You will still need
+to specify settings, which can be done by adding:
+
+opl3sa2=<io>,<irq>,<dma>,<dma2>,<mssio>,<mpuio>
+
+to the kernel command line.  For example:
+
+opl3sa2=0x370,5,0,1,0x530,0x330
+
+If you are instead using the isapnp tools (as most people have been
+before Linux 2.4.x), follow the directions in their documentation to
+produce a configuration file.  Here is the relevant excerpt I used to
+use for my SA3 card from my isapnp.conf:
+
+(CONFIGURE YMH0800/-1 (LD 0
+
+# NOTE: IO 0 is for the unused SoundBlaster part of the chipset.
+(IO 0 (BASE 0x0220))
+(IO 1 (BASE 0x0530))
+(IO 2 (BASE 0x0388))
+(IO 3 (BASE 0x0330))
+(IO 4 (BASE 0x0370))
+(INT 0 (IRQ 5 (MODE +E)))
+(DMA 0 (CHANNEL 0))
+(DMA 1 (CHANNEL 1))
+
+Here, note that:
+
+Port  Acceptable Range  Purpose
+----  ----------------  -------
+IO 0  0x0220 - 0x0280   SB base address, unused.
+IO 1  0x0530 - 0x0F48   MSS base address
+IO 2  0x0388 - 0x03F8   OPL3 base address
+IO 3  0x0300 - 0x0334   MPU base address
+IO 4  0x0100 - 0x0FFE   card's own base address for its control I/O ports
+
+The IRQ and DMA values can be any that are considered acceptable for a
+MSS.  Assuming you've got isapnp all happy, then you should be able to
+do something like the following (which matches up with the isapnp
+configuration above):
+
+modprobe mpu401
+modprobe ad1848
+modprobe opl3sa2 io=0x370 mss_io=0x530 mpu_io=0x330 irq=5 dma=0 dma2=1
+modprobe opl3 io=0x388
+
+See the section "Automatic Module Loading" below for how to set up
+/etc/modprobe.conf to automate this.
+
+An important thing to remember that the opl3sa2 module's io argument is
+for it's own control port, which handles the card's master mixer for
+volume (on all cards), and bass and treble (on SA3 cards).
+
+
+Troubleshooting
+---------------
+
+If all goes well and you see no error messages, you should be able to
+start using the sound capabilities of your system.  If you get an
+error message while trying to insert the opl3sa2 module, then make
+sure that the values of the various arguments match what you specified
+in your isapnp configuration file, and that there is no conflict with
+another device for an I/O port or interrupt.  Checking the contents of
+/proc/ioports and /proc/interrupts can be useful to see if you're
+butting heads with another device.
+
+If you still cannot get the module to load, look at the contents of
+your system log file, usually /var/log/messages.  If you see the
+message "opl3sa2: Unknown Yamaha audio controller version", then you
+have a different chipset version than I've encountered so far.  Look
+for all messages in the log file that start with "opl3sa2: " and see
+if they provide any clues.  If you do not see the chipset version
+message, and none of the other messages present in the system log are
+helpful, email me some details and I'll try my best to help.
+
+
+Automatic Module Loading
+------------------------
+
+Lastly, if you're using modules and want to set up automatic module
+loading with kmod, the kernel module loader, here is the section I
+currently use in my modprobe.conf file:
+
+# Sound
+alias sound-slot-0 opl3sa2
+options opl3sa2 io=0x370 mss_io=0x530 mpu_io=0x330 irq=7 dma=0 dma2=3
+options opl3 io=0x388
+
+That's all it currently takes to get an OPL3-SA3 card working on my
+system.  Once again, if you have any other problems, email me at the
+address listed above.
+
+Scott

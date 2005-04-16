@@ -1,0 +1,135 @@
+INTRODUCTION
+------------
+
+Because not every I2C or SMBus adapter implements everything in the 
+I2C specifications, a client can not trust that everything it needs
+is implemented when it is given the option to attach to an adapter:
+the client needs some way to check whether an adapter has the needed
+functionality. 
+
+
+FUNCTIONALITY CONSTANTS
+-----------------------
+
+For the most up-to-date list of functionality constants, please check
+<linux/i2c.h>!
+
+  I2C_FUNC_I2C                    Plain i2c-level commands (Pure SMBus
+                                  adapters typically can not do these)
+  I2C_FUNC_10BIT_ADDR             Handles the 10-bit address extensions
+  I2C_FUNC_PROTOCOL_MANGLING      Knows about the I2C_M_REV_DIR_ADDR,
+                                  I2C_M_REV_DIR_ADDR and I2C_M_REV_DIR_NOSTART
+                                  flags (which modify the i2c protocol!)
+  I2C_FUNC_SMBUS_QUICK            Handles the SMBus write_quick command
+  I2C_FUNC_SMBUS_READ_BYTE        Handles the SMBus read_byte command
+  I2C_FUNC_SMBUS_WRITE_BYTE       Handles the SMBus write_byte command
+  I2C_FUNC_SMBUS_READ_BYTE_DATA   Handles the SMBus read_byte_data command
+  I2C_FUNC_SMBUS_WRITE_BYTE_DATA  Handles the SMBus write_byte_data command
+  I2C_FUNC_SMBUS_READ_WORD_DATA   Handles the SMBus read_word_data command
+  I2C_FUNC_SMBUS_WRITE_WORD_DATA  Handles the SMBus write_byte_data command
+  I2C_FUNC_SMBUS_PROC_CALL        Handles the SMBus process_call command
+  I2C_FUNC_SMBUS_READ_BLOCK_DATA  Handles the SMBus read_block_data command
+  I2C_FUNC_SMBUS_WRITE_BLOCK_DATA Handles the SMBus write_block_data command
+  I2C_FUNC_SMBUS_READ_I2C_BLOCK   Handles the SMBus read_i2c_block_data command
+  I2C_FUNC_SMBUS_WRITE_I2C_BLOCK  Handles the SMBus write_i2c_block_data command
+
+A few combinations of the above flags are also defined for your convenience:
+
+  I2C_FUNC_SMBUS_BYTE             Handles the SMBus read_byte
+                                  and write_byte commands
+  I2C_FUNC_SMBUS_BYTE_DATA        Handles the SMBus read_byte_data
+                                  and write_byte_data commands
+  I2C_FUNC_SMBUS_WORD_DATA        Handles the SMBus read_word_data
+                                  and write_word_data commands
+  I2C_FUNC_SMBUS_BLOCK_DATA       Handles the SMBus read_block_data
+                                  and write_block_data commands
+  I2C_FUNC_SMBUS_I2C_BLOCK        Handles the SMBus read_i2c_block_data
+                                  and write_i2c_block_data commands
+  I2C_FUNC_SMBUS_EMUL             Handles all SMBus commands than can be
+                                  emulated by a real I2C adapter (using
+                                  the transparent emulation layer)
+
+
+ALGORITHM/ADAPTER IMPLEMENTATION
+--------------------------------
+
+When you write a new algorithm driver, you will have to implement a
+function callback `functionality', that gets an i2c_adapter structure
+pointer as its only parameter:
+
+  struct i2c_algorithm {
+	/* Many other things of course; check <linux/i2c.h>! */
+	u32 (*functionality) (struct i2c_adapter *);
+  }
+
+A typically implementation is given below, from i2c-algo-bit.c:
+
+  static u32 bit_func(struct i2c_adapter *adap)
+  {
+	return I2C_FUNC_SMBUS_EMUL | I2C_FUNC_10BIT_ADDR | 
+	       I2C_FUNC_PROTOCOL_MANGLING;
+  }
+
+
+
+CLIENT CHECKING
+---------------
+
+Before a client tries to attach to an adapter, or even do tests to check
+whether one of the devices it supports is present on an adapter, it should
+check whether the needed functionality is present. There are two functions
+defined which should be used instead of calling the functionality hook
+in the algorithm structure directly:
+
+  /* Return the functionality mask */
+  extern u32 i2c_get_functionality (struct i2c_adapter *adap);
+
+  /* Return 1 if adapter supports everything we need, 0 if not. */
+  extern int i2c_check_functionality (struct i2c_adapter *adap, u32 func);
+
+This is a typical way to use these functions (from the writing-clients
+document):
+  int foo_detect_client(struct i2c_adapter *adapter, int address, 
+                          unsigned short flags, int kind)
+  {
+	/* Define needed variables */
+
+	/* As the very first action, we check whether the adapter has the
+	   needed functionality: we need the SMBus read_word_data,
+           write_word_data and write_byte functions in this example. */
+	if (!i2c_check_functionality(adapter,I2C_FUNC_SMBUS_WORD_DATA |
+	                                     I2C_FUNC_SMBUS_WRITE_BYTE))
+		goto ERROR0;
+
+	/* Now we can do the real detection */
+
+	ERROR0:
+		/* Return an error */
+  }
+
+
+
+CHECKING THROUGH /DEV
+---------------------
+
+If you try to access an adapter from a userspace program, you will have
+to use the /dev interface. You will still have to check whether the
+functionality you need is supported, of course. This is done using
+the I2C_FUNCS ioctl. An example, adapted from the lm_sensors i2c_detect
+program, is below:
+
+  int file;
+  if (file = open("/dev/i2c-0",O_RDWR) < 0) {
+	/* Some kind of error handling */
+	exit(1);
+  }
+  if (ioctl(file,I2C_FUNCS,&funcs) < 0) {
+	/* Some kind of error handling */
+	exit(1);
+  }
+  if (! (funcs & I2C_FUNC_SMBUS_QUICK)) {
+	/* Oops, the needed functionality (SMBus write_quick function) is
+           not available! */
+	exit(1);
+  }
+  /* Now it is safe to use the SMBus write_quick command */

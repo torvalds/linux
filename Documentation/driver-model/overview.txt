@@ -1,0 +1,114 @@
+The Linux Kernel Device Model
+
+Patrick Mochel	<mochel@osdl.org>
+
+26 August 2002
+
+
+Overview
+~~~~~~~~
+
+This driver model is a unification of all the current, disparate driver models
+that are currently in the kernel. It is intended to augment the
+bus-specific drivers for bridges and devices by consolidating a set of data
+and operations into globally accessible data structures.
+
+Current driver models implement some sort of tree-like structure (sometimes
+just a list) for the devices they control. But, there is no linkage between
+the different bus types.
+
+A common data structure can provide this linkage with little overhead: when a
+bus driver discovers a particular device, it can insert it into the global
+tree as well as its local tree. In fact, the local tree becomes just a subset
+of the global tree.
+
+Common data fields can also be moved out of the local bus models into the
+global model. Some of the manipulations of these fields can also be
+consolidated. Most likely, manipulation functions will become a set
+of helper functions, which the bus drivers wrap around to include any
+bus-specific items.
+
+The common device and bridge interface currently reflects the goals of the
+modern PC: namely the ability to do seamless Plug and Play, power management,
+and hot plug. (The model dictated by Intel and Microsoft (read: ACPI) ensures
+us that any device in the system may fit any of these criteria.)
+
+In reality, not every bus will be able to support such operations. But, most
+buses will support a majority of those operations, and all future buses will.
+In other words, a bus that doesn't support an operation is the exception,
+instead of the other way around.
+
+
+
+Downstream Access
+~~~~~~~~~~~~~~~~~
+
+Common data fields have been moved out of individual bus layers into a common
+data structure. But, these fields must still be accessed by the bus layers,
+and sometimes by the device-specific drivers.
+
+Other bus layers are encouraged to do what has been done for the PCI layer.
+struct pci_dev now looks like this:
+
+struct pci_dev {
+	...
+
+	struct device device;
+};
+
+Note first that it is statically allocated. This means only one allocation on
+device discovery. Note also that it is at the _end_ of struct pci_dev. This is
+to make people think about what they're doing when switching between the bus
+driver and the global driver; and to prevent against mindless casts between
+the two.
+
+The PCI bus layer freely accesses the fields of struct device. It knows about
+the structure of struct pci_dev, and it should know the structure of struct
+device. PCI devices that have been converted generally do not touch the fields
+of struct device. More precisely, device-specific drivers should not touch
+fields of struct device unless there is a strong compelling reason to do so.
+
+This abstraction is prevention of unnecessary pain during transitional phases.
+If the name of the field changes or is removed, then every downstream driver
+will break. On the other hand, if only the bus layer (and not the device
+layer) accesses struct device, it is only that layer that needs to change.
+
+
+User Interface
+~~~~~~~~~~~~~~
+
+By virtue of having a complete hierarchical view of all the devices in the
+system, exporting a complete hierarchical view to userspace becomes relatively
+easy. This has been accomplished by implementing a special purpose virtual
+file system named sysfs. It is hence possible for the user to mount the
+whole sysfs filesystem anywhere in userspace.
+
+This can be done permanently by providing the following entry into the
+/etc/fstab (under the provision that the mount point does exist, of course):
+
+none     	/sys	sysfs    defaults		0	0
+
+Or by hand on the command line:
+
+# mount -t sysfs sysfs /sys
+
+Whenever a device is inserted into the tree, a directory is created for it.
+This directory may be populated at each layer of discovery - the global layer,
+the bus layer, or the device layer.
+
+The global layer currently creates two files - 'name' and 'power'. The
+former only reports the name of the device. The latter reports the
+current power state of the device. It will also be used to set the current
+power state. 
+
+The bus layer may also create files for the devices it finds while probing the
+bus. For example, the PCI layer currently creates 'irq' and 'resource' files
+for each PCI device.
+
+A device-specific driver may also export files in its directory to expose
+device-specific data or tunable interfaces.
+
+More information about the sysfs directory layout can be found in
+the other documents in this directory and in the file 
+Documentation/filesystems/sysfs.txt.
+

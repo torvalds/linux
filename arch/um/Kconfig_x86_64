@@ -1,0 +1,15 @@
+config 64_BIT
+	bool
+	default y
+
+config 3_LEVEL_PGTABLES
+       bool
+       default y
+
+config ARCH_HAS_SC_SIGNALS
+	bool
+	default n
+
+config ARCH_REUSE_HOST_VSYSCALL_AREA
+	bool
+	default n

@@ -1,0 +1,43 @@
+OUTPUT_FORMAT("ecoff-littlemips")
+OUTPUT_ARCH(mips)
+ENTRY(dec_entry)
+SECTIONS
+{
+  . = 0x80200000;
+
+  .text :
+  {
+    _ftext = .;
+    *(.text)
+    *(.fixup)
+  }
+  .rdata :
+  {
+    *(.rodata .rodata.* .rdata)
+  }
+  .data :
+  {
+    . = ALIGN(0x1000);
+    ramdisk.img (.data)
+    *(.data)
+  }
+  .sdata :
+  {
+    *(.sdata)
+  }
+  _gp = .;
+  .sbss :
+  {
+    *(.sbss)
+    *(.scommon)
+  }
+  .bss :
+  {
+   *(.dynbss)
+   *(.bss)
+   *(COMMON)
+  }
+  /DISCARD/ : {
+    *(.reginfo .mdebug .note)
+  }
+}

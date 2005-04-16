@@ -1,0 +1,188 @@
+# -*- shell-script -*-
+
+menu "IEEE 1394 (FireWire) support"
+
+config IEEE1394
+	tristate "IEEE 1394 (FireWire) support"
+	depends on PCI || BROKEN
+	select NET
+	help
+	  IEEE 1394 describes a high performance serial bus, which is also
+	  known as FireWire(tm) or i.Link(tm) and is used for connecting all
+	  sorts of devices (most notably digital video cameras) to your
+	  computer.
+
+	  If you have FireWire hardware and want to use it, say Y here.  This
+	  is the core support only, you will also need to select a driver for
+	  your IEEE 1394 adapter.
+
+	  To compile this driver as a module, say M here: the
+	  module will be called ieee1394.
+
+comment "Subsystem Options"
+	depends on IEEE1394
+
+config IEEE1394_VERBOSEDEBUG
+	bool "Excessive debugging output"
+	depends on IEEE1394
+	help
+	  If you say Y here, you will get very verbose debugging logs from
+	  the subsystem which includes a dump of the header of every sent
+	  and received packet.  This can amount to a high amount of data
+	  collected in a very short time which is usually also saved to
+	  disk by the system logging daemons.
+
+	  Say Y if you really want or need the debugging output, everyone
+	  else says N.
+
+config IEEE1394_OUI_DB
+	bool "OUI Database built-in"
+	depends on IEEE1394
+	help
+	  If you say Y here, then an OUI list (vendor unique ID's) will be
+	  compiled into the ieee1394 module. This doesn't really do much
+	  except being able to display the vendor of a hardware node. The
+	  downside is that it adds about 300k to the size of the module,
+	  or kernel (depending on whether you compile ieee1394 as a
+	  module, or static in the kernel).
+
+	  This option is not needed for userspace programs like gscanbus
+	  to show this information.
+
+config IEEE1394_EXTRA_CONFIG_ROMS
+	bool "Build in extra config rom entries for certain functionality"
+	depends on IEEE1394
+	help
+	  Some IEEE1394 functionality depends on extra config rom entries
+	  being available in the host adapters CSR. These options will
+	  allow you to choose which ones.
+
+config IEEE1394_CONFIG_ROM_IP1394
+	bool "IP-1394 Entry"
+	depends on IEEE1394_EXTRA_CONFIG_ROMS && IEEE1394
+	help
+	  Adds an entry for using IP-over-1394. If you want to use your
+	  IEEE1394 bus as a network for IP systems (including interacting
+	  with MacOSX and WinXP IP-over-1394), enable this option and the
+	  eth1394 option below.
+
+comment "Device Drivers"
+	depends on IEEE1394
+
+comment "Texas Instruments PCILynx requires I2C"
+	depends on IEEE1394 && I2C=n
+
+config IEEE1394_PCILYNX
+	tristate "Texas Instruments PCILynx support"
+	depends on PCI && IEEE1394 && I2C
+	select I2C_ALGOBIT
+	help
+	  Say Y here if you have an IEEE-1394 controller with the Texas
+	  Instruments PCILynx chip.  Note: this driver is written for revision
+	  2 of this chip and may not work with revision 0.
+
+	  To compile this driver as a module, say M here: the
+	  module will be called pcilynx.
+
+# Non-maintained pcilynx options
+# if [ "$CONFIG_IEEE1394_PCILYNX" != "n" ]; then
+#     bool '    Use PCILynx local RAM' CONFIG_IEEE1394_PCILYNX_LOCALRAM
+#     bool '    Support for non-IEEE1394 local ports' CONFIG_IEEE1394_PCILYNX_PORTS
+# fi
+config IEEE1394_OHCI1394
+	tristate "OHCI-1394 support"
+	depends on PCI && IEEE1394
+	help
+	  Enable this driver if you have an IEEE 1394 controller based on the
+	  OHCI-1394 specification. The current driver is only tested with OHCI
+	  chipsets made by Texas Instruments and NEC. Most third-party vendors
+	  use one of these chipsets.  It should work with any OHCI-1394
+	  compliant card, however.
+
+	  To compile this driver as a module, say M here: the
+	  module will be called ohci1394.
+
+comment "Protocol Drivers"
+	depends on IEEE1394
+
+config IEEE1394_VIDEO1394
+	tristate "OHCI-1394 Video support"
+	depends on IEEE1394 && IEEE1394_OHCI1394
+	help
+	  This option enables video device usage for OHCI-1394 cards.  Enable
+	  this option only if you have an IEEE 1394 video device connected to
+	  an OHCI-1394 card.
+
+config IEEE1394_SBP2
+	tristate "SBP-2 support (Harddisks etc.)"
+	depends on IEEE1394 && SCSI && (PCI || BROKEN)
+	help
+	  This option enables you to use SBP-2 devices connected to your IEEE
+	  1394 bus.  SBP-2 devices include harddrives and DVD devices.
+
+config IEEE1394_SBP2_PHYS_DMA
+	bool "Enable Phys DMA support for SBP2 (Debug)"
+	depends on IEEE1394 && IEEE1394_SBP2
+
+config IEEE1394_ETH1394
+	tristate "Ethernet over 1394"
+	depends on IEEE1394 && EXPERIMENTAL && INET
+	select IEEE1394_CONFIG_ROM_IP1394
+	select IEEE1394_EXTRA_CONFIG_ROMS
+	help
+	  This driver implements a functional majority of RFC 2734: IPv4 over
+	  1394.  It will provide IP connectivity with implementations of RFC
+	  2734 found on other operating systems.  It will not communicate with
+	  older versions of this driver found in stock kernels prior to 2.6.3.
+	  This driver is still considered experimental.  It does not yet support
+	  MCAP, therefore multicast support is significantly limited.
+
+config IEEE1394_DV1394
+	tristate "OHCI-DV I/O support"
+	depends on IEEE1394 && IEEE1394_OHCI1394
+	help
+	  This driver allows you to transmit and receive DV (digital video)
+	  streams on an OHCI-1394 card using a simple frame-oriented
+	  interface.
+
+	  The user-space API for dv1394 is documented in dv1394.h.
+
+	  To compile this driver as a module, say M here: the
+	  module will be called dv1394.
+
+config IEEE1394_RAWIO
+	tristate "Raw IEEE1394 I/O support"
+	depends on IEEE1394
+	help
+	  Say Y here if you want support for the raw device. This is generally
+	  a good idea, so you should say Y here. The raw device enables
+	  direct communication of user programs with the IEEE 1394 bus and
+	  thus with the attached peripherals.
+
+	  To compile this driver as a module, say M here: the
+	  module will be called raw1394.
+
+config IEEE1394_CMP
+	tristate "IEC61883-1 Plug support"
+	depends on IEEE1394
+	help
+	  This option enables the Connection Management Procedures
+	  (IEC61883-1) driver, which implements input and output plugs.
+
+	  To compile this driver as a module, say M here: the
+	  module will be called cmp.
+
+config IEEE1394_AMDTP
+	tristate "IEC61883-6 (Audio transmission) support"
+	depends on IEEE1394 && IEEE1394_OHCI1394 && IEEE1394_CMP
+	help
+	  This option enables the Audio & Music Data Transmission Protocol
+	  (IEC61883-6) driver, which implements audio transmission over
+	  IEEE1394.
+
+	  The userspace interface is documented in amdtp.h.
+
+	  To compile this driver as a module, say M here: the
+	  module will be called amdtp.
+
+endmenu

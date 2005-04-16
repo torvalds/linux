@@ -1,0 +1,43 @@
+00-INDEX
+	- this file (info on ISDN implementation for Linux)
+CREDITS
+	- list of the kind folks that brought you this stuff.
+INTERFACE
+	- description of Linklevel and Hardwarelevel ISDN interface.
+README
+	- general info on what you need and what to do for Linux ISDN.
+README.FAQ
+	- general info for FAQ.
+README.audio
+	- info for running audio over ISDN.
+README.fax
+	- info for using Fax over ISDN.
+README.icn
+	- info on the ICN-ISDN-card and its driver.
+README.HiSax
+	- info on the HiSax driver which replaces the old teles.
+README.hfc-pci
+	- info on hfc-pci based cards.
+README.pcbit
+	- info on the PCBIT-D ISDN adapter and driver.
+README.syncppp
+	- info on running Sync PPP over ISDN.
+syncPPP.FAQ
+	- frequently asked questions about running PPP over ISDN.
+README.avmb1
+	- info on driver for AVM-B1 ISDN card.
+README.act2000
+	- info on driver for IBM ACT-2000 card.
+README.eicon
+	- info on driver for Eicon active cards.
+README.concap
+	- info on "CONCAP" encapsulation protocol interface used for X.25.
+README.diversion
+	- info on module for isdn diversion services.
+README.sc
+	- info on driver for Spellcaster cards.
+README.x25
+    _ info for running X.25 over ISDN.
+README.hysdn
+        - info on driver for Hypercope active HYSDN cards
+ 

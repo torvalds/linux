@@ -1,0 +1,32 @@
+This port to the NEC V850E processor supports the following platforms:
+
+   + The gdb v850e simulator (CONFIG_V850E_SIM).
+
+   + The Midas labs RTE-V850E/MA1-CB and RTE-V850E/NB85E-CB evaluation boards
+     (CONFIG_RTE_CB_MA1 and CONFIG_RTE_CB_NB85E).  This support has only been
+     tested when running with the Multi-debugger monitor ROM (for the Green
+     Hills Multi debugger).  The optional NEC Solution Gear RTE-MOTHER-A
+     motherboard is also supported, which allows PCI boards to be used
+     (CONFIG_RTE_MB_A_PCI).
+
+   + The Midas labs RTE-V850E/ME2-CB evaluation board (CONFIG_RTE_CB_ME2).
+     This has only been tested using a kernel downloaded via an ICE connection
+     using the Multi debugger.  Support for the RTE-MOTHER-A is present, but
+     hasn't been tested (unlike the other Midas labs cpu boards, the
+     RTE-V850E/ME2-CB includes an ethernet adaptor).
+
+   + The NEC AS85EP1 V850E evaluation chip/board (CONFIG_V850E_AS85EP1).
+
+   + The NEC `Anna' (board/chip) implementation of the V850E2 processor
+     (CONFIG_V850E2_ANNA).
+
+   + The sim85e2c and sim85e2s simulators, which are verilog simulations of
+     the V850E2 NA85E2C/NA85E2S cpu cores (CONFIG_V850E2_SIM85E2C and
+     CONFIG_V850E2_SIM85E2S).
+
+   + A FPGA implementation of the V850E2 NA85E2C cpu core
+     (CONFIG_V850E2_FPGA85E2C).
+
+Porting to anything with a V850E/MA1 or MA2 processor should be simple.
+See the file <asm-v850/machdep.h> and the files it includes for an example of
+how to add platform/chip-specific support.

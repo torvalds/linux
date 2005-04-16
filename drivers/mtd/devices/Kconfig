@@ -1,0 +1,259 @@
+# drivers/mtd/maps/Kconfig
+# $Id: Kconfig,v 1.15 2004/12/22 17:51:15 joern Exp $
+
+menu "Self-contained MTD device drivers"
+	depends on MTD!=n
+
+config MTD_PMC551
+	tristate "Ramix PMC551 PCI Mezzanine RAM card support"
+	depends on MTD && PCI
+	---help---
+	  This provides a MTD device driver for the Ramix PMC551 RAM PCI card
+	  from Ramix Inc. <http://www.ramix.com/products/memory/pmc551.html>.
+	  These devices come in memory configurations from 32M - 1G.  If you
+	  have one, you probably want to enable this.
+
+	  If this driver is compiled as a module you get the ability to select
+	  the size of the aperture window pointing into the devices memory.
+	  What this means is that if you have a 1G card, normally the kernel
+	  will use a 1G memory map as its view of the device.  As a module,
+	  you can select a 1M window into the memory and the driver will
+	  "slide" the window around the PMC551's memory.  This was
+	  particularly useful on the 2.2 kernels on PPC architectures as there
+	  was limited kernel space to deal with.
+
+config MTD_PMC551_BUGFIX
+	bool "PMC551 256M DRAM Bugfix"
+	depends on MTD_PMC551
+	help
+	  Some of Ramix's PMC551 boards with 256M configurations have invalid
+	  column and row mux values.  This option will fix them, but will
+	  break other memory configurations.  If unsure say N.
+
+config MTD_PMC551_DEBUG
+	bool "PMC551 Debugging"
+	depends on MTD_PMC551
+	help
+	  This option makes the PMC551 more verbose during its operation and
+	  is only really useful if you are developing on this driver or
+	  suspect a possible hardware or driver bug.  If unsure say N.
+
+config MTD_MS02NV
+	tristate "DEC MS02-NV NVRAM module support"
+	depends on MTD && MACH_DECSTATION
+	help
+	  This is an MTD driver for the DEC's MS02-NV (54-20948-01) battery
+	  backed-up NVRAM module.  The module was originally meant as an NFS
+	  accelerator.  Say Y here if you have a DECstation 5000/2x0 or a
+	  DECsystem 5900 equipped with such a module.
+
+config MTD_SLRAM
+	tristate "Uncached system RAM"
+	depends on MTD
+	help
+	  If your CPU cannot cache all of the physical memory in your machine,
+	  you can still use it for storage or swap by using this driver to
+	  present it to the system as a Memory Technology Device.
+
+config MTD_PHRAM
+	tristate "Physical system RAM"
+	depends on MTD
+	help
+	  This is a re-implementation of the slram driver above.
+
+	  Use this driver to access physical memory that the kernel proper
+	  doesn't have access to, memory beyond the mem=xxx limit, nvram,
+	  memory on the video card, etc...
+
+config MTD_LART
+	tristate "28F160xx flash driver for LART"
+	depends on SA1100_LART && MTD
+	help
+	  This enables the flash driver for LART. Please note that you do
+	  not need any mapping/chip driver for LART. This one does it all
+	  for you, so go disable all of those if you enabled some of them (:
+
+config MTD_MTDRAM
+	tristate "Test driver using RAM"
+	depends on MTD
+	help
+	  This enables a test MTD device driver which uses vmalloc() to
+	  provide storage.  You probably want to say 'N' unless you're
+	  testing stuff.
+
+config MTDRAM_TOTAL_SIZE
+	int "MTDRAM device size in KiB"
+	depends on MTD_MTDRAM
+	default "4096"
+	help
+	  This allows you to configure the total size of the MTD device
+	  emulated by the MTDRAM driver.  If the MTDRAM driver is built
+	  as a module, it is also possible to specify this as a parameter when
+	  loading the module.
+
+config MTDRAM_ERASE_SIZE
+	int "MTDRAM erase block size in KiB"
+	depends on MTD_MTDRAM
+	default "128"
+	help
+	  This allows you to configure the size of the erase blocks in the
+	  device emulated by the MTDRAM driver.  If the MTDRAM driver is built
+	  as a module, it is also possible to specify this as a parameter when
+	  loading the module.
+
+#If not a module (I don't want to test it as a module)
+config MTDRAM_ABS_POS
+	hex "SRAM Hexadecimal Absolute position or 0"
+	depends on MTD_MTDRAM=y
+	default "0"
+	help
+	  If you have system RAM accessible by the CPU but not used by Linux
+	  in normal operation, you can give the physical address at which the
+	  available RAM starts, and the MTDRAM driver will use it instead of
+	  allocating space from Linux's available memory. Otherwise, leave 
+	  this set to zero. Most people will want to leave this as zero.
+
+config MTD_BLKMTD
+	tristate "MTD emulation using block device"
+	depends on MTD
+	help
+	  This driver allows a block device to appear as an MTD. It would
+	  generally be used in the following cases:
+
+	  Using Compact Flash as an MTD, these usually present themselves to
+	  the system as an ATA drive.
+	  Testing MTD users (eg JFFS2) on large media and media that might
+	  be removed during a write (using the floppy drive).
+
+config MTD_BLOCK2MTD
+	tristate "MTD using block device (rewrite)"
+	depends on MTD && EXPERIMENTAL
+	help
+	  This driver is basically the same at MTD_BLKMTD above, but
+	  experienced some interface changes plus serious speedups.  In
+	  the long term, it should replace MTD_BLKMTD.  Right now, you
+	  shouldn't entrust important data to it yet.
+
+comment "Disk-On-Chip Device Drivers"
+
+config MTD_DOC2000
+	tristate "M-Systems Disk-On-Chip 2000 and Millennium (DEPRECATED)"
+	depends on MTD
+	select MTD_DOCPROBE
+	select MTD_NAND_IDS
+	---help---
+	  This provides an MTD device driver for the M-Systems DiskOnChip
+	  2000 and Millennium devices.  Originally designed for the DiskOnChip
+	  2000, it also now includes support for the DiskOnChip Millennium.
+	  If you have problems with this driver and the DiskOnChip Millennium,
+	  you may wish to try the alternative Millennium driver below. To use
+	  the alternative driver, you will need to undefine DOC_SINGLE_DRIVER
+	  in the <file:drivers/mtd/devices/docprobe.c> source code.
+
+	  If you use this device, you probably also want to enable the NFTL
+	  'NAND Flash Translation Layer' option below, which is used to
+	  emulate a block device by using a kind of file system on the flash
+	  chips.
+
+	  NOTE: This driver is deprecated and will probably be removed soon.
+	  Please try the new DiskOnChip driver under "NAND Flash Device
+	  Drivers".
+
+config MTD_DOC2001
+	tristate "M-Systems Disk-On-Chip Millennium-only alternative driver (DEPRECATED)"
+	depends on MTD
+	select MTD_DOCPROBE
+	select MTD_NAND_IDS
+	---help---
+	  This provides an alternative MTD device driver for the M-Systems 
+	  DiskOnChip Millennium devices.  Use this if you have problems with
+	  the combined DiskOnChip 2000 and Millennium driver above.  To get
+	  the DiskOnChip probe code to load and use this driver instead of
+	  the other one, you will need to undefine DOC_SINGLE_DRIVER near
+	  the beginning of <file:drivers/mtd/devices/docprobe.c>.
+
+	  If you use this device, you probably also want to enable the NFTL
+	  'NAND Flash Translation Layer' option below, which is used to
+	  emulate a block device by using a kind of file system on the flash
+	  chips.
+
+	  NOTE: This driver is deprecated and will probably be removed soon.
+	  Please try the new DiskOnChip driver under "NAND Flash Device
+	  Drivers".
+
+config MTD_DOC2001PLUS
+	tristate "M-Systems Disk-On-Chip Millennium Plus"
+	depends on MTD
+	select MTD_DOCPROBE
+	select MTD_NAND_IDS
+	---help---
+	  This provides an MTD device driver for the M-Systems DiskOnChip
+	  Millennium Plus devices.
+
+	  If you use this device, you probably also want to enable the INFTL
+	  'Inverse NAND Flash Translation Layer' option below, which is used
+	  to emulate a block device by using a kind of file system on the 
+	  flash chips.
+
+	  NOTE: This driver will soon be replaced by the new DiskOnChip driver
+	  under "NAND Flash Device Drivers" (currently that driver does not
+	  support all Millennium Plus devices).
+
+config MTD_DOCPROBE
+	tristate
+	select MTD_DOCECC
+
+config MTD_DOCECC
+	tristate
+
+config MTD_DOCPROBE_ADVANCED
+	bool "Advanced detection options for DiskOnChip"
+	depends on MTD_DOCPROBE
+	help
+	  This option allows you to specify nonstandard address at which to
+	  probe for a DiskOnChip, or to change the detection options.  You
+	  are unlikely to need any of this unless you are using LinuxBIOS.
+	  Say 'N'.
+
+config MTD_DOCPROBE_ADDRESS
+	hex "Physical address of DiskOnChip" if MTD_DOCPROBE_ADVANCED
+	depends on MTD_DOCPROBE
+	default "0x0000" if MTD_DOCPROBE_ADVANCED
+	default "0" if !MTD_DOCPROBE_ADVANCED
+	---help---
+	  By default, the probe for DiskOnChip devices will look for a
+	  DiskOnChip at every multiple of 0x2000 between 0xC8000 and 0xEE000.
+	  This option allows you to specify a single address at which to probe
+	  for the device, which is useful if you have other devices in that
+	  range which get upset when they are probed.
+
+	  (Note that on PowerPC, the normal probe will only check at
+	  0xE4000000.)
+
+	  Normally, you should leave this set to zero, to allow the probe at
+	  the normal addresses.
+
+config MTD_DOCPROBE_HIGH
+	bool "Probe high addresses"
+	depends on MTD_DOCPROBE_ADVANCED
+	help
+	  By default, the probe for DiskOnChip devices will look for a
+	  DiskOnChip at every multiple of 0x2000 between 0xC8000 and 0xEE000.
+	  This option changes to make it probe between 0xFFFC8000 and
+	  0xFFFEE000.  Unless you are using LinuxBIOS, this is unlikely to be
+	  useful to you.  Say 'N'.
+
+config MTD_DOCPROBE_55AA
+	bool "Probe for 0x55 0xAA BIOS Extension Signature"
+	depends on MTD_DOCPROBE_ADVANCED
+	help
+	  Check for the 0x55 0xAA signature of a DiskOnChip, and do not
+	  continue with probing if it is absent.  The signature will always be
+	  present for a DiskOnChip 2000 or a normal DiskOnChip Millennium.
+	  Only if you have overwritten the first block of a DiskOnChip
+	  Millennium will it be absent.  Enable this option if you are using
+	  LinuxBIOS or if you need to recover a DiskOnChip Millennium on which
+	  you have managed to wipe the first block.
+
+endmenu
+

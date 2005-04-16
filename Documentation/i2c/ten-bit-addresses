@@ -1,0 +1,22 @@
+The I2C protocol knows about two kinds of device addresses: normal 7 bit 
+addresses, and an extended set of 10 bit addresses. The sets of addresses
+do not intersect: the 7 bit address 0x10 is not the same as the 10 bit
+address 0x10 (though a single device could respond to both of them). You
+select a 10 bit address by adding an extra byte after the address
+byte:
+  S Addr7 Rd/Wr ....  
+becomes
+  S 11110 Addr10 Rd/Wr
+S is the start bit, Rd/Wr the read/write bit, and if you count the number
+of bits, you will see the there are 8 after the S bit for 7 bit addresses,
+and 16 after the S bit for 10 bit addresses.
+
+WARNING! The current 10 bit address support is EXPERIMENTAL. There are 
+several places in the code that will cause SEVERE PROBLEMS with 10 bit
+addresses, even though there is some basic handling and hooks. Also,
+almost no supported adapter handles the 10 bit addresses correctly.
+
+As soon as a real 10 bit address device is spotted 'in the wild', we
+can and will add proper support. Right now, 10 bit address devices
+are defined by the I2C protocol, but we have never seen a single device
+which supports them.

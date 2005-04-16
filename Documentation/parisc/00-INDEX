@@ -1,0 +1,6 @@
+00-INDEX
+	- this file.
+debugging
+	- some debugging hints for real-mode code
+registers
+	- current/planned usage of registers

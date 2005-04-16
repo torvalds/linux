@@ -1,0 +1,47 @@
+Kernel driver i2c-viapro
+
+Supported adapters:
+  * VIA Technologies, Inc. VT82C596A/B
+    Datasheet: Sometimes available at the VIA website
+
+  * VIA Technologies, Inc. VT82C686A/B 
+    Datasheet: Sometimes available at the VIA website
+
+  * VIA Technologies, Inc. VT8231, VT8233, VT8233A, VT8235, VT8237
+    Datasheet: available on request from Via
+
+Authors:
+	Frodo Looijaard <frodol@dds.nl>,  
+	Philip Edelbrock <phil@netroedge.com>, 
+	Kyösti Mälkki <kmalkki@cc.hut.fi>, 
+	Mark D. Studebaker <mdsxyz123@yahoo.com> 
+
+Module Parameters
+-----------------
+
+* force: int
+  Forcibly enable the SMBus controller. DANGEROUS!
+* force_addr: int
+  Forcibly enable the SMBus at the given address. EXTREMELY DANGEROUS!
+
+Description
+-----------
+
+i2c-viapro is a true SMBus host driver for motherboards with one of the
+supported VIA southbridges.
+
+Your lspci -n listing must show one of these :
+
+ device 1106:3050   (VT82C596 function 3)
+ device 1106:3051   (VT82C596 function 3)
+ device 1106:3057   (VT82C686 function 4)
+ device 1106:3074   (VT8233)
+ device 1106:3147   (VT8233A)
+ device 1106:8235   (VT8231)
+ devide 1106:3177   (VT8235)
+ devide 1106:3227   (VT8237)
+
+If none of these show up, you should look in the BIOS for settings like
+enable ACPI / SMBus or even USB.
+
+

@@ -1,0 +1,15 @@
+config DVB_TTUSB_BUDGET
+	tristate "Technotrend/Hauppauge Nova-USB devices"
+	depends on DVB_CORE && USB
+	select DVB_CX22700
+	select DVB_TDA1004X
+	select DVB_TDA8083
+	select DVB_STV0299
+	help
+	  Support for external USB adapters designed by Technotrend and
+	  produced by Hauppauge, shipped under the brand name 'Nova-USB'.
+
+          These devices don't have a MPEG decoder built in, so you need
+	  an external software decoder to watch TV.
+
+	  Say Y if you own such a device and want to use it.

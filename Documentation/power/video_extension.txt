@@ -1,0 +1,34 @@
+This driver implement the ACPI Extensions For Display Adapters
+for integrated graphics devices on motherboard, as specified in
+ACPI 2.0 Specification, Appendix B, allowing to perform some basic
+control like defining the video POST device, retrieving EDID information
+or to setup a video output, etc.  Note that this is an ref. implementation only.
+It may or may not work for your integrated video device.
+
+Interfaces exposed to userland through /proc/acpi/video:
+
+VGA/info : display the supported video bus device capability like ,Video ROM, CRT/LCD/TV.
+VGA/ROM :  Used to get a copy of the display devices' ROM data (up to 4k).
+VGA/POST_info : Used to determine what options are implemented.
+VGA/POST : Used to get/set POST device.
+VGA/DOS : Used to get/set ownership of output switching:
+	Please refer ACPI spec B.4.1 _DOS
+VGA/CRT : CRT output
+VGA/LCD : LCD output
+VGA/TV : TV output 
+VGA/*/brightness : Used to get/set brightness of output device
+
+Notify event through /proc/acpi/event:
+
+#define ACPI_VIDEO_NOTIFY_SWITCH        0x80
+#define ACPI_VIDEO_NOTIFY_PROBE         0x81
+#define ACPI_VIDEO_NOTIFY_CYCLE         0x82
+#define ACPI_VIDEO_NOTIFY_NEXT_OUTPUT   0x83
+#define ACPI_VIDEO_NOTIFY_PREV_OUTPUT   0x84
+
+#define ACPI_VIDEO_NOTIFY_CYCLE_BRIGHTNESS      0x82
+#define ACPI_VIDEO_NOTIFY_INC_BRIGHTNESS        0x83
+#define ACPI_VIDEO_NOTIFY_DEC_BRIGHTNESS        0x84
+#define ACPI_VIDEO_NOTIFY_ZERO_BRIGHTNESS       0x85
+#define ACPI_VIDEO_NOTIFY_DISPLAY_OFF           0x86
+

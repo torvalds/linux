@@ -1,0 +1,165 @@
+Anticipatory IO scheduler
+-------------------------
+Nick Piggin <piggin@cyberone.com.au>    13 Sep 2003
+
+Attention! Database servers, especially those using "TCQ" disks should
+investigate performance with the 'deadline' IO scheduler. Any system with high
+disk performance requirements should do so, in fact.
+
+If you see unusual performance characteristics of your disk systems, or you
+see big performance regressions versus the deadline scheduler, please email
+me. Database users don't bother unless you're willing to test a lot of patches
+from me ;) its a known issue.
+
+Also, users with hardware RAID controllers, doing striping, may find
+highly variable performance results with using the as-iosched. The
+as-iosched anticipatory implementation is based on the notion that a disk
+device has only one physical seeking head.  A striped RAID controller
+actually has a head for each physical device in the logical RAID device.
+
+However, setting the antic_expire (see tunable parameters below) produces
+very similar behavior to the deadline IO scheduler.
+
+
+Selecting IO schedulers
+-----------------------
+To choose IO schedulers at boot time, use the argument 'elevator=deadline'.
+'noop' and 'as' (the default) are also available. IO schedulers are assigned
+globally at boot time only presently.
+
+
+Anticipatory IO scheduler Policies
+----------------------------------
+The as-iosched implementation implements several layers of policies
+to determine when an IO request is dispatched to the disk controller.
+Here are the policies outlined, in order of application.
+
+1. one-way Elevator algorithm.
+
+The elevator algorithm is similar to that used in deadline scheduler, with
+the addition that it allows limited backward movement of the elevator
+(i.e. seeks backwards).  A seek backwards can occur when choosing between
+two IO requests where one is behind the elevator's current position, and
+the other is in front of the elevator's position. If the seek distance to
+the request in back of the elevator is less than half the seek distance to
+the request in front of the elevator, then the request in back can be chosen.
+Backward seeks are also limited to a maximum of MAXBACK (1024*1024) sectors.
+This favors forward movement of the elevator, while allowing opportunistic
+"short" backward seeks.
+
+2. FIFO expiration times for reads and for writes.
+
+This is again very similar to the deadline IO scheduler.  The expiration
+times for requests on these lists is tunable using the parameters read_expire
+and write_expire discussed below.  When a read or a write expires in this way,
+the IO scheduler will interrupt its current elevator sweep or read anticipation
+to service the expired request.
+
+3. Read and write request batching
+
+A batch is a collection of read requests or a collection of write
+requests.  The as scheduler alternates dispatching read and write batches
+to the driver.  In the case a read batch, the scheduler submits read
+requests to the driver as long as there are read requests to submit, and
+the read batch time limit has not been exceeded (read_batch_expire).
+The read batch time limit begins counting down only when there are
+competing write requests pending.
+
+In the case of a write batch, the scheduler submits write requests to
+the driver as long as there are write requests available, and the
+write batch time limit has not been exceeded (write_batch_expire).
+However, the length of write batches will be gradually shortened
+when read batches frequently exceed their time limit.
+
+When changing between batch types, the scheduler waits for all requests
+from the previous batch to complete before scheduling requests for the
+next batch.
+
+The read and write fifo expiration times described in policy 2 above
+are checked only when in scheduling IO of a batch for the corresponding
+(read/write) type.  So for example, the read FIFO timeout values are
+tested only during read batches.  Likewise, the write FIFO timeout
+values are tested only during write batches.  For this reason,
+it is generally not recommended for the read batch time
+to be longer than the write expiration time, nor for the write batch
+time to exceed the read expiration time (see tunable parameters below).
+
+When the IO scheduler changes from a read to a write batch,
+it begins the elevator from the request that is on the head of the
+write expiration FIFO.  Likewise, when changing from a write batch to
+a read batch, scheduler begins the elevator from the first entry
+on the read expiration FIFO.
+
+4. Read anticipation.
+
+Read anticipation occurs only when scheduling a read batch.
+This implementation of read anticipation allows only one read request
+to be dispatched to the disk controller at a time.  In
+contrast, many write requests may be dispatched to the disk controller
+at a time during a write batch.  It is this characteristic that can make
+the anticipatory scheduler perform anomalously with controllers supporting
+TCQ, or with hardware striped RAID devices. Setting the antic_expire
+queue paramter (see below) to zero disables this behavior, and the anticipatory
+scheduler behaves essentially like the deadline scheduler.
+
+When read anticipation is enabled (antic_expire is not zero), reads
+are dispatched to the disk controller one at a time.
+At the end of each read request, the IO scheduler examines its next
+candidate read request from its sorted read list.  If that next request
+is from the same process as the request that just completed,
+or if the next request in the queue is "very close" to the
+just completed request, it is dispatched immediately.  Otherwise,
+statistics (average think time, average seek distance) on the process
+that submitted the just completed request are examined.  If it seems
+likely that that process will submit another request soon, and that
+request is likely to be near the just completed request, then the IO
+scheduler will stop dispatching more read requests for up time (antic_expire)
+milliseconds, hoping that process will submit a new request near the one
+that just completed.  If such a request is made, then it is dispatched
+immediately.  If the antic_expire wait time expires, then the IO scheduler
+will dispatch the next read request from the sorted read queue.
+
+To decide whether an anticipatory wait is worthwhile, the scheduler
+maintains statistics for each process that can be used to compute
+mean "think time" (the time between read requests), and mean seek
+distance for that process.  One observation is that these statistics
+are associated with each process, but those statistics are not associated
+with a specific IO device.  So for example, if a process is doing IO
+on several file systems on separate devices, the statistics will be
+a combination of IO behavior from all those devices.
+
+
+Tuning the anticipatory IO scheduler
+------------------------------------
+When using 'as', the anticipatory IO scheduler there are 5 parameters under
+/sys/block/*/queue/iosched/. All are units of milliseconds.
+
+The parameters are:
+* read_expire
+    Controls how long until a read request becomes "expired". It also controls the
+    interval between which expired requests are served, so set to 50, a request
+    might take anywhere < 100ms to be serviced _if_ it is the next on the
+    expired list. Obviously request expiration strategies won't make the disk
+    go faster. The result basically equates to the timeslice a single reader
+    gets in the presence of other IO. 100*((seek time / read_expire) + 1) is
+    very roughly the % streaming read efficiency your disk should get with
+    multiple readers.
+
+* read_batch_expire
+    Controls how much time a batch of reads is given before pending writes are
+    served. A higher value is more efficient. This might be set below read_expire
+    if writes are to be given higher priority than reads, but reads are to be
+    as efficient as possible when there are no writes. Generally though, it
+    should be some multiple of read_expire.
+
+* write_expire, and
+* write_batch_expire are equivalent to the above, for writes.
+
+* antic_expire
+    Controls the maximum amount of time we can anticipate a good read (one
+    with a short seek distance from the most recently completed request) before
+    giving up. Many other factors may cause anticipation to be stopped early,
+    or some processes will not be "anticipated" at all. Should be a bit higher
+    for big seek time devices though not a linear correspondence - most
+    processes have only a few ms thinktime.
+

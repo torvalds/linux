@@ -1,0 +1,42 @@
+The following is a list of files and features that are going to be
+removed in the kernel source tree.  Every entry should contain what
+exactly is going away, why it is happening, and who is going to be doing
+the work.  When the feature is removed from the kernel, it should also
+be removed from this file.
+
+---------------------------
+
+What:	devfs
+When:	July 2005
+Files:	fs/devfs/*, include/linux/devfs_fs*.h and assorted devfs
+	function calls throughout the kernel tree
+Why:	It has been unmaintained for a number of years, has unfixable
+	races, contains a naming policy within the kernel that is
+	against the LSB, and can be replaced by using udev.
+Who:	Greg Kroah-Hartman <greg@kroah.com>
+
+---------------------------
+
+What:	ACPI S4bios support
+When:	May 2005
+Why:	Noone uses it, and it probably does not work, anyway. swsusp is
+	faster, more reliable, and people are actually using it.
+Who:	Pavel Machek <pavel@suse.cz>
+
+---------------------------
+
+What:	PCI Name Database (CONFIG_PCI_NAMES)
+When:	July 2005
+Why:	It bloats the kernel unnecessarily, and is handled by userspace better
+	(pciutils supports it.)  Will eliminate the need to try to keep the
+	pci.ids file in sync with the sf.net database all of the time.
+Who:	Greg Kroah-Hartman <gregkh@suse.de>
+
+---------------------------
+
+What:	io_remap_page_range() (macro or function)
+When:	September 2005
+Why:	Replaced by io_remap_pfn_range() which allows more memory space
+	addressabilty (by using a pfn) and supports sparc & sparc64
+	iospace as part of the pfn.
+Who:	Randy Dunlap <rddunlap@osdl.org>

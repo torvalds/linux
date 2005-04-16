@@ -1,0 +1,152 @@
+#
+# USB Miscellaneous driver configuration
+#
+comment "USB Miscellaneous drivers"
+	depends on USB
+
+config USB_EMI62
+	tristate "EMI 6|2m USB Audio interface support"
+	depends on USB
+	---help---
+	  This driver loads firmware to Emagic EMI 6|2m low latency USB
+	  Audio and Midi interface.
+
+	  After firmware load the device is handled with standard linux
+	  USB Audio driver.
+
+	  This code is also available as a module ( = code which can be
+	  inserted in and removed from the running kernel whenever you want).
+	  The module will be called audio. If you want to compile it as a
+	  module, say M here and read <file:Documentation/kbuild/modules.txt>.
+
+config USB_EMI26
+	tristate "EMI 2|6 USB Audio interface support"
+	depends on USB
+	---help---
+	  This driver loads firmware to Emagic EMI 2|6 low latency USB
+	  Audio interface.
+
+	  After firmware load the device is handled with standard linux
+	  USB Audio driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called emi26.
+
+config USB_AUERSWALD
+	tristate "USB Auerswald ISDN support (EXPERIMENTAL)"
+	depends on USB && EXPERIMENTAL
+	help
+	  Say Y here if you want to connect an Auerswald USB ISDN Device
+	  to your computer's USB port.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called auerswald.
+
+config USB_RIO500
+	tristate "USB Diamond Rio500 support (EXPERIMENTAL)"
+	depends on USB && EXPERIMENTAL
+	help
+	  Say Y here if you want to connect a USB Rio500 mp3 player to your
+	  computer's USB port. Please read <file:Documentation/usb/rio.txt>
+	  for more information.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rio500.
+
+config USB_LEGOTOWER
+	tristate "USB Lego Infrared Tower support (EXPERIMENTAL)"
+	depends on USB && EXPERIMENTAL
+	help
+	  Say Y here if you want to connect a USB Lego Infrared Tower to your
+	  computer's USB port.
+
+	  This code is also available as a module ( = code which can be
+	  inserted in and removed from the running kernel whenever you want).
+	  The module will be called legousbtower. If you want to compile it as
+	  a module, say M here and read
+	  <file:Documentation/kbuild/modules.txt>.
+
+config USB_LCD
+	tristate "USB LCD driver support"
+	depends on USB
+	help
+	  Say Y here if you want to connect an USBLCD to your computer's
+	  USB port. The USBLCD is a small USB interface board for
+	  alphanumeric LCD modules. See <http://www.usblcd.de/> for more
+	  information.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called usblcd.
+
+config USB_LED
+	tristate "USB LED driver support"
+	depends on USB
+	help
+	  Say Y here if you want to connect an USBLED device to your 
+	  computer's USB port.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called usbled.
+
+config USB_CYTHERM
+	tristate "Cypress USB thermometer driver support"
+	depends on USB
+	help
+	  Say Y here if you want to connect a Cypress USB thermometer
+	  device to your computer's USB port. This device is also known
+	  as the Cypress USB Starter kit or demo board. The Elektor
+	  magazine published a modified version of this device in issue 
+	  #291.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cytherm.
+
+config USB_PHIDGETKIT
+	tristate "USB PhidgetKit support"
+	depends on USB
+	help
+	  Say Y here if you want to connect a PhidgetKit USB device from
+	  Phidgets Inc.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called phidgetkit.
+
+config USB_PHIDGETSERVO
+	tristate "USB PhidgetServo support"
+	depends on USB
+	help
+	  Say Y here if you want to connect an 1 or 4 Motor PhidgetServo 
+	  servo controller version 2.0 or 3.0.
+
+	  Phidgets Inc. has a web page at <http://www.phidgets.com/>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called phidgetservo.
+
+config USB_IDMOUSE
+	tristate "Siemens ID USB Mouse Fingerprint sensor support"
+	depends on USB
+	help
+	  Say Y here if you want to use the fingerprint sensor on
+	  the Siemens ID Mouse. There is also a Siemens ID Mouse
+	  _Professional_, which has not been tested with this driver,
+	  but uses the same sensor and may therefore work.
+
+	  This driver creates an entry "/dev/idmouseX" or "/dev/usb/idmouseX",
+	  which can be used by, e.g.,"cat /dev/idmouse0 > fingerprint.pnm".
+
+	  See also <http://www.fs.tum.de/~echtler/idmouse/>.
+
+source "drivers/usb/misc/sisusbvga/Kconfig"
+
+config USB_TEST
+	tristate "USB testing driver (DEVELOPMENT)"
+	depends on USB && USB_DEVICEFS && EXPERIMENTAL
+	help
+	  This driver is for testing host controller software.  It is used
+	  with specialized device firmware for regression and stress testing,
+	  to help prevent problems from cropping up with "real" drivers.
+
+	  See <http://www.linux-usb.org/usbtest/> for more information,
+	  including sample test device firmware and "how to use it".
+

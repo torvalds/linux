@@ -1,0 +1,227 @@
+Force feedback for Linux.
+By Johann Deneux <deneux@ifrance.com> on 2001/04/22.
+You may redistribute this file. Please remember to include shape.fig and
+interactive.fig as well.
+----------------------------------------------------------------------------
+
+0. Introduction
+~~~~~~~~~~~~~~~
+This document describes how to use force feedback devices under Linux. The
+goal is not to support these devices as if they were simple input-only devices
+(as it is already the case), but to really enable the rendering of force
+effects.
+At the moment, only I-Force devices are supported, and not officially. That
+means I had to find out how the protocol works on my own. Of course, the
+information I managed to grasp is far from being complete, and I can not
+guarranty that this driver will work for you.
+This document only describes the force feedback part of the driver for I-Force
+devices. Please read joystick.txt before reading further this document.
+
+2. Instructions to the user
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Here are instructions on how to compile and use the driver. In fact, this
+driver is the normal iforce, input and evdev drivers written by Vojtech
+Pavlik, plus additions to support force feedback.
+
+Before you start, let me WARN you that some devices shake violently during the
+initialisation phase. This happens for example with my "AVB Top Shot Pegasus".
+To stop this annoying behaviour, move you joystick to its limits. Anyway, you
+should keep a hand on your device, in order to avoid it to brake down if
+something goes wrong.
+
+At the kernel's compilation:
+	- Enable IForce/Serial
+	- Enable Event interface
+
+Compile the modules, install them.
+
+You also need inputattach.
+
+You then need to insert the modules into the following order:
+% modprobe joydev
+% modprobe serport		# Only for serial
+% modprobe iforce
+% modprobe evdev
+% ./inputattach -ifor $2 &	# Only for serial
+If you are using USB, you don't need the inputattach step.
+
+Please check that you have all the /dev/input entries needed:
+cd /dev
+rm js*
+mkdir input
+mknod input/js0 c 13 0
+mknod input/js1 c 13 1
+mknod input/js2 c 13 2
+mknod input/js3 c 13 3
+ln -s input/js0 js0
+ln -s input/js1 js1
+ln -s input/js2 js2
+ln -s input/js3 js3
+
+mknod input/event0 c 13 64
+mknod input/event1 c 13 65
+mknod input/event2 c 13 66
+mknod input/event3 c 13 67
+
+2.1 Does it work ?
+~~~~~~~~~~~~~~~~~~
+There is an utility called fftest that will allow you to test the driver.
+% fftest /dev/input/eventXX
+
+3. Instructions to the developper
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  All interactions are done using the event API. That is, you can use ioctl()
+and write() on /dev/input/eventXX.
+  This information is subject to change.
+
+3.1 Querying device capabilities
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#include <linux/input.h>
+#include <sys/ioctl.h>
+
+unsigned long features[1 + FF_MAX/sizeof(unsigned long)];
+int ioctl(int file_descriptor, int request, unsigned long *features);
+
+"request" must be EVIOCGBIT(EV_FF, size of features array in bytes )
+
+Returns the features supported by the device. features is a bitfield with the
+following bits:
+- FF_X		has an X axis (usually joysticks)
+- FF_Y		has an Y axis (usually joysticks)
+- FF_WHEEL	has a wheel (usually sterring wheels)
+- FF_CONSTANT	can render constant force effects
+- FF_PERIODIC	can render periodic effects (sine, triangle, square...)
+- FF_RAMP       can render ramp effects
+- FF_SPRING	can simulate the presence of a spring
+- FF_FRICTION	can simulate friction 
+- FF_DAMPER	can simulate damper effects
+- FF_RUMBLE	rumble effects (normally the only effect supported by rumble
+		pads)
+- FF_INERTIA    can simulate inertia
+
+
+int ioctl(int fd, EVIOCGEFFECTS, int *n);
+
+Returns the number of effects the device can keep in its memory.
+
+3.2 Uploading effects to the device
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#include <linux/input.h>
+#include <sys/ioctl.h>
+ 
+int ioctl(int file_descriptor, int request, struct ff_effect *effect);
+
+"request" must be EVIOCSFF.
+
+"effect" points to a structure describing the effect to upload. The effect is
+uploaded, but not played.
+The content of effect may be modified. In particular, its field "id" is set
+to the unique id assigned by the driver. This data is required for performing
+some operations (removing an effect, controlling the playback).
+This if field must be set to -1 by the user in order to tell the driver to
+allocate a new effect.
+See <linux/input.h> for a description of the ff_effect stuct. You should also
+find help in a few sketches, contained in files shape.fig and interactive.fig.
+You need xfig to visualize these files.
+
+3.3 Removing an effect from the device
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+int ioctl(int fd, EVIOCRMFF, effect.id);
+
+This makes room for new effects in the device's memory. Please note this won't
+stop the effect if it was playing.
+
+3.4 Controlling the playback of effects
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Control of playing is done with write(). Below is an example:
+
+#include <linux/input.h>
+#include <unistd.h>
+
+	struct input_event play;
+	struct input_event stop;
+	struct ff_effect effect;
+	int fd;
+...
+	fd = open("/dev/input/eventXX", O_RDWR);
+...
+	/* Play three times */
+	play.type = EV_FF;
+	play.code = effect.id;
+	play.value = 3;
+	
+	write(fd, (const void*) &play, sizeof(play));
+...
+	/* Stop an effect */
+	stop.type = EV_FF;
+	stop.code = effect.id;
+	stop.value = 0;
+	
+	write(fd, (const void*) &play, sizeof(stop));
+
+3.5 Setting the gain
+~~~~~~~~~~~~~~~~~~~~
+Not all devices have the same strength. Therefore, users should set a gain
+factor depending on how strong they want effects to be. This setting is
+persistent across access to the driver, so you should not care about it if
+you are writing games, as another utility probably already set this for you.
+
+/* Set the gain of the device
+int gain;		/* between 0 and 100 */
+struct input_event ie;	/* structure used to communicate with the driver */
+
+ie.type = EV_FF;
+ie.code = FF_GAIN;
+ie.value = 0xFFFFUL * gain / 100;
+
+if (write(fd, &ie, sizeof(ie)) == -1)
+	perror("set gain");
+
+3.6 Enabling/Disabling autocenter
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The autocenter feature quite disturbs the rendering of effects in my opinion,
+and I think it should be an effect, which computation depends on the game
+type. But you can enable it if you want.
+
+int autocenter;		/* between 0 and 100 */
+struct input_event ie;
+
+ie.type = EV_FF;
+ie.code = FF_AUTOCENTER;
+ie.value = 0xFFFFUL * autocenter / 100;
+
+if (write(fd, &ie, sizeof(ie)) == -1)
+	perror("set auto-center");
+
+A value of 0 means "no auto-center".
+
+3.7 Dynamic update of an effect
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Proceed as if you wanted to upload a new effect, except that instead of
+setting the id field to -1, you set it to the wanted effect id.
+Normally, the effect is not stopped and restarted. However, depending on the
+type of device, not all parameters can be dynamically updated. For example,
+the direction of an effect cannot be updated with iforce devices. In this
+case, the driver stops the effect, up-load it, and restart it.
+
+
+3.8 Information about the status of effects
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Every time the status of an effect is changed, an event is sent. The values
+and meanings of the fields of the event are as follows:
+struct input_event {
+/* When the status of the effect changed */
+	struct timeval time;
+
+/* Set to EV_FF_STATUS */
+	unsigned short type;
+
+/* Contains the id of the effect */
+	unsigned short code;
+
+/* Indicates the status */
+	unsigned int value;
+};
+
+FF_STATUS_STOPPED	The effect stopped playing
+FF_STATUS_PLAYING	The effect started to play

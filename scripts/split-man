@@ -1,0 +1,112 @@
+#!/usr/bin/perl
+
+use strict;
+
+## Copyright (C) Michael Still (mikal@stillhq.com)
+## Released under the terms of the GNU GPL
+##
+## Hoon through the specified DocBook SGML file, and split out the
+## man pages. These can then be processed into groff format, and
+## installed if desired...
+##
+## Arguements: $1 -- the name of the sgml file
+##             $2 -- the directory to put the generated SGML files in
+##             $3 -- kernel version
+
+my($SGML, $REF, $front, $refdata, $mode, $filename);
+
+if(($ARGV[0] eq "") || ($ARGV[1] eq "") || ($ARGV[2] eq "")){
+  die "Usage: split-man <sgml file> <output dir> <kernel version>\n";
+}
+
+open SGML, "< $ARGV[0]" or die "Could not open input file \"$ARGV[0]\"\n";
+if( ! -d "$ARGV[1]" ){
+  die "Output directory \"$ARGV[1]\" does not exist\n";
+}
+
+# Possible modes:
+#   0: Looking for input I care about
+#   1: Inside book front matter
+#   2: Inside a refentry
+#   3: Inside a refentry, and we know the filename
+
+$mode = 0;
+$refdata = "";
+$front = "";
+while(<SGML>){
+  # Starting modes
+  if(/<bookinfo>/ || /<docinfo>/){
+    $mode = 1;
+  }
+  elsif(/<refentry>/){
+    $mode = 2;
+  }
+  elsif(/<refentrytitle><phrase[^>]*>([^<]*)<.*$/){
+    $mode = 3;
+    $filename = $1;
+
+    $filename =~ s/struct //;
+    $filename =~ s/typedef //;
+
+    print "Found manpage for $filename\n";
+    open REF, "> $ARGV[1]/$filename.sgml" or
+      die "Couldn't open output file \"$ARGV[1]/$filename.sgml\": $!\n";
+    print REF <<EOF;
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook V4.1//EN">
+
+<!-- BEGINFRONTTAG: The following is front matter for the parent book -->
+$front
+<!-- ENDFRONTTAG: End front matter -->
+
+$refdata
+EOF
+    $refdata = "";
+  }
+
+  # Extraction
+  if($mode == 1){
+    chomp $_;
+    $front = "$front<!-- $_ -->\n";
+  }
+  elsif($mode == 2){
+    $refdata = "$refdata$_";
+  }
+  elsif($mode == 3){
+    # There are some fixups which need to be applied
+    if(/<\/refmeta>/){
+      print REF "<manvolnum>9</manvolnum>\n";
+    }
+    if(/<\/refentry>/){
+      print REF <<EOF;
+<refsect1><title>About this document</title>
+<para>
+This documentation was generated with kernel version $ARGV[2].
+</para>
+</refsect1>
+EOF
+    }
+
+    # For some reason, we title the synopsis twice in the main DocBook
+    if(! /<title>Synopsis<\/title>/){
+      if(/<refentrytitle>/){
+	s/struct //;
+	s/typedef //;
+      }
+
+      print REF "$_";
+    }
+  }
+
+  # Ending modes
+  if(/<\/bookinfo>/ || /<\/docinfo>/){
+    $mode = 0;
+  }
+  elsif(/<\/refentry>/){
+    $mode = 0;
+    close REF;
+  }
+}
+
+# And make sure we don't process this unnessesarily
+$ARGV[0] =~ s/\.sgml/.9/;
+`touch $ARGV[0]`;

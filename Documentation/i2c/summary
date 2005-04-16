@@ -1,0 +1,75 @@
+This is an explanation of what i2c is, and what is supported in this package.
+
+I2C and SMBus
+=============
+
+I2C (pronounce: I squared C) is a protocol developed by Philips. It is a 
+slow two-wire protocol (10-400 kHz), but it suffices for many types of 
+devices.
+
+SMBus (System Management Bus) is a subset of the I2C protocol. Many
+modern mainboards have a System Management Bus. There are a lot of 
+devices which can be connected to a SMBus; the most notable are modern 
+memory chips with EEPROM memories and chips for hardware monitoring.
+
+Because the SMBus is just a special case of the generalized I2C bus, we
+can simulate the SMBus protocol on plain I2C busses. The reverse is
+regretfully impossible.
+
+
+Terminology
+===========
+
+When we talk about I2C, we use the following terms:
+  Bus    -> Algorithm
+            Adapter
+  Device -> Driver
+            Client
+
+An Algorithm driver contains general code that can be used for a whole class
+of I2C adapters. Each specific adapter driver depends on one algorithm
+driver.
+A Driver driver (yes, this sounds ridiculous, sorry) contains the general
+code to access some type of device. Each detected device gets its own
+data in the Client structure. Usually, Driver and Client are more closely
+integrated than Algorithm and Adapter.
+
+For a given configuration, you will need a driver for your I2C bus (usually
+a separate Adapter and Algorithm driver), and drivers for your I2C devices
+(usually one driver for each device). There are no I2C device drivers
+in this package. See the lm_sensors project http://www.lm-sensors.nu
+for device drivers.
+
+
+Included Bus Drivers
+====================
+Note that only stable drivers are patched into the kernel by 'mkpatch'.
+
+
+Base modules
+------------
+
+i2c-core: The basic I2C code, including the /proc/bus/i2c* interface
+i2c-dev:  The /dev/i2c-* interface
+i2c-proc: The /proc/sys/dev/sensors interface for device (client) drivers
+
+Algorithm drivers
+-----------------
+
+i2c-algo-8xx:    An algorithm for CPM's I2C device in Motorola 8xx processors (NOT BUILT BY DEFAULT)
+i2c-algo-bit:    A bit-banging algorithm
+i2c-algo-pcf:    A PCF 8584 style algorithm
+i2c-algo-ibm_ocp: An algorithm for the I2C device in IBM 4xx processors (NOT BUILT BY DEFAULT)
+
+Adapter drivers
+---------------
+
+i2c-elektor:     Elektor ISA card (uses i2c-algo-pcf)
+i2c-elv:         ELV parallel port adapter (uses i2c-algo-bit)
+i2c-pcf-epp:     PCF8584 on a EPP parallel port (uses i2c-algo-pcf) (NOT mkpatched)
+i2c-philips-par: Philips style parallel port adapter (uses i2c-algo-bit)
+i2c-adap-ibm_ocp: IBM 4xx processor I2C device (uses i2c-algo-ibm_ocp) (NOT BUILT BY DEFAULT)
+i2c-pport:       Primitive parallel port adapter (uses i2c-algo-bit)
+i2c-rpx:         RPX board Motorola 8xx I2C device (uses i2c-algo-8xx) (NOT BUILT BY DEFAULT)
+i2c-velleman:    Velleman K8000 parallel port adapter (uses i2c-algo-bit)
+

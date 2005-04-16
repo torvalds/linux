@@ -1,0 +1,235 @@
+From kernel/suspend.c:
+
+ * BIG FAT WARNING *********************************************************
+ *
+ * If you have unsupported (*) devices using DMA...
+ *				...say goodbye to your data.
+ *
+ * If you touch anything on disk between suspend and resume...
+ *				...kiss your data goodbye.
+ *
+ * If your disk driver does not support suspend... (IDE does)
+ *				...you'd better find out how to get along
+ *				   without your data.
+ *
+ * If you change kernel command line between suspend and resume...
+ *			        ...prepare for nasty fsck or worse.
+ *
+ * If you change your hardware while system is suspended...
+ *			        ...well, it was not good idea.
+ *
+ * (*) suspend/resume support is needed to make it safe.
+
+You need to append resume=/dev/your_swap_partition to kernel command
+line. Then you suspend by
+
+echo shutdown > /sys/power/disk; echo disk > /sys/power/state
+
+. If you feel ACPI works pretty well on your system, you might try
+
+echo platform > /sys/power/disk; echo disk > /sys/power/state
+
+
+
+Article about goals and implementation of Software Suspend for Linux
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Author: G‚ábor Kuti
+Last revised: 2003-10-20 by Pavel Machek
+
+Idea and goals to achieve
+
+Nowadays it is common in several laptops that they have a suspend button. It
+saves the state of the machine to a filesystem or to a partition and switches
+to standby mode. Later resuming the machine the saved state is loaded back to
+ram and the machine can continue its work. It has two real benefits. First we
+save ourselves the time machine goes down and later boots up, energy costs
+are real high when running from batteries. The other gain is that we don't have to
+interrupt our programs so processes that are calculating something for a long
+time shouldn't need to be written interruptible.
+
+swsusp saves the state of the machine into active swaps and then reboots or
+powerdowns.  You must explicitly specify the swap partition to resume from with
+``resume='' kernel option. If signature is found it loads and restores saved
+state. If the option ``noresume'' is specified as a boot parameter, it skips
+the resuming.
+
+In the meantime while the system is suspended you should not add/remove any
+of the hardware, write to the filesystems, etc.
+
+Sleep states summary
+====================
+
+There are three different interfaces you can use, /proc/acpi should
+work like this:
+
+In a really perfect world:
+echo 1 > /proc/acpi/sleep       # for standby
+echo 2 > /proc/acpi/sleep       # for suspend to ram
+echo 3 > /proc/acpi/sleep       # for suspend to ram, but with more power conservative
+echo 4 > /proc/acpi/sleep       # for suspend to disk
+echo 5 > /proc/acpi/sleep       # for shutdown unfriendly the system
+
+and perhaps
+echo 4b > /proc/acpi/sleep      # for suspend to disk via s4bios
+
+Frequently Asked Questions
+==========================
+
+Q: well, suspending a server is IMHO a really stupid thing,
+but... (Diego Zuccato):
+
+A: You bought new UPS for your server. How do you install it without
+bringing machine down? Suspend to disk, rearrange power cables,
+resume.
+
+You have your server on UPS. Power died, and UPS is indicating 30
+seconds to failure. What do you do? Suspend to disk.
+
+Ethernet card in your server died. You want to replace it. Your
+server is not hotplug capable. What do you do? Suspend to disk,
+replace ethernet card, resume. If you are fast your users will not
+even see broken connections.
+
+
+Q: Maybe I'm missing something, but why don't the regular I/O paths work?
+
+A: We do use the regular I/O paths. However we cannot restore the data
+to its original location as we load it. That would create an
+inconsistent kernel state which would certainly result in an oops.
+Instead, we load the image into unused memory and then atomically copy
+it back to it original location. This implies, of course, a maximum
+image size of half the amount of memory.
+
+There are two solutions to this:
+
+* require half of memory to be free during suspend. That way you can
+read "new" data onto free spots, then cli and copy
+
+* assume we had special "polling" ide driver that only uses memory
+between 0-640KB. That way, I'd have to make sure that 0-640KB is free
+during suspending, but otherwise it would work...
+
+suspend2 shares this fundamental limitation, but does not include user
+data and disk caches into "used memory" by saving them in
+advance. That means that the limitation goes away in practice.
+
+Q: Does linux support ACPI S4?
+
+A: Yes. That's what echo platform > /sys/power/disk does.
+
+Q: My machine doesn't work with ACPI. How can I use swsusp than ?
+
+A: Do a reboot() syscall with right parameters. Warning: glibc gets in
+its way, so check with strace:
+
+reboot(LINUX_REBOOT_MAGIC1, LINUX_REBOOT_MAGIC2, 0xd000fce2)
+
+(Thanks to Peter Osterlund:)
+
+#include <unistd.h>
+#include <syscall.h>
+
+#define LINUX_REBOOT_MAGIC1     0xfee1dead
+#define LINUX_REBOOT_MAGIC2     672274793
+#define LINUX_REBOOT_CMD_SW_SUSPEND     0xD000FCE2
+
+int main()
+{
+    syscall(SYS_reboot, LINUX_REBOOT_MAGIC1, LINUX_REBOOT_MAGIC2,
+            LINUX_REBOOT_CMD_SW_SUSPEND, 0);
+    return 0;
+}
+
+Also /sys/ interface should be still present.
+
+Q: What is 'suspend2'?
+
+A: suspend2 is 'Software Suspend 2', a forked implementation of
+suspend-to-disk which is available as separate patches for 2.4 and 2.6
+kernels from swsusp.sourceforge.net. It includes support for SMP, 4GB
+highmem and preemption. It also has a extensible architecture that
+allows for arbitrary transformations on the image (compression,
+encryption) and arbitrary backends for writing the image (eg to swap
+or an NFS share[Work In Progress]). Questions regarding suspend2
+should be sent to the mailing list available through the suspend2
+website, and not to the Linux Kernel Mailing List. We are working
+toward merging suspend2 into the mainline kernel.
+
+Q: A kernel thread must voluntarily freeze itself (call 'refrigerator').
+I found some kernel threads that don't do it, and they don't freeze
+so the system can't sleep. Is this a known behavior?
+
+A: All such kernel threads need to be fixed, one by one. Select the
+place where the thread is safe to be frozen (no kernel semaphores
+should be held at that point and it must be safe to sleep there), and
+add:
+
+            if (current->flags & PF_FREEZE)
+                    refrigerator(PF_FREEZE);
+
+If the thread is needed for writing the image to storage, you should
+instead set the PF_NOFREEZE process flag when creating the thread.
+
+
+Q: What is the difference between between "platform", "shutdown" and
+"firmware" in /sys/power/disk?
+
+A:
+
+shutdown: save state in linux, then tell bios to powerdown
+
+platform: save state in linux, then tell bios to powerdown and blink
+          "suspended led"
+
+firmware: tell bios to save state itself [needs BIOS-specific suspend
+	  partition, and has very little to do with swsusp]
+
+"platform" is actually right thing to do, but "shutdown" is most
+reliable.
+
+Q: I do not understand why you have such strong objections to idea of
+selective suspend.
+
+A: Do selective suspend during runtime power managment, that's okay. But
+its useless for suspend-to-disk. (And I do not see how you could use
+it for suspend-to-ram, I hope you do not want that).
+
+Lets see, so you suggest to
+
+* SUSPEND all but swap device and parents
+* Snapshot
+* Write image to disk
+* SUSPEND swap device and parents
+* Powerdown
+
+Oh no, that does not work, if swap device or its parents uses DMA,
+you've corrupted data. You'd have to do
+
+* SUSPEND all but swap device and parents
+* FREEZE swap device and parents
+* Snapshot
+* UNFREEZE swap device and parents
+* Write
+* SUSPEND swap device and parents
+
+Which means that you still need that FREEZE state, and you get more
+complicated code. (And I have not yet introduce details like system
+devices).
+
+Q: There don't seem to be any generally useful behavioral
+distinctions between SUSPEND and FREEZE.
+
+A: Doing SUSPEND when you are asked to do FREEZE is always correct,
+but it may be unneccessarily slow. If you want USB to stay simple,
+slowness may not matter to you. It can always be fixed later.
+
+For devices like disk it does matter, you do not want to spindown for
+FREEZE.
+
+Q: After resuming, system is paging heavilly, leading to very bad interactivity.
+
+A: Try running
+
+cat `cat /proc/[0-9]*/maps | grep / | sed 's:.* /:/:' | sort -u` > /dev/null
+
+after resume. swapoff -a; swapon -a may also be usefull.

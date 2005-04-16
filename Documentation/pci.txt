@@ -1,0 +1,284 @@
+			 How To Write Linux PCI Drivers
+
+		   by Martin Mares <mj@ucw.cz> on 07-Feb-2000
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The world of PCI is vast and it's full of (mostly unpleasant) surprises.
+Different PCI devices have different requirements and different bugs --
+because of this, the PCI support layer in Linux kernel is not as trivial
+as one would wish. This short pamphlet tries to help all potential driver
+authors find their way through the deep forests of PCI handling.
+
+
+0. Structure of PCI drivers
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+There exist two kinds of PCI drivers: new-style ones (which leave most of
+probing for devices to the PCI layer and support online insertion and removal
+of devices [thus supporting PCI, hot-pluggable PCI and CardBus in a single
+driver]) and old-style ones which just do all the probing themselves. Unless
+you have a very good reason to do so, please don't use the old way of probing
+in any new code. After the driver finds the devices it wishes to operate
+on (either the old or the new way), it needs to perform the following steps:
+
+	Enable the device
+	Access device configuration space
+	Discover resources (addresses and IRQ numbers) provided by the device
+	Allocate these resources
+	Communicate with the device
+	Disable the device
+
+Most of these topics are covered by the following sections, for the rest
+look at <linux/pci.h>, it's hopefully well commented.
+
+If the PCI subsystem is not configured (CONFIG_PCI is not set), most of
+the functions described below are defined as inline functions either completely
+empty or just returning an appropriate error codes to avoid lots of ifdefs
+in the drivers.
+
+
+1. New-style drivers
+~~~~~~~~~~~~~~~~~~~~
+The new-style drivers just call pci_register_driver during their initialization
+with a pointer to a structure describing the driver (struct pci_driver) which
+contains:
+
+	name		Name of the driver
+	id_table	Pointer to table of device ID's the driver is
+			interested in.  Most drivers should export this
+			table using MODULE_DEVICE_TABLE(pci,...).
+	probe		Pointer to a probing function which gets called (during
+			execution of pci_register_driver for already existing
+			devices or later if a new device gets inserted) for all
+			PCI devices which match the ID table and are not handled
+			by the other drivers yet. This function gets passed a
+			pointer to the pci_dev structure representing the device
+			and also which entry in the ID table did the device
+			match. It returns zero when the driver has accepted the
+			device or an error code (negative number) otherwise.
+			This function always gets called from process context,
+			so it can sleep.
+	remove		Pointer to a function which gets called whenever a
+			device being handled by this driver is removed (either
+			during deregistration of the driver or when it's
+			manually pulled out of a hot-pluggable slot). This
+			function always gets called from process context, so it
+			can sleep.
+	save_state	Save a device's state before it's suspend.
+	suspend		Put device into low power state.
+	resume		Wake device from low power state.
+	enable_wake	Enable device to generate wake events from a low power
+			state.
+
+			(Please see Documentation/power/pci.txt for descriptions
+			of PCI Power Management and the related functions)
+
+The ID table is an array of struct pci_device_id ending with a all-zero entry.
+Each entry consists of:
+
+	vendor, device	Vendor and device ID to match (or PCI_ANY_ID)
+	subvendor,	Subsystem vendor and device ID to match (or PCI_ANY_ID)
+	subdevice
+	class,		Device class to match. The class_mask tells which bits
+	class_mask	of the class are honored during the comparison.
+	driver_data	Data private to the driver.
+
+Most drivers don't need to use the driver_data field.  Best practice
+for use of driver_data is to use it as an index into a static list of
+equivalant device types, not to use it as a pointer.
+
+Have a table entry {PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID}
+to have probe() called for every PCI device known to the system.
+
+New PCI IDs may be added to a device driver at runtime by writing
+to the file /sys/bus/pci/drivers/{driver}/new_id.  When added, the
+driver will probe for all devices it can support.
+
+echo "vendor device subvendor subdevice class class_mask driver_data" > \
+ /sys/bus/pci/drivers/{driver}/new_id
+where all fields are passed in as hexadecimal values (no leading 0x).
+Users need pass only as many fields as necessary; vendor, device,
+subvendor, and subdevice fields default to PCI_ANY_ID (FFFFFFFF),
+class and classmask fields default to 0, and driver_data defaults to
+0UL.  Device drivers must initialize use_driver_data in the dynids struct
+in their pci_driver struct prior to calling pci_register_driver in order
+for the driver_data field to get passed to the driver. Otherwise, only a
+0 is passed in that field.
+
+When the driver exits, it just calls pci_unregister_driver() and the PCI layer
+automatically calls the remove hook for all devices handled by the driver.
+
+Please mark the initialization and cleanup functions where appropriate
+(the corresponding macros are defined in <linux/init.h>):
+
+	__init		Initialization code. Thrown away after the driver
+			initializes.
+	__exit		Exit code. Ignored for non-modular drivers.
+	__devinit	Device initialization code. Identical to __init if
+			the kernel is not compiled with CONFIG_HOTPLUG, normal
+			function otherwise.
+	__devexit	The same for __exit.
+
+Tips:
+	The module_init()/module_exit() functions (and all initialization
+        functions called only from these) should be marked __init/exit.
+	The struct pci_driver shouldn't be marked with any of these tags.
+	The ID table array should be marked __devinitdata.
+	The probe() and remove() functions (and all initialization
+	functions called only from these) should be marked __devinit/exit.
+	If you are sure the driver is not a hotplug driver then use only 
+	__init/exit __initdata/exitdata.
+
+        Pointers to functions marked as __devexit must be created using
+        __devexit_p(function_name).  That will generate the function
+        name or NULL if the __devexit function will be discarded.
+
+
+2. How to find PCI devices manually (the old style)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+PCI drivers not using the pci_register_driver() interface search
+for PCI devices manually using the following constructs:
+
+Searching by vendor and device ID:
+
+	struct pci_dev *dev = NULL;
+	while (dev = pci_get_device(VENDOR_ID, DEVICE_ID, dev))
+		configure_device(dev);
+
+Searching by class ID (iterate in a similar way):
+
+	pci_get_class(CLASS_ID, dev)
+
+Searching by both vendor/device and subsystem vendor/device ID:
+
+	pci_get_subsys(VENDOR_ID, DEVICE_ID, SUBSYS_VENDOR_ID, SUBSYS_DEVICE_ID, dev).
+
+   You can use the constant PCI_ANY_ID as a wildcard replacement for
+VENDOR_ID or DEVICE_ID.  This allows searching for any device from a
+specific vendor, for example.
+
+   These functions are hotplug-safe. They increment the reference count on
+the pci_dev that they return. You must eventually (possibly at module unload)
+decrement the reference count on these devices by calling pci_dev_put().
+
+
+3. Enabling and disabling devices
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   Before you do anything with the device you've found, you need to enable
+it by calling pci_enable_device() which enables I/O and memory regions of
+the device, allocates an IRQ if necessary, assigns missing resources if
+needed and wakes up the device if it was in suspended state. Please note
+that this function can fail.
+
+   If you want to use the device in bus mastering mode, call pci_set_master()
+which enables the bus master bit in PCI_COMMAND register and also fixes
+the latency timer value if it's set to something bogus by the BIOS.
+
+   If you want to use the PCI Memory-Write-Invalidate transaction,
+call pci_set_mwi().  This enables the PCI_COMMAND bit for Mem-Wr-Inval
+and also ensures that the cache line size register is set correctly.
+Make sure to check the return value of pci_set_mwi(), not all architectures
+may support Memory-Write-Invalidate.
+
+   If your driver decides to stop using the device (e.g., there was an
+error while setting it up or the driver module is being unloaded), it
+should call pci_disable_device() to deallocate any IRQ resources, disable
+PCI bus-mastering, etc.  You should not do anything with the device after
+calling pci_disable_device().
+
+4. How to access PCI config space
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   You can use pci_(read|write)_config_(byte|word|dword) to access the config
+space of a device represented by struct pci_dev *. All these functions return 0
+when successful or an error code (PCIBIOS_...) which can be translated to a text
+string by pcibios_strerror. Most drivers expect that accesses to valid PCI
+devices don't fail.
+
+   If you don't have a struct pci_dev available, you can call
+pci_bus_(read|write)_config_(byte|word|dword) to access a given device
+and function on that bus.
+
+   If you access fields in the standard portion of the config header, please
+use symbolic names of locations and bits declared in <linux/pci.h>.
+
+   If you need to access Extended PCI Capability registers, just call
+pci_find_capability() for the particular capability and it will find the
+corresponding register block for you.
+
+
+5. Addresses and interrupts
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   Memory and port addresses and interrupt numbers should NOT be read from the
+config space. You should use the values in the pci_dev structure as they might
+have been remapped by the kernel.
+
+   See Documentation/IO-mapping.txt for how to access device memory.
+
+   You still need to call request_region() for I/O regions and
+request_mem_region() for memory regions to make sure nobody else is using the
+same device.
+
+   All interrupt handlers should be registered with SA_SHIRQ and use the devid
+to map IRQs to devices (remember that all PCI interrupts are shared).
+
+
+6. Other interesting functions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+pci_find_slot()			Find pci_dev corresponding to given bus and
+				slot numbers.
+pci_set_power_state()		Set PCI Power Management state (0=D0 ... 3=D3)
+pci_find_capability()		Find specified capability in device's capability
+				list.
+pci_module_init()		Inline helper function for ensuring correct
+				pci_driver initialization and error handling.
+pci_resource_start()		Returns bus start address for a given PCI region
+pci_resource_end()		Returns bus end address for a given PCI region
+pci_resource_len()		Returns the byte length of a PCI region
+pci_set_drvdata()		Set private driver data pointer for a pci_dev
+pci_get_drvdata()		Return private driver data pointer for a pci_dev
+pci_set_mwi()			Enable Memory-Write-Invalidate transactions.
+pci_clear_mwi()			Disable Memory-Write-Invalidate transactions.
+
+
+7. Miscellaneous hints
+~~~~~~~~~~~~~~~~~~~~~~
+When displaying PCI slot names to the user (for example when a driver wants
+to tell the user what card has it found), please use pci_name(pci_dev)
+for this purpose.
+
+Always refer to the PCI devices by a pointer to the pci_dev structure.
+All PCI layer functions use this identification and it's the only
+reasonable one. Don't use bus/slot/function numbers except for very
+special purposes -- on systems with multiple primary buses their semantics
+can be pretty complex.
+
+If you're going to use PCI bus mastering DMA, take a look at
+Documentation/DMA-mapping.txt.
+
+Don't try to turn on Fast Back to Back writes in your driver.  All devices
+on the bus need to be capable of doing it, so this is something which needs
+to be handled by platform and generic code, not individual drivers.
+
+
+8. Obsolete functions
+~~~~~~~~~~~~~~~~~~~~~
+There are several functions which you might come across when trying to
+port an old driver to the new PCI interface.  They are no longer present
+in the kernel as they aren't compatible with hotplug or PCI domains or
+having sane locking.
+
+pcibios_present() and		Since ages, you don't need to test presence
+pci_present()			of PCI subsystem when trying to talk to it.
+				If it's not there, the list of PCI devices
+				is empty and all functions for searching for
+				devices just return NULL.
+pcibios_(read|write)_*		Superseded by their pci_(read|write)_*
+				counterparts.
+pcibios_find_*			Superseded by their pci_get_* counterparts.
+pci_for_each_dev()		Superseded by pci_get_device()
+pci_for_each_dev_reverse()	Superseded by pci_find_device_reverse()
+pci_for_each_bus()		Superseded by pci_find_next_bus()
+pci_find_device()		Superseded by pci_get_device()
+pci_find_subsys()		Superseded by pci_get_subsys()
+pcibios_find_class()		Superseded by pci_get_class()
+pci_find_class()		Superseded by pci_get_class()
+pci_(read|write)_*_nodev()	Superseded by pci_bus_(read|write)_*()

@@ -1,0 +1,767 @@
+Beta release of the rme96xx (driver for RME 96XX cards like the 
+"Hammerfall" and the "Hammerfall light") 
+
+Important: The driver module has to be installed on a freshly rebooted system, 
+otherwise the driver might not be able to acquire its buffers.
+
+features:
+
+ - OSS programming interface (i.e. runs with standard OSS soundsoftware) 
+ - OSS/Multichannel interface (OSS multichannel is done by just aquiring
+   more than 2 channels). The driver does not use more than one device 
+   ( yet .. this feature may be implemented later ) 
+ - more than one RME card supported
+
+The driver uses a specific multichannel interface, which I will document
+when the driver gets stable. (take a look at the defines in rme96xx.h,
+which adds blocked multichannel formats i.e instead of 
+lrlrlrlr --> llllrrrr  etc.
+
+Use the "rmectrl" programm to look at the status of the card .. 
+or use xrmectrl, a GUI interface for the ctrl program.
+
+What you can do with the rmectrl program is to set the stereo device for
+OSS emulation (e.g. if you use SPDIF out).
+
+You do:
+
+./ctrl offset 24 24
+
+which makes the stereo device use channels 25 and 26.
+
+Guenter Geiger <geiger@epy.co.at>
+
+copy the first part of the attached source code into rmectrl.c
+and the  second part into xrmectrl (or get the program from
+http://gige.xdv.org/pages/soft/pages/rme)
+
+to compile: gcc -o rmectrl rmectrl.c
+------------------------------ snip ------------------------------------
+
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/ioctl.h>
+#include <fcntl.h>
+#include <linux/soundcard.h>
+#include <math.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include "rme96xx.h"
+
+/*
+  remctrl.c
+  (C) 2000 Guenter Geiger <geiger@debian.org>
+  HP20020201 - Heiko Purnhagen <purnhage@tnt.uni-hannover.de>
+*/
+
+/* # define DEVICE_NAME "/dev/mixer" */
+# define DEVICE_NAME "/dev/mixer1"
+
+
+void usage(void)
+{
+     fprintf(stderr,"usage: rmectrl [/dev/mixer<n>] [command [options]]\n\n");
+     fprintf(stderr,"where command is one of:\n");
+     fprintf(stderr,"  help                       show this help\n");
+     fprintf(stderr,"  status                     show status bits\n");
+     fprintf(stderr,"  control                    show control bits\n");
+     fprintf(stderr,"  mix                        show mixer/offset status\n");
+     fprintf(stderr,"  master <n>                 set sync master\n");
+     fprintf(stderr,"  pro <n>                    set spdif out pro\n");
+     fprintf(stderr,"  emphasis <n>               set spdif out emphasis\n");
+     fprintf(stderr,"  dolby <n>                  set spdif out no audio\n");
+     fprintf(stderr,"  optout <n>                 set spdif out optical\n");
+     fprintf(stderr,"  wordclock <n>              set sync wordclock\n");
+     fprintf(stderr,"  spdifin <n>                set spdif in (0=optical,1=coax,2=intern)\n");
+     fprintf(stderr,"  syncref <n>                set sync source (0=ADAT1,1=ADAT2,2=ADAT3,3=SPDIF)\n");
+     fprintf(stderr,"  adat1cd <n>                set ADAT1 on internal CD\n");
+     fprintf(stderr,"  offset <devnr> <in> <out>  set dev (0..3) offset (0..25)\n");
+     exit(-1);
+}
+
+
+int main(int argc, char* argv[])
+{
+     int cards;
+     int ret;
+     int i;
+     double ft;
+     int fd, fdwr;
+     int param,orig;
+     rme_status_t stat;
+     rme_ctrl_t ctrl;
+     char *device;
+     int argidx;
+
+     if (argc < 2)
+	  usage();
+
+     if (*argv[1]=='/') {
+	  device = argv[1];
+	  argidx = 2;
+     }
+     else {
+	  device = DEVICE_NAME;
+	  argidx = 1;
+     }
+
+     fprintf(stdout,"mixer device %s\n",device);
+     if ((fd = open(device,O_RDONLY)) < 0) {
+	  fprintf(stdout,"opening device failed\n");
+	  exit(-1);
+     }
+
+     if ((fdwr = open(device,O_WRONLY)) < 0) {
+	  fprintf(stdout,"opening device failed\n");
+	  exit(-1);
+     }
+
+     if (argc < argidx+1)
+	  usage();
+
+     if (!strcmp(argv[argidx],"help"))
+        usage();
+     if (!strcmp(argv[argidx],"-h"))
+        usage();
+     if (!strcmp(argv[argidx],"--help"))
+        usage();
+
+     if (!strcmp(argv[argidx],"status")) {
+	  ioctl(fd,SOUND_MIXER_PRIVATE2,&stat);
+	  fprintf(stdout,"stat.irq %d\n",stat.irq);
+	  fprintf(stdout,"stat.lockmask %d\n",stat.lockmask);
+	  fprintf(stdout,"stat.sr48 %d\n",stat.sr48);
+	  fprintf(stdout,"stat.wclock %d\n",stat.wclock);
+	  fprintf(stdout,"stat.bufpoint %d\n",stat.bufpoint);
+	  fprintf(stdout,"stat.syncmask %d\n",stat.syncmask);
+	  fprintf(stdout,"stat.doublespeed %d\n",stat.doublespeed);
+	  fprintf(stdout,"stat.tc_busy %d\n",stat.tc_busy);
+	  fprintf(stdout,"stat.tc_out %d\n",stat.tc_out);
+	  fprintf(stdout,"stat.crystalrate %d (0=64k 3=96k 4=88.2k 5=48k 6=44.1k 7=32k)\n",stat.crystalrate);
+	  fprintf(stdout,"stat.spdif_error %d\n",stat.spdif_error);
+	  fprintf(stdout,"stat.bufid %d\n",stat.bufid);
+	  fprintf(stdout,"stat.tc_valid %d\n",stat.tc_valid);
+	  exit (0);
+     }
+
+     if (!strcmp(argv[argidx],"control")) {
+	  ioctl(fd,SOUND_MIXER_PRIVATE3,&ctrl);
+	  fprintf(stdout,"ctrl.start %d\n",ctrl.start);
+	  fprintf(stdout,"ctrl.latency %d (0=64 .. 7=8192)\n",ctrl.latency);
+	  fprintf(stdout,"ctrl.master %d\n",ctrl.master);
+	  fprintf(stdout,"ctrl.ie %d\n",ctrl.ie);
+	  fprintf(stdout,"ctrl.sr48 %d\n",ctrl.sr48);
+	  fprintf(stdout,"ctrl.spare %d\n",ctrl.spare);
+	  fprintf(stdout,"ctrl.doublespeed %d\n",ctrl.doublespeed);
+	  fprintf(stdout,"ctrl.pro %d\n",ctrl.pro);
+	  fprintf(stdout,"ctrl.emphasis %d\n",ctrl.emphasis);
+	  fprintf(stdout,"ctrl.dolby %d\n",ctrl.dolby);
+	  fprintf(stdout,"ctrl.opt_out %d\n",ctrl.opt_out);
+	  fprintf(stdout,"ctrl.wordclock %d\n",ctrl.wordclock);
+	  fprintf(stdout,"ctrl.spdif_in %d (0=optical,1=coax,2=intern)\n",ctrl.spdif_in);
+	  fprintf(stdout,"ctrl.sync_ref %d (0=ADAT1,1=ADAT2,2=ADAT3,3=SPDIF)\n",ctrl.sync_ref);
+	  fprintf(stdout,"ctrl.spdif_reset %d\n",ctrl.spdif_reset);
+	  fprintf(stdout,"ctrl.spdif_select %d\n",ctrl.spdif_select);
+	  fprintf(stdout,"ctrl.spdif_clock %d\n",ctrl.spdif_clock);
+	  fprintf(stdout,"ctrl.spdif_write %d\n",ctrl.spdif_write);
+	  fprintf(stdout,"ctrl.adat1_cd %d\n",ctrl.adat1_cd);
+	  exit (0);
+     }
+
+     if (!strcmp(argv[argidx],"mix")) {
+	  rme_mixer mix;
+	  int i;
+
+	  for (i=0; i<4; i++) {
+	       mix.devnr = i;
+	       ioctl(fd,SOUND_MIXER_PRIVATE1,&mix);
+	       if (mix.devnr == i) {
+		    fprintf(stdout,"devnr %d\n",mix.devnr);
+		    fprintf(stdout,"mix.i_offset %2d (0-25)\n",mix.i_offset);
+		    fprintf(stdout,"mix.o_offset %2d (0-25)\n",mix.o_offset);
+	       }
+	  }
+	  exit (0);
+     }
+
+/* the control flags */
+
+     if (argc < argidx+2)
+	  usage();
+
+     if (!strcmp(argv[argidx],"master")) {
+	  int val = atoi(argv[argidx+1]);
+	  ioctl(fd,SOUND_MIXER_PRIVATE3,&ctrl);
+	  printf("master = %d\n",val);
+	  ctrl.master = val;
+	  ioctl(fdwr,SOUND_MIXER_PRIVATE3,&ctrl);
+	  exit (0);
+     }
+
+     if (!strcmp(argv[argidx],"pro")) {
+	  int val = atoi(argv[argidx+1]);
+	  ioctl(fd,SOUND_MIXER_PRIVATE3,&ctrl);
+	  printf("pro = %d\n",val);
+	  ctrl.pro = val;
+	  ioctl(fdwr,SOUND_MIXER_PRIVATE3,&ctrl);
+	  exit (0);
+     }
+
+     if (!strcmp(argv[argidx],"emphasis")) {
+	  int val = atoi(argv[argidx+1]);
+	  ioctl(fd,SOUND_MIXER_PRIVATE3,&ctrl);
+	  printf("emphasis = %d\n",val);
+	  ctrl.emphasis = val;
+	  ioctl(fdwr,SOUND_MIXER_PRIVATE3,&ctrl);
+	  exit (0);
+     }
+
+     if (!strcmp(argv[argidx],"dolby")) {
+	  int val = atoi(argv[argidx+1]);
+	  ioctl(fd,SOUND_MIXER_PRIVATE3,&ctrl);
+	  printf("dolby = %d\n",val);
+	  ctrl.dolby = val;
+	  ioctl(fdwr,SOUND_MIXER_PRIVATE3,&ctrl);
+	  exit (0);
+     }
+
+     if (!strcmp(argv[argidx],"optout")) {
+	  int val = atoi(argv[argidx+1]);
+	  ioctl(fd,SOUND_MIXER_PRIVATE3,&ctrl);
+	  printf("optout = %d\n",val);
+	  ctrl.opt_out = val;
+	  ioctl(fdwr,SOUND_MIXER_PRIVATE3,&ctrl);
+	  exit (0);
+     }
+
+     if (!strcmp(argv[argidx],"wordclock")) {
+	  int val = atoi(argv[argidx+1]);
+	  ioctl(fd,SOUND_MIXER_PRIVATE3,&ctrl);
+	  printf("wordclock = %d\n",val);
+	  ctrl.wordclock = val;
+	  ioctl(fdwr,SOUND_MIXER_PRIVATE3,&ctrl);
+	  exit (0);
+     }
+
+     if (!strcmp(argv[argidx],"spdifin")) {
+	  int val = atoi(argv[argidx+1]);
+	  ioctl(fd,SOUND_MIXER_PRIVATE3,&ctrl);
+	  printf("spdifin = %d\n",val);
+	  ctrl.spdif_in = val;
+	  ioctl(fdwr,SOUND_MIXER_PRIVATE3,&ctrl);
+	  exit (0);
+     }
+
+     if (!strcmp(argv[argidx],"syncref")) {
+	  int val = atoi(argv[argidx+1]);
+	  ioctl(fd,SOUND_MIXER_PRIVATE3,&ctrl);
+	  printf("syncref = %d\n",val);
+	  ctrl.sync_ref = val;
+	  ioctl(fdwr,SOUND_MIXER_PRIVATE3,&ctrl);
+	  exit (0);
+     }
+
+     if (!strcmp(argv[argidx],"adat1cd")) {
+	  int val = atoi(argv[argidx+1]);
+	  ioctl(fd,SOUND_MIXER_PRIVATE3,&ctrl);
+	  printf("adat1cd = %d\n",val);
+	  ctrl.adat1_cd = val;
+	  ioctl(fdwr,SOUND_MIXER_PRIVATE3,&ctrl);
+	  exit (0);
+     }
+
+/* setting offset */
+
+     if (argc < argidx+4)
+	  usage();
+
+     if (!strcmp(argv[argidx],"offset")) {
+	  rme_mixer mix;
+
+	  mix.devnr = atoi(argv[argidx+1]);
+
+	  mix.i_offset = atoi(argv[argidx+2]);
+	  mix.o_offset = atoi(argv[argidx+3]);
+	  ioctl(fdwr,SOUND_MIXER_PRIVATE1,&mix);
+	  fprintf(stdout,"devnr %d\n",mix.devnr);
+	  fprintf(stdout,"mix.i_offset to %d\n",mix.i_offset);
+	  fprintf(stdout,"mix.o_offset to %d\n",mix.o_offset);
+	  exit (0);
+     }
+
+     usage();
+     exit (0); /* to avoid warning */
+}
+
+
+---------------------------- <snip> --------------------------------
+#!/usr/bin/wish
+
+# xrmectrl
+# (C) 2000 Guenter Geiger <geiger@debian.org>
+# HP20020201 - Heiko Purnhagen <purnhage@tnt.uni-hannover.de>
+
+#set defaults "-relief ridged"
+set CTRLPROG "./rmectrl"
+if {$argc} {
+    set CTRLPROG "$CTRLPROG $argv"
+}
+puts "CTRLPROG $CTRLPROG"
+
+frame .butts
+button .butts.exit -text "Exit" -command "exit" -relief ridge
+#button .butts.state -text "State" -command "get_all"
+
+pack .butts.exit -side left
+pack .butts -side bottom
+
+
+#
+# STATUS
+#
+
+frame .status
+
+# Sampling Rate
+
+frame .status.sr
+label .status.sr.text -text "Sampling Rate" -justify left
+radiobutton .status.sr.441 -selectcolor red -text "44.1 kHz" -width 10 -anchor nw -variable srate -value 44100 -font times
+radiobutton .status.sr.480 -selectcolor red -text "48 kHz" -width 10 -anchor nw -variable srate -value 48000 -font times
+radiobutton .status.sr.882 -selectcolor red -text "88.2 kHz" -width 10 -anchor nw -variable srate -value 88200 -font times
+radiobutton .status.sr.960 -selectcolor red -text "96 kHz" -width 10 -anchor nw  -variable srate -value 96000 -font times
+
+pack .status.sr.text .status.sr.441 .status.sr.480 .status.sr.882 .status.sr.960 -side top -padx 3
+
+# Lock
+
+frame .status.lock
+label .status.lock.text -text "Lock" -justify left
+checkbutton .status.lock.adat1 -selectcolor red -text "ADAT1" -anchor nw -width 10 -variable adatlock1 -font times
+checkbutton .status.lock.adat2 -selectcolor red -text "ADAT2" -anchor nw -width 10 -variable adatlock2 -font times
+checkbutton .status.lock.adat3 -selectcolor red -text "ADAT3" -anchor nw -width 10 -variable adatlock3 -font times
+
+pack .status.lock.text .status.lock.adat1 .status.lock.adat2 .status.lock.adat3 -side top -padx 3 
+
+# Sync
+
+frame .status.sync
+label .status.sync.text -text "Sync" -justify left
+checkbutton .status.sync.adat1 -selectcolor red -text "ADAT1" -anchor nw -width 10 -variable adatsync1 -font times
+checkbutton .status.sync.adat2 -selectcolor red -text "ADAT2" -anchor nw -width 10 -variable adatsync2 -font times
+checkbutton .status.sync.adat3 -selectcolor red -text "ADAT3" -anchor nw -width 10 -variable adatsync3 -font times
+
+pack .status.sync.text .status.sync.adat1 .status.sync.adat2 .status.sync.adat3 -side top -padx 3 
+
+# Timecode
+
+frame .status.tc
+label .status.tc.text -text "Timecode" -justify left
+checkbutton .status.tc.busy -selectcolor red -text "busy" -anchor nw -width 10 -variable tcbusy -font times
+checkbutton .status.tc.out -selectcolor red -text "out" -anchor nw -width 10 -variable tcout -font times
+checkbutton .status.tc.valid -selectcolor red -text "valid" -anchor nw -width 10 -variable tcvalid -font times
+
+pack .status.tc.text .status.tc.busy .status.tc.out .status.tc.valid -side top -padx 3 
+
+# SPDIF In
+
+frame .status.spdif
+label .status.spdif.text -text "SPDIF In" -justify left
+label .status.spdif.sr -text "--.- kHz" -anchor n -width 10 -font times
+checkbutton .status.spdif.error -selectcolor red -text "Input Lock" -anchor nw -width 10 -variable spdiferr -font times
+
+pack .status.spdif.text .status.spdif.sr .status.spdif.error -side top -padx 3 
+
+pack .status.sr .status.lock .status.sync .status.tc .status.spdif -side left -fill x -anchor n -expand 1
+
+
+#
+# CONTROL 
+#
+
+proc setprof {} {
+    global CTRLPROG
+    global spprof
+    exec $CTRLPROG pro $spprof
+}
+
+proc setemph {} {
+    global CTRLPROG
+    global spemph
+    exec $CTRLPROG emphasis $spemph
+}
+
+proc setnoaud {} {
+    global CTRLPROG
+    global spnoaud
+    exec $CTRLPROG dolby $spnoaud
+}
+
+proc setoptical {} {
+    global CTRLPROG
+    global spoptical
+    exec $CTRLPROG optout $spoptical
+}
+
+proc setspdifin {} {
+    global CTRLPROG
+    global spdifin
+    exec $CTRLPROG spdifin [expr $spdifin - 1]
+}
+
+proc setsyncsource {} {
+    global CTRLPROG
+    global syncsource
+    exec $CTRLPROG syncref [expr $syncsource -1]
+}
+
+
+proc setmaster {} {
+    global CTRLPROG
+    global master
+    exec $CTRLPROG master $master
+}
+
+proc setwordclock {} {
+    global CTRLPROG
+    global wordclock
+    exec $CTRLPROG wordclock $wordclock
+}
+
+proc setadat1cd {} {
+    global CTRLPROG
+    global adat1cd
+    exec $CTRLPROG adat1cd $adat1cd
+}
+
+
+frame .control
+
+# SPDIF In & SPDIF Out
+
+
+frame .control.spdif
+
+frame .control.spdif.in
+label .control.spdif.in.text -text "SPDIF In" -justify left
+radiobutton .control.spdif.in.input1 -text "Optical" -anchor nw -width 13 -variable spdifin -value 1 -command setspdifin -selectcolor blue -font times
+radiobutton .control.spdif.in.input2 -text "Coaxial" -anchor nw -width 13 -variable spdifin -value 2 -command setspdifin -selectcolor blue -font times
+radiobutton .control.spdif.in.input3 -text "Intern " -anchor nw -width 13 -variable spdifin -command setspdifin -value 3 -selectcolor blue -font times
+
+checkbutton .control.spdif.in.adat1cd -text "ADAT1 Intern" -anchor nw -width 13 -variable adat1cd -command setadat1cd -selectcolor blue -font times
+
+pack .control.spdif.in.text .control.spdif.in.input1 .control.spdif.in.input2 .control.spdif.in.input3 .control.spdif.in.adat1cd
+
+label .control.spdif.space
+
+frame .control.spdif.out
+label .control.spdif.out.text -text "SPDIF Out" -justify left
+checkbutton .control.spdif.out.pro -text "Professional" -anchor nw -width 13 -variable spprof -command setprof -selectcolor blue -font times
+checkbutton .control.spdif.out.emphasis -text "Emphasis" -anchor nw -width 13 -variable spemph -command setemph -selectcolor blue -font times
+checkbutton .control.spdif.out.dolby -text "NoAudio" -anchor nw -width 13 -variable spnoaud -command setnoaud -selectcolor blue -font times
+checkbutton .control.spdif.out.optout -text "Optical Out" -anchor nw -width 13 -variable spoptical -command setoptical -selectcolor blue -font times
+
+pack .control.spdif.out.optout .control.spdif.out.dolby .control.spdif.out.emphasis .control.spdif.out.pro .control.spdif.out.text -side bottom
+
+pack .control.spdif.in .control.spdif.space .control.spdif.out -side top -fill y -padx 3 -expand 1
+
+# Sync Mode & Sync Source
+
+frame .control.sync
+frame .control.sync.mode
+label .control.sync.mode.text -text "Sync Mode" -justify left
+checkbutton .control.sync.mode.master -text "Master" -anchor nw -width 13 -variable master -command setmaster -selectcolor blue -font times
+checkbutton .control.sync.mode.wc -text "Wordclock" -anchor nw -width 13 -variable wordclock -command setwordclock -selectcolor blue -font times
+
+pack .control.sync.mode.text .control.sync.mode.master .control.sync.mode.wc
+
+label .control.sync.space
+
+frame .control.sync.src
+label .control.sync.src.text -text "Sync Source" -justify left
+radiobutton .control.sync.src.input1 -text "ADAT1" -anchor nw -width 13 -variable syncsource -value 1 -command setsyncsource -selectcolor blue -font times
+radiobutton .control.sync.src.input2 -text "ADAT2" -anchor nw -width 13 -variable syncsource -value 2 -command setsyncsource -selectcolor blue -font times
+radiobutton .control.sync.src.input3 -text "ADAT3" -anchor nw -width 13 -variable syncsource -command setsyncsource -value 3 -selectcolor blue -font times
+radiobutton .control.sync.src.input4 -text "SPDIF" -anchor nw -width 13 -variable syncsource -command setsyncsource -value 4 -selectcolor blue -font times
+
+pack .control.sync.src.input4 .control.sync.src.input3 .control.sync.src.input2 .control.sync.src.input1 .control.sync.src.text -side bottom
+
+pack .control.sync.mode .control.sync.space .control.sync.src -side top -fill y -padx 3 -expand 1
+
+label .control.space -text "" -width 10
+
+# Buffer Size
+
+frame .control.buf
+label .control.buf.text -text "Buffer Size (Latency)" -justify left
+radiobutton .control.buf.b1 -selectcolor red -text "64 (1.5 ms)" -width 13 -anchor nw -variable ssrate -value 1 -font times
+radiobutton .control.buf.b2 -selectcolor red -text "128 (3 ms)" -width 13 -anchor nw -variable ssrate -value 2 -font times
+radiobutton .control.buf.b3 -selectcolor red -text "256 (6 ms)" -width 13 -anchor nw -variable ssrate -value 3 -font times
+radiobutton .control.buf.b4 -selectcolor red -text "512 (12 ms)" -width 13 -anchor nw -variable ssrate -value 4 -font times
+radiobutton .control.buf.b5 -selectcolor red -text "1024 (23 ms)" -width 13 -anchor nw -variable ssrate -value 5 -font times
+radiobutton .control.buf.b6 -selectcolor red -text "2048 (46 ms)" -width 13 -anchor nw -variable ssrate -value 6 -font times
+radiobutton .control.buf.b7 -selectcolor red -text "4096 (93 ms)" -width 13 -anchor nw -variable ssrate -value 7 -font times
+radiobutton .control.buf.b8 -selectcolor red -text "8192 (186 ms)" -width 13 -anchor nw -variable ssrate -value 8 -font times
+
+pack .control.buf.text .control.buf.b1 .control.buf.b2 .control.buf.b3 .control.buf.b4 .control.buf.b5 .control.buf.b6 .control.buf.b7 .control.buf.b8 -side top -padx 3 
+
+# Offset
+
+frame .control.offset
+
+frame .control.offset.in
+label .control.offset.in.text -text "Offset In" -justify left
+label .control.offset.in.off0 -text "dev\#0: -" -anchor nw -width 10 -font times
+label .control.offset.in.off1 -text "dev\#1: -" -anchor nw -width 10 -font times
+label .control.offset.in.off2 -text "dev\#2: -" -anchor nw -width 10 -font times
+label .control.offset.in.off3 -text "dev\#3: -" -anchor nw -width 10 -font times
+
+pack .control.offset.in.text .control.offset.in.off0 .control.offset.in.off1 .control.offset.in.off2 .control.offset.in.off3
+
+label .control.offset.space
+
+frame .control.offset.out
+label .control.offset.out.text -text "Offset Out" -justify left
+label .control.offset.out.off0 -text "dev\#0: -" -anchor nw -width 10 -font times
+label .control.offset.out.off1 -text "dev\#1: -" -anchor nw -width 10 -font times
+label .control.offset.out.off2 -text "dev\#2: -" -anchor nw -width 10 -font times
+label .control.offset.out.off3 -text "dev\#3: -" -anchor nw -width 10 -font times
+
+pack .control.offset.out.off3 .control.offset.out.off2 .control.offset.out.off1 .control.offset.out.off0 .control.offset.out.text -side bottom
+
+pack .control.offset.in .control.offset.space .control.offset.out -side top -fill y -padx 3 -expand 1
+
+
+pack .control.spdif .control.sync .control.space .control.buf .control.offset -side left -fill both -anchor n -expand 1
+
+
+label .statustext -text Status -justify center -relief ridge
+label .controltext -text Control -justify center -relief ridge
+
+label .statusspace
+label .controlspace
+
+pack .statustext .status .statusspace .controltext .control .controlspace -side top -anchor nw -fill both -expand 1
+
+
+proc get_bit {output sstr} {
+    set idx1 [string last [concat $sstr 1] $output]
+    set idx1 [expr $idx1 != -1]
+    return $idx1
+}
+
+proc get_val {output sstr} {
+    set val [string wordend $output [string last $sstr $output]] 
+    set val [string range $output $val [expr $val+1]]
+    return $val
+}
+
+proc get_val2 {output sstr} {
+    set val [string wordend $output [string first $sstr $output]] 
+    set val [string range $output $val [expr $val+2]]
+    return $val
+}
+
+proc get_control {} {
+    global spprof
+    global spemph
+    global spnoaud
+    global spoptical
+    global spdifin
+    global ssrate
+    global master
+    global wordclock
+    global syncsource
+    global CTRLPROG
+
+    set f [open "| $CTRLPROG control" r+]
+    set ooo [read $f 1000]
+    close $f
+#    puts $ooo
+
+    set spprof [ get_bit $ooo "pro"]
+    set spemph [ get_bit $ooo "emphasis"]
+    set spnoaud [ get_bit $ooo "dolby"]
+    set spoptical [ get_bit $ooo "opt_out"]
+    set spdifin [ expr [ get_val $ooo "spdif_in"] + 1]
+    set ssrate [ expr [ get_val $ooo "latency"] + 1]
+    set master [ expr [ get_val $ooo "master"]]
+    set wordclock [ expr [ get_val $ooo "wordclock"]]
+    set syncsource [ expr [ get_val $ooo "sync_ref"] + 1]
+}
+
+proc get_status {} {
+    global srate
+    global ctrlcom
+
+    global adatlock1
+    global adatlock2
+    global adatlock3
+
+    global adatsync1
+    global adatsync2
+    global adatsync3
+
+    global tcbusy
+    global tcout
+    global tcvalid
+
+    global spdiferr
+    global crystal
+    global .status.spdif.text
+    global CTRLPROG
+
+
+    set f [open "| $CTRLPROG status" r+]
+    set ooo [read $f 1000]
+    close $f
+#    puts $ooo
+
+# samplerate
+
+    set idx1 [string last "sr48 1" $ooo]
+    set idx2 [string last "doublespeed 1" $ooo]
+    if {$idx1 >= 0} {
+	set fact1 48000
+    } else {
+	set fact1 44100
+    }
+
+    if {$idx2 >= 0} {
+	set fact2 2
+    } else {
+	set fact2 1
+    }
+    set srate [expr $fact1 * $fact2]
+#   ADAT lock
+
+    set val [get_val $ooo lockmask]
+    set adatlock1 0
+    set adatlock2 0
+    set adatlock3 0
+    if {[expr $val & 1]} {
+       set adatlock3 1
+    }
+    if {[expr $val & 2]} {
+       set adatlock2 1
+    }
+    if {[expr $val & 4]} {
+       set adatlock1 1
+    }
+
+#  ADAT sync
+    set val [get_val $ooo syncmask]
+    set adatsync1 0
+    set adatsync2 0
+    set adatsync3 0
+
+    if {[expr $val & 1]} {
+       set adatsync3 1
+    }
+    if {[expr $val & 2]} {
+       set adatsync2 1
+    }
+    if {[expr $val & 4]} {
+       set adatsync1 1
+    }
+
+# TC busy
+
+    set tcbusy [get_bit $ooo "busy"]
+    set tcout [get_bit $ooo "out"]
+    set tcvalid [get_bit $ooo "valid"]
+    set spdiferr [expr [get_bit $ooo "spdif_error"] == 0]
+
+#  000=64kHz, 100=88.2kHz, 011=96kHz
+#  111=32kHz, 110=44.1kHz, 101=48kHz
+
+    set val [get_val $ooo crystalrate]
+
+    set crystal "--.- kHz"
+    if {$val == 0} {
+        set crystal "64 kHz"
+    }
+    if {$val == 4} {
+        set crystal "88.2 kHz"
+    }
+    if {$val == 3} {
+        set crystal "96 kHz"
+    }
+    if {$val == 7} {
+        set crystal "32 kHz"
+    }
+    if {$val == 6} {
+        set crystal "44.1 kHz"
+    }
+    if {$val == 5} {
+        set crystal "48 kHz"
+    }
+    .status.spdif.sr configure -text $crystal
+}
+
+proc get_offset {} {
+    global inoffset
+    global outoffset
+    global CTRLPROG
+
+    set f [open "| $CTRLPROG mix" r+]
+    set ooo [read $f 1000]
+    close $f
+#    puts $ooo
+
+    if { [string match "*devnr*" $ooo] } {
+	set ooo [string range $ooo [string wordend $ooo [string first devnr $ooo]] end]
+	set val [get_val2 $ooo i_offset]
+	.control.offset.in.off0 configure -text "dev\#0: $val"
+	set val [get_val2 $ooo o_offset]
+	.control.offset.out.off0 configure -text "dev\#0: $val"
+    } else {
+	.control.offset.in.off0 configure -text "dev\#0: -"
+	.control.offset.out.off0 configure -text "dev\#0: -"
+    }
+    if { [string match "*devnr*" $ooo] } {
+	set ooo [string range $ooo [string wordend $ooo [string first devnr $ooo]] end]
+	set val [get_val2 $ooo i_offset]
+	.control.offset.in.off1 configure -text "dev\#1: $val"
+	set val [get_val2 $ooo o_offset]
+	.control.offset.out.off1 configure -text "dev\#1: $val"
+    } else {
+	.control.offset.in.off1 configure -text "dev\#1: -"
+	.control.offset.out.off1 configure -text "dev\#1: -"
+    }
+    if { [string match "*devnr*" $ooo] } {
+	set ooo [string range $ooo [string wordend $ooo [string first devnr $ooo]] end]
+	set val [get_val2 $ooo i_offset]
+	.control.offset.in.off2 configure -text "dev\#2: $val"
+	set val [get_val2 $ooo o_offset]
+	.control.offset.out.off2 configure -text "dev\#2: $val"
+    } else {
+	.control.offset.in.off2 configure -text "dev\#2: -"
+	.control.offset.out.off2 configure -text "dev\#2: -"
+    }
+    if { [string match "*devnr*" $ooo] } {
+	set ooo [string range $ooo [string wordend $ooo [string first devnr $ooo]] end]
+	set val [get_val2 $ooo i_offset]
+	.control.offset.in.off3 configure -text "dev\#3: $val"
+	set val [get_val2 $ooo o_offset]
+	.control.offset.out.off3 configure -text "dev\#3: $val"
+    } else {
+	.control.offset.in.off3 configure -text "dev\#3: -"
+	.control.offset.out.off3 configure -text "dev\#3: -"
+    }
+}
+
+
+proc get_all {} {
+get_status
+get_control
+get_offset
+}
+
+# main
+while {1} {
+  after 200
+  get_all
+  update
+}

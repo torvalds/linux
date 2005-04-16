@@ -1,0 +1,33 @@
+#
+# Misc strange devices
+#
+
+menu "Misc devices"
+
+config IBM_ASM
+	tristate "Device driver for IBM RSA service processor"
+	depends on X86 && EXPERIMENTAL
+	default n
+	---help---
+	  This option enables device driver support for in-band access to the
+	  IBM RSA (Condor) service processor in eServer xSeries systems.
+	  The ibmasm device driver allows user space application to access
+	  ASM (Advanced Systems Management) functions on the service
+	  processor. The driver is meant to be used in conjunction with
+	  a user space API.
+	  The ibmasm driver also enables the OS to use the UART on the
+	  service processor board as a regular serial port. To make use of
+	  this feature serial driver support (CONFIG_SERIAL_8250) must be
+	  enabled.
+	  
+	  WARNING: This software may not be supported or function
+	  correctly on your IBM server. Please consult the IBM ServerProven
+	  website <http://www.pc.ibm/ww/eserver/xseries/serverproven> for
+	  information on the specific driver level and support statement
+	  for your IBM server.
+
+
+	  If unsure, say N.
+
+endmenu
+

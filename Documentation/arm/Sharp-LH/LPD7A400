@@ -1,0 +1,15 @@
+README on Implementing Linux for the Logic PD LPD7A400-10
+=========================================================
+
+- CPLD memory mapping
+
+  The board designers chose to use high address lines for controlling
+  access to the CPLD registers.  It turns out to be a big waste
+  because we're using an MMU and must map IO space into virtual
+  memory.  The result is that we have to make a mapping for every
+  register.
+
+- Serial Console
+
+  It may be OK not to use the serial console option if the user passes
+  the console device name to the kernel.  This deserves some exploration.

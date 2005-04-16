@@ -1,0 +1,70 @@
+Recording
+---------
+
+Recording does not work on the author's card, but there
+is at least one report of it working on later silicon.
+The chip behaves differently than described in the data sheet,
+likely due to a chip bug. Working around this would require
+the help of ESS (for example by publishing an errata sheet),
+but ESS has not done so so far.
+
+Also, the chip only supports 24 bit addresses for recording,
+which means it cannot work on some Alpha mainboards.
+
+
+/proc/sound, /dev/sndstat
+-------------------------
+
+/proc/sound and /dev/sndstat is not supported by the
+driver. To find out whether the driver succeeded loading,
+check the kernel log (dmesg).
+
+
+ALaw/uLaw sample formats
+------------------------
+
+This driver does not support the ALaw/uLaw sample formats.
+ALaw is the default mode when opening a sound device
+using OSS/Free. The reason for the lack of support is
+that the hardware does not support these formats, and adding
+conversion routines to the kernel would lead to very ugly
+code in the presence of the mmap interface to the driver.
+And since xquake uses mmap, mmap is considered important :-)
+and no sane application uses ALaw/uLaw these days anyway.
+In short, playing a Sun .au file as follows:
+
+cat my_file.au > /dev/dsp
+
+does not work. Instead, you may use the play script from
+Chris Bagwell's sox-12.14 package (or later, available from the URL
+below) to play many different audio file formats.
+The script automatically determines the audio format
+and does do audio conversions if necessary.
+http://home.sprynet.com/sprynet/cbagwell/projects.html
+
+
+Blocking vs. nonblocking IO
+---------------------------
+
+Unlike OSS/Free this driver honours the O_NONBLOCK file flag
+not only during open, but also during read and write.
+This is an effort to make the sound driver interface more
+regular. Timidity has problems with this; a patch
+is available from http://www.ife.ee.ethz.ch/~sailer/linux/pciaudio.html.
+(Timidity patched will also run on OSS/Free).
+
+
+MIDI UART
+---------
+
+The driver supports a simple MIDI UART interface, with
+no ioctl's supported.
+
+
+MIDI synthesizer
+----------------
+
+The card has an OPL compatible FM synthesizer.
+
+Thomas Sailer
+t.sailer@alumni.ethz.ch

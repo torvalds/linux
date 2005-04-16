@@ -1,0 +1,218 @@
+================================================================
+	AWE32 Sound Driver for Linux / FreeBSD
+		version 0.4.3; Nov. 1, 1998
+
+	Takashi Iwai <iwai@ww.uni-erlangen.de>
+================================================================
+
+* GENERAL NOTES
+
+This is a sound driver extension for SoundBlaster AWE32 and other
+compatible cards (AWE32-PnP, SB32, SB32-PnP, AWE64 & etc) to enable
+the wave synth operations.  The driver is provided for Linux 1.2.x
+and 2.[012].x kernels, as well as FreeBSD, on Intel x86 and DEC
+Alpha systems.
+
+This driver was written by Takashi Iwai <iwai@ww.uni-erlangen.de>,
+and provided "as is".  The original source (awedrv-0.4.3.tar.gz) and
+binary packages are available on the following URL:
+	http://bahamut.mm.t.u-tokyo.ac.jp/~iwai/awedrv/
+Note that since the author is apart from this web site, the update is
+not frequent now.
+
+
+* NOTE TO LINUX USERS
+
+To enable this driver on linux-2.[01].x kernels, you need turn on 
+"AWE32 synth" options in sound menu when configure your linux kernel
+and modules.  The precise installation procedure is described in the
+AWE64-Mini-HOWTO and linux-kernel/Documetation/sound/AWE32.
+
+If you're using PnP cards, the card must be initialized before loading
+the sound driver.  There're several options to do this:
+    - Initialize the card via ISA PnP tools, and load the sound module.
+    - Initialize the card on DOS, and load linux by loadlin.exe
+    - Use PnP kernel driver (for Linux-2.x.x)
+The detailed instruction for the solution using isapnp tools is found
+in many documents like above.  A brief instruction is also included in
+the installation document of this package.
+For PnP driver project, please refer to the following URL:
+	http://www-jcr.lmh.ox.ac.uk/~pnp/
+
+
+* USING THE DRIVER
+
+The awedrv has several different playing modes to realize easy channel 
+allocation for MIDI songs.  To hear the exact sound quality, you need
+to obtain the extended sequencer program, drvmidi or playmidi-2.5.
+
+For playing MIDI files, you *MUST* load the soundfont file on the
+driver previously by sfxload utility.  Otherwise you'll here no sounds 
+at all!  All the utilities and driver source packages are found in the
+above URL.  The sfxload program is included in the package
+awesfx-0.4.3.tgz.  Binary packages are available there, too.  See the
+instruction in each package for installation.
+
+Loading a soundfont file is very simple.  Just execute the command
+
+	% sfxload synthgm.sbk
+
+Then, sfxload transfers the file "synthgm.sbk" to the driver.
+Both SF1 and SF2 formats are accepted.
+
+Now you can hear midi musics by a midi player.
+
+	% drvmidi foo.mid
+
+If you run MIDI player after MOD player, you need to load soundfont
+files again, since MOD player programs clear the previous loaded
+samples by their own data.
+
+If you have only 512kb on the sound card, I recommend to use dynamic
+sample loading via -L option of drvmidi.  2MB GM/GS soundfont file is
+available in most midi files.
+
+	% sfxload synthgm
+	% drvmidi -L 2mbgmgs foo.mid
+
+This makes a big difference (believe me)!  For more details, please
+refer to the FAQ list which is available on the URL above.
+
+The current chorus, reverb and equalizer status can be changed by
+aweset utility program (included in awesfx package).  Note that
+some awedrv-native programs (like drvmidi and xmp) will change the
+current settings by themselves.  The aweset program is effective
+only for other programs like playmidi.
+
+Enjoy.
+
+
+* COMPILE FLAGS
+
+Compile conditions are defined in awe_config.h.
+
+[Compatibility Conditions]
+The following flags are defined automatically when using installation
+shell script.
+
+- AWE_MODULE_SUPPORT
+    indicates your Linux kernel supports module for each sound card
+    (in recent 2.1 or 2.2 kernels and unofficial patched 2.0 kernels
+    as distributed in the RH5.0 package).
+    This flag is automatically set when you're using 2.1.x kernels.
+    You can pass the base address and memory size via the following
+    module options,
+	io = base I/O port address (eg. 0x620)
+	memsize = DRAM size in kilobytes (eg. 512)
+    As default, AWE driver probes these values automatically.
+
+
+[Hardware Conditions]
+You DON'T have to define the following two values.
+Define them only when the driver couldn't detect the card properly.
+
+- AWE_DEFAULT_BASE_ADDR		(default: not defined)
+    specifies the base port address of your AWE32 card.
+    0 means to autodetect the address.
+
+- AWE_DEFAULT_MEM_SIZE		(default: not defined)
+    specifies the memory size of your AWE32 card in kilobytes.
+    -1 means to autodetect its size.
+    
+
+[Sample Table Size]
+From ver.0.4.0, sample tables are allocated dynamically (except
+Linux-1.2.x system), so you need NOT to touch these parameters.
+Linux-1.2.x users may need to increase these values to appropriate size 
+if the sound card is equipped with more DRAM.
+
+- AWE_MAX_SF_LISTS, AWE_MAX_SAMPLES, AWE_MAX_INFOS
+
+
+[Other Conditions]
+
+- AWE_ALWAYS_INIT_FM		(default: not defined)
+    indicates the AWE driver always initialize FM passthrough even
+    without DRAM on board.  Emu8000 chip has a restriction for playing
+    samples on DRAM that at least two channels must be occupied as
+    passthrough channels. 
+
+- AWE_DEBUG_ON			(default: defined)
+    turns on debugging messages if defined.
+
+- AWE_HAS_GUS_COMPATIBILITY	(default: defined)
+    Enables GUS compatibility mode if defined, reading GUS patches and 
+    GUS control commands.  Define this option to use GMOD or other
+    GUS module players.
+
+- CONFIG_AWE32_MIDIEMU		(default: defined)
+    Adds a MIDI emulation device by Emu8000 wavetable.  The emulation
+    device can be accessed as an external MIDI, and sends the MIDI
+    control codes directly.  XG and GS sysex/NRPN are accepted.
+    No MIDI input is supported.
+
+- CONFIG_AWE32_MIXER		(default: not defined)
+    Adds a mixer device for AWE32 bass/treble equalizer control.
+    You can access this device using /dev/mixer?? (usually mixer01).
+
+- AWE_USE_NEW_VOLUME_CALC	(default: defined)
+    Use the new method to calculate the volume change as compatible
+    with DOS/Win drivers.  This option can be toggled via aweset
+    program, or drvmidi player.
+
+- AWE_CHECK_VTARGET		(default: defined)
+    Check the current volume target value when searching for an
+    empty channel to allocate a new voice.  This is experimentally
+    implemented in this version.  (probably, this option doesn't
+    affect the sound quality severely...)
+
+- AWE_ALLOW_SAMPLE_SHARING	(default: defined)
+   Allow sample sharing for differently loaded patches.
+   This function is available only together with awesfx-0.4.3p3.
+   Note that this is still an experimental option.
+
+- DEF_FM_CHORUS_DEPTH		(default: 0x10)
+    The default strength to be sent to the chorus effect engine.
+    From 0 to 0xff.  Larger numbers may often cause weird sounds.
+
+- DEF_FM_REVERB_DEPTH		(default: 0x10)
+    The default strength to be sent to the reverb effect engine.
+    From 0 to 0xff.  Larger numbers may often cause weird sounds.
+
+
+* ACKNOWLEDGMENTS
+
+Thanks to Witold Jachimczyk (witek@xfactor.wpi.edu) for much advice
+on programming of AWE32.  Much code is brought from his AWE32-native 
+MOD player, ALMP.
+The port of awedrv to FreeBSD is done by Randall Hopper
+(rhh@ct.picker.com).
+The new volume calculation routine was derived from Mark Weaver's
+ADIP compatible routines.
+I also thank linux-awe-ml members for their efforts
+to reboot their system many times :-)
+
+
+* TODO'S
+
+- Complete DOS/Win compatibility
+- DSP-like output
+
+
+* COPYRIGHT
+
+Copyright (C) 1996-1998 Takashi Iwai
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.

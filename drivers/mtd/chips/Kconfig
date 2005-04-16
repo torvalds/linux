@@ -1,0 +1,286 @@
+# drivers/mtd/chips/Kconfig
+# $Id: Kconfig,v 1.13 2004/12/01 15:49:10 nico Exp $
+
+menu "RAM/ROM/Flash chip drivers"
+	depends on MTD!=n
+
+config MTD_CFI
+	tristate "Detect flash chips by Common Flash Interface (CFI) probe"
+	depends on MTD
+	select MTD_GEN_PROBE
+	help
+	  The Common Flash Interface specification was developed by Intel,
+	  AMD and other flash manufactures that provides a universal method
+	  for probing the capabilities of flash devices. If you wish to
+	  support any device that is CFI-compliant, you need to enable this
+	  option. Visit <http://www.amd.com/products/nvd/overview/cfi.html>
+	  for more information on CFI.
+
+config MTD_JEDECPROBE
+	tristate "Detect non-CFI AMD/JEDEC-compatible flash chips"
+	depends on MTD
+	select MTD_GEN_PROBE
+	help
+	  This option enables JEDEC-style probing of flash chips which are not
+	  compatible with the Common Flash Interface, but will use the common
+	  CFI-targetted flash drivers for any chips which are identified which
+	  are in fact compatible in all but the probe method. This actually
+	  covers most AMD/Fujitsu-compatible chips, and will shortly cover also
+	  non-CFI Intel chips (that code is in MTD CVS and should shortly be sent
+	  for inclusion in Linus' tree)
+
+config MTD_GEN_PROBE
+	tristate
+
+config MTD_CFI_ADV_OPTIONS
+	bool "Flash chip driver advanced configuration options"
+	depends on MTD_GEN_PROBE
+	help
+	  If you need to specify a specific endianness for access to flash
+	  chips, or if you wish to reduce the size of the kernel by including
+	  support for only specific arrangements of flash chips, say 'Y'. This
+	  option does not directly affect the code, but will enable other 
+	  configuration options which allow you to do so.
+
+	  If unsure, say 'N'.
+
+choice
+	prompt "Flash cmd/query data swapping"
+	depends on MTD_CFI_ADV_OPTIONS
+	default MTD_CFI_NOSWAP
+
+config MTD_CFI_NOSWAP
+	bool "NO"
+	---help---
+	  This option defines the way in which the CPU attempts to arrange
+	  data bits when writing the 'magic' commands to the chips. Saying
+	  'NO', which is the default when CONFIG_MTD_CFI_ADV_OPTIONS isn't
+	  enabled, means that the CPU will not do any swapping; the chips
+	  are expected to be wired to the CPU in 'host-endian' form. 
+	  Specific arrangements are possible with the BIG_ENDIAN_BYTE and
+	  LITTLE_ENDIAN_BYTE, if the bytes are reversed.
+
+	  If you have a LART, on which the data (and address) lines were
+	  connected in a fashion which ensured that the nets were as short
+	  as possible, resulting in a bit-shuffling which seems utterly
+	  random to the untrained eye, you need the LART_ENDIAN_BYTE option.
+
+	  Yes, there really exists something sicker than PDP-endian :)
+
+config MTD_CFI_BE_BYTE_SWAP
+	bool "BIG_ENDIAN_BYTE"
+
+config MTD_CFI_LE_BYTE_SWAP
+	bool "LITTLE_ENDIAN_BYTE"
+
+endchoice
+
+config MTD_CFI_GEOMETRY
+	bool "Specific CFI Flash geometry selection"
+	depends on MTD_CFI_ADV_OPTIONS
+	help
+	  This option does not affect the code directly, but will enable 
+	  some other configuration options which would allow you to reduce
+	  the size of the kernel by including support for only certain 
+	  arrangements of CFI chips. If unsure, say 'N' and all options 
+	  which are supported by the current code will be enabled.
+
+config MTD_MAP_BANK_WIDTH_1
+	bool "Support  8-bit buswidth" if MTD_CFI_GEOMETRY
+	default y
+	help
+	  If you wish to support CFI devices on a physical bus which is
+	  8 bits wide, say 'Y'.
+
+config MTD_MAP_BANK_WIDTH_2
+	bool "Support 16-bit buswidth" if MTD_CFI_GEOMETRY
+	default y
+	help
+	  If you wish to support CFI devices on a physical bus which is
+	  16 bits wide, say 'Y'.
+
+config MTD_MAP_BANK_WIDTH_4
+	bool "Support 32-bit buswidth" if MTD_CFI_GEOMETRY
+	default y
+	help
+	  If you wish to support CFI devices on a physical bus which is
+	  32 bits wide, say 'Y'.
+
+config MTD_MAP_BANK_WIDTH_8
+	bool "Support 64-bit buswidth" if MTD_CFI_GEOMETRY
+	default n
+	help
+	  If you wish to support CFI devices on a physical bus which is
+	  64 bits wide, say 'Y'.
+
+config MTD_MAP_BANK_WIDTH_16
+	bool "Support 128-bit buswidth" if MTD_CFI_GEOMETRY
+	default n
+	help
+	  If you wish to support CFI devices on a physical bus which is
+	  128 bits wide, say 'Y'.
+
+config MTD_MAP_BANK_WIDTH_32
+	bool "Support 256-bit buswidth" if MTD_CFI_GEOMETRY
+	default n
+	help
+	  If you wish to support CFI devices on a physical bus which is
+	  256 bits wide, say 'Y'.
+
+config MTD_CFI_I1
+	bool "Support 1-chip flash interleave" if MTD_CFI_GEOMETRY
+	default y
+	help
+	  If your flash chips are not interleaved - i.e. you only have one
+	  flash chip addressed by each bus cycle, then say 'Y'.
+
+config MTD_CFI_I2
+	bool "Support 2-chip flash interleave" if MTD_CFI_GEOMETRY
+	default y
+	help
+	  If your flash chips are interleaved in pairs - i.e. you have two
+	  flash chips addressed by each bus cycle, then say 'Y'.
+
+config MTD_CFI_I4
+	bool "Support 4-chip flash interleave" if MTD_CFI_GEOMETRY
+	default n
+	help
+	  If your flash chips are interleaved in fours - i.e. you have four
+	  flash chips addressed by each bus cycle, then say 'Y'.
+
+config MTD_CFI_I8
+	bool "Support 8-chip flash interleave" if MTD_CFI_GEOMETRY
+	default n
+	help
+	  If your flash chips are interleaved in eights - i.e. you have eight
+	  flash chips addressed by each bus cycle, then say 'Y'.
+
+config MTD_CFI_INTELEXT
+	tristate "Support for Intel/Sharp flash chips"
+	depends on MTD_GEN_PROBE
+	select MTD_CFI_UTIL
+	help
+	  The Common Flash Interface defines a number of different command
+	  sets which a CFI-compliant chip may claim to implement. This code
+	  provides support for one of those command sets, used on Intel
+	  StrataFlash and other parts.
+
+config MTD_CFI_AMDSTD
+	tristate "Support for AMD/Fujitsu flash chips"
+	depends on MTD_GEN_PROBE
+	select MTD_CFI_UTIL
+	help
+	  The Common Flash Interface defines a number of different command
+	  sets which a CFI-compliant chip may claim to implement. This code
+	  provides support for one of those command sets, used on chips 
+	  including the AMD Am29LV320.
+
+config MTD_CFI_AMDSTD_RETRY
+	int "Retry failed commands (erase/program)"
+	depends on MTD_CFI_AMDSTD
+	default "0"
+	help
+	  Some chips, when attached to a shared bus, don't properly filter
+	  bus traffic that is destined to other devices.  This broken
+	  behavior causes erase and program sequences to be aborted when
+	  the sequences are mixed with traffic for other devices.
+
+	  SST49LF040 (and related) chips are know to be broken.
+
+config MTD_CFI_AMDSTD_RETRY_MAX
+	int "Max retries of failed commands (erase/program)"
+	depends on MTD_CFI_AMDSTD_RETRY
+	default "0"
+	help
+	  If you have an SST49LF040 (or related chip) then this value should
+	  be set to at least 1.  This can also be adjusted at driver load
+	  time with the retry_cmd_max module parameter.
+
+config MTD_CFI_STAA
+	tristate "Support for ST (Advanced Architecture) flash chips"
+	depends on MTD_GEN_PROBE
+	select MTD_CFI_UTIL
+	help
+	  The Common Flash Interface defines a number of different command
+	  sets which a CFI-compliant chip may claim to implement. This code
+	  provides support for one of those command sets.
+
+config MTD_CFI_UTIL
+	tristate
+
+config MTD_RAM
+	tristate "Support for RAM chips in bus mapping"
+	depends on MTD
+	help
+	  This option enables basic support for RAM chips accessed through 
+	  a bus mapping driver.
+
+config MTD_ROM
+	tristate "Support for ROM chips in bus mapping"
+	depends on MTD
+	help
+	  This option enables basic support for ROM chips accessed through 
+	  a bus mapping driver.
+
+config MTD_ABSENT
+	tristate "Support for absent chips in bus mapping"
+	depends on MTD
+	help
+	  This option enables support for a dummy probing driver used to
+	  allocated placeholder MTD devices on systems that have socketed
+	  or removable media.  Use of this driver as a fallback chip probe
+	  preserves the expected registration order of MTD device nodes on
+	  the system regardless of media presence.  Device nodes created
+	  with this driver will return -ENODEV upon access.
+
+config MTD_OBSOLETE_CHIPS
+	depends on MTD && BROKEN
+	bool "Older (theoretically obsoleted now) drivers for non-CFI chips"
+	help
+	  This option does not enable any code directly, but will allow you to
+	  select some other chip drivers which are now considered obsolete,
+	  because the generic CONFIG_JEDECPROBE code above should now detect
+	  the chips which are supported by these drivers, and allow the generic
+	  CFI-compatible drivers to drive the chips. Say 'N' here unless you have
+	  already tried the CONFIG_JEDECPROBE method and reported its failure
+	  to the MTD mailing list at <linux-mtd@lists.infradead.org>
+
+config MTD_AMDSTD
+	tristate "AMD compatible flash chip support (non-CFI)"
+	depends on MTD && MTD_OBSOLETE_CHIPS
+	help
+	  This option enables support for flash chips using AMD-compatible
+	  commands, including some which are not CFI-compatible and hence 
+	  cannot be used with the CONFIG_MTD_CFI_AMDSTD option.
+
+	  It also works on AMD compatible chips that do conform to CFI.
+
+config MTD_SHARP
+	tristate "pre-CFI Sharp chip support"
+	depends on MTD && MTD_OBSOLETE_CHIPS
+	help
+	  This option enables support for flash chips using Sharp-compatible
+	  commands, including some which are not CFI-compatible and hence 
+	  cannot be used with the CONFIG_MTD_CFI_INTELxxx options.
+
+config MTD_JEDEC
+	tristate "JEDEC device support"
+	depends on MTD && MTD_OBSOLETE_CHIPS
+	help
+	  Enable older older JEDEC flash interface devices for self
+	  programming flash.  It is commonly used in older AMD chips.  It is
+	  only called JEDEC because the JEDEC association
+	  <http://www.jedec.org/> distributes the identification codes for the
+	  chips.
+
+config MTD_XIP
+	bool "XIP aware MTD support"
+	depends on !SMP && MTD_CFI_INTELEXT && EXPERIMENTAL
+	default y if XIP_KERNEL
+	help
+	  This allows MTD support to work with flash memory which is also
+	  used for XIP purposes.  If you're not sure what this is all about
+	  then say N.
+
+endmenu
+

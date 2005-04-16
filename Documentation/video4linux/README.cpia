@@ -1,0 +1,191 @@
+This is a driver for the CPiA PPC2 driven parallel connected
+Camera. For example the Creative WebcamII is CPiA driven.
+
+   ) [1]Peter Pregler, Linz 2000, published under the [2]GNU GPL
+
+---------------------------------------------------------------------------
+
+USAGE:
+
+General:
+========
+
+1) Make sure you have created the video devices (/dev/video*):
+
+- if you have a recent MAKEDEV do a 'cd /dev;./MAKEDEV video'
+- otherwise do a:
+
+cd /dev
+mknod video0 c 81 0
+ln -s video0 video
+
+2) Compile the kernel (see below for the list of options to use),
+   configure your parport and reboot.
+
+3) If all worked well you should get messages similar
+   to the following (your versions may be different) on the console:
+
+V4L-Driver for Vision CPiA based cameras v0.7.4
+parport0: read2 timeout.
+parport0: Multimedia device, VLSI Vision Ltd PPC2
+Parallel port driver for Vision CPiA based camera
+  CPIA Version: 1.20 (2.0)
+  CPIA PnP-ID: 0553:0002:0100
+  VP-Version: 1.0 0100
+  1 camera(s) found
+
+
+As modules:
+===========
+
+Make sure you have selected the following kernel options (you can
+select all stuff as modules):
+
+The cpia-stuff is in the section 'Character devices -> Video For Linux'.
+
+CONFIG_PARPORT=m
+CONFIG_PARPORT_PC=m
+CONFIG_PARPORT_PC_FIFO=y
+CONFIG_PARPORT_1284=y
+CONFIG_VIDEO_DEV=m
+CONFIG_VIDEO_CPIA=m
+CONFIG_VIDEO_CPIA_PP=m
+
+For autoloading of all those modules you need to tell module-init-tools
+some stuff. Add the following line to your module-init-tools config-file
+(e.g. /etc/modprobe.conf or wherever your distribution does store that
+stuff):
+
+options parport_pc io=0x378 irq=7 dma=3
+alias char-major-81 cpia_pp
+
+The first line tells the dma/irq channels to use. Those _must_ match
+the settings of your BIOS. Do NOT simply use the values above.  See
+Documentation/parport.txt for more information about this. The second
+line associates the video-device file with the driver. Of cause you
+can also load the modules once upon boot (usually done in /etc/modules).
+
+Linked into the kernel:
+=======================
+
+Make sure you have selected the following kernel options. Note that
+you cannot compile the parport-stuff as modules and the cpia-driver
+statically (the other way round is okay though).
+
+The cpia-stuff is in the section 'Character devices -> Video For Linux'.
+
+CONFIG_PARPORT=y
+CONFIG_PARPORT_PC=y
+CONFIG_PARPORT_PC_FIFO=y
+CONFIG_PARPORT_1284=y
+CONFIG_VIDEO_DEV=y
+CONFIG_VIDEO_CPIA=y
+CONFIG_VIDEO_CPIA_PP=y
+
+To use DMA/irq you will need to tell the kernel upon boot time the
+hardware configuration of the parport. You can give the boot-parameter
+at the LILO-prompt or specify it in lilo.conf. I use the following
+append-line in lilo.conf:
+
+        append="parport=0x378,7,3"
+
+See Documentation/parport.txt for more information about the
+configuration of the parport and the values given above. Do not simply
+use the values given above.
+
+---------------------------------------------------------------------------
+FEATURES:
+
+- mmap/read v4l-interface (but no overlay)
+- image formats: CIF/QCIF, SIF/QSIF, various others used by isabel;
+  note: all sizes except CIF/QCIF are implemented by clipping, i.e.
+  pixels are not uploaded from the camera
+- palettes: VIDEO_PALETTE_GRAY, VIDEO_PALETTE_RGB565, VIDEO_PALETTE_RGB555,
+  VIDEO_PALETTE_RGB24, VIDEO_PALETTE_RGB32, VIDEO_PALETTE_YUYV,
+  VIDEO_PALETTE_UYVY, VIDEO_PALETTE_YUV422
+- state information (color balance, exposure, ...) is preserved between
+  device opens
+- complete control over camera via proc-interface (_all_ camera settings are
+  supported), there is also a python-gtk application available for this [3]
+- works under SMP (but the driver is completely serialized and synchronous)
+  so you get no benefit from SMP, but at least it does not crash your box
+- might work for non-Intel architecture, let us know about this
+
+---------------------------------------------------------------------------
+TESTED APPLICATIONS:
+
+- a simple test application based on Xt is available at [3]
+- another test-application based on gqcam-0.4 (uses GTK)
+- gqcam-0.6 should work
+- xawtv-3.x (also the webcam software)
+- xawtv-2.46
+- w3cam (cgi-interface and vidcat, e.g. you may try out 'vidcat  |xv
+  -maxpect -root -quit +noresetroot -rmode 5 -')
+- vic, the MBONE video conferencing tool (version 2.8ucl4-1)
+- isabel 3R4beta (barely working, but AFAICT all the problems are on
+  their side)
+- camserv-0.40
+
+See [3] for pointers to v4l-applications.
+
+---------------------------------------------------------------------------
+KNOWN PROBLEMS:
+
+- some applications do not handle the image format correctly, you will
+  see strange horizontal stripes instead of a nice picture -> make sure
+  your application does use a supported image size or queries the driver
+  for the actually used size (reason behind this: the camera cannot
+  provide any image format, so if size NxM is requested the driver will
+  use a format to the closest fitting N1xM1, the application should now
+  query for this granted size, most applications do not).
+- all the todo ;)
+- if there is not enough light and the picture is too dark try to
+  adjust the SetSensorFPS setting, automatic frame rate adjustment
+  has its price
+- do not try out isabel 3R4beta (built 135), you will be disappointed
+
+---------------------------------------------------------------------------
+TODO:
+
+- multiple camera support (struct camera or something) - This should work,
+  but hasn't been tested yet.
+- architecture independence?
+- SMP-safe asynchronous mmap interface
+- nibble mode for old parport interfaces
+- streaming capture, this should give a performance gain
+
+---------------------------------------------------------------------------
+IMPLEMENTATION NOTES:
+
+The camera can act in two modes, streaming or grabbing. Right now a
+polling grab-scheme is used. Maybe interrupt driven streaming will be
+used for a asynchronous mmap interface in the next major release of the
+driver. This might give a better frame rate.
+
+---------------------------------------------------------------------------
+THANKS (in no particular order):
+
+- Scott J. Bertin <sbertin@mindspring.com> for cleanups, the proc-filesystem
+  and much more
+- Henry Bruce <whb@vvl.co.uk> for providing developers information about
+  the CPiA chip, I wish all companies would treat Linux as seriously
+- Karoly Erdei <Karoly.Erdei@risc.uni-linz.ac.at> and RISC-Linz for being
+  my boss ;) resp. my employer and for providing me the hardware and
+  allow me to devote some working time to this project
+- Manuel J. Petit de Gabriel <mpetit@dit.upm.es> for providing help
+  with Isabel (http://isabel.dit.upm.es/)
+- Bas Huisman <bhuism@cs.utwente.nl> for writing the initial parport code
+- Jarl Totland <Jarl.Totland@bdc.no> for setting up the mailing list 
+  and maintaining the web-server[3]
+- Chris Whiteford <Chris@informinteractive.com> for fixes related to the
+  1.02 firmware
+- special kudos to all the tester whose machines crashed and/or
+  will crash. :)
+
+---------------------------------------------------------------------------
+REFERENCES
+
+   1. http://www.risc.uni-linz.ac.at/people/ppregler
+      mailto:Peter_Pregler@email.com
+   2. see the file COPYING in the top directory of the kernel tree
+   3. http://webcam.sourceforge.net/

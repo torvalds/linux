@@ -1,0 +1,185 @@
+#!/usr/bin/perl
+
+use strict;
+
+## Copyright (C) Michael Still (mikal@stillhq.com)
+## Released under the terms of the GNU GPL
+##
+## A script to make or install the manpages extracted by split-man
+##
+## Arguements: $1 -- the word "convert" or "install"
+##             $2 -- the directory containing the SGML files for the manpages
+##             $3 -- the filename which contained the sgmldoc output
+##                     (I need this so I know which manpages to convert)
+
+my($LISTING, $GENERATED, $INPUT, $OUTPUT, $front, $mode, $filename, $tmpdir);
+
+if($ARGV[0] eq ""){
+  die "Usage: makeman [convert | install] <dir> <file>\n";
+}
+
+if( ! -d "$ARGV[1]" ){
+  die "Output directory \"$ARGV[1]\" does not exist\n";
+}
+
+if($ENV{"TMPDIR"} ne ""){
+  $tmpdir = $ENV{"TMPDIR"};
+}
+else{
+  $tmpdir = "/tmp";
+}
+
+if($ARGV[0] eq "convert"){
+  open LISTING, "grep \"<refentrytitle>\" $ARGV[2] |";
+  while(<LISTING>){
+    s/<\/.*$//;
+    s/^.*>//;
+    s/\.sgml//;
+    s/struct //;
+    s/typedef //;
+
+    chomp;
+    $filename = $_;
+    print "Processing $filename\n";
+
+    # Open the input file to extract the front matter, generate the man page,
+    # and open it, and the rearrange everything until it is happy
+    open INPUT, "< $ARGV[1]/$filename.sgml";
+    $front = "";
+    $mode = 0;
+
+    # The modes used here are:
+    #                                                         mode = 0
+    # <!-- BEGINFRONTTAG -->
+    # <!-- <bookinfo>                                         mode = 1
+    # <!--   <legalnotice>                                    mode = 2
+    # <!--     ...GPL or whatever...
+    # <!--   </legalnotice>                                   mode = 4
+    # <!-- </bookinfo>                                        mode = 3
+    # <!-- ENDFRONTTAG -->
+    #
+    # ...doco...
+
+    # I know that some of the if statements in this while loop are in a funny
+    # order, but that is deliberate...
+    while(<INPUT>){
+      if($mode > 0){
+	s/<!-- //;
+	s/ -->//;
+	s/<docinfo>//i;
+	s<\/docinfo>//i;
+	s/^[ \t]*//i;
+      }
+
+      if($mode == 2){
+	if(/<para>/i){
+	}
+	elsif(/<\/para>/i){
+	  $front = "$front.\\\" \n";
+	}
+	elsif(/<\/legalnotice>/i){
+	  $mode = 4;
+	}
+	elsif(/^[ \t]*$/){
+	}
+	else{
+	  $front = "$front.\\\"     $_";
+	}
+      }
+
+      if($mode == 1){
+	if(/<title>(.*)<\/title>/i){
+	  $front = "$front.\\\" This documentation was generated from the book titled \"$1\", which is part of the Linux kernel source.\n.\\\" \n";
+	}
+	elsif(/<legalnotice>/i){
+	  $front = "$front.\\\" This documentation comes with the following legal notice:\n.\\\" \n";
+	  $mode = 2;
+	}
+
+	elsif(/<author>/i){
+	  $front = "$front.\\\" Documentation by: ";
+	}
+	elsif(/<firstname>(.*)<\/firstname>/i){
+	  $front = "$front$1 ";
+	}
+	elsif(/<surname>(.*)<\/surname>/i){
+	  $front = "$front$1 ";
+	}
+	elsif(/<email>(.*)<\/email>/i){
+	  $front = "$front($1)";
+	}
+	elsif(/\/author>/i){
+	  $front = "$front\n";
+	}
+
+	elsif(/<copyright>/i){
+	  $front = "$front.\\\" Documentation copyright: ";
+	}
+	elsif(/<holder>(.*)<\/holder>/i){
+	  $front = "$front$1 ";
+	}
+	elsif(/<year>(.*)<\/year>/i){
+	  $front = "$front$1 ";
+	}
+	elsif(/\/copyright>/i){
+	  $front = "$front\n";
+	}
+
+	elsif(/^[ \t]*$/
+	      || /<affiliation>/i
+	      || /<\/affiliation>/i
+	      || /<address>/i
+	      || /<\/address>/i
+	      || /<authorgroup>/i
+	      || /<\/authorgroup>/i
+	      || /<\/legalnotice>/i
+              || /<date>/i
+              || /<\/date>/i
+              || /<edition>/i
+              || /<\/edition>/i
+	      || /<pubdate>/i
+	      || /<\/pubdate>/i){
+	}
+	else{
+	  print "Unknown tag in manpage conversion: $_";
+	  }
+      }
+
+      if($mode == 0){
+	if(/<bookinfo>/i){
+	  $mode = 1;
+	}
+      }
+
+      if($mode == 4){
+	if(/<\/bookinfo>/i){
+	  $mode = 3;
+	}
+      }
+    }
+    close INPUT;
+
+    system("cd $ARGV[1]; docbook2man $filename.sgml; mv $filename.9 $tmpdir/$$.9\n");
+    open GENERATED, "< $tmpdir/$$.9";
+    open OUTPUT, "> $ARGV[1]/$filename.9";
+
+    print OUTPUT "$front";
+    print OUTPUT ".\\\" For comments on the formatting of this manpage, please contact Michael Still <mikal\@stillhq.com>\n\n";
+    while(<GENERATED>){
+      print OUTPUT "$_";
+    }
+    close OUTPUT;
+    close GENERATED;
+
+    system("gzip -f $ARGV[1]/$filename.9\n");
+    unlink("$tmpdir/$$.9");
+  }
+}
+elsif($ARGV[0] eq "install"){
+  system("mkdir -p /usr/local/man/man9/; install $ARGV[1]/*.9.gz /usr/local/man/man9/");
+}
+else{
+  die "Usage: makeman [convert | install] <dir> <file>\n";
+}
+
+print "Done\n";

@@ -1,0 +1,63 @@
+#
+# MMC subsystem configuration
+#
+
+menu "MMC/SD Card support"
+
+config MMC
+	tristate "MMC support"
+	help
+	  MMC is the "multi-media card" bus protocol.
+
+	  If you want MMC support, you should say Y here and also
+	  to the specific driver for your MMC interface.
+
+config MMC_DEBUG
+	bool "MMC debugging"
+	depends on MMC != n
+	help
+	  This is an option for use by developers; most people should
+	  say N here.  This enables MMC core and driver debugging.
+
+config MMC_BLOCK
+	tristate "MMC block device driver"
+	depends on MMC
+	default y
+	help
+	  Say Y here to enable the MMC block device driver support.
+	  This provides a block device driver, which you can use to
+	  mount the filesystem. Almost everyone wishing MMC support
+	  should say Y or M here.
+
+config MMC_ARMMMCI
+	tristate "ARM AMBA Multimedia Card Interface support"
+	depends on ARM_AMBA && MMC
+	help
+	  This selects the ARM(R) AMBA(R) PrimeCell Multimedia Card
+	  Interface (PL180 and PL181) support.  If you have an ARM(R)
+	  platform with a Multimedia Card slot, say Y or M here.
+
+	  If unsure, say N.
+
+config MMC_PXA
+	tristate "Intel PXA255 Multimedia Card Interface support"
+	depends on ARCH_PXA && MMC
+	help
+	  This selects the Intel(R) PXA(R) Multimedia card Interface.
+	  If you have a PXA(R) platform with a Multimedia Card slot,
+	  say Y or M here.
+
+	  If unsure, say N.
+
+config MMC_WBSD
+	tristate "Winbond W83L51xD SD/MMC Card Interface support"
+	depends on MMC && ISA
+	help
+	  This selects the Winbond(R) W83L51xD Secure digital and
+          Multimedia card Interface.
+	  If you have a machine with a integrated W83L518D or W83L519D
+	  SD/MMC card reader, say Y or M here.
+
+	  If unsure, say N.
+
+endmenu

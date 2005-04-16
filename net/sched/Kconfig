@@ -1,0 +1,508 @@
+#
+# Traffic control configuration.
+# 
+choice
+	prompt "Packet scheduler clock source"
+	depends on NET_SCHED
+	default NET_SCH_CLK_JIFFIES
+	help
+	  Packet schedulers need a monotonic clock that increments at a static
+	  rate. The kernel provides several suitable interfaces, each with
+	  different properties:
+	  
+	  - high resolution (us or better)
+	  - fast to read (minimal locking, no i/o access)
+	  - synchronized on all processors
+	  - handles cpu clock frequency changes
+
+	  but nothing provides all of the above.
+
+config NET_SCH_CLK_JIFFIES
+	bool "Timer interrupt"
+	help
+	  Say Y here if you want to use the timer interrupt (jiffies) as clock
+	  source. This clock source is fast, synchronized on all processors and
+	  handles cpu clock frequency changes, but its resolution is too low
+	  for accurate shaping except at very low speed.
+
+config NET_SCH_CLK_GETTIMEOFDAY
+	bool "gettimeofday"
+	help
+	  Say Y here if you want to use gettimeofday as clock source. This clock
+	  source has high resolution, is synchronized on all processors and
+	  handles cpu clock frequency changes, but it is slow.
+
+	  Choose this if you need a high resolution clock source but can't use
+	  the CPU's cycle counter.
+
+config NET_SCH_CLK_CPU
+	bool "CPU cycle counter"
+	depends on X86_TSC || X86_64 || ALPHA || SPARC64 || PPC64 || IA64
+	help
+	  Say Y here if you want to use the CPU's cycle counter as clock source.
+	  This is a cheap and high resolution clock source, but on some
+	  architectures it is not synchronized on all processors and doesn't
+	  handle cpu clock frequency changes.
+
+	  The useable cycle counters are:
+
+	  	x86/x86_64	- Timestamp Counter
+		alpha		- Cycle Counter
+		sparc64		- %ticks register
+		ppc64		- Time base
+		ia64		- Interval Time Counter
+
+	  Choose this if your CPU's cycle counter is working properly.
+
+endchoice
+
+config NET_SCH_CBQ
+	tristate "CBQ packet scheduler"
+	depends on NET_SCHED
+	---help---
+	  Say Y here if you want to use the Class-Based Queueing (CBQ) packet
+	  scheduling algorithm for some of your network devices.  This
+	  algorithm classifies the waiting packets into a tree-like hierarchy
+	  of classes; the leaves of this tree are in turn scheduled by
+	  separate algorithms (called "disciplines" in this context).
+
+	  See the top of <file:net/sched/sch_cbq.c> for references about the
+	  CBQ algorithm.
+
+	  CBQ is a commonly used scheduler, so if you're unsure, you should
+	  say Y here. Then say Y to all the queueing algorithms below that you
+	  want to use as CBQ disciplines.  Then say Y to "Packet classifier
+	  API" and say Y to all the classifiers you want to use; a classifier
+	  is a routine that allows you to sort your outgoing traffic into
+	  classes based on a certain criterion.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called sch_cbq.
+
+config NET_SCH_HTB
+	tristate "HTB packet scheduler"
+	depends on NET_SCHED
+	---help---
+	  Say Y here if you want to use the Hierarchical Token Buckets (HTB)
+	  packet scheduling algorithm for some of your network devices. See
+	  <http://luxik.cdi.cz/~devik/qos/htb/> for complete manual and
+	  in-depth articles.
+
+	  HTB is very similar to the CBQ regarding its goals however is has 
+	  different properties and different algorithm.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called sch_htb.
+
+config NET_SCH_HFSC
+	tristate "HFSC packet scheduler"
+	depends on NET_SCHED
+	---help---
+	  Say Y here if you want to use the Hierarchical Fair Service Curve
+	  (HFSC) packet scheduling algorithm for some of your network devices.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called sch_hfsc.
+
+#tristate '  H-PFQ packet scheduler' CONFIG_NET_SCH_HPFQ
+config NET_SCH_ATM
+	tristate "ATM pseudo-scheduler"
+	depends on NET_SCHED && ATM
+	---help---
+	  Say Y here if you want to use the ATM pseudo-scheduler.  This
+	  provides a framework for invoking classifiers (aka "filters"), which
+	  in turn select classes of this queuing discipline.  Each class maps
+	  the flow(s) it is handling to a given virtual circuit (see the top of
+	  <file:net/sched/sch_atm.c>).
+
+	  To compile this code as a module, choose M here: the
+	  module will be called sch_atm.
+
+config NET_SCH_PRIO
+	tristate "The simplest PRIO pseudoscheduler"
+	depends on NET_SCHED
+	help
+	  Say Y here if you want to use an n-band priority queue packet
+	  "scheduler" for some of your network devices or as a leaf discipline
+	  for the CBQ scheduling algorithm. If unsure, say Y.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called sch_prio.
+
+config NET_SCH_RED
+	tristate "RED queue"
+	depends on NET_SCHED
+	help
+	  Say Y here if you want to use the Random Early Detection (RED)
+	  packet scheduling algorithm for some of your network devices (see
+	  the top of <file:net/sched/sch_red.c> for details and references
+	  about the algorithm).
+
+	  To compile this code as a module, choose M here: the
+	  module will be called sch_red.
+
+config NET_SCH_SFQ
+	tristate "SFQ queue"
+	depends on NET_SCHED
+	---help---
+	  Say Y here if you want to use the Stochastic Fairness Queueing (SFQ)
+	  packet scheduling algorithm for some of your network devices or as a
+	  leaf discipline for the CBQ scheduling algorithm (see the top of
+	  <file:net/sched/sch_sfq.c> for details and references about the SFQ
+	  algorithm).
+
+	  To compile this code as a module, choose M here: the
+	  module will be called sch_sfq.
+
+config NET_SCH_TEQL
+	tristate "TEQL queue"
+	depends on NET_SCHED
+	---help---
+	  Say Y here if you want to use the True Link Equalizer (TLE) packet
+	  scheduling algorithm for some of your network devices or as a leaf
+	  discipline for the CBQ scheduling algorithm. This queueing
+	  discipline allows the combination of several physical devices into
+	  one virtual device. (see the top of <file:net/sched/sch_teql.c> for
+	  details).
+
+	  To compile this code as a module, choose M here: the
+	  module will be called sch_teql.
+
+config NET_SCH_TBF
+	tristate "TBF queue"
+	depends on NET_SCHED
+	help
+	  Say Y here if you want to use the Simple Token Bucket Filter (TBF)
+	  packet scheduling algorithm for some of your network devices or as a
+	  leaf discipline for the CBQ scheduling algorithm (see the top of
+	  <file:net/sched/sch_tbf.c> for a description of the TBF algorithm).
+
+	  To compile this code as a module, choose M here: the
+	  module will be called sch_tbf.
+
+config NET_SCH_GRED
+	tristate "GRED queue"
+	depends on NET_SCHED
+	help
+	  Say Y here if you want to use the Generic Random Early Detection
+	  (RED) packet scheduling algorithm for some of your network devices
+	  (see the top of <file:net/sched/sch_red.c> for details and
+	  references about the algorithm).
+
+	  To compile this code as a module, choose M here: the
+	  module will be called sch_gred.
+
+config NET_SCH_DSMARK
+	tristate "Diffserv field marker"
+	depends on NET_SCHED
+	help
+	  Say Y if you want to schedule packets according to the
+	  Differentiated Services architecture proposed in RFC 2475.
+	  Technical information on this method, with pointers to associated
+	  RFCs, is available at <http://www.gta.ufrj.br/diffserv/>.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called sch_dsmark.
+
+config NET_SCH_NETEM
+	tristate "Network emulator"
+	depends on NET_SCHED
+	help
+	  Say Y if you want to emulate network delay, loss, and packet
+	  re-ordering. This is often useful to simulate networks when
+	  testing applications or protocols.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called sch_netem.
+
+	  If unsure, say N.
+
+config NET_SCH_INGRESS
+	tristate "Ingress Qdisc"
+	depends on NET_SCHED 
+	help
+	  If you say Y here, you will be able to police incoming bandwidth
+	  and drop packets when this bandwidth exceeds your desired rate.
+	  If unsure, say Y.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called sch_ingress.
+
+config NET_QOS
+	bool "QoS support"
+	depends on NET_SCHED
+	---help---
+	  Say Y here if you want to include Quality Of Service scheduling
+	  features, which means that you will be able to request certain
+	  rate-of-flow limits for your network devices.
+
+	  This Quality of Service (QoS) support will enable you to use
+	  Differentiated Services (diffserv) and Resource Reservation Protocol
+	  (RSVP) on your Linux router if you also say Y to "Packet classifier
+	  API" and to some classifiers below. Documentation and software is at
+	  <http://diffserv.sourceforge.net/>.
+
+	  Note that the answer to this question won't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about QoS support.
+
+config NET_ESTIMATOR
+	bool "Rate estimator"
+	depends on NET_QOS
+	help
+	  In order for Quality of Service scheduling to work, the current
+	  rate-of-flow for a network device has to be estimated; if you say Y
+	  here, the kernel will do just that.
+
+config NET_CLS
+	bool "Packet classifier API"
+	depends on NET_SCHED
+	---help---
+	  The CBQ scheduling algorithm requires that network packets which are
+	  scheduled to be sent out over a network device be classified
+	  according to some criterion. If you say Y here, you will get a
+	  choice of several different packet classifiers with the following
+	  questions.
+
+	  This will enable you to use Differentiated Services (diffserv) and
+	  Resource Reservation Protocol (RSVP) on your Linux router.
+	  Documentation and software is at
+	  <http://diffserv.sourceforge.net/>.
+
+config NET_CLS_BASIC
+	tristate "Basic classifier"
+	depends on NET_CLS
+	---help---
+	  Say Y here if you want to be able to classify packets using
+	  only extended matches and actions.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called cls_basic.
+
+config NET_CLS_TCINDEX
+	tristate "TC index classifier"
+	depends on NET_CLS
+	help
+	  If you say Y here, you will be able to classify outgoing packets
+	  according to the tc_index field of the skb. You will want this
+	  feature if you want to implement Differentiated Services using
+	  sch_dsmark. If unsure, say Y.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called cls_tcindex.
+
+config NET_CLS_ROUTE4
+	tristate "Routing table based classifier"
+	depends on NET_CLS
+	select NET_CLS_ROUTE
+	help
+	  If you say Y here, you will be able to classify outgoing packets
+	  according to the route table entry they matched. If unsure, say Y.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called cls_route.
+
+config NET_CLS_ROUTE
+	bool
+	default n
+
+config NET_CLS_FW
+	tristate "Firewall based classifier"
+	depends on NET_CLS
+	help
+	  If you say Y here, you will be able to classify outgoing packets
+	  according to firewall criteria you specified.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called cls_fw.
+
+config NET_CLS_U32
+	tristate "U32 classifier"
+	depends on NET_CLS
+	help
+	  If you say Y here, you will be able to classify outgoing packets
+	  according to their destination address. If unsure, say Y.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called cls_u32.
+
+config CLS_U32_PERF
+	bool "U32 classifier performance counters"
+	depends on NET_CLS_U32
+	help
+	  gathers stats that could be used to tune u32 classifier performance.
+	  Requires a new iproute2
+	  You MUST NOT turn this on if you dont have an update iproute2.
+
+config NET_CLS_IND
+	bool "classify input device (slows things u32/fw) "
+	depends on NET_CLS_U32 || NET_CLS_FW
+	help
+	  This option will be killed eventually when a 
+          metadata action appears because it slows things a little
+          Available only for u32 and fw classifiers.
+	  Requires a new iproute2
+	  You MUST NOT turn this on if you dont have an update iproute2.
+
+config CLS_U32_MARK
+	bool "Use nfmark as a key in U32 classifier"
+	depends on NET_CLS_U32 && NETFILTER
+	help
+	  This allows you to match mark in a u32 filter.
+	  Example:
+	  tc filter add dev eth0 protocol ip parent 1:0 prio 5 u32 \
+		match mark 0x0090 0xffff \
+		match ip dst 4.4.4.4 \
+		flowid 1:90
+	  You must use a new iproute2 to use this feature.
+
+config NET_CLS_RSVP
+	tristate "Special RSVP classifier"
+	depends on NET_CLS && NET_QOS
+	---help---
+	  The Resource Reservation Protocol (RSVP) permits end systems to
+	  request a minimum and maximum data flow rate for a connection; this
+	  is important for real time data such as streaming sound or video.
+
+	  Say Y here if you want to be able to classify outgoing packets based
+	  on their RSVP requests.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called cls_rsvp.
+
+config NET_CLS_RSVP6
+	tristate "Special RSVP classifier for IPv6"
+	depends on NET_CLS && NET_QOS
+	---help---
+	  The Resource Reservation Protocol (RSVP) permits end systems to
+	  request a minimum and maximum data flow rate for a connection; this
+	  is important for real time data such as streaming sound or video.
+
+	  Say Y here if you want to be able to classify outgoing packets based
+	  on their RSVP requests and you are using the new Internet Protocol
+	  IPv6 as opposed to the older and more common IPv4.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called cls_rsvp6.
+
+config NET_EMATCH
+	bool "Extended Matches"
+	depends on NET_CLS
+	---help---
+	  Say Y here if you want to use extended matches on top of classifiers
+	  and select the extended matches below.
+
+	  Extended matches are small classification helpers not worth writing
+	  a separate classifier.
+
+	  You must have a recent version of the iproute2 tools in order to use
+	  extended matches.
+
+config NET_EMATCH_STACK
+	int "Stack size"
+	depends on NET_EMATCH
+	default "32"
+	---help---
+	  Size of the local stack variable used while evaluating the tree of
+	  ematches. Limits the depth of the tree, i.e. the number of
+	  encapsulated precedences. Every level requires 4 bytes of addtional
+	  stack space.
+
+config NET_EMATCH_CMP
+	tristate "Simple packet data comparison"
+	depends on NET_EMATCH
+	---help---
+	  Say Y here if you want to be able to classify packets based on
+	  simple packet data comparisons for 8, 16, and 32bit values.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called em_cmp.
+
+config NET_EMATCH_NBYTE
+	tristate "Multi byte comparison"
+	depends on NET_EMATCH
+	---help---
+	  Say Y here if you want to be able to classify packets based on
+	  multiple byte comparisons mainly useful for IPv6 address comparisons.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called em_nbyte.
+
+config NET_EMATCH_U32
+	tristate "U32 hashing key"
+	depends on NET_EMATCH
+	---help---
+	  Say Y here if you want to be able to classify packets using
+	  the famous u32 key in combination with logic relations.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called em_u32.
+
+config NET_EMATCH_META
+	tristate "Metadata"
+	depends on NET_EMATCH
+	---help---
+	  Say Y here if you want to be ablt to classify packets based on
+	  metadata such as load average, netfilter attributes, socket
+	  attributes and routing decisions.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called em_meta.
+
+config NET_CLS_ACT
+	bool "Packet ACTION"
+	depends on EXPERIMENTAL && NET_CLS && NET_QOS
+	---help---
+	This option requires you have a new iproute2. It enables
+	tc extensions which can be used with tc classifiers.
+	  You MUST NOT turn this on if you dont have an update iproute2.
+
+config NET_ACT_POLICE
+	tristate "Policing Actions"
+        depends on NET_CLS_ACT 
+        ---help---
+        If you are using a newer iproute2 select this one, otherwise use one
+	below to select a policer.
+	  You MUST NOT turn this on if you dont have an update iproute2.
+
+config NET_ACT_GACT
+        tristate "generic Actions"
+        depends on NET_CLS_ACT
+        ---help---
+        You must have new iproute2 to use this feature.
+        This adds simple filtering actions like drop, accept etc.
+
+config GACT_PROB
+        bool "generic Actions probability"
+        depends on NET_ACT_GACT
+        ---help---
+        Allows generic actions to be randomly or deterministically used.
+
+config NET_ACT_MIRRED
+        tristate "Packet In/Egress redirecton/mirror Actions"
+        depends on NET_CLS_ACT
+        ---help---
+        requires new iproute2
+        This allows packets to be mirrored or redirected to netdevices
+
+config NET_ACT_IPT
+        tristate "iptables Actions"
+        depends on NET_CLS_ACT && NETFILTER && IP_NF_IPTABLES
+        ---help---
+        requires new iproute2
+        This allows iptables targets to be used by tc filters
+
+config NET_ACT_PEDIT
+        tristate "Generic Packet Editor Actions"
+        depends on NET_CLS_ACT
+        ---help---
+        requires new iproute2
+        This allows for packets to be generically edited
+
+config NET_CLS_POLICE
+	bool "Traffic policing (needed for in/egress)"
+	depends on NET_CLS && NET_QOS && NET_CLS_ACT!=y
+	help
+	  Say Y to support traffic policing (bandwidth limits).  Needed for
+	  ingress and egress rate limiting.
+

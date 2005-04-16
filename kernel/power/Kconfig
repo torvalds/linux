@@ -1,0 +1,74 @@
+config PM
+	bool "Power Management support"
+	---help---
+	  "Power Management" means that parts of your computer are shut
+	  off or put into a power conserving "sleep" mode if they are not
+	  being used.  There are two competing standards for doing this: APM
+	  and ACPI.  If you want to use either one, say Y here and then also
+	  to the requisite support below.
+
+	  Power Management is most important for battery powered laptop
+	  computers; if you have a laptop, check out the Linux Laptop home
+	  page on the WWW at <http://www.linux-on-laptops.com/> or
+	  Tuxmobil - Linux on Mobile Computers at <http://www.tuxmobil.org/>
+	  and the Battery Powered Linux mini-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>.
+
+	  Note that, even if you say N here, Linux on the x86 architecture
+	  will issue the hlt instruction if nothing is to be done, thereby
+	  sending the processor to sleep and saving power.
+
+config PM_DEBUG
+	bool "Power Management Debug Support"
+	depends on PM
+	---help---
+	This option enables verbose debugging support in the Power Management
+	code. This is helpful when debugging and reporting various PM bugs, 
+	like suspend support.
+
+config SOFTWARE_SUSPEND
+	bool "Software Suspend (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && PM && SWAP
+	---help---
+	  Enable the possibility of suspending the machine.
+	  It doesn't need APM.
+	  You may suspend your machine by 'swsusp' or 'shutdown -z <time>' 
+	  (patch for sysvinit needed). 
+
+	  It creates an image which is saved in your active swap. Upon next
+	  boot, pass the 'resume=/dev/swappartition' argument to the kernel to
+	  have it detect the saved image, restore memory state from it, and
+	  continue to run as before. If you do not want the previous state to
+	  be reloaded, then use the 'noresume' kernel argument. However, note
+	  that your partitions will be fsck'd and you must re-mkswap your swap
+	  partitions. It does not work with swap files.
+
+	  Right now you may boot without resuming and then later resume but
+	  in meantime you cannot use those swap partitions/files which were
+	  involved in suspending. Also in this case there is a risk that buffers
+	  on disk won't match with saved ones.
+
+	  For more information take a look at <file:Documentation/power/swsusp.txt>.
+
+config PM_STD_PARTITION
+	string "Default resume partition"
+	depends on SOFTWARE_SUSPEND
+	default ""
+	---help---
+	  The default resume partition is the partition that the suspend-
+	  to-disk implementation will look for a suspended disk image. 
+
+	  The partition specified here will be different for almost every user. 
+	  It should be a valid swap partition (at least for now) that is turned
+	  on before suspending. 
+
+	  The partition specified can be overridden by specifying:
+
+		resume=/dev/<other device> 
+
+	  which will set the resume partition to the device specified. 
+
+	  Note there is currently not a way to specify which device to save the
+	  suspended image to. It will simply pick the first available swap 
+	  device.
+

@@ -1,0 +1,18 @@
+#
+# Plug and Play ACPI configuration
+#
+config PNPACPI
+	bool "Plug and Play ACPI support (EXPERIMENTAL)"
+	depends on PNP && ACPI_BUS && EXPERIMENTAL
+	default y
+	---help---
+	  Linux uses the PNPACPI to autodetect built-in
+	  mainboard resources (e.g. parallel port resources).
+
+          Some features (e.g. real hotplug) are not currently
+          implemented.
+
+          If you would like the kernel to detect and allocate resources to
+          your mainboard devices (on some systems they are disabled by the
+          BIOS) say Y here.  Also the PNPACPI can help prevent resource
+          conflicts between mainboard devices and other bus devices.

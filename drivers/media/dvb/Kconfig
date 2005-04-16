@@ -1,0 +1,47 @@
+#
+# Multimedia device configuration
+#
+
+menu "Digital Video Broadcasting Devices"
+
+config DVB
+	bool "DVB For Linux"
+	depends on NET && INET
+	---help---
+	  Support Digital Video Broadcasting hardware.  Enable this if you
+	  own a DVB adapter and want to use it or if you compile Linux for
+	  a digital SetTopBox.
+
+	  API specs and user tools are available from <http://www.linuxtv.org/>.
+
+	  Please report problems regarding this driver to the LinuxDVB
+	  mailing list.
+
+	  If unsure say N.
+
+source "drivers/media/dvb/dvb-core/Kconfig"
+
+comment "Supported SAA7146 based PCI Adapters"
+	depends on DVB_CORE && PCI
+source "drivers/media/dvb/ttpci/Kconfig"
+
+comment "Supported USB Adapters"
+	depends on DVB_CORE && USB
+source "drivers/media/dvb/ttusb-budget/Kconfig"
+source "drivers/media/dvb/ttusb-dec/Kconfig"
+source "drivers/media/dvb/dibusb/Kconfig"
+source "drivers/media/dvb/cinergyT2/Kconfig"
+
+comment "Supported FlexCopII (B2C2) Adapters"
+	depends on DVB_CORE && PCI
+source "drivers/media/dvb/b2c2/Kconfig"
+
+comment "Supported BT878 Adapters"
+	depends on DVB_CORE && PCI
+source "drivers/media/dvb/bt8xx/Kconfig"
+
+comment "Supported DVB Frontends"
+	depends on DVB_CORE
+source "drivers/media/dvb/frontends/Kconfig"
+
+endmenu

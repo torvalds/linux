@@ -1,0 +1,180 @@
+#
+# For a description of the syntax of this configuration file,
+# see the Configure script.
+#
+
+mainmenu "Linux/CRIS Kernel Configuration"
+
+config MMU
+	bool
+	default y
+
+config UID16
+	bool
+	default y
+
+config RWSEM_GENERIC_SPINLOCK
+	bool
+	default y
+
+config RWSEM_XCHGADD_ALGORITHM
+	bool
+
+config GENERIC_CALIBRATE_DELAY
+	bool
+	default y
+
+config CRIS
+	bool
+	default y
+
+source "init/Kconfig"
+
+menu "General setup"
+
+source "fs/Kconfig.binfmt"
+
+config ETRAX_CMDLINE
+	string "Kernel command line"
+	default "root=/dev/mtdblock3"
+	help
+	  Pass additional commands to the kernel.
+
+config ETRAX_WATCHDOG
+	bool "Enable ETRAX watchdog"
+	help
+	  Enable the built-in watchdog timer support on ETRAX based embedded
+	  network computers.
+
+config ETRAX_WATCHDOG_NICE_DOGGY
+	bool "Disable watchdog during Oops printouts"
+	depends on ETRAX_WATCHDOG
+	help
+	  By enabling this you make sure that the watchdog does not bite while
+	  printing oopses. Recommended for development systems but not for
+	  production releases.
+
+config ETRAX_FAST_TIMER
+       bool "Enable ETRAX fast timer API"
+       help
+         This options enables the API to a fast timer implementation using
+	 timer1 to get sub jiffie resolution timers (primarily one-shot
+	 timers).
+	 This is needed if CONFIG_ETRAX_SERIAL_FAST_TIMER is enabled.
+
+config PREEMPT
+	bool "Preemptible Kernel"
+	help
+	  This option reduces the latency of the kernel when reacting to
+	  real-time or interactive events by allowing a low priority process to
+	  be preempted even if it is in kernel mode executing a system call.
+	  This allows applications to run more reliably even when the system is
+	  under load.
+
+	  Say Y here if you are building a kernel for a desktop, embedded
+	  or real-time system.  Say N if you are unsure.
+
+endmenu
+
+menu "Hardware setup"
+
+choice
+	prompt "Processor type"
+	default ETRAX100LX
+
+config ETRAX100LX
+	bool "ETRAX-100LX-v1"
+	help
+	  Support version 1 of the ETRAX 100LX.
+
+config ETRAX100LX_V2
+	bool "ETRAX-100LX-v2"
+	help
+	  Support version 2 of the ETRAX 100LX.
+
+config SVINTO_SIM
+	bool "ETRAX-100LX-for-xsim-simulator"
+	help
+	  Support the xsim ETRAX Simulator.
+
+endchoice
+
+config ETRAX_ARCH_V10
+       bool
+       default y if ETRAX100LX || ETRAX100LX_V2
+       default n if !(ETRAX100LX || ETRAX100LX_V2)
+
+config ETRAX_DRAM_SIZE
+	int "DRAM size (dec, in MB)"
+	default "8"
+	help
+	  Size of DRAM (decimal in MB) typically 2, 8 or 16.
+
+config ETRAX_FLASH_BUSWIDTH
+	int "Buswidth of flash in bytes"
+	default "2"
+	help
+	  Width in bytes of the Flash bus (1, 2 or 4). Is usually 2.
+
+source arch/cris/arch-v10/Kconfig
+
+endmenu
+
+# bring in ETRAX built-in drivers
+menu "Drivers for built-in interfaces"
+source arch/cris/arch-v10/drivers/Kconfig
+
+endmenu
+
+source "drivers/base/Kconfig"
+
+# standard linux drivers
+source "drivers/mtd/Kconfig"
+
+source "drivers/parport/Kconfig"
+
+source "drivers/pnp/Kconfig"
+
+source "drivers/block/Kconfig"
+
+source "drivers/md/Kconfig"
+
+source "drivers/ide/Kconfig"
+
+source "drivers/scsi/Kconfig"
+
+source "drivers/ieee1394/Kconfig"
+
+source "drivers/message/i2o/Kconfig"
+
+source "net/Kconfig"
+
+source "drivers/isdn/Kconfig"
+
+source "drivers/telephony/Kconfig"
+
+source "drivers/cdrom/Kconfig"
+
+#
+# input before char - char/joystick depends on it. As does USB.
+#
+source "drivers/input/Kconfig"
+
+source "drivers/char/Kconfig"
+
+#source drivers/misc/Config.in
+source "drivers/media/Kconfig"
+
+source "fs/Kconfig"
+
+source "sound/Kconfig"
+
+source "drivers/usb/Kconfig"
+
+source "arch/cris/Kconfig.debug"
+
+source "security/Kconfig"
+
+source "crypto/Kconfig"
+
+source "lib/Kconfig"

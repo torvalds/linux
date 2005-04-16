@@ -1,0 +1,40 @@
+menu "Generic Driver Options"
+
+config STANDALONE
+	bool "Select only drivers that don't need compile-time external firmware" if EXPERIMENTAL
+	default y
+	help
+	  Select this option if you don't have magic firmware for drivers that
+	  need it.
+
+	  If unsure, say Y.
+
+config PREVENT_FIRMWARE_BUILD
+	bool "Prevent firmware from being built"
+	default y
+	help
+	  Say yes to avoid building firmware. Firmware is usually shipped
+	  with the driver, and only when updating the firmware a rebuild
+	  should be made.
+	  If unsure say Y here.
+
+config FW_LOADER
+	tristate "Hotplug firmware loading support"
+	select HOTPLUG
+	---help---
+	  This option is provided for the case where no in-kernel-tree modules
+	  require hotplug firmware loading support, but a module built outside
+	  the kernel tree does.
+
+config DEBUG_DRIVER
+	bool "Driver Core verbose debug messages"
+	depends on DEBUG_KERNEL
+	help
+	  Say Y here if you want the Driver core to produce a bunch of
+	  debug messages to the system log. Select this if you are having a
+	  problem with the driver core and want to see more of what is
+	  going on.
+
+	  If you are unsure about this, say N here.
+
+endmenu

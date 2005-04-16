@@ -1,0 +1,157 @@
+Review Checklist for RCU Patches
+
+
+This document contains a checklist for producing and reviewing patches
+that make use of RCU.  Violating any of the rules listed below will
+result in the same sorts of problems that leaving out a locking primitive
+would cause.  This list is based on experiences reviewing such patches
+over a rather long period of time, but improvements are always welcome!
+
+0.	Is RCU being applied to a read-mostly situation?  If the data
+	structure is updated more than about 10% of the time, then
+	you should strongly consider some other approach, unless
+	detailed performance measurements show that RCU is nonetheless
+	the right tool for the job.
+
+	The other exception would be where performance is not an issue,
+	and RCU provides a simpler implementation.  An example of this
+	situation is the dynamic NMI code in the Linux 2.6 kernel,
+	at least on architectures where NMIs are rare.
+
+1.	Does the update code have proper mutual exclusion?
+
+	RCU does allow -readers- to run (almost) naked, but -writers- must
+	still use some sort of mutual exclusion, such as:
+
+	a.	locking,
+	b.	atomic operations, or
+	c.	restricting updates to a single task.
+
+	If you choose #b, be prepared to describe how you have handled
+	memory barriers on weakly ordered machines (pretty much all of
+	them -- even x86 allows reads to be reordered), and be prepared
+	to explain why this added complexity is worthwhile.  If you
+	choose #c, be prepared to explain how this single task does not
+	become a major bottleneck on big multiprocessor machines.
+
+2.	Do the RCU read-side critical sections make proper use of
+	rcu_read_lock() and friends?  These primitives are needed
+	to suppress preemption (or bottom halves, in the case of
+	rcu_read_lock_bh()) in the read-side critical sections,
+	and are also an excellent aid to readability.
+
+3.	Does the update code tolerate concurrent accesses?
+
+	The whole point of RCU is to permit readers to run without
+	any locks or atomic operations.  This means that readers will
+	be running while updates are in progress.  There are a number
+	of ways to handle this concurrency, depending on the situation:
+
+	a.	Make updates appear atomic to readers.  For example,
+		pointer updates to properly aligned fields will appear
+		atomic, as will individual atomic primitives.  Operations
+		performed under a lock and sequences of multiple atomic
+		primitives will -not- appear to be atomic.
+
+		This is almost always the best approach.
+
+	b.	Carefully order the updates and the reads so that
+		readers see valid data at all phases of the update.
+		This is often more difficult than it sounds, especially
+		given modern CPUs' tendency to reorder memory references.
+		One must usually liberally sprinkle memory barriers
+		(smp_wmb(), smp_rmb(), smp_mb()) through the code,
+		making it difficult to understand and to test.
+
+		It is usually better to group the changing data into
+		a separate structure, so that the change may be made
+		to appear atomic by updating a pointer to reference
+		a new structure containing updated values.
+
+4.	Weakly ordered CPUs pose special challenges.  Almost all CPUs
+	are weakly ordered -- even i386 CPUs allow reads to be reordered.
+	RCU code must take all of the following measures to prevent
+	memory-corruption problems:
+
+	a.	Readers must maintain proper ordering of their memory
+		accesses.  The rcu_dereference() primitive ensures that
+		the CPU picks up the pointer before it picks up the data
+		that the pointer points to.  This really is necessary
+		on Alpha CPUs.	If you don't believe me, see:
+
+			http://www.openvms.compaq.com/wizard/wiz_2637.html
+
+		The rcu_dereference() primitive is also an excellent
+		documentation aid, letting the person reading the code
+		know exactly which pointers are protected by RCU.
+
+		The rcu_dereference() primitive is used by the various
+		"_rcu()" list-traversal primitives, such as the
+		list_for_each_entry_rcu().
+
+	b.	If the list macros are being used, the list_del_rcu(),
+		list_add_tail_rcu(), and list_del_rcu() primitives must
+		be used in order to prevent weakly ordered machines from
+		misordering structure initialization and pointer planting.
+		Similarly, if the hlist macros are being used, the
+		hlist_del_rcu() and hlist_add_head_rcu() primitives
+		are required.
+
+	c.	Updates must ensure that initialization of a given
+		structure happens before pointers to that structure are
+		publicized.  Use the rcu_assign_pointer() primitive
+		when publicizing a pointer to a structure that can
+		be traversed by an RCU read-side critical section.
+
+		[The rcu_assign_pointer() primitive is in process.]
+
+5.	If call_rcu(), or a related primitive such as call_rcu_bh(),
+	is used, the callback function must be written to be called
+	from softirq context.  In particular, it cannot block.
+
+6.	Since synchronize_kernel() blocks, it cannot be called from
+	any sort of irq context.
+
+7.	If the updater uses call_rcu(), then the corresponding readers
+	must use rcu_read_lock() and rcu_read_unlock().  If the updater
+	uses call_rcu_bh(), then the corresponding readers must use
+	rcu_read_lock_bh() and rcu_read_unlock_bh().  Mixing things up
+	will result in confusion and broken kernels.
+
+	One exception to this rule: rcu_read_lock() and rcu_read_unlock()
+	may be substituted for rcu_read_lock_bh() and rcu_read_unlock_bh()
+	in cases where local bottom halves are already known to be
+	disabled, for example, in irq or softirq context.  Commenting
+	such cases is a must, of course!  And the jury is still out on
+	whether the increased speed is worth it.
+
+8.	Although synchronize_kernel() is a bit slower than is call_rcu(),
+	it usually results in simpler code.  So, unless update performance
+	is important or the updaters cannot block, synchronize_kernel()
+	should be used in preference to call_rcu().
+
+9.	All RCU list-traversal primitives, which include
+	list_for_each_rcu(), list_for_each_entry_rcu(),
+	list_for_each_continue_rcu(), and list_for_each_safe_rcu(),
+	must be within an RCU read-side critical section.  RCU
+	read-side critical sections are delimited by rcu_read_lock()
+	and rcu_read_unlock(), or by similar primitives such as
+	rcu_read_lock_bh() and rcu_read_unlock_bh().
+
+	Use of the _rcu() list-traversal primitives outside of an
+	RCU read-side critical section causes no harm other than
+	a slight performance degradation on Alpha CPUs and some
+	confusion on the part of people trying to read the code.
+
+	Another way of thinking of this is "If you are holding the
+	lock that prevents the data structure from changing, why do
+	you also need RCU-based protection?"  That said, there may
+	well be situations where use of the _rcu() list-traversal
+	primitives while the update-side lock is held results in
+	simpler and more maintainable code.  The jury is still out
+	on this question.
+
+10.	Conversely, if you are in an RCU read-side critical section,
+	you -must- use the "_rcu()" variants of the list macros.
+	Failing to do so will break Alpha and confuse people reading
+	your code.

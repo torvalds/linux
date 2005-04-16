@@ -1,0 +1,88 @@
+OUTPUT_ARCH(powerpc)
+SECTIONS
+{
+  /* Read-only sections, merged into text segment: */
+  . = + SIZEOF_HEADERS;
+  .interp : { *(.interp) }
+  .hash          : { *(.hash)		}
+  .dynsym        : { *(.dynsym)		}
+  .dynstr        : { *(.dynstr)		}
+  .rel.text      : { *(.rel.text)		}
+  .rela.text     : { *(.rela.text) 	}
+  .rel.data      : { *(.rel.data)		}
+  .rela.data     : { *(.rela.data) 	}
+  .rel.rodata    : { *(.rel.rodata) 	}
+  .rela.rodata   : { *(.rela.rodata) 	}
+  .rel.got       : { *(.rel.got)		}
+  .rela.got      : { *(.rela.got)		}
+  .rel.ctors     : { *(.rel.ctors)	}
+  .rela.ctors    : { *(.rela.ctors)	}
+  .rel.dtors     : { *(.rel.dtors)	}
+  .rela.dtors    : { *(.rela.dtors)	}
+  .rel.bss       : { *(.rel.bss)		}
+  .rela.bss      : { *(.rela.bss)		}
+  .rel.plt       : { *(.rel.plt)		}
+  .rela.plt      : { *(.rela.plt)		}
+  .plt : { *(.plt) }
+  .text      :
+  {
+    *(.text)
+    *(.fixup)
+    __relocate_start = .;
+    *(.relocate_code)
+    __relocate_end = .;
+  }
+  _etext = .;
+  PROVIDE (etext = .);
+
+  /* Read-write section, merged into data segment: */
+  . = ALIGN(4096);
+  .data    :
+  {
+    *(.data)
+    *(.data1)
+    *(.data.boot)
+    *(.sdata)
+    *(.sdata2)
+    *(.got.plt) *(.got)
+    *(.dynamic)
+    *(.rodata)
+    *(.rodata.*)
+    *(.rodata1)
+    *(.got1)
+    __image_begin = .;
+    *(.image)
+    __image_end = .;
+    . = ALIGN(4096);
+    __ramdisk_begin = .;
+    *(.ramdisk)
+    __ramdisk_end = .;
+    . = ALIGN(4096);
+    __sysmap_begin = .;
+    *(.sysmap)
+    __sysmap_end = .;
+    CONSTRUCTORS
+  }
+  _edata  =  .;
+  PROVIDE (edata = .);
+
+  . = ALIGN(4096);
+  __bss_start = .;
+  .bss       :
+  {
+   *(.sbss) *(.scommon)
+   *(.dynbss)
+   *(.bss)
+   *(COMMON)
+  }
+  _end = . ;
+  PROVIDE (end = .);
+
+  /DISCARD/ : {
+    *(__ksymtab)
+    *(__ksymtab_strings)
+    *(__bug_table)
+    *(__kcrctab)
+  }
+
+}

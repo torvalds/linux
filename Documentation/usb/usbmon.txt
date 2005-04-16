@@ -1,0 +1,156 @@
+* Introduction
+
+The name "usbmon" in lowercase refers to a facility in kernel which is
+used to collect traces of I/O on the USB bus. This function is analogous
+to a packet socket used by network monitoring tools such as tcpdump(1)
+or Ethereal. Similarly, it is expected that a tool such as usbdump or
+USBMon (with uppercase letters) is used to examine raw traces produced
+by usbmon.
+
+The usbmon reports requests made by peripheral-specific drivers to Host
+Controller Drivers (HCD). So, if HCD is buggy, the traces reported by
+usbmon may not correspond to bus transactions precisely. This is the same
+situation as with tcpdump.
+
+* How to use usbmon to collect raw text traces
+
+Unlike the packet socket, usbmon has an interface which provides traces
+in a text format. This is used for two purposes. First, it serves as a
+common trace exchange format for tools while most sophisticated formats
+are finalized. Second, humans can read it in case tools are not available.
+
+To collect a raw text trace, execute following steps.
+
+1. Prepare
+
+Mount debugfs (it has to be enabled in your kernel configuration), and
+load the usbmon module (if built as module). The second step is skipped
+if usbmon is built into the kernel.
+
+# mount -t debugfs none_debugs /sys/kernel/debug
+# modprobe usbmon
+
+Verify that bus sockets are present.
+
+[root@lembas zaitcev]# ls /sys/kernel/debug/usbmon
+1s  1t  2s  2t  3s  3t  4s  4t
+[root@lembas zaitcev]#
+
+# ls /sys/kernel
+
+2. Find which bus connects to the desired device
+
+Run "cat /proc/bus/usb/devices", and find the T-line which corresponds to
+the device. Usually you do it by looking for the vendor string. If you have
+many similar devices, unplug one and compare two /proc/bus/usb/devices outputs.
+The T-line will have a bus number. Example:
+
+T:  Bus=03 Lev=01 Prnt=01 Port=00 Cnt=01 Dev#=  2 Spd=12  MxCh= 0
+D:  Ver= 1.10 Cls=00(>ifc ) Sub=00 Prot=00 MxPS= 8 #Cfgs=  1
+P:  Vendor=0557 ProdID=2004 Rev= 1.00
+S:  Manufacturer=ATEN
+S:  Product=UC100KM V2.00
+
+Bus=03 means it's bus 3.
+
+3. Start 'cat'
+
+# cat /sys/kernel/debug/usbmon/3t > /tmp/1.mon.out
+
+This process will be reading until killed. Naturally, the output can be
+redirected to a desirable location. This is preferred, because it is going
+to be quite long.
+
+4. Perform the desired operation on the USB bus
+
+This is where you do something that creates the traffic: plug in a flash key,
+copy files, control a webcam, etc.
+
+5. Kill cat
+
+Usually it's done with a keyboard interrupt (Control-C).
+
+At this point the output file (/tmp/1.mon.out in this example) can be saved,
+sent by e-mail, or inspected with a text editor. In the last case make sure
+that the file size is not excessive for your favourite editor.
+
+* Raw text data format
+
+The '0t' type data consists of a stream of events, such as URB submission,
+URB callback, submission error. Every event is a text line, which consists
+of whitespace separated words. The number of position of words may depend
+on the event type, but there is a set of words, common for all types.
+
+Here is the list of words, from left to right:
+- URB Tag. This is used to identify URBs is normally a kernel mode address
+ of the URB structure in hexadecimal.
+- Timestamp in microseconds, a decimal number. The timestamp's resolution
+  depends on available clock, and so it can be much worse than a microsecond
+  (if the implementation uses jiffies, for example).
+- Event Type. This type refers to the format of the event, not URB type.
+  Available types are: S - submission, C - callback, E - submission error.
+- "Pipe". The pipe concept is deprecated. This is a composite word, used to
+  be derived from information in pipes. It consists of three fields, separated
+  by colons: URB type and direction, Device address, Endpoint number.
+  Type and direction are encoded with two bytes in the following manner:
+    Ci Co   Control input and output
+    Zi Zo   Isochronous input and output
+    Ii Io   Interrupt input and output
+    Bi Bo   Bulk input and output
+  Device address and Endpoint number are decimal numbers with leading zeroes
+  or 3 and 2 positions, correspondingly.
+- URB Status. This field makes no sense for submissions, but is present
+  to help scripts with parsing. In error case, it contains the error code.
+- Data Length. This is the actual length in the URB.
+- Data tag. The usbmon may not always capture data, even if length is nonzero.
+  Only if tag is '=', the data words are present.
+- Data words follow, in big endian hexadecimal format. Notice that they are
+  not machine words, but really just a byte stream split into words to make
+  it easier to read. Thus, the last word may contain from one to four bytes.
+  The length of collected data is limited and can be less than the data length
+  report in Data Length word.
+
+Here is an example of code to read the data stream in a well known programming
+language:
+
+class ParsedLine {
+	int data_len;		/* Available length of data */
+	byte data[];
+
+	void parseData(StringTokenizer st) {
+		int availwords = st.countTokens();
+		data = new byte[availwords * 4];
+		data_len = 0;
+		while (st.hasMoreTokens()) {
+			String data_str = st.nextToken();
+			int len = data_str.length() / 2;
+			int i;
+			for (i = 0; i < len; i++) {
+				data[data_len] = Byte.parseByte(
+				    data_str.substring(i*2, i*2 + 2),
+				    16);
+				data_len++;
+			}
+		}
+	}
+}
+
+This format is obviously deficient. For example, the setup packet for control
+transfers is not delivered. This will change in the future.
+
+Examples:
+
+An input control transfer to get a port status:
+
+d74ff9a0 2640288196 S Ci:001:00 -115 4 <
+d74ff9a0 2640288202 C Ci:001:00 0 4 = 01010100
+
+An output bulk transfer to send a SCSI command 0x5E in a 31-byte Bulk wrapper
+to a storage device at address 5:
+
+dd65f0e8 4128379752 S Bo:005:02 -115 31 = 55534243 5e000000 00000000 00000600 00000000 00000000 00000000 000000
+dd65f0e8 4128379808 C Bo:005:02 0 31 >
+
+* Raw binary format and API
+
+TBD

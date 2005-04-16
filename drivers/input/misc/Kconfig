@@ -1,0 +1,60 @@
+#
+# Input misc drivers configuration
+#
+menuconfig INPUT_MISC
+	bool "Miscellaneous devices"
+	help
+	  Say Y here, and a list of miscellaneous input drivers will be displayed.
+	  Everything that didn't fit into the other categories is here. This option
+	  doesn't affect the kernel.
+
+	  If unsure, say Y.
+
+if INPUT_MISC
+
+config INPUT_PCSPKR
+	tristate "PC Speaker support"
+	depends on ALPHA || X86 || X86_64 || MIPS || PPC_PREP || PPC_CHRP || PPC_PSERIES
+	help
+	  Say Y here if you want the standard PC Speaker to be used for
+	  bells and whistles.
+
+	  If unsure, say Y.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pcspkr.
+
+config INPUT_SPARCSPKR
+	tristate "SPARC Speaker support"
+	depends on PCI && (SPARC32 || SPARC64)
+	help
+	  Say Y here if you want the standard Speaker on Sparc PCI systems
+	  to be used for bells and whistles.
+
+	  If unsure, say Y.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sparcspkr.
+
+config INPUT_M68K_BEEP
+	tristate "M68k Beeper support"
+	depends on M68K
+
+config INPUT_UINPUT
+	tristate "User level driver support"
+	help
+	  Say Y here if you want to support user level drivers for input
+	  subsystem accessible under char device 10:223 - /dev/input/uinput.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called uinput.
+
+config HP_SDC_RTC
+	tristate "HP SDC Real Time Clock"       
+	depends on GSC
+	select HP_SDC
+	help
+	  Say Y here if you want to support the built-in real time clock
+	  of the HP SDC controller.
+
+endif

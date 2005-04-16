@@ -1,0 +1,387 @@
+Read the F-ing Papers!
+
+
+This document describes RCU-related publications, and is followed by
+the corresponding bibtex entries.
+
+The first thing resembling RCU was published in 1980, when Kung and Lehman
+[Kung80] recommended use of a garbage collector to defer destruction
+of nodes in a parallel binary search tree in order to simplify its
+implementation.  This works well in environments that have garbage
+collectors, but current production garbage collectors incur significant
+read-side overhead.
+
+In 1982, Manber and Ladner [Manber82,Manber84] recommended deferring
+destruction until all threads running at that time have terminated, again
+for a parallel binary search tree.  This approach works well in systems
+with short-lived threads, such as the K42 research operating system.
+However, Linux has long-lived tasks, so more is needed.
+
+In 1986, Hennessy, Osisek, and Seigh [Hennessy89] introduced passive
+serialization, which is an RCU-like mechanism that relies on the presence
+of "quiescent states" in the VM/XA hypervisor that are guaranteed not
+to be referencing the data structure.  However, this mechanism was not
+optimized for modern computer systems, which is not surprising given
+that these overheads were not so expensive in the mid-80s.  Nonetheless,
+passive serialization appears to be the first deferred-destruction
+mechanism to be used in production.  Furthermore, the relevant patent has
+lapsed, so this approach may be used in non-GPL software, if desired.
+(In contrast, use of RCU is permitted only in software licensed under
+GPL.  Sorry!!!)
+
+In 1990, Pugh [Pugh90] noted that explicitly tracking which threads
+were reading a given data structure permitted deferred free to operate
+in the presence of non-terminating threads.  However, this explicit
+tracking imposes significant read-side overhead, which is undesirable
+in read-mostly situations.  This algorithm does take pains to avoid
+write-side contention and parallelize the other write-side overheads by
+providing a fine-grained locking design, however, it would be interesting
+to see how much of the performance advantage reported in 1990 remains
+in 2004.
+
+At about this same time, Adams [Adams91] described ``chaotic relaxation'',
+where the normal barriers between successive iterations of convergent
+numerical algorithms are relaxed, so that iteration $n$ might use
+data from iteration $n-1$ or even $n-2$.  This introduces error,
+which typically slows convergence and thus increases the number of
+iterations required.  However, this increase is sometimes more than made
+up for by a reduction in the number of expensive barrier operations,
+which are otherwise required to synchronize the threads at the end
+of each iteration.  Unfortunately, chaotic relaxation requires highly
+structured data, such as the matrices used in scientific programs, and
+is thus inapplicable to most data structures in operating-system kernels.
+
+In 1993, Jacobson [Jacobson93] verbally described what is perhaps the
+simplest deferred-free technique: simply waiting a fixed amount of time
+before freeing blocks awaiting deferred free.  Jacobson did not describe
+any write-side changes he might have made in this work using SGI's Irix
+kernel.  Aju John published a similar technique in 1995 [AjuJohn95].
+This works well if there is a well-defined upper bound on the length of
+time that reading threads can hold references, as there might well be in
+hard real-time systems.  However, if this time is exceeded, perhaps due
+to preemption, excessive interrupts, or larger-than-anticipated load,
+memory corruption can ensue, with no reasonable means of diagnosis.
+Jacobson's technique is therefore inappropriate for use in production
+operating-system kernels, except when such kernels can provide hard
+real-time response guarantees for all operations.
+
+Also in 1995, Pu et al. [Pu95a] applied a technique similar to that of Pugh's
+read-side-tracking to permit replugging of algorithms within a commercial
+Unix operating system.  However, this replugging permitted only a single
+reader at a time.  The following year, this same group of researchers
+extended their technique to allow for multiple readers [Cowan96a].
+Their approach requires memory barriers (and thus pipeline stalls),
+but reduces memory latency, contention, and locking overheads.
+
+1995 also saw the first publication of DYNIX/ptx's RCU mechanism
+[Slingwine95], which was optimized for modern CPU architectures,
+and was successfully applied to a number of situations within the
+DYNIX/ptx kernel.  The corresponding conference paper appeared in 1998
+[McKenney98].
+
+In 1999, the Tornado and K42 groups described their "generations"
+mechanism, which quite similar to RCU [Gamsa99].  These operating systems
+made pervasive use of RCU in place of "existence locks", which greatly
+simplifies locking hierarchies.
+
+2001 saw the first RCU presentation involving Linux [McKenney01a]
+at OLS.  The resulting abundance of RCU patches was presented the
+following year [McKenney02a], and use of RCU in dcache was first
+described that same year [Linder02a].
+
+Also in 2002, Michael [Michael02b,Michael02a] presented techniques
+that defer the destruction of data structures to simplify non-blocking
+synchronization (wait-free synchronization, lock-free synchronization,
+and obstruction-free synchronization are all examples of non-blocking
+synchronization).  In particular, this technique eliminates locking,
+reduces contention, reduces memory latency for readers, and parallelizes
+pipeline stalls and memory latency for writers.  However, these
+techniques still impose significant read-side overhead in the form of
+memory barriers.  Researchers at Sun worked along similar lines in the
+same timeframe [HerlihyLM02,HerlihyLMS03].
+
+In 2003, the K42 group described how RCU could be used to create
+hot-pluggable implementations of operating-system functions.  Later that
+year saw a paper describing an RCU implementation of System V IPC
+[Arcangeli03], and an introduction to RCU in Linux Journal [McKenney03a].
+
+2004 has seen a Linux-Journal article on use of RCU in dcache
+[McKenney04a], a performance comparison of locking to RCU on several
+different CPUs [McKenney04b], a dissertation describing use of RCU in a
+number of operating-system kernels [PaulEdwardMcKenneyPhD], and a paper
+describing how to make RCU safe for soft-realtime applications [Sarma04c].
+
+
+Bibtex Entries
+
+@article{Kung80
+,author="H. T. Kung and Q. Lehman"
+,title="Concurrent Maintenance of Binary Search Trees"
+,Year="1980"
+,Month="September"
+,journal="ACM Transactions on Database Systems"
+,volume="5"
+,number="3"
+,pages="354-382"
+}
+
+@techreport{Manber82
+,author="Udi Manber and Richard E. Ladner"
+,title="Concurrency Control in a Dynamic Search Structure"
+,institution="Department of Computer Science, University of Washington"
+,address="Seattle, Washington"
+,year="1982"
+,number="82-01-01"
+,month="January"
+,pages="28"
+}
+
+@article{Manber84
+,author="Udi Manber and Richard E. Ladner"
+,title="Concurrency Control in a Dynamic Search Structure"
+,Year="1984"
+,Month="September"
+,journal="ACM Transactions on Database Systems"
+,volume="9"
+,number="3"
+,pages="439-455"
+}
+
+@techreport{Hennessy89
+,author="James P. Hennessy and Damian L. Osisek and Joseph W. {Seigh II}"
+,title="Passive Serialization in a Multitasking Environment"
+,institution="US Patent and Trademark Office"
+,address="Washington, DC"
+,year="1989"
+,number="US Patent 4,809,168 (lapsed)"
+,month="February"
+,pages="11"
+}
+
+@techreport{Pugh90
+,author="William Pugh"
+,title="Concurrent Maintenance of Skip Lists"
+,institution="Institute of Advanced Computer Science Studies, Department of Computer Science, University of Maryland"
+,address="College Park, Maryland"
+,year="1990"
+,number="CS-TR-2222.1"
+,month="June"
+}
+
+@Book{Adams91
+,Author="Gregory R. Adams"
+,title="Concurrent Programming, Principles, and Practices"
+,Publisher="Benjamin Cummins"
+,Year="1991"
+}
+
+@unpublished{Jacobson93
+,author="Van Jacobson"
+,title="Avoid Read-Side Locking Via Delayed Free"
+,year="1993"
+,month="September"
+,note="Verbal discussion"
+}
+
+@Conference{AjuJohn95
+,Author="Aju John"
+,Title="Dynamic vnodes -- Design and Implementation"
+,Booktitle="{USENIX Winter 1995}"
+,Publisher="USENIX Association"
+,Month="January"
+,Year="1995"
+,pages="11-23"
+,Address="New Orleans, LA"
+}
+
+@techreport{Slingwine95
+,author="John D. Slingwine and Paul E. McKenney"
+,title="Apparatus and Method for Achieving Reduced Overhead Mutual
+Exclusion and Maintaining Coherency in a Multiprocessor System
+Utilizing Execution History and Thread Monitoring"
+,institution="US Patent and Trademark Office"
+,address="Washington, DC"
+,year="1995"
+,number="US Patent 5,442,758 (contributed under GPL)"
+,month="August"
+}
+
+@techreport{Slingwine97
+,author="John D. Slingwine and Paul E. McKenney"
+,title="Method for maintaining data coherency using thread
+activity summaries in a multicomputer system"
+,institution="US Patent and Trademark Office"
+,address="Washington, DC"
+,year="1997"
+,number="US Patent 5,608,893 (contributed under GPL)"
+,month="March"
+}
+
+@techreport{Slingwine98
+,author="John D. Slingwine and Paul E. McKenney"
+,title="Apparatus and method for achieving reduced overhead
+mutual exclusion and maintaining coherency in a multiprocessor
+system utilizing execution history and thread monitoring"
+,institution="US Patent and Trademark Office"
+,address="Washington, DC"
+,year="1998"
+,number="US Patent 5,727,209 (contributed under GPL)"
+,month="March"
+}
+
+@Conference{McKenney98
+,Author="Paul E. McKenney and John D. Slingwine"
+,Title="Read-Copy Update: Using Execution History to Solve Concurrency
+Problems"
+,Booktitle="{Parallel and Distributed Computing and Systems}"
+,Month="October"
+,Year="1998"
+,pages="509-518"
+,Address="Las Vegas, NV"
+}
+
+@Conference{Gamsa99
+,Author="Ben Gamsa and Orran Krieger and Jonathan Appavoo and Michael Stumm"
+,Title="Tornado: Maximizing Locality and Concurrency in a Shared Memory
+Multiprocessor Operating System"
+,Booktitle="{Proceedings of the 3\textsuperscript{rd} Symposium on
+Operating System Design and Implementation}"
+,Month="February"
+,Year="1999"
+,pages="87-100"
+,Address="New Orleans, LA"
+}
+
+@techreport{Slingwine01
+,author="John D. Slingwine and Paul E. McKenney"
+,title="Apparatus and method for achieving reduced overhead
+mutual exclusion and maintaining coherency in a multiprocessor
+system utilizing execution history and thread monitoring"
+,institution="US Patent and Trademark Office"
+,address="Washington, DC"
+,year="2001"
+,number="US Patent 5,219,690 (contributed under GPL)"
+,month="April"
+}
+
+@Conference{McKenney01a
+,Author="Paul E. McKenney and Jonathan Appavoo and Andi Kleen and
+Orran Krieger and Rusty Russell and Dipankar Sarma and Maneesh Soni"
+,Title="Read-Copy Update"
+,Booktitle="{Ottawa Linux Symposium}"
+,Month="July"
+,Year="2001"
+,note="Available:
+\url{http://www.linuxsymposium.org/2001/abstracts/readcopy.php}
+\url{http://www.rdrop.com/users/paulmck/rclock/rclock_OLS.2001.05.01c.pdf}
+[Viewed June 23, 2004]"
+annotation="
+Described RCU, and presented some patches implementing and using it in
+the Linux kernel.
+"
+}
+
+@Conference{Linder02a
+,Author="Hanna Linder and Dipankar Sarma and Maneesh Soni"
+,Title="Scalability of the Directory Entry Cache"
+,Booktitle="{Ottawa Linux Symposium}"
+,Month="June"
+,Year="2002"
+,pages="289-300"
+}
+
+@Conference{McKenney02a
+,Author="Paul E. McKenney and Dipankar Sarma and
+Andrea Arcangeli and Andi Kleen and Orran Krieger and Rusty Russell"
+,Title="Read-Copy Update"
+,Booktitle="{Ottawa Linux Symposium}"
+,Month="June"
+,Year="2002"
+,pages="338-367"
+,note="Available:
+\url{http://www.linux.org.uk/~ajh/ols2002_proceedings.pdf.gz}
+[Viewed June 23, 2004]"
+}
+
+@article{Appavoo03a
+,author="J. Appavoo and K. Hui and C. A. N. Soules and R. W. Wisniewski and
+D. M. {Da Silva} and O. Krieger and M. A. Auslander and D. J. Edelsohn and
+B. Gamsa and G. R. Ganger and P. McKenney and M. Ostrowski and
+B. Rosenburg and M. Stumm and J. Xenidis"
+,title="Enabling Autonomic Behavior in Systems Software With Hot Swapping"
+,Year="2003"
+,Month="January"
+,journal="IBM Systems Journal"
+,volume="42"
+,number="1"
+,pages="60-76"
+}
+
+@Conference{Arcangeli03
+,Author="Andrea Arcangeli and Mingming Cao and Paul E. McKenney and
+Dipankar Sarma"
+,Title="Using Read-Copy Update Techniques for {System V IPC} in the
+{Linux} 2.5 Kernel"
+,Booktitle="Proceedings of the 2003 USENIX Annual Technical Conference
+(FREENIX Track)"
+,Publisher="USENIX Association"
+,year="2003"
+,month="June"
+,pages="297-310"
+}
+
+@article{McKenney03a
+,author="Paul E. McKenney"
+,title="Using {RCU} in the {Linux} 2.5 Kernel"
+,Year="2003"
+,Month="October"
+,journal="Linux Journal"
+,volume="1"
+,number="114"
+,pages="18-26"
+}
+
+@article{McKenney04a
+,author="Paul E. McKenney and Dipankar Sarma and Maneesh Soni"
+,title="Scaling dcache with {RCU}"
+,Year="2004"
+,Month="January"
+,journal="Linux Journal"
+,volume="1"
+,number="118"
+,pages="38-46"
+}
+
+@Conference{McKenney04b
+,Author="Paul E. McKenney"
+,Title="{RCU} vs. Locking Performance on Different {CPUs}"
+,Booktitle="{linux.conf.au}"
+,Month="January"
+,Year="2004"
+,Address="Adelaide, Australia"
+,note="Available:
+\url{http://www.linux.org.au/conf/2004/abstracts.html#90}
+\url{http://www.rdrop.com/users/paulmck/rclock/lockperf.2004.01.17a.pdf}
+[Viewed June 23, 2004]"
+}
+
+@phdthesis{PaulEdwardMcKenneyPhD
+,author="Paul E. McKenney"
+,title="Exploiting Deferred Destruction:
+An Analysis of Read-Copy-Update Techniques
+in Operating System Kernels"
+,school="OGI School of Science and Engineering at
+Oregon Health and Sciences University"
+,year="2004"
+}
+
+@Conference{Sarma04c
+,Author="Dipankar Sarma and Paul E. McKenney"
+,Title="Making RCU Safe for Deep Sub-Millisecond Response Realtime Applications"
+,Booktitle="Proceedings of the 2004 USENIX Annual Technical Conference
+(FREENIX Track)"
+,Publisher="USENIX Association"
+,year="2004"
+,month="June"
+,pages="182-191"
+}

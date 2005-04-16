@@ -1,0 +1,46 @@
+#ifndef YYSTYPE
+#define YYSTYPE int
+#endif
+#define	ASM_KEYW	257
+#define	ATTRIBUTE_KEYW	258
+#define	AUTO_KEYW	259
+#define	BOOL_KEYW	260
+#define	CHAR_KEYW	261
+#define	CONST_KEYW	262
+#define	DOUBLE_KEYW	263
+#define	ENUM_KEYW	264
+#define	EXTERN_KEYW	265
+#define	FLOAT_KEYW	266
+#define	INLINE_KEYW	267
+#define	INT_KEYW	268
+#define	LONG_KEYW	269
+#define	REGISTER_KEYW	270
+#define	RESTRICT_KEYW	271
+#define	SHORT_KEYW	272
+#define	SIGNED_KEYW	273
+#define	STATIC_KEYW	274
+#define	STRUCT_KEYW	275
+#define	TYPEDEF_KEYW	276
+#define	UNION_KEYW	277
+#define	UNSIGNED_KEYW	278
+#define	VOID_KEYW	279
+#define	VOLATILE_KEYW	280
+#define	TYPEOF_KEYW	281
+#define	EXPORT_SYMBOL_KEYW	282
+#define	ASM_PHRASE	283
+#define	ATTRIBUTE_PHRASE	284
+#define	BRACE_PHRASE	285
+#define	BRACKET_PHRASE	286
+#define	EXPRESSION_PHRASE	287
+#define	CHAR	288
+#define	DOTS	289
+#define	IDENT	290
+#define	INT	291
+#define	REAL	292
+#define	STRING	293
+#define	TYPE	294
+#define	OTHER	295
+#define	FILENAME	296
+
+
+extern YYSTYPE yylval;

@@ -1,0 +1,37 @@
+all boards:
+
+Brooktree Bt848/848A/849/878/879: video capture chip
+
+
+
+Miro PCTV:
+
+Philips or Temic Tuner
+
+
+
+Hauppauge Win/TV pci (version 405):
+
+Microchip 24LC02B or
+Philips 8582E2Y: 256 Byte EEPROM with configuration information
+                 I2C 0xa0-0xa1, (24LC02B also responds to 0xa2-0xaf)
+Philips SAA5246AGP/E: Videotext decoder chip, I2C 0x22-0x23
+TDA9800: sound decoder
+Winbond W24257AS-35: 32Kx8 CMOS static RAM (Videotext buffer mem)
+14052B: analog switch for selection of sound source
+
+PAL: 
+TDA5737: VHF, hyperband and UHF mixer/oscillator for TV and VCR 3-band tuners
+TSA5522: 1.4 GHz I2C-bus controlled synthesizer, I2C 0xc2-0xc3
+
+NTSC:
+TDA5731: VHF, hyperband and UHF mixer/oscillator for TV and VCR 3-band tuners
+TSA5518: no datasheet available on Philips site
+
+
+
+STB TV pci:
+
+???
+if you want better support for STB cards send me info!
+Look at the board! What chips are on it?

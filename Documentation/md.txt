@@ -1,0 +1,118 @@
+Tools that manage md devices can be found at
+   http://www.<country>.kernel.org/pub/linux/utils/raid/....
+
+
+Boot time assembly of RAID arrays
+---------------------------------
+
+You can boot with your md device with the following kernel command
+lines:
+
+for old raid arrays without persistent superblocks:
+  md=<md device no.>,<raid level>,<chunk size factor>,<fault level>,dev0,dev1,...,devn
+
+for raid arrays with persistent superblocks
+  md=<md device no.>,dev0,dev1,...,devn
+or, to assemble a partitionable array:
+  md=d<md device no.>,dev0,dev1,...,devn
+  
+md device no. = the number of the md device ... 
+              0 means md0, 
+	      1 md1,
+	      2 md2,
+	      3 md3,
+	      4 md4
+
+raid level = -1 linear mode
+              0 striped mode
+	      other modes are only supported with persistent super blocks
+
+chunk size factor = (raid-0 and raid-1 only)
+              Set  the chunk size as 4k << n.
+	      
+fault level = totally ignored
+			    
+dev0-devn: e.g. /dev/hda1,/dev/hdc1,/dev/sda1,/dev/sdb1
+			    
+A possible loadlin line (Harald Hoyer <HarryH@Royal.Net>)  looks like this:
+
+e:\loadlin\loadlin e:\zimage root=/dev/md0 md=0,0,4,0,/dev/hdb2,/dev/hdc3 ro
+
+
+Boot time autodetection of RAID arrays
+--------------------------------------
+
+When md is compiled into the kernel (not as module), partitions of
+type 0xfd are scanned and automatically assembled into RAID arrays.
+This autodetection may be suppressed with the kernel parameter
+"raid=noautodetect".  As of kernel 2.6.9, only drives with a type 0
+superblock can be autodetected and run at boot time.
+
+The kernel parameter "raid=partitionable" (or "raid=part") means
+that all auto-detected arrays are assembled as partitionable.
+
+
+Superblock formats
+------------------
+
+The md driver can support a variety of different superblock formats.
+Currently, it supports superblock formats "0.90.0" and the "md-1" format
+introduced in the 2.5 development series.
+
+The kernel will autodetect which format superblock is being used.
+
+Superblock format '0' is treated differently to others for legacy
+reasons - it is the original superblock format.
+
+
+General Rules - apply for all superblock formats
+------------------------------------------------
+
+An array is 'created' by writing appropriate superblocks to all
+devices.
+
+It is 'assembled' by associating each of these devices with an
+particular md virtual device.  Once it is completely assembled, it can
+be accessed.
+
+An array should be created by a user-space tool.  This will write
+superblocks to all devices.  It will usually mark the array as
+'unclean', or with some devices missing so that the kernel md driver
+can create appropriate redundancy (copying in raid1, parity
+calculation in raid4/5).
+
+When an array is assembled, it is first initialized with the
+SET_ARRAY_INFO ioctl.  This contains, in particular, a major and minor
+version number.  The major version number selects which superblock
+format is to be used.  The minor number might be used to tune handling
+of the format, such as suggesting where on each device to look for the
+superblock.
+
+Then each device is added using the ADD_NEW_DISK ioctl.  This
+provides, in particular, a major and minor number identifying the
+device to add.
+
+The array is started with the RUN_ARRAY ioctl.
+
+Once started, new devices can be added.  They should have an
+appropriate superblock written to them, and then passed be in with
+ADD_NEW_DISK.
+
+Devices that have failed or are not yet active can be detached from an
+array using HOT_REMOVE_DISK.
+
+
+Specific Rules that apply to format-0 super block arrays, and
+       arrays with no superblock (non-persistent).
+-------------------------------------------------------------
+
+An array can be 'created' by describing the array (level, chunksize
+etc) in a SET_ARRAY_INFO ioctl.  This must has major_version==0 and
+raid_disks != 0.
+
+Then uninitialized devices can be added with ADD_NEW_DISK.  The
+structure passed to ADD_NEW_DISK must specify the state of the device
+and it's role in the array.
+
+Once started with RUN_ARRAY, uninitialized spares can be added with
+HOT_ADD_DISK.

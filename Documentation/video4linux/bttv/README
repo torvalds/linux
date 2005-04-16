@@ -1,0 +1,90 @@
+
+Release notes for bttv
+======================
+
+You'll need at least these config options for bttv:
+	CONFIG_I2C=m
+	CONFIG_I2C_ALGOBIT=m
+	CONFIG_VIDEO_DEV=m
+
+The latest bttv version is available from http://bytesex.org/bttv/
+
+
+Make bttv work with your card
+-----------------------------
+
+Just try "modprobe bttv" and see if that works.
+
+If it doesn't bttv likely could not autodetect your card and needs some
+insmod options.  The most important insmod option for bttv is "card=n"
+to select the correct card type.  If you get video but no sound you've
+very likely specified the wrong (or no) card type.  A list of supported
+cards is in CARDLIST.bttv
+
+If bttv takes very long to load (happens sometimes with the cheap
+cards which have no tuner), try adding this to your modules.conf:
+	options i2c-algo-bit bit_test=1
+
+For the WinTV/PVR you need one firmware file from the driver CD:
+hcwamc.rbf.  The file is in the pvr45xxx.exe archive (self-extracting
+zip file, unzip can unpack it).  Put it into the /etc/pvr directory or
+use the firm_altera=<path> insmod option to point the driver to the
+location of the file.
+
+If your card isn't listed in CARDLIST.bttv or if you have trouble making
+audio work, you should read the Sound-FAQ.
+
+
+Autodetecting cards
+-------------------
+
+bttv uses the PCI Subsystem ID to autodetect the card type.  lspci lists
+the Subsystem ID in the second line, looks like this:
+
+00:0a.0 Multimedia video controller: Brooktree Corporation Bt878 (rev 02)
+        Subsystem: Hauppauge computer works Inc. WinTV/GO
+        Flags: bus master, medium devsel, latency 32, IRQ 5
+        Memory at e2000000 (32-bit, prefetchable) [size=4K]
+
+only bt878-based cards can have a subsystem ID (which does not mean
+that every card really has one).  bt848 cards can't have a Subsystem
+ID and therefore can't be autodetected.  There is a list with the ID's
+in bttv-cards.c (in case you are intrested or want to mail patches
+with updates).
+
+
+Still doesn't work?
+-------------------
+
+I do NOT have a lab with 30+ different grabber boards and a
+PAL/NTSC/SECAM test signal generator at home, so I often can't
+reproduce your problems.  This makes debugging very difficult for me.
+If you have some knowledge and spare time, please try to fix this
+yourself (patches very welcome of course...)  You know: The linux
+slogan is "Do it yourself".
+
+There is a mailing list: video4linux-list@redhat.com.
+https://listman.redhat.com/mailman/listinfo/video4linux-list
+
+If you have trouble with some specific TV card, try to ask there
+instead of mailing me directly.  The chance that someone with the
+same card listens there is much higher...
+
+For problems with sound:  There are alot of different systems used
+for TV sound all over the world.  And there are also different chips
+which decode the audio signal.  Reports about sound problems ("stereo
+does'nt work") are pretty useless unless you include some details
+about your hardware and the TV sound scheme used in your country (or
+at least the country you are living in).
+
+
+Finally: If you mail some patches for bttv around the world (to
+linux-kernel/Alan/Linus/...), please Cc: me.
+
+
+Have fun with bttv,
+
+  Gerd
+
+--
+Gerd Knorr <kraxel@bytesex.org>

@@ -1,0 +1,367 @@
+The kobject Infrastructure
+
+Patrick Mochel <mochel@osdl.org>
+
+Updated: 3 June 2003
+
+
+Copyright (c)  2003 Patrick Mochel
+Copyright (c)  2003 Open Source Development Labs
+
+
+0. Introduction
+
+The kobject infrastructure performs basic object management that larger
+data structures and subsystems can leverage, rather than reimplement
+similar functionality. This functionality primarily concerns:
+
+- Object reference counting.
+- Maintaining lists (sets) of objects.
+- Object set locking.
+- Userspace representation. 
+
+The infrastructure consists of a number of object types to support
+this functionality. Their programming interfaces are described below
+in detail, and briefly here:
+
+- kobjects	a simple object.
+- kset		a set of objects of a certain type.
+- ktype		a set of helpers for objects of a common type. 
+- subsystem	a controlling object for a number of ksets.
+
+
+The kobject infrastructure maintains a close relationship with the
+sysfs filesystem. Each kobject that is registered with the kobject
+core receives a directory in sysfs. Attributes about the kobject can
+then be exported. Please see Documentation/filesystems/sysfs.txt for
+more information. 
+
+The kobject infrastructure provides a flexible programming interface,
+and allows kobjects and ksets to be used without being registered
+(i.e. with no sysfs representation). This is also described later. 
+
+
+1. kobjects
+
+1.1 Description
+
+
+struct kobject is a simple data type that provides a foundation for
+more complex object types. It provides a set of basic fields that
+almost all complex data types share. kobjects are intended to be
+embedded in larger data structures and replace fields they duplicate. 
+
+1.2 Defintion
+
+struct kobject {
+	char			name[KOBJ_NAME_LEN];
+	atomic_t		refcount;
+	struct list_head	entry;
+	struct kobject		* parent;
+	struct kset		* kset;
+	struct kobj_type	* ktype;
+	struct dentry		* dentry;
+};
+
+void kobject_init(struct kobject *);
+int kobject_add(struct kobject *);
+int kobject_register(struct kobject *);
+
+void kobject_del(struct kobject *);
+void kobject_unregister(struct kobject *);
+
+struct kobject * kobject_get(struct kobject *);
+void kobject_put(struct kobject *);
+
+
+1.3 kobject Programming Interface
+
+kobjects may be dynamically added and removed from the kobject core
+using kobject_register() and kobject_unregister(). Registration
+includes inserting the kobject in the list of its dominant kset and
+creating a directory for it in sysfs.
+
+Alternatively, one may use a kobject without adding it to its kset's list
+or exporting it via sysfs, by simply calling kobject_init(). An
+initialized kobject may later be added to the object hierarchy by
+calling kobject_add(). An initialized kobject may be used for
+reference counting.
+
+Note: calling kobject_init() then kobject_add() is functionally
+equivalent to calling kobject_register().
+
+When a kobject is unregistered, it is removed from its kset's list,
+removed from the sysfs filesystem, and its reference count is decremented.
+List and sysfs removal happen in kobject_del(), and may be called
+manually. kobject_put() decrements the reference count, and may also
+be called manually. 
+
+A kobject's reference count may be incremented with kobject_get(),
+which returns a valid reference to a kobject; and decremented with 
+kobject_put(). An object's reference count may only be incremented if
+it is already positive. 
+
+When a kobject's reference count reaches 0, the method struct
+kobj_type::release() (which the kobject's kset points to) is called.
+This allows any memory allocated for the object to be freed.
+
+
+NOTE!!! 
+
+It is _imperative_ that you supply a destructor for dynamically
+allocated kobjects to free them if you are using kobject reference
+counts. The reference count controls the lifetime of the object.
+If it goes to 0, then it is assumed that the object will
+be freed and cannot be used. 
+
+More importantly, you must free the object there, and not immediately
+after an unregister call. If someone else is referencing the object
+(e.g. through a sysfs file), they will obtain a reference to the
+object, assume it's valid and operate on it. If the object is
+unregistered and freed in the meantime, the operation will then
+reference freed memory and go boom. 
+
+This can be prevented, in the simplest case, by defining a release
+method and freeing the object from there only. Note that this will not
+secure reference count/object management models that use a dual
+reference count or do other wacky things with the reference count
+(like the networking layer). 
+
+
+1.4 sysfs
+
+Each kobject receives a directory in sysfs. This directory is created
+under the kobject's parent directory. 
+
+If a kobject does not have a parent when it is registered, its parent
+becomes its dominant kset. 
+
+If a kobject does not have a parent nor a dominant kset, its directory
+is created at the top-level of the sysfs partition. This should only
+happen for kobjects that are embedded in a struct subsystem. 
+
+
+
+2. ksets
+
+2.1 Description
+
+A kset is a set of kobjects that are embedded in the same type. 
+
+
+struct kset {
+	struct subsystem	* subsys;
+	struct kobj_type	* ktype;
+	struct list_head	list;
+	struct kobject		kobj;
+};
+
+
+void kset_init(struct kset * k);
+int kset_add(struct kset * k);
+int kset_register(struct kset * k);
+void kset_unregister(struct kset * k);
+
+struct kset * kset_get(struct kset * k);
+void kset_put(struct kset * k);
+
+struct kobject * kset_find_obj(struct kset *, char *);
+
+
+The type that the kobjects are embedded in is described by the ktype
+pointer. The subsystem that the kobject belongs to is pointed to by the
+subsys pointer. 
+
+A kset contains a kobject itself, meaning that it may be registered in
+the kobject hierarchy and exported via sysfs. More importantly, the
+kset may be embedded in a larger data type, and may be part of another
+kset (of that object type). 
+
+For example, a block device is an object (struct gendisk) that is
+contained in a set of block devices. It may also contain a set of
+partitions (struct hd_struct) that have been found on the device. The
+following code snippet illustrates how to express this properly.
+
+	 struct gendisk * disk;
+	 ...
+	 disk->kset.kobj.kset = &block_kset;
+	 disk->kset.ktype = &partition_ktype;
+	 kset_register(&disk->kset);
+
+- The kset that the disk's embedded object belongs to is the
+  block_kset, and is pointed to by disk->kset.kobj.kset. 
+
+- The type of objects on the disk's _subordinate_ list are partitions, 
+  and is set in disk->kset.ktype. 
+
+- The kset is then registered, which handles initializing and adding
+  the embedded kobject to the hierarchy. 
+
+
+2.2 kset Programming Interface 
+
+All kset functions, except kset_find_obj(), eventually forward the
+calls to their embedded kobjects after performing kset-specific
+operations. ksets offer a similar programming model to kobjects: they
+may be used after they are initialized, without registering them in
+the hierarchy. 
+
+kset_find_obj() may be used to locate a kobject with a particular
+name. The kobject, if found, is returned. 
+
+
+2.3 sysfs
+
+ksets are represented in sysfs when their embedded kobjects are
+registered. They follow the same rules of parenting, with one
+exception. If a kset does not have a parent, nor is its embedded
+kobject part of another kset, the kset's parent becomes its dominant
+subsystem. 
+
+If the kset does not have a parent, its directory is created at the
+sysfs root. This should only happen when the kset registered is
+embedded in a subsystem itself. 
+
+
+3. struct ktype
+
+3.1. Description
+
+struct kobj_type {
+	void (*release)(struct kobject *);
+	struct sysfs_ops	* sysfs_ops;
+	struct attribute	** default_attrs;
+};
+
+
+Object types require specific functions for converting between the
+generic object and the more complex type. struct kobj_type provides
+the object-specific fields, which include:
+
+- release: Called when the kobject's reference count reaches 0. This
+  should convert the object to the more complex type and free it. 
+
+- sysfs_ops: Provides conversion functions for sysfs access. Please
+  see the sysfs documentation for more information. 
+
+- default_attrs: Default attributes to be exported via sysfs when the
+  object is registered.Note that the last attribute has to be
+  initialized to NULL ! You can find a complete implementation
+  in drivers/block/genhd.c
+
+
+Instances of struct kobj_type are not registered; only referenced by
+the kset. A kobj_type may be referenced by an arbitrary number of
+ksets, as there may be disparate sets of identical objects. 
+
+
+
+4. subsystems
+
+4.1 Description
+
+A subsystem represents a significant entity of code that maintains an
+arbitrary number of sets of objects of various types. Since the number
+of ksets and the type of objects they contain are variable, a
+generic representation of a subsystem is minimal. 
+
+
+struct subsystem {
+	struct kset		kset;
+	struct rw_semaphore	rwsem;
+};
+
+int subsystem_register(struct subsystem *);
+void subsystem_unregister(struct subsystem *);
+
+struct subsystem * subsys_get(struct subsystem * s);
+void subsys_put(struct subsystem * s);
+
+
+A subsystem contains an embedded kset so:
+
+- It can be represented in the object hierarchy via the kset's
+  embedded kobject. 
+
+- It can maintain a default list of objects of one type. 
+
+Additional ksets may attach to the subsystem simply by referencing the
+subsystem before they are registered. (This one-way reference means
+that there is no way to determine the ksets that are attached to the
+subsystem.) 
+
+All ksets that are attached to a subsystem share the subsystem's R/W
+semaphore. 
+
+
+4.2 subsystem Programming Interface.
+
+The subsystem programming interface is simple and does not offer the
+flexibility that the kset and kobject programming interfaces do. They
+may be registered and unregistered, as well as reference counted. Each
+call forwards the calls to their embedded ksets (which forward the
+calls to their embedded kobjects).
+
+
+4.3 Helpers
+
+A number of macros are available to make dealing with subsystems and
+their embedded objects easier. 
+
+
+decl_subsys(name,type)
+
+Declares a subsystem named '<name>_subsys', with an embedded kset of
+type <type>. For example, 
+
+decl_subsys(devices,&ktype_devices);
+
+is equivalent to doing:
+
+struct subsystem device_subsys = {
+       .kset = {
+	     .kobj = {
+		   .name = "devices",
+	     },
+	     .ktype = &ktype_devices,
+	}
+}; 
+
+
+The objects that are registered with a subsystem that use the
+subsystem's default list must have their kset ptr set properly. These
+objects may have embedded kobjects, ksets, or other subsystems. The
+following helpers make setting the kset easier: 
+
+
+kobj_set_kset_s(obj,subsys)
+
+- Assumes that obj->kobj exists, and is a struct kobject. 
+- Sets the kset of that kobject to the subsystem's embedded kset.
+
+
+kset_set_kset_s(obj,subsys)
+
+- Assumes that obj->kset exists, and is a struct kset.
+- Sets the kset of the embedded kobject to the subsystem's 
+  embedded kset. 
+
+subsys_set_kset(obj,subsys)
+
+- Assumes obj->subsys exists, and is a struct subsystem.
+- Sets obj->subsys.kset.kobj.kset to the subsystem's embedded kset.
+
+
+4.4 sysfs
+
+subsystems are represented in sysfs via their embedded kobjects. They
+follow the same rules as previously mentioned with no exceptions. They
+typically receive a top-level directory in sysfs, except when their
+embedded kobject is part of another kset, or the parent of the
+embedded kobject is explicitly set. 
+
+Note that the subsystem's embedded kset must be 'attached' to the
+subsystem itself in order to use its rwsem. This is done after
+kset_add() has been called. (Not before, because kset_add() uses its
+subsystem for a default parent if it doesn't already have one).
+

@@ -1,0 +1,23 @@
+# These rules tell udev what device nodes to create for aoe support.
+# They may be installed along the following lines (adjusted to what
+# you see on your system).
+# 
+#   ecashin@makki ~$ su
+#   Password:
+#   bash# find /etc -type f -name udev.conf
+#   /etc/udev/udev.conf
+#   bash# grep udev_rules= /etc/udev/udev.conf
+#   udev_rules="/etc/udev/rules.d/"
+#   bash# ls /etc/udev/rules.d/
+#   10-wacom.rules  50-udev.rules
+#   bash# cp /path/to/linux-2.6.xx/Documentation/aoe/udev.txt \
+#           /etc/udev/rules.d/60-aoe.rules
+#  
+
+# aoe char devices
+SUBSYSTEM="aoe", KERNEL="discover",	NAME="etherd/%k", GROUP="disk", MODE="0220"
+SUBSYSTEM="aoe", KERNEL="err",		NAME="etherd/%k", GROUP="disk", MODE="0440"
+SUBSYSTEM="aoe", KERNEL="interfaces",	NAME="etherd/%k", GROUP="disk", MODE="0220"
+
+# aoe block devices     
+KERNEL="etherd*",       NAME="%k", GROUP="disk"

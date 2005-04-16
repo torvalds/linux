@@ -1,0 +1,173 @@
+
+Note: "modinfo <module>" prints various informations about a kernel
+module, among them a complete and up-to-date list of insmod options.
+This list tends to be outdated because it is updated manually ...
+
+==========================================================================
+
+bttv.o
+	the bt848/878 (grabber chip) driver
+
+	insmod args:
+		card=n		card type, see CARDLIST for a list.
+		tuner=n		tuner type, see CARDLIST for a list.
+		radio=0/1	card supports radio
+		pll=0/1/2	pll settings
+			0: don't use PLL
+			1: 28 MHz crystal installed
+			2: 35 MHz crystal installed
+
+		triton1=0/1     for Triton1 (+others) compatibility
+		vsfx=0/1	yet another chipset bug compatibility bit
+				see README.quirks for details on these two.
+
+		bigendian=n	Set the endianness of the gfx framebuffer.
+				Default is native endian.
+		fieldnr=0/1	Count fields.  Some TV descrambling software
+				needs this, for others it only generates
+				50 useless IRQs/sec.  default is 0 (off).
+		autoload=0/1	autoload helper modules (tuner, audio).
+				default is 1 (on).
+		bttv_verbose=0/1/2  verbose level (at insmod time, while
+				looking at the hardware).  default is 1.
+		bttv_debug=0/1	debug messages (for capture).
+				default is 0 (off).
+		irq_debug=0/1	irq handler debug messages.
+				default is 0 (off).
+		gbuffers=2-32	number of capture buffers for mmap'ed capture.
+				default is 4.
+		gbufsize=	size of capture buffers. default and
+				maximum value is 0x208000 (~2MB)
+		no_overlay=0	Enable overlay on broken hardware.  There
+				are some chipsets (SIS for example) which
+				are known to have problems with the PCI DMA
+				push used by bttv.  bttv will disable overlay
+				by default on this hardware to avoid crashes.
+				With this insmod option you can override this.
+		automute=0/1	Automatically mutes the sound if there is
+				no TV signal, on by default.  You might try
+				to disable this if you have bad input signal
+				quality which leading to unwanted sound
+				dropouts.
+		chroma_agc=0/1	AGC of chroma signal, off by default.
+		adc_crush=0/1	Luminance ADC crush, on by default.
+
+		bttv_gpio=0/1
+		gpiomask=
+		audioall=
+		audiomux=
+				See Sound-FAQ for a detailed description.
+
+	remap, card, radio and pll accept up to four comma-separated arguments
+	(for multiple boards).
+
+tuner.o
+	The tuner driver.  You need this unless you want to use only
+	with a camera or external tuner ...
+
+	insmod args:
+		debug=1		print some debug info to the syslog
+		type=n		type of the tuner chip. n as follows:
+				see CARDLIST for a complete list.
+		pal=[bdgil]	select PAL variant (used for some tuners
+				only, important for the audio carrier).
+
+tvmixer.o
+	registers a mixer device for the TV card's volume/bass/treble
+	controls (requires a i2c audio control chip like the msp3400).
+
+	insmod args:
+		debug=1		print some debug info to the syslog.
+		devnr=n		allocate device #n (0 == /dev/mixer,
+				1 = /dev/mixer1, ...), default is to
+				use the first free one.
+
+tvaudio.o
+	new, experimental module which is supported to provide a single
+	driver for all simple i2c audio control chips (tda/tea*).
+
+	insmod args:
+		tda8425  = 1	enable/disable the support for the
+		tda9840  = 1	various chips.
+		tda9850  = 1	The tea6300 can't be autodetected and is
+		tda9855  = 1	therefore off by default, if you have
+		tda9873  = 1	this one on your card (STB uses these)
+		tda9874a = 1	you have to enable it explicitly.
+		tea6300  = 0	The two tda985x chips use the same i2c
+		tea6420  = 1	address and can't be disturgished from
+		pic16c54 = 1	each other, you might have to disable
+				the wrong one.
+		debug = 1	print debug messages
+
+	insmod args for tda9874a:
+		tda9874a_SIF=1/2	select sound IF input pin (1 or 2)
+					(default is pin 1)
+		tda9874a_AMSEL=0/1	auto-mute select for NICAM (default=0)
+					Please read note 3 below!
+		tda9874a_STD=n		select TV sound standard (0..8):
+					0 - A2, B/G
+					1 - A2, M (Korea)
+					2 - A2, D/K (1)
+					3 - A2, D/K (2)
+					4 - A2, D/K (3)
+					5 - NICAM, I
+					6 - NICAM, B/G
+					7 - NICAM, D/K (default)
+					8 - NICAM, L
+
+	Note 1: tda9874a supports both tda9874h (old) and tda9874a (new) chips.
+	Note 2: tda9874h/a and tda9875 (which is supported separately by
+	tda9875.o) use the same i2c address so both modules should not be
+	used at the same time.
+	Note 3: Using tda9874a_AMSEL option depends on your TV card design!
+		AMSEL=0: auto-mute will switch between NICAM sound
+			 and the sound on 1st carrier (i.e. FM mono or AM).
+		AMSEL=1: auto-mute will switch between NICAM sound
+			 and the analog mono input (MONOIN pin).
+	If tda9874a decoder on your card has MONOIN pin not connected, then
+	use only tda9874_AMSEL=0 or don't specify this option at all.
+	For example:
+	  card=65 (FlyVideo 2000S) - set AMSEL=1 or AMSEL=0
+	  card=72 (Prolink PV-BT878P rev.9B) - set AMSEL=0 only
+
+msp3400.o
+	The driver for the msp34xx sound processor chips. If you have a
+	stereo card, you probably want to insmod this one.
+
+	insmod args:
+		debug=1/2	print some debug info to the syslog,
+				2 is more verbose.
+		simple=1	Use the "short programming" method.  Newer
+				msp34xx versions support this.  You need this
+				for dbx stereo.  Default is on if supported by
+				the chip.
+		once=1		Don't check the TV-stations Audio mode
+				every few seconds, but only once after
+				channel switches.
+		amsound=1	Audio carrier is AM/NICAM at 6.5 Mhz.  This
+				should improve things for french people, the
+				carrier autoscan seems to work with FM only...
+
+tea6300.o - OBSOLETE (use tvaudio instead)
+	The driver for the tea6300 fader chip.  If you have a stereo
+	card and the msp3400.o doesn't work, you might want to try this
+	one.  This chip is seen on most STB TV/FM cards (usually from
+	Gateway OEM sold surplus on auction sites).
+
+	insmod args:
+		debug=1		print some debug info to the syslog.
+
+tda8425.o - OBSOLETE (use tvaudio instead)
+	The driver for the tda8425 fader chip.  This driver used to be
+	part of bttv.c, so if your sound used to work but does not
+	anymore, try loading this module.
+
+	insmod args:
+		debug=1		print some debug info to the syslog.
+
+tda985x.o - OBSOLETE (use tvaudio instead)
+	The driver for the tda9850/55 audio chips.
+
+	insmod args:
+		debug=1		print some debug info to the syslog.
+		chip=9850/9855	set the chip type.

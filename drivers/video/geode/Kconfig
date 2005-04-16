@@ -1,0 +1,29 @@
+#
+# Geode family framebuffer configuration
+#
+config FB_GEODE
+	bool "AMD Geode family framebuffer support (EXPERIMENTAL)"
+	default n
+	depends on FB && EXPERIMENTAL && X86
+	---help---
+	  Say 'Y' here to allow you to select framebuffer drivers for
+	  the AMD Geode family of processors.
+
+config FB_GEODE_GX1
+	tristate "AMD Geode GX1 framebuffer support (EXPERIMENTAL)"
+	default n
+	depends on FB_GEODE && EXPERIMENTAL
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	select FB_SOFT_CURSOR
+	---help---
+	  Framebuffer driver for the display controller integrated into the
+	  AMD Geode GX1 processor.
+
+	  This driver is also available as a module ( = code which can be
+	  inserted and removed from the running kernel whenever you want). The
+	  module will be called gx1fb. If you want to compile it as a module,
+	  say M here and read <file:Documentation/modules.txt>.
+
+	  If unsure, say N.

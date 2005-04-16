@@ -1,0 +1,70 @@
+if ARCH_LH7A40X
+
+menu "LH7A40X Implementations"
+
+config MACH_KEV7A400
+	bool "KEV7A400"
+	select ARCH_LH7A400
+	help
+	  Say Y here if you are using the Sharp KEV7A400 development
+	  board.  This hardware is discontinued, so I'd be very
+	  suprised if you wanted this option.
+
+config MACH_LPD7A400
+	bool "LPD7A400 Card Engine"
+	select ARCH_LH7A400
+#	select IDE_POLL
+	help
+	  Say Y here if you are using Logic Product Development's
+	  LPD7A400 CardEngine.  For the time being, the LPD7A400 and
+	  LPD7A404 options are mutually exclusive.
+
+config MACH_LPD7A404
+	bool "LPD7A404 Card Engine"
+	select ARCH_LH7A404
+#	select IDE_POLL
+	help
+	  Say Y here if you are using Logic Product Development's
+	  LPD7A404 CardEngine. For the time being, the LPD7A400 and
+	  LPD7A404 options are mutually exclusive.
+
+config ARCH_LH7A400
+	bool
+
+config ARCH_LH7A404
+	bool
+
+config LH7A40X_CONTIGMEM
+	bool "Disable NUMA Support"
+	depends on ARCH_LH7A40X
+	help
+	  Say Y here if your bootloader sets the SROMLL bit(s) in
+	  the SDRAM controller, organizing memory as a contiguous
+	  array.  This option will disable CONFIG_DISCONTIGMEM and
+          force the kernel to manage all memory in one node.
+
+	  Setting this option incorrectly may prevent the kernel from
+	  booting.  It is OK to leave it N.
+
+	  For more information, consult
+	    <file:Documentation/arm/Sharp-LH/SDRAM>.
+
+config LH7A40X_ONE_BANK_PER_NODE
+	bool "Optimize NUMA Node Tables for Size"
+	depends on ARCH_LH7A40X && !LH7A40X_CONTIGMEM
+	help
+	  Say Y here to produce compact memory node tables.  By
+	  default pairs of adjacent physical RAM banks are managed
+	  together in a single node, incurring some wasted overhead
+	  in the node tables, however also maintaining compatibility
+	  with systems where physical memory is truly contiguous.
+
+	  Setting this option incorrectly may prevent the kernel from
+	  booting.  It is OK to leave it N.
+
+	  For more information, consult
+	    <file:Documentation/arm/Sharp-LH/SDRAM>.
+
+endmenu
+
+endif

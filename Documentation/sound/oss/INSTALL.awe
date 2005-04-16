@@ -1,0 +1,134 @@
+================================================================
+	INSTALLATION OF AWE32 SOUND DRIVER FOR LINUX
+	Takashi Iwai	<iwai@ww.uni-erlangen.de>
+================================================================
+
+----------------------------------------------------------------
+* Attention to SB-PnP Card Users
+
+If you're using PnP cards, the initialization of PnP is required
+before loading this driver.  You have now three options:
+  1. Use isapnptools.
+  2. Use in-kernel isapnp support.
+  3. Initialize PnP on DOS/Windows, then boot linux by loadlin.
+In this document, only the case 1 case is treated.
+
+----------------------------------------------------------------
+* Installation on Red Hat 5.0 Sound Driver
+
+Please use install-rh.sh under RedHat5.0 directory.
+DO NOT USE install.sh below.
+See INSTALL.RH for more details.
+
+----------------------------------------------------------------
+* Installation/Update by Shell Script
+
+  1. Become root
+
+	% su
+
+  2. If you have never configured the kernel tree yet, run make config
+    once (to make dependencies and symlinks).
+
+	# cd /usr/src/linux
+	# make xconfig
+    
+  3. Run install.sh script
+
+	# sh ./install.sh
+
+  4. Configure your kernel
+
+	(for Linux 2.[01].x user)
+	# cd /usr/src/linux
+	# make xconfig (or make menuconfig)
+
+	(for Linux 1.2.x user)
+	# cd /usr/src/linux
+	# make config
+
+    Answer YES to both "lowlevel drivers" and "AWE32 wave synth" items 
+    in Sound menu.  ("lowlevel drivers" will appear only in 2.x
+    kernel.)
+
+  5. Make your kernel (and modules), and install them as usual.
+
+	5a. make kernel image
+		# make zImage
+
+	5b. make modules and install them
+		# make modules && make modules_install
+
+	5c. If you're using lilo, copy the kernel image and run lilo.
+	    Otherwise, copy the kernel image to suitable directory or
+	    media for your system.
+
+  6. Reboot the kernel if necessary.
+	- If you updated only the modules, you don't have to reboot
+	  the system.  Just remove the old sound modules here.
+		in 
+		# rmmod sound.o		(linux-2.0 or OSS/Free)
+		# rmmod awe_wave.o	(linux-2.1)
+
+  7. If your AWE card is a PnP and not initialized yet, you'll have to
+    do it by isapnp tools.  Otherwise, skip to 8.
+
+	This section described only a brief explanation.  For more
+	details, please see the AWE64-Mini-HOWTO or isapnp tools FAQ.
+
+	7a. If you have no isapnp.conf file, generate it by pnpdump.
+	    Otherwise, skip to 7d.
+		# pnpdump > /etc/isapnp.conf
+
+	7b. Edit isapnp.conf file.  Comment out the appropriate
+	    lines containing desirable I/O ports, DMA and IRQs.
+	    Don't forget to enable (ACT Y) line.
+
+	7c. Add two i/o ports (0xA20 and 0xE20) in WaveTable part.
+	    ex)
+		(CONFIGURE CTL0048/58128 (LD 2
+		#     ANSI string -->WaveTable<--
+		  (IO 0 (BASE 0x0620))
+		  (IO 1 (BASE 0x0A20))
+		  (IO 2 (BASE 0x0E20))
+		  (ACT Y)
+		))
+
+	7d. Load the config file.
+	    CAUTION: This will reset all PnP cards!
+
+		# isapnp /etc/isapnp.conf
+
+  8. Load the sound module (if you configured it as a module):
+
+	for 2.0 kernel or OSS/Free monolithic module:
+
+		# modprobe sound.o
+
+	for 2.1 kernel:
+
+		# modprobe sound
+		# insmod uart401
+		# insmod sb io=0x220 irq=5 dma=1 dma16=5 mpu_io=0x330
+		(These values depend on your settings.)
+		# insmod awe_wave
+		(Be sure to load awe_wave after sb!)
+
+		See Documentation/sound/oss/AWE32 for
+		more details.
+
+  9. (only for obsolete systems) If you don't have /dev/sequencer
+     device file, make it according to Readme.linux file on
+     /usr/src/linux/drivers/sound. (Run a shell script included in
+     that file). <-- This file no longer exists in the recent kernels!
+
+  10. OK, load your own soundfont file, and enjoy MIDI!
+
+	% sfxload synthgm.sbk
+	% drvmidi foo.mid
+
+  11. For more advanced use (eg. dynamic loading, virtual bank and
+      etc.), please read the awedrv FAQ or the instructions in awesfx
+      and awemidi packages.
+
+Good luck!

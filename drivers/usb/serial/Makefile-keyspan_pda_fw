@@ -1,0 +1,16 @@
+
+# some rules to handle the quirks of the 'as31' assembler, like
+# insisting upon fixed suffixes for the input and output files,
+# and its lack of preprocessor support
+
+all: keyspan_pda_fw.h
+
+%.asm: %.S
+	gcc -x assembler-with-cpp -P -E -o $@ $<
+
+%.hex: %.asm
+	as31 -l $<
+	mv $*.obj $@
+
+%_fw.h: %.hex ezusb_convert.pl
+	perl ezusb_convert.pl $* < $< > $@

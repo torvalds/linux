@@ -1,0 +1,157 @@
+#
+# Input device configuration
+#
+
+menu "Input device support"
+
+config INPUT
+	tristate "Generic input layer (needed for keyboard, mouse, ...)" if EMBEDDED
+	default y
+	---help---
+	  Say Y here if you have any input device (mouse, keyboard, tablet,
+	  joystick, steering wheel ...) connected to your system and want
+	  it to be available to applications. This includes standard PS/2
+	  keyboard and mouse.
+
+	  Say N here if you have a headless (no monitor, no keyboard) system.
+
+	  More information is available: <file:Documentation/input/input.txt>
+
+	  If unsure, say Y.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called input.
+
+if INPUT
+
+comment "Userland interfaces"
+
+config INPUT_MOUSEDEV
+	tristate "Mouse interface" if EMBEDDED
+	default y
+	---help---
+	  Say Y here if you want your mouse to be accessible as char devices
+	  13:32+ - /dev/input/mouseX and 13:63 - /dev/input/mice as an
+	  emulated IntelliMouse Explorer PS/2 mouse. That way, all user space
+	  programs (including SVGAlib, GPM and X) will be able to use your
+	  mouse.
+
+	  If unsure, say Y.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mousedev.
+
+config INPUT_MOUSEDEV_PSAUX
+	bool "Provide legacy /dev/psaux device"
+	default y
+	depends on INPUT_MOUSEDEV
+	---help---
+	  Say Y here if you want your mouse also be accessible as char device
+	  10:1 - /dev/psaux. The data available through /dev/psaux is exactly
+	  the same as the data from /dev/input/mice.
+
+	  If unsure, say Y.
+
+
+config INPUT_MOUSEDEV_SCREEN_X
+	int "Horizontal screen resolution"
+	depends on INPUT_MOUSEDEV
+	default "1024"
+	help
+	  If you're using a digitizer, or a graphic tablet, and want to use
+	  it as a mouse then the mousedev driver needs to know the X window
+	  screen resolution you are using to correctly scale the data. If
+	  you're not using a digitizer, this value is ignored.
+
+config INPUT_MOUSEDEV_SCREEN_Y
+	int "Vertical screen resolution"
+	depends on INPUT_MOUSEDEV
+	default "768"
+	help
+	  If you're using a digitizer, or a graphic tablet, and want to use
+	  it as a mouse then the mousedev driver needs to know the X window
+	  screen resolution you are using to correctly scale the data. If
+	  you're not using a digitizer, this value is ignored.
+
+config INPUT_JOYDEV
+	tristate "Joystick interface"
+	---help---
+	  Say Y here if you want your joystick or gamepad to be
+	  accessible as char device 13:0+ - /dev/input/jsX device.
+
+	  If unsure, say Y.
+
+	  More information is available: <file:Documentation/input/joystick.txt>
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called joydev.
+
+config INPUT_TSDEV
+	tristate "Touchscreen interface"
+	---help---
+	  Say Y here if you have an application that only can understand the
+	  Compaq touchscreen protocol for absolute pointer data. This is
+	  useful namely for embedded configurations.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tsdev.
+
+config INPUT_TSDEV_SCREEN_X
+	int "Horizontal screen resolution"
+	depends on INPUT_TSDEV
+	default "240"
+
+config INPUT_TSDEV_SCREEN_Y
+	int "Vertical screen resolution"
+	depends on INPUT_TSDEV
+	default "320"
+
+config INPUT_EVDEV
+	tristate "Event interface"
+	help
+	  Say Y here if you want your input device events be accessible
+	  under char device 13:64+ - /dev/input/eventX in a generic way.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called evdev.
+
+config INPUT_EVBUG
+	tristate "Event debugging"
+	---help---
+	  Say Y here if you have a problem with the input subsystem and
+	  want all events (keypresses, mouse movements), to be output to
+	  the system log. While this is useful for debugging, it's also
+	  a security threat - your keypresses include your passwords, of
+	  course.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called evbug.
+
+comment "Input Device Drivers"
+
+source "drivers/input/keyboard/Kconfig"
+
+source "drivers/input/mouse/Kconfig"
+
+source "drivers/input/joystick/Kconfig"
+
+source "drivers/input/touchscreen/Kconfig"
+
+source "drivers/input/misc/Kconfig"
+
+endif
+
+menu "Hardware I/O ports"
+
+source "drivers/input/serio/Kconfig"
+
+source "drivers/input/gameport/Kconfig"
+
+endmenu
+
+endmenu
+

@@ -1,0 +1,41 @@
+
+menu "IO Schedulers"
+
+config IOSCHED_NOOP
+	bool
+	default y
+	---help---
+	  The no-op I/O scheduler is a minimal scheduler that does basic merging
+	  and sorting. Its main uses include non-disk based block devices like
+	  memory devices, and specialised software or hardware environments
+	  that do their own scheduling and require only minimal assistance from
+	  the kernel.
+
+config IOSCHED_AS
+	tristate "Anticipatory I/O scheduler"
+	default y
+	---help---
+	  The anticipatory I/O scheduler is the default disk scheduler. It is
+	  generally a good choice for most environments, but is quite large and
+	  complex when compared to the deadline I/O scheduler, it can also be
+	  slower in some cases especially some database loads.
+
+config IOSCHED_DEADLINE
+	tristate "Deadline I/O scheduler"
+	default y
+	---help---
+	  The deadline I/O scheduler is simple and compact, and is often as
+	  good as the anticipatory I/O scheduler, and in some database
+	  workloads, better. In the case of a single process performing I/O to
+	  a disk at any one time, its behaviour is almost identical to the
+	  anticipatory I/O scheduler and so is a good choice.
+
+config IOSCHED_CFQ
+	tristate "CFQ I/O scheduler"
+	default y
+	---help---
+	  The CFQ I/O scheduler tries to distribute bandwidth equally
+	  among all processes in the system. It should provide a fair
+	  working environment, suitable for desktop systems.
+
+endmenu

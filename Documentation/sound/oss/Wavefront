@@ -1,0 +1,339 @@
+	     An OSS/Free Driver for WaveFront soundcards
+	       (Turtle Beach Maui, Tropez, Tropez Plus)
+
+		     Paul Barton-Davis, July 1998
+
+			  VERSION 0.2.5
+
+Driver Status
+-------------
+
+Requires: Kernel 2.1.106 or later (the driver is included with kernels
+2.1.109 and above)
+	  
+As of 7/22/1998, this driver is currently in *BETA* state. This means
+that it compiles and runs, and that I use it on my system (Linux
+2.1.106) with some reasonably demanding applications and uses.  I
+believe the code is approaching an initial "finished" state that
+provides bug-free support for the Tropez Plus.
+
+Please note that to date, the driver has ONLY been tested on a Tropez
+Plus. I would very much like to hear (and help out) people with Tropez
+and Maui cards, since I think the driver can support those cards as
+well. 
+
+Finally, the driver has not been tested (or even compiled) as a static
+(non-modular) part of the kernel. Alan Cox's good work in modularizing
+OSS/Free for Linux makes this rather unnecessary.
+
+Some Questions
+--------------
+
+**********************************************************************
+0) What does this driver do that the maui driver did not ?
+**********************************************************************
+
+* can fully initialize a WaveFront card from cold boot - no DOS 
+          utilities needed
+* working patch/sample/program loading and unloading (the maui
+      driver didn't document how to make this work, and assumed
+      user-level preparation of the patch data for writing
+      to the board. ick.)
+* full user-level access to all WaveFront commands
+* for the Tropez Plus, (primitive) control of the YSS225 FX processor
+* Virtual MIDI mode supported - 2 MIDI devices accessible via the
+          WaveFront's MPU401/UART emulation. One
+	  accesses the WaveFront synth, the other accesses the
+	  external MIDI connector. Full MIDI read/write semantics
+	  for both devices.
+* OSS-compliant /dev/sequencer interface for the WaveFront synth,
+	  including native and GUS-format patch downloading.
+* semi-intelligent patch management (prototypical at this point)
+
+**********************************************************************
+1) What to do about MIDI interfaces ?
+**********************************************************************
+
+The Tropez Plus (and perhaps other WF cards) can in theory support up
+to 2 physical MIDI interfaces. One of these is connected to the
+ICS2115 chip (the WaveFront synth itself) and is controlled by
+MPU/UART-401 emulation code running as part of the WaveFront OS.  The
+other is controlled by the CS4232 chip present on the board. However,
+physical access to the CS4232 connector is difficult, and it is
+unlikely (though not impossible) that you will want to use it.
+
+An older version of this driver introduced an additional kernel config
+variable which controlled whether or not the CS4232 MIDI interface was
+configured. Because of Alan Cox's work on modularizing the sound
+drivers, and now backporting them to 2.0.34 kernels, there seems to be
+little reason to support "static" configuration variables, and so this
+has been abandoned in favor of *only* module parameters. Specifying
+"mpuio" and "mpuirq" for the cs4232 parameter will result in the
+CS4232 MIDI interface being configured; leaving them unspecified will
+leave it unconfigured (and thus unusable).
+
+BTW, I have heard from one Tropez+ user that the CS4232 interface is
+more reliable than the ICS2115 one. I have had no problems with the
+latter, and I don't have the right cable to test the former one
+out. Reports welcome.
+
+**********************************************************************
+2) Why does line XXX of the code look like this .... ?
+**********************************************************************
+
+Either because it's not finished yet, or because you're a better coder
+than I am, or because you don't understand some aspect of how the card
+or the code works. 
+
+I absolutely welcome comments, criticisms and suggestions about the
+design and implementation of the driver. 
+
+**********************************************************************
+3) What files are included ?
+**********************************************************************
+
+   drivers/sound/README.wavefront       -- this file
+
+   drivers/sound/wavefront.patch	-- patches for the 2.1.106 sound drivers
+					   needed to make the rest of this work
+				           DO NOT USE IF YOU'VE APPLIED THEM 
+					   BEFORE, OR HAVE 2.1.109 OR ABOVE
+
+   drivers/sound/wavfront.c             -- the driver
+   drivers/sound/ys225.h                -- data declarations for FX config
+   drivers/sound/ys225.c                -- data definitions for FX config
+   drivers/sound/wf_midi.c              -- the "uart401" driver 
+   				              to support virtual MIDI mode.
+   include/wavefront.h                  -- the header file
+   Documentation/sound/oss/Tropez+          -- short docs on configuration
+
+**********************************************************************
+4) How do I compile/install/use it ?
+**********************************************************************
+
+PART ONE: install the source code into your sound driver directory
+
+  cd <top-of-your-2.1.106-code-base-e.g.-/usr/src/linux>
+  tar -zxvf <where-you-put/wavefront.tar.gz>
+
+PART TWO: apply the patches
+
+     DO THIS ONLY IF YOU HAVE A KERNEL VERSION BELOW 2.1.109
+     AND HAVE NOT ALREADY INSTALLED THE PATCH(ES).
+
+  cd drivers/sound
+  patch < wavefront.patch
+
+PART THREE: configure your kernel
+
+  cd <top of your kernel tree>
+  make xconfig (or whichever config option you use)
+
+         - choose YES for Sound Support	      
+         - choose MODULE (M) for OSS Sound Modules
+         - choose MODULE(M) to YM3812/OPL3 support
+	 - choose MODULE(M) for WaveFront support
+	 - choose MODULE(M) for CS4232 support
+
+	 - choose "N" for everything else (unless you have other
+	      soundcards you want support for)
+
+
+   make boot
+   .
+   .
+   .
+   <whatever you normally do for a kernel install>
+   make modules
+   .
+   .
+   .
+   make modules_install
+
+Here's my autoconf.h SOUND section:
+
+/*
+ * Sound
+ */
+#define CONFIG_SOUND 1
+#undef  CONFIG_SOUND_OSS
+#define CONFIG_SOUND_OSS_MODULE 1
+#undef  CONFIG_SOUND_PAS
+#undef  CONFIG_SOUND_SB
+#undef  CONFIG_SOUND_ADLIB
+#undef  CONFIG_SOUND_GUS
+#undef  CONFIG_SOUND_MPU401
+#undef  CONFIG_SOUND_PSS
+#undef  CONFIG_SOUND_MSS
+#undef  CONFIG_SOUND_SSCAPE
+#undef  CONFIG_SOUND_TRIX
+#undef  CONFIG_SOUND_MAD16
+#undef  CONFIG_SOUND_WAVEFRONT
+#define CONFIG_SOUND_WAVEFRONT_MODULE 1
+#undef  CONFIG_SOUND_CS4232
+#define CONFIG_SOUND_CS4232_MODULE 1
+#undef  CONFIG_SOUND_MAUI
+#undef  CONFIG_SOUND_SGALAXY
+#undef  CONFIG_SOUND_OPL3SA1
+#undef  CONFIG_SOUND_SOFTOSS
+#undef  CONFIG_SOUND_YM3812
+#define CONFIG_SOUND_YM3812_MODULE 1
+#undef  CONFIG_SOUND_VMIDI
+#undef  CONFIG_SOUND_UART6850
+/*
+ * Additional low level sound drivers
+ */
+#undef  CONFIG_LOWLEVEL_SOUND
+
+************************************************************
+6) How do I configure my card ?
+************************************************************
+
+You need to edit /etc/modprobe.conf. Here's mine (edited to show the
+relevant details):
+
+  # Sound system
+  alias char-major-14-* wavefront
+  alias synth0 wavefront
+  alias mixer0 cs4232
+  alias audio0 cs4232
+  install wavefront /sbin/modprobe cs4232 && /sbin/modprobe -i wavefront && /sbin/modprobe opl3
+  options wavefront io=0x200 irq=9
+  options cs4232 synthirq=9 synthio=0x200 io=0x530 irq=5 dma=1 dma2=0
+  options opl3 io=0x388
+
+Things to note: 
+
+       the wavefront options "io" and "irq" ***MUST*** match the "synthio"
+       and "synthirq" cs4232 options.
+
+       you can do without the opl3 module if you don't
+       want to use the OPL/[34] FM synth on the soundcard
+
+       the opl3 io parameter is conventionally not adjustable.
+       In theory, any not-in-use IO port address would work, but
+       just use 0x388 and stick with the crowd.
+
+**********************************************************************
+7) What about firmware ?
+**********************************************************************
+
+Turtle Beach have not given me permission to distribute their firmware
+for the ICS2115. However, if you have a WaveFront card, then you
+almost certainly have the firmware, and if not, its freely available
+on their website, at:
+
+   http://www.tbeach.com/tbs/downloads/scardsdown.htm#tropezplus 
+
+The file is called WFOS2001.MOT (for the Tropez+).
+
+This driver, however, doesn't use the pure firmware as distributed,
+but instead relies on a somewhat processed form of it. You can
+generate this very easily. Following an idea from Andrew Veliath's
+Pinnacle driver, the following flex program will generate the
+processed version:
+
+---- cut here -------------------------
+%option main
+%%
+^S[28].*\r$ printf ("%c%.*s", yyleng-1,yyleng-1,yytext);
+<<EOF>> { fputc ('\0', stdout); return; }
+\n {} 
+.  {}
+---- cut here -------------------------
+
+To use it, put the above in file (say, ws.l) compile it like this:
+
+      shell> flex -ows.c ws.l
+      shell> cc -o ws ws.c
+      
+and then use it like this:
+
+    ws < my-copy-of-the-oswf.mot-file > /etc/sound/wavefront.os
+
+If you put it somewhere else, you'll always have to use the wf_ospath
+module parameter (see below) or alter the source code.
+
+**********************************************************************
+7) How do I get it working ?
+**********************************************************************
+
+Optionally, you can reboot with the "new" kernel (even though the only
+changes have really been made to a module).
+
+Then, as root do:
+
+     modprobe wavefront
+
+You should get something like this in /var/log/messages:
+
+    WaveFront: firmware 1.20 already loaded.
+
+or 
+
+    WaveFront: no response to firmware probe, assume raw.
+
+then:
+
+    WaveFront: waiting for memory configuration ...
+    WaveFront: hardware version 1.64
+    WaveFront: available DRAM 8191k
+    WaveFront: 332 samples used (266 real, 13 aliases, 53 multi), 180 empty
+    WaveFront: 128 programs slots in use
+    WaveFront: 256 patch slots filled, 142 in use
+
+The whole process takes about 16 seconds, the longest waits being
+after reporting the hardware version (during the firmware download),
+and after reporting program status (during patch status inquiry).  Its
+shorter (about 10 secs) if the firmware is already loaded (i.e. only
+warm reboots since the last firmware load).
+
+The "available DRAM" line will vary depending on how much added RAM
+your card has. Mine has 8MB.
+
+To check basically functionality, use play(1) or splay(1) to send a
+.WAV or other audio file through the audio portion. Then use playmidi
+to play a General MIDI file. Try the "-D 0" to hear the
+difference between sending MIDI to the WaveFront and using the OPL/3,
+which is the default (I think ...). If you have an external synth(s)
+hooked to the soundcard, you can use "-e" to route to the
+external synth(s) (in theory, -D 1 should work as well, but I think
+there is a bug in playmidi which prevents this from doing what it
+should). 
+
+**********************************************************************
+8) What are the module parameters ?
+**********************************************************************
+
+Its best to read wavefront.c for this, but here is a summary:
+
+integers: 
+	  wf_raw  - if set, ignore apparent presence of firmware
+		    loaded onto the ICS2115, reset the whole
+		    board, and initialize it from scratch. (default = 0)
+
+          fx_raw  - if set, always initialize the YSS225 processor
+		    on the Tropez plus. (default = 1)
+
+          < The next 4 are basically for kernel hackers to allow
+	    tweaking the driver for testing purposes. >		    
+
+          wait_usecs        -  loop timer used when waiting for
+			       status conditions on the board. 
+			       The default is 150.
+
+          debug_default    - debugging flags. See sound/wavefront.h
+			     for WF_DEBUG_* values. Default is zero.
+			     Setting this allows you to debug the
+			     driver during module installation.
+strings:
+	  ospath - path to get to the pre-processed OS firmware.
+		    (default: /etc/sound/wavefront.os)
+
+**********************************************************************
+9) Who should I contact if I have problems?
+**********************************************************************
+
+Just me: Paul Barton-Davis <pbd@op.net>
+
+

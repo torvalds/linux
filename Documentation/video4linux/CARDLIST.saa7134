@@ -1,0 +1,35 @@
+  0 -> UNKNOWN/GENERIC                         
+  1 -> Proteus Pro [philips reference design]   [1131:2001,1131:2001]
+  2 -> LifeView FlyVIDEO3000                    [5168:0138,4e42:0138]
+  3 -> LifeView FlyVIDEO2000                    [5168:0138]
+  4 -> EMPRESS                                  [1131:6752]
+  5 -> SKNet Monster TV                         [1131:4e85]
+  6 -> Tevion MD 9717                          
+  7 -> KNC One TV-Station RDS / Typhoon TV Tuner RDS [1131:fe01,1894:fe01]
+  8 -> Terratec Cinergy 400 TV                  [153B:1142]
+  9 -> Medion 5044
+ 10 -> Kworld/KuroutoShikou SAA7130-TVPCI
+ 11 -> Terratec Cinergy 600 TV                  [153B:1143]
+ 12 -> Medion 7134                              [16be:0003]
+ 13 -> Typhoon TV+Radio 90031
+ 14 -> ELSA EX-VISION 300TV                     [1048:226b]
+ 15 -> ELSA EX-VISION 500TV                     [1048:226b]
+ 16 -> ASUS TV-FM 7134                          [1043:4842,1043:4830,1043:4840]
+ 17 -> AOPEN VA1000 POWER                       [1131:7133]
+ 18 -> BMK MPEX No Tuner
+ 19 -> Compro VideoMate TV                      [185b:c100]
+ 20 -> Matrox CronosPlus                        [102B:48d0]
+ 21 -> 10MOONS PCI TV CAPTURE CARD              [1131:2001]
+ 22 -> Medion 2819/ AverMedia M156              [1461:a70b,1461:2115]
+ 23 -> BMK MPEX Tuner
+ 24 -> KNC One TV-Station DVR                   [1894:a006]
+ 25 -> ASUS TV-FM 7133                          [1043:4843]
+ 26 -> Pinnacle PCTV Stereo (saa7134)           [11bd:002b]
+ 27 -> Manli MuchTV M-TV002
+ 28 -> Manli MuchTV M-TV001
+ 29 -> Nagase Sangyo TransGear 3000TV           [1461:050c]
+ 30 -> Elitegroup ECS TVP3XP FM1216 Tuner Card(PAL-BG,FM)  [1019:4cb4]
+ 31 -> Elitegroup ECS TVP3XP FM1236 Tuner Card (NTSC,FM) [1019:4cb5]
+ 32 -> AVACS SmartTV
+ 33 -> AVerMedia DVD EZMaker                    [1461:10ff]
+ 34 -> LifeView FlyTV Platinum33 mini           [5168:0212]

@@ -1,0 +1,509 @@
+#
+# Block device driver configuration
+#
+
+menu "Block devices"
+
+config BLK_DEV_FD
+	tristate "Normal floppy disk support"
+	depends on (!ARCH_S390 && !M68K && !IA64 && !UML) || Q40 || (SUN3X && BROKEN)
+	---help---
+	  If you want to use the floppy disk drive(s) of your PC under Linux,
+	  say Y. Information about this driver, especially important for IBM
+	  Thinkpad users, is contained in <file:Documentation/floppy.txt>.
+	  That file also contains the location of the Floppy driver FAQ as
+	  well as location of the fdutils package used to configure additional
+	  parameters of the driver at run time.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called floppy.
+
+config AMIGA_FLOPPY
+	tristate "Amiga floppy support"
+	depends on AMIGA
+
+config ATARI_FLOPPY
+	tristate "Atari floppy support"
+	depends on ATARI
+
+config BLK_DEV_SWIM_IOP
+	bool "Macintosh IIfx/Quadra 900/Quadra 950 floppy support (EXPERIMENTAL)"
+	depends on MAC && EXPERIMENTAL && BROKEN
+	help
+	  Say Y here to support the SWIM (Super Woz Integrated Machine) IOP
+	  floppy controller on the Macintosh IIfx and Quadra 900/950.
+
+config MAC_FLOPPY
+	tristate "Support for PowerMac floppy"
+	depends on PPC_PMAC && !PPC_PMAC64
+	help
+	  If you have a SWIM-3 (Super Woz Integrated Machine 3; from Apple)
+	  floppy controller, say Y here. Most commonly found in PowerMacs.
+
+config BLK_DEV_PS2
+	tristate "PS/2 ESDI hard disk support"
+	depends on MCA && MCA_LEGACY && BROKEN
+	help
+	  Say Y here if you have a PS/2 machine with a MCA bus and an ESDI
+	  hard disk.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ps2esdi.
+
+config AMIGA_Z2RAM
+	tristate "Amiga Zorro II ramdisk support"
+	depends on ZORRO
+	help
+	  This enables support for using Chip RAM and Zorro II RAM as a
+	  ramdisk or as a swap partition. Say Y if you want to include this
+	  driver in the kernel.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called z2ram.
+
+config ATARI_ACSI
+	tristate "Atari ACSI support"
+	depends on ATARI && BROKEN
+	---help---
+	  This enables support for the Atari ACSI interface. The driver
+	  supports hard disks and CD-ROMs, which have 512-byte sectors, or can
+	  be switched to that mode. Due to the ACSI command format, only disks
+	  up to 1 GB are supported. Special support for certain ACSI to SCSI
+	  adapters, which could relax that, isn't included yet. The ACSI
+	  driver is also the basis for certain other drivers for devices
+	  attached to the ACSI bus: Atari SLM laser printer, BioNet-100
+	  Ethernet, and PAMsNet Ethernet. If you want to use one of these
+	  devices, you need ACSI support, too.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called acsi.
+
+comment "Some devices (e.g. CD jukebox) support multiple LUNs"
+	depends on ATARI && ATARI_ACSI
+
+config ACSI_MULTI_LUN
+	bool "Probe all LUNs on each ACSI device"
+	depends on ATARI_ACSI
+	help
+	  If you have a ACSI device that supports more than one LUN (Logical
+	  Unit Number), e.g. a CD jukebox, you should say Y here so that all
+	  will be found by the ACSI driver. An ACSI device with multiple LUNs
+	  acts logically like multiple ACSI devices. The vast majority of ACSI
+	  devices have only one LUN, and so most people can say N here and
+	  should in fact do so, because it is safer.
+
+config ATARI_SLM
+	tristate "Atari SLM laser printer support"
+	depends on ATARI && ATARI_ACSI!=n
+	help
+	  If you have an Atari SLM laser printer, say Y to include support for
+	  it in the kernel. Otherwise, say N. This driver is also available as
+	  a module ( = code which can be inserted in and removed from the
+	  running kernel whenever you want). The module will be called
+	  acsi_slm. Be warned: the driver needs much ST-RAM and can cause
+	  problems due to that fact!
+
+config BLK_DEV_XD
+	tristate "XT hard disk support"
+	depends on ISA
+	help
+	  Very old 8 bit hard disk controllers used in the IBM XT computer
+	  will be supported if you say Y here.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called xd.
+
+	  It's pretty unlikely that you have one of these: say N.
+
+config PARIDE
+	tristate "Parallel port IDE device support"
+	depends on PARPORT
+	---help---
+	  There are many external CD-ROM and disk devices that connect through
+	  your computer's parallel port. Most of them are actually IDE devices
+	  using a parallel port IDE adapter. This option enables the PARIDE
+	  subsystem which contains drivers for many of these external drives.
+	  Read <file:Documentation/paride.txt> for more information.
+
+	  If you have said Y to the "Parallel-port support" configuration
+	  option, you may share a single port between your printer and other
+	  parallel port devices. Answer Y to build PARIDE support into your
+	  kernel, or M if you would like to build it as a loadable module. If
+	  your parallel port support is in a loadable module, you must build
+	  PARIDE as a module. If you built PARIDE support into your kernel,
+	  you may still build the individual protocol modules and high-level
+	  drivers as loadable modules. If you build this support as a module,
+	  it will be called paride.
+
+	  To use the PARIDE support, you must say Y or M here and also to at
+	  least one high-level driver (e.g. "Parallel port IDE disks",
+	  "Parallel port ATAPI CD-ROMs", "Parallel port ATAPI disks" etc.) and
+	  to at least one protocol driver (e.g. "ATEN EH-100 protocol",
+	  "MicroSolutions backpack protocol", "DataStor Commuter protocol"
+	  etc.).
+
+source "drivers/block/paride/Kconfig"
+
+config BLK_CPQ_DA
+	tristate "Compaq SMART2 support"
+	depends on PCI
+	help
+	  This is the driver for Compaq Smart Array controllers.  Everyone
+	  using these boards should say Y here.  See the file
+	  <file:Documentation/cpqarray.txt> for the current list of boards
+	  supported by this driver, and for further information on the use of
+	  this driver.
+
+config BLK_CPQ_CISS_DA
+	tristate "Compaq Smart Array 5xxx support"
+	depends on PCI
+	help
+	  This is the driver for Compaq Smart Array 5xxx controllers.
+	  Everyone using these boards should say Y here.
+	  See <file:Documentation/cciss.txt> for the current list of
+	  boards supported by this driver, and for further information
+	  on the use of this driver.
+
+config CISS_SCSI_TAPE
+	bool "SCSI tape drive support for Smart Array 5xxx"
+	depends on BLK_CPQ_CISS_DA && SCSI && PROC_FS
+	help
+	  When enabled (Y), this option allows SCSI tape drives and SCSI medium
+	  changers (tape robots) to be accessed via a Compaq 5xxx array 
+	  controller.  (See <file:Documentation/cciss.txt> for more details.)
+
+	  "SCSI support" and "SCSI tape support" must also be enabled for this 
+	  option to work.
+
+	  When this option is disabled (N), the SCSI portion of the driver 
+	  is not compiled.
+
+config BLK_DEV_DAC960
+	tristate "Mylex DAC960/DAC1100 PCI RAID Controller support"
+	depends on PCI
+	help
+	  This driver adds support for the Mylex DAC960, AcceleRAID, and
+	  eXtremeRAID PCI RAID controllers.  See the file
+	  <file:Documentation/README.DAC960> for further information about
+	  this driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called DAC960.
+
+config BLK_DEV_UMEM
+	tristate "Micro Memory MM5415 Battery Backed RAM support (EXPERIMENTAL)"
+	depends on PCI && EXPERIMENTAL
+	---help---
+	  Saying Y here will include support for the MM5415 family of
+	  battery backed (Non-volatile) RAM cards.
+	  <http://www.umem.com/>
+
+	  The cards appear as block devices that can be partitioned into
+	  as many as 15 partitions.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called umem.
+
+	  The umem driver has not yet been allocated a MAJOR number, so
+	  one is chosen dynamically.  Use "devfs" or look in /proc/devices
+	  for the device number
+
+config BLK_DEV_UBD
+	bool "Virtual block device"
+	depends on UML
+	---help---
+          The User-Mode Linux port includes a driver called UBD which will let
+          you access arbitrary files on the host computer as block devices.
+          Unless you know that you do not need such virtual block devices say
+          Y here.
+
+config BLK_DEV_UBD_SYNC
+	bool "Always do synchronous disk IO for UBD"
+	depends on BLK_DEV_UBD
+	---help---
+	  Writes to the virtual block device are not immediately written to the
+	  host's disk; this may cause problems if, for example, the User-Mode
+	  Linux 'Virtual Machine' uses a journalling filesystem and the host
+	  computer crashes.
+
+          Synchronous operation (i.e. always writing data to the host's disk
+          immediately) is configurable on a per-UBD basis by using a special
+          kernel command line option.  Alternatively, you can say Y here to
+          turn on synchronous operation by default for all block devices.
+
+          If you're running a journalling file system (like reiserfs, for
+          example) in your virtual machine, you will want to say Y here.  If
+          you care for the safety of the data in your virtual machine, Y is a
+          wise choice too.  In all other cases (for example, if you're just
+          playing around with User-Mode Linux) you can choose N.
+
+config BLK_DEV_COW_COMMON
+	bool
+	default BLK_DEV_UBD
+
+config MMAPPER
+	tristate "Example IO memory driver (BROKEN)"
+	depends on UML && BROKEN
+	---help---
+          The User-Mode Linux port can provide support for IO Memory
+          emulation with this option.  This allows a host file to be
+          specified as an I/O region on the kernel command line. That file
+          will be mapped into UML's kernel address space where a driver can
+          locate it and do whatever it wants with the memory, including
+          providing an interface to it for UML processes to use.
+
+          For more information, see
+          <http://user-mode-linux.sourceforge.net/iomem.html>.
+
+          If you'd like to be able to provide a simulated IO port space for
+          User-Mode Linux processes, say Y.  If unsure, say N.
+
+config BLK_DEV_LOOP
+	tristate "Loopback device support"
+	---help---
+	  Saying Y here will allow you to use a regular file as a block
+	  device; you can then create a file system on that block device and
+	  mount it just as you would mount other block devices such as hard
+	  drive partitions, CD-ROM drives or floppy drives. The loop devices
+	  are block special device files with major number 7 and typically
+	  called /dev/loop0, /dev/loop1 etc.
+
+	  This is useful if you want to check an ISO 9660 file system before
+	  burning the CD, or if you want to use floppy images without first
+	  writing them to floppy. Furthermore, some Linux distributions avoid
+	  the need for a dedicated Linux partition by keeping their complete
+	  root file system inside a DOS FAT file using this loop device
+	  driver.
+
+	  To use the loop device, you need the losetup utility, found in the
+	  util-linux package, see
+	  <ftp://ftp.kernel.org/pub/linux/utils/util-linux/>.
+
+	  The loop device driver can also be used to "hide" a file system in
+	  a disk partition, floppy, or regular file, either using encryption
+	  (scrambling the data) or steganography (hiding the data in the low
+	  bits of, say, a sound file). This is also safe if the file resides
+	  on a remote file server.
+
+	  There are several ways of encrypting disks. Some of these require
+	  kernel patches. The vanilla kernel offers the cryptoloop option
+	  and a Device Mapper target (which is superior, as it supports all
+	  file systems). If you want to use the cryptoloop, say Y to both
+	  LOOP and CRYPTOLOOP, and make sure you have a recent (version 2.12
+	  or later) version of util-linux. Additionally, be aware that
+	  the cryptoloop is not safe for storing journaled filesystems.
+
+	  Note that this loop device has nothing to do with the loopback
+	  device used for network connections from the machine to itself.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called loop.
+
+	  Most users will answer N here.
+
+config BLK_DEV_CRYPTOLOOP
+	tristate "Cryptoloop Support"
+	select CRYPTO
+	depends on BLK_DEV_LOOP
+	---help---
+	  Say Y here if you want to be able to use the ciphers that are 
+	  provided by the CryptoAPI as loop transformation. This might be
+	  used as hard disk encryption.
+
+	  WARNING: This device is not safe for journaled file systems like
+	  ext3 or Reiserfs. Please use the Device Mapper crypto module
+	  instead, which can be configured to be on-disk compatible with the
+	  cryptoloop device.
+
+config BLK_DEV_NBD
+	tristate "Network block device support"
+	depends on NET
+	---help---
+	  Saying Y here will allow your computer to be a client for network
+	  block devices, i.e. it will be able to use block devices exported by
+	  servers (mount file systems on them etc.). Communication between
+	  client and server works over TCP/IP networking, but to the client
+	  program this is hidden: it looks like a regular local file access to
+	  a block device special file such as /dev/nd0.
+
+	  Network block devices also allows you to run a block-device in
+	  userland (making server and client physically the same computer,
+	  communicating using the loopback network device).
+
+	  Read <file:Documentation/nbd.txt> for more information, especially
+	  about where to find the server code, which runs in user space and
+	  does not need special kernel support.
+
+	  Note that this has nothing to do with the network file systems NFS
+	  or Coda; you can say N here even if you intend to use NFS or Coda.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called nbd.
+
+	  If unsure, say N.
+
+config BLK_DEV_SX8
+	tristate "Promise SATA SX8 support"
+	depends on PCI
+	---help---
+	  Saying Y or M here will enable support for the 
+	  Promise SATA SX8 controllers.
+
+	  Use devices /dev/sx8/$N and /dev/sx8/$Np$M.
+
+config BLK_DEV_UB
+	tristate "Low Performance USB Block driver"
+	depends on USB
+	help
+	  This driver supports certain USB attached storage devices
+	  such as flash keys.
+
+	  Warning: Enabling this cripples the usb-storage driver.
+
+	  If unsure, say N.
+
+config BLK_DEV_RAM
+	tristate "RAM disk support"
+	---help---
+	  Saying Y here will allow you to use a portion of your RAM memory as
+	  a block device, so that you can make file systems on it, read and
+	  write to it and do all the other things that you can do with normal
+	  block devices (such as hard drives). It is usually used to load and
+	  store a copy of a minimal root file system off of a floppy into RAM
+	  during the initial install of Linux.
+
+	  Note that the kernel command line option "ramdisk=XX" is now
+	  obsolete. For details, read <file:Documentation/ramdisk.txt>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rd.
+
+	  Most normal users won't need the RAM disk functionality, and can
+	  thus say N here.
+
+config BLK_DEV_RAM_COUNT
+	int "Default number of RAM disks" if BLK_DEV_RAM
+	default "16"
+	help
+	  The default value is 16 RAM disks. Change this if you know what
+	  are doing. If you boot from a filesystem that needs to be extracted
+	  in memory, you will need at least one RAM disk (e.g. root on cramfs).
+
+config BLK_DEV_RAM_SIZE
+	int "Default RAM disk size (kbytes)"
+	depends on BLK_DEV_RAM
+	default "4096"
+	help
+	  The default value is 4096 kilobytes. Only change this if you know
+	  what are you doing. If you are using IBM S/390, then set this to
+	  8192.
+
+config BLK_DEV_INITRD
+	bool "Initial RAM disk (initrd) support"
+	depends on BLK_DEV_RAM=y
+	help
+	  The initial RAM disk is a RAM disk that is loaded by the boot loader
+	  (loadlin or lilo) and that is mounted as root before the normal boot
+	  procedure. It is typically used to load modules needed to mount the
+	  "real" root file system, etc. See <file:Documentation/initrd.txt>
+	  for details.
+
+config INITRAMFS_SOURCE
+	string "Initramfs source file(s)"
+	default ""
+	help
+	  This can be either a single cpio archive with a .cpio suffix or a
+	  space-separated list of directories and files for building the
+	  initramfs image.  A cpio archive should contain a filesystem archive
+	  to be used as an initramfs image.  Directories should contain a
+	  filesystem layout to be included in the initramfs image.  Files
+	  should contain entries according to the format described by the
+	  "usr/gen_init_cpio" program in the kernel tree.
+
+	  When multiple directories and files are specified then the
+	  initramfs image will be the aggregate of all of them.
+
+	  See <file:Documentation/early-userspace/README for more details.
+
+	  If you are not sure, leave it blank.
+
+config INITRAMFS_ROOT_UID
+	int "User ID to map to 0 (user root)"
+	depends on INITRAMFS_SOURCE!=""
+	default "0"
+	help
+	  This setting is only meaningful if the INITRAMFS_SOURCE is
+	  contains a directory.  Setting this user ID (UID) to something
+	  other than "0" will cause all files owned by that UID to be
+	  owned by user root in the initial ramdisk image.
+
+	  If you are not sure, leave it set to "0".
+
+config INITRAMFS_ROOT_GID
+	int "Group ID to map to 0 (group root)"
+	depends on INITRAMFS_SOURCE!=""
+	default "0"
+	help
+	  This setting is only meaningful if the INITRAMFS_SOURCE is
+	  contains a directory.  Setting this group ID (GID) to something
+	  other than "0" will cause all files owned by that GID to be
+	  owned by group root in the initial ramdisk image.
+
+	  If you are not sure, leave it set to "0".
+
+#XXX - it makes sense to enable this only for 32-bit subarch's, not for x86_64
+#for instance.
+config LBD
+	bool "Support for Large Block Devices"
+	depends on X86 || MIPS32 || PPC32 || ARCH_S390_31 || SUPERH || UML
+	help
+	  Say Y here if you want to attach large (bigger than 2TB) discs to
+	  your machine, or if you want to have a raid or loopback device
+	  bigger than 2TB.  Otherwise say N.
+
+config CDROM_PKTCDVD
+	tristate "Packet writing on CD/DVD media"
+	depends on !UML
+	help
+	  If you have a CDROM drive that supports packet writing, say Y to
+	  include preliminary support. It should work with any MMC/Mt Fuji
+	  compliant ATAPI or SCSI drive, which is just about any newer CD
+	  writer.
+
+	  Currently only writing to CD-RW, DVD-RW and DVD+RW discs is possible.
+	  DVD-RW disks must be in restricted overwrite mode.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pktcdvd.
+
+config CDROM_PKTCDVD_BUFFERS
+	int "Free buffers for data gathering"
+	depends on CDROM_PKTCDVD
+	default "8"
+	help
+	  This controls the maximum number of active concurrent packets. More
+	  concurrent packets can increase write performance, but also require
+	  more memory. Each concurrent packet will require approximately 64Kb
+	  of non-swappable kernel memory, memory which will be allocated at
+	  pktsetup time.
+
+config CDROM_PKTCDVD_WCACHE
+	bool "Enable write caching"
+	depends on CDROM_PKTCDVD
+	help
+	  If enabled, write caching will be set for the CD-R/W device. For now
+	  this option is dangerous unless the CD-RW media is known good, as we
+	  don't do deferred write error handling yet.
+
+source "drivers/s390/block/Kconfig"
+
+source "drivers/block/Kconfig.iosched"
+
+config ATA_OVER_ETH
+	tristate "ATA over Ethernet support"
+	depends on NET
+	help
+	This driver provides Support for ATA over Ethernet block
+	devices like the Coraid EtherDrive (R) Storage Blade.
+
+endmenu

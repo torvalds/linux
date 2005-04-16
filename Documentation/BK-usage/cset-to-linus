@@ -1,0 +1,49 @@
+#!/usr/bin/perl -w
+
+use strict;
+
+my ($lhs, $rev, $tmp, $rhs, $s);
+my @cset_text = ();
+my @pipe_text = ();
+my $have_cset = 0;
+
+while (<>) {
+	next if /^---/;
+
+	if (($lhs, $tmp, $rhs) = (/^(ChangeSet\@)([^,]+)(, .*)$/)) {
+		&cset_rev if ($have_cset);
+
+		$rev = $tmp;
+		$have_cset = 1;
+
+		push(@cset_text, $_);
+	}
+
+	elsif ($have_cset) {
+		push(@cset_text, $_);
+	}
+}
+&cset_rev if ($have_cset);
+exit(0);
+
+
+sub cset_rev {
+	my $empty_cset = 0;
+
+	open PIPE, "bk export -tpatch -hdu -r $rev | diffstat -p1 2>/dev/null |" or die;
+	while ($s = <PIPE>) {
+		$empty_cset = 1 if ($s =~ /0 files changed/);
+		push(@pipe_text, $s);
+	}
+	close(PIPE);
+
+	if (! $empty_cset) {
+		print @cset_text;
+		print @pipe_text;
+		print "\n\n";
+	}
+
+	@pipe_text = ();
+	@cset_text = ();
+}
+

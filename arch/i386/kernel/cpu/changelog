@@ -1,0 +1,63 @@
+/*
+ *  Enhanced CPU type detection by Mike Jagdis, Patrick St. Jean
+ *  and Martin Mares, November 1997.
+ *
+ *  Force Cyrix 6x86(MX) and M II processors to report MTRR capability
+ *  and Cyrix "coma bug" recognition by
+ *  Zoltán Böszörményi <zboszor@mail.externet.hu> February 1999.
+ * 
+ *  Force Centaur C6 processors to report MTRR capability.
+ *  Bart Hartgers <bart@etpmod.phys.tue.nl>, May 1999.
+ *
+ *  Intel Mobile Pentium II detection fix. Sean Gilley, June 1999.
+ *
+ *  IDT Winchip tweaks, misc clean ups.
+ *  Dave Jones <davej@suse.de>, August 1999
+ *
+ *  Better detection of Centaur/IDT WinChip models.
+ *  Bart Hartgers <bart@etpmod.phys.tue.nl>, August 1999.
+ *
+ *  Cleaned up cache-detection code
+ *  Dave Jones <davej@suse.de>, October 1999
+ *
+ *  Added proper L2 cache detection for Coppermine
+ *  Dragan Stancevic <visitor@valinux.com>, October 1999
+ *
+ *  Added the original array for capability flags but forgot to credit 
+ *  myself :) (~1998) Fixed/cleaned up some cpu_model_info and other stuff
+ *  Jauder Ho <jauderho@carumba.com>, January 2000
+ *
+ *  Detection for Celeron coppermine, identify_cpu() overhauled,
+ *  and a few other clean ups.
+ *  Dave Jones <davej@suse.de>, April 2000
+ *
+ *  Pentium III FXSR, SSE support
+ *  General FPU state handling cleanups
+ *  Gareth Hughes <gareth@valinux.com>, May 2000
+ *
+ *  Added proper Cascades CPU and L2 cache detection for Cascades
+ *  and 8-way type cache happy bunch from Intel:^)
+ *  Dragan Stancevic <visitor@valinux.com>, May 2000 
+ *
+ *  Forward port AMD Duron errata T13 from 2.2.17pre
+ *  Dave Jones <davej@suse.de>, August 2000
+ *
+ *  Forward port lots of fixes/improvements from 2.2.18pre
+ *  Cyrix III, Pentium IV support.
+ *  Dave Jones <davej@suse.de>, October 2000
+ *
+ *  Massive cleanup of CPU detection and bug handling;
+ *  Transmeta CPU detection,
+ *  H. Peter Anvin <hpa@zytor.com>, November 2000
+ *
+ *  VIA C3 Support.
+ *  Dave Jones <davej@suse.de>, March 2001
+ *
+ *  AMD Athlon/Duron/Thunderbird bluesmoke support.
+ *  Dave Jones <davej@suse.de>, April 2001.
+ *
+ *  CacheSize bug workaround updates for AMD, Intel & VIA Cyrix.
+ *  Dave Jones <davej@suse.de>, September, October 2001.
+ *
+ */
+

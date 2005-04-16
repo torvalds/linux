@@ -1,0 +1,49 @@
+Infra-red driver documentation.
+
+Mike Crowe <mac@empeg.com>
+(C) Empeg Ltd 1999
+
+Not a lot here yet :-)
+
+The Kenwood KCA-R6A remote control generates a sequence like the following:
+
+Go low for approx 16T (Around 9000us)
+Go high for approx 8T (Around 4000us)
+Go low for less than 2T (Around 750us)
+
+For each of the 32 bits
+  Go high for more than 2T (Around 1500us) == 1
+  Go high for less than T (Around 400us) == 0
+  Go low for less than 2T (Around 750us)
+
+Rather than repeat a signal when the button is held down certain buttons
+generate the following code to indicate repetition.
+
+Go low for approx 16T
+Go high for approx 4T
+Go low for less than 2T
+
+(By removing the <2T from the start of the sequence and placing at the end
+ it can be considered a stop bit but I found it easier to deal with it at
+ the start).
+
+The 32 bits are encoded as XxYy where x and y are the actual data values
+while X and Y are the logical inverses of the associated data values. Using 
+LSB first yields sensible codes for the numbers.
+
+All codes are of the form b9xx
+
+The numeric keys generate the code 0x where x is the number pressed.
+
+Tuner		1c
+Tape		1d
+CD		1e
+CD-MD-CH	1f
+Track-		0a
+Track+		0b
+Rewind		0c
+FF		0d
+DNPP		5e
+Play/Pause	0e
+Vol+		14
+Vol-		15

@@ -1,0 +1,93 @@
+
+menu "Misc Linux/SPARC drivers"
+
+config SUN_OPENPROMIO
+	tristate "/dev/openprom device support"
+	help
+	  This driver provides user programs with an interface to the SPARC
+	  PROM device tree. The driver implements a SunOS-compatible
+	  interface and a NetBSD-compatible interface.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called openprom.
+
+	  If unsure, say Y.
+
+config SUN_MOSTEK_RTC
+	tristate "Mostek real time clock support"
+	help
+	  The Mostek RTC chip is used on all known Sun computers except
+	  some JavaStations. For a JavaStation you need to say Y both here
+	  and to "Enhanced Real Time Clock Support".
+
+	  Say Y here unless you are building a special purpose kernel.
+
+config OBP_FLASH
+	tristate "OBP Flash Device support"
+	depends on SPARC64
+	help
+	  The OpenBoot PROM on Ultra systems is flashable. If you want to be
+	  able to upgrade the OBP firmware, say Y here.
+
+config SUN_BPP
+	tristate "Bidirectional parallel port support (OBSOLETE)"
+	depends on EXPERIMENTAL
+	help
+	  Say Y here to support Sun's obsolete variant of IEEE1284
+	  bidirectional parallel port protocol as /dev/bppX.  Can be built on
+	  x86 machines.
+
+config SUN_VIDEOPIX
+	tristate "Videopix Frame Grabber (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && (BROKEN || !64BIT)
+	help
+	  Say Y here to support the Videopix Frame Grabber from Sun
+	  Microsystems, commonly found on SPARCstations.  This card, which is
+	  based on the Phillips SAA9051, can handle NTSC and PAL/SECAM and
+	  SVIDEO signals.
+
+config SUN_AURORA
+	tristate "Aurora Multiboard 1600se (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && BROKEN
+	help
+	  The Aurora Multiboard is a multi-port high-speed serial controller.
+	  If you have one of these, say Y.
+
+config TADPOLE_TS102_UCTRL
+	tristate "Tadpole TS102 Microcontroller support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && SPARC32
+	help
+	  Say Y here to directly support the TS102 Microcontroller interface
+	  on the Tadpole Sparcbook 3.  This device handles power-management
+	  events, and can also notice the attachment/detachment of external
+	  monitors and mice.
+
+config SUN_JSFLASH
+	tristate "JavaStation OS Flash SIMM (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && SPARC32
+	help
+	  If you say Y here, you will be able to boot from your JavaStation's
+	  Flash memory.
+
+# XXX Why don't we do "source drivers/char/Config.in" somewhere?
+# no shit
+config APM_RTC_IS_GMT
+	bool
+	depends on EXPERIMENTAL && SPARC32 && PCI
+	default y
+	help
+	  Say Y here if your RTC (Real Time Clock a.k.a. hardware clock)
+	  stores the time in GMT (Greenwich Mean Time). Say N if your RTC
+	  stores localtime.
+
+	  It is in fact recommended to store GMT in your RTC, because then you
+	  don't have to worry about daylight savings time changes. The only
+	  reason not to use GMT in your RTC is if you also run a broken OS
+	  that doesn't understand GMT.
+
+config RTC
+	tristate "PC-style Real Time Clock Support"
+	depends on PCI && EXPERIMENTAL && SPARC32
+
+endmenu
+

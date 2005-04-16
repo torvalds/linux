@@ -1,0 +1,54 @@
+Tridentfb is a framebuffer driver for some Trident chip based cards.
+
+The following list of chips is thought to be supported although not all are
+tested:
+
+those from the Image series with Cyber in their names - accelerated
+those with Blade in their names (Blade3D,CyberBlade...) - accelerated
+the newer CyberBladeXP family  - nonaccelerated
+
+Only PCI/AGP based cards are supported, none of the older Tridents.
+
+How to use it?
+==============
+
+When booting you can pass the video parameter.
+video=tridentfb
+
+The parameters for tridentfb are concatenated with a ':' as in this example.
+
+video=tridentfb:800x600,bpp=16,noaccel
+
+The second level parameters that tridentfb understands are:
+
+noaccel - turns off acceleration (when it doesn't work for your card)
+accel - force text acceleration (for boards which by default are noacceled)
+
+fp	- use flat panel related stuff
+crt 	- assume monitor is present instead of fp
+
+center 	- for flat panels and resolutions smaller than native size center the
+	  image, otherwise use
+stretch
+
+memsize - integer value in Kb, use if your card's memory size is misdetected.
+	  look at the driver output to see what it says when initializing.
+memdiff - integer value in Kb,should be nonzero if your card reports
+	  more memory than it actually has.For instance mine is 192K less than
+	  detection says in all three BIOS selectable situations 2M, 4M, 8M.
+	  Only use if your video memory is taken from main memory hence of
+	  configurable size.Otherwise use memsize.
+	  If in some modes which barely fit the memory you see garbage at the bottom
+	  this might help by not letting change to that mode anymore.
+
+nativex - the width in pixels of the flat panel.If you know it (usually 1024
+	  800 or 1280) and it is not what the driver seems to detect use it.
+
+bpp  - bits per pixel (8,16 or 32)
+mode - a mode name like 800x600 (as described in Documentation/fb/modedb.txt)
+
+Using insane values for the above parameters will probably result in driver
+misbehaviour so take care(for instance memsize=12345678 or memdiff=23784 or
+nativex=93)
+
+Contact: jani@astechnix.ro

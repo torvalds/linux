@@ -1,0 +1,51 @@
+README on the SDRAM Controller for the LH7a40X
+==============================================
+
+The standard configuration for the SDRAM controller generates a sparse
+memory array.  The precise layout is determined by the SDRAM chips.  A
+default kernel configuration assembles the discontiguous memory
+regions into separate memory nodes via the NUMA (Non-Uniform Memory
+Architecture) facilities.  In this default configuration, the kernel
+is forgiving about the precise layout.  As long as it is given an
+accurate picture of available memory by the bootloader the kernel will
+execute correctly.
+
+The SDRC supports a mode where some of the chip select lines are
+swapped in order to make SDRAM look like a synchronous ROM.  Setting
+this bit means that the RAM will present as a contiguous array.  Some
+programmers prefer this to the discontiguous layout.  Be aware that
+may be a penalty for this feature where some some configurations of
+memory are significantly reduced; i.e. 64MiB of RAM appears as only 32
+MiB.
+
+There are a couple of configuration options to override the default
+behavior.  When the SROMLL bit is set and memory appears as a
+contiguous array, there is no reason to support NUMA.
+CONFIG_LH7A40X_CONTIGMEM disables NUMA support.  When physical memory
+is discontiguous, the memory tables are organized such that there are
+two banks per nodes with a small gap between them.  This layout wastes
+some kernel memory for page tables representing non-existent memory.
+CONFIG_LH7A40X_ONE_BANK_PER_NODE optimizes the node tables such that
+there are no gaps.  These options control the low level organization
+of the memory management tables in ways that may prevent the kernel
+from booting or may cause the kernel to allocated excessively large
+page tables.  Be warned.  Only change these options if you know what
+you are doing.  The default behavior is a reasonable compromise that
+will suit all users.
+
+--
+
+A typical 32MiB system with the default configuration options will
+find physical memory managed as follows.
+
+   node 0: 0xc0000000 4MiB
+           0xc1000000 4MiB
+   node 1: 0xc4000000 4MiB
+           0xc5000000 4MiB
+   node 2: 0xc8000000 4MiB
+           0xc9000000 4MiB
+   node 3: 0xcc000000 4MiB
+           0xcd000000 4MiB
+
+Setting CONFIG_LH7A40X_ONE_BANK_PER_NODE will put each bank into a
+separate node.

@@ -1,0 +1,51 @@
+bk-kernel-howto.txt: Description of kernel workflow under BitKeeper
+
+bk-make-sum: Create summary of changesets in one repository and not
+another, typically in preparation to be sent to an upstream maintainer.
+Typical usage:
+	cd my-updated-repo
+	bk-make-sum ~/repo/original-repo
+	mv /tmp/linus.txt ../original-repo.txt
+
+bksend: Create readable text output containing summary of changes, GNU
+patch of the changes, and BK metadata of changes (as needed for proper
+importing into BitKeeper by an upstream maintainer).  This output is
+suitable for emailing BitKeeper changes.  The recipient of this output
+may pipe it directly to 'bk receive'.
+
+bz64wrap: helper script. Uncompressed input is piped to this script,
+which compresses its input, and then outputs the uu-/base64-encoded
+version of the compressed input.
+
+cpcset: Copy changeset between unrelated repositories.
+Attempts to preserve changeset user, user address, description, in
+addition to the changeset (the patch) itself.
+Typical usage:
+	cd my-updated-repo
+	bk changes	# looking for a changeset...
+	cpcset 1.1511 . ../another-repo
+
+csets-to-patches: Produces a delta of two BK repositories, in the form
+of individual files, each containing a single cset as a GNU patch.
+Output is several files, each with the filename "/tmp/rev-$REV.patch"
+Typical usage:
+	cd my-updated-repo
+	bk changes -L ~/repo/original-repo 2>&1 | \
+		perl csets-to-patches
+
+cset-to-linus: Produces a delta of two BK repositories, in the form of
+changeset descriptions, with 'diffstat' output created for each
+individual changset.
+Typical usage:
+	cd my-updated-repo
+	bk changes -L ~/repo/original-repo 2>&1 | \
+		perl cset-to-linus > summary.txt
+
+gcapatch:  Generates patch containing changes in local repository.
+Typical usage:
+	cd my-updated-repo
+	gcapatch > foo.patch
+
+unbz64wrap: Reverse an encoded, compressed data stream created by
+bz64wrap into an uncompressed, typically text/plain output.
+

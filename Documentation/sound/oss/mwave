@@ -1,0 +1,185 @@
+	How to try to survive an IBM Mwave under Linux SB drivers
+
+
++	IBM have now released documentation of sorts and Torsten is busy
+	trying to make the Mwave work. This is not however a trivial task.
+
+----------------------------------------------------------------------------
+
+OK, first thing - the IRQ problem IS a problem, whether the test is bypassed or
+not.  It is NOT a Linux problem, but an MWAVE problem that is fixed with the
+latest MWAVE patches. So, in other words, don't bypass the test for MWAVES!
+
+I have Windows 95 on /dev/hda1, swap on /dev/hda2, and Red Hat 5 on /dev/hda3.
+
+The steps, then:
+
+    Boot to Linux. 
+    Mount Windows 95 file system (assume mount point = /dos95).
+    mkdir /dos95/linux
+    mkdir /dos95/linux/boot
+    mkdir /dos95/linux/boot/parms
+
+    Copy the kernel, any initrd image, and loadlin to /dos95/linux/boot/.
+
+    Reboot to Windows 95.
+
+    Edit C:/msdos.sys and add or change the following:
+
+        Logo=0
+        BootGUI=0
+
+    Note that msdos.sys is a text file but it needs to be made 'unhidden',
+    readable and writable before it can be edited.  This can be done with
+    DOS' "attrib" command.
+
+    Edit config.sys to have multiple config menus. I have one for windows 95 and
+    five for Linux, like this:
+------------
+[menu]
+menuitem=W95, Windows 95
+menuitem=LINTP, Linux - ThinkPad
+menuitem=LINTP3, Linux - ThinkPad Console
+menuitem=LINDOC, Linux - Docked
+menuitem=LINDOC3, Linux - Docked Console
+menuitem=LIN1, Linux - Single User Mode
+REM menudefault=W95,10
+
+[W95]
+
+[LINTP]
+
+[LINDOC]
+
+[LINTP3]
+
+[LINDOC3]
+
+[LIN1]
+
+[COMMON]
+FILES=30
+REM Please read README.TXT in C:\MWW subdirectory before changing the DOS= statement.
+DOS=HIGH,UMB
+DEVICE=C:\MWW\MANAGER\MWD50430.EXE
+SHELL=c:\command.com /e:2048
+-------------------
+
+The important things are the SHELL and DEVICE statements.
+
+    Then change autoexec.bat. Basically everything in there originally should be
+    done ONLY when Windows 95 is booted. Then you add new things specifically
+    for Linux.  Mine is as follows
+
+---------------
+@ECHO OFF
+if "%CONFIG%" == "W95" goto W95
+
+REM
+REM Linux stuff
+REM
+SET MWPATH=C:\MWW\DLL;C:\MWW\MWGAMES;C:\MWW\DSP
+SET BLASTER=A220 I5 D1
+SET MWROOT=C:\MWW
+SET LIBPATH=C:\MWW\DLL
+SET PATH=C:\WINDOWS;C:\MWW\DLL;
+CALL MWAVE START NOSHOW
+c:\linux\boot\loadlin.exe @c:\linux\boot\parms\%CONFIG%.par
+
+:W95
+REM
+REM Windows 95 stuff
+REM
+c:\toolkit\guard
+SET MSINPUT=C:\MSINPUT
+SET MWPATH=C:\MWW\DLL;C:\MWW\MWGAMES;C:\MWW\DSP
+REM The following is used by DOS games to recognize Sound Blaster hardware.
+REM If hardware settings are changed, please change this line as well.
+REM See the Mwave README file for instructions.
+SET BLASTER=A220 I5 D1
+SET MWROOT=C:\MWW
+SET LIBPATH=C:\MWW\DLL
+SET PATH=C:\WINDOWS;C:\WINDOWS\COMMAND;E:\ORAWIN95\BIN;f:\msdev\bin;e:\v30\bin.dbg;v:\devt\v30\bin;c:\JavaSDK\Bin;C:\MWW\DLL;
+SET INCLUDE=f:\MSDEV\INCLUDE;F:\MSDEV\MFC\INCLUDE
+SET LIB=F:\MSDEV\LIB;F:\MSDEV\MFC\LIB
+win
+
+------------------------
+
+Now build a file in c:\linux\boot\parms for each Linux config that you have.
+
+For example, my LINDOC3 config is for a docked Thinkpad at runlevel 3 with no
+initrd image, and has a parameter file named LINDOC3.PAR in c:\linux\boot\parms:
+
+-----------------------
+#   LOADLIN @param_file image=other_image root=/dev/other
+#
+#	Linux Console in docking station
+#
+c:\linux\boot\zImage.krn        # First value must be filename of Linux kernel.
+root=/dev/hda3                  # device which gets mounted as root FS
+ro                              # Other kernel arguments go here.
+apm=off
+doc=yes
+3
+-----------------------
+
+The doc=yes parameter is an environment variable used by my init scripts, not
+a kernel argument.
+
+However, the apm=off parameter IS a kernel argument!  APM, at least in my setup,
+causes the kernel to crash when loaded via loadlin (but NOT when loaded via
+LILO). The APM stuff COULD be forced out of the kernel via the kernel compile
+options. Instead, I got an unofficial patch to the APM drivers that allows them
+to be dynamically deactivated via kernel arguments. Whatever you chose to
+document, APM, it seems, MUST be off for setups like mine.
+
+Now make sure C:\MWW\MWCONFIG.REF looks like this:
+
+----------------------
+[NativeDOS]
+Default=SB1.5
+SBInputSource=CD
+SYNTH=FM
+QSound=OFF
+Reverb=OFF
+Chorus=OFF
+ReverbDepth=5
+ChorusDepth=5
+SBInputVolume=5
+SBMainVolume=10
+SBWaveVolume=10
+SBSynthVolume=10
+WaveTableVolume=10
+AudioPowerDriver=ON
+
+[FastCFG]
+Show=No
+HideOption=Off
+-----------------------------
+
+OR the Default= line COULD be
+
+Default=SBPRO
+
+Reboot to Windows 95 and choose Linux. When booted, use sndconfig to configure
+the sound modules and voilà - ThinkPad sound with Linux.
+
+Now the gotchas - you can either have CD sound OR Mixers but not both. That's a
+problem with the SB1.5 (CD sound) or SBPRO (Mixers) settings. No one knows why
+this is!
+
+For some reason MPEG3 files, when played through mpg123, sound like they
+are playing at 1/8th speed - not very useful!  If you have ANY insight
+on why this second thing might be happening, I would be grateful.
+
+===========================================================
+    _/      _/_/_/_/
+   _/_/  _/_/     _/
+  _/ _/_/ _/_/_/_/      Martin John Bartlett
+ _/  _/  _/     _/      (martin@nitram.demon.co.uk)
+_/      _/_/_/_/
+       _/
+_/    _/
+ _/_/
+===========================================================

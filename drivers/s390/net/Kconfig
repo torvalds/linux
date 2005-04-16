@@ -1,0 +1,108 @@
+menu "S/390 network device drivers"
+	depends on NETDEVICES && ARCH_S390
+
+config LCS
+	tristate "Lan Channel Station Interface"
+	depends on NETDEVICES && (NET_ETHERNET || TR || FDDI)
+	help
+	   Select this option if you want to use LCS networking  on IBM S/390
+  	   or zSeries. This device driver supports Token Ring (IEEE 802.5),
+  	   FDDI (IEEE 802.7) and Ethernet. 
+	   This option is also available as a module which will be
+	   called lcs.ko. If you do not know what it is, it's safe to say "Y".
+
+config CTC
+	tristate "CTC device support"
+	depends on NETDEVICES
+	help
+	  Select this option if you want to use channel-to-channel networking
+	  on IBM S/390 or zSeries. This device driver supports real CTC
+	  coupling using ESCON. It also supports virtual CTCs when running
+	  under VM. It will use the channel device configuration if this is
+	  available.  This option is also available as a module which will be
+	  called ctc.ko.  If you do not know what it is, it's safe to say "Y".
+
+config IUCV
+	tristate "IUCV support (VM only)"
+	help
+	  Select this option if you want to use inter-user communication
+	  under VM or VIF. If unsure, say "Y" to enable a fast communication
+	  link between VM guests. At boot time the user ID of the guest needs
+	  to be passed to the kernel. Note that both kernels need to be
+	  compiled with this option and both need to be booted with the user ID
+	  of the other VM guest.
+
+config NETIUCV
+	tristate "IUCV network device support (VM only)"
+	depends on IUCV && NETDEVICES
+	help
+	  Select this option if you want to use inter-user communication
+	  vehicle networking under VM or VIF. It enables a fast communication
+	  link between VM guests. Using ifconfig a point-to-point connection
+	  can be established to the Linux for zSeries and S7390 system
+	  running on the other VM guest. This option is also available
+	  as a module which will be called netiucv.ko. If unsure, say "Y".
+
+config SMSGIUCV
+	tristate "IUCV special message support (VM only)"
+	depends on IUCV
+	help
+	  Select this option if you want to be able to receive SMSG messages
+	  from other VM guest systems.
+
+config CLAW
+	tristate "CLAW device support"
+	depends on NETDEVICES
+	help
+	  This driver supports channel attached CLAW devices.
+	  CLAW is Common Link Access for Workstation.  Common devices
+          that use CLAW are RS/6000s, Cisco Routers (CIP) and 3172 devices.
+	  To compile as a module choose M here:  The module will be called
+	  claw.ko to compile into the kernel choose Y
+
+config QETH
+	tristate "Gigabit Ethernet device support"
+	depends on NETDEVICES && IP_MULTICAST && QDIO
+	help
+	  This driver supports the IBM S/390 and zSeries OSA Express adapters
+	  in QDIO mode (all media types), HiperSockets interfaces and VM GuestLAN
+	  interfaces in QDIO and HIPER mode.
+	
+	  For details please refer to the documentation provided by IBM at   
+	  <http://www10.software.ibm.com/developerworks/opensource/linux390>
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called qeth.ko.
+
+
+comment "Gigabit Ethernet default settings"
+	depends on QETH
+
+config QETH_IPV6
+	bool "IPv6 support for gigabit ethernet"
+	depends on (QETH = IPV6) || (QETH && IPV6 = 'y')
+	help
+	  If CONFIG_QETH is switched on, this option will include IPv6
+	  support in the qeth device driver.
+	
+config QETH_VLAN
+	bool "VLAN support for gigabit ethernet"
+	depends on (QETH = VLAN_8021Q) || (QETH && VLAN_8021Q = 'y')
+	help
+	  If CONFIG_QETH is switched on, this option will include IEEE
+	  802.1q VLAN support in the qeth device driver.
+
+config QETH_PERF_STATS
+	bool "Performance statistics in /proc"
+	depends on QETH
+	help
+	  When switched on, this option will add a file in the proc-fs
+	  (/proc/qeth_perf_stats) containing performance statistics. It
+	  may slightly impact performance, so this is only recommended for
+	  internal tuning of the device driver.
+
+config CCWGROUP
+ 	tristate
+	default (LCS || CTC || QETH)
+
+endmenu

@@ -1,0 +1,169 @@
+if ARCH_S3C2410
+
+menu "S3C24XX Implementations"
+
+config ARCH_BAST
+	bool "Simtec Electronics BAST (EB2410ITX)"
+	select CPU_S3C2410
+	help
+	  Say Y here if you are using the Simtec Electronics EB2410ITX
+	  development board (also known as BAST)
+
+	  Product page: <http://www.simtec.co.uk/products/EB2410ITX/>.
+
+config ARCH_H1940
+	bool "IPAQ H1940"
+	select CPU_S3C2410
+	help
+	  Say Y here if you are using the HP IPAQ H1940
+
+	  <http://www.handhelds.org/projects/h1940.html>.
+
+config MACH_N30
+	bool "Acer N30"
+	select CPU_S3C2410
+	help
+	  Say Y here if you are using the Acer N30
+
+	  <http://zoo.weinigel.se/n30>.
+
+config ARCH_SMDK2410
+	bool "SMDK2410/A9M2410"
+	select CPU_S3C2410
+	help
+	   Say Y here if you are using the SMDK2410 or the derived module A9M2410
+           <http://www.fsforth.de>
+
+config ARCH_S3C2440
+	bool "SMDK2440"
+	select CPU_S3C2440
+	help
+	  Say Y here if you are using the SMDK2440.
+
+config MACH_VR1000
+	bool "Thorcom VR1000"
+	select CPU_S3C2410
+	help
+	  Say Y here if you are using the Thorcom VR1000 board.
+
+	  This linux port is currently being maintained by Simtec, on behalf
+	  of Thorcom. Any queries, please contact Thorcom first.
+
+config MACH_RX3715
+	bool "HP iPAQ rx3715"
+	select CPU_S3C2440
+	help
+	  Say Y here if you are using the HP iPAQ rx3715.
+
+	  See <http://www.handhelds.org/projects/rx3715.html> for more
+	  information on this project
+
+config MACH_OTOM
+ 	bool "NexVision OTOM Board"
+ 	select CPU_S3C2410
+	help
+ 	  Say Y here if you are using the Nex Vision OTOM board
+
+config MACH_NEXCODER_2440
+ 	bool "NexVision NEXCODER 2440 Light Board"
+ 	select CPU_S3C2440
+	help
+ 	  Say Y here if you are using the Nex Vision NEXCODER 2440 Light Board
+
+endmenu
+
+config CPU_S3C2410
+	bool
+	depends on ARCH_S3C2410
+	help
+	  Support for S3C2410 and S3C2410A family from the S3C24XX line
+	  of Samsung Mobile CPUs.
+
+config CPU_S3C2440
+	bool
+	depends on ARCH_S3C2410
+	help
+	  Support for S3C2440 Samsung Mobile CPU based systems.
+
+comment "S3C2410 Boot"
+
+config S3C2410_BOOT_WATCHDOG
+	bool "S3C2410 Initialisation watchdog"
+	depends on ARCH_S3C2410 && S3C2410_WATCHDOG
+	help
+	  Say y to enable the watchdog during the kernel decompression
+	  stage. If the kernel fails to uncompress, then the watchdog
+	  will trigger a reset and the system should restart.
+
+	  Although this uses the same hardware unit as the kernel watchdog
+	  driver, it is not a replacement for it. If you use this option,
+	  you will have to use the watchdg driver to either stop the timeout
+	  or restart it. If you do not, then your kernel will reboot after
+	  startup.
+
+	  The driver uses a fixed timeout value, so the exact time till the
+	  system resets depends on the value of PCLK. The timeout on an
+	  200MHz s3c2410 should be about 30 seconds.
+
+comment "S3C2410 Setup"
+
+config S3C2410_DMA
+	bool "S3C2410 DMA support"
+	depends on ARCH_S3C2410
+	help
+	  S3C2410 DMA support. This is needed for drivers like sound which
+	  use the S3C2410's DMA system to move data to and from the
+	  peripheral blocks.
+
+config S3C2410_DMA_DEBUG
+	bool "S3C2410 DMA support debug"
+	depends on ARCH_S3C2410 && S3C2410_DMA
+	help
+	  Enable debugging output for the DMA code. This option sends info
+	  to the kernel log, at priority KERN_DEBUG.
+
+	  Note, it is easy to create and fill the log buffer in a small
+	  amount of time, as well as using an significant percentage of
+	  the CPU time doing so.
+
+
+config S3C2410_PM_DEBUG
+	bool "S3C2410 PM Suspend debug"
+	depends on ARCH_S3C2410 && PM
+	help
+	  Say Y here if you want verbose debugging from the PM Suspend and
+	  Resume code. See `Documentation/arm/Samsing-S3C24XX/Suspend.txt`
+	  for more information.
+
+config S3C2410_PM_CHECK
+	bool "S3C2410 PM Suspend Memory CRC"
+	depends on ARCH_S3C2410 && PM && CRC32
+	help
+ 	  Enable the PM code's memory area checksum over sleep. This option
+	  will generate CRCs of all blocks of memory, and store them before
+	  going to sleep. The blocks are then checked on resume for any
+	  errors.
+
+config S3C2410_PM_CHECK_CHUNKSIZE
+	int "S3C2410 PM Suspend CRC Chunksize (KiB)"
+	depends on ARCH_S3C2410 && PM && S3C2410_PM_CHECK
+	default 64
+	help
+	  Set the chunksize in Kilobytes of the CRC for checking memory
+	  corruption over suspend and resume. A smaller value will mean that
+	  the CRC data block will take more memory, but wil identify any
+	  faults with better precision.
+
+config S3C2410_LOWLEVEL_UART_PORT
+	int "S3C2410 UART to use for low-level messages"
+	default 0
+	help
+	  Choice of which UART port to use for the low-level messages,
+	  such as the `Uncompressing...` at start time. The value of
+	  this configuration should be between zero and two. The port
+	  must have been initialised by the boot-loader before use.
+
+	  Note, this does not affect the port used by the debug messages,
+	  which is a separate configuration.
+
+endif

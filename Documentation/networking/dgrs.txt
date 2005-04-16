@@ -1,0 +1,52 @@
+    The Digi International RightSwitch SE-X (dgrs) Device Driver
+
+This is a Linux driver for the Digi International RightSwitch SE-X
+EISA and PCI boards.  These are 4 (EISA) or 6 (PCI) port Ethernet
+switches and a NIC combined into a single board.  This driver can
+be compiled into the kernel statically or as a loadable module.
+
+There is also a companion management tool, called "xrightswitch".
+The management tool lets you watch the performance graphically,
+as well as set the SNMP agent IP and IPX addresses, IEEE Spanning
+Tree, and Aging time.  These can also be set from the command line
+when the driver is loaded.  The driver command line options are:
+
+	debug=NNN		Debug printing level
+	dma=0/1			Disable/Enable DMA on PCI card
+	spantree=0/1		Disable/Enable IEEE spanning tree
+	hashexpire=NNN		Change address aging time (default 300 seconds)
+	ipaddr=A,B,C,D		Set SNMP agent IP address i.e. 199,86,8,221
+	iptrap=A,B,C,D		Set SNMP agent IP trap address i.e. 199,86,8,221
+	ipxnet=NNN		Set SNMP agent IPX network number
+	nicmode=0/1		Disable/Enable multiple NIC mode
+
+There is also a tool for setting up input and output packet filters
+on each port, called "dgrsfilt".
+
+Both the management tool and the filtering tool are available
+separately from the following FTP site:
+
+	ftp://ftp.dgii.com/drivers/rightswitch/linux/
+
+When nicmode=1, the board and driver operate as 4 or 6 individual
+NIC ports (eth0...eth5) instead of as a switch.  All switching
+functions are disabled.  In the future, the board firmware may include
+a routing cache when in this mode.
+
+Copyright 1995-1996 Digi International Inc.
+
+This software may be used and distributed according to the terms
+of the GNU General Public License, incorporated herein by reference.
+
+For information on purchasing a RightSwitch SE-4 or SE-6
+board, please contact Digi's sales department at 1-612-912-3444
+or 1-800-DIGIBRD.  Outside the U.S., please check our Web page at:
+
+	http://www.dgii.com
+
+for sales offices worldwide.  Tech support is also available through
+the channels listed on the Web site, although as long as I am
+employed on networking products at Digi I will be happy to provide
+any bug fixes that may be needed.
+
+-Rick Richardson, rick@dgii.com

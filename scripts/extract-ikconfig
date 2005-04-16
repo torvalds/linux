@@ -1,0 +1,77 @@
+#!/bin/sh
+# extracts .config info from a [b]zImage file
+# uses: binoffset (new), dd, zcat, strings, grep
+# $arg1 is [b]zImage filename
+
+binoffset="./scripts/binoffset"
+
+IKCFG_ST="0x49 0x4b 0x43 0x46 0x47 0x5f 0x53 0x54"
+IKCFG_ED="0x49 0x4b 0x43 0x46 0x47 0x5f 0x45 0x44"
+function dump_config {
+    typeset file="$1"
+
+    start=`$binoffset $file $IKCFG_ST 2>/dev/null`
+    [ "$?" != "0" ] && start="-1"
+    if [ "$start" -eq "-1" ]; then
+	return
+    fi
+    end=`$binoffset $file $IKCFG_ED 2>/dev/null`
+
+    let start="$start + 8"
+    let size="$end - $start"
+
+    head --bytes="$end" "$file" | tail --bytes="$size" | zcat
+
+    clean_up
+    exit 0
+}
+
+
+usage()
+{
+	echo "  usage: extract-ikconfig [b]zImage_filename"
+}
+
+clean_up()
+{
+	if [ "$TMPFILE" != "" ]; then
+		rm -f $TMPFILE
+	fi
+}
+
+if [ $# -lt 1 ]
+then
+	usage
+	exit 1
+fi
+
+TMPFILE="/tmp/ikconfig-$$"
+image="$1"
+
+# vmlinux: Attempt to dump the configuration from the file directly
+dump_config "$image"
+
+GZHDR1="0x1f 0x8b 0x08 0x00"
+GZHDR2="0x1f 0x8b 0x08 0x08"
+
+# vmlinux.gz: Check for a compressed images
+off=`$binoffset "$image" $GZHDR1 2>/dev/null`
+[ "$?" != "0" ] && off="-1"
+if [ "$off" -eq "-1" ]; then
+	off=`$binoffset "$image" $GZHDR2 2>/dev/null`
+	[ "$?" != "0" ] && off="-1"
+fi
+if [ "$off" -eq "0" ]; then
+	zcat <"$image" >"$TMPFILE"
+	dump_config "$TMPFILE"
+elif [ "$off" -ne "-1" ]; then
+	(dd ibs="$off" skip=1 count=0 && dd bs=512k) <"$image" 2>/dev/null | \
+		zcat >"$TMPFILE"
+	dump_config "$TMPFILE"
+fi
+
+echo "ERROR: Unable to extract kernel configuration information."
+echo "       This kernel image may not have the config info."
+
+clean_up
+exit 1

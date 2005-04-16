@@ -1,0 +1,38 @@
+MODULE: i2c-stub
+
+DESCRIPTION:
+
+This module is a very simple fake I2C/SMBus driver.  It implements four
+types of SMBus commands: write quick, (r/w) byte, (r/w) byte data, and
+(r/w) word data.
+
+No hardware is needed nor associated with this module.  It will accept write
+quick commands to all addresses; it will respond to the other commands (also
+to all addresses) by reading from or writing to an array in memory.  It will
+also spam the kernel logs for every command it handles.
+
+A pointer register with auto-increment is implemented for all byte
+operations.  This allows for continuous byte reads like those supported by
+EEPROMs, among others.
+
+The typical use-case is like this:
+	1. load this module
+	2. use i2cset (from lm_sensors project) to pre-load some data
+	3. load the target sensors chip driver module
+	4. observe its behavior in the kernel log
+
+CAVEATS:
+
+There are independent arrays for byte/data and word/data commands.  Depending
+on if/how a target driver mixes them, you'll need to be careful.
+
+If your target driver polls some byte or word waiting for it to change, the
+stub could lock it up.  Use i2cset to unlock it.
+
+If the hardware for your driver has banked registers (e.g. Winbond sensors
+chips) this module will not work well - although it could be extended to
+support that pretty easily.
+
+If you spam it hard enough, printk can be lossy.  This module really wants
+something like relayfs.
+

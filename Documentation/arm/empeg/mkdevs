@@ -1,0 +1,11 @@
+#!/bin/sh
+mknod /dev/display c 244 0
+mknod /dev/ir c 242 0
+mknod /dev/usb0 c 243 0
+mknod /dev/audio c 245 4
+mknod /dev/dsp c 245 3
+mknod /dev/mixer c 245 0
+mknod /dev/empeg_state c 246 0
+mknod /dev/radio0 c 81 64
+ln -sf radio0 radio
+ln -sf usb0 usb

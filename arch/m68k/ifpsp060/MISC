@@ -1,0 +1,201 @@
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+MOTOROLA MICROPROCESSOR & MEMORY TECHNOLOGY GROUP
+M68000 Hi-Performance Microprocessor Division
+M68060 Software Package
+Production Release P1.00 -- October 10, 1994
+
+M68060 Software Package Copyright © 1993, 1994 Motorola Inc.  All rights reserved.
+
+THE SOFTWARE is provided on an "AS IS" basis and without warranty.
+To the maximum extent permitted by applicable law,
+MOTOROLA DISCLAIMS ALL WARRANTIES WHETHER EXPRESS OR IMPLIED,
+INCLUDING IMPLIED WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE
+and any warranty against infringement with regard to the SOFTWARE
+(INCLUDING ANY MODIFIED VERSIONS THEREOF) and any accompanying written materials.
+
+To the maximum extent permitted by applicable law,
+IN NO EVENT SHALL MOTOROLA BE LIABLE FOR ANY DAMAGES WHATSOEVER
+(INCLUDING WITHOUT LIMITATION, DAMAGES FOR LOSS OF BUSINESS PROFITS,
+BUSINESS INTERRUPTION, LOSS OF BUSINESS INFORMATION, OR OTHER PECUNIARY LOSS)
+ARISING OF THE USE OR INABILITY TO USE THE SOFTWARE.
+Motorola assumes no responsibility for the maintenance and support of the SOFTWARE.
+
+You are hereby granted a copyright license to use, modify, and distribute the SOFTWARE
+so long as this entire notice is retained without alteration in any modified and/or
+redistributed versions, and that such modified versions are clearly identified as such.
+No licenses are granted by implication, estoppel or otherwise under any patents
+or trademarks of Motorola, Inc.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+RELEASE FILE VERSIONS:
+-----------------------
+
+fpsp.sa
+----------
+freal.s     : 2.4
+hdr.fpu     : 2.4
+x_fovfl.s   : 2.16
+x_funfl.s   : 2.19
+x_funsupp.s : 2.27
+x_effadd.s  : 2.21
+x_foperr.s  : 2.9
+x_fsnan.s   : 2.12
+x_finex.s   : 2.14
+x_fdz.s     : 2.5
+x_fline.s   : 2.5
+x_funimp.s  : 2.27
+fsin.s      : 2.6
+ftan.s      : 2.6
+fatan.s     : 2.3
+fasin.s     : 2.3
+facos.s     : 2.5
+fetox.s     : 2.4
+fgetem.s    : 2.5
+fcosh.s     : 2.4
+fsinh.s     : 2.5
+ftanh.s     : 2.3
+flogn.s     : 2.6
+fatanh.s    : 2.4
+flog2.s     : 2.4
+ftwotox.s   : 2.4
+fmovecr.s   : 2.5
+fscale.s    : 2.5
+frem_mod.s  : 2.6
+fkern.s     : 2.6
+fkern2.s    : 2.5
+fgen_except.s: 2.7
+foptbl.s    : 2.3
+fmul.s      : 2.5
+fin.s       : 2.4
+fdiv.s      : 2.5
+fneg.s      : 2.4
+ftst.s      : 2.3
+fint.s      : 2.3
+fintrz.s    : 2.3
+fabs.s      : 2.4
+fcmp.s      : 2.4
+fsglmul.s   : 2.5
+fsgldiv.s   : 2.8
+fadd.s      : 2.6
+fsub.s      : 2.6
+fsqrt.s     : 2.4
+fmisc.s     : 2.3
+fdbcc.s     : 2.8
+ftrapcc.s   : 2.5
+fscc.s      : 2.6
+fmovm.s     : 2.15
+fctrl.s     : 2.6
+fcalc_ea.s  : 2.7
+fmem.s      : 2.9
+fout.s      : 2.9
+ireg.s      : 2.6
+fdenorm.s   : 2.3
+fround.s    : 2.4
+fnorm.s     : 2.3
+foptag_set.s: 2.4
+fresult.s   : 2.3
+fpack.s     : 2.6
+fdecbin.s   : 2.4
+fbindec.s   : 2.5
+fbinstr.s   : 2.3
+faccess.s   : 2.3
+
+pfpsp.sa
+----------
+freal.s     : 2.4
+hdr.fpu     : 2.4
+x_fovfl.s   : 2.16
+x_funfl.s   : 2.19
+x_funsupp.s : 2.27
+x_effadd.s  : 2.21
+x_foperr.s  : 2.9
+x_fsnan.s   : 2.12
+x_finex.s   : 2.14
+x_fdz.s     : 2.5
+x_fline2.s  : 2.3
+fcalc_ea.s  : 2.7
+foptbl2.s   : 2.4
+fmovm.s     : 2.15
+fctrl.s     : 2.6
+fmisc.s     : 2.3
+fdenorm.s   : 2.3
+fround.s    : 2.4
+fnorm.s     : 2.3
+foptag_set.s: 2.4
+fresult.s   : 2.3
+fout.s      : 2.9
+fmul.s      : 2.5
+fin.s       : 2.4
+fdiv.s      : 2.5
+fneg.s      : 2.4
+ftst.s      : 2.3
+fint.s      : 2.3
+fintrz.s    : 2.3
+fabs.s      : 2.4
+fcmp.s      : 2.4
+fsglmul.s   : 2.5
+fsgldiv.s   : 2.8
+fadd.s      : 2.6
+fsub.s      : 2.6
+fsqrt.s     : 2.4
+ireg.s      : 2.6
+fpack.s     : 2.6
+fdecbin.s   : 2.4
+fbindec.s   : 2.5
+fbinstr.s   : 2.3
+faccess.s   : 2.3
+
+fplsp.sa
+----------
+lfptop.s    : 2.3
+hdr.fpu     : 2.4
+fsin.s      : 2.6
+ftan.s      : 2.6
+fatan.s     : 2.3
+fasin.s     : 2.3
+facos.s     : 2.5
+fetox.s     : 2.4
+fgetem.s    : 2.5
+fcosh.s     : 2.4
+fsinh.s     : 2.5
+ftanh.s     : 2.3
+flogn.s     : 2.6
+fatanh.s    : 2.4
+flog2.s     : 2.4
+ftwotox.s   : 2.4
+fscale.s    : 2.5
+frem_mod.s  : 2.6
+l_support.s : 2.15
+fnorm.s     : 2.3
+
+isp.sa
+----------
+ireal.s     : 2.4
+hdr.int     : 2.4
+x_uieh.s    : 2.13
+icalc_ea.s  : 2.11
+imovep.s    : 2.8
+ichk2cmp2.s : 2.6
+idiv64.s    : 2.10
+imul64.s    :
+icas2.s     : 2.11
+icas.s      : 2.12
+icas2_core.s: 2.6
+icas_core.s : 2.6
+
+ilsp.sa
+----------
+litop.s     : 2.2
+l_idiv64.s  : 2.8
+l_imul64.s  : 2.6
+l_ichk2cmp2.s: 2.5
+
+ex. files
+----------
+wrk/fskeleton.s: 2.2
+wrk/iskeleton.s: 2.2
+wrk/os.s    : 2.1
+
+tests
+----------
+itest.s     : 2.2
+ftest.s     : 2.1

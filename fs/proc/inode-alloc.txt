@@ -1,0 +1,14 @@
+Current inode allocations in the proc-fs (hex-numbers):
+
+  00000000		reserved
+  00000001-00000fff	static entries	(goners)
+       001		root-ino
+
+  00001000-00001fff	unused
+  0001xxxx-7fffxxxx	pid-dir entries for pid 1-7fff
+  80000000-efffffff	unused
+  f0000000-ffffffff	dynamic entries
+
+Goal:
+	a) once we'll split the thing into several virtual filesystems we
+	will get rid of magical ranges (and this file, BTW).

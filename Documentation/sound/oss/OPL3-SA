@@ -1,0 +1,52 @@
+OPL3-SA1 sound driver (opl3sa.o)
+
+---
+Note: This howto only describes how to setup the OPL3-SA1 chip; this info
+does not apply to the SA2, SA3, or SA4. 
+---
+
+The Yamaha OPL3-SA1 sound chip is usually found built into motherboards, and
+it's a decent little chip offering a WSS mode, a SB Pro emulation mode, MPU401
+and OPL3 FM Synth capabilities.
+
+You can enable inclusion of the driver via CONFIG_SOUND_OPL3SA1=m, or
+CONFIG_SOUND_OPL3SA1=y through 'make config/xconfig/menuconfig'.
+
+You'll need to know all of the relevant info (irq, dma, and io port) for the
+chip's WSS mode, since that is the mode the kernel sound driver uses, and of
+course you'll also need to know about where the MPU401 and OPL3 ports and
+IRQs are if you want to use those.
+
+Here's the skinny on how to load it as a module:
+
+	modprobe opl3sa io=0x530 irq=11 dma=0 dma2=1 mpu_io=0x330 mpu_irq=5
+
+Module options in detail:
+
+	io:	This is the WSS's port base.
+	irq:	This is the WSS's IRQ.
+	dma:	This is the WSS's DMA line. In my BIOS setup screen this was
+		listed as "WSS Play DMA"
+	dma2:	This is the WSS's secondary DMA line. My BIOS calls it the
+		"WSS capture DMA"
+	
+	mpu_io:	This is the MPU401's port base.
+	mpu_irq: This is the MPU401's IRQ.
+
+If you'd like to use the OPL3 FM Synthesizer, make sure you enable
+CONFIG_SOUND_YM3812 (in 'make config'). That'll build the opl3.o module.
+
+Then a simple 'insmod opl3 io=0x388', and you now have FM Synth.
+
+You can also use the SoftOSS software synthesizer instead of the builtin OPL3.
+Here's how:
+
+Say 'y' or 'm' to "SoftOSS software wave table engine" in make config.
+
+If you said yes, the software synth is available once you boot your new
+kernel.
+
+If you chose to build it as a module, just insmod the resulting softoss2.o
+
+Questions? Comments?
+<stiker@northlink.com>

@@ -1,0 +1,183 @@
+menu "Processor type and features"
+
+choice
+	prompt "H8/300 platform"
+	default H8300H_GENERIC
+
+config H8300H_GENERIC
+	bool "H8/300H Generic"
+	help
+	  H8/300H CPU Generic Hardware Support
+
+config H8300H_AKI3068NET
+	bool "AE-3068/69"
+	help
+	  AKI-H8/3068F / AKI-H8/3069F Flashmicom LAN Board Support
+	  More Information. (Japanese Only)
+	  <http://akizukidensi.com/catalog/h8.html>
+	  AE-3068/69 Evaluation Board Support
+	  More Information.
+	  <http://www.microtronique.com/ae3069lan.htm>
+
+config H8300H_H8MAX
+	bool "H8MAX"
+	help
+	  H8MAX Evaluation Board Support
+	  More Information. (Japanese Only)
+	  <http://strawberry-linux.com/h8/index.html>
+
+config H8300H_SIM
+	bool "H8/300H Simulator"
+	help
+	  GDB Simulator Support
+	  More Information.
+	  arch/h8300/Doc/simulator.txt
+
+config H8S_GENERIC
+	bool "H8S Generic"
+	help
+	  H8S CPU Generic Hardware Support
+
+config H8S_EDOSK2674
+	bool "EDOSK-2674"
+	help
+	  Renesas EDOSK-2674 Evaluation Board Support
+	  More Information.
+	  <http://www.azpower.com/H8-uClinux/index.html>
+ 	  <http://www.eu.renesas.com/tools/edk/support/edosk2674.html>
+
+config H8S_SIM
+	bool "H8S Simulator"
+	help
+	  GDB Simulator Support
+	  More Information.
+	  arch/h8300/Doc/simulator.txt
+
+endchoice
+
+if (H8300H_GENERIC || H8S_GENERIC)
+menu "Detail Selection"
+if (H8300H_GENERIC)
+choice
+	prompt "CPU Selection"
+
+config H83002
+	bool "H8/3001,3002,3003"
+
+config H83007
+	bool "H8/3006,3007"
+
+config H83048
+	bool "H8/3044,3045,3046,3047,3048,3052"
+
+config H83068
+	bool "H8/3065,3066,3067,3068,3069"
+endchoice
+endif
+
+if (H8S_GENERIC)
+choice
+	prompt "CPU Selection"
+
+config H8S2678
+	bool "H8S/2670,2673,2674R,2675,2676"
+endchoice
+endif
+
+config CPU_CLOCK
+	int "CPU Clock Frequency (/1KHz)"
+	default "20000"
+	help
+	  CPU Clock Frequency divide to 1000
+endmenu
+endif
+
+if (H8300H_GENERIC || H8S_GENERIC || H8300H_SIM || H8S_SIM || H8S_EDOSK2674)
+choice
+	prompt "Kernel executes from"
+	---help---
+	  Choose the memory type that the kernel will be running in.
+
+config RAMKERNEL
+	bool "RAM"
+	help
+	  The kernel will be resident in RAM when running.
+
+config ROMKERNEL
+	bool "ROM"
+	help
+	  The kernel will be resident in FLASH/ROM when running.
+
+endchoice
+endif
+
+if (H8300H_AKI3068NET)
+config H83068
+	bool
+	default y
+
+config CPU_CLOCK
+	int
+	default "20000"
+
+config RAMKERNEL
+	bool
+	default y
+endif
+
+if (H8300H_H8MAX)
+config H83068
+	bool
+	default y
+
+config CPU_CLOCK
+	int
+	default 25000
+
+config RAMKERNEL
+	bool
+	default y
+endif
+
+if (H8300H_SIM)
+config H83007
+	bool
+	default y
+
+config CPU_CLOCK
+	int
+	default "16000"
+endif
+
+if (H8S_EDOSK2674)
+config H8S2678
+	bool
+	default y
+config CPU_CLOCK
+	int
+	default 33000
+endif
+
+if (H8S_SIM)
+config H8S2678
+	bool
+	default y
+config CPU_CLOCK
+	int
+	default 33000
+endif
+
+config CPU_H8300H
+	bool
+	depends on (H8002 || H83007 || H83048 || H83068)
+	default y
+
+config CPU_H8S
+	bool
+	depends on H8S2678
+	default y
+
+config PREEMPT
+	bool "Preemptible Kernel"
+	default n
+endmenu

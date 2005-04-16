@@ -1,0 +1,88 @@
+Accessing PCI device resources through sysfs
+
+sysfs, usually mounted at /sys, provides access to PCI resources on platforms
+that support it.  For example, a given bus might look like this:
+
+     /sys/devices/pci0000:17
+     |-- 0000:17:00.0
+     |   |-- class
+     |   |-- config
+     |   |-- detach_state
+     |   |-- device
+     |   |-- irq
+     |   |-- local_cpus
+     |   |-- resource
+     |   |-- resource0
+     |   |-- resource1
+     |   |-- resource2
+     |   |-- rom
+     |   |-- subsystem_device
+     |   |-- subsystem_vendor
+     |   `-- vendor
+     `-- detach_state
+
+The topmost element describes the PCI domain and bus number.  In this case,
+the domain number is 0000 and the bus number is 17 (both values are in hex).
+This bus contains a single function device in slot 0.  The domain and bus
+numbers are reproduced for convenience.  Under the device directory are several
+files, each with their own function.
+
+       file		   function
+       ----		   --------
+       class		   PCI class (ascii, ro)
+       config		   PCI config space (binary, rw)
+       detach_state	   connection status (bool, rw)
+       device		   PCI device (ascii, ro)
+       irq		   IRQ number (ascii, ro)
+       local_cpus	   nearby CPU mask (cpumask, ro)
+       resource		   PCI resource host addresses (ascii, ro)
+       resource0..N	   PCI resource N, if present (binary, mmap)
+       rom		   PCI ROM resource, if present (binary, ro)
+       subsystem_device	   PCI subsystem device (ascii, ro)
+       subsystem_vendor	   PCI subsystem vendor (ascii, ro)
+       vendor		   PCI vendor (ascii, ro)
+
+  ro - read only file
+  rw - file is readable and writable
+  mmap - file is mmapable
+  ascii - file contains ascii text
+  binary - file contains binary data
+  cpumask - file contains a cpumask type
+
+The read only files are informational, writes to them will be ignored.
+Writable files can be used to perform actions on the device (e.g. changing
+config space, detaching a device).  mmapable files are available via an
+mmap of the file at offset 0 and can be used to do actual device programming
+from userspace.  Note that some platforms don't support mmapping of certain
+resources, so be sure to check the return value from any attempted mmap.
+
+Accessing legacy resources through sysfs
+
+Legacy I/O port and ISA memory resources are also provided in sysfs if the
+underlying platform supports them.  They're located in the PCI class heirarchy,
+e.g.
+
+	/sys/class/pci_bus/0000:17/
+	|-- bridge -> ../../../devices/pci0000:17
+	|-- cpuaffinity
+	|-- legacy_io
+	`-- legacy_mem
+
+The legacy_io file is a read/write file that can be used by applications to
+do legacy port I/O.  The application should open the file, seek to the desired
+port (e.g. 0x3e8) and do a read or a write of 1, 2 or 4 bytes.  The legacy_mem
+file should be mmapped with an offset corresponding to the memory offset
+desired, e.g. 0xa0000 for the VGA frame buffer.  The application can then
+simply dereference the returned pointer (after checking for errors of course)
+to access legacy memory space.
+
+Supporting PCI access on new platforms
+
+In order to support PCI resource mapping as described above, Linux platform
+code must define HAVE_PCI_MMAP and provide a pci_mmap_page_range function.
+Platforms are free to only support subsets of the mmap functionality, but
+useful return codes should be provided.
+
+Legacy resources are protected by the HAVE_PCI_LEGACY define.  Platforms
+wishing to support legacy functionality should define it and provide
+pci_legacy_read, pci_legacy_write and pci_mmap_legacy_page_range functions.

@@ -1,0 +1,85 @@
+config DVB_CINERGYT2
+	tristate "Terratec CinergyT2/qanu USB2 DVB-T receiver"
+	depends on DVB_CORE && USB
+	help
+	  Support for "TerraTec CinergyT2" USB2.0 Highspeed DVB Receivers
+
+	  Say Y if you own such a device and want to use it.
+
+
+config DVB_CINERGYT2_TUNING
+	bool "sophisticated fine-tuning for CinergyT2 cards"
+	depends on DVB_CINERGYT2
+	help
+	  Here you can fine-tune some parameters of the CinergyT2 driver.
+
+	  Normally you don't need to touch this, but in exotic setups you
+	  may fine-tune your setup and adjust e.g. DMA buffer sizes for
+	  a particular application.
+
+
+config DVB_CINERGYT2_STREAM_URB_COUNT
+	int "Number of queued USB Request Blocks for Highspeed Stream Transfers"
+	depends on DVB_CINERGYT2_TUNING
+        default "32"
+	help
+	  USB Request Blocks for Highspeed Stream transfers are scheduled in
+	  a queue for the Host Controller.
+
+	  Usually the default value is a safe choice.
+
+	  You may increase this number if you are using this device in a 
+	  Server Environment with many high-traffic USB Highspeed devices 
+	  sharing the same USB bus.
+
+
+config DVB_CINERGYT2_STREAM_BUF_SIZE
+	int "Size of URB Stream Buffers for Highspeed Transfers"
+	depends on DVB_CINERGYT2_TUNING
+        default "512"
+	help
+	  Should be a multiple of native buffer size of 512 bytes.
+	  Default value is a safe choice.
+
+	  You may increase this number if you are using this device in a 
+	  Server Environment with many high-traffic USB Highspeed devices 
+	  sharing the same USB bus.
+
+
+config DVB_CINERGYT2_QUERY_INTERVAL
+	int "Status update interval [milliseconds]"
+	depends on DVB_CINERGYT2_TUNING
+        default "250"
+	help
+	  This is the interval for status readouts from the demodulator.
+	  You may try lower values if you need more responsive signal quality
+	  measurements.
+
+	  Please keep in mind that these updates cause traffic on the tuner
+	  control bus and thus may or may not affect receiption sensitivity.
+
+	  The default value should be a safe choice for common applications.
+
+
+config DVB_CINERGYT2_ENABLE_RC_INPUT_DEVICE
+	bool "Register the onboard IR Remote Control Receiver as Input Device"
+	depends on DVB_CINERGYT2_TUNING
+        default "yes"
+	help
+	  Enable this option if you want to use the onboard Infrared Remote 
+	  Control Receiver as Linux-Input device.
+
+	  Right now only the keycode table for the default Remote Control
+	  delivered with the device is supported, please see the driver
+	  source code to find out how to add support for other controls.
+
+
+config DVB_CINERGYT2_RC_QUERY_INTERVAL
+	int "Infrared Remote Controller update interval [milliseconds]"
+	depends on DVB_CINERGYT2_TUNING && DVB_CINERGYT2_ENABLE_RC_INPUT_DEVICE
+        default "100"
+	help
+	  If you have a very fast-repeating remote control you can try lower
+	  values, for normal consumer receivers the default value should be
+	  a safe choice.
+

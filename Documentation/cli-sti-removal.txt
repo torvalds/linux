@@ -1,0 +1,133 @@
+
+#### cli()/sti() removal guide, started by Ingo Molnar <mingo@redhat.com>
+
+
+as of 2.5.28, five popular macros have been removed on SMP, and
+are being phased out on UP:
+
+ cli(), sti(), save_flags(flags), save_flags_cli(flags), restore_flags(flags)
+
+until now it was possible to protect driver code against interrupt
+handlers via a cli(), but from now on other, more lightweight methods
+have to be used for synchronization, such as spinlocks or semaphores.
+
+for example, driver code that used to do something like:
+
+	struct driver_data;
+
+	irq_handler (...)
+	{
+		....
+		driver_data.finish = 1;
+		driver_data.new_work = 0;
+		....
+	}
+
+	...
+
+	ioctl_func (...)
+	{
+		...
+		cli();
+		...
+		driver_data.finish = 0;
+		driver_data.new_work = 2;
+		...
+		sti();
+		...
+	}
+
+was SMP-correct because the cli() function ensured that no
+interrupt handler (amongst them the above irq_handler()) function
+would execute while the cli()-ed section is executing.
+
+but from now on a more direct method of locking has to be used:
+
+	spinlock_t driver_lock = SPIN_LOCK_UNLOCKED;
+	struct driver_data;
+
+	irq_handler (...)
+	{
+		unsigned long flags;
+		....
+		spin_lock_irqsave(&driver_lock, flags);
+		....
+		driver_data.finish = 1;
+		driver_data.new_work = 0;
+		....
+		spin_unlock_irqrestore(&driver_lock, flags);
+		....
+	}
+
+	...
+
+	ioctl_func (...)
+	{
+		...
+		spin_lock_irq(&driver_lock);
+		...
+		driver_data.finish = 0;
+		driver_data.new_work = 2;
+		...
+		spin_unlock_irq(&driver_lock);
+		...
+	}
+
+the above code has a number of advantages:
+
+- the locking relation is easier to understand - actual lock usage
+  pinpoints the critical sections. cli() usage is too opaque.
+  Easier to understand means it's easier to debug.
+
+- it's faster, because spinlocks are faster to acquire than the
+  potentially heavily-used IRQ lock. Furthermore, your driver does
+  not have to wait eg. for a big heavy SCSI interrupt to finish,
+  because the driver_lock spinlock is only used by your driver.
+  cli() on the other hand was used by many drivers, and extended
+  the critical section to the whole IRQ handler function - creating
+  serious lock contention.
+
+ 
+to make the transition easier, we've still kept the cli(), sti(),
+save_flags(), save_flags_cli() and restore_flags() macros defined
+on UP systems - but their usage will be phased out until 2.6 is
+released.
+
+drivers that want to disable local interrupts (interrupts on the
+current CPU), can use the following five macros:
+
+  local_irq_disable(), local_irq_enable(), local_save_flags(flags),
+  local_irq_save(flags), local_irq_restore(flags)
+
+but beware, their meaning and semantics are much simpler, far from
+that of the old cli(), sti(), save_flags(flags) and restore_flags(flags)
+SMP meaning:
+
+    local_irq_disable()       => turn local IRQs off
+
+    local_irq_enable()        => turn local IRQs on
+
+    local_save_flags(flags)   => save the current IRQ state into flags. The
+                                 state can be on or off. (on some
+                                 architectures there's even more bits in it.)
+
+    local_irq_save(flags)     => save the current IRQ state into flags and
+                                 disable interrupts.
+
+    local_irq_restore(flags)  => restore the IRQ state from flags.
+
+(local_irq_save can save both irqs on and irqs off state, and
+local_irq_restore can restore into both irqs on and irqs off state.)
+
+another related change is that synchronize_irq() now takes a parameter:
+synchronize_irq(irq). This change too has the purpose of making SMP
+synchronization more lightweight - this way you can wait for your own
+interrupt handler to finish, no need to wait for other IRQ sources.
+
+
+why were these changes done? The main reason was the architectural burden
+of maintaining the cli()/sti() interface - it became a real problem. The
+new interrupt system is much more streamlined, easier to understand, debug,
+and it's also a bit faster - the same happened to it that will happen to
+cli()/sti() using drivers once they convert to spinlocks :-)
+

@@ -1,0 +1,59 @@
+#
+# PCI configuration
+#
+config PCI_MSI
+	bool "Message Signaled Interrupts (MSI and MSI-X)"
+	depends on PCI
+	depends on (X86_LOCAL_APIC && X86_IO_APIC) || IA64
+	help
+	   This allows device drivers to enable MSI (Message Signaled
+	   Interrupts).  Message Signaled Interrupts enable a device to
+	   generate an interrupt using an inbound Memory Write on its
+	   PCI bus instead of asserting a device IRQ pin.
+
+	   If you don't know what to do here, say N.
+
+config PCI_LEGACY_PROC
+	bool "Legacy /proc/pci interface"
+	depends on PCI
+	---help---
+	  This feature enables a procfs file -- /proc/pci -- that provides a 
+	  summary of PCI devices in the system. 
+
+	  This feature has been deprecated as of v2.5.53, in favor of using the 
+	  tool lspci(8). This feature may be removed at a future date. 
+
+	  lspci can provide the same data, as well as much more. lspci is a part of
+	  the pci-utils package, which should be installed by your distribution. 
+	  See <file:Documentation/Changes> for information on where to get the latest
+	  version. 
+
+	  When in doubt, say N.
+
+config PCI_NAMES
+	bool "PCI device name database"
+	depends on PCI
+	---help---
+	  By default, the kernel contains a database of all known PCI device
+	  names to make the information in /proc/pci, /proc/ioports and
+	  similar files comprehensible to the user. 
+
+	  This database increases size of the kernel image by about 80KB. This 
+	  memory is freed after the system boots up if CONFIG_HOTPLUG is not set.
+
+	  Anyway, if you are building an installation floppy or kernel for an 
+	  embedded system where kernel image size really matters, you can disable 
+	  this feature and you'll get device ID numbers instead of names.
+
+	  When in doubt, say Y.
+
+config PCI_DEBUG
+	bool "PCI Debugging"
+	depends on PCI && DEBUG_KERNEL
+	help
+	  Say Y here if you want the PCI core to produce a bunch of debug
+	  messages to the system log.  Select this if you are having a
+	  problem with PCI support and want to see more of what is going on.
+
+	  When in doubt, say N.
+

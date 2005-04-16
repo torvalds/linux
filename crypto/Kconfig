@@ -1,0 +1,292 @@
+#
+# Cryptographic API Configuration
+#
+
+menu "Cryptographic options"
+
+config CRYPTO
+	bool "Cryptographic API"
+	help
+	  This option provides the core Cryptographic API.
+
+config CRYPTO_HMAC
+	bool "HMAC support"
+	depends on CRYPTO
+	help
+	  HMAC: Keyed-Hashing for Message Authentication (RFC2104).
+	  This is required for IPSec.
+
+config CRYPTO_NULL
+	tristate "Null algorithms"
+	depends on CRYPTO
+	help
+	  These are 'Null' algorithms, used by IPsec, which do nothing.
+
+config CRYPTO_MD4
+	tristate "MD4 digest algorithm"
+	depends on CRYPTO
+	help
+	  MD4 message digest algorithm (RFC1320).
+
+config CRYPTO_MD5
+	tristate "MD5 digest algorithm"
+	depends on CRYPTO
+	help
+	  MD5 message digest algorithm (RFC1321).
+
+config CRYPTO_SHA1
+	tristate "SHA1 digest algorithm"
+	depends on CRYPTO
+	help
+	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2).
+
+config CRYPTO_SHA1_Z990
+	tristate "SHA1 digest algorithm for IBM zSeries z990"
+	depends on CRYPTO && ARCH_S390
+	help
+	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2).
+
+config CRYPTO_SHA256
+	tristate "SHA256 digest algorithm"
+	depends on CRYPTO
+	help
+	  SHA256 secure hash standard (DFIPS 180-2).
+	  
+	  This version of SHA implements a 256 bit hash with 128 bits of
+	  security against collision attacks.
+
+config CRYPTO_SHA512
+	tristate "SHA384 and SHA512 digest algorithms"
+	depends on CRYPTO
+	help
+	  SHA512 secure hash standard (DFIPS 180-2).
+	  
+	  This version of SHA implements a 512 bit hash with 256 bits of
+	  security against collision attacks.
+
+	  This code also includes SHA-384, a 384 bit hash with 192 bits
+	  of security against collision attacks.
+
+config CRYPTO_WP512
+	tristate "Whirlpool digest algorithms"
+	depends on CRYPTO
+	help
+	  Whirlpool hash algorithm 512, 384 and 256-bit hashes
+
+	  Whirlpool-512 is part of the NESSIE cryptographic primitives.
+	  Whirlpool will be part of the ISO/IEC 10118-3:2003(E) standard
+
+	  See also:
+	  <http://planeta.terra.com.br/informatica/paulobarreto/WhirlpoolPage.html>
+
+config CRYPTO_TGR192
+	tristate "Tiger digest algorithms"
+	depends on CRYPTO
+	help
+	  Tiger hash algorithm 192, 160 and 128-bit hashes
+
+	  Tiger is a hash function optimized for 64-bit processors while
+	  still having decent performance on 32-bit processors.
+	  Tiger was developed by Ross Anderson and Eli Biham.
+
+	  See also:
+	  <http://www.cs.technion.ac.il/~biham/Reports/Tiger/>.
+
+config CRYPTO_DES
+	tristate "DES and Triple DES EDE cipher algorithms"
+	depends on CRYPTO
+	help
+	  DES cipher algorithm (FIPS 46-2), and Triple DES EDE (FIPS 46-3).
+
+config CRYPTO_DES_Z990
+	tristate "DES and Triple DES cipher algorithms for IBM zSeries z990"
+	depends on CRYPTO && ARCH_S390
+	help
+	  DES cipher algorithm (FIPS 46-2), and Triple DES EDE (FIPS 46-3).
+
+config CRYPTO_BLOWFISH
+	tristate "Blowfish cipher algorithm"
+	depends on CRYPTO
+	help
+	  Blowfish cipher algorithm, by Bruce Schneier.
+	  
+	  This is a variable key length cipher which can use keys from 32
+	  bits to 448 bits in length.  It's fast, simple and specifically
+	  designed for use on "large microprocessors".
+	  
+	  See also:
+	  <http://www.schneier.com/blowfish.html>
+
+config CRYPTO_TWOFISH
+	tristate "Twofish cipher algorithm"
+	depends on CRYPTO
+	help
+	  Twofish cipher algorithm.
+	  
+	  Twofish was submitted as an AES (Advanced Encryption Standard)
+	  candidate cipher by researchers at CounterPane Systems.  It is a
+	  16 round block cipher supporting key sizes of 128, 192, and 256
+	  bits.
+	  
+	  See also:
+	  <http://www.schneier.com/twofish.html>
+
+config CRYPTO_SERPENT
+	tristate "Serpent cipher algorithm"
+	depends on CRYPTO
+	help
+	  Serpent cipher algorithm, by Anderson, Biham & Knudsen.
+
+	  Keys are allowed to be from 0 to 256 bits in length, in steps
+	  of 8 bits.  Also includes the 'Tnepres' algorithm, a reversed
+	  variant of Serpent for compatibility with old kerneli code.
+
+	  See also:
+	  <http://www.cl.cam.ac.uk/~rja14/serpent.html>
+
+config CRYPTO_AES
+	tristate "AES cipher algorithms"
+	depends on CRYPTO && !(X86 && !X86_64)
+	help
+	  AES cipher algorithms (FIPS-197). AES uses the Rijndael 
+	  algorithm.
+
+	  Rijndael appears to be consistently a very good performer in
+	  both hardware and software across a wide range of computing 
+	  environments regardless of its use in feedback or non-feedback 
+	  modes. Its key setup time is excellent, and its key agility is 
+	  good. Rijndael's very low memory requirements make it very well 
+	  suited for restricted-space environments, in which it also 
+	  demonstrates excellent performance. Rijndael's operations are 
+	  among the easiest to defend against power and timing attacks.	
+
+	  The AES specifies three key sizes: 128, 192 and 256 bits	  
+
+	  See <http://csrc.nist.gov/CryptoToolkit/aes/> for more information.
+
+config CRYPTO_AES_586
+	tristate "AES cipher algorithms (i586)"
+	depends on CRYPTO && (X86 && !X86_64)
+	help
+	  AES cipher algorithms (FIPS-197). AES uses the Rijndael 
+	  algorithm.
+
+	  Rijndael appears to be consistently a very good performer in
+	  both hardware and software across a wide range of computing 
+	  environments regardless of its use in feedback or non-feedback 
+	  modes. Its key setup time is excellent, and its key agility is 
+	  good. Rijndael's very low memory requirements make it very well 
+	  suited for restricted-space environments, in which it also 
+	  demonstrates excellent performance. Rijndael's operations are 
+	  among the easiest to defend against power and timing attacks.	
+
+	  The AES specifies three key sizes: 128, 192 and 256 bits	  
+
+	  See <http://csrc.nist.gov/encryption/aes/> for more information.
+
+config CRYPTO_CAST5
+	tristate "CAST5 (CAST-128) cipher algorithm"
+	depends on CRYPTO
+	help
+	  The CAST5 encryption algorithm (synonymous with CAST-128) is
+	  described in RFC2144.
+
+config CRYPTO_CAST6
+	tristate "CAST6 (CAST-256) cipher algorithm"
+	depends on CRYPTO
+	help
+	  The CAST6 encryption algorithm (synonymous with CAST-256) is
+	  described in RFC2612.
+
+config CRYPTO_TEA
+	tristate "TEA and XTEA cipher algorithms"
+	depends on CRYPTO
+	help
+	  TEA cipher algorithm.
+
+	  Tiny Encryption Algorithm is a simple cipher that uses
+	  many rounds for security.  It is very fast and uses
+	  little memory.
+
+	  Xtendend Tiny Encryption Algorithm is a modification to
+	  the TEA algorithm to address a potential key weakness
+	  in the TEA algorithm.
+
+config CRYPTO_ARC4
+	tristate "ARC4 cipher algorithm"
+	depends on CRYPTO
+	help
+	  ARC4 cipher algorithm.
+
+	  ARC4 is a stream cipher using keys ranging from 8 bits to 2048
+	  bits in length.  This algorithm is required for driver-based 
+	  WEP, but it should not be for other purposes because of the
+	  weakness of the algorithm.
+
+config CRYPTO_KHAZAD
+	tristate "Khazad cipher algorithm"
+	depends on CRYPTO
+	help
+	  Khazad cipher algorithm.
+
+	  Khazad was a finalist in the initial NESSIE competition.  It is
+	  an algorithm optimized for 64-bit processors with good performance
+	  on 32-bit processors.  Khazad uses an 128 bit key size.
+
+	  See also:
+	  <http://planeta.terra.com.br/informatica/paulobarreto/KhazadPage.html>
+
+config CRYPTO_ANUBIS
+	tristate "Anubis cipher algorithm"
+	depends on CRYPTO
+	help
+	  Anubis cipher algorithm.
+
+	  Anubis is a variable key length cipher which can use keys from 
+	  128 bits to 320 bits in length.  It was evaluated as a entrant
+	  in the NESSIE competition.
+	  
+	  See also:
+	  <https://www.cosic.esat.kuleuven.ac.be/nessie/reports/>
+	  <http://planeta.terra.com.br/informatica/paulobarreto/AnubisPage.html>
+
+
+config CRYPTO_DEFLATE
+	tristate "Deflate compression algorithm"
+	depends on CRYPTO
+	select ZLIB_INFLATE
+	select ZLIB_DEFLATE
+	help
+	  This is the Deflate algorithm (RFC1951), specified for use in
+	  IPSec with the IPCOMP protocol (RFC3173, RFC2394).
+	  
+	  You will most probably want this if using IPSec.
+
+config CRYPTO_MICHAEL_MIC
+	tristate "Michael MIC keyed digest algorithm"
+	depends on CRYPTO
+	help
+	  Michael MIC is used for message integrity protection in TKIP
+	  (IEEE 802.11i). This algorithm is required for TKIP, but it
+	  should not be used for other purposes because of the weakness
+	  of the algorithm.
+
+config CRYPTO_CRC32C
+	tristate "CRC32c CRC algorithm"
+	depends on CRYPTO
+	select LIBCRC32C
+	help
+	  Castagnoli, et al Cyclic Redundancy-Check Algorithm.  Used
+	  by iSCSI for header and data digests and by others.
+	  See Castagnoli93.  This implementation uses lib/libcrc32c.
+          Module will be crc32c.
+
+config CRYPTO_TEST
+	tristate "Testing module"
+	depends on CRYPTO
+	help
+	  Quick & dirty crypto test module.
+
+source "drivers/crypto/Kconfig"
+endmenu
+

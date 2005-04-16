@@ -1,0 +1,126 @@
+#
+# USB Host Controller Drivers
+#
+comment "USB Host Controller Drivers"
+	depends on USB
+
+config USB_EHCI_HCD
+	tristate "EHCI HCD (USB 2.0) support"
+	depends on USB && PCI
+	---help---
+	  The Enhanced Host Controller Interface (EHCI) is standard for USB 2.0
+	  "high speed" (480 Mbit/sec, 60 Mbyte/sec) host controller hardware.
+	  If your USB host controller supports USB 2.0, you will likely want to
+	  configure this Host Controller Driver.  At this writing, the primary
+	  implementation of EHCI is a chip from NEC, widely available in add-on
+	  PCI cards, but implementations are in the works from other vendors
+	  including Intel and Philips.  Motherboard support is appearing.
+
+	  EHCI controllers are packaged with "companion" host controllers (OHCI
+	  or UHCI) to handle USB 1.1 devices connected to root hub ports.  Ports
+	  will connect to EHCI if it the device is high speed, otherwise they
+	  connect to a companion controller.  If you configure EHCI, you should
+	  probably configure the OHCI (for NEC and some other vendors) USB Host
+	  Controller Driver or UHCI (for Via motherboards) Host Controller
+	  Driver too.
+
+	  You may want to read <file:Documentation/usb/ehci.txt>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ehci-hcd.
+
+config USB_EHCI_SPLIT_ISO
+	bool "Full speed ISO transactions (EXPERIMENTAL)"
+	depends on USB_EHCI_HCD && EXPERIMENTAL
+	default n
+	---help---
+	  This code is new and hasn't been used with many different
+	  EHCI or USB 2.0 transaction translator implementations.
+	  It should work for ISO-OUT transfers, like audio.
+
+config USB_EHCI_ROOT_HUB_TT
+	bool "Root Hub Transaction Translators (EXPERIMENTAL)"
+	depends on USB_EHCI_HCD && EXPERIMENTAL
+	---help---
+	  Some EHCI chips have vendor-specific extensions to integrate
+	  transaction translators, so that no OHCI or UHCI companion
+	  controller is needed.  It's safe to say "y" even if your
+	  controller doesn't support this feature.
+
+	  This supports the EHCI implementation from TransDimension Inc.
+
+config USB_OHCI_HCD
+	tristate "OHCI HCD support"
+	depends on USB && USB_ARCH_HAS_OHCI
+	select ISP1301_OMAP if MACH_OMAP_H2 || MACH_OMAP_H3
+	---help---
+	  The Open Host Controller Interface (OHCI) is a standard for accessing
+	  USB 1.1 host controller hardware.  It does more in hardware than Intel's
+	  UHCI specification.  If your USB host controller follows the OHCI spec,
+	  say Y.  On most non-x86 systems, and on x86 hardware that's not using a
+	  USB controller from Intel or VIA, this is appropriate.  If your host
+	  controller doesn't use PCI, this is probably appropriate.  For a PCI
+	  based system where you're not sure, the "lspci -v" entry will list the
+	  right "prog-if" for your USB controller(s):  EHCI, OHCI, or UHCI.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ohci-hcd.
+
+config USB_OHCI_HCD_PPC_SOC
+	bool "OHCI support for on-chip PPC USB controller"
+	depends on USB_OHCI_HCD && (STB03xxx || PPC_MPC52xx)
+	default y
+	select USB_OHCI_BIG_ENDIAN
+	---help---
+	  Enables support for the USB controller on the MPC52xx or
+	  STB03xxx processor chip.  If unsure, say Y.
+
+config USB_OHCI_HCD_PCI
+	bool "OHCI support for PCI-bus USB controllers"
+	depends on USB_OHCI_HCD && PCI && (STB03xxx || PPC_MPC52xx)
+	default y
+	select USB_OHCI_LITTLE_ENDIAN
+	---help---
+	  Enables support for PCI-bus plug-in USB controller cards.
+	  If unsure, say Y.
+
+config USB_OHCI_BIG_ENDIAN
+	bool
+	depends on USB_OHCI_HCD
+	default n
+
+config USB_OHCI_LITTLE_ENDIAN
+	bool
+	depends on USB_OHCI_HCD
+	default n if STB03xxx || PPC_MPC52xx
+	default y
+
+config USB_UHCI_HCD
+	tristate "UHCI HCD (most Intel and VIA) support"
+	depends on USB && PCI
+	---help---
+	  The Universal Host Controller Interface is a standard by Intel for
+	  accessing the USB hardware in the PC (which is also called the USB
+	  host controller). If your USB host controller conforms to this
+	  standard, you may want to say Y, but see below. All recent boards
+	  with Intel PCI chipsets (like intel 430TX, 440FX, 440LX, 440BX,
+	  i810, i820) conform to this standard. Also all VIA PCI chipsets
+	  (like VIA VP2, VP3, MVP3, Apollo Pro, Apollo Pro II or Apollo Pro
+	  133). If unsure, say Y.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called uhci-hcd.
+
+config USB_SL811_HCD
+	tristate "SL811HS HCD support"
+	depends on USB
+	default N
+	help
+	  The SL811HS is a single-port USB controller that supports either
+	  host side or peripheral side roles.  Enable this option if your
+	  board has this chip, and you want to use it as a host controller. 
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sl811-hcd.
+

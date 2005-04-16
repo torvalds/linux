@@ -1,0 +1,878 @@
+/proc/sys/net/ipv4/* Variables:
+
+ip_forward - BOOLEAN
+	0 - disabled (default)
+	not 0 - enabled 
+
+	Forward Packets between interfaces.
+
+	This variable is special, its change resets all configuration
+	parameters to their default state (RFC1122 for hosts, RFC1812
+	for routers)
+
+ip_default_ttl - INTEGER
+	default 64
+
+ip_no_pmtu_disc - BOOLEAN
+	Disable Path MTU Discovery.
+	default FALSE
+
+min_pmtu - INTEGER
+	default 562 - minimum discovered Path MTU
+
+mtu_expires - INTEGER
+	Time, in seconds, that cached PMTU information is kept.
+
+min_adv_mss - INTEGER
+	The advertised MSS depends on the first hop route MTU, but will
+	never be lower than this setting.
+
+IP Fragmentation:
+
+ipfrag_high_thresh - INTEGER
+	Maximum memory used to reassemble IP fragments. When 
+	ipfrag_high_thresh bytes of memory is allocated for this purpose,
+	the fragment handler will toss packets until ipfrag_low_thresh
+	is reached.
+	
+ipfrag_low_thresh - INTEGER
+	See ipfrag_high_thresh	
+
+ipfrag_time - INTEGER
+	Time in seconds to keep an IP fragment in memory.	
+
+ipfrag_secret_interval - INTEGER
+	Regeneration interval (in seconds) of the hash secret (or lifetime 
+	for the hash secret) for IP fragments.
+	Default: 600
+
+INET peer storage:
+
+inet_peer_threshold - INTEGER
+	The approximate size of the storage.  Starting from this threshold	
+	entries will be thrown aggressively.  This threshold also determines
+	entries' time-to-live and time intervals between garbage collection
+	passes.  More entries, less time-to-live, less GC interval.
+
+inet_peer_minttl - INTEGER
+	Minimum time-to-live of entries.  Should be enough to cover fragment
+	time-to-live on the reassembling side.  This minimum time-to-live  is
+	guaranteed if the pool size is less than inet_peer_threshold.
+	Measured in jiffies(1).
+
+inet_peer_maxttl - INTEGER
+	Maximum time-to-live of entries.  Unused entries will expire after
+	this period of time if there is no memory pressure on the pool (i.e.
+	when the number of entries in the pool is very small).
+	Measured in jiffies(1).
+
+inet_peer_gc_mintime - INTEGER
+	Minimum interval between garbage collection passes.  This interval is
+	in effect under high memory pressure on the pool.
+	Measured in jiffies(1).
+
+inet_peer_gc_maxtime - INTEGER
+	Minimum interval between garbage collection passes.  This interval is
+	in effect under low (or absent) memory pressure on the pool.
+	Measured in jiffies(1).
+
+TCP variables: 
+
+tcp_syn_retries - INTEGER
+	Number of times initial SYNs for an active TCP connection attempt
+	will be retransmitted. Should not be higher than 255. Default value
+	is 5, which corresponds to ~180seconds.
+
+tcp_synack_retries - INTEGER
+	Number of times SYNACKs for a passive TCP connection attempt will
+	be retransmitted. Should not be higher than 255. Default value
+	is 5, which corresponds to ~180seconds.
+
+tcp_keepalive_time - INTEGER
+	How often TCP sends out keepalive messages when keepalive is enabled.
+	Default: 2hours.
+
+tcp_keepalive_probes - INTEGER
+	How many keepalive probes TCP sends out, until it decides that the
+	connection is broken. Default value: 9.
+
+tcp_keepalive_intvl - INTEGER
+	How frequently the probes are send out. Multiplied by
+	tcp_keepalive_probes it is time to kill not responding connection,
+	after probes started. Default value: 75sec i.e. connection
+	will be aborted after ~11 minutes of retries.
+
+tcp_retries1 - INTEGER
+	How many times to retry before deciding that something is wrong
+	and it is necessary to report this suspicion to network layer.
+	Minimal RFC value is 3, it is default, which corresponds
+	to ~3sec-8min depending on RTO.
+
+tcp_retries2 - INTEGER
+	How may times to retry before killing alive TCP connection.
+	RFC1122 says that the limit should be longer than 100 sec.
+	It is too small number.	Default value 15 corresponds to ~13-30min
+	depending on RTO.
+
+tcp_orphan_retries - INTEGER
+	How may times to retry before killing TCP connection, closed
+	by our side. Default value 7 corresponds to ~50sec-16min
+	depending on RTO. If you machine is loaded WEB server,
+	you should think about lowering this value, such sockets
+	may consume significant resources. Cf. tcp_max_orphans.
+
+tcp_fin_timeout - INTEGER
+	Time to hold socket in state FIN-WAIT-2, if it was closed
+	by our side. Peer can be broken and never close its side,
+	or even died unexpectedly. Default value is 60sec.
+	Usual value used in 2.2 was 180 seconds, you may restore
+	it, but remember that if your machine is even underloaded WEB server,
+	you risk to overflow memory with kilotons of dead sockets,
+	FIN-WAIT-2 sockets are less dangerous than FIN-WAIT-1,
+	because they eat maximum 1.5K of memory, but they tend
+	to live longer.	Cf. tcp_max_orphans.
+
+tcp_max_tw_buckets - INTEGER
+	Maximal number of timewait sockets held by system simultaneously.
+	If this number is exceeded time-wait socket is immediately destroyed
+	and warning is printed. This limit exists only to prevent
+	simple DoS attacks, you _must_ not lower the limit artificially,
+	but rather increase it (probably, after increasing installed memory),
+	if network conditions require more than default value.
+
+tcp_tw_recycle - BOOLEAN
+	Enable fast recycling TIME-WAIT sockets. Default value is 0.
+	It should not be changed without advice/request of technical
+	experts.
+
+tcp_tw_reuse - BOOLEAN
+	Allow to reuse TIME-WAIT sockets for new connections when it is
+	safe from protocol viewpoint. Default value is 0.
+	It should not be changed without advice/request of technical
+	experts.
+
+tcp_max_orphans - INTEGER
+	Maximal number of TCP sockets not attached to any user file handle,
+	held by system.	If this number is exceeded orphaned connections are
+	reset immediately and warning is printed. This limit exists
+	only to prevent simple DoS attacks, you _must_ not rely on this
+	or lower the limit artificially, but rather increase it
+	(probably, after increasing installed memory),
+	if network conditions require more than default value,
+	and tune network services to linger and kill such states
+	more aggressively. Let me to remind again: each orphan eats
+	up to ~64K of unswappable memory.
+
+tcp_abort_on_overflow - BOOLEAN
+	If listening service is too slow to accept new connections,
+	reset them. Default state is FALSE. It means that if overflow
+	occurred due to a burst, connection will recover. Enable this
+	option _only_ if you are really sure that listening daemon
+	cannot be tuned to accept connections faster. Enabling this
+	option can harm clients of your server.
+
+tcp_syncookies - BOOLEAN
+	Only valid when the kernel was compiled with CONFIG_SYNCOOKIES
+	Send out syncookies when the syn backlog queue of a socket 
+	overflows. This is to prevent against the common 'syn flood attack'
+	Default: FALSE
+
+	Note, that syncookies is fallback facility.
+	It MUST NOT be used to help highly loaded servers to stand
+	against legal connection rate. If you see synflood warnings
+	in your logs, but investigation	shows that they occur
+	because of overload with legal connections, you should tune
+	another parameters until this warning disappear.
+	See: tcp_max_syn_backlog, tcp_synack_retries, tcp_abort_on_overflow.
+
+	syncookies seriously violate TCP protocol, do not allow
+	to use TCP extensions, can result in serious degradation
+	of some services (f.e. SMTP relaying), visible not by you,
+	but your clients and relays, contacting you. While you see
+	synflood warnings in logs not being really flooded, your server
+	is seriously misconfigured.
+
+tcp_stdurg - BOOLEAN
+	Use the Host requirements interpretation of the TCP urg pointer field.
+	Most hosts use the older BSD interpretation, so if you turn this on
+	Linux might not communicate correctly with them.	
+	Default: FALSE 
+	
+tcp_max_syn_backlog - INTEGER
+	Maximal number of remembered connection requests, which are
+	still did not receive an acknowledgment from connecting client.
+	Default value is 1024 for systems with more than 128Mb of memory,
+	and 128 for low memory machines. If server suffers of overload,
+	try to increase this number.
+
+tcp_window_scaling - BOOLEAN
+	Enable window scaling as defined in RFC1323.
+
+tcp_timestamps - BOOLEAN
+	Enable timestamps as defined in RFC1323.
+
+tcp_sack - BOOLEAN
+	Enable select acknowledgments (SACKS).
+
+tcp_fack - BOOLEAN
+	Enable FACK congestion avoidance and fast retransmission.
+	The value is not used, if tcp_sack is not enabled.
+
+tcp_dsack - BOOLEAN
+	Allows TCP to send "duplicate" SACKs.
+
+tcp_ecn - BOOLEAN
+	Enable Explicit Congestion Notification in TCP.
+
+tcp_reordering - INTEGER
+	Maximal reordering of packets in a TCP stream.
+	Default: 3	
+
+tcp_retrans_collapse - BOOLEAN
+	Bug-to-bug compatibility with some broken printers.
+	On retransmit try to send bigger packets to work around bugs in
+	certain TCP stacks.
+
+tcp_wmem - vector of 3 INTEGERs: min, default, max
+	min: Amount of memory reserved for send buffers for TCP socket.
+	Each TCP socket has rights to use it due to fact of its birth.
+	Default: 4K
+
+	default: Amount of memory allowed for send buffers for TCP socket
+	by default. This value overrides net.core.wmem_default used
+	by other protocols, it is usually lower than net.core.wmem_default.
+	Default: 16K
+
+	max: Maximal amount of memory allowed for automatically selected
+	send buffers for TCP socket. This value does not override
+	net.core.wmem_max, "static" selection via SO_SNDBUF does not use this.
+	Default: 128K
+
+tcp_rmem - vector of 3 INTEGERs: min, default, max
+	min: Minimal size of receive buffer used by TCP sockets.
+	It is guaranteed to each TCP socket, even under moderate memory
+	pressure.
+	Default: 8K
+
+	default: default size of receive buffer used by TCP sockets.
+	This value overrides net.core.rmem_default used by other protocols.
+	Default: 87380 bytes. This value results in window of 65535 with
+	default setting of tcp_adv_win_scale and tcp_app_win:0 and a bit
+	less for default tcp_app_win. See below about these variables.
+
+	max: maximal size of receive buffer allowed for automatically
+	selected receiver buffers for TCP socket. This value does not override
+	net.core.rmem_max, "static" selection via SO_RCVBUF does not use this.
+	Default: 87380*2 bytes.
+
+tcp_mem - vector of 3 INTEGERs: min, pressure, max
+	low: below this number of pages TCP is not bothered about its
+	memory appetite.
+
+	pressure: when amount of memory allocated by TCP exceeds this number
+	of pages, TCP moderates its memory consumption and enters memory
+	pressure mode, which is exited when memory consumption falls
+	under "low".
+
+	high: number of pages allowed for queueing by all TCP sockets.
+
+	Defaults are calculated at boot time from amount of available
+	memory.
+
+tcp_app_win - INTEGER
+	Reserve max(window/2^tcp_app_win, mss) of window for application
+	buffer. Value 0 is special, it means that nothing is reserved.
+	Default: 31
+
+tcp_adv_win_scale - INTEGER
+	Count buffering overhead as bytes/2^tcp_adv_win_scale
+	(if tcp_adv_win_scale > 0) or bytes-bytes/2^(-tcp_adv_win_scale),
+	if it is <= 0.
+	Default: 2
+
+tcp_rfc1337 - BOOLEAN
+	If set, the TCP stack behaves conforming to RFC1337. If unset,
+	we are not conforming to RFC, but prevent TCP TIME_WAIT
+	assassination.   
+	Default: 0
+
+tcp_low_latency - BOOLEAN
+	If set, the TCP stack makes decisions that prefer lower
+	latency as opposed to higher throughput.  By default, this
+	option is not set meaning that higher throughput is preferred.
+	An example of an application where this default should be
+	changed would be a Beowulf compute cluster.
+	Default: 0
+
+tcp_westwood - BOOLEAN
+        Enable TCP Westwood+ congestion control algorithm.
+	TCP Westwood+ is a sender-side only modification of the TCP Reno 
+	protocol stack that optimizes the performance of TCP congestion 
+	control. It is based on end-to-end bandwidth estimation to set 
+	congestion window and slow start threshold after a congestion 
+	episode. Using this estimation, TCP Westwood+ adaptively sets a 
+	slow start threshold and a congestion window which takes into 
+	account the bandwidth used  at the time congestion is experienced. 
+	TCP Westwood+ significantly increases fairness wrt TCP Reno in 
+	wired networks and throughput over wireless links.   
+        Default: 0
+
+tcp_vegas_cong_avoid - BOOLEAN
+	Enable TCP Vegas congestion avoidance algorithm.
+	TCP Vegas is a sender-side only change to TCP that anticipates
+	the onset of congestion by estimating the bandwidth. TCP Vegas
+	adjusts the sending rate by modifying the congestion
+	window. TCP Vegas should provide less packet loss, but it is
+	not as aggressive as TCP Reno.
+	Default:0
+
+tcp_bic - BOOLEAN
+	Enable BIC TCP congestion control algorithm.
+	BIC-TCP is a sender-side only change that ensures a linear RTT
+	fairness under large windows while offering both scalability and
+	bounded TCP-friendliness. The protocol combines two schemes
+	called additive increase and binary search increase. When the
+	congestion window is large, additive increase with a large
+	increment ensures linear RTT fairness as well as good
+	scalability. Under small congestion windows, binary search
+	increase provides TCP friendliness.
+	Default: 0
+
+tcp_bic_low_window - INTEGER
+	Sets the threshold window (in packets) where BIC TCP starts to
+	adjust the congestion window. Below this threshold BIC TCP behaves
+	the same as the default TCP Reno. 
+	Default: 14
+
+tcp_bic_fast_convergence - BOOLEAN
+	Forces BIC TCP to more quickly respond to changes in congestion
+	window. Allows two flows sharing the same connection to converge
+	more rapidly.
+	Default: 1
+
+tcp_default_win_scale - INTEGER
+	Sets the minimum window scale TCP will negotiate for on all
+	conections.
+	Default: 7
+
+tcp_tso_win_divisor - INTEGER
+       This allows control over what percentage of the congestion window
+       can be consumed by a single TSO frame.
+       The setting of this parameter is a choice between burstiness and
+       building larger TSO frames.
+       Default: 8
+
+tcp_frto - BOOLEAN
+	Enables F-RTO, an enhanced recovery algorithm for TCP retransmission
+	timeouts.  It is particularly beneficial in wireless environments
+	where packet loss is typically due to random radio interference
+	rather than intermediate router congestion.
+
+somaxconn - INTEGER
+	Limit of socket listen() backlog, known in userspace as SOMAXCONN.
+	Defaults to 128.  See also tcp_max_syn_backlog for additional tuning
+	for TCP sockets.
+
+IP Variables:
+
+ip_local_port_range - 2 INTEGERS
+	Defines the local port range that is used by TCP and UDP to
+	choose the local port. The first number is the first, the 
+	second the last local port number. Default value depends on
+	amount of memory available on the system:
+	> 128Mb 32768-61000
+	< 128Mb 1024-4999 or even less.
+	This number defines number of active connections, which this
+	system can issue simultaneously to systems not supporting
+	TCP extensions (timestamps). With tcp_tw_recycle enabled
+	(i.e. by default) range 1024-4999 is enough to issue up to
+	2000 connections per second to systems supporting timestamps.
+
+ip_nonlocal_bind - BOOLEAN
+	If set, allows processes to bind() to non-local IP addresses,
+	which can be quite useful - but may break some applications.
+	Default: 0
+
+ip_dynaddr - BOOLEAN
+	If set non-zero, enables support for dynamic addresses.
+	If set to a non-zero value larger than 1, a kernel log
+	message will be printed when dynamic address rewriting
+	occurs.
+	Default: 0
+
+icmp_echo_ignore_all - BOOLEAN
+icmp_echo_ignore_broadcasts - BOOLEAN
+	If either is set to true, then the kernel will ignore either all
+	ICMP ECHO requests sent to it or just those to broadcast/multicast
+	addresses, respectively.
+
+icmp_ratelimit - INTEGER
+	Limit the maximal rates for sending ICMP packets whose type matches
+	icmp_ratemask (see below) to specific targets.
+	0 to disable any limiting, otherwise the maximal rate in jiffies(1)
+	Default: 100
+
+icmp_ratemask - INTEGER
+	Mask made of ICMP types for which rates are being limited.
+	Significant bits: IHGFEDCBA9876543210
+	Default mask:     0000001100000011000 (6168)
+
+	Bit definitions (see include/linux/icmp.h):
+		0 Echo Reply
+		3 Destination Unreachable *
+		4 Source Quench *
+		5 Redirect
+		8 Echo Request
+		B Time Exceeded *
+		C Parameter Problem *
+		D Timestamp Request
+		E Timestamp Reply
+		F Info Request
+		G Info Reply
+		H Address Mask Request
+		I Address Mask Reply
+
+	* These are rate limited by default (see default mask above)
+
+icmp_ignore_bogus_error_responses - BOOLEAN
+	Some routers violate RFC1122 by sending bogus responses to broadcast
+	frames.  Such violations are normally logged via a kernel warning.
+	If this is set to TRUE, the kernel will not give such warnings, which
+	will avoid log file clutter.
+	Default: FALSE
+
+igmp_max_memberships - INTEGER
+	Change the maximum number of multicast groups we can subscribe to.
+	Default: 20
+
+conf/interface/*  changes special settings per interface (where "interface" is 
+		  the name of your network interface)
+conf/all/*	  is special, changes the settings for all interfaces
+
+
+log_martians - BOOLEAN
+	Log packets with impossible addresses to kernel log.
+	log_martians for the interface will be enabled if at least one of
+	conf/{all,interface}/log_martians is set to TRUE,
+	it will be disabled otherwise
+
+accept_redirects - BOOLEAN
+	Accept ICMP redirect messages.
+	accept_redirects for the interface will be enabled if:
+	- both conf/{all,interface}/accept_redirects are TRUE in the case forwarding
+	  for the interface is enabled
+	or
+	- at least one of conf/{all,interface}/accept_redirects is TRUE in the case
+	  forwarding for the interface is disabled
+	accept_redirects for the interface will be disabled otherwise
+	default TRUE (host)
+		FALSE (router)
+
+forwarding - BOOLEAN
+	Enable IP forwarding on this interface.
+
+mc_forwarding - BOOLEAN
+	Do multicast routing. The kernel needs to be compiled with CONFIG_MROUTE
+	and a multicast routing daemon is required.
+	conf/all/mc_forwarding must also be set to TRUE to enable multicast routing
+	for the interface
+
+medium_id - INTEGER
+	Integer value used to differentiate the devices by the medium they
+	are attached to. Two devices can have different id values when
+	the broadcast packets are received only on one of them.
+	The default value 0 means that the device is the only interface
+	to its medium, value of -1 means that medium is not known.
+	
+	Currently, it is used to change the proxy_arp behavior:
+	the proxy_arp feature is enabled for packets forwarded between
+	two devices attached to different media.
+
+proxy_arp - BOOLEAN
+	Do proxy arp.
+	proxy_arp for the interface will be enabled if at least one of
+	conf/{all,interface}/proxy_arp is set to TRUE,
+	it will be disabled otherwise
+
+shared_media - BOOLEAN
+	Send(router) or accept(host) RFC1620 shared media redirects.
+	Overrides ip_secure_redirects.
+	shared_media for the interface will be enabled if at least one of
+	conf/{all,interface}/shared_media is set to TRUE,
+	it will be disabled otherwise
+	default TRUE
+
+secure_redirects - BOOLEAN
+	Accept ICMP redirect messages only for gateways,
+	listed in default gateway list.
+	secure_redirects for the interface will be enabled if at least one of
+	conf/{all,interface}/secure_redirects is set to TRUE,
+	it will be disabled otherwise
+	default TRUE
+
+send_redirects - BOOLEAN
+	Send redirects, if router.
+	send_redirects for the interface will be enabled if at least one of
+	conf/{all,interface}/send_redirects is set to TRUE,
+	it will be disabled otherwise
+	Default: TRUE
+
+bootp_relay - BOOLEAN
+	Accept packets with source address 0.b.c.d destined
+	not to this host as local ones. It is supposed, that
+	BOOTP relay daemon will catch and forward such packets.
+	conf/all/bootp_relay must also be set to TRUE to enable BOOTP relay
+	for the interface
+	default FALSE
+	Not Implemented Yet.
+
+accept_source_route - BOOLEAN
+	Accept packets with SRR option.
+	conf/all/accept_source_route must also be set to TRUE to accept packets
+	with SRR option on the interface
+	default TRUE (router)
+		FALSE (host)
+
+rp_filter - BOOLEAN
+	1 - do source validation by reversed path, as specified in RFC1812
+	    Recommended option for single homed hosts and stub network
+	    routers. Could cause troubles for complicated (not loop free)
+	    networks running a slow unreliable protocol (sort of RIP),
+	    or using static routes.
+
+	0 - No source validation.
+
+	conf/all/rp_filter must also be set to TRUE to do source validation
+	on the interface
+
+	Default value is 0. Note that some distributions enable it
+	in startup scripts.
+
+arp_filter - BOOLEAN
+	1 - Allows you to have multiple network interfaces on the same
+	subnet, and have the ARPs for each interface be answered
+	based on whether or not the kernel would route a packet from
+	the ARP'd IP out that interface (therefore you must use source
+	based routing for this to work). In other words it allows control
+	of which cards (usually 1) will respond to an arp request.
+
+	0 - (default) The kernel can respond to arp requests with addresses
+	from other interfaces. This may seem wrong but it usually makes
+	sense, because it increases the chance of successful communication.
+	IP addresses are owned by the complete host on Linux, not by
+	particular interfaces. Only for more complex setups like load-
+	balancing, does this behaviour cause problems.
+
+	arp_filter for the interface will be enabled if at least one of
+	conf/{all,interface}/arp_filter is set to TRUE,
+	it will be disabled otherwise
+
+arp_announce - INTEGER
+	Define different restriction levels for announcing the local
+	source IP address from IP packets in ARP requests sent on
+	interface:
+	0 - (default) Use any local address, configured on any interface
+	1 - Try to avoid local addresses that are not in the target's
+	subnet for this interface. This mode is useful when target
+	hosts reachable via this interface require the source IP
+	address in ARP requests to be part of their logical network
+	configured on the receiving interface. When we generate the
+	request we will check all our subnets that include the
+	target IP and will preserve the source address if it is from
+	such subnet. If there is no such subnet we select source
+	address according to the rules for level 2.
+	2 - Always use the best local address for this target.
+	In this mode we ignore the source address in the IP packet
+	and try to select local address that we prefer for talks with
+	the target host. Such local address is selected by looking
+	for primary IP addresses on all our subnets on the outgoing
+	interface that include the target IP address. If no suitable
+	local address is found we select the first local address
+	we have on the outgoing interface or on all other interfaces,
+	with the hope we will receive reply for our request and
+	even sometimes no matter the source IP address we announce.
+
+	The max value from conf/{all,interface}/arp_announce is used.
+
+	Increasing the restriction level gives more chance for
+	receiving answer from the resolved target while decreasing
+	the level announces more valid sender's information.
+
+arp_ignore - INTEGER
+	Define different modes for sending replies in response to
+	received ARP requests that resolve local target IP addresses:
+	0 - (default): reply for any local target IP address, configured
+	on any interface
+	1 - reply only if the target IP address is local address
+	configured on the incoming interface
+	2 - reply only if the target IP address is local address
+	configured on the incoming interface and both with the
+	sender's IP address are part from same subnet on this interface
+	3 - do not reply for local addresses configured with scope host,
+	only resolutions for global and link addresses are replied
+	4-7 - reserved
+	8 - do not reply for all local addresses
+
+	The max value from conf/{all,interface}/arp_ignore is used
+	when ARP request is received on the {interface}
+
+app_solicit - INTEGER
+	The maximum number of probes to send to the user space ARP daemon
+	via netlink before dropping back to multicast probes (see
+	mcast_solicit).  Defaults to 0.
+
+disable_policy - BOOLEAN
+	Disable IPSEC policy (SPD) for this interface
+
+disable_xfrm - BOOLEAN
+	Disable IPSEC encryption on this interface, whatever the policy
+
+
+
+tag - INTEGER
+	Allows you to write a number, which can be used as required.
+	Default value is 0.
+
+(1) Jiffie: internal timeunit for the kernel. On the i386 1/100s, on the
+Alpha 1/1024s. See the HZ define in /usr/include/asm/param.h for the exact
+value on your system. 
+
+Alexey Kuznetsov.
+kuznet@ms2.inr.ac.ru
+
+Updated by:
+Andi Kleen
+ak@muc.de
+Nicolas Delon
+delon.nicolas@wanadoo.fr
+
+
+
+
+/proc/sys/net/ipv6/* Variables:
+
+IPv6 has no global variables such as tcp_*.  tcp_* settings under ipv4/ also
+apply to IPv6 [XXX?].
+
+bindv6only - BOOLEAN
+	Default value for IPV6_V6ONLY socket option,
+	which restricts use of the IPv6 socket to IPv6 communication 
+	only.
+		TRUE: disable IPv4-mapped address feature
+		FALSE: enable IPv4-mapped address feature
+
+	Default: FALSE (as specified in RFC2553bis)
+
+IPv6 Fragmentation:
+
+ip6frag_high_thresh - INTEGER
+	Maximum memory used to reassemble IPv6 fragments. When 
+	ip6frag_high_thresh bytes of memory is allocated for this purpose,
+	the fragment handler will toss packets until ip6frag_low_thresh
+	is reached.
+	
+ip6frag_low_thresh - INTEGER
+	See ip6frag_high_thresh	
+
+ip6frag_time - INTEGER
+	Time in seconds to keep an IPv6 fragment in memory.
+
+ip6frag_secret_interval - INTEGER
+	Regeneration interval (in seconds) of the hash secret (or lifetime 
+	for the hash secret) for IPv6 fragments.
+	Default: 600
+
+conf/default/*:
+	Change the interface-specific default settings.
+
+
+conf/all/*:
+	Change all the interface-specific settings.  
+
+	[XXX:  Other special features than forwarding?]
+
+conf/all/forwarding - BOOLEAN
+	Enable global IPv6 forwarding between all interfaces.  
+
+	IPv4 and IPv6 work differently here; e.g. netfilter must be used 
+	to control which interfaces may forward packets and which not.
+
+	This also sets all interfaces' Host/Router setting 
+	'forwarding' to the specified value.  See below for details.
+
+	This referred to as global forwarding.
+
+conf/interface/*:
+	Change special settings per interface.
+
+	The functional behaviour for certain settings is different 
+	depending on whether local forwarding is enabled or not.
+
+accept_ra - BOOLEAN
+	Accept Router Advertisements; autoconfigure using them.
+	
+	Functional default: enabled if local forwarding is disabled.
+			    disabled if local forwarding is enabled.
+
+accept_redirects - BOOLEAN
+	Accept Redirects.
+
+	Functional default: enabled if local forwarding is disabled.
+			    disabled if local forwarding is enabled.
+
+autoconf - BOOLEAN
+	Autoconfigure addresses using Prefix Information in Router 
+	Advertisements.
+
+	Functional default: enabled if accept_ra is enabled.
+			    disabled if accept_ra is disabled.
+
+dad_transmits - INTEGER
+	The amount of Duplicate Address Detection probes to send.
+	Default: 1
+	
+forwarding - BOOLEAN
+	Configure interface-specific Host/Router behaviour.  
+
+	Note: It is recommended to have the same setting on all 
+	interfaces; mixed router/host scenarios are rather uncommon.
+
+	FALSE:
+
+	By default, Host behaviour is assumed.  This means:
+
+	1. IsRouter flag is not set in Neighbour Advertisements.
+	2. Router Solicitations are being sent when necessary.
+	3. If accept_ra is TRUE (default), accept Router 
+	   Advertisements (and do autoconfiguration).
+	4. If accept_redirects is TRUE (default), accept Redirects.
+
+	TRUE:
+
+	If local forwarding is enabled, Router behaviour is assumed. 
+	This means exactly the reverse from the above:
+
+	1. IsRouter flag is set in Neighbour Advertisements.
+	2. Router Solicitations are not sent.
+	3. Router Advertisements are ignored.
+	4. Redirects are ignored.
+
+	Default: FALSE if global forwarding is disabled (default),
+		 otherwise TRUE.
+
+hop_limit - INTEGER
+	Default Hop Limit to set.
+	Default: 64
+
+mtu - INTEGER
+	Default Maximum Transfer Unit
+	Default: 1280 (IPv6 required minimum)
+
+router_solicitation_delay - INTEGER
+	Number of seconds to wait after interface is brought up
+	before sending Router Solicitations.
+	Default: 1
+
+router_solicitation_interval - INTEGER
+	Number of seconds to wait between Router Solicitations.
+	Default: 4
+
+router_solicitations - INTEGER
+	Number of Router Solicitations to send until assuming no 
+	routers are present.
+	Default: 3
+
+use_tempaddr - INTEGER
+	Preference for Privacy Extensions (RFC3041).
+	  <= 0 : disable Privacy Extensions
+	  == 1 : enable Privacy Extensions, but prefer public
+	         addresses over temporary addresses.
+	  >  1 : enable Privacy Extensions and prefer temporary
+	         addresses over public addresses.
+	Default:  0 (for most devices)
+		 -1 (for point-to-point devices and loopback devices)
+
+temp_valid_lft - INTEGER
+	valid lifetime (in seconds) for temporary addresses.
+	Default: 604800 (7 days)
+
+temp_prefered_lft - INTEGER
+	Preferred lifetime (in seconds) for temporary addresses.
+	Default: 86400 (1 day)
+
+max_desync_factor - INTEGER
+	Maximum value for DESYNC_FACTOR, which is a random value
+	that ensures that clients don't synchronize with each 
+	other and generate new addresses at exactly the same time.
+	value is in seconds.
+	Default: 600
+	
+regen_max_retry - INTEGER
+	Number of attempts before give up attempting to generate
+	valid temporary addresses.
+	Default: 5
+
+max_addresses - INTEGER
+	Number of maximum addresses per interface.  0 disables limitation.
+	It is recommended not set too large value (or 0) because it would 
+	be too easy way to crash kernel to allow to create too much of 
+	autoconfigured addresses.
+	Default: 16
+
+icmp/*:
+ratelimit - INTEGER
+	Limit the maximal rates for sending ICMPv6 packets.
+	0 to disable any limiting, otherwise the maximal rate in jiffies(1)
+	Default: 100
+
+
+IPv6 Update by:
+Pekka Savola <pekkas@netcore.fi>
+YOSHIFUJI Hideaki / USAGI Project <yoshfuji@linux-ipv6.org>
+
+
+/proc/sys/net/bridge/* Variables:
+
+bridge-nf-call-arptables - BOOLEAN
+	1 : pass bridged ARP traffic to arptables' FORWARD chain.
+	0 : disable this.
+	Default: 1
+
+bridge-nf-call-iptables - BOOLEAN
+	1 : pass bridged IPv4 traffic to iptables' chains.
+	0 : disable this.
+	Default: 1
+
+bridge-nf-call-ip6tables - BOOLEAN
+	1 : pass bridged IPv6 traffic to ip6tables' chains.
+	0 : disable this.
+	Default: 1
+
+bridge-nf-filter-vlan-tagged - BOOLEAN
+	1 : pass bridged vlan-tagged ARP/IP traffic to arptables/iptables.
+	0 : disable this.
+	Default: 1
+
+
+UNDOCUMENTED:
+
+dev_weight FIXME
+discovery_slots FIXME
+discovery_timeout FIXME
+fast_poll_increase FIXME
+ip6_queue_maxlen FIXME
+lap_keepalive_time FIXME
+lo_cong FIXME
+max_baud_rate FIXME
+max_dgram_qlen FIXME
+max_noreply_time FIXME
+max_tx_data_size FIXME
+max_tx_window FIXME
+min_tx_turn_time FIXME
+mod_cong FIXME
+no_cong FIXME
+no_cong_thresh FIXME
+slot_timeout FIXME
+warn_noreply_time FIXME
+
+$Id: ip-sysctl.txt,v 1.20 2001/12/13 09:00:18 davem Exp $

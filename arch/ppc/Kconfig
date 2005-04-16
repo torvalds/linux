@@ -1,0 +1,1317 @@
+# For a description of the syntax of this configuration file,
+# see Documentation/kbuild/kconfig-language.txt.
+#
+
+mainmenu "Linux/PowerPC Kernel Configuration"
+
+config MMU
+	bool
+	default y
+
+config UID16
+	bool
+
+config GENERIC_HARDIRQS
+	bool
+	default y
+
+config RWSEM_GENERIC_SPINLOCK
+	bool
+
+config RWSEM_XCHGADD_ALGORITHM
+	bool
+	default y
+
+config GENERIC_CALIBRATE_DELAY
+	bool
+	default y
+
+config HAVE_DEC_LOCK
+	bool
+	default y
+
+config PPC
+	bool
+	default y
+
+config PPC32
+	bool
+	default y
+
+# All PPCs use generic nvram driver through ppc_md
+config GENERIC_NVRAM
+	bool
+	default y
+
+source "init/Kconfig"
+
+menu "Processor"
+
+choice
+	prompt "Processor Type"
+	default 6xx
+
+config 6xx
+	bool "6xx/7xx/74xx/52xx/82xx/83xx"
+	help
+	  There are four types of PowerPC chips supported.  The more common
+	  types (601, 603, 604, 740, 750, 7400), the Motorola embedded
+	  versions (821, 823, 850, 855, 860, 52xx, 82xx, 83xx), the IBM embedded
+	  versions (403 and 405) and the high end 64 bit Power processors
+	  (POWER 3, POWER4, and IBM 970 also known as G5)
+	  Unless you are building a kernel for one of the embedded processor
+	  systems, 64 bit IBM RS/6000 or an Apple G5, choose 6xx.
+	  Note that the kernel runs in 32-bit mode even on 64-bit chips.
+	  Also note that because the 52xx, 82xx, & 83xx family has a 603e core,
+	  specific support for that chipset is asked later on.
+
+config 40x
+	bool "40x"
+
+config 44x
+	bool "44x"
+
+config POWER3
+	bool "POWER3"
+
+config POWER4
+	bool "POWER4 and 970 (G5)"
+
+config 8xx
+	depends on BROKEN
+	bool "8xx"
+
+config E500
+	bool "e500"
+
+endchoice
+
+config BOOKE
+	bool
+	depends on E500
+	default y
+
+config FSL_BOOKE
+	bool
+	depends on E500
+	default y
+
+config PTE_64BIT
+	bool
+	depends on 44x
+	default y
+
+config PHYS_64BIT
+	bool
+	depends on 44x
+	default y
+
+config ALTIVEC
+	bool "AltiVec Support"
+	depends on 6xx || POWER4
+	depends on !8260 && !83xx
+	---help---
+	  This option enables kernel support for the Altivec extensions to the
+	  PowerPC processor. The kernel currently supports saving and restoring
+	  altivec registers, and turning on the 'altivec enable' bit so user
+	  processes can execute altivec instructions.
+
+	  This option is only usefully if you have a processor that supports
+	  altivec (G4, otherwise known as 74xx series), but does not have
+	  any affect on a non-altivec cpu (it does, however add code to the
+	  kernel).
+
+	  If in doubt, say Y here.
+
+config SPE
+	bool "SPE Support"
+	depends on E500
+	---help---
+	  This option enables kernel support for the Signal Processing
+	  Extensions (SPE) to the PowerPC processor. The kernel currently
+	  supports saving and restoring SPE registers, and turning on the
+	  'spe enable' bit so user processes can execute SPE instructions.
+
+	  This option is only usefully if you have a processor that supports
+	  SPE (e500, otherwise known as 85xx series), but does not have any
+	  affect on a non-spe cpu (it does, however add code to the kernel).
+
+	  If in doubt, say Y here.
+
+config TAU
+	bool "Thermal Management Support"
+	depends on 6xx && !8260 && !83xx
+	help
+	  G3 and G4 processors have an on-chip temperature sensor called the
+	  'Thermal Assist Unit (TAU)', which, in theory, can measure the on-die
+	  temperature within 2-4 degrees Celsius. This option shows the current
+	  on-die temperature in /proc/cpuinfo if the cpu supports it.
+
+	  Unfortunately, on some chip revisions, this sensor is very inaccurate
+	  and in some cases, does not work at all, so don't assume the cpu
+	  temp is actually what /proc/cpuinfo says it is.
+
+config TAU_INT
+	bool "Interrupt driven TAU driver (DANGEROUS)"
+	depends on TAU
+	---help---
+	  The TAU supports an interrupt driven mode which causes an interrupt
+	  whenever the temperature goes out of range. This is the fastest way
+	  to get notified the temp has exceeded a range. With this option off,
+	  a timer is used to re-check the temperature periodically.
+
+	  However, on some cpus it appears that the TAU interrupt hardware
+	  is buggy and can cause a situation which would lead unexplained hard
+	  lockups.
+
+	  Unless you are extending the TAU driver, or enjoy kernel/hardware
+	  debugging, leave this option off.
+
+config TAU_AVERAGE
+	bool "Average high and low temp"
+	depends on TAU
+	---help---
+	  The TAU hardware can compare the temperature to an upper and lower
+	  bound.  The default behavior is to show both the upper and lower
+	  bound in /proc/cpuinfo. If the range is large, the temperature is
+	  either changing a lot, or the TAU hardware is broken (likely on some
+	  G4's). If the range is small (around 4 degrees), the temperature is
+	  relatively stable.  If you say Y here, a single temperature value,
+	  halfway between the upper and lower bounds, will be reported in
+	  /proc/cpuinfo.
+
+	  If in doubt, say N here.
+
+config MATH_EMULATION
+	bool "Math emulation"
+	depends on 4xx || 8xx || E500
+	---help---
+	  Some PowerPC chips designed for embedded applications do not have
+	  a floating-point unit and therefore do not implement the
+	  floating-point instructions in the PowerPC instruction set.  If you
+	  say Y here, the kernel will include code to emulate a floating-point
+	  unit, which will allow programs that use floating-point
+	  instructions to run.
+
+	  If you have an Apple machine or an IBM RS/6000 or pSeries machine,
+	  or any machine with a 6xx, 7xx or 7xxx series processor, say N
+	  here.  Saying Y here will not hurt performance (on any machine) but
+	  will increase the size of the kernel.
+
+source "drivers/cpufreq/Kconfig"
+
+config CPU_FREQ_PMAC
+	bool "Support for Apple PowerBooks"
+	depends on CPU_FREQ && ADB_PMU
+	select CPU_FREQ_TABLE
+	help
+	  This adds support for frequency switching on Apple PowerBooks,
+	  this currently includes some models of iBook & Titanium
+	  PowerBook.
+
+config PPC601_SYNC_FIX
+	bool "Workarounds for PPC601 bugs"
+	depends on 6xx && (PPC_PREP || PPC_PMAC)
+	help
+	  Some versions of the PPC601 (the first PowerPC chip) have bugs which
+	  mean that extra synchronization instructions are required near
+	  certain instructions, typically those that make major changes to the
+	  CPU state.  These extra instructions reduce performance slightly.
+	  If you say N here, these extra instructions will not be included,
+	  resulting in a kernel which will run faster but may not run at all
+	  on some systems with the PPC601 chip.
+
+	  If in doubt, say Y here.
+
+source arch/ppc/platforms/4xx/Kconfig
+source arch/ppc/platforms/85xx/Kconfig
+
+config PPC64BRIDGE
+	bool
+	depends on POWER3 || POWER4
+	default y
+
+config PPC_STD_MMU
+	bool
+	depends on 6xx || POWER3 || POWER4
+	default y
+
+config NOT_COHERENT_CACHE
+	bool
+	depends on 4xx || 8xx
+	default y
+
+endmenu
+
+menu "Platform options"
+
+choice
+	prompt "8xx Machine Type"
+	depends on 8xx
+	default RPXLITE
+
+config RPXLITE
+	bool "RPX-Lite"
+	---help---
+	  Single-board computers based around the PowerPC MPC8xx chips and
+	  intended for embedded applications.  The following types are
+	  supported:
+
+	  RPX-Lite:
+	  Embedded Planet RPX Lite. PC104 form-factor SBC based on the MPC823.
+
+	  RPX-Classic:
+	  Embedded Planet RPX Classic Low-fat. Credit-card-size SBC based on
+	  the MPC 860
+
+	  BSE-IP:
+	  Bright Star Engineering ip-Engine.
+
+	  TQM823L:
+	  TQM850L:
+	  TQM855L:
+	  TQM860L:
+	  MPC8xx based family of mini modules, half credit card size,
+	  up to 64 MB of RAM, 8 MB Flash, (Fast) Ethernet, 2 x serial ports,
+	  2 x CAN bus interface, ...
+	  Manufacturer: TQ Components, www.tq-group.de
+	  Date of Release: October (?) 1999
+	  End of Life: not yet :-)
+	  URL:
+	  - module: <http://www.denx.de/PDF/TQM8xxLHWM201.pdf>
+	  - starter kit: <http://www.denx.de/PDF/STK8xxLHWM201.pdf>
+	  - images: <http://www.denx.de/embedded-ppc-en.html>
+
+	  FPS850L:
+	  FingerPrint Sensor System (based on TQM850L)
+	  Manufacturer: IKENDI AG, <http://www.ikendi.com/>
+	  Date of Release: November 1999
+	  End of life: end 2000 ?
+	  URL: see TQM850L
+
+	  SPD823TS:
+	  MPC823 based board used in the "Tele Server" product
+	  Manufacturer: Speech Design, <http://www.speech-design.de/>
+	  Date of Release: Mid 2000 (?)
+	  End of life: -
+	  URL: <http://www.speech-design.de/>
+	  select "English", then "Teleteam Solutions", then "TeleServer"
+
+	  IVMS8:
+	  MPC860 based board used in the "Integrated Voice Mail System",
+	  Small Version (8 voice channels)
+	  Manufacturer: Speech Design, <http://www.speech-design.de/>
+	  Date of Release: December 2000 (?)
+	  End of life: -
+	  URL: <http://www.speech-design.de/>
+
+	  IVML24:
+	  MPC860 based board used in the "Integrated Voice Mail System",
+	  Large Version (24 voice channels)
+	  Manufacturer: Speech Design, <http://www.speech-design.de/>
+	  Date of Release: March 2001  (?)
+	  End of life: -
+	  URL: <http://www.speech-design.de/>
+
+	  SM850:
+	  Service Module (based on TQM850L)
+	  Manufacturer: Dependable Computer Systems, <http://www.decomsys.com/>
+	  Date of Release: end 2000 (?)
+	  End of life: mid 2001 (?)
+	  URL: <http://www.tz-mikroelektronik.de/ServiceModule/index.html>
+
+	  HERMES:
+	  Hermes-Pro ISDN/LAN router with integrated 8 x hub
+	  Manufacturer: Multidata Gesellschaft fur Datentechnik und Informatik
+	  <http://www.multidata.de/>
+	  Date of Release: 2000 (?)
+	  End of life: -
+	  URL: <http://www.multidata.de/english/products/hpro.htm>
+
+	  IP860:
+	  VMEBus IP (Industry Pack) carrier board with MPC860
+	  Manufacturer: MicroSys GmbH, <http://www.microsys.de/>
+	  Date of Release: ?
+	  End of life: -
+	  URL: <http://www.microsys.de/html/ip860.html>
+
+	  PCU_E:
+	  PCU = Peripheral Controller Unit, Extended
+	  Manufacturer: Siemens AG, ICN (Information and Communication Networks)
+	  	<http://www.siemens.de/page/1,3771,224315-1-999_2_226207-0,00.html>
+	  Date of Release: April 2001
+	  End of life: August 2001
+	  URL: n. a.
+
+config RPXCLASSIC
+	bool "RPX-Classic"
+	help
+	  The RPX-Classic is a single-board computer based on the Motorola
+	  MPC860.  It features 16MB of DRAM and a variable amount of flash,
+	  I2C EEPROM, thermal monitoring, a PCMCIA slot, a DIP switch and two
+	  LEDs.  Variants with Ethernet ports exist.  Say Y here to support it
+	  directly.
+
+config BSEIP
+	bool "BSE-IP"
+	help
+	  Say Y here to support the Bright Star Engineering ipEngine SBC.
+	  This is a credit-card-sized device featuring a MPC823 processor,
+	  26MB DRAM, 4MB flash, Ethernet, a 16K-gate FPGA, USB, an LCD/video
+	  controller, and two RS232 ports.
+
+config FADS
+	bool "FADS"
+
+config TQM823L
+	bool "TQM823L"
+	help
+	  Say Y here to support the TQM823L, one of an MPC8xx-based family of
+	  mini SBCs (half credit-card size) from TQ Components first released
+	  in late 1999.  Technical references are at
+	  <http://www.denx.de/PDF/TQM8xxLHWM201.pdf>, and
+	  <http://www.denx.de/PDF/STK8xxLHWM201.pdf>, and an image at
+	  <http://www.denx.de/embedded-ppc-en.html>.
+
+config TQM850L
+	bool "TQM850L"
+	help
+	  Say Y here to support the TQM850L, one of an MPC8xx-based family of
+	  mini SBCs (half credit-card size) from TQ Components first released
+	  in late 1999.  Technical references are at
+	  <http://www.denx.de/PDF/TQM8xxLHWM201.pdf>, and
+	  <http://www.denx.de/PDF/STK8xxLHWM201.pdf>, and an image at
+	  <http://www.denx.de/embedded-ppc-en.html>.
+
+config TQM855L
+	bool "TQM855L"
+	help
+	  Say Y here to support the TQM855L, one of an MPC8xx-based family of
+	  mini SBCs (half credit-card size) from TQ Components first released
+	  in late 1999.  Technical references are at
+	  <http://www.denx.de/PDF/TQM8xxLHWM201.pdf>, and
+	  <http://www.denx.de/PDF/STK8xxLHWM201.pdf>, and an image at
+	  <http://www.denx.de/embedded-ppc-en.html>.
+
+config TQM860L
+	bool "TQM860L"
+	help
+	  Say Y here to support the TQM860L, one of an MPC8xx-based family of
+	  mini SBCs (half credit-card size) from TQ Components first released
+	  in late 1999.  Technical references are at
+	  <http://www.denx.de/PDF/TQM8xxLHWM201.pdf>, and
+	  <http://www.denx.de/PDF/STK8xxLHWM201.pdf>, and an image at
+	  <http://www.denx.de/embedded-ppc-en.html>.
+
+config FPS850L
+	bool "FPS850L"
+
+config SPD823TS
+	bool "SPD823TS"
+	help
+	  Say Y here to support the Speech Design 823 Tele-Server from Speech
+	  Design, released in 2000.  The manufacturer's website is at
+	  <http://www.speech-design.de/>.
+
+config IVMS8
+	bool "IVMS8"
+	help
+	  Say Y here to support the Integrated Voice-Mail Small 8-channel SBC
+	  from Speech Design, released March 2001.  The manufacturer's website
+	  is at <http://www.speech-design.de/>.
+
+config IVML24
+	bool "IVML24"
+	help
+	  Say Y here to support the Integrated Voice-Mail Large 24-channel SBC
+	  from Speech Design, released March 2001.  The manufacturer's website
+	  is at <http://www.speech-design.de/>.
+
+config SM850
+	bool "SM850"
+	help
+	  Say Y here to support the Service Module 850 from Dependable
+	  Computer Systems, an SBC based on the TQM850L module by TQ
+	  Components.  This board is no longer in production.  The
+	  manufacturer's website is at <http://www.decomsys.com/>.
+
+config HERMES_PRO
+	bool "HERMES"
+
+config IP860
+	bool "IP860"
+
+config LWMON
+	bool "LWMON"
+
+config PCU_E
+	bool "PCU_E"
+
+config CCM
+	bool "CCM"
+
+config LANTEC
+	bool "LANTEC"
+
+config MBX
+	bool "MBX"
+	help
+	  MBX is a line of Motorola single-board computer based around the
+	  MPC821 and MPC860 processors, and intended for embedded-controller
+	  applications.  Say Y here to support these boards directly.
+
+config WINCEPT
+	bool "WinCept"
+	help
+	  The Wincept 100/110 is a Motorola single-board computer based on the
+	  MPC821 PowerPC, introduced in 1998 and designed to be used in
+	  thin-client machines.  Say Y to support it directly.
+
+endchoice
+
+choice
+	prompt "Machine Type"
+	depends on 6xx || POWER3 || POWER4
+	default PPC_MULTIPLATFORM
+	---help---
+	  Linux currently supports several different kinds of PowerPC-based
+	  machines: Apple Power Macintoshes and clones (such as the Motorola
+	  Starmax series), PReP (PowerPC Reference Platform) machines (such
+	  as the Motorola PowerStacks, Motorola cPCI/VME embedded systems,
+	  and some IBM RS/6000 systems), CHRP (Common Hardware Reference
+	  Platform) machines (including all of the recent IBM RS/6000 and
+	  pSeries machines), and several embedded PowerPC systems containing
+	  4xx, 6xx, 7xx, 8xx, 74xx, and 82xx processors.  Currently, the
+	  default option is to build a kernel which works on the first three.
+
+	  Select CHRP/PowerMac/PReP if configuring for an IBM RS/6000 or
+	  pSeries machine, a Power Macintosh (including iMacs, iBooks and
+	  Powerbooks), or a PReP machine.
+
+	  Select Gemini if configuring for a Synergy Microsystems' Gemini
+	  series Single Board Computer.  More information is available at:
+	  <http://www.synergymicro.com/PressRel/97_10_15.html>.
+
+	  Select APUS if configuring for a PowerUP Amiga.  More information is
+	  available at: <http://linux-apus.sourceforge.net/>.
+
+config PPC_MULTIPLATFORM
+	bool "CHRP/PowerMac/PReP"
+
+config APUS
+	bool "Amiga-APUS"
+	help
+	  Select APUS if configuring for a PowerUP Amiga.
+	  More information is available at:
+	  <http://linux-apus.sourceforge.net/>.
+
+config KATANA
+	bool "Artesyn-Katana"
+	help
+	  Select KATANA if configuring an Artesyn KATANA 750i or 3750
+	  cPCI board.
+
+config WILLOW
+	bool "Cogent-Willow"
+
+config CPCI690
+	bool "Force-CPCI690"
+	help
+	  Select CPCI690 if configuring a Force CPCI690 cPCI board.
+
+config PCORE
+	bool "Force-PowerCore"
+
+config POWERPMC250
+	bool "Force-PowerPMC250"
+
+config CHESTNUT
+	bool "IBM 750FX Eval board or 750GX Eval board"
+	help
+	  Select CHESTNUT if configuring an IBM 750FX Eval Board or a
+	  IBM 750GX Eval board.
+
+config SPRUCE
+	bool "IBM-Spruce"
+
+config HDPU
+	bool "Sky-HDPU"
+	help
+	  Select HDPU if configuring a Sky Computers Compute Blade.
+
+config HDPU_FEATURES
+	depends HDPU
+	tristate "HDPU-Features"
+	help
+	  Select to enable HDPU enhanced features.
+
+config EV64260
+	bool "Marvell-EV64260BP"
+	help
+	  Select EV64260 if configuring a Marvell (formerly Galileo)
+	  EV64260BP Evaluation platform.
+
+config LOPEC
+	bool "Motorola-LoPEC"
+
+config MCPN765
+	bool "Motorola-MCPN765"
+
+config MVME5100
+	bool "Motorola-MVME5100"
+
+config PPLUS
+	bool "Motorola-PowerPlus"
+
+config PRPMC750
+	bool "Motorola-PrPMC750"
+
+config PRPMC800
+	bool "Motorola-PrPMC800"
+
+config SANDPOINT
+	bool "Motorola-Sandpoint"
+	help
+	  Select SANDPOINT if configuring for a Motorola Sandpoint X3
+	  (any flavor).
+
+config RADSTONE_PPC7D
+	bool "Radstone Technology PPC7D board"
+
+config ADIR
+	bool "SBS-Adirondack"
+
+config K2
+	bool "SBS-K2"
+
+config PAL4
+	bool "SBS-Palomar4"
+
+config GEMINI
+	bool "Synergy-Gemini"
+	help
+	  Select Gemini if configuring for a Synergy Microsystems' Gemini
+	  series Single Board Computer.  More information is available at:
+	  <http://www.synergymicro.com/PressRel/97_10_15.html>.
+
+config EST8260
+	bool "EST8260"
+	---help---
+	  The EST8260 is a single-board computer manufactured by Wind River
+	  Systems, Inc. (formerly Embedded Support Tools Corp.) and based on
+	  the MPC8260.  Wind River Systems has a website at
+	  <http://www.windriver.com/>, but the EST8260 cannot be found on it
+	  and has probably been discontinued or rebadged.
+
+config SBC82xx
+	bool "SBC82xx"
+	---help---
+	  SBC PowerQUICC II, single-board computer with MPC82xx CPU
+	  Manufacturer: Wind River Systems, Inc.
+	  Date of Release: May 2003
+	  End of Life: -
+	  URL: <http://www.windriver.com/>
+
+config SBS8260
+	bool "SBS8260"
+
+config RPX8260
+	bool "RPXSUPER"
+
+config TQM8260
+	bool "TQM8260"
+	---help---
+	  MPC8260 based module, little larger than credit card,
+	  up to 128 MB global + 64 MB local RAM, 32 MB Flash,
+	  32 kB EEPROM, 256 kB L@ Cache, 10baseT + 100baseT Ethernet,
+	  2 x serial ports, ...
+	  Manufacturer: TQ Components, www.tq-group.de
+	  Date of Release: June 2001
+	  End of Life: not yet :-)
+	  URL: <http://www.denx.de/PDF/TQM82xx_SPEC_Rev005.pdf>
+
+config ADS8272
+	bool "ADS8272"
+
+config PQ2FADS
+	bool "Freescale-PQ2FADS"
+	help
+	  Select PQ2FADS if you wish to configure for a Freescale
+	  PQ2FADS board (-VR or -ZU).
+
+config LITE5200
+	bool "Freescale LITE5200 / (IceCube)"
+	select PPC_MPC52xx
+	help
+	  Support for the LITE5200 dev board for the MPC5200 from Freescale.
+	  This is for the LITE5200 version 2.0 board. Don't know if it changes
+	  much but it's only been tested on this board version. I think this
+	  board is also known as IceCube.
+
+config MPC834x_SYS
+	bool "Freescale MPC834x SYS"
+	help
+	  This option enables support for the MPC 834x SYS evaluation board.
+
+endchoice
+
+config PQ2ADS
+	bool
+	depends on ADS8272
+	default y
+
+config TQM8xxL
+	bool
+	depends on 8xx && (TQM823L || TQM850L || FPS850L || TQM855L || TQM860L || SM850)
+	default y
+
+config EMBEDDEDBOOT
+	bool
+	depends on 8xx || 8260
+	default y
+
+config PPC_MPC52xx
+	bool
+
+config 8260
+	bool "CPM2 Support" if WILLOW
+	depends on 6xx
+	default y if TQM8260 || RPX8260 || EST8260 || SBS8260 || SBC82xx || PQ2FADS
+	help
+	  The MPC8260 is a typical embedded CPU made by Motorola.  Selecting
+	  this option means that you wish to build a kernel for a machine with
+	  an 8260 class CPU.
+
+config 8272
+	bool
+	depends on 6xx
+	default y if ADS8272
+	select 8260
+	help
+	  The MPC8272 CPM has a different internal dpram setup than other CPM2
+	  devices
+
+config 83xx
+	bool
+	default y if MPC834x_SYS
+
+config MPC834x
+	bool
+	default y if MPC834x_SYS
+
+config CPM2
+	bool
+	depends on 8260 || MPC8560 || MPC8555
+	default y
+	help
+	  The CPM2 (Communications Processor Module) is a coprocessor on
+	  embedded CPUs made by Motorola.  Selecting this option means that
+	  you wish to build a kernel for a machine with a CPM2 coprocessor
+	  on it (826x, 827x, 8560).
+
+config PPC_CHRP
+	bool
+	depends on PPC_MULTIPLATFORM
+	default y
+
+config PPC_PMAC
+	bool
+	depends on PPC_MULTIPLATFORM
+	default y
+
+config PPC_PMAC64
+	bool
+	depends on PPC_PMAC && POWER4
+	default y
+
+config PPC_PREP
+	bool
+	depends on PPC_MULTIPLATFORM
+	default y
+
+config PPC_OF
+	bool
+	depends on PPC_PMAC || PPC_CHRP
+	default y
+
+config PPC_GEN550
+	bool
+	depends on SANDPOINT || MCPN765 || SPRUCE || PPLUS || PCORE || \
+		PRPMC750 || K2 || PRPMC800 || LOPEC || \
+		(EV64260 && !SERIAL_MPSC) || CHESTNUT || RADSTONE_PPC7D || \
+		83xx
+	default y
+
+config FORCE
+	bool
+	depends on 6xx && (PCORE || POWERPMC250)
+	default y
+
+config GT64260
+	bool
+	depends on EV64260 || CPCI690
+	default y
+
+config MV64360		# Really MV64360 & MV64460
+	bool
+	depends on CHESTNUT || KATANA || RADSTONE_PPC7D || HDPU
+	default y
+
+config MV64X60
+	bool
+	depends on (GT64260 || MV64360)
+	default y
+
+menu "Set bridge options"
+	depends on MV64X60
+
+config NOT_COHERENT_CACHE
+	bool "Turn off Cache Coherency"
+	default n
+	help
+	  Some 64x60 bridges lock up when trying to enforce cache coherency.
+	  When this option is selected, cache coherency will be turned off.
+	  Note that this can cause other problems (e.g., stale data being
+	  speculatively loaded via a cached mapping).  Use at your own risk.
+
+config MV64X60_BASE
+	hex "Set bridge base used by firmware"
+	default "0xf1000000"
+	help
+	  A firmware can leave the base address of the bridge's registers at
+	  a non-standard location.  If so, set this value to reflect the
+	  address of that non-standard location.
+
+config MV64X60_NEW_BASE
+	hex "Set bridge base used by kernel"
+	default "0xf1000000"
+	help
+	  If the current base address of the bridge's registers is not where
+	  you want it, set this value to the address that you want it moved to.
+
+endmenu
+
+config NONMONARCH_SUPPORT
+	bool "Enable Non-Monarch Support"
+	depends on PRPMC800
+
+config HARRIER
+	bool
+	depends on PRPMC800
+	default y
+
+config EPIC_SERIAL_MODE
+	bool
+	depends on 6xx && (LOPEC || SANDPOINT)
+	default y
+
+config MPC10X_BRIDGE
+	bool
+	depends on PCORE || POWERPMC250 || LOPEC || SANDPOINT
+	default y
+
+config FSL_OCP
+	bool
+	depends on MPC10X_BRIDGE
+	default y
+
+config MPC10X_OPENPIC
+	bool
+	depends on POWERPMC250 || LOPEC || SANDPOINT
+	default y
+
+config MPC10X_STORE_GATHERING
+	bool "Enable MPC10x store gathering"
+	depends on MPC10X_BRIDGE
+
+config CPC710_DATA_GATHERING
+	bool "Enable CPC710 data gathering"
+	depends on K2
+
+config HARRIER_STORE_GATHERING
+	bool "Enable Harrier store gathering"
+	depends on HARRIER
+
+config MVME5100_IPMC761_PRESENT
+	bool "MVME5100 configured with an IPMC761"
+	depends on MVME5100
+
+config SPRUCE_BAUD_33M
+	bool "Spruce baud clock support"
+	depends on SPRUCE
+
+config PC_KEYBOARD
+	bool "PC PS/2 style Keyboard"
+	depends on 4xx || CPM2
+
+config PPCBUG_NVRAM
+	bool "Enable reading PPCBUG NVRAM during boot" if PPLUS || LOPEC
+	default y if PPC_PREP
+
+config SMP
+	bool "Symmetric multi-processing support"
+	---help---
+	  This enables support for systems with more than one CPU. If you have
+	  a system with only one CPU, say N. If you have a system with more
+	  than one CPU, say Y.  Note that the kernel does not currently
+	  support SMP machines with 603/603e/603ev or PPC750 ("G3") processors
+	  since they have inadequate hardware support for multiprocessor
+	  operation.
+
+	  If you say N here, the kernel will run on single and multiprocessor
+	  machines, but will use only one CPU of a multiprocessor machine. If
+	  you say Y here, the kernel will run on single-processor machines.
+	  On a single-processor machine, the kernel will run faster if you say
+	  N here.
+
+	  If you don't know what to do here, say N.
+
+config IRQ_ALL_CPUS
+	bool "Distribute interrupts on all CPUs by default"
+	depends on SMP
+	help
+	  This option gives the kernel permission to distribute IRQs across
+	  multiple CPUs.  Saying N here will route all IRQs to the first
+	  CPU.  Generally saying Y is safe, although some problems have been
+	  reported with SMP Power Macintoshes with this option enabled.
+
+config NR_CPUS
+	int "Maximum number of CPUs (2-32)"
+	range 2 32
+	depends on SMP
+	default "4"
+
+config PREEMPT
+	bool "Preemptible Kernel"
+	help
+	  This option reduces the latency of the kernel when reacting to
+	  real-time or interactive events by allowing a low priority process to
+	  be preempted even if it is in kernel mode executing a system call.
+
+	  Say Y here if you are building a kernel for a desktop, embedded
+	  or real-time system.  Say N if you are unsure.
+
+config HIGHMEM
+	bool "High memory support"
+
+source "fs/Kconfig.binfmt"
+
+config PROC_DEVICETREE
+	bool "Support for Open Firmware device tree in /proc"
+	depends on PPC_OF && PROC_FS
+	help
+	  This option adds a device-tree directory under /proc which contains
+	  an image of the device tree that the kernel copies from Open
+	  Firmware. If unsure, say Y here.
+
+config PREP_RESIDUAL
+	bool "Support for PReP Residual Data"
+	depends on PPC_PREP
+	help
+	  Some PReP systems have residual data passed to the kernel by the
+	  firmware.  This allows detection of memory size, devices present and
+	  other useful pieces of information.  Sometimes this information is
+	  not present or incorrect, in which case it could lead to the machine 
+	  behaving incorrectly.  If this happens, either disable PREP_RESIDUAL
+	  or pass the 'noresidual' option to the kernel.
+
+	  If you are running a PReP system, say Y here, otherwise say N.
+
+config PROC_PREPRESIDUAL
+	bool "Support for reading of PReP Residual Data in /proc"
+	depends on PREP_RESIDUAL && PROC_FS
+	help
+	  Enabling this option will create a /proc/residual file which allows
+	  you to get at the residual data on PReP systems.  You will need a tool
+	  (lsresidual) to parse it.  If you aren't on a PReP system, you don't
+	  want this.
+
+config CMDLINE_BOOL
+	bool "Default bootloader kernel arguments"
+
+config CMDLINE
+	string "Initial kernel command string"
+	depends on CMDLINE_BOOL
+	default "console=ttyS0,9600 console=tty0 root=/dev/sda2"
+	help
+	  On some platforms, there is currently no way for the boot loader to
+	  pass arguments to the kernel. For these platforms, you can supply
+	  some command-line options at build time by entering them here.  In
+	  most cases you will need to specify the root device here.
+
+config AMIGA
+	bool
+	depends on APUS
+	default y
+	help
+	  This option enables support for the Amiga series of computers.
+
+config ZORRO
+	bool
+	depends on APUS
+	default y
+	help
+	  This enables support for the Zorro bus in the Amiga. If you have
+	  expansion cards in your Amiga that conform to the Amiga
+	  AutoConfig(tm) specification, say Y, otherwise N. Note that even
+	  expansion cards that do not fit in the Zorro slots but fit in e.g.
+	  the CPU slot may fall in this category, so you have to say Y to let
+	  Linux use these.
+
+config ABSTRACT_CONSOLE
+	bool
+	depends on APUS
+	default y
+
+config APUS_FAST_EXCEPT
+	bool
+	depends on APUS
+	default y
+
+config AMIGA_PCMCIA
+	bool "Amiga 1200/600 PCMCIA support"
+	depends on APUS && EXPERIMENTAL
+	help
+	  Include support in the kernel for pcmcia on Amiga 1200 and Amiga
+	  600. If you intend to use pcmcia cards say Y; otherwise say N.
+
+config AMIGA_BUILTIN_SERIAL
+	tristate "Amiga builtin serial support"
+	depends on APUS
+	help
+	  If you want to use your Amiga's built-in serial port in Linux,
+	  answer Y.
+
+	  To compile this driver as a module, choose M here.
+
+config GVPIOEXT
+	tristate "GVP IO-Extender support"
+	depends on APUS
+	help
+	  If you want to use a GVP IO-Extender serial card in Linux, say Y.
+	  Otherwise, say N.
+
+config GVPIOEXT_LP
+	tristate "GVP IO-Extender parallel printer support"
+	depends on GVPIOEXT
+	help
+	  Say Y to enable driving a printer from the parallel port on your
+	  GVP IO-Extender card, N otherwise.
+
+config GVPIOEXT_PLIP
+	tristate "GVP IO-Extender PLIP support"
+	depends on GVPIOEXT
+	help
+	  Say Y to enable doing IP over the parallel port on your GVP
+	  IO-Extender card, N otherwise.
+
+config MULTIFACE_III_TTY
+	tristate "Multiface Card III serial support"
+	depends on APUS
+	help
+	  If you want to use a Multiface III card's serial port in Linux,
+	  answer Y.
+
+	  To compile this driver as a module, choose M here.
+
+config A2232
+	tristate "Commodore A2232 serial support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && APUS
+	---help---
+	  This option supports the 2232 7-port serial card shipped with the
+	  Amiga 2000 and other Zorro-bus machines, dating from 1989.  At
+	  a max of 19,200 bps, the ports are served by a 6551 ACIA UART chip
+	  each, plus a 8520 CIA, and a master 6502 CPU and buffer as well. The
+	  ports were connected with 8 pin DIN connectors on the card bracket,
+	  for which 8 pin to DB25 adapters were supplied. The card also had
+	  jumpers internally to toggle various pinning configurations.
+
+	  This driver can be built as a module; but then "generic_serial"
+	  will also be built as a module. This has to be loaded before
+	  "ser_a2232". If you want to do this, answer M here.
+
+config WHIPPET_SERIAL
+	tristate "Hisoft Whippet PCMCIA serial support"
+	depends on AMIGA_PCMCIA
+	help
+	  HiSoft has a web page at <http://www.hisoft.co.uk/>, but there
+	  is no listing for the Whippet in their Amiga section.
+
+config APNE
+	tristate "PCMCIA NE2000 support"
+	depends on AMIGA_PCMCIA
+	help
+	  If you have a PCMCIA NE2000 compatible adapter, say Y.  Otherwise,
+	  say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called apne.
+
+config SERIAL_CONSOLE
+	bool "Support for serial port console"
+	depends on APUS && (AMIGA_BUILTIN_SERIAL=y || GVPIOEXT=y || MULTIFACE_III_TTY=y)
+
+config HEARTBEAT
+	bool "Use power LED as a heartbeat"
+	depends on APUS
+	help
+	  Use the power-on LED on your machine as a load meter.  The exact
+	  behavior is platform-dependent, but normally the flash frequency is
+	  a hyperbolic function of the 5-minute load average.
+
+config PROC_HARDWARE
+	bool "/proc/hardware support"
+	depends on APUS
+
+source "drivers/zorro/Kconfig"
+
+source kernel/power/Kconfig
+
+endmenu
+
+menu "Bus options"
+
+config ISA
+	bool "Support for ISA-bus hardware"
+	depends on PPC_PREP || PPC_CHRP
+	help
+	  Find out whether you have ISA slots on your motherboard.  ISA is the
+	  name of a bus system, i.e. the way the CPU talks to the other stuff
+	  inside your box.  If you have an Apple machine, say N here; if you
+	  have an IBM RS/6000 or pSeries machine or a PReP machine, say Y.  If
+	  you have an embedded board, consult your board documentation.
+
+config GENERIC_ISA_DMA
+	bool
+	depends on POWER3 || POWER4 || 6xx && !CPM2
+	default y
+
+config EISA
+	bool
+	help
+	  The Extended Industry Standard Architecture (EISA) bus is a bus
+	  architecture used on some older intel-based PCs.
+
+config SBUS
+	bool
+
+# Yes MCA RS/6000s exist but Linux-PPC does not currently support any
+config MCA
+	bool
+
+config PCI
+	bool "PCI support" if 40x || CPM2 || 83xx || 85xx || PPC_MPC52xx
+	default y if !40x && !CPM2 && !8xx && !APUS && !83xx && !85xx
+	default PCI_PERMEDIA if !4xx && !CPM2 && !8xx && APUS
+	default PCI_QSPAN if !4xx && !CPM2 && 8xx
+	help
+	  Find out whether your system includes a PCI bus. PCI is the name of
+	  a bus system, i.e. the way the CPU talks to the other stuff inside
+	  your box.  If you say Y here, the kernel will include drivers and
+	  infrastructure code to support PCI bus devices.
+
+config PCI_DOMAINS
+	bool
+	default PCI
+
+config PCI_QSPAN
+	bool "QSpan PCI"
+	depends on !4xx && !CPM2 && 8xx
+	help
+	  Say Y here if you have a system based on a Motorola 8xx-series
+	  embedded processor with a QSPAN PCI interface, otherwise say N.
+
+config PCI_8260
+	bool
+	depends on PCI && 8260 && !8272
+	default y
+
+config 8260_PCI9
+	bool "  Enable workaround for MPC826x erratum PCI 9"
+	depends on PCI_8260
+	default y
+
+choice
+	prompt "  IDMA channel for PCI 9 workaround"
+	depends on 8260_PCI9
+
+config 8260_PCI9_IDMA1
+	bool "IDMA1"
+
+config 8260_PCI9_IDMA2
+	bool "IDMA2"
+
+config 8260_PCI9_IDMA3
+	bool "IDMA3"
+
+config 8260_PCI9_IDMA4
+	bool "IDMA4"
+
+endchoice
+
+config PCI_PERMEDIA
+	bool "PCI for Permedia2"
+	depends on !4xx && !8xx && APUS
+
+source "drivers/pci/Kconfig"
+
+source "drivers/pcmcia/Kconfig"
+
+endmenu
+
+menu "Advanced setup"
+
+config ADVANCED_OPTIONS
+	bool "Prompt for advanced kernel configuration options"
+	help
+	  This option will enable prompting for a variety of advanced kernel
+	  configuration options.  These options can cause the kernel to not
+	  work if they are set incorrectly, but can be used to optimize certain
+	  aspects of kernel memory management.
+
+	  Unless you know what you are doing, say N here.
+
+comment "Default settings for advanced configuration options are used"
+	depends on !ADVANCED_OPTIONS
+
+config HIGHMEM_START_BOOL
+	bool "Set high memory pool address"
+	depends on ADVANCED_OPTIONS && HIGHMEM
+	help
+	  This option allows you to set the base address of the kernel virtual
+	  area used to map high memory pages.  This can be useful in
+	  optimizing the layout of kernel virtual memory.
+
+	  Say N here unless you know what you are doing.
+
+config HIGHMEM_START
+	hex "Virtual start address of high memory pool" if HIGHMEM_START_BOOL
+	default "0xfe000000"
+
+config LOWMEM_SIZE_BOOL
+	bool "Set maximum low memory"
+	depends on ADVANCED_OPTIONS
+	help
+	  This option allows you to set the maximum amount of memory which
+	  will be used as "low memory", that is, memory which the kernel can
+	  access directly, without having to set up a kernel virtual mapping.
+	  This can be useful in optimizing the layout of kernel virtual
+	  memory.
+
+	  Say N here unless you know what you are doing.
+
+config LOWMEM_SIZE
+	hex "Maximum low memory size (in bytes)" if LOWMEM_SIZE_BOOL
+	default "0x30000000"
+
+config KERNEL_START_BOOL
+	bool "Set custom kernel base address"
+	depends on ADVANCED_OPTIONS
+	help
+	  This option allows you to set the kernel virtual address at which
+	  the kernel will map low memory (the kernel image will be linked at
+	  this address).  This can be useful in optimizing the virtual memory
+	  layout of the system.
+
+	  Say N here unless you know what you are doing.
+
+config KERNEL_START
+	hex "Virtual address of kernel base" if KERNEL_START_BOOL
+	default "0xc0000000"
+
+config TASK_SIZE_BOOL
+	bool "Set custom user task size"
+	depends on ADVANCED_OPTIONS
+	help
+	  This option allows you to set the amount of virtual address space
+	  allocated to user tasks.  This can be useful in optimizing the
+	  virtual memory layout of the system.
+
+	  Say N here unless you know what you are doing.
+
+config TASK_SIZE
+	hex "Size of user task space" if TASK_SIZE_BOOL
+	default "0x80000000"
+
+config CONSISTENT_START_BOOL
+	bool "Set custom consistent memory pool address"
+	depends on ADVANCED_OPTIONS && NOT_COHERENT_CACHE
+	help
+	  This option allows you to set the base virtual address
+	  of the the consistent memory pool.  This pool of virtual
+	  memory is used to make consistent memory allocations.
+
+config CONSISTENT_START
+	hex "Base virtual address of consistent memory pool" if CONSISTENT_START_BOOL
+	default "0xff100000" if NOT_COHERENT_CACHE
+
+config CONSISTENT_SIZE_BOOL
+	bool "Set custom consistent memory pool size"
+	depends on ADVANCED_OPTIONS && NOT_COHERENT_CACHE
+	help
+	  This option allows you to set the size of the the
+	  consistent memory pool.  This pool of virtual memory
+	  is used to make consistent memory allocations.
+
+config CONSISTENT_SIZE
+	hex "Size of consistent memory pool" if CONSISTENT_SIZE_BOOL
+	default "0x00200000" if NOT_COHERENT_CACHE
+
+config BOOT_LOAD_BOOL
+	bool "Set the boot link/load address"
+	depends on ADVANCED_OPTIONS && !PPC_MULTIPLATFORM
+	help
+	  This option allows you to set the initial load address of the zImage
+	  or zImage.initrd file.  This can be useful if you are on a board
+	  which has a small amount of memory.
+
+	  Say N here unless you know what you are doing.
+
+config BOOT_LOAD
+	hex "Link/load address for booting" if BOOT_LOAD_BOOL
+	default "0x00400000" if 40x || 8xx || 8260
+	default "0x01000000" if 44x
+	default "0x00800000"
+
+config PIN_TLB
+	bool "Pinned Kernel TLBs (860 ONLY)"
+	depends on ADVANCED_OPTIONS && 8xx
+endmenu
+
+source "drivers/Kconfig"
+
+source "fs/Kconfig"
+
+source "arch/ppc/8xx_io/Kconfig"
+
+source "arch/ppc/8260_io/Kconfig"
+
+
+menu "IBM 40x options"
+	depends on 40x
+
+config SERIAL_SICC
+	bool "SICC Serial port"
+	depends on STB03xxx
+
+config UART1_DFLT_CONSOLE
+	bool
+	depends on SERIAL_SICC && UART0_TTYS1
+	default y
+
+config SERIAL_SICC_CONSOLE
+	bool
+	depends on SERIAL_SICC && UART0_TTYS1
+	default y
+
+endmenu
+
+source "lib/Kconfig"
+
+source "arch/ppc/oprofile/Kconfig"
+
+source "arch/ppc/Kconfig.debug"
+
+source "security/Kconfig"
+
+source "crypto/Kconfig"

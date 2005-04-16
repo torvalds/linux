@@ -1,0 +1,80 @@
+if ARCH_FOOTBRIDGE
+
+menu "Footbridge Implementations"
+
+config ARCH_CATS
+	bool "CATS"
+	select FOOTBRIDGE_HOST
+	help
+	  Say Y here if you intend to run this kernel on the CATS.
+
+	  Saying N will reduce the size of the Footbridge kernel.
+
+config ARCH_PERSONAL_SERVER
+	bool "Compaq Personal Server"
+	select FOOTBRIDGE_HOST
+	---help---
+	  Say Y here if you intend to run this kernel on the Compaq
+	  Personal Server.
+
+	  Saying N will reduce the size of the Footbridge kernel.
+
+	  The Compaq Personal Server is not available for purchase.
+	  There are no product plans beyond the current research
+	  prototypes at this time.  Information is available at:
+
+	  <http://www.crl.hpl.hp.com/projects/personalserver/>
+
+	  If you have any questions or comments about the  Compaq Personal
+	  Server, send e-mail to <skiff@crl.dec.com>.
+
+config ARCH_EBSA285_ADDIN
+	bool "EBSA285 (addin mode)"
+	select ARCH_EBSA285
+	select FOOTBRIDGE_ADDIN
+	help
+	  Say Y here if you intend to run this kernel on the EBSA285 card
+	  in addin mode.
+
+	  Saying N will reduce the size of the Footbridge kernel.
+
+config ARCH_EBSA285_HOST
+	bool "EBSA285 (host mode)"
+	select ARCH_EBSA285
+	select FOOTBRIDGE_HOST
+	help
+	  Say Y here if you intend to run this kernel on the EBSA285 card
+	  in host ("central function") mode.
+
+	  Saying N will reduce the size of the Footbridge kernel.
+
+config ARCH_NETWINDER
+	bool "NetWinder"
+	select FOOTBRIDGE_HOST
+	help
+	  Say Y here if you intend to run this kernel on the Rebel.COM
+	  NetWinder.  Information about this machine can be found at:
+
+	  <http://www.netwinder.org/>
+
+	  Saying N will reduce the size of the Footbridge kernel.
+
+endmenu
+
+# Footbridge support
+config FOOTBRIDGE
+	bool
+
+# Footbridge in host mode
+config FOOTBRIDGE_HOST
+	bool
+
+# Footbridge in addin mode
+config FOOTBRIDGE_ADDIN
+	bool
+
+# EBSA285 board in either host or addin mode
+config ARCH_EBSA285
+	bool
+
+endif

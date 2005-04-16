@@ -1,0 +1,97 @@
+config SECURITY_SELINUX
+	bool "NSA SELinux Support"
+	depends on SECURITY && NET && INET
+	default n
+	help
+	  This selects NSA Security-Enhanced Linux (SELinux).
+	  You will also need a policy configuration and a labeled filesystem.
+	  You can obtain the policy compiler (checkpolicy), the utility for
+	  labeling filesystems (setfiles), and an example policy configuration
+	  from <http://www.nsa.gov/selinux/>.
+	  If you are unsure how to answer this question, answer N.
+
+config SECURITY_SELINUX_BOOTPARAM
+	bool "NSA SELinux boot parameter"
+	depends on SECURITY_SELINUX
+	default n
+	help
+	  This option adds a kernel parameter 'selinux', which allows SELinux
+	  to be disabled at boot.  If this option is selected, SELinux
+	  functionality can be disabled with selinux=0 on the kernel
+	  command line.  The purpose of this option is to allow a single
+	  kernel image to be distributed with SELinux built in, but not
+	  necessarily enabled.
+
+	  If you are unsure how to answer this question, answer N.
+
+config SECURITY_SELINUX_BOOTPARAM_VALUE
+	int "NSA SELinux boot parameter default value"
+	depends on SECURITY_SELINUX_BOOTPARAM
+	range 0 1
+	default 1
+	help
+	  This option sets the default value for the kernel parameter
+	  'selinux', which allows SELinux to be disabled at boot.  If this
+	  option is set to 0 (zero), the SELinux kernel parameter will
+	  default to 0, disabling SELinux at bootup.  If this option is
+	  set to 1 (one), the SELinux kernel parameter will default to 1,
+	  enabling SELinux at bootup.
+
+	  If you are unsure how to answer this question, answer 1.
+
+config SECURITY_SELINUX_DISABLE
+	bool "NSA SELinux runtime disable"
+	depends on SECURITY_SELINUX
+	default n
+	help
+	  This option enables writing to a selinuxfs node 'disable', which
+	  allows SELinux to be disabled at runtime prior to the policy load.
+	  SELinux will then remain disabled until the next boot.
+	  This option is similar to the selinux=0 boot parameter, but is to
+	  support runtime disabling of SELinux, e.g. from /sbin/init, for
+	  portability across platforms where boot parameters are difficult
+	  to employ.
+
+	  If you are unsure how to answer this question, answer N.
+
+config SECURITY_SELINUX_DEVELOP
+	bool "NSA SELinux Development Support"
+	depends on SECURITY_SELINUX
+	default y
+	help
+	  This enables the development support option of NSA SELinux,
+	  which is useful for experimenting with SELinux and developing
+	  policies.  If unsure, say Y.  With this option enabled, the
+	  kernel will start in permissive mode (log everything, deny nothing)
+	  unless you specify enforcing=1 on the kernel command line.  You
+	  can interactively toggle the kernel between enforcing mode and
+	  permissive mode (if permitted by the policy) via /selinux/enforce.
+
+config SECURITY_SELINUX_AVC_STATS
+	bool "NSA SELinux AVC Statistics"
+	depends on SECURITY_SELINUX
+	default y
+	help
+	  This option collects access vector cache statistics to
+	  /selinux/avc/cache_stats, which may be monitored via
+	  tools such as avcstat.
+
+config SECURITY_SELINUX_CHECKREQPROT_VALUE
+	int "NSA SELinux checkreqprot default value"
+	depends on SECURITY_SELINUX
+	range 0 1
+	default 1
+	help
+	  This option sets the default value for the 'checkreqprot' flag
+	  that determines whether SELinux checks the protection requested
+	  by the application or the protection that will be applied by the
+	  kernel (including any implied execute for read-implies-exec) for
+	  mmap and mprotect calls.  If this option is set to 0 (zero),
+	  SELinux will default to checking the protection that will be applied
+	  by the kernel.  If this option is set to 1 (one), SELinux will
+	  default to checking the protection requested by the application.
+	  The checkreqprot flag may be changed from the default via the
+	  'checkreqprot=' boot parameter.  It may also be changed at runtime
+	  via /selinux/checkreqprot if authorized by policy.
+
+	  If you are unsure how to answer this question, answer 1.

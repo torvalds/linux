@@ -1,0 +1,56 @@
+IP OVER INFINIBAND
+
+  The ib_ipoib driver is an implementation of the IP over InfiniBand
+  protocol as specified by the latest Internet-Drafts issued by the
+  IETF ipoib working group.  It is a "native" implementation in the
+  sense of setting the interface type to ARPHRD_INFINIBAND and the
+  hardware address length to 20 (earlier proprietary implementations
+  masqueraded to the kernel as ethernet interfaces).
+
+Partitions and P_Keys
+
+  When the IPoIB driver is loaded, it creates one interface for each
+  port using the P_Key at index 0.  To create an interface with a
+  different P_Key, write the desired P_Key into the main interface's
+  /sys/class/net/<intf name>/create_child file.  For example:
+
+    echo 0x8001 > /sys/class/net/ib0/create_child
+
+  This will create an interface named ib0.8001 with P_Key 0x8001.  To
+  remove a subinterface, use the "delete_child" file:
+
+    echo 0x8001 > /sys/class/net/ib0/delete_child
+
+  The P_Key for any interface is given by the "pkey" file, and the
+  main interface for a subinterface is in "parent."
+
+Debugging Information
+
+  By compiling the IPoIB driver with CONFIG_INFINIBAND_IPOIB_DEBUG set
+  to 'y', tracing messages are compiled into the driver.  They are
+  turned on by setting the module parameters debug_level and
+  mcast_debug_level to 1.  These parameters can be controlled at
+  runtime through files in /sys/module/ib_ipoib/.
+
+  CONFIG_INFINIBAND_IPOIB_DEBUG also enables the "ipoib_debugfs"
+  virtual filesystem.  By mounting this filesystem, for example with
+
+    mkdir -p /ipoib_debugfs
+    mount -t ipoib_debugfs none /ipoib_debufs
+
+  it is possible to get statistics about multicast groups from the
+  files /ipoib_debugfs/ib0_mcg and so on.
+
+  The performance impact of this option is negligible, so it
+  is safe to enable this option with debug_level set to 0 for normal
+  operation.
+
+  CONFIG_INFINIBAND_IPOIB_DEBUG_DATA enables even more debug output in
+  the data path when data_debug_level is set to 1.  However, even with
+  the output disabled, enabling this configuration option will affect
+  performance, because it adds tests to the fast path.
+
+References
+
+  IETF IP over InfiniBand (ipoib) Working Group
+    http://ietf.org/html.charters/ipoib-charter.html

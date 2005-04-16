@@ -1,0 +1,342 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.1.2//EN"
+	"http://www.oasis-open.org/docbook/xml/4.1.2/docbookx.dtd" []>
+
+<book id="LinuxKernelAPI">
+ <bookinfo>
+  <title>The Linux Kernel API</title>
+  
+  <legalnotice>
+   <para>
+     This documentation is free software; you can redistribute
+     it and/or modify it under the terms of the GNU General Public
+     License as published by the Free Software Foundation; either
+     version 2 of the License, or (at your option) any later
+     version.
+   </para>
+      
+   <para>
+     This program is distributed in the hope that it will be
+     useful, but WITHOUT ANY WARRANTY; without even the implied
+     warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+     See the GNU General Public License for more details.
+   </para>
+      
+   <para>
+     You should have received a copy of the GNU General Public
+     License along with this program; if not, write to the Free
+     Software Foundation, Inc., 59 Temple Place, Suite 330, Boston,
+     MA 02111-1307 USA
+   </para>
+      
+   <para>
+     For more details see the file COPYING in the source
+     distribution of Linux.
+   </para>
+  </legalnotice>
+ </bookinfo>
+
+<toc></toc>
+
+  <chapter id="Basics">
+     <title>Driver Basics</title>
+     <sect1><title>Driver Entry and Exit points</title>
+!Iinclude/linux/init.h
+     </sect1>
+
+     <sect1><title>Atomic and pointer manipulation</title>
+!Iinclude/asm-i386/atomic.h
+!Iinclude/asm-i386/unaligned.h
+     </sect1>
+
+<!-- FIXME:
+  kernel/sched.c has no docs, which stuffs up the sgml.  Comment
+  out until somebody adds docs.  KAO
+     <sect1><title>Delaying, scheduling, and timer routines</title>
+X!Ekernel/sched.c
+     </sect1>
+KAO -->
+  </chapter>
+
+  <chapter id="adt">
+     <title>Data Types</title>
+     <sect1><title>Doubly Linked Lists</title>
+!Iinclude/linux/list.h
+     </sect1>
+  </chapter>
+
+  <chapter id="libc">
+     <title>Basic C Library Functions</title>
+
+     <para>
+       When writing drivers, you cannot in general use routines which are
+       from the C Library.  Some of the functions have been found generally
+       useful and they are listed below.  The behaviour of these functions
+       may vary slightly from those defined by ANSI, and these deviations
+       are noted in the text.
+     </para>
+
+     <sect1><title>String Conversions</title>
+!Ilib/vsprintf.c
+!Elib/vsprintf.c
+     </sect1>
+     <sect1><title>String Manipulation</title>
+!Ilib/string.c
+!Elib/string.c
+     </sect1>
+     <sect1><title>Bit Operations</title>
+!Iinclude/asm-i386/bitops.h
+     </sect1>
+  </chapter>
+
+  <chapter id="mm">
+     <title>Memory Management in Linux</title>
+     <sect1><title>The Slab Cache</title>
+!Emm/slab.c
+     </sect1>
+     <sect1><title>User Space Memory Access</title>
+!Iinclude/asm-i386/uaccess.h
+!Iarch/i386/lib/usercopy.c
+     </sect1>
+  </chapter>
+
+  <chapter id="kfifo">
+     <title>FIFO Buffer</title>
+     <sect1><title>kfifo interface</title>
+!Iinclude/linux/kfifo.h
+!Ekernel/kfifo.c
+     </sect1>
+  </chapter>
+
+  <chapter id="proc">
+     <title>The proc filesystem</title>
+ 
+     <sect1><title>sysctl interface</title>
+!Ekernel/sysctl.c
+     </sect1>
+  </chapter>
+
+  <chapter id="debugfs">
+     <title>The debugfs filesystem</title>
+ 
+     <sect1><title>debugfs interface</title>
+!Efs/debugfs/inode.c
+!Efs/debugfs/file.c
+     </sect1>
+  </chapter>
+
+  <chapter id="vfs">
+     <title>The Linux VFS</title>
+     <sect1><title>The Directory Cache</title>
+!Efs/dcache.c
+!Iinclude/linux/dcache.h
+     </sect1>
+     <sect1><title>Inode Handling</title>
+!Efs/inode.c
+!Efs/bad_inode.c
+     </sect1>
+     <sect1><title>Registration and Superblocks</title>
+!Efs/super.c
+     </sect1>
+     <sect1><title>File Locks</title>
+!Efs/locks.c
+!Ifs/locks.c
+     </sect1>
+  </chapter>
+
+  <chapter id="netcore">
+     <title>Linux Networking</title>
+     <sect1><title>Socket Buffer Functions</title>
+!Iinclude/linux/skbuff.h
+!Enet/core/skbuff.c
+     </sect1>
+     <sect1><title>Socket Filter</title>
+!Enet/core/filter.c
+     </sect1>
+     <sect1><title>Generic Network Statistics</title>
+!Iinclude/linux/gen_stats.h
+!Enet/core/gen_stats.c
+!Enet/core/gen_estimator.c
+     </sect1>
+  </chapter>
+
+  <chapter id="netdev">
+     <title>Network device support</title>
+     <sect1><title>Driver Support</title>
+!Enet/core/dev.c
+     </sect1>
+     <sect1><title>8390 Based Network Cards</title>
+!Edrivers/net/8390.c
+     </sect1>
+     <sect1><title>Synchronous PPP</title>
+!Edrivers/net/wan/syncppp.c
+     </sect1>
+  </chapter>
+
+  <chapter id="modload">
+     <title>Module Support</title>
+     <sect1><title>Module Loading</title>
+!Ekernel/kmod.c
+     </sect1>
+     <sect1><title>Inter Module support</title>
+        <para>
+           Refer to the file kernel/module.c for more information.
+        </para>
+<!-- FIXME: Removed for now since no structured comments in source
+X!Ekernel/module.c
+-->
+     </sect1>
+  </chapter>
+
+  <chapter id="hardware">
+     <title>Hardware Interfaces</title>
+     <sect1><title>Interrupt Handling</title>
+!Iarch/i386/kernel/irq.c
+     </sect1>
+
+     <sect1><title>MTRR Handling</title>
+!Earch/i386/kernel/cpu/mtrr/main.c
+     </sect1>
+     <sect1><title>PCI Support Library</title>
+!Edrivers/pci/pci.c
+     </sect1>
+     <sect1><title>PCI Hotplug Support Library</title>
+!Edrivers/pci/hotplug/pci_hotplug_core.c
+     </sect1>
+     <sect1><title>MCA Architecture</title>
+	<sect2><title>MCA Device Functions</title>
+           <para>
+              Refer to the file arch/i386/kernel/mca.c for more information.
+           </para>
+<!-- FIXME: Removed for now since no structured comments in source
+X!Earch/i386/kernel/mca.c
+-->
+	</sect2>
+	<sect2><title>MCA Bus DMA</title>
+!Iinclude/asm-i386/mca_dma.h
+	</sect2>
+     </sect1>
+  </chapter>
+
+  <chapter id="devfs">
+     <title>The Device File System</title>
+!Efs/devfs/base.c
+  </chapter>
+
+  <chapter id="security">
+     <title>Security Framework</title>
+!Esecurity/security.c
+  </chapter>
+
+  <chapter id="pmfuncs">
+     <title>Power Management</title>
+!Ekernel/power/pm.c
+  </chapter>
+
+  <chapter id="blkdev">
+     <title>Block Devices</title>
+!Edrivers/block/ll_rw_blk.c
+  </chapter>
+
+  <chapter id="miscdev">
+     <title>Miscellaneous Devices</title>
+!Edrivers/char/misc.c
+  </chapter>
+
+  <chapter id="viddev">
+     <title>Video4Linux</title>
+!Edrivers/media/video/videodev.c
+  </chapter>
+
+  <chapter id="snddev">
+     <title>Sound Devices</title>
+!Esound/sound_core.c
+<!-- FIXME: Removed for now since no structured comments in source
+X!Isound/sound_firmware.c
+-->
+  </chapter>
+
+  <chapter id="uart16x50">
+     <title>16x50 UART Driver</title>
+!Edrivers/serial/serial_core.c
+!Edrivers/serial/8250.c
+  </chapter>
+
+  <chapter id="z85230">
+     <title>Z85230 Support Library</title>
+!Edrivers/net/wan/z85230.c
+  </chapter>
+
+  <chapter id="fbdev">
+     <title>Frame Buffer Library</title>
+
+     <para>
+       The frame buffer drivers depend heavily on four data structures.  
+       These structures are declared in include/linux/fb.h.  They are 
+       fb_info, fb_var_screeninfo, fb_fix_screeninfo and fb_monospecs. 
+       The last three can be made available to and from userland. 
+     </para>
+
+     <para>
+       fb_info defines the current state of a particular video card. 
+       Inside fb_info, there exists a fb_ops structure which is a 
+       collection of needed functions to make fbdev and fbcon work.
+       fb_info is only visible to the kernel.
+     </para>
+
+     <para>
+       fb_var_screeninfo is used to describe the features of a video card 
+       that are user defined.  With fb_var_screeninfo, things such as
+       depth and the resolution may be defined.
+     </para>
+
+     <para>
+       The next structure is fb_fix_screeninfo. This defines the 
+       properties of a card that are created when a mode is set and can't 
+       be changed otherwise.  A good example of this is the start of the 
+       frame buffer memory.  This "locks" the address of the frame buffer
+       memory, so that it cannot be changed or moved.
+     </para>
+
+     <para>
+       The last structure is fb_monospecs. In the old API, there was 
+       little importance for fb_monospecs. This allowed for forbidden things 
+       such as setting a mode of 800x600 on a fix frequency monitor. With 
+       the new API, fb_monospecs prevents such things, and if used 
+       correctly, can prevent a monitor from being cooked.  fb_monospecs
+       will not be useful until kernels 2.5.x.
+     </para>
+
+     <sect1><title>Frame Buffer Memory</title>
+!Edrivers/video/fbmem.c
+     </sect1>
+     <sect1><title>Frame Buffer Console</title>
+!Edrivers/video/console/fbcon.c
+     </sect1>
+     <sect1><title>Frame Buffer Colormap</title>
+!Edrivers/video/fbcmap.c
+     </sect1>
+<!-- FIXME:
+  drivers/video/fbgen.c has no docs, which stuffs up the sgml.  Comment
+  out until somebody adds docs.  KAO
+     <sect1><title>Frame Buffer Generic Functions</title>
+X!Idrivers/video/fbgen.c
+     </sect1>
+KAO -->
+     <sect1><title>Frame Buffer Video Mode Database</title>
+!Idrivers/video/modedb.c
+!Edrivers/video/modedb.c
+     </sect1>
+     <sect1><title>Frame Buffer Macintosh Video Mode Database</title>
+!Idrivers/video/macmodes.c
+     </sect1>
+     <sect1><title>Frame Buffer Fonts</title>
+        <para>
+           Refer to the file drivers/video/console/fonts.c for more information.
+        </para>
+<!-- FIXME: Removed for now since no structured comments in source
+X!Idrivers/video/console/fonts.c
+-->
+     </sect1>
+  </chapter>
+</book>

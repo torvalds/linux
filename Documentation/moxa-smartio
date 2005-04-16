@@ -1,0 +1,411 @@
+=============================================================================
+
+	MOXA Smartio Family Device Driver Ver 1.1 Installation Guide
+		    for Linux Kernel 2.2.x and 2.0.3x
+	       Copyright (C) 1999, Moxa Technologies Co, Ltd.
+=============================================================================
+Content
+
+1. Introduction
+2. System Requirement
+3. Installation
+4. Utilities
+5. Setserial
+6. Troubleshooting
+
+-----------------------------------------------------------------------------
+1. Introduction
+
+   The Smartio family Linux driver, Ver. 1.1, supports following multiport
+   boards.
+
+    -C104P/H/HS, C104H/PCI, C104HS/PCI, CI-104J 4 port multiport board.
+    -C168P/H/HS, C168H/PCI 8 port multiport board.
+
+   This driver has been modified a little and cleaned up from the Moxa
+   contributed driver code and merged into Linux 2.2.14pre. In particular
+   official major/minor numbers have been assigned which are different to
+   those the original Moxa supplied driver used.
+
+   This driver and installation procedure have been developed upon Linux Kernel
+   2.2.5 and backward compatible to 2.0.3x. This driver supports Intel x86 and
+   Alpha hardware platform. In order to maintain compatibility, this version
+   has also been properly tested with RedHat, OpenLinux, TurboLinux and
+   S.u.S.E Linux. However, if compatibility problem occurs, please contact
+   Moxa at support@moxa.com.tw.
+
+   In addition to device driver, useful utilities are also provided in this
+   version. They are
+    - msdiag     Diagnostic program for detecting installed Moxa Smartio boards.
+    - msmon      Monitor program to observe data count and line status signals.
+    - msterm     A simple terminal program which is useful in testing serial
+	         ports.
+    - io-irq.exe Configuration program to setup ISA boards. Please note that
+                 this program can only be executed under DOS.
+
+   All the drivers and utilities are published in form of source code under
+   GNU General Public License in this version. Please refer to GNU General
+   Public License announcement in each source code file for more detail.
+
+   In Moxa's ftp sites, you may always find latest driver at
+   ftp://ftp.moxa.com  or ftp://ftp.moxa.com.tw.
+
+   This version of driver can be installed as Loadable Module (Module driver)
+   or built-in into kernel (Static driver). You may refer to following
+   installation procedure for suitable one. Before you install the driver,
+   please refer to hardware installation procedure in the User's Manual.
+
+   We assume the user should be familiar with following documents.
+   - Serial-HOWTO
+   - Kernel-HOWTO
+
+-----------------------------------------------------------------------------
+2. System Requirement
+   - Hardware platform: Intel x86 or Alpha machine
+   - Kernel version: 2.0.3x or 2.2.x
+   - gcc version 2.72 or later
+   - Maximum 4 boards can be installed in combination
+
+-----------------------------------------------------------------------------
+3. Installation
+
+   3.1 Hardware installation
+
+       There are two types of buses, ISA and PCI, for Smartio family multiport
+       board.
+
+       ISA board
+       ---------
+       You'll have to configure CAP address, I/O address, Interrupt Vector
+       as well as IRQ before installing this driver. Please refer to hardware
+       installation procedure in User's Manual before proceed any further.
+       Please make sure the JP1 is open after the ISA board is set properly.
+
+       PCI board
+       ---------
+       You may need to adjust IRQ usage in BIOS to avoid from IRQ conflict
+       with other ISA devices. Please refer to hardware installation
+       procedure in User's Manual in advance.
+
+       IRQ Sharing
+       -----------
+       Each port within the same multiport board shares the same IRQ. Up to
+       4 Moxa Smartio Family multiport boards can be installed together on
+       one system and they can share the same IRQ.
+
+   3.2 Driver files and device naming convention
+
+       The driver file may be obtained from ftp, CD-ROM or floppy disk. The
+       first step, anyway, is to copy driver file "mxser.tgz" into specified
+       directory. e.g. /moxa. The execute commands as below.
+
+       # cd /moxa
+       # tar xvf /dev/fd0 
+       or
+       # cd /moxa
+       # cp /mnt/cdrom/<driver directory>/mxser.tgz .
+       # tar xvfz mxser.tgz
+
+       You may find all the driver and utilities files in /moxa/mxser.
+       Following installation procedure depends on the model you'd like to
+       run the driver. If you prefer module driver, please refer to 3.3.
+       If static driver is required, please refer to 3.4.
+
+       Dialin and callout port
+       -----------------------
+       This driver remains traditional serial device properties. There're
+       two special file name for each serial port. One is dial-in port
+       which is named "ttyMxx". For callout port, the naming convention
+       is "cumxx".
+
+       Device naming when more than 2 boards installed
+       -----------------------------------------------
+       Naming convention for each Smartio multiport board is pre-defined
+       as below.
+
+       Board Num.	 Dial-in Port	      Callout port
+       1st board	ttyM0  - ttyM7	      cum0  - cum7
+       2nd board	ttyM8  - ttyM15       cum8  - cum15
+       3rd board	ttyM16 - ttyM23       cum16 - cum23
+       4th board	ttyM24 - ttym31       cum24 - cum31
+
+       Board sequence
+       --------------
+       This driver will activate ISA boards according to the parameter set
+       in the driver. After all specified ISA board activated, PCI board
+       will be installed in the system automatically driven.
+       Therefore the board number is sorted by the CAP address of ISA boards.
+       For PCI boards, their sequence will be after ISA boards and C168H/PCI
+       has higher priority than C104H/PCI boards.
+
+   3.3 Module driver configuration
+       Module driver is easiest way to install. If you prefer static driver
+       installation, please skip this paragraph.
+       1. Find "Makefile" in /moxa/mxser, then run
+
+	  # make install
+
+	  The driver files "mxser.o" and utilities will be properly compiled
+	  and copied to system directories respectively.Then run
+
+	  # insmod mxser
+
+	  to activate the modular driver. You may run "lsmod" to check
+	  if "mxser.o" is activated.
+
+       2. Create special files by executing "msmknod".
+	  # cd /moxa/mxser/driver
+	  # ./msmknod
+
+	  Default major numbers for dial-in device and callout device are
+	  174, 175. Msmknod will delete any special files occupying the same
+	  device naming.
+
+       3. Up to now, you may manually execute "insmod mxser" to activate
+	  this driver and run "rmmod mxser" to remove it. However, it's
+	  better to have a boot time configuration to eliminate manual
+	  operation.
+	  Boot time configuration can be achieved by rc file. Run following
+	  command for setting rc files.
+
+	  # cd /moxa/mxser/driver
+	  # cp ./rc.mxser /etc/rc.d
+	  # cd /etc/rc.d
+
+	  You may have to modify part of the content in rc.mxser to specify
+          parameters for ISA board. Please refer to rc.mxser for more detail.
+          Find "rc.serial". If "rc.serial" doesn't exist, create it by vi.
+	  Add "rc.mxser" in last line. Next, open rc.local by vi
+	  and append following content.
+
+	  if [ -f /etc/rc.d/rc.serial ]; then
+	     sh /etc/rc.d/rc.serial
+	  fi
+
+       4. Reboot and check if mxser.o activated by "lsmod" command.
+       5. If you'd like to drive Smartio ISA boards in the system, you'll
+	  have to add parameter to specify CAP address of given board while
+          activating "mxser.o". The format for parameters are as follows.
+
+	  insmod mxser ioaddr=0x???,0x???,0x???,0x???
+				|      |     |	  |
+				|      |     |	  +- 4th ISA board
+				|      |     +------ 3rd ISA board
+				|      +------------ 2nd ISA board
+				+------------------- 1st ISA board
+
+   3.4 Static driver configuration
+
+       1. Create link
+	  # cd /usr/src/linux/drivers/char
+	  # ln -s /moxa/mxser/driver/mxser.c mxser.c
+
+       2. Add CAP address list for ISA boards
+	  In module mode, the CAP address for ISA board is given by
+	  parameter. In static driver configuration, you'll have to
+	  assign it within driver's source code. If you will not
+	  install any ISA boards, you may skip to next portion.
+	  The instructions to modify driver source code are as
+	  below.
+	  a. # cd /moxa/mxser/driver
+	     # vi mxser.c
+	  b. Find the array mxserBoardCAP[] as below.
+
+	     static int mxserBoardCAP[]
+	     = {0x00, 0x00, 0x00, 0x00};
+
+	  c. Change the address within this array using vi. For
+	     example, to driver 2 ISA boards with CAP address
+	     0x280 and 0x180 as 1st and 2nd board. Just to change
+	     the source code as follows.
+
+	     static int mxserBoardCAP[]
+	     = {0x280, 0x180, 0x00, 0x00};
+
+       3. Modify tty_io.c
+	  # cd /usr/src/linux/drivers/char/
+	  # vi tty_io.c
+	    Find pty_init(), insert "mxser_init()" as
+
+	    pty_init();
+	    mxser_init();
+
+       4. Modify tty.h
+	  # cd /usr/src/linux/include/linux
+	  # vi tty.h
+	    Find extern int tty_init(void), insert "mxser_init()" as
+
+	    extern int tty_init(void);
+	    extern int mxser_init(void);
+     
+       5. Modify Makefile
+	  # cd /usr/src/linux/drivers/char
+	  # vi Makefile
+	    Find L_OBJS := tty_io.o ...... random.o, add
+	    "mxser.o" at last of this line as
+	    L_OBJS := tty_io.o ....... mxser.o
+
+       6. Rebuild kernel
+	  The following are for Linux kernel rebuilding,for your reference only.
+	  For appropriate details, please refer to the Linux document.
+
+	  If 'lilo' utility is installed, please use 'make zlilo' to rebuild
+	  kernel. If 'lilo' is not installed, please follow the following steps.
+
+	   a. cd /usr/src/linux
+	   b. make clean			     /* take a few minutes */
+	   c. make bzImage		   /* take probably 10-20 minutes */
+	   d. Backup original boot kernel.		  /* optional step */
+	   e. cp /usr/src/linux/arch/i386/boot/bzImage /boot/vmlinuz
+	   f. Please make sure the boot kernel (vmlinuz) is in the
+	      correct position. If you use 'lilo' utility, you should
+	      check /etc/lilo.conf 'image' item specified the path
+	      which is the 'vmlinuz' path, or you will load wrong
+	      (or old) boot kernel image (vmlinuz).
+	   g. chmod 400 /vmlinuz
+	   h. lilo
+	   i. rdev -R /vmlinuz 1
+	   j. sync
+
+	  Note that if the result of "make zImage" is ERROR, then you have to
+	  go back to Linux configuration Setup. Type "make config" in directory
+	  /usr/src/linux or "setup".
+
+	  Since system include file, /usr/src/linux/include/linux/interrupt.h,
+	  is modified each time the MOXA driver is installed, kernel rebuilding
+	  is inevitable. And it takes about 10 to 20 minutes depends on the
+	  machine.
+
+       7. Make utility
+	  # cd /moxa/mxser/utility
+	  # make install
+       
+       8. Make special file
+          # cd /moxa/mxser/driver
+          # ./msmknod
+
+       9. Reboot
+
+   3.5 Custom configuration
+       Although this driver already provides you default configuration, you
+       still can change the device name and major number.The instruction to
+       change these parameters are shown as below.
+
+       Change Device name
+       ------------------
+       If you'd like to use other device names instead of default naming
+       convention, all you have to do is to modify the internal code
+       within the shell script "msmknod". First, you have to open "msmknod"
+       by vi. Locate each line contains "ttyM" and "cum" and change them
+       to the device name you desired. "msmknod" creates the device names
+       you need next time executed.
+
+       Change Major number
+       -------------------
+       If major number 30 and 35 had been occupied, you may have to select
+       2 free major numbers for this driver. There are 3 steps to change
+       major numbers.
+
+       1. Find free major numbers
+	  In /proc/devices, you may find all the major numbers occupied
+	  in the system. Please select 2 major numbers that are available.
+	  e.g. 40, 45.
+       2. Create special files
+	  Run /moxa/mxser/driver/msmknod to create special files with
+	  specified major numbers.
+       3. Modify driver with new major number
+	  Run vi to open /moxa/mxser/driver/mxser.c. Locate the line
+	  contains "MXSERMAJOR". Change the content as below.
+	  #define	  MXSERMAJOR		  40
+	  #define	  MXSERCUMAJOR		  45
+       4. Run # make install in /moxa/mxser/driver.
+
+   3.6 Verify driver installation
+       You may refer to /var/log/messages to check the latest status
+       log reported by this driver whenever it's activated.
+-----------------------------------------------------------------------------
+4. Utilities
+   There are 3 utilities contained in this driver. They are msdiag, msmon and
+   msterm. These 3 utilities are released in form of source code. They should
+   be compiled into executable file and copied into /usr/bin.
+
+   msdiag - Diagnostic
+   --------------------
+   This utility provides the function to detect what Moxa Smartio multiport
+   board exists in the system.
+
+   msmon - Port Monitoring
+   -----------------------
+   This utility gives the user a quick view about all the MOXA ports'
+   activities. One can easily learn each port's total received/transmitted
+   (Rx/Tx) character count since the time when the monitoring is started.
+   Rx/Tx throughputs per second are also reported in interval basis (e.g.
+   the last 5 seconds) and in average basis (since the time the monitoring
+   is started). You can reset all ports' count by <HOME> key. <+> <->
+   (plus/minus) keys to change the displaying time interval. Press <ENTER>
+   on the port, that cursor stay, to view the port's communication
+   parameters, signal status, and input/output queue.
+
+   msterm - Terminal Emulation
+   ---------------------------
+   This utility provides data sending and receiving ability of all tty ports,
+   especially for MOXA ports. It is quite useful for testing simple
+   application, for example, sending AT command to a modem connected to the
+   port or used as a terminal for login purpose. Note that this is only a
+   dumb terminal emulation without handling full screen operation.
+-----------------------------------------------------------------------------
+5. Setserial
+
+   Supported Setserial parameters are listed as below.
+
+   uart 	  set UART type(16450-->disable FIFO, 16550A-->enable FIFO)
+   close_delay	  set the amount of time(in 1/100 of a second) that DTR
+		  should be kept low while being closed.
+   closing_wait   set the amount of time(in 1/100 of a second) that the
+		  serial port should wait for data to be drained while
+		  being closed, before the receiver is disable.
+   spd_hi	  Use  57.6kb  when  the application requests 38.4kb.
+   spd_vhi	  Use  115.2kb	when  the application requests 38.4kb.
+   spd_normal	  Use  38.4kb  when  the application requests 38.4kb.
+
+-----------------------------------------------------------------------------
+6. Troubleshooting
+
+   The boot time error messages and solutions are stated as clearly as
+   possible. If all the possible solutions fail, please contact our technical
+   support team to get more help.
+
+   Error msg: More than 4 Moxa Smartio family boards found. Fifth board and
+	      after are ignored.
+   Solution:
+   To avoid this problem, please unplug fifth and after board, because Moxa
+   driver supports up to 4 boards.
+
+   Error msg: Request_irq fail, IRQ(?) may be conflict with another device.
+   Solution:
+   Other PCI or ISA devices occupy the assigned IRQ. If you are not sure
+   which device causes the situation,please check /proc/interrupts to find
+   free IRQ and simply change another free IRQ for Moxa board.
+
+   Error msg: Board #: C1xx Series(CAP=xxx) interrupt number invalid.
+   Solution:
+   Each port within the same multiport board shares the same IRQ. Please set
+   one IRQ (IRQ doesn't equal to zero) for one Moxa board.
+
+   Error msg: No interrupt vector be set for Moxa ISA board(CAP=xxx).
+   Solution:
+   Moxa ISA board needs an interrupt vector.Please refer to user's manual
+   "Hardware Installation" chapter to set interrupt vector.
+
+   Error msg: Couldn't install MOXA Smartio family driver!
+   Solution:
+   Load Moxa driver fail, the major number may conflict with other devices.
+   Please refer to previous section 3.5 to change a free major number for
+   Moxa driver.
+
+   Error msg: Couldn't install MOXA Smartio family callout driver!
+   Solution:
+   Load Moxa callout driver fail, the callout device major number may
+   conflict with other devices. Please refer to previous section 3.5 to
+   change a free callout device major number for Moxa driver.
+-----------------------------------------------------------------------------

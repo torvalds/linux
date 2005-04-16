@@ -1,0 +1,59 @@
+  dmfe.c: Version 1.28        01/18/2000
+
+        A Davicom DM9102(A)/DM9132/DM9801 fast ethernet driver for Linux. 
+        Copyright (C) 1997  Sten Wang
+
+        This program is free software; you can redistribute it and/or
+        modify it under the terms of the GNU General Public License
+        as published by the Free Software Foundation; either version 2
+        of the License, or (at your option) any later version.
+
+        This program is distributed in the hope that it will be useful,
+        but WITHOUT ANY WARRANTY; without even the implied warranty of
+        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+        GNU General Public License for more details.
+
+
+  A. Compiler command:
+
+     A-1: For normal single or multiple processor kernel
+          "gcc -DMODULE -D__KERNEL__ -I/usr/src/linux/net/inet -Wall 
+            -Wstrict-prototypes -O6 -c dmfe.c"
+
+     A-2: For single or multiple processor with kernel module version function
+          "gcc -DMODULE -DMODVERSIONS -D__KERNEL__ -I/usr/src/linux/net/inet 
+            -Wall -Wstrict-prototypes -O6 -c dmfe.c"
+
+
+  B. The following steps teach you how to activate a DM9102 board:
+
+        1. Used the upper compiler command to compile dmfe.c
+
+        2. Insert dmfe module into kernel
+           "insmod dmfe"        ;;Auto Detection Mode (Suggest)
+           "insmod dmfe mode=0" ;;Force 10M Half Duplex
+           "insmod dmfe mode=1" ;;Force 100M Half Duplex
+           "insmod dmfe mode=4" ;;Force 10M Full Duplex
+           "insmod dmfe mode=5" ;;Force 100M Full Duplex
+
+        3. Config a dm9102 network interface
+           "ifconfig eth0 172.22.3.18"
+                          ^^^^^^^^^^^ Your IP address
+
+        4. Activate the IP routing table. For some distributions, it is not
+           necessary. You can type "route" to check.
+
+           "route add default eth0"
+
+
+        5. Well done. Your DM9102 adapter is now activated.
+
+
+   C. Object files description:
+        1. dmfe_rh61.o:       	For Redhat 6.1
+
+        If you can make sure your kernel version, you can rename
+        to dmfe.o and directly use it without re-compiling.
+
+
+  Author: Sten Wang, 886-3-5798797-8517, E-mail: sten_wang@davicom.com.tw

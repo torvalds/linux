@@ -1,0 +1,20 @@
+Index of files in Documentation/powerpc.  If you think something about
+Linux/PPC needs an entry here, needs correction or you've written one
+please mail me.
+                                        Cort Dougan (cort@fsmlabs.com)
+
+00-INDEX
+	- this file
+cpu_features.txt
+	- info on how we support a variety of CPUs with minimal compile-time
+	options.
+ppc_htab.txt
+	- info about the Linux/PPC /proc/ppc_htab entry
+smp.txt
+	- use and state info about Linux/PPC on MP machines
+SBC8260_memory_mapping.txt
+	- EST SBC8260 board info
+sound.txt
+	- info on sound support under Linux/PPC
+zImage_layout.txt
+	- info on the kernel images for Linux/PPC

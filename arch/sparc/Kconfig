@@ -1,0 +1,393 @@
+# $Id: config.in,v 1.113 2002/01/24 22:14:44 davem Exp $
+# For a description of the syntax of this configuration file,
+# see Documentation/kbuild/kconfig-language.txt.
+#
+
+mainmenu "Linux/SPARC Kernel Configuration"
+
+config MMU
+	bool
+	default y
+
+config UID16
+	bool
+	default y
+
+config HIGHMEM
+	bool
+	default y
+
+config GENERIC_ISA_DMA
+	bool
+	default y
+
+source "init/Kconfig"
+
+menu "General machine setup"
+
+config VT
+	bool
+	select INPUT
+	default y
+	---help---
+	  If you say Y here, you will get support for terminal devices with
+	  display and keyboard devices. These are called "virtual" because you
+	  can run several virtual terminals (also called virtual consoles) on
+	  one physical terminal. This is rather useful, for example one
+	  virtual terminal can collect system messages and warnings, another
+	  one can be used for a text-mode user session, and a third could run
+	  an X session, all in parallel. Switching between virtual terminals
+	  is done with certain key combinations, usually Alt-<function key>.
+
+	  The setterm command ("man setterm") can be used to change the
+	  properties (such as colors or beeping) of a virtual terminal. The
+	  man page console_codes(4) ("man console_codes") contains the special
+	  character sequences that can be used to change those properties
+	  directly. The fonts used on virtual terminals can be changed with
+	  the setfont ("man setfont") command and the key bindings are defined
+	  with the loadkeys ("man loadkeys") command.
+
+	  You need at least one virtual terminal device in order to make use
+	  of your keyboard and monitor. Therefore, only people configuring an
+	  embedded system would want to say N here in order to save some
+	  memory; the only way to log into such a system is then via a serial
+	  or network connection.
+
+	  If unsure, say Y, or else you won't be able to do much with your new
+	  shiny Linux system :-)
+
+config VT_CONSOLE
+	bool
+	default y
+	---help---
+	  The system console is the device which receives all kernel messages
+	  and warnings and which allows logins in single user mode. If you
+	  answer Y here, a virtual terminal (the device used to interact with
+	  a physical terminal) can be used as system console. This is the most
+	  common mode of operations, so you should say Y here unless you want
+	  the kernel messages be output only to a serial port (in which case
+	  you should say Y to "Console on serial port", below).
+
+	  If you do say Y here, by default the currently visible virtual
+	  terminal (/dev/tty0) will be used as system console. You can change
+	  that with a kernel command line option such as "console=tty3" which
+	  would use the third virtual terminal as system console. (Try "man
+	  bootparam" or see the documentation of your boot loader (lilo or
+	  loadlin) about how to pass options to the kernel at boot time.)
+
+	  If unsure, say Y.
+
+config HW_CONSOLE
+	bool
+	default y
+
+config SMP
+	bool "Symmetric multi-processing support (does not work on sun4/sun4c)"
+	depends on BROKEN
+	---help---
+	  This enables support for systems with more than one CPU. If you have
+	  a system with only one CPU, say N. If you have a system with more
+	  than one CPU, say Y.
+
+	  If you say N here, the kernel will run on single and multiprocessor
+	  machines, but will use only one CPU of a multiprocessor machine. If
+	  you say Y here, the kernel will run on many, but not all,
+	  singleprocessor machines. On a singleprocessor machine, the kernel
+	  will run faster if you say N here.
+
+	  People using multiprocessor machines who say Y here should also say
+	  Y to "Enhanced Real Time Clock Support", below. The "Advanced Power
+	  Management" code will be disabled if you say Y here.
+
+	  See also the <file:Documentation/smp.txt>,
+	  <file:Documentation/nmi_watchdog.txt> and the SMP-HOWTO available at
+	  <http://www.tldp.org/docs.html#howto>.
+
+	  If you don't know what to do here, say N.
+
+config NR_CPUS
+	int "Maximum number of CPUs (2-32)"
+	range 2 32
+	depends on SMP
+	default "32"
+
+# Identify this as a Sparc32 build
+config SPARC32
+	bool
+	default y
+	help
+	  SPARC is a family of RISC microprocessors designed and marketed by
+	  Sun Microsystems, incorporated.  They are very widely found in Sun
+	  workstations and clones. This port covers the original 32-bit SPARC;
+	  it is old and stable and usually considered one of the "big three"
+	  along with the Intel and Alpha ports.  The UltraLinux project
+	  maintains both the SPARC32 and SPARC64 ports; its web page is
+	  available at <http://www.ultralinux.org/>.
+
+# Global things across all Sun machines.
+config ISA
+	bool
+	help
+	  ISA is found on Espresso only and is not supported currently.
+	  Say N
+
+config EISA
+	bool
+	help
+	  EISA is not supported.
+	  Say N
+
+config MCA
+	bool
+	help
+	  MCA is not supported.
+	  Say N
+
+config PCMCIA
+	tristate
+	---help---
+	  Say Y here if you want to attach PCMCIA- or PC-cards to your Linux
+	  computer.  These are credit-card size devices such as network cards,
+	  modems or hard drives often used with laptops computers.  There are
+	  actually two varieties of these cards: the older 16 bit PCMCIA cards
+	  and the newer 32 bit CardBus cards.  If you want to use CardBus
+	  cards, you need to say Y here and also to "CardBus support" below.
+
+	  To use your PC-cards, you will need supporting software from David
+	  Hinds' pcmcia-cs package (see the file <file:Documentation/Changes>
+	  for location).  Please also read the PCMCIA-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>.
+
+	  To compile this driver as modules, choose M here: the
+	  modules will be called pcmcia_core and ds.
+
+config SBUS
+	bool
+	default y
+
+config SBUSCHAR
+	bool
+	default y
+
+config SERIAL_CONSOLE
+	bool
+	default y
+	---help---
+	  If you say Y here, it will be possible to use a serial port as the
+	  system console (the system console is the device which receives all
+	  kernel messages and warnings and which allows logins in single user
+	  mode). This could be useful if some terminal or printer is connected
+	  to that serial port.
+
+	  Even if you say Y here, the currently visible virtual console
+	  (/dev/tty0) will still be used as the system console by default, but
+	  you can alter that using a kernel command line option such as
+	  "console=ttyS1". (Try "man bootparam" or see the documentation of
+	  your boot loader (silo) about how to pass options to the kernel at
+	  boot time.)
+
+	  If you don't have a graphics card installed and you say Y here, the
+	  kernel will automatically use the first serial line, /dev/ttyS0, as
+	  system console.
+
+	  If unsure, say N.
+
+config SUN_AUXIO
+	bool
+	default y
+
+config SUN_IO
+	bool
+	default y
+
+config RWSEM_GENERIC_SPINLOCK
+	bool
+	default y
+
+config RWSEM_XCHGADD_ALGORITHM
+	bool
+
+config GENERIC_CALIBRATE_DELAY
+	bool
+	default y
+
+config SUN_PM
+	bool
+	default y
+	help
+	  Enable power management and CPU standby features on supported
+	  SPARC platforms.
+
+config SUN4
+	bool "Support for SUN4 machines (disables SUN4[CDM] support)"
+	depends on !SMP
+	default n
+	help
+	  Say Y here if, and only if, your machine is a sun4. Note that
+	  a kernel compiled with this option will run only on sun4.
+	  (And the current version will probably work only on sun4/330.)
+
+if !SUN4
+
+config PCI
+	bool "Support for PCI and PS/2 keyboard/mouse"
+	help
+	  CONFIG_PCI is needed for all JavaStation's (including MrCoffee),
+	  CP-1200, JavaEngine-1, Corona, Red October, and Serengeti SGSC.
+	  All of these platforms are extremely obscure, so say N if unsure.
+
+source "drivers/pci/Kconfig"
+
+endif
+
+config SUN_OPENPROMFS
+	tristate "Openprom tree appears in /proc/openprom"
+	help
+	  If you say Y, the OpenPROM device tree will be available as a
+	  virtual file system, which you can mount to /proc/openprom by "mount
+	  -t openpromfs none /proc/openprom".
+
+	  To compile the /proc/openprom support as a module, choose M here: the
+	  module will be called openpromfs.
+
+	  Only choose N if you know in advance that you will not need to modify
+	  OpenPROM settings on the running system.
+
+source "fs/Kconfig.binfmt"
+
+config SUNOS_EMUL
+	bool "SunOS binary emulation"
+	help
+	  This allows you to run most SunOS binaries.  If you want to do this,
+	  say Y here and place appropriate files in /usr/gnemul/sunos. See
+	  <http://www.ultralinux.org/faq.html> for more information.  If you
+	  want to run SunOS binaries on an Ultra you must also say Y to
+	  "Kernel support for 32-bit a.out binaries" above.
+
+source "drivers/parport/Kconfig"
+
+config PRINTER
+	tristate "Parallel printer support"
+	depends on PARPORT
+	---help---
+	  If you intend to attach a printer to the parallel port of your Linux
+	  box (as opposed to using a serial printer; if the connector at the
+	  printer has 9 or 25 holes ["female"], then it's serial), say Y.
+	  Also read the Printing-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>.
+
+	  It is possible to share one parallel port among several devices
+	  (e.g. printer and ZIP drive) and it is safe to compile the
+	  corresponding drivers into the kernel.  If you want to compile this
+	  driver as a module however, choose M here and read
+	  <file:Documentation/parport.txt>.  The module will be called lp.
+
+	  If you have several parallel ports, you can specify which ports to
+	  use with the "lp" kernel command line option.  (Try "man bootparam"
+	  or see the documentation of your boot loader (silo) about how to pass
+	  options to the kernel at boot time.)  The syntax of the "lp" command
+	  line option can be found in <file:drivers/char/lp.c>.
+
+	  If you have more than 8 printers, you need to increase the LP_NO
+	  macro in lp.c and the PARPORT_MAX macro in parport.h.
+
+endmenu
+
+source "drivers/base/Kconfig"
+
+source "drivers/video/Kconfig"
+
+source "drivers/mtd/Kconfig"
+
+source "drivers/serial/Kconfig"
+
+if !SUN4
+source "drivers/sbus/char/Kconfig"
+endif
+
+source "drivers/block/Kconfig"
+
+# Don't frighten a common SBus user
+if PCI
+
+source "drivers/ide/Kconfig"
+
+endif
+
+source "drivers/isdn/Kconfig"
+
+source "drivers/scsi/Kconfig"
+
+source "drivers/fc4/Kconfig"
+
+source "drivers/md/Kconfig"
+
+source "net/Kconfig"
+
+# This one must be before the filesystem configs. -DaveM
+
+menu "Unix98 PTY support"
+
+config UNIX98_PTYS
+	bool "Unix98 PTY support"
+	---help---
+	  A pseudo terminal (PTY) is a software device consisting of two
+	  halves: a master and a slave. The slave device behaves identical to
+	  a physical terminal; the master device is used by a process to
+	  read data from and write data to the slave, thereby emulating a
+	  terminal. Typical programs for the master side are telnet servers
+	  and xterms.
+
+	  Linux has traditionally used the BSD-like names /dev/ptyxx for
+	  masters and /dev/ttyxx for slaves of pseudo terminals. This scheme
+	  has a number of problems. The GNU C library glibc 2.1 and later,
+	  however, supports the Unix98 naming standard: in order to acquire a
+	  pseudo terminal, a process opens /dev/ptmx; the number of the pseudo
+	  terminal is then made available to the process and the pseudo
+	  terminal slave can be accessed as /dev/pts/<number>. What was
+	  traditionally /dev/ttyp2 will then be /dev/pts/2, for example.
+
+	  The entries in /dev/pts/ are created on the fly by a virtual
+	  file system; therefore, if you say Y here you should say Y to
+	  "/dev/pts file system for Unix98 PTYs" as well.
+
+	  If you want to say Y here, you need to have the C library glibc 2.1
+	  or later (equal to libc-6.1, check with "ls -l /lib/libc.so.*").
+	  Read the instructions in <file:Documentation/Changes> pertaining to
+	  pseudo terminals. It's safe to say N.
+
+config UNIX98_PTY_COUNT
+	int "Maximum number of Unix98 PTYs in use (0-2048)"
+	depends on UNIX98_PTYS
+	default "256"
+	help
+	  The maximum number of Unix98 PTYs that can be used at any one time.
+	  The default is 256, and should be enough for desktop systems. Server
+	  machines which support incoming telnet/rlogin/ssh connections and/or
+	  serve several X terminals may want to increase this: every incoming
+	  connection and every xterm uses up one PTY.
+
+	  When not in use, each additional set of 256 PTYs occupy
+	  approximately 8 KB of kernel memory on 32-bit architectures.
+
+endmenu
+
+source "drivers/input/Kconfig"
+
+source "fs/Kconfig"
+
+source "sound/Kconfig"
+
+source "drivers/usb/Kconfig"
+
+source "drivers/infiniband/Kconfig"
+
+source "drivers/char/watchdog/Kconfig"
+
+source "arch/sparc/Kconfig.debug"
+
+source "security/Kconfig"
+
+source "crypto/Kconfig"
+
+source "lib/Kconfig"

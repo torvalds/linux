@@ -1,0 +1,54 @@
+Driver for PXA25x LCD controller
+================================
+
+The driver supports the following options, either via
+options=<OPTIONS> when modular or video=pxafb:<OPTIONS> when built in.
+
+For example:
+	modprobe pxafb options=mode:640x480-8,passive
+or on the kernel command line
+	video=pxafb:mode:640x480-8,passive
+
+mode:XRESxYRES[-BPP]
+	XRES == LCCR1_PPL + 1
+	YRES == LLCR2_LPP + 1
+		The resolution of the display in pixels
+	BPP == The bit depth. Valid values are 1, 2, 4, 8 and 16.
+
+pixclock:PIXCLOCK
+	Pixel clock in picoseconds
+
+left:LEFT == LCCR1_BLW + 1
+right:RIGHT == LCCR1_ELW + 1
+hsynclen:HSYNC == LCCR1_HSW + 1
+upper:UPPER == LCCR2_BFW
+lower:LOWER == LCCR2_EFR
+vsynclen:VSYNC == LCCR2_VSW + 1
+	Display margins and sync times
+
+color | mono => LCCR0_CMS
+	umm...
+
+active | passive => LCCR0_PAS
+	Active (TFT) or Passive (STN) display
+
+single | dual => LCCR0_SDS
+	Single or dual panel passive display
+
+4pix | 8pix => LCCR0_DPD
+	4 or 8 pixel monochrome single panel data
+
+hsync:HSYNC
+vsync:VSYNC
+	Horizontal and vertical sync. 0 => active low, 1 => active
+	high.
+
+dpc:DPC
+	Double pixel clock. 1=>true, 0=>false
+
+outputen:POLARITY
+	Output Enable Polarity. 0 => active low, 1 => active high
+
+pixclockpol:POLARITY
+	pixel clock polarity
+	0 => falling edge, 1 => rising edge

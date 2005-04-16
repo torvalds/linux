@@ -1,0 +1,46 @@
+Kernel driver i2c-i810
+
+Supported adapters:
+  * Intel 82810, 82810-DC100, 82810E, and 82815 (GMCH)
+
+Authors: 
+	Frodo Looijaard <frodol@dds.nl>, 
+	Philip Edelbrock <phil@netroedge.com>,
+        Kyösti Mälkki <kmalkki@cc.hut.fi>,
+	Ralph Metzler <rjkm@thp.uni-koeln.de>,
+	Mark D. Studebaker <mdsxyz123@yahoo.com>
+
+Main contact: Mark Studebaker <mdsxyz123@yahoo.com>
+
+Description 
+----------- 
+
+WARNING: If you have an '810' or '815' motherboard, your standard I2C
+temperature sensors are most likely on the 801's I2C bus. You want the
+i2c-i801 driver for those, not this driver.
+
+Now for the i2c-i810...
+
+The GMCH chip contains two I2C interfaces.
+
+The first interface is used for DDC (Data Display Channel) which is a
+serial channel through the VGA monitor connector to a DDC-compliant
+monitor. This interface is defined by the Video Electronics Standards
+Association (VESA). The standards are available for purchase at
+http://www.vesa.org .
+
+The second interface is a general-purpose I2C bus. It may be connected to a
+TV-out chip such as the BT869 or possibly to a digital flat-panel display.
+
+Features
+-------- 
+
+Both busses use the i2c-algo-bit driver for 'bit banging'
+and support for specific transactions is provided by i2c-algo-bit.
+
+Issues
+------
+
+If you enable bus testing in i2c-algo-bit (insmod i2c-algo-bit bit_test=1),
+the test may fail; if so, the i2c-i810 driver won't be inserted. However,
+we think this has been fixed.

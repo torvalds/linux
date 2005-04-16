@@ -1,0 +1,150 @@
+kernel-doc nano-HOWTO
+=====================
+
+Many places in the source tree have extractable documentation in the
+form of block comments above functions.  The components of this system
+are:
+
+- scripts/kernel-doc
+
+  This is a perl script that hunts for the block comments and can mark
+  them up directly into DocBook, man, text, and HTML. (No, not
+  texinfo.)
+
+- Documentation/DocBook/*.tmpl
+
+  These are SGML template files, which are normal SGML files with
+  special place-holders for where the extracted documentation should
+  go.
+
+- scripts/docproc.c
+
+  This is a program for converting SGML template files into SGML
+  files. When a file is referenced it is searched for symbols
+  exported (EXPORT_SYMBOL), to be able to distinguish between internal
+  and external functions.
+  It invokes kernel-doc, giving it the list of functions that
+  are to be documented.
+  Additionally it is used to scan the SGML template files to locate
+  all the files referenced herein. This is used to generate dependency
+  information as used by make.
+
+- Makefile
+
+  The targets 'sgmldocs', 'psdocs', 'pdfdocs', and 'htmldocs' are used
+  to build DocBook files, PostScript files, PDF files, and html files
+  in Documentation/DocBook.
+
+- Documentation/DocBook/Makefile
+
+  This is where C files are associated with SGML templates.
+
+
+How to extract the documentation
+--------------------------------
+
+If you just want to read the ready-made books on the various
+subsystems (see Documentation/DocBook/*.tmpl), just type 'make
+psdocs', or 'make pdfdocs', or 'make htmldocs', depending on your 
+preference.  If you would rather read a different format, you can type 
+'make sgmldocs' and then use DocBook tools to convert 
+Documentation/DocBook/*.sgml to a format of your choice (for example, 
+'db2html ...' if 'make htmldocs' was not defined).
+
+If you want to see man pages instead, you can do this:
+
+$ cd linux
+$ scripts/kernel-doc -man $(find -name '*.c') | split-man.pl /tmp/man
+$ scripts/kernel-doc -man $(find -name '*.h') | split-man.pl /tmp/man
+
+Here is split-man.pl:
+
+-->
+#!/usr/bin/perl
+
+if ($#ARGV < 0) {
+   die "where do I put the results?\n";
+}
+
+mkdir $ARGV[0],0777;
+$state = 0;
+while (<STDIN>) {
+    if (/^\.TH \"[^\"]*\" 4 \"([^\"]*)\"/) {
+	if ($state == 1) { close OUT }
+	$state = 1;
+	$fn = "$ARGV[0]/$1.4";
+	print STDERR "Creating $fn\n";
+	open OUT, ">$fn" or die "can't open $fn: $!\n";
+	print OUT $_;
+    } elsif ($state != 0) {
+	print OUT $_;
+    }
+}
+
+close OUT;
+<--
+
+If you just want to view the documentation for one function in one
+file, you can do this:
+
+$ scripts/kernel-doc -man -function fn file | nroff -man | less
+
+or this:
+
+$ scripts/kernel-doc -text -function fn file
+
+
+How to add extractable documentation to your source files
+---------------------------------------------------------
+
+The format of the block comment is like this:
+
+/**
+ * function_name(:)? (- short description)?
+(* @parameterx: (description of parameter x)?)*
+(* a blank line)?
+ * (Description:)? (Description of function)?
+ * (section header: (section description)? )*
+(*)?*/
+
+The short function description cannot be multiline, but the other
+descriptions can be (and they can contain blank lines). Avoid putting a
+spurious blank line after the function name, or else the description will
+be repeated!
+
+All descriptive text is further processed, scanning for the following special
+patterns, which are highlighted appropriately.
+
+'funcname()' - function
+'$ENVVAR' - environment variable
+'&struct_name' - name of a structure (up to two words including 'struct')
+'@parameter' - name of a parameter
+'%CONST' - name of a constant.
+
+Take a look around the source tree for examples.
+
+
+How to make new SGML template files
+-----------------------------------
+
+SGML template files (*.tmpl) are like normal SGML files, except that
+they can contain escape sequences where extracted documentation should
+be inserted.
+
+!E<filename> is replaced by the documentation, in <filename>, for
+functions that are exported using EXPORT_SYMBOL: the function list is
+collected from files listed in Documentation/DocBook/Makefile.
+
+!I<filename> is replaced by the documentation for functions that are
+_not_ exported using EXPORT_SYMBOL.
+
+!D<filename> is used to name additional files to search for functions
+exported using EXPORT_SYMBOL.
+
+!F<filename> <function [functions...]> is replaced by the
+documentation, in <filename>, for the functions listed.
+
+
+Tim.
+*/ <twaugh@redhat.com>
+

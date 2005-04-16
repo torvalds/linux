@@ -1,0 +1,86 @@
+#
+# USB Class driver configuration
+#
+comment "USB Device Class drivers"
+	depends on USB
+
+config USB_AUDIO
+	tristate "USB Audio support"
+	depends on USB && SOUND
+	help
+	  Say Y here if you want to connect USB audio equipment such as
+	  speakers to your computer's USB port. You only need this if you use
+	  the OSS sound driver; ALSA has its own option for usb audio support.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called audio.
+
+comment "USB Bluetooth TTY can only be used with disabled Bluetooth subsystem"
+	depends on USB && BT
+
+config USB_BLUETOOTH_TTY
+	tristate "USB Bluetooth TTY support"
+	depends on USB && BT=n
+	---help---
+	  This driver implements a nonstandard tty interface to a Bluetooth
+	  device that can be used only by specialized Bluetooth HCI software.
+
+	  Say Y here if you want to use OpenBT Bluetooth stack (available
+	  at <http://developer.axis.com/software>), or other TTY based
+	  Bluetooth stacks, and want to connect a USB Bluetooth device
+	  to your computer's USB port.
+
+	  Do *not* enable this driver if you want to use generic Linux
+	  Bluetooth support.
+
+	  If in doubt, say N here.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bluetty.
+
+config USB_MIDI
+	tristate "USB MIDI support"
+	depends on USB && SOUND
+	---help---
+	  Say Y here if you want to connect a USB MIDI device to your
+	  computer's USB port. This driver is for devices that comply with
+	  'Universal Serial Bus Device Class Definition for MIDI Device'.
+
+	  The following devices are known to work:
+	  * Steinberg USB2MIDI
+	  * Roland MPU64
+	  * Roland PC-300
+	  * Roland SC8850
+	  * Roland UM-1
+	  * Roland UM-2
+	  * Roland UA-100
+	  * Yamaha MU1000
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called usb-midi.
+
+config USB_ACM
+	tristate "USB Modem (CDC ACM) support"
+	depends on USB
+	---help---
+	  This driver supports USB modems and ISDN adapters which support the
+	  Communication Device Class Abstract Control Model interface.
+	  Please read <file:Documentation/usb/acm.txt> for details.
+
+	  If your modem only reports "Cls=ff(vend.)" in the descriptors in
+	  /proc/bus/usb/devices, then your modem will not work with this
+	  driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cdc-acm.
+
+config USB_PRINTER
+	tristate "USB Printer support"
+	depends on USB
+	help
+	  Say Y here if you want to connect a USB printer to your computer's
+	  USB port.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called usblp.
+

@@ -1,0 +1,57 @@
+This is the README file for the Optics Storage 8000 AT CDROM device driver.
+
+This is the driver for the so-called 'DOLPHIN' drive, with the 34-pin
+Sony-compatible interface. For the IDE-compatible Optics Storage 8001
+drive, you will want the ATAPI CDROM driver. The driver also seems to
+work with the Lasermate CR328A. If you have a drive that works with
+this driver, and that doesn't report itself as DOLPHIN, please drop me
+a mail.
+
+The support for multisession CDs is in ALPHA stage. If you use it,
+please mail me your experiences. Multisession support can be disabled
+at compile time.
+
+You can find some older versions of the driver at
+      dutette.et.tudelft.nl:/pub/linux/
+and at Eberhard's mirror
+      ftp.gwdg.de:/pub/linux/cdrom/drivers/optics/
+
+Before you can use the driver, you have to create the device file once:
+ # mknod /dev/optcd0 b 17 0
+
+To specify the base address if the driver is "compiled-in" to your kernel,
+you can use the kernel command line item (LILO option)
+             optcd=0x340
+with the right address.
+
+If you have compiled optcd as a module, you can load it with
+ # insmod /usr/src/linux/modules/optcd.o
+or
+ # insmod /usr/src/linux/modules/optcd.o optcd=0x340
+with the matching address value of your interface card.
+
+The driver employs a number of buffers to do read-ahead and block size
+conversion. The number of buffers is configurable in optcd.h, and has
+influence on the driver performance. For my machine (a P75), 6 buffers
+seems optimal, as can be seen from this table:
+
+#bufs	kb/s	%cpu
+1	97	0.1
+2	191	0.3
+3	188	0.2
+4	246	0.3
+5	189	19
+6	280	0.4
+7	281	7.0
+8	246	2.8
+16	281	3.4
+
+If you get a throughput significantly below 300 kb/s, try tweaking
+N_BUFS, and don't forget to mail me your results!
+
+I'd appreciate success/failure reports. If you find a bug, try
+recompiling the driver with some strategically chosen debug options
+(these can be found in optcd.h) and include the messages generated in
+your bug report. Good luck.
+
+Leo Spiekman (spiekman@dutette.et.tudelft.nl)

@@ -1,0 +1,98 @@
+#
+# Drm device configuration
+#
+# This driver provides support for the
+# Direct Rendering Infrastructure (DRI) in XFree86 4.1.0 and higher.
+#
+config DRM
+	tristate "Direct Rendering Manager (XFree86 4.1.0 and higher DRI support)"
+	depends on AGP || AGP=n
+	help
+	  Kernel-level support for the Direct Rendering Infrastructure (DRI)
+	  introduced in XFree86 4.0. If you say Y here, you need to select
+	  the module that's right for your graphics card from the list below.
+	  These modules provide support for synchronization, security, and
+	  DMA transfers. Please see <http://dri.sourceforge.net/> for more
+	  details.  You should also select and configure AGP
+	  (/dev/agpgart) support.
+
+config DRM_TDFX
+	tristate "3dfx Banshee/Voodoo3+"
+	depends on DRM && PCI
+	help
+	  Choose this option if you have a 3dfx Banshee or Voodoo3 (or later),
+	  graphics card.  If M is selected, the module will be called tdfx.
+
+config DRM_GAMMA
+	tristate "3dlabs GMX 2000"
+	depends on DRM && BROKEN
+	help
+	  This is the old gamma driver, please tell me if it might actually
+	  work.
+
+config DRM_R128
+	tristate "ATI Rage 128"
+	depends on DRM && PCI
+	help
+	  Choose this option if you have an ATI Rage 128 graphics card.  If M
+	  is selected, the module will be called r128.  AGP support for
+	  this card is strongly suggested (unless you have a PCI version).
+
+config DRM_RADEON
+	tristate "ATI Radeon"
+	depends on DRM && PCI
+	help
+	  Choose this option if you have an ATI Radeon graphics card.  There
+	  are both PCI and AGP versions.  You don't need to choose this to
+	  run the Radeon in plain VGA mode.  There is a product page at
+	  <http://www.ati.com/na/pages/products/pc/radeon32/index.html>.
+	  If M is selected, the module will be called radeon.
+
+config DRM_I810
+	tristate "Intel I810"
+	depends on DRM && AGP && AGP_INTEL
+	help
+	  Choose this option if you have an Intel I810 graphics card.  If M is
+	  selected, the module will be called i810.  AGP support is required
+	  for this driver to work.
+
+choice
+	prompt "Intel 830M, 845G, 852GM, 855GM, 865G"
+	depends on DRM && AGP && AGP_INTEL
+	optional
+
+config DRM_I830
+	tristate "i830 driver"
+	help
+	  Choose this option if you have a system that has Intel 830M, 845G,
+	  852GM, 855GM or 865G integrated graphics.  If M is selected, the
+	  module will be called i830.  AGP support is required for this driver
+	  to work. This driver will eventually be replaced by the i915 one.
+
+config DRM_I915
+	tristate "i915 driver"
+	help
+	  Choose this option if you have a system that has Intel 830M, 845G,
+	  852GM, 855GM 865G or 915G integrated graphics.  If M is selected, the
+	  module will be called i915.  AGP support is required for this driver
+	  to work. This driver will eventually replace the I830 driver, when
+	  later release of X start to use the new DDX and DRI.
+	
+endchoice
+
+config DRM_MGA
+	tristate "Matrox g200/g400"
+	depends on DRM && AGP
+	help
+	  Choose this option if you have a Matrox G200, G400 or G450 graphics
+	  card.  If M is selected, the module will be called mga.  AGP
+	  support is required for this driver to work.
+
+config DRM_SIS
+	tristate "SiS video cards"
+	depends on DRM && AGP
+	help
+	  Choose this option if you have a SiS 630 or compatible video 
+          chipset. If M is selected the module will be called sis. AGP
+          support is required for this driver to work.
+

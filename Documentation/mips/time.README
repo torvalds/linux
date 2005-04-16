@@ -1,0 +1,198 @@
+README for MIPS time services
+
+Jun Sun
+jsun@mvista.com or jsun@junsun.net
+
+
+ABOUT
+-----
+This file describes the new arch/mips/kernel/time.c, related files and the 
+services they provide. 
+
+If you are short in patience and just want to know how to use time.c for a 
+new board or convert an existing board, go to the last section.
+
+
+FILES, COMPATABILITY AND CONFIGS
+---------------------------------
+
+The old arch/mips/kernel/time.c is renamed to old-time.c.
+
+A new time.c is put there, together with include/asm-mips/time.h.
+
+Two configs variables are introduced, CONFIG_OLD_TIME_C and CONFIG_NEW_TIME_C.
+So we allow boards using 
+
+	1) old time.c (CONFIG_OLD_TIME_C)
+	2) new time.c (CONFIG_NEW_TIME_C)
+	3) neither (their own private time.c)
+
+However, it is expected every board will move to the new time.c in the near
+future.
+
+
+WHAT THE NEW CODE PROVIDES?
+--------------------------- 
+
+The new time code provide the following services:
+
+  a) Implements functions required by Linux common code:
+	time_init
+	do_gettimeofday
+	do_settimeofday
+
+  b) provides an abstraction of RTC and null RTC implementation as default.
+	extern unsigned long (*rtc_get_time)(void);
+	extern int (*rtc_set_time)(unsigned long);
+
+  c) a set of gettimeoffset functions for different CPUs and different
+     needs.
+
+  d) high-level and low-level timer interrupt routines where the timer 
+     interrupt source  may or may not be the CPU timer.  The high-level 
+     routine is dispatched through do_IRQ() while the low-level is 
+     dispatched in assemably code (usually int-handler.S)
+
+
+WHAT THE NEW CODE REQUIRES?
+---------------------------
+
+For the new code to work properly, each board implementation needs to supply
+the following functions or values:
+
+  a) board_time_init - a function pointer.  Invoked at the beginnig of
+     time_init().  It is optional.
+	1. (optional) set up RTC routines
+	2. (optional) calibrate and set the mips_counter_frequency
+
+  b) board_timer_setup - a function pointer.  Invoked at the end of time_init()
+	1. (optional) over-ride any decisions made in time_init()
+	2. set up the irqaction for timer interrupt.
+	3. enable the timer interrupt
+
+  c) (optional) board-specific RTC routines.
+
+  d) (optional) mips_counter_frequency - It must be definied if the board
+     is using CPU counter for timer interrupt or it is using fixed rate
+     gettimeoffset().
+
+
+PORTING GUIDE
+-------------
+
+Step 1: decide how you like to implement the time services.
+
+  a) does this board have a RTC?  If yes, implement the two RTC funcs.
+
+  b) does the CPU have counter/compare registers? 
+
+     If the answer is no, you need a timer to provide the timer interrupt
+     at 100 HZ speed.
+
+     You cannot use the fast gettimeoffset functions, i.e.,
+
+	unsigned long fixed_rate_gettimeoffset(void);
+	unsigned long calibrate_div32_gettimeoffset(void);
+	unsigned long calibrate_div64_gettimeoffset(void);
+
+    You can use null_gettimeoffset() will gives the same time resolution as
+    jiffy.  Or you can implement your own gettimeoffset (probably based on 
+    some ad hoc hardware on your machine.)
+
+  c) The following sub steps assume your CPU has counter register.
+     Do you plan to use the CPU counter register as the timer interrupt
+     or use an exnternal timer?
+
+     In order to use CPU counter register as the timer interrupt source, you
+     must know the counter speed (mips_counter_frequency).  It is usually the
+     same as the CPU speed or an integral divisor of it.
+
+  d) decide on whether you want to use high-level or low-level timer
+     interrupt routines.  The low-level one is presumably faster, but should
+     not make too mcuh difference.
+
+
+Step 2:  the machine setup() function
+
+  If you supply board_time_init(), set the function poointer.
+
+  Set the function pointer board_timer_setup() (mandatory)
+
+
+Step 3: implement rtc routines, board_time_init() and board_timer_setup()
+  if needed.
+
+  board_time_init() - 
+  	a) (optional) set up RTC routines, 
+        b) (optional) calibrate and set the mips_counter_frequency
+ 	    (only needed if you intended to use fixed_rate_gettimeoffset
+ 	     or use cpu counter as timer interrupt source)
+
+  board_timer_setup() - 
+ 	a) (optional) over-write any choices made above by time_init().
+ 	b) machine specific code should setup the timer irqaction.
+ 	c) enable the timer interrupt
+
+
+  If the RTC chip is a common chip, I suggest the routines are put under
+  arch/mips/libs.  For example, for DS1386 chip, one would create
+  rtc-ds1386.c under arch/mips/lib directory.  Add the following line to
+  the arch/mips/lib/Makefile:
+
+	obj-$(CONFIG_DDB5476) += rtc-ds1386.o
+
+Step 4: if you are using low-level timer interrupt, change your interrupt
+  dispathcing code to check for timer interrupt and jump to 
+  ll_timer_interrupt() directly  if one is detected.
+
+Step 5: Modify arch/mips/config.in and add CONFIG_NEW_TIME_C to your machine.
+  Modify the appropriate defconfig if applicable.
+
+Final notes: 
+
+For some tricky cases, you may need to add your own wrapper functions 
+for some of the functions in time.c.  
+
+For example, you may define your own timer interrupt routine, which does
+some of its own processing and then calls timer_interrupt().
+
+You can also over-ride any of the built-in functions (gettimeoffset,
+RTC routines and/or timer interrupt routine).
+
+
+PORTING NOTES FOR SMP
+----------------------
+
+If you have a SMP box, things are slightly more complicated.
+
+The time service running every jiffy is logically divided into two parts:
+
+  1) the one for the whole system  (defined in timer_interrupt())
+  2) the one that should run for each CPU (defined in local_timer_interrupt())
+
+You need to decide on your timer interrupt sources.
+
+  case 1) - whole system has only one timer interrupt delivered to one CPU
+
+	In this case, you set up timer interrupt as in UP systems.  In addtion,
+	you need to set emulate_local_timer_interrupt to 1 so that other
+	CPUs get to call local_timer_interrupt().
+
+	THIS IS CURRENTLY NOT IMPLEMNETED.  However, it is rather easy to write
+	one should such a need arise.  You simply make a IPI call.
+
+  case 2) - each CPU has a separate timer interrupt
+
+	In this case, you need to set up IRQ such that each of them will
+	call local_timer_interrupt().  In addition, you need to arrange
+	one and only one of them to call timer_interrupt().
+
+	You can also do the low-level version of those interrupt routines,
+	following similar dispatching routes described above.
+
+Note about do_gettimeoffset():
+
+  It is very likely the CPU counter registers are not sync'ed up in a SMP box.
+  Therefore you cannot really use the many of the existing routines that
+  are based on CPU counter.  You should wirte your own gettimeoffset rouinte
+  if you want intra-jiffy resolution.

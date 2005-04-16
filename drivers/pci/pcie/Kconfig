@@ -1,0 +1,36 @@
+#
+# PCI Express Port Bus Configuration
+#
+config PCIEPORTBUS
+	bool "PCI Express support"
+	depends on PCI
+	help
+	  This automatically enables PCI Express Port Bus support. Users can
+	  choose Native Hot-Plug support, Advanced Error Reporting support,
+	  Power Management Event support and Virtual Channel support to run
+	  on PCI Express Ports (Root or Switch).
+
+#
+# Include service Kconfig here
+#
+config HOTPLUG_PCI_PCIE
+	tristate "PCI Express Hotplug driver"
+	depends on HOTPLUG_PCI && PCIEPORTBUS
+	help
+	  Say Y here if you have a motherboard that supports PCI Express Native
+	  Hotplug
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pciehp.
+
+	  When in doubt, say N.
+
+config HOTPLUG_PCI_PCIE_POLL_EVENT_MODE
+	bool "Use polling mechanism for hot-plug events (for testing purpose)"
+	depends on HOTPLUG_PCI_PCIE
+	help
+	  Say Y here if you want to use the polling mechanism for hot-plug 
+	  events for early platform testing.
+	   
+	  When in doubt, say N.
+

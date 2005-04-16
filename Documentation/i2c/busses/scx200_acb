@@ -1,0 +1,14 @@
+Kernel driver scx200_acb
+
+Author: Christer Weinigel <wingel@nano-system.com>
+
+Module Parameters
+-----------------
+
+* base: int
+  Base addresses for the ACCESS.bus controllers
+
+Description
+-----------
+
+Enable the use of the ACCESS.bus controllers of a SCx200 processor.

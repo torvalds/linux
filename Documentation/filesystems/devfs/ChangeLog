@@ -1,0 +1,1977 @@
+/* -*- auto-fill -*-                                                         */
+===============================================================================
+Changes for patch v1
+
+- creation of devfs
+
+- modified miscellaneous character devices to support devfs
+===============================================================================
+Changes for patch v2
+
+- bug fix with manual inode creation
+===============================================================================
+Changes for patch v3
+
+- bugfixes
+
+- documentation improvements
+
+- created a couple of scripts (one to save&restore a devfs and the
+  other to set up compatibility symlinks)
+
+- devfs support for SCSI discs. New name format is: sd_hHcCiIlL
+===============================================================================
+Changes for patch v4
+
+- bugfix for the directory reading code
+
+- bugfix for compilation with kerneld
+
+- devfs support for generic hard discs
+
+- rationalisation of the various watchdog drivers
+===============================================================================
+Changes for patch v5
+
+- support for mounting directly from entries in the devfs (it doesn't
+  need to be mounted to do this), including the root filesystem.
+  Mounting of swap partitions also works. Hence, now if you set
+  CONFIG_DEVFS_ONLY to 'Y' then you won't be able to access your discs
+  via ordinary device nodes. Naturally, the default is 'N' so that you
+  can still use your old device nodes.  If you want to mount from devfs
+  entries, make sure you use: append = "root=/dev/sd_..." in your
+  lilo.conf. It seems LILO looks for the device number (major&minor)
+  and writes that into the kernel image :-( 
+
+- support for character memory devices (/dev/null, /dev/zero, /dev/full
+  and so on). Thanks to C. Scott Ananian <cananian@alumni.princeton.edu>
+===============================================================================
+Changes for patch v6
+
+- support for subdirectories
+
+- support for symbolic links (created by devfs_mk_symlink(), no
+  support yet for creation via symlink(2))
+
+- SCSI disc naming now cast in stone, with the format:
+  /dev/sd/c0b1t2u3	controller=0, bus=1, ID=2, LUN=3, whole disc
+  /dev/sd/c0b1t2u3p4	controller=0, bus=1, ID=2, LUN=3, 4th partition
+
+- loop devices now appear in devfs
+
+- tty devices, console, serial ports, etc. now appear in devfs
+  Thanks to C. Scott Ananian <cananian@alumni.princeton.edu>
+
+- bugs with mounting devfs-only devices now fixed
+===============================================================================
+Changes for patch v7
+
+- SCSI CD-ROMS, tapes and generic devices now appear in devfs
+===============================================================================
+Changes for patch v8
+
+- bugfix with no-rewind SCSI tapes
+
+- RAMDISCs now appear in devfs
+
+- better cleaning up of devfs entries created by various modules
+
+- interface change to <devfs_register>
+===============================================================================
+Changes for patch v9
+
+- the v8 patch was corrupted somehow, which would affect the patch for
+  linux/fs/filesystems.c
+  I've also fixed the v8 patch file on the WWW
+
+- MetaDevices (/dev/md*) should now appear in devfs
+===============================================================================
+Changes for patch v10
+
+- bugfix in meta device support for devfs
+
+- created this ChangeLog file
+
+- added devfs support to the floppy driver
+
+- added support for creating sockets in a devfs
+===============================================================================
+Changes for patch v11
+
+- added DEVFS_FL_HIDE_UNREG flag
+
+- incorporated better patch for ttyname() in libc 5.4.43 from H.J. Lu.
+
+- interface change to <devfs_mk_symlink>
+
+- support for creating symlinks with symlink(2)
+
+- parallel port printer (/dev/lp*) now appears in devfs
+===============================================================================
+Changes for patch v12
+
+- added inode check to <devfs_fill_file> function
+
+- improved devfs support when mounting from devfs
+
+- added call to <<release>> operation when removing swap areas on
+  devfs devices
+
+- increased NR_SUPER to 128 to support large numbers of devfs mounts
+  (for chroot(2) gaols)
+
+- fixed bug in SCSI disc support: was generating incorrect minors if
+  SCSI ID's did not start at 0 and increase by 1
+
+- support symlink traversal when mounting root
+===============================================================================
+Changes for patch v13
+
+- added devfs support to soundcard driver
+  Thanks to Eric Dumas <dumas@linux.eu.org> and
+  C. Scott Ananian <cananian@alumni.princeton.edu>
+
+- added devfs support to the joystick driver
+
+- loop driver now has it's own subdirectory "/dev/loop/"
+
+- created <devfs_get_flags> and <devfs_set_flags> functions
+
+- fix problem with SCSI disc compatibility names (sd{a,b,c,d,e,f})
+  which assumes ID's start at 0 and increase by 1. Also only create
+  devfs entries for SCSI disc partitions which actually exist
+  Show new names in partition check
+  Thanks to Jakub Jelinek <jj@sunsite.ms.mff.cuni.cz>
+===============================================================================
+Changes for patch v14
+
+- bug fix in floppy driver: would not compile without
+  CONFIG_DEVFS_FS='Y'
+  Thanks to Jurgen Botz <jbotz@nova.botz.org>
+
+- bug fix in loop driver
+  Thanks to C. Scott Ananian <cananian@alumni.princeton.edu>
+
+- do not create devfs entries for printers not configured
+  Thanks to C. Scott Ananian <cananian@alumni.princeton.edu>
+
+- do not create devfs entries for serial ports not present
+  Thanks to C. Scott Ananian <cananian@alumni.princeton.edu>
+
+- ensure <tty_register_devfs> is exported from tty_io.c
+  Thanks to C. Scott Ananian <cananian@alumni.princeton.edu>
+
+- allow unregistering of devfs symlink entries
+
+- fixed bug in SCSI disc naming introduced in last patch version
+===============================================================================
+Changes for patch v15
+
+- ported to kernel 2.1.81
+===============================================================================
+Changes for patch v16
+
+- created <devfs_set_symlink_destination> function
+
+- moved DEVFS_SUPER_MAGIC into header file
+
+- added DEVFS_FL_HIDE flag
+
+- created <devfs_get_maj_min>
+
+- created <devfs_get_handle_from_inode>
+
+- fixed bugs in searching by major&minor
+
+- changed interface to <devfs_unregister>, <devfs_fill_file> and
+  <devfs_find_handle>
+
+- fixed inode times when symlink created with symlink(2)
+
+- change tty driver to do auto-creation of devfs entries
+  Thanks to C. Scott Ananian <cananian@alumni.princeton.edu>
+
+- fixed bug in genhd.c: whole disc (non-SCSI) was not registered to
+  devfs
+
+- updated libc 5.4.43 patch for ttyname()
+===============================================================================
+Changes for patch v17
+
+- added CONFIG_DEVFS_TTY_COMPAT
+  Thanks to C. Scott Ananian <cananian@alumni.princeton.edu>
+
+- bugfix in devfs support for drivers/char/lp.c
+  Thanks to C. Scott Ananian <cananian@alumni.princeton.edu>
+
+- clean up serial driver so that PCMCIA devices unregister correctly
+  Thanks to C. Scott Ananian <cananian@alumni.princeton.edu>
+
+- fixed bug in genhd.c: whole disc (non-SCSI) was not registered to
+  devfs [was missing in patch v16]
+
+- updated libc 5.4.43 patch for ttyname() [was missing in patch v16]
+
+- all SCSI devices now registered in /dev/sg
+
+- support removal of devfs entries via unlink(2)
+===============================================================================
+Changes for patch v18
+
+- added floppy/?u720 floppy entry
+
+- fixed kerneld support for entries in devfs subdirectories
+
+- incorporated latest patch for ttyname() in libc 5.4.43 from H.J. Lu.
+===============================================================================
+Changes for patch v19
+
+- bug fix when looking up unregistered entries: kerneld was not called
+
+- fixes for kernel 2.1.86 (now requires 2.1.86)
+===============================================================================
+Changes for patch v20
+
+- only create available floppy entries
+  Thanks to Andrzej Krzysztofowicz <ankry@green.mif.pg.gda.pl>
+
+- new IDE naming scheme following SCSI format (i.e. /dev/id/c0b0t0u0p1
+  instead of /dev/hda1)
+  Thanks to Andrzej Krzysztofowicz <ankry@green.mif.pg.gda.pl>
+
+- new XT disc naming scheme following SCSI format (i.e. /dev/xd/c0t0p1
+  instead of /dev/xda1)
+  Thanks to Andrzej Krzysztofowicz <ankry@green.mif.pg.gda.pl>
+
+- new non-standard CD-ROM names (i.e. /dev/sbp/c#t#)
+  Thanks to Andrzej Krzysztofowicz <ankry@green.mif.pg.gda.pl>
+
+- allow symlink traversal when mounting the root filesystem
+
+- Create entries for MD devices at MD init
+  Thanks to Christophe Leroy <christophe.leroy5@capway.com>
+===============================================================================
+Changes for patch v21
+
+- ported to kernel 2.1.91
+===============================================================================
+Changes for patch v22
+
+- SCSI host number patch ("scsihosts=" kernel option)
+  Thanks to Andrzej Krzysztofowicz <ankry@green.mif.pg.gda.pl>
+===============================================================================
+Changes for patch v23
+
+- Fixed persistence bug with device numbers for manually created
+  device files
+
+- Fixed problem with recreating symlinks with different content
+
+- Added CONFIG_DEVFS_MOUNT (mount devfs on /dev at boot time)
+===============================================================================
+Changes for patch v24
+
+- Switched from CONFIG_KERNELD to CONFIG_KMOD: module autoloading
+  should now work again
+
+- Hide entries which are manually unlinked
+
+- Always invalidate devfs dentry cache when registering entries
+
+- Support removal of devfs directories via rmdir(2)
+
+- Ensure directories created by <devfs_mk_dir> are visible
+
+- Default no access for "other" for floppy device
+===============================================================================
+Changes for patch v25
+
+- Updates to CREDITS file and minor IDE numbering change
+  Thanks to Andrzej Krzysztofowicz <ankry@green.mif.pg.gda.pl>
+
+- Invalidate devfs dentry cache when making directories
+
+- Invalidate devfs dentry cache when removing entries
+
+- More informative message if root FS mount fails when devfs
+  configured
+
+- Fixed persistence bug with fifos
+===============================================================================
+Changes for patch v26
+
+- ported to kernel 2.1.97
+
+- Changed serial directory from "/dev/serial" to "/dev/tts" and
+  "/dev/consoles" to "/dev/vc" to be more friendly to new procps
+===============================================================================
+Changes for patch v27
+
+- Added support for IDE4 and IDE5
+  Thanks to Andrzej Krzysztofowicz <ankry@green.mif.pg.gda.pl>
+
+- Documented "scsihosts=" boot parameter
+
+- Print process command when debugging kerneld/kmod
+
+- Added debugging for register/unregister/change operations
+
+- Added "devfs=" boot options
+
+- Hide unregistered entries by default
+===============================================================================
+Changes for patch v28
+
+- No longer lock/unlock superblock in <devfs_put_super> (cope with
+  recent VFS interface change)
+
+- Do not automatically change ownership/protection of /dev/tty
+
+- Drop negative dentries when they are released
+
+- Manage dcache more efficiently
+===============================================================================
+Changes for patch v29
+
+- Added DEVFS_FL_AUTO_DEVNUM flag
+===============================================================================
+Changes for patch v30
+
+- No longer set unnecessary methods
+
+- Ported to kernel 2.1.99-pre3
+===============================================================================
+Changes for patch v31
+
+- Added PID display to <call_kerneld> debugging message
+
+- Added "diread" and "diwrite" options
+
+- Ported to kernel 2.1.102
+
+- Fixed persistence problem with permissions
+===============================================================================
+Changes for patch v32
+
+- Fixed devfs support in drivers/block/md.c
+===============================================================================
+Changes for patch v33
+
+- Support legacy device nodes
+
+- Fixed bug where recreated inodes were hidden
+
+- New IDE naming scheme: everything is under /dev/ide
+===============================================================================
+Changes for patch v34
+
+- Improved debugging in <get_vfs_inode>
+
+- Prevent duplicate calls to <devfs_mk_dir> in SCSI layer
+
+- No longer free old dentries in <devfs_mk_dir>
+
+- Free all dentries for a given entry when deleting inodes
+===============================================================================
+Changes for patch v35
+
+- Ported to kernel 2.1.105 (sound driver changes)
+===============================================================================
+Changes for patch v36
+
+- Fixed sound driver port
+===============================================================================
+Changes for patch v37
+
+- Minor documentation tweaks
+===============================================================================
+Changes for patch v38
+
+- More documentation tweaks
+
+- Fix for sound driver port
+
+- Removed ttyname-patch (grab libc 5.4.44 instead)
+
+- Ported to kernel 2.1.107-pre2 (loop driver fix)
+===============================================================================
+Changes for patch v39
+
+- Ported to kernel 2.1.107 (hd.c hunk broke due to spelling "fixes"). Sigh
+
+- Removed many #ifdef's, replaced with trickery in include/devfs_fs.h
+===============================================================================
+Changes for patch v40
+
+- Fix for sound driver port
+
+- Limit auto-device numbering to majors 128 to 239
+===============================================================================
+Changes for patch v41
+
+- Fixed inode times persistence problem
+===============================================================================
+Changes for patch v42
+
+- Ported to kernel 2.1.108 (drivers/scsi/hosts.c hunk broke)
+===============================================================================
+Changes for patch v43
+
+- Fixed spelling in <devfs_readlink> debug
+
+- Fixed bug in <devfs_setup> parsing "dilookup"
+
+- More #ifdef's removed
+
+- Supported Sparc keyboard (/dev/kbd)
+
+- Supported DSP56001 digital signal processor (/dev/dsp56k)
+
+- Supported Apple Desktop Bus (/dev/adb)
+
+- Supported Coda network file system (/dev/cfs*)
+===============================================================================
+Changes for patch v44
+
+- Fixed devfs inode leak when manually recreating inodes
+
+- Fixed permission persistence problem when recreating inodes
+===============================================================================
+Changes for patch v45
+
+- Ported to kernel 2.1.110
+===============================================================================
+Changes for patch v46
+
+- Ported to kernel 2.1.112-pre1
+
+- Removed harmless "unused variable" compiler warning
+
+- Fixed modes for manually recreated device nodes
+===============================================================================
+Changes for patch v47
+
+- Added NULL devfs inode warning in <devfs_read_inode>
+
+- Force all inode nlink values to 1
+===============================================================================
+Changes for patch v48
+
+- Added "dimknod" option
+
+- Set inode nlink to 0 when freeing dentries
+
+- Added support for virtual console capture devices (/dev/vcs*)
+  Thanks to Dennis Hou <smilax@mindmeld.yi.org>
+
+- Fixed modes for manually recreated symlinks
+===============================================================================
+Changes for patch v49
+
+- Ported to kernel 2.1.113
+===============================================================================
+Changes for patch v50
+
+- Fixed bugs in recreated directories and symlinks
+===============================================================================
+Changes for patch v51
+
+- Improved robustness of rc.devfs script
+  Thanks to Roderich Schupp <rsch@experteam.de>
+
+- Fixed bugs in recreated device nodes
+
+- Fixed bug in currently unused <devfs_get_handle_from_inode>
+
+- Defined new <devfs_handle_t> type
+
+- Improved debugging when getting entries
+
+- Fixed bug where directories could be emptied
+
+- Ported to kernel 2.1.115
+===============================================================================
+Changes for patch v52
+
+- Replaced dummy .epoch inode with .devfsd character device
+
+- Modified rc.devfs to take account of above change
+
+- Removed spurious driver warning messages when CONFIG_DEVFS_FS=n
+
+- Implemented devfsd protocol revision 0
+===============================================================================
+Changes for patch v53
+
+- Ported to kernel 2.1.116 (kmod change broke hunk)
+
+- Updated Documentation/Configure.help
+
+- Test and tty pattern patch for rc.devfs script
+  Thanks to Roderich Schupp <rsch@experteam.de>
+
+- Added soothing message to warning in <devfs_d_iput>
+===============================================================================
+Changes for patch v54
+
+- Ported to kernel 2.1.117
+
+- Fixed default permissions in sound driver
+
+- Added support for frame buffer devices (/dev/fb*)
+===============================================================================
+Changes for patch v55
+
+- Ported to kernel 2.1.119
+
+- Use GCC extensions for structure initialisations
+
+- Implemented async open notification
+
+- Incremented devfsd protocol revision to 1
+===============================================================================
+Changes for patch v56
+
+- Ported to kernel 2.1.120-pre3
+
+- Moved async open notification to end of <devfs_open>
+===============================================================================
+Changes for patch v57
+
+- Ported to kernel 2.1.121
+
+- Prepended "/dev/" to module load request
+
+- Renamed <call_kerneld> to <call_kmod>
+
+- Created sample modules.conf file
+===============================================================================
+Changes for patch v58
+
+- Fixed typo "AYSNC" -> "ASYNC"
+===============================================================================
+Changes for patch v59
+
+- Added open flag for files
+===============================================================================
+Changes for patch v60
+
+- Ported to kernel 2.1.123-pre2
+===============================================================================
+Changes for patch v61
+
+- Set i_blocks=0 and i_blksize=1024 in <devfs_read_inode>
+===============================================================================
+Changes for patch v62
+
+- Ported to kernel 2.1.123
+===============================================================================
+Changes for patch v63
+
+- Ported to kernel 2.1.124-pre2
+===============================================================================
+Changes for patch v64
+
+- Fixed Unix98 pty support
+
+- Increased buffer size in <get_partition_list> to avoid crash and
+  burn
+===============================================================================
+Changes for patch v65
+
+- More Unix98 pty support fixes
+
+- Added test for empty <<name>> in <devfs_find_handle>
+
+- Renamed <generate_path> to <devfs_generate_path> and published
+
+- Created /dev/root symlink
+  Thanks to Roderich Schupp <rsch@ExperTeam.de>
+  with further modifications by me
+===============================================================================
+Changes for patch v66
+
+- Yet more Unix98 pty support fixes (now tested)
+
+- Created <devfs_get_fops>
+
+- Support media change checks when CONFIG_DEVFS_ONLY=y
+
+- Abolished Unix98-style PTY names for old PTY devices
+===============================================================================
+Changes for patch v67
+
+- Added inline declaration for dummy <devfs_generate_path>
+
+- Removed spurious "unable to register... in devfs" messages when
+  CONFIG_DEVFS_FS=n
+
+- Fixed misc. devices when CONFIG_DEVFS_FS=n
+
+- Limit auto-device numbering to majors 144 to 239
+===============================================================================
+Changes for patch v68
+
+- Hide unopened virtual consoles from directory listings
+
+- Added support for video capture devices
+
+- Ported to kernel 2.1.125
+===============================================================================
+Changes for patch v69
+
+- Fix for CONFIG_VT=n
+===============================================================================
+Changes for patch v70
+
+- Added support for non-OSS/Free sound cards
+===============================================================================
+Changes for patch v71
+
+- Ported to kernel 2.1.126-pre2
+===============================================================================
+Changes for patch v72
+
+- #ifdef's for CONFIG_DEVFS_DISABLE_OLD_NAMES removed
+===============================================================================
+Changes for patch v73
+
+- CONFIG_DEVFS_DISABLE_OLD_NAMES replaced with "nocompat" boot option
+
+- CONFIG_DEVFS_BOOT_OPTIONS removed: boot options always available
+===============================================================================
+Changes for patch v74
+
+- Removed CONFIG_DEVFS_MOUNT and "mount" boot option and replaced with
+  "nomount" boot option
+
+- Documentation updates
+
+- Updated sample modules.conf
+===============================================================================
+Changes for patch v75
+
+- Updated sample modules.conf
+
+- Remount devfs after initrd finishes
+
+- Ported to kernel 2.1.127
+
+- Added support for ISDN
+  Thanks to Christophe Leroy <christophe.leroy5@capway.com>
+===============================================================================
+Changes for patch v76
+
+- Updated an email address in ChangeLog
+
+- CONFIG_DEVFS_ONLY replaced with "only" boot option
+===============================================================================
+Changes for patch v77
+
+- Added DEVFS_FL_REMOVABLE flag
+
+- Check for disc change when listing directories with removable media
+  devices
+
+- Use DEVFS_FL_REMOVABLE in sd.c
+
+- Ported to kernel 2.1.128
+===============================================================================
+Changes for patch v78
+
+- Only call <scan_dir_for_removable> on first call to <devfs_readdir>
+
+- Ported to kernel 2.1.129-pre5
+
+- ISDN support improvements
+  Thanks to Christophe Leroy <christophe.leroy5@capway.com>
+===============================================================================
+Changes for patch v79
+
+- Ported to kernel 2.1.130
+
+- Renamed miscdevice "apm" to "apm_bios" to be consistent with
+  devices.txt
+===============================================================================
+Changes for patch v80
+
+- Ported to kernel 2.1.131
+
+- Updated <devfs_rmdir> for VFS change in 2.1.131
+===============================================================================
+Changes for patch v81
+
+- Fixed permissions on /dev/ptmx
+===============================================================================
+Changes for patch v82
+
+- Ported to kernel 2.1.132-pre4
+
+- Changed initial permissions on /dev/pts/*
+
+- Created <devfs_mk_compat>
+
+- Added "symlinks" boot option
+
+- Changed devfs_register_blkdev() back to register_blkdev() for IDE
+
+- Check for partitions on removable media in <devfs_lookup>
+===============================================================================
+Changes for patch v83
+
+- Fixed support for ramdisc when using string-based root FS name
+
+- Ported to kernel 2.2.0-pre1
+===============================================================================
+Changes for patch v84
+
+- Ported to kernel 2.2.0-pre7
+===============================================================================
+Changes for patch v85
+
+- Compile fixes for driver/sound/sound_common.c (non-module) and
+  drivers/isdn/isdn_common.c
+  Thanks to Christophe Leroy <christophe.leroy5@capway.com>
+
+- Added support for registering regular files
+
+- Created <devfs_set_file_size>
+
+- Added /dev/cpu/mtrr as an alternative interface to /proc/mtrr
+
+- Update devfs inodes from entries if not changed through FS
+===============================================================================
+Changes for patch v86
+
+- Ported to kernel 2.2.0-pre9
+===============================================================================
+Changes for patch v87
+
+- Fixed bug when mounting non-devfs devices in a devfs
+===============================================================================
+Changes for patch v88
+
+- Fixed <devfs_fill_file> to only initialise temporary inodes
+
+- Trap for NULL fops in <devfs_register>
+
+- Return -ENODEV in <devfs_fill_file> for non-driver inodes
+
+- Fixed bug when unswapping non-devfs devices in a devfs
+===============================================================================
+Changes for patch v89
+
+- Switched to C data types in include/linux/devfs_fs.h
+
+- Switched from PATH_MAX to DEVFS_PATHLEN
+
+- Updated Documentation/filesystems/devfs/modules.conf to take account
+  of reverse scanning (!) by modprobe
+
+- Ported to kernel 2.2.0
+===============================================================================
+Changes for patch v90
+
+- CONFIG_DEVFS_DISABLE_OLD_TTY_NAMES replaced with "nottycompat" boot
+  option
+
+- CONFIG_DEVFS_TTY_COMPAT removed: existing "symlinks" boot option now
+  controls this. This means you must have libc 5.4.44 or later, or a
+  recent version of libc 6 if you use the "symlinks" option
+===============================================================================
+Changes for patch v91
+
+- Switch from <devfs_mk_symlink> to <devfs_mk_compat> in
+  drivers/char/vc_screen.c to fix problems with Midnight Commander
+===============================================================================
+Changes for patch v92
+
+- Ported to kernel 2.2.2-pre5
+===============================================================================
+Changes for patch v93
+
+- Modified <sd_name> in drivers/scsi/sd.c to cope with devices that
+  don't exist (which happens with new RAID autostart code printk()s)
+===============================================================================
+Changes for patch v94
+
+- Fixed bug in joystick driver: only first joystick was registered
+===============================================================================
+Changes for patch v95
+
+- Fixed another bug in joystick driver
+
+- Fixed <devfsd_read> to not overrun event buffer
+===============================================================================
+Changes for patch v96
+
+- Ported to kernel 2.2.5-2
+
+- Created <devfs_auto_unregister>
+
+- Fixed bugs: compatibility entries were not unregistered for:
+    loop driver
+    floppy driver
+    RAMDISC driver
+    IDE tape driver
+    SCSI CD-ROM driver
+    SCSI HDD driver
+===============================================================================
+Changes for patch v97
+
+- Fixed bugs: compatibility entries were not unregistered for:
+    ALSA sound driver
+    partitions in generic disc driver
+
+- Don't return unregistred entries in <devfs_find_handle>
+
+- Panic in <devfs_unregister> if entry unregistered
+
+- Don't panic in <devfs_auto_unregister> for duplicates
+===============================================================================
+Changes for patch v98
+
+- Don't unregister already unregistered entries in <unregister>
+
+- Register entry in <sd_detect>
+
+- Unregister entry in <sd_detach>
+
+- Changed to <devfs_*register_chrdev> in drivers/char/tty_io.c
+
+- Ported to kernel 2.2.7
+===============================================================================
+Changes for patch v99
+
+- Ported to kernel 2.2.8
+
+- Fixed bug in drivers/scsi/sd.c when >16 SCSI discs
+
+- Disable warning messages when unable to read partition table for
+  removable media
+===============================================================================
+Changes for patch v100
+
+- Ported to kernel 2.3.1-pre5
+
+- Added "oops-on-panic" boot option
+
+- Improved debugging in <devfs_register> and <devfs_unregister>
+
+- Register entry in <sr_detect>
+
+- Unregister entry in <sr_detach>
+
+- Register entry in <sg_detect>
+
+- Unregister entry in <sg_detach>
+
+- Added support for ALSA drivers
+===============================================================================
+Changes for patch v101
+
+- Ported to kernel 2.3.2
+===============================================================================
+Changes for patch v102
+
+- Update serial driver to register PCMCIA entries
+  Thanks to Roch-Alexandre Nomine-Beguin <roch@samarkand.infini.fr>
+
+- Updated an email address in ChangeLog
+
+- Hide virtual console capture entries from directory listings when
+  corresponding console device is not open
+===============================================================================
+Changes for patch v103
+
+- Ported to kernel 2.3.3
+===============================================================================
+Changes for patch v104
+
+- Added documentation for some functions
+
+- Added "doc" target to fs/devfs/Makefile
+
+- Added "v4l" directory for video4linux devices
+
+- Replaced call to <devfs_unregister> in <sd_detach> with call to
+  <devfs_register_partitions>
+
+- Moved registration for sr and sg drivers from detect() to attach()
+  methods
+
+- Register entries in <st_attach> and unregister in <st_detach>
+
+- Work around IDE driver treating CD-ROM as gendisk
+
+- Use <sed> instead of <tr> in rc.devfs
+
+- Updated ToDo list
+
+- Removed "oops-on-panic" boot option: now always Oops
+===============================================================================
+Changes for patch v105
+
+- Unregister SCSI host from <scsi_host_no_list> in <scsi_unregister>
+  Thanks to Zoltán Böszörményi <zboszor@mail.externet.hu>
+
+- Don't save /dev/log in rc.devfs
+
+- Ported to kernel 2.3.4-pre1
+===============================================================================
+Changes for patch v106
+
+- Fixed silly typo in drivers/scsi/st.c
+
+- Improved debugging in <devfs_register>
+===============================================================================
+Changes for patch v107
+
+- Added "diunlink" and "nokmod" boot options
+
+- Removed superfluous warning message in <devfs_d_iput>
+===============================================================================
+Changes for patch v108
+
+- Remove entries when unloading sound module
+===============================================================================
+Changes for patch v109
+
+- Ported to kernel 2.3.6-pre2
+===============================================================================
+Changes for patch v110
+
+- Took account of change to <d_alloc_root>
+===============================================================================
+Changes for patch v111
+
+- Created separate event queue for each mounted devfs
+
+- Removed <devfs_invalidate_dcache>
+
+- Created new ioctl()s for devfsd
+
+- Incremented devfsd protocol revision to 3
+
+- Fixed bug when re-creating directories: contents were lost
+
+- Block access to inodes until devfsd updates permissions
+===============================================================================
+Changes for patch v112
+
+- Modified patch so it applies against 2.3.5 and 2.3.6
+
+- Updated an email address in ChangeLog
+
+- Do not automatically change ownership/protection of /dev/tty<n>
+
+- Updated sample modules.conf
+
+- Switched to sending process uid/gid to devfsd
+
+- Renamed <call_kmod> to <try_modload>
+
+- Added DEVFSD_NOTIFY_LOOKUP event
+
+- Added DEVFSD_NOTIFY_CHANGE event
+
+- Added DEVFSD_NOTIFY_CREATE event
+
+- Incremented devfsd protocol revision to 4
+
+- Moved kernel-specific stuff to include/linux/devfs_fs_kernel.h
+===============================================================================
+Changes for patch v113
+
+- Ported to kernel 2.3.9
+
+- Restricted permissions on some block devices
+===============================================================================
+Changes for patch v114
+
+- Added support for /dev/netlink
+  Thanks to Dennis Hou <smilax@mindmeld.yi.org>
+
+- Return EISDIR rather than EINVAL for read(2) on directories
+
+- Ported to kernel 2.3.10
+===============================================================================
+Changes for patch v115
+
+- Added support for all remaining character devices
+  Thanks to Dennis Hou <smilax@mindmeld.yi.org>
+
+- Cleaned up netlink support
+===============================================================================
+Changes for patch v116
+
+- Added support for /dev/parport%d
+  Thanks to Tim Waugh <tim@cyberelk.demon.co.uk>
+
+- Fixed parallel port ATAPI tape driver
+
+- Fixed Atari SLM laser printer driver
+===============================================================================
+Changes for patch v117
+
+- Added support for COSA card
+  Thanks to Dennis Hou <smilax@mindmeld.yi.org>
+
+- Fixed drivers/char/ppdev.c: missing #include <linux/init.h>
+
+- Fixed drivers/char/ftape/zftape/zftape-init.c
+  Thanks to Vladimir Popov <mashgrad@usa.net>
+===============================================================================
+Changes for patch v118
+
+- Ported to kernel 2.3.15-pre3
+
+- Fixed bug in loop driver
+
+- Unregister /dev/lp%d entries in drivers/char/lp.c
+  Thanks to Maciej W. Rozycki <macro@ds2.pg.gda.pl>
+===============================================================================
+Changes for patch v119
+
+- Ported to kernel 2.3.16
+===============================================================================
+Changes for patch v120
+
+- Fixed bug in drivers/scsi/scsi.c
+
+- Added /dev/ppp
+  Thanks to Dennis Hou <smilax@mindmeld.yi.org>
+
+- Ported to kernel 2.3.17
+===============================================================================
+Changes for patch v121
+
+- Fixed bug in drivers/block/loop.c
+
+- Ported to kernel 2.3.18
+===============================================================================
+Changes for patch v122
+
+- Ported to kernel 2.3.19
+===============================================================================
+Changes for patch v123
+
+- Ported to kernel 2.3.20
+===============================================================================
+Changes for patch v124
+
+- Ported to kernel 2.3.21
+===============================================================================
+Changes for patch v125
+
+- Created <devfs_get_info>, <devfs_set_info>,
+  <devfs_get_first_child> and <devfs_get_next_sibling>
+  Added <<dir>> parameter to <devfs_register>, <devfs_mk_compat>,
+  <devfs_mk_dir> and <devfs_find_handle>
+  Work sponsored by SGI
+
+- Fixed apparent bug in COSA driver
+
+- Re-instated "scsihosts=" boot option
+===============================================================================
+Changes for patch v126
+
+- Always create /dev/pts if CONFIG_UNIX98_PTYS=y
+
+- Fixed call to <devfs_mk_dir> in drivers/block/ide-disk.c
+  Thanks to Dennis Hou <smilax@mindmeld.yi.org>
+
+- Allow multiple unregistrations
+
+- Created /dev/scsi hierarchy
+  Work sponsored by SGI
+===============================================================================
+Changes for patch v127
+
+Work sponsored by SGI
+
+- No longer disable devpts if devfs enabled (caveat emptor)
+
+- Added flags array to struct gendisk and removed code from
+  drivers/scsi/sd.c
+
+- Created /dev/discs hierarchy
+===============================================================================
+Changes for patch v128
+
+Work sponsored by SGI
+
+- Created /dev/cdroms hierarchy
+===============================================================================
+Changes for patch v129
+
+Work sponsored by SGI
+
+- Removed compatibility entries for sound devices
+
+- Removed compatibility entries for printer devices
+
+- Removed compatibility entries for video4linux devices
+
+- Removed compatibility entries for parallel port devices
+
+- Removed compatibility entries for frame buffer devices
+===============================================================================
+Changes for patch v130
+
+Work sponsored by SGI
+
+- Added major and minor number to devfsd protocol
+
+- Incremented devfsd protocol revision to 5
+
+- Removed compatibility entries for SoundBlaster CD-ROMs
+
+- Removed compatibility entries for netlink devices
+
+- Removed compatibility entries for SCSI generic devices
+
+- Removed compatibility entries for SCSI tape devices
+===============================================================================
+Changes for patch v131
+
+Work sponsored by SGI
+
+- Support info pointer for all devfs entry types
+
+- Added <<info>> parameter to <devfs_mk_dir> and <devfs_mk_symlink>
+
+- Removed /dev/st hierarchy
+
+- Removed /dev/sg hierarchy
+
+- Removed compatibility entries for loop devices
+
+- Removed compatibility entries for IDE tape devices
+
+- Removed compatibility entries for SCSI CD-ROMs
+
+- Removed /dev/sr hierarchy
+===============================================================================
+Changes for patch v132
+
+Work sponsored by SGI
+
+- Removed compatibility entries for floppy devices
+
+- Removed compatibility entries for RAMDISCs
+
+- Removed compatibility entries for meta-devices
+
+- Removed compatibility entries for SCSI discs
+
+- Created <devfs_make_root>
+
+- Removed /dev/sd hierarchy
+
+- Support "../" when searching devfs namespace
+
+- Created /dev/ide/host* hierarchy
+
+- Supported IDE hard discs in /dev/ide/host* hierarchy
+
+- Removed compatibility entries for IDE discs
+
+- Removed /dev/ide/hd hierarchy
+
+- Supported IDE CD-ROMs in /dev/ide/host* hierarchy
+
+- Removed compatibility entries for IDE CD-ROMs
+
+- Removed /dev/ide/cd hierarchy
+===============================================================================
+Changes for patch v133
+
+Work sponsored by SGI
+
+- Created <devfs_get_unregister_slave>
+
+- Fixed bug in fs/partitions/check.c when rescanning
+===============================================================================
+Changes for patch v134
+
+Work sponsored by SGI
+
+- Removed /dev/sd, /dev/sr, /dev/st and /dev/sg directories
+
+- Removed /dev/ide/hd directory
+
+- Exported <devfs_get_parent>
+
+- Created <devfs_register_tape> and /dev/tapes hierarchy
+
+- Removed /dev/ide/mt hierarchy
+
+- Removed /dev/ide/fd hierarchy
+
+- Ported to kernel 2.3.25
+===============================================================================
+Changes for patch v135
+
+Work sponsored by SGI
+
+- Removed compatibility entries for virtual console capture devices
+
+- Removed unused <devfs_set_symlink_destination>
+
+- Removed compatibility entries for serial devices
+
+- Removed compatibility entries for console devices
+
+- Do not hide entries from devfsd or children
+
+- Removed DEVFS_FL_TTY_COMPAT flag
+
+- Removed "nottycompat" boot option
+
+- Removed <devfs_mk_compat>
+===============================================================================
+Changes for patch v136
+
+Work sponsored by SGI
+
+- Moved BSD pty devices to /dev/pty
+
+- Added DEVFS_FL_WAIT flag
+===============================================================================
+Changes for patch v137
+
+Work sponsored by SGI
+
+- Really fixed bug in fs/partitions/check.c when rescanning
+
+- Support new "disc" naming scheme in <get_removable_partition>
+
+- Allow NULL fops in <devfs_register>
+
+- Removed redundant name functions in SCSI disc and IDE drivers
+===============================================================================
+Changes for patch v138
+
+Work sponsored by SGI
+
+- Fixed old bugs in drivers/block/paride/pt.c, drivers/char/tpqic02.c,
+  drivers/net/wan/cosa.c and drivers/scsi/scsi.c
+  Thanks to Sergey Kubushin <ksi@ksi-linux.com>
+
+- Fall back to major table if NULL fops given to <devfs_register>
+===============================================================================
+Changes for patch v139
+
+Work sponsored by SGI
+
+- Corrected and moved <get_blkfops> and <get_chrfops> declarations
+  from arch/alpha/kernel/osf_sys.c to include/linux/fs.h
+
+- Removed name function from struct gendisk
+
+- Updated devfs FAQ
+===============================================================================
+Changes for patch v140
+
+Work sponsored by SGI
+
+- Ported to kernel 2.3.27
+===============================================================================
+Changes for patch v141
+
+Work sponsored by SGI
+
+- Bug fix in arch/m68k/atari/joystick.c
+
+- Moved ISDN and capi devices to /dev/isdn
+===============================================================================
+Changes for patch v142
+
+Work sponsored by SGI
+
+- Bug fix in drivers/block/ide-probe.c (patch confusion)
+===============================================================================
+Changes for patch v143
+
+Work sponsored by SGI
+
+- Bug fix in drivers/block/blkpg.c:partition_name()
+===============================================================================
+Changes for patch v144
+
+Work sponsored by SGI
+
+- Ported to kernel 2.3.29
+
+- Removed calls to <devfs_register> from cdu31a, cm206, mcd and mcdx
+  CD-ROM drivers: generic driver handles this now
+
+- Moved joystick devices to /dev/joysticks
+===============================================================================
+Changes for patch v145
+
+Work sponsored by SGI
+
+- Ported to kernel 2.3.30-pre3
+
+- Register whole-disc entry even for invalid partition tables
+
+- Fixed bug in mounting root FS when initrd enabled
+
+- Fixed device entry leak with IDE CD-ROMs
+
+- Fixed compile problem with drivers/isdn/isdn_common.c
+
+- Moved COSA devices to /dev/cosa
+
+- Support fifos when unregistering
+
+- Created <devfs_register_series> and used in many drivers
+
+- Moved Coda devices to /dev/coda
+
+- Moved parallel port IDE tapes to /dev/pt
+
+- Moved parallel port IDE generic devices to /dev/pg
+===============================================================================
+Changes for patch v146
+
+Work sponsored by SGI
+
+- Removed obsolete DEVFS_FL_COMPAT and DEVFS_FL_TOLERANT flags
+
+- Fixed compile problem with fs/coda/psdev.c
+
+- Reinstate change to <devfs_register_blkdev> in
+  drivers/block/ide-probe.c now that fs/isofs/inode.c is fixed
+
+- Switched to <devfs_register_blkdev> in drivers/block/floppy.c,
+  drivers/scsi/sr.c and drivers/block/md.c
+
+- Moved DAC960 devices to /dev/dac960
+===============================================================================
+Changes for patch v147
+
+Work sponsored by SGI
+
+- Ported to kernel 2.3.32-pre4
+===============================================================================
+Changes for patch v148
+
+Work sponsored by SGI
+
+- Removed kmod support: use devfsd instead
+
+- Moved miscellaneous character devices to /dev/misc
+===============================================================================
+Changes for patch v149
+
+Work sponsored by SGI
+
+- Ensure include/linux/joystick.h is OK for user-space
+
+- Improved debugging in <get_vfs_inode>
+
+- Ensure dentries created by devfsd will be cleaned up
+===============================================================================
+Changes for patch v150
+
+Work sponsored by SGI
+
+- Ported to kernel 2.3.34
+===============================================================================
+Changes for patch v151
+
+Work sponsored by SGI
+
+- Ported to kernel 2.3.35-pre1
+
+- Created <devfs_get_name>
+===============================================================================
+Changes for patch v152
+
+Work sponsored by SGI
+
+- Updated sample modules.conf
+
+- Ported to kernel 2.3.36-pre1
+===============================================================================
+Changes for patch v153
+
+Work sponsored by SGI
+
+- Ported to kernel 2.3.42
+
+- Removed <devfs_fill_file>
+===============================================================================
+Changes for patch v154
+
+Work sponsored by SGI
+
+- Took account of device number changes for /dev/fb*
+===============================================================================
+Changes for patch v155
+
+Work sponsored by SGI
+
+- Ported to kernel 2.3.43-pre8
+
+- Moved /dev/tty0 to /dev/vc/0
+
+- Moved sequence number formatting from <_tty_make_name> to drivers
+===============================================================================
+Changes for patch v156
+
+Work sponsored by SGI
+
+- Fixed breakage in drivers/scsi/sd.c due to recent SCSI changes
+===============================================================================
+Changes for patch v157
+
+Work sponsored by SGI
+
+- Ported to kernel 2.3.45
+===============================================================================
+Changes for patch v158
+
+Work sponsored by SGI
+
+- Ported to kernel 2.3.46-pre2
+===============================================================================
+Changes for patch v159
+
+Work sponsored by SGI
+
+- Fixed drivers/block/md.c
+  Thanks to Mike Galbraith <mikeg@weiden.de>
+
+- Documentation fixes
+
+- Moved device registration from <lp_init> to <lp_register>
+  Thanks to Tim Waugh <twaugh@redhat.com>
+===============================================================================
+Changes for patch v160
+
+Work sponsored by SGI
+
+- Fixed drivers/char/joystick/joystick.c
+  Thanks to Vojtech Pavlik <vojtech@suse.cz>
+
+- Documentation updates
+
+- Fixed arch/i386/kernel/mtrr.c if procfs and devfs not enabled
+
+- Fixed drivers/char/stallion.c
+===============================================================================
+Changes for patch v161
+
+Work sponsored by SGI
+
+- Remove /dev/ide when ide-mod is unloaded
+
+- Fixed bug in drivers/block/ide-probe.c when secondary but no primary
+
+- Added DEVFS_FL_NO_PERSISTENCE flag
+
+- Used new DEVFS_FL_NO_PERSISTENCE flag for Unix98 pty slaves
+
+- Removed unnecessary call to <update_devfs_inode_from_entry> in
+  <devfs_readdir>
+
+- Only set auto-ownership for /dev/pty/s*
+===============================================================================
+Changes for patch v162
+
+Work sponsored by SGI
+
+- Set inode->i_size to correct size for symlinks
+  Thanks to Jeremy Fitzhardinge <jeremy@goop.org>
+
+- Only give lookup() method to directories to comply with new VFS
+  assumptions
+
+- Remove unnecessary tests in symlink methods
+
+- Don't kill existing block ops in <devfs_read_inode>
+
+- Restore auto-ownership for /dev/pty/m*
+===============================================================================
+Changes for patch v163
+
+Work sponsored by SGI
+
+- Don't create missing directories in <devfs_find_handle>
+
+- Removed Documentation/filesystems/devfs/mk-devlinks
+
+- Updated Documentation/filesystems/devfs/README
+===============================================================================
+Changes for patch v164
+
+Work sponsored by SGI
+
+- Fixed CONFIG_DEVFS breakage in drivers/char/serial.c introduced in
+  linux-2.3.99-pre6-7
+===============================================================================
+Changes for patch v165
+
+Work sponsored by SGI
+
+- Ported to kernel 2.3.99-pre6
+===============================================================================
+Changes for patch v166
+
+Work sponsored by SGI
+
+- Added CONFIG_DEVFS_MOUNT
+===============================================================================
+Changes for patch v167
+
+Work sponsored by SGI
+
+- Updated Documentation/filesystems/devfs/README
+
+- Updated sample modules.conf
+===============================================================================
+Changes for patch v168
+
+Work sponsored by SGI
+
+- Disabled multi-mount capability (use VFS bindings instead)
+
+- Updated README from master HTML file
+===============================================================================
+Changes for patch v169
+
+Work sponsored by SGI
+
+- Removed multi-mount code
+
+- Removed compatibility macros: VFS has changed too much
+===============================================================================
+Changes for patch v170
+
+Work sponsored by SGI
+
+- Updated README from master HTML file
+
+- Merged devfs inode into devfs entry
+===============================================================================
+Changes for patch v171
+
+Work sponsored by SGI
+
+- Updated sample modules.conf
+
+- Removed dead code in <devfs_register> which used to call
+  <free_dentries>
+
+- Ported to kernel 2.4.0-test2-pre3
+===============================================================================
+Changes for patch v172
+
+Work sponsored by SGI
+
+- Changed interface to <devfs_register>
+
+- Changed interface to <devfs_register_series>
+===============================================================================
+Changes for patch v173
+
+Work sponsored by SGI
+
+- Simplified interface to <devfs_mk_symlink>
+
+- Simplified interface to <devfs_mk_dir>
+
+- Simplified interface to <devfs_find_handle>
+===============================================================================
+Changes for patch v174
+
+Work sponsored by SGI
+
+- Updated README from master HTML file
+===============================================================================
+Changes for patch v175
+
+Work sponsored by SGI
+
+- DocBook update for fs/devfs/base.c
+  Thanks to Tim Waugh <twaugh@redhat.com>
+
+- Removed stale fs/tunnel.c (was never used or completed)
+===============================================================================
+Changes for patch v176
+
+Work sponsored by SGI
+
+- Updated ToDo list
+
+- Removed sample modules.conf: now distributed with devfsd
+
+- Updated README from master HTML file
+
+- Ported to kernel 2.4.0-test3-pre4 (which had devfs-patch-v174)
+===============================================================================
+Changes for patch v177
+
+- Updated README from master HTML file
+
+- Documentation cleanups
+
+- Ensure <devfs_generate_path> terminates string for root entry
+  Thanks to Tim Jansen <tim@tjansen.de>
+
+- Exported <devfs_get_name> to modules
+
+- Make <devfs_mk_symlink> send events to devfsd
+
+- Cleaned up option processing in <devfs_setup>
+
+- Fixed bugs in handling symlinks: could leak or cause Oops
+
+- Cleaned up directory handling by separating fops
+  Thanks to Alexander Viro <viro@parcelfarce.linux.theplanet.co.uk>
+===============================================================================
+Changes for patch v178
+
+- Fixed handling of inverted options in <devfs_setup>
+===============================================================================
+Changes for patch v179
+
+- Adjusted <try_modload> to account for <devfs_generate_path> fix
+===============================================================================
+Changes for patch v180
+
+- Fixed !CONFIG_DEVFS_FS stub declaration of <devfs_get_info>
+===============================================================================
+Changes for patch v181
+
+- Answered question posed by Al Viro and removed his comments from <devfs_open>
+
+- Moved setting of registered flag after other fields are changed
+
+- Fixed race between <devfsd_close> and <devfsd_notify_one>
+
+- Global VFS changes added bogus BKL to devfsd_close(): removed
+
+- Widened locking in <devfs_readlink> and <devfs_follow_link>
+
+- Replaced <devfsd_read> stack usage with <devfsd_ioctl> kmalloc
+
+- Simplified locking in <devfsd_ioctl> and fixed memory leak
+===============================================================================
+Changes for patch v182
+
+- Created <devfs_*alloc_major> and <devfs_*alloc_devnum>
+
+- Removed broken devnum allocation and use <devfs_alloc_devnum>
+
+- Fixed old devnum leak by calling new <devfs_dealloc_devnum>
+
+- Created <devfs_*alloc_unique_number>
+
+- Fixed number leak for /dev/cdroms/cdrom%d
+
+- Fixed number leak for /dev/discs/disc%d
+===============================================================================
+Changes for patch v183
+
+- Fixed bug in <devfs_setup> which could hang boot process
+===============================================================================
+Changes for patch v184
+
+- Documentation typo fix for fs/devfs/util.c
+
+- Fixed drivers/char/stallion.c for devfs
+
+- Added DEVFSD_NOTIFY_DELETE event
+
+- Updated README from master HTML file
+
+- Removed #include <asm/segment.h> from fs/devfs/base.c
+===============================================================================
+Changes for patch v185
+
+- Made <block_semaphore> and <char_semaphore> in fs/devfs/util.c
+  private
+
+- Fixed inode table races by removing it and using inode->u.generic_ip
+  instead
+
+- Moved <devfs_read_inode> into <get_vfs_inode>
+
+- Moved <devfs_write_inode> into <devfs_notify_change>
+===============================================================================
+Changes for patch v186
+
+- Fixed race in <devfs_do_symlink> for uni-processor
+
+- Updated README from master HTML file
+===============================================================================
+Changes for patch v187
+
+- Fixed drivers/char/stallion.c for devfs
+
+- Fixed drivers/char/rocket.c for devfs
+
+- Fixed bug in <devfs_alloc_unique_number>: limited to 128 numbers
+===============================================================================
+Changes for patch v188
+
+- Updated major masks in fs/devfs/util.c up to Linus' "no new majors"
+  proclamation. Block: were 126 now 122 free, char: were 26 now 19 free
+
+- Updated README from master HTML file
+
+- Removed remnant of multi-mount support in <devfs_mknod>
+
+- Removed unused DEVFS_FL_SHOW_UNREG flag
+===============================================================================
+Changes for patch v189
+
+- Removed nlink field from struct devfs_inode
+
+- Removed auto-ownership for /dev/pty/* (BSD ptys) and used
+  DEVFS_FL_CURRENT_OWNER|DEVFS_FL_NO_PERSISTENCE for /dev/pty/s* (just
+  like Unix98 pty slaves) and made /dev/pty/m* rw-rw-rw- access
+===============================================================================
+Changes for patch v190
+
+- Updated README from master HTML file
+
+- Replaced BKL with global rwsem to protect symlink data (quick and
+  dirty hack)
+===============================================================================
+Changes for patch v191
+
+- Replaced global rwsem for symlink with per-link refcount
+===============================================================================
+Changes for patch v192
+
+- Removed unnecessary #ifdef CONFIG_DEVFS_FS from arch/i386/kernel/mtrr.c
+
+- Ported to kernel 2.4.10-pre11
+
+- Set inode->i_mapping->a_ops for block nodes in <get_vfs_inode>
+===============================================================================
+Changes for patch v193
+
+- Went back to global rwsem for symlinks (refcount scheme no good)
+===============================================================================
+Changes for patch v194
+
+- Fixed overrun in <devfs_link> by removing function (not needed)
+
+- Updated README from master HTML file
+===============================================================================
+Changes for patch v195
+
+- Fixed buffer underrun in <try_modload>
+
+- Moved down_read() from <search_for_entry_in_dir> to <find_entry>
+===============================================================================
+Changes for patch v196
+
+- Fixed race in <devfsd_ioctl> when setting event mask
+  Thanks to Kari Hurtta <hurtta@leija.mh.fmi.fi>
+
+- Avoid deadlock in <devfs_follow_link> by using temporary buffer
+===============================================================================
+Changes for patch v197
+
+- First release of new locking code for devfs core (v1.0)
+
+- Fixed bug in drivers/cdrom/cdrom.c
+===============================================================================
+Changes for patch v198
+
+- Discard temporary buffer, now use "%s" for dentry names
+
+- Don't generate path in <try_modload>: use fake entry instead
+
+- Use "existing" directory in <_devfs_make_parent_for_leaf>
+
+- Use slab cache rather than fixed buffer for devfsd events
+===============================================================================
+Changes for patch v199
+
+- Removed obsolete usage of DEVFS_FL_NO_PERSISTENCE
+
+- Send DEVFSD_NOTIFY_REGISTERED events in <devfs_mk_dir>
+
+- Fixed locking bug in <devfs_d_revalidate_wait> due to typo
+
+- Do not send CREATE, CHANGE, ASYNC_OPEN or DELETE events from devfsd
+  or children
+===============================================================================
+Changes for patch v200
+
+- Ported to kernel 2.5.1-pre2
+===============================================================================
+Changes for patch v201
+
+- Fixed bug in <devfsd_read>: was dereferencing freed pointer
+===============================================================================
+Changes for patch v202
+
+- Fixed bug in <devfsd_close>: was dereferencing freed pointer
+
+- Added process group check for devfsd privileges
+===============================================================================
+Changes for patch v203
+
+- Use SLAB_ATOMIC in <devfsd_notify_de> from <devfs_d_delete>
+===============================================================================
+Changes for patch v204
+
+- Removed long obsolete rc.devfs
+
+- Return old entry in <devfs_mk_dir> for 2.4.x kernels
+
+- Updated README from master HTML file
+
+- Increment refcount on module in <check_disc_changed>
+
+- Created <devfs_get_handle> and exported <devfs_put>
+
+- Increment refcount on module in <devfs_get_ops>
+
+- Created <devfs_put_ops> and used where needed to fix races
+
+- Added clarifying comments in response to preliminary EMC code review
+
+- Added poisoning to <devfs_put>
+
+- Improved debugging messages
+
+- Fixed unregister bugs in drivers/md/lvm-fs.c
+===============================================================================
+Changes for patch v205
+
+- Corrected (made useful) debugging message in <unregister>
+
+- Moved <kmem_cache_create> in <mount_devfs_fs> to <init_devfs_fs>
+
+- Fixed drivers/md/lvm-fs.c to create "lvm" entry
+
+- Added magic number to guard against scribbling drivers
+
+- Only return old entry in <devfs_mk_dir> if a directory
+
+- Defined macros for error and debug messages
+
+- Updated README from master HTML file
+===============================================================================
+Changes for patch v206
+
+- Added support for multiple Compaq cpqarray controllers
+
+- Fixed (rare, old) race in <devfs_lookup>
+===============================================================================
+Changes for patch v207
+
+- Fixed deadlock bug in <devfs_d_revalidate_wait>
+
+- Tag VFS deletable in <devfs_mk_symlink> if handle ignored
+
+- Updated README from master HTML file
+===============================================================================
+Changes for patch v208
+
+- Added KERN_* to remaining messages
+
+- Cleaned up declaration of <stat_read>
+
+- Updated README from master HTML file
+===============================================================================
+Changes for patch v209
+
+- Updated README from master HTML file
+
+- Removed silently introduced calls to lock_kernel() and
+  unlock_kernel() due to recent VFS locking changes. BKL isn't
+  required in devfs 
+
+- Changed <devfs_rmdir> to allow later additions if not yet empty
+
+- Added calls to <devfs_register_partitions> in drivers/block/blkpc.c
+  <add_partition> and <del_partition>
+
+- Fixed bug in <devfs_alloc_unique_number>: was clearing beyond
+  bitfield
+
+- Fixed bitfield data type for <devfs_*alloc_devnum>
+
+- Made major bitfield type and initialiser 64 bit safe
+===============================================================================
+Changes for patch v210
+
+- Updated fs/devfs/util.c to fix shift warning on 64 bit machines
+  Thanks to Anton Blanchard <anton@samba.org>
+
+- Updated README from master HTML file
+===============================================================================
+Changes for patch v211
+
+- Do not put miscellaneous character devices in /dev/misc if they
+  specify their own directory (i.e. contain a '/' character)
+
+- Copied macro for error messages from fs/devfs/base.c to
+  fs/devfs/util.c and made use of this macro
+
+- Removed 2.4.x compatibility code from fs/devfs/base.c
+===============================================================================
+Changes for patch v212
+
+- Added BKL to <devfs_open> because drivers still need it
+===============================================================================
+Changes for patch v213
+
+- Protected <scan_dir_for_removable> and <get_removable_partition>
+  from changing directory contents
+===============================================================================
+Changes for patch v214
+
+- Switched to ISO C structure field initialisers
+
+- Switch to set_current_state() and move before add_wait_queue()
+
+- Updated README from master HTML file
+
+- Fixed devfs entry leak in <devfs_readdir> when *readdir fails
+===============================================================================
+Changes for patch v215
+
+- Created <devfs_find_and_unregister>
+
+- Switched many functions from <devfs_find_handle> to
+  <devfs_find_and_unregister>
+
+- Switched many functions from <devfs_find_handle> to <devfs_get_handle>
+===============================================================================
+Changes for patch v216
+
+- Switched arch/ia64/sn/io/hcl.c from <devfs_find_handle> to
+  <devfs_get_handle>
+
+- Removed deprecated <devfs_find_handle>
+===============================================================================
+Changes for patch v217
+
+- Exported <devfs_find_and_unregister> and <devfs_only> to modules
+
+- Updated README from master HTML file
+
+- Fixed module unload race in <devfs_open>
+===============================================================================
+Changes for patch v218
+
+- Removed DEVFS_FL_AUTO_OWNER flag
+
+- Switched lingering structure field initialiser to ISO C
+
+- Added locking when setting/clearing flags
+
+- Documentation fix in fs/devfs/util.c

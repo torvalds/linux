@@ -1,0 +1,99 @@
+#
+# USB Core configuration
+#
+config USB_DEBUG
+	bool "USB verbose debug messages"
+	depends on USB
+	help
+	  Say Y here if you want the USB core & hub drivers to produce a bunch
+	  of debug messages to the system log. Select this if you are having a
+	  problem with USB support and want to see more of what is going on.
+
+comment "Miscellaneous USB options"
+	depends on USB
+
+config USB_DEVICEFS
+	bool "USB device filesystem"
+	depends on USB
+	---help---
+	  If you say Y here (and to "/proc file system support" in the "File
+	  systems" section, above), you will get a file /proc/bus/usb/devices
+	  which lists the devices currently connected to your USB bus or
+	  busses, and for every connected device a file named
+	  "/proc/bus/usb/xxx/yyy", where xxx is the bus number and yyy the
+	  device number; the latter files can be used by user space programs
+	  to talk directly to the device. These files are "virtual", meaning
+	  they are generated on the fly and not stored on the hard drive.
+
+	  You may need to mount the usbfs file system to see the files, use
+	  mount -t usbfs none /proc/bus/usb
+
+	  For the format of the various /proc/bus/usb/ files, please read
+	  <file:Documentation/usb/proc_usb_info.txt>.
+
+	  Please note that this code is completely unrelated to devfs, the
+	  "/dev file system support".
+
+	  Most users want to say Y here.
+
+config USB_BANDWIDTH
+	bool "Enforce USB bandwidth allocation (EXPERIMENTAL)"
+	depends on USB && EXPERIMENTAL
+	help
+	  If you say Y here, the USB subsystem enforces USB bandwidth
+	  allocation and will prevent some device opens from succeeding
+	  if they would cause USB bandwidth usage to go above 90% of
+	  the bus bandwidth.
+
+	  If you say N here, these conditions will cause warning messages
+	  about USB bandwidth usage to be logged and some devices or
+	  drivers may not work correctly.
+
+config USB_DYNAMIC_MINORS
+	bool "Dynamic USB minor allocation (EXPERIMENTAL)"
+	depends on USB && EXPERIMENTAL
+	help
+	  If you say Y here, the USB subsystem will use dynamic minor
+	  allocation for any device that uses the USB major number.
+	  This means that you can have more than 16 of a single type
+	  of device (like USB printers).
+
+	  If you are unsure about this, say N here.
+
+config USB_SUSPEND
+	bool "USB suspend/resume (EXPERIMENTAL)"
+	depends on USB && PM && EXPERIMENTAL
+	help
+	  If you say Y here, you can use driver calls or the sysfs
+	  "power/state" file to suspend or resume individual USB
+	  peripherals.  There are many related features, such as
+	  remote wakeup and driver-specific suspend processing, that
+	  may not yet work as expected.
+
+	  If you are unsure about this, say N here.
+
+
+config USB_OTG
+	bool
+	depends on USB && EXPERIMENTAL
+	select USB_SUSPEND
+	default n
+
+
+config USB_OTG_WHITELIST
+	bool "Rely on OTG Targeted Peripherals List"
+	depends on USB_OTG
+	default y
+	help
+	  If you say Y here, the "otg_whitelist.h" file will be used as a
+	  product whitelist, so USB peripherals not listed there will be
+	  rejected during enumeration.  This behavior is required by the
+	  USB OTG specification for all devices not on your product's
+	  "Targeted Peripherals List".
+
+	  Otherwise, peripherals not listed there will only generate a
+	  warning and enumeration will continue.  That's more like what
+	  normal Linux-USB hosts do (other than the warning), and is
+	  convenient for many stages of product development.
+
+

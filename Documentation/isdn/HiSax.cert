@@ -1,0 +1,96 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+
+First:
+
+    HiSax is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+However, if you wish to modify the HiSax sources, please note the following:
+
+HiSax has passed the ITU approval test suite with ELSA Quickstep ISDN cards
+and Eicon Technology Diva 2.01 PCI card.
+The certification is only valid for the combination of the tested software
+version and the tested hardware. Any changes to the HiSax source code may
+therefore affect the certification.
+
+Additional ITU approval tests have been carried out for all generic cards
+using Colognechip single chip solutions HFC-S PCI A for PCI cards as well
+as HFC-S USB based USB ISDN ta adapters.
+These tests included all layers 1-3 and as well all functional tests for 
+the layer 1. Because all hardware based on these chips are complete ISDN
+solutions in one chip all cards and USB-TAs using these chips are to be
+regarded as approved for those tests. Some additional electrical tests
+of the layer 1 which are independent of the driver and related to a
+special hardware used will be regarded as approved if at least one 
+solution has been tested including those electrical tests. So if cards 
+or tas have been completely approved for any other os, the approval
+for those electrical tests is valid for linux, too.
+Please send any questions regarding this drivers or approval abouts to 
+werner@isdn-development.de 
+Additional information and the type approval documents will be found
+shortly on the Colognechip website www.colognechip.com 
+
+If you change the main files of the HiSax ISDN stack, the certification will
+become invalid. Because in most countries it is illegal to connect
+unapproved ISDN equipment to the public network, I have to guarantee that
+changes in HiSax do not affect the certification.
+
+In order to make a valid certification apparent to the user, I have built in
+some validation checks that are made during the make process. The HiSax main
+files are protected by md5 checksums and the md5sum file is pgp signed by
+myself:
+
+KeyID 1024/FF992F6D 1997/01/16 Karsten Keil <kkeil@suse.de>
+Key fingerprint = 92 6B F7 58 EE 86 28 C8  C4 1A E6 DC 39 89 F2 AA
+
+Only if the checksums are OK, and the signature of the file
+"drivers/isdn/hisax/md5sums.asc" match, is the certification valid; a
+message confirming this is then displayed during the hisax init process.
+
+The affected files are:
+
+drivers/isdn/hisax/isac.c
+drivers/isdn/hisax/isdnl1.c
+drivers/isdn/hisax/isdnl2.c
+drivers/isdn/hisax/isdnl3.c
+drivers/isdn/hisax/tei.c
+drivers/isdn/hisax/callc.c
+drivers/isdn/hisax/l3dss1.c
+drivers/isdn/hisax/l3_1tr6.c
+drivers/isdn/hisax/cert.c
+drivers/isdn/hisax/elsa.c
+drivers/isdn/hisax/diva.c
+drivers/isdn/hisax/hfc_pci.c
+
+Please send any changes, bugfixes and patches to me rather than implementing
+them directly into the HiSax sources.
+
+This does not reduce your rights granted by the GNU General Public License.
+If you wish to change the sources, go ahead; but note that then the
+certification is invalid even if you use one of the approved cards.
+
+Here are the certification registration numbers for ELSA Quickstep cards:
+German   D133361J CETECOM ICT Services GmbH 0682
+European D133362J CETECOM ICT Services GmbH 0682
+
+
+Karsten Keil
+keil@isdn4linux.de
+
+-----BEGIN PGP SIGNATURE-----
+Version: 2.6.3i
+Charset: noconv
+
+iQCVAwUBOFAwqTpxHvX/mS9tAQFI2QP9GLDK2iy/KBhwReE3F7LeO+tVhffTVZ3a
+20q5/z/WcIg/pnH0uTkl2UgDXBFXYl45zJyDGNpAposIFmT+Edd14o7Vj1w/BBdn
+Y+5rBmJf+gyBu61da5d6bv0lpymwRa/um+ri+ilYnZ/XPfg5JKhdjGSBCJuJAElM
+d2jFbTrsMYw=
+=LNf9
+-----END PGP SIGNATURE-----

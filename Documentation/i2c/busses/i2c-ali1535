@@ -1,0 +1,42 @@
+Kernel driver i2c-ali1535
+
+Supported adapters:
+  * Acer Labs, Inc. ALI 1535 (south bridge)
+    Datasheet: Now under NDA
+	http://www.ali.com.tw/eng/support/datasheet_request.php
+
+Authors:
+	Frodo Looijaard <frodol@dds.nl>, 
+	Philip Edelbrock <phil@netroedge.com>,
+	Mark D. Studebaker <mdsxyz123@yahoo.com>,
+	Dan Eaton <dan.eaton@rocketlogix.com>,
+	Stephen Rousset<stephen.rousset@rocketlogix.com>
+												
+Description
+-----------
+
+This is the driver for the SMB Host controller on Acer Labs Inc. (ALI)
+M1535 South Bridge.
+
+The M1535 is a South bridge for portable systems. It is very similar to the
+M15x3 South bridges also produced by Acer Labs Inc.  Some of the registers
+within the part have moved and some have been redefined slightly.
+Additionally, the sequencing of the SMBus transactions has been modified to
+be more consistent with the sequencing recommended by the manufacturer and
+observed through testing.  These changes are reflected in this driver and
+can be identified by comparing this driver to the i2c-ali15x3 driver. For
+an overview of these chips see http://www.acerlabs.com
+
+The SMB controller is part of the M7101 device, which is an ACPI-compliant
+Power Management Unit (PMU).
+
+The whole M7101 device has to be enabled for the SMB to work. You can't
+just enable the SMB alone. The SMB and the ACPI have separate I/O spaces.
+We make sure that the SMB is enabled. We leave the ACPI alone.
+
+
+Features
+--------
+
+This driver controls the SMB Host only. This driver does not use
+interrupts.

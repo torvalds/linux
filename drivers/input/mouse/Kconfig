@@ -1,0 +1,138 @@
+#
+# Mouse driver configuration
+#
+menuconfig INPUT_MOUSE
+	bool "Mouse"
+	default y
+	help
+	  Say Y here, and a list of supported mice will be displayed.
+	  This option doesn't affect the kernel.
+
+	  If unsure, say Y.
+
+if INPUT_MOUSE
+
+config MOUSE_PS2
+	tristate "PS/2 mouse"
+	default y
+	select SERIO
+	select SERIO_LIBPS2
+	select SERIO_I8042 if PC
+	select SERIO_GSCPS2 if GSC
+	---help---
+	  Say Y here if you have a PS/2 mouse connected to your system. This
+	  includes the standard 2 or 3-button PS/2 mouse, as well as PS/2
+	  mice with wheels and extra buttons, Microsoft, Logitech or Genius
+	  compatible.
+
+	  Synaptics TouchPad users might be interested in a specialized
+	  XFree86 driver at:
+		<http://w1.894.telia.com/~u89404340/touchpad/index.html>
+	  and a new version of GPM at:
+		<http://www.geocities.com/dt_or/gpm/gpm.html>
+	  to take advantage of the advanced features of the touchpad.
+
+	  If unsure, say Y.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called psmouse.
+
+config MOUSE_SERIAL
+	tristate "Serial mouse"
+	select SERIO
+	---help---
+	  Say Y here if you have a serial (RS-232, COM port) mouse connected
+	  to your system. This includes Sun, MouseSystems, Microsoft,
+	  Logitech and all other compatible serial mice.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sermouse.
+
+config MOUSE_INPORT
+	tristate "InPort/MS/ATIXL busmouse"
+	depends on ISA
+	help
+	  Say Y here if you have an InPort, Microsoft or ATI XL busmouse.
+	  They are rather rare these days.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called inport.
+
+config MOUSE_ATIXL
+	bool "ATI XL variant"
+	depends on MOUSE_INPORT
+	help
+	  Say Y here if your mouse is of the ATI XL variety.
+
+config MOUSE_LOGIBM
+	tristate "Logitech busmouse"
+	depends on ISA
+	help
+	  Say Y here if you have a Logitech busmouse.
+	  They are rather rare these days.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called logibm.
+
+config MOUSE_PC110PAD
+	tristate "IBM PC110 touchpad"
+	depends on ISA
+	help
+	  Say Y if you have the IBM PC-110 micro-notebook and want its
+	  touchpad supported.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pc110pad.
+
+config MOUSE_MAPLE
+	tristate "Maple bus mouse"
+	depends on SH_DREAMCAST && MAPLE
+	help
+	  Say Y if you have a DreamCast console and a mouse attached to
+	  its Maple bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called maplemouse.
+
+config MOUSE_AMIGA
+	tristate "Amiga mouse"
+	depends on AMIGA
+	help
+	  Say Y here if you have an Amiga and want its native mouse
+	  supported by the kernel.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called amimouse.
+
+config MOUSE_RISCPC
+	tristate "Acorn RiscPC mouse"
+	depends on ARCH_ACORN
+	help
+	  Say Y here if you have the Acorn RiscPC computer and want its
+	  native mouse supported.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rpcmouse.
+
+config MOUSE_VSXXXAA
+	tristate "DEC VSXXX-AA/GA mouse and VSXXX-AB tablet"
+	select SERIO
+	help
+	  Say Y (or M) if you want to use a DEC VSXXX-AA (hockey
+	  puck) or a VSXXX-GA (rectangular) mouse. Theses mice are
+	  typically used on DECstations or VAXstations, but can also
+	  be used on any box capable of RS232 (with some adaptor
+	  described in the source file). This driver also works with the
+	  digitizer (VSXXX-AB) DEC produced.
+
+config MOUSE_HIL
+	tristate "HIL pointers (mice etc)."     
+	depends on GSC
+	select HP_SDC
+	select HIL_MLC
+	help
+	  Say Y here to support HIL pointers.
+
+endif

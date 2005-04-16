@@ -1,0 +1,99 @@
+Platform Devices and Drivers
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Platform devices
+~~~~~~~~~~~~~~~~
+Platform devices are devices that typically appear as autonomous
+entities in the system. This includes legacy port-based devices and
+host bridges to peripheral buses. 
+
+
+Platform drivers
+~~~~~~~~~~~~~~~~
+Drivers for platform devices are typically very simple and
+unstructured. Either the device was present at a particular I/O port
+and the driver was loaded, or it was not. There was no possibility
+of hotplugging or alternative discovery besides probing at a specific
+I/O address and expecting a specific response.
+
+
+Other Architectures, Modern Firmware, and new Platforms
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+These devices are not always at the legacy I/O ports. This is true on
+other architectures and on some modern architectures. In most cases,
+the drivers are modified to discover the devices at other well-known
+ports for the given platform. However, the firmware in these systems
+does usually know where exactly these devices reside, and in some
+cases, it's the only way of discovering them. 
+
+
+The Platform Bus
+~~~~~~~~~~~~~~~~
+A platform bus has been created to deal with these issues. First and
+foremost, it groups all the legacy devices under a common bus, and
+gives them a common parent if they don't already have one. 
+
+But, besides the organizational benefits, the platform bus can also
+accommodate firmware-based enumeration. 
+
+
+Device Discovery
+~~~~~~~~~~~~~~~~
+The platform bus has no concept of probing for devices. Devices
+discovery is left up to either the legacy drivers or the
+firmware. These entities are expected to notify the platform of
+devices that it discovers via the bus's add() callback:
+
+	platform_bus.add(parent,bus_id).
+
+
+Bus IDs
+~~~~~~~
+Bus IDs are the canonical names for the devices. There is no globally
+standard addressing mechanism for legacy devices. In the IA-32 world,
+we have Pnp IDs to use, as well as the legacy I/O ports. However,
+neither tell what the device really is or have any meaning on other
+platforms. 
+
+Since both PnP IDs and the legacy I/O ports (and other standard I/O
+ports for specific devices) have a 1:1 mapping, we map the
+platform-specific name or identifier to a generic name (at least
+within the scope of the kernel).
+
+For example, a serial driver might find a device at I/O 0x3f8. The
+ACPI firmware might also discover a device with PnP ID (_HID)
+PNP0501. Both correspond to the same device and should be mapped to the
+canonical name 'serial'. 
+
+The bus_id field should be a concatenation of the canonical name and
+the instance of that type of device. For example, the device at I/O
+port 0x3f8 should have a bus_id of "serial0". This places the
+responsibility of enumerating devices of a particular type up to the
+discovery mechanism. But, they are the entity that should know best
+(as opposed to the platform bus driver).
+
+
+Drivers 
+~~~~~~~
+Drivers for platform devices should have a name that is the same as
+the canonical name of the devices they support. This allows the
+platform bus driver to do simple matching with the basic data
+structures to determine if a driver supports a certain device. 
+
+For example, a legacy serial driver should have a name of 'serial' and
+register itself with the platform bus. 
+
+
+Driver Binding
+~~~~~~~~~~~~~~
+Legacy drivers assume they are bound to the device once they start up
+and probe an I/O port. Divorcing them from this will be a difficult
+process. However, that shouldn't prevent us from implementing
+firmware-based enumeration. 
+
+The firmware should notify the platform bus about devices before the
+legacy drivers have had a chance to load. Once the drivers are loaded,
+they driver model core will attempt to bind the driver to any
+previously-discovered devices. Once that has happened, it will be free
+to discover any other devices it pleases.
+

@@ -1,0 +1,38 @@
+This is the implementation of the SystemV/Coherent filesystem for Linux.
+It implements all of
+  - Xenix FS,
+  - SystemV/386 FS,
+  - Coherent FS.
+
+This is version beta 4.
+
+To install:
+* Answer the 'System V and Coherent filesystem support' question with 'y'
+  when configuring the kernel.
+* To mount a disk or a partition, use
+    mount [-r] -t sysv device mountpoint
+  The file system type names
+               -t sysv
+               -t xenix
+               -t coherent
+  may be used interchangeably, but the last two will eventually disappear.
+
+Bugs in the present implementation:
+- Coherent FS:
+  - The "free list interleave" n:m is currently ignored.
+  - Only file systems with no filesystem name and no pack name are recognized.
+  (See Coherent "man mkfs" for a description of these features.)
+- SystemV Release 2 FS:
+  The superblock is only searched in the blocks 9, 15, 18, which
+  corresponds to the beginning of track 1 on floppy disks. No support
+  for this FS on hard disk yet.
+
+
+Please report any bugs and suggestions to
+  Bruno Haible <haible@ma2s2.mathematik.uni-karlsruhe.de>
+  Pascal Haible <haible@izfm.uni-stuttgart.de>
+  Krzysztof G. Baranowski <kgb@manjak.knm.org.pl>
+
+Bruno Haible
+<haible@ma2s2.mathematik.uni-karlsruhe.de>
+

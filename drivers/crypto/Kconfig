@@ -1,0 +1,23 @@
+menu "Hardware crypto devices"
+
+config CRYPTO_DEV_PADLOCK
+	tristate "Support for VIA PadLock ACE"
+	depends on CRYPTO && X86 && !X86_64
+	help
+	  Some VIA processors come with an integrated crypto engine
+	  (so called VIA PadLock ACE, Advanced Cryptography Engine)
+	  that provides instructions for very fast {en,de}cryption 
+	  with some algorithms.
+	  
+	  The instructions are used only when the CPU supports them.
+	  Otherwise software encryption is used. If you are unsure,
+	  say Y.
+
+config CRYPTO_DEV_PADLOCK_AES
+	bool "Support for AES in VIA PadLock"
+	depends on CRYPTO_DEV_PADLOCK
+	default y
+	help
+	  Use VIA PadLock for AES algorithm.
+
+endmenu

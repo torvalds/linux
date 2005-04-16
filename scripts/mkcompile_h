@@ -1,0 +1,78 @@
+TARGET=$1
+ARCH=$2
+SMP=$3
+CC=$4
+
+# If compile.h exists already and we don't own autoconf.h
+# (i.e. we're not the same user who did make *config), don't
+# modify compile.h
+# So "sudo make install" won't change the "compiled by <user>"
+# do "compiled by root"
+
+if [ -r $TARGET -a ! -O include/linux/autoconf.h ]; then
+  echo "  SKIPPED $TARGET"
+  exit 0
+fi
+
+# Do not expand names
+set -f
+
+if [ -r .version ]; then
+  VERSION=`cat .version`
+else
+  VERSION=0
+  echo 0 > .version
+fi
+
+
+UTS_VERSION="#$VERSION"
+if [ -n "$SMP" ] ; then UTS_VERSION="$UTS_VERSION SMP"; fi
+UTS_VERSION="$UTS_VERSION `LC_ALL=C LANG=C date`"
+
+# Truncate to maximum length
+
+UTS_LEN=64
+UTS_TRUNCATE="sed -e s/\(.\{1,$UTS_LEN\}\).*/\1/"
+
+# Generate a temporary compile.h
+
+( echo /\* This file is auto generated, version $VERSION \*/
+
+  echo \#define UTS_MACHINE \"$ARCH\"
+
+  echo \#define UTS_VERSION \"`echo $UTS_VERSION | $UTS_TRUNCATE`\"
+
+  echo \#define LINUX_COMPILE_TIME \"`LC_ALL=C LANG=C date +%T`\"
+  echo \#define LINUX_COMPILE_BY \"`whoami`\"
+  echo \#define LINUX_COMPILE_HOST \"`hostname | $UTS_TRUNCATE`\"
+
+  if [ -x /bin/dnsdomainname ]; then
+    echo \#define LINUX_COMPILE_DOMAIN \"`dnsdomainname | $UTS_TRUNCATE`\"
+  elif [ -x /bin/domainname ]; then
+    echo \#define LINUX_COMPILE_DOMAIN \"`domainname | $UTS_TRUNCATE`\"
+  else
+    echo \#define LINUX_COMPILE_DOMAIN
+  fi
+
+  echo \#define LINUX_COMPILER \"`$CC -v 2>&1 | tail -n 1`\"
+) > .tmpcompile
+
+# Only replace the real compile.h if the new one is different,
+# in order to preserve the timestamp and avoid unnecessary
+# recompilations.
+# We don't consider the file changed if only the date/time changed.
+# A kernel config change will increase the generation number, thus
+# causing compile.h to be updated (including date/time) due to the 
+# changed comment in the
+# first line.
+
+if [ -r $TARGET ] && \
+      grep -v 'UTS_VERSION\|LINUX_COMPILE_TIME' $TARGET > .tmpver.1 && \
+      grep -v 'UTS_VERSION\|LINUX_COMPILE_TIME' .tmpcompile > .tmpver.2 && \
+      cmp -s .tmpver.1 .tmpver.2; then
+   rm -f .tmpcompile
+else
+   echo "  UPD     $TARGET"
+   mv -f .tmpcompile $TARGET
+fi
+rm -f .tmpver.1 .tmpver.2

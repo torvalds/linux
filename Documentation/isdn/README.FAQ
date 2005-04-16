@@ -1,0 +1,26 @@
+
+The FAQ for isdn4linux
+======================
+
+Please note that there is a big FAQ available in the isdn4k-utils.
+You find it in:
+ isdn4k-utils/FAQ/i4lfaq.sgml
+
+In case you just want to see the FAQ online, or download the newest version,
+you can have a look at my website:
+http://www.mhessler.de/i4lfaq/ (view + download)
+or:
+http://www.isdn4linux.de/faq/ (view)
+
+As the extension tells, the FAQ is in SGML format, and you can convert it
+into text/html/... format by using the sgml2txt/sgml2html/... tools.
+Alternatively, you can also do a 'configure; make all' in the FAQ directory.
+
+
+Please have a look at the FAQ before posting anything in the Mailinglist,
+or the newsgroup!
+
+
+Matthias Hessler
+hessler@isdn4linux.de
+

@@ -1,0 +1,155 @@
+			     kAFS: AFS FILESYSTEM
+			     ====================
+
+ABOUT
+=====
+
+This filesystem provides a fairly simple AFS filesystem driver. It is under
+development and only provides very basic facilities. It does not yet support
+the following AFS features:
+
+	(*) Write support.
+	(*) Communications security.
+	(*) Local caching.
+	(*) pioctl() system call.
+	(*) Automatic mounting of embedded mountpoints.
+
+
+USAGE
+=====
+
+When inserting the driver modules the root cell must be specified along with a
+list of volume location server IP addresses:
+
+	insmod rxrpc.o
+	insmod kafs.o rootcell=cambridge.redhat.com:172.16.18.73:172.16.18.91
+
+The first module is a driver for the RxRPC remote operation protocol, and the
+second is the actual filesystem driver for the AFS filesystem.
+
+Once the module has been loaded, more modules can be added by the following
+procedure:
+
+	echo add grand.central.org 18.7.14.88:128.2.191.224 >/proc/fs/afs/cells
+
+Where the parameters to the "add" command are the name of a cell and a list of
+volume location servers within that cell.
+
+Filesystems can be mounted anywhere by commands similar to the following:
+
+	mount -t afs "%cambridge.redhat.com:root.afs." /afs
+	mount -t afs "#cambridge.redhat.com:root.cell." /afs/cambridge
+	mount -t afs "#root.afs." /afs
+	mount -t afs "#root.cell." /afs/cambridge
+
+  NB: When using this on Linux 2.4, the mount command has to be different,
+      since the filesystem doesn't have access to the device name argument:
+
+	mount -t afs none /afs -ovol="#root.afs."
+
+Where the initial character is either a hash or a percent symbol depending on
+whether you definitely want a R/W volume (hash) or whether you'd prefer a R/O
+volume, but are willing to use a R/W volume instead (percent).
+
+The name of the volume can be suffixes with ".backup" or ".readonly" to
+specify connection to only volumes of those types.
+
+The name of the cell is optional, and if not given during a mount, then the
+named volume will be looked up in the cell specified during insmod.
+
+Additional cells can be added through /proc (see later section).
+
+
+MOUNTPOINTS
+===========
+
+AFS has a concept of mountpoints. These are specially formatted symbolic links
+(of the same form as the "device name" passed to mount). kAFS presents these
+to the user as directories that have special properties:
+
+  (*) They cannot be listed. Running a program like "ls" on them will incur an
+      EREMOTE error (Object is remote).
+
+  (*) Other objects can't be looked up inside of them. This also incurs an
+      EREMOTE error.
+
+  (*) They can be queried with the readlink() system call, which will return
+      the name of the mountpoint to which they point. The "readlink" program
+      will also work.
+
+  (*) They can be mounted on (which symbolic links can't).
+
+
+PROC FILESYSTEM
+===============
+
+The rxrpc module creates a number of files in various places in the /proc
+filesystem:
+
+  (*) Firstly, some information files are made available in a directory called
+      "/proc/net/rxrpc/". These list the extant transport endpoint, peer,
+      connection and call records.
+
+  (*) Secondly, some control files are made available in a directory called
+      "/proc/sys/rxrpc/". Currently, all these files can be used for is to
+      turn on various levels of tracing.
+
+The AFS modules creates a "/proc/fs/afs/" directory and populates it:
+
+  (*) A "cells" file that lists cells currently known to the afs module.
+
+  (*) A directory per cell that contains files that list volume location
+      servers, volumes, and active servers known within that cell.
+
+
+THE CELL DATABASE
+=================
+
+The filesystem maintains an internal database of all the cells it knows and
+the IP addresses of the volume location servers for those cells. The cell to
+which the computer belongs is added to the database when insmod is performed
+by the "rootcell=" argument.
+
+Further cells can be added by commands similar to the following:
+
+	echo add CELLNAME VLADDR[:VLADDR][:VLADDR]... >/proc/fs/afs/cells
+	echo add grand.central.org 18.7.14.88:128.2.191.224 >/proc/fs/afs/cells
+
+No other cell database operations are available at this time.
+
+
+EXAMPLES
+========
+
+Here's what I use to test this. Some of the names and IP addresses are local
+to my internal DNS. My "root.afs" partition has a mount point within it for
+some public volumes volumes.
+
+insmod -S /tmp/rxrpc.o 
+insmod -S /tmp/kafs.o rootcell=cambridge.redhat.com:172.16.18.73:172.16.18.91
+
+mount -t afs \%root.afs. /afs
+mount -t afs \%cambridge.redhat.com:root.cell. /afs/cambridge.redhat.com/
+
+echo add grand.central.org 18.7.14.88:128.2.191.224 > /proc/fs/afs/cells 
+mount -t afs "#grand.central.org:root.cell." /afs/grand.central.org/
+mount -t afs "#grand.central.org:root.archive." /afs/grand.central.org/archive
+mount -t afs "#grand.central.org:root.contrib." /afs/grand.central.org/contrib
+mount -t afs "#grand.central.org:root.doc." /afs/grand.central.org/doc
+mount -t afs "#grand.central.org:root.project." /afs/grand.central.org/project
+mount -t afs "#grand.central.org:root.service." /afs/grand.central.org/service
+mount -t afs "#grand.central.org:root.software." /afs/grand.central.org/software
+mount -t afs "#grand.central.org:root.user." /afs/grand.central.org/user
+
+umount /afs/grand.central.org/user
+umount /afs/grand.central.org/software
+umount /afs/grand.central.org/service
+umount /afs/grand.central.org/project
+umount /afs/grand.central.org/doc
+umount /afs/grand.central.org/contrib
+umount /afs/grand.central.org/archive
+umount /afs/grand.central.org
+umount /afs/cambridge.redhat.com
+umount /afs
+rmmod kafs
+rmmod rxrpc

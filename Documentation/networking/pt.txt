@@ -1,0 +1,58 @@
+This is the README for the Gracilis Packetwin device driver, version 0.5
+ALPHA for Linux 1.3.43.
+
+These files will allow you to talk to the PackeTwin (now know as PT) and
+connect through it just like a pair of TNCs.  To do this you will also
+require the AX.25 code in the kernel enabled.
+
+There are four files in this archive; this readme, a patch file, a .c file
+and finally a .h file.  The two program files need to be put into the
+drivers/net directory in the Linux source tree, for me this is the
+directory /usr/src/linux/drivers/net.  The patch file needs to be patched in
+at the top of the Linux source tree (/usr/src/linux in my case).
+
+You will most probably have to edit the pt.c file to suit your own setup,
+this should just involve changing some of the defines at the top of the file. 
+Please note that if you run an external modem you must specify a speed of 0.
+
+The program is currently setup to run a 4800 baud external modem on port A
+and a Kantronics DE-9600 daughter board on port B so if you have this (or
+something similar) then you're right.
+
+To compile in the driver, put the files in the correct place and patch in
+the diff.  You will have to re-configure the kernel again before you
+recompile it. 
+
+The driver is not real good at the moment for finding the card.  You can
+'help' it by changing the order of the potential addresses in the structure
+found in the pt_init() function so the address of where the card is is put
+first.
+
+After compiling, you have to get them going, they are pretty well like any
+other net device and just need ifconfig to get them going.
+As an example, here is my /etc/rc.net
+--------------------------
+
+#
+# Configure the PackeTwin, port A.
+/sbin/ifconfig pt0a 44.136.8.87 hw ax25 vk2xlz mtu 512 
+/sbin/ifconfig pt0a 44.136.8.87 broadcast 44.136.8.255 netmask 255.255.255.0
+/sbin/route add -net 44.136.8.0 netmask 255.255.255.0 dev pt0a
+/sbin/route add -net 44.0.0.0 netmask 255.0.0.0 gw 44.136.8.68 dev pt0a
+/sbin/route add -net 138.25.16.0 netmask 255.255.240.0 dev pt0a
+/sbin/route add -host 44.136.8.255 dev pt0a
+#
+# Configure the PackeTwin, port B.
+/sbin/ifconfig pt0b 44.136.8.87 hw ax25 vk2xlz-1 mtu 512
+/sbin/ifconfig pt0b 44.136.8.87 broadcast 44.255.255.255 netmask 255.0.0.0
+/sbin/route add -host 44.136.8.216 dev pt0b
+/sbin/route add -host 44.136.8.95  dev pt0b
+/sbin/route add -host 44.255.255.255 dev pt0b
+
+This version of the driver comes under the GNU GPL.  If you have one of my
+previous (non-GPL) versions of the driver, please update to this one.
+
+I hope that this all works well for you.  I would be pleased to hear how
+many people use the driver and if it does its job.
+
+  - Craig vk2xlz <csmall@small.dropbear.id.au>

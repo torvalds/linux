@@ -1,0 +1,191 @@
+#
+# Video configuration
+#
+
+menu "Console display driver support"
+
+config VGA_CONSOLE
+	bool "VGA text console" if EMBEDDED || !X86
+	depends on !ARCH_ACORN && !ARCH_EBSA110 && !4xx && !8xx && !SPARC32 && !SPARC64 && !M68K && !PARISC
+	default y
+	help
+	  Saying Y here will allow you to use Linux in text mode through a
+	  display that complies with the generic VGA standard. Virtually
+	  everyone wants that.
+
+	  The program SVGATextMode can be used to utilize SVGA video cards to
+	  their full potential in text mode. Download it from
+	  <ftp://ibiblio.org/pub/Linux/utils/console/>.
+
+	  Say Y.
+
+#	if [ "$CONFIG_PCI" = "y" -a "$CONFIG_VGA_CONSOLE" = "y" ]; then
+#	   bool '   Allow VGA on any bus?' CONFIG_VGA_HOSE
+#	   if [ "$CONFIG_VGA_HOSE" = "y" ]; then
+#	      define_bool CONFIG_DUMMY_CONSOLE y
+#	   fi
+#	fi
+
+config VIDEO_SELECT
+	bool "Video mode selection support"
+	depends on  (X86 || X86_64) && VGA_CONSOLE
+	---help---
+	  This enables support for text mode selection on kernel startup. If
+	  you want to take advantage of some high-resolution text mode your
+	  card's BIOS offers, but the traditional Linux utilities like
+	  SVGATextMode don't, you can say Y here and set the mode using the
+	  "vga=" option from your boot loader (lilo or loadlin) or set
+	  "vga=ask" which brings up a video mode menu on kernel startup. (Try
+	  "man bootparam" or see the documentation of your boot loader about
+	  how to pass options to the kernel.)
+
+	  Read the file <file:Documentation/svga.txt> for more information
+	  about the Video mode selection support. If unsure, say N.
+
+config MDA_CONSOLE
+	depends on !M68K && !PARISC && ISA
+	tristate "MDA text console (dual-headed) (EXPERIMENTAL)"
+	---help---
+	  Say Y here if you have an old MDA or monochrome Hercules graphics
+	  adapter in your system acting as a second head ( = video card). You
+	  will then be able to use two monitors with your Linux system. Do not
+	  say Y here if your MDA card is the primary card in your system; the
+	  normal VGA driver will handle it.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mdacon.
+
+	  If unsure, say N.
+
+config SGI_NEWPORT_CONSOLE
+        tristate "SGI Newport Console support"
+        depends on SGI_IP22 
+        help
+          Say Y here if you want the console on the Newport aka XL graphics
+          card of your Indy.  Most people say Y here.
+
+#  bool 'IODC console' CONFIG_IODC_CONSOLE
+
+config PROM_CONSOLE
+	bool "PROM console"
+	depends on SPARC32 || SPARC64
+	help
+	  Say Y to build a console driver for Sun machines that uses the
+	  terminal emulation built into their console PROMS.
+
+config DUMMY_CONSOLE
+	bool
+	depends on PROM_CONSOLE!=y || VGA_CONSOLE!=y || SGI_NEWPORT_CONSOLE!=y 
+	default y
+
+config DUMMY_CONSOLE_COLUMNS
+        int "Initial number of console screen columns"
+        depends on PARISC && DUMMY_CONSOLE
+        default "160"
+        help
+          The default value is 160, which should fit a 1280x1024 monitor.
+          Select 80 if you use a 640x480 resolution by default.
+
+config DUMMY_CONSOLE_ROWS
+        int "Initial number of console screen rows"
+        depends on PARISC && DUMMY_CONSOLE
+        default "64"
+        help
+          The default value is 64, which should fit a 1280x1024 monitor.
+          Select 25 if you use a 640x480 resolution by default.
+
+config FRAMEBUFFER_CONSOLE
+	tristate "Framebuffer Console support"
+	depends on FB
+	select CRC32
+
+config STI_CONSOLE
+        tristate "STI text console" 
+        depends on PARISC
+        default y
+        help
+          The STI console is the builtin display/keyboard on HP-PARISC
+          machines.  Say Y here to build support for it into your kernel.
+          The alternative is to use your primary serial port as a console.
+
+config FONTS
+	bool "Select compiled-in fonts"
+	depends on FRAMEBUFFER_CONSOLE
+	help
+	  Say Y here if you would like to use fonts other than the default
+	  your frame buffer console usually use.
+
+	  Note that the answer to this question won't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about foreign fonts.
+
+	  If unsure, say N (the default choices are safe).
+
+config FONT_8x8
+	bool "VGA 8x8 font" if FONTS
+	depends on FRAMEBUFFER_CONSOLE
+	default y if !SPARC32 && !SPARC64 && !FONTS
+	help
+	  This is the "high resolution" font for the VGA frame buffer (the one
+	  provided by the text console 80x50 (and higher) modes).
+
+	  Note that this is a poor quality font. The VGA 8x16 font is quite a
+	  lot more readable.
+
+	  Given the resolution provided by the frame buffer device, answer N
+	  here is safe.
+
+config FONT_8x16
+	bool "VGA 8x16 font" if FONTS
+	depends on FRAMEBUFFER_CONSOLE || SGI_NEWPORT_CONSOLE=y
+	default y if !SPARC32 && !SPARC64 && !FONTS
+	help
+	  This is the "high resolution" font for the VGA frame buffer (the one
+	  provided by the VGA text console 80x25 mode.
+
+	  If unsure, say Y.
+
+config FONT_6x11
+	bool "Mac console 6x11 font (not supported by all drivers)" if FONTS
+	depends on FRAMEBUFFER_CONSOLE
+	default y if !SPARC32 && !SPARC64 && !FONTS && MAC
+	help
+	  Small console font with Macintosh-style high-half glyphs.  Some Mac
+	  framebuffer drivers don't support this one at all.
+
+config FONT_PEARL_8x8
+	bool "Pearl (old m68k) console 8x8 font" if FONTS
+	depends on FRAMEBUFFER_CONSOLE
+	default y if !SPARC32 && !SPARC64 && !FONTS && AMIGA
+	help
+	  Small console font with PC-style control-character and high-half
+	  glyphs.
+
+config FONT_ACORN_8x8
+	bool "Acorn console 8x8 font" if FONTS
+	depends on FRAMEBUFFER_CONSOLE
+	default y if !SPARC32 && !SPARC64 && !FONTS && ARM && ARCH_ACORN
+	help
+	  Small console font with PC-style control characters and high-half
+	  glyphs.
+
+config FONT_MINI_4x6
+	bool "Mini 4x6 font"
+	depends on !SPARC32 && !SPARC64 && FONTS
+
+config FONT_SUN8x16
+	bool "Sparc console 8x16 font"
+	depends on FRAMEBUFFER_CONSOLE && (!SPARC32 && !SPARC64 && FONTS || SPARC32 || SPARC64)
+	help
+	  This is the high resolution console font for Sun machines. Say Y.
+
+config FONT_SUN12x22
+	bool "Sparc console 12x22 font (not supported by all drivers)"
+	depends on FRAMEBUFFER_CONSOLE && (!SPARC32 && !SPARC64 && FONTS || SPARC32 || SPARC64)
+	help
+	  This is the high resolution console font for Sun machines with very
+	  big letters (like the letters used in the SPARC PROM). If the
+	  standard font is unreadable for you, say Y, otherwise say N.
+
+endmenu
+

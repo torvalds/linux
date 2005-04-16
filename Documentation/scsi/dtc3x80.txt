@@ -1,0 +1,43 @@
+README file for the Linux DTC3180/3280 scsi driver.
+by Ray Van Tassle (rayvt@comm.mot.com)  March 1996
+Based on the generic & core NCR5380 code by Drew Eckhard
+
+SCSI device driver for the DTC 3180/3280.
+Data Technology Corp---a division of Qume.
+
+The 3280 has a standard floppy interface.
+
+The 3180 does not.  Otherwise, they are identical.
+
+The DTC3x80 does not support DMA but it does have Pseudo-DMA which is
+supported by the driver.
+
+It's DTC406 scsi chip is supposedly compatible with the NCR 53C400.
+It is memory mapped, uses an IRQ, but no dma or io-port.  There is
+internal DMA, between SCSI bus and an on-chip 128-byte buffer.  Double
+buffering is done automagically by the chip.  Data is transferred
+between the on-chip buffer and CPU/RAM via memory moves.
+
+The driver detects the possible memory addresses (jumper selectable):
+	CC00, DC00, C800, and D800
+The possible IRQ's (jumper selectable) are:
+	IRQ 10, 11, 12, 15
+Parity is supported by the chip, but not by this driver.
+Information can be obtained from /proc/scsi/dtc3c80/N.
+
+Note on interrupts:
+
+The documentation says that it can be set to interrupt whenever the
+on-chip buffer needs CPU attention.  I couldn't get this to work.  So
+the driver polls for data-ready in the pseudo-DMA transfer routine.
+The interrupt support routines in the NCR3280.c core modules handle
+scsi disconnect/reconnect, and this (mostly) works.  However.....  I
+have tested it with 4 totally different hard drives (both SCSI-1 and
+SCSI-2), and one CDROM drive.  Interrupts works great for all but one
+specific hard drive.  For this one, the driver will eventually hang in
+the transfer state.  I have tested with: "dd bs=4k count=2k
+of=/dev/null if=/dev/sdb".  It reads ok for a while, then hangs.
+After beating my head against this for a couple of weeks, getting
+nowhere, I give up.  So.....This driver does NOT use interrupts, even
+if you have the card jumpered to an IRQ.  Probably nobody will ever
+care.

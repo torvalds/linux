@@ -1,0 +1,30 @@
+#
+# USB ATM driver configuration
+#
+comment "USB ATM/DSL drivers"
+	depends on USB
+
+config USB_ATM
+	tristate "Generic USB ATM/DSL core I/O support"
+	depends on USB && ATM
+	select CRC32
+	default n
+	help
+	  This provides a library which is used for packet I/O by USB DSL
+	  modems, such as the SpeedTouch driver below. 
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called usb_atm.
+
+config USB_SPEEDTOUCH
+	tristate "Alcatel Speedtouch USB support"
+	depends on USB && ATM
+	select USB_ATM
+	help
+	  Say Y here if you have an Alcatel SpeedTouch USB or SpeedTouch 330
+	  modem.  In order to use your modem you will need to install the 
+	  two parts of the firmware, extracted by the user space tools; see
+	  <http://www.linux-usb.org/SpeedTouch/> for details.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called speedtch.
