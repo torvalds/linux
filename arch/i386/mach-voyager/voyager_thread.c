@@ -126,7 +126,6 @@ thread(void *unused)
 
 	kvoyagerd_running = 1;
 
-	reparent_to_init();
 	daemonize(THREAD_NAME);
 
 	set_timeout = 0;

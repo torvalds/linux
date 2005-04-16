@@ -220,7 +220,7 @@ static inline int has_stopped_jobs(int pgrp)
  *
  * NOTE that reparent_to_init() gives the caller full capabilities.
  */
-void reparent_to_init(void)
+static inline void reparent_to_init(void)
 {
 	write_lock_irq(&tasklist_lock);
 
