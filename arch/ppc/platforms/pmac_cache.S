@@ -28,6 +28,9 @@
  */
 
 _GLOBAL(flush_disable_caches)
+#ifndef CONFIG_6xx
+	blr
+#else
 BEGIN_FTR_SECTION
 	b	flush_disable_745x
 END_FTR_SECTION_IFSET(CPU_FTR_SPEC7450)
@@ -323,3 +326,4 @@ END_FTR_SECTION_IFSET(CPU_FTR_L3CR)
 	mtmsr	r11		/* restore DR and EE */
 	isync
 	blr
+#endif	/* CONFIG_6xx */
