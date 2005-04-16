@@ -1549,12 +1549,16 @@ static int r128_cce_depth( DRM_IOCTL_ARGS )
 	switch ( depth.func ) {
 	case R128_WRITE_SPAN:
 		ret = r128_cce_dispatch_write_span( dev, &depth );
+		break;
 	case R128_WRITE_PIXELS:
 		ret = r128_cce_dispatch_write_pixels( dev, &depth );
+		break;
 	case R128_READ_SPAN:
 		ret = r128_cce_dispatch_read_span( dev, &depth );
+		break;
 	case R128_READ_PIXELS:
 		ret = r128_cce_dispatch_read_pixels( dev, &depth );
+		break;
 	}
 
 	COMMIT_RING();
