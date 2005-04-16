@@ -24,6 +24,9 @@ __asm__(".align 4\nvide: ret");
 
 static void __init init_amd(struct cpuinfo_x86 *c)
 {
+#ifdef CONFIG_SMP
+	int cpu = c == &boot_cpu_data ? 0 : c - cpu_data;
+#endif
 	u32 l, h;
 	int mbytes = num_physpages >> (20-PAGE_SHIFT);
 	int r;
@@ -195,16 +198,17 @@ static void __init init_amd(struct cpuinfo_x86 *c)
 			c->x86_num_cores = 1;
 	}
 
-	detect_ht(c);
-
-#ifdef CONFIG_X86_HT
-	/* AMD dual core looks like HT but isn't really. Hide it from the
-	   scheduler. This works around problems with the domain scheduler.
-	   Also probably gives slightly better scheduling and disables
-	   SMT nice which is harmful on dual core.
-	   TBD tune the domain scheduler for dual core. */
-	if (cpu_has(c, X86_FEATURE_CMP_LEGACY))
-		smp_num_siblings = 1;
+#ifdef CONFIG_SMP
+	/*
+	 * On a AMD dual core setup the lower bits of the APIC id
+	 * distingush the cores.  Assumes number of cores is a power
+	 * of two.
+	 */
+	if (c->x86_num_cores > 1) {
+		cpu_core_id[cpu] = cpu >> hweight32(c->x86_num_cores - 1);
+		printk(KERN_INFO "CPU %d(%d) -> Core %d\n",
+		       cpu, c->x86_num_cores, cpu_core_id[cpu]);
+	}
 #endif
 }
 

@@ -437,7 +437,7 @@ void __init detect_ht(struct cpuinfo_x86 *c)
 	int 	index_msb, tmp;
 	int 	cpu = smp_processor_id();
 
-	if (!cpu_has(c, X86_FEATURE_HT))
+	if (!cpu_has(c, X86_FEATURE_HT) || cpu_has(c, X86_FEATURE_CMP_LEGACY))
 		return;
 
 	cpuid(1, &eax, &ebx, &ecx, &edx);

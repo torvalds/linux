@@ -715,14 +715,46 @@ static void __init display_cacheinfo(struct cpuinfo_x86 *c)
 	}
 }
 
+#ifdef CONFIG_SMP
+/*
+ * On a AMD dual core setup the lower bits of the APIC id distingush the cores.
+ * Assumes number of cores is a power of two.
+ */
+static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
+{
+#ifdef CONFIG_SMP
+	int cpu = c->x86_apicid;
+	int node = 0;
+	if (c->x86_num_cores == 1)
+		return;
+	cpu_core_id[cpu] = cpu >> hweight32(c->x86_num_cores - 1);
+
+#ifdef CONFIG_NUMA
+	/* When an ACPI SRAT table is available use the mappings from SRAT
+ 	   instead. */
+	if (acpi_numa <= 0) {
+		node = cpu_core_id[cpu];
+		if (!node_online(node))
+			node = first_node(node_online_map);
+		cpu_to_node[cpu] = node;
+	} else {
+		node = cpu_to_node[cpu];
+	}
+#endif
+	printk(KERN_INFO "CPU %d(%d) -> Node %d -> Core %d\n",
+			cpu, c->x86_num_cores, node, cpu_core_id[cpu]);
+#endif
+}
+#else
+static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
+{
+}
+#endif
 
 static int __init init_amd(struct cpuinfo_x86 *c)
 {
 	int r;
 	int level;
-#ifdef CONFIG_NUMA
-	int cpu;
-#endif
 
 	/* Bit 31 in normal CPUID used for nonstandard 3DNow ID;
 	   3DNow is IDd by bit 31 in extended CPUID (1*32+31) anyway */
@@ -750,21 +782,7 @@ static int __init init_amd(struct cpuinfo_x86 *c)
 		if (c->x86_num_cores & (c->x86_num_cores - 1))
 			c->x86_num_cores = 1;
 
-#ifdef CONFIG_NUMA
-		/* On a dual core setup the lower bits of apic id
-		   distingush the cores. Fix up the CPU<->node mappings
-		   here based on that.
-		   Assumes number of cores is a power of two.
-		   When using SRAT use mapping from SRAT. */
-		cpu = c->x86_apicid;
-		if (acpi_numa <= 0 && c->x86_num_cores > 1) {
-			cpu_to_node[cpu] = cpu >> hweight32(c->x86_num_cores - 1);
-			if (!node_online(cpu_to_node[cpu]))
-				cpu_to_node[cpu] = first_node(node_online_map);
-		}
-		printk(KERN_INFO "CPU %d(%d) -> Node %d\n",
-				cpu, c->x86_num_cores, cpu_to_node[cpu]);
-#endif
+		amd_detect_cmp(c);
 	}
 
 	return r;
@@ -777,7 +795,7 @@ static void __init detect_ht(struct cpuinfo_x86 *c)
 	int 	index_msb, tmp;
 	int 	cpu = smp_processor_id();
 	
-	if (!cpu_has(c, X86_FEATURE_HT))
+	if (!cpu_has(c, X86_FEATURE_HT) || cpu_has(c, X86_FEATURE_CMP_LEGACY))
 		return;
 
 	cpuid(1, &eax, &ebx, &ecx, &edx);
@@ -819,25 +837,13 @@ static void __init detect_ht(struct cpuinfo_x86 *c)
 		if (smp_num_siblings & (smp_num_siblings - 1))
 			index_msb++;
 
+		/* RED-PEN surely this must run in the non HT case too! -AK */
 		cpu_core_id[cpu] = phys_pkg_id(index_msb);
 
 		if (c->x86_num_cores > 1)
 			printk(KERN_INFO  "CPU: Processor Core ID: %d\n",
 			       cpu_core_id[cpu]);
 	}
-#endif
-}
-
-static void __init sched_cmp_hack(struct cpuinfo_x86 *c)
-{
-#ifdef CONFIG_SMP
-	/* AMD dual core looks like HT but isn't really. Hide it from the
-	   scheduler. This works around problems with the domain scheduler.
-	   Also probably gives slightly better scheduling and disables
-	   SMT nice which is harmful on dual core.
-	   TBD tune the domain scheduler for dual core. */
-	if (c->x86_vendor == X86_VENDOR_AMD && cpu_has(c, X86_FEATURE_CMP_LEGACY))
-		smp_num_siblings = 1;
 #endif
 }
 
@@ -1009,7 +1015,6 @@ void __init identify_cpu(struct cpuinfo_x86 *c)
 
 	select_idle_routine(c);
 	detect_ht(c); 
-	sched_cmp_hack(c);
 
 	/*
 	 * On SMP, boot_cpu_data holds the common feature set between
