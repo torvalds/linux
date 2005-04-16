@@ -879,7 +879,7 @@ static void cinergyt2_disconnect (struct usb_interface *intf)
 	kfree(cinergyt2);
 }
 
-static int cinergyt2_suspend (struct usb_interface *intf, u32 state)
+static int cinergyt2_suspend (struct usb_interface *intf, pm_message_t state)
 {
 	struct cinergyt2 *cinergyt2 = usb_get_intfdata (intf);
 

@@ -1768,7 +1768,7 @@ static struct video_device meye_template = {
 };
 
 #ifdef CONFIG_PM
-static int meye_suspend(struct pci_dev *pdev, u32 state)
+static int meye_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	pci_save_state(pdev);
 	meye.pm_mchip_mode = meye.mchip_mode;
