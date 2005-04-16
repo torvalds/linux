@@ -106,7 +106,7 @@ static void macio_device_shutdown(struct device *dev)
 		drv->shutdown(macio_dev);
 }
 
-static int macio_device_suspend(struct device *dev, u32 state)
+static int macio_device_suspend(struct device *dev, pm_message_t state)
 {
 	struct macio_dev * macio_dev = to_macio_device(dev);
 	struct macio_driver * drv = to_macio_driver(dev->driver);

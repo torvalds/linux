@@ -704,7 +704,7 @@ static int __devinit media_bay_attach(struct macio_dev *mdev, const struct of_ma
 
 }
 
-static int __pmac media_bay_suspend(struct macio_dev *mdev, u32 state)
+static int __pmac media_bay_suspend(struct macio_dev *mdev, pm_message_t state)
 {
 	struct media_bay_info	*bay = macio_get_drvdata(mdev);
 
