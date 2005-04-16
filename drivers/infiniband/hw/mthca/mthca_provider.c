@@ -568,8 +568,9 @@ static struct ib_mr *mthca_reg_phys_mr(struct ib_pd       *pd,
 
 static int mthca_dereg_mr(struct ib_mr *mr)
 {
-	mthca_free_mr(to_mdev(mr->device), to_mmr(mr));
-	kfree(mr);
+	struct mthca_mr *mmr = to_mmr(mr);
+	mthca_free_mr(to_mdev(mr->device), mmr);
+	kfree(mmr);
 	return 0;
 }
 
