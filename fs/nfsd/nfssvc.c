@@ -258,6 +258,8 @@ nfsd(struct svc_rqst *rqstp)
 				break;
 		err = signo;
 	}
+	/* Clear signals before calling lockd_down() and svc_exit_thread() */
+	flush_signals(current);
 
 	lock_kernel();
 
