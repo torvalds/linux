@@ -1359,8 +1359,6 @@ int proto_register(struct proto *prot, int alloc_slab)
 {
 	int rc = -ENOBUFS;
 
-	write_lock(&proto_list_lock);
-
 	if (alloc_slab) {
 		prot->slab = kmem_cache_create(prot->name, prot->obj_size, 0,
 					       SLAB_HWCACHE_ALIGN, NULL, NULL);
@@ -1368,14 +1366,15 @@ int proto_register(struct proto *prot, int alloc_slab)
 		if (prot->slab == NULL) {
 			printk(KERN_CRIT "%s: Can't create sock SLAB cache!\n",
 			       prot->name);
-			goto out_unlock;
+			goto out;
 		}
 	}
 
+	write_lock(&proto_list_lock);
 	list_add(&prot->node, &proto_list);
-	rc = 0;
-out_unlock:
 	write_unlock(&proto_list_lock);
+	rc = 0;
+out:
 	return rc;
 }
 
