@@ -3,8 +3,8 @@
  *
  *  Copyright (C) 2001-2003 MontaVista Software Inc.
  *    Author: Yoichi Yuasa <yyuasa@mvista.com or source@mvista.com>
- *  Copyright (C) 2004  Yoichi Yuasa <yuasa@hh.iij4u.or.jp>
- * Copyright (C) 2004 by Ralf Baechle (ralf@linux-mips.org)
+ *  Copyright (C) 2004-2005  Yoichi Yuasa <yuasa@hh.iij4u.or.jp>
+ *  Copyright (C) 2004 by Ralf Baechle (ralf@linux-mips.org)
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -31,11 +31,17 @@
 
 #include <asm/cpu.h>
 #include <asm/io.h>
+#include <asm/vr41xx/pci.h>
 #include <asm/vr41xx/vr41xx.h>
 
 #include "pci-vr41xx.h"
 
 extern struct pci_ops vr41xx_pci_ops;
+
+static void __iomem *pciu_base;
+
+#define pciu_read(offset)		readl(pciu_base + (offset))
+#define pciu_write(offset, value)	writel((value), pciu_base + (offset))
 
 static struct pci_master_address_conversion pci_master_memory1 = {
 	.bus_base_address	= PCI_MASTER_MEM1_BUS_BASE_ADDRESS,
@@ -113,6 +119,15 @@ static int __init vr41xx_pciu_init(void)
 
 	setup = &vr41xx_pci_controller_unit_setup;
 
+	if (request_mem_region(PCIU_BASE, PCIU_SIZE, "PCIU") == NULL)
+		return -EBUSY;
+
+	pciu_base = ioremap(PCIU_BASE, PCIU_SIZE);
+	if (pciu_base == NULL) {
+		release_mem_region(PCIU_BASE, PCIU_SIZE);
+		return -EBUSY;
+	}
+
 	/* Disable PCI interrupt */
 	vr41xx_disable_pciint();
 
@@ -129,14 +144,14 @@ static int __init vr41xx_pciu_init(void)
 		pci_clock_max = PCI_CLOCK_MAX;
 	vtclock = vr41xx_get_vtclock_frequency();
 	if (vtclock < pci_clock_max)
-		writel(EQUAL_VTCLOCK, PCICLKSELREG);
+		pciu_write(PCICLKSELREG, EQUAL_VTCLOCK);
 	else if ((vtclock / 2) < pci_clock_max)
-		writel(HALF_VTCLOCK, PCICLKSELREG);
+		pciu_write(PCICLKSELREG, HALF_VTCLOCK);
 	else if (current_cpu_data.processor_id >= PRID_VR4131_REV2_1 &&
 	         (vtclock / 3) < pci_clock_max)
-		writel(ONE_THIRD_VTCLOCK, PCICLKSELREG);
+		pciu_write(PCICLKSELREG, ONE_THIRD_VTCLOCK);
 	else if ((vtclock / 4) < pci_clock_max)
-		writel(QUARTER_VTCLOCK, PCICLKSELREG);
+		pciu_write(PCICLKSELREG, QUARTER_VTCLOCK);
 	else {
 		printk(KERN_ERR "PCI Clock is over 33MHz.\n");
 		return -EINVAL;
@@ -151,11 +166,11 @@ static int __init vr41xx_pciu_init(void)
 		      MASTER_MSK(master->address_mask) |
 		      WINEN |
 		      PCIA(master->pci_base_address);
-		writel(val, PCIMMAW1REG);
+		pciu_write(PCIMMAW1REG, val);
 	} else {
-		val = readl(PCIMMAW1REG);
+		val = pciu_read(PCIMMAW1REG);
 		val &= ~WINEN;
-		writel(val, PCIMMAW1REG);
+		pciu_write(PCIMMAW1REG, val);
 	}
 
 	if (setup->master_memory2 != NULL) {
@@ -164,11 +179,11 @@ static int __init vr41xx_pciu_init(void)
 		      MASTER_MSK(master->address_mask) |
 		      WINEN |
 		      PCIA(master->pci_base_address);
-		writel(val, PCIMMAW2REG);
+		pciu_write(PCIMMAW2REG, val);
 	} else {
-		val = readl(PCIMMAW2REG);
+		val = pciu_read(PCIMMAW2REG);
 		val &= ~WINEN;
-		writel(val, PCIMMAW2REG);
+		pciu_write(PCIMMAW2REG, val);
 	}
 
 	if (setup->target_memory1 != NULL) {
@@ -176,11 +191,11 @@ static int __init vr41xx_pciu_init(void)
 		val = TARGET_MSK(target->address_mask) |
 		      WINEN |
 		      ITA(target->bus_base_address);
-		writel(val, PCITAW1REG);
+		pciu_write(PCITAW1REG, val);
 	} else {
-		val = readl(PCITAW1REG);
+		val = pciu_read(PCITAW1REG);
 		val &= ~WINEN;
-		writel(val, PCITAW1REG);
+		pciu_write(PCITAW1REG, val);
 	}
 
 	if (setup->target_memory2 != NULL) {
@@ -188,11 +203,11 @@ static int __init vr41xx_pciu_init(void)
 		val = TARGET_MSK(target->address_mask) |
 		      WINEN |
 		      ITA(target->bus_base_address);
-		writel(val, PCITAW2REG);
+		pciu_write(PCITAW2REG, val);
 	} else {
-		val = readl(PCITAW2REG);
+		val = pciu_read(PCITAW2REG);
 		val &= ~WINEN;
-		writel(val, PCITAW2REG);
+		pciu_write(PCITAW2REG, val);
 	}
 
 	if (setup->master_io != NULL) {
@@ -201,50 +216,50 @@ static int __init vr41xx_pciu_init(void)
 		      MASTER_MSK(master->address_mask) |
 		      WINEN |
 		      PCIIA(master->pci_base_address);
-		writel(val, PCIMIOAWREG);
+		pciu_write(PCIMIOAWREG, val);
 	} else {
-		val = readl(PCIMIOAWREG);
+		val = pciu_read(PCIMIOAWREG);
 		val &= ~WINEN;
-		writel(val, PCIMIOAWREG);
+		pciu_write(PCIMIOAWREG, val);
 	}
 
 	if (setup->exclusive_access == CANNOT_LOCK_FROM_DEVICE)
-		writel(UNLOCK, PCIEXACCREG);
+		pciu_write(PCIEXACCREG, UNLOCK);
 	else
-		writel(0, PCIEXACCREG);
+		pciu_write(PCIEXACCREG, 0);
 
 	if (current_cpu_data.cputype == CPU_VR4122)
-		writel(TRDYV(setup->wait_time_limit_from_irdy_to_trdy), PCITRDYVREG);
+		pciu_write(PCITRDYVREG, TRDYV(setup->wait_time_limit_from_irdy_to_trdy));
 
-	writel(MLTIM(setup->master_latency_timer), LATTIMEREG);
+	pciu_write(LATTIMEREG, MLTIM(setup->master_latency_timer));
 
 	if (setup->mailbox != NULL) {
 		mailbox = setup->mailbox;
 		val = MBADD(mailbox->base_address) | TYPE_32BITSPACE |
 		      MSI_MEMORY | PREF_APPROVAL;
-		writel(val, MAILBAREG);
+		pciu_write(MAILBAREG, val);
 	}
 
 	if (setup->target_window1) {
 		window = setup->target_window1;
 		val = PMBA(window->base_address) | TYPE_32BITSPACE |
 		      MSI_MEMORY | PREF_APPROVAL;
-		writel(val, PCIMBA1REG);
+		pciu_write(PCIMBA1REG, val);
 	}
 
 	if (setup->target_window2) {
 		window = setup->target_window2;
 		val = PMBA(window->base_address) | TYPE_32BITSPACE |
 		      MSI_MEMORY | PREF_APPROVAL;
-		writel(val, PCIMBA2REG);
+		pciu_write(PCIMBA2REG, val);
 	}
 
-	val = readl(RETVALREG);
+	val = pciu_read(RETVALREG);
 	val &= ~RTYVAL_MASK;
 	val |= RTYVAL(setup->retry_limit);
-	writel(val, RETVALREG);
+	pciu_write(RETVALREG, val);
 
-	val = readl(PCIAPCNTREG);
+	val = pciu_read(PCIAPCNTREG);
 	val &= ~(TKYGNT | PAPC);
 
 	switch (setup->arbiter_priority_control) {
@@ -262,15 +277,16 @@ static int __init vr41xx_pciu_init(void)
 	if (setup->take_away_gnt_mode == PCI_TAKE_AWAY_GNT_ENABLE)
 		val |= TKYGNT_ENABLE;
 
-	writel(val, PCIAPCNTREG);
+	pciu_write(PCIAPCNTREG, val);
 
-	writel(PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER |
-	       PCI_COMMAND_PARITY | PCI_COMMAND_SERR, COMMANDREG);
+	pciu_write(COMMANDREG, PCI_COMMAND_IO | PCI_COMMAND_MEMORY |
+	                       PCI_COMMAND_MASTER | PCI_COMMAND_PARITY |
+			       PCI_COMMAND_SERR);
 
 	/* Clear bus error */
-	readl(BUSERRADREG);
+	pciu_read(BUSERRADREG);
 
-	writel(BLOODY_CONFIG_DONE, PCIENREG);
+	pciu_write(PCIENREG, PCIU_CONFIG_DONE);
 
 	if (setup->mem_resource != NULL)
 		vr41xx_pci_controller.mem_resource = setup->mem_resource;

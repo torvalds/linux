@@ -3,7 +3,7 @@
  *
  *  Copyright (C) 2002  MontaVista Software Inc.
  *    Author: Yoichi Yuasa <yyuasa@mvista.com or source@mvista.com>
- *  Copyright (C) 2004  Yoichi Yuasa <yuasa@hh.iij4u.or.jp>
+ *  Copyright (C) 2004-2005  Yoichi Yuasa <yuasa@hh.iij4u.or.jp>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,11 +22,14 @@
 #ifndef __PCI_VR41XX_H
 #define __PCI_VR41XX_H
 
-#define PCIMMAW1REG		KSEG1ADDR(0x0f000c00)
-#define PCIMMAW2REG		KSEG1ADDR(0x0f000c04)
-#define PCITAW1REG		KSEG1ADDR(0x0f000c08)
-#define PCITAW2REG		KSEG1ADDR(0x0f000c0c)
-#define PCIMIOAWREG		KSEG1ADDR(0x0f000c10)
+#define PCIU_BASE		0x0f000c00UL
+#define PCIU_SIZE		0x200UL
+
+#define PCIMMAW1REG		0x00
+#define PCIMMAW2REG		0x04
+#define PCITAW1REG		0x08
+#define PCITAW2REG		0x0c
+#define PCIMIOAWREG		0x10
  #define IBA(addr)		((addr) & 0xff000000U)
  #define MASTER_MSK(mask)	(((mask) >> 11) & 0x000fe000U)
  #define PCIA(addr)		(((addr) >> 24) & 0x000000ffU)
@@ -34,13 +37,13 @@
  #define ITA(addr)		(((addr) >> 24) & 0x000000ffU)
  #define PCIIA(addr)		(((addr) >> 24) & 0x000000ffU)
  #define WINEN			0x1000U
-#define PCICONFDREG		KSEG1ADDR(0x0f000c14)
-#define PCICONFAREG		KSEG1ADDR(0x0f000c18)
-#define PCIMAILREG		KSEG1ADDR(0x0f000c1c)
-#define BUSERRADREG		KSEG1ADDR(0x0f000c24)
+#define PCICONFDREG		0x14
+#define PCICONFAREG		0x18
+#define PCIMAILREG		0x1c
+#define BUSERRADREG		0x24
  #define EA(reg)		((reg) &0xfffffffc)
 
-#define INTCNTSTAREG		KSEG1ADDR(0x0f000c28)
+#define INTCNTSTAREG		0x28
  #define MABTCLR		0x80000000U
  #define TRDYCLR		0x40000000U
  #define PARCLR			0x20000000U
@@ -67,34 +70,34 @@
  #define MABORT			0x00000002U
  #define TABORT			0x00000001U
 
-#define PCIEXACCREG		KSEG1ADDR(0x0f000c2c)
+#define PCIEXACCREG		0x2c
  #define UNLOCK			0x2U
  #define EAREQ			0x1U
-#define PCIRECONTREG		KSEG1ADDR(0x0f000c30)
+#define PCIRECONTREG		0x30
  #define RTRYCNT(reg)		((reg) & 0x000000ffU)
-#define PCIENREG		KSEG1ADDR(0x0f000c34)
- #define BLOODY_CONFIG_DONE	0x4U
-#define PCICLKSELREG		KSEG1ADDR(0x0f000c38)
+#define PCIENREG		0x34
+ #define PCIU_CONFIG_DONE	0x4U
+#define PCICLKSELREG		0x38
  #define EQUAL_VTCLOCK		0x2U
  #define HALF_VTCLOCK		0x0U
  #define ONE_THIRD_VTCLOCK	0x3U
  #define QUARTER_VTCLOCK	0x1U
-#define PCITRDYVREG		KSEG1ADDR(0x0f000c3c)
+#define PCITRDYVREG		0x3c
  #define TRDYV(val)		((uint32_t)(val) & 0xffU)
-#define PCICLKRUNREG		KSEG1ADDR(0x0f000c60)
+#define PCICLKRUNREG		0x60
 
-#define VENDORIDREG		KSEG1ADDR(0x0f000d00)
-#define DEVICEIDREG		KSEG1ADDR(0x0f000d00)
-#define COMMANDREG		KSEG1ADDR(0x0f000d04)
-#define STATUSREG		KSEG1ADDR(0x0f000d04)
-#define REVIDREG		KSEG1ADDR(0x0f000d08)
-#define CLASSREG		KSEG1ADDR(0x0f000d08)
-#define CACHELSREG		KSEG1ADDR(0x0f000d0c)
-#define LATTIMEREG		KSEG1ADDR(0x0f000d0c)
+#define VENDORIDREG		0x100
+#define DEVICEIDREG		0x100
+#define COMMANDREG		0x104
+#define STATUSREG		0x104
+#define REVIDREG		0x108
+#define CLASSREG		0x108
+#define CACHELSREG		0x10c
+#define LATTIMEREG		0x10c
  #define MLTIM(val)		(((uint32_t)(val) << 7) & 0xff00U)
-#define MAILBAREG		KSEG1ADDR(0x0f000d10)
-#define PCIMBA1REG		KSEG1ADDR(0x0f000d14)
-#define PCIMBA2REG		KSEG1ADDR(0x0f000d18)
+#define MAILBAREG		0x110
+#define PCIMBA1REG		0x114
+#define PCIMBA2REG		0x118
  #define MBADD(base)		((base) & 0xfffff800U)
  #define PMBA(base)		((base) & 0xffe00000U)
  #define PREF			0x8U
@@ -104,10 +107,10 @@
  #define TYPE_32BITSPACE	0x0U
  #define MSI			0x1U
  #define MSI_MEMORY		0x0U
-#define INTLINEREG		KSEG1ADDR(0x0f000d3c)
-#define INTPINREG		KSEG1ADDR(0x0f000d3c)
-#define RETVALREG		KSEG1ADDR(0x0f000d40)
-#define PCIAPCNTREG		KSEG1ADDR(0x0f000d40)
+#define INTLINEREG		0x13c
+#define INTPINREG		0x13c
+#define RETVALREG		0x140
+#define PCIAPCNTREG		0x140
  #define TKYGNT			0x04000000U
  #define TKYGNT_ENABLE		0x04000000U
  #define TKYGNT_DISABLE		0x00000000U
