@@ -429,12 +429,13 @@ void flush_scheduled_work(void)
  * @wq:   the controlling workqueue structure
  * @work: the delayed work struct
  */
-static void cancel_rearming_delayed_workqueue(struct workqueue_struct *wq,
-					struct work_struct *work)
+void cancel_rearming_delayed_workqueue(struct workqueue_struct *wq,
+				       struct work_struct *work)
 {
 	while (!cancel_delayed_work(work))
 		flush_workqueue(wq);
 }
+EXPORT_SYMBOL(cancel_rearming_delayed_workqueue);
 
 /**
  * cancel_rearming_delayed_work - reliably kill off a delayed keventd
