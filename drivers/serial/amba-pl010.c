@@ -772,7 +772,7 @@ static int pl010_remove(struct amba_device *dev)
 	return 0;
 }
 
-static int pl010_suspend(struct amba_device *dev, u32 state)
+static int pl010_suspend(struct amba_device *dev, pm_message_t state)
 {
 	struct uart_amba_port *uap = amba_get_drvdata(dev);
 

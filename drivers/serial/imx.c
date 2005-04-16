@@ -825,7 +825,7 @@ static struct uart_driver imx_reg = {
 	.cons           = IMX_CONSOLE,
 };
 
-static int serial_imx_suspend(struct device *_dev, u32 state, u32 level)
+static int serial_imx_suspend(struct device *_dev, pm_message_t state, u32 level)
 {
         struct imx_port *sport = dev_get_drvdata(_dev);
 

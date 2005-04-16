@@ -1026,7 +1026,7 @@ static int siu_remove(struct device *dev)
 	return 0;
 }
 
-static int siu_suspend(struct device *dev, u32 state, u32 level)
+static int siu_suspend(struct device *dev, pm_message_t state, u32 level)
 {
 	struct uart_port *port;
 	int i;

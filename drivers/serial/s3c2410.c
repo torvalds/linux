@@ -1156,7 +1156,7 @@ int s3c24xx_serial_remove(struct device *_dev)
 
 #ifdef CONFIG_PM
 
-int s3c24xx_serial_suspend(struct device *dev, u32 state, u32 level)
+int s3c24xx_serial_suspend(struct device *dev, pm_message_t state, u32 level)
 {
 	struct uart_port *port = s3c24xx_dev_to_port(dev);
 

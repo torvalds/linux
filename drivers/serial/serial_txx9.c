@@ -1095,7 +1095,7 @@ static void __devexit pciserial_txx9_remove_one(struct pci_dev *dev)
 	}
 }
 
-static int pciserial_txx9_suspend_one(struct pci_dev *dev, u32 state)
+static int pciserial_txx9_suspend_one(struct pci_dev *dev, pm_message_t state)
 {
 	int line = (int)(long)pci_get_drvdata(dev);
 

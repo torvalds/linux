@@ -1590,7 +1590,7 @@ static int pmz_detach(struct macio_dev *mdev)
 }
 
 
-static int pmz_suspend(struct macio_dev *mdev, u32 pm_state)
+static int pmz_suspend(struct macio_dev *mdev, pm_message_t pm_state)
 {
 	struct uart_pmac_port *uap = dev_get_drvdata(&mdev->ofdev.dev);
 	struct uart_state *state;

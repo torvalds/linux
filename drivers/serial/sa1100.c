@@ -854,7 +854,7 @@ static struct uart_driver sa1100_reg = {
 	.cons			= SA1100_CONSOLE,
 };
 
-static int sa1100_serial_suspend(struct device *_dev, u32 state, u32 level)
+static int sa1100_serial_suspend(struct device *_dev, pm_message_t state, u32 level)
 {
 	struct sa1100_port *sport = dev_get_drvdata(_dev);
 
