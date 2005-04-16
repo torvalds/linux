@@ -1852,14 +1852,14 @@ W:	http://www.alarsen.net/linux/qnx4fs/
 S:	Maintained
 
 RADEON FRAMEBUFFER DISPLAY DRIVER
-P:	Ani Joshi
-M:	ajoshi@shell.unixbox.com
+P:	Benjamin Herrenschmidt
+M:	benh@kernel.crashing.org
 L:	linux-fbdev-devel@lists.sourceforge.net
 S:	Maintained
 
 RAGE128 FRAMEBUFFER DISPLAY DRIVER
-P:	Ani Joshi
-M:	ajoshi@shell.unixbox.com
+P:	Paul Mackerras
+M:	paulus@samba.org
 L:	linux-fbdev-devel@lists.sourceforge.net
 S:	Maintained
 
