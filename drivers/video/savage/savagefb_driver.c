@@ -2103,7 +2103,7 @@ static void __devexit savagefb_remove (struct pci_dev *dev)
 	}
 }
 
-static int savagefb_suspend (struct pci_dev* dev, u32 state)
+static int savagefb_suspend (struct pci_dev* dev, pm_message_t state)
 {
 	struct fb_info *info =
 		(struct fb_info *)pci_get_drvdata(dev);
@@ -2118,7 +2118,7 @@ static int savagefb_suspend (struct pci_dev* dev, u32 state)
 	release_console_sem();
 
 	pci_disable_device(dev);
-	pci_set_power_state(dev, state);
+	pci_set_power_state(dev, pci_choose_state(dev, state));
 
 	return 0;
 }

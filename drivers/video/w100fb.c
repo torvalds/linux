@@ -544,7 +544,7 @@ static void w100fb_clear_buffer(void)
 
 
 #ifdef CONFIG_PM
-static int w100fb_suspend(struct device *dev, u32 state, u32 level)
+static int w100fb_suspend(struct device *dev, pm_message_t state, u32 level)
 {
 	if (level == SUSPEND_POWER_DOWN) {
 		struct fb_info *info = dev_get_drvdata(dev);

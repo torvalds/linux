@@ -81,7 +81,7 @@ static void corgibl_blank(int blank)
 }
 
 #ifdef CONFIG_PM
-static int corgibl_suspend(struct device *dev, u32 state, u32 level)
+static int corgibl_suspend(struct device *dev, pm_message_t state, u32 level)
 {
 	if (level == SUSPEND_POWER_DOWN)
 		corgibl_blank(FB_BLANK_POWERDOWN);
