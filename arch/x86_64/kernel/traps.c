@@ -28,6 +28,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/nmi.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -243,6 +244,7 @@ void show_stack(struct task_struct *tsk, unsigned long * rsp)
 		if (i && ((i % 4) == 0))
 			printk("\n       ");
 		printk("%016lx ", *stack++);
+		touch_nmi_watchdog();
 	}
 	show_trace((unsigned long *)rsp);
 }
