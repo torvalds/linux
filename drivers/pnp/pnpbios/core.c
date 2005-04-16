@@ -512,7 +512,7 @@ static int __init exploding_pnp_bios(struct dmi_system_id *d)
 	return 0;
 }
 
-static struct dmi_system_id pnpbios_dmi_table[] = {
+static struct dmi_system_id pnpbios_dmi_table[] __initdata = {
 	{	/* PnPBIOS GPF on boot */
 		.callback = exploding_pnp_bios,
 		.ident = "Higraded P14H",
