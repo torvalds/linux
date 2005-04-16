@@ -198,22 +198,6 @@ extern void vr41xx_enable_bcuint(void);
 extern void vr41xx_disable_bcuint(void);
 
 /*
- * Power Management Unit
- */
-
-/*
- * RTC
- */
-extern void vr41xx_set_rtclong1_cycle(uint32_t cycles);
-extern uint32_t vr41xx_read_rtclong1_counter(void);
-
-extern void vr41xx_set_rtclong2_cycle(uint32_t cycles);
-extern uint32_t vr41xx_read_rtclong2_counter(void);
-
-extern void vr41xx_set_tclock_cycle(uint32_t cycles);
-extern uint32_t vr41xx_read_tclock_counter(void);
-
-/*
  * General-Purpose I/O Unit
  */
 enum {
