@@ -965,7 +965,7 @@ __setup("report_lost_ticks", time_setup);
 static long clock_cmos_diff;
 static unsigned long sleep_start;
 
-static int timer_suspend(struct sys_device *dev, u32 state)
+static int timer_suspend(struct sys_device *dev, pm_message_t state)
 {
 	/*
 	 * Estimate time zone so that set_time can update the clock
