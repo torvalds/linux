@@ -302,9 +302,7 @@ int_very_careful:
 	leaq 8(%rsp),%rdi	# &ptregs -> arg1	
 	call syscall_trace_leave
 	popq %rdi
-	btr  $TIF_SYSCALL_TRACE,%edi
-	btr  $TIF_SYSCALL_AUDIT,%edi
-	btr  $TIF_SINGLESTEP,%edi
+	andl $~(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SINGLESTEP),%edi
 	jmp int_restore_rest
 	
 int_signal:
