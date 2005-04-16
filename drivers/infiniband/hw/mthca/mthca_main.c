@@ -672,7 +672,10 @@ static int __devinit mthca_setup_hca(struct mthca_dev *dev)
 
 	err = mthca_NOP(dev, &status);
 	if (err || status) {
-		mthca_err(dev, "NOP command failed to generate interrupt, aborting.\n");
+		mthca_err(dev, "NOP command failed to generate interrupt (IRQ %d), aborting.\n",
+			  dev->mthca_flags & MTHCA_FLAG_MSI_X ?
+			  dev->eq_table.eq[MTHCA_EQ_CMD].msi_x_vector :
+			  dev->pdev->irq);
 		if (dev->mthca_flags & (MTHCA_FLAG_MSI | MTHCA_FLAG_MSI_X))
 			mthca_err(dev, "Try again with MSI/MSI-X disabled.\n");
 		else
