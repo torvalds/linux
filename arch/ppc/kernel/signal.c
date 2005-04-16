@@ -708,7 +708,6 @@ int do_signal(sigset_t *oldset, struct pt_regs *regs)
 	if (current->flags & PF_FREEZE) {
 		refrigerator(PF_FREEZE);
 		signr = 0;
-		ret = regs->gpr[3];
 		if (!signal_pending(current))
 			goto no_signal;
 	}
@@ -719,7 +718,7 @@ int do_signal(sigset_t *oldset, struct pt_regs *regs)
 	newsp = frame = 0;
 
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
-
+ no_signal:
 	if (TRAP(regs) == 0x0C00		/* System Call! */
 	    && regs->ccr & 0x10000000		/* error signalled */
 	    && ((ret = regs->gpr[3]) == ERESTARTSYS
@@ -735,7 +734,6 @@ int do_signal(sigset_t *oldset, struct pt_regs *regs)
 			regs->gpr[3] = EINTR;
 			/* note that the cr0.SO bit is already set */
 		} else {
-no_signal:
 			regs->nip -= 4;	/* Back up & retry system call */
 			regs->result = 0;
 			regs->trap = 0;
