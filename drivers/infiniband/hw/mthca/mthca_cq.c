@@ -817,10 +817,12 @@ err_out_free_mr:
 err_out_mailbox:
 	kfree(mailbox);
 
-	mthca_free_db(dev, MTHCA_DB_TYPE_CQ_ARM, cq->arm_db_index);
+	if (dev->hca_type == ARBEL_NATIVE)
+		mthca_free_db(dev, MTHCA_DB_TYPE_CQ_ARM, cq->arm_db_index);
 
 err_out_ci:
-	mthca_free_db(dev, MTHCA_DB_TYPE_CQ_SET_CI, cq->set_ci_db_index);
+	if (dev->hca_type == ARBEL_NATIVE)
+		mthca_free_db(dev, MTHCA_DB_TYPE_CQ_SET_CI, cq->set_ci_db_index);
 
 err_out_icm:
 	mthca_table_put(dev, dev->cq_table.table, cq->cqn);
