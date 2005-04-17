@@ -241,6 +241,7 @@ typedef struct srb {
 	struct list_head list;
 
 	struct scsi_qla_host *ha;	/* HA the SP is queued on */
+	struct fc_port *fcport;
 
 	struct scsi_cmnd *cmd;		/* Linux SCSI command pkt */
 
@@ -250,11 +251,6 @@ typedef struct srb {
 
 	/* Request state */
 	uint16_t state;
-
-	/* Target/LUN queue pointers. */
-	struct os_tgt *tgt_queue;	/* ptr to visible ha's target */
-	struct os_lun *lun_queue;	/* ptr to visible ha's lun */
-	struct fc_lun *fclun;		/* FC LUN context pointer. */
 
 	/* Timing counts. */
 	unsigned long e_start;		/* Start of extend timeout */
@@ -1603,73 +1599,6 @@ typedef struct {
 } rpt_lun_cmd_rsp_t;
 
 /*
- * SCSI Target Queue structure
- */
-typedef struct os_tgt {
-	struct os_lun *olun[MAX_LUNS]; /* LUN context pointer. */
-	struct fc_port *fcport;
-	unsigned long flags;
-	uint8_t port_down_retry_count;
-    	uint32_t down_timer;
-	struct scsi_qla_host *ha;
-
-	/* Persistent binding information */
-	port_id_t d_id;
-	uint8_t node_name[WWN_SIZE];
-	uint8_t port_name[WWN_SIZE];
-} os_tgt_t;
-
-/*
- * SCSI Target Queue flags
- */
-#define TQF_ONLINE		0		/* Device online to OS. */
-#define TQF_SUSPENDED		1
-#define TQF_RETRY_CMDS		2
-
-/*
- * SCSI LUN Queue structure
- */
-typedef struct os_lun {
-	struct fc_lun *fclun;		/* FC LUN context pointer. */
-    	spinlock_t q_lock;		/* Lun Lock */
-
-	unsigned long q_flag;
-#define LUN_MPIO_RESET_CNTS	1	/* Lun */
-#define LUN_MPIO_BUSY		2	/* Lun is changing paths  */
-#define LUN_EXEC_DELAYED	7	/* Lun execution is delayed */
-
-	u_long q_timeout;		/* total command timeouts */
-	atomic_t q_timer;		/* suspend timer */
-	uint32_t q_count;		/* current count */
-	uint32_t q_max;			/* maxmum count lun can be suspended */
-	uint8_t q_state;		/* lun State */
-#define LUN_STATE_READY		1	/* lun is ready for i/o */
-#define LUN_STATE_RUN		2	/* lun has a timer running */
-#define LUN_STATE_WAIT		3	/* lun is suspended */
-#define LUN_STATE_TIMEOUT	4	/* lun has timed out */
-
-	u_long io_cnt;			/* total xfer count since boot */
-	u_long out_cnt;			/* total outstanding IO count */
-	u_long w_cnt;			/* total writes */
-	u_long r_cnt;			/* total reads */
-	u_long avg_time;		/*  */
-} os_lun_t;
-
-
-/* LUN BitMask structure definition, array of 32bit words,
- * 1 bit per lun.  When bit == 1, the lun is masked.
- * Most significant bit of mask[0] is lun 0, bit 24 is lun 7.
- */
-typedef struct lun_bit_mask {
-	/* Must allocate at least enough bits to accomodate all LUNs */
-#if ((MAX_FIBRE_LUNS & 0x7) == 0)
-	uint8_t mask[MAX_FIBRE_LUNS >> 3];
-#else
-	uint8_t mask[(MAX_FIBRE_LUNS + 8) >> 3];
-#endif
-} lun_bit_mask_t;
-
-/*
  * Fibre channel port type.
  */
  typedef enum {
@@ -1686,8 +1615,6 @@ typedef struct lun_bit_mask {
  */
 typedef struct fc_port {
 	struct list_head list;
-	struct list_head fcluns;
-
 	struct scsi_qla_host *ha;
 	struct scsi_qla_host *vis_ha;	/* only used when suspending lun */
 
@@ -1702,8 +1629,7 @@ typedef struct fc_port {
 	atomic_t state;
 	uint32_t flags;
 
-	os_tgt_t *tgt_queue;
-	uint16_t os_target_id;
+	unsigned int os_target_id;
 
 	uint16_t iodesc_idx_sent;
 
@@ -1717,7 +1643,6 @@ typedef struct fc_port {
 	uint8_t mp_byte;		/* multi-path byte (not used) */
     	uint8_t cur_path;		/* current path id */
 
-	lun_bit_mask_t lun_mask;
 	struct fc_rport *rport;
 } fc_port_t;
 
@@ -1763,25 +1688,6 @@ typedef struct fc_port {
 
 /* No loop ID flag. */
 #define FC_NO_LOOP_ID		0x1000
-
-/*
- * Fibre channel LUN structure.
- */
-typedef struct fc_lun {
-        struct list_head list;
-
-	fc_port_t *fcport;
-	fc_port_t *o_fcport;
-	uint16_t lun;
-	atomic_t state;
-	uint8_t device_type;
-
-	uint8_t max_path_retries;
-	uint32_t flags;
-} fc_lun_t;
-
-#define	FLF_VISIBLE_LUN		BIT_0
-#define	FLF_ACTIVE_LUN		BIT_1
 
 /*
  * FC-CT interface
@@ -2253,9 +2159,6 @@ typedef struct scsi_qla_host {
 	struct io_descriptor	io_descriptors[MAX_IO_DESCRIPTORS];
 	uint16_t		iodesc_signature;
 
-	/* OS target queue pointers. */
-	os_tgt_t		*otgt[MAX_FIBRE_DEVICES];
-
 	/* RSCN queue. */
 	uint32_t rscn_queue[MAX_RSCN_COUNT];
 	uint8_t rscn_in_ptr;
@@ -2400,8 +2303,6 @@ typedef struct scsi_qla_host {
 #define LOOP_RDY(ha)	(!LOOP_NOT_READY(ha))
 
 #define TGT_Q(ha, t) (ha->otgt[t])
-#define LUN_Q(ha, t, l)	(TGT_Q(ha, t)->olun[l])
-#define GET_LU_Q(ha, t, l) ((TGT_Q(ha,t) != NULL)? TGT_Q(ha, t)->olun[l] : NULL)
 
 #define to_qla_host(x)		((scsi_qla_host_t *) (x)->hostdata)
 

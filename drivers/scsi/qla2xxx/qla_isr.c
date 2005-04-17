@@ -697,7 +697,6 @@ qla2x00_process_completed_request(struct scsi_qla_host *ha, uint32_t index)
 
 		if (ha->actthreads)
 			ha->actthreads--;
-		sp->lun_queue->out_cnt--;
 		CMD_COMPL_STATUS(sp->cmd) = 0L;
 		CMD_SCSI_STATUS(sp->cmd) = 0L;
 
@@ -818,11 +817,8 @@ qla2x00_process_response_queue(struct scsi_qla_host *ha)
 static void
 qla2x00_status_entry(scsi_qla_host_t *ha, sts_entry_t *pkt)
 {
-	int		ret;
 	unsigned	b, t, l;
 	srb_t		*sp;
-	os_lun_t	*lq;
-	os_tgt_t	*tq;
 	fc_port_t	*fcport;
 	struct scsi_cmnd *cp;
 	uint16_t	comp_status;
@@ -872,21 +868,6 @@ qla2x00_status_entry(scsi_qla_host_t *ha, sts_entry_t *pkt)
 	if (ha->actthreads)
 		ha->actthreads--;
 
-	if (sp->lun_queue == NULL) {
-		DEBUG2(printk("scsi(%ld): Status Entry invalid lun pointer.\n",
-		    ha->host_no));
-		qla_printk(KERN_WARNING, ha,
-		    "Status Entry invalid lun pointer.\n");
-
-		set_bit(ISP_ABORT_NEEDED, &ha->dpc_flags);
-		if (ha->dpc_wait && !ha->dpc_active) 
-			up(ha->dpc_wait);
-
-		return;
-	}
-
-	sp->lun_queue->out_cnt--;
-
 	comp_status = le16_to_cpu(pkt->comp_status);
 	/* Mask of reserved bits 12-15, before we examine the scsi status */
 	scsi_status = le16_to_cpu(pkt->scsi_status) & SS_MASK;
@@ -901,8 +882,7 @@ qla2x00_status_entry(scsi_qla_host_t *ha, sts_entry_t *pkt)
 	t = cp->device->id;
 	l = cp->device->lun,
 
-	tq = sp->tgt_queue;
-	lq = sp->lun_queue;
+	fcport = sp->fcport;
 
 	/* Check for any FCP transport errors. */
 	if (scsi_status & SS_RESPONSE_INFO_LEN_VALID) {
@@ -1096,7 +1076,6 @@ qla2x00_status_entry(scsi_qla_host_t *ha, sts_entry_t *pkt)
 		 * Target with DID_NO_CONNECT ELSE Queue the IOs in the
 		 * retry_queue.
 		 */
-		fcport = sp->fclun->fcport;
 		DEBUG2(printk("scsi(%ld:%d:%d): status_entry: Port Down "
 		    "pid=%ld, compl status=0x%x, port state=0x%x\n",
 		    ha->host_no, t, l, cp->serial_number, comp_status,
@@ -1137,8 +1116,6 @@ qla2x00_status_entry(scsi_qla_host_t *ha, sts_entry_t *pkt)
 
 		cp->result = DID_BUS_BUSY << 16;
 
-		fcport = lq->fclun->fcport;
-
 		/* Check to see if logout occurred */
 		if ((le16_to_cpu(pkt->status_flags) & SF_LOGOUT_SENT)) {
 			qla2x00_mark_device_lost(ha, fcport, 1);
@@ -1154,16 +1131,6 @@ qla2x00_status_entry(scsi_qla_host_t *ha, sts_entry_t *pkt)
 
 		cp->result = DID_OK << 16 | lscsi_status; 
 
-		/* TODO: ??? */
-		/* Adjust queue depth */
-		ret = scsi_track_queue_full(cp->device,
-		    sp->lun_queue->out_cnt - 1);
-		if (ret) {
-			qla_printk(KERN_INFO, ha,
-			    "scsi(%ld:%d:%d:%d): Queue depth adjusted to %d.\n",
-			    ha->host_no, cp->device->channel, cp->device->id,
-			    cp->device->lun, ret);
-		}
 		break;
 
 	default:
@@ -1268,8 +1235,6 @@ qla2x00_error_entry(scsi_qla_host_t *ha, sts_entry_t *pkt)
 		ha->outstanding_cmds[pkt->handle] = NULL;
 		if (ha->actthreads)
 			ha->actthreads--;
-		sp->lun_queue->out_cnt--;
-
 		/* Bad payload or header */
 		if (pkt->entry_status &
 		    (RF_INV_E_ORDER | RF_INV_E_COUNT |

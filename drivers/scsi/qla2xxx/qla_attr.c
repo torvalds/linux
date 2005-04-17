@@ -227,12 +227,17 @@ qla2x00_get_starget_node_name(struct scsi_target *starget)
 {
 	struct Scsi_Host *host = dev_to_shost(starget->dev.parent);
 	scsi_qla_host_t *ha = to_qla_host(host);
-        os_tgt_t *tq = (os_tgt_t *) TGT_Q(ha, starget->id);
+	fc_port_t *fcport;
 	uint64_t node_name = 0;
 
-	if (tq->fcport)
-		node_name = be64_to_cpu(*(uint64_t *)tq->fcport->node_name);
-	fc_starget_node_name(starget) = node_name;
+	list_for_each_entry(fcport, &ha->fcports, list) {
+		if (starget->id == fcport->os_target_id) {
+			node_name = *(uint64_t *)fcport->node_name;
+			break;
+		}
+	}
+
+	fc_starget_node_name(starget) = be64_to_cpu(node_name);
 }
 
 static void
@@ -240,12 +245,17 @@ qla2x00_get_starget_port_name(struct scsi_target *starget)
 {
 	struct Scsi_Host *host = dev_to_shost(starget->dev.parent);
 	scsi_qla_host_t *ha = to_qla_host(host);
-        os_tgt_t *tq = (os_tgt_t *) TGT_Q(ha, starget->id);
+	fc_port_t *fcport;
 	uint64_t port_name = 0;
 
-	if (tq->fcport)
-		port_name = be64_to_cpu(*(uint64_t *)tq->fcport->port_name);
-	fc_starget_port_name(starget) = port_name;
+	list_for_each_entry(fcport, &ha->fcports, list) {
+		if (starget->id == fcport->os_target_id) {
+			port_name = *(uint64_t *)fcport->port_name;
+			break;
+		}
+	}
+
+	fc_starget_port_name(starget) = be64_to_cpu(port_name);
 }
 
 static void
@@ -253,20 +263,25 @@ qla2x00_get_starget_port_id(struct scsi_target *starget)
 {
 	struct Scsi_Host *host = dev_to_shost(starget->dev.parent);
 	scsi_qla_host_t *ha = to_qla_host(host);
-        os_tgt_t *tq = (os_tgt_t *) TGT_Q(ha, starget->id);
-	uint32_t port_id = 0;
+	fc_port_t *fcport;
+	uint32_t port_id = ~0U;
 
-	if (tq->fcport)
-		port_id = tq->fcport->d_id.b.domain << 16 |
-		    tq->fcport->d_id.b.area << 8 | tq->fcport->d_id.b.al_pa;
+	list_for_each_entry(fcport, &ha->fcports, list) {
+		if (starget->id == fcport->os_target_id) {
+			port_id = fcport->d_id.b.domain << 16 |
+			    fcport->d_id.b.area << 8 | fcport->d_id.b.al_pa;
+			break;
+		}
+	}
+
 	fc_starget_port_id(starget) = port_id;
 }
 
 static void
 qla2x00_get_rport_loss_tmo(struct fc_rport *rport)
 {
-	os_tgt_t *tq = rport->dd_data;
-	scsi_qla_host_t *ha = tq->ha;
+	struct Scsi_Host *host = rport_to_shost(rport);
+	scsi_qla_host_t *ha = to_qla_host(host);
 
 	rport->dev_loss_tmo = ha->port_down_retry_count + 5;
 }
@@ -274,8 +289,8 @@ qla2x00_get_rport_loss_tmo(struct fc_rport *rport)
 static void
 qla2x00_set_rport_loss_tmo(struct fc_rport *rport, uint32_t timeout)
 {
-	os_tgt_t *tq = rport->dd_data;
-	scsi_qla_host_t *ha = tq->ha;
+	struct Scsi_Host *host = rport_to_shost(rport);
+	scsi_qla_host_t *ha = to_qla_host(host);
 
 	if (timeout)
 		ha->port_down_retry_count = timeout;
@@ -292,7 +307,7 @@ static struct fc_function_template qla2xxx_transport_functions = {
 	.get_host_port_id = qla2x00_get_host_port_id,
 	.show_host_port_id = 1,
 
-	.dd_fcrport_size = sizeof(os_tgt_t *),
+	.dd_fcrport_size = sizeof(struct fc_port *),
 
 	.get_starget_node_name = qla2x00_get_starget_node_name,
 	.show_starget_node_name = 1,

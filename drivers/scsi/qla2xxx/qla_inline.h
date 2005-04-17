@@ -187,23 +187,6 @@ qla2x00_is_wwn_zero(uint8_t *wwn)
 		return (0);
 }
 
-static __inline__ uint8_t
-qla2x00_suspend_lun(scsi_qla_host_t *, os_lun_t *, int, int);
-static __inline__ uint8_t
-qla2x00_delay_lun(scsi_qla_host_t *, os_lun_t *, int);
-
-static __inline__ uint8_t
-qla2x00_suspend_lun(scsi_qla_host_t *ha, os_lun_t *lq, int time, int count)
-{
-	return (__qla2x00_suspend_lun(ha, lq, time, count, 0));
-}
-
-static __inline__ uint8_t
-qla2x00_delay_lun(scsi_qla_host_t *ha, os_lun_t *lq, int time)
-{
-	return (__qla2x00_suspend_lun(ha, lq, time, 1, 1));
-}
-
 static __inline__ void qla2x00_check_fabric_devices(scsi_qla_host_t *);
 /*
  * This routine will wait for fabric devices for

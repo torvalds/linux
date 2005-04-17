@@ -1065,11 +1065,6 @@ qla2x00_print_scsi_cmd(struct scsi_cmnd * cmd)
 	printk("  sp flags=0x%x\n", sp->flags);
 	printk("  r_start=0x%lx, u_start=0x%lx, f_start=0x%lx, state=%d\n",
 	    sp->r_start, sp->u_start, sp->f_start, sp->state);
-
-	printk(" e_start= 0x%lx, ext_history=%d, fo retry=%d, loopid=%x, "
-	    "port path=%d\n", sp->e_start, sp->ext_history, sp->fo_retry_cnt,
-	    sp->lun_queue->fclun->fcport->loop_id,
-	    sp->lun_queue->fclun->fcport->cur_path);
 }
 
 #if defined(QL_DEBUG_ROUTINES)

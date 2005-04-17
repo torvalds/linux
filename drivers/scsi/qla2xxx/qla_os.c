@@ -75,11 +75,6 @@ MODULE_PARM_DESC(ql2xretrycount,
 		"Maximum number of mid-layer retries allowed for a command.  "
 		"Default value is 20, ");
 
-int displayConfig;
-module_param(displayConfig, int, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(displayConfig,
-		"If 1 then display the configuration used in /etc/modprobe.conf.");
-
 int ql2xplogiabsentdevice;
 module_param(ql2xplogiabsentdevice, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(ql2xplogiabsentdevice,
@@ -118,12 +113,6 @@ MODULE_PARM_DESC(ql2xsuspendcount,
 		"Number of 6-second suspend iterations to perform while a "
 		"target returns a <NOT READY> status.  Default is 10 "
 		"iterations.");
-
-int ql2xdoinitscan = 1;
-module_param(ql2xdoinitscan, int, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(ql2xdoinitscan,
-		"Signal mid-layer to perform scan after driver load: 0 -- no "
-		"signal sent to mid-layer.");
 
 int ql2xloginretrycount = 0;
 module_param(ql2xloginretrycount, int, S_IRUGO|S_IRUSR);
@@ -194,8 +183,6 @@ static struct scsi_host_template qla2x00_driver_template = {
 };
 
 static struct scsi_transport_template *qla2xxx_transport_template = NULL;
-
-static void qla2x00_display_fc_names(scsi_qla_host_t *);
 
 /* TODO Convert to inlines
  *
@@ -332,14 +319,11 @@ static int
 qla2x00_queuecommand(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 {
 	scsi_qla_host_t *ha = to_qla_host(cmd->device->host);
-	os_tgt_t *tq = (os_tgt_t *) cmd->device->hostdata;
-	fc_port_t *fcport = tq->fcport;
-	os_lun_t *lq;
+	fc_port_t *fcport = (struct fc_port *) cmd->device->hostdata;
 	srb_t *sp;
 	int rval;
 
-	lq = GET_LU_Q(ha, cmd->device->id, cmd->device->lun);
-	if (!fcport || !lq) {
+	if (!fcport) {
 		cmd->result = DID_NO_CONNECT << 16;
 		goto qc_fail_command;
 	}
@@ -361,13 +345,8 @@ qla2x00_queuecommand(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 	}
 
 	sp->ha = ha;
+	sp->fcport = fcport;
 	sp->cmd = cmd;
-	sp->tgt_queue = tq;
-
-	sp->lun_queue = lq;
-	lq->io_cnt++;
-	sp->fclun = lq->fclun;
-
 	sp->flags = 0;
 	sp->err_id = 0;
 
@@ -677,9 +656,7 @@ int
 qla2xxx_eh_device_reset(struct scsi_cmnd *cmd)
 {
 	scsi_qla_host_t *ha = to_qla_host(cmd->device->host);
-	os_tgt_t *tq = (os_tgt_t *) cmd->device->hostdata;
-	fc_port_t *fcport = tq->fcport;
-	os_lun_t *lq;
+	fc_port_t *fcport = (struct fc_port *) cmd->device->hostdata;
 	srb_t *sp;
 	int ret;
 	unsigned int id, lun;
@@ -692,8 +669,7 @@ qla2xxx_eh_device_reset(struct scsi_cmnd *cmd)
 	serial = cmd->serial_number;
 
 	sp = (srb_t *) CMD_SP(cmd);
-	lq = GET_LU_Q(ha, id, lun);
-	if (!sp || !fcport || !lq)
+	if (!sp || !fcport)
 		return ret;
 
 	qla_printk(KERN_INFO, ha,
@@ -826,9 +802,7 @@ int
 qla2xxx_eh_bus_reset(struct scsi_cmnd *cmd)
 {
 	scsi_qla_host_t *ha = to_qla_host(cmd->device->host);
-	os_tgt_t *tq = (os_tgt_t *) cmd->device->hostdata;
-	fc_port_t *fcport = tq->fcport;
-	os_lun_t *lq;
+	fc_port_t *fcport = (struct fc_port *) cmd->device->hostdata;
 	srb_t *sp;
 	int ret;
 	unsigned int id, lun;
@@ -841,8 +815,7 @@ qla2xxx_eh_bus_reset(struct scsi_cmnd *cmd)
 	serial = cmd->serial_number;
 
 	sp = (srb_t *) CMD_SP(cmd);
-	lq = GET_LU_Q(ha, id, lun);
-	if (!sp || !fcport || !lq)
+	if (!sp || !fcport)
 		return ret;
 
 	qla_printk(KERN_INFO, ha,
@@ -895,9 +868,7 @@ int
 qla2xxx_eh_host_reset(struct scsi_cmnd *cmd)
 {
 	scsi_qla_host_t *ha = to_qla_host(cmd->device->host);
-	os_tgt_t *tq = (os_tgt_t *) cmd->device->hostdata;
-	fc_port_t *fcport = tq->fcport;
-	os_lun_t *lq;
+	fc_port_t *fcport = (struct fc_port *) cmd->device->hostdata;
 	srb_t *sp;
 	int ret;
 	unsigned int id, lun;
@@ -910,8 +881,7 @@ qla2xxx_eh_host_reset(struct scsi_cmnd *cmd)
 	serial = cmd->serial_number;
 
 	sp = (srb_t *) CMD_SP(cmd);
-	lq = GET_LU_Q(ha, id, lun);
-	if (!sp || !fcport || !lq)
+	if (!sp || !fcport)
 		return ret;
 
 	qla_printk(KERN_INFO, ha,
@@ -969,25 +939,20 @@ static int
 qla2x00_loop_reset(scsi_qla_host_t *ha)
 {
 	int status = QLA_SUCCESS;
-	uint16_t t;
-	os_tgt_t        *tq;
+	struct fc_port *fcport;
 
 	if (ha->flags.enable_lip_reset) {
 		status = qla2x00_lip_reset(ha);
 	}
 
 	if (status == QLA_SUCCESS && ha->flags.enable_target_reset) {
-		for (t = 0; t < MAX_FIBRE_DEVICES; t++) {
-			if ((tq = TGT_Q(ha, t)) == NULL)
+		list_for_each_entry(fcport, &ha->fcports, list) {
+			if (fcport->port_type != FCT_TARGET)
 				continue;
 
-			if (tq->fcport == NULL)
-				continue;
-
-			status = qla2x00_target_reset(ha, 0, t);
-			if (status != QLA_SUCCESS) {
+			status = qla2x00_target_reset(ha, fcport);
+			if (status != QLA_SUCCESS)
 				break;
-			}
 		}
 	}
 
@@ -1041,15 +1006,26 @@ static int
 qla2xxx_slave_alloc(struct scsi_device *sdev)
 {
 	scsi_qla_host_t *ha = to_qla_host(sdev->host);
-	os_tgt_t *tq;
+	struct fc_rport *rport = starget_to_rport(scsi_target(sdev));
+	fc_port_t *fcport;
+	int found;
 
-	tq = (os_tgt_t *) TGT_Q(ha, sdev->id);
-	if (!tq)
-		return -ENXIO;
-	if (!tq->fcport)
+	if (!rport)
 		return -ENXIO;
 
-	sdev->hostdata = tq;
+	found = 0;
+	list_for_each_entry(fcport, &ha->fcports, list) {
+		if (rport->port_name ==
+		    be64_to_cpu(*(uint64_t *)fcport->port_name)) {
+			found++;
+			break;
+		}
+		
+	}
+	if (!found)
+		return -ENXIO;
+
+	sdev->hostdata = fcport;
 
 	return 0;
 }
@@ -1330,6 +1306,7 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 	}
 
 	qla2x00_init_host_attr(ha);
+
 	/*
 	 * Startup the kernel thread for this host adapter
 	 */
@@ -1406,11 +1383,6 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 	ha->flags.init_done = 1;
 	num_hosts++;
 
-	/* List the target we have found */
-	if (displayConfig) {
-		qla2x00_display_fc_names(ha);
-	}
-
 	qla_printk(KERN_INFO, ha, "\n"
 	    " QLogic Fibre Channel HBA Driver: %s\n"
 	    "  QLogic %s - %s\n"
@@ -1427,6 +1399,8 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 	return 0;
 
 probe_failed:
+	fc_remove_host(ha->host);
+
 	scsi_remove_host(host);
 
 probe_alloc_failed:
@@ -1448,6 +1422,8 @@ void qla2x00_remove_one(struct pci_dev *pdev)
 	ha = pci_get_drvdata(pdev);
 
 	qla2x00_free_sysfs_attr(ha);
+
+	fc_remove_host(ha->host);
 
 	scsi_remove_host(ha->host);
 
@@ -1581,9 +1557,6 @@ qla2x00_proc_info(struct Scsi_Host *shost, char *buffer,
 {
 	struct info_str	info;
 	int             retval = -EINVAL;
-	os_lun_t	*up;
-	os_tgt_t	*tq;
-	unsigned int	t, l;
 	uint32_t        tmp_sn;
 	uint32_t	*flags;
 	uint8_t		*loop_state;
@@ -1737,79 +1710,6 @@ qla2x00_proc_info(struct Scsi_Host *shost, char *buffer,
 	    ha->init_cb->port_name[6],
 	    ha->init_cb->port_name[7]);
 
-	/* Print out device port names */
-	for (t = 0; t < MAX_FIBRE_DEVICES; t++) {
-		if ((tq = TGT_Q(ha, t)) == NULL)
-			continue;
-
-		copy_info(&info,
-		    "scsi-qla%d-target-%d="
-		    "%02x%02x%02x%02x%02x%02x%02x%02x;\n",
-		    (int)ha->instance, t,
-		    tq->port_name[0], tq->port_name[1],
-		    tq->port_name[2], tq->port_name[3],
-		    tq->port_name[4], tq->port_name[5],
-		    tq->port_name[6], tq->port_name[7]);
-	}
-
-	copy_info(&info, "\nSCSI LUN Information:\n");
-	copy_info(&info,
-	    "(Id:Lun)  * - indicates lun is not registered with the OS.\n");
-
-	/* scan for all equipment stats */
-	for (t = 0; t < MAX_FIBRE_DEVICES; t++) {
-		/* scan all luns */
-		for (l = 0; l < ha->max_luns; l++) {
-			up = (os_lun_t *) GET_LU_Q(ha, t, l);
-
-			if (up == NULL) {
-				continue;
-			}
-			if (up->fclun == NULL) {
-				continue;
-			}
-
-			copy_info(&info,
-			    "(%2d:%2d): Total reqs %ld,",
-			    t,l,up->io_cnt);
-
-			copy_info(&info,
-			    " Pending reqs %ld,",
-			    up->out_cnt);
-
-			if (up->io_cnt < 4) {
-				copy_info(&info,
-				    " flags 0x%x*,",
-				    (int)up->q_flag);
-			} else {
-				copy_info(&info,
-				    " flags 0x%x,",
-				    (int)up->q_flag);
-			}
-
-			copy_info(&info, 
-			    " %ld:%d:%02x %02x",
-			    up->fclun->fcport->ha->instance,
-			    up->fclun->fcport->cur_path,
-			    up->fclun->fcport->loop_id,
-			    up->fclun->device_type);
-
-			copy_info(&info, "\n");
-
-			if (info.pos >= info.offset + info.length) {
-				/* No need to continue */
-				goto profile_stop;
-			}
-		}
-
-		if (info.pos >= info.offset + info.length) {
-			/* No need to continue */
-			break;
-		}
-	}
-
-profile_stop:
-
 	retval = info.pos > info.offset ? info.pos - info.offset : 0;
 
 	DEBUG3(printk(KERN_INFO 
@@ -1818,95 +1718,6 @@ profile_stop:
 
 	return (retval);
 }
-
-/*
-* qla2x00_display_fc_names
-*      This routine will the node names of the different devices found
-*      after port inquiry.
-*
-* Input:
-*      cmd = SCSI command structure
-*
-* Returns:
-*      None.
-*/
-static void
-qla2x00_display_fc_names(scsi_qla_host_t *ha) 
-{
-	uint16_t	tgt;
-	os_tgt_t	*tq;
-
-	/* Display the node name for adapter */
-	qla_printk(KERN_INFO, ha,
-	    "scsi-qla%d-adapter-node=%02x%02x%02x%02x%02x%02x%02x%02x\\;\n",
-	    (int)ha->instance,
-	    ha->init_cb->node_name[0],
-	    ha->init_cb->node_name[1],
-	    ha->init_cb->node_name[2],
-	    ha->init_cb->node_name[3],
-	    ha->init_cb->node_name[4],
-	    ha->init_cb->node_name[5],
-	    ha->init_cb->node_name[6],
-	    ha->init_cb->node_name[7]);
-
-	/* display the port name for adapter */
-	qla_printk(KERN_INFO, ha,
-	    "scsi-qla%d-adapter-port=%02x%02x%02x%02x%02x%02x%02x%02x\\;\n",
-	    (int)ha->instance,
-	    ha->init_cb->port_name[0],
-	    ha->init_cb->port_name[1],
-	    ha->init_cb->port_name[2],
-	    ha->init_cb->port_name[3],
-	    ha->init_cb->port_name[4],
-	    ha->init_cb->port_name[5],
-	    ha->init_cb->port_name[6],
-	    ha->init_cb->port_name[7]);
-
-	/* Print out device port names */
-	for (tgt = 0; tgt < MAX_TARGETS; tgt++) {
-		if ((tq = ha->otgt[tgt]) == NULL)
-			continue;
-
-		if (tq->fcport == NULL)
-			continue;
-
-		switch (ha->binding_type) {
-			case BIND_BY_PORT_NAME:
-				qla_printk(KERN_INFO, ha,
-				    "scsi-qla%d-tgt-%d-di-0-port="
-				    "%02x%02x%02x%02x%02x%02x%02x%02x\\;\n",
-				    (int)ha->instance, 
-				    tgt,
-				    tq->port_name[0], 
-				    tq->port_name[1],
-				    tq->port_name[2], 
-				    tq->port_name[3],
-				    tq->port_name[4], 
-				    tq->port_name[5],
-				    tq->port_name[6], 
-				    tq->port_name[7]);
-
-				break;
-
-			case BIND_BY_PORT_ID:
-				qla_printk(KERN_INFO, ha,
-				    "scsi-qla%d-tgt-%d-di-0-pid="
-				    "%02x%02x%02x\\;\n",
-				    (int)ha->instance,
-				    tgt,
-				    tq->d_id.b.domain,
-				    tq->d_id.b.area,
-				    tq->d_id.b.al_pa);
-				break;
-		}
-
-#if VSA
-		qla_printk(KERN_INFO, ha,
-		    "scsi-qla%d-target-%d-vsa=01;\n", (int)ha->instance, tgt);
-#endif
-	}
-}
-
 
 /*
  * qla2x00_mark_device_lost Updates fcport state when device goes offline.
@@ -2199,22 +2010,14 @@ qla2x00_mem_alloc(scsi_qla_host_t *ha)
 static void
 qla2x00_mem_free(scsi_qla_host_t *ha)
 {
-	uint32_t	t;
 	struct list_head	*fcpl, *fcptemp;
 	fc_port_t	*fcport;
-	struct list_head	*fcll, *fcltemp;
-	fc_lun_t	*fclun;
 	unsigned long	wtime;/* max wait time if mbx cmd is busy. */
 
 	if (ha == NULL) {
 		/* error */
 		DEBUG2(printk("%s(): ERROR invalid ha pointer.\n", __func__));
 		return;
-	}
-
-	/* Free the target queues */
-	for (t = 0; t < MAX_TARGETS; t++) {
-		qla2x00_tgt_free(ha, t);
 	}
 
 	/* Make sure all other threads are stopped. */
@@ -2294,14 +2097,6 @@ qla2x00_mem_free(scsi_qla_host_t *ha)
 
 	list_for_each_safe(fcpl, fcptemp, &ha->fcports) {
 		fcport = list_entry(fcpl, fc_port_t, list);
-
-		/* fc luns */
-		list_for_each_safe(fcll, fcltemp, &fcport->fcluns) {
-			fclun = list_entry(fcll, fc_lun_t, list);
-
-			list_del_init(&fclun->list);
-			kfree(fclun);
-		}
 
 		/* fc ports */
 		list_del_init(&fcport->list);
@@ -2648,6 +2443,7 @@ qla2x00_sp_compl(scsi_qla_host_t *ha, srb_t *sp)
 
 	cmd->scsi_done(cmd);
 }
+
 /**************************************************************************
 *   qla2x00_timer
 *
@@ -2713,11 +2509,13 @@ qla2x00_timer(scsi_qla_host_t *ha)
 			spin_lock_irqsave(&ha->hardware_lock, cpu_flags);
 			for (index = 1; index < MAX_OUTSTANDING_COMMANDS;
 			    index++) {
+				fc_port_t *sfcp;
+
 				sp = ha->outstanding_cmds[index];
 				if (!sp)
 					continue;
-				if (!(sp->fclun->fcport->flags &
-				    FCF_TAPE_PRESENT))
+				sfcp = sp->fcport;
+				if (!(sfcp->flags & FCF_TAPE_PRESENT))
 					continue;
 
 				set_bit(ISP_ABORT_NEEDED, &ha->dpc_flags);

@@ -858,8 +858,7 @@ qla2x00_abort_command(scsi_qla_host_t *ha, srb_t *sp)
 
 	DEBUG11(printk("qla2x00_abort_command(%ld): entered.\n", ha->host_no);)
 
-	fcport = sp->fclun->fcport;
-
+	fcport = sp->fcport;
 	if (atomic_read(&ha->loop_state) == LOOP_DOWN ||
 	    atomic_read(&fcport->state) == FCS_DEVICE_LOST) {
 		return 1;
@@ -884,7 +883,7 @@ qla2x00_abort_command(scsi_qla_host_t *ha, srb_t *sp)
 		mcp->mb[1] = fcport->loop_id << 8;
 	mcp->mb[2] = (uint16_t)handle;
 	mcp->mb[3] = (uint16_t)(handle >> 16);
-	mcp->mb[6] = (uint16_t)sp->fclun->lun;
+	mcp->mb[6] = (uint16_t)sp->cmd->device->lun;
 	mcp->out_mb = MBX_6|MBX_3|MBX_2|MBX_1|MBX_0;
 	mcp->in_mb = MBX_0;
 	mcp->tov = 30;
@@ -980,30 +979,22 @@ qla2x00_abort_target(fc_port_t *fcport)
  *	Kernel context.
  */
 int
-qla2x00_target_reset(scsi_qla_host_t *ha, uint16_t b, uint16_t t)
+qla2x00_target_reset(scsi_qla_host_t *ha, struct fc_port *fcport)
 {
 	int rval;
 	mbx_cmd_t mc;
 	mbx_cmd_t *mcp = &mc;
-	os_tgt_t *tgt;
 
 	DEBUG11(printk("qla2x00_target_reset(%ld): entered.\n", ha->host_no);)
 
-	tgt = TGT_Q(ha, t);
-	if (tgt->fcport == NULL) {
-		/* no target to abort */
+	if (atomic_read(&fcport->state) != FCS_ONLINE)
 		return 0;
-	}
-	if (atomic_read(&tgt->fcport->state) != FCS_ONLINE) {
-		/* target not online */
-		return 0;
-	}
 
 	mcp->mb[0] = MBC_TARGET_RESET;
 	if (HAS_EXTENDED_IDS(ha))
-		mcp->mb[1] = tgt->fcport->loop_id;
+		mcp->mb[1] = fcport->loop_id;
 	else
-		mcp->mb[1] = tgt->fcport->loop_id << 8;
+		mcp->mb[1] = fcport->loop_id << 8;
 	mcp->mb[2] = ha->loop_reset_delay;
 	mcp->out_mb = MBX_2|MBX_1|MBX_0;
 	mcp->in_mb = MBX_0;

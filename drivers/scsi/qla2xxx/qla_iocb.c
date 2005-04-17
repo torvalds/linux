@@ -328,7 +328,6 @@ qla2x00_start_scsi(srb_t *sp)
 	int		ret;
 	unsigned long   flags;
 	scsi_qla_host_t	*ha;
-	fc_lun_t	*fclun;
 	struct scsi_cmnd *cmd;
 	uint32_t	*clr_ptr;
 	uint32_t        index;
@@ -343,8 +342,7 @@ qla2x00_start_scsi(srb_t *sp)
 
 	/* Setup device pointers. */
 	ret = 0;
-	fclun = sp->lun_queue->fclun;
-	ha = fclun->fcport->ha;
+	ha = sp->ha;
 	reg = ha->iobase;
 	cmd = sp->cmd;
 
@@ -411,11 +409,9 @@ qla2x00_start_scsi(srb_t *sp)
 	memset(clr_ptr, 0, REQUEST_ENTRY_SIZE - 8);
 	cmd_pkt->dseg_count = cpu_to_le16(tot_dsds);
 
-	/* Set target ID */
-	SET_TARGET_ID(ha, cmd_pkt->target, fclun->fcport->loop_id);
-
-	/* Set LUN number*/
-	cmd_pkt->lun = cpu_to_le16(fclun->lun);
+	/* Set target ID and LUN number*/
+	SET_TARGET_ID(ha, cmd_pkt->target, sp->fcport->loop_id);
+	cmd_pkt->lun = cpu_to_le16(sp->cmd->device->lun);
 
 	/* Update tagged queuing modifier */
 	cmd_pkt->control_flags = __constant_cpu_to_le16(CF_SIMPLE_TAG);
@@ -453,7 +449,6 @@ qla2x00_start_scsi(srb_t *sp)
 
 	ha->actthreads++;
 	ha->total_ios++;
-	sp->lun_queue->out_cnt++;
 	sp->flags |= SRB_DMA_VALID;
 	sp->state = SRB_ACTIVE_STATE;
 	sp->u_start = jiffies;
