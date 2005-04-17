@@ -53,6 +53,50 @@ static struct w1_family_ops w1_therm_fops = {
 	.rvalname = "temp1_input",
 };
 
+static struct w1_family w1_therm_family_DS18S20 = {
+	.fid = W1_THERM_DS18S20,
+	.fops = &w1_therm_fops,
+};
+
+static struct w1_family w1_therm_family_DS18B20 = {
+	.fid = W1_THERM_DS18B20,
+	.fops = &w1_therm_fops,
+};
+static struct w1_family w1_therm_family_DS1822 = {
+	.fid = W1_THERM_DS1822,
+	.fops = &w1_therm_fops,
+};
+
+struct w1_therm_family_converter
+{
+	u8			fid;
+	u8			broken;
+	u16			reserved;
+	struct w1_family	*f;
+	int			(*convert)(u8 rom[9]);
+};
+
+static inline int w1_DS18B20_convert_temp(u8 rom[9]);
+static inline int w1_DS18S20_convert_temp(u8 rom[9]);
+
+static struct w1_therm_family_converter w1_therm_families[] = {
+	{
+		.fid 		= W1_THERM_DS18S20,
+		.f		= &w1_therm_family_DS18S20,
+		.convert 	= w1_DS18S20_convert_temp
+	},
+	{
+		.fid 		= W1_THERM_DS1822,
+		.f		= &w1_therm_family_DS1822,
+		.convert 	= w1_DS18B20_convert_temp
+	},
+	{
+		.fid 		= W1_THERM_DS18B20,
+		.f		= &w1_therm_family_DS18B20,
+		.convert 	= w1_DS18B20_convert_temp
+	},
+};
+
 static ssize_t w1_therm_read_name(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct w1_slave *sl = container_of(dev, struct w1_slave, dev);
@@ -60,9 +104,19 @@ static ssize_t w1_therm_read_name(struct device *dev, struct device_attribute *a
 	return sprintf(buf, "%s\n", sl->name);
 }
 
-static inline int w1_convert_temp(u8 rom[9])
+static inline int w1_DS18B20_convert_temp(u8 rom[9])
+{
+	int t = (rom[1] << 8) | rom[0];
+	t /= 16;
+	return t;
+}
+
+static inline int w1_DS18S20_convert_temp(u8 rom[9])
 {
 	int t, h;
+
+	if (!rom[7])
+		return 0;
 	
 	if (rom[1] == 0)
 		t = ((s32)rom[0] >> 1)*1000;
@@ -77,11 +131,22 @@ static inline int w1_convert_temp(u8 rom[9])
 	return t;
 }
 
+static inline int w1_convert_temp(u8 rom[9], u8 fid)
+{
+	int i;
+
+	for (i=0; i<sizeof(w1_therm_families)/sizeof(w1_therm_families[0]); ++i)
+		if (w1_therm_families[i].fid == fid)
+			return w1_therm_families[i].convert(rom);
+
+	return 0;
+}
+
 static ssize_t w1_therm_read_temp(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct w1_slave *sl = container_of(dev, struct w1_slave, dev);
 
-	return sprintf(buf, "%d\n", w1_convert_temp(sl->rom));
+	return sprintf(buf, "%d\n", w1_convert_temp(sl->rom, sl->family->fid));
 }
 
 static int w1_therm_check_rom(u8 rom[9])
@@ -176,7 +241,7 @@ static ssize_t w1_therm_read_bin(struct kobject *kobj, char *buf, loff_t off, si
 	for (i = 0; i < 9; ++i)
 		count += sprintf(buf + count, "%02x ", sl->rom[i]);
 	
-	count += sprintf(buf + count, "t=%d\n", w1_convert_temp(rom));
+	count += sprintf(buf + count, "t=%d\n", w1_convert_temp(rom, sl->family->fid));
 out:
 	up(&dev->mutex);
 out_dec:
@@ -186,19 +251,26 @@ out_dec:
 	return count;
 }
 
-static struct w1_family w1_therm_family = {
-	.fid = W1_FAMILY_THERM,
-	.fops = &w1_therm_fops,
-};
-
 static int __init w1_therm_init(void)
 {
-	return w1_register_family(&w1_therm_family);
+	int err, i;
+
+	for (i=0; i<sizeof(w1_therm_families)/sizeof(w1_therm_families[0]); ++i) {
+		err = w1_register_family(w1_therm_families[i].f);
+		if (err)
+			w1_therm_families[i].broken = 1;
+	}
+
+	return 0;
 }
 
 static void __exit w1_therm_fini(void)
 {
-	w1_unregister_family(&w1_therm_family);
+	int i;
+
+	for (i=0; i<sizeof(w1_therm_families)/sizeof(w1_therm_families[0]); ++i)
+		if (!w1_therm_families[i].broken)
+			w1_unregister_family(w1_therm_families[i].f);
 }
 
 module_init(w1_therm_init);
