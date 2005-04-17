@@ -74,6 +74,7 @@ extern int ql2xsuspendcount;
 #if defined(MODULE)
 extern char *ql2xopts;
 #endif
+extern void qla2x00_sp_compl(scsi_qla_host_t *, srb_t *);
 
 extern char *qla2x00_get_fw_version_str(struct scsi_qla_host *, char *);
 
@@ -82,16 +83,11 @@ extern void qla2x00_cmd_timeout(srb_t *);
 extern int __qla2x00_suspend_lun(scsi_qla_host_t *, os_lun_t *, int, int, int);
 
 extern void qla2x00_done(scsi_qla_host_t *);
-extern void qla2x00_next(scsi_qla_host_t *);
 extern void qla2x00_flush_failover_q(scsi_qla_host_t *, os_lun_t *);
 extern void qla2x00_reset_lun_fo_counts(scsi_qla_host_t *, os_lun_t *);
 
-extern void qla2x00_extend_timeout(struct scsi_cmnd *, int);
-
 extern void qla2x00_mark_device_lost(scsi_qla_host_t *, fc_port_t *, int);
 extern void qla2x00_mark_all_devices_lost(scsi_qla_host_t *);
-
-extern void qla2x00_abort_queues(scsi_qla_host_t *, uint8_t);
 
 extern void qla2x00_blink_led(scsi_qla_host_t *);
 

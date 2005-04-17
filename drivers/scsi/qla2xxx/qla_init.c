@@ -3146,7 +3146,6 @@ qla2x00_loop_resync(scsi_qla_host_t *ha)
 				wait_time &&
 				(test_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags)));
 		}
-		qla2x00_restart_queues(ha, 1);
 	}
 
 	if (test_bit(ISP_ABORT_NEEDED, &ha->dpc_flags)) {
@@ -3158,87 +3157,6 @@ qla2x00_loop_resync(scsi_qla_host_t *ha)
 	}
 
 	return (rval);
-}
-
-/*
- *  qla2x00_restart_queues
- *	Restart device queues.
- *
- * Input:
- *	ha = adapter block pointer.
- *
- * Context:
- *	Kernel/Interrupt context.
- */
-void
-qla2x00_restart_queues(scsi_qla_host_t *ha, uint8_t flush) 
-{
-	srb_t  		*sp;
-	int		retry_q_cnt = 0;
-	int		pending_q_cnt = 0;
-	struct list_head *list, *temp;
-	unsigned long flags = 0;
-
-	clear_bit(RESTART_QUEUES_NEEDED, &ha->dpc_flags);
-
-	/* start pending queue */
-	pending_q_cnt = ha->qthreads;
-	if (flush) {
-		spin_lock_irqsave(&ha->list_lock,flags);
-		list_for_each_safe(list, temp, &ha->pending_queue) {
-			sp = list_entry(list, srb_t, list);
-
-			if ((sp->flags & SRB_TAPE))
-				continue;
-			 
-			/* 
-			 * When time expire return request back to OS as BUSY 
-			 */
-			__del_from_pending_queue(ha, sp);
-			sp->cmd->result = DID_BUS_BUSY << 16;
-			sp->cmd->host_scribble = (unsigned char *)NULL;
-			__add_to_done_queue(ha, sp);
-		}
-		spin_unlock_irqrestore(&ha->list_lock, flags);
-	} else {
-		if (!list_empty(&ha->pending_queue))
-			qla2x00_next(ha);
-	}
-
-	/*
-	 * Clear out our retry queue
-	 */
-	if (flush) {
-		spin_lock_irqsave(&ha->list_lock, flags);
-		retry_q_cnt = ha->retry_q_cnt;
-		list_for_each_safe(list, temp, &ha->retry_queue) {
-			sp = list_entry(list, srb_t, list);
-			/* when time expire return request back to OS as BUSY */
-			__del_from_retry_queue(ha, sp);
-			sp->cmd->result = DID_BUS_BUSY << 16;
-			sp->cmd->host_scribble = (unsigned char *)NULL;
-			__add_to_done_queue(ha, sp);
-		}
-		spin_unlock_irqrestore(&ha->list_lock, flags);
-
-		DEBUG2(printk("%s(%ld): callback %d commands.\n",
-				__func__,
-				ha->host_no,
-				retry_q_cnt);)
-	}
-
-	DEBUG2(printk("%s(%ld): active=%ld, retry=%d, pending=%d, "
-			"done=%ld, scsi retry=%d commands.\n",
-			__func__,
-			ha->host_no,
-			ha->actthreads,
-			ha->retry_q_cnt,
-			pending_q_cnt,
-			ha->done_q_cnt,
-			ha->scsi_retry_q_cnt);)
-
-	if (!list_empty(&ha->done_queue))
-		qla2x00_done(ha);
 }
 
 void
@@ -3699,24 +3617,10 @@ qla2x00_abort_isp(scsi_qla_host_t *ha)
 					ha->actthreads--;
 				sp->lun_queue->out_cnt--;
 
-				/*
-				 * Set the cmd host_byte status depending on
-				 * whether the scsi_error_handler is
-				 * active or not.
- 				 */
-				if (sp->flags & SRB_TAPE) {
-					sp->cmd->result = DID_NO_CONNECT << 16;
-				} else {
-					if (ha->host->eh_active != EH_ACTIVE)
-						sp->cmd->result =
-						    DID_BUS_BUSY << 16;
-					else
-						sp->cmd->result =
-						    DID_RESET << 16;
-				}
 				sp->flags = 0;
+				sp->cmd->result = DID_RESET << 16;
 				sp->cmd->host_scribble = (unsigned char *)NULL;
-				add_to_done_queue(ha, sp);
+				qla2x00_sp_compl(ha, sp);
 			}
 		}
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
@@ -3739,11 +3643,6 @@ qla2x00_abort_isp(scsi_qla_host_t *ha)
 			/* Enable ISP interrupts. */
 			qla2x00_enable_intrs(ha);
 
-			/* v2.19.5b6 Return all commands */
-			qla2x00_abort_queues(ha, 1);
-
-			/* Restart queues that may have been stopped. */
-			qla2x00_restart_queues(ha, 1);
 			ha->isp_abort_cnt = 0; 
 			clear_bit(ISP_ABORT_RETRY, &ha->dpc_flags);
 		} else {	/* failed the ISP abort */
@@ -3758,7 +3657,6 @@ qla2x00_abort_isp(scsi_qla_host_t *ha)
 					 * completely.
 					 */
 					qla2x00_reset_adapter(ha);
-					qla2x00_abort_queues(ha, 0);
 					ha->flags.online = 0;
 					clear_bit(ISP_ABORT_RETRY,
 					    &ha->dpc_flags);

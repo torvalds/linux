@@ -2175,27 +2175,6 @@ typedef struct scsi_qla_host {
 	uint32_t	current_outstanding_cmd; 
 	srb_t		*status_srb;	/* Status continuation entry. */
 
-	/*
-	 * Need to hold the list_lock with irq's disabled in order to access
-	 * the following list.
-	 *
-	 * This list_lock is of lower priority than the host_lock.
-	 */
-	spinlock_t		list_lock ____cacheline_aligned;
-						/* lock to guard lists which
-						 * hold srb_t's */
-        struct list_head        retry_queue;    /* watchdog queue */
-        struct list_head        done_queue;     /* job on done queue */
-        struct list_head        failover_queue; /* failover list link. */
-	struct list_head        scsi_retry_queue;     /* SCSI retry queue */
-	struct list_head        pending_queue;	/* SCSI command pending queue */
-
-	unsigned long    done_q_cnt;
-	unsigned long    pending_in_q;
-        uint32_t	retry_q_cnt; 
-        uint32_t	scsi_retry_q_cnt; 
-        uint32_t	failover_cnt; 
-
 	unsigned long	last_irq_cpu;	/* cpu where we got our last irq */
 
 	uint16_t           revision;
@@ -2479,7 +2458,6 @@ struct _qla2x00stats  {
 #include "qla_gbl.h"
 #include "qla_dbg.h"
 #include "qla_inline.h"
-#include "qla_listops.h"
 
 /*
 * String arrays
