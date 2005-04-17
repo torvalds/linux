@@ -424,26 +424,8 @@ struct ahc_linux_device {
 };
 
 typedef enum {
-	AHC_DV_REQUIRED		 = 0x01,
 	AHC_INQ_VALID		 = 0x02,
-	AHC_BASIC_DV		 = 0x04,
-	AHC_ENHANCED_DV		 = 0x08
 } ahc_linux_targ_flags;
-
-/* DV States */
-typedef enum {
-	AHC_DV_STATE_EXIT = 0,
-	AHC_DV_STATE_INQ_SHORT_ASYNC,
-	AHC_DV_STATE_INQ_ASYNC,
-	AHC_DV_STATE_INQ_ASYNC_VERIFY,
-	AHC_DV_STATE_TUR,
-	AHC_DV_STATE_REBD,
-	AHC_DV_STATE_INQ_VERIFY,
-	AHC_DV_STATE_WEB,
-	AHC_DV_STATE_REB,
-	AHC_DV_STATE_SU,
-	AHC_DV_STATE_BUSY
-} ahc_dv_state;
 
 struct ahc_linux_target {
 	struct ahc_linux_device	 *devices[AHC_NUM_LUNS];
@@ -454,19 +436,6 @@ struct ahc_linux_target {
 	struct ahc_softc	 *ahc;
 	ahc_linux_targ_flags	  flags;
 	struct scsi_inquiry_data *inq_data;
-	/*
-	 * The next "fallback" period to use for narrow/wide transfers.
-	 */
-	uint8_t			  dv_next_narrow_period;
-	uint8_t			  dv_next_wide_period;
-	uint8_t			  dv_max_width;
-	uint8_t			  dv_max_ppr_options;
-	uint8_t			  dv_last_ppr_options;
-	u_int			  dv_echo_size;
-	ahc_dv_state		  dv_state;
-	u_int			  dv_state_retry;
-	char			 *dv_buffer;
-	char			 *dv_buffer1;
 };
 
 /********************* Definitions Required by the Core ***********************/
@@ -511,10 +480,6 @@ struct scb_platform_data {
  * this driver.
  */
 typedef enum {
-	AHC_DV_WAIT_SIMQ_EMPTY	 = 0x01,
-	AHC_DV_WAIT_SIMQ_RELEASE = 0x02,
-	AHC_DV_ACTIVE		 = 0x04,
-	AHC_DV_SHUTDOWN		 = 0x08,
 	AHC_RUN_CMPLT_Q_TIMER	 = 0x10
 } ahc_linux_softc_flags;
 
@@ -937,11 +902,6 @@ int	ahc_linux_proc_info(struct Scsi_Host *, char *, char **,
 #endif
 
 /*************************** Domain Validation ********************************/
-#define AHC_DV_CMD(cmd) ((cmd)->scsi_done == ahc_linux_dv_complete)
-#define AHC_DV_SIMQ_FROZEN(ahc)					\
-	((((ahc)->platform_data->flags & AHC_DV_ACTIVE) != 0)	\
-	 && (ahc)->platform_data->qfrozen == 1)
-
 /*********************** Transaction Access Wrappers *************************/
 static __inline void ahc_cmd_set_transaction_status(Scsi_Cmnd *, uint32_t);
 static __inline void ahc_set_transaction_status(struct scb *, uint32_t);
