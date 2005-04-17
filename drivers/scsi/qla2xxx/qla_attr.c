@@ -18,7 +18,7 @@
  */
 #include "qla_def.h"
 
-#include <linux/version.h>
+#include <linux/vmalloc.h>
 #include <scsi/scsi_transport_fc.h>
 
 /* SYSFS attributes --------------------------------------------------------- */
