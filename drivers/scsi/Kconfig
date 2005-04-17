@@ -1314,6 +1314,14 @@ config SCSI_QLOGICPTI
 
 source "drivers/scsi/qla2xxx/Kconfig"
 
+config SCSI_LPFC
+	tristate "Emulex LightPulse Fibre Channel Support"
+	depends on PCI && SCSI
+	select SCSI_FC_ATTRS
+	help
+          This lpfc driver supports the Emulex LightPulse
+          Family of Fibre Channel PCI host adapters.
+
 config SCSI_SEAGATE
 	tristate "Seagate ST-02 and Future Domain TMC-8xx SCSI support"
 	depends on X86 && ISA && SCSI && BROKEN
