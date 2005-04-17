@@ -168,12 +168,11 @@ void machine_restart(char * __unused)
 
 EXPORT_SYMBOL(machine_restart);
 
-void show_regs(struct pt_regs * regs)
+void __show_regs(struct pt_regs *regs)
 {
-	unsigned long flags;
+	unsigned long flags = condition_codes(regs);
 
-	flags = condition_codes(regs);
-
+	printk("CPU: %d\n", smp_processor_id());
 	print_symbol("PC is at %s\n", instruction_pointer(regs));
 	print_symbol("LR is at %s\n", regs->ARM_lr);
 	printk("pc : [<%08lx>]    lr : [<%08lx>]    %s\n"
@@ -211,6 +210,14 @@ void show_regs(struct pt_regs * regs)
 		printk("Control: %04X  Table: %08X  DAC: %08X\n",
 		  	ctrl, transbase, dac);
 	}
+}
+
+void show_regs(struct pt_regs * regs)
+{
+	printk("\n");
+	printk("Pid: %d, comm: %20s\n", current->pid, current->comm);
+	__show_regs(regs);
+	__backtrace();
 }
 
 void show_fpregs(struct user_fp *regs)

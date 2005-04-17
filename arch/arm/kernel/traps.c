@@ -31,9 +31,6 @@
 
 #include "ptrace.h"
 
-extern void c_backtrace (unsigned long fp, int pmode);
-extern void show_pte(struct mm_struct *mm, unsigned long addr);
-
 const char *processor_modes[]=
 { "USER_26", "FIQ_26" , "IRQ_26" , "SVC_26" , "UK4_26" , "UK5_26" , "UK6_26" , "UK7_26" ,
   "UK8_26" , "UK9_26" , "UK10_26", "UK11_26", "UK12_26", "UK13_26", "UK14_26", "UK15_26",
@@ -216,8 +213,7 @@ NORET_TYPE void die(const char *str, struct pt_regs *regs, int err)
 
 	printk("Internal error: %s: %x [#%d]\n", str, err, ++die_counter);
 	print_modules();
-	printk("CPU: %d\n", smp_processor_id());
-	show_regs(regs);
+	__show_regs(regs);
 	printk("Process %s (pid: %d, stack limit = 0x%p)\n",
 		tsk->comm, tsk->pid, tsk->thread_info + 1);
 
@@ -482,7 +478,7 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 		       current->pid, current->comm, no);
 		dump_instr(regs);
 		if (user_mode(regs)) {
-			show_regs(regs);
+			__show_regs(regs);
 			c_backtrace(regs->ARM_fp, processor_mode(regs));
 		}
 	}
