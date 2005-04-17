@@ -99,6 +99,9 @@ void hook_fault_code(int nr, int (*fn)(unsigned long, unsigned int,
 #define tas(ptr) (xchg((ptr),1))
 
 extern asmlinkage void __backtrace(void);
+extern asmlinkage void c_backtrace(unsigned long fp, int pmode);
+extern void show_pte(struct mm_struct *mm, unsigned long addr);
+extern void __show_regs(struct pt_regs *);
 
 extern int cpu_architecture(void);
 
