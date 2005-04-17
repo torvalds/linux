@@ -2117,7 +2117,7 @@ request_sense:
 	SCpnt->SCp.Message = 0;
 	SCpnt->SCp.Status = 0;
 	SCpnt->request_bufflen = sizeof(SCpnt->sense_buffer);
-	SCpnt->sc_data_direction = SCSI_DATA_READ;
+	SCpnt->sc_data_direction = DMA_FROM_DEVICE;
 	SCpnt->use_sg = 0;
 	SCpnt->tag = 0;
 	SCpnt->host_scribble = (void *)fas216_rq_sns_done;

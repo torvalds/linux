@@ -389,8 +389,6 @@ Summary:
    scsi_remove_host - detach and remove all SCSI devices owned by host
    scsi_report_bus_reset - report scsi _bus_ reset observed
    scsi_set_device - place device reference in host structure
-   scsi_to_pci_dma_dir - convert SCSI subsystem direction flag to PCI
-   scsi_to_sbus_dma_dir - convert SCSI subsystem direction flag to SBUS
    scsi_track_queue_full - track successive QUEUE_FULL events 
    scsi_unblock_requests - allow further commands to be queued to given host
    scsi_unregister - [calls scsi_host_put()]
@@ -754,48 +752,6 @@ void scsi_report_bus_reset(struct Scsi_Host * shost, int channel)
  *      Defined in: include/scsi/scsi_host.h .
  **/
 void scsi_set_device(struct Scsi_Host * shost, struct device * dev)
-
-
-/**
- * scsi_to_pci_dma_dir - convert SCSI subsystem direction flag to PCI
- * @scsi_data_direction: SCSI subsystem direction flag
- *
- *      Returns DMA_TO_DEVICE given SCSI_DATA_WRITE,
- *              DMA_FROM_DEVICE given SCSI_DATA_READ
- *              DMA_BIDIRECTIONAL given SCSI_DATA_UNKNOWN
- *              else returns DMA_NONE
- *
- *      Might block: no
- *
- *      Notes: The SCSI subsystem now uses the same values for these
- *      constants as the PCI subsystem so this function is a nop.
- *      The recommendation is not to use this conversion function anymore
- *      (in the 2.6 kernel series) as it is not needed.
- *
- *      Defined in: drivers/scsi/scsi.h .
- **/
-int scsi_to_pci_dma_dir(unsigned char scsi_data_direction)
-
-
-/**
- * scsi_to_sbus_dma_dir - convert SCSI subsystem direction flag to SBUS
- * @scsi_data_direction: SCSI subsystem direction flag
- *
- *      Returns DMA_TO_DEVICE given SCSI_DATA_WRITE,
- *              FROM_DEVICE given SCSI_DATA_READ
- *              DMA_BIDIRECTIONAL given SCSI_DATA_UNKNOWN
- *              else returns DMA_NONE
- *
- *      Notes: The SCSI subsystem now uses the same values for these
- *      constants as the SBUS subsystem so this function is a nop.
- *      The recommendation is not to use this conversion function anymore
- *      (in the 2.6 kernel series) as it is not needed.
- *
- *      Might block: no
- *
- *      Defined in: drivers/scsi/scsi.h .
- **/
-int scsi_to_sbus_dma_dir(unsigned char scsi_data_direction)
 
 
 /**

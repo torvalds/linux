@@ -693,12 +693,12 @@ ahc_linux_unmap_scb(struct ahc_softc *ahc, struct scb *scb)
 
 		sg = (struct scatterlist *)cmd->request_buffer;
 		pci_unmap_sg(ahc->dev_softc, sg, cmd->use_sg,
-			     scsi_to_pci_dma_dir(cmd->sc_data_direction));
+			     cmd->sc_data_direction);
 	} else if (cmd->request_bufflen != 0) {
 		pci_unmap_single(ahc->dev_softc,
 				 scb->platform_data->buf_busaddr,
 				 cmd->request_bufflen,
-				 scsi_to_pci_dma_dir(cmd->sc_data_direction));
+				 cmd->sc_data_direction);
 	}
 }
 
@@ -3007,7 +3007,7 @@ ahc_linux_dv_inq(struct ahc_softc *ahc, struct scsi_cmnd *cmd,
 	}
 
 	ahc_linux_dv_fill_cmd(ahc, cmd, devinfo);
-	cmd->sc_data_direction = SCSI_DATA_READ;
+	cmd->sc_data_direction = DMA_FROM_DEVICE;
 	cmd->cmd_len = 6;
 	cmd->cmnd[0] = INQUIRY;
 	cmd->cmnd[4] = request_length;
@@ -3032,7 +3032,7 @@ ahc_linux_dv_tur(struct ahc_softc *ahc, struct scsi_cmnd *cmd,
 #endif
 	/* Do a TUR to clear out any non-fatal transitional state */
 	ahc_linux_dv_fill_cmd(ahc, cmd, devinfo);
-	cmd->sc_data_direction = SCSI_DATA_NONE;
+	cmd->sc_data_direction = DMA_NONE;
 	cmd->cmd_len = 6;
 	cmd->cmnd[0] = TEST_UNIT_READY;
 }
@@ -3054,7 +3054,7 @@ ahc_linux_dv_rebd(struct ahc_softc *ahc, struct scsi_cmnd *cmd,
 		free(targ->dv_buffer, M_DEVBUF);
 	targ->dv_buffer = malloc(AHC_REBD_LEN, M_DEVBUF, M_WAITOK);
 	ahc_linux_dv_fill_cmd(ahc, cmd, devinfo);
-	cmd->sc_data_direction = SCSI_DATA_READ;
+	cmd->sc_data_direction = DMA_FROM_DEVICE;
 	cmd->cmd_len = 10;
 	cmd->cmnd[0] = READ_BUFFER;
 	cmd->cmnd[1] = 0x0b;
@@ -3076,7 +3076,7 @@ ahc_linux_dv_web(struct ahc_softc *ahc, struct scsi_cmnd *cmd,
 	}
 #endif
 	ahc_linux_dv_fill_cmd(ahc, cmd, devinfo);
-	cmd->sc_data_direction = SCSI_DATA_WRITE;
+	cmd->sc_data_direction = DMA_TO_DEVICE;
 	cmd->cmd_len = 10;
 	cmd->cmnd[0] = WRITE_BUFFER;
 	cmd->cmnd[1] = 0x0a;
@@ -3098,7 +3098,7 @@ ahc_linux_dv_reb(struct ahc_softc *ahc, struct scsi_cmnd *cmd,
 	}
 #endif
 	ahc_linux_dv_fill_cmd(ahc, cmd, devinfo);
-	cmd->sc_data_direction = SCSI_DATA_READ;
+	cmd->sc_data_direction = DMA_FROM_DEVICE;
 	cmd->cmd_len = 10;
 	cmd->cmnd[0] = READ_BUFFER;
 	cmd->cmnd[1] = 0x0a;
@@ -3124,7 +3124,7 @@ ahc_linux_dv_su(struct ahc_softc *ahc, struct scsi_cmnd *cmd,
 	}
 #endif
 	ahc_linux_dv_fill_cmd(ahc, cmd, devinfo);
-	cmd->sc_data_direction = SCSI_DATA_NONE;
+	cmd->sc_data_direction = DMA_NONE;
 	cmd->cmd_len = 6;
 	cmd->cmnd[0] = START_STOP_UNIT;
 	cmd->cmnd[4] = le | SSS_START;
@@ -3659,7 +3659,7 @@ ahc_linux_run_device_queue(struct ahc_softc *ahc, struct ahc_linux_device *dev)
 
 			cur_seg = (struct scatterlist *)cmd->request_buffer;
 			nseg = pci_map_sg(ahc->dev_softc, cur_seg, cmd->use_sg,
-			    scsi_to_pci_dma_dir(cmd->sc_data_direction));
+			    cmd->sc_data_direction);
 			end_seg = cur_seg + nseg;
 			/* Copy the segments into the SG list. */
 			sg = scb->sg_list;
@@ -3703,7 +3703,7 @@ ahc_linux_run_device_queue(struct ahc_softc *ahc, struct ahc_linux_device *dev)
 			addr = pci_map_single(ahc->dev_softc,
 			       cmd->request_buffer,
 			       cmd->request_bufflen,
-			       scsi_to_pci_dma_dir(cmd->sc_data_direction));
+			       cmd->sc_data_direction);
 			scb->platform_data->buf_busaddr = addr;
 			scb->sg_count = ahc_linux_map_seg(ahc, scb,
 							  sg, addr,

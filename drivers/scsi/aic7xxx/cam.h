@@ -103,9 +103,9 @@ typedef enum {
 } ac_code;
 
 typedef enum {
-	CAM_DIR_IN		= SCSI_DATA_READ,
-	CAM_DIR_OUT		= SCSI_DATA_WRITE,
-	CAM_DIR_NONE		= SCSI_DATA_NONE
+	CAM_DIR_IN		= DMA_FROM_DEVICE,
+	CAM_DIR_OUT		= DMA_TO_DEVICE,
+	CAM_DIR_NONE		= DMA_NONE,
 } ccb_flags;
 
 #endif /* _AIC7XXX_CAM_H */

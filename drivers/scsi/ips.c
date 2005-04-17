@@ -231,9 +231,9 @@ module_param(ips, charp, 0);
 #endif
 
 #define IPS_DMA_DIR(scb) ((!scb->scsi_cmd || ips_is_passthru(scb->scsi_cmd) || \
-                         SCSI_DATA_NONE == scb->scsi_cmd->sc_data_direction) ? \
+                         DMA_NONE == scb->scsi_cmd->sc_data_direction) ? \
                          PCI_DMA_BIDIRECTIONAL : \
-                         scsi_to_pci_dma_dir(scb->scsi_cmd->sc_data_direction))
+                         scb->scsi_cmd->sc_data_direction)
 
 #ifdef IPS_DEBUG
 #define METHOD_TRACE(s, i)    if (ips_debug >= (i+10)) printk(KERN_NOTICE s "\n");
@@ -2849,8 +2849,7 @@ ips_next(ips_ha_t * ha, int intr)
 
 			sg = SC->request_buffer;
 			scb->sg_count = pci_map_sg(ha->pcidev, sg, SC->use_sg,
-						   scsi_to_pci_dma_dir(SC->
-								       sc_data_direction));
+						   SC->sc_data_direction);
 			scb->flags |= IPS_SCB_MAP_SG;
 			for (i = 0; i < scb->sg_count; i++) {
 				if (ips_fill_scb_sg_single
@@ -2865,8 +2864,7 @@ ips_next(ips_ha_t * ha, int intr)
 				    pci_map_single(ha->pcidev,
 						   SC->request_buffer,
 						   SC->request_bufflen,
-						   scsi_to_pci_dma_dir(SC->
-								       sc_data_direction));
+						   SC->sc_data_direction);
 				scb->flags |= IPS_SCB_MAP_SINGLE;
 				ips_fill_scb_sg_single(ha, scb->data_busaddr,
 						       scb, 0,

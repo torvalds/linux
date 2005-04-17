@@ -305,7 +305,7 @@ void ata_to_sense_error(struct ata_queued_cmd *qc, u8 drv_stat)
 	sb[0] = 0x70;
 	sb[2] = MEDIUM_ERROR;
 	sb[7] = 0x0A;
-	if (cmd->sc_data_direction == SCSI_DATA_READ) {
+	if (cmd->sc_data_direction == DMA_FROM_DEVICE) {
 		sb[12] = 0x11; /* "unrecovered read error" */
 		sb[13] = 0x04;
 	} else {
@@ -671,8 +671,8 @@ static void ata_scsi_translate(struct ata_port *ap, struct ata_device *dev,
 		return;
 
 	/* data is present; dma-map it */
-	if (cmd->sc_data_direction == SCSI_DATA_READ ||
-	    cmd->sc_data_direction == SCSI_DATA_WRITE) {
+	if (cmd->sc_data_direction == DMA_FROM_DEVICE ||
+	    cmd->sc_data_direction == DMA_TO_DEVICE) {
 		if (unlikely(cmd->request_bufflen < 1)) {
 			printk(KERN_WARNING "ata%u(%u): WARNING: zero len r/w req\n",
 			       ap->id, dev->devno);
@@ -1304,7 +1304,7 @@ static unsigned int atapi_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
 	struct scsi_cmnd *cmd = qc->scsicmd;
 	struct ata_device *dev = qc->dev;
 	int using_pio = (dev->flags & ATA_DFLAG_PIO);
-	int nodata = (cmd->sc_data_direction == SCSI_DATA_NONE);
+	int nodata = (cmd->sc_data_direction == DMA_NONE);
 
 	if (!using_pio)
 		/* Check whether ATAPI DMA is safe */
@@ -1316,7 +1316,7 @@ static unsigned int atapi_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
 	qc->complete_fn = atapi_qc_complete;
 
 	qc->tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
-	if (cmd->sc_data_direction == SCSI_DATA_WRITE) {
+	if (cmd->sc_data_direction == DMA_TO_DEVICE) {
 		qc->tf.flags |= ATA_TFLAG_WRITE;
 		DPRINTK("direction: write\n");
 	}
@@ -1340,7 +1340,7 @@ static unsigned int atapi_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
 
 #ifdef ATAPI_ENABLE_DMADIR
 		/* some SATA bridges need us to indicate data xfer direction */
-		if (cmd->sc_data_direction != SCSI_DATA_WRITE)
+		if (cmd->sc_data_direction != DMA_TO_DEVICE)
 			qc->tf.feature |= ATAPI_DMADIR;
 #endif
 	}

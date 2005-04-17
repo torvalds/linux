@@ -45,21 +45,6 @@ struct scsi_device;
 struct scsi_target;
 struct scatterlist;
 
-/*
- * Legacy dma direction interfaces.
- *
- * This assumes the pci/sbus dma mapping flags have the same numercial
- * values as the generic dma-mapping ones.  Currently they have but there's
- * no way to check.  Better don't use these interfaces!
- */
-#define SCSI_DATA_UNKNOWN	(DMA_BIDIRECTIONAL)
-#define SCSI_DATA_WRITE		(DMA_TO_DEVICE)
-#define SCSI_DATA_READ		(DMA_FROM_DEVICE)
-#define SCSI_DATA_NONE		(DMA_NONE)
-
-#define scsi_to_pci_dma_dir(scsi_dir)	((int)(scsi_dir))
-#define scsi_to_sbus_dma_dir(scsi_dir)	((int)(scsi_dir))
-
 /* obsolete typedef junk. */
 #include "scsi_typedefs.h"
 

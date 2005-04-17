@@ -209,7 +209,7 @@ static int BuildSgList (Scsi_Cmnd *SCpnt, PADAPTER2000 padapter, PDEV2000 pdev)
 	if ( SCpnt->use_sg )
 		{
 		sg = (struct scatterlist *)SCpnt->request_buffer;
-		zc = pci_map_sg (padapter->pdev, sg, SCpnt->use_sg, scsi_to_pci_dma_dir (SCpnt->sc_data_direction));
+		zc = pci_map_sg (padapter->pdev, sg, SCpnt->use_sg, SCpnt->sc_data_direction);
 		for ( z = 0;  z < zc;  z++ )
 			{
 			pdev->scatGath[z].address = cpu_to_le32 (sg_dma_address (sg));
@@ -225,7 +225,9 @@ static int BuildSgList (Scsi_Cmnd *SCpnt, PADAPTER2000 padapter, PDEV2000 pdev)
 		outl (0, padapter->mb3);
 		return TRUE;
 		}
-	SCpnt->SCp.have_data_in = pci_map_single (padapter->pdev, SCpnt->request_buffer, SCpnt->request_bufflen, scsi_to_pci_dma_dir (SCpnt->sc_data_direction));
+	SCpnt->SCp.have_data_in = pci_map_single (padapter->pdev,
+			SCpnt->request_buffer, SCpnt->request_bufflen,
+			SCpnt->sc_data_direction);
 	outl (SCpnt->SCp.have_data_in, padapter->mb2);
 	outl (SCpnt->request_bufflen, padapter->mb3);
 	return TRUE;
@@ -340,11 +342,11 @@ unmapProceed:;
 			}
 		}
 	if ( SCpnt->SCp.have_data_in )
-		pci_unmap_single (padapter->pdev, SCpnt->SCp.have_data_in, SCpnt->request_bufflen, scsi_to_pci_dma_dir(SCpnt->sc_data_direction));
+		pci_unmap_single (padapter->pdev, SCpnt->SCp.have_data_in, SCpnt->request_bufflen, SCpnt->sc_data_direction);
 	else 
 		{
 		if ( SCpnt->use_sg )
-			pci_unmap_sg (padapter->pdev, (struct scatterlist *)SCpnt->request_buffer, SCpnt->use_sg, scsi_to_pci_dma_dir(SCpnt->sc_data_direction));
+			pci_unmap_sg (padapter->pdev, (struct scatterlist *)SCpnt->request_buffer, SCpnt->use_sg, SCpnt->sc_data_direction);
 		}
 
 irqProceed:;
@@ -495,7 +497,7 @@ int Pci2000_QueueCommand (Scsi_Cmnd *SCpnt, void (*done)(Scsi_Cmnd *))
 						else
 							{
 							SCpnt->SCp.have_data_in = pci_map_single (padapter->pdev, SCpnt->request_buffer, SCpnt->request_bufflen,
-													  scsi_to_pci_dma_dir(SCpnt->sc_data_direction));
+													  SCpnt->sc_data_direction);
 							outl (SCpnt->SCp.have_data_in, padapter->mb2);
 							}
 						outl (cdb[5], padapter->mb0);
@@ -511,13 +513,13 @@ int Pci2000_QueueCommand (Scsi_Cmnd *SCpnt, void (*done)(Scsi_Cmnd *))
 				SCpnt->SCp.have_data_in = pci_map_single (padapter->pdev,
 									  ((struct scatterlist *)SCpnt->request_buffer)->address,
 									  SCpnt->request_bufflen,
-									  scsi_to_pci_dma_dir (SCpnt->sc_data_direction));
+									  SCpnt->sc_data_direction);
 				}
 			else
 				{
 				SCpnt->SCp.have_data_in = pci_map_single (padapter->pdev, SCpnt->request_buffer,
 									  SCpnt->request_bufflen,
-									  scsi_to_pci_dma_dir (SCpnt->sc_data_direction));
+									  SCpnt->sc_data_direction);
 				}
 			outl (SCpnt->SCp.have_data_in, padapter->mb2);
 			outl (SCpnt->request_bufflen, padapter->mb3);

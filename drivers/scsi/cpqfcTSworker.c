@@ -5129,7 +5129,7 @@ cpqfc_undo_SEST_mappings(struct pci_dev *pcidev,
 	for (i=*sgPages_head; i != NULL ;i = next)
 	{
 		pci_unmap_single(pcidev, i->busaddr, i->maplen, 
-			scsi_to_pci_dma_dir(PCI_DMA_TODEVICE));
+			PCI_DMA_TODEVICE);
 		i->busaddr = (dma_addr_t) NULL; 
 		i->maplen = 0L; 
 		next = i->next;
@@ -5195,7 +5195,7 @@ static ULONG build_SEST_sgList(
 			contigaddr = ulBuff = pci_map_single(pcidev, 
 				Cmnd->request_buffer, 
 				Cmnd->request_bufflen,
-				scsi_to_pci_dma_dir(Cmnd->sc_data_direction));
+				Cmnd->sc_data_direction);
 			// printk("ms %p ", ulBuff);
 		}
 		else {
@@ -5224,7 +5224,7 @@ static ULONG build_SEST_sgList(
 		unsigned long btg;
 		contigaddr = pci_map_single(pcidev, Cmnd->request_buffer, 
 				Cmnd->request_bufflen,
-				scsi_to_pci_dma_dir(Cmnd->sc_data_direction));
+				Cmnd->sc_data_direction);
 
 		// printk("contigaddr = %p, len = %d\n", 
 		//	(void *) contigaddr, bytes_to_go);
@@ -5247,7 +5247,7 @@ static ULONG build_SEST_sgList(
  
 	sgl = (struct scatterlist*)Cmnd->request_buffer;  
 	sg_count = pci_map_sg(pcidev, sgl, Cmnd->use_sg, 
-		scsi_to_pci_dma_dir(Cmnd->sc_data_direction));
+		Cmnd->sc_data_direction);
   	if( sg_count <= 3 ) {
 
 	// we need to be careful here that no individual mapping
@@ -5400,7 +5400,7 @@ static ULONG build_SEST_sgList(
 
 	        cpqfc_undo_SEST_mappings(pcidev, contigaddr, 
 			Cmnd->request_bufflen,
-			scsi_to_pci_dma_dir(Cmnd->sc_data_direction),
+			Cmnd->sc_data_direction,
   			sgl, Cmnd->use_sg, sgPages_head, AllocatedPages+1);
 
 		// FIXME: testing shows that if we get here, 
@@ -5946,7 +5946,7 @@ cpqfc_pci_unmap_extended_sg(struct pci_dev *pcidev,
 	// for each extended scatter gather region needing unmapping... 
 	for (i=fcChip->SEST->sgPages[x_ID] ; i != NULL ; i = i->next)
 		pci_unmap_single(pcidev, i->busaddr, i->maplen,
-			scsi_to_pci_dma_dir(PCI_DMA_TODEVICE));
+			PCI_DMA_TODEVICE);
 }
 
 // Called also from cpqfcTScontrol.o, so can't be static
@@ -5960,14 +5960,14 @@ cpqfc_pci_unmap(struct pci_dev *pcidev,
 	if (cmd->use_sg) {	// Used scatter gather list for data buffer?
 		cpqfc_pci_unmap_extended_sg(pcidev, fcChip, x_ID);
 		pci_unmap_sg(pcidev, cmd->buffer, cmd->use_sg,
-			scsi_to_pci_dma_dir(cmd->sc_data_direction));
+			cmd->sc_data_direction);
 		// printk("umsg %d\n", cmd->use_sg);
 	}
 	else if (cmd->request_bufflen) {
 		// printk("ums %p ", fcChip->SEST->u[ x_ID ].IWE.GAddr1);
 		pci_unmap_single(pcidev, fcChip->SEST->u[ x_ID ].IWE.GAddr1,
 			cmd->request_bufflen,
-			scsi_to_pci_dma_dir(cmd->sc_data_direction));
+			cmd->sc_data_direction);
 	}	 
 }
 

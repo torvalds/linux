@@ -2700,12 +2700,12 @@ aic7xxx_done(struct aic7xxx_host *p, struct aic7xxx_scb *scb)
     struct scatterlist *sg;
 
     sg = (struct scatterlist *)cmd->request_buffer;
-    pci_unmap_sg(p->pdev, sg, cmd->use_sg, scsi_to_pci_dma_dir(cmd->sc_data_direction));
+    pci_unmap_sg(p->pdev, sg, cmd->use_sg, cmd->sc_data_direction);
   }
   else if (cmd->request_bufflen)
     pci_unmap_single(p->pdev, aic7xxx_mapping(cmd),
 		     cmd->request_bufflen,
-                     scsi_to_pci_dma_dir(cmd->sc_data_direction));
+                     cmd->sc_data_direction);
   if (scb->flags & SCB_SENSE)
   {
     pci_unmap_single(p->pdev,
@@ -10228,7 +10228,7 @@ aic7xxx_buildscb(struct aic7xxx_host *p, Scsi_Cmnd *cmd,
 
     sg = (struct scatterlist *)cmd->request_buffer;
     scb->sg_length = 0;
-    use_sg = pci_map_sg(p->pdev, sg, cmd->use_sg, scsi_to_pci_dma_dir(cmd->sc_data_direction));
+    use_sg = pci_map_sg(p->pdev, sg, cmd->use_sg, cmd->sc_data_direction);
     /*
      * Copy the segments into the SG array.  NOTE!!! - We used to
      * have the first entry both in the data_pointer area and the first
@@ -10256,7 +10256,7 @@ aic7xxx_buildscb(struct aic7xxx_host *p, Scsi_Cmnd *cmd,
     {
       unsigned int address = pci_map_single(p->pdev, cmd->request_buffer,
 					    cmd->request_bufflen,
-                                            scsi_to_pci_dma_dir(cmd->sc_data_direction));
+                                            cmd->sc_data_direction);
       aic7xxx_mapping(cmd) = address;
       scb->sg_list[0].address = cpu_to_le32(address);
       scb->sg_list[0].length = cpu_to_le32(cmd->request_bufflen);

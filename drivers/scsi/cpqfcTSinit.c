@@ -642,12 +642,12 @@ int cpqfcTS_ioctl( struct scsi_device *ScsiDev, int Cmnd, void *arg)
 				return( -EFAULT);
 			}
 		}
-		ScsiPassThruReq->sr_data_direction = SCSI_DATA_WRITE; 
+		ScsiPassThruReq->sr_data_direction = DMA_TO_DEVICE; 
 	} else if (vendor_cmd->rw_flag == VENDOR_READ_OPCODE) {
-		ScsiPassThruReq->sr_data_direction = SCSI_DATA_READ; 
+		ScsiPassThruReq->sr_data_direction = DMA_FROM_DEVICE;
 	} else
 		// maybe this means a bug in the user app
-		ScsiPassThruReq->sr_data_direction = SCSI_DATA_NONE;
+		ScsiPassThruReq->sr_data_direction = DMA_BIDIRECTIONAL;
 	    
 	ScsiPassThruReq->sr_cmd_len = 0; // set correctly by scsi_do_req()
 	ScsiPassThruReq->sr_sense_buffer[0] = 0;
