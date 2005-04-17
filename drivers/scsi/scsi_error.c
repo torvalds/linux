@@ -476,7 +476,8 @@ static void scsi_eh_done(struct scsi_cmnd *scmd)
  **/
 static int scsi_send_eh_cmnd(struct scsi_cmnd *scmd, int timeout)
 {
-	struct Scsi_Host *host = scmd->device->host;
+	struct scsi_device *sdev = scmd->device;
+	struct Scsi_Host *shost = sdev->host;
 	DECLARE_MUTEX_LOCKED(sem);
 	unsigned long flags;
 	int rtn = SUCCESS;
@@ -487,27 +488,27 @@ static int scsi_send_eh_cmnd(struct scsi_cmnd *scmd, int timeout)
 	 */
 	scmd->owner = SCSI_OWNER_LOWLEVEL;
 
-	if (scmd->device->scsi_level <= SCSI_2)
+	if (sdev->scsi_level <= SCSI_2)
 		scmd->cmnd[1] = (scmd->cmnd[1] & 0x1f) |
-			(scmd->device->lun << 5 & 0xe0);
+			(sdev->lun << 5 & 0xe0);
 
 	scsi_add_timer(scmd, timeout, scsi_eh_times_out);
 
 	/*
 	 * set up the semaphore so we wait for the command to complete.
 	 */
-	scmd->device->host->eh_action = &sem;
+	shost->eh_action = &sem;
 	scmd->request->rq_status = RQ_SCSI_BUSY;
 
-	spin_lock_irqsave(scmd->device->host->host_lock, flags);
+	spin_lock_irqsave(shost->host_lock, flags);
 	scsi_log_send(scmd);
-	host->hostt->queuecommand(scmd, scsi_eh_done);
-	spin_unlock_irqrestore(scmd->device->host->host_lock, flags);
+	shost->hostt->queuecommand(scmd, scsi_eh_done);
+	spin_unlock_irqrestore(shost->host_lock, flags);
 
 	down(&sem);
 	scsi_log_completion(scmd, SUCCESS);
 
-	scmd->device->host->eh_action = NULL;
+	shost->eh_action = NULL;
 
 	/*
 	 * see if timeout.  if so, tell the host to forget about it.
@@ -527,10 +528,10 @@ static int scsi_send_eh_cmnd(struct scsi_cmnd *scmd, int timeout)
 		 * abort a timed out command or not.  not sure how
 		 * we should treat them differently anyways.
 		 */
-		spin_lock_irqsave(scmd->device->host->host_lock, flags);
-		if (scmd->device->host->hostt->eh_abort_handler)
-			scmd->device->host->hostt->eh_abort_handler(scmd);
-		spin_unlock_irqrestore(scmd->device->host->host_lock, flags);
+		spin_lock_irqsave(shost->host_lock, flags);
+		if (shost->hostt->eh_abort_handler)
+			shost->hostt->eh_abort_handler(scmd);
+		spin_unlock_irqrestore(shost->host_lock, flags);
 			
 		scmd->request->rq_status = RQ_SCSI_DONE;
 		scmd->owner = SCSI_OWNER_ERROR_HANDLER;
