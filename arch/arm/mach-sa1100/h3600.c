@@ -130,7 +130,7 @@ static int h3600_irda_set_power(struct device *dev, unsigned int state)
 	return 0;
 }
 
-static void h3600_irda_set_speed(struct device *dev, int speed)
+static void h3600_irda_set_speed(struct device *dev, unsigned int speed)
 {
 	if (speed < 4000000) {
 		clr_h3600_egpio(IPAQ_EGPIO_IR_FSEL);
