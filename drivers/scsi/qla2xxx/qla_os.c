@@ -63,7 +63,7 @@ module_param(ql2xlogintimeout, int, S_IRUGO|S_IRUSR);
 MODULE_PARM_DESC(ql2xlogintimeout,
 		"Login timeout value in seconds.");
 
-int qlport_down_retry;
+int qlport_down_retry = 30;
 module_param(qlport_down_retry, int, S_IRUGO|S_IRUSR);
 MODULE_PARM_DESC(qlport_down_retry,
 		"Maximum number of command retries to a port that returns"
@@ -246,184 +246,8 @@ static srb_t *qla2x00_get_new_sp(scsi_qla_host_t *);
 static void qla2x00_sp_free_dma(scsi_qla_host_t *, srb_t *);
 void qla2x00_sp_compl(scsi_qla_host_t *ha, srb_t *);
 
-static ssize_t qla2x00_sysfs_read_fw_dump(struct kobject *, char *, loff_t,
-    size_t);
-static ssize_t qla2x00_sysfs_write_fw_dump(struct kobject *, char *, loff_t,
-    size_t);
-static struct bin_attribute sysfs_fw_dump_attr = {
-	.attr = {
-		.name = "fw_dump",
-		.mode = S_IRUSR | S_IWUSR,
-		.owner = THIS_MODULE,
-	},
-	.size = 0,
-	.read = qla2x00_sysfs_read_fw_dump,
-	.write = qla2x00_sysfs_write_fw_dump,
-};
-static ssize_t qla2x00_sysfs_read_nvram(struct kobject *, char *, loff_t,
-    size_t);
-static ssize_t qla2x00_sysfs_write_nvram(struct kobject *, char *, loff_t,
-    size_t);
-static struct bin_attribute sysfs_nvram_attr = {
-	.attr = {
-		.name = "nvram",
-		.mode = S_IRUSR | S_IWUSR,
-		.owner = THIS_MODULE,
-	},
-	.size = sizeof(nvram_t),
-	.read = qla2x00_sysfs_read_nvram,
-	.write = qla2x00_sysfs_write_nvram,
-};
-
 /* -------------------------------------------------------------------------- */
 
-
-/* SysFS attributes. */
-static ssize_t qla2x00_sysfs_read_fw_dump(struct kobject *kobj, char *buf,
-    loff_t off, size_t count)
-{
-	struct scsi_qla_host *ha = to_qla_host(dev_to_shost(container_of(kobj,
-	    struct device, kobj)));
-
-	if (ha->fw_dump_reading == 0)
-		return 0;
-	if (off > ha->fw_dump_buffer_len)
-		return 0;
-	if (off + count > ha->fw_dump_buffer_len)
-		count = ha->fw_dump_buffer_len - off;
-
-	memcpy(buf, &ha->fw_dump_buffer[off], count);
-
-	return (count);
-}
-
-static ssize_t qla2x00_sysfs_write_fw_dump(struct kobject *kobj, char *buf,
-    loff_t off, size_t count)
-{
-	struct scsi_qla_host *ha = to_qla_host(dev_to_shost(container_of(kobj,
-	    struct device, kobj)));
-	int reading;
-	uint32_t dump_size;
-
-	if (off != 0)
-		return (0);
-
-	reading = simple_strtol(buf, NULL, 10);
-	switch (reading) {
-	case 0:
-		if (ha->fw_dump_reading == 1) {
-			qla_printk(KERN_INFO, ha,
-			    "Firmware dump cleared on (%ld).\n",
-			    ha->host_no);
-
-			vfree(ha->fw_dump_buffer);
-			free_pages((unsigned long)ha->fw_dump,
-			    ha->fw_dump_order);
-
-			ha->fw_dump_reading = 0;
-			ha->fw_dump_buffer = NULL;
-			ha->fw_dump = NULL;
-		}
-		break;
-	case 1:
-		if (ha->fw_dump != NULL && !ha->fw_dump_reading) {
-			ha->fw_dump_reading = 1;
-
-			dump_size = FW_DUMP_SIZE_1M;
-			if (ha->fw_memory_size < 0x20000) 
-				dump_size = FW_DUMP_SIZE_128K;
-			else if (ha->fw_memory_size < 0x80000) 
-				dump_size = FW_DUMP_SIZE_512K;
-			ha->fw_dump_buffer = (char *)vmalloc(dump_size);
-			if (ha->fw_dump_buffer == NULL) {
-				qla_printk(KERN_WARNING, ha,
-				    "Unable to allocate memory for firmware "
-				    "dump buffer (%d).\n", dump_size);
-
-				ha->fw_dump_reading = 0;
-				return (count);
-			}
-			qla_printk(KERN_INFO, ha,
-			    "Firmware dump ready for read on (%ld).\n",
-			    ha->host_no);
-			memset(ha->fw_dump_buffer, 0, dump_size);
-			if (IS_QLA2100(ha) || IS_QLA2200(ha))
- 				qla2100_ascii_fw_dump(ha);
- 			else
- 				qla2300_ascii_fw_dump(ha);
-			ha->fw_dump_buffer_len = strlen(ha->fw_dump_buffer);
-		}
-		break;
-	}
-	return (count);
-}
-
-static ssize_t qla2x00_sysfs_read_nvram(struct kobject *kobj, char *buf,
-    loff_t off, size_t count)
-{
-	struct scsi_qla_host *ha = to_qla_host(dev_to_shost(container_of(kobj,
-	    struct device, kobj)));
-	uint16_t	*witer;
-	unsigned long	flags;
-	uint16_t	cnt;
-
-	if (!capable(CAP_SYS_ADMIN) || off != 0 || count != sizeof(nvram_t))
-		return 0;
-
-	/* Read NVRAM. */
-	spin_lock_irqsave(&ha->hardware_lock, flags);
-	qla2x00_lock_nvram_access(ha);
- 	witer = (uint16_t *)buf;
- 	for (cnt = 0; cnt < count / 2; cnt++) {
-		*witer = cpu_to_le16(qla2x00_get_nvram_word(ha,
-		    cnt+ha->nvram_base));
-		witer++;
- 	}
-	qla2x00_unlock_nvram_access(ha);
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
-
-	return (count);
-}
-
-static ssize_t qla2x00_sysfs_write_nvram(struct kobject *kobj, char *buf,
-    loff_t off, size_t count)
-{
-	struct scsi_qla_host *ha = to_qla_host(dev_to_shost(container_of(kobj,
-	    struct device, kobj)));
-	uint8_t		*iter;
-	uint16_t	*witer;
-	unsigned long	flags;
-	uint16_t	cnt;
-	uint8_t		chksum;
-
-	if (!capable(CAP_SYS_ADMIN) || off != 0 || count != sizeof(nvram_t))
-		return 0;
-
-	/* Checksum NVRAM. */
-	iter = (uint8_t *)buf;
-	chksum = 0;
-	for (cnt = 0; cnt < count - 1; cnt++)
-		chksum += *iter++;
-	chksum = ~chksum + 1;
-	*iter = chksum;
-
-	/* Write NVRAM. */
-	spin_lock_irqsave(&ha->hardware_lock, flags);
-	qla2x00_lock_nvram_access(ha);
-	qla2x00_release_nvram_protection(ha);
- 	witer = (uint16_t *)buf;
-	for (cnt = 0; cnt < count / 2; cnt++) {
-		qla2x00_write_nvram_word(ha, cnt+ha->nvram_base,
-		    cpu_to_le16(*witer));
-		witer++;
-	}
-	qla2x00_unlock_nvram_access(ha);
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
-
-	return (count);
-}
-
-/* -------------------------------------------------------------------------- */
 static char *
 qla2x00_get_pci_info_str(struct scsi_qla_host *ha, char *str)
 {
@@ -1233,10 +1057,15 @@ qla2xxx_slave_alloc(struct scsi_device *sdev)
 static int
 qla2xxx_slave_configure(struct scsi_device *sdev)
 {
+	scsi_qla_host_t *ha = to_qla_host(sdev->host);
+	struct fc_rport *rport = starget_to_rport(sdev->sdev_target);
+
 	if (sdev->tagged_supported)
 		scsi_activate_tcq(sdev, 32);
 	else
 		scsi_deactivate_tcq(sdev, 32);
+
+	rport->dev_loss_tmo = ha->port_down_retry_count + 5;
 
 	return 0;
 }
@@ -1370,6 +1199,7 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 	unsigned long	wait_switch = 0;
 	char pci_info[20];
 	char fw_str[30];
+	fc_port_t *fcport;
 
 	if (pci_enable_device(pdev))
 		return -1;
@@ -1395,7 +1225,7 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 	/* Configure PCI I/O space */
 	ret = qla2x00_iospace_config(ha);
 	if (ret != 0) {
-		goto probe_failed;
+		goto probe_alloc_failed;
 	}
 
 	/* Sanitize the information from PCI BIOS. */
@@ -1469,8 +1299,22 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 		qla_printk(KERN_WARNING, ha,
 		    "[ERROR] Failed to allocate memory for adapter\n");
 
-		goto probe_failed;
+		goto probe_alloc_failed;
 	}
+
+	pci_set_drvdata(pdev, ha);
+	host->this_id = 255;
+	host->cmd_per_lun = 3;
+	host->unique_id = ha->instance;
+	host->max_cmd_len = MAX_CMDSZ;
+	host->max_channel = ha->ports - 1;
+	host->max_id = ha->max_targets;
+	host->max_lun = ha->max_luns;
+	host->transportt = qla2xxx_transport_template;
+	if (scsi_add_host(host, &pdev->dev))
+		goto probe_alloc_failed;
+
+	qla2x00_alloc_sysfs_attr(ha);
 
 	if (qla2x00_initialize_adapter(ha) &&
 	    !(ha->device_flags & DFLG_NO_CABLE)) {
@@ -1485,6 +1329,7 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 		goto probe_failed;
 	}
 
+	qla2x00_init_host_attr(ha);
 	/*
 	 * Startup the kernel thread for this host adapter
 	 */
@@ -1497,16 +1342,6 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 		goto probe_failed;
 	}
 	wait_for_completion(&ha->dpc_inited);
-
-	host->this_id = 255;
-	host->cmd_per_lun = 3;
-	host->max_cmd_len = MAX_CMDSZ;
-	host->max_channel = ha->ports - 1;
-	host->max_lun = ha->max_luns;
-	BUG_ON(qla2xxx_transport_template == NULL);
-	host->transportt = qla2xxx_transport_template;
-	host->unique_id = ha->instance;
-	host->max_id = ha->max_targets;
 
 	if (IS_QLA2100(ha) || IS_QLA2200(ha))
 		ret = request_irq(host->irq, qla2100_intr_handler,
@@ -1568,7 +1403,6 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 		msleep(10);
 	}
 
-	pci_set_drvdata(pdev, ha);
 	ha->flags.init_done = 1;
 	num_hosts++;
 
@@ -1576,12 +1410,6 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 	if (displayConfig) {
 		qla2x00_display_fc_names(ha);
 	}
-
-	if (scsi_add_host(host, &pdev->dev))
-		goto probe_failed;
-
-	sysfs_create_bin_file(&host->shost_gendev.kobj, &sysfs_fw_dump_attr);
-	sysfs_create_bin_file(&host->shost_gendev.kobj, &sysfs_nvram_attr);
 
 	qla_printk(KERN_INFO, ha, "\n"
 	    " QLogic Fibre Channel HBA Driver: %s\n"
@@ -1592,12 +1420,16 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 	    pci_name(ha->pdev), ha->flags.enable_64bit_addressing ? '+': '-',
 	    ha->host_no, qla2x00_get_fw_version_str(ha, fw_str));
 
-	if (ql2xdoinitscan)
-		scsi_scan_host(host);
+	/* Go with fc_rport registration. */
+	list_for_each_entry(fcport, &ha->fcports, list)
+		qla2x00_reg_remote_port(ha, fcport);
 
 	return 0;
 
 probe_failed:
+	scsi_remove_host(host);
+
+probe_alloc_failed:
 	qla2x00_free_device(ha);
 
 	scsi_host_put(host);
@@ -1615,9 +1447,7 @@ void qla2x00_remove_one(struct pci_dev *pdev)
 
 	ha = pci_get_drvdata(pdev);
 
-	sysfs_remove_bin_file(&ha->host->shost_gendev.kobj,
-	    &sysfs_fw_dump_attr);
-	sysfs_remove_bin_file(&ha->host->shost_gendev.kobj, &sysfs_nvram_attr);
+	qla2x00_free_sysfs_attr(ha);
 
 	scsi_remove_host(ha->host);
 
@@ -2090,6 +1920,8 @@ qla2x00_display_fc_names(scsi_qla_host_t *ha)
 void qla2x00_mark_device_lost(scsi_qla_host_t *ha, fc_port_t *fcport,
     int do_login)
 {
+	if (atomic_read(&fcport->state) == FCS_ONLINE && fcport->rport)
+		fc_remote_port_block(fcport->rport);
 	/* 
 	 * We may need to retry the login, so don't change the state of the
 	 * port but do the retries.
@@ -2149,7 +1981,8 @@ qla2x00_mark_all_devices_lost(scsi_qla_host_t *ha)
 		 */
 		if (atomic_read(&fcport->state) == FCS_DEVICE_DEAD)
 			continue;
-
+		if (atomic_read(&fcport->state) == FCS_ONLINE && fcport->rport)
+			fc_remote_port_block(fcport->rport);
 		atomic_set(&fcport->state, FCS_DEVICE_LOST);
 	}
 }
@@ -2815,7 +2648,6 @@ qla2x00_sp_compl(scsi_qla_host_t *ha, srb_t *sp)
 
 	cmd->scsi_done(cmd);
 }
-
 /**************************************************************************
 *   qla2x00_timer
 *
@@ -2953,67 +2785,6 @@ qla2x00_down_timeout(struct semaphore *sema, unsigned long timeout)
 	return -ETIMEDOUT;
 }
 
-static void
-qla2xxx_get_port_id(struct scsi_target *starget)
-{
-	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
-	scsi_qla_host_t *ha = to_qla_host(shost);
-	struct fc_port *fc;
-
-	list_for_each_entry(fc, &ha->fcports, list) {
-		if (fc->os_target_id == starget->id) {
-			fc_starget_port_id(starget) = fc->d_id.b.domain << 16 |
-				fc->d_id.b.area << 8 | 
-				fc->d_id.b.al_pa;
-			return;
-		}
-	}
-	fc_starget_port_id(starget) = -1;
-}
-
-static void
-qla2xxx_get_port_name(struct scsi_target *starget)
-{
-	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
-	scsi_qla_host_t *ha = to_qla_host(shost);
-	struct fc_port *fc;
-
-	list_for_each_entry(fc, &ha->fcports, list) {
-		if (fc->os_target_id == starget->id) {
-			fc_starget_port_name(starget) =
-				__be64_to_cpu(*(uint64_t *)fc->port_name);
-			return;
-		}
-	}
-	fc_starget_port_name(starget) = -1;
-}
-
-static void
-qla2xxx_get_node_name(struct scsi_target *starget)
-{
-	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
-	scsi_qla_host_t *ha = to_qla_host(shost);
-	struct fc_port *fc;
-
-	list_for_each_entry(fc, &ha->fcports, list) {
-		if (fc->os_target_id == starget->id) {
-			fc_starget_node_name(starget) =
-				__be64_to_cpu(*(uint64_t *)fc->node_name);
-			return;
-		}
-	}
-	fc_starget_node_name(starget) = -1;
-}
-
-static struct fc_function_template qla2xxx_transport_functions = {
-	.get_starget_port_id = qla2xxx_get_port_id,
-	.show_starget_port_id = 1,
-	.get_starget_port_name = qla2xxx_get_port_name,
-	.show_starget_port_name = 1,
-	.get_starget_node_name = qla2xxx_get_node_name,
-	.show_starget_node_name = 1,
-};
-
 /**
  * qla2x00_module_init - Module initialization.
  **/
@@ -3035,8 +2806,7 @@ qla2x00_module_init(void)
 #if DEBUG_QLA2100
 	strcat(qla2x00_version_str, "-debug");
 #endif
-
-	qla2xxx_transport_template = fc_attach_transport(&qla2xxx_transport_functions);
+	qla2xxx_transport_template = qla2x00_alloc_transport_tmpl();
 	if (!qla2xxx_transport_template)
 		return -ENODEV;
 

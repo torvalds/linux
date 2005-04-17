@@ -19,6 +19,7 @@
 #include "qla_def.h"
 
 #include <linux/delay.h>
+#include <scsi/scsi_transport_fc.h>
 
 #include "qla_devtbl.h"
 
@@ -1927,8 +1928,35 @@ qla2x00_update_fcport(scsi_qla_host_t *ha, fc_port_t *fcport)
 		qla2x00_lun_discovery(ha, fcport);
 	}
 	atomic_set(&fcport->state, FCS_ONLINE);
+	if (ha->flags.init_done)
+		qla2x00_reg_remote_port(ha, fcport);
 }
 
+void
+qla2x00_reg_remote_port(scsi_qla_host_t *ha, fc_port_t *fcport)
+{
+	struct fc_rport_identifiers rport_ids;
+
+	if (fcport->rport) {
+		fc_remote_port_unblock(fcport->rport);
+		return;
+	}
+
+	rport_ids.node_name = be64_to_cpu(*(uint64_t *)fcport->node_name);
+	rport_ids.port_name = be64_to_cpu(*(uint64_t *)fcport->port_name);
+	rport_ids.port_id = fcport->d_id.b.domain << 16 |
+	    fcport->d_id.b.area << 8 | fcport->d_id.b.al_pa;
+	rport_ids.roles = FC_RPORT_ROLE_UNKNOWN;
+	if (fcport->port_type == FCT_INITIATOR)
+		rport_ids.roles |= FC_RPORT_ROLE_FCP_INITIATOR;
+	if (fcport->port_type == FCT_TARGET)
+		rport_ids.roles |= FC_RPORT_ROLE_FCP_TARGET;
+
+	fcport->rport = fc_remote_port_add(ha->host, 0, &rport_ids);
+	if (!fcport->rport)
+		qla_printk(KERN_WARNING, ha,
+		    "Unable to allocate fc remote port!\n");
+}
 /*
  * qla2x00_lun_discovery
  *	Issue SCSI inquiry command for LUN discovery.
@@ -2895,8 +2923,7 @@ qla2x00_device_resync(scsi_qla_host_t *ha)
 			if (atomic_read(&fcport->state) == FCS_ONLINE) {
 				if (format != 3 ||
 				    fcport->port_type != FCT_INITIATOR) {
-					atomic_set(&fcport->state,
-					    FCS_DEVICE_LOST);
+					qla2x00_mark_device_lost(ha, fcport, 0);
 				}
 			}
 			fcport->flags &= ~FCF_FARP_DONE;

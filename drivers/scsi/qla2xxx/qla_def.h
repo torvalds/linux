@@ -219,7 +219,7 @@
 /*
  * Timeout timer counts in seconds
  */
-#define PORT_RETRY_TIME			2
+#define PORT_RETRY_TIME			1
 #define LOOP_DOWN_TIMEOUT		60
 #define LOOP_DOWN_TIME			255	/* 240 */
 #define	LOOP_DOWN_RESET			(LOOP_DOWN_TIME - 30)
@@ -1718,6 +1718,7 @@ typedef struct fc_port {
     	uint8_t cur_path;		/* current path id */
 
 	lun_bit_mask_t lun_mask;
+	struct fc_rport *rport;
 } fc_port_t;
 
 /*

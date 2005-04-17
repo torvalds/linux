@@ -24,6 +24,7 @@
 #define	__QLA_GBL_H
 
 #include <linux/interrupt.h>
+#include <scsi/scsi_transport.h>
 
 extern void qla2x00_remove_one(struct pci_dev *);
 extern int qla2x00_probe_one(struct pci_dev *, struct qla_board_info *);
@@ -47,6 +48,8 @@ extern void qla2x00_rescan_fcports(scsi_qla_host_t *);
 extern void qla2x00_tgt_free(scsi_qla_host_t *ha, uint16_t t);
 
 extern int qla2x00_abort_isp(scsi_qla_host_t *);
+
+extern void qla2x00_reg_remote_port(scsi_qla_host_t *, fc_port_t *);
 
 /*
  * Global Data in qla_os.c source file.
@@ -250,4 +253,13 @@ extern void qla2x00_cancel_io_descriptors(scsi_qla_host_t *);
 #define qla2x00_alloc_ioctl_mem(ha)		(0)
 #define qla2x00_free_ioctl_mem(ha)		do { } while (0)
 
+/*
+ * Global Function Prototypes in qla_attr.c source file.
+ */
+extern void qla2x00_alloc_sysfs_attr(scsi_qla_host_t *);
+extern void qla2x00_free_sysfs_attr(scsi_qla_host_t *);
+extern struct scsi_transport_template *qla2x00_alloc_transport_tmpl(void);
+extern void qla2x00_init_host_attr(scsi_qla_host_t *);
+extern void qla2x00_alloc_sysfs_attr(scsi_qla_host_t *);
+extern void qla2x00_free_sysfs_attr(scsi_qla_host_t *);
 #endif /* _QLA_GBL_H */
