@@ -216,18 +216,7 @@ void qla2x00_build_scsi_iocbs_32(srb_t *sp, cmd_entry_t *cmd_pkt,
 			cur_seg++;
 		}
 	} else {
-		dma_addr_t	req_dma;
-		struct page	*page;
-		unsigned long	offset;
-
-		page = virt_to_page(cmd->request_buffer);
-		offset = ((unsigned long)cmd->request_buffer & ~PAGE_MASK);
-		req_dma = pci_map_page(ha->pdev, page, offset,
-		    cmd->request_bufflen, cmd->sc_data_direction);
-
-		sp->dma_handle = req_dma;
-
-		*cur_dsd++ = cpu_to_le32(req_dma);
+		*cur_dsd++ = cpu_to_le32(sp->dma_handle);
 		*cur_dsd++ = cpu_to_le32(cmd->request_bufflen);
 	}
 }
@@ -299,19 +288,8 @@ void qla2x00_build_scsi_iocbs_64(srb_t *sp, cmd_entry_t *cmd_pkt,
 			cur_seg++;
 		}
 	} else {
-		dma_addr_t	req_dma;
-		struct page	*page;
-		unsigned long	offset;
-
-		page = virt_to_page(cmd->request_buffer);
-		offset = ((unsigned long)cmd->request_buffer & ~PAGE_MASK);
-		req_dma = pci_map_page(ha->pdev, page, offset,
-		    cmd->request_bufflen, cmd->sc_data_direction);
-
-		sp->dma_handle = req_dma;
-
-		*cur_dsd++ = cpu_to_le32(LSD(req_dma));
-		*cur_dsd++ = cpu_to_le32(MSD(req_dma));
+		*cur_dsd++ = cpu_to_le32(LSD(sp->dma_handle));
+		*cur_dsd++ = cpu_to_le32(MSD(sp->dma_handle));
 		*cur_dsd++ = cpu_to_le32(cmd->request_bufflen);
 	}
 }
@@ -345,6 +323,8 @@ qla2x00_start_scsi(srb_t *sp)
 	ha = sp->ha;
 	reg = ha->iobase;
 	cmd = sp->cmd;
+	/* So we know we haven't pci_map'ed anything yet */
+	tot_dsds = 0;
 
 	/* Send marker if required */
 	if (ha->marker_needed != 0) {
@@ -369,8 +349,27 @@ qla2x00_start_scsi(srb_t *sp)
 	if (index == MAX_OUTSTANDING_COMMANDS)
 		goto queuing_error;
 
+	/* Map the sg table so we have an accurate count of sg entries needed */
+	if (cmd->use_sg) {
+		sg = (struct scatterlist *) cmd->request_buffer;
+		tot_dsds = pci_map_sg(ha->pdev, sg, cmd->use_sg,
+		    cmd->sc_data_direction);
+		if (tot_dsds == 0)
+			goto queuing_error;
+	} else if (cmd->request_bufflen) {
+		dma_addr_t	req_dma;
+
+		req_dma = pci_map_single(ha->pdev, cmd->request_buffer,
+		    cmd->request_bufflen, cmd->sc_data_direction);
+		if (dma_mapping_error(req_dma))
+			goto queuing_error;
+
+		sp->dma_handle = req_dma;
+		tot_dsds = 1;
+	}
+
 	/* Calculate the number of request entries needed. */
-	req_cnt = (ha->calc_request_entries)(cmd->request->nr_hw_segments);
+	req_cnt = (ha->calc_request_entries)(tot_dsds);
 	if (ha->req_q_cnt < (req_cnt + 2)) {
 		cnt = RD_REG_WORD_RELAXED(ISP_REQ_Q_OUT(ha, reg));
 		if (ha->req_ring_index < cnt)
@@ -381,19 +380,6 @@ qla2x00_start_scsi(srb_t *sp)
 	}
 	if (ha->req_q_cnt < (req_cnt + 2))
 		goto queuing_error;
-
-	/* Finally, we have enough space, now perform mappings. */
-	tot_dsds = 0;
-	if (cmd->use_sg) {
-		sg = (struct scatterlist *) cmd->request_buffer;
-		tot_dsds = pci_map_sg(ha->pdev, sg, cmd->use_sg,
-		    cmd->sc_data_direction);
-		if (tot_dsds == 0)
-			goto queuing_error;
-	} else if (cmd->request_bufflen) {
-	    tot_dsds++;
-	}
-	req_cnt = (ha->calc_request_entries)(tot_dsds);
 
 	/* Build command packet */
 	ha->current_outstanding_cmd = handle;
@@ -461,6 +447,14 @@ qla2x00_start_scsi(srb_t *sp)
 	return (QLA_SUCCESS);
 
 queuing_error:
+	if (cmd->use_sg && tot_dsds) {
+		sg = (struct scatterlist *) cmd->request_buffer;
+		pci_unmap_sg(ha->pdev, sg, cmd->use_sg,
+		    cmd->sc_data_direction);
+	} else if (tot_dsds) {
+		pci_unmap_single(ha->pdev, sp->dma_handle,
+		    cmd->request_bufflen, cmd->sc_data_direction);
+	}
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	return (QLA_FUNCTION_FAILED);
