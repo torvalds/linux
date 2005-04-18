@@ -610,6 +610,33 @@ static inline void audit_free_context(struct audit_context *context)
 		printk(KERN_ERR "audit: freed %d contexts\n", count);
 }
 
+static void audit_log_task_info(struct audit_buffer *ab)
+{
+	char name[sizeof(current->comm)];
+	struct mm_struct *mm = current->mm;
+	struct vm_area_struct *vma;
+
+	get_task_comm(name, current);
+	audit_log_format(ab, " comm=%s", name);
+
+	if (!mm)
+		return;
+
+	down_read(&mm->mmap_sem);
+	vma = mm->mmap;
+	while (vma) {
+		if ((vma->vm_flags & VM_EXECUTABLE) &&
+		    vma->vm_file) {
+			audit_log_d_path(ab, "exe=",
+					 vma->vm_file->f_dentry,
+					 vma->vm_file->f_vfsmnt);
+			break;
+		}
+		vma = vma->vm_next;
+	}
+	up_read(&mm->mmap_sem);
+}
+
 static void audit_log_exit(struct audit_context *context)
 {
 	int i;
@@ -639,6 +666,7 @@ static void audit_log_exit(struct audit_context *context)
 		  context->gid,
 		  context->euid, context->suid, context->fsuid,
 		  context->egid, context->sgid, context->fsgid);
+	audit_log_task_info(ab);
 	audit_log_end(ab);
 	while (context->aux) {
 		struct audit_aux_data *aux;
