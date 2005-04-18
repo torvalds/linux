@@ -2648,9 +2648,9 @@ need_resched_nonpreemptible:
 
 	schedstat_inc(rq, sched_cnt);
 	now = sched_clock();
-	if (likely((long long)now - prev->timestamp < NS_MAX_SLEEP_AVG)) {
+	if (likely((long long)(now - prev->timestamp) < NS_MAX_SLEEP_AVG)) {
 		run_time = now - prev->timestamp;
-		if (unlikely((long long)now - prev->timestamp < 0))
+		if (unlikely((long long)(now - prev->timestamp) < 0))
 			run_time = 0;
 	} else
 		run_time = NS_MAX_SLEEP_AVG;
@@ -2728,7 +2728,7 @@ go_idle:
 
 	if (!rt_task(next) && next->activated > 0) {
 		unsigned long long delta = now - next->timestamp;
-		if (unlikely((long long)now - next->timestamp < 0))
+		if (unlikely((long long)(now - next->timestamp) < 0))
 			delta = 0;
 
 		if (next->activated == 1)
