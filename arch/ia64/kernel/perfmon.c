@@ -4215,7 +4215,7 @@ pfm_context_load(pfm_context_t *ctx, void *arg, int count, struct pt_regs *regs)
 		DPRINT(("cannot load to [%d], invalid ctx_state=%d\n",
 			req->load_pid,
 			ctx->ctx_state));
-		return -EINVAL;
+		return -EBUSY;
 	}
 
 	DPRINT(("load_pid [%d] using_dbreg=%d\n", req->load_pid, ctx->ctx_fl_using_dbreg));
@@ -4717,16 +4717,26 @@ recheck:
 	if (task == current || ctx->ctx_fl_system) return 0;
 
 	/*
-	 * if context is UNLOADED we are safe to go
+	 * we are monitoring another thread
 	 */
-	if (state == PFM_CTX_UNLOADED) return 0;
-
-	/*
-	 * no command can operate on a zombie context
-	 */
-	if (state == PFM_CTX_ZOMBIE) {
-		DPRINT(("cmd %d state zombie cannot operate on context\n", cmd));
-		return -EINVAL;
+	switch(state) {
+		case PFM_CTX_UNLOADED:
+			/*
+			 * if context is UNLOADED we are safe to go
+			 */
+			return 0;
+		case PFM_CTX_ZOMBIE:
+			/*
+			 * no command can operate on a zombie context
+			 */
+			DPRINT(("cmd %d state zombie cannot operate on context\n", cmd));
+			return -EINVAL;
+		case PFM_CTX_MASKED:
+			/*
+			 * PMU state has been saved to software even though
+			 * the thread may still be running.
+			 */
+			if (cmd != PFM_UNLOAD_CONTEXT) return 0;
 	}
 
 	/*
