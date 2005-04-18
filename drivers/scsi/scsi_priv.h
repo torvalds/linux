@@ -30,11 +30,6 @@ struct Scsi_Host;
 #define SCSI_REQ_MAGIC		0x75F6D354
 
 /*
- *  Flag bit for the internal_timeout array
- */
-#define NORMAL_TIMEOUT		0
-
-/*
  * Scsi Error Handler Flags
  */
 #define scsi_eh_eflags_chk(scp, flags) \

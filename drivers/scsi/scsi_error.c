@@ -79,11 +79,6 @@ int scsi_eh_scmd_add(struct scsi_cmnd *scmd, int eh_flag)
 	 */
 	scmd->owner = SCSI_OWNER_ERROR_HANDLER;
 	scmd->state = SCSI_STATE_FAILED;
-	/*
-	 * Set the serial_number_at_timeout to the current
-	 * serial_number
-	 */
-	scmd->serial_number_at_timeout = scmd->serial_number;
 	list_add_tail(&scmd->eh_entry, &shost->eh_cmd_q);
 	set_bit(SHOST_RECOVERY, &shost->shost_state);
 	shost->host_failed++;
@@ -481,7 +476,8 @@ static void scsi_eh_done(struct scsi_cmnd *scmd)
  **/
 static int scsi_send_eh_cmnd(struct scsi_cmnd *scmd, int timeout)
 {
-	struct Scsi_Host *host = scmd->device->host;
+	struct scsi_device *sdev = scmd->device;
+	struct Scsi_Host *shost = sdev->host;
 	DECLARE_MUTEX_LOCKED(sem);
 	unsigned long flags;
 	int rtn = SUCCESS;
@@ -492,27 +488,27 @@ static int scsi_send_eh_cmnd(struct scsi_cmnd *scmd, int timeout)
 	 */
 	scmd->owner = SCSI_OWNER_LOWLEVEL;
 
-	if (scmd->device->scsi_level <= SCSI_2)
+	if (sdev->scsi_level <= SCSI_2)
 		scmd->cmnd[1] = (scmd->cmnd[1] & 0x1f) |
-			(scmd->device->lun << 5 & 0xe0);
+			(sdev->lun << 5 & 0xe0);
 
 	scsi_add_timer(scmd, timeout, scsi_eh_times_out);
 
 	/*
 	 * set up the semaphore so we wait for the command to complete.
 	 */
-	scmd->device->host->eh_action = &sem;
+	shost->eh_action = &sem;
 	scmd->request->rq_status = RQ_SCSI_BUSY;
 
-	spin_lock_irqsave(scmd->device->host->host_lock, flags);
+	spin_lock_irqsave(shost->host_lock, flags);
 	scsi_log_send(scmd);
-	host->hostt->queuecommand(scmd, scsi_eh_done);
-	spin_unlock_irqrestore(scmd->device->host->host_lock, flags);
+	shost->hostt->queuecommand(scmd, scsi_eh_done);
+	spin_unlock_irqrestore(shost->host_lock, flags);
 
 	down(&sem);
 	scsi_log_completion(scmd, SUCCESS);
 
-	scmd->device->host->eh_action = NULL;
+	shost->eh_action = NULL;
 
 	/*
 	 * see if timeout.  if so, tell the host to forget about it.
@@ -532,10 +528,10 @@ static int scsi_send_eh_cmnd(struct scsi_cmnd *scmd, int timeout)
 		 * abort a timed out command or not.  not sure how
 		 * we should treat them differently anyways.
 		 */
-		spin_lock_irqsave(scmd->device->host->host_lock, flags);
-		if (scmd->device->host->hostt->eh_abort_handler)
-			scmd->device->host->hostt->eh_abort_handler(scmd);
-		spin_unlock_irqrestore(scmd->device->host->host_lock, flags);
+		spin_lock_irqsave(shost->host_lock, flags);
+		if (shost->hostt->eh_abort_handler)
+			shost->hostt->eh_abort_handler(scmd);
+		spin_unlock_irqrestore(shost->host_lock, flags);
 			
 		scmd->request->rq_status = RQ_SCSI_DONE;
 		scmd->owner = SCSI_OWNER_ERROR_HANDLER;
@@ -1061,7 +1057,6 @@ static int scsi_try_bus_reset(struct scsi_cmnd *scmd)
 	SCSI_LOG_ERROR_RECOVERY(3, printk("%s: Snd Bus RST\n",
 					  __FUNCTION__));
 	scmd->owner = SCSI_OWNER_LOWLEVEL;
-	scmd->serial_number_at_timeout = scmd->serial_number;
 
 	if (!scmd->device->host->hostt->eh_bus_reset_handler)
 		return FAILED;
@@ -1093,7 +1088,6 @@ static int scsi_try_host_reset(struct scsi_cmnd *scmd)
 	SCSI_LOG_ERROR_RECOVERY(3, printk("%s: Snd Host RST\n",
 					  __FUNCTION__));
 	scmd->owner = SCSI_OWNER_LOWLEVEL;
-	scmd->serial_number_at_timeout = scmd->serial_number;
 
 	if (!scmd->device->host->hostt->eh_host_reset_handler)
 		return FAILED;
@@ -1312,6 +1306,9 @@ int scsi_decide_disposition(struct scsi_cmnd *scmd)
 		goto maybe_retry;
 	case DID_IMM_RETRY:
 		return NEEDS_RETRY;
+
+	case DID_REQUEUE:
+		return ADD_TO_MLQUEUE;
 
 	case DID_ERROR:
 		if (msg_byte(scmd->result) == COMMAND_COMPLETE &&
@@ -1839,7 +1836,6 @@ scsi_reset_provider(struct scsi_device *dev, int flag)
 	scmd->bufflen			= 0;
 	scmd->request_buffer		= NULL;
 	scmd->request_bufflen		= 0;
-	scmd->internal_timeout		= NORMAL_TIMEOUT;
 	scmd->abort_reason		= DID_ABORT;
 
 	scmd->cmd_len			= 0;

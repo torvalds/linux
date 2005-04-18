@@ -108,7 +108,7 @@ static inline void init_SCp(Scsi_Cmnd *SCpnt)
 #if 0 //def BELT_AND_BRACES
 		printk(KERN_WARNING "scsi%d.%c: zero length buffer passed for "
 		       "command ", SCpnt->host->host_no, '0' + SCpnt->target);
-		print_command(SCpnt->cmnd);
+		__scsi_print_command(SCpnt->cmnd);
 #endif
 		SCpnt->SCp.ptr = NULL;
 	}

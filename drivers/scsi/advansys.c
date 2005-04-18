@@ -9198,15 +9198,12 @@ asc_prt_scsi_cmnd(struct scsi_cmnd *s)
         s->use_sg, s->sglist_len, s->abort_reason);
 
     printk(
-" serial_number 0x%x, serial_number_at_timeout 0x%x, retries %d, allowed %d\n",
-        (unsigned) s->serial_number, (unsigned) s->serial_number_at_timeout,
-         s->retries, s->allowed);
+" serial_number 0x%x, retries %d, allowed %d\n",
+        (unsigned) s->serial_number, s->retries, s->allowed);
 
     printk(
 " timeout_per_command %d, timeout_total %d, timeout %d\n",
         s->timeout_per_command, s->timeout_total, s->timeout);
-
-    printk(" internal_timeout %u\n", s->internal_timeout);
 
     printk(
 " scsi_done 0x%lx, done 0x%lx, host_scribble 0x%lx, result 0x%x\n",
