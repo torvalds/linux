@@ -1,12 +1,13 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.10-m68k
-# Sun Dec 26 11:23:36 2004
+# Linux kernel version: 2.6.11-m68k
+# Wed Mar  2 15:27:58 2005
 #
 CONFIG_M68K=y
 CONFIG_MMU=y
 CONFIG_UID16=y
 CONFIG_RWSEM_GENERIC_SPINLOCK=y
+CONFIG_GENERIC_CALIBRATE_DELAY=y
 
 #
 # Code maturity level options
@@ -92,6 +93,7 @@ CONFIG_PROC_HARDWARE=y
 #
 CONFIG_STANDALONE=y
 CONFIG_PREVENT_FIRMWARE_BUILD=y
+# CONFIG_FW_LOADER is not set
 
 #
 # Memory Technology Devices (MTD)
@@ -112,6 +114,7 @@ CONFIG_PREVENT_FIRMWARE_BUILD=y
 #
 CONFIG_AMIGA_FLOPPY=y
 # CONFIG_AMIGA_Z2RAM is not set
+# CONFIG_BLK_DEV_COW_COMMON is not set
 # CONFIG_BLK_DEV_LOOP is not set
 # CONFIG_BLK_DEV_NBD is not set
 CONFIG_BLK_DEV_RAM=y
@@ -130,6 +133,7 @@ CONFIG_IOSCHED_NOOP=y
 CONFIG_IOSCHED_AS=y
 CONFIG_IOSCHED_DEADLINE=y
 CONFIG_IOSCHED_CFQ=y
+# CONFIG_ATA_OVER_ETH is not set
 
 #
 # ATA/ATAPI/MFM/RLL support
@@ -164,6 +168,7 @@ CONFIG_SCSI_CONSTANTS=y
 #
 # CONFIG_SCSI_SPI_ATTRS is not set
 # CONFIG_SCSI_FC_ATTRS is not set
+# CONFIG_SCSI_ISCSI_ATTRS is not set
 
 #
 # SCSI low-level drivers
@@ -331,6 +336,7 @@ CONFIG_SOUND_GAMEPORT=y
 CONFIG_SERIO=y
 CONFIG_SERIO_SERPORT=y
 # CONFIG_SERIO_CT82C710 is not set
+CONFIG_SERIO_LIBPS2=y
 # CONFIG_SERIO_RAW is not set
 
 #
@@ -440,6 +446,7 @@ CONFIG_DUMMY_CONSOLE=y
 # Logo configuration
 #
 # CONFIG_LOGO is not set
+# CONFIG_BACKLIGHT_LCD_SUPPORT is not set
 
 #
 # Sound
@@ -467,6 +474,11 @@ CONFIG_DUMMY_CONSOLE=y
 # CONFIG_MMC is not set
 
 #
+# InfiniBand support
+#
+# CONFIG_INFINIBAND is not set
+
+#
 # Character devices
 #
 CONFIG_AMIGA_BUILTIN_SERIAL=y
@@ -483,6 +495,10 @@ CONFIG_EXT2_FS=y
 # CONFIG_JBD is not set
 # CONFIG_REISERFS_FS is not set
 # CONFIG_JFS_FS is not set
+
+#
+# XFS support
+#
 # CONFIG_XFS_FS is not set
 CONFIG_MINIX_FS=y
 # CONFIG_ROMFS_FS is not set
@@ -544,7 +560,6 @@ CONFIG_NFS_FS=y
 # CONFIG_NFS_DIRECTIO is not set
 # CONFIG_NFSD is not set
 CONFIG_LOCKD=y
-# CONFIG_EXPORTFS is not set
 CONFIG_SUNRPC=y
 # CONFIG_RPCSEC_GSS_KRB5 is not set
 # CONFIG_RPCSEC_GSS_SPKM3 is not set
@@ -609,6 +624,7 @@ CONFIG_NLS_CODEPAGE_437=y
 # Kernel hacking
 #
 # CONFIG_DEBUG_KERNEL is not set
+CONFIG_DEBUG_BUGVERBOSE=y
 
 #
 # Security options
@@ -620,6 +636,10 @@ CONFIG_NLS_CODEPAGE_437=y
 # Cryptographic options
 #
 # CONFIG_CRYPTO is not set
+
+#
+# Hardware crypto devices
+#
 
 #
 # Library routines
