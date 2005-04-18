@@ -514,25 +514,6 @@ asmlinkage void do_ptrace(struct pt_regs *regs)
 			pt_error_return(regs, EIO);
 			goto out_tsk;
 		}
-		if (addr != 1) {
-			unsigned long pc_mask = ~0UL;
-
-			if ((child->thread_info->flags & _TIF_32BIT) != 0)
-				pc_mask = 0xffffffff;
-
-			if (addr & 3) {
-				pt_error_return(regs, EINVAL);
-				goto out_tsk;
-			}
-#ifdef DEBUG_PTRACE
-			printk ("Original: %016lx %016lx\n",
-				child->thread_info->kregs->tpc,
-				child->thread_info->kregs->tnpc);
-			printk ("Continuing with %016lx %016lx\n", addr, addr+4);
-#endif
-			child->thread_info->kregs->tpc = (addr & pc_mask);
-			child->thread_info->kregs->tnpc = ((addr + 4) & pc_mask);
-		}
 
 		if (request == PTRACE_SYSCALL) {
 			set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
