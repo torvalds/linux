@@ -49,16 +49,22 @@ extern void flush_dcache_page(struct page *page);
 #define flush_icache_page(vma, pg)	do { } while(0)
 #define flush_icache_user_range(vma,pg,adr,len)	do { } while (0)
 
-#define copy_to_user_page(vma, page, vaddr, dst, src, len) \
-	do {							\
-		flush_cache_page(vma, vaddr, page_to_pfn(page));\
-		memcpy(dst, src, len);				\
+extern void flush_ptrace_access(struct vm_area_struct *, struct page *,
+				unsigned long uaddr, void *kaddr,
+				unsigned long len, int write);
+
+#define copy_to_user_page(vma, page, vaddr, dst, src, len)		\
+	do {								\
+		flush_cache_page(vma, vaddr, page_to_pfn(page));	\
+		memcpy(dst, src, len);					\
+		flush_ptrace_access(vma, page, vaddr, src, len, 0);	\
 	} while (0)
 
-#define copy_from_user_page(vma, page, vaddr, dst, src, len) \
-	do {							\
-		flush_cache_page(vma, vaddr, page_to_pfn(page));\
-		memcpy(dst, src, len);				\
+#define copy_from_user_page(vma, page, vaddr, dst, src, len) 		\
+	do {								\
+		flush_cache_page(vma, vaddr, page_to_pfn(page));	\
+		memcpy(dst, src, len);					\
+		flush_ptrace_access(vma, page, vaddr, dst, len, 1);	\
 	} while (0)
 
 #define flush_dcache_mmap_lock(mapping)		do { } while (0)
