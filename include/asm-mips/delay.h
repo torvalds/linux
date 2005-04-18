@@ -12,7 +12,7 @@
 
 #include <linux/config.h>
 #include <linux/param.h>
-
+#include <linux/smp.h>
 #include <asm/compiler.h>
 
 static inline void __delay(unsigned long loops)
