@@ -451,10 +451,10 @@ static inline void reads##bwlq(volatile void __iomem *mem, void *addr,	\
 
 #define __BUILD_IOPORT_STRING(bwlq, type)				\
 									\
-static inline void outs##bwlq(unsigned long port, void *addr,		\
+static inline void outs##bwlq(unsigned long port, const void *addr,	\
 			      unsigned int count)			\
 {									\
-	volatile type *__addr = addr;					\
+	const volatile type *__addr = addr;				\
 									\
 	while (count--) {						\
 		mem_out##bwlq(*__addr, port);				\
