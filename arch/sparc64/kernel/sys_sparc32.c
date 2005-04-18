@@ -352,17 +352,79 @@ int cp_compat_stat(struct kstat *stat, struct compat_stat __user *statbuf)
 	err |= put_user(old_encode_dev(stat->rdev), &statbuf->st_rdev);
 	err |= put_user(stat->size, &statbuf->st_size);
 	err |= put_user(stat->atime.tv_sec, &statbuf->st_atime);
-	err |= put_user(0, &statbuf->__unused1);
+	err |= put_user(stat->atime.tv_nsec, &statbuf->st_atime_nsec);
 	err |= put_user(stat->mtime.tv_sec, &statbuf->st_mtime);
-	err |= put_user(0, &statbuf->__unused2);
+	err |= put_user(stat->mtime.tv_nsec, &statbuf->st_mtime_nsec);
 	err |= put_user(stat->ctime.tv_sec, &statbuf->st_ctime);
-	err |= put_user(0, &statbuf->__unused3);
+	err |= put_user(stat->ctime.tv_nsec, &statbuf->st_ctime_nsec);
 	err |= put_user(stat->blksize, &statbuf->st_blksize);
 	err |= put_user(stat->blocks, &statbuf->st_blocks);
 	err |= put_user(0, &statbuf->__unused4[0]);
 	err |= put_user(0, &statbuf->__unused4[1]);
 
 	return err;
+}
+
+int cp_compat_stat64(struct kstat *stat, struct compat_stat64 __user *statbuf)
+{
+	int err;
+
+	err  = put_user(huge_encode_dev(stat->dev), &statbuf->st_dev);
+	err |= put_user(stat->ino, &statbuf->st_ino);
+	err |= put_user(stat->mode, &statbuf->st_mode);
+	err |= put_user(stat->nlink, &statbuf->st_nlink);
+	err |= put_user(stat->uid, &statbuf->st_uid);
+	err |= put_user(stat->gid, &statbuf->st_gid);
+	err |= put_user(huge_encode_dev(stat->rdev), &statbuf->st_rdev);
+	err |= put_user(0, (unsigned long __user *) &statbuf->__pad3[0]);
+	err |= put_user(stat->size, &statbuf->st_size);
+	err |= put_user(stat->blksize, &statbuf->st_blksize);
+	err |= put_user(0, (unsigned int __user *) &statbuf->__pad4[0]);
+	err |= put_user(0, (unsigned int __user *) &statbuf->__pad4[4]);
+	err |= put_user(stat->blocks, &statbuf->st_blocks);
+	err |= put_user(stat->atime.tv_sec, &statbuf->st_atime);
+	err |= put_user(stat->atime.tv_nsec, &statbuf->st_atime_nsec);
+	err |= put_user(stat->mtime.tv_sec, &statbuf->st_mtime);
+	err |= put_user(stat->mtime.tv_nsec, &statbuf->st_mtime_nsec);
+	err |= put_user(stat->ctime.tv_sec, &statbuf->st_ctime);
+	err |= put_user(stat->ctime.tv_nsec, &statbuf->st_ctime_nsec);
+	err |= put_user(0, &statbuf->__unused4);
+	err |= put_user(0, &statbuf->__unused5);
+
+	return err;
+}
+
+asmlinkage long compat_sys_stat64(char __user * filename,
+		struct compat_stat64 __user *statbuf)
+{
+	struct kstat stat;
+	int error = vfs_stat(filename, &stat);
+
+	if (!error)
+		error = cp_compat_stat64(&stat, statbuf);
+	return error;
+}
+
+asmlinkage long compat_sys_lstat64(char __user * filename,
+		struct compat_stat64 __user *statbuf)
+{
+	struct kstat stat;
+	int error = vfs_lstat(filename, &stat);
+
+	if (!error)
+		error = cp_compat_stat64(&stat, statbuf);
+	return error;
+}
+
+asmlinkage long compat_sys_fstat64(unsigned int fd,
+		struct compat_stat64 __user * statbuf)
+{
+	struct kstat stat;
+	int error = vfs_fstat(fd, &stat);
+
+	if (!error)
+		error = cp_compat_stat64(&stat, statbuf);
+	return error;
 }
 
 asmlinkage long compat_sys_sysfs(int option, u32 arg1, u32 arg2)
