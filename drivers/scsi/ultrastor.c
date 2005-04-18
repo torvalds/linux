@@ -945,7 +945,7 @@ static int ultrastor_abort(Scsi_Cmnd *SCpnt)
 	       config.mscp[mscp_index].SCint, SCpnt);
 #endif
     if (config.mscp[mscp_index].SCint == 0)
-	return SCSI_ABORT_NOT_RUNNING;
+	return FAILURE;
 
     if (config.mscp[mscp_index].SCint != SCpnt) panic("Bad abort");
     config.mscp[mscp_index].SCint = NULL;
@@ -1020,7 +1020,7 @@ static int ultrastor_host_reset(Scsi_Cmnd * SCpnt)
 #endif
 
     spin_unlock_irqrestore(host->host_lock, flags);
-    return SCSI_RESET_SUCCESS;
+    return SUCCESS;
 
 }
 

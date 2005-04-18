@@ -69,6 +69,7 @@
  *   finally replaced that by the *_PRINTK() macros.
  *
  */
+#include <scsi/scsi_dbg.h>
 
 /*
  * Further development / testing that should be done : 
@@ -2377,7 +2378,7 @@ static void NCR5380_information_transfer (struct Scsi_Host *instance)
  * 3..length+1	arguments
  *
  * Start the extended message buffer with the EXTENDED_MESSAGE
- * byte, since print_msg() wants the whole thing.  
+ * byte, since scsi_print_msg() wants the whole thing.  
  */
 		    extended_msg[0] = EXTENDED_MESSAGE;
 		    /* Accept first byte by clearing ACK */
@@ -2430,7 +2431,7 @@ static void NCR5380_information_transfer (struct Scsi_Host *instance)
 		default:
 		    if (!tmp) {
 			printk(KERN_DEBUG "scsi%d: rejecting message ", HOSTNO);
-			print_msg (extended_msg);
+			scsi_print_msg (extended_msg);
 			printk("\n");
 		    } else if (tmp != EXTENDED_MESSAGE)
 			printk(KERN_DEBUG "scsi%d: rejecting unknown "
@@ -2565,7 +2566,7 @@ static void NCR5380_reselect (struct Scsi_Host *instance)
 
     if (!(msg[0] & 0x80)) {
 	printk(KERN_DEBUG "scsi%d: expecting IDENTIFY message, got ", HOSTNO);
-	print_msg(msg);
+	scsi_print_msg(msg);
 	do_abort(instance);
 	return;
     }
@@ -2691,7 +2692,7 @@ static int NCR5380_abort (Scsi_Cmnd *cmd)
     unsigned long flags;
 
     printk(KERN_NOTICE "scsi%d: aborting command\n", HOSTNO);
-    print_Scsi_Cmnd (cmd);
+    scsi_print_command(cmd);
 
     NCR5380_print_status (instance);
 

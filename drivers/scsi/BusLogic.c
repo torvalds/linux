@@ -2958,13 +2958,6 @@ static int BusLogic_AbortCommand(struct scsi_cmnd *Command)
 	struct BusLogic_CCB *CCB;
 	BusLogic_IncrementErrorCounter(&HostAdapter->TargetStatistics[TargetID].CommandAbortsRequested);
 	/*
-	   If this Command has already completed, then no Abort is necessary.
-	 */
-	if (Command->serial_number != Command->serial_number_at_timeout) {
-		BusLogic_Warning("Unable to Abort Command to Target %d - " "Already Completed\n", HostAdapter, TargetID);
-		return SUCCESS;
-	}
-	/*
 	   Attempt to find an Active CCB for this Command.  If no Active CCB for this
 	   Command is found, then no Abort is necessary.
 	 */

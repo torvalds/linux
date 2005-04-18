@@ -372,7 +372,7 @@ static void scsi_print_cdb(unsigned char *cdb, int cdb_len, int start_of_line)
 
 /**
  *
- *	print_status - print scsi status description
+ *	scsi_print_status - print scsi status description
  *	@scsi_status: scsi status value
  *
  *	If the status is recognized, the description is printed.

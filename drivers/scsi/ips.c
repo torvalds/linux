@@ -833,13 +833,6 @@ ips_eh_abort(Scsi_Cmnd * SC)
 	if (!ha->active)
 		return (FAILED);
 
-	if (SC->serial_number != SC->serial_number_at_timeout) {
-		/* HMM, looks like a bogus command */
-		DEBUG(1, "Abort called with bogus scsi command");
-
-		return (FAILED);
-	}
-
 	/* See if the command is on the copp queue */
 	item = ha->copp_waitlist.head;
 	while ((item) && (item->scsi_cmd != SC))

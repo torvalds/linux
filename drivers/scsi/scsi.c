@@ -489,7 +489,7 @@ void scsi_log_completion(struct scsi_cmnd *cmd, int disposition)
 			scsi_print_command(cmd);
 			if (status_byte(cmd->result) & CHECK_CONDITION) {
 				/*
-				 * XXX The print_sense formatting/prefix
+				 * XXX The scsi_print_sense formatting/prefix
 				 * doesn't match this function.
 				 */
 				scsi_print_sense("", cmd);
@@ -686,7 +686,6 @@ void scsi_init_cmd_from_req(struct scsi_cmnd *cmd, struct scsi_request *sreq)
 	cmd->request = sreq->sr_request;
 	memcpy(cmd->data_cmnd, sreq->sr_cmnd, sizeof(cmd->data_cmnd));
 	cmd->serial_number = 0;
-	cmd->serial_number_at_timeout = 0;
 	cmd->bufflen = sreq->sr_bufflen;
 	cmd->buffer = sreq->sr_buffer;
 	cmd->retries = 0;
@@ -716,7 +715,6 @@ void scsi_init_cmd_from_req(struct scsi_cmnd *cmd, struct scsi_request *sreq)
 	/*
 	 * Start the timer ticking.
 	 */
-	cmd->internal_timeout = NORMAL_TIMEOUT;
 	cmd->abort_reason = 0;
 	cmd->result = 0;
 
@@ -766,7 +764,6 @@ void __scsi_done(struct scsi_cmnd *cmd)
 	 * Set the serial numbers back to zero
 	 */
 	cmd->serial_number = 0;
-	cmd->serial_number_at_timeout = 0;
 	cmd->state = SCSI_STATE_BHQUEUE;
 	cmd->owner = SCSI_OWNER_BH_HANDLER;
 

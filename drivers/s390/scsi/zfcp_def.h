@@ -70,7 +70,7 @@
 /********************* GENERAL DEFINES *********************************/
 
 /* zfcp version number, it consists of major, minor, and patch-level number */
-#define ZFCP_VERSION		"4.2.0"
+#define ZFCP_VERSION		"4.3.0"
 
 /**
  * zfcp_sg_to_address - determine kernel address from struct scatterlist
@@ -851,6 +851,9 @@ struct zfcp_adapter {
 	wwn_t			wwnn;	           /* WWNN */
 	wwn_t			wwpn;	           /* WWPN */
 	fc_id_t			s_id;	           /* N_Port ID */
+	wwn_t			peer_wwnn;	   /* P2P peer WWNN */
+	wwn_t			peer_wwpn;	   /* P2P peer WWPN */
+	fc_id_t			peer_d_id;	   /* P2P peer D_ID */
 	struct ccw_device       *ccw_device;	   /* S/390 ccw device */
 	u8			fc_service_class;
 	u32			fc_topology;	   /* FC topology */

@@ -2568,6 +2568,23 @@ zfcp_erp_port_strategy_open_common(struct zfcp_erp_action *erp_action)
 	case ZFCP_ERP_STEP_UNINITIALIZED:
 	case ZFCP_ERP_STEP_PHYS_PORT_CLOSING:
 	case ZFCP_ERP_STEP_PORT_CLOSING:
+		if (adapter->fc_topology == FSF_TOPO_P2P) {
+			if (port->wwpn != adapter->peer_wwpn) {
+				ZFCP_LOG_NORMAL("Failed to open port 0x%016Lx "
+						"on adapter %s.\nPeer WWPN "
+						"0x%016Lx does not match\n",
+						port->wwpn,
+						zfcp_get_busid_by_adapter(adapter),
+						adapter->peer_wwpn);
+				zfcp_erp_port_failed(port);
+				retval = ZFCP_ERP_FAILED;
+				break;
+			}
+			port->d_id = adapter->peer_d_id;
+			atomic_set_mask(ZFCP_STATUS_PORT_DID_DID, &port->status);
+			retval = zfcp_erp_port_strategy_open_port(erp_action);
+			break;
+		}
 		if (!(adapter->nameserver_port)) {
 			retval = zfcp_nameserver_enqueue(adapter);
 			if (retval != 0) {
@@ -3516,8 +3533,9 @@ zfcp_erp_adapter_access_changed(struct zfcp_adapter *adapter)
 	debug_text_event(adapter->erp_dbf, 3, "a_access_unblock");
 	debug_event(adapter->erp_dbf, 3, &adapter->name, 8);
 
-	zfcp_erp_port_access_changed(adapter->nameserver_port);
 	read_lock_irqsave(&zfcp_data.config_lock, flags);
+	if (adapter->nameserver_port)
+		zfcp_erp_port_access_changed(adapter->nameserver_port);
 	list_for_each_entry(port, &adapter->port_list_head, list)
 		if (port != adapter->nameserver_port)
 			zfcp_erp_port_access_changed(port);
