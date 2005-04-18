@@ -608,9 +608,11 @@ static int __init acpi_parse_fadt(unsigned long phys, unsigned long size)
 	acpi_fadt.sci_int = fadt->sci_int;
 #endif
 
+#ifdef CONFIG_ACPI_BUS
 	/* initialize rev and apic_phys_dest_mode for x86_64 genapic */
 	acpi_fadt.revision = fadt->revision;
 	acpi_fadt.force_apic_physical_destination_mode = fadt->force_apic_physical_destination_mode;
+#endif
 
 #ifdef CONFIG_X86_PM_TIMER
 	/* detect the location of the ACPI PM Timer */
