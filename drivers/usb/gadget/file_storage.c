@@ -81,6 +81,10 @@
  *	removable		Default false, boolean for removable media
  *	luns=N			Default N = number of filenames, number of
  *					LUNs to support
+ *	stall			Default determined according to the type of
+ *					USB device controller (usually true),
+ *					boolean to permit the driver to halt
+ *					bulk endpoints
  *	transport=XXX		Default BBB, transport name (CB, CBI, or BBB)
  *	protocol=YYY		Default SCSI, protocol name (RBC, 8020 or
  *					ATAPI, QIC, UFI, 8070, or SCSI;
@@ -91,14 +95,10 @@
  *	buflen=N		Default N=16384, buffer size used (will be
  *					rounded down to a multiple of
  *					PAGE_CACHE_SIZE)
- *	stall			Default determined according to the type of
- *					USB device controller (usually true),
- *					boolean to permit the driver to halt
- *					bulk endpoints
  *
  * If CONFIG_USB_FILE_STORAGE_TEST is not set, only the "file", "ro",
- * "removable", and "luns" options are available; default values are used
- * for everything else.
+ * "removable", "luns", and "stall" options are available; default values
+ * are used for everything else.
  *
  * The pathnames of the backing files and the ro settings are available in
  * the attribute files "file" and "ro" in the lun<n> subdirectory of the
@@ -342,14 +342,15 @@ static struct {
 	int		num_ros;
 	unsigned int	nluns;
 
+	int		removable;
+	int		can_stall;
+
 	char		*transport_parm;
 	char		*protocol_parm;
-	int		removable;
 	unsigned short	vendor;
 	unsigned short	product;
 	unsigned short	release;
 	unsigned int	buflen;
-	int		can_stall;
 
 	int		transport_type;
 	char		*transport_name;
@@ -360,11 +361,11 @@ static struct {
 	.transport_parm		= "BBB",
 	.protocol_parm		= "SCSI",
 	.removable		= 0,
+	.can_stall		= 1,
 	.vendor			= DRIVER_VENDOR_ID,
 	.product		= DRIVER_PRODUCT_ID,
 	.release		= 0xffff,	// Use controller chip type
 	.buflen			= 16384,
-	.can_stall		= 1,
 	};
 
 
@@ -379,6 +380,9 @@ MODULE_PARM_DESC(luns, "number of LUNs");
 
 module_param_named(removable, mod_data.removable, bool, S_IRUGO);
 MODULE_PARM_DESC(removable, "true to simulate removable media");
+
+module_param_named(stall, mod_data.can_stall, bool, S_IRUGO);
+MODULE_PARM_DESC(stall, "false to prevent bulk stalls");
 
 
 /* In the non-TEST version, only the module parameters listed above
@@ -403,9 +407,6 @@ MODULE_PARM_DESC(release, "USB release number");
 
 module_param_named(buflen, mod_data.buflen, uint, S_IRUGO);
 MODULE_PARM_DESC(buflen, "I/O buffer size");
-
-module_param_named(stall, mod_data.can_stall, bool, S_IRUGO);
-MODULE_PARM_DESC(stall, "false to prevent bulk stalls");
 
 #endif /* CONFIG_USB_FILE_STORAGE_TEST */
 
@@ -2657,7 +2658,7 @@ static int check_command(struct fsg_dev *fsg, int cmnd_size,
 		}
 	}
 
-	/* Check that the LUN values are oonsistent */
+	/* Check that the LUN values are consistent */
 	if (transport_is_bbb()) {
 		if (fsg->lun != lun)
 			DBG(fsg, "using LUN %d from CBW, "
