@@ -75,21 +75,21 @@ static inline struct dentry *debugfs_create_u8(const char *name, mode_t mode,
 
 static inline struct dentry *debugfs_create_u16(const char *name, mode_t mode,
 						struct dentry *parent,
-						u8 *value)
+						u16 *value)
 {
 	return ERR_PTR(-ENODEV);
 }
 
 static inline struct dentry *debugfs_create_u32(const char *name, mode_t mode,
 						struct dentry *parent,
-						u8 *value)
+						u32 *value)
 {
 	return ERR_PTR(-ENODEV);
 }
 
 static inline struct dentry *debugfs_create_bool(const char *name, mode_t mode,
 						 struct dentry *parent,
-						 u8 *value)
+						 u32 *value)
 {
 	return ERR_PTR(-ENODEV);
 }
