@@ -213,12 +213,10 @@ static struct async *alloc_async(unsigned int numisoframes)
 
 static void free_async(struct async *as)
 {
-        if (as->urb->transfer_buffer)
-                kfree(as->urb->transfer_buffer);
-        if (as->urb->setup_packet)
-                kfree(as->urb->setup_packet);
+	kfree(as->urb->transfer_buffer);
+	kfree(as->urb->setup_packet);
 	usb_free_urb(as->urb);
-        kfree(as);
+	kfree(as);
 }
 
 static inline void async_newpending(struct async *as)
@@ -938,17 +936,13 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 		return -EINVAL;
 	}
 	if (!(as = alloc_async(uurb->number_of_packets))) {
-		if (isopkt)
-			kfree(isopkt);
-		if (dr)
-			kfree(dr);
+		kfree(isopkt);
+		kfree(dr);
 		return -ENOMEM;
 	}
 	if (!(as->urb->transfer_buffer = kmalloc(uurb->buffer_length, GFP_KERNEL))) {
-		if (isopkt)
-			kfree(isopkt);
-		if (dr)
-			kfree(dr);
+		kfree(isopkt);
+		kfree(dr);
 		free_async(as);
 		return -ENOMEM;
 	}
@@ -967,8 +961,7 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 		as->urb->iso_frame_desc[u].length = isopkt[u].length;
 		totlen += isopkt[u].length;
 	}
-	if (isopkt)
-		kfree(isopkt);
+	kfree(isopkt);
 	as->ps = ps;
         as->userurb = arg;
 	if (uurb->endpoint & USB_DIR_IN)
@@ -1237,7 +1230,7 @@ static int proc_ioctl (struct dev_state *ps, void __user *arg)
 			return -ENOMEM;
 		if ((_IOC_DIR(ctrl.ioctl_code) & _IOC_WRITE)) {
 			if (copy_from_user (buf, ctrl.data, size)) {
-				kfree (buf);
+				kfree(buf);
 				return -EFAULT;
 			}
 		} else {
@@ -1246,8 +1239,7 @@ static int proc_ioctl (struct dev_state *ps, void __user *arg)
 	}
 
 	if (!connected(ps->dev)) {
-		if (buf)
-			kfree(buf);
+		kfree(buf);
 		return -ENODEV;
 	}
 
@@ -1309,8 +1301,8 @@ static int proc_ioctl (struct dev_state *ps, void __user *arg)
 			&& size > 0
 			&& copy_to_user (ctrl.data, buf, size) != 0)
 		retval = -EFAULT;
-	if (buf != NULL)
-		kfree (buf);
+
+	kfree(buf);
 	return retval;
 }
 
