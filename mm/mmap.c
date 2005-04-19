@@ -1612,11 +1612,6 @@ static void unmap_vma_list(struct mm_struct *mm, struct vm_area_struct *vma)
 	validate_mm(mm);
 }
 
-#ifndef FIRST_USER_ADDRESS	/* temporary hack */
-#define THIS_IS_ARM		FIRST_USER_PGD_NR
-#define FIRST_USER_ADDRESS	(THIS_IS_ARM * PAGE_SIZE)
-#endif
-
 /*
  * Get rid of page table information in the indicated region.
  *
