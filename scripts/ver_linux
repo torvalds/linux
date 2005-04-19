@@ -87,7 +87,7 @@ loadkeys -V 2>&1 | awk \
 
 expr --v 2>&1 | awk 'NR==1{print "Sh-utils              ", $NF}'
 
-udevinfo -V | awk '{print "udev                  ", $3}'
+udevinfo -V 2>&1 | grep version | awk '{print "udev                  ", $3}'
 
 if [ -e /proc/modules ]; then
     X=`cat /proc/modules | sed -e "s/ .*$//"`
