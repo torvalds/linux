@@ -146,7 +146,8 @@ aoedev_freedev(struct aoedev *d)
 		put_disk(d->gd);
 	}
 	kfree(d->frames);
-	mempool_destroy(d->bufpool);
+	if (d->bufpool)
+		mempool_destroy(d->bufpool);
 	kfree(d);
 }
 
