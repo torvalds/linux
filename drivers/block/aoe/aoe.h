@@ -39,13 +39,13 @@ enum {
 struct aoe_hdr {
 	unsigned char dst[6];
 	unsigned char src[6];
-	unsigned char type[2];
+	__be16 type;
 	unsigned char verfl;
 	unsigned char err;
-	unsigned char major[2];
+	__be16 major;
 	unsigned char minor;
 	unsigned char cmd;
-	unsigned char tag[4];
+	__be32 tag;
 };
 
 struct aoe_atahdr {
@@ -63,8 +63,8 @@ struct aoe_atahdr {
 };
 
 struct aoe_cfghdr {
-	unsigned char bufcnt[2];
-	unsigned char fwver[2];
+	__be16 bufcnt;
+	__be16 fwver;
 	unsigned char res;
 	unsigned char aoeccmd;
 	unsigned char cslen[2];
