@@ -420,12 +420,16 @@ int usb_submit_urb(struct urb *urb, int mem_flags)
  *
  * Host Controller Drivers (HCDs) place all the URBs for a particular
  * endpoint in a queue.  Normally the queue advances as the controller
- * hardware processes each request.  But when an URB terminates with any
- * fault (such as an error, or being unlinked) its queue stops, at least
- * until that URB's completion routine returns.  It is guaranteed that
- * the queue will not restart until all its unlinked URBs have been fully
- * retired, with their completion routines run, even if that's not until
- * some time after the original completion handler returns.
+ * hardware processes each request.  But when an URB terminates with an
+ * error its queue stops, at least until that URB's completion routine
+ * returns.  It is guaranteed that the queue will not restart until all
+ * its unlinked URBs have been fully retired, with their completion
+ * routines run, even if that's not until some time after the original
+ * completion handler returns.  Normally the same behavior and guarantees
+ * apply when an URB terminates because it was unlinked; however if an
+ * URB is unlinked before the hardware has started to execute it, then
+ * its queue is not guaranteed to stop until all the preceding URBs have
+ * completed.
  *
  * This means that USB device drivers can safely build deep queues for
  * large or complex transfers, and clean them up reliably after any sort
