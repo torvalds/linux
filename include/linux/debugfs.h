@@ -17,6 +17,10 @@
 
 #include <linux/fs.h>
 
+#include <linux/types.h>
+
+struct file_operations;
+
 #if defined(CONFIG_DEBUG_FS)
 struct dentry *debugfs_create_file(const char *name, mode_t mode,
 				   struct dentry *parent, void *data,
@@ -36,6 +40,9 @@ struct dentry *debugfs_create_bool(const char *name, mode_t mode,
 				  struct dentry *parent, u32 *value);
 
 #else
+
+#include <linux/err.h>
+
 /* 
  * We do not return NULL from these functions if CONFIG_DEBUG_FS is not enabled
  * so users have a chance to detect if there was a real error or not.  We don't
