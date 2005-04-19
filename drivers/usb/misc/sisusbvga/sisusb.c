@@ -3104,6 +3104,7 @@ static void sisusb_disconnect(struct usb_interface *intf)
 
 static struct usb_device_id sisusb_table [] = {
 	{ USB_DEVICE(0x0711, 0x0900) },
+	{ USB_DEVICE(0x182d, 0x021c) },
 	{ }
 };
 
@@ -3114,7 +3115,7 @@ static struct usb_driver sisusb_driver = {
 	.name =		"sisusb",
 	.probe =	sisusb_probe,
 	.disconnect =	sisusb_disconnect,
-	.id_table =	sisusb_table
+	.id_table =	sisusb_table,
 };
 
 static int __init usb_sisusb_init(void)
