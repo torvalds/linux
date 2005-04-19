@@ -60,7 +60,7 @@ static ssize_t w1_smem_read_val(struct device *dev, char *buf)
 	int i;
 	ssize_t count = 0;
 	
-	for (i = 0; i < 9; ++i)
+	for (i = 0; i < 8; ++i)
 		count += sprintf(buf + count, "%02x ", ((u8 *)&sl->reg_num)[i]);
 	count += sprintf(buf + count, "\n");
 
@@ -87,7 +87,7 @@ static ssize_t w1_smem_read_bin(struct kobject *kobj, char *buf, loff_t off, siz
 		count = 0;
 		goto out;
 	}
-	for (i = 0; i < 9; ++i)
+	for (i = 0; i < 8; ++i)
 		count += sprintf(buf + count, "%02x ", ((u8 *)&sl->reg_num)[i]);
 	count += sprintf(buf + count, "\n");
 	

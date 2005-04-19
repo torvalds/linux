@@ -574,7 +574,7 @@ static ssize_t show_alarms(struct device *dev, char *buf) {
 	struct via686a_data *data = via686a_update_device(dev);
 	return sprintf(buf,"%d\n", ALARMS_FROM_REG(data->alarms));
 }
-static DEVICE_ATTR(alarms, S_IRUGO | S_IWUSR, show_alarms, NULL);
+static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);
 
 /* The driver. I choose to use type i2c_driver, as at is identical to both
    smbus_driver and isa_driver, and clients could be of either kind */
@@ -651,10 +651,9 @@ static int via686a_detect(struct i2c_adapter *adapter, int address, int kind)
 	new_client->adapter = adapter;
 	new_client->driver = &via686a_driver;
 	new_client->flags = 0;
-	new_client->dev.parent = &adapter->dev;
 
 	/* Fill in the remaining client fields and put into the global list */
-	snprintf(new_client->name, I2C_NAME_SIZE, client_name);
+	strlcpy(new_client->name, client_name, I2C_NAME_SIZE);
 
 	data->valid = 0;
 	init_MUTEX(&data->update_lock);

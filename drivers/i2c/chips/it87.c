@@ -668,7 +668,7 @@ static ssize_t show_alarms(struct device *dev, char *buf)
 	struct it87_data *data = it87_update_device(dev);
 	return sprintf(buf,"%d\n", ALARMS_FROM_REG(data->alarms));
 }
-static DEVICE_ATTR(alarms, S_IRUGO | S_IWUSR, show_alarms, NULL);
+static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);
 
 static ssize_t
 show_vrm_reg(struct device *dev, char *buf)

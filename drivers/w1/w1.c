@@ -522,10 +522,11 @@ void w1_slave_found(unsigned long data, u64 rn)
 		slave_count++;
 	}
 
-		if (slave_count == dev->slave_count && rn ) {
-			tmp = cpu_to_le64(rn);
-			if(((rn >> 56) & 0xff) == w1_calc_crc8((u8 *)&tmp, 7))
-				w1_attach_slave_device(dev, (struct w1_reg_num *) &rn);
+	rn = cpu_to_le64(rn);
+
+	if (slave_count == dev->slave_count &&
+		rn && ((le64_to_cpu(rn) >> 56) & 0xff) == w1_calc_crc8((u8 *)&rn, 7)) {
+		w1_attach_slave_device(dev, tmp);
 	}
 			
 	atomic_dec(&dev->refcnt);
