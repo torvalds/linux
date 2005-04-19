@@ -21,6 +21,13 @@ extern void usb_unlock_all_devices(void);
 extern void usb_kick_khubd(struct usb_device *dev);
 extern void usb_resume_root_hub(struct usb_device *dev);
 
+extern int  usb_hub_init(void);
+extern void usb_hub_cleanup(void);
+extern int usb_major_init(void);
+extern void usb_major_cleanup(void);
+extern int usb_host_init(void);
+extern void usb_host_cleanup(void);
+
 /* for labeling diagnostics */
 extern const char *usbcore_name;
 
@@ -29,6 +36,7 @@ extern struct usb_driver usbfs_driver;
 extern struct file_operations usbfs_devices_fops;
 extern struct file_operations usbfs_device_file_operations;
 extern void usbfs_conn_disc_event(void);
+
 
 struct dev_state {
 	struct list_head list;      /* state list */
