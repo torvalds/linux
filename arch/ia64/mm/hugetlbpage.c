@@ -186,13 +186,30 @@ follow_huge_pmd(struct mm_struct *mm, unsigned long address, pmd_t *pmd, int wri
 	return NULL;
 }
 
-/*
- * Do nothing, until we've worked out what to do!  To allow build, we
- * must remove reference to clear_page_range since it no longer exists.
- */
-void hugetlb_free_pgtables(struct mmu_gather *tlb, struct vm_area_struct *prev,
-	unsigned long start, unsigned long end)
+void hugetlb_free_pgd_range(struct mmu_gather **tlb,
+			unsigned long addr, unsigned long end,
+			unsigned long floor, unsigned long ceiling)
 {
+	/*
+	 * This is called only when is_hugepage_only_range(addr,),
+	 * and it follows that is_hugepage_only_range(end,) also.
+	 *
+	 * The offset of these addresses from the base of the hugetlb
+	 * region must be scaled down by HPAGE_SIZE/PAGE_SIZE so that
+	 * the standard free_pgd_range will free the right page tables.
+	 *
+	 * If floor and ceiling are also in the hugetlb region, they
+	 * must likewise be scaled down; but if outside, left unchanged.
+	 */
+
+	addr = htlbpage_to_page(addr);
+	end  = htlbpage_to_page(end);
+	if (is_hugepage_only_range(tlb->mm, floor, HPAGE_SIZE))
+		floor = htlbpage_to_page(floor);
+	if (is_hugepage_only_range(tlb->mm, ceiling, HPAGE_SIZE))
+		ceiling = htlbpage_to_page(ceiling);
+
+	free_pgd_range(tlb, addr, end, floor, ceiling);
 }
 
 void unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start, unsigned long end)

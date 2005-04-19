@@ -190,7 +190,7 @@ static inline void free_pud_range(struct mmu_gather *tlb, pgd_t *pgd,
  *
  * Must be called with pagetable lock held.
  */
-static inline void free_pgd_range(struct mmu_gather *tlb,
+void free_pgd_range(struct mmu_gather **tlb,
 			unsigned long addr, unsigned long end,
 			unsigned long floor, unsigned long ceiling)
 {
@@ -241,37 +241,47 @@ static inline void free_pgd_range(struct mmu_gather *tlb,
 		return;
 
 	start = addr;
-	pgd = pgd_offset(tlb->mm, addr);
+	pgd = pgd_offset((*tlb)->mm, addr);
 	do {
 		next = pgd_addr_end(addr, end);
 		if (pgd_none_or_clear_bad(pgd))
 			continue;
-		free_pud_range(tlb, pgd, addr, next, floor, ceiling);
+		free_pud_range(*tlb, pgd, addr, next, floor, ceiling);
 	} while (pgd++, addr = next, addr != end);
 
-	if (!tlb_is_full_mm(tlb))
-		flush_tlb_pgtables(tlb->mm, start, end);
+	if (!tlb_is_full_mm(*tlb))
+		flush_tlb_pgtables((*tlb)->mm, start, end);
 }
 
 void free_pgtables(struct mmu_gather **tlb, struct vm_area_struct *vma,
-				unsigned long floor, unsigned long ceiling)
+		unsigned long floor, unsigned long ceiling)
 {
 	while (vma) {
 		struct vm_area_struct *next = vma->vm_next;
 		unsigned long addr = vma->vm_start;
 
-		/* Optimization: gather nearby vmas into a single call down */
-		while (next && next->vm_start <= vma->vm_end + PMD_SIZE) {
-			vma = next;
-			next = vma->vm_next;
-		}
-		free_pgd_range(*tlb, addr, vma->vm_end,
+		if (is_hugepage_only_range(vma->vm_mm, addr, HPAGE_SIZE)) {
+			hugetlb_free_pgd_range(tlb, addr, vma->vm_end,
 				floor, next? next->vm_start: ceiling);
+		} else {
+			/*
+			 * Optimization: gather nearby vmas into one call down
+			 */
+			while (next && next->vm_start <= vma->vm_end + PMD_SIZE
+			  && !is_hugepage_only_range(vma->vm_mm, next->vm_start,
+							HPAGE_SIZE)) {
+				vma = next;
+				next = vma->vm_next;
+			}
+			free_pgd_range(tlb, addr, vma->vm_end,
+				floor, next? next->vm_start: ceiling);
+		}
 		vma = next;
 	}
 }
 
-pte_t fastcall * pte_alloc_map(struct mm_struct *mm, pmd_t *pmd, unsigned long address)
+pte_t fastcall *pte_alloc_map(struct mm_struct *mm, pmd_t *pmd,
+				unsigned long address)
 {
 	if (!pmd_present(*pmd)) {
 		struct page *new;
