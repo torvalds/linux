@@ -90,6 +90,7 @@ enum {
 
 struct buf {
 	struct list_head bufs;
+	ulong start_time;	/* for disk stats */
 	ulong flags;
 	ulong nframesout;
 	char *bufaddr;

@@ -125,6 +125,7 @@ aoeblk_make_request(request_queue_t *q, struct bio *bio)
 	}
 	memset(buf, 0, sizeof(*buf));
 	INIT_LIST_HEAD(&buf->bufs);
+	buf->start_time = jiffies;
 	buf->bio = bio;
 	buf->resid = bio->bi_size;
 	buf->sector = bio->bi_sector;

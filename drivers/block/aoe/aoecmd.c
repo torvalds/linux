@@ -456,6 +456,20 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 	if (buf) {
 		buf->nframesout -= 1;
 		if (buf->nframesout == 0 && buf->resid == 0) {
+			unsigned long duration = jiffies - buf->start_time;
+			unsigned long n_sect = buf->bio->bi_size >> 9;
+			struct gendisk *disk = d->gd;
+
+			if (bio_data_dir(buf->bio) == WRITE) {
+				disk_stat_inc(disk, writes);
+				disk_stat_add(disk, write_ticks, duration);
+				disk_stat_add(disk, write_sectors, n_sect);
+			} else {
+				disk_stat_inc(disk, reads);
+				disk_stat_add(disk, read_ticks, duration);
+				disk_stat_add(disk, read_sectors, n_sect);
+			}
+			disk_stat_add(disk, io_ticks, duration);
 			n = (buf->flags & BUFFL_FAIL) ? -EIO : 0;
 			bio_endio(buf->bio, buf->bio->bi_size, n);
 			mempool_free(buf, d->bufpool);
