@@ -424,21 +424,6 @@ extern int io_remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
 #define GET_IOSPACE(pfn)		(pfn >> (BITS_PER_LONG - 4))
 #define GET_PFN(pfn)			(pfn & 0x0fffffffffffffffUL)
 
-/* Override for {pgd,pmd}_addr_end() to deal with the virtual address
- * space hole.  We simply sign extend bit 43.
- */
-#define pgd_addr_end(addr, end)						\
-({	unsigned long __boundary = ((addr) + PGDIR_SIZE) & PGDIR_MASK;	\
-	__boundary = ((long) (__boundary << 20)) >> 20;			\
-	(__boundary - 1 < (end) - 1)? __boundary: (end);		\
-})
-
-#define pmd_addr_end(addr, end)						\
-({	unsigned long __boundary = ((addr) + PMD_SIZE) & PMD_MASK;	\
-	__boundary = ((long) (__boundary << 20)) >> 20;			\
-	(__boundary - 1 < (end) - 1)? __boundary: (end);		\
-})
-
 #include <asm-generic/pgtable.h>
 
 /* We provide our own get_unmapped_area to cope with VA holes for userland */
