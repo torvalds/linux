@@ -1128,8 +1128,8 @@ static void stir_disconnect(struct usb_interface *intf)
 }
 
 #ifdef CONFIG_PM
-/* Power management suspend, so power off the transmitter/receiver */
-static int stir_suspend(struct usb_interface *intf, u32 state)
+/* USB suspend, so power off the transmitter/receiver */
+static int stir_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct stir_cb *stir = usb_get_intfdata(intf);
 

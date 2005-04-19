@@ -1731,7 +1731,7 @@ static int finish_port_resume(struct usb_device *udev)
 			struct usb_driver	*driver;
 
 			intf = udev->actconfig->interface[i];
-			if (intf->dev.power.power_state == PM_SUSPEND_ON)
+			if (intf->dev.power.power_state == PMSG_SUSPEND)
 				continue;
 			if (!intf->dev.driver) {
 				/* FIXME maybe force to alt 0 */
@@ -1745,7 +1745,7 @@ static int finish_port_resume(struct usb_device *udev)
 
 			/* can we do better than just logging errors? */
 			status = driver->resume(intf);
-			if (intf->dev.power.power_state != PM_SUSPEND_ON
+			if (intf->dev.power.power_state != PMSG_ON
 					|| status)
 				dev_dbg(&intf->dev,
 					"resume fail, state %d code %d\n",

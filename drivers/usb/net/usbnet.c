@@ -3732,11 +3732,17 @@ out:
 
 #ifdef	CONFIG_PM
 
-static int usbnet_suspend (struct usb_interface *intf, u32 state)
+static int usbnet_suspend (struct usb_interface *intf, pm_message_t message)
 {
 	struct usbnet		*dev = usb_get_intfdata(intf);
 	
+	/* accelerate emptying of the rx and queues, to avoid
+	 * having everything error out.
+	 */
 	netif_device_detach (dev->net);
+	(void) unlink_urbs (dev, &dev->rxq);
+	(void) unlink_urbs (dev, &dev->txq);
+	intf->dev.power.power_state = PMSG_SUSPEND;
 	return 0;
 }
 
@@ -3744,7 +3750,9 @@ static int usbnet_resume (struct usb_interface *intf)
 {
 	struct usbnet		*dev = usb_get_intfdata(intf);
 
+	intf->dev.power.power_state = PMSG_ON;
 	netif_device_attach (dev->net);
+	tasklet_schedule (&dev->bh);
 	return 0;
 }
 
