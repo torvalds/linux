@@ -201,13 +201,24 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t p
 
 void flush_dcache_page(struct page *page)
 {
-	struct address_space *mapping = page_mapping(page);
-	int dirty = test_bit(PG_dcache_dirty, &page->flags);
-	int dirty_cpu = dcache_dirty_cpu(page);
-	int this_cpu = get_cpu();
+	struct address_space *mapping;
+	int this_cpu;
 
+	/* Do not bother with the expensive D-cache flush if it
+	 * is merely the zero page.  The 'bigcore' testcase in GDB
+	 * causes this case to run millions of times.
+	 */
+	if (page == ZERO_PAGE(0))
+		return;
+
+	this_cpu = get_cpu();
+
+	mapping = page_mapping(page);
 	if (mapping && !mapping_mapped(mapping)) {
+		int dirty = test_bit(PG_dcache_dirty, &page->flags);
 		if (dirty) {
+			int dirty_cpu = dcache_dirty_cpu(page);
+
 			if (dirty_cpu == this_cpu)
 				goto out;
 			smp_flush_dcache_page_impl(page, dirty_cpu);

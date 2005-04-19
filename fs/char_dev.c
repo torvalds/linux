@@ -26,8 +26,7 @@
 
 static struct kobj_map *cdev_map;
 
-/* degrade to linked list for small systems */
-#define MAX_PROBE_HASH (CONFIG_BASE_SMALL ? 1 : 255)
+#define MAX_PROBE_HASH 255	/* random */
 
 static DECLARE_MUTEX(chrdevs_lock);
 

@@ -1,12 +1,13 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.10-m68k
-# Sun Dec 26 11:23:36 2004
+# Linux kernel version: 2.6.12-rc2-m68k
+# Tue Apr  5 14:05:31 2005
 #
 CONFIG_M68K=y
 CONFIG_MMU=y
 CONFIG_UID16=y
 CONFIG_RWSEM_GENERIC_SPINLOCK=y
+CONFIG_GENERIC_CALIBRATE_DELAY=y
 
 #
 # Code maturity level options
@@ -14,6 +15,7 @@ CONFIG_RWSEM_GENERIC_SPINLOCK=y
 CONFIG_EXPERIMENTAL=y
 CONFIG_CLEAN_COMPILE=y
 CONFIG_BROKEN_ON_SMP=y
+CONFIG_INIT_ENV_ARG_LIMIT=32
 
 #
 # General setup
@@ -25,22 +27,22 @@ CONFIG_SYSVIPC=y
 # CONFIG_BSD_PROCESS_ACCT is not set
 CONFIG_SYSCTL=y
 # CONFIG_AUDIT is not set
-CONFIG_LOG_BUF_SHIFT=14
 # CONFIG_HOTPLUG is not set
 CONFIG_KOBJECT_UEVENT=y
 # CONFIG_IKCONFIG is not set
 # CONFIG_EMBEDDED is not set
 CONFIG_KALLSYMS=y
 # CONFIG_KALLSYMS_EXTRA_PASS is not set
+CONFIG_BASE_FULL=y
 CONFIG_FUTEX=y
 CONFIG_EPOLL=y
-# CONFIG_CC_OPTIMIZE_FOR_SIZE is not set
 CONFIG_SHMEM=y
 CONFIG_CC_ALIGN_FUNCTIONS=0
 CONFIG_CC_ALIGN_LABELS=0
 CONFIG_CC_ALIGN_LOOPS=0
 CONFIG_CC_ALIGN_JUMPS=0
 # CONFIG_TINY_SHMEM is not set
+CONFIG_BASE_SMALL=0
 
 #
 # Loadable module support
@@ -92,6 +94,7 @@ CONFIG_PROC_HARDWARE=y
 #
 CONFIG_STANDALONE=y
 CONFIG_PREVENT_FIRMWARE_BUILD=y
+# CONFIG_FW_LOADER is not set
 
 #
 # Memory Technology Devices (MTD)
@@ -112,6 +115,7 @@ CONFIG_PREVENT_FIRMWARE_BUILD=y
 #
 CONFIG_AMIGA_FLOPPY=y
 # CONFIG_AMIGA_Z2RAM is not set
+# CONFIG_BLK_DEV_COW_COMMON is not set
 # CONFIG_BLK_DEV_LOOP is not set
 # CONFIG_BLK_DEV_NBD is not set
 CONFIG_BLK_DEV_RAM=y
@@ -130,6 +134,7 @@ CONFIG_IOSCHED_NOOP=y
 CONFIG_IOSCHED_AS=y
 CONFIG_IOSCHED_DEADLINE=y
 CONFIG_IOSCHED_CFQ=y
+# CONFIG_ATA_OVER_ETH is not set
 
 #
 # ATA/ATAPI/MFM/RLL support
@@ -164,6 +169,7 @@ CONFIG_SCSI_CONSTANTS=y
 #
 # CONFIG_SCSI_SPI_ATTRS is not set
 # CONFIG_SCSI_FC_ATTRS is not set
+# CONFIG_SCSI_ISCSI_ATTRS is not set
 
 #
 # SCSI low-level drivers
@@ -207,7 +213,6 @@ CONFIG_NET=y
 #
 CONFIG_PACKET=y
 # CONFIG_PACKET_MMAP is not set
-# CONFIG_NETLINK_DEV is not set
 CONFIG_UNIX=y
 # CONFIG_NET_KEY is not set
 CONFIG_INET=y
@@ -324,16 +329,6 @@ CONFIG_INPUT_MOUSEDEV_SCREEN_Y=768
 # CONFIG_INPUT_EVBUG is not set
 
 #
-# Input I/O drivers
-#
-# CONFIG_GAMEPORT is not set
-CONFIG_SOUND_GAMEPORT=y
-CONFIG_SERIO=y
-CONFIG_SERIO_SERPORT=y
-# CONFIG_SERIO_CT82C710 is not set
-# CONFIG_SERIO_RAW is not set
-
-#
 # Input Device Drivers
 #
 CONFIG_INPUT_KEYBOARD=y
@@ -351,6 +346,16 @@ CONFIG_MOUSE_PS2=y
 # CONFIG_INPUT_JOYSTICK is not set
 # CONFIG_INPUT_TOUCHSCREEN is not set
 # CONFIG_INPUT_MISC is not set
+
+#
+# Hardware I/O ports
+#
+CONFIG_SERIO=y
+CONFIG_SERIO_SERPORT=y
+CONFIG_SERIO_LIBPS2=y
+# CONFIG_SERIO_RAW is not set
+# CONFIG_GAMEPORT is not set
+CONFIG_SOUND_GAMEPORT=y
 
 #
 # Character devices
@@ -393,6 +398,10 @@ CONFIG_LEGACY_PTY_COUNT=256
 # CONFIG_RAW_DRIVER is not set
 
 #
+# TPM devices
+#
+
+#
 # I2C support
 #
 # CONFIG_I2C is not set
@@ -420,6 +429,11 @@ CONFIG_LEGACY_PTY_COUNT=256
 # Graphics support
 #
 CONFIG_FB=y
+# CONFIG_FB_CFB_FILLRECT is not set
+# CONFIG_FB_CFB_COPYAREA is not set
+# CONFIG_FB_CFB_IMAGEBLIT is not set
+CONFIG_FB_SOFT_CURSOR=y
+# CONFIG_FB_MACMODES is not set
 CONFIG_FB_MODE_HELPERS=y
 # CONFIG_FB_TILEBLITTING is not set
 # CONFIG_FB_CIRRUS is not set
@@ -428,6 +442,7 @@ CONFIG_FB_AMIGA_OCS=y
 CONFIG_FB_AMIGA_ECS=y
 CONFIG_FB_AMIGA_AGA=y
 # CONFIG_FB_FM2 is not set
+# CONFIG_FB_S1D13XXX is not set
 # CONFIG_FB_VIRTUAL is not set
 
 #
@@ -440,6 +455,7 @@ CONFIG_DUMMY_CONSOLE=y
 # Logo configuration
 #
 # CONFIG_LOGO is not set
+# CONFIG_BACKLIGHT_LCD_SUPPORT is not set
 
 #
 # Sound
@@ -453,10 +469,6 @@ CONFIG_DUMMY_CONSOLE=y
 # CONFIG_USB_ARCH_HAS_OHCI is not set
 
 #
-# NOTE: USB_STORAGE enables SCSI, and 'SCSI disk support' may also be needed; see USB_STORAGE Help for more information
-#
-
-#
 # USB Gadget Support
 #
 # CONFIG_USB_GADGET is not set
@@ -465,6 +477,11 @@ CONFIG_DUMMY_CONSOLE=y
 # MMC/SD Card support
 #
 # CONFIG_MMC is not set
+
+#
+# InfiniBand support
+#
+# CONFIG_INFINIBAND is not set
 
 #
 # Character devices
@@ -483,6 +500,10 @@ CONFIG_EXT2_FS=y
 # CONFIG_JBD is not set
 # CONFIG_REISERFS_FS is not set
 # CONFIG_JFS_FS is not set
+
+#
+# XFS support
+#
 # CONFIG_XFS_FS is not set
 CONFIG_MINIX_FS=y
 # CONFIG_ROMFS_FS is not set
@@ -544,7 +565,6 @@ CONFIG_NFS_FS=y
 # CONFIG_NFS_DIRECTIO is not set
 # CONFIG_NFSD is not set
 CONFIG_LOCKD=y
-# CONFIG_EXPORTFS is not set
 CONFIG_SUNRPC=y
 # CONFIG_RPCSEC_GSS_KRB5 is not set
 # CONFIG_RPCSEC_GSS_SPKM3 is not set
@@ -608,7 +628,10 @@ CONFIG_NLS_CODEPAGE_437=y
 #
 # Kernel hacking
 #
+# CONFIG_PRINTK_TIME is not set
 # CONFIG_DEBUG_KERNEL is not set
+CONFIG_LOG_BUF_SHIFT=14
+CONFIG_DEBUG_BUGVERBOSE=y
 
 #
 # Security options
@@ -620,6 +643,10 @@ CONFIG_NLS_CODEPAGE_437=y
 # Cryptographic options
 #
 # CONFIG_CRYPTO is not set
+
+#
+# Hardware crypto devices
+#
 
 #
 # Library routines

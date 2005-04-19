@@ -79,7 +79,7 @@
 #define __NR_umask               60 /* Common                                      */
 #define __NR_chroot              61 /* Common                                      */
 #define __NR_fstat               62 /* Common                                      */
-#define __NR_fstat64		 63 /* Linux sparc32 Specific			   */
+#define __NR_fstat64		 63 /* Linux Specific			           */
 #define __NR_getpagesize         64 /* Common                                      */
 #define __NR_msync               65 /* Common in newer 1.3.x revs...               */
 #define __NR_vfork               66 /* Common                                      */
@@ -148,14 +148,14 @@
 #define __NR_truncate           129 /* Common                                      */
 #define __NR_ftruncate          130 /* Common                                      */
 #define __NR_flock              131 /* Common                                      */
-#define __NR_lstat64		132 /* Linux sparc32 Specific			   */
+#define __NR_lstat64		132 /* Linux Specific			           */
 #define __NR_sendto             133 /* Common                                      */
 #define __NR_shutdown           134 /* Common                                      */
 #define __NR_socketpair         135 /* Common                                      */
 #define __NR_mkdir              136 /* Common                                      */
 #define __NR_rmdir              137 /* Common                                      */
 #define __NR_utimes             138 /* SunOS Specific                              */
-#define __NR_stat64		139 /* Linux sparc32 Specific			   */
+#define __NR_stat64		139 /* Linux Specific			           */
 #define __NR_sendfile64         140 /* adjtime under SunOS                         */
 #define __NR_getpeername        141 /* Common                                      */
 #define __NR_futex              142 /* gethostid under SunOS                       */

@@ -45,9 +45,12 @@
 		.equ	dc21285_low,  ARMCSR_BASE & 0x00ffffff
 
 		.macro	addruart,rx
-		mov	\rx, #dc21285_high
+		mrc	p15, 0, \rx, c1, c0
+		tst	\rx, #1			@ MMU enabled?
+		moveq	\rx, #0x42000000
+		movne	\rx, #dc21285_high
 		.if	dc21285_low
-		orr	\rx, \rx, #dc21285_low
+		orrne	\rx, \rx, #dc21285_low
 		.endif
 		.endm
 

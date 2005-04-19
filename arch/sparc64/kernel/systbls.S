@@ -32,7 +32,7 @@ sys_call_table32:
 	.word sys32_umount, sys32_setgid16, sys32_getgid16, sys32_signal, sys32_geteuid16
 /*50*/	.word sys32_getegid16, sys_acct, sys_nis_syscall, sys_getgid, compat_sys_ioctl
 	.word sys32_reboot, sys32_mmap2, sys_symlink, sys32_readlink, sys32_execve
-/*60*/	.word sys32_umask, sys_chroot, compat_sys_newfstat, sys_fstat64, sys_getpagesize
+/*60*/	.word sys32_umask, sys_chroot, compat_sys_newfstat, compat_sys_fstat64, sys_getpagesize
 	.word sys32_msync, sys_vfork, sys32_pread64, sys32_pwrite64, sys_geteuid
 /*70*/	.word sys_getegid, sys_mmap, sys_setreuid, sys_munmap, sys_mprotect
 	.word sys_madvise, sys_vhangup, sys32_truncate64, sys_mincore, sys32_getgroups16
@@ -46,8 +46,8 @@ sys_call_table32:
 	.word sys32_getgroups, sys32_gettimeofday, sys32_getrusage, sys_nis_syscall, sys_getcwd
 /*120*/	.word compat_sys_readv, compat_sys_writev, sys32_settimeofday, sys32_fchown16, sys_fchmod
 	.word sys_nis_syscall, sys32_setreuid16, sys32_setregid16, sys_rename, sys_truncate
-/*130*/	.word sys_ftruncate, sys_flock, sys_lstat64, sys_nis_syscall, sys_nis_syscall
-	.word sys_nis_syscall, sys32_mkdir, sys_rmdir, sys32_utimes, sys_stat64
+/*130*/	.word sys_ftruncate, sys_flock, compat_sys_lstat64, sys_nis_syscall, sys_nis_syscall
+	.word sys_nis_syscall, sys32_mkdir, sys_rmdir, sys32_utimes, compat_sys_stat64
 /*140*/	.word sys32_sendfile64, sys_nis_syscall, sys32_futex, sys_gettid, compat_sys_getrlimit
 	.word compat_sys_setrlimit, sys_pivot_root, sys32_prctl, sys_pciconfig_read, sys_pciconfig_write
 /*150*/	.word sys_nis_syscall, sys_nis_syscall, sys_nis_syscall, sys_poll, sys_getdents64
@@ -75,7 +75,7 @@ sys_call_table32:
 /*260*/	.word compat_sys_sched_getaffinity, compat_sys_sched_setaffinity, sys32_timer_settime, compat_sys_timer_gettime, sys_timer_getoverrun
 	.word sys_timer_delete, sys32_timer_create, sys_ni_syscall, compat_sys_io_setup, sys_io_destroy
 /*270*/	.word sys32_io_submit, sys_io_cancel, compat_sys_io_getevents, sys32_mq_open, sys_mq_unlink
-	.word sys_mq_timedsend, sys_mq_timedreceive, compat_sys_mq_notify, compat_sys_mq_getsetattr, compat_sys_waitid
+	.word compat_sys_mq_timedsend, compat_sys_mq_timedreceive, compat_sys_mq_notify, compat_sys_mq_getsetattr, compat_sys_waitid
 /*280*/	.word sys_ni_syscall, sys_add_key, sys_request_key, sys_keyctl
 
 #endif /* CONFIG_COMPAT */
@@ -98,7 +98,7 @@ sys_call_table:
 	.word sys_umount, sys_setgid, sys_getgid, sys_signal, sys_geteuid
 /*50*/	.word sys_getegid, sys_acct, sys_memory_ordering, sys_nis_syscall, sys_ioctl
 	.word sys_reboot, sys_nis_syscall, sys_symlink, sys_readlink, sys_execve
-/*60*/	.word sys_umask, sys_chroot, sys_newfstat, sys_nis_syscall, sys_getpagesize
+/*60*/	.word sys_umask, sys_chroot, sys_newfstat, sys_stat64, sys_getpagesize
 	.word sys_msync, sys_vfork, sys_pread64, sys_pwrite64, sys_nis_syscall
 /*70*/	.word sys_nis_syscall, sys_mmap, sys_nis_syscall, sys64_munmap, sys_mprotect
 	.word sys_madvise, sys_vhangup, sys_nis_syscall, sys_mincore, sys_getgroups
@@ -112,8 +112,8 @@ sys_call_table:
 	.word sys_nis_syscall, sys_gettimeofday, sys_getrusage, sys_getsockopt, sys_getcwd
 /*120*/	.word sys_readv, sys_writev, sys_settimeofday, sys_fchown, sys_fchmod
 	.word sys_recvfrom, sys_setreuid, sys_setregid, sys_rename, sys_truncate
-/*130*/	.word sys_ftruncate, sys_flock, sys_nis_syscall, sys_sendto, sys_shutdown
-	.word sys_socketpair, sys_mkdir, sys_rmdir, sys_utimes, sys_nis_syscall
+/*130*/	.word sys_ftruncate, sys_flock, sys_lstat64, sys_sendto, sys_shutdown
+	.word sys_socketpair, sys_mkdir, sys_rmdir, sys_utimes, sys_stat64
 /*140*/	.word sys_sendfile64, sys_getpeername, sys_futex, sys_gettid, sys_getrlimit
 	.word sys_setrlimit, sys_pivot_root, sys_prctl, sys_pciconfig_read, sys_pciconfig_write
 /*150*/	.word sys_getsockname, sys_nis_syscall, sys_nis_syscall, sys_poll, sys_getdents64

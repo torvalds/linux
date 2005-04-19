@@ -21,43 +21,28 @@ struct stat {
 	unsigned long  __unused4[2];
 };
 
-#ifdef __KERNEL__
-/* This is sparc32 stat64 structure. */
-
 struct stat64 {
-	unsigned long long	st_dev;
-
-	unsigned long long	st_ino;
+	unsigned long	st_dev;
+	unsigned long	st_ino;
+	unsigned long	st_nlink;
 
 	unsigned int	st_mode;
-	unsigned int	st_nlink;
-
 	unsigned int	st_uid;
 	unsigned int	st_gid;
+	unsigned int	__pad0;
 
-	unsigned long long	st_rdev;
+	unsigned long	st_rdev;
+	long		st_size;
+	long		st_blksize;
+	long		st_blocks;
 
-	unsigned char	__pad3[8];
-
-	long long	st_size;
-	unsigned int	st_blksize;
-
-	unsigned char	__pad4[8];
-	unsigned int	st_blocks;
-
-	unsigned int	st_atime;
-	unsigned int	st_atime_nsec;
-
-	unsigned int	st_mtime;
-	unsigned int	st_mtime_nsec;
-
-	unsigned int	st_ctime;
-	unsigned int	st_ctime_nsec;
-
-	unsigned int	__unused4;
-	unsigned int	__unused5;
+	unsigned long	st_atime;
+	unsigned long	st_atime_nsec;
+	unsigned long	st_mtime;
+	unsigned long	st_mtime_nsec;
+	unsigned long	st_ctime;
+	unsigned long	st_ctime_nsec;
+	long		__unused[3];
 };
-
-#endif
 
 #endif

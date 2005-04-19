@@ -530,18 +530,6 @@ asmlinkage void do_ptrace(struct pt_regs *regs)
 			pt_error_return(regs, EIO);
 			goto out_tsk;
 		}
-		if (addr != 1) {
-			if (addr & 3) {
-				pt_error_return(regs, EINVAL);
-				goto out_tsk;
-			}
-#ifdef DEBUG_PTRACE
-			printk ("Original: %08lx %08lx\n", child->thread.kregs->pc, child->thread.kregs->npc);
-			printk ("Continuing with %08lx %08lx\n", addr, addr+4);
-#endif
-			child->thread.kregs->pc = addr;
-			child->thread.kregs->npc = addr + 4;
-		}
 
 		if (request == PTRACE_SYSCALL)
 			set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
