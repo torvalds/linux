@@ -118,9 +118,6 @@ asmlinkage long sys_mincore(unsigned long start, size_t len,
  	if (start & ~PAGE_CACHE_MASK)
 		goto einval;
 
-	if (start < FIRST_USER_PGD_NR * PGDIR_SIZE)
-		goto enomem;
-
 	limit = TASK_SIZE;
 	if (start >= limit)
 		goto enomem;
