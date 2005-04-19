@@ -2845,9 +2845,8 @@ static struct edge_buf *edge_buf_alloc(unsigned int size)
 
 void edge_buf_free(struct edge_buf *eb)
 {
-	if (eb != NULL) {
-		if (eb->buf_buf != NULL)
-			kfree(eb->buf_buf);
+	if (eb) {
+		kfree(eb->buf_buf);
 		kfree(eb);
 	}
 }

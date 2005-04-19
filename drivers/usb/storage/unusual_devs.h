@@ -763,6 +763,19 @@ UNUSUAL_DEV(  0x07c4, 0xa109, 0x0000, 0xffff,
 		US_FL_SINGLE_LUN ),
 #endif
 
+#ifdef CONFIG_USB_STORAGE_DATAFAB
+/* Reported by Felix Moeller <felix@derklecks.de>
+ * in Germany this is sold by Hama with the productnumber 46952
+ * as "DualSlot CompactFlash(TM) & MStick Drive USB"
+ */
+UNUSUAL_DEV(  0x07c4, 0xa10b, 0x0000, 0xffff,
+                "DataFab Systems Inc.",
+                "USB CF+MS",
+                US_SC_SCSI, US_PR_DATAFAB, NULL,
+                0 ),
+
+#endif
+
 /* Datafab KECF-USB / Sagatek DCS-CF / Simpletech Flashlink UCF-100
  * Only revision 1.13 tested (same for all of the above devices,
  * based on the Datafab DF-UG-07 chip).  Needed for US_FL_FIX_INQUIRY.

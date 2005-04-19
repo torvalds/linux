@@ -868,13 +868,14 @@ static void usb_se401_remove_disconnected (struct usb_se401 *se401)
 
         se401->dev = NULL;
 
-	for (i=0; i<SE401_NUMSBUF; i++) if (se401->urb[i]) {
-		usb_kill_urb(se401->urb[i]);
-		usb_free_urb(se401->urb[i]);
-		se401->urb[i] = NULL;
-		kfree(se401->sbuf[i].data);
-	}
-	for (i=0; i<SE401_NUMSCRATCH; i++) if (se401->scratch[i].data) {
+	for (i=0; i<SE401_NUMSBUF; i++)
+		if (se401->urb[i]) {
+			usb_kill_urb(se401->urb[i]);
+			usb_free_urb(se401->urb[i]);
+			se401->urb[i] = NULL;
+			kfree(se401->sbuf[i].data);
+		}
+	for (i=0; i<SE401_NUMSCRATCH; i++) {
 		kfree(se401->scratch[i].data);
 	}
 	if (se401->inturb) {

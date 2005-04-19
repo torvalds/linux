@@ -1021,6 +1021,8 @@ rescan_this:
 
 		if (ohci->ed_controltail) {
 			command |= OHCI_CLF;
+			if (ohci->flags & OHCI_QUIRK_ZFMICRO)
+				mdelay(1);
 			if (!(ohci->hc_control & OHCI_CTRL_CLE)) {
 				control |= OHCI_CTRL_CLE;
 				ohci_writel (ohci, 0,
@@ -1029,6 +1031,8 @@ rescan_this:
 		}
 		if (ohci->ed_bulktail) {
 			command |= OHCI_BLF;
+			if (ohci->flags & OHCI_QUIRK_ZFMICRO)
+				mdelay(1);
 			if (!(ohci->hc_control & OHCI_CTRL_BLE)) {
 				control |= OHCI_CTRL_BLE;
 				ohci_writel (ohci, 0,
@@ -1039,12 +1043,17 @@ rescan_this:
 		/* CLE/BLE to enable, CLF/BLF to (maybe) kickstart */
 		if (control) {
 			ohci->hc_control |= control;
+			if (ohci->flags & OHCI_QUIRK_ZFMICRO)
+				mdelay(1);
  			ohci_writel (ohci, ohci->hc_control,
 					&ohci->regs->control);   
  		}
-		if (command)
+		if (command) {
+			if (ohci->flags & OHCI_QUIRK_ZFMICRO)
+				mdelay(1);
 			ohci_writel (ohci, command, &ohci->regs->cmdstatus);   
- 	}
+	 	}
+	}
 }
 
 

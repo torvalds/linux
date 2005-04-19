@@ -396,6 +396,7 @@ struct ohci_hcd {
 #define	OHCI_QUIRK_SUPERIO	0x02			/* natsemi */
 #define	OHCI_QUIRK_INITRESET	0x04			/* SiS, OPTi, ... */
 #define	OHCI_BIG_ENDIAN		0x08			/* big endian HC */
+#define	OHCI_QUIRK_ZFMICRO	0x10			/* Compaq ZFMicro chipset*/
 	// there are also chip quirks/bugs in init logic
 
 };

@@ -1169,10 +1169,8 @@ static int usbvideo_v4l_open(struct inode *inode, struct file *file)
 			}
 			RingQueue_Free(&uvd->dp);
 			for (i=0; i < USBVIDEO_NUMSBUF; i++) {
-				if (uvd->sbuf[i].data != NULL) {
-					kfree (uvd->sbuf[i].data);
-					uvd->sbuf[i].data = NULL;
-				}
+				kfree(uvd->sbuf[i].data);
+				uvd->sbuf[i].data = NULL;
 			}
 		}
 	}

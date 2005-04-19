@@ -381,7 +381,7 @@ static void hub_tt_kevent (void *arg)
 			dev_err (&hdev->dev,
 				"clear tt %d (%04x) error %d\n",
 				clear->tt, clear->devinfo, status);
-		kfree (clear);
+		kfree(clear);
 	}
 	spin_unlock_irqrestore (&hub->tt.lock, flags);
 }
@@ -728,15 +728,11 @@ static void hub_disconnect(struct usb_interface *intf)
 	list_del_init(&hub->event_list);
 	spin_unlock_irq(&hub_event_lock);
 
-	if (hub->descriptor) {
-		kfree(hub->descriptor);
-		hub->descriptor = NULL;
-	}
+	kfree(hub->descriptor);
+	hub->descriptor = NULL;
 
-	if (hub->status) {
-		kfree(hub->status);
-		hub->status = NULL;
-	}
+	kfree(hub->status);
+	hub->status = NULL;
 
 	if (hub->buffer) {
 		usb_buffer_free(hdev, sizeof(*hub->buffer), hub->buffer,
@@ -1456,7 +1452,7 @@ static void hub_port_logical_disconnect(struct usb_hub *hub, int port1)
 	/* FIXME let caller ask to power down the port:
 	 *  - some devices won't enumerate without a VBUS power cycle
 	 *  - SRP saves power that way
-	 *  - usb_suspend_device(dev,PM_SUSPEND_DISK)
+	 *  - usb_suspend_device(dev, PMSG_SUSPEND)
 	 * That's easy if this hub can switch power per-port, and
 	 * khubd reactivates the port later (timer, SRP, etc).
 	 * Powerdown must be optional, because of reset/DFU.
@@ -1531,7 +1527,7 @@ static int hub_port_suspend(struct usb_hub *hub, int port1,
 
 /*
  * Devices on USB hub ports have only one "suspend" state, corresponding
- * to ACPI D2 (PM_SUSPEND_MEM), "may cause the device to lose some context".
+ * to ACPI D2, "may cause the device to lose some context".
  * State transitions include:
  *
  *   - suspend, resume ... when the VBUS power link stays live
@@ -1731,7 +1727,7 @@ static int finish_port_resume(struct usb_device *udev)
 			struct usb_driver	*driver;
 
 			intf = udev->actconfig->interface[i];
-			if (intf->dev.power.power_state == PM_SUSPEND_ON)
+			if (intf->dev.power.power_state == PMSG_SUSPEND)
 				continue;
 			if (!intf->dev.driver) {
 				/* FIXME maybe force to alt 0 */
@@ -1745,7 +1741,7 @@ static int finish_port_resume(struct usb_device *udev)
 
 			/* can we do better than just logging errors? */
 			status = driver->resume(intf);
-			if (intf->dev.power.power_state != PM_SUSPEND_ON
+			if (intf->dev.power.power_state != PMSG_ON
 					|| status)
 				dev_dbg(&intf->dev,
 					"resume fail, state %d code %d\n",
@@ -2354,7 +2350,7 @@ check_highspeed (struct usb_hub *hub, struct usb_device *udev, int port1)
 			schedule_work (&hub->leds);
 		}
 	}
-	kfree (qual);
+	kfree(qual);
 }
 
 static unsigned

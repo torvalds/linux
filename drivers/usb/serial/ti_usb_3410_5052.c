@@ -517,8 +517,7 @@ static void ti_shutdown(struct usb_serial *serial)
 		}
 	}
 
-	if (tdev)
-		kfree(tdev);
+	kfree(tdev);
 	usb_set_serial_data(serial, NULL);
 }
 

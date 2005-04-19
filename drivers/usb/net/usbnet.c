@@ -426,7 +426,7 @@ static void skb_return (struct usbnet *dev, struct sk_buff *skb)
 	dev->stats.rx_bytes += skb->len;
 
 	if (netif_msg_rx_status (dev))
-		devdbg (dev, "< rx, len %d, type 0x%x",
+		devdbg (dev, "< rx, len %zd, type 0x%x",
 			skb->len + sizeof (struct ethhdr), skb->protocol);
 	memset (skb->cb, 0, sizeof (struct skb_data));
 	status = netif_rx (skb);
@@ -3732,11 +3732,17 @@ out:
 
 #ifdef	CONFIG_PM
 
-static int usbnet_suspend (struct usb_interface *intf, u32 state)
+static int usbnet_suspend (struct usb_interface *intf, pm_message_t message)
 {
 	struct usbnet		*dev = usb_get_intfdata(intf);
 	
+	/* accelerate emptying of the rx and queues, to avoid
+	 * having everything error out.
+	 */
 	netif_device_detach (dev->net);
+	(void) unlink_urbs (dev, &dev->rxq);
+	(void) unlink_urbs (dev, &dev->txq);
+	intf->dev.power.power_state = PMSG_SUSPEND;
 	return 0;
 }
 
@@ -3744,7 +3750,9 @@ static int usbnet_resume (struct usb_interface *intf)
 {
 	struct usbnet		*dev = usb_get_intfdata(intf);
 
+	intf->dev.power.power_state = PMSG_ON;
 	netif_device_attach (dev->net);
+	tasklet_schedule (&dev->bh);
 	return 0;
 }
 
@@ -4009,10 +4017,23 @@ static const struct usb_device_id	products [] = {
 	.idProduct              = 0x9050,	/* C-860 */
 	ZAURUS_MASTER_INTERFACE,
 	.driver_info = ZAURUS_PXA_INFO,
+},
+
 #ifdef	CONFIG_USB_ZAURUS
-	/* at least some (reports vary) C-860 units have very different
-	 * lies about their standards support.
+	/* at least some (reports vary) PXA units have very different
+	 * lies about their standards support:  they claim to be cell
+	 * phones giving direct radio access (which they aren't).
 	 */
+{
+	.match_flags    =   USB_DEVICE_ID_MATCH_INT_INFO
+		 | USB_DEVICE_ID_MATCH_DEVICE,
+	.idVendor               = 0x04DD,
+	/* Sharp ROM v1.32 */
+	.idProduct		= 0x8006,	/* SL-5600 */
+	.bInterfaceClass	= USB_CLASS_COMM,
+	.bInterfaceSubClass	= USB_CDC_SUBCLASS_MDLM,
+	.bInterfaceProtocol	= USB_CDC_PROTO_NONE,
+	.driver_info 		= (unsigned long) &zaurus_pxa_mdlm_info,
 }, {
 	.match_flags    =   USB_DEVICE_ID_MATCH_INT_INFO
 		 | USB_DEVICE_ID_MATCH_DEVICE,
@@ -4023,8 +4044,8 @@ static const struct usb_device_id	products [] = {
 	.bInterfaceSubClass	= USB_CDC_SUBCLASS_MDLM,
 	.bInterfaceProtocol	= USB_CDC_PROTO_NONE,
 	.driver_info 		= (unsigned long) &zaurus_pxa_mdlm_info,
-#endif
 },
+#endif
 
 /* Olympus has some models with a Zaurus-compatible option.
  * R-1000 uses a FreeScale i.MXL cpu (ARMv4T)

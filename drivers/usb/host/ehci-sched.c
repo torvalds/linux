@@ -310,9 +310,9 @@ static int qh_link_periodic (struct ehci_hcd *ehci, struct ehci_qh *qh)
 
 	for (i = qh->start; i < ehci->periodic_size; i += period) {
 		union ehci_shadow	*prev = &ehci->pshadow [i];
-		u32			*hw_p = &ehci->periodic [i];
+		__le32			*hw_p = &ehci->periodic [i];
 		union ehci_shadow	here = *prev;
-		u32			type = 0;
+		__le32			type = 0;
 
 		/* skip the iso nodes at list head */
 		while (here.ptr) {

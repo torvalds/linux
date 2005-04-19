@@ -309,7 +309,7 @@ static int bluetooth_ctrl_msg (struct usb_bluetooth *bluetooth, int request, int
 		}
 	}
 	if (urb->transfer_buffer_length < len) {
-		kfree (urb->transfer_buffer);
+		kfree(urb->transfer_buffer);
 		urb->transfer_buffer = kmalloc (len, GFP_KERNEL);
 		if (urb->transfer_buffer == NULL) {
 			err ("%s - out of memory", __FUNCTION__);
@@ -535,7 +535,7 @@ static int bluetooth_write (struct tty_struct * tty, const unsigned char *buf, i
 	}
 
 exit:
-	kfree (temp_buffer);
+	kfree(temp_buffer);
 
 	return retval;
 } 

@@ -33,7 +33,7 @@
 #include "hcd.h"
 
 
-/* PCI-based HCs are normal, but custom bus glue should be ok */
+/* PCI-based HCs are common, but plenty of non-PCI HCs are used too */
 
 
 /*-------------------------------------------------------------------------*/
@@ -67,8 +67,8 @@ int usb_hcd_pci_probe (struct pci_dev *dev, const struct pci_device_id *id)
 
 	if (pci_enable_device (dev) < 0)
 		return -ENODEV;
-	dev->current_state = 0;
-	dev->dev.power.power_state = 0;
+	dev->current_state = PCI_D0;
+	dev->dev.power.power_state = PMSG_ON;
 	
         if (!dev->irq) {
         	dev_err (&dev->dev,
@@ -186,26 +186,14 @@ EXPORT_SYMBOL (usb_hcd_pci_remove);
 
 #ifdef	CONFIG_PM
 
-static char __attribute_used__ *pci_state(u32 state)
-{
-	switch (state) {
-	case 0:		return "D0";
-	case 1:		return "D1";
-	case 2:		return "D2";
-	case 3:		return "D3hot";
-	case 4:		return "D3cold";
-	}
-	return NULL;
-}
-
 /**
  * usb_hcd_pci_suspend - power management suspend of a PCI-based HCD
  * @dev: USB Host Controller being suspended
- * @state: state that the controller is going into
+ * @message: semantics in flux
  *
  * Store this function in the HCD's struct pci_driver as suspend().
  */
-int usb_hcd_pci_suspend (struct pci_dev *dev, u32 state)
+int usb_hcd_pci_suspend (struct pci_dev *dev, pm_message_t message)
 {
 	struct usb_hcd		*hcd;
 	int			retval = 0;
@@ -213,13 +201,23 @@ int usb_hcd_pci_suspend (struct pci_dev *dev, u32 state)
 
 	hcd = pci_get_drvdata(dev);
 
+	/* FIXME until the generic PM interfaces change a lot more, this
+	 * can't use PCI D1 and D2 states.  For example, the confusion
+	 * between messages and states will need to vanish, and messages
+	 * will need to provide a target system state again.
+	 *
+	 * It'll be important to learn characteristics of the target state,
+	 * especially on embedded hardware where the HCD will often be in
+	 * charge of an external VBUS power supply and one or more clocks.
+	 * Some target system states will leave them active; others won't.
+	 * (With PCI, that's often handled by platform BIOS code.)
+	 */
+
 	/* even when the PCI layer rejects some of the PCI calls
 	 * below, HCs can try global suspend and reduce DMA traffic.
 	 * PM-sensitive HCDs may already have done this.
 	 */
 	has_pci_pm = pci_find_capability(dev, PCI_CAP_ID_PM);
-	if (state > 4)
-		state = 4;
 
 	switch (hcd->state) {
 
@@ -228,7 +226,7 @@ int usb_hcd_pci_suspend (struct pci_dev *dev, u32 state)
 	 */
 	case HC_STATE_RUNNING:
 		hcd->state = HC_STATE_QUIESCING;
-		retval = hcd->driver->suspend (hcd, state);
+		retval = hcd->driver->suspend (hcd, message);
 		if (retval) {
 			dev_dbg (hcd->self.controller, 
 					"suspend fail, retval %d\n",
@@ -246,14 +244,11 @@ int usb_hcd_pci_suspend (struct pci_dev *dev, u32 state)
 	 * have been called, otherwise root hub timers still run ...
 	 */
 	case HC_STATE_SUSPENDED:
-		if (state <= dev->current_state)
-			break;
-
-		/* no DMA or IRQs except in D0 */
-		if (!dev->current_state) {
+		/* no DMA or IRQs except when HC is active */
+		if (dev->current_state == PCI_D0) {
+			free_irq (hcd->irq, hcd);
 			pci_save_state (dev);
 			pci_disable_device (dev);
-			free_irq (hcd->irq, hcd);
 		}
 
 		if (!has_pci_pm) {
@@ -261,25 +256,19 @@ int usb_hcd_pci_suspend (struct pci_dev *dev, u32 state)
 			break;
 		}
 
-		/* POLICY: ignore D1/D2/D3hot differences;
-		 * we know D3hot will always work.
+		/* NOTE:  dev->current_state becomes nonzero only here, and
+		 * only for devices that support PCI PM.  Also, exiting
+		 * PCI_D3 (but not PCI_D1 or PCI_D2) is allowed to reset
+		 * some device state (e.g. as part of clock reinit).
 		 */
-		retval = pci_set_power_state (dev, state);
-		if (retval < 0 && state < 3) {
-			retval = pci_set_power_state (dev, 3);
-			if (retval == 0)
-				state = 3;
-		}
+		retval = pci_set_power_state (dev, PCI_D3hot);
 		if (retval == 0) {
-			dev_dbg (hcd->self.controller, "--> PCI %s\n",
-					pci_state(dev->current_state));
-#ifdef	CONFIG_USB_SUSPEND
-			pci_enable_wake (dev, state, hcd->remote_wakeup);
-			pci_enable_wake (dev, 4, hcd->remote_wakeup);
-#endif
+			dev_dbg (hcd->self.controller, "--> PCI D3\n");
+			pci_enable_wake (dev, PCI_D3hot, hcd->remote_wakeup);
+			pci_enable_wake (dev, PCI_D3cold, hcd->remote_wakeup);
 		} else if (retval < 0) {
-			dev_dbg (&dev->dev, "PCI %s suspend fail, %d\n",
-					pci_state(state), retval);
+			dev_dbg (&dev->dev, "PCI D3 suspend fail, %d\n",
+					retval);
 			(void) usb_hcd_pci_resume (dev);
 			break;
 		}
@@ -287,13 +276,14 @@ int usb_hcd_pci_suspend (struct pci_dev *dev, u32 state)
 	default:
 		dev_dbg (hcd->self.controller, "hcd state %d; not suspended\n",
 			hcd->state);
+		WARN_ON(1);
 		retval = -EINVAL;
 		break;
 	}
 
 	/* update power_state **ONLY** to make sysfs happier */
 	if (retval == 0)
-		dev->dev.power.power_state = state;
+		dev->dev.power.power_state = message;
 	return retval;
 }
 EXPORT_SYMBOL (usb_hcd_pci_suspend);
@@ -308,7 +298,6 @@ int usb_hcd_pci_resume (struct pci_dev *dev)
 {
 	struct usb_hcd		*hcd;
 	int			retval;
-	int			has_pci_pm;
 
 	hcd = pci_get_drvdata(dev);
 	if (hcd->state != HC_STATE_SUSPENDED) {
@@ -316,31 +305,73 @@ int usb_hcd_pci_resume (struct pci_dev *dev)
 				"can't resume, not suspended!\n");
 		return 0;
 	}
-	has_pci_pm = pci_find_capability(dev, PCI_CAP_ID_PM);
 
-	/* D3cold resume isn't usually reported this way... */
-	dev_dbg(hcd->self.controller, "resume from PCI %s%s\n",
-			pci_state(dev->current_state),
-			has_pci_pm ? "" : " (legacy)");
+	/* NOTE:  chip docs cover clean "real suspend" cases (what Linux
+	 * calls "standby", "suspend to RAM", and so on).  There are also
+	 * dirty cases when swsusp fakes a suspend in "shutdown" mode.
+	 */
+	if (dev->current_state != PCI_D0) {
+#ifdef	DEBUG
+		int	pci_pm;
+		u16	pmcr;
+
+		pci_pm = pci_find_capability(dev, PCI_CAP_ID_PM);
+		pci_read_config_word(dev, pci_pm + PCI_PM_CTRL, &pmcr);
+		pmcr &= PCI_PM_CTRL_STATE_MASK;
+		if (pmcr) {
+			/* Clean case:  power to USB and to HC registers was
+			 * maintained; remote wakeup is easy.
+			 */
+			dev_dbg(hcd->self.controller, "resume from PCI D%d\n",
+					pmcr);
+		} else {
+			/* Clean:  HC lost Vcc power, D0 uninitialized
+			 *   + Vaux may have preserved port and transceiver
+			 *     state ... for remote wakeup from D3cold
+			 *   + or not; HCD must reinit + re-enumerate
+			 *
+			 * Dirty: D0 semi-initialized cases with swsusp
+			 *   + after BIOS init
+			 *   + after Linux init (HCD statically linked)
+			 */
+			dev_dbg(hcd->self.controller,
+				"PCI D0, from previous PCI D%d\n",
+				dev->current_state);
+		}
+#endif
+		pci_enable_wake (dev, dev->current_state, 0);
+		pci_enable_wake (dev, PCI_D3cold, 0);
+	} else {
+		/* Same basic cases: clean (powered/not), dirty */
+		dev_dbg(hcd->self.controller, "PCI legacy resume\n");
+	}
+
+	/* NOTE:  the PCI API itself is asymmetric here.  We don't need to
+	 * pci_set_power_state(PCI_D0) since that's part of re-enabling;
+	 * but that won't re-enable bus mastering.  Yet pci_disable_device()
+	 * explicitly disables bus mastering...
+	 */
+	retval = pci_enable_device (dev);
+	if (retval < 0) {
+		dev_err (hcd->self.controller,
+			"can't re-enable after resume, %d!\n", retval);
+		return retval;
+	}
+	pci_set_master (dev);
+	pci_restore_state (dev);
+
+	dev->dev.power.power_state = PMSG_ON;
 
 	hcd->state = HC_STATE_RESUMING;
-
-	if (has_pci_pm)
-		pci_set_power_state (dev, 0);
-	dev->dev.power.power_state = 0;
+	hcd->saw_irq = 0;
 	retval = request_irq (dev->irq, usb_hcd_irq, SA_SHIRQ,
-				hcd->driver->description, hcd);
+				hcd->irq_descr, hcd);
 	if (retval < 0) {
 		dev_err (hcd->self.controller,
 			"can't restore IRQ after resume!\n");
+		usb_hc_died (hcd);
 		return retval;
 	}
-	hcd->saw_irq = 0;
-	pci_restore_state (dev);
-#ifdef	CONFIG_USB_SUSPEND
-	pci_enable_wake (dev, dev->current_state, 0);
-	pci_enable_wake (dev, 4, 0);
-#endif
 
 	retval = hcd->driver->resume (hcd);
 	if (!HC_IS_RUNNING (hcd->state)) {

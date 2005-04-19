@@ -41,6 +41,7 @@
 #include <linux/parser.h>
 #include <asm/byteorder.h>
 #include "usb.h"
+#include "hcd.h"
 
 static struct super_operations usbfs_ops;
 static struct file_operations default_file_operations;

@@ -59,6 +59,7 @@
 #include <linux/usbdevice_fs.h>
 #include <asm/uaccess.h>
 
+#include "usb.h"
 #include "hcd.h"
 
 #define MAX_TOPO_LEVEL		6
@@ -636,11 +637,8 @@ static int usb_device_open(struct inode *inode, struct file *file)
 
 static int usb_device_release(struct inode *inode, struct file *file)
 {
-	if (file->private_data) {
-		kfree(file->private_data);
-		file->private_data = NULL;
-	}
-
+	kfree(file->private_data);
+	file->private_data = NULL;
         return 0;
 }
 

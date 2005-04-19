@@ -3624,10 +3624,8 @@ w9968cf_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 	return 0;
 
 fail: /* Free unused memory */
-	if (cam->control_buffer)
-		kfree(cam->control_buffer);
-	if (cam->data_buffer)
-		kfree(cam->data_buffer);
+	kfree(cam->control_buffer);
+	kfree(cam->data_buffer);
 	if (cam->v4ldev)
 		video_device_release(cam->v4ldev);
 	up(&cam->dev_sem);

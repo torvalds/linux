@@ -716,7 +716,7 @@ static void uhci_stop(struct usb_hcd *hcd)
 }
 
 #ifdef CONFIG_PM
-static int uhci_suspend(struct usb_hcd *hcd, u32 state)
+static int uhci_suspend(struct usb_hcd *hcd, pm_message_t message)
 {
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
 
@@ -890,8 +890,7 @@ up_failed:
 	debugfs_remove(uhci_debugfs_root);
 
 debug_failed:
-	if (errbuf)
-		kfree(errbuf);
+	kfree(errbuf);
 
 errbuf_failed:
 
@@ -906,9 +905,7 @@ static void __exit uhci_hcd_cleanup(void)
 		warn("not all urb_priv's were freed!");
 
 	debugfs_remove(uhci_debugfs_root);
-
-	if (errbuf)
-		kfree(errbuf);
+	kfree(errbuf);
 }
 
 module_init(uhci_hcd_init);

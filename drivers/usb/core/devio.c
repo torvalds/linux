@@ -213,12 +213,10 @@ static struct async *alloc_async(unsigned int numisoframes)
 
 static void free_async(struct async *as)
 {
-        if (as->urb->transfer_buffer)
-                kfree(as->urb->transfer_buffer);
-        if (as->urb->setup_packet)
-                kfree(as->urb->setup_packet);
+	kfree(as->urb->transfer_buffer);
+	kfree(as->urb->setup_packet);
 	usb_free_urb(as->urb);
-        kfree(as);
+	kfree(as);
 }
 
 static inline void async_newpending(struct async *as)
@@ -938,17 +936,13 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 		return -EINVAL;
 	}
 	if (!(as = alloc_async(uurb->number_of_packets))) {
-		if (isopkt)
-			kfree(isopkt);
-		if (dr)
-			kfree(dr);
+		kfree(isopkt);
+		kfree(dr);
 		return -ENOMEM;
 	}
 	if (!(as->urb->transfer_buffer = kmalloc(uurb->buffer_length, GFP_KERNEL))) {
-		if (isopkt)
-			kfree(isopkt);
-		if (dr)
-			kfree(dr);
+		kfree(isopkt);
+		kfree(dr);
 		free_async(as);
 		return -ENOMEM;
 	}
@@ -967,8 +961,7 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 		as->urb->iso_frame_desc[u].length = isopkt[u].length;
 		totlen += isopkt[u].length;
 	}
-	if (isopkt)
-		kfree(isopkt);
+	kfree(isopkt);
 	as->ps = ps;
         as->userurb = arg;
 	if (uurb->endpoint & USB_DIR_IN)
@@ -1032,15 +1025,15 @@ static int processcompl(struct async *as, void __user * __user *arg)
 	if (put_user(urb->error_count, &userurb->error_count))
 		return -EFAULT;
 
-	if (!(usb_pipeisoc(urb->pipe)))
-		return 0;
-	for (i = 0; i < urb->number_of_packets; i++) {
-		if (put_user(urb->iso_frame_desc[i].actual_length,
-			     &userurb->iso_frame_desc[i].actual_length))
-			return -EFAULT;
-		if (put_user(urb->iso_frame_desc[i].status,
-			     &userurb->iso_frame_desc[i].status))
-			return -EFAULT;
+	if (usb_pipeisoc(urb->pipe)) {
+		for (i = 0; i < urb->number_of_packets; i++) {
+			if (put_user(urb->iso_frame_desc[i].actual_length,
+				     &userurb->iso_frame_desc[i].actual_length))
+				return -EFAULT;
+			if (put_user(urb->iso_frame_desc[i].status,
+				     &userurb->iso_frame_desc[i].status))
+				return -EFAULT;
+		}
 	}
 
 	free_async(as);
@@ -1126,7 +1119,7 @@ static int proc_submiturb_compat(struct dev_state *ps, void __user *arg)
 	if (get_urb32(&uurb,(struct usbdevfs_urb32 *)arg))
 		return -EFAULT;
 
-	return proc_do_submiturb(ps, &uurb, ((struct usbdevfs_urb __user *)arg)->iso_frame_desc, arg);
+	return proc_do_submiturb(ps, &uurb, ((struct usbdevfs_urb32 __user *)arg)->iso_frame_desc, arg);
 }
 
 static int processcompl_compat(struct async *as, void __user * __user *arg)
@@ -1146,15 +1139,15 @@ static int processcompl_compat(struct async *as, void __user * __user *arg)
 	if (put_user(urb->error_count, &userurb->error_count))
 		return -EFAULT;
 
-	if (!(usb_pipeisoc(urb->pipe)))
-		return 0;
-	for (i = 0; i < urb->number_of_packets; i++) {
-		if (put_user(urb->iso_frame_desc[i].actual_length,
-			     &userurb->iso_frame_desc[i].actual_length))
-			return -EFAULT;
-		if (put_user(urb->iso_frame_desc[i].status,
-			     &userurb->iso_frame_desc[i].status))
-			return -EFAULT;
+	if (usb_pipeisoc(urb->pipe)) {
+		for (i = 0; i < urb->number_of_packets; i++) {
+			if (put_user(urb->iso_frame_desc[i].actual_length,
+				     &userurb->iso_frame_desc[i].actual_length))
+				return -EFAULT;
+			if (put_user(urb->iso_frame_desc[i].status,
+				     &userurb->iso_frame_desc[i].status))
+				return -EFAULT;
+		}
 	}
 
 	free_async(as);
@@ -1177,10 +1170,8 @@ static int proc_reapurbnonblock_compat(struct dev_state *ps, void __user *arg)
 {
 	struct async *as;
 
-	printk("reapurbnblock\n");
 	if (!(as = async_getcompleted(ps)))
 		return -EAGAIN;
-	printk("reap got as %p\n", as);
 	return processcompl_compat(as, (void __user * __user *)arg);
 }
 
@@ -1239,7 +1230,7 @@ static int proc_ioctl (struct dev_state *ps, void __user *arg)
 			return -ENOMEM;
 		if ((_IOC_DIR(ctrl.ioctl_code) & _IOC_WRITE)) {
 			if (copy_from_user (buf, ctrl.data, size)) {
-				kfree (buf);
+				kfree(buf);
 				return -EFAULT;
 			}
 		} else {
@@ -1248,8 +1239,7 @@ static int proc_ioctl (struct dev_state *ps, void __user *arg)
 	}
 
 	if (!connected(ps->dev)) {
-		if (buf)
-			kfree(buf);
+		kfree(buf);
 		return -ENODEV;
 	}
 
@@ -1311,8 +1301,8 @@ static int proc_ioctl (struct dev_state *ps, void __user *arg)
 			&& size > 0
 			&& copy_to_user (ctrl.data, buf, size) != 0)
 		retval = -EFAULT;
-	if (buf != NULL)
-		kfree (buf);
+
+	kfree(buf);
 	return retval;
 }
 

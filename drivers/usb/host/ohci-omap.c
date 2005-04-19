@@ -458,9 +458,11 @@ static int ohci_hcd_omap_drv_remove(struct device *dev)
 
 /* states match PCI usage, always suspending the root hub except that
  * 4 ~= D3cold (ACPI D3) with clock off (resume sees reset).
+ *
+ * FIXME: above comment is not right, and code is wrong, too :-(.
  */
 
-static int ohci_omap_suspend(struct device *dev, u32 state, u32 level)
+static int ohci_omap_suspend(struct device *dev, pm_message_t state, u32 level)
 {
 	struct ohci_hcd	*ohci = hcd_to_ohci(dev_get_drvdata(dev));
 	int		status = -EINVAL;

@@ -2138,6 +2138,7 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	aiptek->inputdev.id.vendor = le16_to_cpu(usbdev->descriptor.idVendor);
 	aiptek->inputdev.id.product = le16_to_cpu(usbdev->descriptor.idProduct);
 	aiptek->inputdev.id.version = le16_to_cpu(usbdev->descriptor.bcdDevice);
+	aiptek->inputdev.dev = &intf->dev;
 
 	aiptek->usbdev = usbdev;
 	aiptek->ifnum = intf->altsetting[0].desc.bInterfaceNumber;

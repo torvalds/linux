@@ -568,6 +568,9 @@ static struct usb_serial_device_type digi_acceleport_4_device = {
 *  and the sleep.  In other words, spin_unlock_irqrestore and
 *  interruptible_sleep_on_timeout are "atomic" with respect to
 *  wake ups.  This is used to implement condition variables.
+*
+*  interruptible_sleep_on_timeout is deprecated and has been replaced
+*  with the equivalent code.
 */
 
 static inline long cond_wait_interruptible_timeout_irqrestore(
@@ -576,13 +579,12 @@ static inline long cond_wait_interruptible_timeout_irqrestore(
 {
 	DEFINE_WAIT(wait);
 
-	prepare_to_wait(q, &wait, TASK_UNINTERRUPTIBLE);
+	prepare_to_wait(q, &wait, TASK_INTERRUPTIBLE);
 	spin_unlock_irqrestore(lock, flags);
 	timeout = schedule_timeout(timeout);
 	finish_wait(q, &wait);
 
 	return timeout;
-
 }
 
 
@@ -1596,7 +1598,7 @@ dbg( "digi_close: TOP: port=%d, open_count=%d", priv->dp_port_num, port->open_co
 			dbg( "digi_close: write oob failed, ret=%d", ret );
 
 		/* wait for final commands on oob port to complete */
-		prepare_to_wait(&priv->dp_flush_wait, &wait, TASK_UNINTERRUPTIBLE);
+		prepare_to_wait(&priv->dp_flush_wait, &wait, TASK_INTERRUPTIBLE);
 		schedule_timeout(DIGI_CLOSE_TIMEOUT);
 		finish_wait(&priv->dp_flush_wait, &wait);
 
@@ -1995,7 +1997,7 @@ opcode, line, status, val );
 
 		} else if( opcode == DIGI_CMD_IFLUSH_FIFO ) {
 
-			wake_up( &priv->dp_flush_wait );
+			wake_up_interruptible( &priv->dp_flush_wait );
 
 		}
 

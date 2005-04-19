@@ -156,8 +156,7 @@ static void ehci_mem_cleanup (struct ehci_hcd *ehci)
 	ehci->periodic = NULL;
 
 	/* shadow periodic table */
-	if (ehci->pshadow)
-		kfree (ehci->pshadow);
+	kfree(ehci->pshadow);
 	ehci->pshadow = NULL;
 }
 

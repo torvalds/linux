@@ -28,6 +28,8 @@
 #endif
 #include <linux/usb.h>
 
+#include "usb.h"
+
 #define MAX_USB_MINORS	256
 static struct file_operations *usb_minors[MAX_USB_MINORS];
 static DEFINE_SPINLOCK(minor_lock);

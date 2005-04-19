@@ -37,6 +37,7 @@
 #include <asm/io.h>
 #include <asm/byteorder.h>
 #include <asm/system.h>
+#include <asm/unaligned.h>
 
 
 #undef	RNDIS_PM
@@ -165,7 +166,7 @@ static int gen_ndis_query_resp (int configNr, u32 OID, rndis_resp_t *r)
 		
 	/* mandatory */
 	case OID_GEN_LINK_SPEED:
-		DEBUG("%s: OID_GEN_LINK_SPEED\n", __FUNCTION__);
+//		DEBUG("%s: OID_GEN_LINK_SPEED\n", __FUNCTION__);
 		length = 4;
 		if (rndis_per_dev_params [configNr].media_state
 			== NDIS_MEDIA_STATE_DISCONNECTED)
@@ -729,7 +730,7 @@ static int gen_ndis_set_resp (u8 configNr, u32 OID, u8 *buf, u32 buf_len,
 		retval = 0;
 
 		/* FIXME use these NDIS_PACKET_TYPE_* bitflags to
-		 * filter packets in hard_start_xmit()
+		 * set the cdc_filter; it's not RNDIS-specific
 		 * NDIS_PACKET_TYPE_x == USB_CDC_PACKET_TYPE_x for x in:
 		 *	PROMISCUOUS, DIRECTED,
 		 *	MULTICAST, ALL_MULTICAST, BROADCAST
@@ -1194,10 +1195,10 @@ void rndis_add_hdr (struct sk_buff *skb)
 		return;
 	header = (void *) skb_push (skb, sizeof *header);
 	memset (header, 0, sizeof *header);
-	header->MessageType = __constant_cpu_to_le32 (1);
+	header->MessageType = __constant_cpu_to_le32(REMOTE_NDIS_PACKET_MSG);
 	header->MessageLength = cpu_to_le32(skb->len);
 	header->DataOffset = __constant_cpu_to_le32 (36);
-	header->OOBDataOffset = cpu_to_le32(skb->len - 44);
+	header->DataLength = cpu_to_le32(skb->len - sizeof *header);
 }
 
 void rndis_free_response (int configNr, u8 *buf)
@@ -1253,26 +1254,23 @@ static rndis_resp_t *rndis_add_response (int configNr, u32 length)
 	return r;
 }
 
-int rndis_rm_hdr (u8 *buf, u32 *length)
+int rndis_rm_hdr(struct sk_buff *skb)
 {
-	u32 i, messageLen, dataOffset;
-	__le32 *tmp;
-	
-	tmp = (__le32 *) buf; 
+	/* tmp points to a struct rndis_packet_msg_type */
+	__le32		*tmp = (void *) skb->data;
 
-	if (!buf || !length) return -1;
-	if (le32_to_cpup(tmp++) != 1) return -1;
-	
-	messageLen = le32_to_cpup(tmp++);
-	dataOffset = le32_to_cpup(tmp++) + 8;
+	/* MessageType, MessageLength */
+	if (__constant_cpu_to_le32(REMOTE_NDIS_PACKET_MSG)
+			!= get_unaligned(tmp++))
+		return -EINVAL;
+	tmp++;
 
-	if (messageLen < dataOffset || messageLen > *length) return -1;
-	
-	for (i = dataOffset; i < messageLen; i++)
-		buf [i - dataOffset] = buf [i];
-		
-	*length = messageLen - dataOffset;
-	
+	/* DataOffset, DataLength */
+	if (!skb_pull(skb, le32_to_cpu(get_unaligned(tmp++))
+			+ 8 /* offset of DataOffset */))
+		return -EOVERFLOW;
+	skb_trim(skb, le32_to_cpu(get_unaligned(tmp++)));
+
 	return 0;
 }
 

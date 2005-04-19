@@ -2809,17 +2809,15 @@ static int __exit omap_udc_remove(struct device *dev)
 	return 0;
 }
 
-/* suspend/resume/wakeup from sysfs (echo > power/state) */
-
-static int omap_udc_suspend(struct device *dev, u32 state, u32 level)
+static int omap_udc_suspend(struct device *dev, pm_message_t state, u32 level)
 {
 	if (level != 0)
 		return 0;
 
 	DBG("suspend, state %d\n", state);
 	omap_pullup(&udc->gadget, 0);
-	udc->gadget.dev.power.power_state = 3;
-	udc->gadget.dev.parent->power.power_state = 3;
+	udc->gadget.dev.power.power_state = PMSG_SUSPEND;
+	udc->gadget.dev.parent->power.power_state = PMSG_SUSPEND;
 	return 0;
 }
 
@@ -2829,8 +2827,8 @@ static int omap_udc_resume(struct device *dev, u32 level)
 		return 0;
 
 	DBG("resume + wakeup/SRP\n");
-	udc->gadget.dev.parent->power.power_state = 0;
-	udc->gadget.dev.power.power_state = 0;
+	udc->gadget.dev.parent->power.power_state = PMSG_ON;
+	udc->gadget.dev.power.power_state = PMSG_ON;
 	omap_pullup(&udc->gadget, 1);
 
 	/* maybe the host would enumerate us if we nudged it */

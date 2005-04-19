@@ -1364,11 +1364,18 @@ static void pegasus_disconnect(struct usb_interface *intf)
 	free_netdev(pegasus->net);
 }
 
-static int pegasus_suspend (struct usb_interface *intf, pm_message_t state)
+static int pegasus_suspend (struct usb_interface *intf, pm_message_t message)
 {
 	struct pegasus *pegasus = usb_get_intfdata(intf);
 	
 	netif_device_detach (pegasus->net);
+	if (netif_running(pegasus->net)) {
+		cancel_delayed_work(&pegasus->carrier_check);
+
+		usb_kill_urb(pegasus->rx_urb);
+		usb_kill_urb(pegasus->intr_urb);
+	}
+	intf->dev.power.power_state = PMSG_SUSPEND;
 	return 0;
 }
 
@@ -1376,7 +1383,20 @@ static int pegasus_resume (struct usb_interface *intf)
 {
 	struct pegasus *pegasus = usb_get_intfdata(intf);
 
+	intf->dev.power.power_state = PMSG_ON;
 	netif_device_attach (pegasus->net);
+	if (netif_running(pegasus->net)) {
+		pegasus->rx_urb->status = 0;
+		pegasus->rx_urb->actual_length = 0;
+		read_bulk_callback(pegasus->rx_urb, 0);
+
+		pegasus->intr_urb->status = 0;
+		pegasus->intr_urb->actual_length = 0;
+		intr_callback(pegasus->intr_urb, 0);
+
+		queue_delayed_work(pegasus_workqueue, &pegasus->carrier_check,
+					CARRIER_CHECK_DELAY);
+	}
 	return 0;
 }
 

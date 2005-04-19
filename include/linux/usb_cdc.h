@@ -114,7 +114,7 @@ struct usb_cdc_mdlm_detail_desc {
 
 	/* type is associated with mdlm_desc.bGUID */
 	__u8	bGuidDescriptorType;
-	__u8	bDetailData[];
+	__u8	bDetailData[0];
 } __attribute__ ((packed));
 
 /*-------------------------------------------------------------------------*/

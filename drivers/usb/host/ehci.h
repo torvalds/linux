@@ -364,7 +364,7 @@ union ehci_shadow {
 	struct ehci_itd		*itd;		/* Q_TYPE_ITD */
 	struct ehci_sitd	*sitd;		/* Q_TYPE_SITD */
 	struct ehci_fstn	*fstn;		/* Q_TYPE_FSTN */
-	u32			*hw_next;	/* (all types) */
+	__le32			*hw_next;	/* (all types) */
 	void			*ptr;
 };
 

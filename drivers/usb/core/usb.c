@@ -50,13 +50,6 @@
 #include "hcd.h"
 #include "usb.h"
 
-extern int  usb_hub_init(void);
-extern void usb_hub_cleanup(void);
-extern int usb_major_init(void);
-extern void usb_major_cleanup(void);
-extern int usb_host_init(void);
-extern void usb_host_cleanup(void);
-
 
 const char *usbcore_name = "usbcore";
 
@@ -1382,13 +1375,13 @@ void usb_buffer_unmap_sg (struct usb_device *dev, unsigned pipe,
 			usb_pipein (pipe) ? DMA_FROM_DEVICE : DMA_TO_DEVICE);
 }
 
-static int usb_generic_suspend(struct device *dev, u32 state)
+static int usb_generic_suspend(struct device *dev, pm_message_t message)
 {
 	struct usb_interface *intf;
 	struct usb_driver *driver;
 
 	if (dev->driver == &usb_generic_driver)
-		return usb_suspend_device (to_usb_device(dev), state);
+		return usb_suspend_device (to_usb_device(dev), message);
 
 	if ((dev->driver == NULL) ||
 	    (dev->driver_data == &usb_generic_driver_data))
@@ -1402,7 +1395,7 @@ static int usb_generic_suspend(struct device *dev, u32 state)
 		return 0;
 
 	if (driver->suspend)
-		return driver->suspend(intf, state);
+		return driver->suspend(intf, message);
 	return 0;
 }
 
