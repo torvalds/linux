@@ -341,6 +341,7 @@ EXPORT_SYMBOL_GPL(dma_get_required_mask);
 
 EXPORT_SYMBOL_GPL(platform_bus);
 EXPORT_SYMBOL_GPL(platform_bus_type);
+EXPORT_SYMBOL_GPL(platform_add_devices);
 EXPORT_SYMBOL_GPL(platform_device_register);
 EXPORT_SYMBOL_GPL(platform_device_register_simple);
 EXPORT_SYMBOL_GPL(platform_device_unregister);
