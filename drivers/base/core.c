@@ -260,6 +260,8 @@ int device_add(struct device *dev)
 	/* notify platform of device entry */
 	if (platform_notify)
 		platform_notify(dev);
+
+	kobject_hotplug(&dev->kobj, KOBJ_ADD);
  Done:
 	put_device(dev);
 	return error;
@@ -349,6 +351,7 @@ void device_del(struct device * dev)
 		platform_notify_remove(dev);
 	bus_remove_device(dev);
 	device_pm_remove(dev);
+	kobject_hotplug(&dev->kobj, KOBJ_REMOVE);
 	kobject_del(&dev->kobj);
 	if (parent)
 		put_device(parent);
