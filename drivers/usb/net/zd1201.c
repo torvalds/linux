@@ -106,8 +106,7 @@ int zd1201_fw_upload(struct usb_device *dev, int apfw)
 
 	err = 0;
 exit:
- 	if (buf)
-		kfree(buf);
+	kfree(buf);
 	release_firmware(fw_entry);
 	return err;
 }

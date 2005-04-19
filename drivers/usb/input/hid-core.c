@@ -558,8 +558,7 @@ static void hid_free_device(struct hid_device *device)
 		}
 	}
 
-	if (device->rdesc)
-		kfree(device->rdesc);
+	kfree(device->rdesc);
 	kfree(device);
 }
 

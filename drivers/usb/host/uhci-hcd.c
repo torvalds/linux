@@ -890,8 +890,7 @@ up_failed:
 	debugfs_remove(uhci_debugfs_root);
 
 debug_failed:
-	if (errbuf)
-		kfree(errbuf);
+	kfree(errbuf);
 
 errbuf_failed:
 
@@ -906,9 +905,7 @@ static void __exit uhci_hcd_cleanup(void)
 		warn("not all urb_priv's were freed!");
 
 	debugfs_remove(uhci_debugfs_root);
-
-	if (errbuf)
-		kfree(errbuf);
+	kfree(errbuf);
 }
 
 module_init(uhci_hcd_init);

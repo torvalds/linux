@@ -1340,9 +1340,8 @@ static struct cypress_buf *cypress_buf_alloc(unsigned int size)
 
 static void cypress_buf_free(struct cypress_buf *cb)
 {
-	if (cb != NULL) {
-		if (cb->buf_buf != NULL)
-			kfree(cb->buf_buf);
+	if (cb) {
+		kfree(cb->buf_buf);
 		kfree(cb);
 	}
 }

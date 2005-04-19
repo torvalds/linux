@@ -381,7 +381,7 @@ static void hub_tt_kevent (void *arg)
 			dev_err (&hdev->dev,
 				"clear tt %d (%04x) error %d\n",
 				clear->tt, clear->devinfo, status);
-		kfree (clear);
+		kfree(clear);
 	}
 	spin_unlock_irqrestore (&hub->tt.lock, flags);
 }
@@ -728,15 +728,11 @@ static void hub_disconnect(struct usb_interface *intf)
 	list_del_init(&hub->event_list);
 	spin_unlock_irq(&hub_event_lock);
 
-	if (hub->descriptor) {
-		kfree(hub->descriptor);
-		hub->descriptor = NULL;
-	}
+	kfree(hub->descriptor);
+	hub->descriptor = NULL;
 
-	if (hub->status) {
-		kfree(hub->status);
-		hub->status = NULL;
-	}
+	kfree(hub->status);
+	hub->status = NULL;
 
 	if (hub->buffer) {
 		usb_buffer_free(hdev, sizeof(*hub->buffer), hub->buffer,
@@ -2354,7 +2350,7 @@ check_highspeed (struct usb_hub *hub, struct usb_device *udev, int port1)
 			schedule_work (&hub->leds);
 		}
 	}
-	kfree (qual);
+	kfree(qual);
 }
 
 static unsigned

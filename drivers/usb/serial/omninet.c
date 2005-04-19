@@ -178,7 +178,6 @@ static void omninet_close (struct usb_serial_port *port, struct file * filp)
 {
 	struct usb_serial 	*serial = port->serial;
 	struct usb_serial_port 	*wport;
-	struct omninet_data 	*od;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
@@ -186,9 +185,7 @@ static void omninet_close (struct usb_serial_port *port, struct file * filp)
 	usb_kill_urb(wport->write_urb);
 	usb_kill_urb(port->read_urb);
 
-	od = usb_get_serial_port_data(port);
-	if (od)
-		kfree(od);
+	kfree(usb_get_serial_port_data(port));
 }
 
 

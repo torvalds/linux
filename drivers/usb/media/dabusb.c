@@ -138,8 +138,7 @@ static int dabusb_free_queue (struct list_head *q)
 #ifdef DEBUG 
 		dump_urb(b->purb);
 #endif
-		if (b->purb->transfer_buffer)
-			kfree (b->purb->transfer_buffer);
+		kfree(b->purb->transfer_buffer);
 		usb_free_urb(b->purb);
 		tmp = p->next;
 		list_del (p);

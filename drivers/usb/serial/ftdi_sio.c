@@ -1347,9 +1347,7 @@ static int ftdi_common_startup (struct usb_serial *serial)
 	priv->flags = ASYNC_LOW_LATENCY;
 
 	/* Increase the size of read buffers */
-	if (port->bulk_in_buffer) {
-		kfree (port->bulk_in_buffer);
-	}
+	kfree(port->bulk_in_buffer);
 	port->bulk_in_buffer = kmalloc (BUFSZ, GFP_KERNEL);
 	if (!port->bulk_in_buffer) {
 		kfree (priv);
@@ -1365,10 +1363,8 @@ static int ftdi_common_startup (struct usb_serial *serial)
 		usb_free_urb (port->write_urb);
 		port->write_urb = NULL;
 	}
-	if (port->bulk_out_buffer) {
-		kfree (port->bulk_out_buffer);
-		port->bulk_out_buffer = NULL;
-	}
+	kfree(port->bulk_out_buffer);
+	port->bulk_out_buffer = NULL;
 
 	usb_set_serial_port_data(serial->port[0], priv);
 	

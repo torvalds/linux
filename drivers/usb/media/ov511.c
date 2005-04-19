@@ -3915,10 +3915,8 @@ ov51x_do_dealloc(struct usb_ov511 *ov)
 	ov->tempfbuf = NULL;
 
 	for (i = 0; i < OV511_NUMSBUF; i++) {
-		if (ov->sbuf[i].data) {
-			kfree(ov->sbuf[i].data);
-			ov->sbuf[i].data = NULL;
-		}
+		kfree(ov->sbuf[i].data);
+		ov->sbuf[i].data = NULL;
 	}
 
 	for (i = 0; i < OV511_NUMFRAMES; i++) {
@@ -5954,10 +5952,8 @@ error:
 		up(&ov->cbuf_lock);
 	}
 
-	if (ov) {
-		kfree(ov);
-		ov = NULL;
-	}
+	kfree(ov);
+	ov = NULL;
 
 error_out:
 	err("Camera initialization failed");

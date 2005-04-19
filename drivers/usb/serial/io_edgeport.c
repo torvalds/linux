@@ -951,9 +951,7 @@ static void edge_bulk_out_cmd_callback (struct urb *urb, struct pt_regs *regs)
 
 
 	/* clean up the transfer buffer */
-	if (urb->transfer_buffer != NULL) {
-		kfree(urb->transfer_buffer);
-	}
+	kfree(urb->transfer_buffer);
 
 	/* Free the command urb */
 	usb_free_urb (urb);
@@ -1266,16 +1264,12 @@ static void edge_close (struct usb_serial_port *port, struct file * filp)
 
 	if (edge_port->write_urb) {
 		/* if this urb had a transfer buffer already (old transfer) free it */
-		if (edge_port->write_urb->transfer_buffer != NULL) {
-			kfree(edge_port->write_urb->transfer_buffer);
-		}
-		usb_free_urb   (edge_port->write_urb);
+		kfree(edge_port->write_urb->transfer_buffer);
+		usb_free_urb(edge_port->write_urb);
 		edge_port->write_urb = NULL;
 	}
-	if (edge_port->txfifo.fifo) {
-		kfree(edge_port->txfifo.fifo);
-		edge_port->txfifo.fifo = NULL;
-	}
+	kfree(edge_port->txfifo.fifo);
+	edge_port->txfifo.fifo = NULL;
 
 	dbg("%s exited", __FUNCTION__);
 }   
@@ -1419,11 +1413,9 @@ static void send_more_port_data(struct edgeport_serial *edge_serial, struct edge
 	// get a pointer to the write_urb
 	urb = edge_port->write_urb;
 
-	/* if this urb had a transfer buffer already (old transfer) free it */
-	if (urb->transfer_buffer != NULL) {
-		kfree(urb->transfer_buffer);
-		urb->transfer_buffer = NULL;
-	}
+	/* make sure transfer buffer is freed */
+	kfree(urb->transfer_buffer);
+	urb->transfer_buffer = NULL;
 
 	/* build the data header for the buffer and port that we are about to send out */
 	count = fifo->count;

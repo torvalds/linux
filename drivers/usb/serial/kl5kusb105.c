@@ -341,8 +341,7 @@ static void klsi_105_shutdown (struct usb_serial *serial)
 					 * finished.  Otherwise this call
 					 * oopses. */
 					/* usb_kill_urb(write_urbs[j]); */
-					if (write_urbs[j]->transfer_buffer)
-						    kfree(write_urbs[j]->transfer_buffer);
+					kfree(write_urbs[j]->transfer_buffer);
 					usb_free_urb (write_urbs[j]);
 				}
 			}

@@ -705,16 +705,12 @@ static int auerchain_control_msg (pauerchain_t acp, struct usb_device *dev, unsi
 /* free a single auerbuf */
 static void auerbuf_free (pauerbuf_t bp)
 {
-	if (bp->bufp) {
-		kfree (bp->bufp);
-	}
-	if (bp->dr) {
-		kfree (bp->dr);
-	}
+	kfree(bp->bufp);
+	kfree(bp->dr);
 	if (bp->urbp) {
-		usb_free_urb (bp->urbp);
+		usb_free_urb(bp->urbp);
 	}
-	kfree (bp);
+	kfree(bp);
 }
 
 /* free the buffers from an auerbuf list */
@@ -1093,14 +1089,12 @@ exit:
 */
 static void auerswald_int_free (pauerswald_t cp)
 {
-        if (cp->inturbp) {
-                usb_free_urb (cp->inturbp);
-                cp->inturbp = NULL;
-        }
-        if (cp->intbufp) {
-                kfree (cp->intbufp);
-                cp->intbufp = NULL;
-        }
+	if (cp->inturbp) {
+		usb_free_urb(cp->inturbp);
+		cp->inturbp = NULL;
+	}
+	kfree(cp->intbufp);
+	cp->intbufp = NULL;
 }
 
 /* This function is called to activate the interrupt

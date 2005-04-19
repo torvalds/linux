@@ -1044,9 +1044,8 @@ static struct pl2303_buf *pl2303_buf_alloc(unsigned int size)
 
 static void pl2303_buf_free(struct pl2303_buf *pb)
 {
-	if (pb != NULL) {
-		if (pb->buf_buf != NULL)
-			kfree(pb->buf_buf);
+	if (pb) {
+		kfree(pb->buf_buf);
 		kfree(pb);
 	}
 }

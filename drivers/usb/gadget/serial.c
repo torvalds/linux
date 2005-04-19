@@ -2312,9 +2312,8 @@ static struct gs_buf *gs_buf_alloc(unsigned int size, int kmalloc_flags)
  */
 void gs_buf_free(struct gs_buf *gb)
 {
-	if (gb != NULL) {
-		if (gb->buf_buf != NULL)
-			kfree(gb->buf_buf);
+	if (gb) {
+		kfree(gb->buf_buf);
 		kfree(gb);
 	}
 }
