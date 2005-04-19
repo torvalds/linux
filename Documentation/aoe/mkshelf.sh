@@ -2,6 +2,7 @@
 
 if test "$#" != "2"; then
 	echo "Usage: sh `basename $0` {dir} {shelfaddress}" 1>&2
+	echo "       n_partitions=16 sh `basename $0` {dir} {shelfaddress}" 1>&2
 	exit 1
 fi
 n_partitions=${n_partitions:-16}
