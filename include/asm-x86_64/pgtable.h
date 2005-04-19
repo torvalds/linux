@@ -114,7 +114,7 @@ extern inline void pgd_clear (pgd_t * pgd)
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
 #define USER_PTRS_PER_PGD	(TASK_SIZE/PGDIR_SIZE)
-#define FIRST_USER_PGD_NR	0
+#define FIRST_USER_ADDRESS	0
 
 #ifndef __ASSEMBLY__
 #define MAXMEM		 0x3fffffffffffUL

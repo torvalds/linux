@@ -238,7 +238,7 @@ static inline pmd_t * pmd_offset(pgd_t * dir, unsigned long address)
 
 /* Round it up ! */
 #define USER_PTRS_PER_PGD	((TASK_SIZE+PGDIR_SIZE-1)/PGDIR_SIZE)
-#define FIRST_USER_PGD_NR	0
+#define FIRST_USER_ADDRESS	0
 
 #ifndef __ASSEMBLY__
 #define VMALLOC_END	0xff000000

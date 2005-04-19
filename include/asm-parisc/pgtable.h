@@ -120,7 +120,7 @@
  * pgd entries used up by user/kernel:
  */
 
-#define FIRST_USER_PGD_NR	0
+#define FIRST_USER_ADDRESS	0
 
 #ifndef __ASSEMBLY__
 extern  void *vmalloc_start;

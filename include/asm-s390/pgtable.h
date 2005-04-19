@@ -95,13 +95,13 @@ extern char empty_zero_page[PAGE_SIZE];
 # define USER_PTRS_PER_PGD  512
 # define USER_PGD_PTRS      512
 # define KERNEL_PGD_PTRS    512
-# define FIRST_USER_PGD_NR  0
 #else /* __s390x__ */
 # define USER_PTRS_PER_PGD  2048
 # define USER_PGD_PTRS      2048
 # define KERNEL_PGD_PTRS    2048
-# define FIRST_USER_PGD_NR  0
 #endif /* __s390x__ */
+
+#define FIRST_USER_ADDRESS  0
 
 #define pte_ERROR(e) \
 	printk("%s:%d: bad pte %p.\n", __FILE__, __LINE__, (void *) pte_val(e))
