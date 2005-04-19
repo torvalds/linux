@@ -1032,15 +1032,15 @@ static int processcompl(struct async *as, void __user * __user *arg)
 	if (put_user(urb->error_count, &userurb->error_count))
 		return -EFAULT;
 
-	if (!(usb_pipeisoc(urb->pipe)))
-		return 0;
-	for (i = 0; i < urb->number_of_packets; i++) {
-		if (put_user(urb->iso_frame_desc[i].actual_length,
-			     &userurb->iso_frame_desc[i].actual_length))
-			return -EFAULT;
-		if (put_user(urb->iso_frame_desc[i].status,
-			     &userurb->iso_frame_desc[i].status))
-			return -EFAULT;
+	if (usb_pipeisoc(urb->pipe)) {
+		for (i = 0; i < urb->number_of_packets; i++) {
+			if (put_user(urb->iso_frame_desc[i].actual_length,
+				     &userurb->iso_frame_desc[i].actual_length))
+				return -EFAULT;
+			if (put_user(urb->iso_frame_desc[i].status,
+				     &userurb->iso_frame_desc[i].status))
+				return -EFAULT;
+		}
 	}
 
 	free_async(as);
@@ -1126,7 +1126,7 @@ static int proc_submiturb_compat(struct dev_state *ps, void __user *arg)
 	if (get_urb32(&uurb,(struct usbdevfs_urb32 *)arg))
 		return -EFAULT;
 
-	return proc_do_submiturb(ps, &uurb, ((struct usbdevfs_urb __user *)arg)->iso_frame_desc, arg);
+	return proc_do_submiturb(ps, &uurb, ((struct usbdevfs_urb32 __user *)arg)->iso_frame_desc, arg);
 }
 
 static int processcompl_compat(struct async *as, void __user * __user *arg)
@@ -1146,15 +1146,15 @@ static int processcompl_compat(struct async *as, void __user * __user *arg)
 	if (put_user(urb->error_count, &userurb->error_count))
 		return -EFAULT;
 
-	if (!(usb_pipeisoc(urb->pipe)))
-		return 0;
-	for (i = 0; i < urb->number_of_packets; i++) {
-		if (put_user(urb->iso_frame_desc[i].actual_length,
-			     &userurb->iso_frame_desc[i].actual_length))
-			return -EFAULT;
-		if (put_user(urb->iso_frame_desc[i].status,
-			     &userurb->iso_frame_desc[i].status))
-			return -EFAULT;
+	if (usb_pipeisoc(urb->pipe)) {
+		for (i = 0; i < urb->number_of_packets; i++) {
+			if (put_user(urb->iso_frame_desc[i].actual_length,
+				     &userurb->iso_frame_desc[i].actual_length))
+				return -EFAULT;
+			if (put_user(urb->iso_frame_desc[i].status,
+				     &userurb->iso_frame_desc[i].status))
+				return -EFAULT;
+		}
 	}
 
 	free_async(as);
@@ -1177,10 +1177,8 @@ static int proc_reapurbnonblock_compat(struct dev_state *ps, void __user *arg)
 {
 	struct async *as;
 
-	printk("reapurbnblock\n");
 	if (!(as = async_getcompleted(ps)))
 		return -EAGAIN;
-	printk("reap got as %p\n", as);
 	return processcompl_compat(as, (void __user * __user *)arg);
 }
 
