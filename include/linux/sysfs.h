@@ -99,6 +99,9 @@ sysfs_create_file(struct kobject *, const struct attribute *);
 extern int
 sysfs_update_file(struct kobject *, const struct attribute *);
 
+extern int
+sysfs_chmod_file(struct kobject *kobj, struct attribute *attr, mode_t mode);
+
 extern void
 sysfs_remove_file(struct kobject *, const struct attribute *);
 
@@ -137,6 +140,10 @@ static inline int sysfs_create_file(struct kobject * k, const struct attribute *
 }
 
 static inline int sysfs_update_file(struct kobject * k, const struct attribute * a)
+{
+	return 0;
+}
+static inline int sysfs_chmod_file(struct kobject *kobj, struct attribute *attr, mode_t mode)
 {
 	return 0;
 }
