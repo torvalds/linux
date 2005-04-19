@@ -184,8 +184,6 @@ int kobject_add(struct kobject * kobj)
 		unlink(kobj);
 		if (parent)
 			kobject_put(parent);
-	} else {
-		kobject_hotplug(kobj, KOBJ_ADD);
 	}
 
 	return error;
@@ -207,7 +205,8 @@ int kobject_register(struct kobject * kobj)
 			printk("kobject_register failed for %s (%d)\n",
 			       kobject_name(kobj),error);
 			dump_stack();
-		}
+		} else
+			kobject_hotplug(kobj, KOBJ_ADD);
 	} else
 		error = -EINVAL;
 	return error;
@@ -301,7 +300,6 @@ int kobject_rename(struct kobject * kobj, char *new_name)
 
 void kobject_del(struct kobject * kobj)
 {
-	kobject_hotplug(kobj, KOBJ_REMOVE);
 	sysfs_remove_dir(kobj);
 	unlink(kobj);
 }
@@ -314,6 +312,7 @@ void kobject_del(struct kobject * kobj)
 void kobject_unregister(struct kobject * kobj)
 {
 	pr_debug("kobject %s: unregistering\n",kobject_name(kobj));
+	kobject_hotplug(kobj, KOBJ_REMOVE);
 	kobject_del(kobj);
 	kobject_put(kobj);
 }
