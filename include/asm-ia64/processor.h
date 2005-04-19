@@ -43,14 +43,6 @@
 #define TASK_SIZE		(current->thread.task_size)
 
 /*
- * MM_VM_SIZE(mm) gives the maximum address (plus 1) which may contain a mapping for
- * address-space MM.  Note that with 32-bit tasks, this is still DEFAULT_TASK_SIZE,
- * because the kernel may have installed helper-mappings above TASK_SIZE.  For example,
- * for x86 emulation, the LDT and GDT are mapped above TASK_SIZE.
- */
-#define MM_VM_SIZE(mm)		DEFAULT_TASK_SIZE
-
-/*
  * This decides where the kernel will search for a free chunk of vm
  * space during mmap's.
  */

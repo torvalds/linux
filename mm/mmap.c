@@ -1900,6 +1900,7 @@ void exit_mmap(struct mm_struct *mm)
 	struct mmu_gather *tlb;
 	struct vm_area_struct *vma = mm->mmap;
 	unsigned long nr_accounted = 0;
+	unsigned long end;
 
 	lru_add_drain();
 
@@ -1908,10 +1909,10 @@ void exit_mmap(struct mm_struct *mm)
 	flush_cache_mm(mm);
 	tlb = tlb_gather_mmu(mm, 1);
 	/* Use -1 here to ensure all VMAs in the mm are unmapped */
-	mm->map_count -= unmap_vmas(&tlb, mm, vma, 0, -1, &nr_accounted, NULL);
+	end = unmap_vmas(&tlb, mm, vma, 0, -1, &nr_accounted, NULL);
 	vm_unacct_memory(nr_accounted);
 	free_pgtables(&tlb, vma, 0, 0);
-	tlb_finish_mmu(tlb, 0, MM_VM_SIZE(mm));
+	tlb_finish_mmu(tlb, 0, end);
 
 	mm->mmap = mm->mmap_cache = NULL;
 	mm->mm_rb = RB_ROOT;
@@ -1931,7 +1932,6 @@ void exit_mmap(struct mm_struct *mm)
 		vma = next;
 	}
 
-	BUG_ON(mm->map_count);	/* This is just debugging */
 	BUG_ON(mm->nr_ptes);	/* This is just debugging */
 }
 

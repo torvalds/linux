@@ -645,7 +645,7 @@ static void unmap_page_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
  * @nr_accounted: Place number of unmapped pages in vm-accountable vma's here
  * @details: details of nonlinear truncation or shared cache invalidation
  *
- * Returns the number of vma's which were covered by the unmapping.
+ * Returns the end address of the unmapping (restart addr if interrupted).
  *
  * Unmap all pages in the vma list.  Called under page_table_lock.
  *
@@ -662,7 +662,7 @@ static void unmap_page_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
  * ensure that any thus-far unmapped pages are flushed before unmap_vmas()
  * drops the lock and schedules.
  */
-int unmap_vmas(struct mmu_gather **tlbp, struct mm_struct *mm,
+unsigned long unmap_vmas(struct mmu_gather **tlbp, struct mm_struct *mm,
 		struct vm_area_struct *vma, unsigned long start_addr,
 		unsigned long end_addr, unsigned long *nr_accounted,
 		struct zap_details *details)
@@ -670,12 +670,11 @@ int unmap_vmas(struct mmu_gather **tlbp, struct mm_struct *mm,
 	unsigned long zap_bytes = ZAP_BLOCK_SIZE;
 	unsigned long tlb_start = 0;	/* For tlb_finish_mmu */
 	int tlb_start_valid = 0;
-	int ret = 0;
+	unsigned long start = start_addr;
 	spinlock_t *i_mmap_lock = details? details->i_mmap_lock: NULL;
 	int fullmm = tlb_is_full_mm(*tlbp);
 
 	for ( ; vma && vma->vm_start < end_addr; vma = vma->vm_next) {
-		unsigned long start;
 		unsigned long end;
 
 		start = max(vma->vm_start, start_addr);
@@ -688,7 +687,6 @@ int unmap_vmas(struct mmu_gather **tlbp, struct mm_struct *mm,
 		if (vma->vm_flags & VM_ACCOUNT)
 			*nr_accounted += (end - start) >> PAGE_SHIFT;
 
-		ret++;
 		while (start != end) {
 			unsigned long block;
 
@@ -719,7 +717,6 @@ int unmap_vmas(struct mmu_gather **tlbp, struct mm_struct *mm,
 				if (i_mmap_lock) {
 					/* must reset count of rss freed */
 					*tlbp = tlb_gather_mmu(mm, fullmm);
-					details->break_addr = start;
 					goto out;
 				}
 				spin_unlock(&mm->page_table_lock);
@@ -733,7 +730,7 @@ int unmap_vmas(struct mmu_gather **tlbp, struct mm_struct *mm,
 		}
 	}
 out:
-	return ret;
+	return start;	/* which is now the end (or restart) address */
 }
 
 /**
@@ -743,7 +740,7 @@ out:
  * @size: number of bytes to zap
  * @details: details of nonlinear truncation or shared cache invalidation
  */
-void zap_page_range(struct vm_area_struct *vma, unsigned long address,
+unsigned long zap_page_range(struct vm_area_struct *vma, unsigned long address,
 		unsigned long size, struct zap_details *details)
 {
 	struct mm_struct *mm = vma->vm_mm;
@@ -753,15 +750,16 @@ void zap_page_range(struct vm_area_struct *vma, unsigned long address,
 
 	if (is_vm_hugetlb_page(vma)) {
 		zap_hugepage_range(vma, address, size);
-		return;
+		return end;
 	}
 
 	lru_add_drain();
 	spin_lock(&mm->page_table_lock);
 	tlb = tlb_gather_mmu(mm, 0);
-	unmap_vmas(&tlb, mm, vma, address, end, &nr_accounted, details);
+	end = unmap_vmas(&tlb, mm, vma, address, end, &nr_accounted, details);
 	tlb_finish_mmu(tlb, address, end);
 	spin_unlock(&mm->page_table_lock);
+	return end;
 }
 
 /*
@@ -1348,7 +1346,7 @@ no_new_page:
  * i_mmap_lock.
  *
  * In order to make forward progress despite repeatedly restarting some
- * large vma, note the break_addr set by unmap_vmas when it breaks out:
+ * large vma, note the restart_addr from unmap_vmas when it breaks out:
  * and restart from that address when we reach that vma again.  It might
  * have been split or merged, shrunk or extended, but never shifted: so
  * restart_addr remains valid so long as it remains in the vma's range.
@@ -1386,8 +1384,8 @@ again:
 		}
 	}
 
-	details->break_addr = end_addr;
-	zap_page_range(vma, start_addr, end_addr - start_addr, details);
+	restart_addr = zap_page_range(vma, start_addr,
+					end_addr - start_addr, details);
 
 	/*
 	 * We cannot rely on the break test in unmap_vmas:
@@ -1398,14 +1396,14 @@ again:
 	need_break = need_resched() ||
 			need_lockbreak(details->i_mmap_lock);
 
-	if (details->break_addr >= end_addr) {
+	if (restart_addr >= end_addr) {
 		/* We have now completed this vma: mark it so */
 		vma->vm_truncate_count = details->truncate_count;
 		if (!need_break)
 			return 0;
 	} else {
 		/* Note restart_addr in vma's truncate_count field */
-		vma->vm_truncate_count = details->break_addr;
+		vma->vm_truncate_count = restart_addr;
 		if (!need_break)
 			goto again;
 	}

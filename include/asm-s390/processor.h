@@ -74,8 +74,6 @@ extern struct task_struct *last_task_used_math;
 
 #endif /* __s390x__ */
 
-#define MM_VM_SIZE(mm)		DEFAULT_TASK_SIZE
-
 #define HAVE_ARCH_PICK_MMAP_LAYOUT
 
 typedef struct {
