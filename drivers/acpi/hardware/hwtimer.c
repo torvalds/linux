@@ -43,7 +43,6 @@
  */
 
 #include <linux/module.h>
-
 #include <acpi/acpi.h>
 
 #define _COMPONENT          ACPI_HARDWARE
@@ -90,7 +89,7 @@ acpi_get_timer_resolution (
  *
  * PARAMETERS:  Ticks               - Where the timer value is returned
  *
- * RETURN:      Status and current ticks
+ * RETURN:      Status and current timer value (ticks)
  *
  * DESCRIPTION: Obtains current value of ACPI PM Timer (in ticks).
  *
@@ -199,5 +198,6 @@ acpi_get_timer_duration (
 	*time_elapsed = (u32) quotient;
 	return_ACPI_STATUS (status);
 }
+
 EXPORT_SYMBOL(acpi_get_timer_duration);
 

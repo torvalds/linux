@@ -43,14 +43,17 @@
 
 
 #include <acpi/acpi.h>
-#include <acpi/acnamesp.h>
 
+
+/* TBD: This entire module is apparently obsolete and should be removed */
 
 #define _COMPONENT          ACPI_NAMESPACE
 	 ACPI_MODULE_NAME    ("nsdumpdv")
 
-
+#ifdef ACPI_OBSOLETE_FUNCTIONS
 #if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
+
+#include <acpi/acnamesp.h>
 
 /*******************************************************************************
  *
@@ -59,13 +62,16 @@
  * PARAMETERS:  Handle              - Node to be dumped
  *              Level               - Nesting level of the handle
  *              Context             - Passed into walk_namespace
+ *              return_value        - Not used
+ *
+ * RETURN:      Status
  *
  * DESCRIPTION: Dump a single Node that represents a device
  *              This procedure is a user_function called by acpi_ns_walk_namespace.
  *
  ******************************************************************************/
 
-acpi_status
+static acpi_status
 acpi_ns_dump_one_device (
 	acpi_handle                     obj_handle,
 	u32                             level,
@@ -108,12 +114,15 @@ acpi_ns_dump_one_device (
  *
  * PARAMETERS:  None
  *
+ * RETURN:      None
+ *
  * DESCRIPTION: Dump all objects of type "device"
  *
  ******************************************************************************/
 
 void
-acpi_ns_dump_root_devices (void)
+acpi_ns_dump_root_devices (
+	void)
 {
 	acpi_handle                     sys_bus_handle;
 	acpi_status                     status;
@@ -141,6 +150,7 @@ acpi_ns_dump_root_devices (void)
 			 acpi_ns_dump_one_device, NULL, NULL);
 }
 
+#endif
 #endif
 
 

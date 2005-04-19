@@ -49,15 +49,24 @@
 #define _COMPONENT          ACPI_NAMESPACE
 	 ACPI_MODULE_NAME    ("nssearch")
 
+/* Local prototypes */
+
+static acpi_status
+acpi_ns_search_parent_tree (
+	u32                             target_name,
+	struct acpi_namespace_node      *node,
+	acpi_object_type                type,
+	struct acpi_namespace_node      **return_node);
+
 
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ns_search_node
  *
- * PARAMETERS:  *target_name        - Ascii ACPI name to search for
- *              *Node               - Starting node where search will begin
- *              Type                - Object type to match
- *              **return_node       - Where the matched Named obj is returned
+ * PARAMETERS:  target_name     - Ascii ACPI name to search for
+ *              Node            - Starting node where search will begin
+ *              Type            - Object type to match
+ *              return_node     - Where the matched Named obj is returned
  *
  * RETURN:      Status
  *
@@ -163,10 +172,10 @@ acpi_ns_search_node (
  *
  * FUNCTION:    acpi_ns_search_parent_tree
  *
- * PARAMETERS:  *target_name        - Ascii ACPI name to search for
- *              *Node               - Starting node where search will begin
- *              Type                - Object type to match
- *              **return_node       - Where the matched Node is returned
+ * PARAMETERS:  target_name     - Ascii ACPI name to search for
+ *              Node            - Starting node where search will begin
+ *              Type            - Object type to match
+ *              return_node     - Where the matched Node is returned
  *
  * RETURN:      Status
  *
@@ -257,12 +266,12 @@ acpi_ns_search_parent_tree (
  *
  * PARAMETERS:  target_name         - Ascii ACPI name to search for (4 chars)
  *              walk_state          - Current state of the walk
- *              *Node               - Starting node where search will begin
+ *              Node                - Starting node where search will begin
  *              interpreter_mode    - Add names only in ACPI_MODE_LOAD_PASS_x.
  *                                    Otherwise,search only.
  *              Type                - Object type to match
  *              Flags               - Flags describing the search restrictions
- *              **return_node       - Where the Node is returned
+ *              return_node         - Where the Node is returned
  *
  * RETURN:      Status
  *

@@ -79,20 +79,23 @@ acpi_ds_init_callbacks (
 
 	switch (pass_number) {
 	case 1:
-		walk_state->parse_flags       = ACPI_PARSE_LOAD_PASS1 | ACPI_PARSE_DELETE_TREE;
+		walk_state->parse_flags       = ACPI_PARSE_LOAD_PASS1 |
+				   ACPI_PARSE_DELETE_TREE;
 		walk_state->descending_callback = acpi_ds_load1_begin_op;
 		walk_state->ascending_callback = acpi_ds_load1_end_op;
 		break;
 
 	case 2:
-		walk_state->parse_flags       = ACPI_PARSE_LOAD_PASS1 | ACPI_PARSE_DELETE_TREE;
+		walk_state->parse_flags       = ACPI_PARSE_LOAD_PASS1 |
+				   ACPI_PARSE_DELETE_TREE;
 		walk_state->descending_callback = acpi_ds_load2_begin_op;
 		walk_state->ascending_callback = acpi_ds_load2_end_op;
 		break;
 
 	case 3:
 #ifndef ACPI_NO_METHOD_EXECUTION
-		walk_state->parse_flags      |= ACPI_PARSE_EXECUTE  | ACPI_PARSE_DELETE_TREE;
+		walk_state->parse_flags      |= ACPI_PARSE_EXECUTE  |
+				   ACPI_PARSE_DELETE_TREE;
 		walk_state->descending_callback = acpi_ds_exec_begin_op;
 		walk_state->ascending_callback = acpi_ds_exec_end_op;
 #endif
@@ -111,8 +114,7 @@ acpi_ds_init_callbacks (
  * FUNCTION:    acpi_ds_load1_begin_op
  *
  * PARAMETERS:  walk_state      - Current state of the parse tree walk
- *              Op              - Op that has been just been reached in the
- *                                walk;  Arguments have not been evaluated yet.
+ *              out_op          - Where to return op if a new one is created
  *
  * RETURN:      Status
  *
@@ -146,7 +148,8 @@ acpi_ds_load1_begin_op (
 #if 0
 			if ((walk_state->op_info->class == AML_CLASS_EXECUTE) ||
 				(walk_state->op_info->class == AML_CLASS_CONTROL)) {
-				acpi_os_printf ("\n\n***EXECUTABLE OPCODE %s***\n\n", walk_state->op_info->name);
+				acpi_os_printf ("\n\n***EXECUTABLE OPCODE %s***\n\n",
+					walk_state->op_info->name);
 				*out_op = op;
 				return (AE_CTRL_SKIP);
 			}
@@ -191,7 +194,8 @@ acpi_ds_load1_begin_op (
 			 */
 			acpi_dm_add_to_external_list (path);
 			status = acpi_ns_lookup (walk_state->scope_info, path, object_type,
-					   ACPI_IMODE_LOAD_PASS1, ACPI_NS_SEARCH_PARENT, walk_state, &(node));
+					   ACPI_IMODE_LOAD_PASS1, ACPI_NS_SEARCH_PARENT,
+					   walk_state, &(node));
 		}
 #endif
 		if (ACPI_FAILURE (status)) {
@@ -224,10 +228,12 @@ acpi_ds_load1_begin_op (
 			 *  Name (DEB, 0)
 			 *  Scope (DEB) { ... }
 			 *
-			 * Note: silently change the type here.  On the second pass, we will report a warning
+			 * Note: silently change the type here.  On the second pass, we will report
+			 * a warning
 			 */
 
-			ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Type override - [%4.4s] had invalid type (%s) for Scope operator, changed to (Scope)\n",
+			ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
+				"Type override - [%4.4s] had invalid type (%s) for Scope operator, changed to (Scope)\n",
 				path, acpi_ut_get_type_name (node->type)));
 
 			node->type = ACPI_TYPE_ANY;
@@ -238,7 +244,8 @@ acpi_ds_load1_begin_op (
 
 			/* All other types are an error */
 
-			ACPI_REPORT_ERROR (("Invalid type (%s) for target of Scope operator [%4.4s] (Cannot override)\n",
+			ACPI_REPORT_ERROR ((
+				"Invalid type (%s) for target of Scope operator [%4.4s] (Cannot override)\n",
 				acpi_ut_get_type_name (node->type), path));
 
 			return (AE_AML_OPERAND_TYPE);
@@ -249,7 +256,8 @@ acpi_ds_load1_begin_op (
 	default:
 
 		/*
-		 * For all other named opcodes, we will enter the name into the namespace.
+		 * For all other named opcodes, we will enter the name into
+		 * the namespace.
 		 *
 		 * Setup the search flags.
 		 * Since we are entering a name into the namespace, we do not want to
@@ -279,14 +287,16 @@ acpi_ds_load1_begin_op (
 					acpi_ut_get_type_name (object_type)));
 		}
 		else {
-			ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "[%s] Both Find or Create allowed\n",
+			ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
+				"[%s] Both Find or Create allowed\n",
 					acpi_ut_get_type_name (object_type)));
 		}
 
 		/*
 		 * Enter the named type into the internal namespace.  We enter the name
-		 * as we go downward in the parse tree.  Any necessary subobjects that involve
-		 * arguments to the opcode must be created as we go back up the parse tree later.
+		 * as we go downward in the parse tree.  Any necessary subobjects that
+		 * involve arguments to the opcode must be created as we go back up the
+		 * parse tree later.
 		 */
 		status = acpi_ns_lookup (walk_state->scope_info, path, object_type,
 				  ACPI_IMODE_LOAD_PASS1, flags, walk_state, &(node));
@@ -335,8 +345,6 @@ acpi_ds_load1_begin_op (
  * FUNCTION:    acpi_ds_load1_end_op
  *
  * PARAMETERS:  walk_state      - Current state of the parse tree walk
- *              Op              - Op that has been just been completed in the
- *                                walk;  Arguments have now been evaluated.
  *
  * RETURN:      Status
  *
@@ -383,7 +391,9 @@ acpi_ds_load1_end_op (
 
 	if (op->common.aml_opcode == AML_REGION_OP) {
 		status = acpi_ex_create_region (op->named.data, op->named.length,
-				   (acpi_adr_space_type) ((op->common.value.arg)->common.value.integer), walk_state);
+				   (acpi_adr_space_type)
+						 ((op->common.value.arg)->common.value.integer),
+						 walk_state);
 		if (ACPI_FAILURE (status)) {
 			return (status);
 		}
@@ -394,7 +404,8 @@ acpi_ds_load1_end_op (
 		/* For Name opcode, get the object type from the argument */
 
 		if (op->common.value.arg) {
-			object_type = (acpi_ps_get_opcode_info ((op->common.value.arg)->common.aml_opcode))->object_type;
+			object_type = (acpi_ps_get_opcode_info (
+				(op->common.value.arg)->common.aml_opcode))->object_type;
 			op->common.node->type = (u8) object_type;
 		}
 	}
@@ -448,8 +459,7 @@ acpi_ds_load1_end_op (
  * FUNCTION:    acpi_ds_load2_begin_op
  *
  * PARAMETERS:  walk_state      - Current state of the parse tree walk
- *              Op              - Op that has been just been reached in the
- *                                walk;  Arguments have not been evaluated yet.
+ *              out_op          - Wher to return op if a new one is created
  *
  * RETURN:      Status
  *
@@ -478,14 +488,20 @@ acpi_ds_load2_begin_op (
 	if (op) {
 		/* We only care about Namespace opcodes here */
 
-		if ((!(walk_state->op_info->flags & AML_NSOPCODE) && (walk_state->opcode != AML_INT_NAMEPATH_OP)) ||
+		if ((!(walk_state->op_info->flags & AML_NSOPCODE) &&
+			  (walk_state->opcode != AML_INT_NAMEPATH_OP)) ||
 			(!(walk_state->op_info->flags & AML_NAMED))) {
+			if ((walk_state->op_info->class == AML_CLASS_EXECUTE) ||
+				(walk_state->op_info->class == AML_CLASS_CONTROL)) {
+				ACPI_REPORT_WARNING ((
+					"Encountered executable code at module level, [%s]\n",
+					acpi_ps_get_opcode_name (walk_state->opcode)));
+			}
 			return_ACPI_STATUS (AE_OK);
 		}
 
-		/*
-		 * Get the name we are going to enter or lookup in the namespace
-		 */
+		/* Get the name we are going to enter or lookup in the namespace */
+
 		if (walk_state->opcode == AML_INT_NAMEPATH_OP) {
 			/* For Namepath op, get the path string */
 
@@ -528,21 +544,25 @@ acpi_ds_load2_begin_op (
 	case AML_INT_NAMEPATH_OP:
 
 		/*
-		 * The name_path is an object reference to an existing object. Don't enter the
-		 * name into the namespace, but look it up for use later
+		 * The name_path is an object reference to an existing object.
+		 * Don't enter the name into the namespace, but look it up
+		 * for use later.
 		 */
 		status = acpi_ns_lookup (walk_state->scope_info, buffer_ptr, object_type,
-				  ACPI_IMODE_EXECUTE, ACPI_NS_SEARCH_PARENT, walk_state, &(node));
+				  ACPI_IMODE_EXECUTE, ACPI_NS_SEARCH_PARENT,
+				  walk_state, &(node));
 		break;
 
 	case AML_SCOPE_OP:
 
 		/*
-		 * The Path is an object reference to an existing object.  Don't enter the
-		 * name into the namespace, but look it up for use later
+		 * The Path is an object reference to an existing object.
+		 * Don't enter the name into the namespace, but look it up
+		 * for use later.
 		 */
 		status = acpi_ns_lookup (walk_state->scope_info, buffer_ptr, object_type,
-				  ACPI_IMODE_EXECUTE, ACPI_NS_SEARCH_PARENT, walk_state, &(node));
+				  ACPI_IMODE_EXECUTE, ACPI_NS_SEARCH_PARENT,
+				  walk_state, &(node));
 		if (ACPI_FAILURE (status)) {
 #ifdef _ACPI_ASL_COMPILER
 			if (status == AE_NOT_FOUND) {
@@ -582,7 +602,8 @@ acpi_ds_load2_begin_op (
 			 *  Scope (DEB) { ... }
 			 */
 
-			ACPI_REPORT_WARNING (("Type override - [%4.4s] had invalid type (%s) for Scope operator, changed to (Scope)\n",
+			ACPI_REPORT_WARNING ((
+				"Type override - [%4.4s] had invalid type (%s) for Scope operator, changed to (Scope)\n",
 				buffer_ptr, acpi_ut_get_type_name (node->type)));
 
 			node->type = ACPI_TYPE_ANY;
@@ -593,7 +614,8 @@ acpi_ds_load2_begin_op (
 
 			/* All other types are an error */
 
-			ACPI_REPORT_ERROR (("Invalid type (%s) for target of Scope operator [%4.4s]\n",
+			ACPI_REPORT_ERROR ((
+				"Invalid type (%s) for target of Scope operator [%4.4s]\n",
 				acpi_ut_get_type_name (node->type), buffer_ptr));
 
 			return (AE_AML_OPERAND_TYPE);
@@ -621,8 +643,9 @@ acpi_ds_load2_begin_op (
 
 		/*
 		 * Enter the named type into the internal namespace.  We enter the name
-		 * as we go downward in the parse tree.  Any necessary subobjects that involve
-		 * arguments to the opcode must be created as we go back up the parse tree later.
+		 * as we go downward in the parse tree.  Any necessary subobjects that
+		 * involve arguments to the opcode must be created as we go back up the
+		 * parse tree later.
 		 *
 		 * Note: Name may already exist if we are executing a deferred opcode.
 		 */
@@ -635,7 +658,8 @@ acpi_ds_load2_begin_op (
 		}
 
 		status = acpi_ns_lookup (walk_state->scope_info, buffer_ptr, object_type,
-				  ACPI_IMODE_EXECUTE, ACPI_NS_NO_UPSEARCH, walk_state, &(node));
+				  ACPI_IMODE_EXECUTE, ACPI_NS_NO_UPSEARCH,
+				  walk_state, &(node));
 		break;
 	}
 
@@ -678,8 +702,6 @@ acpi_ds_load2_begin_op (
  * FUNCTION:    acpi_ds_load2_end_op
  *
  * PARAMETERS:  walk_state      - Current state of the parse tree walk
- *              Op              - Op that has been just been completed in the
- *                                walk;  Arguments have now been evaluated.
  *
  * RETURN:      Status
  *
@@ -738,7 +760,8 @@ acpi_ds_load2_end_op (
 
 	/* Pop the scope stack */
 
-	if (acpi_ns_opens_scope (object_type) && (op->common.aml_opcode != AML_INT_METHODCALL_OP)) {
+	if (acpi_ns_opens_scope (object_type) &&
+	   (op->common.aml_opcode != AML_INT_METHODCALL_OP)) {
 		ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "(%s) Popping scope for Op %p\n",
 			acpi_ut_get_type_name (object_type), op));
 
@@ -803,7 +826,7 @@ acpi_ds_load2_end_op (
 		case AML_INDEX_FIELD_OP:
 
 			status = acpi_ds_create_index_field (op, (acpi_handle) arg->common.node,
-					   walk_state);
+					 walk_state);
 			break;
 
 		case AML_BANK_FIELD_OP:
@@ -884,14 +907,16 @@ acpi_ds_load2_end_op (
 #ifndef ACPI_NO_METHOD_EXECUTION
 		case AML_REGION_OP:
 			/*
-			 * The op_region is not fully parsed at this time. Only valid argument is the space_id.
-			 * (We must save the address of the AML of the address and length operands)
+			 * The op_region is not fully parsed at this time. Only valid
+			 * argument is the space_id. (We must save the address of the
+			 * AML of the address and length operands)
 			 */
 			/*
 			 * If we have a valid region, initialize it
 			 * Namespace is NOT locked at this point.
 			 */
-			status = acpi_ev_initialize_region (acpi_ns_get_attached_object (node), FALSE);
+			status = acpi_ev_initialize_region (acpi_ns_get_attached_object (node),
+					 FALSE);
 			if (ACPI_FAILURE (status)) {
 				/*
 				 *  If AE_NOT_EXIST is returned, it is not fatal
@@ -942,15 +967,16 @@ acpi_ds_load2_end_op (
 		if (ACPI_SUCCESS (status)) {
 			/*
 			 * Make sure that what we found is indeed a method
-			 * We didn't search for a method on purpose, to see if the name would resolve
+			 * We didn't search for a method on purpose, to see if the name
+			 * would resolve
 			 */
 			if (new_node->type != ACPI_TYPE_METHOD) {
 				status = AE_AML_OPERAND_TYPE;
 			}
 
-			/* We could put the returned object (Node) on the object stack for later, but
-			 * for now, we will put it in the "op" object that the parser uses, so we
-			 * can get it again at the end of this scope
+			/* We could put the returned object (Node) on the object stack for
+			 * later, but for now, we will put it in the "op" object that the
+			 * parser uses, so we can get it again at the end of this scope
 			 */
 			op->common.node = new_node;
 		}

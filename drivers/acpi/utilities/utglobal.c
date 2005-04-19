@@ -44,7 +44,6 @@
 #define DEFINE_ACPI_GLOBALS
 
 #include <linux/module.h>
-
 #include <acpi/acpi.h>
 #include <acpi/acnamesp.h>
 
@@ -52,13 +51,14 @@
 	 ACPI_MODULE_NAME    ("utglobal")
 
 
-/******************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_format_exception
  *
  * PARAMETERS:  Status       - The acpi_status code to be formatted
  *
- * RETURN:      A string containing the exception  text
+ * RETURN:      A string containing the exception text. A valid pointer is
+ *              always returned.
  *
  * DESCRIPTION: This function translates an ACPI exception into an ASCII string.
  *
@@ -68,8 +68,8 @@ const char *
 acpi_format_exception (
 	acpi_status                     status)
 {
-	const char                      *exception = "UNKNOWN_STATUS_CODE";
 	acpi_status                     sub_status;
+	const char                      *exception = NULL;
 
 
 	ACPI_FUNCTION_NAME ("format_exception");
@@ -82,57 +82,55 @@ acpi_format_exception (
 
 		if (sub_status <= AE_CODE_ENV_MAX) {
 			exception = acpi_gbl_exception_names_env [sub_status];
-			break;
 		}
-		goto unknown;
+		break;
 
 	case AE_CODE_PROGRAMMER:
 
 		if (sub_status <= AE_CODE_PGM_MAX) {
 			exception = acpi_gbl_exception_names_pgm [sub_status -1];
-			break;
 		}
-		goto unknown;
+		break;
 
 	case AE_CODE_ACPI_TABLES:
 
 		if (sub_status <= AE_CODE_TBL_MAX) {
 			exception = acpi_gbl_exception_names_tbl [sub_status -1];
-			break;
 		}
-		goto unknown;
+		break;
 
 	case AE_CODE_AML:
 
 		if (sub_status <= AE_CODE_AML_MAX) {
 			exception = acpi_gbl_exception_names_aml [sub_status -1];
-			break;
 		}
-		goto unknown;
+		break;
 
 	case AE_CODE_CONTROL:
 
 		if (sub_status <= AE_CODE_CTRL_MAX) {
 			exception = acpi_gbl_exception_names_ctrl [sub_status -1];
-			break;
 		}
-		goto unknown;
+		break;
 
 	default:
-		goto unknown;
+		break;
 	}
 
+	if (!exception) {
+		/* Exception code was not recognized */
 
-	return ((const char *) exception);
+		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+			"Unknown exception code: 0x%8.8X\n", status));
 
-unknown:
+		return ((const char *) "UNKNOWN_STATUS_CODE");
+	}
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Unknown exception code: 0x%8.8X\n", status));
 	return ((const char *) exception);
 }
 
 
-/******************************************************************************
+/*******************************************************************************
  *
  * Static global variable initialization.
  *
@@ -212,12 +210,11 @@ const char                          *acpi_gbl_valid_osi_strings[ACPI_NUM_OSI_STR
 };
 
 
-/******************************************************************************
+/*******************************************************************************
  *
  * Namespace globals
  *
  ******************************************************************************/
-
 
 /*
  * Predefined ACPI Names (Built-in to the Interpreter)
@@ -241,9 +238,11 @@ const struct acpi_predefined_names      acpi_gbl_pre_defined_names[] =
 #if !defined (ACPI_NO_METHOD_EXECUTION) || defined (ACPI_CONSTANT_EVAL_ONLY)
 	{"_OSI",    ACPI_TYPE_METHOD,           (char *) 1},
 #endif
-	{NULL,      ACPI_TYPE_ANY,              NULL}              /* Table terminator */
-};
 
+	/* Table terminator */
+
+	{NULL,      ACPI_TYPE_ANY,              NULL}
+};
 
 /*
  * Properties of the ACPI Object Types, both internal and external.
@@ -288,22 +287,25 @@ const u8                                acpi_gbl_ns_properties[] =
 /* Hex to ASCII conversion table */
 
 static const char                   acpi_gbl_hex_to_ascii[] =
-			  {'0','1','2','3','4','5','6','7',
-					 '8','9','A','B','C','D','E','F'};
+{
+	'0','1','2','3','4','5','6','7',
+	'8','9','A','B','C','D','E','F'
+};
 
-/*****************************************************************************
+
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ut_hex_to_ascii_char
  *
  * PARAMETERS:  Integer             - Contains the hex digit
  *              Position            - bit position of the digit within the
- *                                    integer
+ *                                    integer (multiple of 4)
  *
- * RETURN:      Ascii character
+ * RETURN:      The converted Ascii character
  *
- * DESCRIPTION: Convert a hex digit to an ascii character
+ * DESCRIPTION: Convert a hex digit to an Ascii character
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 char
 acpi_ut_hex_to_ascii_char (
@@ -315,7 +317,7 @@ acpi_ut_hex_to_ascii_char (
 }
 
 
-/******************************************************************************
+/*******************************************************************************
  *
  * Table name globals
  *
@@ -324,7 +326,7 @@ acpi_ut_hex_to_ascii_char (
  * that are not used by the subsystem are simply ignored.
  *
  * Do NOT add any table to this list that is not consumed directly by this
- * subsystem.
+ * subsystem (No MADT, ECDT, SBST, etc.)
  *
  ******************************************************************************/
 
@@ -391,7 +393,7 @@ struct acpi_fixed_event_info        acpi_gbl_fixed_event_info[ACPI_NUM_FIXED_EVE
 	/* ACPI_EVENT_RTC           */  {ACPI_BITREG_RT_CLOCK_STATUS,       ACPI_BITREG_RT_CLOCK_ENABLE,     ACPI_BITMASK_RT_CLOCK_STATUS,       ACPI_BITMASK_RT_CLOCK_ENABLE},
 };
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ut_get_region_name
  *
@@ -401,7 +403,7 @@ struct acpi_fixed_event_info        acpi_gbl_fixed_event_info[ACPI_NUM_FIXED_EVE
  *
  * DESCRIPTION: Translate a Space ID into a name string (Debug only)
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 /* Region type decoding */
 
@@ -429,7 +431,6 @@ acpi_ut_get_region_name (
 	{
 		return ("user_defined_region");
 	}
-
 	else if (space_id >= ACPI_NUM_PREDEFINED_REGIONS)
 	{
 		return ("invalid_space_id");
@@ -439,7 +440,7 @@ acpi_ut_get_region_name (
 }
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ut_get_event_name
  *
@@ -449,7 +450,7 @@ acpi_ut_get_region_name (
  *
  * DESCRIPTION: Translate a Event ID into a name string (Debug only)
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 /* Event type decoding */
 
@@ -477,7 +478,7 @@ acpi_ut_get_event_name (
 }
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ut_get_type_name
  *
@@ -487,20 +488,21 @@ acpi_ut_get_event_name (
  *
  * DESCRIPTION: Translate a Type ID into a name string (Debug only)
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 /*
  * Elements of acpi_gbl_ns_type_names below must match
  * one-to-one with values of acpi_object_type
  *
- * The type ACPI_TYPE_ANY (Untyped) is used as a "don't care" when searching; when
- * stored in a table it really means that we have thus far seen no evidence to
- * indicate what type is actually going to be stored for this entry.
+ * The type ACPI_TYPE_ANY (Untyped) is used as a "don't care" when searching;
+ * when stored in a table it really means that we have thus far seen no
+ * evidence to indicate what type is actually going to be stored for this entry.
  */
 static const char                   acpi_gbl_bad_type[] = "UNDEFINED";
-#define TYPE_NAME_LENGTH    12                           /* Maximum length of each string */
 
-static const char                   *acpi_gbl_ns_type_names[] = /* printable names of ACPI types */
+/* Printable names of the ACPI object types */
+
+static const char                   *acpi_gbl_ns_type_names[] =
 {
 	/* 00 */ "Untyped",
 	/* 01 */ "Integer",
@@ -564,7 +566,7 @@ acpi_ut_get_object_type_name (
 }
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ut_get_node_name
  *
@@ -574,7 +576,7 @@ acpi_ut_get_object_type_name (
  *
  * DESCRIPTION: Validate the node and return the node's ACPI name.
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 char *
 acpi_ut_get_node_name (
@@ -618,7 +620,7 @@ acpi_ut_get_node_name (
 }
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ut_get_descriptor_name
  *
@@ -628,9 +630,11 @@ acpi_ut_get_node_name (
  *
  * DESCRIPTION: Validate object and return the descriptor type
  *
- ****************************************************************************/
+ ******************************************************************************/
 
-static const char                   *acpi_gbl_desc_type_names[] = /* printable names of descriptor types */
+/* Printable names of object descriptor types */
+
+static const char                   *acpi_gbl_desc_type_names[] =
 {
 	/* 00 */ "Invalid",
 	/* 01 */ "Cached",
@@ -676,17 +680,18 @@ acpi_ut_get_descriptor_name (
  * Strings and procedures used for debug only
  */
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ut_get_mutex_name
  *
- * PARAMETERS:  None.
+ * PARAMETERS:  mutex_id        - The predefined ID for this mutex.
  *
- * RETURN:      Status
+ * RETURN:      String containing the name of the mutex. Always returns a valid
+ *              pointer.
  *
  * DESCRIPTION: Translate a mutex ID into a name string (Debug only)
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 char *
 acpi_ut_get_mutex_name (
@@ -700,21 +705,20 @@ acpi_ut_get_mutex_name (
 
 	return (acpi_gbl_mutex_names[mutex_id]);
 }
-
 #endif
 
 
-/*****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ut_valid_object_type
  *
  * PARAMETERS:  Type            - Object type to be validated
  *
- * RETURN:      TRUE if valid object type
+ * RETURN:      TRUE if valid object type, FALSE otherwise
  *
  * DESCRIPTION: Validate an object type
  *
- ****************************************************************************/
+ ******************************************************************************/
 
 u8
 acpi_ut_valid_object_type (
@@ -732,7 +736,7 @@ acpi_ut_valid_object_type (
 }
 
 
-/****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ut_allocate_owner_id
  *
@@ -740,7 +744,10 @@ acpi_ut_valid_object_type (
  *
  * DESCRIPTION: Allocate a table or method owner id
  *
- ***************************************************************************/
+ * NOTE: this algorithm has a wraparound problem at 64_k method invocations, and
+ *       should be revisited (TBD)
+ *
+ ******************************************************************************/
 
 acpi_owner_id
 acpi_ut_allocate_owner_id (
@@ -796,16 +803,18 @@ acpi_ut_allocate_owner_id (
 }
 
 
-/****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_ut_init_globals
  *
- * PARAMETERS:  none
+ * PARAMETERS:  None
+ *
+ * RETURN:      None
  *
  * DESCRIPTION: Init library globals.  All globals that require specific
  *              initialization should be initialized here!
  *
- ***************************************************************************/
+ ******************************************************************************/
 
 void
 acpi_ut_init_globals (

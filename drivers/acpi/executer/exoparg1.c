@@ -97,7 +97,8 @@ acpi_ex_opcode_0A_0T_1R (
 	union acpi_operand_object       *return_desc = NULL;
 
 
-	ACPI_FUNCTION_TRACE_STR ("ex_opcode_0A_0T_1R", acpi_ps_get_opcode_name (walk_state->opcode));
+	ACPI_FUNCTION_TRACE_STR ("ex_opcode_0A_0T_1R",
+		acpi_ps_get_opcode_name (walk_state->opcode));
 
 
 	/* Examine the AML opcode */
@@ -161,7 +162,8 @@ acpi_ex_opcode_1A_0T_0R (
 	acpi_status                     status = AE_OK;
 
 
-	ACPI_FUNCTION_TRACE_STR ("ex_opcode_1A_0T_0R", acpi_ps_get_opcode_name (walk_state->opcode));
+	ACPI_FUNCTION_TRACE_STR ("ex_opcode_1A_0T_0R",
+		acpi_ps_get_opcode_name (walk_state->opcode));
 
 
 	/* Examine the AML opcode */
@@ -236,7 +238,8 @@ acpi_ex_opcode_1A_1T_0R (
 	union acpi_operand_object       **operand = &walk_state->operands[0];
 
 
-	ACPI_FUNCTION_TRACE_STR ("ex_opcode_1A_1T_0R", acpi_ps_get_opcode_name (walk_state->opcode));
+	ACPI_FUNCTION_TRACE_STR ("ex_opcode_1A_1T_0R",
+		acpi_ps_get_opcode_name (walk_state->opcode));
 
 
 	/* Examine the AML opcode */
@@ -289,7 +292,8 @@ acpi_ex_opcode_1A_1T_1R (
 	acpi_integer                    digit;
 
 
-	ACPI_FUNCTION_TRACE_STR ("ex_opcode_1A_1T_1R", acpi_ps_get_opcode_name (walk_state->opcode));
+	ACPI_FUNCTION_TRACE_STR ("ex_opcode_1A_1T_1R",
+		acpi_ps_get_opcode_name (walk_state->opcode));
 
 
 	/* Examine the AML opcode */
@@ -409,8 +413,10 @@ acpi_ex_opcode_1A_1T_1R (
 			for (i = 0; (i < acpi_gbl_integer_nybble_width) && (digit > 0); i++) {
 				(void) acpi_ut_short_divide (digit, 10, &digit, &temp32);
 
-				/* Insert the BCD digit that resides in the remainder from above */
-
+				/*
+				 * Insert the BCD digit that resides in the
+				 * remainder from above
+				 */
 				return_desc->integer.value |= (((acpi_integer) temp32) <<
 						   ACPI_MUL_4 (i));
 			}
@@ -445,7 +451,8 @@ acpi_ex_opcode_1A_1T_1R (
 
 			/* Get the object reference, store it, and remove our reference */
 
-			status = acpi_ex_get_object_reference (operand[0], &return_desc2, walk_state);
+			status = acpi_ex_get_object_reference (operand[0],
+					 &return_desc2, walk_state);
 			if (ACPI_FAILURE (status)) {
 				goto cleanup;
 			}
@@ -482,10 +489,10 @@ acpi_ex_opcode_1A_1T_1R (
 
 		if (!walk_state->result_obj) {
 			/*
-			 * Normally, we would remove a reference on the Operand[0] parameter;
-			 * But since it is being used as the internal return object
-			 * (meaning we would normally increment it), the two cancel out,
-			 * and we simply don't do anything.
+			 * Normally, we would remove a reference on the Operand[0]
+			 * parameter; But since it is being used as the internal return
+			 * object (meaning we would normally increment it), the two
+			 * cancel out, and we simply don't do anything.
 			 */
 			walk_state->result_obj = operand[0];
 			walk_state->operands[0] = NULL; /* Prevent deletion */
@@ -549,9 +556,8 @@ acpi_ex_opcode_1A_1T_1R (
 	case AML_SHIFT_LEFT_BIT_OP:     /* shift_left_bit (Source, bit_num) */
 	case AML_SHIFT_RIGHT_BIT_OP:    /* shift_right_bit (Source, bit_num) */
 
-		/*
-		 * These are two obsolete opcodes
-		 */
+		/* These are two obsolete opcodes */
+
 		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
 			"%s is obsolete and not implemented\n",
 			acpi_ps_get_opcode_name (walk_state->opcode)));
@@ -568,9 +574,8 @@ acpi_ex_opcode_1A_1T_1R (
 	}
 
 	if (ACPI_SUCCESS (status)) {
-		/*
-		 * Store the return value computed above into the target object
-		 */
+		/* Store the return value computed above into the target object */
+
 		status = acpi_ex_store (return_desc, operand[1], walk_state);
 	}
 
@@ -615,7 +620,8 @@ acpi_ex_opcode_1A_0T_1R (
 	acpi_integer                    value;
 
 
-	ACPI_FUNCTION_TRACE_STR ("ex_opcode_1A_0T_1R", acpi_ps_get_opcode_name (walk_state->opcode));
+	ACPI_FUNCTION_TRACE_STR ("ex_opcode_1A_0T_1R",
+		acpi_ps_get_opcode_name (walk_state->opcode));
 
 
 	/* Examine the AML opcode */
@@ -706,9 +712,9 @@ acpi_ex_opcode_1A_0T_1R (
 
 		/*
 		 * Note: The operand is not resolved at this point because we want to
-		 * get the associated object, not its value.  For example, we don't want
-		 * to resolve a field_unit to its value, we want the actual field_unit
-		 * object.
+		 * get the associated object, not its value.  For example, we don't
+		 * want to resolve a field_unit to its value, we want the actual
+		 * field_unit object.
 		 */
 
 		/* Get the type of the base object */
@@ -738,7 +744,8 @@ acpi_ex_opcode_1A_0T_1R (
 
 		/* Get the base object */
 
-		status = acpi_ex_resolve_multiple (walk_state, operand[0], &type, &temp_desc);
+		status = acpi_ex_resolve_multiple (walk_state,
+				 operand[0], &type, &temp_desc);
 		if (ACPI_FAILURE (status)) {
 			goto cleanup;
 		}
@@ -818,8 +825,10 @@ acpi_ex_opcode_1A_0T_1R (
 
 					/* Set Operand[0] to the value of the local/arg */
 
-					status = acpi_ds_method_data_get_value (operand[0]->reference.opcode,
-							 operand[0]->reference.offset, walk_state, &temp_desc);
+					status = acpi_ds_method_data_get_value (
+							 operand[0]->reference.opcode,
+							 operand[0]->reference.offset,
+							 walk_state, &temp_desc);
 					if (ACPI_FAILURE (status)) {
 						goto cleanup;
 					}
@@ -852,21 +861,26 @@ acpi_ex_opcode_1A_0T_1R (
 			case ACPI_TYPE_STRING:
 
 				/*
-				 * This is a deref_of (String). The string is a reference to a named ACPI object.
+				 * This is a deref_of (String). The string is a reference
+				 * to a named ACPI object.
 				 *
 				 * 1) Find the owning Node
-				 * 2) Dereference the node to an actual object.  Could be a Field, so we nee
-				 *    to resolve the node to a value.
+				 * 2) Dereference the node to an actual object.  Could be a
+				 *    Field, so we need to resolve the node to a value.
 				 */
 				status = acpi_ns_get_node_by_path (operand[0]->string.pointer,
-						  walk_state->scope_info->scope.node, ACPI_NS_SEARCH_PARENT,
-						  ACPI_CAST_INDIRECT_PTR (struct acpi_namespace_node, &return_desc));
+						 walk_state->scope_info->scope.node,
+						 ACPI_NS_SEARCH_PARENT,
+						 ACPI_CAST_INDIRECT_PTR (
+								struct acpi_namespace_node, &return_desc));
 				if (ACPI_FAILURE (status)) {
 					goto cleanup;
 				}
 
 				status = acpi_ex_resolve_node_to_value (
-						  ACPI_CAST_INDIRECT_PTR (struct acpi_namespace_node, &return_desc), walk_state);
+						  ACPI_CAST_INDIRECT_PTR (
+								 struct acpi_namespace_node, &return_desc),
+								walk_state);
 				goto cleanup;
 
 
@@ -883,14 +897,16 @@ acpi_ex_opcode_1A_0T_1R (
 			/*
 			 * This is a deref_of (object_reference)
 			 * Get the actual object from the Node (This is the dereference).
-			 * -- This case may only happen when a local_x or arg_x is dereferenced above.
+			 * This case may only happen when a local_x or arg_x is
+			 * dereferenced above.
 			 */
-			return_desc = acpi_ns_get_attached_object ((struct acpi_namespace_node *) operand[0]);
+			return_desc = acpi_ns_get_attached_object (
+					  (struct acpi_namespace_node *) operand[0]);
 		}
 		else {
 			/*
-			 * This must be a reference object produced by either the Index() or
-			 * ref_of() operator
+			 * This must be a reference object produced by either the
+			 * Index() or ref_of() operator
 			 */
 			switch (operand[0]->reference.opcode) {
 			case AML_INDEX_OP:
@@ -931,8 +947,8 @@ acpi_ex_opcode_1A_0T_1R (
 				case ACPI_TYPE_PACKAGE:
 
 					/*
-					 * Return the referenced element of the package.  We must add
-					 * another reference to the referenced object, however.
+					 * Return the referenced element of the package.  We must
+					 * add another reference to the referenced object, however.
 					 */
 					return_desc = *(operand[0]->reference.where);
 					if (!return_desc) {
@@ -967,9 +983,11 @@ acpi_ex_opcode_1A_0T_1R (
 
 				return_desc = operand[0]->reference.object;
 
-				if (ACPI_GET_DESCRIPTOR_TYPE (return_desc) == ACPI_DESC_TYPE_NAMED) {
+				if (ACPI_GET_DESCRIPTOR_TYPE (return_desc) ==
+						ACPI_DESC_TYPE_NAMED) {
 
-					return_desc = acpi_ns_get_attached_object ((struct acpi_namespace_node *) return_desc);
+					return_desc = acpi_ns_get_attached_object (
+							  (struct acpi_namespace_node *) return_desc);
 				}
 
 				/* Add another reference to the object! */

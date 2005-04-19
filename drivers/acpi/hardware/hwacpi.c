@@ -58,7 +58,8 @@
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Initialize and validate various ACPI registers
+ * DESCRIPTION: Initialize and validate the various ACPI registers defined in
+ *              the FADT.
  *
  ******************************************************************************/
 
@@ -75,7 +76,7 @@ acpi_hw_initialize (
 	/* We must have the ACPI tables by the time we get here */
 
 	if (!acpi_gbl_FADT) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "A FADT is not loaded\n"));
+		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "No FADT is present\n"));
 
 		return_ACPI_STATUS (AE_NO_ACPI_TABLES);
 	}
@@ -131,7 +132,8 @@ acpi_hw_set_mode (
 	 * transitions are not supported.
 	 */
 	if (!acpi_gbl_FADT->acpi_enable && !acpi_gbl_FADT->acpi_disable) {
-		ACPI_REPORT_ERROR (("No ACPI mode transition supported in this system (enable/disable both zero)\n"));
+		ACPI_REPORT_ERROR ((
+			"No ACPI mode transition supported in this system (enable/disable both zero)\n"));
 		return_ACPI_STATUS (AE_OK);
 	}
 
@@ -162,7 +164,8 @@ acpi_hw_set_mode (
 	}
 
 	if (ACPI_FAILURE (status)) {
-		ACPI_REPORT_ERROR (("Could not write mode change, %s\n", acpi_format_exception (status)));
+		ACPI_REPORT_ERROR (("Could not write mode change, %s\n",
+			acpi_format_exception (status)));
 		return_ACPI_STATUS (status);
 	}
 
@@ -173,7 +176,8 @@ acpi_hw_set_mode (
 	retry = 3000;
 	while (retry) {
 		if (acpi_hw_get_mode() == mode) {
-			ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Mode %X successfully enabled\n", mode));
+			ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Mode %X successfully enabled\n",
+				mode));
 			return_ACPI_STATUS (AE_OK);
 		}
 		acpi_os_stall(1000);
@@ -185,7 +189,7 @@ acpi_hw_set_mode (
 }
 
 
-/******************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    acpi_hw_get_mode
  *
@@ -199,7 +203,8 @@ acpi_hw_set_mode (
  ******************************************************************************/
 
 u32
-acpi_hw_get_mode (void)
+acpi_hw_get_mode (
+	void)
 {
 	acpi_status                     status;
 	u32                             value;

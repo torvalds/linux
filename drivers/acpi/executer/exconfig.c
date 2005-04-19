@@ -54,6 +54,14 @@
 #define _COMPONENT          ACPI_EXECUTER
 	 ACPI_MODULE_NAME    ("exconfig")
 
+/* Local prototypes */
+
+static acpi_status
+acpi_ex_add_table (
+	struct acpi_table_header        *table,
+	struct acpi_namespace_node      *parent_node,
+	union acpi_operand_object       **ddb_handle);
+
 
 /*******************************************************************************
  *
@@ -70,7 +78,7 @@
  *
  ******************************************************************************/
 
-acpi_status
+static acpi_status
 acpi_ex_add_table (
 	struct acpi_table_header        *table,
 	struct acpi_namespace_node      *parent_node,
@@ -95,10 +103,10 @@ acpi_ex_add_table (
 
 	ACPI_MEMSET (&table_info, 0, sizeof (struct acpi_table_desc));
 
-	table_info.type        = ACPI_TABLE_SSDT;
-	table_info.pointer     = table;
-	table_info.length      = (acpi_size) table->length;
-	table_info.allocation  = ACPI_MEM_ALLOCATED;
+	table_info.type      = ACPI_TABLE_SSDT;
+	table_info.pointer   = table;
+	table_info.length    = (acpi_size) table->length;
+	table_info.allocation = ACPI_MEM_ALLOCATED;
 
 	status = acpi_tb_install_table (&table_info);
 	if (ACPI_FAILURE (status)) {
@@ -226,11 +234,10 @@ acpi_ex_load_table_op (
 			start_node = parent_node;
 		}
 
-		/*
-		 * Find the node referenced by the parameter_path_string
-		 */
+		/* Find the node referenced by the parameter_path_string */
+
 		status = acpi_ns_get_node_by_path (operand[4]->string.pointer, start_node,
-				   ACPI_NS_SEARCH_PARENT, &parameter_node);
+				 ACPI_NS_SEARCH_PARENT, &parameter_node);
 		if (ACPI_FAILURE (status)) {
 			return_ACPI_STATUS (status);
 		}
@@ -248,7 +255,8 @@ acpi_ex_load_table_op (
 	if (parameter_node) {
 		/* Store the parameter data into the optional parameter object */
 
-		status = acpi_ex_store (operand[5], ACPI_CAST_PTR (union acpi_operand_object, parameter_node),
+		status = acpi_ex_store (operand[5],
+				 ACPI_CAST_PTR (union acpi_operand_object, parameter_node),
 				 walk_state);
 		if (ACPI_FAILURE (status)) {
 			(void) acpi_ex_unload_table (ddb_handle);
@@ -371,7 +379,8 @@ acpi_ex_load_op (
 			goto cleanup;
 		}
 
-		table_ptr = ACPI_CAST_PTR (struct acpi_table_header, buffer_desc->buffer.pointer);
+		table_ptr = ACPI_CAST_PTR (struct acpi_table_header,
+				  buffer_desc->buffer.pointer);
 
 		 /* Sanity check the table length */
 

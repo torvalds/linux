@@ -49,19 +49,29 @@
 #define _COMPONENT          ACPI_UTILITIES
 	 ACPI_MODULE_NAME    ("utinit")
 
+/* Local prototypes */
+
+static void
+acpi_ut_fadt_register_error (
+	char                            *register_name,
+	u32                             value,
+	acpi_size                       offset);
+
+static void acpi_ut_terminate (
+	void);
+
 
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ut_fadt_register_error
  *
- * PARAMETERS:  *register_name          - Pointer to string identifying register
+ * PARAMETERS:  register_name           - Pointer to string identifying register
  *              Value                   - Actual register contents value
- *              acpi_test_spec_section  - TDS section containing assertion
- *              acpi_assertion          - Assertion number being tested
+ *              Offset                  - Byte offset in the FADT
  *
  * RETURN:      AE_BAD_VALUE
  *
- * DESCRIPTION: Display failure message and link failure to TDS assertion
+ * DESCRIPTION: Display failure message
  *
  ******************************************************************************/
 
@@ -166,12 +176,13 @@ acpi_ut_validate_fadt (
  *
  * RETURN:      none
  *
- * DESCRIPTION: free global memory
+ * DESCRIPTION: Free global memory
  *
  ******************************************************************************/
 
-void
-acpi_ut_terminate (void)
+static void
+acpi_ut_terminate (
+	void)
 {
 	struct acpi_gpe_block_info      *gpe_block;
 	struct acpi_gpe_block_info      *next_gpe_block;
@@ -183,8 +194,6 @@ acpi_ut_terminate (void)
 
 
 	/* Free global tables, etc. */
-
-
 	/* Free global GPE blocks and related info structures */
 
 	gpe_xrupt_info = acpi_gbl_gpe_xrupt_list_head;
@@ -221,7 +230,8 @@ acpi_ut_terminate (void)
  ******************************************************************************/
 
 void
-acpi_ut_subsystem_shutdown (void)
+acpi_ut_subsystem_shutdown (
+	void)
 {
 
 	ACPI_FUNCTION_TRACE ("ut_subsystem_shutdown");
@@ -229,14 +239,16 @@ acpi_ut_subsystem_shutdown (void)
 	/* Just exit if subsystem is already shutdown */
 
 	if (acpi_gbl_shutdown) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "ACPI Subsystem is already terminated\n"));
+		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+			"ACPI Subsystem is already terminated\n"));
 		return_VOID;
 	}
 
 	/* Subsystem appears active, go ahead and shut it down */
 
 	acpi_gbl_shutdown = TRUE;
-	ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Shutting down ACPI Subsystem...\n"));
+	ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
+		"Shutting down ACPI Subsystem...\n"));
 
 	/* Close the acpi_event Handling */
 

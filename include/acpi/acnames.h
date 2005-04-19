@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Module Name: pswalk - Parser routines to walk parsed op tree(s)
+ * Name: acnames.h - Global names and strings
  *
  *****************************************************************************/
 
@@ -41,74 +41,44 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
+#ifndef __ACNAMES_H__
+#define __ACNAMES_H__
 
-#include <acpi/acpi.h>
-#include <acpi/acparser.h>
+/* Method names - these methods can appear anywhere in the namespace */
 
-#define _COMPONENT          ACPI_PARSER
-	 ACPI_MODULE_NAME    ("pswalk")
+#define METHOD_NAME__HID        "_HID"
+#define METHOD_NAME__CID        "_CID"
+#define METHOD_NAME__UID        "_UID"
+#define METHOD_NAME__ADR        "_ADR"
+#define METHOD_NAME__INI        "_INI"
+#define METHOD_NAME__STA        "_STA"
+#define METHOD_NAME__REG        "_REG"
+#define METHOD_NAME__SEG        "_SEG"
+#define METHOD_NAME__BBN        "_BBN"
+#define METHOD_NAME__PRT        "_PRT"
+#define METHOD_NAME__CRS        "_CRS"
+#define METHOD_NAME__PRS        "_PRS"
+#define METHOD_NAME__PRW        "_PRW"
+#define METHOD_NAME__SRS        "_SRS"
+
+/* Method names - these methods must appear at the namespace root */
+
+#define METHOD_NAME__BFS        "\\_BFS"
+#define METHOD_NAME__GTS        "\\_GTS"
+#define METHOD_NAME__PTS        "\\_PTS"
+#define METHOD_NAME__SST        "\\_SI._SST"
+#define METHOD_NAME__WAK        "\\_WAK"
+
+/* Definitions of the predefined namespace names  */
+
+#define ACPI_UNKNOWN_NAME       (u32) 0x3F3F3F3F     /* Unknown name is  "????" */
+#define ACPI_ROOT_NAME          (u32) 0x5F5F5F5C     /* Root name is     "\___" */
+#define ACPI_SYS_BUS_NAME       (u32) 0x5F53425F     /* Sys bus name is  "_SB_" */
+
+#define ACPI_NS_ROOT_PATH       "\\"
+#define ACPI_NS_SYSTEM_BUS      "_SB_"
 
 
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ps_delete_parse_tree
- *
- * PARAMETERS:  subtree_root        - Root of tree (or subtree) to delete
- *
- * RETURN:      None
- *
- * DESCRIPTION: Delete a portion of or an entire parse tree.
- *
- ******************************************************************************/
-
-void
-acpi_ps_delete_parse_tree (
-	union acpi_parse_object         *subtree_root)
-{
-	union acpi_parse_object         *op = subtree_root;
-	union acpi_parse_object         *next = NULL;
-	union acpi_parse_object         *parent = NULL;
+#endif  /* __ACNAMES_H__  */
 
 
-	ACPI_FUNCTION_TRACE_PTR ("ps_delete_parse_tree", subtree_root);
-
-
-	/* Visit all nodes in the subtree */
-
-	while (op) {
-		/* Check if we are not ascending */
-
-		if (op != parent) {
-			/* Look for an argument or child of the current op */
-
-			next = acpi_ps_get_arg (op, 0);
-			if (next) {
-				/* Still going downward in tree (Op is not completed yet) */
-
-				op = next;
-				continue;
-			}
-		}
-
-		/* No more children, this Op is complete. */
-
-		next = op->common.next;
-		parent = op->common.parent;
-
-		acpi_ps_free_op (op);
-
-		/* If we are back to the starting point, the walk is complete. */
-
-		if (op == subtree_root) {
-			return_VOID;
-		}
-		if (next) {
-			op = next;
-		}
-		else {
-			op = parent;
-		}
-	}
-
-	return_VOID;
-}
