@@ -54,7 +54,7 @@ ohci_pci_start (struct usb_hcd *hcd)
 		if (pdev->vendor == PCI_VENDOR_ID_AMD
 				&& pdev->device == 0x740c) {
 			ohci->flags = OHCI_QUIRK_AMD756;
-			ohci_info (ohci, "AMD756 erratum 4 workaround\n");
+			ohci_dbg (ohci, "AMD756 erratum 4 workaround\n");
 			// also somewhat erratum 10 (suspend/resume issues)
 		}
 
@@ -68,7 +68,7 @@ ohci_pci_start (struct usb_hcd *hcd)
 		 */
 		else if (pdev->vendor == PCI_VENDOR_ID_OPTI
 				&& pdev->device == 0xc861) {
-			ohci_info (ohci,
+			ohci_dbg (ohci,
 				"WARNING: OPTi workarounds unavailable\n");
 		}
 
@@ -84,8 +84,19 @@ ohci_pci_start (struct usb_hcd *hcd)
 			if (b && b->device == PCI_DEVICE_ID_NS_87560_LIO
 					&& b->vendor == PCI_VENDOR_ID_NS) {
 				ohci->flags |= OHCI_QUIRK_SUPERIO;
-				ohci_info (ohci, "Using NSC SuperIO setup\n");
+				ohci_dbg (ohci, "Using NSC SuperIO setup\n");
 			}
+		}
+
+		/* Check for Compaq's ZFMicro chipset, which needs short 
+		 * delays before control or bulk queues get re-activated
+		 * in finish_unlinks()
+		 */
+		else if (pdev->vendor == PCI_VENDOR_ID_COMPAQ
+				&& pdev->device  == 0xa0f8) {
+			ohci->flags |= OHCI_QUIRK_ZFMICRO;
+			ohci_dbg (ohci,
+				"enabled Compaq ZFMicro chipset quirk\n");
 		}
 	}
 
