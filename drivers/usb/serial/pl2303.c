@@ -817,15 +817,40 @@ static void pl2303_shutdown (struct usb_serial *serial)
 	}		
 }
 
+static void pl2303_update_line_status(struct usb_serial_port *port,
+				      unsigned char *data,
+				      unsigned int actual_length)
+{
+
+	struct pl2303_private *priv = usb_get_serial_port_data(port);
+	unsigned long flags;
+	u8 status_idx = UART_STATE;
+	u8 length = UART_STATE;
+
+	if ((le16_to_cpu(port->serial->dev->descriptor.idVendor) == SIEMENS_VENDOR_ID) &&
+	    (le16_to_cpu(port->serial->dev->descriptor.idProduct) == SIEMENS_PRODUCT_ID_X65)) {
+		length = 1;
+		status_idx = 0;
+	}
+
+	if (actual_length < length)
+		goto exit;
+
+        /* Save off the uart status for others to look at */
+	spin_lock_irqsave(&priv->lock, flags);
+	priv->line_status = data[status_idx];
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+exit:
+	return;
+}
 
 static void pl2303_read_int_callback (struct urb *urb, struct pt_regs *regs)
 {
 	struct usb_serial_port *port = (struct usb_serial_port *) urb->context;
-	struct pl2303_private *priv = usb_get_serial_port_data(port);
 	unsigned char *data = urb->transfer_buffer;
-	unsigned long flags;
+	unsigned int actual_length = urb->actual_length;
 	int status;
-	u8 uart_state;
 
 	dbg("%s (%d)", __FUNCTION__, port->number);
 
@@ -844,19 +869,9 @@ static void pl2303_read_int_callback (struct urb *urb, struct pt_regs *regs)
 		goto exit;
 	}
 
-
 	usb_serial_debug_data(debug, &port->dev, __FUNCTION__, urb->actual_length, urb->transfer_buffer);
+	pl2303_update_line_status(port, data, actual_length);
 
-	if (urb->actual_length < UART_STATE)
-		goto exit;
-
-	/* Save off the uart status for others to look at */
-	uart_state = data[UART_STATE];
-	spin_lock_irqsave(&priv->lock, flags);
-	uart_state |= (priv->line_status & UART_STATE_TRANSIENT_MASK);
-	priv->line_status = uart_state;
-	spin_unlock_irqrestore(&priv->lock, flags);
-		
 exit:
 	status = usb_submit_urb (urb, GFP_ATOMIC);
 	if (status)
