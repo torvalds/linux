@@ -40,6 +40,8 @@
 #include <linux/serial_core.h>
 #include <linux/efi.h>
 #include <linux/initrd.h>
+#include <linux/platform.h>
+#include <linux/pm.h>
 
 #include <asm/ia32.h>
 #include <asm/machvec.h>
@@ -779,6 +781,7 @@ cpu_init (void)
 	/* size of physical stacked register partition plus 8 bytes: */
 	__get_cpu_var(ia64_phys_stacked_size_p8) = num_phys_stacked*8 + 8;
 	platform_cpu_init();
+	pm_idle = default_idle;
 }
 
 void
