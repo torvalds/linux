@@ -69,7 +69,7 @@ set_aoe_iflist(const char __user *user_str, size_t size)
 u64
 mac_addr(char addr[6])
 {
-	u64 n = 0;
+	__be64 n = 0;
 	char *p = (char *) &n;
 
 	memcpy(p + 2, addr, 6);	/* (sizeof addr != 6) */
@@ -108,7 +108,7 @@ static int
 aoenet_rcv(struct sk_buff *skb, struct net_device *ifp, struct packet_type *pt)
 {
 	struct aoe_hdr *h;
-	ulong n;
+	u32 n;
 
 	skb = skb_check(skb);
 	if (!skb)
@@ -121,7 +121,7 @@ aoenet_rcv(struct sk_buff *skb, struct net_device *ifp, struct packet_type *pt)
 	skb_push(skb, ETH_HLEN);	/* (1) */
 
 	h = (struct aoe_hdr *) skb->mac.raw;
-	n = __be32_to_cpu(*((u32 *) h->tag));
+	n = be32_to_cpu(h->tag);
 	if ((h->verfl & AOEFL_RSP) == 0 || (n & 1<<31))
 		goto exit;
 
@@ -132,7 +132,7 @@ aoenet_rcv(struct sk_buff *skb, struct net_device *ifp, struct packet_type *pt)
 		if (net_ratelimit())
 			printk(KERN_ERR "aoe: aoenet_rcv: error packet from %d.%d; "
 			       "ecode=%d '%s'\n",
-			       __be16_to_cpu(*((u16 *) h->major)), h->minor, 
+			       be16_to_cpu(h->major), h->minor, 
 			       h->err, aoe_errlist[n]);
 		goto exit;
 	}

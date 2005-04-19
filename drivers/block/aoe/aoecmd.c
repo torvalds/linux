@@ -90,19 +90,16 @@ newtag(struct aoedev *d)
 static int
 aoehdr_atainit(struct aoedev *d, struct aoe_hdr *h)
 {
-	u16 type = __constant_cpu_to_be16(ETH_P_AOE);
-	u16 aoemajor = __cpu_to_be16(d->aoemajor);
 	u32 host_tag = newtag(d);
-	u32 tag = __cpu_to_be32(host_tag);
 
 	memcpy(h->src, d->ifp->dev_addr, sizeof h->src);
 	memcpy(h->dst, d->addr, sizeof h->dst);
-	memcpy(h->type, &type, sizeof type);
+	h->type = __constant_cpu_to_be16(ETH_P_AOE);
 	h->verfl = AOE_HVER;
-	memcpy(h->major, &aoemajor, sizeof aoemajor);
+	h->major = cpu_to_be16(d->aoemajor);
 	h->minor = d->aoeminor;
 	h->cmd = AOECMD_ATA;
-	memcpy(h->tag, &tag, sizeof tag);
+	h->tag = cpu_to_be32(host_tag);
 
 	return host_tag;
 }
@@ -181,8 +178,12 @@ aoecmd_ata_rw(struct aoedev *d, struct frame *f)
 
 	skb = skb_prepare(d, f);
 	if (skb) {
-		skb->next = d->skblist;
-		d->skblist = skb;
+		skb->next = NULL;
+		if (d->sendq_hd)
+			d->sendq_tl->next = skb;
+		else
+			d->sendq_hd = skb;
+		d->sendq_tl = skb;
 	}
 }
 
@@ -215,7 +216,6 @@ rexmit(struct aoedev *d, struct frame *f)
 	struct aoe_hdr *h;
 	char buf[128];
 	u32 n;
-	u32 net_tag;
 
 	n = newtag(d);
 
@@ -227,13 +227,16 @@ rexmit(struct aoedev *d, struct frame *f)
 
 	h = (struct aoe_hdr *) f->data;
 	f->tag = n;
-	net_tag = __cpu_to_be32(n);
-	memcpy(h->tag, &net_tag, sizeof net_tag);
+	h->tag = cpu_to_be32(n);
 
 	skb = skb_prepare(d, f);
 	if (skb) {
-		skb->next = d->skblist;
-		d->skblist = skb;
+		skb->next = NULL;
+		if (d->sendq_hd)
+			d->sendq_tl->next = skb;
+		else
+			d->sendq_hd = skb;
+		d->sendq_tl = skb;
 	}
 }
 
@@ -285,8 +288,8 @@ tdie:		spin_unlock_irqrestore(&d->lock, flags);
 		}
 	}
 
-	sl = d->skblist;
-	d->skblist = NULL;
+	sl = d->sendq_hd;
+	d->sendq_hd = d->sendq_tl = NULL;
 	if (sl) {
 		n = d->rttavg <<= 1;
 		if (n > MAXTIMER)
@@ -308,16 +311,16 @@ ataid_complete(struct aoedev *d, unsigned char *id)
 	u16 n;
 
 	/* word 83: command set supported */
-	n = __le16_to_cpu(*((u16 *) &id[83<<1]));
+	n = le16_to_cpup((__le16 *) &id[83<<1]);
 
 	/* word 86: command set/feature enabled */
-	n |= __le16_to_cpu(*((u16 *) &id[86<<1]));
+	n |= le16_to_cpup((__le16 *) &id[86<<1]);
 
 	if (n & (1<<10)) {	/* bit 10: LBA 48 */
 		d->flags |= DEVFL_EXT;
 
 		/* word 100: number lba48 sectors */
-		ssize = __le64_to_cpu(*((u64 *) &id[100<<1]));
+		ssize = le64_to_cpup((__le64 *) &id[100<<1]);
 
 		/* set as in ide-disk.c:init_idedisk_capacity */
 		d->geo.cylinders = ssize;
@@ -328,12 +331,12 @@ ataid_complete(struct aoedev *d, unsigned char *id)
 		d->flags &= ~DEVFL_EXT;
 
 		/* number lba28 sectors */
-		ssize = __le32_to_cpu(*((u32 *) &id[60<<1]));
+		ssize = le32_to_cpup((__le32 *) &id[60<<1]);
 
 		/* NOTE: obsolete in ATA 6 */
-		d->geo.cylinders = __le16_to_cpu(*((u16 *) &id[54<<1]));
-		d->geo.heads = __le16_to_cpu(*((u16 *) &id[55<<1]));
-		d->geo.sectors = __le16_to_cpu(*((u16 *) &id[56<<1]));
+		d->geo.cylinders = le16_to_cpup((__le16 *) &id[54<<1]);
+		d->geo.heads = le16_to_cpup((__le16 *) &id[55<<1]);
+		d->geo.sectors = le16_to_cpup((__le16 *) &id[56<<1]);
 	}
 	d->ssize = ssize;
 	d->geo.start = 0;
@@ -380,29 +383,30 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 	register long n;
 	ulong flags;
 	char ebuf[128];
-	
+	u16 aoemajor;
+
 	hin = (struct aoe_hdr *) skb->mac.raw;
-	d = aoedev_bymac(hin->src);
+	aoemajor = be16_to_cpu(hin->major);
+	d = aoedev_by_aoeaddr(aoemajor, hin->minor);
 	if (d == NULL) {
 		snprintf(ebuf, sizeof ebuf, "aoecmd_ata_rsp: ata response "
 			"for unknown device %d.%d\n",
-			 __be16_to_cpu(*((u16 *) hin->major)),
-			hin->minor);
+			 aoemajor, hin->minor);
 		aoechr_error(ebuf);
 		return;
 	}
 
 	spin_lock_irqsave(&d->lock, flags);
 
-	f = getframe(d, __be32_to_cpu(*((u32 *) hin->tag)));
+	f = getframe(d, be32_to_cpu(hin->tag));
 	if (f == NULL) {
 		spin_unlock_irqrestore(&d->lock, flags);
 		snprintf(ebuf, sizeof ebuf,
 			"%15s e%d.%d    tag=%08x@%08lx\n",
 			"unexpected rsp",
-			__be16_to_cpu(*((u16 *) hin->major)),
+			be16_to_cpu(hin->major),
 			hin->minor,
-			__be32_to_cpu(*((u32 *) hin->tag)),
+			be32_to_cpu(hin->tag),
 			jiffies);
 		aoechr_error(ebuf);
 		return;
@@ -452,7 +456,7 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 			printk(KERN_INFO "aoe: aoecmd_ata_rsp: unrecognized "
 			       "outbound ata command %2.2Xh for %d.%d\n", 
 			       ahout->cmdstat,
-			       __be16_to_cpu(*((u16 *) hin->major)),
+			       be16_to_cpu(hin->major),
 			       hin->minor);
 		}
 	}
@@ -460,6 +464,20 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 	if (buf) {
 		buf->nframesout -= 1;
 		if (buf->nframesout == 0 && buf->resid == 0) {
+			unsigned long duration = jiffies - buf->start_time;
+			unsigned long n_sect = buf->bio->bi_size >> 9;
+			struct gendisk *disk = d->gd;
+
+			if (bio_data_dir(buf->bio) == WRITE) {
+				disk_stat_inc(disk, writes);
+				disk_stat_add(disk, write_ticks, duration);
+				disk_stat_add(disk, write_sectors, n_sect);
+			} else {
+				disk_stat_inc(disk, reads);
+				disk_stat_add(disk, read_ticks, duration);
+				disk_stat_add(disk, read_sectors, n_sect);
+			}
+			disk_stat_add(disk, io_ticks, duration);
 			n = (buf->flags & BUFFL_FAIL) ? -EIO : 0;
 			bio_endio(buf->bio, buf->bio->bi_size, n);
 			mempool_free(buf, d->bufpool);
@@ -471,8 +489,8 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 
 	aoecmd_work(d);
 
-	sl = d->skblist;
-	d->skblist = NULL;
+	sl = d->sendq_hd;
+	d->sendq_hd = d->sendq_tl = NULL;
 
 	spin_unlock_irqrestore(&d->lock, flags);
 
@@ -486,8 +504,6 @@ aoecmd_cfg(ushort aoemajor, unsigned char aoeminor)
 	struct aoe_cfghdr *ch;
 	struct sk_buff *skb, *sl;
 	struct net_device *ifp;
-	u16 aoe_type = __constant_cpu_to_be16(ETH_P_AOE);
-	u16 net_aoemajor = __cpu_to_be16(aoemajor);
 
 	sl = NULL;
 
@@ -507,9 +523,9 @@ aoecmd_cfg(ushort aoemajor, unsigned char aoeminor)
 
 		memset(h->dst, 0xff, sizeof h->dst);
 		memcpy(h->src, ifp->dev_addr, sizeof h->src);
-		memcpy(h->type, &aoe_type, sizeof aoe_type);
+		h->type = __constant_cpu_to_be16(ETH_P_AOE);
 		h->verfl = AOE_HVER;
-		memcpy(h->major, &net_aoemajor, sizeof net_aoemajor);
+		h->major = cpu_to_be16(aoemajor);
 		h->minor = aoeminor;
 		h->cmd = AOECMD_CFG;
 
@@ -523,7 +539,7 @@ aoecmd_cfg(ushort aoemajor, unsigned char aoeminor)
  
 /*
  * Since we only call this in one place (and it only prepares one frame)
- * we just return the skb.  Usually we'd chain it up to the d->skblist.
+ * we just return the skb.  Usually we'd chain it up to the aoedev sendq.
  */
 static struct sk_buff *
 aoecmd_ata_id(struct aoedev *d)
@@ -575,9 +591,10 @@ aoecmd_cfg_rsp(struct sk_buff *skb)
 	struct aoedev *d;
 	struct aoe_hdr *h;
 	struct aoe_cfghdr *ch;
-	ulong flags, bufcnt, sysminor, aoemajor;
+	ulong flags, sysminor, aoemajor;
+	u16 bufcnt;
 	struct sk_buff *sl;
-	enum { MAXFRAMES = 8, MAXSYSMINOR = 255 };
+	enum { MAXFRAMES = 8 };
 
 	h = (struct aoe_hdr *) skb->mac.raw;
 	ch = (struct aoe_cfghdr *) (h+1);
@@ -586,7 +603,7 @@ aoecmd_cfg_rsp(struct sk_buff *skb)
 	 * Enough people have their dip switches set backwards to
 	 * warrant a loud message for this special case.
 	 */
-	aoemajor = __be16_to_cpu(*((u16 *) h->major));
+	aoemajor = be16_to_cpu(h->major);
 	if (aoemajor == 0xfff) {
 		printk(KERN_CRIT "aoe: aoecmd_cfg_rsp: Warning: shelf "
 			"address is all ones.  Check shelf dip switches\n");
@@ -594,13 +611,14 @@ aoecmd_cfg_rsp(struct sk_buff *skb)
 	}
 
 	sysminor = SYSMINOR(aoemajor, h->minor);
-	if (sysminor > MAXSYSMINOR) {
-		printk(KERN_INFO "aoe: aoecmd_cfg_rsp: sysminor %ld too "
-			"large\n", sysminor);
+	if (sysminor * AOE_PARTITIONS + AOE_PARTITIONS > MINORMASK) {
+		printk(KERN_INFO
+			"aoe: e%ld.%d: minor number too large\n", 
+			aoemajor, (int) h->minor);
 		return;
 	}
 
-	bufcnt = __be16_to_cpu(*((u16 *) ch->bufcnt));
+	bufcnt = be16_to_cpu(ch->bufcnt);
 	if (bufcnt > MAXFRAMES)	/* keep it reasonable */
 		bufcnt = MAXFRAMES;
 
@@ -617,7 +635,7 @@ aoecmd_cfg_rsp(struct sk_buff *skb)
 		return;
 	}
 
-	d->fw_ver = __be16_to_cpu(*((u16 *) ch->fwver));
+	d->fw_ver = be16_to_cpu(ch->fwver);
 
 	/* we get here only if the device is new */
 	sl = aoecmd_ata_id(d);

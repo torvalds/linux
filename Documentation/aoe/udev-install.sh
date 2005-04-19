@@ -23,4 +23,8 @@ fi
 # /etc/udev/rules.d
 #
 rules_d="`sed -n '/^udev_rules=/{ s!udev_rules=!!; s!\"!!g; p; }' $conf`"
-test "$rules_d" && sh -xc "cp `dirname $0`/udev.txt $rules_d/60-aoe.rules"
+if test -z "$rules_d" || test ! -d "$rules_d"; then
+	echo "$me Error: cannot find udev rules directory" 1>&2
+	exit 1
+fi
+sh -xc "cp `dirname $0`/udev.txt $rules_d/60-aoe.rules"

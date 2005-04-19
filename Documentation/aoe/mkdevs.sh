@@ -5,6 +5,7 @@ n_partitions=${n_partitions:-16}
 
 if test "$#" != "1"; then
 	echo "Usage: sh `basename $0` {dir}" 1>&2
+	echo "       n_partitions=16 sh `basename $0` {dir}" 1>&2
 	exit 1
 fi
 dir=$1

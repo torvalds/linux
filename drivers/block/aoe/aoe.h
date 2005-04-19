@@ -1,10 +1,15 @@
 /* Copyright (c) 2004 Coraid, Inc.  See COPYING for GPL terms. */
-#define VERSION "5"
+#define VERSION "6"
 #define AOE_MAJOR 152
 #define DEVICE_NAME "aoe"
+
+/* set AOE_PARTITIONS to 1 to use whole-disks only
+ * default is 16, which is 15 partitions plus the whole disk
+ */
 #ifndef AOE_PARTITIONS
 #define AOE_PARTITIONS 16
 #endif
+
 #define SYSMINOR(aoemajor, aoeminor) ((aoemajor) * 10 + (aoeminor))
 #define AOEMAJOR(sysminor) ((sysminor) / 10)
 #define AOEMINOR(sysminor) ((sysminor) % 10)
@@ -34,13 +39,13 @@ enum {
 struct aoe_hdr {
 	unsigned char dst[6];
 	unsigned char src[6];
-	unsigned char type[2];
+	__be16 type;
 	unsigned char verfl;
 	unsigned char err;
-	unsigned char major[2];
+	__be16 major;
 	unsigned char minor;
 	unsigned char cmd;
-	unsigned char tag[4];
+	__be32 tag;
 };
 
 struct aoe_atahdr {
@@ -58,8 +63,8 @@ struct aoe_atahdr {
 };
 
 struct aoe_cfghdr {
-	unsigned char bufcnt[2];
-	unsigned char fwver[2];
+	__be16 bufcnt;
+	__be16 fwver;
 	unsigned char res;
 	unsigned char aoeccmd;
 	unsigned char cslen[2];
@@ -85,6 +90,7 @@ enum {
 
 struct buf {
 	struct list_head bufs;
+	ulong start_time;	/* for disk stats */
 	ulong flags;
 	ulong nframesout;
 	char *bufaddr;
@@ -125,7 +131,8 @@ struct aoedev {
 	struct timer_list timer;
 	spinlock_t lock;
 	struct net_device *ifp;	/* interface ed is attached to */
-	struct sk_buff *skblist;/* packets needing to be sent */
+	struct sk_buff *sendq_hd; /* packets needing to be sent, list head */
+	struct sk_buff *sendq_tl;
 	mempool_t *bufpool;	/* for deadlock-free Buf allocation */
 	struct list_head bufq;	/* queue of bios to work on */
 	struct buf *inprocess;	/* the one we're currently working on */
@@ -151,7 +158,7 @@ void aoecmd_cfg_rsp(struct sk_buff *);
 
 int aoedev_init(void);
 void aoedev_exit(void);
-struct aoedev *aoedev_bymac(unsigned char *);
+struct aoedev *aoedev_by_aoeaddr(int maj, int min);
 void aoedev_downdev(struct aoedev *d);
 struct aoedev *aoedev_set(ulong, unsigned char *, struct net_device *, ulong);
 int aoedev_busy(void);
