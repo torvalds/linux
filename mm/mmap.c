@@ -1602,14 +1602,13 @@ static void unmap_vma(struct mm_struct *mm, struct vm_area_struct *area)
  * Ok - we have the memory areas we should free on the 'free' list,
  * so release them, and do the vma updates.
  */
-static void unmap_vma_list(struct mm_struct *mm,
-	struct vm_area_struct *mpnt)
+static void unmap_vma_list(struct mm_struct *mm, struct vm_area_struct *vma)
 {
 	do {
-		struct vm_area_struct *next = mpnt->vm_next;
-		unmap_vma(mm, mpnt);
-		mpnt = next;
-	} while (mpnt != NULL);
+		struct vm_area_struct *next = vma->vm_next;
+		unmap_vma(mm, vma);
+		vma = next;
+	} while (vma);
 	validate_mm(mm);
 }
 
@@ -1720,7 +1719,7 @@ int split_vma(struct mm_struct * mm, struct vm_area_struct * vma,
 int do_munmap(struct mm_struct *mm, unsigned long start, size_t len)
 {
 	unsigned long end;
-	struct vm_area_struct *mpnt, *prev, *last;
+	struct vm_area_struct *vma, *prev, *last;
 
 	if ((start & ~PAGE_MASK) || start > TASK_SIZE || len > TASK_SIZE-start)
 		return -EINVAL;
@@ -1729,14 +1728,14 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len)
 		return -EINVAL;
 
 	/* Find the first overlapping VMA */
-	mpnt = find_vma_prev(mm, start, &prev);
-	if (!mpnt)
+	vma = find_vma_prev(mm, start, &prev);
+	if (!vma)
 		return 0;
-	/* we have  start < mpnt->vm_end  */
+	/* we have  start < vma->vm_end  */
 
 	/* if it doesn't overlap, we have nothing.. */
 	end = start + len;
-	if (mpnt->vm_start >= end)
+	if (vma->vm_start >= end)
 		return 0;
 
 	/*
@@ -1746,11 +1745,11 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len)
 	 * unmapped vm_area_struct will remain in use: so lower split_vma
 	 * places tmp vma above, and higher split_vma places tmp vma below.
 	 */
-	if (start > mpnt->vm_start) {
-		int error = split_vma(mm, mpnt, start, 0);
+	if (start > vma->vm_start) {
+		int error = split_vma(mm, vma, start, 0);
 		if (error)
 			return error;
-		prev = mpnt;
+		prev = vma;
 	}
 
 	/* Does it split the last one? */
@@ -1760,16 +1759,16 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len)
 		if (error)
 			return error;
 	}
-	mpnt = prev? prev->vm_next: mm->mmap;
+	vma = prev? prev->vm_next: mm->mmap;
 
 	/*
 	 * Remove the vma's, and unmap the actual pages
 	 */
-	detach_vmas_to_be_unmapped(mm, mpnt, prev, end);
-	unmap_region(mm, mpnt, prev, start, end);
+	detach_vmas_to_be_unmapped(mm, vma, prev, end);
+	unmap_region(mm, vma, prev, start, end);
 
 	/* Fix up all other VM information */
-	unmap_vma_list(mm, mpnt);
+	unmap_vma_list(mm, vma);
 
 	return 0;
 }
