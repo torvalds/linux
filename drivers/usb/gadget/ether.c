@@ -100,6 +100,8 @@ static const char driver_desc [] = DRIVER_DESC;
 
 /* CDC and RNDIS support the same host-chosen outgoing packet filters. */
 #define	DEFAULT_FILTER	(USB_CDC_PACKET_TYPE_BROADCAST \
+ 			|USB_CDC_PACKET_TYPE_ALL_MULTICAST \
+ 			|USB_CDC_PACKET_TYPE_PROMISCUOUS \
  			|USB_CDC_PACKET_TYPE_DIRECTED)
 
 
@@ -322,12 +324,18 @@ module_param (qmult, uint, S_IRUGO|S_IWUSR);
 /* also defer IRQs on highspeed TX */
 #define TX_DELAY	qmult
 
-#define	BITRATE(g)	(((g)->speed == USB_SPEED_HIGH) ? HS_BPS : FS_BPS)
+static inline int BITRATE(struct usb_gadget *g)
+{
+	return (g->speed == USB_SPEED_HIGH) ? HS_BPS : FS_BPS;
+}
 
 #else	/* full speed (low speed doesn't do bulk) */
 #define qlen(gadget) DEFAULT_QLEN
 
-#define	BITRATE(g)	FS_BPS
+static inline int BITRATE(struct usb_gadget *g)
+{
+	return FS_BPS;
+}
 #endif
 
 
@@ -1167,7 +1175,7 @@ eth_set_config (struct eth_dev *dev, unsigned number, int gfp_flags)
 	eth_reset_config (dev);
 
 	/* default:  pass all packets, no multicast filtering */
-	dev->cdc_filter = 0x000f;
+	dev->cdc_filter = DEFAULT_FILTER;
 
 	switch (number) {
 	case DEV_CONFIG_VALUE:
@@ -1343,9 +1351,9 @@ eth_setup (struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 	struct eth_dev		*dev = get_gadget_data (gadget);
 	struct usb_request	*req = dev->req;
 	int			value = -EOPNOTSUPP;
-	u16			wIndex = ctrl->wIndex;
-	u16			wValue = ctrl->wValue;
-	u16			wLength = ctrl->wLength;
+	u16			wIndex = (__force u16) ctrl->wIndex;
+	u16			wValue = (__force u16) ctrl->wValue;
+	u16			wLength = (__force u16) ctrl->wLength;
 
 	/* descriptors just go into the pre-allocated ep0 buffer,
 	 * while config change events may enable network traffic.
@@ -1693,7 +1701,7 @@ rx_submit (struct eth_dev *dev, struct usb_request *req, int gfp_flags)
 	
 	/* Some platforms perform better when IP packets are aligned,
 	 * but on at least one, checksumming fails otherwise.  Note:
-	 * this doesn't account for variable-sized RNDIS headers.
+	 * RNDIS headers involve variable numbers of LE32 values.
 	 */
 	skb_reserve(skb, NET_IP_ALIGN);
 
@@ -1730,9 +1738,11 @@ static void rx_complete (struct usb_ep *ep, struct usb_request *req)
 #ifdef CONFIG_USB_ETH_RNDIS
 		/* we know MaxPacketsPerTransfer == 1 here */
 		if (dev->rndis)
-			rndis_rm_hdr (req->buf, &(skb->len));
+			status = rndis_rm_hdr (skb);
 #endif
-		if (ETH_HLEN > skb->len || skb->len > ETH_FRAME_LEN) {
+		if (status < 0
+				|| ETH_HLEN > skb->len
+				|| skb->len > ETH_FRAME_LEN) {
 			dev->stats.rx_errors++;
 			dev->stats.rx_length_errors++;
 			DEBUG (dev, "rx length %d\n", skb->len);
@@ -2047,38 +2057,20 @@ rndis_control_ack_complete (struct usb_ep *ep, struct usb_request *req)
 		DEBUG ((struct eth_dev *) ep->driver_data,
 			"rndis control ack complete --> %d, %d/%d\n",
 			req->status, req->actual, req->length);
-
-	usb_ep_free_buffer(ep, req->buf, req->dma, 8);
-	usb_ep_free_request(ep, req);
 }
 
 static int rndis_control_ack (struct net_device *net)
 {
 	struct eth_dev          *dev = netdev_priv(net);
 	u32                     length;
-	struct usb_request      *resp;
+	struct usb_request      *resp = dev->stat_req;
 	
 	/* in case RNDIS calls this after disconnect */
-	if (!dev->status_ep) {
+	if (!dev->status) {
 		DEBUG (dev, "status ENODEV\n");
 		return -ENODEV;
 	}
 
-	/* Allocate memory for notification ie. ACK */
-	resp = usb_ep_alloc_request (dev->status_ep, GFP_ATOMIC);
-	if (!resp) {
-		DEBUG (dev, "status ENOMEM\n");
-		return -ENOMEM;
-	}
-	
-	resp->buf = usb_ep_alloc_buffer (dev->status_ep, 8,
-					 &resp->dma, GFP_ATOMIC);
-	if (!resp->buf) {
-		DEBUG (dev, "status buf ENOMEM\n");
-		usb_ep_free_request (dev->status_ep, resp);
-		return -ENOMEM;
-	}
-	
 	/* Send RNDIS RESPONSE_AVAILABLE notification;
 	 * USB_CDC_NOTIFY_RESPONSE_AVAILABLE should work too
 	 */
@@ -2113,7 +2105,7 @@ static void eth_start (struct eth_dev *dev, int gfp_flags)
 	if (dev->rndis) {
 		rndis_set_param_medium (dev->rndis_config,
 					NDIS_MEDIUM_802_3,
-					BITRATE(dev->gadget));
+					BITRATE(dev->gadget)/100);
 		rndis_send_media_state (dev, 1);
 	}
 #endif	
@@ -2307,8 +2299,8 @@ eth_bind (struct usb_gadget *gadget)
 		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0210);
 	} else if (gadget_is_pxa27x(gadget)) {
 		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0211);
- 	} else if (gadget_is_s3c2410(gadget)) {
- 		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0212);
+	} else if (gadget_is_s3c2410(gadget)) {
+		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0212);
 	} else if (gadget_is_at91(gadget)) {
 		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0213);
 	} else {

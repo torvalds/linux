@@ -38,6 +38,7 @@
  */
 
 /* Message Set for Connectionless (802.3) Devices */
+#define REMOTE_NDIS_PACKET_MSG		0x00000001U
 #define REMOTE_NDIS_INITIALIZE_MSG	0x00000002U	/* Initialize device */
 #define REMOTE_NDIS_HALT_MSG		0x00000003U
 #define REMOTE_NDIS_QUERY_MSG		0x00000004U
@@ -333,7 +334,7 @@ int  rndis_set_param_vendor (u8 configNr, u32 vendorID,
 			    const char *vendorDescr);
 int  rndis_set_param_medium (u8 configNr, u32 medium, u32 speed);
 void rndis_add_hdr (struct sk_buff *skb);
-int  rndis_rm_hdr (u8 *buf, u32 *length);
+int rndis_rm_hdr (struct sk_buff *skb);
 u8   *rndis_get_next_response (int configNr, u32 *length);
 void rndis_free_response (int configNr, u8 *buf);
 
