@@ -147,8 +147,8 @@ aoeblk_make_request(request_queue_t *q, struct bio *bio)
 	list_add_tail(&buf->bufs, &d->bufq);
 	aoecmd_work(d);
 
-	sl = d->skblist;
-	d->skblist = NULL;
+	sl = d->sendq_hd;
+	d->sendq_hd = d->sendq_tl = NULL;
 
 	spin_unlock_irqrestore(&d->lock, flags);
 

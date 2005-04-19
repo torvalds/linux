@@ -178,8 +178,12 @@ aoecmd_ata_rw(struct aoedev *d, struct frame *f)
 
 	skb = skb_prepare(d, f);
 	if (skb) {
-		skb->next = d->skblist;
-		d->skblist = skb;
+		skb->next = NULL;
+		if (d->sendq_hd)
+			d->sendq_tl->next = skb;
+		else
+			d->sendq_hd = skb;
+		d->sendq_tl = skb;
 	}
 }
 
@@ -227,8 +231,12 @@ rexmit(struct aoedev *d, struct frame *f)
 
 	skb = skb_prepare(d, f);
 	if (skb) {
-		skb->next = d->skblist;
-		d->skblist = skb;
+		skb->next = NULL;
+		if (d->sendq_hd)
+			d->sendq_tl->next = skb;
+		else
+			d->sendq_hd = skb;
+		d->sendq_tl = skb;
 	}
 }
 
@@ -280,8 +288,8 @@ tdie:		spin_unlock_irqrestore(&d->lock, flags);
 		}
 	}
 
-	sl = d->skblist;
-	d->skblist = NULL;
+	sl = d->sendq_hd;
+	d->sendq_hd = d->sendq_tl = NULL;
 	if (sl) {
 		n = d->rttavg <<= 1;
 		if (n > MAXTIMER)
@@ -481,8 +489,8 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 
 	aoecmd_work(d);
 
-	sl = d->skblist;
-	d->skblist = NULL;
+	sl = d->sendq_hd;
+	d->sendq_hd = d->sendq_tl = NULL;
 
 	spin_unlock_irqrestore(&d->lock, flags);
 
@@ -531,7 +539,7 @@ aoecmd_cfg(ushort aoemajor, unsigned char aoeminor)
  
 /*
  * Since we only call this in one place (and it only prepares one frame)
- * we just return the skb.  Usually we'd chain it up to the d->skblist.
+ * we just return the skb.  Usually we'd chain it up to the aoedev sendq.
  */
 static struct sk_buff *
 aoecmd_ata_id(struct aoedev *d)

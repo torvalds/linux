@@ -131,7 +131,8 @@ struct aoedev {
 	struct timer_list timer;
 	spinlock_t lock;
 	struct net_device *ifp;	/* interface ed is attached to */
-	struct sk_buff *skblist;/* packets needing to be sent */
+	struct sk_buff *sendq_hd; /* packets needing to be sent, list head */
+	struct sk_buff *sendq_tl;
 	mempool_t *bufpool;	/* for deadlock-free Buf allocation */
 	struct list_head bufq;	/* queue of bios to work on */
 	struct buf *inprocess;	/* the one we're currently working on */
