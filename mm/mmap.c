@@ -1612,6 +1612,11 @@ static void unmap_vma_list(struct mm_struct *mm, struct vm_area_struct *vma)
 	validate_mm(mm);
 }
 
+#ifndef FIRST_USER_ADDRESS	/* temporary hack */
+#define THIS_IS_ARM		FIRST_USER_PGD_NR
+#define FIRST_USER_ADDRESS	(THIS_IS_ARM * PAGE_SIZE)
+#endif
+
 /*
  * Get rid of page table information in the indicated region.
  *
@@ -1630,7 +1635,7 @@ static void unmap_region(struct mm_struct *mm,
 	tlb = tlb_gather_mmu(mm, 0);
 	unmap_vmas(&tlb, mm, vma, start, end, &nr_accounted, NULL);
 	vm_unacct_memory(nr_accounted);
-	free_pgtables(&tlb, vma, prev? prev->vm_end: 0,
+	free_pgtables(&tlb, vma, prev? prev->vm_end: FIRST_USER_ADDRESS,
 				 next? next->vm_start: 0);
 	tlb_finish_mmu(tlb, start, end);
 	spin_unlock(&mm->page_table_lock);
@@ -1910,7 +1915,7 @@ void exit_mmap(struct mm_struct *mm)
 	/* Use -1 here to ensure all VMAs in the mm are unmapped */
 	end = unmap_vmas(&tlb, mm, vma, 0, -1, &nr_accounted, NULL);
 	vm_unacct_memory(nr_accounted);
-	free_pgtables(&tlb, vma, 0, 0);
+	free_pgtables(&tlb, vma, FIRST_USER_ADDRESS, 0);
 	tlb_finish_mmu(tlb, 0, end);
 
 	mm->mmap = mm->mmap_cache = NULL;
@@ -1931,7 +1936,7 @@ void exit_mmap(struct mm_struct *mm)
 		vma = next;
 	}
 
-	BUG_ON(mm->nr_ptes);	/* This is just debugging */
+	BUG_ON(mm->nr_ptes > (FIRST_USER_ADDRESS+PMD_SIZE-1)>>PMD_SHIFT);
 }
 
 /* Insert vm structure into process list sorted by address
