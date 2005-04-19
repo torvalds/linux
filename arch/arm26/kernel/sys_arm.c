@@ -64,10 +64,10 @@ inline long do_mmap2(
 	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
 
 	/*
-	 * If we are doing a fixed mapping, and address < PAGE_SIZE,
+	 * If we are doing a fixed mapping, and address < FIRST_USER_ADDRESS,
 	 * then deny it.
 	 */
-	if (flags & MAP_FIXED && addr < PAGE_SIZE && vectors_base() == 0)
+	if (flags & MAP_FIXED && addr < FIRST_USER_ADDRESS)
 		goto out;
 
 	error = -EBADF;
@@ -121,11 +121,10 @@ sys_arm_mremap(unsigned long addr, unsigned long old_len,
 	unsigned long ret = -EINVAL;
 
 	/*
-	 * If we are doing a fixed mapping, and address < PAGE_SIZE,
+	 * If we are doing a fixed mapping, and address < FIRST_USER_ADDRESS,
 	 * then deny it.
 	 */
-	if (flags & MREMAP_FIXED && new_addr < PAGE_SIZE &&
-	    vectors_base() == 0)
+	if (flags & MREMAP_FIXED && new_addr < FIRST_USER_ADDRESS)
 		goto out;
 
 	down_write(&current->mm->mmap_sem);
