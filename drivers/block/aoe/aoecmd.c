@@ -380,14 +380,15 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 	register long n;
 	ulong flags;
 	char ebuf[128];
-	
+	u16 aoemajor;
+
 	hin = (struct aoe_hdr *) skb->mac.raw;
-	d = aoedev_bymac(hin->src);
+	aoemajor = __be16_to_cpu(*((u16 *) hin->major));
+	d = aoedev_by_aoeaddr(aoemajor, hin->minor);
 	if (d == NULL) {
 		snprintf(ebuf, sizeof ebuf, "aoecmd_ata_rsp: ata response "
 			"for unknown device %d.%d\n",
-			 __be16_to_cpu(*((u16 *) hin->major)),
-			hin->minor);
+			 aoemajor, hin->minor);
 		aoechr_error(ebuf);
 		return;
 	}

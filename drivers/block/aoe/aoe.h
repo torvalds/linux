@@ -156,7 +156,7 @@ void aoecmd_cfg_rsp(struct sk_buff *);
 
 int aoedev_init(void);
 void aoedev_exit(void);
-struct aoedev *aoedev_bymac(unsigned char *);
+struct aoedev *aoedev_by_aoeaddr(int maj, int min);
 void aoedev_downdev(struct aoedev *d);
 struct aoedev *aoedev_set(ulong, unsigned char *, struct net_device *, ulong);
 int aoedev_busy(void);

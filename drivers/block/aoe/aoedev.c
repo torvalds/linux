@@ -13,7 +13,7 @@ static struct aoedev *devlist;
 static spinlock_t devlist_lock;
 
 struct aoedev *
-aoedev_bymac(unsigned char *macaddr)
+aoedev_by_aoeaddr(int maj, int min)
 {
 	struct aoedev *d;
 	ulong flags;
@@ -21,7 +21,7 @@ aoedev_bymac(unsigned char *macaddr)
 	spin_lock_irqsave(&devlist_lock, flags);
 
 	for (d=devlist; d; d=d->next)
-		if (!memcmp(d->addr, macaddr, 6))
+		if (d->aoemajor == maj && d->aoeminor == min)
 			break;
 
 	spin_unlock_irqrestore(&devlist_lock, flags);
@@ -125,7 +125,6 @@ aoedev_set(ulong sysminor, unsigned char *addr, struct net_device *ifp, ulong bu
 	d->ifp = ifp;
 
 	if (d->sysminor != sysminor
-	|| memcmp(d->addr, addr, sizeof d->addr)
 	|| (d->flags & DEVFL_UP) == 0) {
 		aoedev_downdev(d); /* flushes outstanding frames */
 		memcpy(d->addr, addr, sizeof d->addr);
