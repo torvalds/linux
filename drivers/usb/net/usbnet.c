@@ -4017,10 +4017,23 @@ static const struct usb_device_id	products [] = {
 	.idProduct              = 0x9050,	/* C-860 */
 	ZAURUS_MASTER_INTERFACE,
 	.driver_info = ZAURUS_PXA_INFO,
+},
+
 #ifdef	CONFIG_USB_ZAURUS
-	/* at least some (reports vary) C-860 units have very different
-	 * lies about their standards support.
+	/* at least some (reports vary) PXA units have very different
+	 * lies about their standards support:  they claim to be cell
+	 * phones giving direct radio access (which they aren't).
 	 */
+{
+	.match_flags    =   USB_DEVICE_ID_MATCH_INT_INFO
+		 | USB_DEVICE_ID_MATCH_DEVICE,
+	.idVendor               = 0x04DD,
+	/* Sharp ROM v1.32 */
+	.idProduct		= 0x8006,	/* SL-5600 */
+	.bInterfaceClass	= USB_CLASS_COMM,
+	.bInterfaceSubClass	= USB_CDC_SUBCLASS_MDLM,
+	.bInterfaceProtocol	= USB_CDC_PROTO_NONE,
+	.driver_info 		= (unsigned long) &zaurus_pxa_mdlm_info,
 }, {
 	.match_flags    =   USB_DEVICE_ID_MATCH_INT_INFO
 		 | USB_DEVICE_ID_MATCH_DEVICE,
@@ -4031,8 +4044,8 @@ static const struct usb_device_id	products [] = {
 	.bInterfaceSubClass	= USB_CDC_SUBCLASS_MDLM,
 	.bInterfaceProtocol	= USB_CDC_PROTO_NONE,
 	.driver_info 		= (unsigned long) &zaurus_pxa_mdlm_info,
-#endif
 },
+#endif
 
 /* Olympus has some models with a Zaurus-compatible option.
  * R-1000 uses a FreeScale i.MXL cpu (ARMv4T)
