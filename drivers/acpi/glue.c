@@ -29,7 +29,7 @@ int register_acpi_bus_type(struct acpi_bus_type *type)
 		down_write(&bus_type_sem);
 		list_add_tail(&type->list, &bus_type_list);
 		up_write(&bus_type_sem);
-		DBG("ACPI bus type %s registered\n", type->bus->name);
+		printk(KERN_INFO PREFIX "bus type %s registered\n", type->bus->name);
 		return 0;
 	}
 	return -ENODEV;
@@ -45,7 +45,7 @@ int unregister_acpi_bus_type(struct acpi_bus_type *type)
 		down_write(&bus_type_sem);
 		list_del_init(&type->list);
 		up_write(&bus_type_sem);
-		DBG("ACPI bus type %s unregistered\n", type->bus->name);
+		printk(KERN_INFO PREFIX "ACPI bus type %s unregistered\n", type->bus->name);
 		return 0;
 	}
 	return -ENODEV;
@@ -314,14 +314,12 @@ static int acpi_platform_notify(struct device *dev)
 	}
 	type = acpi_get_bus_type(dev->bus);
 	if (!type) {
-		printk(KERN_INFO PREFIX "No ACPI bus support for %s\n",
-		       dev->bus_id);
+		DBG("No ACPI bus support for %s\n", dev->bus_id);
 		ret = -EINVAL;
 		goto end;
 	}
 	if ((ret = type->find_device(dev, &handle)) != 0)
-		printk(KERN_INFO PREFIX "Can't get handler for %s\n",
-		       dev->bus_id);
+		DBG("Can't get handler for %s\n", dev->bus_id);
       end:
 	if (!ret)
 		acpi_bind_one(dev, handle);
