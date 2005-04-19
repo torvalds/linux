@@ -102,6 +102,9 @@ firmware_class_hotplug(struct class_device *class_dev, char **envp,
 	if (add_hotplug_env_var(envp, num_envp, &i, buffer, buffer_size, &len,
 			"FIRMWARE=%s", fw_priv->fw_id))
 		return -ENOMEM;
+	if (add_hotplug_env_var(envp, num_envp, &i, buffer, buffer_size, &len,
+			"TIMEOUT=%i", loading_timeout))
+		return -ENOMEM;
 
 	envp[i] = NULL;
 

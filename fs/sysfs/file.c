@@ -428,6 +428,41 @@ int sysfs_update_file(struct kobject * kobj, const struct attribute * attr)
 
 
 /**
+ * sysfs_chmod_file - update the modified mode value on an object attribute.
+ * @kobj: object we're acting for.
+ * @attr: attribute descriptor.
+ * @mode: file permissions.
+ *
+ */
+int sysfs_chmod_file(struct kobject *kobj, struct attribute *attr, mode_t mode)
+{
+	struct dentry *dir = kobj->dentry;
+	struct dentry *victim;
+	struct sysfs_dirent *sd;
+	umode_t umode = (mode & S_IALLUGO) | S_IFREG;
+	int res = -ENOENT;
+
+	down(&dir->d_inode->i_sem);
+	victim = sysfs_get_dentry(dir, attr->name);
+	if (!IS_ERR(victim)) {
+		if (victim->d_inode &&
+		    (victim->d_parent->d_inode == dir->d_inode)) {
+			sd = victim->d_fsdata;
+			attr->mode = mode;
+			sd->s_mode = umode;
+			victim->d_inode->i_mode = umode;
+			dput(victim);
+			res = 0;
+		}
+	}
+	up(&dir->d_inode->i_sem);
+
+	return res;
+}
+EXPORT_SYMBOL_GPL(sysfs_chmod_file);
+
+
+/**
  *	sysfs_remove_file - remove an object attribute.
  *	@kobj:	object we're acting for.
  *	@attr:	attribute descriptor.
