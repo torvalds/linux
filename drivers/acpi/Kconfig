@@ -49,7 +49,6 @@ config ACPI_BOOT
 
 config ACPI_INTERPRETER
 	bool
-	depends on !IA64_SGI_SN
 	default y
 
 if ACPI_INTERPRETER
@@ -108,7 +107,6 @@ config ACPI_BATTERY
 
 config ACPI_BUTTON
 	tristate "Button"
-	depends on !IA64_SGI_SN
 	default m
 	help
 	  This driver registers for events based on buttons, such as the
@@ -120,7 +118,6 @@ config ACPI_BUTTON
 config ACPI_VIDEO
 	tristate "Video"
 	depends on EXPERIMENTAL
-	depends on !IA64_SGI_SN
 	default m
 	help
 	  This driver implement the ACPI Extensions For Display Adapters
@@ -142,7 +139,6 @@ config ACPI_HOTKEY
 
 config ACPI_FAN
 	tristate "Fan"
-	depends on !IA64_SGI_SN
 	default m
 	help
 	  This driver adds support for ACPI fan devices, allowing user-mode 
@@ -150,7 +146,6 @@ config ACPI_FAN
 
 config ACPI_PROCESSOR
 	tristate "Processor"
-	depends on !IA64_SGI_SN
 	default m
 	help
 	  This driver installs ACPI as the idle handler for Linux, and uses
@@ -160,7 +155,6 @@ config ACPI_PROCESSOR
 config ACPI_HOTPLUG_CPU
 	bool "Processor Hotplug (EXPERIMENTAL)"
 	depends on ACPI_PROCESSOR && HOTPLUG_CPU && EXPERIMENTAL
-	depends on !IA64_SGI_SN
 	select ACPI_CONTAINER
 	default n
 	 ---help---
@@ -280,7 +274,6 @@ config ACPI_BLACKLIST_YEAR
 
 config ACPI_DEBUG
 	bool "Debug Statements"
-	depends on !IA64_SGI_SN
 	default n
 	help
 	  The ACPI driver can optionally report errors with a great deal
@@ -289,7 +282,6 @@ config ACPI_DEBUG
 
 config ACPI_BUS
 	bool
-	depends on !IA64_SGI_SN
 	default y
 
 config ACPI_EC
@@ -303,17 +295,14 @@ config ACPI_EC
 
 config ACPI_POWER
 	bool
-	depends on !IA64_SGI_SN
 	default y
 
 config ACPI_PCI
 	bool
-	depends on !IA64_SGI_SN
 	default PCI
 
 config ACPI_SYSTEM
 	bool
-	depends on !IA64_SGI_SN
 	default y
 	help
 	  This driver will enable your system to shut down using ACPI, and
