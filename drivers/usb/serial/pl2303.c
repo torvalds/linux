@@ -677,6 +677,9 @@ static int pl2303_tiocmset (struct usb_serial_port *port, struct file *file,
 	unsigned long flags;
 	u8 control;
 
+	if (!usb_get_intfdata(port->serial->interface))
+		return -ENODEV;
+
 	spin_lock_irqsave (&priv->lock, flags);
 	if (set & TIOCM_RTS)
 		priv->line_control |= CONTROL_RTS;
@@ -701,6 +704,9 @@ static int pl2303_tiocmget (struct usb_serial_port *port, struct file *file)
 	unsigned int result;
 
 	dbg("%s (%d)", __FUNCTION__, port->number);
+
+	if (!usb_get_intfdata(port->serial->interface))
+		return -ENODEV;
 
 	spin_lock_irqsave (&priv->lock, flags);
 	mcr = priv->line_control;
