@@ -29,6 +29,10 @@
 #include <asm/cacheflush.h>
 #include <asm/tlb.h>
 
+static void unmap_region(struct mm_struct *mm,
+		struct vm_area_struct *vma, struct vm_area_struct *prev,
+		unsigned long start, unsigned long end);
+
 /*
  * WARNING: the debugging will use recursive algorithms so never enable this
  * unless you know what you are doing.
@@ -1129,7 +1133,8 @@ unmap_and_free_vma:
 	fput(file);
 
 	/* Undo any partial mapping done by a device driver. */
-	zap_page_range(vma, vma->vm_start, vma->vm_end - vma->vm_start, NULL);
+	unmap_region(mm, vma, prev, vma->vm_start, vma->vm_end);
+	charged = 0;
 free_vma:
 	kmem_cache_free(vm_area_cachep, vma);
 unacct_error:
@@ -1572,66 +1577,6 @@ find_extend_vma(struct mm_struct * mm, unsigned long addr)
 }
 #endif
 
-/*
- * Try to free as many page directory entries as we can,
- * without having to work very hard at actually scanning
- * the page tables themselves.
- *
- * Right now we try to free page tables if we have a nice
- * PGDIR-aligned area that got free'd up. We could be more
- * granular if we want to, but this is fast and simple,
- * and covers the bad cases.
- *
- * "prev", if it exists, points to a vma before the one
- * we just free'd - but there's no telling how much before.
- */
-static void free_pgtables(struct mmu_gather *tlb, struct vm_area_struct *prev,
-	unsigned long start, unsigned long end)
-{
-	unsigned long first = start & PGDIR_MASK;
-	unsigned long last = end + PGDIR_SIZE - 1;
-	struct mm_struct *mm = tlb->mm;
-
-	if (last > MM_VM_SIZE(mm) || last < end)
-		last = MM_VM_SIZE(mm);
-
-	if (!prev) {
-		prev = mm->mmap;
-		if (!prev)
-			goto no_mmaps;
-		if (prev->vm_end > start) {
-			if (last > prev->vm_start)
-				last = prev->vm_start;
-			goto no_mmaps;
-		}
-	}
-	for (;;) {
-		struct vm_area_struct *next = prev->vm_next;
-
-		if (next) {
-			if (next->vm_start < start) {
-				prev = next;
-				continue;
-			}
-			if (last > next->vm_start)
-				last = next->vm_start;
-		}
-		if (prev->vm_end > first)
-			first = prev->vm_end;
-		break;
-	}
-no_mmaps:
-	if (last < first)	/* for arches with discontiguous pgd indices */
-		return;
-	if (first < FIRST_USER_PGD_NR * PGDIR_SIZE)
-		first = FIRST_USER_PGD_NR * PGDIR_SIZE;
-	/* No point trying to free anything if we're in the same pte page */
-	if ((first & PMD_MASK) < (last & PMD_MASK)) {
-		clear_page_range(tlb, first, last);
-		flush_tlb_pgtables(mm, first, last);
-	}
-}
-
 /* Normal function to fix up a mapping
  * This function is the default for when an area has no specific
  * function.  This may be used as part of a more specific routine.
@@ -1674,24 +1619,22 @@ static void unmap_vma_list(struct mm_struct *mm,
  * Called with the page table lock held.
  */
 static void unmap_region(struct mm_struct *mm,
-	struct vm_area_struct *vma,
-	struct vm_area_struct *prev,
-	unsigned long start,
-	unsigned long end)
+		struct vm_area_struct *vma, struct vm_area_struct *prev,
+		unsigned long start, unsigned long end)
 {
+	struct vm_area_struct *next = prev? prev->vm_next: mm->mmap;
 	struct mmu_gather *tlb;
 	unsigned long nr_accounted = 0;
 
 	lru_add_drain();
+	spin_lock(&mm->page_table_lock);
 	tlb = tlb_gather_mmu(mm, 0);
 	unmap_vmas(&tlb, mm, vma, start, end, &nr_accounted, NULL);
 	vm_unacct_memory(nr_accounted);
-
-	if (is_hugepage_only_range(mm, start, end - start))
-		hugetlb_free_pgtables(tlb, prev, start, end);
-	else
-		free_pgtables(tlb, prev, start, end);
+	free_pgtables(&tlb, vma, prev? prev->vm_end: 0,
+				 next? next->vm_start: 0);
 	tlb_finish_mmu(tlb, start, end);
+	spin_unlock(&mm->page_table_lock);
 }
 
 /*
@@ -1823,9 +1766,7 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len)
 	 * Remove the vma's, and unmap the actual pages
 	 */
 	detach_vmas_to_be_unmapped(mm, mpnt, prev, end);
-	spin_lock(&mm->page_table_lock);
 	unmap_region(mm, mpnt, prev, start, end);
-	spin_unlock(&mm->page_table_lock);
 
 	/* Fix up all other VM information */
 	unmap_vma_list(mm, mpnt);
@@ -1957,25 +1898,21 @@ EXPORT_SYMBOL(do_brk);
 void exit_mmap(struct mm_struct *mm)
 {
 	struct mmu_gather *tlb;
-	struct vm_area_struct *vma;
+	struct vm_area_struct *vma = mm->mmap;
 	unsigned long nr_accounted = 0;
 
 	lru_add_drain();
 
 	spin_lock(&mm->page_table_lock);
 
-	tlb = tlb_gather_mmu(mm, 1);
 	flush_cache_mm(mm);
-	/* Use ~0UL here to ensure all VMAs in the mm are unmapped */
-	mm->map_count -= unmap_vmas(&tlb, mm, mm->mmap, 0,
-					~0UL, &nr_accounted, NULL);
+	tlb = tlb_gather_mmu(mm, 1);
+	/* Use -1 here to ensure all VMAs in the mm are unmapped */
+	mm->map_count -= unmap_vmas(&tlb, mm, vma, 0, -1, &nr_accounted, NULL);
 	vm_unacct_memory(nr_accounted);
-	BUG_ON(mm->map_count);	/* This is just debugging */
-	clear_page_range(tlb, FIRST_USER_PGD_NR * PGDIR_SIZE, MM_VM_SIZE(mm));
-	
+	free_pgtables(&tlb, vma, 0, 0);
 	tlb_finish_mmu(tlb, 0, MM_VM_SIZE(mm));
 
-	vma = mm->mmap;
 	mm->mmap = mm->mmap_cache = NULL;
 	mm->mm_rb = RB_ROOT;
 	set_mm_counter(mm, rss, 0);
@@ -1993,6 +1930,9 @@ void exit_mmap(struct mm_struct *mm)
 		remove_vm_struct(vma);
 		vma = next;
 	}
+
+	BUG_ON(mm->map_count);	/* This is just debugging */
+	BUG_ON(mm->nr_ptes);	/* This is just debugging */
 }
 
 /* Insert vm structure into process list sorted by address

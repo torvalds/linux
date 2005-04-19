@@ -110,87 +110,165 @@ void pmd_clear_bad(pmd_t *pmd)
  * Note: this doesn't free the actual pages themselves. That
  * has been handled earlier when unmapping all the memory regions.
  */
-static inline void clear_pte_range(struct mmu_gather *tlb, pmd_t *pmd,
-				unsigned long addr, unsigned long end)
+static void free_pte_range(struct mmu_gather *tlb, pmd_t *pmd)
 {
-	if (!((addr | end) & ~PMD_MASK)) {
-		/* Only free fully aligned ranges */
-		struct page *page = pmd_page(*pmd);
-		pmd_clear(pmd);
-		dec_page_state(nr_page_table_pages);
-		tlb->mm->nr_ptes--;
-		pte_free_tlb(tlb, page);
-	}
+	struct page *page = pmd_page(*pmd);
+	pmd_clear(pmd);
+	pte_free_tlb(tlb, page);
+	dec_page_state(nr_page_table_pages);
+	tlb->mm->nr_ptes--;
 }
 
-static inline void clear_pmd_range(struct mmu_gather *tlb, pud_t *pud,
-				unsigned long addr, unsigned long end)
+static inline void free_pmd_range(struct mmu_gather *tlb, pud_t *pud,
+				unsigned long addr, unsigned long end,
+				unsigned long floor, unsigned long ceiling)
 {
 	pmd_t *pmd;
 	unsigned long next;
-	pmd_t *empty_pmd = NULL;
+	unsigned long start;
 
+	start = addr;
 	pmd = pmd_offset(pud, addr);
-
-	/* Only free fully aligned ranges */
-	if (!((addr | end) & ~PUD_MASK))
-		empty_pmd = pmd;
 	do {
 		next = pmd_addr_end(addr, end);
 		if (pmd_none_or_clear_bad(pmd))
 			continue;
-		clear_pte_range(tlb, pmd, addr, next);
+		free_pte_range(tlb, pmd);
 	} while (pmd++, addr = next, addr != end);
 
-	if (empty_pmd) {
-		pud_clear(pud);
-		pmd_free_tlb(tlb, empty_pmd);
+	start &= PUD_MASK;
+	if (start < floor)
+		return;
+	if (ceiling) {
+		ceiling &= PUD_MASK;
+		if (!ceiling)
+			return;
 	}
+	if (end - 1 > ceiling - 1)
+		return;
+
+	pmd = pmd_offset(pud, start);
+	pud_clear(pud);
+	pmd_free_tlb(tlb, pmd);
 }
 
-static inline void clear_pud_range(struct mmu_gather *tlb, pgd_t *pgd,
-				unsigned long addr, unsigned long end)
+static inline void free_pud_range(struct mmu_gather *tlb, pgd_t *pgd,
+				unsigned long addr, unsigned long end,
+				unsigned long floor, unsigned long ceiling)
 {
 	pud_t *pud;
 	unsigned long next;
-	pud_t *empty_pud = NULL;
+	unsigned long start;
 
+	start = addr;
 	pud = pud_offset(pgd, addr);
-
-	/* Only free fully aligned ranges */
-	if (!((addr | end) & ~PGDIR_MASK))
-		empty_pud = pud;
 	do {
 		next = pud_addr_end(addr, end);
 		if (pud_none_or_clear_bad(pud))
 			continue;
-		clear_pmd_range(tlb, pud, addr, next);
+		free_pmd_range(tlb, pud, addr, next, floor, ceiling);
 	} while (pud++, addr = next, addr != end);
 
-	if (empty_pud) {
-		pgd_clear(pgd);
-		pud_free_tlb(tlb, empty_pud);
+	start &= PGDIR_MASK;
+	if (start < floor)
+		return;
+	if (ceiling) {
+		ceiling &= PGDIR_MASK;
+		if (!ceiling)
+			return;
 	}
+	if (end - 1 > ceiling - 1)
+		return;
+
+	pud = pud_offset(pgd, start);
+	pgd_clear(pgd);
+	pud_free_tlb(tlb, pud);
 }
 
 /*
- * This function clears user-level page tables of a process.
- * Unlike other pagetable walks, some memory layouts might give end 0.
+ * This function frees user-level page tables of a process.
+ *
  * Must be called with pagetable lock held.
  */
-void clear_page_range(struct mmu_gather *tlb,
-				unsigned long addr, unsigned long end)
+static inline void free_pgd_range(struct mmu_gather *tlb,
+			unsigned long addr, unsigned long end,
+			unsigned long floor, unsigned long ceiling)
 {
 	pgd_t *pgd;
 	unsigned long next;
+	unsigned long start;
 
+	/*
+	 * The next few lines have given us lots of grief...
+	 *
+	 * Why are we testing PMD* at this top level?  Because often
+	 * there will be no work to do at all, and we'd prefer not to
+	 * go all the way down to the bottom just to discover that.
+	 *
+	 * Why all these "- 1"s?  Because 0 represents both the bottom
+	 * of the address space and the top of it (using -1 for the
+	 * top wouldn't help much: the masks would do the wrong thing).
+	 * The rule is that addr 0 and floor 0 refer to the bottom of
+	 * the address space, but end 0 and ceiling 0 refer to the top
+	 * Comparisons need to use "end - 1" and "ceiling - 1" (though
+	 * that end 0 case should be mythical).
+	 *
+	 * Wherever addr is brought up or ceiling brought down, we must
+	 * be careful to reject "the opposite 0" before it confuses the
+	 * subsequent tests.  But what about where end is brought down
+	 * by PMD_SIZE below? no, end can't go down to 0 there.
+	 *
+	 * Whereas we round start (addr) and ceiling down, by different
+	 * masks at different levels, in order to test whether a table
+	 * now has no other vmas using it, so can be freed, we don't
+	 * bother to round floor or end up - the tests don't need that.
+	 */
+
+	addr &= PMD_MASK;
+	if (addr < floor) {
+		addr += PMD_SIZE;
+		if (!addr)
+			return;
+	}
+	if (ceiling) {
+		ceiling &= PMD_MASK;
+		if (!ceiling)
+			return;
+	}
+	if (end - 1 > ceiling - 1)
+		end -= PMD_SIZE;
+	if (addr > end - 1)
+		return;
+
+	start = addr;
 	pgd = pgd_offset(tlb->mm, addr);
 	do {
 		next = pgd_addr_end(addr, end);
 		if (pgd_none_or_clear_bad(pgd))
 			continue;
-		clear_pud_range(tlb, pgd, addr, next);
+		free_pud_range(tlb, pgd, addr, next, floor, ceiling);
 	} while (pgd++, addr = next, addr != end);
+
+	if (!tlb_is_full_mm(tlb))
+		flush_tlb_pgtables(tlb->mm, start, end);
+}
+
+void free_pgtables(struct mmu_gather **tlb, struct vm_area_struct *vma,
+				unsigned long floor, unsigned long ceiling)
+{
+	while (vma) {
+		struct vm_area_struct *next = vma->vm_next;
+		unsigned long addr = vma->vm_start;
+
+		/* Optimization: gather nearby vmas into a single call down */
+		while (next && next->vm_start <= vma->vm_end + PMD_SIZE) {
+			vma = next;
+			next = vma->vm_next;
+		}
+		free_pgd_range(*tlb, addr, vma->vm_end,
+				floor, next? next->vm_start: ceiling);
+		vma = next;
+	}
 }
 
 pte_t fastcall * pte_alloc_map(struct mm_struct *mm, pmd_t *pmd, unsigned long address)

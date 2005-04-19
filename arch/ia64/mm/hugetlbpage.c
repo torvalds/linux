@@ -187,45 +187,12 @@ follow_huge_pmd(struct mm_struct *mm, unsigned long address, pmd_t *pmd, int wri
 }
 
 /*
- * Same as generic free_pgtables(), except constant PGDIR_* and pgd_offset
- * are hugetlb region specific.
+ * Do nothing, until we've worked out what to do!  To allow build, we
+ * must remove reference to clear_page_range since it no longer exists.
  */
 void hugetlb_free_pgtables(struct mmu_gather *tlb, struct vm_area_struct *prev,
 	unsigned long start, unsigned long end)
 {
-	unsigned long first = start & HUGETLB_PGDIR_MASK;
-	unsigned long last = end + HUGETLB_PGDIR_SIZE - 1;
-	struct mm_struct *mm = tlb->mm;
-
-	if (!prev) {
-		prev = mm->mmap;
-		if (!prev)
-			goto no_mmaps;
-		if (prev->vm_end > start) {
-			if (last > prev->vm_start)
-				last = prev->vm_start;
-			goto no_mmaps;
-		}
-	}
-	for (;;) {
-		struct vm_area_struct *next = prev->vm_next;
-
-		if (next) {
-			if (next->vm_start < start) {
-				prev = next;
-				continue;
-			}
-			if (last > next->vm_start)
-				last = next->vm_start;
-		}
-		if (prev->vm_end > first)
-			first = prev->vm_end;
-		break;
-	}
-no_mmaps:
-	if (last < first)	/* for arches with discontiguous pgd indices */
-		return;
-	clear_page_range(tlb, first, last);
 }
 
 void unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start, unsigned long end)
