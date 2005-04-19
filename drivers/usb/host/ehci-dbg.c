@@ -394,7 +394,7 @@ static void qh_lines (
 		mark = ' ';
 		if (hw_curr == td->qtd_dma)
 			mark = '*';
-		else if (qh->hw_qtd_next == td->qtd_dma)
+		else if (qh->hw_qtd_next == cpu_to_le32(td->qtd_dma))
 			mark = '+';
 		else if (QTD_LENGTH (scratch)) {
 			if (td->hw_alt_next == ehci->async->hw_alt_next)

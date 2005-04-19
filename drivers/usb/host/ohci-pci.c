@@ -102,7 +102,7 @@ ohci_pci_start (struct usb_hcd *hcd)
 
 #ifdef	CONFIG_PM
 
-static int ohci_pci_suspend (struct usb_hcd *hcd, u32 state)
+static int ohci_pci_suspend (struct usb_hcd *hcd, pm_message_t message)
 {
 	struct ohci_hcd		*ohci = hcd_to_ohci (hcd);
 
@@ -111,7 +111,7 @@ static int ohci_pci_suspend (struct usb_hcd *hcd, u32 state)
 		msleep (100);
 
 #ifdef	CONFIG_USB_SUSPEND
-	(void) usb_suspend_device (hcd->self.root_hub, state);
+	(void) usb_suspend_device (hcd->self.root_hub, message);
 #else
 	usb_lock_device (hcd->self.root_hub);
 	(void) ohci_hub_suspend (hcd);

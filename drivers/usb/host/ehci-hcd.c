@@ -721,7 +721,7 @@ static int ehci_get_frame (struct usb_hcd *hcd)
  * the right sort of wakeup.  
  */
 
-static int ehci_suspend (struct usb_hcd *hcd, u32 state)
+static int ehci_suspend (struct usb_hcd *hcd, pm_message_t message)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci (hcd);
 
@@ -729,7 +729,7 @@ static int ehci_suspend (struct usb_hcd *hcd, u32 state)
 		msleep (100);
 
 #ifdef	CONFIG_USB_SUSPEND
-	(void) usb_suspend_device (hcd->self.root_hub, state);
+	(void) usb_suspend_device (hcd->self.root_hub, message);
 #else
 	usb_lock_device (hcd->self.root_hub);
 	(void) ehci_hub_suspend (hcd);
