@@ -2,9 +2,14 @@
 #define VERSION "5"
 #define AOE_MAJOR 152
 #define DEVICE_NAME "aoe"
+
+/* set AOE_PARTITIONS to 1 to use whole-disks only
+ * default is 16, which is 15 partitions plus the whole disk
+ */
 #ifndef AOE_PARTITIONS
 #define AOE_PARTITIONS 16
 #endif
+
 #define SYSMINOR(aoemajor, aoeminor) ((aoemajor) * 10 + (aoeminor))
 #define AOEMAJOR(sysminor) ((sysminor) / 10)
 #define AOEMINOR(sysminor) ((sysminor) % 10)

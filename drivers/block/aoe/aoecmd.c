@@ -577,7 +577,7 @@ aoecmd_cfg_rsp(struct sk_buff *skb)
 	struct aoe_cfghdr *ch;
 	ulong flags, bufcnt, sysminor, aoemajor;
 	struct sk_buff *sl;
-	enum { MAXFRAMES = 8, MAXSYSMINOR = 255 };
+	enum { MAXFRAMES = 8 };
 
 	h = (struct aoe_hdr *) skb->mac.raw;
 	ch = (struct aoe_cfghdr *) (h+1);
@@ -594,9 +594,10 @@ aoecmd_cfg_rsp(struct sk_buff *skb)
 	}
 
 	sysminor = SYSMINOR(aoemajor, h->minor);
-	if (sysminor > MAXSYSMINOR) {
-		printk(KERN_INFO "aoe: aoecmd_cfg_rsp: sysminor %ld too "
-			"large\n", sysminor);
+	if (sysminor * AOE_PARTITIONS + AOE_PARTITIONS > MINORMASK) {
+		printk(KERN_INFO
+			"aoe: e%ld.%d: minor number too large\n", 
+			aoemajor, (int) h->minor);
 		return;
 	}
 
