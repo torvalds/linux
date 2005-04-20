@@ -533,7 +533,7 @@ static int rawv6_send_hdrinc(struct sock *sk, void *from, int length,
 			struct flowi *fl, struct rt6_info *rt, 
 			unsigned int flags)
 {
-	struct inet_sock *inet = inet_sk(sk);
+	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct ipv6hdr *iph;
 	struct sk_buff *skb;
 	unsigned int hh_len;
@@ -570,7 +570,7 @@ static int rawv6_send_hdrinc(struct sock *sk, void *from, int length,
 	err = NF_HOOK(PF_INET6, NF_IP6_LOCAL_OUT, skb, NULL, rt->u.dst.dev,
 		      dst_output);
 	if (err > 0)
-		err = inet->recverr ? net_xmit_errno(err) : 0;
+		err = np->recverr ? net_xmit_errno(err) : 0;
 	if (err)
 		goto error;
 out:
@@ -807,8 +807,6 @@ done:
 	ip6_dst_store(sk, dst,
 		      ipv6_addr_equal(&fl.fl6_dst, &np->daddr) ?
 		      &np->daddr : NULL);
-	if (err > 0)
-		err = np->recverr ? net_xmit_errno(err) : 0;
 
 	release_sock(sk);
 out:	

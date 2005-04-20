@@ -1149,7 +1149,7 @@ int ip6_push_pending_frames(struct sock *sk)
 	err = NF_HOOK(PF_INET6, NF_IP6_LOCAL_OUT, skb, NULL, skb->dst->dev, dst_output);
 	if (err) {
 		if (err > 0)
-			err = inet->recverr ? net_xmit_errno(err) : 0;
+			err = np->recverr ? net_xmit_errno(err) : 0;
 		if (err)
 			goto error;
 	}
