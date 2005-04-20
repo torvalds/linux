@@ -157,6 +157,7 @@ static const char *get_jack_color(u32 cfg)
 static void print_pin_caps(snd_info_buffer_t *buffer,
 			   struct hda_codec *codec, hda_nid_t nid)
 {
+	static char *jack_conns[4] = { "Jack", "N/A", "Fixed", "Both" };
 	static char *jack_types[16] = {
 		"Line Out", "Speaker", "HP Out", "CD",
 		"SPDIF Out", "Digital Out", "Modem Line", "Modem Hand",
@@ -176,7 +177,8 @@ static void print_pin_caps(snd_info_buffer_t *buffer,
 		snd_iprintf(buffer, " HP");
 	snd_iprintf(buffer, "\n");
 	caps = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_CONFIG_DEFAULT, 0);
-	snd_iprintf(buffer, "  Pin Default 0x%08x: %s at %s %s\n", caps,
+	snd_iprintf(buffer, "  Pin Default 0x%08x: [%s] %s at %s %s\n", caps,
+		    jack_conns[(caps & AC_DEFCFG_PORT_CONN) >> AC_DEFCFG_PORT_CONN_SHIFT],
 		    jack_types[(caps & AC_DEFCFG_DEVICE) >> AC_DEFCFG_DEVICE_SHIFT],
 		    jack_locations[(caps >> (AC_DEFCFG_LOCATION_SHIFT + 4)) & 3],
 		    get_jack_location(caps));
