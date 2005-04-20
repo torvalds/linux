@@ -34,6 +34,7 @@
 #include <linux/netfilter_ipv6.h>
 #include <asm/uaccess.h>
 #include <asm/ioctls.h>
+#include <asm/bug.h>
 
 #include <net/ip.h>
 #include <net/sock.h>
@@ -452,12 +453,15 @@ csum_copy_err:
 }
 
 static int rawv6_push_pending_frames(struct sock *sk, struct flowi *fl,
-				     struct raw6_sock *rp, int len)
+				     struct raw6_sock *rp)
 {
+	struct inet_sock *inet = inet_sk(sk);
 	struct sk_buff *skb;
 	int err = 0;
-	u16 *csum;
+	int offset;
+	int len;
 	u32 tmp_csum;
+	u16 csum;
 
 	if (!rp->checksum)
 		goto send;
@@ -465,10 +469,10 @@ static int rawv6_push_pending_frames(struct sock *sk, struct flowi *fl,
 	if ((skb = skb_peek(&sk->sk_write_queue)) == NULL)
 		goto out;
 
-	if (rp->offset + 1 < len)
-		csum = (u16 *)(skb->h.raw + rp->offset);
-	else {
+	offset = rp->offset;
+	if (offset >= inet->cork.length - 1) {
 		err = -EINVAL;
+		ip6_flush_pending_frames(sk);
 		goto out;
 	}
 
@@ -479,23 +483,46 @@ static int rawv6_push_pending_frames(struct sock *sk, struct flowi *fl,
 		 */
 		tmp_csum = skb->csum;
 	} else {
+		struct sk_buff *csum_skb = NULL;
 		tmp_csum = 0;
 
 		skb_queue_walk(&sk->sk_write_queue, skb) {
 			tmp_csum = csum_add(tmp_csum, skb->csum);
+
+			if (csum_skb)
+				continue;
+
+			len = skb->len - (skb->h.raw - skb->data);
+			if (offset >= len) {
+				offset -= len;
+				continue;
+			}
+
+			csum_skb = skb;
 		}
+
+		skb = csum_skb;
 	}
 
+	offset += skb->h.raw - skb->data;
+	if (skb_copy_bits(skb, offset, &csum, 2))
+		BUG();
+
 	/* in case cksum was not initialized */
-	if (unlikely(*csum))
-		tmp_csum = csum_sub(tmp_csum, *csum);
+	if (unlikely(csum))
+		tmp_csum = csum_sub(tmp_csum, csum);
 
-	*csum = csum_ipv6_magic(&fl->fl6_src,
-				&fl->fl6_dst,
-				len, fl->proto, tmp_csum);
+	tmp_csum = csum_ipv6_magic(&fl->fl6_src,
+				   &fl->fl6_dst,
+				   inet->cork.length, fl->proto, tmp_csum);
 
-	if (*csum == 0)
-		*csum = -1;
+	if (tmp_csum == 0)
+		tmp_csum = -1;
+
+	csum = tmp_csum;
+	if (skb_store_bits(skb, offset, &csum, 2))
+		BUG();
+
 send:
 	err = ip6_push_pending_frames(sk);
 out:
@@ -774,7 +801,7 @@ back_from_confirm:
 		if (err)
 			ip6_flush_pending_frames(sk);
 		else if (!(msg->msg_flags & MSG_MORE))
-			err = rawv6_push_pending_frames(sk, &fl, rp, len);
+			err = rawv6_push_pending_frames(sk, &fl, rp);
 	}
 done:
 	ip6_dst_store(sk, dst,
