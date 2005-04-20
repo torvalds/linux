@@ -571,7 +571,7 @@ ipv6_add_addr(struct inet6_dev *idev, const struct in6_addr *addr, int pfxlen,
 out2:
 	read_unlock_bh(&addrconf_lock);
 
-	if (unlikely(err == 0))
+	if (likely(err == 0))
 		notifier_call_chain(&inet6addr_chain, NETDEV_UP, ifa);
 	else {
 		kfree(ifa);
