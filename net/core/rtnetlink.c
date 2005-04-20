@@ -647,7 +647,8 @@ static struct rtnetlink_link link_rtnetlink_table[RTM_MAX-RTM_BASE+1] =
 	[RTM_GETROUTE - RTM_BASE] = { .dumpit = rtnetlink_dump_all    },
 	[RTM_NEWNEIGH - RTM_BASE] = { .doit   = neigh_add	      },
 	[RTM_DELNEIGH - RTM_BASE] = { .doit   = neigh_delete	      },
-	[RTM_GETNEIGH - RTM_BASE] = { .dumpit = neigh_dump_info	      }
+	[RTM_GETNEIGH - RTM_BASE] = { .dumpit = neigh_dump_info	      },
+	[RTM_GETRULE  - RTM_BASE] = { .dumpit = rtnetlink_dump_all    }
 };
 
 static int rtnetlink_event(struct notifier_block *this, unsigned long event, void *ptr)
