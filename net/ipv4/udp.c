@@ -955,6 +955,8 @@ static int udp_encap_rcv(struct sock * sk, struct sk_buff *skb)
 	 * header and optional ESP marker bytes) and then modify the
 	 * protocol to ESP, and then call into the transform receiver.
 	 */
+	if (skb_cloned(skb) && pskb_expand_head(skb, 0, 0, GFP_ATOMIC))
+		return 0;
 
 	/* Now we can update and verify the packet length... */
 	iph = skb->nh.iph;
