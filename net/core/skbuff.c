@@ -276,20 +276,14 @@ void kfree_skbmem(struct sk_buff *skb)
 
 void __kfree_skb(struct sk_buff *skb)
 {
-	if (skb->list) {
-	 	printk(KERN_WARNING "Warning: kfree_skb passed an skb still "
-		       "on a list (from %p).\n", NET_CALLER(skb));
-		BUG();
-	}
+	BUG_ON(skb->list != NULL);
 
 	dst_release(skb->dst);
 #ifdef CONFIG_XFRM
 	secpath_put(skb->sp);
 #endif
-	if(skb->destructor) {
-		if (in_irq())
-			printk(KERN_WARNING "Warning: kfree_skb on "
-					    "hard IRQ %p\n", NET_CALLER(skb));
+	if (skb->destructor) {
+		WARN_ON(in_irq());
 		skb->destructor(skb);
 	}
 #ifdef CONFIG_NETFILTER

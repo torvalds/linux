@@ -83,12 +83,6 @@
  *	Any questions? No questions, good. 		--ANK
  */
 
-#ifdef __i386__
-#define NET_CALLER(arg) (*(((void **)&arg) - 1))
-#else
-#define NET_CALLER(arg) __builtin_return_address(0)
-#endif
-
 struct net_device;
 
 #ifdef CONFIG_NETFILTER

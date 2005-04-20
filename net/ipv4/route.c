@@ -1048,7 +1048,8 @@ void __ip_select_ident(struct iphdr *iph, struct dst_entry *dst, int more)
 			return;
 		}
 	} else
-		printk(KERN_DEBUG "rt_bind_peer(0) @%p\n", NET_CALLER(iph));
+		printk(KERN_DEBUG "rt_bind_peer(0) @%p\n", 
+		       __builtin_return_address(0));
 
 	ip_select_fb_ident(iph);
 }
