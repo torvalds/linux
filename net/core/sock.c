@@ -641,7 +641,10 @@ struct sock *sk_alloc(int family, int priority, struct proto *prot, int zero_it)
 		}
 		
 		if (security_sk_alloc(sk, family, priority)) {
-			kmem_cache_free(slab, sk);
+			if (slab != NULL)
+				kmem_cache_free(slab, sk);
+			else
+				kfree(sk);
 			sk = NULL;
 		} else
 			__module_get(prot->owner);
