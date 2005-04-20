@@ -42,7 +42,8 @@ struct dst_entry
 	int			__use;
 	struct dst_entry	*child;
 	struct net_device       *dev;
-	int			obsolete;
+	short			error;
+	short			obsolete;
 	int			flags;
 #define DST_HOST		1
 #define DST_NOXFRM		2
@@ -60,8 +61,6 @@ struct dst_entry
 
 	unsigned long		rate_last;	/* rate limiting for ICMP */
 	unsigned long		rate_tokens;
-
-	int			error;
 
 	struct neighbour	*neighbour;
 	struct hh_cache		*hh;
