@@ -44,7 +44,7 @@ struct hda_gnode {
 	struct list_head list;
 };
 
-/* pathc-specific record */
+/* patch-specific record */
 struct hda_gspec {
 	struct hda_gnode *dac_node;	/* DAC node */
 	struct hda_gnode *out_pin_node;	/* Output pin (Line-Out) node */
