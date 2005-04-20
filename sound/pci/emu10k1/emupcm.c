@@ -262,7 +262,7 @@ static unsigned int emu10k1_select_interprom(unsigned int pitch_target)
  *
  * returns: cache invalidate size in samples
  */
-static int inline emu10k1_ccis(int stereo, int w_16)
+static inline int emu10k1_ccis(int stereo, int w_16)
 {
 	if (w_16) {
 		return stereo ? 24 : 26;
