@@ -365,7 +365,6 @@ static int cmi9880_build_controls(struct hda_codec *codec)
 	return 0;
 }
 
-#define AC_DEFCFG_ASSOC_SHIFT		4
 #define get_defcfg_connect(cfg) ((cfg & AC_DEFCFG_PORT_CONN) >> AC_DEFCFG_PORT_CONN_SHIFT)
 #define get_defcfg_association(cfg) ((cfg & AC_DEFCFG_DEF_ASSOC) >> AC_DEFCFG_ASSOC_SHIFT)
 #define get_defcfg_sequence(cfg) (cfg & AC_DEFCFG_SEQUENCE)
@@ -796,6 +795,7 @@ static int patch_cmi9880(struct hda_codec *codec)
 		{
 		unsigned int port_e, port_f, port_g, port_h;
 		unsigned int port_spdifi, port_spdifo;
+		int max_channels;
 		/* collect pin default configuration */
 		cmi9880_get_pin_def_config(codec);
 		port_e = cmi9880_get_def_config(codec, 0x0f);
@@ -805,33 +805,40 @@ static int patch_cmi9880(struct hda_codec *codec)
 		port_spdifi = cmi9880_get_def_config(codec, 0x13);
 		port_spdifo = cmi9880_get_def_config(codec, 0x12);
 		spec->front_panel = 1;
-		if ((get_defcfg_connect(port_e) == AC_JACK_PORT_NONE)
-		|| (get_defcfg_connect(port_f) == AC_JACK_PORT_NONE)) {
+		if (get_defcfg_connect(port_e) == AC_JACK_PORT_NONE ||
+		    get_defcfg_connect(port_f) == AC_JACK_PORT_NONE) {
 			spec->surr_switch = 1;
 			/* no front panel */
-			if ((get_defcfg_connect(port_g) == AC_JACK_PORT_NONE)
-			|| (get_defcfg_connect(port_h) == AC_JACK_PORT_NONE)) {
+			if (get_defcfg_connect(port_g) == AC_JACK_PORT_NONE ||
+			    get_defcfg_connect(port_h) == AC_JACK_PORT_NONE) {
 				/* no optional rear panel */
 				spec->board_config = CMI_MINIMAL;
 				spec->front_panel = 0;
 				spec->num_ch_modes = 2;
-			} else
+			} else {
 				spec->board_config = CMI_MIN_FP;
 				spec->num_ch_modes = 3;
+			}
 			spec->channel_modes = cmi9880_channel_modes;
 			spec->input_mux = &cmi9880_basic_mux;
+			spec->multiout.max_channels = cmi9880_channel_modes[0].channels;
 		} else {
 			spec->input_mux = &cmi9880_basic_mux;
-			if (get_defcfg_connect(port_spdifo) != 1)
+			if (get_defcfg_connect(port_spdifo) != AC_JACK_PORT_NONE)
 				spec->multiout.dig_out_nid = CMI_DIG_OUT_NID;
-			if (get_defcfg_connect(port_spdifi) != 1)
+			if (get_defcfg_connect(port_spdifi) != AC_JACK_PORT_NONE)
 				spec->dig_in_nid = CMI_DIG_IN_NID;
+			spec->multiout.max_channels = 8;
 		}
-		spec->multiout.max_channels = cmi9880_get_multich_pins(codec);
-		cmi9880_fill_multi_dac_nids(codec);
-		cmi9880_fill_multi_init(codec);
-		}
+		max_channels = cmi9880_get_multich_pins(codec);
+		if (max_channels > 0) {
+			spec->multiout.max_channels = max_channels;
+			cmi9880_fill_multi_dac_nids(codec);
+			cmi9880_fill_multi_init(codec);
+		} else
+			snd_printd("patch_cmedia: cannot detect association in defcfg\n");
 		break;
+		}
 	}
 
 	spec->multiout.num_dacs = 4;

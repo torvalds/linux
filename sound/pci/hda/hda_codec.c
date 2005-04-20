@@ -549,6 +549,9 @@ int snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr,
 void snd_hda_codec_setup_stream(struct hda_codec *codec, hda_nid_t nid, u32 stream_tag,
 				int channel_id, int format)
 {
+	if (! nid)
+		return;
+
 	snd_printdd("hda_codec_setup_stream: NID=0x%x, stream=0x%x, channel=%d, format=0x%x\n",
 		    nid, stream_tag, channel_id, format);
 	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_CHANNEL_STREAMID,

@@ -259,7 +259,9 @@ enum {
 /* configuration default - 32bit */
 #define AC_DEFCFG_SEQUENCE		(0xf<<0)
 #define AC_DEFCFG_DEF_ASSOC		(0xf<<4)
+#define AC_DEFCFG_ASSOC_SHIFT		4
 #define AC_DEFCFG_MISC			(0xf<<8)
+#define AC_DEFCFG_MISC_SHIFT		8
 #define AC_DEFCFG_COLOR			(0xf<<12)
 #define AC_DEFCFG_COLOR_SHIFT		12
 #define AC_DEFCFG_CONN_TYPE		(0xf<<16)
