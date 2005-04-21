@@ -78,9 +78,9 @@ __get_user_4:
 __get_user_8:
 	GET_THREAD_INFO(%r8)
 	addq $7,%rcx
-	jc bad_get_user
+	jc 40f
 	cmpq threadinfo_addr_limit(%r8),%rcx
-	jae	bad_get_user
+	jae	40f
 	subq	$7,%rcx
 4:	movq (%rcx),%rdx
 	xorl %eax,%eax

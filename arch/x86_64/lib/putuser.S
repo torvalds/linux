@@ -46,36 +46,45 @@ __put_user_1:
 __put_user_2:
 	GET_THREAD_INFO(%r8)
 	addq $1,%rcx
-	jc bad_put_user
+	jc 20f
 	cmpq threadinfo_addr_limit(%r8),%rcx
-	jae	 bad_put_user
-2:	movw %dx,-1(%rcx)
+	jae 20f
+2:	decq %rcx
+	movw %dx,(%rcx)
 	xorl %eax,%eax
 	ret
+20:	decq %rcx
+	jmp bad_put_user
 
 	.p2align 4
 .globl __put_user_4
 __put_user_4:
 	GET_THREAD_INFO(%r8)
 	addq $3,%rcx
-	jc bad_put_user
+	jc 30f
 	cmpq threadinfo_addr_limit(%r8),%rcx
-	jae bad_put_user
-3:	movl %edx,-3(%rcx)
+	jae 30f
+3:	subq $3,%rcx
+	movl %edx,(%rcx)
 	xorl %eax,%eax
 	ret
+30:	subq $3,%rcx
+	jmp bad_put_user
 
 	.p2align 4
 .globl __put_user_8
 __put_user_8:
 	GET_THREAD_INFO(%r8)
 	addq $7,%rcx
-	jc bad_put_user
+	jc 40f
 	cmpq threadinfo_addr_limit(%r8),%rcx
-	jae	bad_put_user
-4:	movq %rdx,-7(%rcx)
+	jae 40f
+4:	subq $7,%rcx
+	movq %rdx,(%rcx)
 	xorl %eax,%eax
 	ret
+40:	subq $7,%rcx
+	jmp bad_put_user
 
 bad_put_user:
 	movq $(-EFAULT),%rax
