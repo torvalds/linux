@@ -239,6 +239,12 @@ L:	linux-usb-devel@lists.sourceforge.net
 W:	http://www.linux-usb.org/SpeedTouch/
 S:	Maintained
 
+ALI1563 I2C DRIVER
+P:	Rudolf Marek
+M:	r.marek@sh.cvut.cz
+L:	sensors@stimpy.netroedge.com
+S:	Maintained
+
 ALPHA PORT
 P:	Richard Henderson
 M:	rth@twiddle.net
