@@ -44,11 +44,6 @@ static struct atm_dev *__alloc_atm_dev(const char *type)
 	return dev;
 }
 
-static void __free_atm_dev(struct atm_dev *dev)
-{
-	kfree(dev);
-}
-
 static struct atm_dev *__atm_dev_lookup(int number)
 {
 	struct atm_dev *dev;
@@ -90,7 +85,7 @@ struct atm_dev *atm_dev_register(const char *type, const struct atmdev_ops *ops,
 		if ((inuse = __atm_dev_lookup(number))) {
 			atm_dev_put(inuse);
 			spin_unlock(&atm_dev_lock);
-			__free_atm_dev(dev);
+			kfree(dev);
 			return NULL;
 		}
 		dev->number = number;
@@ -119,7 +114,7 @@ struct atm_dev *atm_dev_register(const char *type, const struct atmdev_ops *ops,
 		spin_lock(&atm_dev_lock);
 		list_del(&dev->dev_list);
 		spin_unlock(&atm_dev_lock);
-		__free_atm_dev(dev);
+		kfree(dev);
 		return NULL;
 	}
 
@@ -148,7 +143,7 @@ void atm_dev_deregister(struct atm_dev *dev)
                 }
         }
 
-	__free_atm_dev(dev);
+	kfree(dev);
 }
 
 void shutdown_atm_dev(struct atm_dev *dev)
