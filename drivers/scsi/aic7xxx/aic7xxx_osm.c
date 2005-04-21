@@ -3605,9 +3605,8 @@ ahc_linux_init(void)
 	ahc_linux_transport_template = spi_attach_transport(&ahc_linux_transport_functions);
 	if (!ahc_linux_transport_template)
 		return -ENODEV;
-	int rc = ahc_linux_detect(&aic7xxx_driver_template);
-	if (rc)
-		return rc;
+	if (ahc_linux_detect(&aic7xxx_driver_template))
+		return 0;
 	spi_release_transport(ahc_linux_transport_template);
 	ahc_linux_exit();
 	return -ENODEV;
