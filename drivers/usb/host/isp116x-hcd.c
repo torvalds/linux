@@ -1501,6 +1501,12 @@ static int isp116x_reset(struct usb_hcd *hcd)
 	}
 	if (!clkrdy) {
 		ERR("Clock not ready after 20ms\n");
+		/* After sw_reset the clock won't report to be ready, if
+		   H_WAKEUP pin is high. */
+		if (!isp116x->board || !isp116x->board->reset)
+			ERR("The driver does not support hardware wakeup.\n");
+			ERR("Please make sure that the H_WAKEUP pin "
+				"is pulled low!\n");
 		ret = -ENODEV;
 	}
 	return ret;
@@ -1678,10 +1684,13 @@ static struct hc_driver isp116x_hc_driver = {
 static int __init_or_module isp116x_remove(struct device *dev)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
-	struct isp116x *isp116x = hcd_to_isp116x(hcd);
+	struct isp116x *isp116x;
 	struct platform_device *pdev;
 	struct resource *res;
 
+	if(!hcd)
+		return 0;
+	isp116x = hcd_to_isp116x(hcd);
 	pdev = container_of(dev, struct platform_device, dev);
 	remove_debug_file(isp116x);
 	usb_remove_hcd(hcd);
