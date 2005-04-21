@@ -539,10 +539,8 @@ static void ohci_initialize(struct ti_ohci *ohci)
 	initialize_dma_trm_ctx(&ohci->at_req_context);
 	initialize_dma_trm_ctx(&ohci->at_resp_context);
 	
-	/* Initialize IR Legacy DMA */
+	/* Initialize IR Legacy DMA channel mask */
 	ohci->ir_legacy_channels = 0;
-	initialize_dma_rcv_ctx(&ohci->ir_legacy_context, 1);
-	DBGMSG("ISO receive legacy context activated");
 
 	/*
 	 * Accept AT requests from all nodes. This probably
@@ -1032,6 +1030,8 @@ static int ohci_devctl(struct hpsb_host *host, enum devctl_cmd cmd, int arg)
 	case ISO_LISTEN_CHANNEL:
         {
 		u64 mask;
+		struct dma_rcv_ctx *d = &ohci->ir_legacy_context;
+		int ir_legacy_active;
 
 		if (arg<0 || arg>63) {
 			PRINT(KERN_ERR,
@@ -1052,8 +1052,36 @@ static int ohci_devctl(struct hpsb_host *host, enum devctl_cmd cmd, int arg)
 			return -EFAULT;
 		}
 
+		ir_legacy_active = ohci->ir_legacy_channels;
+
 		ohci->ISO_channel_usage |= mask;
 		ohci->ir_legacy_channels |= mask;
+
+                spin_unlock_irqrestore(&ohci->IR_channel_lock, flags);
+
+		if (!ir_legacy_active) {
+			if (ohci1394_register_iso_tasklet(ohci,
+					  &ohci->ir_legacy_tasklet) < 0) {
+				PRINT(KERN_ERR, "No IR DMA context available");
+				return -EBUSY;
+			}
+
+			/* the IR context can be assigned to any DMA context
+			 * by ohci1394_register_iso_tasklet */
+			d->ctx = ohci->ir_legacy_tasklet.context;
+			d->ctrlSet = OHCI1394_IsoRcvContextControlSet +
+				32*d->ctx;
+			d->ctrlClear = OHCI1394_IsoRcvContextControlClear +
+				32*d->ctx;
+			d->cmdPtr = OHCI1394_IsoRcvCommandPtr + 32*d->ctx;
+			d->ctxtMatch = OHCI1394_IsoRcvContextMatch + 32*d->ctx;
+
+			initialize_dma_rcv_ctx(&ohci->ir_legacy_context, 1);
+
+			PRINT(KERN_ERR, "IR legacy activated");
+		}
+
+                spin_lock_irqsave(&ohci->IR_channel_lock, flags);
 
 		if (arg>31)
 			reg_write(ohci, OHCI1394_IRMultiChanMaskHiSet,
@@ -1101,6 +1129,12 @@ static int ohci_devctl(struct hpsb_host *host, enum devctl_cmd cmd, int arg)
 
                 spin_unlock_irqrestore(&ohci->IR_channel_lock, flags);
                 DBGMSG("Listening disabled on channel %d", arg);
+
+		if (ohci->ir_legacy_channels == 0) {
+			stop_dma_rcv_ctx(&ohci->ir_legacy_context);
+			DBGMSG("ISO legacy receive context stopped");
+		}
+
                 break;
         }
 	default:
@@ -1270,8 +1304,10 @@ static int ohci_iso_recv_init(struct hpsb_iso *iso)
 				                       OHCI_ISO_RECEIVE,
 				  ohci_iso_recv_task, (unsigned long) iso);
 
-	if (ohci1394_register_iso_tasklet(recv->ohci, &recv->task) < 0)
+	if (ohci1394_register_iso_tasklet(recv->ohci, &recv->task) < 0) {
+		ret = -EBUSY;
 		goto err;
+	}
 
 	recv->task_active = 1;
 
@@ -1896,8 +1932,10 @@ static int ohci_iso_xmit_init(struct hpsb_iso *iso)
 	ohci1394_init_iso_tasklet(&xmit->task, OHCI_ISO_TRANSMIT,
 				  ohci_iso_xmit_task, (unsigned long) iso);
 
-	if (ohci1394_register_iso_tasklet(xmit->ohci, &xmit->task) < 0)
+	if (ohci1394_register_iso_tasklet(xmit->ohci, &xmit->task) < 0) {
+		ret = -EBUSY;
 		goto err;
+	}
 
 	xmit->task_active = 1;
 
@@ -2999,20 +3037,6 @@ alloc_dma_rcv_ctx(struct ti_ohci *ohci, struct dma_rcv_ctx *d,
 		ohci1394_init_iso_tasklet(&ohci->ir_legacy_tasklet,
 					  OHCI_ISO_MULTICHANNEL_RECEIVE,
 					  dma_rcv_tasklet, (unsigned long) d);
-		if (ohci1394_register_iso_tasklet(ohci,
-						  &ohci->ir_legacy_tasklet) < 0) {
-			PRINT(KERN_ERR, "No IR DMA context available");
-			free_dma_rcv_ctx(d);
-			return -EBUSY;
-		}
-
-		/* the IR context can be assigned to any DMA context
-		 * by ohci1394_register_iso_tasklet */
-		d->ctx = ohci->ir_legacy_tasklet.context;
-		d->ctrlSet = OHCI1394_IsoRcvContextControlSet + 32*d->ctx;
-		d->ctrlClear = OHCI1394_IsoRcvContextControlClear + 32*d->ctx;
-		d->cmdPtr = OHCI1394_IsoRcvCommandPtr + 32*d->ctx;
-		d->ctxtMatch = OHCI1394_IsoRcvContextMatch + 32*d->ctx;
 	} else {
 		d->ctrlSet = context_base + OHCI1394_ContextControlSet;
 		d->ctrlClear = context_base + OHCI1394_ContextControlClear;
@@ -3413,7 +3437,6 @@ static void ohci1394_pci_remove(struct pci_dev *pdev)
 
 	switch (ohci->init_state) {
 	case OHCI_INIT_DONE:
-		stop_dma_rcv_ctx(&ohci->ir_legacy_context);
 		hpsb_remove_host(ohci->host);
 
 		/* Clear out BUS Options */
