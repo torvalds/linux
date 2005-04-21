@@ -2691,7 +2691,7 @@ static void dma_rcv_tasklet (unsigned long data)
 				(cond_le32_to_cpu(d->spb[length/4-1], ohci->no_swap_incoming)>>16)&0x1f,
 				(cond_le32_to_cpu(d->spb[length/4-1], ohci->no_swap_incoming)>>21)&0x3,
 				tcode, length, d->ctx,
-				(cond_le32_to_cpu(d->spb[length/4-1], ohci->no_swap_incoming)>>10)&0x3f);
+				(cond_le32_to_cpu(d->spb[0], ohci->no_swap_incoming)>>10)&0x3f);
 
 			ack = (((cond_le32_to_cpu(d->spb[length/4-1], ohci->no_swap_incoming)>>16)&0x1f)
 				== 0x11) ? 1 : 0;
@@ -2754,7 +2754,7 @@ static void dma_trm_tasklet (unsigned long data)
 				       d->ctx);
 			else
 				DBGMSG("Packet sent to node %d tcode=0x%X tLabel="
-				       "0x%02X ack=0x%X spd=%d dataLength=%d ctx=%d",
+				       "%d ack=0x%X spd=%d dataLength=%d ctx=%d",
 				       (le32_to_cpu(d->prg_cpu[d->sent_ind]->data[1])>>16)&0x3f,
 				       (le32_to_cpu(d->prg_cpu[d->sent_ind]->data[0])>>4)&0xf,
 				       (le32_to_cpu(d->prg_cpu[d->sent_ind]->data[0])>>10)&0x3f,
@@ -2763,7 +2763,7 @@ static void dma_trm_tasklet (unsigned long data)
 				       d->ctx);
 		else
 			DBGMSG("Packet sent to node %d tcode=0x%X tLabel="
-			       "0x%02X ack=0x%X spd=%d data=0x%08X ctx=%d",
+			       "%d ack=0x%X spd=%d data=0x%08X ctx=%d",
                                 (le32_to_cpu(d->prg_cpu[d->sent_ind]->data[1])
                                         >>16)&0x3f,
                                 (le32_to_cpu(d->prg_cpu[d->sent_ind]->data[0])
