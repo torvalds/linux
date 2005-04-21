@@ -1151,7 +1151,7 @@ isdn_ppp_push_higher(isdn_net_dev * net_dev, isdn_net_local * lp, struct sk_buff
 	{
 		u_int16_t *p = (u_int16_t *) skb->data;
 
-		*p = 0;	/* indicate inbound in DLT_LINUX_SLL */
+		*p = 0;	/* indicate inbound */
 	}
 
 	if (is->pass_filter
@@ -1293,12 +1293,12 @@ isdn_ppp_xmit(struct sk_buff *skb, struct net_device *netdev)
 	/* check if we should pass this packet
 	 * the filter instructions are constructed assuming
 	 * a four-byte PPP header on each packet */
-	skb_push(skb, 4);
+	*skb_push(skb, 4) = 1; /* indicate outbound */
 
 	{
 		u_int16_t *p = (u_int16_t *) skb->data;
 
-		*p++ = htons(4); /* indicate outbound in DLT_LINUX_SLL */
+		p++;
 		*p   = htons(proto);
 	}
 
@@ -1491,12 +1491,12 @@ int isdn_ppp_autodial_filter(struct sk_buff *skb, isdn_net_local *lp)
 	 * temporarily remove part of the fake header stuck on
 	 * earlier.
 	 */
-	skb_pull(skb, IPPP_MAX_HEADER - 4);
+	*skb_pull(skb, IPPP_MAX_HEADER - 4) = 1; /* indicate outbound */
 
 	{
 		u_int16_t *p = (u_int16_t *) skb->data;
 
-		*p++ = htons(4);	/* indicate outbound in DLT_LINUX_SLL */
+		p++;
 		*p   = htons(proto);
 	}
 	
