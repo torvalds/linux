@@ -314,8 +314,8 @@ __ffs (unsigned long x)
 #ifdef __KERNEL__
 
 /*
- * find_last_zero_bit - find the last zero bit in a 64 bit quantity
- * @x: The value to search
+ * Return bit number of last (most-significant) bit set.  Undefined
+ * for x==0.  Bits are numbered from 0..63 (e.g., ia64_fls(9) == 3).
  */
 static inline unsigned long
 ia64_fls (unsigned long x)
@@ -327,10 +327,23 @@ ia64_fls (unsigned long x)
 	return exp - 0xffff;
 }
 
+/*
+ * Find the last (most significant) bit set.  Returns 0 for x==0 and
+ * bits are numbered from 1..32 (e.g., fls(9) == 4).
+ */
 static inline int
-fls (int x)
+fls (int t)
 {
-	return ia64_fls((unsigned int) x);
+	unsigned long x = t & 0xffffffffu;
+
+	if (!x)
+		return 0;
+	x |= x >> 1;
+	x |= x >> 2;
+	x |= x >> 4;
+	x |= x >> 8;
+	x |= x >> 16;
+	return ia64_popcnt(x);
 }
 
 /*
