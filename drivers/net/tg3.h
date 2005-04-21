@@ -132,6 +132,7 @@
 #define   ASIC_REV_5704			 0x02
 #define   ASIC_REV_5705			 0x03
 #define   ASIC_REV_5750			 0x04
+#define   ASIC_REV_5752			 0x05
 #define  GET_CHIP_REV(CHIP_REV_ID)	((CHIP_REV_ID) >> 8)
 #define   CHIPREV_5700_AX		 0x70
 #define   CHIPREV_5700_BX		 0x71
