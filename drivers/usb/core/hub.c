@@ -2787,6 +2787,11 @@ static void hub_events(void)
 
 		hub->activating = 0;
 
+		/* If this is a root hub, tell the HCD it's okay to
+		 * re-enable port-change interrupts now. */
+		if (!hdev->parent)
+			usb_enable_root_hub_irq(hdev->bus);
+
 loop:
 		usb_unlock_device(hdev);
 		usb_put_intf(intf);
