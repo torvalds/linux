@@ -199,9 +199,7 @@ int ax25_rebuild_header(struct sk_buff *skb)
 		skb = ourskb;
 	}
 
-	skb->dev      = dev;
-
-	ax25_queue_xmit(skb);
+	ax25_queue_xmit(skb, dev);
 
 put:
 	ax25_put_route(route);

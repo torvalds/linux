@@ -1587,9 +1587,7 @@ static int ax25_sendmsg(struct kiocb *iocb, struct socket *sock,
 	*asmptr = AX25_UI;
 
 	/* Datagram frames go straight out of the door as UI */
-	skb->dev = ax25->ax25_dev->dev;
-
-	ax25_queue_xmit(skb);
+	ax25_queue_xmit(skb, ax25->ax25_dev->dev);
 
 	err = len;
 
