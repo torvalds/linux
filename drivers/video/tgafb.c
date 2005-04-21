@@ -45,9 +45,7 @@ static void tgafb_fillrect(struct fb_info *, const struct fb_fillrect *);
 static void tgafb_copyarea(struct fb_info *, const struct fb_copyarea *);
 
 static int tgafb_pci_register(struct pci_dev *, const struct pci_device_id *);
-#ifdef MODULE
 static void tgafb_pci_unregister(struct pci_dev *);
-#endif
 
 static const char *mode_option = "640x480@60";
 
@@ -1484,7 +1482,6 @@ tgafb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return ret;
 }
 
-#ifdef MODULE
 static void __exit
 tgafb_pci_unregister(struct pci_dev *pdev)
 {
@@ -1500,6 +1497,7 @@ tgafb_pci_unregister(struct pci_dev *pdev)
 	kfree(info);
 }
 
+#ifdef MODULE
 static void __exit
 tgafb_exit(void)
 {
