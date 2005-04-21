@@ -327,18 +327,19 @@ static inline int __interval_to_skel(int interval)
  * driver learns to autosuspend.)
  */
 enum uhci_rh_state {
-	/* In the next 4 states the HC must be halted */
-	UHCI_RH_RESET,			/* These two must come first */
+	/* In the following states the HC must be halted.
+	 * These two must come first */
+	UHCI_RH_RESET,
 	UHCI_RH_SUSPENDED,
 
 	UHCI_RH_AUTO_STOPPED,
 	UHCI_RH_RESUMING,
 
-	/* In the next state the HC changes from running to halted, so it
-	 * can legally appear either way */
+	/* In this state the HC changes from running to halted,
+	 * so it can legally appear either way. */
 	UHCI_RH_SUSPENDING,
 
-	/* In the next two states it's an error if the HC is halted.
+	/* In the following states it's an error if the HC is halted.
 	 * These two must come last */
 	UHCI_RH_RUNNING,		/* The normal state */
 	UHCI_RH_RUNNING_NODEVS,		/* Running with no devices attached */
@@ -380,7 +381,6 @@ struct uhci_hcd {
 
 	unsigned int scan_in_progress:1;	/* Schedule scan is running */
 	unsigned int need_rescan:1;		/* Redo the schedule scan */
-	unsigned int resume_detect:1;		/* Need a Global Resume */
 	unsigned int hc_inaccessible:1;		/* HC is suspended or dead */
 
 	/* Support for port suspend/resume/reset */

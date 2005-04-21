@@ -32,6 +32,8 @@ static void uhci_free_pending_tds(struct uhci_hcd *uhci);
  */
 static inline void uhci_set_next_interrupt(struct uhci_hcd *uhci)
 {
+	if (uhci->is_stopped)
+		mod_timer(&uhci->stall_timer, jiffies);
 	uhci->term_td->status |= cpu_to_le32(TD_CTRL_IOC); 
 }
 
@@ -1497,6 +1499,7 @@ static void uhci_scan_schedule(struct uhci_hcd *uhci, struct pt_regs *regs)
  rescan:
 	uhci->need_rescan = 0;
 
+	uhci_clear_next_interrupt(uhci);
 	uhci_get_current_frame_number(uhci);
 
 	if (uhci->frame_number + uhci->is_stopped != uhci->qh_remove_age)

@@ -84,6 +84,8 @@ static char *errbuf;
 
 static kmem_cache_t *uhci_up_cachep;	/* urb_priv */
 
+static void suspend_rh(struct uhci_hcd *uhci, enum uhci_rh_state new_state);
+static void wakeup_rh(struct uhci_hcd *uhci);
 static void uhci_get_current_frame_number(struct uhci_hcd *uhci);
 
 /* If a transfer is still active after this much time, turn off FSBR */
@@ -133,12 +135,12 @@ static void reset_hc(struct uhci_hcd *uhci)
 	outw(0, uhci->io_addr + USBINTR);
 	outw(0, uhci->io_addr + USBCMD);
 
-	uhci->resume_detect = 0;
 	uhci->port_c_suspend = uhci->suspended_ports =
 			uhci->resuming_ports = 0;
 	uhci->rh_state = UHCI_RH_RESET;
 	uhci->is_stopped = UHCI_IS_STOPPED;
 	uhci_to_hcd(uhci)->state = HC_STATE_HALT;
+	uhci_to_hcd(uhci)->poll_rh = 0;
 }
 
 /*
@@ -148,6 +150,7 @@ static void hc_died(struct uhci_hcd *uhci)
 {
 	reset_hc(uhci);
 	uhci->hc_inaccessible = 1;
+	del_timer(&uhci->stall_timer);
 }
 
 /*
@@ -302,14 +305,14 @@ __acquires(uhci->lock)
 
 	uhci->rh_state = new_state;
 	uhci->is_stopped = UHCI_IS_STOPPED;
-	uhci->resume_detect = 0;
+	del_timer(&uhci->stall_timer);
+	uhci_to_hcd(uhci)->poll_rh = !int_enable;
 
 	uhci_scan_schedule(uhci, NULL);
 }
 
 static void start_rh(struct uhci_hcd *uhci)
 {
-	uhci->rh_state = UHCI_RH_RUNNING;
 	uhci->is_stopped = 0;
 	smp_wmb();
 
@@ -320,6 +323,9 @@ static void start_rh(struct uhci_hcd *uhci)
 	outw(USBINTR_TIMEOUT | USBINTR_RESUME | USBINTR_IOC | USBINTR_SP,
 			uhci->io_addr + USBINTR);
 	mb();
+	uhci->rh_state = UHCI_RH_RUNNING;
+	uhci_to_hcd(uhci)->poll_rh = 1;
+	restart_timer(uhci);
 }
 
 static void wakeup_rh(struct uhci_hcd *uhci)
@@ -353,36 +359,9 @@ __acquires(uhci->lock)
 	}
 
 	start_rh(uhci);
-}
 
-static void rh_state_transitions(struct uhci_hcd *uhci)
-{
-	switch (uhci->rh_state) {
-	    case UHCI_RH_RUNNING:
-		/* are any devices attached? */
-		if (!any_ports_active(uhci)) {
-			uhci->rh_state = UHCI_RH_RUNNING_NODEVS;
-			uhci->auto_stop_time = jiffies + HZ;
-		}
-		break;
-
-	    case UHCI_RH_RUNNING_NODEVS:
-		/* auto-stop if nothing connected for 1 second */
-		if (any_ports_active(uhci))
-			uhci->rh_state = UHCI_RH_RUNNING;
-		else if (time_after_eq(jiffies, uhci->auto_stop_time))
-			suspend_rh(uhci, UHCI_RH_AUTO_STOPPED);
-		break;
-
-	    case UHCI_RH_AUTO_STOPPED:
-		/* wakeup if requested by a device */
-		if (uhci->resume_detect)
-			wakeup_rh(uhci);
-		break;
-
-	    default:
-		break;
-	}
+	/* Restart root hub polling */
+	mod_timer(&uhci_to_hcd(uhci)->rh_timer, jiffies);
 }
 
 static void stall_callback(unsigned long _uhci)
@@ -394,14 +373,8 @@ static void stall_callback(unsigned long _uhci)
 	uhci_scan_schedule(uhci, NULL);
 	check_fsbr(uhci);
 
-	/* Poll for and perform state transitions */
-	if (!uhci->hc_inaccessible) {
-		rh_state_transitions(uhci);
-		if (uhci->suspended_ports)
-			uhci_check_ports(uhci);
-	}
-
-	restart_timer(uhci);
+	if (!uhci->is_stopped)
+		restart_timer(uhci);
 	spin_unlock_irqrestore(&uhci->lock, flags);
 }
 
@@ -443,7 +416,7 @@ static irqreturn_t uhci_irq(struct usb_hcd *hcd, struct pt_regs *regs)
 	}
 
 	if (status & USBSTS_RD)
-		uhci->resume_detect = 1;
+		usb_hcd_poll_rh_status(hcd);
 
 	spin_lock_irqsave(&uhci->lock, flags);
 	uhci_scan_schedule(uhci, regs);
@@ -542,6 +515,7 @@ static int uhci_start(struct usb_hcd *hcd)
 	struct dentry *dentry;
 
 	io_size = (unsigned) hcd->rsrc_len;
+	hcd->uses_new_polling = 1;
 	if (pci_find_capability(to_pci_dev(uhci_dev(uhci)), PCI_CAP_ID_PM))
 		hcd->can_wakeup = 1;		/* Assume it supports PME# */
 
@@ -714,8 +688,6 @@ static int uhci_start(struct usb_hcd *hcd)
 	configure_hc(uhci);
 	start_rh(uhci);
 
-	restart_timer(uhci);
-
 	udev->speed = USB_SPEED_FULL;
 
 	if (usb_hcd_register_root_hub(udev, hcd) != 0) {
@@ -730,8 +702,8 @@ static int uhci_start(struct usb_hcd *hcd)
  * error exits:
  */
 err_start_root_hub:
-	del_timer_sync(&uhci->stall_timer);
 	reset_hc(uhci);
+	del_timer_sync(&uhci->stall_timer);
 
 err_alloc_skelqh:
 	for (i = 0; i < UHCI_NUM_SKELQH; i++)
@@ -771,13 +743,12 @@ static void uhci_stop(struct usb_hcd *hcd)
 {
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
 
-	del_timer_sync(&uhci->stall_timer);
-
 	spin_lock_irq(&uhci->lock);
 	reset_hc(uhci);
 	uhci_scan_schedule(uhci, NULL);
 	spin_unlock_irq(&uhci->lock);
-	
+
+	del_timer_sync(&uhci->stall_timer);
 	release_uhci(uhci);
 }
 
@@ -844,6 +815,8 @@ static int uhci_suspend(struct usb_hcd *hcd, pm_message_t message)
 
 done:
 	spin_unlock_irq(&uhci->lock);
+	if (rc == 0)
+		del_timer_sync(&hcd->rh_timer);
 	return rc;
 }
 
@@ -875,6 +848,9 @@ static int uhci_resume(struct usb_hcd *hcd)
 		suspend_rh(uhci, UHCI_RH_SUSPENDED);
 
 	spin_unlock_irq(&uhci->lock);
+
+	if (hcd->poll_rh)
+		usb_hcd_poll_rh_status(hcd);
 	return 0;
 }
 #endif
