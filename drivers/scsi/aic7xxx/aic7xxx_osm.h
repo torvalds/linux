@@ -423,10 +423,6 @@ struct ahc_linux_device {
 	struct			ahc_linux_target *target;
 };
 
-typedef enum {
-	AHC_INQ_VALID		 = 0x02,
-} ahc_linux_targ_flags;
-
 struct ahc_linux_target {
 	struct ahc_linux_device	 *devices[AHC_NUM_LUNS];
 	int			  channel;
@@ -434,8 +430,6 @@ struct ahc_linux_target {
 	int			  refcount;
 	struct ahc_transinfo	  last_tinfo;
 	struct ahc_softc	 *ahc;
-	ahc_linux_targ_flags	  flags;
-	struct scsi_inquiry_data *inq_data;
 };
 
 /********************* Definitions Required by the Core ***********************/
