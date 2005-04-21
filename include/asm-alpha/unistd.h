@@ -374,8 +374,11 @@
 #define __NR_mq_notify			436
 #define __NR_mq_getsetattr		437
 #define __NR_waitid			438
+#define __NR_add_key			439
+#define __NR_request_key		440
+#define __NR_keyctl			441
 
-#define NR_SYSCALLS			439
+#define NR_SYSCALLS			442
 
 #if defined(__GNUC__)
 

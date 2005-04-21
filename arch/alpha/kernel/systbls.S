@@ -458,6 +458,9 @@ sys_call_table:
 	.quad sys_mq_notify
 	.quad sys_mq_getsetattr
 	.quad sys_waitid
+	.quad sys_add_key
+	.quad sys_request_key			/* 440 */
+	.quad sys_keyctl
 
 	.size sys_call_table, . - sys_call_table
 	.type sys_call_table, @object
