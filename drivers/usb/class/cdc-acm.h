@@ -51,14 +51,34 @@
  * Internal driver structures.
  */
 
+/*
+ * The only reason to have several buffers is to accomodate assumptions
+ * in line disciplines. They ask for empty space amount, receive our URB size,
+ * and proceed to issue several 1-character writes, assuming they will fit.
+ * The very first write takes a complete URB. Fortunately, this only happens
+ * when processing onlcr, so we only need 2 buffers.
+ */
+#define ACM_NWB  2
+struct acm_wb {
+	unsigned char *buf;
+	dma_addr_t dmah;
+	int len;
+	int use;
+};
+
 struct acm {
 	struct usb_device *dev;				/* the corresponding usb device */
 	struct usb_interface *control;			/* control interface */
 	struct usb_interface *data;			/* data interface */
 	struct tty_struct *tty;				/* the corresponding tty */
 	struct urb *ctrlurb, *readurb, *writeurb;	/* urbs */
-	u8 *ctrl_buffer, *read_buffer, *write_buffer;	/* buffers of urbs */
-	dma_addr_t ctrl_dma, read_dma, write_dma;	/* dma handles of buffers */
+	u8 *ctrl_buffer, *read_buffer;			/* buffers of urbs */
+	dma_addr_t ctrl_dma, read_dma;			/* dma handles of buffers */
+	struct acm_wb wb[ACM_NWB];
+	int write_current;				/* current write buffer */
+	int write_used;					/* number of non-empty write buffers */
+	int write_ready;				/* write urb is not running */
+	spinlock_t write_lock;
 	struct usb_cdc_line_coding line;		/* bits, stop, parity */
 	struct work_struct work;			/* work queue entry for line discipline waking up */
 	struct tasklet_struct bh;			/* rx processing */
@@ -71,7 +91,6 @@ struct acm {
 	unsigned int minor;				/* acm minor number */
 	unsigned char throttle;				/* throttled by tty layer */
 	unsigned char clocal;				/* termios CLOCAL */
-	unsigned char ready_for_write;			/* write urb can be used */
 	unsigned char resubmit_to_unthrottle;		/* throtteling has disabled the read urb */
 	unsigned int ctrl_caps;				/* control capabilities from the class specific header */
 };
