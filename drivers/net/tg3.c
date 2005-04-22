@@ -5336,10 +5336,23 @@ static int tg3_reset_hw(struct tg3 *tp)
 	tw32_f(MAC_MODE, tp->mac_mode | MAC_MODE_RXSTAT_CLEAR | MAC_MODE_TXSTAT_CLEAR);
 	udelay(40);
 
-	tp->grc_local_ctrl = GRC_LCLCTRL_INT_ON_ATTN | GRC_LCLCTRL_AUTO_SEEPROM;
-	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5700)
+	/* tp->grc_local_ctrl is partially set up during tg3_get_invariants().
+	 * If TG3_FLAG_EEPROM_WRITE_PROT is set, we should read the
+	 * register to preserve the GPIO settings for LOMs. The GPIOs,
+	 * whether used as inputs or outputs, are set by boot code after
+	 * reset.
+	 */
+	if (tp->tg3_flags & TG3_FLAG_EEPROM_WRITE_PROT) {
+		u32 gpio_mask;
+
+		gpio_mask = GRC_LCLCTRL_GPIO_OE0 | GRC_LCLCTRL_GPIO_OE2 |
+			    GRC_LCLCTRL_GPIO_OUTPUT0 | GRC_LCLCTRL_GPIO_OUTPUT2;
+		tp->grc_local_ctrl |= tr32(GRC_LOCAL_CTRL) & gpio_mask;
+
+		/* GPIO1 must be driven high for eeprom write protect */
 		tp->grc_local_ctrl |= (GRC_LCLCTRL_GPIO_OE1 |
 				       GRC_LCLCTRL_GPIO_OUTPUT1);
+	}
 	tw32_f(GRC_LOCAL_CTRL, tp->grc_local_ctrl);
 	udelay(100);
 
@@ -7430,8 +7443,8 @@ static int tg3_nvram_write_block(struct tg3 *tp, u32 offset, u32 len, u8 *buf)
 	}
 
 	if (tp->tg3_flags & TG3_FLAG_EEPROM_WRITE_PROT) {
-		tw32_f(GRC_LOCAL_CTRL, tp->grc_local_ctrl |
-		       GRC_LCLCTRL_GPIO_OE1);
+		tw32_f(GRC_LOCAL_CTRL, tp->grc_local_ctrl &
+		       ~GRC_LCLCTRL_GPIO_OUTPUT1);
 		udelay(40);
 	}
 
@@ -7477,8 +7490,7 @@ static int tg3_nvram_write_block(struct tg3 *tp, u32 offset, u32 len, u8 *buf)
 	}
 
 	if (tp->tg3_flags & TG3_FLAG_EEPROM_WRITE_PROT) {
-		tw32_f(GRC_LOCAL_CTRL, tp->grc_local_ctrl |
-		       GRC_LCLCTRL_GPIO_OE1 | GRC_LCLCTRL_GPIO_OUTPUT1);
+		tw32_f(GRC_LOCAL_CTRL, tp->grc_local_ctrl);
 		udelay(40);
 	}
 
@@ -8044,6 +8056,16 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	 * are not used to switch power.
 	 */ 
 	tg3_get_eeprom_hw_cfg(tp);
+
+	/* Set up tp->grc_local_ctrl before calling tg3_set_power_state().
+	 * GPIO1 driven high will bring 5700's external PHY out of reset.
+	 * It is also used as eeprom write protect on LOMs.
+	 */
+	tp->grc_local_ctrl = GRC_LCLCTRL_INT_ON_ATTN | GRC_LCLCTRL_AUTO_SEEPROM;
+	if ((GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5700) ||
+	    (tp->tg3_flags & TG3_FLAG_EEPROM_WRITE_PROT))
+		tp->grc_local_ctrl |= (GRC_LCLCTRL_GPIO_OE1 |
+				       GRC_LCLCTRL_GPIO_OUTPUT1);
 
 	/* Force the chip into D0. */
 	err = tg3_set_power_state(tp, 0);
