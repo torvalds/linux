@@ -1094,7 +1094,7 @@ static int tg3_set_power_state(struct tg3 *tp, int state)
 		     CLOCK_CTRL_ALTCLK |
 		     CLOCK_CTRL_PWRDOWN_PLL133);
 		udelay(40);
-	} else if (!((GET_ASIC_REV(tp->pci_chip_rev_id) == 5750) &&
+	} else if (!((tp->tg3_flags2 & TG3_FLG2_5750_PLUS) &&
 		     (tp->tg3_flags & TG3_FLAG_ENABLE_ASF))) {
 		u32 newbits1, newbits2;
 
@@ -5237,8 +5237,11 @@ static int tg3_reset_hw(struct tg3 *tp)
 		      RDMAC_MODE_LNGREAD_ENAB);
 	if (tp->tg3_flags & TG3_FLAG_SPLIT_MODE)
 		rdmac_mode |= RDMAC_MODE_SPLIT_ENABLE;
-	if ((tp->tg3_flags2 & TG3_FLG2_5705_PLUS) &&
-	     tp->pci_chip_rev_id != CHIPREV_ID_5705_A0) {
+
+	/* If statement applies to 5705 and 5750 PCI devices only */
+	if ((GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5705 &&
+	     tp->pci_chip_rev_id != CHIPREV_ID_5705_A0) ||
+	    (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5750)) {
 		if (tp->tg3_flags2 & TG3_FLG2_TSO_CAPABLE &&
 		    (tp->pci_chip_rev_id == CHIPREV_ID_5705_A1 ||
 		     tp->pci_chip_rev_id == CHIPREV_ID_5705_A2)) {
@@ -5248,6 +5251,9 @@ static int tg3_reset_hw(struct tg3 *tp)
 			rdmac_mode |= RDMAC_MODE_FIFO_LONG_BURST;
 		}
 	}
+
+	if (tp->tg3_flags2 & TG3_FLG2_PCI_EXPRESS)
+		rdmac_mode |= RDMAC_MODE_FIFO_LONG_BURST;
 
 #if TG3_TSO_SUPPORT != 0
 	if (tp->tg3_flags2 & TG3_FLG2_HW_TSO)
@@ -5351,8 +5357,10 @@ static int tg3_reset_hw(struct tg3 *tp)
 	       WDMAC_MODE_FIFOURUN_ENAB | WDMAC_MODE_FIFOOREAD_ENAB |
 	       WDMAC_MODE_LNGREAD_ENAB);
 
-	if ((tp->tg3_flags2 & TG3_FLG2_5705_PLUS) &&
-	     tp->pci_chip_rev_id != CHIPREV_ID_5705_A0) {
+	/* If statement applies to 5705 and 5750 PCI devices only */
+	if ((GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5705 &&
+	     tp->pci_chip_rev_id != CHIPREV_ID_5705_A0) ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5750) {
 		if ((tp->tg3_flags & TG3_FLG2_TSO_CAPABLE) &&
 		    (tp->pci_chip_rev_id == CHIPREV_ID_5705_A1 ||
 		     tp->pci_chip_rev_id == CHIPREV_ID_5705_A2)) {
@@ -7025,7 +7033,7 @@ static void __devinit tg3_get_nvram_info(struct tg3 *tp)
 		tw32(NVRAM_CFG1, nvcfg1);
 	}
 
-	if (tp->tg3_flags2 & TG3_FLG2_5750_PLUS) {
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5750) {
 		switch (nvcfg1 & NVRAM_CFG1_VENDOR_MASK) {
 			case FLASH_VENDOR_ATMEL_FLASH_BUFFERED:
 				tp->nvram_jedecnum = JEDEC_ATMEL;
@@ -8462,7 +8470,8 @@ static int __devinit tg3_test_dma(struct tg3 *tp)
 		/* DMA read watermark not used on PCIE */
 		tp->dma_rwctrl |= 0x00180000;
 	} else if (!(tp->tg3_flags & TG3_FLAG_PCIX_MODE)) {
-		if (tp->tg3_flags2 & TG3_FLG2_5705_PLUS)
+		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5705 ||
+		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5750)
 			tp->dma_rwctrl |= 0x003f0000;
 		else
 			tp->dma_rwctrl |= 0x003f000f;
@@ -8628,6 +8637,7 @@ static char * __devinit tg3_phy_string(struct tg3 *tp)
 	case PHY_ID_BCM5704:	return "5704";
 	case PHY_ID_BCM5705:	return "5705";
 	case PHY_ID_BCM5750:	return "5750";
+	case PHY_ID_BCM5752:	return "5752";
 	case PHY_ID_BCM8002:	return "8002/serdes";
 	case 0:			return "serdes";
 	default:		return "unknown";
