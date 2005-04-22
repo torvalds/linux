@@ -832,6 +832,44 @@ extern int ia64_sal_oemcall_nolock(struct ia64_sal_retval *, u64, u64, u64,
 				   u64, u64, u64, u64, u64);
 extern int ia64_sal_oemcall_reentrant(struct ia64_sal_retval *, u64, u64, u64,
 				      u64, u64, u64, u64, u64);
+#ifdef CONFIG_HOTPLUG_CPU
+/*
+ * System Abstraction Layer Specification
+ * Section 3.2.5.1: OS_BOOT_RENDEZ to SAL return State.
+ * Note: region regs are stored first in head.S _start. Hence they must
+ * stay up front.
+ */
+struct sal_to_os_boot {
+	u64 rr[8];		/* Region Registers */
+	u64	br[6];		/* br0: return addr into SAL boot rendez routine */
+	u64 gr1;		/* SAL:GP */
+	u64 gr12;		/* SAL:SP */
+	u64 gr13;		/* SAL: Task Pointer */
+	u64 fpsr;
+	u64	pfs;
+	u64 rnat;
+	u64 unat;
+	u64 bspstore;
+	u64 dcr;		/* Default Control Register */
+	u64 iva;
+	u64 pta;
+	u64 itv;
+	u64 pmv;
+	u64 cmcv;
+	u64 lrr[2];
+	u64 gr[4];
+	u64 pr;			/* Predicate registers */
+	u64 lc;			/* Loop Count */
+	struct ia64_fpreg fp[20];
+};
+
+/*
+ * Global array allocated for NR_CPUS at boot time
+ */
+extern struct sal_to_os_boot sal_boot_rendez_state[NR_CPUS];
+
+extern void ia64_jump_to_sal(struct sal_to_os_boot *);
+#endif
 
 extern void ia64_sal_handler_init(void *entry_point, void *gpval);
 

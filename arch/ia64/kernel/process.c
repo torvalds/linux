@@ -3,6 +3,7 @@
  *
  * Copyright (C) 1998-2003 Hewlett-Packard Co
  *	David Mosberger-Tang <davidm@hpl.hp.com>
+ * 04/11/17 Ashok Raj	<ashok.raj@intel.com> Added CPU Hotplug Support
  */
 #define __KERNEL_SYSCALLS__	/* see <asm/unistd.h> */
 #include <linux/config.h>
@@ -200,27 +201,20 @@ default_idle (void)
 static inline void play_dead(void)
 {
 	extern void ia64_cpu_local_tick (void);
+	unsigned int this_cpu = smp_processor_id();
+
 	/* Ack it */
 	__get_cpu_var(cpu_state) = CPU_DEAD;
 
-	/* We shouldn't have to disable interrupts while dead, but
-	 * some interrupts just don't seem to go away, and this makes
-	 * it "work" for testing purposes. */
 	max_xtp();
 	local_irq_disable();
-	/* Death loop */
-	while (__get_cpu_var(cpu_state) != CPU_UP_PREPARE)
-		cpu_relax();
-
+	idle_task_exit();
+	ia64_jump_to_sal(&sal_boot_rendez_state[this_cpu]);
 	/*
-	 * Enable timer interrupts from now on
-	 * Not required if we put processor in SAL_BOOT_RENDEZ mode.
+	 * The above is a point of no-return, the processor is
+	 * expected to be in SAL loop now.
 	 */
-	local_flush_tlb_all();
-	cpu_set(smp_processor_id(), cpu_online_map);
-	wmb();
-	ia64_cpu_local_tick ();
-	local_irq_enable();
+	BUG();
 }
 #else
 static inline void play_dead(void)

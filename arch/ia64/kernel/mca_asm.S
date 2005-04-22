@@ -110,46 +110,19 @@
 	.global ia64_os_mca_dispatch_end
 	.global ia64_sal_to_os_handoff_state
 	.global	ia64_os_to_sal_handoff_state
+	.global ia64_do_tlb_purge
 
 	.text
 	.align 16
 
-ia64_os_mca_dispatch:
+/*
+ * Just the TLB purge part is moved to a separate function
+ * so we can re-use the code for cpu hotplug code as well
+ * Caller should now setup b1, so we can branch once the
+ * tlb flush is complete.
+ */
 
-	// Serialize all MCA processing
-	mov	r3=1;;
-	LOAD_PHYSICAL(p0,r2,ia64_mca_serialize);;
-ia64_os_mca_spin:
-	xchg8	r4=[r2],r3;;
-	cmp.ne	p6,p0=r4,r0
-(p6)	br ia64_os_mca_spin
-
-	// Save the SAL to OS MCA handoff state as defined
-	// by SAL SPEC 3.0
-	// NOTE : The order in which the state gets saved
-	//	  is dependent on the way the C-structure
-	//	  for ia64_mca_sal_to_os_state_t has been
-	//	  defined in include/asm/mca.h
-	SAL_TO_OS_MCA_HANDOFF_STATE_SAVE(r2)
-	;;
-
-	// LOG PROCESSOR STATE INFO FROM HERE ON..
-begin_os_mca_dump:
-	br	ia64_os_mca_proc_state_dump;;
-
-ia64_os_mca_done_dump:
-
-	LOAD_PHYSICAL(p0,r16,ia64_sal_to_os_handoff_state+56)
-	;;
-	ld8 r18=[r16]		// Get processor state parameter on existing PALE_CHECK.
-	;;
-	tbit.nz p6,p7=r18,60
-(p7)	br.spnt done_tlb_purge_and_reload
-
-	// The following code purges TC and TR entries. Then reload all TC entries.
-	// Purge percpu data TC entries.
-begin_tlb_purge_and_reload:
-
+ia64_do_tlb_purge:
 #define O(member)	IA64_CPUINFO_##member##_OFFSET
 
 	GET_THIS_PADDR(r2, cpu_info)	// load phys addr of cpu_info into r2
@@ -230,6 +203,51 @@ begin_tlb_purge_and_reload:
 	;;
 	srlz.i
 	;;
+	// Now branch away to caller.
+	br.sptk.many b1
+	;;
+
+ia64_os_mca_dispatch:
+
+	// Serialize all MCA processing
+	mov	r3=1;;
+	LOAD_PHYSICAL(p0,r2,ia64_mca_serialize);;
+ia64_os_mca_spin:
+	xchg8	r4=[r2],r3;;
+	cmp.ne	p6,p0=r4,r0
+(p6)	br ia64_os_mca_spin
+
+	// Save the SAL to OS MCA handoff state as defined
+	// by SAL SPEC 3.0
+	// NOTE : The order in which the state gets saved
+	//	  is dependent on the way the C-structure
+	//	  for ia64_mca_sal_to_os_state_t has been
+	//	  defined in include/asm/mca.h
+	SAL_TO_OS_MCA_HANDOFF_STATE_SAVE(r2)
+	;;
+
+	// LOG PROCESSOR STATE INFO FROM HERE ON..
+begin_os_mca_dump:
+	br	ia64_os_mca_proc_state_dump;;
+
+ia64_os_mca_done_dump:
+
+	LOAD_PHYSICAL(p0,r16,ia64_sal_to_os_handoff_state+56)
+	;;
+	ld8 r18=[r16]		// Get processor state parameter on existing PALE_CHECK.
+	;;
+	tbit.nz p6,p7=r18,60
+(p7)	br.spnt done_tlb_purge_and_reload
+
+	// The following code purges TC and TR entries. Then reload all TC entries.
+	// Purge percpu data TC entries.
+begin_tlb_purge_and_reload:
+	movl r18=ia64_reload_tr;;
+	LOAD_PHYSICAL(p0,r18,ia64_reload_tr);;
+	mov b1=r18;;
+	br.sptk.many ia64_do_tlb_purge;;
+
+ia64_reload_tr:
 	// Finally reload the TR registers.
 	// 1. Reload DTR/ITR registers for kernel.
 	mov r18=KERNEL_TR_PAGE_SHIFT<<2

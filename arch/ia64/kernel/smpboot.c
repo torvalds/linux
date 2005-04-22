@@ -9,6 +9,7 @@
  * 02/07/31 David Mosberger <davidm@hpl.hp.com>	Switch over to hotplug-CPU boot-sequence.
  *						smp_boot_cpus()/smp_commence() is replaced by
  *						smp_prepare_cpus()/__cpu_up()/smp_cpus_done().
+ * 04/06/21 Ashok Raj		<ashok.raj@intel.com> Added CPU Hotplug Support
  */
 #include <linux/config.h>
 
@@ -56,6 +57,37 @@
 #define Dprintk(x...)  printk(x)
 #else
 #define Dprintk(x...)
+#endif
+
+#ifdef CONFIG_HOTPLUG_CPU
+/*
+ * Store all idle threads, this can be reused instead of creating
+ * a new thread. Also avoids complicated thread destroy functionality
+ * for idle threads.
+ */
+struct task_struct *idle_thread_array[NR_CPUS];
+
+/*
+ * Global array allocated for NR_CPUS at boot time
+ */
+struct sal_to_os_boot sal_boot_rendez_state[NR_CPUS];
+
+/*
+ * start_ap in head.S uses this to store current booting cpu
+ * info.
+ */
+struct sal_to_os_boot *sal_state_for_booting_cpu = &sal_boot_rendez_state[0];
+
+#define set_brendez_area(x) (sal_state_for_booting_cpu = &sal_boot_rendez_state[(x)]);
+
+#define get_idle_for_cpu(x)		(idle_thread_array[(x)])
+#define set_idle_for_cpu(x,p)	(idle_thread_array[(x)] = (p))
+
+#else
+
+#define get_idle_for_cpu(x)		(NULL)
+#define set_idle_for_cpu(x,p)
+#define set_brendez_area(x)
 #endif
 
 
@@ -345,7 +377,6 @@ start_secondary (void *unused)
 {
 	/* Early console may use I/O ports */
 	ia64_set_kr(IA64_KR_IO_BASE, __pa(ia64_iobase));
-
 	Dprintk("start_secondary: starting CPU 0x%x\n", hard_smp_processor_id());
 	efi_map_pal_code();
 	cpu_init();
@@ -384,6 +415,13 @@ do_boot_cpu (int sapicid, int cpu)
 		.done	= COMPLETION_INITIALIZER(c_idle.done),
 	};
 	DECLARE_WORK(work, do_fork_idle, &c_idle);
+
+ 	c_idle.idle = get_idle_for_cpu(cpu);
+ 	if (c_idle.idle) {
+		init_idle(c_idle.idle, cpu);
+ 		goto do_rest;
+	}
+
 	/*
 	 * We can't use kernel_thread since we must avoid to reschedule the child.
 	 */
@@ -396,10 +434,15 @@ do_boot_cpu (int sapicid, int cpu)
 
 	if (IS_ERR(c_idle.idle))
 		panic("failed fork for CPU %d", cpu);
+
+	set_idle_for_cpu(cpu, c_idle.idle);
+
+do_rest:
 	task_for_booting_cpu = c_idle.idle;
 
 	Dprintk("Sending wakeup vector %lu to AP 0x%x/0x%x.\n", ap_wakeup_vector, cpu, sapicid);
 
+	set_brendez_area(cpu);
 	platform_send_ipi(cpu, ap_wakeup_vector, IA64_IPI_DM_INT, 0);
 
 	/*
@@ -555,16 +598,6 @@ void __devinit smp_prepare_boot_cpu(void)
 #ifdef CONFIG_HOTPLUG_CPU
 extern void fixup_irqs(void);
 /* must be called with cpucontrol mutex held */
-static int __devinit cpu_enable(unsigned int cpu)
-{
-	per_cpu(cpu_state,cpu) = CPU_UP_PREPARE;
-	wmb();
-
-	while (!cpu_online(cpu))
-		cpu_relax();
-	return 0;
-}
-
 int __cpu_disable(void)
 {
 	int cpu = smp_processor_id();
@@ -577,7 +610,7 @@ int __cpu_disable(void)
 
 	fixup_irqs();
 	local_flush_tlb_all();
-	printk ("Disabled cpu %u\n", smp_processor_id());
+	cpu_clear(cpu, cpu_callin_map);
 	return 0;
 }
 
@@ -589,12 +622,7 @@ void __cpu_die(unsigned int cpu)
 		/* They ack this in play_dead by setting CPU_DEAD */
 		if (per_cpu(cpu_state, cpu) == CPU_DEAD)
 		{
-			/*
-			 * TBD: Enable this when physical removal
-			 * or when we put the processor is put in
-			 * SAL_BOOT_RENDEZ mode
-			 * cpu_clear(cpu, cpu_callin_map);
-			 */
+			printk ("CPU %d is now offline\n", cpu);
 			return;
 		}
 		msleep(100);
@@ -602,11 +630,6 @@ void __cpu_die(unsigned int cpu)
  	printk(KERN_ERR "CPU %u didn't die...\n", cpu);
 }
 #else /* !CONFIG_HOTPLUG_CPU */
-static int __devinit cpu_enable(unsigned int cpu)
-{
-	return 0;
-}
-
 int __cpu_disable(void)
 {
 	return -ENOSYS;
@@ -648,16 +671,12 @@ __cpu_up (unsigned int cpu)
 		return -EINVAL;
 
 	/*
-	 * Already booted.. just enable and get outa idle lool
+	 * Already booted cpu? not valid anymore since we dont
+	 * do idle loop tightspin anymore.
 	 */
 	if (cpu_isset(cpu, cpu_callin_map))
-	{
-		cpu_enable(cpu);
-		local_irq_enable();
-		while (!cpu_isset(cpu, cpu_online_map))
-			mb();
-		return 0;
-	}
+		return -EINVAL;
+
 	/* Processor goes to start_secondary(), sets online flag */
 	ret = do_boot_cpu(sapicid, cpu);
 	if (ret < 0)
