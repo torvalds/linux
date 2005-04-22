@@ -416,6 +416,11 @@ extern int io_remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
 			       unsigned long pfn,
 			       unsigned long size, pgprot_t prot);
 
+/* Clear virtual and physical cachability, set side-effect bit.  */
+#define pgprot_noncached(prot) \
+	(__pgprot((pgprot_val(prot) & ~(_PAGE_CP | _PAGE_CV)) | \
+	 _PAGE_E))
+
 /*
  * For sparc32&64, the pfn in io_remap_pfn_range() carries <iospace> in
  * its high 4 bits.  These macros/functions put it there or get it from there.
