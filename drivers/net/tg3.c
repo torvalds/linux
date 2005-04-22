@@ -5353,6 +5353,11 @@ static int tg3_reset_hw(struct tg3 *tp)
 
 		gpio_mask = GRC_LCLCTRL_GPIO_OE0 | GRC_LCLCTRL_GPIO_OE2 |
 			    GRC_LCLCTRL_GPIO_OUTPUT0 | GRC_LCLCTRL_GPIO_OUTPUT2;
+
+		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752)
+			gpio_mask |= GRC_LCLCTRL_GPIO_OE3 |
+				     GRC_LCLCTRL_GPIO_OUTPUT3;
+
 		tp->grc_local_ctrl |= tr32(GRC_LOCAL_CTRL) & gpio_mask;
 
 		/* GPIO1 must be driven high for eeprom write protect */
@@ -8077,6 +8082,11 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	    (tp->tg3_flags & TG3_FLAG_EEPROM_WRITE_PROT))
 		tp->grc_local_ctrl |= (GRC_LCLCTRL_GPIO_OE1 |
 				       GRC_LCLCTRL_GPIO_OUTPUT1);
+	/* Unused GPIO3 must be driven as output on 5752 because there
+	 * are no pull-up resistors on unused GPIO pins.
+	 */
+	else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752)
+		tp->grc_local_ctrl |= GRC_LCLCTRL_GPIO_OE3;
 
 	/* Force the chip into D0. */
 	err = tg3_set_power_state(tp, 0);
