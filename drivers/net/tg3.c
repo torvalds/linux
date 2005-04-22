@@ -7952,6 +7952,12 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	tp->pci_chip_rev_id = (misc_ctrl_reg >>
 			       MISC_HOST_CTRL_CHIPREV_SHIFT);
 
+	/* Wrong chip ID in 5752 A0. This code can be removed later
+	 * as A0 is not in production.
+	 */
+	if (tp->pci_chip_rev_id == CHIPREV_ID_5752_A0_HW)
+		tp->pci_chip_rev_id = CHIPREV_ID_5752_A0;
+
 	/* Initialize misc host control in PCI block. */
 	tp->misc_host_ctrl |= (misc_ctrl_reg &
 			       MISC_HOST_CTRL_CHIPREV);
@@ -7967,8 +7973,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	tp->pci_bist         = (cacheline_sz_reg >> 24) & 0xff;
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5750 ||
-	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752_A0 ||
-	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752_A1)
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752)
 		tp->tg3_flags2 |= TG3_FLG2_5750_PLUS;
 
 	if ((GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5705) ||
