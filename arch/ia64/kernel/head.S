@@ -95,6 +95,10 @@ RestRR:											\
 	add		_idx1=1,_idx1;;						\
 	br.cloop.sptk.few	RestRR
 
+#define SET_AREA_FOR_BOOTING_CPU(reg1, reg2) \
+	movl reg1=sal_state_for_booting_cpu;;	\
+	ld8 reg2=[reg1];;
+
 /*
  * Adjust region registers saved before starting to save
  * break regs and rest of the states that need to be preserved.
@@ -150,7 +154,8 @@ RestRR:											\
 	stf.spill.nta [_reg1]=f31,16;;
 
 #else
-#define SAL_TO_OS_BOOT_HANDOFF_STATE_SAVE(a1,a2)
+#define SET_AREA_FOR_BOOTING_CPU(a1, a2)
+#define SAL_TO_OS_BOOT_HANDOFF_STATE_SAVE(a1,a2, a3)
 #define SAVE_REGION_REGS(_tmp, _r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7)
 #define STORE_REGION_REGS(ptr, _r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7)
 #endif
@@ -260,8 +265,7 @@ start_ap:
 	;;
 1:	// now we are in virtual mode
 
-	movl r2=sal_state_for_booting_cpu;;
-	ld8 r16=[r2];;
+	SET_AREA_FOR_BOOTING_CPU(r2, r16);
 
 	STORE_REGION_REGS(r16, r8,r9,r10,r11,r12,r13,r14,r15);
 	SAL_TO_OS_BOOT_HANDOFF_STATE_SAVE(r16,r17,r25)
