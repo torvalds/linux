@@ -7542,21 +7542,27 @@ static inline struct subsys_tbl_ent *lookup_by_subsys(struct tg3 *tp)
 	return NULL;
 }
 
-static int __devinit tg3_phy_probe(struct tg3 *tp)
+/* Since this function may be called in D3-hot power state during
+ * tg3_init_one(), only config cycles are allowed.
+ */
+static void __devinit tg3_get_eeprom_hw_cfg(struct tg3 *tp)
 {
-	u32 eeprom_phy_id, hw_phy_id_1, hw_phy_id_2;
-	u32 hw_phy_id, hw_phy_id_masked;
 	u32 val;
-	int eeprom_signature_found, eeprom_phy_serdes, err;
+
+	/* Make sure register accesses (indirect or otherwise)
+	 * will function correctly.
+	 */
+	pci_write_config_dword(tp->pdev, TG3PCI_MISC_HOST_CTRL,
+			       tp->misc_host_ctrl);
 
 	tp->phy_id = PHY_ID_INVALID;
-	eeprom_phy_id = PHY_ID_INVALID;
-	eeprom_phy_serdes = 0;
-	eeprom_signature_found = 0;
+	tp->led_ctrl = LED_CTRL_MODE_PHY_1;
+
 	tg3_read_mem(tp, NIC_SRAM_DATA_SIG, &val);
 	if (val == NIC_SRAM_DATA_SIG_MAGIC) {
 		u32 nic_cfg, led_cfg;
-		u32 nic_phy_id, ver, cfg2 = 0;
+		u32 nic_phy_id, ver, cfg2 = 0, eeprom_phy_id;
+		int eeprom_phy_serdes = 0;
 
 		tg3_read_mem(tp, NIC_SRAM_DATA_CFG, &nic_cfg);
 		tp->nic_sram_data_cfg = nic_cfg;
@@ -7568,8 +7574,6 @@ static int __devinit tg3_phy_probe(struct tg3 *tp)
 		    (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5703) &&
 		    (ver > 0) && (ver < 0x100))
 			tg3_read_mem(tp, NIC_SRAM_DATA_CFG_2, &cfg2);
-
-		eeprom_signature_found = 1;
 
 		if ((nic_cfg & NIC_SRAM_DATA_CFG_PHY_TYPE_MASK) ==
 		    NIC_SRAM_DATA_CFG_PHY_TYPE_FIBER)
@@ -7585,6 +7589,10 @@ static int __devinit tg3_phy_probe(struct tg3 *tp)
 			eeprom_phy_id |= (id2 & 0x03ff) <<  0;
 		} else
 			eeprom_phy_id = 0;
+
+		tp->phy_id = eeprom_phy_id;
+		if (eeprom_phy_serdes)
+			tp->tg3_flags2 |= TG3_FLG2_PHY_SERDES;
 
 		if (tp->tg3_flags2 & TG3_FLG2_5750_PLUS)
 			led_cfg = cfg2 & (NIC_SRAM_DATA_CFG_LED_MODE_MASK |
@@ -7653,6 +7661,13 @@ static int __devinit tg3_phy_probe(struct tg3 *tp)
 		if (cfg2 & (1 << 18))
 			tp->tg3_flags2 |= TG3_FLG2_SERDES_PREEMPHASIS;
 	}
+}
+
+static int __devinit tg3_phy_probe(struct tg3 *tp)
+{
+	u32 hw_phy_id_1, hw_phy_id_2;
+	u32 hw_phy_id, hw_phy_id_masked;
+	int err;
 
 	/* Reading the PHY ID register can conflict with ASF
 	 * firwmare access to the PHY hardware.
@@ -7681,10 +7696,10 @@ static int __devinit tg3_phy_probe(struct tg3 *tp)
 		if (hw_phy_id_masked == PHY_ID_BCM8002)
 			tp->tg3_flags2 |= TG3_FLG2_PHY_SERDES;
 	} else {
-		if (eeprom_signature_found) {
-			tp->phy_id = eeprom_phy_id;
-			if (eeprom_phy_serdes)
-				tp->tg3_flags2 |= TG3_FLG2_PHY_SERDES;
+		if (tp->phy_id != PHY_ID_INVALID) {
+			/* Do nothing, phy ID already set up in
+			 * tg3_get_eeprom_hw_cfg().
+			 */
 		} else {
 			struct subsys_tbl_ent *p;
 
@@ -7754,9 +7769,6 @@ skip_phy_reset:
 	if (!err && ((tp->phy_id & PHY_ID_MASK) == PHY_ID_BCM5401)) {
 		err = tg3_init_5401phy_dsp(tp);
 	}
-
-	if (!eeprom_signature_found)
-		tp->led_ctrl = LED_CTRL_MODE_PHY_1;
 
 	if (tp->tg3_flags2 & TG3_FLG2_PHY_SERDES)
 		tp->link_config.advertising =
@@ -8022,6 +8034,16 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		pci_state_reg |= PCISTATE_RETRY_SAME_DMA;
 		pci_write_config_dword(tp->pdev, TG3PCI_PCISTATE, pci_state_reg);
 	}
+
+	/* Get eeprom hw config before calling tg3_set_power_state().
+	 * In particular, the TG3_FLAG_EEPROM_WRITE_PROT flag must be
+	 * determined before calling tg3_set_power_state() so that
+	 * we know whether or not to switch out of Vaux power.
+	 * When the flag is set, it means that GPIO1 is used for eeprom
+	 * write protect and also implies that it is a LOM where GPIOs
+	 * are not used to switch power.
+	 */ 
+	tg3_get_eeprom_hw_cfg(tp);
 
 	/* Force the chip into D0. */
 	err = tg3_set_power_state(tp, 0);
