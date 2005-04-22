@@ -357,8 +357,9 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 
 	x = best;
 	if (!x && !error && !acquire_in_progress) {
-		x0 = afinfo->state_lookup(&tmpl->id.daddr, tmpl->id.spi, tmpl->id.proto);
-		if (x0 != NULL) {
+		if (tmpl->id.spi &&
+		    (x0 = afinfo->state_lookup(daddr, tmpl->id.spi,
+		                               tmpl->id.proto)) != NULL) {
 			xfrm_state_put(x0);
 			error = -EEXIST;
 			goto out;
