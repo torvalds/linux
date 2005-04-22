@@ -2996,6 +2996,22 @@ static irqreturn_t tg3_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	return IRQ_RETVAL(handled);
 }
 
+/* ISR for interrupt test */
+static irqreturn_t tg3_test_isr(int irq, void *dev_id,
+		struct pt_regs *regs)
+{
+	struct net_device *dev = dev_id;
+	struct tg3 *tp = netdev_priv(dev);
+	struct tg3_hw_status *sblk = tp->hw_status;
+
+	if (sblk->status & SD_STATUS_UPDATED) {
+		tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
+			     0x00000001);
+		return IRQ_RETVAL(1);
+	}
+	return IRQ_RETVAL(0);
+}
+
 static int tg3_init_hw(struct tg3 *);
 static int tg3_halt(struct tg3 *);
 
@@ -5796,6 +5812,118 @@ static void tg3_timer(unsigned long __opaque)
 	add_timer(&tp->timer);
 }
 
+static int tg3_test_interrupt(struct tg3 *tp)
+{
+	struct net_device *dev = tp->dev;
+	int err, i;
+	u32 int_mbox = 0;
+
+	tg3_disable_ints(tp);
+
+	free_irq(tp->pdev->irq, dev);
+
+	err = request_irq(tp->pdev->irq, tg3_test_isr,
+			  SA_SHIRQ, dev->name, dev);
+	if (err)
+		return err;
+
+	tg3_enable_ints(tp);
+
+	tw32_f(HOSTCC_MODE, tp->coalesce_mode | HOSTCC_MODE_ENABLE |
+	       HOSTCC_MODE_NOW);
+
+	for (i = 0; i < 5; i++) {
+		int_mbox = tr32(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW);
+		if (int_mbox != 0)
+			break;
+		msleep(10);
+	}
+
+	tg3_disable_ints(tp);
+
+	free_irq(tp->pdev->irq, dev);
+	
+	if (tp->tg3_flags2 & TG3_FLG2_USING_MSI)
+		err = request_irq(tp->pdev->irq, tg3_msi,
+				  0, dev->name, dev);
+	else
+		err = request_irq(tp->pdev->irq, tg3_interrupt,
+				  SA_SHIRQ, dev->name, dev);
+
+	if (err)
+		return err;
+
+	if (int_mbox != 0)
+		return 0;
+
+	return -EIO;
+}
+
+/* Returns 0 if MSI test succeeds or MSI test fails and INTx mode is
+ * successfully restored
+ */
+static int tg3_test_msi(struct tg3 *tp)
+{
+	struct net_device *dev = tp->dev;
+	int err;
+	u16 pci_cmd;
+
+	if (!(tp->tg3_flags2 & TG3_FLG2_USING_MSI))
+		return 0;
+
+	/* Turn off SERR reporting in case MSI terminates with Master
+	 * Abort.
+	 */
+	pci_read_config_word(tp->pdev, PCI_COMMAND, &pci_cmd);
+	pci_write_config_word(tp->pdev, PCI_COMMAND,
+			      pci_cmd & ~PCI_COMMAND_SERR);
+
+	err = tg3_test_interrupt(tp);
+
+	pci_write_config_word(tp->pdev, PCI_COMMAND, pci_cmd);
+
+	if (!err)
+		return 0;
+
+	/* other failures */
+	if (err != -EIO)
+		return err;
+
+	/* MSI test failed, go back to INTx mode */
+	printk(KERN_WARNING PFX "%s: No interrupt was generated using MSI, "
+	       "switching to INTx mode. Please report this failure to "
+	       "the PCI maintainer and include system chipset information.\n",
+		       tp->dev->name);
+
+	free_irq(tp->pdev->irq, dev);
+	pci_disable_msi(tp->pdev);
+
+	tp->tg3_flags2 &= ~TG3_FLG2_USING_MSI;
+
+	err = request_irq(tp->pdev->irq, tg3_interrupt,
+			  SA_SHIRQ, dev->name, dev);
+
+	if (err)
+		return err;
+
+	/* Need to reset the chip because the MSI cycle may have terminated
+	 * with Master Abort.
+	 */
+	spin_lock_irq(&tp->lock);
+	spin_lock(&tp->tx_lock);
+
+	tg3_halt(tp);
+	err = tg3_init_hw(tp);
+
+	spin_unlock(&tp->tx_lock);
+	spin_unlock_irq(&tp->lock);
+
+	if (err)
+		free_irq(tp->pdev->irq, dev);
+
+	return err;
+}
+
 static int tg3_open(struct net_device *dev)
 {
 	struct tg3 *tp = netdev_priv(dev);
@@ -5860,9 +5988,6 @@ static int tg3_open(struct net_device *dev)
 		tp->timer.expires = jiffies + tp->timer_offset;
 		tp->timer.data = (unsigned long) tp;
 		tp->timer.function = tg3_timer;
-		add_timer(&tp->timer);
-
-		tp->tg3_flags |= TG3_FLAG_INIT_COMPLETE;
 	}
 
 	spin_unlock(&tp->tx_lock);
@@ -5878,9 +6003,32 @@ static int tg3_open(struct net_device *dev)
 		return err;
 	}
 
+	if (tp->tg3_flags2 & TG3_FLG2_USING_MSI) {
+		err = tg3_test_msi(tp);
+		if (err) {
+			spin_lock_irq(&tp->lock);
+			spin_lock(&tp->tx_lock);
+
+			if (tp->tg3_flags2 & TG3_FLG2_USING_MSI) {
+				pci_disable_msi(tp->pdev);
+				tp->tg3_flags2 &= ~TG3_FLG2_USING_MSI;
+			}
+			tg3_halt(tp);
+			tg3_free_rings(tp);
+			tg3_free_consistent(tp);
+
+			spin_unlock(&tp->tx_lock);
+			spin_unlock_irq(&tp->lock);
+
+			return err;
+		}
+	}
+
 	spin_lock_irq(&tp->lock);
 	spin_lock(&tp->tx_lock);
 
+	add_timer(&tp->timer);
+	tp->tg3_flags |= TG3_FLAG_INIT_COMPLETE;
 	tg3_enable_ints(tp);
 
 	spin_unlock(&tp->tx_lock);
