@@ -429,7 +429,7 @@ sn9c102_i2c_try_read(struct sn9c102_device* cam,
 }
 
 
-int 
+static int 
 sn9c102_i2c_try_write(struct sn9c102_device* cam,
                       struct sn9c102_sensor* sensor, u8 address, u8 value)
 {
@@ -785,7 +785,7 @@ static int sn9c102_stop_transfer(struct sn9c102_device* cam)
 }
 
 
-int sn9c102_stream_interrupt(struct sn9c102_device* cam)
+static int sn9c102_stream_interrupt(struct sn9c102_device* cam)
 {
 	int err = 0;
 
