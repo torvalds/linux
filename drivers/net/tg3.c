@@ -6560,10 +6560,12 @@ static int tg3_set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 		start = cpu_to_le32(start);
 		len += b_offset;
 		offset &= ~3;
+		if (len < 4)
+			len = 4;
 	}
 
 	odd_len = 0;
-	if ((len & 3) && ((len > 4) || (b_offset == 0))) {
+	if (len & 3) {
 		/* adjustments to end on required 4 byte boundary */
 		odd_len = 1;
 		len = (len + 3) & ~3;
