@@ -335,7 +335,7 @@ static int mts_scsi_abort (Scsi_Cmnd *srb)
 
 	mts_urb_abort(desc);
 
-	return FAILURE;
+	return FAILED;
 }
 
 static int mts_scsi_host_reset (Scsi_Cmnd *srb)
