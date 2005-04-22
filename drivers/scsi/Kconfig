@@ -1192,28 +1192,6 @@ config SCSI_PAS16
 	  To compile this driver as a module, choose M here: the
 	  module will be called pas16.
 
-config SCSI_PCI2000
-	tristate "PCI2000 support"
-	depends on PCI && SCSI && BROKEN
-	help
-	  This is support for the PCI2000I EIDE interface card which acts as a
-	  SCSI host adapter.  Please read the SCSI-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called pci2000.
-
-config SCSI_PCI2220I
-	tristate "PCI2220i support"
-	depends on PCI && SCSI && BROKEN
-	help
-	  This is support for the PCI2220i EIDE interface card which acts as a
-	  SCSI host adapter.  Please read the SCSI-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called pci2220i.
-
 config SCSI_PSI240I
 	tristate "PSI240i support"
 	depends on ISA && SCSI
