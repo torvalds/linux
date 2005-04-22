@@ -112,6 +112,8 @@ static inline void restart_timer(struct uhci_hcd *uhci)
  */
 static void reset_hc(struct uhci_hcd *uhci)
 {
+	int port;
+
 	/* Turn off PIRQ enable and SMI enable.  (This also turns off the
 	 * BIOS's USB Legacy Support.)  Turn off all the R/WC bits too.
 	 */
@@ -134,6 +136,13 @@ static void reset_hc(struct uhci_hcd *uhci)
 	 */
 	outw(0, uhci->io_addr + USBINTR);
 	outw(0, uhci->io_addr + USBCMD);
+
+	/* HCRESET doesn't affect the Suspend, Reset, and Resume Detect
+	 * bits in the port status and control registers.
+	 * We have to clear them by hand.
+	 */
+	for (port = 0; port < uhci->rh_numports; ++port)
+		outw(0, uhci->io_addr + USBPORTSC1 + (port * 2));
 
 	uhci->port_c_suspend = uhci->suspended_ports =
 			uhci->resuming_ports = 0;
@@ -166,14 +175,14 @@ static void check_and_reset_hc(struct uhci_hcd *uhci)
 	 * When restarting a suspended controller, we expect all the
 	 * settings to be the same as we left them:
 	 *
-	 *	PIRQ and SMI disabled, no R/WC bits set in USBLEGSUP;
+	 *	PIRQ and SMI disabled, no R/W bits set in USBLEGSUP;
 	 *	Controller is stopped and configured with EGSM set;
 	 *	No interrupts enabled except possibly Resume Detect.
 	 *
 	 * If any of these conditions are violated we do a complete reset.
 	 */
 	pci_read_config_word(to_pci_dev(uhci_dev(uhci)), USBLEGSUP, &legsup);
-	if (legsup & ~USBLEGSUP_RO) {
+	if (legsup & ~(USBLEGSUP_RO | USBLEGSUP_RWC)) {
 		dev_dbg(uhci_dev(uhci), "%s: legsup = 0x%04x\n",
 				__FUNCTION__, legsup);
 		goto reset_needed;
@@ -478,8 +487,36 @@ static void release_uhci(struct uhci_hcd *uhci)
 static int uhci_reset(struct usb_hcd *hcd)
 {
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
+	unsigned io_size = (unsigned) hcd->rsrc_len;
+	int port;
 
 	uhci->io_addr = (unsigned long) hcd->rsrc_start;
+
+	/* The UHCI spec says devices must have 2 ports, and goes on to say
+	 * they may have more but gives no way to determine how many there
+	 * are.  However, according to the UHCI spec, Bit 7 of the port
+	 * status and control register is always set to 1.  So we try to
+	 * use this to our advantage.
+	 */
+	for (port = 0; port < (io_size - USBPORTSC1) / 2; port++) {
+		unsigned int portstatus;
+
+		portstatus = inw(uhci->io_addr + USBPORTSC1 + (port * 2));
+		if (!(portstatus & 0x0080))
+			break;
+	}
+	if (debug)
+		dev_info(uhci_dev(uhci), "detected %d ports\n", port);
+
+	/* Anything less than 2 or greater than 7 is weird,
+	 * so we'll ignore it.
+	 */
+	if (port < 2 || port > UHCI_RH_MAXCHILD) {
+		dev_info(uhci_dev(uhci), "port count misdetected? "
+				"forcing to 2 ports\n");
+		port = 2;
+	}
+	uhci->rh_numports = port;
 
 	/* Kick BIOS off this hardware and reset if the controller
 	 * isn't already safely quiescent.
@@ -508,13 +545,11 @@ static int uhci_start(struct usb_hcd *hcd)
 {
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
 	int retval = -EBUSY;
-	int i, port;
-	unsigned io_size;
+	int i;
 	dma_addr_t dma_handle;
 	struct usb_device *udev;
 	struct dentry *dentry;
 
-	io_size = (unsigned) hcd->rsrc_len;
 	hcd->uses_new_polling = 1;
 	if (pci_find_capability(to_pci_dev(uhci_dev(uhci)), PCI_CAP_ID_PM))
 		hcd->can_wakeup = 1;		/* Assume it supports PME# */
@@ -577,30 +612,6 @@ static int uhci_start(struct usb_hcd *hcd)
 	}
 
 	/* Initialize the root hub */
-
-	/* UHCI specs says devices must have 2 ports, but goes on to say */
-	/*  they may have more but give no way to determine how many they */
-	/*  have. However, according to the UHCI spec, Bit 7 is always set */
-	/*  to 1. So we try to use this to our advantage */
-	for (port = 0; port < (io_size - 0x10) / 2; port++) {
-		unsigned int portstatus;
-
-		portstatus = inw(uhci->io_addr + 0x10 + (port * 2));
-		if (!(portstatus & 0x0080))
-			break;
-	}
-	if (debug)
-		dev_info(uhci_dev(uhci), "detected %d ports\n", port);
-
-	/* This is experimental so anything less than 2 or greater than 8 is */
-	/*  something weird and we'll ignore it */
-	if (port < 2 || port > UHCI_RH_MAXCHILD) {
-		dev_info(uhci_dev(uhci), "port count misdetected? "
-				"forcing to 2 ports\n");
-		port = 2;
-	}
-
-	uhci->rh_numports = port;
 
 	udev = usb_alloc_dev(NULL, &hcd->self, 0);
 	if (!udev) {
