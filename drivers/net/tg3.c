@@ -1005,8 +1005,13 @@ static int tg3_set_power_state(struct tg3 *tp, int state)
 		pci_write_config_word(tp->pdev,
 				      pm + PCI_PM_CTRL,
 				      power_control);
-		tw32_f(GRC_LOCAL_CTRL, tp->grc_local_ctrl);
-		udelay(100);
+		udelay(100);	/* Delay after power state change */
+
+		/* Switch out of Vaux if it is not a LOM */
+		if (!(tp->tg3_flags & TG3_FLAG_EEPROM_WRITE_PROT)) {
+			tw32_f(GRC_LOCAL_CTRL, tp->grc_local_ctrl);
+			udelay(100);
+		}
 
 		return 0;
 
@@ -1151,6 +1156,7 @@ static int tg3_set_power_state(struct tg3 *tp, int state)
 
 	/* Finally, set the new power state. */
 	pci_write_config_word(tp->pdev, pm + PCI_PM_CTRL, power_control);
+	udelay(100);	/* Delay after power state change */
 
 	tg3_write_sig_post_reset(tp, RESET_KIND_SHUTDOWN);
 
