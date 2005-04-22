@@ -7096,6 +7096,63 @@ static void __devinit tg3_get_nvram_info(struct tg3 *tp)
 	}
 }
 
+static void __devinit tg3_get_5752_nvram_info(struct tg3 *tp)
+{
+	u32 nvcfg1;
+
+	nvcfg1 = tr32(NVRAM_CFG1);
+
+	switch (nvcfg1 & NVRAM_CFG1_5752VENDOR_MASK) {
+		case FLASH_5752VENDOR_ATMEL_EEPROM_64KHZ:
+		case FLASH_5752VENDOR_ATMEL_EEPROM_376KHZ:
+			tp->nvram_jedecnum = JEDEC_ATMEL;
+			tp->tg3_flags |= TG3_FLAG_NVRAM_BUFFERED;
+			break;
+		case FLASH_5752VENDOR_ATMEL_FLASH_BUFFERED:
+			tp->nvram_jedecnum = JEDEC_ATMEL;
+			tp->tg3_flags |= TG3_FLAG_NVRAM_BUFFERED;
+			tp->tg3_flags2 |= TG3_FLG2_FLASH;
+			break;
+		case FLASH_5752VENDOR_ST_M45PE10:
+		case FLASH_5752VENDOR_ST_M45PE20:
+		case FLASH_5752VENDOR_ST_M45PE40:
+			tp->nvram_jedecnum = JEDEC_ST;
+			tp->tg3_flags |= TG3_FLAG_NVRAM_BUFFERED;
+			tp->tg3_flags2 |= TG3_FLG2_FLASH;
+			break;
+	}
+
+	if (tp->tg3_flags2 & TG3_FLG2_FLASH) {
+		switch (nvcfg1 & NVRAM_CFG1_5752PAGE_SIZE_MASK) {
+			case FLASH_5752PAGE_SIZE_256:
+				tp->nvram_pagesize = 256;
+				break;
+			case FLASH_5752PAGE_SIZE_512:
+				tp->nvram_pagesize = 512;
+				break;
+			case FLASH_5752PAGE_SIZE_1K:
+				tp->nvram_pagesize = 1024;
+				break;
+			case FLASH_5752PAGE_SIZE_2K:
+				tp->nvram_pagesize = 2048;
+				break;
+			case FLASH_5752PAGE_SIZE_4K:
+				tp->nvram_pagesize = 4096;
+				break;
+			case FLASH_5752PAGE_SIZE_264:
+				tp->nvram_pagesize = 264;
+				break;
+		}
+	}
+	else {
+		/* For eeprom, set pagesize to maximum eeprom size */
+		tp->nvram_pagesize = ATMEL_AT24C512_CHIP_SIZE;
+
+		nvcfg1 &= ~NVRAM_CFG1_COMPAT_BYPASS;
+		tw32(NVRAM_CFG1, nvcfg1);
+	}
+}
+
 /* Chips other than 5700/5701 use the NVRAM for fetching info. */
 static void __devinit tg3_nvram_init(struct tg3 *tp)
 {
@@ -7128,7 +7185,11 @@ static void __devinit tg3_nvram_init(struct tg3 *tp)
 			tw32(NVRAM_ACCESS, nvaccess | ACCESS_ENABLE);
 		}
 
-		tg3_get_nvram_info(tp);
+		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752)
+			tg3_get_5752_nvram_info(tp);
+		else
+			tg3_get_nvram_info(tp);
+
 		tg3_get_nvram_size(tp);
 
 		if (tp->tg3_flags2 & TG3_FLG2_5750_PLUS) {
