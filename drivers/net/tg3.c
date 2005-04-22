@@ -1067,8 +1067,7 @@ static int tg3_set_power_state(struct tg3 *tp, int state)
 			mac_mode = MAC_MODE_PORT_MODE_TBI;
 		}
 
-		if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5750 &&
-		    GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5752)
+		if (!(tp->tg3_flags2 & TG3_FLG2_5750_PLUS))
 			tw32(MAC_LED_CTRL, tp->led_ctrl);
 
 		if (((power_caps & PCI_PM_CAP_PME_D3cold) &&
@@ -3967,8 +3966,7 @@ static int tg3_chip_reset(struct tg3 *tp)
 		tg3_read_mem(tp, NIC_SRAM_DATA_CFG, &nic_cfg);
 		if (nic_cfg & NIC_SRAM_DATA_CFG_ASF_ENABLE) {
 			tp->tg3_flags |= TG3_FLAG_ENABLE_ASF;
-			if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5750 ||
-			    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752)
+			if (tp->tg3_flags2 & TG3_FLG2_5750_PLUS)
 				tp->tg3_flags2 |= TG3_FLG2_ASF_NEW_HANDSHAKE;
 		}
 	}
@@ -5042,8 +5040,7 @@ static int tg3_reset_hw(struct tg3 *tp)
 	tw32(GRC_MISC_CFG, val);
 
 	/* Initialize MBUF/DESC pool. */
-	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5750 ||
-	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752) {
+	if (tp->tg3_flags2 & TG3_FLG2_5750_PLUS) {
 		/* Do nothing.  */
 	} else if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5705) {
 		tw32(BUFMGR_MB_POOL_ADDR, NIC_SRAM_MBUF_POOL_BASE);
@@ -7032,8 +7029,7 @@ static void __devinit tg3_get_nvram_info(struct tg3 *tp)
 		tw32(NVRAM_CFG1, nvcfg1);
 	}
 
-	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5750 ||
-	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752) {
+	if (tp->tg3_flags2 & TG3_FLG2_5750_PLUS) {
 		switch (nvcfg1 & NVRAM_CFG1_VENDOR_MASK) {
 			case FLASH_VENDOR_ATMEL_FLASH_BUFFERED:
 				tp->nvram_jedecnum = JEDEC_ATMEL;
@@ -7098,8 +7094,7 @@ static void __devinit tg3_nvram_init(struct tg3 *tp)
 	    GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5701) {
 		tp->tg3_flags |= TG3_FLAG_NVRAM;
 
-		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5750 ||
-		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752) {
+		if (tp->tg3_flags2 & TG3_FLG2_5750_PLUS) {
 			u32 nvaccess = tr32(NVRAM_ACCESS);
 
 			tw32(NVRAM_ACCESS, nvaccess | ACCESS_ENABLE);
@@ -7108,8 +7103,7 @@ static void __devinit tg3_nvram_init(struct tg3 *tp)
 		tg3_get_nvram_info(tp);
 		tg3_get_nvram_size(tp);
 
-		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5750 ||
-		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752) {
+		if (tp->tg3_flags2 & TG3_FLG2_5750_PLUS) {
 			u32 nvaccess = tr32(NVRAM_ACCESS);
 
 			tw32(NVRAM_ACCESS, nvaccess & ~ACCESS_ENABLE);
@@ -7202,8 +7196,7 @@ static int tg3_nvram_read(struct tg3 *tp, u32 offset, u32 *val)
 
 	tg3_nvram_lock(tp);
 
-	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5750 ||
-	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752) {
+	if (tp->tg3_flags2 & TG3_FLG2_5750_PLUS) {
 		u32 nvaccess = tr32(NVRAM_ACCESS);
 
 		tw32_f(NVRAM_ACCESS, nvaccess | ACCESS_ENABLE);
@@ -7218,8 +7211,7 @@ static int tg3_nvram_read(struct tg3 *tp, u32 offset, u32 *val)
 
 	tg3_nvram_unlock(tp);
 
-	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5750 ||
-	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752) {
+	if (tp->tg3_flags2 & TG3_FLG2_5750_PLUS) {
 		u32 nvaccess = tr32(NVRAM_ACCESS);
 
 		tw32_f(NVRAM_ACCESS, nvaccess & ~ACCESS_ENABLE);
@@ -7447,8 +7439,7 @@ static int tg3_nvram_write_block(struct tg3 *tp, u32 offset, u32 len, u8 *buf)
 
 		tg3_nvram_lock(tp);
 
-		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5750 ||
-		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752) {
+		if (tp->tg3_flags2 & TG3_FLG2_5750_PLUS) {
 			u32 nvaccess = tr32(NVRAM_ACCESS);
 
 			tw32(NVRAM_ACCESS, nvaccess | ACCESS_ENABLE);
@@ -7473,8 +7464,7 @@ static int tg3_nvram_write_block(struct tg3 *tp, u32 offset, u32 len, u8 *buf)
 		grc_mode = tr32(GRC_MODE);
 		tw32(GRC_MODE, grc_mode & ~GRC_MODE_NVRAM_WR_ENABLE);
 
-		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5750 ||
-		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752) {
+		if (tp->tg3_flags2 & TG3_FLG2_5750_PLUS) {
 			u32 nvaccess = tr32(NVRAM_ACCESS);
 
 			tw32(NVRAM_ACCESS, nvaccess & ~ACCESS_ENABLE);
@@ -7592,11 +7582,10 @@ static int __devinit tg3_phy_probe(struct tg3 *tp)
 		} else
 			eeprom_phy_id = 0;
 
-		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5750 ||
-		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752) {
+		if (tp->tg3_flags2 & TG3_FLG2_5750_PLUS)
 			led_cfg = cfg2 & (NIC_SRAM_DATA_CFG_LED_MODE_MASK |
 				    SHASTA_EXT_LED_MODE_MASK);
-		} else
+		else
 			led_cfg = nic_cfg & NIC_SRAM_DATA_CFG_LED_MODE_MASK;
 
 		switch (led_cfg) {
@@ -7646,8 +7635,7 @@ static int __devinit tg3_phy_probe(struct tg3 *tp)
 
 		if (nic_cfg & NIC_SRAM_DATA_CFG_ASF_ENABLE) {
 			tp->tg3_flags |= TG3_FLAG_ENABLE_ASF;
-			if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5750 ||
-			    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752)
+			if (tp->tg3_flags2 & TG3_FLG2_5750_PLUS)
 				tp->tg3_flags2 |= TG3_FLG2_ASF_NEW_HANDSHAKE;
 		}
 		if (nic_cfg & NIC_SRAM_DATA_CFG_FIBER_WOL)
