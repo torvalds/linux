@@ -1,33 +1,11 @@
 /*
  *  linux/drivers/message/fusion/mptlan.c
  *      IP Over Fibre Channel device driver.
- *      For use with PCI chip/adapter(s):
- *          LSIFC9xx/LSI409xx Fibre Channel
+ *      For use with LSI Logic Fibre Channel PCI chip/adapters
  *      running LSI Logic Fusion MPT (Message Passing Technology) firmware.
  *
- *  Credits:
- *      This driver would not exist if not for Alan Cox's development
- *      of the linux i2o driver.
+ *  Copyright (c) 2000-2005 LSI Logic Corporation
  *
- *      Special thanks goes to the I2O LAN driver people at the
- *      University of Helsinki, who, unbeknownst to them, provided
- *      the inspiration and initial structure for this driver.
- *
- *      A huge debt of gratitude is owed to David S. Miller (DaveM)
- *      for fixing much of the stupid and broken stuff in the early
- *      driver while porting to sparc64 platform.  THANK YOU!
- *
- *      A really huge debt of gratitude is owed to Eddie C. Dost
- *      for gobs of hard work fixing and optimizing LAN code.
- *      THANK YOU!
- *
- *      (see also mptbase.c)
- *
- *  Copyright (c) 2000-2004 LSI Logic Corporation
- *  Originally By: Noah Romer
- *  (mailto:mpt_linux_developer@lsil.com)
- *
- *  $Id: mptlan.c,v 1.53 2002/10/17 20:15:58 pdelaney Exp $
  */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*
@@ -221,7 +199,7 @@ lan_reply (MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *reply)
 
 		// NOTE!  (Optimization) First case here is now caught in
 		//  mptbase.c::mpt_interrupt() routine and callcack here
-		//  is now skipped for this case!  20001218 -sralston
+		//  is now skipped for this case!
 #if 0
 		case LAN_REPLY_FORM_MESSAGE_CONTEXT:
 //			dioprintk((KERN_INFO MYNAM "/lan_reply: "
@@ -234,7 +212,7 @@ lan_reply (MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *reply)
 //			dioprintk((MYNAM "/lan_reply: "
 //				  "calling mpt_lan_send_reply (turbo)\n"));
 
-			// Potential BUG here?  -sralston
+			// Potential BUG here?
 			//	FreeReqFrame = mpt_lan_send_turbo(dev, tmsg);
 			//  If/when mpt_lan_send_turbo would return 1 here,
 			//  calling routine (mptbase.c|mpt_interrupt)
@@ -310,8 +288,7 @@ lan_reply (MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *reply)
 
 	case MPI_FUNCTION_EVENT_NOTIFICATION:
 	case MPI_FUNCTION_EVENT_ACK:
-		/* UPDATE!  20010120 -sralston
-		 *  _EVENT_NOTIFICATION should NOT come down this path any more.
+		/*  _EVENT_NOTIFICATION should NOT come down this path any more.
 		 *  Should be routed to mpt_lan_event_process(), but just in case...
 		 */
 		FreeReqFrame = 1;
