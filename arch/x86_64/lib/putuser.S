@@ -49,8 +49,8 @@ __put_user_2:
 	jc 20f
 	cmpq threadinfo_addr_limit(%r8),%rcx
 	jae 20f
-2:	decq %rcx
-	movw %dx,(%rcx)
+	decq %rcx
+2:	movw %dx,(%rcx)
 	xorl %eax,%eax
 	ret
 20:	decq %rcx
@@ -64,8 +64,8 @@ __put_user_4:
 	jc 30f
 	cmpq threadinfo_addr_limit(%r8),%rcx
 	jae 30f
-3:	subq $3,%rcx
-	movl %edx,(%rcx)
+	subq $3,%rcx
+3:	movl %edx,(%rcx)
 	xorl %eax,%eax
 	ret
 30:	subq $3,%rcx
@@ -79,8 +79,8 @@ __put_user_8:
 	jc 40f
 	cmpq threadinfo_addr_limit(%r8),%rcx
 	jae 40f
-4:	subq $7,%rcx
-	movq %rdx,(%rcx)
+	subq $7,%rcx
+4:	movq %rdx,(%rcx)
 	xorl %eax,%eax
 	ret
 40:	subq $7,%rcx
