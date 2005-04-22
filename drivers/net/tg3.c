@@ -3732,6 +3732,28 @@ static void tg3_nvram_unlock(struct tg3 *tp)
 }
 
 /* tp->lock is held. */
+static void tg3_enable_nvram_access(struct tg3 *tp)
+{
+	if ((tp->tg3_flags2 & TG3_FLG2_5750_PLUS) &&
+	    !(tp->tg3_flags2 & TG3_FLG2_PROTECTED_NVRAM)) {
+		u32 nvaccess = tr32(NVRAM_ACCESS);
+
+		tw32(NVRAM_ACCESS, nvaccess | ACCESS_ENABLE);
+	}
+}
+
+/* tp->lock is held. */
+static void tg3_disable_nvram_access(struct tg3 *tp)
+{
+	if ((tp->tg3_flags2 & TG3_FLG2_5750_PLUS) &&
+	    !(tp->tg3_flags2 & TG3_FLG2_PROTECTED_NVRAM)) {
+		u32 nvaccess = tr32(NVRAM_ACCESS);
+
+		tw32(NVRAM_ACCESS, nvaccess & ~ACCESS_ENABLE);
+	}
+}
+
+/* tp->lock is held. */
 static void tg3_write_sig_pre_reset(struct tg3 *tp, int kind)
 {
 	if (!(tp->tg3_flags2 & TG3_FLG2_SUN_570X))
@@ -7102,6 +7124,10 @@ static void __devinit tg3_get_5752_nvram_info(struct tg3 *tp)
 
 	nvcfg1 = tr32(NVRAM_CFG1);
 
+	/* NVRAM protection for TPM */
+	if (nvcfg1 & (1 << 27))
+		tp->tg3_flags2 |= TG3_FLG2_PROTECTED_NVRAM;
+
 	switch (nvcfg1 & NVRAM_CFG1_5752VENDOR_MASK) {
 		case FLASH_5752VENDOR_ATMEL_EEPROM_64KHZ:
 		case FLASH_5752VENDOR_ATMEL_EEPROM_376KHZ:
@@ -7179,11 +7205,7 @@ static void __devinit tg3_nvram_init(struct tg3 *tp)
 	    GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5701) {
 		tp->tg3_flags |= TG3_FLAG_NVRAM;
 
-		if (tp->tg3_flags2 & TG3_FLG2_5750_PLUS) {
-			u32 nvaccess = tr32(NVRAM_ACCESS);
-
-			tw32(NVRAM_ACCESS, nvaccess | ACCESS_ENABLE);
-		}
+		tg3_enable_nvram_access(tp);
 
 		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752)
 			tg3_get_5752_nvram_info(tp);
@@ -7192,11 +7214,7 @@ static void __devinit tg3_nvram_init(struct tg3 *tp)
 
 		tg3_get_nvram_size(tp);
 
-		if (tp->tg3_flags2 & TG3_FLG2_5750_PLUS) {
-			u32 nvaccess = tr32(NVRAM_ACCESS);
-
-			tw32(NVRAM_ACCESS, nvaccess & ~ACCESS_ENABLE);
-		}
+		tg3_disable_nvram_access(tp);
 
 	} else {
 		tp->tg3_flags &= ~(TG3_FLAG_NVRAM | TG3_FLAG_NVRAM_BUFFERED);
@@ -7285,11 +7303,7 @@ static int tg3_nvram_read(struct tg3 *tp, u32 offset, u32 *val)
 
 	tg3_nvram_lock(tp);
 
-	if (tp->tg3_flags2 & TG3_FLG2_5750_PLUS) {
-		u32 nvaccess = tr32(NVRAM_ACCESS);
-
-		tw32_f(NVRAM_ACCESS, nvaccess | ACCESS_ENABLE);
-	}
+	tg3_enable_nvram_access(tp);
 
 	tw32(NVRAM_ADDR, offset);
 	ret = tg3_nvram_exec_cmd(tp, NVRAM_CMD_RD | NVRAM_CMD_GO |
@@ -7300,11 +7314,7 @@ static int tg3_nvram_read(struct tg3 *tp, u32 offset, u32 *val)
 
 	tg3_nvram_unlock(tp);
 
-	if (tp->tg3_flags2 & TG3_FLG2_5750_PLUS) {
-		u32 nvaccess = tr32(NVRAM_ACCESS);
-
-		tw32_f(NVRAM_ACCESS, nvaccess & ~ACCESS_ENABLE);
-	}
+	tg3_disable_nvram_access(tp);
 
 	return ret;
 }
@@ -7367,7 +7377,7 @@ static int tg3_nvram_write_block_unbuffered(struct tg3 *tp, u32 offset, u32 len,
 
 	while (len) {
 		int j;
-		u32 phy_addr, page_off, size, nvaccess;
+		u32 phy_addr, page_off, size;
 
 		phy_addr = offset & ~pagemask;
 	
@@ -7390,8 +7400,7 @@ static int tg3_nvram_write_block_unbuffered(struct tg3 *tp, u32 offset, u32 len,
 
 		offset = offset + (pagesize - page_off);
 
-		nvaccess = tr32(NVRAM_ACCESS);
-		tw32_f(NVRAM_ACCESS, nvaccess | ACCESS_ENABLE);
+		tg3_enable_nvram_access(tp);
 
 		/*
 		 * Before we can erase the flash page, we need
@@ -7528,13 +7537,10 @@ static int tg3_nvram_write_block(struct tg3 *tp, u32 offset, u32 len, u8 *buf)
 
 		tg3_nvram_lock(tp);
 
-		if (tp->tg3_flags2 & TG3_FLG2_5750_PLUS) {
-			u32 nvaccess = tr32(NVRAM_ACCESS);
-
-			tw32(NVRAM_ACCESS, nvaccess | ACCESS_ENABLE);
-
+		tg3_enable_nvram_access(tp);
+		if ((tp->tg3_flags2 & TG3_FLG2_5750_PLUS) &&
+		    !(tp->tg3_flags2 & TG3_FLG2_PROTECTED_NVRAM))
 			tw32(NVRAM_WRITE1, 0x406);
-		}
 
 		grc_mode = tr32(GRC_MODE);
 		tw32(GRC_MODE, grc_mode | GRC_MODE_NVRAM_WR_ENABLE);
@@ -7553,11 +7559,7 @@ static int tg3_nvram_write_block(struct tg3 *tp, u32 offset, u32 len, u8 *buf)
 		grc_mode = tr32(GRC_MODE);
 		tw32(GRC_MODE, grc_mode & ~GRC_MODE_NVRAM_WR_ENABLE);
 
-		if (tp->tg3_flags2 & TG3_FLG2_5750_PLUS) {
-			u32 nvaccess = tr32(NVRAM_ACCESS);
-
-			tw32(NVRAM_ACCESS, nvaccess & ~ACCESS_ENABLE);
-		}
+		tg3_disable_nvram_access(tp);
 		tg3_nvram_unlock(tp);
 	}
 
