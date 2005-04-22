@@ -460,10 +460,9 @@ __ia32_rt_sigsuspend (compat_sigset_t *sset, unsigned int sigsetsize, struct sig
 	sigset_t oldset, set;
 
 	scr->scratch_unat = 0;	/* avoid leaking kernel bits to user level */
-	memset(&set, 0, sizeof(&set));
+	memset(&set, 0, sizeof(set));
 
-	if (memcpy(&set.sig, &sset->sig, sigsetsize))
-		return -EFAULT;
+	memcpy(&set.sig, &sset->sig, sigsetsize);
 
 	sigdelsetmask(&set, ~_BLOCKABLE);
 
