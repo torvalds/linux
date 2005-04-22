@@ -125,6 +125,8 @@
 #define  CHIPREV_ID_5750_A0		 0x4000
 #define  CHIPREV_ID_5750_A1		 0x4001
 #define  CHIPREV_ID_5750_A3		 0x4003
+#define  CHIPREV_ID_5752_A0		 0x5000
+#define  CHIPREV_ID_5752_A1		 0x6001
 #define  GET_ASIC_REV(CHIP_REV_ID)	((CHIP_REV_ID) >> 12)
 #define   ASIC_REV_5700			 0x07
 #define   ASIC_REV_5701			 0x00
@@ -132,7 +134,8 @@
 #define   ASIC_REV_5704			 0x02
 #define   ASIC_REV_5705			 0x03
 #define   ASIC_REV_5750			 0x04
-#define   ASIC_REV_5752			 0x05
+#define   ASIC_REV_5752_A0		 0x05
+#define   ASIC_REV_5752_A1		 0x06
 #define  GET_CHIP_REV(CHIP_REV_ID)	((CHIP_REV_ID) >> 8)
 #define   CHIPREV_5700_AX		 0x70
 #define   CHIPREV_5700_BX		 0x71

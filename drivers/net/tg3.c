@@ -7929,7 +7929,8 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	tp->pci_bist         = (cacheline_sz_reg >> 24) & 0xff;
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5750 ||
-	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752)
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752_A0 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752_A1)
 		tp->tg3_flags2 |= TG3_FLG2_5750_PLUS;
 
 	if ((GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5705) ||
