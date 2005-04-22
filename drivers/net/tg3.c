@@ -7928,14 +7928,13 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	tp->pci_hdr_type     = (cacheline_sz_reg >> 16) & 0xff;
 	tp->pci_bist         = (cacheline_sz_reg >> 24) & 0xff;
 
-	if ((GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5705) ||
-	    (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5750) ||
-	    (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752))
-		tp->tg3_flags2 |= TG3_FLG2_5705_PLUS;
-
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5750 ||
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752)
 		tp->tg3_flags2 |= TG3_FLG2_5750_PLUS;
+
+	if ((GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5705) ||
+	    (tp->tg3_flags2 & TG3_FLG2_5750_PLUS))
+		tp->tg3_flags2 |= TG3_FLG2_5705_PLUS;
 
 	if (tp->tg3_flags2 & TG3_FLG2_5750_PLUS)
 		tp->tg3_flags2 |= TG3_FLG2_HW_TSO;
