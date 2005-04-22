@@ -1,35 +1,50 @@
 
 menu "Fusion MPT device support"
 
-config FUSION
-	tristate "Fusion MPT (base + ScsiHost) drivers"
+config FUSION_SPI
+	tristate "Fusion MPT ScsiHost drivers for SPI"
 	depends on PCI && SCSI
 	---help---
-	  LSI Logic Fusion(TM) Message Passing Technology (MPT) device support
-	  provides high performance SCSI host initiator, and LAN [1] interface
-	  services to a host system.  The Fusion architecture is capable of
-	  duplexing these protocols on high-speed Fibre Channel
-	  (up to 2 GHz x 2 ports = 4 GHz) and parallel SCSI (up to Ultra-320)
-	  physical medium.
+	  SCSI HOST support for a parallel SCSI host adapters.
 
-	  [1] LAN is not supported on parallel SCSI medium.
+	  List of supported controllers:
+
+	  LSI53C1020
+	  LSI53C1020A
+	  LSI53C1030
+	  LSI53C1035
+
+config FUSION_FC
+	tristate "Fusion MPT ScsiHost drivers for FC"
+	depends on PCI && SCSI
+	---help---
+	  SCSI HOST support for a Fiber Channel host adapters.
+
+	  List of supported controllers:
+
+	  LSIFC909
+	  LSIFC919
+	  LSIFC919X
+	  LSIFC929
+	  LSIFC929X
+	  LSIFC929XL
 
 config FUSION_MAX_SGE
 	int "Maximum number of scatter gather entries"
-	depends on FUSION
-	default "40"
+	depends on FUSION_SPI || FUSION_FC
+	default "128"
 	help
 	  This option allows you to specify the maximum number of scatter-
 	  gather entries per I/O. The driver defaults to 40, a reasonable number
 	  for most systems. However, the user may increase this up to 128.
-	  Increasing this parameter will require significantly more memory 
+	  Increasing this parameter will require significantly more memory
 	  on a per controller instance. Increasing the parameter is not
-	  necessary (or recommended) unless the user will be running 
+	  necessary (or recommended) unless the user will be running
 	  large I/O's via the raw interface.
 
 config FUSION_CTL
 	tristate "Fusion MPT misc device (ioctl) driver"
-	depends on FUSION
+	depends on FUSION_SPI || FUSION_FC
 	---help---
 	  The Fusion MPT misc device driver provides specialized control
 	  of MPT adapters via system ioctl calls.  Use of ioctl calls to
@@ -48,7 +63,7 @@ config FUSION_CTL
 
 config FUSION_LAN
 	tristate "Fusion MPT LAN driver"
-	depends on FUSION && NET_FC
+	depends on FUSION_FC && NET_FC
 	---help---
 	  This module supports LAN IP traffic over Fibre Channel port(s)
 	  on Fusion MPT compatible hardware (LSIFC9xx chips).
