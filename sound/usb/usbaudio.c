@@ -1990,10 +1990,11 @@ static void proc_dump_substream_status(snd_usb_substream_t *subs, snd_info_buffe
 			snd_iprintf(buffer, "%d ", subs->dataurb[i].packets);
 		snd_iprintf(buffer, "]\n");
 		snd_iprintf(buffer, "    Packet Size = %d\n", subs->curpacksize);
-		snd_iprintf(buffer, "    Momentary freq = %u Hz\n",
+		snd_iprintf(buffer, "    Momentary freq = %u Hz (%#x.%04x)\n",
 			    snd_usb_get_speed(subs->dev) == USB_SPEED_FULL
 			    ? get_full_speed_hz(subs->freqm)
-			    : get_high_speed_hz(subs->freqm));
+			    : get_high_speed_hz(subs->freqm),
+			    subs->freqm >> 16, subs->freqm & 0xffff);
 	} else {
 		snd_iprintf(buffer, "  Status: Stop\n");
 	}
