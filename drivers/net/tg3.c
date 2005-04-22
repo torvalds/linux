@@ -2907,6 +2907,43 @@ static inline unsigned int tg3_has_work(struct net_device *dev, struct tg3 *tp)
 	return work_exists;
 }
 
+/* MSI ISR - No need to check for interrupt sharing and no need to
+ * flush status block and interrupt mailbox. PCI ordering rules
+ * guarantee that MSI will arrive after the status block.
+ */
+static irqreturn_t tg3_msi(int irq, void *dev_id, struct pt_regs *regs)
+{
+	struct net_device *dev = dev_id;
+	struct tg3 *tp = netdev_priv(dev);
+	struct tg3_hw_status *sblk = tp->hw_status;
+	unsigned long flags;
+
+	spin_lock_irqsave(&tp->lock, flags);
+
+	/*
+	 * writing any value to intr-mbox-0 clears PCI INTA# and
+	 * chip-internal interrupt pending events.
+	 * writing non-zero to intr-mbox-0 additional tells the
+	 * NIC to stop sending us irqs, engaging "in-intr-handler"
+	 * event coalescing.
+	 */
+	tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW, 0x00000001);
+	sblk->status &= ~SD_STATUS_UPDATED;
+
+	if (likely(tg3_has_work(dev, tp)))
+		netif_rx_schedule(dev);		/* schedule NAPI poll */
+	else {
+		/* no work, re-enable interrupts
+		 */
+		tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
+			     0x00000000);
+	}
+
+	spin_unlock_irqrestore(&tp->lock, flags);
+
+	return IRQ_RETVAL(1);
+}
+
 static irqreturn_t tg3_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct net_device *dev = dev_id;
@@ -2965,7 +3002,9 @@ static int tg3_halt(struct tg3 *);
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void tg3_poll_controller(struct net_device *dev)
 {
-	tg3_interrupt(dev->irq, dev, NULL);
+	struct tg3 *tp = netdev_priv(dev);
+
+	tg3_interrupt(tp->pdev->irq, dev, NULL);
 }
 #endif
 
@@ -5778,10 +5817,29 @@ static int tg3_open(struct net_device *dev)
 	if (err)
 		return err;
 
-	err = request_irq(dev->irq, tg3_interrupt,
-			  SA_SHIRQ, dev->name, dev);
+	if ((tp->tg3_flags2 & TG3_FLG2_5750_PLUS) &&
+	    (GET_CHIP_REV(tp->pci_chip_rev_id) != CHIPREV_5750_AX) &&
+	    (GET_CHIP_REV(tp->pci_chip_rev_id) != CHIPREV_5750_BX)) {
+		if (pci_enable_msi(tp->pdev) == 0) {
+			u32 msi_mode;
+
+			msi_mode = tr32(MSGINT_MODE);
+			tw32(MSGINT_MODE, msi_mode | MSGINT_MODE_ENABLE);
+			tp->tg3_flags2 |= TG3_FLG2_USING_MSI;
+		}
+	}
+	if (tp->tg3_flags2 & TG3_FLG2_USING_MSI)
+		err = request_irq(tp->pdev->irq, tg3_msi,
+				  0, dev->name, dev);
+	else
+		err = request_irq(tp->pdev->irq, tg3_interrupt,
+				  SA_SHIRQ, dev->name, dev);
 
 	if (err) {
+		if (tp->tg3_flags2 & TG3_FLG2_USING_MSI) {
+			pci_disable_msi(tp->pdev);
+			tp->tg3_flags2 &= ~TG3_FLG2_USING_MSI;
+		}
 		tg3_free_consistent(tp);
 		return err;
 	}
@@ -5811,7 +5869,11 @@ static int tg3_open(struct net_device *dev)
 	spin_unlock_irq(&tp->lock);
 
 	if (err) {
-		free_irq(dev->irq, dev);
+		free_irq(tp->pdev->irq, dev);
+		if (tp->tg3_flags2 & TG3_FLG2_USING_MSI) {
+			pci_disable_msi(tp->pdev);
+			tp->tg3_flags2 &= ~TG3_FLG2_USING_MSI;
+		}
 		tg3_free_consistent(tp);
 		return err;
 	}
@@ -6086,7 +6148,11 @@ static int tg3_close(struct net_device *dev)
 	spin_unlock(&tp->tx_lock);
 	spin_unlock_irq(&tp->lock);
 
-	free_irq(dev->irq, dev);
+	free_irq(tp->pdev->irq, dev);
+	if (tp->tg3_flags2 & TG3_FLG2_USING_MSI) {
+		pci_disable_msi(tp->pdev);
+		tp->tg3_flags2 &= ~TG3_FLG2_USING_MSI;
+	}
 
 	memcpy(&tp->net_stats_prev, tg3_get_stats(tp->dev),
 	       sizeof(tp->net_stats_prev));
