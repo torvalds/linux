@@ -70,6 +70,7 @@ struct usb_mixer_build {
 	DECLARE_BITMAP(unitbitmap, 32*32);
 	usb_audio_term_t oterm;
 	const struct usbmix_name_map *map;
+	const struct usbmix_selector_map *selector_map;
 };
 
 struct usb_mixer_elem_info {
@@ -183,6 +184,21 @@ static int check_ignored_ctl(mixer_build_t *state, int unitid, int control)
 			// printk("ignored control %d:%d\n", unitid, control);
 			return 1;
 		}
+	}
+	return 0;
+}
+
+/* get the mapped selector source name */
+static int check_mapped_selector_name(mixer_build_t *state, int unitid,
+				      int index, char *buf, int buflen)
+{
+	const struct usbmix_selector_map *p;
+
+	if (! state->selector_map)
+		return 0;
+	for (p = state->selector_map; p->id; p++) {
+		if (p->id == unitid && index < p->count)
+			return strlcpy(buf, p->names[index], buflen);
 	}
 	return 0;
 }
@@ -1415,7 +1431,9 @@ static int parse_audio_selector_unit(mixer_build_t *state, int unitid, unsigned 
 			kfree(cval);
 			return -ENOMEM;
 		}
-		if (check_input_term(state, desc[5 + i], &iterm) >= 0)
+		len = check_mapped_selector_name(state, unitid, i, namelist[i],
+						 MAX_ITEM_NAME_LEN);
+		if (! len && check_input_term(state, desc[5 + i], &iterm) >= 0)
 			len = get_term_name(state, &iterm, namelist[i], MAX_ITEM_NAME_LEN, 0);
 		if (! len)
 			sprintf(namelist[i], "Input %d", i);
@@ -1521,6 +1539,7 @@ int snd_usb_create_mixer(snd_usb_audio_t *chip, int ctrlif)
 	for (map = usbmix_ctl_maps; map->vendor; map++) {
 		if (map->vendor == state.vendor && map->product == state.product) {
 			state.map = map->map;
+			state.selector_map = map->selector_map;
 			chip->ignore_ctl_error = map->ignore_ctl_error;
 			break;
 		}

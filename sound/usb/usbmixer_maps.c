@@ -26,10 +26,17 @@ struct usbmix_name_map {
 	int control;
 };
 
+struct usbmix_selector_map {
+	int id;
+	int count;
+	const char **names;
+};
+
 struct usbmix_ctl_map {
 	int vendor;
 	int product;
 	const struct usbmix_name_map *map;
+	const struct usbmix_selector_map *selector_map;
 	int ignore_ctl_error;
 };
 
@@ -162,6 +169,25 @@ static struct usbmix_name_map audigy2nx_map[] = {
 	{ 0 } /* terminator */
 };
 
+static struct usbmix_selector_map audigy2nx_selectors[] = {
+	{
+		.id = 14, /* Capture Source */
+		.count = 3,
+		.names = (const char*[]) {"Line", "Digital In", "What-U-Hear"}
+	},
+	{
+		.id = 29, /* Digital Out Source */
+		.count = 3,
+		.names = (const char*[]) {"Front", "PCM", "Digital In"}
+	},
+	{
+		.id = 31, /* Headphone Source */
+		.count = 2,
+		.names = (const char*[]) {"Front", "Side"}
+	},
+	{ 0 } /* terminator */
+};
+
 /* LineX FM Transmitter entry - needed to bypass controls bug */
 static struct usbmix_name_map linex_map[] = {
 	/* 1: IT pcm */
@@ -198,11 +224,29 @@ static struct usbmix_name_map justlink_map[] = {
  */
 
 static struct usbmix_ctl_map usbmix_ctl_maps[] = {
-	{ 0x41e, 0x3000, extigy_map, 1 },
-	{ 0x41e, 0x3010, mp3plus_map, 0 },
-	{ 0x41e, 0x3020, audigy2nx_map, 0 },
-	{ 0x8bb, 0x2702, linex_map, 1 },
-	{ 0xc45, 0x1158, justlink_map, 0 },
+	{
+		.vendor = 0x41e, .product = 0x3000,
+		.map = extigy_map,
+		.ignore_ctl_error = 1,
+	},
+	{
+		.vendor = 0x41e, .product = 0x3010,
+		.map = mp3plus_map,
+	},
+	{
+		.vendor = 0x41e, .product = 0x3020,
+		.map = audigy2nx_map,
+		.selector_map = audigy2nx_selectors,
+	},
+	{
+		.vendor = 0x8bb, .product = 0x2702,
+		.map = linex_map,
+		.ignore_ctl_error = 1,
+	},
+	{
+		.vendor = 0xc45, .product = 0x1158,
+		.map = justlink_map,
+	},
 	{ 0 } /* terminator */
 };
 
