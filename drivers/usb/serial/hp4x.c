@@ -2,7 +2,7 @@
  * HP4x Calculators Serial USB driver
  *
  * Copyright (C) 2005 Arthur Huillet (ahuillet@users.sf.net)
- * Copyright (C) 2001-2004 Greg Kroah-Hartman (greg@kroah.com)
+ * Copyright (C) 2001-2005 Greg Kroah-Hartman (greg@kroah.com)
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -14,17 +14,9 @@
 
 #include <linux/config.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
 #include <linux/init.h>
-#include <linux/slab.h>
 #include <linux/tty.h>
-#include <linux/tty_driver.h>
-#include <linux/tty_flip.h>
-#include <linux/serial.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/spinlock.h>
-#include <asm/uaccess.h>
 #include <linux/usb.h>
 #include "usb-serial.h"
 
@@ -36,8 +28,6 @@
 
 #define HP_VENDOR_ID 0x03f0
 #define HP49GP_PRODUCT_ID 0x0121
-
-static int debug;
 
 static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(HP_VENDOR_ID, HP49GP_PRODUCT_ID) },
@@ -81,13 +71,11 @@ failed_usb_serial_register:
 	return retval;
 }
 
-
 static void __exit hp49gp_exit(void)
 {
 	usb_deregister(&hp49gp_driver);
 	usb_serial_deregister(&hp49gp_device);
 }
-
 
 module_init(hp49gp_init);
 module_exit(hp49gp_exit);
