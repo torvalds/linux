@@ -520,9 +520,13 @@ static int keyspan_pda_write(struct usb_serial_port *port,
 	   the TX urb is in-flight (wait until it completes)
 	   the device is full (wait until it says there is room)
 	*/
-	if (port->write_urb->status == -EINPROGRESS || priv->tx_throttled ) {
-		return( 0 );
+	spin_lock(&port->lock);
+	if (port->write_urb_busy || priv->tx_throttled) {
+		spin_unlock(&port->lock);
+		return 0;
 	}
+	port->write_urb_busy = 1;
+	spin_unlock(&port->lock);
 
 	/* At this point the URB is in our control, nobody else can submit it
 	   again (the only sudden transition was the one from EINPROGRESS to
@@ -570,7 +574,7 @@ static int keyspan_pda_write(struct usb_serial_port *port,
 		memcpy (port->write_urb->transfer_buffer, buf, count);
 		/* send the data out the bulk port */
 		port->write_urb->transfer_buffer_length = count;
-		
+
 		priv->tx_room -= count;
 
 		port->write_urb->dev = port->serial->dev;
@@ -593,6 +597,8 @@ static int keyspan_pda_write(struct usb_serial_port *port,
 
 	rc = count;
 exit:
+	if (rc < 0)
+		port->write_urb_busy = 0;
 	return rc;
 }
 
@@ -602,6 +608,7 @@ static void keyspan_pda_write_bulk_callback (struct urb *urb, struct pt_regs *re
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 	struct keyspan_pda_private *priv;
 
+	port->write_urb_busy = 0;
 	priv = usb_get_serial_port_data(port);
 
 	/* queue up a wakeup at scheduler time */
@@ -626,12 +633,12 @@ static int keyspan_pda_write_room (struct usb_serial_port *port)
 static int keyspan_pda_chars_in_buffer (struct usb_serial_port *port)
 {
 	struct keyspan_pda_private *priv;
-	
+
 	priv = usb_get_serial_port_data(port);
-	
+
 	/* when throttled, return at least WAKEUP_CHARS to tell select() (via
 	   n_tty.c:normal_poll() ) that we're not writeable. */
-	if( port->write_urb->status == -EINPROGRESS || priv->tx_throttled )
+	if (port->write_urb_busy || priv->tx_throttled)
 		return 256;
 	return 0;
 }
