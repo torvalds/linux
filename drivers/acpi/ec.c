@@ -282,7 +282,7 @@ end:
 
 	if(atomic_read(&ec->leaving_burst) == 2){
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,"aborted, retry ...\n"));
-		while(!atomic_read(&ec->pending_gpe)){
+		while(atomic_read(&ec->pending_gpe)){
 			msleep(1);	
 		}
 		acpi_enable_gpe(NULL, ec->gpe_bit, ACPI_NOT_ISR);
@@ -365,7 +365,7 @@ end:
 
 	if(atomic_read(&ec->leaving_burst) == 2){
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,"aborted, retry ...\n"));
-		while(!atomic_read(&ec->pending_gpe)){
+		while(atomic_read(&ec->pending_gpe)){
 			msleep(1);	
 		}
 		acpi_enable_gpe(NULL, ec->gpe_bit, ACPI_NOT_ISR);
@@ -431,7 +431,6 @@ acpi_ec_query (
 
 	if (!ec || !data)
 		return_VALUE(-EINVAL);
-retry:
 	*data = 0;
 
 	if (ec->global_lock) {
@@ -469,13 +468,9 @@ end:
 
 	if(atomic_read(&ec->leaving_burst) == 2){
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,"aborted, retry ...\n"));
-		while(!atomic_read(&ec->pending_gpe)){
-			msleep(1);	
-		}
 		acpi_enable_gpe(NULL, ec->gpe_bit, ACPI_NOT_ISR);
-		goto retry;
+		status = -ENODATA;
 	}
-
 	return_VALUE(status);
 }
 
@@ -514,8 +509,8 @@ acpi_ec_gpe_query (
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Evaluating %s\n", object_name));
 
 	acpi_evaluate_object(ec->handle, object_name, NULL, NULL);
-	atomic_dec(&ec->pending_gpe);
 end:	
+	atomic_dec(&ec->pending_gpe);
 	return;
 }
 
@@ -553,7 +548,7 @@ acpi_ec_gpe_handler (
 				!(value & ACPI_EC_FLAG_IBF))) {
 			ec->expect_event = 0;
 			wake_up(&ec->wait);
-			
+			return ACPI_INTERRUPT_HANDLED;
 		}
 	}
 
@@ -561,8 +556,10 @@ acpi_ec_gpe_handler (
 		atomic_add(1, &ec->pending_gpe) ;
 		status = acpi_os_queue_for_execution(OSD_PRIORITY_GPE,
 						acpi_ec_gpe_query, ec);
+		return status == AE_OK ?
+		ACPI_INTERRUPT_HANDLED : ACPI_INTERRUPT_NOT_HANDLED;
 	} 
-
+	acpi_enable_gpe(NULL, ec->gpe_bit, ACPI_ISR);
 	return status == AE_OK ?
 		ACPI_INTERRUPT_HANDLED : ACPI_INTERRUPT_NOT_HANDLED;
 }
@@ -688,6 +685,7 @@ acpi_ec_read_info (struct seq_file *seq, void *offset)
 		(u32) ec->status_addr.address, (u32) ec->data_addr.address);
 	seq_printf(seq, "use global lock:         %s\n",
 		ec->global_lock?"yes":"no");
+	acpi_enable_gpe(NULL, ec->gpe_bit, ACPI_NOT_ISR);
 
 end:
 	return_VALUE(0);
