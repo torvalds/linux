@@ -95,12 +95,11 @@
 #include <linux/init.h>
 #include <linux/timer.h>
 #include <linux/list.h>
-#include <linux/interrupt.h>  /* for in_interrupt () */
 #include <linux/usb.h>
 #include <linux/usb_otg.h>
-#include "../core/hcd.h"
 #include <linux/dma-mapping.h> 
-#include <linux/dmapool.h>    /* needed by ohci-mem.c when no PCI */
+#include <linux/dmapool.h>
+#include <linux/reboot.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -108,8 +107,9 @@
 #include <asm/unaligned.h>
 #include <asm/byteorder.h>
 
+#include "../core/hcd.h"
 
-#define DRIVER_VERSION "2004 Nov 08"
+#define DRIVER_VERSION "2005 April 22"
 #define DRIVER_AUTHOR "Roman Weissgaerber, David Brownell"
 #define DRIVER_DESC "USB 1.1 'Open' Host Controller (OHCI) Driver"
 
@@ -141,6 +141,7 @@ static const char	hcd_name [] = "ohci_hcd";
 static void ohci_dump (struct ohci_hcd *ohci, int verbose);
 static int ohci_init (struct ohci_hcd *ohci);
 static void ohci_stop (struct usb_hcd *hcd);
+static int ohci_reboot (struct notifier_block *, unsigned long , void *);
 
 #include "ohci-hub.c"
 #include "ohci-dbg.c"
@@ -420,6 +421,23 @@ static void ohci_usb_reset (struct ohci_hcd *ohci)
 	ohci_writel (ohci, ohci->hc_control, &ohci->regs->control);
 }
 
+/* reboot notifier forcibly disables IRQs and DMA, helping kexec and
+ * other cases where the next software may expect clean state from the
+ * "firmware".  this is bus-neutral, unlike shutdown() methods.
+ */
+static int
+ohci_reboot (struct notifier_block *block, unsigned long code, void *null)
+{
+	struct ohci_hcd *ohci;
+
+	ohci = container_of (block, struct ohci_hcd, reboot_notifier);
+	ohci_writel (ohci, OHCI_INTR_MIE, &ohci->regs->intrdisable);
+	ohci_usb_reset (ohci);
+	/* flush the writes */
+	(void) ohci_readl (ohci, &ohci->regs->control);
+	return 0;
+}
+
 /*-------------------------------------------------------------------------*
  * HC functions
  *-------------------------------------------------------------------------*/
@@ -684,6 +702,7 @@ retry:
 	if (ohci->power_budget)
 		hub_set_power_budget(udev, ohci->power_budget);
 
+	register_reboot_notifier (&ohci->reboot_notifier);
 	create_debug_files (ohci);
 	return 0;
 }
@@ -781,6 +800,7 @@ static void ohci_stop (struct usb_hcd *hcd)
 	ohci_writel (ohci, OHCI_INTR_MIE, &ohci->regs->intrdisable);
 	
 	remove_debug_files (ohci);
+	unregister_reboot_notifier (&ohci->reboot_notifier);
 	ohci_mem_cleanup (ohci);
 	if (ohci->hcca) {
 		dma_free_coherent (hcd->self.controller, 
