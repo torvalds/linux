@@ -1,9 +1,14 @@
 
 menu "Fusion MPT device support"
 
+config FUSION
+	bool
+	default n
+
 config FUSION_SPI
 	tristate "Fusion MPT ScsiHost drivers for SPI"
 	depends on PCI && SCSI
+	select FUSION
 	---help---
 	  SCSI HOST support for a parallel SCSI host adapters.
 
@@ -17,6 +22,7 @@ config FUSION_SPI
 config FUSION_FC
 	tristate "Fusion MPT ScsiHost drivers for FC"
 	depends on PCI && SCSI
+	select FUSION
 	---help---
 	  SCSI HOST support for a Fiber Channel host adapters.
 
