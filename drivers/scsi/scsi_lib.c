@@ -92,7 +92,7 @@ int scsi_insert_special_req(struct scsi_request *sreq, int at_head)
 	 */
 	sreq->sr_request->flags &= ~REQ_DONTPREP;
 	blk_insert_request(sreq->sr_device->request_queue, sreq->sr_request,
-		       	   at_head, sreq, 0);
+		       	   at_head, sreq);
 	return 0;
 }
 
