@@ -96,6 +96,8 @@ int scsi_insert_special_req(struct scsi_request *sreq, int at_head)
 	return 0;
 }
 
+static void scsi_run_queue(struct request_queue *q);
+
 /*
  * Function:    scsi_queue_insert()
  *
@@ -119,6 +121,8 @@ int scsi_queue_insert(struct scsi_cmnd *cmd, int reason)
 {
 	struct Scsi_Host *host = cmd->device->host;
 	struct scsi_device *device = cmd->device;
+	struct request_queue *q = device->request_queue;
+	unsigned long flags;
 
 	SCSI_LOG_MLQUEUE(1,
 		 printk("Inserting command %p into mlqueue\n", cmd));
@@ -160,17 +164,22 @@ int scsi_queue_insert(struct scsi_cmnd *cmd, int reason)
 	scsi_device_unbusy(device);
 
 	/*
-	 * Insert this command at the head of the queue for it's device.
-	 * It will go before all other commands that are already in the queue.
+	 * Requeue this command.  It will go before all other commands
+	 * that are already in the queue.
 	 *
 	 * NOTE: there is magic here about the way the queue is plugged if
 	 * we have no outstanding commands.
 	 * 
-	 * Although this *doesn't* plug the queue, it does call the request
+	 * Although we *don't* plug the queue, we call the request
 	 * function.  The SCSI request function detects the blocked condition
 	 * and plugs the queue appropriately.
-	 */
-	blk_insert_request(device->request_queue, cmd->request, 1, cmd, 1);
+         */
+	spin_lock_irqsave(q->queue_lock, flags);
+	blk_requeue_request(q, cmd->request);
+	spin_unlock_irqrestore(q->queue_lock, flags);
+
+	scsi_run_queue(q);
+
 	return 0;
 }
 
