@@ -29,6 +29,7 @@
 #include <linux/timer.h>
 #include <linux/skbuff.h>
 #include <linux/wait.h>
+#include <asm/io.h>
 #include "hisax_if.h"
 #include "hfc4s8s_l1.h"
 
