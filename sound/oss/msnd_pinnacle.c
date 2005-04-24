@@ -892,7 +892,7 @@ static __inline__ int pack_DAPF_to_DAPQ(register int start)
 static int dsp_read(char __user *buf, size_t len)
 {
 	int count = len;
-	char *page = (char *)__get_free_page(PAGE_SIZE);
+	char *page = (char *)__get_free_page(GFP_KERNEL);
 
 	if (!page)
 		return -ENOMEM;
