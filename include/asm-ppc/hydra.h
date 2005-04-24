@@ -51,7 +51,7 @@ struct Hydra {
     char OpenPIC[0x40000];
 };
 
-extern volatile struct Hydra *Hydra;
+extern volatile struct Hydra __iomem *Hydra;
 
 
     /*
