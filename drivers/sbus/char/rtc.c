@@ -67,7 +67,7 @@ struct rtc_time_generic {
 /* Retrieve the current date and time from the real time clock. */
 static void get_rtc_time(struct rtc_time *t)
 {
-	void * __iomem regs = mstk48t02_regs;
+	void __iomem *regs = mstk48t02_regs;
 	u8 tmp;
 
 	spin_lock_irq(&mostek_lock);
@@ -94,7 +94,7 @@ static void get_rtc_time(struct rtc_time *t)
 /* Set the current date and time inthe real time clock. */
 void set_rtc_time(struct rtc_time *t)
 {
-	void * __iomem regs = mstk48t02_regs;
+	void __iomem *regs = mstk48t02_regs;
 	u8 tmp;
 
 	spin_lock_irq(&mostek_lock);
@@ -250,7 +250,7 @@ static int __init rtc_sun_init(void)
 	/* It is possible we are being driven by some other RTC chip
 	 * and thus another RTC driver is handling things.
 	 */
-	if (mstk48t02_regs == 0)
+	if (!mstk48t02_regs)
 		return -ENODEV;
 
 	error = misc_register(&rtc_dev);
