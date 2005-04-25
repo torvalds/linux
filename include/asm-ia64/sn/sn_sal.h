@@ -8,7 +8,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (c) 2000-2004 Silicon Graphics, Inc.  All rights reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.  All rights reserved.
  */
 
 
@@ -77,7 +77,7 @@
 #define  SN_SAL_IOIF_GET_PCI_TOPOLOGY	           0x02000059
 
 #define SN_SAL_HUB_ERROR_INTERRUPT		   0x02000060
-
+#define SN_SAL_BTE_RECOVER			   0x02000061
 
 /*
  * Service-specific constants
@@ -1020,6 +1020,21 @@ ia64_sn_ioif_get_pci_topology(u64 rack, u64 bay, u64 slot, u64 slab,
 	struct ia64_sal_retval rv;
 	SAL_CALL_NOLOCK(rv, SN_SAL_IOIF_GET_PCI_TOPOLOGY,
 		rack, bay, slot, slab, buf, len, 0);
+	return (int) rv.status;
+}
+
+/*
+ * BTE error recovery is implemented in SAL
+ */
+static inline int
+ia64_sn_bte_recovery(nasid_t nasid)
+{
+	struct ia64_sal_retval rv;
+
+	rv.status = 0;
+	SAL_CALL_NOLOCK(rv, SN_SAL_BTE_RECOVER, 0, 0, 0, 0, 0, 0, 0);
+	if (rv.status == SALRET_NOT_IMPLEMENTED)
+		return 0;
 	return (int) rv.status;
 }
 
