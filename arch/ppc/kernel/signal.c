@@ -632,7 +632,7 @@ handle_signal(unsigned long sig, struct k_sigaction *ka,
 	if (__put_user((unsigned long) ka->sa.sa_handler, &sc->handler)
 	    || __put_user(oldset->sig[0], &sc->oldmask)
 	    || __put_user(oldset->sig[1], &sc->_unused[3])
-	    || __put_user((struct pt_regs *)frame, &sc->regs)
+	    || __put_user((struct pt_regs __user *)frame, &sc->regs)
 	    || __put_user(sig, &sc->signal))
 		goto badframe;
 
