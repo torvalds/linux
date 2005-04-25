@@ -171,15 +171,15 @@ tioca_gart_init(struct tioca_kernel *tioca_kern)
 	 *      use agp op-combining
 	 *      use GET semantics to fetch memory
 	 *      participate in coherency domain
-	 *      prefetch TLB entries
+	 * 	DISABLE GART PREFETCHING due to hw bug tracked in SGI PV930029
 	 */
 
 	ca_base->ca_control1 |= CA_AGPDMA_OP_ENB_COMBDELAY;	/* PV895469 ? */
 	ca_base->ca_control2 &= ~(CA_GART_MEM_PARAM);
 	ca_base->ca_control2 |= (0x2ull << CA_GART_MEM_PARAM_SHFT);
 	tioca_kern->ca_gart_iscoherent = 1;
-	ca_base->ca_control2 |=
-	    (CA_GART_WR_PREFETCH_ENB | CA_GART_RD_PREFETCH_ENB);
+	ca_base->ca_control2 &=
+	    ~(CA_GART_WR_PREFETCH_ENB | CA_GART_RD_PREFETCH_ENB);
 
 	/*
 	 * Unmask GART fetch error interrupts.  Clear residual errors first.
