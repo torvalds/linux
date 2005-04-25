@@ -74,6 +74,7 @@
 #define  SN_SAL_IOIF_GET_PCIBUS_INFO		   0x02000056
 #define  SN_SAL_IOIF_GET_PCIDEV_INFO		   0x02000057
 #define  SN_SAL_IOIF_GET_WIDGET_DMAFLUSH_LIST	   0x02000058
+#define  SN_SAL_IOIF_GET_PCI_TOPOLOGY	           0x02000059
 
 #define SN_SAL_HUB_ERROR_INTERRUPT		   0x02000060
 
@@ -1009,6 +1010,16 @@ ia64_sn_hwperf_op(nasid_t nasid, u64 opcode, u64 a0, u64 a1, u64 a2,
 		opcode, a0, a1, a2, a3, a4);
 	if (v0)
 		*v0 = (int) rv.v0;
+	return (int) rv.status;
+}
+
+static inline int
+ia64_sn_ioif_get_pci_topology(u64 rack, u64 bay, u64 slot, u64 slab,
+			      char *buf, u64 len)
+{
+	struct ia64_sal_retval rv;
+	SAL_CALL_NOLOCK(rv, SN_SAL_IOIF_GET_PCI_TOPOLOGY,
+		rack, bay, slot, slab, buf, len, 0);
 	return (int) rv.status;
 }
 
