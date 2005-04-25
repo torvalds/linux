@@ -1,7 +1,7 @@
 /*
  * SMP boot-related support
  *
- * Copyright (C) 1998-2003 Hewlett-Packard Co
+ * Copyright (C) 1998-2003, 2005 Hewlett-Packard Co
  *	David Mosberger-Tang <davidm@hpl.hp.com>
  *
  * 01/05/16 Rohit Seth <rohit.seth@intel.com>	Moved SMP booting functions from smp.c to here.
@@ -156,7 +156,8 @@ sync_master (void *arg)
 	local_irq_save(flags);
 	{
 		for (i = 0; i < NUM_ROUNDS*NUM_ITERS; ++i) {
-			while (!go[MASTER]);
+			while (!go[MASTER])
+				cpu_relax();
 			go[MASTER] = 0;
 			go[SLAVE] = ia64_get_itc();
 		}
@@ -179,7 +180,8 @@ get_delta (long *rt, long *master)
 	for (i = 0; i < NUM_ITERS; ++i) {
 		t0 = ia64_get_itc();
 		go[MASTER] = 1;
-		while (!(tm = go[SLAVE]));
+		while (!(tm = go[SLAVE]))
+			cpu_relax();
 		go[SLAVE] = 0;
 		t1 = ia64_get_itc();
 
@@ -258,7 +260,8 @@ ia64_sync_itc (unsigned int master)
 		return;
 	}
 
-	while (go[MASTER]);	/* wait for master to be ready */
+	while (go[MASTER])
+		cpu_relax();	/* wait for master to be ready */
 
 	spin_lock_irqsave(&itc_sync_lock, flags);
 	{
