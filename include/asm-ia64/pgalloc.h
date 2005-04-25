@@ -29,7 +29,7 @@ DECLARE_PER_CPU(long, __pgtable_quicklist_size);
 
 static inline long pgtable_quicklist_total_size(void)
 {
-	long ql_size;
+	long ql_size = 0;
 	int cpuid;
 
 	for_each_online_cpu(cpuid) {
