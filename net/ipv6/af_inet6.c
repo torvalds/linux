@@ -88,6 +88,7 @@ int sysctl_ipv6_bindv6only;
 
 #ifdef INET_REFCNT_DEBUG
 atomic_t inet6_sock_nr;
+EXPORT_SYMBOL(inet6_sock_nr);
 #endif
 
 /* The inetsw table contains everything that inet_create needs to
