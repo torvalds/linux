@@ -300,7 +300,7 @@ EK(.ex_handler,	(p[D])	st8 [dst1] = t15, 4*8)
 	add	src_pre_mem=0,src0	// prefetch src pointer
 	add	dst_pre_mem=0,dst0	// prefetch dest pointer
 	and	src0=-8,src0		// 1st src pointer
-(p7)	mov	ar.lc = r21
+(p7)	mov	ar.lc = cnt
 (p8)	mov	ar.lc = r0
 	;;
 	TEXT_ALIGN(32)
