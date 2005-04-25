@@ -832,29 +832,21 @@ static void usb_deregister_bus (struct usb_bus *bus)
 }
 
 /**
- * usb_hcd_register_root_hub - called by HCD to register its root hub 
+ * register_root_hub - called by usb_add_hcd() to register a root hub
  * @usb_dev: the usb root hub device to be registered.
  * @hcd: host controller for this root hub
  *
- * The USB host controller calls this function to register the root hub
- * properly with the USB subsystem.  It sets up the device properly in
- * the device tree and stores the root_hub pointer in the bus structure,
- * then calls usb_new_device() to register the usb device.  It also
- * assigns the root hub's USB address (always 1).
+ * This function registers the root hub with the USB subsystem.  It sets up
+ * the device properly in the device tree and stores the root_hub pointer
+ * in the bus structure, then calls usb_new_device() to register the usb
+ * device.  It also assigns the root hub's USB address (always 1).
  */
-int usb_hcd_register_root_hub (struct usb_device *usb_dev, struct usb_hcd *hcd)
+static int register_root_hub (struct usb_device *usb_dev,
+		struct usb_hcd *hcd)
 {
 	struct device *parent_dev = hcd->self.controller;
 	const int devnum = 1;
 	int retval;
-
-	/* hcd->driver->start() reported can_wakeup, probably with
-	 * assistance from board's boot firmware.
-	 * NOTE:  normal devices won't enable wakeup by default.
-	 */
-	if (hcd->can_wakeup)
-		dev_dbg (parent_dev, "supports USB remote wakeup\n");
-	hcd->remote_wakeup = hcd->can_wakeup;
 
 	usb_dev->devnum = devnum;
 	usb_dev->bus->devnum_next = devnum + 1;
@@ -898,7 +890,6 @@ int usb_hcd_register_root_hub (struct usb_device *usb_dev, struct usb_hcd *hcd)
 
 	return retval;
 }
-EXPORT_SYMBOL_GPL(usb_hcd_register_root_hub);
 
 void usb_enable_root_hub_irq (struct usb_bus *bus)
 {
@@ -1724,7 +1715,8 @@ EXPORT_SYMBOL (usb_put_hcd);
 int usb_add_hcd(struct usb_hcd *hcd,
 		unsigned int irqnum, unsigned long irqflags)
 {
-	int	retval;
+	int retval;
+	struct usb_device *rhdev;
 
 	dev_info(hcd->self.controller, "%s\n", hcd->product_desc);
 
@@ -1740,7 +1732,7 @@ int usb_add_hcd(struct usb_hcd *hcd,
 	}
 
 	if ((retval = usb_register_bus(&hcd->self)) < 0)
-		goto err1;
+		goto err_register_bus;
 
 	if (hcd->driver->irq) {
 		char	buf[8], *bufp = buf;
@@ -1757,7 +1749,7 @@ int usb_add_hcd(struct usb_hcd *hcd,
 				hcd->irq_descr, hcd)) != 0) {
 			dev_err(hcd->self.controller,
 					"request interrupt %s failed\n", bufp);
-			goto err2;
+			goto err_request_irq;
 		}
 		hcd->irq = irqnum;
 		dev_info(hcd->self.controller, "irq %s, %s 0x%08llx\n", bufp,
@@ -1773,21 +1765,55 @@ int usb_add_hcd(struct usb_hcd *hcd,
 					(unsigned long long)hcd->rsrc_start);
 	}
 
+	/* Allocate the root hub before calling hcd->driver->start(),
+	 * but don't register it until afterward so that the hardware
+	 * is running.
+	 */
+	if ((rhdev = usb_alloc_dev(NULL, &hcd->self, 0)) == NULL) {
+		dev_err(hcd->self.controller, "unable to allocate root hub\n");
+		retval = -ENOMEM;
+		goto err_allocate_root_hub;
+	}
+	rhdev->speed = (hcd->driver->flags & HCD_USB2) ? USB_SPEED_HIGH :
+			USB_SPEED_FULL;
+
+	/* Although in principle hcd->driver->start() might need to use rhdev,
+	 * none of the current drivers do.
+	 */
 	if ((retval = hcd->driver->start(hcd)) < 0) {
 		dev_err(hcd->self.controller, "startup error %d\n", retval);
-		goto err3;
+		goto err_hcd_driver_start;
 	}
+
+	/* hcd->driver->start() reported can_wakeup, probably with
+	 * assistance from board's boot firmware.
+	 * NOTE:  normal devices won't enable wakeup by default.
+	 */
+	if (hcd->can_wakeup)
+		dev_dbg(hcd->self.controller, "supports USB remote wakeup\n");
+	hcd->remote_wakeup = hcd->can_wakeup;
+
+	if ((retval = register_root_hub(rhdev, hcd)) != 0)
+		goto err_register_root_hub;
 
 	if (hcd->uses_new_polling && hcd->poll_rh)
 		usb_hcd_poll_rh_status(hcd);
 	return retval;
 
- err3:
+ err_register_root_hub:
+	hcd->driver->stop(hcd);
+
+ err_hcd_driver_start:
+	usb_put_dev(rhdev);
+
+ err_allocate_root_hub:
 	if (hcd->irq >= 0)
 		free_irq(irqnum, hcd);
- err2:
+
+ err_request_irq:
 	usb_deregister_bus(&hcd->self);
- err1:
+
+ err_register_bus:
 	hcd_buffer_destroy(hcd);
 	return retval;
 } 
