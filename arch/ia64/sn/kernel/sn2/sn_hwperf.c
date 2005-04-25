@@ -300,14 +300,15 @@ static int sn_topology_show(struct seq_file *s, void *d)
 		 * PCI busses attached to this node, if any
 		 */
 		do {
-			if (!(pci_topo_buf = vmalloc(pci_topo_buf_len))) {
-				printk("sn_topology_show: kmalloc failed\n");
+			if (sn_hwperf_location_to_bpos(obj->location,
+				&rack, &bay, &slot, &slab)) {
 				break;
 			}
 
-			if (sn_hwperf_location_to_bpos(obj->location,
-				&rack, &bay, &slot, &slab) != 0)
-				continue;
+			if (!(pci_topo_buf = vmalloc(pci_topo_buf_len))) {
+				printk("sn_topology_show: vmalloc failed\n");
+				break;
+			}
 
 			e = ia64_sn_ioif_get_pci_topology(rack, bay, slot, slab,
 			    	pci_topo_buf, pci_topo_buf_len);
@@ -325,6 +326,7 @@ static int sn_topology_show(struct seq_file *s, void *d)
 				break;
 
 			case SN_HWPERF_OP_OK:
+			default:
 				/* export pci bus info */
 				print_pci_topology(s, obj, &pci_bus_ordinal,
 					pci_topo_buf, pci_topo_buf_len);
