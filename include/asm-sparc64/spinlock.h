@@ -44,7 +44,7 @@ typedef struct {
 
 #define spin_unlock_wait(lp)	\
 do {	membar("#LoadLoad");	\
-} while(lp->lock)
+} while((lp)->lock)
 
 static inline void _raw_spin_lock(spinlock_t *lock)
 {
@@ -149,7 +149,7 @@ typedef struct {
 	unsigned int break_lock;
 #endif
 } rwlock_t;
-#define RW_LOCK_UNLOCKED	{0,}
+#define RW_LOCK_UNLOCKED	(rwlock_t) {0,}
 #define rwlock_init(lp) do { *(lp) = RW_LOCK_UNLOCKED; } while(0)
 
 static void inline __read_lock(rwlock_t *lock)
