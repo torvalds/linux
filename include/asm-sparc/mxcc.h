@@ -115,8 +115,8 @@ extern __inline__ unsigned long mxcc_get_creg(void)
 {
 	unsigned long mxcc_control;
 
-	__asm__ __volatile__("set -1, %%g2\n\t"
-			     "set -1, %%g3\n\t"
+	__asm__ __volatile__("set 0xffffffff, %%g2\n\t"
+			     "set 0xffffffff, %%g3\n\t"
 			     "stda %%g2, [%1] %2\n\t"
 			     "lda [%3] %2, %0\n\t" :
 			     "=r" (mxcc_control) :
