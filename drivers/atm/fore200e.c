@@ -2792,8 +2792,6 @@ static void __devexit fore200e_pca_remove_one(struct pci_dev *pci_dev)
 
     fore200e = pci_get_drvdata(pci_dev);
 
-    list_del(&fore200e->entry);
-
     fore200e_shutdown(fore200e);
     kfree(fore200e);
     pci_disable_device(pci_dev);
@@ -2850,7 +2848,7 @@ fore200e_module_init(void)
     }
 
 #ifdef CONFIG_ATM_FORE200E_PCA
-    if (!pci_module_init(&fore200e_pca_driver))
+    if (!pci_register_driver(&fore200e_pca_driver))
 	return 0;
 #endif
 
