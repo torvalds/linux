@@ -16,6 +16,7 @@
  *  12-Oct-2004 BJD  Take account of debug uart configuration
  *  15-Nov-2004 BJD  Fixed uart configuration
  *  22-Feb-2005 BJD  Added watchdog to uncompress
+ *  04-Apr-2005 LCVR Added support to S3C2400 (no cpuid at GSTATUS1)
 */
 
 #ifndef __ASM_ARCH_UNCOMPRESS_H
@@ -69,9 +70,12 @@ uart_rd(unsigned int reg)
 static void
 putc(char ch)
 {
-	int cpuid = *((volatile unsigned int *)S3C2410_GSTATUS1);
+	int cpuid = S3C2410_GSTATUS1_2410;
 
+#ifndef CONFIG_CPU_S3C2400
+	cpuid = *((volatile unsigned int *)S3C2410_GSTATUS1);
 	cpuid &= S3C2410_GSTATUS1_IDMASK;
+#endif
 
 	if (ch == '\n')
 		putc('\r');    /* expand newline to \r\n */
