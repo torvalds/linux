@@ -634,14 +634,14 @@ static int uhci_start(struct usb_hcd *hcd)
 		goto err_alloc_root_hub;
 	}
 
-	uhci->term_td = uhci_alloc_td(uhci, udev);
+	uhci->term_td = uhci_alloc_td(uhci);
 	if (!uhci->term_td) {
 		dev_err(uhci_dev(uhci), "unable to allocate terminating TD\n");
 		goto err_alloc_term_td;
 	}
 
 	for (i = 0; i < UHCI_NUM_SKELQH; i++) {
-		uhci->skelqh[i] = uhci_alloc_qh(uhci, udev);
+		uhci->skelqh[i] = uhci_alloc_qh(uhci);
 		if (!uhci->skelqh[i]) {
 			dev_err(uhci_dev(uhci), "unable to allocate QH\n");
 			goto err_alloc_skelqh;

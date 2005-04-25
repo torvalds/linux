@@ -114,7 +114,6 @@ struct uhci_qh {
 	/* Software fields */
 	dma_addr_t dma_handle;
 
-	struct usb_device *dev;
 	struct urb_priv *urbp;
 
 	struct list_head list;		/* P: uhci->frame_list_lock */
@@ -206,7 +205,6 @@ struct uhci_td {
 	/* Software fields */
 	dma_addr_t dma_handle;
 
-	struct usb_device *dev;
 	struct urb *urb;
 
 	struct list_head list;		/* P: urb->lock */

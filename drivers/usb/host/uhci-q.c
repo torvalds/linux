@@ -48,7 +48,7 @@ static inline void uhci_moveto_complete(struct uhci_hcd *uhci,
 	list_move_tail(&urbp->urb_list, &uhci->complete_list);
 }
 
-static struct uhci_td *uhci_alloc_td(struct uhci_hcd *uhci, struct usb_device *dev)
+static struct uhci_td *uhci_alloc_td(struct uhci_hcd *uhci)
 {
 	dma_addr_t dma_handle;
 	struct uhci_td *td;
@@ -63,13 +63,10 @@ static struct uhci_td *uhci_alloc_td(struct uhci_hcd *uhci, struct usb_device *d
 	td->buffer = 0;
 
 	td->frame = -1;
-	td->dev = dev;
 
 	INIT_LIST_HEAD(&td->list);
 	INIT_LIST_HEAD(&td->remove_list);
 	INIT_LIST_HEAD(&td->fl_list);
-
-	usb_get_dev(dev);
 
 	return td;
 }
@@ -170,13 +167,10 @@ static void uhci_free_td(struct uhci_hcd *uhci, struct uhci_td *td)
 	if (!list_empty(&td->fl_list))
 		dev_warn(uhci_dev(uhci), "td %p still in fl_list!\n", td);
 
-	if (td->dev)
-		usb_put_dev(td->dev);
-
 	dma_pool_free(uhci->td_pool, td, td->dma_handle);
 }
 
-static struct uhci_qh *uhci_alloc_qh(struct uhci_hcd *uhci, struct usb_device *dev)
+static struct uhci_qh *uhci_alloc_qh(struct uhci_hcd *uhci)
 {
 	dma_addr_t dma_handle;
 	struct uhci_qh *qh;
@@ -190,13 +184,10 @@ static struct uhci_qh *uhci_alloc_qh(struct uhci_hcd *uhci, struct usb_device *d
 	qh->element = UHCI_PTR_TERM;
 	qh->link = UHCI_PTR_TERM;
 
-	qh->dev = dev;
 	qh->urbp = NULL;
 
 	INIT_LIST_HEAD(&qh->list);
 	INIT_LIST_HEAD(&qh->remove_list);
-
-	usb_get_dev(dev);
 
 	return qh;
 }
@@ -207,9 +198,6 @@ static void uhci_free_qh(struct uhci_hcd *uhci, struct uhci_qh *qh)
 		dev_warn(uhci_dev(uhci), "qh %p list not empty!\n", qh);
 	if (!list_empty(&qh->remove_list))
 		dev_warn(uhci_dev(uhci), "qh %p still in remove_list!\n", qh);
-
-	if (qh->dev)
-		usb_put_dev(qh->dev);
 
 	dma_pool_free(uhci->qh_pool, qh, qh->dma_handle);
 }
@@ -599,7 +587,7 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb, struct ur
 	/*
 	 * Build the TD for the control request setup packet
 	 */
-	td = uhci_alloc_td(uhci, urb->dev);
+	td = uhci_alloc_td(uhci);
 	if (!td)
 		return -ENOMEM;
 
@@ -628,7 +616,7 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb, struct ur
 		if (pktsze > maxsze)
 			pktsze = maxsze;
 
-		td = uhci_alloc_td(uhci, urb->dev);
+		td = uhci_alloc_td(uhci);
 		if (!td)
 			return -ENOMEM;
 
@@ -646,7 +634,7 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb, struct ur
 	/*
 	 * Build the final TD for control status 
 	 */
-	td = uhci_alloc_td(uhci, urb->dev);
+	td = uhci_alloc_td(uhci);
 	if (!td)
 		return -ENOMEM;
 
@@ -668,7 +656,7 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb, struct ur
 	uhci_fill_td(td, status | TD_CTRL_IOC,
 		destination | uhci_explen(UHCI_NULL_DATA_SIZE), 0);
 
-	qh = uhci_alloc_qh(uhci, urb->dev);
+	qh = uhci_alloc_qh(uhci);
 	if (!qh)
 		return -ENOMEM;
 
@@ -867,7 +855,7 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb, struct urb
 				status &= ~TD_CTRL_SPD;
 		}
 
-		td = uhci_alloc_td(uhci, urb->dev);
+		td = uhci_alloc_td(uhci);
 		if (!td)
 			return -ENOMEM;
 
@@ -893,7 +881,7 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb, struct urb
 	 */
 	if (usb_pipeout(urb->pipe) && (urb->transfer_flags & URB_ZERO_PACKET) &&
 	    !len && urb->transfer_buffer_length) {
-		td = uhci_alloc_td(uhci, urb->dev);
+		td = uhci_alloc_td(uhci);
 		if (!td)
 			return -ENOMEM;
 
@@ -915,7 +903,7 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb, struct urb
 	 * flag setting. */
 	td->status |= cpu_to_le32(TD_CTRL_IOC);
 
-	qh = uhci_alloc_qh(uhci, urb->dev);
+	qh = uhci_alloc_qh(uhci);
 	if (!qh)
 		return -ENOMEM;
 
@@ -1098,7 +1086,7 @@ static int uhci_submit_isochronous(struct uhci_hcd *uhci, struct urb *urb)
 		if (!urb->iso_frame_desc[i].length)
 			continue;
 
-		td = uhci_alloc_td(uhci, urb->dev);
+		td = uhci_alloc_td(uhci);
 		if (!td)
 			return -ENOMEM;
 
