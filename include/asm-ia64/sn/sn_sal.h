@@ -35,8 +35,8 @@
 #define  SN_SAL_PRINT_ERROR			   0x02000012
 #define  SN_SAL_SET_ERROR_HANDLING_FEATURES	   0x0200001a	// reentrant
 #define  SN_SAL_GET_FIT_COMPT			   0x0200001b	// reentrant
-#define  SN_SAL_GET_SN_INFO                        0x0200001c
 #define  SN_SAL_GET_SAPIC_INFO                     0x0200001d
+#define  SN_SAL_GET_SN_INFO                        0x0200001e
 #define  SN_SAL_CONSOLE_PUTC                       0x02000021
 #define  SN_SAL_CONSOLE_GETC                       0x02000022
 #define  SN_SAL_CONSOLE_PUTS                       0x02000023
