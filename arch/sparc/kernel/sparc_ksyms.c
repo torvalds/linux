@@ -20,6 +20,7 @@
 #include <linux/in6.h>
 #include <linux/spinlock.h>
 #include <linux/mm.h>
+#include <linux/syscalls.h>
 #ifdef CONFIG_PCI
 #include <linux/pci.h>
 #endif
@@ -89,6 +90,9 @@ extern void ___atomic24_sub(void);
 extern void ___set_bit(void);
 extern void ___clear_bit(void);
 extern void ___change_bit(void);
+extern void ___rw_read_enter(void);
+extern void ___rw_read_exit(void);
+extern void ___rw_write_enter(void);
 
 /* Alias functions whose names begin with "." and export the aliases.
  * The module references will be fixed up by module_frob_arch_sections.
@@ -121,9 +125,9 @@ EXPORT_SYMBOL(_do_write_unlock);
 #endif
 #else
 // XXX find what uses (or used) these.
-// EXPORT_SYMBOL_PRIVATE(_rw_read_enter);
-// EXPORT_SYMBOL_PRIVATE(_rw_read_exit);
-// EXPORT_SYMBOL_PRIVATE(_rw_write_enter);
+EXPORT_SYMBOL(___rw_read_enter);
+EXPORT_SYMBOL(___rw_read_exit);
+EXPORT_SYMBOL(___rw_write_enter);
 #endif
 /* semaphores */
 EXPORT_SYMBOL(__up);
@@ -332,3 +336,6 @@ EXPORT_SYMBOL(do_BUG);
 
 /* Sun Power Management Idle Handler */
 EXPORT_SYMBOL(pm_idle);
+
+/* Binfmt_misc needs this */
+EXPORT_SYMBOL(sys_close);
