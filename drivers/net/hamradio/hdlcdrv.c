@@ -174,12 +174,10 @@ static void hdlc_rx_flag(struct net_device *dev, struct hdlcdrv_state *s)
 		s->stats.rx_dropped++;
 		return;
 	}
-	skb->dev = dev;
 	cp = skb_put(skb, pkt_len);
 	*cp++ = 0; /* KISS kludge */
 	memcpy(cp, s->hdlcrx.buffer, pkt_len - 1);
-	skb->protocol = htons(ETH_P_AX25);
-	skb->mac.raw = skb->data;
+	skb->protocol = ax25_type_trans(skb, dev);
 	netif_rx(skb);
 	dev->last_rx = jiffies;
 	s->stats.rx_packets++;

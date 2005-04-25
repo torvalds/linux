@@ -522,12 +522,10 @@ static inline void yam_rx_flag(struct net_device *dev, struct yam_port *yp)
 				++yp->stats.rx_dropped;
 			} else {
 				unsigned char *cp;
-				skb->dev = dev;
 				cp = skb_put(skb, pkt_len);
 				*cp++ = 0;		/* KISS kludge */
 				memcpy(cp, yp->rx_buf, pkt_len - 1);
-				skb->protocol = htons(ETH_P_AX25);
-				skb->mac.raw = skb->data;
+				skb->protocol = ax25_type_trans(skb, dev);
 				netif_rx(skb);
 				dev->last_rx = jiffies;
 				++yp->stats.rx_packets;

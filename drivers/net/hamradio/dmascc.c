@@ -1306,9 +1306,7 @@ static void rx_bh(void *arg)
 			data = skb_put(skb, cb + 1);
 			data[0] = 0;
 			memcpy(&data[1], priv->rx_buf[i], cb);
-			skb->dev = priv->dev;
-			skb->protocol = ntohs(ETH_P_AX25);
-			skb->mac.raw = skb->data;
+			skb->protocol = ax25_type_trans(skb, priv->dev);
 			netif_rx(skb);
 			priv->dev->last_rx = jiffies;
 			priv->stats.rx_packets++;

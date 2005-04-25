@@ -332,12 +332,10 @@ static void ax_bump(struct ax_disp *ax)
 		return;
 	}
 
-	skb->dev      = ax->dev;
 	spin_lock_bh(&ax->buflock);
 	memcpy(skb_put(skb,count), ax->rbuff, count);
 	spin_unlock_bh(&ax->buflock);
-	skb->mac.raw  = skb->data;
-	skb->protocol = htons(ETH_P_AX25);
+	skb->protocol = ax25_type_trans(skb, ax->dev);
 	netif_rx(skb);
 	ax->dev->last_rx = jiffies;
 	ax->rx_packets++;

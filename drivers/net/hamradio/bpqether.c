@@ -211,11 +211,7 @@ static int bpq_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_ty
 	ptr = skb_push(skb, 1);
 	*ptr = 0;
 
-	skb->dev = dev;
-	skb->protocol = htons(ETH_P_AX25);
-	skb->mac.raw = skb->data;
-	skb->pkt_type = PACKET_HOST;
-
+	skb->protocol = ax25_type_trans(skb, dev);
 	netif_rx(skb);
 	dev->last_rx = jiffies;
 unlock:
@@ -272,8 +268,6 @@ static int bpq_xmit(struct sk_buff *skb, struct net_device *dev)
 		skb = newskb;
 	}
 
-	skb->protocol = htons(ETH_P_AX25);
-
 	ptr = skb_push(skb, 2);
 
 	*ptr++ = (size + 5) % 256;
@@ -287,7 +281,7 @@ static int bpq_xmit(struct sk_buff *skb, struct net_device *dev)
 		return -ENODEV;
 	}
 
-	skb->dev = dev;
+	skb->protocol = ax25_type_trans(skb, dev);
 	skb->nh.raw = skb->data;
 	dev->hard_header(skb, dev, ETH_P_BPQ, bpq->dest_addr, NULL, 0);
 	bpq->stats.tx_packets++;

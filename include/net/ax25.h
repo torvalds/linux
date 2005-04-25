@@ -220,6 +220,14 @@ static __inline__ void ax25_cb_put(ax25_cb *ax25)
 	}
 }
 
+static inline unsigned short ax25_type_trans(struct sk_buff *skb, struct net_device *dev)
+{
+	skb->dev      = dev;
+	skb->pkt_type = PACKET_HOST;
+	skb->mac.raw  = skb->data;
+	return htons(ETH_P_AX25);
+}
+
 /* af_ax25.c */
 extern struct hlist_head ax25_list;
 extern spinlock_t ax25_list_lock;

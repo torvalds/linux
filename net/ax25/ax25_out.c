@@ -351,8 +351,7 @@ void ax25_queue_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	unsigned char *ptr;
 
-	skb->protocol = htons(ETH_P_AX25);
-	skb->dev      = ax25_fwd_dev(dev);
+	skb->protocol = ax25_type_trans(skb, ax25_fwd_dev(dev));
 
 	ptr  = skb_push(skb, 1);
 	*ptr = 0x00;			/* KISS */
