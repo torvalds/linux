@@ -129,6 +129,23 @@
 #define SH_EVENT_OCCURRED_II_INT1_SHFT           30
 #define SH_EVENT_OCCURRED_II_INT1_MASK           0x0000000040000000
 
+/*   SH2_EVENT_OCCURRED_EXTIO_INT2                                      */
+/*   Description:  Pending SHUB 2 EXT IO INT2                           */
+#define SH2_EVENT_OCCURRED_EXTIO_INT2_SHFT       33
+#define SH2_EVENT_OCCURRED_EXTIO_INT2_MASK       0x0000000200000000
+
+/*   SH2_EVENT_OCCURRED_EXTIO_INT3                                      */
+/*   Description:  Pending SHUB 2 EXT IO INT3                           */
+#define SH2_EVENT_OCCURRED_EXTIO_INT3_SHFT       34
+#define SH2_EVENT_OCCURRED_EXTIO_INT3_MASK       0x0000000400000000
+
+#define SH_ALL_INT_MASK \
+	(SH_EVENT_OCCURRED_UART_INT_MASK | SH_EVENT_OCCURRED_IPI_INT_MASK | \
+	 SH_EVENT_OCCURRED_II_INT0_MASK | SH_EVENT_OCCURRED_II_INT1_MASK | \
+	 SH_EVENT_OCCURRED_II_INT1_MASK | SH2_EVENT_OCCURRED_EXTIO_INT2_MASK | \
+	 SH2_EVENT_OCCURRED_EXTIO_INT3_MASK)
+
+
 /* ==================================================================== */
 /*                         LEDS                                         */
 /* ==================================================================== */
