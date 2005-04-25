@@ -759,7 +759,7 @@ ENTRY(ia64_leave_syscall)
 (pUStk) st1 [r14]=r17
 	addl r3=THIS_CPU(ia64_phys_stacked_size_p8),r0
 	;;
-(pUStk)	ld4 r3=[r3]		// r3 = cpu_data->phys_stacked_size_p8
+(pUStk)	ld4 r17=[r3]		// r17 = cpu_data->phys_stacked_size_p8
 	mov.m ar.csd=r0		// M2 clear ar.csd
 	mov b6=r18		// I0  restore b6
 	;;
