@@ -57,7 +57,7 @@ struct page *zero_page_memmap_ptr;	/* map entry for zero page */
 EXPORT_SYMBOL(zero_page_memmap_ptr);
 
 #define MIN_PGT_PAGES			25UL
-#define MAX_PGT_FREES_PER_PASS		16
+#define MAX_PGT_FREES_PER_PASS		16L
 #define PGT_FRACTION_OF_NODE_MEM	16
 
 static inline long
