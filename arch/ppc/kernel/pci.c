@@ -1432,7 +1432,7 @@ pci_bus_to_hose(int bus)
 	return NULL;
 }
 
-void*
+void __iomem *
 pci_bus_io_base(unsigned int bus)
 {
 	struct pci_controller *hose;

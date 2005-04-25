@@ -223,9 +223,8 @@ luan_setup_hose(struct pci_controller *hose,
 	hose->io_space.end = LUAN_PCIX_UPPER_IO;
 	hose->mem_space.start = lower_mem;
 	hose->mem_space.end = upper_mem;
-	isa_io_base =
-		(unsigned long)ioremap64(pcix_io_base, PCIX_IO_SIZE);
-	hose->io_base_virt = (void *)isa_io_base;
+	hose->io_base_virt = ioremap64(pcix_io_base, PCIX_IO_SIZE);
+	isa_io_base = (unsigned long) hose->io_base_virt;
 
 	setup_indirect_pci(hose, cfga, cfgd);
 	hose->set_cfg_type = 1;

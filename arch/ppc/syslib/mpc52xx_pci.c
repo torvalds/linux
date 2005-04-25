@@ -205,13 +205,11 @@ mpc52xx_find_bridges(void)
 
 	hose->pci_mem_offset = MPC52xx_PCI_MEM_OFFSET;
 
-	isa_io_base =
-		(unsigned long) ioremap(MPC52xx_PCI_IO_BASE,
-					MPC52xx_PCI_IO_SIZE);
-	hose->io_base_virt = (void *) isa_io_base;
+	hose->io_base_virt = ioremap(MPC52xx_PCI_IO_BASE, MPC52xx_PCI_IO_SIZE);
+	isa_io_base = (unsigned long) hose->io_base_virt;
 
 	hose->cfg_addr = &pci_regs->car;
-	hose->cfg_data = (void __iomem *) isa_io_base;
+	hose->cfg_data = hose->io_base_virt;
 
 	/* Setup resources */
 	pci_init_resource(&hose->mem_resources[0],

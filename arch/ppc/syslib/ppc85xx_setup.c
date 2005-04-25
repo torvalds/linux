@@ -280,16 +280,14 @@ mpc85xx_setup_hose(void)
 	hose_a->io_space.end = MPC85XX_PCI1_UPPER_IO;
 	hose_a->io_base_phys = MPC85XX_PCI1_IO_BASE;
 #ifdef CONFIG_85xx_PCI2
-	isa_io_base =
-		(unsigned long) ioremap(MPC85XX_PCI1_IO_BASE,
+	hose_a->io_base_virt =  ioremap(MPC85XX_PCI1_IO_BASE,
 					MPC85XX_PCI1_IO_SIZE +
 					MPC85XX_PCI2_IO_SIZE);
 #else
-	isa_io_base =
-		(unsigned long) ioremap(MPC85XX_PCI1_IO_BASE,
+	hose_a->io_base_virt =  ioremap(MPC85XX_PCI1_IO_BASE,
 					MPC85XX_PCI1_IO_SIZE);
 #endif
-	hose_a->io_base_virt = (void *) isa_io_base;
+	isa_io_base = (unsigned long)hose_a->io_base_virt;
 
 	/* setup resources */
 	pci_init_resource(&hose_a->mem_resources[0],
@@ -329,8 +327,8 @@ mpc85xx_setup_hose(void)
 	hose_b->io_space.start = MPC85XX_PCI2_LOWER_IO;
 	hose_b->io_space.end = MPC85XX_PCI2_UPPER_IO;
 	hose_b->io_base_phys = MPC85XX_PCI2_IO_BASE;
-	hose_b->io_base_virt = (void *) isa_io_base + MPC85XX_PCI1_IO_SIZE;
-
+	hose_b->io_base_virt = hose_a->io_base_virt + MPC85XX_PCI1_IO_SIZE;
+	
 	/* setup resources */
 	pci_init_resource(&hose_b->mem_resources[0],
 			MPC85XX_PCI2_LOWER_MEM,

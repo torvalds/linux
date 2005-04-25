@@ -171,10 +171,9 @@ void __init m8260_find_bridges(void)
 	m8260_setup_pci(hose);
         hose->pci_mem_offset = MPC826x_PCI_MEM_OFFSET;
 
-        isa_io_base =
-                (unsigned long) ioremap(MPC826x_PCI_IO_BASE,
+        hose->io_base_virt = ioremap(MPC826x_PCI_IO_BASE,
                                         MPC826x_PCI_IO_SIZE);
-        hose->io_base_virt = (void *) isa_io_base;
+        isa_io_base = (unsigned long) hose->io_base_virt;
  
         /* setup resources */
         pci_init_resource(&hose->mem_resources[0],
