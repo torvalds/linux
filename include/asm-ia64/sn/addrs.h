@@ -154,8 +154,9 @@
  *           the chiplet id is zero.  If we implement TIO-TIO dma, we might need
  *           to insert a chiplet id into this macro.  However, it is our belief
  *           right now that this chiplet id will be ICE, which is also zero.
+ *           Nasid starts on bit 40.
  */
-#define PHYS_TO_TIODMA(x)	( (((u64)(x) & NASID_MASK) << 2) | NODE_OFFSET(x))
+#define PHYS_TO_TIODMA(x)	( (((u64)(NASID_GET(x))) << 40) | NODE_OFFSET(x))
 #define PHYS_TO_DMA(x)          ( (((u64)(x) & NASID_MASK) >> 2) | NODE_OFFSET(x))
 
 
