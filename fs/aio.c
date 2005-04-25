@@ -40,8 +40,8 @@
 #define dprintk(x...)	do { ; } while (0)
 #endif
 
-long aio_run = 0; /* for testing only */
-long aio_wakeups = 0; /* for testing only */
+static long aio_run = 0; /* for testing only */
+static long aio_wakeups = 0; /* for testing only */
 
 /*------ sysctl variables----*/
 atomic_t aio_nr = ATOMIC_INIT(0);	/* current system wide number of aio requests */
@@ -58,7 +58,7 @@ static void aio_fput_routine(void *);
 static DECLARE_WORK(fput_work, aio_fput_routine, NULL);
 
 static DEFINE_SPINLOCK(fput_lock);
-LIST_HEAD(fput_head);
+static LIST_HEAD(fput_head);
 
 static void aio_kick_handler(void *);
 
@@ -290,7 +290,7 @@ static void aio_cancel_all(struct kioctx *ctx)
 	spin_unlock_irq(&ctx->ctx_lock);
 }
 
-void wait_for_all_aios(struct kioctx *ctx)
+static void wait_for_all_aios(struct kioctx *ctx)
 {
 	struct task_struct *tsk = current;
 	DECLARE_WAITQUEUE(wait, tsk);
@@ -592,7 +592,7 @@ static void use_mm(struct mm_struct *mm)
  * Comments: Called with ctx->ctx_lock held. This nests
  * task_lock instead ctx_lock.
  */
-void unuse_mm(struct mm_struct *mm)
+static void unuse_mm(struct mm_struct *mm)
 {
 	struct task_struct *tsk = current;
 
@@ -879,7 +879,7 @@ static void aio_kick_handler(void *data)
  * and if required activate the aio work queue to process
  * it
  */
-void queue_kicked_iocb(struct kiocb *iocb)
+static void queue_kicked_iocb(struct kiocb *iocb)
 {
  	struct kioctx	*ctx = iocb->ki_ctx;
 	unsigned long flags;
@@ -1401,7 +1401,7 @@ static ssize_t aio_fsync(struct kiocb *iocb)
  *	Performs the initial checks and aio retry method
  *	setup for the kiocb at the time of io submission.
  */
-ssize_t aio_setup_iocb(struct kiocb *kiocb)
+static ssize_t aio_setup_iocb(struct kiocb *kiocb)
 {
 	struct file *file = kiocb->ki_filp;
 	ssize_t ret = 0;
@@ -1470,7 +1470,8 @@ ssize_t aio_setup_iocb(struct kiocb *kiocb)
  * because this callback isn't used for wait queues which
  * are nested inside ioctx lock (i.e. ctx->wait)
  */
-int aio_wake_function(wait_queue_t *wait, unsigned mode, int sync, void *key)
+static int aio_wake_function(wait_queue_t *wait, unsigned mode,
+			     int sync, void *key)
 {
 	struct kiocb *iocb = container_of(wait, struct kiocb, ki_wait);
 
@@ -1620,7 +1621,8 @@ asmlinkage long sys_io_submit(aio_context_t ctx_id, long nr,
  *	Finds a given iocb for cancellation.
  *	MUST be called with ctx->ctx_lock held.
  */
-struct kiocb *lookup_kiocb(struct kioctx *ctx, struct iocb __user *iocb, u32 key)
+static struct kiocb *lookup_kiocb(struct kioctx *ctx, struct iocb __user *iocb,
+				  u32 key)
 {
 	struct list_head *pos;
 	/* TODO: use a hash or array, this sucks. */
