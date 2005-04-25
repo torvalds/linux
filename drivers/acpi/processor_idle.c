@@ -768,7 +768,6 @@ static void acpi_processor_power_verify_c3(
 	}
 
 	if (pr->flags.bm_check) {
-		printk("Disabling BM access before entering C3\n");
 		/* bus mastering control is necessary */
 		if (!pr->flags.bm_control) {
 			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
@@ -776,7 +775,6 @@ static void acpi_processor_power_verify_c3(
 			return_VOID;
 		}
 	} else {
-		printk("Invalidating cache before entering C3\n");
 		/*
 		 * WBINVD should be set in fadt, for C3 state to be
 		 * supported on when bm_check is not required.
