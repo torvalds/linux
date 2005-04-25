@@ -2802,6 +2802,12 @@ next_pkt:
 next_pkt_nopost:
 		sw_idx++;
 		sw_idx %= TG3_RX_RCB_RING_SIZE(tp);
+
+		/* Refresh hw_idx to see if there is new work */
+		if (sw_idx == hw_idx) {
+			hw_idx = tp->hw_status->idx[0].rx_producer;
+			rmb();
+		}
 	}
 
 	/* ACK the status ring. */
