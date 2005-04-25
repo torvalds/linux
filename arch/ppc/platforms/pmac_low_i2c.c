@@ -54,7 +54,7 @@ struct low_i2c_host
 	int			mode;		/* Current mode */
 	int			channel;	/* Current channel */
 	int			num_channels;	/* Number of channels */
-	unsigned long		base;		/* For keywest-i2c, base address */
+	void __iomem *		base;		/* For keywest-i2c, base address */
 	int			bsteps;		/* And register stepping */
 	int			speed;		/* And speed */
 };
@@ -154,14 +154,12 @@ static const char *__kw_state_names[] = {
 
 static inline u8 __kw_read_reg(struct low_i2c_host *host, reg_t reg)
 {
-	return in_8(((volatile u8 *)host->base)
-		+ (((unsigned)reg) << host->bsteps));
+	return in_8(host->base + (((unsigned)reg) << host->bsteps));
 }
 
 static inline void __kw_write_reg(struct low_i2c_host *host, reg_t reg, u8 val)
 {
-	out_8(((volatile u8 *)host->base)
-		+ (((unsigned)reg) << host->bsteps), val);
+	out_8(host->base + (((unsigned)reg) << host->bsteps), val);
 	(void)__kw_read_reg(host, reg_subaddr);
 }
 
@@ -370,7 +368,7 @@ static void keywest_low_i2c_add(struct device_node *np)
 		break;
 	}	
 	host->mode = pmac_low_i2c_mode_std;
-	host->base = (unsigned long)ioremap(np->addrs[0].address + aoffset,
+	host->base = ioremap(np->addrs[0].address + aoffset,
 						np->addrs[0].size);
 	host->func = keywest_low_i2c_func;
 }
