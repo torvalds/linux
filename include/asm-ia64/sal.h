@@ -91,6 +91,7 @@ extern spinlock_t sal_lock;
 #define SAL_PCI_CONFIG_READ		0x01000010
 #define SAL_PCI_CONFIG_WRITE		0x01000011
 #define SAL_FREQ_BASE			0x01000012
+#define SAL_PHYSICAL_ID_INFO		0x01000013
 
 #define SAL_UPDATE_PAL			0x01000020
 
@@ -812,6 +813,17 @@ ia64_sal_update_pal (u64 param_buf, u64 scratch_buf, u64 scratch_buf_size,
 		*error_code = isrv.v0;
 	if (scratch_buf_size_needed)
 		*scratch_buf_size_needed = isrv.v1;
+	return isrv.status;
+}
+
+/* Get physical processor die mapping in the platform. */
+static inline s64
+ia64_sal_physical_id_info(u16 *splid)
+{
+	struct ia64_sal_retval isrv;
+	SAL_CALL(isrv, SAL_PHYSICAL_ID_INFO, 0, 0, 0, 0, 0, 0, 0);
+	if (splid)
+		*splid = isrv.v0;
 	return isrv.status;
 }
 

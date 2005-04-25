@@ -56,6 +56,10 @@ extern struct smp_boot_data {
 extern char no_int_routing __devinitdata;
 
 extern cpumask_t cpu_online_map;
+extern cpumask_t cpu_core_map[NR_CPUS];
+extern cpumask_t cpu_sibling_map[NR_CPUS];
+extern int smp_num_siblings;
+extern int smp_num_cpucores;
 extern void __iomem *ipi_base_addr;
 extern unsigned char smp_int_redirect;
 
@@ -124,6 +128,7 @@ extern int smp_call_function_single (int cpuid, void (*func) (void *info), void 
 extern void smp_send_reschedule (int cpu);
 extern void lock_ipi_calllock(void);
 extern void unlock_ipi_calllock(void);
+extern void identify_siblings (struct cpuinfo_ia64 *);
 
 #else
 

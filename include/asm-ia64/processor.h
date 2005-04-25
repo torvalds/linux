@@ -148,6 +148,13 @@ struct cpuinfo_ia64 {
 #ifdef CONFIG_SMP
 	__u64 loops_per_jiffy;
 	int cpu;
+	__u32 socket_id;	/* physical processor socket id */
+	__u16 core_id;		/* core id */
+	__u16 thread_id;	/* thread id */
+	__u16 num_log;		/* Total number of logical processors on
+				 * this socket that were successfully booted */
+	__u8  cores_per_socket;	/* Cores per processor socket */
+	__u8  threads_per_core;	/* Threads per core */
 #endif
 
 	/* CPUID-derived information: */
