@@ -699,8 +699,6 @@ retry:
 		ohci_writel (ohci, ohci->hc_control, &ohci->regs->control);
 		return -ENODEV;
 	}
-	if (ohci->power_budget)
-		hub_set_power_budget(udev, ohci->power_budget);
 
 	register_reboot_notifier (&ohci->reboot_notifier);
 	create_debug_files (ohci);

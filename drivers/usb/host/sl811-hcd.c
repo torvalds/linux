@@ -1574,17 +1574,16 @@ sl811h_start(struct usb_hcd *hcd)
 	udev->speed = USB_SPEED_FULL;
 	hcd->state = HC_STATE_RUNNING;
 
-	if (sl811->board)
+	if (sl811->board) {
 		hcd->can_wakeup = sl811->board->can_wakeup;
+		hcd->power_budget = sl811->board->power * 2;
+	}
 
 	if (usb_hcd_register_root_hub(udev, hcd) != 0) {
 		usb_put_dev(udev);
 		sl811h_stop(hcd);
 		return -ENODEV;
 	}
-
-	if (sl811->board && sl811->board->power)
-		hub_set_power_budget(udev, sl811->board->power * 2);
 
 	/* enable power and interupts */
 	port_power(sl811, 1);

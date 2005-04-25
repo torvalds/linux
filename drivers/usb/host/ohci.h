@@ -371,7 +371,6 @@ struct ohci_hcd {
 	 * other external transceivers should be software-transparent 
 	 */
 	struct otg_transceiver	*transceiver;
-	unsigned		power_budget;
 
 	/*
 	 * memory management for queue data structures

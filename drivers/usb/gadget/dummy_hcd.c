@@ -1646,6 +1646,9 @@ static int dummy_start (struct usb_hcd *hcd)
 	if (!root)
 		return -ENOMEM;
 
+	/* only show a low-power port: just 8mA */
+	hcd->power_budget = 8;
+
 	/* root hub enters addressed state... */
 	hcd->state = HC_STATE_RUNNING;
 	root->speed = USB_SPEED_HIGH;
@@ -1654,9 +1657,6 @@ static int dummy_start (struct usb_hcd *hcd)
 	if ((retval = usb_hcd_register_root_hub (root, hcd)) != 0) {
 		goto err1;
 	}
-
-	/* only show a low-power port: just 8mA */
-	hub_set_power_budget (root, 8);
 
 	if ((retval = dummy_register_udc (dum)) != 0)
 		goto err2;
