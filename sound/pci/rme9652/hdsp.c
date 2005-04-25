@@ -4912,19 +4912,9 @@ static int __devinit hdsp_request_fw_loader(hdsp_t *hdsp)
 		release_firmware(fw);
 		return -EINVAL;
 	}
-#ifdef SNDRV_BIG_ENDIAN
-	{
-		int i;
-		u32 *src = (u32*)fw->data;
-		for (i = 0; i < ARRAY_SIZE(hdsp->firmware_cache); i++, src++)
-			hdsp->firmware_cache[i] = ((*src & 0x000000ff) << 16) |
-				((*src & 0x0000ff00) << 8)  |
-				((*src & 0x00ff0000) >> 8)  |
-				((*src & 0xff000000) >> 16);
-	}
-#else
+
 	memcpy(hdsp->firmware_cache, fw->data, sizeof(hdsp->firmware_cache));
-#endif
+
 	release_firmware(fw);
 		
 	hdsp->state |= HDSP_FirmwareCached;
