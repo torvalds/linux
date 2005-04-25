@@ -64,6 +64,7 @@
 
 #define  SN_SAL_SYSCTL_IOBRICK_PCI_OP		   0x02000042	// reentrant
 #define	 SN_SAL_IROUTER_OP			   0x02000043
+#define  SN_SAL_SYSCTL_EVENT                       0x02000044
 #define  SN_SAL_IOIF_INTERRUPT			   0x0200004a
 #define  SN_SAL_HWPERF_OP			   0x02000050   // lock
 #define  SN_SAL_IOIF_ERROR_INTERRUPT		   0x02000051
@@ -848,6 +849,19 @@ ia64_sn_irtr_intr_disable(nasid_t nasid, int subch, u64 intr)
 	SAL_CALL_REENTRANT(rv, SN_SAL_IROUTER_OP, SAL_IROUTER_INTR_OFF,
 			   (u64) nasid, (u64) subch, intr, 0, 0, 0);
 	return (int) rv.v0;
+}
+
+/*
+ * Set up a node as the point of contact for system controller
+ * environmental event delivery.
+ */
+static inline int
+ia64_sn_sysctl_event_init(nasid_t nasid)
+{
+        struct ia64_sal_retval rv;
+        SAL_CALL_REENTRANT(rv, SN_SAL_SYSCTL_EVENT, (u64) nasid,
+			   0, 0, 0, 0, 0, 0);
+        return (int) rv.v0;
 }
 
 /**

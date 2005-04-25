@@ -374,6 +374,7 @@ scdrv_init(void)
 	void *salbuf;
 	struct class_simple *snsc_class;
 	dev_t first_dev, dev;
+	nasid_t event_nasid = ia64_sn_get_console_nasid();
 
 	if (alloc_chrdev_region(&first_dev, 0, numionodes,
 				SYSCTL_BASENAME) < 0) {
@@ -441,6 +442,13 @@ scdrv_init(void)
 			ia64_sn_irtr_intr_enable(scd->scd_nasid,
 						 0 /*ignored */ ,
 						 SAL_IROUTER_INTR_RECV);
+
+                        /* on the console nasid, prepare to receive
+                         * system controller environmental events
+                         */
+                        if(scd->scd_nasid == event_nasid) {
+                                scdrv_event_init(scd);
+                        }
 	}
 	return 0;
 }
