@@ -403,7 +403,7 @@ static int emulate_string_inst(struct pt_regs *regs, u32 instword)
 	u8 rA = (instword >> 16) & 0x1f;
 	u8 NB_RB = (instword >> 11) & 0x1f;
 	u32 num_bytes;
-	u32 EA;
+	unsigned long EA;
 	int pos = 0;
 
 	/* Early out if we are an invalid form of lswx */
