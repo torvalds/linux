@@ -762,7 +762,7 @@ again:
 			mask = 0;
 		set_rte(gsi, vector, dest, mask);
 	}
-	spin_unlock_irq(&iosapic_lock);
+	spin_unlock(&iosapic_lock);
 	spin_unlock_irqrestore(&irq_descp(vector)->lock, flags);
 
 	printk(KERN_INFO "GSI %u (%s, %s) -> CPU %d (0x%04x) vector %d\n",
