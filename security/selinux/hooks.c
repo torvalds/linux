@@ -2855,8 +2855,7 @@ static int selinux_parse_skb_ipv6(struct sk_buff *skb, struct avc_audit_data *ad
 
 	nexthdr = ip6->nexthdr;
 	offset += sizeof(_ipv6h);
-	offset = ipv6_skip_exthdr(skb, offset, &nexthdr,
-				  skb->tail - skb->head - offset);
+	offset = ipv6_skip_exthdr(skb, offset, &nexthdr);
 	if (offset < 0)
 		goto out;
 
