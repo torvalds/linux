@@ -356,15 +356,6 @@ unsigned int nat_packet(struct ip_conntrack *ct,
 	unsigned long statusbit;
 	enum ip_nat_manip_type mtype = HOOK2MANIP(hooknum);
 
-	if (test_bit(IPS_SEQ_ADJUST_BIT, &ct->status)
-	    && (hooknum == NF_IP_POST_ROUTING || hooknum == NF_IP_LOCAL_IN)) {
-		DEBUGP("ip_nat_core: adjusting sequence number\n");
-		/* future: put this in a l4-proto specific function,
-		 * and call this function here. */
-		if (!ip_nat_seq_adjust(pskb, ct, ctinfo))
-			return NF_DROP;
-	}
-
 	if (mtype == IP_NAT_MANIP_SRC)
 		statusbit = IPS_SRC_NAT;
 	else

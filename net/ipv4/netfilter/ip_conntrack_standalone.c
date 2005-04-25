@@ -401,6 +401,16 @@ static unsigned int ip_confirm(unsigned int hooknum,
 			       const struct net_device *out,
 			       int (*okfn)(struct sk_buff *))
 {
+	/* We've seen it coming out the other side: confirm it */
+	return ip_conntrack_confirm(pskb);
+}
+
+static unsigned int ip_conntrack_help(unsigned int hooknum,
+				      struct sk_buff **pskb,
+				      const struct net_device *in,
+				      const struct net_device *out,
+				      int (*okfn)(struct sk_buff *))
+{
 	struct ip_conntrack *ct;
 	enum ip_conntrack_info ctinfo;
 
@@ -412,9 +422,7 @@ static unsigned int ip_confirm(unsigned int hooknum,
 		if (ret != NF_ACCEPT)
 			return ret;
 	}
-
-	/* We've seen it coming out the other side: confirm it */
-	return ip_conntrack_confirm(pskb);
+	return NF_ACCEPT;
 }
 
 static unsigned int ip_conntrack_defrag(unsigned int hooknum,
@@ -516,13 +524,30 @@ static struct nf_hook_ops ip_conntrack_local_out_ops = {
 	.priority	= NF_IP_PRI_CONNTRACK,
 };
 
+/* helpers */
+static struct nf_hook_ops ip_conntrack_helper_out_ops = {
+	.hook		= ip_conntrack_help,
+	.owner		= THIS_MODULE,
+	.pf		= PF_INET,
+	.hooknum	= NF_IP_POST_ROUTING,
+	.priority	= NF_IP_PRI_CONNTRACK_HELPER,
+};
+
+static struct nf_hook_ops ip_conntrack_helper_in_ops = {
+	.hook		= ip_conntrack_help,
+	.owner		= THIS_MODULE,
+	.pf		= PF_INET,
+	.hooknum	= NF_IP_LOCAL_IN,
+	.priority	= NF_IP_PRI_CONNTRACK_HELPER,
+};
+
 /* Refragmenter; last chance. */
 static struct nf_hook_ops ip_conntrack_out_ops = {
 	.hook		= ip_refrag,
 	.owner		= THIS_MODULE,
 	.pf		= PF_INET,
 	.hooknum	= NF_IP_POST_ROUTING,
-	.priority	= NF_IP_PRI_LAST,
+	.priority	= NF_IP_PRI_CONNTRACK_CONFIRM,
 };
 
 static struct nf_hook_ops ip_conntrack_local_in_ops = {
@@ -530,7 +555,7 @@ static struct nf_hook_ops ip_conntrack_local_in_ops = {
 	.owner		= THIS_MODULE,
 	.pf		= PF_INET,
 	.hooknum	= NF_IP_LOCAL_IN,
-	.priority	= NF_IP_PRI_LAST-1,
+	.priority	= NF_IP_PRI_CONNTRACK_CONFIRM,
 };
 
 /* Sysctl support */
@@ -831,10 +856,20 @@ static int init_or_cleanup(int init)
 		printk("ip_conntrack: can't register local out hook.\n");
 		goto cleanup_inops;
 	}
+	ret = nf_register_hook(&ip_conntrack_helper_in_ops);
+	if (ret < 0) {
+		printk("ip_conntrack: can't register local in helper hook.\n");
+		goto cleanup_inandlocalops;
+	}
+	ret = nf_register_hook(&ip_conntrack_helper_out_ops);
+	if (ret < 0) {
+		printk("ip_conntrack: can't register postrouting helper hook.\n");
+		goto cleanup_helperinops;
+	}
 	ret = nf_register_hook(&ip_conntrack_out_ops);
 	if (ret < 0) {
 		printk("ip_conntrack: can't register post-routing hook.\n");
-		goto cleanup_inandlocalops;
+		goto cleanup_helperoutops;
 	}
 	ret = nf_register_hook(&ip_conntrack_local_in_ops);
 	if (ret < 0) {
@@ -860,6 +895,10 @@ static int init_or_cleanup(int init)
 	nf_unregister_hook(&ip_conntrack_local_in_ops);
  cleanup_inoutandlocalops:
 	nf_unregister_hook(&ip_conntrack_out_ops);
+ cleanup_helperoutops:
+	nf_unregister_hook(&ip_conntrack_helper_out_ops);
+ cleanup_helperinops:
+	nf_unregister_hook(&ip_conntrack_helper_in_ops);
  cleanup_inandlocalops:
 	nf_unregister_hook(&ip_conntrack_local_out_ops);
  cleanup_inops:
