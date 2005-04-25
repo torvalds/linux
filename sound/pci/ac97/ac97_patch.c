@@ -1928,6 +1928,7 @@ static void alc850_update_jacks(ac97_t *ac97)
 
 static const snd_kcontrol_new_t snd_ac97_controls_alc850[] = {
 	AC97_PAGE_SINGLE("Duplicate Front", AC97_ALC650_MULTICH, 0, 1, 0, 0),
+	AC97_SINGLE("Mic Front Input Switch", AC97_ALC850_JACK_SELECT, 15, 1, 1),
 	AC97_SURROUND_JACK_MODE_CTL,
 	AC97_CHANNEL_MODE_CTL,
 };
