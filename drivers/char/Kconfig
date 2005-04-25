@@ -399,6 +399,20 @@ config SGI_SNSC
 	  controller communication from user space (you want this!),
 	  say Y.  Otherwise, say N.
 
+config SGI_TIOCX
+       bool "SGI TIO CX driver support"
+       depends on (IA64_SGI_SN2 || IA64_GENERIC)
+       help
+         If you have an SGI Altix and you have fpga devices attached
+         to your TIO, say Y here, otherwise say N.
+
+config SGI_MBCS
+       tristate "SGI FPGA Core Services driver support"
+       depends on (IA64_SGI_SN2 || IA64_GENERIC)
+       help
+         If you have an SGI Altix with an attached SABrick
+         say Y or M here, otherwise say N.
+
 source "drivers/serial/Kconfig"
 
 config UNIX98_PTYS

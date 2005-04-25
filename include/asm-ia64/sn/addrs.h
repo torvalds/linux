@@ -169,7 +169,10 @@
 #define TIO_BWIN_SIZE_BITS		30	/* big window size: 1G */
 #define NODE_SWIN_BASE(n, w)		((w == 0) ? NODE_BWIN_BASE((n), SWIN0_BIGWIN) \
 		: RAW_NODE_SWIN_BASE(n, w))
+#define TIO_SWIN_BASE(n, w) 		(TIO_IO_BASE(n) + \
+					    ((u64) (w) << TIO_SWIN_SIZE_BITS))
 #define NODE_IO_BASE(n)			(GLOBAL_MMR_SPACE | NASID_SPACE(n))
+#define TIO_IO_BASE(n)                  (UNCACHED | NASID_SPACE(n))
 #define BWIN_SIZE			(1UL << BWIN_SIZE_BITS)
 #define NODE_BWIN_BASE0(n)		(NODE_IO_BASE(n) + BWIN_SIZE)
 #define NODE_BWIN_BASE(n, w)		(NODE_BWIN_BASE0(n) + ((u64) (w) << BWIN_SIZE_BITS))
