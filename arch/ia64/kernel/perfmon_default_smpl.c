@@ -20,32 +20,23 @@ MODULE_AUTHOR("Stephane Eranian <eranian@hpl.hp.com>");
 MODULE_DESCRIPTION("perfmon default sampling format");
 MODULE_LICENSE("GPL");
 
-MODULE_PARM(debug, "i");
-MODULE_PARM_DESC(debug, "debug");
-
-MODULE_PARM(debug_ovfl, "i");
-MODULE_PARM_DESC(debug_ovfl, "debug ovfl");
-
-
 #define DEFAULT_DEBUG 1
 
 #ifdef DEFAULT_DEBUG
 #define DPRINT(a) \
 	do { \
-		if (unlikely(debug >0)) { printk("%s.%d: CPU%d ", __FUNCTION__, __LINE__, smp_processor_id()); printk a; } \
+		if (unlikely(pfm_sysctl.debug >0)) { printk("%s.%d: CPU%d ", __FUNCTION__, __LINE__, smp_processor_id()); printk a; } \
 	} while (0)
 
 #define DPRINT_ovfl(a) \
 	do { \
-		if (unlikely(debug_ovfl >0)) { printk("%s.%d: CPU%d ", __FUNCTION__, __LINE__, smp_processor_id()); printk a; } \
+		if (unlikely(pfm_sysctl.debug > 0 && pfm_sysctl.debug_ovfl >0)) { printk("%s.%d: CPU%d ", __FUNCTION__, __LINE__, smp_processor_id()); printk a; } \
 	} while (0)
 
 #else
 #define DPRINT(a)
 #define DPRINT_ovfl(a)
 #endif
-
-static int debug, debug_ovfl;
 
 static int
 default_validate(struct task_struct *task, unsigned int flags, int cpu, void *data)

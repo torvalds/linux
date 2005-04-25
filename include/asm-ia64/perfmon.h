@@ -254,6 +254,18 @@ extern int pfm_mod_write_dbrs(struct task_struct *task, void *req, unsigned int 
 #define PFM_CPUINFO_DCR_PP	0x2	/* if set the system wide session has started */
 #define PFM_CPUINFO_EXCL_IDLE	0x4	/* the system wide session excludes the idle task */
 
+/*
+ * sysctl control structure. visible to sampling formats
+ */
+typedef struct {
+	int	debug;		/* turn on/off debugging via syslog */
+	int	debug_ovfl;	/* turn on/off debug printk in overflow handler */
+	int	fastctxsw;	/* turn on/off fast (unsecure) ctxsw */
+	int	expert_mode;	/* turn on/off value checking */
+} pfm_sysctl_t;
+extern pfm_sysctl_t pfm_sysctl;
+
+
 #endif /* __KERNEL__ */
 
 #endif /* _ASM_IA64_PERFMON_H */
