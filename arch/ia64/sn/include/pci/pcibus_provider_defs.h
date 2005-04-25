@@ -18,6 +18,8 @@
 #define PCIIO_ASIC_TYPE_PIC	2
 #define PCIIO_ASIC_TYPE_TIOCP	3
 
+#define PCIIO_ASIC_MAX_TYPES	4
+
 /*
  * Common pciio bus provider data.  There should be one of these as the
  * first field in any pciio based provider soft structure (e.g. pcibr_soft
@@ -35,9 +37,15 @@ struct pcibus_bussoft {
 };
 
 /*
- * DMA mapping flags
+ * SN pci bus indirection
  */
 
-#define SN_PCIDMA_CONSISTENT    0x0001
+struct sn_pcibus_provider {
+	dma_addr_t	(*dma_map)(struct pci_dev *, unsigned long, size_t);
+	dma_addr_t	(*dma_map_consistent)(struct pci_dev *, unsigned long, size_t);
+	void		(*dma_unmap)(struct pci_dev *, dma_addr_t, int);
+	void *		(*bus_fixup)(struct pcibus_bussoft *);
+};
 
+extern struct sn_pcibus_provider *sn_pci_provider[];
 #endif				/* _ASM_IA64_SN_PCI_PCIBUS_PROVIDER_H */

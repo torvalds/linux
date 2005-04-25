@@ -168,3 +168,23 @@ void pcibr_change_devices_irq(struct sn_irq_info *sn_irq_info)
 		pcibr_force_interrupt(sn_irq_info);
 	}
 }
+
+/*
+ * Provider entries for PIC/CP
+ */
+
+struct sn_pcibus_provider pcibr_provider = {
+	.dma_map = pcibr_dma_map,
+	.dma_map_consistent = pcibr_dma_map_consistent,
+	.dma_unmap = pcibr_dma_unmap,
+	.bus_fixup = pcibr_bus_fixup,
+};
+
+int
+pcibr_init_provider(void)
+{
+	sn_pci_provider[PCIIO_ASIC_TYPE_PIC] = &pcibr_provider;
+	sn_pci_provider[PCIIO_ASIC_TYPE_TIOCP] = &pcibr_provider;
+
+	return 0;
+}

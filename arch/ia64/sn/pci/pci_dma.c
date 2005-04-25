@@ -14,7 +14,6 @@
 #include <asm/sn/sn_sal.h>
 #include "pci/pcibus_provider_defs.h"
 #include "pci/pcidev.h"
-#include "pci/pcibr_provider.h"
 
 #define SG_ENT_VIRT_ADDRESS(sg)	(page_address((sg)->page) + (sg)->offset)
 #define SG_ENT_PHYS_ADDRESS(SG)	virt_to_phys(SG_ENT_VIRT_ADDRESS(SG))
@@ -79,7 +78,8 @@ void *sn_dma_alloc_coherent(struct device *dev, size_t size,
 {
 	void *cpuaddr;
 	unsigned long phys_addr;
-	struct pcidev_info *pcidev_info = SN_PCIDEV_INFO(to_pci_dev(dev));
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct sn_pcibus_provider *provider = SN_PCIDEV_BUSPROVIDER(pdev);
 
 	BUG_ON(dev->bus != &pci_bus_type);
 
@@ -102,8 +102,7 @@ void *sn_dma_alloc_coherent(struct device *dev, size_t size,
 	 * resources.
 	 */
 
-	*dma_handle = pcibr_dma_map(pcidev_info, phys_addr, size,
-				    SN_PCIDMA_CONSISTENT);
+	*dma_handle = provider->dma_map_consistent(pdev, phys_addr, size);
 	if (!*dma_handle) {
 		printk(KERN_ERR "%s: out of ATEs\n", __FUNCTION__);
 		free_pages((unsigned long)cpuaddr, get_order(size));
@@ -127,11 +126,12 @@ EXPORT_SYMBOL(sn_dma_alloc_coherent);
 void sn_dma_free_coherent(struct device *dev, size_t size, void *cpu_addr,
 			  dma_addr_t dma_handle)
 {
-	struct pcidev_info *pcidev_info = SN_PCIDEV_INFO(to_pci_dev(dev));
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct sn_pcibus_provider *provider = SN_PCIDEV_BUSPROVIDER(pdev);
 
 	BUG_ON(dev->bus != &pci_bus_type);
 
-	pcibr_dma_unmap(pcidev_info, dma_handle, 0);
+	provider->dma_unmap(pdev, dma_handle, 0);
 	free_pages((unsigned long)cpu_addr, get_order(size));
 }
 EXPORT_SYMBOL(sn_dma_free_coherent);
@@ -159,12 +159,13 @@ dma_addr_t sn_dma_map_single(struct device *dev, void *cpu_addr, size_t size,
 {
 	dma_addr_t dma_addr;
 	unsigned long phys_addr;
-	struct pcidev_info *pcidev_info = SN_PCIDEV_INFO(to_pci_dev(dev));
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct sn_pcibus_provider *provider = SN_PCIDEV_BUSPROVIDER(pdev);
 
 	BUG_ON(dev->bus != &pci_bus_type);
 
 	phys_addr = __pa(cpu_addr);
-	dma_addr = pcibr_dma_map(pcidev_info, phys_addr, size, 0);
+	dma_addr = provider->dma_map(pdev, phys_addr, size);
 	if (!dma_addr) {
 		printk(KERN_ERR "%s: out of ATEs\n", __FUNCTION__);
 		return 0;
@@ -187,10 +188,12 @@ EXPORT_SYMBOL(sn_dma_map_single);
 void sn_dma_unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 			 int direction)
 {
-	struct pcidev_info *pcidev_info = SN_PCIDEV_INFO(to_pci_dev(dev));
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct sn_pcibus_provider *provider = SN_PCIDEV_BUSPROVIDER(pdev);
 
 	BUG_ON(dev->bus != &pci_bus_type);
-	pcibr_dma_unmap(pcidev_info, dma_addr, direction);
+
+	provider->dma_unmap(pdev, dma_addr, direction);
 }
 EXPORT_SYMBOL(sn_dma_unmap_single);
 
@@ -207,12 +210,13 @@ void sn_dma_unmap_sg(struct device *dev, struct scatterlist *sg,
 		     int nhwentries, int direction)
 {
 	int i;
-	struct pcidev_info *pcidev_info = SN_PCIDEV_INFO(to_pci_dev(dev));
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct sn_pcibus_provider *provider = SN_PCIDEV_BUSPROVIDER(pdev);
 
 	BUG_ON(dev->bus != &pci_bus_type);
 
 	for (i = 0; i < nhwentries; i++, sg++) {
-		pcibr_dma_unmap(pcidev_info, sg->dma_address, direction);
+		provider->dma_unmap(pdev, sg->dma_address, direction);
 		sg->dma_address = (dma_addr_t) NULL;
 		sg->dma_length = 0;
 	}
@@ -233,7 +237,8 @@ int sn_dma_map_sg(struct device *dev, struct scatterlist *sg, int nhwentries,
 {
 	unsigned long phys_addr;
 	struct scatterlist *saved_sg = sg;
-	struct pcidev_info *pcidev_info = SN_PCIDEV_INFO(to_pci_dev(dev));
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct sn_pcibus_provider *provider = SN_PCIDEV_BUSPROVIDER(pdev);
 	int i;
 
 	BUG_ON(dev->bus != &pci_bus_type);
@@ -243,8 +248,8 @@ int sn_dma_map_sg(struct device *dev, struct scatterlist *sg, int nhwentries,
 	 */
 	for (i = 0; i < nhwentries; i++, sg++) {
 		phys_addr = SG_ENT_PHYS_ADDRESS(sg);
-		sg->dma_address = pcibr_dma_map(pcidev_info, phys_addr,
-						sg->length, 0);
+		sg->dma_address = provider->dma_map(pdev,
+						    phys_addr, sg->length);
 
 		if (!sg->dma_address) {
 			printk(KERN_ERR "%s: out of ATEs\n", __FUNCTION__);

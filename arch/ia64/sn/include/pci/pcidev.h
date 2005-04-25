@@ -32,6 +32,9 @@ extern struct sn_irq_info **sn_irq;
 #define SN_PCIDEV_BUSSOFT(pci_dev) \
 	(SN_PCIDEV_INFO(pci_dev)->pdi_host_pcidev_info->pdi_pcibus_info)
 
+#define SN_PCIDEV_BUSPROVIDER(pci_dev) \
+	(SN_PCIDEV_INFO(pci_dev)->pdi_provider)
+
 #define PCIIO_BUS_NONE	255      /* bus 255 reserved */
 #define PCIIO_SLOT_NONE 255
 #define PCIIO_FUNC_NONE 255
@@ -46,6 +49,7 @@ struct pcidev_info {
 	struct pci_dev		*pdi_linux_pcidev;	/* Kernel pci_dev */
 
 	struct sn_irq_info	*pdi_sn_irq_info;
+	struct sn_pcibus_provider *pdi_provider;	/* sn pci ops */
 };
 
 extern void sn_irq_fixup(struct pci_dev *pci_dev,
