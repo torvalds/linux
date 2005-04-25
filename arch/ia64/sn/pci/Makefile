@@ -7,4 +7,4 @@
 #
 # Makefile for the sn pci general routines.
 
-obj-y := pci_dma.o pcibr/ 
+obj-y := pci_dma.o tioca_provider.o pcibr/ 

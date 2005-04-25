@@ -19,6 +19,7 @@
 #include "xtalk/hubdev.h"
 #include <asm/sn/io.h>
 #include <asm/sn/simulator.h>
+#include <asm/sn/tioca_provider.h>
 
 char master_baseio_wid;
 nasid_t master_nasid = INVALID_NASID;	/* Partition Master */
@@ -393,6 +394,7 @@ static int __init sn_pci_init(void)
 		sn_pci_provider[i] = &sn_pci_default_provider;
 
 	pcibr_init_provider();
+	tioca_init_provider();
 
 	/*
 	 * This is needed to avoid bounce limit checks in the blk layer
