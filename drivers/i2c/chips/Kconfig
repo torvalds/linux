@@ -384,6 +384,20 @@ config SENSORS_W83627HF
 	  This driver can also be built as a module.  If so, the module
 	  will be called w83627hf.
 
+config SENSORS_W83627EHF
+	tristate "Winbond W83627EHF"
+	depends on I2C && EXPERIMENTAL
+	select I2C_SENSOR
+	select I2C_ISA
+	help
+	  If you say yes here you get preliminary support for the hardware
+	  monitoring functionality of the Winbond W83627EHF Super-I/O chip.
+	  Only fan and temperature inputs are supported at the moment, while
+	  the chip does much more than that.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called w83627ehf.
+
 endmenu
 
 menu "Other I2C Chip support"
