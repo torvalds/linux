@@ -7,9 +7,6 @@
  * Copyright (C) 1996, 1999, 2003 David S. Miller (davem@redhat.com)
  */
 
-static char version[] =
-        "sunqe.c:v3.0 8/24/03 David S. Miller (davem@redhat.com)\n";
-
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -42,6 +39,19 @@ static char version[] =
 #include <asm/irq.h>
 
 #include "sunqe.h"
+
+#define DRV_NAME	"sunqe"
+#define DRV_VERSION	"3.0"
+#define DRV_RELDATE	"8/24/03"
+#define DRV_AUTHOR	"David S. Miller (davem@redhat.com)"
+
+static char version[] =
+	DRV_NAME ".c:v" DRV_VERSION " " DRV_RELDATE " " DRV_AUTHOR "\n";
+
+MODULE_VERSION(DRV_VERSION);
+MODULE_AUTHOR(DRV_AUTHOR);
+MODULE_DESCRIPTION("Sun QuadEthernet 10baseT SBUS card driver");
+MODULE_LICENSE("GPL");
 
 static struct sunqec *root_qec_dev;
 
@@ -1040,4 +1050,3 @@ static void __exit qec_cleanup(void)
 
 module_init(qec_probe);
 module_exit(qec_cleanup);
-MODULE_LICENSE("GPL");
