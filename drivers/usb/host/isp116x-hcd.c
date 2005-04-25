@@ -1547,7 +1547,6 @@ static int isp116x_start(struct usb_hcd *hcd)
 {
 	struct isp116x *isp116x = hcd_to_isp116x(hcd);
 	struct isp116x_platform_data *board = isp116x->board;
-	struct usb_device *udev;
 	u32 val;
 	unsigned long flags;
 
@@ -1609,24 +1608,9 @@ static int isp116x_start(struct usb_hcd *hcd)
 	isp116x->rhstatus = isp116x_read_reg32(isp116x, HCRHSTATUS);
 
 	isp116x_write_reg32(isp116x, HCFMINTVL, 0x27782edf);
-	spin_unlock_irqrestore(&isp116x->lock, flags);
 
-	udev = usb_alloc_dev(NULL, &hcd->self, 0);
-	if (!udev) {
-		isp116x_stop(hcd);
-		return -ENOMEM;
-	}
-
-	udev->speed = USB_SPEED_FULL;
 	hcd->state = HC_STATE_RUNNING;
 
-	if (usb_hcd_register_root_hub(udev, hcd) != 0) {
-		isp116x_stop(hcd);
-		usb_put_dev(udev);
-		return -ENODEV;
-	}
-
-	spin_lock_irqsave(&isp116x->lock, flags);
 	/* Set up interrupts */
 	isp116x->intenb = HCINT_MIE | HCINT_RHSC | HCINT_UE;
 	if (board->remote_wakeup_enable)

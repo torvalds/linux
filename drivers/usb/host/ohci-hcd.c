@@ -505,13 +505,10 @@ static int ohci_init (struct ohci_hcd *ohci)
 /* Start an OHCI controller, set the BUS operational
  * resets USB and controller
  * enable interrupts 
- * connect the virtual root hub
  */
 static int ohci_run (struct ohci_hcd *ohci)
 {
   	u32			mask, temp;
-  	struct usb_device	*udev;
-  	struct usb_bus		*bus;
 	int			first = ohci->fminterval == 0;
 
 	disable (ohci);
@@ -672,36 +669,13 @@ retry:
 
 	// POTPGT delay is bits 24-31, in 2 ms units.
 	mdelay ((temp >> 23) & 0x1fe);
-	bus = &ohci_to_hcd(ohci)->self;
 	ohci_to_hcd(ohci)->state = HC_STATE_RUNNING;
 
 	ohci_dump (ohci, 1);
 
-	udev = bus->root_hub;
-	if (udev) {
-		return 0;
-	}
- 
-	/* connect the virtual root hub */
-	udev = usb_alloc_dev (NULL, bus, 0);
-	if (!udev) {
-		disable (ohci);
-		ohci->hc_control &= ~OHCI_CTRL_HCFS;
-		ohci_writel (ohci, ohci->hc_control, &ohci->regs->control);
-		return -ENOMEM;
-	}
+	if (ohci_to_hcd(ohci)->self.root_hub == NULL)
+		create_debug_files (ohci);
 
-	udev->speed = USB_SPEED_FULL;
-	if (usb_hcd_register_root_hub (udev, ohci_to_hcd(ohci)) != 0) {
-		usb_put_dev (udev);
-		disable (ohci);
-		ohci->hc_control &= ~OHCI_CTRL_HCFS;
-		ohci_writel (ohci, ohci->hc_control, &ohci->regs->control);
-		return -ENODEV;
-	}
-
-	register_reboot_notifier (&ohci->reboot_notifier);
-	create_debug_files (ohci);
 	return 0;
 }
 

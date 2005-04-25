@@ -1625,7 +1625,6 @@ static DEVICE_ATTR (urbs, S_IRUGO, show_urbs, NULL);
 static int dummy_start (struct usb_hcd *hcd)
 {
 	struct dummy		*dum;
-	struct usb_device	*root;
 	int			retval;
 
 	dum = hcd_to_dummy (hcd);
@@ -1642,35 +1641,16 @@ static int dummy_start (struct usb_hcd *hcd)
 
 	INIT_LIST_HEAD (&dum->urbp_list);
 
-	root = usb_alloc_dev (NULL, &hcd->self, 0);
-	if (!root)
-		return -ENOMEM;
+	if ((retval = dummy_register_udc (dum)) != 0)
+		return retval;
 
 	/* only show a low-power port: just 8mA */
 	hcd->power_budget = 8;
-
-	/* root hub enters addressed state... */
 	hcd->state = HC_STATE_RUNNING;
-	root->speed = USB_SPEED_HIGH;
-
-	/* ...then configured, so khubd sees us. */
-	if ((retval = usb_hcd_register_root_hub (root, hcd)) != 0) {
-		goto err1;
-	}
-
-	if ((retval = dummy_register_udc (dum)) != 0)
-		goto err2;
 
 	/* FIXME 'urbs' should be a per-device thing, maybe in usbcore */
 	device_create_file (dummy_dev(dum), &dev_attr_urbs);
 	return 0;
-
- err2:
-	usb_disconnect (&hcd->self.root_hub);
- err1:
-	usb_put_dev (root);
-	hcd->state = HC_STATE_QUIESCING;
-	return retval;
 }
 
 static void dummy_stop (struct usb_hcd *hcd)

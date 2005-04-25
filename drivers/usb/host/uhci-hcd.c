@@ -562,7 +562,6 @@ static int uhci_start(struct usb_hcd *hcd)
 	int retval = -EBUSY;
 	int i;
 	dma_addr_t dma_handle;
-	struct usb_device *udev;
 	struct dentry *dentry;
 
 	hcd->uses_new_polling = 1;
@@ -624,14 +623,6 @@ static int uhci_start(struct usb_hcd *hcd)
 	if (!uhci->qh_pool) {
 		dev_err(uhci_dev(uhci), "unable to create qh dma_pool\n");
 		goto err_create_qh_pool;
-	}
-
-	/* Initialize the root hub */
-
-	udev = usb_alloc_dev(NULL, &hcd->self, 0);
-	if (!udev) {
-		dev_err(uhci_dev(uhci), "unable to allocate root hub\n");
-		goto err_alloc_root_hub;
 	}
 
 	uhci->term_td = uhci_alloc_td(uhci);
@@ -713,24 +704,11 @@ static int uhci_start(struct usb_hcd *hcd)
 
 	configure_hc(uhci);
 	start_rh(uhci);
-
-	udev->speed = USB_SPEED_FULL;
-
-	if (usb_hcd_register_root_hub(udev, hcd) != 0) {
-		dev_err(uhci_dev(uhci), "unable to start root hub\n");
-		retval = -ENOMEM;
-		goto err_start_root_hub;
-	}
-
 	return 0;
 
 /*
  * error exits:
  */
-err_start_root_hub:
-	reset_hc(uhci);
-	del_timer_sync(&uhci->stall_timer);
-
 err_alloc_skelqh:
 	for (i = 0; i < UHCI_NUM_SKELQH; i++)
 		if (uhci->skelqh[i]) {
@@ -742,9 +720,6 @@ err_alloc_skelqh:
 	uhci->term_td = NULL;
 
 err_alloc_term_td:
-	usb_put_dev(udev);
-
-err_alloc_root_hub:
 	dma_pool_destroy(uhci->qh_pool);
 	uhci->qh_pool = NULL;
 

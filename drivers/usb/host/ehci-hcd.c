@@ -492,8 +492,6 @@ static int ehci_start (struct usb_hcd *hcd)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci (hcd);
 	u32			temp;
-	struct usb_device	*udev;
-	struct usb_bus		*bus;
 	int			retval;
 	u32			hcc_params;
 	u8                      sbrn = 0;
@@ -631,17 +629,6 @@ static int ehci_start (struct usb_hcd *hcd)
 
 	/* set async sleep time = 10 us ... ? */
 
-	/* wire up the root hub */
-	bus = hcd_to_bus (hcd);
-	udev = first ? usb_alloc_dev (NULL, bus, 0) : bus->root_hub;
-	if (!udev) {
-done2:
-		ehci_mem_cleanup (ehci);
-		return -ENOMEM;
-	}
-	udev->speed = USB_SPEED_HIGH;
-	udev->state = first ? USB_STATE_ATTACHED : USB_STATE_CONFIGURED;
-
 	/*
 	 * Start, enabling full USB 2.0 functionality ... usb 1.1 devices
 	 * are explicitly handed to companion controller(s), so no TT is
@@ -663,24 +650,6 @@ done2:
 		((sbrn & 0xf0)>>4), (sbrn & 0x0f),
 		first ? "initialized" : "restarted",
 		temp >> 8, temp & 0xff, DRIVER_VERSION);
-
-	/*
-	 * From here on, khubd concurrently accesses the root
-	 * hub; drivers will be talking to enumerated devices.
-	 * (On restart paths, khubd already knows about the root
-	 * hub and could find work as soon as we wrote FLAG_CF.)
-	 *
-	 * Before this point the HC was idle/ready.  After, khubd
-	 * and device drivers may start it running.
-	 */
-	if (first && usb_hcd_register_root_hub (udev, hcd) != 0) {
-		if (hcd->state == HC_STATE_RUNNING)
-			ehci_quiesce (ehci);
-		ehci_reset (ehci);
-		usb_put_dev (udev); 
-		retval = -ENODEV;
-		goto done2;
-	}
 
 	writel (INTR_MASK, &ehci->regs->intr_enable); /* Turn On Interrupts */
 

@@ -1563,26 +1563,13 @@ static int
 sl811h_start(struct usb_hcd *hcd)
 {
 	struct sl811		*sl811 = hcd_to_sl811(hcd);
-	struct usb_device	*udev;
 
 	/* chip has been reset, VBUS power is off */
-
-	udev = usb_alloc_dev(NULL, &hcd->self, 0);
-	if (!udev)
-		return -ENOMEM;
-
-	udev->speed = USB_SPEED_FULL;
 	hcd->state = HC_STATE_RUNNING;
 
 	if (sl811->board) {
 		hcd->can_wakeup = sl811->board->can_wakeup;
 		hcd->power_budget = sl811->board->power * 2;
-	}
-
-	if (usb_hcd_register_root_hub(udev, hcd) != 0) {
-		usb_put_dev(udev);
-		sl811h_stop(hcd);
-		return -ENODEV;
 	}
 
 	/* enable power and interupts */
