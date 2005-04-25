@@ -195,6 +195,8 @@ static inline int ip_finish_output2(struct sk_buff *skb)
 	nf_debug_ip_finish_output2(skb);
 #endif /*CONFIG_NETFILTER_DEBUG*/
 
+	nf_reset(skb);
+
 	if (hh) {
 		int hh_alen;
 
