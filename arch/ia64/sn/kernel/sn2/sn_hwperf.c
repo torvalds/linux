@@ -116,7 +116,7 @@ static int sn_hwperf_geoid_to_cnode(char *location)
 		module_id = geo_module(geoid);
 		this_rack = MODULE_GET_RACK(module_id);
 		this_bay = MODULE_GET_BPOS(module_id);
-		this_slot = 0; /* XXX */
+		this_slot = geo_slot(geoid);
 		this_slab = geo_slab(geoid);
 		if (rack == this_rack && bay == this_bay &&
 			slot == this_slot && slab == this_slab) {
@@ -176,20 +176,27 @@ static const char *sn_hwperf_get_slabname(struct sn_hwperf_object_info *obj,
 
 static void print_pci_topology(struct seq_file *s,
 	struct sn_hwperf_object_info *obj, int *ordinal,
-	char *pci_topo_buf, int len)
+	u64 rack, u64 bay, u64 slot, u64 slab)
 {
 	char *p1;
 	char *p2;
+	char *pg;
 
-	for (p1=pci_topo_buf; *p1 && p1 < pci_topo_buf + len;) {
-		if (!(p2 = strchr(p1, '\n')))
-			break;
-		*p2 = '\0';
-		seq_printf(s, "pcibus %d %s-%s\n",
-			*ordinal, obj->location, p1);
-		(*ordinal)++;
-		p1 = p2 + 1;
+	if (!(pg = (char *)get_zeroed_page(GFP_KERNEL)))
+		return; /* ignore */
+	if (ia64_sn_ioif_get_pci_topology(rack, bay, slot, slab,
+		__pa(pg), PAGE_SIZE) == SN_HWPERF_OP_OK) {
+		for (p1=pg; *p1 && p1 < pg + PAGE_SIZE;) {
+			if (!(p2 = strchr(p1, '\n')))
+				break;
+			*p2 = '\0';
+			seq_printf(s, "pcibus %d %s-%s\n",
+				*ordinal, obj->location, p1);
+			(*ordinal)++;
+			p1 = p2 + 1;
+		}
 	}
+	free_page((unsigned long)pg);
 }
 
 static int sn_topology_show(struct seq_file *s, void *d)
@@ -218,9 +225,7 @@ static int sn_topology_show(struct seq_file *s, void *d)
 	u8 region_size;
 	u16 nasid_mask;
 	int nasid_msb;
-	char *pci_topo_buf;
 	int pci_bus_ordinal = 0;
-	static int pci_topo_buf_len = 256;
 
 	if (obj == objs) {
 		seq_printf(s, "# sn_topology version 2\n");
@@ -299,41 +304,13 @@ static int sn_topology_show(struct seq_file *s, void *d)
 		/*
 		 * PCI busses attached to this node, if any
 		 */
-		do {
-			if (sn_hwperf_location_to_bpos(obj->location,
-				&rack, &bay, &slot, &slab)) {
-				break;
-			}
+		if (sn_hwperf_location_to_bpos(obj->location,
+			&rack, &bay, &slot, &slab)) {
+			/* export pci bus info */
+			print_pci_topology(s, obj, &pci_bus_ordinal,
+				rack, bay, slot, slab);
 
-			if (!(pci_topo_buf = vmalloc(pci_topo_buf_len))) {
-				printk("sn_topology_show: vmalloc failed\n");
-				break;
-			}
-
-			e = ia64_sn_ioif_get_pci_topology(rack, bay, slot, slab,
-			    	pci_topo_buf, pci_topo_buf_len);
-
-			switch (e) {
-			case SALRET_NOT_IMPLEMENTED:
-			case SALRET_INVALID_ARG:
-				/* ignore, don't print anything */
-				e = SN_HWPERF_OP_OK;
-				break;
-
-			case SALRET_ERROR:
-				/* retry with a bigger buffer */ 
-				pci_topo_buf_len += 256;
-				break;
-
-			case SN_HWPERF_OP_OK:
-			default:
-				/* export pci bus info */
-				print_pci_topology(s, obj, &pci_bus_ordinal,
-					pci_topo_buf, pci_topo_buf_len);
-				break;
-			}
-			vfree(pci_topo_buf);
-		} while (e != SN_HWPERF_OP_OK && pci_topo_buf_len < 0x200000);
+		}
 	}
 
 	if (obj->ports) {
