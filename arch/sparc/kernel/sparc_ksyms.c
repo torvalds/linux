@@ -148,6 +148,9 @@ EXPORT_SYMBOL(___set_bit);
 EXPORT_SYMBOL(___clear_bit);
 EXPORT_SYMBOL(___change_bit);
 
+/* Per-CPU information table */
+EXPORT_PER_CPU_SYMBOL(__cpu_data);
+
 #ifdef CONFIG_SMP
 /* IRQ implementation. */
 EXPORT_SYMBOL(synchronize_irq);
@@ -155,6 +158,10 @@ EXPORT_SYMBOL(synchronize_irq);
 /* Misc SMP information */
 EXPORT_SYMBOL(__cpu_number_map);
 EXPORT_SYMBOL(__cpu_logical_map);
+
+/* CPU online map and active count. */
+EXPORT_SYMBOL(cpu_online_map);
+EXPORT_SYMBOL(phys_cpu_present_map);
 #endif
 
 EXPORT_SYMBOL(__udelay);
