@@ -643,15 +643,21 @@ static int hub_configure(struct usb_hub *hub,
 		message = "can't get hub status";
 		goto fail;
 	}
-	cpu_to_le16s(&hubstatus);
-	if ((hubstatus & (1 << USB_DEVICE_SELF_POWERED)) == 0) {
+	le16_to_cpus(&hubstatus);
+	if (hdev == hdev->bus->root_hub) {
+		struct usb_hcd *hcd =
+				container_of(hdev->bus, struct usb_hcd, self);
+
+		hub->power_budget = min(500u, hcd->power_budget) / 2;
+	} else if ((hubstatus & (1 << USB_DEVICE_SELF_POWERED)) == 0) {
 		dev_dbg(hub_dev, "hub controller current requirement: %dmA\n",
 			hub->descriptor->bHubContrCurrent);
 		hub->power_budget = (501 - hub->descriptor->bHubContrCurrent)
 					/ 2;
+	}
+	if (hub->power_budget)
 		dev_dbg(hub_dev, "%dmA bus power budget for children\n",
 			hub->power_budget * 2);
-	}
 
 
 	ret = hub_hub_status(hub, &hubstatus, &hubchange);

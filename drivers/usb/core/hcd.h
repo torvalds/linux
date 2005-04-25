@@ -87,6 +87,7 @@ struct usb_hcd {	/* usb_bus.hcpriv points to this */
 	void __iomem		*regs;		/* device memory/io */
 	u64			rsrc_start;	/* memory/io resource start */
 	u64			rsrc_len;	/* memory/io resource length */
+	unsigned		power_budget;	/* in mA, 0 = no limit */
 
 #define HCD_BUFFER_POOLS	4
 	struct dma_pool		*pool [HCD_BUFFER_POOLS];
