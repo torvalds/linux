@@ -511,7 +511,7 @@ int sys_rt_sigreturn(int r3, int r4, int r5, int r6, int r7, int r8,
 }
 
 int sys_debug_setcontext(struct ucontext __user *ctx,
-			 int ndbg, struct sig_dbg_op *dbg,
+			 int ndbg, struct sig_dbg_op __user *dbg,
 			 int r6, int r7, int r8,
 			 struct pt_regs *regs)
 {
