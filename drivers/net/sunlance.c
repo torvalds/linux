@@ -69,9 +69,6 @@
 
 #undef DEBUG_DRIVER
 
-static char version[] =
-	"sunlance.c:v2.02 24/Aug/03 Miguel de Icaza (miguel@nuclecu.unam.mx)\n";
-
 static char lancestr[] = "LANCE";
 
 #include <linux/config.h>
@@ -107,6 +104,19 @@ static char lancestr[] = "LANCE";
 #include <asm/oplib.h>
 #include <asm/auxio.h>		/* For tpe-link-test? setting */
 #include <asm/irq.h>
+
+#define DRV_NAME	"sunlance"
+#define DRV_VERSION	"2.02"
+#define DRV_RELDATE	"8/24/03"
+#define DRV_AUTHOR	"Miguel de Icaza (miguel@nuclecu.unam.mx)"
+
+static char version[] =
+	DRV_NAME ".c:v" DRV_VERSION " " DRV_RELDATE " " DRV_AUTHOR "\n";
+
+MODULE_VERSION(DRV_VERSION);
+MODULE_AUTHOR(DRV_AUTHOR);
+MODULE_DESCRIPTION("Sun Lance ethernet driver");
+MODULE_LICENSE("GPL");
 
 /* Define: 2^4 Tx buffers and 2^4 Rx buffers */
 #ifndef LANCE_LOG_TX_BUFFERS
@@ -1611,4 +1621,3 @@ static void __exit sparc_lance_cleanup(void)
 
 module_init(sparc_lance_probe);
 module_exit(sparc_lance_cleanup);
-MODULE_LICENSE("GPL");

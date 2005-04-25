@@ -49,6 +49,8 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_tcq.h>
 
+#define DRV_VERSION "1.101"
+
 #define DEBUG_ESP
 /* #define DEBUG_ESP_HME */
 /* #define DEBUG_ESP_DATA */
@@ -4398,5 +4400,8 @@ static struct scsi_host_template driver_template = {
 
 #include "scsi_module.c"
 
+MODULE_DESCRIPTION("EnhancedScsiProcessor Sun SCSI driver");
+MODULE_AUTHOR("David S. Miller (davem@redhat.com)");
 MODULE_LICENSE("GPL");
+MODULE_VERSION(DRV_VERSION);
 
