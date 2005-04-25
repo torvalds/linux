@@ -223,7 +223,7 @@ int snd_usb_create_mixer(snd_usb_audio_t *chip, int ctrlif);
 int snd_usb_create_midi_interface(snd_usb_audio_t *chip, struct usb_interface *iface, const snd_usb_audio_quirk_t *quirk);
 void snd_usbmidi_input_stop(struct list_head* p);
 void snd_usbmidi_input_start(struct list_head* p);
-void snd_usbmidi_disconnect(struct list_head *p, struct usb_driver *driver);
+void snd_usbmidi_disconnect(struct list_head *p);
 
 /*
  * retrieve usb_interface descriptor from the host interface

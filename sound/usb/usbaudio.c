@@ -2588,7 +2588,7 @@ static int parse_audio_endpoints(snd_usb_audio_t *chip, int iface_no)
  * disconnect streams
  * called from snd_usb_audio_disconnect()
  */
-static void snd_usb_stream_disconnect(struct list_head *head, struct usb_driver *driver)
+static void snd_usb_stream_disconnect(struct list_head *head)
 {
 	int idx;
 	snd_usb_stream_t *as;
@@ -3282,11 +3282,11 @@ static void snd_usb_audio_disconnect(struct usb_device *dev, void *ptr)
 		snd_card_disconnect(card);
 		/* release the pcm resources */
 		list_for_each(p, &chip->pcm_list) {
-			snd_usb_stream_disconnect(p, &usb_audio_driver);
+			snd_usb_stream_disconnect(p);
 		}
 		/* release the midi resources */
 		list_for_each(p, &chip->midi_list) {
-			snd_usbmidi_disconnect(p, &usb_audio_driver);
+			snd_usbmidi_disconnect(p);
 		}
 		usb_chip[chip->index] = NULL;
 		up(&register_mutex);

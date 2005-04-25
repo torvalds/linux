@@ -442,7 +442,7 @@ static void usX2Y_usb_disconnect(struct usb_device* device, void* ptr)
 		snd_card_disconnect((snd_card_t*)ptr);
 		/* release the midi resources */
 		list_for_each(p, &usX2Y->chip.midi_list) {
-			snd_usbmidi_disconnect(p, &snd_usX2Y_usb_driver);
+			snd_usbmidi_disconnect(p);
 		}
 		if (usX2Y->us428ctls_sharedmem) 
 			wake_up(&usX2Y->us428ctls_wait_queue_head);
