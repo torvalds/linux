@@ -433,6 +433,9 @@
 #define R5K_CONF_SE		(_ULCAST_(1) << 12)
 #define R5K_CONF_SS		(_ULCAST_(3) << 20)
 
+/* Bits specific to the RM7000.  */
+#define R7K_CONF_SE		(_ULCAST_(1) << 3)
+
 /* Bits specific to the R10000.  */
 #define R10K_CONF_DN		(_ULCAST_(3) <<  3)
 #define R10K_CONF_CT		(_ULCAST_(1) <<  5)

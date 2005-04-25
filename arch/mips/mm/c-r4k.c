@@ -26,6 +26,7 @@
 #include <asm/system.h>
 #include <asm/mmu_context.h>
 #include <asm/war.h>
+#include <asm/cacheflush.h> /* for run_uncached() */
 
 static unsigned long icache_size, dcache_size, scache_size;
 
@@ -1119,7 +1120,6 @@ static int __init probe_scache(void)
 	return 1;
 }
 
-typedef int (*probe_func_t)(unsigned long);
 extern int r5k_sc_init(void);
 extern int rm7k_sc_init(void);
 
@@ -1127,7 +1127,6 @@ static void __init setup_scache(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
 	unsigned int config = read_c0_config();
-	probe_func_t probe_scache_kseg1;
 	int sc_present = 0;
 
 	/*
@@ -1140,8 +1139,7 @@ static void __init setup_scache(void)
 	case CPU_R4000MC:
 	case CPU_R4400SC:
 	case CPU_R4400MC:
-		probe_scache_kseg1 = (probe_func_t) (CKSEG1ADDR(&probe_scache));
-		sc_present = probe_scache_kseg1(config);
+		sc_present = run_uncached(probe_scache);
 		if (sc_present)
 			c->options |= MIPS_CPU_CACHE_CDEX_S;
 		break;
