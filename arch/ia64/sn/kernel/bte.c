@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (c) 2000-2003 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.  All Rights Reserved.
  */
 
 #include <linux/config.h>
@@ -170,10 +170,6 @@ retry_bteop:
 	/* Initialize the notification to a known value. */
 	*bte->most_rcnt_na = BTE_WORD_BUSY;
 
-	/* Set the status reg busy bit and transfer length */
-	BTE_PRINTKV(("IBLS = 0x%lx\n", IBLS_BUSY | transfer_size));
-	BTE_LNSTAT_STORE(bte, IBLS_BUSY | transfer_size);
-
 	/* Set the source and destination registers */
 	BTE_PRINTKV(("IBSA = 0x%lx)\n", (TO_PHYS(src))));
 	BTE_SRC_STORE(bte, TO_PHYS(src));
@@ -188,7 +184,7 @@ retry_bteop:
 
 	/* Initiate the transfer */
 	BTE_PRINTK(("IBCT = 0x%lx)\n", BTE_VALID_MODE(mode)));
-	BTE_CTRL_STORE(bte, BTE_VALID_MODE(mode));
+	BTE_START_TRANSFER(bte, transfer_size, BTE_VALID_MODE(mode));
 
 	itc_end = ia64_get_itc() + (40000000 * local_cpu_data->cyc_per_usec);
 
@@ -429,10 +425,16 @@ void bte_init_node(nodepda_t * mynodepda, cnodeid_t cnode)
 	mynodepda->bte_recovery_timer.data = (unsigned long)mynodepda;
 
 	for (i = 0; i < BTES_PER_NODE; i++) {
+		u64 *base_addr;
+
 		/* Which link status register should we use? */
-		unsigned long link_status = (i == 0 ? IIO_IBLS0 : IIO_IBLS1);
-		mynodepda->bte_if[i].bte_base_addr = (u64 *)
-		    REMOTE_HUB_ADDR(cnodeid_to_nasid(cnode), link_status);
+		base_addr = (u64 *)
+		    REMOTE_HUB_ADDR(cnodeid_to_nasid(cnode), BTE_BASE_ADDR(i));
+		mynodepda->bte_if[i].bte_base_addr = base_addr;
+		mynodepda->bte_if[i].bte_source_addr = BTE_SOURCE_ADDR(base_addr);
+		mynodepda->bte_if[i].bte_destination_addr = BTE_DEST_ADDR(base_addr);
+		mynodepda->bte_if[i].bte_control_addr = BTE_CTRL_ADDR(base_addr);
+		mynodepda->bte_if[i].bte_notify_addr = BTE_NOTIF_ADDR(base_addr);
 
 		/*
 		 * Initialize the notification and spinlock

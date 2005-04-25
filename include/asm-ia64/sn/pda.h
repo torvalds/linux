@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 1992 - 1997, 2000-2004 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 1992 - 1997, 2000-2005 Silicon Graphics, Inc. All rights reserved.
  */
 #ifndef _ASM_IA64_SN_PDA_H
 #define _ASM_IA64_SN_PDA_H
@@ -11,7 +11,6 @@
 #include <linux/cache.h>
 #include <asm/percpu.h>
 #include <asm/system.h>
-#include <asm/sn/bte.h>
 
 
 /*
