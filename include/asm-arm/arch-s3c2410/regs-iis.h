@@ -14,6 +14,7 @@
  *    26-06-2003     BJD     Finished off definitions for register addresses
  *    12-03-2004     BJD     Updated include protection
  *    07-03-2005     BJD     Added FIFO size flags and S3C2440 MPLL
+ *    05-04-2005     LCVR    Added IISFCON definitions for the S3C2400
  */
 
 #ifndef __ASM_ARCH_REGS_IIS_H
@@ -67,6 +68,15 @@
 #define S3C2410_IISFCON_TXSHIFT	  (6)
 #define S3C2410_IISFCON_RXMASK	  (0x3f)
 #define S3C2410_IISFCON_RXSHIFT	  (0)
+
+#define S3C2400_IISFCON_TXDMA     (1<<11)
+#define S3C2400_IISFCON_RXDMA     (1<<10)
+#define S3C2400_IISFCON_TXENABLE  (1<<9)
+#define S3C2400_IISFCON_RXENABLE  (1<<8)
+#define S3C2400_IISFCON_TXMASK	  (0x07 << 4)
+#define S3C2400_IISFCON_TXSHIFT	  (4)
+#define S3C2400_IISFCON_RXMASK	  (0x07)
+#define S3C2400_IISFCON_RXSHIFT	  (0)
 
 #define S3C2410_IISFIFO  (0x10)
 #endif /* __ASM_ARCH_REGS_IIS_H */
