@@ -2686,8 +2686,8 @@ static int tg3_vlan_rx(struct tg3 *tp, struct sk_buff *skb, u16 vlan_tag)
 static int tg3_rx(struct tg3 *tp, int budget)
 {
 	u32 work_mask;
-	u32 rx_rcb_ptr = tp->rx_rcb_ptr;
-	u16 hw_idx, sw_idx;
+	u32 sw_idx = tp->rx_rcb_ptr;
+	u16 hw_idx;
 	int received;
 
 	hw_idx = tp->hw_status->idx[0].rx_producer;
@@ -2696,7 +2696,6 @@ static int tg3_rx(struct tg3 *tp, int budget)
 	 * the opaque cookie.
 	 */
 	rmb();
-	sw_idx = rx_rcb_ptr % TG3_RX_RCB_RING_SIZE(tp);
 	work_mask = 0;
 	received = 0;
 	while (sw_idx != hw_idx && budget > 0) {
@@ -2801,14 +2800,13 @@ static int tg3_rx(struct tg3 *tp, int budget)
 next_pkt:
 		(*post_ptr)++;
 next_pkt_nopost:
-		rx_rcb_ptr++;
-		sw_idx = rx_rcb_ptr % TG3_RX_RCB_RING_SIZE(tp);
+		sw_idx++;
+		sw_idx %= TG3_RX_RCB_RING_SIZE(tp);
 	}
 
 	/* ACK the status ring. */
-	tp->rx_rcb_ptr = rx_rcb_ptr;
-	tw32_rx_mbox(MAILBOX_RCVRET_CON_IDX_0 + TG3_64BIT_REG_LOW,
-		     (rx_rcb_ptr % TG3_RX_RCB_RING_SIZE(tp)));
+	tp->rx_rcb_ptr = sw_idx;
+	tw32_rx_mbox(MAILBOX_RCVRET_CON_IDX_0 + TG3_64BIT_REG_LOW, sw_idx);
 
 	/* Refill RX ring(s). */
 	if (work_mask & RXD_OPAQUE_RING_STD) {
