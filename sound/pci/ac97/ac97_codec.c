@@ -465,7 +465,7 @@ int snd_ac97_get_enum_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * u
 	struct ac97_enum *e = (struct ac97_enum *)kcontrol->private_value;
 	unsigned short val, bitmask;
 	
-	for (bitmask = 1; bitmask > e->mask; bitmask <<= 1)
+	for (bitmask = 1; bitmask < e->mask; bitmask <<= 1)
 		;
 	val = snd_ac97_read_cache(ac97, e->reg);
 	ucontrol->value.enumerated.item[0] = (val >> e->shift_l) & (bitmask - 1);
@@ -482,7 +482,7 @@ int snd_ac97_put_enum_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * u
 	unsigned short val;
 	unsigned short mask, bitmask;
 	
-	for (bitmask = 1; bitmask > e->mask; bitmask <<= 1)
+	for (bitmask = 1; bitmask < e->mask; bitmask <<= 1)
 		;
 	if (ucontrol->value.enumerated.item[0] > e->mask - 1)
 		return -EINVAL;
