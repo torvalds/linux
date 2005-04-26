@@ -15,13 +15,6 @@
 
 #include "entry-header.S"
 
-/* 
- * We rely on the fact that R0 is at the bottom of the stack (due to
- * slow/fast restore user regs).
- */
-#if S_R0 != 0
-#error "Please fix"
-#endif
 
 	.align	5
 /*

@@ -39,29 +39,18 @@
 #define ARMSWI_OFFSET	0x000f0000
 
 @
-@ Stack format (ensured by USER_* and SVC_*)
+@ Most of the stack format comes from struct pt_regs, but with
+@ the addition of 8 bytes for storing syscall args 5 and 6.
 @
-#define S_FRAME_SIZE	72
-#define S_OLD_R0	68
-#define S_PSR		64
-
-#define S_PC		60
-#define S_LR		56
-#define S_SP		52
-#define S_IP		48
-#define S_FP		44
-#define S_R10		40
-#define S_R9		36
-#define S_R8		32
-#define S_R7		28
-#define S_R6		24
-#define S_R5		20
-#define S_R4		16
-#define S_R3		12
-#define S_R2		8
-#define S_R1		4
-#define S_R0		0
 #define S_OFF		8
+
+/* 
+ * The SWI code relies on the fact that R0 is at the bottom of the stack
+ * (due to slow/fast restore user regs).
+ */
+#if S_R0 != 0
+#error "Please fix"
+#endif
 
 #if __LINUX_ARM_ARCH__ >= 6
 	.macro	disable_irq
