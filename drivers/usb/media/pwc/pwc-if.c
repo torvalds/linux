@@ -129,7 +129,7 @@ static int default_mbufs = 2;	/* Default number of mmap() buffers */
        int pwc_trace = TRACE_MODULE | TRACE_FLOW | TRACE_PWCX;
 static int power_save = 0;
 static int led_on = 100, led_off = 0; /* defaults to LED that is on while in use */
-       int pwc_preferred_compression = 2; /* 0..3 = uncompressed..high */
+static int pwc_preferred_compression = 2; /* 0..3 = uncompressed..high */
 static struct {
 	int type;
 	char serial_number[30];

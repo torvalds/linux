@@ -133,7 +133,8 @@ resubmit:
 				kbd->usbdev->devpath, i);
 }
 
-int usb_kbd_event(struct input_dev *dev, unsigned int type, unsigned int code, int value)
+static int usb_kbd_event(struct input_dev *dev, unsigned int type,
+			 unsigned int code, int value)
 {
 	struct usb_kbd *kbd = dev->private;
 

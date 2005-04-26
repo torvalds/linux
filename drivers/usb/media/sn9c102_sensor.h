@@ -145,8 +145,6 @@ static const struct usb_device_id sn9c102_id_table[] = {                      \
 */
 
 /* The "try" I2C I/O versions are used when probing the sensor */
-extern int sn9c102_i2c_try_write(struct sn9c102_device*,struct sn9c102_sensor*,
-                                 u8 address, u8 value);
 extern int sn9c102_i2c_try_read(struct sn9c102_device*,struct sn9c102_sensor*,
                                 u8 address);
 

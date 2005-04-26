@@ -226,9 +226,8 @@ struct pwc_device
 extern "C" {
 #endif
 
-/* Global variables */
+/* Global variable */
 extern int pwc_trace;
-extern int pwc_preferred_compression;
 
 /** functions in pwc-if.c */
 int pwc_try_video_mode(struct pwc_device *pdev, int width, int height, int new_fps, int new_compression, int new_snapshot);
@@ -243,8 +242,6 @@ void pwc_construct(struct pwc_device *pdev);
 /** Functions in pwc-ctrl.c */
 /* Request a certain video mode. Returns < 0 if not possible */
 extern int pwc_set_video_mode(struct pwc_device *pdev, int width, int height, int frames, int compression, int snapshot);
-/* Calculate the number of bytes per image (not frame) */
-extern void pwc_set_image_buffer_size(struct pwc_device *pdev);
 
 /* Various controls; should be obvious. Value 0..65535, or < 0 on error */
 extern int pwc_get_brightness(struct pwc_device *pdev);
@@ -256,7 +253,6 @@ extern int pwc_set_gamma(struct pwc_device *pdev, int value);
 extern int pwc_get_saturation(struct pwc_device *pdev);
 extern int pwc_set_saturation(struct pwc_device *pdev, int value);
 extern int pwc_set_leds(struct pwc_device *pdev, int on_value, int off_value);
-extern int pwc_get_leds(struct pwc_device *pdev, int *on_value, int *off_value);
 extern int pwc_get_cmos_sensor(struct pwc_device *pdev, int *sensor);
 
 /* Power down or up the camera; not supported by all models */

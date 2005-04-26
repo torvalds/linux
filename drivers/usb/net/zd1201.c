@@ -45,7 +45,7 @@ MODULE_PARM_DESC(ap, "If non-zero Access Point firmware will be loaded");
 MODULE_DEVICE_TABLE(usb, zd1201_table);
 
 
-int zd1201_fw_upload(struct usb_device *dev, int apfw)
+static int zd1201_fw_upload(struct usb_device *dev, int apfw)
 {
 	const struct firmware *fw_entry;
 	char* data;
@@ -111,7 +111,7 @@ exit:
 	return err;
 }
 
-void zd1201_usbfree(struct urb *urb, struct pt_regs *regs)
+static void zd1201_usbfree(struct urb *urb, struct pt_regs *regs)
 {
 	struct zd1201 *zd = urb->context;
 
@@ -142,7 +142,8 @@ void zd1201_usbfree(struct urb *urb, struct pt_regs *regs)
 
 	total: 4 + 2 + 2 + 2 + 2 + 4 = 16
 */
-int zd1201_docmd(struct zd1201 *zd, int cmd, int parm0, int parm1, int parm2)
+static int zd1201_docmd(struct zd1201 *zd, int cmd, int parm0,
+			int parm1, int parm2)
 {
 	unsigned char *command;
 	int ret;
@@ -175,7 +176,7 @@ int zd1201_docmd(struct zd1201 *zd, int cmd, int parm0, int parm1, int parm2)
 }
 
 /* Callback after sending out a packet */
-void zd1201_usbtx(struct urb *urb, struct pt_regs *regs)
+static void zd1201_usbtx(struct urb *urb, struct pt_regs *regs)
 {
 	struct zd1201 *zd = urb->context;
 	netif_wake_queue(zd->dev);
@@ -183,7 +184,7 @@ void zd1201_usbtx(struct urb *urb, struct pt_regs *regs)
 }
 
 /* Incomming data */
-void zd1201_usbrx(struct urb *urb, struct pt_regs *regs)
+static void zd1201_usbrx(struct urb *urb, struct pt_regs *regs)
 {
 	struct zd1201 *zd = urb->context;
 	int free = 0;
@@ -613,7 +614,7 @@ static inline int zd1201_setconfig16(struct zd1201 *zd, int rid, short val)
 	return (zd1201_setconfig(zd, rid, &zdval, sizeof(__le16), 1));
 }
 
-int zd1201_drvr_start(struct zd1201 *zd)
+static int zd1201_drvr_start(struct zd1201 *zd)
 {
 	int err, i;
 	short max;
@@ -1739,7 +1740,8 @@ static const struct iw_handler_def zd1201_iw_handlers = {
 	.private_args 		= (struct iw_priv_args *) zd1201_private_args,
 };
 
-int zd1201_probe(struct usb_interface *interface, const struct usb_device_id *id)
+static int zd1201_probe(struct usb_interface *interface,
+			const struct usb_device_id *id)
 {
 	struct zd1201 *zd;
 	struct usb_device *usb;
@@ -1851,7 +1853,7 @@ err_zd:
 	return err;
 }
 
-void zd1201_disconnect(struct usb_interface *interface)
+static void zd1201_disconnect(struct usb_interface *interface)
 {
 	struct zd1201 *zd=(struct zd1201 *)usb_get_intfdata(interface);
 	struct hlist_node *node, *node2;
@@ -1882,7 +1884,7 @@ void zd1201_disconnect(struct usb_interface *interface)
 	kfree(zd);
 }
 
-struct usb_driver zd1201_usb = {
+static struct usb_driver zd1201_usb = {
 	.owner = THIS_MODULE,
 	.name = "zd1201",
 	.probe = zd1201_probe,

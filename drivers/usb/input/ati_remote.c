@@ -619,7 +619,7 @@ static void ati_remote_delete(struct ati_remote *ati_remote)
 		
 	if (ati_remote->outbuf)
 		usb_buffer_free(ati_remote->udev, DATA_BUFSIZE, 
-				ati_remote->inbuf, ati_remote->outbuf_dma);
+				ati_remote->outbuf, ati_remote->outbuf_dma);
 	
 	if (ati_remote->irq_urb)
 		usb_free_urb(ati_remote->irq_urb);

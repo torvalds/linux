@@ -3105,6 +3105,7 @@ static void sisusb_disconnect(struct usb_interface *intf)
 static struct usb_device_id sisusb_table [] = {
 	{ USB_DEVICE(0x0711, 0x0900) },
 	{ USB_DEVICE(0x182d, 0x021c) },
+	{ USB_DEVICE(0x182d, 0x0269) },
 	{ }
 };
 
