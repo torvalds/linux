@@ -49,11 +49,11 @@ static inline void *pgtable_quicklist_alloc(void)
 		pgtable_quicklist = (unsigned long *)(*ret);
 		ret[0] = 0;
 		--pgtable_quicklist_size;
+		preempt_enable();
 	} else {
+		preempt_enable();
 		ret = (unsigned long *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
 	}
-
-	preempt_enable();
 
 	return ret;
 }
