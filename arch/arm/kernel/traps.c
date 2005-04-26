@@ -578,9 +578,16 @@ EXPORT_SYMBOL(abort);
 
 void __init trap_init(void)
 {
-	extern void __trap_init(void);
+	extern char __stubs_start[], __stubs_end[];
+	extern char __vectors_start[], __vectors_end[];
 
-	__trap_init();
+	/*
+	 * Copy the vectors and stubs (in entry-armv.S) into the
+	 * vector page, mapped at 0xffff0000, and ensure these are
+	 * visible to the instruction stream.
+	 */
+	memcpy((void *)0xffff0000, __vectors_start, __vectors_end - __vectors_start);
+	memcpy((void *)0xffff0200, __stubs_start, __stubs_end - __stubs_start);
 	flush_icache_range(0xffff0000, 0xffff0000 + PAGE_SIZE);
 	modify_domain(DOMAIN_USER, DOMAIN_CLIENT);
 }

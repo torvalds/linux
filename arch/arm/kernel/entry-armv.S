@@ -522,8 +522,9 @@ ENTRY(__switch_to)
 /*
  * Vector stubs.
  *
- * This code is copied to 0x200 or 0xffff0200 so we can use branches in the
- * vectors, rather than ldr's.
+ * This code is copied to 0xffff0200 so we can use branches in the
+ * vectors, rather than ldr's.  Note that this code must not
+ * exceed 0x300 bytes.
  *
  * Common stub entry macro:
  *   Enter in IRQ mode, spsr = SVC/USR CPSR, lr = SVC/USR PC
@@ -552,6 +553,7 @@ vector_\name:
 	movs	pc, lr				@ Changes mode and branches
 	.endm
 
+	.globl	__stubs_start
 __stubs_start:
 /*
  * Interrupt dispatcher
@@ -686,37 +688,24 @@ vector_addrexcptn:
 .LCsabt:
 	.word	__temp_abt
 
+	.globl	__stubs_end
 __stubs_end:
 
-	.equ	__real_stubs_start, .LCvectors + 0x200
+	.equ	stubs_offset, __vectors_start + 0x200 - __stubs_start
 
-.LCvectors:
+	.globl	__vectors_start
+__vectors_start:
 	swi	SYS_ERROR0
-	b	__real_stubs_start + (vector_und - __stubs_start)
-	ldr	pc, __real_stubs_start + (.LCvswi - __stubs_start)
-	b	__real_stubs_start + (vector_pabt - __stubs_start)
-	b	__real_stubs_start + (vector_dabt - __stubs_start)
-	b	__real_stubs_start + (vector_addrexcptn - __stubs_start)
-	b	__real_stubs_start + (vector_irq - __stubs_start)
-	b	__real_stubs_start + (vector_fiq - __stubs_start)
+	b	vector_und + stubs_offset
+	ldr	pc, .LCvswi + stubs_offset
+	b	vector_pabt + stubs_offset
+	b	vector_dabt + stubs_offset
+	b	vector_addrexcptn + stubs_offset
+	b	vector_irq + stubs_offset
+	b	vector_fiq + stubs_offset
 
-ENTRY(__trap_init)
-	stmfd	sp!, {r4 - r6, lr}
-
-	mov	r0, #0xff000000
-	orr	r0, r0, #0x00ff0000		@ high vectors position
-	adr	r1, .LCvectors			@ set up the vectors
-	ldmia	r1, {r1, r2, r3, r4, r5, r6, ip, lr}
-	stmia	r0, {r1, r2, r3, r4, r5, r6, ip, lr}
-
-	add	r2, r0, #0x200
-	adr	r0, __stubs_start		@ copy stubs to 0x200
-	adr	r1, __stubs_end
-1:	ldr	r3, [r0], #4
-	str	r3, [r2], #4
-	cmp	r0, r1
-	blt	1b
-	LOADREGS(fd, sp!, {r4 - r6, pc})
+	.globl	__vectors_end
+__vectors_end:
 
 	.data
 
