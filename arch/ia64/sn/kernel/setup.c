@@ -36,6 +36,7 @@
 #include <asm/machvec.h>
 #include <asm/system.h>
 #include <asm/processor.h>
+#include <asm/vga.h>
 #include <asm/sn/arch.h>
 #include <asm/sn/addrs.h>
 #include <asm/sn/pda.h>
@@ -273,14 +274,17 @@ void __init sn_setup(char **cmdline_p)
 
 	ia64_sn_plat_set_error_handling_features();
 
-	/*
-	 * If the generic code has enabled vga console support - lets
-	 * get rid of it again. This is a kludge for the fact that ACPI
-	 * currtently has no way of informing us if legacy VGA is available
-	 * or not.
-	 */
 #if defined(CONFIG_VT) && defined(CONFIG_VGA_CONSOLE)
-	if (conswitchp == &vga_con) {
+	/*
+	 * If there was a primary vga adapter identified through the
+	 * EFI PCDP table, make it the preferred console.  Otherwise
+	 * zero out conswitchp.
+	 */
+
+	if (vga_console_membase) {
+		/* usable vga ... make tty0 the preferred default console */
+		add_preferred_console("tty", 0, NULL);
+	} else {
 		printk(KERN_DEBUG "SGI: Disabling VGA console\n");
 #ifdef CONFIG_DUMMY_CONSOLE
 		conswitchp = &dummy_con;
