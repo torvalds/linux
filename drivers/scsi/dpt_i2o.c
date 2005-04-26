@@ -113,7 +113,6 @@ static struct i2o_sys_tbl *sys_tbl = NULL;
 static int sys_tbl_ind = 0;
 static int sys_tbl_len = 0;
 
-static adpt_hba* hbas[DPTI_MAX_HBA];
 static adpt_hba* hba_chain = NULL;
 static int hba_count = 0;
 
@@ -875,7 +874,6 @@ static int adpt_install_hba(struct scsi_host_template* sht, struct pci_dev* pDev
 	void __iomem *msg_addr_virt = NULL;
 
 	int raptorFlag = FALSE;
-	int i;
 
 	if(pci_enable_device(pDev)) {
 		return -EINVAL;
@@ -935,12 +933,6 @@ static int adpt_install_hba(struct scsi_host_template* sht, struct pci_dev* pDev
 	memset(pHba, 0, sizeof(adpt_hba));
 
 	down(&adpt_configuration_lock);
-	for(i=0;i<DPTI_MAX_HBA;i++) {
-		if(hbas[i]==NULL) {
-			hbas[i]=pHba;
-			break;
-		}
-	}
 
 	if(hba_chain != NULL){
 		for(p = hba_chain; p->next; p = p->next);
@@ -950,7 +942,7 @@ static int adpt_install_hba(struct scsi_host_template* sht, struct pci_dev* pDev
 	}
 	pHba->next = NULL;
 	pHba->unit = hba_count;
-	sprintf(pHba->name, "dpti%d", i);
+	sprintf(pHba->name, "dpti%d", hba_count);
 	hba_count++;
 	
 	up(&adpt_configuration_lock);
@@ -1015,11 +1007,6 @@ static void adpt_i2o_delete_hba(adpt_hba* pHba)
 	if(pHba->host){
 		free_irq(pHba->host->irq, pHba);
 	}
-	for(i=0;i<DPTI_MAX_HBA;i++) {
-		if(hbas[i]==pHba) {
-			hbas[i] = NULL;
-		}
-	}
 	p2 = NULL;
 	for( p1 = hba_chain; p1; p2 = p1,p1=p1->next){
 		if(p1 == pHba) {
@@ -1076,12 +1063,7 @@ static void adpt_i2o_delete_hba(adpt_hba* pHba)
 
 static int adpt_init(void)
 {
-	int i;
-
 	printk("Loading Adaptec I2O RAID: Version " DPT_I2O_VERSION "\n");
-	for (i = 0; i < DPTI_MAX_HBA; i++) {
-		hbas[i] = NULL;
-	}
 #ifdef REBOOT_NOTIFIER
 	register_reboot_notifier(&adpt_reboot_notifier);
 #endif
