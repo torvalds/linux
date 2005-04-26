@@ -172,7 +172,7 @@ pl010_rx_chars(struct uart_port *port)
 		 * out of the main execution path
 		 */
 		rsr = UART_GET_RSR(port) | UART_DUMMY_RSR_RX;
-		if (rsr & UART01x_RSR_ANY) {
+		if (unlikely(rsr & UART01x_RSR_ANY)) {
 			if (rsr & UART01x_RSR_BE) {
 				rsr &= ~(UART01x_RSR_FE | UART01x_RSR_PE);
 				port->icount.brk++;

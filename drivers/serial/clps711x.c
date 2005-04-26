@@ -116,7 +116,7 @@ static irqreturn_t clps711xuart_int_rx(int irq, void *dev_id, struct pt_regs *re
 		 * Note that the error handling code is
 		 * out of the main execution path
 		 */
-		if (ch & UART_ANY_ERR)
+		if (unlikely(ch & UART_ANY_ERR))
 			goto handle_error;
 
 		if (uart_handle_sysrq_char(port, ch, regs))

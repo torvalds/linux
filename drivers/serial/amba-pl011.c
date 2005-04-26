@@ -137,7 +137,7 @@ pl011_rx_chars(struct uart_amba_port *uap)
 		 * out of the main execution path
 		 */
 		rsr = readw(uap->port.membase + UART01x_RSR) | UART_DUMMY_RSR_RX;
-		if (rsr & UART01x_RSR_ANY) {
+		if (unlikely(rsr & UART01x_RSR_ANY)) {
 			if (rsr & UART01x_RSR_BE) {
 				rsr &= ~(UART01x_RSR_FE | UART01x_RSR_PE);
 				uap->port.icount.brk++;
