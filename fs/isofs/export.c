@@ -13,11 +13,7 @@
  *     fs/exportfs/expfs.c.
  */
 
-#include <linux/buffer_head.h>
-#include <linux/errno.h>
-#include <linux/fs.h>
-#include <linux/iso_fs.h>
-#include <linux/kernel.h>
+#include "isofs.h"
 
 static struct dentry *
 isofs_export_iget(struct super_block *sb,

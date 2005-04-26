@@ -10,20 +10,9 @@
  * 
  *  isofs directory handling functions
  */
-#include <linux/errno.h>
-#include <linux/fs.h>
-#include <linux/iso_fs.h>
-#include <linux/kernel.h>
-#include <linux/stat.h>
-#include <linux/string.h>
-#include <linux/mm.h>
-#include <linux/slab.h>
-#include <linux/time.h>
 #include <linux/config.h>
 #include <linux/smp_lock.h>
-#include <linux/buffer_head.h>
-
-#include <asm/uaccess.h>
+#include "isofs.h"
 
 static int isofs_readdir(struct file *, void *, filldir_t);
 
