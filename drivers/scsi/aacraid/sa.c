@@ -89,7 +89,7 @@ static irqreturn_t aac_sa_intr(int irq, void *dev_id, struct pt_regs *regs)
  *	Notify the adapter of an event
  */
  
-void aac_sa_notify_adapter(struct aac_dev *dev, u32 event)
+static void aac_sa_notify_adapter(struct aac_dev *dev, u32 event)
 {
 	switch (event) {
 

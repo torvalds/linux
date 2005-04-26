@@ -211,7 +211,7 @@ void fib_init(struct fib *fibptr)
  *	caller.
  */
  
-void fib_dealloc(struct fib * fibptr)
+static void fib_dealloc(struct fib * fibptr)
 {
 	struct hw_fib *hw_fib = fibptr->hw_fib;
 	if(hw_fib->header.StructType != FIB_MAGIC) 
