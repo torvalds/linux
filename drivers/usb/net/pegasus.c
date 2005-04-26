@@ -1388,11 +1388,11 @@ static int pegasus_resume (struct usb_interface *intf)
 	if (netif_running(pegasus->net)) {
 		pegasus->rx_urb->status = 0;
 		pegasus->rx_urb->actual_length = 0;
-		read_bulk_callback(pegasus->rx_urb, 0);
+		read_bulk_callback(pegasus->rx_urb, NULL);
 
 		pegasus->intr_urb->status = 0;
 		pegasus->intr_urb->actual_length = 0;
-		intr_callback(pegasus->intr_urb, 0);
+		intr_callback(pegasus->intr_urb, NULL);
 
 		queue_delayed_work(pegasus_workqueue, &pegasus->carrier_check,
 					CARRIER_CHECK_DELAY);
