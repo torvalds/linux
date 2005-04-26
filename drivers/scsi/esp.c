@@ -1147,7 +1147,7 @@ static int __init esp_detect(struct scsi_host_template *tpnt)
 	static struct sbus_dev esp_dev;
 	int esps_in_use = 0;
 
-	espchain = 0;
+	espchain = NULL;
 
 	if (sun4_esp_physaddr) {
 		memset (&esp_dev, 0, sizeof(esp_dev));
@@ -2513,7 +2513,7 @@ static inline void esp_reconnect(struct esp *esp, struct scsi_cmnd *sp)
 		ESPLOG(("esp%d: Weird, being reselected but disconnected "
 			"command queue is empty.\n", esp->esp_id));
 	esp->snip = 0;
-	esp->current_SC = 0;
+	esp->current_SC = NULL;
 	sp->SCp.phase = not_issued;
 	append_SC(&esp->issue_SC, sp);
 }
@@ -4148,7 +4148,7 @@ static int esp_work_bus(struct esp *esp)
 }
 
 static espfunc_t isvc_vector[] = {
-	0,
+	NULL,
 	esp_do_phase_determine,
 	esp_do_resetbus,
 	esp_finish_reset,
