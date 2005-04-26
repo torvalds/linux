@@ -329,8 +329,8 @@ mpsc_sdma_stop(struct mpsc_port_info *pi)
 	mpsc_sdma_cmd(pi, SDMA_SDCM_AR | SDMA_SDCM_AT);
 
 	/* Clear the SDMA current and first TX and RX pointers */
-	mpsc_sdma_set_tx_ring(pi, 0);
-	mpsc_sdma_set_rx_ring(pi, 0);
+	mpsc_sdma_set_tx_ring(pi, NULL);
+	mpsc_sdma_set_rx_ring(pi, NULL);
 
 	/* Disable interrupts */
 	mpsc_sdma_intr_mask(pi, 0xf);
@@ -1540,8 +1540,8 @@ mpsc_shared_unmap_regs(void)
 			MPSC_SDMA_INTR_REG_BLOCK_SIZE);
 	}
 
-	mpsc_shared_regs.mpsc_routing_base = 0;
-	mpsc_shared_regs.sdma_intr_base = 0;
+	mpsc_shared_regs.mpsc_routing_base = NULL;
+	mpsc_shared_regs.sdma_intr_base = NULL;
 
 	mpsc_shared_regs.mpsc_routing_base_p = 0;
 	mpsc_shared_regs.sdma_intr_base_p = 0;
@@ -1678,9 +1678,9 @@ mpsc_drv_unmap_regs(struct mpsc_port_info *pi)
 		release_mem_region(pi->brg_base_p, MPSC_BRG_REG_BLOCK_SIZE);
 	}
 
-	pi->mpsc_base = 0;
-	pi->sdma_base = 0;
-	pi->brg_base = 0;
+	pi->mpsc_base = NULL;
+	pi->sdma_base = NULL;
+	pi->brg_base = NULL;
 
 	pi->mpsc_base_p = 0;
 	pi->sdma_base_p = 0;

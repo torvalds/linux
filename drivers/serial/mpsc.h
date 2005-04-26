@@ -83,8 +83,8 @@ struct mpsc_shared_regs {
 	phys_addr_t mpsc_routing_base_p;
 	phys_addr_t sdma_intr_base_p;
 
-	void *mpsc_routing_base;
-	void *sdma_intr_base;
+	void __iomem *mpsc_routing_base;
+	void __iomem *sdma_intr_base;
 
 	u32 MPSC_MRR_m;
 	u32 MPSC_RCRR_m;
@@ -120,9 +120,9 @@ struct mpsc_port_info {
 	phys_addr_t brg_base_p;
 
 	/* Virtual addresses of various blocks of registers (from platform) */
-	void *mpsc_base;
-	void *sdma_base;
-	void *brg_base;
+	void __iomem *mpsc_base;
+	void __iomem *sdma_base;
+	void __iomem *brg_base;
 
 	/* Descriptor ring and buffer allocations */
 	void *dma_region;
