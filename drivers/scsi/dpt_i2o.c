@@ -690,7 +690,7 @@ static int adpt_device_reset(struct scsi_cmnd* cmd)
 	u32 msg[4];
 	u32 rcode;
 	int old_state;
-	struct adpt_device* d = (void*) cmd->device->hostdata;
+	struct adpt_device* d = cmd->device->hostdata;
 
 	pHba = (void*) cmd->device->host->hostdata[0];
 	printk(KERN_INFO"%s: Trying to reset device\n",pHba->name);
@@ -706,7 +706,7 @@ static int adpt_device_reset(struct scsi_cmnd* cmd)
 
 	old_state = d->state;
 	d->state |= DPTI_DEV_RESET;
-	if( (rcode = adpt_i2o_post_wait(pHba, (void*)msg,sizeof(msg), FOREVER)) ){
+	if( (rcode = adpt_i2o_post_wait(pHba, msg,sizeof(msg), FOREVER)) ){
 		d->state = old_state;
 		if(rcode == -EOPNOTSUPP ){
 			printk(KERN_INFO"%s: Device reset not supported\n",pHba->name);
@@ -736,7 +736,7 @@ static int adpt_bus_reset(struct scsi_cmnd* cmd)
 	msg[1] = (I2O_HBA_BUS_RESET<<24|HOST_TID<<12|pHba->channel[cmd->device->channel].tid);
 	msg[2] = 0;
 	msg[3] = 0;
-	if(adpt_i2o_post_wait(pHba, (void*)msg,sizeof(msg), FOREVER) ){
+	if(adpt_i2o_post_wait(pHba, msg,sizeof(msg), FOREVER) ){
 		printk(KERN_WARNING"%s: Bus reset failed.\n",pHba->name);
 		return FAILED;
 	} else {
@@ -1436,7 +1436,7 @@ static int adpt_i2o_parse_lct(adpt_hba* pHba)
 			return -ENOMEM;
 		}
 		
-		d->controller = (void*)pHba;
+		d->controller = pHba;
 		d->next = NULL;
 
 		memcpy(&d->lct_data, &lct->lct_entry[i], sizeof(i2o_lct_entry));
@@ -1982,7 +1982,7 @@ static irqreturn_t adpt_isr(int irq, void *dev_id, struct pt_regs *regs)
 	struct scsi_cmnd* cmd;
 	adpt_hba* pHba = dev_id;
 	u32 m;
-	ulong reply;
+	void __iomem *reply;
 	u32 status=0;
 	u32 context;
 	ulong flags = 0;
@@ -2007,11 +2007,11 @@ static irqreturn_t adpt_isr(int irq, void *dev_id, struct pt_regs *regs)
 				goto out;
 			}
 		}
-		reply = (ulong)bus_to_virt(m);
+		reply = bus_to_virt(m);
 
 		if (readl(reply) & MSG_FAIL) {
 			u32 old_m = readl(reply+28); 
-			ulong msg;
+			void __iomem *msg;
 			u32 old_context;
 			PDEBUG("%s: Failed message\n",pHba->name);
 			if(old_m >= 0x100000){
@@ -2020,16 +2020,16 @@ static irqreturn_t adpt_isr(int irq, void *dev_id, struct pt_regs *regs)
 				continue;
 			}
 			// Transaction context is 0 in failed reply frame
-			msg = (ulong)(pHba->msg_addr_virt + old_m);
+			msg = pHba->msg_addr_virt + old_m;
 			old_context = readl(msg+12);
 			writel(old_context, reply+12);
 			adpt_send_nop(pHba, old_m);
 		} 
 		context = readl(reply+8);
 		if(context & 0x40000000){ // IOCTL
-			ulong p = (ulong)(readl(reply+12));
-			if( p != 0) {
-				memcpy((void*)p, (void*)reply, REPLY_FRAME_SIZE * 4);
+			void *p = (void *)readl(reply+12);
+			if( p != NULL) {
+				memcpy_fromio(p, reply, REPLY_FRAME_SIZE * 4);
 			}
 			// All IOCTLs will also be post wait
 		}
@@ -2213,7 +2213,7 @@ static s32 adpt_scsi_register(adpt_hba* pHba,struct scsi_host_template * sht)
 }
 
 
-static s32 adpt_i2o_to_scsi(ulong reply, struct scsi_cmnd* cmd)
+static s32 adpt_i2o_to_scsi(void __iomem *reply, struct scsi_cmnd* cmd)
 {
 	adpt_hba* pHba;
 	u32 hba_status;
@@ -2305,7 +2305,7 @@ static s32 adpt_i2o_to_scsi(ulong reply, struct scsi_cmnd* cmd)
 			u32 len = sizeof(cmd->sense_buffer);
 			len = (len > 40) ?  40 : len;
 			// Copy over the sense data
-			memcpy(cmd->sense_buffer, (void*)(reply+28) , len);
+			memcpy_fromio(cmd->sense_buffer, (reply+28) , len);
 			if(cmd->sense_buffer[0] == 0x70 /* class 7 */ && 
 			   cmd->sense_buffer[2] == DATA_PROTECT ){
 				/* This is to handle an array failed */
@@ -2420,7 +2420,7 @@ static s32 adpt_i2o_reparse_lct(adpt_hba* pHba)
 					return -ENOMEM;
 				}
 				
-				d->controller = (void*)pHba;
+				d->controller = pHba;
 				d->next = NULL;
 
 				memcpy(&d->lct_data, &lct->lct_entry[i], sizeof(i2o_lct_entry));
@@ -2967,8 +2967,8 @@ static int adpt_i2o_build_sys_table(void)
 		sys_tbl->iops[count].frame_size = pHba->status_block->inbound_frame_size;
 		sys_tbl->iops[count].last_changed = sys_tbl_ind - 1; // ??
 		sys_tbl->iops[count].iop_capabilities = pHba->status_block->iop_capabilities;
-		sys_tbl->iops[count].inbound_low = (u32)virt_to_bus((void*)pHba->post_port);
-		sys_tbl->iops[count].inbound_high = (u32)((u64)virt_to_bus((void*)pHba->post_port)>>32);
+		sys_tbl->iops[count].inbound_low = (u32)virt_to_bus(pHba->post_port);
+		sys_tbl->iops[count].inbound_high = (u32)((u64)virt_to_bus(pHba->post_port)>>32);
 
 		count++;
 	}
