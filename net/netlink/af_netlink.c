@@ -21,7 +21,6 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/major.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/errno.h>

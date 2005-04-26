@@ -73,7 +73,6 @@
 #include <linux/socket.h>
 #include <linux/in.h>
 #include <linux/kernel.h>
-#include <linux/major.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/timer.h>
