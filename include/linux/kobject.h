@@ -33,7 +33,7 @@
 extern u64 hotplug_seqnum;
 
 struct kobject {
-	char			* k_name;
+	const char		* k_name;
 	char			name[KOBJ_NAME_LEN];
 	struct kref		kref;
 	struct list_head	entry;
@@ -46,7 +46,7 @@ struct kobject {
 extern int kobject_set_name(struct kobject *, const char *, ...)
 	__attribute__((format(printf,2,3)));
 
-static inline char * kobject_name(struct kobject * kobj)
+static inline const char * kobject_name(const struct kobject * kobj)
 {
 	return kobj->k_name;
 }
@@ -57,7 +57,7 @@ extern void kobject_cleanup(struct kobject *);
 extern int kobject_add(struct kobject *);
 extern void kobject_del(struct kobject *);
 
-extern int kobject_rename(struct kobject *, char *new_name);
+extern int kobject_rename(struct kobject *, const char *new_name);
 
 extern int kobject_register(struct kobject *);
 extern void kobject_unregister(struct kobject *);
