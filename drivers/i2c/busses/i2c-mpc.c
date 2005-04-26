@@ -55,7 +55,7 @@
 #define CSR_RXAK 0x01
 
 struct mpc_i2c {
-	char *base;
+	void __iomem *base;
 	u32 interrupt;
 	wait_queue_head_t queue;
 	struct i2c_adapter adap;
@@ -444,7 +444,7 @@ static int fsl_i2c_probe(struct device *device)
 
       fail_add:
 	if (i2c->irq != 0)
-		free_irq(i2c->irq, 0);
+		free_irq(i2c->irq, NULL);
       fail_irq:
 	iounmap(i2c->base);
       fail_map:
