@@ -262,7 +262,7 @@ static int class_hotplug_filter(struct kset *kset, struct kobject *kobj)
 	return 0;
 }
 
-static char *class_hotplug_name(struct kset *kset, struct kobject *kobj)
+static const char *class_hotplug_name(struct kset *kset, struct kobject *kobj)
 {
 	struct class_device *class_dev = to_class_dev(kobj);
 

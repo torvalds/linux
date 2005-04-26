@@ -94,7 +94,7 @@ struct kobj_type {
  */
 struct kset_hotplug_ops {
 	int (*filter)(struct kset *kset, struct kobject *kobj);
-	char *(*name)(struct kset *kset, struct kobject *kobj);
+	const char *(*name)(struct kset *kset, struct kobject *kobj);
 	int (*hotplug)(struct kset *kset, struct kobject *kobj, char **envp,
 			int num_envp, char *buffer, int buffer_size);
 };

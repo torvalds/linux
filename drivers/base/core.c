@@ -102,7 +102,7 @@ static int dev_hotplug_filter(struct kset *kset, struct kobject *kobj)
 	return 0;
 }
 
-static char *dev_hotplug_name(struct kset *kset, struct kobject *kobj)
+static const char *dev_hotplug_name(struct kset *kset, struct kobject *kobj)
 {
 	struct device *dev = to_dev(kobj);
 
