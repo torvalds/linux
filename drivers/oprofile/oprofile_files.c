@@ -18,13 +18,13 @@ unsigned long fs_buffer_size = 131072;
 unsigned long fs_cpu_buffer_size = 8192;
 unsigned long fs_buffer_watershed = 32768; /* FIXME: tune */
 
-static ssize_t depth_read(struct file * file, char * buf, size_t count, loff_t * offset)
+static ssize_t depth_read(struct file * file, char __user * buf, size_t count, loff_t * offset)
 {
 	return oprofilefs_ulong_to_user(backtrace_depth, buf, count, offset);
 }
 
 
-static ssize_t depth_write(struct file * file, char const * buf, size_t count, loff_t * offset)
+static ssize_t depth_write(struct file * file, char const __user * buf, size_t count, loff_t * offset)
 {
 	unsigned long val;
 	int retval;
