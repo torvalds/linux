@@ -30,7 +30,7 @@
  * stack.
  */
 ret_fast_syscall:
-	disable_irq r1				@ disable interrupts
+	disable_irq				@ disable interrupts
 	ldr	r1, [tsk, #TI_FLAGS]
 	tst	r1, #_TIF_WORK_MASK
 	bne	fast_work_pending
@@ -49,7 +49,7 @@ work_pending:
 	mov	r0, sp				@ 'regs'
 	mov	r2, why				@ 'syscall'
 	bl	do_notify_resume
-	disable_irq r1				@ disable interrupts
+	disable_irq				@ disable interrupts
 	b	no_work_pending
 
 work_resched:
@@ -59,7 +59,7 @@ work_resched:
  */
 ENTRY(ret_to_user)
 ret_slow_syscall:
-	disable_irq r1				@ disable interrupts
+	disable_irq				@ disable interrupts
 	ldr	r1, [tsk, #TI_FLAGS]
 	tst	r1, #_TIF_WORK_MASK
 	bne	work_pending
@@ -126,7 +126,7 @@ ENTRY(vector_swi)
 	ldr	ip, [ip]
 	mcr	p15, 0, ip, c1, c0		@ update control register
 #endif
-	enable_irq ip
+	enable_irq
 
 	str	r4, [sp, #-S_OFF]!		@ push fifth arg
 

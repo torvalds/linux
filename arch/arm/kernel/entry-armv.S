@@ -118,7 +118,7 @@ __dabt_svc:
 	@
 	@ IRQs off again before pulling preserved data off the stack
 	@
-	disable_irq r0
+	disable_irq
 
 	@
 	@ restore SPSR and restart the instruction
@@ -198,7 +198,7 @@ __und_svc:
 	@
 	@ IRQs off again before pulling preserved data off the stack
 	@
-1:	disable_irq r0
+1:	disable_irq
 
 	@
 	@ restore SPSR and restart the instruction
@@ -232,7 +232,7 @@ __pabt_svc:
 	@
 	@ IRQs off again before pulling preserved data off the stack
 	@
-	disable_irq r0
+	disable_irq
 
 	@
 	@ restore SPSR and restart the instruction
@@ -316,7 +316,7 @@ __dabt_usr:
 	@
 	@ IRQs on, then call the main handler
 	@
-	enable_irq r2
+	enable_irq
 	mov	r2, sp
 	adr	lr, ret_from_exception
 	b	do_DataAbort
@@ -418,7 +418,7 @@ call_fpe:
 	movcss	r7, r5, lsr #(TIF_USING_IWMMXT + 1)
 	bcs	iwmmxt_task_enable
 #endif
-	enable_irq r7
+	enable_irq
 	add	pc, pc, r8, lsr #6
 	mov	r0, r0
 
@@ -472,7 +472,7 @@ fpundefinstr:
 __pabt_usr:
 	usr_entry abt
 
-	enable_irq r0				@ Enable interrupts
+	enable_irq				@ Enable interrupts
 	mov	r0, r2				@ address (pc)
 	mov	r1, sp				@ regs
 	bl	do_PrefetchAbort		@ call abort handler

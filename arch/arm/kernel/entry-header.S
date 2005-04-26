@@ -63,25 +63,21 @@
 #define S_R0		0
 #define S_OFF		8
 
-	.macro	set_cpsr_c, reg, mode
-	msr	cpsr_c, \mode
-	.endm
-
 #if __LINUX_ARM_ARCH__ >= 6
-	.macro	disable_irq, temp
+	.macro	disable_irq
 	cpsid	i
 	.endm
 
-	.macro	enable_irq, temp
+	.macro	enable_irq
 	cpsie	i
 	.endm
 #else
-	.macro	disable_irq, temp
-	set_cpsr_c \temp, #PSR_I_BIT | MODE_SVC
+	.macro	disable_irq
+	msr	cpsr_c, #PSR_I_BIT | SVC_MODE
 	.endm
 
-	.macro	enable_irq, temp
-	set_cpsr_c \temp, #MODE_SVC
+	.macro	enable_irq
+	msr	cpsr_c, #SVC_MODE
 	.endm
 #endif
 
