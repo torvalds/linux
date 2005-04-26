@@ -25,8 +25,6 @@
 #define BAD_IRQ		3
 #define BAD_UNDEFINSTR	4
 
-#define PT_TRACESYS	0x00000002
-
 @
 @ Most of the stack format comes from struct pt_regs, but with
 @ the addition of 8 bytes for storing syscall args 5 and 6.
