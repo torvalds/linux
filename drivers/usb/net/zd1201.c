@@ -21,7 +21,7 @@
 #include <linux/string.h>
 #include <linux/if_arp.h>
 #include <linux/firmware.h>
-#include <ieee802_11.h>
+#include <net/ieee80211.h>
 #include "zd1201.h"
 
 static struct usb_device_id zd1201_table[] = {
@@ -337,25 +337,25 @@ static void zd1201_usbrx(struct urb *urb, struct pt_regs *regs)
 			goto resubmit;
 		}
 			
-		if ((seq & IEEE802_11_SCTL_FRAG) ||
-		    (fc & IEEE802_11_FCTL_MOREFRAGS)) {
+		if ((seq & IEEE80211_SCTL_FRAG) ||
+		    (fc & IEEE80211_FCTL_MOREFRAGS)) {
 			struct zd1201_frag *frag = NULL;
 			char *ptr;
 
 			if (datalen<14)
 				goto resubmit;
-			if ((seq & IEEE802_11_SCTL_FRAG) == 0) {
+			if ((seq & IEEE80211_SCTL_FRAG) == 0) {
 				frag = kmalloc(sizeof(struct zd1201_frag*),
 				    GFP_ATOMIC);
 				if (!frag)
 					goto resubmit;
-				skb = dev_alloc_skb(IEEE802_11_DATA_LEN +14+2);
+				skb = dev_alloc_skb(IEEE80211_DATA_LEN +14+2);
 				if (!skb) {
 					kfree(frag);
 					goto resubmit;
 				}
 				frag->skb = skb;
-				frag->seq = seq & IEEE802_11_SCTL_SEQ;
+				frag->seq = seq & IEEE80211_SCTL_SEQ;
 				skb_reserve(skb, 2);
 				memcpy(skb_put(skb, 12), &data[datalen-14], 12);
 				memcpy(skb_put(skb, 2), &data[6], 2);
@@ -364,7 +364,7 @@ static void zd1201_usbrx(struct urb *urb, struct pt_regs *regs)
 				goto resubmit;
 			}
 			hlist_for_each_entry(frag, node, &zd->fraglist, fnode)
-				if(frag->seq == (seq&IEEE802_11_SCTL_SEQ))
+				if(frag->seq == (seq&IEEE80211_SCTL_SEQ))
 					break;
 			if (!frag)
 				goto resubmit;
@@ -372,7 +372,7 @@ static void zd1201_usbrx(struct urb *urb, struct pt_regs *regs)
 			ptr = skb_put(skb, len);
 			if (ptr)
 				memcpy(ptr, data+8, len);
-			if (fc & IEEE802_11_FCTL_MOREFRAGS)
+			if (fc & IEEE80211_FCTL_MOREFRAGS)
 				goto resubmit;
 			hlist_del_init(&frag->fnode);
 			kfree(frag);
