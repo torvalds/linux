@@ -545,7 +545,7 @@ vector_\name:
 	@
 	mrs	r13, cpsr
 	bic	r13, r13, #MODE_MASK
-	orr	r13, r13, #MODE_SVC
+	orr	r13, r13, #SVC_MODE
 	msr	spsr_cxsf, r13			@ switch to SVC_32 mode
 
 	and	lr, lr, #15

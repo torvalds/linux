@@ -8,10 +8,6 @@
 #include <asm/arch/irqs.h>
 #include <asm/arch/entry-macro.S>
 
-#ifndef MODE_SVC
-#define MODE_SVC 0x13
-#endif
-
 	.macro	zero_fp
 #ifdef CONFIG_FRAME_POINTER
 	mov	fp, #0
