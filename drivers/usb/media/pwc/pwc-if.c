@@ -322,7 +322,7 @@ static int pwc_allocate_buffers(struct pwc_device *pdev)
 	  case 730:
 	  case 740:
 	  case 750:
-	    Trace(TRACE_MEMORY,"private_data(%Zd)\n",sizeof(struct pwc_dec23_private));
+	    Trace(TRACE_MEMORY,"private_data(%zu)\n",sizeof(struct pwc_dec23_private));
 	    kbuf = kmalloc(sizeof(struct pwc_dec23_private), GFP_KERNEL);	/* Timon & Kiara */
 	    break;
 	  case 645:
@@ -1179,7 +1179,7 @@ static ssize_t pwc_video_read(struct file *file, char __user * buf,
 	DECLARE_WAITQUEUE(wait, current);
         int bytes_to_read;
 
-	Trace(TRACE_READ, "video_read(0x%p, %p, %Zd) called.\n", vdev, buf, count);
+	Trace(TRACE_READ, "video_read(0x%p, %p, %zu) called.\n", vdev, buf, count);
 	if (vdev == NULL)
 		return -EFAULT;
 	pdev = vdev->priv;

@@ -983,7 +983,7 @@ static int sisusb_write_mem_bulk(struct sisusb_usb_data *sisusb, u32 addr,
 				msgcount++;
 				if (msgcount < 500)
 					printk(KERN_ERR
-						"sisusbvga[%d]: Wrote %Zd of "
+						"sisusbvga[%d]: Wrote %zd of "
 						"%d bytes, error %d\n",
 						sisusb->minor, *bytes_written,
 						length, ret);

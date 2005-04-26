@@ -431,7 +431,7 @@ static void skb_return (struct usbnet *dev, struct sk_buff *skb)
 	dev->stats.rx_bytes += skb->len;
 
 	if (netif_msg_rx_status (dev))
-		devdbg (dev, "< rx, len %zd, type 0x%x",
+		devdbg (dev, "< rx, len %zu, type 0x%x",
 			skb->len + sizeof (struct ethhdr), skb->protocol);
 	memset (skb->cb, 0, sizeof (struct skb_data));
 	status = netif_rx (skb);
