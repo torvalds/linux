@@ -47,7 +47,7 @@ struct class_device;
 struct class_simple;
 
 struct bus_type {
-	char			* name;
+	const char		* name;
 
 	struct subsystem	subsys;
 	struct kset		drivers;
@@ -98,17 +98,17 @@ extern int bus_create_file(struct bus_type *, struct bus_attribute *);
 extern void bus_remove_file(struct bus_type *, struct bus_attribute *);
 
 struct device_driver {
-	char			* name;
+	const char		* name;
 	struct bus_type		* bus;
 
 	struct completion	unloaded;
 	struct kobject		kobj;
 	struct list_head	devices;
 
-	struct module 		* owner;
+	struct module		* owner;
 
 	int	(*probe)	(struct device * dev);
-	int 	(*remove)	(struct device * dev);
+	int	(*remove)	(struct device * dev);
 	void	(*shutdown)	(struct device * dev);
 	int	(*suspend)	(struct device * dev, pm_message_t state, u32 level);
 	int	(*resume)	(struct device * dev, u32 level);
@@ -142,7 +142,7 @@ extern void driver_remove_file(struct device_driver *, struct driver_attribute *
  * device classes
  */
 struct class {
-	char			* name;
+	const char		* name;
 
 	struct subsystem	subsys;
 	struct list_head	children;
@@ -366,7 +366,7 @@ extern struct device *device_find(const char *name, struct bus_type *bus);
 /* drivers/base/platform.c */
 
 struct platform_device {
-	char		* name;
+	const char	* name;
 	u32		id;
 	struct device	dev;
 	u32		num_resources;

@@ -239,7 +239,7 @@ static char *usb_dump_interface_descriptor(char *start, char *end,
 	int setno)
 {
 	const struct usb_interface_descriptor *desc = &intfc->altsetting[setno].desc;
-	char *driver_name = "";
+	const char *driver_name = "";
 
 	if (start > end)
 		return start;
