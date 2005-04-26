@@ -31,13 +31,6 @@
 
 #define PT_TRACESYS	0x00000002
 
-@ OS version number used in SWIs
-@  RISC OS is 0
-@  RISC iX is 8
-@
-#define OS_NUMBER	9
-#define ARMSWI_OFFSET	0x000f0000
-
 @
 @ Most of the stack format comes from struct pt_regs, but with
 @ the addition of 8 bytes for storing syscall args 5 and 6.
@@ -150,18 +143,3 @@ scno	.req	r7		@ syscall number
 tbl	.req	r8		@ syscall table pointer
 why	.req	r8		@ Linux syscall (!= 0)
 tsk	.req	r9		@ current thread_info
-
-/*
- * Get the system call number.
- */
-	.macro	get_scno
-#ifdef CONFIG_ARM_THUMB
-	tst	r8, #PSR_T_BIT		@ this is SPSR from save_user_regs
-	addne	scno, r7, #OS_NUMBER << 20 @ put OS number in
-	ldreq	scno, [lr, #-4]
-
-#else
-	mask_pc	lr, lr
-	ldr	scno, [lr, #-4]		@ get SWI instruction
-#endif
-	.endm

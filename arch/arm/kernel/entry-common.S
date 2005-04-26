@@ -111,7 +111,17 @@ ENTRY(ret_from_fork)
 ENTRY(vector_swi)
 	save_user_regs
 	zero_fp
-	get_scno
+
+	/*
+	 * Get the system call number.
+	 */
+#ifdef CONFIG_ARM_THUMB
+	tst	r8, #PSR_T_BIT			@ this is SPSR from save_user_regs
+	addne	scno, r7, #__NR_SYSCALL_BASE	@ put OS number in
+	ldreq	scno, [lr, #-4]
+#else
+	ldr	scno, [lr, #-4]			@ get SWI instruction
+#endif
 	arm710_bug_check scno, ip
 
 #ifdef CONFIG_ALIGNMENT_TRAP
@@ -126,7 +136,7 @@ ENTRY(vector_swi)
 	get_thread_info tsk
 	ldr	ip, [tsk, #TI_FLAGS]		@ check for syscall tracing
 	bic	scno, scno, #0xff000000		@ mask off SWI op-code
-	eor	scno, scno, #OS_NUMBER << 20	@ check OS number
+	eor	scno, scno, #__NR_SYSCALL_BASE	@ check OS number
 	adr	tbl, sys_call_table		@ load syscall table pointer
 	tst	ip, #_TIF_SYSCALL_TRACE		@ are we tracing syscalls?
 	bne	__sys_trace
@@ -137,8 +147,8 @@ ENTRY(vector_swi)
 
 	add	r1, sp, #S_OFF
 2:	mov	why, #0				@ no longer a real syscall
-	cmp	scno, #ARMSWI_OFFSET
-	eor	r0, scno, #OS_NUMBER << 20	@ put OS number back
+	cmp	scno, #(__ARM_NR_BASE - __NR_SYSCALL_BASE)
+	eor	r0, scno, #__NR_SYSCALL_BASE	@ put OS number back
 	bcs	arm_syscall	
 	b	sys_ni_syscall			@ not private func
 
@@ -183,7 +193,7 @@ ENTRY(sys_call_table)
 @ r5 = syscall table
 		.type	sys_syscall, #function
 sys_syscall:
-		eor	scno, r0, #OS_NUMBER << 20
+		eor	scno, r0, #__NR_SYSCALL_BASE
 		cmp	scno, #__NR_syscall - __NR_SYSCALL_BASE
 		cmpne	scno, #NR_syscalls	@ check range
 		stmloia	sp, {r5, r6}		@ shuffle args
