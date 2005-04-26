@@ -105,11 +105,11 @@ sysfs_chmod_file(struct kobject *kobj, struct attribute *attr, mode_t mode);
 extern void
 sysfs_remove_file(struct kobject *, const struct attribute *);
 
-extern int 
-sysfs_create_link(struct kobject * kobj, struct kobject * target, char * name);
+extern int
+sysfs_create_link(struct kobject * kobj, struct kobject * target, const char * name);
 
 extern void
-sysfs_remove_link(struct kobject *, char * name);
+sysfs_remove_link(struct kobject *, const char * name);
 
 int sysfs_create_bin_file(struct kobject * kobj, struct bin_attribute * attr);
 int sysfs_remove_bin_file(struct kobject * kobj, struct bin_attribute * attr);
@@ -153,12 +153,12 @@ static inline void sysfs_remove_file(struct kobject * k, const struct attribute 
 	;
 }
 
-static inline int sysfs_create_link(struct kobject * k, struct kobject * t, char * n)
+static inline int sysfs_create_link(struct kobject * k, struct kobject * t, const char * n)
 {
 	return 0;
 }
 
-static inline void sysfs_remove_link(struct kobject * k, char * name)
+static inline void sysfs_remove_link(struct kobject * k, const char * name)
 {
 	;
 }
