@@ -372,14 +372,16 @@ static int smsc47m1_find(int *address)
 	 * SMSC LPC47M10x/LPC47M13x (device id 0x59), LPC47M14x (device id
 	 * 0x5F) and LPC47B27x (device id 0x51) have fan control.
 	 * The LPC47M15x and LPC47M192 chips "with hardware monitoring block"
-	 * can do much more besides (device id 0x60, unsupported).
+	 * can do much more besides (device id 0x60).
 	 */
 	if (val == 0x51)
-		printk(KERN_INFO "smsc47m1: Found SMSC47B27x\n");
+		printk(KERN_INFO "smsc47m1: Found SMSC LPC47B27x\n");
 	else if (val == 0x59)
-		printk(KERN_INFO "smsc47m1: Found SMSC47M10x/SMSC47M13x\n");
+		printk(KERN_INFO "smsc47m1: Found SMSC LPC47M10x/LPC47M13x\n");
 	else if (val == 0x5F)
-		printk(KERN_INFO "smsc47m1: Found SMSC47M14x\n");
+		printk(KERN_INFO "smsc47m1: Found SMSC LPC47M14x\n");
+	else if (val == 0x60)
+		printk(KERN_INFO "smsc47m1: Found SMSC LPC47M15x/LPC47M192\n");
 	else {
 		superio_exit();
 		return -ENODEV;
