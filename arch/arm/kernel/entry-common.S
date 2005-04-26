@@ -9,8 +9,6 @@
  */
 #include <linux/config.h>
 
-#include <asm/thread_info.h>
-#include <asm/ptrace.h>
 #include <asm/unistd.h>
 
 #include "entry-header.S"

@@ -1,20 +1,11 @@
-#include <linux/config.h> /* for CONFIG_ARCH_xxxx */
+#include <linux/config.h>
+#include <linux/init.h>
 #include <linux/linkage.h>
 
 #include <asm/assembler.h>
 #include <asm/constants.h>
 #include <asm/errno.h>
-#include <asm/hardware.h>
-#include <asm/arch/irqs.h>
-#include <asm/arch/entry-macro.S>
-
-	.macro	zero_fp
-#ifdef CONFIG_FRAME_POINTER
-	mov	fp, #0
-#endif
-	.endm
-
-	.text
+#include <asm/thread_info.h>
 
 @ Bad Abort numbers
 @ -----------------
@@ -38,6 +29,12 @@
 #if S_R0 != 0
 #error "Please fix"
 #endif
+
+	.macro	zero_fp
+#ifdef CONFIG_FRAME_POINTER
+	mov	fp, #0
+#endif
+	.endm
 
 #if __LINUX_ARM_ARCH__ >= 6
 	.macro	disable_irq
