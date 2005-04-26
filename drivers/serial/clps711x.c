@@ -116,54 +116,43 @@ static irqreturn_t clps711xuart_int_rx(int irq, void *dev_id, struct pt_regs *re
 		 * Note that the error handling code is
 		 * out of the main execution path
 		 */
-		if (unlikely(ch & UART_ANY_ERR))
-			goto handle_error;
+		if (unlikely(ch & UART_ANY_ERR)) {
+			if (ch & UARTDR_PARERR)
+				port->icount.parity++;
+			else if (ch & UARTDR_FRMERR)
+				port->icount.frame++;
+			if (ch & UARTDR_OVERR)
+				port->icount.overrun++;
+
+			ch &= port->read_status_mask;
+
+			if (ch & UARTDR_PARERR)
+				flg = TTY_PARITY;
+			else if (ch & UARTDR_FRMERR)
+				flg = TTY_FRAME;
+
+#ifdef SUPPORT_SYSRQ
+			port->sysrq = 0;
+#endif
+		}
 
 		if (uart_handle_sysrq_char(port, ch, regs))
 			goto ignore_char;
 
-	error_return:
-		tty_insert_flip_char(tty, ch, flg);
-	ignore_char:
-		status = clps_readl(SYSFLG(port));
-	}
- out:
-	tty_flip_buffer_push(tty);
-	return IRQ_HANDLED;
-
- handle_error:
-	if (ch & UARTDR_PARERR)
-		port->icount.parity++;
-	else if (ch & UARTDR_FRMERR)
-		port->icount.frame++;
-	if (ch & UARTDR_OVERR)
-		port->icount.overrun++;
-
-	if (ch & port->ignore_status_mask) {
-		if (++ignored > 100)
-			goto out;
-		goto ignore_char;
-	}
-	ch &= port->read_status_mask;
-
-	if (ch & UARTDR_PARERR)
-		flg = TTY_PARITY;
-	else if (ch & UARTDR_FRMERR)
-		flg = TTY_FRAME;
-
-	if (ch & UARTDR_OVERR) {
 		/*
 		 * CHECK: does overrun affect the current character?
 		 * ASSUMPTION: it does not.
 		 */
-		tty_insert_flip_char(tty, ch, flg);
-		ch = 0;
-		flg = TTY_OVERRUN;
+		if ((ch & port->ignore_status_mask & ~RXSTAT_OVERRUN) == 0)
+			tty_insert_flip_char(tty, ch, flg);
+		if ((ch & ~port->ignore_status_mask & RXSTAT_OVERRUN) == 0)
+			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+
+	ignore_char:
+		status = clps_readl(SYSFLG(port));
 	}
-#ifdef SUPPORT_SYSRQ
-	port->sysrq = 0;
-#endif
-	goto error_return;
+	tty_flip_buffer_push(tty);
+	return IRQ_HANDLED;
 }
 
 static irqreturn_t clps711xuart_int_tx(int irq, void *dev_id, struct pt_regs *regs)
