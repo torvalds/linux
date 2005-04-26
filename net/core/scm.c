@@ -15,7 +15,6 @@
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/kernel.h>
-#include <linux/major.h>
 #include <linux/stat.h>
 #include <linux/socket.h>
 #include <linux/file.h>
