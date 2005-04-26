@@ -426,9 +426,30 @@ static void tg3_enable_ints(struct tg3 *tp)
 	tg3_cond_int(tp);
 }
 
+static inline unsigned int tg3_has_work(struct tg3 *tp)
+{
+	struct tg3_hw_status *sblk = tp->hw_status;
+	unsigned int work_exists = 0;
+
+	/* check for phy events */
+	if (!(tp->tg3_flags &
+	      (TG3_FLAG_USE_LINKCHG_REG |
+	       TG3_FLAG_POLL_SERDES))) {
+		if (sblk->status & SD_STATUS_LINK_CHG)
+			work_exists = 1;
+	}
+	/* check for RX/TX work to do */
+	if (sblk->idx[0].tx_consumer != tp->tx_cons ||
+	    sblk->idx[0].rx_producer != tp->rx_rcb_ptr)
+		work_exists = 1;
+
+	return work_exists;
+}
+
 /* tg3_restart_ints
- *  similar to tg3_enable_ints, but it can return without flushing the
- *  PIO write which reenables interrupts
+ *  similar to tg3_enable_ints, but it accurately determines whether there
+ *  is new work pending and can return without flushing the PIO write
+ *  which reenables interrupts 
  */
 static void tg3_restart_ints(struct tg3 *tp)
 {
@@ -437,7 +458,9 @@ static void tg3_restart_ints(struct tg3 *tp)
 	tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW, 0x00000000);
 	mmiowb();
 
-	tg3_cond_int(tp);
+	if (tg3_has_work(tp))
+		tw32(HOSTCC_MODE, tp->coalesce_mode |
+		     (HOSTCC_MODE_ENABLE | HOSTCC_MODE_NOW));
 }
 
 static inline void tg3_netif_stop(struct tg3 *tp)
@@ -2686,8 +2709,8 @@ static int tg3_vlan_rx(struct tg3 *tp, struct sk_buff *skb, u16 vlan_tag)
 static int tg3_rx(struct tg3 *tp, int budget)
 {
 	u32 work_mask;
-	u32 rx_rcb_ptr = tp->rx_rcb_ptr;
-	u16 hw_idx, sw_idx;
+	u32 sw_idx = tp->rx_rcb_ptr;
+	u16 hw_idx;
 	int received;
 
 	hw_idx = tp->hw_status->idx[0].rx_producer;
@@ -2696,7 +2719,6 @@ static int tg3_rx(struct tg3 *tp, int budget)
 	 * the opaque cookie.
 	 */
 	rmb();
-	sw_idx = rx_rcb_ptr % TG3_RX_RCB_RING_SIZE(tp);
 	work_mask = 0;
 	received = 0;
 	while (sw_idx != hw_idx && budget > 0) {
@@ -2801,14 +2823,19 @@ static int tg3_rx(struct tg3 *tp, int budget)
 next_pkt:
 		(*post_ptr)++;
 next_pkt_nopost:
-		rx_rcb_ptr++;
-		sw_idx = rx_rcb_ptr % TG3_RX_RCB_RING_SIZE(tp);
+		sw_idx++;
+		sw_idx %= TG3_RX_RCB_RING_SIZE(tp);
+
+		/* Refresh hw_idx to see if there is new work */
+		if (sw_idx == hw_idx) {
+			hw_idx = tp->hw_status->idx[0].rx_producer;
+			rmb();
+		}
 	}
 
 	/* ACK the status ring. */
-	tp->rx_rcb_ptr = rx_rcb_ptr;
-	tw32_rx_mbox(MAILBOX_RCVRET_CON_IDX_0 + TG3_64BIT_REG_LOW,
-		     (rx_rcb_ptr % TG3_RX_RCB_RING_SIZE(tp)));
+	tp->rx_rcb_ptr = sw_idx;
+	tw32_rx_mbox(MAILBOX_RCVRET_CON_IDX_0 + TG3_64BIT_REG_LOW, sw_idx);
 
 	/* Refill RX ring(s). */
 	if (work_mask & RXD_OPAQUE_RING_STD) {
@@ -2887,26 +2914,6 @@ static int tg3_poll(struct net_device *netdev, int *budget)
 	return (done ? 0 : 1);
 }
 
-static inline unsigned int tg3_has_work(struct net_device *dev, struct tg3 *tp)
-{
-	struct tg3_hw_status *sblk = tp->hw_status;
-	unsigned int work_exists = 0;
-
-	/* check for phy events */
-	if (!(tp->tg3_flags &
-	      (TG3_FLAG_USE_LINKCHG_REG |
-	       TG3_FLAG_POLL_SERDES))) {
-		if (sblk->status & SD_STATUS_LINK_CHG)
-			work_exists = 1;
-	}
-	/* check for RX/TX work to do */
-	if (sblk->idx[0].tx_consumer != tp->tx_cons ||
-	    sblk->idx[0].rx_producer != tp->rx_rcb_ptr)
-		work_exists = 1;
-
-	return work_exists;
-}
-
 /* MSI ISR - No need to check for interrupt sharing and no need to
  * flush status block and interrupt mailbox. PCI ordering rules
  * guarantee that MSI will arrive after the status block.
@@ -2930,7 +2937,7 @@ static irqreturn_t tg3_msi(int irq, void *dev_id, struct pt_regs *regs)
 	tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW, 0x00000001);
 	sblk->status &= ~SD_STATUS_UPDATED;
 
-	if (likely(tg3_has_work(dev, tp)))
+	if (likely(tg3_has_work(tp)))
 		netif_rx_schedule(dev);		/* schedule NAPI poll */
 	else {
 		/* no work, re-enable interrupts
@@ -2977,7 +2984,7 @@ static irqreturn_t tg3_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		tr32(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW);
 		sblk->status &= ~SD_STATUS_UPDATED;
 
-		if (likely(tg3_has_work(dev, tp)))
+		if (likely(tg3_has_work(tp)))
 			netif_rx_schedule(dev);		/* schedule NAPI poll */
 		else {
 			/* no work, shared interrupt perhaps?  re-enable
