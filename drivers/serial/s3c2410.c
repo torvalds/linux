@@ -364,7 +364,7 @@ s3c24xx_serial_rx_chars(int irq, void *dev_id, struct pt_regs *regs)
 		flag = TTY_NORMAL;
 		port->icount.rx++;
 
-		if (uerstat & S3C2410_UERSTAT_ANY) {
+		if (unlikely(uerstat & S3C2410_UERSTAT_ANY)) {
 			dbg("rxerr: port ch=0x%02x, rxs=0x%08x\n",
 			    ch, uerstat);
 

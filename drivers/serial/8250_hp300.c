@@ -9,14 +9,14 @@
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
-#include <linux/tty.h>
 #include <linux/serial.h>
-#include <linux/serialP.h>
 #include <linux/serial_core.h>
 #include <linux/delay.h>
 #include <linux/dio.h>
 #include <linux/console.h>
 #include <asm/io.h>
+
+#include "8250.h"
 
 #if !defined(CONFIG_HPDCA) && !defined(CONFIG_HPAPCI)
 #warning CONFIG_8250 defined but neither CONFIG_HPDCA nor CONFIG_HPAPCI defined, are you sure?
@@ -163,7 +163,7 @@ int __init hp300_setup_serial_console(void)
 static int __devinit hpdca_init_one(struct dio_dev *d,
                                 const struct dio_device_id *ent)
 {
-	struct serial_struct serial_req;
+	struct uart_port port;
 	int line;
 
 #ifdef CONFIG_SERIAL_8250_CONSOLE
@@ -172,21 +172,22 @@ static int __devinit hpdca_init_one(struct dio_dev *d,
 		return 0;
 	}
 #endif
-	memset(&serial_req, 0, sizeof(struct serial_struct));
+	memset(&port, 0, sizeof(struct uart_port));
 
 	/* Memory mapped I/O */
-	serial_req.io_type = SERIAL_IO_MEM;
-	serial_req.flags = UPF_SKIP_TEST | UPF_SHARE_IRQ | UPF_BOOT_AUTOCONF;
-	serial_req.irq = d->ipl;
-	serial_req.baud_base = HPDCA_BAUD_BASE;
-	serial_req.iomap_base = (d->resource.start + UART_OFFSET);
-	serial_req.iomem_base = (char *)(serial_req.iomap_base + DIO_VIRADDRBASE);
-	serial_req.iomem_reg_shift = 1;
-	line = register_serial(&serial_req);
+	port.iotype = UPIO_MEM;
+	port.flags = UPF_SKIP_TEST | UPF_SHARE_IRQ | UPF_BOOT_AUTOCONF;
+	port.irq = d->ipl;
+	port.uartclk = HPDCA_BAUD_BASE * 16;
+	port.mapbase = (d->resource.start + UART_OFFSET);
+	port.membase = (char *)(port.mapbase + DIO_VIRADDRBASE);
+	port.regshift = 1;
+	port.dev = &d->dev;
+	line = serial8250_register_port(&port);
 
 	if (line < 0) {
 		printk(KERN_NOTICE "8250_hp300: register_serial() DCA scode %d"
-		       " irq %d failed\n", d->scode, serial_req.irq);
+		       " irq %d failed\n", d->scode, port.irq);
 		return -ENOMEM;
 	}
 
@@ -209,7 +210,7 @@ static int __init hp300_8250_init(void)
 #ifdef CONFIG_HPAPCI
 	int line;
 	unsigned long base;
-	struct serial_struct serial_req;
+	struct uart_port uport;
 	struct hp300_port *port;
 	int i;
 #endif
@@ -251,25 +252,25 @@ static int __init hp300_8250_init(void)
 		if (!port)
 			return -ENOMEM;
 
-		memset(&serial_req, 0, sizeof(struct serial_struct));
+		memset(&uport, 0, sizeof(struct uart_port));
 
 		base = (FRODO_BASE + FRODO_APCI_OFFSET(i));
 
 		/* Memory mapped I/O */
-		serial_req.io_type = SERIAL_IO_MEM;
-		serial_req.flags = UPF_SKIP_TEST | UPF_SHARE_IRQ | UPF_BOOT_AUTOCONF;
+		uport.iotype = UPIO_MEM;
+		uport.flags = UPF_SKIP_TEST | UPF_SHARE_IRQ | UPF_BOOT_AUTOCONF;
 		/* XXX - no interrupt support yet */
-		serial_req.irq = 0;
-		serial_req.baud_base = HPAPCI_BAUD_BASE;
-		serial_req.iomap_base = base;
-		serial_req.iomem_base = (char *)(serial_req.iomap_base + DIO_VIRADDRBASE);
-		serial_req.iomem_reg_shift = 2;
+		uport.irq = 0;
+		uport.uartclk = HPAPCI_BAUD_BASE * 16;
+		uport.mapbase = base;
+		uport.membase = (char *)(base + DIO_VIRADDRBASE);
+		uport.regshift = 2;
 
-		line = register_serial(&serial_req);
+		line = serial8250_register_port(&uport);
 
 		if (line < 0) {
 			printk(KERN_NOTICE "8250_hp300: register_serial() APCI %d"
-			       " irq %d failed\n", i, serial_req.irq);
+			       " irq %d failed\n", i, uport.irq);
 			kfree(port);
 			continue;
 		}
@@ -299,7 +300,7 @@ static void __devexit hpdca_remove_one(struct dio_dev *d)
 		/* Disable board-interrupts */
 		out_8(d->resource.start + DIO_VIRADDRBASE + DCA_IC, 0);
 	}
-	unregister_serial(line);
+	serial8250_unregister_port(line);
 }
 #endif
 
@@ -309,7 +310,7 @@ static void __exit hp300_8250_exit(void)
 	struct hp300_port *port, *to_free;
 
 	for (port = hp300_ports; port; ) {
-		unregister_serial(port->line);
+		serial8250_unregister_port(port->line);
 		to_free = port;
 		port = port->next;
 		kfree(to_free);

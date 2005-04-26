@@ -110,7 +110,7 @@ static irqreturn_t serial21285_rx_chars(int irq, void *dev_id, struct pt_regs *r
 		port->icount.rx++;
 
 		rxs = *CSR_RXSTAT | RXSTAT_DUMMY_READ;
-		if (rxs & RXSTAT_ANYERR) {
+		if (unlikely(rxs & RXSTAT_ANYERR)) {
 			if (rxs & RXSTAT_PARITY)
 				port->icount.parity++;
 			else if (rxs & RXSTAT_FRAME)

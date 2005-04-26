@@ -162,7 +162,7 @@ lh7a40xuart_rx_chars (struct uart_port* port)
 		flag = TTY_NORMAL;
 		++port->icount.rx;
 
-		if (data & RxError) {	/* Quick check, short-circuit */
+		if (unlikely(data & RxError)) {	/* Quick check, short-circuit */
 			if (data & RxBreak) {
 				data &= ~(RxFramingError | RxParityError);
 				++port->icount.brk;
