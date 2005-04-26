@@ -246,7 +246,7 @@ void kobject_hotplug(struct kobject *kobj, enum kobject_action action)
 	if (hotplug_ops->name)
 		name = hotplug_ops->name(kset, kobj);
 	if (name == NULL)
-		name = kset->kobj.name;
+		name = kobject_name(&kset->kobj);
 
 	argv [0] = hotplug_path;
 	argv [1] = name;
