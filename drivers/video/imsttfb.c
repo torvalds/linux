@@ -1287,12 +1287,12 @@ imsttfb_ioctl(struct inode *inode, struct file *file, u_int cmd,
 		case FBIMSTT_SETCMAPREG:
 			if (copy_from_user(reg, argp, 8) || reg[0] > (0x1000 - sizeof(reg[0])) / sizeof(reg[0]))
 				return -EFAULT;
-			write_reg_le32(((u_int *)par->cmap_regs), reg[0], reg[1]);
+			write_reg_le32(((u_int __iomem *)par->cmap_regs), reg[0], reg[1]);
 			return 0;
 		case FBIMSTT_GETCMAPREG:
 			if (copy_from_user(reg, argp, 4) || reg[0] > (0x1000 - sizeof(reg[0])) / sizeof(reg[0]))
 				return -EFAULT;
-			reg[1] = read_reg_le32(((u_int *)par->cmap_regs), reg[0]);
+			reg[1] = read_reg_le32(((u_int __iomem *)par->cmap_regs), reg[0]);
 			if (copy_to_user((void __user *)(arg + 4), &reg[1], 4))
 				return -EFAULT;
 			return 0;
