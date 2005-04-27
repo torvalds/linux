@@ -85,7 +85,7 @@ qla2x00_unlock_nvram_access(scsi_qla_host_t *ha)
 void
 qla2x00_release_nvram_protection(scsi_qla_host_t *ha)
 {
-	device_reg_t *reg;
+	device_reg_t __iomem *reg;
 	uint32_t word;
 
 	reg = ha->iobase;
