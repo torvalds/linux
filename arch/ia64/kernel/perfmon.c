@@ -480,14 +480,6 @@ typedef struct {
 #define PFM_CMD_ARG_MANY	-1 /* cannot be zero */
 
 typedef struct {
-	int	debug;		/* turn on/off debugging via syslog */
-	int	debug_ovfl;	/* turn on/off debug printk in overflow handler */
-	int	fastctxsw;	/* turn on/off fast (unsecure) ctxsw */
-	int	expert_mode;	/* turn on/off value checking */
-	int 	debug_pfm_read;
-} pfm_sysctl_t;
-
-typedef struct {
 	unsigned long pfm_spurious_ovfl_intr_count;	/* keep track of spurious ovfl interrupts */
 	unsigned long pfm_replay_ovfl_intr_count;	/* keep track of replayed ovfl interrupts */
 	unsigned long pfm_ovfl_intr_count; 		/* keep track of ovfl interrupts */
@@ -514,8 +506,8 @@ static LIST_HEAD(pfm_buffer_fmt_list);
 static pmu_config_t		*pmu_conf;
 
 /* sysctl() controls */
-static pfm_sysctl_t pfm_sysctl;
-int pfm_debug_var;
+pfm_sysctl_t pfm_sysctl;
+EXPORT_SYMBOL(pfm_sysctl);
 
 static ctl_table pfm_ctl_table[]={
 	{1, "debug", &pfm_sysctl.debug, sizeof(int), 0666, NULL, &proc_dointvec, NULL,},
@@ -1576,7 +1568,7 @@ pfm_read(struct file *filp, char __user *buf, size_t size, loff_t *ppos)
 		goto abort_locked;
 	}
 
-	DPRINT(("[%d] fd=%d type=%d\n", current->pid, msg->pfm_gen_msg.msg_ctx_fd, msg->pfm_gen_msg.msg_type));
+	DPRINT(("fd=%d type=%d\n", msg->pfm_gen_msg.msg_ctx_fd, msg->pfm_gen_msg.msg_type));
 
 	ret = -EFAULT;
   	if(copy_to_user(buf, msg, sizeof(pfm_msg_t)) == 0) ret = sizeof(pfm_msg_t);
@@ -3695,8 +3687,6 @@ pfm_debug(pfm_context_t *ctx, void *arg, int count, struct pt_regs *regs)
 
 	pfm_sysctl.debug = m == 0 ? 0 : 1;
 
-	pfm_debug_var = pfm_sysctl.debug;
-
 	printk(KERN_INFO "perfmon debugging %s (timing reset)\n", pfm_sysctl.debug ? "on" : "off");
 
 	if (m == 0) {
@@ -4996,13 +4986,21 @@ pfm_context_force_terminate(pfm_context_t *ctx, struct pt_regs *regs)
 }
 
 static int pfm_ovfl_notify_user(pfm_context_t *ctx, unsigned long ovfl_pmds);
-
+ /*
+  * pfm_handle_work() can be called with interrupts enabled
+  * (TIF_NEED_RESCHED) or disabled. The down_interruptible
+  * call may sleep, therefore we must re-enable interrupts
+  * to avoid deadlocks. It is safe to do so because this function
+  * is called ONLY when returning to user level (PUStk=1), in which case
+  * there is no risk of kernel stack overflow due to deep
+  * interrupt nesting.
+  */
 void
 pfm_handle_work(void)
 {
 	pfm_context_t *ctx;
 	struct pt_regs *regs;
-	unsigned long flags;
+	unsigned long flags, dummy_flags;
 	unsigned long ovfl_regs;
 	unsigned int reason;
 	int ret;
@@ -5039,18 +5037,15 @@ pfm_handle_work(void)
 	//if (CTX_OVFL_NOBLOCK(ctx)) goto skip_blocking;
 	if (reason == PFM_TRAP_REASON_RESET) goto skip_blocking;
 
+	/*
+	 * restore interrupt mask to what it was on entry.
+	 * Could be enabled/diasbled.
+	 */
 	UNPROTECT_CTX(ctx, flags);
 
-	 /*
-	  * pfm_handle_work() is currently called with interrupts disabled.
-	  * The down_interruptible call may sleep, therefore we
-	  * must re-enable interrupts to avoid deadlocks. It is
-	  * safe to do so because this function is called ONLY
-	  * when returning to user level (PUStk=1), in which case
-	  * there is no risk of kernel stack overflow due to deep
-	  * interrupt nesting.
-	  */
-	BUG_ON(flags & IA64_PSR_I);
+	/*
+	 * force interrupt enable because of down_interruptible()
+	 */
 	local_irq_enable();
 
 	DPRINT(("before block sleeping\n"));
@@ -5064,12 +5059,12 @@ pfm_handle_work(void)
 	DPRINT(("after block sleeping ret=%d\n", ret));
 
 	/*
-	 * disable interrupts to restore state we had upon entering
-	 * this function
+	 * lock context and mask interrupts again
+	 * We save flags into a dummy because we may have
+	 * altered interrupts mask compared to entry in this
+	 * function.
 	 */
-	local_irq_disable();
-
-	PROTECT_CTX(ctx, flags);
+	PROTECT_CTX(ctx, dummy_flags);
 
 	/*
 	 * we need to read the ovfl_regs only after wake-up
@@ -5095,7 +5090,9 @@ skip_blocking:
 	ctx->ctx_ovfl_regs[0] = 0UL;
 
 nothing_to_do:
-
+	/*
+	 * restore flags as they were upon entry
+	 */
 	UNPROTECT_CTX(ctx, flags);
 }
 

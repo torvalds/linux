@@ -29,6 +29,7 @@
 #include <linux/sched.h>
 #include <linux/root_dev.h>
 #include <linux/nodemask.h>
+#include <linux/pm.h>
 
 #include <asm/io.h>
 #include <asm/sal.h>
@@ -353,6 +354,14 @@ void __init sn_setup(char **cmdline_p)
 	screen_info = sn_screen_info;
 
 	sn_timer_init();
+
+	/*
+	 * set pm_power_off to a SAL call to allow
+	 * sn machines to power off. The SAL call can be replaced
+	 * by an ACPI interface call when ACPI is fully implemented
+	 * for sn.
+	 */
+	pm_power_off = ia64_sn_power_down;
 }
 
 /**

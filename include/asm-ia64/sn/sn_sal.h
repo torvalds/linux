@@ -8,7 +8,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (c) 2000-2004 Silicon Graphics, Inc.  All rights reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.  All rights reserved.
  */
 
 
@@ -35,8 +35,8 @@
 #define  SN_SAL_PRINT_ERROR			   0x02000012
 #define  SN_SAL_SET_ERROR_HANDLING_FEATURES	   0x0200001a	// reentrant
 #define  SN_SAL_GET_FIT_COMPT			   0x0200001b	// reentrant
-#define  SN_SAL_GET_SN_INFO                        0x0200001c
 #define  SN_SAL_GET_SAPIC_INFO                     0x0200001d
+#define  SN_SAL_GET_SN_INFO                        0x0200001e
 #define  SN_SAL_CONSOLE_PUTC                       0x02000021
 #define  SN_SAL_CONSOLE_GETC                       0x02000022
 #define  SN_SAL_CONSOLE_PUTS                       0x02000023
@@ -64,6 +64,7 @@
 
 #define  SN_SAL_SYSCTL_IOBRICK_PCI_OP		   0x02000042	// reentrant
 #define	 SN_SAL_IROUTER_OP			   0x02000043
+#define  SN_SAL_SYSCTL_EVENT                       0x02000044
 #define  SN_SAL_IOIF_INTERRUPT			   0x0200004a
 #define  SN_SAL_HWPERF_OP			   0x02000050   // lock
 #define  SN_SAL_IOIF_ERROR_INTERRUPT		   0x02000051
@@ -76,7 +77,8 @@
 #define  SN_SAL_IOIF_GET_WIDGET_DMAFLUSH_LIST	   0x02000058
 
 #define SN_SAL_HUB_ERROR_INTERRUPT		   0x02000060
-
+#define SN_SAL_BTE_RECOVER			   0x02000061
+#define SN_SAL_IOIF_GET_PCI_TOPOLOGY	           0x02000062
 
 /*
  * Service-specific constants
@@ -849,6 +851,19 @@ ia64_sn_irtr_intr_disable(nasid_t nasid, int subch, u64 intr)
 	return (int) rv.v0;
 }
 
+/*
+ * Set up a node as the point of contact for system controller
+ * environmental event delivery.
+ */
+static inline int
+ia64_sn_sysctl_event_init(nasid_t nasid)
+{
+        struct ia64_sal_retval rv;
+        SAL_CALL_REENTRANT(rv, SN_SAL_SYSCTL_EVENT, (u64) nasid,
+			   0, 0, 0, 0, 0, 0);
+        return (int) rv.v0;
+}
+
 /**
  * ia64_sn_get_fit_compt - read a FIT entry from the PROM header
  * @nasid: NASID of node to read
@@ -1009,6 +1024,31 @@ ia64_sn_hwperf_op(nasid_t nasid, u64 opcode, u64 a0, u64 a1, u64 a2,
 		opcode, a0, a1, a2, a3, a4);
 	if (v0)
 		*v0 = (int) rv.v0;
+	return (int) rv.status;
+}
+
+static inline int
+ia64_sn_ioif_get_pci_topology(u64 rack, u64 bay, u64 slot, u64 slab,
+			      u64 buf, u64 len)
+{
+	struct ia64_sal_retval rv;
+	SAL_CALL_NOLOCK(rv, SN_SAL_IOIF_GET_PCI_TOPOLOGY,
+		rack, bay, slot, slab, buf, len, 0);
+	return (int) rv.status;
+}
+
+/*
+ * BTE error recovery is implemented in SAL
+ */
+static inline int
+ia64_sn_bte_recovery(nasid_t nasid)
+{
+	struct ia64_sal_retval rv;
+
+	rv.status = 0;
+	SAL_CALL_NOLOCK(rv, SN_SAL_BTE_RECOVER, 0, 0, 0, 0, 0, 0, 0);
+	if (rv.status == SALRET_NOT_IMPLEMENTED)
+		return 0;
 	return (int) rv.status;
 }
 

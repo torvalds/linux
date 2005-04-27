@@ -11,14 +11,15 @@
 #include <asm/sn/types.h>
 #include <asm/sn/sn_sal.h>
 #include <asm/sn/addrs.h>
-#include "pci/pcibus_provider_defs.h"
-#include "pci/pcidev.h"
+#include <asm/sn/pcibus_provider_defs.h>
+#include <asm/sn/pcidev.h>
 #include "pci/pcibr_provider.h"
 #include "xtalk/xwidgetdev.h"
 #include <asm/sn/geo.h>
 #include "xtalk/hubdev.h"
 #include <asm/sn/io.h>
 #include <asm/sn/simulator.h>
+#include <asm/sn/tioca_provider.h>
 
 char master_baseio_wid;
 nasid_t master_nasid = INVALID_NASID;	/* Partition Master */
@@ -33,6 +34,37 @@ struct brick {
 };
 
 int sn_ioif_inited = 0;		/* SN I/O infrastructure initialized? */
+
+struct sn_pcibus_provider *sn_pci_provider[PCIIO_ASIC_MAX_TYPES];	/* indexed by asic type */
+
+/*
+ * Hooks and struct for unsupported pci providers
+ */
+
+static dma_addr_t
+sn_default_pci_map(struct pci_dev *pdev, unsigned long paddr, size_t size)
+{
+	return 0;
+}
+
+static void
+sn_default_pci_unmap(struct pci_dev *pdev, dma_addr_t addr, int direction)
+{
+	return;
+}
+
+static void *
+sn_default_pci_bus_fixup(struct pcibus_bussoft *soft)
+{
+	return NULL;
+}
+
+static struct sn_pcibus_provider sn_pci_default_provider = {
+	.dma_map = sn_default_pci_map,
+	.dma_map_consistent = sn_default_pci_map,
+	.dma_unmap = sn_default_pci_unmap,
+	.bus_fixup = sn_default_pci_bus_fixup,
+};
 
 /*
  * Retrieve the DMA Flush List given nasid.  This list is needed 
@@ -201,6 +233,7 @@ static void sn_pci_fixup_slot(struct pci_dev *dev)
 	struct sn_irq_info *sn_irq_info;
 	struct pci_dev *host_pci_dev;
 	int status = 0;
+	struct pcibus_bussoft *bs;
 
 	dev->sysdata = kmalloc(sizeof(struct pcidev_info), GFP_KERNEL);
 	if (SN_PCIDEV_INFO(dev) <= 0)
@@ -241,6 +274,7 @@ static void sn_pci_fixup_slot(struct pci_dev *dev)
 	}
 
 	/* set up host bus linkages */
+	bs = SN_PCIBUS_BUSSOFT(dev->bus);
 	host_pci_dev =
 	    pci_find_slot(SN_PCIDEV_INFO(dev)->pdi_slot_host_handle >> 32,
 			  SN_PCIDEV_INFO(dev)->
@@ -248,10 +282,16 @@ static void sn_pci_fixup_slot(struct pci_dev *dev)
 	SN_PCIDEV_INFO(dev)->pdi_host_pcidev_info =
 	    SN_PCIDEV_INFO(host_pci_dev);
 	SN_PCIDEV_INFO(dev)->pdi_linux_pcidev = dev;
-	SN_PCIDEV_INFO(dev)->pdi_pcibus_info = SN_PCIBUS_BUSSOFT(dev->bus);
+	SN_PCIDEV_INFO(dev)->pdi_pcibus_info = bs;
+
+	if (bs && bs->bs_asic_type < PCIIO_ASIC_MAX_TYPES) {
+		SN_PCIDEV_BUSPROVIDER(dev) = sn_pci_provider[bs->bs_asic_type];
+	} else {
+		SN_PCIDEV_BUSPROVIDER(dev) = &sn_pci_default_provider;
+	}
 
 	/* Only set up IRQ stuff if this device has a host bus context */
-	if (SN_PCIDEV_BUSSOFT(dev) && sn_irq_info->irq_irq) {
+	if (bs && sn_irq_info->irq_irq) {
 		SN_PCIDEV_INFO(dev)->pdi_sn_irq_info = sn_irq_info;
 		dev->irq = SN_PCIDEV_INFO(dev)->pdi_sn_irq_info->irq_irq;
 		sn_irq_fixup(dev, sn_irq_info);
@@ -271,6 +311,7 @@ static void sn_pci_controller_fixup(int segment, int busnum)
 	struct pcibus_bussoft *prom_bussoft_ptr;
 	struct hubdev_info *hubdev_info;
 	void *provider_soft;
+	struct sn_pcibus_provider *provider;
 
 	status =
 	    sal_get_pcibus_info((u64) segment, (u64) busnum,
@@ -291,16 +332,22 @@ static void sn_pci_controller_fixup(int segment, int busnum)
 	/*
 	 * Per-provider fixup.  Copies the contents from prom to local
 	 * area and links SN_PCIBUS_BUSSOFT().
-	 *
-	 * Note:  Provider is responsible for ensuring that prom_bussoft_ptr
-	 * represents an asic-type that it can handle.
 	 */
 
-	if (prom_bussoft_ptr->bs_asic_type == PCIIO_ASIC_TYPE_PPB) {
-		return;		/* no further fixup necessary */
+	if (prom_bussoft_ptr->bs_asic_type >= PCIIO_ASIC_MAX_TYPES) {
+		return;		/* unsupported asic type */
 	}
 
-	provider_soft = pcibr_bus_fixup(prom_bussoft_ptr);
+	provider = sn_pci_provider[prom_bussoft_ptr->bs_asic_type];
+	if (provider == NULL) {
+		return;		/* no provider registerd for this asic */
+	}
+
+	provider_soft = NULL;
+	if (provider->bus_fixup) {
+		provider_soft = (*provider->bus_fixup) (prom_bussoft_ptr);
+	}
+
 	if (provider_soft == NULL) {
 		return;		/* fixup failed or not applicable */
 	}
@@ -337,6 +384,17 @@ static int __init sn_pci_init(void)
 
 	if (!ia64_platform_is("sn2") || IS_RUNNING_ON_SIMULATOR())
 		return 0;
+
+	/*
+	 * prime sn_pci_provider[].  Individial provider init routines will
+	 * override their respective default entries.
+	 */
+
+	for (i = 0; i < PCIIO_ASIC_MAX_TYPES; i++)
+		sn_pci_provider[i] = &sn_pci_default_provider;
+
+	pcibr_init_provider();
+	tioca_init_provider();
 
 	/*
 	 * This is needed to avoid bounce limit checks in the blk layer

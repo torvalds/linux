@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 1992 - 1997, 2000-2004 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 1992 - 1997, 2000-2005 Silicon Graphics, Inc. All rights reserved.
  */
 #ifndef _ASM_IA64_SN_NODEPDA_H
 #define _ASM_IA64_SN_NODEPDA_H
@@ -43,7 +43,7 @@ struct nodepda_s {
 	/*
 	 * The BTEs on this node are shared by the local cpus
 	 */
-	struct bteinfo_s	bte_if[BTES_PER_NODE];	/* Virtual Interface */
+	struct bteinfo_s	bte_if[MAX_BTES_PER_NODE];	/* Virtual Interface */
 	struct timer_list	bte_recovery_timer;
 	spinlock_t		bte_recovery_lock;
 
