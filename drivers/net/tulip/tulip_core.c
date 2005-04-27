@@ -1104,7 +1104,7 @@ static void set_rx_mode(struct net_device *dev)
 			if (entry != 0) {
 				/* Avoid a chip errata by prefixing a dummy entry. Don't do
 				   this on the ULI526X as it triggers a different problem */
-				if (!(tp->chip_id == ULI526X && (tp->revision = 0x40 || tp->revision == 0x50))) {
+				if (!(tp->chip_id == ULI526X && (tp->revision == 0x40 || tp->revision == 0x50))) {
 					tp->tx_buffers[entry].skb = NULL;
 					tp->tx_buffers[entry].mapping = 0;
 					tp->tx_ring[entry].length =
