@@ -152,8 +152,8 @@ static void aac_queue_init(struct aac_dev * dev, struct aac_queue * q, u32 *mem,
 	init_waitqueue_head(&q->qfull);
 	spin_lock_init(&q->lockdata);
 	q->lock = &q->lockdata;
-	q->headers.producer = mem;
-	q->headers.consumer = mem+1;
+	q->headers.producer = (__le32 *)mem;
+	q->headers.consumer = (__le32 *)(mem+1);
 	*(q->headers.producer) = cpu_to_le32(qsize);
 	*(q->headers.consumer) = cpu_to_le32(qsize);
 	q->entries = qsize;

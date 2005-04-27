@@ -1893,7 +1893,9 @@ static unsigned long aac_build_sg(struct scsi_cmnd* scsicmd, struct sgmap* psg)
 		}
 		/* hba wants the size to be exact */
 		if(byte_count > scsicmd->request_bufflen){
-			psg->sg[i-1].count -= (byte_count - scsicmd->request_bufflen);
+			u32 temp = le32_to_cpu(psg->sg[i-1].count) - 
+				(byte_count - scsicmd->request_bufflen);
+			psg->sg[i-1].count = cpu_to_le32(temp);
 			byte_count = scsicmd->request_bufflen;
 		}
 		/* Check for command underflow */
@@ -1922,7 +1924,7 @@ static unsigned long aac_build_sg64(struct scsi_cmnd* scsicmd, struct sgmap64* p
 {
 	struct aac_dev *dev;
 	unsigned long byte_count = 0;
-	u64 le_addr;
+	u64 addr;
 
 	dev = (struct aac_dev *)scsicmd->device->host->hostdata;
 	// Get rid of old data
@@ -1943,16 +1945,18 @@ static unsigned long aac_build_sg64(struct scsi_cmnd* scsicmd, struct sgmap64* p
 		byte_count = 0;
 
 		for (i = 0; i < sg_count; i++) {
-			le_addr = cpu_to_le64(sg_dma_address(sg));
-			psg->sg[i].addr[1] = (u32)(le_addr>>32);
-			psg->sg[i].addr[0] = (u32)(le_addr & 0xffffffff);
+			addr = sg_dma_address(sg);
+			psg->sg[i].addr[0] = cpu_to_le32(addr & 0xffffffff);
+			psg->sg[i].addr[1] = cpu_to_le32(addr>>32);
 			psg->sg[i].count = cpu_to_le32(sg_dma_len(sg));
 			byte_count += sg_dma_len(sg);
 			sg++;
 		}
 		/* hba wants the size to be exact */
 		if(byte_count > scsicmd->request_bufflen){
-			psg->sg[i-1].count -= (byte_count - scsicmd->request_bufflen);
+			u32 temp = le32_to_cpu(psg->sg[i-1].count) - 
+				(byte_count - scsicmd->request_bufflen);
+			psg->sg[i-1].count = cpu_to_le32(temp);
 			byte_count = scsicmd->request_bufflen;
 		}
 		/* Check for command underflow */
@@ -1962,15 +1966,14 @@ static unsigned long aac_build_sg64(struct scsi_cmnd* scsicmd, struct sgmap64* p
 		}
 	}
 	else if(scsicmd->request_bufflen) {
-		dma_addr_t addr; 
+		u64 addr; 
 		addr = pci_map_single(dev->pdev,
 				scsicmd->request_buffer,
 				scsicmd->request_bufflen,
 				scsicmd->sc_data_direction);
 		psg->count = cpu_to_le32(1);
-		le_addr = cpu_to_le64(addr);
-		psg->sg[0].addr[1] = (u32)(le_addr>>32);
-		psg->sg[0].addr[0] = (u32)(le_addr & 0xffffffff);
+		psg->sg[0].addr[0] = cpu_to_le32(addr & 0xffffffff);
+		psg->sg[0].addr[1] = cpu_to_le32(addr >> 32);
 		psg->sg[0].count = cpu_to_le32(scsicmd->request_bufflen);  
 		scsicmd->SCp.dma_handle = addr;
 		byte_count = scsicmd->request_bufflen;

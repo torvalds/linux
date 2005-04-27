@@ -86,7 +86,7 @@ static int ioctl_send_fib(struct aac_dev * dev, void __user *arg)
 		return -EFAULT;
 	}
 
-	if (kfib->header.Command == cpu_to_le32(TakeABreakPt)) {
+	if (kfib->header.Command == cpu_to_le16(TakeABreakPt)) {
 		aac_adapter_interrupt(dev);
 		/*
 		 * Since we didn't really send a fib, zero out the state to allow 
@@ -94,7 +94,7 @@ static int ioctl_send_fib(struct aac_dev * dev, void __user *arg)
 		 */
 		kfib->header.XferState = 0;
 	} else {
-		int retval = fib_send(kfib->header.Command, fibptr,
+		int retval = fib_send(le16_to_cpu(kfib->header.Command), fibptr,
 				le16_to_cpu(kfib->header.Size) , FsaNormal,
 				1, 1, NULL, NULL);
 		if (retval) {
@@ -114,7 +114,7 @@ static int ioctl_send_fib(struct aac_dev * dev, void __user *arg)
 	 *	was already included by the adapter.)
 	 */
 
-	if (copy_to_user(arg, (void *)kfib, kfib->header.Size)) {
+	if (copy_to_user(arg, (void *)kfib, le16_to_cpu(kfib->header.Size))) {
 		fib_free(fibptr);
 		return -EFAULT;
 	}
@@ -391,8 +391,8 @@ static int check_revision(struct aac_dev *dev, void __user *arg)
 	struct revision response;
 
 	response.compat = 1;
-	response.version = dev->adapter_info.kernelrev;
-	response.build = dev->adapter_info.kernelbuild;
+	response.version = le32_to_cpu(dev->adapter_info.kernelrev);
+	response.build = le32_to_cpu(dev->adapter_info.kernelbuild);
 
 	if (copy_to_user(arg, &response, sizeof(response)))
 		return -EFAULT;
@@ -409,8 +409,9 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 {
 	struct fib* srbfib;
 	int status;
-	struct aac_srb *srbcmd;
-	struct aac_srb __user *user_srb = arg;
+	struct aac_srb *srbcmd = NULL;
+	struct user_aac_srb *user_srbcmd = NULL;
+	struct user_aac_srb __user *user_srb = arg;
 	struct aac_srb_reply __user *user_reply;
 	struct aac_srb_reply* reply;
 	u32 fibsize = 0;
@@ -450,7 +451,8 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 		goto cleanup;
 	}
 
-	if(copy_from_user(srbcmd, user_srb,fibsize)){
+	user_srbcmd = kmalloc(GFP_KERNEL, fibsize);
+	if(copy_from_user(user_srbcmd, user_srb,fibsize)){
 		printk(KERN_DEBUG"aacraid: Could not copy srb from user\n"); 
 		rcode = -EFAULT;
 		goto cleanup;
@@ -458,18 +460,19 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 
 	user_reply = arg+fibsize;
 
-	flags = srbcmd->flags;
+	flags = user_srbcmd->flags; /* from user in cpu order */
 	// Fix up srb for endian and force some values
+
 	srbcmd->function = cpu_to_le32(SRBF_ExecuteScsi);	// Force this
-	srbcmd->channel  = cpu_to_le32(srbcmd->channel);
-	srbcmd->id	 = cpu_to_le32(srbcmd->id);
-	srbcmd->lun      = cpu_to_le32(srbcmd->lun);
-	srbcmd->flags    = cpu_to_le32(srbcmd->flags);
-	srbcmd->timeout  = cpu_to_le32(srbcmd->timeout);
-	srbcmd->retry_limit =cpu_to_le32(0); // Obsolete parameter
-	srbcmd->cdb_size = cpu_to_le32(srbcmd->cdb_size);
+	srbcmd->channel = cpu_to_le32(user_srbcmd->channel);
+	srbcmd->id = cpu_to_le32(user_srbcmd->id);
+	srbcmd->lun = cpu_to_le32(user_srbcmd->lun);
+	srbcmd->flags = cpu_to_le32(user_srbcmd->flags);
+	srbcmd->timeout = cpu_to_le32(user_srbcmd->timeout);
+	srbcmd->retry_limit = 0; 
+	srbcmd->cdb_size = cpu_to_le32(user_srbcmd->cdb_size);
 	
-	switch (srbcmd->flags & (SRB_DataIn | SRB_DataOut)) {
+	switch (flags & (SRB_DataIn | SRB_DataOut)) {
 	case SRB_DataOut:
 		data_dir = DMA_TO_DEVICE;
 		break;
@@ -483,60 +486,61 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 		data_dir = DMA_NONE;
 	}
 	if (dev->dac_support == 1) {
-		struct sgmap64* psg = (struct sgmap64*)&srbcmd->sg;
+		struct user_sgmap64* upsg = (struct user_sgmap64*)&user_srbcmd->sg;
+		struct sgmap64* psg = (struct sgmap64*)&user_srbcmd->sg;
 		byte_count = 0;
 
 		/*
 		 * This should also catch if user used the 32 bit sgmap
 		 */
 		actual_fibsize = sizeof(struct aac_srb) - 
-			sizeof(struct sgentry) + ((srbcmd->sg.count & 0xff) * 
-			 	sizeof(struct sgentry64));
+			sizeof(struct sgentry) + 
+			((user_srbcmd->sg.count & 0xff) * 
+		 	sizeof(struct sgentry64));
 		if(actual_fibsize != fibsize){ // User made a mistake - should not continue
 			printk(KERN_DEBUG"aacraid: Bad Size specified in Raw SRB command\n");
 			rcode = -EINVAL;
 			goto cleanup;
 		}
-		if ((data_dir == DMA_NONE) && psg->count) { 
+		if ((data_dir == DMA_NONE) && upsg->count) { 
 			printk(KERN_DEBUG"aacraid: SG with no direction specified in Raw SRB command\n");
 			rcode = -EINVAL;
 			goto cleanup;
 		}
 
-		for (i = 0; i < psg->count; i++) {
-			dma_addr_t addr; 
-			u64 le_addr;
+		for (i = 0; i < upsg->count; i++) {
+			u64 addr; 
 			void* p;
-			p = kmalloc(psg->sg[i].count,GFP_KERNEL|__GFP_DMA);
+			p = kmalloc(upsg->sg[i].count, GFP_KERNEL|__GFP_DMA);
 			if(p == 0) {
 				printk(KERN_DEBUG"aacraid: Could not allocate SG buffer - size = %d buffer number %d of %d\n",
-				psg->sg[i].count,i,psg->count);
+				upsg->sg[i].count,i,upsg->count);
 				rcode = -ENOMEM;
 				goto cleanup;
 			}
-			sg_user[i] = (void __user *)psg->sg[i].addr;
+			sg_user[i] = (void __user *)upsg->sg[i].addr;
 			sg_list[i] = p; // save so we can clean up later
 			sg_indx = i;
 
 			if( flags & SRB_DataOut ){
-				if(copy_from_user(p,sg_user[i],psg->sg[i].count)){
+				if(copy_from_user(p,sg_user[i],upsg->sg[i].count)){
 					printk(KERN_DEBUG"aacraid: Could not copy sg data from user\n"); 
 					rcode = -EFAULT;
 					goto cleanup;
 				}
 			}
-			addr = pci_map_single(dev->pdev, p, psg->sg[i].count, data_dir);
+			addr = pci_map_single(dev->pdev, p, upsg->sg[i].count, data_dir);
 
-			le_addr = cpu_to_le64(addr);
-			psg->sg[i].addr[1] = (u32)(le_addr>>32);
-			psg->sg[i].addr[0] = (u32)(le_addr & 0xffffffff);
-			psg->sg[i].count = cpu_to_le32(psg->sg[i].count);  
-			byte_count += psg->sg[i].count;
+			psg->sg[i].addr[0] = cpu_to_le32(addr & 0xffffffff);
+			psg->sg[i].addr[1] = cpu_to_le32(addr >> 32);
+			psg->sg[i].count = cpu_to_le32(upsg->sg[i].count);  
+			byte_count += upsg->sg[i].count;
 		}
 
 		srbcmd->count = cpu_to_le32(byte_count);
 		status = fib_send(ScsiPortCommand64, srbfib, actual_fibsize, FsaNormal, 1, 1,NULL,NULL);
 	} else {
+		struct user_sgmap* upsg = &user_srbcmd->sg;
 		struct sgmap* psg = &srbcmd->sg;
 		byte_count = 0;
 
@@ -548,37 +552,39 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 			rcode = -EINVAL;
 			goto cleanup;
 		}
-		if ((data_dir == DMA_NONE) && psg->count) {
+		if ((data_dir == DMA_NONE) && upsg->count) {
 			printk(KERN_DEBUG"aacraid: SG with no direction specified in Raw SRB command\n");
 			rcode = -EINVAL;
 			goto cleanup;
 		}
-		for (i = 0; i < psg->count; i++) {
+		for (i = 0; i < upsg->count; i++) {
 			dma_addr_t addr; 
 			void* p;
-			p = kmalloc(psg->sg[i].count,GFP_KERNEL);
+			p = kmalloc(upsg->sg[i].count, GFP_KERNEL);
 			if(p == 0) {
 				printk(KERN_DEBUG"aacraid: Could not allocate SG buffer - size = %d buffer number %d of %d\n",
-				psg->sg[i].count,i,psg->count);
+				upsg->sg[i].count, i, upsg->count);
 				rcode = -ENOMEM;
 				goto cleanup;
 			}
-			sg_user[i] = (void __user *)(psg->sg[i].addr);
+			sg_user[i] = (void __user *)upsg->sg[i].addr; 
 			sg_list[i] = p; // save so we can clean up later
 			sg_indx = i;
 
 			if( flags & SRB_DataOut ){
-				if(copy_from_user(p,sg_user[i],psg->sg[i].count)){
+				if(copy_from_user(p, sg_user[i], 
+							upsg->sg[i].count)) {
 					printk(KERN_DEBUG"aacraid: Could not copy sg data from user\n"); 
 					rcode = -EFAULT;
 					goto cleanup;
 				}
 			}
-			addr = pci_map_single(dev->pdev, p, psg->sg[i].count, data_dir);
+			addr = pci_map_single(dev->pdev, p, 
+					upsg->sg[i].count, data_dir);
 
 			psg->sg[i].addr = cpu_to_le32(addr);
-			psg->sg[i].count = cpu_to_le32(psg->sg[i].count);  
-			byte_count += psg->sg[i].count;
+			psg->sg[i].count = cpu_to_le32(upsg->sg[i].count);  
+			byte_count += upsg->sg[i].count;
 		}
 		srbcmd->count = cpu_to_le32(byte_count);
 		status = fib_send(ScsiPortCommand, srbfib, actual_fibsize, FsaNormal, 1, 1, NULL, NULL);
@@ -609,6 +615,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 	}
 
 cleanup:
+	kfree(user_srbcmd);
 	for(i=0; i <= sg_indx; i++){
 		kfree(sg_list[i]);
 	}

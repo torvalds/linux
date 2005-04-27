@@ -102,7 +102,7 @@ int fib_setup(struct aac_dev * dev)
 		fibptr->next = fibptr+1;	/* Forward chain the fibs */
 		init_MUTEX_LOCKED(&fibptr->event_wait);
 		spin_lock_init(&fibptr->event_lock);
-		hw_fib_va->header.XferState = 0xffffffff;
+		hw_fib_va->header.XferState = cpu_to_le32(0xffffffff);
 		hw_fib_va->header.SenderSize = cpu_to_le16(sizeof(struct hw_fib));
 		fibptr->hw_fib_pa = hw_fib_pa;
 		hw_fib_va = (struct hw_fib *)((unsigned char *)hw_fib_va + sizeof(struct hw_fib));
@@ -658,9 +658,8 @@ int fib_adapter_complete(struct fib * fibptr, unsigned short size)
 			}
 			if (aac_insert_entry(dev, index, AdapHighRespQueue,  (nointr & (int)aac_config.irq_mod)) != 0) {
 			}
-		}
-		else if (hw_fib->header.XferState & NormalPriority) 
-		{
+		} else if (hw_fib->header.XferState & 
+				cpu_to_le32(NormalPriority)) {
 			u32 index;
 
 			if (size) {
@@ -832,8 +831,8 @@ int aac_command_thread(struct aac_dev * dev)
 			aifcmd = (struct aac_aifcmd *) hw_fib->data;
 			if (aifcmd->command == cpu_to_le32(AifCmdDriverNotify)) {
 				/* Handle Driver Notify Events */
-				*(u32 *)hw_fib->data = cpu_to_le32(ST_OK);
-				fib_adapter_complete(fib, sizeof(u32));
+				*(__le32 *)hw_fib->data = cpu_to_le32(ST_OK);
+				fib_adapter_complete(fib, (u16)sizeof(u32));
 			} else {
 				struct list_head *entry;
 				/* The u32 here is important and intended. We are using
@@ -916,7 +915,7 @@ int aac_command_thread(struct aac_dev * dev)
 				/*
 				 *	Set the status of this FIB
 				 */
-				*(u32 *)hw_fib->data = cpu_to_le32(ST_OK);
+				*(__le32 *)hw_fib->data = cpu_to_le32(ST_OK);
 				fib_adapter_complete(fib, sizeof(u32));
 				spin_unlock_irqrestore(&dev->fib_lock, flagv);
 			}
