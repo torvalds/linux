@@ -4,7 +4,7 @@
  *
  * (C) 2000 Red Hat. GPL'd
  *
- * $Id: cfi_cmdset_0001.c,v 1.175 2005/04/01 16:36:25 nico Exp $
+ * $Id: cfi_cmdset_0001.c,v 1.176 2005/04/27 20:01:49 tpoynor Exp $
  *
  * 
  * 10/10/2000	Nicolas Pitre <nico@cam.org>
@@ -1812,8 +1812,9 @@ static int __xipram do_printlockstatus_oneblock(struct map_info *map,
 	struct cfi_private *cfi = map->fldrv_priv;
 	int status, ofs_factor = cfi->interleave * cfi->device_type;
 
+	adr += chip->start;
 	xip_disable(map, chip, adr+(2*ofs_factor));
-	cfi_send_gen_cmd(0x90, 0x55, 0, map, cfi, cfi->device_type, NULL);
+	map_write(map, CMD(0x90), adr+(2*ofs_factor));
 	chip->state = FL_JEDEC_QUERY;
 	status = cfi_read_query(map, adr+(2*ofs_factor));
 	xip_enable(map, chip, 0);
