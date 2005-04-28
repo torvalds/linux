@@ -694,22 +694,22 @@ ENTRY(ia64_leave_syscall)
 	ld8 r19=[r2],PT(B6)-PT(LOADRS)		// load ar.rsc value for "loadrs"
 	nop.i 0
 	;;
-	ld8 r23=[r3],PT(R11)-PT(AR_BSPSTORE)	// load ar.bspstore (may be garbage)
+	mov r16=ar.bsp				// M2  get existing backing store pointer
 	ld8 r18=[r2],PT(R9)-PT(B6)		// load b6
 (p6)	and r15=TIF_WORK_MASK,r31		// any work other than TIF_SYSCALL_TRACE?
 	;;
-	mov r16=ar.bsp				// M2  get existing backing store pointer
+	ld8 r23=[r3],PT(R11)-PT(AR_BSPSTORE)	// load ar.bspstore (may be garbage)
 (p6)	cmp4.ne.unc p6,p0=r15, r0		// any special work pending?
 (p6)	br.cond.spnt .work_pending_syscall
 	;;
 	// start restoring the state saved on the kernel stack (struct pt_regs):
 	ld8 r9=[r2],PT(CR_IPSR)-PT(R9)
 	ld8 r11=[r3],PT(CR_IIP)-PT(R11)
-	nop.i 0
+(pNonSys) break 0		//      bug check: we shouldn't be here if pNonSys is TRUE!
 	;;
 	invala			// M0|1 invalidate ALAT
 	rsm psr.i | psr.ic	// M2 initiate turning off of interrupt and interruption collection
-	nop.i 0
+	cmp.eq p9,p0=r0,r0	// set p9 to indicate that we should restore cr.ifs
 
 	ld8 r29=[r2],16		// load cr.ipsr
 	ld8 r28=[r3],16			// load cr.iip
@@ -717,11 +717,11 @@ ENTRY(ia64_leave_syscall)
 	;;
 	ld8 r30=[r2],16		// M0|1 load cr.ifs
 	ld8 r25=[r3],16		// M0|1 load ar.unat
-	cmp.eq p9,p0=r0,r0	// set p9 to indicate that we should restore cr.ifs
+(pUStk) add r14=IA64_TASK_THREAD_ON_USTACK_OFFSET,r13
 	;;
 	ld8 r26=[r2],PT(B0)-PT(AR_PFS)	// M0|1 load ar.pfs
 (pKStk)	mov r22=psr		// M2 read PSR now that interrupts are disabled
-(pUStk) add r14=IA64_TASK_THREAD_ON_USTACK_OFFSET,r13
+	nop 0
 	;;
 	ld8 r21=[r2],PT(AR_RNAT)-PT(B0) // load b0
 	ld8 r27=[r3],PT(PR)-PT(AR_RSC)	// load ar.rsc
@@ -735,40 +735,35 @@ ENTRY(ia64_leave_syscall)
 	ld8.fill r1=[r3],16	// load r1
 (pUStk) mov r17=1
 	;;
-	srlz.d			// M0  ensure interruption collection is off
+(pUStk) st1 [r14]=r17
 	ld8.fill r13=[r3],16
 	mov f8=f0		// clear f8
 	;;
 	ld8.fill r12=[r2]	// restore r12 (sp)
-	mov.m ar.ssd=r0		// M2 clear ar.ssd
+	ld8.fill r15=[r3]	// restore r15
 	mov b6=r18		// I0  restore b6
 
-	nop.m 0
+	addl r17=THIS_CPU(ia64_phys_stacked_size_p8),r0
 	mov f9=f0		// clear f9
+(pKStk) br.cond.dpnt.many skip_rbs_switch
+
+	srlz.d			// M0  ensure interruption collection is off
 	shr.u r18=r19,16	// I0|1 get byte size of existing "dirty" partition
+	cover			// B    add current frame into dirty partition and set cr.ifs
 	;;
-	ld8.fill r15=[r3]	// restore r15
-(pUStk) st1 [r14]=r17
-	addl r3=THIS_CPU(ia64_phys_stacked_size_p8),r0
-	;;
-(pUStk)	ld4 r17=[r3]		// r17 = cpu_data->phys_stacked_size_p8
-	mov.m ar.csd=r0		// M2 clear ar.csd
+(pUStk)	ld4 r17=[r17]		// r17 = cpu_data->phys_stacked_size_p8
+	mov r19=ar.bsp		// M2   get new backing store pointer
 	mov f10=f0		// clear f10
 
 	nop.m 0
 	movl r14=__kernel_syscall_via_epc	// X
 	;;
-	nop.m 0
-	nop.m 0
+	mov.m ar.csd=r0		// M2 clear ar.csd
+	mov.m ar.ccv=r0		// clear ar.ccv
 	mov b7=r14		// I0   clear b7 (hint with __kernel_syscall_via_epc)
 
-	mov r14=r0		// clear r14
+	mov.m ar.ssd=r0		// M2 clear ar.ssd
 	mov f11=f0		// clear f11
-(pKStk) br.cond.dpnt.many skip_rbs_switch
-
-
-	mov.m ar.ccv=r0		// clear ar.ccv
-(pNonSys) br.cond.dpnt.many dont_preserve_current_frame
 	br.cond.sptk.many rbs_switch
 END(ia64_leave_syscall)
 
@@ -946,10 +941,10 @@ GLOBAL_ENTRY(ia64_leave_kernel)
 	 */
 (pNonSys) br.cond.dpnt dont_preserve_current_frame
 
-rbs_switch:
 	cover				// add current frame into dirty partition and set cr.ifs
 	;;
 	mov r19=ar.bsp			// get new backing store pointer
+rbs_switch:
 	sub r16=r16,r18			// krbs = old bsp - size of dirty partition
 	cmp.ne p9,p0=r0,r0		// clear p9 to skip restore of cr.ifs
 	;;
