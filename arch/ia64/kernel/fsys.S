@@ -549,9 +549,6 @@ GLOBAL_ENTRY(fsys_bubble_down)
 	 *	- r27: ar.rsc
 	 *	- r29: psr
 	 */
-#	define PSR_PRESERVED_BITS	(IA64_PSR_UP | IA64_PSR_MFL | IA64_PSR_MFH | IA64_PSR_PK \
-					 | IA64_PSR_DT | IA64_PSR_PP | IA64_PSR_SP | IA64_PSR_RT \
-					 | IA64_PSR_IC)
 	/*
 	 * Reading psr.l gives us only bits 0-31, psr.it, and psr.mc.  The rest we have
 	 * to synthesize.
@@ -560,62 +557,58 @@ GLOBAL_ENTRY(fsys_bubble_down)
 					 | IA64_PSR_BN | IA64_PSR_I)
 
 	invala
-	movl r8=PSR_ONE_BITS
+	movl r14=ia64_ret_from_syscall
 
-	mov r25=ar.unat			// save ar.unat (5 cyc)
-	movl r9=PSR_PRESERVED_BITS
-
-	mov ar.rsc=0			// set enforced lazy mode, pl 0, little-endian, loadrs=0
+	nop.m 0
 	movl r28=__kernel_syscall_via_break
 	;;
-	mov r23=ar.bspstore		// save ar.bspstore (12 cyc)
-	mov r31=pr			// save pr (2 cyc)
-	mov r20=r1			// save caller's gp in r20
-	;;
-	mov r2=r16			// copy current task addr to addl-addressable register
-	and r9=r9,r29
-	mov r19=b6			// save b6 (2 cyc)
-	;;
-	mov psr.l=r9			// slam the door (17 cyc to srlz.i)
-	or r29=r8,r29			// construct cr.ipsr value to save
-	addl r22=IA64_RBS_OFFSET,r2	// compute base of RBS
-	;;
-	// GAS reports a spurious RAW hazard on the read of ar.rnat because it thinks
-	// we may be reading ar.itc after writing to psr.l.  Avoid that message with
-	// this directive:
-	dv_serialize_data
-	mov.m r24=ar.rnat		// read ar.rnat (5 cyc lat)
-	lfetch.fault.excl.nt1 [r22]
-	adds r16=IA64_TASK_THREAD_ON_USTACK_OFFSET,r2
 
-	// ensure previous insn group is issued before we stall for srlz.i:
-	;;
-	srlz.i				// ensure new psr.l has been established
-	/////////////////////////////////////////////////////////////////////////////
-	////////// from this point on, execution is not interruptible anymore
-	/////////////////////////////////////////////////////////////////////////////
-	addl r1=IA64_STK_OFFSET-IA64_PT_REGS_SIZE,r2	// compute base of memory stack
-	cmp.ne pKStk,pUStk=r0,r0	// set pKStk <- 0, pUStk <- 1
+	mov r2=r16			// copy current task addr to addl-addressable register
+	adds r16=IA64_TASK_THREAD_ON_USTACK_OFFSET,r16
+	mov r31=pr			// save pr (2 cyc)
 	;;
 	st1 [r16]=r0			// clear current->thread.on_ustack flag
-	mov ar.bspstore=r22		// switch to kernel RBS
-	mov b6=r18			// copy syscall entry-point to b6 (7 cyc)
+	addl r22=IA64_RBS_OFFSET,r2	// compute base of RBS
 	add r3=TI_FLAGS+IA64_TASK_SIZE,r2
 	;;
 	ld4 r3=[r3]				// r2 = current_thread_info()->flags
+	lfetch.fault.excl.nt1 [r22]
+	nop.i 0
+	;;
+	mov ar.rsc=0			// set enforced lazy mode, pl 0, little-endian, loadrs=0
+	nop.m 0
+	nop.i 0
+	;;
+	mov r23=ar.bspstore		// save ar.bspstore (12 cyc)
+	mov.m r24=ar.rnat		// read ar.rnat (5 cyc lat)
+	nop.i 0
+	;;
+	mov ar.bspstore=r22		// switch to kernel RBS
+	movl r8=PSR_ONE_BITS			// X
+	;;
+	mov r25=ar.unat			// save ar.unat (5 cyc)
+	mov r19=b6			// save b6 (2 cyc)
+	mov r20=r1			// save caller's gp in r20
+	;;
+	or r29=r8,r29			// construct cr.ipsr value to save
+	mov b6=r18			// copy syscall entry-point to b6 (7 cyc)
+	addl r1=IA64_STK_OFFSET-IA64_PT_REGS_SIZE,r2	// compute base of memory stack
+
 	mov r18=ar.bsp			// save (kernel) ar.bsp (12 cyc)
-	mov ar.rsc=0x3			// set eager mode, pl 0, little-endian, loadrs=0
+	cmp.ne pKStk,pUStk=r0,r0	// set pKStk <- 0, pUStk <- 1
 	br.call.sptk.many b7=ia64_syscall_setup
 	;;
+	mov ar.rsc=0x3			// set eager mode, pl 0, little-endian, loadrs=0
+	mov rp=r14				// set the real return addr
+	nop.i 0
+	;;
 	ssm psr.i
-	movl r2=ia64_ret_from_syscall
-	;;
-	mov rp=r2				// set the real return addr
 	tbit.z p8,p0=r3,TIF_SYSCALL_TRACE
-	;;
 (p10)	br.cond.spnt.many ia64_ret_from_syscall	// p10==true means out registers are more than 8
+
+	nop.m 0
 (p8)	br.call.sptk.many b6=b6		// ignore this return addr
-	br.cond.sptk ia64_trace_syscall
+	br.cond.spnt ia64_trace_syscall
 END(fsys_bubble_down)
 
 	.rodata
