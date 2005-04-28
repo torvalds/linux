@@ -125,11 +125,11 @@ clcdfb_set_bitfields(struct clcd_fb *fb, struct fb_var_screeninfo *var)
 	case 2:
 	case 4:
 	case 8:
-		var->red.length		= 8;
+		var->red.length		= var->bits_per_pixel;
 		var->red.offset		= 0;
-		var->green.length	= 8;
+		var->green.length	= var->bits_per_pixel;
 		var->green.offset	= 0;
-		var->blue.length	= 8;
+		var->blue.length	= var->bits_per_pixel;
 		var->blue.offset	= 0;
 		break;
 	case 16:
