@@ -153,7 +153,7 @@ struct clcd_fb {
 
 static inline void clcdfb_decode(struct clcd_fb *fb, struct clcd_regs *regs)
 {
-	u32 val;
+	u32 val, cpl;
 
 	/*
 	 * Program the CLCD controller registers and start the CLCD
@@ -164,7 +164,10 @@ static inline void clcdfb_decode(struct clcd_fb *fb, struct clcd_regs *regs)
 	val |= (fb->fb.var.left_margin - 1) << 24;
 	regs->tim0 = val;
 
-	val = fb->fb.var.yres - 1;
+	val = fb->fb.var.yres;
+	if (fb->panel->cntl & CNTL_LCDDUAL)
+		val /= 2;
+	val -= 1;
 	val |= (fb->fb.var.vsync_len - 1) << 10;
 	val |= fb->fb.var.lower_margin << 16;
 	val |= fb->fb.var.upper_margin << 24;
@@ -174,13 +177,17 @@ static inline void clcdfb_decode(struct clcd_fb *fb, struct clcd_regs *regs)
 	val |= fb->fb.var.sync & FB_SYNC_HOR_HIGH_ACT  ? 0 : TIM2_IHS;
 	val |= fb->fb.var.sync & FB_SYNC_VERT_HIGH_ACT ? 0 : TIM2_IVS;
 
-	if (fb->panel->cntl & CNTL_LCDTFT)
-		val |= (fb->fb.var.xres_virtual - 1) << 16;
-	else if (fb->panel->cntl & CNTL_LCDBW)
-		printk("what value for CPL for stnmono panels?");
-	else
-		val |= ((fb->fb.var.xres_virtual * 8 / 3) - 1) << 16;
-	regs->tim2 = val;
+	cpl = fb->fb.var.xres_virtual;
+	if (fb->panel->cntl & CNTL_LCDTFT)	  /* TFT */
+		/* / 1 */;
+	else if (!fb->fb.var.grayscale)		  /* STN color */
+		cpl = cpl * 8 / 3;
+	else if (fb->panel->cntl & CNTL_LCDMONO8) /* STN monochrome, 8bit */
+		cpl /= 8;
+	else					  /* STN monochrome, 4bit */
+		cpl /= 4;
+
+	regs->tim2 = val | ((cpl - 1) << 16);
 
 	regs->tim3 = fb->panel->tim3;
 
@@ -204,7 +211,7 @@ static inline void clcdfb_decode(struct clcd_fb *fb, struct clcd_regs *regs)
 	case 16:
 		val |= CNTL_LCDBPP16;
 		break;
-	case 24:
+	case 32:
 		val |= CNTL_LCDBPP24;
 		break;
 	}
@@ -215,8 +222,8 @@ static inline void clcdfb_decode(struct clcd_fb *fb, struct clcd_regs *regs)
 
 static inline int clcdfb_check(struct clcd_fb *fb, struct fb_var_screeninfo *var)
 {
-	var->xres_virtual = var->xres = (var->xres + 7) & ~7;
-	var->yres_virtual = var->yres;
+	var->xres_virtual = var->xres = (var->xres + 15) & ~15;
+	var->yres_virtual = var->yres = (var->yres + 1) & ~1;
 
 #define CHECK(e,l,h) (var->e < l || var->e > h)
 	if (CHECK(right_margin, (5+1), 256) ||	/* back porch */
