@@ -592,8 +592,6 @@ static int power_off_slot(struct acpiphp_slot *slot)
 	acpi_status status;
 	struct acpiphp_func *func;
 	struct list_head *l;
-	struct acpi_object_list arg_list;
-	union acpi_object arg;
 
 	int retval = 0;
 
@@ -608,27 +606,6 @@ static int power_off_slot(struct acpiphp_slot *slot)
 			status = acpi_evaluate_object(func->handle, "_PS3", NULL, NULL);
 			if (ACPI_FAILURE(status)) {
 				warn("%s: _PS3 failed\n", __FUNCTION__);
-				retval = -1;
-				goto err_exit;
-			} else
-				break;
-		}
-	}
-
-	list_for_each (l, &slot->funcs) {
-		func = list_entry(l, struct acpiphp_func, sibling);
-
-		/* We don't want to call _EJ0 on non-existing functions. */
-		if (func->flags & FUNC_HAS_EJ0) {
-			/* _EJ0 method take one argument */
-			arg_list.count = 1;
-			arg_list.pointer = &arg;
-			arg.type = ACPI_TYPE_INTEGER;
-			arg.integer.value = 1;
-
-			status = acpi_evaluate_object(func->handle, "_EJ0", &arg_list, NULL);
-			if (ACPI_FAILURE(status)) {
-				warn("%s: _EJ0 failed\n", __FUNCTION__);
 				retval = -1;
 				goto err_exit;
 			} else
@@ -782,6 +759,39 @@ static unsigned int get_slot_status(struct acpiphp_slot *slot)
 }
 
 /**
+ * acpiphp_eject_slot - physically eject the slot
+ */
+static int acpiphp_eject_slot(struct acpiphp_slot *slot)
+{
+	acpi_status status;
+	struct acpiphp_func *func;
+	struct list_head *l;
+	struct acpi_object_list arg_list;
+	union acpi_object arg;
+
+	list_for_each (l, &slot->funcs) {
+		func = list_entry(l, struct acpiphp_func, sibling);
+
+		/* We don't want to call _EJ0 on non-existing functions. */
+		if ((func->flags & FUNC_HAS_EJ0)) {
+			/* _EJ0 method take one argument */
+			arg_list.count = 1;
+			arg_list.pointer = &arg;
+			arg.type = ACPI_TYPE_INTEGER;
+			arg.integer.value = 1;
+
+			status = acpi_evaluate_object(func->handle, "_EJ0", &arg_list, NULL);
+			if (ACPI_FAILURE(status)) {
+				warn("%s: _EJ0 failed\n", __FUNCTION__);
+				return -1;
+			} else
+				break;
+		}
+	}
+	return 0;
+}
+
+/**
  * acpiphp_check_bridge - re-enumerate devices
  *
  * Iterate over all slots under this bridge and make sure that if a
@@ -804,6 +814,8 @@ static int acpiphp_check_bridge(struct acpiphp_bridge *bridge)
 			if (retval) {
 				err("Error occurred in disabling\n");
 				goto err_exit;
+			} else {
+				acpiphp_eject_slot(slot);
 			}
 			disabled++;
 		} else {
@@ -1041,7 +1053,6 @@ static void handle_hotplug_event_bridge(acpi_handle handle, u32 type, void *cont
 	}
 }
 
-
 /**
  * handle_hotplug_event_func - handle ACPI event on functions (i.e. slots)
  *
@@ -1084,7 +1095,8 @@ static void handle_hotplug_event_func(acpi_handle handle, u32 type, void *contex
 	case ACPI_NOTIFY_EJECT_REQUEST:
 		/* request device eject */
 		dbg("%s: Device eject notify on %s\n", __FUNCTION__, objname);
-		acpiphp_disable_slot(func->slot);
+		if (!(acpiphp_disable_slot(func->slot)))
+			acpiphp_eject_slot(func->slot);
 		break;
 
 	default:
@@ -1268,7 +1280,6 @@ int acpiphp_enable_slot(struct acpiphp_slot *slot)
 	return retval;
 }
 
-
 /**
  * acpiphp_disable_slot - power off slot
  */
@@ -1300,11 +1311,7 @@ int acpiphp_disable_slot(struct acpiphp_slot *slot)
  */
 u8 acpiphp_get_power_status(struct acpiphp_slot *slot)
 {
-	unsigned int sta;
-
-	sta = get_slot_status(slot);
-
-	return (sta & ACPI_STA_ENABLED) ? 1 : 0;
+	return (slot->flags & SLOT_POWEREDON);
 }
 
 
