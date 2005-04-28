@@ -1159,8 +1159,6 @@ SCTP_STATIC __init int sctp_init(void)
 	status = 0;
 out:
 	return status;
-err_add_protocol:
-	proto_unregister(&sctp_prot);
 err_ctl_sock_init:
 	sctp_v6_exit();
 err_v6_init:
@@ -1188,6 +1186,8 @@ err_bucket_cachep:
 	inet_del_protocol(&sctp_protocol, IPPROTO_SCTP);
 	inet_unregister_protosw(&sctp_seqpacket_protosw);
 	inet_unregister_protosw(&sctp_stream_protosw);
+err_add_protocol:
+	proto_unregister(&sctp_prot);
 	goto out;
 }
 
