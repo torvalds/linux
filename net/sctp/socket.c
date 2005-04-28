@@ -3473,7 +3473,7 @@ static int sctp_getsockopt_associnfo(struct sock *sk, int len,
 		return -EINVAL;
 
 	/* Values correspoinding to the specific association */
-	if (assocparams.sasoc_assoc_id != 0) {
+	if (asoc) {
 		assocparams.sasoc_asocmaxrxt = asoc->max_retrans;
 		assocparams.sasoc_peer_rwnd = asoc->peer.rwnd;
 		assocparams.sasoc_local_rwnd = asoc->a_rwnd;
