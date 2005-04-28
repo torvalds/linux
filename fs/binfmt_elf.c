@@ -945,7 +945,7 @@ static int load_elf_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 	retval = arch_setup_additional_pages(bprm, executable_stack);
 	if (retval < 0) {
 		send_sig(SIGKILL, current, 0);
-		goto out_free_dentry;
+		goto out;
 	}
 #endif /* ARCH_HAS_SETUP_ADDITIONAL_PAGES */
 
