@@ -2843,7 +2843,7 @@ ctl_table ipv4_route_table[] = {
 		.procname	= "flush",
 		.data		= &flush_delay,
 		.maxlen		= sizeof(int),
-		.mode		= 0644,
+		.mode		= 0200,
 		.proc_handler	= &ipv4_sysctl_rtcache_flush,
 		.strategy	= &ipv4_sysctl_rtcache_flush_strategy,
 	},
