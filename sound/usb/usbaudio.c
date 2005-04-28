@@ -2422,15 +2422,17 @@ static int parse_audio_format(struct usb_device *dev, struct audioformat *fp,
 	if (err < 0)
 		return err;
 #if 1
-	/* FIXME: temporary hack for extigy */
+	/* FIXME: temporary hack for extigy/audigy 2 nx */
 	/* extigy apparently supports sample rates other than 48k
 	 * but not in ordinary way.  so we enable only 48k atm.
 	 */
 	if (le16_to_cpu(dev->descriptor.idVendor) == 0x041e && 
-	    le16_to_cpu(dev->descriptor.idProduct) == 0x3000) {
+	    (le16_to_cpu(dev->descriptor.idProduct) == 0x3000 ||
+	     le16_to_cpu(dev->descriptor.idProduct) == 0x3020)) {
 		if (fmt[3] == USB_FORMAT_TYPE_I &&
 		    stream == SNDRV_PCM_STREAM_PLAYBACK &&
-		    fp->rates != SNDRV_PCM_RATE_48000)
+		    fp->rates != SNDRV_PCM_RATE_48000 &&
+		    fp->rates != SNDRV_PCM_RATE_96000)
 			return -1; /* use 48k only */
 	}
 #endif
