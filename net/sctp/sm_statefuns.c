@@ -126,15 +126,18 @@ sctp_chunk_length_valid(struct sctp_chunk *chunk,
  * should stop the T2-shutdown timer and remove all knowledge of the
  * association (and thus the association enters the CLOSED state).
  *
- * Verification Tag: 8.5.1(C)
+ * Verification Tag: 8.5.1(C), sctpimpguide 2.41.
  * C) Rules for packet carrying SHUTDOWN COMPLETE:
  * ...
- * - The receiver of a SHUTDOWN COMPLETE shall accept the packet if the
- *   Verification Tag field of the packet matches its own tag OR it is
- *   set to its peer's tag and the T bit is set in the Chunk Flags.
- *   Otherwise, the receiver MUST silently discard the packet and take
- *   no further action. An endpoint MUST ignore the SHUTDOWN COMPLETE if
- *   it is not in the SHUTDOWN-ACK-SENT state.
+ * - The receiver of a SHUTDOWN COMPLETE shall accept the packet
+ *   if the Verification Tag field of the packet matches its own tag and
+ *   the T bit is not set
+ *   OR
+ *   it is set to its peer's tag and the T bit is set in the Chunk
+ *   Flags.
+ *   Otherwise, the receiver MUST silently discard the packet
+ *   and take no further action.  An endpoint MUST ignore the
+ *   SHUTDOWN COMPLETE if it is not in the SHUTDOWN-ACK-SENT state.
  *
  * Inputs
  * (endpoint, asoc, chunk)
@@ -2858,16 +2861,16 @@ sctp_disposition_t sctp_sf_eat_sack_6_2(const struct sctp_endpoint *ep,
 /*
  * Generate an ABORT in response to a packet.
  *
- * Section: 8.4 Handle "Out of the blue" Packets
+ * Section: 8.4 Handle "Out of the blue" Packets, sctpimpguide 2.41
  *
- * 8) The receiver should respond to the sender of the OOTB packet
- *    with an ABORT.  When sending the ABORT, the receiver of the
- *    OOTB packet MUST fill in the Verification Tag field of the
- *    outbound packet with the value found in the Verification Tag
- *    field of the OOTB packet and set the T-bit in the Chunk Flags
- *    to indicate that no TCB was found.  After sending this ABORT,
- *    the receiver of the OOTB packet shall discard the OOTB packet
- *    and take no further action.
+ * 8) The receiver should respond to the sender of the OOTB packet with
+ *    an ABORT.  When sending the ABORT, the receiver of the OOTB packet
+ *    MUST fill in the Verification Tag field of the outbound packet
+ *    with the value found in the Verification Tag field of the OOTB
+ *    packet and set the T-bit in the Chunk Flags to indicate that the
+ *    Verification Tag is reflected.  After sending this ABORT, the
+ *    receiver of the OOTB packet shall discard the OOTB packet and take
+ *    no further action.
  *
  * Verification Tag:
  *
@@ -2894,6 +2897,10 @@ sctp_disposition_t sctp_sf_tabort_8_4_8(const struct sctp_endpoint *ep,
 			sctp_ootb_pkt_free(packet);
 			return SCTP_DISPOSITION_NOMEM;
 		}
+
+		/* Reflect vtag if T-Bit is set */
+		if (sctp_test_T_bit(abort))
+			packet->vtag = ntohl(chunk->sctp_hdr->vtag);
 
 		/* Set the skb to the belonging sock for accounting.  */
 		abort->skb->sk = ep->base.sk;
@@ -3026,22 +3033,24 @@ nomem:
 }
 
 /*
- * RFC 2960, 8.4 - Handle "Out of the blue" Packets
+ * RFC 2960, 8.4 - Handle "Out of the blue" Packets, sctpimpguide 2.41.
+ *
  * 5) If the packet contains a SHUTDOWN ACK chunk, the receiver should
  *    respond to the sender of the OOTB packet with a SHUTDOWN COMPLETE.
  *    When sending the SHUTDOWN COMPLETE, the receiver of the OOTB
  *    packet must fill in the Verification Tag field of the outbound
  *    packet with the Verification Tag received in the SHUTDOWN ACK and
- *    set the T-bit in the Chunk Flags to indicate that no TCB was
- *    found. Otherwise,
+ *    set the T-bit in the Chunk Flags to indicate that the Verification
+ *    Tag is reflected.
  *
  * 8) The receiver should respond to the sender of the OOTB packet with
  *    an ABORT.  When sending the ABORT, the receiver of the OOTB packet
  *    MUST fill in the Verification Tag field of the outbound packet
  *    with the value found in the Verification Tag field of the OOTB
- *    packet and set the T-bit in the Chunk Flags to indicate that no
- *    TCB was found.  After sending this ABORT, the receiver of the OOTB
- *    packet shall discard the OOTB packet and take no further action.
+ *    packet and set the T-bit in the Chunk Flags to indicate that the
+ *    Verification Tag is reflected.  After sending this ABORT, the
+ *    receiver of the OOTB packet shall discard the OOTB packet and take
+ *    no further action.
  */
 sctp_disposition_t sctp_sf_ootb(const struct sctp_endpoint *ep,
 				const struct sctp_association *asoc,
@@ -3090,13 +3099,15 @@ sctp_disposition_t sctp_sf_ootb(const struct sctp_endpoint *ep,
 /*
  * Handle an "Out of the blue" SHUTDOWN ACK.
  *
- * Section: 8.4 5)
+ * Section: 8.4 5, sctpimpguide 2.41.
+ *
  * 5) If the packet contains a SHUTDOWN ACK chunk, the receiver should
- *   respond to the sender of the OOTB packet with a SHUTDOWN COMPLETE.
- *   When sending the SHUTDOWN COMPLETE, the receiver of the OOTB packet
- *   must fill in the Verification Tag field of the outbound packet with
- *   the Verification Tag received in the SHUTDOWN ACK and set the
- *   T-bit in the Chunk Flags to indicate that no TCB was found.
+ *    respond to the sender of the OOTB packet with a SHUTDOWN COMPLETE.
+ *    When sending the SHUTDOWN COMPLETE, the receiver of the OOTB
+ *    packet must fill in the Verification Tag field of the outbound
+ *    packet with the Verification Tag received in the SHUTDOWN ACK and
+ *    set the T-bit in the Chunk Flags to indicate that the Verification
+ *    Tag is reflected.
  *
  * Inputs
  * (endpoint, asoc, type, arg, commands)
@@ -3127,6 +3138,10 @@ static sctp_disposition_t sctp_sf_shut_8_4_5(const struct sctp_endpoint *ep,
 			sctp_ootb_pkt_free(packet);
 			return SCTP_DISPOSITION_NOMEM;
 		}
+
+		/* Reflect vtag if T-Bit is set */
+		if (sctp_test_T_bit(shut))
+			packet->vtag = ntohl(chunk->sctp_hdr->vtag);
 
 		/* Set the skb to the belonging sock for accounting.  */
 		shut->skb->sk = ep->base.sk;
@@ -3591,7 +3606,6 @@ sctp_disposition_t sctp_sf_discard_chunk(const struct sctp_endpoint *ep,
  *
  * 2) If the OOTB packet contains an ABORT chunk, the receiver MUST
  *    silently discard the OOTB packet and take no further action.
- *    Otherwise,
  *
  * Verification Tag: No verification necessary
  *
@@ -4961,6 +4975,11 @@ static struct sctp_packet *sctp_abort_pkt_new(const struct sctp_endpoint *ep,
 			sctp_ootb_pkt_free(packet);
 			return NULL;
 		}
+
+		/* Reflect vtag if T-Bit is set */
+		if (sctp_test_T_bit(abort))
+			packet->vtag = ntohl(chunk->sctp_hdr->vtag);
+
 		/* Add specified error causes, i.e., payload, to the
 		 * end of the chunk.
 		 */
