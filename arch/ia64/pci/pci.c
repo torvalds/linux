@@ -312,7 +312,7 @@ pci_acpi_scan_root(struct acpi_device *device, int domain, int bus)
 	acpi_walk_resources(device->handle, METHOD_NAME__CRS, add_window,
 			&info);
 
-	pbus = pci_scan_bus(bus, &pci_root_ops, controller);
+	pbus = pci_scan_bus_parented(NULL, bus, &pci_root_ops, controller);
 	if (pbus)
 		pcibios_setup_root_windows(pbus, controller);
 

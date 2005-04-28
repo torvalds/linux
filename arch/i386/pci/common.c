@@ -134,7 +134,7 @@ struct pci_bus * __devinit pcibios_scan_root(int busnum)
 
 	printk("PCI: Probing PCI hardware (bus %02x)\n", busnum);
 
-	return pci_scan_bus(busnum, &pci_root_ops, NULL);
+	return pci_scan_bus_parented(NULL, busnum, &pci_root_ops, NULL);
 }
 
 extern u8 pci_cache_line_size;

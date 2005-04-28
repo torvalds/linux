@@ -911,8 +911,6 @@ struct pci_bus * __devinit pci_scan_bus_parented(struct device *parent, int bus,
 
 	b->subordinate = pci_scan_child_bus(b);
 
-	pci_bus_add_devices(b);
-
 	return b;
 
 sys_create_link_err:
