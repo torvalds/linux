@@ -1271,37 +1271,41 @@ u32 __tlb_handler_align handle_tlbs[FASTPATH_SIZE];
 u32 __tlb_handler_align handle_tlbm[FASTPATH_SIZE];
 
 static void __init
-iPTE_LW(u32 **p, struct label **l, unsigned int pte, int offset,
-	unsigned int ptr)
+iPTE_LW(u32 **p, struct label **l, unsigned int pte, unsigned int ptr)
 {
 #ifdef CONFIG_SMP
 # ifdef CONFIG_64BIT_PHYS_ADDR
 	if (cpu_has_64bits)
-		i_lld(p, pte, offset, ptr);
+		i_lld(p, pte, 0, ptr);
 	else
 # endif
-		i_LL(p, pte, offset, ptr);
+		i_LL(p, pte, 0, ptr);
 #else
 # ifdef CONFIG_64BIT_PHYS_ADDR
 	if (cpu_has_64bits)
-		i_ld(p, pte, offset, ptr);
+		i_ld(p, pte, 0, ptr);
 	else
 # endif
-		i_LW(p, pte, offset, ptr);
+		i_LW(p, pte, 0, ptr);
 #endif
 }
 
 static void __init
-iPTE_SW(u32 **p, struct reloc **r, unsigned int pte, int offset,
-	unsigned int ptr)
+iPTE_SW(u32 **p, struct reloc **r, unsigned int pte, unsigned int ptr,
+	unsigned int mode)
 {
+#ifdef CONFIG_64BIT_PHYS_ADDR
+	unsigned int hwmode = mode & (_PAGE_VALID | _PAGE_DIRTY);
+#endif
+
+	i_ori(p, pte, pte, mode);
 #ifdef CONFIG_SMP
 # ifdef CONFIG_64BIT_PHYS_ADDR
 	if (cpu_has_64bits)
-		i_scd(p, pte, offset, ptr);
+		i_scd(p, pte, 0, ptr);
 	else
 # endif
-		i_SC(p, pte, offset, ptr);
+		i_SC(p, pte, 0, ptr);
 
 	if (r10000_llsc_war())
 		il_beqzl(p, r, pte, label_smp_pgtable_change);
@@ -1312,7 +1316,7 @@ iPTE_SW(u32 **p, struct reloc **r, unsigned int pte, int offset,
 	if (!cpu_has_64bits) {
 		/* no i_nop needed */
 		i_ll(p, pte, sizeof(pte_t) / 2, ptr);
-		i_ori(p, pte, pte, _PAGE_VALID);
+		i_ori(p, pte, pte, hwmode);
 		i_sc(p, pte, sizeof(pte_t) / 2, ptr);
 		il_beqz(p, r, pte, label_smp_pgtable_change);
 		/* no i_nop needed */
@@ -1325,15 +1329,15 @@ iPTE_SW(u32 **p, struct reloc **r, unsigned int pte, int offset,
 #else
 # ifdef CONFIG_64BIT_PHYS_ADDR
 	if (cpu_has_64bits)
-		i_sd(p, pte, offset, ptr);
+		i_sd(p, pte, 0, ptr);
 	else
 # endif
-		i_SW(p, pte, offset, ptr);
+		i_SW(p, pte, 0, ptr);
 
 # ifdef CONFIG_64BIT_PHYS_ADDR
 	if (!cpu_has_64bits) {
 		i_lw(p, pte, sizeof(pte_t) / 2, ptr);
-		i_ori(p, pte, pte, _PAGE_VALID);
+		i_ori(p, pte, pte, hwmode);
 		i_sw(p, pte, sizeof(pte_t) / 2, ptr);
 		i_lw(p, pte, 0, ptr);
 	}
@@ -1353,7 +1357,7 @@ build_pte_present(u32 **p, struct label **l, struct reloc **r,
 	i_andi(p, pte, pte, _PAGE_PRESENT | _PAGE_READ);
 	i_xori(p, pte, pte, _PAGE_PRESENT | _PAGE_READ);
 	il_bnez(p, r, pte, lid);
-	iPTE_LW(p, l, pte, 0, ptr);
+	iPTE_LW(p, l, pte, ptr);
 }
 
 /* Make PTE valid, store result in PTR. */
@@ -1361,8 +1365,9 @@ static void __init
 build_make_valid(u32 **p, struct reloc **r, unsigned int pte,
 		 unsigned int ptr)
 {
-	i_ori(p, pte, pte, _PAGE_VALID | _PAGE_ACCESSED);
-	iPTE_SW(p, r, pte, 0, ptr);
+	unsigned int mode = _PAGE_VALID | _PAGE_ACCESSED;
+
+	iPTE_SW(p, r, pte, ptr, mode);
 }
 
 /*
@@ -1376,7 +1381,7 @@ build_pte_writable(u32 **p, struct label **l, struct reloc **r,
 	i_andi(p, pte, pte, _PAGE_PRESENT | _PAGE_WRITE);
 	i_xori(p, pte, pte, _PAGE_PRESENT | _PAGE_WRITE);
 	il_bnez(p, r, pte, lid);
-	iPTE_LW(p, l, pte, 0, ptr);
+	iPTE_LW(p, l, pte, ptr);
 }
 
 /* Make PTE writable, update software status bits as well, then store
@@ -1386,9 +1391,10 @@ static void __init
 build_make_write(u32 **p, struct reloc **r, unsigned int pte,
 		 unsigned int ptr)
 {
-	i_ori(p, pte, pte,
-	      _PAGE_ACCESSED | _PAGE_MODIFIED | _PAGE_VALID | _PAGE_DIRTY);
-	iPTE_SW(p, r, pte, 0, ptr);
+	unsigned int mode = (_PAGE_ACCESSED | _PAGE_MODIFIED | _PAGE_VALID
+			     | _PAGE_DIRTY);
+
+	iPTE_SW(p, r, pte, ptr, mode);
 }
 
 /*
@@ -1401,7 +1407,7 @@ build_pte_modifiable(u32 **p, struct label **l, struct reloc **r,
 {
 	i_andi(p, pte, pte, _PAGE_WRITE);
 	il_beqz(p, r, pte, lid);
-	iPTE_LW(p, l, pte, 0, ptr);
+	iPTE_LW(p, l, pte, ptr);
 }
 
 /*
@@ -1614,7 +1620,7 @@ build_r4000_tlbchange_handler_head(u32 **p, struct label **l,
 #ifdef CONFIG_SMP
 	l_smp_pgtable_change(l, *p);
 # endif
-	iPTE_LW(p, l, pte, 0, ptr); /* get even pte */
+	iPTE_LW(p, l, pte, ptr); /* get even pte */
 	build_tlb_probe_entry(p);
 }
 
