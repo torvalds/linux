@@ -50,10 +50,6 @@ const char *const ieee754_cname[] = {
 	"SNaN",
 };
 
-/* the control status register
-*/
-struct ieee754_csr ieee754_csr;
-
 /* special constants
 */
 

@@ -551,6 +551,14 @@ asmlinkage void do_fpe(struct pt_regs *regs, unsigned long fcr31)
 
 		preempt_disable();
 
+#ifdef CONFIG_PREEMPT
+		if (!is_fpu_owner()) {
+			/* We might lose fpu before disabling preempt... */
+			own_fpu();
+			BUG_ON(!used_math());
+			restore_fp(current);
+		}
+#endif
 		/*
 	 	 * Unimplemented operation exception.  If we've got the full
 		 * software emulator on-board, let's use it...
@@ -562,11 +570,18 @@ asmlinkage void do_fpe(struct pt_regs *regs, unsigned long fcr31)
 		 * a bit extreme for what should be an infrequent event.
 		 */
 		save_fp(current);
+		/* Ensure 'resume' not overwrite saved fp context again. */
+		lose_fpu();
+
+		preempt_enable();
 
 		/* Run the emulator */
 		sig = fpu_emulator_cop1Handler (0, regs,
 			&current->thread.fpu.soft);
 
+		preempt_disable();
+
+		own_fpu();	/* Using the FPU again.  */
 		/*
 		 * We can't allow the emulated instruction to leave any of
 		 * the cause bit set in $fcr31.
@@ -712,14 +727,14 @@ asmlinkage void do_cpu(struct pt_regs *regs)
 			set_used_math();
 		}
 
+		preempt_enable();
+
 		if (!cpu_has_fpu) {
 			int sig = fpu_emulator_cop1Handler(0, regs,
 						&current->thread.fpu.soft);
 			if (sig)
 				force_sig(sig, current);
 		}
-
-		preempt_enable();
 
 		return;
 

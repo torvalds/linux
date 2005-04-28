@@ -79,7 +79,17 @@ struct mips_fpu_emulator_private fpuemuprivate;
 
 /* Convert Mips rounding mode (0..3) to IEEE library modes. */
 static const unsigned char ieee_rm[4] = {
-	IEEE754_RN, IEEE754_RZ, IEEE754_RU, IEEE754_RD
+	[FPU_CSR_RN] = IEEE754_RN,
+	[FPU_CSR_RZ] = IEEE754_RZ,
+	[FPU_CSR_RU] = IEEE754_RU,
+	[FPU_CSR_RD] = IEEE754_RD,
+};
+/* Convert IEEE library modes to Mips rounding mode (0..3). */
+static const unsigned char mips_rm[4] = {
+	[IEEE754_RN] = FPU_CSR_RN,
+	[IEEE754_RZ] = FPU_CSR_RZ,
+	[IEEE754_RD] = FPU_CSR_RD,
+	[IEEE754_RU] = FPU_CSR_RU,
 };
 
 #if __mips >= 4
@@ -368,6 +378,7 @@ static int cop1Emulate(struct pt_regs *xcp, struct mips_fpu_soft_struct *ctx)
 			}
 			if (MIPSInst_RD(ir) == FPCREG_CSR) {
 				value = ctx->fcr31;
+				value = (value & ~0x3) | mips_rm[value & 0x3];
 #ifdef CSRTRACE
 				printk("%p gpr[%d]<-csr=%08x\n",
 					(void *) (xcp->cp0_epc),
@@ -400,11 +411,10 @@ static int cop1Emulate(struct pt_regs *xcp, struct mips_fpu_soft_struct *ctx)
 					(void *) (xcp->cp0_epc),
 					MIPSInst_RT(ir), value);
 #endif
-				ctx->fcr31 = value;
-				/* copy new rounding mode and
-				   flush bit to ieee library state! */
-				ieee754_csr.nod = (ctx->fcr31 & 0x1000000) != 0;
-				ieee754_csr.rm = ieee_rm[value & 0x3];
+				value &= (FPU_CSR_FLUSH | FPU_CSR_ALL_E | FPU_CSR_ALL_S | 0x03);
+				ctx->fcr31 &= ~(FPU_CSR_FLUSH | FPU_CSR_ALL_E | FPU_CSR_ALL_S | 0x03);
+				/* convert to ieee library modes */
+				ctx->fcr31 |= (value & ~0x3) | ieee_rm[value & 0x3];
 			}
 			if ((ctx->fcr31 >> 5) & ctx->fcr31 & FPU_CSR_ALL_E) {
 				return SIGFPE;
@@ -570,7 +580,7 @@ static const unsigned char cmptab[8] = {
 static ieee754##p fpemu_##p##_##name (ieee754##p r, ieee754##p s, \
     ieee754##p t) \
 { \
-	struct ieee754_csr ieee754_csr_save; \
+	struct _ieee754_csr ieee754_csr_save; \
 	s = f1 (s, t); \
 	ieee754_csr_save = ieee754_csr; \
 	s = f2 (s, r); \
@@ -699,8 +709,6 @@ static int fpux_emu(struct pt_regs *xcp, struct mips_fpu_soft_struct *ctx,
 				rcsr |= FPU_CSR_INV_X | FPU_CSR_INV_S;
 
 			ctx->fcr31 = (ctx->fcr31 & ~FPU_CSR_ALL_X) | rcsr;
-			if (ieee754_csr.nod)
-				ctx->fcr31 |= 0x1000000;
 			if ((ctx->fcr31 >> 5) & ctx->fcr31 & FPU_CSR_ALL_E) {
 				/*printk ("SIGFPE: fpu csr = %08x\n",
 				   ctx->fcr31); */
@@ -1297,12 +1305,17 @@ int fpu_emulator_cop1Handler(int xcptno, struct pt_regs *xcp,
 		if (insn == 0)
 			xcp->cp0_epc += 4;	/* skip nops */
 		else {
-			/* Update ieee754_csr. Only relevant if we have a
-			   h/w FPU */
-			ieee754_csr.nod = (ctx->fcr31 & 0x1000000) != 0;
-			ieee754_csr.rm = ieee_rm[ctx->fcr31 & 0x3];
-			ieee754_csr.cx = (ctx->fcr31 >> 12) & 0x1f;
+			/*
+			 * The 'ieee754_csr' is an alias of
+			 * ctx->fcr31.  No need to copy ctx->fcr31 to
+			 * ieee754_csr.  But ieee754_csr.rm is ieee
+			 * library modes. (not mips rounding mode)
+			 */
+			/* convert to ieee library modes */
+			ieee754_csr.rm = ieee_rm[ieee754_csr.rm];
 			sig = cop1Emulate(xcp, ctx);
+			/* revert to mips rounding mode */
+			ieee754_csr.rm = mips_rm[ieee754_csr.rm];
 		}
 
 		if (cpu_has_fpu)
