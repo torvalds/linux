@@ -407,6 +407,9 @@ int acpi_map_lsapic(acpi_handle handle, int *pcpu);
 int acpi_unmap_lsapic(int cpu);
 #endif /* CONFIG_ACPI_HOTPLUG_CPU */
 
+int acpi_register_ioapic(acpi_handle handle, u64 phys_addr, u32 gsi_base);
+int acpi_unregister_ioapic(acpi_handle handle, u32 gsi_base);
+
 extern int acpi_mp_config;
 
 extern u32 pci_mmcfg_base_addr;

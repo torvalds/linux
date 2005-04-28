@@ -825,4 +825,21 @@ acpi_map_iosapic (acpi_handle handle, u32 depth, void *context, void **ret)
 	return AE_OK;
 }
 #endif /* CONFIG_NUMA */
+
+int
+acpi_register_ioapic (acpi_handle handle, u64 phys_addr, u32 gsi_base)
+{
+	/* TBD */
+	return -EINVAL;
+}
+EXPORT_SYMBOL(acpi_register_ioapic);
+
+int
+acpi_unregister_ioapic (acpi_handle handle, u32 gsi_base)
+{
+	/* TBD */
+	return -EINVAL;
+}
+EXPORT_SYMBOL(acpi_unregister_ioapic);
+
 #endif /* CONFIG_ACPI_BOOT */
