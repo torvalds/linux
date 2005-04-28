@@ -79,31 +79,34 @@ GLOBAL_ENTRY(__kernel_syscall_via_epc)
 	;;
 	rsm psr.be // note: on McKinley "rsm psr.be/srlz.d" is slightly faster than "rum psr.be"
 	LOAD_FSYSCALL_TABLE(r14)
-
+	;;
 	mov r16=IA64_KR(CURRENT)		// 12 cycle read latency
-	tnat.nz p10,p9=r15
+	shladd r18=r17,3,r14
 	mov r19=NR_syscalls-1
 	;;
-	shladd r18=r17,3,r14
-
-	srlz.d
-	cmp.ne p8,p0=r0,r0			// p8 <- FALSE
+	lfetch [r18]				// M0|1
+	mov r29=psr				// read psr (12 cyc load latency)
 	/* Note: if r17 is a NaT, p6 will be set to zero.  */
 	cmp.geu p6,p7=r19,r17			// (syscall > 0 && syscall < 1024+NR_syscalls)?
 	;;
-(p6)	ld8 r18=[r18]
 	mov r21=ar.fpsr
-	add r14=-8,r14				// r14 <- addr of fsys_bubble_down entry
-	;;
-(p6)	mov b7=r18
-(p6)	tbit.z p8,p0=r18,0
-(p8)	br.dptk.many b7
-
-(p6)	rsm psr.i
-	mov r27=ar.rsc
+	tnat.nz p10,p9=r15
 	mov r26=ar.pfs
 	;;
-	mov r29=psr				// read psr (12 cyc load latency)
+	srlz.d
+(p6)	ld8 r18=[r18]
+	nop.i 0
+	;;
+	nop.m 0
+(p6)	mov b7=r18
+(p6)	tbit.z.unc p8,p0=r18,0
+
+	nop.m 0
+	nop.i 0
+(p8)	br.dptk.many b7
+
+	mov r27=ar.rsc
+(p6)	rsm psr.i
 /*
  * brl.cond doesn't work as intended because the linker would convert this branch
  * into a branch to a PLT.  Perhaps there will be a way to avoid this with some
@@ -111,6 +114,8 @@ GLOBAL_ENTRY(__kernel_syscall_via_epc)
  * instead.
  */
 #ifdef CONFIG_ITANIUM
+	add r14=-8,r14				// r14 <- addr of fsys_bubble_down entry
+	;;
 (p6)	ld8 r14=[r14]				// r14 <- fsys_bubble_down
 	;;
 (p6)	mov b7=r14
