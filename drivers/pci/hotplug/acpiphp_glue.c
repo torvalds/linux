@@ -552,6 +552,132 @@ static void remove_bridge(acpi_handle handle)
 	}
 }
 
+static struct pci_dev * get_apic_pci_info(acpi_handle handle)
+{
+	struct acpi_pci_id id;
+	struct pci_bus *bus;
+	struct pci_dev *dev;
+
+	if (ACPI_FAILURE(acpi_get_pci_id(handle, &id)))
+		return NULL;
+
+	bus = pci_find_bus(id.segment, id.bus);
+	if (!bus)
+		return NULL;
+
+	dev = pci_get_slot(bus, PCI_DEVFN(id.device, id.function));
+	if (!dev)
+		return NULL;
+
+	if ((dev->class != PCI_CLASS_SYSTEM_PIC_IOAPIC) &&
+	    (dev->class != PCI_CLASS_SYSTEM_PIC_IOXAPIC))
+	{
+		pci_dev_put(dev);
+		return NULL;
+	}
+
+	return dev;
+}
+
+static int get_gsi_base(acpi_handle handle, u32 *gsi_base)
+{
+	acpi_status status;
+	int result = -1;
+	unsigned long gsb;
+	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
+	union acpi_object *obj;
+	void *table;
+
+	status = acpi_evaluate_integer(handle, "_GSB", NULL, &gsb);
+	if (ACPI_SUCCESS(status)) {
+		*gsi_base = (u32)gsb;
+		return 0;
+	}
+
+	status = acpi_evaluate_object(handle, "_MAT", NULL, &buffer);
+	if (ACPI_FAILURE(status) || !buffer.length || !buffer.pointer)
+		return -1;
+
+	obj = buffer.pointer;
+	if (obj->type != ACPI_TYPE_BUFFER)
+		goto out;
+
+	table = obj->buffer.pointer;
+	switch (((acpi_table_entry_header *)table)->type) {
+	case ACPI_MADT_IOSAPIC:
+		*gsi_base = ((struct acpi_table_iosapic *)table)->global_irq_base;
+		result = 0;
+		break;
+	case ACPI_MADT_IOAPIC:
+		*gsi_base = ((struct acpi_table_ioapic *)table)->global_irq_base;
+		result = 0;
+		break;
+	default:
+		break;
+	}
+ out:
+	acpi_os_free(buffer.pointer);
+	return result;
+}
+
+static acpi_status
+ioapic_add(acpi_handle handle, u32 lvl, void *context, void **rv)
+{
+	acpi_status status;
+	unsigned long sta;
+	acpi_handle tmp;
+	struct pci_dev *pdev;
+	u32 gsi_base;
+	u64 phys_addr;
+
+	/* Evaluate _STA if present */
+	status = acpi_evaluate_integer(handle, "_STA", NULL, &sta);
+	if (ACPI_SUCCESS(status) && sta != ACPI_STA_ALL)
+		return AE_CTRL_DEPTH;
+
+	/* Scan only PCI bus scope */
+	status = acpi_get_handle(handle, "_HID", &tmp);
+	if (ACPI_SUCCESS(status))
+		return AE_CTRL_DEPTH;
+
+	if (get_gsi_base(handle, &gsi_base))
+		return AE_OK;
+
+	pdev = get_apic_pci_info(handle);
+	if (!pdev)
+		return AE_OK;
+
+	if (pci_enable_device(pdev)) {
+		pci_dev_put(pdev);
+		return AE_OK;
+	}
+
+	pci_set_master(pdev);
+
+	if (pci_request_region(pdev, 0, "I/O APIC(acpiphp)")) {
+		pci_disable_device(pdev);
+		pci_dev_put(pdev);
+		return AE_OK;
+	}
+
+	phys_addr = pci_resource_start(pdev, 0);
+	if (acpi_register_ioapic(handle, phys_addr, gsi_base)) {
+		pci_release_region(pdev, 0);
+		pci_disable_device(pdev);
+		pci_dev_put(pdev);
+		return AE_OK;
+	}
+
+	return AE_OK;
+}
+
+static int acpiphp_configure_ioapics(acpi_handle handle)
+{
+	acpi_walk_namespace(ACPI_TYPE_DEVICE, handle,
+			    ACPI_UINT32_MAX, ioapic_add, NULL, NULL);
+	return 0;
+}
+
 static int power_on_slot(struct acpiphp_slot *slot)
 {
 	acpi_status status;
@@ -942,6 +1068,7 @@ static int acpiphp_configure_bridge (acpi_handle handle)
 	acpiphp_sanitize_bus(bus);
 	acpiphp_set_hpp_values(handle, bus);
 	pci_enable_bridges(bus);
+	acpiphp_configure_ioapics(handle);
 	return 0;
 }
 
