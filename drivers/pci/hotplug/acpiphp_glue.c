@@ -600,7 +600,7 @@ static int power_off_slot(struct acpiphp_slot *slot)
 	list_for_each (l, &slot->funcs) {
 		func = list_entry(l, struct acpiphp_func, sibling);
 
-		if (func->pci_dev && (func->flags & FUNC_HAS_PS3)) {
+		if (func->flags & FUNC_HAS_PS3) {
 			status = acpi_evaluate_object(func->handle, "_PS3", NULL, NULL);
 			if (ACPI_FAILURE(status)) {
 				warn("%s: _PS3 failed\n", __FUNCTION__);
@@ -615,7 +615,7 @@ static int power_off_slot(struct acpiphp_slot *slot)
 		func = list_entry(l, struct acpiphp_func, sibling);
 
 		/* We don't want to call _EJ0 on non-existing functions. */
-		if (func->pci_dev && (func->flags & FUNC_HAS_EJ0)) {
+		if (func->flags & FUNC_HAS_EJ0) {
 			/* _EJ0 method take one argument */
 			arg_list.count = 1;
 			arg_list.pointer = &arg;
