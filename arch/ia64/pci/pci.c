@@ -373,6 +373,25 @@ void pcibios_bus_to_resource(struct pci_dev *dev,
 	res->end = region->end + offset;
 }
 
+static int __devinit is_valid_resource(struct pci_dev *dev, int idx)
+{
+	unsigned int i, type_mask = IORESOURCE_IO | IORESOURCE_MEM;
+	struct resource *devr = &dev->resource[idx];
+
+	if (!dev->bus)
+		return 0;
+	for (i=0; i<PCI_BUS_NUM_RESOURCES; i++) {
+		struct resource *busr = dev->bus->resource[i];
+
+		if (!busr || ((busr->flags ^ devr->flags) & type_mask))
+			continue;
+		if ((devr->start) && (devr->start >= busr->start) &&
+				(devr->end <= busr->end))
+			return 1;
+	}
+	return 0;
+}
+
 static void __devinit pcibios_fixup_device_resources(struct pci_dev *dev)
 {
 	struct pci_bus_region region;
@@ -386,7 +405,8 @@ static void __devinit pcibios_fixup_device_resources(struct pci_dev *dev)
 		region.start = dev->resource[i].start;
 		region.end = dev->resource[i].end;
 		pcibios_bus_to_resource(dev, &dev->resource[i], &region);
-		pci_claim_resource(dev, i);
+		if ((is_valid_resource(dev, i)))
+			pci_claim_resource(dev, i);
 	}
 }
 
