@@ -47,6 +47,7 @@ V_FUNCTION_BEGIN(__kernel_sync_dicache)
 	addi	r6,r6,128
 	bdnz	1b
 	isync
+	li	r3,0
 	blr
   .cfi_endproc
 V_FUNCTION_END(__kernel_sync_dicache)
@@ -59,6 +60,7 @@ V_FUNCTION_BEGIN(__kernel_sync_dicache_p5)
   .cfi_startproc
 	sync
 	isync
+	li	r3,0
 	blr
   .cfi_endproc
 V_FUNCTION_END(__kernel_sync_dicache_p5)
