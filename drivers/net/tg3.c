@@ -5830,7 +5830,7 @@ static int tg3_test_interrupt(struct tg3 *tp)
 	free_irq(tp->pdev->irq, dev);
 
 	err = request_irq(tp->pdev->irq, tg3_test_isr,
-			  SA_SHIRQ, dev->name, dev);
+			  SA_SHIRQ | SA_SAMPLE_RANDOM, dev->name, dev);
 	if (err)
 		return err;
 
@@ -5852,10 +5852,10 @@ static int tg3_test_interrupt(struct tg3 *tp)
 	
 	if (tp->tg3_flags2 & TG3_FLG2_USING_MSI)
 		err = request_irq(tp->pdev->irq, tg3_msi,
-				  0, dev->name, dev);
+				  SA_SAMPLE_RANDOM, dev->name, dev);
 	else
 		err = request_irq(tp->pdev->irq, tg3_interrupt,
-				  SA_SHIRQ, dev->name, dev);
+				  SA_SHIRQ | SA_SAMPLE_RANDOM, dev->name, dev);
 
 	if (err)
 		return err;
@@ -5908,7 +5908,7 @@ static int tg3_test_msi(struct tg3 *tp)
 	tp->tg3_flags2 &= ~TG3_FLG2_USING_MSI;
 
 	err = request_irq(tp->pdev->irq, tg3_interrupt,
-			  SA_SHIRQ, dev->name, dev);
+			  SA_SHIRQ | SA_SAMPLE_RANDOM, dev->name, dev);
 
 	if (err)
 		return err;
@@ -5965,10 +5965,10 @@ static int tg3_open(struct net_device *dev)
 	}
 	if (tp->tg3_flags2 & TG3_FLG2_USING_MSI)
 		err = request_irq(tp->pdev->irq, tg3_msi,
-				  0, dev->name, dev);
+				  SA_SAMPLE_RANDOM, dev->name, dev);
 	else
 		err = request_irq(tp->pdev->irq, tg3_interrupt,
-				  SA_SHIRQ, dev->name, dev);
+				  SA_SHIRQ | SA_SAMPLE_RANDOM, dev->name, dev);
 
 	if (err) {
 		if (tp->tg3_flags2 & TG3_FLG2_USING_MSI) {
