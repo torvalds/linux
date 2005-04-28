@@ -94,8 +94,9 @@ static const char driver_desc [] = DRIVER_DESC;
 #ifdef	CONFIG_USB_ETH_RNDIS
 #include "rndis.h"
 #else
-#define rndis_init() 0
-#define rndis_exit() do{}while(0)
+#define rndis_init()	0
+#define rndis_uninit(x)	do{}while(0)
+#define rndis_exit()	do{}while(0)
 #endif
 
 /* CDC and RNDIS support the same host-chosen outgoing packet filters. */
@@ -395,7 +396,8 @@ static inline int BITRATE(struct usb_gadget *g)
 #define STRING_SUBSET			8
 #define STRING_RNDIS			9
 
-#define USB_BUFSIZ	256		/* holds our biggest descriptor */
+/* holds our biggest descriptor (or RNDIS response) */
+#define USB_BUFSIZ	256
 
 /*
  * This device advertises one configuration, eth_config, unless RNDIS
@@ -1124,6 +1126,7 @@ static void eth_reset_config (struct eth_dev *dev)
 
 	netif_stop_queue (dev->net);
 	netif_carrier_off (dev->net);
+	rndis_uninit(dev->rndis_config);
 
 	/* disable endpoints, forcing (synchronous) completion of
 	 * pending i/o.  then free the requests.
@@ -2565,7 +2568,7 @@ fail0:
 		/* these set up a lot of the OIDs that RNDIS needs */
 		rndis_set_host_mac (dev->rndis_config, dev->host_mac);
 		if (rndis_set_param_dev (dev->rndis_config, dev->net,
-					 &dev->stats))
+					 &dev->stats, &dev->cdc_filter))
 			goto fail0;
 		if (rndis_set_param_vendor (dev->rndis_config, vendorID,
 					    manufacturer))
