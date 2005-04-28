@@ -470,18 +470,6 @@ ENTRY(load_switch_stack)
 	br.cond.sptk.many b7
 END(load_switch_stack)
 
-GLOBAL_ENTRY(__ia64_syscall)
-	.regstk 6,0,0,0
-	mov r15=in5				// put syscall number in place
-	break __BREAK_SYSCALL
-	movl r2=errno
-	cmp.eq p6,p7=-1,r10
-	;;
-(p6)	st4 [r2]=r8
-(p6)	mov r8=-1
-	br.ret.sptk.many rp
-END(__ia64_syscall)
-
 GLOBAL_ENTRY(execve)
 	mov r15=__NR_execve			// put syscall number in place
 	break __BREAK_SYSCALL
