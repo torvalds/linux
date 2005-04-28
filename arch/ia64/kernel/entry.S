@@ -880,7 +880,7 @@ GLOBAL_ENTRY(ia64_leave_kernel)
 	ldf.fill f7=[r2],PT(F11)-PT(F7)
 	ldf.fill f8=[r3],32
 	;;
-	srlz.i			// ensure interruption collection is off
+	srlz.d	// ensure that inter. collection is off (VHPT is don't care, since text is pinned)
 	mov ar.ccv=r15
 	;;
 	ldf.fill f11=[r2]
