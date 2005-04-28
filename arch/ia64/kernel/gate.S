@@ -77,7 +77,7 @@ GLOBAL_ENTRY(__kernel_syscall_via_epc)
 	epc					// B	causes split-issue
 }
 	;;
-	rsm psr.be				// M2 (5 cyc to srlz.d)
+	rsm psr.be | psr.i			// M2 (5 cyc to srlz.d)
 	LOAD_FSYSCALL_TABLE(r14)		// X
 	;;
 	mov r16=IA64_KR(CURRENT)		// M2 (12 cyc)
@@ -98,15 +98,14 @@ GLOBAL_ENTRY(__kernel_syscall_via_epc)
 	nop.i 0
 	;;
 	nop.m 0
-(p6)	mov b7=r18				// I0
 (p6)	tbit.z.unc p8,p0=r18,0			// I0 (dual-issues with "mov b7=r18"!)
-
-	nop.m 0
 	nop.i 0
+	;;
+(p8)	ssm psr.i
+(p6)	mov b7=r18				// I0
 (p8)	br.dptk.many b7				// B
 
 	mov r27=ar.rsc				// M2 (12 cyc)
-(p6)	rsm psr.i				// M2
 /*
  * brl.cond doesn't work as intended because the linker would convert this branch
  * into a branch to a PLT.  Perhaps there will be a way to avoid this with some
@@ -123,7 +122,7 @@ GLOBAL_ENTRY(__kernel_syscall_via_epc)
 #else
 	BRL_COND_FSYS_BUBBLE_DOWN(p6)
 #endif
-
+	ssm psr.i
 	mov r10=-1
 (p10)	mov r8=EINVAL
 (p9)	mov r8=ENOSYS
