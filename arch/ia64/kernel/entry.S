@@ -1012,14 +1012,14 @@ rse_clear_invalid:
 	mov loc5=0
 	mov loc6=0
 	mov loc7=0
-(pRecurse) br.call.sptk.few b0=rse_clear_invalid
+(pRecurse) br.call.dptk.few b0=rse_clear_invalid
 	;;
 	mov loc8=0
 	mov loc9=0
 	cmp.ne pReturn,p0=r0,in1	// if recursion count != 0, we need to do a br.ret
 	mov loc10=0
 	mov loc11=0
-(pReturn) br.ret.sptk.many b0
+(pReturn) br.ret.dptk.many b0
 #endif /* !CONFIG_ITANIUM */
 #	undef pRecurse
 #	undef pReturn
