@@ -692,7 +692,7 @@ ENTRY(ia64_leave_syscall)
 	;;
 (p6)	ld4 r31=[r18]				// load current_thread_info()->flags
 	ld8 r19=[r2],PT(B6)-PT(LOADRS)		// load ar.rsc value for "loadrs"
-	mov b7=r0		// clear b7
+	nop.i 0
 	;;
 	ld8 r23=[r3],PT(R11)-PT(AR_BSPSTORE)	// load ar.bspstore (may be garbage)
 	ld8 r18=[r2],PT(R9)-PT(B6)		// load b6
@@ -754,7 +754,14 @@ ENTRY(ia64_leave_syscall)
 (pUStk)	ld4 r17=[r3]		// r17 = cpu_data->phys_stacked_size_p8
 	mov.m ar.csd=r0		// M2 clear ar.csd
 	mov f10=f0		// clear f10
+
+	nop.m 0
+	movl r14=__kernel_syscall_via_epc	// X
 	;;
+	nop.m 0
+	nop.m 0
+	mov b7=r14		// I0   clear b7 (hint with __kernel_syscall_via_epc)
+
 	mov r14=r0		// clear r14
 	mov f11=f0		// clear f11
 (pKStk) br.cond.dpnt.many skip_rbs_switch
