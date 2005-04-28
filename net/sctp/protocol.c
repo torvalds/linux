@@ -1043,6 +1043,9 @@ SCTP_STATIC __init int sctp_init(void)
 	sctp_max_retrans_path		= 5;
 	sctp_max_retrans_init		= 8;
 
+	/* Sendbuffer growth	    - do per-socket accounting */
+	sctp_sndbuf_policy		= 0;
+
 	/* HB.interval              - 30 seconds */
 	sctp_hb_interval		= 30 * HZ;
 

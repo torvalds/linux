@@ -110,6 +110,14 @@ static ctl_table sctp_table[] = {
 		.proc_handler	= &proc_dointvec
 	},
 	{
+		.ctl_name	= NET_SCTP_SNDBUF_POLICY,
+		.procname	= "sndbuf_policy",
+		.data		= &sctp_sndbuf_policy,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec
+	},
+	{
 		.ctl_name	= NET_SCTP_PATH_MAX_RETRANS,
 		.procname	= "path_max_retrans",
 		.data		= &sctp_max_retrans_path,
