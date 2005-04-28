@@ -211,7 +211,7 @@ static inline void clcdfb_decode(struct clcd_fb *fb, struct clcd_regs *regs)
 	case 16:
 		val |= CNTL_LCDBPP16;
 		break;
-	case 24:
+	case 32:
 		val |= CNTL_LCDBPP24;
 		break;
 	}

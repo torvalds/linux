@@ -146,7 +146,7 @@ clcdfb_set_bitfields(struct clcd_fb *fb, struct fb_var_screeninfo *var)
 			var->blue.offset	= 10;
 		}
 		break;
-	case 24:
+	case 32:
 		if (fb->panel->cntl & CNTL_LCDTFT) {
 			var->red.length		= 8;
 			var->green.length	= 8;
@@ -178,6 +178,12 @@ static int clcdfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 
 	if (fb->board->check)
 		ret = fb->board->check(fb, var);
+
+	if (ret == 0 &&
+	    var->xres_virtual * var->bits_per_pixel / 8 *
+	    var->yres_virtual > fb->fb.fix.smem_len)
+		ret = -EINVAL;
+
 	if (ret == 0)
 		ret = clcdfb_set_bitfields(fb, var);
 
