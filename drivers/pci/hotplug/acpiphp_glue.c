@@ -487,18 +487,12 @@ static struct acpiphp_bridge *acpiphp_handle_to_bridge(acpi_handle handle)
 	return NULL;
 }
 
-static void remove_bridge(acpi_handle handle)
+static void cleanup_bridge(struct acpiphp_bridge *bridge)
 {
 	struct list_head *list, *tmp;
-	struct acpiphp_bridge *bridge;
 	struct acpiphp_slot *slot;
 	acpi_status status;
-
-	bridge = acpiphp_handle_to_bridge(handle);
-	if (!bridge) {
-		err("Could not find bridge for handle %p\n", handle);
-		return;
-	}
+	acpi_handle handle = bridge->handle;
 
 	status = acpi_remove_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
 					    handle_hotplug_event_bridge);
@@ -529,6 +523,30 @@ static void remove_bridge(acpi_handle handle)
 	kfree(bridge);
 }
 
+static acpi_status
+cleanup_p2p_bridge(acpi_handle handle, u32 lvl, void *context, void **rv)
+{
+	struct acpiphp_bridge *bridge;
+
+	if (!(bridge = acpiphp_handle_to_bridge(handle)))
+		return AE_OK;
+	cleanup_bridge(bridge);
+	return AE_OK;
+}
+
+static void remove_bridge(acpi_handle handle)
+{
+	struct acpiphp_bridge *bridge;
+
+	bridge = acpiphp_handle_to_bridge(handle);
+	if (bridge) {
+		cleanup_bridge(bridge);
+	} else {
+		/* clean-up p2p bridges under this host bridge */
+		acpi_walk_namespace(ACPI_TYPE_DEVICE, handle,
+				(u32)1, cleanup_p2p_bridge, NULL, NULL);
+	}
+}
 
 static int power_on_slot(struct acpiphp_slot *slot)
 {
