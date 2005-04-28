@@ -1,7 +1,7 @@
 /*
  * arch/ia64/kernel/ivt.S
  *
- * Copyright (C) 1998-2001, 2003 Hewlett-Packard Co
+ * Copyright (C) 1998-2001, 2003, 2005 Hewlett-Packard Co
  *	Stephane Eranian <eranian@hpl.hp.com>
  *	David Mosberger <davidm@hpl.hp.com>
  * Copyright (C) 2000, 2002-2003 Intel Co
@@ -918,7 +918,7 @@ GLOBAL_ENTRY(ia64_syscall_setup)
 	tnat.nz p14,p0=in6
 	cmp.lt p10,p9=r11,r8	// frame size can't be more than local+8
 	;;
-	stf8 [r16]=f1		// ensure pt_regs.r8 != 0 (see handle_syscall_error)
+	mov r8=1
 (p9)	tnat.nz p10,p0=r15
 	adds r12=-16,r1		// switch to kernel memory stack (with 16 bytes of scratch)
 
@@ -929,9 +929,9 @@ GLOBAL_ENTRY(ia64_syscall_setup)
 	mov r13=r2				// establish `current'
 	movl r1=__gp				// establish kernel global pointer
 	;;
+	st8 [r16]=r8		// ensure pt_regs.r8 != 0 (see handle_syscall_error)
 (p14)	mov in6=-1
 (p8)	mov in7=-1
-	nop.i 0
 
 	cmp.eq pSys,pNonSys=r0,r0		// set pSys=1, pNonSys=0
 	movl r17=FPSR_DEFAULT
