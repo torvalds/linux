@@ -531,84 +531,114 @@ GLOBAL_ENTRY(fsys_bubble_down)
 	.altrp b6
 	.body
 	/*
-	 * We get here for syscalls that don't have a lightweight handler.  For those, we
-	 * need to bubble down into the kernel and that requires setting up a minimal
-	 * pt_regs structure, and initializing the CPU state more or less as if an
-	 * interruption had occurred.  To make syscall-restarts work, we setup pt_regs
-	 * such that cr_iip points to the second instruction in syscall_via_break.
-	 * Decrementing the IP hence will restart the syscall via break and not
-	 * decrementing IP will return us to the caller, as usual.  Note that we preserve
-	 * the value of psr.pp rather than initializing it from dcr.pp.  This makes it
-	 * possible to distinguish fsyscall execution from other privileged execution.
+	 * We get here for syscalls that don't have a lightweight
+	 * handler.  For those, we need to bubble down into the kernel
+	 * and that requires setting up a minimal pt_regs structure,
+	 * and initializing the CPU state more or less as if an
+	 * interruption had occurred.  To make syscall-restarts work,
+	 * we setup pt_regs such that cr_iip points to the second
+	 * instruction in syscall_via_break.  Decrementing the IP
+	 * hence will restart the syscall via break and not
+	 * decrementing IP will return us to the caller, as usual.
+	 * Note that we preserve the value of psr.pp rather than
+	 * initializing it from dcr.pp.  This makes it possible to
+	 * distinguish fsyscall execution from other privileged
+	 * execution.
 	 *
 	 * On entry:
-	 *	- normal fsyscall handler register usage, except that we also have:
+	 *	- normal fsyscall handler register usage, except
+	 *	  that we also have:
 	 *	- r18: address of syscall entry point
 	 *	- r21: ar.fpsr
 	 *	- r26: ar.pfs
 	 *	- r27: ar.rsc
 	 *	- r29: psr
+	 *
+	 * We used to clear some PSR bits here but that requires slow
+	 * serialization.  Fortuntely, that isn't really necessary.
+	 * The rationale is as follows: we used to clear bits
+	 * ~PSR_PRESERVED_BITS in PSR.L.  Since
+	 * PSR_PRESERVED_BITS==PSR.{UP,MFL,MFH,PK,DT,PP,SP,RT,IC}, we
+	 * ended up clearing PSR.{BE,AC,I,DFL,DFH,DI,DB,SI,TB}.
+	 * However,
+	 *
+	 * PSR.BE : already is turned off in __kernel_syscall_via_epc()
+	 * PSR.AC : don't care (kernel normally turns PSR.AC on)
+	 * PSR.I  : already turned off by the time fsys_bubble_down gets
+	 *	    invoked
+	 * PSR.DFL: always 0 (kernel never turns it on)
+	 * PSR.DFH: don't care --- kernel never touches f32-f127 on its own
+	 *	    initiative
+	 * PSR.DI : always 0 (kernel never turns it on)
+	 * PSR.SI : always 0 (kernel never turns it on)
+	 * PSR.DB : don't care --- kernel never enables kernel-level
+	 *	    breakpoints
+	 * PSR.TB : must be 0 already; if it wasn't zero on entry to
+	 *          __kernel_syscall_via_epc, the branch to fsys_bubble_down
+	 *          will trigger a taken branch; the taken-trap-handler then
+	 *          converts the syscall into a break-based system-call.
 	 */
 	/*
-	 * Reading psr.l gives us only bits 0-31, psr.it, and psr.mc.  The rest we have
-	 * to synthesize.
+	 * Reading psr.l gives us only bits 0-31, psr.it, and psr.mc.
+	 * The rest we have to synthesize.
 	 */
-#	define PSR_ONE_BITS		((3 << IA64_PSR_CPL0_BIT) | (0x1 << IA64_PSR_RI_BIT) \
+#	define PSR_ONE_BITS		((3 << IA64_PSR_CPL0_BIT)	\
+					 | (0x1 << IA64_PSR_RI_BIT)	\
 					 | IA64_PSR_BN | IA64_PSR_I)
 
-	invala
-	movl r14=ia64_ret_from_syscall
+	invala					// M0|1
+	movl r14=ia64_ret_from_syscall		// X
 
 	nop.m 0
-	movl r28=__kernel_syscall_via_break
+	movl r28=__kernel_syscall_via_break	// X	create cr.iip
 	;;
 
-	mov r2=r16			// copy current task addr to addl-addressable register
-	adds r16=IA64_TASK_THREAD_ON_USTACK_OFFSET,r16
-	mov r31=pr			// save pr (2 cyc)
+	mov r2=r16				// A    get task addr to addl-addressable register
+	adds r16=IA64_TASK_THREAD_ON_USTACK_OFFSET,r16 // A
+	mov r31=pr				// I0   save pr (2 cyc)
 	;;
-	st1 [r16]=r0			// clear current->thread.on_ustack flag
-	addl r22=IA64_RBS_OFFSET,r2	// compute base of RBS
-	add r3=TI_FLAGS+IA64_TASK_SIZE,r2
+	st1 [r16]=r0				// M2|3 clear current->thread.on_ustack flag
+	addl r22=IA64_RBS_OFFSET,r2		// A    compute base of RBS
+	add r3=TI_FLAGS+IA64_TASK_SIZE,r2	// A
 	;;
-	ld4 r3=[r3]				// r2 = current_thread_info()->flags
-	lfetch.fault.excl.nt1 [r22]
+	ld4 r3=[r3]				// M0|1 r3 = current_thread_info()->flags
+	lfetch.fault.excl.nt1 [r22]		// M0|1 prefetch register backing-store
 	nop.i 0
 	;;
-	mov ar.rsc=0			// set enforced lazy mode, pl 0, little-endian, loadrs=0
+	mov ar.rsc=0				// M2   set enforced lazy mode, pl 0, LE, loadrs=0
 	nop.m 0
 	nop.i 0
 	;;
-	mov r23=ar.bspstore		// save ar.bspstore (12 cyc)
-	mov.m r24=ar.rnat		// read ar.rnat (5 cyc lat)
+	mov r23=ar.bspstore			// M2 (12 cyc) save ar.bspstore
+	mov.m r24=ar.rnat			// M2 (5 cyc) read ar.rnat (dual-issues!)
 	nop.i 0
 	;;
-	mov ar.bspstore=r22		// switch to kernel RBS
+	mov ar.bspstore=r22			// M2 (6 cyc) switch to kernel RBS
 	movl r8=PSR_ONE_BITS			// X
 	;;
-	mov r25=ar.unat			// save ar.unat (5 cyc)
-	mov r19=b6			// save b6 (2 cyc)
-	mov r20=r1			// save caller's gp in r20
+	mov r25=ar.unat				// M2 (5 cyc) save ar.unat
+	mov r19=b6				// I0   save b6 (2 cyc)
+	mov r20=r1				// A    save caller's gp in r20
 	;;
-	or r29=r8,r29			// construct cr.ipsr value to save
-	mov b6=r18			// copy syscall entry-point to b6 (7 cyc)
-	addl r1=IA64_STK_OFFSET-IA64_PT_REGS_SIZE,r2	// compute base of memory stack
+	or r29=r8,r29				// A    construct cr.ipsr value to save
+	mov b6=r18				// I0   copy syscall entry-point to b6 (7 cyc)
+	addl r1=IA64_STK_OFFSET-IA64_PT_REGS_SIZE,r2 // A compute base of memory stack
 
-	mov r18=ar.bsp			// save (kernel) ar.bsp (12 cyc)
-	cmp.ne pKStk,pUStk=r0,r0	// set pKStk <- 0, pUStk <- 1
-	br.call.sptk.many b7=ia64_syscall_setup
+	mov r18=ar.bsp				// M2   save (kernel) ar.bsp (12 cyc)
+	cmp.ne pKStk,pUStk=r0,r0		// A    set pKStk <- 0, pUStk <- 1
+	br.call.sptk.many b7=ia64_syscall_setup	// B
 	;;
-	mov ar.rsc=0x3			// set eager mode, pl 0, little-endian, loadrs=0
-	mov rp=r14				// set the real return addr
+	mov ar.rsc=0x3				// M2   set eager mode, pl 0, LE, loadrs=0
+	mov rp=r14				// I0   set the real return addr
 	nop.i 0
 	;;
-	ssm psr.i
-	tbit.z p8,p0=r3,TIF_SYSCALL_TRACE
-(p10)	br.cond.spnt.many ia64_ret_from_syscall	// p10==true means out registers are more than 8
+	ssm psr.i				// M2   we're on kernel stacks now, reenable irqs
+	tbit.z p8,p0=r3,TIF_SYSCALL_TRACE	// I0
+(p10)	br.cond.spnt.many ia64_ret_from_syscall	// B    return if bad call-frame or r15 is a NaT
 
 	nop.m 0
-(p8)	br.call.sptk.many b6=b6		// ignore this return addr
-	br.cond.spnt ia64_trace_syscall
+(p8)	br.call.sptk.many b6=b6			// B    (ignore return address)
+	br.cond.spnt ia64_trace_syscall		// B
 END(fsys_bubble_down)
 
 	.rodata
