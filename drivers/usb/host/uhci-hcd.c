@@ -154,6 +154,7 @@ static void reset_hc(struct uhci_hcd *uhci)
 
 /*
  * Last rites for a defunct/nonfunctional controller
+ * or one we don't want to use any more.
  */
 static void hc_died(struct uhci_hcd *uhci)
 {
@@ -523,6 +524,20 @@ static int uhci_reset(struct usb_hcd *hcd)
 	 */
 	check_and_reset_hc(uhci);
 	return 0;
+}
+
+/* Make sure the controller is quiescent and that we're not using it
+ * any more.  This is mainly for the benefit of programs which, like kexec,
+ * expect the hardware to be idle: not doing DMA or generating IRQs.
+ *
+ * This routine may be called in a damaged or failing kernel.  Hence we
+ * do not acquire the spinlock before shutting down the controller.
+ */
+static void uhci_shutdown(struct pci_dev *pdev)
+{
+	struct usb_hcd *hcd = (struct usb_hcd *) pci_get_drvdata(pdev);
+
+	hc_died(hcd_to_uhci(hcd));
 }
 
 /*
@@ -939,6 +954,7 @@ static struct pci_driver uhci_pci_driver = {
 
 	.probe =	usb_hcd_pci_probe,
 	.remove =	usb_hcd_pci_remove,
+	.shutdown =	uhci_shutdown,
 
 #ifdef	CONFIG_PM
 	.suspend =	usb_hcd_pci_suspend,
