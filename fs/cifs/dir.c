@@ -284,51 +284,48 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 			/* mknod case - do not leave file open */
 			CIFSSMBClose(xid, pTcon, fileHandle);
 		} else if(newinode) {
-			pCifsFile = (struct cifsFileInfo *)
+			pCifsFile =
 			   kmalloc(sizeof (struct cifsFileInfo), GFP_KERNEL);
-		
-			if (pCifsFile) {
-				memset((char *)pCifsFile, 0,
-				       sizeof (struct cifsFileInfo));
-				pCifsFile->netfid = fileHandle;
-				pCifsFile->pid = current->tgid;
-				pCifsFile->pInode = newinode;
-				pCifsFile->invalidHandle = FALSE;
-				pCifsFile->closePend     = FALSE;
-				init_MUTEX(&pCifsFile->fh_sem);
-				/* put the following in at open now */
-				/* pCifsFile->pfile = file; */ 
-				write_lock(&GlobalSMBSeslock);
-				list_add(&pCifsFile->tlist,&pTcon->openFileList);
-				pCifsInode = CIFS_I(newinode);
-				if(pCifsInode) {
+			
+			if(pCifsFile == NULL)
+				goto cifs_create_out;
+			memset((char *)pCifsFile, 0,
+			       sizeof (struct cifsFileInfo));
+			pCifsFile->netfid = fileHandle;
+			pCifsFile->pid = current->tgid;
+			pCifsFile->pInode = newinode;
+			pCifsFile->invalidHandle = FALSE;
+			pCifsFile->closePend     = FALSE;
+			init_MUTEX(&pCifsFile->fh_sem);
+			/* set the following in open now 
+				pCifsFile->pfile = file; */
+			write_lock(&GlobalSMBSeslock);
+			list_add(&pCifsFile->tlist,&pTcon->openFileList);
+			pCifsInode = CIFS_I(newinode);
+			if(pCifsInode) {
 				/* if readable file instance put first in list*/
-					if (write_only == TRUE) {
-                                        	list_add_tail(&pCifsFile->flist,
-							&pCifsInode->openFileList);
-					} else {
-						list_add(&pCifsFile->flist,
-							&pCifsInode->openFileList);
-					}
-					if((oplock & 0xF) == OPLOCK_EXCLUSIVE) {
-						pCifsInode->clientCanCacheAll = TRUE;
-						pCifsInode->clientCanCacheRead = TRUE;
-						cFYI(1,("Exclusive Oplock granted on inode %p",
-							newinode));
-					} else if((oplock & 0xF) == OPLOCK_READ)
-						pCifsInode->clientCanCacheRead = TRUE;
+				if (write_only == TRUE) {
+                                       	list_add_tail(&pCifsFile->flist,
+						&pCifsInode->openFileList);
+				} else {
+					list_add(&pCifsFile->flist,
+						&pCifsInode->openFileList);
 				}
-				write_unlock(&GlobalSMBSeslock);
+				if((oplock & 0xF) == OPLOCK_EXCLUSIVE) {
+					pCifsInode->clientCanCacheAll = TRUE;
+					pCifsInode->clientCanCacheRead = TRUE;
+					cFYI(1,("Exclusive Oplock for inode %p",
+						newinode));
+				} else if((oplock & 0xF) == OPLOCK_READ)
+					pCifsInode->clientCanCacheRead = TRUE;
 			}
+			write_unlock(&GlobalSMBSeslock);
 		}
 	} 
-
-	if (buf)
-	    kfree(buf);
-	if (full_path)
-	    kfree(full_path);
+cifs_create_out:
+	kfree(buf);
+	kfree(full_path);
 	FreeXid(xid);
-
 	return rc;
 }
 
@@ -375,10 +372,8 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode, dev_t dev
 		}
 	}
 
-	if (full_path)
-		kfree(full_path);
+	kfree(full_path);
 	FreeXid(xid);
-
 	return rc;
 }
 
@@ -447,8 +442,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry, struct name
 		if file exists or not but no access BB */
 	}
 
-	if (full_path)
-		kfree(full_path);
+	kfree(full_path);
 	FreeXid(xid);
 	return ERR_PTR(rc);
 }
@@ -478,8 +472,7 @@ cifs_dir_open(struct inode *inode, struct file *file)
 
 	cFYI(1, ("inode = 0x%p and full path is %s", inode, full_path));
 
-	if (full_path)
-		kfree(full_path);
+	kfree(full_path);
 	FreeXid(xid);
 	return rc;
 }
