@@ -78,6 +78,7 @@ static const struct smb_to_posix_error mapping_table_ERRDOS[] = {
 	{ErrQuota, -EDQUOT},
 	{ErrNotALink, -ENOLINK},
 	{ERRnetlogonNotStarted,-ENOPROTOOPT},
+	{ErrTooManyLinks,-EMLINK},
 	{0, 0}
 };
 
@@ -742,7 +743,7 @@ static const struct {
 	ERRDOS, 182, NT_STATUS_DRIVER_ORDINAL_NOT_FOUND}, {
 	ERRDOS, 127, NT_STATUS_DRIVER_ENTRYPOINT_NOT_FOUND}, {
 	ERRDOS, 288, NT_STATUS_RESOURCE_NOT_OWNED}, {
-	ERRHRD, ERRgeneral, NT_STATUS_TOO_MANY_LINKS}, {
+	ERRDOS, ErrTooManyLinks, NT_STATUS_TOO_MANY_LINKS}, {
 	ERRHRD, ERRgeneral, NT_STATUS_QUOTA_LIST_INCONSISTENT}, {
 	ERRHRD, ERRgeneral, NT_STATUS_FILE_IS_OFFLINE}, {
 	ERRDOS, 21, 0xc000026e}, {

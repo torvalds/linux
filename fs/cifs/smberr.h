@@ -107,6 +107,10 @@
 #define ErrNotALink		0x201	/* A link operation was performed on a
 					   pathname that was not a link. */
 
+/* Below errors are used internally (do not come over the wire) for passthrough
+   from STATUS codes to POSIX only  */
+#define ErrTooManyLinks         0xFFFE   
+
 /* Following error codes may be generated with the ERRSRV error class.*/
 
 #define ERRerror		1	/* Non-specific error code. It is
