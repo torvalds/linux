@@ -251,7 +251,8 @@ static int audit_copy_rule(struct audit_rule *d, struct audit_rule *s)
 	return 0;
 }
 
-int audit_receive_filter(int type, int pid, int uid, int seq, void *data)
+int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
+							uid_t loginuid)
 {
 	u32		   flags;
 	struct audit_entry *entry;
@@ -286,6 +287,7 @@ int audit_receive_filter(int type, int pid, int uid, int seq, void *data)
 			err = audit_add_rule(entry, &audit_entlist);
 		if (!err && (flags & AUDIT_AT_EXIT))
 			err = audit_add_rule(entry, &audit_extlist);
+		audit_log(NULL, "auid %u added an audit rule\n", loginuid);
 		break;
 	case AUDIT_DEL:
 		flags =((struct audit_rule *)data)->flags;
@@ -295,6 +297,7 @@ int audit_receive_filter(int type, int pid, int uid, int seq, void *data)
 			err = audit_del_rule(data, &audit_entlist);
 		if (!err && (flags & AUDIT_AT_EXIT))
 			err = audit_del_rule(data, &audit_extlist);
+		audit_log(NULL, "auid %u removed an audit rule\n", loginuid);
 		break;
 	default:
 		return -EINVAL;

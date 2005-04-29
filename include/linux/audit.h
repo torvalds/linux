@@ -184,7 +184,7 @@ extern void audit_inode(const char *name, const struct inode *inode);
 
 				/* Private API (for audit.c only) */
 extern int  audit_receive_filter(int type, int pid, int uid, int seq,
-				 void *data);
+				 void *data, uid_t loginuid);
 extern void audit_get_stamp(struct audit_context *ctx,
 			    struct timespec *t, unsigned int *serial);
 extern int  audit_set_loginuid(struct audit_context *ctx, uid_t loginuid);

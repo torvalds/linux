@@ -239,36 +239,36 @@ void audit_log_lost(const char *message)
 
 }
 
-static int audit_set_rate_limit(int limit)
+static int audit_set_rate_limit(int limit, uid_t loginuid)
 {
 	int old		 = audit_rate_limit;
 	audit_rate_limit = limit;
-	audit_log(current->audit_context, "audit_rate_limit=%d old=%d",
-		  audit_rate_limit, old);
+	audit_log(NULL, "audit_rate_limit=%d old=%d by auid %u",
+			audit_rate_limit, old, loginuid);
 	return old;
 }
 
-static int audit_set_backlog_limit(int limit)
+static int audit_set_backlog_limit(int limit, uid_t loginuid)
 {
 	int old		 = audit_backlog_limit;
 	audit_backlog_limit = limit;
-	audit_log(current->audit_context, "audit_backlog_limit=%d old=%d",
-		  audit_backlog_limit, old);
+	audit_log(NULL, "audit_backlog_limit=%d old=%d by auid %u",
+			audit_backlog_limit, old, loginuid);
 	return old;
 }
 
-static int audit_set_enabled(int state)
+static int audit_set_enabled(int state, uid_t loginuid)
 {
 	int old		 = audit_enabled;
 	if (state != 0 && state != 1)
 		return -EINVAL;
 	audit_enabled = state;
-	audit_log(current->audit_context, "audit_enabled=%d old=%d",
-		  audit_enabled, old);
+	audit_log(NULL, "audit_enabled=%d old=%d by auid %u",
+		  audit_enabled, old, loginuid);
 	return old;
 }
 
-static int audit_set_failure(int state)
+static int audit_set_failure(int state, uid_t loginuid)
 {
 	int old		 = audit_failure;
 	if (state != AUDIT_FAIL_SILENT
@@ -276,8 +276,8 @@ static int audit_set_failure(int state)
 	    && state != AUDIT_FAIL_PANIC)
 		return -EINVAL;
 	audit_failure = state;
-	audit_log(current->audit_context, "audit_failure=%d old=%d",
-		  audit_failure, old);
+	audit_log(NULL, "audit_failure=%d old=%d by auid %u",
+		  audit_failure, old, loginuid);
 	return old;
 }
 
@@ -344,6 +344,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	int			err;
 	struct audit_buffer	*ab;
 	u16			msg_type = nlh->nlmsg_type;
+	uid_t			loginuid; /* loginuid of sender */
 
 	err = audit_netlink_ok(NETLINK_CB(skb).eff_cap, msg_type);
 	if (err)
@@ -351,6 +352,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 	pid  = NETLINK_CREDS(skb)->pid;
 	uid  = NETLINK_CREDS(skb)->uid;
+	loginuid = NETLINK_CB(skb).loginuid;
 	seq  = nlh->nlmsg_seq;
 	data = NLMSG_DATA(nlh);
 
@@ -371,34 +373,36 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 			return -EINVAL;
 		status_get   = (struct audit_status *)data;
 		if (status_get->mask & AUDIT_STATUS_ENABLED) {
-			err = audit_set_enabled(status_get->enabled);
+			err = audit_set_enabled(status_get->enabled, loginuid);
 			if (err < 0) return err;
 		}
 		if (status_get->mask & AUDIT_STATUS_FAILURE) {
-			err = audit_set_failure(status_get->failure);
+			err = audit_set_failure(status_get->failure, loginuid);
 			if (err < 0) return err;
 		}
 		if (status_get->mask & AUDIT_STATUS_PID) {
 			int old   = audit_pid;
 			audit_pid = status_get->pid;
-			audit_log(current->audit_context,
-				  "audit_pid=%d old=%d", audit_pid, old);
+			audit_log(NULL, "audit_pid=%d old=%d by auid %u",
+				  audit_pid, old, loginuid);
 		}
 		if (status_get->mask & AUDIT_STATUS_RATE_LIMIT)
-			audit_set_rate_limit(status_get->rate_limit);
+			audit_set_rate_limit(status_get->rate_limit, loginuid);
 		if (status_get->mask & AUDIT_STATUS_BACKLOG_LIMIT)
-			audit_set_backlog_limit(status_get->backlog_limit);
+			audit_set_backlog_limit(status_get->backlog_limit,
+							loginuid);
 		break;
 	case AUDIT_USER:
 		ab = audit_log_start(NULL);
 		if (!ab)
 			break;	/* audit_panic has been called */
 		audit_log_format(ab,
-				 "user pid=%d uid=%d length=%d msg='%.1024s'",
+				 "user pid=%d uid=%d length=%d loginuid=%u"
+				 " msg='%.1024s'",
 				 pid, uid,
 				 (int)(nlh->nlmsg_len
 				       - ((char *)data - (char *)nlh)),
-				 (char *)data);
+				 loginuid, (char *)data);
 		ab->type = AUDIT_USER;
 		ab->pid  = pid;
 		audit_log_end(ab);
@@ -411,7 +415,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	case AUDIT_LIST:
 #ifdef CONFIG_AUDITSYSCALL
 		err = audit_receive_filter(nlh->nlmsg_type, NETLINK_CB(skb).pid,
-					   uid, seq, data);
+					   uid, seq, data, loginuid);
 #else
 		err = -EOPNOTSUPP;
 #endif
