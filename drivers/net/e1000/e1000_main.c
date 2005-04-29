@@ -328,11 +328,12 @@ e1000_up(struct e1000_adapter *adapter)
 		return err;
 
 	mod_timer(&adapter->watchdog_timer, jiffies);
-	e1000_irq_enable(adapter);
 
 #ifdef CONFIG_E1000_NAPI
 	netif_poll_enable(netdev);
 #endif
+	e1000_irq_enable(adapter);
+
 	return 0;
 }
 
