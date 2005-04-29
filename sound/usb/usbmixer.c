@@ -67,7 +67,7 @@ struct usb_mixer_build {
 	unsigned int ctrlif;
 	unsigned short vendor;
 	unsigned short product;
-	DECLARE_BITMAP(unitbitmap, 32*32);
+	DECLARE_BITMAP(unitbitmap, 256);
 	usb_audio_term_t oterm;
 	const struct usbmix_name_map *map;
 	const struct usbmix_selector_map *selector_map;
