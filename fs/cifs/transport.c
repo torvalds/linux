@@ -41,7 +41,7 @@ AllocMidQEntry(struct smb_hdr *smb_buffer, struct cifsSesInfo *ses)
 	struct mid_q_entry *temp;
 
 	if (ses == NULL) {
-		cERROR(1, ("Null session passed in to AllocMidQEntry "));
+		cERROR(1, ("Null session passed in to AllocMidQEntry"));
 		return NULL;
 	}
 	if (ses->server == NULL) {
@@ -185,7 +185,8 @@ smb_send(struct socket *ssocket, struct smb_hdr *smb_buffer,
 
 int
 smb_sendv(struct socket *ssocket, struct smb_hdr *smb_buffer,
-	 unsigned int smb_buf_length, struct kvec * write_vector /* page list */, struct sockaddr *sin)
+	 unsigned int smb_buf_length, struct kvec * write_vector 
+	  /* page list */, struct sockaddr *sin)
 {
 	int rc = 0;
 	int i = 0;
@@ -215,7 +216,8 @@ smb_sendv(struct socket *ssocket, struct smb_hdr *smb_buffer,
 	dump_smb(smb_buffer, len);
 
 	while (len > 0) {
-		rc = kernel_sendmsg(ssocket, &smb_msg, &iov, number_of_pages, len?);
+		rc = kernel_sendmsg(ssocket, &smb_msg, &iov, number_of_pages, 
+				    len);
 		if ((rc == -ENOSPC) || (rc == -EAGAIN)) {
 			i++;
 			if(i > 60) {
@@ -351,8 +353,9 @@ CIFSSendRcv(const unsigned int xid, struct cifsSesInfo *ses,
 	rc = cifs_sign_smb(in_buf, ses->server, &midQ->sequence_number);
 
 	midQ->midState = MID_REQUEST_SUBMITTED;
-/*	rc = smb_sendv(ses->server->ssocket, in_buf, in_buf->smb_buf_length, piovec,
-		      (struct sockaddr *) &(ses->server->addr.sockAddr));*/
+/*	rc = smb_sendv(ses->server->ssocket, in_buf, in_buf->smb_buf_length,
+		       piovec, 
+		       (struct sockaddr *) &(ses->server->addr.sockAddr));*/
 	if(rc < 0) {
 		DeleteMidQEntry(midQ);
 		up(&ses->server->tcpSem);
@@ -407,7 +410,8 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 	} else {
 		spin_lock(&GlobalMid_Lock); 
 		while(1) {        
-			if(atomic_read(&ses->server->inFlight) >= cifs_max_pending){
+			if(atomic_read(&ses->server->inFlight) >= 
+					cifs_max_pending){
 				spin_unlock(&GlobalMid_Lock);
 				wait_event(ses->server->request_q,
 					atomic_read(&ses->server->inFlight)
@@ -495,7 +499,7 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 		up(&ses->server->tcpSem);
 	if (long_op == -1)
 		goto cifs_no_response_exit;
-	else if (long_op == 2) /* writes past end of file can take looooong time */
+	else if (long_op == 2) /* writes past end of file can take loong time */
 		timeout = 300 * HZ;
 	else if (long_op == 1)
 		timeout = 45 * HZ; /* should be greater than 
@@ -582,8 +586,8 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 						ses->server->mac_signing_key,
 						midQ->sequence_number+1);
 				if(rc) {
-					cERROR(1,("Unexpected packet signature received from server"));
-					/* BB FIXME - add code to kill session here */
+					cERROR(1,("Unexpected SMB signature"));
+					/* BB FIXME add code to kill session */
 				}
 			}
 
