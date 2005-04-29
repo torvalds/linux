@@ -3173,8 +3173,7 @@ e1000_resume(struct pci_dev *pdev)
 	pci_set_power_state(pdev, 0);
 	pci_restore_state(pdev);
 	ret = pci_enable_device(pdev);
-	if (pdev->is_busmaster)
-		pci_set_master(pdev);
+	pci_set_master(pdev);
 
 	pci_enable_wake(pdev, 3, 0);
 	pci_enable_wake(pdev, 4, 0); /* 4 == D3 cold */
