@@ -40,9 +40,7 @@ struct ib_port {
 	struct kobject         kobj;
 	struct ib_device      *ibdev;
 	struct attribute_group gid_group;
-	struct attribute     **gid_attr;
 	struct attribute_group pkey_group;
-	struct attribute     **pkey_attr;
 	u8                     port_num;
 };
 
@@ -60,8 +58,9 @@ struct port_attribute port_attr_##_name = __ATTR(_name, _mode, _show, _store)
 struct port_attribute port_attr_##_name = __ATTR_RO(_name)
 
 struct port_table_attribute {
-	struct port_attribute attr;
-	int                   index;
+	struct port_attribute	attr;
+	char			name[8];
+	int			index;
 };
 
 static ssize_t port_attr_show(struct kobject *kobj,
@@ -398,17 +397,16 @@ static void ib_port_release(struct kobject *kobj)
 	struct attribute *a;
 	int i;
 
-	for (i = 0; (a = p->gid_attr[i]); ++i) {
-		kfree(a->name);
+	for (i = 0; (a = p->gid_group.attrs[i]); ++i)
 		kfree(a);
-	}
 
-	for (i = 0; (a = p->pkey_attr[i]); ++i) {
-		kfree(a->name);
+	kfree(p->gid_group.attrs);
+
+	for (i = 0; (a = p->pkey_group.attrs[i]); ++i)
 		kfree(a);
-	}
 
-	kfree(p->gid_attr);
+	kfree(p->pkey_group.attrs);
+
 	kfree(p);
 }
 
@@ -449,58 +447,45 @@ static int ib_device_hotplug(struct class_device *cdev, char **envp,
 	return 0;
 }
 
-static int alloc_group(struct attribute ***attr,
-		       ssize_t (*show)(struct ib_port *,
-				       struct port_attribute *, char *buf),
-		       int len)
+static struct attribute **
+alloc_group_attrs(ssize_t (*show)(struct ib_port *,
+				  struct port_attribute *, char *buf),
+		  int len)
 {
-	struct port_table_attribute ***tab_attr =
-		(struct port_table_attribute ***) attr;
+	struct attribute **tab_attr;
+	struct port_table_attribute *element;
 	int i;
-	int ret;
 
-	*tab_attr = kmalloc((1 + len) * sizeof *tab_attr, GFP_KERNEL);
-	if (!*tab_attr)
-		return -ENOMEM;
+	tab_attr = kcalloc(1 + len, sizeof(struct attribute *), GFP_KERNEL);
+	if (!tab_attr)
+		return NULL;
 
-	memset(*tab_attr, 0, (1 + len) * sizeof *tab_attr);
-
-	for (i = 0; i < len; ++i) {
-		(*tab_attr)[i] = kmalloc(sizeof *(*tab_attr)[i], GFP_KERNEL);
-		if (!(*tab_attr)[i]) {
-			ret = -ENOMEM;
+	for (i = 0; i < len; i++) {
+		element = kcalloc(1, sizeof(struct port_table_attribute),
+				  GFP_KERNEL);
+		if (!element)
 			goto err;
-		}
-		memset((*tab_attr)[i], 0, sizeof *(*tab_attr)[i]);
-		(*tab_attr)[i]->attr.attr.name = kmalloc(8, GFP_KERNEL);
-		if (!(*tab_attr)[i]->attr.attr.name) {
-			ret = -ENOMEM;
-			goto err;
-		}
 
-		if (snprintf((*tab_attr)[i]->attr.attr.name, 8, "%d", i) >= 8) {
-			ret = -ENOMEM;
+		if (snprintf(element->name, sizeof(element->name),
+			     "%d", i) >= sizeof(element->name))
 			goto err;
-		}
 
-		(*tab_attr)[i]->attr.attr.mode  = S_IRUGO;
-		(*tab_attr)[i]->attr.attr.owner = THIS_MODULE;
-		(*tab_attr)[i]->attr.show       = show;
-		(*tab_attr)[i]->index           = i;
+		element->attr.attr.name  = element->name;
+		element->attr.attr.mode  = S_IRUGO;
+		element->attr.attr.owner = THIS_MODULE;
+		element->attr.show       = show;
+		element->index		 = i;
+
+		tab_attr[i] = &element->attr.attr;
 	}
 
-	return 0;
+	return tab_attr;
 
 err:
-	for (i = 0; i < len; ++i) {
-		if ((*tab_attr)[i])
-			kfree((*tab_attr)[i]->attr.attr.name);
-		kfree((*tab_attr)[i]);
-	}
-
-	kfree(*tab_attr);
-
-	return ret;
+	while (--i >= 0)
+		kfree(tab_attr[i]);
+	kfree(tab_attr);
+	return NULL;
 }
 
 static int add_port(struct ib_device *device, int port_num)
@@ -541,23 +526,20 @@ static int add_port(struct ib_device *device, int port_num)
 	if (ret)
 		goto err_put;
 
-	ret = alloc_group(&p->gid_attr, show_port_gid, attr.gid_tbl_len);
-	if (ret)
-		goto err_remove_pma;
-
 	p->gid_group.name  = "gids";
-	p->gid_group.attrs = p->gid_attr;
+	p->gid_group.attrs = alloc_group_attrs(show_port_gid, attr.gid_tbl_len);
+	if (!p->gid_group.attrs)
+		goto err_remove_pma;
 
 	ret = sysfs_create_group(&p->kobj, &p->gid_group);
 	if (ret)
 		goto err_free_gid;
 
-	ret = alloc_group(&p->pkey_attr, show_port_pkey, attr.pkey_tbl_len);
-	if (ret)
-		goto err_remove_gid;
-
 	p->pkey_group.name  = "pkeys";
-	p->pkey_group.attrs = p->pkey_attr;
+	p->pkey_group.attrs = alloc_group_attrs(show_port_pkey,
+						attr.pkey_tbl_len);
+	if (!p->pkey_group.attrs)
+		goto err_remove_gid;
 
 	ret = sysfs_create_group(&p->kobj, &p->pkey_group);
 	if (ret)
@@ -568,23 +550,19 @@ static int add_port(struct ib_device *device, int port_num)
 	return 0;
 
 err_free_pkey:
-	for (i = 0; i < attr.pkey_tbl_len; ++i) {
-		kfree(p->pkey_attr[i]->name);
-		kfree(p->pkey_attr[i]);
-	}
+	for (i = 0; i < attr.pkey_tbl_len; ++i)
+		kfree(p->pkey_group.attrs[i]);
 
-	kfree(p->pkey_attr);
+	kfree(p->pkey_group.attrs);
 
 err_remove_gid:
 	sysfs_remove_group(&p->kobj, &p->gid_group);
 
 err_free_gid:
-	for (i = 0; i < attr.gid_tbl_len; ++i) {
-		kfree(p->gid_attr[i]->name);
-		kfree(p->gid_attr[i]);
-	}
+	for (i = 0; i < attr.gid_tbl_len; ++i)
+		kfree(p->gid_group.attrs[i]);
 
-	kfree(p->gid_attr);
+	kfree(p->gid_group.attrs);
 
 err_remove_pma:
 	sysfs_remove_group(&p->kobj, &pma_group);

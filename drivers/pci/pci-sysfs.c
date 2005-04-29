@@ -339,16 +339,17 @@ pci_create_resource_files(struct pci_dev *pdev)
 		if (!pci_resource_len(pdev, i))
 			continue;
 
-		res_attr = kmalloc(sizeof(*res_attr) + 10, GFP_ATOMIC);
+		/* allocate attribute structure, piggyback attribute name */
+		res_attr = kcalloc(1, sizeof(*res_attr) + 10, GFP_ATOMIC);
 		if (res_attr) {
-			memset(res_attr, 0, sizeof(*res_attr) + 10);
+			char *res_attr_name = (char *)(res_attr + 1);
+
 			pdev->res_attr[i] = res_attr;
-			/* Allocated above after the res_attr struct */
-			res_attr->attr.name = (char *)(res_attr + 1);
-			sprintf(res_attr->attr.name, "resource%d", i);
-			res_attr->size = pci_resource_len(pdev, i);
+			sprintf(res_attr_name, "resource%d", i);
+			res_attr->attr.name = res_attr_name;
 			res_attr->attr.mode = S_IRUSR | S_IWUSR;
 			res_attr->attr.owner = THIS_MODULE;
+			res_attr->size = pci_resource_len(pdev, i);
 			res_attr->mmap = pci_mmap_resource;
 			res_attr->private = &pdev->resource[i];
 			sysfs_create_bin_file(&pdev->dev.kobj, res_attr);

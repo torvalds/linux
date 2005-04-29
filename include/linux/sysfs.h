@@ -16,13 +16,13 @@ struct kobject;
 struct module;
 
 struct attribute {
-	char			* name;
+	const char		* name;
 	struct module 		* owner;
 	mode_t			mode;
 };
 
 struct attribute_group {
-	char			* name;
+	const char		* name;
 	struct attribute	** attrs;
 };
 
