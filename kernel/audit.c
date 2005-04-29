@@ -620,7 +620,7 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx)
 	struct audit_buffer	*ab	= NULL;
 	unsigned long		flags;
 	struct timespec		t;
-	int			serial	= 0;
+	unsigned int		serial;
 
 	if (!audit_initialized)
 		return NULL;
@@ -669,8 +669,10 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx)
 		audit_get_stamp(ab->ctx, &t, &serial);
 	else
 #endif
+	{
 		t = CURRENT_TIME;
-
+		serial = 0;
+	}
 	audit_log_format(ab, "audit(%lu.%03lu:%u): ",
 			 t.tv_sec, t.tv_nsec/1000000, serial);
 	return ab;

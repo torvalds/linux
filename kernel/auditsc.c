@@ -992,7 +992,7 @@ void audit_inode(const char *name, const struct inode *inode)
 }
 
 void audit_get_stamp(struct audit_context *ctx,
-		     struct timespec *t, int *serial)
+		     struct timespec *t, unsigned int *serial)
 {
 	if (ctx) {
 		t->tv_sec  = ctx->ctime.tv_sec;
