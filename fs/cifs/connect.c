@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/connect.c
  *
- *   Copyright (C) International Business Machines  Corp., 2002,2004
+ *   Copyright (C) International Business Machines  Corp., 2002,2005
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -28,6 +28,7 @@
 #include <linux/ctype.h>
 #include <linux/utsname.h>
 #include <linux/mempool.h>
+#include <linux/delay.h>
 #include <asm/uaccess.h>
 #include <asm/processor.h>
 #include "cifspdu.h"
@@ -198,6 +199,8 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 	int length;
 	unsigned int pdu_length, total_read;
 	struct smb_hdr *smb_buffer = NULL;
+	struct smb_hdr *bigbuf = NULL;
+	struct smb_hdr *smallbuf = NULL;
 	struct msghdr smb_msg;
 	struct kvec iov;
 	struct socket *csocket = server->ssocket;
@@ -206,6 +209,7 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 	struct task_struct *task_to_wake = NULL;
 	struct mid_q_entry *mid_entry;
 	char *temp;
+	int isLargeBuf = FALSE;
 
 	daemonize("cifsd");
 	allow_signal(SIGKILL);
@@ -223,17 +227,33 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 	}
 
 	while (server->tcpStatus != CifsExiting) {
-		if (smb_buffer == NULL)
-			smb_buffer = cifs_buf_get();
-		else
-			memset(smb_buffer, 0, sizeof (struct smb_hdr));
-
-		if (smb_buffer == NULL) {
-			cERROR(1,("Can not get memory for SMB response"));
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(HZ * 3); /* give system time to free memory */
-			continue;
+		if (bigbuf == NULL) {
+			bigbuf = cifs_buf_get();
+			if(bigbuf == NULL) {
+				cERROR(1,("No memory for large SMB response"));
+				msleep(3000);
+				/* retry will check if exiting */
+				continue;
+			}
+		} else if(isLargeBuf) {
+			/* we are reusing a dirtry large buf, clear its start */
+			memset(bigbuf, 0, sizeof (struct smb_hdr));
 		}
+
+		if (smallbuf == NULL) {
+			smallbuf = cifs_small_buf_get();
+			if(smallbuf == NULL) {
+				cERROR(1,("No memory for SMB response"));
+				msleep(1000);
+				/* retry will check if exiting */
+				continue;
+			}
+			/* beginning of smb buffer is cleared in our buf_get */
+		} else /* if existing small buf clear beginning */
+			memset(smallbuf, 0, sizeof (struct smb_hdr));
+
+		isLargeBuf = FALSE;
+		smb_buffer = smallbuf;
 		iov.iov_base = smb_buffer;
 		iov.iov_len = 4;
 		smb_msg.msg_control = NULL;
@@ -251,8 +271,7 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 			csocket = server->ssocket;
 			continue;
 		} else if ((length == -ERESTARTSYS) || (length == -EAGAIN)) {
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(1); /* minimum sleep to prevent looping
+			msleep(1); /* minimum sleep to prevent looping
 				allowing socket to clear and app threads to set
 				tcpStatus CifsNeedReconnect if server hung */
 			continue;
@@ -295,8 +314,7 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 				} else {
 					/* give server a second to
 					clean up before reconnect attempt */
-					set_current_state(TASK_INTERRUPTIBLE);
-					schedule_timeout(HZ);
+					msleep(1000);
 					/* always try 445 first on reconnect
 					since we get NACK on some if we ever
 					connected to port 139 (the NACK is 
@@ -325,6 +343,11 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 					wake_up(&server->response_q);
 					continue;
 				} else { /* length ok */
+					if(pdu_length > MAX_CIFS_HDR_SIZE - 4) {
+						isLargeBuf = TRUE;
+						memcpy(bigbuf, smallbuf, 4);
+						smb_buffer = bigbuf;
+					}
 					length = 0;
 					iov.iov_base = 4 + (char *)smb_buffer;
 					iov.iov_len = pdu_length;
@@ -377,6 +400,10 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 				}
 				spin_unlock(&GlobalMid_Lock);
 				if (task_to_wake) {
+					if(isLargeBuf)
+						bigbuf = NULL;
+					else
+						smallbuf = NULL;
 					smb_buffer = NULL;	/* will be freed by users thread after he is done */
 					wake_up_process(task_to_wake);
 				} else if (is_valid_oplock_break(smb_buffer) == FALSE) {                          
@@ -406,15 +433,17 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 	and get out of SendReceive.  */
 	wake_up_all(&server->request_q);
 	/* give those requests time to exit */
-	set_current_state(TASK_INTERRUPTIBLE);
-	schedule_timeout(HZ/8);
-
+	msleep(125);
+	
 	if(server->ssocket) {
 		sock_release(csocket);
 		server->ssocket = NULL;
 	}
-	if (smb_buffer) /* buffer usually freed in free_mid - need to free it on error or exit */
-		cifs_buf_release(smb_buffer);
+	/* buffer usuallly freed in free_mid - need to free it here on exit */
+	if (bigbuf != NULL)
+		cifs_buf_release(bigbuf);
+	if (smallbuf != NULL)
+		cifs_small_buf_release(smallbuf);
 
 	read_lock(&GlobalSMBSeslock);
 	if (list_empty(&server->pending_mid_q)) {
@@ -444,17 +473,15 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 		}
 		spin_unlock(&GlobalMid_Lock);
 		read_unlock(&GlobalSMBSeslock);
-		set_current_state(TASK_INTERRUPTIBLE);
 		/* 1/8th of sec is more than enough time for them to exit */
-		schedule_timeout(HZ/8); 
+		msleep(125);
 	}
 
 	if (list_empty(&server->pending_mid_q)) {
 		/* mpx threads have not exited yet give them 
 		at least the smb send timeout time for long ops */
 		cFYI(1, ("Wait for exit from demultiplex thread"));
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(46 * HZ);	
+		msleep(46);
 		/* if threads still have not exited they are probably never
 		coming home not much else we can do but free the memory */
 	}
@@ -469,9 +496,8 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 			length + cifs_min_rcv,
 			GFP_KERNEL);
 	}
-
-	set_current_state(TASK_INTERRUPTIBLE);
-	schedule_timeout(HZ/4);
+	
+	msleep(250);
 	return 0;
 }
 

@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/transport.c
  *
- *   Copyright (C) International Business Machines  Corp., 2002,2004
+ *   Copyright (C) International Business Machines  Corp., 2002,2005
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -79,7 +79,10 @@ DeleteMidQEntry(struct mid_q_entry *midEntry)
 	list_del(&midEntry->qhead);
 	atomic_dec(&midCount);
 	spin_unlock(&GlobalMid_Lock);
-	cifs_buf_release(midEntry->resp_buf);
+	if(midEntry->largeBuf)
+		cifs_buf_release(midEntry->resp_buf);
+	else
+		cifs_small_buf_release(midEntry->resp_buf);
 	mempool_free(midEntry, cifs_mid_poolp);
 }
 

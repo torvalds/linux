@@ -1,7 +1,7 @@
 /*
  *   fs/cifs_debug.c
  *
- *   Copyright (C) International Business Machines  Corp., 2000,2003
+ *   Copyright (C) International Business Machines  Corp., 2000,2005
  *
  *   Modified by Steve French (sfrench@us.ibm.com)
  *
@@ -92,8 +92,10 @@ cifs_debug_data_read(char *buf, char **beginBuffer, off_t offset,
 		length =
 		    sprintf(buf,
 			    "\n%d) Name: %s  Domain: %s Mounts: %d ServerOS: %s  \n\tServerNOS: %s\tCapabilities: 0x%x\n\tSMB session status: %d\t",
-				i, ses->serverName, ses->serverDomain, atomic_read(&ses->inUse),
-				ses->serverOS, ses->serverNOS, ses->capabilities,ses->status);
+				i, ses->serverName, ses->serverDomain,
+				atomic_read(&ses->inUse),
+				ses->serverOS, ses->serverNOS,
+				ses->capabilities,ses->status);
 		buf += length;
 		if(ses->server) {
 			buf += sprintf(buf, "TCP status: %d\n\tLocal Users To Server: %d SecMode: 0x%x Req Active: %d",
@@ -207,7 +209,8 @@ cifs_stats_read(char *buf, char **beginBuffer, off_t offset,
 	buf += item_length;      
 	item_length = 
 		sprintf(buf,"SMB Request/Response Buffer: %d Pool size: %d\n",
-			bufAllocCount.counter,cifs_min_rcv + tcpSesAllocCount.counter);
+			bufAllocCount.counter,
+			cifs_min_rcv + tcpSesAllocCount.counter);
 	length += item_length;
 	buf += item_length;
 	item_length = 
