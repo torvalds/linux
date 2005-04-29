@@ -1977,8 +1977,8 @@ ixgb_alloc_rx_buffers(struct ixgb_adapter *adapter)
 
 	num_group_tail_writes = IXGB_RX_BUFFER_WRITE;
 
-	/* leave one descriptor unused */
-	while(--cleancount > 0) {
+	/* leave three descriptors unused */
+	while(--cleancount > 2) {
 		rx_desc = IXGB_RX_DESC(*rx_ring, i);
 
 		skb = dev_alloc_skb(adapter->rx_buffer_len + NET_IP_ALIGN);
@@ -2005,6 +2005,10 @@ ixgb_alloc_rx_buffers(struct ixgb_adapter *adapter)
 				   PCI_DMA_FROMDEVICE);
 
 		rx_desc->buff_addr = cpu_to_le64(buffer_info->dma);
+		/* guarantee DD bit not set now before h/w gets descriptor
+		 * this is the rest of the workaround for h/w double 
+		 * writeback. */
+		rx_desc->status = 0;
 
 		if((i & ~(num_group_tail_writes- 1)) == i) {
 			/* Force memory writes to complete before letting h/w
