@@ -313,12 +313,12 @@ struct mid_q_entry {
 	__u16 mid;		/* multiplex id */
 	__u16 pid;		/* process id */
 	__u32 sequence_number;  /* for CIFS signing */
-	__u16 command;		/* smb command code */
 	struct timeval when_sent;	/* time when smb sent */
 	struct cifsSesInfo *ses;	/* smb was sent to this server */
 	struct task_struct *tsk;	/* task waiting for response */
 	struct smb_hdr *resp_buf;	/* response buffer */
 	int midState;	/* wish this were enum but can not pass to wait_event */
+	__u8 command;		/* smb command code */
 };
 
 struct oplock_q_entry {

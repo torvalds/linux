@@ -189,7 +189,6 @@ smb_sendv(struct socket *ssocket, struct smb_hdr *smb_buffer,
 	struct msghdr smb_msg;
 	number_of_pages += 1; /* account for SMB header */
 	struct kvec * piov  = kmalloc(number_of_pages * sizeof(struct kvec));
-	if(i=0;i<num_pages-1;i++
 	unsigned len = smb_buf_length + 4;
 
 	if(ssocket == NULL)

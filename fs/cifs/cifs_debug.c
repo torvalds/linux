@@ -111,7 +111,12 @@ cifs_debug_data_read(char *buf, char **beginBuffer, off_t offset,
 					mid_q_entry,
 					qhead);
 				if(mid_entry) {
-					length = sprintf(buf,"State: %d com: %d pid: %d tsk: %p mid %d\n",mid_entry->midState,mid_entry->command,mid_entry->pid,mid_entry->tsk,mid_entry->mid);
+					length = sprintf(buf,"State: %d com: %d pid: %d tsk: %p mid %d\n",
+						mid_entry->midState,
+						(int)mid_entry->command,
+						mid_entry->pid,
+						mid_entry->tsk,
+						mid_entry->mid);
 					buf += length;
 				}
 			}

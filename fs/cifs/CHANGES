@@ -10,6 +10,8 @@ different users from the same client to the same server. Fix oops in
 cifs_close. Add mount option for remapping reserved characters in
 filenames (also allow recognizing files with created by SFU which have any
 of these seven reserved characters, except backslash, to be recognized).
+Fix invalid transact2 message (we were sometimes trying to interpret
+oplock breaks as SMB responses).
 
 Version 1.31
 ------------
