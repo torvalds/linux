@@ -323,6 +323,7 @@ static int initiate_cifs_search(const int xid, struct file *file)
 
 	cFYI(1, ("Full path: %s start at: %lld ", full_path, file->f_pos));
 
+ffirst_retry:
 	/* test for Unix extensions */
 	if (pTcon->ses->capabilities & CAP_UNIX) {
 		cifsFile->srch_inf.info_level = SMB_FIND_FILE_UNIX; 
@@ -336,6 +337,11 @@ static int initiate_cifs_search(const int xid, struct file *file)
 		&cifsFile->netfid, &cifsFile->srch_inf); 
 	if(rc == 0)
 		cifsFile->invalidHandle = FALSE;
+	if((rc == -EOPNOTSUPP) && 
+		(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM)) {
+		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_SERVER_INUM;
+		goto ffirst_retry;
+	}
 	kfree(full_path);
 	return rc;
 }
