@@ -464,7 +464,7 @@ CIFSSMBTDis(const int xid, struct cifsTconInfo *tcon)
 	rc = SendReceive(xid, tcon->ses, smb_buffer, smb_buffer_response,
 			 &length, 0);
 	if (rc)
-		cFYI(1, (" Tree disconnect failed %d", rc));
+		cFYI(1, ("Tree disconnect failed %d", rc));
 
 	if (smb_buffer)
 		cifs_small_buf_release(smb_buffer);

@@ -1,3 +1,11 @@
+Version 1.33
+------------
+Fix caching problem, in which readdir of directory containing a file
+which was cached could cause the file's time stamp to be updated
+without invalidating the readahead data (so we could get stale
+file data on the client for that file even as the server copy changed).
+
+
 Version 1.32
 ------------
 Fix oops in ls when Transact2 FindFirst (or FindNext) returns more than one

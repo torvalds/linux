@@ -3,7 +3,7 @@
  *
  *   Directory search handling
  * 
- *   Copyright (C) International Business Machines  Corp., 2004
+ *   Copyright (C) International Business Machines  Corp., 2004, 2005
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -65,14 +65,14 @@ static int construct_dentry(struct qstr *qstring, struct file *file,
 	struct cifsTconInfo *pTcon;
 	int rc = 0;
 
-	cFYI(1, ("For %s ", qstring->name));
+	cFYI(1, ("For %s", qstring->name));
 	cifs_sb = CIFS_SB(file->f_dentry->d_sb);
 	pTcon = cifs_sb->tcon;
 
 	qstring->hash = full_name_hash(qstring->name, qstring->len);
 	tmp_dentry = d_lookup(file->f_dentry, qstring);
 	if (tmp_dentry) {
-		cFYI(0, (" existing dentry with inode 0x%p", tmp_dentry->d_inode));
+		cFYI(0, ("existing dentry with inode 0x%p", tmp_dentry->d_inode));
 		*ptmp_inode = tmp_dentry->d_inode;
 /* BB overwrite old name? i.e. tmp_dentry->d_name and tmp_dentry->d_name.len??*/
 		if(*ptmp_inode == NULL) {
@@ -105,8 +105,11 @@ static int construct_dentry(struct qstr *qstring, struct file *file,
 }
 
 static void fill_in_inode(struct inode *tmp_inode,
-	FILE_DIRECTORY_INFO *pfindData, int *pobject_type)
+	FILE_DIRECTORY_INFO *pfindData, int *pobject_type, int isNewInode)
 {
+	loff_t local_size;
+	struct timespec local_mtime;
+
 	struct cifsInodeInfo *cifsInfo = CIFS_I(tmp_inode);
 	struct cifs_sb_info *cifs_sb = CIFS_SB(tmp_inode->i_sb);
 	__u32 attr = le32_to_cpu(pfindData->ExtFileAttributes);
@@ -115,6 +118,10 @@ static void fill_in_inode(struct inode *tmp_inode,
 
 	cifsInfo->cifsAttrs = attr;
 	cifsInfo->time = jiffies;
+
+	/* save mtime and size */
+	local_mtime = tmp_inode->i_mtime;
+	local_size  = tmp_inode->i_size;
 
 	/* Linux can not store file creation time unfortunately so ignore it */
 	tmp_inode->i_atime =
@@ -134,7 +141,6 @@ static void fill_in_inode(struct inode *tmp_inode,
 		tmp_inode->i_mode = cifs_sb->mnt_file_mode;
 	}
 
-	cFYI(0,("CIFS FFIRST: Attributes came in as 0x%x",attr));
 	if (attr & ATTR_DIRECTORY) {
 		*pobject_type = DT_DIR;
 		/* override default perms since we do not lock dirs */
@@ -175,30 +181,46 @@ static void fill_in_inode(struct inode *tmp_inode,
 	      (unsigned long)tmp_inode->i_size, tmp_inode->i_blocks,
 	      tmp_inode->i_blksize));
 	if (S_ISREG(tmp_inode->i_mode)) {
-		cFYI(1, (" File inode "));
+		cFYI(1, ("File inode"));
 		tmp_inode->i_op = &cifs_file_inode_ops;
 		if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DIRECT_IO)
 			tmp_inode->i_fop = &cifs_file_direct_ops;
 		else
 			tmp_inode->i_fop = &cifs_file_ops;
 		tmp_inode->i_data.a_ops = &cifs_addr_ops;
+
+		if(isNewInode)
+			return; /* No sense invalidating pages for new inode since we
+					   have not started caching readahead file data yet */
+
+		if (timespec_equal(&tmp_inode->i_mtime, &local_mtime) &&
+			(local_size == tmp_inode->i_size)) {
+			cFYI(1, ("inode exists but unchanged"));
+		} else {
+			/* file may have changed on server */
+			cFYI(1, ("invalidate inode, readdir detected change"));
+			invalidate_remote_inode(tmp_inode);
+		}
 	} else if (S_ISDIR(tmp_inode->i_mode)) {
-		cFYI(1, (" Directory inode"));
+		cFYI(1, ("Directory inode"));
 		tmp_inode->i_op = &cifs_dir_inode_ops;
 		tmp_inode->i_fop = &cifs_dir_ops;
 	} else if (S_ISLNK(tmp_inode->i_mode)) {
-		cFYI(1, (" Symbolic Link inode "));
+		cFYI(1, ("Symbolic Link inode"));
 		tmp_inode->i_op = &cifs_symlink_inode_ops;
 	} else {
-		cFYI(1, (" Init special inode "));
+		cFYI(1, ("Init special inode"));
 		init_special_inode(tmp_inode, tmp_inode->i_mode,
 				   tmp_inode->i_rdev);
 	}
 }
 
 static void unix_fill_in_inode(struct inode *tmp_inode,
-	FILE_UNIX_INFO *pfindData, int *pobject_type)
+	FILE_UNIX_INFO *pfindData, int *pobject_type, int isNewInode)
 {
+	loff_t local_size;
+	struct timespec local_mtime;
+
 	struct cifsInodeInfo *cifsInfo = CIFS_I(tmp_inode);
 	struct cifs_sb_info *cifs_sb = CIFS_SB(tmp_inode->i_sb);
 
@@ -207,6 +229,10 @@ static void unix_fill_in_inode(struct inode *tmp_inode,
 	__u64 end_of_file = le64_to_cpu(pfindData->EndOfFile);
 	cifsInfo->time = jiffies;
 	atomic_inc(&cifsInfo->inUse);
+
+	/* save mtime and size */
+	local_mtime = tmp_inode->i_mtime;
+	local_size  = tmp_inode->i_size;
 
 	tmp_inode->i_atime =
 	    cifs_NTtimeToUnix(le64_to_cpu(pfindData->LastAccessTime));
@@ -265,6 +291,19 @@ static void unix_fill_in_inode(struct inode *tmp_inode,
 		else
 			tmp_inode->i_fop = &cifs_file_ops;
 		tmp_inode->i_data.a_ops = &cifs_addr_ops;
+
+		if(isNewInode)
+			return; /* No sense invalidating pages for new inode since we
+					   have not started caching readahead file data yet */
+
+		if (timespec_equal(&tmp_inode->i_mtime, &local_mtime) &&
+			(local_size == tmp_inode->i_size)) {
+			cFYI(1, ("inode exists but unchanged"));
+		} else {
+			/* file may have changed on server */
+			cFYI(1, ("invalidate inode, readdir detected change"));
+			invalidate_remote_inode(tmp_inode);
+		}
 	} else if (S_ISDIR(tmp_inode->i_mode)) {
 		cFYI(1, ("Directory inode"));
 		tmp_inode->i_op = &cifs_dir_inode_ops;
@@ -321,7 +360,7 @@ static int initiate_cifs_search(const int xid, struct file *file)
 		return -ENOMEM;
 	}
 
-	cFYI(1, ("Full path: %s start at: %lld ", full_path, file->f_pos));
+	cFYI(1, ("Full path: %s start at: %lld", full_path, file->f_pos));
 
 ffirst_retry:
 	/* test for Unix extensions */
@@ -666,10 +705,15 @@ static int cifs_filldir(char *pfindEntry, struct file *file,
 		insert_inode_hash(tmp_inode);
 	}
 
+	/* we pass in rc below, indicating whether it is a new inode,
+	   so we can figure out whether to invalidate the inode cached
+	   data if the file has changed */
 	if(pCifsF->srch_inf.info_level == SMB_FIND_FILE_UNIX) {
-		unix_fill_in_inode(tmp_inode,(FILE_UNIX_INFO *)pfindEntry,&obj_type);
+		unix_fill_in_inode(tmp_inode,
+				   (FILE_UNIX_INFO *)pfindEntry,&obj_type, rc);
 	} else {
-		fill_in_inode(tmp_inode,(FILE_DIRECTORY_INFO *)pfindEntry,&obj_type);
+		fill_in_inode(tmp_inode,
+			      (FILE_DIRECTORY_INFO *)pfindEntry,&obj_type, rc);
 	}
 	
 	rc = filldir(direntry,qstring.name,qstring.len,file->f_pos,tmp_inode->i_ino,obj_type);
