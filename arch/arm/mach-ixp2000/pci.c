@@ -215,8 +215,8 @@ static struct resource ixp2000_pci_mem_space = {
 };
 
 static struct resource ixp2000_pci_io_space = {
-	.start	= 0x00000000,
-	.end	= 0xffffffff,
+	.start	= 0x00010000,
+	.end	= 0x0001ffff,
 	.flags	= IORESOURCE_IO,
 	.name	= "PCI I/O Space"
 };
