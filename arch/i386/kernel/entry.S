@@ -260,11 +260,9 @@ restore_nocheck:
 .section .fixup,"ax"
 iret_exc:
 	sti
-	movl $__USER_DS, %edx
-	movl %edx, %ds
-	movl %edx, %es
-	movl $11,%eax
-	call do_exit
+	pushl $0			# no error code
+	pushl $do_iret_error
+	jmp error_code
 .previous
 .section __ex_table,"a"
 	.align 4
