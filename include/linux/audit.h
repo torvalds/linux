@@ -174,11 +174,15 @@ extern void		    audit_log_format(struct audit_buffer *ab,
 					     const char *fmt, ...)
 			    __attribute__((format(printf,2,3)));
 extern void		    audit_log_end(struct audit_buffer *ab);
+extern void		    audit_log_hex(struct audit_buffer *ab,
+					  const unsigned char *buf,
+					  size_t len);
+extern void		    audit_log_untrustedstring(struct audit_buffer *ab,
+						      const char *string);
 extern void		    audit_log_d_path(struct audit_buffer *ab,
 					     const char *prefix,
 					     struct dentry *dentry,
 					     struct vfsmount *vfsmnt);
-
 				/* Private API (for auditsc.c only) */
 extern void		    audit_send_reply(int pid, int seq, int type,
 					     int done, int multi,
@@ -190,6 +194,8 @@ extern void		    audit_log_lost(const char *message);
 #define audit_log_vformat(b,f,a) do { ; } while (0)
 #define audit_log_format(b,f,...) do { ; } while (0)
 #define audit_log_end(b) do { ; } while (0)
+#define audit_log_hex(a,b,l) do { ; } while (0)
+#define audit_log_untrustedstring(a,s) do { ; } while (0)
 #define audit_log_d_path(b,p,d,v) do { ; } while (0)
 #endif
 #endif

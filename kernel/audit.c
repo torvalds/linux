@@ -720,6 +720,29 @@ void audit_log_format(struct audit_buffer *ab, const char *fmt, ...)
 	va_end(args);
 }
 
+void audit_log_hex(struct audit_buffer *ab, const unsigned char *buf, size_t len)
+{
+	int i;
+
+	for (i=0; i<len; i++)
+		audit_log_format(ab, "%02x", buf[i]);
+}
+
+void audit_log_untrustedstring(struct audit_buffer *ab, const char *string)
+{
+	const char *p = string;
+
+	while (*p) {
+		if (*p == '"' || *p == ' ' || *p < 0x20 || *p > 0x7f) {
+			audit_log_hex(ab, string, strlen(string));
+			return;
+		}
+		p++;
+	}
+	audit_log_format(ab, "\"%s\"", string);
+}
+
+
 /* This is a helper-function to print the d_path without using a static
  * buffer or allocating another buffer in addition to the one in
  * audit_buffer. */

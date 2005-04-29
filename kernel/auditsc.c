@@ -696,9 +696,10 @@ static void audit_log_exit(struct audit_context *context)
 		if (!ab)
 			continue; /* audit_panic has been called */
 		audit_log_format(ab, "item=%d", i);
-		if (context->names[i].name)
-			audit_log_format(ab, " name=%s",
-					 context->names[i].name);
+		if (context->names[i].name) {
+			audit_log_format(ab, " name=");
+			audit_log_untrustedstring(ab, context->names[i].name);
+		}
 		if (context->names[i].ino != (unsigned long)-1)
 			audit_log_format(ab, " inode=%lu dev=%02x:%02x mode=%#o"
 					     " uid=%d gid=%d rdev=%02x:%02x",
