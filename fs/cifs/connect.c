@@ -384,7 +384,7 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 		if(server->tcpStatus == CifsExiting) {
 			break;
 		} else if (server->tcpStatus == CifsNeedReconnect) {
-			cFYI(1,("Reconnecting after server stopped responding"));
+			cFYI(1,("Reconnect after server stopped responding"));
 			cifs_reconnect(server);
 			cFYI(1,("call to reconnect done"));
 			csocket = server->ssocket;
@@ -396,7 +396,7 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 			continue;
 		} else if (length <= 0) {
 			if(server->tcpStatus == CifsNew) {
-				cFYI(1,("tcp session abended prematurely (after SMBnegprot)"));
+				cFYI(1,("tcp session abend after SMBnegprot"));
 				/* some servers kill the TCP session rather than
 				   returning an SMB negprot error, in which
 				   case reconnecting here is not going to help,
@@ -407,14 +407,15 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 				cFYI(1,("cifsd thread killed"));
 				break;
 			}
-			cFYI(1,("Reconnecting after unexpected peek error %d",length));
+			cFYI(1,("Reconnect after unexpected peek error %d",
+				length));
 			cifs_reconnect(server);
 			csocket = server->ssocket;
 			wake_up(&server->response_q);
 			continue;
 		} else if (length < 4) {
 			cFYI(1,
-			    ("Frame less than four bytes received  %d bytes long.",
+			    ("Frame under four bytes received (%d bytes long)",
 			      length));
 			cifs_reconnect(server);
 			csocket = server->ssocket;
@@ -593,7 +594,7 @@ multi_t2_fnd:
 					smallbuf = NULL;
 			}
 			wake_up_process(task_to_wake);
-		} else if ((is_valid_oplock_break(smb_buffer) == FALSE) 
+		} else if ((is_valid_oplock_break(smb_buffer) == FALSE)
 		    && (isMultiRsp == FALSE)) {                          
 			cERROR(1, ("No task to wake, unknown frame rcvd!"));
 			cifs_dump_mem("Received Data is: ",temp,sizeof(struct smb_hdr));

@@ -835,6 +835,7 @@ static int cifs_oplock_thread(void * dummyarg)
 		}
 	} while(!signal_pending(current));
 	complete_and_exit (&cifs_oplock_exited, 0);
+	oplockThread = NULL;
 }
 
 static int __init

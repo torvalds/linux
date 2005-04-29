@@ -1,6 +1,7 @@
 Version 1.34
 ------------
 Fix error mapping of the TOO_MANY_LINKS (hardlinks) case.
+Do not oops if user kills cifs oplock kernel thread.
 
 Version 1.33
 ------------

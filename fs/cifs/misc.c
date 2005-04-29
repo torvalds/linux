@@ -452,25 +452,30 @@ is_valid_oplock_break(struct smb_hdr *buf)
 			atomic_inc(&tcon->num_oplock_brks);
 #endif
 			list_for_each(tmp1,&tcon->openFileList){
-				netfile = list_entry(tmp1,struct cifsFileInfo,tlist);
+				netfile = list_entry(tmp1,struct cifsFileInfo,
+						     tlist);
 				if(pSMB->Fid == netfile->netfid) {
 					struct cifsInodeInfo *pCifsInode;
 					read_unlock(&GlobalSMBSeslock);
-					cFYI(1,("Matching file id, processing oplock break"));
+					cFYI(1,("file id match, oplock break"));
 					pCifsInode = 
 						CIFS_I(netfile->pInode);
 					pCifsInode->clientCanCacheAll = FALSE;
 					if(pSMB->OplockLevel == 0)
-						pCifsInode->clientCanCacheRead = FALSE;
+						pCifsInode->clientCanCacheRead
+							= FALSE;
 					pCifsInode->oplockPending = TRUE;
-					AllocOplockQEntry(netfile->pInode, netfile->netfid, tcon);
+					AllocOplockQEntry(netfile->pInode,
+							  netfile->netfid,
+							  tcon);
 					cFYI(1,("about to wake up oplock thd"));
-					wake_up_process(oplockThread);               
+					if(oplockThread)
+					    wake_up_process(oplockThread);
 					return TRUE;
 				}
 			}
 			read_unlock(&GlobalSMBSeslock);
-			cFYI(1,("No matching file for oplock break on connection"));
+			cFYI(1,("No matching file for oplock break"));
 			return TRUE;
 		}
 	}
@@ -491,7 +496,7 @@ dump_smb(struct smb_hdr *smb_buf, int smb_buf_length)
 
 	buffer = (unsigned char *) smb_buf;
 	for (i = 0, j = 0; i < smb_buf_length; i++, j++) {
-		if (i % 8 == 0) {	/* we have reached the beginning of line  */
+		if (i % 8 == 0) {	/* have reached the beginning of line */
 			printk(KERN_DEBUG "| ");
 			j = 0;
 		}
@@ -502,7 +507,7 @@ dump_smb(struct smb_hdr *smb_buf, int smb_buf_length)
 		else
 			debug_line[1 + (2 * j)] = '_';
 
-		if (i % 8 == 7) {	/* we have reached end of line, time to print ascii */
+		if (i % 8 == 7) { /* reached end of line, time to print ascii */
 			debug_line[16] = 0;
 			printk(" | %s\n", debug_line);
 		}
@@ -577,7 +582,7 @@ cifs_convertUCSpath(char *target, const __le16 * source, int maxlen,
 				}
 		}
 		j++;
-		/* check to make sure we do not overrun callers allocated temp buffer */
+		/* make sure we do not overrun callers allocated temp buffer */
 		if(j >= (2 * NAME_MAX))
 			break;
 	}
@@ -599,7 +604,7 @@ cifsConvertToUCS(__le16 * target, const char *source, int maxlen,
 	char src_char;
 
 	if(!mapChars) 
-		return cifs_strtoUCS((wchar_t *) target, source, PATH_MAX, cp);	
+		return cifs_strtoUCS((wchar_t *) target, source, PATH_MAX, cp);
 
 	for(i = 0, j = 0; i < maxlen; j++) {
 		src_char = source[i];
