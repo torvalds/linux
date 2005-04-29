@@ -1023,10 +1023,12 @@ CIFSSMBLock(const int xid, struct cifsTconInfo *tcon,
 	__u16 count;
 
 	cFYI(1, ("In CIFSSMBLock - timeout %d numLock %d",waitFlag,numLock));
-	rc = smb_init(SMB_COM_LOCKING_ANDX, 8, tcon, (void **) &pSMB,
-		      (void **) &pSMBr);
+	rc = small_smb_init(SMB_COM_LOCKING_ANDX, 8, tcon, (void **) &pSMB);
+
 	if (rc)
 		return rc;
+
+	pSMBr = (LOCK_RSP *)pSMB; /* BB removeme BB */
 
 	if(lockType == LOCKING_ANDX_OPLOCK_RELEASE) {
 		timeout = -1; /* no response expected */
@@ -1065,7 +1067,7 @@ CIFSSMBLock(const int xid, struct cifsTconInfo *tcon,
 	if (rc) {
 		cFYI(1, ("Send error in Lock = %d", rc));
 	}
-	cifs_buf_release(pSMB);
+	cifs_small_buf_release(pSMB);
 
 	/* Note: On -EAGAIN error only caller can retry on handle based calls 
 	since file handle passed in no longer valid */

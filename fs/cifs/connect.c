@@ -294,154 +294,7 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 			csocket = server->ssocket;
 			wake_up(&server->response_q);
 			continue;
-		} else if (length > 3) {
-			pdu_length = ntohl(smb_buffer->smb_buf_length);
-		/* Only read pdu_length after below checks for too short (due
-		   to e.g. int overflow) and too long ie beyond end of buf */
-			cFYI(1,("rfc1002 length(big endian)0x%x)",
-				pdu_length+4));
-
-			temp = (char *) smb_buffer;
-			if (temp[0] == (char) RFC1002_SESSION_KEEP_ALIVE) {
-				cFYI(0,("Received 4 byte keep alive packet"));
-			} else if (temp[0] == 
-				(char) RFC1002_POSITIVE_SESSION_RESPONSE) {
-					cFYI(1,("Good RFC 1002 session rsp"));
-			} else if (temp[0] == 
-				(char)RFC1002_NEGATIVE_SESSION_RESPONSE) {
-				/* we get this from Windows 98 instead of 
-				   an error on SMB negprot response */
-				cFYI(1,("Negative RFC 1002 Session Response Error 0x%x)",temp[4]));
-				if(server->tcpStatus == CifsNew) {
-					/* if nack on negprot (rather than 
-					ret of smb negprot error) reconnecting
-					not going to help, ret error to mount */
-					break;
-				} else {
-					/* give server a second to
-					clean up before reconnect attempt */
-					msleep(1000);
-					/* always try 445 first on reconnect
-					since we get NACK on some if we ever
-					connected to port 139 (the NACK is 
-					since we do not begin with RFC1001
-					session initialize frame) */
-					server->addr.sockAddr.sin_port = 
-						htons(CIFS_PORT);
-					cifs_reconnect(server);
-					csocket = server->ssocket;
-					wake_up(&server->response_q);
-					continue;
-				}
-			} else if (temp[0] != (char) 0) {
-				cERROR(1,("Unknown RFC 1002 frame"));
-				cifs_dump_mem(" Received Data: ", temp, length);
-				cifs_reconnect(server);
-				csocket = server->ssocket;
-				continue;
-			} else {
-				if((pdu_length > CIFSMaxBufSize + 
-					MAX_CIFS_HDR_SIZE - 4) ||
-				    (pdu_length < sizeof (struct smb_hdr) - 1 - 4)) {
-					cERROR(1,
-					    ("Invalid size SMB length %d and pdu_length %d",
-						length, pdu_length+4));
-					cifs_reconnect(server);
-					csocket = server->ssocket;
-					wake_up(&server->response_q);
-					continue;
-				} else { /* length ok */
-					if(pdu_length > MAX_CIFS_HDR_SIZE - 4) {
-						isLargeBuf = TRUE;
-						memcpy(bigbuf, smallbuf, 4);
-						smb_buffer = bigbuf;
-					}
-					length = 0;
-					iov.iov_base = 4 + (char *)smb_buffer;
-					iov.iov_len = pdu_length;
-					for (total_read = 0;
-					     total_read < pdu_length;
-					     total_read += length) {
-						length = kernel_recvmsg(csocket, &smb_msg,
-							&iov, 1,
-							pdu_length - total_read, 0);
-						if((server->tcpStatus == CifsExiting) ||
-						    (length == -EINTR)) {
-							/* then will exit */
-							goto dmx_loop_end;
-						} else if (server->tcpStatus ==
-							    CifsNeedReconnect) {
-							cifs_reconnect(server);
-							csocket = server->ssocket;
-						/* Reconnect wakes up rspns q */
-						/* Now we will reread sock */
-							goto dmx_loop_end;
-						} else if ((length == -ERESTARTSYS) || 
-							   (length == -EAGAIN)) {
-							msleep(1); /* minimum sleep to prevent looping
-                                                                allowing socket to clear and app threads to set
-                                                                tcpStatus CifsNeedReconnect if server hung */
-							continue;
-						} else if (length <= 0) {
-							cERROR(1,
-							       ("Received no data, expecting %d",
-								pdu_length - total_read));
-							cifs_reconnect(server);
-							csocket = server->ssocket;
-							goto dmx_loop_end;
-						}
-					}
-					length += 4; /* account for rfc1002 hdr */
-				}
-
-				dump_smb(smb_buffer, length);
-				if (checkSMB
-				    (smb_buffer, smb_buffer->Mid, total_read+4)) {
-					cERROR(1, ("Bad SMB Received "));
-					continue;
-				}
-
-				/* BB FIXME - add checkTrans2SMBSecondary() */
-
-				task_to_wake = NULL;
-				spin_lock(&GlobalMid_Lock);
-				list_for_each(tmp, &server->pending_mid_q) {
-					mid_entry = list_entry(tmp, struct
-							       mid_q_entry,
-							       qhead);
-
-					if ((mid_entry->mid == smb_buffer->Mid)
-						&& (mid_entry->midState == 
-							MID_REQUEST_SUBMITTED) 
-						&& (mid_entry->command == 
-							smb_buffer->Command)) {
-						cFYI(1,("Found Mid 0x%x wake up"
-							,mid_entry->mid));
-						task_to_wake = mid_entry->tsk;
-						mid_entry->resp_buf =
-						    smb_buffer;
-						mid_entry->midState =
-						    MID_RESPONSE_RECEIVED;
-						if(isLargeBuf)
-							mid_entry->largeBuf = 1;
-						else
-							mid_entry->largeBuf = 0;
-					}
-				}
-				spin_unlock(&GlobalMid_Lock);
-				if (task_to_wake) {
-					if(isLargeBuf)
-						bigbuf = NULL;
-					else
-						smallbuf = NULL;
-					smb_buffer = NULL; /* will be freed by users thread after he is done */
-					wake_up_process(task_to_wake);
-				} else if (is_valid_oplock_break(smb_buffer) == FALSE) {                          
-					cERROR(1, ("No task to wake, unknown frame rcvd!"));
-					cifs_dump_mem("Received Data is: ",temp,sizeof(struct smb_hdr));
-				}
-			}
-		} else {
+		} else if (length < 4) {
 			cFYI(1,
 			    ("Frame less than four bytes received  %d bytes long.",
 			      length));
@@ -450,9 +303,159 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 			wake_up(&server->response_q);
 			continue;
 		}
-dmx_loop_end:
-		cFYI(1,("Exiting cifsd loop"));
 
+		/* the right amount was read from socket - 4 bytes */
+
+		pdu_length = ntohl(smb_buffer->smb_buf_length);
+		cFYI(1,("rfc1002 length(big endian)0x%x)", pdu_length+4));
+
+		temp = (char *) smb_buffer;
+		if (temp[0] == (char) RFC1002_SESSION_KEEP_ALIVE) {
+			cFYI(0,("Received 4 byte keep alive packet"));
+		} else if (temp[0] == (char)RFC1002_POSITIVE_SESSION_RESPONSE) {
+				cFYI(1,("Good RFC 1002 session rsp"));
+		} else if (temp[0] == (char)RFC1002_NEGATIVE_SESSION_RESPONSE) {
+			/* we get this from Windows 98 instead of 
+			   an error on SMB negprot response */
+			cFYI(1,("Negative RFC 1002 Session Response Error 0x%x)",temp[4]));
+			if(server->tcpStatus == CifsNew) {
+				/* if nack on negprot (rather than 
+				ret of smb negprot error) reconnecting
+				not going to help, ret error to mount */
+				break;
+			} else {
+				/* give server a second to
+				clean up before reconnect attempt */
+				msleep(1000);
+				/* always try 445 first on reconnect
+				since we get NACK on some if we ever
+				connected to port 139 (the NACK is 
+				since we do not begin with RFC1001
+				session initialize frame) */
+				server->addr.sockAddr.sin_port = 
+					htons(CIFS_PORT);
+				cifs_reconnect(server);
+				csocket = server->ssocket;
+				wake_up(&server->response_q);
+				continue;
+			}
+		} else if (temp[0] != (char) 0) {
+			cERROR(1,("Unknown RFC 1002 frame"));
+			cifs_dump_mem(" Received Data: ", temp, length);
+			cifs_reconnect(server);
+			csocket = server->ssocket;
+			continue;
+		} else { /* we have an SMB response */
+			if((pdu_length > CIFSMaxBufSize + 
+				MAX_CIFS_HDR_SIZE - 4) ||
+			    (pdu_length < sizeof (struct smb_hdr) - 1 - 4)) {
+				cERROR(1,
+				    ("Invalid size SMB length %d and pdu_length %d",
+					length, pdu_length+4));
+				cifs_reconnect(server);
+				csocket = server->ssocket;
+				wake_up(&server->response_q);
+				continue;
+			} else { /* length ok */
+				int reconnect = 0;
+
+				if(pdu_length > MAX_CIFS_HDR_SIZE - 4) {
+					isLargeBuf = TRUE;
+					memcpy(bigbuf, smallbuf, 4);
+					smb_buffer = bigbuf;
+				}
+				length = 0;
+				iov.iov_base = 4 + (char *)smb_buffer;
+				iov.iov_len = pdu_length;
+				for (total_read = 0;
+				     total_read < pdu_length;
+				     total_read += length) {
+					length = kernel_recvmsg(csocket, &smb_msg,
+						&iov, 1,
+						pdu_length - total_read, 0);
+					if((server->tcpStatus == CifsExiting) ||
+					    (length == -EINTR)) {
+						/* then will exit */
+						reconnect = 2;
+						break;
+					} else if (server->tcpStatus ==
+						    CifsNeedReconnect) {
+						cifs_reconnect(server);
+						csocket = server->ssocket;
+					        /* Reconnect wakes up rspns q */
+						/* Now we will reread sock */
+						reconnect = 1;
+						break;
+					} else if ((length == -ERESTARTSYS) || 
+						   (length == -EAGAIN)) {
+						msleep(1); /* minimum sleep to prevent looping
+                                                              allowing socket to clear and app threads to set
+                                                              tcpStatus CifsNeedReconnect if server hung */
+						continue;
+					} else if (length <= 0) {
+						cERROR(1,("Received no data, expecting %d",
+						      pdu_length - total_read));
+						cifs_reconnect(server);
+						csocket = server->ssocket;
+						reconnect = 1;
+						break;
+					}
+				}
+				if(reconnect == 2)
+				    break;
+				else if(reconnect == 1)
+				    continue;
+
+				length += 4; /* account for rfc1002 hdr */
+			}
+
+			dump_smb(smb_buffer, length);
+			if (checkSMB
+			    (smb_buffer, smb_buffer->Mid, total_read+4)) {
+				cERROR(1, ("Bad SMB Received "));
+				continue;
+			}
+
+
+			task_to_wake = NULL;
+			spin_lock(&GlobalMid_Lock);
+			list_for_each(tmp, &server->pending_mid_q) {
+				mid_entry = list_entry(tmp, struct mid_q_entry,
+							qhead);
+
+				if ((mid_entry->mid == smb_buffer->Mid)
+					&& (mid_entry->midState == 
+						MID_REQUEST_SUBMITTED) 
+					&& (mid_entry->command == 
+						smb_buffer->Command)) {
+					cFYI(1,("Found Mid 0x%x wake up"
+						,mid_entry->mid));
+					/* BB FIXME - missing code here BB */
+					/* check_2nd_t2(smb_buffer); */
+					task_to_wake = mid_entry->tsk;
+					mid_entry->resp_buf =
+					    smb_buffer;
+					mid_entry->midState =
+					    MID_RESPONSE_RECEIVED;
+					if(isLargeBuf)
+						mid_entry->largeBuf = 1;
+					else
+						mid_entry->largeBuf = 0;
+				}
+			}
+			spin_unlock(&GlobalMid_Lock);
+			if (task_to_wake) {
+				if(isLargeBuf)
+					bigbuf = NULL;
+				else
+					smallbuf = NULL;
+				smb_buffer = NULL; /* will be freed by users thread after he is done */
+				wake_up_process(task_to_wake);
+			} else if (is_valid_oplock_break(smb_buffer) == FALSE) {                          
+				cERROR(1, ("No task to wake, unknown frame rcvd!"));
+				cifs_dump_mem("Received Data is: ",temp,sizeof(struct smb_hdr));
+			}
+		}
 	}
 	spin_lock(&GlobalMid_Lock);
 	server->tcpStatus = CifsExiting;
