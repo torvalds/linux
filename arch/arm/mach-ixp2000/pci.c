@@ -37,7 +37,7 @@ static int pci_master_aborts = 0;
 
 static int clear_master_aborts(void);
 
-static u32 *
+u32 *
 ixp2000_pci_config_addr(unsigned int bus_nr, unsigned int devfn, int where)
 {
 	u32 *paddress;
