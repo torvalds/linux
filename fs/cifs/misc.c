@@ -519,13 +519,13 @@ dump_smb(struct smb_hdr *smb_buf, int smb_buf_length)
 /* Windows maps these to the user defined 16 bit Unicode range since they are
    reserved symbols (along with \ and /), otherwise illegal to store
    in filenames in NTFS */
-#define UNI_ASTERIK     cpu_to_le16('*' + 0xF000)
-#define UNI_QUESTION    cpu_to_le16('?' + 0xF000)
-#define UNI_COLON       cpu_to_le16(':' + 0xF000)
-#define UNI_GRTRTHAN    cpu_to_le16('>' + 0xF000)
-#define UNI_LESSTHAN    cpu_to_le16('<' + 0xF000)
-#define UNI_PIPE        cpu_to_le16('|' + 0xF000)
-#define UNI_SLASH       cpu_to_le16('\\' + 0xF000)
+#define UNI_ASTERIK     (__u16) ('*' + 0xF000)
+#define UNI_QUESTION    (__u16) ('?' + 0xF000)
+#define UNI_COLON       (__u16) (':' + 0xF000)
+#define UNI_GRTRTHAN    (__u16) ('>' + 0xF000)
+#define UNI_LESSTHAN    (__u16) ('<' + 0xF000)
+#define UNI_PIPE        (__u16) ('|' + 0xF000)
+#define UNI_SLASH       (__u16) ('\\' + 0xF000)
 
 /* Convert 16 bit Unicode pathname from wire format to string in current code
    page.  Conversion may involve remapping up the seven characters that are
@@ -536,7 +536,7 @@ cifs_convertUCSpath(char *target, const __le16 * source, int maxlen,
 		    const struct nls_table * cp)
 {
 	int i,j,len;
-	wchar_t src_char;
+	__u16 src_char;
 
 	for(i = 0, j = 0; i < maxlen; i++) {
 		src_char = le16_to_cpu(source[i]);
