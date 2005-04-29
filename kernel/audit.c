@@ -730,7 +730,7 @@ void audit_log_hex(struct audit_buffer *ab, const unsigned char *buf, size_t len
 
 void audit_log_untrustedstring(struct audit_buffer *ab, const char *string)
 {
-	const char *p = string;
+	const unsigned char *p = string;
 
 	while (*p) {
 		if (*p == '"' || *p == ' ' || *p < 0x20 || *p > 0x7f) {
