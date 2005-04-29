@@ -35,6 +35,7 @@
 #include <linux/usb.h>
 #include <sound/core.h>
 #include <sound/control.h>
+#include <sound/hwdep.h>
 
 #include "usbaudio.h"
 
@@ -57,6 +58,19 @@ struct usb_mixer_interface {
 	unsigned int ignore_ctl_error;
 	struct urb *urb;
 	usb_mixer_elem_info_t **id_elems; /* array[256], indexed by unit id */
+
+	/* Sound Blaster remote control stuff */
+	enum {
+		RC_NONE,
+		RC_EXTIGY,
+		RC_AUDIGY2NX,
+	} rc_type;
+	unsigned long rc_hwdep_open;
+	u32 rc_code;
+	wait_queue_head_t rc_waitq;
+	struct urb *rc_urb;
+	struct usb_ctrlrequest *rc_setup_packet;
+	u8 rc_buffer[6];
 };
 
 
@@ -1536,6 +1550,9 @@ static void snd_usb_mixer_free(struct usb_mixer_interface *mixer)
 		kfree(mixer->urb->transfer_buffer);
 		usb_free_urb(mixer->urb);
 	}
+	if (mixer->rc_urb)
+		usb_free_urb(mixer->rc_urb);
+	kfree(mixer->rc_setup_packet);
 	kfree(mixer);
 }
 
@@ -1604,6 +1621,17 @@ static void snd_usb_mixer_notify_id(struct usb_mixer_interface *mixer,
 			       info->elem_id);
 }
 
+static void snd_usb_mixer_memory_change(struct usb_mixer_interface *mixer,
+					int unitid)
+{
+	/* SB remote control */
+	if (mixer->rc_type != RC_NONE && unitid == 0) {
+		/* read control code from device memory */
+		mixer->rc_urb->dev = mixer->chip->dev;
+		usb_submit_urb(mixer->rc_urb, GFP_ATOMIC);
+	}
+}
+
 static void snd_usb_mixer_status_complete(struct urb *urb, struct pt_regs *regs)
 {
 	struct usb_mixer_interface *mixer = urb->context;
@@ -1620,6 +1648,8 @@ static void snd_usb_mixer_status_complete(struct urb *urb, struct pt_regs *regs)
 				continue;
 			if (!(buf[0] & 0x40))
 				snd_usb_mixer_notify_id(mixer, buf[1]);
+			else
+				snd_usb_mixer_memory_change(mixer, buf[1]);
 		}
 	}
 	if (urb->status != -ENOENT && urb->status != -ECONNRESET) {
@@ -1664,6 +1694,126 @@ static int snd_usb_mixer_status_create(struct usb_mixer_interface *mixer)
 	return 0;
 }
 
+static void snd_usb_soundblaster_remote_complete(struct urb *urb,
+						 struct pt_regs *regs)
+{
+	struct usb_mixer_interface *mixer = urb->context;
+	/*
+	 * format of remote control data:
+	 * Extigy:	xx 00
+	 * Audigy 2 NX:	06 80 xx 00 00 00
+	 */
+	int offset = mixer->rc_type == RC_EXTIGY ? 0 : 2;
+	u32 code;
+
+	if (urb->status < 0 || urb->actual_length <= offset)
+		return;
+	code = mixer->rc_buffer[offset];
+	/* the Mute button actually changes the mixer control */
+	if (code == 13)
+		snd_usb_mixer_notify_id(mixer, 18);
+	mixer->rc_code = code;
+	wmb();
+	wake_up(&mixer->rc_waitq);
+}
+
+static int snd_usb_sbrc_hwdep_open(snd_hwdep_t *hw, struct file *file)
+{
+	struct usb_mixer_interface *mixer = hw->private_data;
+
+	if (test_and_set_bit(0, &mixer->rc_hwdep_open))
+		return -EBUSY;
+	return 0;
+}
+
+static int snd_usb_sbrc_hwdep_release(snd_hwdep_t *hw, struct file *file)
+{
+	struct usb_mixer_interface *mixer = hw->private_data;
+
+	clear_bit(0, &mixer->rc_hwdep_open);
+	smp_mb__after_clear_bit();
+	return 0;
+}
+
+static long snd_usb_sbrc_hwdep_read(snd_hwdep_t *hw, char __user *buf,
+				     long count, loff_t *offset)
+{
+	struct usb_mixer_interface *mixer = hw->private_data;
+	int err;
+	u32 rc_code;
+
+	if (count != 1)
+		return -EINVAL;
+	err = wait_event_interruptible(mixer->rc_waitq,
+				       (rc_code = xchg(&mixer->rc_code, 0)) != 0);
+	if (err == 0) {
+		err = put_user(rc_code, buf);
+	}
+	return err < 0 ? err : count;
+}
+
+static unsigned int snd_usb_sbrc_hwdep_poll(snd_hwdep_t *hw, struct file *file,
+					    poll_table *wait)
+{
+	struct usb_mixer_interface *mixer = hw->private_data;
+
+	poll_wait(file, &mixer->rc_waitq, wait);
+	return mixer->rc_code ? POLLIN | POLLRDNORM : 0;
+}
+
+static int snd_usb_soundblaster_remote_init(struct usb_mixer_interface *mixer)
+{
+	snd_hwdep_t *hwdep;
+	int err, len;
+
+	switch (le16_to_cpu(mixer->chip->dev->descriptor.idProduct)) {
+	case 0x3000:
+		mixer->rc_type = RC_EXTIGY;
+		len = 2;
+		break;
+	case 0x3020:
+		mixer->rc_type = RC_AUDIGY2NX;
+		len = 6;
+		break;
+	default:
+		return 0;
+	}
+
+	init_waitqueue_head(&mixer->rc_waitq);
+	err = snd_hwdep_new(mixer->chip->card, "SB remote control", 0, &hwdep);
+	if (err < 0)
+		return err;
+	snprintf(hwdep->name, sizeof(hwdep->name),
+		 "%s remote control", mixer->chip->card->shortname);
+	hwdep->iface = SNDRV_HWDEP_IFACE_SB_RC;
+	hwdep->private_data = mixer;
+	hwdep->ops.read = snd_usb_sbrc_hwdep_read;
+	hwdep->ops.open = snd_usb_sbrc_hwdep_open;
+	hwdep->ops.release = snd_usb_sbrc_hwdep_release;
+	hwdep->ops.poll = snd_usb_sbrc_hwdep_poll;
+
+	mixer->rc_urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (!mixer->rc_urb)
+		return -ENOMEM;
+	mixer->rc_setup_packet = kmalloc(sizeof(*mixer->rc_setup_packet), GFP_KERNEL);
+	if (!mixer->rc_setup_packet) {
+		usb_free_urb(mixer->rc_urb);
+		mixer->rc_urb = NULL;
+		return -ENOMEM;
+	}
+	mixer->rc_setup_packet->bRequestType =
+		USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE;
+	mixer->rc_setup_packet->bRequest = GET_MEM;
+	mixer->rc_setup_packet->wValue = cpu_to_le16(0);
+	mixer->rc_setup_packet->wIndex = cpu_to_le16(0);
+	mixer->rc_setup_packet->wLength = cpu_to_le16(len);
+	usb_fill_control_urb(mixer->rc_urb, mixer->chip->dev,
+			     usb_rcvctrlpipe(mixer->chip->dev, 0),
+			     (u8*)mixer->rc_setup_packet, mixer->rc_buffer, len,
+			     snd_usb_soundblaster_remote_complete, mixer);
+	return 0;
+}
+
 int snd_usb_create_mixer(snd_usb_audio_t *chip, int ctrlif)
 {
 	static snd_device_ops_t dev_ops = {
@@ -1694,6 +1844,13 @@ int snd_usb_create_mixer(snd_usb_audio_t *chip, int ctrlif)
 		return err;
 	}
 
+	if (le16_to_cpu(chip->dev->descriptor.idVendor) == 0x041e) {
+		if ((err = snd_usb_soundblaster_remote_init(mixer)) < 0) {
+			snd_usb_mixer_free(mixer);
+			return err;
+		}
+	}
+
 	err = snd_device_new(chip->card, SNDRV_DEV_LOWLEVEL, mixer, &dev_ops);
 	if (err < 0) {
 		snd_usb_mixer_free(mixer);
@@ -1710,4 +1867,6 @@ void snd_usb_mixer_disconnect(struct list_head *p)
 	mixer = list_entry(p, struct usb_mixer_interface, list);
 	if (mixer->urb)
 		usb_kill_urb(mixer->urb);
+	if (mixer->rc_urb)
+		usb_kill_urb(mixer->rc_urb);
 }
