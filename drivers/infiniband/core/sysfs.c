@@ -71,7 +71,7 @@ static ssize_t port_attr_show(struct kobject *kobj,
 	struct ib_port *p = container_of(kobj, struct ib_port, kobj);
 
 	if (!port_attr->show)
-		return 0;
+		return -EIO;
 
 	return port_attr->show(p, port_attr, buf);
 }

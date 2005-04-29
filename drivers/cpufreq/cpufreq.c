@@ -521,7 +521,7 @@ static ssize_t show(struct kobject * kobj, struct attribute * attr ,char * buf)
 	policy = cpufreq_cpu_get(policy->cpu);
 	if (!policy)
 		return -EINVAL;
-	ret = fattr->show ? fattr->show(policy,buf) : 0;
+	ret = fattr->show ? fattr->show(policy,buf) : -EIO;
 	cpufreq_cpu_put(policy);
 	return ret;
 }
@@ -535,7 +535,7 @@ static ssize_t store(struct kobject * kobj, struct attribute * attr,
 	policy = cpufreq_cpu_get(policy->cpu);
 	if (!policy)
 		return -EINVAL;
-	ret = fattr->store ? fattr->store(policy,buf,count) : 0;
+	ret = fattr->store ? fattr->store(policy,buf,count) : -EIO;
 	cpufreq_cpu_put(policy);
 	return ret;
 }
