@@ -300,7 +300,7 @@ out:
 	return ret;
 }
 
-static inline int audit_arch()
+static inline int audit_arch(void)
 {
 #ifdef CONFIG_CPU_LITTLE_ENDIAN
 #ifdef CONFIG_MIPS64
