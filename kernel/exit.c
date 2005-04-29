@@ -517,8 +517,6 @@ static inline void choose_new_parent(task_t *p, task_t *reaper, task_t *child_re
 	 */
 	BUG_ON(p == reaper || reaper->exit_state >= EXIT_ZOMBIE);
 	p->real_parent = reaper;
-	if (p->parent == p->real_parent)
-		BUG();
 }
 
 static inline void reparent_thread(task_t *p, task_t *father, int traced)
