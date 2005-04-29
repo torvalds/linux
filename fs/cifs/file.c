@@ -465,8 +465,10 @@ int cifs_close(struct inode *inode, struct file *file)
 				write_lock(&file->f_owner.lock);
 			}
 		}
+		write_lock(&GlobalSMBSeslock);
 		list_del(&pSMBFile->flist);
 		list_del(&pSMBFile->tlist);
+		write_unlock(&GlobalSMBSeslock);
 		write_unlock(&file->f_owner.lock);
 		kfree(pSMBFile->search_resume_name);
 		kfree(file->private_data);
