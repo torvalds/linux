@@ -971,7 +971,8 @@ static void e100_configure(struct nic *nic, struct cb *cb, struct sk_buff *skb)
 	if(nic->flags & multicast_all)
 		config->multicast_all = 0x1;		/* 1=accept, 0=no */
 
-	if(!(nic->flags & wol_magic))
+	/* disable WoL when up */
+	if(netif_running(nic->netdev) || !(nic->flags & wol_magic))
 		config->magic_packet_disable = 0x1;	/* 1=off, 0=on */
 
 	if(nic->mac >= mac_82558_D101_A4) {
@@ -1718,6 +1719,7 @@ static int e100_change_mtu(struct net_device *netdev, int new_mtu)
 	return 0;
 }
 
+#ifdef CONFIG_PM
 static int e100_asf(struct nic *nic)
 {
 	/* ASF can be enabled from eeprom */
@@ -1726,6 +1728,7 @@ static int e100_asf(struct nic *nic)
 	   !(nic->eeprom[eeprom_config_asf] & eeprom_gcl) &&
 	   ((nic->eeprom[eeprom_smbus_addr] & 0xFF) != 0xFE));
 }
+#endif
 
 static int e100_up(struct nic *nic)
 {
@@ -1938,7 +1941,6 @@ static int e100_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 	else
 		nic->flags &= ~wol_magic;
 
-	pci_enable_wake(nic->pdev, 0, nic->flags & (wol_magic | e100_asf(nic)));
 	e100_exec_cb(nic, NULL, e100_configure);
 
 	return 0;
@@ -2336,7 +2338,8 @@ static int __devinit e100_probe(struct pci_dev *pdev,
 	   (nic->eeprom[eeprom_id] & eeprom_id_wol))
 		nic->flags |= wol_magic;
 
-	pci_enable_wake(pdev, 0, nic->flags & (wol_magic | e100_asf(nic)));
+	/* ack any pending wake events, disable PME */
+	pci_enable_wake(pdev, 0, 0);
 
 	strcpy(netdev->name, "eth%d");
 	if((err = register_netdev(netdev))) {
@@ -2408,6 +2411,8 @@ static int e100_resume(struct pci_dev *pdev)
 
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
+	/* ack any pending wake events, disable PME */
+	pci_enable_wake(pdev, 0, 0);
 	if(e100_hw_init(nic))
 		DPRINTK(HW, ERR, "e100_hw_init failed\n");
 
@@ -2419,6 +2424,21 @@ static int e100_resume(struct pci_dev *pdev)
 }
 #endif
 
+
+static void e100_shutdown(struct device *dev)
+{
+	struct pci_dev *pdev = container_of(dev, struct pci_dev, dev);
+	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct nic *nic = netdev_priv(netdev);
+
+#ifdef CONFIG_PM
+	pci_enable_wake(pdev, 0, nic->flags & (wol_magic | e100_asf(nic)));
+#else
+	pci_enable_wake(pdev, 0, nic->flags & (wol_magic));
+#endif
+}
+
+
 static struct pci_driver e100_driver = {
 	.name =         DRV_NAME,
 	.id_table =     e100_id_table,
@@ -2428,6 +2448,11 @@ static struct pci_driver e100_driver = {
 	.suspend =      e100_suspend,
 	.resume =       e100_resume,
 #endif
+
+	.driver = {
+		.shutdown = e100_shutdown,
+	}
+
 };
 
 static int __init e100_init_module(void)
