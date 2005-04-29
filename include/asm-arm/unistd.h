@@ -359,8 +359,7 @@
 #define __ARM_NR_cacheflush		(__ARM_NR_BASE+2)
 #define __ARM_NR_usr26			(__ARM_NR_BASE+3)
 #define __ARM_NR_usr32			(__ARM_NR_BASE+4)
-
-#define __ARM_NR_set_tls		(__ARM_NR_BASE+0x800)
+#define __ARM_NR_set_tls		(__ARM_NR_BASE+5)
 
 #define __sys2(x) #x
 #define __sys1(x) __sys2(x)
