@@ -518,25 +518,22 @@ static int __init tiocx_init(void)
 	return 0;
 }
 
+static int cx_remove_device(struct device * dev, void * data)
+{
+	struct cx_dev *cx_dev = to_cx_dev(dev);
+	device_remove_file(dev, &dev_attr_cxdev_control);
+	cx_device_unregister(cx_dev);
+	return 0;
+}
+
 static void __exit tiocx_exit(void)
 {
-	struct device *dev;
-	struct device *tdev;
-
 	DBG("tiocx_exit\n");
 
 	/*
 	 * Unregister devices.
 	 */
-	list_for_each_entry_safe(dev, tdev, &tiocx_bus_type.devices.list,
-				 bus_list) {
-		if (dev) {
-			struct cx_dev *cx_dev = to_cx_dev(dev);
-			device_remove_file(dev, &dev_attr_cxdev_control);
-			cx_device_unregister(cx_dev);
-		}
-	}
-
+	bus_for_each_dev(&tiocx_bus_type, NULL, NULL, cx_remove_device);
 	bus_unregister(&tiocx_bus_type);
 }
 
