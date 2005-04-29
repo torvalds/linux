@@ -1,7 +1,14 @@
-Version 1.31
+Version 1.32
 ------------
 Fix oops in ls when Transact2 FindFirst (or FindNext) returns more than one
 transact response for an SMB request and search entry split across two frames.
+Add support for lsattr (getting ext2/ext3/reiserfs attr flags from the server)
+as new protocol extensions. Do not send Get/Set calls for POSIX ACLs
+unless server explicitly claims to support them in CIFS Unix extensions
+POSIX ACL capability bit.
+
+Version 1.31
+------------
 Fix updates of DOS attributes and time fields so that files on NT4 servers
 do not get marked delete on close. Display sizes of cifs buffer pools in
 cifs stats. Fix oops in unmount when cifsd thread being killed by 
