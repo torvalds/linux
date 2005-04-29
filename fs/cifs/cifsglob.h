@@ -318,7 +318,9 @@ struct mid_q_entry {
 	struct task_struct *tsk;	/* task waiting for response */
 	struct smb_hdr *resp_buf;	/* response buffer */
 	int midState;	/* wish this were enum but can not pass to wait_event */
-	__u8 command;		/* smb command code */
+	__u8 command;	/* smb command code */
+	unsigned multiPart:1;	/* multiple responses to one SMB request */
+	unsigned largeBuf:1;    /* if valid response, is pointer to large buf */
 };
 
 struct oplock_q_entry {

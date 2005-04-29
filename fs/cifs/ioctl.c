@@ -35,35 +35,37 @@ int cifs_ioctl (struct inode * inode, struct file * filep,
 		unsigned int command, unsigned long arg)
 {
 	int rc = -ENOTTY; /* strange error - but the precedent */
+	int xid;
+	struct cifs_sb_info *cifs_sb;
 #ifdef CONFIG_CIFS_POSIX
 	__u64	ExtAttrBits = 0;
 	__u64	ExtAttrMask = 0;
-#endif /* CONFIG_CIFS_POSIX */
 	__u64   caps;
-	int xid;
-	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *tcon;
 	struct cifsFileInfo *pSMBFile =
 		(struct cifsFileInfo *)filep->private_data;
+#endif /* CONFIG_CIFS_POSIX */
 
 	xid = GetXid();
 
         cFYI(1,("ioctl file %p  cmd %u  arg %lu",filep,command,arg));
 
 	cifs_sb = CIFS_SB(inode->i_sb);
-	tcon = cifs_sb->tcon;
 
+#ifdef CONFIG_CIFS_POSIX
+	tcon = cifs_sb->tcon;
 	if(tcon)
 		caps = le64_to_cpu(tcon->fsUnixInfo.Capability);
 	else {
 		rc = -EIO;
-		goto cifs_ioctl_out;
+		FreeXid(xid);
+		return -EIO;
 	}
+#endif /* CONFIG_CIFS_POSIX */
 
 	switch(command) {
 		case CIFS_IOC_CHECKUMOUNT:
 			cFYI(1,("User unmount attempted"));
-			/* BB FIXME - add missing code here FIXME */
 			if(cifs_sb->mnt_uid == current->uid)
 				rc = 0;
 			else {
@@ -75,7 +77,7 @@ int cifs_ioctl (struct inode * inode, struct file * filep,
 		case EXT2_IOC_GETFLAGS:
 			if(CIFS_UNIX_EXTATTR_CAP & caps) {
 				if (pSMBFile == NULL)
-					goto cifs_ioctl_out;
+					break;
 				rc = CIFSGetExtAttr(xid, tcon, pSMBFile->netfid,
 					&ExtAttrBits, &ExtAttrMask);
 				if(rc == 0)
@@ -89,10 +91,10 @@ int cifs_ioctl (struct inode * inode, struct file * filep,
 			if(CIFS_UNIX_EXTATTR_CAP & caps) {
 				if(get_user(ExtAttrBits,(int __user *)arg)) {
 					rc = -EFAULT;
-					goto cifs_ioctl_out;
+					break;
 				}
 				if (pSMBFile == NULL)
-					goto cifs_ioctl_out;
+					break;
 				/* rc= CIFSGetExtAttr(xid,tcon,pSMBFile->netfid,
 					extAttrBits, &ExtAttrMask);*/
 				
@@ -105,7 +107,6 @@ int cifs_ioctl (struct inode * inode, struct file * filep,
 			break;
 	}
 
-cifs_ioctl_out:
 	FreeXid(xid);
 	return rc;
 } 
