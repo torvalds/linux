@@ -3091,6 +3091,7 @@ static int snd_usb_audio_create(struct usb_device *dev, int idx,
 	chip->card = card;
 	INIT_LIST_HEAD(&chip->pcm_list);
 	INIT_LIST_HEAD(&chip->midi_list);
+	INIT_LIST_HEAD(&chip->mixer_list);
 
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
 		snd_usb_audio_free(chip);
@@ -3289,6 +3290,10 @@ static void snd_usb_audio_disconnect(struct usb_device *dev, void *ptr)
 		/* release the midi resources */
 		list_for_each(p, &chip->midi_list) {
 			snd_usbmidi_disconnect(p);
+		}
+		/* release mixer resources */
+		list_for_each(p, &chip->mixer_list) {
+			snd_usb_mixer_disconnect(p);
 		}
 		usb_chip[chip->index] = NULL;
 		up(&register_mutex);
