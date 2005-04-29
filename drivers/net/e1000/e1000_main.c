@@ -2368,9 +2368,8 @@ e1000_clean(struct net_device *netdev, int *budget)
 	*budget -= work_done;
 	netdev->quota -= work_done;
 	
-	/* if no Tx and not enough Rx work done, exit the polling mode */
-	if((!tx_cleaned && (work_done < work_to_do)) || 
-				!netif_running(netdev)) {
+	/* If no Tx and no Rx work done, exit the polling mode */
+	if ((!tx_cleaned && (work_done == 0)) || !netif_running(netdev)) {
 		netif_rx_complete(netdev);
 		e1000_irq_enable(adapter);
 		return 0;
