@@ -1822,7 +1822,6 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter)
 	struct pci_dev *pdev = adapter->pdev;
 	struct ixgb_rx_desc *rx_desc, *next_rxd;
 	struct ixgb_buffer *buffer_info, *next_buffer, *next2_buffer;
-	struct sk_buff *skb, *next_skb;
 	uint32_t length;
 	unsigned int i, j;
 	boolean_t cleaned = FALSE;
@@ -1832,6 +1831,8 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter)
 	buffer_info = &rx_ring->buffer_info[i];
 
 	while(rx_desc->status & IXGB_RX_DESC_STATUS_DD) {
+		struct sk_buff *skb, *next_skb;
+		u8 status;
 
 #ifdef CONFIG_IXGB_NAPI
 		if(*work_done >= work_to_do)
@@ -1839,7 +1840,9 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter)
 
 		(*work_done)++;
 #endif
+		status = rx_desc->status;
 		skb = buffer_info->skb;
+
 		prefetch(skb->data);
 
 		if(++i == rx_ring->count) i = 0;
@@ -1864,7 +1867,7 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter)
 
 		length = le16_to_cpu(rx_desc->length);
 
-		if(unlikely(!(rx_desc->status & IXGB_RX_DESC_STATUS_EOP))) {
+		if(unlikely(!(status & IXGB_RX_DESC_STATUS_EOP))) {
 
 			/* All receives must fit into a single buffer */
 
@@ -1872,12 +1875,7 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter)
 					 "length<%x>\n", length);
 
 			dev_kfree_skb_irq(skb);
-			rx_desc->status = 0;
-			buffer_info->skb = NULL;
-
-			rx_desc = next_rxd;
-			buffer_info = next_buffer;
-			continue;
+			goto rxdesc_done;
 		}
 
 		if (unlikely(rx_desc->errors
@@ -1886,12 +1884,7 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter)
 				IXGB_RX_DESC_ERRORS_RXE))) {
 
 			dev_kfree_skb_irq(skb);
-			rx_desc->status = 0;
-			buffer_info->skb = NULL;
-
-			rx_desc = next_rxd;
-			buffer_info = next_buffer;
-			continue;
+			goto rxdesc_done;
 		}
 
 		/* Good Receive */
@@ -1902,7 +1895,7 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter)
 
 		skb->protocol = eth_type_trans(skb, netdev);
 #ifdef CONFIG_IXGB_NAPI
-		if(adapter->vlgrp && (rx_desc->status & IXGB_RX_DESC_STATUS_VP)) {
+		if(adapter->vlgrp && (status & IXGB_RX_DESC_STATUS_VP)) {
 			vlan_hwaccel_receive_skb(skb, adapter->vlgrp,
 				le16_to_cpu(rx_desc->special) &
 					IXGB_RX_DESC_SPECIAL_VLAN_MASK);
@@ -1910,7 +1903,7 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter)
 			netif_receive_skb(skb);
 		}
 #else /* CONFIG_IXGB_NAPI */
-		if(adapter->vlgrp && (rx_desc->status & IXGB_RX_DESC_STATUS_VP)) {
+		if(adapter->vlgrp && (status & IXGB_RX_DESC_STATUS_VP)) {
 			vlan_hwaccel_rx(skb, adapter->vlgrp,
 				le16_to_cpu(rx_desc->special) &
 					IXGB_RX_DESC_SPECIAL_VLAN_MASK);
@@ -1920,9 +1913,12 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter)
 #endif /* CONFIG_IXGB_NAPI */
 		netdev->last_rx = jiffies;
 
+rxdesc_done:
+		/* clean up descriptor, might be written over by hw */
 		rx_desc->status = 0;
 		buffer_info->skb = NULL;
 
+		/* use prefetched values */
 		rx_desc = next_rxd;
 		buffer_info = next_buffer;
 	}
