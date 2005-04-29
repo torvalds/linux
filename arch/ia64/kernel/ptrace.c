@@ -1595,20 +1595,25 @@ syscall_trace_enter (long arg0, long arg1, long arg2, long arg3,
 		     long arg4, long arg5, long arg6, long arg7,
 		     struct pt_regs regs)
 {
-	long syscall;
-
-	if (unlikely(current->audit_context)) {
-		if (IS_IA32_PROCESS(&regs))
-			syscall = regs.r1;
-		else
-			syscall = regs.r15;
-
-		audit_syscall_entry(current, syscall, arg0, arg1, arg2, arg3);
-	}
-
-	if (test_thread_flag(TIF_SYSCALL_TRACE)
+	if (test_thread_flag(TIF_SYSCALL_TRACE) 
 	    && (current->ptrace & PT_PTRACED))
 		syscall_trace();
+
+	if (unlikely(current->audit_context)) {
+		long syscall;
+		int arch;
+
+		if (IS_IA32_PROCESS(&regs)) {
+			syscall = regs.r1;
+			arch = AUDIT_ARCH_I386;
+		} else {
+			syscall = regs.r15;
+			arch = AUDIT_ARCH_IA64;
+		}
+
+		audit_syscall_entry(current, arch, syscall, arg0, arg1, arg2, arg3);
+	}
+
 }
 
 /* "asmlinkage" so the input arguments are preserved... */
@@ -1619,7 +1624,7 @@ syscall_trace_leave (long arg0, long arg1, long arg2, long arg3,
 		     struct pt_regs regs)
 {
 	if (unlikely(current->audit_context))
-		audit_syscall_exit(current, regs.r8);
+		audit_syscall_exit(current, AUDITSC_RESULT(regs.r10), regs.r8);
 
 	if (test_thread_flag(TIF_SYSCALL_TRACE)
 	    && (current->ptrace & PT_PTRACED))

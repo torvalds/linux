@@ -711,18 +711,13 @@ out:
 asmlinkage void
 syscall_trace(struct pt_regs *regs, int entryexit)
 {
-	if (unlikely(current->audit_context)) {
-		if (!entryexit)
-			audit_syscall_entry(current, regs->gprs[2],
-					    regs->orig_gpr2, regs->gprs[3],
-					    regs->gprs[4], regs->gprs[5]);
-		else
-			audit_syscall_exit(current, regs->gprs[2]);
-	}
+	if (unlikely(current->audit_context) && entryexit)
+		audit_syscall_exit(current, AUDITSC_RESULT(regs->gprs[2]), regs->gprs[2]);
+
 	if (!test_thread_flag(TIF_SYSCALL_TRACE))
-		return;
+		goto out;
 	if (!(current->ptrace & PT_PTRACED))
-		return;
+		goto out;
 	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD)
 				 ? 0x80 : 0));
 
@@ -735,4 +730,10 @@ syscall_trace(struct pt_regs *regs, int entryexit)
 		send_sig(current->exit_code, current, 1);
 		current->exit_code = 0;
 	}
+ out:
+	if (unlikely(current->audit_context) && !entryexit)
+		audit_syscall_entry(current, 
+				    test_thread_flag(TIF_31BIT)?AUDIT_ARCH_S390:AUDIT_ARCH_S390X,
+				    regs->gprs[2], regs->orig_gpr2, regs->gprs[3],
+				    regs->gprs[4], regs->gprs[5]);
 }

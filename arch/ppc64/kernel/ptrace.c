@@ -304,14 +304,17 @@ static void do_syscall_trace(void)
 
 void do_syscall_trace_enter(struct pt_regs *regs)
 {
-	if (unlikely(current->audit_context))
-		audit_syscall_entry(current, regs->gpr[0],
-				    regs->gpr[3], regs->gpr[4],
-				    regs->gpr[5], regs->gpr[6]);
-
 	if (test_thread_flag(TIF_SYSCALL_TRACE)
 	    && (current->ptrace & PT_PTRACED))
 		do_syscall_trace();
+
+	if (unlikely(current->audit_context))
+		audit_syscall_entry(current,
+				    test_thread_flag(TIF_32BIT)?AUDIT_ARCH_PPC:AUDIT_ARCH_PPC64,
+				    regs->gpr[0],
+				    regs->gpr[3], regs->gpr[4],
+				    regs->gpr[5], regs->gpr[6]);
+
 }
 
 void do_syscall_trace_leave(struct pt_regs *regs)
@@ -319,7 +322,9 @@ void do_syscall_trace_leave(struct pt_regs *regs)
 	secure_computing(regs->gpr[0]);
 
 	if (unlikely(current->audit_context))
-		audit_syscall_exit(current, regs->result);
+		audit_syscall_exit(current, 
+				   (regs->ccr&0x1000)?AUDITSC_FAILURE:AUDITSC_SUCCESS,
+				   regs->result);
 
 	if ((test_thread_flag(TIF_SYSCALL_TRACE)
 	     || test_thread_flag(TIF_SINGLESTEP))
