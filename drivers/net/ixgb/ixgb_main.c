@@ -224,8 +224,8 @@ ixgb_irq_enable(struct ixgb_adapter *adapter)
 {
 	if(atomic_dec_and_test(&adapter->irq_sem)) {
 		IXGB_WRITE_REG(&adapter->hw, IMS,
-			   IXGB_INT_RXT0 | IXGB_INT_RXDMT0 | IXGB_INT_TXDW |
-			   IXGB_INT_RXO | IXGB_INT_LSC);
+			       IXGB_INT_RXT0 | IXGB_INT_RXDMT0 | IXGB_INT_TXDW |
+			       IXGB_INT_LSC);
 		IXGB_WRITE_FLUSH(&adapter->hw);
 	}
 }
