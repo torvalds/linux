@@ -601,7 +601,7 @@ static int dummy_wakeup (struct usb_gadget *_gadget)
 	struct dummy	*dum;
 
 	dum = gadget_to_dummy (_gadget);
-	if (!(dum->port_status & (1 << USB_PORT_FEAT_SUSPEND))
+	if (!(dum->port_status & USB_PORT_STAT_SUSPEND)
 			|| !(dum->devstatus &
 				( (1 << USB_DEVICE_B_HNP_ENABLE)
 				| (1 << USB_DEVICE_REMOTE_WAKEUP))))
@@ -609,7 +609,7 @@ static int dummy_wakeup (struct usb_gadget *_gadget)
 
 	/* hub notices our request, issues downstream resume, etc */
 	dum->resuming = 1;
-	dum->port_status |= (1 << USB_PORT_FEAT_C_SUSPEND);
+	dum->port_status |= (USB_PORT_STAT_C_SUSPEND << 16);
 	return 0;
 }
 
@@ -661,15 +661,15 @@ DEVICE_ATTR (function, S_IRUGO, show_function, NULL);
  * for each driver that registers:  just add to a big root hub.
  */
 
+/* This doesn't need to do anything because the udc device structure is
+ * stored inside the hcd and will be deallocated along with it. */
 static void
-dummy_udc_release (struct device *dev)
-{
-}
+dummy_udc_release (struct device *dev) {}
 
+/* This doesn't need to do anything because the pdev structure is
+ * statically allocated. */
 static void
-dummy_pdev_release (struct device *dev)
-{
-}
+dummy_pdev_release (struct device *dev) {}
 
 static int
 dummy_register_udc (struct dummy *dum)
@@ -753,15 +753,13 @@ usb_gadget_register_driver (struct usb_gadget_driver *driver)
 		return retval;
 	}
 
-	// FIXME: Check these calls for errors and re-order
 	driver->driver.bus = dum->gadget.dev.parent->bus;
 	driver_register (&driver->driver);
-
 	device_bind_driver (&dum->gadget.dev);
 
 	/* khubd will enumerate this in a while */
 	dum->port_status |= USB_PORT_STAT_CONNECTION
-		| (1 << USB_PORT_FEAT_C_CONNECTION);
+		| (USB_PORT_STAT_C_CONNECTION << 16);
 	return 0;
 }
 EXPORT_SYMBOL (usb_gadget_register_driver);
@@ -807,14 +805,13 @@ usb_gadget_unregister_driver (struct usb_gadget_driver *driver)
 	stop_activity (dum, driver);
 	dum->port_status &= ~(USB_PORT_STAT_CONNECTION | USB_PORT_STAT_ENABLE |
 			USB_PORT_STAT_LOW_SPEED | USB_PORT_STAT_HIGH_SPEED);
-	dum->port_status |= (1 << USB_PORT_FEAT_C_CONNECTION);
+	dum->port_status |= (USB_PORT_STAT_C_CONNECTION << 16);
 	spin_unlock_irqrestore (&dum->lock, flags);
 
 	driver->unbind (&dum->gadget);
 	dum->driver = NULL;
 
 	device_release_driver (&dum->gadget.dev);
-
 	driver_unregister (&driver->driver);
 
 	return 0;
@@ -1406,11 +1403,11 @@ return_urb:
 /*-------------------------------------------------------------------------*/
 
 #define PORT_C_MASK \
-	 ((1 << USB_PORT_FEAT_C_CONNECTION) \
-	| (1 << USB_PORT_FEAT_C_ENABLE) \
-	| (1 << USB_PORT_FEAT_C_SUSPEND) \
-	| (1 << USB_PORT_FEAT_C_OVER_CURRENT) \
-	| (1 << USB_PORT_FEAT_C_RESET))
+	((USB_PORT_STAT_C_CONNECTION \
+	| USB_PORT_STAT_C_ENABLE \
+	| USB_PORT_STAT_C_SUSPEND \
+	| USB_PORT_STAT_C_OVERCURRENT \
+	| USB_PORT_STAT_C_RESET) << 16)
 
 static int dummy_hub_status (struct usb_hcd *hcd, char *buf)
 {
@@ -1465,7 +1462,7 @@ static int dummy_hub_control (
 	case ClearPortFeature:
 		switch (wValue) {
 		case USB_PORT_FEAT_SUSPEND:
-			if (dum->port_status & (1 << USB_PORT_FEAT_SUSPEND)) {
+			if (dum->port_status & USB_PORT_STAT_SUSPEND) {
 				/* 20msec resume signaling */
 				dum->resuming = 1;
 				dum->re_timeout = jiffies +
@@ -1495,8 +1492,8 @@ static int dummy_hub_control (
 		 * complete it!!
 		 */
 		if (dum->resuming && time_after (jiffies, dum->re_timeout)) {
-			dum->port_status |= (1 << USB_PORT_FEAT_C_SUSPEND);
-			dum->port_status &= ~(1 << USB_PORT_FEAT_SUSPEND);
+			dum->port_status |= (USB_PORT_STAT_C_SUSPEND << 16);
+			dum->port_status &= ~USB_PORT_STAT_SUSPEND;
 			dum->resuming = 0;
 			dum->re_timeout = 0;
 			if (dum->driver && dum->driver->resume) {
@@ -1505,10 +1502,10 @@ static int dummy_hub_control (
 				spin_lock (&dum->lock);
 			}
 		}
-		if ((dum->port_status & (1 << USB_PORT_FEAT_RESET)) != 0
+		if ((dum->port_status & USB_PORT_STAT_RESET) != 0
 				&& time_after (jiffies, dum->re_timeout)) {
-			dum->port_status |= (1 << USB_PORT_FEAT_C_RESET);
-			dum->port_status &= ~(1 << USB_PORT_FEAT_RESET);
+			dum->port_status |= (USB_PORT_STAT_C_RESET << 16);
+			dum->port_status &= ~USB_PORT_STAT_RESET;
 			dum->re_timeout = 0;
 			if (dum->driver) {
 				dum->port_status |= USB_PORT_STAT_ENABLE;
@@ -1540,10 +1537,9 @@ static int dummy_hub_control (
 	case SetPortFeature:
 		switch (wValue) {
 		case USB_PORT_FEAT_SUSPEND:
-			if ((dum->port_status & (1 << USB_PORT_FEAT_SUSPEND))
+			if ((dum->port_status & USB_PORT_STAT_SUSPEND)
 					== 0) {
-				dum->port_status |=
-						(1 << USB_PORT_FEAT_SUSPEND);
+				dum->port_status |= USB_PORT_STAT_SUSPEND;
 				if (dum->driver && dum->driver->suspend) {
 					spin_unlock (&dum->lock);
 					dum->driver->suspend (&dum->gadget);
