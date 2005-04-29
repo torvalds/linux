@@ -182,7 +182,8 @@ cifs_reconnect(struct TCP_Server_Info *server)
 			spin_lock(&GlobalMid_Lock);
 			if(server->tcpStatus != CifsExiting)
 				server->tcpStatus = CifsGood;
-			spin_unlock(&GlobalMid_Lock);
+			server->sequence_number = 0;
+			spin_unlock(&GlobalMid_Lock);			
 	/*		atomic_set(&server->inFlight,0);*/
 			wake_up(&server->response_q);
 		}
@@ -1352,6 +1353,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			} else
 				rc = 0;
 			memcpy(srvTcp->workstation_RFC1001_name, volume_info.source_rfc1001_name,16);
+			srvTcp->sequence_number = 0;
 		}
 	}
 
@@ -2959,6 +2961,7 @@ int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
 	int rc = 0;
 	char ntlm_session_key[CIFS_SESSION_KEY_SIZE];
 	int ntlmv2_flag = FALSE;
+	int first_time = 0;
 
 	/* what if server changes its buffer size after dropping the session? */
 	if(pSesInfo->server->maxBuf == 0) /* no need to send on reconnect */ {
@@ -2977,12 +2980,13 @@ int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
 			spin_unlock(&GlobalMid_Lock);
 
 		}
+		first_time = 1;
 	}
 	if (!rc) {
 		pSesInfo->capabilities = pSesInfo->server->capabilities;
 		if(linuxExtEnabled == 0)
 			pSesInfo->capabilities &= (~CAP_UNIX);
-		pSesInfo->sequence_number = 0;
+	/*	pSesInfo->sequence_number = 0;*/
 		cFYI(1,("Security Mode: 0x%x Capabilities: 0x%x Time Zone: %d",
 			pSesInfo->server->secMode,
 			pSesInfo->server->capabilities,
@@ -3015,7 +3019,10 @@ int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
 						v2_response = kmalloc(16 + 64 /* blob */, GFP_KERNEL);
 					if(v2_response) {
 						CalcNTLMv2_response(pSesInfo,v2_response);
-/*						cifs_calculate_ntlmv2_mac_key(pSesInfo->mac_signing_key, response, ntlm_session_key, */
+				/*		if(first_time)
+							cifs_calculate_ntlmv2_mac_key(
+							  pSesInfo->server->mac_signing_key, 
+							  response, ntlm_session_key, */
 						kfree(v2_response);
 					/* BB Put dummy sig in SessSetup PDU? */
 					} else {
@@ -3028,9 +3035,11 @@ int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
 						pSesInfo->server->cryptKey,
 						ntlm_session_key);
 
-					cifs_calculate_mac_key(pSesInfo->mac_signing_key,
-						ntlm_session_key,
-						pSesInfo->password);
+					if(first_time)
+						cifs_calculate_mac_key(
+							pSesInfo->server->mac_signing_key,
+							ntlm_session_key,
+							pSesInfo->password);
 				}
 			/* for better security the weaker lanman hash not sent
 			   in AuthSessSetup so we no longer calculate it */
@@ -3046,8 +3055,11 @@ int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
 				pSesInfo->server->cryptKey,
 				ntlm_session_key);
 
-			cifs_calculate_mac_key(pSesInfo->mac_signing_key, 
-				ntlm_session_key, pSesInfo->password);
+			if(first_time) 		
+				cifs_calculate_mac_key(
+					pSesInfo->server->mac_signing_key,
+					ntlm_session_key, pSesInfo->password);
+
 			rc = CIFSSessSetup(xid, pSesInfo,
 				ntlm_session_key, nls_info);
 		}

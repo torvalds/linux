@@ -149,6 +149,8 @@ struct TCP_Server_Info {
 	__u16 timeZone;
 	char cryptKey[CIFS_CRYPTO_KEY_SIZE];
 	char workstation_RFC1001_name[16]; /* 16th byte is always zero */
+	__u32 sequence_number; /* needed for CIFS PDU signature */
+	char mac_signing_key[CIFS_SESSION_KEY_SIZE + 16]; 
 };
 
 /*
@@ -174,17 +176,16 @@ struct cifsSesInfo {
 	struct TCP_Server_Info *server;	/* pointer to server info */
 	atomic_t inUse; /* # of mounts (tree connections) on this ses */
 	enum statusEnum status;
-	__u32 sequence_number;  /* needed for CIFS PDU signature */
 	__u16 ipc_tid;		/* special tid for connection to IPC share */
 	__u16 flags;
-	char mac_signing_key[CIFS_SESSION_KEY_SIZE + 16];	
-	char *serverOS;		/* name of operating system underlying the server */
-	char *serverNOS;	/* name of network operating system that the server is running */
+	char *serverOS;		/* name of operating system underlying server */
+	char *serverNOS;	/* name of network operating system of server */
 	char *serverDomain;	/* security realm of server */
 	int Suid;		/* remote smb uid  */
 	uid_t linux_uid;        /* local Linux uid */
 	int capabilities;
-	char serverName[SERVER_NAME_LEN_WITH_NULL * 2];	/* BB make bigger for tcp names - will ipv6 and sctp addresses fit here?? */
+	char serverName[SERVER_NAME_LEN_WITH_NULL * 2];	/* BB make bigger for 
+				TCP names - will ipv6 and sctp addresses fit? */
 	char userName[MAX_USERNAME_SIZE + 1];
 	char domainName[MAX_USERNAME_SIZE + 1];
 	char * password;

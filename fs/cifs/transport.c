@@ -346,7 +346,7 @@ CIFSSendRcv(const unsigned int xid, struct cifsSesInfo *ses,
 	}
 
 	/* BB can we sign efficiently in this path? */
-	rc = cifs_sign_smb(in_buf, ses, &midQ->sequence_number);
+	rc = cifs_sign_smb(in_buf, ses->server, &midQ->sequence_number);
 
 	midQ->midState = MID_REQUEST_SUBMITTED;
 /*	rc = smb_sendv(ses->server->ssocket, in_buf, in_buf->smb_buf_length, piovec,
@@ -475,7 +475,7 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 		return -EIO;
 	}
 
-	rc = cifs_sign_smb(in_buf, ses, &midQ->sequence_number);
+	rc = cifs_sign_smb(in_buf, ses->server, &midQ->sequence_number);
 
 	midQ->midState = MID_REQUEST_SUBMITTED;
 	rc = smb_send(ses->server->ssocket, in_buf, in_buf->smb_buf_length,
@@ -559,8 +559,7 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 	}
   
 	if (receive_len > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE) {
-		cERROR(1,
-		       ("Frame too large received.  Length: %d  Xid: %d",
+		cERROR(1, ("Frame too large received.  Length: %d  Xid: %d",
 			receive_len, xid));
 		rc = -EIO;
 	} else {		/* rcvd frame is ok */
@@ -575,15 +574,20 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 			dump_smb(out_buf, 92);
 			/* convert the length into a more usable form */
 			if((receive_len > 24) &&
-			   (ses->server->secMode & (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED))) {
-				rc = cifs_verify_signature(out_buf, ses->mac_signing_key,midQ->sequence_number); /* BB fix BB */
-				if(rc)
-					cFYI(1,("Unexpected signature received from server"));
+			   (ses->server->secMode & (SECMODE_SIGN_REQUIRED |
+					SECMODE_SIGN_ENABLED))) {
+				rc = cifs_verify_signature(out_buf,
+						ses->server->mac_signing_key,
+						midQ->sequence_number+1);
+				if(rc) {
+					cERROR(1,("Unexpected packet signature received from server"));
+					/* BB FIXME - add code to kill session here */
+				}
 			}
 
 			*pbytes_returned = out_buf->smb_buf_length;
 
-			/* BB special case reconnect tid and reconnect uid here? */
+			/* BB special case reconnect tid and uid here? */
 			rc = map_smb_to_linux_error(out_buf);
 
 			/* convert ByteCount if necessary */

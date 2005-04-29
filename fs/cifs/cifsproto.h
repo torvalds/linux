@@ -230,7 +230,7 @@ extern void tconInfoFree(struct cifsTconInfo *);
 
 extern int cifs_reconnect(struct TCP_Server_Info *server);
 
-extern int cifs_sign_smb(struct smb_hdr *, struct cifsSesInfo *,__u32 *);
+extern int cifs_sign_smb(struct smb_hdr *, struct TCP_Server_Info *,__u32 *);
 extern int cifs_verify_signature(struct smb_hdr *, const char * mac_key,
 	__u32 expected_sequence_number);
 extern int cifs_calculate_mac_key(char * key,const char * rn,const char * pass);

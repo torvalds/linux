@@ -5,7 +5,8 @@ transact response for an SMB request and search entry split across two frames.
 Add support for lsattr (getting ext2/ext3/reiserfs attr flags from the server)
 as new protocol extensions. Do not send Get/Set calls for POSIX ACLs
 unless server explicitly claims to support them in CIFS Unix extensions
-POSIX ACL capability bit.
+POSIX ACL capability bit. Fix packet signing when multiuser mounting with
+different users from the same client to the same server.
 
 Version 1.31
 ------------
