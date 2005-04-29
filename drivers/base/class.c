@@ -26,7 +26,7 @@ class_attr_show(struct kobject * kobj, struct attribute * attr, char * buf)
 {
 	struct class_attribute * class_attr = to_class_attr(attr);
 	struct class * dc = to_class(kobj);
-	ssize_t ret = 0;
+	ssize_t ret = -EIO;
 
 	if (class_attr->show)
 		ret = class_attr->show(dc, buf);
@@ -39,7 +39,7 @@ class_attr_store(struct kobject * kobj, struct attribute * attr,
 {
 	struct class_attribute * class_attr = to_class_attr(attr);
 	struct class * dc = to_class(kobj);
-	ssize_t ret = 0;
+	ssize_t ret = -EIO;
 
 	if (class_attr->store)
 		ret = class_attr->store(dc, buf, count);

@@ -36,7 +36,7 @@ drv_attr_show(struct kobject * kobj, struct attribute * attr, char * buf)
 {
 	struct driver_attribute * drv_attr = to_drv_attr(attr);
 	struct device_driver * drv = to_driver(kobj);
-	ssize_t ret = 0;
+	ssize_t ret = -EIO;
 
 	if (drv_attr->show)
 		ret = drv_attr->show(drv, buf);
@@ -49,7 +49,7 @@ drv_attr_store(struct kobject * kobj, struct attribute * attr,
 {
 	struct driver_attribute * drv_attr = to_drv_attr(attr);
 	struct device_driver * drv = to_driver(kobj);
-	ssize_t ret = 0;
+	ssize_t ret = -EIO;
 
 	if (drv_attr->store)
 		ret = drv_attr->store(drv, buf, count);

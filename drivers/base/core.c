@@ -36,7 +36,7 @@ dev_attr_show(struct kobject * kobj, struct attribute * attr, char * buf)
 {
 	struct device_attribute * dev_attr = to_dev_attr(attr);
 	struct device * dev = to_dev(kobj);
-	ssize_t ret = 0;
+	ssize_t ret = -EIO;
 
 	if (dev_attr->show)
 		ret = dev_attr->show(dev, buf);
@@ -49,7 +49,7 @@ dev_attr_store(struct kobject * kobj, struct attribute * attr,
 {
 	struct device_attribute * dev_attr = to_dev_attr(attr);
 	struct device * dev = to_dev(kobj);
-	ssize_t ret = 0;
+	ssize_t ret = -EIO;
 
 	if (dev_attr->store)
 		ret = dev_attr->store(dev, buf, count);
