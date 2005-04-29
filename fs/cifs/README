@@ -101,12 +101,15 @@ Allowing User Unmounts
 ======================
 To permit users to ummount directories that they have user mounted (see above),
 the utility umount.cifs may be used.  It may be invoked directly, or if 
-umount.cifs is placed in /sbin, umount -i can invoke the cifs umount helper
+umount.cifs is placed in /sbin, umount can invoke the cifs umount helper
 (at least for most versions of the umount utility) for umount of cifs
-mounts. As with mount.cifs, to enable user unmounts umount.cifs must be marked
-as suid (e.g. "chmod +s /sbin/umount.cifs").  For this utility to succeed
-the target path must be a cifs mount, and the uid of the current user must
-match the uid of the user who mounted the resource.
+mounts, unless umount is invoked with -i (which will avoid invoking a umount
+helper). As with mount.cifs, to enable user unmounts umount.cifs must be marked
+as suid (e.g. "chmod +s /sbin/umount.cifs") or equivalent (some distributions
+allow adding entries to a file to the /etc/permissions file to achieve the
+equivalent suid effect).  For this utility to succeed the target path
+must be a cifs mount, and the uid of the current user must match the uid
+of the user who mounted the resource.
 
 Also note that the customary way of allowing user mounts and unmounts is 
 (instead of using mount.cifs and unmount.cifs as suid) to add a line
@@ -404,6 +407,8 @@ A partial list of the supported mount options follows:
 		This has no effect if the server does not support
 		Unicode on the wire.
  nomapchars     Do not translate any of these seven characters (default).
+ remount        remount the share (often used to change from ro to rw mounts
+	        or vice versa)
 		
 The mount.cifs mount helper also accepts a few mount options before -o
 including:

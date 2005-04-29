@@ -178,8 +178,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 					server->workstation_RFC1001_name);
 		}
 		if(rc) {
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(3 * HZ);
+			msleep(3000);
 		} else {
 			atomic_inc(&tcpSesReconnectCount);
 			spin_lock(&GlobalMid_Lock);
