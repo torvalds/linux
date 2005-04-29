@@ -190,6 +190,7 @@ cifs_statfs(struct super_block *sb, struct kstatfs *buf)
 
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 /* BB we could add a second check for a QFS Unix capability bit */
+/* BB FIXME check CIFS_POSIX_EXTENSIONS Unix cap first FIXME BB */
     if (pTcon->ses->capabilities & CAP_UNIX)
 	    rc = CIFSSMBQFSPosixInfo(xid, pTcon, buf);
 
@@ -599,6 +600,9 @@ struct file_operations cifs_dir_ops = {
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 	.dir_notify = cifs_dir_notify,
 #endif /* CONFIG_CIFS_EXPERIMENTAL */
+#ifdef CONFIG_CIFS_POSIX
+        .ioctl  = cifs_ioctl,
+#endif /* CONFIG_CIFS_POSIX */
 };
 
 static void

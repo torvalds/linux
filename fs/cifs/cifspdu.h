@@ -1556,7 +1556,7 @@ typedef struct {
 #define CIFS_UNIX_POSIX_ACL_CAP         0x00000002 /* support getfacl/setfacl */
 #define CIFS_UNIX_XATTR_CAP             0x00000004 /* support new namespace   */
 #define CIFS_UNIX_EXTATTR_CAP           0x00000008 /* support chattr/chflag   */
-
+#define CIFS_POSIX_EXTENSIONS           0x00000010 /* support for new QFSInfo */
 typedef struct {
 	/* For undefined recommended transfer size return -1 in that field */
 	__le32 OptimalTransferSize;  /* bsize on some os, iosize on other os */
