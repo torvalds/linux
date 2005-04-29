@@ -142,7 +142,6 @@ struct audit_buffer {
 	int		     total;
 	int		     type;
 	int		     pid;
-	int		     count; /* Times requeued */
 };
 
 void audit_set_type(struct audit_buffer *ab, int type)
@@ -526,9 +525,9 @@ static inline int audit_log_drain(struct audit_buffer *ab)
 			retval = netlink_unicast(audit_sock, skb, audit_pid,
 						 MSG_DONTWAIT);
 		}
-		if (retval == -EAGAIN && ab->count < 5) {
-			++ab->count;
-			skb_queue_tail(&ab->sklist, skb);
+		if (retval == -EAGAIN &&
+		    (atomic_read(&audit_backlog)) < audit_backlog_limit) {
+			skb_queue_head(&ab->sklist, skb);
 			audit_log_end_irq(ab);
 			return 1;
 		}
@@ -666,7 +665,6 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx)
 	ab->total = 0;
 	ab->type  = AUDIT_KERNEL;
 	ab->pid   = 0;
-	ab->count = 0;
 
 #ifdef CONFIG_AUDITSYSCALL
 	if (ab->ctx)
