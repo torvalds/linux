@@ -321,7 +321,7 @@ struct mid_q_entry {
 	__u8 command;	/* smb command code */
 	unsigned multiPart:1;	/* multiple responses to one SMB request */
 	unsigned largeBuf:1;    /* if valid response, is pointer to large buf */
-	unsigned multiResp:1    /* multiple trans2 responses for one request  */
+	unsigned multiResp:1;   /* multiple trans2 responses for one request  */
 };
 
 struct oplock_q_entry {
