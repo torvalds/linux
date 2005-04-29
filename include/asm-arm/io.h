@@ -99,12 +99,16 @@ extern void __readwrite_bug(const char *fn);
  */
 #ifdef __io
 #define outb(v,p)		__raw_writeb(v,__io(p))
-#define outw(v,p)		__raw_writew(cpu_to_le16(v),__io(p))
-#define outl(v,p)		__raw_writel(cpu_to_le32(v),__io(p))
+#define outw(v,p)		__raw_writew((__force __u16) \
+					cpu_to_le16(v),__io(p))
+#define outl(v,p)		__raw_writel((__force __u32) \
+					cpu_to_le32(v),__io(p))
 
-#define inb(p)	({ unsigned int __v = __raw_readb(__io(p)); __v; })
-#define inw(p)	({ unsigned int __v = le16_to_cpu(__raw_readw(__io(p))); __v; })
-#define inl(p)	({ unsigned int __v = le32_to_cpu(__raw_readl(__io(p))); __v; })
+#define inb(p)	({ __u8 __v = __raw_readb(__io(p)); __v; })
+#define inw(p)	({ __u16 __v = le16_to_cpu((__force __le16) \
+			__raw_readw(__io(p))); __v; })
+#define inl(p)	({ __u32 __v = le32_to_cpu((__force __le32) \
+			__raw_readl(__io(p))); __v; })
 
 #define outsb(p,d,l)		__raw_writesb(__io(p),d,l)
 #define outsw(p,d,l)		__raw_writesw(__io(p),d,l)
@@ -149,9 +153,11 @@ extern void _memset_io(void __iomem *, int, size_t);
  * IO port primitives for more information.
  */
 #ifdef __mem_pci
-#define readb(c) ({ unsigned int __v = __raw_readb(__mem_pci(c)); __v; })
-#define readw(c) ({ unsigned int __v = le16_to_cpu(__raw_readw(__mem_pci(c))); __v; })
-#define readl(c) ({ unsigned int __v = le32_to_cpu(__raw_readl(__mem_pci(c))); __v; })
+#define readb(c) ({ __u8  __v = __raw_readb(__mem_pci(c)); __v; })
+#define readw(c) ({ __u16 __v = le16_to_cpu((__force __le16) \
+					__raw_readw(__mem_pci(c))); __v; })
+#define readl(c) ({ __u32 __v = le32_to_cpu((__force __le32) \
+					__raw_readl(__mem_pci(c))); __v; })
 #define readb_relaxed(addr) readb(addr)
 #define readw_relaxed(addr) readw(addr)
 #define readl_relaxed(addr) readl(addr)
@@ -161,8 +167,10 @@ extern void _memset_io(void __iomem *, int, size_t);
 #define readsl(p,d,l)		__raw_readsl(__mem_pci(p),d,l)
 
 #define writeb(v,c)		__raw_writeb(v,__mem_pci(c))
-#define writew(v,c)		__raw_writew(cpu_to_le16(v),__mem_pci(c))
-#define writel(v,c)		__raw_writel(cpu_to_le32(v),__mem_pci(c))
+#define writew(v,c)		__raw_writew((__force __u16) \
+					cpu_to_le16(v),__mem_pci(c))
+#define writel(v,c)		__raw_writel((__force __u32) \
+					cpu_to_le32(v),__mem_pci(c))
 
 #define writesb(p,d,l)		__raw_writesb(__mem_pci(p),d,l)
 #define writesw(p,d,l)		__raw_writesw(__mem_pci(p),d,l)
