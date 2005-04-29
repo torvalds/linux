@@ -2436,7 +2436,6 @@ e1000_clean_tx_irq(struct e1000_adapter *adapter)
 			tx_desc->lower.data = 0;
 			tx_desc->upper.data = 0;
 
-			cleaned = (i == eop);
 			if(unlikely(++i == tx_ring->count)) i = 0;
 		}
 		
