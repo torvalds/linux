@@ -396,6 +396,10 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 						    smb_buffer;
 						mid_entry->midState =
 						    MID_RESPONSE_RECEIVED;
+						if(isLargeBuf)
+							mid_entry->largeBuf = 1;
+						else
+							mid_entry->largeBuf = 0;
 					}
 				}
 				spin_unlock(&GlobalMid_Lock);

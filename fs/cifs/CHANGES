@@ -11,7 +11,11 @@ cifs_close. Add mount option for remapping reserved characters in
 filenames (also allow recognizing files with created by SFU which have any
 of these seven reserved characters, except backslash, to be recognized).
 Fix invalid transact2 message (we were sometimes trying to interpret
-oplock breaks as SMB responses).
+oplock breaks as SMB responses). Add ioctl for checking that the
+current uid matches the uid of the mounter (needed by umount.cifs).
+Reduce the number of large buffer allocations in cifs response processing
+(significantly reduces memory pressure under heavy stress with multiple
+processes accessing the same server at the same time).
 
 Version 1.31
 ------------

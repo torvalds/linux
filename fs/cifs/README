@@ -75,7 +75,7 @@ Allowing User Mounts
 ====================
 To permit users to mount and unmount over directories they own is possible
 with the cifs vfs.  A way to enable such mounting is to mark the mount.cifs
-utility as suid (e.g. "chmod +s /sbin/mount/cifs). To enable users to 
+utility as suid (e.g. "chmod +s /sbin/mount.cifs). To enable users to 
 umount shares they mount requires
 1) mount.cifs version 1.4 or later
 2) an entry for the share in /etc/fstab indicating that a user may
@@ -96,6 +96,23 @@ mount.cifs with the following flag:
 
 There is a corresponding manual page for cifs mounting in the Samba 3.0 and
 later source tree in docs/manpages/mount.cifs.8 
+
+Allowing User Unmounts
+======================
+To permit users to ummount directories that they have user mounted (see above),
+the utility umount.cifs may be used.  It may be invoked directly, or if 
+umount.cifs is placed in /sbin, umount -i can invoke the cifs umount helper
+(at least for most versions of the umount utility) for umount of cifs
+mounts. As with mount.cifs, to enable user unmounts umount.cifs must be marked
+as suid (e.g. "chmod +s /sbin/umount.cifs").  For this utility to succeed
+the target path must be a cifs mount, and the uid of the current user must
+match the uid of the user who mounted the resource.
+
+Also note that the customary way of allowing user mounts and unmounts is 
+(instead of using mount.cifs and unmount.cifs as suid) to add a line
+to the file /etc/fstab for each //server/share you wish to mount, but
+this can become unwieldy when potential mount targets include many
+or  unpredictable UNC names.
 
 Samba Considerations 
 ==================== 
