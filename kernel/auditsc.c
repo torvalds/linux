@@ -1,4 +1,4 @@
-/* auditsc.c -- System-call auditing support -*- linux-c -*-
+/* auditsc.c -- System-call auditing support
  * Handles all system-call specific auditing features.
  *
  * Copyright 2003-2004 Red Hat Inc., Durham, North Carolina.

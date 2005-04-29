@@ -1,4 +1,4 @@
-/* audit.c -- Auditing support -*- linux-c -*-
+/* audit.c -- Auditing support
  * Gateway between the kernel (e.g., selinux) and the user-space audit daemon.
  * System-call specific features have moved to auditsc.c
  *
@@ -38,7 +38,7 @@
  *	  6) Support low-overhead kernel-based filtering to minimize the
  *	     information that must be passed to user-space.
  *
- * Example user-space utilities: http://people.redhat.com/faith/audit/
+ * Example user-space utilities: http://people.redhat.com/sgrubb/audit/
  */
 
 #include <linux/init.h>

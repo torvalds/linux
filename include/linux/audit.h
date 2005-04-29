@@ -1,4 +1,4 @@
-/* audit.h -- Auditing support -*- linux-c -*-
+/* audit.h -- Auditing support
  *
  * Copyright 2003-2004 Red Hat Inc., Durham, North Carolina.
  * All Rights Reserved.
