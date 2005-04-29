@@ -27,6 +27,7 @@
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "cifs_debug.h"
+#include "cifsfs.h"
 
 int cifs_ioctl (struct inode * inode, struct file * filep, 
 		unsigned int command, unsigned long arg)

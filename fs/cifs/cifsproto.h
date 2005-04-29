@@ -266,6 +266,4 @@ extern int CIFSSMBSetPosixACL(const int xid, struct cifsTconInfo *tcon,
 		const struct nls_table *nls_codepage);
 extern int CIFSGetExtAttr(const int xid, struct cifsTconInfo *tcon,
                 const int netfid, __u64 * pExtAttrBits, __u64 *pMask);
-extern int cifs_ioctl (struct inode * inode, struct file * filep,
-                unsigned int command, unsigned long arg);
 #endif			/* _CIFSPROTO_H */

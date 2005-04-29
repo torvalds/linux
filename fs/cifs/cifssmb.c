@@ -2093,9 +2093,9 @@ GetExtAttrRetry:
         if (rc)
                 return rc;
 
-        params = 2 /* level */ +2 /* fid */ + 2 /* rsrvd */;
+        params = 2 /* level */ +2 /* fid */;
         pSMB->t2.TotalDataCount = 0;
-        pSMB->t2.MaxParameterCount = cpu_to_le16(2);
+        pSMB->t2.MaxParameterCount = cpu_to_le16(4);
         /* BB find exact max data count below from sess structure BB */
         pSMB->t2.MaxDataCount = cpu_to_le16(4000);
         pSMB->t2.MaxSetupCount = 0;
@@ -2103,19 +2103,18 @@ GetExtAttrRetry:
         pSMB->t2.Flags = 0;
         pSMB->t2.Timeout = 0;
         pSMB->t2.Reserved2 = 0;
-        pSMB->t2.ParameterOffset = cpu_to_le16(offsetof(
-                struct smb_com_transaction2_qpi_req ,InformationLevel) - 4);
+        pSMB->t2.ParameterOffset = cpu_to_le16(offsetof(struct smb_t2_qfi_req,
+			Fid) - 4);
         pSMB->t2.DataCount = 0;
         pSMB->t2.DataOffset = 0;
         pSMB->t2.SetupCount = 1;
         pSMB->t2.Reserved3 = 0;
         pSMB->t2.SubCommand = cpu_to_le16(TRANS2_QUERY_FILE_INFORMATION);
-        byte_count = params + 3 /* pad */ ;
+        byte_count = params + 1 /* pad */ ;
         pSMB->t2.TotalParameterCount = cpu_to_le16(params);
         pSMB->t2.ParameterCount = pSMB->t2.TotalParameterCount;
         pSMB->InformationLevel = cpu_to_le16(SMB_QUERY_ATTR_FLAGS);
-        pSMB->Pad1 = 0;
-	pSMB->Pad2 = 0;
+        pSMB->Pad = 0;
 	pSMB->Fid = netfid;
         pSMB->hdr.smb_buf_length += byte_count;
         pSMB->t2.ByteCount = cpu_to_le16(byte_count);

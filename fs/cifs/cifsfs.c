@@ -559,6 +559,10 @@ struct file_operations cifs_file_ops = {
 	.flush = cifs_flush,
 	.mmap  = cifs_file_mmap,
 	.sendfile = generic_file_sendfile,
+#ifdef CONFIG_CIFS_POSIX
+	.ioctl	= cifs_ioctl,
+#endif /* CONFIG_CIFS_POSIX */
+
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 	.readv = generic_file_readv,
 	.writev = generic_file_writev,
@@ -579,6 +583,10 @@ struct file_operations cifs_file_direct_ops = {
 	.fsync = cifs_fsync,
 	.flush = cifs_flush,
 	.sendfile = generic_file_sendfile, /* BB removeme BB */
+#ifdef CONFIG_CIFS_POSIX
+	.ioctl  = cifs_ioctl,
+#endif /* CONFIG_CIFS_POSIX */
+
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 	.dir_notify = cifs_dir_notify,
 #endif /* CONFIG_CIFS_EXPERIMENTAL */

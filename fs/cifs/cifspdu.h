@@ -1258,10 +1258,8 @@ struct smb_t2_qfi_req {
         struct	smb_hdr hdr;
         struct	trans2_req t2;
 	__u8	Pad;
-	__u16	Pad1;
 	__u16	Fid;
 	__le16	InformationLevel;
-	__u16	Pad2;
 };
 
 struct smb_t2_qfi_rsp {
