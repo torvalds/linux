@@ -37,6 +37,13 @@ static ssize_t aoedisk_show_netif(struct gendisk * disk, char *page)
 
 	return snprintf(page, PAGE_SIZE, "%s\n", d->ifp->name);
 }
+/* firmware version */
+static ssize_t aoedisk_show_fwver(struct gendisk * disk, char *page)
+{
+	struct aoedev *d = disk->private_data;
+
+	return snprintf(page, PAGE_SIZE, "0x%04x\n", (unsigned int) d->fw_ver);
+}
 
 static struct disk_attribute disk_attr_state = {
 	.attr = {.name = "state", .mode = S_IRUGO },
@@ -50,6 +57,10 @@ static struct disk_attribute disk_attr_netif = {
 	.attr = {.name = "netif", .mode = S_IRUGO },
 	.show = aoedisk_show_netif
 };
+static struct disk_attribute disk_attr_fwver = {
+	.attr = {.name = "firmware-version", .mode = S_IRUGO },
+	.show = aoedisk_show_fwver
+};
 
 static void
 aoedisk_add_sysfs(struct aoedev *d)
@@ -57,6 +68,7 @@ aoedisk_add_sysfs(struct aoedev *d)
 	sysfs_create_file(&d->gd->kobj, &disk_attr_state.attr);
 	sysfs_create_file(&d->gd->kobj, &disk_attr_mac.attr);
 	sysfs_create_file(&d->gd->kobj, &disk_attr_netif.attr);
+	sysfs_create_file(&d->gd->kobj, &disk_attr_fwver.attr);
 }
 void
 aoedisk_rm_sysfs(struct aoedev *d)
@@ -64,6 +76,7 @@ aoedisk_rm_sysfs(struct aoedev *d)
 	sysfs_remove_link(&d->gd->kobj, "state");
 	sysfs_remove_link(&d->gd->kobj, "mac");
 	sysfs_remove_link(&d->gd->kobj, "netif");
+	sysfs_remove_link(&d->gd->kobj, "firmware-version");
 }
 
 static int
