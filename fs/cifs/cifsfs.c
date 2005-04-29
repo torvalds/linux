@@ -191,13 +191,13 @@ cifs_statfs(struct super_block *sb, struct kstatfs *buf)
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 /* BB we could add a second check for a QFS Unix capability bit */
     if (pTcon->ses->capabilities & CAP_UNIX)
-	    rc = CIFSSMBQFSPosixInfo(xid, pTcon, buf, cifs_sb->local_nls);
+	    rc = CIFSSMBQFSPosixInfo(xid, pTcon, buf);
 
     /* Only need to call the old QFSInfo if failed
     on newer one */
     if(rc)
 #endif /* CIFS_EXPERIMENTAL */
-	rc = CIFSSMBQFSInfo(xid, pTcon, buf, cifs_sb->local_nls);
+	rc = CIFSSMBQFSInfo(xid, pTcon, buf);
 
 	/*     
 	   int f_type;

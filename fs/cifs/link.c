@@ -59,10 +59,14 @@ cifs_hardlink(struct dentry *old_file, struct inode *inode,
 
 	if (cifs_sb_target->tcon->ses->capabilities & CAP_UNIX)
 		rc = CIFSUnixCreateHardLink(xid, pTcon, fromName, toName,
-					    cifs_sb_target->local_nls);
+					    cifs_sb_target->local_nls, 
+					    cifs_sb_target->mnt_cifs_flags &
+						CIFS_MOUNT_MAP_SPECIAL_CHR);
 	else {
 		rc = CIFSCreateHardLink(xid, pTcon, fromName, toName,
-					cifs_sb_target->local_nls);
+					cifs_sb_target->local_nls, 
+					cifs_sb_target->mnt_cifs_flags &
+						CIFS_MOUNT_MAP_SPECIAL_CHR);
 		if(rc == -EIO)
 			rc = -EOPNOTSUPP;  
 	}
@@ -260,7 +264,10 @@ cifs_readlink(struct dentry *direntry, char __user *pBuffer, int buflen)
 				cifs_sb->local_nls);
 	else {
 		rc = CIFSSMBOpen(xid, pTcon, full_path, FILE_OPEN, GENERIC_READ,
-				OPEN_REPARSE_POINT,&fid, &oplock, NULL, cifs_sb->local_nls);
+				OPEN_REPARSE_POINT,&fid, &oplock, NULL, 
+				cifs_sb->local_nls, 
+				cifs_sb->mnt_cifs_flags & 
+					CIFS_MOUNT_MAP_SPECIAL_CHR);
 		if(!rc) {
 			rc = CIFSSMBQueryReparseLinkInfo(xid, pTcon, full_path,
 				tmpbuffer,
@@ -279,7 +286,10 @@ cifs_readlink(struct dentry *direntry, char __user *pBuffer, int buflen)
 					strncpy(tmp_path, pTcon->treeName, MAX_TREE_SIZE);
 					strncat(tmp_path, full_path, MAX_PATHCONF);
 					rc = get_dfs_path(xid, pTcon->ses, tmp_path,
-						cifs_sb->local_nls, &num_referrals, &referrals);
+						cifs_sb->local_nls,
+						&num_referrals, &referrals,
+						cifs_sb->mnt_cifs_flags &
+						    CIFS_MOUNT_MAP_SPECIAL_CHR);
 					cFYI(1,("Get DFS for %s rc = %d ",tmp_path, rc));
 					if((num_referrals == 0) && (rc == 0))
 						rc = -EACCES;

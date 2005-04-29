@@ -44,7 +44,8 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 	cFYI(1, (" Getting info on %s ", search_path));
 	/* could have done a find first instead but this returns more info */
 	rc = CIFSSMBUnixQPathInfo(xid, pTcon, search_path, &findData,
-				  cifs_sb->local_nls);
+				  cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
+					CIFS_MOUNT_MAP_SPECIAL_CHR);
 /*	dump_mem("\nUnixQPathInfo return data", &findData,
 		 sizeof(findData)); */
 	if (rc) {
@@ -63,7 +64,9 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 			strncat(tmp_path, search_path, MAX_PATHCONF);
 			rc = connect_to_dfs_path(xid, pTcon->ses,
 						 /* treename + */ tmp_path,
-						 cifs_sb->local_nls);
+						 cifs_sb->local_nls, 
+						 cifs_sb->mnt_cifs_flags & 
+						    CIFS_MOUNT_MAP_SPECIAL_CHR);
 			kfree(tmp_path);
 
 			/* BB fix up inode etc. */
@@ -210,7 +213,8 @@ int cifs_get_inode_info(struct inode **pinode,
 		pfindData = (FILE_ALL_INFO *)buf;
 		/* could do find first instead but this returns more info */
 		rc = CIFSSMBQPathInfo(xid, pTcon, search_path, pfindData,
-			      cifs_sb->local_nls);
+			      cifs_sb->local_nls, cifs_sb->mnt_cifs_flags & 
+				CIFS_MOUNT_MAP_SPECIAL_CHR);
 	}
 	/* dump_mem("\nQPathInfo return data",&findData, sizeof(findData)); */
 	if (rc) {
@@ -230,7 +234,9 @@ int cifs_get_inode_info(struct inode **pinode,
 			strncat(tmp_path, search_path, MAX_PATHCONF);
 			rc = connect_to_dfs_path(xid, pTcon->ses,
 						 /* treename + */ tmp_path,
-						 cifs_sb->local_nls);
+						 cifs_sb->local_nls, 
+						 cifs_sb->mnt_cifs_flags & 
+						   CIFS_MOUNT_MAP_SPECIAL_CHR);
 			kfree(tmp_path);
 			/* BB fix up inode etc. */
 		} else if (rc) {
@@ -268,7 +274,9 @@ int cifs_get_inode_info(struct inode **pinode,
 
 				rc1 = CIFSGetSrvInodeNumber(xid, pTcon, 
 					search_path, &inode_num, 
-					cifs_sb->local_nls);
+					cifs_sb->local_nls,
+					cifs_sb->mnt_cifs_flags &
+						CIFS_MOUNT_MAP_SPECIAL_CHR);
 				if(rc1) {
 					cFYI(1,("GetSrvInodeNum rc %d", rc1));
 					/* BB EOPNOSUPP disable SERVER_INUM? */
@@ -410,7 +418,8 @@ int cifs_unlink(struct inode *inode, struct dentry *direntry)
 		FreeXid(xid);
 		return -ENOMEM;
 	}
-	rc = CIFSSMBDelFile(xid, pTcon, full_path, cifs_sb->local_nls);
+	rc = CIFSSMBDelFile(xid, pTcon, full_path, cifs_sb->local_nls,
+			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
 
 	if (!rc) {
 		direntry->d_inode->i_nlink--;
@@ -422,10 +431,14 @@ int cifs_unlink(struct inode *inode, struct dentry *direntry)
 
 		rc = CIFSSMBOpen(xid, pTcon, full_path, FILE_OPEN, DELETE,
 				 CREATE_NOT_DIR | CREATE_DELETE_ON_CLOSE,
-				 &netfid, &oplock, NULL, cifs_sb->local_nls);
+				 &netfid, &oplock, NULL, cifs_sb->local_nls,
+				 cifs_sb->mnt_cifs_flags & 
+					CIFS_MOUNT_MAP_SPECIAL_CHR);
 		if (rc==0) {
 			CIFSSMBRenameOpenFile(xid, pTcon, netfid, NULL,
-					      cifs_sb->local_nls);
+					      cifs_sb->local_nls, 
+					      cifs_sb->mnt_cifs_flags & 
+						CIFS_MOUNT_MAP_SPECIAL_CHR);
 			CIFSSMBClose(xid, pTcon, netfid);
 			direntry->d_inode->i_nlink--;
 		}
@@ -439,7 +452,9 @@ int cifs_unlink(struct inode *inode, struct dentry *direntry)
 			if (!(pTcon->ses->flags & CIFS_SES_NT4))
 				rc = CIFSSMBSetTimes(xid, pTcon, full_path,
 						     pinfo_buf,
-						     cifs_sb->local_nls);
+						     cifs_sb->local_nls,
+						     cifs_sb->mnt_cifs_flags & 
+							CIFS_MOUNT_MAP_SPECIAL_CHR);
 			else
 				rc = -EOPNOTSUPP;
 
@@ -461,7 +476,9 @@ int cifs_unlink(struct inode *inode, struct dentry *direntry)
 						 FILE_OPEN, SYNCHRONIZE |
 						 FILE_WRITE_ATTRIBUTES, 0,
 						 &netfid, &oplock, NULL,
-						 cifs_sb->local_nls);
+						 cifs_sb->local_nls,
+						 cifs_sb->mnt_cifs_flags & 
+						    CIFS_MOUNT_MAP_SPECIAL_CHR);
 				if (rc==0) {
 					rc = CIFSSMBSetFileTimes(xid, pTcon,
 								 pinfo_buf,
@@ -472,8 +489,10 @@ int cifs_unlink(struct inode *inode, struct dentry *direntry)
 			kfree(pinfo_buf);
 		}
 		if (rc==0) {
-			rc = CIFSSMBDelFile(xid, pTcon, full_path,
-					    cifs_sb->local_nls);
+			rc = CIFSSMBDelFile(xid, pTcon, full_path, 
+					    cifs_sb->local_nls, 
+					    cifs_sb->mnt_cifs_flags & 
+						CIFS_MOUNT_MAP_SPECIAL_CHR);
 			if (!rc) {
 				direntry->d_inode->i_nlink--;
 			} else if (rc == -ETXTBSY) {
@@ -485,11 +504,15 @@ int cifs_unlink(struct inode *inode, struct dentry *direntry)
 						 CREATE_NOT_DIR |
 						 CREATE_DELETE_ON_CLOSE,
 						 &netfid, &oplock, NULL,
-						 cifs_sb->local_nls);
+						 cifs_sb->local_nls, 
+						 cifs_sb->mnt_cifs_flags & 
+						    CIFS_MOUNT_MAP_SPECIAL_CHR);
 				if (rc==0) {
 					CIFSSMBRenameOpenFile(xid, pTcon,
 						netfid, NULL,
-						cifs_sb->local_nls);
+						cifs_sb->local_nls,
+						cifs_sb->mnt_cifs_flags &
+						    CIFS_MOUNT_MAP_SPECIAL_CHR);
 					CIFSSMBClose(xid, pTcon, netfid);
 		                        direntry->d_inode->i_nlink--;
 				}
@@ -534,7 +557,8 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 		return -ENOMEM;
 	}
 	/* BB add setting the equivalent of mode via CreateX w/ACLs */
-	rc = CIFSSMBMkDir(xid, pTcon, full_path, cifs_sb->local_nls);
+	rc = CIFSSMBMkDir(xid, pTcon, full_path, cifs_sb->local_nls,
+			  cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
 	if (rc) {
 		cFYI(1, ("cifs_mkdir returned 0x%x ", rc));
 		d_drop(direntry);
@@ -558,12 +582,16 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 						    (__u64)current->euid,
 						    (__u64)current->egid,
 						    0 /* dev_t */,
-						    cifs_sb->local_nls);
+						    cifs_sb->local_nls,
+						    cifs_sb->mnt_cifs_flags &
+						    CIFS_MOUNT_MAP_SPECIAL_CHR);
 			} else {
 				CIFSSMBUnixSetPerms(xid, pTcon, full_path,
 						    mode, (__u64)-1,
 						    (__u64)-1, 0 /* dev_t */,
-						    cifs_sb->local_nls);
+						    cifs_sb->local_nls,
+						    cifs_sb->mnt_cifs_flags & 
+						    CIFS_MOUNT_MAP_SPECIAL_CHR);
 			}
 		else {
 			/* BB to be implemented via Windows secrty descriptors
@@ -600,7 +628,8 @@ int cifs_rmdir(struct inode *inode, struct dentry *direntry)
 		return -ENOMEM;
 	}
 
-	rc = CIFSSMBRmDir(xid, pTcon, full_path, cifs_sb->local_nls);
+	rc = CIFSSMBRmDir(xid, pTcon, full_path, cifs_sb->local_nls,
+			  cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
 
 	if (!rc) {
 		inode->i_nlink--;
@@ -653,7 +682,9 @@ int cifs_rename(struct inode *source_inode, struct dentry *source_direntry,
 	}
 
 	rc = CIFSSMBRename(xid, pTcon, fromName, toName,
-			   cifs_sb_source->local_nls);
+			   cifs_sb_source->local_nls,
+			   cifs_sb_source->mnt_cifs_flags &
+				CIFS_MOUNT_MAP_SPECIAL_CHR);
 	if (rc == -EEXIST) {
 		/* check if they are the same file because rename of hardlinked
 		   files is a noop */
@@ -665,11 +696,16 @@ int cifs_rename(struct inode *source_inode, struct dentry *source_direntry,
 		if (info_buf_source != NULL) {
 			info_buf_target = info_buf_source + 1;
 			rc = CIFSSMBUnixQPathInfo(xid, pTcon, fromName,
-				info_buf_source, cifs_sb_source->local_nls);
+				info_buf_source, cifs_sb_source->local_nls, 
+				cifs_sb_source->mnt_cifs_flags &
+					CIFS_MOUNT_MAP_SPECIAL_CHR);
 			if (rc == 0) {
 				rc = CIFSSMBUnixQPathInfo(xid, pTcon, toName,
 						info_buf_target,
-						cifs_sb_target->local_nls);
+						cifs_sb_target->local_nls,
+						/* remap based on source sb */
+						cifs_sb_source->mnt_cifs_flags &
+						    CIFS_MOUNT_MAP_SPECIAL_CHR);
 			}
 			if ((rc == 0) &&
 			    (info_buf_source->UniqueId ==
@@ -685,7 +721,9 @@ int cifs_rename(struct inode *source_inode, struct dentry *source_direntry,
 				cifs_unlink(target_inode, target_direntry);
 				rc = CIFSSMBRename(xid, pTcon, fromName,
 						   toName,
-						   cifs_sb_source->local_nls);
+						   cifs_sb_source->local_nls,
+						   cifs_sb_source->mnt_cifs_flags
+						   & CIFS_MOUNT_MAP_SPECIAL_CHR);
 			}
 			kfree(info_buf_source);
 		} /* if we can not get memory just leave rc as EEXIST */
@@ -705,10 +743,14 @@ int cifs_rename(struct inode *source_inode, struct dentry *source_direntry,
 		   might not right be right access to request */
 		rc = CIFSSMBOpen(xid, pTcon, fromName, FILE_OPEN, GENERIC_READ,
 				 CREATE_NOT_DIR, &netfid, &oplock, NULL,
-				 cifs_sb_source->local_nls);
+				 cifs_sb_source->local_nls, 
+				 cifs_sb_source->mnt_cifs_flags & 
+					CIFS_MOUNT_MAP_SPECIAL_CHR);
 		if (rc==0) {
 			CIFSSMBRenameOpenFile(xid, pTcon, netfid, toName,
-					      cifs_sb_source->local_nls);
+					      cifs_sb_source->local_nls, 
+					      cifs_sb_source->mnt_cifs_flags &
+						CIFS_MOUNT_MAP_SPECIAL_CHR);
 			CIFSSMBClose(xid, pTcon, netfid);
 		}
 	}
@@ -962,7 +1004,9 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 			   it by handle */
 			rc = CIFSSMBSetEOF(xid, pTcon, full_path,
 					   attrs->ia_size, FALSE,
-					   cifs_sb->local_nls);
+					   cifs_sb->local_nls, 
+					   cifs_sb->mnt_cifs_flags &
+						CIFS_MOUNT_MAP_SPECIAL_CHR);
 			cFYI(1, (" SetEOF by path (setattrs) rc = %d", rc));
 		}
 
@@ -999,7 +1043,9 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 	if ((cifs_sb->tcon->ses->capabilities & CAP_UNIX)
 	    && (attrs->ia_valid & (ATTR_MODE | ATTR_GID | ATTR_UID)))
 		rc = CIFSSMBUnixSetPerms(xid, pTcon, full_path, mode, uid, gid,
-					 0 /* dev_t */, cifs_sb->local_nls);
+					 0 /* dev_t */, cifs_sb->local_nls,
+					 cifs_sb->mnt_cifs_flags & 
+						CIFS_MOUNT_MAP_SPECIAL_CHR);
 	else if (attrs->ia_valid & ATTR_MODE) {
 		if ((mode & S_IWUGO) == 0) /* not writeable */ {
 			if ((cifsInode->cifsAttrs & ATTR_READONLY) == 0)
@@ -1048,7 +1094,9 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 		   via Handle (SetFileInfo) instead of by path */
 		if (!(pTcon->ses->flags & CIFS_SES_NT4))
 			rc = CIFSSMBSetTimes(xid, pTcon, full_path, &time_buf,
-					     cifs_sb->local_nls);
+					     cifs_sb->local_nls,
+					     cifs_sb->mnt_cifs_flags &
+						CIFS_MOUNT_MAP_SPECIAL_CHR);
 		else
 			rc = -EOPNOTSUPP;
 
@@ -1063,7 +1111,9 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 			rc = CIFSSMBOpen(xid, pTcon, full_path, FILE_OPEN,
 					 SYNCHRONIZE | FILE_WRITE_ATTRIBUTES,
 					 CREATE_NOT_DIR, &netfid, &oplock,
-					 NULL, cifs_sb->local_nls);
+					 NULL, cifs_sb->local_nls,
+					 cifs_sb->mnt_cifs_flags &
+						CIFS_MOUNT_MAP_SPECIAL_CHR);
 			if (rc==0) {
 				rc = CIFSSMBSetFileTimes(xid, pTcon, &time_buf,
 							 netfid);

@@ -924,14 +924,15 @@ find_unc(__be32 new_target_ip_addr, char *uncName, char *userName)
 
 int
 connect_to_dfs_path(int xid, struct cifsSesInfo *pSesInfo,
-		    const char *old_path, const struct nls_table *nls_codepage)
+		    const char *old_path, const struct nls_table *nls_codepage,
+		    int remap)
 {
 	unsigned char *referrals = NULL;
 	unsigned int num_referrals;
 	int rc = 0;
 
 	rc = get_dfs_path(xid, pSesInfo,old_path, nls_codepage, 
-			&num_referrals, &referrals);
+			&num_referrals, &referrals, remap);
 
 	/* BB Add in code to: if valid refrl, if not ip address contact
 		the helper that resolves tcp names, mount to it, try to 
@@ -946,7 +947,8 @@ connect_to_dfs_path(int xid, struct cifsSesInfo *pSesInfo,
 int
 get_dfs_path(int xid, struct cifsSesInfo *pSesInfo,
 			const char *old_path, const struct nls_table *nls_codepage, 
-			unsigned int *pnum_referrals, unsigned char ** preferrals)
+			unsigned int *pnum_referrals, 
+			unsigned char ** preferrals, int remap)
 {
 	char *temp_unc;
 	int rc = 0;
@@ -971,7 +973,7 @@ get_dfs_path(int xid, struct cifsSesInfo *pSesInfo,
 	}
 	if (rc == 0)
 		rc = CIFSGetDFSRefer(xid, pSesInfo, old_path, preferrals,
-				     pnum_referrals, nls_codepage);
+				     pnum_referrals, nls_codepage, remap);
 
 	return rc;
 }
@@ -1456,11 +1458,10 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 				if ((strchr(volume_info.UNC + 3, '\\') == NULL)
 				    && (strchr(volume_info.UNC + 3, '/') ==
 					NULL)) {
-					rc = connect_to_dfs_path(xid,
-								 pSesInfo,
-								 "",
-								 cifs_sb->
-								 local_nls);
+					rc = connect_to_dfs_path(xid, pSesInfo,
+							"", cifs_sb->local_nls,
+							cifs_sb->mnt_cifs_flags & 
+							  CIFS_MOUNT_MAP_SPECIAL_CHR);
 					if(volume_info.UNC)
 						kfree(volume_info.UNC);
 					FreeXid(xid);
@@ -1523,10 +1524,10 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		tcon->ses = pSesInfo;
 
 		/* do not care if following two calls succeed - informational only */
-		CIFSSMBQFSDeviceInfo(xid, tcon, cifs_sb->local_nls);
-		CIFSSMBQFSAttributeInfo(xid, tcon, cifs_sb->local_nls);
+		CIFSSMBQFSDeviceInfo(xid, tcon);
+		CIFSSMBQFSAttributeInfo(xid, tcon);
 		if (tcon->ses->capabilities & CAP_UNIX) {
-			if(!CIFSSMBQFSUnixInfo(xid, tcon, cifs_sb->local_nls)) {
+			if(!CIFSSMBQFSUnixInfo(xid, tcon)) {
 				if(!volume_info.no_psx_acl) {
 					if(CIFS_UNIX_POSIX_ACL_CAP & 
 					   le64_to_cpu(tcon->fsUnixInfo.Capability))

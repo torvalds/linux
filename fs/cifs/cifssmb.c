@@ -538,8 +538,8 @@ CIFSSMBLogoff(const int xid, struct cifsSesInfo *ses)
 }
 
 int
-CIFSSMBDelFile(const int xid, struct cifsTconInfo *tcon,
-	       const char *fileName, const struct nls_table *nls_codepage)
+CIFSSMBDelFile(const int xid, struct cifsTconInfo *tcon, const char *fileName,
+	       const struct nls_table *nls_codepage, int remap)
 {
 	DELETE_FILE_REQ *pSMB = NULL;
 	DELETE_FILE_RSP *pSMBr = NULL;
@@ -555,9 +555,8 @@ DelFileRetry:
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-		    cifs_strtoUCS((wchar_t *) pSMB->fileName, fileName, PATH_MAX
-				  /* find define for this maxpathcomponent */
-				  , nls_codepage);
+		    cifsConvertToUCS((__u16 *) pSMB->fileName, fileName, 
+				     PATH_MAX, nls_codepage, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
 	} else {		/* BB improve the check for buffer overruns BB */
@@ -589,8 +588,8 @@ DelFileRetry:
 }
 
 int
-CIFSSMBRmDir(const int xid, struct cifsTconInfo *tcon,
-	     const char *dirName, const struct nls_table *nls_codepage)
+CIFSSMBRmDir(const int xid, struct cifsTconInfo *tcon, const char *dirName, 
+	     const struct nls_table *nls_codepage, int remap)
 {
 	DELETE_DIRECTORY_REQ *pSMB = NULL;
 	DELETE_DIRECTORY_RSP *pSMBr = NULL;
@@ -606,9 +605,8 @@ RmDirRetry:
 		return rc;
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
-		name_len = cifs_strtoUCS((wchar_t *) pSMB->DirName, dirName, PATH_MAX
-				/* find define for this maxpathcomponent */
-				, nls_codepage);
+		name_len = cifsConvertToUCS((__le16 *) pSMB->DirName, dirName,
+					 PATH_MAX, nls_codepage, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
 	} else {		/* BB improve the check for buffer overruns BB */
@@ -639,7 +637,7 @@ RmDirRetry:
 
 int
 CIFSSMBMkDir(const int xid, struct cifsTconInfo *tcon,
-	     const char *name, const struct nls_table *nls_codepage)
+	     const char *name, const struct nls_table *nls_codepage, int remap)
 {
 	int rc = 0;
 	CREATE_DIRECTORY_REQ *pSMB = NULL;
@@ -655,9 +653,8 @@ MkDirRetry:
 		return rc;
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
-		name_len = cifs_strtoUCS((wchar_t *) pSMB->DirName, name, PATH_MAX
-					 /* find define for this maxpathcomponent */
-					 , nls_codepage);
+		name_len = cifsConvertToUCS((__u16 *) pSMB->DirName, name, 
+					    PATH_MAX, nls_codepage, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
 	} else {		/* BB improve the check for buffer overruns BB */
@@ -690,7 +687,7 @@ CIFSSMBOpen(const int xid, struct cifsTconInfo *tcon,
 	    const char *fileName, const int openDisposition,
 	    const int access_flags, const int create_options, __u16 * netfid,
 	    int *pOplock, FILE_ALL_INFO * pfile_info, 
-	    const struct nls_table *nls_codepage)
+	    const struct nls_table *nls_codepage, int remap)
 {
 	int rc = -EACCES;
 	OPEN_REQ *pSMB = NULL;
@@ -710,10 +707,8 @@ openRetry:
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		count = 1;	/* account for one byte pad to word boundary */
 		name_len =
-		    cifs_strtoUCS((wchar_t *) (pSMB->fileName + 1),
-				  fileName, PATH_MAX
-				  /* find define for this maxpathcomponent */
-				  , nls_codepage);
+		    cifsConvertToUCS((__u16 *) (pSMB->fileName + 1),
+				     fileName, PATH_MAX, nls_codepage, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
 		pSMB->NameLength = cpu_to_le16(name_len);
@@ -1108,7 +1103,7 @@ CIFSSMBClose(const int xid, struct cifsTconInfo *tcon, int smb_file_id)
 int
 CIFSSMBRename(const int xid, struct cifsTconInfo *tcon,
 	      const char *fromName, const char *toName,
-	      const struct nls_table *nls_codepage)
+	      const struct nls_table *nls_codepage, int remap)
 {
 	int rc = 0;
 	RENAME_REQ *pSMB = NULL;
@@ -1131,18 +1126,16 @@ renameRetry:
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-		    cifs_strtoUCS((wchar_t *) pSMB->OldFileName, fromName, PATH_MAX
-				  /* find define for this maxpathcomponent */
-				  , nls_codepage);
+		    cifsConvertToUCS((__u16 *) pSMB->OldFileName, fromName, 
+				     PATH_MAX, nls_codepage, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
 		pSMB->OldFileName[name_len] = 0x04;	/* pad */
 	/* protocol requires ASCII signature byte on Unicode string */
 		pSMB->OldFileName[name_len + 1] = 0x00;
 		name_len2 =
-		    cifs_strtoUCS((wchar_t *) & pSMB->
-				  OldFileName[name_len + 2], toName, PATH_MAX,
-				  nls_codepage);
+		    cifsConvertToUCS((__u16 *) &pSMB->OldFileName[name_len + 2],
+				     toName, PATH_MAX, nls_codepage, remap);
 		name_len2 += 1 /* trailing null */  + 1 /* Signature word */ ;
 		name_len2 *= 2;	/* convert to bytes */
 	} else {		/* BB improve the check for buffer overruns BB */
@@ -1182,7 +1175,8 @@ renameRetry:
 }
 
 int CIFSSMBRenameOpenFile(const int xid,struct cifsTconInfo *pTcon, 
-		int netfid, char * target_name, const struct nls_table * nls_codepage) 
+		int netfid, char * target_name, 
+		const struct nls_table * nls_codepage, int remap)
 {
 	struct smb_com_transaction2_sfi_req *pSMB  = NULL;
 	struct smb_com_transaction2_sfi_rsp *pSMBr = NULL;
@@ -1227,9 +1221,11 @@ int CIFSSMBRenameOpenFile(const int xid,struct cifsTconInfo *pTcon,
 	/* unicode only call */
 	if(target_name == NULL) {
 		sprintf(dummy_string,"cifs%x",pSMB->hdr.Mid);
-	        len_of_str = cifs_strtoUCS((wchar_t *) rename_info->target_name, dummy_string, 24, nls_codepage);
+	        len_of_str = cifsConvertToUCS((__u16 *)rename_info->target_name,
+					dummy_string, 24, nls_codepage, remap);
 	} else {
-		len_of_str = cifs_strtoUCS((wchar_t *) rename_info->target_name, target_name, PATH_MAX, nls_codepage);
+		len_of_str = cifsConvertToUCS((__u16 *)rename_info->target_name,
+					target_name, PATH_MAX, nls_codepage, remap);
 	}
 	rename_info->target_name_len = cpu_to_le32(2 * len_of_str);
 	count = 12 /* sizeof(struct set_file_rename) */ + (2 * len_of_str) + 2;
@@ -1263,7 +1259,7 @@ int CIFSSMBRenameOpenFile(const int xid,struct cifsTconInfo *pTcon,
 int
 CIFSSMBCopy(const int xid, struct cifsTconInfo *tcon, const char * fromName, 
             const __u16 target_tid, const char *toName, const int flags,
-            const struct nls_table *nls_codepage)
+            const struct nls_table *nls_codepage, int remap)
 {
 	int rc = 0;
 	COPY_REQ *pSMB = NULL;
@@ -1285,18 +1281,16 @@ copyRetry:
 	pSMB->Flags = cpu_to_le16(flags & COPY_TREE);
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
-		name_len = cifs_strtoUCS((wchar_t *) pSMB->OldFileName, 
-				fromName, 
-				PATH_MAX /* find define for this maxpathcomponent */,
-				nls_codepage);
+		name_len = cifsConvertToUCS((__u16 *) pSMB->OldFileName, 
+					    fromName, PATH_MAX, nls_codepage,
+					    remap);
 		name_len++;     /* trailing null */
 		name_len *= 2;
 		pSMB->OldFileName[name_len] = 0x04;     /* pad */
 		/* protocol requires ASCII signature byte on Unicode string */
 		pSMB->OldFileName[name_len + 1] = 0x00;
-		name_len2 = cifs_strtoUCS((wchar_t *) & pSMB->
-				OldFileName[name_len + 2], toName, PATH_MAX,
-				nls_codepage);
+		name_len2 = cifsConvertToUCS((__u16 *)&pSMB->OldFileName[name_len + 2], 
+				toName, PATH_MAX, nls_codepage, remap);
 		name_len2 += 1 /* trailing null */  + 1 /* Signature word */ ;
 		name_len2 *= 2; /* convert to bytes */
 	} else {                /* BB improve the check for buffer overruns BB */
@@ -1425,7 +1419,7 @@ createSymLinkRetry:
 int
 CIFSUnixCreateHardLink(const int xid, struct cifsTconInfo *tcon,
 		       const char *fromName, const char *toName,
-		       const struct nls_table *nls_codepage)
+		       const struct nls_table *nls_codepage, int remap)
 {
 	TRANSACTION2_SPI_REQ *pSMB = NULL;
 	TRANSACTION2_SPI_RSP *pSMBr = NULL;
@@ -1444,9 +1438,8 @@ createHardLinkRetry:
 		return rc;
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
-		name_len = cifs_strtoUCS((wchar_t *) pSMB->FileName, toName, PATH_MAX
-					 /* find define for this maxpathcomponent */
-					 , nls_codepage);
+		name_len = cifsConvertToUCS((__u16 *) pSMB->FileName, toName,
+					    PATH_MAX, nls_codepage, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
 
@@ -1468,9 +1461,8 @@ createHardLinkRetry:
 	data_offset = (char *) (&pSMB->hdr.Protocol) + offset;
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len_target =
-		    cifs_strtoUCS((wchar_t *) data_offset, fromName, PATH_MAX
-				  /* find define for this maxpathcomponent */
-				  , nls_codepage);
+		    cifsConvertToUCS((__u16 *) data_offset, fromName, PATH_MAX,
+				     nls_codepage, remap);
 		name_len_target++;	/* trailing null */
 		name_len_target *= 2;
 	} else {		/* BB improve the check for buffer overruns BB */
@@ -1512,7 +1504,7 @@ createHardLinkRetry:
 int
 CIFSCreateHardLink(const int xid, struct cifsTconInfo *tcon,
 		   const char *fromName, const char *toName,
-		   const struct nls_table *nls_codepage)
+		   const struct nls_table *nls_codepage, int remap)
 {
 	int rc = 0;
 	NT_RENAME_REQ *pSMB = NULL;
@@ -1539,17 +1531,15 @@ winCreateHardLinkRetry:
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-		    cifs_strtoUCS((wchar_t *) pSMB->OldFileName, fromName, PATH_MAX
-				  /* find define for this maxpathcomponent */
-				  , nls_codepage);
+		    cifsConvertToUCS((__u16 *) pSMB->OldFileName, fromName,
+				     PATH_MAX, nls_codepage, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
 		pSMB->OldFileName[name_len] = 0;	/* pad */
 		pSMB->OldFileName[name_len + 1] = 0x04; 
 		name_len2 =
-		    cifs_strtoUCS((wchar_t *) & pSMB->
-				  OldFileName[name_len + 2], toName, PATH_MAX,
-				  nls_codepage);
+		    cifsConvertToUCS((__u16 *)&pSMB->OldFileName[name_len + 2], 
+				     toName, PATH_MAX, nls_codepage, remap);
 		name_len2 += 1 /* trailing null */  + 1 /* Signature word */ ;
 		name_len2 *= 2;	/* convert to bytes */
 	} else {		/* BB improve the check for buffer overruns BB */
@@ -1659,6 +1649,7 @@ querySymLinkRetry:
 				name_len = UniStrnlen((wchar_t *) ((char *)
 					&pSMBr->hdr.Protocol +data_offset),
 					min_t(const int, buflen,count) / 2);
+			/* BB FIXME investigate remapping reserved chars here */
 				cifs_strfromUCS_le(symlinkinfo,
 					(wchar_t *) ((char *)&pSMBr->hdr.Protocol +
 						data_offset),
@@ -1793,7 +1784,8 @@ static void cifs_convert_ace(posix_acl_xattr_entry * ace, struct cifs_posix_ace 
 }
 
 /* Convert ACL from CIFS POSIX wire format to local Linux POSIX ACL xattr */
-static int cifs_copy_posix_acl(char * trgt,char * src, const int buflen,const int acl_type,const int size_of_data_area)
+static int cifs_copy_posix_acl(char * trgt,char * src, const int buflen,
+				const int acl_type,const int size_of_data_area)
 {
 	int size =  0;
 	int i;
@@ -1912,7 +1904,7 @@ int
 CIFSSMBGetPosixACL(const int xid, struct cifsTconInfo *tcon,
                         const unsigned char *searchName,
                         char *acl_inf, const int buflen, const int acl_type,
-                        const struct nls_table *nls_codepage)
+                        const struct nls_table *nls_codepage, int remap)
 {
 /* SMB_QUERY_POSIX_ACL */
 	TRANSACTION2_QPI_REQ *pSMB = NULL;
@@ -1932,8 +1924,8 @@ queryAclRetry:
                                                                                                                                              
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-			cifs_strtoUCS((wchar_t *) pSMB->FileName, searchName, PATH_MAX
-				, nls_codepage);
+			cifsConvertToUCS((__u16 *) pSMB->FileName, searchName, 
+					 PATH_MAX, nls_codepage, remap);
 		name_len++;     /* trailing null */
 		name_len *= 2;
 		pSMB->FileName[name_len] = 0;
@@ -1997,8 +1989,9 @@ queryAclRetry:
 int
 CIFSSMBSetPosixACL(const int xid, struct cifsTconInfo *tcon,
                         const unsigned char *fileName,
-                        const char *local_acl, const int buflen, const int acl_type,
-                        const struct nls_table *nls_codepage)
+                        const char *local_acl, const int buflen, 
+			const int acl_type,
+                        const struct nls_table *nls_codepage, int remap)
 {
 	struct smb_com_transaction2_spi_req *pSMB = NULL;
 	struct smb_com_transaction2_spi_rsp *pSMBr = NULL;
@@ -2016,8 +2009,8 @@ setAclRetry:
 		return rc;
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-			cifs_strtoUCS((wchar_t *) pSMB->FileName, fileName, PATH_MAX
-				, nls_codepage);
+			cifsConvertToUCS((__u16 *) pSMB->FileName, fileName, 
+				      PATH_MAX, nls_codepage, remap);
 		name_len++;     /* trailing null */
 		name_len *= 2;
 	} else {                /* BB improve the check for buffer overruns BB */
@@ -2161,7 +2154,7 @@ int
 CIFSSMBQPathInfo(const int xid, struct cifsTconInfo *tcon,
 		 const unsigned char *searchName,
 		 FILE_ALL_INFO * pFindData,
-		 const struct nls_table *nls_codepage)
+		 const struct nls_table *nls_codepage, int remap)
 {
 /* level 263 SMB_QUERY_FILE_ALL_INFO */
 	TRANSACTION2_QPI_REQ *pSMB = NULL;
@@ -2180,9 +2173,8 @@ QPathInfoRetry:
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-		    cifs_strtoUCS((wchar_t *) pSMB->FileName, searchName, PATH_MAX
-				  /* find define for this maxpathcomponent */
-				  , nls_codepage);
+		    cifsConvertToUCS((__u16 *) pSMB->FileName, searchName, 
+				     PATH_MAX, nls_codepage, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
 	} else {		/* BB improve the check for buffer overruns BB */
@@ -2243,7 +2235,7 @@ int
 CIFSSMBUnixQPathInfo(const int xid, struct cifsTconInfo *tcon,
 		     const unsigned char *searchName,
 		     FILE_UNIX_BASIC_INFO * pFindData,
-		     const struct nls_table *nls_codepage)
+		     const struct nls_table *nls_codepage, int remap)
 {
 /* SMB_QUERY_FILE_UNIX_BASIC */
 	TRANSACTION2_QPI_REQ *pSMB = NULL;
@@ -2262,9 +2254,8 @@ UnixQPathInfoRetry:
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-		    cifs_strtoUCS((wchar_t *) pSMB->FileName, searchName, PATH_MAX
-				  /* find define for this maxpathcomponent */
-				  , nls_codepage);
+		    cifsConvertToUCS((__u16 *) pSMB->FileName, searchName,
+				  PATH_MAX, nls_codepage, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
 	} else {		/* BB improve the check for buffer overruns BB */
@@ -2344,7 +2335,7 @@ findUniqueRetry:
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-		    cifs_strtoUCS((wchar_t *) pSMB->FileName, searchName, PATH_MAX
+		    cifsConvertToUCS((wchar_t *) pSMB->FileName, searchName, PATH_MAX
 				  /* find define for this maxpathcomponent */
 				  , nls_codepage);
 		name_len++;	/* trailing null */
@@ -2408,7 +2399,7 @@ CIFSFindFirst(const int xid, struct cifsTconInfo *tcon,
 	      const char *searchName, 
 	      const struct nls_table *nls_codepage,
 	      __u16 *	pnetfid,
-	      struct cifs_search_info * psrch_inf)
+	      struct cifs_search_info * psrch_inf, int remap)
 {
 /* level 257 SMB_ */
 	TRANSACTION2_FFIRST_REQ *pSMB = NULL;
@@ -2419,7 +2410,7 @@ CIFSFindFirst(const int xid, struct cifsTconInfo *tcon,
 	int name_len;
 	__u16 params, byte_count;
 
-	cFYI(1, ("In FindFirst"));
+	cFYI(1, ("In FindFirst for %s",searchName));
 
 findFirstRetry:
 	rc = smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB,
@@ -2429,12 +2420,20 @@ findFirstRetry:
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-		    cifs_strtoUCS((wchar_t *) pSMB->FileName,searchName,
-				 PATH_MAX, nls_codepage);
-		name_len++;	/* trailing null */
+		    cifsConvertToUCS((__u16 *) pSMB->FileName,searchName,
+				 PATH_MAX, nls_codepage, remap);
+		/* We can not add the asterik earlier in case
+		it got remapped to 0xF03A as if it were part of the
+		directory name instead of a wildcard */
 		name_len *= 2;
+		pSMB->FileName[name_len] = '\\';
+		pSMB->FileName[name_len+1] = 0;
+		pSMB->FileName[name_len+2] = '*';
+		pSMB->FileName[name_len+3] = 0;
+		name_len += 4; /* now the trailing null */
 		pSMB->FileName[name_len] = 0; /* null terminate just in case */
 		pSMB->FileName[name_len+1] = 0;
+		name_len += 2;
 	} else {	/* BB add check for overrun of SMB buf BB */
 		name_len = strnlen(searchName, PATH_MAX);
 		name_len++;	/* trailing null */
@@ -2691,7 +2690,7 @@ int
 CIFSGetSrvInodeNumber(const int xid, struct cifsTconInfo *tcon,
                 const unsigned char *searchName,
                 __u64 * inode_number,
-                const struct nls_table *nls_codepage)
+                const struct nls_table *nls_codepage, int remap)
 {
 	int rc = 0;
 	TRANSACTION2_QPI_REQ *pSMB = NULL;
@@ -2712,8 +2711,8 @@ GetInodeNumberRetry:
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-			cifs_strtoUCS((wchar_t *) pSMB->FileName, searchName, 
-				PATH_MAX,nls_codepage);
+			cifsConvertToUCS((__u16 *) pSMB->FileName, searchName,
+				PATH_MAX,nls_codepage, remap);
 		name_len++;     /* trailing null */
 		name_len *= 2;
 	} else {                /* BB improve the check for buffer overruns BB */
@@ -2787,7 +2786,7 @@ CIFSGetDFSRefer(const int xid, struct cifsSesInfo *ses,
 		const unsigned char *searchName,
 		unsigned char **targetUNCs,
 		unsigned int *number_of_UNC_in_array,
-		const struct nls_table *nls_codepage)
+		const struct nls_table *nls_codepage, int remap)
 {
 /* TRANS2_GET_DFS_REFERRAL */
 	TRANSACTION2_GET_DFS_REFER_REQ *pSMB = NULL;
@@ -2823,10 +2822,8 @@ getDFSRetry:
 	if (ses->capabilities & CAP_UNICODE) {
 		pSMB->hdr.Flags2 |= SMBFLG2_UNICODE;
 		name_len =
-		    cifs_strtoUCS((wchar_t *) pSMB->RequestFileName,
-				  searchName, PATH_MAX
-				  /* find define for this maxpathcomponent */
-				  , nls_codepage);
+		    cifsConvertToUCS((__u16 *) pSMB->RequestFileName,
+				     searchName, PATH_MAX, nls_codepage, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
 	} else {		/* BB improve the check for buffer overruns BB */
@@ -2954,8 +2951,7 @@ GetDFSRefExit:
 }
 
 int
-CIFSSMBQFSInfo(const int xid, struct cifsTconInfo *tcon,
-	       struct kstatfs *FSData, const struct nls_table *nls_codepage)
+CIFSSMBQFSInfo(const int xid, struct cifsTconInfo *tcon, struct kstatfs *FSData)
 {
 /* level 0x103 SMB_QUERY_FILE_SYSTEM_INFO */
 	TRANSACTION2_QFSI_REQ *pSMB = NULL;
@@ -3038,8 +3034,7 @@ QFSInfoRetry:
 }
 
 int
-CIFSSMBQFSAttributeInfo(const int xid, struct cifsTconInfo *tcon,
-			const struct nls_table *nls_codepage)
+CIFSSMBQFSAttributeInfo(const int xid, struct cifsTconInfo *tcon)
 {
 /* level 0x105  SMB_QUERY_FILE_SYSTEM_INFO */
 	TRANSACTION2_QFSI_REQ *pSMB = NULL;
@@ -3107,8 +3102,7 @@ QFSAttributeRetry:
 }
 
 int
-CIFSSMBQFSDeviceInfo(const int xid, struct cifsTconInfo *tcon,
-		     const struct nls_table *nls_codepage)
+CIFSSMBQFSDeviceInfo(const int xid, struct cifsTconInfo *tcon)
 {
 /* level 0x104 SMB_QUERY_FILE_SYSTEM_INFO */
 	TRANSACTION2_QFSI_REQ *pSMB = NULL;
@@ -3161,8 +3155,8 @@ QFSDeviceRetry:
 		else {
 			__u16 data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
 			response_data =
-			    (FILE_SYSTEM_DEVICE_INFO
-			     *) (((char *) &pSMBr->hdr.Protocol) +
+			    (FILE_SYSTEM_DEVICE_INFO *)
+				(((char *) &pSMBr->hdr.Protocol) +
 				 data_offset);
 			memcpy(&tcon->fsDevInfo, response_data,
 			       sizeof (FILE_SYSTEM_DEVICE_INFO));
@@ -3177,8 +3171,7 @@ QFSDeviceRetry:
 }
 
 int
-CIFSSMBQFSUnixInfo(const int xid, struct cifsTconInfo *tcon,
-		   const struct nls_table *nls_codepage)
+CIFSSMBQFSUnixInfo(const int xid, struct cifsTconInfo *tcon)
 {
 /* level 0x200  SMB_QUERY_CIFS_UNIX_INFO */
 	TRANSACTION2_QFSI_REQ *pSMB = NULL;
@@ -3249,7 +3242,7 @@ QFSUnixRetry:
 
 int
 CIFSSMBQFSPosixInfo(const int xid, struct cifsTconInfo *tcon,
-		   struct kstatfs *FSData, const struct nls_table *nls_codepage)
+		   struct kstatfs *FSData)
 {
 /* level 0x201  SMB_QUERY_CIFS_POSIX_INFO */
 	TRANSACTION2_QFSI_REQ *pSMB = NULL;
@@ -3341,7 +3334,8 @@ QFSPosixRetry:
 
 int
 CIFSSMBSetEOF(const int xid, struct cifsTconInfo *tcon, const char *fileName,
-	      __u64 size, int SetAllocation, const struct nls_table *nls_codepage)
+	      __u64 size, int SetAllocation, 
+	      const struct nls_table *nls_codepage, int remap)
 {
 	struct smb_com_transaction2_spi_req *pSMB = NULL;
 	struct smb_com_transaction2_spi_rsp *pSMBr = NULL;
@@ -3360,9 +3354,8 @@ SetEOFRetry:
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-		    cifs_strtoUCS((wchar_t *) pSMB->FileName, fileName, PATH_MAX
-				  /* find define for this maxpathcomponent */
-				  , nls_codepage);
+		    cifsConvertToUCS((__u16 *) pSMB->FileName, fileName,
+				     PATH_MAX, nls_codepage, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
 	} else {		/* BB improve the check for buffer overruns BB */
@@ -3595,7 +3588,7 @@ CIFSSMBSetFileTimes(const int xid, struct cifsTconInfo *tcon, const FILE_BASIC_I
 int
 CIFSSMBSetTimes(const int xid, struct cifsTconInfo *tcon, const char *fileName,
 		const FILE_BASIC_INFO * data, 
-		const struct nls_table *nls_codepage)
+		const struct nls_table *nls_codepage, int remap)
 {
 	TRANSACTION2_SPI_REQ *pSMB = NULL;
 	TRANSACTION2_SPI_RSP *pSMBr = NULL;
@@ -3615,9 +3608,8 @@ SetTimesRetry:
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-		    cifs_strtoUCS((wchar_t *) pSMB->FileName, fileName, PATH_MAX
-				  /* find define for this maxpathcomponent */
-				  , nls_codepage);
+		    cifsConvertToUCS((__u16 *) pSMB->FileName, fileName,
+				     PATH_MAX, nls_codepage, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
 	} else {		/* BB improve the check for buffer overruns BB */
@@ -3697,7 +3689,7 @@ SetAttrLgcyRetry:
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-			cifs_strtoUCS((wchar_t *) pSMB->fileName, fileName, 
+			ConvertToUCS((wchar_t *) pSMB->fileName, fileName, 
 				PATH_MAX, nls_codepage);
 		name_len++;     /* trailing null */
 		name_len *= 2;
@@ -3727,8 +3719,9 @@ SetAttrLgcyRetry:
 
 int
 CIFSSMBUnixSetPerms(const int xid, struct cifsTconInfo *tcon,
-		    char *fileName, __u64 mode, __u64 uid, __u64 gid,
-		    dev_t device, const struct nls_table *nls_codepage)
+		    char *fileName, __u64 mode, __u64 uid, __u64 gid, 
+		    dev_t device, const struct nls_table *nls_codepage, 
+		    int remap)
 {
 	TRANSACTION2_SPI_REQ *pSMB = NULL;
 	TRANSACTION2_SPI_RSP *pSMBr = NULL;
@@ -3747,9 +3740,8 @@ setPermsRetry:
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-		    cifs_strtoUCS((wchar_t *) pSMB->FileName, fileName, PATH_MAX
-				  /* find define for this maxpathcomponent */
-				  , nls_codepage);
+		    cifsConvertToUCS((__u16 *) pSMB->FileName, fileName, 
+				     PATH_MAX, nls_codepage, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
 	} else {		/* BB improve the check for buffer overruns BB */
@@ -3872,7 +3864,7 @@ ssize_t
 CIFSSMBQAllEAs(const int xid, struct cifsTconInfo *tcon,
 		 const unsigned char *searchName,
 		 char * EAData, size_t buf_size,
-		 const struct nls_table *nls_codepage)
+		 const struct nls_table *nls_codepage, int remap)
 {
 		/* BB assumes one setup word */
 	TRANSACTION2_QPI_REQ *pSMB = NULL;
@@ -3893,9 +3885,8 @@ QAllEAsRetry:
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-		    cifs_strtoUCS((wchar_t *) pSMB->FileName, searchName, PATH_MAX
-				  /* find define for this maxpathcomponent */
-				  , nls_codepage);
+		    cifsConvertToUCS((wchar_t *) pSMB->FileName, searchName, 
+				     PATH_MAX, nls_codepage, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
 	} else {	/* BB improve the check for buffer overruns BB */
@@ -4017,7 +4008,7 @@ QAllEAsRetry:
 ssize_t CIFSSMBQueryEA(const int xid,struct cifsTconInfo * tcon,
 		const unsigned char * searchName,const unsigned char * ea_name,
 		unsigned char * ea_value, size_t buf_size, 
-		const struct nls_table *nls_codepage)
+		const struct nls_table *nls_codepage, int remap)
 {
 	TRANSACTION2_QPI_REQ *pSMB = NULL;
 	TRANSACTION2_QPI_RSP *pSMBr = NULL;
@@ -4037,9 +4028,8 @@ QEARetry:
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-		    cifs_strtoUCS((wchar_t *) pSMB->FileName, searchName, PATH_MAX
-				  /* find define for this maxpathcomponent */
-				  , nls_codepage);
+		    cifsConvertToUCS((__u16 *) pSMB->FileName, searchName, 
+				     PATH_MAX, nls_codepage, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
 	} else {	/* BB improve the check for buffer overruns BB */
@@ -4165,7 +4155,8 @@ QEARetry:
 int
 CIFSSMBSetEA(const int xid, struct cifsTconInfo *tcon, const char *fileName,
 		const char * ea_name, const void * ea_value, 
-		const __u16 ea_value_len, const struct nls_table *nls_codepage)
+		const __u16 ea_value_len, const struct nls_table *nls_codepage,
+		int remap)
 {
 	struct smb_com_transaction2_spi_req *pSMB = NULL;
 	struct smb_com_transaction2_spi_rsp *pSMBr = NULL;
@@ -4184,9 +4175,8 @@ SetEARetry:
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-		    cifs_strtoUCS((wchar_t *) pSMB->FileName, fileName, PATH_MAX
-				  /* find define for this maxpathcomponent */
-				  , nls_codepage);
+		    cifsConvertToUCS((__u16 *) pSMB->FileName, fileName, 
+				     PATH_MAX, nls_codepage, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
 	} else {		/* BB improve the check for buffer overruns BB */

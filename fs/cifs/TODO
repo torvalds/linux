@@ -67,6 +67,9 @@ q) implement support for security and trusted categories of xattrs
 
 r) Implement O_DIRECT flag on open (already supported on mount)
 
+s) Allow remapping of last remaining character (\) to +0xF000 which
+(this character is valid for POSIX but not for Windows)
+
 KNOWN BUGS (updated April 3, 2005)
 ====================================
 See http://bugzilla.samba.org - search on product "CifsVFS" for

@@ -314,7 +314,7 @@ static int initiate_cifs_search(const int xid, struct file *file)
 		return -EINVAL;
 
 	down(&file->f_dentry->d_sb->s_vfs_rename_sem);
-	full_path = build_wildcard_path_from_dentry(file->f_dentry);
+	full_path = build_path_from_dentry(file->f_dentry);
 	up(&file->f_dentry->d_sb->s_vfs_rename_sem);
 
 	if(full_path == NULL) {
@@ -333,8 +333,9 @@ ffirst_retry:
 		cifsFile->srch_inf.info_level = SMB_FIND_FILE_DIRECTORY_INFO;
 	}
 
-	rc = CIFSFindFirst(xid, pTcon,full_path,cifs_sb->local_nls, 
-		&cifsFile->netfid, &cifsFile->srch_inf); 
+	rc = CIFSFindFirst(xid, pTcon,full_path,cifs_sb->local_nls,
+		&cifsFile->netfid, &cifsFile->srch_inf,
+		cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
 	if(rc == 0)
 		cifsFile->invalidHandle = FALSE;
 	if((rc == -EOPNOTSUPP) && 
@@ -600,12 +601,10 @@ static int cifs_get_name_from_search_buf(struct qstr *pqst,
 	if(unicode) {
 		/* BB fixme - test with long names */
 		/* Note converted filename can be longer than in unicode */
-#ifdef CONFIG_CIFS_EXPERIMENTAL
 		if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR)
 			pqst->len = cifs_convertUCSpath((char *)pqst->name,
 					(__le16 *)filename, len/2, nlt);
 		else
-#endif /* CIFS_EXPERIMENTAL */
 			pqst->len = cifs_strfromUCS_le((char *)pqst->name,
 					(wchar_t *)filename,len/2,nlt);
 	} else {
@@ -848,19 +847,6 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 					  num_to_fill, i));
 				break;
 			}
-
-			/* BB FIXME - need to enable the below code BB */
-
-		/* if((!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM)) ||
-			   (cifsFile->srch_inf.info_level != 
-				   something that supports server inodes)) {
-				create dentry
-				create inode
-				fill in inode new_inode (getting local i_ino)
-			}
-			also create local inode for performance reasons (so we 
-			have a cache of inode metadata) unless this new mount 
-			parm says otherwise */
 
 			rc = cifs_filldir(current_entry, file, 
 					filldir, direntry,tmp_buf);
