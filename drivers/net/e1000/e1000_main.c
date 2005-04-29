@@ -1777,6 +1777,15 @@ e1000_tx_map(struct e1000_adapter *adapter, struct sk_buff *skb,
 		if(unlikely(mss && !nr_frags && size == len && size > 8))
 			size -= 4;
 #endif
+		/* work-around for errata 10 and it applies
+		 * to all controllers in PCI-X mode
+		 * The fix is to make sure that the first descriptor of a
+		 * packet is smaller than 2048 - 16 - 16 (or 2016) bytes
+		 */
+		if(unlikely((adapter->hw.bus_type == e1000_bus_type_pcix) &&
+		                (size > 2015) && count == 0))
+		        size = 2015;
+                                                                                
 		/* Workaround for potential 82544 hang in PCI-X.  Avoid
 		 * terminating buffers within evenly-aligned dwords. */
 		if(unlikely(adapter->pcix_82544 &&
@@ -1977,6 +1986,13 @@ e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	count += TXD_USE_COUNT(len, max_txd_pwr);
 
 	if(adapter->pcix_82544)
+		count++;
+
+	/* work-around for errata 10 and it applies to all controllers 
+	 * in PCI-X mode, so add one more descriptor to the count
+	 */
+	if(unlikely((adapter->hw.bus_type == e1000_bus_type_pcix) &&
+			(len > 2015)))
 		count++;
 
 	nr_frags = skb_shinfo(skb)->nr_frags;
