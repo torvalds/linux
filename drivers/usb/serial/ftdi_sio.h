@@ -279,10 +279,6 @@
 #define FTDI_SIO_SET_LATENCY_TIMER	9 /* Set the latency timer */
 #define FTDI_SIO_GET_LATENCY_TIMER	10 /* Get the latency timer */
 
-/* Port interface code for FT2232C */
-#define INTERFACE_A		1
-#define INTERFACE_B		2
-
 
 /*
  *   BmRequestType:  1100 0000b

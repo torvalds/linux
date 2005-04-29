@@ -1483,10 +1483,10 @@ static int ftdi_FT2232C_startup (struct usb_serial *serial)
 	inter = serial->interface->altsetting->desc.bInterfaceNumber;
 
 	if (inter) {
-		priv->interface = INTERFACE_B;
+		priv->interface = PIT_SIOB;
 	}
 	else  {
-		priv->interface = INTERFACE_A;
+		priv->interface = PIT_SIOA;
 	}
 	priv->baud_base = 48000000 / 2; /* Would be / 16, but FT2232C supports multiple of 0.125 divisor fractions! */
 	
