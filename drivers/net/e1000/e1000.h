@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   
-  Copyright(c) 1999 - 2004 Intel Corporation. All rights reserved.
+  Copyright(c) 1999 - 2005 Intel Corporation. All rights reserved.
   
   This program is free software; you can redistribute it and/or modify it 
   under the terms of the GNU General Public License as published by the Free 
@@ -139,9 +139,9 @@ struct e1000_adapter;
 /* How many Rx Buffers do we bundle into one write to the hardware ? */
 #define E1000_RX_BUFFER_WRITE	16	/* Must be power of 2 */
 
-#define AUTO_ALL_MODES       0
-#define E1000_EEPROM_82544_APM 0x0004
-#define E1000_EEPROM_APME    0x0400
+#define AUTO_ALL_MODES            0
+#define E1000_EEPROM_82544_APM    0x0400
+#define E1000_EEPROM_APME         0x0400
 
 #ifndef E1000_MASTER_SLAVE
 /* Switch to override PHY master/slave setting */

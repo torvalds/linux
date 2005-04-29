@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   
-  Copyright(c) 1999 - 2004 Intel Corporation. All rights reserved.
+  Copyright(c) 1999 - 2005 Intel Corporation. All rights reserved.
   
   This program is free software; you can redistribute it and/or modify it 
   under the terms of the GNU General Public License as published by the Free 
@@ -143,7 +143,6 @@ e1000_phy_init_script(struct e1000_hw *hw)
     uint16_t phy_saved_data;
 
     DEBUGFUNC("e1000_phy_init_script");
-
 
     if(hw->phy_init_script) {
         msec_delay(20);

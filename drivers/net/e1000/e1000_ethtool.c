@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   
-  Copyright(c) 1999 - 2004 Intel Corporation. All rights reserved.
+  Copyright(c) 1999 - 2005 Intel Corporation. All rights reserved.
   
   This program is free software; you can redistribute it and/or modify it 
   under the terms of the GNU General Public License as published by the Free 
@@ -69,6 +69,7 @@ static const struct e1000_stats e1000_gstrings_stats[] = {
 	{ "rx_crc_errors", E1000_STAT(net_stats.rx_crc_errors) },
 	{ "rx_frame_errors", E1000_STAT(net_stats.rx_frame_errors) },
 	{ "rx_fifo_errors", E1000_STAT(net_stats.rx_fifo_errors) },
+	{ "rx_no_buffer_count", E1000_STAT(stats.rnbc) },
 	{ "rx_missed_errors", E1000_STAT(net_stats.rx_missed_errors) },
 	{ "tx_aborted_errors", E1000_STAT(net_stats.tx_aborted_errors) },
 	{ "tx_carrier_errors", E1000_STAT(net_stats.tx_carrier_errors) },
@@ -593,7 +594,7 @@ e1000_set_ringparam(struct net_device *netdev,
 	tx_old = adapter->tx_ring;
 	rx_old = adapter->rx_ring;
 
-	if ((ring->rx_mini_pending) || (ring->rx_jumbo_pending)) 
+	if((ring->rx_mini_pending) || (ring->rx_jumbo_pending))
 		return -EINVAL;
 
 	if(netif_running(adapter->netdev))
@@ -784,8 +785,8 @@ e1000_intr_test(struct e1000_adapter *adapter, uint64_t *data)
 	/* Hook up test interrupt handler just for this test */
  	if(!request_irq(irq, &e1000_test_intr, 0, netdev->name, netdev)) {
  		shared_int = FALSE;
- 	} else if(request_irq(irq, &e1000_test_intr, SA_SHIRQ, 
-			netdev->name, netdev)){
+ 	} else if(request_irq(irq, &e1000_test_intr, SA_SHIRQ,
+			      netdev->name, netdev)){
 		*data = 1;
 		return -1;
 	}
@@ -842,10 +843,8 @@ e1000_intr_test(struct e1000_adapter *adapter, uint64_t *data)
 			 * test failed.
 			 */
 			adapter->test_icr = 0;
-			E1000_WRITE_REG(&adapter->hw, IMC, 
-					(~mask & 0x00007FFF));
-			E1000_WRITE_REG(&adapter->hw, ICS, 
-					(~mask & 0x00007FFF));
+			E1000_WRITE_REG(&adapter->hw, IMC, ~mask & 0x00007FFF);
+			E1000_WRITE_REG(&adapter->hw, ICS, ~mask & 0x00007FFF);
 			msec_delay(10);
 
 			if(adapter->test_icr) {
@@ -1010,7 +1009,7 @@ e1000_setup_desc_rings(struct e1000_adapter *adapter)
 		struct e1000_rx_desc *rx_desc = E1000_RX_DESC(*rxdr, i);
 		struct sk_buff *skb;
 
-		if(!(skb = alloc_skb(E1000_RXBUFFER_2048 + NET_IP_ALIGN, 
+		if(!(skb = alloc_skb(E1000_RXBUFFER_2048 + NET_IP_ALIGN,
 				GFP_KERNEL))) {
 			ret_val = 6;
 			goto err_nomem;
@@ -1387,13 +1386,12 @@ static int
 e1000_link_test(struct e1000_adapter *adapter, uint64_t *data)
 {
 	*data = 0;
-
 	if (adapter->hw.media_type == e1000_media_type_internal_serdes) {
 		int i = 0;
 		adapter->hw.serdes_link_down = TRUE;
 
-		/* on some blade server designs link establishment */
-		/* could take as long as 2-3 minutes.              */
+		/* On some blade server designs, link establishment
+		 * could take as long as 2-3 minutes */
 		do {
 			e1000_check_for_link(&adapter->hw);
 			if (adapter->hw.serdes_link_down == FALSE)
@@ -1401,7 +1399,7 @@ e1000_link_test(struct e1000_adapter *adapter, uint64_t *data)
 			msec_delay(20);
 		} while (i++ < 3750);
 
-		*data = 1; 
+		*data = 1;
 	} else {
 		e1000_check_for_link(&adapter->hw);
 		if(adapter->hw.autoneg)  /* if auto_neg is set wait for it */
