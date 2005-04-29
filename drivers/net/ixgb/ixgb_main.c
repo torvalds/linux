@@ -1209,9 +1209,9 @@ ixgb_tso(struct ixgb_adapter *adapter, struct sk_buff *skb)
 						| IXGB_CONTEXT_DESC_CMD_TSE
 						| IXGB_CONTEXT_DESC_CMD_IP
 						| IXGB_CONTEXT_DESC_CMD_TCP
-						| IXGB_CONTEXT_DESC_CMD_RS
 						| IXGB_CONTEXT_DESC_CMD_IDE
 						| (skb->len - (hdr_len)));
+
 
 		if(++i == adapter->tx_ring.count) i = 0;
 		adapter->tx_ring.next_to_use = i;
@@ -1247,8 +1247,7 @@ ixgb_tx_csum(struct ixgb_adapter *adapter, struct sk_buff *skb)
 		context_desc->mss = 0;
 		context_desc->cmd_type_len =
 			cpu_to_le32(IXGB_CONTEXT_DESC_TYPE
-					| IXGB_TX_DESC_CMD_RS 
-					| IXGB_TX_DESC_CMD_IDE);
+				    | IXGB_TX_DESC_CMD_IDE);
 
 		if(++i == adapter->tx_ring.count) i = 0;
 		adapter->tx_ring.next_to_use = i;
