@@ -47,7 +47,7 @@ char ixgb_driver_string[] = "Intel(R) PRO/10GbE Network Driver";
 #else
 #define DRIVERNAPI "-NAPI"
 #endif
-char ixgb_driver_version[] = "1.0.90-k2"DRIVERNAPI;
+char ixgb_driver_version[] = "1.0.95-k2"DRIVERNAPI;
 char ixgb_copyright[] = "Copyright (c) 1999-2005 Intel Corporation.";
 
 /* ixgb_pci_tbl - PCI Device ID Table
@@ -103,6 +103,7 @@ static int ixgb_change_mtu(struct net_device *netdev, int new_mtu);
 static int ixgb_set_mac(struct net_device *netdev, void *p);
 static irqreturn_t ixgb_intr(int irq, void *data, struct pt_regs *regs);
 static boolean_t ixgb_clean_tx_irq(struct ixgb_adapter *adapter);
+
 #ifdef CONFIG_IXGB_NAPI
 static int ixgb_clean(struct net_device *netdev, int *budget);
 static boolean_t ixgb_clean_rx_irq(struct ixgb_adapter *adapter,
@@ -1253,6 +1254,7 @@ ixgb_tx_map(struct ixgb_adapter *adapter, struct sk_buff *skb,
 
 	unsigned int nr_frags = skb_shinfo(skb)->nr_frags;
 	unsigned int f;
+
 	len -= skb->data_len;
 
 	i = tx_ring->next_to_use;
@@ -1857,7 +1859,6 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter)
 		next_skb = next_buffer->skb;
 		prefetch(next_skb);
 
-
 		cleaned = TRUE;
 
 		pci_unmap_single(pdev,
@@ -2108,6 +2109,7 @@ ixgb_restore_vlan(struct ixgb_adapter *adapter)
 static void ixgb_netpoll(struct net_device *dev)
 {
 	struct ixgb_adapter *adapter = dev->priv;
+
 	disable_irq(adapter->pdev->irq);
 	ixgb_intr(adapter->pdev->irq, dev, NULL);
 	enable_irq(adapter->pdev->irq);
