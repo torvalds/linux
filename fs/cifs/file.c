@@ -512,7 +512,8 @@ int cifs_closedir(struct inode *inode, struct file *file)
 		pTcon = cifs_sb->tcon;
 
 		cFYI(1, ("Freeing private data in close dir"));
-		if (pCFileStruct->srch_inf.endOfSearch == FALSE) {
+		if ((pCFileStruct->srch_inf.endOfSearch == FALSE) &&
+		   (pCFileStruct->invalidHandle == FALSE)) {
 			pCFileStruct->invalidHandle = TRUE;
 			rc = CIFSFindClose(xid, pTcon, pCFileStruct->netfid);
 			cFYI(1, ("Closing uncompleted readdir with rc %d",

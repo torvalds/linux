@@ -1,7 +1,10 @@
 Version 1.34
 ------------
 Fix error mapping of the TOO_MANY_LINKS (hardlinks) case.
-Do not oops if user kills cifs oplock kernel thread.
+Do not oops if root user kills cifs oplock kernel thread or
+kills the cifsd thread (NB: killing the cifs kernel threads is not
+recommended, unmount and rmmod cifs will kill them when they are
+no longer needed).
 
 Version 1.33
 ------------

@@ -604,7 +604,13 @@ multi_t2_fnd:
 	spin_lock(&GlobalMid_Lock);
 	server->tcpStatus = CifsExiting;
 	server->tsk = NULL;
-	atomic_set(&server->inFlight, 0);
+	/* check if we have blocked requests that need to free */
+	/* Note that cifs_max_pending is normally 50, but
+	can be set at module install time to as little as two */
+	if(atomic_read(&server->inFlight) >= cifs_max_pending)
+		atomic_set(&server->inFlight, cifs_max_pending - 1);
+	/* We do not want to set the max_pending too low or we
+	could end up with the counter going negative */
 	spin_unlock(&GlobalMid_Lock);
 	/* Although there should not be any requests blocked on 
 	this queue it can not hurt to be paranoid and try to wake up requests
@@ -640,6 +646,17 @@ multi_t2_fnd:
 		}
 		read_unlock(&GlobalSMBSeslock);
 	} else {
+		/* although we can not zero the server struct pointer yet,
+		since there are active requests which may depnd on them,
+		mark the corresponding SMB sessions as exiting too */
+		list_for_each(tmp, &GlobalSMBSessionList) {
+			ses = list_entry(tmp, struct cifsSesInfo,
+					 cifsSessionList);
+			if (ses->server == server) {
+				ses->status = CifsExiting;
+			}
+		}
+
 		spin_lock(&GlobalMid_Lock);
 		list_for_each(tmp, &server->pending_mid_q) {
 		mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
@@ -661,17 +678,34 @@ multi_t2_fnd:
 	if (list_empty(&server->pending_mid_q)) {
 		/* mpx threads have not exited yet give them 
 		at least the smb send timeout time for long ops */
+		/* due to delays on oplock break requests, we need
+		to wait at least 45 seconds before giving up
+		on a request getting a response and going ahead
+		and killing cifsd */
 		cFYI(1, ("Wait for exit from demultiplex thread"));
-		msleep(46);
+		msleep(46000);
 		/* if threads still have not exited they are probably never
 		coming home not much else we can do but free the memory */
 	}
-	kfree(server);
 
 	write_lock(&GlobalSMBSeslock);
 	atomic_dec(&tcpSesAllocCount);
 	length = tcpSesAllocCount.counter;
+
+	/* last chance to mark ses pointers invalid
+	if there are any pointing to this (e.g
+	if a crazy root user tried to kill cifsd 
+	kernel thread explicitly this might happen) */
+	list_for_each(tmp, &GlobalSMBSessionList) {
+		ses = list_entry(tmp, struct cifsSesInfo,
+				cifsSessionList);
+		if (ses->server == server) {
+			ses->server = NULL;
+		}
+	}
 	write_unlock(&GlobalSMBSeslock);
+
+	kfree(server);
 	if(length  > 0) {
 		mempool_resize(cifs_req_poolp,
 			length + cifs_min_rcv,

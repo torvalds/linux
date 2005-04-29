@@ -270,6 +270,9 @@ CIFSSendRcv(const unsigned int xid, struct cifsSesInfo *ses,
 
   
 
+	if(ses->server->tcpStatus == CIFS_EXITING)
+		return -ENOENT;
+
 	/* Ensure that we do not send more than 50 overlapping requests 
 	   to the same server. We may make this configurable later or
 	   use ses->maxReq */
@@ -400,6 +403,9 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 		cERROR(1,("Null tcp session"));
 		return -EIO;
 	}
+
+	if(ses->server->tcpStatus == CifsExiting)
+		return -ENOENT;
 
 	/* Ensure that we do not send more than 50 overlapping requests 
 	   to the same server. We may make this configurable later or

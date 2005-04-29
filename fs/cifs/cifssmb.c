@@ -90,7 +90,8 @@ small_smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
 	   check for tcp and smb session status done differently
 	   for those three - in the calling routine */
 	if(tcon) {
-		if((tcon->ses) && (tcon->ses->server)){
+		if((tcon->ses) && (tcon->ses->status != CifsExiting) &&
+				  (tcon->ses->server)){
 			struct nls_table *nls_codepage;
 				/* Give Demultiplex thread up to 10 seconds to 
 				   reconnect, should be greater than cifs socket
@@ -185,7 +186,8 @@ smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
 	   check for tcp and smb session status done differently
 	   for those three - in the calling routine */
 	if(tcon) {
-		if((tcon->ses) && (tcon->ses->server)){
+		if((tcon->ses) && (tcon->ses->status != CifsExiting) && 
+				  (tcon->ses->server)){
 			struct nls_table *nls_codepage;
 				/* Give Demultiplex thread up to 10 seconds to
 				   reconnect, should be greater than cifs socket
