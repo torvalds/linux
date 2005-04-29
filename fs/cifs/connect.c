@@ -359,20 +359,36 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 					length = 0;
 					iov.iov_base = 4 + (char *)smb_buffer;
 					iov.iov_len = pdu_length;
-					for (total_read = 0; 
+					for (total_read = 0;
 					     total_read < pdu_length;
 					     total_read += length) {
-						length = kernel_recvmsg(csocket, &smb_msg, 
+						length = kernel_recvmsg(csocket, &smb_msg,
 							&iov, 1,
 							pdu_length - total_read, 0);
-						if (length == 0) {
+						if((server->tcpStatus == CifsExiting) ||
+						    (length == -EINTR)) {
+							/* then will exit */
+							goto dmx_loop_end;
+						} else if (server->tcpStatus ==
+							    CifsNeedReconnect) {
+							cifs_reconnect(server);
+							csocket = server->ssocket;
+						/* Reconnect wakes up rspns q */
+						/* Now we will reread sock */
+							goto dmx_loop_end;
+						} else if ((length == -ERESTARTSYS) || 
+							   (length == -EAGAIN)) {
+							msleep(1); /* minimum sleep to prevent looping
+                                                                allowing socket to clear and app threads to set
+                                                                tcpStatus CifsNeedReconnect if server hung */
+							continue;
+						} else if (length <= 0) {
 							cERROR(1,
-							       ("Zero length receive when expecting %d ",
+							       ("Received no data, expecting %d",
 								pdu_length - total_read));
 							cifs_reconnect(server);
 							csocket = server->ssocket;
-							wake_up(&server->response_q);
-							continue;
+							goto dmx_loop_end;
 						}
 					}
 					length += 4; /* account for rfc1002 hdr */
@@ -434,6 +450,9 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 			wake_up(&server->response_q);
 			continue;
 		}
+dmx_loop_end:
+		cFYI(1,("Exiting cifsd loop"));
+
 	}
 	spin_lock(&GlobalMid_Lock);
 	server->tcpStatus = CifsExiting;

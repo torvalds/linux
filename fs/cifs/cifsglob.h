@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/cifsglob.h
  *
- *   Copyright (C) International Business Machines  Corp., 2002,2003
+ *   Copyright (C) International Business Machines  Corp., 2002,2005
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -321,6 +321,7 @@ struct mid_q_entry {
 	__u8 command;	/* smb command code */
 	unsigned multiPart:1;	/* multiple responses to one SMB request */
 	unsigned largeBuf:1;    /* if valid response, is pointer to large buf */
+	unsigned multiResp:1    /* multiple trans2 responses for one request  */
 };
 
 struct oplock_q_entry {
