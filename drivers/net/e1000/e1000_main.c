@@ -2230,9 +2230,9 @@ e1000_update_stats(struct e1000_adapter *adapter)
 
 	adapter->net_stats.rx_errors = adapter->stats.rxerrc +
 		adapter->stats.crcerrs + adapter->stats.algnerrc +
-		adapter->stats.rlec + adapter->stats.rnbc +
-		adapter->stats.mpc + adapter->stats.cexterr;
-	adapter->net_stats.rx_dropped = adapter->stats.rnbc;
+		adapter->stats.rlec + adapter->stats.mpc + 
+		adapter->stats.cexterr;
+	adapter->net_stats.rx_dropped = adapter->stats.mpc;
 	adapter->net_stats.rx_length_errors = adapter->stats.rlec;
 	adapter->net_stats.rx_crc_errors = adapter->stats.crcerrs;
 	adapter->net_stats.rx_frame_errors = adapter->stats.algnerrc;
