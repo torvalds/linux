@@ -89,14 +89,21 @@ cifs_debug_data_read(char *buf, char **beginBuffer, off_t offset,
 	list_for_each(tmp, &GlobalSMBSessionList) {
 		i++;
 		ses = list_entry(tmp, struct cifsSesInfo, cifsSessionList);
-		length =
-		    sprintf(buf,
-			    "\n%d) Name: %s  Domain: %s Mounts: %d ServerOS: %s  \n\tServerNOS: %s\tCapabilities: 0x%x\n\tSMB session status: %d\t",
+		if((ses->serverDomain == NULL) || (ses->serverOS == NULL) ||
+		   (ses->serverNOS == NULL)) {
+			buf += sprintf("\nentry for %s not fully displayed\n\t",
+					ses->serverName);
+			
+		} else {
+			length =
+			    sprintf(buf,
+				    "\n%d) Name: %s  Domain: %s Mounts: %d ServerOS: %s  \n\tServerNOS: %s\tCapabilities: 0x%x\n\tSMB session status: %d\t",
 				i, ses->serverName, ses->serverDomain,
 				atomic_read(&ses->inUse),
 				ses->serverOS, ses->serverNOS,
 				ses->capabilities,ses->status);
-		buf += length;
+			buf += length;
+		}
 		if(ses->server) {
 			buf += sprintf(buf, "TCP status: %d\n\tLocal Users To Server: %d SecMode: 0x%x Req Active: %d",
 				ses->server->tcpStatus,
