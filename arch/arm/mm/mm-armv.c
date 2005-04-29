@@ -411,9 +411,10 @@ static void __init build_mem_type_table(void)
 		mem_types[MT_MEMORY].prot_sect &= ~PMD_BIT4;
 		mem_types[MT_ROM].prot_sect &= ~PMD_BIT4;
 		/*
-		 * Mark cache clean areas read only from SVC mode
-		 * and no access from userspace.
+		 * Mark cache clean areas and XIP ROM read only
+		 * from SVC mode and no access from userspace.
 		 */
+		mem_types[MT_ROM].prot_sect |= PMD_SECT_APX|PMD_SECT_AP_WRITE;
 		mem_types[MT_MINICLEAN].prot_sect |= PMD_SECT_APX|PMD_SECT_AP_WRITE;
 		mem_types[MT_CACHECLEAN].prot_sect |= PMD_SECT_APX|PMD_SECT_AP_WRITE;
 	}
