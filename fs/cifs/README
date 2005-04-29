@@ -376,6 +376,17 @@ A partial list of the supported mount options follows:
 		attributes) to the server (default) e.g. via setfattr 
 		and getfattr utilities. 
   nouser_xattr  Do not allow getfattr/setfattr to get/set xattrs 
+  mapchars      Translate the seven reserved characters 
+			*?<>|:\	
+		to the remap range (above 0xF000), which also
+		allows the CIFS client to recognize files created with
+		such characters by Windows's POSIX emulation. This can
+		also be useful when mounting to most versions of Samba
+		(which also forbids creating and opening files
+		whose names contain any of these seven characters).
+		This has no effect if the server does not support
+		Unicode on the wire.
+ nomapchars     Do not translate any of these seven characters (default).
 		
 The mount.cifs mount helper also accepts a few mount options before -o
 including:

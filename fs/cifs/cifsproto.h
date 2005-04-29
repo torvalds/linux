@@ -212,6 +212,8 @@ extern int CIFSSMBWrite2(const int xid, struct cifsTconInfo *tcon,
 extern int CIFSGetSrvInodeNumber(const int xid, struct cifsTconInfo *tcon,
 			const unsigned char *searchName, __u64 * inode_number,
 			const struct nls_table *nls_codepage);
+extern int cifs_convertUCSpath(char *target, const __u16 *source, int maxlen,
+			const struct nls_table * codepage);
 #endif /* CONFIG_CIFS_EXPERIMENTAL */
 
 extern int CIFSSMBLock(const int xid, struct cifsTconInfo *tcon,

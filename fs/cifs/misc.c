@@ -514,3 +514,72 @@ dump_smb(struct smb_hdr *smb_buf, int smb_buf_length)
 	printk( " | %s\n", debug_line);
 	return;
 }
+
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+/* Windows maps these to the user defined 16 bit Unicode range since they are
+   reserved symbols (along with \ and /), otherwise illegal to store
+   in filenames in NTFS */
+#define UNI_ASTERIK     cpu_to_le16('*' + 0xF000)
+#define UNI_QUESTION    cpu_to_le16('?' + 0xF000)
+#define UNI_COLON       cpu_to_le16(':' + 0xF000)
+#define UNI_GRTRTHAN    cpu_to_le16('>' + 0xF000)
+#define UNI_LESSTHAN    cpu_to_le16('<' + 0xF000)
+#define UNI_PIPE        cpu_to_le16('|' + 0xF000)
+#define UNI_SLASH       cpu_to_le16('\\' + 0xF000)
+
+/* Convert 16 bit Unicode pathname from wire format to string in current code
+   page.  Conversion may involve remapping up the seven characters that are
+   only legal in POSIX-like OS (if they are present in the string). Path
+   names are little endian 16 bit Unicode on the wire */
+int
+cifs_convertUCSpath(char *target, const __le16 * source, int maxlen,
+		    const struct nls_table * cp)
+{
+	int i,j,len;
+	wchar_t src_char;
+
+	for(i = 0, j = 0; i < maxlen; i++) {
+		src_char = le16_to_cpu(source[i]);
+		switch (src_char) {
+			case 0:
+				goto cUCS_out; /* BB check this BB */
+			case UNI_COLON:
+				target[j] = ':';
+				break;
+			case UNI_ASTERIK:
+				target[j] = '*';
+				break;
+			case UNI_QUESTION:
+				target[j] = '?';
+				break;
+			case UNI_SLASH:
+				target[j] = '\\'; /* BB check this - is there risk here of converting path sep BB */
+				break;
+			case UNI_PIPE:
+				target[j] = '|';
+				break;
+			case UNI_GRTRTHAN:
+				target[j] = '>';
+				break;
+			case UNI_LESSTHAN:
+				target[j] = '<';
+			default: 
+				len = cp->uni2char(src_char, &target[j], 
+						NLS_MAX_CHARSET_SIZE);
+				if(len > 0) {
+					j += len;
+					continue;
+				} else {
+					target[j] = '?';
+				}
+		}
+		j++;
+		/* check to make sure we do not overrun callers allocated temp buffer */
+		if(j >= (2 * NAME_MAX))
+			break;
+	}
+cUCS_out:
+	target[j] = 0;
+	return j;
+}
+#endif /* CIFS_EXPERIMENTAL */

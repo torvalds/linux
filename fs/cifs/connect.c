@@ -72,6 +72,7 @@ struct smb_vol {
 	unsigned no_xattr:1;   /* set if xattr (EA) support should be disabled*/
 	unsigned server_ino:1; /* use inode numbers from server ie UniqueId */
 	unsigned direct_io:1;
+	unsigned remap:1;   /* set to remap seven reserved chars in filenames */
 	unsigned int rsize;
 	unsigned int wsize;
 	unsigned int sockopt;
@@ -771,6 +772,10 @@ cifs_parse_mount_options(char *options, const char *devname,struct smb_vol *vol)
 			vol->noperm = 0;
 		} else if (strnicmp(data, "noperm", 6) == 0) {
 			vol->noperm = 1;
+		} else if (strnicmp(data, "mapchars", 8) == 0) {
+			vol->remap = 1;
+		} else if (strnicmp(data, "nomapchars", 10) == 0) {
+			vol->remap = 0;
 		} else if (strnicmp(data, "setuids", 7) == 0) {
 			vol->setuids = 1;
 		} else if (strnicmp(data, "nosetuids", 9) == 0) {
@@ -1421,6 +1426,8 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_SET_UID;
 		if(volume_info.server_ino)
 			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_SERVER_INUM;
+		if(volume_info.remap)
+			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_MAP_SPECIAL_CHR;
 		if(volume_info.no_xattr)
 			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_XATTR;
 		if(volume_info.direct_io) {

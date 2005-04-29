@@ -600,7 +600,14 @@ static int cifs_get_name_from_search_buf(struct qstr *pqst,
 	if(unicode) {
 		/* BB fixme - test with long names */
 		/* Note converted filename can be longer than in unicode */
-		pqst->len = cifs_strfromUCS_le((char *)pqst->name,(wchar_t *)filename,len/2,nlt);
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+		if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR)
+			pqst->len = cifs_convertUCSpath((char *)pqst->name,
+					(__le16 *)filename, len/2, nlt);
+		else
+#endif /* CIFS_EXPERIMENTAL */
+			pqst->len = cifs_strfromUCS_le((char *)pqst->name,
+					(wchar_t *)filename,len/2,nlt);
 	} else {
 		pqst->name = filename;
 		pqst->len = len;
@@ -829,7 +836,11 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 		end_of_smb = cifsFile->srch_inf.ntwrk_buf_start +
 			smbCalcSize((struct smb_hdr *)
 				    cifsFile->srch_inf.ntwrk_buf_start);
-		tmp_buf = kmalloc(NAME_MAX+1,GFP_KERNEL);
+		/* To be safe - for UCS to UTF-8 with strings loaded
+		with the rare long characters alloc more to account for
+		such multibyte target UTF-8 characters. cifs_unicode.c,
+		which actually does the conversion, has the same limit */
+		tmp_buf = kmalloc((2 * NAME_MAX) + 4, GFP_KERNEL);
 		for(i=0;(i<num_to_fill) && (rc == 0);i++) {
 			if(current_entry == NULL) {
 				/* evaluate whether this case is an error */
