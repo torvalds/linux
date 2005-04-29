@@ -540,8 +540,8 @@ static inline int audit_log_drain(struct audit_buffer *ab)
 		if (!audit_pid) { /* No daemon */
 			int offset = ab->nlh ? NLMSG_SPACE(0) : 0;
 			int len    = skb->len - offset;
-			printk(KERN_ERR "%*.*s\n",
-			       len, len, skb->data + offset);
+			skb->data[offset + len] = '\0';
+			printk(KERN_ERR "%s\n", skb->data + offset);
 		}
 		kfree_skb(skb);
 		ab->nlh = NULL;
