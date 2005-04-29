@@ -539,6 +539,7 @@ struct nic {
 	struct timer_list watchdog;
 	struct timer_list blink_timer;
 	struct mii_if_info mii;
+	struct work_struct tx_timeout_task;
 	enum loopback loopback;
 
 	struct mem *mem;
@@ -1716,6 +1717,15 @@ static void e100_tx_timeout(struct net_device *netdev)
 {
 	struct nic *nic = netdev_priv(netdev);
 
+	/* Reset outside of interrupt context, to avoid request_irq 
+	 * in interrupt context */
+	schedule_work(&nic->tx_timeout_task);
+}
+
+static void e100_tx_timeout_task(struct net_device *netdev)
+{
+	struct nic *nic = netdev_priv(netdev);
+
 	DPRINTK(TX_ERR, DEBUG, "scb.status=0x%02X\n",
 		readb(&nic->csr->scb.status));
 	e100_down(netdev_priv(netdev));
@@ -2239,6 +2249,9 @@ static int __devinit e100_probe(struct pci_dev *pdev,
 	init_timer(&nic->blink_timer);
 	nic->blink_timer.function = e100_blink_led;
 	nic->blink_timer.data = (unsigned long)nic;
+
+	INIT_WORK(&nic->tx_timeout_task,
+		(void (*)(void *))e100_tx_timeout_task, netdev);
 
 	if((err = e100_alloc(nic))) {
 		DPRINTK(PROBE, ERR, "Cannot alloc driver memory, aborting.\n");
