@@ -4,6 +4,8 @@ Fix caching problem, in which readdir of directory containing a file
 which was cached could cause the file's time stamp to be updated
 without invalidating the readahead data (so we could get stale
 file data on the client for that file even as the server copy changed).
+Cleanup response processing so cifsd can not loop when abnormally
+terminated.
 
 
 Version 1.32

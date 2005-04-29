@@ -470,7 +470,7 @@ CIFSSMBTDis(const int xid, struct cifsTconInfo *tcon)
 		return rc;
 	} else {
 		smb_buffer_response = smb_buffer; /* BB removeme BB */
-    }
+	}
 	rc = SendReceive(xid, tcon->ses, smb_buffer, smb_buffer_response,
 			 &length, 0);
 	if (rc)
@@ -2517,9 +2517,6 @@ findFirstRetry:
 			psrch_inf->srch_entries_start = 
 				(char *) &pSMBr->hdr.Protocol + 
 					le16_to_cpu(pSMBr->t2.DataOffset);
-/* if(le16_to_cpu(pSMBr->t2.DataCount) != le16_to_cpu(pSMBr->t2.TotalDataCount)) {  
-	cERROR(1,("DC: %d TDC: %d",pSMBr->t2.DataCount,pSMBr->t2.TotalDataCount));
-} */ /* BB removeme BB */
 			parms = (T2_FFIRST_RSP_PARMS *)((char *) &pSMBr->hdr.Protocol +
 			       le16_to_cpu(pSMBr->t2.ParameterOffset));
 
@@ -2531,7 +2528,6 @@ findFirstRetry:
 			psrch_inf->entries_in_buffer  = le16_to_cpu(parms->SearchCount);
 			psrch_inf->index_of_last_entry = 
 				psrch_inf->entries_in_buffer;
-/*cFYI(1,("entries in buf %d index_of_last %d",psrch_inf->entries_in_buffer,psrch_inf->index_of_last_entry));  */ /* BB removeme BB */
 			*pnetfid = parms->SearchHandle;
 		} else {
 			cifs_buf_release(pSMB);
@@ -3451,10 +3447,12 @@ CIFSSMBSetFileSize(const int xid, struct cifsTconInfo *tcon, __u64 size,
 
 	cFYI(1, ("SetFileSize (via SetFileInfo) %lld",
 			(long long)size));
-	rc = smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB,
-		      (void **) &pSMBr);
+	rc = small_smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB);
+
 	if (rc)
 		return rc;
+
+	pSMBr = (struct smb_com_transaction2_sfi_rsp *)pSMB;
 
 	pSMB->hdr.Pid = cpu_to_le16((__u16)pid_of_opener);
 	pSMB->hdr.PidHigh = cpu_to_le16((__u16)(pid_of_opener >> 16));
@@ -3515,7 +3513,7 @@ CIFSSMBSetFileSize(const int xid, struct cifsTconInfo *tcon, __u64 size,
 	}
 
 	if (pSMB)
-		cifs_buf_release(pSMB);
+		cifs_small_buf_release(pSMB);
 
 	/* Note: On -EAGAIN error only caller can retry on handle based calls 
 		since file handle passed in no longer valid */
@@ -3541,10 +3539,12 @@ CIFSSMBSetFileTimes(const int xid, struct cifsTconInfo *tcon, const FILE_BASIC_I
 	__u16 params, param_offset, offset, byte_count, count;
 
 	cFYI(1, ("Set Times (via SetFileInfo)"));
-	rc = smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB,
-		      (void **) &pSMBr);
+	rc = small_smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB);
+
 	if (rc)
 		return rc;
+
+	pSMBr = (struct smb_com_transaction2_sfi_rsp *)pSMB;
 
 	/* At this point there is no need to override the current pid
 	with the pid of the opener, but that could change if we someday
@@ -3591,7 +3591,7 @@ CIFSSMBSetFileTimes(const int xid, struct cifsTconInfo *tcon, const FILE_BASIC_I
 		cFYI(1,("Send error in Set Time (SetFileInfo) = %d",rc));
 	}
 
-	cifs_buf_release(pSMB);
+	cifs_small_buf_release(pSMB);
 
 	/* Note: On -EAGAIN error only caller can retry on handle based calls 
 		since file handle passed in no longer valid */

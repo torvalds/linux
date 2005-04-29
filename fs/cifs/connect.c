@@ -544,15 +544,13 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 			if ((mid_entry->mid == smb_buffer->Mid) && 
 			    (mid_entry->midState == MID_REQUEST_SUBMITTED) &&
 			    (mid_entry->command == smb_buffer->Command)) {
-				cFYI(1,("Found Mid 0x%x wake", mid_entry->mid));
-					
 				if(check2ndT2(smb_buffer,server->maxBuf) > 0) {
 					/* We have a multipart transact2 resp */
+					isMultiRsp = TRUE;
 					if(mid_entry->resp_buf) {
 						/* merge response - fix up 1st*/
 						if(coalesce_t2(smb_buffer, 
 							mid_entry->resp_buf)) {
-							isMultiRsp = TRUE;
 							break;
 						} else {
 							/* all parts received */
@@ -564,10 +562,10 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 					/* BB maybe we can fix this up,  switch
 				   	   to already allocated large buffer? */
 						} else {
+							/* Have first buffer */
 							mid_entry->resp_buf =
 								 smb_buffer;
 							mid_entry->largeBuf = 1;
-							isMultiRsp = TRUE;
 							bigbuf = NULL;
 						}
 					}
@@ -586,11 +584,14 @@ multi_t2_fnd:
 		}
 		spin_unlock(&GlobalMid_Lock);
 		if (task_to_wake) {
-			if(isLargeBuf)
-				bigbuf = NULL;
-			else
-				smallbuf = NULL;
-			/* smb buffer freed by user thread when done */
+			/* Was previous buf put in mpx struct for multi-rsp? */
+			if(!isMultiRsp) {
+				/* smb buffer will be freed by user thread */
+				if(isLargeBuf) {
+					bigbuf = NULL;
+				} else
+					smallbuf = NULL;
+			}
 			wake_up_process(task_to_wake);
 		} else if ((is_valid_oplock_break(smb_buffer) == FALSE) 
 		    && (isMultiRsp == FALSE)) {                          
