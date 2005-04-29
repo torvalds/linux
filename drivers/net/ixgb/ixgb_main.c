@@ -1526,14 +1526,33 @@ ixgb_change_mtu(struct net_device *netdev, int new_mtu)
 void
 ixgb_update_stats(struct ixgb_adapter *adapter)
 {
+	struct net_device *netdev = adapter->netdev;
+
+	if((netdev->flags & IFF_PROMISC) || (netdev->flags & IFF_ALLMULTI) ||
+	   (netdev->mc_count > IXGB_MAX_NUM_MULTICAST_ADDRESSES)) {
+		u64 multi = IXGB_READ_REG(&adapter->hw, MPRCL);
+		u32 bcast_l = IXGB_READ_REG(&adapter->hw, BPRCL);
+		u32 bcast_h = IXGB_READ_REG(&adapter->hw, BPRCH);
+		u64 bcast = ((u64)bcast_h << 32) | bcast_l; 
+
+		multi |= ((u64)IXGB_READ_REG(&adapter->hw, MPRCH) << 32);
+		/* fix up multicast stats by removing broadcasts */
+		multi -= bcast;
+		
+		adapter->stats.mprcl += (multi & 0xFFFFFFFF);
+		adapter->stats.mprch += (multi >> 32);
+		adapter->stats.bprcl += bcast_l; 
+		adapter->stats.bprch += bcast_h;
+	} else {
+		adapter->stats.mprcl += IXGB_READ_REG(&adapter->hw, MPRCL);
+		adapter->stats.mprch += IXGB_READ_REG(&adapter->hw, MPRCH);
+		adapter->stats.bprcl += IXGB_READ_REG(&adapter->hw, BPRCL);
+		adapter->stats.bprch += IXGB_READ_REG(&adapter->hw, BPRCH);
+	}
 	adapter->stats.tprl += IXGB_READ_REG(&adapter->hw, TPRL);
 	adapter->stats.tprh += IXGB_READ_REG(&adapter->hw, TPRH);
 	adapter->stats.gprcl += IXGB_READ_REG(&adapter->hw, GPRCL);
 	adapter->stats.gprch += IXGB_READ_REG(&adapter->hw, GPRCH);
-	adapter->stats.bprcl += IXGB_READ_REG(&adapter->hw, BPRCL);
-	adapter->stats.bprch += IXGB_READ_REG(&adapter->hw, BPRCH);
-	adapter->stats.mprcl += IXGB_READ_REG(&adapter->hw, MPRCL);
-	adapter->stats.mprch += IXGB_READ_REG(&adapter->hw, MPRCH);
 	adapter->stats.uprcl += IXGB_READ_REG(&adapter->hw, UPRCL);
 	adapter->stats.uprch += IXGB_READ_REG(&adapter->hw, UPRCH);
 	adapter->stats.vprcl += IXGB_READ_REG(&adapter->hw, VPRCL);
