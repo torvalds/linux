@@ -23,7 +23,7 @@ subsys_attr_show(struct kobject * kobj, struct attribute * attr, char * page)
 {
 	struct subsystem * s = to_subsys(kobj);
 	struct subsys_attribute * sattr = to_sattr(attr);
-	ssize_t ret = 0;
+	ssize_t ret = -EIO;
 
 	if (sattr->show)
 		ret = sattr->show(s,page);
@@ -36,7 +36,7 @@ subsys_attr_store(struct kobject * kobj, struct attribute * attr,
 {
 	struct subsystem * s = to_subsys(kobj);
 	struct subsys_attribute * sattr = to_sattr(attr);
-	ssize_t ret = 0;
+	ssize_t ret = -EIO;
 
 	if (sattr->store)
 		ret = sattr->store(s,page,count);
