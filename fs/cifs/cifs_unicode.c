@@ -76,8 +76,8 @@ cifs_strtoUCS(wchar_t * to, const char *from, int len,
 				charlen));
 			to[i] = cpu_to_le16(0x003f);	/* a question mark */
 			charlen = 1;
-		}
-		to[i] = cpu_to_le16(to[i]);
+		} else 
+			to[i] = cpu_to_le16(to[i]);
 
 	}
 

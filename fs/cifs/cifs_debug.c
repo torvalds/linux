@@ -29,6 +29,7 @@
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "cifs_debug.h"
+#include "cifsfs.h"
 
 void
 cifs_dump_mem(char *label, void *data, int length)
@@ -78,8 +79,9 @@ cifs_debug_data_read(char *buf, char **beginBuffer, off_t offset,
 		    "Display Internal CIFS Data Structures for Debugging\n"
 		    "---------------------------------------------------\n");
 	buf += length;
-
-	length = sprintf(buf, "Servers:\n");
+	length = sprintf(buf,"CIFS Version %s\n",CIFS_VERSION);
+	buf += length;
+	length = sprintf(buf, "Servers:");
 	buf += length;
 
 	i = 0;
@@ -100,7 +102,7 @@ cifs_debug_data_read(char *buf, char **beginBuffer, off_t offset,
 				ses->server->secMode,
 				atomic_read(&ses->server->inFlight));
 			
-			length = sprintf(buf, "\nMIDs: \n");
+			length = sprintf(buf, "\nMIDs:\n");
 			buf += length;
 
 			spin_lock(&GlobalMid_Lock);
@@ -121,7 +123,7 @@ cifs_debug_data_read(char *buf, char **beginBuffer, off_t offset,
 	sprintf(buf, "\n");
 	buf++;
 
-	length = sprintf(buf, "\nShares:\n");
+	length = sprintf(buf, "Shares:");
 	buf += length;
 
 	i = 0;
