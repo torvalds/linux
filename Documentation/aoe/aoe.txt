@@ -33,6 +33,9 @@ USING DEVICE NODES
   "cat /dev/etherd/err" blocks, waiting for error diagnostic output,
   like any retransmitted packets.
 
+  The /dev/etherd/interfaces special file is obsoleted by the
+  aoe_iflist boot option and module option (and its sysfs entry
+  described in the next section).
   "echo eth2 eth4 > /dev/etherd/interfaces" tells the aoe driver to
   limit ATA over Ethernet traffic to eth2 and eth4.  AoE traffic from
   untrusted networks should be ignored as a matter of security.
@@ -89,3 +92,23 @@ USING SYSFS
       e4.7            eth1              up
       e4.8            eth1              up
       e4.9            eth1              up
+
+  Use /sys/module/aoe/parameters/aoe_iflist (or better, the driver
+  option discussed below) instead of /dev/etherd/interfaces to limit
+  AoE traffic to the network interfaces in the given
+  whitespace-separated list.  Unlike the old character device, the
+  sysfs entry can be read from as well as written to.
+
+  It's helpful to trigger discovery after setting the list of allowed
+  interfaces.  If your distro provides an aoe-discover script, you can
+  use that.  Otherwise, you can directly use the /dev/etherd/discover
+  file described above.
+
+DRIVER OPTIONS
+
+  There is a boot option for the built-in aoe driver and a
+  corresponding module parameter, aoe_iflist.  Without this option,
+  all network interfaces may be used for ATA over Ethernet.  Here is a
+  usage example for the module parameter.
+
+    modprobe aoe_iflist="eth1 eth3"
