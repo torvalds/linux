@@ -2384,11 +2384,10 @@ e1000_clean_tx_irq(struct e1000_adapter *adapter)
 	eop_desc = E1000_TX_DESC(*tx_ring, eop);
 
 	while(eop_desc->upper.data & cpu_to_le32(E1000_TXD_STAT_DD)) {
-		/* pre-mature writeback of Tx descriptors     */
-		/* clear (free buffers and unmap pci_mapping) */
-		/* previous_buffer_info                       */
+		/* Premature writeback of Tx descriptors clear (free buffers
+		 * and unmap pci_mapping) previous_buffer_info */
 		if (likely(adapter->previous_buffer_info.skb != NULL)) {
-			e1000_unmap_and_free_tx_resource(adapter, 
+			e1000_unmap_and_free_tx_resource(adapter,
 					&adapter->previous_buffer_info);
 		}
 
@@ -2397,20 +2396,25 @@ e1000_clean_tx_irq(struct e1000_adapter *adapter)
 			buffer_info = &tx_ring->buffer_info[i];
 			cleaned = (i == eop);
 
-			/* pre-mature writeback of Tx descriptors */
-			/* save the cleaning of the this for the  */
-			/* next iteration                         */
-			if (cleaned) {
-				memcpy(&adapter->previous_buffer_info,
-					buffer_info,
-					sizeof(struct e1000_buffer));
-				memset(buffer_info,
-					0,
-					sizeof(struct e1000_buffer));
+#ifdef NETIF_F_TSO
+			if (!(netdev->features & NETIF_F_TSO)) {
+#endif
+				e1000_unmap_and_free_tx_resource(adapter,
+				                                 buffer_info);
+#ifdef NETIF_F_TSO
 			} else {
-				e1000_unmap_and_free_tx_resource(adapter, 
-							buffer_info);
+				if (cleaned) {
+					memcpy(&adapter->previous_buffer_info,
+					       buffer_info,
+					       sizeof(struct e1000_buffer));
+					memset(buffer_info, 0,
+					       sizeof(struct e1000_buffer));
+				} else {
+					e1000_unmap_and_free_tx_resource(
+					    adapter, buffer_info);
+				}
 			}
+#endif
 
 			tx_desc->buffer_addr = 0;
 			tx_desc->lower.data = 0;
@@ -2443,7 +2447,14 @@ e1000_clean_tx_irq(struct e1000_adapter *adapter)
 		   !(E1000_READ_REG(&adapter->hw, STATUS) & E1000_STATUS_TXOFF))
 			netif_stop_queue(netdev);
 	}
+#ifdef NETIF_F_TSO
 
+	if( unlikely(!(eop_desc->upper.data & cpu_to_le32(E1000_TXD_STAT_DD)) &&
+	    time_after(jiffies, adapter->previous_buffer_info.time_stamp + HZ)))
+		e1000_unmap_and_free_tx_resource(
+		    adapter, &adapter->previous_buffer_info);
+
+#endif
 	return cleaned;
 }
 
