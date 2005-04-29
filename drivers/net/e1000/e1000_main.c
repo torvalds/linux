@@ -417,6 +417,7 @@ e1000_reset(struct e1000_adapter *adapter)
 
 	switch (adapter->hw.mac_type) {
 	case e1000_82547:
+	case e1000_82547_rev_2:
 		pba = E1000_PBA_30K;
 		break;
 	case e1000_82573:
