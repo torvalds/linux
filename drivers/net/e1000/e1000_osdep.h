@@ -42,7 +42,12 @@
 #include <linux/sched.h>
 
 #ifndef msec_delay
-#define msec_delay(x) msleep(x)
+#define msec_delay(x)	do { if(in_interrupt()) { \
+				/* Don't mdelay in interrupt context! */ \
+	                	BUG(); \
+			} else { \
+				msleep(x); \
+			} } while(0)
 
 /* Some workarounds require millisecond delays and are run during interrupt
  * context.  Most notably, when establishing link, the phy may need tweaking
