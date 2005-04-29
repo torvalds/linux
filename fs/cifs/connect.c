@@ -157,9 +157,10 @@ cifs_reconnect(struct TCP_Server_Info *server)
 					qhead);
 		if(mid_entry) {
 			if(mid_entry->midState == MID_REQUEST_SUBMITTED) {
-				/* Mark other intransit requests as needing retry so 
-				  we do not immediately mark the session bad again 
-				  (ie after we reconnect below) as they timeout too */
+				/* Mark other intransit requests as needing
+				   retry so we do not immediately mark the
+				   session bad again (ie after we reconnect
+				   below) as they timeout too */
 				mid_entry->midState = MID_RETRY_NEEDED;
 			}
 		}
@@ -278,9 +279,10 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 		} else if (length <= 0) {
 			if(server->tcpStatus == CifsNew) {
 				cFYI(1,("tcp session abended prematurely (after SMBnegprot)"));
-				/* some servers kill tcp session rather than returning
-					smb negprot error in which case reconnecting here is
-					not going to help - return error to mount */
+				/* some servers kill the TCP session rather than
+				   returning an SMB negprot error, in which
+				   case reconnecting here is not going to help,
+				   and so simply return error to mount */
 				break;
 			}
 			if(length == -EINTR) { 
@@ -296,15 +298,19 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 			pdu_length = ntohl(smb_buffer->smb_buf_length);
 		/* Only read pdu_length after below checks for too short (due
 		   to e.g. int overflow) and too long ie beyond end of buf */
-			cFYI(1,("rfc1002 length(big endian)0x%x)", pdu_length+4));
+			cFYI(1,("rfc1002 length(big endian)0x%x)",
+				pdu_length+4));
 
 			temp = (char *) smb_buffer;
 			if (temp[0] == (char) RFC1002_SESSION_KEEP_ALIVE) {
 				cFYI(0,("Received 4 byte keep alive packet"));
-			} else if (temp[0] == (char) RFC1002_POSITIVE_SESSION_RESPONSE) {
+			} else if (temp[0] == 
+				(char) RFC1002_POSITIVE_SESSION_RESPONSE) {
 					cFYI(1,("Good RFC 1002 session rsp"));
-			} else if (temp[0] == (char)RFC1002_NEGATIVE_SESSION_RESPONSE) {
-				/* we get this from Windows 98 instead of error on SMB negprot response */
+			} else if (temp[0] == 
+				(char)RFC1002_NEGATIVE_SESSION_RESPONSE) {
+				/* we get this from Windows 98 instead of 
+				   an error on SMB negprot response */
 				cFYI(1,("Negative RFC 1002 Session Response Error 0x%x)",temp[4]));
 				if(server->tcpStatus == CifsNew) {
 					/* if nack on negprot (rather than 
@@ -320,7 +326,8 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 					connected to port 139 (the NACK is 
 					since we do not begin with RFC1001
 					session initialize frame) */
-					server->addr.sockAddr.sin_port = htons(CIFS_PORT);
+					server->addr.sockAddr.sin_port = 
+						htons(CIFS_PORT);
 					cifs_reconnect(server);
 					csocket = server->ssocket;
 					wake_up(&server->response_q);
@@ -333,8 +340,9 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 				csocket = server->ssocket;
 				continue;
 			} else {
-				if((pdu_length > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4)
-				    || (pdu_length < sizeof (struct smb_hdr) - 1 - 4)) {
+				if((pdu_length > CIFSMaxBufSize + 
+					MAX_CIFS_HDR_SIZE - 4) ||
+				    (pdu_length < sizeof (struct smb_hdr) - 1 - 4)) {
 					cERROR(1,
 					    ("Invalid size SMB length %d and pdu_length %d",
 						length, pdu_length+4));
@@ -377,6 +385,8 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 					continue;
 				}
 
+				/* BB FIXME - add checkTrans2SMBSecondary() */
+
 				task_to_wake = NULL;
 				spin_lock(&GlobalMid_Lock);
 				list_for_each(tmp, &server->pending_mid_q) {
@@ -408,7 +418,7 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 						bigbuf = NULL;
 					else
 						smallbuf = NULL;
-					smb_buffer = NULL;	/* will be freed by users thread after he is done */
+					smb_buffer = NULL; /* will be freed by users thread after he is done */
 					wake_up_process(task_to_wake);
 				} else if (is_valid_oplock_break(smb_buffer) == FALSE) {                          
 					cERROR(1, ("No task to wake, unknown frame rcvd!"));
@@ -432,7 +442,7 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 	spin_unlock(&GlobalMid_Lock);
 	/* Although there should not be any requests blocked on 
 	this queue it can not hurt to be paranoid and try to wake up requests
-	that may haven been blocked when more than 50 at time were on the wire 
+	that may haven been blocked when more than 50 at time were on the wire
 	to the same server - they now will see the session is in exit state
 	and get out of SendReceive.  */
 	wake_up_all(&server->request_q);
@@ -451,7 +461,8 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 
 	read_lock(&GlobalSMBSeslock);
 	if (list_empty(&server->pending_mid_q)) {
-		/* loop through server session structures attached to this and mark them dead */
+		/* loop through server session structures attached to this and
+		    mark them dead */
 		list_for_each(tmp, &GlobalSMBSessionList) {
 			ses =
 			    list_entry(tmp, struct cifsSesInfo,
@@ -468,7 +479,7 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 		mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
 			if (mid_entry->midState == MID_REQUEST_SUBMITTED) {
 				cFYI(1,
-					 (" Clearing Mid 0x%x - waking up ",mid_entry->mid));
+				  ("Clearing Mid 0x%x - waking up ",mid_entry->mid));
 				task_to_wake = mid_entry->tsk;
 				if(task_to_wake) {
 					wake_up_process(task_to_wake);
@@ -521,7 +532,8 @@ cifs_parse_mount_options(char *options, const char *devname,struct smb_vol *vol)
 		/* does not have to be a perfect mapping since the field is
 		informational, only used for servers that do not support
 		port 445 and it can be overridden at mount time */
-		vol->source_rfc1001_name[i] = toupper(system_utsname.nodename[i]);
+		vol->source_rfc1001_name[i] = 
+			toupper(system_utsname.nodename[i]);
 	}
 	vol->source_rfc1001_name[15] = 0;
 
@@ -596,14 +608,17 @@ cifs_parse_mount_options(char *options, const char *devname,struct smb_vol *vol)
 			/* NB: password legally can have multiple commas and
 			the only illegal character in a password is null */
 
-			if ((value[temp_len] == 0) && (value[temp_len+1] == separator[0])) {
+			if ((value[temp_len] == 0) && 
+			    (value[temp_len+1] == separator[0])) {
 				/* reinsert comma */
 				value[temp_len] = separator[0];
 				temp_len+=2;  /* move after the second comma */
 				while(value[temp_len] != 0)  {
 					if (value[temp_len] == separator[0]) {
-						if (value[temp_len+1] == separator[0]) {
-							temp_len++; /* skip second comma */
+						if (value[temp_len+1] == 
+						     separator[0]) {
+						/* skip second comma */
+							temp_len++;
 						} else { 
 						/* single comma indicating start
 							 of next parm */
@@ -629,14 +644,15 @@ cifs_parse_mount_options(char *options, const char *devname,struct smb_vol *vol)
 				}
 				for(i=0,j=0;i<temp_len;i++,j++) {
 					vol->password[j] = value[i];
-					if(value[i] == separator[0] && value[i+1] == separator[0]) {
+					if(value[i] == separator[0]
+						&& value[i+1] == separator[0]) {
 						/* skip second comma */
 						i++;
 					}
 				}
 				vol->password[j] = 0;
 			} else {
-				vol->password = kcalloc(1, temp_len + 1, GFP_KERNEL);
+				vol->password = kcalloc(1, temp_len+1, GFP_KERNEL);
 				if(vol->password == NULL) {
 					printk("CIFS: no memory for pass\n");
 					return 1;

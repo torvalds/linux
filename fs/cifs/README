@@ -420,7 +420,7 @@ Misc /proc/fs/cifs Flags and Debug Info
 =======================================
 Informational pseudo-files:
 DebugData		Displays information about active CIFS sessions
-			and shares.
+			and shares, as well as the cifs.ko version.
 Stats			Lists summary resource usage information as well as per
 			share statistics, if CONFIG_CIFS_STATS in enabled
 			in the kernel configuration.
@@ -477,7 +477,7 @@ and for more extensive tracing including the start of smb requests and responses
 Two other experimental features are under development and to test 
 require enabling CONFIG_CIFS_EXPERIMENTAL
 
-	More efficient write operations and SMB buffer handling
+	More efficient write operations
 
 	DNOTIFY fcntl: needed for support of directory change 
 			    notification and perhaps later for file leases)
@@ -495,8 +495,8 @@ returned success.
 	
 Also note that "cat /proc/fs/cifs/DebugData" will display information about 
 the active sessions and the shares that are mounted.  Note: NTLMv2 enablement 
-will not work since they its implementation is not quite complete yet.
-Do not alter these configuration values unless you are doing specific testing.  
+will not work since its implementation is not quite complete yet. Do not alter
+the ExtendedSecurity configuration value unless you are doing specific testing.
 Enabling extended security works to Windows 2000 Workstations and XP but not to 
 Windows 2000 server or Samba since it does not usually send "raw NTLMSSP" 
 (instead it sends NTLMSSP encapsulated in SPNEGO/GSSAPI, which support is not 

@@ -409,10 +409,15 @@ static char *nxt_dir_entry(char *old_entry, char *end_of_smb)
 	cFYI(1,("new entry %p old entry %p",new_entry,old_entry));
 	/* validate that new_entry is not past end of SMB */
 	if(new_entry >= end_of_smb) {
-		cFYI(1,("search entry %p began after end of SMB %p old entry %p",
-			new_entry,end_of_smb,old_entry)); 
+		cERROR(1,
+		      ("search entry %p began after end of SMB %p old entry %p",
+			new_entry, end_of_smb, old_entry)); 
 		return NULL;
-	} else
+	} else if (new_entry + sizeof(FILE_DIRECTORY_INFO) > end_of_smb) {
+		cERROR(1,("search entry %p extends after end of SMB %p",
+			new_entry, end_of_smb));
+		return NULL;
+	} else 
 		return new_entry;
 
 }

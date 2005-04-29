@@ -75,7 +75,8 @@ static void mark_open_files_invalid(struct cifsTconInfo * pTcon)
 		}
 	}
 	write_unlock(&GlobalSMBSeslock);
-	/* BB Add call to invalidate_inodes(sb) for all superblocks mounted to this tcon */
+	/* BB Add call to invalidate_inodes(sb) for all superblocks mounted
+	   to this tcon */
 }
 
 /* If the return code is zero, this function must fill in request_buf pointer */
@@ -92,8 +93,8 @@ small_smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
 		if((tcon->ses) && (tcon->ses->server)){
 			struct nls_table *nls_codepage;
 				/* Give Demultiplex thread up to 10 seconds to 
-					reconnect, should be greater than cifs socket
-					timeout which is 7 seconds */
+				   reconnect, should be greater than cifs socket
+				   timeout which is 7 seconds */
 			while(tcon->ses->server->tcpStatus == CifsNeedReconnect) {
 				wait_event_interruptible_timeout(tcon->ses->server->response_q,
 					(tcon->ses->server->tcpStatus == CifsGood), 10 * HZ);
@@ -103,8 +104,9 @@ small_smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
 					   (tcon->ses->status == CifsExiting)) {
 						cFYI(1,("gave up waiting on reconnect in smb_init"));
 						return -EHOSTDOWN;
-					} /* else "hard" mount - keep retrying until 
-					process is killed or server comes back up */
+					} /* else "hard" mount - keep retrying
+					     until process is killed or server
+					     comes back on-line */
 				} else /* TCP session is reestablished now */
 					break;
 				 
@@ -115,23 +117,24 @@ small_smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
 		simultaneously reconnect the same SMB session */
 			down(&tcon->ses->sesSem);
 			if(tcon->ses->status == CifsNeedReconnect)
-				rc = cifs_setup_session(0, tcon->ses, nls_codepage);
+				rc = cifs_setup_session(0, tcon->ses, 
+							nls_codepage);
 			if(!rc && (tcon->tidStatus == CifsNeedReconnect)) {
 				mark_open_files_invalid(tcon);
-				rc = CIFSTCon(0, tcon->ses, tcon->treeName, tcon,
-					nls_codepage);
+				rc = CIFSTCon(0, tcon->ses, tcon->treeName, tcon
+					, nls_codepage);
 				up(&tcon->ses->sesSem);
 				if(rc == 0)
 					atomic_inc(&tconInfoReconnectCount);
 
 				cFYI(1, ("reconnect tcon rc = %d", rc));
 				/* Removed call to reopen open files here - 
-					it is safer (and faster) to reopen files
-					one at a time as needed in read and write */
+				   it is safer (and faster) to reopen files
+				   one at a time as needed in read and write */
 
 				/* Check if handle based operation so we 
-					know whether we can continue or not without
-					returning to caller to reset file handle */
+				   know whether we can continue or not without
+				   returning to caller to reset file handle */
 				switch(smb_command) {
 					case SMB_COM_READ_ANDX:
 					case SMB_COM_WRITE_ANDX:
@@ -184,20 +187,22 @@ smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
 	if(tcon) {
 		if((tcon->ses) && (tcon->ses->server)){
 			struct nls_table *nls_codepage;
-				/* Give Demultiplex thread up to 10 seconds to 
-					reconnect, should be greater than cifs socket
-					timeout which is 7 seconds */
+				/* Give Demultiplex thread up to 10 seconds to
+				   reconnect, should be greater than cifs socket
+				   timeout which is 7 seconds */
 			while(tcon->ses->server->tcpStatus == CifsNeedReconnect) {
 				wait_event_interruptible_timeout(tcon->ses->server->response_q,
 					(tcon->ses->server->tcpStatus == CifsGood), 10 * HZ);
-				if(tcon->ses->server->tcpStatus == CifsNeedReconnect) {
+				if(tcon->ses->server->tcpStatus == 
+						CifsNeedReconnect) {
 					/* on "soft" mounts we wait once */
 					if((tcon->retry == FALSE) || 
 					   (tcon->ses->status == CifsExiting)) {
 						cFYI(1,("gave up waiting on reconnect in smb_init"));
 						return -EHOSTDOWN;
-					} /* else "hard" mount - keep retrying until 
-					process is killed or server comes back up */
+					} /* else "hard" mount - keep retrying
+					     until process is killed or server
+					     comes on-line */
 				} else /* TCP session is reestablished now */
 					break;
 				 
@@ -208,23 +213,24 @@ smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
 		simultaneously reconnect the same SMB session */
 			down(&tcon->ses->sesSem);
 			if(tcon->ses->status == CifsNeedReconnect)
-				rc = cifs_setup_session(0, tcon->ses, nls_codepage);
+				rc = cifs_setup_session(0, tcon->ses, 
+							nls_codepage);
 			if(!rc && (tcon->tidStatus == CifsNeedReconnect)) {
 				mark_open_files_invalid(tcon);
-				rc = CIFSTCon(0, tcon->ses, tcon->treeName, tcon,
-					nls_codepage);
+				rc = CIFSTCon(0, tcon->ses, tcon->treeName,
+					      tcon, nls_codepage);
 				up(&tcon->ses->sesSem);
 				if(rc == 0)
 					atomic_inc(&tconInfoReconnectCount);
 
 				cFYI(1, ("reconnect tcon rc = %d", rc));
 				/* Removed call to reopen open files here - 
-					it is safer (and faster) to reopen files
-					one at a time as needed in read and write */
+				   it is safer (and faster) to reopen files
+				   one at a time as needed in read and write */
 
 				/* Check if handle based operation so we 
-					know whether we can continue or not without
-					returning to caller to reset file handle */
+				   know whether we can continue or not without
+				   returning to caller to reset file handle */
 				switch(smb_command) {
 					case SMB_COM_READ_ANDX:
 					case SMB_COM_WRITE_ANDX:
@@ -286,7 +292,8 @@ static int validate_t2(struct smb_t2_rsp * pSMB)
 			if(total_size < 512) {
 				total_size+=le16_to_cpu(pSMB->t2_rsp.DataCount);
 				/* BCC le converted in SendReceive */
-				pBCC = (pSMB->hdr.WordCount * 2) + sizeof(struct smb_hdr) + 
+				pBCC = (pSMB->hdr.WordCount * 2) + 
+					sizeof(struct smb_hdr) +
 					(char *)pSMB;
 				if((total_size <= (*(u16 *)pBCC)) && 
 				   (total_size < 
@@ -337,8 +344,10 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	if (rc == 0) {
 		server->secMode = pSMBr->SecurityMode;	
-		server->secType = NTLM; /* BB override default for NTLMv2 or krb*/
-		/* one byte - no need to convert this or EncryptionKeyLen from le,*/
+		server->secType = NTLM; /* BB override default for 
+					   NTLMv2 or kerberos v5 */
+		/* one byte - no need to convert this or EncryptionKeyLen
+		   from little endian */
 		server->maxReq = le16_to_cpu(pSMBr->MaxMpxCount);
 		/* probably no need to store and check maxvcs */
 		server->maxBuf =
@@ -374,7 +383,7 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 						pSMBr->u.extended_response.
 						GUID, 16) != 0) {
 						cFYI(1,
-							("UID of server does not match previous connection to same ip address"));
+						     ("UID of server does not match previous connection to same ip address"));
 						memcpy(server->
 							server_GUID,
 							pSMBr->u.
@@ -454,7 +463,8 @@ CIFSSMBTDis(const int xid, struct cifsTconInfo *tcon)
 		up(&tcon->tconSem);
 		return -EIO;
 	}
-	rc = small_smb_init(SMB_COM_TREE_DISCONNECT, 0, tcon, (void **)&smb_buffer);
+	rc = small_smb_init(SMB_COM_TREE_DISCONNECT, 0, tcon, 
+			    (void **)&smb_buffer);
 	if (rc) {
 		up(&tcon->tconSem);
 		return rc;
@@ -559,7 +569,7 @@ DelFileRetry:
 				     PATH_MAX, nls_codepage, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
-	} else {		/* BB improve the check for buffer overruns BB */
+	} else {		/* BB improve check for buffer overruns BB */
 		name_len = strnlen(fileName, PATH_MAX);
 		name_len++;	/* trailing null */
 		strncpy(pSMB->fileName, fileName, name_len);
@@ -609,7 +619,7 @@ RmDirRetry:
 					 PATH_MAX, nls_codepage, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
-	} else {		/* BB improve the check for buffer overruns BB */
+	} else {		/* BB improve check for buffer overruns BB */
 		name_len = strnlen(dirName, PATH_MAX);
 		name_len++;	/* trailing null */
 		strncpy(pSMB->DirName, dirName, name_len);
@@ -657,7 +667,7 @@ MkDirRetry:
 					    PATH_MAX, nls_codepage, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
-	} else {		/* BB improve the check for buffer overruns BB */
+	} else {		/* BB improve check for buffer overruns BB */
 		name_len = strnlen(name, PATH_MAX);
 		name_len++;	/* trailing null */
 		strncpy(pSMB->DirName, name, name_len);
@@ -712,7 +722,7 @@ openRetry:
 		name_len++;	/* trailing null */
 		name_len *= 2;
 		pSMB->NameLength = cpu_to_le16(name_len);
-	} else {		/* BB improve the check for buffer overruns BB */
+	} else {		/* BB improve check for buffer overruns BB */
 		count = 0;	/* no pad */
 		name_len = strnlen(fileName, PATH_MAX);
 		name_len++;	/* trailing null */
@@ -741,7 +751,8 @@ openRetry:
 	pSMB->ShareAccess = cpu_to_le32(FILE_SHARE_ALL);
 	pSMB->CreateDisposition = cpu_to_le32(openDisposition);
 	pSMB->CreateOptions = cpu_to_le32(create_options);
-	pSMB->ImpersonationLevel = cpu_to_le32(SECURITY_IMPERSONATION);	/* BB ??*/
+	/* BB Expirement with various impersonation levels and verify */
+	pSMB->ImpersonationLevel = cpu_to_le32(SECURITY_IMPERSONATION);
 	pSMB->SecurityFlags =
 	    SECURITY_CONTEXT_TRACKING | SECURITY_EFFECTIVE_ONLY;
 
@@ -755,7 +766,7 @@ openRetry:
 	if (rc) {
 		cFYI(1, ("Error in Open = %d", rc));
 	} else {
-		*pOplock = pSMBr->OplockLevel;	/* one byte no need to le_to_cpu */
+		*pOplock = pSMBr->OplockLevel; /* 1 byte no need to le_to_cpu */
 		*netfid = pSMBr->Fid;	/* cifs fid stays in le */
 		/* Let caller know file was created so we can set the mode. */
 		/* Do we care about the CreateAction in any other cases? */
@@ -2504,7 +2515,9 @@ findFirstRetry:
 			psrch_inf->srch_entries_start = 
 				(char *) &pSMBr->hdr.Protocol + 
 					le16_to_cpu(pSMBr->t2.DataOffset);
-
+/* if(le16_to_cpu(pSMBr->t2.DataCount) != le16_to_cpu(pSMBr->t2.TotalDataCount)) {  
+	cERROR(1,("DC: %d TDC: %d",pSMBr->t2.DataCount,pSMBr->t2.TotalDataCount));
+} */ /* BB removeme BB */
 			parms = (T2_FFIRST_RSP_PARMS *)((char *) &pSMBr->hdr.Protocol +
 			       le16_to_cpu(pSMBr->t2.ParameterOffset));
 
@@ -2516,7 +2529,7 @@ findFirstRetry:
 			psrch_inf->entries_in_buffer  = le16_to_cpu(parms->SearchCount);
 			psrch_inf->index_of_last_entry = 
 				psrch_inf->entries_in_buffer;
-/*cFYI(1,("entries in buf %d index_of_last %d",psrch_inf->entries_in_buffer,psrch_inf->index_of_last_entry));  */
+/*cFYI(1,("entries in buf %d index_of_last %d",psrch_inf->entries_in_buffer,psrch_inf->index_of_last_entry));  */ /* BB removeme BB */
 			*pnetfid = parms->SearchHandle;
 		} else {
 			cifs_buf_release(pSMB);
