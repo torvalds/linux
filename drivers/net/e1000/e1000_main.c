@@ -312,6 +312,16 @@ e1000_up(struct e1000_adapter *adapter)
 	e1000_configure_rx(adapter);
 	e1000_alloc_rx_buffers(adapter);
 
+#ifdef CONFIG_PCI_MSI
+	if(adapter->hw.mac_type > e1000_82547_rev_2) {
+		adapter->have_msi = TRUE;
+		if((err = pci_enable_msi(adapter->pdev))) {
+			DPRINTK(PROBE, ERR,
+			 "Unable to allocate MSI interrupt Error: %d\n", err);
+			adapter->have_msi = FALSE;
+		}
+	}
+#endif
 	if((err = request_irq(adapter->pdev->irq, &e1000_intr,
 		              SA_SHIRQ | SA_SAMPLE_RANDOM,
 		              netdev->name, netdev)))
@@ -333,6 +343,11 @@ e1000_down(struct e1000_adapter *adapter)
 
 	e1000_irq_disable(adapter);
 	free_irq(adapter->pdev->irq, netdev);
+#ifdef CONFIG_PCI_MSI
+	if(adapter->hw.mac_type > e1000_82547_rev_2 &&
+	   adapter->have_msi == TRUE)
+		pci_disable_msi(adapter->pdev);
+#endif
 	del_timer_sync(&adapter->tx_fifo_stall_timer);
 	del_timer_sync(&adapter->watchdog_timer);
 	del_timer_sync(&adapter->phy_info_timer);

@@ -257,5 +257,8 @@ struct e1000_adapter {
 
 
 	int msg_enable;
+#ifdef CONFIG_PCI_MSI
+	boolean_t have_msi;
+#endif
 };
 #endif /* _E1000_H_ */
