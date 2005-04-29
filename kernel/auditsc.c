@@ -1010,20 +1010,21 @@ void audit_get_stamp(struct audit_context *ctx,
 
 extern int audit_set_type(struct audit_buffer *ab, int type);
 
-int audit_set_loginuid(struct audit_context *ctx, uid_t loginuid)
+int audit_set_loginuid(struct task_struct *task, uid_t loginuid)
 {
-	if (ctx) {
+	if (task->audit_context) {
 		struct audit_buffer *ab;
 
 		ab = audit_log_start(NULL);
 		if (ab) {
 			audit_log_format(ab, "login pid=%d uid=%u "
 				"old loginuid=%u new loginuid=%u",
-				ctx->pid, ctx->uid, ctx->loginuid, loginuid);
+				task->pid, task->uid, 
+				task->audit_context->loginuid, loginuid);
 			audit_set_type(ab, AUDIT_LOGIN);
 			audit_log_end(ab);
 		}
-		ctx->loginuid = loginuid;
+		task->audit_context->loginuid = loginuid;
 	}
 	return 0;
 }
