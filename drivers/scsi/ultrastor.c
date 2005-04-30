@@ -945,7 +945,7 @@ static int ultrastor_abort(Scsi_Cmnd *SCpnt)
 	       config.mscp[mscp_index].SCint, SCpnt);
 #endif
     if (config.mscp[mscp_index].SCint == 0)
-	return FAILURE;
+	return FAILED;
 
     if (config.mscp[mscp_index].SCint != SCpnt) panic("Bad abort");
     config.mscp[mscp_index].SCint = NULL;
