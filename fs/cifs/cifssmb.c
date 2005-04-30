@@ -2451,12 +2451,14 @@ findFirstRetry:
 		name_len += 2;
 	} else {	/* BB add check for overrun of SMB buf BB */
 		name_len = strnlen(searchName, PATH_MAX);
-		name_len++;	/* trailing null */
 /* BB fix here and in unicode clause above ie
 		if(name_len > buffersize-header)
 			free buffer exit; BB */
 		strncpy(pSMB->FileName, searchName, name_len);
-		pSMB->FileName[name_len] = 0; /* just in case */
+		pSMB->FileName[name_len] = '\\';
+		pSMB->FileName[name_len+1] = '*';
+		pSMB->FileName[name_len+2] = 0;
+		name_len += 3;
 	}
 
 	params = 12 + name_len /* includes null */ ;
