@@ -256,7 +256,7 @@ clcdfb_setcolreg(unsigned int regno, unsigned int red, unsigned int green,
 				  convert_bitfield(green, &fb->fb.var.green) |
 				  convert_bitfield(red, &fb->fb.var.red);
 
-	if (fb->fb.var.bits_per_pixel == 8 && regno < 256) {
+	if (fb->fb.fix.visual == FB_VISUAL_PSEUDOCOLOR && regno < 256) {
 		int hw_reg = CLCD_PALETTE + ((regno * 2) & ~3);
 		u32 val, mask, newval;
 
