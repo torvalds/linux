@@ -220,6 +220,30 @@ static struct platform_device stuart_device = {
 	.id		= 2,
 };
 
+static struct resource i2c_resources[] = {
+	{
+		.start	= 0x40301680,
+		.end	= 0x403016a3,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= IRQ_I2C,
+		.end	= IRQ_I2C,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device i2c_device = {
+	.name		= "pxa2xx-i2c",
+	.id		= 0,
+	.resource	= i2c_resources,
+	.num_resources	= ARRAY_SIZE(i2c_resources),
+};
+
+void __init pxa_set_i2c_info(struct i2c_pxa_platform_data *info)
+{
+	i2c_device.dev.platform_data = info;
+}
+
 static struct platform_device *devices[] __initdata = {
 	&pxamci_device,
 	&udc_device,
@@ -227,6 +251,7 @@ static struct platform_device *devices[] __initdata = {
 	&ffuart_device,
 	&btuart_device,
 	&stuart_device,
+	&i2c_device,
 };
 
 static int __init pxa_init(void)
