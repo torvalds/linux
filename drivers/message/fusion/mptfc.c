@@ -166,6 +166,9 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return r;
 	
 	ioc = pci_get_drvdata(pdev);
+	ioc->DoneCtx = mptfcDoneCtx;
+	ioc->TaskCtx = mptfcTaskCtx;
+	ioc->InternalCtx = mptfcInternalCtx;
 
 	/*  Added sanity check on readiness of the MPT adapter.
 	 */
@@ -324,10 +327,6 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	init_timer(&hd->timer);
 	hd->timer.data = (unsigned long) hd;
 	hd->timer.function = mptscsih_timer_expired;
-
-	ioc->DoneCtx = mptfcDoneCtx;
-	ioc->TaskCtx = mptfcTaskCtx;
-	ioc->InternalCtx = mptfcInternalCtx;
 
 	hd->mpt_pq_filter = mpt_pq_filter;
 

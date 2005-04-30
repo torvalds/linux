@@ -32,7 +32,7 @@
 
 #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-} LSI_LOGIC
 
-obj-$(CONFIG_FUSION_SPI)	+= mptspi.o mptscsih.o mptbase.o
-obj-$(CONFIG_FUSION_FC)		+= mptfc.o mptscsih.o mptbase.o
+obj-$(CONFIG_FUSION_SPI)	+= mptbase.o mptscsih.o mptspi.o
+obj-$(CONFIG_FUSION_FC)		+= mptbase.o mptscsih.o mptfc.o
 obj-$(CONFIG_FUSION_CTL)	+= mptctl.o
 obj-$(CONFIG_FUSION_LAN)	+= mptlan.o

@@ -180,6 +180,9 @@ mptspi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return r;
 	
 	ioc = pci_get_drvdata(pdev);
+	ioc->DoneCtx = mptspiDoneCtx;
+	ioc->TaskCtx = mptspiTaskCtx;
+	ioc->InternalCtx = mptspiInternalCtx;
 	
 	/*  Added sanity check on readiness of the MPT adapter.
 	 */
@@ -394,10 +397,6 @@ mptspi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	init_waitqueue_head(&hd->scandv_waitq);
 	hd->scandv_wait_done = 0;
 	hd->last_queue_full = 0;
-
-	ioc->DoneCtx = mptspiDoneCtx;
-	ioc->TaskCtx = mptspiTaskCtx;
-	ioc->InternalCtx = mptspiInternalCtx;
 
 	error = scsi_add_host (sh, &ioc->pcidev->dev);
 	if(error) {

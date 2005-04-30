@@ -360,15 +360,8 @@ mpt_interrupt(int irq, void *bus_id, struct pt_regs *r)
 		}
 
 		if (freeme) {
-			unsigned long flags;
-
 			/*  Put Request back on FreeQ!  */
-			spin_lock_irqsave(&ioc->FreeQlock, flags);
-			list_add_tail(&mf->u.frame.linkage.list, &ioc->FreeQ);
-#ifdef MFCNT
-			ioc->mfcnt--;
-#endif
-			spin_unlock_irqrestore(&ioc->FreeQlock, flags);
+			mpt_free_msg_frame(ioc, mf);
 		}
 
 		mb();
@@ -735,8 +728,8 @@ mpt_get_msg_frame(int handle, MPT_ADAPTER *ioc)
 		mf->u.frame.hwhdr.msgctxu.fld.cb_idx = handle;	/* byte */
 		req_offset = (u8 *)mf - (u8 *)ioc->req_frames;
 								/* u16! */
-		req_idx = cpu_to_le16(req_offset / ioc->req_sz);
-		mf->u.frame.hwhdr.msgctxu.fld.req_idx = req_idx;
+		req_idx = req_offset / ioc->req_sz;
+		mf->u.frame.hwhdr.msgctxu.fld.req_idx = cpu_to_le16(req_idx);
 		mf->u.frame.hwhdr.msgctxu.fld.rsvd = 0;
 		ioc->RequestNB[req_idx] = ioc->NB_for_64_byte_frame; /* Default, will be changed if necessary in SG generation */
 #ifdef MFCNT
@@ -782,8 +775,8 @@ mpt_put_msg_frame(int handle, MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf)
 	mf->u.frame.hwhdr.msgctxu.fld.cb_idx = handle;		/* byte */
 	req_offset = (u8 *)mf - (u8 *)ioc->req_frames;
 								/* u16! */
-	req_idx = cpu_to_le16(req_offset / ioc->req_sz);
-	mf->u.frame.hwhdr.msgctxu.fld.req_idx = req_idx;
+	req_idx = req_offset / ioc->req_sz;
+	mf->u.frame.hwhdr.msgctxu.fld.req_idx = cpu_to_le16(req_idx);
 	mf->u.frame.hwhdr.msgctxu.fld.rsvd = 0;
 
 #ifdef MPT_DEBUG_MSG_FRAME
