@@ -1,4 +1,4 @@
-version 1.32 April 3, 2005
+version 1.34 April 29, 2005
 
 A Partial List of Missing Features
 ==================================
@@ -70,7 +70,15 @@ r) Implement O_DIRECT flag on open (already supported on mount)
 s) Allow remapping of last remaining character (\) to +0xF000 which
 (this character is valid for POSIX but not for Windows)
 
-KNOWN BUGS (updated April 3, 2005)
+t) Create UID mapping facility so server UIDs can be mapped on a per
+mount or a per server basis to client UIDs or nobody if no mapping
+exists.  This is helpful when Unix extensions are negotiated to
+allow better permission checking when UIDs differ on the server
+and client.  Add new protocol request to the CIFS protocol 
+standard for asking the server for the corresponding name of a
+particular uid.
+
+KNOWN BUGS (updated April 29, 2005)
 ====================================
 See http://bugzilla.samba.org - search on product "CifsVFS" for
 current bug list.
