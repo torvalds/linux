@@ -657,7 +657,7 @@ static int handle_rt_signal32(unsigned long sig, struct k_sigaction *ka,
 
 	/* Save user registers on the stack */
 	frame = &rt_sf->uc.uc_mcontext;
-	if (put_user(regs->gpr[1], (unsigned long __user *)newsp))
+	if (put_user(regs->gpr[1], (u32 __user *)newsp))
 		goto badframe;
 
 	if (vdso32_rt_sigtramp && current->thread.vdso_base) {
@@ -842,7 +842,7 @@ static int handle_signal32(unsigned long sig, struct k_sigaction *ka,
 		regs->link = (unsigned long) frame->mctx.tramp;
 	}
 
-	if (put_user(regs->gpr[1], (unsigned long __user *)newsp))
+	if (put_user(regs->gpr[1], (u32 __user *)newsp))
 		goto badframe;
 	regs->gpr[1] = (unsigned long) newsp;
 	regs->gpr[3] = sig;
