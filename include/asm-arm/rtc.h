@@ -18,9 +18,9 @@ struct rtc_ops {
 	void		(*release)(void);
 	int		(*ioctl)(unsigned int, unsigned long);
 
-	void		(*read_time)(struct rtc_time *);
+	int		(*read_time)(struct rtc_time *);
 	int		(*set_time)(struct rtc_time *);
-	void		(*read_alarm)(struct rtc_wkalrm *);
+	int		(*read_alarm)(struct rtc_wkalrm *);
 	int		(*set_alarm)(struct rtc_wkalrm *);
 	int		(*proc)(char *buf);
 };
