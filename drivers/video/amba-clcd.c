@@ -134,16 +134,16 @@ clcdfb_set_bitfields(struct clcd_fb *fb, struct fb_var_screeninfo *var)
 		break;
 	case 16:
 		var->red.length		= 5;
-		var->green.length	= 5;
+		var->green.length	= 6;
 		var->blue.length	= 5;
 		if (fb->panel->cntl & CNTL_BGR) {
-			var->red.offset		= 10;
+			var->red.offset		= 11;
 			var->green.offset	= 5;
 			var->blue.offset	= 0;
 		} else {
 			var->red.offset		= 0;
 			var->green.offset	= 5;
-			var->blue.offset	= 10;
+			var->blue.offset	= 11;
 		}
 		break;
 	case 32:
