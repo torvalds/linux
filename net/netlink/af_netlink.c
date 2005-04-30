@@ -49,6 +49,8 @@
 #include <linux/bitops.h>
 #include <linux/mm.h>
 #include <linux/types.h>
+#include <linux/audit.h>
+
 #include <net/sock.h>
 #include <net/scm.h>
 
