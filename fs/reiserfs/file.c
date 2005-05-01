@@ -1284,10 +1284,11 @@ static ssize_t reiserfs_file_write( struct file *file, /* the file we are going 
 	reiserfs_claim_blocks_to_be_allocated(inode->i_sb, num_pages << (PAGE_CACHE_SHIFT - inode->i_blkbits));
 	reiserfs_write_unlock(inode->i_sb);
 
-	if ( !num_pages ) { /* If we do not have enough space even for */
-	    res = -ENOSPC;  /* single page, return -ENOSPC */
-	    if ( pos > (inode->i_size & (inode->i_sb->s_blocksize-1)))
-		break; // In case we are writing past the file end, break.
+	if ( !num_pages ) { /* If we do not have enough space even for a single page... */
+	    if ( pos > inode->i_size+inode->i_sb->s_blocksize-(pos & (inode->i_sb->s_blocksize-1))) {
+		res = -ENOSPC;
+		break; // In case we are writing past the end of the last file block, break.
+	    }
 	    // Otherwise we are possibly overwriting the file, so
 	    // let's set write size to be equal or less than blocksize.
 	    // This way we get it correctly for file holes.
