@@ -553,15 +553,20 @@ sub output_section_xml(%) {
     # print out each section
     $lineprefix="   ";
     foreach $section (@{$args{'sectionlist'}}) {
-	print "<refsect1>\n <title>$section</title>\n <para>\n";
+	print "<refsect1>\n";
+	print "<title>$section</title>\n";
 	if ($section =~ m/EXAMPLE/i) {
-	    print "<example><para>\n";
+	    print "<informalexample><programlisting>\n";
+	} else {
+	    print "<para>\n";
 	}
 	output_highlight($args{'sections'}{$section});
 	if ($section =~ m/EXAMPLE/i) {
-	    print "</para></example>\n";
+	    print "</programlisting></informalexample>\n";
+	} else {
+	    print "</para>\n";
 	}
-	print " </para>\n</refsect1>\n";
+	print "</refsect1>\n";
     }
 }
 
