@@ -6,7 +6,7 @@
 
 lib-y = bitops.o bugs.o csum-partial.o delay.o fault.o mem.o memcpy.o \
 	ptrace.o ptrace_user.o semaphore.o sigcontext.o signal.o \
-	syscalls.o sysrq.o thunk.o sys_call_table.o
+	syscalls.o sysrq.o thunk.o syscall_table.o
 
 USER_OBJS := ptrace_user.o sigcontext.o
 
