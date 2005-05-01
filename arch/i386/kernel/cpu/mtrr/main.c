@@ -72,17 +72,21 @@ void set_mtrr_ops(struct mtrr_ops * ops)
 static int have_wrcomb(void)
 {
 	struct pci_dev *dev;
+	u8 rev;
 	
 	if ((dev = pci_get_class(PCI_CLASS_BRIDGE_HOST << 8, NULL)) != NULL) {
-		/* ServerWorks LE chipsets have problems with write-combining 
+		/* ServerWorks LE chipsets < rev 6 have problems with write-combining
 		   Don't allow it and leave room for other chipsets to be tagged */
 		if (dev->vendor == PCI_VENDOR_ID_SERVERWORKS &&
 		    dev->device == PCI_DEVICE_ID_SERVERWORKS_LE) {
-			printk(KERN_INFO "mtrr: Serverworks LE detected. Write-combining disabled.\n");
-			pci_dev_put(dev);
-			return 0;
+			pci_read_config_byte(dev, PCI_CLASS_REVISION, &rev);
+			if (rev <= 5) {
+				printk(KERN_INFO "mtrr: Serverworks LE rev < 6 detected. Write-combining disabled.\n");
+				pci_dev_put(dev);
+				return 0;
+			}
 		}
-		/* Intel 450NX errata # 23. Non ascending cachline evictions to
+		/* Intel 450NX errata # 23. Non ascending cacheline evictions to
 		   write combining memory may resulting in data corruption */
 		if (dev->vendor == PCI_VENDOR_ID_INTEL &&
 		    dev->device == PCI_DEVICE_ID_INTEL_82451NX) {
