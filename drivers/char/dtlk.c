@@ -52,7 +52,7 @@
 #define KERNEL
 #include <linux/types.h>
 #include <linux/fs.h>
-#include <linux/mm.h>		/* for verify_area */
+#include <linux/mm.h>
 #include <linux/errno.h>	/* for -EBUSY */
 #include <linux/ioport.h>	/* for request_region */
 #include <linux/delay.h>	/* for loops_per_jiffy */

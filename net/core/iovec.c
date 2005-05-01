@@ -33,7 +33,7 @@
  *	Verify iovec. The caller must ensure that the iovec is big enough
  *	to hold the message iovec.
  *
- *	Save time not doing verify_area. copy_*_user will make this work
+ *	Save time not doing access_ok. copy_*_user will make this work
  *	in any case.
  */
 

@@ -222,7 +222,7 @@ asmlinkage int sys_vm86(struct pt_regs regs)
 			goto out;
 		case VM86_PLUS_INSTALL_CHECK:
 			/* NOTE: on old vm86 stuff this will return the error
-			   from verify_area(), because the subfunction is
+			   from access_ok(), because the subfunction is
 			   interpreted as (invalid) address to vm86_struct.
 			   So the installation check works.
 			 */
