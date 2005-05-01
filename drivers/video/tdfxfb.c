@@ -317,30 +317,49 @@ static inline void do_setpalentry(struct tdfx_par *par, unsigned regno, u32 c)
 
 static u32 do_calc_pll(int freq, int* freq_out) 
 {
-	int m, n, k, best_m, best_n, best_k, f_cur, best_error;
+	int m, n, k, best_m, best_n, best_k, best_error;
 	int fref = 14318;
   
-	/* this really could be done with more intelligence --
-	   255*63*4 = 64260 iterations is silly */
 	best_error = freq;
 	best_n = best_m = best_k = 0;
-	for (n = 1; n < 256; n++) {
-		for (m = 1; m < 64; m++) {
-			for (k = 0; k < 4; k++) {
-				f_cur = fref*(n + 2)/(m + 2)/(1 << k);
-				if (abs(f_cur - freq) < best_error) {
-					best_error = abs(f_cur-freq);
-					best_n = n;
-					best_m = m;
-					best_k = k;
+
+	for (k = 3; k >= 0; k--) {
+		for (m = 63; m >= 0; m--) {
+			/*
+			 * Estimate value of n that produces target frequency
+			 * with current m and k
+			 */
+			int n_estimated = (freq * (m + 2) * (1 << k) / fref) - 2;
+
+			/* Search neighborhood of estimated n */
+			for (n = max(0, n_estimated - 1);
+					n <= min(255, n_estimated + 1); n++) {
+				/*
+				 * Calculate PLL freqency with current m, k and
+				 * estimated n
+				 */
+				int f = fref * (n + 2) / (m + 2) / (1 << k);
+				int error = abs (f - freq);
+
+				/*
+				 *  If this is the closest we've come to the
+				 * target frequency then remember n, m and k
+				 */
+				if (error  < best_error) {
+					best_error = error;
+					best_n     = n;
+					best_m     = m;
+					best_k     = k;
 				}
 			}
 		}
 	}
+
 	n = best_n;
 	m = best_m;
 	k = best_k;
 	*freq_out = fref*(n + 2)/(m + 2)/(1 << k);
+
 	return (n << 8) | (m << 2) | k;
 }
 
