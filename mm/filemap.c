@@ -1949,7 +1949,7 @@ generic_file_buffered_write(struct kiocb *iocb, const struct iovec *iov,
 		buf = iov->iov_base + written;
 	else {
 		filemap_set_next_iovec(&cur_iov, &iov_base, written);
-		buf = iov->iov_base + iov_base;
+		buf = cur_iov->iov_base + iov_base;
 	}
 
 	do {
@@ -2007,9 +2007,11 @@ generic_file_buffered_write(struct kiocb *iocb, const struct iovec *iov,
 				count -= status;
 				pos += status;
 				buf += status;
-				if (unlikely(nr_segs > 1))
+				if (unlikely(nr_segs > 1)) {
 					filemap_set_next_iovec(&cur_iov,
 							&iov_base, status);
+					buf = cur_iov->iov_base + iov_base;
+				}
 			}
 		}
 		if (unlikely(copied != bytes))
