@@ -283,18 +283,3 @@ asmlinkage int sys_uname(struct old_utsname * name)
 	up_read(&uts_sem);
 	return err?-EFAULT:0;
 }
-
-/* Copy from mips version */
-asmlinkage long sys_shmatcall(int shmid, char __user *shmaddr,
-		int shmflg)
-{
-	unsigned long raddr;
-	int err;
-
-	err = do_shmat(shmid, shmaddr, shmflg, &raddr);
-	if (err)
-		return err;
-
-	err = raddr;
-	return err;
-}

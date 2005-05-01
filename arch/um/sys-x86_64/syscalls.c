@@ -14,14 +14,6 @@
 #include "asm/prctl.h" /* XXX This should get the constants from libc */
 #include "choose-mode.h"
 
-/* XXX: copied from x86-64: arch/x86_64/kernel/sys_x86_64.c */
-asmlinkage long wrap_sys_shmat(int shmid, char __user *shmaddr, int shmflg)
-{
-	unsigned long raddr;
-
-	return do_shmat(shmid, shmaddr, shmflg, &raddr) ?: (long) raddr;
-}
-
 asmlinkage long sys_uname64(struct new_utsname __user * name)
 {
 	int err;

@@ -26,7 +26,6 @@ extern syscall_handler_t *ia32_sys_call_table[];
 extern long old_mmap(unsigned long addr, unsigned long len,
 		     unsigned long prot, unsigned long flags,
 		     unsigned long fd, unsigned long pgoff);
-extern syscall_handler_t wrap_sys_shmat;
 extern syscall_handler_t sys_modify_ldt;
 extern syscall_handler_t sys_arch_prctl;
 
