@@ -161,10 +161,6 @@ void *get_current(void)
 	return(current);
 }
 
-void prepare_to_copy(struct task_struct *tsk)
-{
-}
-
 int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
 		unsigned long stack_top, struct task_struct * p, 
 		struct pt_regs *regs)
