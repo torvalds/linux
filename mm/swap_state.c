@@ -143,7 +143,6 @@ void __delete_from_swap_cache(struct page *page)
 int add_to_swap(struct page * page)
 {
 	swp_entry_t entry;
-	int pf_flags;
 	int err;
 
 	if (!PageLocked(page))
@@ -154,29 +153,19 @@ int add_to_swap(struct page * page)
 		if (!entry.val)
 			return 0;
 
-		/* Radix-tree node allocations are performing
-		 * GFP_ATOMIC allocations under PF_MEMALLOC.  
-		 * They can completely exhaust the page allocator.  
+		/*
+		 * Radix-tree node allocations from PF_MEMALLOC contexts could
+		 * completely exhaust the page allocator. __GFP_NOMEMALLOC
+		 * stops emergency reserves from being allocated.
 		 *
-		 * So PF_MEMALLOC is dropped here.  This causes the slab 
-		 * allocations to fail earlier, so radix-tree nodes will 
-		 * then be allocated from the mempool reserves.
-		 *
-		 * We're still using __GFP_HIGH for radix-tree node
-		 * allocations, so some of the emergency pools are available,
-		 * just not all of them.
+		 * TODO: this could cause a theoretical memory reclaim
+		 * deadlock in the swap out path.
 		 */
-
-		pf_flags = current->flags;
-		current->flags &= ~PF_MEMALLOC;
-
 		/*
 		 * Add it to the swap cache and mark it dirty
 		 */
-		err = __add_to_swap_cache(page, entry, GFP_ATOMIC|__GFP_NOWARN);
-
-		if (pf_flags & PF_MEMALLOC)
-			current->flags |= PF_MEMALLOC;
+		err = __add_to_swap_cache(page, entry,
+				GFP_ATOMIC|__GFP_NOMEMALLOC|__GFP_NOWARN);
 
 		switch (err) {
 		case 0:				/* Success */
