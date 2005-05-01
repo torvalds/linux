@@ -108,8 +108,9 @@ year saw a paper describing an RCU implementation of System V IPC
 2004 has seen a Linux-Journal article on use of RCU in dcache
 [McKenney04a], a performance comparison of locking to RCU on several
 different CPUs [McKenney04b], a dissertation describing use of RCU in a
-number of operating-system kernels [PaulEdwardMcKenneyPhD], and a paper
-describing how to make RCU safe for soft-realtime applications [Sarma04c].
+number of operating-system kernels [PaulEdwardMcKenneyPhD], a paper
+describing how to make RCU safe for soft-realtime applications [Sarma04c],
+and a paper describing SELinux performance with RCU [JamesMorris04b].
 
 
 Bibtex Entries
@@ -341,6 +342,17 @@ Dipankar Sarma"
 ,pages="18-26"
 }
 
+@techreport{Friedberg03a
+,author="Stuart A. Friedberg"
+,title="Lock-Free Wild Card Search Data Structure and Method"
+,institution="US Patent and Trademark Office"
+,address="Washington, DC"
+,year="2003"
+,number="US Patent 6,662,184 (contributed under GPL)"
+,month="December"
+,pages="112"
+}
+
 @article{McKenney04a
 ,author="Paul E. McKenney and Dipankar Sarma and Maneesh Soni"
 ,title="Scaling dcache with {RCU}"
@@ -373,6 +385,9 @@ in Operating System Kernels"
 ,school="OGI School of Science and Engineering at
 Oregon Health and Sciences University"
 ,year="2004"
+,note="Available:
+\url{http://www.rdrop.com/users/paulmck/RCU/RCUdissertation.2004.07.14e1.pdf}
+[Viewed October 15, 2004]"
 }
 
 @Conference{Sarma04c
@@ -384,4 +399,14 @@ Oregon Health and Sciences University"
 ,year="2004"
 ,month="June"
 ,pages="182-191"
+}
+
+@unpublished{JamesMorris04b
+,Author="James Morris"
+,Title="Recent Developments in {SELinux} Kernel Performance"
+,month="December"
+,year="2004"
+,note="Available:
+\url{http://www.livejournal.com/users/james_morris/2153.html}
+[Viewed December 10, 2004]"
 }
