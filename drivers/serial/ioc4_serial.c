@@ -1688,8 +1688,8 @@ ioc4_change_speed(struct uart_port *the_port,
 {
 	struct ioc4_port *port = get_ioc4_port(the_port);
 	int baud, bits;
-	unsigned cflag, cval;
-	int new_parity = 0, new_parity_enable = 0, new_stop = 1, new_data = 8;
+	unsigned cflag;
+	int new_parity = 0, new_parity_enable = 0, new_stop = 0, new_data = 8;
 	struct uart_info *info = the_port->info;
 
 	cflag = new_termios->c_cflag;
@@ -1697,48 +1697,35 @@ ioc4_change_speed(struct uart_port *the_port,
 	switch (cflag & CSIZE) {
 	case CS5:
 		new_data = 5;
-		cval = 0x00;
 		bits = 7;
 		break;
 	case CS6:
 		new_data = 6;
-		cval = 0x01;
 		bits = 8;
 		break;
 	case CS7:
 		new_data = 7;
-		cval = 0x02;
 		bits = 9;
 		break;
 	case CS8:
 		new_data = 8;
-		cval = 0x03;
 		bits = 10;
 		break;
 	default:
 		/* cuz we always need a default ... */
 		new_data = 5;
-		cval = 0x00;
 		bits = 7;
 		break;
 	}
 	if (cflag & CSTOPB) {
-		cval |= 0x04;
 		bits++;
 		new_stop = 1;
 	}
 	if (cflag & PARENB) {
-		cval |= UART_LCR_PARITY;
 		bits++;
 		new_parity_enable = 1;
-	}
-	if (cflag & PARODD) {
-		cval |= UART_LCR_EPAR;
-		new_parity = 1;
-	}
-	if (cflag & IGNPAR) {
-		cval &= ~UART_LCR_PARITY;
-		new_parity_enable = 0;
+		if (cflag & PARODD)
+			new_parity = 1;
 	}
 	baud = uart_get_baud_rate(the_port, new_termios, old_termios,
 				MIN_BAUD_SUPPORTED, MAX_BAUD_SUPPORTED);
@@ -1771,10 +1758,12 @@ ioc4_change_speed(struct uart_port *the_port,
 	if (cflag & CRTSCTS) {
 		info->flags |= ASYNC_CTS_FLOW;
 		port->ip_sscr |= IOC4_SSCR_HFC_EN;
-		writel(port->ip_sscr, &port->ip_serial_regs->sscr);
 	}
-	else
+	else {
 		info->flags &= ~ASYNC_CTS_FLOW;
+		port->ip_sscr &= ~IOC4_SSCR_HFC_EN;
+	}
+	writel(port->ip_sscr, &port->ip_serial_regs->sscr);
 
 	/* Set the configuration and proper notification call */
 	DPRINT_CONFIG(("%s : port 0x%p cflag 0%o "
@@ -1846,7 +1835,6 @@ static void ioc4_cb_output_lowat(struct ioc4_port *port)
 		transmit_chars(port->ip_port);
 	}
 }
-
 
 /**
  * handle_intr - service any interrupts for the given port - 2nd level
