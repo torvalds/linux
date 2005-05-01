@@ -17,6 +17,7 @@
 #include <linux/user.h>
 #include <linux/security.h>
 #include <linux/audit.h>
+#include <linux/signal.h>
 
 #include <asm/pgtable.h>
 #include <asm/processor.h>
@@ -1481,7 +1482,7 @@ sys_ptrace (long request, pid_t pid, unsigned long addr, unsigned long data)
 	      case PTRACE_CONT:
 		/* restart after signal. */
 		ret = -EIO;
-		if (data > _NSIG)
+		if (!valid_signal(data))
 			goto out_tsk;
 		if (request == PTRACE_SYSCALL)
 			set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
@@ -1520,7 +1521,7 @@ sys_ptrace (long request, pid_t pid, unsigned long addr, unsigned long data)
 		/* let child execute for one instruction */
 	      case PTRACE_SINGLEBLOCK:
 		ret = -EIO;
-		if (data > _NSIG)
+		if (!valid_signal(data))
 			goto out_tsk;
 
 		clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);

@@ -19,6 +19,7 @@
 #include <linux/smp.h>
 #include <linux/smp_lock.h>
 #include <linux/security.h>
+#include <linux/signal.h>
 
 #include <asm/asi.h>
 #include <asm/pgtable.h>
@@ -559,7 +560,7 @@ asmlinkage void do_ptrace(struct pt_regs *regs)
 		addr = 1;
 
 	case PTRACE_CONT: { /* restart after signal. */
-		if (data > _NSIG) {
+		if (!valid_signal(data)) {
 			pt_error_return(regs, EIO);
 			goto out_tsk;
 		}

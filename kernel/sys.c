@@ -25,6 +25,7 @@
 #include <linux/dcookies.h>
 #include <linux/suspend.h>
 #include <linux/tty.h>
+#include <linux/signal.h>
 
 #include <linux/compat.h>
 #include <linux/syscalls.h>
@@ -1637,7 +1638,7 @@ asmlinkage long sys_prctl(int option, unsigned long arg2, unsigned long arg3,
 	switch (option) {
 		case PR_SET_PDEATHSIG:
 			sig = arg2;
-			if (sig < 0 || sig > _NSIG) {
+			if (!valid_signal(sig)) {
 				error = -EINVAL;
 				break;
 			}
