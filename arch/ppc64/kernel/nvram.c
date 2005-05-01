@@ -339,9 +339,9 @@ static int nvram_remove_os_partition(void)
 static int nvram_create_os_partition(void)
 {
 	struct list_head * p;
-	struct nvram_partition * part;
-	struct nvram_partition * new_part = NULL;
-	struct nvram_partition * free_part = NULL;
+	struct nvram_partition *part = NULL;
+	struct nvram_partition *new_part = NULL;
+	struct nvram_partition *free_part = NULL;
 	int seq_init[2] = { 0, 0 };
 	loff_t tmp_index;
 	long size = 0;
@@ -364,13 +364,11 @@ static int nvram_create_os_partition(void)
 			free_part = part;
 		}
 	}
-	if (!size) {
+	if (!size)
 		return -ENOSPC;
-	}
 	
 	/* Create our OS partition */
-	new_part = (struct nvram_partition *)
-		kmalloc(sizeof(struct nvram_partition), GFP_KERNEL);
+	new_part = kmalloc(sizeof(*new_part), GFP_KERNEL);
 	if (!new_part) {
 		printk(KERN_ERR "nvram_create_os_partition: kmalloc failed\n");
 		return -ENOMEM;
@@ -379,7 +377,7 @@ static int nvram_create_os_partition(void)
 	new_part->index = free_part->index;
 	new_part->header.signature = NVRAM_SIG_OS;
 	new_part->header.length = size;
-	sprintf(new_part->header.name, "ppc64,linux");
+	strcpy(new_part->header.name, "ppc64,linux");
 	new_part->header.checksum = nvram_checksum(&new_part->header);
 
 	rc = nvram_write_header(new_part);
@@ -394,7 +392,8 @@ static int nvram_create_os_partition(void)
 	tmp_index = new_part->index + NVRAM_HEADER_LEN;
 	rc = ppc_md.nvram_write((char *)&seq_init, sizeof(seq_init), &tmp_index);
 	if (rc <= 0) {
-		printk(KERN_ERR "nvram_create_os_partition: nvram_write failed (%d)\n", rc);
+		printk(KERN_ERR "nvram_create_os_partition: nvram_write "
+				"failed (%d)\n", rc);
 		return rc;
 	}
 	
