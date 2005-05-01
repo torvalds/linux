@@ -101,7 +101,7 @@ quiet_cmd_db2ps = XMLTO    $@
       cmd_db2ps = xmlto ps $(XMLTOFLAGS) -o $(dir $@) $<
 %.ps : %.xml
 	@(which xmlto > /dev/null 2>&1) || \
-	 (echo "*** You need to install DocBook stylesheets ***"; \
+	 (echo "*** You need to install xmlto ***"; \
 	  exit 1)
 	$(call cmd,db2ps)
 
@@ -109,7 +109,7 @@ quiet_cmd_db2pdf = XMLTO   $@
       cmd_db2pdf = xmlto pdf $(XMLTOFLAGS) -o $(dir $@) $<
 %.pdf : %.xml
 	@(which xmlto > /dev/null 2>&1) || \
-	 (echo "*** You need to install DocBook stylesheets ***"; \
+	 (echo "*** You need to install xmlto ***"; \
 	  exit 1)
 	$(call cmd,db2pdf)
 
@@ -120,7 +120,7 @@ quiet_cmd_db2html = XMLTO  $@
 
 %.html:	%.xml
 	@(which xmlto > /dev/null 2>&1) || \
-	 (echo "*** You need to install DocBook stylesheets ***"; \
+	 (echo "*** You need to install xmlto ***"; \
 	  exit 1)
 	@rm -rf $@ $(patsubst %.html,%,$@)
 	$(call cmd,db2html)
@@ -131,7 +131,7 @@ quiet_cmd_db2man = XMLTO   $@
       cmd_db2man = if grep -q refentry $<; then xmlto man $(XMLTOFLAGS) -o $(obj)/man $< ; gzip -f $(obj)/man/*.9; fi
 %.9 : %.xml
 	@(which xmlto > /dev/null 2>&1) || \
-	 (echo "*** You need to install DocBook stylesheets ***"; \
+	 (echo "*** You need to install xmlto ***"; \
 	  exit 1)
 	$(call cmd,db2man)
 	@touch $@
