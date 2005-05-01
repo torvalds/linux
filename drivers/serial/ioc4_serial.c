@@ -1765,8 +1765,11 @@ ioc4_change_speed(struct uart_port *the_port,
 		the_port->ignore_status_mask &= ~N_DATA_READY;
 	}
 
-	if (cflag & CRTSCTS)
+	if (cflag & CRTSCTS) {
 		info->flags |= ASYNC_CTS_FLOW;
+		port->ip_sscr |= IOC4_SSCR_HFC_EN;
+		writel(port->ip_sscr, &port->ip_serial_regs->sscr);
+	}
 	else
 		info->flags &= ~ASYNC_CTS_FLOW;
 
@@ -1825,12 +1828,6 @@ static inline int ic4_startup_local(struct uart_port *the_port)
 	/* set the speed of the serial port */
 	ioc4_change_speed(the_port, info->tty->termios, (struct termios *)0);
 
-	/* enable hardware flow control - after ioc4_change_speed because
-	 * ASYNC_CTS_FLOW is set there */
-	if (info->flags & ASYNC_CTS_FLOW) {
-		port->ip_sscr |= IOC4_SSCR_HFC_EN;
-		writel(port->ip_sscr, &port->ip_serial_regs->sscr);
-	}
 	info->flags |= UIF_INITIALIZED;
 	return 0;
 }
