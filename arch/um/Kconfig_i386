@@ -1,4 +1,8 @@
-config 64_BIT
+config UML_X86
+	bool
+	default y
+
+config 64BIT
 	bool
 	default n
 
