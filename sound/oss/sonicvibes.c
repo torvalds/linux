@@ -1149,7 +1149,7 @@ static int mixer_ioctl(struct sv_state *s, unsigned int cmd, unsigned long arg)
 			if (mixtable[i].rec)
 				break;
 		}
-		if (!mixtable[i].rec)
+		if (i == SOUND_MIXER_NRDEVICES)
 			return 0;
 		spin_lock_irqsave(&s->lock, flags);
 		frobindir(s, SV_CIMIX_ADCINL, 0x1f, mixtable[i].rec << 5);
