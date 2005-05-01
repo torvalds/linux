@@ -405,7 +405,6 @@ static struct kiocb fastcall *__aio_get_req(struct kioctx *ctx)
 	req->ki_ctx = ctx;
 	req->ki_cancel = NULL;
 	req->ki_retry = NULL;
-	req->ki_obj.user = NULL;
 	req->ki_dtor = NULL;
 	req->private = NULL;
 	INIT_LIST_HEAD(&req->ki_run_list);
@@ -451,11 +450,6 @@ static inline void really_put_req(struct kioctx *ctx, struct kiocb *req)
 {
 	if (req->ki_dtor)
 		req->ki_dtor(req);
-	req->ki_ctx = NULL;
-	req->ki_filp = NULL;
-	req->ki_obj.user = NULL;
-	req->ki_dtor = NULL;
-	req->private = NULL;
 	kmem_cache_free(kiocb_cachep, req);
 	ctx->reqs_active--;
 
@@ -1515,8 +1509,7 @@ int fastcall io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 	}
 
 	req->ki_filp = file;
-	iocb->aio_key = req->ki_key;
-	ret = put_user(iocb->aio_key, &user_iocb->aio_key);
+	ret = put_user(req->ki_key, &user_iocb->aio_key);
 	if (unlikely(ret)) {
 		dprintk("EFAULT: aio_key\n");
 		goto out_put_req;
@@ -1531,8 +1524,6 @@ int fastcall io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 	req->ki_opcode = iocb->aio_lio_opcode;
 	init_waitqueue_func_entry(&req->ki_wait, aio_wake_function);
 	INIT_LIST_HEAD(&req->ki_wait.task_list);
-	req->ki_run_list.next = req->ki_run_list.prev = NULL;
-	req->ki_retry = NULL;
 	req->ki_retried = 0;
 	req->ki_kicked = 0;
 	req->ki_queued = 0;
