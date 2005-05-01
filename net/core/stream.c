@@ -21,7 +21,7 @@
 
 /**
  * sk_stream_write_space - stream socket write_space callback.
- * sk - socket
+ * @sk: socket
  *
  * FIXME: write proper description
  */
@@ -43,8 +43,8 @@ EXPORT_SYMBOL(sk_stream_write_space);
 
 /**
  * sk_stream_wait_connect - Wait for a socket to get into the connected state
- * @sk - sock to wait on
- * @timeo_p - for how long to wait
+ * @sk: sock to wait on
+ * @timeo_p: for how long to wait
  *
  * Must be called with the socket locked.
  */
@@ -79,7 +79,7 @@ EXPORT_SYMBOL(sk_stream_wait_connect);
 
 /**
  * sk_stream_closing - Return 1 if we still have things to send in our buffers.
- * @sk - socket to verify
+ * @sk: socket to verify
  */
 static inline int sk_stream_closing(struct sock *sk)
 {
@@ -107,8 +107,8 @@ EXPORT_SYMBOL(sk_stream_wait_close);
 
 /**
  * sk_stream_wait_memory - Wait for more memory for a socket
- * @sk - socket to wait for memory
- * @timeo_p - for how long
+ * @sk: socket to wait for memory
+ * @timeo_p: for how long
  */
 int sk_stream_wait_memory(struct sock *sk, long *timeo_p)
 {

@@ -1703,13 +1703,13 @@ static struct inode_operations proc_self_inode_operations = {
 };
 
 /**
- * proc_pid_unhash -  Unhash /proc/<pid> entry from the dcache.
+ * proc_pid_unhash -  Unhash /proc/@pid entry from the dcache.
  * @p: task that should be flushed.
  *
- * Drops the /proc/<pid> dcache entry from the hash chains.
+ * Drops the /proc/@pid dcache entry from the hash chains.
  *
- * Dropping /proc/<pid> entries and detach_pid must be synchroneous,
- * otherwise e.g. /proc/<pid>/exe might point to the wrong executable,
+ * Dropping /proc/@pid entries and detach_pid must be synchroneous,
+ * otherwise e.g. /proc/@pid/exe might point to the wrong executable,
  * if the pid value is immediately reused. This is enforced by
  * - caller must acquire spin_lock(p->proc_lock)
  * - must be called before detach_pid()
@@ -1741,7 +1741,7 @@ struct dentry *proc_pid_unhash(struct task_struct *p)
 }
 
 /**
- * proc_pid_flush - recover memory used by stale /proc/<pid>/x entries
+ * proc_pid_flush - recover memory used by stale /proc/@pid/x entries
  * @proc_entry: directoy to prune.
  *
  * Shrink the /proc directory that was used by the just killed thread.

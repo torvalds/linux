@@ -475,6 +475,10 @@ void *vmalloc(unsigned long size)
 
 EXPORT_SYMBOL(vmalloc);
 
+#ifndef PAGE_KERNEL_EXEC
+# define PAGE_KERNEL_EXEC PAGE_KERNEL
+#endif
+
 /**
  *	vmalloc_exec  -  allocate virtually contiguous, executable memory
  *
@@ -487,10 +491,6 @@ EXPORT_SYMBOL(vmalloc);
  *	For tight cotrol over page level allocator and protection flags
  *	use __vmalloc() instead.
  */
-
-#ifndef PAGE_KERNEL_EXEC
-# define PAGE_KERNEL_EXEC PAGE_KERNEL
-#endif
 
 void *vmalloc_exec(unsigned long size)
 {

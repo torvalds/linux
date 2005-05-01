@@ -1465,6 +1465,8 @@ sub dump_function($$) {
 
     $prototype =~ s/^static +//;
     $prototype =~ s/^extern +//;
+    $prototype =~ s/^fastcall +//;
+    $prototype =~ s/^asmlinkage +//;
     $prototype =~ s/^inline +//;
     $prototype =~ s/^__inline__ +//;
     $prototype =~ s/^#define +//; #ak added

@@ -616,10 +616,10 @@ lenout:
 
 /**
  *	sk_alloc - All socket objects are allocated here
- *	@family - protocol family
- *	@priority - for allocation (%GFP_KERNEL, %GFP_ATOMIC, etc)
- *	@prot - struct proto associated with this new sock instance
- *	@zero_it - if we should zero the newly allocated sock
+ *	@family: protocol family
+ *	@priority: for allocation (%GFP_KERNEL, %GFP_ATOMIC, etc)
+ *	@prot: struct proto associated with this new sock instance
+ *	@zero_it: if we should zero the newly allocated sock
  */
 struct sock *sk_alloc(int family, int priority, struct proto *prot, int zero_it)
 {
@@ -970,8 +970,8 @@ static void __release_sock(struct sock *sk)
 
 /**
  * sk_wait_data - wait for data to arrive at sk_receive_queue
- * sk - sock to wait on
- * timeo - for how long
+ * @sk:    sock to wait on
+ * @timeo: for how long
  *
  * Now socket state including sk->sk_err is changed only under lock,
  * hence we may omit checks after joining wait queue.
