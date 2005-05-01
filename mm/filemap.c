@@ -139,7 +139,25 @@ static int sync_page(void *word)
 	page = container_of((page_flags_t *)word, struct page, flags);
 
 	/*
-	 * FIXME, fercrissake.  What is this barrier here for?
+	 * page_mapping() is being called without PG_locked held.
+	 * Some knowledge of the state and use of the page is used to
+	 * reduce the requirements down to a memory barrier.
+	 * The danger here is of a stale page_mapping() return value
+	 * indicating a struct address_space different from the one it's
+	 * associated with when it is associated with one.
+	 * After smp_mb(), it's either the correct page_mapping() for
+	 * the page, or an old page_mapping() and the page's own
+	 * page_mapping() has gone NULL.
+	 * The ->sync_page() address_space operation must tolerate
+	 * page_mapping() going NULL. By an amazing coincidence,
+	 * this comes about because none of the users of the page
+	 * in the ->sync_page() methods make essential use of the
+	 * page_mapping(), merely passing the page down to the backing
+	 * device's unplug functions when it's non-NULL, which in turn
+	 * ignore it for all cases but swap, where only page->private is
+	 * of interest. When page_mapping() does go NULL, the entire
+	 * call stack gracefully ignores the page and returns.
+	 * -- wli
 	 */
 	smp_mb();
 	mapping = page_mapping(page);
