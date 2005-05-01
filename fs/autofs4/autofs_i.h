@@ -84,6 +84,7 @@ struct autofs_wait_queue {
 	char *name;
 	/* This is for status reporting upon return */
 	int status;
+	atomic_t notified;
 	atomic_t wait_ctr;
 };
 
