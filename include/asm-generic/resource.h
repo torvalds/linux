@@ -41,8 +41,11 @@
 #define RLIMIT_LOCKS		10	/* maximum file locks held */
 #define RLIMIT_SIGPENDING	11	/* max number of pending signals */
 #define RLIMIT_MSGQUEUE		12	/* maximum bytes in POSIX mqueues */
+#define RLIMIT_NICE		13	/* max nice prio allowed to raise to
+					   0-39 for nice level 19 .. -20 */
+#define RLIMIT_RTPRIO		14	/* maximum realtime priority */
 
-#define RLIM_NLIMITS		13
+#define RLIM_NLIMITS		15
 
 /*
  * SuS says limits have to be unsigned.
@@ -81,6 +84,8 @@
 	[RLIMIT_LOCKS]		= {  RLIM_INFINITY,  RLIM_INFINITY },	\
 	[RLIMIT_SIGPENDING]	= { 		0,	       0 },	\
 	[RLIMIT_MSGQUEUE]	= {   MQ_BYTES_MAX,   MQ_BYTES_MAX },	\
+	[RLIMIT_NICE]		= { 0, 0 },				\
+	[RLIMIT_RTPRIO]		= { 0, 0 },				\
 }
 
 #endif	/* __KERNEL__ */
