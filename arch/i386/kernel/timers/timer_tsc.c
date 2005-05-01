@@ -477,7 +477,7 @@ static int __init init_tsc(char* override)
 	if (cpu_has_tsc) {
 		unsigned long tsc_quotient;
 #ifdef CONFIG_HPET_TIMER
-		if (is_hpet_enabled()){
+		if (is_hpet_enabled() && hpet_use_timer) {
 			unsigned long result, remain;
 			printk("Using TSC for gettimeofday\n");
 			tsc_quotient = calibrate_tsc_hpet(NULL);
