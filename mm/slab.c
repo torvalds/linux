@@ -583,7 +583,7 @@ static inline struct array_cache *ac_data(kmem_cache_t *cachep)
 	return cachep->array[smp_processor_id()];
 }
 
-static inline kmem_cache_t *kmem_find_general_cachep(size_t size, int gfpflags)
+static inline kmem_cache_t *__find_general_cachep(size_t size, int gfpflags)
 {
 	struct cache_sizes *csizep = malloc_sizes;
 
@@ -606,6 +606,12 @@ static inline kmem_cache_t *kmem_find_general_cachep(size_t size, int gfpflags)
 		return csizep->cs_dmacachep;
 	return csizep->cs_cachep;
 }
+
+kmem_cache_t *kmem_find_general_cachep(size_t size, int gfpflags)
+{
+	return __find_general_cachep(size, gfpflags);
+}
+EXPORT_SYMBOL(kmem_find_general_cachep);
 
 /* Cal the num objs, wastage, and bytes left over for a given slab size. */
 static void cache_estimate(unsigned long gfporder, size_t size, size_t align,
@@ -672,14 +678,11 @@ static struct array_cache *alloc_arraycache(int cpu, int entries,
 	int memsize = sizeof(void*)*entries+sizeof(struct array_cache);
 	struct array_cache *nc = NULL;
 
-	if (cpu != -1) {
-		kmem_cache_t *cachep;
-		cachep = kmem_find_general_cachep(memsize, GFP_KERNEL);
-		if (cachep)
-			nc = kmem_cache_alloc_node(cachep, cpu_to_node(cpu));
-	}
-	if (!nc)
+	if (cpu == -1)
 		nc = kmalloc(memsize, GFP_KERNEL);
+	else
+		nc = kmalloc_node(memsize, GFP_KERNEL, cpu_to_node(cpu));
+
 	if (nc) {
 		nc->avail = 0;
 		nc->limit = entries;
@@ -2361,7 +2364,7 @@ out:
  * and can sleep. And it will allocate memory on the given node, which
  * can improve the performance for cpu bound structures.
  */
-void *kmem_cache_alloc_node(kmem_cache_t *cachep, int nodeid)
+void *kmem_cache_alloc_node(kmem_cache_t *cachep, int flags, int nodeid)
 {
 	int loop;
 	void *objp;
@@ -2393,7 +2396,7 @@ void *kmem_cache_alloc_node(kmem_cache_t *cachep, int nodeid)
 		spin_unlock_irq(&cachep->spinlock);
 
 		local_irq_disable();
-		if (!cache_grow(cachep, GFP_KERNEL, nodeid)) {
+		if (!cache_grow(cachep, flags, nodeid)) {
 			local_irq_enable();
 			return NULL;
 		}
@@ -2435,6 +2438,16 @@ got_slabp:
 }
 EXPORT_SYMBOL(kmem_cache_alloc_node);
 
+void *kmalloc_node(size_t size, int flags, int node)
+{
+	kmem_cache_t *cachep;
+
+	cachep = kmem_find_general_cachep(size, flags);
+	if (unlikely(cachep == NULL))
+		return NULL;
+	return kmem_cache_alloc_node(cachep, flags, node);
+}
+EXPORT_SYMBOL(kmalloc_node);
 #endif
 
 /**
@@ -2462,7 +2475,12 @@ void *__kmalloc(size_t size, unsigned int __nocast flags)
 {
 	kmem_cache_t *cachep;
 
-	cachep = kmem_find_general_cachep(size, flags);
+	/* If you want to save a few bytes .text space: replace
+	 * __ with kmem_.
+	 * Then kmalloc uses the uninlined functions instead of the inline
+	 * functions.
+	 */
+	cachep = __find_general_cachep(size, flags);
 	if (unlikely(cachep == NULL))
 		return NULL;
 	return __cache_alloc(cachep, flags);
@@ -2489,9 +2507,8 @@ void *__alloc_percpu(size_t size, size_t align)
 	for (i = 0; i < NR_CPUS; i++) {
 		if (!cpu_possible(i))
 			continue;
-		pdata->ptrs[i] = kmem_cache_alloc_node(
-				kmem_find_general_cachep(size, GFP_KERNEL),
-				cpu_to_node(i));
+		pdata->ptrs[i] = kmalloc_node(size, GFP_KERNEL,
+						cpu_to_node(i));
 
 		if (!pdata->ptrs[i])
 			goto unwind_oom;
