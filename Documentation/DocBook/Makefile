@@ -49,7 +49,8 @@ installmandocs: mandocs
 KERNELDOC = scripts/kernel-doc
 DOCPROC   = scripts/basic/docproc
 
-#XMLTOFLAGS = --skip-validation
+XMLTOFLAGS = -m Documentation/DocBook/stylesheet.xsl
+#XMLTOFLAGS += --skip-validation
 
 ###
 # DOCPROC is used for two purposes:
