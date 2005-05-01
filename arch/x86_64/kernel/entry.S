@@ -296,6 +296,7 @@ int_very_careful:
 	call syscall_trace_leave
 	popq %rdi
 	andl $~(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SINGLESTEP),%edi
+	cli
 	jmp int_restore_rest
 	
 int_signal:
@@ -307,6 +308,7 @@ int_signal:
 1:	movl $_TIF_NEED_RESCHED,%edi	
 int_restore_rest:
 	RESTORE_REST
+	cli
 	jmp int_with_check
 	CFI_ENDPROC
 		
@@ -490,7 +492,8 @@ retint_signal:
 	call do_notify_resume
 	RESTORE_REST
 	cli
-	GET_THREAD_INFO(%rcx)	
+	GET_THREAD_INFO(%rcx)
+	movl $_TIF_WORK_MASK,%edi
 	jmp retint_check
 
 #ifdef CONFIG_PREEMPT
