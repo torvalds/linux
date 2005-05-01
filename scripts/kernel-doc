@@ -607,7 +607,7 @@ sub output_function_xml(%) {
 	    }
 	}
     } else {
-	print "  <void>\n";
+	print "  <void/>\n";
     }
     print "  </funcprototype></funcsynopsis>\n";
     print "</refsynopsisdiv>\n";
