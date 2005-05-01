@@ -4038,11 +4038,10 @@ qla1280_status_entry(struct scsi_qla_host *ha, struct response *pkt,
 			scsi_status, handle);
 	}
 
-	/* Target busy */
-	if (scsi_status & SS_BUSY_CONDITION &&
-	    scsi_status != SS_RESERVE_CONFLICT) {
-		CMD_RESULT(cmd) =
-			DID_BUS_BUSY << 16 | (scsi_status & 0xff);
+	/* Target busy or queue full */
+	if ((scsi_status & 0xFF) == SAM_STAT_TASK_SET_FULL ||
+	    (scsi_status & 0xFF) == SAM_STAT_BUSY) {
+		CMD_RESULT(cmd) = scsi_status & 0xff;
 	} else {
 
 		/* Save ISP completion status */
