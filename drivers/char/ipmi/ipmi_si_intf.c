@@ -100,6 +100,11 @@ enum si_intf_state {
 	/* FIXME - add watchdog stuff. */
 };
 
+/* Some BT-specific defines we need here. */
+#define IPMI_BT_INTMASK_REG		2
+#define IPMI_BT_INTMASK_CLEAR_IRQ_BIT	2
+#define IPMI_BT_INTMASK_ENABLE_IRQ_BIT	1
+
 enum si_type {
     SI_KCS, SI_SMIC, SI_BT
 };
@@ -875,6 +880,17 @@ static irqreturn_t si_irq_handler(int irq, void *data, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t si_bt_irq_handler(int irq, void *data, struct pt_regs *regs)
+{
+	struct smi_info *smi_info = data;
+	/* We need to clear the IRQ flag for the BT interface. */
+	smi_info->io.outputb(&smi_info->io, IPMI_BT_INTMASK_REG,
+			     IPMI_BT_INTMASK_CLEAR_IRQ_BIT
+			     | IPMI_BT_INTMASK_ENABLE_IRQ_BIT);
+	return si_irq_handler(irq, data, regs);
+}
+
+
 static struct ipmi_smi_handlers handlers =
 {
 	.owner                  = THIS_MODULE,
@@ -1001,11 +1017,22 @@ static int std_irq_setup(struct smi_info *info)
 	if (!info->irq)
 		return 0;
 
-	rv = request_irq(info->irq,
-			 si_irq_handler,
-			 SA_INTERRUPT,
-			 DEVICE_NAME,
-			 info);
+	if (info->si_type == SI_BT) {
+		rv = request_irq(info->irq,
+				 si_bt_irq_handler,
+				 SA_INTERRUPT,
+				 DEVICE_NAME,
+				 info);
+		if (!rv)
+			/* Enable the interrupt in the BT interface. */
+			info->io.outputb(&info->io, IPMI_BT_INTMASK_REG,
+					 IPMI_BT_INTMASK_ENABLE_IRQ_BIT);
+	} else
+		rv = request_irq(info->irq,
+				 si_irq_handler,
+				 SA_INTERRUPT,
+				 DEVICE_NAME,
+				 info);
 	if (rv) {
 		printk(KERN_WARNING
 		       "ipmi_si: %s unable to claim interrupt %d,"
@@ -1024,6 +1051,9 @@ static void std_irq_cleanup(struct smi_info *info)
 	if (!info->irq)
 		return;
 
+	if (info->si_type == SI_BT)
+		/* Disable the interrupt in the BT interface. */
+		info->io.outputb(&info->io, IPMI_BT_INTMASK_REG, 0);
 	free_irq(info->irq, info);
 }
 
