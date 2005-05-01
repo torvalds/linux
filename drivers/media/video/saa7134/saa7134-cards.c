@@ -1948,6 +1948,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 		dev->has_remote = 1;
 		board_flyvideo(dev);
 		break;
+	case SAA7134_BOARD_FLYTVPLATINUM_FM:
 	case SAA7134_BOARD_CINERGY400:
 	case SAA7134_BOARD_CINERGY600:
 	case SAA7134_BOARD_CINERGY600_MK3:

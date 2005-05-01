@@ -379,6 +379,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	switch (dev->board) {
 	case SAA7134_BOARD_FLYVIDEO2000:
 	case SAA7134_BOARD_FLYVIDEO3000:
+	case SAA7134_BOARD_FLYTVPLATINUM_FM:
 		ir_codes     = flyvideo_codes;
 		mask_keycode = 0xEC00000;
 		mask_keydown = 0x0040000;
