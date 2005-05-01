@@ -52,7 +52,7 @@ struct cmbdata {
 #define BIODASDREADALLCMB	_IOWR(DASD_IOCTL_LETTER,33,struct cmbdata)
 
 #ifdef __KERNEL__
-
+struct ccw_device;
 /**
  * enable_cmf() - switch on the channel measurement for a specific device
  *  @cdev:	The ccw device to be enabled
