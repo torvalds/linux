@@ -838,7 +838,7 @@ static int inline port_init(struct ioc4_port *port)
 	port->ip_tx_prod = readl(&port->ip_serial_regs->stcir) & PROD_CONS_MASK;
 	writel(port->ip_tx_prod, &port->ip_serial_regs->stpir);
 	port->ip_rx_cons = readl(&port->ip_serial_regs->srpir) & PROD_CONS_MASK;
-	writel(port->ip_rx_cons, &port->ip_serial_regs->srcir);
+	writel(port->ip_rx_cons | IOC4_SRCIR_ARM, &port->ip_serial_regs->srcir);
 
 	/* Disable interrupts for this 16550 */
 	uart = port->ip_uart_regs;
