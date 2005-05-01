@@ -1905,6 +1905,9 @@ static int zd1201_resume(struct usb_interface *interface)
 {
 	struct zd1201 *zd = usb_get_intfdata(interface);
 
+	if (!zd || !zd->dev)
+		return -ENODEV;
+
 	netif_device_attach(zd->dev);
 
 	if (zd->was_enabled)
