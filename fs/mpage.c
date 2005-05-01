@@ -727,6 +727,8 @@ retry:
 						&last_block_in_bio, &ret, wbc,
 						writepage_fn);
 			}
+			if (unlikely(ret == WRITEPAGE_ACTIVATE))
+				unlock_page(page);
 			if (ret || (--(wbc->nr_to_write) <= 0))
 				done = 1;
 			if (wbc->nonblocking && bdi_write_congested(bdi)) {
