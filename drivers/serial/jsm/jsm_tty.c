@@ -31,6 +31,8 @@
 
 #include "jsm.h"
 
+static void jsm_carrier(struct jsm_channel *ch);
+
 static inline int jsm_get_mstat(struct jsm_channel *ch)
 {
 	unsigned char mstat;
@@ -755,7 +757,7 @@ void jsm_input(struct jsm_channel *ch)
 	jsm_printk(IOCTL, INFO, &ch->ch_bd->pci_dev, "finish\n");
 }
 
-void jsm_carrier(struct jsm_channel *ch)
+static void jsm_carrier(struct jsm_channel *ch)
 {
 	struct jsm_board *bd;
 

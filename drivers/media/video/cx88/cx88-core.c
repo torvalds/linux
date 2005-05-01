@@ -429,7 +429,7 @@ int cx88_sram_channel_setup(struct cx88_core *core,
 /* ------------------------------------------------------------------ */
 /* debug helper code                                                  */
 
-int cx88_risc_decode(u32 risc)
+static int cx88_risc_decode(u32 risc)
 {
 	static char *instr[16] = {
 		[ RISC_SYNC    >> 28 ] = "sync",
@@ -542,7 +542,7 @@ void cx88_sram_channel_dump(struct cx88_core *core,
 	       core->name,cx_read(ch->cnt2_reg));
 }
 
-char *cx88_pci_irqs[32] = {
+static char *cx88_pci_irqs[32] = {
 	"vid", "aud", "ts", "vip", "hst", "5", "6", "tm1",
 	"src_dma", "dst_dma", "risc_rd_err", "risc_wr_err",
 	"brdg_err", "src_dma_err", "dst_dma_err", "ipb_dma_err",
@@ -1206,7 +1206,6 @@ void cx88_core_put(struct cx88_core *core, struct pci_dev *pci)
 /* ------------------------------------------------------------------ */
 
 EXPORT_SYMBOL(cx88_print_ioctl);
-EXPORT_SYMBOL(cx88_pci_irqs);
 EXPORT_SYMBOL(cx88_vid_irqs);
 EXPORT_SYMBOL(cx88_mpeg_irqs);
 EXPORT_SYMBOL(cx88_print_irqbits);

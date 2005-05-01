@@ -91,7 +91,7 @@ static void dvb_buf_release(struct videobuf_queue *q, struct videobuf_buffer *vb
 	cx88_free_buffer(dev->pci, (struct cx88_buffer*)vb);
 }
 
-struct videobuf_queue_ops dvb_qops = {
+static struct videobuf_queue_ops dvb_qops = {
 	.buf_setup    = dvb_buf_setup,
 	.buf_prepare  = dvb_buf_prepare,
 	.buf_queue    = dvb_buf_queue,
@@ -191,7 +191,7 @@ static int or51132_set_ts_param(struct dvb_frontend* fe,
 	return 0;
 }
 
-struct or51132_config pchdtv_hd3000 = {
+static struct or51132_config pchdtv_hd3000 = {
 	.demod_address    = 0x15,
 	.pll_address      = 0x61,
 	.pll_desc         = &dvb_pll_thomson_dtt7610,

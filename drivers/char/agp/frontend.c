@@ -235,7 +235,7 @@ static void agp_insert_into_pool(struct agp_memory * temp)
 
 /* File private list routines */
 
-struct agp_file_private *agp_find_private(pid_t pid)
+static struct agp_file_private *agp_find_private(pid_t pid)
 {
 	struct agp_file_private *curr;
 
@@ -250,7 +250,7 @@ struct agp_file_private *agp_find_private(pid_t pid)
 	return NULL;
 }
 
-void agp_insert_file_private(struct agp_file_private * priv)
+static void agp_insert_file_private(struct agp_file_private * priv)
 {
 	struct agp_file_private *prev;
 
@@ -262,7 +262,7 @@ void agp_insert_file_private(struct agp_file_private * priv)
 	agp_fe.file_priv_list = priv;
 }
 
-void agp_remove_file_private(struct agp_file_private * priv)
+static void agp_remove_file_private(struct agp_file_private * priv)
 {
 	struct agp_file_private *next;
 	struct agp_file_private *prev;

@@ -39,6 +39,8 @@ extern struct task_struct *child_reaper;
 
 int getrusage(struct task_struct *, int, struct rusage __user *);
 
+static void exit_mm(struct task_struct * tsk);
+
 static void __unhash_process(struct task_struct *p)
 {
 	nr_threads--;
@@ -474,7 +476,7 @@ EXPORT_SYMBOL_GPL(exit_fs);
  * Turn us into a lazy TLB process if we
  * aren't already..
  */
-void exit_mm(struct task_struct * tsk)
+static void exit_mm(struct task_struct * tsk)
 {
 	struct mm_struct *mm = tsk->mm;
 
