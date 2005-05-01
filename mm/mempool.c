@@ -198,35 +198,21 @@ void * mempool_alloc(mempool_t *pool, unsigned int __nocast gfp_mask)
 	void *element;
 	unsigned long flags;
 	DEFINE_WAIT(wait);
-	int gfp_nowait;
+	int gfp_temp;
+
+	might_sleep_if(gfp_mask & __GFP_WAIT);
 
 	gfp_mask |= __GFP_NOMEMALLOC;	/* don't allocate emergency reserves */
 	gfp_mask |= __GFP_NORETRY;	/* don't loop in __alloc_pages */
 	gfp_mask |= __GFP_NOWARN;	/* failures are OK */
-	gfp_nowait = gfp_mask & ~(__GFP_WAIT | __GFP_IO);
 
-	might_sleep_if(gfp_mask & __GFP_WAIT);
+	gfp_temp = gfp_mask & ~(__GFP_WAIT|__GFP_IO);
+
 repeat_alloc:
-	element = pool->alloc(gfp_nowait, pool->pool_data);
+
+	element = pool->alloc(gfp_temp, pool->pool_data);
 	if (likely(element != NULL))
 		return element;
-
-	/*
-	 * If the pool is less than 50% full and we can perform effective
-	 * page reclaim then try harder to allocate an element.
-	 */
-	mb();
-	if ((gfp_mask & __GFP_FS) && (gfp_mask != gfp_nowait) &&
-				(pool->curr_nr <= pool->min_nr/2)) {
-		element = pool->alloc(gfp_mask, pool->pool_data);
-		if (likely(element != NULL))
-			return element;
-	}
-
-	/*
-	 * Kick the VM at this point.
-	 */
-	wakeup_bdflush(0);
 
 	spin_lock_irqsave(&pool->lock, flags);
 	if (likely(pool->curr_nr)) {
@@ -240,6 +226,8 @@ repeat_alloc:
 	if (!(gfp_mask & __GFP_WAIT))
 		return NULL;
 
+	/* Now start performing page reclaim */
+	gfp_temp = gfp_mask;
 	prepare_to_wait(&pool->wait, &wait, TASK_UNINTERRUPTIBLE);
 	mb();
 	if (!pool->curr_nr)
