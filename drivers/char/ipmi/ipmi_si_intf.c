@@ -1526,8 +1526,17 @@ static int try_init_acpi(int intf_num, struct smi_info **new_info)
 		info->irq_setup = NULL;
 	}
 
-	regspacings[intf_num] = spmi->addr.register_bit_width / 8;
-	info->io.regspacing = spmi->addr.register_bit_width / 8;
+	if (spmi->addr.register_bit_width) {
+		/* A (hopefully) properly formed register bit width. */
+		regspacings[intf_num] = spmi->addr.register_bit_width / 8;
+		info->io.regspacing = spmi->addr.register_bit_width / 8;
+	} else {
+		/* Some broken systems get this wrong and set the value
+		 * to zero.  Assume it is the default spacing.  If that
+		 * is wrong, too bad, the vendor should fix the tables. */
+		regspacings[intf_num] = DEFAULT_REGSPACING;
+		info->io.regspacing = DEFAULT_REGSPACING;
+	}
 	regsizes[intf_num] = regspacings[intf_num];
 	info->io.regsize = regsizes[intf_num];
 	regshifts[intf_num] = spmi->addr.register_bit_offset;
