@@ -99,6 +99,7 @@ typedef struct pmac_tumbler_t {
 	pmac_gpio_t hp_detect;
 	int headphone_irq;
 	int lineout_irq;
+	unsigned int save_master_vol[2];
 	unsigned int master_vol[2];
 	unsigned int save_master_switch[2];
 	unsigned int master_switch[2];
@@ -1139,6 +1140,8 @@ static void tumbler_suspend(pmac_t *chip)
 		disable_irq(mix->lineout_irq);
 	mix->save_master_switch[0] = mix->master_switch[0];
 	mix->save_master_switch[1] = mix->master_switch[1];
+	mix->save_master_vol[0] = mix->master_vol[0];
+	mix->save_master_vol[1] = mix->master_vol[1];
 	mix->master_switch[0] = mix->master_switch[1] = 0;
 	tumbler_set_master_volume(mix);
 	if (!mix->anded_reset) {
@@ -1166,6 +1169,8 @@ static void tumbler_resume(pmac_t *chip)
 	mix->acs &= ~1;
 	mix->master_switch[0] = mix->save_master_switch[0];
 	mix->master_switch[1] = mix->save_master_switch[1];
+	mix->master_vol[0] = mix->save_master_vol[0];
+	mix->master_vol[1] = mix->save_master_vol[1];
 	tumbler_reset_audio(chip);
 	if (mix->i2c.client && mix->i2c.init_client) {
 		if (mix->i2c.init_client(&mix->i2c) < 0)
