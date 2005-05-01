@@ -709,11 +709,11 @@ static int ipmi_close(struct inode *ino, struct file *filep)
 		if (expect_close == 42) {
 			ipmi_watchdog_state = WDOG_TIMEOUT_NONE;
 			ipmi_set_timeout(IPMI_SET_TIMEOUT_NO_HB);
-			clear_bit(0, &ipmi_wdog_open);
 		} else {
 			printk(KERN_CRIT PFX "Unexpected close, not stopping watchdog!\n");
 			ipmi_heartbeat();
 		}
+		clear_bit(0, &ipmi_wdog_open);
 	}
 
 	ipmi_fasync (-1, filep, 0);
