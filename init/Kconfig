@@ -275,6 +275,17 @@ config KALLSYMS_EXTRA_PASS
 	   reported.  KALLSYMS_EXTRA_PASS is only a temporary workaround while
 	   you wait for kallsyms to be fixed.
 
+
+config PRINTK
+	default y
+	bool "Enable support for printk" if EMBEDDED
+	help
+	  This option enables normal printk support. Removing it
+	  eliminates most of the message strings from the kernel image
+	  and makes the kernel more or less silent. As this makes it
+	  very difficult to diagnose system problems, saying N here is
+	  strongly discouraged.
+
 config BUG
 	bool "BUG() support" if EMBEDDED
 	default y

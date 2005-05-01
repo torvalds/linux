@@ -380,6 +380,7 @@ rp_sidt:
 	ALIGN
 ignore_int:
 	cld
+#ifdef CONFIG_PRINTK
 	pushl %eax
 	pushl %ecx
 	pushl %edx
@@ -400,6 +401,7 @@ ignore_int:
 	popl %edx
 	popl %ecx
 	popl %eax
+#endif
 	iret
 
 /*
