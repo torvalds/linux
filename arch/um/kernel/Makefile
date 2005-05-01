@@ -53,6 +53,7 @@ quiet_cmd_quote2 = QUOTE   $@
       cmd_quote2 = sed -e '/CONFIG/{'          \
 		  -e 's/"CONFIG"\;/""/'        \
 		  -e 'r $(obj)/config.tmp'     \
-		  -e 'a""\;'                   \
+		  -e 'a \'                     \
+		  -e '""\;'                    \
 		  -e '}'                       \
 		  $< > $@
