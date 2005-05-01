@@ -123,8 +123,7 @@ void remove_from_page_cache(struct page *page)
 {
 	struct address_space *mapping = page->mapping;
 
-	if (unlikely(!PageLocked(page)))
-		PAGE_BUG(page);
+	BUG_ON(!PageLocked(page));
 
 	write_lock_irq(&mapping->tree_lock);
 	__remove_from_page_cache(page);

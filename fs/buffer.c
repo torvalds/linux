@@ -2078,8 +2078,7 @@ int block_read_full_page(struct page *page, get_block_t *get_block)
 	int nr, i;
 	int fully_mapped = 1;
 
-	if (!PageLocked(page))
-		PAGE_BUG(page);
+	BUG_ON(!PageLocked(page));
 	blocksize = 1 << inode->i_blkbits;
 	if (!page_has_buffers(page))
 		create_empty_buffers(page, blocksize, 0);
