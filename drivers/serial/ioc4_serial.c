@@ -1272,8 +1272,9 @@ static inline int set_rx_timeout(struct ioc4_port *port, int timeout)
 	 * and set the rx threshold to that amount.  There are 4 chars
 	 * per ring entry, so we'll divide the number of chars that will
 	 * arrive in timeout by 4.
+	 * So .... timeout * baud / 10 / HZ / 4, with HZ = 100.
 	 */
-	threshold = timeout * port->ip_baud / 10 / HZ / 4;
+	threshold = timeout * port->ip_baud / 4000;
 	if (threshold == 0)
 		threshold = 1;	/* otherwise we'll intr all the time! */
 
@@ -1285,8 +1286,10 @@ static inline int set_rx_timeout(struct ioc4_port *port, int timeout)
 
 	writel(port->ip_sscr, &port->ip_serial_regs->sscr);
 
-	/* Now set the rx timeout to the given value */
-	timeout = timeout * IOC4_SRTR_HZ / HZ;
+	/* Now set the rx timeout to the given value
+	 * again timeout * IOC4_SRTR_HZ / HZ
+	 */
+	timeout = timeout * IOC4_SRTR_HZ / 100;
 	if (timeout > IOC4_SRTR_CNT)
 		timeout = IOC4_SRTR_CNT;
 
@@ -1380,7 +1383,7 @@ config_port(struct ioc4_port *port,
 	if (port->ip_tx_lowat == 0)
 		port->ip_tx_lowat = 1;
 
-	set_rx_timeout(port, port->ip_rx_timeout);
+	set_rx_timeout(port, 2);
 
 	return 0;
 }
