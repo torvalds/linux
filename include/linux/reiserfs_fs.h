@@ -225,7 +225,7 @@ struct reiserfs_super_block
 #define SB_ONDISK_JOURNAL_DEVICE(s) \
          le32_to_cpu ((SB_ONDISK_JP(s)->jp_journal_dev))
 #define SB_ONDISK_RESERVED_FOR_JOURNAL(s) \
-         le32_to_cpu ((SB_V1_DISK_SUPER_BLOCK(s)->s_reserved_for_journal))
+         le16_to_cpu ((SB_V1_DISK_SUPER_BLOCK(s)->s_reserved_for_journal))
 
 #define is_block_in_log_or_reserved_area(s, block) \
          block >= SB_JOURNAL_1st_RESERVED_BLOCK(s) \

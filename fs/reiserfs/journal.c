@@ -2391,7 +2391,7 @@ int journal_init(struct super_block *p_s_sb, const char * j_dev_name, int old_fo
      jh = (struct reiserfs_journal_header *)(bhjh->b_data);
      
      /* make sure that journal matches to the super block */
-     if (is_reiserfs_jr(rs) && (jh->jh_journal.jp_journal_magic != sb_jp_journal_magic(rs))) {
+     if (is_reiserfs_jr(rs) && (le32_to_cpu(jh->jh_journal.jp_journal_magic) != sb_jp_journal_magic(rs))) {
 	 reiserfs_warning (p_s_sb, "sh-460: journal header magic %x "
 			   "(device %s) does not match to magic found in super "
 			   "block %x",
