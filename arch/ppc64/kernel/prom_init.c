@@ -493,6 +493,113 @@ static void __init early_cmdline_parse(void)
 }
 
 /*
+ * To tell the firmware what our capabilities are, we have to pass
+ * it a fake 32-bit ELF header containing a couple of PT_NOTE sections
+ * that contain structures that contain the actual values.
+ */
+static struct fake_elf {
+	Elf32_Ehdr	elfhdr;
+	Elf32_Phdr	phdr[2];
+	struct chrpnote {
+		u32	namesz;
+		u32	descsz;
+		u32	type;
+		char	name[8];	/* "PowerPC" */
+		struct chrpdesc {
+			u32	real_mode;
+			u32	real_base;
+			u32	real_size;
+			u32	virt_base;
+			u32	virt_size;
+			u32	load_base;
+		} chrpdesc;
+	} chrpnote;
+	struct rpanote {
+		u32	namesz;
+		u32	descsz;
+		u32	type;
+		char	name[24];	/* "IBM,RPA-Client-Config" */
+		struct rpadesc {
+			u32	lpar_affinity;
+			u32	min_rmo_size;
+			u32	min_rmo_percent;
+			u32	max_pft_size;
+			u32	splpar;
+			u32	min_load;
+			u32	new_mem_def;
+			u32	ignore_me;
+		} rpadesc;
+	} rpanote;
+} fake_elf = {
+	.elfhdr = {
+		.e_ident = { 0x7f, 'E', 'L', 'F',
+			     ELFCLASS32, ELFDATA2MSB, EV_CURRENT },
+		.e_type = ET_EXEC,	/* yeah right */
+		.e_machine = EM_PPC,
+		.e_version = EV_CURRENT,
+		.e_phoff = offsetof(struct fake_elf, phdr),
+		.e_phentsize = sizeof(Elf32_Phdr),
+		.e_phnum = 2
+	},
+	.phdr = {
+		[0] = {
+			.p_type = PT_NOTE,
+			.p_offset = offsetof(struct fake_elf, chrpnote),
+			.p_filesz = sizeof(struct chrpnote)
+		}, [1] = {
+			.p_type = PT_NOTE,
+			.p_offset = offsetof(struct fake_elf, rpanote),
+			.p_filesz = sizeof(struct rpanote)
+		}
+	},
+	.chrpnote = {
+		.namesz = sizeof("PowerPC"),
+		.descsz = sizeof(struct chrpdesc),
+		.type = 0x1275,
+		.name = "PowerPC",
+		.chrpdesc = {
+			.real_mode = ~0U,	/* ~0 means "don't care" */
+			.real_base = ~0U,
+			.real_size = ~0U,
+			.virt_base = ~0U,
+			.virt_size = ~0U,
+			.load_base = ~0U
+		},
+	},
+	.rpanote = {
+		.namesz = sizeof("IBM,RPA-Client-Config"),
+		.descsz = sizeof(struct rpadesc),
+		.type = 0x12759999,
+		.name = "IBM,RPA-Client-Config",
+		.rpadesc = {
+			.lpar_affinity = 0,
+			.min_rmo_size = 64,	/* in megabytes */
+			.min_rmo_percent = 0,
+			.max_pft_size = 48,	/* 2^48 bytes max PFT size */
+			.splpar = 1,
+			.min_load = ~0U,
+			.new_mem_def = 0
+		}
+	}
+};
+
+static void __init prom_send_capabilities(void)
+{
+	unsigned long offset = reloc_offset();
+	ihandle elfloader;
+	int ret;
+
+	elfloader = call_prom("open", 1, 1, ADDR("/packages/elf-loader"));
+	if (elfloader == 0) {
+		prom_printf("couldn't open /packages/elf-loader\n");
+		return;
+	}
+	ret = call_prom("call-method", 3, 1, ADDR("process-elf-header"),
+			elfloader, ADDR(&fake_elf));
+	call_prom("close", 1, 0, elfloader);
+}
+
+/*
  * Memory allocation strategy... our layout is normally:
  *
  *  at 14Mb or more we vmlinux, then a gap and initrd. In some rare cases, initrd
