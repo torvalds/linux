@@ -183,12 +183,12 @@ struct saa7134_board saa7134_boards[] = {
 		.name           = "LifeView FlyTV Platinum FM",
 		.audio_clock    = 0x00200000,
 		.tuner_type     = TUNER_PHILIPS_TDA8290,
-//		.gpiomask       = 0xe000,
+		.gpiomask       = 0x1E000,	/* Set GP16 and unused 15,14,13 to Output */
 		.inputs         = {{
 			.name = name_tv,
 			.vmux = 1,
 			.amux = TV,
-//			.gpio = 0x0000,
+			.gpio = 0x10000,	/* GP16=1 selects TV input */
 			.tv   = 1,
                 },{
 /*			.name = name_tv_mono,
@@ -212,12 +212,12 @@ struct saa7134_board saa7134_boards[] = {
 			.amux = LINE2,
 //			.gpio = 0x4000,
 		}},
-/*		.radio = {
+		.radio = {
 			.name = name_radio,
-			.amux = LINE2,
-			.gpio = 0x2000,
+			.amux = TV,
+			.gpio = 0x00000,	/* GP16=0 selects FM radio antenna */
 		},
-*/	},
+	},
 	[SAA7134_BOARD_EMPRESS] = {
 		/* "Gert Vervoort" <gert.vervoort@philips.com> */
 		.name		= "EMPRESS",
