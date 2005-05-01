@@ -1623,7 +1623,13 @@ static int decode_dmi(dmi_header_t *dm, int intf_num)
 		}
 	} else {
 		/* Old DMI spec. */
-		ipmi_data->base_addr = base_addr;
+		/* Note that technically, the lower bit of the base
+		 * address should be 1 if the address is I/O and 0 if
+		 * the address is in memory.  So many systems get that
+		 * wrong (and all that I have seen are I/O) so we just
+		 * ignore that bit and assume I/O.  Systems that use
+		 * memory should use the newer spec, anyway. */
+		ipmi_data->base_addr = base_addr & 0xfffe;
 		ipmi_data->addr_space = IPMI_IO_ADDR_SPACE;
 		ipmi_data->offset = 1;
 	}
