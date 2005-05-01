@@ -79,6 +79,6 @@ Offset	Type		Description
 0x22c   unsigned long	ramdisk_max
 0x230   16 bytes 	trampoline
 0x290 - 0x2cf		EDD_MBR_SIG_BUFFER (edd.S)
-0x2d0 - 0x600		E820MAP
-0x600 - 0x7ff		EDDBUF (edd.S) for disk signature read sector
-0x600 - 0x7eb		EDDBUF (edd.S) for edd data
+0x2d0 - 0xd00		E820MAP
+0xd00 - 0xeff		EDDBUF (edd.S) for disk signature read sector
+0xd00 - 0xeeb		EDDBUF (edd.S) for edd data

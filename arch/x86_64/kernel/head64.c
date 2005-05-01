@@ -29,8 +29,6 @@ static void __init clear_bss(void)
 	       (unsigned long) __bss_end - (unsigned long) __bss_start);
 }
 
-extern char x86_boot_params[2048];
-
 #define NEW_CL_POINTER		0x228	/* Relative to real mode data */
 #define OLD_CL_MAGIC_ADDR	0x90020
 #define OLD_CL_MAGIC            0xA33F
@@ -44,7 +42,7 @@ static void __init copy_bootdata(char *real_mode_data)
 	int new_data;
 	char * command_line;
 
-	memcpy(x86_boot_params, real_mode_data, 2048); 
+	memcpy(x86_boot_params, real_mode_data, BOOT_PARAM_SIZE);
 	new_data = *(int *) (x86_boot_params + NEW_CL_POINTER);
 	if (!new_data) {
 		if (OLD_CL_MAGIC != * (u16 *) OLD_CL_MAGIC_ADDR) {
