@@ -381,57 +381,29 @@ struct offset_v1 {
 } __attribute__ ((__packed__));
 
 struct offset_v2 {
-#ifdef __LITTLE_ENDIAN
-	    /* little endian version */
-	    __u64 k_offset:60;
-	    __u64 k_type: 4;
-#else
-	    /* big endian version */
-	    __u64 k_type: 4;
-	    __u64 k_offset:60;
-#endif
+	__le64 v;
 } __attribute__ ((__packed__));
-
-#ifndef __LITTLE_ENDIAN
-typedef union {
-    struct offset_v2 offset_v2;
-    __u64 linear;
-} __attribute__ ((__packed__)) offset_v2_esafe_overlay;
 
 static inline __u16 offset_v2_k_type( const struct offset_v2 *v2 )
 {
-    offset_v2_esafe_overlay tmp = *(const offset_v2_esafe_overlay *)v2;
-    tmp.linear = le64_to_cpu( tmp.linear );
-    return (tmp.offset_v2.k_type <= TYPE_MAXTYPE)?tmp.offset_v2.k_type:TYPE_ANY;
+	__u8 type = le64_to_cpu(v2->v) >> 60;
+	return (type <= TYPE_MAXTYPE)?type:TYPE_ANY;
 }
  
 static inline void set_offset_v2_k_type( struct offset_v2 *v2, int type )
 {
-    offset_v2_esafe_overlay *tmp = (offset_v2_esafe_overlay *)v2;
-    tmp->linear = le64_to_cpu(tmp->linear);
-    tmp->offset_v2.k_type = type;
-    tmp->linear = cpu_to_le64(tmp->linear);
+	v2->v = (v2->v & cpu_to_le64(~0ULL>>4)) | cpu_to_le64((__u64)type<<60);
 }
  
 static inline loff_t offset_v2_k_offset( const struct offset_v2 *v2 )
 {
-    offset_v2_esafe_overlay tmp = *(const offset_v2_esafe_overlay *)v2;
-    tmp.linear = le64_to_cpu( tmp.linear );
-    return tmp.offset_v2.k_offset;
+	return le64_to_cpu(v2->v) & (~0ULL>>4);
 }
 
 static inline void set_offset_v2_k_offset( struct offset_v2 *v2, loff_t offset ){
-    offset_v2_esafe_overlay *tmp = (offset_v2_esafe_overlay *)v2;
-    tmp->linear = le64_to_cpu(tmp->linear);
-    tmp->offset_v2.k_offset = offset;
-    tmp->linear = cpu_to_le64(tmp->linear);
+	offset &= (~0ULL>>4);
+	v2->v = (v2->v & cpu_to_le64(15ULL<<60)) | cpu_to_le64(offset);
 }
-#else
-# define offset_v2_k_type(v2)           ((v2)->k_type)
-# define set_offset_v2_k_type(v2,val)   (offset_v2_k_type(v2) = (val))
-# define offset_v2_k_offset(v2)         ((v2)->k_offset)
-# define set_offset_v2_k_offset(v2,val) (offset_v2_k_offset(v2) = (val))
-#endif
 
 /* Key of an item determines its location in the S+tree, and
    is composed of 4 components */
