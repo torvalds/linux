@@ -108,6 +108,7 @@ config DEBUG_HIGHMEM
 
 config DEBUG_BUGVERBOSE
 	bool "Verbose BUG() reporting (adds 70K)" if DEBUG_KERNEL && EMBEDDED
+	depends on BUG
 	depends on ARM || ARM26 || M32R || M68K || SPARC32 || SPARC64 || (X86 && !X86_64) || FRV
 	default !EMBEDDED
 	help

@@ -9,6 +9,8 @@
  * undefined" opcode for parsing in the trap handler.
  */
 
+#ifdef CONFIG_BUG
+#define HAVE_ARCH_BUG
 #ifdef CONFIG_DEBUG_BUGVERBOSE
 #define BUG()				\
  __asm__ __volatile__(	"ud2\n"		\
@@ -18,8 +20,7 @@
 #else
 #define BUG() __asm__ __volatile__("ud2\n")
 #endif
+#endif
 
-#define HAVE_ARCH_BUG
 #include <asm-generic/bug.h>
-
 #endif

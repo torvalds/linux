@@ -1,6 +1,7 @@
 #ifndef _ALPHA_BUG_H
 #define _ALPHA_BUG_H
 
+#ifdef CONFIG_BUG
 #include <asm/pal.h>
 
 /* ??? Would be nice to use .gprel32 here, but we can't be sure that the
@@ -10,6 +11,8 @@
 		       : : "i" (PAL_bugchk), "i"(__LINE__), "i"(__FILE__))
 
 #define HAVE_ARCH_BUG
+#endif
+
 #include <asm-generic/bug.h>
 
 #endif

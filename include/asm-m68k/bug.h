@@ -3,6 +3,7 @@
 
 #include <linux/config.h>
 
+#ifdef CONFIG_BUG
 #ifdef CONFIG_DEBUG_BUGVERBOSE
 #ifndef CONFIG_SUN3
 #define BUG() do { \
@@ -22,6 +23,8 @@
 #endif
 
 #define HAVE_ARCH_BUG
+#endif
+
 #include <asm-generic/bug.h>
 
 #endif

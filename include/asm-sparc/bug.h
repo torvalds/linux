@@ -1,6 +1,7 @@
 #ifndef _SPARC_BUG_H
 #define _SPARC_BUG_H
 
+#ifdef CONFIG_BUG
 /* Only use the inline asm until a gcc release that can handle __builtin_trap
  * -rob 2003-06-25
  *
@@ -26,6 +27,8 @@ extern void do_BUG(const char *file, int line);
 #endif
 
 #define HAVE_ARCH_BUG
+#endif
+
 #include <asm-generic/bug.h>
 
 #endif

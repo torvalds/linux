@@ -3,6 +3,7 @@
 
 #include <linux/config.h>
 
+#ifdef CONFIG_BUG
 /*
  * Tell the user there is some problem.
  */
@@ -12,6 +13,8 @@
 } while (0)
 
 #define HAVE_ARCH_BUG
+#endif
+
 #include <asm-generic/bug.h>
 
 #endif

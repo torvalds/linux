@@ -14,9 +14,12 @@
 #ifndef __V850_BUG_H__
 #define __V850_BUG_H__
 
+#ifdef CONFIG_BUG
 extern void __bug (void) __attribute__ ((noreturn));
 #define BUG()		__bug()
 #define HAVE_ARCH_BUG
+#endif
+
 #include <asm-generic/bug.h>
 
 #endif /* __V850_BUG_H__ */
