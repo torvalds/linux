@@ -1514,10 +1514,14 @@ int fastcall io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 		goto out_put_req;
 
 	spin_lock_irq(&ctx->ctx_lock);
-	list_add_tail(&req->ki_run_list, &ctx->run_list);
-	/* drain the run list */
-	while (__aio_run_iocbs(ctx))
-		;
+	if (likely(list_empty(&ctx->run_list))) {
+		aio_run_iocb(req);
+	} else {
+		list_add_tail(&req->ki_run_list, &ctx->run_list);
+		/* drain the run list */
+		while (__aio_run_iocbs(ctx))
+			;
+	}
 	spin_unlock_irq(&ctx->ctx_lock);
 	aio_put_req(req);	/* drop extra ref to req */
 	return 0;
