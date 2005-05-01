@@ -1671,6 +1671,18 @@ static void __init free_area_init_core(struct pglist_data *pgdat,
 		if (batch < 1)
 			batch = 1;
 
+		/*
+		 * Clamp the batch to a 2^n - 1 value. Having a power
+		 * of 2 value was found to be more likely to have
+		 * suboptimal cache aliasing properties in some cases.
+		 *
+		 * For example if 2 tasks are alternately allocating
+		 * batches of pages, one task can end up with a lot
+		 * of pages of one half of the possible page colors
+		 * and the other with pages of the other colors.
+		 */
+		batch = (1 << fls(batch + batch/2)) - 1;
+
 		for (cpu = 0; cpu < NR_CPUS; cpu++) {
 			struct per_cpu_pages *pcp;
 
