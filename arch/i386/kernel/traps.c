@@ -643,16 +643,15 @@ void unset_nmi_callback(void)
 }
 
 #ifdef CONFIG_KPROBES
-fastcall int do_int3(struct pt_regs *regs, long error_code)
+fastcall void do_int3(struct pt_regs *regs, long error_code)
 {
 	if (notify_die(DIE_INT3, "int3", regs, error_code, 3, SIGTRAP)
 			== NOTIFY_STOP)
-		return 1;
+		return;
 	/* This is an interrupt gate, because kprobes wants interrupts
 	disabled.  Normal trap handlers don't. */
 	restore_interrupts(regs);
 	do_trap(3, SIGTRAP, "int3", 1, regs, error_code, NULL);
-	return 0;
 }
 #endif
 
