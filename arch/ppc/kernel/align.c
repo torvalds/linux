@@ -290,6 +290,10 @@ fix_alignment(struct pt_regs *regs)
 			/* lwm, stmw */
 			nb = (32 - reg) * 4;
 		}
+
+		if (!access_ok((flags & ST? VERIFY_WRITE: VERIFY_READ), addr, nb+nb0))
+			return -EFAULT;	/* bad address */
+
 		rptr = (unsigned char *) &regs->gpr[reg];
 		if (flags & LD) {
 			for (i = 0; i < nb; ++i)
