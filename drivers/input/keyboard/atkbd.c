@@ -678,7 +678,7 @@ static void atkbd_disconnect(struct serio *serio)
 	atkbd_disable(atkbd);
 
 	/* make sure we don't have a command in flight */
-	synchronize_kernel();
+	synchronize_sched();  /* Allow atkbd_interrupt()s to complete. */
 	flush_scheduled_work();
 
 	device_remove_file(&serio->dev, &atkbd_attr_extra);

@@ -1666,7 +1666,7 @@ int kmem_cache_destroy(kmem_cache_t * cachep)
 	}
 
 	if (unlikely(cachep->flags & SLAB_DESTROY_BY_RCU))
-		synchronize_kernel();
+		synchronize_rcu();
 
 	/* no cpu_online check required here since we clear the percpu
 	 * array on cpu offline and set this to NULL.

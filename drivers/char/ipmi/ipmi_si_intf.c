@@ -2199,7 +2199,7 @@ static int init_one_smi(int intf_num, struct smi_info **smi)
 	/* Wait until we know that we are out of any interrupt
 	   handlers might have been running before we freed the
 	   interrupt. */
-	synchronize_kernel();
+	synchronize_sched();
 
 	if (new_smi->si_sm) {
 		if (new_smi->handlers)
@@ -2312,7 +2312,7 @@ static void __exit cleanup_one_si(struct smi_info *to_clean)
 	/* Wait until we know that we are out of any interrupt
 	   handlers might have been running before we freed the
 	   interrupt. */
-	synchronize_kernel();
+	synchronize_sched();
 
 	/* Wait for the timer to stop.  This avoids problems with race
 	   conditions removing the timer here. */

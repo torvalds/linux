@@ -45,7 +45,7 @@ s390_register_adapter_interrupt (adapter_int_handler_t handler)
 	else
 		ret = (cmpxchg(&adapter_handler, NULL, handler) ? -EBUSY : 0);
 	if (!ret)
-		synchronize_kernel();
+		synchronize_sched();  /* Allow interrupts to complete. */
 
 	sprintf (dbf_txt, "ret:%d", ret);
 	CIO_TRACE_EVENT (4, dbf_txt);
@@ -65,7 +65,7 @@ s390_unregister_adapter_interrupt (adapter_int_handler_t handler)
 		ret = -EINVAL;
 	else {
 		adapter_handler = NULL;
-		synchronize_kernel();
+		synchronize_sched();  /* Allow interrupts to complete. */
 		ret = 0;
 	}
 	sprintf (dbf_txt, "ret:%d", ret);

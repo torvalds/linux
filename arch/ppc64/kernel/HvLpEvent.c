@@ -45,7 +45,7 @@ int HvLpEvent_unregisterHandler( HvLpEvent_Type eventType )
 			/* We now sleep until all other CPUs have scheduled. This ensures that
 			 * the deletion is seen by all other CPUs, and that the deleted handler
 			 * isn't still running on another CPU when we return. */
-			synchronize_kernel();
+			synchronize_rcu();
 		}
 	}
 	return rc;

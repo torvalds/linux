@@ -184,7 +184,7 @@ void unregister_timer_hook(int (*hook)(struct pt_regs *))
 	WARN_ON(hook != timer_hook);
 	timer_hook = NULL;
 	/* make sure all CPUs see the NULL hook */
-	synchronize_kernel();
+	synchronize_sched();  /* Allow ongoing interrupts to complete. */
 }
 
 EXPORT_SYMBOL_GPL(register_timer_hook);
