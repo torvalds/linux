@@ -430,36 +430,35 @@ static void do_write_regs(struct fb_info *info, struct banshee_reg* reg)
 
 static unsigned long do_lfb_size(struct tdfx_par *par, unsigned short dev_id) 
 {
-	u32 draminit0 = 0;
-	u32 draminit1 = 0;
-	u32 miscinit1 = 0;
-	u32 lfbsize   = 0;
-	int sgram_p   = 0;
+	u32 draminit0;
+	u32 draminit1;
+	u32 miscinit1;
+
+	int num_chips;
+	int chip_size; /* in MB */
+	u32 lfbsize;
+	int has_sgram;
 
 	draminit0 = tdfx_inl(par, DRAMINIT0);  
 	draminit1 = tdfx_inl(par, DRAMINIT1);
+
+	num_chips = (draminit0 & DRAMINIT0_SGRAM_NUM) ? 8 : 4;
  
-	if ((dev_id == PCI_DEVICE_ID_3DFX_BANSHEE) ||
-	    (dev_id == PCI_DEVICE_ID_3DFX_VOODOO3)) {             	 
-		sgram_p = (draminit1 & DRAMINIT1_MEM_SDRAM) ? 0 : 1;
-  
-	lfbsize = sgram_p ?
-		(((draminit0 & DRAMINIT0_SGRAM_NUM)  ? 2 : 1) * 
-		((draminit0 & DRAMINIT0_SGRAM_TYPE) ? 8 : 4) * 1024 * 1024) :
-		16 * 1024 * 1024;
+	if (dev_id < PCI_DEVICE_ID_3DFX_VOODOO5) {
+		/* Banshee/Voodoo3 */
+		has_sgram = draminit1 & DRAMINIT1_MEM_SDRAM;
+		chip_size = has_sgram ? ((draminit0 & DRAMINIT0_SGRAM_TYPE) ? 2 : 1)
+				      : 2;
 	} else {
 		/* Voodoo4/5 */
-		u32 chips, psize, banks;
+		has_sgram = 0;
+		chip_size = 1 << ((draminit0 & DRAMINIT0_SGRAM_TYPE_MASK) >> DRAMINIT0_SGRAM_TYPE_SHIFT);
+	}
+	lfbsize = num_chips * chip_size * 1024 * 1024;
 
-		chips = ((draminit0 & (1 << 26)) == 0) ? 4 : 8;
-		psize = 1 << ((draminit0 & 0x38000000) >> 28);
-		banks = ((draminit0 & (1 << 30)) == 0) ? 2 : 4;
-		lfbsize = chips * psize * banks;
-		lfbsize <<= 20;
-	}                 
-	/* disable block writes for SDRAM (why?) */
+	/* disable block writes for SDRAM */
 	miscinit1 = tdfx_inl(par, MISCINIT1);
-	miscinit1 |= sgram_p ? 0 : MISCINIT1_2DBLOCK_DIS;
+	miscinit1 |= has_sgram ? 0 : MISCINIT1_2DBLOCK_DIS;
 	miscinit1 |= MISCINIT1_CLUT_INV;
 
 	banshee_make_room(par, 1); 
