@@ -581,8 +581,14 @@ sub output_function_xml(%) {
     $id =~ s/[^A-Za-z0-9]/-/g;
 
     print "<refentry>\n";
+    print "<refentryinfo>\n";
+    print " <title>LINUX</title>\n";
+    print " <productname>Kernel Hackers Manual</productname>\n";
+    print " <date>$man_date</date>\n";
+    print "</refentryinfo>\n";
     print "<refmeta>\n";
-    print "<refentrytitle><phrase id=\"$id\">".$args{'function'}."</phrase></refentrytitle>\n";
+    print " <refentrytitle><phrase id=\"$id\">".$args{'function'}."</phrase></refentrytitle>\n";
+    print " <manvolnum>9</manvolnum>\n";
     print "</refmeta>\n";
     print "<refnamediv>\n";
     print " <refname>".$args{'function'}."</refname>\n";
@@ -651,8 +657,14 @@ sub output_struct_xml(%) {
     $id =~ s/[^A-Za-z0-9]/-/g;
 
     print "<refentry>\n";
+    print "<refentryinfo>\n";
+    print " <title>LINUX</title>\n";
+    print " <productname>Kernel Hackers Manual</productname>\n";
+    print " <date>$man_date</date>\n";
+    print "</refentryinfo>\n";
     print "<refmeta>\n";
-    print "<refentrytitle><phrase id=\"$id\">".$args{'type'}." ".$args{'struct'}."</phrase></refentrytitle>\n";
+    print " <refentrytitle><phrase id=\"$id\">".$args{'type'}." ".$args{'struct'}."</phrase></refentrytitle>\n";
+    print " <manvolnum>9</manvolnum>\n";
     print "</refmeta>\n";
     print "<refnamediv>\n";
     print " <refname>".$args{'type'}." ".$args{'struct'}."</refname>\n";
@@ -729,8 +741,14 @@ sub output_enum_xml(%) {
     $id =~ s/[^A-Za-z0-9]/-/g;
 
     print "<refentry>\n";
+    print "<refentryinfo>\n";
+    print " <title>LINUX</title>\n";
+    print " <productname>Kernel Hackers Manual</productname>\n";
+    print " <date>$man_date</date>\n";
+    print "</refentryinfo>\n";
     print "<refmeta>\n";
-    print "<refentrytitle><phrase id=\"$id\">enum ".$args{'enum'}."</phrase></refentrytitle>\n";
+    print " <refentrytitle><phrase id=\"$id\">enum ".$args{'enum'}."</phrase></refentrytitle>\n";
+    print " <manvolnum>9</manvolnum>\n";
     print "</refmeta>\n";
     print "<refnamediv>\n";
     print " <refname>enum ".$args{'enum'}."</refname>\n";
@@ -789,8 +807,14 @@ sub output_typedef_xml(%) {
     $id =~ s/[^A-Za-z0-9]/-/g;
 
     print "<refentry>\n";
+    print "<refentryinfo>\n";
+    print " <title>LINUX</title>\n";
+    print " <productname>Kernel Hackers Manual</productname>\n";
+    print " <date>$man_date</date>\n";
+    print "</refentryinfo>\n";
     print "<refmeta>\n";
-    print "<refentrytitle><phrase id=\"$id\">typedef ".$args{'typedef'}."</phrase></refentrytitle>\n";
+    print " <refentrytitle><phrase id=\"$id\">typedef ".$args{'typedef'}."</phrase></refentrytitle>\n";
+    print " <manvolnum>9</manvolnum>\n";
     print "</refmeta>\n";
     print "<refnamediv>\n";
     print " <refname>typedef ".$args{'typedef'}."</refname>\n";

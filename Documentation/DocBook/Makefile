@@ -41,14 +41,15 @@ MAN := $(patsubst %.xml, %.9, $(BOOKS))
 mandocs: $(MAN)
 
 installmandocs: mandocs
-	$(MAKEMAN) install Documentation/DocBook/man
+	mkdir -p /usr/local/man/man9/
+	install Documentation/DocBook/man/*.9.gz /usr/local/man/man9/
 
 ###
 #External programs used
 KERNELDOC = scripts/kernel-doc
 DOCPROC   = scripts/basic/docproc
-SPLITMAN  = $(PERL) $(srctree)/scripts/split-man
-MAKEMAN   = $(PERL) $(srctree)/scripts/makeman
+
+#XMLTOFLAGS = --skip-validation
 
 ###
 # DOCPROC is used for two purposes:
@@ -95,29 +96,29 @@ $(obj)/procfs-guide.xml: $(C-procfs-example2)
 # Rules to generate postscript, PDF and HTML
 # db2html creates a directory. Generate a html file used for timestamp
 
-quiet_cmd_db2ps = DB2PS   $@
-      cmd_db2ps = db2ps -o $(dir $@) $<
+quiet_cmd_db2ps = XMLTO    $@
+      cmd_db2ps = xmlto ps $(XMLTOFLAGS) -o $(dir $@) $<
 %.ps : %.xml
-	@(which db2ps > /dev/null 2>&1) || \
+	@(which xmlto > /dev/null 2>&1) || \
 	 (echo "*** You need to install DocBook stylesheets ***"; \
 	  exit 1)
 	$(call cmd,db2ps)
 
-quiet_cmd_db2pdf = DB2PDF  $@
-      cmd_db2pdf = db2pdf -o $(dir $@) $<
+quiet_cmd_db2pdf = XMLTO   $@
+      cmd_db2pdf = xmlto pdf $(XMLTOFLAGS) -o $(dir $@) $<
 %.pdf : %.xml
-	@(which db2pdf > /dev/null 2>&1) || \
+	@(which xmlto > /dev/null 2>&1) || \
 	 (echo "*** You need to install DocBook stylesheets ***"; \
 	  exit 1)
 	$(call cmd,db2pdf)
 
-quiet_cmd_db2html = DB2HTML $@
-      cmd_db2html = db2html -o $(patsubst %.html,%,$@) $< &&		      \
+quiet_cmd_db2html = XMLTO  $@
+      cmd_db2html = xmlto xhtml $(XMLTOFLAGS) -o $(patsubst %.html,%,$@) $< && \
 		echo '<a HREF="$(patsubst %.html,%,$(notdir $@))/book1.html"> \
          Goto $(patsubst %.html,%,$(notdir $@))</a><p>' > $@
 
 %.html:	%.xml
-	@(which db2html > /dev/null 2>&1) || \
+	@(which xmlto > /dev/null 2>&1) || \
 	 (echo "*** You need to install DocBook stylesheets ***"; \
 	  exit 1)
 	@rm -rf $@ $(patsubst %.html,%,$@)
@@ -125,15 +126,14 @@ quiet_cmd_db2html = DB2HTML $@
 	@if [ ! -z "$(PNG-$(basename $(notdir $@)))" ]; then \
             cp $(PNG-$(basename $(notdir $@))) $(patsubst %.html,%,$@); fi
 
-###
-# Rule to generate man files - output is placed in the man subdirectory
-
-%.9:	%.xml
-ifneq ($(KBUILD_SRC),)
-	$(Q)mkdir -p $(objtree)/Documentation/DocBook/man
-endif
-	$(SPLITMAN) $< $(objtree)/Documentation/DocBook/man "$(VERSION).$(PATCHLEVEL).$(SUBLEVEL)"
-	$(MAKEMAN) convert $(objtree)/Documentation/DocBook/man $<
+quiet_cmd_db2man = XMLTO   $@
+      cmd_db2man = if grep -q refentry $<; then xmlto man $(XMLTOFLAGS) -o $(obj)/man $< ; gzip -f $(obj)/man/*.9; fi
+%.9 : %.xml
+	@(which xmlto > /dev/null 2>&1) || \
+	 (echo "*** You need to install DocBook stylesheets ***"; \
+	  exit 1)
+	$(call cmd,db2man)
+	@touch $@
 
 ###
 # Rules to generate postscripts and PNG imgages from .fig format files

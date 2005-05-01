@@ -357,13 +357,13 @@ Quota-tools
 ----------
 o  <http://sourceforge.net/projects/linuxquota/>
 
-Jade
-----
-o  <ftp://ftp.jclark.com/pub/jade/jade-1.2.1.tar.gz>
-
 DocBook Stylesheets
 -------------------
 o  <http://nwalsh.com/docbook/dsssl/>
+
+XMLTO XSLT Frontend
+-------------------
+o  <http://cyberelk.net/tim/xmlto/>
 
 Intel P6 microcode
 ------------------
