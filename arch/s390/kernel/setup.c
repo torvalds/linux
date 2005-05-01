@@ -44,6 +44,8 @@
 #include <asm/cpcmd.h>
 #include <asm/lowcore.h>
 #include <asm/irq.h>
+#include <asm/page.h>
+#include <asm/ptrace.h>
 
 /*
  * Machine setup..
@@ -53,7 +55,6 @@ unsigned int console_devno = -1;
 unsigned int console_irq = -1;
 unsigned long memory_size = 0;
 unsigned long machine_flags = 0;
-unsigned int default_storage_key = 0;
 struct {
 	unsigned long addr, size, type;
 } memory_chunk[MEMORY_CHUNKS] = { { 0 } };
@@ -402,7 +403,7 @@ setup_lowcore(void)
 	lc = (struct _lowcore *)
 		__alloc_bootmem(lc_pages * PAGE_SIZE, lc_pages * PAGE_SIZE, 0);
 	memset(lc, 0, lc_pages * PAGE_SIZE);
-	lc->restart_psw.mask = PSW_BASE_BITS;
+	lc->restart_psw.mask = PSW_BASE_BITS | PSW_DEFAULT_KEY;
 	lc->restart_psw.addr =
 		PSW_ADDR_AMODE | (unsigned long) restart_int_handler;
 	lc->external_new_psw.mask = PSW_KERNEL_BITS;
@@ -470,7 +471,7 @@ static void __init
 setup_memory(void)
 {
         unsigned long bootmap_size;
-	unsigned long start_pfn, end_pfn;
+	unsigned long start_pfn, end_pfn, init_pfn;
 	unsigned long last_rw_end;
 	int i;
 
@@ -480,6 +481,10 @@ setup_memory(void)
 	 */
 	start_pfn = (__pa(&_end) + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	end_pfn = max_pfn = memory_end >> PAGE_SHIFT;
+
+	/* Initialize storage key for kernel pages */
+	for (init_pfn = 0 ; init_pfn < start_pfn; init_pfn++)
+		page_set_storage_key(init_pfn << PAGE_SHIFT, PAGE_DEFAULT_KEY);
 
 	/*
 	 * Initialize the boot-time allocator (with low memory only):
@@ -491,7 +496,7 @@ setup_memory(void)
 	 */
 	last_rw_end = start_pfn;
 
-	for (i = 0; i < 16 && memory_chunk[i].size > 0; i++) {
+	for (i = 0; i < MEMORY_CHUNKS && memory_chunk[i].size > 0; i++) {
 		unsigned long start_chunk, end_chunk;
 
 		if (memory_chunk[i].type != CHUNK_READ_WRITE)
@@ -505,6 +510,11 @@ setup_memory(void)
 		if (end_chunk > end_pfn)
 			end_chunk = end_pfn;
 		if (start_chunk < end_chunk) {
+			/* Initialize storage key for RAM pages */
+			for (init_pfn = start_chunk ; init_pfn < end_chunk;
+			     init_pfn++)
+				page_set_storage_key(init_pfn << PAGE_SHIFT,
+						     PAGE_DEFAULT_KEY);
 			free_bootmem(start_chunk << PAGE_SHIFT,
 				     (end_chunk - start_chunk) << PAGE_SHIFT);
 			if (last_rw_end < start_chunk)
@@ -512,6 +522,8 @@ setup_memory(void)
 			last_rw_end = end_chunk;
 		}
 	}
+
+	psw_set_key(PAGE_DEFAULT_KEY);
 
 	if (last_rw_end < end_pfn - 1)
 		add_memory_hole(last_rw_end, end_pfn - 1);

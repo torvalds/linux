@@ -185,6 +185,7 @@
 #include <linux/stddef.h>
 #include <linux/types.h>
 #include <asm/setup.h>
+#include <asm/page.h>
 
 typedef union
 {
@@ -235,6 +236,7 @@ typedef struct
 #define PSW_ADDR_INSN		0x7FFFFFFFUL
 
 #define PSW_BASE_BITS		0x00080000UL
+#define PSW_DEFAULT_KEY		(((unsigned long) PAGE_DEFAULT_ACC) << 20)
 
 #define PSW_ASC_PRIMARY		0x00000000UL
 #define PSW_ASC_ACCREG		0x00004000UL
@@ -260,6 +262,7 @@ typedef struct
 
 #define PSW_BASE_BITS		0x0000000180000000UL
 #define PSW_BASE32_BITS		0x0000000080000000UL
+#define PSW_DEFAULT_KEY		(((unsigned long) PAGE_DEFAULT_ACC) << 52)
 
 #define PSW_ASC_PRIMARY		0x0000000000000000UL
 #define PSW_ASC_ACCREG		0x0000400000000000UL
@@ -268,14 +271,15 @@ typedef struct
 
 #define PSW_USER32_BITS (PSW_BASE32_BITS | PSW_MASK_DAT | PSW_ASC_HOME | \
 			 PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK | \
-			 PSW_MASK_PSTATE)
+			 PSW_MASK_PSTATE | PSW_DEFAULT_KEY)
 
 #endif /* __s390x__ */
 
-#define PSW_KERNEL_BITS	(PSW_BASE_BITS | PSW_MASK_DAT | PSW_ASC_PRIMARY)
+#define PSW_KERNEL_BITS	(PSW_BASE_BITS | PSW_MASK_DAT | PSW_ASC_PRIMARY | \
+			 PSW_DEFAULT_KEY)
 #define PSW_USER_BITS	(PSW_BASE_BITS | PSW_MASK_DAT | PSW_ASC_HOME | \
 			 PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK | \
-			 PSW_MASK_PSTATE)
+			 PSW_MASK_PSTATE | PSW_DEFAULT_KEY)
 
 /* This macro merges a NEW PSW mask specified by the user into
    the currently active PSW mask CURRENT, modifying only those
@@ -469,6 +473,12 @@ struct user_regs_struct
 #define profile_pc(regs) instruction_pointer(regs)
 extern void show_regs(struct pt_regs * regs);
 #endif
+
+static inline void
+psw_set_key(unsigned int key)
+{
+	asm volatile ( "spka 0(%0)" : : "d" (key) );
+}
 
 #endif /* __ASSEMBLY__ */
 
