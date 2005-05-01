@@ -978,7 +978,8 @@ int fastcall aio_complete(struct kiocb *iocb, long res, long res2)
 
 	tail = info->tail;
 	event = aio_ring_event(info, tail, KM_IRQ0);
-	tail = (tail + 1) % info->nr;
+	if (++tail >= info->nr)
+		tail = 0;
 
 	event->obj = (u64)(unsigned long)iocb->ki_obj.user;
 	event->data = iocb->ki_user_data;
