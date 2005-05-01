@@ -33,8 +33,8 @@ static inline unsigned long mk_vsid_data(unsigned long ea, unsigned long flags)
 	return (get_kernel_vsid(ea) << SLB_VSID_SHIFT) | flags;
 }
 
-static inline void create_slbe(unsigned long ea, unsigned long vsid,
-			       unsigned long flags, unsigned long entry)
+static inline void create_slbe(unsigned long ea, unsigned long flags,
+			       unsigned long entry)
 {
 	asm volatile("slbmte  %0,%1" :
 		     : "r" (mk_vsid_data(ea, flags)),
@@ -145,9 +145,8 @@ void slb_initialize(void)
  	asm volatile("isync":::"memory");
  	asm volatile("slbmte  %0,%0"::"r" (0) : "memory");
 	asm volatile("isync; slbia; isync":::"memory");
-	create_slbe(KERNELBASE, get_kernel_vsid(KERNELBASE), flags, 0);
-	create_slbe(VMALLOCBASE, get_kernel_vsid(KERNELBASE),
-		    SLB_VSID_KERNEL, 1);
+	create_slbe(KERNELBASE, flags, 0);
+	create_slbe(VMALLOCBASE, SLB_VSID_KERNEL, 1);
 	/* We don't bolt the stack for the time being - we're in boot,
 	 * so the stack is in the bolted segment.  By the time it goes
 	 * elsewhere, we'll call _switch() which will bolt in the new
