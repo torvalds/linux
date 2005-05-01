@@ -253,6 +253,8 @@ static int ppc7d_show_cpuinfo(struct seq_file *m)
 	u8 val1, val2;
 	static int flash_sizes[4] = { 64, 32, 0, 16 };
 	static int flash_banks[4] = { 4, 3, 2, 1 };
+	static int sdram_bank_sizes[4] = { 128, 256, 512, 1 };
+	int sdram_num_banks = 2;
 	static char *pci_modes[] = { "PCI33", "PCI66",
 		"Unknown", "Unknown",
 		"PCIX33", "PCIX66",
@@ -279,13 +281,17 @@ static int ppc7d_show_cpuinfo(struct seq_file *m)
 		   (val1 == PPC7D_CPLD_MB_TYPE_PLL_100) ? 100 :
 		   (val1 == PPC7D_CPLD_MB_TYPE_PLL_64) ? 64 : 0);
 
+	val = inb(PPC7D_CPLD_MEM_CONFIG);
+	if (val & PPC7D_CPLD_SDRAM_BANK_NUM_MASK) sdram_num_banks--;
+
 	val = inb(PPC7D_CPLD_MEM_CONFIG_EXTEND);
-	val1 = val & PPC7D_CPLD_SDRAM_BANK_SIZE_MASK;
-	seq_printf(m, "SDRAM\t\t: %d%c",
-		   (val1 == PPC7D_CPLD_SDRAM_BANK_SIZE_128M) ? 128 :
-		   (val1 == PPC7D_CPLD_SDRAM_BANK_SIZE_256M) ? 256 :
-		   (val1 == PPC7D_CPLD_SDRAM_BANK_SIZE_512M) ? 512 : 1,
-		   (val1 == PPC7D_CPLD_SDRAM_BANK_SIZE_1G) ? 'G' : 'M');
+	val1 = (val & PPC7D_CPLD_SDRAM_BANK_SIZE_MASK) >> 6;
+	seq_printf(m, "SDRAM\t\t: %d banks of %d%c, total %d%c",
+		   sdram_num_banks,
+		   sdram_bank_sizes[val1],
+		   (sdram_bank_sizes[val1] < 128) ? 'G' : 'M',
+		   sdram_num_banks * sdram_bank_sizes[val1],
+		   (sdram_bank_sizes[val1] < 128) ? 'G' : 'M');
 	if (val2 & PPC7D_CPLD_MB_TYPE_ECC_FITTED_MASK) {
 		seq_printf(m, " [ECC %sabled]",
 			   (val2 & PPC7D_CPLD_MB_TYPE_ECC_ENABLE_MASK) ? "en" :
