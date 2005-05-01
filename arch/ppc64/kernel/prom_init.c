@@ -1555,6 +1555,12 @@ static void __init scan_dt_build_strings(phandle node, unsigned long *mem_start,
 	}
 }
 
+/*
+ * The Open Firmware 1275 specification states properties must be 31 bytes or
+ * less, however not all firmwares obey this. Make it 64 bytes to be safe.
+ */
+#define MAX_PROPERTY_NAME 64
+
 static void __init scan_dt_build_struct(phandle node, unsigned long *mem_start,
 					unsigned long *mem_end)
 {
@@ -1564,7 +1570,7 @@ static void __init scan_dt_build_struct(phandle node, unsigned long *mem_start,
 	unsigned long soff;
 	unsigned char *valp;
 	unsigned long offset = reloc_offset();
-	char pname[32];
+	char pname[MAX_PROPERTY_NAME];
 	char *path;
 
 	path = RELOC(prom_scratch);
