@@ -13,34 +13,13 @@
 static int elevator_noop_merge(request_queue_t *q, struct request **req,
 			       struct bio *bio)
 {
-	struct list_head *entry = &q->queue_head;
-	struct request *__rq;
 	int ret;
 
-	if ((ret = elv_try_last_merge(q, bio))) {
+	ret = elv_try_last_merge(q, bio);
+	if (ret != ELEVATOR_NO_MERGE)
 		*req = q->last_merge;
-		return ret;
-	}
 
-	while ((entry = entry->prev) != &q->queue_head) {
-		__rq = list_entry_rq(entry);
-
-		if (__rq->flags & (REQ_SOFTBARRIER | REQ_HARDBARRIER))
-			break;
-		else if (__rq->flags & REQ_STARTED)
-			break;
-
-		if (!blk_fs_request(__rq))
-			continue;
-
-		if ((ret = elv_try_merge(__rq, bio))) {
-			*req = __rq;
-			q->last_merge = __rq;
-			return ret;
-		}
-	}
-
-	return ELEVATOR_NO_MERGE;
+	return ret;
 }
 
 static void elevator_noop_merge_requests(request_queue_t *q, struct request *req,
