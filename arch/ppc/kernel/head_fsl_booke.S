@@ -504,7 +504,11 @@ interrupt_base:
 	PROGRAM_EXCEPTION
 
 	/* Floating Point Unavailable Interrupt */
+#ifdef CONFIG_PPC_FPU
+	FP_UNAVAILABLE_EXCEPTION
+#else
 	EXCEPTION(0x0800, FloatingPointUnavailable, UnknownException, EXC_XFER_EE)
+#endif
 
 	/* System Call Interrupt */
 	START_EXCEPTION(SystemCall)
@@ -916,10 +920,12 @@ _GLOBAL(giveup_spe)
 /*
  * extern void giveup_fpu(struct task_struct *prev)
  *
- * The e500 core does not have an FPU.
+ * Not all FSL Book-E cores have an FPU
  */
+#ifndef CONFIG_PPC_FPU
 _GLOBAL(giveup_fpu)
 	blr
+#endif
 
 /*
  * extern void abort(void)

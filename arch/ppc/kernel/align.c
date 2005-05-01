@@ -368,16 +368,24 @@ fix_alignment(struct pt_regs *regs)
 
 	/* Single-precision FP load and store require conversions... */
 	case LD+F+S:
+#ifdef CONFIG_PPC_FPU
 		preempt_disable();
 		enable_kernel_fp();
 		cvt_fd(&data.f, &data.d, &current->thread.fpscr);
 		preempt_enable();
+#else
+		return 0;
+#endif
 		break;
 	case ST+F+S:
+#ifdef CONFIG_PPC_FPU
 		preempt_disable();
 		enable_kernel_fp();
 		cvt_df(&data.d, &data.f, &current->thread.fpscr);
 		preempt_enable();
+#else
+		return 0;
+#endif
 		break;
 	}
 
