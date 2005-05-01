@@ -90,6 +90,12 @@ extern void __chk_io_ptr(void __iomem *);
 # define __deprecated		/* unimplemented */
 #endif
 
+#ifdef MODULE
+#define __deprecated_for_modules __deprecated
+#else
+#define __deprecated_for_modules
+#endif
+
 #ifndef __must_check
 #define __must_check
 #endif
