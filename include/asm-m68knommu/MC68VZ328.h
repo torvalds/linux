@@ -909,7 +909,7 @@ typedef struct {
   volatile unsigned short int nipr;
   volatile unsigned short int hmark;
   volatile unsigned short int unused;
-} m68328_uart __attribute__((packed));
+} __attribute__((packed)) m68328_uart;
 
 
 

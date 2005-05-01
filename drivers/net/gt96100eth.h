@@ -214,7 +214,7 @@ typedef struct {
 	u32 cmdstat;
 	u32 next;
 	u32 buff_ptr;
-} gt96100_td_t __attribute__ ((packed));
+} __attribute__ ((packed)) gt96100_td_t;
 
 typedef struct {
 #ifdef DESC_BE
@@ -227,7 +227,7 @@ typedef struct {
 	u32 cmdstat;
 	u32 next;
 	u32 buff_ptr;
-} gt96100_rd_t __attribute__ ((packed));
+} __attribute__ ((packed)) gt96100_rd_t;
 
 
 /* Values for the Tx command-status descriptor entry. */
