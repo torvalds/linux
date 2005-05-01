@@ -774,15 +774,14 @@ repeat:
 /**
  * sync_mapping_buffers - write out and wait upon a mapping's "associated"
  *                        buffers
- * @buffer_mapping - the mapping which backs the buffers' data
- * @mapping - the mapping which wants those buffers written
+ * @mapping: the mapping which wants those buffers written
  *
  * Starts I/O against the buffers at mapping->private_list, and waits upon
  * that I/O.
  *
- * Basically, this is a convenience function for fsync().  @buffer_mapping is
- * the blockdev which "owns" the buffers and @mapping is a file or directory
- * which needs those buffers to be written for a successful fsync().
+ * Basically, this is a convenience function for fsync().
+ * @mapping is a file or directory which needs those buffers to be written for
+ * a successful fsync().
  */
 int sync_mapping_buffers(struct address_space *mapping)
 {
@@ -1263,6 +1262,7 @@ __getblk_slow(struct block_device *bdev, sector_t block, int size)
 
 /**
  * mark_buffer_dirty - mark a buffer_head as needing writeout
+ * @bh: the buffer_head to mark dirty
  *
  * mark_buffer_dirty() will set the dirty bit against the buffer, then set its
  * backing page dirty, then tag the page as dirty in its address_space's radix
@@ -1501,6 +1501,7 @@ EXPORT_SYMBOL(__breadahead);
 
 /**
  *  __bread() - reads a specified block and returns the bh
+ *  @bdev: the block_device to read from
  *  @block: number of block
  *  @size: size (in bytes) to read
  * 

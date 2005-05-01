@@ -1742,7 +1742,7 @@ struct dentry *proc_pid_unhash(struct task_struct *p)
 
 /**
  * proc_pid_flush - recover memory used by stale /proc/@pid/x entries
- * @proc_entry: directoy to prune.
+ * @proc_dentry: directoy to prune.
  *
  * Shrink the /proc directory that was used by the just killed thread.
  */

@@ -203,7 +203,7 @@ void skb_free_datagram(struct sock *sk, struct sk_buff *skb)
  *	skb_copy_datagram_iovec - Copy a datagram to an iovec.
  *	@skb: buffer to copy
  *	@offset: offset in the buffer to start copying from
- *	@iovec: io vector to copy to
+ *	@to: io vector to copy to
  *	@len: amount of data to copy from buffer to iovec
  *
  *	Note: the iovec is modified during the copy.
@@ -379,7 +379,7 @@ fault:
  *	skb_copy_and_csum_datagram_iovec - Copy and checkum skb to user iovec.
  *	@skb: skbuff
  *	@hlen: hardware length
- *	@iovec: io vector
+ *	@iov: io vector
  * 
  *	Caller _must_ check that skb will fit to this iovec.
  *

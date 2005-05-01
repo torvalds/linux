@@ -167,13 +167,14 @@ struct skb_shared_info {
  *	@h: Transport layer header
  *	@nh: Network layer header
  *	@mac: Link layer header
- *	@dst: FIXME: Describe this field
+ *	@dst: destination entry
+ *	@sp: the security path, used for xfrm
  *	@cb: Control buffer. Free for use by every layer. Put private vars here
  *	@len: Length of actual data
  *	@data_len: Data length
  *	@mac_len: Length of link layer header
  *	@csum: Checksum
- *	@__unused: Dead field, may be reused
+ *	@local_df: allow local fragmentation
  *	@cloned: Head may be cloned (check refcnt to be sure)
  *	@nohdr: Payload reference only, must not modify header
  *	@pkt_type: Packet class

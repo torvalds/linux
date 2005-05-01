@@ -161,6 +161,7 @@ struct sock_common {
   *	@sk_sndmsg_page: cached page for sendmsg
   *	@sk_sndmsg_off: cached offset for sendmsg
   *	@sk_send_head: front of stuff to transmit
+  *	@sk_security: used by security modules
   *	@sk_write_pending: a write to stream socket waits to start
   *	@sk_state_change: callback to indicate change in the state of the sock
   *	@sk_data_ready: callback to indicate there is data to be processed

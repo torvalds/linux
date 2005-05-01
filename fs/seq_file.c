@@ -51,7 +51,10 @@ EXPORT_SYMBOL(seq_open);
 
 /**
  *	seq_read -	->read() method for sequential files.
- *	@file, @buf, @size, @ppos: see file_operations method
+ *	@file: the file to read from
+ *	@buf: the buffer to read to
+ *	@size: the maximum number of bytes to read
+ *	@ppos: the current position in the file
  *
  *	Ready-made ->f_op->read()
  */
@@ -219,7 +222,9 @@ Eoverflow:
 
 /**
  *	seq_lseek -	->llseek() method for sequential files.
- *	@file, @offset, @origin: see file_operations method
+ *	@file: the file in question
+ *	@offset: new position
+ *	@origin: 0 for absolute, 1 for relative position
  *
  *	Ready-made ->f_op->llseek()
  */

@@ -169,9 +169,10 @@ static int sync_page(void *word)
 /**
  * filemap_fdatawrite_range - start writeback against all of a mapping's
  * dirty pages that lie within the byte offsets <start, end>
- * @mapping: address space structure to write
- * @start: offset in bytes where the range starts
- * @end : offset in bytes where the range ends
+ * @mapping:	address space structure to write
+ * @start:	offset in bytes where the range starts
+ * @end:	offset in bytes where the range ends
+ * @sync_mode:	enable synchronous operation
  *
  * If sync_mode is WB_SYNC_ALL then this is a "data integrity" operation, as
  * opposed to a regular memory * cleansing writeback.  The difference between
@@ -535,8 +536,8 @@ EXPORT_SYMBOL(find_trylock_page);
 /**
  * find_lock_page - locate, pin and lock a pagecache page
  *
- * @mapping - the address_space to search
- * @offset - the page index
+ * @mapping: the address_space to search
+ * @offset: the page index
  *
  * Locates the desired pagecache page, locks it, increments its reference
  * count and returns its address.
@@ -575,9 +576,9 @@ EXPORT_SYMBOL(find_lock_page);
 /**
  * find_or_create_page - locate or add a pagecache page
  *
- * @mapping - the page's address_space
- * @index - the page's index into the mapping
- * @gfp_mask - page allocation mode
+ * @mapping: the page's address_space
+ * @index: the page's index into the mapping
+ * @gfp_mask: page allocation mode
  *
  * Locates a page in the pagecache.  If the page is not present, a new page
  * is allocated using @gfp_mask and is added to the pagecache and to the VM's

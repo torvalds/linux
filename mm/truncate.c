@@ -242,7 +242,7 @@ EXPORT_SYMBOL(invalidate_inode_pages);
 
 /**
  * invalidate_inode_pages2_range - remove range of pages from an address_space
- * @mapping - the address_space
+ * @mapping: the address_space
  * @start: the page offset 'from' which to invalidate
  * @end: the page offset 'to' which to invalidate (inclusive)
  *
@@ -322,7 +322,7 @@ EXPORT_SYMBOL_GPL(invalidate_inode_pages2_range);
 
 /**
  * invalidate_inode_pages2 - remove all pages from an address_space
- * @mapping - the address_space
+ * @mapping: the address_space
  *
  * Any pages which are found to be mapped into pagetables are unmapped prior to
  * invalidation.

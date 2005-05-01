@@ -2906,6 +2906,7 @@ static void __wake_up_common(wait_queue_head_t *q, unsigned int mode,
  * @q: the waitqueue
  * @mode: which threads
  * @nr_exclusive: how many wake-one or wake-many threads to wake up
+ * @key: is directly passed to the wakeup function
  */
 void fastcall __wake_up(wait_queue_head_t *q, unsigned int mode,
 				int nr_exclusive, void *key)
@@ -2928,7 +2929,7 @@ void fastcall __wake_up_locked(wait_queue_head_t *q, unsigned int mode)
 }
 
 /**
- * __wake_up - sync- wake up threads blocked on a waitqueue.
+ * __wake_up_sync - wake up threads blocked on a waitqueue.
  * @q: the waitqueue
  * @mode: which threads
  * @nr_exclusive: how many wake-one or wake-many threads to wake up
