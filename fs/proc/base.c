@@ -1800,8 +1800,12 @@ struct dentry *proc_pid_lookup(struct inode *dir, struct dentry * dentry, struct
 	inode->i_mode = S_IFDIR|S_IRUGO|S_IXUGO;
 	inode->i_op = &proc_tgid_base_inode_operations;
 	inode->i_fop = &proc_tgid_base_operations;
-	inode->i_nlink = 3;
 	inode->i_flags|=S_IMMUTABLE;
+#ifdef CONFIG_SECURITY
+	inode->i_nlink = 5;
+#else
+	inode->i_nlink = 4;
+#endif
 
 	dentry->d_op = &pid_base_dentry_operations;
 
@@ -1855,8 +1859,12 @@ static struct dentry *proc_task_lookup(struct inode *dir, struct dentry * dentry
 	inode->i_mode = S_IFDIR|S_IRUGO|S_IXUGO;
 	inode->i_op = &proc_tid_base_inode_operations;
 	inode->i_fop = &proc_tid_base_operations;
-	inode->i_nlink = 3;
 	inode->i_flags|=S_IMMUTABLE;
+#ifdef CONFIG_SECURITY
+	inode->i_nlink = 4;
+#else
+	inode->i_nlink = 3;
+#endif
 
 	dentry->d_op = &pid_base_dentry_operations;
 
