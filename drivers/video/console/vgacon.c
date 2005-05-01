@@ -337,6 +337,8 @@ static void vgacon_init(struct vc_data *c, int init)
 	c->vc_scan_lines = vga_scan_lines;
 	c->vc_font.height = vga_video_font_height;
 	c->vc_complement_mask = 0x7700;
+	if (vga_512_chars)
+		c->vc_hi_font_mask = 0x0800;
 	p = *c->vc_uni_pagedir_loc;
 	if (c->vc_uni_pagedir_loc == &c->vc_uni_pagedir ||
 	    !--c->vc_uni_pagedir_loc[1])
