@@ -1341,8 +1341,8 @@ void reiserfs_read_locked_inode (struct inode * inode, struct reiserfs_iget_args
     key.version = KEY_FORMAT_3_5;
     key.on_disk_key.k_dir_id = dirino;
     key.on_disk_key.k_objectid = inode->i_ino;
-    key.on_disk_key.u.k_offset_v1.k_offset = SD_OFFSET;
-    key.on_disk_key.u.k_offset_v1.k_uniqueness = SD_UNIQUENESS;
+    key.on_disk_key.k_offset = 0;
+    key.on_disk_key.k_type = 0;
 
     /* look for the object's stat data */
     retval = search_item (inode->i_sb, &key, &path_to_sd);

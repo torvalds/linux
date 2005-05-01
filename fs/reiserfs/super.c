@@ -218,8 +218,8 @@ static int finish_unfinished (struct super_block * s)
         item = B_I_PITEM (bh, ih);
         obj_key.on_disk_key.k_dir_id = le32_to_cpu (*(__le32 *)item);
         obj_key.on_disk_key.k_objectid = le32_to_cpu (ih->ih_key.k_objectid);
-	obj_key.on_disk_key.u.k_offset_v1.k_offset = 0;
-	obj_key.on_disk_key.u.k_offset_v1.k_uniqueness = 0;
+	obj_key.on_disk_key.k_offset = 0;
+	obj_key.on_disk_key.k_type = 0;
 	
         pathrelse (&path);
  

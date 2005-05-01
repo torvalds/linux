@@ -433,23 +433,6 @@ static inline void set_offset_v2_k_offset( struct offset_v2 *v2, loff_t offset )
 # define set_offset_v2_k_offset(v2,val) (offset_v2_k_offset(v2) = (val))
 #endif
 
-struct in_core_offset_v1 {
-    __u32 k_offset;
-    __u32 k_uniqueness;
-} __attribute__ ((__packed__));
-
-struct in_core_offset_v2 {
-#ifdef __LITTLE_ENDIAN
-	    /* little endian version */
-	    __u64 k_offset:60;
-	    __u64 k_type: 4;
-#else
-	    /* big endian version */
-	    __u64 k_type: 4;
-	    __u64 k_offset:60;
-#endif
-} __attribute__ ((__packed__));
-
 /* Key of an item determines its location in the S+tree, and
    is composed of 4 components */
 struct reiserfs_key {
@@ -466,11 +449,9 @@ struct in_core_key {
     __u32 k_dir_id;    /* packing locality: by default parent
 			  directory object id */
     __u32 k_objectid;  /* object identifier */
-    union {
-	struct in_core_offset_v1 k_offset_v1;
-	struct in_core_offset_v2 k_offset_v2;
-    } __attribute__ ((__packed__)) u;
-} __attribute__ ((__packed__));
+    __u64 k_offset;
+    __u8 k_type;
+};
 
 struct cpu_key {
     struct in_core_key on_disk_key;
@@ -696,42 +677,28 @@ static inline void set_le_ih_k_type (struct item_head * ih, int type)
 //
 static inline loff_t cpu_key_k_offset (const struct cpu_key * key)
 {
-    return (key->version == KEY_FORMAT_3_5) ?
-        key->on_disk_key.u.k_offset_v1.k_offset :
-	key->on_disk_key.u.k_offset_v2.k_offset;
+    return key->on_disk_key.k_offset;
 }
 
 static inline loff_t cpu_key_k_type (const struct cpu_key * key)
 {
-    return (key->version == KEY_FORMAT_3_5) ?
-        uniqueness2type (key->on_disk_key.u.k_offset_v1.k_uniqueness) :
-	key->on_disk_key.u.k_offset_v2.k_type;
+    return key->on_disk_key.k_type;
 }
 
 static inline void set_cpu_key_k_offset (struct cpu_key * key, loff_t offset)
 {
-    (key->version == KEY_FORMAT_3_5) ?
-        (key->on_disk_key.u.k_offset_v1.k_offset = offset) :
-	(key->on_disk_key.u.k_offset_v2.k_offset = offset);
+	key->on_disk_key.k_offset = offset;
 }
-
 
 static inline void set_cpu_key_k_type (struct cpu_key * key, int type)
 {
-    (key->version == KEY_FORMAT_3_5) ?
-        (key->on_disk_key.u.k_offset_v1.k_uniqueness = type2uniqueness (type)):
-	(key->on_disk_key.u.k_offset_v2.k_type = type);
+	key->on_disk_key.k_type = type;
 }
-
 
 static inline void cpu_key_k_offset_dec (struct cpu_key * key)
 {
-    if (key->version == KEY_FORMAT_3_5)
-	key->on_disk_key.u.k_offset_v1.k_offset --;
-    else
-	key->on_disk_key.u.k_offset_v2.k_offset --;
+	key->on_disk_key.k_offset --;
 }
-
 
 #define is_direntry_cpu_key(key) (cpu_key_k_type (key) == TYPE_DIRENTRY)
 #define is_direct_cpu_key(key) (cpu_key_k_type (key) == TYPE_DIRECT)
