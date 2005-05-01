@@ -1628,9 +1628,15 @@ struct pci_device_id saa7134_pci_tbl[] = {
         },{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x5168,
+		.subvendor    = 0x5168,	/* Animation Technologies (LifeView) */
 		.subdevice    = 0x0214, /* Standard PCI, LR214WF */
 		.driver_data  = SAA7134_BOARD_FLYTVPLATINUM_FM,
+        },{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x1489, /* KYE */
+		.subdevice    = 0x0214, /* Genius VideoWonder ProTV */
+		.driver_data  = SAA7134_BOARD_FLYTVPLATINUM_FM, /* is an LR214WF actually */
         },{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
