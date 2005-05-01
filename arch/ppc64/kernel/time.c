@@ -221,15 +221,15 @@ static __inline__ void timer_recalc_offset(unsigned long cur_tb)
 	temp_varp->tb_to_xs = do_gtod.varp->tb_to_xs;
 	temp_varp->tb_orig_stamp = new_tb_orig_stamp;
 	temp_varp->stamp_xsec = new_stamp_xsec;
-	mb();
+	smp_mb();
 	do_gtod.varp = temp_varp;
 	do_gtod.var_idx = temp_idx;
 
 	++(systemcfg->tb_update_count);
-	wmb();
+	smp_wmb();
 	systemcfg->tb_orig_stamp = new_tb_orig_stamp;
 	systemcfg->stamp_xsec = new_stamp_xsec;
-	wmb();
+	smp_wmb();
 	++(systemcfg->tb_update_count);
 }
 
@@ -648,7 +648,7 @@ void ppc_adjtimex(void)
 	temp_varp->tb_to_xs = new_tb_to_xs;
 	temp_varp->stamp_xsec = new_stamp_xsec;
 	temp_varp->tb_orig_stamp = do_gtod.varp->tb_orig_stamp;
-	mb();
+	smp_mb();
 	do_gtod.varp = temp_varp;
 	do_gtod.var_idx = temp_idx;
 
@@ -662,10 +662,10 @@ void ppc_adjtimex(void)
 	 * loops back and reads them again until this criteria is met.
 	 */
 	++(systemcfg->tb_update_count);
-	wmb();
+	smp_wmb();
 	systemcfg->tb_to_xs = new_tb_to_xs;
 	systemcfg->stamp_xsec = new_stamp_xsec;
-	wmb();
+	smp_wmb();
 	++(systemcfg->tb_update_count);
 
 	write_sequnlock_irqrestore( &xtime_lock, flags );
