@@ -115,7 +115,7 @@ quiet_cmd_db2pdf = XMLTO   $@
 
 quiet_cmd_db2html = XMLTO  $@
       cmd_db2html = xmlto xhtml $(XMLTOFLAGS) -o $(patsubst %.html,%,$@) $< && \
-		echo '<a HREF="$(patsubst %.html,%,$(notdir $@))/book1.html"> \
+		echo '<a HREF="$(patsubst %.html,%,$(notdir $@))/index.html"> \
          Goto $(patsubst %.html,%,$(notdir $@))</a><p>' > $@
 
 %.html:	%.xml
