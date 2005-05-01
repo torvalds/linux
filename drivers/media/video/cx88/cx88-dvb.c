@@ -243,10 +243,8 @@ static int dvb_register(struct cx8802_dev *dev)
 		break;
 #endif
 	default:
-		printk("%s: The frontend of your DVB/ATSC card isn't supported yet\n"
-		       "%s: you might want to look out for patches here:\n"
-		       "%s:     http://dl.bytesex.org/patches/\n",
-		       dev->core->name, dev->core->name, dev->core->name);
+		printk("%s: The frontend of your DVB/ATSC card isn't supported yet\n",
+		       dev->core->name);
 		break;
 	}
 	if (NULL == dev->dvb.frontend) {
@@ -308,9 +306,11 @@ static int __devinit dvb_probe(struct pci_dev *pci_dev,
 			    dev);
 	err = dvb_register(dev);
 	if (0 != err)
-		goto fail_free;
+		goto fail_fini;
 	return 0;
 
+ fail_fini:
+	cx8802_fini_common(dev);
  fail_free:
 	kfree(dev);
  fail_core:
