@@ -522,7 +522,7 @@ static int __init create_hash_tables(void)
 	return 0;
 out_cleanup:
 	prof_on = 0;
-	mb();
+	smp_mb();
 	on_each_cpu(profile_nop, NULL, 0, 1);
 	for_each_online_cpu(cpu) {
 		struct page *page;

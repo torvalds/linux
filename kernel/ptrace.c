@@ -135,7 +135,7 @@ int ptrace_attach(struct task_struct *task)
  	    (current->gid != task->sgid) ||
  	    (current->gid != task->gid)) && !capable(CAP_SYS_PTRACE))
 		goto bad;
-	rmb();
+	smp_rmb();
 	if (!task->mm->dumpable && !capable(CAP_SYS_PTRACE))
 		goto bad;
 	/* the same process cannot be attached many times */

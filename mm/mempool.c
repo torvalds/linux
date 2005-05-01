@@ -229,7 +229,7 @@ repeat_alloc:
 	/* Now start performing page reclaim */
 	gfp_temp = gfp_mask;
 	prepare_to_wait(&pool->wait, &wait, TASK_UNINTERRUPTIBLE);
-	mb();
+	smp_mb();
 	if (!pool->curr_nr)
 		io_schedule();
 	finish_wait(&pool->wait, &wait);
@@ -250,7 +250,7 @@ void mempool_free(void *element, mempool_t *pool)
 {
 	unsigned long flags;
 
-	mb();
+	smp_mb();
 	if (pool->curr_nr < pool->min_nr) {
 		spin_lock_irqsave(&pool->lock, flags);
 		if (pool->curr_nr < pool->min_nr) {

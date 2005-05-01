@@ -767,7 +767,7 @@ static inline void pipelined_send(struct mqueue_inode_info *info,
 	list_del(&receiver->list);
 	receiver->state = STATE_PENDING;
 	wake_up_process(receiver->task);
-	wmb();
+	smp_wmb();
 	receiver->state = STATE_READY;
 }
 
@@ -786,7 +786,7 @@ static inline void pipelined_receive(struct mqueue_inode_info *info)
 	list_del(&sender->list);
 	sender->state = STATE_PENDING;
 	wake_up_process(sender->task);
-	wmb();
+	smp_wmb();
 	sender->state = STATE_READY;
 }
 
