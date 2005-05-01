@@ -294,8 +294,8 @@ static void do_sys_vm86(struct kernel_vm86_struct *info, struct task_struct *tsk
  */
 	info->regs32->eax = 0;
 	tsk->thread.saved_esp0 = tsk->thread.esp0;
-	asm volatile("movl %%fs,%0":"=m" (tsk->thread.saved_fs));
-	asm volatile("movl %%gs,%0":"=m" (tsk->thread.saved_gs));
+	asm volatile("mov %%fs,%0":"=m" (tsk->thread.saved_fs));
+	asm volatile("mov %%gs,%0":"=m" (tsk->thread.saved_gs));
 
 	tss = &per_cpu(init_tss, get_cpu());
 	tsk->thread.esp0 = (unsigned long) &info->VM86_TSS_ESP0;
