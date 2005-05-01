@@ -260,8 +260,9 @@ static inline int block_group_used(struct super_block *s, u32 id) {
 /*
  * the packing is returned in disk byte order
  */
-u32 reiserfs_choose_packing(struct inode *dir) {
-    u32 packing;
+__le32 reiserfs_choose_packing(struct inode *dir)
+{
+    __le32 packing;
     if (TEST_OPTION(packing_groups, dir->i_sb)) {
 	u32 parent_dir = le32_to_cpu(INODE_PKEY(dir)->k_dir_id);
 	/*
@@ -655,7 +656,7 @@ static int get_left_neighbor(reiserfs_blocknr_hint_t *hint)
     struct buffer_head * bh;
     struct item_head * ih;
     int pos_in_item;
-    __u32 * item;
+    __le32 * item;
     int ret = 0;
 
     if (!hint->path)		/* reiserfs code can call this function w/o pointer to path

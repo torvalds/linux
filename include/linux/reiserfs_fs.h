@@ -114,47 +114,47 @@ if( !( cond ) ) 								\
 
 
 struct journal_params {
-    __u32 jp_journal_1st_block;	      /* where does journal start from on its
+    __le32 jp_journal_1st_block;	      /* where does journal start from on its
 				       * device */
-    __u32 jp_journal_dev;	      /* journal device st_rdev */
-    __u32 jp_journal_size;	      /* size of the journal */
-    __u32 jp_journal_trans_max;	      /* max number of blocks in a transaction. */
-    __u32 jp_journal_magic; 	      /* random value made on fs creation (this
+    __le32 jp_journal_dev;	      /* journal device st_rdev */
+    __le32 jp_journal_size;	      /* size of the journal */
+    __le32 jp_journal_trans_max;	      /* max number of blocks in a transaction. */
+    __le32 jp_journal_magic; 	      /* random value made on fs creation (this
 				       * was sb_journal_block_count) */
-    __u32 jp_journal_max_batch;	      /* max number of blocks to batch into a
+    __le32 jp_journal_max_batch;	      /* max number of blocks to batch into a
 				       * trans */
-    __u32 jp_journal_max_commit_age;  /* in seconds, how old can an async
+    __le32 jp_journal_max_commit_age;  /* in seconds, how old can an async
 				       * commit be */
-    __u32 jp_journal_max_trans_age;   /* in seconds, how old can a transaction
+    __le32 jp_journal_max_trans_age;   /* in seconds, how old can a transaction
 				       * be */
 };
 
 /* this is the super from 3.5.X, where X >= 10 */
 struct reiserfs_super_block_v1
 {
-    __u32 s_block_count;	   /* blocks count         */
-    __u32 s_free_blocks;           /* free blocks count    */
-    __u32 s_root_block;            /* root block number    */
+    __le32 s_block_count;	   /* blocks count         */
+    __le32 s_free_blocks;           /* free blocks count    */
+    __le32 s_root_block;            /* root block number    */
     struct journal_params s_journal;
-    __u16 s_blocksize;             /* block size */
-    __u16 s_oid_maxsize;	   /* max size of object id array, see
+    __le16 s_blocksize;             /* block size */
+    __le16 s_oid_maxsize;	   /* max size of object id array, see
 				    * get_objectid() commentary  */
-    __u16 s_oid_cursize;	   /* current size of object id array */
-    __u16 s_umount_state;          /* this is set to 1 when filesystem was
+    __le16 s_oid_cursize;	   /* current size of object id array */
+    __le16 s_umount_state;          /* this is set to 1 when filesystem was
 				    * umounted, to 2 - when not */    
     char s_magic[10];              /* reiserfs magic string indicates that
 				    * file system is reiserfs:
 				    * "ReIsErFs" or "ReIsEr2Fs" or "ReIsEr3Fs" */
-    __u16 s_fs_state;	           /* it is set to used by fsck to mark which
+    __le16 s_fs_state;	           /* it is set to used by fsck to mark which
 				    * phase of rebuilding is done */
-    __u32 s_hash_function_code;    /* indicate, what hash function is being use
+    __le32 s_hash_function_code;    /* indicate, what hash function is being use
 				    * to sort names in a directory*/
-    __u16 s_tree_height;           /* height of disk tree */
-    __u16 s_bmap_nr;               /* amount of bitmap blocks needed to address
+    __le16 s_tree_height;           /* height of disk tree */
+    __le16 s_bmap_nr;               /* amount of bitmap blocks needed to address
 				    * each block of file system */
-    __u16 s_version;               /* this field is only reliable on filesystem
+    __le16 s_version;               /* this field is only reliable on filesystem
 				    * with non-standard journal */
-    __u16 s_reserved_for_journal;  /* size in blocks of journal area on main
+    __le16 s_reserved_for_journal;  /* size in blocks of journal area on main
 				    * device, we need to keep after
 				    * making fs with non-standard journal */	
 } __attribute__ ((__packed__));
@@ -165,8 +165,8 @@ struct reiserfs_super_block_v1
 struct reiserfs_super_block
 {
     struct reiserfs_super_block_v1 s_v1;
-    __u32 s_inode_generation;
-    __u32 s_flags;                  /* Right now used only by inode-attributes, if enabled */
+    __le32 s_inode_generation;
+    __le32 s_flags;                  /* Right now used only by inode-attributes, if enabled */
     unsigned char s_uuid[16];       /* filesystem unique identifier */
     unsigned char s_label[16];      /* filesystem volume label */
     char s_unused[88] ;             /* zero filled by mkreiserfs and
@@ -269,7 +269,7 @@ int is_reiserfs_jr (struct reiserfs_super_block * rs);
 #define QUOTA_EXCEEDED -6
 
 typedef __u32 b_blocknr_t;
-typedef __u32 unp_t;
+typedef __le32 unp_t;
 
 struct unfm_nodeinfo {
     unp_t unfm_nodenum;
@@ -376,8 +376,8 @@ static inline struct reiserfs_sb_info *REISERFS_SB(const struct super_block *sb)
 // directories use this key as well as old files
 //
 struct offset_v1 {
-    __u32 k_offset;
-    __u32 k_uniqueness;
+    __le32 k_offset;
+    __le32 k_uniqueness;
 } __attribute__ ((__packed__));
 
 struct offset_v2 {
@@ -453,9 +453,9 @@ struct in_core_offset_v2 {
 /* Key of an item determines its location in the S+tree, and
    is composed of 4 components */
 struct reiserfs_key {
-    __u32 k_dir_id;    /* packing locality: by default parent
+    __le32 k_dir_id;    /* packing locality: by default parent
 			  directory object id */
-    __u32 k_objectid;  /* object identifier */
+    __le32 k_objectid;  /* object identifier */
     union {
 	struct offset_v1 k_offset_v1;
 	struct offset_v2 k_offset_v2;
@@ -534,15 +534,15 @@ struct item_head
 		   item. Note that the key, not this field, is used to
 		   determine the item type, and thus which field this
 		   union contains. */
-		__u16 ih_free_space_reserved; 
+		__le16 ih_free_space_reserved;
 		/* Iff this is a directory item, this field equals the
 		   number of directory entries in the directory item. */
-		__u16 ih_entry_count; 
+		__le16 ih_entry_count;
 	} __attribute__ ((__packed__)) u;
-	__u16 ih_item_len;           /* total size of the item body */
-	__u16 ih_item_location;      /* an offset to the item body
+	__le16 ih_item_len;           /* total size of the item body */
+	__le16 ih_item_location;      /* an offset to the item body
 				      * within the block */
-	__u16 ih_version;	     /* 0 for all old items, 2 for new
+	__le16 ih_version;	     /* 0 for all old items, 2 for new
 					ones. Highest bit is set by fsck
 					temporary, cleaned after all
 					done */
@@ -778,10 +778,10 @@ extern struct reiserfs_key root_key;
 /* Header of a disk block.  More precisely, header of a formatted leaf
    or internal node, and not the header of an unformatted node. */
 struct block_head {       
-  __u16 blk_level;        /* Level of a block in the tree. */
-  __u16 blk_nr_item;      /* Number of keys/items in a block. */
-  __u16 blk_free_space;   /* Block free space in bytes. */
-  __u16 blk_reserved;
+  __le16 blk_level;        /* Level of a block in the tree. */
+  __le16 blk_nr_item;      /* Number of keys/items in a block. */
+  __le16 blk_free_space;   /* Block free space in bytes. */
+  __le16 blk_reserved;
 				/* dump this in v4/planA */
   struct reiserfs_key  blk_right_delim_key; /* kept only for compatibility */
 };
@@ -845,19 +845,19 @@ struct block_head {
 //
 struct stat_data_v1
 {
-    __u16 sd_mode;	/* file type, permissions */
-    __u16 sd_nlink;	/* number of hard links */
-    __u16 sd_uid;		/* owner */
-    __u16 sd_gid;		/* group */
-    __u32 sd_size;	/* file size */
-    __u32 sd_atime;	/* time of last access */
-    __u32 sd_mtime;	/* time file was last modified  */
-    __u32 sd_ctime;	/* time inode (stat data) was last changed (except changes to sd_atime and sd_mtime) */
+    __le16 sd_mode;	/* file type, permissions */
+    __le16 sd_nlink;	/* number of hard links */
+    __le16 sd_uid;		/* owner */
+    __le16 sd_gid;		/* group */
+    __le32 sd_size;	/* file size */
+    __le32 sd_atime;	/* time of last access */
+    __le32 sd_mtime;	/* time file was last modified  */
+    __le32 sd_ctime;	/* time inode (stat data) was last changed (except changes to sd_atime and sd_mtime) */
     union {
-	__u32 sd_rdev;
-	__u32 sd_blocks;	/* number of blocks file uses */
+	__le32 sd_rdev;
+	__le32 sd_blocks;	/* number of blocks file uses */
     } __attribute__ ((__packed__)) u;
-    __u32 sd_first_direct_byte; /* first byte of file which is stored
+    __le32 sd_first_direct_byte; /* first byte of file which is stored
 				   in a direct item: except that if it
 				   equals 1 it is a symlink and if it
 				   equals ~(__u32)0 there is no
@@ -923,20 +923,20 @@ struct stat_data_v1
 /* Stat Data on disk (reiserfs version of UFS disk inode minus the
    address blocks) */
 struct stat_data {
-    __u16 sd_mode;	/* file type, permissions */
-    __u16 sd_attrs;     /* persistent inode flags */
-    __u32 sd_nlink;	/* number of hard links */
-    __u64 sd_size;	/* file size */
-    __u32 sd_uid;		/* owner */
-    __u32 sd_gid;		/* group */
-    __u32 sd_atime;	/* time of last access */
-    __u32 sd_mtime;	/* time file was last modified  */
-    __u32 sd_ctime;	/* time inode (stat data) was last changed (except changes to sd_atime and sd_mtime) */
-    __u32 sd_blocks;
+    __le16 sd_mode;	/* file type, permissions */
+    __le16 sd_attrs;     /* persistent inode flags */
+    __le32 sd_nlink;	/* number of hard links */
+    __le64 sd_size;	/* file size */
+    __le32 sd_uid;		/* owner */
+    __le32 sd_gid;		/* group */
+    __le32 sd_atime;	/* time of last access */
+    __le32 sd_mtime;	/* time file was last modified  */
+    __le32 sd_ctime;	/* time inode (stat data) was last changed (except changes to sd_atime and sd_mtime) */
+    __le32 sd_blocks;
     union {
-	__u32 sd_rdev;
-	__u32 sd_generation;
-      //__u32 sd_first_direct_byte; 
+	__le32 sd_rdev;
+	__le32 sd_generation;
+      //__le32 sd_first_direct_byte;
       /* first byte of file which is stored in a
 				       direct item: except that if it equals 1
 				       it is a symlink and if it equals
@@ -1019,12 +1019,12 @@ struct stat_data {
 
 struct reiserfs_de_head
 {
-  __u32 deh_offset;		/* third component of the directory entry key */
-  __u32 deh_dir_id;		/* objectid of the parent directory of the object, that is referenced
+  __le32 deh_offset;		/* third component of the directory entry key */
+  __le32 deh_dir_id;		/* objectid of the parent directory of the object, that is referenced
 					   by directory entry */
-  __u32 deh_objectid;		/* objectid of the object, that is referenced by directory entry */
-  __u16 deh_location;		/* offset of name in the whole item */
-  __u16 deh_state;		/* whether 1) entry contains stat data (for future), and 2) whether
+  __le32 deh_objectid;		/* objectid of the object, that is referenced by directory entry */
+  __le16 deh_location;		/* offset of name in the whole item */
+  __le16 deh_state;		/* whether 1) entry contains stat data (for future), and 2) whether
 					   entry is hidden (unlinked) */
 } __attribute__ ((__packed__));
 #define DEH_SIZE                  sizeof(struct reiserfs_de_head)
@@ -1084,10 +1084,10 @@ struct reiserfs_de_head
 #define de_visible(deh)	    	    test_bit_unaligned (DEH_Visible, &((deh)->deh_state))
 #define de_hidden(deh)	    	    !test_bit_unaligned (DEH_Visible, &((deh)->deh_state))
 
-extern void make_empty_dir_item_v1 (char * body, __u32 dirid, __u32 objid,
-				    __u32 par_dirid, __u32 par_objid);
-extern void make_empty_dir_item (char * body, __u32 dirid, __u32 objid,
-				 __u32 par_dirid, __u32 par_objid);
+extern void make_empty_dir_item_v1 (char * body, __le32 dirid, __le32 objid,
+				    __le32 par_dirid, __le32 par_objid);
+extern void make_empty_dir_item (char * body, __le32 dirid, __le32 objid,
+				 __le32 par_dirid, __le32 par_objid);
 
 /* array of the entry headers */
  /* get item body */
@@ -1186,9 +1186,9 @@ struct reiserfs_dir_entry
 /* Disk child pointer: The pointer from an internal node of the tree
    to a node that is on disk. */
 struct disk_child {
-  __u32       dc_block_number;              /* Disk child's block number. */
-  __u16       dc_size;		            /* Disk child's used space.   */
-  __u16       dc_reserved;
+  __le32       dc_block_number;              /* Disk child's block number. */
+  __le16       dc_size;		            /* Disk child's used space.   */
+  __le16       dc_reserved;
 };
 
 #define DC_SIZE (sizeof(struct disk_child))
@@ -1656,10 +1656,10 @@ struct reiserfs_iget_args {
 
 /* first block written in a commit.  */
 struct reiserfs_journal_desc {
-  __u32 j_trans_id ;			/* id of commit */
-  __u32 j_len ;			/* length of commit. len +1 is the commit block */
-  __u32 j_mount_id ;				/* mount id of this trans*/
-  __u32 j_realblock[1] ; /* real locations for each block */
+  __le32 j_trans_id ;			/* id of commit */
+  __le32 j_len ;			/* length of commit. len +1 is the commit block */
+  __le32 j_mount_id ;				/* mount id of this trans*/
+  __le32 j_realblock[1] ; /* real locations for each block */
 } ;
 
 #define get_desc_trans_id(d)   le32_to_cpu((d)->j_trans_id)
@@ -1672,9 +1672,9 @@ struct reiserfs_journal_desc {
 
 /* last block written in a commit */
 struct reiserfs_journal_commit {
-  __u32 j_trans_id ;			/* must match j_trans_id from the desc block */
-  __u32 j_len ;			/* ditto */
-  __u32 j_realblock[1] ; /* real locations for each block */
+  __le32 j_trans_id ;			/* must match j_trans_id from the desc block */
+  __le32 j_len ;			/* ditto */
+  __le32 j_realblock[1] ; /* real locations for each block */
 } ;
 
 #define get_commit_trans_id(c) le32_to_cpu((c)->j_trans_id)
@@ -1689,9 +1689,9 @@ struct reiserfs_journal_commit {
 ** and this transaction does not need to be replayed.
 */
 struct reiserfs_journal_header {
-  __u32 j_last_flush_trans_id ;		/* id of last fully flushed transaction */
-  __u32 j_first_unflushed_offset ;      /* offset in the log of where to start replay after a crash */
-  __u32 j_mount_id ;
+  __le32 j_last_flush_trans_id ;		/* id of last fully flushed transaction */
+  __le32 j_first_unflushed_offset ;      /* offset in the log of where to start replay after a crash */
+  __le32 j_mount_id ;
   /* 12 */ struct journal_params jh_journal;
 } ;
 
@@ -2170,7 +2170,7 @@ void reiserfs_init_alloc_options (struct super_block *s);
  * to use for a new object underneat it.  The locality is returned
  * in disk byte order (le).
  */
-u32 reiserfs_choose_packing(struct inode *dir);
+__le32 reiserfs_choose_packing(struct inode *dir);
 
 int is_reusable (struct super_block * s, b_blocknr_t block, int bit_value);
 void reiserfs_free_block (struct reiserfs_transaction_handle *th, struct inode *, b_blocknr_t, int for_unformatted);

@@ -87,10 +87,11 @@ inline void copy_item_head(struct item_head * p_v_to,
 inline int  comp_short_keys (const struct reiserfs_key * le_key,
 			     const struct cpu_key * cpu_key)
 {
-  __u32 * p_s_le_u32, * p_s_cpu_u32;
+  __le32 * p_s_le_u32;
+  __u32 * p_s_cpu_u32;
   int n_key_length = REISERFS_SHORT_KEY_LEN;
 
-  p_s_le_u32 = (__u32 *)le_key;
+  p_s_le_u32 = (__le32 *)le_key;
   p_s_cpu_u32 = (__u32 *)&cpu_key->on_disk_key;
   for( ; n_key_length--; ++p_s_le_u32, ++p_s_cpu_u32 ) {
     if ( le32_to_cpu (*p_s_le_u32) < *p_s_cpu_u32 )
@@ -228,7 +229,12 @@ extern struct tree_balance * cur_tb;
 const struct reiserfs_key  MIN_KEY = {0, 0, {{0, 0},}};
 
 /* Maximal possible key. It is never in the tree. */
-const struct reiserfs_key  MAX_KEY = {0xffffffff, 0xffffffff, {{0xffffffff, 0xffffffff},}};
+const struct reiserfs_key  MAX_KEY = {
+	__constant_cpu_to_le32(0xffffffff),
+	__constant_cpu_to_le32(0xffffffff),
+	{{__constant_cpu_to_le32(0xffffffff),
+	__constant_cpu_to_le32(0xffffffff)},}
+};
 const struct in_core_key  MAX_IN_CORE_KEY = {0xffffffff, 0xffffffff, {{0xffffffff, 0xffffffff},}};
 
 
@@ -998,7 +1004,7 @@ static char  prepare_for_delete_or_cut(
 	int                   n_unfm_number,    /* Number of the item unformatted nodes. */
 	    n_counter,
 	    n_blk_size;
-	__u32               * p_n_unfm_pointer; /* Pointer to the unformatted node number. */
+	__le32               * p_n_unfm_pointer; /* Pointer to the unformatted node number. */
 	__u32 tmp;
 	struct item_head      s_ih;           /* Item header. */
 	char                  c_mode;           /* Returned mode of the balance. */
@@ -1060,7 +1066,7 @@ static char  prepare_for_delete_or_cut(
 	    /* pointers to be cut */
 	    n_unfm_number -= pos_in_item (p_s_path);
 	    /* Set pointer to the last unformatted node pointer that is to be cut. */
-	    p_n_unfm_pointer = (__u32 *)B_I_PITEM(p_s_bh, &s_ih) + I_UNFM_NUM(&s_ih) - 1 - *p_n_removed;
+	    p_n_unfm_pointer = (__le32 *)B_I_PITEM(p_s_bh, &s_ih) + I_UNFM_NUM(&s_ih) - 1 - *p_n_removed;
 
 
 	    /* We go through the unformatted nodes pointers of the indirect
@@ -1082,8 +1088,8 @@ static char  prepare_for_delete_or_cut(
 		    need_research = 1 ;
 		    break;
 		}
-		RFALSE( p_n_unfm_pointer < (__u32 *)B_I_PITEM(p_s_bh, &s_ih) ||
-			p_n_unfm_pointer > (__u32 *)B_I_PITEM(p_s_bh, &s_ih) + I_UNFM_NUM(&s_ih) - 1,
+		RFALSE( p_n_unfm_pointer < (__le32 *)B_I_PITEM(p_s_bh, &s_ih) ||
+			p_n_unfm_pointer > (__le32 *)B_I_PITEM(p_s_bh, &s_ih) + I_UNFM_NUM(&s_ih) - 1,
 			"vs-5265: pointer out of range");
 
 		/* Hole, nothing to remove. */
@@ -1432,7 +1438,7 @@ int reiserfs_delete_object (struct reiserfs_transaction_handle *th, struct inode
 #if defined( USE_INODE_GENERATION_COUNTER )
     if( !old_format_only ( th -> t_super ) )
       {
-       __u32 *inode_generation;
+       __le32 *inode_generation;
        
        inode_generation = 
          &REISERFS_SB(th -> t_super) -> s_rs -> s_inode_generation;

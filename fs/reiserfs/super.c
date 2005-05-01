@@ -216,7 +216,7 @@ static int finish_unfinished (struct super_block * s)
  
         /* reiserfs_iget needs k_dirid and k_objectid only */
         item = B_I_PITEM (bh, ih);
-        obj_key.on_disk_key.k_dir_id = le32_to_cpu (*(__u32 *)item);
+        obj_key.on_disk_key.k_dir_id = le32_to_cpu (*(__le32 *)item);
         obj_key.on_disk_key.k_objectid = le32_to_cpu (ih->ih_key.k_objectid);
 	obj_key.on_disk_key.u.k_offset_v1.k_offset = 0;
 	obj_key.on_disk_key.u.k_offset_v1.k_uniqueness = 0;
@@ -304,7 +304,7 @@ void add_save_link (struct reiserfs_transaction_handle * th,
     int retval;
     struct cpu_key key;
     struct item_head ih;
-    __u32 link;
+    __le32 link;
 
     BUG_ON (!th->t_trans_id);
 
@@ -1336,7 +1336,7 @@ static int read_super_block (struct super_block * s, int offset)
 	return 1;
     }
 
-    if ( rs->s_v1.s_root_block == -1 ) {
+    if ( rs->s_v1.s_root_block == cpu_to_le32(-1) ) {
        brelse(bh) ;
        reiserfs_warning (s, "Unfinished reiserfsck --rebuild-tree run detected. Please run\n"
               "reiserfsck --rebuild-tree and wait for a completion. If that fails\n"
