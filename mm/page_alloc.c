@@ -1897,6 +1897,7 @@ static char *vmstat_text[] = {
 	"allocstall",
 
 	"pgrotated",
+	"nr_bounce",
 };
 
 static void *vmstat_start(struct seq_file *m, loff_t *pos)
