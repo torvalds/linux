@@ -521,7 +521,7 @@ int hostfs_commit_write(struct file *file, struct page *page, unsigned from,
 static struct address_space_operations hostfs_aops = {
 	.writepage 	= hostfs_writepage,
 	.readpage	= hostfs_readpage,
-/* 	.set_page_dirty = __set_page_dirty_nobuffers, */
+	.set_page_dirty = __set_page_dirty_nobuffers,
 	.prepare_write	= hostfs_prepare_write,
 	.commit_write	= hostfs_commit_write
 };
