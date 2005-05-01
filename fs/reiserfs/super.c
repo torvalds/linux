@@ -110,7 +110,7 @@ static void reiserfs_unlockfs(struct super_block *s) {
   reiserfs_allow_writes(s) ;
 }
 
-extern const struct reiserfs_key  MAX_KEY;
+extern const struct in_core_key  MAX_IN_CORE_KEY;
 
 
 /* this is used to delete "save link" when there are no items of a
@@ -164,7 +164,7 @@ static int finish_unfinished (struct super_block * s)
  
     /* compose key to look for "save" links */
     max_cpu_key.version = KEY_FORMAT_3_5;
-    max_cpu_key.on_disk_key = MAX_KEY;
+    max_cpu_key.on_disk_key = MAX_IN_CORE_KEY;
     max_cpu_key.key_length = 3;
 
 #ifdef CONFIG_QUOTA

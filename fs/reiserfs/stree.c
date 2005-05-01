@@ -229,6 +229,7 @@ const struct reiserfs_key  MIN_KEY = {0, 0, {{0, 0},}};
 
 /* Maximal possible key. It is never in the tree. */
 const struct reiserfs_key  MAX_KEY = {0xffffffff, 0xffffffff, {{0xffffffff, 0xffffffff},}};
+const struct in_core_key  MAX_IN_CORE_KEY = {0xffffffff, 0xffffffff, {{0xffffffff, 0xffffffff},}};
 
 
 /* Get delimiting key of the buffer by looking for it in the buffers in the path, starting from the bottom

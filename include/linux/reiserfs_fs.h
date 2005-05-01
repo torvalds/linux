@@ -433,6 +433,23 @@ static inline void set_offset_v2_k_offset( struct offset_v2 *v2, loff_t offset )
 # define set_offset_v2_k_offset(v2,val) (offset_v2_k_offset(v2) = (val))
 #endif
 
+struct in_core_offset_v1 {
+    __u32 k_offset;
+    __u32 k_uniqueness;
+} __attribute__ ((__packed__));
+
+struct in_core_offset_v2 {
+#ifdef __LITTLE_ENDIAN
+	    /* little endian version */
+	    __u64 k_offset:60;
+	    __u64 k_type: 4;
+#else
+	    /* big endian version */
+	    __u64 k_type: 4;
+	    __u64 k_offset:60;
+#endif
+} __attribute__ ((__packed__));
+
 /* Key of an item determines its location in the S+tree, and
    is composed of 4 components */
 struct reiserfs_key {
@@ -445,9 +462,18 @@ struct reiserfs_key {
     } __attribute__ ((__packed__)) u;
 } __attribute__ ((__packed__));
 
+struct in_core_key {
+    __u32 k_dir_id;    /* packing locality: by default parent
+			  directory object id */
+    __u32 k_objectid;  /* object identifier */
+    union {
+	struct in_core_offset_v1 k_offset_v1;
+	struct in_core_offset_v2 k_offset_v2;
+    } __attribute__ ((__packed__)) u;
+} __attribute__ ((__packed__));
 
 struct cpu_key {
-    struct reiserfs_key on_disk_key;
+    struct in_core_key on_disk_key;
     int version;
     int key_length; /* 3 in all cases but direct2indirect and
 		       indirect2direct conversion */
@@ -1476,7 +1502,7 @@ struct tree_balance
   int fs_gen;                  /* saved value of `reiserfs_generation' counter
 			          see FILESYSTEM_CHANGED() macro in reiserfs_fs.h */
 #ifdef DISPLACE_NEW_PACKING_LOCALITIES
-  struct reiserfs_key  key;	      /* key pointer, to pass to block allocator or
+  struct in_core_key  key;	      /* key pointer, to pass to block allocator or
 				 another low-level subsystem */
 #endif
 } ;
@@ -2117,7 +2143,7 @@ struct buffer_head * get_FEB (struct tree_balance *);
  struct __reiserfs_blocknr_hint {
      struct inode * inode;		/* inode passed to allocator, if we allocate unf. nodes */
      long block;			/* file offset, in blocks */
-     struct reiserfs_key key;
+     struct in_core_key key;
      struct path * path;		/* search path, used by allocator to deternine search_start by
 					 * various ways */
      struct reiserfs_transaction_handle * th; /* transaction handle is needed to log super blocks and

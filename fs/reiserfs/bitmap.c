@@ -736,7 +736,7 @@ static inline int this_blocknr_allocation_would_make_it_a_large_file(reiserfs_bl
 #ifdef DISPLACE_NEW_PACKING_LOCALITIES
 static inline void displace_new_packing_locality (reiserfs_blocknr_hint_t *hint)
 {
-    struct reiserfs_key * key = &hint->key;
+    struct in_core_key * key = &hint->key;
 
     hint->th->displace_new_blocks = 0;
     hint->search_start = hint->beg + keyed_hash((char*)(&key->k_objectid),4) % (hint->end - hint->beg);
@@ -777,7 +777,7 @@ static inline int old_way (reiserfs_blocknr_hint_t * hint)
 
 static inline void hundredth_slices (reiserfs_blocknr_hint_t * hint)
 {
-    struct reiserfs_key * key = &hint->key;
+    struct in_core_key * key = &hint->key;
     b_blocknr_t slice_start;
 
     slice_start = (keyed_hash((char*)(&key->k_dir_id),4) % 100) * (hint->end / 100);
