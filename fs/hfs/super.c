@@ -297,7 +297,7 @@ static int hfs_fill_super(struct super_block *sb, void *data, int silent)
 	res = -EINVAL;
 	if (!parse_options((char *)data, sbi)) {
 		hfs_warn("hfs_fs: unable to parse mount options.\n");
-		goto bail3;
+		goto bail;
 	}
 
 	sb->s_op = &hfs_super_operations;
@@ -310,7 +310,7 @@ static int hfs_fill_super(struct super_block *sb, void *data, int silent)
 			hfs_warn("VFS: Can't find a HFS filesystem on dev %s.\n",
 				hfs_mdb_name(sb));
 		res = -EINVAL;
-		goto bail2;
+		goto bail;
 	}
 
 	/* try to get the root inode */
@@ -340,10 +340,8 @@ bail_iput:
 	iput(root_inode);
 bail_no_root:
 	hfs_warn("hfs_fs: get root inode failed.\n");
+bail:
 	hfs_mdb_put(sb);
-bail2:
-bail3:
-	kfree(sbi);
 	return res;
 }
 
