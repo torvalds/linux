@@ -219,8 +219,12 @@ This may also be done to avoid internal deadlocks, but rarely.
 If the filesytem is called for sync then it must wait on any
 in-progress I/O and then start new I/O.
 
-The filesystem should unlock the page synchronously, before returning
-to the caller.
+The filesystem should unlock the page synchronously, before returning to the
+caller, unless ->writepage() returns special WRITEPAGE_ACTIVATE
+value. WRITEPAGE_ACTIVATE means that page cannot really be written out
+currently, and VM should stop calling ->writepage() on this page for some
+time. VM does this by moving page to the head of the active list, hence the
+name.
 
 Unless the filesystem is going to redirty_page_for_writepage(), unlock the page
 and return zero, writepage *must* run set_page_writeback() against the page,
