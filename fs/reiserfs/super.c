@@ -889,12 +889,18 @@ static int reiserfs_parse_options (struct super_block * s, char * options, /* st
 	    char * p;
 	    
 	    p = NULL;
-	    /* "resize=NNN" */
-	    *blocks = simple_strtoul (arg, &p, 0);
-	    if (*p != '\0') {
-		/* NNN does not look like a number */
-		reiserfs_warning (s, "reiserfs_parse_options: bad value %s", arg);
-		return 0;
+	    /* "resize=NNN" or "resize=auto" */
+
+	    if (!strcmp(arg, "auto")) {
+		    /* From JFS code, to auto-get the size.*/
+		    *blocks = s->s_bdev->bd_inode->i_size >> s->s_blocksize_bits;
+	    } else {
+		    *blocks = simple_strtoul (arg, &p, 0);
+		    if (*p != '\0') {
+			/* NNN does not look like a number */
+			reiserfs_warning (s, "reiserfs_parse_options: bad value %s", arg);
+			return 0;
+		    }
 	    }
 	}
 
@@ -903,7 +909,8 @@ static int reiserfs_parse_options (struct super_block * s, char * options, /* st
 		unsigned long val = simple_strtoul (arg, &p, 0);
 		/* commit=NNN (time in seconds) */
 		if ( *p != '\0' || val >= (unsigned int)-1) {
-			reiserfs_warning (s, "reiserfs_parse_options: bad value %s", arg);			return 0;
+			reiserfs_warning (s, "reiserfs_parse_options: bad value %s", arg);
+			return 0;
 		}
 		*commit_max_age = (unsigned int)val;
 	}
