@@ -601,8 +601,10 @@ static int dummy_wakeup (struct usb_gadget *_gadget)
 	struct dummy	*dum;
 
 	dum = gadget_to_dummy (_gadget);
-	if ((dum->devstatus & (1 << USB_DEVICE_REMOTE_WAKEUP)) == 0
-			|| !(dum->port_status & (1 << USB_PORT_FEAT_SUSPEND)))
+	if (!(dum->port_status & (1 << USB_PORT_FEAT_SUSPEND))
+			|| !(dum->devstatus &
+				( (1 << USB_DEVICE_B_HNP_ENABLE)
+				| (1 << USB_DEVICE_REMOTE_WAKEUP))))
 		return -EINVAL;
 
 	/* hub notices our request, issues downstream resume, etc */
@@ -712,6 +714,9 @@ usb_gadget_register_driver (struct usb_gadget_driver *driver)
 	dum->gadget.name = gadget_name;
 	dum->gadget.ops = &dummy_ops;
 	dum->gadget.is_dualspeed = 1;
+
+	/* maybe claim OTG support, though we won't complete HNP */
+	dum->gadget.is_otg = (dummy_to_hcd(dum)->self.otg_port != 0);
 
 	dum->devstatus = 0;
 	dum->resuming = 0;
@@ -1215,6 +1220,16 @@ restart:
 					switch (setup.wValue) {
 					case USB_DEVICE_REMOTE_WAKEUP:
 						break;
+					case USB_DEVICE_B_HNP_ENABLE:
+						dum->gadget.b_hnp_enable = 1;
+						break;
+					case USB_DEVICE_A_HNP_SUPPORT:
+						dum->gadget.a_hnp_support = 1;
+						break;
+					case USB_DEVICE_A_ALT_HNP_SUPPORT:
+						dum->gadget.a_alt_hnp_support
+							= 1;
+						break;
 					default:
 						value = -EOPNOTSUPP;
 					}
@@ -1533,6 +1548,13 @@ static int dummy_hub_control (
 					spin_unlock (&dum->lock);
 					dum->driver->suspend (&dum->gadget);
 					spin_lock (&dum->lock);
+					/* HNP would happen here; for now we
+					 * assume b_bus_req is always true.
+					 */
+					if (((1 << USB_DEVICE_B_HNP_ENABLE)
+							& dum->devstatus) != 0)
+						dev_dbg (dummy_dev(dum),
+							"no HNP yet!\n");
 				}
 			}
 			break;
@@ -1647,6 +1669,10 @@ static int dummy_start (struct usb_hcd *hcd)
 	/* only show a low-power port: just 8mA */
 	hcd->power_budget = 8;
 	hcd->state = HC_STATE_RUNNING;
+
+#ifdef CONFIG_USB_OTG
+	hcd->self.otg_port = 1;
+#endif
 
 	/* FIXME 'urbs' should be a per-device thing, maybe in usbcore */
 	device_create_file (dummy_dev(dum), &dev_attr_urbs);
