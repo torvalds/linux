@@ -212,7 +212,7 @@ static struct metapage *read_index_page(struct inode *inode, s64 blkno)
 	s32 xlen;
 
 	rc = xtLookup(inode, blkno, 1, &xflag, &xaddr, &xlen, 1);
-	if (rc || (xlen == 0))
+	if (rc || (xaddr == 0))
 		return NULL;
 
 	return read_metapage(inode, xaddr, PSIZE, 1);
@@ -231,7 +231,7 @@ static struct metapage *get_index_page(struct inode *inode, s64 blkno)
 	s32 xlen;
 
 	rc = xtLookup(inode, blkno, 1, &xflag, &xaddr, &xlen, 1);
-	if (rc || (xlen == 0))
+	if (rc || (xaddr == 0))
 		return NULL;
 
 	return get_metapage(inode, xaddr, PSIZE, 1);

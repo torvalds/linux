@@ -178,7 +178,7 @@ jfs_get_blocks(struct inode *ip, sector_t lblock, unsigned long max_blocks,
 	xad_t xad;
 	s64 xaddr;
 	int xflag;
-	s32 xlen;
+	s32 xlen = max_blocks;
 
 	/*
 	 * Take appropriate lock on inode
@@ -190,7 +190,7 @@ jfs_get_blocks(struct inode *ip, sector_t lblock, unsigned long max_blocks,
 
 	if (((lblock64 << ip->i_sb->s_blocksize_bits) < ip->i_size) &&
 	    (!xtLookup(ip, lblock64, max_blocks, &xflag, &xaddr, &xlen, 0)) &&
-	    xlen) {
+	    xaddr) {
 		if (xflag & XAD_NOTRECORDED) {
 			if (!create)
 				/*
@@ -229,7 +229,7 @@ jfs_get_blocks(struct inode *ip, sector_t lblock, unsigned long max_blocks,
 #ifdef _JFS_4K
 	if ((rc = extHint(ip, lblock64 << ip->i_sb->s_blocksize_bits, &xad)))
 		goto unlock;
-	rc = extAlloc(ip, max_blocks, lblock64, &xad, FALSE);
+	rc = extAlloc(ip, xlen, lblock64, &xad, FALSE);
 	if (rc)
 		goto unlock;
 
