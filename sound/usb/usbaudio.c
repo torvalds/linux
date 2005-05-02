@@ -177,7 +177,7 @@ struct snd_usb_substream {
 	unsigned int nurbs;			/* # urbs */
 	snd_urb_ctx_t dataurb[MAX_URBS];	/* data urb table */
 	snd_urb_ctx_t syncurb[SYNC_URBS];	/* sync urb table */
-	char syncbuf[SYNC_URBS * MAX_PACKS * 4]; /* sync buffer; it's so small - let's get static */
+	char syncbuf[SYNC_URBS * 4];	/* sync buffer; it's so small - let's get static */
 	char *tmpbuf;			/* temporary buffer for playback */
 
 	u64 formats;			/* format bitmasks (all or'ed) */
@@ -251,17 +251,13 @@ static int prepare_capture_sync_urb(snd_usb_substream_t *subs,
 {
 	unsigned char *cp = urb->transfer_buffer;
 	snd_urb_ctx_t *ctx = (snd_urb_ctx_t *)urb->context;
-	int i, offs;
 
-	urb->number_of_packets = ctx->packets;
 	urb->dev = ctx->subs->dev; /* we need to set this at each time */
-	for (i = offs = 0; i < urb->number_of_packets; i++, offs += 4, cp += 4) {
-		urb->iso_frame_desc[i].length = 3;
-		urb->iso_frame_desc[i].offset = offs;
-		cp[0] = subs->freqn >> 2;
-		cp[1] = subs->freqn >> 10;
-		cp[2] = subs->freqn >> 18;
-	}
+	urb->iso_frame_desc[0].length = 3;
+	urb->iso_frame_desc[0].offset = 0;
+	cp[0] = subs->freqn >> 2;
+	cp[1] = subs->freqn >> 10;
+	cp[2] = subs->freqn >> 18;
 	return 0;
 }
 
@@ -277,18 +273,14 @@ static int prepare_capture_sync_urb_hs(snd_usb_substream_t *subs,
 {
 	unsigned char *cp = urb->transfer_buffer;
 	snd_urb_ctx_t *ctx = (snd_urb_ctx_t *)urb->context;
-	int i, offs;
 
-	urb->number_of_packets = ctx->packets;
 	urb->dev = ctx->subs->dev; /* we need to set this at each time */
-	for (i = offs = 0; i < urb->number_of_packets; i++, offs += 4, cp += 4) {
-		urb->iso_frame_desc[i].length = 4;
-		urb->iso_frame_desc[i].offset = offs;
-		cp[0] = subs->freqn;
-		cp[1] = subs->freqn >> 8;
-		cp[2] = subs->freqn >> 16;
-		cp[3] = subs->freqn >> 24;
-	}
+	urb->iso_frame_desc[0].length = 4;
+	urb->iso_frame_desc[0].offset = 0;
+	cp[0] = subs->freqn;
+	cp[1] = subs->freqn >> 8;
+	cp[2] = subs->freqn >> 16;
+	cp[3] = subs->freqn >> 24;
 	return 0;
 }
 
@@ -418,15 +410,11 @@ static int prepare_playback_sync_urb(snd_usb_substream_t *subs,
 				     snd_pcm_runtime_t *runtime,
 				     struct urb *urb)
 {
-	int i, offs;
 	snd_urb_ctx_t *ctx = (snd_urb_ctx_t *)urb->context;
 
-	urb->number_of_packets = ctx->packets;
 	urb->dev = ctx->subs->dev; /* we need to set this at each time */
-	for (i = offs = 0; i < urb->number_of_packets; i++, offs += 4) {
-		urb->iso_frame_desc[i].length = 3;
-		urb->iso_frame_desc[i].offset = offs;
-	}
+	urb->iso_frame_desc[0].length = 3;
+	urb->iso_frame_desc[0].offset = 0;
 	return 0;
 }
 
@@ -440,15 +428,11 @@ static int prepare_playback_sync_urb_hs(snd_usb_substream_t *subs,
 					snd_pcm_runtime_t *runtime,
 					struct urb *urb)
 {
-	int i, offs;
 	snd_urb_ctx_t *ctx = (snd_urb_ctx_t *)urb->context;
 
-	urb->number_of_packets = ctx->packets;
 	urb->dev = ctx->subs->dev; /* we need to set this at each time */
-	for (i = offs = 0; i < urb->number_of_packets; i++, offs += 4) {
-		urb->iso_frame_desc[i].length = 4;
-		urb->iso_frame_desc[i].offset = offs;
-	}
+	urb->iso_frame_desc[0].length = 4;
+	urb->iso_frame_desc[0].offset = 0;
 	return 0;
 }
 
@@ -462,17 +446,12 @@ static int retire_playback_sync_urb(snd_usb_substream_t *subs,
 				    snd_pcm_runtime_t *runtime,
 				    struct urb *urb)
 {
-	int i;
-	unsigned int f, found;
-	unsigned char *cp = urb->transfer_buffer;
+	unsigned int f;
 	unsigned long flags;
 
-	found = 0;
-	for (i = 0; i < urb->number_of_packets; i++, cp += 4) {
-		if (urb->iso_frame_desc[i].status ||
-		    urb->iso_frame_desc[i].actual_length < 3)
-			continue;
-		f = combine_triple(cp) << 2;
+	if (urb->iso_frame_desc[0].status == 0 &&
+	    urb->iso_frame_desc[0].actual_length == 3) {
+		f = combine_triple((u8*)urb->transfer_buffer) << 2;
 #if 0
 		if (f < subs->freqn - (subs->freqn>>3) || f > subs->freqmax) {
 			snd_printd(KERN_WARNING "requested frequency %d (%u,%03uHz) out of range (current nominal %d (%u,%03uHz))\n",
@@ -481,11 +460,8 @@ static int retire_playback_sync_urb(snd_usb_substream_t *subs,
 			continue;
 		}
 #endif
-		found = f;
-	}
-	if (found) {
 		spin_lock_irqsave(&subs->lock, flags);
-		subs->freqm = found;
+		subs->freqm = f;
 		spin_unlock_irqrestore(&subs->lock, flags);
 	}
 
@@ -502,21 +478,14 @@ static int retire_playback_sync_urb_hs(snd_usb_substream_t *subs,
 				       snd_pcm_runtime_t *runtime,
 				       struct urb *urb)
 {
-	int i;
-	unsigned int found;
-	unsigned char *cp = urb->transfer_buffer;
+	unsigned int f;
 	unsigned long flags;
 
-	found = 0;
-	for (i = 0; i < urb->number_of_packets; i++, cp += 4) {
-		if (urb->iso_frame_desc[i].status ||
-		    urb->iso_frame_desc[i].actual_length < 4)
-			continue;
-		found = combine_quad(cp) & 0x0fffffff;
-	}
-	if (found) {
+	if (urb->iso_frame_desc[0].status == 0 &&
+	    urb->iso_frame_desc[0].actual_length == 4) {
+		f = combine_quad((u8*)urb->transfer_buffer) & 0x0fffffff;
 		spin_lock_irqsave(&subs->lock, flags);
-		subs->freqm = found;
+		subs->freqm = f;
 		spin_unlock_irqrestore(&subs->lock, flags);
 	}
 
@@ -1039,18 +1008,18 @@ static int init_substream_urbs(snd_usb_substream_t *subs, unsigned int period_by
 			snd_urb_ctx_t *u = &subs->syncurb[i];
 			u->index = i;
 			u->subs = subs;
-			u->packets = nrpacks;
-			u->urb = usb_alloc_urb(u->packets, GFP_KERNEL);
+			u->packets = 1;
+			u->urb = usb_alloc_urb(1, GFP_KERNEL);
 			if (! u->urb) {
 				release_substream_urbs(subs, 0);
 				return -ENOMEM;
 			}
-			u->urb->transfer_buffer = subs->syncbuf + i * nrpacks * 4;
-			u->urb->transfer_buffer_length = nrpacks * 4;
+			u->urb->transfer_buffer = subs->syncbuf + i * 4;
+			u->urb->transfer_buffer_length = 4;
 			u->urb->dev = subs->dev;
 			u->urb->pipe = subs->syncpipe;
 			u->urb->transfer_flags = URB_ISO_ASAP;
-			u->urb->number_of_packets = u->packets;
+			u->urb->number_of_packets = 1;
 			u->urb->interval = 1 << subs->syncinterval;
 			u->urb->context = u;
 			u->urb->complete = snd_usb_complete_callback(snd_complete_sync_urb);
