@@ -1232,9 +1232,6 @@ static int build_audio_procunit(mixer_build_t *state, int unitid, unsigned char 
 	}
 
 	type = combine_word(&dsc[4]);
-	if (! type)
-		return 0; /* undefined? */
-
 	for (info = list; info && info->type; info++)
 		if (info->type == type)
 			break;
