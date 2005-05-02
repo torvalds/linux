@@ -1003,9 +1003,10 @@ static int cpufreq_resume(struct sys_device * sysdev)
 		if (unlikely(cur_freq != cpu_policy->cur)) {
 			struct cpufreq_freqs freqs;
 
-			printk(KERN_WARNING "Warning: CPU frequency is %u, "
-					"cpufreq assumed %u kHz.\n",
-					cur_freq, cpu_policy->cur);
+			if (!(cpufreq_driver->flags & CPUFREQ_PM_NO_WARN))
+				printk(KERN_WARNING "Warning: CPU frequency"
+				       "is %u, cpufreq assumed %u kHz.\n",
+				       cur_freq, cpu_policy->cur);
 
 			freqs.cpu = cpu;
 			freqs.old = cpu_policy->cur;
