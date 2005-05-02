@@ -320,7 +320,7 @@ static int find_audio_gpio(const char *name, const char *platform,
 	}
 
 	DBG("(I) GPIO device %s found, offset: %x, active state: %d !\n",
-	    device, gp->addr, gp->active_state);
+	    name, gp->addr, gp->active_state);
 
 	return (np->n_intrs > 0) ? np->intrs[0].line : 0;
 }
