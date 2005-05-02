@@ -1591,8 +1591,10 @@ intrepid_shutdown(struct macio_chip* macio, int sleep_mode)
 }
 
 
-static void __pmac pmac_tweak_clock_spreading(struct macio_chip* macio, int enable)
+void __pmac pmac_tweak_clock_spreading(int enable)
 {
+	struct macio_chip* macio = &macio_chips[0];
+
 	/* Hack for doing clock spreading on some machines PowerBooks and
 	 * iBooks. This implements the "platform-do-clockspreading" OF
 	 * property as decoded manually on various models. For safety, we also
@@ -1706,9 +1708,6 @@ core99_sleep(void)
 	if (macio->type != macio_keylargo && macio->type != macio_pangea &&
 	    macio->type != macio_intrepid)
 		return -ENODEV;
-
-	/* Disable clock spreading */
-	pmac_tweak_clock_spreading(macio, 0);
 
 	/* We power off the wireless slot in case it was not done
 	 * by the driver. We don't power it on automatically however
@@ -1851,9 +1850,6 @@ core99_wake_up(void)
 
 	UN_OUT(UNI_N_CLOCK_CNTL, save_unin_clock_ctl);
 	udelay(100);
-
-	/* Enable clock spreading */
-	pmac_tweak_clock_spreading(macio, 1);
 
 	return 0;
 }
@@ -2822,7 +2818,7 @@ set_initial_features(void)
 	 * clock spreading now. This should be a platform function but we
 	 * don't do these at the moment
 	 */
-	pmac_tweak_clock_spreading(&macio_chips[0], 1);
+	pmac_tweak_clock_spreading(1);
 
 #endif /* CONFIG_POWER4 */
 
