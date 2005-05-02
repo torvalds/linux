@@ -1051,10 +1051,7 @@ static int init_substream_urbs(snd_usb_substream_t *subs, unsigned int period_by
 			u->urb->pipe = subs->syncpipe;
 			u->urb->transfer_flags = URB_ISO_ASAP;
 			u->urb->number_of_packets = u->packets;
-			if (snd_usb_get_speed(subs->dev) == USB_SPEED_HIGH)
-				u->urb->interval = 8;
-			else
-				u->urb->interval = 1;
+			u->urb->interval = 1 << subs->syncinterval;
 			u->urb->context = u;
 			u->urb->complete = snd_usb_complete_callback(snd_complete_sync_urb);
 		}
@@ -1272,7 +1269,12 @@ static int set_format(snd_usb_substream_t *subs, struct audioformat *fmt)
 			subs->syncpipe = usb_rcvisocpipe(dev, ep);
 		else
 			subs->syncpipe = usb_sndisocpipe(dev, ep);
-		subs->syncinterval = get_endpoint(alts, 1)->bRefresh;
+		if (get_endpoint(alts, 1)->bLength >= USB_DT_ENDPOINT_AUDIO_SIZE &&
+		    get_endpoint(alts, 1)->bRefresh >= 1 &&
+		    get_endpoint(alts, 1)->bRefresh <= 9)
+			subs->syncinterval = get_endpoint(alts, 1)->bRefresh;
+		else
+			subs->syncinterval = 1;
 	}
 
 	/* always fill max packet size */
