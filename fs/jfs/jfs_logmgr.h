@@ -508,5 +508,6 @@ extern int lmLogShutdown(struct jfs_log * log);
 extern int lmLogInit(struct jfs_log * log);
 extern int lmLogFormat(struct jfs_log *log, s64 logAddress, int logSize);
 extern void jfs_flush_journal(struct jfs_log * log, int wait);
+extern void jfs_syncpt(struct jfs_log *log);
 
 #endif				/* _H_JFS_LOGMGR */

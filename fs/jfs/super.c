@@ -558,8 +558,10 @@ static int jfs_sync_fs(struct super_block *sb, int wait)
 	struct jfs_log *log = JFS_SBI(sb)->log;
 
 	/* log == NULL indicates read-only mount */
-	if (log)
+	if (log) {
 		jfs_flush_journal(log, wait);
+		jfs_syncpt(log);
+	}
 
 	return 0;
 }

@@ -927,9 +927,8 @@ static void lmPostGC(struct lbuf * bp)
  *	calculate new value of i_nextsync which determines when
  *	this code is called again.
  *
- *	this is called only from lmLog().
- *
- * PARAMETER:	ip	- pointer to logs inode.
+ * PARAMETERS:	log	- log structure
+ * 		nosyncwait - 1 if called asynchronously
  *
  * RETURN:	0
  *			
@@ -1051,6 +1050,18 @@ static int lmLogSync(struct jfs_log * log, int nosyncwait)
 	return lsn;
 }
 
+/*
+ * NAME:	jfs_syncpt
+ *
+ * FUNCTION:	write log SYNCPT record for specified log
+ *
+ * PARAMETERS:	log	- log structure
+ */
+void jfs_syncpt(struct jfs_log *log)
+{	LOG_LOCK(log);
+	lmLogSync(log, 1);
+	LOG_UNLOCK(log);
+}
 
 /*
  * NAME:	lmLogOpen()
