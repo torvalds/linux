@@ -463,9 +463,10 @@ struct lbuf {
 
 	s64 l_blkno;		/* 8: log page block number */
 	caddr_t l_ldata;	/* 4: data page */
+	struct page *l_page;	/* The page itself */
+	uint l_offset;		/* Offset of l_ldata within the page */	
 
 	wait_queue_head_t l_ioevent;	/* 4: i/o done event */
-	struct page *l_page;	/* The page itself */
 };
 
 /* Reuse l_freelist for redrive list */

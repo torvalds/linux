@@ -1669,6 +1669,7 @@ int lmLogShutdown(struct jfs_log * log)
 	lp->h.eor = lp->t.eor = cpu_to_le16(bp->l_eor);
 	lbmWrite(log, log->bp, lbmWRITE | lbmRELEASE | lbmSYNC, 0);
 	lbmIOWait(log->bp, lbmFREE);
+	log->bp = NULL;
 
 	/*
 	 * synchronous update log superblock
@@ -1819,20 +1820,34 @@ static int lbmLogInit(struct jfs_log * log)
 
 	log->lbuf_free = NULL;
 
-	for (i = 0; i < LOGPAGES; i++) {
-		lbuf = kmalloc(sizeof(struct lbuf), GFP_KERNEL);
-		if (lbuf == 0)
-			goto error;
-		lbuf->l_ldata = (char *) get_zeroed_page(GFP_KERNEL);
-		if (lbuf->l_ldata == 0) {
-			kfree(lbuf);
-			goto error;
-		}
-		lbuf->l_log = log;
-		init_waitqueue_head(&lbuf->l_ioevent);
+	for (i = 0; i < LOGPAGES;) {
+		char *buffer;
+		uint offset;
+		struct page *page;
 
-		lbuf->l_freelist = log->lbuf_free;
-		log->lbuf_free = lbuf;
+		buffer = (char *) get_zeroed_page(GFP_KERNEL);
+		if (buffer == NULL)
+			goto error;
+		page = virt_to_page(buffer);
+		for (offset = 0; offset < PAGE_SIZE; offset += LOGPSIZE) {
+			lbuf = kmalloc(sizeof(struct lbuf), GFP_KERNEL);
+			if (lbuf == NULL) {
+				if (offset == 0)
+					free_page((unsigned long) buffer);
+				goto error;
+			}
+			if (offset) /* we already have one reference */
+				get_page(page);
+			lbuf->l_offset = offset;
+			lbuf->l_ldata = buffer + offset;
+			lbuf->l_page = page;
+			lbuf->l_log = log;
+			init_waitqueue_head(&lbuf->l_ioevent);
+
+			lbuf->l_freelist = log->lbuf_free;
+			log->lbuf_free = lbuf;
+			i++;
+		}
 	}
 
 	return (0);
@@ -1857,12 +1872,10 @@ static void lbmLogShutdown(struct jfs_log * log)
 	lbuf = log->lbuf_free;
 	while (lbuf) {
 		struct lbuf *next = lbuf->l_freelist;
-		free_page((unsigned long) lbuf->l_ldata);
+		__free_page(lbuf->l_page);
 		kfree(lbuf);
 		lbuf = next;
 	}
-
-	log->bp = NULL;
 }
 
 
@@ -1974,9 +1987,9 @@ static int lbmRead(struct jfs_log * log, int pn, struct lbuf ** bpp)
 
 	bio->bi_sector = bp->l_blkno << (log->l2bsize - 9);
 	bio->bi_bdev = log->bdev;
-	bio->bi_io_vec[0].bv_page = virt_to_page(bp->l_ldata);
+	bio->bi_io_vec[0].bv_page = bp->l_page;
 	bio->bi_io_vec[0].bv_len = LOGPSIZE;
-	bio->bi_io_vec[0].bv_offset = 0;
+	bio->bi_io_vec[0].bv_offset = bp->l_offset;
 
 	bio->bi_vcnt = 1;
 	bio->bi_idx = 0;
@@ -2115,9 +2128,9 @@ static void lbmStartIO(struct lbuf * bp)
 	bio = bio_alloc(GFP_NOFS, 1);
 	bio->bi_sector = bp->l_blkno << (log->l2bsize - 9);
 	bio->bi_bdev = log->bdev;
-	bio->bi_io_vec[0].bv_page = virt_to_page(bp->l_ldata);
+	bio->bi_io_vec[0].bv_page = bp->l_page;
 	bio->bi_io_vec[0].bv_len = LOGPSIZE;
-	bio->bi_io_vec[0].bv_offset = 0;
+	bio->bi_io_vec[0].bv_offset = bp->l_offset;
 
 	bio->bi_vcnt = 1;
 	bio->bi_idx = 0;
@@ -2127,15 +2140,12 @@ static void lbmStartIO(struct lbuf * bp)
 	bio->bi_private = bp;
 
 	/* check if journaling to disk has been disabled */
-	if (!log->no_integrity) {
+	if (log->no_integrity) {
+		bio->bi_size = 0;
+		lbmIODone(bio, 0, 0);
+	} else {
 		submit_bio(WRITE_SYNC, bio);
 		INCREMENT(lmStat.submitted);
-	}
-	else {
-		bio->bi_size = 0;
-		lbmIODone(bio, 0, 0); /* 2nd argument appears to not be used => 0
-				       *  3rd argument appears to not be used => 0
-				       */
 	}
 }
 

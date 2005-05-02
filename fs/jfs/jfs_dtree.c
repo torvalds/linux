@@ -3181,7 +3181,7 @@ int jfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 			d = (struct ldtentry *) & p->slot[stbl[i]];
 
 			if (((long) jfs_dirent + d->namlen + 1) >
-			    (dirent_buf + PSIZE)) {
+			    (dirent_buf + PAGE_SIZE)) {
 				/* DBCS codepages could overrun dirent_buf */
 				index = i;
 				overflow = 1;
