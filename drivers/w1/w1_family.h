@@ -27,7 +27,8 @@
 #include <asm/atomic.h>
 
 #define W1_FAMILY_DEFAULT	0
-#define W1_FAMILY_SMEM		0x01
+#define W1_FAMILY_SMEM_01	0x01
+#define W1_FAMILY_SMEM_81	0x81
 #define W1_THERM_DS18S20 	0x10
 #define W1_THERM_DS1822  	0x22
 #define W1_THERM_DS18B20 	0x28
