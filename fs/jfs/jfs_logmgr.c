@@ -234,6 +234,7 @@ int lmLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 	int lsn;
 	int diffp, difft;
 	struct metapage *mp = NULL;
+	unsigned long flags;
 
 	jfs_info("lmLog: log:0x%p tblk:0x%p, lrd:0x%p tlck:0x%p",
 		 log, tblk, lrd, tlck);
@@ -254,7 +255,7 @@ int lmLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 	 */
 	lsn = log->lsn;
 
-	LOGSYNC_LOCK(log);
+	LOGSYNC_LOCK(log, flags);
 
 	/*
 	 * initialize page lsn if first log write of the page
@@ -310,7 +311,7 @@ int lmLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 		}
 	}
 
-	LOGSYNC_UNLOCK(log);
+	LOGSYNC_UNLOCK(log, flags);
 
 	/*
 	 *      write the log record
@@ -333,7 +334,6 @@ int lmLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 	/* return end-of-log address */
 	return lsn;
 }
-
 
 /*
  * NAME:	lmWriteRecord()
@@ -945,6 +945,15 @@ static int lmLogSync(struct jfs_log * log, int nosyncwait)
 	struct lrd lrd;
 	int lsn;
 	struct logsyncblk *lp;
+	struct jfs_sb_info *sbi;
+	unsigned long flags;
+
+	/* push dirty metapages out to disk */
+	list_for_each_entry(sbi, &log->sb_list, log_list) {
+		filemap_flush(sbi->ipbmap->i_mapping);
+		filemap_flush(sbi->ipimap->i_mapping);
+		filemap_flush(sbi->direct_inode->i_mapping);
+	}
 
 	/*
 	 *      forward syncpt
@@ -954,10 +963,7 @@ static int lmLogSync(struct jfs_log * log, int nosyncwait)
 	 */
 
 	if (log->sync == log->syncpt) {
-		LOGSYNC_LOCK(log);
-		/* ToDo: push dirty metapages out to disk */
-//              bmLogSync(log);
-
+		LOGSYNC_LOCK(log, flags);
 		if (list_empty(&log->synclist))
 			log->sync = log->lsn;
 		else {
@@ -965,7 +971,7 @@ static int lmLogSync(struct jfs_log * log, int nosyncwait)
 					struct logsyncblk, synclist);
 			log->sync = lp->lsn;
 		}
-		LOGSYNC_UNLOCK(log);
+		LOGSYNC_UNLOCK(log, flags);
 
 	}
 
@@ -974,27 +980,6 @@ static int lmLogSync(struct jfs_log * log, int nosyncwait)
 	 * reset syncpt = sync
 	 */
 	if (log->sync != log->syncpt) {
-		struct jfs_sb_info *sbi;
-
-		/*
-		 * We need to make sure all of the "written" metapages
-		 * actually make it to disk
-		 */
-		list_for_each_entry(sbi, &log->sb_list, log_list) {
-			if (sbi->flag & JFS_NOINTEGRITY)
-				continue;
-			filemap_fdatawrite(sbi->ipbmap->i_mapping);
-			filemap_fdatawrite(sbi->ipimap->i_mapping);
-			filemap_fdatawrite(sbi->sb->s_bdev->bd_inode->i_mapping);
-		}
-		list_for_each_entry(sbi, &log->sb_list, log_list) {
-			if (sbi->flag & JFS_NOINTEGRITY)
-				continue;
-			filemap_fdatawait(sbi->ipbmap->i_mapping);
-			filemap_fdatawait(sbi->ipimap->i_mapping);
-			filemap_fdatawait(sbi->sb->s_bdev->bd_inode->i_mapping);
-		}
-
 		lrd.logtid = 0;
 		lrd.backchain = 0;
 		lrd.type = cpu_to_le16(LOG_SYNCPT);
@@ -1547,6 +1532,7 @@ void jfs_flush_journal(struct jfs_log *log, int wait)
 {
 	int i;
 	struct tblock *target = NULL;
+	struct jfs_sb_info *sbi;
 
 	/* jfs_write_inode may call us during read-only mount */
 	if (!log)
@@ -1608,12 +1594,18 @@ void jfs_flush_journal(struct jfs_log *log, int wait)
 	if (wait < 2)
 		return;
 
+	list_for_each_entry(sbi, &log->sb_list, log_list) {
+		filemap_fdatawrite(sbi->ipbmap->i_mapping);
+		filemap_fdatawrite(sbi->ipimap->i_mapping);
+		filemap_fdatawrite(sbi->direct_inode->i_mapping);
+	}
+
 	/*
 	 * If there was recent activity, we may need to wait
 	 * for the lazycommit thread to catch up
 	 */
 	if ((!list_empty(&log->cqueue)) || !list_empty(&log->synclist)) {
-		for (i = 0; i < 800; i++) {	/* Too much? */
+		for (i = 0; i < 200; i++) {	/* Too much? */
 			msleep(250);
 			if (list_empty(&log->cqueue) &&
 			    list_empty(&log->synclist))
@@ -1621,7 +1613,24 @@ void jfs_flush_journal(struct jfs_log *log, int wait)
 		}
 	}
 	assert(list_empty(&log->cqueue));
-	assert(list_empty(&log->synclist));
+	if (!list_empty(&log->synclist)) {
+		struct logsyncblk *lp;
+
+		list_for_each_entry(lp, &log->synclist, synclist) {
+			if (lp->xflag & COMMIT_PAGE) {
+				struct metapage *mp = (struct metapage *)lp;
+				dump_mem("orphan metapage", lp,
+					 sizeof(struct metapage));
+				dump_mem("page", mp->page, sizeof(struct page));
+			}
+			else
+				dump_mem("orphan tblock", lp,
+					 sizeof(struct tblock));
+		}
+//		current->state = TASK_INTERRUPTIBLE;
+//		schedule();
+	}
+	//assert(list_empty(&log->synclist));
 	clear_bit(log_FLUSH, &log->flag);
 }
 

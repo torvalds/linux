@@ -165,6 +165,7 @@ struct jfs_sb_info {
         /* Formerly in ipbmap */
 	struct bmap	*bmap;		/* incore bmap descriptor	*/
 	struct nls_table *nls_tab;	/* current codepage		*/
+	struct inode *direct_inode;	/* metadata inode */
 	uint		state;		/* mount/recovery state	*/
 	unsigned long	flag;		/* mount time flags */
 	uint		p_state;	/* state prior to going no integrity */

@@ -502,7 +502,7 @@ struct inode *diReadSpecial(struct super_block *sb, ino_t inum, int secondary)
 
 	}
 
-	ip->i_mapping->a_ops = &jfs_aops;
+	ip->i_mapping->a_ops = &jfs_metapage_aops;
 	mapping_set_gfp_mask(ip->i_mapping, GFP_NOFS);
 
 	/* Allocations to metadata inodes should not affect quotas */
@@ -2791,6 +2791,7 @@ diUpdatePMap(struct inode *ipimap,
 	u32 mask;
 	struct jfs_log *log;
 	int lsn, difft, diffp;
+	unsigned long flags;
 
 	imap = JFS_IP(ipimap)->i_imap;
 	/* get the iag number containing the inode */
@@ -2807,6 +2808,7 @@ diUpdatePMap(struct inode *ipimap,
 	IREAD_UNLOCK(ipimap);
 	if (rc)
 		return (rc);
+	metapage_wait_for_io(mp);
 	iagp = (struct iag *) mp->data;
 	/* get the inode number and extent number of the inode within
 	 * the iag and the inode number within the extent.
@@ -2870,30 +2872,28 @@ diUpdatePMap(struct inode *ipimap,
 		/* inherit older/smaller lsn */
 		logdiff(difft, lsn, log);
 		logdiff(diffp, mp->lsn, log);
+		LOGSYNC_LOCK(log, flags);
 		if (difft < diffp) {
 			mp->lsn = lsn;
 			/* move mp after tblock in logsync list */
-			LOGSYNC_LOCK(log);
 			list_move(&mp->synclist, &tblk->synclist);
-			LOGSYNC_UNLOCK(log);
 		}
 		/* inherit younger/larger clsn */
-		LOGSYNC_LOCK(log);
 		assert(mp->clsn);
 		logdiff(difft, tblk->clsn, log);
 		logdiff(diffp, mp->clsn, log);
 		if (difft > diffp)
 			mp->clsn = tblk->clsn;
-		LOGSYNC_UNLOCK(log);
+		LOGSYNC_UNLOCK(log, flags);
 	} else {
 		mp->log = log;
 		mp->lsn = lsn;
 		/* insert mp after tblock in logsync list */
-		LOGSYNC_LOCK(log);
+		LOGSYNC_LOCK(log, flags);
 		log->count++;
 		list_add(&mp->synclist, &tblk->synclist);
 		mp->clsn = tblk->clsn;
-		LOGSYNC_UNLOCK(log);
+		LOGSYNC_UNLOCK(log, flags);
 	}
 	write_metapage(mp);
 	return (0);

@@ -227,6 +227,7 @@ static lid_t txLockAlloc(void)
 
 static void txLockFree(lid_t lid)
 {
+	TxLock[lid].tid = 0;
 	TxLock[lid].next = TxAnchor.freelock;
 	TxAnchor.freelock = lid;
 	TxAnchor.tlocksInUse--;
@@ -633,8 +634,10 @@ struct tlock *txLock(tid_t tid, struct inode *ip, struct metapage * mp,
 
 	/* is page locked by the requester transaction ? */
 	tlck = lid_to_tlock(lid);
-	if ((xtid = tlck->tid) == tid)
+	if ((xtid = tlck->tid) == tid) {
+		TXN_UNLOCK();
 		goto grantLock;
+	}
 
 	/*
 	 * is page locked by anonymous transaction/lock ?
@@ -649,6 +652,7 @@ struct tlock *txLock(tid_t tid, struct inode *ip, struct metapage * mp,
 	 */
 	if (xtid == 0) {
 		tlck->tid = tid;
+		TXN_UNLOCK();
 		tblk = tid_to_tblock(tid);
 		/*
 		 * The order of the tlocks in the transaction is important
@@ -706,17 +710,18 @@ struct tlock *txLock(tid_t tid, struct inode *ip, struct metapage * mp,
 	 */
 	tlck->tid = tid;
 
+	TXN_UNLOCK();
+
 	/* mark tlock for meta-data page */
 	if (mp->xflag & COMMIT_PAGE) {
 
 		tlck->flag = tlckPAGELOCK;
 
 		/* mark the page dirty and nohomeok */
-		mark_metapage_dirty(mp);
-		atomic_inc(&mp->nohomeok);
+		metapage_nohomeok(mp);
 
 		jfs_info("locking mp = 0x%p, nohomeok = %d tid = %d tlck = 0x%p",
-			 mp, atomic_read(&mp->nohomeok), tid, tlck);
+			 mp, mp->nohomeok, tid, tlck);
 
 		/* if anonymous transaction, and buffer is on the group
 		 * commit synclist, mark inode to show this.  This will
@@ -762,8 +767,10 @@ struct tlock *txLock(tid_t tid, struct inode *ip, struct metapage * mp,
 		if (tlck->next == 0) {
 			/* This inode's first anonymous transaction */
 			jfs_ip->atltail = lid;
+			TXN_LOCK();
 			list_add_tail(&jfs_ip->anon_inode_list,
 				      &TxAnchor.anon_list);
+			TXN_UNLOCK();
 		}
 	}
 
@@ -821,8 +828,6 @@ struct tlock *txLock(tid_t tid, struct inode *ip, struct metapage * mp,
       grantLock:
 	tlck->type |= type;
 
-	TXN_UNLOCK();
-
 	return tlck;
 
 	/*
@@ -841,11 +846,19 @@ struct tlock *txLock(tid_t tid, struct inode *ip, struct metapage * mp,
 		BUG();
 	}
 	INCREMENT(stattx.waitlock);	/* statistics */
+	TXN_UNLOCK();
 	release_metapage(mp);
+	TXN_LOCK();
+	xtid = tlck->tid;	/* reaquire after dropping TXN_LOCK */
 
 	jfs_info("txLock: in waitLock, tid = %d, xtid = %d, lid = %d",
 		 tid, xtid, lid);
-	TXN_SLEEP_DROP_LOCK(&tid_to_tblock(xtid)->waitor);
+
+	/* Recheck everything since dropping TXN_LOCK */
+	if (xtid && (tlck->mp == mp) && (mp->lid == lid))
+		TXN_SLEEP_DROP_LOCK(&tid_to_tblock(xtid)->waitor);
+	else
+		TXN_UNLOCK();
 	jfs_info("txLock: awakened     tid = %d, lid = %d", tid, lid);
 
 	return NULL;
@@ -906,6 +919,7 @@ static void txUnlock(struct tblock * tblk)
 	struct metapage *mp;
 	struct jfs_log *log;
 	int difft, diffp;
+	unsigned long flags;
 
 	jfs_info("txUnlock: tblk = 0x%p", tblk);
 	log = JFS_SBI(tblk->sb)->log;
@@ -925,19 +939,14 @@ static void txUnlock(struct tblock * tblk)
 			assert(mp->xflag & COMMIT_PAGE);
 
 			/* hold buffer
-			 *
-			 * It's possible that someone else has the metapage.
-			 * The only things were changing are nohomeok, which
-			 * is handled atomically, and clsn which is protected
-			 * by the LOGSYNC_LOCK.
 			 */
-			hold_metapage(mp, 1);
+			hold_metapage(mp);
 
-			assert(atomic_read(&mp->nohomeok) > 0);
-			atomic_dec(&mp->nohomeok);
+			assert(mp->nohomeok > 0);
+			_metapage_homeok(mp);
 
 			/* inherit younger/larger clsn */
-			LOGSYNC_LOCK(log);
+			LOGSYNC_LOCK(log, flags);
 			if (mp->clsn) {
 				logdiff(difft, tblk->clsn, log);
 				logdiff(diffp, mp->clsn, log);
@@ -945,16 +954,11 @@ static void txUnlock(struct tblock * tblk)
 					mp->clsn = tblk->clsn;
 			} else
 				mp->clsn = tblk->clsn;
-			LOGSYNC_UNLOCK(log);
+			LOGSYNC_UNLOCK(log, flags);
 
 			assert(!(tlck->flag & tlckFREEPAGE));
 
-			if (tlck->flag & tlckWRITEPAGE) {
-				write_metapage(mp);
-			} else {
-				/* release page which has been forced */
-				release_metapage(mp);
-			}
+			put_metapage(mp);
 		}
 
 		/* insert tlock, and linelock(s) of the tlock if any,
@@ -981,10 +985,10 @@ static void txUnlock(struct tblock * tblk)
 	 * has been inserted in logsync list at txUpdateMap())
 	 */
 	if (tblk->lsn) {
-		LOGSYNC_LOCK(log);
+		LOGSYNC_LOCK(log, flags);
 		log->count--;
 		list_del(&tblk->synclist);
-		LOGSYNC_UNLOCK(log);
+		LOGSYNC_UNLOCK(log, flags);
 	}
 }
 
@@ -1573,8 +1577,8 @@ static int dataLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 		 * the last entry, so don't bother logging this
 		 */
 		mp->lid = 0;
-		hold_metapage(mp, 0);
-		atomic_dec(&mp->nohomeok);
+		grab_metapage(mp);
+		metapage_homeok(mp);
 		discard_metapage(mp);
 		tlck->mp = NULL;
 		return 0;
@@ -2270,7 +2274,8 @@ void txForce(struct tblock * tblk)
 				tlck->flag &= ~tlckWRITEPAGE;
 
 				/* do not release page to freelist */
-
+				force_metapage(mp);
+#if 0
 				/*
 				 * The "right" thing to do here is to
 				 * synchronously write the metadata.
@@ -2282,9 +2287,10 @@ void txForce(struct tblock * tblk)
 				 * we can get by with synchronously writing
 				 * the pages when they are released.
 				 */
-				assert(atomic_read(&mp->nohomeok));
+				assert(mp->nohomeok);
 				set_bit(META_dirty, &mp->flag);
 				set_bit(META_sync, &mp->flag);
+#endif
 			}
 		}
 	}
@@ -2344,7 +2350,7 @@ static void txUpdateMap(struct tblock * tblk)
 			 */
 			mp = tlck->mp;
 			ASSERT(mp->xflag & COMMIT_PAGE);
-			hold_metapage(mp, 0);
+			grab_metapage(mp);
 		}
 
 		/*
@@ -2394,8 +2400,8 @@ static void txUpdateMap(struct tblock * tblk)
 				ASSERT(mp->lid == lid);
 				tlck->mp->lid = 0;
 			}
-			assert(atomic_read(&mp->nohomeok) == 1);
-			atomic_dec(&mp->nohomeok);
+			assert(mp->nohomeok == 1);
+			metapage_homeok(mp);
 			discard_metapage(mp);
 			tlck->mp = NULL;
 		}
@@ -2861,24 +2867,9 @@ static void LogSyncRelease(struct metapage * mp)
 {
 	struct jfs_log *log = mp->log;
 
-	assert(atomic_read(&mp->nohomeok));
+	assert(mp->nohomeok);
 	assert(log);
-	atomic_dec(&mp->nohomeok);
-
-	if (atomic_read(&mp->nohomeok))
-		return;
-
-	hold_metapage(mp, 0);
-
-	LOGSYNC_LOCK(log);
-	mp->log = NULL;
-	mp->lsn = 0;
-	mp->clsn = 0;
-	log->count--;
-	list_del_init(&mp->synclist);
-	LOGSYNC_UNLOCK(log);
-
-	release_metapage(mp);
+	metapage_homeok(mp);
 }
 
 /*

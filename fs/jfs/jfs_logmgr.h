@@ -490,8 +490,9 @@ struct logsyncblk {
  */
 
 #define LOGSYNC_LOCK_INIT(log) spin_lock_init(&(log)->synclock)
-#define LOGSYNC_LOCK(log) spin_lock(&(log)->synclock)
-#define LOGSYNC_UNLOCK(log) spin_unlock(&(log)->synclock)
+#define LOGSYNC_LOCK(log, flags) spin_lock_irqsave(&(log)->synclock, flags)
+#define LOGSYNC_UNLOCK(log, flags) \
+	spin_unlock_irqrestore(&(log)->synclock, flags)
 
 /* compute the difference in bytes of lsn from sync point */
 #define logdiff(diff, lsn, log)\

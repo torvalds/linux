@@ -210,6 +210,10 @@ static void jfs_put_super(struct super_block *sb)
 		unload_nls(sbi->nls_tab);
 	sbi->nls_tab = NULL;
 
+	truncate_inode_pages(sbi->direct_inode->i_mapping, 0);
+	iput(sbi->direct_inode);
+	sbi->direct_inode = NULL;
+
 	kfree(sbi);
 }
 
@@ -358,6 +362,12 @@ static int jfs_remount(struct super_block *sb, int *flags, char *data)
 	}
 
 	if ((sb->s_flags & MS_RDONLY) && !(*flags & MS_RDONLY)) {
+		/*
+		 * Invalidate any previously read metadata.  fsck may have
+		 * changed the on-disk data since we mounted r/o
+		 */
+		truncate_inode_pages(JFS_SBI(sb)->direct_inode->i_mapping, 0);
+
 		JFS_SBI(sb)->flag = flag;
 		return jfs_mount_rw(sb, 1);
 	}
@@ -428,12 +438,26 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_op = &jfs_super_operations;
 	sb->s_export_op = &jfs_export_operations;
 
+	/*
+	 * Initialize direct-mapping inode/address-space
+	 */
+	inode = new_inode(sb);
+	if (inode == NULL)
+		goto out_kfree;
+	inode->i_ino = 0;
+	inode->i_nlink = 1;
+	inode->i_size = sb->s_bdev->bd_inode->i_size;
+	inode->i_mapping->a_ops = &jfs_metapage_aops;
+	mapping_set_gfp_mask(inode->i_mapping, GFP_NOFS);
+
+	sbi->direct_inode = inode;
+
 	rc = jfs_mount(sb);
 	if (rc) {
 		if (!silent) {
 			jfs_err("jfs_mount failed w/return code = %d", rc);
 		}
-		goto out_kfree;
+		goto out_mount_failed;
 	}
 	if (sb->s_flags & MS_RDONLY)
 		sbi->log = NULL;
@@ -482,6 +506,13 @@ out_no_rw:
 	if (rc) {
 		jfs_err("jfs_umount failed with return code %d", rc);
 	}
+out_mount_failed:
+	filemap_fdatawrite(sbi->direct_inode->i_mapping);
+	filemap_fdatawait(sbi->direct_inode->i_mapping);
+	truncate_inode_pages(sbi->direct_inode->i_mapping, 0);
+	make_bad_inode(sbi->direct_inode);
+	iput(sbi->direct_inode);
+	sbi->direct_inode = NULL;
 out_kfree:
 	if (sbi->nls_tab)
 		unload_nls(sbi->nls_tab);

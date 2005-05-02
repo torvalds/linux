@@ -209,6 +209,9 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 	 */
 	txQuiesce(sb);
 
+	/* Reset size of direct inode */
+	sbi->direct_inode->i_size =  sb->s_bdev->bd_inode->i_size;
+
 	if (sbi->mntflag & JFS_INLINELOG) {
 		/*
 		 * deactivate old inline log
