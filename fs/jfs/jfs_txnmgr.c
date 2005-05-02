@@ -1712,7 +1712,7 @@ static void xtLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 	struct maplock *maplock;
 	struct xdlistlock *xadlock;
 	struct pxd_lock *pxdlock;
-	pxd_t *pxd;
+	pxd_t *page_pxd;
 	int next, lwm, hwm;
 
 	ip = tlck->ip;
@@ -1722,7 +1722,7 @@ static void xtLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 	lrd->log.redopage.type = cpu_to_le16(LOG_XTREE);
 	lrd->log.redopage.l2linesize = cpu_to_le16(L2XTSLOTSIZE);
 
-	pxd = &lrd->log.redopage.pxd;
+	page_pxd = &lrd->log.redopage.pxd;
 
 	if (tlck->type & tlckBTROOT) {
 		lrd->log.redopage.type |= cpu_to_le16(LOG_BTROOT);
@@ -1752,9 +1752,9 @@ static void xtLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 		 * applying the after-image to the meta-data page.
 		 */
 		lrd->type = cpu_to_le16(LOG_REDOPAGE);
-//              *pxd = mp->cm_pxd;
-		PXDaddress(pxd, mp->index);
-		PXDlength(pxd,
+//              *page_pxd = mp->cm_pxd;
+		PXDaddress(page_pxd, mp->index);
+		PXDlength(page_pxd,
 			  mp->logical_size >> tblk->sb->s_blocksize_bits);
 		lrd->backchain = cpu_to_le32(lmLog(log, tblk, lrd, tlck));
 
@@ -1776,25 +1776,31 @@ static void xtLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 		tlck->flag |= tlckUPDATEMAP;
 		xadlock->flag = mlckALLOCXADLIST;
 		xadlock->count = next - lwm;
-		if ((xadlock->count <= 2) && (tblk->xflag & COMMIT_LAZY)) {
+		if ((xadlock->count <= 4) && (tblk->xflag & COMMIT_LAZY)) {
 			int i;
+			pxd_t *pxd;
 			/*
 			 * Lazy commit may allow xtree to be modified before
 			 * txUpdateMap runs.  Copy xad into linelock to
 			 * preserve correct data.
+			 *
+			 * We can fit twice as may pxd's as xads in the lock
 			 */
-			xadlock->xdlist = &xtlck->pxdlock;
-			memcpy(xadlock->xdlist, &p->xad[lwm],
-			       sizeof(xad_t) * xadlock->count);
-
-			for (i = 0; i < xadlock->count; i++)
+			xadlock->flag = mlckALLOCPXDLIST;
+			pxd = xadlock->xdlist = &xtlck->pxdlock;
+			for (i = 0; i < xadlock->count; i++) {
+				PXDaddress(pxd, addressXAD(&p->xad[lwm + i]));
+				PXDlength(pxd, lengthXAD(&p->xad[lwm + i]));
 				p->xad[lwm + i].flag &=
 				    ~(XAD_NEW | XAD_EXTENDED);
+				pxd++;
+			}
 		} else {
 			/*
 			 * xdlist will point to into inode's xtree, ensure
 			 * that transaction is not committed lazily.
 			 */
+			xadlock->flag = mlckALLOCXADLIST;
 			xadlock->xdlist = &p->xad[lwm];
 			tblk->xflag &= ~COMMIT_LAZY;
 		}
@@ -1836,8 +1842,8 @@ static void xtLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 		if (tblk->xflag & COMMIT_TRUNCATE) {
 			/* write NOREDOPAGE for the page */
 			lrd->type = cpu_to_le16(LOG_NOREDOPAGE);
-			PXDaddress(pxd, mp->index);
-			PXDlength(pxd,
+			PXDaddress(page_pxd, mp->index);
+			PXDlength(page_pxd,
 				  mp->logical_size >> tblk->sb->
 				  s_blocksize_bits);
 			lrd->backchain =
@@ -1872,22 +1878,32 @@ static void xtLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 		 * deleted page itself;
 		 */
 		tlck->flag |= tlckUPDATEMAP;
-		xadlock->flag = mlckFREEXADLIST;
 		xadlock->count = hwm - XTENTRYSTART + 1;
-		if ((xadlock->count <= 2) && (tblk->xflag & COMMIT_LAZY)) {
+		if ((xadlock->count <= 4) && (tblk->xflag & COMMIT_LAZY)) {
+			int i;
+			pxd_t *pxd;
 			/*
 			 * Lazy commit may allow xtree to be modified before
 			 * txUpdateMap runs.  Copy xad into linelock to
 			 * preserve correct data.
+			 *
+			 * We can fit twice as may pxd's as xads in the lock
 			 */
-			xadlock->xdlist = &xtlck->pxdlock;
-			memcpy(xadlock->xdlist, &p->xad[XTENTRYSTART],
-			       sizeof(xad_t) * xadlock->count);
+			xadlock->flag = mlckFREEPXDLIST;
+			pxd = xadlock->xdlist = &xtlck->pxdlock;
+			for (i = 0; i < xadlock->count; i++) {
+				PXDaddress(pxd,
+					addressXAD(&p->xad[XTENTRYSTART + i]));
+				PXDlength(pxd,
+					lengthXAD(&p->xad[XTENTRYSTART + i]));
+				pxd++;
+			}
 		} else {
 			/*
 			 * xdlist will point to into inode's xtree, ensure
 			 * that transaction is not committed lazily.
 			 */
+			xadlock->flag = mlckFREEXADLIST;
 			xadlock->xdlist = &p->xad[XTENTRYSTART];
 			tblk->xflag &= ~COMMIT_LAZY;
 		}
@@ -1918,7 +1934,7 @@ static void xtLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 	 * header ?
 	 */
 	if (tlck->type & tlckTRUNCATE) {
-		pxd_t tpxd;	/* truncated extent of xad */
+		pxd_t pxd;	/* truncated extent of xad */
 		int twm;
 
 		/*
@@ -1947,8 +1963,9 @@ static void xtLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 		 * applying the after-image to the meta-data page.
 		 */
 		lrd->type = cpu_to_le16(LOG_REDOPAGE);
-		PXDaddress(pxd, mp->index);
-		PXDlength(pxd, mp->logical_size >> tblk->sb->s_blocksize_bits);
+		PXDaddress(page_pxd, mp->index);
+		PXDlength(page_pxd,
+			  mp->logical_size >> tblk->sb->s_blocksize_bits);
 		lrd->backchain = cpu_to_le32(lmLog(log, tblk, lrd, tlck));
 
 		/*
@@ -1966,7 +1983,7 @@ static void xtLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 			lrd->log.updatemap.type = cpu_to_le16(LOG_FREEPXD);
 			lrd->log.updatemap.nxd = cpu_to_le16(1);
 			lrd->log.updatemap.pxd = pxdlock->pxd;
-			tpxd = pxdlock->pxd;	/* save to format maplock */
+			pxd = pxdlock->pxd;	/* save to format maplock */
 			lrd->backchain =
 			    cpu_to_le32(lmLog(log, tblk, lrd, NULL));
 		}
@@ -2035,7 +2052,7 @@ static void xtLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 			pxdlock = (struct pxd_lock *) xadlock;
 			pxdlock->flag = mlckFREEPXD;
 			pxdlock->count = 1;
-			pxdlock->pxd = tpxd;
+			pxdlock->pxd = pxd;
 
 			jfs_info("xtLog: truncate ip:0x%p mp:0x%p count:%d "
 				 "hwm:%d", ip, mp, pxdlock->count, hwm);
