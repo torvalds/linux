@@ -279,8 +279,7 @@ static int find_audio_gpio(const char *name, const char *platform,
 	if (! base) {
 		base = (u32 *)get_property(np, "reg", NULL);
 		if (!base) {
-			DBG("(E) cannot find address for device %s !\n", device);
-			snd_printd("cannot find address for device %s\n", device);
+			DBG("(E) cannot find address for device %s !\n", name);
 			return -ENODEV;
 		}
 		addr = *base;
