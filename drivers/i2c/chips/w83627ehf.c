@@ -450,7 +450,7 @@ store_fan_min(struct device *dev, const char *buf, size_t count, int nr)
 		data->fan_min[nr] = 1;
 		new_div = 0; /* 1 == (1 << 0) */
 		dev_warn(dev, "fan%u low limit %u above maximum %u, set to "
-			 "maximum\n", nr + 1, val, fan_from_reg(1, 0));
+			 "maximum\n", nr + 1, val, fan_from_reg(1, 1));
 	} else {
 		/* Automatically pick the best divider, i.e. the one such
 		   that the min limit will correspond to a register value
