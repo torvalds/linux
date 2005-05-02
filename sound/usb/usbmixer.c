@@ -39,6 +39,18 @@
 
 #include "usbaudio.h"
 
+#if 0
+#include <linux/lirc.h>
+#else
+/* only those symbols from lirc.h we actually need: */
+#include <linux/ioctl.h>
+#define LIRC_MODE2REC(x)	((x) << 16)
+#define LIRC_MODE_CODE		0x00000008
+#define LIRC_CAN_REC_CODE	LIRC_MODE2REC(LIRC_MODE_CODE)
+#define LIRC_GET_FEATURES	_IOR('i', 0x00000000, __u32)
+#define LIRC_GET_REC_MODE	_IOR('i', 0x00000002, __u32)
+#define LIRC_SET_REC_MODE	_IOW('i', 0x00000012, __u32)
+#endif
 
 /*
  */
@@ -1739,12 +1751,15 @@ static long snd_usb_sbrc_hwdep_read(snd_hwdep_t *hw, char __user *buf,
 	int err;
 	u32 rc_code;
 
-	if (count != 1)
+	if (count != 1 && count != 4)
 		return -EINVAL;
 	err = wait_event_interruptible(mixer->rc_waitq,
 				       (rc_code = xchg(&mixer->rc_code, 0)) != 0);
 	if (err == 0) {
-		err = put_user(rc_code, buf);
+		if (count == 1)
+			err = put_user(rc_code, buf);
+		else
+			err = put_user(rc_code, (u32 __user *)buf);
 	}
 	return err < 0 ? err : count;
 }
@@ -1756,6 +1771,25 @@ static unsigned int snd_usb_sbrc_hwdep_poll(snd_hwdep_t *hw, struct file *file,
 
 	poll_wait(file, &mixer->rc_waitq, wait);
 	return mixer->rc_code ? POLLIN | POLLRDNORM : 0;
+}
+
+static int snd_usb_sbrc_hwdep_ioctl(snd_hwdep_t *hw, struct file *file,
+				    unsigned int cmd, unsigned long arg)
+{
+	u32 __user *argp = (u32 __user *)arg;
+	u32 mode;
+
+	switch (cmd) {
+	case LIRC_GET_FEATURES:
+		return put_user(LIRC_CAN_REC_CODE, argp);
+	case LIRC_GET_REC_MODE:
+		return put_user(LIRC_MODE_CODE, argp);
+	case LIRC_SET_REC_MODE:
+		if (get_user(mode, argp))
+			return -EFAULT;
+		return mode == LIRC_MODE_CODE ? 0 : -ENOSYS;
+	}
+	return -ENOTTY;
 }
 
 static int snd_usb_soundblaster_remote_init(struct usb_mixer_interface *mixer)
@@ -1788,6 +1822,7 @@ static int snd_usb_soundblaster_remote_init(struct usb_mixer_interface *mixer)
 	hwdep->ops.open = snd_usb_sbrc_hwdep_open;
 	hwdep->ops.release = snd_usb_sbrc_hwdep_release;
 	hwdep->ops.poll = snd_usb_sbrc_hwdep_poll;
+	hwdep->ops.ioctl = snd_usb_sbrc_hwdep_ioctl; 
 
 	mixer->rc_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!mixer->rc_urb)
