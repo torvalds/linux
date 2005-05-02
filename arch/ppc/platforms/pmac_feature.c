@@ -2249,7 +2249,7 @@ static struct pmac_mb_def pmac_mb_defs[] __pmacdata = {
 	},
 	{	"PowerBook1,1",			"PowerBook 101 (Lombard)",
 		PMAC_TYPE_101_PBOOK,		paddington_features,
-		PMAC_MB_MAY_SLEEP | PMAC_MB_MOBILE
+		PMAC_MB_CAN_SLEEP | PMAC_MB_MOBILE
 	},
 	{	"PowerBook2,1",			"iBook (first generation)",
 		PMAC_TYPE_ORIG_IBOOK,		core99_features,
