@@ -2379,7 +2379,7 @@ EXPORT_SYMBOL(tmsdev_init);
 EXPORT_SYMBOL(tmsdev_term);
 EXPORT_SYMBOL(tms380tr_wait);
 
-struct module *TMS380_module = NULL;
+static struct module *TMS380_module = NULL;
 
 int init_module(void)
 {
@@ -2397,14 +2397,3 @@ void cleanup_module(void)
 
 MODULE_LICENSE("GPL");
 
-
-/*
- * Local variables:
- *  compile-command: "gcc -DMODVERSIONS  -DMODULE -D__KERNEL__ -Wall -Wstrict-prototypes -O6 -fomit-frame-pointer -I/usr/src/linux/drivers/net/tokenring/ -c tms380tr.c"
- *  alt-compile-command: "gcc -DMODULE -D__KERNEL__ -Wall -Wstrict-prototypes -O6 -fomit-frame-pointer -I/usr/src/linux/drivers/net/tokenring/ -c tms380tr.c"
- *  c-set-style "K&R"
- *  c-indent-level: 8
- *  c-basic-offset: 8
- *  tab-width: 8
- * End:
- */
