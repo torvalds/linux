@@ -118,6 +118,11 @@
 /* maximum number of endpoints per interface */
 #define MIDI_MAX_ENDPOINTS 2
 
+/* handling of USB vendor/product ID pairs as 32-bit numbers */
+#define USB_ID(vendor, product) (((vendor) << 16) | (product))
+#define USB_ID_VENDOR(id) ((id) >> 16)
+#define USB_ID_PRODUCT(id) ((u16)(id))
+
 /*
  */
 
@@ -127,6 +132,7 @@ struct snd_usb_audio {
 	int index;
 	struct usb_device *dev;
 	snd_card_t *card;
+	u32 usb_id;
 	int shutdown;
 	int num_interfaces;
 

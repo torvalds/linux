@@ -955,88 +955,87 @@ static snd_rawmidi_substream_t* snd_usbmidi_find_substream(snd_usb_midi_t* umidi
  * such as internal control or synthesizer ports.
  */
 static struct {
-	__u16 vendor;
-	__u16 product;
+	u32 id;
 	int port;
 	const char *name_format;
 } snd_usbmidi_port_names[] = {
 	/* Roland UA-100 */
-	{0x0582, 0x0000, 2, "%s Control"},
+	{ USB_ID(0x0582, 0x0000), 2, "%s Control" },
 	/* Roland SC-8850 */
-	{0x0582, 0x0003, 0, "%s Part A"},
-	{0x0582, 0x0003, 1, "%s Part B"},
-	{0x0582, 0x0003, 2, "%s Part C"},
-	{0x0582, 0x0003, 3, "%s Part D"},
-	{0x0582, 0x0003, 4, "%s MIDI 1"},
-	{0x0582, 0x0003, 5, "%s MIDI 2"},
+	{ USB_ID(0x0582, 0x0003), 0, "%s Part A" },
+	{ USB_ID(0x0582, 0x0003), 1, "%s Part B" },
+	{ USB_ID(0x0582, 0x0003), 2, "%s Part C" },
+	{ USB_ID(0x0582, 0x0003), 3, "%s Part D" },
+	{ USB_ID(0x0582, 0x0003), 4, "%s MIDI 1" },
+	{ USB_ID(0x0582, 0x0003), 5, "%s MIDI 2" },
 	/* Roland U-8 */
-	{0x0582, 0x0004, 0, "%s MIDI"},
-	{0x0582, 0x0004, 1, "%s Control"},
+	{ USB_ID(0x0582, 0x0004), 0, "%s MIDI" },
+	{ USB_ID(0x0582, 0x0004), 1, "%s Control" },
 	/* Roland SC-8820 */
-	{0x0582, 0x0007, 0, "%s Part A"},
-	{0x0582, 0x0007, 1, "%s Part B"},
-	{0x0582, 0x0007, 2, "%s MIDI"},
+	{ USB_ID(0x0582, 0x0007), 0, "%s Part A" },
+	{ USB_ID(0x0582, 0x0007), 1, "%s Part B" },
+	{ USB_ID(0x0582, 0x0007), 2, "%s MIDI" },
 	/* Roland SK-500 */
-	{0x0582, 0x000b, 0, "%s Part A"},
-	{0x0582, 0x000b, 1, "%s Part B"},
-	{0x0582, 0x000b, 2, "%s MIDI"},
+	{ USB_ID(0x0582, 0x000b), 0, "%s Part A" },
+	{ USB_ID(0x0582, 0x000b), 1, "%s Part B" },
+	{ USB_ID(0x0582, 0x000b), 2, "%s MIDI" },
 	/* Roland SC-D70 */
-	{0x0582, 0x000c, 0, "%s Part A"},
-	{0x0582, 0x000c, 1, "%s Part B"},
-	{0x0582, 0x000c, 2, "%s MIDI"},
+	{ USB_ID(0x0582, 0x000c), 0, "%s Part A" },
+	{ USB_ID(0x0582, 0x000c), 1, "%s Part B" },
+	{ USB_ID(0x0582, 0x000c), 2, "%s MIDI" },
 	/* Edirol UM-880 */
-	{0x0582, 0x0014, 8, "%s Control"},
+	{ USB_ID(0x0582, 0x0014), 8, "%s Control" },
 	/* Edirol SD-90 */
-	{0x0582, 0x0016, 0, "%s Part A"},
-	{0x0582, 0x0016, 1, "%s Part B"},
-	{0x0582, 0x0016, 2, "%s MIDI 1"},
-	{0x0582, 0x0016, 3, "%s MIDI 2"},
+	{ USB_ID(0x0582, 0x0016), 0, "%s Part A" },
+	{ USB_ID(0x0582, 0x0016), 1, "%s Part B" },
+	{ USB_ID(0x0582, 0x0016), 2, "%s MIDI 1" },
+	{ USB_ID(0x0582, 0x0016), 3, "%s MIDI 2" },
 	/* Edirol UM-550 */
-	{0x0582, 0x0023, 5, "%s Control"},
+	{ USB_ID(0x0582, 0x0023), 5, "%s Control" },
 	/* Edirol SD-20 */
-	{0x0582, 0x0027, 0, "%s Part A"},
-	{0x0582, 0x0027, 1, "%s Part B"},
-	{0x0582, 0x0027, 2, "%s MIDI"},
+	{ USB_ID(0x0582, 0x0027), 0, "%s Part A" },
+	{ USB_ID(0x0582, 0x0027), 1, "%s Part B" },
+	{ USB_ID(0x0582, 0x0027), 2, "%s MIDI" },
 	/* Edirol SD-80 */
-	{0x0582, 0x0029, 0, "%s Part A"},
-	{0x0582, 0x0029, 1, "%s Part B"},
-	{0x0582, 0x0029, 2, "%s MIDI 1"},
-	{0x0582, 0x0029, 3, "%s MIDI 2"},
+	{ USB_ID(0x0582, 0x0029), 0, "%s Part A" },
+	{ USB_ID(0x0582, 0x0029), 1, "%s Part B" },
+	{ USB_ID(0x0582, 0x0029), 2, "%s MIDI 1" },
+	{ USB_ID(0x0582, 0x0029), 3, "%s MIDI 2" },
 	/* Edirol UA-700 */
-	{0x0582, 0x002b, 0, "%s MIDI"},
-	{0x0582, 0x002b, 1, "%s Control"},
+	{ USB_ID(0x0582, 0x002b), 0, "%s MIDI" },
+	{ USB_ID(0x0582, 0x002b), 1, "%s Control" },
 	/* Roland VariOS */
-	{0x0582, 0x002f, 0, "%s MIDI"},
-	{0x0582, 0x002f, 1, "%s External MIDI"},
-	{0x0582, 0x002f, 2, "%s Sync"},
+	{ USB_ID(0x0582, 0x002f), 0, "%s MIDI" },
+	{ USB_ID(0x0582, 0x002f), 1, "%s External MIDI" },
+	{ USB_ID(0x0582, 0x002f), 2, "%s Sync" },
 	/* Edirol PCR */
-	{0x0582, 0x0033, 0, "%s MIDI"},
-	{0x0582, 0x0033, 1, "%s 1"},
-	{0x0582, 0x0033, 2, "%s 2"},
+	{ USB_ID(0x0582, 0x0033), 0, "%s MIDI" },
+	{ USB_ID(0x0582, 0x0033), 1, "%s 1" },
+	{ USB_ID(0x0582, 0x0033), 2, "%s 2" },
 	/* BOSS GS-10 */
-	{0x0582, 0x003b, 0, "%s MIDI"},
-	{0x0582, 0x003b, 1, "%s Control"},
+	{ USB_ID(0x0582, 0x003b), 0, "%s MIDI" },
+	{ USB_ID(0x0582, 0x003b), 1, "%s Control" },
 	/* Edirol UA-1000 */
-	{0x0582, 0x0044, 0, "%s MIDI"},
-	{0x0582, 0x0044, 1, "%s Control"},
+	{ USB_ID(0x0582, 0x0044), 0, "%s MIDI" },
+	{ USB_ID(0x0582, 0x0044), 1, "%s Control" },
 	/* Edirol UR-80 */
-	{0x0582, 0x0048, 0, "%s MIDI"},
-	{0x0582, 0x0048, 1, "%s 1"},
-	{0x0582, 0x0048, 2, "%s 2"},
+	{ USB_ID(0x0582, 0x0048), 0, "%s MIDI" },
+	{ USB_ID(0x0582, 0x0048), 1, "%s 1" },
+	{ USB_ID(0x0582, 0x0048), 2, "%s 2" },
 	/* Edirol PCR-A */
-	{0x0582, 0x004d, 0, "%s MIDI"},
-	{0x0582, 0x004d, 1, "%s 1"},
-	{0x0582, 0x004d, 2, "%s 2"},
+	{ USB_ID(0x0582, 0x004d), 0, "%s MIDI" },
+	{ USB_ID(0x0582, 0x004d), 1, "%s 1" },
+	{ USB_ID(0x0582, 0x004d), 2, "%s 2" },
 	/* M-Audio MidiSport 8x8 */
-	{0x0763, 0x1031, 8, "%s Control"},
-	{0x0763, 0x1033, 8, "%s Control"},
+	{ USB_ID(0x0763, 0x1031), 8, "%s Control" },
+	{ USB_ID(0x0763, 0x1033), 8, "%s Control" },
 	/* MOTU Fastlane */
-	{0x07fd, 0x0001, 0, "%s MIDI A"},
-	{0x07fd, 0x0001, 1, "%s MIDI B"},
+	{ USB_ID(0x07fd, 0x0001), 0, "%s MIDI A" },
+	{ USB_ID(0x07fd, 0x0001), 1, "%s MIDI B" },
 	/* Emagic Unitor8/AMT8/MT4 */
-	{0x086a, 0x0001, 8, "%s Broadcast"},
-	{0x086a, 0x0002, 8, "%s Broadcast"},
-	{0x086a, 0x0003, 4, "%s Broadcast"},
+	{ USB_ID(0x086a, 0x0001), 8, "%s Broadcast" },
+	{ USB_ID(0x086a, 0x0002), 8, "%s Broadcast" },
+	{ USB_ID(0x086a, 0x0003), 4, "%s Broadcast" },
 };
 
 static void snd_usbmidi_init_substream(snd_usb_midi_t* umidi,
@@ -1044,7 +1043,6 @@ static void snd_usbmidi_init_substream(snd_usb_midi_t* umidi,
 				       snd_rawmidi_substream_t** rsubstream)
 {
 	int i;
-	__u16 vendor, product;
 	const char *name_format;
 
 	snd_rawmidi_substream_t* substream = snd_usbmidi_find_substream(umidi, stream, number);
@@ -1055,11 +1053,8 @@ static void snd_usbmidi_init_substream(snd_usb_midi_t* umidi,
 
 	/* TODO: read port name from jack descriptor */
 	name_format = "%s MIDI %d";
-	vendor = le16_to_cpu(umidi->chip->dev->descriptor.idVendor);
-	product = le16_to_cpu(umidi->chip->dev->descriptor.idProduct);
 	for (i = 0; i < ARRAY_SIZE(snd_usbmidi_port_names); ++i) {
-		if (snd_usbmidi_port_names[i].vendor == vendor &&
-		    snd_usbmidi_port_names[i].product == product &&
+		if (snd_usbmidi_port_names[i].id == umidi->chip->usb_id &&
 		    snd_usbmidi_port_names[i].port == number) {
 			name_format = snd_usbmidi_port_names[i].name_format;
 			break;
@@ -1226,7 +1221,7 @@ static int snd_usbmidi_detect_endpoints(snd_usb_midi_t* umidi,
 	struct usb_endpoint_descriptor* epd;
 	int i, out_eps = 0, in_eps = 0;
 
-	if (le16_to_cpu(umidi->chip->dev->descriptor.idVendor) == 0x0582)
+	if (USB_ID_VENDOR(umidi->chip->usb_id) == 0x0582)
 		snd_usbmidi_switch_roland_altsetting(umidi);
 
 	if (endpoint[0].out_ep || endpoint[0].in_ep)

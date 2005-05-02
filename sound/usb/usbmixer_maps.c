@@ -33,8 +33,7 @@ struct usbmix_selector_map {
 };
 
 struct usbmix_ctl_map {
-	int vendor;
-	int product;
+	u32 id;
 	const struct usbmix_name_map *map;
 	const struct usbmix_selector_map *selector_map;
 	int ignore_ctl_error;
@@ -225,26 +224,26 @@ static struct usbmix_name_map justlink_map[] = {
 
 static struct usbmix_ctl_map usbmix_ctl_maps[] = {
 	{
-		.vendor = 0x41e, .product = 0x3000,
+		.id = USB_ID(0x041e, 0x3000),
 		.map = extigy_map,
 		.ignore_ctl_error = 1,
 	},
 	{
-		.vendor = 0x41e, .product = 0x3010,
+		.id = USB_ID(0x041e, 0x3010),
 		.map = mp3plus_map,
 	},
 	{
-		.vendor = 0x41e, .product = 0x3020,
+		.id = USB_ID(0x041e, 0x3020),
 		.map = audigy2nx_map,
 		.selector_map = audigy2nx_selectors,
 	},
 	{
-		.vendor = 0x8bb, .product = 0x2702,
+		.id = USB_ID(0x08bb, 0x2702),
 		.map = linex_map,
 		.ignore_ctl_error = 1,
 	},
 	{
-		.vendor = 0xc45, .product = 0x1158,
+		.id = USB_ID(0x0c45, 0x1158),
 		.map = justlink_map,
 	},
 	{ 0 } /* terminator */
