@@ -171,10 +171,10 @@ repeat:
 				skb->tc_verd = SET_TC_OK2MUNGE(skb->tc_verd);
 				skb->tc_verd = CLR_TC_MUNGED(skb->tc_verd);
 			}
-			if (ret != TC_ACT_PIPE)
-				goto exec_done;
 			if (ret == TC_ACT_REPEAT)
 				goto repeat;	/* we need a ttl - JHS */
+			if (ret != TC_ACT_PIPE)
+				goto exec_done;
 		}
 		act = a->next;
 	}
