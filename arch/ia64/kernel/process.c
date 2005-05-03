@@ -183,7 +183,7 @@ static int __init nohalt_setup(char * str)
 }
 __setup("nohalt", nohalt_setup);
 
-int
+void
 update_pal_halt_status(int status)
 {
 	can_do_pal_halt = pal_halt && status;
@@ -195,8 +195,6 @@ update_pal_halt_status(int status)
 void
 default_idle (void)
 {
-	int can_do_pal;
-
 	while (!need_resched())
 		if (can_do_pal_halt)
 			safe_halt();
