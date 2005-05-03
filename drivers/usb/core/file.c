@@ -82,6 +82,7 @@ int usb_major_init(void)
 
 	usb_class = class_create(THIS_MODULE, "usb");
 	if (IS_ERR(usb_class)) {
+		error = PTR_ERR(usb_class);
 		err("class_create failed for usb devices");
 		unregister_chrdev(USB_MAJOR, "usb");
 		goto out;
