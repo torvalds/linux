@@ -86,7 +86,7 @@ struct sock *rtnl;
 
 struct rtnetlink_link * rtnetlink_links[NPROTO];
 
-static const int rtm_min[(RTM_MAX+1-RTM_BASE)/4] =
+static const int rtm_min[RTM_NR_FAMILIES] =
 {
 	[RTM_FAM(RTM_NEWLINK)]      = NLMSG_LENGTH(sizeof(struct ifinfomsg)),
 	[RTM_FAM(RTM_NEWADDR)]      = NLMSG_LENGTH(sizeof(struct ifaddrmsg)),
@@ -102,7 +102,7 @@ static const int rtm_min[(RTM_MAX+1-RTM_BASE)/4] =
 	[RTM_FAM(RTM_GETANYCAST)]   = NLMSG_LENGTH(sizeof(struct rtgenmsg)),
 };
 
-static const int rta_max[(RTM_MAX+1-RTM_BASE)/4] =
+static const int rta_max[RTM_NR_FAMILIES] =
 {
 	[RTM_FAM(RTM_NEWLINK)]      = IFLA_MAX,
 	[RTM_FAM(RTM_NEWADDR)]      = IFA_MAX,
@@ -641,7 +641,7 @@ static void rtnetlink_rcv(struct sock *sk, int len)
 	} while (rtnl && rtnl->sk_receive_queue.qlen);
 }
 
-static struct rtnetlink_link link_rtnetlink_table[RTM_MAX-RTM_BASE+1] =
+static struct rtnetlink_link link_rtnetlink_table[RTM_NR_MSGTYPES] =
 {
 	[RTM_GETLINK  - RTM_BASE] = { .dumpit = rtnetlink_dump_ifinfo },
 	[RTM_SETLINK  - RTM_BASE] = { .doit   = do_setlink	      },
