@@ -32,10 +32,11 @@
  * $Id$
  */
 
+#include <linux/mm.h>
+
 #include "mthca_memfree.h"
 #include "mthca_dev.h"
 #include "mthca_cmd.h"
-#include <linux/mm.h>
 
 /*
  * We allocate in as big chunks as we can, up to a maximum of 256 KB

@@ -466,7 +466,7 @@ static int	stl_parsebrd(stlconf_t *confp, char **argp);
 
 static unsigned long stl_atol(char *str);
 
-int		stl_init(void);
+static int	stl_init(void);
 static int	stl_open(struct tty_struct *tty, struct file *filp);
 static void	stl_close(struct tty_struct *tty, struct file *filp);
 static int	stl_write(struct tty_struct *tty, const unsigned char *buf, int count);
@@ -3063,7 +3063,7 @@ static struct tty_operations stl_ops = {
 
 /*****************************************************************************/
 
-int __init stl_init(void)
+static int __init stl_init(void)
 {
 	int i;
 	printk(KERN_INFO "%s: version %s\n", stl_drvtitle, stl_drvversion);

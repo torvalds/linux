@@ -1991,6 +1991,8 @@ int proc_dointvec_userhz_jiffies(ctl_table *table, int write, struct file *filp,
  * @filp: the file structure
  * @buffer: the user buffer
  * @lenp: the size of the user buffer
+ * @ppos: file position
+ * @ppos: the current position in the file
  *
  * Reads/writes up to table->maxlen/sizeof(unsigned int) integer
  * values from/to the user buffer, treated as an ASCII string. 

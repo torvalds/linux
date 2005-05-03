@@ -1057,13 +1057,14 @@ static int radeonfb_blank (int blank, struct fb_info *info)
 	return radeon_screen_blank(rinfo, blank, 0);
 }
 
-static int radeonfb_setcolreg (unsigned regno, unsigned red, unsigned green,
-                             unsigned blue, unsigned transp, struct fb_info *info)
+static int radeon_setcolreg (unsigned regno, unsigned red, unsigned green,
+                             unsigned blue, unsigned transp,
+			     struct radeonfb_info *rinfo)
 {
-        struct radeonfb_info *rinfo = info->par;
 	u32 pindex;
 	unsigned int i;
-	
+
+
 	if (regno > 255)
 		return 1;
 
@@ -1078,20 +1079,7 @@ static int radeonfb_setcolreg (unsigned regno, unsigned red, unsigned green,
         pindex = regno;
 
         if (!rinfo->asleep) {
-        	u32 dac_cntl2, vclk_cntl = 0;
-        	
 		radeon_fifo_wait(9);
-		if (rinfo->is_mobility) {
-			vclk_cntl = INPLL(VCLK_ECP_CNTL);
-			OUTPLL(VCLK_ECP_CNTL, vclk_cntl & ~PIXCLK_DAC_ALWAYS_ONb);
-		}
-
-		/* Make sure we are on first palette */
-		if (rinfo->has_CRTC2) {
-			dac_cntl2 = INREG(DAC_CNTL2);
-			dac_cntl2 &= ~DAC2_PALETTE_ACCESS_CNTL;
-			OUTREG(DAC_CNTL2, dac_cntl2);
-		}
 
 		if (rinfo->bpp == 16) {
 			pindex = regno * 8;
@@ -1101,24 +1089,27 @@ static int radeonfb_setcolreg (unsigned regno, unsigned red, unsigned green,
 			if (rinfo->depth == 15 && regno > 31)
 				return 1;
 
-			/* For 565, the green component is mixed one order below */
+			/* For 565, the green component is mixed one order
+			 * below
+			 */
 			if (rinfo->depth == 16) {
 		                OUTREG(PALETTE_INDEX, pindex>>1);
-	       	         	OUTREG(PALETTE_DATA, (rinfo->palette[regno>>1].red << 16) |
-	                        	(green << 8) | (rinfo->palette[regno>>1].blue));
+	       	         	OUTREG(PALETTE_DATA,
+				       (rinfo->palette[regno>>1].red << 16) |
+	                        	(green << 8) |
+				       (rinfo->palette[regno>>1].blue));
 	                	green = rinfo->palette[regno<<1].green;
 	        	}
 		}
 
 		if (rinfo->depth != 16 || regno < 32) {
 			OUTREG(PALETTE_INDEX, pindex);
-			OUTREG(PALETTE_DATA, (red << 16) | (green << 8) | blue);
+			OUTREG(PALETTE_DATA, (red << 16) |
+			       (green << 8) | blue);
 		}
-		if (rinfo->is_mobility)
-			OUTPLL(VCLK_ECP_CNTL, vclk_cntl);
 	}
  	if (regno < 16) {
-		u32 *pal = info->pseudo_palette;
+		u32 *pal = rinfo->info->pseudo_palette;
         	switch (rinfo->depth) {
 		case 15:
 			pal[regno] = (regno << 10) | (regno << 5) | regno;
@@ -1138,6 +1129,84 @@ static int radeonfb_setcolreg (unsigned regno, unsigned red, unsigned green,
 	return 0;
 }
 
+static int radeonfb_setcolreg (unsigned regno, unsigned red, unsigned green,
+			       unsigned blue, unsigned transp,
+			       struct fb_info *info)
+{
+        struct radeonfb_info *rinfo = info->par;
+	u32 dac_cntl2, vclk_cntl = 0;
+	int rc;
+
+        if (!rinfo->asleep) {
+		if (rinfo->is_mobility) {
+			vclk_cntl = INPLL(VCLK_ECP_CNTL);
+			OUTPLL(VCLK_ECP_CNTL,
+			       vclk_cntl & ~PIXCLK_DAC_ALWAYS_ONb);
+		}
+
+		/* Make sure we are on first palette */
+		if (rinfo->has_CRTC2) {
+			dac_cntl2 = INREG(DAC_CNTL2);
+			dac_cntl2 &= ~DAC2_PALETTE_ACCESS_CNTL;
+			OUTREG(DAC_CNTL2, dac_cntl2);
+		}
+	}
+
+	rc = radeon_setcolreg (regno, red, green, blue, transp, rinfo);
+
+	if (!rinfo->asleep && rinfo->is_mobility)
+		OUTPLL(VCLK_ECP_CNTL, vclk_cntl);
+
+	return rc;
+}
+
+static int radeonfb_setcmap(struct fb_cmap *cmap, struct fb_info *info)
+{
+        struct radeonfb_info *rinfo = info->par;
+	u16 *red, *green, *blue, *transp;
+	u32 dac_cntl2, vclk_cntl = 0;
+	int i, start, rc = 0;
+
+        if (!rinfo->asleep) {
+		if (rinfo->is_mobility) {
+			vclk_cntl = INPLL(VCLK_ECP_CNTL);
+			OUTPLL(VCLK_ECP_CNTL,
+			       vclk_cntl & ~PIXCLK_DAC_ALWAYS_ONb);
+		}
+
+		/* Make sure we are on first palette */
+		if (rinfo->has_CRTC2) {
+			dac_cntl2 = INREG(DAC_CNTL2);
+			dac_cntl2 &= ~DAC2_PALETTE_ACCESS_CNTL;
+			OUTREG(DAC_CNTL2, dac_cntl2);
+		}
+	}
+
+	red = cmap->red;
+	green = cmap->green;
+	blue = cmap->blue;
+	transp = cmap->transp;
+	start = cmap->start;
+
+	for (i = 0; i < cmap->len; i++) {
+		u_int hred, hgreen, hblue, htransp = 0xffff;
+
+		hred = *red++;
+		hgreen = *green++;
+		hblue = *blue++;
+		if (transp)
+			htransp = *transp++;
+		rc = radeon_setcolreg (start++, hred, hgreen, hblue, htransp,
+				       rinfo);
+		if (rc)
+			break;
+	}
+
+	if (!rinfo->asleep && rinfo->is_mobility)
+		OUTPLL(VCLK_ECP_CNTL, vclk_cntl);
+
+	return rc;
+}
 
 static void radeon_save_state (struct radeonfb_info *rinfo,
 			       struct radeon_regs *save)
@@ -1796,6 +1865,7 @@ static struct fb_ops radeonfb_ops = {
 	.fb_check_var		= radeonfb_check_var,
 	.fb_set_par		= radeonfb_set_par,
 	.fb_setcolreg		= radeonfb_setcolreg,
+	.fb_setcmap		= radeonfb_setcmap,
 	.fb_pan_display 	= radeonfb_pan_display,
 	.fb_blank		= radeonfb_blank,
 	.fb_ioctl		= radeonfb_ioctl,

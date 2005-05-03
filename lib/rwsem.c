@@ -74,7 +74,7 @@ __rwsem_do_wake(struct rw_semaphore *sem, int downgrading)
 	 */
 	list_del(&waiter->list);
 	tsk = waiter->task;
-	mb();
+	smp_mb();
 	waiter->task = NULL;
 	wake_up_process(tsk);
 	put_task_struct(tsk);
@@ -117,7 +117,7 @@ __rwsem_do_wake(struct rw_semaphore *sem, int downgrading)
 		waiter = list_entry(next, struct rwsem_waiter, list);
 		next = waiter->list.next;
 		tsk = waiter->task;
-		mb();
+		smp_mb();
 		waiter->task = NULL;
 		wake_up_process(tsk);
 		put_task_struct(tsk);

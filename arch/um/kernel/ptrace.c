@@ -143,7 +143,7 @@ long sys_ptrace(long request, long pid, long addr, long data)
 	case PTRACE_SYSCALL: /* continue and stop at next (return from) syscall */
 	case PTRACE_CONT: { /* restart after signal. */
 		ret = -EIO;
-		if ((unsigned long) data > _NSIG)
+		if (!valid_signal(data))
 			break;
 
 		child->ptrace &= ~PT_DTRACE;
@@ -179,7 +179,7 @@ long sys_ptrace(long request, long pid, long addr, long data)
 
 	case PTRACE_SINGLESTEP: {  /* set the trap flag. */
 		ret = -EIO;
-		if ((unsigned long) data > _NSIG)
+		if (!valid_signal(data))
 			break;
 		clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 		child->ptrace |= PT_DTRACE;

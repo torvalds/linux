@@ -131,10 +131,10 @@ IR_KEYTAB_TYPE ir_codes_winfast[IR_KEYTAB_SIZE] = {
 	[ 18 ] = KEY_KP0,
 
 	[  0 ] = KEY_POWER,
-//      [ 27 ] = MTS button
+	[ 27 ] = KEY_LANGUAGE,  //MTS button
 	[  2 ] = KEY_TUNER,     // TV/FM
 	[ 30 ] = KEY_VIDEO,
-//      [ 22 ] = display button
+	[ 22 ] = KEY_INFO,      //display button
 	[  4 ] = KEY_VOLUMEUP,
 	[  8 ] = KEY_VOLUMEDOWN,
 	[ 12 ] = KEY_CHANNELUP,
@@ -142,7 +142,7 @@ IR_KEYTAB_TYPE ir_codes_winfast[IR_KEYTAB_SIZE] = {
 	[  3 ] = KEY_ZOOM,      // fullscreen
 	[ 31 ] = KEY_SUBTITLE,  // closed caption/teletext
 	[ 32 ] = KEY_SLEEP,
-//      [ 41 ] = boss key
+	[ 41 ] = KEY_SEARCH,    //boss key
 	[ 20 ] = KEY_MUTE,
 	[ 43 ] = KEY_RED,
 	[ 44 ] = KEY_GREEN,
@@ -150,17 +150,17 @@ IR_KEYTAB_TYPE ir_codes_winfast[IR_KEYTAB_SIZE] = {
 	[ 46 ] = KEY_BLUE,
 	[ 24 ] = KEY_KPPLUS,    //fine tune +
 	[ 25 ] = KEY_KPMINUS,   //fine tune -
-//      [ 42 ] = picture in picture
-        [ 33 ] = KEY_KPDOT,
+	[ 42 ] = KEY_ANGLE,     //picture in picture
+	[ 33 ] = KEY_KPDOT,
 	[ 19 ] = KEY_KPENTER,
-//      [ 17 ] = recall
+	[ 17 ] = KEY_AGAIN,     //recall
 	[ 34 ] = KEY_BACK,
 	[ 35 ] = KEY_PLAYPAUSE,
 	[ 36 ] = KEY_NEXT,
-//      [ 37 ] = time shifting
+	[ 37 ] = KEY_T,         //time shifting
 	[ 38 ] = KEY_STOP,
-	[ 39 ] = KEY_RECORD
-//      [ 40 ] = snapshot
+	[ 39 ] = KEY_RECORD,
+	[ 40 ] = KEY_SHUFFLE    //snapshot
 };
 EXPORT_SYMBOL_GPL(ir_codes_winfast);
 

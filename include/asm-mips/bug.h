@@ -3,12 +3,14 @@
 
 #include <asm/break.h>
 
+#ifdef CONFIG_BUG
+#define HAVE_ARCH_BUG
 #define BUG()								\
 do {									\
 	__asm__ __volatile__("break %0" : : "i" (BRK_BUG));		\
 } while (0)
+#endif
 
-#define HAVE_ARCH_BUG
 #include <asm-generic/bug.h>
 
 #endif

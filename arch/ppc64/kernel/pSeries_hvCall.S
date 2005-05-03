@@ -28,6 +28,8 @@
 			unsigned long *out3);		R10
  */
 _GLOBAL(plpar_hcall)
+	HMT_MEDIUM
+
 	mfcr	r0
 
 	std	r8,STK_PARM(r8)(r1)	/* Save out ptrs */
@@ -53,6 +55,8 @@ _GLOBAL(plpar_hcall)
 
 /* Simple interface with no output values (other than status) */
 _GLOBAL(plpar_hcall_norets)
+	HMT_MEDIUM
+
 	mfcr	r0
 	stw	r0,8(r1)
 
@@ -75,6 +79,8 @@ _GLOBAL(plpar_hcall_norets)
 			unsigned long *out1);		120(R1)
  */
 _GLOBAL(plpar_hcall_8arg_2ret)
+	HMT_MEDIUM
+
 	mfcr	r0
 	ld	r11,STK_PARM(r11)(r1)	/* put arg8 in R11 */
 	stw	r0,8(r1)
@@ -99,6 +105,8 @@ _GLOBAL(plpar_hcall_8arg_2ret)
 		 	unsigned long *out4);		112(R1)
  */
 _GLOBAL(plpar_hcall_4out)
+	HMT_MEDIUM
+
 	mfcr	r0
 	stw	r0,8(r1)
 

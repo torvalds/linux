@@ -653,6 +653,24 @@ config I8K
 	  Say Y if you intend to run this kernel on a Dell Inspiron 8000.
 	  Say N otherwise.
 
+config X86_REBOOTFIXUPS
+	bool "Enable X86 board specific fixups for reboot"
+	depends on X86
+	default n
+	---help---
+	  This enables chipset and/or board specific fixups to be done
+	  in order to get reboot to work correctly. This is only needed on
+	  some combinations of hardware and BIOS. The symptom, for which
+	  this config is intended, is when reboot ends with a stalled/hung
+	  system.
+
+	  Currently, the only fixup is for the Geode GX1/CS5530A/TROM2.1.
+	  combination.
+
+	  Say Y if you want to enable the fixup. Currently, it's safe to
+	  enable this option even if you don't need it.
+	  Say N otherwise.
+
 config MICROCODE
 	tristate "/dev/cpu/microcode - Intel IA32 CPU microcode support"
 	---help---

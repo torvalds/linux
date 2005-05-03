@@ -36,7 +36,7 @@ static void timer_stop(void)
 {
 	enable_timer_nmi_watchdog();
 	unset_nmi_callback();
-	synchronize_kernel();
+	synchronize_sched();  /* Allow already-started NMIs to complete. */
 }
 
 

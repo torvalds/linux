@@ -26,6 +26,7 @@
 static unsigned long hpet_period;	/* fsecs / HPET clock */
 unsigned long hpet_tick;		/* hpet clks count per tick */
 unsigned long hpet_address;		/* hpet memory map physical address */
+int hpet_use_timer;
 
 static int use_hpet; 		/* can be used for runtime check of hpet */
 static int boot_hpet_disable; 	/* boottime override for HPET timer */
@@ -73,27 +74,30 @@ static int hpet_timer_stop_set_go(unsigned long tick)
 	hpet_writel(0, HPET_COUNTER);
 	hpet_writel(0, HPET_COUNTER + 4);
 
-	/*
-	 * Set up timer 0, as periodic with first interrupt to happen at
-	 * hpet_tick, and period also hpet_tick.
-	 */
-	cfg = hpet_readl(HPET_T0_CFG);
-	cfg |= HPET_TN_ENABLE | HPET_TN_PERIODIC |
-	       HPET_TN_SETVAL | HPET_TN_32BIT;
-	hpet_writel(cfg, HPET_T0_CFG);
+	if (hpet_use_timer) {
+		/*
+		 * Set up timer 0, as periodic with first interrupt to happen at
+		 * hpet_tick, and period also hpet_tick.
+		 */
+		cfg = hpet_readl(HPET_T0_CFG);
+		cfg |= HPET_TN_ENABLE | HPET_TN_PERIODIC |
+		       HPET_TN_SETVAL | HPET_TN_32BIT;
+		hpet_writel(cfg, HPET_T0_CFG);
 
-	/*
-	 * The first write after writing TN_SETVAL to the config register sets
-	 * the counter value, the second write sets the threshold.
-	 */
-	hpet_writel(tick, HPET_T0_CMP);
-	hpet_writel(tick, HPET_T0_CMP);
-
+		/*
+		 * The first write after writing TN_SETVAL to the config register sets
+		 * the counter value, the second write sets the threshold.
+		 */
+		hpet_writel(tick, HPET_T0_CMP);
+		hpet_writel(tick, HPET_T0_CMP);
+	}
 	/*
  	 * Go!
  	 */
 	cfg = hpet_readl(HPET_CFG);
-	cfg |= HPET_CFG_ENABLE | HPET_CFG_LEGACY;
+	if (hpet_use_timer)
+		cfg |= HPET_CFG_LEGACY;
+	cfg |= HPET_CFG_ENABLE;
 	hpet_writel(cfg, HPET_CFG);
 
 	return 0;
@@ -128,12 +132,11 @@ int __init hpet_enable(void)
 	 * However, we can do with one timer otherwise using the
 	 * the single HPET timer for system time.
 	 */
-	if (
 #ifdef CONFIG_HPET_EMULATE_RTC
-		!(id & HPET_ID_NUMBER) ||
-#endif
-	    !(id & HPET_ID_LEGSUP))
+	if (!(id & HPET_ID_NUMBER))
 		return -1;
+#endif
+
 
 	hpet_period = hpet_readl(HPET_PERIOD);
 	if ((hpet_period < HPET_MIN_PERIOD) || (hpet_period > HPET_MAX_PERIOD))
@@ -151,6 +154,8 @@ int __init hpet_enable(void)
 
 	if (hpet_tick_rem > (hpet_period >> 1))
 		hpet_tick++; /* rounding the result */
+
+	hpet_use_timer = id & HPET_ID_LEGSUP;
 
 	if (hpet_timer_stop_set_go(hpet_tick))
 		return -1;
@@ -202,7 +207,8 @@ int __init hpet_enable(void)
 #endif
 
 #ifdef CONFIG_X86_LOCAL_APIC
-	wait_timer_tick = wait_hpet_tick;
+	if (hpet_use_timer)
+		wait_timer_tick = wait_hpet_tick;
 #endif
 	return 0;
 }

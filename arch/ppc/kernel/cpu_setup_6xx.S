@@ -30,12 +30,14 @@ _GLOBAL(__setup_cpu_604)
 	blr
 _GLOBAL(__setup_cpu_750)
 	mflr	r4
+	bl	__init_fpu_registers
 	bl	setup_common_caches
 	bl	setup_750_7400_hid0
 	mtlr	r4
 	blr
 _GLOBAL(__setup_cpu_750cx)
 	mflr	r4
+	bl	__init_fpu_registers
 	bl	setup_common_caches
 	bl	setup_750_7400_hid0
 	bl	setup_750cx
@@ -43,6 +45,7 @@ _GLOBAL(__setup_cpu_750cx)
 	blr
 _GLOBAL(__setup_cpu_750fx)
 	mflr	r4
+	bl	__init_fpu_registers
 	bl	setup_common_caches
 	bl	setup_750_7400_hid0
 	bl	setup_750fx
@@ -50,6 +53,7 @@ _GLOBAL(__setup_cpu_750fx)
 	blr
 _GLOBAL(__setup_cpu_7400)
 	mflr	r4
+	bl	__init_fpu_registers
 	bl	setup_7400_workarounds
 	bl	setup_common_caches
 	bl	setup_750_7400_hid0
@@ -57,6 +61,7 @@ _GLOBAL(__setup_cpu_7400)
 	blr
 _GLOBAL(__setup_cpu_7410)
 	mflr	r4
+	bl	__init_fpu_registers
 	bl	setup_7410_workarounds
 	bl	setup_common_caches
 	bl	setup_750_7400_hid0
@@ -80,7 +85,7 @@ setup_common_caches:
 	bne	1f			/* don't invalidate the D-cache */
 	ori	r8,r8,HID0_DCI		/* unless it wasn't enabled */
 1:	sync
-	mtspr	SPRN_HID0,r8			/* enable and invalidate caches */
+	mtspr	SPRN_HID0,r8		/* enable and invalidate caches */
 	sync
 	mtspr	SPRN_HID0,r11		/* enable caches */
 	sync
@@ -152,9 +157,13 @@ setup_7410_workarounds:
 setup_750_7400_hid0:
 	mfspr	r11,SPRN_HID0
 	ori	r11,r11,HID0_SGE | HID0_ABE | HID0_BHTE | HID0_BTIC
+	oris	r11,r11,HID0_DPM@h
 BEGIN_FTR_SECTION
-	oris	r11,r11,HID0_DPM@h	/* enable dynamic power mgmt */
-END_FTR_SECTION_IFCLR(CPU_FTR_NO_DPM)
+	xori	r11,r11,HID0_BTIC
+END_FTR_SECTION_IFSET(CPU_FTR_NO_BTIC)
+BEGIN_FTR_SECTION
+	xoris	r11,r11,HID0_DPM@h	/* disable dynamic power mgmt */
+END_FTR_SECTION_IFSET(CPU_FTR_NO_DPM)
 	li	r3,HID0_SPD
 	andc	r11,r11,r3		/* clear SPD: enable speculative */
  	li	r3,0
@@ -218,13 +227,15 @@ setup_745x_specifics:
 
 	/* All of the bits we have to set.....
 	 */
-	ori	r11,r11,HID0_SGE | HID0_FOLD | HID0_BHTE | HID0_LRSTK | HID0_BTIC
+	ori	r11,r11,HID0_SGE | HID0_FOLD | HID0_BHTE
+	ori	r11,r11,HID0_LRSTK | HID0_BTIC
+	oris	r11,r11,HID0_DPM@h
 BEGIN_FTR_SECTION
 	xori	r11,r11,HID0_BTIC
 END_FTR_SECTION_IFSET(CPU_FTR_NO_BTIC)
 BEGIN_FTR_SECTION
-	oris	r11,r11,HID0_DPM@h	/* enable dynamic power mgmt */
-END_FTR_SECTION_IFCLR(CPU_FTR_NO_DPM)
+	xoris	r11,r11,HID0_DPM@h	/* disable dynamic power mgmt */
+END_FTR_SECTION_IFSET(CPU_FTR_NO_DPM)
 
 	/* All of the bits we have to clear....
 	 */
@@ -247,6 +258,25 @@ END_FTR_SECTION_IFCLR(CPU_FTR_NO_DPM)
 	sync
 	isync
 	blr
+
+/*
+ * Initialize the FPU registers. This is needed to work around an errata
+ * in some 750 cpus where using a not yet initialized FPU register after
+ * power on reset may hang the CPU
+ */
+_GLOBAL(__init_fpu_registers)
+	mfmsr	r10
+	ori	r11,r10,MSR_FP
+	mtmsr	r11
+	isync
+	addis	r9,r3,empty_zero_page@ha
+	addi	r9,r9,empty_zero_page@l
+	REST_32FPRS(0,r9)
+	sync
+	mtmsr	r10
+	isync
+	blr
+
 
 /* Definitions for the table use to save CPU states */
 #define CS_HID0		0

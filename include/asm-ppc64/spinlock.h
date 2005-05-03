@@ -110,7 +110,7 @@ static void __inline__ _raw_spin_lock(spinlock_t *lock)
 			HMT_low();
 			if (SHARED_PROCESSOR)
 				__spin_yield(lock);
-		} while (likely(lock->lock != 0));
+		} while (unlikely(lock->lock != 0));
 		HMT_medium();
 	}
 }
@@ -128,7 +128,7 @@ static void __inline__ _raw_spin_lock_flags(spinlock_t *lock, unsigned long flag
 			HMT_low();
 			if (SHARED_PROCESSOR)
 				__spin_yield(lock);
-		} while (likely(lock->lock != 0));
+		} while (unlikely(lock->lock != 0));
 		HMT_medium();
 		local_irq_restore(flags_dis);
 	}
@@ -194,7 +194,7 @@ static void __inline__ _raw_read_lock(rwlock_t *rw)
 			HMT_low();
 			if (SHARED_PROCESSOR)
 				__rw_yield(rw);
-		} while (likely(rw->lock < 0));
+		} while (unlikely(rw->lock < 0));
 		HMT_medium();
 	}
 }
@@ -251,7 +251,7 @@ static void __inline__ _raw_write_lock(rwlock_t *rw)
 			HMT_low();
 			if (SHARED_PROCESSOR)
 				__rw_yield(rw);
-		} while (likely(rw->lock != 0));
+		} while (unlikely(rw->lock != 0));
 		HMT_medium();
 	}
 }

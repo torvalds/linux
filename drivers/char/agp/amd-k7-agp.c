@@ -358,7 +358,7 @@ static struct gatt_mask amd_irongate_masks[] =
 	{.mask = 1, .type = 0}
 };
 
-struct agp_bridge_driver amd_irongate_driver = {
+static struct agp_bridge_driver amd_irongate_driver = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= amd_irongate_sizes,
 	.size_type		= LVL2_APER_SIZE,

@@ -32,6 +32,7 @@ implementation of audit_filter_task() might be as follows:
 		enum audit_state   state;
 
 		read_lock(&auditsc_lock);
+		/* Note: audit_netlink_sem held by caller. */
 		list_for_each_entry(e, &audit_tsklist, list) {
 			if (audit_filter_rules(tsk, &e->rule, NULL, &state)) {
 				read_unlock(&auditsc_lock);
@@ -55,6 +56,7 @@ This means that RCU can be easily applied to the read side, as follows:
 		enum audit_state   state;
 
 		rcu_read_lock();
+		/* Note: audit_netlink_sem held by caller. */
 		list_for_each_entry_rcu(e, &audit_tsklist, list) {
 			if (audit_filter_rules(tsk, &e->rule, NULL, &state)) {
 				rcu_read_unlock();
@@ -139,12 +141,15 @@ Normally, the write_lock() and write_unlock() would be replaced by
 a spin_lock() and a spin_unlock(), but in this case, all callers hold
 audit_netlink_sem, so no additional locking is required.  The auditsc_lock
 can therefore be eliminated, since use of RCU eliminates the need for
-writers to exclude readers.
+writers to exclude readers.  Normally, the write_lock() calls would
+be converted into spin_lock() calls.
 
 The list_del(), list_add(), and list_add_tail() primitives have been
 replaced by list_del_rcu(), list_add_rcu(), and list_add_tail_rcu().
 The _rcu() list-manipulation primitives add memory barriers that are
-needed on weakly ordered CPUs (most of them!).
+needed on weakly ordered CPUs (most of them!).  The list_del_rcu()
+primitive omits the pointer poisoning debug-assist code that would
+otherwise cause concurrent readers to fail spectacularly.
 
 So, when readers can tolerate stale data and when entries are either added
 or deleted, without in-place modification, it is very easy to use RCU!
@@ -166,6 +171,7 @@ otherwise, the added fields would need to be filled in):
 		struct audit_newentry *ne;
 
 		write_lock(&auditsc_lock);
+		/* Note: audit_netlink_sem held by caller. */
 		list_for_each_entry(e, list, list) {
 			if (!audit_compare_rule(rule, &e->rule)) {
 				e->rule.action = newaction;
@@ -199,8 +205,7 @@ RCU ("read-copy update") its name.  The RCU code is as follows:
 				audit_copy_rule(&ne->rule, &e->rule);
 				ne->rule.action = newaction;
 				ne->rule.file_count = newfield_count;
-				list_add_rcu(ne, e);
-				list_del(e);
+				list_replace_rcu(e, ne);
 				call_rcu(&e->rcu, audit_free_rule, e);
 				return 0;
 			}

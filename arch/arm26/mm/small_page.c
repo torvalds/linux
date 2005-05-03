@@ -92,8 +92,7 @@ static unsigned long __get_small_page(int priority, struct order *order)
 		page = list_entry(order->queue.next, struct page, lru);
 again:
 #ifdef PEDANTIC
-		if (USED_MAP(page) & ~order->all_used)
-			PAGE_BUG(page);
+		BUG_ON(USED_MAP(page) & ~order->all_used);
 #endif
 		offset = ffz(USED_MAP(page));
 		SET_USED(page, offset);
@@ -141,8 +140,7 @@ static void __free_small_page(unsigned long spage, struct order *order)
 			goto non_small;
 
 #ifdef PEDANTIC
-		if (USED_MAP(page) & ~order->all_used)
-			PAGE_BUG(page);
+		BUG_ON(USED_MAP(page) & ~order->all_used);
 #endif
 
 		spage = spage >> order->shift;

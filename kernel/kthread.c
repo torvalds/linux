@@ -174,7 +174,7 @@ int kthread_stop(struct task_struct *k)
 
 	/* Must init completion *before* thread sees kthread_stop_info.k */
 	init_completion(&kthread_stop_info.done);
-	wmb();
+	smp_wmb();
 
 	/* Now set kthread_should_stop() to true, and wake it up. */
 	kthread_stop_info.k = k;

@@ -23,6 +23,7 @@
 #include <linux/syscalls.h>
 #include <linux/ptrace.h>
 #include <linux/posix-timers.h>
+#include <linux/signal.h>
 #include <asm/param.h>
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -646,7 +647,7 @@ static int check_kill_permission(int sig, struct siginfo *info,
 				 struct task_struct *t)
 {
 	int error = -EINVAL;
-	if (sig < 0 || sig > _NSIG)
+	if (!valid_signal(sig))
 		return error;
 	error = -EPERM;
 	if ((!info || ((unsigned long)info != 1 &&
@@ -1245,7 +1246,7 @@ send_sig_info(int sig, struct siginfo *info, struct task_struct *p)
 	 * Make sure legacy kernel users don't send in bad values
 	 * (normal paths check this in check_kill_permission).
 	 */
-	if (sig < 0 || sig > _NSIG)
+	if (!valid_signal(sig))
 		return -EINVAL;
 
 	/*
@@ -1520,7 +1521,7 @@ void do_notify_parent(struct task_struct *tsk, int sig)
 		if (psig->action[SIGCHLD-1].sa.sa_handler == SIG_IGN)
 			sig = 0;
 	}
-	if (sig > 0 && sig <= _NSIG)
+	if (valid_signal(sig) && sig > 0)
 		__group_send_sig_info(sig, &info, tsk->parent);
 	__wake_up_parent(tsk, tsk->parent);
 	spin_unlock_irqrestore(&psig->siglock, flags);
@@ -2364,7 +2365,7 @@ do_sigaction(int sig, const struct k_sigaction *act, struct k_sigaction *oact)
 {
 	struct k_sigaction *k;
 
-	if (sig < 1 || sig > _NSIG || (act && sig_kernel_only(sig)))
+	if (!valid_signal(sig) || sig < 1 || (act && sig_kernel_only(sig)))
 		return -EINVAL;
 
 	k = &current->sighand->action[sig-1];

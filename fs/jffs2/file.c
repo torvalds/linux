@@ -79,8 +79,7 @@ static int jffs2_do_readpage_nolock (struct inode *inode, struct page *pg)
 
 	D2(printk(KERN_DEBUG "jffs2_do_readpage_nolock(): ino #%lu, page at offset 0x%lx\n", inode->i_ino, pg->index << PAGE_CACHE_SHIFT));
 
-	if (!PageLocked(pg))
-                PAGE_BUG(pg);
+	BUG_ON(!PageLocked(pg));
 
 	pg_buf = kmap(pg);
 	/* FIXME: Can kmap fail? */

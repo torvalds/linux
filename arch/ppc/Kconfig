@@ -53,6 +53,7 @@ choice
 
 config 6xx
 	bool "6xx/7xx/74xx/52xx/82xx/83xx"
+	select PPC_FPU
 	help
 	  There are four types of PowerPC chips supported.  The more common
 	  types (601, 603, 604, 740, 750, 7400), the Motorola embedded
@@ -85,6 +86,9 @@ config E500
 	bool "e500"
 
 endchoice
+
+config PPC_FPU
+	bool
 
 config BOOKE
 	bool

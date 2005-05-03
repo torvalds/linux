@@ -40,9 +40,6 @@
 #define dprintk(x...)	do { ; } while (0)
 #endif
 
-static long aio_run = 0; /* for testing only */
-static long aio_wakeups = 0; /* for testing only */
-
 /*------ sysctl variables----*/
 atomic_t aio_nr = ATOMIC_INIT(0);	/* current system wide number of aio requests */
 unsigned aio_max_nr = 0x10000;	/* system wide maximum number of aio requests */
@@ -405,7 +402,6 @@ static struct kiocb fastcall *__aio_get_req(struct kioctx *ctx)
 	req->ki_ctx = ctx;
 	req->ki_cancel = NULL;
 	req->ki_retry = NULL;
-	req->ki_obj.user = NULL;
 	req->ki_dtor = NULL;
 	req->private = NULL;
 	INIT_LIST_HEAD(&req->ki_run_list);
@@ -451,11 +447,6 @@ static inline void really_put_req(struct kioctx *ctx, struct kiocb *req)
 {
 	if (req->ki_dtor)
 		req->ki_dtor(req);
-	req->ki_ctx = NULL;
-	req->ki_filp = NULL;
-	req->ki_obj.user = NULL;
-	req->ki_dtor = NULL;
-	req->private = NULL;
 	kmem_cache_free(kiocb_cachep, req);
 	ctx->reqs_active--;
 
@@ -623,7 +614,6 @@ static inline int __queue_kicked_iocb(struct kiocb *iocb)
 	if (list_empty(&iocb->ki_run_list)) {
 		list_add_tail(&iocb->ki_run_list,
 			&ctx->run_list);
-		iocb->ki_queued++;
 		return 1;
 	}
 	return 0;
@@ -664,10 +654,8 @@ static ssize_t aio_run_iocb(struct kiocb *iocb)
 	}
 
 	if (!(iocb->ki_retried & 0xff)) {
-		pr_debug("%ld retry: %d of %d (kick %ld, Q %ld run %ld, wake %ld)\n",
-			iocb->ki_retried,
-			iocb->ki_nbytes - iocb->ki_left, iocb->ki_nbytes,
-			iocb->ki_kicked, iocb->ki_queued, aio_run, aio_wakeups);
+		pr_debug("%ld retry: %d of %d\n", iocb->ki_retried,
+			iocb->ki_nbytes - iocb->ki_left, iocb->ki_nbytes);
 	}
 
 	if (!(retry = iocb->ki_retry)) {
@@ -774,7 +762,6 @@ out:
 static int __aio_run_iocbs(struct kioctx *ctx)
 {
 	struct kiocb *iocb;
-	int count = 0;
 	LIST_HEAD(run_list);
 
 	list_splice_init(&ctx->run_list, &run_list);
@@ -789,9 +776,7 @@ static int __aio_run_iocbs(struct kioctx *ctx)
 		aio_run_iocb(iocb);
 		if (__aio_put_req(ctx, iocb))  /* drop extra ref */
 			put_ioctx(ctx);
-		count++;
  	}
-	aio_run++;
 	if (!list_empty(&ctx->run_list))
 		return 1;
 	return 0;
@@ -890,10 +875,8 @@ static void queue_kicked_iocb(struct kiocb *iocb)
 	spin_lock_irqsave(&ctx->ctx_lock, flags);
 	run = __queue_kicked_iocb(iocb);
 	spin_unlock_irqrestore(&ctx->ctx_lock, flags);
-	if (run) {
+	if (run)
 		aio_queue_work(ctx);
-		aio_wakeups++;
-	}
 }
 
 /*
@@ -913,7 +896,6 @@ void fastcall kick_iocb(struct kiocb *iocb)
 		return;
 	}
 
-	iocb->ki_kicked++;
 	/* If its already kicked we shouldn't queue it again */
 	if (!kiocbTryKick(iocb)) {
 		queue_kicked_iocb(iocb);
@@ -984,7 +966,8 @@ int fastcall aio_complete(struct kiocb *iocb, long res, long res2)
 
 	tail = info->tail;
 	event = aio_ring_event(info, tail, KM_IRQ0);
-	tail = (tail + 1) % info->nr;
+	if (++tail >= info->nr)
+		tail = 0;
 
 	event->obj = (u64)(unsigned long)iocb->ki_obj.user;
 	event->data = iocb->ki_user_data;
@@ -1008,10 +991,8 @@ int fastcall aio_complete(struct kiocb *iocb, long res, long res2)
 
 	pr_debug("added to ring %p at [%lu]\n", iocb, tail);
 
-	pr_debug("%ld retries: %d of %d (kicked %ld, Q %ld run %ld wake %ld)\n",
-		iocb->ki_retried,
-		iocb->ki_nbytes - iocb->ki_left, iocb->ki_nbytes,
-		iocb->ki_kicked, iocb->ki_queued, aio_run, aio_wakeups);
+	pr_debug("%ld retries: %d of %d\n", iocb->ki_retried,
+		iocb->ki_nbytes - iocb->ki_left, iocb->ki_nbytes);
 put_rq:
 	/* everything turned out well, dispose of the aiocb. */
 	ret = __aio_put_req(ctx, iocb);
@@ -1119,7 +1100,6 @@ static int read_events(struct kioctx *ctx,
 	int			i = 0;
 	struct io_event		ent;
 	struct aio_timeout	to;
-	int 			event_loop = 0; /* testing only */
 	int			retry = 0;
 
 	/* needed to zero any padding within an entry (there shouldn't be 
@@ -1186,7 +1166,6 @@ retry:
 			if (to.timed_out)	/* Only check after read evt */
 				break;
 			schedule();
-			event_loop++;
 			if (signal_pending(tsk)) {
 				ret = -EINTR;
 				break;
@@ -1214,9 +1193,6 @@ retry:
 	if (timeout)
 		clear_timeout(&to);
 out:
-	pr_debug("event loop executed %d times\n", event_loop);
-	pr_debug("aio_run %ld\n", aio_run);
-	pr_debug("aio_wakeups %ld\n", aio_wakeups);
 	return i ? i : ret;
 }
 
@@ -1515,8 +1491,7 @@ int fastcall io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 	}
 
 	req->ki_filp = file;
-	iocb->aio_key = req->ki_key;
-	ret = put_user(iocb->aio_key, &user_iocb->aio_key);
+	ret = put_user(req->ki_key, &user_iocb->aio_key);
 	if (unlikely(ret)) {
 		dprintk("EFAULT: aio_key\n");
 		goto out_put_req;
@@ -1531,13 +1506,7 @@ int fastcall io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 	req->ki_opcode = iocb->aio_lio_opcode;
 	init_waitqueue_func_entry(&req->ki_wait, aio_wake_function);
 	INIT_LIST_HEAD(&req->ki_wait.task_list);
-	req->ki_run_list.next = req->ki_run_list.prev = NULL;
-	req->ki_retry = NULL;
 	req->ki_retried = 0;
-	req->ki_kicked = 0;
-	req->ki_queued = 0;
-	aio_run = 0;
-	aio_wakeups = 0;
 
 	ret = aio_setup_iocb(req);
 
@@ -1545,10 +1514,14 @@ int fastcall io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 		goto out_put_req;
 
 	spin_lock_irq(&ctx->ctx_lock);
-	list_add_tail(&req->ki_run_list, &ctx->run_list);
-	/* drain the run list */
-	while (__aio_run_iocbs(ctx))
-		;
+	if (likely(list_empty(&ctx->run_list))) {
+		aio_run_iocb(req);
+	} else {
+		list_add_tail(&req->ki_run_list, &ctx->run_list);
+		/* drain the run list */
+		while (__aio_run_iocbs(ctx))
+			;
+	}
 	spin_unlock_irq(&ctx->ctx_lock);
 	aio_put_req(req);	/* drop extra ref to req */
 	return 0;

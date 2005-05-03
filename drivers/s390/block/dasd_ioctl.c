@@ -7,6 +7,8 @@
  * Bugreports.to..: <Linux390@de.ibm.com>
  * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 1999-2001
  *
+ * $Revision: 1.45 $
+ *
  * i/o controls for the dasd driver.
  */
 #include <linux/config.h>
@@ -294,6 +296,7 @@ dasd_ioctl_format(struct block_device *bdev, int no, long args)
 {
 	struct dasd_device *device;
 	struct format_data_t fdata;
+	int feature_ro;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
@@ -304,7 +307,11 @@ dasd_ioctl_format(struct block_device *bdev, int no, long args)
 
 	if (device == NULL)
 		return -ENODEV;
-	if (test_bit(DASD_FLAG_RO, &device->flags))
+
+	feature_ro = dasd_get_feature(device->cdev, DASD_FEATURE_READONLY);
+	if (feature_ro < 0)
+		return feature_ro;
+	if (feature_ro)
 		return -EROFS;
 	if (copy_from_user(&fdata, (void __user *) args,
 			   sizeof (struct format_data_t)))
@@ -377,7 +384,7 @@ dasd_ioctl_information(struct block_device *bdev, int no, long args)
 	struct dasd_device *device;
 	struct dasd_information2_t *dasd_info;
 	unsigned long flags;
-	int rc;
+	int rc, feature_ro;
 	struct ccw_device *cdev;
 
 	device = bdev->bd_disk->private_data;
@@ -386,6 +393,10 @@ dasd_ioctl_information(struct block_device *bdev, int no, long args)
 
 	if (!device->discipline->fill_info)
 		return -EINVAL;
+
+	feature_ro = dasd_get_feature(device->cdev, DASD_FEATURE_READONLY);
+	if (feature_ro < 0)
+		return feature_ro;
 
 	dasd_info = kmalloc(sizeof(struct dasd_information2_t), GFP_KERNEL);
 	if (dasd_info == NULL)
@@ -415,9 +426,8 @@ dasd_ioctl_information(struct block_device *bdev, int no, long args)
 	if ((device->state < DASD_STATE_READY) ||
 	    (dasd_check_blocksize(device->bp_block)))
 		dasd_info->format = DASD_FORMAT_NONE;
-	
-	dasd_info->features |= test_bit(DASD_FLAG_RO, &device->flags) ?
-		DASD_FEATURE_READONLY : DASD_FEATURE_DEFAULT;
+
+	dasd_info->features |= feature_ro;
 
 	if (device->discipline)
 		memcpy(dasd_info->type, device->discipline->name, 4);
@@ -460,7 +470,7 @@ static int
 dasd_ioctl_set_ro(struct block_device *bdev, int no, long args)
 {
 	struct dasd_device *device;
-	int intval;
+	int intval, rc;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
@@ -472,12 +482,11 @@ dasd_ioctl_set_ro(struct block_device *bdev, int no, long args)
 	device =  bdev->bd_disk->private_data;
 	if (device == NULL)
 		return -ENODEV;
+
 	set_disk_ro(bdev->bd_disk, intval);
-	if (intval)
-		set_bit(DASD_FLAG_RO, &device->flags);
-	else
-		clear_bit(DASD_FLAG_RO, &device->flags);
-	return 0;
+	rc = dasd_set_feature(device->cdev, DASD_FEATURE_READONLY, intval);
+
+	return rc;
 }
 
 /*

@@ -89,14 +89,14 @@ static int contrstats_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-struct seq_operations seq_controller_ops = {
+static struct seq_operations seq_controller_ops = {
 	.start	= controller_start,
 	.next	= controller_next,
 	.stop	= controller_stop,
 	.show	= controller_show,
 };
 
-struct seq_operations seq_contrstats_ops = {
+static struct seq_operations seq_contrstats_ops = {
 	.start	= controller_start,
 	.next	= controller_next,
 	.stop	= controller_stop,
@@ -192,14 +192,14 @@ applstats_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-struct seq_operations seq_applications_ops = {
+static struct seq_operations seq_applications_ops = {
 	.start	= applications_start,
 	.next	= applications_next,
 	.stop	= applications_stop,
 	.show	= applications_show,
 };
 
-struct seq_operations seq_applstats_ops = {
+static struct seq_operations seq_applstats_ops = {
 	.start	= applications_start,
 	.next	= applications_next,
 	.stop	= applications_stop,
@@ -287,7 +287,7 @@ static int capi_driver_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-struct seq_operations seq_capi_driver_ops = {
+static struct seq_operations seq_capi_driver_ops = {
 	.start	= capi_driver_start,
 	.next	= capi_driver_next,
 	.stop	= capi_driver_stop,

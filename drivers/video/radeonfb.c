@@ -2107,7 +2107,7 @@ static void radeon_write_mode (struct radeonfb_info *rinfo,
 
 
 	if (rinfo->arch == RADEON_M6) {
-		for (i=0; i<8; i++)
+		for (i=0; i<7; i++)
 			OUTREG(common_regs_m6[i].reg, common_regs_m6[i].val);
 	} else {
 		for (i=0; i<9; i++)

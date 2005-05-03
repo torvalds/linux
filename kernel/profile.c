@@ -184,7 +184,7 @@ void unregister_timer_hook(int (*hook)(struct pt_regs *))
 	WARN_ON(hook != timer_hook);
 	timer_hook = NULL;
 	/* make sure all CPUs see the NULL hook */
-	synchronize_kernel();
+	synchronize_sched();  /* Allow ongoing interrupts to complete. */
 }
 
 EXPORT_SYMBOL_GPL(register_timer_hook);
@@ -522,7 +522,7 @@ static int __init create_hash_tables(void)
 	return 0;
 out_cleanup:
 	prof_on = 0;
-	mb();
+	smp_mb();
 	on_each_cpu(profile_nop, NULL, 0, 1);
 	for_each_online_cpu(cpu) {
 		struct page *page;

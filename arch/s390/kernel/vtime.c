@@ -122,12 +122,17 @@ static void start_cpu_timer(void)
 	struct vtimer_queue *vt_list;
 
 	vt_list = &per_cpu(virt_cpu_timer, smp_processor_id());
-	set_vtimer(vt_list->idle);
+
+	/* CPU timer interrupt is pending, don't reprogramm it */
+	if (vt_list->idle & 1LL<<63)
+		return;
+
+	if (!list_empty(&vt_list->list))
+		set_vtimer(vt_list->idle);
 }
 
 static void stop_cpu_timer(void)
 {
-	__u64 done;
 	struct vtimer_queue *vt_list;
 
 	vt_list = &per_cpu(virt_cpu_timer, smp_processor_id());
@@ -138,21 +143,17 @@ static void stop_cpu_timer(void)
 		goto fire;
 	}
 
-	/* store progress */
-	asm volatile ("STPT %0" : "=m" (done));
+	/* store the actual expire value */
+	asm volatile ("STPT %0" : "=m" (vt_list->idle));
 
 	/*
-	 * If done is negative we do not stop the CPU timer
-	 * because we will get instantly an interrupt that
-	 * will start the CPU timer again.
+	 * If the CPU timer is negative we don't reprogramm
+	 * it because we will get instantly an interrupt.
 	 */
-	if (done & 1LL<<63)
+	if (vt_list->idle & 1LL<<63)
 		return;
-	else
-		vt_list->offset += vt_list->to_expire - done;
 
-	/* save the actual expire value */
-	vt_list->idle = done;
+	vt_list->offset += vt_list->to_expire - vt_list->idle;
 
 	/*
 	 * We cannot halt the CPU timer, we just write a value that

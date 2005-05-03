@@ -18,6 +18,7 @@
 #include <linux/ptrace.h>
 #include <linux/user.h>
 #include <linux/security.h>
+#include <linux/signal.h>
 
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
@@ -591,7 +592,7 @@ static int do_ptrace(int request, struct task_struct *child, long addr, long dat
 		case PTRACE_SYSCALL:
 		case PTRACE_CONT:
 			ret = -EIO;
-			if ((unsigned long) data > _NSIG)
+			if (!valid_signal(data))
 				break;
 			if (request == PTRACE_SYSCALL)
 				set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
@@ -626,7 +627,7 @@ static int do_ptrace(int request, struct task_struct *child, long addr, long dat
 		 */
 		case PTRACE_SINGLESTEP:
 			ret = -EIO;
-			if ((unsigned long) data > _NSIG)
+			if (!valid_signal(data))
 				break;
 			child->ptrace |= PT_SINGLESTEP;
 			clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);

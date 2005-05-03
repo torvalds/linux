@@ -140,6 +140,7 @@ inline void bio_init(struct bio *bio)
  * bio_alloc_bioset - allocate a bio for I/O
  * @gfp_mask:   the GFP_ mask given to the slab allocator
  * @nr_iovecs:	number of iovecs to pre-allocate
+ * @bs:		the bio_set to allocate from
  *
  * Description:
  *   bio_alloc_bioset will first try it's on mempool to satisfy the allocation.
@@ -629,6 +630,7 @@ out:
 
 /**
  *	bio_map_user	-	map user address into bio
+ *	@q: the request_queue_t for the bio
  *	@bdev: destination block device
  *	@uaddr: start of user address
  *	@len: length in bytes

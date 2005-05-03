@@ -32,6 +32,7 @@
 #include <linux/user.h>
 #include <linux/security.h>
 #include <linux/audit.h>
+#include <linux/signal.h>
 
 #include <asm/segment.h>
 #include <asm/page.h>
@@ -609,7 +610,7 @@ do_ptrace(struct task_struct *child, long request, long addr, long data)
 		/* continue and stop at next (return from) syscall */
 	case PTRACE_CONT:
 		/* restart after signal. */
-		if ((unsigned long) data >= _NSIG)
+		if (!valid_signal(data))
 			return -EIO;
 		if (request == PTRACE_SYSCALL)
 			set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
@@ -637,7 +638,7 @@ do_ptrace(struct task_struct *child, long request, long addr, long data)
 
 	case PTRACE_SINGLESTEP:
 		/* set the trap flag. */
-		if ((unsigned long) data >= _NSIG)
+		if (!valid_signal(data))
 			return -EIO;
 		clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 		child->exit_code = data;

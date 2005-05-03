@@ -11,13 +11,13 @@
 
 // find where objectid map starts
 #define objectid_map(s,rs) (old_format_only (s) ? \
-                         (__u32 *)((struct reiserfs_super_block_v1 *)(rs) + 1) :\
-			 (__u32 *)((rs) + 1))
+                         (__le32 *)((struct reiserfs_super_block_v1 *)(rs) + 1) :\
+			 (__le32 *)((rs) + 1))
 
 
 #ifdef CONFIG_REISERFS_CHECK
 
-static void check_objectid_map (struct super_block * s, __u32 * map)
+static void check_objectid_map (struct super_block * s, __le32 * map)
 {
     if (le32_to_cpu (map[0]) != 1)
 	reiserfs_panic (s, "vs-15010: check_objectid_map: map corrupted: %lx",
@@ -27,7 +27,7 @@ static void check_objectid_map (struct super_block * s, __u32 * map)
 }
 
 #else
-static void check_objectid_map (struct super_block * s, __u32 * map)
+static void check_objectid_map (struct super_block * s, __le32 * map)
 {;}
 #endif
 
@@ -52,7 +52,7 @@ __u32 reiserfs_get_unused_objectid (struct reiserfs_transaction_handle *th)
 {
     struct super_block * s = th->t_super;
     struct reiserfs_super_block * rs = SB_DISK_SUPER_BLOCK (s);
-    __u32 * map = objectid_map (s, rs);
+    __le32 * map = objectid_map (s, rs);
     __u32 unused_objectid;
 
     BUG_ON (!th->t_trans_id);
@@ -97,7 +97,7 @@ void reiserfs_release_objectid (struct reiserfs_transaction_handle *th,
 {
     struct super_block * s = th->t_super;
     struct reiserfs_super_block * rs = SB_DISK_SUPER_BLOCK (s);
-    __u32 * map = objectid_map (s, rs);
+    __le32 * map = objectid_map (s, rs);
     int i = 0;
 
     BUG_ON (!th->t_trans_id);
@@ -172,12 +172,12 @@ int reiserfs_convert_objectid_map_v1(struct super_block *s) {
     int new_size = (s->s_blocksize - SB_SIZE) / sizeof(__u32) / 2 * 2 ;
     int old_max = sb_oid_maxsize(disk_sb);
     struct reiserfs_super_block_v1 *disk_sb_v1 ;
-    __u32 *objectid_map, *new_objectid_map ;
+    __le32 *objectid_map, *new_objectid_map ;
     int i ;
 
     disk_sb_v1=(struct reiserfs_super_block_v1 *)(SB_BUFFER_WITH_SB(s)->b_data);
-    objectid_map = (__u32 *)(disk_sb_v1 + 1) ;
-    new_objectid_map = (__u32 *)(disk_sb + 1) ;
+    objectid_map = (__le32 *)(disk_sb_v1 + 1) ;
+    new_objectid_map = (__le32 *)(disk_sb + 1) ;
 
     if (cur_size > new_size) {
 	/* mark everyone used that was listed as free at the end of the objectid

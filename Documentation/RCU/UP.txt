@@ -2,11 +2,11 @@ RCU on Uniprocessor Systems
 
 
 A common misconception is that, on UP systems, the call_rcu() primitive
-may immediately invoke its function, and that the synchronize_kernel
+may immediately invoke its function, and that the synchronize_rcu()
 primitive may return immediately.  The basis of this misconception
 is that since there is only one CPU, it should not be necessary to
 wait for anything else to get done, since there are no other CPUs for
-anything else to be happening on.  Although this approach will sort of
+anything else to be happening on.  Although this approach will -sort- -of-
 work a surprising amount of the time, it is a very bad idea in general.
 This document presents two examples that demonstrate exactly how bad an
 idea this is.
@@ -44,14 +44,14 @@ its arguments would cause it to fail to make the fundamental guarantee
 underlying RCU, namely that call_rcu() defers invoking its arguments until
 all RCU read-side critical sections currently executing have completed.
 
-Quick Quiz: why is it -not- legal to invoke synchronize_kernel() in
+Quick Quiz: why is it -not- legal to invoke synchronize_rcu() in
 this case?
 
 
 Summary
 
 Permitting call_rcu() to immediately invoke its arguments or permitting
-synchronize_kernel() to immediately return breaks RCU, even on a UP system.
+synchronize_rcu() to immediately return breaks RCU, even on a UP system.
 So do not do it!  Even on a UP system, the RCU infrastructure -must-
 respect grace periods.
 

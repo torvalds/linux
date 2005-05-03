@@ -611,8 +611,8 @@ struct task_struct fastcall * __switch_to(struct task_struct *prev_p, struct tas
 	 * Save away %fs and %gs. No need to save %es and %ds, as
 	 * those are always kernel segments while inside the kernel.
 	 */
-	asm volatile("movl %%fs,%0":"=m" (*(int *)&prev->fs));
-	asm volatile("movl %%gs,%0":"=m" (*(int *)&prev->gs));
+	asm volatile("mov %%fs,%0":"=m" (prev->fs));
+	asm volatile("mov %%gs,%0":"=m" (prev->gs));
 
 	/*
 	 * Restore %fs and %gs if needed.

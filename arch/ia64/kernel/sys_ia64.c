@@ -93,20 +93,6 @@ sys_getpagesize (void)
 }
 
 asmlinkage unsigned long
-ia64_shmat (int shmid, void __user *shmaddr, int shmflg)
-{
-	unsigned long raddr;
-	int retval;
-
-	retval = do_shmat(shmid, shmaddr, shmflg, &raddr);
-	if (retval < 0)
-		return retval;
-
-	force_successful_syscall_return();
-	return raddr;
-}
-
-asmlinkage unsigned long
 ia64_brk (unsigned long brk)
 {
 	unsigned long rlim, retval, newbrk, oldbrk;

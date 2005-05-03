@@ -107,6 +107,11 @@ static void cpm2_end_irq(unsigned int irq_nr)
 		simr = &(cpm2_immr->im_intctl.ic_simrh);
 		ppc_cached_irq_mask[word] |= 1 << bit;
 		simr[word] = ppc_cached_irq_mask[word];
+		/*
+		 * Work around large numbers of spurious IRQs on PowerPC 82xx
+		 * systems.
+		 */
+		mb();
 	}
 }
 

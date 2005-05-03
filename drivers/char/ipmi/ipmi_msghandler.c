@@ -2588,28 +2588,20 @@ handle_msg_timeout(struct ipmi_recv_msg *msg)
 	deliver_response(msg);
 }
 
-static void
-send_from_recv_msg(ipmi_smi_t intf, struct ipmi_recv_msg *recv_msg,
-		   struct ipmi_smi_msg *smi_msg,
-		   unsigned char seq, long seqid)
+static struct ipmi_smi_msg *
+smi_from_recv_msg(ipmi_smi_t intf, struct ipmi_recv_msg *recv_msg,
+		  unsigned char seq, long seqid)
 {
-	if (!smi_msg)
-		smi_msg = ipmi_alloc_smi_msg();
+	struct ipmi_smi_msg *smi_msg = ipmi_alloc_smi_msg();
 	if (!smi_msg)
 		/* If we can't allocate the message, then just return, we
 		   get 4 retries, so this should be ok. */
-		return;
+		return NULL;
 
 	memcpy(smi_msg->data, recv_msg->msg.data, recv_msg->msg.data_len);
 	smi_msg->data_size = recv_msg->msg.data_len;
 	smi_msg->msgid = STORE_SEQ_IN_MSGID(seq, seqid);
 		
-	/* Send the new message.  We send with a zero priority.  It
-	   timed out, I doubt time is that critical now, and high
-	   priority messages are really only for messages to the local
-	   MC, which don't get resent. */
-	intf->handlers->sender(intf->send_info, smi_msg, 0);
-
 #ifdef DEBUG_MSGING
 	{
 		int m;
@@ -2619,6 +2611,7 @@ send_from_recv_msg(ipmi_smi_t intf, struct ipmi_recv_msg *recv_msg,
 		printk("\n");
 	}
 #endif
+	return smi_msg;
 }
 
 static void
@@ -2683,14 +2676,13 @@ ipmi_timeout_handler(long timeout_period)
 					intf->timed_out_ipmb_commands++;
 				spin_unlock(&intf->counter_lock);
 			} else {
+				struct ipmi_smi_msg *smi_msg;
 				/* More retries, send again. */
 
 				/* Start with the max timer, set to normal
 				   timer after the message is sent. */
 				ent->timeout = MAX_MSG_TIMEOUT;
 				ent->retries_left--;
-				send_from_recv_msg(intf, ent->recv_msg, NULL,
-						   j, ent->seqid);
 				spin_lock(&intf->counter_lock);
 				if (ent->recv_msg->addr.addr_type
 				    == IPMI_LAN_ADDR_TYPE)
@@ -2698,6 +2690,20 @@ ipmi_timeout_handler(long timeout_period)
 				else
 					intf->retransmitted_ipmb_commands++;
 				spin_unlock(&intf->counter_lock);
+				smi_msg = smi_from_recv_msg(intf,
+						ent->recv_msg, j, ent->seqid);
+				if(!smi_msg)
+					continue;
+
+				spin_unlock_irqrestore(&(intf->seq_lock),flags);
+				/* Send the new message.  We send with a zero
+				 * priority.  It timed out, I doubt time is
+				 * that critical now, and high priority
+				 * messages are really only for messages to the
+				 * local MC, which don't get resent. */
+				intf->handlers->sender(intf->send_info,
+							smi_msg, 0);
+				spin_lock_irqsave(&(intf->seq_lock), flags);
 			}
 		}
 		spin_unlock_irqrestore(&(intf->seq_lock), flags);

@@ -457,22 +457,6 @@ osf_getdomainname(char __user *name, int namelen)
 	return 0;
 }
 
-asmlinkage long
-osf_shmat(int shmid, void __user *shmaddr, int shmflg)
-{
-	unsigned long raddr;
-	long err;
-
-	err = do_shmat(shmid, shmaddr, shmflg, &raddr);
-
-	/*
-	 * This works because all user-level addresses are
-	 * non-negative longs!
-	 */
-	return err ? err : (long)raddr;
-}
-
-
 /*
  * The following stuff should move into a header file should it ever
  * be labeled "officially supported."  Right now, there is just enough

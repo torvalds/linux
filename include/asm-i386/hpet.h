@@ -92,6 +92,7 @@
 
 extern unsigned long hpet_tick;  	/* hpet clks count per tick */
 extern unsigned long hpet_address;	/* hpet memory map physical address */
+extern int hpet_use_timer;
 
 extern int hpet_rtc_timer_init(void);
 extern int hpet_enable(void);

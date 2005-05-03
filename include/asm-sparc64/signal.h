@@ -145,7 +145,6 @@ struct sigstack {
 #define SA_ONESHOT	_SV_RESET
 #define SA_INTERRUPT	0x10u
 #define SA_NOMASK	0x20u
-#define SA_SHIRQ	0x40u
 #define SA_NOCLDWAIT    0x100u
 #define SA_SIGINFO      0x200u
 
@@ -165,11 +164,6 @@ struct sigstack {
 
 #ifdef __KERNEL__
 /*
- * These values of sa_flags are used only by the kernel as part of the
- * irq handling routines.
- *
- * SA_INTERRUPT is also used by the irq handling routines.
- *
  * DJHR
  * SA_STATIC_ALLOC is used for the SPARC system to indicate that this
  * interrupt handler's irq structure should be statically allocated
@@ -180,8 +174,6 @@ struct sigstack {
  * statically allocated data.. which is NOT GOOD.
  *
  */
-#define SA_PROBE SA_ONESHOT
-#define SA_SAMPLE_RANDOM SA_RESTART
 #define SA_STATIC_ALLOC		0x80
 #endif
 

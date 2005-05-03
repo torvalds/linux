@@ -1,7 +1,7 @@
 /*
  *  drivers/s390/cio/device_ops.c
  *
- *   $Revision: 1.55 $
+ *   $Revision: 1.56 $
  *
  *    Copyright (C) 2002 IBM Deutschland Entwicklung GmbH,
  *			 IBM Corporation
@@ -128,7 +128,7 @@ ccw_device_start(struct ccw_device *cdev, struct ccw1 *cpa,
 		 unsigned long intparm, __u8 lpm, unsigned long flags)
 {
 	return ccw_device_start_key(cdev, cpa, intparm, lpm,
-				    default_storage_key, flags);
+				    PAGE_DEFAULT_KEY, flags);
 }
 
 int
@@ -137,7 +137,7 @@ ccw_device_start_timeout(struct ccw_device *cdev, struct ccw1 *cpa,
 			 int expires)
 {
 	return ccw_device_start_timeout_key(cdev, cpa, intparm, lpm,
-					    default_storage_key, flags,
+					    PAGE_DEFAULT_KEY, flags,
 					    expires);
 }
 

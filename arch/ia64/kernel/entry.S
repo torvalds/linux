@@ -1417,7 +1417,7 @@ sys_call_table:
 	data8 sys_msgrcv
 	data8 sys_msgctl
 	data8 sys_shmget
-	data8 ia64_shmat
+	data8 sys_shmat
 	data8 sys_shmdt				// 1115
 	data8 sys_shmctl
 	data8 sys_syslog

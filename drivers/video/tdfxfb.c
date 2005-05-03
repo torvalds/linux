@@ -317,30 +317,49 @@ static inline void do_setpalentry(struct tdfx_par *par, unsigned regno, u32 c)
 
 static u32 do_calc_pll(int freq, int* freq_out) 
 {
-	int m, n, k, best_m, best_n, best_k, f_cur, best_error;
+	int m, n, k, best_m, best_n, best_k, best_error;
 	int fref = 14318;
   
-	/* this really could be done with more intelligence --
-	   255*63*4 = 64260 iterations is silly */
 	best_error = freq;
 	best_n = best_m = best_k = 0;
-	for (n = 1; n < 256; n++) {
-		for (m = 1; m < 64; m++) {
-			for (k = 0; k < 4; k++) {
-				f_cur = fref*(n + 2)/(m + 2)/(1 << k);
-				if (abs(f_cur - freq) < best_error) {
-					best_error = abs(f_cur-freq);
-					best_n = n;
-					best_m = m;
-					best_k = k;
+
+	for (k = 3; k >= 0; k--) {
+		for (m = 63; m >= 0; m--) {
+			/*
+			 * Estimate value of n that produces target frequency
+			 * with current m and k
+			 */
+			int n_estimated = (freq * (m + 2) * (1 << k) / fref) - 2;
+
+			/* Search neighborhood of estimated n */
+			for (n = max(0, n_estimated - 1);
+					n <= min(255, n_estimated + 1); n++) {
+				/*
+				 * Calculate PLL freqency with current m, k and
+				 * estimated n
+				 */
+				int f = fref * (n + 2) / (m + 2) / (1 << k);
+				int error = abs (f - freq);
+
+				/*
+				 *  If this is the closest we've come to the
+				 * target frequency then remember n, m and k
+				 */
+				if (error  < best_error) {
+					best_error = error;
+					best_n     = n;
+					best_m     = m;
+					best_k     = k;
 				}
 			}
 		}
 	}
+
 	n = best_n;
 	m = best_m;
 	k = best_k;
 	*freq_out = fref*(n + 2)/(m + 2)/(1 << k);
+
 	return (n << 8) | (m << 2) | k;
 }
 
@@ -411,36 +430,35 @@ static void do_write_regs(struct fb_info *info, struct banshee_reg* reg)
 
 static unsigned long do_lfb_size(struct tdfx_par *par, unsigned short dev_id) 
 {
-	u32 draminit0 = 0;
-	u32 draminit1 = 0;
-	u32 miscinit1 = 0;
-	u32 lfbsize   = 0;
-	int sgram_p   = 0;
+	u32 draminit0;
+	u32 draminit1;
+	u32 miscinit1;
+
+	int num_chips;
+	int chip_size; /* in MB */
+	u32 lfbsize;
+	int has_sgram;
 
 	draminit0 = tdfx_inl(par, DRAMINIT0);  
 	draminit1 = tdfx_inl(par, DRAMINIT1);
+
+	num_chips = (draminit0 & DRAMINIT0_SGRAM_NUM) ? 8 : 4;
  
-	if ((dev_id == PCI_DEVICE_ID_3DFX_BANSHEE) ||
-	    (dev_id == PCI_DEVICE_ID_3DFX_VOODOO3)) {             	 
-		sgram_p = (draminit1 & DRAMINIT1_MEM_SDRAM) ? 0 : 1;
-  
-	lfbsize = sgram_p ?
-		(((draminit0 & DRAMINIT0_SGRAM_NUM)  ? 2 : 1) * 
-		((draminit0 & DRAMINIT0_SGRAM_TYPE) ? 8 : 4) * 1024 * 1024) :
-		16 * 1024 * 1024;
+	if (dev_id < PCI_DEVICE_ID_3DFX_VOODOO5) {
+		/* Banshee/Voodoo3 */
+		has_sgram = draminit1 & DRAMINIT1_MEM_SDRAM;
+		chip_size = has_sgram ? ((draminit0 & DRAMINIT0_SGRAM_TYPE) ? 2 : 1)
+				      : 2;
 	} else {
 		/* Voodoo4/5 */
-		u32 chips, psize, banks;
+		has_sgram = 0;
+		chip_size = 1 << ((draminit0 & DRAMINIT0_SGRAM_TYPE_MASK) >> DRAMINIT0_SGRAM_TYPE_SHIFT);
+	}
+	lfbsize = num_chips * chip_size * 1024 * 1024;
 
-		chips = ((draminit0 & (1 << 26)) == 0) ? 4 : 8;
-		psize = 1 << ((draminit0 & 0x38000000) >> 28);
-		banks = ((draminit0 & (1 << 30)) == 0) ? 2 : 4;
-		lfbsize = chips * psize * banks;
-		lfbsize <<= 20;
-	}                 
-	/* disable block writes for SDRAM (why?) */
+	/* disable block writes for SDRAM */
 	miscinit1 = tdfx_inl(par, MISCINIT1);
-	miscinit1 |= sgram_p ? 0 : MISCINIT1_2DBLOCK_DIS;
+	miscinit1 |= has_sgram ? 0 : MISCINIT1_2DBLOCK_DIS;
 	miscinit1 |= MISCINIT1_CLUT_INV;
 
 	banshee_make_room(par, 1); 

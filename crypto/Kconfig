@@ -146,7 +146,7 @@ config CRYPTO_SERPENT
 
 config CRYPTO_AES
 	tristate "AES cipher algorithms"
-	depends on CRYPTO && !(X86 && !X86_64)
+	depends on CRYPTO && !((X86 || UML_X86) && !64BIT)
 	help
 	  AES cipher algorithms (FIPS-197). AES uses the Rijndael 
 	  algorithm.
@@ -166,7 +166,7 @@ config CRYPTO_AES
 
 config CRYPTO_AES_586
 	tristate "AES cipher algorithms (i586)"
-	depends on CRYPTO && (X86 && !X86_64)
+	depends on CRYPTO && ((X86 || UML_X86) && !64BIT)
 	help
 	  AES cipher algorithms (FIPS-197). AES uses the Rijndael 
 	  algorithm.

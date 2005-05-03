@@ -1,8 +1,6 @@
 #ifndef __PPC64_A_OUT_H__
 #define __PPC64_A_OUT_H__
 
-#include <asm/ppcdebug.h>
-
 /*
  * c 2001 PPC 64 Team, IBM Corp
  *

@@ -19,6 +19,7 @@
 #include <linux/ptrace.h>
 #include <linux/user.h>
 #include <linux/config.h>
+#include <linux/signal.h>
 
 #include <asm/uaccess.h>
 #include <asm/page.h>
@@ -240,7 +241,7 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 			long tmp;
 
 			ret = -EIO;
-			if ((unsigned long) data > _NSIG)
+			if (!valid_signal(data))
 				break;
 			if (request == PTRACE_SYSCALL)
 				set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
@@ -278,7 +279,7 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 			long tmp;
 
 			ret = -EIO;
-			if ((unsigned long) data > _NSIG)
+			if (!valid_signal(data))
 				break;
 			clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 			tmp = get_reg(child, PT_SR) | (TRACE_BITS << 16);

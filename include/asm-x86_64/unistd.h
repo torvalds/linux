@@ -76,7 +76,7 @@ __SYSCALL(__NR_madvise, sys_madvise)
 #define __NR_shmget                             29
 __SYSCALL(__NR_shmget, sys_shmget)
 #define __NR_shmat                              30
-__SYSCALL(__NR_shmat, wrap_sys_shmat)
+__SYSCALL(__NR_shmat, sys_shmat)
 #define __NR_shmctl                             31
 __SYSCALL(__NR_shmctl, sys_shmctl)
 

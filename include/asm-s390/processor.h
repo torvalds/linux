@@ -245,7 +245,7 @@ static inline void enabled_wait(void)
 	psw_t wait_psw;
 
 	wait_psw.mask = PSW_BASE_BITS | PSW_MASK_IO | PSW_MASK_EXT |
-		PSW_MASK_MCHECK | PSW_MASK_WAIT;
+		PSW_MASK_MCHECK | PSW_MASK_WAIT | PSW_DEFAULT_KEY;
 #ifndef __s390x__
 	asm volatile (
 		"    basr %0,0\n"

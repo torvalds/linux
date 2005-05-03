@@ -145,7 +145,7 @@ static inline pmd_t pfn_pmd(pfn_t page_nr, pgprot_t pgprot)
  */
 #define PTE_FILE_MAX_BITS	32
 
-#ifdef CONFIG_64_BIT
+#ifdef CONFIG_64BIT
 
 #define pte_to_pgoff(p) ((p).pte >> 32)
 

@@ -244,7 +244,7 @@ int sysctl_hz_timer = 1;
  */
 static inline void stop_hz_timer(void)
 {
-	__u64 timer;
+	__u64 timer, todval;
 
 	if (sysctl_hz_timer != 0)
 		return;
@@ -265,8 +265,14 @@ static inline void stop_hz_timer(void)
 	 * for the next event.
 	 */
 	timer = (__u64) (next_timer_interrupt() - jiffies) + jiffies_64;
-	timer = jiffies_timer_cc + timer * CLK_TICKS_PER_JIFFY;
-	asm volatile ("SCKC %0" : : "m" (timer));
+	todval = -1ULL;
+	/* Be careful about overflows. */
+	if (timer < (-1ULL / CLK_TICKS_PER_JIFFY)) {
+		timer = jiffies_timer_cc + timer * CLK_TICKS_PER_JIFFY;
+		if (timer >= jiffies_timer_cc)
+			todval = timer;
+	}
+	asm volatile ("SCKC %0" : : "m" (todval));
 }
 
 /*

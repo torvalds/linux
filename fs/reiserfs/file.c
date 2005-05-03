@@ -166,7 +166,7 @@ static int reiserfs_allocate_blocks_for_region(
     struct cpu_key key; // cpu key of item that we are going to deal with
     struct item_head *ih; // pointer to item head that we are going to deal with
     struct buffer_head *bh; // Buffer head that contains items that we are going to deal with
-    __u32 * item; // pointer to item we are going to deal with
+    __le32 * item; // pointer to item we are going to deal with
     INITIALIZE_PATH(path); // path to item, that we are going to deal with.
     b_blocknr_t *allocated_blocks; // Pointer to a place where allocated blocknumbers would be stored.
     reiserfs_blocknr_hint_t hint; // hint structure for block allocator.
@@ -891,7 +891,7 @@ static int reiserfs_prepare_file_region_for_write(
     struct item_head *ih = NULL; // pointer to item head that we are going to deal with
     struct buffer_head *itembuf=NULL; // Buffer head that contains items that we are going to deal with
     INITIALIZE_PATH(path); // path to item, that we are going to deal with.
-    __u32 * item=NULL; // pointer to item we are going to deal with
+    __le32 * item=NULL; // pointer to item we are going to deal with
     int item_pos=-1; /* Position in indirect item */
 
 
@@ -1284,10 +1284,11 @@ static ssize_t reiserfs_file_write( struct file *file, /* the file we are going 
 	reiserfs_claim_blocks_to_be_allocated(inode->i_sb, num_pages << (PAGE_CACHE_SHIFT - inode->i_blkbits));
 	reiserfs_write_unlock(inode->i_sb);
 
-	if ( !num_pages ) { /* If we do not have enough space even for */
-	    res = -ENOSPC;  /* single page, return -ENOSPC */
-	    if ( pos > (inode->i_size & (inode->i_sb->s_blocksize-1)))
-		break; // In case we are writing past the file end, break.
+	if ( !num_pages ) { /* If we do not have enough space even for a single page... */
+	    if ( pos > inode->i_size+inode->i_sb->s_blocksize-(pos & (inode->i_sb->s_blocksize-1))) {
+		res = -ENOSPC;
+		break; // In case we are writing past the end of the last file block, break.
+	    }
 	    // Otherwise we are possibly overwriting the file, so
 	    // let's set write size to be equal or less than blocksize.
 	    // This way we get it correctly for file holes.

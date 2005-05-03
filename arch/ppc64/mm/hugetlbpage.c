@@ -42,7 +42,7 @@ static inline int hugepgd_index(unsigned long addr)
 	return (addr & ~REGION_MASK) >> HUGEPGDIR_SHIFT;
 }
 
-static pgd_t *hugepgd_offset(struct mm_struct *mm, unsigned long addr)
+static pud_t *hugepgd_offset(struct mm_struct *mm, unsigned long addr)
 {
 	int index;
 
@@ -52,21 +52,21 @@ static pgd_t *hugepgd_offset(struct mm_struct *mm, unsigned long addr)
 
 	index = hugepgd_index(addr);
 	BUG_ON(index >= PTRS_PER_HUGEPGD);
-	return mm->context.huge_pgdir + index;
+	return (pud_t *)(mm->context.huge_pgdir + index);
 }
 
-static inline pte_t *hugepte_offset(pgd_t *dir, unsigned long addr)
+static inline pte_t *hugepte_offset(pud_t *dir, unsigned long addr)
 {
 	int index;
 
-	if (pgd_none(*dir))
+	if (pud_none(*dir))
 		return NULL;
 
 	index = (addr >> HPAGE_SHIFT) % PTRS_PER_HUGEPTE;
-	return (pte_t *)pgd_page(*dir) + index;
+	return (pte_t *)pud_page(*dir) + index;
 }
 
-static pgd_t *hugepgd_alloc(struct mm_struct *mm, unsigned long addr)
+static pud_t *hugepgd_alloc(struct mm_struct *mm, unsigned long addr)
 {
 	BUG_ON(! in_hugepage_area(mm->context, addr));
 
@@ -90,10 +90,9 @@ static pgd_t *hugepgd_alloc(struct mm_struct *mm, unsigned long addr)
 	return hugepgd_offset(mm, addr);
 }
 
-static pte_t *hugepte_alloc(struct mm_struct *mm, pgd_t *dir,
-			    unsigned long addr)
+static pte_t *hugepte_alloc(struct mm_struct *mm, pud_t *dir, unsigned long addr)
 {
-	if (! pgd_present(*dir)) {
+	if (! pud_present(*dir)) {
 		pte_t *new;
 
 		spin_unlock(&mm->page_table_lock);
@@ -104,7 +103,7 @@ static pte_t *hugepte_alloc(struct mm_struct *mm, pgd_t *dir,
 		 * Because we dropped the lock, we should re-check the
 		 * entry, as somebody else could have populated it..
 		 */
-		if (pgd_present(*dir)) {
+		if (pud_present(*dir)) {
 			if (new)
 				kmem_cache_free(zero_cache, new);
 		} else {
@@ -115,7 +114,7 @@ static pte_t *hugepte_alloc(struct mm_struct *mm, pgd_t *dir,
 			ptepage = virt_to_page(new);
 			ptepage->mapping = (void *) mm;
 			ptepage->index = addr & HUGEPGDIR_MASK;
-			pgd_populate(mm, dir, new);
+			pud_populate(mm, dir, new);
 		}
 	}
 
@@ -124,28 +123,28 @@ static pte_t *hugepte_alloc(struct mm_struct *mm, pgd_t *dir,
 
 static pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
 {
-	pgd_t *pgd;
+	pud_t *pud;
 
 	BUG_ON(! in_hugepage_area(mm->context, addr));
 
-	pgd = hugepgd_offset(mm, addr);
-	if (! pgd)
+	pud = hugepgd_offset(mm, addr);
+	if (! pud)
 		return NULL;
 
-	return hugepte_offset(pgd, addr);
+	return hugepte_offset(pud, addr);
 }
 
 static pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr)
 {
-	pgd_t *pgd;
+	pud_t *pud;
 
 	BUG_ON(! in_hugepage_area(mm->context, addr));
 
-	pgd = hugepgd_alloc(mm, addr);
-	if (! pgd)
+	pud = hugepgd_alloc(mm, addr);
+	if (! pud)
 		return NULL;
 
-	return hugepte_alloc(mm, pgd, addr);
+	return hugepte_alloc(mm, pud, addr);
 }
 
 static void set_huge_pte(struct mm_struct *mm, struct vm_area_struct *vma,
@@ -709,10 +708,10 @@ void hugetlb_mm_free_pgd(struct mm_struct *mm)
 
 	/* cleanup any hugepte pages leftover */
 	for (i = 0; i < PTRS_PER_HUGEPGD; i++) {
-		pgd_t *pgd = pgdir + i;
+		pud_t *pud = (pud_t *)(pgdir + i);
 
-		if (! pgd_none(*pgd)) {
-			pte_t *pte = (pte_t *)pgd_page(*pgd);
+		if (! pud_none(*pud)) {
+			pte_t *pte = (pte_t *)pud_page(*pud);
 			struct page *ptepage = virt_to_page(pte);
 
 			ptepage->mapping = NULL;
@@ -720,7 +719,7 @@ void hugetlb_mm_free_pgd(struct mm_struct *mm)
 			BUG_ON(memcmp(pte, empty_zero_page, PAGE_SIZE));
 			kmem_cache_free(zero_cache, pte);
 		}
-		pgd_clear(pgd);
+		pud_clear(pud);
 	}
 
 	BUG_ON(memcmp(pgdir, empty_zero_page, PAGE_SIZE));

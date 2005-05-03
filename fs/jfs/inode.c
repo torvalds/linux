@@ -175,31 +175,22 @@ jfs_get_blocks(struct inode *ip, sector_t lblock, unsigned long max_blocks,
 {
 	s64 lblock64 = lblock;
 	int rc = 0;
-	int take_locks;
 	xad_t xad;
 	s64 xaddr;
 	int xflag;
-	s32 xlen;
-
-	/*
-	 * If this is a special inode (imap, dmap)
-	 * the lock should already be taken
-	 */
-	take_locks = (JFS_IP(ip)->fileset != AGGREGATE_I);
+	s32 xlen = max_blocks;
 
 	/*
 	 * Take appropriate lock on inode
 	 */
-	if (take_locks) {
-		if (create)
-			IWRITE_LOCK(ip);
-		else
-			IREAD_LOCK(ip);
-	}
+	if (create)
+		IWRITE_LOCK(ip);
+	else
+		IREAD_LOCK(ip);
 
 	if (((lblock64 << ip->i_sb->s_blocksize_bits) < ip->i_size) &&
-	    (xtLookup(ip, lblock64, max_blocks, &xflag, &xaddr, &xlen, 0)
-	     == 0) && xlen) {
+	    (!xtLookup(ip, lblock64, max_blocks, &xflag, &xaddr, &xlen, 0)) &&
+	    xaddr) {
 		if (xflag & XAD_NOTRECORDED) {
 			if (!create)
 				/*
@@ -238,7 +229,7 @@ jfs_get_blocks(struct inode *ip, sector_t lblock, unsigned long max_blocks,
 #ifdef _JFS_4K
 	if ((rc = extHint(ip, lblock64 << ip->i_sb->s_blocksize_bits, &xad)))
 		goto unlock;
-	rc = extAlloc(ip, max_blocks, lblock64, &xad, FALSE);
+	rc = extAlloc(ip, xlen, lblock64, &xad, FALSE);
 	if (rc)
 		goto unlock;
 
@@ -258,12 +249,10 @@ jfs_get_blocks(struct inode *ip, sector_t lblock, unsigned long max_blocks,
 	/*
 	 * Release lock on inode
 	 */
-	if (take_locks) {
-		if (create)
-			IWRITE_UNLOCK(ip);
-		else
-			IREAD_UNLOCK(ip);
-	}
+	if (create)
+		IWRITE_UNLOCK(ip);
+	else
+		IREAD_UNLOCK(ip);
 	return rc;
 }
 

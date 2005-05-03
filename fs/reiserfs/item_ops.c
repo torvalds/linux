@@ -296,10 +296,11 @@ static void print_sequence (__u32 start, int len)
 static void indirect_print_item (struct item_head * ih, char * item)
 {
     int j;
-    __u32 * unp, prev = INT_MAX;
+    __le32 * unp;
+    __u32 prev = INT_MAX;
     int num;
 
-    unp = (__u32 *)item;
+    unp = (__le32 *)item;
 
     if (ih_item_len(ih) % UNFM_P_SIZE)
 	reiserfs_warning (NULL, "indirect_print_item: invalid item len");

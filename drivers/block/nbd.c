@@ -78,6 +78,7 @@
 #define DBG_RX          0x0200
 #define DBG_TX          0x0400
 static unsigned int debugflags;
+static unsigned int nbds_max = 16;
 #endif /* NDEBUG */
 
 static struct nbd_device nbd_dev[MAX_NBD];
@@ -647,7 +648,13 @@ static int __init nbd_init(void)
 		return -EIO;
 	}
 
-	for (i = 0; i < MAX_NBD; i++) {
+	if (nbds_max > MAX_NBD) {
+		printk(KERN_CRIT "nbd: cannot allocate more than %u nbds; %u requested.\n", MAX_NBD,
+				nbds_max);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < nbds_max; i++) {
 		struct gendisk *disk = alloc_disk(1);
 		if (!disk)
 			goto out;
@@ -673,7 +680,7 @@ static int __init nbd_init(void)
 	dprintk(DBG_INIT, "nbd: debugflags=0x%x\n", debugflags);
 
 	devfs_mk_dir("nbd");
-	for (i = 0; i < MAX_NBD; i++) {
+	for (i = 0; i < nbds_max; i++) {
 		struct gendisk *disk = nbd_dev[i].disk;
 		nbd_dev[i].file = NULL;
 		nbd_dev[i].magic = LO_MAGIC;
@@ -706,8 +713,9 @@ out:
 static void __exit nbd_cleanup(void)
 {
 	int i;
-	for (i = 0; i < MAX_NBD; i++) {
+	for (i = 0; i < nbds_max; i++) {
 		struct gendisk *disk = nbd_dev[i].disk;
+		nbd_dev[i].magic = 0;
 		if (disk) {
 			del_gendisk(disk);
 			blk_cleanup_queue(disk->queue);
@@ -725,6 +733,8 @@ module_exit(nbd_cleanup);
 MODULE_DESCRIPTION("Network Block Device");
 MODULE_LICENSE("GPL");
 
+module_param(nbds_max, int, 0444);
+MODULE_PARM_DESC(nbds_max, "How many network block devices to initialize.");
 #ifndef NDEBUG
 module_param(debugflags, int, 0644);
 MODULE_PARM_DESC(debugflags, "flags for controlling debug output");

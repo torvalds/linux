@@ -116,8 +116,11 @@ static struct tty_operations console_ops = {
 	.open 	 		= con_open,
 	.close 	 		= line_close,
 	.write 	 		= line_write,
+	.put_char 		= line_put_char,
  	.write_room		= line_write_room,
 	.chars_in_buffer 	= line_chars_in_buffer,
+	.flush_buffer 		= line_flush_buffer,
+	.flush_chars 		= line_flush_chars,
 	.set_termios 		= line_set_termios,
 	.ioctl 	 		= line_ioctl,
 };
@@ -126,10 +129,11 @@ static void uml_console_write(struct console *console, const char *string,
 			  unsigned len)
 {
 	struct line *line = &vts[console->index];
+	unsigned long flags;
 
-	down(&line->sem);
+	spin_lock_irqsave(&line->lock, flags);
 	console_write_chan(&line->chan_list, string, len);
-	up(&line->sem);
+	spin_unlock_irqrestore(&line->lock, flags);
 }
 
 static struct tty_driver *uml_console_device(struct console *c, int *index)
@@ -192,14 +196,3 @@ static int console_chan_setup(char *str)
 }
 __setup("con", console_chan_setup);
 __channel_help(console_chan_setup, "con");
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

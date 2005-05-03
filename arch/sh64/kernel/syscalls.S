@@ -268,7 +268,7 @@ sys_call_table:
 	.long sys_msgrcv
 	.long sys_msgget
 	.long sys_msgctl
-	.long sys_shmatcall
+	.long sys_shmat
 	.long sys_shmdt			/* 245 */
 	.long sys_shmget
 	.long sys_shmctl

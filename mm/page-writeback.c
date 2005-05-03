@@ -255,7 +255,7 @@ static void balance_dirty_pages(struct address_space *mapping)
 
 /**
  * balance_dirty_pages_ratelimited - balance dirty memory state
- * @mapping - address_space which was dirtied
+ * @mapping: address_space which was dirtied
  *
  * Processes which are dirtying memory should call in here once for each page
  * which was newly dirtied.  The function will periodically check the system's
@@ -562,8 +562,8 @@ int do_writepages(struct address_space *mapping, struct writeback_control *wbc)
 /**
  * write_one_page - write out a single page and optionally wait on I/O
  *
- * @page - the page to write
- * @wait - if true, wait on writeout
+ * @page: the page to write
+ * @wait: if true, wait on writeout
  *
  * The page must be locked by the caller and will be unlocked upon return.
  *

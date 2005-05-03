@@ -18,7 +18,7 @@
 
 #ifndef __ASSEMBLY__
 
-/* Sparc is not segmented, however we need to be able to fool verify_area()
+/* Sparc is not segmented, however we need to be able to fool access_ok()
  * when doing system calls from kernel mode legitimately.
  *
  * "For historical reasons, these macros are grossly misnamed." -Linus
