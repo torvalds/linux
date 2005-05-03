@@ -144,6 +144,8 @@ enum {
 };
 #define XFRM_MSG_MAX (__XFRM_MSG_MAX - 1)
 
+#define XFRM_NR_MSGTYPES (XFRM_MSG_MAX + 1 - XFRM_MSG_BASE)
+
 struct xfrm_user_tmpl {
 	struct xfrm_id		id;
 	__u16			family;
