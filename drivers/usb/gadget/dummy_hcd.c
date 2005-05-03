@@ -141,6 +141,8 @@ static const char *const ep_name [] = {
 };
 #define DUMMY_ENDPOINTS	(sizeof(ep_name)/sizeof(char *))
 
+/*-------------------------------------------------------------------------*/
+
 #define FIFO_SIZE		64
 
 struct urbp {
@@ -189,6 +191,11 @@ static inline struct device *dummy_dev (struct dummy *dum)
 	return dummy_to_hcd(dum)->self.controller;
 }
 
+static inline struct device *udc_dev (struct dummy *dum)
+{
+	return dum->gadget.dev.parent;
+}
+
 static inline struct dummy *ep_to_dummy (struct dummy_ep *ep)
 {
 	return container_of (ep->gadget, struct dummy, gadget);
@@ -205,19 +212,6 @@ static inline struct dummy *gadget_dev_to_dummy (struct device *dev)
 }
 
 static struct dummy			*the_controller;
-
-/*-------------------------------------------------------------------------*/
-
-/*
- * This "hardware" may look a bit odd in diagnostics since it's got both
- * host and device sides; and it binds different drivers to each side.
- */
-static struct platform_device		the_pdev;
-
-static struct device_driver dummy_driver = {
-	.name		= (char *) driver_name,
-	.bus		= &platform_bus_type,
-};
 
 /*-------------------------------------------------------------------------*/
 
@@ -324,7 +318,7 @@ dummy_enable (struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 	_ep->maxpacket = max;
 	ep->desc = desc;
 
-	dev_dbg (dummy_dev(dum), "enabled %s (ep%d%s-%s) maxpacket %d\n",
+	dev_dbg (udc_dev(dum), "enabled %s (ep%d%s-%s) maxpacket %d\n",
 		_ep->name,
 		desc->bEndpointAddress & 0x0f,
 		(desc->bEndpointAddress & USB_DIR_IN) ? "in" : "out",
@@ -379,7 +373,7 @@ static int dummy_disable (struct usb_ep *_ep)
 	nuke (dum, ep);
 	spin_unlock_irqrestore (&dum->lock, flags);
 
-	dev_dbg (dummy_dev(dum), "disabled %s\n", _ep->name);
+	dev_dbg (udc_dev(dum), "disabled %s\n", _ep->name);
 	return retval;
 }
 
@@ -474,7 +468,7 @@ dummy_queue (struct usb_ep *_ep, struct usb_request *_req, int mem_flags)
 		return -ESHUTDOWN;
 
 #if 0
-	dev_dbg (dummy_dev(dum), "ep %p queue req %p to %s, len %d buf %p\n",
+	dev_dbg (udc_dev(dum), "ep %p queue req %p to %s, len %d buf %p\n",
 			ep, _req, _ep->name, _req->length, _req->buf);
 #endif
 
@@ -537,7 +531,7 @@ static int dummy_dequeue (struct usb_ep *_ep, struct usb_request *_req)
 	spin_unlock_irqrestore (&dum->lock, flags);
 
 	if (retval == 0) {
-		dev_dbg (dummy_dev(dum),
+		dev_dbg (udc_dev(dum),
 				"dequeued req %p from %s, len %d buf %p\n",
 				req, _ep->name, _req->length, _req->buf);
 		_req->complete (_ep, _req);
@@ -661,38 +655,6 @@ DEVICE_ATTR (function, S_IRUGO, show_function, NULL);
  * for each driver that registers:  just add to a big root hub.
  */
 
-/* This doesn't need to do anything because the udc device structure is
- * stored inside the hcd and will be deallocated along with it. */
-static void
-dummy_udc_release (struct device *dev) {}
-
-/* This doesn't need to do anything because the pdev structure is
- * statically allocated. */
-static void
-dummy_pdev_release (struct device *dev) {}
-
-static int
-dummy_register_udc (struct dummy *dum)
-{
-	int		rc;
-
-	strcpy (dum->gadget.dev.bus_id, "udc");
-	dum->gadget.dev.parent = dummy_dev(dum);
-	dum->gadget.dev.release = dummy_udc_release;
-
-	rc = device_register (&dum->gadget.dev);
-	if (rc == 0)
-		device_create_file (&dum->gadget.dev, &dev_attr_function);
-	return rc;
-}
-
-static void
-dummy_unregister_udc (struct dummy *dum)
-{
-	device_remove_file (&dum->gadget.dev, &dev_attr_function);
-	device_unregister (&dum->gadget.dev);
-}
-
 int
 usb_gadget_register_driver (struct usb_gadget_driver *driver)
 {
@@ -711,12 +673,6 @@ usb_gadget_register_driver (struct usb_gadget_driver *driver)
 	 * SLAVE side init ... the layer above hardware, which
 	 * can't enumerate without help from the driver we're binding.
 	 */
-	dum->gadget.name = gadget_name;
-	dum->gadget.ops = &dummy_ops;
-	dum->gadget.is_dualspeed = 1;
-
-	/* maybe claim OTG support, though we won't complete HNP */
-	dum->gadget.is_otg = (dummy_to_hcd(dum)->self.otg_port != 0);
 
 	dum->devstatus = 0;
 	dum->resuming = 0;
@@ -745,7 +701,7 @@ usb_gadget_register_driver (struct usb_gadget_driver *driver)
 
 	dum->driver = driver;
 	dum->gadget.dev.driver = &driver->driver;
-	dev_dbg (dummy_dev(dum), "binding gadget driver '%s'\n",
+	dev_dbg (udc_dev(dum), "binding gadget driver '%s'\n",
 			driver->driver.name);
 	if ((retval = driver->bind (&dum->gadget)) != 0) {
 		dum->driver = NULL;
@@ -798,7 +754,7 @@ usb_gadget_unregister_driver (struct usb_gadget_driver *driver)
 	if (!driver || driver != dum->driver)
 		return -EINVAL;
 
-	dev_dbg (dummy_dev(dum), "unregister gadget driver '%s'\n",
+	dev_dbg (udc_dev(dum), "unregister gadget driver '%s'\n",
 			driver->driver.name);
 
 	spin_lock_irqsave (&dum->lock, flags);
@@ -825,6 +781,64 @@ int net2280_set_fifo_mode (struct usb_gadget *gadget, int mode)
 	return -ENOSYS;
 }
 EXPORT_SYMBOL (net2280_set_fifo_mode);
+
+
+/* The gadget structure is stored inside the hcd structure and will be
+ * released along with it. */
+static void
+dummy_gadget_release (struct device *dev)
+{
+#if 0		/* usb_bus_put isn't EXPORTed! */
+	struct dummy	*dum = gadget_dev_to_dummy (dev);
+
+	usb_bus_put (&dummy_to_hcd (dum)->self);
+#endif
+}
+
+static int dummy_udc_probe (struct device *dev)
+{
+	struct dummy	*dum = the_controller;
+	int		rc;
+
+	dum->gadget.name = gadget_name;
+	dum->gadget.ops = &dummy_ops;
+	dum->gadget.is_dualspeed = 1;
+
+	/* maybe claim OTG support, though we won't complete HNP */
+	dum->gadget.is_otg = (dummy_to_hcd(dum)->self.otg_port != 0);
+
+	strcpy (dum->gadget.dev.bus_id, "gadget");
+	dum->gadget.dev.parent = dev;
+	dum->gadget.dev.release = dummy_gadget_release;
+	rc = device_register (&dum->gadget.dev);
+	if (rc < 0)
+		return rc;
+
+#if 0		/* usb_bus_get isn't EXPORTed! */
+	usb_bus_get (&dummy_to_hcd (dum)->self);
+#endif
+
+	dev_set_drvdata (dev, dum);
+	device_create_file (&dum->gadget.dev, &dev_attr_function);
+	return rc;
+}
+
+static int dummy_udc_remove (struct device *dev)
+{
+	struct dummy	*dum = dev_get_drvdata (dev);
+
+	dev_set_drvdata (dev, NULL);
+	device_remove_file (&dum->gadget.dev, &dev_attr_function);
+	device_unregister (&dum->gadget.dev);
+	return 0;
+}
+
+static struct device_driver dummy_udc_driver = {
+	.name		= (char *) gadget_name,
+	.bus		= &platform_bus_type,
+	.probe		= dummy_udc_probe,
+	.remove		= dummy_udc_remove,
+};
 
 /*-------------------------------------------------------------------------*/
 
@@ -1184,7 +1198,7 @@ restart:
 			list_for_each_entry (req, &ep->queue, queue) {
 				list_del_init (&req->queue);
 				req->req.status = -EOVERFLOW;
-				dev_dbg (dummy_dev(dum), "stale req = %p\n",
+				dev_dbg (udc_dev(dum), "stale req = %p\n",
 						req);
 
 				spin_unlock (&dum->lock);
@@ -1207,7 +1221,7 @@ restart:
 					break;
 				dum->address = setup.wValue;
 				maybe_set_status (urb, 0);
-				dev_dbg (dummy_dev(dum), "set_address = %d\n",
+				dev_dbg (udc_dev(dum), "set_address = %d\n",
 						setup.wValue);
 				value = 0;
 				break;
@@ -1333,7 +1347,7 @@ restart:
 
 			if (value < 0) {
 				if (value != -EOPNOTSUPP)
-					dev_dbg (dummy_dev(dum),
+					dev_dbg (udc_dev(dum),
 						"setup --> %d\n",
 						value);
 				maybe_set_status (urb, -EPIPE);
@@ -1561,7 +1575,7 @@ static int dummy_hub_control (
 						| USB_PORT_STAT_LOW_SPEED
 						| USB_PORT_STAT_HIGH_SPEED);
 				if (dum->driver) {
-					dev_dbg (dummy_dev(dum),
+					dev_dbg (udc_dev(dum),
 							"disconnect\n");
 					stop_activity (dum, dum->driver);
 				}
@@ -1643,7 +1657,6 @@ static DEVICE_ATTR (urbs, S_IRUGO, show_urbs, NULL);
 static int dummy_start (struct usb_hcd *hcd)
 {
 	struct dummy		*dum;
-	int			retval;
 
 	dum = hcd_to_dummy (hcd);
 
@@ -1658,9 +1671,6 @@ static int dummy_start (struct usb_hcd *hcd)
 	dum->timer.data = (unsigned long) dum;
 
 	INIT_LIST_HEAD (&dum->urbp_list);
-
-	if ((retval = dummy_register_udc (dum)) != 0)
-		return retval;
 
 	/* only show a low-power port: just 8mA */
 	hcd->power_budget = 8;
@@ -1682,10 +1692,7 @@ static void dummy_stop (struct usb_hcd *hcd)
 	dum = hcd_to_dummy (hcd);
 
 	device_remove_file (dummy_dev(dum), &dev_attr_urbs);
-
 	usb_gadget_unregister_driver (dum->driver);
-	dummy_unregister_udc (dum);
-
 	dev_info (dummy_dev(dum), "stopped\n");
 }
 
@@ -1715,7 +1722,7 @@ static const struct hc_driver dummy_hcd = {
 	.hub_control = 		dummy_hub_control,
 };
 
-static int dummy_probe (struct device *dev)
+static int dummy_hcd_probe (struct device *dev)
 {
 	struct usb_hcd		*hcd;
 	int			retval;
@@ -1735,7 +1742,7 @@ static int dummy_probe (struct device *dev)
 	return retval;
 }
 
-static void dummy_remove (struct device *dev)
+static int dummy_hcd_remove (struct device *dev)
 {
 	struct usb_hcd		*hcd;
 
@@ -1743,35 +1750,41 @@ static void dummy_remove (struct device *dev)
 	usb_remove_hcd (hcd);
 	usb_put_hcd (hcd);
 	the_controller = NULL;
+	return 0;
 }
+
+static struct device_driver dummy_hcd_driver = {
+	.name		= (char *) driver_name,
+	.bus		= &platform_bus_type,
+	.probe		= dummy_hcd_probe,
+	.remove		= dummy_hcd_remove,
+};
 
 /*-------------------------------------------------------------------------*/
 
-static int dummy_pdev_detect (void)
-{
-	int			retval;
+/* These don't need to do anything because the pdev structures are
+ * statically allocated. */
+static void
+dummy_udc_release (struct device *dev) {}
 
-	retval = driver_register (&dummy_driver);
-	if (retval < 0)
-		return retval;
+static void
+dummy_hcd_release (struct device *dev) {}
 
-	the_pdev.name = "hc";
-	the_pdev.dev.driver = &dummy_driver;
-	the_pdev.dev.release = dummy_pdev_release;
+static struct platform_device		the_udc_pdev = {
+	.name		= (char *) gadget_name,
+	.id		= -1,
+	.dev		= {
+		.release	= dummy_udc_release,
+	},
+};
 
-	retval = platform_device_register (&the_pdev);
-	if (retval < 0)
-		driver_unregister (&dummy_driver);
-	return retval;
-}
-
-static void dummy_pdev_remove (void)
-{
-	platform_device_unregister (&the_pdev);
-	driver_unregister (&dummy_driver);
-}
-
-/*-------------------------------------------------------------------------*/
+static struct platform_device		the_hcd_pdev = {
+	.name		= (char *) driver_name,
+	.id		= -1,
+	.dev		= {
+		.release	= dummy_hcd_release,
+	},
+};
 
 static int __init init (void)
 {
@@ -1779,17 +1792,39 @@ static int __init init (void)
 
 	if (usb_disabled ())
 		return -ENODEV;
-	if ((retval = dummy_pdev_detect ()) != 0)
+
+	retval = driver_register (&dummy_hcd_driver);
+	if (retval < 0)
 		return retval;
-	if ((retval = dummy_probe (&the_pdev.dev)) != 0)
-		dummy_pdev_remove ();
+
+	retval = driver_register (&dummy_udc_driver);
+	if (retval < 0)
+		goto err_register_udc_driver;
+
+	retval = platform_device_register (&the_hcd_pdev);
+	if (retval < 0)
+		goto err_register_hcd;
+
+	retval = platform_device_register (&the_udc_pdev);
+	if (retval < 0)
+		goto err_register_udc;
+	return retval;
+
+err_register_udc:
+	platform_device_unregister (&the_hcd_pdev);
+err_register_hcd:
+	driver_unregister (&dummy_udc_driver);
+err_register_udc_driver:
+	driver_unregister (&dummy_hcd_driver);
 	return retval;
 }
 module_init (init);
 
 static void __exit cleanup (void)
 {
-	dummy_remove (&the_pdev.dev);
-	dummy_pdev_remove ();
+	platform_device_unregister (&the_udc_pdev);
+	platform_device_unregister (&the_hcd_pdev);
+	driver_unregister (&dummy_udc_driver);
+	driver_unregister (&dummy_hcd_driver);
 }
 module_exit (cleanup);
