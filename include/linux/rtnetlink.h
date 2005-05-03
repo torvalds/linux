@@ -93,6 +93,8 @@ enum {
 #define RTM_MAX		(((__RTM_MAX + 3) & ~3) - 1)
 };
 
+#define RTM_FAM(cmd)	(((cmd) - RTM_BASE) >> 2)
+
 /* 
    Generic structure for encapsulation of optional route information.
    It is reminiscent of sockaddr, but with sa_family replaced
