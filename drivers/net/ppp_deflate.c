@@ -87,8 +87,7 @@ static void z_comp_free(void *arg)
 
 	if (state) {
 		zlib_deflateEnd(&state->strm);
-		if (state->strm.workspace)
-			vfree(state->strm.workspace);
+		vfree(state->strm.workspace);
 		kfree(state);
 	}
 }
@@ -308,8 +307,7 @@ static void z_decomp_free(void *arg)
 
 	if (state) {
 		zlib_inflateEnd(&state->strm);
-		if (state->strm.workspace)
-			kfree(state->strm.workspace);
+		kfree(state->strm.workspace);
 		kfree(state);
 	}
 }
