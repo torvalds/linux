@@ -400,10 +400,8 @@ static void cpc_tty_close(struct tty_struct *tty, struct file *flip)
 		cpc_tty->buf_rx.last = NULL;
 	}
 	
-	if (cpc_tty->buf_tx) {
-		kfree(cpc_tty->buf_tx);
-		cpc_tty->buf_tx = NULL;
-	}
+	kfree(cpc_tty->buf_tx);
+	cpc_tty->buf_tx = NULL;
 
 	CPC_TTY_DBG("%s: TTY closed\n",cpc_tty->name);
 	
@@ -666,7 +664,7 @@ static void cpc_tty_rx_work(void * data)
 	unsigned long port;
 	int i, j;
 	st_cpc_tty_area *cpc_tty; 
-	volatile st_cpc_rx_buf * buf;
+	volatile st_cpc_rx_buf *buf;
 	char flags=0,flg_rx=1; 
 	struct tty_ldisc *ld;
 
@@ -680,9 +678,9 @@ static void cpc_tty_rx_work(void * data)
 			cpc_tty = &cpc_tty_area[port];
 		
 			if ((buf=cpc_tty->buf_rx.first) != 0) {
-				if(cpc_tty->tty) {
+				if (cpc_tty->tty) {
 					ld = tty_ldisc_ref(cpc_tty->tty);
-					if(ld) {
+					if (ld) {
 						if (ld->receive_buf) {
 							CPC_TTY_DBG("%s: call line disc. receive_buf\n",cpc_tty->name);
 							ld->receive_buf(cpc_tty->tty, (char *)(buf->data), &flags, buf->size);
@@ -691,7 +689,7 @@ static void cpc_tty_rx_work(void * data)
 					}
 				}	
 				cpc_tty->buf_rx.first = cpc_tty->buf_rx.first->next;
-				kfree((unsigned char *)buf);
+				kfree(buf);
 				buf = cpc_tty->buf_rx.first;
 				flg_rx = 1;
 			}
@@ -733,7 +731,7 @@ static void cpc_tty_rx_disc_frame(pc300ch_t *pc300chan)
 
 void cpc_tty_receive(pc300dev_t *pc300dev)
 {
-	st_cpc_tty_area    *cpc_tty; 
+	st_cpc_tty_area *cpc_tty; 
 	pc300ch_t *pc300chan = (pc300ch_t *)pc300dev->chan; 
 	pc300_t *card = (pc300_t *)pc300chan->card; 
 	int ch = pc300chan->channel; 
@@ -742,7 +740,7 @@ void cpc_tty_receive(pc300dev_t *pc300dev)
 	int rx_len, rx_aux; 
 	volatile unsigned char status; 
 	unsigned short first_bd = pc300chan->rx_first_bd;
-	st_cpc_rx_buf	*new=NULL;
+	st_cpc_rx_buf *new = NULL;
 	unsigned char dsr_rx;
 
 	if (pc300dev->cpc_tty == NULL) { 
@@ -762,7 +760,7 @@ void cpc_tty_receive(pc300dev_t *pc300dev)
 			if (status & DST_EOM) {
 				break;
 			}
-			ptdescr=(pcsca_bd_t __iomem *)(card->hw.rambase+cpc_readl(&ptdescr->next));
+			ptdescr = (pcsca_bd_t __iomem *)(card->hw.rambase+cpc_readl(&ptdescr->next));
 		}
 			
 		if (!rx_len) { 
@@ -771,10 +769,7 @@ void cpc_tty_receive(pc300dev_t *pc300dev)
 				cpc_writel(card->hw.scabase + DRX_REG(EDAL, ch), 
 						RX_BD_ADDR(ch, pc300chan->rx_last_bd)); 
 			}
-			if (new) {
-				kfree(new);
-				new = NULL;
-			}
+			kfree(new);
 			return; 
 		}
 		
@@ -787,7 +782,7 @@ void cpc_tty_receive(pc300dev_t *pc300dev)
 			continue;
 		} 
 		
-		new = (st_cpc_rx_buf *) kmalloc(rx_len + sizeof(st_cpc_rx_buf), GFP_ATOMIC);
+		new = (st_cpc_rx_buf *)kmalloc(rx_len + sizeof(st_cpc_rx_buf), GFP_ATOMIC);
 		if (new == 0) {
 			cpc_tty_rx_disc_frame(pc300chan);
 			continue;
