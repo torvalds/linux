@@ -179,6 +179,7 @@ requeue:
 		netif_schedule(dev);
 		return 1;
 	}
+	BUG_ON((int) q->q.qlen < 0);
 	return q->q.qlen;
 }
 
