@@ -486,7 +486,7 @@ static void audit_log_move(struct audit_buffer *ab)
 	if (ab->len == 0)
 		return;
 
-	skb = skb_peek(&ab->sklist);
+	skb = skb_peek_tail(&ab->sklist);
 	if (!skb || skb_tailroom(skb) <= ab->len + extra) {
 		skb = alloc_skb(2 * ab->len + extra, GFP_ATOMIC);
 		if (!skb) {
