@@ -119,8 +119,9 @@ static inline void dnrmg_receive_user_skb(struct sk_buff *skb)
 static void dnrmg_receive_user_sk(struct sock *sk, int len)
 {
 	struct sk_buff *skb;
+	unsigned int qlen = skb_queue_len(&sk->sk_receive_queue);
 
-	while((skb = skb_dequeue(&sk->sk_receive_queue)) != NULL) {
+	while (qlen-- && (skb = skb_dequeue(&sk->sk_receive_queue))) {
 		dnrmg_receive_user_skb(skb);
 		kfree_skb(skb);
 	}

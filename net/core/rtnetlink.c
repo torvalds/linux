@@ -609,26 +609,31 @@ static inline int rtnetlink_rcv_skb(struct sk_buff *skb)
 
 /*
  *  rtnetlink input queue processing routine:
- *	- try to acquire shared lock. If it is failed, defer processing.
+ *	- process as much as there was in the queue upon entry.
  *	- feed skbs to rtnetlink_rcv_skb, until it refuse a message,
- *	  that will occur, when a dump started and/or acquisition of
- *	  exclusive lock failed.
+ *	  that will occur, when a dump started.
  */
 
 static void rtnetlink_rcv(struct sock *sk, int len)
 {
+	unsigned int qlen = skb_queue_len(&sk->sk_receive_queue);
+
 	do {
 		struct sk_buff *skb;
 
-		if (rtnl_shlock_nowait())
-			return;
+		rtnl_lock();
 
-		while ((skb = skb_dequeue(&sk->sk_receive_queue)) != NULL) {
+		if (qlen > skb_queue_len(&sk->sk_receive_queue))
+			qlen = skb_queue_len(&sk->sk_receive_queue);
+
+		while (qlen--) {
+			skb = skb_dequeue(&sk->sk_receive_queue);
 			if (rtnetlink_rcv_skb(skb)) {
-				if (skb->len)
+				if (skb->len) {
 					skb_queue_head(&sk->sk_receive_queue,
 						       skb);
-				else
+					qlen++;
+				} else
 					kfree_skb(skb);
 				break;
 			}
@@ -638,7 +643,7 @@ static void rtnetlink_rcv(struct sock *sk, int len)
 		up(&rtnl_sem);
 
 		netdev_run_todo();
-	} while (rtnl && rtnl->sk_receive_queue.qlen);
+	} while (qlen);
 }
 
 static struct rtnetlink_link link_rtnetlink_table[RTM_NR_MSGTYPES] =

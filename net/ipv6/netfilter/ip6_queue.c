@@ -549,20 +549,18 @@ ipq_rcv_skb(struct sk_buff *skb)
 static void
 ipq_rcv_sk(struct sock *sk, int len)
 {
-	do {
-		struct sk_buff *skb;
+	struct sk_buff *skb;
+	unsigned int qlen;
 
-		if (down_trylock(&ipqnl_sem))
-			return;
+	down(&ipqnl_sem);
 			
-		while ((skb = skb_dequeue(&sk->sk_receive_queue)) != NULL) {
-			ipq_rcv_skb(skb);
-			kfree_skb(skb);
-		}
+	for (qlen = skb_queue_len(&sk->sk_receive_queue); qlen; qlen--) {
+		skb = skb_dequeue(&sk->sk_receive_queue);
+		ipq_rcv_skb(skb);
+		kfree_skb(skb);
+	}
 		
-		up(&ipqnl_sem);
-
-	} while (ipqnl && ipqnl->sk_receive_queue.qlen);
+	up(&ipqnl_sem);
 }
 
 static int

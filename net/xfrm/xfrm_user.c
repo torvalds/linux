@@ -1008,17 +1008,24 @@ static int xfrm_user_rcv_skb(struct sk_buff *skb)
 
 static void xfrm_netlink_rcv(struct sock *sk, int len)
 {
+	unsigned int qlen = skb_queue_len(&sk->sk_receive_queue);
+
 	do {
 		struct sk_buff *skb;
 
 		down(&xfrm_cfg_sem);
 
-		while ((skb = skb_dequeue(&sk->sk_receive_queue)) != NULL) {
+		if (qlen > skb_queue_len(&sk->sk_receive_queue))
+			qlen = skb_queue_len(&sk->sk_receive_queue);
+
+		while (qlen--) {
+			skb = skb_dequeue(&sk->sk_receive_queue);
 			if (xfrm_user_rcv_skb(skb)) {
-				if (skb->len)
+				if (skb->len) {
 					skb_queue_head(&sk->sk_receive_queue,
 						       skb);
-				else
+					qlen++;
+				} else
 					kfree_skb(skb);
 				break;
 			}
@@ -1027,7 +1034,7 @@ static void xfrm_netlink_rcv(struct sock *sk, int len)
 
 		up(&xfrm_cfg_sem);
 
-	} while (xfrm_nl && xfrm_nl->sk_receive_queue.qlen);
+	} while (qlen);
 }
 
 static int build_expire(struct sk_buff *skb, struct xfrm_state *x, int hard)
