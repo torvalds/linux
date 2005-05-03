@@ -630,8 +630,6 @@ static void syscall_trace(struct pt_regs *regs)
 	}
 }
 
-#define audit_arch() (test_thread_flag(TIF_IA32) ? AUDIT_ARCH_I386 : AUDIT_ARCH_X86_64)
-
 asmlinkage void syscall_trace_enter(struct pt_regs *regs)
 {
 	/* do the secure computing check first */
@@ -641,11 +639,19 @@ asmlinkage void syscall_trace_enter(struct pt_regs *regs)
 	    && (current->ptrace & PT_PTRACED))
 		syscall_trace(regs);
 
-	if (unlikely(current->audit_context))
-		audit_syscall_entry(current, audit_arch(), regs->orig_rax,
-				    regs->rdi, regs->rsi,
-				    regs->rdx, regs->r10);
-
+	if (unlikely(current->audit_context)) {
+		if (test_thread_flag(TIF_IA32)) {
+			audit_syscall_entry(current, AUDIT_ARCH_I386,
+					    regs->orig_rax,
+					    regs->rbx, regs->rcx,
+					    regs->rdx, regs->rsi);
+		} else {
+			audit_syscall_entry(current, AUDIT_ARCH_X86_64,
+					    regs->orig_rax,
+					    regs->rdi, regs->rsi,
+					    regs->rdx, regs->r10);
+		}
+	}
 }
 
 asmlinkage void syscall_trace_leave(struct pt_regs *regs)
