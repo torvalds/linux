@@ -236,8 +236,6 @@ void nf_debug_ip_loopback_xmit(struct sk_buff *newskb)
 		debug_print_hooks_ip(newskb->nf_debug);
 		nf_dump_skb(PF_INET, newskb);
 	}
-	/* Clear to avoid confusing input check */
-	newskb->nf_debug = 0;
 }
 
 void nf_debug_ip_finish_output2(struct sk_buff *skb)
