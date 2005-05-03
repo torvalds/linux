@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: os-linux.h,v 1.54 2005/02/09 09:23:53 pavlov Exp $
+ * $Id: os-linux.h,v 1.56 2005/05/03 15:19:00 dedekind Exp $
  *
  */
 
@@ -99,11 +99,11 @@ static inline void jffs2_init_inode_info(struct jffs2_inode_info *f)
 
 
 #define jffs2_is_readonly(c) (OFNI_BS_2SFFJ(c)->s_flags & MS_RDONLY)
-#define jffs2_is_writebuffered(c) (c->wbuf != NULL)
 
 #ifndef CONFIG_JFFS2_FS_WRITEBUFFER
 #define SECTOR_ADDR(x) ( ((unsigned long)(x) & ~(c->sector_size-1)) )
 #define jffs2_can_mark_obsolete(c) (1)
+#define jffs2_is_writebuffered(c) (0)
 #define jffs2_cleanmarker_oob(c) (0)
 #define jffs2_write_nand_cleanmarker(c,jeb) (-EIO)
 
@@ -125,6 +125,7 @@ static inline void jffs2_init_inode_info(struct jffs2_inode_info *f)
 
 #else /* NAND and/or ECC'd NOR support present */
 
+#define jffs2_is_writebuffered(c) (c->wbuf != NULL)
 #define SECTOR_ADDR(x) ( ((unsigned long)(x) / (unsigned long)(c->sector_size)) * c->sector_size )
 #define jffs2_can_mark_obsolete(c) ((c->mtd->type == MTD_NORFLASH && !(c->mtd->flags & MTD_ECC)) || c->mtd->type == MTD_RAM)
 #define jffs2_cleanmarker_oob(c) (c->mtd->type == MTD_NANDFLASH)
