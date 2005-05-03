@@ -48,6 +48,14 @@
  * USB development list <linux-usb-devel@lists.sourceforge.net>.
  */
 
+/* patch submitted by Vivian Bregier <Vivian.Bregier@imag.fr>
+ */
+UNUSUAL_DEV(  0x03eb, 0x2002, 0x0100, 0x0100,
+                "ATMEL",
+                "SND1 Storage",
+                US_SC_DEVICE, US_PR_DEVICE, NULL,
+                US_FL_IGNORE_RESIDUE),
+
 UNUSUAL_DEV(  0x03ee, 0x6901, 0x0000, 0x0100,
 		"Mitsumi",
 		"USB FDD",
