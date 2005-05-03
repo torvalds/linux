@@ -89,8 +89,8 @@ enum {
 	RTM_GETANYCAST	= 62,
 #define RTM_GETANYCAST	RTM_GETANYCAST
 
-	RTM_MAX,
-#define RTM_MAX		RTM_MAX
+	__RTM_MAX,
+#define RTM_MAX		(((__RTM_MAX + 3) & ~3) - 1)
 };
 
 /* 
