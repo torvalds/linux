@@ -413,6 +413,7 @@ config CPU_BPREDICT_DISABLE
 config HAS_TLS_REG
 	bool
 	depends on CPU_32v6 && !CPU_32v5 && !CPU_32v4 && !CPU_32v3
+	default y
 	help
 	  This selects support for the CP15 thread register.
 	  It is defined to be available on ARMv6 or later.  However
