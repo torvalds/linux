@@ -684,6 +684,7 @@ static int dummy_wakeup (struct usb_gadget *_gadget)
 	/* hub notices our request, issues downstream resume, etc */
 	dum->resuming = 1;
 	dum->re_timeout = jiffies + msecs_to_jiffies(20);
+	mod_timer (&dummy_to_hcd (dum)->rh_timer, dum->re_timeout);
 	return 0;
 }
 
@@ -709,6 +710,8 @@ static int dummy_pullup (struct usb_gadget *_gadget, int value)
 	dum->pullup = (value != 0);
 	set_link_state (dum);
 	spin_unlock_irqrestore (&dum->lock, flags);
+
+	usb_hcd_poll_rh_status (dummy_to_hcd (dum));
 	return 0;
 }
 
@@ -811,6 +814,8 @@ usb_gadget_register_driver (struct usb_gadget_driver *driver)
 	dum->pullup = 1;
 	set_link_state (dum);
 	spin_unlock_irq (&dum->lock);
+
+	usb_hcd_poll_rh_status (dummy_to_hcd (dum));
 	return 0;
 }
 EXPORT_SYMBOL (usb_gadget_register_driver);
@@ -845,6 +850,7 @@ usb_gadget_unregister_driver (struct usb_gadget_driver *driver)
 	set_link_state (dum);
 	spin_unlock_irqrestore (&dum->lock, flags);
 
+	usb_hcd_poll_rh_status (dummy_to_hcd (dum));
 	return 0;
 }
 EXPORT_SYMBOL (usb_gadget_unregister_driver);
@@ -1669,6 +1675,9 @@ static int dummy_hub_control (
 		retval = -EPIPE;
 	}
 	spin_unlock_irqrestore (&dum->lock, flags);
+
+	if ((dum->port_status & PORT_C_MASK) != 0)
+		usb_hcd_poll_rh_status (hcd);
 	return retval;
 }
 
@@ -1745,6 +1754,7 @@ static int dummy_start (struct usb_hcd *hcd)
 	/* only show a low-power port: just 8mA */
 	hcd->power_budget = 8;
 	hcd->state = HC_STATE_RUNNING;
+	hcd->uses_new_polling = 1;
 
 #ifdef CONFIG_USB_OTG
 	hcd->self.otg_port = 1;
