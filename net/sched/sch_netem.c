@@ -206,7 +206,6 @@ static int netem_run(struct Qdisc *sch)
 static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 {
 	struct netem_sched_data *q = qdisc_priv(sch);
-	struct sk_buff *skb2;
 	int ret;
 
 	pr_debug("netem_enqueue skb=%p\n", skb);
@@ -220,11 +219,21 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	}
 
 	/* Random duplication */
-	if (q->duplicate && q->duplicate >= get_crandom(&q->dup_cor)
-	    && (skb2 = skb_clone(skb, GFP_ATOMIC)) != NULL) {
-		pr_debug("netem_enqueue: dup %p\n", skb2);
+	if (q->duplicate && q->duplicate >= get_crandom(&q->dup_cor)) {
+		struct sk_buff *skb2;
 
-		if (netem_delay(sch, skb2)) {
+		skb2 = skb_clone(skb, GFP_ATOMIC);
+		if (skb2 && netem_delay(sch, skb2) == NET_XMIT_SUCCESS) {
+			struct Qdisc *qp;
+
+			/* Since one packet can generate two packets in the
+			 * queue, the parent's qlen accounting gets confused,
+			 * so fix it.
+			 */
+			qp = qdisc_lookup(sch->dev, TC_H_MAJ(sch->parent));
+			if (qp)
+				qp->q.qlen++;
+
 			sch->q.qlen++;
 			sch->bstats.bytes += skb2->len;
 			sch->bstats.packets++;
@@ -253,6 +262,7 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	} else
 		sch->qstats.drops++;
 
+	pr_debug("netem: enqueue ret %d\n", ret);
 	return ret;
 }
 
