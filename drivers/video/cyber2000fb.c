@@ -90,6 +90,8 @@ struct cfb_info {
 	 */
 	u_char			ramdac_ctrl;
 	u_char			ramdac_powerdown;
+
+	u32			pseudo_palette[16];
 };
 
 static char *default_font = "Acorn8x8";
@@ -1223,9 +1225,7 @@ cyberpro_alloc_fb_info(unsigned int id, char *name)
 {
 	struct cfb_info *cfb;
 
-	cfb = kmalloc(sizeof(struct cfb_info) +
-		       sizeof(u32) * 16, GFP_KERNEL);
-
+	cfb = kmalloc(sizeof(struct cfb_info), GFP_KERNEL);
 	if (!cfb)
 		return NULL;
 
@@ -1281,7 +1281,7 @@ cyberpro_alloc_fb_info(unsigned int id, char *name)
 
 	cfb->fb.fbops		= &cyber2000fb_ops;
 	cfb->fb.flags		= FBINFO_DEFAULT | FBINFO_HWACCEL_YPAN;
-	cfb->fb.pseudo_palette	= (void *)(cfb + 1);
+	cfb->fb.pseudo_palette	= cfb->pseudo_palette;
 
 	fb_alloc_cmap(&cfb->fb.cmap, NR_PALETTE, 0);
 
