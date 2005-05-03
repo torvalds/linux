@@ -14,6 +14,8 @@
 #include "asm/ptrace-generic.h"
 #undef signal_fault
 
+#define HOST_AUDIT_ARCH AUDIT_ARCH_X86_64
+
 void signal_fault(struct pt_regs_subarch *regs, void *frame, char *where);
 
 #define FS_BASE (21 * sizeof(unsigned long))
