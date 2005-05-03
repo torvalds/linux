@@ -1053,7 +1053,7 @@ static void ipr_log_array_error(struct ipr_ioa_cfg *ioa_cfg,
 				array_entry->dev_res_addr.lun);
 		}
 
-		if (array_entry->dev_res_addr.bus >= IPR_MAX_NUM_BUSES) {
+		if (array_entry->expected_dev_res_addr.bus >= IPR_MAX_NUM_BUSES) {
 			ipr_err("Expected Location: unknown\n");
 		} else {
 			ipr_err("Expected Location: %d:%d:%d:%d\n",
