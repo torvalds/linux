@@ -1018,14 +1018,13 @@ static void xfrm_netlink_rcv(struct sock *sk, int len)
 		if (qlen > skb_queue_len(&sk->sk_receive_queue))
 			qlen = skb_queue_len(&sk->sk_receive_queue);
 
-		while (qlen--) {
+		for (; qlen; qlen--) {
 			skb = skb_dequeue(&sk->sk_receive_queue);
 			if (xfrm_user_rcv_skb(skb)) {
-				if (skb->len) {
+				if (skb->len)
 					skb_queue_head(&sk->sk_receive_queue,
 						       skb);
-					qlen++;
-				} else
+				else
 					kfree_skb(skb);
 				break;
 			}
