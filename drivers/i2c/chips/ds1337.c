@@ -122,7 +122,7 @@ static int ds1337_get_datetime(struct i2c_client *client, struct rtc_time *dt)
 		__FUNCTION__, result, buf[0], buf[1], buf[2], buf[3],
 		buf[4], buf[5], buf[6]);
 
-	if (result >= 0) {
+	if (result == 2) {
 		dt->tm_sec = BCD2BIN(buf[0]);
 		dt->tm_min = BCD2BIN(buf[1]);
 		val = buf[2] & 0x3f;
@@ -140,12 +140,12 @@ static int ds1337_get_datetime(struct i2c_client *client, struct rtc_time *dt)
 			__FUNCTION__, dt->tm_sec, dt->tm_min,
 			dt->tm_hour, dt->tm_mday,
 			dt->tm_mon, dt->tm_year, dt->tm_wday);
-	} else {
-		dev_err(&client->dev, "error reading data! %d\n", result);
-		result = -EIO;
+
+		return 0;
 	}
 
-	return result;
+	dev_err(&client->dev, "error reading data! %d\n", result);
+	return -EIO;
 }
 
 static int ds1337_set_datetime(struct i2c_client *client, struct rtc_time *dt)
@@ -185,14 +185,11 @@ static int ds1337_set_datetime(struct i2c_client *client, struct rtc_time *dt)
 	msg[0].buf = &buf[0];
 
 	result = i2c_transfer(client->adapter, msg, 1);
-	if (result < 0) {
-		dev_err(&client->dev, "error writing data! %d\n", result);
-		result = -EIO;
-	} else {
-		result = 0;
-	}
+	if (result == 1)
+		return 0;
 
-	return result;
+	dev_err(&client->dev, "error writing data! %d\n", result);
+	return -EIO;
 }
 
 static int ds1337_command(struct i2c_client *client, unsigned int cmd,
