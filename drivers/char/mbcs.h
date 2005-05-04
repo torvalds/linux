@@ -543,9 +543,9 @@ struct mbcs_soft {
 };
 
 extern int mbcs_open(struct inode *ip, struct file *fp);
-extern ssize_t mbcs_sram_read(struct file *fp, char *buf, size_t len,
+extern ssize_t mbcs_sram_read(struct file *fp, char __user *buf, size_t len,
 			      loff_t * off);
-extern ssize_t mbcs_sram_write(struct file *fp, const char *buf, size_t len,
+extern ssize_t mbcs_sram_write(struct file *fp, const char __user *buf, size_t len,
 			       loff_t * off);
 extern loff_t mbcs_sram_llseek(struct file *filp, loff_t off, int whence);
 extern int mbcs_gscr_mmap(struct file *fp, struct vm_area_struct *vma);
