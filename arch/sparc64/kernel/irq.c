@@ -756,7 +756,7 @@ void handler_irq(int irq, struct pt_regs *regs)
 		clear_softint(clr_mask);
 	}
 #else
-	int should_forward = 1;
+	int should_forward = 0;
 
 	clear_softint(1 << irq);
 #endif
