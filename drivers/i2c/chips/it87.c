@@ -953,7 +953,7 @@ static int it87_detach_client(struct i2c_client *client)
 	return 0;
 }
 
-/* The SMBus locks itself, but ISA access must be locked explicitely! 
+/* The SMBus locks itself, but ISA access must be locked explicitly! 
    We don't want to lock the whole ISA bus, so we lock each client
    separately.
    We ignore the IT87 BUSY flag at this moment - it could lead to deadlocks,
@@ -973,7 +973,7 @@ static int it87_read_value(struct i2c_client *client, u8 reg)
 		return i2c_smbus_read_byte_data(client, reg);
 }
 
-/* The SMBus locks itself, but ISA access muse be locked explicitely! 
+/* The SMBus locks itself, but ISA access muse be locked explicitly! 
    We don't want to lock the whole ISA bus, so we lock each client
    separately.
    We ignore the IT87 BUSY flag at this moment - it could lead to deadlocks,

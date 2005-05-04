@@ -80,7 +80,7 @@ SENSORS_INSMOD_1(lm83);
 
 /*
  * Conversions and various macros
- * The LM83 uses signed 8-bit values with LSB = 1 degree Celcius.
+ * The LM83 uses signed 8-bit values with LSB = 1 degree Celsius.
  */
 
 #define TEMP_FROM_REG(val)	((val) * 1000)

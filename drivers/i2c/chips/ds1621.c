@@ -121,7 +121,7 @@ static int ds1621_write_value(struct i2c_client *client, u8 reg, u16 value)
 static void ds1621_init_client(struct i2c_client *client)
 {
 	int reg = ds1621_read_value(client, DS1621_REG_CONF);
-	/* switch to continous conversion mode */
+	/* switch to continuous conversion mode */
 	reg &= ~ DS1621_REG_CONFIG_1SHOT;
 
 	/* setup output polarity */
@@ -303,7 +303,7 @@ static struct ds1621_data *ds1621_update_client(struct device *dev)
 		data->temp_max = ds1621_read_value(client,
 						    DS1621_REG_TEMP_MAX);
 
-		/* reset alarms if neccessary */
+		/* reset alarms if necessary */
 		new_conf = data->conf;
 		if (data->temp < data->temp_min)
 			new_conf &= ~DS1621_ALARM_TEMP_LOW;

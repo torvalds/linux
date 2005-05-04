@@ -19,7 +19,7 @@
  * Complete datasheets can be obtained from National's website at:
  *   http://www.national.com/pf/LM/LM89.html
  *   http://www.national.com/pf/LM/LM99.html
- * Note that there is no way to differenciate between both chips.
+ * Note that there is no way to differentiate between both chips.
  *
  * This driver also supports the LM86, another sensor chip made by
  * National Semiconductor. It is exactly similar to the LM90 except it
@@ -39,7 +39,7 @@
  * chips made by Maxim. These chips are similar to the LM86. Complete
  * datasheet can be obtained at Maxim's website at:
  *   http://www.maxim-ic.com/quick_view2.cfm/qv_pk/2578
- * Note that there is no easy way to differenciate between the three
+ * Note that there is no easy way to differentiate between the three
  * variants. The extra address and features of the MAX6659 are not
  * supported by this driver.
  *
@@ -138,9 +138,9 @@ SENSORS_INSMOD_6(lm90, adm1032, lm99, lm86, max6657, adt7461);
 /*
  * Conversions and various macros
  * For local temperatures and limits, critical limits and the hysteresis
- * value, the LM90 uses signed 8-bit values with LSB = 1 degree Celcius.
+ * value, the LM90 uses signed 8-bit values with LSB = 1 degree Celsius.
  * For remote temperatures and limits, it uses signed 11-bit values with
- * LSB = 0.125 degree Celcius, left-justified in 16-bit registers.
+ * LSB = 0.125 degree Celsius, left-justified in 16-bit registers.
  */
 
 #define TEMP1_FROM_REG(val)	((val) * 1000)

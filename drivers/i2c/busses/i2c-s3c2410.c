@@ -534,7 +534,7 @@ static int s3c24xx_i2c_doxfer(struct s3c24xx_i2c *i2c, struct i2c_msg *msgs, int
 /* s3c24xx_i2c_xfer
  *
  * first port of call from the i2c bus code when an message needs
- * transfering across the i2c bus.
+ * transferring across the i2c bus.
 */
 
 static int s3c24xx_i2c_xfer(struct i2c_adapter *adap,

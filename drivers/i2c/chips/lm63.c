@@ -98,9 +98,9 @@ SENSORS_INSMOD_1(lm63);
  * Conversions and various macros
  * For tachometer counts, the LM63 uses 16-bit values.
  * For local temperature and high limit, remote critical limit and hysteresis
- * value, it uses signed 8-bit values with LSB = 1 degree Celcius.
+ * value, it uses signed 8-bit values with LSB = 1 degree Celsius.
  * For remote temperature, low and high limits, it uses signed 11-bit values
- * with LSB = 0.125 degree Celcius, left-justified in 16-bit registers.
+ * with LSB = 0.125 degree Celsius, left-justified in 16-bit registers.
  */
 
 #define FAN_FROM_REG(reg)	((reg) == 0xFFFC || (reg) == 0 ? 0 : \

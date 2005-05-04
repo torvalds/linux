@@ -49,7 +49,7 @@ static int i2c_debug=0;
 /*
  * Generate a start condition on the i2c bus.
  *
- * returns after the start condition has occured
+ * returns after the start condition has occurred
  */
 static void pca_start(struct i2c_algo_pca_data *adap)
 {
@@ -64,7 +64,7 @@ static void pca_start(struct i2c_algo_pca_data *adap)
 /*
  * Generate a repeated start condition on the i2c bus 
  *
- * return after the repeated start condition has occured
+ * return after the repeated start condition has occurred
  */
 static void pca_repeated_start(struct i2c_algo_pca_data *adap)
 {
