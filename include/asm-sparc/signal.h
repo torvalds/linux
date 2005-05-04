@@ -174,16 +174,7 @@ struct sigstack {
 #define SA_STATIC_ALLOC		0x80
 #endif
 
-/* Type of a signal handler.  */
-#ifdef __KERNEL__
-typedef void (*__sighandler_t)(int, int, struct sigcontext *, char *);
-#else
-typedef void (*__sighandler_t)(int);
-#endif
-
-#define SIG_DFL	((__sighandler_t)0)	/* default signal handling */
-#define SIG_IGN	((__sighandler_t)1)	/* ignore signal */
-#define SIG_ERR	((__sighandler_t)-1)	/* error return from signal */
+#include <asm-generic/signal.h>
 
 #ifdef __KERNEL__
 struct __new_sigaction {
