@@ -47,9 +47,9 @@ prom_sortmemlist(struct linux_mlist_v0 *thislist)
 	char *tmpaddr;
 	char *lowest;
 
-	for(i=0; thislist[i].theres_more != 0; i++) {
+	for(i=0; thislist[i].theres_more; i++) {
 		lowest = thislist[i].start_adr;
-		for(mitr = i+1; thislist[mitr-1].theres_more != 0; mitr++)
+		for(mitr = i+1; thislist[mitr-1].theres_more; mitr++)
 			if(thislist[mitr].start_adr < lowest) {
 				lowest = thislist[mitr].start_adr;
 				swapi = mitr;
@@ -85,7 +85,7 @@ void __init prom_meminit(void)
 			prom_phys_total[iter].num_bytes = mptr->num_bytes;
 			prom_phys_total[iter].theres_more = &prom_phys_total[iter+1];
 		}
-		prom_phys_total[iter-1].theres_more = 0x0;
+		prom_phys_total[iter-1].theres_more = NULL;
 		/* Second, the total prom taken descriptors. */
 		for(mptr = (*(romvec->pv_v0mem.v0_prommap)), iter=0;
 		    mptr; mptr=mptr->theres_more, iter++) {
@@ -93,7 +93,7 @@ void __init prom_meminit(void)
 			prom_prom_taken[iter].num_bytes = mptr->num_bytes;
 			prom_prom_taken[iter].theres_more = &prom_prom_taken[iter+1];
 		}
-		prom_prom_taken[iter-1].theres_more = 0x0;
+		prom_prom_taken[iter-1].theres_more = NULL;
 		/* Last, the available physical descriptors. */
 		for(mptr = (*(romvec->pv_v0mem.v0_available)), iter=0;
 		    mptr; mptr=mptr->theres_more, iter++) {
@@ -101,7 +101,7 @@ void __init prom_meminit(void)
 			prom_phys_avail[iter].num_bytes = mptr->num_bytes;
 			prom_phys_avail[iter].theres_more = &prom_phys_avail[iter+1];
 		}
-		prom_phys_avail[iter-1].theres_more = 0x0;
+		prom_phys_avail[iter-1].theres_more = NULL;
 		/* Sort all the lists. */
 		prom_sortmemlist(prom_phys_total);
 		prom_sortmemlist(prom_prom_taken);
@@ -124,7 +124,7 @@ void __init prom_meminit(void)
 			prom_phys_avail[iter].theres_more =
 				&prom_phys_avail[iter+1];
 		}
-		prom_phys_avail[iter-1].theres_more = 0x0;
+		prom_phys_avail[iter-1].theres_more = NULL;
 
 		num_regs = prom_getproperty(node, "reg",
 					    (char *) prom_reg_memlist,
@@ -138,7 +138,7 @@ void __init prom_meminit(void)
 			prom_phys_total[iter].theres_more =
 				&prom_phys_total[iter+1];
 		}
-		prom_phys_total[iter-1].theres_more = 0x0;
+		prom_phys_total[iter-1].theres_more = NULL;
 
 		node = prom_getchild(prom_root_node);
 		node = prom_searchsiblings(node, "virtual-memory");
@@ -158,7 +158,7 @@ void __init prom_meminit(void)
 			prom_prom_taken[iter].theres_more =
 				&prom_prom_taken[iter+1];
 		}
-		prom_prom_taken[iter-1].theres_more = 0x0;
+		prom_prom_taken[iter-1].theres_more = NULL;
 
 		prom_sortmemlist(prom_prom_taken);
 
@@ -182,15 +182,15 @@ void __init prom_meminit(void)
 	case PROM_SUN4:
 #ifdef CONFIG_SUN4	
 		/* how simple :) */
-		prom_phys_total[0].start_adr = 0x0;
+		prom_phys_total[0].start_adr = NULL;
 		prom_phys_total[0].num_bytes = *(sun4_romvec->memorysize);
-		prom_phys_total[0].theres_more = 0x0;
-		prom_prom_taken[0].start_adr = 0x0; 
+		prom_phys_total[0].theres_more = NULL;
+		prom_prom_taken[0].start_adr = NULL; 
 		prom_prom_taken[0].num_bytes = 0x0;
-		prom_prom_taken[0].theres_more = 0x0;
-		prom_phys_avail[0].start_adr = 0x0;
+		prom_prom_taken[0].theres_more = NULL;
+		prom_phys_avail[0].start_adr = NULL;
 		prom_phys_avail[0].num_bytes = *(sun4_romvec->memoryavail);
-		prom_phys_avail[0].theres_more = 0x0;
+		prom_phys_avail[0].theres_more = NULL;
 #endif
 		break;
 

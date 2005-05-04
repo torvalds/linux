@@ -151,7 +151,7 @@ struct linux_romvec * __init sun4_prom_init(void)
 	 * have more time, we can teach the penguin to say "By your
 	 * command" or "Activating turbo boost, Michael". :-)
 	 */
-	sun4_romvec->setLEDs(0x0);
+	sun4_romvec->setLEDs(NULL);
 	
 	printk("PROMLIB: Old Sun4 boot PROM monitor %s, romvec version %d\n",
 		sun4_romvec->monid,
