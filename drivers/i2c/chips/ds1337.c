@@ -69,13 +69,11 @@ static struct i2c_driver ds1337_driver = {
 struct ds1337_data {
 	struct i2c_client client;
 	struct list_head list;
-	int id;
 };
 
 /*
  * Internal variables
  */
-static int ds1337_id;
 static LIST_HEAD(ds1337_clients);
 
 static inline int ds1337_read(struct i2c_client *client, u8 reg, u8 *value)
@@ -213,7 +211,7 @@ static int ds1337_command(struct i2c_client *client, unsigned int cmd,
  * Public API for access to specific device. Useful for low-level
  * RTC access from kernel code.
  */
-int ds1337_do_command(int id, int cmd, void *arg)
+int ds1337_do_command(int bus, int cmd, void *arg)
 {
 	struct list_head *walk;
 	struct list_head *tmp;
@@ -221,7 +219,7 @@ int ds1337_do_command(int id, int cmd, void *arg)
 
 	list_for_each_safe(walk, tmp, &ds1337_clients) {
 		data = list_entry(walk, struct ds1337_data, list);
-		if (data->id == id)
+		if (data->client.adapter->nr == bus)
 			return ds1337_command(&data->client, cmd, arg);
 	}
 
@@ -331,7 +329,6 @@ static int ds1337_detect(struct i2c_adapter *adapter, int address, int kind)
 	ds1337_init_client(new_client);
 
 	/* Add client to local list */
-	data->id = ds1337_id++;
 	list_add(&data->list, &ds1337_clients);
 
 	return 0;
