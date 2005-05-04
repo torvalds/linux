@@ -196,7 +196,7 @@ struct ebda_hpc_bus {
 
 
 /********************************************************************
-*   THREE TYPE OF HOT PLUG CONTROLER                                *
+*   THREE TYPE OF HOT PLUG CONTROLLER                                *
 ********************************************************************/
 
 struct isa_ctlr_access {

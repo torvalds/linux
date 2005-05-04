@@ -569,7 +569,7 @@ static const struct usb_cdc_ether_desc ether_desc = {
 
 /* include the status endpoint if we can, even where it's optional.
  * use wMaxPacketSize big enough to fit CDC_NOTIFY_SPEED_CHANGE in one
- * packet, to simplify cancelation; and a big transfer interval, to
+ * packet, to simplify cancellation; and a big transfer interval, to
  * waste less bandwidth.
  *
  * some drivers (like Linux 2.4 cdc-ether!) "need" it to exist even

@@ -1656,3 +1656,7 @@ config GENERIC_HARDIRQS
 config GENERIC_IRQ_PROBE
 	bool
 	default y
+
+config ISA_DMA_API
+	bool
+	default y

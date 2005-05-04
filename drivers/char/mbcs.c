@@ -394,7 +394,7 @@ int mbcs_open(struct inode *ip, struct file *fp)
 	return -ENODEV;
 }
 
-ssize_t mbcs_sram_read(struct file * fp, char *buf, size_t len, loff_t * off)
+ssize_t mbcs_sram_read(struct file * fp, char __user *buf, size_t len, loff_t * off)
 {
 	struct cx_dev *cx_dev = fp->private_data;
 	struct mbcs_soft *soft = cx_dev->soft;
@@ -419,7 +419,7 @@ ssize_t mbcs_sram_read(struct file * fp, char *buf, size_t len, loff_t * off)
 }
 
 ssize_t
-mbcs_sram_write(struct file * fp, const char *buf, size_t len, loff_t * off)
+mbcs_sram_write(struct file * fp, const char __user *buf, size_t len, loff_t * off)
 {
 	struct cx_dev *cx_dev = fp->private_data;
 	struct mbcs_soft *soft = cx_dev->soft;

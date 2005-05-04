@@ -23,7 +23,7 @@
  *
  *
  * The driver brings the USB functions of the MDC800 to Linux.
- * To use the Camera you must support the USB Protocoll of the camera
+ * To use the Camera you must support the USB Protocol of the camera
  * to the Kernel Node.
  * The Driver uses a misc device Node. Create it with :
  * mknod /dev/mustek c 180 32

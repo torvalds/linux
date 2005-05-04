@@ -1617,15 +1617,15 @@ typedef struct dmi_header
 	u16	handle;
 } dmi_header_t;
 
-static int decode_dmi(dmi_header_t *dm, int intf_num)
+static int decode_dmi(dmi_header_t __iomem *dm, int intf_num)
 {
-	u8		*data = (u8 *)dm;
+	u8		__iomem *data = (u8 __iomem *)dm;
 	unsigned long  	base_addr;
 	u8		reg_spacing;
-	u8              len = dm->length;
+	u8              len = readb(&dm->length);
 	dmi_ipmi_data_t *ipmi_data = dmi_data+intf_num;
 
-	ipmi_data->type = data[4];
+	ipmi_data->type = readb(&data[4]);
 
 	memcpy(&base_addr, data+8, sizeof(unsigned long));
 	if (len >= 0x11) {
@@ -1640,12 +1640,12 @@ static int decode_dmi(dmi_header_t *dm, int intf_num)
 		}
 		/* If bit 4 of byte 0x10 is set, then the lsb for the address
 		   is odd. */
-		ipmi_data->base_addr = base_addr | ((data[0x10] & 0x10) >> 4);
+		ipmi_data->base_addr = base_addr | ((readb(&data[0x10]) & 0x10) >> 4);
 
-		ipmi_data->irq = data[0x11];
+		ipmi_data->irq = readb(&data[0x11]);
 
 		/* The top two bits of byte 0x10 hold the register spacing. */
-		reg_spacing = (data[0x10] & 0xC0) >> 6;
+		reg_spacing = (readb(&data[0x10]) & 0xC0) >> 6;
 		switch(reg_spacing){
 		case 0x00: /* Byte boundaries */
 		    ipmi_data->offset = 1;
@@ -1673,7 +1673,7 @@ static int decode_dmi(dmi_header_t *dm, int intf_num)
 		ipmi_data->offset = 1;
 	}
 
-	ipmi_data->slave_addr = data[6];
+	ipmi_data->slave_addr = readb(&data[6]);
 
 	if (is_new_interface(-1, ipmi_data->addr_space,ipmi_data->base_addr)) {
 		dmi_data_entries++;
@@ -1687,9 +1687,9 @@ static int decode_dmi(dmi_header_t *dm, int intf_num)
 
 static int dmi_table(u32 base, int len, int num)
 {
-	u8 		  *buf;
-	struct dmi_header *dm;
-	u8 		  *data;
+	u8 		  __iomem *buf;
+	struct dmi_header __iomem *dm;
+	u8 		  __iomem *data;
 	int 		  i=1;
 	int		  status=-1;
 	int               intf_num = 0;
@@ -1702,12 +1702,12 @@ static int dmi_table(u32 base, int len, int num)
 
 	while(i<num && (data - buf) < len)
 	{
-		dm=(dmi_header_t *)data;
+		dm=(dmi_header_t __iomem *)data;
 
-		if((data-buf+dm->length) >= len)
+		if((data-buf+readb(&dm->length)) >= len)
         		break;
 
-		if (dm->type == 38) {
+		if (readb(&dm->type) == 38) {
 			if (decode_dmi(dm, intf_num) == 0) {
 				intf_num++;
 				if (intf_num >= SI_MAX_DRIVERS)
@@ -1715,8 +1715,8 @@ static int dmi_table(u32 base, int len, int num)
 			}
 		}
 
-	        data+=dm->length;
-		while((data-buf) < len && (*data || data[1]))
+	        data+=readb(&dm->length);
+		while((data-buf) < len && (readb(data)||readb(data+1)))
 			data++;
 		data+=2;
 		i++;

@@ -266,6 +266,10 @@ config ISA_DMA
 	depends on FOOTBRIDGE_HOST || ARCH_SHARK
 	default y
 
+config ISA_DMA_API
+	bool
+	default y
+
 config PCI
 	bool "PCI support" if ARCH_INTEGRATOR_AP
 	default y if ARCH_SHARK || FOOTBRIDGE_HOST || ARCH_IOP3XX || ARCH_IXP4XX || ARCH_IXP2000

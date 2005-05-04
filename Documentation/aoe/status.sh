@@ -14,10 +14,6 @@ test ! -d "$sysd/block" && {
 	echo "$me Error: sysfs is not mounted" 1>&2
 	exit 1
 }
-test -z "`lsmod | grep '^aoe'`" && {
-	echo  "$me Error: aoe module is not loaded" 1>&2
-	exit 1
-}
 
 for d in `ls -d $sysd/block/etherd* 2>/dev/null | grep -v p` end; do
 	# maybe ls comes up empty, so we use "end"

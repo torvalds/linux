@@ -134,7 +134,7 @@ static void port_power(struct sl811 *sl811, int is_on)
 
 /* This is a PIO-only HCD.  Queueing appends URBs to the endpoint's queue,
  * and may start I/O.  Endpoint queues are scanned during completion irq
- * handlers (one per packet: ACK, NAK, faults, etc) and urb cancelation.
+ * handlers (one per packet: ACK, NAK, faults, etc) and urb cancellation.
  *
  * Using an external DMA engine to copy a packet at a time could work,
  * though setup/teardown costs may be too big to make it worthwhile.
@@ -738,7 +738,7 @@ retry:
 		}
 #endif
 
-		/* port status seems wierd until after reset, so
+		/* port status seems weird until after reset, so
 		 * force the reset and make khubd clean up later.
 		 */
 		sl811->port1 |= (1 << USB_PORT_FEAT_C_CONNECTION)

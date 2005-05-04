@@ -4071,6 +4071,9 @@ static const struct usb_device_id	products [] = {
 	USB_DEVICE (0x8086, 0x07d3),	// "blob" bootloader
 	.driver_info =	(unsigned long) &blob_info,
 }, {
+	USB_DEVICE (0x22b8, 0x600c),	// USBNET Motorola E680
+	.driver_info =	(unsigned long) &linuxdev_info,
+}, {
 	// Linux Ethernet/RNDIS gadget on pxa210/25x/26x
 	// e.g. Gumstix, current OpenZaurus, ...
 	USB_DEVICE_VER (0x0525, 0xa4a2, 0x0203, 0x0203),
