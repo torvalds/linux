@@ -2499,32 +2499,31 @@ static int parse_audio_endpoints(snd_usb_audio_t *chip, int iface_no)
 
 		/* some quirks for attributes here */
 
-		/* workaround for AudioTrak Optoplay */
-		if (chip->usb_id == USB_ID(0x0a92, 0x0053)) {
+		switch (chip->usb_id) {
+		case USB_ID(0x0a92, 0x0053): /* AudioTrak Optoplay */
 			/* Optoplay sets the sample rate attribute although
 			 * it seems not supporting it in fact.
 			 */
 			fp->attributes &= ~EP_CS_ATTR_SAMPLE_RATE;
-		}
-
-		/* workaround for M-Audio Audiophile USB */
-		if (chip->usb_id == USB_ID(0x0763, 0x2003)) {
+			break;
+		case USB_ID(0x041e, 0x3020): /* Creative SB Audigy 2 NX */
+		case USB_ID(0x0763, 0x2003): /* M-Audio Audiophile USB */
 			/* doesn't set the sample rate attribute, but supports it */
 			fp->attributes |= EP_CS_ATTR_SAMPLE_RATE;
-		}
-
+			break;
+		case USB_ID(0x047f, 0x0ca1): /* plantronics headset */
+		case USB_ID(0x077d, 0x07af): /* Griffin iMic (note that there is
+						an older model 77d:223) */
 		/*
 		 * plantronics headset and Griffin iMic have set adaptive-in
 		 * although it's really not...
 		 */
-		if (chip->usb_id == USB_ID(0x047f, 0x0ca1) ||
-		    /* Griffin iMic (note that there is an older model 77d:223) */
-		    chip->usb_id == USB_ID(0x077d, 0x07af)) {
 			fp->ep_attr &= ~EP_ATTR_MASK;
 			if (stream == SNDRV_PCM_STREAM_PLAYBACK)
 				fp->ep_attr |= EP_ATTR_ADAPTIVE;
 			else
 				fp->ep_attr |= EP_ATTR_SYNC;
+			break;
 		}
 
 		/* ok, let's parse further... */
