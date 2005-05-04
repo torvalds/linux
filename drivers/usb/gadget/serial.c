@@ -240,7 +240,7 @@ struct gs_dev {
 	struct usb_ep		*dev_notify_ep;	/* address of notify endpoint */
 	struct usb_ep		*dev_in_ep;	/* address of in endpoint */
 	struct usb_ep		*dev_out_ep;	/* address of out endpoint */
-	struct usb_endpoint_descriptor		/* desciptor of notify ep */
+	struct usb_endpoint_descriptor		/* descriptor of notify ep */
 				*dev_notify_ep_desc;
 	struct usb_endpoint_descriptor		/* descriptor of in endpoint */
 				*dev_in_ep_desc;

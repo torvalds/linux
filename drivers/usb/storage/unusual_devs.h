@@ -1,5 +1,5 @@
 /* Driver for USB Mass Storage compliant devices
- * Ununsual Devices File
+ * Unusual Devices File
  *
  * $Id: unusual_devs.h,v 1.32 2002/02/25 02:41:24 mdharm Exp $
  *

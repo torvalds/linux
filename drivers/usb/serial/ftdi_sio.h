@@ -136,7 +136,7 @@
 /*
  * Home Electronics (www.home-electro.com) USB gadgets
  */
-#define FTDI_HE_TIRA1_PID	0xFA78	/* Tira-1 IR tranceiver */
+#define FTDI_HE_TIRA1_PID	0xFA78	/* Tira-1 IR transceiver */
 
 /* USB-UIRT - An infrared receiver and transmitter using the 8U232AM chip */
 /* http://home.earthlink.net/~jrhees/USBUIRT/index.htm */

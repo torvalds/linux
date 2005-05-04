@@ -76,7 +76,7 @@
  *      Defererence pointers after any paranoid checks, not before.
  *
  * (21/Jun/2003) Erik Nygren
- *      Added support for Home Electronics Tira-1 IR tranceiver using FT232BM chip.
+ *      Added support for Home Electronics Tira-1 IR transceiver using FT232BM chip.
  *      See <http://www.home-electro.com/tira1.htm>.  Only operates properly 
  *      at 100000 and RTS-CTS, so set custom divisor mode on startup.
  *      Also force the Tira-1 and USB-UIRT to only use their custom baud rates.
@@ -91,7 +91,7 @@
  *      Minor whitespace and comment changes.
  *
  * (12/Jun/2003) David Norwood
- *      Added support for USB-UIRT IR tranceiver using 8U232AM chip.
+ *      Added support for USB-UIRT IR transceiver using 8U232AM chip.
  *      See <http://home.earthlink.net/~jrhees/USBUIRT/index.htm>.  Only
  *      operates properly at 312500, so set custom divisor mode on startup.
  *

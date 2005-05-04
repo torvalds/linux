@@ -234,7 +234,7 @@ static struct usb_serial_device_type cypress_hidcom_device = {
  *****************************************************************************/
 
 
-/* This function can either set or retreive the current serial line settings */
+/* This function can either set or retrieve the current serial line settings */
 static int cypress_serial_control (struct usb_serial_port *port, unsigned baud_mask, int data_bits, int stop_bits,
 				   int parity_enable, int parity_type, int reset, int cypress_request_type)
 {
