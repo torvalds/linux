@@ -31,20 +31,9 @@
 #include "jfs_acl.h"
 #include "jfs_debug.h"
 
-extern struct inode_operations jfs_file_inode_operations;
-extern struct inode_operations jfs_symlink_inode_operations;
-extern struct file_operations jfs_file_operations;
-extern struct address_space_operations jfs_aops;
-
-extern int jfs_fsync(struct file *, struct dentry *, int);
-extern void jfs_truncate_nolock(struct inode *, loff_t);
-extern int jfs_init_acl(struct inode *, struct inode *);
-
 /*
  * forward references
  */
-struct inode_operations jfs_dir_inode_operations;
-struct file_operations jfs_dir_operations;
 struct dentry_operations jfs_ci_dentry_operations;
 
 static s64 commitZeroLink(tid_t, struct inode *);
@@ -655,7 +644,7 @@ static s64 commitZeroLink(tid_t tid, struct inode *ip)
 
 
 /*
- * NAME:	freeZeroLink()
+ * NAME:	jfs_free_zero_link()
  *
  * FUNCTION:    for non-directory, called by iClose(),
  *		free resources of a file from cache and WORKING map 
@@ -663,15 +652,12 @@ static s64 commitZeroLink(tid_t tid, struct inode *ip)
  *		while associated with a pager object,
  *
  * PARAMETER:	ip	- pointer to inode of file.
- *
- * RETURN:	0 -ok
  */
-int freeZeroLink(struct inode *ip)
+void jfs_free_zero_link(struct inode *ip)
 {
-	int rc = 0;
 	int type;
 
-	jfs_info("freeZeroLink: ip = 0x%p", ip);
+	jfs_info("jfs_free_zero_link: ip = 0x%p", ip);
 
 	/* return if not reg or symbolic link or if size is
 	 * already ok.
@@ -684,10 +670,10 @@ int freeZeroLink(struct inode *ip)
 	case S_IFLNK:
 		/* if its contained in inode nothing to do */
 		if (ip->i_size < IDATASIZE)
-			return 0;
+			return;
 		break;
 	default:
-		return 0;
+		return;
 	}
 
 	/*
@@ -737,9 +723,7 @@ int freeZeroLink(struct inode *ip)
 	 * free xtree/data blocks from working block map;
 	 */
 	if (ip->i_size)
-		rc = xtTruncate(0, ip, 0, COMMIT_WMAP);
-
-	return rc;
+		xtTruncate(0, ip, 0, COMMIT_WMAP);
 }
 
 /*

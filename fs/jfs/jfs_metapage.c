@@ -726,12 +726,12 @@ void force_metapage(struct metapage *mp)
 	page_cache_release(page);
 }
 
-extern void hold_metapage(struct metapage *mp)
+void hold_metapage(struct metapage *mp)
 {
 	lock_page(mp->page);
 }
 
-extern void put_metapage(struct metapage *mp)
+void put_metapage(struct metapage *mp)
 {
 	if (mp->count || mp->nohomeok) {
 		/* Someone else will release this */

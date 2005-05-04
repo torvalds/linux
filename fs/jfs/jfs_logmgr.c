@@ -71,6 +71,7 @@
 #include "jfs_incore.h"
 #include "jfs_filsys.h"
 #include "jfs_metapage.h"
+#include "jfs_superblock.h"
 #include "jfs_txnmgr.h"
 #include "jfs_debug.h"
 
@@ -165,14 +166,6 @@ do {						\
 static LIST_HEAD(jfs_external_logs);
 static struct jfs_log *dummy_log = NULL;
 static DECLARE_MUTEX(jfs_log_sem);
-
-/*
- * external references
- */
-extern void txLazyUnlock(struct tblock * tblk);
-extern int jfs_stop_threads;
-extern struct completion jfsIOwait;
-extern int jfs_tlocks_low;
 
 /*
  * forward references
