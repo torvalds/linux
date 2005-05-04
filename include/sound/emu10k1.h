@@ -805,10 +805,26 @@
 #define A_FXWC2			0x75		/* Selects 0x9f-0x80 for FX recording           */
 
 #define A_SPDIF_SAMPLERATE	0x76		/* Set the sample rate of SPDIF output		*/
-#define A_SPDIF_RATE_MASK	0x000000c0
+#define A_SAMPLE_RATE		0x76		/* Various sample rate settings. */
+#define A_SAMPLE_RATE_NOT_USED  0x0ffc111e	/* Bits that are not used and cannot be set. 	*/
+#define A_SAMPLE_RATE_UNKNOWN	0xf0030001	/* Bits that can be set, but have unknown use. 	*/
+#define A_SPDIF_RATE_MASK	0x000000e0	/* Any other values for rates, just use 48000	*/
 #define A_SPDIF_48000		0x00000000
-#define A_SPDIF_44100		0x00000080
+#define A_SPDIF_192000		0x00000020
 #define A_SPDIF_96000		0x00000040
+#define A_SPDIF_44100		0x00000080
+
+#define A_I2S_CAPTURE_RATE_MASK	0x00000e00	/* This sets the capture PCM rate, but it is    */
+#define A_I2S_CAPTURE_48000	0x00000000	/* unclear if this sets the ADC rate as well.	*/
+#define A_I2S_CAPTURE_192000	0x00000200
+#define A_I2S_CAPTURE_96000	0x00000400
+#define A_I2S_CAPTURE_44100	0x00000800
+
+#define A_PCM_RATE_MASK		0x0000e000	/* This sets the playback PCM rate on the P16V	*/
+#define A_PCM_48000		0x00000000
+#define A_PCM_192000		0x00002000
+#define A_PCM_96000		0x00004000
+#define A_PCM_44100		0x00008000
 
 /* 0x77,0x78,0x79 "something i2s-related" - default to 0x01080000 on my audigy 2 ZS --rlrevell	*/
 /* 0x7a, 0x7b - lookup tables */
