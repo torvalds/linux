@@ -522,7 +522,7 @@ void pci_scan_msi_device(struct pci_dev *dev)
  * msi_capability_init - configure device's MSI capability structure
  * @dev: pointer to the pci_dev data structure of MSI device function
  *
- * Setup the MSI capability structure of device funtion with a single
+ * Setup the MSI capability structure of device function with a single
  * MSI vector, regardless of device function is capable of handling
  * multiple messages. A return of zero indicates the successful setup
  * of an entry zero with the new MSI vector or non-zero for otherwise.
@@ -599,7 +599,7 @@ static int msi_capability_init(struct pci_dev *dev)
  * msix_capability_init - configure device's MSI-X capability
  * @dev: pointer to the pci_dev data structure of MSI-X device function
  *
- * Setup the MSI-X capability structure of device funtion with a
+ * Setup the MSI-X capability structure of device function with a
  * single MSI-X vector. A return of zero indicates the successful setup of
  * requested MSI-X entries with allocated vectors or non-zero for otherwise.
  **/
@@ -1074,7 +1074,7 @@ void pci_disable_msix(struct pci_dev* dev)
  * msi_remove_pci_irq_vectors - reclaim MSI(X) vectors to unused state
  * @dev: pointer to the pci_dev data structure of MSI(X) device function
  *
- * Being called during hotplug remove, from which the device funciton
+ * Being called during hotplug remove, from which the device function
  * is hot-removed. All previous assigned MSI/MSI-X vectors, if
  * allocated for this device function, are reclaimed to unused state,
  * which may be used later on.
