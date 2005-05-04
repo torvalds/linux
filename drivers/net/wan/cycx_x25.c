@@ -436,9 +436,7 @@ static int cycx_wan_new_if(struct wan_device *wandev, struct net_device *dev,
 	}
 
 	if (err) {
-		if (chan->local_addr)
-			kfree(chan->local_addr);
-
+		kfree(chan->local_addr);
 		kfree(chan);
 		return err;
 	}
@@ -458,9 +456,7 @@ static int cycx_wan_del_if(struct wan_device *wandev, struct net_device *dev)
 		struct cycx_x25_channel *chan = dev->priv;
 
 		if (chan->svc) {
-			if (chan->local_addr)
-				kfree(chan->local_addr);
-
+			kfree(chan->local_addr);
 			if (chan->state == WAN_CONNECTED)
 				del_timer(&chan->timer);
 		}

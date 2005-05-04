@@ -157,7 +157,8 @@ psched_tod_diff(int delta_sec, int bound)
 	   case 1: \
 		   __delta += 1000000; \
 	   case 0: \
-		   __delta = abs(__delta); \
+ 		   if (__delta > bound || __delta < 0) \
+ 			__delta = bound; \
 	   } \
 	   __delta; \
 })

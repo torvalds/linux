@@ -3664,15 +3664,10 @@ static void wanpipe_tty_close(struct tty_struct *tty, struct file * filp)
 		chdlc_disable_comm_shutdown(card);
 		unlock_adapter_irq(&card->wandev.lock,&smp_flags);
 
-		if (card->tty_buf){
-			kfree(card->tty_buf);
-			card->tty_buf=NULL;			
-		}
-
-		if (card->tty_rx){
-			kfree(card->tty_rx);
-			card->tty_rx=NULL;
-		}
+		kfree(card->tty_buf);
+		card->tty_buf = NULL;			
+		kfree(card->tty_rx);
+		card->tty_rx = NULL;
 	}
 	return;
 }

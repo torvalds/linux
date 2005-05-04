@@ -855,47 +855,44 @@ static int xfrm_flush_policy(struct sk_buff *skb, struct nlmsghdr *nlh, void **x
 	return 0;
 }
 
-static const int xfrm_msg_min[(XFRM_MSG_MAX + 1 - XFRM_MSG_BASE)] = {
-	NLMSG_LENGTH(sizeof(struct xfrm_usersa_info)),	/* NEW SA */
-	NLMSG_LENGTH(sizeof(struct xfrm_usersa_id)),	/* DEL SA */
-	NLMSG_LENGTH(sizeof(struct xfrm_usersa_id)),	/* GET SA */
-	NLMSG_LENGTH(sizeof(struct xfrm_userpolicy_info)),/* NEW POLICY */
-	NLMSG_LENGTH(sizeof(struct xfrm_userpolicy_id)),  /* DEL POLICY */
-	NLMSG_LENGTH(sizeof(struct xfrm_userpolicy_id)),  /* GET POLICY */
-	NLMSG_LENGTH(sizeof(struct xfrm_userspi_info)),	/* ALLOC SPI */
-	NLMSG_LENGTH(sizeof(struct xfrm_user_acquire)),	/* ACQUIRE */
-	NLMSG_LENGTH(sizeof(struct xfrm_user_expire)),	/* EXPIRE */
-	NLMSG_LENGTH(sizeof(struct xfrm_userpolicy_info)),/* UPD POLICY */
-	NLMSG_LENGTH(sizeof(struct xfrm_usersa_info)),	/* UPD SA */
-	NLMSG_LENGTH(sizeof(struct xfrm_user_polexpire)), /* POLEXPIRE */
-	NLMSG_LENGTH(sizeof(struct xfrm_usersa_flush)),	/* FLUSH SA */
-	NLMSG_LENGTH(0),				/* FLUSH POLICY */
+#define XMSGSIZE(type) NLMSG_LENGTH(sizeof(struct type))
+
+static const int xfrm_msg_min[XFRM_NR_MSGTYPES] = {
+	[XFRM_MSG_NEWSA       - XFRM_MSG_BASE] = XMSGSIZE(xfrm_usersa_info),
+	[XFRM_MSG_DELSA       - XFRM_MSG_BASE] = XMSGSIZE(xfrm_usersa_id),
+	[XFRM_MSG_GETSA       - XFRM_MSG_BASE] = XMSGSIZE(xfrm_usersa_id),
+	[XFRM_MSG_NEWPOLICY   - XFRM_MSG_BASE] = XMSGSIZE(xfrm_userpolicy_info),
+	[XFRM_MSG_DELPOLICY   - XFRM_MSG_BASE] = XMSGSIZE(xfrm_userpolicy_id),
+	[XFRM_MSG_GETPOLICY   - XFRM_MSG_BASE] = XMSGSIZE(xfrm_userpolicy_id),
+	[XFRM_MSG_ALLOCSPI    - XFRM_MSG_BASE] = XMSGSIZE(xfrm_userspi_info),
+	[XFRM_MSG_ACQUIRE     - XFRM_MSG_BASE] = XMSGSIZE(xfrm_user_acquire),
+	[XFRM_MSG_EXPIRE      - XFRM_MSG_BASE] = XMSGSIZE(xfrm_user_expire),
+	[XFRM_MSG_UPDPOLICY   - XFRM_MSG_BASE] = XMSGSIZE(xfrm_userpolicy_info),
+	[XFRM_MSG_UPDSA       - XFRM_MSG_BASE] = XMSGSIZE(xfrm_usersa_info),
+	[XFRM_MSG_POLEXPIRE   - XFRM_MSG_BASE] = XMSGSIZE(xfrm_user_polexpire),
+	[XFRM_MSG_FLUSHSA     - XFRM_MSG_BASE] = XMSGSIZE(xfrm_usersa_flush),
+	[XFRM_MSG_FLUSHPOLICY - XFRM_MSG_BASE] = NLMSG_LENGTH(0),
 };
+
+#undef XMSGSIZE
 
 static struct xfrm_link {
 	int (*doit)(struct sk_buff *, struct nlmsghdr *, void **);
 	int (*dump)(struct sk_buff *, struct netlink_callback *);
-} xfrm_dispatch[] = {
-	{	.doit	=	xfrm_add_sa, 		},
-	{	.doit	=	xfrm_del_sa, 		},
-	{
-		.doit	=	xfrm_get_sa,
-		.dump	=	xfrm_dump_sa,
-	},
-	{	.doit	=	xfrm_add_policy 	},
-	{	.doit	=	xfrm_get_policy 	},
-	{
-		.doit	=	xfrm_get_policy,
-		.dump	=	xfrm_dump_policy,
-	},
-	{	.doit	=	xfrm_alloc_userspi	},
-	{},
-	{},
-	{	.doit	=	xfrm_add_policy 	},
-	{	.doit	=	xfrm_add_sa, 		},
-	{},
-	{	.doit	=	xfrm_flush_sa		},
-	{	.doit	=	xfrm_flush_policy	},
+} xfrm_dispatch[XFRM_NR_MSGTYPES] = {
+	[XFRM_MSG_NEWSA       - XFRM_MSG_BASE] = { .doit = xfrm_add_sa        },
+	[XFRM_MSG_DELSA       - XFRM_MSG_BASE] = { .doit = xfrm_del_sa        },
+	[XFRM_MSG_GETSA       - XFRM_MSG_BASE] = { .doit = xfrm_get_sa,
+						   .dump = xfrm_dump_sa       },
+	[XFRM_MSG_NEWPOLICY   - XFRM_MSG_BASE] = { .doit = xfrm_add_policy    },
+	[XFRM_MSG_DELPOLICY   - XFRM_MSG_BASE] = { .doit = xfrm_get_policy    },
+	[XFRM_MSG_GETPOLICY   - XFRM_MSG_BASE] = { .doit = xfrm_get_policy,
+						   .dump = xfrm_dump_policy   },
+	[XFRM_MSG_ALLOCSPI    - XFRM_MSG_BASE] = { .doit = xfrm_alloc_userspi },
+	[XFRM_MSG_UPDPOLICY   - XFRM_MSG_BASE] = { .doit = xfrm_add_policy    },
+	[XFRM_MSG_UPDSA       - XFRM_MSG_BASE] = { .doit = xfrm_add_sa        },
+	[XFRM_MSG_FLUSHSA     - XFRM_MSG_BASE] = { .doit = xfrm_flush_sa      },
+	[XFRM_MSG_FLUSHPOLICY - XFRM_MSG_BASE] = { .doit = xfrm_flush_policy  },
 };
 
 static int xfrm_done(struct netlink_callback *cb)
@@ -931,7 +928,9 @@ static int xfrm_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, int *err
 		return -1;
 	}
 
-	if ((type == 2 || type == 5) && (nlh->nlmsg_flags & NLM_F_DUMP)) {
+	if ((type == (XFRM_MSG_GETSA - XFRM_MSG_BASE) ||
+	     type == (XFRM_MSG_GETPOLICY - XFRM_MSG_BASE)) &&
+	    (nlh->nlmsg_flags & NLM_F_DUMP)) {
 		u32 rlen;
 
 		if (link->dump == NULL)
@@ -1009,18 +1008,26 @@ static int xfrm_user_rcv_skb(struct sk_buff *skb)
 
 static void xfrm_netlink_rcv(struct sock *sk, int len)
 {
+	unsigned int qlen = skb_queue_len(&sk->sk_receive_queue);
+
 	do {
 		struct sk_buff *skb;
 
 		down(&xfrm_cfg_sem);
 
-		while ((skb = skb_dequeue(&sk->sk_receive_queue)) != NULL) {
+		if (qlen > skb_queue_len(&sk->sk_receive_queue))
+			qlen = skb_queue_len(&sk->sk_receive_queue);
+
+		for (; qlen; qlen--) {
+			skb = skb_dequeue(&sk->sk_receive_queue);
 			if (xfrm_user_rcv_skb(skb)) {
 				if (skb->len)
 					skb_queue_head(&sk->sk_receive_queue,
 						       skb);
-				else
+				else {
 					kfree_skb(skb);
+					qlen--;
+				}
 				break;
 			}
 			kfree_skb(skb);
@@ -1028,7 +1035,7 @@ static void xfrm_netlink_rcv(struct sock *sk, int len)
 
 		up(&xfrm_cfg_sem);
 
-	} while (xfrm_nl && xfrm_nl->sk_receive_queue.qlen);
+	} while (qlen);
 }
 
 static int build_expire(struct sk_buff *skb, struct xfrm_state *x, int hard)

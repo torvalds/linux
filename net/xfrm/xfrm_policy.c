@@ -1028,30 +1028,15 @@ static int stale_bundle(struct dst_entry *dst)
 	return !xfrm_bundle_ok((struct xfrm_dst *)dst, NULL, AF_UNSPEC);
 }
 
-static void xfrm_dst_destroy(struct dst_entry *dst)
+void xfrm_dst_ifdown(struct dst_entry *dst, struct net_device *dev)
 {
-	struct xfrm_dst *xdst = (struct xfrm_dst *)dst;
-
-	dst_release(xdst->route);
-
-	if (!dst->xfrm)
-		return;
-	xfrm_state_put(dst->xfrm);
-	dst->xfrm = NULL;
-}
-
-static void xfrm_dst_ifdown(struct dst_entry *dst, struct net_device *dev,
-			    int unregister)
-{
-	if (!unregister)
-		return;
-
 	while ((dst = dst->child) && dst->xfrm && dst->dev == dev) {
 		dst->dev = &loopback_dev;
 		dev_hold(&loopback_dev);
 		dev_put(dev);
 	}
 }
+EXPORT_SYMBOL(xfrm_dst_ifdown);
 
 static void xfrm_link_failure(struct sk_buff *skb)
 {
@@ -1262,10 +1247,6 @@ int xfrm_policy_register_afinfo(struct xfrm_policy_afinfo *afinfo)
 			dst_ops->kmem_cachep = xfrm_dst_cache;
 		if (likely(dst_ops->check == NULL))
 			dst_ops->check = xfrm_dst_check;
-		if (likely(dst_ops->destroy == NULL))
-			dst_ops->destroy = xfrm_dst_destroy;
-		if (likely(dst_ops->ifdown == NULL))
-			dst_ops->ifdown = xfrm_dst_ifdown;
 		if (likely(dst_ops->negative_advice == NULL))
 			dst_ops->negative_advice = xfrm_negative_advice;
 		if (likely(dst_ops->link_failure == NULL))
@@ -1297,8 +1278,6 @@ int xfrm_policy_unregister_afinfo(struct xfrm_policy_afinfo *afinfo)
 			xfrm_policy_afinfo[afinfo->family] = NULL;
 			dst_ops->kmem_cachep = NULL;
 			dst_ops->check = NULL;
-			dst_ops->destroy = NULL;
-			dst_ops->ifdown = NULL;
 			dst_ops->negative_advice = NULL;
 			dst_ops->link_failure = NULL;
 			dst_ops->get_mss = NULL;

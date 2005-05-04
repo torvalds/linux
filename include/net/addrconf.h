@@ -46,6 +46,7 @@ struct prefix_info {
 #include <linux/in6.h>
 #include <linux/netdevice.h>
 #include <net/if_inet6.h>
+#include <net/ipv6.h>
 
 #define IN6_ADDR_HSIZE		16
 

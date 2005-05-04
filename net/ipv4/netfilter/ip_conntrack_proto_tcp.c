@@ -819,6 +819,7 @@ static int tcp_error(struct sk_buff *skb,
 	 */
 	/* FIXME: Source route IP option packets --RR */
 	if (hooknum == NF_IP_PRE_ROUTING
+	    && skb->ip_summed != CHECKSUM_UNNECESSARY
 	    && csum_tcpudp_magic(iph->saddr, iph->daddr, tcplen, IPPROTO_TCP,
 			         skb->ip_summed == CHECKSUM_HW ? skb->csum
 			      	 : skb_checksum(skb, iph->ihl*4, tcplen, 0))) {
