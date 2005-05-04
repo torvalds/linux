@@ -64,7 +64,7 @@ static int to_debug = FALSE;
 #define WPG_I2C_OR		0x2000	// I2C OR operation
 
 //----------------------------------------------------------------------------
-// Command set for I2C Master Operation Setup Regisetr
+// Command set for I2C Master Operation Setup Register
 //----------------------------------------------------------------------------
 #define WPG_READATADDR_MASK	0x00010000	// read,bytes,I2C shifted,index
 #define WPG_WRITEATADDR_MASK	0x40010000	// write,bytes,I2C shifted,index
@@ -835,7 +835,7 @@ static void poll_hpc (void)
 		if (ibmphp_shutdown) 
 			break;
 		
-		/* try to get the lock to do some kind of harware access */
+		/* try to get the lock to do some kind of hardware access */
 		down (&semOperations);
 
 		switch (poll_state) {
@@ -906,7 +906,7 @@ static void poll_hpc (void)
 				poll_state = POLL_LATCH_REGISTER;
 			break;
 		}	
-		/* give up the harware semaphore */
+		/* give up the hardware semaphore */
 		up (&semOperations);
 		/* sleep for a short time just for good measure */
 		msleep(100);
