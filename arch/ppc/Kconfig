@@ -1079,6 +1079,10 @@ source kernel/power/Kconfig
 
 endmenu
 
+config ISA_DMA_API
+	bool
+	default y
+
 menu "Bus options"
 
 config ISA
