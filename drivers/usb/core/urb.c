@@ -121,7 +121,7 @@ struct urb * usb_get_urb(struct urb *urb)
  * describing that request to the USB subsystem.  Request completion will
  * be indicated later, asynchronously, by calling the completion handler.
  * The three types of completion are success, error, and unlink
- * (a software-induced fault, also called "request cancelation").  
+ * (a software-induced fault, also called "request cancellation").  
  *
  * URBs may be submitted in interrupt context.
  *
@@ -170,7 +170,7 @@ struct urb * usb_get_urb(struct urb *urb)
  * As of Linux 2.6, all USB endpoint transfer queues support depths greater
  * than one.  This was previously a HCD-specific behavior, except for ISO
  * transfers.  Non-isochronous endpoint queues are inactive during cleanup
- * after faults (transfer errors or cancelation).
+ * after faults (transfer errors or cancellation).
  *
  * Reserved Bandwidth Transfers:
  *
@@ -395,7 +395,7 @@ int usb_submit_urb(struct urb *urb, int mem_flags)
  *
  * This routine cancels an in-progress request.  URBs complete only
  * once per submission, and may be canceled only once per submission.
- * Successful cancelation means the requests's completion handler will
+ * Successful cancellation means the requests's completion handler will
  * be called with a status code indicating that the request has been
  * canceled (rather than any other code) and will quickly be removed
  * from host controller data structures.

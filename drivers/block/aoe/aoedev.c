@@ -109,25 +109,22 @@ aoedev_set(ulong sysminor, unsigned char *addr, struct net_device *ifp, ulong bu
 	spin_lock_irqsave(&devlist_lock, flags);
 
 	for (d=devlist; d; d=d->next)
-		if (d->sysminor == sysminor
-		|| memcmp(d->addr, addr, sizeof d->addr) == 0)
+		if (d->sysminor == sysminor)
 			break;
 
 	if (d == NULL && (d = aoedev_newdev(bufcnt)) == NULL) {
 		spin_unlock_irqrestore(&devlist_lock, flags);
 		printk(KERN_INFO "aoe: aoedev_set: aoedev_newdev failure.\n");
 		return NULL;
-	}
+	} /* if newdev, (d->flags & DEVFL_UP) == 0 for below */
 
 	spin_unlock_irqrestore(&devlist_lock, flags);
 	spin_lock_irqsave(&d->lock, flags);
 
 	d->ifp = ifp;
-
-	if (d->sysminor != sysminor
-	|| (d->flags & DEVFL_UP) == 0) {
+	memcpy(d->addr, addr, sizeof d->addr);
+	if ((d->flags & DEVFL_UP) == 0) {
 		aoedev_downdev(d); /* flushes outstanding frames */
-		memcpy(d->addr, addr, sizeof d->addr);
 		d->sysminor = sysminor;
 		d->aoemajor = AOEMAJOR(sysminor);
 		d->aoeminor = AOEMINOR(sysminor);

@@ -470,6 +470,7 @@ void irda_device_unregister_dongle(struct dongle_reg *dongle)
 }
 EXPORT_SYMBOL(irda_device_unregister_dongle);
 
+#ifdef CONFIG_ISA_DMA_API
 /*
  * Function setup_dma (idev, buffer, count, mode)
  *
@@ -492,3 +493,4 @@ void irda_setup_dma(int channel, dma_addr_t buffer, int count, int mode)
 	release_dma_lock(flags);
 }
 EXPORT_SYMBOL(irda_setup_dma);
+#endif

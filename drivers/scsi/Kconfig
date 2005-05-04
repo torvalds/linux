@@ -260,7 +260,7 @@ config SCSI_3W_9XXX
 
 config SCSI_7000FASST
 	tristate "7000FASST SCSI support"
-	depends on ISA && SCSI
+	depends on ISA && SCSI && ISA_DMA_API
 	help
 	  This driver supports the Western Digital 7000 SCSI host adapter
 	  family.  Some information is in the source:
@@ -295,7 +295,7 @@ config SCSI_AHA152X
 
 config SCSI_AHA1542
 	tristate "Adaptec AHA1542 support"
-	depends on ISA && SCSI
+	depends on ISA && SCSI && ISA_DMA_API
 	---help---
 	  This is support for a SCSI host adapter.  It is explained in section
 	  3.4 of the SCSI-HOWTO, available from
@@ -515,7 +515,7 @@ config SCSI_SATA_VITESSE
 
 config SCSI_BUSLOGIC
 	tristate "BusLogic SCSI support"
-	depends on (PCI || ISA || MCA) && SCSI && (BROKEN || !SPARC64)
+	depends on (PCI || ISA || MCA) && SCSI && ISA_DMA_API
 	---help---
 	  This is support for BusLogic MultiMaster and FlashPoint SCSI Host
 	  Adapters. Consult the SCSI-HOWTO, available from
@@ -571,7 +571,7 @@ config SCSI_DTC3280
 
 config SCSI_EATA
 	tristate "EATA ISA/EISA/PCI (DPT and generic EATA/DMA-compliant boards) support"
-	depends on (ISA || EISA || PCI) && SCSI && (BROKEN || !SPARC64)
+	depends on (ISA || EISA || PCI) && SCSI && ISA_DMA_API
 	---help---
 	  This driver supports all EATA/DMA-compliant SCSI host adapters.  DPT
 	  ISA and all EISA I/O addresses are probed looking for the "EATA"
@@ -665,7 +665,7 @@ config SCSI_FD_MCS
 
 config SCSI_GDTH
 	tristate "Intel/ICP (former GDT SCSI Disk Array) RAID Controller support"
-	depends on (ISA || EISA || PCI) && SCSI && (BROKEN || !SPARC64)
+	depends on (ISA || EISA || PCI) && SCSI && ISA_DMA_API
 	---help---
 	  Formerly called GDT SCSI Disk Array Controller Support.
 
@@ -1416,7 +1416,7 @@ config SCSI_T128
 
 config SCSI_U14_34F
 	tristate "UltraStor 14F/34F support"
-	depends on ISA && SCSI
+	depends on ISA && SCSI && ISA_DMA_API
 	---help---
 	  This is support for the UltraStor 14F and 34F SCSI-2 host adapters.
 	  The source at <file:drivers/scsi/u14-34f.c> contains some

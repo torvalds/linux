@@ -297,7 +297,7 @@ static int __init init_slots(void)
 		hotplug_slot->ops = &skel_hotplug_slot_ops;
 		
 		/*
-		 * Initilize the slot info structure with some known
+		 * Initialize the slot info structure with some known
 		 * good values.
 		 */
 		info->power_status = get_power_status(slot);

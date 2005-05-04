@@ -1173,6 +1173,10 @@ source "drivers/pci/pcie/Kconfig"
 
 source "drivers/pci/Kconfig"
 
+config ISA_DMA_API
+	bool
+	default y
+
 config ISA
 	bool "ISA support"
 	depends on !(X86_VOYAGER || X86_VISWS)

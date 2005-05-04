@@ -32,7 +32,7 @@
  *    Changed reset from standard USB dev reset to vendor reset
  *    Changed data sent to host from compensated to raw coordinates
  *    Eliminated vendor/product module params
- *    Performed multiple successfull tests with an EXII-5010UC
+ *    Performed multiple successful tests with an EXII-5010UC
  *
  *  1.5 02/27/2005 ddstreet@ieee.org
  *    Added module parameter to select raw or hw-calibrated coordinate reporting

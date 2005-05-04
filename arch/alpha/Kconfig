@@ -280,6 +280,10 @@ config ISA
 	  (MCA) or VESA.  ISA is an older system, now being displaced by PCI;
 	  newer boards don't support it.  If you have ISA, say Y, otherwise N.
 
+config ISA_DMA_API
+	bool
+	default y
+
 config PCI
 	bool
 	depends on !ALPHA_JENSEN

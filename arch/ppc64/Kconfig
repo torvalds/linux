@@ -293,6 +293,9 @@ config SECCOMP
 
 endmenu
 
+config ISA_DMA_API
+	bool
+	default y
 
 menu "General setup"
 
