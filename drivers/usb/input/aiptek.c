@@ -386,7 +386,7 @@ static int aiptek_convert_from_2s_complement(unsigned char c)
  * convention above.) I therefore have taken over REL_MISC and ABS_MISC
  * (for relative and absolute reports, respectively) for communicating
  * Proximity. Why two events? I thought it interesting to know if the
- * Proximity event occured while the tablet was in absolute or relative
+ * Proximity event occurred while the tablet was in absolute or relative
  * mode.
  *
  * Other tablets use the notion of a certain minimum stylus pressure

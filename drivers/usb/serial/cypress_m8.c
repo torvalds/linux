@@ -16,6 +16,14 @@
  * See http://geocities.com/i0xox0i for information on this driver and the
  * earthmate usb device.
  *
+ *  Lonnie Mendez <dignome@gmail.com>
+ *  4-29-2005
+ *	Fixed problem where setting or retreiving the serial config would fail with
+ * 	EPIPE.  Removed CRTS toggling so the driver behaves more like other usbserial
+ * 	adapters.  Issued new interval of 1ms instead of the default 10ms.  As a
+ * 	result, transfer speed has been substantially increased.  From avg. 850bps to
+ * 	avg. 3300bps.  initial termios has also been modified.  Cleaned up code and
+ * 	formatting issues so it is more readable.  Replaced the C++ style comments.
  *
  *  Lonnie Mendez <dignome@gmail.com>
  *  12-15-2004
@@ -32,12 +40,6 @@
  *  10-2003
  *	Driver first released.
  *
- *
- * Long Term TODO:
- *	Improve transfer speeds - both read/write are somewhat slow
- *   at this point.
- *      Improve debugging.  Show modem line status with debug output and
- *   implement filtering for certain data as a module parameter.
  */
 
 /* Thanks to Neil Whelchel for writing the first cypress m8 implementation for linux. */
@@ -72,11 +74,12 @@
 	static int debug;
 #endif
 static int stats;
+static int interval;
 
 /*
  * Version Information
  */
-#define DRIVER_VERSION "v1.08"
+#define DRIVER_VERSION "v1.09"
 #define DRIVER_AUTHOR "Lonnie Mendez <dignome@gmail.com>, Neil Whelchel <koyama@firstlight.net>"
 #define DRIVER_DESC "Cypress USB to Serial Driver"
 
@@ -130,7 +133,6 @@ struct cypress_private {
 	char prev_status, diff_status;	   /* used for TIOCMIWAIT */
 	/* we pass a pointer to this as the arguement sent to cypress_set_termios old_termios */
 	struct termios tmp_termios; 	   /* stores the old termios settings */
-	char calledfromopen;		   /* used when issuing lines on open - fixes rts drop bug */
 };
 
 /* write buffer structure */
@@ -168,10 +170,8 @@ static void 		  cypress_buf_free(struct cypress_buf *cb);
 static void		  cypress_buf_clear(struct cypress_buf *cb);
 static unsigned int	  cypress_buf_data_avail(struct cypress_buf *cb);
 static unsigned int	  cypress_buf_space_avail(struct cypress_buf *cb);
-static unsigned int	  cypress_buf_put(struct cypress_buf *cb, const char *buf,
-					  unsigned int count);
-static unsigned int	  cypress_buf_get(struct cypress_buf *cb, char *buf,
-					  unsigned int count);
+static unsigned int	  cypress_buf_put(struct cypress_buf *cb, const char *buf, unsigned int count);
+static unsigned int	  cypress_buf_get(struct cypress_buf *cb, char *buf, unsigned int count);
 
 
 static struct usb_serial_device_type cypress_earthmate_device = {
@@ -234,14 +234,13 @@ static struct usb_serial_device_type cypress_hidcom_device = {
  *****************************************************************************/
 
 
-/* This function can either set or retreive the current serial line settings */
+/* This function can either set or retrieve the current serial line settings */
 static int cypress_serial_control (struct usb_serial_port *port, unsigned baud_mask, int data_bits, int stop_bits,
 				   int parity_enable, int parity_type, int reset, int cypress_request_type)
 {
-	int i, n_baud_rate = 0, retval = 0;
+	int new_baudrate = 0, retval = 0, tries = 0;
 	struct cypress_private *priv;
-	__u8 feature_buffer[5];
-	__u8 config;
+	__u8 feature_buffer[8];
 	unsigned long flags;
 
 	dbg("%s", __FUNCTION__);
@@ -256,7 +255,8 @@ static int cypress_serial_control (struct usb_serial_port *port, unsigned baud_m
  			 * of 57600bps (I have no idea whether DeLorme chose to use the general purpose
 			 * firmware or not), if you need to modify this speed setting for your own
 			 * project please add your own chiptype and modify the code likewise.  The
-			 * Cypress HID->COM device will work successfully up to 115200bps.
+			 * Cypress HID->COM device will work successfully up to 115200bps (but the
+			 * actual throughput is around 3kBps).
 			 */
 			if (baud_mask != priv->cbr_mask) {
 				dbg("%s - baud rate is changing", __FUNCTION__);
@@ -265,109 +265,114 @@ static int cypress_serial_control (struct usb_serial_port *port, unsigned baud_m
 					 * but are not used with NMEA and SiRF protocols */
 					
 					if ( (baud_mask == B300) || (baud_mask == B600) ) {
-						err("%s - failed setting baud rate, unsupported speed (default to 4800)",
+						err("%s - failed setting baud rate, unsupported speed",
 						    __FUNCTION__);
-						n_baud_rate = 4800;
-					} else if ( (n_baud_rate = mask_to_rate(baud_mask)) == -1) {
-						err("%s - failed setting baud rate, unsupported speed (default to 4800)",
+						new_baudrate = priv->baud_rate;
+					} else if ( (new_baudrate = mask_to_rate(baud_mask)) == -1) {
+						err("%s - failed setting baud rate, unsupported speed",
 						    __FUNCTION__);
-						n_baud_rate = 4800;
+						new_baudrate = priv->baud_rate;
 					}
 				} else if (priv->chiptype == CT_CYPHIDCOM) {
-					if ( (n_baud_rate = mask_to_rate(baud_mask)) == -1) {
-						err("%s - failed setting baud rate, unsupported speed (default to 4800)",
+					if ( (new_baudrate = mask_to_rate(baud_mask)) == -1) {
+						err("%s - failed setting baud rate, unsupported speed",
 						    __FUNCTION__);
-						n_baud_rate = 4800;
+						new_baudrate = priv->baud_rate;
 					}
 				} else if (priv->chiptype == CT_GENERIC) {
-					if ( (n_baud_rate = mask_to_rate(baud_mask)) == -1) {
-						err("%s - failed setting baud rate, unsupported speed (default to 4800)",
+					if ( (new_baudrate = mask_to_rate(baud_mask)) == -1) {
+						err("%s - failed setting baud rate, unsupported speed",
 						    __FUNCTION__);
-						n_baud_rate = 4800;
+						new_baudrate = priv->baud_rate;
 					}
 				} else {
-					info("%s - please define your chiptype, using 4800bps default", __FUNCTION__);
-					n_baud_rate = 4800;
+					info("%s - please define your chiptype", __FUNCTION__);
+					new_baudrate = priv->baud_rate;
 				}
 			} else {  /* baud rate not changing, keep the old */
-				n_baud_rate = priv->baud_rate;
+				new_baudrate = priv->baud_rate;
 			}
-			dbg("%s - baud rate is being sent as %d", __FUNCTION__, n_baud_rate);
-
+			dbg("%s - baud rate is being sent as %d", __FUNCTION__, new_baudrate);
 			
-			/*
-			 * This algorithm accredited to Jiang Jay Zhang... thanks for all the help!
-			 */
-			for (i = 0; i < 4; ++i) {
-				feature_buffer[i] = ( n_baud_rate >> (i*8) & 0xFF );
-			}
+			memset(feature_buffer, 0, 8);
+			/* fill the feature_buffer with new configuration */
+			*((u_int32_t *)feature_buffer) = new_baudrate;
 
-			config = 0;	                 // reset config byte
-			config |= data_bits;	         // assign data bits in 2 bit space ( max 3 )
+			feature_buffer[4] |= data_bits;   /* assign data bits in 2 bit space ( max 3 ) */
 			/* 1 bit gap */
-			config |= (stop_bits << 3);      // assign stop bits in 1 bit space
-			config |= (parity_enable << 4);  // assign parity flag in 1 bit space
-			config |= (parity_type << 5); 	 // assign parity type in 1 bit space
+			feature_buffer[4] |= (stop_bits << 3);   /* assign stop bits in 1 bit space */
+			feature_buffer[4] |= (parity_enable << 4);   /* assign parity flag in 1 bit space */
+			feature_buffer[4] |= (parity_type << 5);   /* assign parity type in 1 bit space */
 			/* 1 bit gap */
-			config |= (reset << 7);		 // assign reset at end of byte, 1 bit space
-
-			feature_buffer[4] = config;
+			feature_buffer[4] |= (reset << 7);   /* assign reset at end of byte, 1 bit space */
 				
 			dbg("%s - device is being sent this feature report:", __FUNCTION__);
 			dbg("%s - %02X - %02X - %02X - %02X - %02X", __FUNCTION__, feature_buffer[0], feature_buffer[1],
 		            feature_buffer[2], feature_buffer[3], feature_buffer[4]);
 			
+			do {
 			retval = usb_control_msg (port->serial->dev, usb_sndctrlpipe(port->serial->dev, 0),
 					  	  HID_REQ_SET_REPORT, USB_DIR_OUT | USB_RECIP_INTERFACE | USB_TYPE_CLASS,
-					  	  0x0300, 0, feature_buffer, 5, 500);
+						  	  0x0300, 0, feature_buffer, 8, 500);
 
-			if (retval != 5)
+				if (tries++ >= 3)
+					break;
+
+				if (retval == EPIPE)
+					usb_clear_halt(port->serial->dev, 0x00);
+			} while (retval != 8 && retval != ENODEV);
+
+			if (retval != 8)
 				err("%s - failed sending serial line settings - %d", __FUNCTION__, retval);
 			else {
 				spin_lock_irqsave(&priv->lock, flags);
-				priv->baud_rate = n_baud_rate;
+				priv->baud_rate = new_baudrate;
 				priv->cbr_mask = baud_mask;
-				priv->current_config = config;
-				++priv->cmd_count;
+				priv->current_config = feature_buffer[4];
 				spin_unlock_irqrestore(&priv->lock, flags);
 			}
 		break;
 		case CYPRESS_GET_CONFIG:
 			dbg("%s - retreiving serial line settings", __FUNCTION__);
-			/* reset values in feature buffer */
-			memset(feature_buffer, 0, 5);
+			/* set initial values in feature buffer */
+			memset(feature_buffer, 0, 8);
 
+			do {
 			retval = usb_control_msg (port->serial->dev, usb_rcvctrlpipe(port->serial->dev, 0),
 						  HID_REQ_GET_REPORT, USB_DIR_IN | USB_RECIP_INTERFACE | USB_TYPE_CLASS,
-						  0x0300, 0, feature_buffer, 5, 500);
+							  0x0300, 0, feature_buffer, 8, 500);
+				
+				if (tries++ >= 3)
+					break;
+
+				if (retval == EPIPE)
+					usb_clear_halt(port->serial->dev, 0x00);
+			} while (retval != 5 && retval != ENODEV);
+
 			if (retval != 5) {
 				err("%s - failed to retreive serial line settings - %d", __FUNCTION__, retval);
 				return retval;
 			} else {
 				spin_lock_irqsave(&priv->lock, flags);
+
 				/* store the config in one byte, and later use bit masks to check values */
 				priv->current_config = feature_buffer[4];
-				/* reverse the process above to get the baud_mask value */
-				n_baud_rate = 0; // reset bits
-				for (i = 0; i < 4; ++i) {
-					n_baud_rate |= ( feature_buffer[i] << (i*8) );
-				}
+				priv->baud_rate = *((u_int32_t *)feature_buffer);
 				
-				priv->baud_rate = n_baud_rate;
-				if ( (priv->cbr_mask = rate_to_mask(n_baud_rate)) == 0x40)
+				if ( (priv->cbr_mask = rate_to_mask(priv->baud_rate)) == 0x40)
 					dbg("%s - failed setting the baud mask (not defined)", __FUNCTION__);
-				++priv->cmd_count;
 				spin_unlock_irqrestore(&priv->lock, flags);
 			}
-			break;
-		default:
-			err("%s - unsupported serial control command issued", __FUNCTION__);
 	}
+	spin_lock_irqsave(&priv->lock, flags);
+	++priv->cmd_count;
+	spin_unlock_irqrestore(&priv->lock, flags);
+
 	return retval;
 } /* cypress_serial_control */
 
 
-/* given a baud mask, it will return speed on success */
+/* given a baud mask, it will return integer baud on success */
 static int mask_to_rate (unsigned mask)
 {
 	int rate;
@@ -438,11 +443,12 @@ static int generic_startup (struct usb_serial *serial)
 	
 	usb_reset_configuration (serial->dev);
 	
+	interval = 1;
 	priv->cmd_ctrl = 0;
 	priv->line_control = 0;
 	priv->termios_initialized = 0;
-	priv->calledfromopen = 0;
 	priv->rx_flags = 0;
+	priv->cbr_mask = B300;
 	usb_set_serial_port_data(serial->port[0], priv);
 	
 	return (0);	
@@ -513,7 +519,6 @@ static int cypress_open (struct usb_serial_port *port, struct file *filp)
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
 	/* clear halts before open */
-	usb_clear_halt(serial->dev, 0x00);
 	usb_clear_halt(serial->dev, 0x81);
 	usb_clear_halt(serial->dev, 0x02);
 
@@ -531,7 +536,6 @@ static int cypress_open (struct usb_serial_port *port, struct file *filp)
 	/* raise both lines and set termios */
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->line_control = CONTROL_DTR | CONTROL_RTS;
-	priv->calledfromopen = 1;
 	priv->cmd_ctrl = 1;
 	spin_unlock_irqrestore(&priv->lock, flags);
 	result = cypress_write(port, NULL, 0);
@@ -553,7 +557,7 @@ static int cypress_open (struct usb_serial_port *port, struct file *filp)
 	usb_fill_int_urb(port->interrupt_in_urb, serial->dev,
 		usb_rcvintpipe(serial->dev, port->interrupt_in_endpointAddress),
 		port->interrupt_in_urb->transfer_buffer, port->interrupt_in_urb->transfer_buffer_length,
-		cypress_read_int_callback, port, port->interrupt_in_urb->interval);
+		cypress_read_int_callback, port, interval);
 	result = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
 
 	if (result){
@@ -680,12 +684,12 @@ static void cypress_send(struct usb_serial_port *port)
 	spin_lock_irqsave(&priv->lock, flags);
 	switch (port->interrupt_out_size) {
 		case 32:
-			// this is for the CY7C64013...
+			/* this is for the CY7C64013... */
 			offset = 2;
 			port->interrupt_out_buffer[0] = priv->line_control;
 			break;
 		case 8:
-			// this is for the CY7C63743...
+			/* this is for the CY7C63743... */
 			offset = 1;
 			port->interrupt_out_buffer[0] = priv->line_control;
 			break;
@@ -738,6 +742,7 @@ send:
 
 	port->interrupt_out_urb->transfer_buffer_length = actual_size;
 	port->interrupt_out_urb->dev = port->serial->dev;
+	port->interrupt_out_urb->interval = interval;
 	result = usb_submit_urb (port->interrupt_out_urb, GFP_ATOMIC);
 	if (result) {
 		dev_err(&port->dev, "%s - failed submitting write urb, error %d\n", __FUNCTION__,
@@ -910,7 +915,7 @@ static void cypress_set_termios (struct usb_serial_port *port, struct termios *o
 	unsigned cflag, iflag, baud_mask;
 	unsigned long flags;
 	__u8 oldlines;
-	int linechange;
+	int linechange = 0;
 	
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
@@ -996,15 +1001,7 @@ static void cypress_set_termios (struct usb_serial_port *port, struct termios *o
 			case B115200: dbg("%s - setting baud 115200bps", __FUNCTION__); break;
 			default: dbg("%s - unknown masked baud rate", __FUNCTION__);
 		}
-		priv->line_control |= CONTROL_DTR;
-		
-		/* toggle CRTSCTS? - don't do this if being called from cypress_open */
-		if (!priv->calledfromopen) {
-			if (cflag & CRTSCTS)
-				priv->line_control |= CONTROL_RTS;
-			else
-				priv->line_control &= ~CONTROL_RTS;
-		}
+		priv->line_control = (CONTROL_DTR | CONTROL_RTS);
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
 	
@@ -1013,8 +1010,6 @@ static void cypress_set_termios (struct usb_serial_port *port, struct termios *o
 
 	cypress_serial_control(port, baud_mask, data_bits, stop_bits, parity_enable,
 			       parity_type, 0, CYPRESS_SET_CONFIG);
-
-	msleep(50);			/* give some time between change and read (50ms) */
 
 	/* we perform a CYPRESS_GET_CONFIG so that the current settings are filled into the private structure
          * this should confirm that all is working if it returns what we just set */
@@ -1031,7 +1026,6 @@ static void cypress_set_termios (struct usb_serial_port *port, struct termios *o
 		dbg("Using custom termios settings for a baud rate of 4800bps.");
 		/* define custom termios settings for NMEA protocol */
 
-		
 		tty->termios->c_iflag /* input modes - */
 			&= ~(IGNBRK		/* disable ignore break */
 			| BRKINT		/* disable break causes interrupt */
@@ -1052,23 +1046,16 @@ static void cypress_set_termios (struct usb_serial_port *port, struct termios *o
 			| ISIG			/* disable interrupt, quit, and suspend special characters */
 			| IEXTEN);		/* disable non-POSIX special characters */
 
-	} else if (priv->chiptype == CT_CYPHIDCOM) {
+	} /* CT_CYPHIDCOM: Application should handle this for device */
 
-		// Software app handling it for device...	
-
-	}
 	linechange = (priv->line_control != oldlines);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	/* if necessary, set lines */
-	if (!priv->calledfromopen && linechange) {
+	if (linechange) {
 		priv->cmd_ctrl = 1;
 		cypress_write(port, NULL, 0);
 	}
-
-	if (priv->calledfromopen)
-		priv->calledfromopen = 0;
-	
 } /* cypress_set_termios */
 
  
@@ -1164,7 +1151,7 @@ static void cypress_read_int_callback(struct urb *urb, struct pt_regs *regs)
 	spin_lock_irqsave(&priv->lock, flags);
 	switch(urb->actual_length) {
 		case 32:
-			// This is for the CY7C64013...
+			/* This is for the CY7C64013... */
 			priv->current_status = data[0] & 0xF8;
 			bytes = data[1]+2;
 			i=2;
@@ -1172,7 +1159,7 @@ static void cypress_read_int_callback(struct urb *urb, struct pt_regs *regs)
 				havedata = 1;
 			break;
 		case 8:
-			// This is for the CY7C63743...
+			/* This is for the CY7C63743... */
 			priv->current_status = data[0] & 0xF8;
 			bytes = (data[0] & 0x07)+1;
 			i=1;
@@ -1245,7 +1232,7 @@ continue_read:
 		port->interrupt_in_urb->transfer_buffer,
 		port->interrupt_in_urb->transfer_buffer_length,
 		cypress_read_int_callback, port,
-		port->interrupt_in_urb->interval);
+		interval);
 	result = usb_submit_urb(port->interrupt_in_urb, GFP_ATOMIC);
 	if (result)
 		dev_err(&urb->dev->dev, "%s - failed resubmitting read urb, error %d\n", __FUNCTION__, result);
@@ -1274,6 +1261,8 @@ static void cypress_write_int_callback(struct urb *urb, struct pt_regs *regs)
 			dbg("%s - urb shutting down with status: %d", __FUNCTION__, urb->status);
 			priv->write_urb_in_use = 0;
 			return;
+		case -EPIPE: /* no break needed */
+			usb_clear_halt(port->serial->dev, 0x02);
 		default:
 			/* error in the urb, so we have to resubmit it */
 			dbg("%s - Overflow in write", __FUNCTION__);
@@ -1535,3 +1524,5 @@ module_param(debug, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Debug enabled or not");
 module_param(stats, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(stats, "Enable statistics or not");
+module_param(interval, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(interval, "Overrides interrupt interval");

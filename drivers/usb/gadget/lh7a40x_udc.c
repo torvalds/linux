@@ -705,7 +705,7 @@ void nuke(struct lh7a40x_ep *ep, int status)
 		done(ep, req, status);
 	}
 
-	/* Disable IRQ if EP is enabled (has decriptor) */
+	/* Disable IRQ if EP is enabled (has descriptor) */
 	if (ep->desc)
 		pio_irq_disable(ep_index(ep));
 }

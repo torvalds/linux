@@ -47,6 +47,7 @@
 #include <linux/cdrom.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
+#include <scsi/scsi_dbg.h>
 
 #include "debug.h"
 #include "scsi.h"

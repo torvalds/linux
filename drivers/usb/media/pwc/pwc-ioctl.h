@@ -75,7 +75,7 @@
 #define PWC_FPS_SNAPSHOT	0x00400000
 
 
-/* structure for transfering x & y coordinates */
+/* structure for transferring x & y coordinates */
 struct pwc_coord
 {
 	int x, y;		/* guess what */
