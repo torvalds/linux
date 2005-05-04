@@ -133,24 +133,23 @@ static snd_pcm_hardware_t snd_p16v_playback_hw = {
 };
 
 static snd_pcm_hardware_t snd_p16v_capture_hw = {
-       .info =                 (SNDRV_PCM_INFO_MMAP |
-                                SNDRV_PCM_INFO_INTERLEAVED |
-                                SNDRV_PCM_INFO_BLOCK_TRANSFER |
-                                SNDRV_PCM_INFO_MMAP_VALID),
-       .formats =              SNDRV_PCM_FMTBIT_S32_LE,
-       .rates =                SNDRV_PCM_RATE_48000,
-       .rate_min =             48000,
-       .rate_max =             48000,
-       .channels_min =         2,
-       .channels_max =         2,
-       .buffer_bytes_max =     (32*1024),
-       .period_bytes_min =     64,
-       .period_bytes_max =     (16*1024),
-       .periods_min =          2,
-       .periods_max =          2,
-       .fifo_size =            0,
+	.info =			(SNDRV_PCM_INFO_MMAP |
+				 SNDRV_PCM_INFO_INTERLEAVED |
+				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
+				 SNDRV_PCM_INFO_MMAP_VALID),
+	.formats =		SNDRV_PCM_FMTBIT_S32_LE,
+	.rates =		SNDRV_PCM_RATE_192000 | SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_44100, 
+	.rate_min =		44100,
+	.rate_max =		192000,
+	.channels_min =		2,
+	.channels_max =		2,
+	.buffer_bytes_max =	(32*1024),
+	.period_bytes_min =	64,
+	.period_bytes_max =	(16*1024),
+	.periods_min =		2,
+	.periods_max =		2,
+	.fifo_size =		0,
 };
-
 
 static void snd_p16v_pcm_free_substream(snd_pcm_runtime_t *runtime)
 {
@@ -362,7 +361,25 @@ static int snd_p16v_pcm_prepare_capture(snd_pcm_substream_t *substream)
 	emu10k1_t *emu = snd_pcm_substream_chip(substream);
 	snd_pcm_runtime_t *runtime = substream->runtime;
 	int channel = substream->pcm->device - emu->p16v_device_offset;
-	//printk("prepare:channel_number=%d, rate=%d, format=0x%x, channels=%d, buffer_size=%ld, period_size=%ld, frames_to_bytes=%d\n",channel, runtime->rate, runtime->format, runtime->channels, runtime->buffer_size, runtime->period_size,  frames_to_bytes(runtime, 1));
+	u32 tmp;
+	//printk("prepare capture:channel_number=%d, rate=%d, format=0x%x, channels=%d, buffer_size=%ld, period_size=%ld, frames_to_bytes=%d\n",channel, runtime->rate, runtime->format, runtime->channels, runtime->buffer_size, runtime->period_size,  frames_to_bytes(runtime, 1));
+	tmp = snd_emu10k1_ptr_read(emu, A_SPDIF_SAMPLERATE, channel);
+        switch (runtime->rate) {
+	case 44100:
+	  snd_emu10k1_ptr_write(emu, A_SPDIF_SAMPLERATE, channel, (tmp & ~0x0e00) | 0x0800);
+	  break;
+	case 96000:
+	  snd_emu10k1_ptr_write(emu, A_SPDIF_SAMPLERATE, channel, (tmp & ~0x0e00) | 0x0400);
+	  break;
+	case 192000:
+	  snd_emu10k1_ptr_write(emu, A_SPDIF_SAMPLERATE, channel, (tmp & ~0x0e00) | 0x0200);
+	  break;
+	case 48000:
+	default:
+	  snd_emu10k1_ptr_write(emu, A_SPDIF_SAMPLERATE, channel, (tmp & ~0x0e00) | 0x0000);
+	  break;
+	}
+	/* FIXME: Check emu->buffer.size before actually writing to it. */
 	snd_emu10k1_ptr20_write(emu, 0x13, channel, 0);
 	snd_emu10k1_ptr20_write(emu, CAPTURE_DMA_ADDR, channel, runtime->dma_addr);
 	snd_emu10k1_ptr20_write(emu, CAPTURE_BUFFER_SIZE, channel, frames_to_bytes(runtime, runtime->buffer_size)<<16); // buffer size in bytes
