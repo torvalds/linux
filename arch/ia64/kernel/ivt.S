@@ -1243,6 +1243,25 @@ END(disabled_fp_reg)
 // 0x5600 Entry 26 (size 16 bundles) Nat Consumption (11,23,37,50)
 ENTRY(nat_consumption)
 	DBG_FAULT(26)
+
+	mov r16=cr.ipsr
+	mov r17=cr.isr
+	mov r31=pr				// save PR
+	;;
+	and r18=0xf,r17				// r18 = cr.ipsr.code{3:0}
+	tbit.z p6,p0=r17,IA64_ISR_NA_BIT
+	;;
+	cmp.ne.or p6,p0=IA64_ISR_CODE_LFETCH,r18
+	dep r16=-1,r16,IA64_PSR_ED_BIT,1
+(p6)	br.cond.spnt 1f		// branch if (cr.ispr.na == 0 || cr.ipsr.code{3:0} != LFETCH)
+	;;
+	mov cr.ipsr=r16		// set cr.ipsr.na
+	mov pr=r31,-1
+	;;
+	rfi
+
+1:	mov pr=r31,-1
+	;;
 	FAULT(26)
 END(nat_consumption)
 
