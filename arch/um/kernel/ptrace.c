@@ -98,12 +98,14 @@ long sys_ptrace(long request, long pid, long addr, long data)
 		if(addr < MAX_REG_OFFSET){
 			tmp = getreg(child, addr);
 		}
+#if defined(CONFIG_UML_X86) && !defined(CONFIG_64BIT)
 		else if((addr >= offsetof(struct user, u_debugreg[0])) &&
 			(addr <= offsetof(struct user, u_debugreg[7]))){
 			addr -= offsetof(struct user, u_debugreg[0]);
 			addr = addr >> 2;
 			tmp = child->thread.arch.debugregs[addr];
 		}
+#endif
 		ret = put_user(tmp, (unsigned long __user *) data);
 		break;
 	}
@@ -127,7 +129,7 @@ long sys_ptrace(long request, long pid, long addr, long data)
 			ret = putreg(child, addr, data);
 			break;
 		}
-#if 0 /* XXX x86_64 */
+#if defined(CONFIG_UML_X86) && !defined(CONFIG_64BIT)
 		else if((addr >= offsetof(struct user, u_debugreg[0])) &&
 			(addr <= offsetof(struct user, u_debugreg[7]))){
 			  addr -= offsetof(struct user, u_debugreg[0]);

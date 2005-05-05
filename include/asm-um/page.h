@@ -45,6 +45,9 @@ typedef struct { unsigned long pgd; } pgd_t;
 	({ (pte).pte_high = (phys) >> 32; \
 	   (pte).pte_low = (phys) | pgprot_val(prot); })
 
+#define pmd_val(x)	((x).pmd)
+#define __pmd(x) ((pmd_t) { (x) } )
+
 typedef unsigned long long pfn_t;
 typedef unsigned long long phys_t;
 
