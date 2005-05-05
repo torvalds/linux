@@ -3115,7 +3115,7 @@ void __init buffer_init(void)
 
 	bh_cachep = kmem_cache_create("buffer_head",
 			sizeof(struct buffer_head), 0,
-			SLAB_PANIC, init_buffer_head, NULL);
+			SLAB_RECLAIM_ACCOUNT|SLAB_PANIC, init_buffer_head, NULL);
 
 	/*
 	 * Limit the bh occupancy to 10% of ZONE_NORMAL
