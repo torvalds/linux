@@ -263,11 +263,6 @@ long sys_ptrace(long request, long pid, long addr, long data)
 			break;
 		break;
 	}
-	case PTRACE_SIGPENDING:
-		ret = copy_to_user((unsigned long __user *) data,
-				   &child->pending.signal,
-				   sizeof(child->pending.signal));
-		break;
 
 #ifdef PTRACE_LDT
 	case PTRACE_LDT: {
