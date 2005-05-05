@@ -1039,7 +1039,7 @@ struct net_device * __init ltpc_probe(void)
 	unsigned long f;
 	unsigned long timeout;
 
-	dev = alloc_netdev(sizeof(struct ltpc_private), "lt%d", ltalk_setup);
+	dev = alloc_ltalkdev(sizeof(struct ltpc_private));
 	if (!dev)
 		goto out;
 
