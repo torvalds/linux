@@ -13,7 +13,6 @@
 #include <asm/irq.h>
 #include <asm/sn/arch.h>
 #include <asm/sn/intr.h>
-#include <asm/sn/pda.h>
 #include <asm/sn/bte.h>
 
 /*
@@ -67,20 +66,18 @@ typedef struct nodepda_s nodepda_t;
  * The next set of definitions provides this.
  * Routines are expected to use 
  *
- *	nodepda			-> to access node PDA for the node on which code is running
- *	subnodepda		-> to access subnode PDA for the subnode on which code is running
- *
- *	NODEPDA(cnode)		-> to access node PDA for cnodeid 
- *	SUBNODEPDA(cnode,sn)	-> to access subnode PDA for cnodeid/subnode
+ *	sn_nodepda   - to access node PDA for the node on which code is running
+ *	NODEPDA(cnodeid)   - to access node PDA for cnodeid
  */
 
-#define	nodepda		pda->p_nodepda		/* Ptr to this node's PDA */
-#define	NODEPDA(cnode)		(nodepda->pernode_pdaindr[cnode])
+DECLARE_PER_CPU(struct nodepda_s *, __sn_nodepda);
+#define sn_nodepda		(__get_cpu_var(__sn_nodepda))
+#define	NODEPDA(cnodeid)	(sn_nodepda->pernode_pdaindr[cnodeid])
 
 /*
  * Check if given a compact node id the corresponding node has all the
  * cpus disabled. 
  */
-#define is_headless_node(cnode)		(nr_cpus_node(cnode) == 0)
+#define is_headless_node(cnodeid)	(nr_cpus_node(cnodeid) == 0)
 
 #endif /* _ASM_IA64_SN_NODEPDA_H */
