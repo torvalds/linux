@@ -166,6 +166,14 @@ endef
 $(ARCH_DIR)/include/uml-config.h : include/linux/autoconf.h
 	$(call filechk,umlconfig)
 
+$(ARCH_DIR)/user-offsets.s: $(ARCH_DIR)/sys-$(SUBARCH)/user-offsets.c
+	$(CC) $(USER_CFLAGS) -S -o $@ $<
+
+$(ARCH_DIR)/user-offsets.h: $(ARCH_DIR)/user-offsets.s
+	$(call filechk,gen-asm-offsets)
+
+CLEAN_FILES += $(ARCH_DIR)/user-offsets.s  $(ARCH_DIR)/user-offsets.h
+
 $(ARCH_DIR)/include/task.h: $(ARCH_DIR)/util/mk_task
 	$(call filechk,gen_header)
 
