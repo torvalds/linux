@@ -147,7 +147,7 @@ xfs_dir_ialloc(
 	xfs_inode_t	*dp,		/* directory within whose allocate
 					   the inode. */
 	mode_t		mode,
-	nlink_t		nlink,
+	xfs_nlink_t	nlink,
 	xfs_dev_t	rdev,
 	cred_t		*credp,
 	prid_t		prid,		/* project id */

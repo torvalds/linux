@@ -409,7 +409,7 @@ typedef struct vattr {
 	int		va_mask;	/* bit-mask of attributes present */
 	enum vtype	va_type;	/* vnode type (for create) */
 	mode_t		va_mode;	/* file access mode and type */
-	nlink_t		va_nlink;	/* number of references to file */
+	xfs_nlink_t	va_nlink;	/* number of references to file */
 	uid_t		va_uid;		/* owner user id */
 	gid_t		va_gid;		/* owner group id */
 	xfs_ino_t	va_nodeid;	/* file id */
