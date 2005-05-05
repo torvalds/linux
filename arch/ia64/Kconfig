@@ -217,6 +217,16 @@ config IA64_SGI_SN_SIM
 	  If you are compiling a kernel that will run under SGI's IA-64
 	  simulator (Medusa) then say Y, otherwise say N.
 
+config IA64_SGI_SN_XP
+	tristate "Support communication between SGI SSIs"
+	depends on MSPEC
+	help
+	  An SGI machine can be divided into multiple Single System
+	  Images which act independently of each other and have
+	  hardware based memory protection from the others.  Enabling
+	  this feature will allow for direct communication between SSIs
+	  based on a network adapter and DMA messaging.
+
 config FORCE_MAX_ZONEORDER
 	int
 	default "18"
@@ -260,6 +270,15 @@ config HOTPLUG_CPU
 	  Say Y here to experiment with turning CPUs off and on.  CPUs
 	  can be controlled through /sys/devices/system/cpu/cpu#.
 	  Say N if you want to disable CPU hotplug.
+
+config SCHED_SMT
+	bool "SMT scheduler support"
+	depends on SMP
+	default off
+	help
+	  Improves the CPU scheduler's decision making when dealing with
+	  Intel IA64 chips with MultiThreading at a cost of slightly increased
+	  overhead in some places. If unsure say N here.
 
 config PREEMPT
 	bool "Preemptible Kernel"

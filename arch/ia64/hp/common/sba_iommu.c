@@ -1944,43 +1944,17 @@ sba_connect_bus(struct pci_bus *bus)
 static void __init
 sba_map_ioc_to_node(struct ioc *ioc, acpi_handle handle)
 {
-	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
-	union acpi_object *obj;
-	acpi_handle phandle;
 	unsigned int node;
+	int pxm;
 
 	ioc->node = MAX_NUMNODES;
 
-	/*
-	 * Check for a _PXM on this node first.  We don't typically see
-	 * one here, so we'll end up getting it from the parent.
-	 */
-	if (ACPI_FAILURE(acpi_evaluate_object(handle, "_PXM", NULL, &buffer))) {
-		if (ACPI_FAILURE(acpi_get_parent(handle, &phandle)))
-			return;
+	pxm = acpi_get_pxm(handle);
 
-		/* Reset the acpi buffer */
-		buffer.length = ACPI_ALLOCATE_BUFFER;
-		buffer.pointer = NULL;
-
-		if (ACPI_FAILURE(acpi_evaluate_object(phandle, "_PXM", NULL,
-		                                      &buffer)))
-			return;
-	}
-
-	if (!buffer.length || !buffer.pointer)
+	if (pxm < 0)
 		return;
 
-	obj = buffer.pointer;
-
-	if (obj->type != ACPI_TYPE_INTEGER ||
-	    obj->integer.value >= MAX_PXM_DOMAINS) {
-		acpi_os_free(buffer.pointer);
-		return;
-	}
-
-	node = pxm_to_nid_map[obj->integer.value];
-	acpi_os_free(buffer.pointer);
+	node = pxm_to_nid_map[pxm];
 
 	if (node >= MAX_NUMNODES || !node_online(node))
 		return;

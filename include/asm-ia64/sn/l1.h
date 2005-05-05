@@ -29,8 +29,9 @@
 #define L1_BRICKTYPE_CHI_CG     0x76            /* v */
 #define L1_BRICKTYPE_X          0x78            /* x */
 #define L1_BRICKTYPE_X2         0x79            /* y */
-#define L1_BRICKTYPE_SA		0x5e            /* ^ */ /* TIO bringup brick */
+#define L1_BRICKTYPE_SA		0x5e            /* ^ */
 #define L1_BRICKTYPE_PA		0x6a            /* j */
 #define L1_BRICKTYPE_IA		0x6b            /* k */
+#define L1_BRICKTYPE_ATHENA	0x2b            /* + */
 
 #endif /* _ASM_IA64_SN_L1_H */

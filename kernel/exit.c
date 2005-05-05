@@ -846,6 +846,8 @@ fastcall NORET_TYPE void do_exit(long code)
 	for (;;) ;
 }
 
+EXPORT_SYMBOL_GPL(do_exit);
+
 NORET_TYPE void complete_and_exit(struct completion *comp, long code)
 {
 	if (comp)
