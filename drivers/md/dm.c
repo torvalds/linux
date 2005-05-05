@@ -1048,6 +1048,7 @@ int dm_suspend(struct mapped_device *md)
 {
 	struct dm_table *map;
 	DECLARE_WAITQUEUE(wait, current);
+	int error;
 
 	/* Flush I/O to the device. */
 	down_read(&md->lock);
@@ -1056,25 +1057,29 @@ int dm_suspend(struct mapped_device *md)
 		return -EINVAL;
 	}
 
+	error = __lock_fs(md);
+	if (error) {
+		up_read(&md->lock);
+		return error;
+	}
+
 	map = dm_get_table(md);
 	if (map)
 		dm_table_presuspend_targets(map);
-	__lock_fs(md);
 
 	up_read(&md->lock);
 
 	/*
-	 * First we set the BLOCK_IO flag so no more ios will be
-	 * mapped.
+	 * First we set the BLOCK_IO flag so no more ios will be mapped.
+	 *
+	 * If the flag is already set we know another thread is trying to
+	 * suspend as well, so we leave the fs locked for this thread.
 	 */
 	down_write(&md->lock);
 	if (test_bit(DMF_BLOCK_IO, &md->flags)) {
-		/*
-		 * If we get here we know another thread is
-		 * trying to suspend as well, so we leave the fs
-		 * locked for this thread.
-		 */
 		up_write(&md->lock);
+		if (map)
+			dm_table_put(map);
 		return -EINVAL;
 	}
 
@@ -1107,6 +1112,7 @@ int dm_suspend(struct mapped_device *md)
 
 	/* were we interrupted ? */
 	if (atomic_read(&md->pending)) {
+		/* FIXME Undo the presuspend_targets */
 		__unlock_fs(md);
 		clear_bit(DMF_BLOCK_IO, &md->flags);
 		up_write(&md->lock);
