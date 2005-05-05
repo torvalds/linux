@@ -3725,8 +3725,6 @@ static int tg3_abort_hw(struct tg3 *tp, int silent)
 	err |= tg3_stop_block(tp, SNDDATAC_MODE, SNDDATAC_MODE_ENABLE, silent);
 	err |= tg3_stop_block(tp, DMAC_MODE, DMAC_MODE_ENABLE, silent);
 	err |= tg3_stop_block(tp, SNDBDC_MODE, SNDBDC_MODE_ENABLE, silent);
-	if (err)
-		goto out;
 
 	tp->mac_mode &= ~MAC_MODE_TDE_ENABLE;
 	tw32_f(MAC_MODE, tp->mac_mode);
@@ -3744,10 +3742,10 @@ static int tg3_abort_hw(struct tg3 *tp, int silent)
 		printk(KERN_ERR PFX "tg3_abort_hw timed out for %s, "
 		       "TX_MODE_ENABLE will not clear MAC_TX_MODE=%08x\n",
 		       tp->dev->name, tr32(MAC_TX_MODE));
-		return -ENODEV;
+		err |= -ENODEV;
 	}
 
-	err  = tg3_stop_block(tp, HOSTCC_MODE, HOSTCC_MODE_ENABLE, silent);
+	err |= tg3_stop_block(tp, HOSTCC_MODE, HOSTCC_MODE_ENABLE, silent);
 	err |= tg3_stop_block(tp, WDMAC_MODE, WDMAC_MODE_ENABLE, silent);
 	err |= tg3_stop_block(tp, MBFREE_MODE, MBFREE_MODE_ENABLE, silent);
 
@@ -3756,15 +3754,12 @@ static int tg3_abort_hw(struct tg3 *tp, int silent)
 
 	err |= tg3_stop_block(tp, BUFMGR_MODE, BUFMGR_MODE_ENABLE, silent);
 	err |= tg3_stop_block(tp, MEMARB_MODE, MEMARB_MODE_ENABLE, silent);
-	if (err)
-		goto out;
 
 	if (tp->hw_status)
 		memset(tp->hw_status, 0, TG3_HW_STATUS_SIZE);
 	if (tp->hw_stats)
 		memset(tp->hw_stats, 0, sizeof(struct tg3_hw_stats));
 
-out:
 	return err;
 }
 
@@ -5063,9 +5058,7 @@ static int tg3_reset_hw(struct tg3 *tp)
 	tg3_write_sig_pre_reset(tp, RESET_KIND_INIT);
 
 	if (tp->tg3_flags & TG3_FLAG_INIT_COMPLETE) {
-		err = tg3_abort_hw(tp, 1);
-		if (err)
-			return err;
+		tg3_abort_hw(tp, 1);
 	}
 
 	err = tg3_chip_reset(tp);
