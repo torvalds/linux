@@ -424,13 +424,13 @@ vn_remove(
  * Vnode tracing code.
  */
 void
-vn_trace_entry(vnode_t *vp, char *func, inst_t *ra)
+vn_trace_entry(vnode_t *vp, const char *func, inst_t *ra)
 {
 	KTRACE_ENTER(vp, VNODE_KTRACE_ENTRY, func, 0, ra);
 }
 
 void
-vn_trace_exit(vnode_t *vp, char *func, inst_t *ra)
+vn_trace_exit(vnode_t *vp, const char *func, inst_t *ra)
 {
 	KTRACE_ENTER(vp, VNODE_KTRACE_EXIT, func, 0, ra);
 }

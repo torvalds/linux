@@ -648,8 +648,8 @@ static inline int VN_BAD(struct vnode *vp)
 #define	VNODE_KTRACE_REF	4
 #define	VNODE_KTRACE_RELE	5
 
-extern void vn_trace_entry(struct vnode *, char *, inst_t *);
-extern void vn_trace_exit(struct vnode *, char *, inst_t *);
+extern void vn_trace_entry(struct vnode *, const char *, inst_t *);
+extern void vn_trace_exit(struct vnode *, const char *, inst_t *);
 extern void vn_trace_hold(struct vnode *, char *, int, inst_t *);
 extern void vn_trace_ref(struct vnode *, char *, int, inst_t *);
 extern void vn_trace_rele(struct vnode *, char *, int, inst_t *);
