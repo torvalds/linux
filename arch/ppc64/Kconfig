@@ -40,6 +40,10 @@ config COMPAT
 	bool
 	default y
 
+config SCHED_NO_NO_OMIT_FRAME_POINTER
+	bool
+	default y
+
 # We optimistically allocate largepages from the VM, so make the limit
 # large enough (16MB). This badly named config option is actually
 # max order + 1
