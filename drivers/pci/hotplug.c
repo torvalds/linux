@@ -52,6 +52,16 @@ int pci_hotplug (struct device *dev, char **envp, int num_envp,
 	if ((buffer_size - length <= 0) || (i >= num_envp))
 		return -ENOMEM;
 
+	envp[i++] = scratch;
+	length += scnprintf (scratch, buffer_size - length,
+			    "MODALIAS=pci:v%08Xd%08Xsv%08Xsd%08Xbc%02Xsc%02Xi%02x\n",
+			    pdev->vendor, pdev->device,
+			    pdev->subsystem_vendor, pdev->subsystem_device,
+			    (u8)(pdev->class >> 16), (u8)(pdev->class >> 8),
+			    (u8)(pdev->class));
+	if ((buffer_size - length <= 0) || (i >= num_envp))
+		return -ENOMEM;
+
 	envp[i] = NULL;
 
 	return 0;
