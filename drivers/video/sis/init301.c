@@ -86,6 +86,7 @@
 #define SiS_I2CDELAYSHORT  150
 
 static USHORT SiS_GetBIOSLCDResInfo(SiS_Private *SiS_Pr);
+static void SiS_SetCH70xx(SiS_Private *SiS_Pr, USHORT tempbx);
 
 /*********************************************/
 /*         HELPER: Lock/Unlock CRT2          */
@@ -100,7 +101,7 @@ SiS_UnLockCRT2(SiS_Private *SiS_Pr, PSIS_HW_INFO HwInfo)
       SiS_SetRegOR(SiS_Pr->SiS_Part1Port,0x24,0x01);
 }
 
-void
+static void
 SiS_LockCRT2(SiS_Private *SiS_Pr, PSIS_HW_INFO HwInfo)
 {
    if(HwInfo->jChipType >= SIS_315H)
@@ -4236,7 +4237,7 @@ SiS_DisableBridge(SiS_Private *SiS_Pr, PSIS_HW_INFO HwInfo)
  * from outside the context of a mode switch!
  * MUST call getVBType before calling this
  */
-void
+static void
 SiS_EnableBridge(SiS_Private *SiS_Pr, PSIS_HW_INFO HwInfo)
 {
   USHORT temp=0,tempah;
@@ -9219,7 +9220,7 @@ SiS_SetCH701x(SiS_Private *SiS_Pr, USHORT tempbx)
   SiS_SetChReg(SiS_Pr, tempbx, 0);
 }
 
-void
+static void
 SiS_SetCH70xx(SiS_Private *SiS_Pr, USHORT tempbx)
 {
   if(SiS_Pr->SiS_IF_DEF_CH70xx == 1)
@@ -9323,7 +9324,7 @@ SiS_GetCH701x(SiS_Private *SiS_Pr, USHORT tempbx)
 
 /* Read from Chrontel 70xx */
 /* Parameter is [Register no (S7-S0)] */
-USHORT
+static USHORT
 SiS_GetCH70xx(SiS_Private *SiS_Pr, USHORT tempbx)
 {
   if(SiS_Pr->SiS_IF_DEF_CH70xx == 1)

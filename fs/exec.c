@@ -197,7 +197,8 @@ static int count(char __user * __user * argv, int max)
  * memory to free pages in kernel mem. These are in a format ready
  * to be put directly into the top of new user memory.
  */
-int copy_strings(int argc,char __user * __user * argv, struct linux_binprm *bprm)
+static int copy_strings(int argc, char __user * __user * argv,
+			struct linux_binprm *bprm)
 {
 	struct page *kmapped_page = NULL;
 	char *kaddr = NULL;

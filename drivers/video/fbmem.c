@@ -1312,7 +1312,7 @@ int fb_get_options(char *name, char **option)
  *	Returns zero.
  *
  */
-int __init video_setup(char *options)
+static int __init video_setup(char *options)
 {
 	int i, global = 0;
 

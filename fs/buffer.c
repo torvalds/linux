@@ -1210,7 +1210,7 @@ grow_buffers(struct block_device *bdev, sector_t block, int size)
 	return 1;
 }
 
-struct buffer_head *
+static struct buffer_head *
 __getblk_slow(struct block_device *bdev, sector_t block, int size)
 {
 	/* Size must be multiple of hard sectorsize */

@@ -354,7 +354,7 @@ static ssize_t show_pan(struct class_device *class_device, char *buf)
 			fb_info->var.xoffset);
 }
 
-struct class_device_attribute class_device_attrs[] = {
+static struct class_device_attribute class_device_attrs[] = {
 	__ATTR(bits_per_pixel, S_IRUGO|S_IWUSR, show_bpp, store_bpp),
 	__ATTR(blank, S_IRUGO|S_IWUSR, show_blank, store_blank),
 	__ATTR(color_map, S_IRUGO|S_IWUSR, show_cmap, store_cmap),

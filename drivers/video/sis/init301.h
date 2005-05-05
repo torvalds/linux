@@ -293,7 +293,6 @@ static UCHAR SiS300_TrumpionData[7][80] = {
 #endif
 
 void	SiS_UnLockCRT2(SiS_Private *SiS_Pr, PSIS_HW_INFO HwInfo);
-void	SiS_LockCRT2(SiS_Private *SiS_Pr, PSIS_HW_INFO HwInfo);
 void	SiS_EnableCRT2(SiS_Private *SiS_Pr);
 USHORT	SiS_GetRatePtr(SiS_Private *SiS_Pr, USHORT ModeNo, USHORT ModeIdIndex, PSIS_HW_INFO HwInfo);
 void	SiS_WaitRetrace1(SiS_Private *SiS_Pr);
@@ -310,7 +309,6 @@ USHORT	SiS_GetVCLK2Ptr(SiS_Private *SiS_Pr, USHORT ModeNo, USHORT ModeIdIndex,
                 USHORT RefreshRateTableIndex, PSIS_HW_INFO HwInfo);
 USHORT	SiS_GetResInfo(SiS_Private *SiS_Pr,USHORT ModeNo,USHORT ModeIdIndex);
 void	SiS_DisableBridge(SiS_Private *SiS_Pr, PSIS_HW_INFO HwInfo);
-void	SiS_EnableBridge(SiS_Private *SiS_Pr, PSIS_HW_INFO HwInfo);
 BOOLEAN	SiS_SetCRT2Group(SiS_Private *SiS_Pr, PSIS_HW_INFO HwInfo, USHORT ModeNo);
 void	SiS_SiS30xBLOn(SiS_Private *SiS_Pr, PSIS_HW_INFO HwInfo);
 void	SiS_SiS30xBLOff(SiS_Private *SiS_Pr, PSIS_HW_INFO HwInfo);
@@ -319,8 +317,6 @@ void   	SiS_SetCH700x(SiS_Private *SiS_Pr, USHORT tempax);
 USHORT 	SiS_GetCH700x(SiS_Private *SiS_Pr, USHORT tempax);
 void   	SiS_SetCH701x(SiS_Private *SiS_Pr, USHORT tempax);
 USHORT 	SiS_GetCH701x(SiS_Private *SiS_Pr, USHORT tempax);
-void   	SiS_SetCH70xx(SiS_Private *SiS_Pr, USHORT tempax);
-USHORT 	SiS_GetCH70xx(SiS_Private *SiS_Pr, USHORT tempax);
 void   	SiS_SetCH70xxANDOR(SiS_Private *SiS_Pr, USHORT tempax,USHORT tempbh);
 #ifdef SIS315H
 static void   	SiS_Chrontel701xOn(SiS_Private *SiS_Pr, PSIS_HW_INFO HwInfo);

@@ -87,7 +87,7 @@ static int mpage_end_io_write(struct bio *bio, unsigned int bytes_done, int err)
 	return 0;
 }
 
-struct bio *mpage_bio_submit(int rw, struct bio *bio)
+static struct bio *mpage_bio_submit(int rw, struct bio *bio)
 {
 	bio->bi_end_io = mpage_end_io_read;
 	if (rw == WRITE)

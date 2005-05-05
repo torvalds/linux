@@ -328,7 +328,7 @@ void cd_forget(struct inode *inode)
 	spin_unlock(&cdev_lock);
 }
 
-void cdev_purge(struct cdev *cdev)
+static void cdev_purge(struct cdev *cdev)
 {
 	spin_lock(&cdev_lock);
 	while (!list_empty(&cdev->list)) {
