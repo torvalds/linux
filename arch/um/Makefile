@@ -196,7 +196,7 @@ $(ARCH_DIR)/kernel/skas/util/mk_ptregs: $(ARCH_DIR)/kernel/skas/util FORCE ;
 $(ARCH_DIR)/util: scripts_basic $(SYS_DIR)/sc.h FORCE
 	$(Q)$(MAKE) $(build)=$@
 
-$(ARCH_DIR)/kernel/skas/util: scripts_basic FORCE
+$(ARCH_DIR)/kernel/skas/util: scripts_basic $(ARCH_DIR)/user-offsets.h FORCE
 	$(Q)$(MAKE) $(build)=$@
 
 $(ARCH_DIR)/os-$(OS)/util: scripts_basic FORCE
