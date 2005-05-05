@@ -385,6 +385,17 @@
 #define SH_EVENT_OCCURRED_RTC3_INT_MASK          0x0000000004000000
 
 /* ==================================================================== */
+/*                       Register "SH_IPI_ACCESS"                       */
+/*                 CPU interrupt Access Permission Bits                 */
+/* ==================================================================== */
+
+#define SH1_IPI_ACCESS                           0x0000000110060480
+#define SH2_IPI_ACCESS0                          0x0000000010060c00
+#define SH2_IPI_ACCESS1                          0x0000000010060c80
+#define SH2_IPI_ACCESS2                          0x0000000010060d00
+#define SH2_IPI_ACCESS3                          0x0000000010060d80
+
+/* ==================================================================== */
 /*                        Register "SH_INT_CMPB"                        */
 /*                  RTC Compare Value for Processor B                   */
 /* ==================================================================== */
@@ -429,6 +440,19 @@
 #define SH_INT_CMPD_REAL_TIME_CMPD_SHFT          0
 #define SH_INT_CMPD_REAL_TIME_CMPD_MASK          0x007fffffffffffff
 
+/* ==================================================================== */
+/*                Register "SH_MD_DQLP_MMR_DIR_PRIVEC0"                 */
+/*                      privilege vector for acc=0                      */
+/* ==================================================================== */
+
+#define SH1_MD_DQLP_MMR_DIR_PRIVEC0              0x0000000100030300
+
+/* ==================================================================== */
+/*                Register "SH_MD_DQRP_MMR_DIR_PRIVEC0"                 */
+/*                      privilege vector for acc=0                      */
+/* ==================================================================== */
+
+#define SH1_MD_DQRP_MMR_DIR_PRIVEC0              0x0000000100050300
 
 /* ==================================================================== */
 /* Some MMRs are functionally identical (or close enough) on both SHUB1 */

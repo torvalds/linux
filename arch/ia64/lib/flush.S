@@ -1,8 +1,8 @@
 /*
  * Cache flushing routines.
  *
- * Copyright (C) 1999-2001 Hewlett-Packard Co
- * Copyright (C) 1999-2001 David Mosberger-Tang <davidm@hpl.hp.com>
+ * Copyright (C) 1999-2001, 2005 Hewlett-Packard Co
+ *	David Mosberger-Tang <davidm@hpl.hp.com>
  */
 #include <asm/asmmacro.h>
 #include <asm/page.h>
@@ -26,7 +26,7 @@ GLOBAL_ENTRY(flush_icache_range)
 
 	mov ar.lc=r8
 	;;
-.Loop:	fc in0				// issuable on M0 only
+.Loop:	fc.i in0			// issuable on M2 only
 	add in0=32,in0
 	br.cloop.sptk.few .Loop
 	;;

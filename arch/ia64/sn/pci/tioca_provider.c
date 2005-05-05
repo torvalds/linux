@@ -431,7 +431,7 @@ tioca_dma_mapped(struct pci_dev *pdev, uint64_t paddr, size_t req_size)
 	ca_dmamap->cad_dma_addr = bus_addr;
 	ca_dmamap->cad_gart_size = entries;
 	ca_dmamap->cad_gart_entry = entry;
-	list_add(&ca_dmamap->cad_list, &tioca_kern->ca_list);
+	list_add(&ca_dmamap->cad_list, &tioca_kern->ca_dmamaps);
 
 	if (xio_addr % ps) {
 		tioca_kern->ca_pcigart[entry] = tioca_paddr_to_gart(xio_addr);

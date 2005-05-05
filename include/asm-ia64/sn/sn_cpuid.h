@@ -4,7 +4,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2000-2004 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 2000-2005 Silicon Graphics, Inc. All rights reserved.
  */
 
 
@@ -92,24 +92,24 @@
  * NOTE: on non-MP systems, only cpuid 0 exists
  */
 
-extern short physical_node_map[];			/* indexed by nasid to get cnode */
+extern short physical_node_map[];	/* indexed by nasid to get cnode */
 
 /*
  * Macros for retrieving info about current cpu
  */
-#define get_nasid()			(nodepda->phys_cpuid[smp_processor_id()].nasid)
-#define get_subnode()			(nodepda->phys_cpuid[smp_processor_id()].subnode)
-#define get_slice()			(nodepda->phys_cpuid[smp_processor_id()].slice)
-#define get_cnode()			(nodepda->phys_cpuid[smp_processor_id()].cnode)
-#define get_sapicid()			((ia64_getreg(_IA64_REG_CR_LID) >> 16) & 0xffff)
+#define get_nasid()	(sn_nodepda->phys_cpuid[smp_processor_id()].nasid)
+#define get_subnode()	(sn_nodepda->phys_cpuid[smp_processor_id()].subnode)
+#define get_slice()	(sn_nodepda->phys_cpuid[smp_processor_id()].slice)
+#define get_cnode()	(sn_nodepda->phys_cpuid[smp_processor_id()].cnode)
+#define get_sapicid()	((ia64_getreg(_IA64_REG_CR_LID) >> 16) & 0xffff)
 
 /*
  * Macros for retrieving info about an arbitrary cpu
  *	cpuid - logical cpu id
  */
-#define cpuid_to_nasid(cpuid)		(nodepda->phys_cpuid[cpuid].nasid)
-#define cpuid_to_subnode(cpuid)		(nodepda->phys_cpuid[cpuid].subnode)
-#define cpuid_to_slice(cpuid)		(nodepda->phys_cpuid[cpuid].slice)
+#define cpuid_to_nasid(cpuid)		(sn_nodepda->phys_cpuid[cpuid].nasid)
+#define cpuid_to_subnode(cpuid)		(sn_nodepda->phys_cpuid[cpuid].subnode)
+#define cpuid_to_slice(cpuid)		(sn_nodepda->phys_cpuid[cpuid].slice)
 #define cpuid_to_cnodeid(cpuid)		(physical_node_map[cpuid_to_nasid(cpuid)])
 
 
@@ -123,11 +123,8 @@ extern int nasid_slice_to_cpuid(int, int);
 
 /*
  * cnodeid_to_nasid - convert a cnodeid to a NASID
- *	Macro relies on pg_data for a node being on the node itself.
- *	Just extract the NASID from the pointer.
- *
  */
-#define cnodeid_to_nasid(cnodeid)	pda->cnodeid_to_nasid_table[cnodeid]
+#define cnodeid_to_nasid(cnodeid)	(sn_cnodeid_to_nasid[cnodeid])
  
 /*
  * nasid_to_cnodeid - convert a NASID to a cnodeid

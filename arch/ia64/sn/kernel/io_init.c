@@ -174,6 +174,12 @@ static void sn_fixup_ionodes(void)
 		if (status)
 			continue;
 
+		/* Attach the error interrupt handlers */
+		if (nasid & 1)
+			ice_error_init(hubdev);
+		else
+			hub_error_init(hubdev);
+
 		for (widget = 0; widget <= HUB_WIDGET_ID_MAX; widget++)
 			hubdev->hdi_xwidget_info[widget].xwi_hubinfo = hubdev;
 
@@ -211,10 +217,6 @@ static void sn_fixup_ionodes(void)
 			    sn_flush_device_list;
 		}
 
-		if (!(i & 1))
-			hub_error_init(hubdev);
-		else
-			ice_error_init(hubdev);
 	}
 
 }

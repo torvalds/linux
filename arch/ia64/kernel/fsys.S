@@ -611,8 +611,10 @@ GLOBAL_ENTRY(fsys_bubble_down)
 	movl r2=ia64_ret_from_syscall
 	;;
 	mov rp=r2				// set the real return addr
-	tbit.z p8,p0=r3,TIF_SYSCALL_TRACE
+	and r3=_TIF_SYSCALL_TRACEAUDIT,r3
 	;;
+	cmp.eq p8,p0=r3,r0
+
 (p10)	br.cond.spnt.many ia64_ret_from_syscall	// p10==true means out registers are more than 8
 (p8)	br.call.sptk.many b6=b6		// ignore this return addr
 	br.cond.sptk ia64_trace_syscall

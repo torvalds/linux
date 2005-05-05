@@ -43,7 +43,9 @@
  * initializer cleaner
  */
 nodemask_t node_online_map = { { [0] = 1UL } };
+EXPORT_SYMBOL(node_online_map);
 nodemask_t node_possible_map = NODE_MASK_ALL;
+EXPORT_SYMBOL(node_possible_map);
 struct pglist_data *pgdat_list;
 unsigned long totalram_pages;
 unsigned long totalhigh_pages;

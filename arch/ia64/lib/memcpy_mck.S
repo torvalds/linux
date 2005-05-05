@@ -75,6 +75,7 @@ GLOBAL_ENTRY(memcpy)
 	mov	f6=f0
 	br.cond.sptk .common_code
 	;;
+END(memcpy)
 GLOBAL_ENTRY(__copy_user)
 	.prologue
 // check dest alignment
@@ -524,7 +525,6 @@ EK(.ex_handler,  (p17)	st8	[dst1]=r39,8);						\
 #undef B
 #undef C
 #undef D
-END(memcpy)
 
 /*
  * Due to lack of local tag support in gcc 2.x assembler, it is not clear which
