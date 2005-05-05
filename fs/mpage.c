@@ -627,15 +627,6 @@ int
 mpage_writepages(struct address_space *mapping,
 		struct writeback_control *wbc, get_block_t get_block)
 {
-	return __mpage_writepages(mapping, wbc, get_block,
-		mapping->a_ops->writepage);
-}
-
-int
-__mpage_writepages(struct address_space *mapping,
-		struct writeback_control *wbc, get_block_t get_block,
-		writepage_t writepage_fn)
-{
 	struct backing_dev_info *bdi = mapping->backing_dev_info;
 	struct bio *bio = NULL;
 	sector_t last_block_in_bio = 0;
@@ -725,7 +716,7 @@ retry:
 			} else {
 				bio = __mpage_writepage(bio, page, get_block,
 						&last_block_in_bio, &ret, wbc,
-						writepage_fn);
+						page->mapping->a_ops->writepage);
 			}
 			if (unlikely(ret == WRITEPAGE_ACTIVATE))
 				unlock_page(page);
@@ -755,7 +746,6 @@ retry:
 	return ret;
 }
 EXPORT_SYMBOL(mpage_writepages);
-EXPORT_SYMBOL(__mpage_writepages);
 
 int mpage_writepage(struct page *page, get_block_t get_block,
 	struct writeback_control *wbc)
