@@ -90,7 +90,7 @@ int cmpint(const void *a, const void *b)
 
 static int sort_test(void)
 {
-	int *a, i, r = 0;
+	int *a, i, r = 1;
 
 	a = kmalloc(1000 * sizeof(int), GFP_KERNEL);
 	BUG_ON(!a);
