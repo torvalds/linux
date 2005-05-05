@@ -726,7 +726,7 @@ xfs_page_state_convert(
 	pgoff_t                 end_index, last_index, tlast;
 	int			len, err, i, cnt = 0, uptodate = 1;
 	int			flags;
-	int			page_dirty, delalloc = 0;
+	int			page_dirty;
 
 	/* wait for other IO threads? */
 	flags = (startio && wbc->sync_mode != WB_SYNC_NONE) ? 0 : BMAPI_TRYLOCK;
@@ -807,7 +807,6 @@ xfs_page_state_convert(
 		 */
 		} else if (buffer_delay(bh)) {
 			if (!iomp) {
-				delalloc = 1;
 				err = xfs_map_blocks(inode, offset, len, &iomap,
 						BMAPI_ALLOCATE | flags);
 				if (err) {
@@ -882,10 +881,9 @@ xfs_page_state_convert(
 		xfs_submit_page(page, wbc, bh_arr, cnt, 0, 1);
 
 	if (iomp) {
-		tlast = (iomp->iomap_offset + iomp->iomap_bsize - 1) >>
+		offset = (iomp->iomap_offset + iomp->iomap_bsize - 1) >>
 					PAGE_CACHE_SHIFT;
-		if (delalloc && (tlast > last_index))
-			tlast = last_index;
+		tlast = min_t(pgoff_t, offset, last_index);
 		xfs_cluster_write(inode, page->index + 1, iomp, wbc,
 					startio, unmapped, tlast);
 	}
