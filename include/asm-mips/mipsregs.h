@@ -8,7 +8,7 @@
  * Modified for further R[236]000 support by Paul M. Antoine, 1996.
  * Kevin D. Kissell, kevink@mips.com and Carsten Langgaard, carstenl@mips.com
  * Copyright (C) 2000 MIPS Technologies, Inc.  All rights reserved.
- * Copyright (C) 2003  Maciej W. Rozycki
+ * Copyright (C) 2003, 2004  Maciej W. Rozycki
  */
 #ifndef _ASM_MIPSREGS_H
 #define _ASM_MIPSREGS_H
@@ -476,6 +476,51 @@
 #define MIPS_CONF_AR		(_ULCAST_(7) << 10)
 #define MIPS_CONF_AT		(_ULCAST_(3) << 13)
 #define MIPS_CONF_M		(_ULCAST_(1) << 31)
+
+/*
+ * Bits in the MIPS32/64 PRA coprocessor 0 config registers 1 and above.
+ */
+#define MIPS_CONF1_FP		(_ULCAST_(1) <<  0)
+#define MIPS_CONF1_EP		(_ULCAST_(1) <<  1)
+#define MIPS_CONF1_CA		(_ULCAST_(1) <<  2)
+#define MIPS_CONF1_WR		(_ULCAST_(1) <<  3)
+#define MIPS_CONF1_PC		(_ULCAST_(1) <<  4)
+#define MIPS_CONF1_MD		(_ULCAST_(1) <<  5)
+#define MIPS_CONF1_C2		(_ULCAST_(1) <<  6)
+#define MIPS_CONF1_DA		(_ULCAST_(7) <<  7)
+#define MIPS_CONF1_DL		(_ULCAST_(7) << 10)
+#define MIPS_CONF1_DS		(_ULCAST_(7) << 13)
+#define MIPS_CONF1_IA		(_ULCAST_(7) << 16)
+#define MIPS_CONF1_IL		(_ULCAST_(7) << 19)
+#define MIPS_CONF1_IS		(_ULCAST_(7) << 22)
+#define MIPS_CONF1_TLBS		(_ULCAST_(63)<< 25)
+
+#define MIPS_CONF2_SA		(_ULCAST_(15)<<  0)
+#define MIPS_CONF2_SL		(_ULCAST_(15)<<  4)
+#define MIPS_CONF2_SS		(_ULCAST_(15)<<  8)
+#define MIPS_CONF2_SU		(_ULCAST_(15)<< 12)
+#define MIPS_CONF2_TA		(_ULCAST_(15)<< 16)
+#define MIPS_CONF2_TL		(_ULCAST_(15)<< 20)
+#define MIPS_CONF2_TS		(_ULCAST_(15)<< 24)
+#define MIPS_CONF2_TU		(_ULCAST_(7) << 28)
+
+#define MIPS_CONF3_TL		(_ULCAST_(1) <<  0)
+#define MIPS_CONF3_SM		(_ULCAST_(1) <<  1)
+#define MIPS_CONF3_SP		(_ULCAST_(1) <<  4)
+#define MIPS_CONF3_VINT		(_ULCAST_(1) <<  5)
+#define MIPS_CONF3_VEIC		(_ULCAST_(1) <<  6)
+#define MIPS_CONF3_LPA		(_ULCAST_(1) <<  7)
+
+/*
+ * Bits in the MIPS32/64 coprocessor 1 (FPU) revision register.
+ */
+#define MIPS_FPIR_S		(_ULCAST_(1) << 16)
+#define MIPS_FPIR_D		(_ULCAST_(1) << 17)
+#define MIPS_FPIR_PS		(_ULCAST_(1) << 18)
+#define MIPS_FPIR_3D		(_ULCAST_(1) << 19)
+#define MIPS_FPIR_W		(_ULCAST_(1) << 20)
+#define MIPS_FPIR_L		(_ULCAST_(1) << 21)
+#define MIPS_FPIR_F64		(_ULCAST_(1) << 22)
 
 /*
  * R10000 performance counter definitions.

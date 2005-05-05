@@ -2,9 +2,9 @@
  * Processor capabilities determination functions.
  *
  * Copyright (C) xxxx  the Anonymous
- * Copyright (C) 2003  Maciej W. Rozycki
+ * Copyright (C) 2003, 2004  Maciej W. Rozycki
  * Copyright (C) 1994 - 2003 Ralf Baechle
- * Copyright (C) 2001 MIPS Inc.
+ * Copyright (C) 2001, 2004  MIPS Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -415,69 +415,126 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c)
 	}
 }
 
-static inline void decode_config1(struct cpuinfo_mips *c)
+static inline unsigned int decode_config0(struct cpuinfo_mips *c)
 {
-	unsigned long config0 = read_c0_config();
-	unsigned long config1;
+	unsigned int config0;
+	int isa;
 
-	if ((config0 & (1 << 31)) == 0)
-		return;			/* actually wort a panic() */
+	config0 = read_c0_config();
 
-	/* MIPS32 or MIPS64 compliant CPU. Read Config 1 register. */
-	c->options = MIPS_CPU_TLB | MIPS_CPU_4KEX |
-		MIPS_CPU_4KTLB | MIPS_CPU_COUNTER | MIPS_CPU_DIVEC |
-		MIPS_CPU_LLSC | MIPS_CPU_MCHECK;
+	if (((config0 & MIPS_CONF_MT) >> 7) == 1)
+		c->options |= MIPS_CPU_TLB;
+	isa = (config0 & MIPS_CONF_AT) >> 13;
+	switch (isa) {
+	case 0:
+		c->isa_level = MIPS_CPU_ISA_M32;
+		break;
+	case 2:
+		c->isa_level = MIPS_CPU_ISA_M64;
+		break;
+	default:
+		panic("Unsupported ISA type, cp0.config0.at: %d.", isa);
+	}
+
+	return config0 & MIPS_CONF_M;
+}
+
+static inline unsigned int decode_config1(struct cpuinfo_mips *c)
+{
+	unsigned int config1;
+
 	config1 = read_c0_config1();
-	if (config1 & (1 << 3))
+
+	if (config1 & MIPS_CONF1_MD)
+		c->ases |= MIPS_ASE_MDMX;
+	if (config1 & MIPS_CONF1_WR)
 		c->options |= MIPS_CPU_WATCH;
-	if (config1 & (1 << 2))
-		c->options |= MIPS_CPU_MIPS16;
-	if (config1 & (1 << 1))
+	if (config1 & MIPS_CONF1_CA)
+		c->ases |= MIPS_ASE_MIPS16;
+	if (config1 & MIPS_CONF1_EP)
 		c->options |= MIPS_CPU_EJTAG;
-	if (config1 & 1) {
+	if (config1 & MIPS_CONF1_FP) {
 		c->options |= MIPS_CPU_FPU;
 		c->options |= MIPS_CPU_32FPR;
 	}
+	if (cpu_has_tlb)
+		c->tlbsize = ((config1 & MIPS_CONF1_TLBS) >> 25) + 1;
+
+	return config1 & MIPS_CONF_M;
+}
+
+static inline unsigned int decode_config2(struct cpuinfo_mips *c)
+{
+	unsigned int config2;
+
+	config2 = read_c0_config2();
+
+	if (config2 & MIPS_CONF2_SL)
+		c->scache.flags &= ~MIPS_CACHE_NOT_PRESENT;
+
+	return config2 & MIPS_CONF_M;
+}
+
+static inline unsigned int decode_config3(struct cpuinfo_mips *c)
+{
+	unsigned int config3;
+
+	config3 = read_c0_config3();
+
+	if (config3 & MIPS_CONF3_SM)
+		c->ases |= MIPS_ASE_SMARTMIPS;
+
+	return config3 & MIPS_CONF_M;
+}
+
+static inline void decode_configs(struct cpuinfo_mips *c)
+{
+	/* MIPS32 or MIPS64 compliant CPU.  */
+	c->options = MIPS_CPU_4KEX | MIPS_CPU_COUNTER | MIPS_CPU_DIVEC |
+		     MIPS_CPU_LLSC | MIPS_CPU_MCHECK;
+
 	c->scache.flags = MIPS_CACHE_NOT_PRESENT;
 
-	c->tlbsize = ((config1 >> 25) & 0x3f) + 1;
+	/* Read Config registers.  */
+	if (!decode_config0(c))
+		return;			/* actually worth a panic() */
+	if (!decode_config1(c))
+		return;
+	if (!decode_config2(c))
+		return;
+	if (!decode_config3(c))
+		return;
 }
 
 static inline void cpu_probe_mips(struct cpuinfo_mips *c)
 {
-	decode_config1(c);
+	decode_configs(c);
+	if (cpu_has_tlb)
+		c->options |= MIPS_CPU_4KTLB;
 	switch (c->processor_id & 0xff00) {
 	case PRID_IMP_4KC:
 		c->cputype = CPU_4KC;
-		c->isa_level = MIPS_CPU_ISA_M32;
 		break;
 	case PRID_IMP_4KEC:
 		c->cputype = CPU_4KEC;
-		c->isa_level = MIPS_CPU_ISA_M32;
 		break;
 	case PRID_IMP_4KECR2:
 		c->cputype = CPU_4KEC;
-		c->isa_level = MIPS_CPU_ISA_M32;
 		break;
 	case PRID_IMP_4KSC:
 		c->cputype = CPU_4KSC;
-		c->isa_level = MIPS_CPU_ISA_M32;
 		break;
 	case PRID_IMP_5KC:
 		c->cputype = CPU_5KC;
-		c->isa_level = MIPS_CPU_ISA_M64;
 		break;
 	case PRID_IMP_20KC:
 		c->cputype = CPU_20KC;
-		c->isa_level = MIPS_CPU_ISA_M64;
 		break;
 	case PRID_IMP_24K:
 		c->cputype = CPU_24K;
-		c->isa_level = MIPS_CPU_ISA_M32;
 		break;
 	case PRID_IMP_25KF:
 		c->cputype = CPU_25KF;
-		c->isa_level = MIPS_CPU_ISA_M64;
 		/* Probe for L2 cache */
 		c->scache.flags &= ~MIPS_CACHE_NOT_PRESENT;
 		break;
@@ -486,7 +543,7 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c)
 
 static inline void cpu_probe_alchemy(struct cpuinfo_mips *c)
 {
-	decode_config1(c);
+	decode_configs(c);
 	switch (c->processor_id & 0xff00) {
 	case PRID_IMP_AU1_REV1:
 	case PRID_IMP_AU1_REV2:
@@ -510,25 +567,19 @@ static inline void cpu_probe_alchemy(struct cpuinfo_mips *c)
 			panic("Unknown Au Core!");
 			break;
 		}
-		c->isa_level = MIPS_CPU_ISA_M32;
 		break;
 	}
 }
 
 static inline void cpu_probe_sibyte(struct cpuinfo_mips *c)
 {
-	decode_config1(c);
+	decode_configs(c);
 	switch (c->processor_id & 0xff00) {
 	case PRID_IMP_SB1:
 		c->cputype = CPU_SB1;
-		c->isa_level = MIPS_CPU_ISA_M64;
-		c->options = MIPS_CPU_TLB | MIPS_CPU_4KEX |
-		             MIPS_CPU_COUNTER | MIPS_CPU_DIVEC |
-		             MIPS_CPU_MCHECK | MIPS_CPU_EJTAG |
-		             MIPS_CPU_WATCH | MIPS_CPU_LLSC;
-#ifndef CONFIG_SB1_PASS_1_WORKAROUNDS
+#ifdef CONFIG_SB1_PASS_1_WORKAROUNDS
 		/* FPU in pass1 is known to have issues. */
-		c->options |= MIPS_CPU_FPU | MIPS_CPU_32FPR;
+		c->options &= ~(MIPS_CPU_FPU | MIPS_CPU_32FPR);
 #endif
 		break;
 	}
@@ -536,14 +587,12 @@ static inline void cpu_probe_sibyte(struct cpuinfo_mips *c)
 
 static inline void cpu_probe_sandcraft(struct cpuinfo_mips *c)
 {
-	decode_config1(c);
+	decode_configs(c);
+	if (cpu_has_tlb)
+		c->options |= MIPS_CPU_4KTLB;
 	switch (c->processor_id & 0xff00) {
 	case PRID_IMP_SR71000:
 		c->cputype = CPU_SR71000;
-		c->isa_level = MIPS_CPU_ISA_M64;
-		c->options = MIPS_CPU_TLB | MIPS_CPU_4KEX |
-		             MIPS_CPU_4KTLB | MIPS_CPU_FPU |
-		             MIPS_CPU_COUNTER | MIPS_CPU_MCHECK;
 		c->scache.ways = 8;
 		c->tlbsize = 64;
 		break;
@@ -572,15 +621,21 @@ __init void cpu_probe(void)
 	case PRID_COMP_SIBYTE:
 		cpu_probe_sibyte(c);
 		break;
-
 	case PRID_COMP_SANDCRAFT:
 		cpu_probe_sandcraft(c);
 		break;
 	default:
 		c->cputype = CPU_UNKNOWN;
 	}
-	if (c->options & MIPS_CPU_FPU)
+	if (c->options & MIPS_CPU_FPU) {
 		c->fpu_id = cpu_get_fpu_id();
+
+		if (c->isa_level == MIPS_CPU_ISA_M32 ||
+		    c->isa_level == MIPS_CPU_ISA_M64) {
+			if (c->fpu_id & MIPS_FPIR_3D)
+				c->ases |= MIPS_ASE_MIPS3D;
+		}
+	}
 }
 
 __init void cpu_report(void)

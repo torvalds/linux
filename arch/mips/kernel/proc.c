@@ -2,7 +2,8 @@
  *  linux/arch/mips/kernel/proc.c
  *
  *  Copyright (C) 1995, 1996, 2001  Ralf Baechle
- *  Copyright (C) 2001  MIPS Technologies, Inc.
+ *  Copyright (C) 2001, 2004  MIPS Technologies, Inc.
+ *  Copyright (C) 2004  Maciej W. Rozycki
  */
 #include <linux/config.h>
 #include <linux/delay.h>
@@ -118,6 +119,11 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	              cpu_has_divec ? "yes" : "no");
 	seq_printf(m, "hardware watchpoint\t: %s\n",
 	              cpu_has_watch ? "yes" : "no");
+	seq_printf(m, "ASEs implemented\t:%s%s%s%s\n",
+		      cpu_has_mips16 ? " mips16" : "",
+		      cpu_has_mdmx ? " mdmx" : "",
+		      cpu_has_mips3d ? " mips3d" : "",
+		      cpu_has_smartmips ? " smartmips" : "");
 
 	sprintf(fmt, "VCE%%c exceptions\t\t: %s\n",
 	        cpu_has_vce ? "%u" : "not available");

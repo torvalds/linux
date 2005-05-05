@@ -3,6 +3,7 @@
  *        various MIPS cpu types.
  *
  * Copyright (C) 1996 David S. Miller (dm@engr.sgi.com)
+ * Copyright (C) 2004  Maciej W. Rozycki
  */
 #ifndef _ASM_CPU_H
 #define _ASM_CPU_H
@@ -213,7 +214,6 @@
 #define MIPS_CPU_32FPR		0x00000020 /* 32 dbl. prec. FP registers */
 #define MIPS_CPU_COUNTER	0x00000040 /* Cycle count/compare */
 #define MIPS_CPU_WATCH		0x00000080 /* watchpoint registers */
-#define MIPS_CPU_MIPS16		0x00000100 /* code compression */
 #define MIPS_CPU_DIVEC		0x00000200 /* dedicated interrupt vector */
 #define MIPS_CPU_VCE		0x00000400 /* virt. coherence conflict possible */
 #define MIPS_CPU_CACHE_CDEX_P	0x00000800 /* Create_Dirty_Exclusive CACHE op */
@@ -224,5 +224,13 @@
 #define MIPS_CPU_LLSC		0x00010000 /* CPU has ll/sc instructions */
 #define MIPS_CPU_SUBSET_CACHES	0x00020000 /* P-cache subset enforced */
 #define MIPS_CPU_PREFETCH	0x00040000 /* CPU has usable prefetch */
+
+/*
+ * CPU ASE encodings
+ */
+#define MIPS_ASE_MIPS16		0x00000001 /* code compression */
+#define MIPS_ASE_MDMX		0x00000002 /* MIPS digital media extension */
+#define MIPS_ASE_MIPS3D		0x00000004 /* MIPS-3D */
+#define MIPS_ASE_SMARTMIPS	0x00000008 /* SmartMIPS */
 
 #endif /* _ASM_CPU_H */

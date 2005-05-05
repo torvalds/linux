@@ -4,6 +4,7 @@
  * for more details.
  *
  * Copyright (C) 2003, 2004 Ralf Baechle
+ * Copyright (C) 2004  Maciej W. Rozycki
  */
 #ifndef __ASM_CPU_FEATURES_H
 #define __ASM_CPU_FEATURES_H
@@ -39,9 +40,6 @@
 #ifndef cpu_has_watch
 #define cpu_has_watch		(cpu_data[0].options & MIPS_CPU_WATCH)
 #endif
-#ifndef cpu_has_mips16
-#define cpu_has_mips16		(cpu_data[0].options & MIPS_CPU_MIPS16)
-#endif
 #ifndef cpu_has_divec
 #define cpu_has_divec		(cpu_data[0].options & MIPS_CPU_DIVEC)
 #endif
@@ -65,6 +63,18 @@
 #endif
 #ifndef cpu_has_llsc
 #define cpu_has_llsc		(cpu_data[0].options & MIPS_CPU_LLSC)
+#endif
+#ifndef cpu_has_mips16
+#define cpu_has_mips16		(cpu_data[0].ases & MIPS_ASE_MIPS16)
+#endif
+#ifndef cpu_has_mdmx
+#define cpu_has_mdmx           (cpu_data[0].ases & MIPS_ASE_MDMX)
+#endif
+#ifndef cpu_has_mips3d
+#define cpu_has_mips3d         (cpu_data[0].ases & MIPS_ASE_MIPS3D)
+#endif
+#ifndef cpu_has_smartmips
+#define cpu_has_smartmips      (cpu_data[0].ases & MIPS_ASE_SMARTMIPS)
 #endif
 #ifndef cpu_has_vtag_icache
 #define cpu_has_vtag_icache	(cpu_data[0].icache.flags & MIPS_CACHE_VTAG)
