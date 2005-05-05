@@ -28,10 +28,11 @@
 #include "chan_user.h"
 #include "signal_user.h"
 #include "registers.h"
+#include "process.h"
 
 int is_skas_winch(int pid, int fd, void *data)
 {
-	if(pid != os_getpid())
+        if(pid != os_getpgrp())
 		return(0);
 
 	register_winch_irq(-1, fd, -1, data);
@@ -258,6 +259,10 @@ int start_idle_thread(void *stack, void *switch_buf_ptr, void **fork_buf_ptr)
 {
 	sigjmp_buf **switch_buf = switch_buf_ptr;
 	int n;
+
+	set_handler(SIGWINCH, (__sighandler_t) sig_handler,
+		    SA_ONSTACK | SA_RESTART, SIGUSR1, SIGIO, SIGALRM,
+		    SIGVTALRM, -1);
 
 	*fork_buf_ptr = &initial_jmpbuf;
 	n = sigsetjmp(initial_jmpbuf, 1);

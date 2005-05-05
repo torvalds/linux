@@ -462,12 +462,15 @@ out:
 	return err;
 }
 
+static void unregister_winch(struct tty_struct *tty);
+
 void line_close(struct tty_struct *tty, struct file * filp)
 {
 	struct line *line = tty->driver_data;
 
-	/* XXX: I assume this should be called in process context, not with interrupt
-	 * disabled!*/
+	/* XXX: I assume this should be called in process context, not with
+         *  interrupts disabled!
+         */
 	spin_lock_irq(&line->lock);
 
 	/* We ignore the error anyway! */
@@ -478,6 +481,12 @@ void line_close(struct tty_struct *tty, struct file * filp)
 		line_disable(tty, -1);
 		tty->driver_data = NULL;
 	}
+
+        if((line->count == 0) && line->sigio){
+                unregister_winch(tty);
+                line->sigio = 0;
+        }
+
 	spin_unlock_irq(&line->lock);
 }
 
@@ -725,6 +734,34 @@ void register_winch_irq(int fd, int tty_fd, int pid, struct tty_struct *tty)
 			  SA_INTERRUPT | SA_SHIRQ | SA_SAMPLE_RANDOM, 
 			  "winch", winch) < 0)
 		printk("register_winch_irq - failed to register IRQ\n");
+ out:
+	up(&winch_handler_sem);
+}
+
+static void unregister_winch(struct tty_struct *tty)
+{
+	struct list_head *ele;
+	struct winch *winch, *found = NULL;
+
+	down(&winch_handler_sem);
+	list_for_each(ele, &winch_handlers){
+		winch = list_entry(ele, struct winch, list);
+                if(winch->tty == tty){
+                        found = winch;
+                        break;
+                }
+        }
+
+        if(found == NULL)
+                goto out;
+
+        if(winch->pid != -1)
+                os_kill_process(winch->pid, 1);
+
+        free_irq_by_irq_and_dev(WINCH_IRQ, winch);
+        free_irq(WINCH_IRQ, winch);
+        list_del(&winch->list);
+        kfree(winch);
  out:
 	up(&winch_handler_sem);
 }
