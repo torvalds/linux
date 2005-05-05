@@ -43,6 +43,9 @@ typedef int (*kprobe_fault_handler_t) (struct kprobe *, struct pt_regs *,
 struct kprobe {
 	struct hlist_node hlist;
 
+	/* list of kprobes for multi-handler support */
+	struct list_head list;
+
 	/* location of the probe point */
 	kprobe_opcode_t *addr;
 
