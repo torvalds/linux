@@ -1009,18 +1009,16 @@ static int __lock_fs(struct mapped_device *md)
 	return 0;
 }
 
-static int __unlock_fs(struct mapped_device *md)
+static void __unlock_fs(struct mapped_device *md)
 {
 	if (!test_and_clear_bit(DMF_FS_LOCKED, &md->flags))
-		return 0;
+		return;
 
 	thaw_bdev(md->frozen_bdev, md->frozen_sb);
 	bdput(md->frozen_bdev);
 
 	md->frozen_sb = NULL;
 	md->frozen_bdev = NULL;
-
-	return 0;
 }
 
 /*
