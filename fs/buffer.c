@@ -1826,7 +1826,6 @@ static int __block_write_full_page(struct inode *inode, struct page *page,
 		}
 		if (test_clear_buffer_dirty(bh)) {
 			mark_buffer_async_write(bh);
-			get_bh(bh);
 			last_bh = bh;
 		} else {
 			unlock_buffer(bh);
@@ -1839,20 +1838,19 @@ static int __block_write_full_page(struct inode *inode, struct page *page,
 	 */
 	BUG_ON(PageWriteback(page));
 	set_page_writeback(page);
-	unlock_page(page);
 
 	do {
 		struct buffer_head *next = bh->b_this_page;
 		if (buffer_async_write(bh)) {
 			submit_bh(WRITE, bh);
 			nr_underway++;
-			put_bh(bh);
 			if (bh == last_bh)
 				break;
 		}
 		bh = next;
 	} while (bh != head);
 	bh = head;
+	unlock_page(page);
 
 	err = 0;
 done:
@@ -1894,7 +1892,6 @@ recover:
 		if (buffer_mapped(bh) && buffer_dirty(bh)) {
 			lock_buffer(bh);
 			mark_buffer_async_write(bh);
-			get_bh(bh);
 			last_bh = bh;
 		} else {
 			/*
@@ -1914,7 +1911,6 @@ recover:
 			clear_buffer_dirty(bh);
 			submit_bh(WRITE, bh);
 			nr_underway++;
-			put_bh(bh);
 			if (bh == last_bh)
 				break;
 		}
