@@ -223,8 +223,10 @@ static struct emc_handler *alloc_emc_handler(void)
 {
 	struct emc_handler *h = kmalloc(sizeof(*h), GFP_KERNEL);
 
-	if (h)
+	if (h) {
+		memset(h, 0, sizeof(*h));
 		spin_lock_init(&h->lock);
+	}
 
 	return h;
 }
@@ -258,8 +260,6 @@ static int emc_create(struct hw_handler *hwh, unsigned argc, char **argv)
 	h = alloc_emc_handler();
 	if (!h)
 		return -ENOMEM;
-
-	memset(h, 0, sizeof(*h));
 
 	hwh->context = h;
 
