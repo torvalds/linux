@@ -6,6 +6,8 @@
 #ifndef __X86_64_SIGNAL_H_
 #define __X86_64_SIGNAL_H_
 
+#define ARCH_SIGHDLR_PARAM int sig
+
 #define ARCH_GET_SIGCONTEXT(sc, sig_addr) \
 	do { \
 		struct ucontext *__uc; \
