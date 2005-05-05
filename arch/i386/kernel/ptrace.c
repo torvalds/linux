@@ -683,24 +683,18 @@ void do_syscall_trace(struct pt_regs *regs, int entryexit)
 	/* do the secure computing check first */
 	secure_computing(regs->orig_eax);
 
-	if (unlikely(current->audit_context)) {
-		if (!entryexit)
-			audit_syscall_entry(current, regs->orig_eax,
-					    regs->ebx, regs->ecx,
-					    regs->edx, regs->esi);
-		else
-			audit_syscall_exit(current, regs->eax);
-	}
+	if (unlikely(current->audit_context) && entryexit)
+		audit_syscall_exit(current, AUDITSC_RESULT(regs->eax), regs->eax);
 
 	if (!(current->ptrace & PT_PTRACED))
-		return;
+		goto out;
 
 	/* Fake a debug trap */
 	if (test_thread_flag(TIF_SINGLESTEP))
 		send_sigtrap(current, regs, 0);
 
 	if (!test_thread_flag(TIF_SYSCALL_TRACE))
-		return;
+		goto out;
 
 	/* the 0x80 provides a way for the tracing parent to distinguish
 	   between a syscall stop and SIGTRAP delivery */
@@ -715,4 +709,9 @@ void do_syscall_trace(struct pt_regs *regs, int entryexit)
 		send_sig(current->exit_code, current, 1);
 		current->exit_code = 0;
 	}
+ out:
+	if (unlikely(current->audit_context) && !entryexit)
+		audit_syscall_entry(current, AUDIT_ARCH_I386, regs->orig_eax,
+				    regs->ebx, regs->ecx, regs->edx, regs->esi);
+
 }

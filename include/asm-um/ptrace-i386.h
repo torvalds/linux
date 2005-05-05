@@ -6,6 +6,8 @@
 #ifndef __UM_PTRACE_I386_H
 #define __UM_PTRACE_I386_H
 
+#define HOST_AUDIT_ARCH AUDIT_ARCH_I386
+
 #include "sysdep/ptrace.h"
 #include "asm/ptrace-generic.h"
 

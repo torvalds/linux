@@ -49,6 +49,8 @@
 #include <linux/bitops.h>
 #include <linux/mm.h>
 #include <linux/types.h>
+#include <linux/audit.h>
+
 #include <net/sock.h>
 #include <net/scm.h>
 
@@ -904,6 +906,7 @@ static int netlink_sendmsg(struct kiocb *kiocb, struct socket *sock,
 	NETLINK_CB(skb).groups	= nlk->groups;
 	NETLINK_CB(skb).dst_pid = dst_pid;
 	NETLINK_CB(skb).dst_groups = dst_groups;
+	NETLINK_CB(skb).loginuid = audit_get_loginuid(current->audit_context);
 	memcpy(NETLINK_CREDS(skb), &siocb->scm->creds, sizeof(struct ucred));
 
 	/* What can I do? Netlink is asynchronous, so that

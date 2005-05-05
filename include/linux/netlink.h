@@ -110,6 +110,7 @@ struct netlink_skb_parms
 	__u32			dst_pid;
 	__u32			dst_groups;
 	kernel_cap_t		eff_cap;
+	__u32			loginuid;	/* Login (audit) uid */
 };
 
 #define NETLINK_CB(skb)		(*(struct netlink_skb_parms*)&((skb)->cb))
