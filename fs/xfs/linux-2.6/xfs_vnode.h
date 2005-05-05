@@ -626,6 +626,7 @@ static inline int VN_BAD(struct vnode *vp)
 #define	ATTR_DMI	0x08	/* invocation from a DMI function */
 #define	ATTR_LAZY	0x80	/* set/get attributes lazily */
 #define	ATTR_NONBLOCK	0x100	/* return EAGAIN if operation would block */
+#define ATTR_NOLOCK	0x200	/* Don't grab any conflicting locks */
 
 /*
  * Flags to VOP_FSYNC and VOP_RECLAIM.
