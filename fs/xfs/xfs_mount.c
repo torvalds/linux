@@ -301,6 +301,15 @@ xfs_mount_validate_sb(
 	}
 
 	/*
+	 * Version 1 directory format has never worked on Linux.
+	 */
+	if (unlikely(!XFS_SB_VERSION_HASDIRV2(sbp))) {
+		cmn_err(CE_WARN,
+	"XFS: Attempted to mount file system using version 1 directory format");
+		return XFS_ERROR(ENOSYS);
+	}
+
+	/*
 	 * Until this is fixed only page-sized or smaller data blocks work.
 	 */
 	if (unlikely(sbp->sb_blocksize > PAGE_SIZE)) {
