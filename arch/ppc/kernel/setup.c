@@ -221,27 +221,26 @@ int show_cpuinfo(struct seq_file *m, void *v)
 			return err;
 	}
 
-	switch (PVR_VER(pvr)) {
-	case 0x0020:	/* 403 family */
-		maj = PVR_MAJ(pvr) + 1;
-		min = PVR_MIN(pvr);
-		break;
-	case 0x1008:	/* 740P/750P ?? */
-		maj = ((pvr >> 8) & 0xFF) - 1;
-		min = pvr & 0xFF;
-		break;
-	case 0x8083:	/* e300 */
+	/* If we are a Freescale core do a simple check so
+	 * we dont have to keep adding cases in the future */
+	if ((PVR_VER(pvr) & 0x8000) == 0x8000) {
 		maj = PVR_MAJ(pvr);
 		min = PVR_MIN(pvr);
-		break;
-	case 0x8020:	/* e500 */
-		maj = PVR_MAJ(pvr);
-		min = PVR_MIN(pvr);
-		break;
-	default:
-		maj = (pvr >> 8) & 0xFF;
-		min = pvr & 0xFF;
-		break;
+	} else {
+		switch (PVR_VER(pvr)) {
+			case 0x0020:	/* 403 family */
+				maj = PVR_MAJ(pvr) + 1;
+				min = PVR_MIN(pvr);
+				break;
+			case 0x1008:	/* 740P/750P ?? */
+				maj = ((pvr >> 8) & 0xFF) - 1;
+				min = pvr & 0xFF;
+				break;
+			default:
+				maj = (pvr >> 8) & 0xFF;
+				min = pvr & 0xFF;
+				break;
+		}
 	}
 
 	seq_printf(m, "revision\t: %hd.%hd (pvr %04x %04x)\n",
