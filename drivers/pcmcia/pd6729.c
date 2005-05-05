@@ -744,7 +744,7 @@ static int __devinit pd6729_pci_probe(struct pci_dev *dev,
 
 	for (i = 0; i < MAX_SOCKETS; i++) {
 		socket[i].io_base = pci_resource_start(dev, 0);
-		socket[i].socket.features |= SS_CAP_PCCARD;
+		socket[i].socket.features |= SS_CAP_PAGE_REGS | SS_CAP_PCCARD;
 		socket[i].socket.map_size = 0x1000;
 		socket[i].socket.irq_mask = mask;
 		socket[i].socket.pci_irq  = dev->irq;
