@@ -7,7 +7,7 @@
  *
  * Version:	@(#)eth.h	1.0.4	05/13/93
  *
- * Authors:	Ross Biro, <bir7@leland.Stanford.Edu>
+ * Authors:	Ross Biro
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *
  *		Relocated to include/linux where it belongs by Alan Cox 
