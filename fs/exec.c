@@ -869,9 +869,11 @@ int flush_old_exec(struct linux_binprm * bprm)
 	if (current->euid == current->uid && current->egid == current->gid)
 		current->mm->dumpable = 1;
 	name = bprm->filename;
+
+	/* Copies the binary name from after last slash */
 	for (i=0; (ch = *(name++)) != '\0';) {
 		if (ch == '/')
-			i = 0;
+			i = 0; /* overwrite what we wrote */
 		else
 			if (i < (sizeof(tcomm) - 1))
 				tcomm[i++] = ch;
