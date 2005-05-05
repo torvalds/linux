@@ -107,13 +107,17 @@ rm_kprobe:
 void unregister_kprobe(struct kprobe *p)
 {
 	unsigned long flags;
-	arch_remove_kprobe(p);
 	spin_lock_irqsave(&kprobe_lock, flags);
+	if (!get_kprobe(p->addr)) {
+		spin_unlock_irqrestore(&kprobe_lock, flags);
+		return;
+	}
 	*p->addr = p->opcode;
 	hlist_del(&p->hlist);
 	flush_icache_range((unsigned long) p->addr,
 			   (unsigned long) p->addr + sizeof(kprobe_opcode_t));
 	spin_unlock_irqrestore(&kprobe_lock, flags);
+	arch_remove_kprobe(p);
 }
 
 static struct notifier_block kprobe_exceptions_nb = {
