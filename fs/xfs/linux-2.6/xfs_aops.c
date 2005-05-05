@@ -725,8 +725,11 @@ xfs_page_state_convert(
 	__uint64_t              end_offset;
 	pgoff_t                 end_index, last_index, tlast;
 	int			len, err, i, cnt = 0, uptodate = 1;
-	int			flags = startio ? 0 : BMAPI_TRYLOCK;
+	int			flags;
 	int			page_dirty, delalloc = 0;
+
+	/* wait for other IO threads? */
+	flags = (startio && wbc->sync_mode != WB_SYNC_NONE) ? 0 : BMAPI_TRYLOCK;
 
 	/* Is this page beyond the end of the file? */
 	offset = i_size_read(inode);
