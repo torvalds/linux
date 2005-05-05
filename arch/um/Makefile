@@ -174,6 +174,19 @@ $(ARCH_DIR)/user-offsets.h: $(ARCH_DIR)/user-offsets.s
 
 CLEAN_FILES += $(ARCH_DIR)/user-offsets.s  $(ARCH_DIR)/user-offsets.h
 
+$(ARCH_DIR)/kernel-offsets.s: $(ARCH_DIR)/sys-$(SUBARCH)/kernel-offsets.c \
+				   $(ARCH_SYMLINKS) \
+				   $(SYS_DIR)/sc.h \
+				   include/asm include/linux/version.h \
+				   include/config/MARKER \
+				   $(ARCH_DIR)/include/user_constants.h
+	$(CC) $(CFLAGS) $(NOSTDINC_FLAGS) $(CPPFLAGS) -S -o $@ $<
+
+$(ARCH_DIR)/kernel-offsets.h: $(ARCH_DIR)/kernel-offsets.s
+	$(call filechk,gen-asm-offsets)
+
+CLEAN_FILES += $(ARCH_DIR)/kernel-offsets.s  $(ARCH_DIR)/kernel-offsets.h
+
 $(ARCH_DIR)/include/task.h: $(ARCH_DIR)/util/mk_task
 	$(call filechk,gen_header)
 
