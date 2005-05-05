@@ -29,3 +29,5 @@ thunk.S-dir = lib
 module.c-dir = kernel
 
 CFLAGS_csum-partial.o := -Dcsum_partial=arch_csum_partial
+
+subdir- := util
