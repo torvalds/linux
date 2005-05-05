@@ -991,22 +991,38 @@ int dm_swap_table(struct mapped_device *md, struct dm_table *table)
  */
 static int __lock_fs(struct mapped_device *md)
 {
+	int error = -ENOMEM;
+
 	if (test_and_set_bit(DMF_FS_LOCKED, &md->flags))
 		return 0;
 
 	md->frozen_bdev = bdget_disk(md->disk, 0);
 	if (!md->frozen_bdev) {
 		DMWARN("bdget failed in __lock_fs");
-		return -ENOMEM;
+		goto out;
 	}
 
 	WARN_ON(md->frozen_sb);
+
 	md->frozen_sb = freeze_bdev(md->frozen_bdev);
+	if (IS_ERR(md->frozen_sb)) {
+		error = PTR_ERR(md->frozen_sb);
+		goto out_bdput;
+	}
+
 	/* don't bdput right now, we don't want the bdev
 	 * to go away while it is locked.  We'll bdput
 	 * in __unlock_fs
 	 */
 	return 0;
+
+out_bdput:
+	bdput(md->frozen_bdev);
+	md->frozen_sb = NULL;
+	md->frozen_bdev = NULL;
+out:
+	clear_bit(DMF_FS_LOCKED, &md->flags);
+	return error;
 }
 
 static void __unlock_fs(struct mapped_device *md)
