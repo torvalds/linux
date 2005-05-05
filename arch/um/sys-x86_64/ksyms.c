@@ -14,9 +14,6 @@ EXPORT_SYMBOL(__up_wakeup);
 
 /*XXX: we need them because they would be exported by x86_64 */
 EXPORT_SYMBOL(__memcpy);
-EXPORT_SYMBOL(strcmp);
-EXPORT_SYMBOL(strcat);
-EXPORT_SYMBOL(strcpy);
 
 /* Networking helper routines. */
 /*EXPORT_SYMBOL(csum_partial_copy_from);

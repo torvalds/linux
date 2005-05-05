@@ -139,35 +139,23 @@ EXPORT_SYMBOL_GPL(unset_nmi_callback);
 #undef memmove
 #undef memchr
 #undef strlen
-#undef strcpy
 #undef strncmp
 #undef strncpy
 #undef strchr	
-#undef strcmp 
-#undef strcpy 
-#undef strcat
-#undef memcmp
 
 extern void * memset(void *,int,__kernel_size_t);
 extern size_t strlen(const char *);
 extern void * memmove(void * dest,const void *src,size_t count);
-extern char * strcpy(char * dest,const char *src);
-extern int strcmp(const char * cs,const char * ct);
 extern void *memchr(const void *s, int c, size_t n);
 extern void * memcpy(void *,const void *,__kernel_size_t);
 extern void * __memcpy(void *,const void *,__kernel_size_t);
-extern char * strcat(char *, const char *);
-extern int memcmp(const void * cs,const void * ct,size_t count);
 
 EXPORT_SYMBOL(memset);
 EXPORT_SYMBOL(strlen);
 EXPORT_SYMBOL(memmove);
-EXPORT_SYMBOL(strcpy);
 EXPORT_SYMBOL(strncmp);
 EXPORT_SYMBOL(strncpy);
 EXPORT_SYMBOL(strchr);
-EXPORT_SYMBOL(strcmp);
-EXPORT_SYMBOL(strcat);
 EXPORT_SYMBOL(strncat);
 EXPORT_SYMBOL(memchr);
 EXPORT_SYMBOL(strrchr);
@@ -175,7 +163,6 @@ EXPORT_SYMBOL(strnlen);
 EXPORT_SYMBOL(memscan);
 EXPORT_SYMBOL(memcpy);
 EXPORT_SYMBOL(__memcpy);
-EXPORT_SYMBOL(memcmp);
 
 #ifdef CONFIG_RWSEM_XCHGADD_ALGORITHM
 /* prototypes are wrong, these are assembly with custom calling functions */
