@@ -169,7 +169,7 @@ $(ARCH_DIR)/include/uml-config.h : include/linux/autoconf.h
 $(ARCH_DIR)/include/task.h: $(ARCH_DIR)/util/mk_task
 	$(call filechk,gen_header)
 
-$(ARCH_DIR)/include/user_constants.h: $(ARCH_DIR)/os/util/mk_user_constants
+$(ARCH_DIR)/include/user_constants.h: $(ARCH_DIR)/os-$(OS)/util/mk_user_constants
 	$(call filechk,gen_header)
 
 $(ARCH_DIR)/include/kern_constants.h: $(ARCH_DIR)/util/mk_constants
@@ -178,7 +178,7 @@ $(ARCH_DIR)/include/kern_constants.h: $(ARCH_DIR)/util/mk_constants
 $(ARCH_DIR)/include/skas_ptregs.h: $(ARCH_DIR)/kernel/skas/util/mk_ptregs
 	$(call filechk,gen_header)
 
-$(ARCH_DIR)/os/util/mk_user_constants: $(ARCH_DIR)/os/util FORCE ;
+$(ARCH_DIR)/os-$(OS)/util/mk_user_constants: $(ARCH_DIR)/os-$(OS)/util FORCE ;
 
 $(ARCH_DIR)/util/mk_task $(ARCH_DIR)/util/mk_constants: $(ARCH_DIR)/include/user_constants.h $(ARCH_DIR)/util \
 	FORCE ;
@@ -191,7 +191,7 @@ $(ARCH_DIR)/util: scripts_basic $(SYS_DIR)/sc.h FORCE
 $(ARCH_DIR)/kernel/skas/util: scripts_basic FORCE
 	$(Q)$(MAKE) $(build)=$@
 
-$(ARCH_DIR)/os/util: scripts_basic FORCE
+$(ARCH_DIR)/os-$(OS)/util: scripts_basic FORCE
 	$(Q)$(MAKE) $(build)=$@
 
 export SUBARCH USER_CFLAGS OS
