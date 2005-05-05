@@ -86,10 +86,11 @@ typedef struct vnode {
 	vnumber_t	v_number;		/* in-core vnode number */
 	vn_bhv_head_t	v_bh;			/* behavior head */
 	spinlock_t	v_lock;			/* VN_LOCK/VN_UNLOCK */
-	struct inode	v_inode;		/* Linux inode */
 #ifdef XFS_VNODE_TRACE
 	struct ktrace	*v_trace;		/* trace header structure    */
 #endif
+	struct inode	v_inode;		/* Linux inode */
+	/* inode MUST be last */
 } vnode_t;
 
 #define v_fbhv			v_bh.bh_first	       /* first behavior */
