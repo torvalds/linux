@@ -438,7 +438,7 @@ pgprot_t pci_phys_mem_access_prot(struct file *file,
 	int i;
 
 	if (page_is_ram(offset >> PAGE_SHIFT))
-		return prot;
+		return __pgprot(prot);
 
 	prot |= _PAGE_NO_CACHE | _PAGE_GUARDED;
 

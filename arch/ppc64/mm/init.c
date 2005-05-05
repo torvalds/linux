@@ -64,6 +64,7 @@
 #include <asm/iommu.h>
 #include <asm/abs_addr.h>
 #include <asm/vdso.h>
+#include <asm/imalloc.h>
 
 int mem_init_done;
 unsigned long ioremap_bot = IMALLOC_BASE;
