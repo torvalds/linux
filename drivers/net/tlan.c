@@ -2392,6 +2392,7 @@ TLan_FinishReset( struct net_device *dev )
 		TLan_SetTimer( dev, (10*HZ), TLAN_TIMER_FINISH_RESET );
 		return;
 	}
+	TLan_SetMulticastList(dev);
 
 } /* TLan_FinishReset */
 
