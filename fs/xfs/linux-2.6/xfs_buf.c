@@ -1746,13 +1746,15 @@ STATIC DECLARE_COMPLETION(pagebuf_daemon_done);
 STATIC struct task_struct *pagebuf_daemon_task;
 STATIC int pagebuf_daemon_active;
 STATIC int force_flush;
-
+STATIC int force_sleep;
 
 STATIC int
 pagebuf_daemon_wakeup(
 	int			priority,
 	unsigned int		mask)
 {
+	if (force_sleep)
+		return 0;
 	force_flush = 1;
 	barrier();
 	wake_up_process(pagebuf_daemon_task);
@@ -1778,7 +1780,12 @@ pagebuf_daemon(
 
 	INIT_LIST_HEAD(&tmp);
 	do {
-		try_to_freeze(PF_FREEZE);
+		if (unlikely(current->flags & PF_FREEZE)) {
+			force_sleep = 1;
+			refrigerator(PF_FREEZE);
+		} else {
+			force_sleep = 0;
+		}
 
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule_timeout((xfs_buf_timer_centisecs * HZ) / 100);
