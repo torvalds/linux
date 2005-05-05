@@ -4,6 +4,8 @@
  *
  * Introduced single menu mode (show all sub-menus in one large tree).
  * 2002-11-06 Petr Baudis <pasky@ucw.cz>
+ *
+ * i18n, 2005, Arnaldo Carvalho de Melo <acme@conectiva.com.br>
  */
 
 #include <sys/ioctl.h>
@@ -23,7 +25,7 @@
 #include "lkc.h"
 
 static char menu_backtitle[128];
-static const char mconf_readme[] =
+static const char mconf_readme[] = N_(
 "Overview\n"
 "--------\n"
 "Some kernel features may be built directly into the kernel.\n"
@@ -156,39 +158,39 @@ static const char mconf_readme[] =
 "\n"
 "Note that this mode can eventually be a little more CPU expensive\n"
 "(especially with a larger number of unrolled categories) than the\n"
-"default mode.\n",
-menu_instructions[] =
+"default mode.\n"),
+menu_instructions[] = N_(
 	"Arrow keys navigate the menu.  "
 	"<Enter> selects submenus --->.  "
 	"Highlighted letters are hotkeys.  "
 	"Pressing <Y> includes, <N> excludes, <M> modularizes features.  "
 	"Press <Esc><Esc> to exit, <?> for Help, </> for Search.  "
-	"Legend: [*] built-in  [ ] excluded  <M> module  < > module capable",
-radiolist_instructions[] =
+	"Legend: [*] built-in  [ ] excluded  <M> module  < > module capable"),
+radiolist_instructions[] = N_(
 	"Use the arrow keys to navigate this window or "
 	"press the hotkey of the item you wish to select "
 	"followed by the <SPACE BAR>. "
-	"Press <?> for additional information about this option.",
-inputbox_instructions_int[] =
+	"Press <?> for additional information about this option."),
+inputbox_instructions_int[] = N_(
 	"Please enter a decimal value. "
 	"Fractions will not be accepted.  "
-	"Use the <TAB> key to move from the input field to the buttons below it.",
-inputbox_instructions_hex[] =
+	"Use the <TAB> key to move from the input field to the buttons below it."),
+inputbox_instructions_hex[] = N_(
 	"Please enter a hexadecimal value. "
-	"Use the <TAB> key to move from the input field to the buttons below it.",
-inputbox_instructions_string[] =
+	"Use the <TAB> key to move from the input field to the buttons below it."),
+inputbox_instructions_string[] = N_(
 	"Please enter a string value. "
-	"Use the <TAB> key to move from the input field to the buttons below it.",
-setmod_text[] =
+	"Use the <TAB> key to move from the input field to the buttons below it."),
+setmod_text[] = N_(
 	"This feature depends on another which has been configured as a module.\n"
-	"As a result, this feature will be built as a module.",
-nohelp_text[] =
-	"There is no help available for this kernel option.\n",
-load_config_text[] =
+	"As a result, this feature will be built as a module."),
+nohelp_text[] = N_(
+	"There is no help available for this kernel option.\n"),
+load_config_text[] = N_(
 	"Enter the name of the configuration file you wish to load.  "
 	"Accept the name shown to restore the configuration you "
-	"last retrieved.  Leave blank to abort.",
-load_config_help[] =
+	"last retrieved.  Leave blank to abort."),
+load_config_help[] = N_(
 	"\n"
 	"For various reasons, one may wish to keep several different kernel\n"
 	"configurations available on a single machine.\n"
@@ -198,11 +200,11 @@ load_config_help[] =
 	"to modify that configuration.\n"
 	"\n"
 	"If you are uncertain, then you have probably never used alternate\n"
-	"configuration files.  You should therefor leave this blank to abort.\n",
-save_config_text[] =
+	"configuration files.  You should therefor leave this blank to abort.\n"),
+save_config_text[] = N_(
 	"Enter a filename to which this configuration should be saved "
-	"as an alternate.  Leave blank to abort.",
-save_config_help[] =
+	"as an alternate.  Leave blank to abort."),
+save_config_help[] = N_(
 	"\n"
 	"For various reasons, one may wish to keep different kernel\n"
 	"configurations available on a single machine.\n"
@@ -212,8 +214,8 @@ save_config_help[] =
 	"configuration options you have selected at that time.\n"
 	"\n"
 	"If you are uncertain what all this means then you should probably\n"
-	"leave this blank.\n",
-search_help[] =
+	"leave this blank.\n"),
+search_help[] = N_(
 	"\n"
 	"Search for CONFIG_ symbols and display their relations.\n"
 	"Example: search for \"^FOO\"\n"
@@ -250,7 +252,7 @@ search_help[] =
 	"Examples: USB	=> find all CONFIG_ symbols containing USB\n"
 	"          ^USB => find all CONFIG_ symbols starting with USB\n"
 	"          USB$ => find all CONFIG_ symbols ending with USB\n"
-	"\n";
+	"\n");
 
 static signed char buf[4096], *bufptr = buf;
 static signed char input_buf[4096];
@@ -305,8 +307,8 @@ static void init_wsize(void)
 	}
 
 	if (rows < 19 || cols < 80) {
-		fprintf(stderr, "Your display is too small to run Menuconfig!\n");
-		fprintf(stderr, "It must be at least 19 lines by 80 columns.\n");
+		fprintf(stderr, N_("Your display is too small to run Menuconfig!\n"));
+		fprintf(stderr, N_("It must be at least 19 lines by 80 columns.\n"));
 		exit(1);
 	}
 
@@ -526,9 +528,9 @@ static void search_conf(void)
 again:
 	cprint_init();
 	cprint("--title");
-	cprint("Search Configuration Parameter");
+	cprint(_("Search Configuration Parameter"));
 	cprint("--inputbox");
-	cprint("Enter Keyword");
+	cprint(_("Enter Keyword"));
 	cprint("10");
 	cprint("75");
 	cprint("");
@@ -539,7 +541,7 @@ again:
 	case 0:
 		break;
 	case 1:
-		show_helptext("Search Configuration", search_help);
+		show_helptext(_("Search Configuration"), search_help);
 		goto again;
 	default:
 		return;
@@ -548,7 +550,7 @@ again:
 	sym_arr = sym_re_search(input_buf);
 	res = get_relations_str(sym_arr);
 	free(sym_arr);
-	show_textbox("Search Results", str_get(&res), 0, 0);
+	show_textbox(_("Search Results"), str_get(&res), 0, 0);
 	str_free(&res);
 }
 
@@ -721,9 +723,9 @@ static void conf(struct menu *menu)
 	while (1) {
 		cprint_init();
 		cprint("--title");
-		cprint("%s", prompt ? prompt : "Main Menu");
+		cprint("%s", prompt ? prompt : _("Main Menu"));
 		cprint("--menu");
-		cprint(menu_instructions);
+		cprint(_(menu_instructions));
 		cprint("%d", rows);
 		cprint("%d", cols);
 		cprint("%d", rows - 10);
@@ -736,9 +738,9 @@ static void conf(struct menu *menu)
 			cprint(":");
 			cprint("--- ");
 			cprint("L");
-			cprint("    Load an Alternate Configuration File");
+			cprint(_("    Load an Alternate Configuration File"));
 			cprint("S");
-			cprint("    Save Configuration to an Alternate File");
+			cprint(_("    Save Configuration to an Alternate File"));
 		}
 		stat = exec_conf();
 		if (stat < 0)
@@ -793,7 +795,7 @@ static void conf(struct menu *menu)
 			if (sym)
 				show_help(submenu);
 			else
-				show_helptext("README", mconf_readme);
+				show_helptext("README", _(mconf_readme));
 			break;
 		case 3:
 			if (type == 't') {
@@ -849,7 +851,7 @@ static void show_help(struct menu *menu)
 	{
 		if (sym->name) {
 			str_printf(&help, "CONFIG_%s:\n\n", sym->name);
-			str_append(&help, sym->help);
+			str_append(&help, _(sym->help));
 			str_append(&help, "\n");
 		}
 	} else {
@@ -886,9 +888,9 @@ static void conf_choice(struct menu *menu)
 	while (1) {
 		cprint_init();
 		cprint("--title");
-		cprint("%s", prompt ? prompt : "Main Menu");
+		cprint("%s", prompt ? prompt : _("Main Menu"));
 		cprint("--radiolist");
-		cprint(radiolist_instructions);
+		cprint(_(radiolist_instructions));
 		cprint("15");
 		cprint("70");
 		cprint("6");
@@ -935,17 +937,17 @@ static void conf_string(struct menu *menu)
 	while (1) {
 		cprint_init();
 		cprint("--title");
-		cprint("%s", prompt ? prompt : "Main Menu");
+		cprint("%s", prompt ? prompt : _("Main Menu"));
 		cprint("--inputbox");
 		switch (sym_get_type(menu->sym)) {
 		case S_INT:
-			cprint(inputbox_instructions_int);
+			cprint(_(inputbox_instructions_int));
 			break;
 		case S_HEX:
-			cprint(inputbox_instructions_hex);
+			cprint(_(inputbox_instructions_hex));
 			break;
 		case S_STRING:
-			cprint(inputbox_instructions_string);
+			cprint(_(inputbox_instructions_string));
 			break;
 		default:
 			/* panic? */;
@@ -958,7 +960,7 @@ static void conf_string(struct menu *menu)
 		case 0:
 			if (sym_set_string_value(menu->sym, input_buf))
 				return;
-			show_textbox(NULL, "You have made an invalid entry.", 5, 43);
+			show_textbox(NULL, _("You have made an invalid entry."), 5, 43);
 			break;
 		case 1:
 			show_help(menu);
@@ -987,10 +989,10 @@ static void conf_load(void)
 				return;
 			if (!conf_read(input_buf))
 				return;
-			show_textbox(NULL, "File does not exist!", 5, 38);
+			show_textbox(NULL, _("File does not exist!"), 5, 38);
 			break;
 		case 1:
-			show_helptext("Load Alternate Configuration", load_config_help);
+			show_helptext(_("Load Alternate Configuration"), load_config_help);
 			break;
 		case 255:
 			return;
@@ -1016,10 +1018,10 @@ static void conf_save(void)
 				return;
 			if (!conf_write(input_buf))
 				return;
-			show_textbox(NULL, "Can't create file!  Probably a nonexistent directory.", 5, 60);
+			show_textbox(NULL, _("Can't create file!  Probably a nonexistent directory."), 5, 60);
 			break;
 		case 1:
-			show_helptext("Save Alternate Configuration", save_config_help);
+			show_helptext(_("Save Alternate Configuration"), save_config_help);
 			break;
 		case 255:
 			return;
@@ -1040,12 +1042,16 @@ int main(int ac, char **av)
 	char *mode;
 	int stat;
 
+	setlocale(LC_ALL, "");
+	bindtextdomain(PACKAGE, LOCALEDIR);
+	textdomain(PACKAGE);
+
 	conf_parse(av[1]);
 	conf_read(NULL);
 
 	sym = sym_lookup("KERNELRELEASE", 0);
 	sym_calc_value(sym);
-	sprintf(menu_backtitle, "Linux Kernel v%s Configuration",
+	sprintf(menu_backtitle, _("Linux Kernel v%s Configuration"),
 		sym_get_string_value(sym));
 
 	mode = getenv("MENUCONFIG_MODE");
@@ -1062,7 +1068,7 @@ int main(int ac, char **av)
 	do {
 		cprint_init();
 		cprint("--yesno");
-		cprint("Do you wish to save your new kernel configuration?");
+		cprint(_("Do you wish to save your new kernel configuration?"));
 		cprint("5");
 		cprint("60");
 		stat = exec_conf();
@@ -1070,20 +1076,20 @@ int main(int ac, char **av)
 
 	if (stat == 0) {
 		if (conf_write(NULL)) {
-			fprintf(stderr, "\n\n"
+			fprintf(stderr, _("\n\n"
 				"Error during writing of the kernel configuration.\n"
 				"Your kernel configuration changes were NOT saved."
-				"\n\n");
+				"\n\n"));
 			return 1;
 		}
-		printf("\n\n"
+		printf(_("\n\n"
 			"*** End of Linux kernel configuration.\n"
 			"*** Execute 'make' to build the kernel or try 'make help'."
-			"\n\n");
+			"\n\n"));
 	} else {
-		fprintf(stderr, "\n\n"
+		fprintf(stderr, _("\n\n"
 			"Your kernel configuration changes were NOT saved."
-			"\n\n");
+			"\n\n"));
 	}
 
 	return 0;

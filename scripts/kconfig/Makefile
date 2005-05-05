@@ -2,7 +2,7 @@
 # Kernel configuration targets
 # These targets are used from top-level makefile
 
-.PHONY: oldconfig xconfig gconfig menuconfig config silentoldconfig
+.PHONY: oldconfig xconfig gconfig menuconfig config silentoldconfig update-po-config
 
 xconfig: $(obj)/qconf
 	$< arch/$(ARCH)/Kconfig
@@ -22,6 +22,13 @@ oldconfig: $(obj)/conf
 
 silentoldconfig: $(obj)/conf
 	$< -s arch/$(ARCH)/Kconfig
+
+update-po-config: $(obj)/kxgettext
+	xgettext --default-domain=linux \
+          --add-comments --keyword=_ --keyword=N_ \
+          --files-from=scripts/kconfig/POTFILES.in \
+	-o scripts/kconfig/linux.pot
+	scripts/kconfig/kxgettext arch/$(ARCH)/Kconfig >> scripts/kconfig/linux.pot
 
 .PHONY: randconfig allyesconfig allnoconfig allmodconfig defconfig
 
@@ -72,9 +79,10 @@ help:
 #         Based on GTK which needs to be installed to compile it
 # object files used by all kconfig flavours
 
-hostprogs-y	:= conf mconf qconf gconf
+hostprogs-y	:= conf mconf qconf gconf kxgettext
 conf-objs	:= conf.o  zconf.tab.o
 mconf-objs	:= mconf.o zconf.tab.o
+kxgettext-objs	:= kxgettext.o zconf.tab.o
 
 ifeq ($(MAKECMDGOALS),xconfig)
 	qconf-target := 1
@@ -107,7 +115,7 @@ HOSTLOADLIBES_gconf	= `pkg-config gtk+-2.0 gmodule-2.0 libglade-2.0 --libs`
 HOSTCFLAGS_gconf.o	= `pkg-config gtk+-2.0 gmodule-2.0 libglade-2.0 --cflags` \
                           -D LKC_DIRECT_LINK
 
-$(obj)/conf.o $(obj)/mconf.o $(obj)/qconf.o $(obj)/gconf.o: $(obj)/zconf.tab.h
+$(obj)/conf.o $(obj)/mconf.o $(obj)/qconf.o $(obj)/gconf.o $(obj)/kxgettext: $(obj)/zconf.tab.h
 
 $(obj)/zconf.tab.h: $(src)/zconf.tab.h_shipped
 $(obj)/zconf.tab.c: $(src)/zconf.tab.c_shipped
