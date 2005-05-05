@@ -156,7 +156,6 @@ vn_initialize(
 
 #ifdef	XFS_VNODE_TRACE
 	vp->v_trace = ktrace_alloc(VNODE_TRACE_SIZE, KM_SLEEP);
-	printk("Allocated VNODE_TRACE at 0x%p\n", vp->v_trace);
 #endif	/* XFS_VNODE_TRACE */
 
 	vn_trace_exit(vp, "vn_initialize", (inst_t *)__return_address);
