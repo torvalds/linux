@@ -428,10 +428,10 @@ typedef struct xfs_mount {
 #define XFS_WRITEIO_LOG_LARGE	16
 
 /*
- * Max and min values for UIO and mount-option defined I/O sizes;
- * min value can't be less than a page.  Currently unused.
+ * Max and min values for mount-option defined I/O
+ * preallocation sizes.
  */
-#define XFS_MAX_IO_LOG		16	/* 64K */
+#define XFS_MAX_IO_LOG		30	/* 1G */
 #define XFS_MIN_IO_LOG		PAGE_SHIFT
 
 /*
