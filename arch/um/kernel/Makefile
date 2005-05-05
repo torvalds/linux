@@ -4,7 +4,7 @@
 #
 
 extra-y := vmlinux.lds
-clean-files := vmlinux.lds.S config.tmp
+clean-files := vmlinux.lds.S
 
 obj-y = checksum.o config.o exec_kern.o exitcode.o \
 	helper.o init_task.o irq.o irq_user.o ksyms.o main.o mem.o mem_user.o \
@@ -34,7 +34,7 @@ USER_OBJS := $(user-objs-y) config.o helper.o main.o process.o tempfile.o \
 
 include arch/um/scripts/Makefile.rules
 
-targets += config.c
+targets := config.c config.tmp
 
 # Be careful with the below Sed code - sed is pitfall-rich!
 # We use sed to lower build requirements, for "embedded" builders for instance.

@@ -126,7 +126,7 @@ define cmd_vmlinux__
 	$(CC) $(CFLAGS_vmlinux) -o $@ \
 	-Wl,-T,$(vmlinux-lds) $(vmlinux-init) \
 	-Wl,--start-group $(vmlinux-main) -Wl,--end-group \
-	-L/usr/lib -lutil \
+	-lutil \
 	$(filter-out $(vmlinux-lds) $(vmlinux-init) $(vmlinux-main) \
 	FORCE ,$^) ; rm -f linux
 endef

@@ -4,6 +4,7 @@
 #
 
 extra-y := unmap_fin.o
+targets := unmap.o
 clean-files := unmap_tmp.o
 
 obj-y = exec_kern.o exec_user.o gdb.o ksyms.o mem.o mem_user.o process_kern.o \

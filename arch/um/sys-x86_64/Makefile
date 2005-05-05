@@ -19,14 +19,6 @@ include arch/um/scripts/Makefile.rules
 SYMLINKS = bitops.c csum-copy.S csum-partial.c csum-wrappers.c memcpy.S \
 	semaphore.c thunk.S module.c
 
-# this needs to be before the foreach, because clean-files does not accept
-# complete paths like $(src)/$f.
-clean-files := $(SYMLINKS)
-
-targets += $(SYMLINKS)
-
-SYMLINKS := $(foreach f,$(SYMLINKS),$(obj)/$f)
-
 bitops.c-dir = lib
 csum-copy.S-dir = lib
 csum-partial.c-dir = lib
@@ -35,8 +27,5 @@ memcpy.S-dir = lib
 semaphore.c-dir = kernel
 thunk.S-dir = lib
 module.c-dir = kernel
-
-$(SYMLINKS): FORCE
-	$(call if_changed,make_link)
 
 CFLAGS_csum-partial.o := -Dcsum_partial=arch_csum_partial
