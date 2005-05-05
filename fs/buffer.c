@@ -1751,7 +1751,7 @@ static int __block_write_full_page(struct inode *inode, struct page *page,
 	int err;
 	sector_t block;
 	sector_t last_block;
-	struct buffer_head *bh, *head;
+	struct buffer_head *bh, *head, *last_bh = NULL;
 	int nr_underway = 0;
 
 	BUG_ON(!PageLocked(page));
@@ -1809,7 +1809,6 @@ static int __block_write_full_page(struct inode *inode, struct page *page,
 	} while (bh != head);
 
 	do {
-		get_bh(bh);
 		if (!buffer_mapped(bh))
 			continue;
 		/*
@@ -1827,6 +1826,8 @@ static int __block_write_full_page(struct inode *inode, struct page *page,
 		}
 		if (test_clear_buffer_dirty(bh)) {
 			mark_buffer_async_write(bh);
+			get_bh(bh);
+			last_bh = bh;
 		} else {
 			unlock_buffer(bh);
 		}
@@ -1845,10 +1846,13 @@ static int __block_write_full_page(struct inode *inode, struct page *page,
 		if (buffer_async_write(bh)) {
 			submit_bh(WRITE, bh);
 			nr_underway++;
+			put_bh(bh);
+			if (bh == last_bh)
+				break;
 		}
-		put_bh(bh);
 		bh = next;
 	} while (bh != head);
+	bh = head;
 
 	err = 0;
 done:
@@ -1887,10 +1891,11 @@ recover:
 	bh = head;
 	/* Recovery: lock and submit the mapped buffers */
 	do {
-		get_bh(bh);
 		if (buffer_mapped(bh) && buffer_dirty(bh)) {
 			lock_buffer(bh);
 			mark_buffer_async_write(bh);
+			get_bh(bh);
+			last_bh = bh;
 		} else {
 			/*
 			 * The buffer may have been set dirty during
@@ -1909,10 +1914,13 @@ recover:
 			clear_buffer_dirty(bh);
 			submit_bh(WRITE, bh);
 			nr_underway++;
+			put_bh(bh);
+			if (bh == last_bh)
+				break;
 		}
-		put_bh(bh);
 		bh = next;
 	} while (bh != head);
+	bh = head;
 	goto done;
 }
 
