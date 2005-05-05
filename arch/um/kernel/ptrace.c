@@ -252,13 +252,13 @@ long sys_ptrace(long request, long pid, long addr, long data)
 		break;
 #endif
 	case PTRACE_FAULTINFO: {
-		struct ptrace_faultinfo fault;
-
-		fault = ((struct ptrace_faultinfo) 
-			{ .is_write	= child->thread.err,
-			  .addr		= child->thread.cr2 });
-		ret = copy_to_user((unsigned long __user *) data, &fault,
-				   sizeof(fault));
+                /* Take the info from thread->arch->faultinfo,
+                 * but transfer max. sizeof(struct ptrace_faultinfo).
+                 * On i386, ptrace_faultinfo is smaller!
+                 */
+                ret = copy_to_user((unsigned long __user *) data,
+                                   &child->thread.arch.faultinfo,
+                                   sizeof(struct ptrace_faultinfo));
 		if(ret)
 			break;
 		break;
@@ -269,6 +269,7 @@ long sys_ptrace(long request, long pid, long addr, long data)
 				   sizeof(child->pending.signal));
 		break;
 
+#ifdef PTRACE_LDT
 	case PTRACE_LDT: {
 		struct ptrace_ldt ldt;
 
@@ -284,6 +285,7 @@ long sys_ptrace(long request, long pid, long addr, long data)
 		ret = -EIO;
 		break;
 	}
+#endif
 #ifdef CONFIG_PROC_MM
 	case PTRACE_SWITCH_MM: {
 		struct mm_struct *old = child->mm;

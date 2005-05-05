@@ -89,8 +89,10 @@ void tracer_panic(char *format, ...)
 
 static void tracer_segv(int sig, struct sigcontext sc)
 {
+        struct faultinfo fi;
+        GET_FAULTINFO_FROM_SC(fi, &sc);
 	printf("Tracing thread segfault at address 0x%lx, ip 0x%lx\n",
-	       SC_FAULT_ADDR(&sc), SC_IP(&sc));
+               FAULT_ADDRESS(fi), SC_IP(&sc));
 	while(1)
 		pause();
 }

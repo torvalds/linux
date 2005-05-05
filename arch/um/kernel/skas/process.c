@@ -4,6 +4,7 @@
  */
 
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <errno.h>
 #include <signal.h>
@@ -37,17 +38,26 @@ int is_skas_winch(int pid, int fd, void *data)
 	return(1);
 }
 
-static void handle_segv(int pid)
+void get_skas_faultinfo(int pid, struct faultinfo * fi)
 {
-	struct ptrace_faultinfo fault;
 	int err;
 
-	err = ptrace(PTRACE_FAULTINFO, pid, 0, &fault);
+        err = ptrace(PTRACE_FAULTINFO, pid, 0, fi);
 	if(err)
-		panic("handle_segv - PTRACE_FAULTINFO failed, errno = %d\n",
-		      errno);
+                panic("get_skas_faultinfo - PTRACE_FAULTINFO failed, "
+                      "errno = %d\n", errno);
 
-	segv(fault.addr, 0, FAULT_WRITE(fault.is_write), 1, NULL);
+        /* Special handling for i386, which has different structs */
+        if (sizeof(struct ptrace_faultinfo) < sizeof(struct faultinfo))
+                memset((char *)fi + sizeof(struct ptrace_faultinfo), 0,
+                       sizeof(struct faultinfo) -
+                       sizeof(struct ptrace_faultinfo));
+}
+
+static void handle_segv(int pid, union uml_pt_regs * regs)
+{
+        get_skas_faultinfo(pid, &regs->skas.faultinfo);
+        segv(regs->skas.faultinfo, 0, 1, NULL);
 }
 
 /*To use the same value of using_sysemu as the caller, ask it that value (in local_using_sysemu)*/
@@ -163,7 +173,7 @@ void userspace(union uml_pt_regs *regs)
 		if(WIFSTOPPED(status)){
 		  	switch(WSTOPSIG(status)){
 			case SIGSEGV:
-				handle_segv(pid);
+                                handle_segv(pid, regs);
 				break;
 			case SIGTRAP + 0x80:
 			        handle_trap(pid, regs, local_using_sysemu);
@@ -177,7 +187,7 @@ void userspace(union uml_pt_regs *regs)
 			case SIGBUS:
 			case SIGFPE:
 			case SIGWINCH:
-				user_signal(WSTOPSIG(status), regs);
+                                user_signal(WSTOPSIG(status), regs, pid);
 				break;
 			default:
 			        printk("userspace - child stopped with signal "

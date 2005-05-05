@@ -9,6 +9,7 @@
 
 #include "uml-config.h"
 #include "user_constants.h"
+#include "sysdep/faultinfo.h"
 
 #define MAX_REG_OFFSET (UM_FRAME_SIZE)
 #define MAX_REG_NR ((MAX_REG_OFFSET) / sizeof(unsigned long))
@@ -83,6 +84,7 @@ union uml_pt_regs {
 		long syscall;
 		unsigned long orig_rax;
 		void *sc;
+                struct faultinfo faultinfo;
 	} tt;
 #endif
 #ifdef UML_CONFIG_MODE_SKAS
@@ -90,9 +92,7 @@ union uml_pt_regs {
 		/* XXX */
 		unsigned long regs[27];
 		unsigned long fp[65];
-		unsigned long fault_addr;
-		unsigned long fault_type;
-		unsigned long trap_type;
+                struct faultinfo faultinfo;
 		long syscall;
 		int is_user;
 	} skas;
@@ -241,14 +241,8 @@ struct syscall_args {
 	CHOOSE_MODE(SC_SEGV_IS_FIXABLE(UPT_SC(r)), \
                     REGS_SEGV_IS_FIXABLE(&r->skas))
 
-#define UPT_FAULT_ADDR(r) \
-	__CHOOSE_MODE(SC_FAULT_ADDR(UPT_SC(r)), REGS_FAULT_ADDR(&r->skas))
-
-#define UPT_FAULT_WRITE(r) \
-	CHOOSE_MODE(SC_FAULT_WRITE(UPT_SC(r)), REGS_FAULT_WRITE(&r->skas))
-
-#define UPT_TRAP(r) __CHOOSE_MODE(SC_TRAP_TYPE(UPT_SC(r)), REGS_TRAP(&r->skas))
-#define UPT_ERR(r) __CHOOSE_MODE(SC_FAULT_TYPE(UPT_SC(r)), REGS_ERR(&r->skas))
+#define UPT_FAULTINFO(r) \
+        CHOOSE_MODE((&(r)->tt.faultinfo), (&(r)->skas.faultinfo))
 
 #endif
 

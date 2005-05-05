@@ -13,15 +13,12 @@
 #define SC_RESTART_SYSCALL(sc) IP_RESTART_SYSCALL(SC_IP(sc))
 #define SC_SET_SYSCALL_RETURN(sc, result) SC_EAX(sc) = (result)
 
-#define SC_FAULT_ADDR(sc) SC_CR2(sc)
-#define SC_FAULT_TYPE(sc) SC_ERR(sc)
-
-#define FAULT_WRITE(err) (err & 2)
-#define TO_SC_ERR(is_write) ((is_write) ? 2 : 0)
-
-#define SC_FAULT_WRITE(sc) (FAULT_WRITE(SC_ERR(sc)))
-
-#define SC_TRAP_TYPE(sc) SC_TRAPNO(sc)
+#define GET_FAULTINFO_FROM_SC(fi,sc) \
+	{ \
+		(fi).cr2 = SC_CR2(sc); \
+		(fi).error_code = SC_ERR(sc); \
+		(fi).trap_no = SC_TRAPNO(sc); \
+	}
 
 /* ptrace expects that, at the start of a system call, %eax contains
  * -ENOSYS, so this makes it so.
@@ -29,9 +26,7 @@
 #define SC_START_SYSCALL(sc) do SC_EAX(sc) = -ENOSYS; while(0)
 
 /* This is Page Fault */
-#define SEGV_IS_FIXABLE(trap) (trap == 14)
-
-#define SC_SEGV_IS_FIXABLE(sc) (SEGV_IS_FIXABLE(SC_TRAPNO(sc)))
+#define SEGV_IS_FIXABLE(fi) ((fi)->trap_no == 14)
 
 extern unsigned long *sc_sigmask(void *sc_ptr);
 extern int sc_get_fpregs(unsigned long buf, void *sc_ptr);
