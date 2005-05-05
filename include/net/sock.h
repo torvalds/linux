@@ -141,6 +141,7 @@ struct sock_common {
   *	@sk_callback_lock: used with the callbacks in the end of this struct
   *	@sk_error_queue: rarely used
   *	@sk_prot: protocol handlers inside a network family
+  *	@sk_prot_creator: sk_prot of original sock creator (see ipv6_setsockopt, IPV6_ADDRFORM for instance)
   *	@sk_err: last error
   *	@sk_err_soft: errors that don't cause failure but are the cause of a persistent failure not just 'timed out'
   *	@sk_ack_backlog: current listen backlog
@@ -218,6 +219,7 @@ struct sock {
 	} sk_backlog;
 	struct sk_buff_head	sk_error_queue;
 	struct proto		*sk_prot;
+	struct proto		*sk_prot_creator;
 	rwlock_t		sk_callback_lock;
 	int			sk_err,
 				sk_err_soft;

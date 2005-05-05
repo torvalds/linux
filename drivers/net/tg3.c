@@ -61,8 +61,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.26"
-#define DRV_MODULE_RELDATE	"April 24, 2005"
+#define DRV_MODULE_VERSION	"3.27"
+#define DRV_MODULE_RELDATE	"May 5, 2005"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -3020,7 +3020,7 @@ static irqreturn_t tg3_test_isr(int irq, void *dev_id,
 }
 
 static int tg3_init_hw(struct tg3 *);
-static int tg3_halt(struct tg3 *);
+static int tg3_halt(struct tg3 *, int);
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void tg3_poll_controller(struct net_device *dev)
@@ -3044,7 +3044,7 @@ static void tg3_reset_task(void *_data)
 	restart_timer = tp->tg3_flags2 & TG3_FLG2_RESTART_TIMER;
 	tp->tg3_flags2 &= ~TG3_FLG2_RESTART_TIMER;
 
-	tg3_halt(tp);
+	tg3_halt(tp, 0);
 	tg3_init_hw(tp);
 
 	tg3_netif_start(tp);
@@ -3390,7 +3390,7 @@ static int tg3_change_mtu(struct net_device *dev, int new_mtu)
 	spin_lock_irq(&tp->lock);
 	spin_lock(&tp->tx_lock);
 
-	tg3_halt(tp);
+	tg3_halt(tp, 1);
 
 	tg3_set_mtu(dev, tp, new_mtu);
 
@@ -3657,7 +3657,7 @@ err_out:
 /* To stop a block, clear the enable bit and poll till it
  * clears.  tp->lock is held.
  */
-static int tg3_stop_block(struct tg3 *tp, unsigned long ofs, u32 enable_bit)
+static int tg3_stop_block(struct tg3 *tp, unsigned long ofs, u32 enable_bit, int silent)
 {
 	unsigned int i;
 	u32 val;
@@ -3690,7 +3690,7 @@ static int tg3_stop_block(struct tg3 *tp, unsigned long ofs, u32 enable_bit)
 			break;
 	}
 
-	if (i == MAX_WAIT_CNT) {
+	if (i == MAX_WAIT_CNT && !silent) {
 		printk(KERN_ERR PFX "tg3_stop_block timed out, "
 		       "ofs=%lx enable_bit=%x\n",
 		       ofs, enable_bit);
@@ -3701,7 +3701,7 @@ static int tg3_stop_block(struct tg3 *tp, unsigned long ofs, u32 enable_bit)
 }
 
 /* tp->lock is held. */
-static int tg3_abort_hw(struct tg3 *tp)
+static int tg3_abort_hw(struct tg3 *tp, int silent)
 {
 	int i, err;
 
@@ -3711,22 +3711,20 @@ static int tg3_abort_hw(struct tg3 *tp)
 	tw32_f(MAC_RX_MODE, tp->rx_mode);
 	udelay(10);
 
-	err  = tg3_stop_block(tp, RCVBDI_MODE, RCVBDI_MODE_ENABLE);
-	err |= tg3_stop_block(tp, RCVLPC_MODE, RCVLPC_MODE_ENABLE);
-	err |= tg3_stop_block(tp, RCVLSC_MODE, RCVLSC_MODE_ENABLE);
-	err |= tg3_stop_block(tp, RCVDBDI_MODE, RCVDBDI_MODE_ENABLE);
-	err |= tg3_stop_block(tp, RCVDCC_MODE, RCVDCC_MODE_ENABLE);
-	err |= tg3_stop_block(tp, RCVCC_MODE, RCVCC_MODE_ENABLE);
+	err  = tg3_stop_block(tp, RCVBDI_MODE, RCVBDI_MODE_ENABLE, silent);
+	err |= tg3_stop_block(tp, RCVLPC_MODE, RCVLPC_MODE_ENABLE, silent);
+	err |= tg3_stop_block(tp, RCVLSC_MODE, RCVLSC_MODE_ENABLE, silent);
+	err |= tg3_stop_block(tp, RCVDBDI_MODE, RCVDBDI_MODE_ENABLE, silent);
+	err |= tg3_stop_block(tp, RCVDCC_MODE, RCVDCC_MODE_ENABLE, silent);
+	err |= tg3_stop_block(tp, RCVCC_MODE, RCVCC_MODE_ENABLE, silent);
 
-	err |= tg3_stop_block(tp, SNDBDS_MODE, SNDBDS_MODE_ENABLE);
-	err |= tg3_stop_block(tp, SNDBDI_MODE, SNDBDI_MODE_ENABLE);
-	err |= tg3_stop_block(tp, SNDDATAI_MODE, SNDDATAI_MODE_ENABLE);
-	err |= tg3_stop_block(tp, RDMAC_MODE, RDMAC_MODE_ENABLE);
-	err |= tg3_stop_block(tp, SNDDATAC_MODE, SNDDATAC_MODE_ENABLE);
-	err |= tg3_stop_block(tp, DMAC_MODE, DMAC_MODE_ENABLE);
-	err |= tg3_stop_block(tp, SNDBDC_MODE, SNDBDC_MODE_ENABLE);
-	if (err)
-		goto out;
+	err |= tg3_stop_block(tp, SNDBDS_MODE, SNDBDS_MODE_ENABLE, silent);
+	err |= tg3_stop_block(tp, SNDBDI_MODE, SNDBDI_MODE_ENABLE, silent);
+	err |= tg3_stop_block(tp, SNDDATAI_MODE, SNDDATAI_MODE_ENABLE, silent);
+	err |= tg3_stop_block(tp, RDMAC_MODE, RDMAC_MODE_ENABLE, silent);
+	err |= tg3_stop_block(tp, SNDDATAC_MODE, SNDDATAC_MODE_ENABLE, silent);
+	err |= tg3_stop_block(tp, DMAC_MODE, DMAC_MODE_ENABLE, silent);
+	err |= tg3_stop_block(tp, SNDBDC_MODE, SNDBDC_MODE_ENABLE, silent);
 
 	tp->mac_mode &= ~MAC_MODE_TDE_ENABLE;
 	tw32_f(MAC_MODE, tp->mac_mode);
@@ -3744,27 +3742,24 @@ static int tg3_abort_hw(struct tg3 *tp)
 		printk(KERN_ERR PFX "tg3_abort_hw timed out for %s, "
 		       "TX_MODE_ENABLE will not clear MAC_TX_MODE=%08x\n",
 		       tp->dev->name, tr32(MAC_TX_MODE));
-		return -ENODEV;
+		err |= -ENODEV;
 	}
 
-	err  = tg3_stop_block(tp, HOSTCC_MODE, HOSTCC_MODE_ENABLE);
-	err |= tg3_stop_block(tp, WDMAC_MODE, WDMAC_MODE_ENABLE);
-	err |= tg3_stop_block(tp, MBFREE_MODE, MBFREE_MODE_ENABLE);
+	err |= tg3_stop_block(tp, HOSTCC_MODE, HOSTCC_MODE_ENABLE, silent);
+	err |= tg3_stop_block(tp, WDMAC_MODE, WDMAC_MODE_ENABLE, silent);
+	err |= tg3_stop_block(tp, MBFREE_MODE, MBFREE_MODE_ENABLE, silent);
 
 	tw32(FTQ_RESET, 0xffffffff);
 	tw32(FTQ_RESET, 0x00000000);
 
-	err |= tg3_stop_block(tp, BUFMGR_MODE, BUFMGR_MODE_ENABLE);
-	err |= tg3_stop_block(tp, MEMARB_MODE, MEMARB_MODE_ENABLE);
-	if (err)
-		goto out;
+	err |= tg3_stop_block(tp, BUFMGR_MODE, BUFMGR_MODE_ENABLE, silent);
+	err |= tg3_stop_block(tp, MEMARB_MODE, MEMARB_MODE_ENABLE, silent);
 
 	if (tp->hw_status)
 		memset(tp->hw_status, 0, TG3_HW_STATUS_SIZE);
 	if (tp->hw_stats)
 		memset(tp->hw_stats, 0, sizeof(struct tg3_hw_stats));
 
-out:
 	return err;
 }
 
@@ -4086,7 +4081,7 @@ static void tg3_stop_fw(struct tg3 *tp)
 }
 
 /* tp->lock is held. */
-static int tg3_halt(struct tg3 *tp)
+static int tg3_halt(struct tg3 *tp, int silent)
 {
 	int err;
 
@@ -4094,7 +4089,7 @@ static int tg3_halt(struct tg3 *tp)
 
 	tg3_write_sig_pre_reset(tp, RESET_KIND_SHUTDOWN);
 
-	tg3_abort_hw(tp);
+	tg3_abort_hw(tp, silent);
 	err = tg3_chip_reset(tp);
 
 	tg3_write_sig_legacy(tp, RESET_KIND_SHUTDOWN);
@@ -5063,9 +5058,7 @@ static int tg3_reset_hw(struct tg3 *tp)
 	tg3_write_sig_pre_reset(tp, RESET_KIND_INIT);
 
 	if (tp->tg3_flags & TG3_FLAG_INIT_COMPLETE) {
-		err = tg3_abort_hw(tp);
-		if (err)
-			return err;
+		tg3_abort_hw(tp, 1);
 	}
 
 	err = tg3_chip_reset(tp);
@@ -5919,7 +5912,7 @@ static int tg3_test_msi(struct tg3 *tp)
 	spin_lock_irq(&tp->lock);
 	spin_lock(&tp->tx_lock);
 
-	tg3_halt(tp);
+	tg3_halt(tp, 1);
 	err = tg3_init_hw(tp);
 
 	spin_unlock(&tp->tx_lock);
@@ -5984,7 +5977,7 @@ static int tg3_open(struct net_device *dev)
 
 	err = tg3_init_hw(tp);
 	if (err) {
-		tg3_halt(tp);
+		tg3_halt(tp, 1);
 		tg3_free_rings(tp);
 	} else {
 		tp->timer_offset = HZ / 10;
@@ -6020,7 +6013,7 @@ static int tg3_open(struct net_device *dev)
 				pci_disable_msi(tp->pdev);
 				tp->tg3_flags2 &= ~TG3_FLG2_USING_MSI;
 			}
-			tg3_halt(tp);
+			tg3_halt(tp, 1);
 			tg3_free_rings(tp);
 			tg3_free_consistent(tp);
 
@@ -6293,7 +6286,7 @@ static int tg3_close(struct net_device *dev)
 
 	tg3_disable_ints(tp);
 
-	tg3_halt(tp);
+	tg3_halt(tp, 1);
 	tg3_free_rings(tp);
 	tp->tg3_flags &=
 		~(TG3_FLAG_INIT_COMPLETE |
@@ -7013,7 +7006,7 @@ static int tg3_set_ringparam(struct net_device *dev, struct ethtool_ringparam *e
 	tp->tx_pending = ering->tx_pending;
 
 	if (netif_running(dev)) {
-		tg3_halt(tp);
+		tg3_halt(tp, 1);
 		tg3_init_hw(tp);
 		tg3_netif_start(tp);
 	}
@@ -7056,7 +7049,7 @@ static int tg3_set_pauseparam(struct net_device *dev, struct ethtool_pauseparam 
 		tp->tg3_flags &= ~TG3_FLAG_TX_PAUSE;
 
 	if (netif_running(dev)) {
-		tg3_halt(tp);
+		tg3_halt(tp, 1);
 		tg3_init_hw(tp);
 		tg3_netif_start(tp);
 	}
@@ -9239,7 +9232,7 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	    (tr32(WDMAC_MODE) & WDMAC_MODE_ENABLE)) {
 		pci_save_state(tp->pdev);
 		tw32(MEMARB_MODE, MEMARB_MODE_ENABLE);
-		tg3_halt(tp);
+		tg3_halt(tp, 1);
 	}
 
 	err = tg3_test_dma(tp);
@@ -9362,7 +9355,7 @@ static int tg3_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	spin_lock_irq(&tp->lock);
 	spin_lock(&tp->tx_lock);
-	tg3_halt(tp);
+	tg3_halt(tp, 1);
 	spin_unlock(&tp->tx_lock);
 	spin_unlock_irq(&tp->lock);
 
