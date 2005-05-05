@@ -210,16 +210,16 @@ typedef int		(*xfs_bmapi_t)(struct xfs_trans *, void *,
 				struct xfs_bmap_free *);
 typedef int		(*xfs_bmap_eof_t)(void *, xfs_fileoff_t, int, int *);
 typedef int		(*xfs_iomap_write_direct_t)(
-				void *, loff_t, size_t, int,
+				void *, xfs_off_t, size_t, int,
 				struct xfs_bmbt_irec *, int *, int);
 typedef int		(*xfs_iomap_write_delay_t)(
-				void *, loff_t, size_t, int,
+				void *, xfs_off_t, size_t, int,
 				struct xfs_bmbt_irec *, int *);
 typedef int		(*xfs_iomap_write_allocate_t)(
-				void *, loff_t, size_t,
+				void *, xfs_off_t, size_t,
 				struct xfs_bmbt_irec *, int *);
 typedef int		(*xfs_iomap_write_unwritten_t)(
-				void *, loff_t, size_t);
+				void *, xfs_off_t, size_t);
 typedef uint		(*xfs_lck_map_shared_t)(void *);
 typedef void		(*xfs_lock_t)(void *, uint);
 typedef void		(*xfs_lock_demote_t)(void *, uint);

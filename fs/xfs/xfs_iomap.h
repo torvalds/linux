@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003,2004 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2003-2005 Silicon Graphics, Inc.  All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -64,13 +64,13 @@ typedef enum {
 /*
  * xfs_iomap_t:  File system I/O map
  *
- * The iomap_bn field is expressed in 512-byte blocks, and is where the 
+ * The iomap_bn field is expressed in 512-byte blocks, and is where the
  * mapping starts on disk.
  *
  * The iomap_offset, iomap_bsize and iomap_delta fields are in bytes.
  * iomap_offset is the offset of the mapping in the file itself.
- * iomap_bsize is the size of the mapping,  iomap_delta is the 
- * desired data's offset into the mapping, given the offset supplied 
+ * iomap_bsize is the size of the mapping,  iomap_delta is the
+ * desired data's offset into the mapping, given the offset supplied
  * to the file I/O map routine.
  *
  * When a request is made to read beyond the logical end of the object,
@@ -81,8 +81,8 @@ typedef enum {
 typedef struct xfs_iomap {
 	xfs_daddr_t		iomap_bn;	/* first 512b blk of mapping */
 	xfs_buftarg_t		*iomap_target;
-	loff_t			iomap_offset;	/* offset of mapping, bytes */
-	loff_t			iomap_bsize;	/* size of mapping, bytes */
+	xfs_off_t		iomap_offset;	/* offset of mapping, bytes */
+	xfs_off_t		iomap_bsize;	/* size of mapping, bytes */
 	size_t			iomap_delta;	/* offset into mapping, bytes */
 	iomap_flags_t		iomap_flags;
 } xfs_iomap_t;
@@ -93,12 +93,12 @@ struct xfs_bmbt_irec;
 
 extern int xfs_iomap(struct xfs_iocore *, xfs_off_t, ssize_t, int,
 		     struct xfs_iomap *, int *);
-extern int xfs_iomap_write_direct(struct xfs_inode *, loff_t, size_t,
+extern int xfs_iomap_write_direct(struct xfs_inode *, xfs_off_t, size_t,
 				  int, struct xfs_bmbt_irec *, int *, int);
-extern int xfs_iomap_write_delay(struct xfs_inode *, loff_t, size_t, int,
+extern int xfs_iomap_write_delay(struct xfs_inode *, xfs_off_t, size_t, int,
 				 struct xfs_bmbt_irec *, int *);
-extern int xfs_iomap_write_allocate(struct xfs_inode *, loff_t, size_t,
+extern int xfs_iomap_write_allocate(struct xfs_inode *, xfs_off_t, size_t,
 				struct xfs_bmbt_irec *, int *);
-extern int xfs_iomap_write_unwritten(struct xfs_inode *, loff_t, size_t);
+extern int xfs_iomap_write_unwritten(struct xfs_inode *, xfs_off_t, size_t);
 
 #endif /* __XFS_IOMAP_H__*/

@@ -366,7 +366,7 @@ xfs_flush_space(
 int
 xfs_iomap_write_direct(
 	xfs_inode_t	*ip,
-	loff_t		offset,
+	xfs_off_t	offset,
 	size_t		count,
 	int		flags,
 	xfs_bmbt_irec_t *ret_imap,
@@ -542,7 +542,7 @@ error_out:
 int
 xfs_iomap_write_delay(
 	xfs_inode_t	*ip,
-	loff_t		offset,
+	xfs_off_t	offset,
 	size_t		count,
 	int		ioflag,
 	xfs_bmbt_irec_t *ret_imap,
@@ -747,7 +747,7 @@ write_map:
 int
 xfs_iomap_write_allocate(
 	xfs_inode_t	*ip,
-	loff_t		offset,
+	xfs_off_t	offset,
 	size_t		count,
 	xfs_bmbt_irec_t *map,
 	int		*retmap)
@@ -901,7 +901,7 @@ error0:
 int
 xfs_iomap_write_unwritten(
 	xfs_inode_t	*ip,
-	loff_t		offset,
+	xfs_off_t	offset,
 	size_t		count)
 {
 	xfs_mount_t	*mp = ip->i_mount;
