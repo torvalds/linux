@@ -218,7 +218,8 @@ NORET_TYPE void die(const char *str, struct pt_regs *regs, int err)
 		tsk->comm, tsk->pid, tsk->thread_info + 1);
 
 	if (!user_mode(regs) || in_interrupt()) {
-		dump_mem("Stack: ", regs->ARM_sp, 8192+(unsigned long)tsk->thread_info);
+		dump_mem("Stack: ", regs->ARM_sp,
+			 THREAD_SIZE + (unsigned long)tsk->thread_info);
 		dump_backtrace(regs, tsk);
 		dump_instr(regs);
 	}
