@@ -29,9 +29,6 @@
  *
  * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
  */
-
-
-
 #ifndef __XFS_IOMAP_H__
 #define __XFS_IOMAP_H__
 
@@ -56,7 +53,7 @@ typedef enum {
 	BMAPI_UNWRITTEN  = (1 << 3),	/* unwritten extents to real extents */
 	/* modifiers */
 	BMAPI_IGNSTATE = (1 << 4),	/* ignore unwritten state on read */
-	BMAPI_DIRECT = (1 << 5),		/* direct instead of buffered write */
+	BMAPI_DIRECT = (1 << 5),	/* direct instead of buffered write */
 	BMAPI_MMAP = (1 << 6),		/* allocate for mmap write */
 	BMAPI_SYNC = (1 << 7),		/* sync write to flush delalloc space */
 	BMAPI_TRYLOCK = (1 << 8),	/* non-blocking request */
@@ -100,7 +97,7 @@ extern int xfs_iomap_write_direct(struct xfs_inode *, loff_t, size_t,
 				  int, struct xfs_bmbt_irec *, int *, int);
 extern int xfs_iomap_write_delay(struct xfs_inode *, loff_t, size_t, int,
 				 struct xfs_bmbt_irec *, int *);
-extern int xfs_iomap_write_allocate(struct xfs_inode *,
+extern int xfs_iomap_write_allocate(struct xfs_inode *, loff_t, size_t,
 				struct xfs_bmbt_irec *, int *);
 extern int xfs_iomap_write_unwritten(struct xfs_inode *, loff_t, size_t);
 

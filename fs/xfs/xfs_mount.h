@@ -216,7 +216,8 @@ typedef int		(*xfs_iomap_write_delay_t)(
 				void *, loff_t, size_t, int,
 				struct xfs_bmbt_irec *, int *);
 typedef int		(*xfs_iomap_write_allocate_t)(
-				void *, struct xfs_bmbt_irec *, int *);
+				void *, loff_t, size_t,
+				struct xfs_bmbt_irec *, int *);
 typedef int		(*xfs_iomap_write_unwritten_t)(
 				void *, loff_t, size_t);
 typedef uint		(*xfs_lck_map_shared_t)(void *);
@@ -258,9 +259,9 @@ typedef struct xfs_ioops {
 #define XFS_IOMAP_WRITE_DELAY(mp, io, offset, count, flags, mval, nmap) \
 	(*(mp)->m_io_ops.xfs_iomap_write_delay) \
 		((io)->io_obj, offset, count, flags, mval, nmap)
-#define XFS_IOMAP_WRITE_ALLOCATE(mp, io, mval, nmap) \
+#define XFS_IOMAP_WRITE_ALLOCATE(mp, io, offset, count, mval, nmap) \
 	(*(mp)->m_io_ops.xfs_iomap_write_allocate) \
-		((io)->io_obj, mval, nmap)
+		((io)->io_obj, offset, count, mval, nmap)
 #define XFS_IOMAP_WRITE_UNWRITTEN(mp, io, offset, count) \
 	(*(mp)->m_io_ops.xfs_iomap_write_unwritten) \
 		((io)->io_obj, offset, count)
