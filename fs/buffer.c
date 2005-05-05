@@ -1953,7 +1953,7 @@ static int __block_prepare_write(struct inode *inode, struct page *page,
 		if (!buffer_mapped(bh)) {
 			err = get_block(inode, block, bh, 1);
 			if (err)
-				goto out;
+				break;
 			if (buffer_new(bh)) {
 				clear_buffer_new(bh);
 				unmap_underlying_metadata(bh->b_bdev,
@@ -1995,10 +1995,12 @@ static int __block_prepare_write(struct inode *inode, struct page *page,
 	while(wait_bh > wait) {
 		wait_on_buffer(*--wait_bh);
 		if (!buffer_uptodate(*wait_bh))
-			return -EIO;
+			err = -EIO;
 	}
-	return 0;
-out:
+	if (!err)
+		return err;
+
+	/* Error case: */
 	/*
 	 * Zero out any newly allocated blocks to avoid exposing stale
 	 * data.  If BH_New is set, we know that the block was newly
