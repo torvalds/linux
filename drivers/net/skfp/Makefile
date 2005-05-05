@@ -6,8 +6,8 @@ obj-$(CONFIG_SKFP) += skfp.o
 
 skfp-objs :=  skfddi.o    hwmtm.o    fplustm.o  smt.o      cfm.o     \
               ecm.o       pcmplc.o   pmf.o      queue.o    rmt.o     \
-	      smtdef.o    smtinit.o  smttimer.o srf.o      lnkstat.o \
-              smtparse.o  hwt.o      drvfbi.o   ess.o
+	      smtdef.o    smtinit.o  smttimer.o srf.o      smtparse.o\
+	      hwt.o      drvfbi.o   ess.o
 
 # NOTE:
 #   Compiling this driver produces some warnings (and some more are 
