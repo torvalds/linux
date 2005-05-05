@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/kmod.h>
 #include <linux/kobj_map.h>
+#include <linux/buffer_head.h>
 
 #define MAX_PROBE_HASH 255	/* random */
 
@@ -676,7 +677,8 @@ int invalidate_partition(struct gendisk *disk, int index)
 	int res = 0;
 	struct block_device *bdev = bdget_disk(disk, index);
 	if (bdev) {
-		res = __invalidate_device(bdev, 1);
+		fsync_bdev(bdev);
+		res = __invalidate_device(bdev);
 		bdput(bdev);
 	}
 	return res;
