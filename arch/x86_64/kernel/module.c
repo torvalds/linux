@@ -30,9 +30,12 @@
 
 #define DEBUGP(fmt...) 
 
+#ifndef CONFIG_UML
 void module_free(struct module *mod, void *module_region)
 {
 	vfree(module_region);
+	/* FIXME: If module_region == mod->init_region, trim exception
+           table entries. */
 }
 
 void *module_alloc(unsigned long size)
@@ -51,6 +54,7 @@ void *module_alloc(unsigned long size)
 
 	return __vmalloc_area(area, GFP_KERNEL, PAGE_KERNEL_EXEC);
 }
+#endif
 
 /* We don't need anything special. */
 int module_frob_arch_sections(Elf_Ehdr *hdr,
