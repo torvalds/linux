@@ -150,7 +150,7 @@ struct hotplug_slot_info {
  * @name: the name of the slot being registered.  This string must
  * be unique amoung slots registered on this system.
  * @ops: pointer to the &struct hotplug_slot_ops to be used for this slot
- * @info: pointer to the &struct hotplug_slot_info for the inital values for
+ * @info: pointer to the &struct hotplug_slot_info for the initial values for
  * this slot.
  * @release: called during pci_hp_deregister to free memory allocated in a
  * hotplug_slot structure.

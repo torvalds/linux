@@ -217,21 +217,10 @@ void nf_debug_ip_local_deliver(struct sk_buff *skb)
 	 * NF_IP_RAW_INPUT and NF_IP_PRE_ROUTING.  */
 	if (!skb->dev) {
 		printk("ip_local_deliver: skb->dev is NULL.\n");
-	}
-	else if (strcmp(skb->dev->name, "lo") == 0) {
-		if (skb->nf_debug != ((1 << NF_IP_LOCAL_OUT)
-				      | (1 << NF_IP_POST_ROUTING)
-				      | (1 << NF_IP_PRE_ROUTING)
-				      | (1 << NF_IP_LOCAL_IN))) {
-			printk("ip_local_deliver: bad loopback skb: ");
-			debug_print_hooks_ip(skb->nf_debug);
-			nf_dump_skb(PF_INET, skb);
-		}
-	}
-	else {
+	} else {
 		if (skb->nf_debug != ((1<<NF_IP_PRE_ROUTING)
 				      | (1<<NF_IP_LOCAL_IN))) {
-			printk("ip_local_deliver: bad non-lo skb: ");
+			printk("ip_local_deliver: bad skb: ");
 			debug_print_hooks_ip(skb->nf_debug);
 			nf_dump_skb(PF_INET, skb);
 		}
@@ -247,8 +236,6 @@ void nf_debug_ip_loopback_xmit(struct sk_buff *newskb)
 		debug_print_hooks_ip(newskb->nf_debug);
 		nf_dump_skb(PF_INET, newskb);
 	}
-	/* Clear to avoid confusing input check */
-	newskb->nf_debug = 0;
 }
 
 void nf_debug_ip_finish_output2(struct sk_buff *skb)

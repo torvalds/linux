@@ -7,6 +7,7 @@
 #include <linux/hdreg.h>
 #include <linux/blkdev.h>
 #include <linux/netdevice.h>
+#include <linux/moduleparam.h>
 #include "aoe.h"
 
 #define NECODES 5
@@ -26,6 +27,19 @@ enum {
 };
 
 static char aoe_iflist[IFLISTSZ];
+module_param_string(aoe_iflist, aoe_iflist, IFLISTSZ, 0600);
+MODULE_PARM_DESC(aoe_iflist, "aoe_iflist=\"dev1 [dev2 ...]\"\n");
+
+#ifndef MODULE
+static int __init aoe_iflist_setup(char *str)
+{
+	strncpy(aoe_iflist, str, IFLISTSZ);
+	aoe_iflist[IFLISTSZ - 1] = '\0';
+	return 1;
+}
+
+__setup("aoe_iflist=", aoe_iflist_setup);
+#endif
 
 int
 is_aoe_netif(struct net_device *ifp)
@@ -36,7 +50,8 @@ is_aoe_netif(struct net_device *ifp)
 	if (aoe_iflist[0] == '\0')
 		return 1;
 
-	for (p = aoe_iflist; *p; p = q + strspn(q, WHITESPACE)) {
+	p = aoe_iflist + strspn(aoe_iflist, WHITESPACE);
+	for (; *p; p = q + strspn(q, WHITESPACE)) {
 		q = p + strcspn(p, WHITESPACE);
 		if (q != p)
 			len = q - p;

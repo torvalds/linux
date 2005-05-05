@@ -1000,8 +1000,10 @@ static int i810_check_params(struct fb_var_screeninfo *var,
 
 	if (fb_validate_mode(var, info)) {
 		if (fb_get_mode(FB_MAXTIMINGS, 0, var, info)) {
-			int default_sync = (hsync1-HFMIN)|(hsync2-HFMAX)
-					    |(vsync1-VFMIN)|(vsync2-VFMAX);
+			int default_sync = (info->monspecs.hfmin-HFMIN)
+						|(info->monspecs.hfmax-HFMAX)
+						|(info->monspecs.vfmin-VFMIN)
+						|(info->monspecs.vfmax-VFMAX);
 			printk("i810fb: invalid video mode%s\n",
 			    default_sync ? "" :
 			    ". Specifying vsyncN/hsyncN parameters may help");

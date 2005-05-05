@@ -1,6 +1,7 @@
 #ifndef _NET_XFRM_H
 #define _NET_XFRM_H
 
+#include <linux/compiler.h>
 #include <linux/xfrm.h>
 #include <linux/spinlock.h>
 #include <linux/list.h>
@@ -515,6 +516,15 @@ struct xfrm_dst
 	u32 route_mtu_cached;
 	u32 child_mtu_cached;
 };
+
+static inline void xfrm_dst_destroy(struct xfrm_dst *xdst)
+{
+	dst_release(xdst->route);
+	if (likely(xdst->u.dst.xfrm))
+		xfrm_state_put(xdst->u.dst.xfrm);
+}
+
+extern void xfrm_dst_ifdown(struct dst_entry *dst, struct net_device *dev);
 
 /* Decapsulation state, used by the input to store data during
  * decapsulation procedure, to be used later (during the policy

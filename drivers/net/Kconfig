@@ -589,7 +589,7 @@ config EL2
 
 config ELPLUS
 	tristate "3c505 \"EtherLink Plus\" support"
-	depends on NET_VENDOR_3COM && ISA
+	depends on NET_VENDOR_3COM && ISA && ISA_DMA_API
 	---help---
 	  Information about this network (Ethernet) card can be found in
 	  <file:Documentation/networking/3c505.txt>.  If you have a card of
@@ -630,7 +630,7 @@ config EL3
 
 config 3C515
 	tristate "3c515 ISA \"Fast EtherLink\""
-	depends on NET_VENDOR_3COM && (ISA || EISA)
+	depends on NET_VENDOR_3COM && (ISA || EISA) && ISA_DMA_API
 	help
 	  If you have a 3Com ISA EtherLink XL "Corkscrew" 3c515 Fast Ethernet
 	  network card, say Y and read the Ethernet-HOWTO, available from
@@ -708,7 +708,7 @@ config TYPHOON
 
 config LANCE
 	tristate "AMD LANCE and PCnet (AT1500 and NE2100) support"
-	depends on NET_ETHERNET && ISA
+	depends on NET_ETHERNET && ISA && ISA_DMA_API
 	help
 	  If you have a network (Ethernet) card of this type, say Y and read
 	  the Ethernet-HOWTO, available from
@@ -864,7 +864,7 @@ config NI52
 
 config NI65
 	tristate "NI6510 support"
-	depends on NET_VENDOR_RACAL && ISA
+	depends on NET_VENDOR_RACAL && ISA && ISA_DMA_API
 	help
 	  If you have a network (Ethernet) card of this type, say Y and read
 	  the Ethernet-HOWTO, available from
@@ -1072,7 +1072,7 @@ config NE2000
 
 config ZNET
 	tristate "Zenith Z-Note support (EXPERIMENTAL)"
-	depends on NET_ISA && EXPERIMENTAL
+	depends on NET_ISA && EXPERIMENTAL && ISA_DMA_API
 	help
 	  The Zenith Z-Note notebook computer has a built-in network
 	  (Ethernet) card, and this is the Linux driver for it. Note that the

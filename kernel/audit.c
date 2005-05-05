@@ -430,7 +430,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 /* Get message from skb (based on rtnetlink_rcv_skb).  Each message is
  * processed by audit_receive_msg.  Malformed skbs with wrong length are
  * discarded silently.  */
-static int audit_receive_skb(struct sk_buff *skb)
+static void audit_receive_skb(struct sk_buff *skb)
 {
 	int		err;
 	struct nlmsghdr	*nlh;
@@ -439,7 +439,7 @@ static int audit_receive_skb(struct sk_buff *skb)
 	while (skb->len >= NLMSG_SPACE(0)) {
 		nlh = (struct nlmsghdr *)skb->data;
 		if (nlh->nlmsg_len < sizeof(*nlh) || skb->len < nlh->nlmsg_len)
-			return 0;
+			return;
 		rlen = NLMSG_ALIGN(nlh->nlmsg_len);
 		if (rlen > skb->len)
 			rlen = skb->len;
@@ -449,23 +449,20 @@ static int audit_receive_skb(struct sk_buff *skb)
 			netlink_ack(skb, nlh, 0);
 		skb_pull(skb, rlen);
 	}
-	return 0;
 }
 
 /* Receive messages from netlink socket. */
 static void audit_receive(struct sock *sk, int length)
 {
 	struct sk_buff  *skb;
+	unsigned int qlen;
 
-	if (down_trylock(&audit_netlink_sem))
-		return;
+	down(&audit_netlink_sem);
 
-				/* FIXME: this must not cause starvation */
-	while ((skb = skb_dequeue(&sk->sk_receive_queue))) {
-		if (audit_receive_skb(skb) && skb->len)
-			skb_queue_head(&sk->sk_receive_queue, skb);
-		else
-			kfree_skb(skb);
+	for (qlen = skb_queue_len(&sk->sk_receive_queue); qlen; qlen--) {
+		skb = skb_dequeue(&sk->sk_receive_queue);
+		audit_receive_skb(skb);
+		kfree_skb(skb);
 	}
 	up(&audit_netlink_sem);
 }

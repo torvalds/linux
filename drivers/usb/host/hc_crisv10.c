@@ -4329,7 +4329,7 @@ static int __init etrax_usb_hc_init(void)
 	bus->bus_name="ETRAX 100LX";
 	bus->hcpriv = hc;
 
-	/* Initalize RH to the default address.
+	/* Initialize RH to the default address.
 	   And make sure that we have no status change indication */
 	hc->rh.numports = 2;  /* The RH has two ports */
 	hc->rh.devnum = 1;

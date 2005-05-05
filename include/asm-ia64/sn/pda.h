@@ -24,14 +24,6 @@
 
 typedef struct pda_s {
 
-	/* Having a pointer in the begining of PDA tends to increase
-	 * the chance of having this pointer in cache. (Yes something
-	 * else gets pushed out). Doing this reduces the number of memory
-	 * access to all nodepda variables to be one
-	 */
-	struct nodepda_s *p_nodepda;		/* Pointer to Per node PDA */
-	struct subnodepda_s *p_subnodepda;	/* Pointer to CPU  subnode PDA */
-
 	/*
 	 * Support for SN LEDs
 	 */
@@ -49,7 +41,6 @@ typedef struct pda_s {
 
 	unsigned long	sn_soft_irr[4];
 	unsigned long	sn_in_service_ivecs[4];
-	short		cnodeid_to_nasid_table[MAX_NUMNODES];
 	int		sn_lb_int_war_ticks;
 	int		sn_last_irq;
 	int		sn_first_irq;

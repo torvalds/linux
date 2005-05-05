@@ -224,7 +224,7 @@ ia64_rt_sigreturn (struct sigscratch *scr)
 	 * could be corrupted.
 	 */
 	retval = (long) &ia64_leave_kernel;
-	if (test_thread_flag(TIF_SYSCALL_TRACE) 
+	if (test_thread_flag(TIF_SYSCALL_TRACE)
 	    || test_thread_flag(TIF_SYSCALL_AUDIT))
 		/*
 		 * strace expects to be notified after sigreturn returns even though the

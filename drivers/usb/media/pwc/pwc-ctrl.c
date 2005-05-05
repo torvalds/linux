@@ -1100,7 +1100,7 @@ static inline int pwc_mpt_set_angle(struct pwc_device *pdev, int pan, int tilt)
 	unsigned char buf[4];
 	
 	/* set new relative angle; angles are expressed in degrees * 100,
-	   but cam as .5 degree resolution, hence devide by 200. Also
+	   but cam as .5 degree resolution, hence divide by 200. Also
 	   the angle must be multiplied by 64 before it's send to
 	   the cam (??)
 	 */

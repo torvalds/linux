@@ -289,7 +289,7 @@
 //
 
 //
-// Edgeport Compatiblity Descriptor
+// Edgeport Compatibility Descriptor
 //
 // This descriptor is only returned by Edgeport-compatible devices
 // supporting the EPiC spec. True ION devices do not return this

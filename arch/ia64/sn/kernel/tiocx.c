@@ -21,6 +21,8 @@
 #include <asm/sn/types.h>
 #include <asm/sn/shubio.h>
 #include <asm/sn/tiocx.h>
+#include <asm/sn/l1.h>
+#include <asm/sn/module.h>
 #include "tio.h"
 #include "xtalk/xwidgetdev.h"
 #include "xtalk/hubdev.h"
@@ -308,14 +310,12 @@ void tiocx_irq_free(struct sn_irq_info *sn_irq_info)
 	}
 }
 
-uint64_t
-tiocx_dma_addr(uint64_t addr)
+uint64_t tiocx_dma_addr(uint64_t addr)
 {
 	return PHYS_TO_TIODMA(addr);
 }
 
-uint64_t
-tiocx_swin_base(int nasid)
+uint64_t tiocx_swin_base(int nasid)
 {
 	return TIO_SWIN_BASE(nasid, TIOCX_CORELET);
 }
@@ -329,19 +329,6 @@ EXPORT_SYMBOL(tiocx_irq_free);
 EXPORT_SYMBOL(tiocx_bus_type);
 EXPORT_SYMBOL(tiocx_dma_addr);
 EXPORT_SYMBOL(tiocx_swin_base);
-
-static uint64_t tiocx_get_hubdev_info(u64 handle, u64 address)
-{
-
-	struct ia64_sal_retval ret_stuff;
-	ret_stuff.status = 0;
-	ret_stuff.v0 = 0;
-
-	ia64_sal_oemcall_nolock(&ret_stuff,
-				SN_SAL_IOIF_GET_HUBDEV_INFO,
-				handle, address, 0, 0, 0, 0, 0);
-	return ret_stuff.v0;
-}
 
 static void tio_conveyor_set(nasid_t nasid, int enable_flag)
 {
@@ -379,7 +366,29 @@ static void tio_corelet_reset(nasid_t nasid, int corelet)
 	udelay(2000);
 }
 
-static int fpga_attached(nasid_t nasid)
+static int tiocx_btchar_get(int nasid)
+{
+	moduleid_t module_id;
+	geoid_t geoid;
+	int cnodeid;
+
+	cnodeid = nasid_to_cnodeid(nasid);
+	geoid = cnodeid_get_geoid(cnodeid);
+	module_id = geo_module(geoid);
+	return MODULE_GET_BTCHAR(module_id);
+}
+
+static int is_fpga_brick(int nasid)
+{
+	switch (tiocx_btchar_get(nasid)) {
+	case L1_BRICKTYPE_SA:
+	case L1_BRICKTYPE_ATHENA:
+		return 1;
+	}
+	return 0;
+}
+
+static int bitstream_loaded(nasid_t nasid)
 {
 	uint64_t cx_credits;
 
@@ -396,7 +405,7 @@ static int tiocx_reload(struct cx_dev *cx_dev)
 	int mfg_num = CX_DEV_NONE;
 	nasid_t nasid = cx_dev->cx_id.nasid;
 
-	if (fpga_attached(nasid)) {
+	if (bitstream_loaded(nasid)) {
 		uint64_t cx_id;
 
 		cx_id =
@@ -427,9 +436,10 @@ static ssize_t show_cxdev_control(struct device *dev, char *buf)
 {
 	struct cx_dev *cx_dev = to_cx_dev(dev);
 
-	return sprintf(buf, "0x%x 0x%x 0x%x\n",
+	return sprintf(buf, "0x%x 0x%x 0x%x %d\n",
 		       cx_dev->cx_id.nasid,
-		       cx_dev->cx_id.part_num, cx_dev->cx_id.mfg_num);
+		       cx_dev->cx_id.part_num, cx_dev->cx_id.mfg_num,
+		       tiocx_btchar_get(cx_dev->cx_id.nasid));
 }
 
 static ssize_t store_cxdev_control(struct device *dev, const char *buf,
@@ -475,20 +485,14 @@ static int __init tiocx_init(void)
 		if ((nasid = cnodeid_to_nasid(cnodeid)) < 0)
 			break;	/* No more nasids .. bail out of loop */
 
-		if (nasid & 0x1) {	/* TIO's are always odd */
+		if ((nasid & 0x1) && is_fpga_brick(nasid)) {
 			struct hubdev_info *hubdev;
-			uint64_t status;
 			struct xwidget_info *widgetp;
 
 			DBG("Found TIO at nasid 0x%x\n", nasid);
 
 			hubdev =
 			    (struct hubdev_info *)(NODEPDA(cnodeid)->pdinfo);
-			status =
-			    tiocx_get_hubdev_info(nasid,
-						  (uint64_t) __pa(hubdev));
-			if (status)
-				continue;
 
 			widgetp = &hubdev->hdi_xwidget_info[TIOCX_CORELET];
 

@@ -103,14 +103,7 @@ typedef unsigned long old_sigset_t;		/* at least 32 bits */
 #define SIG_SETMASK	3	/* for setting the signal mask */
 #define SIG_SETMASK32	256	/* Goodie from SGI for BSD compatibility:
 				   set only the low 32 bit of the sigset.  */
-
-/* Type of a signal handler.  */
-typedef void (*__sighandler_t)(int);
-
-/* Fake signal functions */
-#define SIG_DFL	((__sighandler_t)0)	/* default signal handling */
-#define SIG_IGN	((__sighandler_t)1)	/* ignore signal */
-#define SIG_ERR	((__sighandler_t)-1)	/* error return from signal */
+#include <asm-generic/signal.h>
 
 struct sigaction {
 	unsigned int	sa_flags;

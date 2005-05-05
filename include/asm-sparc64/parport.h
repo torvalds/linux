@@ -13,6 +13,12 @@
 
 #define PARPORT_PC_MAX_PORTS	PARPORT_MAX
 
+/*
+ * While sparc64 doesn't have an ISA DMA API, we provide something that looks
+ * close enough to make parport_pc happy
+ */
+#define HAS_DMA
+
 static struct sparc_ebus_info {
 	struct ebus_dma_info info;
 	unsigned int addr;

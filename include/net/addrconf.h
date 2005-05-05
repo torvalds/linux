@@ -17,6 +17,8 @@
 
 #define IPV6_MAX_ADDRESSES		16
 
+#include <linux/in6.h>
+
 struct prefix_info {
 	__u8			type;
 	__u8			length;
@@ -43,9 +45,9 @@ struct prefix_info {
 
 #ifdef __KERNEL__
 
-#include <linux/in6.h>
 #include <linux/netdevice.h>
 #include <net/if_inet6.h>
+#include <net/ipv6.h>
 
 #define IN6_ADDR_HSIZE		16
 

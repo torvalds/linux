@@ -455,11 +455,11 @@ csum_copy_err:
 static int rawv6_push_pending_frames(struct sock *sk, struct flowi *fl,
 				     struct raw6_sock *rp)
 {
-	struct inet_sock *inet = inet_sk(sk);
 	struct sk_buff *skb;
 	int err = 0;
 	int offset;
 	int len;
+	int total_len;
 	u32 tmp_csum;
 	u16 csum;
 
@@ -470,7 +470,8 @@ static int rawv6_push_pending_frames(struct sock *sk, struct flowi *fl,
 		goto out;
 
 	offset = rp->offset;
-	if (offset >= inet->cork.length - 1) {
+	total_len = inet_sk(sk)->cork.length - (skb->nh.raw - skb->data);
+	if (offset >= total_len - 1) {
 		err = -EINVAL;
 		ip6_flush_pending_frames(sk);
 		goto out;
@@ -514,7 +515,7 @@ static int rawv6_push_pending_frames(struct sock *sk, struct flowi *fl,
 
 	tmp_csum = csum_ipv6_magic(&fl->fl6_src,
 				   &fl->fl6_dst,
-				   inet->cork.length, fl->proto, tmp_csum);
+				   total_len, fl->proto, tmp_csum);
 
 	if (tmp_csum == 0)
 		tmp_csum = -1;

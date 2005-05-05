@@ -103,13 +103,15 @@ static struct nf_hook_ops ipt_ops[] = {
 	  .hook = ipt_hook, 
 	  .pf = PF_INET, 
 	  .hooknum = NF_IP_PRE_ROUTING, 
-	  .priority = NF_IP_PRI_RAW
+	  .priority = NF_IP_PRI_RAW,
+	  .owner = THIS_MODULE,
 	},
 	{
 	  .hook = ipt_hook, 
 	  .pf = PF_INET, 
 	  .hooknum = NF_IP_LOCAL_OUT, 
-	  .priority = NF_IP_PRI_RAW
+	  .priority = NF_IP_PRI_RAW,
+	  .owner = THIS_MODULE,
 	},
 };
 

@@ -105,7 +105,7 @@ config ATARI_SLM
 
 config BLK_DEV_XD
 	tristate "XT hard disk support"
-	depends on ISA
+	depends on ISA && ISA_DMA_API
 	help
 	  Very old 8 bit hard disk controllers used in the IBM XT computer
 	  will be supported if you say Y here.

@@ -37,7 +37,7 @@ static void integrator_leds_event(led_event_t ledevt)
 	unsigned long flags;
 	const unsigned int dbg_base = IO_ADDRESS(INTEGRATOR_DBG_BASE);
 	unsigned int update_alpha_leds;
-	
+
 	// yup, change the LEDs
 	local_irq_save(flags);
 	update_alpha_leds = 0;

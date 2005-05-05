@@ -47,6 +47,12 @@ struct ehci_stats {
 #define	EHCI_MAX_ROOT_PORTS	15		/* see HCS_N_PORTS */
 
 struct ehci_hcd {			/* one per controller */
+	/* glue to PCI and HCD framework */
+	struct ehci_caps __iomem *caps;
+	struct ehci_regs __iomem *regs;
+	struct ehci_dbg_port __iomem *debug;
+
+	__u32			hcs_params;	/* cached register copy */
 	spinlock_t		lock;
 
 	/* async schedule support */
@@ -83,11 +89,6 @@ struct ehci_hcd {			/* one per controller */
 	u32			command;
 
 	unsigned		is_tdi_rh_tt:1;	/* TDI roothub with TT */
-
-	/* glue to PCI and HCD framework */
-	struct ehci_caps __iomem *caps;
-	struct ehci_regs __iomem *regs;
-	__u32			hcs_params;	/* cached register copy */
 
 	/* irq statistics */
 #ifdef EHCI_STATS
@@ -165,7 +166,7 @@ struct ehci_caps {
 	/* these fields are specified as 8 and 16 bit registers,
 	 * but some hosts can't perform 8 or 16 bit PCI accesses.
 	 */
-	u32	hc_capbase;
+	u32		hc_capbase;
 #define HC_LENGTH(p)		(((p)>>00)&0x00ff)	/* bits 7:0 */
 #define HC_VERSION(p)		(((p)>>16)&0xffff)	/* bits 31:16 */
 	u32		hcs_params;     /* HCSPARAMS - offset 0x4 */
@@ -273,7 +274,7 @@ struct ehci_dbg_port {
 #define DBGP_ENABLED	(1<<28)
 #define DBGP_DONE	(1<<16)
 #define DBGP_INUSE	(1<<10)
-#define DBGP_ERRCODE(x)	(((x)>>7)&0x0f)
+#define DBGP_ERRCODE(x)	(((x)>>7)&0x07)
 #	define DBGP_ERR_BAD	1
 #	define DBGP_ERR_SIGNAL	2
 #define DBGP_ERROR	(1<<6)
@@ -282,11 +283,11 @@ struct ehci_dbg_port {
 #define DBGP_LEN(x)	(((x)>>0)&0x0f)
 	u32	pids;
 #define DBGP_PID_GET(x)		(((x)>>16)&0xff)
-#define DBGP_PID_SET(data,tok)	(((data)<<8)|(tok));
+#define DBGP_PID_SET(data,tok)	(((data)<<8)|(tok))
 	u32	data03;
 	u32	data47;
 	u32	address;
-#define DBGP_EPADDR(dev,ep)	(((dev)<<8)|(ep));
+#define DBGP_EPADDR(dev,ep)	(((dev)<<8)|(ep))
 } __attribute__ ((packed));
 
 /*-------------------------------------------------------------------------*/

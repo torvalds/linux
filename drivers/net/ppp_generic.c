@@ -2467,14 +2467,10 @@ static void ppp_destroy_interface(struct ppp *ppp)
 	skb_queue_purge(&ppp->mrq);
 #endif /* CONFIG_PPP_MULTILINK */
 #ifdef CONFIG_PPP_FILTER
-	if (ppp->pass_filter) {
-		kfree(ppp->pass_filter);
-		ppp->pass_filter = NULL;
-	}
-	if (ppp->active_filter) {
-		kfree(ppp->active_filter);
-		ppp->active_filter = NULL;
-	}
+	kfree(ppp->pass_filter);
+	ppp->pass_filter = NULL;
+	kfree(ppp->active_filter);
+	ppp->active_filter = NULL;
 #endif /* CONFIG_PPP_FILTER */
 
 	kfree(ppp);

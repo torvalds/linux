@@ -375,7 +375,6 @@ static int netlink_release(struct socket *sock)
 		nlk->cb->done(nlk->cb);
 		netlink_destroy_callback(nlk->cb);
 		nlk->cb = NULL;
-		__sock_put(sk);
 	}
 	spin_unlock(&nlk->cb_lock);
 
@@ -1102,7 +1101,6 @@ static int netlink_dump(struct sock *sk)
 	spin_unlock(&nlk->cb_lock);
 
 	netlink_destroy_callback(cb);
-	__sock_put(sk);
 	return 0;
 }
 
@@ -1141,7 +1139,6 @@ int netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
 		return -EBUSY;
 	}
 	nlk->cb = cb;
-	sock_hold(sk);
 	spin_unlock(&nlk->cb_lock);
 
 	netlink_dump(sk);
