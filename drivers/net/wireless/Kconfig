@@ -323,7 +323,7 @@ config PRISM54
 	  For a complete list of supported cards visit <http://prism54.org>.
 	  Here is the latest confirmed list of supported cards:
 
-	  3com OfficeConnect 11g Cardbus Card aka 3CRWE154G72
+	  3com OfficeConnect 11g Cardbus Card aka 3CRWE154G72 (version 1)
 	  Allnet ALL0271 PCI Card
 	  Compex WL54G Cardbus Card
 	  Corega CG-WLCB54GT Cardbus Card
