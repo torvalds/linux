@@ -44,6 +44,11 @@ ifneq ($(MAKEFILES-INCL),)
 endif
 
 ARCH_INCLUDE	:= -I$(ARCH_DIR)/include
+ifneq ($(KBUILD_SRC),)
+ARCH_INCLUDE	+= -I$(ARCH_DIR)/include2
+ARCH_INCLUDE	+= -I$(srctree)/$(ARCH_DIR)/include
+MRPROPER_DIRS	+= $(ARCH_DIR)/include2
+endif
 SYS_DIR		:= $(ARCH_DIR)/include/sysdep-$(SUBARCH)
 
 include $(srctree)/$(ARCH_DIR)/Makefile-$(SUBARCH)
@@ -94,7 +99,12 @@ define archhelp
   echo '		   find in the kernel root.'
 endef
 
+ifneq ($(KBUILD_SRC),)
+$(shell mkdir -p $(ARCH_DIR) && ln -fsn $(srctree)/$(ARCH_DIR)/Kconfig_$(SUBARCH) $(ARCH_DIR)/Kconfig_arch)
+CLEAN_FILES += $(ARCH_DIR)/Kconfig_arch
+else
 $(shell cd $(ARCH_DIR) && ln -sf Kconfig_$(SUBARCH) Kconfig_arch)
+endif
 
 prepare: $(ARCH_SYMLINKS) $(SYS_HEADERS) $(GEN_HEADERS)
 
@@ -143,20 +153,40 @@ archclean:
 
 $(SYMLINK_HEADERS):
 	@echo '  SYMLINK $@'
+ifneq ($(KBUILD_SRC),)
+	ln -fsn $(srctree)/include/asm-um/$(basename $(notdir $@))-$(SUBARCH)$(suffix $@) $@
+else
 	$(Q)cd $(TOPDIR)/$(dir $@) ; \
 	ln -sf $(basename $(notdir $@))-$(SUBARCH)$(suffix $@) $(notdir $@)
+endif
 
 include/asm-um/arch:
 	@echo '  SYMLINK $@'
+ifneq ($(KBUILD_SRC),)
+	$(Q)mkdir -p include/asm-um
+	$(Q)ln -fsn $(srctree)/include/asm-$(SUBARCH) include/asm-um/arch
+else
 	$(Q)cd $(TOPDIR)/include/asm-um && ln -sf ../asm-$(SUBARCH) arch
+endif
 
 $(ARCH_DIR)/include/sysdep:
 	@echo '  SYMLINK $@'
+ifneq ($(KBUILD_SRC),)
+	$(Q)mkdir -p $(ARCH_DIR)/include
+	$(Q)mkdir -p $(ARCH_DIR)/include2
+	$(Q)ln -fsn sysdep-$(SUBARCH) $(ARCH_DIR)/include/sysdep
+	$(Q)ln -fsn $(srctree)/$(ARCH_DIR)/include/sysdep-$(SUBARCH) $(ARCH_DIR)/include2/sysdep
+else
 	$(Q)cd $(ARCH_DIR)/include && ln -sf sysdep-$(SUBARCH) sysdep
+endif
 
 $(ARCH_DIR)/os:
 	@echo '  SYMLINK $@'
+ifneq ($(KBUILD_SRC),)
+	$(Q)ln -fsn $(srctree)/$(ARCH_DIR)/os-$(OS) $(ARCH_DIR)/os
+else
 	$(Q)cd $(ARCH_DIR) && ln -sf os-$(OS) os
+endif
 
 # Generated files
 define filechk_umlconfig
