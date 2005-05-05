@@ -72,12 +72,14 @@ static inline struct thread_info *current_thread_info(void)
 					 */
 #define TIF_RESTART_BLOCK 	4
 #define TIF_MEMDIE	 	5
+#define TIF_SYSCALL_AUDIT	6
 
 #define _TIF_SYSCALL_TRACE	(1 << TIF_SYSCALL_TRACE)
 #define _TIF_SIGPENDING		(1 << TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED	(1 << TIF_NEED_RESCHED)
 #define _TIF_POLLING_NRFLAG     (1 << TIF_POLLING_NRFLAG)
-#define _TIF_RESTART_BLOCK	(1 << TIF_RESTART_BLOCK)
+#define _TIF_MEMDIE		(1 << TIF_MEMDIE)
+#define _TIF_SYSCALL_AUDIT	(1 << TIF_SYSCALL_AUDIT)
 
 #endif
 
