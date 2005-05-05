@@ -19,6 +19,7 @@
 #include <asm/procinfo.h>
 #include <asm/ptrace.h>
 #include <asm/constants.h>
+#include <asm/thread_info.h>
 #include <asm/system.h>
 
 #define PROCINFO_MMUFLAGS	8
@@ -131,7 +132,7 @@ __switch_data:
 	.long	processor_id			@ r4
 	.long	__machine_arch_type		@ r5
 	.long	cr_alignment			@ r6
-	.long	init_thread_union+8192		@ sp
+	.long	init_thread_union + THREAD_START_SP @ sp
 
 /*
  * The following fragment of code is executed with the MMU on, and uses

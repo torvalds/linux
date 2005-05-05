@@ -4,6 +4,7 @@ menu "IMX Implementations"
 config ARCH_MX1ADS
 	bool "mx1ads"
 	depends on ARCH_IMX
+	select ISA
 	help
 	  Say Y here if you are using the Motorola MX1ADS board
 

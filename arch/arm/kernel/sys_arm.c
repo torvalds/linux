@@ -302,7 +302,7 @@ long execve(const char *filename, char **argv, char **envp)
 		"b	ret_to_user"
 		:
 		: "r" (current_thread_info()),
-		  "Ir" (THREAD_SIZE - 8 - sizeof(regs)),
+		  "Ir" (THREAD_START_SP - sizeof(regs)),
 		  "r" (&regs),
 		  "Ir" (sizeof(regs))
 		: "r0", "r1", "r2", "r3", "ip", "memory");
