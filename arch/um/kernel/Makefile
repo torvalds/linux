@@ -6,7 +6,7 @@
 extra-y := vmlinux.lds
 clean-files :=
 
-obj-y = checksum.o config.o exec_kern.o exitcode.o \
+obj-y = config.o exec_kern.o exitcode.o \
 	helper.o init_task.o irq.o irq_user.o ksyms.o main.o mem.o mem_user.o \
 	physmem.o process.o process_kern.o ptrace.o reboot.o resource.o \
 	sigio_user.o sigio_kern.o signal_kern.o signal_user.o smp.o \
