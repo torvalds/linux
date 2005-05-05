@@ -62,9 +62,6 @@ void default_idle(void)
  */
 void cpu_idle(void)
 {
-	if (current->pid != 0)
-		return;
-
 	/* endless idle loop with no priority at all */
 	for (;;) {
 		/* If current->work.need_resched is zero we should really
@@ -80,7 +77,6 @@ void cpu_idle(void)
 		schedule();
 		check_pgt_cache();
 	}
-	return;
 }
 
 #else
