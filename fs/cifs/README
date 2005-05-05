@@ -32,9 +32,9 @@ the cifs download to your kernel build directory e.g.
 6) make modules (or "make" if CIFS VFS not to be built as a module)
 
 For Linux 2.6:
-1) Download the kernel (e.g. from http://www.kernel.org or from bitkeeper
-at bk://linux.bkbits.net/linux-2.5) and change directory into the top
-of the kernel directory tree (e.g. /usr/src/linux-2.5.73)
+1) Download the kernel (e.g. from http://www.kernel.org)
+and change directory into the top of the kernel directory tree
+(e.g. /usr/src/linux-2.5.73)
 2) make menuconfig (or make xconfig)
 3) select cifs from within the network filesystem choices
 4) save and exit
