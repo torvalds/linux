@@ -96,14 +96,10 @@ endef
 
 $(shell cd $(ARCH_DIR) && ln -sf Kconfig_$(SUBARCH) Kconfig_arch)
 
-prepare: $(ARCH_SYMLINKS) $(SYS_HEADERS) $(GEN_HEADERS) \
-	$(ARCH_DIR)/kernel/vmlinux.lds.S
+prepare: $(ARCH_SYMLINKS) $(SYS_HEADERS) $(GEN_HEADERS)
 
 LINK-$(CONFIG_LD_SCRIPT_STATIC) += -static
 LINK-$(CONFIG_LD_SCRIPT_DYN) += -Wl,-rpath,/lib
-
-LD_SCRIPT-$(CONFIG_LD_SCRIPT_STATIC) := uml.lds.S
-LD_SCRIPT-$(CONFIG_LD_SCRIPT_DYN) := dyn.lds.S
 
 CPP_MODE-$(CONFIG_MODE_TT) := -DMODE_TT
 CONFIG_KERNEL_STACK_ORDER ?= 2
@@ -144,15 +140,6 @@ archclean:
 	$(Q)$(MAKE) $(clean)=$(ARCH_DIR)/util
 	@find . \( -name '*.bb' -o -name '*.bbg' -o -name '*.da' \
 		-o -name '*.gcov' \) -type f -print | xargs rm -f
-
-#We need to re-preprocess this when the symlink dest changes.
-#So we touch it when needed.
-$(ARCH_DIR)/kernel/vmlinux.lds.S: FORCE
-	$(Q)if [ "$(shell readlink $@)" != "$(LD_SCRIPT-y)" ]; then \
-		echo '  SYMLINK $@'; \
-		ln -sf $(LD_SCRIPT-y) $@; \
-		touch $@; \
-	fi;
 
 $(SYMLINK_HEADERS):
 	@echo '  SYMLINK $@'
