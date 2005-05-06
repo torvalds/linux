@@ -834,7 +834,7 @@ void __init unflatten_device_tree(void)
 {
 	unsigned long start, mem, size;
 	struct device_node **allnextp = &allnodes;
-	char *p;
+	char *p = NULL;
 	int l = 0;
 
 	DBG(" -> unflatten_device_tree()\n");
