@@ -322,9 +322,15 @@ void usb_driver_release_interface(struct usb_driver *driver,
 	if (!dev->driver || dev->driver != &driver->driver)
 		return;
 
-	/* don't disconnect from disconnect(), or before dev_add() */
-	if (!klist_node_attached(&dev->knode_driver) && !klist_node_attached(&dev->knode_bus))
+	/* don't release from within disconnect() */
+	if (iface->condition != USB_INTERFACE_BOUND)
+		return;
+
+	/* release only after device_add() */
+	if (klist_node_attached(&dev->knode_bus)) {
+		iface->condition = USB_INTERFACE_UNBINDING;
 		device_release_driver(dev);
+	}
 
 	dev->driver = NULL;
 	usb_set_intfdata(iface, NULL);
