@@ -300,7 +300,7 @@ qla2x00_set_rport_loss_tmo(struct fc_rport *rport, uint32_t timeout)
 	rport->dev_loss_tmo = ha->port_down_retry_count + 5;
 }
 
-static struct fc_function_template qla2xxx_transport_functions = {
+struct fc_function_template qla2xxx_transport_functions = {
 
 	.show_host_node_name = 1,
 	.show_host_port_name = 1,
@@ -321,12 +321,6 @@ static struct fc_function_template qla2xxx_transport_functions = {
 	.show_rport_dev_loss_tmo = 1,
 
 };
-
-struct scsi_transport_template *
-qla2x00_alloc_transport_tmpl(void)
-{
-	return (fc_attach_transport(&qla2xxx_transport_functions));
-}
 
 void
 qla2x00_init_host_attr(scsi_qla_host_t *ha)

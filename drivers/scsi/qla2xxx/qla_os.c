@@ -2350,7 +2350,8 @@ qla2x00_module_init(void)
 #if DEBUG_QLA2100
 	strcat(qla2x00_version_str, "-debug");
 #endif
-	qla2xxx_transport_template = qla2x00_alloc_transport_tmpl();
+	qla2xxx_transport_template =
+	    fc_attach_transport(&qla2xxx_transport_functions);
 	if (!qla2xxx_transport_template)
 		return -ENODEV;
 
