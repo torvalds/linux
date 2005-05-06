@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: nodemgmt.c,v 1.121 2005/04/06 16:02:52 dedekind Exp $
+ * $Id: nodemgmt.c,v 1.122 2005/05/06 09:30:27 dedekind Exp $
  *
  */
 
@@ -75,7 +75,7 @@ int jffs2_reserve_space(struct jffs2_sb_info *c, uint32_t minsize, uint32_t *ofs
 			dirty = c->dirty_size + c->erasing_size - c->nr_erasing_blocks * c->sector_size + c->unchecked_size;
 			if (dirty < c->nospc_dirty_size) {
 				if (prio == ALLOC_DELETION && c->nr_free_blocks + c->nr_erasing_blocks >= c->resv_blocks_deletion) {
-					printk(KERN_NOTICE "jffs2_reserve_space(): Low on dirty space to GC, but it's a deletion. Allowing...\n");
+					D1(printk(KERN_NOTICE "jffs2_reserve_space(): Low on dirty space to GC, but it's a deletion. Allowing...\n"));
 					break;
 				}
 				D1(printk(KERN_DEBUG "dirty size 0x%08x + unchecked_size 0x%08x < nospc_dirty_size 0x%08x, returning -ENOSPC\n",
@@ -98,7 +98,7 @@ int jffs2_reserve_space(struct jffs2_sb_info *c, uint32_t minsize, uint32_t *ofs
 			avail = c->free_size + c->dirty_size + c->erasing_size + c->unchecked_size;
 			if ( (avail / c->sector_size) <= blocksneeded) {
 				if (prio == ALLOC_DELETION && c->nr_free_blocks + c->nr_erasing_blocks >= c->resv_blocks_deletion) {
-					printk(KERN_NOTICE "jffs2_reserve_space(): Low on possibly available space, but it's a deletion. Allowing...\n");
+					D1(printk(KERN_NOTICE "jffs2_reserve_space(): Low on possibly available space, but it's a deletion. Allowing...\n"));
 					break;
 				}
 
