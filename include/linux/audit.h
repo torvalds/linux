@@ -28,14 +28,16 @@
 #include <linux/elf.h>
 
 /* Request and reply types */
-#define AUDIT_GET      1000	/* Get status */
-#define AUDIT_SET      1001	/* Set status (enable/disable/auditd) */
-#define AUDIT_LIST     1002	/* List filtering rules */
-#define AUDIT_ADD      1003	/* Add filtering rule */
-#define AUDIT_DEL      1004	/* Delete filtering rule */
-#define AUDIT_USER     1005	/* Send a message from user-space */
-#define AUDIT_LOGIN    1006     /* Define the login id and informaiton */
-#define AUDIT_KERNEL   2000	/* Asynchronous audit record. NOT A REQUEST. */
+#define AUDIT_GET		1000	/* Get status */
+#define AUDIT_SET		1001	/* Set status (enable/disable/auditd) */
+#define AUDIT_LIST		1002	/* List filtering rules */
+#define AUDIT_ADD		1003	/* Add filtering rule */
+#define AUDIT_DEL		1004	/* Delete filtering rule */
+#define AUDIT_USER		1005	/* Send a message from user-space */
+#define AUDIT_LOGIN		1006	/* Define the login id and information */
+#define AUDIT_SIGNAL_INFO	1010	/* Get information about sender of signal*/
+
+#define AUDIT_KERNEL		2000	/* Asynchronous audit record. NOT A REQUEST. */
 
 /* Rule flags */
 #define AUDIT_PER_TASK 0x01	/* Apply rule at task creation (not syscall) */
@@ -161,6 +163,11 @@ struct audit_rule {		/* for AUDIT_LIST, AUDIT_ADD, and AUDIT_DEL */
 
 #ifdef __KERNEL__
 
+struct audit_sig_info {
+	uid_t		uid;
+	pid_t		pid;
+};
+
 struct audit_buffer;
 struct audit_context;
 struct inode;
@@ -190,6 +197,7 @@ extern void audit_get_stamp(struct audit_context *ctx,
 extern int  audit_set_loginuid(struct task_struct *task, uid_t loginuid);
 extern uid_t audit_get_loginuid(struct audit_context *ctx);
 extern int audit_ipc_perms(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode);
+extern void audit_signal_info(int sig, struct task_struct *t);
 #else
 #define audit_alloc(t) ({ 0; })
 #define audit_free(t) do { ; } while (0)
@@ -200,6 +208,7 @@ extern int audit_ipc_perms(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mo
 #define audit_inode(n,i) do { ; } while (0)
 #define audit_get_loginuid(c) ({ -1; })
 #define audit_ipc_perms(q,u,g,m) ({ 0; })
+#define audit_signal_info(s,t) do { ; } while (0)
 #endif
 
 #ifdef CONFIG_AUDIT

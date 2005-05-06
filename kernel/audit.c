@@ -68,7 +68,7 @@ static int	audit_failure = AUDIT_FAIL_PRINTK;
 
 /* If audit records are to be written to the netlink socket, audit_pid
  * contains the (non-zero) pid. */
-static int	audit_pid;
+int		audit_pid;
 
 /* If audit_limit is non-zero, limit the rate of sending audit records
  * to that number per second.  This prevents DoS attacks, but results in
@@ -78,6 +78,10 @@ static int	audit_rate_limit;
 /* Number of outstanding audit_buffers allowed. */
 static int	audit_backlog_limit = 64;
 static atomic_t	audit_backlog	    = ATOMIC_INIT(0);
+
+/* The identity of the user shutting down the audit system. */
+uid_t		audit_sig_uid = -1;
+pid_t		audit_sig_pid = -1;
 
 /* Records can be lost in several ways:
    0) [suppressed in audit_alloc]
@@ -321,6 +325,7 @@ static int audit_netlink_ok(kernel_cap_t eff_cap, u16 msg_type)
 	case AUDIT_SET:
 	case AUDIT_ADD:
 	case AUDIT_DEL:
+	case AUDIT_SIGNAL_INFO:
 		if (!cap_raised(eff_cap, CAP_AUDIT_CONTROL))
 			err = -EPERM;
 		break;
@@ -344,6 +349,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	struct audit_buffer	*ab;
 	u16			msg_type = nlh->nlmsg_type;
 	uid_t			loginuid; /* loginuid of sender */
+	struct audit_sig_info   sig_data;
 
 	err = audit_netlink_ok(NETLINK_CB(skb).eff_cap, msg_type);
 	if (err)
@@ -418,6 +424,12 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 #else
 		err = -EOPNOTSUPP;
 #endif
+		break;
+	case AUDIT_SIGNAL_INFO:
+		sig_data.uid = audit_sig_uid;
+		sig_data.pid = audit_sig_pid;
+		audit_send_reply(NETLINK_CB(skb).pid, seq, AUDIT_SIGNAL_INFO, 
+				0, 0, &sig_data, sizeof(sig_data));
 		break;
 	default:
 		err = -EINVAL;

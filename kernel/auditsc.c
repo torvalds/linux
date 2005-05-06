@@ -1056,3 +1056,22 @@ int audit_ipc_perms(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode)
 	context->aux = (void *)ax;
 	return 0;
 }
+
+void audit_signal_info(int sig, struct task_struct *t)
+{
+	extern pid_t audit_sig_pid;
+	extern uid_t audit_sig_uid;
+	extern int audit_pid;
+
+	if (unlikely(audit_pid && t->pid == audit_pid)) {
+		if (sig == SIGTERM || sig == SIGHUP) {
+			struct audit_context *ctx = current->audit_context;
+			audit_sig_pid = current->pid;
+			if (ctx)
+				audit_sig_uid = ctx->loginuid;
+			else
+				audit_sig_uid = current->uid;
+		}
+	}
+}
+
