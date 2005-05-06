@@ -509,8 +509,7 @@ static inline void decode_configs(struct cpuinfo_mips *c)
 static inline void cpu_probe_mips(struct cpuinfo_mips *c)
 {
 	decode_configs(c);
-	if (cpu_has_tlb)
-		c->options |= MIPS_CPU_4KTLB;
+	c->options |= MIPS_CPU_4KTLB;
 	switch (c->processor_id & 0xff00) {
 	case PRID_IMP_4KC:
 		c->cputype = CPU_4KC;
@@ -544,6 +543,7 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c)
 static inline void cpu_probe_alchemy(struct cpuinfo_mips *c)
 {
 	decode_configs(c);
+	c->options |= MIPS_CPU_4KTLB;
 	switch (c->processor_id & 0xff00) {
 	case PRID_IMP_AU1_REV1:
 	case PRID_IMP_AU1_REV2:
@@ -574,6 +574,7 @@ static inline void cpu_probe_alchemy(struct cpuinfo_mips *c)
 static inline void cpu_probe_sibyte(struct cpuinfo_mips *c)
 {
 	decode_configs(c);
+	c->options |= MIPS_CPU_4KTLB;
 	switch (c->processor_id & 0xff00) {
 	case PRID_IMP_SB1:
 		c->cputype = CPU_SB1;
@@ -588,8 +589,7 @@ static inline void cpu_probe_sibyte(struct cpuinfo_mips *c)
 static inline void cpu_probe_sandcraft(struct cpuinfo_mips *c)
 {
 	decode_configs(c);
-	if (cpu_has_tlb)
-		c->options |= MIPS_CPU_4KTLB;
+	c->options |= MIPS_CPU_4KTLB;
 	switch (c->processor_id & 0xff00) {
 	case PRID_IMP_SR71000:
 		c->cputype = CPU_SR71000;
