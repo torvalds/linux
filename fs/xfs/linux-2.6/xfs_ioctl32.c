@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2004-2005 Silicon Graphics, Inc.  All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -58,8 +58,9 @@ typedef struct xfs_fsop_bulkreq32 {
 	__s32		ocount;		/* output count pointer		*/
 } xfs_fsop_bulkreq32_t;
 
-static unsigned long
-xfs_ioctl32_bulkstat(unsigned long arg)
+STATIC unsigned long
+xfs_ioctl32_bulkstat(
+	unsigned long		arg)
 {
 	xfs_fsop_bulkreq32_t	__user *p32 = (void __user *)arg;
 	xfs_fsop_bulkreq_t	__user *p = compat_alloc_user_space(sizeof(*p));
@@ -78,11 +79,11 @@ xfs_ioctl32_bulkstat(unsigned long arg)
 }
 #endif
 
-static long
-__xfs_compat_ioctl(int mode, struct file *f, unsigned cmd, unsigned long arg)
+STATIC long
+__linvfs_compat_ioctl(int mode, struct file *f, unsigned cmd, unsigned long arg)
 {
 	int		error;
-	struct inode *inode = f->f_dentry->d_inode;
+	struct		inode *inode = f->f_dentry->d_inode;
 	vnode_t		*vp = LINVFS_GET_VP(inode);
 
 	switch (cmd) {
@@ -152,12 +153,20 @@ __xfs_compat_ioctl(int mode, struct file *f, unsigned cmd, unsigned long arg)
 	return error;
 }
 
-long xfs_compat_ioctl(struct file *f, unsigned cmd, unsigned long arg)
+long
+linvfs_compat_ioctl(
+	struct file		*f,
+	unsigned		cmd,
+	unsigned long		arg)
 {
-	return __xfs_compat_ioctl(0, f, cmd, arg);
+	return __linvfs_compat_ioctl(0, f, cmd, arg);
 }
 
-long xfs_compat_invis_ioctl(struct file *f, unsigned cmd, unsigned long arg)
+long
+linvfs_compat_invis_ioctl(
+	struct file		*f,
+	unsigned		cmd,
+	unsigned long		arg)
 {
-	return __xfs_compat_ioctl(IO_INVIS, f, cmd, arg);
+	return __linvfs_compat_ioctl(IO_INVIS, f, cmd, arg);
 }
