@@ -138,16 +138,18 @@ struct audit_buffer {
 	struct list_head     list;
 	struct sk_buff       *skb;	/* formatted skb ready to send */
 	struct audit_context *ctx;	/* NULL or associated context */
-	int		     len;	/* used area of tmp */
-	int		     size;	/* size of tmp */
-	char		     *tmp;	
-	int		     type;
-	int		     pid;
 };
 
 void audit_set_type(struct audit_buffer *ab, int type)
 {
-	ab->type = type;
+	struct nlmsghdr *nlh = (struct nlmsghdr *)ab->skb->data;
+	nlh->nlmsg_type = type;
+}
+
+static void audit_set_pid(struct audit_buffer *ab, pid_t pid)
+{
+	struct nlmsghdr *nlh = (struct nlmsghdr *)ab->skb->data;
+	nlh->nlmsg_pid = pid;
 }
 
 struct audit_entry {
@@ -405,8 +407,8 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 				 (int)(nlh->nlmsg_len
 				       - ((char *)data - (char *)nlh)),
 				 loginuid, (char *)data);
-		ab->type = AUDIT_USER;
-		ab->pid  = pid;
+		audit_set_type(ab, AUDIT_USER);
+		audit_set_pid(ab, pid);
 		audit_log_end(ab);
 		break;
 	case AUDIT_ADD:
@@ -476,42 +478,7 @@ static void audit_receive(struct sock *sk, int length)
 	up(&audit_netlink_sem);
 }
 
-/* Move data from tmp buffer into an skb.  This is an extra copy, and
- * that is unfortunate.  However, the copy will only occur when a record
- * is being written to user space, which is already a high-overhead
- * operation.  (Elimination of the copy is possible, for example, by
- * writing directly into a pre-allocated skb, at the cost of wasting
- * memory. */
-static void audit_log_move(struct audit_buffer *ab)
-{
-	struct sk_buff	*skb;
-	struct nlmsghdr *nlh;
-	char		*start;
-	int		len = NLMSG_SPACE(0) + ab->len + 1;
-
-	/* possible resubmission */
-	if (ab->skb)
-		return;
-
-	skb = alloc_skb(len, GFP_ATOMIC);
-	if (!skb) {
-		/* Lose information in ab->tmp */
-		audit_log_lost("out of memory in audit_log_move");
-		return;
-	}
-	ab->skb = skb;
-	nlh = (struct nlmsghdr *)skb_put(skb, NLMSG_SPACE(0));
-	nlh->nlmsg_type = ab->type;
-	nlh->nlmsg_len = ab->len;
-	nlh->nlmsg_flags = 0;
-	nlh->nlmsg_pid = ab->pid;
-	nlh->nlmsg_seq = 0;
-	start = skb_put(skb, ab->len);
-	memcpy(start, ab->tmp, ab->len);
-}
-
-/* Iterate over the skbuff in the audit_buffer, sending their contents
- * to user space. */
+/* Grab skbuff from the audit_buffer and send to user space. */
 static inline int audit_log_drain(struct audit_buffer *ab)
 {
 	struct sk_buff *skb = ab->skb;
@@ -520,6 +487,8 @@ static inline int audit_log_drain(struct audit_buffer *ab)
 		int retval = 0;
 
 		if (audit_pid) {
+			struct nlmsghdr *nlh = (struct nlmsghdr *)skb->data;
+			nlh->nlmsg_len = skb->len;
 			skb_get(skb); /* because netlink_* frees */
 			retval = netlink_unicast(audit_sock, skb, audit_pid,
 						 MSG_DONTWAIT);
@@ -544,7 +513,6 @@ static inline int audit_log_drain(struct audit_buffer *ab)
 			skb->data[offset + len] = '\0';
 			printk(KERN_ERR "%s\n", skb->data + offset);
 		}
-		kfree_skb(skb);
 	}
 	return 0;
 }
@@ -615,7 +583,8 @@ static void audit_buffer_free(struct audit_buffer *ab)
 	if (!ab)
 		return;
 
-	kfree(ab->tmp);
+	if (ab->skb)
+		kfree_skb(ab->skb);
 	atomic_dec(&audit_backlog);
 	spin_lock_irqsave(&audit_freelist_lock, flags);
 	if (++audit_freelist_count > AUDIT_MAXFREE)
@@ -630,6 +599,7 @@ static struct audit_buffer * audit_buffer_alloc(struct audit_context *ctx,
 {
 	unsigned long flags;
 	struct audit_buffer *ab = NULL;
+	struct nlmsghdr *nlh;
 
 	spin_lock_irqsave(&audit_freelist_lock, flags);
 	if (!list_empty(&audit_freelist)) {
@@ -647,16 +617,16 @@ static struct audit_buffer * audit_buffer_alloc(struct audit_context *ctx,
 	}
 	atomic_inc(&audit_backlog);
 
-	ab->tmp = kmalloc(AUDIT_BUFSIZ, GFP_ATOMIC);
-	if (!ab->tmp)
+	ab->skb = alloc_skb(AUDIT_BUFSIZ, GFP_ATOMIC);
+	if (!ab->skb)
 		goto err;
 
-	ab->skb   = NULL;
 	ab->ctx   = ctx;
-	ab->len   = 0;
-	ab->size  = AUDIT_BUFSIZ;
-	ab->type  = AUDIT_KERNEL;
-	ab->pid   = 0;
+	nlh = (struct nlmsghdr *)skb_put(ab->skb, NLMSG_SPACE(0));
+	nlh->nlmsg_type = AUDIT_KERNEL;
+	nlh->nlmsg_flags = 0;
+	nlh->nlmsg_pid = 0;
+	nlh->nlmsg_seq = 0;
 	return ab;
 err:
 	audit_buffer_free(ab);
@@ -711,7 +681,7 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx)
 }
 
 /**
- * audit_expand - expand tmp buffer in the audit buffer
+ * audit_expand - expand skb in the audit buffer
  * @ab: audit_buffer
  *
  * Returns 0 (no space) on failed expansion, or available space if
@@ -719,17 +689,14 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx)
  */
 static inline int audit_expand(struct audit_buffer *ab)
 {
-	char *tmp;
-	int len = ab->size + AUDIT_BUFSIZ;
-
-	tmp = kmalloc(len, GFP_ATOMIC);
-	if (!tmp)
+	struct sk_buff *skb = ab->skb;
+	int ret = pskb_expand_head(skb, skb_headroom(skb), AUDIT_BUFSIZ,
+				   GFP_ATOMIC);
+	if (ret < 0) {
+		audit_log_lost("out of memory in audit_expand");
 		return 0;
-	memcpy(tmp, ab->tmp, ab->len);
-	kfree(ab->tmp);
-	ab->tmp = tmp;
-	ab->size = len;
-	return ab->size - ab->len;
+	}
+	return skb_tailroom(skb);
 }
 
 /* Format an audit message into the audit buffer.  If there isn't enough
@@ -740,17 +707,20 @@ static void audit_log_vformat(struct audit_buffer *ab, const char *fmt,
 			      va_list args)
 {
 	int len, avail;
+	struct sk_buff *skb;
 
 	if (!ab)
 		return;
 
-	avail = ab->size - ab->len;
-	if (avail <= 0) {
+	BUG_ON(!ab->skb);
+	skb = ab->skb;
+	avail = skb_tailroom(skb);
+	if (avail == 0) {
 		avail = audit_expand(ab);
 		if (!avail)
 			goto out;
 	}
-	len = vsnprintf(ab->tmp + ab->len, avail, fmt, args);
+	len = vsnprintf(skb->tail, avail, fmt, args);
 	if (len >= avail) {
 		/* The printk buffer is 1024 bytes long, so if we get
 		 * here and AUDIT_BUFSIZ is at least 1024, then we can
@@ -758,9 +728,9 @@ static void audit_log_vformat(struct audit_buffer *ab, const char *fmt,
 		avail = audit_expand(ab);
 		if (!avail)
 			goto out;
-		len = vsnprintf(ab->tmp + ab->len, avail, fmt, args);
+		len = vsnprintf(skb->tail, avail, fmt, args);
 	}
-	ab->len   += (len < avail) ? len : avail;
+	skb_put(skb, (len < avail) ? len : avail);
 out:
 	return;
 }
@@ -808,21 +778,22 @@ void audit_log_d_path(struct audit_buffer *ab, const char *prefix,
 		      struct dentry *dentry, struct vfsmount *vfsmnt)
 {
 	char *p;
+	struct sk_buff *skb = ab->skb;
 	int  len, avail;
 
 	if (prefix)
 		audit_log_format(ab, " %s", prefix);
 
-	avail = ab->size - ab->len;
-	p = d_path(dentry, vfsmnt, ab->tmp + ab->len, avail);
+	avail = skb_tailroom(skb);
+	p = d_path(dentry, vfsmnt, skb->tail, avail);
 	if (IS_ERR(p)) {
 		/* FIXME: can we save some information here? */
 		audit_log_format(ab, "<toolong>");
 	} else {
-				/* path isn't at start of buffer */
-		len = (ab->tmp + ab->size - 1) - p;
-		memmove(ab->tmp + ab->len, p, len);
-		ab->len   += len;
+		/* path isn't at start of buffer */
+		len = ((char *)skb->tail + avail - 1) - p;
+		memmove(skb->tail, p, len);
+		skb_put(skb, len);
 	}
 }
 
@@ -873,7 +844,6 @@ static void audit_log_end_fast(struct audit_buffer *ab)
 	if (!audit_rate_check()) {
 		audit_log_lost("rate limit exceeded");
 	} else {
-		audit_log_move(ab);
 		if (audit_log_drain(ab))
 			return;
 	}
