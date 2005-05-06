@@ -611,13 +611,13 @@ static struct audit_buffer * audit_buffer_alloc(struct audit_context *ctx,
 	spin_unlock_irqrestore(&audit_freelist_lock, flags);
 
 	if (!ab) {
-		ab = kmalloc(sizeof(*ab), GFP_ATOMIC);
+		ab = kmalloc(sizeof(*ab), gfp_mask);
 		if (!ab)
 			goto err;
 	}
 	atomic_inc(&audit_backlog);
 
-	ab->skb = alloc_skb(AUDIT_BUFSIZ, GFP_ATOMIC);
+	ab->skb = alloc_skb(AUDIT_BUFSIZ, gfp_mask);
 	if (!ab->skb)
 		goto err;
 
