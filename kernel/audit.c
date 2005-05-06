@@ -620,6 +620,42 @@ static int __init audit_enable(char *str)
 
 __setup("audit=", audit_enable);
 
+static void audit_buffer_free(struct audit_buffer *ab)
+{
+	unsigned long flags;
+
+	atomic_dec(&audit_backlog);
+	spin_lock_irqsave(&audit_freelist_lock, flags);
+	if (++audit_freelist_count > AUDIT_MAXFREE)
+		kfree(ab);
+	else
+		list_add(&ab->list, &audit_freelist);
+	spin_unlock_irqrestore(&audit_freelist_lock, flags);
+}
+
+static struct audit_buffer * audit_buffer_alloc(int gfp_mask)
+{
+	unsigned long flags;
+	struct audit_buffer *ab = NULL;
+
+	spin_lock_irqsave(&audit_freelist_lock, flags);
+	if (!list_empty(&audit_freelist)) {
+		ab = list_entry(audit_freelist.next,
+				struct audit_buffer, list);
+		list_del(&ab->list);
+		--audit_freelist_count;
+	}
+	spin_unlock_irqrestore(&audit_freelist_lock, flags);
+
+	if (!ab) {
+		ab = kmalloc(sizeof(*ab), GFP_ATOMIC);
+		if (!ab)
+			goto out;
+	}
+	atomic_inc(&audit_backlog);
+out:
+	return ab;
+}
 
 /* Obtain an audit buffer.  This routine does locking to obtain the
  * audit buffer, but then no locking is required for calls to
@@ -630,7 +666,6 @@ __setup("audit=", audit_enable);
 struct audit_buffer *audit_log_start(struct audit_context *ctx)
 {
 	struct audit_buffer	*ab	= NULL;
-	unsigned long		flags;
 	struct timespec		t;
 	unsigned int		serial;
 
@@ -649,23 +684,12 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx)
 		return NULL;
 	}
 
-	spin_lock_irqsave(&audit_freelist_lock, flags);
-	if (!list_empty(&audit_freelist)) {
-		ab = list_entry(audit_freelist.next,
-				struct audit_buffer, list);
-		list_del(&ab->list);
-		--audit_freelist_count;
-	}
-	spin_unlock_irqrestore(&audit_freelist_lock, flags);
-
-	if (!ab)
-		ab = kmalloc(sizeof(*ab), GFP_ATOMIC);
+	ab = audit_buffer_alloc(GFP_ATOMIC);
 	if (!ab) {
 		audit_log_lost("out of memory in audit_log_start");
 		return NULL;
 	}
 
-	atomic_inc(&audit_backlog);
 	skb_queue_head_init(&ab->sklist);
 
 	ab->ctx   = ctx;
@@ -824,8 +848,6 @@ static void audit_log_end_irq(struct audit_buffer *ab)
  * be called in an irq context. */
 static void audit_log_end_fast(struct audit_buffer *ab)
 {
-	unsigned long flags;
-
 	BUG_ON(in_irq());
 	if (!ab)
 		return;
@@ -836,14 +858,7 @@ static void audit_log_end_fast(struct audit_buffer *ab)
 		if (audit_log_drain(ab))
 			return;
 	}
-
-	atomic_dec(&audit_backlog);
-	spin_lock_irqsave(&audit_freelist_lock, flags);
-	if (++audit_freelist_count > AUDIT_MAXFREE)
-		kfree(ab);
-	else
-		list_add(&ab->list, &audit_freelist);
-	spin_unlock_irqrestore(&audit_freelist_lock, flags);
+	audit_buffer_free(ab);
 }
 
 /* Send or queue the message in the audit buffer, depending on the
