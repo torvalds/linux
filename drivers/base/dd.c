@@ -177,33 +177,40 @@ void driver_attach(struct device_driver * drv)
  *	@dev:	device.
  *
  *	Manually detach device from driver.
- *	Note that this is called without incrementing the bus
- *	reference count nor taking the bus's rwsem. Be sure that
- *	those are accounted for before calling this function.
+ *
+ *	__device_release_driver() must be called with @dev->sem held.
  */
-void device_release_driver(struct device * dev)
+
+static void __device_release_driver(struct device * dev)
 {
 	struct device_driver * drv;
 
-	down(&dev->sem);
-	if (dev->driver) {
-		drv = dev->driver;
+	drv = dev->driver;
+	if (drv) {
+		get_driver(drv);
 		sysfs_remove_link(&drv->kobj, kobject_name(&dev->kobj));
 		sysfs_remove_link(&dev->kobj, "driver");
-		klist_del(&dev->knode_driver);
+		klist_remove(&dev->knode_driver);
 
 		if (drv->remove)
 			drv->remove(dev);
 		dev->driver = NULL;
+		put_driver(drv);
 	}
+}
+
+void device_release_driver(struct device * dev)
+{
+	/*
+	 * If anyone calls device_release_driver() recursively from
+	 * within their ->remove callback for the same device, they
+	 * will deadlock right here.
+	 */
+	down(&dev->sem);
+	__device_release_driver(dev);
 	up(&dev->sem);
 }
 
-static int __remove_driver(struct device * dev, void * unused)
-{
-	device_release_driver(dev);
-	return 0;
-}
 
 /**
  * driver_detach - detach driver from all devices it controls.
@@ -211,7 +218,25 @@ static int __remove_driver(struct device * dev, void * unused)
  */
 void driver_detach(struct device_driver * drv)
 {
-	driver_for_each_device(drv, NULL, NULL, __remove_driver);
+	struct device * dev;
+
+	for (;;) {
+		spin_lock_irq(&drv->klist_devices.k_lock);
+		if (list_empty(&drv->klist_devices.k_list)) {
+			spin_unlock_irq(&drv->klist_devices.k_lock);
+			break;
+		}
+		dev = list_entry(drv->klist_devices.k_list.prev,
+				struct device, knode_driver.n_node);
+		get_device(dev);
+		spin_unlock_irq(&drv->klist_devices.k_lock);
+
+		down(&dev->sem);
+		if (dev->driver == drv)
+			__device_release_driver(dev);
+		up(&dev->sem);
+		put_device(dev);
+	}
 }
 
 
