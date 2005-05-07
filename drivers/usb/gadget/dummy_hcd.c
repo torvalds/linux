@@ -1267,9 +1267,6 @@ restart:
 			struct dummy_ep			*ep2;
 
 			setup = *(struct usb_ctrlrequest*) urb->setup_packet;
-			le16_to_cpus (&setup.wIndex);
-			le16_to_cpus (&setup.wValue);
-			le16_to_cpus (&setup.wLength);
 			if (setup.wLength != urb->transfer_buffer_length) {
 				maybe_set_status (urb, -EOVERFLOW);
 				goto return_urb;

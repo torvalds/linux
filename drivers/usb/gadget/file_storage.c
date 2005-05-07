@@ -819,7 +819,7 @@ static void inline put_be32(u8 *buf, u32 val)
 	buf[0] = val >> 24;
 	buf[1] = val >> 16;
 	buf[2] = val >> 8;
-	buf[3] = val;
+	buf[3] = val & 0xff;
 }
 
 
@@ -1277,8 +1277,8 @@ static int class_setup_req(struct fsg_dev *fsg,
 {
 	struct usb_request	*req = fsg->ep0req;
 	int			value = -EOPNOTSUPP;
-	u16			w_index = ctrl->wIndex;
-	u16			w_length = ctrl->wLength;
+	u16			w_index = le16_to_cpu(ctrl->wIndex);
+	u16			w_length = le16_to_cpu(ctrl->wLength);
 
 	if (!fsg->config)
 		return value;
@@ -1345,7 +1345,7 @@ static int class_setup_req(struct fsg_dev *fsg,
 			"unknown class-specific control req "
 			"%02x.%02x v%04x i%04x l%u\n",
 			ctrl->bRequestType, ctrl->bRequest,
-			ctrl->wValue, w_index, w_length);
+			le16_to_cpu(ctrl->wValue), w_index, w_length);
 	return value;
 }
 
@@ -1359,8 +1359,8 @@ static int standard_setup_req(struct fsg_dev *fsg,
 {
 	struct usb_request	*req = fsg->ep0req;
 	int			value = -EOPNOTSUPP;
-	u16			w_index = ctrl->wIndex;
-	u16			w_value = ctrl->wValue;
+	u16			w_index = le16_to_cpu(ctrl->wIndex);
+	u16			w_value = le16_to_cpu(ctrl->wValue);
 
 	/* Usually this just stores reply data in the pre-allocated ep0 buffer,
 	 * but config change events will also reconfigure hardware. */
@@ -1469,7 +1469,7 @@ static int standard_setup_req(struct fsg_dev *fsg,
 		VDBG(fsg,
 			"unknown control req %02x.%02x v%04x i%04x l%u\n",
 			ctrl->bRequestType, ctrl->bRequest,
-			w_value, w_index, ctrl->wLength);
+			w_value, w_index, le16_to_cpu(ctrl->wLength));
 	}
 
 	return value;
@@ -1481,7 +1481,7 @@ static int fsg_setup(struct usb_gadget *gadget,
 {
 	struct fsg_dev		*fsg = get_gadget_data(gadget);
 	int			rc;
-	int			w_length = ctrl->wLength;
+	int			w_length = le16_to_cpu(ctrl->wLength);
 
 	++fsg->ep0_req_tag;		// Record arrival of a new request
 	fsg->ep0req->context = NULL;
@@ -1497,8 +1497,7 @@ static int fsg_setup(struct usb_gadget *gadget,
 	if (rc >= 0 && rc != DELAYED_STATUS) {
 		rc = min(rc, w_length);
 		fsg->ep0req->length = rc;
-		fsg->ep0req->zero = (rc < w_length &&
-				(rc % gadget->ep0->maxpacket) == 0);
+		fsg->ep0req->zero = rc < w_length;
 		fsg->ep0req_name = (ctrl->bRequestType & USB_DIR_IN ?
 				"ep0-in" : "ep0-out");
 		rc = ep0_queue(fsg);

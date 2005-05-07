@@ -1277,9 +1277,9 @@ eth_setup (struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 	struct eth_dev		*dev = get_gadget_data (gadget);
 	struct usb_request	*req = dev->req;
 	int			value = -EOPNOTSUPP;
-	u16			wIndex = (__force u16) ctrl->wIndex;
-	u16			wValue = (__force u16) ctrl->wValue;
-	u16			wLength = (__force u16) ctrl->wLength;
+	u16			wIndex = le16_to_cpu(ctrl->wIndex);
+	u16			wValue = le16_to_cpu(ctrl->wValue);
+	u16			wLength = le16_to_cpu(ctrl->wLength);
 
 	/* descriptors just go into the pre-allocated ep0 buffer,
 	 * while config change events may enable network traffic.
