@@ -357,8 +357,7 @@ tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		    V4L2_TUNER_RADIO != t->mode)
 			set_tv_freq(client,400*16);
 		t->mode  = f->type;
-		t->freq  = f->frequency;
-		set_freq(client,t->freq);
+		set_freq(client,f->frequency);
 		break;
 	}
 	case VIDIOC_G_TUNER:
