@@ -33,8 +33,8 @@ extern unsigned long uml_physmem;
          (((unsigned long) (addr) <= ((unsigned long) (addr) + (size))) && \
           (under_task_size(addr, size) || is_stack(addr, size))))
 
-static inline int __deprecated verify_area_tt(int type, const void * addr,
-				 unsigned long size)
+static inline int verify_area_tt(int type, const void * addr,
+                                 unsigned long size)
 {
 	return(access_ok_tt(type, addr, size) ? 0 : -EFAULT);
 }
