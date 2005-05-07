@@ -360,6 +360,15 @@ tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		set_freq(client,f->frequency);
 		break;
 	}
+	case VIDIOC_G_FREQUENCY:
+	{
+		struct v4l2_frequency *f = arg;
+
+		SWITCH_V4L2;
+		f->type = t->mode;
+		f->frequency = t->freq;
+		break;
+	}
 	case VIDIOC_G_TUNER:
 	{
 		struct v4l2_tuner *tuner = arg;
@@ -367,6 +376,8 @@ tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		SWITCH_V4L2;
 		if (V4L2_TUNER_RADIO == t->mode  &&  t->has_signal)
 			tuner->signal = t->has_signal(client);
+		tuner->rangelow = tv_range[0] * 16;
+		tuner->rangehigh = tv_range[1] * 16;
 		break;
 	}
 	default:
