@@ -115,16 +115,6 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 	return(pid);
 }
 
-void switch_mm(struct mm_struct *prev, struct mm_struct *next, 
-	       struct task_struct *tsk)
-{
-	int cpu = smp_processor_id();
-
-	if (prev != next) 
-		cpu_clear(cpu, prev->cpu_vm_mask);
-	cpu_set(cpu, next->cpu_vm_mask);
-}
-
 void set_current(void *t)
 {
 	struct task_struct *task = t;
