@@ -142,7 +142,6 @@ void release_thread(struct task_struct *task)
  
 void exit_thread(void)
 {
-	CHOOSE_MODE(exit_thread_tt(), exit_thread_skas());
 	unprotect_stack((unsigned long) current_thread);
 }
  

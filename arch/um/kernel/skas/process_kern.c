@@ -83,10 +83,6 @@ void release_thread_skas(struct task_struct *task)
 {
 }
 
-void exit_thread_skas(void)
-{
-}
-
 void fork_handler(int sig)
 {
         change_sig(SIGUSR1, 1);
