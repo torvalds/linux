@@ -41,7 +41,13 @@
  *    Integrated with snd-emu10k1 driver.
  *  0.22
  *    Removed #if 0 ... #endif
- *
+ *  0.23
+ *    Implement different capture rates.
+ *  0.24
+ *    Implement different capture source channels.
+ *    e.g. When HD Capture source is set to SPDIF,
+ *    setting HD Capture channel to 0 captures from CDROM digital input.
+ *    setting HD Capture channel to 1 captures from SPDIF in.
  *
  *  BUGS:
  *    Some stability problems when unloading the snd-p16v kernel module.
@@ -933,6 +939,56 @@ static snd_kcontrol_new_t snd_p16v_capture_source __devinitdata =
 	.get =		snd_p16v_capture_source_get,
 	.put =		snd_p16v_capture_source_put
 };
+
+static int snd_p16v_capture_channel_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+{
+	static char *texts[4] = { "0", "1", "2", "3",  };
+
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	uinfo->count = 1;
+	uinfo->value.enumerated.items = 4;
+	if (uinfo->value.enumerated.item > 3)
+                uinfo->value.enumerated.item = 3;
+	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
+	return 0;
+}
+
+static int snd_p16v_capture_channel_get(snd_kcontrol_t * kcontrol,
+					snd_ctl_elem_value_t * ucontrol)
+{
+	emu10k1_t *emu = snd_kcontrol_chip(kcontrol);
+
+	ucontrol->value.enumerated.item[0] = emu->p16v_capture_channel;
+	return 0;
+}
+
+static int snd_p16v_capture_channel_put(snd_kcontrol_t * kcontrol,
+					snd_ctl_elem_value_t * ucontrol)
+{
+	emu10k1_t *emu = snd_kcontrol_chip(kcontrol);
+	unsigned int val;
+	int change = 0;
+	u32 tmp;
+
+	val = ucontrol->value.enumerated.item[0] ;
+	change = (emu->p16v_capture_channel != val);
+	if (change) {
+		emu->p16v_capture_channel = val;
+		tmp = snd_emu10k1_ptr20_read(emu, CAPTURE_P16V_SOURCE, 0) & 0xfffc;
+		snd_emu10k1_ptr20_write(emu, CAPTURE_P16V_SOURCE, 0, tmp | val);
+	}
+        return change;
+}
+
+static snd_kcontrol_new_t snd_p16v_capture_channel __devinitdata =
+{
+	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name =		"HD Capture channel",
+	.info =		snd_p16v_capture_channel_info,
+	.get =		snd_p16v_capture_channel_get,
+	.put =		snd_p16v_capture_channel_put
+};
+
 int snd_p16v_mixer(emu10k1_t *emu)
 {
         int err;
@@ -971,6 +1027,10 @@ int snd_p16v_mixer(emu10k1_t *emu)
         if ((err = snd_ctl_add(card, kctl)))
                 return err;
         if ((kctl = snd_ctl_new1(&snd_p16v_capture_source, emu)) == NULL)
+                return -ENOMEM;
+        if ((err = snd_ctl_add(card, kctl)))
+                return err;
+        if ((kctl = snd_ctl_new1(&snd_p16v_capture_channel, emu)) == NULL)
                 return -ENOMEM;
         if ((err = snd_ctl_add(card, kctl)))
                 return err;

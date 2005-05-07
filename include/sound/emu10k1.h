@@ -1130,6 +1130,7 @@ struct _snd_emu10k1 {
 	emu10k1_voice_t p16v_capture_voice;
 	int p16v_device_offset;
 	u32 p16v_capture_source;
+	u32 p16v_capture_channel;
 	emu10k1_pcm_mixer_t pcm_mixer[32];
 	emu10k1_pcm_mixer_t efx_pcm_mixer[NUM_EFX_PLAYBACK];
 	snd_kcontrol_t *ctl_send_routing;
