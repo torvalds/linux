@@ -1,7 +1,7 @@
 /*
  *  Copyright (c) by James Courtier-Dutton <James@superbug.demon.co.uk>
  *  Driver p16v chips
- *  Version: 0.22
+ *  Version: 0.25
  *
  *  FEATURES currently supported:
  *    Output fixed at S32_LE, 2 channel to hw:0,0
@@ -48,6 +48,8 @@
  *    e.g. When HD Capture source is set to SPDIF,
  *    setting HD Capture channel to 0 captures from CDROM digital input.
  *    setting HD Capture channel to 1 captures from SPDIF in.
+ *  0.25
+ *    Include capture buffer sizes.
  *
  *  BUGS:
  *    Some stability problems when unloading the snd-p16v kernel module.
@@ -149,9 +151,9 @@ static snd_pcm_hardware_t snd_p16v_capture_hw = {
 	.rate_max =		192000,
 	.channels_min =		2,
 	.channels_max =		2,
-	.buffer_bytes_max =	(32*1024),
+	.buffer_bytes_max =	(65536 - 64),
 	.period_bytes_min =	64,
-	.period_bytes_max =	(16*1024),
+	.period_bytes_max =	(65536 - 128) >> 1,  /* size has to be N*64 bytes */
 	.periods_min =		2,
 	.periods_max =		2,
 	.fifo_size =		0,
@@ -637,7 +639,7 @@ int snd_p16v_pcm(emu10k1_t *emu, int device, snd_pcm_t **rpcm)
  		if ((err = snd_pcm_lib_preallocate_pages(substream, 
 	                                           SNDRV_DMA_TYPE_DEV, 
 	                                           snd_dma_pci_data(emu->pci), 
-	                                           64*1024, 64*1024)) < 0)
+	                                           65536 - 64, 65536 - 64)) < 0)
 			return err;
 		//snd_printk("preallocate capture substream: err=%d\n", err);
 	}
