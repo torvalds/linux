@@ -262,6 +262,7 @@ config PPC_RTAS
 config RTAS_PROC
 	bool "Proc interface to RTAS"
 	depends on PPC_RTAS
+	default y
 
 config RTAS_FLASH
 	tristate "Firmware flash interface"
