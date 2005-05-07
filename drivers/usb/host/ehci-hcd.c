@@ -304,30 +304,31 @@ static void ehci_watchdog (unsigned long param)
  */
 static int bios_handoff (struct ehci_hcd *ehci, int where, u32 cap)
 {
+	struct pci_dev *pdev = to_pci_dev(ehci_to_hcd(ehci)->self.controller);
+
+	/* always say Linux will own the hardware */
+	pci_write_config_byte(pdev, where + 3, 1);
+
+	/* maybe wait a while for BIOS to respond */
 	if (cap & (1 << 16)) {
 		int msec = 5000;
-		struct pci_dev *pdev =
-				to_pci_dev(ehci_to_hcd(ehci)->self.controller);
 
-		/* request handoff to OS */
-		cap |= 1 << 24;
-		pci_write_config_dword(pdev, where, cap);
-
-		/* and wait a while for it to happen */
 		do {
 			msleep(10);
 			msec -= 10;
 			pci_read_config_dword(pdev, where, &cap);
 		} while ((cap & (1 << 16)) && msec);
 		if (cap & (1 << 16)) {
-			ehci_err (ehci, "BIOS handoff failed (%d, %04x)\n",
+			ehci_err(ehci, "BIOS handoff failed (%d, %08x)\n",
 				where, cap);
 			// some BIOS versions seem buggy...
 			// return 1;
 			ehci_warn (ehci, "continuing after BIOS bug...\n");
-			return 0;
-		} 
-		ehci_dbg (ehci, "BIOS handoff succeeded\n");
+			/* disable all SMIs, and clear "BIOS owns" flag */
+			pci_write_config_dword(pdev, where + 4, 0);
+			pci_write_config_byte(pdev, where + 2, 0);
+		} else
+			ehci_dbg(ehci, "BIOS handoff succeeded\n");
 	}
 	return 0;
 }
@@ -586,8 +587,8 @@ static int ehci_start (struct usb_hcd *hcd)
 		writel (0, &ehci->regs->segment);
 #if 0
 // this is deeply broken on almost all architectures
-		if (!pci_set_dma_mask (to_pci_dev(hcd->self.controller), 0xffffffffffffffffULL))
-			ehci_info (ehci, "enabled 64bit PCI DMA\n");
+		if (!dma_set_mask (hcd->self.controller, DMA_64BIT_MASK))
+			ehci_info (ehci, "enabled 64bit DMA\n");
 #endif
 	}
 
