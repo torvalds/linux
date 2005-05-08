@@ -136,7 +136,7 @@ static SYSDEV_ATTR(distance, S_IRUGO, node_read_distance, NULL);
  *
  * Initialize and register the node device.
  */
-int __init register_node(struct node *node, int num, struct node *parent)
+int register_node(struct node *node, int num, struct node *parent)
 {
 	int error;
 
@@ -153,8 +153,24 @@ int __init register_node(struct node *node, int num, struct node *parent)
 	return error;
 }
 
+/**
+ * unregister_node - unregister a node device
+ * @node: node going away
+ *
+ * Unregisters a node device @node.  All the devices on the node must be
+ * unregistered before calling this function.
+ */
+void unregister_node(struct node *node)
+{
+	sysdev_remove_file(&node->sysdev, &attr_cpumap);
+	sysdev_remove_file(&node->sysdev, &attr_meminfo);
+	sysdev_remove_file(&node->sysdev, &attr_numastat);
+	sysdev_remove_file(&node->sysdev, &attr_distance);
 
-int __init register_node_type(void)
+	sysdev_unregister(&node->sysdev);
+}
+
+static int __init register_node_type(void)
 {
 	return sysdev_class_register(&node_class);
 }
