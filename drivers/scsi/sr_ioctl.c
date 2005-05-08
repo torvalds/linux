@@ -281,6 +281,9 @@ int sr_get_mcn(struct cdrom_device_info *cdi, struct cdrom_mcn *mcn)
 	char *buffer = kmalloc(32, GFP_KERNEL | SR_GFP_DMA(cd));
 	int result;
 
+	if (!buffer)
+		return -ENOMEM;
+
 	memset(&cgc, 0, sizeof(struct packet_command));
 	cgc.cmd[0] = GPCMD_READ_SUBCHANNEL;
 	cgc.cmd[2] = 0x40;	/* I do want the subchannel info */

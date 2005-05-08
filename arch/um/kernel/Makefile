@@ -23,14 +23,10 @@ obj-$(CONFIG_SYSCALL_DEBUG) += syscall_user.o
 obj-$(CONFIG_MODE_TT) += tt/
 obj-$(CONFIG_MODE_SKAS) += skas/
 
-# This needs be compiled with frame pointers regardless of how the rest of the
-# kernel is built.
-CFLAGS_frame.o := -fno-omit-frame-pointer
-
 user-objs-$(CONFIG_TTY_LOG) += tty_log.o
 
 USER_OBJS := $(user-objs-y) config.o helper.o main.o process.o tempfile.o \
-	time.o tty_log.o umid.o user_util.o frame.o
+	time.o tty_log.o umid.o user_util.o
 
 include arch/um/scripts/Makefile.rules
 

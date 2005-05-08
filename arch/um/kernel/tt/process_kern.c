@@ -65,8 +65,7 @@ void *switch_to_tt(void *prev, void *next, void *last)
 		panic("write of switch_pipe failed, err = %d", -err);
 
 	reading = 1;
-	if((from->exit_state == EXIT_ZOMBIE) ||
-	   (from->exit_state == EXIT_DEAD))
+        if(from->thread.mode.tt.switch_pipe[0] == -1)
 		os_kill_process(os_getpid(), 0);
 
 	err = os_read_file(from->thread.mode.tt.switch_pipe[0], &c, sizeof(c));
@@ -81,8 +80,7 @@ void *switch_to_tt(void *prev, void *next, void *last)
 	 * in case it has not already killed itself.
 	 */
 	prev_sched = current->thread.prev_sched;
-	if((prev_sched->exit_state == EXIT_ZOMBIE) ||
-	   (prev_sched->exit_state == EXIT_DEAD))
+        if(prev_sched->thread.mode.tt.switch_pipe[0] == -1)
 		os_kill_process(prev_sched->thread.mode.tt.extern_pid, 1);
 
 	change_sig(SIGVTALRM, vtalrm);
@@ -101,14 +99,18 @@ void release_thread_tt(struct task_struct *task)
 {
 	int pid = task->thread.mode.tt.extern_pid;
 
+	/*
+         * We first have to kill the other process, before
+         * closing its switch_pipe. Else it might wake up
+         * and receive "EOF" before we could kill it.
+         */
 	if(os_getpid() != pid)
 		os_kill_process(pid, 0);
-}
 
-void exit_thread_tt(void)
-{
-	os_close_file(current->thread.mode.tt.switch_pipe[0]);
-	os_close_file(current->thread.mode.tt.switch_pipe[1]);
+        os_close_file(task->thread.mode.tt.switch_pipe[0]);
+        os_close_file(task->thread.mode.tt.switch_pipe[1]);
+	/* use switch_pipe as flag: thread is released */
+        task->thread.mode.tt.switch_pipe[0] = -1;
 }
 
 void suspend_new_thread(int fd)

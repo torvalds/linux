@@ -2038,8 +2038,9 @@ static void sym2_set_period(struct scsi_target *starget, int period)
 	struct sym_hcb *np = sym_get_hcb(shost);
 	struct sym_tcb *tp = &np->target[starget->id];
 
-	/* have to have DT for these transfers */
-	if (period <= np->minsync)
+	/* have to have DT for these transfers, but DT will also
+	 * set width, so check that this is allowed */
+	if (period <= np->minsync && spi_width(starget))
 		tp->tgoal.dt = 1;
 
 	tp->tgoal.period = period;

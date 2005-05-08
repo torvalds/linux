@@ -1009,6 +1009,8 @@ get_pci_irq(struct pci_dev *dev, struct pci_board *board, int idx)
  *  n    = number of serial ports
  *  baud = baud rate
  *
+ * This table is sorted by (in order): baud, bt, bn, n.
+ *
  * Please note: in theory if n = 1, _bt infix should make no difference.
  * ie, pbn_b0_1_115200 is the same as pbn_b0_bt_1_115200
  */

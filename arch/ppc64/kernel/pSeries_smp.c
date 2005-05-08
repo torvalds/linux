@@ -326,13 +326,6 @@ static void __devinit smp_xics_setup_cpu(int cpu)
 
 	cpu_clear(cpu, of_spin_map);
 
-	/*
-	 * Put the calling processor into the GIQ.  This is really only
-	 * necessary from a secondary thread as the OF start-cpu interface
-	 * performs this function for us on primary threads.
-	 */
-	rtas_set_indicator(GLOBAL_INTERRUPT_QUEUE,
-		(1UL << interrupt_server_size) - 1 - default_distrib_server, 1);
 }
 
 static DEFINE_SPINLOCK(timebase_lock);

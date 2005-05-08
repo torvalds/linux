@@ -2335,8 +2335,6 @@ ahc_linux_free_target(struct ahc_softc *ahc, struct ahc_linux_target *targ)
 		      AHC_TRANS_GOAL, /*paused*/FALSE);
 	ahc_update_neg_request(ahc, &devinfo, tstate, tinfo, AHC_NEG_ALWAYS);
 	ahc->platform_data->targets[target_offset] = NULL;
-	if (targ->inq_data != NULL)
-		free(targ->inq_data, M_DEVBUF);
 	free(targ, M_DEVBUF);
 }
 

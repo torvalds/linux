@@ -18,8 +18,8 @@
 	  ((unsigned long) (addr) + (size) <= FIXADDR_USER_END) && \
 	  ((unsigned long) (addr) + (size) >= (unsigned long)(addr))))
 
-static inline int __deprecated verify_area_skas(int type, const void * addr,
-				   unsigned long size)
+static inline int verify_area_skas(int type, const void * addr,
+                                   unsigned long size)
 {
 	return(access_ok_skas(type, addr, size) ? 0 : -EFAULT);
 }
