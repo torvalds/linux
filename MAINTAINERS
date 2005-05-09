@@ -1023,8 +1023,8 @@ W:	http://www.ia64-linux.org/
 S:	Maintained
 
 SN-IA64 (Itanium) SUB-PLATFORM
-P:	Jesse Barnes
-M:	jbarnes@sgi.com
+P:	Greg Edwards
+M:	edwardsg@sgi.com
 L:	linux-altix@sgi.com
 L:	linux-ia64@vger.kernel.org
 W:	http://www.sgi.com/altix
