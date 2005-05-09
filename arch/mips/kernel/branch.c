@@ -12,6 +12,7 @@
 #include <asm/branch.h>
 #include <asm/cpu.h>
 #include <asm/cpu-features.h>
+#include <asm/fpu.h>
 #include <asm/inst.h>
 #include <asm/ptrace.h>
 #include <asm/uaccess.h>
@@ -161,10 +162,13 @@ int __compute_return_epc(struct pt_regs *regs)
 	 * And now the FPA/cp1 branch instructions.
 	 */
 	case cop1_op:
-		if (!cpu_has_fpu)
-			fcr31 = current->thread.fpu.soft.fcr31;
-		else
+		preempt_disable();
+		if (is_fpu_owner())
 			asm volatile("cfc1\t%0,$31" : "=r" (fcr31));
+		else
+			fcr31 = current->thread.fpu.hard.fcr31;
+		preempt_enable();
+
 		bit = (insn.i_format.rt >> 2);
 		bit += (bit != 0);
 		bit += 23;
