@@ -33,11 +33,11 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/smp_lock.h>
+#include <asm/atomic.h>
 #include <linux/delay.h>
 #include "pci_hotplug.h"
 #include "cpci_hotplug.h"
 
-#define DRIVER_VERSION	"0.2"
 #define DRIVER_AUTHOR	"Scott Murray <scottm@somanetworks.com>"
 #define DRIVER_DESC	"CompactPCI Hot Plug Core"
 
@@ -54,9 +54,10 @@
 #define warn(format, arg...) printk(KERN_WARNING "%s: " format "\n", MY_NAME , ## arg)
 
 /* local variables */
-static spinlock_t list_lock;
+static DECLARE_RWSEM(list_rwsem);
 static LIST_HEAD(slot_list);
 static int slots;
+static atomic_t extracting;
 int cpci_debug;
 static struct cpci_hp_controller *controller;
 static struct semaphore event_semaphore;	/* mutex for process loop (up if something to process) */
@@ -68,6 +69,8 @@ static int disable_slot(struct hotplug_slot *slot);
 static int set_attention_status(struct hotplug_slot *slot, u8 value);
 static int get_power_status(struct hotplug_slot *slot, u8 * value);
 static int get_attention_status(struct hotplug_slot *slot, u8 * value);
+static int get_adapter_status(struct hotplug_slot *slot, u8 * value);
+static int get_latch_status(struct hotplug_slot *slot, u8 * value);
 
 static struct hotplug_slot_ops cpci_hotplug_slot_ops = {
 	.owner = THIS_MODULE,
@@ -76,6 +79,8 @@ static struct hotplug_slot_ops cpci_hotplug_slot_ops = {
 	.set_attention_status = set_attention_status,
 	.get_power_status = get_power_status,
 	.get_attention_status = get_attention_status,
+	.get_adapter_status = get_adapter_status,
+	.get_latch_status = get_latch_status,
 };
 
 static int
@@ -148,8 +153,10 @@ disable_slot(struct hotplug_slot *hotplug_slot)
 		warn("failure to update adapter file");
 	}
 
-	slot->extracting = 0;
-
+	if(slot->extracting) {
+		slot->extracting = 0;
+		atomic_dec(&extracting);
+	}
 	return retval;
 }
 
@@ -186,6 +193,20 @@ static int
 set_attention_status(struct hotplug_slot *hotplug_slot, u8 status)
 {
 	return cpci_set_attention_status(hotplug_slot->private, status);
+}
+
+static int
+get_adapter_status(struct hotplug_slot *hotplug_slot, u8 * value)
+{
+	*value = hotplug_slot->info->adapter_status;
+	return 0;
+}
+
+static int
+get_latch_status(struct hotplug_slot *hotplug_slot, u8 * value)
+{
+	*value = hotplug_slot->info->latch_status;
+	return 0;
 }
 
 static void release_slot(struct hotplug_slot *hotplug_slot)
@@ -273,10 +294,10 @@ cpci_hp_register_bus(struct pci_bus *bus, u8 first, u8 last)
 		}
 
 		/* Add slot to our internal list */
-		spin_lock(&list_lock);
+		down_write(&list_rwsem);
 		list_add(&slot->slot_list, &slot_list);
 		slots++;
-		spin_unlock(&list_lock);
+		up_write(&list_rwsem);
 	}
 	return 0;
 error_name:
@@ -299,9 +320,9 @@ cpci_hp_unregister_bus(struct pci_bus *bus)
 	struct list_head *next;
 	int status;
 
-	spin_lock(&list_lock);
+	down_write(&list_rwsem);
 	if(!slots) {
-		spin_unlock(&list_lock);
+		up_write(&list_rwsem);
 		return -1;
 	}
 	list_for_each_safe(tmp, next, &slot_list) {
@@ -319,7 +340,7 @@ cpci_hp_unregister_bus(struct pci_bus *bus)
 			slots--;
 		}
 	}
-	spin_unlock(&list_lock);
+	up_write(&list_rwsem);
 	return 0;
 }
 
@@ -347,7 +368,7 @@ cpci_hp_intr(int irq, void *data, struct pt_regs *regs)
 }
 
 /*
- * According to PICMG 2.12 R2.0, section 6.3.2, upon
+ * According to PICMG 2.1 R2.0, section 6.3.2, upon
  * initialization, the system driver shall clear the
  * INS bits of the cold-inserted devices.
  */
@@ -359,9 +380,9 @@ init_slots(void)
 	struct pci_dev* dev;
 
 	dbg("%s - enter", __FUNCTION__);
-	spin_lock(&list_lock);
+	down_read(&list_rwsem);
 	if(!slots) {
-		spin_unlock(&list_lock);
+		up_read(&list_rwsem);
 		return -1;
 	}
 	list_for_each(tmp, &slot_list) {
@@ -386,7 +407,7 @@ init_slots(void)
 			}
 		}
 	}
-	spin_unlock(&list_lock);
+	up_read(&list_rwsem);
 	dbg("%s - exit", __FUNCTION__);
 	return 0;
 }
@@ -398,10 +419,11 @@ check_slots(void)
 	struct list_head *tmp;
 	int extracted;
 	int inserted;
+	u16 hs_csr;
 
-	spin_lock(&list_lock);
+	down_read(&list_rwsem);
 	if(!slots) {
-		spin_unlock(&list_lock);
+		up_read(&list_rwsem);
 		err("no slots registered, shutting down");
 		return -1;
 	}
@@ -411,8 +433,6 @@ check_slots(void)
 		dbg("%s - looking at slot %s",
 		    __FUNCTION__, slot->hotplug_slot->name);
 		if(cpci_check_and_clear_ins(slot)) {
-			u16 hs_csr;
-
 			/* Some broken hardware (e.g. PLX 9054AB) asserts ENUM# twice... */
 			if(slot->dev) {
 				warn("slot %s already inserted", slot->hotplug_slot->name);
@@ -462,8 +482,6 @@ check_slots(void)
 
 			inserted++;
 		} else if(cpci_check_ext(slot)) {
-			u16 hs_csr;
-
 			/* Process extraction request */
 			dbg("%s - slot %s extracted",
 			    __FUNCTION__, slot->hotplug_slot->name);
@@ -476,20 +494,40 @@ check_slots(void)
 			if(!slot->extracting) {
 				if(update_latch_status(slot->hotplug_slot, 0)) {
 					warn("failure to update latch file");
+
 				}
+				atomic_inc(&extracting);
 				slot->extracting = 1;
 			}
 			extracted++;
+		} else if(slot->extracting) {
+			hs_csr = cpci_get_hs_csr(slot);
+			if(hs_csr == 0xffff) {
+				/*
+				 * Hmmm, we're likely hosed at this point, should we
+				 * bother trying to tell the driver or not?
+				 */
+				err("card in slot %s was improperly removed",
+				    slot->hotplug_slot->name);
+				if(update_adapter_status(slot->hotplug_slot, 0)) {
+					warn("failure to update adapter file");
+				}
+				slot->extracting = 0;
+				atomic_dec(&extracting);
+			}
 		}
 	}
-	spin_unlock(&list_lock);
+	up_read(&list_rwsem);
+	dbg("inserted=%d, extracted=%d, extracting=%d",
+	    inserted, extracted, atomic_read(&extracting));
 	if(inserted || extracted) {
 		return extracted;
 	}
-	else {
+	else if(!atomic_read(&extracting)) {
 		err("cannot find ENUM# source, shutting down");
 		return -1;
 	}
+	return 0;
 }
 
 /* This is the interrupt mode worker thread body */
@@ -497,8 +535,6 @@ static int
 event_thread(void *data)
 {
 	int rc;
-	struct slot *slot;
-	struct list_head *tmp;
 
 	lock_kernel();
 	daemonize("cpci_hp_eventd");
@@ -512,39 +548,22 @@ event_thread(void *data)
 		    thread_finished);
 		if(thread_finished || signal_pending(current))
 			break;
-		while(controller->ops->query_enum()) {
+		do {
 			rc = check_slots();
-			if (rc > 0)
+			if (rc > 0) {
 				/* Give userspace a chance to handle extraction */
 				msleep(500);
-			else if (rc < 0) {
+			} else if (rc < 0) {
 				dbg("%s - error checking slots", __FUNCTION__);
 				thread_finished = 1;
 				break;
 			}
-		}
-		/* Check for someone yanking out a board */
-		list_for_each(tmp, &slot_list) {
-			slot = list_entry(tmp, struct slot, slot_list);
-			if(slot->extracting) {
-				/*
-				 * Hmmm, we're likely hosed at this point, should we
-				 * bother trying to tell the driver or not?
-				 */
-				err("card in slot %s was improperly removed",
-				    slot->hotplug_slot->name);
-				if(update_adapter_status(slot->hotplug_slot, 0)) {
-					warn("failure to update adapter file");
-				}
-				slot->extracting = 0;
-			}
-		}
+		} while(atomic_read(&extracting) != 0);
 
 		/* Re-enable ENUM# interrupt */
 		dbg("%s - re-enabling irq", __FUNCTION__);
 		controller->ops->enable_irq();
 	}
-
 	dbg("%s - event thread signals exit", __FUNCTION__);
 	up(&thread_exit);
 	return 0;
@@ -555,8 +574,6 @@ static int
 poll_thread(void *data)
 {
 	int rc;
-	struct slot *slot;
-	struct list_head *tmp;
 
 	lock_kernel();
 	daemonize("cpci_hp_polld");
@@ -565,35 +582,19 @@ poll_thread(void *data)
 	while(1) {
 		if(thread_finished || signal_pending(current))
 			break;
-
-		while(controller->ops->query_enum()) {
-			rc = check_slots();
-			if(rc > 0)
-				/* Give userspace a chance to handle extraction */
-				msleep(500);
-			else if (rc < 0) {
-				dbg("%s - error checking slots", __FUNCTION__);
-				thread_finished = 1;
-				break;
-			}
-		}
-		/* Check for someone yanking out a board */
-		list_for_each(tmp, &slot_list) {
-			slot = list_entry(tmp, struct slot, slot_list);
-			if(slot->extracting) {
-				/*
-				 * Hmmm, we're likely hosed at this point, should we
-				 * bother trying to tell the driver or not?
-				 */
-				err("card in slot %s was improperly removed",
-				    slot->hotplug_slot->name);
-				if(update_adapter_status(slot->hotplug_slot, 0)) {
-					warn("failure to update adapter file");
+		if(controller->ops->query_enum()) {
+			do {
+				rc = check_slots();
+				if(rc > 0) {
+					/* Give userspace a chance to handle extraction */
+					msleep(500);
+				} else if(rc < 0) {
+					dbg("%s - error checking slots", __FUNCTION__);
+					thread_finished = 1;
+					break;
 				}
-				slot->extracting = 0;
-			}
+			} while(atomic_read(&extracting) != 0);
 		}
-
 		msleep(100);
 	}
 	dbg("poll thread signals exit");
@@ -667,6 +668,9 @@ cpci_hp_unregister_controller(struct cpci_hp_controller *old_controller)
 	int status = 0;
 
 	if(controller) {
+		if(atomic_read(&extracting) != 0) {
+			return -EBUSY;
+		}
 		if(!thread_finished) {
 			cpci_stop_thread();
 		}
@@ -691,12 +695,12 @@ cpci_hp_start(void)
 		return -ENODEV;
 	}
 
-	spin_lock(&list_lock);
-	if(!slots) {
-		spin_unlock(&list_lock);
+	down_read(&list_rwsem);
+	if(list_empty(&slot_list)) {
+		up_read(&list_rwsem);
 		return -ENODEV;
 	}
-	spin_unlock(&list_lock);
+	up_read(&list_rwsem);
 
 	if(first) {
 		status = init_slots();
@@ -727,7 +731,9 @@ cpci_hp_stop(void)
 	if(!controller) {
 		return -ENODEV;
 	}
-
+	if(atomic_read(&extracting) != 0) {
+		return -EBUSY;
+	}
 	if(controller->irq) {
 		/* Stop enum interrupt processing */
 		dbg("%s - disabling irq", __FUNCTION__);
@@ -747,7 +753,7 @@ cleanup_slots(void)
 	 * Unregister all of our slots with the pci_hotplug subsystem,
 	 * and free up all memory that we had allocated.
 	 */
-	spin_lock(&list_lock);
+	down_write(&list_rwsem);
 	if(!slots) {
 		goto null_cleanup;
 	}
@@ -761,17 +767,14 @@ cleanup_slots(void)
 		kfree(slot);
 	}
       null_cleanup:
-	spin_unlock(&list_lock);
+	up_write(&list_rwsem);
 	return;
 }
 
 int __init
 cpci_hotplug_init(int debug)
 {
-	spin_lock_init(&list_lock);
 	cpci_debug = debug;
-
-	info(DRIVER_DESC " version: " DRIVER_VERSION);
 	return 0;
 }
 
