@@ -1122,18 +1122,9 @@ receive_chars(struct uart_8250_port *up, int *status, struct pt_regs *regs)
 		}
 		if (uart_handle_sysrq_char(&up->port, ch, regs))
 			goto ignore_char;
-		if ((lsr & up->port.ignore_status_mask) == 0) {
-			tty_insert_flip_char(tty, ch, flag);
-		}
-		if ((lsr & UART_LSR_OE) &&
-		    tty->flip.count < TTY_FLIPBUF_SIZE) {
-			/*
-			 * Overrun is special, since it's reported
-			 * immediately, and doesn't affect the current
-			 * character.
-			 */
-			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
-		}
+
+		uart_insert_char(&up->port, lsr, UART_LSR_OE, ch, flag);
+
 	ignore_char:
 		lsr = serial_inp(up, UART_LSR);
 	} while ((lsr & UART_LSR_DR) && (max_count-- > 0));
