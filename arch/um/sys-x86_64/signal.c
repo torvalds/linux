@@ -168,7 +168,7 @@ int setup_signal_stack_si(unsigned long stack_top, int sig,
 
 	frame = (struct rt_sigframe __user *)
 		round_down(stack_top - sizeof(struct rt_sigframe), 16) - 8;
-	frame -= 128;
+	((unsigned char *) frame) -= 128;
 
 	if (!access_ok(VERIFY_WRITE, fp, sizeof(struct _fpstate)))
 		goto out;

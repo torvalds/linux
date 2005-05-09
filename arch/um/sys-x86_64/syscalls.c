@@ -44,6 +44,8 @@ long sys_modify_ldt_tt(int func, void *ptr, unsigned long bytecount)
 #ifdef CONFIG_MODE_SKAS
 extern int userspace_pid[];
 
+#include "skas_ptrace.h"
+
 long sys_modify_ldt_skas(int func, void *ptr, unsigned long bytecount)
 {
 	struct ptrace_ldt ldt;

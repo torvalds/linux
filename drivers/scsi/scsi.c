@@ -542,7 +542,7 @@ int scsi_dispatch_cmd(struct scsi_cmnd *cmd)
 		 * that the device is no longer present */
 		cmd->result = DID_NO_CONNECT << 16;
 		atomic_inc(&cmd->device->iorequest_cnt);
-		scsi_done(cmd);
+		__scsi_done(cmd);
 		/* return 0 (because the command has been processed) */
 		goto out;
 	}
