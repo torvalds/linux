@@ -2925,6 +2925,25 @@ static int snd_usb_extigy_boot_quirk(struct usb_device *dev, struct usb_interfac
 	return 0;
 }
 
+static int snd_usb_audigy2nx_boot_quirk(struct usb_device *dev)
+{
+#if 0
+	/* TODO: enable this when high speed synchronization actually works */
+	u8 buf = 1;
+
+	snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0), 0x2a,
+			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_OTHER,
+			0, 0, &buf, 1, 1000);
+	if (buf == 0) {
+		snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0), 0x29,
+				USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_OTHER,
+				1, 2000, NULL, 0, 1000);
+		return -ENODEV;
+	}
+#endif
+	return 0;
+}
+
 
 /*
  * audio-interface quirks
@@ -3153,6 +3172,11 @@ static void *snd_usb_audio_probe(struct usb_device *dev,
 		if (snd_usb_extigy_boot_quirk(dev, intf) < 0)
 			goto __err_val;
 		config = dev->actconfig;
+	}
+	/* SB Audigy 2 NX needs its own boot-up magic, too */
+	if (id == USB_ID(0x041e, 0x3020)) {
+		if (snd_usb_audigy2nx_boot_quirk(dev) < 0)
+			goto __err_val;
 	}
 
 	/*
