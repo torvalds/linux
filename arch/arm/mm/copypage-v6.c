@@ -26,8 +26,8 @@
 #define to_address	(0xffffc000)
 #define to_pgprot	PAGE_KERNEL
 
-static pte_t *from_pte;
-static pte_t *to_pte;
+#define TOP_PTE(x)	pte_offset_kernel(top_pmd, x)
+
 static DEFINE_SPINLOCK(v6_lock);
 
 #define DCACHE_COLOUR(vaddr) ((vaddr & (SHMLBA - 1)) >> PAGE_SHIFT)
@@ -74,8 +74,8 @@ void v6_copy_user_page_aliasing(void *kto, const void *kfrom, unsigned long vadd
 	 */
 	spin_lock(&v6_lock);
 
-	set_pte(from_pte + offset, pfn_pte(__pa(kfrom) >> PAGE_SHIFT, from_pgprot));
-	set_pte(to_pte + offset, pfn_pte(__pa(kto) >> PAGE_SHIFT, to_pgprot));
+	set_pte(TOP_PTE(from_address) + offset, pfn_pte(__pa(kfrom) >> PAGE_SHIFT, from_pgprot));
+	set_pte(TOP_PTE(to_address) + offset, pfn_pte(__pa(kto) >> PAGE_SHIFT, to_pgprot));
 
 	from = from_address + (offset << PAGE_SHIFT);
 	to   = to_address + (offset << PAGE_SHIFT);
@@ -114,7 +114,7 @@ void v6_clear_user_page_aliasing(void *kaddr, unsigned long vaddr)
 	 */
 	spin_lock(&v6_lock);
 
-	set_pte(to_pte + offset, pfn_pte(__pa(kaddr) >> PAGE_SHIFT, to_pgprot));
+	set_pte(TOP_PTE(to_address) + offset, pfn_pte(__pa(kaddr) >> PAGE_SHIFT, to_pgprot));
 	flush_tlb_kernel_page(to);
 	clear_page((void *)to);
 
@@ -129,21 +129,6 @@ struct cpu_user_fns v6_user_fns __initdata = {
 static int __init v6_userpage_init(void)
 {
 	if (cache_is_vipt_aliasing()) {
-		pgd_t *pgd;
-		pmd_t *pmd;
-
-		pgd = pgd_offset_k(from_address);
-		pmd = pmd_alloc(&init_mm, pgd, from_address);
-		if (!pmd)
-			BUG();
-		from_pte = pte_alloc_kernel(&init_mm, pmd, from_address);
-		if (!from_pte)
-			BUG();
-
-		to_pte = pte_alloc_kernel(&init_mm, pmd, to_address);
-		if (!to_pte)
-			BUG();
-
 		cpu_user.cpu_clear_user_page = v6_clear_user_page_aliasing;
 		cpu_user.cpu_copy_user_page = v6_copy_user_page_aliasing;
 	}
@@ -151,5 +136,4 @@ static int __init v6_userpage_init(void)
 	return 0;
 }
 
-__initcall(v6_userpage_init);
-
+core_initcall(v6_userpage_init);
