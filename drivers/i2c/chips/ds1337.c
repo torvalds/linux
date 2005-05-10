@@ -10,7 +10,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
- * Driver for Dallas Semiconductor DS1337 real time clock chip
+ * Driver for Dallas Semiconductor DS1337 and DS1339 real time clock chip
  */
 
 #include <linux/config.h>

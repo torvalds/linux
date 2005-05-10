@@ -379,12 +379,12 @@ menu "Other I2C Chip support"
 	depends on I2C
 
 config SENSORS_DS1337
-	tristate "Dallas Semiconductor DS1337 Real Time Clock"
+	tristate "Dallas Semiconductor DS1337 and DS1339 Real Time Clock"
 	depends on I2C && EXPERIMENTAL
 	select I2C_SENSOR
 	help
 	  If you say yes here you get support for Dallas Semiconductor
-	  DS1337 real-time clock chips. 
+	  DS1337 and DS1339 real-time clock chips.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called ds1337.
