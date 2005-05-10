@@ -1585,8 +1585,9 @@ static struct snd_ac97_build_ops patch_ad1980_build_ops = {
 	.build_post_spdif = patch_ad198x_post_spdif,
 	.build_specific = patch_ad1980_specific,
 #ifdef CONFIG_PM
-	.resume = ad18xx_resume
+	.resume = ad18xx_resume,
 #endif
+	.update_jacks = ad1888_update_jacks,
 };
 
 int patch_ad1980(ac97_t * ac97)
@@ -1614,8 +1615,9 @@ static struct snd_ac97_build_ops patch_ad1985_build_ops = {
 	.build_post_spdif = patch_ad198x_post_spdif,
 	.build_specific = patch_ad1985_specific,
 #ifdef CONFIG_PM
-	.resume = ad18xx_resume
+	.resume = ad18xx_resume,
 #endif
+	.update_jacks = ad1888_update_jacks,
 };
 
 int patch_ad1985(ac97_t * ac97)
