@@ -37,6 +37,8 @@ pgprot_t pgprot_kernel;
 
 EXPORT_SYMBOL(pgprot_kernel);
 
+pmd_t *top_pmd;
+
 struct cachepolicy {
 	const char	policy[16];
 	unsigned int	cr_mask;
@@ -682,6 +684,8 @@ void __init memtable_init(struct meminfo *mi)
 
 	flush_cache_all();
 	flush_tlb_all();
+
+	top_pmd = pmd_off_k(VECTORS_HIGH);
 }
 
 /*

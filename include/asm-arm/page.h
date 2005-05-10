@@ -171,6 +171,9 @@ typedef unsigned long pgprot_t;
 
 #endif /* STRICT_MM_TYPECHECKS */
 
+/* the upper-most page table pointer */
+extern pmd_t *top_pmd;
+
 /* Pure 2^n version of get_order */
 static inline int get_order(unsigned long size)
 {
