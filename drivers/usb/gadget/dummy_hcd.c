@@ -734,7 +734,7 @@ show_function (struct device *dev, struct device_attribute *attr, char *buf)
 		return 0;
 	return scnprintf (buf, PAGE_SIZE, "%s\n", dum->driver->function);
 }
-DEVICE_ATTR (function, S_IRUGO, show_function, NULL);
+static DEVICE_ATTR (function, S_IRUGO, show_function, NULL);
 
 /*-------------------------------------------------------------------------*/
 
@@ -856,6 +856,9 @@ usb_gadget_unregister_driver (struct usb_gadget_driver *driver)
 EXPORT_SYMBOL (usb_gadget_unregister_driver);
 
 #undef is_enabled
+
+/* just declare this in any driver that really need it */
+extern int net2280_set_fifo_mode (struct usb_gadget *gadget, int mode);
 
 int net2280_set_fifo_mode (struct usb_gadget *gadget, int mode)
 {
@@ -1122,7 +1125,6 @@ static int periodic_bytes (struct dummy *dum, struct dummy_ep *ep)
 
 		/* high bandwidth mode */
 		tmp = le16_to_cpu(ep->desc->wMaxPacketSize);
-		tmp = le16_to_cpu (tmp);
 		tmp = (tmp >> 11) & 0x03;
 		tmp *= 8 /* applies to entire frame */;
 		limit += limit * tmp;
@@ -1265,9 +1267,14 @@ restart:
 			struct usb_ctrlrequest		setup;
 			int				value = 1;
 			struct dummy_ep			*ep2;
+			unsigned			w_index;
+			unsigned			w_value;
 
 			setup = *(struct usb_ctrlrequest*) urb->setup_packet;
-			if (setup.wLength != urb->transfer_buffer_length) {
+			w_index = le16_to_cpu(setup.wIndex);
+			w_value = le16_to_cpu(setup.wValue);
+			if (le16_to_cpu(setup.wLength) !=
+					urb->transfer_buffer_length) {
 				maybe_set_status (urb, -EOVERFLOW);
 				goto return_urb;
 			}
@@ -1297,16 +1304,16 @@ restart:
 			case USB_REQ_SET_ADDRESS:
 				if (setup.bRequestType != Dev_Request)
 					break;
-				dum->address = setup.wValue;
+				dum->address = w_value;
 				maybe_set_status (urb, 0);
 				dev_dbg (udc_dev(dum), "set_address = %d\n",
-						setup.wValue);
+						w_value);
 				value = 0;
 				break;
 			case USB_REQ_SET_FEATURE:
 				if (setup.bRequestType == Dev_Request) {
 					value = 0;
-					switch (setup.wValue) {
+					switch (w_value) {
 					case USB_DEVICE_REMOTE_WAKEUP:
 						break;
 					case USB_DEVICE_B_HNP_ENABLE:
@@ -1324,14 +1331,13 @@ restart:
 					}
 					if (value == 0) {
 						dum->devstatus |=
-							(1 << setup.wValue);
+							(1 << w_value);
 						maybe_set_status (urb, 0);
 					}
 
 				} else if (setup.bRequestType == Ep_Request) {
 					// endpoint halt
-					ep2 = find_endpoint (dum,
-							setup.wIndex);
+					ep2 = find_endpoint (dum, w_index);
 					if (!ep2) {
 						value = -EOPNOTSUPP;
 						break;
@@ -1343,7 +1349,7 @@ restart:
 				break;
 			case USB_REQ_CLEAR_FEATURE:
 				if (setup.bRequestType == Dev_Request) {
-					switch (setup.wValue) {
+					switch (w_value) {
 					case USB_DEVICE_REMOTE_WAKEUP:
 						dum->devstatus &= ~(1 <<
 							USB_DEVICE_REMOTE_WAKEUP);
@@ -1356,8 +1362,7 @@ restart:
 					}
 				} else if (setup.bRequestType == Ep_Request) {
 					// endpoint halt
-					ep2 = find_endpoint (dum,
-							setup.wIndex);
+					ep2 = find_endpoint (dum, w_index);
 					if (!ep2) {
 						value = -EOPNOTSUPP;
 						break;
@@ -1383,7 +1388,7 @@ restart:
 					if (urb->transfer_buffer_length > 0) {
 						if (setup.bRequestType ==
 								Ep_InRequest) {
-	ep2 = find_endpoint (dum, setup.wIndex);
+	ep2 = find_endpoint (dum, w_index);
 	if (!ep2) {
 		value = -EOPNOTSUPP;
 		break;
@@ -1535,7 +1540,8 @@ hub_descriptor (struct usb_hub_descriptor *desc)
 	memset (desc, 0, sizeof *desc);
 	desc->bDescriptorType = 0x29;
 	desc->bDescLength = 9;
-	desc->wHubCharacteristics = __constant_cpu_to_le16 (0x0001);
+	desc->wHubCharacteristics = (__force __u16)
+			(__constant_cpu_to_le16 (0x0001));
 	desc->bNbrPorts = 1;
 	desc->bitmap [0] = 0xff;
 	desc->bitmap [1] = 0xff;
@@ -1581,7 +1587,7 @@ static int dummy_hub_control (
 		hub_descriptor ((struct usb_hub_descriptor *) buf);
 		break;
 	case GetHubStatus:
-		*(u32 *) buf = __constant_cpu_to_le32 (0);
+		*(__le32 *) buf = __constant_cpu_to_le32 (0);
 		break;
 	case GetPortStatus:
 		if (wIndex != 1)
@@ -1621,8 +1627,8 @@ static int dummy_hub_control (
 			}
 		}
 		set_link_state (dum);
-		((u16 *) buf)[0] = cpu_to_le16 (dum->port_status);
-		((u16 *) buf)[1] = cpu_to_le16 (dum->port_status >> 16);
+		((__le16 *) buf)[0] = cpu_to_le16 (dum->port_status);
+		((__le16 *) buf)[1] = cpu_to_le16 (dum->port_status >> 16);
 		break;
 	case SetHubFeature:
 		retval = -EPIPE;
