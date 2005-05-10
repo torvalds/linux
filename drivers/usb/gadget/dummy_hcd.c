@@ -65,7 +65,7 @@
 
 
 #define DRIVER_DESC	"USB Host+Gadget Emulator"
-#define DRIVER_VERSION	"17 Dec 2004"
+#define DRIVER_VERSION	"02 May 2005"
 
 static const char	driver_name [] = "dummy_hcd";
 static const char	driver_desc [] = "USB Host+Gadget Emulator";
@@ -150,6 +150,13 @@ struct urbp {
 	struct list_head	urbp_list;
 };
 
+
+enum dummy_rh_state {
+	DUMMY_RH_RESET,
+	DUMMY_RH_SUSPENDED,
+	DUMMY_RH_RUNNING
+};
+
 struct dummy {
 	spinlock_t			lock;
 
@@ -163,6 +170,7 @@ struct dummy {
 	struct dummy_request		fifo_req;
 	u8				fifo_buf [FIFO_SIZE];
 	u16				devstatus;
+	unsigned			udc_suspended:1;
 	unsigned			pullup:1;
 	unsigned			active:1;
 	unsigned			old_active:1;
@@ -170,6 +178,7 @@ struct dummy {
 	/*
 	 * MASTER/HOST side support
 	 */
+	enum dummy_rh_state		rh_state;
 	struct timer_list		timer;
 	u32				port_status;
 	u32				old_status;
@@ -262,7 +271,9 @@ set_link_state (struct dummy *dum)
 	dum->active = 0;
 	if ((dum->port_status & USB_PORT_STAT_POWER) == 0)
 		dum->port_status = 0;
-	else if (!dum->pullup) {
+
+	/* UDC suspend must cause a disconnect */
+	else if (!dum->pullup || dum->udc_suspended) {
 		dum->port_status &= ~(USB_PORT_STAT_CONNECTION |
 					USB_PORT_STAT_ENABLE |
 					USB_PORT_STAT_LOW_SPEED |
@@ -276,7 +287,8 @@ set_link_state (struct dummy *dum)
 			dum->port_status |= (USB_PORT_STAT_C_CONNECTION << 16);
 		if ((dum->port_status & USB_PORT_STAT_ENABLE) == 0)
 			dum->port_status &= ~USB_PORT_STAT_SUSPEND;
-		else if ((dum->port_status & USB_PORT_STAT_SUSPEND) == 0)
+		else if ((dum->port_status & USB_PORT_STAT_SUSPEND) == 0 &&
+				dum->rh_state != DUMMY_RH_SUSPENDED)
 			dum->active = 1;
 	}
 
@@ -675,11 +687,16 @@ static int dummy_wakeup (struct usb_gadget *_gadget)
 	struct dummy	*dum;
 
 	dum = gadget_to_dummy (_gadget);
-	if (!(dum->port_status & USB_PORT_STAT_SUSPEND)
-			|| !(dum->devstatus &
-				( (1 << USB_DEVICE_B_HNP_ENABLE)
+	if (!(dum->devstatus &	( (1 << USB_DEVICE_B_HNP_ENABLE)
 				| (1 << USB_DEVICE_REMOTE_WAKEUP))))
 		return -EINVAL;
+	if ((dum->port_status & USB_PORT_STAT_CONNECTION) == 0)
+		return -ENOLINK;
+	if ((dum->port_status & USB_PORT_STAT_SUSPEND) == 0 &&
+			 dum->rh_state != DUMMY_RH_SUSPENDED)
+		return -EIO;
+
+	/* FIXME: What if the root hub is suspended but the port isn't? */
 
 	/* hub notices our request, issues downstream resume, etc */
 	dum->resuming = 1;
@@ -917,11 +934,50 @@ static int dummy_udc_remove (struct device *dev)
 	return 0;
 }
 
+static int dummy_udc_suspend (struct device *dev, pm_message_t state,
+		u32 level)
+{
+	struct dummy	*dum = dev_get_drvdata(dev);
+
+	if (level != SUSPEND_DISABLE)
+		return 0;
+
+	dev_dbg (dev, "%s\n", __FUNCTION__);
+	spin_lock_irq (&dum->lock);
+	dum->udc_suspended = 1;
+	set_link_state (dum);
+	spin_unlock_irq (&dum->lock);
+
+	dev->power.power_state = state;
+	usb_hcd_poll_rh_status (dummy_to_hcd (dum));
+	return 0;
+}
+
+static int dummy_udc_resume (struct device *dev, u32 level)
+{
+	struct dummy	*dum = dev_get_drvdata(dev);
+
+	if (level != RESUME_ENABLE)
+		return 0;
+
+	dev_dbg (dev, "%s\n", __FUNCTION__);
+	spin_lock_irq (&dum->lock);
+	dum->udc_suspended = 0;
+	set_link_state (dum);
+	spin_unlock_irq (&dum->lock);
+
+	dev->power.power_state = PMSG_ON;
+	usb_hcd_poll_rh_status (dummy_to_hcd (dum));
+	return 0;
+}
+
 static struct device_driver dummy_udc_driver = {
 	.name		= (char *) gadget_name,
 	.bus		= &platform_bus_type,
 	.probe		= dummy_udc_probe,
 	.remove		= dummy_udc_remove,
+	.suspend	= dummy_udc_suspend,
+	.resume		= dummy_udc_resume,
 };
 
 /*-------------------------------------------------------------------------*/
@@ -980,7 +1036,16 @@ static int dummy_urb_enqueue (
 
 static int dummy_urb_dequeue (struct usb_hcd *hcd, struct urb *urb)
 {
-	/* giveback happens automatically in timer callback */
+	struct dummy	*dum;
+	unsigned long	flags;
+
+	/* giveback happens automatically in timer callback,
+	 * so make sure the callback happens */
+	dum = hcd_to_dummy (hcd);
+	spin_lock_irqsave (&dum->lock, flags);
+	if (dum->rh_state != DUMMY_RH_RUNNING && !list_empty(&dum->urbp_list))
+		mod_timer (&dum->timer, jiffies);
+	spin_unlock_irqrestore (&dum->lock, flags);
 	return 0;
 }
 
@@ -1222,7 +1287,8 @@ restart:
 		if (urb->status != -EINPROGRESS) {
 			/* likely it was just unlinked */
 			goto return_urb;
-		}
+		} else if (dum->rh_state != DUMMY_RH_RUNNING)
+			continue;
 		type = usb_pipetype (urb->pipe);
 
 		/* used up this frame's non-periodic bandwidth?
@@ -1486,12 +1552,12 @@ return_urb:
 		goto restart;
 	}
 
-	/* want a 1 msec delay here */
-	if (!list_empty (&dum->urbp_list))
-		mod_timer (&dum->timer, jiffies + msecs_to_jiffies(1));
-	else {
+	if (list_empty (&dum->urbp_list)) {
 		usb_put_dev (dum->udev);
 		dum->udev = NULL;
+	} else if (dum->rh_state == DUMMY_RH_RUNNING) {
+		/* want a 1 msec delay here */
+		mod_timer (&dum->timer, jiffies + msecs_to_jiffies(1));
 	}
 
 	spin_unlock_irqrestore (&dum->lock, flags);
@@ -1510,11 +1576,13 @@ static int dummy_hub_status (struct usb_hcd *hcd, char *buf)
 {
 	struct dummy		*dum;
 	unsigned long		flags;
-	int			retval;
+	int			retval = 0;
 
 	dum = hcd_to_dummy (hcd);
 
 	spin_lock_irqsave (&dum->lock, flags);
+	if (hcd->state != HC_STATE_RUNNING)
+		goto done;
 
 	if (dum->resuming && time_after_eq (jiffies, dum->re_timeout)) {
 		dum->port_status |= (USB_PORT_STAT_C_SUSPEND << 16);
@@ -1522,14 +1590,15 @@ static int dummy_hub_status (struct usb_hcd *hcd, char *buf)
 		set_link_state (dum);
 	}
 
-	if (!(dum->port_status & PORT_C_MASK))
-		retval = 0;
-	else {
+	if ((dum->port_status & PORT_C_MASK) != 0) {
 		*buf = (1 << 1);
 		dev_dbg (dummy_dev(dum), "port status 0x%08x has changes\n",
-			dum->port_status);
+				dum->port_status);
 		retval = 1;
+		if (dum->rh_state == DUMMY_RH_SUSPENDED)
+			usb_hcd_resume_root_hub (hcd);
 	}
+done:
 	spin_unlock_irqrestore (&dum->lock, flags);
 	return retval;
 }
@@ -1558,6 +1627,9 @@ static int dummy_hub_control (
 	struct dummy	*dum;
 	int		retval = 0;
 	unsigned long	flags;
+
+	if (hcd->state != HC_STATE_RUNNING)
+		return -ETIMEDOUT;
 
 	dum = hcd_to_dummy (hcd);
 	spin_lock_irqsave (&dum->lock, flags);
@@ -1658,6 +1730,7 @@ static int dummy_hub_control (
 			dum->port_status &= ~(USB_PORT_STAT_ENABLE
 					| USB_PORT_STAT_LOW_SPEED
 					| USB_PORT_STAT_HIGH_SPEED);
+			dum->devstatus = 0;
 			/* 50msec reset signaling */
 			dum->re_timeout = jiffies + msecs_to_jiffies(50);
 			/* FALLS THROUGH */
@@ -1684,6 +1757,29 @@ static int dummy_hub_control (
 	return retval;
 }
 
+static int dummy_hub_suspend (struct usb_hcd *hcd)
+{
+	struct dummy *dum = hcd_to_dummy (hcd);
+
+	spin_lock_irq (&dum->lock);
+	dum->rh_state = DUMMY_RH_SUSPENDED;
+	set_link_state (dum);
+	spin_unlock_irq (&dum->lock);
+	return 0;
+}
+
+static int dummy_hub_resume (struct usb_hcd *hcd)
+{
+	struct dummy *dum = hcd_to_dummy (hcd);
+
+	spin_lock_irq (&dum->lock);
+	dum->rh_state = DUMMY_RH_RUNNING;
+	set_link_state (dum);
+	if (!list_empty(&dum->urbp_list))
+		mod_timer (&dum->timer, jiffies);
+	spin_unlock_irq (&dum->lock);
+	return 0;
+}
 
 /*-------------------------------------------------------------------------*/
 
@@ -1751,6 +1847,7 @@ static int dummy_start (struct usb_hcd *hcd)
 	init_timer (&dum->timer);
 	dum->timer.function = dummy_timer;
 	dum->timer.data = (unsigned long) dum;
+	dum->rh_state = DUMMY_RH_RUNNING;
 
 	INIT_LIST_HEAD (&dum->urbp_list);
 
@@ -1803,6 +1900,8 @@ static const struct hc_driver dummy_hcd = {
 
 	.hub_status_data = 	dummy_hub_status,
 	.hub_control = 		dummy_hub_control,
+	.hub_suspend =		dummy_hub_suspend,
+	.hub_resume =		dummy_hub_resume,
 };
 
 static int dummy_hcd_probe (struct device *dev)
@@ -1836,11 +1935,57 @@ static int dummy_hcd_remove (struct device *dev)
 	return 0;
 }
 
+static int dummy_hcd_suspend (struct device *dev, pm_message_t state,
+		u32 level)
+{
+	struct usb_hcd		*hcd;
+
+	if (level != SUSPEND_DISABLE)
+		return 0;
+
+	dev_dbg (dev, "%s\n", __FUNCTION__);
+	hcd = dev_get_drvdata (dev);
+
+#ifndef CONFIG_USB_SUSPEND
+	/* Otherwise this would never happen */
+	usb_lock_device (hcd->self.root_hub);
+	dummy_hub_suspend (hcd);
+	usb_unlock_device (hcd->self.root_hub);
+#endif
+
+	hcd->state = HC_STATE_SUSPENDED;
+	return 0;
+}
+
+static int dummy_hcd_resume (struct device *dev, u32 level)
+{
+	struct usb_hcd		*hcd;
+
+	if (level != RESUME_ENABLE)
+		return 0;
+
+	dev_dbg (dev, "%s\n", __FUNCTION__);
+	hcd = dev_get_drvdata (dev);
+	hcd->state = HC_STATE_RUNNING;
+
+#ifndef CONFIG_USB_SUSPEND
+	/* Otherwise this would never happen */
+	usb_lock_device (hcd->self.root_hub);
+	dummy_hub_resume (hcd);
+	usb_unlock_device (hcd->self.root_hub);
+#endif
+
+	usb_hcd_poll_rh_status (hcd);
+	return 0;
+}
+
 static struct device_driver dummy_hcd_driver = {
 	.name		= (char *) driver_name,
 	.bus		= &platform_bus_type,
 	.probe		= dummy_hcd_probe,
 	.remove		= dummy_hcd_remove,
+	.suspend	= dummy_hcd_suspend,
+	.resume		= dummy_hcd_resume,
 };
 
 /*-------------------------------------------------------------------------*/
