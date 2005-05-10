@@ -687,10 +687,10 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx)
  * Returns 0 (no space) on failed expansion, or available space if
  * successful.
  */
-static inline int audit_expand(struct audit_buffer *ab)
+static inline int audit_expand(struct audit_buffer *ab, int extra)
 {
 	struct sk_buff *skb = ab->skb;
-	int ret = pskb_expand_head(skb, skb_headroom(skb), AUDIT_BUFSIZ,
+	int ret = pskb_expand_head(skb, skb_headroom(skb), extra,
 				   GFP_ATOMIC);
 	if (ret < 0) {
 		audit_log_lost("out of memory in audit_expand");
@@ -716,7 +716,7 @@ static void audit_log_vformat(struct audit_buffer *ab, const char *fmt,
 	skb = ab->skb;
 	avail = skb_tailroom(skb);
 	if (avail == 0) {
-		avail = audit_expand(ab);
+		avail = audit_expand(ab, AUDIT_BUFSIZ);
 		if (!avail)
 			goto out;
 	}
@@ -725,7 +725,7 @@ static void audit_log_vformat(struct audit_buffer *ab, const char *fmt,
 		/* The printk buffer is 1024 bytes long, so if we get
 		 * here and AUDIT_BUFSIZ is at least 1024, then we can
 		 * log everything that printk could have logged. */
-		avail = audit_expand(ab);
+		avail = audit_expand(ab, 1+len-avail);
 		if (!avail)
 			goto out;
 		len = vsnprintf(skb->tail, avail, fmt, args);
