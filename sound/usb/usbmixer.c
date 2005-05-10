@@ -36,6 +36,7 @@
 #include <sound/core.h>
 #include <sound/control.h>
 #include <sound/hwdep.h>
+#include <sound/info.h>
 
 #include "usbaudio.h"
 
@@ -1622,11 +1623,22 @@ static void snd_usb_mixer_notify_id(struct usb_mixer_interface *mixer,
 static void snd_usb_mixer_memory_change(struct usb_mixer_interface *mixer,
 					int unitid)
 {
-	/* SB remote control */
-	if (mixer->rc_type != RC_NONE && unitid == 0) {
-		/* read control code from device memory */
+	if (mixer->rc_type == RC_NONE)
+		return;
+	/* unit ids specific to Extigy/Audigy 2 NX: */
+	switch (unitid) {
+	case 0: /* remote control */
 		mixer->rc_urb->dev = mixer->chip->dev;
 		usb_submit_urb(mixer->rc_urb, GFP_ATOMIC);
+		break;
+	case 4: /* digital in jack */
+	case 7: /* line in jacks */
+	case 19: /* speaker out jacks */
+	case 20: /* headphones out jack */
+		break;
+	default:
+		snd_printd(KERN_DEBUG "memory change in unknown unit %d\n", unitid);
+		break;
 	}
 }
 
@@ -1894,6 +1906,37 @@ static int snd_audigy2nx_controls_create(struct usb_mixer_interface *mixer)
 	return 0;
 }
 
+static void snd_audigy2nx_proc_read(snd_info_entry_t *entry,
+				    snd_info_buffer_t *buffer)
+{
+	static const struct {
+		int unitid;
+		const char *name;
+	} jacks[] = {
+		{4,  "dig in "},
+		{7,  "line in"},
+		{19, "spk out"},
+		{20, "hph out"},
+	};
+	struct usb_mixer_interface *mixer = entry->private_data;
+	int i, err;
+	u8 buf[3];
+
+	snd_iprintf(buffer, "%s jacks\n\n", mixer->chip->card->shortname);
+	for (i = 0; i < ARRAY_SIZE(jacks); ++i) {
+		snd_iprintf(buffer, "%s: ", jacks[i].name);
+		err = snd_usb_ctl_msg(mixer->chip->dev,
+				      usb_rcvctrlpipe(mixer->chip->dev, 0),
+				      GET_MEM, USB_DIR_IN | USB_TYPE_CLASS |
+				      USB_RECIP_INTERFACE, 0,
+				      jacks[i].unitid << 8, buf, 3, 100);
+		if (err == 3 && buf[0] == 3)
+			snd_iprintf(buffer, "%02x %02x\n", buf[1], buf[2]);
+		else
+			snd_iprintf(buffer, "?\n");
+	}
+}
+
 int snd_usb_create_mixer(snd_usb_audio_t *chip, int ctrlif)
 {
 	static snd_device_ops_t dev_ops = {
@@ -1926,8 +1969,13 @@ int snd_usb_create_mixer(snd_usb_audio_t *chip, int ctrlif)
 		goto _error;
 
 	if (mixer->chip->usb_id == USB_ID(0x041e, 0x3020)) {
+		snd_info_entry_t *entry;
+
 		if ((err = snd_audigy2nx_controls_create(mixer)) < 0)
 			goto _error;
+		if (!snd_card_proc_new(chip->card, "audigy2nx", &entry))
+			snd_info_set_text_ops(entry, mixer, 1024,
+					      snd_audigy2nx_proc_read);
 	}
 
 	err = snd_device_new(chip->card, SNDRV_DEV_LOWLEVEL, mixer, &dev_ops);
