@@ -708,6 +708,7 @@ static void audit_log_vformat(struct audit_buffer *ab, const char *fmt,
 {
 	int len, avail;
 	struct sk_buff *skb;
+	va_list args2;
 
 	if (!ab)
 		return;
@@ -720,6 +721,7 @@ static void audit_log_vformat(struct audit_buffer *ab, const char *fmt,
 		if (!avail)
 			goto out;
 	}
+	va_copy(args2, args);
 	len = vsnprintf(skb->tail, avail, fmt, args);
 	if (len >= avail) {
 		/* The printk buffer is 1024 bytes long, so if we get
@@ -728,7 +730,7 @@ static void audit_log_vformat(struct audit_buffer *ab, const char *fmt,
 		avail = audit_expand(ab, 1+len-avail);
 		if (!avail)
 			goto out;
-		len = vsnprintf(skb->tail, avail, fmt, args);
+		len = vsnprintf(skb->tail, avail, fmt, args2);
 	}
 	skb_put(skb, (len < avail) ? len : avail);
 out:
