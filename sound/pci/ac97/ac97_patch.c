@@ -1507,7 +1507,7 @@ static void ad1888_update_jacks(ac97_t *ac97)
 			     is_shared_linein(ac97) ? 0 : 1 << 12);
 	/* shared Mic */
 	snd_ac97_update_bits(ac97, AC97_AD_MISC, 1 << 11,
-			     is_shared_micin(ac97) ? 0 : 1 << 13);
+			     is_shared_micin(ac97) ? 0 : 1 << 11);
 }
 
 static const snd_kcontrol_new_t snd_ac97_ad1888_controls[] = {
