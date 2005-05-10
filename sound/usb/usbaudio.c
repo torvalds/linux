@@ -3129,8 +3129,6 @@ static int snd_usb_audio_create(struct usb_device *dev, int idx,
 
 	snd_usb_audio_create_proc(chip);
 
-	snd_card_set_dev(card, &dev->dev);
-
 	*rchip = chip;
 	return 0;
 }
@@ -3212,6 +3210,7 @@ static void *snd_usb_audio_probe(struct usb_device *dev,
 				if (snd_usb_audio_create(dev, i, quirk, &chip) < 0) {
 					goto __error;
 				}
+				snd_card_set_dev(chip->card, &intf->dev);
 				break;
 			}
 		if (! chip) {
