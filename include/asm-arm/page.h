@@ -114,19 +114,8 @@ extern void __cpu_copy_user_page(void *to, const void *from,
 				 unsigned long user);
 #endif
 
-#define clear_user_page(addr,vaddr,pg)			\
-	do {						\
-		preempt_disable();			\
-		__cpu_clear_user_page(addr, vaddr);	\
-		preempt_enable();			\
-	} while (0)
-
-#define copy_user_page(to,from,vaddr,pg)		\
-	do {						\
-		preempt_disable();			\
-		__cpu_copy_user_page(to, from, vaddr);	\
-		preempt_enable();			\
-	} while (0)
+#define clear_user_page(addr,vaddr,pg)	 __cpu_clear_user_page(addr, vaddr)
+#define copy_user_page(to,from,vaddr,pg) __cpu_copy_user_page(to, from, vaddr)
 
 #define clear_page(page)	memzero((void *)(page), PAGE_SIZE)
 extern void copy_page(void *to, const void *from);
