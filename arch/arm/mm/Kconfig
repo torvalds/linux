@@ -427,6 +427,6 @@ config HAS_TLS_REG
 	help
 	  This selects support for the CP15 thread register.
 	  It is defined to be available on ARMv6 or later.  If a particular
-	  ARMv6 or later CPU doesn't support it then it must omc;ide "select
-	  TLS_REG_EMUL" along with its other caracteristics.
+	  ARMv6 or later CPU doesn't support it then it must include "select
+	  TLS_REG_EMUL" along with its other characteristics.
 
