@@ -96,6 +96,7 @@ u8 sn_coherency_id;
 EXPORT_SYMBOL(sn_coherency_id);
 u8 sn_region_size;
 EXPORT_SYMBOL(sn_region_size);
+int sn_prom_type;	/* 0=hardware, 1=medusa/realprom, 2=medusa/fakeprom */
 
 short physical_node_map[MAX_PHYSNODE_ID];
 
@@ -354,7 +355,7 @@ void __init sn_setup(char **cmdline_p)
 
 	ia64_mark_idle = &snidle;
 
-	/* 
+	/*
 	 * For the bootcpu, we do this here. All other cpus will make the
 	 * call as part of cpu_init in slave cpu initialization.
 	 */
@@ -401,7 +402,7 @@ static void __init sn_init_pdas(char **cmdline_p)
 		nodepdaindr[cnode] =
 		    alloc_bootmem_node(NODE_DATA(cnode), sizeof(nodepda_t));
 		memset(nodepdaindr[cnode], 0, sizeof(nodepda_t));
-		memset(nodepdaindr[cnode]->phys_cpuid, -1, 
+		memset(nodepdaindr[cnode]->phys_cpuid, -1,
 		    sizeof(nodepdaindr[cnode]->phys_cpuid));
 	}
 
@@ -431,7 +432,7 @@ static void __init sn_init_pdas(char **cmdline_p)
 	}
 
 	/*
-	 * Initialize the per node hubdev.  This includes IO Nodes and 
+	 * Initialize the per node hubdev.  This includes IO Nodes and
 	 * headless/memless nodes.
 	 */
 	for (cnode = 0; cnode < numionodes; cnode++) {
@@ -458,6 +459,14 @@ void __init sn_cpu_init(void)
 	int cnode;
 	int i;
 	static int wars_have_been_checked;
+
+	if (smp_processor_id() == 0 && IS_MEDUSA()) {
+		if (ia64_sn_is_fake_prom())
+			sn_prom_type = 2;
+		else
+			sn_prom_type = 1;
+		printk("Running on medusa with %s PROM\n", (sn_prom_type == 1) ? "real" : "fake");
+	}
 
 	memset(pda, 0, sizeof(pda));
 	if (ia64_sn_get_sn_info(0, &sn_hub_info->shub2, &sn_hub_info->nasid_bitmask, &sn_hub_info->nasid_shift,
@@ -524,7 +533,7 @@ void __init sn_cpu_init(void)
 	 */
 	{
 		u64 pio1[] = {SH1_PIO_WRITE_STATUS_0, 0, SH1_PIO_WRITE_STATUS_1, 0};
-		u64 pio2[] = {SH2_PIO_WRITE_STATUS_0, SH2_PIO_WRITE_STATUS_1, 
+		u64 pio2[] = {SH2_PIO_WRITE_STATUS_0, SH2_PIO_WRITE_STATUS_1,
 			SH2_PIO_WRITE_STATUS_2, SH2_PIO_WRITE_STATUS_3};
 		u64 *pio;
 		pio = is_shub1() ? pio1 : pio2;
@@ -556,6 +565,10 @@ static void __init scan_for_ionodes(void)
 	int nasid = 0;
 	lboard_t *brd;
 
+	/* fakeprom does not support klgraph */
+	if (IS_RUNNING_ON_FAKE_PROM())
+		return;
+
 	/* Setup ionodes with memory */
 	for (nasid = 0; nasid < MAX_PHYSNODE_ID; nasid += 2) {
 		char *klgraph_header;
@@ -567,8 +580,6 @@ static void __init scan_for_ionodes(void)
 		cnodeid = -1;
 		klgraph_header = __va(ia64_sn_get_klconfig_addr(nasid));
 		if (!klgraph_header) {
-			if (IS_RUNNING_ON_SIMULATOR())
-				continue;
 			BUG();	/* All nodes must have klconfig tables! */
 		}
 		cnodeid = nasid_to_cnodeid(nasid);
@@ -634,8 +645,8 @@ int
 nasid_slice_to_cpuid(int nasid, int slice)
 {
 	long cpu;
-	
-	for (cpu=0; cpu < NR_CPUS; cpu++) 
+
+	for (cpu=0; cpu < NR_CPUS; cpu++)
 		if (cpuid_to_nasid(cpu) == nasid &&
 					cpuid_to_slice(cpu) == slice)
 			return cpu;
