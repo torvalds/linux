@@ -562,6 +562,13 @@ typedef struct _MPT_ADAPTER
 	FCPortPage0_t		 fc_port_page0[2];
 	LANPage0_t		 lan_cnfg_page0;
 	LANPage1_t		 lan_cnfg_page1;
+	/*  
+	 * Description: errata_flag_1064
+	 * If a PCIX read occurs within 1 or 2 cycles after the chip receives
+	 * a split completion for a read data, an internal address pointer incorrectly
+	 * increments by 32 bytes
+	 */
+	int			 errata_flag_1064;	
 	u8			 FirstWhoInit;
 	u8			 upload_fw;	/* If set, do a fw upload */
 	u8			 reload_fw;	/* Force a FW Reload on next reset */

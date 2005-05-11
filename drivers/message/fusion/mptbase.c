@@ -186,6 +186,26 @@ static void __exit    fusion_exit  (void);
 #define CHIPREG_PIO_WRITE32(addr,val)	outl(val, (unsigned long)addr)
 #define CHIPREG_PIO_READ32(addr) 	inl((unsigned long)addr)
 
+static void
+pci_disable_io_access(struct pci_dev *pdev)
+{
+	u16 command_reg;
+
+	pci_read_config_word(pdev, PCI_COMMAND, &command_reg);
+	command_reg &= ~1;
+	pci_write_config_word(pdev, PCI_COMMAND, command_reg);
+}
+
+static void
+pci_enable_io_access(struct pci_dev *pdev)
+{
+	u16 command_reg;
+
+	pci_read_config_word(pdev, PCI_COMMAND, &command_reg);
+	command_reg |= 1;
+	pci_write_config_word(pdev, PCI_COMMAND, command_reg);
+}
+
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*
  *	mpt_interrupt - MPT adapter (IOC) specific interrupt handler.
@@ -1161,6 +1181,16 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 		pcixcmd &= 0x8F;
 		pci_write_config_byte(pdev, 0x6a, pcixcmd);
 	}
+	else if (pdev->device == MPI_MANUFACTPAGE_DEVICEID_FC939X) {
+		ioc->prod_name = "LSIFC939X";
+		ioc->bus_type = FC;
+		ioc->errata_flag_1064 = 1;
+	}
+	else if (pdev->device == MPI_MANUFACTPAGE_DEVICEID_FC949X) {
+		ioc->prod_name = "LSIFC949X";
+		ioc->bus_type = FC;
+		ioc->errata_flag_1064 = 1;
+	}
 	else if (pdev->device == MPI_MANUFACTPAGE_DEVID_53C1030) {
 		ioc->prod_name = "LSI53C1030";
 		ioc->bus_type = SCSI;
@@ -1178,6 +1208,9 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 		ioc->prod_name = "LSI53C1035";
 		ioc->bus_type = SCSI;
 	}
+
+	if (ioc->errata_flag_1064)
+		pci_disable_io_access(pdev);
 
 	sprintf(ioc->name, "ioc%d", ioc->id);
 
@@ -2667,7 +2700,7 @@ mpt_downloadboot(MPT_ADAPTER *ioc, int sleepFlag)
 	/* prevent a second downloadboot and memory free with alt_ioc */
 	if (ioc->alt_ioc && ioc->alt_ioc->cached_fw)
 		ioc->alt_ioc->cached_fw = NULL;
-	
+
 	CHIPREG_WRITE32(&ioc->chip->WriteSequence, 0xFF);
 	CHIPREG_WRITE32(&ioc->chip->WriteSequence, MPI_WRSEQ_1ST_KEY_VALUE);
 	CHIPREG_WRITE32(&ioc->chip->WriteSequence, MPI_WRSEQ_2ND_KEY_VALUE);
@@ -2725,6 +2758,9 @@ mpt_downloadboot(MPT_ADAPTER *ioc, int sleepFlag)
 	/* Write the LoadStartAddress to the DiagRw Address Register
 	 * using Programmed IO
 	 */
+	if (ioc->errata_flag_1064)
+		pci_enable_io_access(ioc->pcidev);
+
 	CHIPREG_PIO_WRITE32(&ioc->pio_chip->DiagRwAddress, pFwHeader->LoadStartAddress);
 	ddlprintk((MYIOC_s_INFO_FMT "LoadStart addr written 0x%x \n",
 		ioc->name, pFwHeader->LoadStartAddress));
@@ -2770,6 +2806,9 @@ mpt_downloadboot(MPT_ADAPTER *ioc, int sleepFlag)
 	diagRwData |= 0x4000000;
 	CHIPREG_PIO_WRITE32(&ioc->pio_chip->DiagRwAddress, 0x3F000000);
 	CHIPREG_PIO_WRITE32(&ioc->pio_chip->DiagRwData, diagRwData);
+
+	if (ioc->errata_flag_1064)
+		pci_disable_io_access(ioc->pcidev);
 
 	diag0val = CHIPREG_READ32(&ioc->chip->Diagnostic);
 	ddlprintk((MYIOC_s_INFO_FMT "downloadboot diag0val=%x, turning off PREVENT_IOC_BOOT, DISABLE_ARM\n",
