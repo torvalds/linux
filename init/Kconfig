@@ -164,6 +164,7 @@ config SYSCTL
 
 config AUDIT
 	bool "Auditing support"
+	depends on NET
 	default y if SECURITY_SELINUX
 	help
 	  Enable auditing infrastructure that can be used with another

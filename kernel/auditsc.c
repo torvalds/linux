@@ -226,7 +226,6 @@ static inline int audit_del_rule(struct audit_rule *rule,
 	return -EFAULT;		/* No matching rule */
 }
 
-#ifdef CONFIG_NET
 /* Copy rule from user-space to kernel-space.  Called during
  * AUDIT_ADD. */
 static int audit_copy_rule(struct audit_rule *d, struct audit_rule *s)
@@ -305,7 +304,6 @@ int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
 
 	return err;
 }
-#endif
 
 /* Compare a task_struct with an audit_rule.  Return 1 on match, 0
  * otherwise. */

@@ -283,7 +283,6 @@ static int audit_set_failure(int state, uid_t loginuid)
 	return old;
 }
 
-#ifdef CONFIG_NET
 void audit_send_reply(int pid, int seq, int type, int done, int multi,
 		      void *payload, int size)
 {
@@ -531,35 +530,6 @@ static int __init audit_init(void)
 	audit_log(NULL, "initialized");
 	return 0;
 }
-
-#else
-/* Without CONFIG_NET, we have no skbuffs.  For now, print what we have
- * in the buffer. */
-static void audit_log_move(struct audit_buffer *ab)
-{
-	printk(KERN_ERR "%*.*s\n", ab->len, ab->len, ab->tmp);
-	ab->len = 0;
-}
-
-static inline int audit_log_drain(struct audit_buffer *ab)
-{
-	return 0;
-}
-
-/* Initialize audit support at boot time. */
-int __init audit_init(void)
-{
-	printk(KERN_INFO "audit: initializing WITHOUT netlink support\n");
-	audit_sock = NULL;
-	audit_pid  = 0;
-
-	audit_initialized = 1;
-	audit_enabled = audit_default;
-	audit_log(NULL, "initialized");
-	return 0;
-}
-#endif
-
 __initcall(audit_init);
 
 /* Process kernel command-line parameter at boot time.  audit=0 or audit=1. */
