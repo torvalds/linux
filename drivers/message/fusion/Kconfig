@@ -36,17 +36,16 @@ config FUSION_FC
 	  LSIFC929XL
 
 config FUSION_MAX_SGE
-	int "Maximum number of scatter gather entries"
-	depends on FUSION_SPI || FUSION_FC
+	int "Maximum number of scatter gather entries (16 - 128)"
+	depends on FUSION
 	default "128"
+	range 16 128
 	help
 	  This option allows you to specify the maximum number of scatter-
-	  gather entries per I/O. The driver defaults to 40, a reasonable number
-	  for most systems. However, the user may increase this up to 128.
-	  Increasing this parameter will require significantly more memory
-	  on a per controller instance. Increasing the parameter is not
-	  necessary (or recommended) unless the user will be running
-	  large I/O's via the raw interface.
+	  gather entries per I/O. The driver default is 128, which matches
+	  SCSI_MAX_PHYS_SEGMENTS. However, it may decreased down to 16.
+	  Decreasing this parameter will reduce memory requirements
+	  on a per controller instance.
 
 config FUSION_CTL
 	tristate "Fusion MPT misc device (ioctl) driver"
