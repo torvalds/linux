@@ -216,11 +216,14 @@ extern void audit_signal_info(int sig, struct task_struct *t);
 #ifdef CONFIG_AUDIT
 /* These are defined in audit.c */
 				/* Public API */
-extern void		    audit_log(struct audit_context *ctx,
-				      const char *fmt, ...)
-			    __attribute__((format(printf,2,3)));
+#define audit_log(ctx, fmt, args...) \
+	audit_log_type(ctx, AUDIT_KERNEL, 0, fmt, ##args)
+extern void		    audit_log_type(struct audit_context *ctx, int type,
+				      int pid, const char *fmt, ...)
+			    __attribute__((format(printf,4,5)));
 
-extern struct audit_buffer *audit_log_start(struct audit_context *ctx);
+extern struct audit_buffer *audit_log_start(struct audit_context *ctx, int type,
+					    int pid);
 extern void		    audit_log_format(struct audit_buffer *ab,
 					     const char *fmt, ...)
 			    __attribute__((format(printf,2,3)));
@@ -240,8 +243,9 @@ extern void		    audit_send_reply(int pid, int seq, int type,
 					     void *payload, int size);
 extern void		    audit_log_lost(const char *message);
 #else
-#define audit_log(t,f,...) do { ; } while (0)
-#define audit_log_start(t) ({ NULL; })
+#define audit_log(c,f,...) do { ; } while (0)
+#define audit_log_type(c,t,p,f,...) do { ; } while (0)
+#define audit_log_start(c,t,p) ({ NULL; })
 #define audit_log_vformat(b,f,a) do { ; } while (0)
 #define audit_log_format(b,f,...) do { ; } while (0)
 #define audit_log_end(b) do { ; } while (0)

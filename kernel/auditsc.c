@@ -648,7 +648,7 @@ static void audit_log_exit(struct audit_context *context)
 	int i;
 	struct audit_buffer *ab;
 
-	ab = audit_log_start(context);
+	ab = audit_log_start(context, AUDIT_KERNEL, 0);
 	if (!ab)
 		return;		/* audit_panic has been called */
 	audit_log_format(ab, "syscall=%d", context->major);
@@ -680,7 +680,7 @@ static void audit_log_exit(struct audit_context *context)
 	while (context->aux) {
 		struct audit_aux_data *aux;
 
-		ab = audit_log_start(context);
+		ab = audit_log_start(context, AUDIT_KERNEL, 0);
 		if (!ab)
 			continue; /* audit_panic has been called */
 
@@ -701,7 +701,7 @@ static void audit_log_exit(struct audit_context *context)
 	}
 
 	for (i = 0; i < context->name_count; i++) {
-		ab = audit_log_start(context);
+		ab = audit_log_start(context, AUDIT_KERNEL, 0);
 		if (!ab)
 			continue; /* audit_panic has been called */
 		audit_log_format(ab, "item=%d", i);
@@ -1005,22 +1005,13 @@ int audit_get_stamp(struct audit_context *ctx,
 	return 0;
 }
 
-extern int audit_set_type(struct audit_buffer *ab, int type);
-
 int audit_set_loginuid(struct task_struct *task, uid_t loginuid)
 {
 	if (task->audit_context) {
-		struct audit_buffer *ab;
-
-		ab = audit_log_start(NULL);
-		if (ab) {
-			audit_log_format(ab, "login pid=%d uid=%u "
-				"old loginuid=%u new loginuid=%u",
-				task->pid, task->uid, 
-				task->audit_context->loginuid, loginuid);
-			audit_set_type(ab, AUDIT_LOGIN);
-			audit_log_end(ab);
-		}
+		audit_log_type(NULL, AUDIT_LOGIN, 0,
+			  "login pid=%d uid=%u old loginuid=%u new loginuid=%u",
+			  task->pid, task->uid, task->audit_context->loginuid,
+			  loginuid);
 		task->audit_context->loginuid = loginuid;
 	}
 	return 0;

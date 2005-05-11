@@ -549,7 +549,7 @@ void avc_audit(u32 ssid, u32 tsid,
 			return;
 	}
 
-	ab = audit_log_start(current->audit_context);
+	ab = audit_log_start(current->audit_context, AUDIT_KERNEL, 0);
 	if (!ab)
 		return;		/* audit_panic has been called */
 	audit_log_format(ab, "avc:  %s ", denied ? "denied" : "granted");

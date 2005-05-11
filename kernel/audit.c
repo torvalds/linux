@@ -140,18 +140,6 @@ struct audit_buffer {
 	struct audit_context *ctx;	/* NULL or associated context */
 };
 
-void audit_set_type(struct audit_buffer *ab, int type)
-{
-	struct nlmsghdr *nlh = (struct nlmsghdr *)ab->skb->data;
-	nlh->nlmsg_type = type;
-}
-
-static void audit_set_pid(struct audit_buffer *ab, pid_t pid)
-{
-	struct nlmsghdr *nlh = (struct nlmsghdr *)ab->skb->data;
-	nlh->nlmsg_pid = pid;
-}
-
 struct audit_entry {
 	struct list_head  list;
 	struct audit_rule rule;
@@ -344,7 +332,6 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	void			*data;
 	struct audit_status	*status_get, status_set;
 	int			err;
-	struct audit_buffer	*ab;
 	u16			msg_type = nlh->nlmsg_type;
 	uid_t			loginuid; /* loginuid of sender */
 	struct audit_sig_info   sig_data;
@@ -396,19 +383,13 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 							loginuid);
 		break;
 	case AUDIT_USER:
-		ab = audit_log_start(NULL);
-		if (!ab)
-			break;	/* audit_panic has been called */
-		audit_log_format(ab,
+		audit_log_type(NULL, AUDIT_USER, pid,
 				 "user pid=%d uid=%d length=%d loginuid=%u"
 				 " msg='%.1024s'",
 				 pid, uid,
 				 (int)(nlh->nlmsg_len
 				       - ((char *)data - (char *)nlh)),
 				 loginuid, (char *)data);
-		audit_set_type(ab, AUDIT_USER);
-		audit_set_pid(ab, pid);
-		audit_log_end(ab);
 		break;
 	case AUDIT_ADD:
 	case AUDIT_DEL:
@@ -560,12 +541,10 @@ static void audit_buffer_free(struct audit_buffer *ab)
 	spin_unlock_irqrestore(&audit_freelist_lock, flags);
 }
 
-static struct audit_buffer * audit_buffer_alloc(struct audit_context *ctx,
-						int gfp_mask)
+static struct audit_buffer * audit_buffer_alloc(int gfp_mask)
 {
 	unsigned long flags;
 	struct audit_buffer *ab = NULL;
-	struct nlmsghdr *nlh;
 
 	spin_lock_irqsave(&audit_freelist_lock, flags);
 	if (!list_empty(&audit_freelist)) {
@@ -587,12 +566,6 @@ static struct audit_buffer * audit_buffer_alloc(struct audit_context *ctx,
 	if (!ab->skb)
 		goto err;
 
-	ab->ctx   = ctx;
-	nlh = (struct nlmsghdr *)skb_put(ab->skb, NLMSG_SPACE(0));
-	nlh->nlmsg_type = AUDIT_KERNEL;
-	nlh->nlmsg_flags = 0;
-	nlh->nlmsg_pid = 0;
-	nlh->nlmsg_seq = 0;
 	return ab;
 err:
 	audit_buffer_free(ab);
@@ -605,11 +578,12 @@ err:
  * syscall, then the syscall is marked as auditable and an audit record
  * will be written at syscall exit.  If there is no associated task, tsk
  * should be NULL. */
-struct audit_buffer *audit_log_start(struct audit_context *ctx)
+struct audit_buffer *audit_log_start(struct audit_context *ctx, int type, int pid)
 {
 	struct audit_buffer	*ab	= NULL;
 	struct timespec		t;
 	unsigned int		serial;
+	struct nlmsghdr *nlh;
 
 	if (!audit_initialized)
 		return NULL;
@@ -626,11 +600,18 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx)
 		return NULL;
 	}
 
-	ab = audit_buffer_alloc(ctx, GFP_ATOMIC);
+	ab = audit_buffer_alloc(GFP_ATOMIC);
 	if (!ab) {
 		audit_log_lost("out of memory in audit_log_start");
 		return NULL;
 	}
+
+	ab->ctx   = ctx;
+	nlh = (struct nlmsghdr *)skb_put(ab->skb, NLMSG_SPACE(0));
+	nlh->nlmsg_type = type;
+	nlh->nlmsg_flags = 0;
+	nlh->nlmsg_pid = pid;
+	nlh->nlmsg_seq = 0;
 
 	if (!audit_get_stamp(ab->ctx, &t, &serial)) {
 		t = CURRENT_TIME;
@@ -828,12 +809,13 @@ void audit_log_end(struct audit_buffer *ab)
 /* Log an audit record.  This is a convenience function that calls
  * audit_log_start, audit_log_vformat, and audit_log_end.  It may be
  * called in any context. */
-void audit_log(struct audit_context *ctx, const char *fmt, ...)
+void audit_log_type(struct audit_context *ctx, int type, int pid,
+		    const char *fmt, ...)
 {
 	struct audit_buffer *ab;
 	va_list args;
 
-	ab = audit_log_start(ctx);
+	ab = audit_log_start(ctx, type, pid);
 	if (ab) {
 		va_start(args, fmt);
 		audit_log_vformat(ab, fmt, args);
