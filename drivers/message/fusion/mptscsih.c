@@ -998,20 +998,17 @@ mptscsih_remove(struct pci_dev *pdev)
 		hd->ScsiLookup = NULL;
 	}
 
-	if (hd->Targets != NULL) {
-		/*
-		 * Free pointer array.
-		 */
-		kfree(hd->Targets);
-		hd->Targets = NULL;
-	}
+	/*
+	 * Free pointer array.
+	 */
+	kfree(hd->Targets);
+	hd->Targets = NULL;
 
 	dprintk((MYIOC_s_INFO_FMT
 	    "Free'd ScsiLookup (%d) memory\n",
 	    hd->ioc->name, sz1));
 
-	if (hd->info_kbuf != NULL)
-		kfree(hd->info_kbuf);
+	kfree(hd->info_kbuf);
 
 	/* NULL the Scsi_Host pointer
 	 */

@@ -1837,15 +1837,10 @@ mpt_adapter_disable(MPT_ADAPTER *ioc)
 		ioc->alloc_total -= sz;
 	}
 
-	if (ioc->spi_data.nvram != NULL) {
-		kfree(ioc->spi_data.nvram);
-		ioc->spi_data.nvram = NULL;
-	}
-
-	if (ioc->spi_data.pIocPg3 != NULL) {
-		kfree(ioc->spi_data.pIocPg3);
-		ioc->spi_data.pIocPg3 = NULL;
-	}
+	kfree(ioc->spi_data.nvram);
+	kfree(ioc->spi_data.pIocPg3);
+	ioc->spi_data.nvram = NULL;
+	ioc->spi_data.pIocPg3 = NULL;
 
 	if (ioc->spi_data.pIocPg4 != NULL) {
 		sz = ioc->spi_data.IocPg4Sz;
@@ -1862,10 +1857,8 @@ mpt_adapter_disable(MPT_ADAPTER *ioc)
 		ioc->ReqToChain = NULL;
 	}
 
-	if (ioc->ChainToChain != NULL) {
-		kfree(ioc->ChainToChain);
-		ioc->ChainToChain = NULL;
-	}
+	kfree(ioc->ChainToChain);
+	ioc->ChainToChain = NULL;
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -4403,10 +4396,8 @@ mpt_read_ioc_pg_3(MPT_ADAPTER *ioc)
 
 	/* Free the old page
 	 */
-	if (ioc->spi_data.pIocPg3) {
-		kfree(ioc->spi_data.pIocPg3);
-		ioc->spi_data.pIocPg3 = NULL;
-	}
+	kfree(ioc->spi_data.pIocPg3);
+	ioc->spi_data.pIocPg3 = NULL;
 
 	/* There is at least one physical disk.
 	 * Read and save IOC Page 3

@@ -538,8 +538,8 @@ mpt_lan_close(struct net_device *dev)
 		}
 	}
 
-	kfree (priv->RcvCtl);
-	kfree (priv->mpt_rxfidx);
+	kfree(priv->RcvCtl);
+	kfree(priv->mpt_rxfidx);
 
 	for (i = 0; i < priv->tx_max_out; i++) {
 		if (priv->SendCtl[i].skb != NULL) {

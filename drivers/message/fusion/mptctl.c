@@ -99,14 +99,14 @@ struct buflist {
  * arg contents specific to function.
  */
 static int mptctl_fw_download(unsigned long arg);
-static int mptctl_getiocinfo (unsigned long arg, unsigned int cmd);
-static int mptctl_gettargetinfo (unsigned long arg);
-static int mptctl_readtest (unsigned long arg);
-static int mptctl_mpt_command (unsigned long arg);
-static int mptctl_eventquery (unsigned long arg);
-static int mptctl_eventenable (unsigned long arg);
-static int mptctl_eventreport (unsigned long arg);
-static int mptctl_replace_fw (unsigned long arg);
+static int mptctl_getiocinfo(unsigned long arg, unsigned int cmd);
+static int mptctl_gettargetinfo(unsigned long arg);
+static int mptctl_readtest(unsigned long arg);
+static int mptctl_mpt_command(unsigned long arg);
+static int mptctl_eventquery(unsigned long arg);
+static int mptctl_eventenable(unsigned long arg);
+static int mptctl_eventreport(unsigned long arg);
+static int mptctl_replace_fw(unsigned long arg);
 
 static int mptctl_do_reset(unsigned long arg);
 static int mptctl_hp_hostinfo(unsigned long arg, unsigned int cmd);
@@ -121,11 +121,11 @@ static long compat_mpctl_ioctl(struct file *f, unsigned cmd, unsigned long arg);
 /*
  * Private function calls.
  */
-static int mptctl_do_mpt_command (struct mpt_ioctl_command karg, void __user *mfPtr);
+static int mptctl_do_mpt_command(struct mpt_ioctl_command karg, void __user *mfPtr);
 static int mptctl_do_fw_download(int ioc, char __user *ufwbuf, size_t fwlen);
-static MptSge_t *kbuf_alloc_2_sgl( int bytes, u32 dir, int sge_offset, int *frags,
+static MptSge_t *kbuf_alloc_2_sgl(int bytes, u32 dir, int sge_offset, int *frags,
 		struct buflist **blp, dma_addr_t *sglbuf_dma, MPT_ADAPTER *ioc);
-static void kfree_sgl( MptSge_t *sgl, dma_addr_t sgl_dma,
+static void kfree_sgl(MptSge_t *sgl, dma_addr_t sgl_dma,
 		struct buflist *buflist, MPT_ADAPTER *ioc);
 static void mptctl_timeout_expired (MPT_IOCTL *ioctl);
 static int  mptctl_bus_reset(MPT_IOCTL *ioctl);
