@@ -192,7 +192,7 @@ extern void audit_inode(const char *name, const struct inode *inode);
 				/* Private API (for audit.c only) */
 extern int  audit_receive_filter(int type, int pid, int uid, int seq,
 				 void *data, uid_t loginuid);
-extern void audit_get_stamp(struct audit_context *ctx,
+extern int audit_get_stamp(struct audit_context *ctx,
 			    struct timespec *t, unsigned int *serial);
 extern int  audit_set_loginuid(struct task_struct *task, uid_t loginuid);
 extern uid_t audit_get_loginuid(struct audit_context *ctx);
@@ -206,6 +206,8 @@ extern void audit_signal_info(int sig, struct task_struct *t);
 #define audit_getname(n) do { ; } while (0)
 #define audit_putname(n) do { ; } while (0)
 #define audit_inode(n,i) do { ; } while (0)
+#define audit_receive_filter(t,p,u,s,d,l) ({ -EOPNOTSUPP; })
+#define audit_get_stamp(c,t,s) ({ 0; })
 #define audit_get_loginuid(c) ({ -1; })
 #define audit_ipc_perms(q,u,g,m) ({ 0; })
 #define audit_signal_info(s,t) do { ; } while (0)

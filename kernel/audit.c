@@ -416,12 +416,8 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 			return -EINVAL;
 		/* fallthrough */
 	case AUDIT_LIST:
-#ifdef CONFIG_AUDITSYSCALL
 		err = audit_receive_filter(nlh->nlmsg_type, NETLINK_CB(skb).pid,
 					   uid, seq, data, loginuid);
-#else
-		err = -EOPNOTSUPP;
-#endif
 		break;
 	case AUDIT_SIGNAL_INFO:
 		sig_data.uid = audit_sig_uid;
@@ -636,15 +632,11 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx)
 		return NULL;
 	}
 
-#ifdef CONFIG_AUDITSYSCALL
-	if (ab->ctx)
-		audit_get_stamp(ab->ctx, &t, &serial);
-	else
-#endif
-	{
+	if (!audit_get_stamp(ab->ctx, &t, &serial)) {
 		t = CURRENT_TIME;
 		serial = 0;
 	}
+
 	audit_log_format(ab, "audit(%lu.%03lu:%u): ",
 			 t.tv_sec, t.tv_nsec/1000000, serial);
 	return ab;

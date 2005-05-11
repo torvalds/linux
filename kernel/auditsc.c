@@ -992,7 +992,7 @@ void audit_inode(const char *name, const struct inode *inode)
 	context->names[idx].rdev = inode->i_rdev;
 }
 
-void audit_get_stamp(struct audit_context *ctx,
+int audit_get_stamp(struct audit_context *ctx,
 		     struct timespec *t, unsigned int *serial)
 {
 	if (ctx) {
@@ -1000,10 +1000,9 @@ void audit_get_stamp(struct audit_context *ctx,
 		t->tv_nsec = ctx->ctime.tv_nsec;
 		*serial    = ctx->serial;
 		ctx->auditable = 1;
-	} else {
-		*t      = CURRENT_TIME;
-		*serial = 0;
+		return 1;
 	}
+	return 0;
 }
 
 extern int audit_set_type(struct audit_buffer *ab, int type);
