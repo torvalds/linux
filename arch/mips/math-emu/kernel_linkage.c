@@ -63,7 +63,6 @@ int fpu_emulator_save_context(struct sigcontext *sc)
 			       &sc->sc_fpregs[i]);
 	}
 	err |= __put_user(current->thread.fpu.soft.fcr31, &sc->sc_fpc_csr);
-	err |= __put_user(fpuemuprivate.eir, &sc->sc_fpc_eir);
 
 	return err;
 }
@@ -79,7 +78,6 @@ int fpu_emulator_restore_context(struct sigcontext *sc)
 			       &sc->sc_fpregs[i]);
 	}
 	err |= __get_user(current->thread.fpu.soft.fcr31, &sc->sc_fpc_csr);
-	err |= __get_user(fpuemuprivate.eir, &sc->sc_fpc_eir);
 
 	return err;
 }
@@ -100,7 +98,6 @@ int fpu_emulator_save_context32(struct sigcontext32 *sc)
 			       &sc->sc_fpregs[i]);
 	}
 	err |= __put_user(current->thread.fpu.soft.fcr31, &sc->sc_fpc_csr);
-	err |= __put_user(fpuemuprivate.eir, &sc->sc_fpc_eir);
 
 	return err;
 }
@@ -116,7 +113,6 @@ int fpu_emulator_restore_context32(struct sigcontext32 *sc)
 			       &sc->sc_fpregs[i]);
 	}
 	err |= __get_user(current->thread.fpu.soft.fcr31, &sc->sc_fpc_csr);
-	err |= __get_user(fpuemuprivate.eir, &sc->sc_fpc_eir);
 
 	return err;
 }

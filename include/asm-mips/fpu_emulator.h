@@ -24,7 +24,6 @@
 #define _ASM_FPU_EMULATOR_H
 
 struct mips_fpu_emulator_private {
-	unsigned int eir;
 	struct {
 		unsigned int emulated;
 		unsigned int loads;
