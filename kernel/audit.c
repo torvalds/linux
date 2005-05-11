@@ -488,7 +488,7 @@ static inline int audit_log_drain(struct audit_buffer *ab)
 
 		if (audit_pid) {
 			struct nlmsghdr *nlh = (struct nlmsghdr *)skb->data;
-			nlh->nlmsg_len = skb->len - sizeof(*nlh);
+			nlh->nlmsg_len = skb->len - NLMSG_SPACE(0);
 			skb_get(skb); /* because netlink_* frees */
 			retval = netlink_unicast(audit_sock, skb, audit_pid,
 						 MSG_DONTWAIT);
