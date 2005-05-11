@@ -101,7 +101,7 @@ int mips_dsemul(struct pt_regs *regs, mips_instruction ir, unsigned long cpc)
 	err |= __put_user(cpc, &fr->epc);
 
 	if (unlikely(err)) {
-		fpuemuprivate.stats.errors++;
+		fpuemustats.errors++;
 		return SIGBUS;
 	}
 
@@ -138,7 +138,7 @@ int do_dsemulret(struct pt_regs *xcp)
 	err |= __get_user(cookie, &fr->cookie);
 
 	if (unlikely(err || (insn != BADINST) || (cookie != BD_COOKIE))) {
-		fpuemuprivate.stats.errors++;
+		fpuemustats.errors++;
 		return 0;
 	}
 
