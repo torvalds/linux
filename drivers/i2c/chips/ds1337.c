@@ -380,5 +380,7 @@ MODULE_AUTHOR("James Chapman <jchapman@katalix.com>");
 MODULE_DESCRIPTION("DS1337 RTC driver");
 MODULE_LICENSE("GPL");
 
+EXPORT_SYMBOL_GPL(ds1337_do_command);
+
 module_init(ds1337_init);
 module_exit(ds1337_exit);
