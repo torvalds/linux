@@ -1530,7 +1530,7 @@ int snd_hda_check_board_config(struct hda_codec *codec, struct hda_board_config 
 	struct hda_board_config *c;
 
 	if (codec->bus->modelname) {
-		for (c = tbl; c->modelname || c->pci_vendor; c++) {
+		for (c = tbl; c->modelname || c->pci_subvendor; c++) {
 			if (c->modelname &&
 			    ! strcmp(codec->bus->modelname, c->modelname)) {
 				snd_printd(KERN_INFO "hda_codec: model '%s' is selected\n", c->modelname);
@@ -1543,9 +1543,9 @@ int snd_hda_check_board_config(struct hda_codec *codec, struct hda_board_config 
 		u16 subsystem_vendor, subsystem_device;
 		pci_read_config_word(codec->bus->pci, PCI_SUBSYSTEM_VENDOR_ID, &subsystem_vendor);
 		pci_read_config_word(codec->bus->pci, PCI_SUBSYSTEM_ID, &subsystem_device);
-		for (c = tbl; c->modelname || c->pci_vendor; c++) {
-			if (c->pci_vendor == subsystem_vendor &&
-			    c->pci_device == subsystem_device)
+		for (c = tbl; c->modelname || c->pci_subvendor; c++) {
+			if (c->pci_subvendor == subsystem_vendor &&
+			    c->pci_subdevice == subsystem_device)
 				return c->config;
 		}
 	}

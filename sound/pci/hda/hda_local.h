@@ -126,8 +126,8 @@ static inline int snd_hda_codec_proc_new(struct hda_codec *codec) { return 0; }
 struct hda_board_config {
 	const char *modelname;
 	int config;
-	unsigned short pci_vendor;
-	unsigned short pci_device;
+	unsigned short pci_subvendor;
+	unsigned short pci_subdevice;
 };
 
 int snd_hda_check_board_config(struct hda_codec *codec, struct hda_board_config *tbl);
