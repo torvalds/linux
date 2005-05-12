@@ -1023,6 +1023,8 @@ static int veth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	lpmask = veth_transmit_to_many(skb, lpmask, dev);
 
+	dev->trans_start = jiffies;
+
 	if (! lpmask) {
 		dev_kfree_skb(skb);
 	} else {
