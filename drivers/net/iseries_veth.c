@@ -1264,13 +1264,18 @@ static void veth_receive(struct veth_lpar_connection *cnx,
 
 		vlan = skb->data[9];
 		dev = veth_dev[vlan];
-		if (! dev)
-			/* Some earlier versions of the driver sent
-			   broadcasts down all connections, even to
-			   lpars that weren't on the relevant vlan.
-			   So ignore packets belonging to a vlan we're
-			   not on. */
+		if (! dev) {
+			/*
+			 * Some earlier versions of the driver sent
+			 * broadcasts down all connections, even to lpars
+			 * that weren't on the relevant vlan. So ignore
+			 * packets belonging to a vlan we're not on.
+			 * We can also be here if we receive packets while
+			 * the driver is going down, because then dev is NULL.
+			 */
+			dev_kfree_skb_irq(skb);
 			continue;
+		}
 
 		port = (struct veth_port *)dev->priv;
 		dest = *((u64 *) skb->data) & 0xFFFFFFFFFFFF0000;
