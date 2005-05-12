@@ -636,6 +636,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  5stack	5-jack in back, 2-jack in front
 	  5stack-digout	5-jack in back, 2-jack in front, a SPDIF out
 	  w810		3-jack
+	  z71v		3-jack (HP shared SPDIF)
 
 	CMI9880
 	  minimal	3-jack in back

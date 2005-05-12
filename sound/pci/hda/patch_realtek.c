@@ -39,6 +39,7 @@ enum {
 	ALC880_5ST,
 	ALC880_5ST_DIG,
 	ALC880_W810,
+	ALC880_Z71V,
 };
 
 struct alc_spec {
@@ -88,6 +89,11 @@ static hda_nid_t alc880_dac_nids[4] = {
 static hda_nid_t alc880_w810_dac_nids[3] = {
 	/* front, rear/surround, clfe */
 	0x02, 0x03, 0x04
+};
+
+static hda_nid_t alc880_z71v_dac_nids[1] = {
+	/* front only? */
+	0x02
 };
 
 static hda_nid_t alc880_adc_nids[3] = {
@@ -284,6 +290,10 @@ static struct alc_channel_mode alc880_w810_modes[1] = {
 	{ 6, NULL }
 };
 
+static struct alc_channel_mode alc880_z71v_modes[1] = {
+	{ 2, NULL }
+};
+
 /*
  */
 static int alc880_ch_mode_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
@@ -468,6 +478,35 @@ static snd_kcontrol_new_t alc880_w810_base_mixer[] = {
 		/* .name = "Capture Source", */
 		.name = "Input Source",
 		.count = 3,
+		.info = alc_mux_enum_info,
+		.get = alc_mux_enum_get,
+		.put = alc_mux_enum_put,
+	},
+	{ } /* end */
+};
+
+static snd_kcontrol_new_t alc880_z71v_mixer[] = {
+	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Front Playback Switch", 0x14, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x0d, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Headphone Playback Switch", 0x15, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("CD Playback Volume", 0x0b, 0x04, HDA_INPUT),
+	HDA_CODEC_MUTE("CD Playback Switch", 0x0b, 0x04, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Capture Volume", 0x07, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("Capture Switch", 0x07, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x08, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE_IDX("Capture Switch", 1, 0x08, 0x0, HDA_INPUT),
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		/* The multiple "Capture Source" controls confuse alsamixer
+		 * So call somewhat different..
+		 * FIXME: the controls appear in the "playback" view!
+		 */
+		/* .name = "Capture Source", */
+		.name = "Input Source",
+		.count = 2,
 		.info = alc_mux_enum_info,
 		.get = alc_mux_enum_get,
 		.put = alc_mux_enum_put,
@@ -715,6 +754,58 @@ static struct hda_verb alc880_w810_init_verbs[] = {
 	/* hphone/speaker out pin: NOT headphone enable, out enable, vref disabled */
 	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
 
+
+	{ }
+};
+
+static struct hda_verb alc880_z71v_init_verbs[] = {
+	/* front channel selector/amp: input 0: DAC: unmuted, (no volume selection) */
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
+	/* front channel selector/amp: input 1: capture mix: muted, (no volume selection) */
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, 0x7180},
+	/* front channel selector/amp: output 0: unmuted, max volume */
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
+	/* front out pin: muted, (no volume selection)  */
+	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
+	/* front out pin: NOT headphone enable, out enable, vref disabled */
+	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
+	/* headphone channel selector/amp: input 0: DAC: unmuted, (no volume selection) */
+	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
+	/* headphone channel selector/amp: input 1: capture mix: muted, (no volume selection) */
+	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, 0x7180},
+	/* headphone channel selector/amp: output 0: unmuted, max volume */
+	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
+	/* headphone out pin: muted, (no volume selection)  */
+	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
+	/* headpohne out pin: headphone enable, out enable, vref disabled */
+	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, 0xc0},
+
+	/* Line In pin widget for input */
+	{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20},
+	/* CD pin widget for input */
+	{0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20},
+	/* Mic1 (rear panel) pin widget for input and vref at 80% */
+	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24},
+	/* Mic2 (front panel) pin widget for input and vref at 80% */
+	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24},
+	/* unmute amp left and right */
+	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
+	/* set connection select to line in (default select for this ADC) */
+	{0x07, AC_VERB_SET_CONNECT_SEL, 0x02},
+
+	/* Unmute input amps (CD, Line In, Mic 1 & Mic 2) for mixer
+	 * widget(nid=0x0B) to support the input path of analog loopback
+	 */
+	/* Note: PASD motherboards uses the Line In 2 as the input for front panel mic (mic 2) */
+	/* Amp Indexes: CD = 0x04, Line In 1 = 0x02, Mic 1 = 0x00 & Line In 2 = 0x03*/
+	/* unmute CD */
+	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x04 << 8))},
+	/* unmute Line In */
+	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x02 << 8))},
+	/* unmute Mic 1 */
+	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x00 << 8))},
+	/* unmute Line In 2 (for PASD boards Mic 2) */
+	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x03 << 8))},
 
 	{ }
 };
@@ -993,6 +1084,9 @@ static struct hda_board_config alc880_cfg_tbl[] = {
 	{ .modelname = "w810", .config = ALC880_W810 },
 	{ .pci_vendor = 0x161f, .pci_device = 0x203d, .config = ALC880_W810 },
 
+	{ .modelname = "z71v", .config = ALC880_Z71V },
+	{ .pci_vendor = 0x1043, .pci_device = 0x1964, .config = ALC880_Z71V },
+
 	{}
 };
 
@@ -1023,6 +1117,10 @@ static int patch_alc880(struct hda_codec *codec)
 		spec->mixers[spec->num_mixers] = alc880_five_stack_mixer;
 		spec->num_mixers++;
 		break;
+	case ALC880_Z71V:
+		spec->mixers[spec->num_mixers] = alc880_z71v_mixer;
+		spec->num_mixers++;
+		break;
 	default:
 		spec->mixers[spec->num_mixers] = alc880_base_mixer;
 		spec->num_mixers++;
@@ -1033,6 +1131,7 @@ static int patch_alc880(struct hda_codec *codec)
 	case ALC880_3ST_DIG:
 	case ALC880_5ST_DIG:
 	case ALC880_W810:
+	case ALC880_Z71V:
 		spec->multiout.dig_out_nid = ALC880_DIGOUT_NID;
 		break;
 	default:
@@ -1063,6 +1162,11 @@ static int patch_alc880(struct hda_codec *codec)
 		spec->channel_mode = alc880_w810_modes;
 		spec->num_channel_mode = ARRAY_SIZE(alc880_w810_modes);
 		break;
+	case ALC880_Z71V:
+		spec->init_verbs = alc880_z71v_init_verbs;
+		spec->channel_mode = alc880_z71v_modes;
+		spec->num_channel_mode = ARRAY_SIZE(alc880_z71v_modes);
+		break;
 	default:
 		spec->init_verbs = alc880_init_verbs_three_stack;
 		spec->channel_mode = alc880_threestack_modes;
@@ -1085,6 +1189,11 @@ static int patch_alc880(struct hda_codec *codec)
 		spec->multiout.num_dacs = ARRAY_SIZE(alc880_w810_dac_nids);
 		spec->multiout.dac_nids = alc880_w810_dac_nids;
 		// No dedicated headphone socket - it's shared with built-in speakers.
+		break;
+	case ALC880_Z71V:
+		spec->multiout.num_dacs = ARRAY_SIZE(alc880_z71v_dac_nids);
+		spec->multiout.dac_nids = alc880_z71v_dac_nids;
+		spec->multiout.hp_nid = 0x03;
 		break;
 	default:
 		spec->multiout.num_dacs = ARRAY_SIZE(alc880_dac_nids);
