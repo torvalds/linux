@@ -101,7 +101,7 @@ static long ch_ioctl_compat(struct file * filp,
 			    unsigned int cmd, unsigned long arg);
 #endif
 
-static struct class_simple * ch_sysfs_class;
+static struct class * ch_sysfs_class;
 
 typedef struct {
 	struct list_head    list;
@@ -942,9 +942,9 @@ static int ch_probe(struct device *dev)
 
 	devfs_mk_cdev(MKDEV(SCSI_CHANGER_MAJOR,ch->minor),
 		      S_IFCHR | S_IRUGO | S_IWUGO, ch->name);
-	class_simple_device_add(ch_sysfs_class,
-				MKDEV(SCSI_CHANGER_MAJOR,ch->minor),
-				dev, "s%s", ch->name);
+	class_device_create(ch_sysfs_class,
+			    MKDEV(SCSI_CHANGER_MAJOR,ch->minor),
+			    dev, "s%s", ch->name);
 
 	printk(KERN_INFO "Attached scsi changer %s "
 	       "at scsi%d, channel %d, id %d, lun %d\n", 
@@ -972,7 +972,8 @@ static int ch_remove(struct device *dev)
 	list_del(&ch->list);
 	spin_unlock(&ch_devlist_lock);
 
-	class_simple_device_remove(MKDEV(SCSI_CHANGER_MAJOR,ch->minor));
+	class_device_destroy(ch_sysfs_class,
+			     MKDEV(SCSI_CHANGER_MAJOR,ch->minor));
 	devfs_remove(ch->name);
 	kfree(ch->dt);
 	kfree(ch);
@@ -985,7 +986,7 @@ static int __init init_ch_module(void)
 	int rc;
 	
 	printk(KERN_INFO "SCSI Media Changer driver v" VERSION " \n");
-        ch_sysfs_class = class_simple_create(THIS_MODULE, "scsi_changer");
+        ch_sysfs_class = class_create(THIS_MODULE, "scsi_changer");
         if (IS_ERR(ch_sysfs_class)) {
 		rc = PTR_ERR(ch_sysfs_class);
 		return rc;
@@ -1004,7 +1005,7 @@ static int __init init_ch_module(void)
  fail2:
 	unregister_chrdev(SCSI_CHANGER_MAJOR, "ch");
  fail1:
-	class_simple_destroy(ch_sysfs_class);
+	class_destroy(ch_sysfs_class);
 	return rc;
 }
 
@@ -1012,7 +1013,7 @@ static void __exit exit_ch_module(void)
 {
 	scsi_unregister_driver(&ch_template.gendrv);
 	unregister_chrdev(SCSI_CHANGER_MAJOR, "ch");
-	class_simple_destroy(ch_sysfs_class);
+	class_destroy(ch_sysfs_class);
 }
 
 module_init(init_ch_module);
