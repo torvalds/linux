@@ -1,6 +1,6 @@
 /*
  *
- * linux/drivers/s390/net/qeth_eddp.c ($Revision: 1.12 $)
+ * linux/drivers/s390/net/qeth_eddp.c ($Revision: 1.13 $)
  *
  * Enhanced Device Driver Packing (EDDP) support for the qeth driver.
  *
@@ -8,7 +8,7 @@
  *
  *    Author(s): Thomas Spatzier <tspat@de.ibm.com>
  *
- *    $Revision: 1.12 $	 $Date: 2005/04/01 21:40:40 $
+ *    $Revision: 1.13 $	 $Date: 2005/05/04 20:19:18 $
  *
  */
 #include <linux/config.h>
@@ -85,7 +85,7 @@ void
 qeth_eddp_buf_release_contexts(struct qeth_qdio_out_buffer *buf)
 {
 	struct qeth_eddp_context_reference *ref;
-
+	
 	QETH_DBF_TEXT(trace, 6, "eddprctx");
 	while (!list_empty(&buf->ctx_list)){
 		ref = list_entry(buf->ctx_list.next,
@@ -139,7 +139,7 @@ qeth_eddp_fill_buffer(struct qeth_qdio_out_q *queue,
 					   "buffer!\n");
 				goto out;
 			}
-		}
+		}		
 		/* check if the whole next skb fits into current buffer */
 		if ((QETH_MAX_BUFFER_ELEMENTS(queue->card) -
 					buf->next_element_to_fill)
@@ -152,7 +152,7 @@ qeth_eddp_fill_buffer(struct qeth_qdio_out_q *queue,
 			 * and increment ctx's refcnt */
 			must_refcnt = 1;
 			continue;
-		}
+		}	
 		if (must_refcnt){
 			must_refcnt = 0;
 			if (qeth_eddp_buf_ref_context(buf, ctx)){
@@ -204,27 +204,27 @@ out:
 
 static inline void
 qeth_eddp_create_segment_hdrs(struct qeth_eddp_context *ctx,
-			      struct qeth_eddp_data *eddp)
+			      struct qeth_eddp_data *eddp, int data_len)
 {
 	u8 *page;
 	int page_remainder;
 	int page_offset;
-	int hdr_len;
+	int pkt_len;
 	struct qeth_eddp_element *element;
 
 	QETH_DBF_TEXT(trace, 5, "eddpcrsh");
 	page = ctx->pages[ctx->offset >> PAGE_SHIFT];
 	page_offset = ctx->offset % PAGE_SIZE;
 	element = &ctx->elements[ctx->num_elements];
-	hdr_len = eddp->nhl + eddp->thl;
+	pkt_len = eddp->nhl + eddp->thl + data_len;
 	/* FIXME: layer2 and VLAN !!! */
 	if (eddp->qh.hdr.l2.id == QETH_HEADER_TYPE_LAYER2)
-		hdr_len += ETH_HLEN;
+		pkt_len += ETH_HLEN;
 	if (eddp->mac.h_proto == __constant_htons(ETH_P_8021Q))
-		hdr_len += VLAN_HLEN;
-	/* does complete header fit in current page ? */
+		pkt_len += VLAN_HLEN;
+	/* does complete packet fit in current page ? */
 	page_remainder = PAGE_SIZE - page_offset;
-	if (page_remainder < (sizeof(struct qeth_hdr) + hdr_len)){
+	if (page_remainder < (sizeof(struct qeth_hdr) + pkt_len)){
 		/* no -> go to start of next page */
 		ctx->offset += page_remainder;
 		page = ctx->pages[ctx->offset >> PAGE_SHIFT];
@@ -270,7 +270,7 @@ qeth_eddp_copy_data_tcp(char *dst, struct qeth_eddp_data *eddp, int len,
 	int left_in_frag;
 	int copy_len;
 	u8 *src;
-
+	
 	QETH_DBF_TEXT(trace, 5, "eddpcdtc");
 	if (skb_shinfo(eddp->skb)->nr_frags == 0) {
 		memcpy(dst, eddp->skb->data + eddp->skb_offset, len);
@@ -281,7 +281,7 @@ qeth_eddp_copy_data_tcp(char *dst, struct qeth_eddp_data *eddp, int len,
 		while (len > 0) {
 			if (eddp->frag < 0) {
 				/* we're in skb->data */
-				left_in_frag = qeth_get_skb_data_len(eddp->skb)
+				left_in_frag = (eddp->skb->len - eddp->skb->data_len)
 						- eddp->skb_offset;
 				src = eddp->skb->data + eddp->skb_offset;
 			} else {
@@ -413,7 +413,7 @@ __qeth_eddp_fill_context_tcp(struct qeth_eddp_context *ctx,
 	struct tcphdr *tcph;
 	int data_len;
 	u32 hcsum;
-
+	
 	QETH_DBF_TEXT(trace, 5, "eddpftcp");
 	eddp->skb_offset = sizeof(struct qeth_hdr) + eddp->nhl + eddp->thl;
 	tcph = eddp->skb->h.th;
@@ -453,7 +453,7 @@ __qeth_eddp_fill_context_tcp(struct qeth_eddp_context *ctx,
 		else
 			hcsum = qeth_eddp_check_tcp6_hdr(eddp, data_len);
 		/* fill the next segment into the context */
-		qeth_eddp_create_segment_hdrs(ctx, eddp);
+		qeth_eddp_create_segment_hdrs(ctx, eddp, data_len);
 		qeth_eddp_create_segment_data_tcp(ctx, eddp, data_len, hcsum);
 		if (eddp->skb_offset >= eddp->skb->len)
 			break;
@@ -463,13 +463,13 @@ __qeth_eddp_fill_context_tcp(struct qeth_eddp_context *ctx,
 		eddp->th.tcp.h.seq += data_len;
 	}
 }
-
+			   
 static inline int
 qeth_eddp_fill_context_tcp(struct qeth_eddp_context *ctx,
 			   struct sk_buff *skb, struct qeth_hdr *qhdr)
 {
 	struct qeth_eddp_data *eddp = NULL;
-
+	
 	QETH_DBF_TEXT(trace, 5, "eddpficx");
 	/* create our segmentation headers and copy original headers */
 	if (skb->protocol == ETH_P_IP)
@@ -509,7 +509,7 @@ qeth_eddp_calc_num_pages(struct qeth_eddp_context *ctx, struct sk_buff *skb,
 			 int hdr_len)
 {
 	int skbs_per_page;
-
+	
 	QETH_DBF_TEXT(trace, 5, "eddpcanp");
 	/* can we put multiple skbs in one page? */
 	skbs_per_page = PAGE_SIZE / (skb_shinfo(skb)->tso_size + hdr_len);
@@ -589,7 +589,7 @@ qeth_eddp_create_context_tcp(struct qeth_card *card, struct sk_buff *skb,
 			     struct qeth_hdr *qhdr)
 {
 	struct qeth_eddp_context *ctx = NULL;
-
+	
 	QETH_DBF_TEXT(trace, 5, "creddpct");
 	if (skb->protocol == ETH_P_IP)
 		ctx = qeth_eddp_create_context_generic(card, skb,
