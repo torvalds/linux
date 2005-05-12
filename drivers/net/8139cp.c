@@ -92,6 +92,7 @@ KERN_INFO DRV_NAME ": 10/100 PCI Ethernet driver v" DRV_VERSION " (" DRV_RELDATE
 
 MODULE_AUTHOR("Jeff Garzik <jgarzik@pobox.com>");
 MODULE_DESCRIPTION("RealTek RTL-8139C+ series 10/100 PCI Ethernet driver");
+MODULE_VERSION(DRV_VERSION);
 MODULE_LICENSE("GPL");
 
 static int debug = -1;
