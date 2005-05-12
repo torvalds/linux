@@ -1388,17 +1388,24 @@ void __exit veth_module_cleanup(void)
 {
 	int i;
 
-	vio_unregister_driver(&veth_driver);
+	/* Stop the queues first to stop any new packets being sent. */
+	for (i = 0; i < HVMAXARCHITECTEDVIRTUALLANS; i++)
+		if (veth_dev[i])
+			netif_stop_queue(veth_dev[i]);
 
+	/* Stop the connections before we unregister the driver. This
+	 * ensures there's no skbs lying around holding the device open. */
 	for (i = 0; i < HVMAXARCHITECTEDLPS; ++i)
 		veth_stop_connection(i);
 
 	HvLpEvent_unregisterHandler(HvLpEvent_Type_VirtualLan);
 
 	/* Hypervisor callbacks may have scheduled more work while we
-	 * were destroying connections. Now that we've disconnected from
+	 * were stoping connections. Now that we've disconnected from
 	 * the hypervisor make sure everything's finished. */
 	flush_scheduled_work();
+
+	vio_unregister_driver(&veth_driver);
 
 	for (i = 0; i < HVMAXARCHITECTEDLPS; ++i)
 		veth_destroy_connection(i);
