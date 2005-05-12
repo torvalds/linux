@@ -186,6 +186,9 @@ enum {
 	RingEnd		= (1 << 30), /* End of descriptor ring */
 	FirstFrag	= (1 << 29), /* First segment of a packet */
 	LastFrag	= (1 << 28), /* Final segment of a packet */
+	LargeSend	= (1 << 27), /* TCP Large Send Offload (TSO) */
+	MSSShift	= 16,	     /* MSS value position */
+	MSSMask		= 0xfff,     /* MSS value: 11 bits */
 	TxError		= (1 << 23), /* Tx error summary */
 	RxError		= (1 << 20), /* Rx error summary */
 	IPCS		= (1 << 18), /* Calculate IP checksum */
@@ -749,10 +752,11 @@ static int cp_start_xmit (struct sk_buff *skb, struct net_device *dev)
 {
 	struct cp_private *cp = netdev_priv(dev);
 	unsigned entry;
-	u32 eor;
+	u32 eor, flags;
 #if CP_VLAN_TAG_USED
 	u32 vlan_tag = 0;
 #endif
+	int mss = 0;
 
 	spin_lock_irq(&cp->lock);
 
@@ -772,6 +776,9 @@ static int cp_start_xmit (struct sk_buff *skb, struct net_device *dev)
 
 	entry = cp->tx_head;
 	eor = (entry == (CP_TX_RING_SIZE - 1)) ? RingEnd : 0;
+	if (dev->features & NETIF_F_TSO)
+		mss = skb_shinfo(skb)->tso_size;
+
 	if (skb_shinfo(skb)->nr_frags == 0) {
 		struct cp_desc *txd = &cp->tx_ring[entry];
 		u32 len;
@@ -783,21 +790,21 @@ static int cp_start_xmit (struct sk_buff *skb, struct net_device *dev)
 		txd->addr = cpu_to_le64(mapping);
 		wmb();
 
-		if (skb->ip_summed == CHECKSUM_HW) {
+		flags = eor | len | DescOwn | FirstFrag | LastFrag;
+
+		if (mss)
+			flags |= LargeSend | ((mss & MSSMask) << MSSShift);
+		else if (skb->ip_summed == CHECKSUM_HW) {
 			const struct iphdr *ip = skb->nh.iph;
 			if (ip->protocol == IPPROTO_TCP)
-				txd->opts1 = cpu_to_le32(eor | len | DescOwn |
-							 FirstFrag | LastFrag |
-							 IPCS | TCPCS);
+				flags |= IPCS | TCPCS;
 			else if (ip->protocol == IPPROTO_UDP)
-				txd->opts1 = cpu_to_le32(eor | len | DescOwn |
-							 FirstFrag | LastFrag |
-							 IPCS | UDPCS);
+				flags |= IPCS | UDPCS;
 			else
 				BUG();
-		} else
-			txd->opts1 = cpu_to_le32(eor | len | DescOwn |
-						 FirstFrag | LastFrag);
+		}
+
+		txd->opts1 = cpu_to_le32(flags);
 		wmb();
 
 		cp->tx_skb[entry].skb = skb;
@@ -836,16 +843,19 @@ static int cp_start_xmit (struct sk_buff *skb, struct net_device *dev)
 						 len, PCI_DMA_TODEVICE);
 			eor = (entry == (CP_TX_RING_SIZE - 1)) ? RingEnd : 0;
 
-			if (skb->ip_summed == CHECKSUM_HW) {
-				ctrl = eor | len | DescOwn | IPCS;
+			ctrl = eor | len | DescOwn;
+
+			if (mss)
+				ctrl |= LargeSend |
+					((mss & MSSMask) << MSSShift);
+			else if (skb->ip_summed == CHECKSUM_HW) {
 				if (ip->protocol == IPPROTO_TCP)
-					ctrl |= TCPCS;
+					ctrl |= IPCS | TCPCS;
 				else if (ip->protocol == IPPROTO_UDP)
-					ctrl |= UDPCS;
+					ctrl |= IPCS | UDPCS;
 				else
 					BUG();
-			} else
-				ctrl = eor | len | DescOwn;
+			}
 
 			if (frag == skb_shinfo(skb)->nr_frags - 1)
 				ctrl |= LastFrag;
@@ -1538,6 +1548,8 @@ static struct ethtool_ops cp_ethtool_ops = {
 	.set_tx_csum		= ethtool_op_set_tx_csum, /* local! */
 	.get_sg			= ethtool_op_get_sg,
 	.set_sg			= ethtool_op_set_sg,
+	.get_tso		= ethtool_op_get_tso,
+	.set_tso		= ethtool_op_set_tso,
 	.get_regs		= cp_get_regs,
 	.get_wol		= cp_get_wol,
 	.set_wol		= cp_set_wol,
@@ -1767,6 +1779,10 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (pci_using_dac)
 		dev->features |= NETIF_F_HIGHDMA;
+
+#if 0 /* disabled by default until verified */
+	dev->features |= NETIF_F_TSO;
+#endif
 
 	dev->irq = pdev->irq;
 
