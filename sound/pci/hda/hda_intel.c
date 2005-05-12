@@ -68,7 +68,8 @@ MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{Intel, ICH6},"
 			 "{Intel, ICH6M},"
 			 "{Intel, ICH7},"
-			 "{Intel, ESB2}}");
+			 "{Intel, ESB2},"
+			 "{ATI, SB450}}");
 MODULE_DESCRIPTION("Intel HDA driver");
 
 #define SFX	"hda-intel: "
@@ -153,7 +154,7 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 
 /* STATESTS int mask: SD2,SD1,SD0 */
 #define STATESTS_INT_MASK	0x07
-#define AZX_MAX_CODECS		3
+#define AZX_MAX_CODECS		4
 
 /* SD_CTL bits */
 #define SD_CTL_STREAM_RESET	0x01	/* stream reset bit */
@@ -192,6 +193,12 @@ enum {
 	POS_FIX_NONE,
 	POS_FIX_POSBUF
 };
+
+/* Defines for ATI HD Audio support in SB450 south bridge */
+#define ATI_SB450_HDAUDIO_PCI_DEVICE_ID     0x437b
+#define ATI_SB450_HDAUDIO_MISC_CNTR2_ADDR   0x42
+#define ATI_SB450_HDAUDIO_ENABLE_SNOOP      0x02
+
 
 /*
  * Use CORB/RIRB for communication from/to codecs.
@@ -644,7 +651,7 @@ static void azx_stream_stop(azx_t *chip, azx_dev_t *azx_dev)
  */
 static void azx_init_chip(azx_t *chip)
 {
-	unsigned char tcsel_reg;
+	unsigned char tcsel_reg, ati_misc_cntl2;
 
 	/* Clear bits 0-2 of PCI register TCSEL (at offset 0x44)
 	 * TCSEL == Traffic Class Select Register, which sets PCI express QOS
@@ -667,6 +674,15 @@ static void azx_init_chip(azx_t *chip)
 		/* program the position buffer */
 		azx_writel(chip, DPLBASE, (u32)chip->posbuf.addr);
 		azx_writel(chip, DPUBASE, upper_32bit(chip->posbuf.addr));
+	}
+
+	/* For ATI SB450 azalia HD audio, we need to enable snoop */
+	if (chip->pci->vendor == PCI_VENDOR_ID_ATI && 
+	    chip->pci->device == ATI_SB450_HDAUDIO_PCI_DEVICE_ID) {
+		pci_read_config_byte(chip->pci, ATI_SB450_HDAUDIO_MISC_CNTR2_ADDR, 
+				     &ati_misc_cntl2);
+		pci_write_config_byte(chip->pci, ATI_SB450_HDAUDIO_MISC_CNTR2_ADDR, 
+				      (ati_misc_cntl2 & 0xf8) | ATI_SB450_HDAUDIO_ENABLE_SNOOP);
 	}
 }
 
@@ -1435,6 +1451,7 @@ static struct pci_device_id azx_ids[] = {
 	{ 0x8086, 0x2668, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 }, /* ICH6 */
 	{ 0x8086, 0x27d8, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 }, /* ICH7 */
 	{ 0x8086, 0x269a, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 }, /* ESB2 */
+	{ 0x1002, 0x437b, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 }, /* ATI SB450 */
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, azx_ids);
