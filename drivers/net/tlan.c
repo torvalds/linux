@@ -2807,7 +2807,7 @@ void TLan_PhyMonitor( struct net_device *dev )
  	       if (priv->link) {
 		      priv->link = 0;
 	              printk(KERN_DEBUG "TLAN: %s has lost link\n", dev->name);
-	              dev->flags &= ~IFF_RUNNING;
+		      netif_carrier_off(dev);
 		      TLan_SetTimer( dev, (2*HZ), TLAN_TIMER_LINK_BEAT );
 		      return;
 		}
@@ -2817,7 +2817,7 @@ void TLan_PhyMonitor( struct net_device *dev )
         if ((phy_status & MII_GS_LINK) && !priv->link) {
  		priv->link = 1;
         	printk(KERN_DEBUG "TLAN: %s has reestablished link\n", dev->name);
-        	dev->flags |= IFF_RUNNING;
+		netif_carrier_on(dev);
         }
 
 	/* Setup a new monitor */
