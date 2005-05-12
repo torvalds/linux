@@ -924,7 +924,7 @@ static int veth_transmit_to_one(struct sk_buff *skb, HvLpIndex rlp,
 
 	spin_lock_irqsave(&cnx->lock, flags);
 
-	if (! cnx->state & VETH_STATE_READY)
+	if (! (cnx->state & VETH_STATE_READY))
 		goto drop;
 
 	if ((skb->len - 14) > VETH_MAX_MTU)
