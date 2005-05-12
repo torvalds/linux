@@ -412,21 +412,20 @@ config CPU_BPREDICT_DISABLE
 
 config TLS_REG_EMUL
 	bool
-	default y if (SMP || CPU_32v6) && (CPU_32v5 || CPU_32v4 || CPU_32v3)
+	default y if SMP && (CPU_32v5 || CPU_32v4 || CPU_32v3)
 	help
-	  We might be running on an ARMv6+ processor which should have the TLS
-	  register but for some reason we can't use it, or maybe an SMP system
-	  using a pre-ARMv6 processor (there are apparently a few prototypes
-	  like that in existence) and therefore access to that register must
-	  be emulated.
+	  An SMP system using a pre-ARMv6 processor (there are apparently
+	  a few prototypes like that in existence) and therefore access to
+	  that required register must be emulated.
 
 config HAS_TLS_REG
 	bool
-	depends on CPU_32v6
-	default y if !TLS_REG_EMUL
+	depends on !TLS_REG_EMUL
+	default y if SMP || CPU_32v7
 	help
 	  This selects support for the CP15 thread register.
-	  It is defined to be available on ARMv6 or later.  If a particular
-	  ARMv6 or later CPU doesn't support it then it must include "select
-	  TLS_REG_EMUL" along with its other characteristics.
+	  It is defined to be available on some ARMv6 processors (including
+	  all SMP capable ARMv6's) or later processors.  User space may
+	  assume directly accessing that register and always obtain the
+	  expected value only on ARMv7 and above.
 
