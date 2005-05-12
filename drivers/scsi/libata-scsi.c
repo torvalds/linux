@@ -29,9 +29,12 @@
 #include "scsi.h"
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
+#include <linux/hdreg.h>
 #include <asm/uaccess.h>
 
 #include "libata.h"
+
+#define SECTOR_SIZE	512
 
 typedef unsigned int (*ata_xlat_func_t)(struct ata_queued_cmd *qc, u8 *scsicmd);
 static struct ata_device *
@@ -67,6 +70,148 @@ int ata_std_bios_param(struct scsi_device *sdev, struct block_device *bdev,
 	return 0;
 }
 
+/**
+ *	ata_cmd_ioctl - Handler for HDIO_DRIVE_CMD ioctl
+ *	@dev: Device to whom we are issuing command
+ *	@arg: User provided data for issuing command
+ *
+ *	LOCKING:
+ *	Defined by the SCSI layer.  We don't really care.
+ *
+ *	RETURNS:
+ *	Zero on success, negative errno on error.
+ */
+
+int ata_cmd_ioctl(struct scsi_device *scsidev, void __user *arg)
+{
+	int rc = 0;
+	u8 scsi_cmd[MAX_COMMAND_SIZE];
+	u8 args[4], *argbuf = NULL;
+	int argsize = 0;
+	struct scsi_request *sreq;
+
+	if (NULL == (void *)arg)
+		return -EINVAL;
+
+	if (copy_from_user(args, arg, sizeof(args)))
+		return -EFAULT;
+
+	sreq = scsi_allocate_request(scsidev, GFP_KERNEL);
+	if (!sreq)
+		return -EINTR;
+
+	memset(scsi_cmd, 0, sizeof(scsi_cmd));
+
+	if (args[3]) {
+		argsize = SECTOR_SIZE * args[3];
+		argbuf = kmalloc(argsize, GFP_KERNEL);
+		if (argbuf == NULL)
+			return -ENOMEM;
+
+		scsi_cmd[1]  = (4 << 1); /* PIO Data-in */
+		scsi_cmd[2]  = 0x0e;     /* no off.line or cc, read from dev,
+		                            block count in sector count field */
+		sreq->sr_data_direction = DMA_FROM_DEVICE;
+	} else {
+		scsi_cmd[1]  = (3 << 1); /* Non-data */
+		/* scsi_cmd[2] is already 0 -- no off.line, cc, or data xfer */
+		sreq->sr_data_direction = DMA_NONE;
+	}
+
+	scsi_cmd[0] = ATA_16;
+
+	scsi_cmd[4] = args[2];
+	if (args[0] == WIN_SMART) { /* hack -- ide driver does this too... */
+		scsi_cmd[6]  = args[3];
+		scsi_cmd[8]  = args[1];
+		scsi_cmd[10] = 0x4f;
+		scsi_cmd[12] = 0xc2;
+	} else {
+		scsi_cmd[6]  = args[1];
+	}
+	scsi_cmd[14] = args[0];
+
+	/* Good values for timeout and retries?  Values below
+	   from scsi_ioctl_send_command() for default case... */
+	scsi_wait_req(sreq, scsi_cmd, argbuf, argsize, (10*HZ), 5);
+
+	if (sreq->sr_result) {
+		rc = -EIO;
+		goto error;
+	}
+
+	/* Need code to retrieve data from check condition? */
+
+	if ((argbuf)
+	 && copy_to_user((void *)(arg + sizeof(args)), argbuf, argsize))
+		rc = -EFAULT;
+error:
+	scsi_release_request(sreq);
+
+	if (argbuf)
+		kfree(argbuf);
+
+	return rc;
+}
+
+/**
+ *	ata_task_ioctl - Handler for HDIO_DRIVE_TASK ioctl
+ *	@dev: Device to whom we are issuing command
+ *	@arg: User provided data for issuing command
+ *
+ *	LOCKING:
+ *	Defined by the SCSI layer.  We don't really care.
+ *
+ *	RETURNS:
+ *	Zero on success, negative errno on error.
+ */
+int ata_task_ioctl(struct scsi_device *scsidev, void __user *arg)
+{
+	int rc = 0;
+	u8 scsi_cmd[MAX_COMMAND_SIZE];
+	u8 args[7];
+	struct scsi_request *sreq;
+
+	if (NULL == (void *)arg)
+		return -EINVAL;
+
+	if (copy_from_user(args, arg, sizeof(args)))
+		return -EFAULT;
+
+	memset(scsi_cmd, 0, sizeof(scsi_cmd));
+	scsi_cmd[0]  = ATA_16;
+	scsi_cmd[1]  = (3 << 1); /* Non-data */
+	/* scsi_cmd[2] is already 0 -- no off.line, cc, or data xfer */
+	scsi_cmd[4]  = args[1];
+	scsi_cmd[6]  = args[2];
+	scsi_cmd[8]  = args[3];
+	scsi_cmd[10] = args[4];
+	scsi_cmd[12] = args[5];
+	scsi_cmd[14] = args[0];
+
+	sreq = scsi_allocate_request(scsidev, GFP_KERNEL);
+	if (!sreq) {
+		rc = -EINTR;
+		goto error;
+	}
+
+	sreq->sr_data_direction = DMA_NONE;
+	/* Good values for timeout and retries?  Values below
+	   from scsi_ioctl_send_command() for default case... */
+	scsi_wait_req(sreq, scsi_cmd, NULL, 0, (10*HZ), 5);
+
+	if (sreq->sr_result) {
+		rc = -EIO;
+		goto error;
+	}
+
+	/* Need code to retrieve data from check condition? */
+
+error:
+	scsi_release_request(sreq);
+	return rc;
+}
+
 int ata_scsi_ioctl(struct scsi_device *scsidev, int cmd, void __user *arg)
 {
 	struct ata_port *ap;
@@ -95,6 +240,16 @@ int ata_scsi_ioctl(struct scsi_device *scsidev, int cmd, void __user *arg)
 		if (val != 0)
 			return -EINVAL;
 		return 0;
+
+	case HDIO_DRIVE_CMD:
+		if (!capable(CAP_SYS_ADMIN) || !capable(CAP_SYS_RAWIO))
+			return -EACCES;
+		return ata_cmd_ioctl(scsidev, arg);
+
+	case HDIO_DRIVE_TASK:
+		if (!capable(CAP_SYS_ADMIN) || !capable(CAP_SYS_RAWIO))
+			return -EACCES;
+		return ata_task_ioctl(scsidev, arg);
 
 	default:
 		rc = -ENOTTY;
@@ -154,24 +309,69 @@ struct ata_queued_cmd *ata_scsi_qc_new(struct ata_port *ap,
 }
 
 /**
- *	ata_to_sense_error - convert ATA error to SCSI error
- *	@qc: Command that we are erroring out
- *	@drv_stat: value contained in ATA status register
+ *	ata_dump_status - user friendly display of error info
+ *	@id: id of the port in question
+ *	@tf: ptr to filled out taskfile
  *
- *	Converts an ATA error into a SCSI error. While we are at it
- *	we decode and dump the ATA error for the user so that they
- *	have some idea what really happened at the non make-believe
- *	layer.
+ *	Decode and dump the ATA error/status registers for the user so
+ *	that they have some idea what really happened at the non
+ *	make-believe layer.
+ *
+ *	LOCKING:
+ *	inherited from caller
+ */
+void ata_dump_status(unsigned id, struct ata_taskfile *tf)
+{
+	u8 stat = tf->command, err = tf->feature;
+
+	printk(KERN_WARNING "ata%u: status=0x%02x { ", id, stat);
+	if (stat & ATA_BUSY) {
+		printk("Busy }\n");	/* Data is not valid in this case */
+	} else {
+		if (stat & 0x40)	printk("DriveReady ");
+		if (stat & 0x20)	printk("DeviceFault ");
+		if (stat & 0x10)	printk("SeekComplete ");
+		if (stat & 0x08)	printk("DataRequest ");
+		if (stat & 0x04)	printk("CorrectedError ");
+		if (stat & 0x02)	printk("Index ");
+		if (stat & 0x01)	printk("Error ");
+		printk("}\n");
+
+		if (err) {
+			printk(KERN_WARNING "ata%u: error=0x%02x { ", id, err);
+			if (err & 0x04)		printk("DriveStatusError ");
+			if (err & 0x80) {
+				if (err & 0x04)	printk("BadCRC ");
+				else		printk("Sector ");
+			}
+			if (err & 0x40)		printk("UncorrectableError ");
+			if (err & 0x10)		printk("SectorIdNotFound ");
+			if (err & 0x02)		printk("TrackZeroNotFound ");
+			if (err & 0x01)		printk("AddrMarkNotFound ");
+			printk("}\n");
+		}
+	}
+}
+
+/**
+ *	ata_to_sense_error - convert ATA error to SCSI error
+ *	@drv_stat: value contained in ATA status register
+ *	@drv_err: value contained in ATA error register
+ *	@sk: the sense key we'll fill out
+ *	@asc: the additional sense code we'll fill out
+ *	@ascq: the additional sense code qualifier we'll fill out
+ *
+ *	Converts an ATA error into a SCSI error.  Fill out pointers to
+ *	SK, ASC, and ASCQ bytes for later use in fixed or descriptor
+ *	format sense blocks.
  *
  *	LOCKING:
  *	spin_lock_irqsave(host_set lock)
  */
-
-void ata_to_sense_error(struct ata_queued_cmd *qc, u8 drv_stat)
+void ata_to_sense_error(unsigned id, u8 drv_stat, u8 drv_err, u8 *sk, u8 *asc, 
+			u8 *ascq)
 {
-	struct scsi_cmnd *cmd = qc->scsicmd;
-	u8 err = 0;
-	unsigned char *sb = cmd->sense_buffer;
+	int i;
 	/* Based on the 3ware driver translation table */
 	static unsigned char sense_table[][4] = {
 		/* BBD|ECC|ID|MAR */
@@ -212,105 +412,183 @@ void ata_to_sense_error(struct ata_queued_cmd *qc, u8 drv_stat)
 		{0x04, 		RECOVERED_ERROR, 0x11, 0x00},	// Recovered ECC error	  Medium error, recovered
 		{0xFF, 0xFF, 0xFF, 0xFF}, // END mark
 	};
-	int i = 0;
-
-	cmd->result = SAM_STAT_CHECK_CONDITION;
 
 	/*
 	 *	Is this an error we can process/parse
 	 */
-
-	if(drv_stat & ATA_ERR)
-		/* Read the err bits */
-		err = ata_chk_err(qc->ap);
-
-	/* Display the ATA level error info */
-
-	printk(KERN_WARNING "ata%u: status=0x%02x { ", qc->ap->id, drv_stat);
-	if(drv_stat & 0x80)
-	{
-		printk("Busy ");
-		err = 0;	/* Data is not valid in this case */
+	if (drv_stat & ATA_BUSY) {
+		drv_err = 0;	/* Ignore the err bits, they're invalid */
 	}
-	else {
-		if(drv_stat & 0x40)	printk("DriveReady ");
-		if(drv_stat & 0x20)	printk("DeviceFault ");
-		if(drv_stat & 0x10)	printk("SeekComplete ");
-		if(drv_stat & 0x08)	printk("DataRequest ");
-		if(drv_stat & 0x04)	printk("CorrectedError ");
-		if(drv_stat & 0x02)	printk("Index ");
-		if(drv_stat & 0x01)	printk("Error ");
-	}
-	printk("}\n");
 
-	if(err)
-	{
-		printk(KERN_WARNING "ata%u: error=0x%02x { ", qc->ap->id, err);
-		if(err & 0x04)		printk("DriveStatusError ");
-		if(err & 0x80)
-		{
-			if(err & 0x04)
-				printk("BadCRC ");
-			else
-				printk("Sector ");
+	if (drv_err) {
+		/* Look for drv_err */
+		for (i = 0; sense_table[i][0] != 0xFF; i++) {
+			/* Look for best matches first */
+			if ((sense_table[i][0] & drv_err) == 
+			    sense_table[i][0]) {
+				*sk = sense_table[i][1];
+				*asc = sense_table[i][2];
+				*ascq = sense_table[i][3];
+				goto translate_done;
+			}
 		}
-		if(err & 0x40)		printk("UncorrectableError ");
-		if(err & 0x10)		printk("SectorIdNotFound ");
-		if(err & 0x02)		printk("TrackZeroNotFound ");
-		if(err & 0x01)		printk("AddrMarkNotFound ");
-		printk("}\n");
-
-		/* Should we dump sector info here too ?? */
+		/* No immediate match */
+		printk(KERN_WARNING "ata%u: no sense translation for "
+		       "error 0x%02x\n", id, drv_err);
 	}
 
-
-	/* Look for err */
-	while(sense_table[i][0] != 0xFF)
-	{
-		/* Look for best matches first */
-		if((sense_table[i][0] & err) == sense_table[i][0])
-		{
-			sb[0] = 0x70;
-			sb[2] = sense_table[i][1];
-			sb[7] = 0x0a;
-			sb[12] = sense_table[i][2];
-			sb[13] = sense_table[i][3];
-			return;
-		}
-		i++;
-	}
-	/* No immediate match */
-	if(err)
-		printk(KERN_DEBUG "ata%u: no sense translation for 0x%02x\n", qc->ap->id, err);
-
-	i = 0;
 	/* Fall back to interpreting status bits */
-	while(stat_table[i][0] != 0xFF)
-	{
-		if(stat_table[i][0] & drv_stat)
-		{
-			sb[0] = 0x70;
-			sb[2] = stat_table[i][1];
-			sb[7] = 0x0a;
-			sb[12] = stat_table[i][2];
-			sb[13] = stat_table[i][3];
-			return;
+	for (i = 0; stat_table[i][0] != 0xFF; i++) {
+		if (stat_table[i][0] & drv_stat) {
+			*sk = stat_table[i][1];
+			*asc = stat_table[i][2];
+			*ascq = stat_table[i][3];
+			goto translate_done;
 		}
-		i++;
 	}
-	/* No error ?? */
-	printk(KERN_ERR "ata%u: called with no error (%02X)!\n", qc->ap->id, drv_stat);
-	/* additional-sense-code[-qualifier] */
+	/* No error?  Undecoded? */
+	printk(KERN_WARNING "ata%u: no sense translation for status: 0x%02x\n", 
+	       id, drv_stat);
+
+	/* For our last chance pick, use medium read error because
+	 * it's much more common than an ATA drive telling you a write
+	 * has failed.
+	 */
+	*sk = MEDIUM_ERROR;
+	*asc = 0x11; /* "unrecovered read error" */
+	*ascq = 0x04; /*  "auto-reallocation failed" */
+
+ translate_done:
+	printk(KERN_ERR "ata%u: translated ATA stat/err 0x%02x/%02x to "
+	       "SCSI SK/ASC/ASCQ 0x%x/%02x/%02x\n", id, drv_stat, drv_err,
+	       *sk, *asc, *ascq);
+	return;
+}
+
+/*
+ *	ata_gen_ata_desc_sense - Generate check condition sense block.
+ *	@qc: Command that completed.
+ *
+ *	This function is specific to the ATA descriptor format sense
+ *	block specified for the ATA pass through commands.  Regardless
+ *	of whether the command errored or not, return a sense
+ *	block. Copy all controller registers into the sense
+ *	block. Clear sense key, ASC & ASCQ if there is no error.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host_set lock)
+ */
+void ata_gen_ata_desc_sense(struct ata_queued_cmd *qc)
+{
+	struct scsi_cmnd *cmd = qc->scsicmd;
+	struct ata_taskfile *tf = &qc->tf;
+	unsigned char *sb = cmd->sense_buffer;
+	unsigned char *desc = sb + 8;
+
+	memset(sb, 0, SCSI_SENSE_BUFFERSIZE);
+
+	cmd->result = SAM_STAT_CHECK_CONDITION;
+
+	/*
+	 * Read the controller registers.
+	 */
+	assert(NULL != qc->ap->ops->tf_read);
+	qc->ap->ops->tf_read(qc->ap, tf);
+
+	/*
+	 * Use ata_to_sense_error() to map status register bits
+	 * onto sense key, asc & ascq.
+	 */
+	if (unlikely(tf->command & (ATA_BUSY | ATA_DF | ATA_ERR | ATA_DRQ))) {
+		ata_to_sense_error(qc->ap->id, tf->command, tf->feature,
+				   &sb[1], &sb[2], &sb[3]);
+		sb[1] &= 0x0f;
+	}
+
+	/*
+	 * Sense data is current and format is descriptor.
+	 */
+	sb[0] = 0x72;
+
+	desc[0] = 0x09;
+
+	/*
+	 * Set length of additional sense data.
+	 * Since we only populate descriptor 0, the total
+	 * length is the same (fixed) length as descriptor 0.
+	 */
+	desc[1] = sb[7] = 14;
+
+	/*
+	 * Copy registers into sense buffer.
+	 */
+	desc[2] = 0x00;
+	desc[3] = tf->feature;	/* == error reg */
+	desc[5] = tf->nsect;
+	desc[7] = tf->lbal;
+	desc[9] = tf->lbam;
+	desc[11] = tf->lbah;
+	desc[12] = tf->device;
+	desc[13] = tf->command; /* == status reg */
+
+	/*
+	 * Fill in Extend bit, and the high order bytes
+	 * if applicable.
+	 */
+	if (tf->flags & ATA_TFLAG_LBA48) {
+		desc[2] |= 0x01;
+		desc[4] = tf->hob_nsect;
+		desc[6] = tf->hob_lbal;
+		desc[8] = tf->hob_lbam;
+		desc[10] = tf->hob_lbah;
+	}
+}
+
+/**
+ *	ata_gen_fixed_sense - generate a SCSI fixed sense block
+ *	@qc: Command that we are erroring out
+ *
+ *	Leverage ata_to_sense_error() to give us the codes.  Fit our
+ *	LBA in here if there's room.
+ *
+ *	LOCKING:
+ *	inherited from caller
+ */
+void ata_gen_fixed_sense(struct ata_queued_cmd *qc)
+{
+	struct scsi_cmnd *cmd = qc->scsicmd;
+	struct ata_taskfile *tf = &qc->tf;
+	unsigned char *sb = cmd->sense_buffer;
+
+	memset(sb, 0, SCSI_SENSE_BUFFERSIZE);
+
+	cmd->result = SAM_STAT_CHECK_CONDITION;
+
+	/*
+	 * Read the controller registers.
+	 */
+	assert(NULL != qc->ap->ops->tf_read);
+	qc->ap->ops->tf_read(qc->ap, tf);
+
+	/*
+	 * Use ata_to_sense_error() to map status register bits
+	 * onto sense key, asc & ascq.
+	 */
+	if (unlikely(tf->command & (ATA_BUSY | ATA_DF | ATA_ERR | ATA_DRQ))) {
+		ata_to_sense_error(qc->ap->id, tf->command, tf->feature,
+				   &sb[2], &sb[12], &sb[13]);
+		sb[2] &= 0x0f;
+	}
 
 	sb[0] = 0x70;
-	sb[2] = MEDIUM_ERROR;
-	sb[7] = 0x0A;
-	if (cmd->sc_data_direction == DMA_FROM_DEVICE) {
-		sb[12] = 0x11; /* "unrecovered read error" */
-		sb[13] = 0x04;
-	} else {
-		sb[12] = 0x0C; /* "write error -             */
-		sb[13] = 0x02; /*  auto-reallocation failed" */
+	sb[7] = 0x0a;
+	if (tf->flags & ATA_TFLAG_LBA && !(tf->flags & ATA_TFLAG_LBA48)) {
+		/* A small (28b) LBA will fit in the 32b info field */
+		sb[0] |= 0x80;		/* set valid bit */
+		sb[3] = tf->device & 0x0f;
+		sb[4] = tf->lbah;
+		sb[5] = tf->lbam;
+		sb[6] = tf->lbal;
 	}
 }
 
@@ -626,11 +904,36 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
 static int ata_scsi_qc_complete(struct ata_queued_cmd *qc, u8 drv_stat)
 {
 	struct scsi_cmnd *cmd = qc->scsicmd;
+ 	int need_sense = drv_stat & (ATA_ERR | ATA_BUSY | ATA_DRQ);
 
-	if (unlikely(drv_stat & (ATA_ERR | ATA_BUSY | ATA_DRQ)))
-		ata_to_sense_error(qc, drv_stat);
-	else
-		cmd->result = SAM_STAT_GOOD;
+	/* For ATA pass thru (SAT) commands, generate a sense block if
+	 * user mandated it or if there's an error.  Note that if we
+	 * generate because the user forced us to, a check condition
+	 * is generated and the ATA register values are returned
+	 * whether the command completed successfully or not. If there
+	 * was no error, SK, ASC and ASCQ will all be zero.
+	 */
+	if (((cmd->cmnd[0] == ATA_16) || (cmd->cmnd[0] == ATA_12)) &&
+ 	    ((cmd->cmnd[2] & 0x20) || need_sense)) {
+ 		ata_gen_ata_desc_sense(qc);
+	} else {
+		if (!need_sense) {
+			cmd->result = SAM_STAT_GOOD;
+		} else {
+			/* TODO: decide which descriptor format to use
+			 * for 48b LBA devices and call that here
+			 * instead of the fixed desc, which is only
+			 * good for smaller LBA (and maybe CHS?)
+			 * devices.
+			 */
+			ata_gen_fixed_sense(qc);
+		}
+	}
+
+	if (need_sense) {
+		/* The ata_gen_..._sense routines fill in tf */
+		ata_dump_status(qc->ap->id, &qc->tf);
+	}
 
 	qc->scsidone(cmd);
 
@@ -671,8 +974,8 @@ static void ata_scsi_translate(struct ata_port *ap, struct ata_device *dev,
 		return;
 
 	/* data is present; dma-map it */
-	if (cmd->sc_data_direction == DMA_FROM_DEVICE ||
-	    cmd->sc_data_direction == DMA_TO_DEVICE) {
+	if (cmd->sc_data_direction == SCSI_DATA_READ ||
+	    cmd->sc_data_direction == SCSI_DATA_WRITE) {
 		if (unlikely(cmd->request_bufflen < 1)) {
 			printk(KERN_WARNING "ata%u(%u): WARNING: zero len r/w req\n",
 			       ap->id, dev->devno);
@@ -692,7 +995,6 @@ static void ata_scsi_translate(struct ata_port *ap, struct ata_device *dev,
 
 	if (xlat_func(qc, scsicmd))
 		goto err_out;
-
 	/* select device, send command to hardware */
 	if (ata_qc_issue(qc))
 		goto err_out;
@@ -1304,7 +1606,7 @@ static unsigned int atapi_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
 	struct scsi_cmnd *cmd = qc->scsicmd;
 	struct ata_device *dev = qc->dev;
 	int using_pio = (dev->flags & ATA_DFLAG_PIO);
-	int nodata = (cmd->sc_data_direction == DMA_NONE);
+	int nodata = (cmd->sc_data_direction == SCSI_DATA_NONE);
 
 	if (!using_pio)
 		/* Check whether ATAPI DMA is safe */
@@ -1316,7 +1618,7 @@ static unsigned int atapi_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
 	qc->complete_fn = atapi_qc_complete;
 
 	qc->tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
-	if (cmd->sc_data_direction == DMA_TO_DEVICE) {
+	if (cmd->sc_data_direction == SCSI_DATA_WRITE) {
 		qc->tf.flags |= ATA_TFLAG_WRITE;
 		DPRINTK("direction: write\n");
 	}
@@ -1340,7 +1642,7 @@ static unsigned int atapi_xlat(struct ata_queued_cmd *qc, u8 *scsicmd)
 
 #ifdef ATAPI_ENABLE_DMADIR
 		/* some SATA bridges need us to indicate data xfer direction */
-		if (cmd->sc_data_direction != DMA_TO_DEVICE)
+		if (cmd->sc_data_direction != SCSI_DATA_WRITE)
 			qc->tf.feature |= ATAPI_DMADIR;
 #endif
 	}
@@ -1393,6 +1695,143 @@ ata_scsi_find_dev(struct ata_port *ap, struct scsi_device *scsidev)
 	return dev;
 }
 
+/*
+ *	ata_scsi_map_proto - Map pass-thru protocol value to taskfile value.
+ *	@byte1: Byte 1 from pass-thru CDB.
+ *
+ *	RETURNS:
+ *	ATA_PROT_UNKNOWN if mapping failed/unimplemented, protocol otherwise.
+ */
+static u8
+ata_scsi_map_proto(u8 byte1)
+{
+	switch((byte1 & 0x1e) >> 1) {
+		case 3:		/* Non-data */
+			return ATA_PROT_NODATA;
+
+		case 6:		/* DMA */
+			return ATA_PROT_DMA;
+
+		case 4:		/* PIO Data-in */
+		case 5:		/* PIO Data-out */
+			if (byte1 & 0xe0) {
+				return ATA_PROT_PIO_MULT;
+			}
+			return ATA_PROT_PIO;
+
+		case 10:	/* Device Reset */
+		case 0:		/* Hard Reset */
+		case 1:		/* SRST */
+		case 2:		/* Bus Idle */
+		case 7:		/* Packet */
+		case 8:		/* DMA Queued */
+		case 9:		/* Device Diagnostic */
+		case 11:	/* UDMA Data-in */
+		case 12:	/* UDMA Data-Out */
+		case 13:	/* FPDMA */
+		default:	/* Reserved */
+			break;
+	}
+
+	return ATA_PROT_UNKNOWN;
+}
+
+/**
+ *	ata_scsi_pass_thru - convert ATA pass-thru CDB to taskfile
+ *	@qc: command structure to be initialized
+ *	@cmd: SCSI command to convert
+ *
+ *	Handles either 12 or 16-byte versions of the CDB.
+ *
+ *	RETURNS:
+ *	Zero on success, non-zero on failure.
+ */
+static unsigned int
+ata_scsi_pass_thru(struct ata_queued_cmd *qc, u8 *scsicmd)
+{
+	struct ata_taskfile *tf = &(qc->tf);
+	struct scsi_cmnd *cmd = qc->scsicmd;
+
+	if ((tf->protocol = ata_scsi_map_proto(scsicmd[1])) == ATA_PROT_UNKNOWN)
+		return 1;
+
+	/*
+	 * 12 and 16 byte CDBs use different offsets to
+	 * provide the various register values.
+	 */
+	if (scsicmd[0] == ATA_16) {
+		/*
+		 * 16-byte CDB - may contain extended commands.
+		 *
+		 * If that is the case, copy the upper byte register values.
+		 */
+		if (scsicmd[1] & 0x01) {
+			tf->hob_feature = scsicmd[3];
+			tf->hob_nsect = scsicmd[5];
+			tf->hob_lbal = scsicmd[7];
+			tf->hob_lbam = scsicmd[9];
+			tf->hob_lbah = scsicmd[11];
+			tf->flags |= ATA_TFLAG_LBA48;
+		} else
+			tf->flags &= ~ATA_TFLAG_LBA48;
+
+		/*
+		 * Always copy low byte, device and command registers.
+		 */
+		tf->feature = scsicmd[4];
+		tf->nsect = scsicmd[6];
+		tf->lbal = scsicmd[8];
+		tf->lbam = scsicmd[10];
+		tf->lbah = scsicmd[12];
+		tf->device = scsicmd[13];
+		tf->command = scsicmd[14];
+	} else {
+		/*
+		 * 12-byte CDB - incapable of extended commands.
+		 */
+		tf->flags &= ~ATA_TFLAG_LBA48;
+
+		tf->feature = scsicmd[3];
+		tf->nsect = scsicmd[4];
+		tf->lbal = scsicmd[5];
+		tf->lbam = scsicmd[6];
+		tf->lbah = scsicmd[7];
+		tf->device = scsicmd[8];
+		tf->command = scsicmd[9];
+	}
+
+	/*
+	 * Filter SET_FEATURES - XFER MODE command -- otherwise,
+	 * SET_FEATURES - XFER MODE must be preceded/succeeded
+	 * by an update to hardware-specific registers for each
+	 * controller (i.e. the reason for ->set_piomode(),
+	 * ->set_dmamode(), and ->post_set_mode() hooks).
+	 */
+	if ((tf->command == ATA_CMD_SET_FEATURES)
+	 && (tf->feature == SETFEATURES_XFER))
+		return 1;
+
+	/*
+	 * Set flags so that all registers will be written,
+	 * and pass on write indication (used for PIO/DMA
+	 * setup.)
+	 */
+	tf->flags |= (ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE);
+
+	if (cmd->sc_data_direction == SCSI_DATA_WRITE)
+		tf->flags |= ATA_TFLAG_WRITE;
+
+	/*
+	 * Set transfer length.
+	 *
+	 * TODO: find out if we need to do more here to
+	 *       cover scatter/gather case.
+	 */
+	qc->nsect = cmd->bufflen / ATA_SECT_SIZE;
+
+	return 0;
+}
+
 /**
  *	ata_get_xlat_func - check if SCSI to ATA translation is possible
  *	@dev: ATA device
@@ -1425,6 +1864,10 @@ static inline ata_xlat_func_t ata_get_xlat_func(struct ata_device *dev, u8 cmd)
 	case VERIFY:
 	case VERIFY_16:
 		return ata_scsi_verify_xlat;
+
+	case ATA_12:
+	case ATA_16:
+		return ata_scsi_pass_thru;
 	}
 
 	return NULL;
@@ -1581,7 +2024,7 @@ void ata_scsi_simulate(u16 *id,
 			ata_scsi_rbuf_fill(&args, ata_scsiop_report_luns);
 			break;
 
-		/* mandantory commands we haven't implemented yet */
+		/* mandatory commands we haven't implemented yet */
 		case REQUEST_SENSE:
 
 		/* all other commands */
