@@ -11,7 +11,7 @@
  *			  Frank Pavlic (pavlic@de.ibm.com) and
  *		 	  Martin Schwidefsky <schwidefsky@de.ibm.com>
  *
- *    $Revision: 1.97 $	 $Date: 2005/03/31 09:42:02 $
+ *    $Revision: 1.98 $	 $Date: 2005/04/18 13:41:29 $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -59,7 +59,7 @@
 /**
  * initialization string for output
  */
-#define VERSION_LCS_C  "$Revision: 1.97 $"
+#define VERSION_LCS_C  "$Revision: 1.98 $"
 
 static char version[] __initdata = "LCS driver ("VERSION_LCS_C "/" VERSION_LCS_H ")";
 static char debug_buffer[255];
@@ -1098,14 +1098,6 @@ lcs_check_multicast_support(struct lcs_card *card)
 		PRINT_ERR("Query IPAssist failed. Assuming unsupported!\n");
 		return -EOPNOTSUPP;
 	}
-	/* Print out supported assists: IPv6 */
-	PRINT_INFO("LCS device %s %s IPv6 support\n", card->dev->name,
-		   (card->ip_assists_supported & LCS_IPASS_IPV6_SUPPORT) ?
-		   "with" : "without");
-	/* Print out supported assist: Multicast */
-	PRINT_INFO("LCS device %s %s Multicast support\n", card->dev->name,
-		   (card->ip_assists_supported & LCS_IPASS_MULTICAST_SUPPORT) ?
-		   "with" : "without");
 	if (card->ip_assists_supported & LCS_IPASS_MULTICAST_SUPPORT)
 		return 0;
 	return -EOPNOTSUPP;
@@ -2198,30 +2190,39 @@ lcs_new_device(struct ccwgroup_device *ccwgdev)
 	if (!dev)
 		goto out;
 	card->dev = dev;
-netdev_out:
 	card->dev->priv = card;
 	card->dev->open = lcs_open_device;
 	card->dev->stop = lcs_stop_device;
 	card->dev->hard_start_xmit = lcs_start_xmit;
 	card->dev->get_stats = lcs_getstats;
 	SET_MODULE_OWNER(dev);
-	if (lcs_register_netdev(ccwgdev) != 0)
-		goto out;
 	memcpy(card->dev->dev_addr, card->mac, LCS_MAC_LENGTH);
 #ifdef CONFIG_IP_MULTICAST
 	if (!lcs_check_multicast_support(card))
 		card->dev->set_multicast_list = lcs_set_multicast_list;
 #endif
-	netif_stop_queue(card->dev);
+netdev_out:
 	lcs_set_allowed_threads(card,0xffffffff);
 	if (recover_state == DEV_STATE_RECOVER) {
 		lcs_set_multicast_list(card->dev);
 		card->dev->flags |= IFF_UP;
 		netif_wake_queue(card->dev);
 		card->state = DEV_STATE_UP;
-	} else
+	} else {
 		lcs_stopcard(card);
+	}
 
+	if (lcs_register_netdev(ccwgdev) != 0)
+		goto out;
+
+	/* Print out supported assists: IPv6 */
+	PRINT_INFO("LCS device %s %s IPv6 support\n", card->dev->name,
+		   (card->ip_assists_supported & LCS_IPASS_IPV6_SUPPORT) ?
+		   "with" : "without");
+	/* Print out supported assist: Multicast */
+	PRINT_INFO("LCS device %s %s Multicast support\n", card->dev->name,
+		   (card->ip_assists_supported & LCS_IPASS_MULTICAST_SUPPORT) ?
+		   "with" : "without");
 	return 0;
 out:
 
