@@ -1605,7 +1605,7 @@ snd_m3_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 #endif
 
 	/* ack ints */
-	snd_m3_outw(chip, HOST_INT_STATUS, status);
+	outb(status, chip->iobase + HOST_INT_STATUS);
 
 	return IRQ_HANDLED;
 }
@@ -2367,7 +2367,7 @@ static int snd_m3_free(m3_t *chip)
 		kfree(chip->substreams);
 	}
 	if (chip->iobase) {
-		snd_m3_outw(chip, HOST_INT_CTRL, 0); /* disable ints */
+		outw(0, chip->iobase + HOST_INT_CTRL); /* disable ints */
 	}
 
 #ifdef CONFIG_PM
