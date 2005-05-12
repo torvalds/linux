@@ -40,6 +40,7 @@ enum {
 	ALC880_5ST_DIG,
 	ALC880_W810,
 	ALC880_Z71V,
+	ALC880_TEST,
 };
 
 struct alc_spec {
@@ -1012,6 +1013,248 @@ static struct hda_codec_ops alc_patch_ops = {
 #endif
 };
 
+
+/*
+ * Test configuration for debugging
+ *
+ * Almost all inputs/outputs are enabled.  I/O pins can be configured via
+ * enum controls.
+ */
+#ifdef CONFIG_SND_DEBUG
+static hda_nid_t alc880_test_dac_nids[4] = {
+	0x02, 0x03, 0x04, 0x05
+};
+
+static struct hda_input_mux alc880_test_capture_source = {
+	.num_items = 5,
+	.items = {
+		{ "In-1", 0x0 },
+		{ "In-2", 0x1 },
+		{ "In-3", 0x2 },
+		{ "In-4", 0x3 },
+		{ "CD", 0x4 },
+	},
+};
+
+static struct alc_channel_mode alc880_test_modes[2] = {
+	{ 2, NULL },
+	{ 6, NULL },
+};
+
+static int alc_test_pin_ctl_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+{
+	static char *texts[] = {
+		"N/A", "Line Out", "HP Out",
+		"In Hi-Z", "In 50%", "In Grd", "In 80%", "In 100%"
+	};
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	uinfo->count = 1;
+	uinfo->value.enumerated.items = 8;
+	if (uinfo->value.enumerated.item >= 8)
+		uinfo->value.enumerated.item = 7;
+	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
+	return 0;
+}
+
+static int alc_test_pin_ctl_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	hda_nid_t nid = (hda_nid_t)kcontrol->private_value;
+	unsigned int pin_ctl, item = 0;
+
+	pin_ctl = snd_hda_codec_read(codec, nid, 0,
+				     AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
+	if (pin_ctl & AC_PINCTL_OUT_EN) {
+		if (pin_ctl & AC_PINCTL_HP_EN)
+			item = 2;
+		else
+			item = 1;
+	} else if (pin_ctl & AC_PINCTL_IN_EN) {
+		switch (pin_ctl & AC_PINCTL_VREFEN) {
+		case AC_PINCTL_VREF_HIZ: item = 3; break;
+		case AC_PINCTL_VREF_50:  item = 4; break;
+		case AC_PINCTL_VREF_GRD: item = 5; break;
+		case AC_PINCTL_VREF_80:  item = 6; break;
+		case AC_PINCTL_VREF_100: item = 7; break;
+		}
+	}
+	ucontrol->value.enumerated.item[0] = item;
+	return 0;
+}
+
+static int alc_test_pin_ctl_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	hda_nid_t nid = (hda_nid_t)kcontrol->private_value;
+	static unsigned int ctls[] = {
+		0, AC_PINCTL_OUT_EN, AC_PINCTL_OUT_EN | AC_PINCTL_HP_EN,
+		AC_PINCTL_IN_EN | AC_PINCTL_VREF_HIZ,
+		AC_PINCTL_IN_EN | AC_PINCTL_VREF_50,
+		AC_PINCTL_IN_EN | AC_PINCTL_VREF_GRD,
+		AC_PINCTL_IN_EN | AC_PINCTL_VREF_80,
+		AC_PINCTL_IN_EN | AC_PINCTL_VREF_100,
+	};
+	unsigned int old_ctl, new_ctl;
+
+	old_ctl = snd_hda_codec_read(codec, nid, 0,
+				     AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
+	new_ctl = ctls[ucontrol->value.enumerated.item[0]];
+	if (old_ctl != new_ctl) {
+		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_PIN_WIDGET_CONTROL, new_ctl);
+		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
+				    ucontrol->value.enumerated.item[0] >= 3 ? 0xb080 : 0xb000);
+		return 1;
+	}
+	return 0;
+}
+
+static int alc_test_pin_src_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+{
+	static char *texts[] = {
+		"Front", "Surround", "CLFE", "Side"
+	};
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	uinfo->count = 1;
+	uinfo->value.enumerated.items = 4;
+	if (uinfo->value.enumerated.item >= 4)
+		uinfo->value.enumerated.item = 3;
+	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
+	return 0;
+}
+
+static int alc_test_pin_src_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	hda_nid_t nid = (hda_nid_t)kcontrol->private_value;
+	unsigned int sel;
+
+	sel = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_CONNECT_SEL, 0);
+	ucontrol->value.enumerated.item[0] = sel & 3;
+	return 0;
+}
+
+static int alc_test_pin_src_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	hda_nid_t nid = (hda_nid_t)kcontrol->private_value;
+	unsigned int sel;
+
+	sel = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_CONNECT_SEL, 0) & 3;
+	if (ucontrol->value.enumerated.item[0] != sel) {
+		sel = ucontrol->value.enumerated.item[0] & 3;
+		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_CONNECT_SEL, sel);
+		return 1;
+	}
+	return 0;
+}
+
+#define PIN_CTL_TEST(xname,nid) {			\
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,	\
+			.name = xname,		       \
+			.info = alc_test_pin_ctl_info, \
+			.get = alc_test_pin_ctl_get,   \
+			.put = alc_test_pin_ctl_put,   \
+			.private_value = nid	       \
+			}
+
+#define PIN_SRC_TEST(xname,nid) {			\
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,	\
+			.name = xname,		       \
+			.info = alc_test_pin_src_info, \
+			.get = alc_test_pin_src_get,   \
+			.put = alc_test_pin_src_put,   \
+			.private_value = nid	       \
+			}
+
+static snd_kcontrol_new_t alc880_test_mixer[] = {
+	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Surround Playback Volume", 0x0d, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("CLFE Playback Volume", 0x0e, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Side Playback Volume", 0x0f, 0x0, HDA_OUTPUT),
+	PIN_CTL_TEST("Front Pin Mode", 0x14),
+	PIN_CTL_TEST("Surround Pin Mode", 0x15),
+	PIN_CTL_TEST("CLFE Pin Mode", 0x16),
+	PIN_CTL_TEST("Side Pin Mode", 0x17),
+	PIN_CTL_TEST("In-1 Pin Mode", 0x18),
+	PIN_CTL_TEST("In-2 Pin Mode", 0x19),
+	PIN_CTL_TEST("In-3 Pin Mode", 0x1a),
+	PIN_CTL_TEST("In-4 Pin Mode", 0x1b),
+	PIN_SRC_TEST("In-1 Pin Source", 0x18),
+	PIN_SRC_TEST("In-2 Pin Source", 0x19),
+	PIN_SRC_TEST("In-3 Pin Source", 0x1a),
+	PIN_SRC_TEST("In-4 Pin Source", 0x1b),
+	HDA_CODEC_VOLUME("In-1 Playback Volume", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("In-1 Playback Switch", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("In-2 Playback Volume", 0x0b, 0x1, HDA_INPUT),
+	HDA_CODEC_MUTE("In-2 Playback Switch", 0x0b, 0x1, HDA_INPUT),
+	HDA_CODEC_VOLUME("In-3 Playback Volume", 0x0b, 0x2, HDA_INPUT),
+	HDA_CODEC_MUTE("In-3 Playback Switch", 0x0b, 0x2, HDA_INPUT),
+	HDA_CODEC_VOLUME("In-4 Playback Volume", 0x0b, 0x3, HDA_INPUT),
+	HDA_CODEC_MUTE("In-4 Playback Switch", 0x0b, 0x3, HDA_INPUT),
+	HDA_CODEC_VOLUME("CD Playback Volume", 0x0b, 0x4, HDA_INPUT),
+	HDA_CODEC_MUTE("CD Playback Switch", 0x0b, 0x4, HDA_INPUT),
+	HDA_CODEC_VOLUME("Capture Volume", 0x07, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("Capture Switch", 0x07, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x08, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE_IDX("Capture Switch", 1, 0x08, 0x0, HDA_INPUT),
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Input Source",
+		.count = 2,
+		.info = alc_mux_enum_info,
+		.get = alc_mux_enum_get,
+		.put = alc_mux_enum_put,
+	},
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Channel Mode",
+		.info = alc880_ch_mode_info,
+		.get = alc880_ch_mode_get,
+		.put = alc880_ch_mode_put,
+	},
+	{ } /* end */
+};
+
+static struct hda_verb alc880_test_init_verbs[] = {
+	/* Unmute inputs of 0x0c - 0x0f */
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, 0x7100},
+	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
+	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, 0x7100},
+	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
+	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, 0x7100},
+	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
+	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, 0x7100},
+	/* Vol output for 0x0c-0x0f */
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
+	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
+	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
+	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
+	/* Set output pins 0x14-0x17 */
+	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
+	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
+	{0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
+	{0x17, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
+	/* Unmute output pins 0x14-0x17 */
+	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
+	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
+	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
+	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
+	/* Set input pins 0x18-0x1c */
+	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24}, /* vref 80% */
+	{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24},
+	{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20},
+	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20},
+	{0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20},
+	/* Mute input pins 0x18-0x1b */
+	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
+	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
+	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
+	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
+	{ }
+};
+#endif
+
 /*
  */
 
@@ -1087,6 +1330,10 @@ static struct hda_board_config alc880_cfg_tbl[] = {
 	{ .modelname = "z71v", .config = ALC880_Z71V },
 	{ .pci_vendor = 0x1043, .pci_device = 0x1964, .config = ALC880_Z71V },
 
+#ifdef CONFIG_SND_DEBUG
+	{ .modelname = "test", .config = ALC880_TEST },
+#endif
+
 	{}
 };
 
@@ -1121,6 +1368,12 @@ static int patch_alc880(struct hda_codec *codec)
 		spec->mixers[spec->num_mixers] = alc880_z71v_mixer;
 		spec->num_mixers++;
 		break;
+#ifdef CONFIG_SND_DEBUG
+	case ALC880_TEST:
+		spec->mixers[spec->num_mixers] = alc880_test_mixer;
+		spec->num_mixers++;
+		break;
+#endif
 	default:
 		spec->mixers[spec->num_mixers] = alc880_base_mixer;
 		spec->num_mixers++;
@@ -1132,6 +1385,7 @@ static int patch_alc880(struct hda_codec *codec)
 	case ALC880_5ST_DIG:
 	case ALC880_W810:
 	case ALC880_Z71V:
+	case ALC880_TEST:
 		spec->multiout.dig_out_nid = ALC880_DIGOUT_NID;
 		break;
 	default:
@@ -1167,6 +1421,13 @@ static int patch_alc880(struct hda_codec *codec)
 		spec->channel_mode = alc880_z71v_modes;
 		spec->num_channel_mode = ARRAY_SIZE(alc880_z71v_modes);
 		break;
+#ifdef CONFIG_SND_DEBUG
+	case ALC880_TEST:
+		spec->init_verbs = alc880_test_init_verbs;
+		spec->channel_mode = alc880_test_modes;
+		spec->num_channel_mode = ARRAY_SIZE(alc880_test_modes);
+		break;
+#endif
 	default:
 		spec->init_verbs = alc880_init_verbs_three_stack;
 		spec->channel_mode = alc880_threestack_modes;
@@ -1195,6 +1456,13 @@ static int patch_alc880(struct hda_codec *codec)
 		spec->multiout.dac_nids = alc880_z71v_dac_nids;
 		spec->multiout.hp_nid = 0x03;
 		break;
+#ifdef CONFIG_SND_DEBUG
+	case ALC880_TEST:
+		spec->multiout.num_dacs = ARRAY_SIZE(alc880_test_dac_nids);
+		spec->multiout.dac_nids = alc880_test_dac_nids;
+		spec->input_mux = &alc880_test_capture_source;
+		break;
+#endif
 	default:
 		spec->multiout.num_dacs = ARRAY_SIZE(alc880_dac_nids);
 		spec->multiout.dac_nids = alc880_dac_nids;
@@ -1202,7 +1470,8 @@ static int patch_alc880(struct hda_codec *codec)
 		break;
 	}
 
-	spec->input_mux = &alc880_capture_source;
+	if (! spec->input_mux)
+		spec->input_mux = &alc880_capture_source;
 	spec->num_adc_nids = ARRAY_SIZE(alc880_adc_nids);
 	spec->adc_nids = alc880_adc_nids;
 
