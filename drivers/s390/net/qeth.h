@@ -24,7 +24,7 @@
 
 #include "qeth_mpc.h"
 
-#define VERSION_QETH_H 		"$Revision: 1.136 $"
+#define VERSION_QETH_H 		"$Revision: 1.137 $"
 
 #ifdef CONFIG_QETH_IPV6
 #define QETH_VERSION_IPV6 	":IPv6"
@@ -288,7 +288,8 @@ qeth_is_ipa_enabled(struct qeth_ipa_info *ipa, enum qeth_ipa_funcs func)
 #define QETH_TX_TIMEOUT		100 * HZ
 #define QETH_HEADER_SIZE	32
 #define MAX_PORTNO 		15
-#define QETH_FAKE_LL_LEN 	ETH_HLEN
+#define QETH_FAKE_LL_LEN_ETH	ETH_HLEN
+#define QETH_FAKE_LL_LEN_TR	(sizeof(struct trh_hdr)-TR_MAXRIFLEN+sizeof(struct trllc))
 #define QETH_FAKE_LL_V6_ADDR_POS 24
 
 /*IPv6 address autoconfiguration stuff*/
