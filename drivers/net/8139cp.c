@@ -315,7 +315,7 @@ struct cp_desc {
 struct ring_info {
 	struct sk_buff		*skb;
 	dma_addr_t		mapping;
-	unsigned		frag;
+	u32			len;
 };
 
 struct cp_dma_stats {
@@ -710,7 +710,7 @@ static void cp_tx (struct cp_private *cp)
 			BUG();
 
 		pci_unmap_single(cp->pdev, cp->tx_skb[tx_tail].mapping,
-					skb->len, PCI_DMA_TODEVICE);
+				 cp->tx_skb[tx_tail].len, PCI_DMA_TODEVICE);
 
 		if (status & LastFrag) {
 			if (status & (TxError | TxFIFOUnder)) {
@@ -801,7 +801,7 @@ static int cp_start_xmit (struct sk_buff *skb, struct net_device *dev)
 			else if (ip->protocol == IPPROTO_UDP)
 				flags |= IPCS | UDPCS;
 			else
-				BUG();
+				WARN_ON(1);	/* we need a WARN() */
 		}
 
 		txd->opts1 = cpu_to_le32(flags);
@@ -809,7 +809,7 @@ static int cp_start_xmit (struct sk_buff *skb, struct net_device *dev)
 
 		cp->tx_skb[entry].skb = skb;
 		cp->tx_skb[entry].mapping = mapping;
-		cp->tx_skb[entry].frag = 0;
+		cp->tx_skb[entry].len = len;
 		entry = NEXT_TX(entry);
 	} else {
 		struct cp_desc *txd;
@@ -827,7 +827,7 @@ static int cp_start_xmit (struct sk_buff *skb, struct net_device *dev)
 					       first_len, PCI_DMA_TODEVICE);
 		cp->tx_skb[entry].skb = skb;
 		cp->tx_skb[entry].mapping = first_mapping;
-		cp->tx_skb[entry].frag = 1;
+		cp->tx_skb[entry].len = first_len;
 		entry = NEXT_TX(entry);
 
 		for (frag = 0; frag < skb_shinfo(skb)->nr_frags; frag++) {
@@ -870,7 +870,7 @@ static int cp_start_xmit (struct sk_buff *skb, struct net_device *dev)
 
 			cp->tx_skb[entry].skb = skb;
 			cp->tx_skb[entry].mapping = mapping;
-			cp->tx_skb[entry].frag = frag + 2;
+			cp->tx_skb[entry].len = len;
 			entry = NEXT_TX(entry);
 		}
 
@@ -1084,7 +1084,6 @@ static int cp_refill_rx (struct cp_private *cp)
 		cp->rx_skb[i].mapping = pci_map_single(cp->pdev,
 			skb->tail, cp->rx_buf_sz, PCI_DMA_FROMDEVICE);
 		cp->rx_skb[i].skb = skb;
-		cp->rx_skb[i].frag = 0;
 
 		cp->rx_ring[i].opts2 = 0;
 		cp->rx_ring[i].addr = cpu_to_le64(cp->rx_skb[i].mapping);
@@ -1136,9 +1135,6 @@ static void cp_clean_rings (struct cp_private *cp)
 {
 	unsigned i;
 
-	memset(cp->rx_ring, 0, sizeof(struct cp_desc) * CP_RX_RING_SIZE);
-	memset(cp->tx_ring, 0, sizeof(struct cp_desc) * CP_TX_RING_SIZE);
-
 	for (i = 0; i < CP_RX_RING_SIZE; i++) {
 		if (cp->rx_skb[i].skb) {
 			pci_unmap_single(cp->pdev, cp->rx_skb[i].mapping,
@@ -1150,12 +1146,17 @@ static void cp_clean_rings (struct cp_private *cp)
 	for (i = 0; i < CP_TX_RING_SIZE; i++) {
 		if (cp->tx_skb[i].skb) {
 			struct sk_buff *skb = cp->tx_skb[i].skb;
+
 			pci_unmap_single(cp->pdev, cp->tx_skb[i].mapping,
-					 skb->len, PCI_DMA_TODEVICE);
-			dev_kfree_skb(skb);
+				 	 cp->tx_skb[i].len, PCI_DMA_TODEVICE);
+			if (le32_to_cpu(cp->tx_ring[i].opts1) & LastFrag)
+				dev_kfree_skb(skb);
 			cp->net_stats.tx_dropped++;
 		}
 	}
+
+	memset(cp->rx_ring, 0, sizeof(struct cp_desc) * CP_RX_RING_SIZE);
+	memset(cp->tx_ring, 0, sizeof(struct cp_desc) * CP_TX_RING_SIZE);
 
 	memset(&cp->rx_skb, 0, sizeof(struct ring_info) * CP_RX_RING_SIZE);
 	memset(&cp->tx_skb, 0, sizeof(struct ring_info) * CP_TX_RING_SIZE);
