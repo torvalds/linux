@@ -1,5 +1,5 @@
 /*
- * linux/drivers/s390/net/qeth_tso.c ($Revision: 1.6 $)
+ * linux/drivers/s390/net/qeth_tso.c ($Revision: 1.7 $)
  *
  * Header file for qeth TCP Segmentation Offload support.
  *
@@ -7,7 +7,7 @@
  *
  *    Author(s): Frank Pavlic <pavlic@de.ibm.com>
  *
- *    $Revision: 1.6 $	 $Date: 2005/03/24 09:04:18 $
+ *    $Revision: 1.7 $	 $Date: 2005/04/01 21:40:41 $
  *
  */
 
@@ -144,38 +144,6 @@ qeth_tso_get_queue_buffer(struct qeth_qdio_out_q *queue)
 	return flush_cnt;
 }
 
-static inline void
-__qeth_tso_fill_buffer_frag(struct qeth_qdio_out_buffer *buf,
-			  struct sk_buff *skb)
-{
-	struct skb_frag_struct *frag;
-	struct qdio_buffer *buffer;
-	int fragno, cnt, element;
-	unsigned long addr;
-
-        QETH_DBF_TEXT(trace, 6, "tsfilfrg");
-
-	/*initialize variables ...*/
-	fragno = skb_shinfo(skb)->nr_frags;
-	buffer = buf->buffer;
-	element = buf->next_element_to_fill;
-	/*fill buffer elements .....*/
-	for (cnt = 0; cnt < fragno; cnt++) {
-		frag = &skb_shinfo(skb)->frags[cnt];
-		addr = (page_to_pfn(frag->page) << PAGE_SHIFT) +
-			frag->page_offset;
-		buffer->element[element].addr = (char *)addr;
-		buffer->element[element].length = frag->size;
-		if (cnt < (fragno - 1))
-			buffer->element[element].flags =
-				SBAL_FLAGS_MIDDLE_FRAG;
-		else
-			buffer->element[element].flags =
-				SBAL_FLAGS_LAST_FRAG;
-		element++;
-	}
-	buf->next_element_to_fill = element;
-}
 
 static inline int
 qeth_tso_fill_buffer(struct qeth_qdio_out_buffer *buf,
@@ -205,19 +173,22 @@ qeth_tso_fill_buffer(struct qeth_qdio_out_buffer *buf,
 	buffer->element[element].length = hdr_len;
 	buffer->element[element].flags = SBAL_FLAGS_FIRST_FRAG;
 	buf->next_element_to_fill++;
-
+	/*check if we have frags ...*/
 	if (skb_shinfo(skb)->nr_frags > 0) {
-                 __qeth_tso_fill_buffer_frag(buf, skb);
+		skb->len = length;
+		skb->data = data;
+                 __qeth_fill_buffer_frag(skb, buffer,1,
+					(int *)&buf->next_element_to_fill);
                  goto out;
         }
 
-       /*start filling buffer entries ...*/
+       /*... if not, use this */
         element++;
         while (length > 0) {
                 /* length_here is the remaining amount of data in this page */
 		length_here = PAGE_SIZE - ((unsigned long) data % PAGE_SIZE);
 		if (length < length_here)
-                        length_here = length;
+			length_here = length;
                 buffer->element[element].addr = data;
                 buffer->element[element].length = length_here;
                 length -= length_here;
@@ -230,9 +201,9 @@ qeth_tso_fill_buffer(struct qeth_qdio_out_buffer *buf,
                 data += length_here;
                 element++;
         }
-        /*set the buffer to primed  ...*/
         buf->next_element_to_fill = element;
 out:
+        /*prime buffer now  ...*/
 	atomic_set(&buf->state, QETH_QDIO_BUF_PRIMED);
         return 1;
 }

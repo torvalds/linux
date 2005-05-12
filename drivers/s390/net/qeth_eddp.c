@@ -1,6 +1,6 @@
 /*
  *
- * linux/drivers/s390/net/qeth_eddp.c ($Revision: 1.11 $)
+ * linux/drivers/s390/net/qeth_eddp.c ($Revision: 1.12 $)
  *
  * Enhanced Device Driver Packing (EDDP) support for the qeth driver.
  *
@@ -8,7 +8,7 @@
  *
  *    Author(s): Thomas Spatzier <tspat@de.ibm.com>
  *
- *    $Revision: 1.11 $	 $Date: 2005/03/24 09:04:18 $
+ *    $Revision: 1.12 $	 $Date: 2005/04/01 21:40:40 $
  *
  */
 #include <linux/config.h>
@@ -200,17 +200,6 @@ out_check:
 	}
 out:
 	return flush_cnt;
-}
-
-static inline int
-qeth_get_skb_data_len(struct sk_buff *skb)
-{
-	int len = skb->len;
-	int i;
-
-	for (i = 0; i < skb_shinfo(skb)->nr_frags; ++i)
-		len -= skb_shinfo(skb)->frags[i].size;
-	return len;
 }
 
 static inline void

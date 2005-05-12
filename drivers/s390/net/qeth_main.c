@@ -1,6 +1,6 @@
 /*
  *
- * linux/drivers/s390/net/qeth_main.c ($Revision: 1.206 $)
+ * linux/drivers/s390/net/qeth_main.c ($Revision: 1.207 $)
  *
  * Linux on zSeries OSA Express and HiperSockets support
  *
@@ -12,7 +12,7 @@
  *			  Frank Pavlic (pavlic@de.ibm.com) and
  *		 	  Thomas Spatzier <tspat@de.ibm.com>
  *
- *    $Revision: 1.206 $	 $Date: 2005/03/24 09:04:18 $
+ *    $Revision: 1.207 $	 $Date: 2005/04/01 21:40:40 $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -80,7 +80,7 @@ qeth_eyecatcher(void)
 #include "qeth_eddp.h"
 #include "qeth_tso.h"
 
-#define VERSION_QETH_C "$Revision: 1.206 $"
+#define VERSION_QETH_C "$Revision: 1.207 $"
 static const char *version = "qeth S/390 OSA-Express driver";
 
 /**
@@ -3894,47 +3894,6 @@ qeth_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 }
 
 static inline void
-__qeth_fill_buffer_frag(struct sk_buff *skb, struct qdio_buffer *buffer,
-			int *next_element_to_fill)
-{
-	int length = skb->len;
-	struct skb_frag_struct *frag;
-	int fragno;
-	unsigned long addr;
-	int element;
-	int first_lap = 1;
-
-	fragno = skb_shinfo(skb)->nr_frags; /* start with last frag */
-	element = *next_element_to_fill + fragno;
-	while (length > 0) {
-		if (fragno > 0) {
-			frag = &skb_shinfo(skb)->frags[fragno - 1];
-			addr = (page_to_pfn(frag->page) << PAGE_SHIFT) +
-				frag->page_offset;
-			buffer->element[element].addr = (char *)addr;
-			buffer->element[element].length = frag->size;
-			length -= frag->size;
-			if (first_lap)
-				buffer->element[element].flags =
-				    SBAL_FLAGS_LAST_FRAG;
-			else
-				buffer->element[element].flags =
-				    SBAL_FLAGS_MIDDLE_FRAG;
-		} else {
-			buffer->element[element].addr = skb->data;
-			buffer->element[element].length = length;
-			length = 0;
-			buffer->element[element].flags =
-				SBAL_FLAGS_FIRST_FRAG;
-		}
-		element--;
-		fragno--;
-		first_lap = 0;
-	}
-	*next_element_to_fill += skb_shinfo(skb)->nr_frags + 1;
-}
-
-static inline void
 __qeth_fill_buffer(struct sk_buff *skb, struct qdio_buffer *buffer,
 		   int *next_element_to_fill)
 {
@@ -3991,7 +3950,7 @@ qeth_fill_buffer(struct qeth_qdio_out_q *queue,
 		__qeth_fill_buffer(skb, buffer,
 				   (int *)&buf->next_element_to_fill);
 	else
-		__qeth_fill_buffer_frag(skb, buffer,
+		__qeth_fill_buffer_frag(skb, buffer, 0,
 					(int *)&buf->next_element_to_fill);
 
 	if (!queue->do_pack) {

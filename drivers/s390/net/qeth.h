@@ -24,7 +24,7 @@
 
 #include "qeth_mpc.h"
 
-#define VERSION_QETH_H 		"$Revision: 1.135 $"
+#define VERSION_QETH_H 		"$Revision: 1.136 $"
 
 #ifdef CONFIG_QETH_IPV6
 #define QETH_VERSION_IPV6 	":IPv6"
@@ -864,6 +864,17 @@ qeth_push_skb(struct qeth_card *card, struct sk_buff **skb, int size)
                 return NULL;
         }
         return hdr;
+}
+
+static inline int
+qeth_get_skb_data_len(struct sk_buff *skb)
+{
+	int len = skb->len;
+	int i;
+
+	for (i = 0; i < skb_shinfo(skb)->nr_frags; ++i)
+		len -= skb_shinfo(skb)->frags[i].size;
+	return len;
 }
 
 inline static int
