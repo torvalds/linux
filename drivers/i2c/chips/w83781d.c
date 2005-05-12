@@ -192,7 +192,7 @@ DIV_TO_REG(long val, enum chips type)
 	val = SENSORS_LIMIT(val, 1,
 			    ((type == w83781d
 			      || type == as99127f) ? 8 : 128)) >> 1;
-	for (i = 0; i < 6; i++) {
+	for (i = 0; i < 7; i++) {
 		if (val == 0)
 			break;
 		val >>= 1;

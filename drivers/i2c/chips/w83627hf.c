@@ -264,7 +264,7 @@ static inline u8 DIV_TO_REG(long val)
 {
 	int i;
 	val = SENSORS_LIMIT(val, 1, 128) >> 1;
-	for (i = 0; i < 6; i++) {
+	for (i = 0; i < 7; i++) {
 		if (val == 0)
 			break;
 		val >>= 1;
