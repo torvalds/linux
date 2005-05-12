@@ -618,6 +618,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     Module for Intel HD Audio (ICH6, ICH6M, ICH7)
 
     model	- force the model name
+    position_fix - Fix DMA pointer (0 = FIFO size, 1 = none, 2 = POSBUF)
 
     Module supports up to 8 cards.
 
@@ -642,6 +643,14 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  full		6-jack in back, 2-jack in front
 	  full_dig	6-jack in back, 2-jack in front, SPDIF I/O
 	  allout	5-jack in back, 2-jack in front, SPDIF out
+
+    Note 2: If you get click noises on output, try the module option
+	    position_fix=1 or 2.  position_fix=1 will use the SD_LPIB
+	    register value without FIFO size correction as the current
+	    DMA pointer.  position_fix=2 will make the driver to use
+	    the position buffer instead of reading SD_LPIB register.
+	    (Usually SD_LPLIB register is more accurate than the
+	    position buffer.)
 
   Module snd-hdsp
   ---------------
