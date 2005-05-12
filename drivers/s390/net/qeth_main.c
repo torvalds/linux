@@ -1,6 +1,6 @@
 /*
  *
- * linux/drivers/s390/net/qeth_main.c ($Revision: 1.209 $)
+ * linux/drivers/s390/net/qeth_main.c ($Revision: 1.210 $)
  *
  * Linux on zSeries OSA Express and HiperSockets support
  *
@@ -12,7 +12,7 @@
  *			  Frank Pavlic (pavlic@de.ibm.com) and
  *		 	  Thomas Spatzier <tspat@de.ibm.com>
  *
- *    $Revision: 1.209 $	 $Date: 2005/04/18 11:58:48 $
+ *    $Revision: 1.210 $	 $Date: 2005/04/18 17:27:39 $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -80,7 +80,7 @@ qeth_eyecatcher(void)
 #include "qeth_eddp.h"
 #include "qeth_tso.h"
 
-#define VERSION_QETH_C "$Revision: 1.209 $"
+#define VERSION_QETH_C "$Revision: 1.210 $"
 static const char *version = "qeth S/390 OSA-Express driver";
 
 /**
@@ -3959,10 +3959,10 @@ qeth_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 		}
 	} else { /* passthrough */
                 if((skb->dev->type == ARPHRD_IEEE802_TR) &&
-                        !memcmp(skb->data + sizeof(struct qeth_hdr) + 2,
-                        skb->dev->broadcast, 6)) {
-                        hdr->hdr.l3.flags = QETH_CAST_BROADCAST |
-                                                QETH_HDR_PASSTHRU;
+		    !memcmp(skb->data + sizeof(struct qeth_hdr) + 
+		    sizeof(__u16), skb->dev->broadcast, 6)) {
+			hdr->hdr.l3.flags = QETH_CAST_BROADCAST |
+						QETH_HDR_PASSTHRU;
 		} else if (!memcmp(skb->data + sizeof(struct qeth_hdr),
 			    skb->dev->broadcast, 6)) {   /* broadcast? */
 			hdr->hdr.l3.flags = QETH_CAST_BROADCAST |
