@@ -2392,6 +2392,18 @@ snd_m3_chip_init(m3_t *chip)
 	       DISABLE_LEGACY);
 	pci_write_config_word(pcidev, PCI_LEGACY_AUDIO_CTRL, w);
 
+	/*
+	 * Volume buttons on some HP OmniBook laptops (500 and 6000 at least)
+	 * don't work correctly. This makes them work for the most part.
+	 * Volume up and down buttons on the laptop side work perfectly.
+	 * Fn+cursor_up (volme up) works, Fn+cursor_down (volume down) doesn't,
+	 * Fn+F8 (mute) works acts as volume up.
+	 */
+	outw(~(GPI_VOL_DOWN|GPI_VOL_UP), io + GPIO_MASK);
+	outw(inw(io + GPIO_DIRECTION) & ~(GPI_VOL_DOWN|GPI_VOL_UP), io + GPIO_DIRECTION);
+	outw((GPI_VOL_DOWN|GPI_VOL_UP), io + GPIO_DATA);
+	outw(0xffff, io + GPIO_MASK);
+
 	pci_read_config_dword(pcidev, PCI_ALLEGRO_CONFIG, &n);
 	n &= ~HV_BUTTON_FROM_GD;
 	n |= HV_CTRL_ENABLE | REDUCED_DEBOUNCE;
