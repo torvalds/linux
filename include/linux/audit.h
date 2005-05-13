@@ -27,15 +27,53 @@
 #include <linux/sched.h>
 #include <linux/elf.h>
 
-/* Request and reply types */
+/* The netlink messages for the audit system is divided into blocks:
+ * 1000 - 1099 are for commanding the audit system
+ * 1100 - 1199 user space trusted application messages
+ * 1200 - 1299 messages internal to the audit daemon
+ * 1300 - 1399 audit event messages
+ * 1400 - 1499 SE Linux use
+ * 1500 - 1999 future use
+ * 2000 is for otherwise unclassified kernel audit messages
+ *
+ * Messages from 1000-1199 are bi-directional. 1200-1299 are exclusively user
+ * space. Anything over that is kernel --> user space communication.
+ */
 #define AUDIT_GET		1000	/* Get status */
 #define AUDIT_SET		1001	/* Set status (enable/disable/auditd) */
-#define AUDIT_LIST		1002	/* List filtering rules */
-#define AUDIT_ADD		1003	/* Add filtering rule */
-#define AUDIT_DEL		1004	/* Delete filtering rule */
-#define AUDIT_USER		1005	/* Send a message from user-space */
+#define AUDIT_LIST		1002	/* List syscall filtering rules */
+#define AUDIT_ADD		1003	/* Add syscall filtering rule */
+#define AUDIT_DEL		1004	/* Delete syscall filtering rule */
+#define AUDIT_USER		1005	/* Message from userspace -- deprecated */
 #define AUDIT_LOGIN		1006	/* Define the login id and information */
-#define AUDIT_SIGNAL_INFO	1010	/* Get information about sender of signal*/
+#define AUDIT_WATCH_INS		1007	/* Insert file/dir watch entry */
+#define AUDIT_WATCH_REM		1008	/* Remove file/dir watch entry */
+#define AUDIT_WATCH_LIST	1009	/* List all file/dir watches */
+#define AUDIT_SIGNAL_INFO	1010	/* Get info about sender of signal to auditd */
+
+#define AUDIT_USER_AUTH		1100	/* User space authentication */
+#define AUDIT_USER_ACCT		1101	/* User space acct change */
+#define AUDIT_USER_MGMT		1102	/* User space acct management */
+#define AUDIT_CRED_ACQ		1103	/* User space credential acquired */
+#define AUDIT_CRED_DISP		1104	/* User space credential disposed */
+#define AUDIT_USER_START	1105	/* User space session start */ 
+#define AUDIT_USER_END		1106	/* User space session end */
+#define AUDIT_USER_AVC		1107	/* User space avc message */
+ 
+#define AUDIT_DAEMON_START      1200    /* Daemon startup record */
+#define AUDIT_DAEMON_END        1201    /* Daemon normal stop record */
+#define AUDIT_DAEMON_ABORT      1202    /* Daemon error stop record */
+#define AUDIT_DAEMON_CONFIG     1203    /* Daemon config change */
+
+#define AUDIT_SYSCALL		1300	/* Syscall event */
+#define AUDIT_FS_WATCH		1301	/* Filesystem watch event */
+#define AUDIT_PATH		1302	/* Filname path information */
+#define AUDIT_IPC		1303	/* IPC record */
+#define AUDIT_SOCKET		1304	/* Socket record */
+#define AUDIT_CONFIG_CHANGE	1305	/* Audit system configuration change */
+
+#define AUDIT_AVC		1400	/* SE Linux avc denial or grant */
+#define AUDIT_SELINUX_ERR	1401	/* Internal SE Linux Errors */
 
 #define AUDIT_KERNEL		2000	/* Asynchronous audit record. NOT A REQUEST. */
 
@@ -216,14 +254,11 @@ extern void audit_signal_info(int sig, struct task_struct *t);
 #ifdef CONFIG_AUDIT
 /* These are defined in audit.c */
 				/* Public API */
-#define audit_log(ctx, fmt, args...) \
-	audit_log_type(ctx, AUDIT_KERNEL, 0, fmt, ##args)
-extern void		    audit_log_type(struct audit_context *ctx, int type,
-				      int pid, const char *fmt, ...)
-			    __attribute__((format(printf,4,5)));
+extern void		    audit_log(struct audit_context *ctx, int type,
+				      const char *fmt, ...)
+			    __attribute__((format(printf,3,4)));
 
-extern struct audit_buffer *audit_log_start(struct audit_context *ctx, int type,
-					    int pid);
+extern struct audit_buffer *audit_log_start(struct audit_context *ctx,int type);
 extern void		    audit_log_format(struct audit_buffer *ab,
 					     const char *fmt, ...)
 			    __attribute__((format(printf,2,3)));
@@ -243,9 +278,8 @@ extern void		    audit_send_reply(int pid, int seq, int type,
 					     void *payload, int size);
 extern void		    audit_log_lost(const char *message);
 #else
-#define audit_log(c,f,...) do { ; } while (0)
-#define audit_log_type(c,t,p,f,...) do { ; } while (0)
-#define audit_log_start(c,t,p) ({ NULL; })
+#define audit_log(c,t,f,...) do { ; } while (0)
+#define audit_log_start(c,t) ({ NULL; })
 #define audit_log_vformat(b,f,a) do { ; } while (0)
 #define audit_log_format(b,f,...) do { ; } while (0)
 #define audit_log_end(b) do { ; } while (0)

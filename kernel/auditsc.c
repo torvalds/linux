@@ -286,7 +286,8 @@ int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
 			err = audit_add_rule(entry, &audit_entlist);
 		if (!err && (flags & AUDIT_AT_EXIT))
 			err = audit_add_rule(entry, &audit_extlist);
-		audit_log(NULL, "auid %u added an audit rule\n", loginuid);
+		audit_log(NULL, AUDIT_CONFIG_CHANGE, 
+				"auid %u added an audit rule\n", loginuid);
 		break;
 	case AUDIT_DEL:
 		flags =((struct audit_rule *)data)->flags;
@@ -296,7 +297,8 @@ int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
 			err = audit_del_rule(data, &audit_entlist);
 		if (!err && (flags & AUDIT_AT_EXIT))
 			err = audit_del_rule(data, &audit_extlist);
-		audit_log(NULL, "auid %u removed an audit rule\n", loginuid);
+		audit_log(NULL, AUDIT_CONFIG_CHANGE,
+				"auid %u removed an audit rule\n", loginuid);
 		break;
 	default:
 		return -EINVAL;
@@ -648,7 +650,7 @@ static void audit_log_exit(struct audit_context *context)
 	int i;
 	struct audit_buffer *ab;
 
-	ab = audit_log_start(context, AUDIT_KERNEL, 0);
+	ab = audit_log_start(context, AUDIT_SYSCALL);
 	if (!ab)
 		return;		/* audit_panic has been called */
 	audit_log_format(ab, "syscall=%d", context->major);
@@ -680,28 +682,28 @@ static void audit_log_exit(struct audit_context *context)
 	while (context->aux) {
 		struct audit_aux_data *aux;
 
-		ab = audit_log_start(context, AUDIT_KERNEL, 0);
+		aux = context->aux;
+
+		ab = audit_log_start(context, aux->type);
 		if (!ab)
 			continue; /* audit_panic has been called */
 
-		aux = context->aux;
-		context->aux = aux->next;
-
-		audit_log_format(ab, "auxitem=%d", aux->type);
 		switch (aux->type) {
-		case AUDIT_AUX_IPCPERM: {
+		case AUDIT_IPC: {
 			struct audit_aux_data_ipcctl *axi = (void *)aux;
 			audit_log_format(ab, 
-					 " qbytes=%lx uid=%d gid=%d mode=%x",
+					 " qbytes=%lx iuid=%d igid=%d mode=%x",
 					 axi->qbytes, axi->uid, axi->gid, axi->mode);
 			}
 		}
 		audit_log_end(ab);
+
+		context->aux = aux->next;
 		kfree(aux);
 	}
 
 	for (i = 0; i < context->name_count; i++) {
-		ab = audit_log_start(context, AUDIT_KERNEL, 0);
+		ab = audit_log_start(context, AUDIT_PATH);
 		if (!ab)
 			continue; /* audit_panic has been called */
 		audit_log_format(ab, "item=%d", i);
@@ -711,7 +713,7 @@ static void audit_log_exit(struct audit_context *context)
 		}
 		if (context->names[i].ino != (unsigned long)-1)
 			audit_log_format(ab, " inode=%lu dev=%02x:%02x mode=%#o"
-					     " uid=%d gid=%d rdev=%02x:%02x",
+					     " ouid=%d ogid=%d rdev=%02x:%02x",
 					 context->names[i].ino,
 					 MAJOR(context->names[i].dev),
 					 MINOR(context->names[i].dev),
@@ -1008,10 +1010,16 @@ int audit_get_stamp(struct audit_context *ctx,
 int audit_set_loginuid(struct task_struct *task, uid_t loginuid)
 {
 	if (task->audit_context) {
-		audit_log_type(NULL, AUDIT_LOGIN, 0,
-			  "login pid=%d uid=%u old loginuid=%u new loginuid=%u",
-			  task->pid, task->uid, task->audit_context->loginuid,
-			  loginuid);
+		struct audit_buffer *ab;
+
+		ab = audit_log_start(NULL, AUDIT_LOGIN);
+		if (ab) {
+			audit_log_format(ab, "login pid=%d uid=%u "
+				"old loginuid=%u new loginuid=%u",
+				task->pid, task->uid, 
+				task->audit_context->loginuid, loginuid);
+			audit_log_end(ab);
+		}
 		task->audit_context->loginuid = loginuid;
 	}
 	return 0;
@@ -1039,7 +1047,7 @@ int audit_ipc_perms(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode)
 	ax->gid = gid;
 	ax->mode = mode;
 
-	ax->d.type = AUDIT_AUX_IPCPERM;
+	ax->d.type = AUDIT_IPC;
 	ax->d.next = context->aux;
 	context->aux = (void *)ax;
 	return 0;
