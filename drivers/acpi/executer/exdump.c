@@ -51,6 +51,11 @@
 #define _COMPONENT          ACPI_EXECUTER
 	 ACPI_MODULE_NAME    ("exdump")
 
+/*
+ * The following routines are used for debug output only
+ */
+#if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
+
 /* Local prototypes */
 
 #ifdef ACPI_FUTURE_USAGE
@@ -75,11 +80,6 @@ acpi_ex_out_address (
 	acpi_physical_address           value);
 #endif	/* ACPI_FUTURE_USAGE */
 
-
-/*
- * The following routines are used for debug output only
- */
-#if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
 
 /*******************************************************************************
  *
@@ -118,7 +118,7 @@ acpi_ex_dump_operand (
 	}
 
 	if (ACPI_GET_DESCRIPTOR_TYPE (obj_desc) == ACPI_DESC_TYPE_NAMED) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "%p is a NS Node: ", obj_desc));
+		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "%p Namespace Node: ", obj_desc));
 		ACPI_DUMP_ENTRY (obj_desc, ACPI_LV_EXEC);
 		return;
 	}
@@ -467,7 +467,7 @@ acpi_ex_dump_operands (
 	}
 
 	ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-		"************* Stack dump from %s(%d), %s\n",
+		"************* Operand Stack dump from %s(%d), %s\n",
 		module_name, line_number, note));
 	return;
 }

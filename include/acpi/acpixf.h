@@ -387,7 +387,7 @@ acpi_install_gpe_block (
 	acpi_handle                     gpe_device,
 	struct acpi_generic_address     *gpe_block_address,
 	u32                             register_count,
-	u32                             interrupt_level);
+	u32                             interrupt_number);
 
 acpi_status
 acpi_remove_gpe_block (

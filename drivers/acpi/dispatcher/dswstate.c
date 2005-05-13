@@ -261,12 +261,12 @@ acpi_ds_result_pop_from_bottom (
 
 	if (!*object) {
 		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-			"Null operand! State=%p #Ops=%X, Index=%X\n",
+			"Null operand! State=%p #Ops=%X Index=%X\n",
 			walk_state, state->results.num_results, (u32) index));
 		return (AE_AML_NO_RETURN_VALUE);
 	}
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Obj=%p [%s], Results=%p State=%p\n",
+	ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Obj=%p [%s] Results=%p State=%p\n",
 		*object, (*object) ? acpi_ut_get_object_type_name (*object) : "NULL",
 		state, walk_state));
 

@@ -635,7 +635,7 @@ unlock_and_exit:
  * PARAMETERS:  gpe_device          - Handle to the parent GPE Block Device
  *              gpe_block_address   - Address and space_iD
  *              register_count      - Number of GPE register pairs in the block
- *              interrupt_level     - H/W interrupt for the block
+ *              interrupt_number    - H/W interrupt for the block
  *
  * RETURN:      Status
  *
@@ -648,7 +648,7 @@ acpi_install_gpe_block (
 	acpi_handle                     gpe_device,
 	struct acpi_generic_address     *gpe_block_address,
 	u32                             register_count,
-	u32                             interrupt_level)
+	u32                             interrupt_number)
 {
 	acpi_status                     status;
 	union acpi_operand_object       *obj_desc;
@@ -681,7 +681,7 @@ acpi_install_gpe_block (
 	 * is always zero
 	 */
 	status = acpi_ev_create_gpe_block (node, gpe_block_address, register_count,
-			  0, interrupt_level, &gpe_block);
+			  0, interrupt_number, &gpe_block);
 	if (ACPI_FAILURE (status)) {
 		goto unlock_and_exit;
 	}

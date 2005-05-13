@@ -136,7 +136,7 @@ acpi_ev_create_gpe_block (
 	struct acpi_generic_address     *gpe_block_address,
 	u32                             register_count,
 	u8                              gpe_block_base_number,
-	u32                             interrupt_level,
+	u32                             interrupt_number,
 	struct acpi_gpe_block_info      **return_gpe_block);
 
 acpi_status

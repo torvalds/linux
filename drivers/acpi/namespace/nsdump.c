@@ -475,7 +475,7 @@ acpi_ns_dump_one_object (
 
 	while (obj_desc) {
 		obj_type = ACPI_TYPE_INVALID;
-		acpi_os_printf ("      Attached Object %p: ", obj_desc);
+		acpi_os_printf ("Attached Object %p: ", obj_desc);
 
 		/* Decode the type of attached object and dump the contents */
 
@@ -484,8 +484,8 @@ acpi_ns_dump_one_object (
 
 			acpi_os_printf ("(Ptr to Node)\n");
 			bytes_to_dump = sizeof (struct acpi_namespace_node);
+			ACPI_DUMP_BUFFER (obj_desc, bytes_to_dump);
 			break;
-
 
 		case ACPI_DESC_TYPE_OPERAND:
 
@@ -497,23 +497,18 @@ acpi_ns_dump_one_object (
 				bytes_to_dump = 32;
 			}
 			else {
-				acpi_os_printf ("(Ptr to ACPI Object type %s, %X)\n",
-					acpi_ut_get_type_name (obj_type), obj_type);
+				acpi_os_printf ("(Ptr to ACPI Object type %X [%s])\n",
+					obj_type, acpi_ut_get_type_name (obj_type));
 				bytes_to_dump = sizeof (union acpi_operand_object);
 			}
-			break;
 
+			ACPI_DUMP_BUFFER (obj_desc, bytes_to_dump);
+			break;
 
 		default:
 
-			acpi_os_printf (
-				"(String or Buffer ptr - not an object descriptor) [%s]\n",
-				acpi_ut_get_descriptor_name (obj_desc));
-			bytes_to_dump = 16;
 			break;
 		}
-
-		ACPI_DUMP_BUFFER (obj_desc, bytes_to_dump);
 
 		/* If value is NOT an internal object, we are done */
 
@@ -525,13 +520,17 @@ acpi_ns_dump_one_object (
 		 * Valid object, get the pointer to next level, if any
 		 */
 		switch (obj_type) {
-		case ACPI_TYPE_STRING:
-			obj_desc = (void *) obj_desc->string.pointer;
-			break;
-
 		case ACPI_TYPE_BUFFER:
-			obj_desc = (void *) obj_desc->buffer.pointer;
-			break;
+		case ACPI_TYPE_STRING:
+			/*
+			 * NOTE: takes advantage of common fields between string/buffer
+			 */
+			bytes_to_dump = obj_desc->string.length;
+			obj_desc = (void *) obj_desc->string.pointer;
+			acpi_os_printf ( "(Buffer/String pointer %p length %X)\n",
+				obj_desc, bytes_to_dump);
+			ACPI_DUMP_BUFFER (obj_desc, bytes_to_dump);
+			goto cleanup;
 
 		case ACPI_TYPE_BUFFER_FIELD:
 			obj_desc = (union acpi_operand_object *) obj_desc->buffer_field.buffer_obj;

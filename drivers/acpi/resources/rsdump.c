@@ -48,6 +48,9 @@
 #define _COMPONENT          ACPI_RESOURCES
 	 ACPI_MODULE_NAME    ("rsdump")
 
+
+#if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
+
 /* Local prototypes */
 
 static void
@@ -103,7 +106,6 @@ acpi_rs_dump_vendor_specific (
 	union acpi_resource_data        *data);
 
 
-#if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
 /*******************************************************************************
  *
  * FUNCTION:    acpi_rs_dump_irq
