@@ -136,6 +136,13 @@ extern pgprot_t	pci_phys_mem_access_prot(struct file *file,
 					 unsigned long size,
 					 pgprot_t prot);
 
+#ifdef CONFIG_PPC_MULTIPLATFORM
+#define HAVE_ARCH_PCI_RESOURCE_TO_USER
+extern void pci_resource_to_user(const struct pci_dev *dev, int bar,
+				 const struct resource *rsrc,
+				 u64 *start, u64 *end);
+#endif /* CONFIG_PPC_MULTIPLATFORM */
+
 
 #endif	/* __KERNEL__ */
 
