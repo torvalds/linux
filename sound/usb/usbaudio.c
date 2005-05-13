@@ -452,17 +452,11 @@ static int retire_playback_sync_urb(snd_usb_substream_t *subs,
 	if (urb->iso_frame_desc[0].status == 0 &&
 	    urb->iso_frame_desc[0].actual_length == 3) {
 		f = combine_triple((u8*)urb->transfer_buffer) << 2;
-#if 0
-		if (f < subs->freqn - (subs->freqn>>3) || f > subs->freqmax) {
-			snd_printd(KERN_WARNING "requested frequency %d (%u,%03uHz) out of range (current nominal %d (%u,%03uHz))\n",
-				   f, f >> 14, (f & ((1 << 14) - 1) * 1000) / ((1 << 14) - 1),
-				   subs->freqn, subs->freqn >> 14, (subs->freqn & ((1 << 14) - 1) * 1000) / ((1 << 14) - 1));
-			continue;
+		if (f >= subs->freqn - subs->freqn / 8 && f <= subs->freqmax) {
+			spin_lock_irqsave(&subs->lock, flags);
+			subs->freqm = f;
+			spin_unlock_irqrestore(&subs->lock, flags);
 		}
-#endif
-		spin_lock_irqsave(&subs->lock, flags);
-		subs->freqm = f;
-		spin_unlock_irqrestore(&subs->lock, flags);
 	}
 
 	return 0;
@@ -484,9 +478,11 @@ static int retire_playback_sync_urb_hs(snd_usb_substream_t *subs,
 	if (urb->iso_frame_desc[0].status == 0 &&
 	    urb->iso_frame_desc[0].actual_length == 4) {
 		f = combine_quad((u8*)urb->transfer_buffer) & 0x0fffffff;
-		spin_lock_irqsave(&subs->lock, flags);
-		subs->freqm = f;
-		spin_unlock_irqrestore(&subs->lock, flags);
+		if (f >= subs->freqn - subs->freqn / 8 && f <= subs->freqmax) {
+			spin_lock_irqsave(&subs->lock, flags);
+			subs->freqm = f;
+			spin_unlock_irqrestore(&subs->lock, flags);
+		}
 	}
 
 	return 0;
