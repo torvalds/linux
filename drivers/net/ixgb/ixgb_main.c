@@ -47,7 +47,8 @@ char ixgb_driver_string[] = "Intel(R) PRO/10GbE Network Driver";
 #else
 #define DRIVERNAPI "-NAPI"
 #endif
-char ixgb_driver_version[] = "1.0.90-k2"DRIVERNAPI;
+#define DRV_VERSION "1.0.90-k2"DRIVERNAPI
+char ixgb_driver_version[] = DRV_VERSION;
 char ixgb_copyright[] = "Copyright (c) 1999-2005 Intel Corporation.";
 
 /* ixgb_pci_tbl - PCI Device ID Table
@@ -152,6 +153,7 @@ static struct pci_driver ixgb_driver = {
 MODULE_AUTHOR("Intel Corporation, <linux.nics@intel.com>");
 MODULE_DESCRIPTION("Intel(R) PRO/10GbE Network Driver");
 MODULE_LICENSE("GPL");
+MODULE_VERSION(DRV_VERSION);
 
 /* some defines for controlling descriptor fetches in h/w */
 #define RXDCTL_PTHRESH_DEFAULT 128	/* chip considers prefech below this */
