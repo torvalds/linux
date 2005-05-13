@@ -355,6 +355,8 @@ config PRISM54
 	  say M here and read <file:Documentation/modules.txt>.  The module
 	  will be called prism54.ko.
 
+source "drivers/net/wireless/hostap/Kconfig"
+
 # yes, this works even when no drivers are selected
 config NET_WIRELESS
 	bool

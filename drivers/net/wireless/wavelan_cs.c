@@ -59,6 +59,12 @@
 /* Do *NOT* add other headers here, you are guaranteed to be wrong - Jean II */
 #include "wavelan_cs.p.h"		/* Private header */
 
+#ifdef WAVELAN_ROAMING
+static void wl_cell_expiry(unsigned long data);
+static void wl_del_wavepoint(wavepoint_history *wavepoint, struct net_local *lp);
+static void wv_nwid_filter(unsigned char mode, net_local *lp);
+#endif  /*  WAVELAN_ROAMING  */
+
 /************************* MISC SUBROUTINES **************************/
 /*
  * Subroutines which won't fit in one of the following category
@@ -500,9 +506,9 @@ fee_write(u_long	base,	/* i/o port of the card */
 
 #ifdef WAVELAN_ROAMING	/* Conditional compile, see wavelan_cs.h */
 
-unsigned char WAVELAN_BEACON_ADDRESS[]= {0x09,0x00,0x0e,0x20,0x03,0x00};
+static unsigned char WAVELAN_BEACON_ADDRESS[] = {0x09,0x00,0x0e,0x20,0x03,0x00};
   
-void wv_roam_init(struct net_device *dev)
+static void wv_roam_init(struct net_device *dev)
 {
   net_local  *lp= netdev_priv(dev);
 
@@ -531,7 +537,7 @@ void wv_roam_init(struct net_device *dev)
   printk(KERN_DEBUG "WaveLAN: Roaming enabled on device %s\n",dev->name);
 }
  
-void wv_roam_cleanup(struct net_device *dev)
+static void wv_roam_cleanup(struct net_device *dev)
 {
   wavepoint_history *ptr,*old_ptr;
   net_local *lp= netdev_priv(dev);
@@ -550,7 +556,7 @@ void wv_roam_cleanup(struct net_device *dev)
 }
 
 /* Enable/Disable NWID promiscuous mode on a given device */
-void wv_nwid_filter(unsigned char mode, net_local *lp)
+static void wv_nwid_filter(unsigned char mode, net_local *lp)
 {
   mm_t                  m;
   unsigned long         flags;
@@ -575,7 +581,7 @@ void wv_nwid_filter(unsigned char mode, net_local *lp)
 }
 
 /* Find a record in the WavePoint table matching a given NWID */
-wavepoint_history *wl_roam_check(unsigned short nwid, net_local *lp)
+static wavepoint_history *wl_roam_check(unsigned short nwid, net_local *lp)
 {
   wavepoint_history	*ptr=lp->wavepoint_table.head;
   
@@ -588,7 +594,7 @@ wavepoint_history *wl_roam_check(unsigned short nwid, net_local *lp)
 }
 
 /* Create a new wavepoint table entry */
-wavepoint_history *wl_new_wavepoint(unsigned short nwid, unsigned char seq, net_local* lp)
+static wavepoint_history *wl_new_wavepoint(unsigned short nwid, unsigned char seq, net_local* lp)
 {
   wavepoint_history *new_wavepoint;
 
@@ -624,7 +630,7 @@ wavepoint_history *wl_new_wavepoint(unsigned short nwid, unsigned char seq, net_
 }
 
 /* Remove a wavepoint entry from WavePoint table */
-void wl_del_wavepoint(wavepoint_history *wavepoint, struct net_local *lp)
+static void wl_del_wavepoint(wavepoint_history *wavepoint, struct net_local *lp)
 {
   if(wavepoint==NULL)
     return;
@@ -646,7 +652,7 @@ void wl_del_wavepoint(wavepoint_history *wavepoint, struct net_local *lp)
 }
 
 /* Timer callback function - checks WavePoint table for stale entries */ 
-void wl_cell_expiry(unsigned long data)
+static void wl_cell_expiry(unsigned long data)
 {
   net_local *lp=(net_local *)data;
   wavepoint_history *wavepoint=lp->wavepoint_table.head,*old_point;
@@ -686,7 +692,7 @@ void wl_cell_expiry(unsigned long data)
 }
 
 /* Update SNR history of a wavepoint */
-void wl_update_history(wavepoint_history *wavepoint, unsigned char sigqual, unsigned char seq)	
+static void wl_update_history(wavepoint_history *wavepoint, unsigned char sigqual, unsigned char seq)	
 {
   int i=0,num_missed=0,ptr=0;
   int average_fast=0,average_slow=0;
@@ -723,7 +729,7 @@ void wl_update_history(wavepoint_history *wavepoint, unsigned char sigqual, unsi
 }
 
 /* Perform a handover to a new WavePoint */
-void wv_roam_handover(wavepoint_history *wavepoint, net_local *lp)
+static void wv_roam_handover(wavepoint_history *wavepoint, net_local *lp)
 {
   kio_addr_t		base = lp->dev->base_addr;
   mm_t                  m;
