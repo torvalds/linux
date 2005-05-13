@@ -1863,7 +1863,7 @@ static int __init smc_probe(struct net_device *dev, void __iomem *ioaddr)
 	SMC_SELECT_BANK(1);
 	val = SMC_GET_BASE();
 	val = ((val & 0x1F00) >> 3) << SMC_IO_SHIFT;
-	if (((unsigned long)ioaddr & ((PAGE_SIZE-1)<<SMC_IO_SHIFT)) != val) { /*XXX: WTF? */
+	if (((unsigned int)ioaddr & (0x3e0 << SMC_IO_SHIFT)) != val) {
 		printk("%s: IOADDR %p doesn't match configuration (%x).\n",
 			CARDNAME, ioaddr, val);
 	}
