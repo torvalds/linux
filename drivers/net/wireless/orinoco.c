@@ -1615,17 +1615,15 @@ static int __orinoco_program_rids(struct net_device *dev)
 		return err;
 	}
 	/* Set the channel/frequency */
-	if (priv->channel == 0) {
-		printk(KERN_DEBUG "%s: Channel is 0 in __orinoco_program_rids()\n", dev->name);
-		if (priv->createibss)
-			priv->channel = 10;
-	}
-	err = hermes_write_wordrec(hw, USER_BAP, HERMES_RID_CNFOWNCHANNEL,
-				   priv->channel);
-	if (err) {
-		printk(KERN_ERR "%s: Error %d setting channel\n",
-		       dev->name, err);
-		return err;
+	if (priv->channel != 0 && priv->iw_mode != IW_MODE_INFRA) {
+		err = hermes_write_wordrec(hw, USER_BAP,
+					   HERMES_RID_CNFOWNCHANNEL,
+					   priv->channel);
+		if (err) {
+			printk(KERN_ERR "%s: Error %d setting channel %d\n",
+			       dev->name, err, priv->channel);
+			return err;
+		}
 	}
 
 	if (priv->has_ibss) {
@@ -2405,7 +2403,7 @@ static int orinoco_init(struct net_device *dev)
 	/* By default use IEEE/IBSS ad-hoc mode if we have it */
 	priv->prefer_port3 = priv->has_port3 && (! priv->has_ibss);
 	set_port_type(priv);
-	priv->channel = 10; /* default channel, more-or-less arbitrary */
+	priv->channel = 0; /* use firmware default */
 
 	priv->promiscuous = 0;
 	priv->wep_on = 0;
