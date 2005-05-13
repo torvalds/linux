@@ -301,13 +301,14 @@ static int alc880_ch_mode_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *ui
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct alc_spec *spec = codec->spec;
+	int items = kcontrol->private_value ? (int)kcontrol->private_value : 2;
 
 	snd_assert(spec->channel_mode, return -ENXIO);
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	uinfo->count = 1;
-	uinfo->value.enumerated.items = 2;
-	if (uinfo->value.enumerated.item >= 2)
-		uinfo->value.enumerated.item = 1;
+	uinfo->value.enumerated.items = items;
+	if (uinfo->value.enumerated.item >= items)
+		uinfo->value.enumerated.item = items - 1;
 	sprintf(uinfo->value.enumerated.name, "%dch",
 		spec->channel_mode[uinfo->value.enumerated.item].channels);
 	return 0;
@@ -317,10 +318,16 @@ static int alc880_ch_mode_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *uc
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct alc_spec *spec = codec->spec;
+	int items = kcontrol->private_value ? (int)kcontrol->private_value : 2;
+	int i;
 
 	snd_assert(spec->channel_mode, return -ENXIO);
-	ucontrol->value.enumerated.item[0] =
-		(spec->multiout.max_channels == spec->channel_mode[0].channels) ? 0 : 1;
+	for (i = 0; i < items; i++) {
+		if (spec->multiout.max_channels == spec->channel_mode[i].channels) {
+			ucontrol->value.enumerated.item[0] = i;
+			break;
+		}
+	}
 	return 0;
 }
 
@@ -1036,9 +1043,11 @@ static struct hda_input_mux alc880_test_capture_source = {
 	},
 };
 
-static struct alc_channel_mode alc880_test_modes[2] = {
+static struct alc_channel_mode alc880_test_modes[4] = {
 	{ 2, NULL },
+	{ 4, NULL },
 	{ 6, NULL },
+	{ 8, NULL },
 };
 
 static int alc_test_pin_ctl_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
@@ -1211,6 +1220,7 @@ static snd_kcontrol_new_t alc880_test_mixer[] = {
 		.info = alc880_ch_mode_info,
 		.get = alc880_ch_mode_get,
 		.put = alc880_ch_mode_put,
+		.private_value = ARRAY_SIZE(alc880_test_modes),
 	},
 	{ } /* end */
 };
