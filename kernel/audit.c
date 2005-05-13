@@ -116,7 +116,7 @@ static LIST_HEAD(audit_entlist);
 static LIST_HEAD(audit_extlist);
 
 /* The netlink socket is only to be read by 1 CPU, which lets us assume
- * that list additions and deletions never happen simultaneiously in
+ * that list additions and deletions never happen simultaneously in
  * auditsc.c */
 static DECLARE_MUTEX(audit_netlink_sem);
 
@@ -775,7 +775,7 @@ void audit_log_d_path(struct audit_buffer *ab, const char *prefix,
 	}
 }
 
-/* Remove queued messages from the audit_txlist and send them to userspace. */
+/* Remove queued messages from the audit_txlist and send them to user space. */
 static void audit_tasklet_handler(unsigned long arg)
 {
 	LIST_HEAD(list);

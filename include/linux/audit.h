@@ -181,7 +181,7 @@ struct audit_message {
 
 struct audit_status {
 	__u32		mask;		/* Bit mask for valid entries */
-	__u32		enabled;	/* 1 = enabled, 0 = disbaled */
+	__u32		enabled;	/* 1 = enabled, 0 = disabled */
 	__u32		failure;	/* Failure-to-log action */
 	__u32		pid;		/* pid of auditd process */
 	__u32		rate_limit;	/* messages rate limit (per second) */

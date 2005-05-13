@@ -444,7 +444,7 @@ static enum audit_state audit_filter_task(struct task_struct *tsk)
 
 /* At syscall entry and exit time, this filter is called if the
  * audit_state is not low enough that auditing cannot take place, but is
- * also not high enough that we already know we have to write and audit
+ * also not high enough that we already know we have to write an audit
  * record (i.e., the state is AUDIT_SETUP_CONTEXT or  AUDIT_BUILD_CONTEXT).
  */
 static enum audit_state audit_filter_syscall(struct task_struct *tsk,
@@ -750,7 +750,7 @@ void audit_free(struct task_struct *tsk)
 /* Compute a serial number for the audit record.  Audit records are
  * written to user-space as soon as they are generated, so a complete
  * audit record may be written in several pieces.  The timestamp of the
- * record and this serial number are used by the user-space daemon to
+ * record and this serial number are used by the user-space tools to
  * determine which pieces belong to the same audit record.  The
  * (timestamp,serial) tuple is unique for each syscall and is live from
  * syscall entry to syscall exit.
