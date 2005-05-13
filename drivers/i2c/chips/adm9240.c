@@ -165,7 +165,7 @@ struct adm9240_data {
 	s8 temp_high;		/* rw	temp1_max */
 	s8 temp_hyst;		/* rw	temp1_max_hyst */
 	u16 alarms;		/* ro	alarms */
-	u8 aout;		/* rw	analog_out */
+	u8 aout;		/* rw	aout_output */
 	u8 vid;			/* ro	vid */
 	u8 vrm;			/* --	vrm set on startup, no accessor */
 };
@@ -192,7 +192,7 @@ static ssize_t show_##value(struct device *dev, char *buf)	\
 }
 show_temp(temp_high, 1000);
 show_temp(temp_hyst, 1000);
-show_temp(temp, 500);
+show_temp(temp, 500); /* 0.5'C per bit */
 
 #define set_temp(value, reg)					\
 static ssize_t set_##value(struct device *dev, const char *buf,	\
@@ -629,6 +629,9 @@ static void adm9240_init_client(struct i2c_client *client)
 	u8 mode = adm9240_read_value(client, ADM9240_REG_TEMP_CONF) & 3;
 
 	data->vrm = i2c_which_vrm(); /* need this to report vid as mV */
+
+	dev_info(&client->dev, "Using VRM: %d.%d\n", data->vrm / 10,
+			data->vrm % 10);
 
 	if (conf & 1) { /* measurement cycle running: report state */
 
