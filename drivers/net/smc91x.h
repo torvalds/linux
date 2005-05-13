@@ -151,7 +151,7 @@
 
 /* We actually can't write halfwords properly if not word aligned */
 static inline void
-SMC_outw(u16 val, unsigned long ioaddr, int reg)
+SMC_outw(u16 val, void __iomem *ioaddr, int reg)
 {
 	if (reg & 2) {
 		unsigned int v = val << 16;
@@ -317,7 +317,7 @@ static inline void SMC_outsw (unsigned long a, int r, unsigned char* p, int l)
 #define SMC_insl(a, r, p, l) \
 	smc_pxa_dma_insl(a, lp->physaddr, r, dev->dma, p, l)
 static inline void
-smc_pxa_dma_insl(u_long ioaddr, u_long physaddr, int reg, int dma,
+smc_pxa_dma_insl(void __iomem *ioaddr, u_long physaddr, int reg, int dma,
 		 u_char *buf, int len)
 {
 	dma_addr_t dmabuf;
@@ -355,7 +355,7 @@ smc_pxa_dma_insl(u_long ioaddr, u_long physaddr, int reg, int dma,
 #define SMC_insw(a, r, p, l) \
 	smc_pxa_dma_insw(a, lp->physaddr, r, dev->dma, p, l)
 static inline void
-smc_pxa_dma_insw(u_long ioaddr, u_long physaddr, int reg, int dma,
+smc_pxa_dma_insw(void __iomem *ioaddr, u_long physaddr, int reg, int dma,
 		 u_char *buf, int len)
 {
 	dma_addr_t dmabuf;
