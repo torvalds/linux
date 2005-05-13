@@ -61,7 +61,7 @@ module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable Intel HD audio interface.");
 module_param_array(model, charp, NULL, 0444);
 MODULE_PARM_DESC(model, "Use the given board model.");
-module_param_array(position_fix, bool, NULL, 0444);
+module_param_array(position_fix, int, NULL, 0444);
 MODULE_PARM_DESC(position_fix, "Fix DMA pointer (0 = FIFO size, 1 = none, 2 = POSBUF).");
 
 MODULE_LICENSE("GPL");
