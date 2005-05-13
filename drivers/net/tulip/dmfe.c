@@ -744,11 +744,6 @@ static irqreturn_t dmfe_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 	DMFE_DBUG(0, "dmfe_interrupt()", 0);
 
-	if (!dev) {
-		DMFE_DBUG(1, "dmfe_interrupt() without DEVICE arg", 0);
-		return IRQ_NONE;
-	}
-
 	spin_lock_irqsave(&db->lock, flags);
 
 	/* Got DM910X status */
