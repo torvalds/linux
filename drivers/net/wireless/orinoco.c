@@ -492,6 +492,9 @@ EXPORT_SYMBOL(orinoco_debug);
 static int suppress_linkstatus; /* = 0 */
 module_param(suppress_linkstatus, bool, 0644);
 MODULE_PARM_DESC(suppress_linkstatus, "Don't log link status changes");
+static int ignore_disconnect; /* = 0 */
+module_param(ignore_disconnect, int, 0644);
+MODULE_PARM_DESC(ignore_disconnect, "Don't report lost link to the network layer");
 
 /********************************************************************/
 /* Compile time configuration and compatibility stuff               */
@@ -1320,7 +1323,7 @@ static void __orinoco_ev_info(struct net_device *dev, hermes_t *hw)
 
 		if (connected)
 			netif_carrier_on(dev);
-		else
+		else if (!ignore_disconnect)
 			netif_carrier_off(dev);
 
 		if (newstatus != priv->last_linkstatus)
