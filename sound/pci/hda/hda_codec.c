@@ -509,7 +509,7 @@ int snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr,
 	/* FIXME: support for multiple AFGs? */
 	codec->afg = look_for_afg_node(codec);
 	if (! codec->afg) {
-		snd_printk(KERN_ERR "hda_codec: no AFG node found\n");
+		snd_printdd("hda_codec: no AFG node found\n");
 		snd_hda_codec_free(codec);
 		return -ENODEV;
 	}
