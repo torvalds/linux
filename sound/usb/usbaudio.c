@@ -565,6 +565,8 @@ static int prepare_playback_urb(snd_usb_substream_t *subs,
 		/* set the buffer pointer */
 		urb->transfer_buffer = runtime->dma_area + subs->hwptr * stride;
 		subs->hwptr += offs;
+		if (subs->hwptr == runtime->buffer_size)
+			subs->hwptr = 0;
 	}
 	spin_unlock_irqrestore(&subs->lock, flags);
 	urb->transfer_buffer_length = offs * stride;
