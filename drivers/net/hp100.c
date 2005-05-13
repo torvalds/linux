@@ -417,12 +417,7 @@ struct net_device * __init hp100_probe(int unit)
 	if (err)
 		goto out;
 
-	err = register_netdev(dev);
-	if (err)
-		goto out1;
 	return dev;
- out1:
-	release_region(dev->base_addr, HP100_REGION_SIZE);
  out:
 	free_netdev(dev);
 	return ERR_PTR(err);
@@ -776,11 +771,22 @@ static int __devinit hp100_probe1(struct net_device *dev, int ioaddr,
 		printk("Warning! Link down.\n");
 	}
 
+	err = register_netdev(dev);
+	if (err)
+		goto out3;
+
 	return 0;
+out3:
+	if (local_mode == 1)
+		pci_free_consistent(lp->pci_dev, MAX_RINGSIZE + 0x0f, 
+				    lp->page_vaddr_algn, 
+				    virt_to_whatever(dev, lp->page_vaddr_algn));
+	if (mem_ptr_virt)
+		iounmap(mem_ptr_virt);
 out2:
 	release_region(ioaddr, HP100_REGION_SIZE);
 out1:
-	return -ENODEV;
+	return err;
 }
 
 /* This procedure puts the card into a stable init state */
@@ -2875,18 +2881,12 @@ static int __init hp100_eisa_probe (struct device *gendev)
 	if (err)
 		goto out1;
 
-	err = register_netdev(dev);
-	if (err)
-		goto out2;
-	
 #ifdef HP100_DEBUG
 	printk("hp100: %s: EISA adapter found at 0x%x\n", dev->name, 
 	       dev->base_addr);
 #endif
 	gendev->driver_data = dev;
 	return 0;
- out2:
-	release_region(dev->base_addr, HP100_REGION_SIZE);
  out1:
 	free_netdev(dev);
 	return err;
@@ -2951,17 +2951,12 @@ static int __devinit hp100_pci_probe (struct pci_dev *pdev,
 	err = hp100_probe1(dev, ioaddr, HP100_BUS_PCI, pdev);
 	if (err) 
 		goto out1;
-	err = register_netdev(dev);
-	if (err)
-		goto out2;
 	
 #ifdef HP100_DEBUG
 	printk("hp100: %s: PCI adapter found at 0x%x\n", dev->name, ioaddr);
 #endif
 	pci_set_drvdata(pdev, dev);
 	return 0;
- out2:
-	release_region(dev->base_addr, HP100_REGION_SIZE);
  out1:
 	free_netdev(dev);
  out0:
@@ -3032,15 +3027,9 @@ static int __init hp100_isa_init(void)
 		SET_MODULE_OWNER(dev);
 
 		err = hp100_isa_probe(dev, hp100_port[i]);
-		if (!err) {
-			err = register_netdev(dev);
-			if (!err) 
-				hp100_devlist[cards++] = dev;
-			else
-				release_region(dev->base_addr, HP100_REGION_SIZE);
-		}
-
-		if (err)
+		if (!err)
+			hp100_devlist[cards++] = dev;
+		else
 			free_netdev(dev);
 	}
 

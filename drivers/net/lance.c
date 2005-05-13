@@ -356,11 +356,8 @@ int init_module(void)
 		dev->base_addr = io[this_dev];
 		dev->dma = dma[this_dev];
 		if (do_lance_probe(dev) == 0) {
-			if (register_netdev(dev) == 0) {
-				dev_lance[found++] = dev;
-				continue;
-			}
-			cleanup_card(dev);
+			dev_lance[found++] = dev;
+			continue;
 		}
 		free_netdev(dev);
 		break;
@@ -448,12 +445,7 @@ struct net_device * __init lance_probe(int unit)
 	err = do_lance_probe(dev);
 	if (err)
 		goto out;
-	err = register_netdev(dev);
-	if (err)
-		goto out1;
 	return dev;
-out1:
-	cleanup_card(dev);
 out:
 	free_netdev(dev);
 	return ERR_PTR(err);
@@ -724,6 +716,9 @@ static int __init lance_probe1(struct net_device *dev, int ioaddr, int irq, int 
 	dev->tx_timeout = lance_tx_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
 
+	err = register_netdev(dev);
+	if (err)
+		goto out_dma;
 	return 0;
 out_dma:
 	if (dev->dma != 4)

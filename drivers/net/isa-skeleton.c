@@ -176,12 +176,7 @@ struct net_device * __init netcard_probe(int unit)
 	err = do_netcard_probe(dev);
 	if (err)
 		goto out;
-	err = register_netdev(dev);
-	if (err)
-		goto out1;
 	return dev;
-out1:
-	cleanup_card(dev);
 out:
 	free_netdev(dev);
 	return ERR_PTR(err);
@@ -316,7 +311,15 @@ static int __init netcard_probe1(struct net_device *dev, int ioaddr)
 
         dev->tx_timeout		= &net_tx_timeout;
         dev->watchdog_timeo	= MY_TX_TIMEOUT; 
+
+	err = register_netdev(dev);
+	if (err)
+		goto out2;
 	return 0;
+out2:
+#ifdef jumpered_dma
+	free_dma(dev->dma);
+#endif
 out1:
 #ifdef jumpered_interrupts
 	free_irq(dev->irq, dev);
@@ -691,11 +694,8 @@ int init_module(void)
 	dev->dma       = dma;
 	dev->mem_start = mem;
 	if (do_netcard_probe(dev) == 0) {
-		if (register_netdev(dev) == 0)
-			this_device = dev;
-			return 0;
-		}
-		cleanup_card(dev);
+		this_device = dev;
+		return 0;
 	}
 	free_netdev(dev);
 	return -ENXIO;
