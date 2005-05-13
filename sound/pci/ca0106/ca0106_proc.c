@@ -95,7 +95,7 @@ static struct snd_ca0106_category_str snd_ca0106_con_category[] = {
 };
 
 
-void snd_ca0106_proc_dump_iec958( snd_info_buffer_t *buffer, u32 value)
+static void snd_ca0106_proc_dump_iec958( snd_info_buffer_t *buffer, u32 value)
 {
 	int i;
 	u32 status[4];
