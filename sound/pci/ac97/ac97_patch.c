@@ -1598,7 +1598,6 @@ int patch_ad1980(ac97_t * ac97)
 }
 
 static const snd_kcontrol_new_t snd_ac97_ad1985_controls[] = {
-	AC97_SINGLE("Center/LFE Jack as Mic", AC97_AD_SERIAL_CFG, 9, 1, 0),
 	AC97_SINGLE("Exchange Center/LFE", AC97_AD_SERIAL_CFG, 3, 1, 0)
 };
 
