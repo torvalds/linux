@@ -703,7 +703,7 @@ static void audit_log_vformat(struct audit_buffer *ab, const char *fmt,
 		/* The printk buffer is 1024 bytes long, so if we get
 		 * here and AUDIT_BUFSIZ is at least 1024, then we can
 		 * log everything that printk could have logged. */
-		avail = audit_expand(ab, max_t(AUDIT_BUFSIZ, 1+len-avail));
+		avail = audit_expand(ab, max_t(unsigned, AUDIT_BUFSIZ, 1+len-avail));
 		if (!avail)
 			goto out;
 		len = vsnprintf(skb->tail, avail, fmt, args2);
