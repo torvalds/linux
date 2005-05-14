@@ -2907,13 +2907,14 @@ static int orinoco_ioctl_setessid(struct net_device *dev, struct iw_point *erq)
 	memset(&essidbuf, 0, sizeof(essidbuf));
 
 	if (erq->flags) {
-		if (erq->length > IW_ESSID_MAX_SIZE)
+		/* iwconfig includes the NUL in the specified length */
+		if (erq->length > IW_ESSID_MAX_SIZE+1)
 			return -E2BIG;
 		
 		if (copy_from_user(&essidbuf, erq->pointer, erq->length))
 			return -EFAULT;
 
-		essidbuf[erq->length] = '\0';
+		essidbuf[IW_ESSID_MAX_SIZE] = '\0';
 	}
 
 	if (orinoco_lock(priv, &flags) != 0)
