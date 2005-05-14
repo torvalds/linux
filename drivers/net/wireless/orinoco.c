@@ -1919,7 +1919,7 @@ static void orinoco_reset(struct net_device *dev)
 {
 	struct orinoco_private *priv = netdev_priv(dev);
 	struct hermes *hw = &priv->hw;
-	int err = 0;
+	int err;
 	unsigned long flags;
 
 	if (orinoco_lock(priv, &flags) != 0)
@@ -1941,20 +1941,20 @@ static void orinoco_reset(struct net_device *dev)
 
 	orinoco_unlock(priv, &flags);
 
-	if (priv->hard_reset)
+	if (priv->hard_reset) {
 		err = (*priv->hard_reset)(priv);
-	if (err) {
-		printk(KERN_ERR "%s: orinoco_reset: Error %d "
-		       "performing  hard reset\n", dev->name, err);
-		/* FIXME: shutdown of some sort */
-		return;
+		if (err) {
+			printk(KERN_ERR "%s: orinoco_reset: Error %d "
+			       "performing hard reset\n", dev->name, err);
+			goto disable;
+		}
 	}
 
 	err = orinoco_reinit_firmware(dev);
 	if (err) {
 		printk(KERN_ERR "%s: orinoco_reset: Error %d re-initializing firmware\n",
 		       dev->name, err);
-		return;
+		goto disable;
 	}
 
 	spin_lock_irq(&priv->lock); /* This has to be called from user context */
@@ -1975,6 +1975,10 @@ static void orinoco_reset(struct net_device *dev)
 	spin_unlock_irq(&priv->lock);
 
 	return;
+ disable:
+	hermes_set_irqmask(hw, 0);
+	netif_device_detach(dev);
+	printk(KERN_ERR "%s: Device has been disabled!\n", dev->name);
 }
 
 /********************************************************************/
