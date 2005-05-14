@@ -2406,7 +2406,7 @@ static int pkt_ioctl(struct inode *inode, struct file *file, unsigned int cmd, u
 	case CDROM_LAST_WRITTEN:
 	case CDROM_SEND_PACKET:
 	case SCSI_IOCTL_SEND_COMMAND:
-		return ioctl_by_bdev(pd->bdev, cmd, arg);
+		return blkdev_ioctl(pd->bdev->bd_inode, file, cmd, arg);
 
 	case CDROMEJECT:
 		/*
@@ -2414,7 +2414,7 @@ static int pkt_ioctl(struct inode *inode, struct file *file, unsigned int cmd, u
 		 * have to unlock it or else the eject command fails.
 		 */
 		pkt_lock_door(pd, 0);
-		return ioctl_by_bdev(pd->bdev, cmd, arg);
+		return blkdev_ioctl(pd->bdev->bd_inode, file, cmd, arg);
 
 	default:
 		printk("pktcdvd: Unknown ioctl for %s (%x)\n", pd->name, cmd);
