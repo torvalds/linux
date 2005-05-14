@@ -2222,6 +2222,8 @@ static int determine_firmware(struct net_device *dev)
 			       firmver >= 0x31000;
 		priv->has_preamble = (firmver >= 0x20000);
 		priv->ibss_port = 4;
+ 		priv->broken_disableport = (firmver == 0x25013) ||
+ 					   (firmver >= 0x30000 && firmver <= 0x31000);
 		/* Tested with Intel firmware : 0x20015 => Jean II */
 		/* Tested with 3Com firmware : 0x15012 & 0x22001 => Jean II */
 		break;
