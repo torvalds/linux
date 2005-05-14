@@ -1280,9 +1280,10 @@ static void __orinoco_ev_info(struct net_device *dev, hermes_t *hw)
 			len = sizeof(tallies);
 		}
 		
-		/* Read directly the data (no seek) */
-		hermes_read_words(hw, HERMES_DATA1, (void *) &tallies,
-				  len / 2); /* FIXME: blech! */
+		err = hermes_bap_pread(hw, IRQ_BAP, &tallies, len,
+				       infofid, sizeof(info));
+		if (err)
+			break;
 		
 		/* Increment our various counters */
 		/* wstats->discard.nwid - no wrong BSSID stuff */
@@ -1312,8 +1313,10 @@ static void __orinoco_ev_info(struct net_device *dev, hermes_t *hw)
 			break;
 		}
 
-		hermes_read_words(hw, HERMES_DATA1, (void *) &linkstatus,
-				  len / 2);
+		err = hermes_bap_pread(hw, IRQ_BAP, &linkstatus, len,
+				       infofid, sizeof(info));
+		if (err)
+			break;
 		newstatus = le16_to_cpu(linkstatus.linkstatus);
 
 		connected = (newstatus == HERMES_LINKSTATUS_CONNECTED)
@@ -1354,6 +1357,8 @@ int __orinoco_up(struct net_device *dev)
 	struct orinoco_private *priv = netdev_priv(dev);
 	struct hermes *hw = &priv->hw;
 	int err;
+
+	netif_carrier_off(dev); /* just to make sure */
 
 	err = __orinoco_program_rids(dev);
 	if (err) {
@@ -2063,7 +2068,7 @@ irqreturn_t orinoco_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		if (events & HERMES_EV_ALLOC)
 			__orinoco_ev_alloc(dev, hw);
 		
-		hermes_write_regn(hw, EVACK, events);
+		hermes_write_regn(hw, EVACK, evstat);
 
 		evstat = hermes_read_regn(hw, EVSTAT);
 		events = evstat & hw->inten;
@@ -2440,7 +2445,7 @@ struct net_device *alloc_orinocodev(int sizeof_card,
 	priv = netdev_priv(dev);
 	priv->ndev = dev;
 	if (sizeof_card)
-		priv->card = (void *)((unsigned long)netdev_priv(dev)
+		priv->card = (void *)((unsigned long)priv
 				      + sizeof(struct orinoco_private));
 	else
 		priv->card = NULL;
@@ -2545,6 +2550,7 @@ static int orinoco_hw_get_essid(struct orinoco_private *priv, int *active,
 	}
 
 	len = le16_to_cpu(essidbuf.len);
+	BUG_ON(len > IW_ESSID_MAX_SIZE);
 
 	memset(buf, 0, IW_ESSID_MAX_SIZE+1);
 	memcpy(buf, p, len);
