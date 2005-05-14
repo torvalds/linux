@@ -657,7 +657,7 @@ static int orinoco_open(struct net_device *dev)
 	return err;
 }
 
-int orinoco_stop(struct net_device *dev)
+static int orinoco_stop(struct net_device *dev)
 {
 	struct orinoco_private *priv = netdev_priv(dev);
 	int err = 0;
@@ -4019,7 +4019,6 @@ EXPORT_SYMBOL(free_orinocodev);
 
 EXPORT_SYMBOL(__orinoco_up);
 EXPORT_SYMBOL(__orinoco_down);
-EXPORT_SYMBOL(orinoco_stop);
 EXPORT_SYMBOL(orinoco_reinit_firmware);
 
 EXPORT_SYMBOL(orinoco_interrupt);
