@@ -9,9 +9,9 @@
 DOCBOOKS := wanbook.xml z8530book.xml mcabook.xml videobook.xml \
 	    kernel-hacking.xml kernel-locking.xml via-audio.xml \
 	    deviceiobook.xml procfs-guide.xml tulip-user.xml \
-	    writing_usb_driver.xml scsidrivers.xml sis900.xml \
-	    kernel-api.xml journal-api.xml lsm.xml usb.xml \
-	    gadget.xml libata.xml mtdnand.xml librs.xml
+	    writing_usb_driver.xml sis900.xml kernel-api.xml \
+	    journal-api.xml lsm.xml usb.xml gadget.xml libata.xml \
+	    mtdnand.xml librs.xml
 
 ###
 # The build process is as follows (targets):
