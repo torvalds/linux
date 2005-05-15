@@ -560,7 +560,7 @@ enum {
  *  Timer section - /dev/snd/timer
  */
 
-#define SNDRV_TIMER_VERSION		SNDRV_PROTOCOL_VERSION(2, 0, 3)
+#define SNDRV_TIMER_VERSION		SNDRV_PROTOCOL_VERSION(2, 0, 4)
 
 enum sndrv_timer_class {
 	SNDRV_TIMER_CLASS_NONE = -1,
@@ -673,10 +673,11 @@ enum {
 	SNDRV_TIMER_IOCTL_INFO = _IOR('T', 0x11, struct sndrv_timer_info),
 	SNDRV_TIMER_IOCTL_PARAMS = _IOW('T', 0x12, struct sndrv_timer_params),
 	SNDRV_TIMER_IOCTL_STATUS = _IOR('T', 0x14, struct sndrv_timer_status),
-	SNDRV_TIMER_IOCTL_START = _IO('T', 0x20),
-	SNDRV_TIMER_IOCTL_STOP = _IO('T', 0x21),
-	SNDRV_TIMER_IOCTL_CONTINUE = _IO('T', 0x22),
-	SNDRV_TIMER_IOCTL_PAUSE = _IO('T', 0x23),
+	/* The following four ioctls are changed since 1.0.9 due to confliction */
+	SNDRV_TIMER_IOCTL_START = _IO('T', 0xa0),
+	SNDRV_TIMER_IOCTL_STOP = _IO('T', 0xa1),
+	SNDRV_TIMER_IOCTL_CONTINUE = _IO('T', 0xa2),
+	SNDRV_TIMER_IOCTL_PAUSE = _IO('T', 0xa3),
 };
 
 struct sndrv_timer_read {

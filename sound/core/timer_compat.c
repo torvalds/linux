@@ -106,9 +106,13 @@ static long snd_timer_user_ioctl_compat(struct file *file, unsigned int cmd, uns
 	case SNDRV_TIMER_IOCTL_SELECT:
 	case SNDRV_TIMER_IOCTL_PARAMS:
 	case SNDRV_TIMER_IOCTL_START:
+	case SNDRV_TIMER_IOCTL_START_OLD:
 	case SNDRV_TIMER_IOCTL_STOP:
+	case SNDRV_TIMER_IOCTL_STOP_OLD:
 	case SNDRV_TIMER_IOCTL_CONTINUE:
+	case SNDRV_TIMER_IOCTL_CONTINUE_OLD:
 	case SNDRV_TIMER_IOCTL_PAUSE:
+	case SNDRV_TIMER_IOCTL_PAUSE_OLD:
 	case SNDRV_TIMER_IOCTL_NEXT_DEVICE:
 		return snd_timer_user_ioctl(file, cmd, (unsigned long)argp);
 	case SNDRV_TIMER_IOCTL_INFO32:
