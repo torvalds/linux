@@ -1680,6 +1680,16 @@ static int snd_timer_user_continue(struct file *file)
 	return (err = snd_timer_continue(tu->timeri)) < 0 ? err : 0;
 }
 
+static int snd_timer_user_pause(struct file *file)
+{
+	int err;
+	snd_timer_user_t *tu;
+		
+	tu = file->private_data;
+	snd_assert(tu->timeri != NULL, return -ENXIO);
+	return (err = snd_timer_continue(tu->timeri)) < 0 ? err : 0;
+}
+
 static long snd_timer_user_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	snd_timer_user_t *tu;
@@ -1729,6 +1739,8 @@ static long snd_timer_user_ioctl(struct file *file, unsigned int cmd, unsigned l
 		return snd_timer_user_stop(file);
 	case SNDRV_TIMER_IOCTL_CONTINUE:
 		return snd_timer_user_continue(file);
+	case SNDRV_TIMER_IOCTL_PAUSE:
+		return snd_timer_user_pause(file);
 	}
 	return -ENOTTY;
 }
