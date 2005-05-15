@@ -1102,7 +1102,7 @@ static long snd_ctl_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 		}
 	}
 	up_read(&snd_ioctl_rwsem);
-	snd_printd("unknown ioctl = 0x%x\n", cmd);
+	snd_printdd("unknown ioctl = 0x%x\n", cmd);
 	return -ENOTTY;
 }
 
