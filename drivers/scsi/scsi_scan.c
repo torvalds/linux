@@ -625,6 +625,7 @@ static int scsi_add_lun(struct scsi_device *sdev, char *inq_result, int *bflags)
 	case TYPE_MEDIUM_CHANGER:
 	case TYPE_ENCLOSURE:
 	case TYPE_COMM:
+	case TYPE_RBC:
 		sdev->writeable = 1;
 		break;
 	case TYPE_WORM:

@@ -213,6 +213,7 @@ static inline int scsi_status_is_good(int status)
 #define TYPE_COMM           0x09    /* Communications device */
 #define TYPE_ENCLOSURE      0x0d    /* Enclosure Services Device */
 #define TYPE_RAID           0x0c
+#define TYPE_RBC	    0x0e
 #define TYPE_NO_LUN         0x7f
 
 /*
