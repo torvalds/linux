@@ -172,7 +172,6 @@ FAN_TO_REG(long rpm, int div)
 						: (val)) / 1000, 0, 0xff))
 #define TEMP_FROM_REG(val)		(((val) & 0x80 ? (val)-0x100 : (val)) * 1000)
 
-#define ALARMS_FROM_REG(val)		(val)
 #define PWM_FROM_REG(val)		(val)
 #define PWM_TO_REG(val)			(SENSORS_LIMIT((val),0,255))
 #define BEEP_MASK_FROM_REG(val,type)	((type) == as99127f ? \
@@ -523,7 +522,7 @@ static ssize_t
 show_alarms_reg(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct w83781d_data *data = w83781d_update_device(dev);
-	return sprintf(buf, "%ld\n", (long) ALARMS_FROM_REG(data->alarms));
+	return sprintf(buf, "%u\n", data->alarms);
 }
 
 static

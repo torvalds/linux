@@ -292,8 +292,6 @@ static inline long TEMP_FROM_REG10(u16 val)
 	        tempLUT[eightBits + 1] * twoBits) * 25;
 }
 
-#define ALARMS_FROM_REG(val) (val)
-
 #define DIV_FROM_REG(val) (1 << (val))
 #define DIV_TO_REG(val) ((val)==8?3:(val)==4?2:(val)==1?0:1)
 
@@ -570,7 +568,7 @@ show_fan_offset(2);
 /* Alarms */
 static ssize_t show_alarms(struct device *dev, struct device_attribute *attr, char *buf) {
 	struct via686a_data *data = via686a_update_device(dev);
-	return sprintf(buf,"%d\n", ALARMS_FROM_REG(data->alarms));
+	return sprintf(buf, "%u\n", data->alarms);
 }
 static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);
 

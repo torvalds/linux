@@ -172,8 +172,6 @@ static inline u8 FAN_TO_REG(long rpm, int div)
 					((val)+500)/1000),-128,127))
 #define TEMP_FROM_REG(val) (((val)>0x80?(val)-0x100:(val))*1000)
 
-#define ALARMS_FROM_REG(val) (val)
-
 #define PWM_TO_REG(val)   ((val) >> 1)
 #define PWM_FROM_REG(val) (((val)&0x7f) << 1)
 
@@ -665,7 +663,7 @@ show_pwm_offset(3);
 static ssize_t show_alarms(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct it87_data *data = it87_update_device(dev);
-	return sprintf(buf,"%d\n", ALARMS_FROM_REG(data->alarms));
+	return sprintf(buf, "%u\n", data->alarms);
 }
 static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);
 
