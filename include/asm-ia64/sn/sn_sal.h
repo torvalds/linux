@@ -472,7 +472,7 @@ static inline u64
 ia64_sn_pod_mode(void)
 {
 	struct ia64_sal_retval isrv;
-	SAL_CALL(isrv, SN_SAL_POD_MODE, 0, 0, 0, 0, 0, 0, 0);
+	SAL_CALL_REENTRANT(isrv, SN_SAL_POD_MODE, 0, 0, 0, 0, 0, 0, 0);
 	if (isrv.status)
 		return 0;
 	return isrv.v0;
