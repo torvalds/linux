@@ -1687,7 +1687,7 @@ static int snd_timer_user_pause(struct file *file)
 		
 	tu = file->private_data;
 	snd_assert(tu->timeri != NULL, return -ENXIO);
-	return (err = snd_timer_continue(tu->timeri)) < 0 ? err : 0;
+	return (err = snd_timer_pause(tu->timeri)) < 0 ? err : 0;
 }
 
 enum {
