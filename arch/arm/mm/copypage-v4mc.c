@@ -71,10 +71,10 @@ void v4_mc_copy_user_page(void *kto, const void *kfrom, unsigned long vaddr)
 {
 	spin_lock(&minicache_lock);
 
-	set_pte(TOP_PTE(COPYPAGE_MINICACHE), pfn_pte(__pa(kfrom) >> PAGE_SHIFT, minicache_pgprot));
-	flush_tlb_kernel_page(COPYPAGE_MINICACHE);
+	set_pte(TOP_PTE(0xffff8000), pfn_pte(__pa(kfrom) >> PAGE_SHIFT, minicache_pgprot));
+	flush_tlb_kernel_page(0xffff8000);
 
-	mc_copy_user_page((void *)COPYPAGE_MINICACHE, kto);
+	mc_copy_user_page((void *)0xffff8000, kto);
 
 	spin_unlock(&minicache_lock);
 }
