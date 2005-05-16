@@ -59,6 +59,7 @@
 #ifndef _AIC7XXX_LINUX_H_
 #define _AIC7XXX_LINUX_H_
 
+#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>
@@ -68,16 +69,19 @@
 #include <linux/version.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <asm/byteorder.h>
 #include <asm/io.h>
 
-#include <linux/config.h>
-#include <linux/slab.h>
+#include <scsi/scsi.h>
+#include <scsi/scsi_cmnd.h>
+#include <scsi/scsi_eh.h>
+#include <scsi/scsi_device.h>
+#include <scsi/scsi_host.h>
+#include <scsi/scsi_tcq.h>
 
 /* Core SCSI definitions */
 #define AIC_LIB_PREFIX ahc
-#include "scsi.h"
-#include <scsi/scsi_host.h>
 
 /* Name space conflict with BSD queue macros */
 #ifdef LIST_HEAD
@@ -106,7 +110,7 @@
 /************************* Forward Declarations *******************************/
 struct ahc_softc;
 typedef struct pci_dev *ahc_dev_softc_t;
-typedef Scsi_Cmnd      *ahc_io_ctx_t;
+typedef struct scsi_cmnd      *ahc_io_ctx_t;
 
 /******************************* Byte Order ***********************************/
 #define ahc_htobe16(x)	cpu_to_be16(x)
@@ -144,7 +148,7 @@ typedef Scsi_Cmnd      *ahc_io_ctx_t;
 extern u_int aic7xxx_no_probe;
 extern u_int aic7xxx_allow_memio;
 extern int aic7xxx_detect_complete;
-extern Scsi_Host_Template aic7xxx_driver_template;
+extern struct scsi_host_template aic7xxx_driver_template;
 
 /***************************** Bus Space/DMA **********************************/
 
@@ -408,7 +412,7 @@ struct ahc_linux_device {
 #define AHC_OTAG_THRESH	500
 
 	int			lun;
-	Scsi_Device	       *scsi_device;
+	struct scsi_device       *scsi_device;
 	struct			ahc_linux_target *target;
 };
 
@@ -564,7 +568,7 @@ ahc_insb(struct ahc_softc * ahc, long port, uint8_t *array, int count)
 
 /**************************** Initialization **********************************/
 int		ahc_linux_register_host(struct ahc_softc *,
-					Scsi_Host_Template *);
+					struct scsi_host_template *);
 
 uint64_t	ahc_linux_get_memsize(void);
 
@@ -795,13 +799,13 @@ int	ahc_linux_proc_info(struct Scsi_Host *, char *, char **,
 
 /*************************** Domain Validation ********************************/
 /*********************** Transaction Access Wrappers *************************/
-static __inline void ahc_cmd_set_transaction_status(Scsi_Cmnd *, uint32_t);
+static __inline void ahc_cmd_set_transaction_status(struct scsi_cmnd *, uint32_t);
 static __inline void ahc_set_transaction_status(struct scb *, uint32_t);
-static __inline void ahc_cmd_set_scsi_status(Scsi_Cmnd *, uint32_t);
+static __inline void ahc_cmd_set_scsi_status(struct scsi_cmnd *, uint32_t);
 static __inline void ahc_set_scsi_status(struct scb *, uint32_t);
-static __inline uint32_t ahc_cmd_get_transaction_status(Scsi_Cmnd *cmd);
+static __inline uint32_t ahc_cmd_get_transaction_status(struct scsi_cmnd *cmd);
 static __inline uint32_t ahc_get_transaction_status(struct scb *);
-static __inline uint32_t ahc_cmd_get_scsi_status(Scsi_Cmnd *cmd);
+static __inline uint32_t ahc_cmd_get_scsi_status(struct scsi_cmnd *cmd);
 static __inline uint32_t ahc_get_scsi_status(struct scb *);
 static __inline void ahc_set_transaction_tag(struct scb *, int, u_int);
 static __inline u_long ahc_get_transfer_length(struct scb *);
@@ -820,7 +824,7 @@ static __inline void ahc_platform_scb_free(struct ahc_softc *ahc,
 static __inline void ahc_freeze_scb(struct scb *scb);
 
 static __inline
-void ahc_cmd_set_transaction_status(Scsi_Cmnd *cmd, uint32_t status)
+void ahc_cmd_set_transaction_status(struct scsi_cmnd *cmd, uint32_t status)
 {
 	cmd->result &= ~(CAM_STATUS_MASK << 16);
 	cmd->result |= status << 16;
@@ -833,7 +837,7 @@ void ahc_set_transaction_status(struct scb *scb, uint32_t status)
 }
 
 static __inline
-void ahc_cmd_set_scsi_status(Scsi_Cmnd *cmd, uint32_t status)
+void ahc_cmd_set_scsi_status(struct scsi_cmnd *cmd, uint32_t status)
 {
 	cmd->result &= ~0xFFFF;
 	cmd->result |= status;
@@ -846,7 +850,7 @@ void ahc_set_scsi_status(struct scb *scb, uint32_t status)
 }
 
 static __inline
-uint32_t ahc_cmd_get_transaction_status(Scsi_Cmnd *cmd)
+uint32_t ahc_cmd_get_transaction_status(struct scsi_cmnd *cmd)
 {
 	return ((cmd->result >> 16) & CAM_STATUS_MASK);
 }
@@ -858,7 +862,7 @@ uint32_t ahc_get_transaction_status(struct scb *scb)
 }
 
 static __inline
-uint32_t ahc_cmd_get_scsi_status(Scsi_Cmnd *cmd)
+uint32_t ahc_cmd_get_scsi_status(struct scsi_cmnd *cmd)
 {
 	return (cmd->result & 0xFFFF);
 }

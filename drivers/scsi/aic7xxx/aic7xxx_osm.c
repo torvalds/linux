@@ -426,12 +426,12 @@ static void ahc_linux_handle_scsi_status(struct ahc_softc *,
 					 struct ahc_linux_device *,
 					 struct scb *);
 static void ahc_linux_queue_cmd_complete(struct ahc_softc *ahc,
-					 Scsi_Cmnd *cmd);
+					 struct scsi_cmnd *cmd);
 static void ahc_linux_sem_timeout(u_long arg);
 static void ahc_linux_freeze_simq(struct ahc_softc *ahc);
 static void ahc_linux_release_simq(u_long arg);
 static void ahc_linux_dev_timed_unfreeze(u_long arg);
-static int  ahc_linux_queue_recovery_cmd(Scsi_Cmnd *cmd, scb_flag flag);
+static int  ahc_linux_queue_recovery_cmd(struct scsi_cmnd *cmd, scb_flag flag);
 static void ahc_linux_initialize_scsi_bus(struct ahc_softc *ahc);
 static void ahc_linux_thread_run_complete_queue(struct ahc_softc *ahc);
 static u_int ahc_linux_user_tagdepth(struct ahc_softc *ahc,
@@ -512,7 +512,7 @@ ahc_linux_run_complete_queue(struct ahc_softc *ahc)
 
 	with_errors = 0;
 	while ((acmd = TAILQ_FIRST(&ahc->platform_data->completeq)) != NULL) {
-		Scsi_Cmnd *cmd;
+		struct scsi_cmnd *cmd;
 
 		if (with_errors > AHC_LINUX_MAX_RETURNED_ERRORS) {
 			/*
@@ -542,7 +542,7 @@ ahc_linux_run_complete_queue(struct ahc_softc *ahc)
 static __inline void
 ahc_linux_unmap_scb(struct ahc_softc *ahc, struct scb *scb)
 {
-	Scsi_Cmnd *cmd;
+	struct scsi_cmnd *cmd;
 
 	cmd = scb->io_ctx;
 	ahc_sync_sglist(ahc, scb, BUS_DMASYNC_POSTWRITE);
@@ -582,27 +582,11 @@ ahc_linux_map_seg(struct ahc_softc *ahc, struct scb *scb,
 	return (consumed);
 }
 
-/************************  Host template entry points *************************/
-static int	   ahc_linux_detect(Scsi_Host_Template *);
-static int	   ahc_linux_queue(Scsi_Cmnd *, void (*)(Scsi_Cmnd *));
-static const char *ahc_linux_info(struct Scsi_Host *);
-static int	   ahc_linux_slave_alloc(Scsi_Device *);
-static int	   ahc_linux_slave_configure(Scsi_Device *);
-static void	   ahc_linux_slave_destroy(Scsi_Device *);
-#if defined(__i386__)
-static int	   ahc_linux_biosparam(struct scsi_device*,
-				       struct block_device*,
-				       sector_t, int[]);
-#endif
-static int	   ahc_linux_bus_reset(Scsi_Cmnd *);
-static int	   ahc_linux_dev_reset(Scsi_Cmnd *);
-static int	   ahc_linux_abort(Scsi_Cmnd *);
-
 /*
  * Try to detect an Adaptec 7XXX controller.
  */
 static int
-ahc_linux_detect(Scsi_Host_Template *template)
+ahc_linux_detect(struct scsi_host_template *template)
 {
 	struct	ahc_softc *ahc;
 	int     found = 0;
@@ -683,7 +667,7 @@ ahc_linux_info(struct Scsi_Host *host)
  * Queue an SCB to the controller.
  */
 static int
-ahc_linux_queue(Scsi_Cmnd * cmd, void (*scsi_done) (Scsi_Cmnd *))
+ahc_linux_queue(struct scsi_cmnd * cmd, void (*scsi_done) (struct scsi_cmnd *))
 {
 	struct	 ahc_softc *ahc;
 	struct	 ahc_linux_device *dev;
@@ -714,7 +698,7 @@ ahc_linux_queue(Scsi_Cmnd * cmd, void (*scsi_done) (Scsi_Cmnd *))
 }
 
 static int
-ahc_linux_slave_alloc(Scsi_Device *device)
+ahc_linux_slave_alloc(struct scsi_device *device)
 {
 	struct	ahc_softc *ahc;
 
@@ -725,7 +709,7 @@ ahc_linux_slave_alloc(Scsi_Device *device)
 }
 
 static int
-ahc_linux_slave_configure(Scsi_Device *device)
+ahc_linux_slave_configure(struct scsi_device *device)
 {
 	struct	ahc_softc *ahc;
 	struct	ahc_linux_device *dev;
@@ -755,7 +739,7 @@ ahc_linux_slave_configure(Scsi_Device *device)
 }
 
 static void
-ahc_linux_slave_destroy(Scsi_Device *device)
+ahc_linux_slave_destroy(struct scsi_device *device)
 {
 	struct	ahc_softc *ahc;
 	struct	ahc_linux_device *dev;
@@ -836,7 +820,7 @@ ahc_linux_biosparam(struct scsi_device *sdev, struct block_device *bdev,
  * Abort the current SCSI command(s).
  */
 static int
-ahc_linux_abort(Scsi_Cmnd *cmd)
+ahc_linux_abort(struct scsi_cmnd *cmd)
 {
 	int error;
 
@@ -850,7 +834,7 @@ ahc_linux_abort(Scsi_Cmnd *cmd)
  * Attempt to send a target reset message to the device that timed out.
  */
 static int
-ahc_linux_dev_reset(Scsi_Cmnd *cmd)
+ahc_linux_dev_reset(struct scsi_cmnd *cmd)
 {
 	int error;
 
@@ -864,7 +848,7 @@ ahc_linux_dev_reset(Scsi_Cmnd *cmd)
  * Reset the SCSI bus.
  */
 static int
-ahc_linux_bus_reset(Scsi_Cmnd *cmd)
+ahc_linux_bus_reset(struct scsi_cmnd *cmd)
 {
 	struct ahc_softc *ahc;
 	int    found;
@@ -881,7 +865,7 @@ ahc_linux_bus_reset(Scsi_Cmnd *cmd)
 	return SUCCESS;
 }
 
-Scsi_Host_Template aic7xxx_driver_template = {
+struct scsi_host_template aic7xxx_driver_template = {
 	.module			= THIS_MODULE,
 	.name			= "aic7xxx",
 	.proc_info		= ahc_linux_proc_info,
@@ -1189,7 +1173,7 @@ __setup("aic7xxx=", aic7xxx_setup);
 uint32_t aic7xxx_verbose;
 
 int
-ahc_linux_register_host(struct ahc_softc *ahc, Scsi_Host_Template *template)
+ahc_linux_register_host(struct ahc_softc *ahc, struct scsi_host_template *template)
 {
 	char	 buf[80];
 	struct	 Scsi_Host *host;
@@ -2017,7 +2001,7 @@ ahc_send_async(struct ahc_softc *ahc, char channel,
 void
 ahc_done(struct ahc_softc *ahc, struct scb *scb)
 {
-	Scsi_Cmnd *cmd;
+	struct scsi_cmnd *cmd;
 	struct	   ahc_linux_device *dev;
 
 	LIST_REMOVE(scb, pending_links);
@@ -2171,7 +2155,7 @@ ahc_linux_handle_scsi_status(struct ahc_softc *ahc,
 	case SCSI_STATUS_CHECK_COND:
 	case SCSI_STATUS_CMD_TERMINATED:
 	{
-		Scsi_Cmnd *cmd;
+		struct scsi_cmnd *cmd;
 
 		/*
 		 * Copy sense information to the OS's cmd
@@ -2293,7 +2277,7 @@ ahc_linux_handle_scsi_status(struct ahc_softc *ahc,
 }
 
 static void
-ahc_linux_queue_cmd_complete(struct ahc_softc *ahc, Scsi_Cmnd *cmd)
+ahc_linux_queue_cmd_complete(struct ahc_softc *ahc, struct scsi_cmnd *cmd)
 {
 	/*
 	 * Typically, the complete queue has very few entries
@@ -2482,7 +2466,7 @@ ahc_linux_dev_timed_unfreeze(u_long arg)
 }
 
 static int
-ahc_linux_queue_recovery_cmd(Scsi_Cmnd *cmd, scb_flag flag)
+ahc_linux_queue_recovery_cmd(struct scsi_cmnd *cmd, scb_flag flag)
 {
 	struct ahc_softc *ahc;
 	struct ahc_linux_device *dev;
