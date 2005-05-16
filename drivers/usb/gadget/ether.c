@@ -91,12 +91,12 @@ static const char driver_desc [] = DRIVER_DESC;
 
 #define RX_EXTRA	20		/* guard against rx overflows */
 
-#ifdef	CONFIG_USB_ETH_RNDIS
 #include "rndis.h"
-#else
-#define rndis_init()	0
-#define rndis_uninit(x)	do{}while(0)
-#define rndis_exit()	do{}while(0)
+
+#ifndef	CONFIG_USB_ETH_RNDIS
+#define rndis_uninit(x)		do{}while(0)
+#define rndis_deregister(c)	do{}while(0)
+#define rndis_exit()		do{}while(0)
 #endif
 
 /* CDC and RNDIS support the same host-chosen outgoing packet filters. */
@@ -1133,9 +1133,9 @@ eth_set_config (struct eth_dev *dev, unsigned number, int gfp_flags)
 		dev->config = number;
 		INFO (dev, "%s speed config #%d: %d mA, %s, using %s\n",
 				speed, number, power, driver_desc,
-				dev->rndis
+				rndis_active(dev)
 					? "RNDIS"
-					: (dev->cdc
+					: (cdc_active(dev)
 						? "CDC Ethernet"
 						: "CDC Ethernet Subset"));
 	}
@@ -1350,7 +1350,7 @@ eth_setup (struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 				|| !dev->config
 				|| wIndex > 1)
 			break;
-		if (!dev->cdc && wIndex != 0)
+		if (!cdc_active(dev) && wIndex != 0)
 			break;
 		spin_lock (&dev->lock);
 
@@ -1420,11 +1420,11 @@ done_set_intf:
 				|| !dev->config
 				|| wIndex > 1)
 			break;
-		if (!(dev->cdc || dev->rndis) && wIndex != 0)
+		if (!(cdc_active(dev) || rndis_active(dev)) && wIndex != 0)
 			break;
 
 		/* for CDC, iff carrier is on, data interface is active. */
-		if (dev->rndis || wIndex != 1)
+		if (rndis_active(dev) || wIndex != 1)
 			*(u8 *)req->buf = 0;
 		else
 			*(u8 *)req->buf = netif_carrier_ok (dev->net) ? 1 : 0;
@@ -1437,8 +1437,7 @@ done_set_intf:
 		 * wValue = packet filter bitmap
 		 */
 		if (ctrl->bRequestType != (USB_TYPE_CLASS|USB_RECIP_INTERFACE)
-				|| !dev->cdc
-				|| dev->rndis
+				|| !cdc_active(dev)
 				|| wLength != 0
 				|| wIndex > 1)
 			break;
@@ -1462,7 +1461,7 @@ done_set_intf:
 	 */
 	case USB_CDC_SEND_ENCAPSULATED_COMMAND:
 		if (ctrl->bRequestType != (USB_TYPE_CLASS|USB_RECIP_INTERFACE)
-				|| !dev->rndis
+				|| !rndis_active(dev)
 				|| wLength > USB_BUFSIZ
 				|| wValue
 				|| rndis_control_intf.bInterfaceNumber
@@ -1477,7 +1476,7 @@ done_set_intf:
 	case USB_CDC_GET_ENCAPSULATED_RESPONSE:
 		if ((USB_DIR_IN|USB_TYPE_CLASS|USB_RECIP_INTERFACE)
 					== ctrl->bRequestType
-				&& dev->rndis
+				&& rndis_active(dev)
 				// && wLength >= 0x0400
 				&& !wValue
 				&& rndis_control_intf.bInterfaceNumber
@@ -1661,11 +1660,9 @@ static void rx_complete (struct usb_ep *ep, struct usb_request *req)
 	/* normal completion */
 	case 0:
 		skb_put (skb, req->actual);
-#ifdef CONFIG_USB_ETH_RNDIS
 		/* we know MaxPacketsPerTransfer == 1 here */
-		if (dev->rndis)
+		if (rndis_active(dev))
 			status = rndis_rm_hdr (skb);
-#endif
 		if (status < 0
 				|| ETH_HLEN > skb->len
 				|| skb->len > ETH_FRAME_LEN) {
@@ -1893,8 +1890,7 @@ static int eth_start_xmit (struct sk_buff *skb, struct net_device *net)
 	 * or the hardware can't use skb buffers.
 	 * or there's not enough space for any RNDIS headers we need
 	 */
-#ifdef CONFIG_USB_ETH_RNDIS
-	if (dev->rndis) {
+	if (rndis_active(dev)) {
 		struct sk_buff	*skb_rndis;
 
 		skb_rndis = skb_realloc_headroom (skb,
@@ -1907,7 +1903,6 @@ static int eth_start_xmit (struct sk_buff *skb, struct net_device *net)
 		rndis_add_hdr (skb);
 		length = skb->len;
 	}
-#endif
 	req->buf = skb->data;
 	req->context = skb;
 	req->complete = tx_complete;
@@ -1940,9 +1935,7 @@ static int eth_start_xmit (struct sk_buff *skb, struct net_device *net)
 	}
 
 	if (retval) {
-#ifdef CONFIG_USB_ETH_RNDIS
 drop:
-#endif
 		dev->stats.tx_dropped++;
 		dev_kfree_skb_any (skb);
 		spin_lock_irqsave (&dev->lock, flags);
@@ -2023,6 +2016,10 @@ static int rndis_control_ack (struct net_device *net)
 	return 0;
 }
 
+#else
+
+#define	rndis_control_ack	NULL
+
 #endif	/* RNDIS */
 
 static void eth_start (struct eth_dev *dev, int gfp_flags)
@@ -2035,14 +2032,12 @@ static void eth_start (struct eth_dev *dev, int gfp_flags)
 	/* and open the tx floodgates */ 
 	atomic_set (&dev->tx_qlen, 0);
 	netif_wake_queue (dev->net);
-#ifdef CONFIG_USB_ETH_RNDIS
-	if (dev->rndis) {
+	if (rndis_active(dev)) {
 		rndis_set_param_medium (dev->rndis_config,
 					NDIS_MEDIUM_802_3,
 					BITRATE(dev->gadget)/100);
 		(void) rndis_signal_connect (dev->rndis_config);
 	}
-#endif	
 }
 
 static int eth_open (struct net_device *net)
@@ -2083,13 +2078,11 @@ static int eth_stop (struct net_device *net)
 		}
 	}
 	
-#ifdef	CONFIG_USB_ETH_RNDIS
-	if (dev->rndis) {
+	if (rndis_active(dev)) {
 		rndis_set_param_medium (dev->rndis_config,
 					NDIS_MEDIUM_802_3, 0);
 		(void) rndis_signal_disconnect (dev->rndis_config);
 	}
-#endif
 
 	return 0;
 }
@@ -2127,10 +2120,8 @@ eth_unbind (struct usb_gadget *gadget)
 	struct eth_dev		*dev = get_gadget_data (gadget);
 
 	DEBUG (dev, "unbind\n");
-#ifdef CONFIG_USB_ETH_RNDIS
 	rndis_deregister (dev->rndis_config);
 	rndis_exit ();
-#endif
 
 	/* we've already been disconnected ... no i/o is active */
 	if (dev->req) {
@@ -2481,7 +2472,6 @@ autoconf_fail:
 			dev->host_mac [2], dev->host_mac [3],
 			dev->host_mac [4], dev->host_mac [5]);
 
-#ifdef	CONFIG_USB_ETH_RNDIS
 	if (rndis) {
 		u32	vendorID = 0;
 
@@ -2509,7 +2499,6 @@ fail0:
 			goto fail0;
 		INFO (dev, "RNDIS ready\n");
 	}
-#endif	
 
 	return status;
 
