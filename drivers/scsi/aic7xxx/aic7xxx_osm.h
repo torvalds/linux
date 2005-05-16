@@ -281,12 +281,6 @@ ahc_scb_timer_reset(struct scb *scb, u_int usec)
 /***************************** SMP support ************************************/
 #include <linux/spinlock.h>
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0) || defined(SCSI_HAS_HOST_LOCK))
-#define AHC_SCSI_HAS_HOST_LOCK 1
-#else
-#define AHC_SCSI_HAS_HOST_LOCK 0
-#endif
-
 #define AIC7XXX_DRIVER_VERSION "6.2.36"
 
 /**************************** Front End Queues ********************************/
@@ -438,18 +432,7 @@ struct ahc_linux_target {
  * manner and are allocated below 4GB, the number of S/G segments is
  * unrestricted.
  */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-/*
- * We dynamically adjust the number of segments in pre-2.5 kernels to
- * avoid fragmentation issues in the SCSI mid-layer's private memory
- * allocator.  See aic7xxx_osm.c ahc_linux_size_nseg() for details.
- */
-extern u_int ahc_linux_nseg;
-#define	AHC_NSEG ahc_linux_nseg
-#define	AHC_LINUX_MIN_NSEG 64
-#else
 #define	AHC_NSEG 128
-#endif
 
 /*
  * Per-SCB OSM storage.
@@ -607,17 +590,6 @@ static __inline void ahc_lockinit(struct ahc_softc *);
 static __inline void ahc_lock(struct ahc_softc *, unsigned long *flags);
 static __inline void ahc_unlock(struct ahc_softc *, unsigned long *flags);
 
-/* Lock acquisition and release of the above lock in midlayer entry points. */
-static __inline void ahc_midlayer_entrypoint_lock(struct ahc_softc *,
-						  unsigned long *flags);
-static __inline void ahc_midlayer_entrypoint_unlock(struct ahc_softc *,
-						    unsigned long *flags);
-
-/* Lock held during command compeletion to the upper layer */
-static __inline void ahc_done_lockinit(struct ahc_softc *);
-static __inline void ahc_done_lock(struct ahc_softc *, unsigned long *flags);
-static __inline void ahc_done_unlock(struct ahc_softc *, unsigned long *flags);
-
 /* Lock held during ahc_list manipulation and ahc softc frees */
 extern spinlock_t ahc_list_spinlock;
 static __inline void ahc_list_lockinit(void);
@@ -640,57 +612,6 @@ static __inline void
 ahc_unlock(struct ahc_softc *ahc, unsigned long *flags)
 {
 	spin_unlock_irqrestore(&ahc->platform_data->spin_lock, *flags);
-}
-
-static __inline void
-ahc_midlayer_entrypoint_lock(struct ahc_softc *ahc, unsigned long *flags)
-{
-	/*
-	 * In 2.5.X and some 2.4.X versions, the midlayer takes our
-	 * lock just before calling us, so we avoid locking again.
-	 * For other kernel versions, the io_request_lock is taken
-	 * just before our entry point is called.  In this case, we
-	 * trade the io_request_lock for our per-softc lock.
-	 */
-#if AHC_SCSI_HAS_HOST_LOCK == 0
-	spin_unlock(&io_request_lock);
-	spin_lock(&ahc->platform_data->spin_lock);
-#endif
-}
-
-static __inline void
-ahc_midlayer_entrypoint_unlock(struct ahc_softc *ahc, unsigned long *flags)
-{
-#if AHC_SCSI_HAS_HOST_LOCK == 0
-	spin_unlock(&ahc->platform_data->spin_lock);
-	spin_lock(&io_request_lock);
-#endif
-}
-
-static __inline void
-ahc_done_lockinit(struct ahc_softc *ahc)
-{
-	/*
-	 * In 2.5.X, our own lock is held during completions.
-	 * In previous versions, the io_request_lock is used.
-	 * In either case, we can't initialize this lock again.
-	 */
-}
-
-static __inline void
-ahc_done_lock(struct ahc_softc *ahc, unsigned long *flags)
-{
-#if AHC_SCSI_HAS_HOST_LOCK == 0
-	spin_lock_irqsave(&io_request_lock, *flags);
-#endif
-}
-
-static __inline void
-ahc_done_unlock(struct ahc_softc *ahc, unsigned long *flags)
-{
-#if AHC_SCSI_HAS_HOST_LOCK == 0
-	spin_unlock_irqrestore(&io_request_lock, *flags);
-#endif
 }
 
 static __inline void
@@ -759,12 +680,6 @@ typedef enum
 } ahc_power_state;
 
 /**************************** VL/EISA Routines ********************************/
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0) \
-  && (defined(__i386__) || defined(__alpha__)) \
-  && (!defined(CONFIG_EISA)))
-#define CONFIG_EISA
-#endif
-
 #ifdef CONFIG_EISA
 extern uint32_t aic7xxx_probe_eisa_vl;
 int			 ahc_linux_eisa_init(void);
@@ -880,12 +795,8 @@ ahc_flush_device_writes(struct ahc_softc *ahc)
 }
 
 /**************************** Proc FS Support *********************************/
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-int	ahc_linux_proc_info(char *, char **, off_t, int, int, int);
-#else
 int	ahc_linux_proc_info(struct Scsi_Host *, char *, char **,
 			    off_t, int, int);
-#endif
 
 /*************************** Domain Validation ********************************/
 /*********************** Transaction Access Wrappers *************************/
