@@ -115,6 +115,13 @@
 #define SAL_IROUTER_INTR_XMIT	SAL_CONSOLE_INTR_XMIT
 #define SAL_IROUTER_INTR_RECV	SAL_CONSOLE_INTR_RECV
 
+/*
+ * Error Handling Features
+ */
+#define SAL_ERR_FEAT_MCA_SLV_TO_OS_INIT_SLV	0x1
+#define SAL_ERR_FEAT_LOG_SBES			0x2
+#define SAL_ERR_FEAT_MFR_OVERRIDE		0x4
+#define SAL_ERR_FEAT_SBE_THRESHOLD		0xffff0000
 
 /*
  * SAL Error Codes
@@ -337,6 +344,25 @@ ia64_sn_plat_cpei_handler(void)
 	ret_stuff.v1 = 0;
 	ret_stuff.v2 = 0;
 	SAL_CALL_NOLOCK(ret_stuff, SN_SAL_LOG_CE, 0, 0, 0, 0, 0, 0, 0);
+
+	return ret_stuff.status;
+}
+
+/*
+ * Set Error Handling Features
+ */
+static inline u64
+ia64_sn_plat_set_error_handling_features(void)
+{
+	struct ia64_sal_retval ret_stuff;
+
+	ret_stuff.status = 0;
+	ret_stuff.v0 = 0;
+	ret_stuff.v1 = 0;
+	ret_stuff.v2 = 0;
+	SAL_CALL_REENTRANT(ret_stuff, SN_SAL_SET_ERROR_HANDLING_FEATURES,
+		(SAL_ERR_FEAT_MCA_SLV_TO_OS_INIT_SLV | SAL_ERR_FEAT_LOG_SBES),
+		0, 0, 0, 0, 0, 0);
 
 	return ret_stuff.status;
 }
