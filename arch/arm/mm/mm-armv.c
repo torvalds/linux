@@ -37,6 +37,8 @@ pgprot_t pgprot_kernel;
 
 EXPORT_SYMBOL(pgprot_kernel);
 
+pmd_t *top_pmd;
+
 struct cachepolicy {
 	const char	policy[16];
 	unsigned int	cr_mask;
@@ -142,6 +144,16 @@ __setup("noalign", noalign_setup);
 
 #define FIRST_KERNEL_PGD_NR	(FIRST_USER_PGD_NR + USER_PTRS_PER_PGD)
 
+static inline pmd_t *pmd_off(pgd_t *pgd, unsigned long virt)
+{
+	return pmd_offset(pgd, virt);
+}
+
+static inline pmd_t *pmd_off_k(unsigned long virt)
+{
+	return pmd_off(pgd_offset_k(virt), virt);
+}
+
 /*
  * need to get a 16k page for level 1
  */
@@ -220,7 +232,7 @@ void free_pgd_slow(pgd_t *pgd)
 		return;
 
 	/* pgd is always present and good */
-	pmd = (pmd_t *)pgd;
+	pmd = pmd_off(pgd, 0);
 	if (pmd_none(*pmd))
 		goto free;
 	if (pmd_bad(*pmd)) {
@@ -246,9 +258,8 @@ free:
 static inline void
 alloc_init_section(unsigned long virt, unsigned long phys, int prot)
 {
-	pmd_t *pmdp;
+	pmd_t *pmdp = pmd_off_k(virt);
 
-	pmdp = pmd_offset(pgd_offset_k(virt), virt);
 	if (virt & (1 << 20))
 		pmdp++;
 
@@ -283,10 +294,8 @@ alloc_init_supersection(unsigned long virt, unsigned long phys, int prot)
 static inline void
 alloc_init_page(unsigned long virt, unsigned long phys, unsigned int prot_l1, pgprot_t prot)
 {
-	pmd_t *pmdp;
+	pmd_t *pmdp = pmd_off_k(virt);
 	pte_t *ptep;
-
-	pmdp = pmd_offset(pgd_offset_k(virt), virt);
 
 	if (pmd_none(*pmdp)) {
 		unsigned long pmdval;
@@ -310,7 +319,7 @@ alloc_init_page(unsigned long virt, unsigned long phys, unsigned int prot_l1, pg
  */
 static inline void clear_mapping(unsigned long virt)
 {
-	pmd_clear(pmd_offset(pgd_offset_k(virt), virt));
+	pmd_clear(pmd_off_k(virt));
 }
 
 struct mem_types {
@@ -578,7 +587,7 @@ void setup_mm_for_reboot(char mode)
 			 PMD_TYPE_SECT;
 		if (cpu_arch <= CPU_ARCH_ARMv5)
 			pmdval |= PMD_BIT4;
-		pmd = pmd_offset(pgd + i, i << PGDIR_SHIFT);
+		pmd = pmd_off(pgd, i << PGDIR_SHIFT);
 		pmd[0] = __pmd(pmdval);
 		pmd[1] = __pmd(pmdval + (1 << (PGDIR_SHIFT - 1)));
 		flush_pmd_entry(pmd);
@@ -675,6 +684,8 @@ void __init memtable_init(struct meminfo *mi)
 
 	flush_cache_all();
 	flush_tlb_all();
+
+	top_pmd = pmd_off_k(VECTORS_HIGH);
 }
 
 /*

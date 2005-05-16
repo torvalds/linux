@@ -192,9 +192,11 @@ void __init s3c2440_map_io(struct map_desc *mach_desc, int size)
 
 	iotable_init(s3c2440_iodesc, ARRAY_SIZE(s3c2440_iodesc));
 	iotable_init(mach_desc, size);
+
 	/* rename any peripherals used differing from the s3c2410 */
 
-	s3c_device_i2c.name = "s3c2440-i2c";
+	s3c_device_i2c.name  = "s3c2440-i2c";
+	s3c_device_nand.name = "s3c2440-nand";
 
 	/* change irq for watchdog */
 
@@ -225,7 +227,7 @@ void __init s3c2440_init_clocks(int xtal)
 		break;
 
 	case S3C2440_CLKDIVN_HDIVN_2:
-		hdiv = 1;
+		hdiv = 2;
 		break;
 
 	case S3C2440_CLKDIVN_HDIVN_4_8:
