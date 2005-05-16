@@ -949,37 +949,11 @@ int
 ahc_dmamem_alloc(struct ahc_softc *ahc, bus_dma_tag_t dmat, void** vaddr,
 		 int flags, bus_dmamap_t *mapp)
 {
-	bus_dmamap_t map;
-
-	map = malloc(sizeof(*map), M_DEVBUF, M_NOWAIT);
-	if (map == NULL)
-		return (ENOMEM);
-	/*
-	 * Although we can dma data above 4GB, our
-	 * "consistent" memory is below 4GB for
-	 * space efficiency reasons (only need a 4byte
-	 * address).  For this reason, we have to reset
-	 * our dma mask when doing allocations.
-	 */
-	if (ahc->dev_softc != NULL)
-		if (pci_set_dma_mask(ahc->dev_softc, 0xFFFFFFFF)) {
-			printk(KERN_WARNING "aic7xxx: No suitable DMA available.\n");
-			kfree(map);
-			return (ENODEV);
-		}
 	*vaddr = pci_alloc_consistent(ahc->dev_softc,
-				      dmat->maxsize, &map->bus_addr);
-	if (ahc->dev_softc != NULL)
-		if (pci_set_dma_mask(ahc->dev_softc,
-				     ahc->platform_data->hw_dma_mask)) {
-			printk(KERN_WARNING "aic7xxx: No suitable DMA available.\n");
-			kfree(map);
-			return (ENODEV);
-		}
+				      dmat->maxsize, mapp);
 	if (*vaddr == NULL)
-		return (ENOMEM);
-	*mapp = map;
-	return(0);
+		return ENOMEM;
+	return 0;
 }
 
 void
@@ -987,7 +961,7 @@ ahc_dmamem_free(struct ahc_softc *ahc, bus_dma_tag_t dmat,
 		void* vaddr, bus_dmamap_t map)
 {
 	pci_free_consistent(ahc->dev_softc, dmat->maxsize,
-			    vaddr, map->bus_addr);
+			    vaddr, map);
 }
 
 int
@@ -1001,7 +975,7 @@ ahc_dmamap_load(struct ahc_softc *ahc, bus_dma_tag_t dmat, bus_dmamap_t map,
 	 */
 	bus_dma_segment_t stack_sg;
 
-	stack_sg.ds_addr = map->bus_addr;
+	stack_sg.ds_addr = map;
 	stack_sg.ds_len = dmat->maxsize;
 	cb(cb_arg, &stack_sg, /*nseg*/1, /*error*/0);
 	return (0);
@@ -1010,12 +984,6 @@ ahc_dmamap_load(struct ahc_softc *ahc, bus_dma_tag_t dmat, bus_dmamap_t map,
 void
 ahc_dmamap_destroy(struct ahc_softc *ahc, bus_dma_tag_t dmat, bus_dmamap_t map)
 {
-	/*
-	 * The map may is NULL in our < 2.3.X implementation.
-	 * Now it's 2.6.5, but just in case...
-	 */
-	BUG_ON(map == NULL);
-	free(map, M_DEVBUF);
 }
 
 int
@@ -1382,7 +1350,6 @@ ahc_platform_alloc(struct ahc_softc *ahc, void *platform_arg)
 	TAILQ_INIT(&ahc->platform_data->completeq);
 	TAILQ_INIT(&ahc->platform_data->device_runq);
 	ahc->platform_data->irq = AHC_LINUX_NOIRQ;
-	ahc->platform_data->hw_dma_mask = 0xFFFFFFFF;
 	ahc_lockinit(ahc);
 	init_timer(&ahc->platform_data->completeq_timer);
 	ahc->platform_data->completeq_timer.data = (u_long)ahc;

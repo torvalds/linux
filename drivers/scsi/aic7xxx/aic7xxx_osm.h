@@ -174,11 +174,7 @@ struct ahc_linux_dma_tag
 };
 typedef struct ahc_linux_dma_tag* bus_dma_tag_t;
 
-struct ahc_linux_dmamap
-{
-	dma_addr_t	bus_addr;
-};
-typedef struct ahc_linux_dmamap* bus_dmamap_t;
+typedef dma_addr_t bus_dmamap_t;
 
 typedef int bus_dma_filter_t(void*, dma_addr_t);
 typedef void bus_dmamap_callback_t(void *, bus_dma_segment_t *, int, int);
@@ -479,7 +475,6 @@ struct ahc_platform_data {
 	uint32_t		 irq;		/* IRQ for this adapter */
 	uint32_t		 bios_address;
 	uint32_t		 mem_busaddr;	/* Mem Base Addr */
-	uint64_t		 hw_dma_mask;
 	ahc_linux_softc_flags	 flags;
 };
 
