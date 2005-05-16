@@ -42,6 +42,7 @@
 #include <linux/i2c-sensor.h>
 #include <linux/i2c-vid.h>
 #include <linux/init.h>
+#include <linux/jiffies.h>
 #include "lm75.h"
 
 /*
