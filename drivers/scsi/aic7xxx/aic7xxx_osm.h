@@ -66,11 +66,11 @@
 #include <linux/pci.h>
 #include <linux/smp_lock.h>
 #include <linux/version.h>
+#include <linux/interrupt.h>
 #include <linux/module.h>
 #include <asm/byteorder.h>
 #include <asm/io.h>
 
-#include <linux/interrupt.h> /* For tasklet support. */
 #include <linux/config.h>
 #include <linux/slab.h>
 
@@ -341,7 +341,6 @@ typedef enum {
 struct ahc_linux_target;
 struct ahc_linux_device {
 	TAILQ_ENTRY(ahc_linux_device) links;
-	struct		ahc_busyq busyq;
 
 	/*
 	 * The number of transactions currently
@@ -488,7 +487,6 @@ struct ahc_platform_data {
 	struct ahc_completeq	 completeq;
 
 	spinlock_t		 spin_lock;
-	struct tasklet_struct	 runq_tasklet;
 	u_int			 qfrozen;
 	pid_t			 dv_pid;
 	struct timer_list	 completeq_timer;
