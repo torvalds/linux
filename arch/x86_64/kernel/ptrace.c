@@ -257,13 +257,13 @@ static int putreg(struct task_struct *child,
 			value &= 0xffff;
 			return 0;
 		case offsetof(struct user_regs_struct,fs_base):
-			if (!((value >> 48) == 0 || (value >> 48) == 0xffff))
-				return -EIO; 
+			if (value >= TASK_SIZE)
+				return -EIO;
 			child->thread.fs = value;
 			return 0;
 		case offsetof(struct user_regs_struct,gs_base):
-			if (!((value >> 48) == 0 || (value >> 48) == 0xffff))
-				return -EIO; 
+			if (value >= TASK_SIZE)
+				return -EIO;
 			child->thread.gs = value;
 			return 0;
 		case offsetof(struct user_regs_struct, eflags):
