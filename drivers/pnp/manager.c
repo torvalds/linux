@@ -253,7 +253,7 @@ void pnp_init_resource_table(struct pnp_resource_table *table)
 
 /**
  * pnp_clean_resources - clears resources that were not manually set
- * @res - the resources to clean
+ * @res: the resources to clean
  *
  */
 static void pnp_clean_resource_table(struct pnp_resource_table * res)

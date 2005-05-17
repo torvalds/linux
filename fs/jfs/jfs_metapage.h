@@ -33,38 +33,27 @@ struct metapage {
 	unsigned long flag;	/* See Below */
 	unsigned long count;	/* Reference count */
 	void *data;		/* Data pointer */
-
-	/* list management stuff */
-	struct metapage *hash_prev;
-	struct metapage *hash_next;	/* Also used for free list */
-
-	/*
-	 * mapping & index become redundant, but we need these here to
-	 * add the metapage to the hash before we have the real page
-	 */
-	struct address_space *mapping;
-	unsigned long index;
+	sector_t index; 	/* block address of page */
 	wait_queue_head_t wait;
 
 	/* implementation */
 	struct page *page;
-	unsigned long logical_size;
+	unsigned int logical_size;
 
 	/* Journal management */
 	int clsn;
-	atomic_t nohomeok;
+	int nohomeok;
 	struct jfs_log *log;
 };
 
 /* metapage flag */
 #define META_locked	0
-#define META_absolute	1
-#define META_free	2
-#define META_dirty	3
-#define META_sync	4
-#define META_discard	5
-#define META_forced	6
-#define META_stale	7
+#define META_free	1
+#define META_dirty	2
+#define META_sync	3
+#define META_discard	4
+#define META_forcewrite	5
+#define META_io		6
 
 #define mark_metapage_dirty(mp) set_bit(META_dirty, &(mp)->flag)
 
@@ -80,7 +69,16 @@ extern struct metapage *__get_metapage(struct inode *inode,
 	 __get_metapage(inode, lblock, size, absolute, TRUE)
 
 extern void release_metapage(struct metapage *);
-extern void hold_metapage(struct metapage *, int);
+extern void grab_metapage(struct metapage *);
+extern void force_metapage(struct metapage *);
+
+/*
+ * hold_metapage and put_metapage are used in conjuction.  The page lock
+ * is not dropped between the two, so no other threads can get or release
+ * the metapage
+ */
+extern void hold_metapage(struct metapage *);
+extern void put_metapage(struct metapage *);
 
 static inline void write_metapage(struct metapage *mp)
 {
@@ -100,6 +98,46 @@ static inline void discard_metapage(struct metapage *mp)
 	set_bit(META_discard, &mp->flag);
 	release_metapage(mp);
 }
+
+static inline void metapage_nohomeok(struct metapage *mp)
+{
+	struct page *page = mp->page;
+	lock_page(page);
+	if (!mp->nohomeok++) {
+		mark_metapage_dirty(mp);
+		page_cache_get(page);
+		wait_on_page_writeback(page);
+	}
+	unlock_page(page);
+}
+
+/*
+ * This serializes access to mp->lsn when metapages are added to logsynclist
+ * without setting nohomeok.  i.e. updating imap & dmap
+ */
+static inline void metapage_wait_for_io(struct metapage *mp)
+{
+	if (test_bit(META_io, &mp->flag))
+		wait_on_page_writeback(mp->page);
+}
+
+/*
+ * This is called when already holding the metapage
+ */
+static inline void _metapage_homeok(struct metapage *mp)
+{
+	if (!--mp->nohomeok)
+		page_cache_release(mp->page);
+}
+
+static inline void metapage_homeok(struct metapage *mp)
+{
+	hold_metapage(mp);
+	_metapage_homeok(mp);
+	put_metapage(mp);
+}
+
+extern struct address_space_operations jfs_metapage_aops;
 
 /*
  * This routines invalidate all pages for an extent.

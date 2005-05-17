@@ -10,8 +10,8 @@
 #define REISERFS_XATTR_MAGIC 0x52465841 /* "RFXA" */
 
 struct reiserfs_xattr_header {
-    __u32 h_magic;              /* magic number for identification */
-    __u32 h_hash;               /* hash of the value */
+    __le32 h_magic;              /* magic number for identification */
+    __le32 h_hash;               /* hash of the value */
 };
 
 #ifdef __KERNEL__

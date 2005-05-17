@@ -909,16 +909,6 @@ nr_free_inodes
 Represents the  number of free inodes. Ie. The number of inuse inodes is
 (nr_inodes - nr_free_inodes).
 
-super-nr and super-max
-----------------------
-
-Again, super  block structures are allocated by the kernel, but not freed. The
-file super-max  contains  the  maximum  number  of super block handlers, where
-super-nr shows the number of currently allocated ones.
-
-Every mounted file system needs a super block, so if you plan to mount lots of
-file systems, you may want to increase these numbers.
-
 aio-nr and aio-max-nr
 ---------------------
 

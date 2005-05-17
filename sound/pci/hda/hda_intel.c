@@ -64,7 +64,8 @@ MODULE_PARM_DESC(model, "Use the given board model.");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{Intel, ICH6},"
 			 "{Intel, ICH6M},"
-			 "{Intel, ICH7}}");
+			 "{Intel, ICH7},"
+			 "{Intel, ESB2}}");
 MODULE_DESCRIPTION("Intel HDA driver");
 
 #define SFX	"hda-intel: "
@@ -1422,6 +1423,7 @@ static void __devexit azx_remove(struct pci_dev *pci)
 static struct pci_device_id azx_ids[] = {
 	{ 0x8086, 0x2668, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 }, /* ICH6 */
 	{ 0x8086, 0x27d8, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 }, /* ICH7 */
+	{ 0x8086, 0x269a, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 }, /* ESB2 */
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, azx_ids);

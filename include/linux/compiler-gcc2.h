@@ -22,3 +22,8 @@
 # define __attribute_pure__	__attribute__((pure))
 # define __attribute_const__	__attribute__((__const__))
 #endif
+
+/* GCC 2.95.x/2.96 recognize __va_copy, but not va_copy. Actually later GCC's
+ * define both va_copy and __va_copy, but the latter may go away, so limit this
+ * to this header */
+#define va_copy			__va_copy

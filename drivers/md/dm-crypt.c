@@ -331,25 +331,19 @@ crypt_alloc_buffer(struct crypt_config *cc, unsigned int size,
 	struct bio *bio;
 	unsigned int nr_iovecs = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	int gfp_mask = GFP_NOIO | __GFP_HIGHMEM;
-	unsigned long flags = current->flags;
 	unsigned int i;
 
 	/*
-	 * Tell VM to act less aggressively and fail earlier.
-	 * This is not necessary but increases throughput.
+	 * Use __GFP_NOMEMALLOC to tell the VM to act less aggressively and
+	 * to fail earlier.  This is not necessary but increases throughput.
 	 * FIXME: Is this really intelligent?
 	 */
-	current->flags &= ~PF_MEMALLOC;
-
 	if (base_bio)
-		bio = bio_clone(base_bio, GFP_NOIO);
+		bio = bio_clone(base_bio, GFP_NOIO|__GFP_NOMEMALLOC);
 	else
-		bio = bio_alloc(GFP_NOIO, nr_iovecs);
-	if (!bio) {
-		if (flags & PF_MEMALLOC)
-			current->flags |= PF_MEMALLOC;
+		bio = bio_alloc(GFP_NOIO|__GFP_NOMEMALLOC, nr_iovecs);
+	if (!bio)
 		return NULL;
-	}
 
 	/* if the last bio was not complete, continue where that one ended */
 	bio->bi_idx = *bio_vec_idx;
@@ -385,9 +379,6 @@ crypt_alloc_buffer(struct crypt_config *cc, unsigned int size,
 		bio->bi_vcnt++;
 		size -= bv->bv_len;
 	}
-
-	if (flags & PF_MEMALLOC)
-		current->flags |= PF_MEMALLOC;
 
 	if (!bio->bi_size) {
 		bio_put(bio);

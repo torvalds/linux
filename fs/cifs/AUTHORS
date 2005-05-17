@@ -4,13 +4,16 @@ Steve French (sfrench@samba.org)
 
 The author wishes to express his appreciation and thanks to:
 Andrew Tridgell (Samba team) for his early suggestions about smb/cifs VFS
-improvements. Thanks to IBM for allowing me the time and test resources to pursue
-this project. Jim McDonough from IBM (and the Samba Team) for his help.
-The IBM Linux JFS team for explaining many esoteric Linux filesystem features.
+improvements. Thanks to IBM for allowing me time and test resources to pursue
+this project, to Jim McDonough from IBM (and the Samba Team) for his help, to
+the IBM Linux JFS team for explaining many esoteric Linux filesystem features.
+Jeremy Allison of the Samba team has done invaluable work in adding the server
+side of the original CIFS Unix extensions and reviewing and implementing
+portions of the newer CIFS POSIX extensions into the Samba 3 file server. Thank
 Dave Boutcher of IBM Rochester (author of the OS/400 smb/cifs filesystem client)
-for proving years ago that a very good smb/cifs client could be done on a Unix like 
-operating system.  Volker Lendecke, Andrew Tridgell, Urban Widmark, John Newbigin 
-and others for their work on the Linux smbfs module over the years. Thanks to
+for proving years ago that very good smb/cifs clients could be done on Unix-like
+operating systems.  Volker Lendecke, Andrew Tridgell, Urban Widmark, John 
+Newbigin and others for their work on the Linux smbfs module.  Thanks to
 the other members of the Storage Network Industry Association CIFS Technical
 Workgroup for their work specifying this highly complex protocol and finally
 thanks to the Samba team for their technical advice and encouragement.
@@ -24,9 +27,11 @@ Shobhit Dayal
 Sergey Vlasov
 Richard Hughes
 Yury Umanets
-Mark Hamzy
+Mark Hamzy (for some of the early cifs IPv6 work)
 Domen Puncer
-Jesper Juhl
+Jesper Juhl (in particular for lots of whitespace/formatting cleanup)
+Vince Negri and Dave Stahl (for finding an important caching bug)
+Adrian Bunk (kcalloc cleanups)
 
 Test case and Bug Report contributors
 -------------------------------------
@@ -36,7 +41,8 @@ Rene Scharfe, Martin Josefsson, Alexander Wild, Anthony Liguori,
 Lars Muller, Urban Widmark, Massimiliano Ferrero, Howard Owen,
 Olaf Kirch, Kieron Briggs, Nick Millington and others. Also special
 mention to the Stanford Checker (SWAT) which pointed out many minor
-bugs in error paths.
+bugs in error paths.  Valuable suggestions also have come from Al Viro
+and Dave Miller.
 
 And thanks to the IBM LTC and Power test teams and SuSE testers for
 finding multiple bugs during excellent stress test runs.

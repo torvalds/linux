@@ -110,7 +110,7 @@ static void reiserfs_unlockfs(struct super_block *s) {
   reiserfs_allow_writes(s) ;
 }
 
-extern const struct reiserfs_key  MAX_KEY;
+extern const struct in_core_key  MAX_IN_CORE_KEY;
 
 
 /* this is used to delete "save link" when there are no items of a
@@ -164,7 +164,7 @@ static int finish_unfinished (struct super_block * s)
  
     /* compose key to look for "save" links */
     max_cpu_key.version = KEY_FORMAT_3_5;
-    max_cpu_key.on_disk_key = MAX_KEY;
+    max_cpu_key.on_disk_key = MAX_IN_CORE_KEY;
     max_cpu_key.key_length = 3;
 
 #ifdef CONFIG_QUOTA
@@ -216,10 +216,10 @@ static int finish_unfinished (struct super_block * s)
  
         /* reiserfs_iget needs k_dirid and k_objectid only */
         item = B_I_PITEM (bh, ih);
-        obj_key.on_disk_key.k_dir_id = le32_to_cpu (*(__u32 *)item);
+        obj_key.on_disk_key.k_dir_id = le32_to_cpu (*(__le32 *)item);
         obj_key.on_disk_key.k_objectid = le32_to_cpu (ih->ih_key.k_objectid);
-	obj_key.on_disk_key.u.k_offset_v1.k_offset = 0;
-	obj_key.on_disk_key.u.k_offset_v1.k_uniqueness = 0;
+	obj_key.on_disk_key.k_offset = 0;
+	obj_key.on_disk_key.k_type = 0;
 	
         pathrelse (&path);
  
@@ -304,7 +304,7 @@ void add_save_link (struct reiserfs_transaction_handle * th,
     int retval;
     struct cpu_key key;
     struct item_head ih;
-    __u32 link;
+    __le32 link;
 
     BUG_ON (!th->t_trans_id);
 
@@ -889,12 +889,18 @@ static int reiserfs_parse_options (struct super_block * s, char * options, /* st
 	    char * p;
 	    
 	    p = NULL;
-	    /* "resize=NNN" */
-	    *blocks = simple_strtoul (arg, &p, 0);
-	    if (*p != '\0') {
-		/* NNN does not look like a number */
-		reiserfs_warning (s, "reiserfs_parse_options: bad value %s", arg);
-		return 0;
+	    /* "resize=NNN" or "resize=auto" */
+
+	    if (!strcmp(arg, "auto")) {
+		    /* From JFS code, to auto-get the size.*/
+		    *blocks = s->s_bdev->bd_inode->i_size >> s->s_blocksize_bits;
+	    } else {
+		    *blocks = simple_strtoul (arg, &p, 0);
+		    if (*p != '\0') {
+			/* NNN does not look like a number */
+			reiserfs_warning (s, "reiserfs_parse_options: bad value %s", arg);
+			return 0;
+		    }
 	    }
 	}
 
@@ -903,7 +909,8 @@ static int reiserfs_parse_options (struct super_block * s, char * options, /* st
 		unsigned long val = simple_strtoul (arg, &p, 0);
 		/* commit=NNN (time in seconds) */
 		if ( *p != '\0' || val >= (unsigned int)-1) {
-			reiserfs_warning (s, "reiserfs_parse_options: bad value %s", arg);			return 0;
+			reiserfs_warning (s, "reiserfs_parse_options: bad value %s", arg);
+			return 0;
 		}
 		*commit_max_age = (unsigned int)val;
 	}
@@ -1329,7 +1336,7 @@ static int read_super_block (struct super_block * s, int offset)
 	return 1;
     }
 
-    if ( rs->s_v1.s_root_block == -1 ) {
+    if ( rs->s_v1.s_root_block == cpu_to_le32(-1) ) {
        brelse(bh) ;
        reiserfs_warning (s, "Unfinished reiserfsck --rebuild-tree run detected. Please run\n"
               "reiserfsck --rebuild-tree and wait for a completion. If that fails\n"

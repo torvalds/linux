@@ -991,7 +991,7 @@ static int tda9874a_initialize(struct CHIPSTATE *chip)
 {
 	if (tda9874a_SIF > 2)
 		tda9874a_SIF = 1;
-	if (tda9874a_STD >= 8)
+	if (tda9874a_STD > 8)
 		tda9874a_STD = 0;
 	if(tda9874a_AMSEL > 1)
 		tda9874a_AMSEL = 0;

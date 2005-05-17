@@ -26,10 +26,13 @@ struct clk;
 /**
  * clk_get - lookup and obtain a reference to a clock producer.
  * @dev: device for clock "consumer"
- * @id: device ID
+ * @id: clock comsumer ID
  *
  * Returns a struct clk corresponding to the clock producer, or
- * valid IS_ERR() condition containing errno.
+ * valid IS_ERR() condition containing errno.  The implementation
+ * uses @dev and @id to determine the clock consumer, and thereby
+ * the clock producer.  (IOW, @id may be identical strings, but
+ * clk_get may return different clock producers depending on @dev.)
  */
 struct clk *clk_get(struct device *dev, const char *id);
 

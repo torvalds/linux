@@ -244,6 +244,7 @@ config KERNEL_HALF_GIGS
 
 config HIGHMEM
 	bool "Highmem support"
+	depends on !64BIT
 
 config KERNEL_STACK_ORDER
 	int "Kernel stack size order"

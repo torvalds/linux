@@ -409,7 +409,7 @@ static void serverworks_agp_enable(struct agp_bridge_data *bridge, u32 mode)
 	agp_device_command(command, 0);
 }
 
-struct agp_bridge_driver sworks_driver = {
+static struct agp_bridge_driver sworks_driver = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= serverworks_sizes,
 	.size_type		= LVL2_APER_SIZE,

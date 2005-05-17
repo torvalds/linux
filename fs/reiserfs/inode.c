@@ -173,7 +173,7 @@ static inline void fix_tail_page_for_writing(struct page *page) {
    done already or non-hole position has been found in the indirect item */
 static inline int allocation_needed (int retval, b_blocknr_t allocated, 
 				     struct item_head * ih,
-				     __u32 * item, int pos_in_item)
+				     __le32 * item, int pos_in_item)
 {
   if (allocated)
 	 return 0;
@@ -278,7 +278,7 @@ research:
     bh = get_last_bh (&path);
     ih = get_ih (&path);
     if (is_indirect_le_ih (ih)) {
-	__u32 * ind_item = (__u32 *)B_I_PITEM (bh, ih);
+	__le32 * ind_item = (__le32 *)B_I_PITEM (bh, ih);
 	
 	/* FIXME: here we could cache indirect item or part of it in
 	   the inode to avoid search_by_key in case of subsequent
@@ -581,7 +581,7 @@ int reiserfs_get_block (struct inode * inode, sector_t block,
     struct cpu_key key;
     struct buffer_head * bh, * unbh = NULL;
     struct item_head * ih, tmp_ih;
-    __u32 * item;
+    __le32 * item;
     int done;
     int fs_gen;
     struct reiserfs_transaction_handle *th = NULL;
@@ -746,7 +746,7 @@ start_trans:
     done = 0;
     do {
 	if (is_statdata_le_ih (ih)) {
-	    __u32 unp = 0;
+	    __le32 unp = 0;
 	    struct cpu_key tmp_key;
 
 	    /* indirect item has to be inserted */
@@ -1341,8 +1341,8 @@ void reiserfs_read_locked_inode (struct inode * inode, struct reiserfs_iget_args
     key.version = KEY_FORMAT_3_5;
     key.on_disk_key.k_dir_id = dirino;
     key.on_disk_key.k_objectid = inode->i_ino;
-    key.on_disk_key.u.k_offset_v1.k_offset = SD_OFFSET;
-    key.on_disk_key.u.k_offset_v1.k_uniqueness = SD_UNIQUENESS;
+    key.on_disk_key.k_offset = 0;
+    key.on_disk_key.k_type = 0;
 
     /* look for the object's stat data */
     retval = search_item (inode->i_sb, &key, &path_to_sd);
@@ -2067,7 +2067,7 @@ static int map_block_for_writepage(struct inode *inode,
     struct item_head tmp_ih ;
     struct item_head *ih ;
     struct buffer_head *bh ;
-    __u32 *item ;
+    __le32 *item ;
     struct cpu_key key ;
     INITIALIZE_PATH(path) ;
     int pos_in_item ;

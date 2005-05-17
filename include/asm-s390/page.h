@@ -16,6 +16,8 @@
 #define PAGE_SHIFT      12
 #define PAGE_SIZE       (1UL << PAGE_SHIFT)
 #define PAGE_MASK       (~(PAGE_SIZE-1))
+#define PAGE_DEFAULT_ACC	0
+#define PAGE_DEFAULT_KEY	(PAGE_DEFAULT_ACC << 4)
 
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__

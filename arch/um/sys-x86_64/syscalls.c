@@ -14,11 +14,15 @@
 #include "asm/prctl.h" /* XXX This should get the constants from libc */
 #include "choose-mode.h"
 
-asmlinkage long wrap_sys_shmat(int shmid, char __user *shmaddr, int shmflg)
+asmlinkage long sys_uname64(struct new_utsname __user * name)
 {
-	unsigned long raddr;
-
-	return do_shmat(shmid, shmaddr, shmflg, &raddr) ?: (long) raddr;
+	int err;
+	down_read(&uts_sem);
+	err = copy_to_user(name, &system_utsname, sizeof (*name));
+	up_read(&uts_sem);
+	if (personality(current->personality) == PER_LINUX32)
+		err |= copy_to_user(&name->machine, "i686", 5);
+	return err ? -EFAULT : 0;
 }
 
 #ifdef CONFIG_MODE_TT

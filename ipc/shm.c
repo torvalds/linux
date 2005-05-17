@@ -28,6 +28,8 @@
 #include <linux/security.h>
 #include <linux/syscalls.h>
 #include <linux/audit.h>
+#include <linux/ptrace.h>
+
 #include <asm/uaccess.h>
 
 #include "util.h"
@@ -769,6 +771,18 @@ invalid:
 		err = PTR_ERR(user_addr);
 out:
 	return err;
+}
+
+asmlinkage long sys_shmat(int shmid, char __user *shmaddr, int shmflg)
+{
+	unsigned long ret;
+	long err;
+
+	err = do_shmat(shmid, shmaddr, shmflg, &ret);
+	if (err)
+		return err;
+	force_successful_syscall_return();
+	return (long)ret;
 }
 
 /*

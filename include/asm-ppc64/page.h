@@ -252,10 +252,19 @@ extern u64 ppc64_pft_size;		/* Log 2 of page table size */
 
 /*
  * This is the default if a program doesn't have a PT_GNU_STACK
- * program header entry.
+ * program header entry. The PPC64 ELF ABI has a non executable stack
+ * stack by default, so in the absense of a PT_GNU_STACK program header
+ * we turn execute permission off.
  */
-#define VM_STACK_DEFAULT_FLAGS	(VM_READ | VM_WRITE | VM_EXEC | \
-				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
+#define VM_STACK_DEFAULT_FLAGS32	(VM_READ | VM_WRITE | VM_EXEC | \
+					 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
+
+#define VM_STACK_DEFAULT_FLAGS64	(VM_READ | VM_WRITE | \
+					 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
+
+#define VM_STACK_DEFAULT_FLAGS \
+	(test_thread_flag(TIF_32BIT) ? \
+	 VM_STACK_DEFAULT_FLAGS32 : VM_STACK_DEFAULT_FLAGS64)
 
 #endif /* __KERNEL__ */
 #endif /* _PPC64_PAGE_H */

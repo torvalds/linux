@@ -49,8 +49,7 @@ static int udf_adinicb_readpage(struct file *file, struct page * page)
 	struct inode *inode = page->mapping->host;
 	char *kaddr;
 
-	if (!PageLocked(page))
-		PAGE_BUG(page);
+	BUG_ON(!PageLocked(page));
 
 	kaddr = kmap(page);
 	memset(kaddr, 0, PAGE_CACHE_SIZE);
@@ -67,8 +66,7 @@ static int udf_adinicb_writepage(struct page *page, struct writeback_control *wb
 	struct inode *inode = page->mapping->host;
 	char *kaddr;
 
-	if (!PageLocked(page))
-		PAGE_BUG(page);
+	BUG_ON(!PageLocked(page));
 
 	kaddr = kmap(page);
 	memcpy(UDF_I_DATA(inode) + UDF_I_LENEATTR(inode), kaddr, inode->i_size);

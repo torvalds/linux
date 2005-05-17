@@ -152,12 +152,6 @@ asmlinkage long sys_uname(struct new_utsname __user * name)
 	return err ? -EFAULT : 0;
 }
 
-asmlinkage long wrap_sys_shmat(int shmid, char __user *shmaddr, int shmflg)
-{
-	unsigned long raddr;
-	return do_shmat(shmid,shmaddr,shmflg,&raddr) ?: (long)raddr;
-}
-
 asmlinkage long sys_time64(long __user * tloc)
 {
 	struct timeval now; 

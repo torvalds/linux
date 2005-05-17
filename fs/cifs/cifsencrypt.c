@@ -50,7 +50,7 @@ static int cifs_calculate_signature(const struct smb_hdr * cifs_pdu, const char 
 	return 0;
 }
 
-int cifs_sign_smb(struct smb_hdr * cifs_pdu, struct cifsSesInfo * ses,
+int cifs_sign_smb(struct smb_hdr * cifs_pdu, struct TCP_Server_Info * server,
 	__u32 * pexpected_response_sequence_number)
 {
 	int rc = 0;
@@ -59,21 +59,21 @@ int cifs_sign_smb(struct smb_hdr * cifs_pdu, struct cifsSesInfo * ses,
 	/* BB remember to initialize sequence number elsewhere and initialize mac_signing key elsewhere BB */
 	/* BB remember to add code to save expected sequence number in midQ entry BB */
 
-	if((cifs_pdu == NULL) || (ses == NULL))
+	if((cifs_pdu == NULL) || (server == NULL))
 		return -EINVAL;
 
 	if((cifs_pdu->Flags2 & SMBFLG2_SECURITY_SIGNATURE) == 0) 
 		return rc;
 
 	spin_lock(&GlobalMid_Lock);
-	cifs_pdu->Signature.Sequence.SequenceNumber = cpu_to_le32(ses->sequence_number);
+	cifs_pdu->Signature.Sequence.SequenceNumber = cpu_to_le32(server->sequence_number);
 	cifs_pdu->Signature.Sequence.Reserved = 0;
 	
-	*pexpected_response_sequence_number = ses->sequence_number++;
-	ses->sequence_number++;
+	*pexpected_response_sequence_number = server->sequence_number++;
+	server->sequence_number++;
 	spin_unlock(&GlobalMid_Lock);
 
-	rc = cifs_calculate_signature(cifs_pdu, ses->mac_signing_key,smb_signature);
+	rc = cifs_calculate_signature(cifs_pdu, server->mac_signing_key,smb_signature);
 	if(rc)
 		memset(cifs_pdu->Signature.SecuritySignature, 0, 8);
 	else
@@ -190,7 +190,7 @@ int CalcNTLMv2_partial_mac_key(struct cifsSesInfo * ses, struct nls_table * nls_
 	hmac_md5_update((const unsigned char *) unicode_buf,
 		(user_name_len+dom_name_len)*2,&ctx);
 
-	hmac_md5_final(ses->mac_signing_key,&ctx);
+	hmac_md5_final(ses->server->mac_signing_key,&ctx);
 	kfree(ucase_buf);
 	kfree(unicode_buf);
 	return 0;
@@ -200,7 +200,7 @@ void CalcNTLMv2_response(const struct cifsSesInfo * ses,char * v2_session_respon
 	struct HMACMD5Context context;
 	memcpy(v2_session_response + 8, ses->server->cryptKey,8);
 	/* gen_blob(v2_session_response + 16); */
-	hmac_md5_init_limK_to_64(ses->mac_signing_key, 16, &context);
+	hmac_md5_init_limK_to_64(ses->server->mac_signing_key, 16, &context);
 
 	hmac_md5_update(ses->server->cryptKey,8,&context);
 /*	hmac_md5_update(v2_session_response+16)client thing,8,&context); */ /* BB fix */

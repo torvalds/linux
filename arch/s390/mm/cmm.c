@@ -20,6 +20,11 @@
 #include <asm/pgalloc.h>
 #include <asm/uaccess.h>
 
+static char *sender = "VMRMSVM";
+module_param(sender, charp, 0);
+MODULE_PARM_DESC(sender,
+		 "Guest name that may send SMSG messages (default VMRMSVM)");
+
 #include "../../../drivers/s390/net/smsgiucv.h"
 
 #define CMM_NR_PAGES ((PAGE_SIZE / sizeof(unsigned long)) - 2)
@@ -367,10 +372,12 @@ static struct ctl_table cmm_dir_table[] = {
 #ifdef CONFIG_CMM_IUCV
 #define SMSG_PREFIX "CMM"
 static void
-cmm_smsg_target(char *msg)
+cmm_smsg_target(char *from, char *msg)
 {
 	long pages, seconds;
 
+	if (strlen(sender) > 0 && strcmp(from, sender) != 0)
+		return;
 	if (!cmm_skip_blanks(msg + strlen(SMSG_PREFIX), &msg))
 		return;
 	if (strncmp(msg, "SHRINK", 6) == 0) {

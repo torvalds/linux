@@ -183,12 +183,12 @@ struct saa7134_board saa7134_boards[] = {
 		.name           = "LifeView FlyTV Platinum FM",
 		.audio_clock    = 0x00200000,
 		.tuner_type     = TUNER_PHILIPS_TDA8290,
-//		.gpiomask       = 0xe000,
+		.gpiomask       = 0x1E000,	/* Set GP16 and unused 15,14,13 to Output */
 		.inputs         = {{
 			.name = name_tv,
 			.vmux = 1,
 			.amux = TV,
-//			.gpio = 0x0000,
+			.gpio = 0x10000,	/* GP16=1 selects TV input */
 			.tv   = 1,
                 },{
 /*			.name = name_tv_mono,
@@ -212,12 +212,12 @@ struct saa7134_board saa7134_boards[] = {
 			.amux = LINE2,
 //			.gpio = 0x4000,
 		}},
-/*		.radio = {
+		.radio = {
 			.name = name_radio,
-			.amux = LINE2,
-			.gpio = 0x2000,
+			.amux = TV,
+			.gpio = 0x00000,	/* GP16=0 selects FM radio antenna */
 		},
-*/	},
+	},
 	[SAA7134_BOARD_EMPRESS] = {
 		/* "Gert Vervoort" <gert.vervoort@philips.com> */
 		.name		= "EMPRESS",
@@ -1628,9 +1628,15 @@ struct pci_device_id saa7134_pci_tbl[] = {
         },{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-		.subvendor    = 0x5168,
+		.subvendor    = 0x5168,	/* Animation Technologies (LifeView) */
 		.subdevice    = 0x0214, /* Standard PCI, LR214WF */
 		.driver_data  = SAA7134_BOARD_FLYTVPLATINUM_FM,
+        },{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x1489, /* KYE */
+		.subdevice    = 0x0214, /* Genius VideoWonder ProTV */
+		.driver_data  = SAA7134_BOARD_FLYTVPLATINUM_FM, /* is an LR214WF actually */
         },{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
@@ -1948,6 +1954,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 		dev->has_remote = 1;
 		board_flyvideo(dev);
 		break;
+	case SAA7134_BOARD_FLYTVPLATINUM_FM:
 	case SAA7134_BOARD_CINERGY400:
 	case SAA7134_BOARD_CINERGY600:
 	case SAA7134_BOARD_CINERGY600_MK3:

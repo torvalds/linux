@@ -49,13 +49,33 @@
 !Iinclude/asm-i386/unaligned.h
      </sect1>
 
-<!-- FIXME:
-  kernel/sched.c has no docs, which stuffs up the sgml.  Comment
-  out until somebody adds docs.  KAO
      <sect1><title>Delaying, scheduling, and timer routines</title>
-X!Ekernel/sched.c
+!Iinclude/linux/sched.h
+!Ekernel/sched.c
+!Ekernel/timer.c
      </sect1>
-KAO -->
+     <sect1><title>Internal Functions</title>
+!Ikernel/exit.c
+!Ikernel/signal.c
+     </sect1>
+
+     <sect1><title>Kernel objects manipulation</title>
+<!--
+X!Iinclude/linux/kobject.h
+-->
+!Elib/kobject.c
+     </sect1>
+
+     <sect1><title>Kernel utility functions</title>
+!Iinclude/linux/kernel.h
+<!-- This needs to clean up to make kernel-doc happy
+X!Ekernel/printk.c
+ -->
+!Ekernel/panic.c
+!Ekernel/sys.c
+!Ekernel/rcupdate.c
+     </sect1>
+
   </chapter>
 
   <chapter id="adt">
@@ -81,7 +101,9 @@ KAO -->
 !Elib/vsprintf.c
      </sect1>
      <sect1><title>String Manipulation</title>
-!Ilib/string.c
+<!-- All functions are exported at now
+X!Ilib/string.c
+ -->
 !Elib/string.c
      </sect1>
      <sect1><title>Bit Operations</title>
@@ -97,6 +119,25 @@ KAO -->
      <sect1><title>User Space Memory Access</title>
 !Iinclude/asm-i386/uaccess.h
 !Iarch/i386/lib/usercopy.c
+     </sect1>
+     <sect1><title>More Memory Management Functions</title>
+!Iinclude/linux/rmap.h
+!Emm/readahead.c
+!Emm/filemap.c
+!Emm/memory.c
+!Emm/vmalloc.c
+!Emm/mempool.c
+!Emm/page-writeback.c
+!Emm/truncate.c
+     </sect1>
+  </chapter>
+
+
+  <chapter id="ipc">
+     <title>Kernel IPC facilities</title>
+
+     <sect1><title>IPC utilities</title>
+!Iipc/util.c
      </sect1>
   </chapter>
 
@@ -114,6 +155,10 @@ KAO -->
      <sect1><title>sysctl interface</title>
 !Ekernel/sysctl.c
      </sect1>
+
+     <sect1><title>proc filesystem interface</title>
+!Ifs/proc/base.c
+     </sect1>
   </chapter>
 
   <chapter id="debugfs">
@@ -127,6 +172,10 @@ KAO -->
 
   <chapter id="vfs">
      <title>The Linux VFS</title>
+     <sect1><title>The Filesystem types</title>
+!Iinclude/linux/fs.h
+!Einclude/linux/fs.h
+     </sect1>
      <sect1><title>The Directory Cache</title>
 !Efs/dcache.c
 !Iinclude/linux/dcache.h
@@ -142,13 +191,31 @@ KAO -->
 !Efs/locks.c
 !Ifs/locks.c
      </sect1>
+     <sect1><title>Other Functions</title>
+!Efs/mpage.c
+!Efs/namei.c
+!Efs/buffer.c
+!Efs/bio.c
+!Efs/seq_file.c
+!Efs/filesystems.c
+!Efs/fs-writeback.c
+!Efs/block_dev.c
+     </sect1>
   </chapter>
 
   <chapter id="netcore">
      <title>Linux Networking</title>
+     <sect1><title>Networking Base Types</title>
+!Iinclude/linux/net.h
+     </sect1>
      <sect1><title>Socket Buffer Functions</title>
 !Iinclude/linux/skbuff.h
+!Iinclude/net/sock.h
+!Enet/socket.c
 !Enet/core/skbuff.c
+!Enet/core/sock.c
+!Enet/core/datagram.c
+!Enet/core/stream.c
      </sect1>
      <sect1><title>Socket Filter</title>
 !Enet/core/filter.c
@@ -157,6 +224,14 @@ KAO -->
 !Iinclude/linux/gen_stats.h
 !Enet/core/gen_stats.c
 !Enet/core/gen_estimator.c
+     </sect1>
+     <sect1><title>SUN RPC subsystem</title>
+<!-- The !D functionality is not perfect, garbage has to be protected by comments
+!Dnet/sunrpc/sunrpc_syms.c
+-->
+!Enet/sunrpc/xdr.c
+!Enet/sunrpc/svcsock.c
+!Enet/sunrpc/sched.c
      </sect1>
   </chapter>
 
@@ -194,11 +269,26 @@ X!Ekernel/module.c
 !Iarch/i386/kernel/irq.c
      </sect1>
 
+     <sect1><title>Resources Management</title>
+!Ekernel/resource.c
+     </sect1>
+
      <sect1><title>MTRR Handling</title>
 !Earch/i386/kernel/cpu/mtrr/main.c
      </sect1>
      <sect1><title>PCI Support Library</title>
 !Edrivers/pci/pci.c
+!Edrivers/pci/pci-driver.c
+!Edrivers/pci/remove.c
+!Edrivers/pci/pci-acpi.c
+<!-- kerneldoc does not understand to __devinit
+X!Edrivers/pci/search.c
+ -->
+!Edrivers/pci/msi.c
+!Edrivers/pci/bus.c
+!Edrivers/pci/hotplug.c
+!Edrivers/pci/probe.c
+!Edrivers/pci/rom.c
      </sect1>
      <sect1><title>PCI Hotplug Support Library</title>
 !Edrivers/pci/hotplug/pci_hotplug_core.c
@@ -223,6 +313,14 @@ X!Earch/i386/kernel/mca.c
 !Efs/devfs/base.c
   </chapter>
 
+  <chapter id="sysfs">
+     <title>The Filesystem for Exporting Kernel Objects</title>
+!Efs/sysfs/file.c
+!Efs/sysfs/dir.c
+!Efs/sysfs/symlink.c
+!Efs/sysfs/bin.c
+  </chapter>
+
   <chapter id="security">
      <title>Security Framework</title>
 !Esecurity/security.c
@@ -232,6 +330,61 @@ X!Earch/i386/kernel/mca.c
      <title>Power Management</title>
 !Ekernel/power/pm.c
   </chapter>
+
+  <chapter id="devdrivers">
+     <title>Device drivers infrastructure</title>
+     <sect1><title>Device Drivers Base</title>
+<!--
+X!Iinclude/linux/device.h
+-->
+!Edrivers/base/driver.c
+!Edrivers/base/class_simple.c
+!Edrivers/base/core.c
+!Edrivers/base/firmware_class.c
+!Edrivers/base/transport_class.c
+!Edrivers/base/dmapool.c
+<!-- Cannot be included, because
+     attribute_container_add_class_device_adapter
+ and attribute_container_classdev_to_container
+     exceed allowed 44 characters maximum
+X!Edrivers/base/attribute_container.c
+-->
+!Edrivers/base/sys.c
+<!--
+X!Edrivers/base/interface.c
+-->
+!Edrivers/base/platform.c
+!Edrivers/base/bus.c
+     </sect1>
+     <sect1><title>Device Drivers Power Management</title>
+!Edrivers/base/power/main.c
+!Edrivers/base/power/resume.c
+!Edrivers/base/power/suspend.c
+     </sect1>
+     <sect1><title>Device Drivers ACPI Support</title>
+<!-- Internal functions only
+X!Edrivers/acpi/sleep/main.c
+X!Edrivers/acpi/sleep/wakeup.c
+X!Edrivers/acpi/motherboard.c
+X!Edrivers/acpi/bus.c
+-->
+!Edrivers/acpi/scan.c
+<!-- No correct structured comments
+X!Edrivers/acpi/pci_bind.c
+-->
+     </sect1>
+     <sect1><title>Device drivers PnP support</title>
+!Edrivers/pnp/core.c
+<!-- No correct structured comments
+X!Edrivers/pnp/system.c
+ -->
+!Edrivers/pnp/card.c
+!Edrivers/pnp/driver.c
+!Edrivers/pnp/manager.c
+!Edrivers/pnp/support.c
+     </sect1>
+  </chapter>
+
 
   <chapter id="blkdev">
      <title>Block Devices</title>
@@ -250,7 +403,23 @@ X!Earch/i386/kernel/mca.c
 
   <chapter id="snddev">
      <title>Sound Devices</title>
+!Iinclude/sound/core.h
 !Esound/sound_core.c
+!Iinclude/sound/pcm.h
+!Esound/core/pcm.c
+!Esound/core/device.c
+!Esound/core/info.c
+!Esound/core/rawmidi.c
+!Esound/core/sound.c
+!Esound/core/memory.c
+!Esound/core/pcm_memory.c
+!Esound/core/init.c
+!Esound/core/isadma.c
+!Esound/core/control.c
+!Esound/core/pcm_lib.c
+!Esound/core/hwdep.c
+!Esound/core/pcm_native.c
+!Esound/core/memalloc.c
 <!-- FIXME: Removed for now since no structured comments in source
 X!Isound/sound_firmware.c
 -->
@@ -258,6 +427,7 @@ X!Isound/sound_firmware.c
 
   <chapter id="uart16x50">
      <title>16x50 UART Driver</title>
+!Iinclude/linux/serial_core.h
 !Edrivers/serial/serial_core.c
 !Edrivers/serial/8250.c
   </chapter>
@@ -310,9 +480,11 @@ X!Isound/sound_firmware.c
      <sect1><title>Frame Buffer Memory</title>
 !Edrivers/video/fbmem.c
      </sect1>
+<!--
      <sect1><title>Frame Buffer Console</title>
-!Edrivers/video/console/fbcon.c
+X!Edrivers/video/console/fbcon.c
      </sect1>
+-->
      <sect1><title>Frame Buffer Colormap</title>
 !Edrivers/video/fbcmap.c
      </sect1>

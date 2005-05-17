@@ -3667,7 +3667,7 @@ static void msg_msg_free_security(struct msg_msg *msg)
 }
 
 static int ipc_has_perm(struct kern_ipc_perm *ipc_perms,
-			u16 sclass, u32 perms)
+			u32 perms)
 {
 	struct task_security_struct *tsec;
 	struct ipc_security_struct *isec;
@@ -3679,7 +3679,7 @@ static int ipc_has_perm(struct kern_ipc_perm *ipc_perms,
 	AVC_AUDIT_DATA_INIT(&ad, IPC);
 	ad.u.ipc_id = ipc_perms->key;
 
-	return avc_has_perm(tsec->sid, isec->sid, sclass, perms, &ad);
+	return avc_has_perm(tsec->sid, isec->sid, isec->sclass, perms, &ad);
 }
 
 static int selinux_msg_msg_alloc_security(struct msg_msg *msg)
@@ -3764,7 +3764,7 @@ static int selinux_msg_queue_msgctl(struct msg_queue *msq, int cmd)
 		return 0;
 	}
 
-	err = ipc_has_perm(&msq->q_perm, SECCLASS_MSGQ, perms);
+	err = ipc_has_perm(&msq->q_perm, perms);
 	return err;
 }
 
@@ -3916,7 +3916,7 @@ static int selinux_shm_shmctl(struct shmid_kernel *shp, int cmd)
 		return 0;
 	}
 
-	err = ipc_has_perm(&shp->shm_perm, SECCLASS_SHM, perms);
+	err = ipc_has_perm(&shp->shm_perm, perms);
 	return err;
 }
 
@@ -3935,7 +3935,7 @@ static int selinux_shm_shmat(struct shmid_kernel *shp,
 	else
 		perms = SHM__READ | SHM__WRITE;
 
-	return ipc_has_perm(&shp->shm_perm, SECCLASS_SHM, perms);
+	return ipc_has_perm(&shp->shm_perm, perms);
 }
 
 /* Semaphore security operations */
@@ -4024,7 +4024,7 @@ static int selinux_sem_semctl(struct sem_array *sma, int cmd)
 		return 0;
 	}
 
-	err = ipc_has_perm(&sma->sem_perm, SECCLASS_SEM, perms);
+	err = ipc_has_perm(&sma->sem_perm, perms);
 	return err;
 }
 
@@ -4038,17 +4038,12 @@ static int selinux_sem_semop(struct sem_array *sma,
 	else
 		perms = SEM__READ;
 
-	return ipc_has_perm(&sma->sem_perm, SECCLASS_SEM, perms);
+	return ipc_has_perm(&sma->sem_perm, perms);
 }
 
 static int selinux_ipc_permission(struct kern_ipc_perm *ipcp, short flag)
 {
-	struct ipc_security_struct *isec = ipcp->security;
-	u16 sclass = SECCLASS_IPC;
 	u32 av = 0;
-
-	if (isec && isec->magic == SELINUX_MAGIC)
-		sclass = isec->sclass;
 
 	av = 0;
 	if (flag & S_IRUGO)
@@ -4059,7 +4054,7 @@ static int selinux_ipc_permission(struct kern_ipc_perm *ipcp, short flag)
 	if (av == 0)
 		return 0;
 
-	return ipc_has_perm(ipcp, sclass, av);
+	return ipc_has_perm(ipcp, av);
 }
 
 /* module stacking operations */

@@ -58,6 +58,7 @@ V_FUNCTION_BEGIN(__kernel_gettimeofday)
 	stw	r5,TZONE_TZ_DSTTIME(r11)
 
 1:	mtlr	r12
+	li	r3,0
 	blr
 
 2:	mr	r3,r10

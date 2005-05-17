@@ -555,6 +555,42 @@ adbhid_buttons_input(unsigned char *data, int nb, struct pt_regs *regs, int auto
 #endif /* CONFIG_PMAC_BACKLIGHT */
 			input_report_key(&adbhid[id]->input, KEY_BRIGHTNESSUP, down);
 			break;
+
+		case 0xc:	/* videomode switch */
+			input_report_key(&adbhid[id]->input, KEY_SWITCHVIDEOMODE, down);
+			break;
+
+		case 0xd:	/* keyboard illumination toggle */
+			input_report_key(&adbhid[id]->input, KEY_KBDILLUMTOGGLE, down);
+			break;
+
+		case 0xe:	/* keyboard illumination decrease */
+			input_report_key(&adbhid[id]->input, KEY_KBDILLUMDOWN, down);
+			break;
+
+		case 0xf:
+			switch (data[1]) {
+			case 0x8f:
+			case 0x0f:
+				/* keyboard illumination increase */
+				input_report_key(&adbhid[id]->input, KEY_KBDILLUMUP, down);
+				break;
+
+			case 0x7f:
+			case 0xff:
+				/* keypad overlay toogle */
+				break;
+
+			default:
+				printk(KERN_INFO "Unhandled ADB_MISC event %02x, %02x, %02x, %02x\n",
+				       data[0], data[1], data[2], data[3]);
+				break;
+			}
+			break;
+		default:
+			printk(KERN_INFO "Unhandled ADB_MISC event %02x, %02x, %02x, %02x\n",
+			       data[0], data[1], data[2], data[3]);
+			break;
 		}
 	  }
 	  break;
@@ -775,6 +811,10 @@ adbhid_input_register(int id, int default_id, int original_handler_id,
 			set_bit(KEY_BRIGHTNESSUP, adbhid[id]->input.keybit);
 			set_bit(KEY_BRIGHTNESSDOWN, adbhid[id]->input.keybit);
 			set_bit(KEY_EJECTCD, adbhid[id]->input.keybit);
+			set_bit(KEY_SWITCHVIDEOMODE, adbhid[id]->input.keybit);
+			set_bit(KEY_KBDILLUMTOGGLE, adbhid[id]->input.keybit);
+			set_bit(KEY_KBDILLUMDOWN, adbhid[id]->input.keybit);
+			set_bit(KEY_KBDILLUMUP, adbhid[id]->input.keybit);
 			break;
 		}
 		if (adbhid[id]->name[0])

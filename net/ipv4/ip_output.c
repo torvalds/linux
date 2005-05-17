@@ -111,6 +111,7 @@ static int ip_dev_loopback_xmit(struct sk_buff *newskb)
 #ifdef CONFIG_NETFILTER_DEBUG
 	nf_debug_ip_loopback_xmit(newskb);
 #endif
+	nf_reset(newskb);
 	netif_rx(newskb);
 	return 0;
 }

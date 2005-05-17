@@ -154,6 +154,13 @@ extern struct sctp_globals {
 	int max_retrans_path;
 	int max_retrans_init;
 
+	/*
+	 * Policy for preforming sctp/socket accounting
+	 * 0   - do socket level accounting, all assocs share sk_sndbuf
+	 * 1   - do sctp accounting, each asoc may use sk_sndbuf bytes
+	 */
+	int sndbuf_policy;
+
 	/* HB.interval		    - 30 seconds  */
 	int hb_interval;
 
@@ -207,6 +214,7 @@ extern struct sctp_globals {
 #define sctp_valid_cookie_life		(sctp_globals.valid_cookie_life)
 #define sctp_cookie_preserve_enable	(sctp_globals.cookie_preserve_enable)
 #define sctp_max_retrans_association	(sctp_globals.max_retrans_association)
+#define sctp_sndbuf_policy	 	(sctp_globals.sndbuf_policy)
 #define sctp_max_retrans_path		(sctp_globals.max_retrans_path)
 #define sctp_max_retrans_init		(sctp_globals.max_retrans_init)
 #define sctp_hb_interval		(sctp_globals.hb_interval)
@@ -1212,7 +1220,8 @@ struct sctp_endpoint {
 	/* Default timeouts.  */
 	int timeouts[SCTP_NUM_TIMEOUT_TYPES];
 
-	/* Various thresholds.	*/
+	/* sendbuf acct. policy.	*/
+	__u32 sndbuf_policy;
 
 	/* Name for debugging output... */
 	char *debug_name;

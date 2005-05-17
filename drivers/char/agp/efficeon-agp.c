@@ -303,7 +303,7 @@ static int efficeon_remove_memory(struct agp_memory * mem, off_t pg_start, int t
 }
 
 
-struct agp_bridge_driver efficeon_driver = {
+static struct agp_bridge_driver efficeon_driver = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= efficeon_generic_sizes,
 	.size_type		= LVL2_APER_SIZE,

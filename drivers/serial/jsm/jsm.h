@@ -393,7 +393,6 @@ int jsm_tty_init(struct jsm_board *);
 int jsm_uart_port_init(struct jsm_board *);
 int jsm_remove_uart_port(struct jsm_board *);
 void jsm_input(struct jsm_channel *ch);
-void jsm_carrier(struct jsm_channel *ch);
 void jsm_check_queue_flow_control(struct jsm_channel *ch);
 
 #endif

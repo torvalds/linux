@@ -838,7 +838,7 @@ int acpi_processor_cst_has_changed (struct acpi_processor *pr)
 
 	/* Fall back to the default idle loop */
 	pm_idle = pm_idle_save;
-	synchronize_kernel();
+	synchronize_sched();  /* Relies on interrupts forcing exit from idle. */
 
 	pr->flags.power = 0;
 	result = acpi_processor_get_power_info(pr);

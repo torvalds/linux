@@ -94,7 +94,8 @@ struct snd_pmac_stream {
  */
 
 enum snd_pmac_model {
-	PMAC_AWACS, PMAC_SCREAMER, PMAC_BURGUNDY, PMAC_DACA, PMAC_TUMBLER, PMAC_SNAPPER
+	PMAC_AWACS, PMAC_SCREAMER, PMAC_BURGUNDY, PMAC_DACA, PMAC_TUMBLER,
+	PMAC_SNAPPER, PMAC_TOONIE
 };
 
 struct snd_pmac {
@@ -191,6 +192,7 @@ int snd_pmac_burgundy_init(pmac_t *chip);
 int snd_pmac_daca_init(pmac_t *chip);
 int snd_pmac_tumbler_init(pmac_t *chip);
 int snd_pmac_tumbler_post_init(void);
+int snd_pmac_toonie_init(pmac_t *chip);
 
 /* i2c functions */
 typedef struct snd_pmac_keywest {

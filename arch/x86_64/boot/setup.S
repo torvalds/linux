@@ -160,7 +160,7 @@ ramdisk_max:	.long 0xffffffff
 trampoline:	call	start_of_setup
 		.align 16
 					# The offset at this point is 0x240
-		.space  (0x7ff-0x240+1)	# E820 & EDD space (ending at 0x7ff)
+		.space  (0xeff-0x240+1)	# E820 & EDD space (ending at 0xeff)
 # End of setup header #####################################################
 
 start_of_setup:
@@ -412,9 +412,9 @@ jmpe820:
 	# sizeof(e820rec).
 	#
 good820:
-	movb	(E820NR), %al			# up to 32 entries
+	movb	(E820NR), %al			# up to 128 entries
 	cmpb	$E820MAX, %al
-	jnl	bail820
+	jae	bail820
 
 	incb	(E820NR)
 	movw	%di, %ax

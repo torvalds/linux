@@ -321,18 +321,39 @@ static void imx_break_ctl(struct uart_port *port, int break_state)
 #define TXTL 2 /* reset default */
 #define RXTL 1 /* reset default */
 
+static int imx_setup_ufcr(struct imx_port *sport, unsigned int mode)
+{
+	unsigned int val;
+	unsigned int ufcr_rfdiv;
+
+	/* set receiver / transmitter trigger level.
+	 * RFDIV is set such way to satisfy requested uartclk value
+	 */
+	val = TXTL<<10 | RXTL;
+	ufcr_rfdiv = (imx_get_perclk1() + sport->port.uartclk / 2) / sport->port.uartclk;
+
+	if(!ufcr_rfdiv)
+		ufcr_rfdiv = 1;
+
+	if(ufcr_rfdiv >= 7)
+		ufcr_rfdiv = 6;
+	else
+		ufcr_rfdiv = 6 - ufcr_rfdiv;
+
+	val |= UFCR_RFDIV & (ufcr_rfdiv << 7);
+
+	UFCR((u32)sport->port.membase) = val;
+
+	return 0;
+}
+
 static int imx_startup(struct uart_port *port)
 {
 	struct imx_port *sport = (struct imx_port *)port;
 	int retval;
-	unsigned int val;
 	unsigned long flags;
 
-	/* set receiver / transmitter trigger level. We assume
-	 * that RFDIV has been set by the arch setup or by the bootloader.
-	 */
-	val = (UFCR((u32)sport->port.membase) & UFCR_RFDIV)  | TXTL<<10 | RXTL;
-	UFCR((u32)sport->port.membase) = val;
+	imx_setup_ufcr(sport, 0);
 
 	/* disable the DREN bit (Data Ready interrupt enable) before
 	 * requesting IRQs
@@ -737,9 +758,12 @@ static void __init
 imx_console_get_options(struct imx_port *sport, int *baud,
 			   int *parity, int *bits)
 {
+
 	if ( UCR1((u32)sport->port.membase) | UCR1_UARTEN ) {
 		/* ok, the port was enabled */
 		unsigned int ucr2, ubir,ubmr, uartclk;
+		unsigned int baud_raw;
+		unsigned int ucfr_rfdiv;
 
 		ucr2 = UCR2((u32)sport->port.membase);
 
@@ -758,9 +782,35 @@ imx_console_get_options(struct imx_port *sport, int *baud,
 
 		ubir = UBIR((u32)sport->port.membase) & 0xffff;
 		ubmr = UBMR((u32)sport->port.membase) & 0xffff;
-		uartclk = sport->port.uartclk;
 
-		*baud = ((uartclk/16) * (ubir + 1)) / (ubmr + 1);
+
+		ucfr_rfdiv = (UFCR((u32)sport->port.membase) & UFCR_RFDIV) >> 7;
+		if (ucfr_rfdiv == 6)
+			ucfr_rfdiv = 7;
+		else
+			ucfr_rfdiv = 6 - ucfr_rfdiv;
+
+		uartclk = imx_get_perclk1();
+		uartclk /= ucfr_rfdiv;
+
+		{	/*
+			 * The next code provides exact computation of
+			 *   baud_raw = round(((uartclk/16) * (ubir + 1)) / (ubmr + 1))
+			 * without need of float support or long long division,
+			 * which would be required to prevent 32bit arithmetic overflow
+			 */
+			unsigned int mul = ubir + 1;
+			unsigned int div = 16 * (ubmr + 1);
+			unsigned int rem = uartclk % div;
+
+			baud_raw = (uartclk / div) * mul;
+			baud_raw += (rem * mul + div / 2) / div;
+			*baud = (baud_raw + 50) / 100 * 100;
+		}
+
+		if(*baud != baud_raw)
+			printk(KERN_INFO "Serial: Console IMX rounded baud rate from %d to %d\n",
+				baud_raw, *baud);
 	}
 }
 
@@ -786,6 +836,8 @@ imx_console_setup(struct console *co, char *options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
 	else
 		imx_console_get_options(sport, &baud, &parity, &bits);
+
+	imx_setup_ufcr(sport, 0);
 
 	return uart_set_options(&sport->port, co, baud, parity, bits, flow);
 }

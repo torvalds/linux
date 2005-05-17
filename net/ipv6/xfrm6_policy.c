@@ -11,7 +11,11 @@
  * 
  */
 
+#include <asm/bug.h>
+#include <linux/compiler.h>
 #include <linux/config.h>
+#include <linux/netdevice.h>
+#include <net/addrconf.h>
 #include <net/xfrm.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
@@ -166,6 +170,8 @@ __xfrm6_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 		memcpy(&x->u.rt6.rt6i_gateway, &rt0->rt6i_gateway, sizeof(x->u.rt6.rt6i_gateway)); 
 		x->u.rt6.rt6i_dst      = rt0->rt6i_dst;
 		x->u.rt6.rt6i_src      = rt0->rt6i_src;	
+		x->u.rt6.rt6i_idev     = rt0->rt6i_idev;
+		in6_dev_hold(rt0->rt6i_idev);
 		header_len -= x->u.dst.xfrm->props.header_len;
 		trailer_len -= x->u.dst.xfrm->props.trailer_len;
 	}
@@ -251,11 +257,48 @@ static void xfrm6_update_pmtu(struct dst_entry *dst, u32 mtu)
 	path->ops->update_pmtu(path, mtu);
 }
 
+static void xfrm6_dst_destroy(struct dst_entry *dst)
+{
+	struct xfrm_dst *xdst = (struct xfrm_dst *)dst;
+
+	if (likely(xdst->u.rt6.rt6i_idev))
+		in6_dev_put(xdst->u.rt6.rt6i_idev);
+	xfrm_dst_destroy(xdst);
+}
+
+static void xfrm6_dst_ifdown(struct dst_entry *dst, struct net_device *dev,
+			     int unregister)
+{
+	struct xfrm_dst *xdst;
+
+	if (!unregister)
+		return;
+
+	xdst = (struct xfrm_dst *)dst;
+	if (xdst->u.rt6.rt6i_idev->dev == dev) {
+		struct inet6_dev *loopback_idev = in6_dev_get(&loopback_dev);
+		BUG_ON(!loopback_idev);
+
+		do {
+			in6_dev_put(xdst->u.rt6.rt6i_idev);
+			xdst->u.rt6.rt6i_idev = loopback_idev;
+			in6_dev_hold(loopback_idev);
+			xdst = (struct xfrm_dst *)xdst->u.dst.child;
+		} while (xdst->u.dst.xfrm);
+
+		__in6_dev_put(loopback_idev);
+	}
+
+	xfrm_dst_ifdown(dst, dev);
+}
+
 static struct dst_ops xfrm6_dst_ops = {
 	.family =		AF_INET6,
 	.protocol =		__constant_htons(ETH_P_IPV6),
 	.gc =			xfrm6_garbage_collect,
 	.update_pmtu =		xfrm6_update_pmtu,
+	.destroy =		xfrm6_dst_destroy,
+	.ifdown =		xfrm6_dst_ifdown,
 	.gc_thresh =		1024,
 	.entry_size =		sizeof(struct xfrm_dst),
 };

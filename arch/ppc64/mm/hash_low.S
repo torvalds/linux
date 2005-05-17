@@ -85,7 +85,10 @@ _GLOBAL(__hash_page)
 	bne-	htab_wrong_access
 	/* Check if PTE is busy */
 	andi.	r0,r31,_PAGE_BUSY
-	bne-	1b
+	/* If so, just bail out and refault if needed. Someone else
+	 * is changing this PTE anyway and might hash it.
+	 */
+	bne-	bail_ok
 	/* Prepare new PTE value (turn access RW into DIRTY, then
 	 * add BUSY,HASHPTE and ACCESSED)
 	 */
@@ -214,6 +217,10 @@ _GLOBAL(htab_call_hpte_remove)
 
 	/* Try all again */
 	b	htab_insert_pte	
+
+bail_ok:
+	li	r3,0
+	b	bail
 
 htab_pte_insert_ok:
 	/* Insert slot number & secondary bit in PTE */

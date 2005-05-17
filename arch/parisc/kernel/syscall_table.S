@@ -297,7 +297,7 @@
 	ENTRY_DIFF(msgrcv)
 	ENTRY_SAME(msgget)		/* 190 */
 	ENTRY_SAME(msgctl)
-	ENTRY_SAME(shmat_wrapper)
+	ENTRY_SAME(shmat)
 	ENTRY_SAME(shmdt)
 	ENTRY_SAME(shmget)
 	ENTRY_SAME(shmctl)		/* 195 */

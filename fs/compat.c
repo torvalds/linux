@@ -809,7 +809,7 @@ static void *do_smb_super_data_conv(void *raw_data)
 
 struct compat_nfs_string {
 	compat_uint_t len;
-	compat_uptr_t __user data;
+	compat_uptr_t data;
 };
 
 static inline void compat_nfs_string(struct nfs_string *dst,
@@ -834,10 +834,10 @@ struct compat_nfs4_mount_data_v1 {
 	struct compat_nfs_string mnt_path;
 	struct compat_nfs_string hostname;
 	compat_uint_t host_addrlen;
-	compat_uptr_t __user host_addr;
+	compat_uptr_t host_addr;
 	compat_int_t proto;
 	compat_int_t auth_flavourlen;
-	compat_uptr_t __user auth_flavours;
+	compat_uptr_t auth_flavours;
 };
 
 static int do_nfs4_super_data_conv(void *raw_data)

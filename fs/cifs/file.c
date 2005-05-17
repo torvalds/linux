@@ -254,7 +254,8 @@ int cifs_open(struct inode *inode, struct file *file)
 	}
 	rc = CIFSSMBOpen(xid, pTcon, full_path, disposition, desiredAccess,
 			 CREATE_NOT_DIR, &netfid, &oplock, buf,
-			 cifs_sb->local_nls);
+			 cifs_sb->local_nls, cifs_sb->mnt_cifs_flags
+				 & CIFS_MOUNT_MAP_SPECIAL_CHR);
 	if (rc) {
 		cFYI(1, ("cifs_open returned 0x%x ", rc));
 		goto out;
@@ -287,7 +288,9 @@ int cifs_open(struct inode *inode, struct file *file)
 			CIFSSMBUnixSetPerms(xid, pTcon, full_path,
 					    inode->i_mode,
 					    (__u64)-1, (__u64)-1, 0 /* dev */,
-					    cifs_sb->local_nls);
+					    cifs_sb->local_nls,
+					    cifs_sb->mnt_cifs_flags & 
+						CIFS_MOUNT_MAP_SPECIAL_CHR);
 		} else {
 			/* BB implement via Windows security descriptors eg
 			   CIFSSMBWinSetPerms(xid, pTcon, full_path, mode,
@@ -387,7 +390,8 @@ static int cifs_reopen_file(struct inode *inode, struct file *file,
 	} */
 	rc = CIFSSMBOpen(xid, pTcon, full_path, disposition, desiredAccess,
 			 CREATE_NOT_DIR, &netfid, &oplock, NULL,
-			 cifs_sb->local_nls);
+			 cifs_sb->local_nls, cifs_sb->mnt_cifs_flags & 
+				CIFS_MOUNT_MAP_SPECIAL_CHR);
 	if (rc) {
 		up(&pCifsFile->fh_sem);
 		cFYI(1, ("cifs_open returned 0x%x ", rc));
@@ -465,8 +469,10 @@ int cifs_close(struct inode *inode, struct file *file)
 				write_lock(&file->f_owner.lock);
 			}
 		}
+		write_lock(&GlobalSMBSeslock);
 		list_del(&pSMBFile->flist);
 		list_del(&pSMBFile->tlist);
+		write_unlock(&GlobalSMBSeslock);
 		write_unlock(&file->f_owner.lock);
 		kfree(pSMBFile->search_resume_name);
 		kfree(file->private_data);
@@ -506,7 +512,8 @@ int cifs_closedir(struct inode *inode, struct file *file)
 		pTcon = cifs_sb->tcon;
 
 		cFYI(1, ("Freeing private data in close dir"));
-		if (pCFileStruct->srch_inf.endOfSearch == FALSE) {
+		if ((pCFileStruct->srch_inf.endOfSearch == FALSE) &&
+		   (pCFileStruct->invalidHandle == FALSE)) {
 			pCFileStruct->invalidHandle = TRUE;
 			rc = CIFSFindClose(xid, pTcon, pCFileStruct->netfid);
 			cFYI(1, ("Closing uncompleted readdir with rc %d",

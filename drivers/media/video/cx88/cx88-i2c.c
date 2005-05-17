@@ -45,7 +45,7 @@ MODULE_PARM_DESC(i2c_scan,"scan i2c bus at insmod time");
 
 /* ----------------------------------------------------------------------- */
 
-void cx8800_bit_setscl(void *data, int state)
+static void cx8800_bit_setscl(void *data, int state)
 {
 	struct cx88_core *core = data;
 
@@ -57,7 +57,7 @@ void cx8800_bit_setscl(void *data, int state)
 	cx_read(MO_I2C);
 }
 
-void cx8800_bit_setsda(void *data, int state)
+static void cx8800_bit_setsda(void *data, int state)
 {
 	struct cx88_core *core = data;
 

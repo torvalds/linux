@@ -27,7 +27,7 @@ pgd_free(pgd_t *pgd)
 	kmem_cache_free(zero_cache, pgd);
 }
 
-#define pgd_populate(MM, PGD, PMD)	pgd_set(PGD, PMD)
+#define pud_populate(MM, PUD, PMD)	pud_set(PUD, PMD)
 
 static inline pmd_t *
 pmd_alloc_one(struct mm_struct *mm, unsigned long addr)

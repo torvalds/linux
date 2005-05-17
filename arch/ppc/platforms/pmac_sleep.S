@@ -267,6 +267,10 @@ grackle_wake_up:
 	/* Restore various CPU config stuffs */
 	bl	__restore_cpu_setup
 
+	/* Make sure all FPRs have been initialized */
+	bl	reloc_offset
+	bl	__init_fpu_registers
+
 	/* Invalidate & enable L1 cache, we don't care about
 	 * whatever the ROM may have tried to write to memory
 	 */

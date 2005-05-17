@@ -1,7 +1,44 @@
-Version 1.31
+Version 1.34
+------------
+Fix error mapping of the TOO_MANY_LINKS (hardlinks) case.
+Do not oops if root user kills cifs oplock kernel thread or
+kills the cifsd thread (NB: killing the cifs kernel threads is not
+recommended, unmount and rmmod cifs will kill them when they are
+no longer needed).  Fix readdir to ASCII servers (ie older servers
+which do not support Unicode) and also require asterik.
+
+
+Version 1.33
+------------
+Fix caching problem, in which readdir of directory containing a file
+which was cached could cause the file's time stamp to be updated
+without invalidating the readahead data (so we could get stale
+file data on the client for that file even as the server copy changed).
+Cleanup response processing so cifsd can not loop when abnormally
+terminated.
+
+
+Version 1.32
 ------------
 Fix oops in ls when Transact2 FindFirst (or FindNext) returns more than one
 transact response for an SMB request and search entry split across two frames.
+Add support for lsattr (getting ext2/ext3/reiserfs attr flags from the server)
+as new protocol extensions. Do not send Get/Set calls for POSIX ACLs
+unless server explicitly claims to support them in CIFS Unix extensions
+POSIX ACL capability bit. Fix packet signing when multiuser mounting with
+different users from the same client to the same server. Fix oops in
+cifs_close. Add mount option for remapping reserved characters in
+filenames (also allow recognizing files with created by SFU which have any
+of these seven reserved characters, except backslash, to be recognized).
+Fix invalid transact2 message (we were sometimes trying to interpret
+oplock breaks as SMB responses). Add ioctl for checking that the
+current uid matches the uid of the mounter (needed by umount.cifs).
+Reduce the number of large buffer allocations in cifs response processing
+(significantly reduces memory pressure under heavy stress with multiple
+processes accessing the same server at the same time).
+
+Version 1.31
+------------
 Fix updates of DOS attributes and time fields so that files on NT4 servers
 do not get marked delete on close. Display sizes of cifs buffer pools in
 cifs stats. Fix oops in unmount when cifsd thread being killed by 

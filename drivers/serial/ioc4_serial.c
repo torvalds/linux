@@ -838,7 +838,7 @@ static int inline port_init(struct ioc4_port *port)
 	port->ip_tx_prod = readl(&port->ip_serial_regs->stcir) & PROD_CONS_MASK;
 	writel(port->ip_tx_prod, &port->ip_serial_regs->stpir);
 	port->ip_rx_cons = readl(&port->ip_serial_regs->srpir) & PROD_CONS_MASK;
-	writel(port->ip_rx_cons, &port->ip_serial_regs->srcir);
+	writel(port->ip_rx_cons | IOC4_SRCIR_ARM, &port->ip_serial_regs->srcir);
 
 	/* Disable interrupts for this 16550 */
 	uart = port->ip_uart_regs;
@@ -1272,8 +1272,9 @@ static inline int set_rx_timeout(struct ioc4_port *port, int timeout)
 	 * and set the rx threshold to that amount.  There are 4 chars
 	 * per ring entry, so we'll divide the number of chars that will
 	 * arrive in timeout by 4.
+	 * So .... timeout * baud / 10 / HZ / 4, with HZ = 100.
 	 */
-	threshold = timeout * port->ip_baud / 10 / HZ / 4;
+	threshold = timeout * port->ip_baud / 4000;
 	if (threshold == 0)
 		threshold = 1;	/* otherwise we'll intr all the time! */
 
@@ -1285,8 +1286,10 @@ static inline int set_rx_timeout(struct ioc4_port *port, int timeout)
 
 	writel(port->ip_sscr, &port->ip_serial_regs->sscr);
 
-	/* Now set the rx timeout to the given value */
-	timeout = timeout * IOC4_SRTR_HZ / HZ;
+	/* Now set the rx timeout to the given value
+	 * again timeout * IOC4_SRTR_HZ / HZ
+	 */
+	timeout = timeout * IOC4_SRTR_HZ / 100;
 	if (timeout > IOC4_SRTR_CNT)
 		timeout = IOC4_SRTR_CNT;
 
@@ -1380,7 +1383,7 @@ config_port(struct ioc4_port *port,
 	if (port->ip_tx_lowat == 0)
 		port->ip_tx_lowat = 1;
 
-	set_rx_timeout(port, port->ip_rx_timeout);
+	set_rx_timeout(port, 2);
 
 	return 0;
 }
@@ -1685,8 +1688,8 @@ ioc4_change_speed(struct uart_port *the_port,
 {
 	struct ioc4_port *port = get_ioc4_port(the_port);
 	int baud, bits;
-	unsigned cflag, cval;
-	int new_parity = 0, new_parity_enable = 0, new_stop = 1, new_data = 8;
+	unsigned cflag;
+	int new_parity = 0, new_parity_enable = 0, new_stop = 0, new_data = 8;
 	struct uart_info *info = the_port->info;
 
 	cflag = new_termios->c_cflag;
@@ -1694,48 +1697,35 @@ ioc4_change_speed(struct uart_port *the_port,
 	switch (cflag & CSIZE) {
 	case CS5:
 		new_data = 5;
-		cval = 0x00;
 		bits = 7;
 		break;
 	case CS6:
 		new_data = 6;
-		cval = 0x01;
 		bits = 8;
 		break;
 	case CS7:
 		new_data = 7;
-		cval = 0x02;
 		bits = 9;
 		break;
 	case CS8:
 		new_data = 8;
-		cval = 0x03;
 		bits = 10;
 		break;
 	default:
 		/* cuz we always need a default ... */
 		new_data = 5;
-		cval = 0x00;
 		bits = 7;
 		break;
 	}
 	if (cflag & CSTOPB) {
-		cval |= 0x04;
 		bits++;
 		new_stop = 1;
 	}
 	if (cflag & PARENB) {
-		cval |= UART_LCR_PARITY;
 		bits++;
 		new_parity_enable = 1;
-	}
-	if (cflag & PARODD) {
-		cval |= UART_LCR_EPAR;
-		new_parity = 1;
-	}
-	if (cflag & IGNPAR) {
-		cval &= ~UART_LCR_PARITY;
-		new_parity_enable = 0;
+		if (cflag & PARODD)
+			new_parity = 1;
 	}
 	baud = uart_get_baud_rate(the_port, new_termios, old_termios,
 				MIN_BAUD_SUPPORTED, MAX_BAUD_SUPPORTED);
@@ -1765,10 +1755,15 @@ ioc4_change_speed(struct uart_port *the_port,
 		the_port->ignore_status_mask &= ~N_DATA_READY;
 	}
 
-	if (cflag & CRTSCTS)
+	if (cflag & CRTSCTS) {
 		info->flags |= ASYNC_CTS_FLOW;
-	else
+		port->ip_sscr |= IOC4_SSCR_HFC_EN;
+	}
+	else {
 		info->flags &= ~ASYNC_CTS_FLOW;
+		port->ip_sscr &= ~IOC4_SSCR_HFC_EN;
+	}
+	writel(port->ip_sscr, &port->ip_serial_regs->sscr);
 
 	/* Set the configuration and proper notification call */
 	DPRINT_CONFIG(("%s : port 0x%p cflag 0%o "
@@ -1825,12 +1820,6 @@ static inline int ic4_startup_local(struct uart_port *the_port)
 	/* set the speed of the serial port */
 	ioc4_change_speed(the_port, info->tty->termios, (struct termios *)0);
 
-	/* enable hardware flow control - after ioc4_change_speed because
-	 * ASYNC_CTS_FLOW is set there */
-	if (info->flags & ASYNC_CTS_FLOW) {
-		port->ip_sscr |= IOC4_SSCR_HFC_EN;
-		writel(port->ip_sscr, &port->ip_serial_regs->sscr);
-	}
 	info->flags |= UIF_INITIALIZED;
 	return 0;
 }
@@ -1846,7 +1835,6 @@ static void ioc4_cb_output_lowat(struct ioc4_port *port)
 		transmit_chars(port->ip_port);
 	}
 }
-
 
 /**
  * handle_intr - service any interrupts for the given port - 2nd level

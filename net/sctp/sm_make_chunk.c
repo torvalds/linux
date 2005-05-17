@@ -710,7 +710,9 @@ struct sctp_chunk *sctp_make_shutdown_complete(
 	struct sctp_chunk *retval;
 	__u8 flags = 0;
 
-	/* Maybe set the T-bit if we have no association. */
+	/* Set the T-bit if we have no association (vtag will be
+	 * reflected)
+	 */
 	flags |= asoc ? 0 : SCTP_CHUNK_FLAG_T;
 
 	retval = sctp_make_chunk(asoc, SCTP_CID_SHUTDOWN_COMPLETE, flags, 0);
@@ -732,7 +734,7 @@ struct sctp_chunk *sctp_make_shutdown_complete(
 }
 
 /* Create an ABORT.  Note that we set the T bit if we have no
- * association.
+ * association, except when responding to an INIT (sctpimpguide 2.41).
  */
 struct sctp_chunk *sctp_make_abort(const struct sctp_association *asoc,
 			      const struct sctp_chunk *chunk,
@@ -741,8 +743,16 @@ struct sctp_chunk *sctp_make_abort(const struct sctp_association *asoc,
 	struct sctp_chunk *retval;
 	__u8 flags = 0;
 
-	/* Maybe set the T-bit if we have no association.  */
-	flags |= asoc ? 0 : SCTP_CHUNK_FLAG_T;
+	/* Set the T-bit if we have no association and 'chunk' is not
+	 * an INIT (vtag will be reflected).
+	 */
+	if (!asoc) {
+		if (chunk && chunk->chunk_hdr &&
+		    chunk->chunk_hdr->type == SCTP_CID_INIT)
+			flags = 0;
+		else
+			flags = SCTP_CHUNK_FLAG_T;
+	}
 
 	retval = sctp_make_chunk(asoc, SCTP_CID_ABORT, flags, hint);
 
@@ -2744,7 +2754,6 @@ struct sctp_chunk *sctp_make_fwdtsn(const struct sctp_association *asoc,
 
 	hint = (nstreams + 1) * sizeof(__u32);
 
-	/* Maybe set the T-bit if we have no association.  */
 	retval = sctp_make_chunk(asoc, SCTP_CID_FWD_TSN, 0, hint);
 
 	if (!retval)

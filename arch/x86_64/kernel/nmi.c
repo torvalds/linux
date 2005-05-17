@@ -112,17 +112,20 @@ static __init int cpu_has_lapic(void)
 	} 	
 }
 
-int __init check_nmi_watchdog (void)
+static int __init check_nmi_watchdog (void)
 {
 	int counts[NR_CPUS];
 	int cpu;
+
+	if (nmi_watchdog == NMI_NONE)
+		return 0;
 
 	if (nmi_watchdog == NMI_LOCAL_APIC && !cpu_has_lapic())  {
 		nmi_watchdog = NMI_NONE;
 		return -1; 
 	}	
 
-	printk(KERN_INFO "testing NMI watchdog ... ");
+	printk(KERN_INFO "Testing NMI watchdog ... ");
 
 	for (cpu = 0; cpu < NR_CPUS; cpu++)
 		counts[cpu] = cpu_pda[cpu].__nmi_count; 
@@ -148,6 +151,8 @@ int __init check_nmi_watchdog (void)
 
 	return 0;
 }
+/* Have this called later during boot so counters are updating */
+late_initcall(check_nmi_watchdog);
 
 int __init setup_nmi_watchdog(char *str)
 {

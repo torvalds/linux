@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/connect.c
  *
- *   Copyright (C) International Business Machines  Corp., 2002,2004
+ *   Copyright (C) International Business Machines  Corp., 2002,2005
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -28,6 +28,7 @@
 #include <linux/ctype.h>
 #include <linux/utsname.h>
 #include <linux/mempool.h>
+#include <linux/delay.h>
 #include <asm/uaccess.h>
 #include <asm/processor.h>
 #include "cifspdu.h"
@@ -72,6 +73,7 @@ struct smb_vol {
 	unsigned no_xattr:1;   /* set if xattr (EA) support should be disabled*/
 	unsigned server_ino:1; /* use inode numbers from server ie UniqueId */
 	unsigned direct_io:1;
+	unsigned remap:1;   /* set to remap seven reserved chars in filenames */
 	unsigned int rsize;
 	unsigned int wsize;
 	unsigned int sockopt;
@@ -114,7 +116,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 	spin_unlock(&GlobalMid_Lock);
 	server->maxBuf = 0;
 
-	cFYI(1, ("Reconnecting tcp session "));
+	cFYI(1, ("Reconnecting tcp session"));
 
 	/* before reconnecting the tcp session, mark the smb session (uid)
 		and the tid bad so they are not used until reconnected */
@@ -155,9 +157,10 @@ cifs_reconnect(struct TCP_Server_Info *server)
 					qhead);
 		if(mid_entry) {
 			if(mid_entry->midState == MID_REQUEST_SUBMITTED) {
-				/* Mark other intransit requests as needing retry so 
-				  we do not immediately mark the session bad again 
-				  (ie after we reconnect below) as they timeout too */
+				/* Mark other intransit requests as needing
+				   retry so we do not immediately mark the
+				   session bad again (ie after we reconnect
+				   below) as they timeout too */
 				mid_entry->midState = MID_RETRY_NEEDED;
 			}
 		}
@@ -175,19 +178,134 @@ cifs_reconnect(struct TCP_Server_Info *server)
 					server->workstation_RFC1001_name);
 		}
 		if(rc) {
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(3 * HZ);
+			msleep(3000);
 		} else {
 			atomic_inc(&tcpSesReconnectCount);
 			spin_lock(&GlobalMid_Lock);
 			if(server->tcpStatus != CifsExiting)
 				server->tcpStatus = CifsGood;
-			spin_unlock(&GlobalMid_Lock);
+			server->sequence_number = 0;
+			spin_unlock(&GlobalMid_Lock);			
 	/*		atomic_set(&server->inFlight,0);*/
 			wake_up(&server->response_q);
 		}
 	}
 	return rc;
+}
+
+/* 
+	return codes:
+		0 	not a transact2, or all data present
+		>0 	transact2 with that much data missing
+		-EINVAL = invalid transact2
+
+ */
+static int check2ndT2(struct smb_hdr * pSMB, unsigned int maxBufSize)
+{
+	struct smb_t2_rsp * pSMBt;
+        int total_data_size;
+	int data_in_this_rsp;
+	int remaining;
+
+	if(pSMB->Command != SMB_COM_TRANSACTION2)
+		return 0;
+
+        /* check for plausible wct, bcc and t2 data and parm sizes */
+        /* check for parm and data offset going beyond end of smb */
+	if(pSMB->WordCount != 10) { /* coalesce_t2 depends on this */
+		cFYI(1,("invalid transact2 word count"));
+		return -EINVAL;
+	}
+
+	pSMBt = (struct smb_t2_rsp *)pSMB;
+
+	total_data_size = le16_to_cpu(pSMBt->t2_rsp.TotalDataCount);
+	data_in_this_rsp = le16_to_cpu(pSMBt->t2_rsp.DataCount);
+
+	remaining = total_data_size - data_in_this_rsp;
+
+	if(remaining == 0)
+		return 0;
+	else if(remaining < 0) {
+		cFYI(1,("total data %d smaller than data in frame %d",
+			total_data_size, data_in_this_rsp));
+		return -EINVAL;
+	} else {
+		cFYI(1,("missing %d bytes from transact2, check next response",
+			remaining));
+		if(total_data_size > maxBufSize) {
+			cERROR(1,("TotalDataSize %d is over maximum buffer %d",
+				total_data_size,maxBufSize));
+			return -EINVAL; 
+		}
+		return remaining;
+	}
+}
+
+static int coalesce_t2(struct smb_hdr * psecond, struct smb_hdr *pTargetSMB)
+{
+	struct smb_t2_rsp *pSMB2 = (struct smb_t2_rsp *)psecond;
+	struct smb_t2_rsp *pSMBt  = (struct smb_t2_rsp *)pTargetSMB;
+	int total_data_size;
+	int total_in_buf;
+	int remaining;
+	int total_in_buf2;
+	char * data_area_of_target;
+	char * data_area_of_buf2;
+	__u16 byte_count;
+
+	total_data_size = le16_to_cpu(pSMBt->t2_rsp.TotalDataCount);
+
+	if(total_data_size != le16_to_cpu(pSMB2->t2_rsp.TotalDataCount)) {
+		cFYI(1,("total data sizes of primary and secondary t2 differ"));
+	}
+
+	total_in_buf = le16_to_cpu(pSMBt->t2_rsp.DataCount);
+
+	remaining = total_data_size - total_in_buf;
+	
+	if(remaining < 0)
+		return -EINVAL;
+
+	if(remaining == 0) /* nothing to do, ignore */
+		return 0;
+	
+	total_in_buf2 = le16_to_cpu(pSMB2->t2_rsp.DataCount);
+	if(remaining < total_in_buf2) {
+		cFYI(1,("transact2 2nd response contains too much data"));
+	}
+
+	/* find end of first SMB data area */
+	data_area_of_target = (char *)&pSMBt->hdr.Protocol + 
+				le16_to_cpu(pSMBt->t2_rsp.DataOffset);
+	/* validate target area */
+
+	data_area_of_buf2 = (char *) &pSMB2->hdr.Protocol +
+                                        le16_to_cpu(pSMB2->t2_rsp.DataOffset);
+
+	data_area_of_target += total_in_buf;
+
+	/* copy second buffer into end of first buffer */
+	memcpy(data_area_of_target,data_area_of_buf2,total_in_buf2);
+	total_in_buf += total_in_buf2;
+	pSMBt->t2_rsp.DataCount = cpu_to_le16(total_in_buf);
+	byte_count = le16_to_cpu(BCC_LE(pTargetSMB));
+	byte_count += total_in_buf2;
+	BCC_LE(pTargetSMB) = cpu_to_le16(byte_count);
+
+	byte_count = be32_to_cpu(pTargetSMB->smb_buf_length);
+	byte_count += total_in_buf2;
+
+	/* BB also add check that we are not beyond maximum buffer size */
+		
+	pTargetSMB->smb_buf_length = cpu_to_be32(byte_count);
+
+	if(remaining == total_in_buf2) {
+		cFYI(1,("found the last secondary response"));
+		return 0; /* we are done */
+	} else /* more responses to go */
+		return 1;
+
 }
 
 static int
@@ -196,6 +314,8 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 	int length;
 	unsigned int pdu_length, total_read;
 	struct smb_hdr *smb_buffer = NULL;
+	struct smb_hdr *bigbuf = NULL;
+	struct smb_hdr *smallbuf = NULL;
 	struct msghdr smb_msg;
 	struct kvec iov;
 	struct socket *csocket = server->ssocket;
@@ -204,6 +324,9 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 	struct task_struct *task_to_wake = NULL;
 	struct mid_q_entry *mid_entry;
 	char *temp;
+	int isLargeBuf = FALSE;
+	int isMultiRsp;
+	int reconnect;
 
 	daemonize("cifsd");
 	allow_signal(SIGKILL);
@@ -221,17 +344,34 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 	}
 
 	while (server->tcpStatus != CifsExiting) {
-		if (smb_buffer == NULL)
-			smb_buffer = cifs_buf_get();
-		else
-			memset(smb_buffer, 0, sizeof (struct smb_hdr));
-
-		if (smb_buffer == NULL) {
-			cERROR(1,("Can not get memory for SMB response"));
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(HZ * 3); /* give system time to free memory */
-			continue;
+		if (bigbuf == NULL) {
+			bigbuf = cifs_buf_get();
+			if(bigbuf == NULL) {
+				cERROR(1,("No memory for large SMB response"));
+				msleep(3000);
+				/* retry will check if exiting */
+				continue;
+			}
+		} else if(isLargeBuf) {
+			/* we are reusing a dirtry large buf, clear its start */
+			memset(bigbuf, 0, sizeof (struct smb_hdr));
 		}
+
+		if (smallbuf == NULL) {
+			smallbuf = cifs_small_buf_get();
+			if(smallbuf == NULL) {
+				cERROR(1,("No memory for SMB response"));
+				msleep(1000);
+				/* retry will check if exiting */
+				continue;
+			}
+			/* beginning of smb buffer is cleared in our buf_get */
+		} else /* if existing small buf clear beginning */
+			memset(smallbuf, 0, sizeof (struct smb_hdr));
+
+		isLargeBuf = FALSE;
+		isMultiRsp = FALSE;
+		smb_buffer = smallbuf;
 		iov.iov_base = smb_buffer;
 		iov.iov_len = 4;
 		smb_msg.msg_control = NULL;
@@ -243,176 +383,257 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 		if(server->tcpStatus == CifsExiting) {
 			break;
 		} else if (server->tcpStatus == CifsNeedReconnect) {
-			cFYI(1,("Reconnecting after server stopped responding"));
+			cFYI(1,("Reconnect after server stopped responding"));
 			cifs_reconnect(server);
 			cFYI(1,("call to reconnect done"));
 			csocket = server->ssocket;
 			continue;
 		} else if ((length == -ERESTARTSYS) || (length == -EAGAIN)) {
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(1); /* minimum sleep to prevent looping
+			msleep(1); /* minimum sleep to prevent looping
 				allowing socket to clear and app threads to set
 				tcpStatus CifsNeedReconnect if server hung */
 			continue;
 		} else if (length <= 0) {
 			if(server->tcpStatus == CifsNew) {
-				cFYI(1,("tcp session abended prematurely (after SMBnegprot)"));
-				/* some servers kill tcp session rather than returning
-					smb negprot error in which case reconnecting here is
-					not going to help - return error to mount */
+				cFYI(1,("tcp session abend after SMBnegprot"));
+				/* some servers kill the TCP session rather than
+				   returning an SMB negprot error, in which
+				   case reconnecting here is not going to help,
+				   and so simply return error to mount */
 				break;
 			}
 			if(length == -EINTR) { 
 				cFYI(1,("cifsd thread killed"));
 				break;
 			}
-			cFYI(1,("Reconnecting after unexpected peek error %d",length));
+			cFYI(1,("Reconnect after unexpected peek error %d",
+				length));
 			cifs_reconnect(server);
 			csocket = server->ssocket;
 			wake_up(&server->response_q);
 			continue;
-		} else if (length > 3) {
-			pdu_length = ntohl(smb_buffer->smb_buf_length);
-		/* Only read pdu_length after below checks for too short (due
-		   to e.g. int overflow) and too long ie beyond end of buf */
-			cFYI(1,("rfc1002 length(big endian)0x%x)", pdu_length+4));
-
-			temp = (char *) smb_buffer;
-			if (temp[0] == (char) RFC1002_SESSION_KEEP_ALIVE) {
-				cFYI(0,("Received 4 byte keep alive packet"));
-			} else if (temp[0] == (char) RFC1002_POSITIVE_SESSION_RESPONSE) {
-					cFYI(1,("Good RFC 1002 session rsp"));
-			} else if (temp[0] == (char)RFC1002_NEGATIVE_SESSION_RESPONSE) {
-				/* we get this from Windows 98 instead of error on SMB negprot response */
-				cFYI(1,("Negative RFC 1002 Session Response Error 0x%x)",temp[4]));
-				if(server->tcpStatus == CifsNew) {
-					/* if nack on negprot (rather than 
-					ret of smb negprot error) reconnecting
-					not going to help, ret error to mount */
-					break;
-				} else {
-					/* give server a second to
-					clean up before reconnect attempt */
-					set_current_state(TASK_INTERRUPTIBLE);
-					schedule_timeout(HZ);
-					/* always try 445 first on reconnect
-					since we get NACK on some if we ever
-					connected to port 139 (the NACK is 
-					since we do not begin with RFC1001
-					session initialize frame) */
-					server->addr.sockAddr.sin_port = htons(CIFS_PORT);
-					cifs_reconnect(server);
-					csocket = server->ssocket;
-					wake_up(&server->response_q);
-					continue;
-				}
-			} else if (temp[0] != (char) 0) {
-				cERROR(1,("Unknown RFC 1002 frame"));
-				cifs_dump_mem(" Received Data: ", temp, length);
-				cifs_reconnect(server);
-				csocket = server->ssocket;
-				continue;
-			} else {
-				if((pdu_length > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4)
-				    || (pdu_length < sizeof (struct smb_hdr) - 1 - 4)) {
-					cERROR(1,
-					    ("Invalid size SMB length %d and pdu_length %d",
-						length, pdu_length+4));
-					cifs_reconnect(server);
-					csocket = server->ssocket;
-					wake_up(&server->response_q);
-					continue;
-				} else { /* length ok */
-					length = 0;
-					iov.iov_base = 4 + (char *)smb_buffer;
-					iov.iov_len = pdu_length;
-					for (total_read = 0; 
-					     total_read < pdu_length;
-					     total_read += length) {
-						length = kernel_recvmsg(csocket, &smb_msg, 
-							&iov, 1,
-							pdu_length - total_read, 0);
-						if (length == 0) {
-							cERROR(1,
-							       ("Zero length receive when expecting %d ",
-								pdu_length - total_read));
-							cifs_reconnect(server);
-							csocket = server->ssocket;
-							wake_up(&server->response_q);
-							continue;
-						}
-					}
-					length += 4; /* account for rfc1002 hdr */
-				}
-
-				dump_smb(smb_buffer, length);
-				if (checkSMB
-				    (smb_buffer, smb_buffer->Mid, total_read+4)) {
-					cERROR(1, ("Bad SMB Received "));
-					continue;
-				}
-
-				task_to_wake = NULL;
-				spin_lock(&GlobalMid_Lock);
-				list_for_each(tmp, &server->pending_mid_q) {
-					mid_entry = list_entry(tmp, struct
-							       mid_q_entry,
-							       qhead);
-
-					if ((mid_entry->mid == smb_buffer->Mid) && (mid_entry->midState == MID_REQUEST_SUBMITTED)) {
-						cFYI(1,
-						     (" Mid 0x%x matched - waking up ",mid_entry->mid));
-						task_to_wake = mid_entry->tsk;
-						mid_entry->resp_buf =
-						    smb_buffer;
-						mid_entry->midState =
-						    MID_RESPONSE_RECEIVED;
-					}
-				}
-				spin_unlock(&GlobalMid_Lock);
-				if (task_to_wake) {
-					smb_buffer = NULL;	/* will be freed by users thread after he is done */
-					wake_up_process(task_to_wake);
-				} else if (is_valid_oplock_break(smb_buffer) == FALSE) {                          
-					cERROR(1, ("No task to wake, unknown frame rcvd!"));
-					cifs_dump_mem("Received Data is: ",temp,sizeof(struct smb_hdr));
-				}
-			}
-		} else {
+		} else if (length < 4) {
 			cFYI(1,
-			    ("Frame less than four bytes received  %d bytes long.",
+			    ("Frame under four bytes received (%d bytes long)",
 			      length));
 			cifs_reconnect(server);
 			csocket = server->ssocket;
 			wake_up(&server->response_q);
 			continue;
 		}
-	}
+
+		/* the right amount was read from socket - 4 bytes */
+
+		pdu_length = ntohl(smb_buffer->smb_buf_length);
+		cFYI(1,("rfc1002 length(big endian)0x%x)", pdu_length+4));
+
+		temp = (char *) smb_buffer;
+		if (temp[0] == (char) RFC1002_SESSION_KEEP_ALIVE) {
+			continue; 
+		} else if (temp[0] == (char)RFC1002_POSITIVE_SESSION_RESPONSE) {
+			cFYI(1,("Good RFC 1002 session rsp"));
+			continue;
+		} else if (temp[0] == (char)RFC1002_NEGATIVE_SESSION_RESPONSE) {
+			/* we get this from Windows 98 instead of 
+			   an error on SMB negprot response */
+			cFYI(1,("Negative RFC1002 Session Response Error 0x%x)",
+				temp[4]));
+			if(server->tcpStatus == CifsNew) {
+				/* if nack on negprot (rather than 
+				ret of smb negprot error) reconnecting
+				not going to help, ret error to mount */
+				break;
+			} else {
+				/* give server a second to
+				clean up before reconnect attempt */
+				msleep(1000);
+				/* always try 445 first on reconnect
+				since we get NACK on some if we ever
+				connected to port 139 (the NACK is 
+				since we do not begin with RFC1001
+				session initialize frame) */
+				server->addr.sockAddr.sin_port = 
+					htons(CIFS_PORT);
+				cifs_reconnect(server);
+				csocket = server->ssocket;
+				wake_up(&server->response_q);
+				continue;
+			}
+		} else if (temp[0] != (char) 0) {
+			cERROR(1,("Unknown RFC 1002 frame"));
+			cifs_dump_mem(" Received Data: ", temp, length);
+			cifs_reconnect(server);
+			csocket = server->ssocket;
+			continue;
+		}
+
+		/* else we have an SMB response */
+		if((pdu_length > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4) ||
+			    (pdu_length < sizeof (struct smb_hdr) - 1 - 4)) {
+			cERROR(1, ("Invalid size SMB length %d pdu_length %d",
+					length, pdu_length+4));
+			cifs_reconnect(server);
+			csocket = server->ssocket;
+			wake_up(&server->response_q);
+			continue;
+		} 
+
+		/* else length ok */
+		reconnect = 0;
+
+		if(pdu_length > MAX_CIFS_HDR_SIZE - 4) {
+			isLargeBuf = TRUE;
+			memcpy(bigbuf, smallbuf, 4);
+			smb_buffer = bigbuf;
+		}
+		length = 0;
+		iov.iov_base = 4 + (char *)smb_buffer;
+		iov.iov_len = pdu_length;
+		for (total_read = 0; total_read < pdu_length; 
+		     total_read += length) {
+			length = kernel_recvmsg(csocket, &smb_msg, &iov, 1,
+						pdu_length - total_read, 0);
+			if((server->tcpStatus == CifsExiting) ||
+			    (length == -EINTR)) {
+				/* then will exit */
+				reconnect = 2;
+				break;
+			} else if (server->tcpStatus == CifsNeedReconnect) {
+				cifs_reconnect(server);
+				csocket = server->ssocket;
+			        /* Reconnect wakes up rspns q */
+				/* Now we will reread sock */
+				reconnect = 1;
+				break;
+			} else if ((length == -ERESTARTSYS) || 
+				   (length == -EAGAIN)) {
+				msleep(1); /* minimum sleep to prevent looping,
+                                              allowing socket to clear and app 
+					      threads to set tcpStatus
+					      CifsNeedReconnect if server hung*/
+				continue;
+			} else if (length <= 0) {
+				cERROR(1,("Received no data, expecting %d",
+					      pdu_length - total_read));
+				cifs_reconnect(server);
+				csocket = server->ssocket;
+				reconnect = 1;
+				break;
+			}
+		}
+		if(reconnect == 2)
+			break;
+		else if(reconnect == 1)
+			continue;
+
+		length += 4; /* account for rfc1002 hdr */
+	
+
+		dump_smb(smb_buffer, length);
+		if (checkSMB (smb_buffer, smb_buffer->Mid, total_read+4)) {
+			cERROR(1, ("Bad SMB Received "));
+			continue;
+		}
+
+
+		task_to_wake = NULL;
+		spin_lock(&GlobalMid_Lock);
+		list_for_each(tmp, &server->pending_mid_q) {
+			mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
+
+			if ((mid_entry->mid == smb_buffer->Mid) && 
+			    (mid_entry->midState == MID_REQUEST_SUBMITTED) &&
+			    (mid_entry->command == smb_buffer->Command)) {
+				if(check2ndT2(smb_buffer,server->maxBuf) > 0) {
+					/* We have a multipart transact2 resp */
+					isMultiRsp = TRUE;
+					if(mid_entry->resp_buf) {
+						/* merge response - fix up 1st*/
+						if(coalesce_t2(smb_buffer, 
+							mid_entry->resp_buf)) {
+							break;
+						} else {
+							/* all parts received */
+							goto multi_t2_fnd; 
+						}
+					} else {
+						if(!isLargeBuf) {
+							cERROR(1,("1st trans2 resp needs bigbuf"));
+					/* BB maybe we can fix this up,  switch
+				   	   to already allocated large buffer? */
+						} else {
+							/* Have first buffer */
+							mid_entry->resp_buf =
+								 smb_buffer;
+							mid_entry->largeBuf = 1;
+							bigbuf = NULL;
+						}
+					}
+					break;
+				} 
+				mid_entry->resp_buf = smb_buffer;
+				if(isLargeBuf)
+					mid_entry->largeBuf = 1;
+				else
+					mid_entry->largeBuf = 0;
+multi_t2_fnd:
+				task_to_wake = mid_entry->tsk;
+				mid_entry->midState = MID_RESPONSE_RECEIVED;
+				break;
+			}
+		}
+		spin_unlock(&GlobalMid_Lock);
+		if (task_to_wake) {
+			/* Was previous buf put in mpx struct for multi-rsp? */
+			if(!isMultiRsp) {
+				/* smb buffer will be freed by user thread */
+				if(isLargeBuf) {
+					bigbuf = NULL;
+				} else
+					smallbuf = NULL;
+			}
+			wake_up_process(task_to_wake);
+		} else if ((is_valid_oplock_break(smb_buffer) == FALSE)
+		    && (isMultiRsp == FALSE)) {                          
+			cERROR(1, ("No task to wake, unknown frame rcvd!"));
+			cifs_dump_mem("Received Data is: ",temp,sizeof(struct smb_hdr));
+		}
+	} /* end while !EXITING */
+
 	spin_lock(&GlobalMid_Lock);
 	server->tcpStatus = CifsExiting;
 	server->tsk = NULL;
-	atomic_set(&server->inFlight, 0);
+	/* check if we have blocked requests that need to free */
+	/* Note that cifs_max_pending is normally 50, but
+	can be set at module install time to as little as two */
+	if(atomic_read(&server->inFlight) >= cifs_max_pending)
+		atomic_set(&server->inFlight, cifs_max_pending - 1);
+	/* We do not want to set the max_pending too low or we
+	could end up with the counter going negative */
 	spin_unlock(&GlobalMid_Lock);
 	/* Although there should not be any requests blocked on 
 	this queue it can not hurt to be paranoid and try to wake up requests
-	that may haven been blocked when more than 50 at time were on the wire 
+	that may haven been blocked when more than 50 at time were on the wire
 	to the same server - they now will see the session is in exit state
 	and get out of SendReceive.  */
 	wake_up_all(&server->request_q);
 	/* give those requests time to exit */
-	set_current_state(TASK_INTERRUPTIBLE);
-	schedule_timeout(HZ/8);
-
+	msleep(125);
+	
 	if(server->ssocket) {
 		sock_release(csocket);
 		server->ssocket = NULL;
 	}
-	if (smb_buffer) /* buffer usually freed in free_mid - need to free it on error or exit */
-		cifs_buf_release(smb_buffer);
+	/* buffer usuallly freed in free_mid - need to free it here on exit */
+	if (bigbuf != NULL)
+		cifs_buf_release(bigbuf);
+	if (smallbuf != NULL)
+		cifs_small_buf_release(smallbuf);
 
 	read_lock(&GlobalSMBSeslock);
 	if (list_empty(&server->pending_mid_q)) {
-		/* loop through server session structures attached to this and mark them dead */
+		/* loop through server session structures attached to this and
+		    mark them dead */
 		list_for_each(tmp, &GlobalSMBSessionList) {
 			ses =
 			    list_entry(tmp, struct cifsSesInfo,
@@ -424,12 +645,23 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 		}
 		read_unlock(&GlobalSMBSeslock);
 	} else {
+		/* although we can not zero the server struct pointer yet,
+		since there are active requests which may depnd on them,
+		mark the corresponding SMB sessions as exiting too */
+		list_for_each(tmp, &GlobalSMBSessionList) {
+			ses = list_entry(tmp, struct cifsSesInfo,
+					 cifsSessionList);
+			if (ses->server == server) {
+				ses->status = CifsExiting;
+			}
+		}
+
 		spin_lock(&GlobalMid_Lock);
 		list_for_each(tmp, &server->pending_mid_q) {
 		mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
 			if (mid_entry->midState == MID_REQUEST_SUBMITTED) {
 				cFYI(1,
-					 (" Clearing Mid 0x%x - waking up ",mid_entry->mid));
+				  ("Clearing Mid 0x%x - waking up ",mid_entry->mid));
 				task_to_wake = mid_entry->tsk;
 				if(task_to_wake) {
 					wake_up_process(task_to_wake);
@@ -438,45 +670,49 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 		}
 		spin_unlock(&GlobalMid_Lock);
 		read_unlock(&GlobalSMBSeslock);
-		set_current_state(TASK_INTERRUPTIBLE);
 		/* 1/8th of sec is more than enough time for them to exit */
-		schedule_timeout(HZ/8); 
+		msleep(125);
 	}
 
 	if (list_empty(&server->pending_mid_q)) {
 		/* mpx threads have not exited yet give them 
 		at least the smb send timeout time for long ops */
+		/* due to delays on oplock break requests, we need
+		to wait at least 45 seconds before giving up
+		on a request getting a response and going ahead
+		and killing cifsd */
 		cFYI(1, ("Wait for exit from demultiplex thread"));
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(46 * HZ);	
+		msleep(46000);
 		/* if threads still have not exited they are probably never
 		coming home not much else we can do but free the memory */
 	}
-	kfree(server);
 
 	write_lock(&GlobalSMBSeslock);
 	atomic_dec(&tcpSesAllocCount);
 	length = tcpSesAllocCount.counter;
+
+	/* last chance to mark ses pointers invalid
+	if there are any pointing to this (e.g
+	if a crazy root user tried to kill cifsd 
+	kernel thread explicitly this might happen) */
+	list_for_each(tmp, &GlobalSMBSessionList) {
+		ses = list_entry(tmp, struct cifsSesInfo,
+				cifsSessionList);
+		if (ses->server == server) {
+			ses->server = NULL;
+		}
+	}
 	write_unlock(&GlobalSMBSeslock);
+
+	kfree(server);
 	if(length  > 0) {
 		mempool_resize(cifs_req_poolp,
 			length + cifs_min_rcv,
 			GFP_KERNEL);
 	}
-
-	set_current_state(TASK_INTERRUPTIBLE);
-	schedule_timeout(HZ/4);
+	
+	msleep(250);
 	return 0;
-}
-
-static void * 
-cifs_kcalloc(size_t size, unsigned int __nocast type)
-{
-	void *addr;
-	addr = kmalloc(size, type);
-	if (addr)
-		memset(addr, 0, size);
-	return addr;
 }
 
 static int
@@ -495,7 +731,8 @@ cifs_parse_mount_options(char *options, const char *devname,struct smb_vol *vol)
 		/* does not have to be a perfect mapping since the field is
 		informational, only used for servers that do not support
 		port 445 and it can be overridden at mount time */
-		vol->source_rfc1001_name[i] = toupper(system_utsname.nodename[i]);
+		vol->source_rfc1001_name[i] = 
+			toupper(system_utsname.nodename[i]);
 	}
 	vol->source_rfc1001_name[15] = 0;
 
@@ -570,14 +807,17 @@ cifs_parse_mount_options(char *options, const char *devname,struct smb_vol *vol)
 			/* NB: password legally can have multiple commas and
 			the only illegal character in a password is null */
 
-			if ((value[temp_len] == 0) && (value[temp_len+1] == separator[0])) {
+			if ((value[temp_len] == 0) && 
+			    (value[temp_len+1] == separator[0])) {
 				/* reinsert comma */
 				value[temp_len] = separator[0];
 				temp_len+=2;  /* move after the second comma */
 				while(value[temp_len] != 0)  {
 					if (value[temp_len] == separator[0]) {
-						if (value[temp_len+1] == separator[0]) {
-							temp_len++; /* skip second comma */
+						if (value[temp_len+1] == 
+						     separator[0]) {
+						/* skip second comma */
+							temp_len++;
 						} else { 
 						/* single comma indicating start
 							 of next parm */
@@ -596,17 +836,26 @@ cifs_parse_mount_options(char *options, const char *devname,struct smb_vol *vol)
 				/* go from value to value + temp_len condensing 
 				double commas to singles. Note that this ends up
 				allocating a few bytes too many, which is ok */
-				vol->password = cifs_kcalloc(temp_len, GFP_KERNEL);
+				vol->password = kcalloc(1, temp_len, GFP_KERNEL);
+				if(vol->password == NULL) {
+					printk("CIFS: no memory for pass\n");
+					return 1;
+				}
 				for(i=0,j=0;i<temp_len;i++,j++) {
 					vol->password[j] = value[i];
-					if(value[i] == separator[0] && value[i+1] == separator[0]) {
+					if(value[i] == separator[0]
+						&& value[i+1] == separator[0]) {
 						/* skip second comma */
 						i++;
 					}
 				}
 				vol->password[j] = 0;
 			} else {
-				vol->password = cifs_kcalloc(temp_len + 1, GFP_KERNEL);
+				vol->password = kcalloc(1, temp_len+1, GFP_KERNEL);
+				if(vol->password == NULL) {
+					printk("CIFS: no memory for pass\n");
+					return 1;
+				}
 				strcpy(vol->password, value);
 			}
 		} else if (strnicmp(data, "ip", 2) == 0) {
@@ -770,6 +1019,10 @@ cifs_parse_mount_options(char *options, const char *devname,struct smb_vol *vol)
 			vol->noperm = 0;
 		} else if (strnicmp(data, "noperm", 6) == 0) {
 			vol->noperm = 1;
+		} else if (strnicmp(data, "mapchars", 8) == 0) {
+			vol->remap = 1;
+		} else if (strnicmp(data, "nomapchars", 10) == 0) {
+			vol->remap = 0;
 		} else if (strnicmp(data, "setuids", 7) == 0) {
 			vol->setuids = 1;
 		} else if (strnicmp(data, "nosetuids", 9) == 0) {
@@ -918,14 +1171,15 @@ find_unc(__be32 new_target_ip_addr, char *uncName, char *userName)
 
 int
 connect_to_dfs_path(int xid, struct cifsSesInfo *pSesInfo,
-		    const char *old_path, const struct nls_table *nls_codepage)
+		    const char *old_path, const struct nls_table *nls_codepage,
+		    int remap)
 {
 	unsigned char *referrals = NULL;
 	unsigned int num_referrals;
 	int rc = 0;
 
 	rc = get_dfs_path(xid, pSesInfo,old_path, nls_codepage, 
-			&num_referrals, &referrals);
+			&num_referrals, &referrals, remap);
 
 	/* BB Add in code to: if valid refrl, if not ip address contact
 		the helper that resolves tcp names, mount to it, try to 
@@ -940,7 +1194,8 @@ connect_to_dfs_path(int xid, struct cifsSesInfo *pSesInfo,
 int
 get_dfs_path(int xid, struct cifsSesInfo *pSesInfo,
 			const char *old_path, const struct nls_table *nls_codepage, 
-			unsigned int *pnum_referrals, unsigned char ** preferrals)
+			unsigned int *pnum_referrals, 
+			unsigned char ** preferrals, int remap)
 {
 	char *temp_unc;
 	int rc = 0;
@@ -965,7 +1220,7 @@ get_dfs_path(int xid, struct cifsSesInfo *pSesInfo,
 	}
 	if (rc == 0)
 		rc = CIFSGetDFSRefer(xid, pSesInfo, old_path, preferrals,
-				     pnum_referrals, nls_codepage);
+				     pnum_referrals, nls_codepage, remap);
 
 	return rc;
 }
@@ -1062,7 +1317,7 @@ ipv4_connect(struct sockaddr_in *psin_server, struct socket **csocket,
 		sessinit is sent but no second negprot */
 		struct rfc1002_session_packet * ses_init_buf;
 		struct smb_hdr * smb_buf;
-		ses_init_buf = cifs_kcalloc(sizeof(struct rfc1002_session_packet), GFP_KERNEL);
+		ses_init_buf = kcalloc(1, sizeof(struct rfc1002_session_packet), GFP_KERNEL);
 		if(ses_init_buf) {
 			ses_init_buf->trailer.session_req.called_len = 32;
 			rfc1002mangle(ses_init_buf->trailer.session_req.called_name,
@@ -1352,6 +1607,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			} else
 				rc = 0;
 			memcpy(srvTcp->workstation_RFC1001_name, volume_info.source_rfc1001_name,16);
+			srvTcp->sequence_number = 0;
 		}
 	}
 
@@ -1419,6 +1675,8 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_SET_UID;
 		if(volume_info.server_ino)
 			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_SERVER_INUM;
+		if(volume_info.remap)
+			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_MAP_SPECIAL_CHR;
 		if(volume_info.no_xattr)
 			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_XATTR;
 		if(volume_info.direct_io) {
@@ -1447,11 +1705,10 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 				if ((strchr(volume_info.UNC + 3, '\\') == NULL)
 				    && (strchr(volume_info.UNC + 3, '/') ==
 					NULL)) {
-					rc = connect_to_dfs_path(xid,
-								 pSesInfo,
-								 "",
-								 cifs_sb->
-								 local_nls);
+					rc = connect_to_dfs_path(xid, pSesInfo,
+							"", cifs_sb->local_nls,
+							cifs_sb->mnt_cifs_flags & 
+							  CIFS_MOUNT_MAP_SPECIAL_CHR);
 					if(volume_info.UNC)
 						kfree(volume_info.UNC);
 					FreeXid(xid);
@@ -1514,10 +1771,10 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		tcon->ses = pSesInfo;
 
 		/* do not care if following two calls succeed - informational only */
-		CIFSSMBQFSDeviceInfo(xid, tcon, cifs_sb->local_nls);
-		CIFSSMBQFSAttributeInfo(xid, tcon, cifs_sb->local_nls);
+		CIFSSMBQFSDeviceInfo(xid, tcon);
+		CIFSSMBQFSAttributeInfo(xid, tcon);
 		if (tcon->ses->capabilities & CAP_UNIX) {
-			if(!CIFSSMBQFSUnixInfo(xid, tcon, cifs_sb->local_nls)) {
+			if(!CIFSSMBQFSUnixInfo(xid, tcon)) {
 				if(!volume_info.no_psx_acl) {
 					if(CIFS_UNIX_POSIX_ACL_CAP & 
 					   le64_to_cpu(tcon->fsUnixInfo.Capability))
@@ -1707,7 +1964,9 @@ CIFSSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 /* We look for obvious messed up bcc or strings in response so we do not go off
    the end since (at least) WIN2K and Windows XP have a major bug in not null
    terminating last Unicode string in response  */
-				ses->serverOS = cifs_kcalloc(2 * (len + 1), GFP_KERNEL);
+				ses->serverOS = kcalloc(1, 2 * (len + 1), GFP_KERNEL);
+				if(ses->serverOS == NULL)
+					goto sesssetup_nomem;
 				cifs_strfromUCS_le(ses->serverOS,
 					   (wchar_t *)bcc_ptr, len,nls_codepage);
 				bcc_ptr += 2 * (len + 1);
@@ -1717,7 +1976,9 @@ CIFSSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 				if (remaining_words > 0) {
 					len = UniStrnlen((wchar_t *)bcc_ptr,
 							 remaining_words-1);
-					ses->serverNOS =cifs_kcalloc(2 * (len + 1),GFP_KERNEL);
+					ses->serverNOS = kcalloc(1, 2 * (len + 1),GFP_KERNEL);
+					if(ses->serverNOS == NULL)
+						goto sesssetup_nomem;
 					cifs_strfromUCS_le(ses->serverNOS,
 							   (wchar_t *)bcc_ptr,len,nls_codepage);
 					bcc_ptr += 2 * (len + 1);
@@ -1730,10 +1991,12 @@ CIFSSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 					}
 					remaining_words -= len + 1;
 					if (remaining_words > 0) {
-						len = UniStrnlen((wchar_t *) bcc_ptr, remaining_words);	
+						len = UniStrnlen((wchar_t *) bcc_ptr, remaining_words);
           /* last string is not always null terminated (for e.g. for Windows XP & 2000) */
 						ses->serverDomain =
-						    cifs_kcalloc(2*(len+1),GFP_KERNEL);
+						    kcalloc(1, 2*(len+1),GFP_KERNEL);
+						if(ses->serverDomain == NULL)
+							goto sesssetup_nomem;
 						cifs_strfromUCS_le(ses->serverDomain,
 						     (wchar_t *)bcc_ptr,len,nls_codepage);
 						bcc_ptr += 2 * (len + 1);
@@ -1741,21 +2004,25 @@ CIFSSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 						ses->serverDomain[1+(2*len)] = 0;
 					} /* else no more room so create dummy domain string */
 					else
-						ses->serverDomain =
-						    cifs_kcalloc(2,
-							    GFP_KERNEL);
+						ses->serverDomain = 
+							kcalloc(1, 2, GFP_KERNEL);
 				} else {	/* no room so create dummy domain and NOS string */
+					/* if these kcallocs fail not much we
+					   can do, but better to not fail the
+					   sesssetup itself */
 					ses->serverDomain =
-					    cifs_kcalloc(2, GFP_KERNEL);
+					    kcalloc(1, 2, GFP_KERNEL);
 					ses->serverNOS =
-					    cifs_kcalloc(2, GFP_KERNEL);
+					    kcalloc(1, 2, GFP_KERNEL);
 				}
 			} else {	/* ASCII */
 				len = strnlen(bcc_ptr, 1024);
 				if (((long) bcc_ptr + len) - (long)
 				    pByteArea(smb_buffer_response)
 					    <= BCC(smb_buffer_response)) {
-					ses->serverOS = cifs_kcalloc(len + 1,GFP_KERNEL);
+					ses->serverOS = kcalloc(1, len + 1,GFP_KERNEL);
+					if(ses->serverOS == NULL)
+						goto sesssetup_nomem;
 					strncpy(ses->serverOS,bcc_ptr, len);
 
 					bcc_ptr += len;
@@ -1763,14 +2030,18 @@ CIFSSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 					bcc_ptr++;
 
 					len = strnlen(bcc_ptr, 1024);
-					ses->serverNOS = cifs_kcalloc(len + 1,GFP_KERNEL);
+					ses->serverNOS = kcalloc(1, len + 1,GFP_KERNEL);
+					if(ses->serverNOS == NULL)
+						goto sesssetup_nomem;
 					strncpy(ses->serverNOS, bcc_ptr, len);
 					bcc_ptr += len;
 					bcc_ptr[0] = 0;
 					bcc_ptr++;
 
 					len = strnlen(bcc_ptr, 1024);
-					ses->serverDomain = cifs_kcalloc(len + 1,GFP_KERNEL);
+					ses->serverDomain = kcalloc(1, len + 1,GFP_KERNEL);
+					if(ses->serverDomain == NULL)
+						goto sesssetup_nomem;
 					strncpy(ses->serverDomain, bcc_ptr, len);
 					bcc_ptr += len;
 					bcc_ptr[0] = 0;
@@ -1790,7 +2061,9 @@ CIFSSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 			smb_buffer_response->WordCount));
 		rc = -EIO;
 	}
-	
+sesssetup_nomem:	/* do not return an error on nomem for the info strings,
+			   since that could make reconnection harder, and
+			   reconnection might be needed to free memory */
 	if (smb_buffer)
 		cifs_buf_release(smb_buffer);
 
@@ -1967,7 +2240,7 @@ CIFSSpnegoSessSetup(unsigned int xid, struct cifsSesInfo *ses,
    the end since (at least) WIN2K and Windows XP have a major bug in not null
    terminating last Unicode string in response  */
 					ses->serverOS =
-					    cifs_kcalloc(2 * (len + 1), GFP_KERNEL);
+					    kcalloc(1, 2 * (len + 1), GFP_KERNEL);
 					cifs_strfromUCS_le(ses->serverOS,
 							   (wchar_t *)
 							   bcc_ptr, len,
@@ -1981,7 +2254,7 @@ CIFSSpnegoSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 								 remaining_words
 								 - 1);
 						ses->serverNOS =
-						    cifs_kcalloc(2 * (len + 1),
+						    kcalloc(1, 2 * (len + 1),
 							    GFP_KERNEL);
 						cifs_strfromUCS_le(ses->serverNOS,
 								   (wchar_t *)bcc_ptr,
@@ -1994,7 +2267,7 @@ CIFSSpnegoSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 						if (remaining_words > 0) {
 							len = UniStrnlen((wchar_t *) bcc_ptr, remaining_words);	
                             /* last string is not always null terminated (for e.g. for Windows XP & 2000) */
-							ses->serverDomain = cifs_kcalloc(2*(len+1),GFP_KERNEL);
+							ses->serverDomain = kcalloc(1, 2*(len+1),GFP_KERNEL);
 							cifs_strfromUCS_le(ses->serverDomain,
 							     (wchar_t *)bcc_ptr, 
                                  len,
@@ -2005,10 +2278,10 @@ CIFSSpnegoSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 						} /* else no more room so create dummy domain string */
 						else
 							ses->serverDomain =
-							    cifs_kcalloc(2,GFP_KERNEL);
+							    kcalloc(1, 2,GFP_KERNEL);
 					} else {	/* no room so create dummy domain and NOS string */
-						ses->serverDomain = cifs_kcalloc(2, GFP_KERNEL);
-						ses->serverNOS = cifs_kcalloc(2, GFP_KERNEL);
+						ses->serverDomain = kcalloc(1, 2, GFP_KERNEL);
+						ses->serverNOS = kcalloc(1, 2, GFP_KERNEL);
 					}
 				} else {	/* ASCII */
 
@@ -2016,7 +2289,7 @@ CIFSSpnegoSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 					if (((long) bcc_ptr + len) - (long)
 					    pByteArea(smb_buffer_response)
 					    <= BCC(smb_buffer_response)) {
-						ses->serverOS = cifs_kcalloc(len + 1, GFP_KERNEL);
+						ses->serverOS = kcalloc(1, len + 1, GFP_KERNEL);
 						strncpy(ses->serverOS, bcc_ptr, len);
 
 						bcc_ptr += len;
@@ -2024,14 +2297,14 @@ CIFSSpnegoSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 						bcc_ptr++;
 
 						len = strnlen(bcc_ptr, 1024);
-						ses->serverNOS = cifs_kcalloc(len + 1,GFP_KERNEL);
+						ses->serverNOS = kcalloc(1, len + 1,GFP_KERNEL);
 						strncpy(ses->serverNOS, bcc_ptr, len);
 						bcc_ptr += len;
 						bcc_ptr[0] = 0;
 						bcc_ptr++;
 
 						len = strnlen(bcc_ptr, 1024);
-						ses->serverDomain = cifs_kcalloc(len + 1, GFP_KERNEL);
+						ses->serverDomain = kcalloc(1, len + 1, GFP_KERNEL);
 						strncpy(ses->serverDomain, bcc_ptr, len);
 						bcc_ptr += len;
 						bcc_ptr[0] = 0;
@@ -2281,7 +2554,7 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
    the end since (at least) WIN2K and Windows XP have a major bug in not null
    terminating last Unicode string in response  */
 					ses->serverOS =
-					    cifs_kcalloc(2 * (len + 1), GFP_KERNEL);
+					    kcalloc(1, 2 * (len + 1), GFP_KERNEL);
 					cifs_strfromUCS_le(ses->serverOS,
 							   (wchar_t *)
 							   bcc_ptr, len,
@@ -2296,7 +2569,7 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 								 remaining_words
 								 - 1);
 						ses->serverNOS =
-						    cifs_kcalloc(2 * (len + 1),
+						    kcalloc(1, 2 * (len + 1),
 							    GFP_KERNEL);
 						cifs_strfromUCS_le(ses->
 								   serverNOS,
@@ -2313,7 +2586,7 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 							len = UniStrnlen((wchar_t *) bcc_ptr, remaining_words);	
            /* last string is not always null terminated (for e.g. for Windows XP & 2000) */
 							ses->serverDomain =
-							    cifs_kcalloc(2 *
+							    kcalloc(1, 2 *
 								    (len +
 								     1),
 								    GFP_KERNEL);
@@ -2339,13 +2612,13 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 						} /* else no more room so create dummy domain string */
 						else
 							ses->serverDomain =
-							    cifs_kcalloc(2,
+							    kcalloc(1, 2,
 								    GFP_KERNEL);
 					} else {	/* no room so create dummy domain and NOS string */
 						ses->serverDomain =
-						    cifs_kcalloc(2, GFP_KERNEL);
+						    kcalloc(1, 2, GFP_KERNEL);
 						ses->serverNOS =
-						    cifs_kcalloc(2, GFP_KERNEL);
+						    kcalloc(1, 2, GFP_KERNEL);
 					}
 				} else {	/* ASCII */
 					len = strnlen(bcc_ptr, 1024);
@@ -2353,7 +2626,7 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 					    pByteArea(smb_buffer_response)
 					    <= BCC(smb_buffer_response)) {
 						ses->serverOS =
-						    cifs_kcalloc(len + 1,
+						    kcalloc(1, len + 1,
 							    GFP_KERNEL);
 						strncpy(ses->serverOS,
 							bcc_ptr, len);
@@ -2364,7 +2637,7 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 
 						len = strnlen(bcc_ptr, 1024);
 						ses->serverNOS =
-						    cifs_kcalloc(len + 1,
+						    kcalloc(1, len + 1,
 							    GFP_KERNEL);
 						strncpy(ses->serverNOS, bcc_ptr, len);
 						bcc_ptr += len;
@@ -2373,7 +2646,7 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 
 						len = strnlen(bcc_ptr, 1024);
 						ses->serverDomain =
-						    cifs_kcalloc(len + 1,
+						    kcalloc(1, len + 1,
 							    GFP_KERNEL);
 						strncpy(ses->serverDomain, bcc_ptr, len);	
 						bcc_ptr += len;
@@ -2675,7 +2948,7 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
   the end since (at least) WIN2K and Windows XP have a major bug in not null
   terminating last Unicode string in response  */
 					ses->serverOS =
-					    cifs_kcalloc(2 * (len + 1), GFP_KERNEL);
+					    kcalloc(1, 2 * (len + 1), GFP_KERNEL);
 					cifs_strfromUCS_le(ses->serverOS,
 							   (wchar_t *)
 							   bcc_ptr, len,
@@ -2690,7 +2963,7 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 								 remaining_words
 								 - 1);
 						ses->serverNOS =
-						    cifs_kcalloc(2 * (len + 1),
+						    kcalloc(1, 2 * (len + 1),
 							    GFP_KERNEL);
 						cifs_strfromUCS_le(ses->
 								   serverNOS,
@@ -2706,7 +2979,7 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 							len = UniStrnlen((wchar_t *) bcc_ptr, remaining_words);	
      /* last string not always null terminated (e.g. for Windows XP & 2000) */
 							ses->serverDomain =
-							    cifs_kcalloc(2 *
+							    kcalloc(1, 2 *
 								    (len +
 								     1),
 								    GFP_KERNEL);
@@ -2731,17 +3004,17 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 							    = 0;
 						} /* else no more room so create dummy domain string */
 						else
-							ses->serverDomain = cifs_kcalloc(2,GFP_KERNEL);
+							ses->serverDomain = kcalloc(1, 2,GFP_KERNEL);
 					} else {  /* no room so create dummy domain and NOS string */
-						ses->serverDomain = cifs_kcalloc(2, GFP_KERNEL);
-						ses->serverNOS = cifs_kcalloc(2, GFP_KERNEL);
+						ses->serverDomain = kcalloc(1, 2, GFP_KERNEL);
+						ses->serverNOS = kcalloc(1, 2, GFP_KERNEL);
 					}
 				} else {	/* ASCII */
 					len = strnlen(bcc_ptr, 1024);
 					if (((long) bcc_ptr + len) - 
                         (long) pByteArea(smb_buffer_response) 
                             <= BCC(smb_buffer_response)) {
-						ses->serverOS = cifs_kcalloc(len + 1,GFP_KERNEL);
+						ses->serverOS = kcalloc(1, len + 1,GFP_KERNEL);
 						strncpy(ses->serverOS,bcc_ptr, len);
 
 						bcc_ptr += len;
@@ -2749,14 +3022,14 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 						bcc_ptr++;
 
 						len = strnlen(bcc_ptr, 1024);
-						ses->serverNOS = cifs_kcalloc(len+1,GFP_KERNEL);
+						ses->serverNOS = kcalloc(1, len+1,GFP_KERNEL);
 						strncpy(ses->serverNOS, bcc_ptr, len);	
 						bcc_ptr += len;
 						bcc_ptr[0] = 0;
 						bcc_ptr++;
 
 						len = strnlen(bcc_ptr, 1024);
-						ses->serverDomain = cifs_kcalloc(len+1,GFP_KERNEL);
+						ses->serverDomain = kcalloc(1, len+1,GFP_KERNEL);
 						strncpy(ses->serverDomain, bcc_ptr, len);
 						bcc_ptr += len;
 						bcc_ptr[0] = 0;
@@ -2868,7 +3141,7 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 				if(tcon->nativeFileSystem)
 					kfree(tcon->nativeFileSystem);
 				tcon->nativeFileSystem =
-				    cifs_kcalloc(length + 2, GFP_KERNEL);
+				    kcalloc(1, length + 2, GFP_KERNEL);
 				cifs_strfromUCS_le(tcon->nativeFileSystem,
 						   (wchar_t *) bcc_ptr,
 						   length, nls_codepage);
@@ -2886,7 +3159,7 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 				if(tcon->nativeFileSystem)
 					kfree(tcon->nativeFileSystem);
 				tcon->nativeFileSystem =
-				    cifs_kcalloc(length + 1, GFP_KERNEL);
+				    kcalloc(1, length + 1, GFP_KERNEL);
 				strncpy(tcon->nativeFileSystem, bcc_ptr,
 					length);
 			}
@@ -2959,6 +3232,7 @@ int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
 	int rc = 0;
 	char ntlm_session_key[CIFS_SESSION_KEY_SIZE];
 	int ntlmv2_flag = FALSE;
+	int first_time = 0;
 
 	/* what if server changes its buffer size after dropping the session? */
 	if(pSesInfo->server->maxBuf == 0) /* no need to send on reconnect */ {
@@ -2977,12 +3251,13 @@ int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
 			spin_unlock(&GlobalMid_Lock);
 
 		}
+		first_time = 1;
 	}
 	if (!rc) {
 		pSesInfo->capabilities = pSesInfo->server->capabilities;
 		if(linuxExtEnabled == 0)
 			pSesInfo->capabilities &= (~CAP_UNIX);
-		pSesInfo->sequence_number = 0;
+	/*	pSesInfo->sequence_number = 0;*/
 		cFYI(1,("Security Mode: 0x%x Capabilities: 0x%x Time Zone: %d",
 			pSesInfo->server->secMode,
 			pSesInfo->server->capabilities,
@@ -3015,7 +3290,10 @@ int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
 						v2_response = kmalloc(16 + 64 /* blob */, GFP_KERNEL);
 					if(v2_response) {
 						CalcNTLMv2_response(pSesInfo,v2_response);
-/*						cifs_calculate_ntlmv2_mac_key(pSesInfo->mac_signing_key, response, ntlm_session_key, */
+				/*		if(first_time)
+							cifs_calculate_ntlmv2_mac_key(
+							  pSesInfo->server->mac_signing_key, 
+							  response, ntlm_session_key, */
 						kfree(v2_response);
 					/* BB Put dummy sig in SessSetup PDU? */
 					} else {
@@ -3028,9 +3306,11 @@ int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
 						pSesInfo->server->cryptKey,
 						ntlm_session_key);
 
-					cifs_calculate_mac_key(pSesInfo->mac_signing_key,
-						ntlm_session_key,
-						pSesInfo->password);
+					if(first_time)
+						cifs_calculate_mac_key(
+							pSesInfo->server->mac_signing_key,
+							ntlm_session_key,
+							pSesInfo->password);
 				}
 			/* for better security the weaker lanman hash not sent
 			   in AuthSessSetup so we no longer calculate it */
@@ -3046,8 +3326,11 @@ int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
 				pSesInfo->server->cryptKey,
 				ntlm_session_key);
 
-			cifs_calculate_mac_key(pSesInfo->mac_signing_key, 
-				ntlm_session_key, pSesInfo->password);
+			if(first_time) 		
+				cifs_calculate_mac_key(
+					pSesInfo->server->mac_signing_key,
+					ntlm_session_key, pSesInfo->password);
+
 			rc = CIFSSessSetup(xid, pSesInfo,
 				ntlm_session_key, nls_info);
 		}

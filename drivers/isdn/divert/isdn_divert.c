@@ -383,7 +383,7 @@ divert_rule *getruleptr(int idx)
 /*************************************************/
 /* called from common module on an incoming call */
 /*************************************************/
-int isdn_divert_icall(isdn_ctrl *ic)
+static int isdn_divert_icall(isdn_ctrl *ic)
 { int retval = 0;
   unsigned long flags;
   struct call_struc *cs = NULL; 
@@ -552,7 +552,7 @@ void deleteprocs(void)
 /****************************************************/
 /* put a address including address type into buffer */
 /****************************************************/
-int put_address(char *st, u_char *p, int len)
+static int put_address(char *st, u_char *p, int len)
 { u_char retval = 0;
   u_char adr_typ = 0; /* network standard */
 
@@ -595,7 +595,7 @@ int put_address(char *st, u_char *p, int len)
 /*************************************/
 /* report a succesfull interrogation */
 /*************************************/
-int interrogate_success(isdn_ctrl *ic, struct call_struc *cs)
+static int interrogate_success(isdn_ctrl *ic, struct call_struc *cs)
 { char *src = ic->parm.dss1_io.data;
   int restlen = ic->parm.dss1_io.datalen;
   int cnt = 1;
@@ -689,7 +689,7 @@ int interrogate_success(isdn_ctrl *ic, struct call_struc *cs)
 /*********************************************/
 /* callback for protocol specific extensions */
 /*********************************************/
-int prot_stat_callback(isdn_ctrl *ic)
+static int prot_stat_callback(isdn_ctrl *ic)
 { struct call_struc *cs, *cs1;
   int i;
   unsigned long flags;
@@ -781,7 +781,7 @@ int prot_stat_callback(isdn_ctrl *ic)
 /***************************/
 /* status callback from HL */
 /***************************/
-int isdn_divert_stat_callback(isdn_ctrl *ic)
+static int isdn_divert_stat_callback(isdn_ctrl *ic)
 { struct call_struc *cs, *cs1;
   unsigned long flags;
   int retval;

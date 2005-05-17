@@ -32,6 +32,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include "dvb_frontend.h"
+#include "dvb-pll.h"
 #include "cx22702.h"
 
 
@@ -203,7 +204,19 @@ static int cx22702_set_tps (struct dvb_frontend* fe, struct dvb_frontend_paramet
 
 	/* set PLL */
         cx22702_writereg (state, 0x0D, cx22702_readreg(state,0x0D) &0xfe);
-	state->config->pll_set(fe, p);
+	if (state->config->pll_set) {
+		state->config->pll_set(fe, p);
+	} else if (state->config->pll_desc) {
+		u8 pllbuf[4];
+		struct i2c_msg msg = { .addr = state->config->pll_address,
+				       .buf = pllbuf, .len = 4 };
+		dvb_pll_configure(state->config->pll_desc, pllbuf,
+				  p->frequency,
+				  p->u.ofdm.bandwidth);
+		i2c_transfer(state->i2c, &msg, 1);
+	} else {
+		BUG();
+	}
         cx22702_writereg (state, 0x0D, cx22702_readreg(state,0x0D) | 1);
 
 	/* set inversion */

@@ -14,6 +14,7 @@
 #include <linux/user.h>
 #include <linux/slab.h>
 #include <linux/security.h>
+#include <linux/signal.h>
 
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
@@ -335,7 +336,7 @@ do_sys_ptrace(long request, long pid, long addr, long data,
 		/* continue and stop at next (return from) syscall */
 	case PTRACE_CONT:    /* restart after signal. */
 		ret = -EIO;
-		if ((unsigned long) data > _NSIG)
+		if (!valid_signal(data))
 			break;
 		if (request == PTRACE_SYSCALL)
 			set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
@@ -365,7 +366,7 @@ do_sys_ptrace(long request, long pid, long addr, long data,
 
 	case PTRACE_SINGLESTEP:  /* execute single instruction. */
 		ret = -EIO;
-		if ((unsigned long) data > _NSIG)
+		if (!valid_signal(data))
 			break;
 		/* Mark single stepping.  */
 		child->thread_info->bpt_nsaved = -1;

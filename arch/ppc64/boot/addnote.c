@@ -19,6 +19,7 @@
 #include <unistd.h>
 #include <string.h>
 
+/* CHRP note section */
 char arch[] = "PowerPC";
 
 #define N_DESCR	6
@@ -30,6 +31,29 @@ unsigned int descr[N_DESCR] = {
 	0xffffffff,		/* virt-size */
 	0x4000,			/* load-base */
 };
+
+/* RPA note section */
+char rpaname[] = "IBM,RPA-Client-Config";
+
+/*
+ * Note: setting ignore_my_client_config *should* mean that OF ignores
+ * all the other fields, but there is a firmware bug which means that
+ * it looks at the splpar field at least.  So these values need to be
+ * reasonable.
+ */
+#define N_RPA_DESCR	8
+unsigned int rpanote[N_RPA_DESCR] = {
+	0,			/* lparaffinity */
+	64,			/* min_rmo_size */
+	0,			/* min_rmo_percent */
+	40,			/* max_pft_size */
+	1,			/* splpar */
+	-1,			/* min_load */
+	0,			/* new_mem_def */
+	1,			/* ignore_my_client_config */
+};
+
+#define ROUNDUP(len)	(((len) + 3) & ~3)
 
 unsigned char buf[512];
 
@@ -69,7 +93,7 @@ main(int ac, char **av)
 {
 	int fd, n, i;
 	int ph, ps, np;
-	int nnote, ns;
+	int nnote, nnote2, ns;
 
 	if (ac != 2) {
 		fprintf(stderr, "Usage: %s elf-file\n", av[0]);
@@ -81,7 +105,8 @@ main(int ac, char **av)
 		exit(1);
 	}
 
-	nnote = strlen(arch) + 1 + (N_DESCR + 3) * 4;
+	nnote = 12 + ROUNDUP(strlen(arch) + 1) + sizeof(descr);
+	nnote2 = 12 + ROUNDUP(strlen(rpaname) + 1) + sizeof(rpanote);
 
 	n = read(fd, buf, sizeof(buf));
 	if (n < 0) {
@@ -104,7 +129,7 @@ main(int ac, char **av)
 	np = GET_16BE(E_PHNUM);
 	if (ph < E_HSIZE || ps < PH_HSIZE || np < 1)
 		goto notelf;
-	if (ph + (np + 1) * ps + nnote > n)
+	if (ph + (np + 2) * ps + nnote + nnote2 > n)
 		goto nospace;
 
 	for (i = 0; i < np; ++i) {
@@ -117,12 +142,12 @@ main(int ac, char **av)
 	}
 
 	/* XXX check that the area we want to use is all zeroes */
-	for (i = 0; i < ps + nnote; ++i)
+	for (i = 0; i < 2 * ps + nnote + nnote2; ++i)
 		if (buf[ph + i] != 0)
 			goto nospace;
 
 	/* fill in the program header entry */
-	ns = ph + ps;
+	ns = ph + 2 * ps;
 	PUT_32BE(ph + PH_TYPE, PT_NOTE);
 	PUT_32BE(ph + PH_OFFSET, ns);
 	PUT_32BE(ph + PH_FILESZ, nnote);
@@ -134,11 +159,26 @@ main(int ac, char **av)
 	PUT_32BE(ns + 8, 0x1275);
 	strcpy(&buf[ns + 12], arch);
 	ns += 12 + strlen(arch) + 1;
-	for (i = 0; i < N_DESCR; ++i)
-		PUT_32BE(ns + i * 4, descr[i]);
+	for (i = 0; i < N_DESCR; ++i, ns += 4)
+		PUT_32BE(ns, descr[i]);
+
+	/* fill in the second program header entry and the RPA note area */
+	ph += ps;
+	PUT_32BE(ph + PH_TYPE, PT_NOTE);
+	PUT_32BE(ph + PH_OFFSET, ns);
+	PUT_32BE(ph + PH_FILESZ, nnote2);
+
+	/* fill in the note area we point to */
+	PUT_32BE(ns, strlen(rpaname) + 1);
+	PUT_32BE(ns + 4, sizeof(rpanote));
+	PUT_32BE(ns + 8, 0x12759999);
+	strcpy(&buf[ns + 12], rpaname);
+	ns += 12 + ROUNDUP(strlen(rpaname) + 1);
+	for (i = 0; i < N_RPA_DESCR; ++i, ns += 4)
+		PUT_32BE(ns, rpanote[i]);
 
 	/* Update the number of program headers */
-	PUT_16BE(E_PHNUM, np + 1);
+	PUT_16BE(E_PHNUM, np + 2);
 
 	/* write back */
 	lseek(fd, (long) 0, SEEK_SET);
@@ -155,11 +195,11 @@ main(int ac, char **av)
 	exit(0);
 
  notelf:
-	fprintf(stderr, "%s does not appear to be an ELF file\n", av[0]);
+	fprintf(stderr, "%s does not appear to be an ELF file\n", av[1]);
 	exit(1);
 
  nospace:
 	fprintf(stderr, "sorry, I can't find space in %s to put the note\n",
-		av[0]);
+		av[1]);
 	exit(1);
 }

@@ -43,7 +43,7 @@ struct __debug_entry{
 #define DEBUG_OFF_LEVEL            -1 /* level where debug is switched off */
 #define DEBUG_FLUSH_ALL            -1 /* parameter to flush all areas */
 #define DEBUG_MAX_VIEWS            10 /* max number of views in proc fs */
-#define DEBUG_MAX_PROCF_LEN        16 /* max length for a proc file name */
+#define DEBUG_MAX_PROCF_LEN        64 /* max length for a proc file name */
 #define DEBUG_DEFAULT_LEVEL        3  /* initial debug level */
 
 #define DEBUG_DIR_ROOT "s390dbf" /* name of debug root directory in proc fs */

@@ -17,6 +17,7 @@
 #include <linux/user.h>
 #include <linux/security.h>
 #include <linux/audit.h>
+#include <linux/signal.h>
 
 #include <asm/pgtable.h>
 #include <asm/processor.h>
@@ -704,12 +705,32 @@ convert_to_non_syscall (struct task_struct *child, struct pt_regs  *pt,
 			break;
 	}
 
+	/*
+	 * Note: at the time of this call, the target task is blocked
+	 * in notify_resume_user() and by clearling PRED_LEAVE_SYSCALL
+	 * (aka, "pLvSys") we redirect execution from
+	 * .work_pending_syscall_end to .work_processed_kernel.
+	 */
 	unw_get_pr(&prev_info, &pr);
-	pr &= ~(1UL << PRED_SYSCALL);
+	pr &= ~((1UL << PRED_SYSCALL) | (1UL << PRED_LEAVE_SYSCALL));
 	pr |=  (1UL << PRED_NON_SYSCALL);
 	unw_set_pr(&prev_info, pr);
 
 	pt->cr_ifs = (1UL << 63) | cfm;
+	/*
+	 * Clear the memory that is NOT written on syscall-entry to
+	 * ensure we do not leak kernel-state to user when execution
+	 * resumes.
+	 */
+	pt->r2 = 0;
+	pt->r3 = 0;
+	pt->r14 = 0;
+	memset(&pt->r16, 0, 16*8);	/* clear r16-r31 */
+	memset(&pt->f6, 0, 6*16);	/* clear f6-f11 */
+	pt->b7 = 0;
+	pt->ar_ccv = 0;
+	pt->ar_csd = 0;
+	pt->ar_ssd = 0;
 }
 
 static int
@@ -1481,7 +1502,7 @@ sys_ptrace (long request, pid_t pid, unsigned long addr, unsigned long data)
 	      case PTRACE_CONT:
 		/* restart after signal. */
 		ret = -EIO;
-		if (data > _NSIG)
+		if (!valid_signal(data))
 			goto out_tsk;
 		if (request == PTRACE_SYSCALL)
 			set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
@@ -1520,7 +1541,7 @@ sys_ptrace (long request, pid_t pid, unsigned long addr, unsigned long data)
 		/* let child execute for one instruction */
 	      case PTRACE_SINGLEBLOCK:
 		ret = -EIO;
-		if (data > _NSIG)
+		if (!valid_signal(data))
 			goto out_tsk;
 
 		clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);

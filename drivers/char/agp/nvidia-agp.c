@@ -288,7 +288,7 @@ static struct gatt_mask nvidia_generic_masks[] =
 };
 
 
-struct agp_bridge_driver nvidia_driver = {
+static struct agp_bridge_driver nvidia_driver = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= nvidia_generic_sizes,
 	.size_type		= U8_APER_SIZE,

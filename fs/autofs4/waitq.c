@@ -210,23 +210,25 @@ int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
 		wq->len = len;
 		wq->status = -EINTR; /* Status return if interrupted */
 		atomic_set(&wq->wait_ctr, 2);
+		atomic_set(&wq->notified, 1);
 		up(&sbi->wq_sem);
-
-		DPRINTK("new wait id = 0x%08lx, name = %.*s, nfy=%d",
-			(unsigned long) wq->wait_queue_token, wq->len, wq->name, notify);
-		/* autofs4_notify_daemon() may block */
-		if (notify != NFY_NONE) {
-			autofs4_notify_daemon(sbi,wq, 
-					notify == NFY_MOUNT ?
-						  autofs_ptype_missing :
-						  autofs_ptype_expire_multi);
-		}
 	} else {
 		atomic_inc(&wq->wait_ctr);
 		up(&sbi->wq_sem);
 		kfree(name);
 		DPRINTK("existing wait id = 0x%08lx, name = %.*s, nfy=%d",
 			(unsigned long) wq->wait_queue_token, wq->len, wq->name, notify);
+	}
+
+	if (notify != NFY_NONE && atomic_dec_and_test(&wq->notified)) {
+		int type = (notify == NFY_MOUNT ?
+			autofs_ptype_missing : autofs_ptype_expire_multi);
+
+		DPRINTK(("new wait id = 0x%08lx, name = %.*s, nfy=%d\n",
+			(unsigned long) wq->wait_queue_token, wq->len, wq->name, notify));
+
+		/* autofs4_notify_daemon() may block */
+		autofs4_notify_daemon(sbi, wq, type);
 	}
 
 	/* wq->name is NULL if and only if the lock is already released */

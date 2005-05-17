@@ -1099,7 +1099,7 @@ static struct pbe * swsusp_pagedir_relocate(struct pbe *pblist)
 	return pblist;
 }
 
-/**
+/*
  *	Using bio to read from swap.
  *	This code requires a bit more work than just using buffer heads
  *	but, it is the recommended way for 2.5/2.6.

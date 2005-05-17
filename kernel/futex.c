@@ -39,6 +39,7 @@
 #include <linux/mount.h>
 #include <linux/pagemap.h>
 #include <linux/syscalls.h>
+#include <linux/signal.h>
 
 #define FUTEX_HASHBITS (CONFIG_BASE_SMALL ? 4 : 8)
 
@@ -654,7 +655,7 @@ static int futex_fd(unsigned long uaddr, int signal)
 	int ret, err;
 
 	ret = -EINVAL;
-	if (signal < 0 || signal > _NSIG)
+	if (!valid_signal(signal))
 		goto out;
 
 	ret = get_unused_fd();

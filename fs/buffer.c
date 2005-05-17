@@ -218,7 +218,7 @@ struct super_block *freeze_bdev(struct block_device *bdev)
 	sb = get_super(bdev);
 	if (sb && !(sb->s_flags & MS_RDONLY)) {
 		sb->s_frozen = SB_FREEZE_WRITE;
-		wmb();
+		smp_wmb();
 
 		sync_inodes_sb(sb, 0);
 		DQUOT_SYNC(sb);
@@ -235,7 +235,7 @@ struct super_block *freeze_bdev(struct block_device *bdev)
 		sync_inodes_sb(sb, 1);
 
 		sb->s_frozen = SB_FREEZE_TRANS;
-		wmb();
+		smp_wmb();
 
 		sync_blockdev(sb->s_bdev);
 
@@ -263,7 +263,7 @@ void thaw_bdev(struct block_device *bdev, struct super_block *sb)
 		if (sb->s_op->unlockfs)
 			sb->s_op->unlockfs(sb);
 		sb->s_frozen = SB_UNFROZEN;
-		wmb();
+		smp_wmb();
 		wake_up(&sb->s_wait_unfrozen);
 		drop_super(sb);
 	}
@@ -774,15 +774,14 @@ repeat:
 /**
  * sync_mapping_buffers - write out and wait upon a mapping's "associated"
  *                        buffers
- * @buffer_mapping - the mapping which backs the buffers' data
- * @mapping - the mapping which wants those buffers written
+ * @mapping: the mapping which wants those buffers written
  *
  * Starts I/O against the buffers at mapping->private_list, and waits upon
  * that I/O.
  *
- * Basically, this is a convenience function for fsync().  @buffer_mapping is
- * the blockdev which "owns" the buffers and @mapping is a file or directory
- * which needs those buffers to be written for a successful fsync().
+ * Basically, this is a convenience function for fsync().
+ * @mapping is a file or directory which needs those buffers to be written for
+ * a successful fsync().
  */
 int sync_mapping_buffers(struct address_space *mapping)
 {
@@ -1263,6 +1262,7 @@ __getblk_slow(struct block_device *bdev, sector_t block, int size)
 
 /**
  * mark_buffer_dirty - mark a buffer_head as needing writeout
+ * @bh: the buffer_head to mark dirty
  *
  * mark_buffer_dirty() will set the dirty bit against the buffer, then set its
  * backing page dirty, then tag the page as dirty in its address_space's radix
@@ -1501,6 +1501,7 @@ EXPORT_SYMBOL(__breadahead);
 
 /**
  *  __bread() - reads a specified block and returns the bh
+ *  @bdev: the block_device to read from
  *  @block: number of block
  *  @size: size (in bytes) to read
  * 
@@ -2078,8 +2079,7 @@ int block_read_full_page(struct page *page, get_block_t *get_block)
 	int nr, i;
 	int fully_mapped = 1;
 
-	if (!PageLocked(page))
-		PAGE_BUG(page);
+	BUG_ON(!PageLocked(page));
 	blocksize = 1 << inode->i_blkbits;
 	if (!page_has_buffers(page))
 		create_empty_buffers(page, blocksize, 0);
@@ -2917,7 +2917,7 @@ drop_buffers(struct page *page, struct buffer_head **buffers_to_free)
 
 	bh = head;
 	do {
-		if (buffer_write_io_error(bh))
+		if (buffer_write_io_error(bh) && page->mapping)
 			set_bit(AS_EIO, &page->mapping->flags);
 		if (buffer_busy(bh))
 			goto failed;

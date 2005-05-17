@@ -1107,17 +1107,18 @@ static void rtmsg_ifa(int event, struct in_ifaddr* ifa)
 	}
 }
 
-static struct rtnetlink_link inet_rtnetlink_table[RTM_MAX - RTM_BASE + 1] = {
-	 [4] = { .doit	 = inet_rtm_newaddr,  },
-	 [5] = { .doit	 = inet_rtm_deladdr,  },
-	 [6] = { .dumpit = inet_dump_ifaddr,  },
-	 [8] = { .doit	 = inet_rtm_newroute, },
-	 [9] = { .doit	 = inet_rtm_delroute, },
-	[10] = { .doit	 = inet_rtm_getroute, .dumpit = inet_dump_fib, },
+static struct rtnetlink_link inet_rtnetlink_table[RTM_NR_MSGTYPES] = {
+	[RTM_NEWADDR  - RTM_BASE] = { .doit	= inet_rtm_newaddr,	},
+	[RTM_DELADDR  - RTM_BASE] = { .doit	= inet_rtm_deladdr,	},
+	[RTM_GETADDR  - RTM_BASE] = { .dumpit	= inet_dump_ifaddr,	},
+	[RTM_NEWROUTE - RTM_BASE] = { .doit	= inet_rtm_newroute,	},
+	[RTM_DELROUTE - RTM_BASE] = { .doit	= inet_rtm_delroute,	},
+	[RTM_GETROUTE - RTM_BASE] = { .doit	= inet_rtm_getroute,
+				      .dumpit	= inet_dump_fib,	},
 #ifdef CONFIG_IP_MULTIPLE_TABLES
-	[16] = { .doit	 = inet_rtm_newrule, },
-	[17] = { .doit	 = inet_rtm_delrule, },
-	[18] = { .dumpit = inet_dump_rules,  },
+	[RTM_NEWRULE  - RTM_BASE] = { .doit	= inet_rtm_newrule,	},
+	[RTM_DELRULE  - RTM_BASE] = { .doit	= inet_rtm_delrule,	},
+	[RTM_GETRULE  - RTM_BASE] = { .dumpit	= inet_dump_rules,	},
 #endif
 };
 

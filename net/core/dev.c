@@ -3091,7 +3091,7 @@ void free_netdev(struct net_device *dev)
 void synchronize_net(void) 
 {
 	might_sleep();
-	synchronize_kernel();
+	synchronize_rcu();
 }
 
 /**

@@ -52,6 +52,7 @@ cond_syscall(sys_msgsnd);
 cond_syscall(sys_msgrcv);
 cond_syscall(sys_msgctl);
 cond_syscall(sys_shmget);
+cond_syscall(sys_shmat);
 cond_syscall(sys_shmdt);
 cond_syscall(sys_shmctl);
 cond_syscall(sys_mq_open);

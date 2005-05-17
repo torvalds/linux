@@ -18,6 +18,7 @@
 #include <linux/security.h>
 #include <linux/audit.h>
 #include <linux/seccomp.h>
+#include <linux/signal.h>
 
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
@@ -467,7 +468,7 @@ asmlinkage long sys_ptrace(long request, long pid, unsigned long addr, long data
 	case PTRACE_CONT:    /* restart after signal. */
 
 		ret = -EIO;
-		if ((unsigned long) data > _NSIG)
+		if (!valid_signal(data))
 			break;
 		if (request == PTRACE_SYSCALL)
 			set_tsk_thread_flag(child,TIF_SYSCALL_TRACE);
@@ -529,7 +530,7 @@ asmlinkage long sys_ptrace(long request, long pid, unsigned long addr, long data
 
 	case PTRACE_SINGLESTEP:    /* set the trap flag. */
 		ret = -EIO;
-		if ((unsigned long) data > _NSIG)
+		if (!valid_signal(data))
 			break;
 		clear_tsk_thread_flag(child,TIF_SYSCALL_TRACE);
 		set_singlestep(child);

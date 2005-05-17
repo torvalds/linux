@@ -12,6 +12,7 @@
 #include <linux/string.h>
 #include <linux/bootmem.h>
 #include <linux/bitops.h>
+#include <asm/bootsetup.h>
 #include <asm/pda.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
@@ -26,7 +27,7 @@
 #include <asm/mman.h>
 #include <asm/numa.h>
 
-char x86_boot_params[2048] __initdata = {0,};
+char x86_boot_params[BOOT_PARAM_SIZE] __initdata = {0,};
 
 cpumask_t cpu_initialized __initdata = CPU_MASK_NONE;
 

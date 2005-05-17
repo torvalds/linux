@@ -20,8 +20,9 @@ quiet_cmd_uimage = UIMAGE  $@
 
 targets += uImage
 $(obj)/uImage: $(obj)/vmlinux.gz
+	$(Q)rm -f $@
 	$(call if_changed,uimage)
-	@echo '  Image $@ is ready'
+	@echo '  Image: $@' $(if $(wildcard $@),'is ready','not made')
 
 # Files generated that shall be removed upon make clean
 clean-files	:= sImage vmapus vmlinux* miboot* zImage* uImage

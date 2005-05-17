@@ -18,12 +18,14 @@ SECTIONS
   .gnu.version_d  : { *(.gnu.version_d) }
   .gnu.version_r  : { *(.gnu.version_r) }
 
+  .note		  : { *(.note.*) }		:text	:note
+
   . = ALIGN (16);
   .text           :
   {
     *(.text .stub .text.* .gnu.linkonce.t.*)
     *(.sfpr .glink)
-  }
+  }						:text
   PROVIDE (__etext = .);
   PROVIDE (_etext = .);
   PROVIDE (etext = .);
@@ -88,6 +90,7 @@ SECTIONS
 PHDRS
 {
   text PT_LOAD FILEHDR PHDRS FLAGS(5); /* PF_R|PF_X */
+  note PT_NOTE FLAGS(4); /* PF_R */
   dynamic PT_DYNAMIC FLAGS(4); /* PF_R */
   eh_frame_hdr 0x6474e550; /* PT_GNU_EH_FRAME, but ld doesn't match the name */
 }

@@ -167,8 +167,8 @@ void udf_expand_file_adinicb(struct inode * inode, int newsize, int * err)
 	}
 
 	page = grab_cache_page(inode->i_mapping, 0);
-	if (!PageLocked(page))
-		PAGE_BUG(page);
+	BUG_ON(!PageLocked(page));
+
 	if (!PageUptodate(page))
 	{
 		kaddr = kmap(page);

@@ -179,6 +179,7 @@ requeue:
 		netif_schedule(dev);
 		return 1;
 	}
+	BUG_ON((int) q->q.qlen < 0);
 	return q->q.qlen;
 }
 
@@ -538,6 +539,10 @@ void dev_activate(struct net_device *dev)
 		dev->qdisc_sleeping = qdisc;
 		write_unlock_bh(&qdisc_tree_lock);
 	}
+
+	if (!netif_carrier_ok(dev))
+		/* Delay activation until next carrier-on event */
+		return;
 
 	spin_lock_bh(&dev->queue_lock);
 	rcu_assign_pointer(dev->qdisc, dev->qdisc_sleeping);

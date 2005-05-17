@@ -40,25 +40,32 @@ static int integrator_set_rtc(void)
 	return 1;
 }
 
-static void rtc_read_alarm(struct rtc_wkalrm *alrm)
+static int rtc_read_alarm(struct rtc_wkalrm *alrm)
 {
 	rtc_time_to_tm(readl(rtc_base + RTC_MR), &alrm->time);
+	return 0;
 }
 
-static int rtc_set_alarm(struct rtc_wkalrm *alrm)
+static inline int rtc_set_alarm(struct rtc_wkalrm *alrm)
 {
 	unsigned long time;
 	int ret;
 
-	ret = rtc_tm_to_time(&alrm->time, &time);
+	/*
+	 * At the moment, we can only deal with non-wildcarded alarm times.
+	 */
+	ret = rtc_valid_tm(&alrm->time);
+	if (ret == 0)
+		ret = rtc_tm_to_time(&alrm->time, &time);
 	if (ret == 0)
 		writel(time, rtc_base + RTC_MR);
 	return ret;
 }
 
-static void rtc_read_time(struct rtc_time *tm)
+static int rtc_read_time(struct rtc_time *tm)
 {
 	rtc_time_to_tm(readl(rtc_base + RTC_DR), tm);
+	return 0;
 }
 
 /*
@@ -69,7 +76,7 @@ static void rtc_read_time(struct rtc_time *tm)
  * edge of the 1Hz clock, we must write the time one second
  * in advance.
  */
-static int rtc_set_time(struct rtc_time *tm)
+static inline int rtc_set_time(struct rtc_time *tm)
 {
 	unsigned long time;
 	int ret;

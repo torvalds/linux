@@ -68,12 +68,18 @@
 #define PPC7D_RST_PIN			17 	/* GPP17 */
 
 extern u32 mv64360_irq_base;
+extern spinlock_t rtc_lock;
 
 static struct mv64x60_handle bh;
 static int ppc7d_has_alma;
 
 extern void gen550_progress(char *, unsigned short);
 extern void gen550_init(int, struct uart_port *);
+
+/* FIXME - move to h file */
+extern int ds1337_do_command(int id, int cmd, void *arg);
+#define DS1337_GET_DATE         0
+#define DS1337_SET_DATE         1
 
 /* residual data */
 unsigned char __res[sizeof(bd_t)];
@@ -253,6 +259,8 @@ static int ppc7d_show_cpuinfo(struct seq_file *m)
 	u8 val1, val2;
 	static int flash_sizes[4] = { 64, 32, 0, 16 };
 	static int flash_banks[4] = { 4, 3, 2, 1 };
+	static int sdram_bank_sizes[4] = { 128, 256, 512, 1 };
+	int sdram_num_banks = 2;
 	static char *pci_modes[] = { "PCI33", "PCI66",
 		"Unknown", "Unknown",
 		"PCIX33", "PCIX66",
@@ -279,13 +287,17 @@ static int ppc7d_show_cpuinfo(struct seq_file *m)
 		   (val1 == PPC7D_CPLD_MB_TYPE_PLL_100) ? 100 :
 		   (val1 == PPC7D_CPLD_MB_TYPE_PLL_64) ? 64 : 0);
 
+	val = inb(PPC7D_CPLD_MEM_CONFIG);
+	if (val & PPC7D_CPLD_SDRAM_BANK_NUM_MASK) sdram_num_banks--;
+
 	val = inb(PPC7D_CPLD_MEM_CONFIG_EXTEND);
-	val1 = val & PPC7D_CPLD_SDRAM_BANK_SIZE_MASK;
-	seq_printf(m, "SDRAM\t\t: %d%c",
-		   (val1 == PPC7D_CPLD_SDRAM_BANK_SIZE_128M) ? 128 :
-		   (val1 == PPC7D_CPLD_SDRAM_BANK_SIZE_256M) ? 256 :
-		   (val1 == PPC7D_CPLD_SDRAM_BANK_SIZE_512M) ? 512 : 1,
-		   (val1 == PPC7D_CPLD_SDRAM_BANK_SIZE_1G) ? 'G' : 'M');
+	val1 = (val & PPC7D_CPLD_SDRAM_BANK_SIZE_MASK) >> 6;
+	seq_printf(m, "SDRAM\t\t: %d banks of %d%c, total %d%c",
+		   sdram_num_banks,
+		   sdram_bank_sizes[val1],
+		   (sdram_bank_sizes[val1] < 128) ? 'G' : 'M',
+		   sdram_num_banks * sdram_bank_sizes[val1],
+		   (sdram_bank_sizes[val1] < 128) ? 'G' : 'M');
 	if (val2 & PPC7D_CPLD_MB_TYPE_ECC_FITTED_MASK) {
 		seq_printf(m, " [ECC %sabled]",
 			   (val2 & PPC7D_CPLD_MB_TYPE_ECC_ENABLE_MASK) ? "en" :
@@ -1236,6 +1248,38 @@ static void __init ppc7d_setup_arch(void)
 	printk(KERN_INFO "Radstone Technology PPC7D\n");
 	if (ppc_md.progress)
 		ppc_md.progress("ppc7d_setup_arch: exit", 0);
+
+}
+
+/* Real Time Clock support.
+ * PPC7D has a DS1337 accessed by I2C.
+ */
+static ulong ppc7d_get_rtc_time(void)
+{
+        struct rtc_time tm;
+        int result;
+
+        spin_lock(&rtc_lock);
+        result = ds1337_do_command(0, DS1337_GET_DATE, &tm);
+        spin_unlock(&rtc_lock);
+
+        if (result == 0)
+                result = mktime(tm.tm_year, tm.tm_mon, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+
+        return result;
+}
+
+static int ppc7d_set_rtc_time(unsigned long nowtime)
+{
+        struct rtc_time tm;
+        int result;
+
+        spin_lock(&rtc_lock);
+        to_tm(nowtime, &tm);
+        result = ds1337_do_command(0, DS1337_SET_DATE, &tm);
+        spin_unlock(&rtc_lock);
+
+        return result;
 }
 
 /* This kernel command line parameter can be used to have the target
@@ -1292,6 +1336,10 @@ static void ppc7d_init2(void)
 	data8 &= ~0x08;
 	data8 |= 0x07;
 	outb(data8, PPC7D_CPLD_LEDS);
+
+        /* Hook up RTC. We couldn't do this earlier because we need the I2C subsystem */
+        ppc_md.set_rtc_time = ppc7d_set_rtc_time;
+        ppc_md.get_rtc_time = ppc7d_get_rtc_time;
 
 	pr_debug("%s: exit\n", __FUNCTION__);
 }

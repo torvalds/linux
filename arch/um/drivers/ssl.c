@@ -107,11 +107,6 @@ int ssl_open(struct tty_struct *tty, struct file *filp)
 }
 
 #if 0
-static int ssl_chars_in_buffer(struct tty_struct *tty)
-{
-	return(0);
-}
-
 static void ssl_flush_buffer(struct tty_struct *tty)
 {
 	return;
@@ -149,11 +144,11 @@ static struct tty_operations ssl_ops = {
 	.put_char 		= line_put_char,
 	.write_room		= line_write_room,
 	.chars_in_buffer 	= line_chars_in_buffer,
+	.flush_buffer 		= line_flush_buffer,
+	.flush_chars 		= line_flush_chars,
 	.set_termios 		= line_set_termios,
 	.ioctl 	 		= line_ioctl,
 #if 0
-	.flush_chars 		= ssl_flush_chars,
-	.flush_buffer 		= ssl_flush_buffer,
 	.throttle 		= ssl_throttle,
 	.unthrottle 		= ssl_unthrottle,
 	.stop 	 		= ssl_stop,
@@ -171,10 +166,11 @@ static void ssl_console_write(struct console *c, const char *string,
 			      unsigned len)
 {
 	struct line *line = &serial_lines[c->index];
+	unsigned long flags;
 
-	down(&line->sem);
+	spin_lock_irqsave(&line->lock, flags);
 	console_write_chan(&line->chan_list, string, len);
-	up(&line->sem);
+	spin_unlock_irqrestore(&line->lock, flags);
 }
 
 static struct tty_driver *ssl_console_device(struct console *c, int *index)
@@ -238,14 +234,3 @@ static int ssl_chan_setup(char *str)
 
 __setup("ssl", ssl_chan_setup);
 __channel_help(ssl_chan_setup, "ssl");
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

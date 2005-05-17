@@ -379,8 +379,8 @@ ACPI_DEVICE_ATTR(eject, 0200, NULL, acpi_eject_store);
 
 /**
  * setup_sys_fs_device_files - sets up the device files under device namespace
- * @@dev:	acpi_device object
- * @@func:	function pointer to create or destroy the device file
+ * @dev:	acpi_device object
+ * @func:	function pointer to create or destroy the device file
  */
 static void
 setup_sys_fs_device_files (

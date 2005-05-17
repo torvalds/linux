@@ -33,7 +33,7 @@ static int stopmachine(void *cpu)
 	set_cpus_allowed(current, cpumask_of_cpu((int)(long)cpu));
 
 	/* Ack: we are alive */
-	mb(); /* Theoretically the ack = 0 might not be on this CPU yet. */
+	smp_mb(); /* Theoretically the ack = 0 might not be on this CPU yet. */
 	atomic_inc(&stopmachine_thread_ack);
 
 	/* Simple state machine */
@@ -43,14 +43,14 @@ static int stopmachine(void *cpu)
 			local_irq_disable();
 			irqs_disabled = 1;
 			/* Ack: irqs disabled. */
-			mb(); /* Must read state first. */
+			smp_mb(); /* Must read state first. */
 			atomic_inc(&stopmachine_thread_ack);
 		} else if (stopmachine_state == STOPMACHINE_PREPARE
 			   && !prepared) {
 			/* Everyone is in place, hold CPU. */
 			preempt_disable();
 			prepared = 1;
-			mb(); /* Must read state first. */
+			smp_mb(); /* Must read state first. */
 			atomic_inc(&stopmachine_thread_ack);
 		}
 		/* Yield in first stage: migration threads need to
@@ -62,7 +62,7 @@ static int stopmachine(void *cpu)
 	}
 
 	/* Ack: we are exiting. */
-	mb(); /* Must read state first. */
+	smp_mb(); /* Must read state first. */
 	atomic_inc(&stopmachine_thread_ack);
 
 	if (irqs_disabled)
@@ -77,7 +77,7 @@ static int stopmachine(void *cpu)
 static void stopmachine_set_state(enum stopmachine_state state)
 {
 	atomic_set(&stopmachine_thread_ack, 0);
-	wmb();
+	smp_wmb();
 	stopmachine_state = state;
 	while (atomic_read(&stopmachine_thread_ack) != stopmachine_num_threads)
 		cpu_relax();

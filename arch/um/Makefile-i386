@@ -1,4 +1,4 @@
-SUBARCH_CORE := arch/um/sys-i386/
+SUBARCH_CORE := arch/um/sys-i386/ arch/i386/crypto/
 
 TOP_ADDR := $(CONFIG_TOP_ADDR)
 

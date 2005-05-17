@@ -222,8 +222,11 @@ int fb_set_cmap(struct fb_cmap *cmap, struct fb_info *info)
 	transp = cmap->transp;
 	start = cmap->start;
 
-	if (start < 0 || !info->fbops->fb_setcolreg)
+	if (start < 0 || (!info->fbops->fb_setcolreg &&
+			  !info->fbops->fb_setcmap))
 		return -EINVAL;
+	if (info->fbops->fb_setcmap)
+		return info->fbops->fb_setcmap(cmap, info);
 	for (i = 0; i < cmap->len; i++) {
 		hred = *red++;
 		hgreen = *green++;
@@ -250,8 +253,33 @@ int fb_set_user_cmap(struct fb_cmap_user *cmap, struct fb_info *info)
 	transp = cmap->transp;
 	start = cmap->start;
 
-	if (start < 0 || !info->fbops->fb_setcolreg)
+	if (start < 0 || (!info->fbops->fb_setcolreg &&
+			  !info->fbops->fb_setcmap))
 		return -EINVAL;
+
+	/* If we can batch, do it */
+	if (info->fbops->fb_setcmap && cmap->len > 1) {
+		struct fb_cmap umap;
+		int size = cmap->len * sizeof(u16);
+		int rc;
+
+		memset(&umap, 0, sizeof(struct fb_cmap));
+		rc = fb_alloc_cmap(&umap, cmap->len, transp != NULL);
+		if (rc)
+			return rc;
+		if (copy_from_user(umap.red, red, size) ||
+		    copy_from_user(umap.green, green, size) ||
+		    copy_from_user(umap.blue, blue, size) ||
+		    (transp && copy_from_user(umap.transp, transp, size))) {
+			rc = -EFAULT;
+		}
+		umap.start = start;
+		if (rc == 0)
+			rc = info->fbops->fb_setcmap(&umap, info);
+		fb_dealloc_cmap(&umap);
+		return rc;
+	}
+
 	for (i = 0; i < cmap->len; i++, red++, blue++, green++) {
 		if (get_user(hred, red) ||
 		    get_user(hgreen, green) ||

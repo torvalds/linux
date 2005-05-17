@@ -28,6 +28,7 @@
 #include "cifs_debug.h"
 #include "smberr.h"
 #include "nterr.h"
+#include "cifs_unicode.h"
 
 extern mempool_t *cifs_sm_req_poolp;
 extern mempool_t *cifs_req_poolp;
@@ -451,25 +452,30 @@ is_valid_oplock_break(struct smb_hdr *buf)
 			atomic_inc(&tcon->num_oplock_brks);
 #endif
 			list_for_each(tmp1,&tcon->openFileList){
-				netfile = list_entry(tmp1,struct cifsFileInfo,tlist);
+				netfile = list_entry(tmp1,struct cifsFileInfo,
+						     tlist);
 				if(pSMB->Fid == netfile->netfid) {
 					struct cifsInodeInfo *pCifsInode;
 					read_unlock(&GlobalSMBSeslock);
-					cFYI(1,("Matching file id, processing oplock break"));
+					cFYI(1,("file id match, oplock break"));
 					pCifsInode = 
 						CIFS_I(netfile->pInode);
 					pCifsInode->clientCanCacheAll = FALSE;
 					if(pSMB->OplockLevel == 0)
-						pCifsInode->clientCanCacheRead = FALSE;
+						pCifsInode->clientCanCacheRead
+							= FALSE;
 					pCifsInode->oplockPending = TRUE;
-					AllocOplockQEntry(netfile->pInode, netfile->netfid, tcon);
+					AllocOplockQEntry(netfile->pInode,
+							  netfile->netfid,
+							  tcon);
 					cFYI(1,("about to wake up oplock thd"));
-					wake_up_process(oplockThread);               
+					if(oplockThread)
+					    wake_up_process(oplockThread);
 					return TRUE;
 				}
 			}
 			read_unlock(&GlobalSMBSeslock);
-			cFYI(1,("No matching file for oplock break on connection"));
+			cFYI(1,("No matching file for oplock break"));
 			return TRUE;
 		}
 	}
@@ -490,7 +496,7 @@ dump_smb(struct smb_hdr *smb_buf, int smb_buf_length)
 
 	buffer = (unsigned char *) smb_buf;
 	for (i = 0, j = 0; i < smb_buf_length; i++, j++) {
-		if (i % 8 == 0) {	/* we have reached the beginning of line  */
+		if (i % 8 == 0) {	/* have reached the beginning of line */
 			printk(KERN_DEBUG "| ");
 			j = 0;
 		}
@@ -501,7 +507,7 @@ dump_smb(struct smb_hdr *smb_buf, int smb_buf_length)
 		else
 			debug_line[1 + (2 * j)] = '_';
 
-		if (i % 8 == 7) {	/* we have reached end of line, time to print ascii */
+		if (i % 8 == 7) { /* reached end of line, time to print ascii */
 			debug_line[16] = 0;
 			printk(" | %s\n", debug_line);
 		}
@@ -513,4 +519,142 @@ dump_smb(struct smb_hdr *smb_buf, int smb_buf_length)
 	}
 	printk( " | %s\n", debug_line);
 	return;
+}
+
+/* Windows maps these to the user defined 16 bit Unicode range since they are
+   reserved symbols (along with \ and /), otherwise illegal to store
+   in filenames in NTFS */
+#define UNI_ASTERIK     (__u16) ('*' + 0xF000)
+#define UNI_QUESTION    (__u16) ('?' + 0xF000)
+#define UNI_COLON       (__u16) (':' + 0xF000)
+#define UNI_GRTRTHAN    (__u16) ('>' + 0xF000)
+#define UNI_LESSTHAN    (__u16) ('<' + 0xF000)
+#define UNI_PIPE        (__u16) ('|' + 0xF000)
+#define UNI_SLASH       (__u16) ('\\' + 0xF000)
+
+/* Convert 16 bit Unicode pathname from wire format to string in current code
+   page.  Conversion may involve remapping up the seven characters that are
+   only legal in POSIX-like OS (if they are present in the string). Path
+   names are little endian 16 bit Unicode on the wire */
+int
+cifs_convertUCSpath(char *target, const __le16 * source, int maxlen,
+		    const struct nls_table * cp)
+{
+	int i,j,len;
+	__u16 src_char;
+
+	for(i = 0, j = 0; i < maxlen; i++) {
+		src_char = le16_to_cpu(source[i]);
+		switch (src_char) {
+			case 0:
+				goto cUCS_out; /* BB check this BB */
+			case UNI_COLON:
+				target[j] = ':';
+				break;
+			case UNI_ASTERIK:
+				target[j] = '*';
+				break;
+			case UNI_QUESTION:
+				target[j] = '?';
+				break;
+			/* BB We can not handle remapping slash until
+			   all the calls to build_path_from_dentry
+			   are modified, as they use slash as separator BB */
+			/* case UNI_SLASH:
+				target[j] = '\\';
+				break;*/
+			case UNI_PIPE:
+				target[j] = '|';
+				break;
+			case UNI_GRTRTHAN:
+				target[j] = '>';
+				break;
+			case UNI_LESSTHAN:
+				target[j] = '<';
+			default: 
+				len = cp->uni2char(src_char, &target[j], 
+						NLS_MAX_CHARSET_SIZE);
+				if(len > 0) {
+					j += len;
+					continue;
+				} else {
+					target[j] = '?';
+				}
+		}
+		j++;
+		/* make sure we do not overrun callers allocated temp buffer */
+		if(j >= (2 * NAME_MAX))
+			break;
+	}
+cUCS_out:
+	target[j] = 0;
+	return j;
+}
+
+/* Convert 16 bit Unicode pathname to wire format from string in current code
+   page.  Conversion may involve remapping up the seven characters that are
+   only legal in POSIX-like OS (if they are present in the string). Path
+   names are little endian 16 bit Unicode on the wire */
+int
+cifsConvertToUCS(__le16 * target, const char *source, int maxlen, 
+		 const struct nls_table * cp, int mapChars)
+{
+	int i,j,charlen;
+	int len_remaining = maxlen;
+	char src_char;
+
+	if(!mapChars) 
+		return cifs_strtoUCS((wchar_t *) target, source, PATH_MAX, cp);
+
+	for(i = 0, j = 0; i < maxlen; j++) {
+		src_char = source[i];
+		switch (src_char) {
+			case 0:
+				goto ctoUCS_out;
+			case ':':
+				target[j] = cpu_to_le16(UNI_COLON);
+				break;
+			case '*':
+				target[j] = cpu_to_le16(UNI_ASTERIK);
+				break;
+			case '?':
+				target[j] = cpu_to_le16(UNI_QUESTION);
+				break;
+			case '<':
+				target[j] = cpu_to_le16(UNI_LESSTHAN);
+				break;
+			case '>':
+				target[j] = cpu_to_le16(UNI_GRTRTHAN);
+				break;
+			case '|':
+				target[j] = cpu_to_le16(UNI_PIPE);
+				break;			
+			/* BB We can not handle remapping slash until
+			   all the calls to build_path_from_dentry
+			   are modified, as they use slash as separator BB */
+			/* case '\\':
+				target[j] = cpu_to_le16(UNI_SLASH);
+				break;*/
+			default:
+				charlen = cp->char2uni(source+i,
+					len_remaining, target+j);
+				/* if no match, use question mark, which
+				at least in some cases servers as wild card */
+				if(charlen < 1) {
+					target[j] = cpu_to_le16(0x003f);
+					charlen = 1;
+				}
+				len_remaining -= charlen;
+				/* character may take more than one byte in the
+				   the source string, but will take exactly two
+				   bytes in the target string */
+				i+= charlen;
+				continue;
+		}
+		i++; /* move to next char in source string */
+		len_remaining--;
+	}
+
+ctoUCS_out:
+	return i;
 }

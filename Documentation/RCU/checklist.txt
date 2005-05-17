@@ -32,7 +32,10 @@ over a rather long period of time, but improvements are always welcome!
 	them -- even x86 allows reads to be reordered), and be prepared
 	to explain why this added complexity is worthwhile.  If you
 	choose #c, be prepared to explain how this single task does not
-	become a major bottleneck on big multiprocessor machines.
+	become a major bottleneck on big multiprocessor machines (for
+	example, if the task is updating information relating to itself
+	that other tasks can read, there by definition can be no
+	bottleneck).
 
 2.	Do the RCU read-side critical sections make proper use of
 	rcu_read_lock() and friends?  These primitives are needed
@@ -89,27 +92,34 @@ over a rather long period of time, but improvements are always welcome!
 		"_rcu()" list-traversal primitives, such as the
 		list_for_each_entry_rcu().
 
-	b.	If the list macros are being used, the list_del_rcu(),
-		list_add_tail_rcu(), and list_del_rcu() primitives must
-		be used in order to prevent weakly ordered machines from
-		misordering structure initialization and pointer planting.
+	b.	If the list macros are being used, the list_add_tail_rcu()
+		and list_add_rcu() primitives must be used in order
+		to prevent weakly ordered machines from misordering
+		structure initialization and pointer planting.
 		Similarly, if the hlist macros are being used, the
-		hlist_del_rcu() and hlist_add_head_rcu() primitives
-		are required.
+		hlist_add_head_rcu() primitive is required.
 
-	c.	Updates must ensure that initialization of a given
+	c.	If the list macros are being used, the list_del_rcu()
+		primitive must be used to keep list_del()'s pointer
+		poisoning from inflicting toxic effects on concurrent
+		readers.  Similarly, if the hlist macros are being used,
+		the hlist_del_rcu() primitive is required.
+
+		The list_replace_rcu() primitive may be used to
+		replace an old structure with a new one in an
+		RCU-protected list.
+
+	d.	Updates must ensure that initialization of a given
 		structure happens before pointers to that structure are
 		publicized.  Use the rcu_assign_pointer() primitive
 		when publicizing a pointer to a structure that can
 		be traversed by an RCU read-side critical section.
 
-		[The rcu_assign_pointer() primitive is in process.]
-
 5.	If call_rcu(), or a related primitive such as call_rcu_bh(),
 	is used, the callback function must be written to be called
 	from softirq context.  In particular, it cannot block.
 
-6.	Since synchronize_kernel() blocks, it cannot be called from
+6.	Since synchronize_rcu() can block, it cannot be called from
 	any sort of irq context.
 
 7.	If the updater uses call_rcu(), then the corresponding readers
@@ -125,9 +135,9 @@ over a rather long period of time, but improvements are always welcome!
 	such cases is a must, of course!  And the jury is still out on
 	whether the increased speed is worth it.
 
-8.	Although synchronize_kernel() is a bit slower than is call_rcu(),
+8.	Although synchronize_rcu() is a bit slower than is call_rcu(),
 	it usually results in simpler code.  So, unless update performance
-	is important or the updaters cannot block, synchronize_kernel()
+	is important or the updaters cannot block, synchronize_rcu()
 	should be used in preference to call_rcu().
 
 9.	All RCU list-traversal primitives, which include
@@ -155,3 +165,14 @@ over a rather long period of time, but improvements are always welcome!
 	you -must- use the "_rcu()" variants of the list macros.
 	Failing to do so will break Alpha and confuse people reading
 	your code.
+
+11.	Note that synchronize_rcu() -only- guarantees to wait until
+	all currently executing rcu_read_lock()-protected RCU read-side
+	critical sections complete.  It does -not- necessarily guarantee
+	that all currently running interrupts, NMIs, preempt_disable()
+	code, or idle loops will complete.  Therefore, if you do not have
+	rcu_read_lock()-protected read-side critical sections, do -not-
+	use synchronize_rcu().
+
+	If you want to wait for some of these other things, you might
+	instead need to use synchronize_irq() or synchronize_sched().

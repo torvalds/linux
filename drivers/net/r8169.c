@@ -2385,7 +2385,7 @@ core_down:
 	}
 
 	/* Give a racing hard_start_xmit a few cycles to complete. */
-	synchronize_kernel();
+	synchronize_sched();  /* FIXME: should this be synchronize_irq()? */
 
 	/*
 	 * And now for the 50k$ question: are IRQ disabled or not ?

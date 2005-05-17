@@ -137,7 +137,7 @@ static unsigned short pas16_addr = 0;
 static int pas16_irq = 0;
  
 
-int scsi_irq_translate[] =
+static const int scsi_irq_translate[] =
 	{ 0,  0,  1,  2,  3,  4,  5,  6, 0,  0,  7,  8,  9,  0, 10, 11 };
 
 /* The default_irqs array contains values used to set the irq into the
@@ -145,7 +145,7 @@ int scsi_irq_translate[] =
  * irq jumpers on the board).  The first value in the array will be
  * assigned to logical board 0, the next to board 1, etc.
  */
-int default_irqs[] __initdata = 
+static int default_irqs[] __initdata =
 	{  PAS16_DEFAULT_BOARD_1_IRQ,
 	   PAS16_DEFAULT_BOARD_2_IRQ,
 	   PAS16_DEFAULT_BOARD_3_IRQ,
@@ -177,7 +177,7 @@ static struct base {
 
 #define NO_BASES (sizeof (bases) / sizeof (struct base))
 
-unsigned short  pas16_offset[ 8 ] =
+static const unsigned short  pas16_offset[ 8 ] =
     {
 	0x1c00,    /* OUTPUT_DATA_REG */
 	0x1c01,    /* INITIATOR_COMMAND_REG */

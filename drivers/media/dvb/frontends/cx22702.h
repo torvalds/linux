@@ -36,6 +36,9 @@ struct cx22702_config
 	u8 demod_address;
 
 	/* PLL maintenance */
+	u8 pll_address;
+	struct dvb_pll_desc *pll_desc;
+
 	int (*pll_init)(struct dvb_frontend* fe);
 	int (*pll_set)(struct dvb_frontend* fe, struct dvb_frontend_parameters* params);
 };

@@ -99,6 +99,10 @@ static int autofs4_check_tree(struct vfsmount *mnt,
 	if (!autofs4_can_expire(top, timeout, do_now))
 		return 0;
 
+	/* Is someone visiting anywhere in the tree ? */
+	if (may_umount_tree(mnt))
+		return 0;
+
 	spin_lock(&dcache_lock);
 repeat:
 	next = this_parent->d_subdirs.next;
@@ -270,10 +274,18 @@ static struct dentry *autofs4_expire(struct super_block *sb,
 
 		/* Case 2: tree mount, expire iff entire tree is not busy */
 		if (!exp_leaves) {
+			/* Lock the tree as we must expire as a whole */
+			spin_lock(&sbi->fs_lock);
 			if (autofs4_check_tree(mnt, dentry, timeout, do_now)) {
-			expired = dentry;
-			break;
+				struct autofs_info *inf = autofs4_dentry_ino(dentry);
+
+				/* Set this flag early to catch sys_chdir and the like */
+				inf->flags |= AUTOFS_INF_EXPIRING;
+				spin_unlock(&sbi->fs_lock);
+				expired = dentry;
+				break;
 			}
+			spin_unlock(&sbi->fs_lock);
 		/* Case 3: direct mount, expire individual leaves */
 		} else {
 			expired = autofs4_check_leaves(mnt, dentry, timeout, do_now);

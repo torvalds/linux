@@ -97,7 +97,7 @@ void agp_backend_release(struct agp_bridge_data *bridge)
 EXPORT_SYMBOL(agp_backend_release);
 
 
-struct { int mem, agp; } maxes_table[] = {
+static struct { int mem, agp; } maxes_table[] = {
 	{0, 0},
 	{32, 4},
 	{64, 28},
@@ -322,7 +322,7 @@ static int __init agp_init(void)
 	return 0;
 }
 
-void __exit agp_exit(void)
+static void __exit agp_exit(void)
 {
 }
 

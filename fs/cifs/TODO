@@ -1,4 +1,4 @@
-version 1.22 July 30, 2004 
+version 1.34 April 29, 2005
 
 A Partial List of Missing Features
 ==================================
@@ -14,7 +14,7 @@ b) Better pam/winbind integration (e.g. to handle uid mapping
 better)
 
 c) multi-user mounts - multiplexed sessionsetups over single vc
-(ie tcp session) - prettying up needed, and more testing needed
+(ie tcp session) - more testing needed
 
 d) Kerberos/SPNEGO session setup support - (started)
 
@@ -67,12 +67,26 @@ q) implement support for security and trusted categories of xattrs
 
 r) Implement O_DIRECT flag on open (already supported on mount)
 
-KNOWN BUGS (updated December 10, 2004)
+s) Allow remapping of last remaining character (\) to +0xF000 which
+(this character is valid for POSIX but not for Windows)
+
+t) Create UID mapping facility so server UIDs can be mapped on a per
+mount or a per server basis to client UIDs or nobody if no mapping
+exists.  This is helpful when Unix extensions are negotiated to
+allow better permission checking when UIDs differ on the server
+and client.  Add new protocol request to the CIFS protocol 
+standard for asking the server for the corresponding name of a
+particular uid.
+
+KNOWN BUGS (updated April 29, 2005)
 ====================================
+See http://bugzilla.samba.org - search on product "CifsVFS" for
+current bug list.
+
 1) existing symbolic links (Windows reparse points) are recognized but
 can not be created remotely. They are implemented for Samba and those that
-support the CIFS Unix extensions but Samba has a bug currently handling
-symlink text beginning with slash
+support the CIFS Unix extensions, although earlier versions of Samba
+overly restrict the pathnames.
 2) follow_link and readdir code does not follow dfs junctions
 but recognizes them
 3) create of new files to FAT partitions on Windows servers can
@@ -98,7 +112,5 @@ there are some easy changes that can be done to parallelize sequential writes,
 and when signing is disabled to request larger read sizes (larger than 
 negotiated size) and send larger write sizes to modern servers.
 
-4) More exhaustively test the recently added NT4 support against various
-NT4 service pack levels, and fix cifs_setattr for setting file times and 
-size to fall back to level 1 when error invalid level returned.
-
+4) More exhaustively test against less common servers.  More testing
+against Windows 9x, Windows ME servers.

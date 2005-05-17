@@ -131,8 +131,7 @@ static int afs_file_readpage(struct file *file, struct page *page)
 
 	vnode = AFS_FS_I(inode);
 
-	if (!PageLocked(page))
-		PAGE_BUG(page);
+	BUG_ON(!PageLocked(page));
 
 	ret = -ESTALE;
 	if (vnode->flags & AFS_VNODE_DELETED)

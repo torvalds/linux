@@ -1,8 +1,6 @@
 #ifndef _PPC64_PGTABLE_H
 #define _PPC64_PGTABLE_H
 
-#include <asm-generic/4level-fixup.h>
-
 /*
  * This file contains the functions and defines necessary to modify and use
  * the ppc64 hashed page table.
@@ -16,6 +14,8 @@
 #include <asm/page.h>
 #include <asm/tlbflush.h>
 #endif /* __ASSEMBLY__ */
+
+#include <asm-generic/pgtable-nopud.h>
 
 /* PMD_SHIFT determines what a second-level page table entry can map */
 #define PMD_SHIFT	(PAGE_SHIFT + PAGE_SHIFT - 3)
@@ -228,12 +228,13 @@ void hugetlb_mm_free_pgd(struct mm_struct *mm);
 #define pmd_page_kernel(pmd)	\
 	(__bpn_to_ba(pmd_val(pmd) >> PMD_TO_PTEPAGE_SHIFT))
 #define pmd_page(pmd)		virt_to_page(pmd_page_kernel(pmd))
-#define pgd_set(pgdp, pmdp)	(pgd_val(*(pgdp)) = (__ba_to_bpn(pmdp)))
-#define pgd_none(pgd)		(!pgd_val(pgd))
-#define pgd_bad(pgd)		((pgd_val(pgd)) == 0)
-#define pgd_present(pgd)	(pgd_val(pgd) != 0UL)
-#define pgd_clear(pgdp)		(pgd_val(*(pgdp)) = 0UL)
-#define pgd_page(pgd)		(__bpn_to_ba(pgd_val(pgd))) 
+
+#define pud_set(pudp, pmdp)	(pud_val(*(pudp)) = (__ba_to_bpn(pmdp)))
+#define pud_none(pud)		(!pud_val(pud))
+#define pud_bad(pud)		((pud_val(pud)) == 0UL)
+#define pud_present(pud)	(pud_val(pud) != 0UL)
+#define pud_clear(pudp)		(pud_val(*(pudp)) = 0UL)
+#define pud_page(pud)		(__bpn_to_ba(pud_val(pud)))
 
 /* 
  * Find an entry in a page-table-directory.  We combine the address region 
@@ -245,12 +246,13 @@ void hugetlb_mm_free_pgd(struct mm_struct *mm);
 #define pgd_offset(mm, address)	 ((mm)->pgd + pgd_index(address))
 
 /* Find an entry in the second-level page table.. */
-#define pmd_offset(dir,addr) \
-  ((pmd_t *) pgd_page(*(dir)) + (((addr) >> PMD_SHIFT) & (PTRS_PER_PMD - 1)))
+#define pmd_offset(pudp,addr) \
+  ((pmd_t *) pud_page(*(pudp)) + (((addr) >> PMD_SHIFT) & (PTRS_PER_PMD - 1)))
 
 /* Find an entry in the third-level page table.. */
 #define pte_offset_kernel(dir,addr) \
-  ((pte_t *) pmd_page_kernel(*(dir)) + (((addr) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1)))
+  ((pte_t *) pmd_page_kernel(*(dir)) \
+ + (((addr) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1)))
 
 #define pte_offset_map(dir,addr)	pte_offset_kernel((dir), (addr))
 #define pte_offset_map_nested(dir,addr)	pte_offset_kernel((dir), (addr))
@@ -582,19 +584,22 @@ extern long native_hpte_insert(unsigned long hpte_group, unsigned long va,
 static inline pte_t *find_linux_pte(pgd_t *pgdir, unsigned long ea)
 {
 	pgd_t *pg;
+	pud_t *pu;
 	pmd_t *pm;
 	pte_t *pt = NULL;
 	pte_t pte;
 
 	pg = pgdir + pgd_index(ea);
 	if (!pgd_none(*pg)) {
-
-		pm = pmd_offset(pg, ea);
-		if (pmd_present(*pm)) { 
-			pt = pte_offset_kernel(pm, ea);
-			pte = *pt;
-			if (!pte_present(pte))
-				pt = NULL;
+		pu = pud_offset(pg, ea);
+		if (!pud_none(*pu)) {
+			pm = pmd_offset(pu, ea);
+			if (pmd_present(*pm)) {
+				pt = pte_offset_kernel(pm, ea);
+				pte = *pt;
+				if (!pte_present(pte))
+					pt = NULL;
+			}
 		}
 	}
 

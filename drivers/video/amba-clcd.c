@@ -125,28 +125,28 @@ clcdfb_set_bitfields(struct clcd_fb *fb, struct fb_var_screeninfo *var)
 	case 2:
 	case 4:
 	case 8:
-		var->red.length		= 8;
+		var->red.length		= var->bits_per_pixel;
 		var->red.offset		= 0;
-		var->green.length	= 8;
+		var->green.length	= var->bits_per_pixel;
 		var->green.offset	= 0;
-		var->blue.length	= 8;
+		var->blue.length	= var->bits_per_pixel;
 		var->blue.offset	= 0;
 		break;
 	case 16:
 		var->red.length		= 5;
-		var->green.length	= 5;
+		var->green.length	= 6;
 		var->blue.length	= 5;
 		if (fb->panel->cntl & CNTL_BGR) {
-			var->red.offset		= 10;
+			var->red.offset		= 11;
 			var->green.offset	= 5;
 			var->blue.offset	= 0;
 		} else {
 			var->red.offset		= 0;
 			var->green.offset	= 5;
-			var->blue.offset	= 10;
+			var->blue.offset	= 11;
 		}
 		break;
-	case 24:
+	case 32:
 		if (fb->panel->cntl & CNTL_LCDTFT) {
 			var->red.length		= 8;
 			var->green.length	= 8;
@@ -178,6 +178,12 @@ static int clcdfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 
 	if (fb->board->check)
 		ret = fb->board->check(fb, var);
+
+	if (ret == 0 &&
+	    var->xres_virtual * var->bits_per_pixel / 8 *
+	    var->yres_virtual > fb->fb.fix.smem_len)
+		ret = -EINVAL;
+
 	if (ret == 0)
 		ret = clcdfb_set_bitfields(fb, var);
 
@@ -250,7 +256,7 @@ clcdfb_setcolreg(unsigned int regno, unsigned int red, unsigned int green,
 				  convert_bitfield(green, &fb->fb.var.green) |
 				  convert_bitfield(red, &fb->fb.var.red);
 
-	if (fb->fb.var.bits_per_pixel == 8 && regno < 256) {
+	if (fb->fb.fix.visual == FB_VISUAL_PSEUDOCOLOR && regno < 256) {
 		int hw_reg = CLCD_PALETTE + ((regno * 2) & ~3);
 		u32 val, mask, newval;
 

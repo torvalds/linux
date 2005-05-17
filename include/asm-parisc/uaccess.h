@@ -24,7 +24,7 @@
 
 /*
  * Note that since kernel addresses are in a separate address space on
- * parisc, we don't need to do anything for access_ok() or verify_area().
+ * parisc, we don't need to do anything for access_ok().
  * We just let the page fault handler do the right thing. This also means
  * that put_user is the same as __put_user, etc.
  */

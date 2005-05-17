@@ -125,7 +125,7 @@ void __devinit smp_generic_kick_cpu(int nr)
 	 * the processor will continue on to secondary_start
 	 */
 	paca[nr].cpu_start = 1;
-	mb();
+	smp_mb();
 }
 
 #endif /* CONFIG_PPC_MULTIPLATFORM */
@@ -256,7 +256,7 @@ int smp_call_function (void (*func) (void *info), void *info, int nonatomic,
 	}
 
 	call_data = &data;
-	wmb();
+	smp_wmb();
 	/* Send a message to all other CPUs and wait for them to respond */
 	smp_ops->message_pass(MSG_ALL_BUT_SELF, PPC_MSG_CALL_FUNCTION);
 
@@ -431,7 +431,7 @@ int generic_cpu_enable(unsigned int cpu)
 
 	/* get the target out of it's holding state */
 	per_cpu(cpu_state, cpu) = CPU_UP_PREPARE;
-	wmb();
+	smp_wmb();
 
 	while (!cpu_online(cpu))
 		cpu_relax();
@@ -447,7 +447,7 @@ void generic_cpu_die(unsigned int cpu)
 	int i;
 
 	for (i = 0; i < 100; i++) {
-		rmb();
+		smp_rmb();
 		if (per_cpu(cpu_state, cpu) == CPU_DEAD)
 			return;
 		msleep(100);
@@ -463,7 +463,7 @@ void generic_mach_cpu_die(void)
 	cpu = smp_processor_id();
 	printk(KERN_DEBUG "CPU%d offline\n", cpu);
 	__get_cpu_var(cpu_state) = CPU_DEAD;
-	wmb();
+	smp_wmb();
 	while (__get_cpu_var(cpu_state) != CPU_UP_PREPARE)
 		cpu_relax();
 
@@ -515,7 +515,7 @@ int __devinit __cpu_up(unsigned int cpu)
 	 * be written out to main store before we release
 	 * the processor.
 	 */
-	mb();
+	smp_mb();
 
 	/* wake up cpus */
 	DBG("smp: kicking cpu %d\n", cpu);

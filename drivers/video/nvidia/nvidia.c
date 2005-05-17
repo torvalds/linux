@@ -408,6 +408,7 @@ static int hwcur __devinitdata = 0;
 static int noaccel __devinitdata = 0;
 static int noscale __devinitdata = 0;
 static int paneltweak __devinitdata = 0;
+static int vram __devinitdata = 0;
 #ifdef CONFIG_MTRR
 static int nomtrr __devinitdata = 0;
 #endif
@@ -1180,7 +1181,7 @@ static int nvidiafb_check_var(struct fb_var_screeninfo *var,
 
 	var->xres_virtual = (var->xres_virtual + 63) & ~63;
 
-	vramlen = info->fix.smem_len;
+	vramlen = info->screen_size;
 	pitch = ((var->xres_virtual * var->bits_per_pixel) + 7) / 8;
 	memlen = pitch * var->yres_virtual;
 
@@ -1343,7 +1344,7 @@ static int __devinit nvidia_set_fbinfo(struct fb_info *info)
 	/* maximize virtual vertical length */
 	lpitch = info->var.xres_virtual *
 		((info->var.bits_per_pixel + 7) >> 3);
-	info->var.yres_virtual = info->fix.smem_len / lpitch;
+	info->var.yres_virtual = info->screen_size / lpitch;
 
 	info->pixmap.scan_align = 4;
 	info->pixmap.buf_align = 4;
@@ -1507,12 +1508,20 @@ static int __devinit nvidiafb_probe(struct pci_dev *pd,
 
 	par->FbAddress = nvidiafb_fix.smem_start;
 	par->FbMapSize = par->RamAmountKBytes * 1024;
+	if (vram && vram * 1024 * 1024 < par->FbMapSize)
+		par->FbMapSize = vram * 1024 * 1024;
+
+	/* Limit amount of vram to 64 MB */
+	if (par->FbMapSize > 64 * 1024 * 1024)
+		par->FbMapSize = 64 * 1024 * 1024;
+
 	par->FbUsableSize = par->FbMapSize - (128 * 1024);
 	par->ScratchBufferSize = (par->Architecture < NV_ARCH_10) ? 8 * 1024 :
 	    16 * 1024;
 	par->ScratchBufferStart = par->FbUsableSize - par->ScratchBufferSize;
 	info->screen_base = ioremap(nvidiafb_fix.smem_start, par->FbMapSize);
-	nvidiafb_fix.smem_len = par->FbUsableSize;
+	info->screen_size = par->FbUsableSize;
+	nvidiafb_fix.smem_len = par->RamAmountKBytes * 1024;
 
 	if (!info->screen_base) {
 		printk(KERN_ERR PFX "cannot ioremap FB base\n");
@@ -1524,7 +1533,8 @@ static int __devinit nvidiafb_probe(struct pci_dev *pd,
 #ifdef CONFIG_MTRR
 	if (!nomtrr) {
 		par->mtrr.vram = mtrr_add(nvidiafb_fix.smem_start,
-					  par->FbMapSize, MTRR_TYPE_WRCOMB, 1);
+					  par->RamAmountKBytes * 1024,
+					  MTRR_TYPE_WRCOMB, 1);
 		if (par->mtrr.vram < 0) {
 			printk(KERN_ERR PFX "unable to setup MTRR\n");
 		} else {
@@ -1566,9 +1576,9 @@ static int __devinit nvidiafb_probe(struct pci_dev *pd,
 
       err_out_iounmap_fb:
 	iounmap(info->screen_base);
+      err_out_free_base1:
 	fb_destroy_modedb(info->monspecs.modedb);
 	nvidia_delete_i2c_busses(par);
-      err_out_free_base1:
 	iounmap(par->REGS);
       err_out_free_base0:
 	pci_release_regions(pd);
@@ -1645,6 +1655,8 @@ static int __devinit nvidiafb_setup(char *options)
 			noscale = 1;
 		} else if (!strncmp(this_opt, "paneltweak:", 11)) {
 			paneltweak = simple_strtoul(this_opt+11, NULL, 0);
+		} else if (!strncmp(this_opt, "vram:", 5)) {
+			vram = simple_strtoul(this_opt+5, NULL, 0);
 #ifdef CONFIG_MTRR
 		} else if (!strncmp(this_opt, "nomtrr", 6)) {
 			nomtrr = 1;
@@ -1716,6 +1728,10 @@ module_param(forceCRTC, int, 0);
 MODULE_PARM_DESC(forceCRTC,
 		 "Forces usage of a particular CRTC in case autodetection "
 		 "fails. (0 or 1) (default=autodetect)");
+module_param(vram, int, 0);
+MODULE_PARM_DESC(vram,
+		 "amount of framebuffer memory to remap in MiB"
+		 "(default=0 - remap entire memory)");
 #ifdef CONFIG_MTRR
 module_param(nomtrr, bool, 0);
 MODULE_PARM_DESC(nomtrr, "Disables MTRR support (0 or 1=disabled) "

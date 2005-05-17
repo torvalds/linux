@@ -96,7 +96,7 @@ static int fill_read_buffer(struct dentry * dentry, struct sysfs_buffer * buffer
 /**
  *	flush_read_buffer - push buffer to userspace.
  *	@buffer:	data buffer for file.
- *	@userbuf:	user-passed buffer.
+ *	@buf:		user-passed buffer.
  *	@count:		number of bytes requested.
  *	@ppos:		file position.
  *
@@ -164,7 +164,7 @@ out:
 /**
  *	fill_write_buffer - copy buffer from userspace.
  *	@buffer:	data buffer for file.
- *	@userbuf:	data from user.
+ *	@buf:		data from user.
  *	@count:		number of bytes in @userbuf.
  *
  *	Allocate @buffer->page if it hasn't been already, then

@@ -2005,7 +2005,7 @@ ctl_table ipv6_route_table[] = {
 		.procname	=	"flush",
          	.data		=	&flush_delay,
 		.maxlen		=	sizeof(int),
-		.mode		=	0644,
+		.mode		=	0200,
          	.proc_handler	=	&ipv6_sysctl_rtcache_flush
 	},
 	{

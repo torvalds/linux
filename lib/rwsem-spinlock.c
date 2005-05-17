@@ -76,7 +76,7 @@ __rwsem_do_wake(struct rw_semaphore *sem, int wakewrite)
 		list_del(&waiter->list);
 		tsk = waiter->task;
 		/* Don't touch waiter after ->task has been NULLed */
-		mb();
+		smp_mb();
 		waiter->task = NULL;
 		wake_up_process(tsk);
 		put_task_struct(tsk);
@@ -91,7 +91,7 @@ __rwsem_do_wake(struct rw_semaphore *sem, int wakewrite)
 
 		list_del(&waiter->list);
 		tsk = waiter->task;
-		mb();
+		smp_mb();
 		waiter->task = NULL;
 		wake_up_process(tsk);
 		put_task_struct(tsk);
@@ -123,7 +123,7 @@ __rwsem_wake_one_writer(struct rw_semaphore *sem)
 	list_del(&waiter->list);
 
 	tsk = waiter->task;
-	mb();
+	smp_mb();
 	waiter->task = NULL;
 	wake_up_process(tsk);
 	put_task_struct(tsk);
