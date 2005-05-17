@@ -586,7 +586,7 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma)
 		dec_mm_counter(mm, anon_rss);
 	}
 
-	inc_mm_counter(mm, rss);
+	dec_mm_counter(mm, rss);
 	page_remove_rmap(page);
 	page_cache_release(page);
 
