@@ -217,7 +217,9 @@ static int __init vsyscall_init(void)
 	BUG_ON((unsigned long) &vtime != VSYSCALL_ADDR(__NR_vtime));
 	BUG_ON((VSYSCALL_ADDR(0) != __fix_to_virt(VSYSCALL_FIRST_PAGE)));
 	map_vsyscall();
+#ifdef CONFIG_SYSCTL
 	register_sysctl_table(kernel_root_table2, 0);
+#endif
 	return 0;
 }
 
