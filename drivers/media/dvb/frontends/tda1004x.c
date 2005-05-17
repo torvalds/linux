@@ -49,6 +49,7 @@ struct tda1004x_state {
 	/* private demod data */
 	u8 initialised;
 	enum tda1004x_demod demod_type;
+	u8 fw_version;
 };
 
 
@@ -380,6 +381,25 @@ static int tda10045_fwupload(struct dvb_frontend* fe)
 	return tda1004x_check_upload_ok(state, 0x2c);
 }
 
+static int tda10046_get_fw_version(struct tda1004x_state *state,
+				   const struct firmware *fw)
+{
+	const unsigned char pattern[] = { 0x67, 0x00, 0x50, 0x62, 0x5e, 0x18, 0x67 };
+	unsigned int i;
+
+	/* area guessed from firmware v20, v21 and v25 */
+	for (i = 0x660; i < 0x700; i++) {
+		if (!memcmp(&fw->data[i], pattern, sizeof(pattern))) {
+			state->fw_version = fw->data[i + sizeof(pattern)];
+			printk(KERN_INFO "tda1004x: using firmware v%02x\n",
+					state->fw_version);
+			return 0;
+		}
+	}
+
+	return -EINVAL;
+}
+
 static int tda10046_fwupload(struct dvb_frontend* fe)
 {
 	struct tda1004x_state* state = fe->demodulator_priv;
@@ -393,7 +413,7 @@ static int tda10046_fwupload(struct dvb_frontend* fe)
 	msleep(100);
 
 	/* don't re-upload unless necessary */
-	if (tda1004x_check_upload_ok(state, 0x20) == 0)
+	if (tda1004x_check_upload_ok(state, state->fw_version) == 0)
 		return 0;
 
 	/* request the firmware, this will block until someone uploads it */
@@ -401,6 +421,17 @@ static int tda10046_fwupload(struct dvb_frontend* fe)
 	ret = state->config->request_firmware(fe, &fw, TDA10046_DEFAULT_FIRMWARE);
 	if (ret) {
 		printk("tda1004x: no firmware upload (timeout or file not found?)\n");
+		return ret;
+	}
+
+	if (fw->size < 24478) { /* size of firmware v20, which is the smallest of v20, v21 and v25 */
+		printk("tda1004x: firmware file seems to be too small (%d bytes)\n", fw->size);
+		return -EINVAL;
+	}
+
+	ret = tda10046_get_fw_version(state, fw);
+	if (ret < 0) {
+		printk("tda1004x: unable to find firmware version\n");
 		return ret;
 	}
 
@@ -427,7 +458,7 @@ static int tda10046_fwupload(struct dvb_frontend* fe)
 		msleep(1);
 	}
 
-	return tda1004x_check_upload_ok(state, 0x20);
+	return tda1004x_check_upload_ok(state, state->fw_version);
 }
 
 static int tda1004x_encode_fec(int fec)
@@ -1185,6 +1216,7 @@ struct dvb_frontend* tda10046_attach(const struct tda1004x_config* config,
 	memcpy(&state->ops, &tda10046_ops, sizeof(struct dvb_frontend_ops));
 	state->initialised = 0;
 	state->demod_type = TDA1004X_DEMOD_TDA10046;
+	state->fw_version = 0x20;	/* dummy default value */
 
 	/* check if the demod is there */
 	if (tda1004x_read_byte(state, TDA1004X_CHIPID) != 0x46) {
