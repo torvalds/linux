@@ -81,6 +81,7 @@
 #include <linux/syscalls.h>
 #include <linux/compat.h>
 #include <linux/kmod.h>
+#include <linux/audit.h>
 
 #ifdef CONFIG_NET_RADIO
 #include <linux/wireless.h>		/* Note : will define WIRELESS_EXT */
@@ -226,7 +227,7 @@ int move_addr_to_kernel(void __user *uaddr, int ulen, void *kaddr)
 		return 0;
 	if(copy_from_user(kaddr,uaddr,ulen))
 		return -EFAULT;
-	return 0;
+	return audit_sockaddr(ulen, kaddr);
 }
 
 /**
@@ -1906,7 +1907,11 @@ asmlinkage long sys_socketcall(int call, unsigned long __user *args)
 	/* copy_from_user should be SMP safe. */
 	if (copy_from_user(a, args, nargs[call]))
 		return -EFAULT;
-		
+
+	err = audit_socketcall(nargs[call]/sizeof(unsigned long), args);
+	if (err)
+		return err;
+
 	a0=a[0];
 	a1=a[1];
 	

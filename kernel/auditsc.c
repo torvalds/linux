@@ -34,7 +34,7 @@
 #include <asm/types.h>
 #include <linux/mm.h>
 #include <linux/module.h>
-
+#include <linux/socket.h>
 #include <linux/audit.h>
 #include <linux/personality.h>
 #include <linux/time.h>
@@ -110,6 +110,18 @@ struct audit_aux_data_ipcctl {
 	uid_t			uid;
 	gid_t			gid;
 	mode_t			mode;
+};
+
+struct audit_aux_data_socketcall {
+	struct audit_aux_data	d;
+	int			nargs;
+	unsigned long		args[0];
+};
+
+struct audit_aux_data_sockaddr {
+	struct audit_aux_data	d;
+	int			len;
+	char			a[0];
 };
 
 
@@ -694,7 +706,22 @@ static void audit_log_exit(struct audit_context *context)
 			audit_log_format(ab, 
 					 " qbytes=%lx iuid=%d igid=%d mode=%x",
 					 axi->qbytes, axi->uid, axi->gid, axi->mode);
-			}
+			break; }
+
+		case AUDIT_SOCKETCALL: {
+			int i;
+			struct audit_aux_data_socketcall *axs = (void *)aux;
+			audit_log_format(ab, "nargs=%d", axs->nargs);
+			for (i=0; i<axs->nargs; i++)
+				audit_log_format(ab, " a%d=%lx", i, axs->args[i]);
+			break; }
+
+		case AUDIT_SOCKADDR: {
+			struct audit_aux_data_sockaddr *axs = (void *)aux;
+
+			audit_log_format(ab, "saddr=");
+			audit_log_hex(ab, axs->a, axs->len);
+			break; }
 		}
 		audit_log_end(ab);
 
@@ -1048,6 +1075,48 @@ int audit_ipc_perms(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode)
 	ax->mode = mode;
 
 	ax->d.type = AUDIT_IPC;
+	ax->d.next = context->aux;
+	context->aux = (void *)ax;
+	return 0;
+}
+
+int audit_socketcall(int nargs, unsigned long *args)
+{
+	struct audit_aux_data_socketcall *ax;
+	struct audit_context *context = current->audit_context;
+
+	if (likely(!context))
+		return 0;
+
+	ax = kmalloc(sizeof(*ax) + nargs * sizeof(unsigned long), GFP_KERNEL);
+	if (!ax)
+		return -ENOMEM;
+
+	ax->nargs = nargs;
+	memcpy(ax->args, args, nargs * sizeof(unsigned long));
+
+	ax->d.type = AUDIT_SOCKETCALL;
+	ax->d.next = context->aux;
+	context->aux = (void *)ax;
+	return 0;
+}
+
+int audit_sockaddr(int len, void *a)
+{
+	struct audit_aux_data_sockaddr *ax;
+	struct audit_context *context = current->audit_context;
+
+	if (likely(!context))
+		return 0;
+
+	ax = kmalloc(sizeof(*ax) + len, GFP_KERNEL);
+	if (!ax)
+		return -ENOMEM;
+
+	ax->len = len;
+	memcpy(ax->a, a, len);
+
+	ax->d.type = AUDIT_SOCKADDR;
 	ax->d.next = context->aux;
 	context->aux = (void *)ax;
 	return 0;
