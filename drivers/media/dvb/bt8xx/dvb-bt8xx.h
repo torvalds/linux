@@ -40,7 +40,7 @@ struct dvb_bt8xx_card {
 	struct semaphore lock;
 	int nfeeds;
 	char card_name[32];
-	struct dvb_adapter *dvb_adapter;
+	struct dvb_adapter dvb_adapter;
 	struct bt878 *bt;
 	unsigned int bttv_nr;
 	struct dvb_demux demux;

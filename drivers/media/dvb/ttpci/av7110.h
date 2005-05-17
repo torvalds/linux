@@ -220,7 +220,7 @@ struct av7110 {
 
 	struct audio_mixer	mixer;
 
-	struct dvb_adapter	 *dvb_adapter;
+	struct dvb_adapter	 dvb_adapter;
 	struct dvb_device	 *video_dev;
 	struct dvb_device	 *audio_dev;
 	struct dvb_device	 *ca_dev;

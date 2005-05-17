@@ -64,7 +64,7 @@ struct budget {
 
 	spinlock_t debilock;
 
-	struct dvb_adapter *dvb_adapter;
+	struct dvb_adapter dvb_adapter;
 	struct dvb_frontend *dvb_frontend;
 	void *priv;
 };

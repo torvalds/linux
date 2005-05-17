@@ -1415,10 +1415,10 @@ int av7110_av_register(struct av7110 *av7110)
 	av7110->video_events.overflow = 0;
 	memset(&av7110->video_size, 0, sizeof (video_size_t));
 
-	dvb_register_device(av7110->dvb_adapter, &av7110->video_dev,
+	dvb_register_device(&av7110->dvb_adapter, &av7110->video_dev,
 			    &dvbdev_video, av7110, DVB_DEVICE_VIDEO);
 
-	dvb_register_device(av7110->dvb_adapter, &av7110->audio_dev,
+	dvb_register_device(&av7110->dvb_adapter, &av7110->audio_dev,
 			    &dvbdev_audio, av7110, DVB_DEVICE_AUDIO);
 
 	return 0;

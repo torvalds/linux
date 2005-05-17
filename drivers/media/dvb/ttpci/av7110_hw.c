@@ -619,7 +619,7 @@ int av7110_firmversion(struct av7110 *av7110)
 
 	if (av7110_fw_query(av7110, tag, buf, 16)) {
 		printk("dvb-ttpci: failed to boot firmware @ card %d\n",
-		       av7110->dvb_adapter->num);
+		       av7110->dvb_adapter.num);
 		return -EIO;
 	}
 
@@ -630,16 +630,16 @@ int av7110_firmversion(struct av7110 *av7110)
 	av7110->avtype = (buf[8] << 16) + buf[9];
 
 	printk("dvb-ttpci: info @ card %d: firm %08x, rtsl %08x, vid %08x, app %08x\n",
-	       av7110->dvb_adapter->num, av7110->arm_fw,
+	       av7110->dvb_adapter.num, av7110->arm_fw,
 	       av7110->arm_rtsl, av7110->arm_vid, av7110->arm_app);
 
 	/* print firmware capabilities */
 	if (FW_CI_LL_SUPPORT(av7110->arm_app))
 		printk("dvb-ttpci: firmware @ card %d supports CI link layer interface\n",
-		       av7110->dvb_adapter->num);
+		       av7110->dvb_adapter.num);
 	else
 		printk("dvb-ttpci: no firmware support for CI link layer interface @ card %d\n",
-		       av7110->dvb_adapter->num);
+		       av7110->dvb_adapter.num);
 
 	return 0;
 }

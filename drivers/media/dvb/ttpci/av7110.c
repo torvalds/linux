@@ -130,7 +130,7 @@ static void init_av7110_av(struct av7110 *av7110)
 	av7110->current_input = 0;
 	if (i2c_writereg(av7110, 0x20, 0x00, 0x00) == 1) {
 		printk ("dvb-ttpci: Crystal audio DAC @ card %d detected\n",
-			av7110->dvb_adapter->num);
+			av7110->dvb_adapter.num);
 		av7110->adac_type = DVB_ADAC_CRYSTAL;
 		i2c_writereg(av7110, 0x20, 0x01, 0xd2);
 		i2c_writereg(av7110, 0x20, 0x02, 0x49);
@@ -145,13 +145,13 @@ static void init_av7110_av(struct av7110 *av7110)
 	}
 	else if (dev->pci->subsystem_vendor == 0x110a) {
 		printk("dvb-ttpci: DVB-C w/o analog module @ card %d detected\n",
-			av7110->dvb_adapter->num);
+			av7110->dvb_adapter.num);
 		av7110->adac_type = DVB_ADAC_NONE;
 	}
 	else {
 		av7110->adac_type = adac;
 		printk("dvb-ttpci: adac type set to %d @ card %d\n",
-			av7110->dvb_adapter->num, av7110->adac_type);
+			av7110->dvb_adapter.num, av7110->adac_type);
 	}
 
 	if (av7110->adac_type == DVB_ADAC_NONE || av7110->adac_type == DVB_ADAC_MSP) {
@@ -231,7 +231,7 @@ static int arm_thread(void *data)
 
 		if (newloops == av7110->arm_loops) {
 			printk(KERN_ERR "dvb-ttpci: ARM crashed @ card %d\n",
-			       av7110->dvb_adapter->num);
+			       av7110->dvb_adapter.num);
 
 			arm_error(av7110);
 			av7710_set_video_mode(av7110, vidmode);
@@ -1282,7 +1282,7 @@ static int av7110_register(struct av7110 *av7110)
 	av7110->dmxdev.demux = &dvbdemux->dmx;
 	av7110->dmxdev.capabilities = 0;
 
-	dvb_dmxdev_init(&av7110->dmxdev, av7110->dvb_adapter);
+	dvb_dmxdev_init(&av7110->dmxdev, &av7110->dvb_adapter);
 
 	av7110->hw_frontend.source = DMX_FRONTEND_0;
 
@@ -1307,11 +1307,11 @@ static int av7110_register(struct av7110 *av7110)
 	av7110_ca_register(av7110);
 
 #ifdef CONFIG_DVB_AV7110_OSD
-	dvb_register_device(av7110->dvb_adapter, &av7110->osd_dev,
+	dvb_register_device(&av7110->dvb_adapter, &av7110->osd_dev,
 			    &dvbdev_osd, av7110, DVB_DEVICE_OSD);
 #endif
 
-	dvb_net_init(av7110->dvb_adapter, &av7110->dvb_net, &dvbdemux->dmx);
+	dvb_net_init(&av7110->dvb_adapter, &av7110->dvb_net, &dvbdemux->dmx);
 
 	if (budgetpatch) {
 		/* initialize software demux1 without its own frontend
@@ -1334,9 +1334,9 @@ static int av7110_register(struct av7110 *av7110)
 		av7110->dmxdev1.demux = &dvbdemux1->dmx;
 		av7110->dmxdev1.capabilities = 0;
 
-		dvb_dmxdev_init(&av7110->dmxdev1, av7110->dvb_adapter);
+		dvb_dmxdev_init(&av7110->dmxdev1, &av7110->dvb_adapter);
 
-		dvb_net_init(av7110->dvb_adapter, &av7110->dvb_net1, &dvbdemux1->dmx);
+		dvb_net_init(&av7110->dvb_adapter, &av7110->dvb_net1, &dvbdemux1->dmx);
 		printk("dvb-ttpci: additional demux1 for budget-patch registered\n");
 	}
 	return 0;
@@ -2246,7 +2246,7 @@ static int frontend_init(struct av7110 *av7110)
 		FE_FUNC_OVERRIDE(av7110->fe->ops->dishnetwork_send_legacy_command, av7110->fe_dishnetwork_send_legacy_command, av7110_fe_dishnetwork_send_legacy_command);
 		FE_FUNC_OVERRIDE(av7110->fe->ops->set_frontend, av7110->fe_set_frontend, av7110_fe_set_frontend);
 
-		ret = dvb_register_frontend(av7110->dvb_adapter, av7110->fe);
+		ret = dvb_register_frontend(&av7110->dvb_adapter, av7110->fe);
 		if (ret < 0) {
 			printk("av7110: Frontend registration failed!\n");
 			if (av7110->fe->ops->release)
@@ -2460,7 +2460,7 @@ static int av7110_attach(struct saa7146_dev* dev, struct saa7146_pci_extension_d
 		goto err_dvb_unregister_adapter_2;
 
 	ttpci_eeprom_parse_mac(&av7110->i2c_adap,
-			       av7110->dvb_adapter->proposed_mac);
+			       av7110->dvb_adapter.proposed_mac);
 	ret = -ENOMEM;
 
 	if (budgetpatch) {
@@ -2631,7 +2631,7 @@ static int av7110_attach(struct saa7146_dev* dev, struct saa7146_pci_extension_d
 	if (ret < 0)
 		goto err_av7110_unregister_11;
 
-	av7110->dvb_adapter->priv = av7110;
+	av7110->dvb_adapter.priv = av7110;
 	ret = frontend_init(av7110);
 	if (ret < 0)
 		goto err_av7110_exit_v4l_12;
@@ -2666,7 +2666,7 @@ err_saa71466_vfree_4:
 err_i2c_del_3:
 	i2c_del_adapter(&av7110->i2c_adap);
 err_dvb_unregister_adapter_2:
-	dvb_unregister_adapter(av7110->dvb_adapter);
+	dvb_unregister_adapter(&av7110->dvb_adapter);
 err_put_firmware_1:
 	put_firmware(av7110);
 err_kfree_0:
@@ -2712,7 +2712,7 @@ static int av7110_detach(struct saa7146_dev* saa)
 
 	i2c_del_adapter(&av7110->i2c_adap);
 
-	dvb_unregister_adapter (av7110->dvb_adapter);
+	dvb_unregister_adapter (&av7110->dvb_adapter);
 
 	av7110_num--;
 

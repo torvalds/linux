@@ -297,7 +297,7 @@ static int ciintf_init(struct budget_av *budget_av)
 	budget_av->ca.slot_ts_enable = ciintf_slot_ts_enable;
 	budget_av->ca.poll_slot_status = ciintf_poll_slot_status;
 	budget_av->ca.data = budget_av;
-	if ((result = dvb_ca_en50221_init(budget_av->budget.dvb_adapter,
+	if ((result = dvb_ca_en50221_init(&budget_av->budget.dvb_adapter,
 					  &budget_av->ca, 0, 1)) != 0) {
 		printk("budget_av: CI interface detected, but initialisation failed.\n");
 		goto error;
@@ -767,7 +767,7 @@ static void frontend_init(struct budget_av *budget_av)
 		       budget_av->budget.dev->pci->subsystem_device);
 	} else {
 		if (dvb_register_frontend
-		    (budget_av->budget.dvb_adapter, budget_av->budget.dvb_frontend)) {
+		    (&budget_av->budget.dvb_adapter, budget_av->budget.dvb_frontend)) {
 			printk("budget-av: Frontend registration failed!\n");
 			if (budget_av->budget.dvb_frontend->ops->release)
 				budget_av->budget.dvb_frontend->ops->release(budget_av->budget.dvb_frontend);
@@ -875,18 +875,18 @@ static int budget_av_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 	/* fixme: find some sane values here... */
 	saa7146_write(dev, PCI_BT_V1, 0x1c00101f);
 
-	mac = budget_av->budget.dvb_adapter->proposed_mac;
+	mac = budget_av->budget.dvb_adapter.proposed_mac;
 	if (i2c_readregs(&budget_av->budget.i2c_adap, 0xa0, 0x30, mac, 6)) {
 		printk("KNC1-%d: Could not read MAC from KNC1 card\n",
-		       budget_av->budget.dvb_adapter->num);
+		       budget_av->budget.dvb_adapter.num);
 		memset(mac, 0, 6);
 	} else {
 		printk("KNC1-%d: MAC addr = %.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n",
-		       budget_av->budget.dvb_adapter->num,
+		       budget_av->budget.dvb_adapter.num,
 		       mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 	}
 
-	budget_av->budget.dvb_adapter->priv = budget_av;
+	budget_av->budget.dvb_adapter.priv = budget_av;
 	frontend_init(budget_av);
 
 	if (enable_ci)

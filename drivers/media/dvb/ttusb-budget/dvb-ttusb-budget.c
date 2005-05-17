@@ -84,7 +84,7 @@ struct ttusb {
 	struct semaphore semi2c;
 	struct semaphore semusb;
 
-	struct dvb_adapter *adapter;
+	struct dvb_adapter adapter;
 	struct usb_device *dev;
 
 	struct i2c_adapter i2c_adap;
@@ -1412,7 +1412,7 @@ static void frontend_init(struct ttusb* ttusb)
 		       le16_to_cpu(ttusb->dev->descriptor.idVendor),
 		       le16_to_cpu(ttusb->dev->descriptor.idProduct));
 	} else {
-		if (dvb_register_frontend(ttusb->adapter, ttusb->fe)) {
+		if (dvb_register_frontend(&ttusb->adapter, ttusb->fe)) {
 			printk("dvb-ttusb-budget: Frontend registration failed!\n");
 			if (ttusb->fe->ops->release)
 				ttusb->fe->ops->release(ttusb->fe);
@@ -1462,7 +1462,7 @@ static int ttusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 	up(&ttusb->semi2c);
 
 	dvb_register_adapter(&ttusb->adapter, "Technotrend/Hauppauge Nova-USB", THIS_MODULE);
-	ttusb->adapter->priv = ttusb;
+	ttusb->adapter.priv = ttusb;
 
 	/* i2c */
 	memset(&ttusb->i2c_adap, 0, sizeof(struct i2c_adapter));
@@ -1481,7 +1481,7 @@ static int ttusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 
 	result = i2c_add_adapter(&ttusb->i2c_adap);
 	if (result) {
-		dvb_unregister_adapter (ttusb->adapter);
+		dvb_unregister_adapter (&ttusb->adapter);
 		return result;
 	}
 
@@ -1503,7 +1503,7 @@ static int ttusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 	if ((result = dvb_dmx_init(&ttusb->dvb_demux)) < 0) {
 		printk("ttusb_dvb: dvb_dmx_init failed (errno = %d)\n", result);
 		i2c_del_adapter(&ttusb->i2c_adap);
-		dvb_unregister_adapter (ttusb->adapter);
+		dvb_unregister_adapter (&ttusb->adapter);
 		return -ENODEV;
 	}
 //FIXME dmxdev (nur WAS?)
@@ -1511,21 +1511,21 @@ static int ttusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 	ttusb->dmxdev.demux = &ttusb->dvb_demux.dmx;
 	ttusb->dmxdev.capabilities = 0;
 
-	if ((result = dvb_dmxdev_init(&ttusb->dmxdev, ttusb->adapter)) < 0) {
+	if ((result = dvb_dmxdev_init(&ttusb->dmxdev, &ttusb->adapter)) < 0) {
 		printk("ttusb_dvb: dvb_dmxdev_init failed (errno = %d)\n",
 		       result);
 		dvb_dmx_release(&ttusb->dvb_demux);
 		i2c_del_adapter(&ttusb->i2c_adap);
-		dvb_unregister_adapter (ttusb->adapter);
+		dvb_unregister_adapter (&ttusb->adapter);
 		return -ENODEV;
 	}
 
-	if (dvb_net_init(ttusb->adapter, &ttusb->dvbnet, &ttusb->dvb_demux.dmx)) {
+	if (dvb_net_init(&ttusb->adapter, &ttusb->dvbnet, &ttusb->dvb_demux.dmx)) {
 		printk("ttusb_dvb: dvb_net_init failed!\n");
 		dvb_dmxdev_release(&ttusb->dmxdev);
 		dvb_dmx_release(&ttusb->dvb_demux);
 		i2c_del_adapter(&ttusb->i2c_adap);
-		dvb_unregister_adapter (ttusb->adapter);
+		dvb_unregister_adapter (&ttusb->adapter);
 		return -ENODEV;
 	}
 
@@ -1559,7 +1559,7 @@ static void ttusb_disconnect(struct usb_interface *intf)
 	dvb_dmx_release(&ttusb->dvb_demux);
 	if (ttusb->fe != NULL) dvb_unregister_frontend(ttusb->fe);
 	i2c_del_adapter(&ttusb->i2c_adap);
-	dvb_unregister_adapter(ttusb->adapter);
+	dvb_unregister_adapter(&ttusb->adapter);
 
 	ttusb_free_iso_urbs(ttusb);
 

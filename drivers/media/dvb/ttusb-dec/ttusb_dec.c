@@ -98,7 +98,7 @@ struct ttusb_dec {
 	int				can_playback;
 
 	/* DVB bits */
-	struct dvb_adapter		*adapter;
+	struct dvb_adapter		adapter;
 	struct dmxdev			dmxdev;
 	struct dvb_demux		demux;
 	struct dmx_frontend		frontend;
@@ -1435,7 +1435,7 @@ static int ttusb_dec_init_dvb(struct ttusb_dec *dec)
 		printk("%s: dvb_dmx_init failed: error %d\n", __FUNCTION__,
 		       result);
 
-		dvb_unregister_adapter(dec->adapter);
+		dvb_unregister_adapter(&dec->adapter);
 
 		return result;
 	}
@@ -1444,12 +1444,12 @@ static int ttusb_dec_init_dvb(struct ttusb_dec *dec)
 	dec->dmxdev.demux = &dec->demux.dmx;
 	dec->dmxdev.capabilities = 0;
 
-	if ((result = dvb_dmxdev_init(&dec->dmxdev, dec->adapter)) < 0) {
+	if ((result = dvb_dmxdev_init(&dec->dmxdev, &dec->adapter)) < 0) {
 		printk("%s: dvb_dmxdev_init failed: error %d\n",
 		       __FUNCTION__, result);
 
 		dvb_dmx_release(&dec->demux);
-		dvb_unregister_adapter(dec->adapter);
+		dvb_unregister_adapter(&dec->adapter);
 
 		return result;
 	}
@@ -1463,7 +1463,7 @@ static int ttusb_dec_init_dvb(struct ttusb_dec *dec)
 
 		dvb_dmxdev_release(&dec->dmxdev);
 		dvb_dmx_release(&dec->demux);
-		dvb_unregister_adapter(dec->adapter);
+		dvb_unregister_adapter(&dec->adapter);
 
 		return result;
 	}
@@ -1476,12 +1476,12 @@ static int ttusb_dec_init_dvb(struct ttusb_dec *dec)
 		dec->demux.dmx.remove_frontend(&dec->demux.dmx, &dec->frontend);
 		dvb_dmxdev_release(&dec->dmxdev);
 		dvb_dmx_release(&dec->demux);
-		dvb_unregister_adapter(dec->adapter);
+		dvb_unregister_adapter(&dec->adapter);
 
 		return result;
 	}
 
-	dvb_net_init(dec->adapter, &dec->dvb_net, &dec->demux.dmx);
+	dvb_net_init(&dec->adapter, &dec->dvb_net, &dec->demux.dmx);
 
 	return 0;
 }
@@ -1496,7 +1496,7 @@ static void ttusb_dec_exit_dvb(struct ttusb_dec *dec)
 	dvb_dmxdev_release(&dec->dmxdev);
 	dvb_dmx_release(&dec->demux);
 	if (dec->fe) dvb_unregister_frontend(dec->fe);
-	dvb_unregister_adapter(dec->adapter);
+	dvb_unregister_adapter(&dec->adapter);
 }
 
 static void ttusb_dec_exit_rc(struct ttusb_dec *dec)
@@ -1620,7 +1620,7 @@ static int ttusb_dec_probe(struct usb_interface *intf,
 	}
 	ttusb_dec_init_dvb(dec);
 
-	dec->adapter->priv = dec;
+	dec->adapter.priv = dec;
 	switch (le16_to_cpu(id->idProduct)) {
 	case 0x1006:
 		dec->fe = ttusbdecfe_dvbs_attach(&fe_config);
@@ -1637,7 +1637,7 @@ static int ttusb_dec_probe(struct usb_interface *intf,
 		       le16_to_cpu(dec->udev->descriptor.idVendor),
 		       le16_to_cpu(dec->udev->descriptor.idProduct));
 	} else {
-		if (dvb_register_frontend(dec->adapter, dec->fe)) {
+		if (dvb_register_frontend(&dec->adapter, dec->fe)) {
 			printk("budget-ci: Frontend registration failed!\n");
 			if (dec->fe->ops->release)
 				dec->fe->ops->release(dec->fe);
