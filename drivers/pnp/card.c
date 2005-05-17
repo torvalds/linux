@@ -140,7 +140,7 @@ static void pnp_release_card(struct device *dmdev)
 }
 
 
-static ssize_t pnp_show_card_name(struct device *dmdev, char *buf)
+static ssize_t pnp_show_card_name(struct device *dmdev, struct device_attribute *attr, char *buf)
 {
 	char *str = buf;
 	struct pnp_card *card = to_pnp_card(dmdev);
@@ -150,7 +150,7 @@ static ssize_t pnp_show_card_name(struct device *dmdev, char *buf)
 
 static DEVICE_ATTR(name,S_IRUGO,pnp_show_card_name,NULL);
 
-static ssize_t pnp_show_card_ids(struct device *dmdev, char *buf)
+static ssize_t pnp_show_card_ids(struct device *dmdev, struct device_attribute *attr, char *buf)
 {
 	char *str = buf;
 	struct pnp_card *card = to_pnp_card(dmdev);

@@ -29,7 +29,7 @@ static int sysfs_initialized;	/* = 0 */
 /* show configuration fields */
 #define pci_config_attr(field, format_string)				\
 static ssize_t								\
-field##_show(struct device *dev, char *buf)				\
+field##_show(struct device *dev, struct device_attribute *attr, char *buf)				\
 {									\
 	struct pci_dev *pdev;						\
 									\
@@ -44,7 +44,7 @@ pci_config_attr(subsystem_device, "0x%04x\n");
 pci_config_attr(class, "0x%06x\n");
 pci_config_attr(irq, "%u\n");
 
-static ssize_t local_cpus_show(struct device *dev, char *buf)
+static ssize_t local_cpus_show(struct device *dev, struct device_attribute *attr, char *buf)
 {		
 	cpumask_t mask = pcibus_to_cpumask(to_pci_dev(dev)->bus);
 	int len = cpumask_scnprintf(buf, PAGE_SIZE-2, mask);
@@ -54,7 +54,7 @@ static ssize_t local_cpus_show(struct device *dev, char *buf)
 
 /* show resources */
 static ssize_t
-resource_show(struct device * dev, char * buf)
+resource_show(struct device * dev, struct device_attribute *attr, char * buf)
 {
 	struct pci_dev * pci_dev = to_pci_dev(dev);
 	char * str = buf;

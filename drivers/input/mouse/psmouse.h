@@ -91,11 +91,11 @@ ssize_t psmouse_attr_set_helper(struct device *dev, const char *buf, size_t coun
 #define PSMOUSE_DEFINE_ATTR(_name)						\
 static ssize_t psmouse_attr_show_##_name(struct psmouse *, char *);		\
 static ssize_t psmouse_attr_set_##_name(struct psmouse *, const char *, size_t);\
-static ssize_t psmouse_do_show_##_name(struct device *d, char *b)		\
+static ssize_t psmouse_do_show_##_name(struct device *d, struct device_attribute *attr, char *b)		\
 {										\
 	return psmouse_attr_show_helper(d, b, psmouse_attr_show_##_name);	\
 }										\
-static ssize_t psmouse_do_set_##_name(struct device *d, const char *b, size_t s)\
+static ssize_t psmouse_do_set_##_name(struct device *d, struct device_attribute *attr, const char *b, size_t s)\
 {										\
 	return psmouse_attr_set_helper(d, b, s, psmouse_attr_set_##_name);	\
 }										\
