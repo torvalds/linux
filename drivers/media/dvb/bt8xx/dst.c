@@ -538,7 +538,7 @@ static int dst_type_print (u8 type)
 	Known cards list
 	Satellite
 	-------------------
-
+		  200103A
 	VP-1020   DST-MOT	LG(old), TS=188
 
 	VP-1020   DST-03T	LG(new), TS=204
@@ -570,6 +570,14 @@ static int dst_type_print (u8 type)
 */
 
 struct dst_types dst_tlist[] = {
+	{
+		.device_id = "200103A",
+		.offset = 0,
+		.dst_type =  DST_TYPE_IS_SAT,
+		.type_flags = DST_TYPE_HAS_SYMDIV | DST_TYPE_HAS_FW_1,
+		.dst_feature = 0
+	},	/*	obsolete	*/
+
 	{
 		.device_id = "DST-020",
 		.offset = 0,
