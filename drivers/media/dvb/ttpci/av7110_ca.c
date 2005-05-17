@@ -123,7 +123,7 @@ static void ci_ll_release(struct dvb_ringbuffer *cirbuf, struct dvb_ringbuffer *
 }
 
 static int ci_ll_reset(struct dvb_ringbuffer *cibuf, struct file *file,
-		int slots, ca_slot_info_t *slot)
+		       int slots, ca_slot_info_t *slot)
 {
 	int i;
 	int len = 0;
