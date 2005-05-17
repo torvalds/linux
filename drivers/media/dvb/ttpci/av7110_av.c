@@ -1230,14 +1230,20 @@ static int dvb_audio_ioctl(struct inode *inode, struct file *file,
 		switch(av7110->audiostate.channel_select) {
 		case AUDIO_STEREO:
 			audcom(av7110, AUDIO_CMD_STEREO);
+			if (av7110->adac_type == DVB_ADAC_CRYSTAL)
+				i2c_writereg(av7110, 0x20, 0x02, 0x49);
 			break;
 
 		case AUDIO_MONO_LEFT:
 			audcom(av7110, AUDIO_CMD_MONO_L);
+			if (av7110->adac_type == DVB_ADAC_CRYSTAL)
+				i2c_writereg(av7110, 0x20, 0x02, 0x4a);
 			break;
 
 		case AUDIO_MONO_RIGHT:
 			audcom(av7110, AUDIO_CMD_MONO_R);
+			if (av7110->adac_type == DVB_ADAC_CRYSTAL)
+				i2c_writereg(av7110, 0x20, 0x02, 0x45);
 			break;
 
 		default:
