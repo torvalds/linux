@@ -38,7 +38,7 @@ MODULE_PARM_DESC(verbose, "verbose startup messages, default is 1 (yes)");
 
 static unsigned int debug = 1;
 module_param(debug, int, 0644);
-MODULE_PARM_DESC(dst_ca_debug, "debug messages, default is 0 (yes)");
+MODULE_PARM_DESC(debug, "debug messages, default is 1 (yes)");
 
 #define dprintk if (debug) printk
 
