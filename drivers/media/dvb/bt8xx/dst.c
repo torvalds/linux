@@ -198,7 +198,7 @@ int dst_wait_dst_ready(struct dst_state *state, u8 delay_mode)
 				dprintk("%s: dst wait ready after %d\n", __FUNCTION__, i);
 			return 1;
 		}
-		msleep(35);
+		msleep(10);
 	}
 	if (verbose > 1)
 		dprintk("%s: dst wait NOT ready after %d\n", __FUNCTION__, i);
