@@ -159,7 +159,7 @@ int flexcop_pid_feed_control(struct flexcop_device *fc, struct dvb_demux_feed *d
 	} else if (fc->feedcount == onoff && !onoff) {
 		if (!fc->pid_filtering) {
 			deb_ts("disabling full TS transfer\n");
-			flexcop_pid_group_filter(fc, 0x1fe0,0);
+			flexcop_pid_group_filter(fc, 0, 0x1fe0);
 			flexcop_pid_group_filter_ctrl(fc,0);
 		}
 
@@ -175,7 +175,7 @@ int flexcop_pid_feed_control(struct flexcop_device *fc, struct dvb_demux_feed *d
 		flexcop_pid_group_filter(fc, 0,0);
 		flexcop_pid_group_filter_ctrl(fc,1);
 	} else if (fc->pid_filtering && fc->feedcount <= max_pid_filter) {
-		flexcop_pid_group_filter(fc, 0x1fe0,0);
+		flexcop_pid_group_filter(fc, 0,0x1fe0);
 		flexcop_pid_group_filter_ctrl(fc,0);
 	}
 
@@ -189,10 +189,13 @@ void flexcop_hw_filter_init(struct flexcop_device *fc)
 	for (i = 0; i < 6 + 32*fc->has_32_hw_pid_filter; i++)
 		flexcop_pid_control(fc,i,0x1fff,0);
 
-	flexcop_pid_group_filter(fc, 0x1fe0,0);
+	flexcop_pid_group_filter(fc, 0, 0x1fe0);
+	flexcop_pid_group_filter_ctrl(fc,0);
 
 	v = fc->read_ibi_reg(fc,pid_filter_308);
 	v.pid_filter_308.EMM_filter_4 = 1;
 	v.pid_filter_308.EMM_filter_6 = 0;
 	fc->write_ibi_reg(fc,pid_filter_308,v);
+
+	flexcop_null_filter_ctrl(fc, 1);
 }

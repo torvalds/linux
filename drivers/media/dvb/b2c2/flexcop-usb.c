@@ -282,6 +282,51 @@ static int flexcop_usb_i2c_request(struct flexcop_device *fc, flexcop_access_op_
 		return flexcop_usb_i2c_req(fc->bus_specific,B2C2_USB_I2C_REQUEST,USB_FUNC_I2C_WRITE,port,chipaddr,addr,buf,len);
 }
 
+static void flexcop_usb_process_frame(struct flexcop_usb *fc_usb, u8 *buffer, int buffer_length)
+{
+	u8 *b;
+	int l;
+
+	deb_ts("tmp_buffer_length=%d, buffer_length=%d\n", fc_usb->tmp_buffer_length, buffer_length);
+
+	if (fc_usb->tmp_buffer_length > 0) {
+		memcpy(fc_usb->tmp_buffer+fc_usb->tmp_buffer_length, buffer, buffer_length);
+		fc_usb->tmp_buffer_length += buffer_length;
+		b = fc_usb->tmp_buffer;
+		l = fc_usb->tmp_buffer_length;
+	} else {
+		b=buffer;
+		l=buffer_length;
+	}
+
+	while (l >= 190) {
+		if (*b == 0xff)
+			switch (*(b+1) & 0x03) {
+				case 0x01: /* media packet */
+					if ( *(b+2) == 0x47 )
+						flexcop_pass_dmx_packets(fc_usb->fc_dev, b+2, 1);
+					else
+						deb_ts("not ts packet %02x %02x %02x %02x \n", *(b+2), *(b+3), *(b+4), *(b+5) );
+
+					b += 190;
+					l -= 190;
+				break;
+				default:
+					deb_ts("wrong packet type\n");
+					l = 0;
+				break;
+			}
+		else {
+			deb_ts("wrong header\n");
+			l = 0;
+		}
+	}
+
+	if (l>0)
+		memcpy(fc_usb->tmp_buffer, b, l);
+	fc_usb->tmp_buffer_length = l;
+}
+
 static void flexcop_usb_urb_complete(struct urb *urb, struct pt_regs *ptregs)
 {
 	struct flexcop_usb *fc_usb = urb->context;
@@ -297,7 +342,7 @@ static void flexcop_usb_urb_complete(struct urb *urb, struct pt_regs *ptregs)
 			if (urb->iso_frame_desc[i].actual_length > 0) {
 				deb_ts("passed %d bytes to the demux\n",urb->iso_frame_desc[i].actual_length);
 
-				flexcop_pass_dmx_data(fc_usb->fc_dev,
+				flexcop_usb_process_frame(fc_usb,
 					urb->transfer_buffer + urb->iso_frame_desc[i].offset,
 					urb->iso_frame_desc[i].actual_length);
 		}

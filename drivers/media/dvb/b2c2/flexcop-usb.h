@@ -21,6 +21,9 @@ struct flexcop_usb {
 	struct urb *iso_urb[B2C2_USB_NUM_ISO_URB];
 
 	struct flexcop_device *fc_dev;
+
+	u8 tmp_buffer[1023+190];
+	int tmp_buffer_length;
 };
 
 #if 0
