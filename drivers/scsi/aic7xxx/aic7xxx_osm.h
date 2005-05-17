@@ -322,13 +322,10 @@ struct ahc_cmd {
  */
 TAILQ_HEAD(ahc_busyq, ahc_cmd);
 typedef enum {
-	AHC_DEV_UNCONFIGURED	 = 0x01,
 	AHC_DEV_FREEZE_TIL_EMPTY = 0x02, /* Freeze queue until active == 0 */
-	AHC_DEV_TIMER_ACTIVE	 = 0x04, /* Our timer is active */
 	AHC_DEV_Q_BASIC		 = 0x10, /* Allow basic device queuing */
 	AHC_DEV_Q_TAGGED	 = 0x20, /* Allow full SCSI2 command queueing */
 	AHC_DEV_PERIODIC_OTAG	 = 0x40, /* Send OTAG to prevent starvation */
-	AHC_DEV_SLAVE_CONFIGURED = 0x80	 /* slave_configure() has been called */
 } ahc_linux_dev_flags;
 
 struct ahc_linux_target;
@@ -372,11 +369,6 @@ struct ahc_linux_device {
 #define AHC_TAG_SUCCESS_INTERVAL 50
 
 	ahc_linux_dev_flags	flags;
-
-	/*
-	 * Per device timer.
-	 */
-	struct timer_list	timer;
 
 	/*
 	 * The high limit for the tags variable.
