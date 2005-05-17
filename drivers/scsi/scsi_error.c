@@ -768,6 +768,7 @@ static int scsi_eh_tur(struct scsi_cmnd *scmd)
 {
 	static unsigned char tur_command[6] = {TEST_UNIT_READY, 0, 0, 0, 0, 0};
 	int retry_cnt = 1, rtn;
+	int saved_result;
 
 retry_tur:
 	memcpy(scmd->cmnd, tur_command, sizeof(tur_command));
@@ -778,6 +779,7 @@ retry_tur:
 	 */
 	memset(scmd->sense_buffer, 0, sizeof(scmd->sense_buffer));
 
+	saved_result = scmd->result;
 	scmd->request_buffer = NULL;
 	scmd->request_bufflen = 0;
 	scmd->use_sg = 0;
@@ -792,6 +794,7 @@ retry_tur:
 	 * the original request, so let's restore the original data. (db)
 	 */
 	scsi_setup_cmd_retry(scmd);
+	scmd->result = saved_result;
 
 	/*
 	 * hey, we are done.  let's look to see what happened.
@@ -894,6 +897,7 @@ static int scsi_eh_try_stu(struct scsi_cmnd *scmd)
 {
 	static unsigned char stu_command[6] = {START_STOP, 0, 0, 0, 1, 0};
 	int rtn;
+	int saved_result;
 
 	if (!scmd->device->allow_restart)
 		return 1;
@@ -906,6 +910,7 @@ static int scsi_eh_try_stu(struct scsi_cmnd *scmd)
 	 */
 	memset(scmd->sense_buffer, 0, sizeof(scmd->sense_buffer));
 
+	saved_result = scmd->result;
 	scmd->request_buffer = NULL;
 	scmd->request_bufflen = 0;
 	scmd->use_sg = 0;
@@ -920,6 +925,7 @@ static int scsi_eh_try_stu(struct scsi_cmnd *scmd)
 	 * the original request, so let's restore the original data. (db)
 	 */
 	scsi_setup_cmd_retry(scmd);
+	scmd->result = saved_result;
 
 	/*
 	 * hey, we are done.  let's look to see what happened.
@@ -1559,6 +1565,11 @@ static void scsi_eh_flush_done_q(struct list_head *done_q)
 							  scmd));
 				scsi_queue_insert(scmd, SCSI_MLQUEUE_EH_RETRY);
 		} else {
+			/*
+			 * If just we got sense for the device (called
+			 * scsi_eh_get_sense), scmd->result is already
+			 * set, do not set DRIVER_TIMEOUT.
+			 */
 			if (!scmd->result)
 				scmd->result |= (DRIVER_TIMEOUT << 24);
 			SCSI_LOG_ERROR_RECOVERY(3, printk("%s: flush finish"
