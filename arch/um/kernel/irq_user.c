@@ -236,9 +236,15 @@ static void free_irq_by_cb(int (*test)(struct irq_fd *, void *), void *arg)
 				       (*prev)->fd, pollfds[i].fd);
 				goto out;
 			}
-			memcpy(&pollfds[i], &pollfds[i + 1],
-			       (pollfds_num - i - 1) * sizeof(pollfds[0]));
+
 			pollfds_num--;
+
+			/* This moves the *whole* array after pollfds[i] (though
+			 * it doesn't spot as such)! */
+
+			memmove(&pollfds[i], &pollfds[i + 1],
+			       (pollfds_num - i) * sizeof(pollfds[0]));
+
 			if(last_irq_ptr == &old_fd->next) 
 				last_irq_ptr = prev;
 			*prev = (*prev)->next;
