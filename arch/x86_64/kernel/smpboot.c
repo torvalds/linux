@@ -645,7 +645,6 @@ static int __cpuinit do_boot_cpu(int cpu, int apicid)
 		printk("failed fork for CPU %d\n", cpu);
 		return PTR_ERR(idle);
 	}
-	x86_cpu_to_apicid[cpu] = apicid;
 
 	cpu_pda[cpu].pcurrent = idle;
 
@@ -954,7 +953,6 @@ void __cpuinit smp_prepare_cpus(unsigned int max_cpus)
 		      GET_APIC_ID(apic_read(APIC_ID)), boot_cpu_id);
 		/* Or can we switch back to PIC here? */
 	}
-	x86_cpu_to_apicid[0] = boot_cpu_id;
 
 	/*
 	 * Now start the IO-APICs
