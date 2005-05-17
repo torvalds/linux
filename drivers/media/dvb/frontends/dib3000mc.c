@@ -297,7 +297,7 @@ static int dib3000mc_set_general_cfg(struct dib3000_state *state, struct dvb_fro
 static int dib3000mc_get_frontend(struct dvb_frontend* fe,
 				  struct dvb_frontend_parameters *fep)
 {
-	struct dib3000_state* state = (struct dib3000_state*) fe->demodulator_priv;
+	struct dib3000_state* state = fe->demodulator_priv;
 	struct dvb_ofdm_parameters *ofdm = &fep->u.ofdm;
 	fe_code_rate_t *cr;
 	u16 tps_val,cr_val;
@@ -458,7 +458,7 @@ static int dib3000mc_get_frontend(struct dvb_frontend* fe,
 static int dib3000mc_set_frontend(struct dvb_frontend* fe,
 				  struct dvb_frontend_parameters *fep, int tuner)
 {
-	struct dib3000_state* state = (struct dib3000_state*) fe->demodulator_priv;
+	struct dib3000_state* state = fe->demodulator_priv;
 	struct dvb_ofdm_parameters *ofdm = &fep->u.ofdm;
 	int search_state,auto_val;
 	u16 val;
@@ -659,7 +659,7 @@ static int dib3000mc_fe_init(struct dvb_frontend* fe, int mobile_mode)
 }
 static int dib3000mc_read_status(struct dvb_frontend* fe, fe_status_t *stat)
 {
-	struct dib3000_state* state = (struct dib3000_state*) fe->demodulator_priv;
+	struct dib3000_state* state = fe->demodulator_priv;
 	u16 lock = rd(DIB3000MC_REG_LOCKING);
 
 	*stat = 0;
@@ -679,14 +679,14 @@ static int dib3000mc_read_status(struct dvb_frontend* fe, fe_status_t *stat)
 
 static int dib3000mc_read_ber(struct dvb_frontend* fe, u32 *ber)
 {
-	struct dib3000_state* state = (struct dib3000_state*) fe->demodulator_priv;
+	struct dib3000_state* state = fe->demodulator_priv;
 	*ber = ((rd(DIB3000MC_REG_BER_MSB) << 16) | rd(DIB3000MC_REG_BER_LSB));
 	return 0;
 }
 
 static int dib3000mc_read_unc_blocks(struct dvb_frontend* fe, u32 *unc)
 {
-	struct dib3000_state* state = (struct dib3000_state*) fe->demodulator_priv;
+	struct dib3000_state* state = fe->demodulator_priv;
 
 	*unc = rd(DIB3000MC_REG_PACKET_ERROR_COUNT);
 	return 0;
@@ -695,7 +695,7 @@ static int dib3000mc_read_unc_blocks(struct dvb_frontend* fe, u32 *unc)
 /* see dib3000mb.c for calculation comments */
 static int dib3000mc_read_signal_strength(struct dvb_frontend* fe, u16 *strength)
 {
-	struct dib3000_state* state = (struct dib3000_state*) fe->demodulator_priv;
+	struct dib3000_state* state = fe->demodulator_priv;
 	u16 val = rd(DIB3000MC_REG_SIGNAL_NOISE_LSB);
 	*strength = (((val >> 6) & 0xff) << 8) + (val & 0x3f);
 
@@ -706,7 +706,7 @@ static int dib3000mc_read_signal_strength(struct dvb_frontend* fe, u16 *strength
 /* see dib3000mb.c for calculation comments */
 static int dib3000mc_read_snr(struct dvb_frontend* fe, u16 *snr)
 {
-	struct dib3000_state* state = (struct dib3000_state*) fe->demodulator_priv;
+	struct dib3000_state* state = fe->demodulator_priv;
 	u16 val = rd(DIB3000MC_REG_SIGNAL_NOISE_LSB),
 		val2 = rd(DIB3000MC_REG_SIGNAL_NOISE_MSB);
 	u16 sig,noise;
@@ -726,7 +726,7 @@ static int dib3000mc_read_snr(struct dvb_frontend* fe, u16 *snr)
 
 static int dib3000mc_sleep(struct dvb_frontend* fe)
 {
-	struct dib3000_state* state = (struct dib3000_state*) fe->demodulator_priv;
+	struct dib3000_state* state = fe->demodulator_priv;
 
 	set_or(DIB3000MC_REG_CLK_CFG_7,DIB3000MC_CLK_CFG_7_PWR_DOWN);
 	wr(DIB3000MC_REG_CLK_CFG_1,DIB3000MC_CLK_CFG_1_POWER_DOWN);
@@ -756,7 +756,7 @@ static int dib3000mc_set_frontend_and_tuner(struct dvb_frontend* fe, struct dvb_
 
 static void dib3000mc_release(struct dvb_frontend* fe)
 {
-	struct dib3000_state *state = (struct dib3000_state *) fe->demodulator_priv;
+	struct dib3000_state *state = fe->demodulator_priv;
 	kfree(state);
 }
 
@@ -771,7 +771,7 @@ static int dib3000mc_pid_control(struct dvb_frontend *fe,int index, int pid,int 
 
 static int dib3000mc_fifo_control(struct dvb_frontend *fe, int onoff)
 {
-	struct dib3000_state *state = (struct dib3000_state*) fe->demodulator_priv;
+	struct dib3000_state *state = fe->demodulator_priv;
 	u16 tmp = rd(DIB3000MC_REG_SMO_MODE);
 
 	deb_xfer("%s fifo\n",onoff ? "enabling" : "disabling");
@@ -803,7 +803,7 @@ static int dib3000mc_pid_parse(struct dvb_frontend *fe, int onoff)
 
 static int dib3000mc_tuner_pass_ctrl(struct dvb_frontend *fe, int onoff, u8 pll_addr)
 {
-	struct dib3000_state *state = (struct dib3000_state*) fe->demodulator_priv;
+	struct dib3000_state *state = fe->demodulator_priv;
 	if (onoff) {
 		wr(DIB3000MC_REG_TUNER, DIB3000_TUNER_WRITE_ENABLE(pll_addr));
 	} else {
@@ -844,7 +844,7 @@ struct dvb_frontend* dib3000mc_attach(const struct dib3000_config* config,
 	u16 devid;
 
 	/* allocate memory for the internal state */
-	state = (struct dib3000_state*) kmalloc(sizeof(struct dib3000_state), GFP_KERNEL);
+	state = kmalloc(sizeof(struct dib3000_state), GFP_KERNEL);
 	if (state == NULL)
 		goto error;
 	memset(state,0,sizeof(struct dib3000_state));
