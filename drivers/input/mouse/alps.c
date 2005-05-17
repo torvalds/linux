@@ -341,6 +341,8 @@ static int alps_reconnect(struct psmouse *psmouse)
 	unsigned char param[4];
 	int version;
 
+	psmouse_reset(psmouse);
+
 	if (!(priv->i = alps_get_model(psmouse, &version)))
 		return -1;
 
