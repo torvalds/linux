@@ -157,8 +157,8 @@ struct fscher_data {
 
 #define sysfs_r(kind, sub, offset, reg) \
 static ssize_t show_##kind##sub (struct fscher_data *, char *, int); \
-static ssize_t show_##kind##offset##sub (struct device *, char *); \
-static ssize_t show_##kind##offset##sub (struct device *dev, char *buf) \
+static ssize_t show_##kind##offset##sub (struct device *, struct device_attribute *attr, char *); \
+static ssize_t show_##kind##offset##sub (struct device *dev, struct device_attribute *attr, char *buf) \
 { \
 	struct fscher_data *data = fscher_update_device(dev); \
 	return show_##kind##sub(data, buf, (offset)); \
@@ -166,8 +166,8 @@ static ssize_t show_##kind##offset##sub (struct device *dev, char *buf) \
 
 #define sysfs_w(kind, sub, offset, reg) \
 static ssize_t set_##kind##sub (struct i2c_client *, struct fscher_data *, const char *, size_t, int, int); \
-static ssize_t set_##kind##offset##sub (struct device *, const char *, size_t); \
-static ssize_t set_##kind##offset##sub (struct device *dev, const char *buf, size_t count) \
+static ssize_t set_##kind##offset##sub (struct device *, struct device_attribute *attr, const char *, size_t); \
+static ssize_t set_##kind##offset##sub (struct device *dev, struct device_attribute *attr, const char *buf, size_t count) \
 { \
 	struct i2c_client *client = to_i2c_client(dev); \
 	struct fscher_data *data = i2c_get_clientdata(client); \
