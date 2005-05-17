@@ -925,7 +925,7 @@ __init int oem_force_hpet_timer(void)
 	unsigned id;
 	DECLARE_BITMAP(clustermap, NUM_APIC_CLUSTERS);
 
-	bitmap_empty(clustermap, NUM_APIC_CLUSTERS);
+	bitmap_zero(clustermap, NUM_APIC_CLUSTERS);
 
 	for (i = 0; i < NR_CPUS; i++) {
 		id = bios_cpu_apicid[i];
