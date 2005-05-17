@@ -29,6 +29,7 @@ config SENSORS_ADM1025
 	help
 	  If you say yes here you get support for Analog Devices ADM1025
 	  and Philips NE1619 sensor chips.
+
 	  This driver can also be built as a module.  If so, the module
 	  will be called adm1025.
 
@@ -38,6 +39,8 @@ config SENSORS_ADM1026
 	select I2C_SENSOR
 	help
 	  If you say yes here you get support for Analog Devices ADM1026
+	  sensor chip.
+
 	  This driver can also be built as a module.  If so, the module
 	  will be called adm1026.
 
@@ -48,6 +51,7 @@ config SENSORS_ADM1031
 	help
 	  If you say yes here you get support for Analog Devices ADM1031 
 	  and ADM1030 sensor chips.
+
 	  This driver can also be built as a module.  If so, the module
 	  will be called adm1031.
 
@@ -198,8 +202,7 @@ config SENSORS_LM78
 	select I2C_SENSOR
 	help
 	  If you say yes here you get support for National Semiconductor LM78,
-	  LM78-J and LM79.  This can also be built as a module which can be
-	  inserted and removed while the kernel is running.
+	  LM78-J and LM79.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called lm78.
@@ -232,7 +235,7 @@ config SENSORS_LM85
 	select I2C_SENSOR
 	help
 	  If you say yes here you get support for National Semiconductor LM85
-	  sensor chips and clones: ADT7463 and ADM1027.
+	  sensor chips and clones: ADT7463, EMC6D100, EMC6D102 and ADM1027.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called lm85.
