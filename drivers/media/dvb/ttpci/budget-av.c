@@ -701,7 +701,10 @@ static u8 read_pwm(struct budget_av *budget_av)
 static void frontend_init(struct budget_av *budget_av)
 {
 	switch (budget_av->budget.dev->pci->subsystem_device) {
+	case 0x0011:		// KNC1 DVB-S Plus budget with AV IN (stv0299/Philips SU1278(tsa5059))
+		saa7146_write(budget_av->budget.dev, GPIO_CTRL, 0x50000000); // Enable / PowerON Frontend
 	case 0x4f56:		// Typhoon/KNC1 DVB-S budget (stv0299/Philips SU1278(tsa5059))
+	case 0x0010:		// KNC1 DVB-S budget (stv0299/Philips SU1278(tsa5059))
 		budget_av->budget.dvb_frontend =
 			stv0299_attach(&typhoon_config, &budget_av->budget.i2c_adap);
 		if (budget_av->budget.dvb_frontend != NULL) {
@@ -709,6 +712,8 @@ static void frontend_init(struct budget_av *budget_av)
 		}
 		break;
 
+	case 0x0021:		// KNC1 DVB-C Plus budget with AV IN (tda10021/Philips CU1216(tua6034))
+		saa7146_write(budget_av->budget.dev, GPIO_CTRL, 0x50000000); // Enable / PowerON Frontend
 	case 0x0020:		// KNC1 DVB-C budget (tda10021/Philips CU1216(tua6034))
 		budget_av->budget.dvb_frontend =
 			tda10021_attach(&philips_cu1216_config,
@@ -718,6 +723,8 @@ static void frontend_init(struct budget_av *budget_av)
 		}
 		break;
 
+	case 0x0031:		// KNC1 DVB-T Plus budget with AV IN (tda10046/Philips TU1216(tda6651tt))
+		saa7146_write(budget_av->budget.dev, GPIO_CTRL, 0x50000000); // Enable / PowerON Frontend
 	case 0x0030:		// KNC1 DVB-T budget (tda10046/Philips TU1216(tda6651tt))
 		budget_av->budget.dvb_frontend =
 			tda10046_attach(&philips_tu1216_config, &budget_av->budget.i2c_adap);
@@ -963,14 +970,21 @@ static struct saa7146_extension budget_extension;
 MAKE_BUDGET_INFO(knc1s, "KNC1 DVB-S", BUDGET_KNC1S);
 MAKE_BUDGET_INFO(knc1c, "KNC1 DVB-C", BUDGET_KNC1C);
 MAKE_BUDGET_INFO(knc1t, "KNC1 DVB-T", BUDGET_KNC1T);
+MAKE_BUDGET_INFO(knc1sp, "KNC1 DVB-S Plus", BUDGET_KNC1SP);
+MAKE_BUDGET_INFO(knc1cp, "KNC1 DVB-C Plus", BUDGET_KNC1CP);
+MAKE_BUDGET_INFO(knc1tp, "KNC1 DVB-T Plus", BUDGET_KNC1TP);
 MAKE_BUDGET_INFO(cin1200s, "TerraTec Cinergy 1200 DVB-S", BUDGET_CIN1200S);
 MAKE_BUDGET_INFO(cin1200c, "Terratec Cinergy 1200 DVB-C", BUDGET_CIN1200C);
 MAKE_BUDGET_INFO(cin1200t, "Terratec Cinergy 1200 DVB-T", BUDGET_CIN1200T);
 
 static struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(knc1s, 0x1131, 0x4f56),
+	MAKE_EXTENSION_PCI(knc1s, 0x1131, 0x0010),
+	MAKE_EXTENSION_PCI(knc1sp, 0x1131, 0x0011),
 	MAKE_EXTENSION_PCI(knc1c, 0x1894, 0x0020),
+	MAKE_EXTENSION_PCI(knc1cp, 0x1894, 0x0021),
 	MAKE_EXTENSION_PCI(knc1t, 0x1894, 0x0030),
+	MAKE_EXTENSION_PCI(knc1tp, 0x1894, 0x0031),
 	MAKE_EXTENSION_PCI(cin1200s, 0x153b, 0x1154),
 	MAKE_EXTENSION_PCI(cin1200c, 0x153b, 0x1156),
 	MAKE_EXTENSION_PCI(cin1200t, 0x153b, 0x1157),
