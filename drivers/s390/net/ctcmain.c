@@ -2469,7 +2469,7 @@ ctc_stats(struct net_device * dev)
  */
 
 static ssize_t
-buffer_show(struct device *dev, char *buf)
+buffer_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct ctc_priv *priv;
 
@@ -2481,7 +2481,7 @@ buffer_show(struct device *dev, char *buf)
 }
 
 static ssize_t
-buffer_write(struct device *dev, const char *buf, size_t count)
+buffer_write(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct ctc_priv *priv;
 	struct net_device *ndev;
@@ -2530,13 +2530,13 @@ einval:
 }
 
 static ssize_t
-loglevel_show(struct device *dev, char *buf)
+loglevel_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", loglevel);
 }
 
 static ssize_t
-loglevel_write(struct device *dev, const char *buf, size_t count)
+loglevel_write(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	int ll1;
 
@@ -2589,7 +2589,7 @@ ctc_print_statistics(struct ctc_priv *priv)
 }
 
 static ssize_t
-stats_show(struct device *dev, char *buf)
+stats_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct ctc_priv *priv = dev->driver_data;
 	if (!priv)
@@ -2599,7 +2599,7 @@ stats_show(struct device *dev, char *buf)
 }
 
 static ssize_t
-stats_write(struct device *dev, const char *buf, size_t count)
+stats_write(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct ctc_priv *priv = dev->driver_data;
 	if (!priv)
@@ -2654,7 +2654,7 @@ ctc_free_netdevice(struct net_device * dev, int free_dev)
 }
 
 static ssize_t
-ctc_proto_show(struct device *dev, char *buf)
+ctc_proto_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct ctc_priv *priv;
 
@@ -2666,7 +2666,7 @@ ctc_proto_show(struct device *dev, char *buf)
 }
 
 static ssize_t
-ctc_proto_store(struct device *dev, const char *buf, size_t count)
+ctc_proto_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct ctc_priv *priv;
 	int value;
@@ -2687,7 +2687,7 @@ ctc_proto_store(struct device *dev, const char *buf, size_t count)
 
 
 static ssize_t
-ctc_type_show(struct device *dev, char *buf)
+ctc_type_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct ccwgroup_device *cgdev;
 

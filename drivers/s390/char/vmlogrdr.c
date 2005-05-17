@@ -548,7 +548,7 @@ vmlogrdr_read (struct file *filp, char *data, size_t count, loff_t * ppos)
 }
 
 static ssize_t
-vmlogrdr_autopurge_store(struct device * dev, const char * buf, size_t count) {
+vmlogrdr_autopurge_store(struct device * dev, struct device_attribute *attr, const char * buf, size_t count) {
 	struct vmlogrdr_priv_t *priv = dev->driver_data;
 	ssize_t ret = count;
 
@@ -567,7 +567,7 @@ vmlogrdr_autopurge_store(struct device * dev, const char * buf, size_t count) {
 
 
 static ssize_t
-vmlogrdr_autopurge_show(struct device *dev, char *buf) {
+vmlogrdr_autopurge_show(struct device *dev, struct device_attribute *attr, char *buf) {
 	struct vmlogrdr_priv_t *priv = dev->driver_data;
 	return sprintf(buf, "%u\n", priv->autopurge);
 }
@@ -578,7 +578,7 @@ static DEVICE_ATTR(autopurge, 0644, vmlogrdr_autopurge_show,
 
 
 static ssize_t
-vmlogrdr_purge_store(struct device * dev, const char * buf, size_t count) {
+vmlogrdr_purge_store(struct device * dev, struct device_attribute *attr, const char * buf, size_t count) {
 
 	char cp_command[80];
 	char cp_response[80];
@@ -619,7 +619,7 @@ static DEVICE_ATTR(purge, 0200, NULL, vmlogrdr_purge_store);
 
 
 static ssize_t
-vmlogrdr_autorecording_store(struct device *dev, const char *buf,
+vmlogrdr_autorecording_store(struct device *dev, struct device_attribute *attr, const char *buf,
 			     size_t count) {
 	struct vmlogrdr_priv_t *priv = dev->driver_data;
 	ssize_t ret = count;
@@ -639,7 +639,7 @@ vmlogrdr_autorecording_store(struct device *dev, const char *buf,
 
 
 static ssize_t
-vmlogrdr_autorecording_show(struct device *dev, char *buf) {
+vmlogrdr_autorecording_show(struct device *dev, struct device_attribute *attr, char *buf) {
 	struct vmlogrdr_priv_t *priv = dev->driver_data;
 	return sprintf(buf, "%u\n", priv->autorecording);
 }
@@ -650,7 +650,7 @@ static DEVICE_ATTR(autorecording, 0644, vmlogrdr_autorecording_show,
 
 
 static ssize_t
-vmlogrdr_recording_store(struct device * dev, const char * buf, size_t count) {
+vmlogrdr_recording_store(struct device * dev, struct device_attribute *attr, const char * buf, size_t count) {
 
 	struct vmlogrdr_priv_t *priv = dev->driver_data;
 	ssize_t ret;
