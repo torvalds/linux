@@ -33,6 +33,7 @@
 #include <asm/mpspec.h>
 #include <asm/pgalloc.h>
 #include <asm/mach_apic.h>
+#include <asm/nmi.h>
 
 int apic_verbosity;
 
@@ -1056,7 +1057,7 @@ int __init APIC_init_uniprocessor (void)
 		nr_ioapics = 0;
 #endif
 	setup_boot_APIC_clock();
-
+	check_nmi_watchdog();
 	return 0;
 }
 

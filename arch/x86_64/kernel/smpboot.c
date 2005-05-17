@@ -56,6 +56,7 @@
 #include <asm/kdebug.h>
 #include <asm/tlbflush.h>
 #include <asm/proto.h>
+#include <asm/nmi.h>
 
 /* Change for real CPU hotplug. Note other files need to be fixed
    first too. */
@@ -1030,4 +1031,6 @@ void __cpuinit smp_cpus_done(unsigned int max_cpus)
 
 	detect_siblings();
 	time_init_gtod();
+
+	check_nmi_watchdog();
 }
