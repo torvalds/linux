@@ -347,10 +347,16 @@ static int aac_biosparm(struct scsi_device *sdev, struct block_device *bdev,
 
 static int aac_slave_configure(struct scsi_device *sdev)
 {
+	struct Scsi_Host *host = sdev->host;
+
 	if (sdev->tagged_supported)
 		scsi_adjust_queue_depth(sdev, MSG_ORDERED_TAG, 128);
 	else
 		scsi_adjust_queue_depth(sdev, 0, 1);
+
+	if (host->max_sectors < AAC_MAX_32BIT_SGBCOUNT)
+		blk_queue_max_segment_size(sdev->request_queue, 65536);
+
 	return 0;
 }
 
@@ -439,11 +445,11 @@ static int aac_eh_reset(struct scsi_cmnd* cmd)
 static int aac_cfg_open(struct inode *inode, struct file *file)
 {
 	struct aac_dev *aac;
-	unsigned minor = iminor(inode);
+	unsigned minor_number = iminor(inode);
 	int err = -ENODEV;
 
 	list_for_each_entry(aac, &aac_devices, entry) {
-		if (aac->id == minor) {
+		if (aac->id == minor_number) {
 			file->private_data = aac;
 			err = 0;
 			break;
@@ -489,6 +495,7 @@ static long aac_compat_do_ioctl(struct aac_dev *dev, unsigned cmd, unsigned long
 	case FSACTL_DELETE_DISK:
 	case FSACTL_FORCE_DELETE_DISK:
 	case FSACTL_GET_CONTAINERS: 
+	case FSACTL_SEND_LARGE_FIB:
 		ret = aac_do_ioctl(dev, cmd, (void __user *)arg);
 		break;
 
@@ -538,7 +545,7 @@ static struct file_operations aac_cfg_fops = {
 static struct scsi_host_template aac_driver_template = {
 	.module				= THIS_MODULE,
 	.name           		= "AAC",
-	.proc_name			= "aacraid",
+	.proc_name			= AAC_DRIVERNAME,
 	.info           		= aac_info,
 	.ioctl          		= aac_ioctl,
 #ifdef CONFIG_COMPAT
@@ -612,7 +619,7 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 	aac->cardtype =  index;
 	INIT_LIST_HEAD(&aac->entry);
 
-	aac->fibs = kmalloc(sizeof(struct fib) * AAC_NUM_FIB, GFP_KERNEL);
+	aac->fibs = kmalloc(sizeof(struct fib) * (shost->can_queue + AAC_NUM_MGT_FIB), GFP_KERNEL);
 	if (!aac->fibs)
 		goto out_free_host;
 	spin_lock_init(&aac->fib_lock);
@@ -632,6 +639,24 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 	aac_get_adapter_info(aac);
 
 	/*
+ 	 * Lets override negotiations and drop the maximum SG limit to 34
+ 	 */
+ 	if ((aac_drivers[index].quirks & AAC_QUIRK_34SG) && 
+			(aac->scsi_host_ptr->sg_tablesize > 34)) {
+ 		aac->scsi_host_ptr->sg_tablesize = 34;
+ 		aac->scsi_host_ptr->max_sectors
+ 		  = (aac->scsi_host_ptr->sg_tablesize * 8) + 112;
+ 	}
+
+	/*
+	 * Firware printf works only with older firmware.
+	 */
+	if (aac_drivers[index].quirks & AAC_QUIRK_34SG) 
+		aac->printf_enabled = 1;
+	else
+		aac->printf_enabled = 0;
+ 
+ 	/*
 	 * max channel will be the physical channels plus 1 virtual channel
 	 * all containers are on the virtual channel 0
 	 * physical channels are address by their actual physical number+1

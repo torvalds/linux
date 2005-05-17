@@ -8,12 +8,18 @@
 
 #define MAXIMUM_NUM_CONTAINERS	32
 
-#define AAC_NUM_FIB		(256 + 64)
-#define AAC_NUM_IO_FIB		100
+#define AAC_NUM_MGT_FIB         8
+#define AAC_NUM_IO_FIB		(512 - AAC_NUM_MGT_FIB)
+#define AAC_NUM_FIB		(AAC_NUM_IO_FIB + AAC_NUM_MGT_FIB)
 
 #define AAC_MAX_LUN		(8)
 
 #define AAC_MAX_HOSTPHYSMEMPAGES (0xfffff)
+/*
+ *  max_sectors is an unsigned short, otherwise limit is 0x100000000 / 512
+ * Linux has starvation problems if we permit larger than 4MB I/O ...
+ */
+#define AAC_MAX_32BIT_SGBCOUNT	((unsigned short)8192)
 
 /*
  * These macros convert from physical channels to virtual channels
@@ -303,12 +309,9 @@ struct aac_fibhdr {
 	} _u;
 };
 
-#define FIB_DATA_SIZE_IN_BYTES (512 - sizeof(struct aac_fibhdr))
-
-
 struct hw_fib {
 	struct aac_fibhdr header;
-	u8 data[FIB_DATA_SIZE_IN_BYTES];		// Command specific data
+	u8 data[512-sizeof(struct aac_fibhdr)];	// Command specific data
 };
 
 /*
@@ -370,11 +373,12 @@ struct hw_fib {
 #define		RequestAdapterInfo		703
 #define		IsAdapterPaused			704
 #define		SendHostTime			705
-#define		LastMiscCommand			706
+#define		RequestSupplementAdapterInfo	706
+#define		LastMiscCommand			707
 
-//
-// Commands that will target the failover level on the FSA adapter
-//
+/*
+ * Commands that will target the failover level on the FSA adapter
+ */
 
 enum fib_xfer_state {
 	HostOwned 			= (1<<0),
@@ -407,6 +411,7 @@ enum fib_xfer_state {
  */
 
 #define ADAPTER_INIT_STRUCT_REVISION		3
+#define ADAPTER_INIT_STRUCT_REVISION_4		4 // rocket science
 
 struct aac_init
 {
@@ -424,6 +429,14 @@ struct aac_init
 	__le32	HostPhysMemPages;   /* number of 4k pages of host 
 				       physical memory */
 	__le32	HostElapsedSeconds; /* number of seconds since 1970. */
+	/*
+	 * ADAPTER_INIT_STRUCT_REVISION_4 begins here
+	 */
+	__le32	InitFlags;	/* flags for supported features */
+#define INITFLAGS_NEW_COMM_SUPPORTED	0x00000001
+	__le32	MaxIoCommands;	/* max outstanding commands */
+	__le32	MaxIoSize;	/* largest I/O command */
+	__le32	MaxFibSize;	/* largest FIB to adapter */
 };
 
 enum aac_log_level {
@@ -447,7 +460,7 @@ struct adapter_ops
 {
 	void (*adapter_interrupt)(struct aac_dev *dev);
 	void (*adapter_notify)(struct aac_dev *dev, u32 event);
-	int  (*adapter_sync_cmd)(struct aac_dev *dev, u32 command, u32 p1, u32 *status);
+	int  (*adapter_sync_cmd)(struct aac_dev *dev, u32 command, u32 p1, u32 p2, u32 p3, u32 p4, u32 p5, u32 p6, u32 *status, u32 *r1, u32 *r2, u32 *r3, u32 *r4);
 	int  (*adapter_check_health)(struct aac_dev *dev);
 };
 
@@ -567,6 +580,7 @@ struct sa_drawbridge_CSR {
 #define Mailbox3	SaDbCSR.MAILBOX3
 #define Mailbox4	SaDbCSR.MAILBOX4
 #define Mailbox5	SaDbCSR.MAILBOX5
+#define Mailbox6	SaDbCSR.MAILBOX6
 #define Mailbox7	SaDbCSR.MAILBOX7
 	
 #define DoorbellReg_p SaDbCSR.PRISETIRQ
@@ -812,6 +826,25 @@ struct aac_adapter_info
 	__le32	OEM;
 };
 
+struct aac_supplement_adapter_info
+{
+	u8	AdapterTypeText[17+1];
+	u8	Pad[2];
+	__le32	FlashMemoryByteSize;
+	__le32	FlashImageId;
+	__le32	MaxNumberPorts;
+	__le32	Version;
+	__le32	FeatureBits;
+	u8	SlotNumber;
+	u8	ReservedPad0[0];
+	u8	BuildDate[12];
+	__le32	CurrentNumberPorts;
+	__le32	ReservedGrowth[24];
+};
+#define AAC_FEATURE_FALCON	0x00000010
+#define AAC_SIS_VERSION_V3	3
+#define AAC_SIS_SLOT_UNKNOWN	0xFF
+
 /*
  * Battery platforms
  */
@@ -856,6 +889,12 @@ struct aac_dev
 	int			id;
 
 	u16			irq_mask;
+	/*
+	 *	negotiated FIB settings
+	 */
+	unsigned		max_fib_size;
+	unsigned		sg_tablesize;
+
 	/*
 	 *	Map for 128 fib objects (64k)
 	 */	
@@ -915,12 +954,14 @@ struct aac_dev
 	u32			aif_thread;
 	struct completion	aif_completion;
 	struct aac_adapter_info adapter_info;
+	struct aac_supplement_adapter_info supplement_adapter_info;
 	/* These are in adapter info but they are in the io flow so
 	 * lets break them out so we don't have to do an AND to check them
 	 */
 	u8			nondasd_support; 
 	u8			dac_support;
 	u8			raid_scsi_mode;
+	u8			printf_enabled;
 };
 
 #define aac_adapter_interrupt(dev) \
@@ -929,6 +970,8 @@ struct aac_dev
 #define aac_adapter_notify(dev, event) \
 	(dev)->a_ops.adapter_notify(dev, event)
 
+#define aac_adapter_sync_cmd(dev, command, p1, p2, p3, p4, p5, p6, status, r1, r2, r3, r4) \
+	(dev)->a_ops.adapter_sync_cmd(dev, command, p1, p2, p3, p4, p5, p6, status, r1, r2, r3, r4)
 
 #define aac_adapter_check_health(dev) \
 	(dev)->a_ops.adapter_check_health(dev)
@@ -1327,7 +1370,7 @@ struct aac_commit_config {
 };
 
 /*
- *	Query for Container Configuration Count
+ *	Query for Container Configuration Status
  */
 
 #define CT_GET_CONTAINER_COUNT 4
@@ -1481,6 +1524,7 @@ struct revision
 #define FSACTL_GET_PCI_INFO               	CTL_CODE(2119, METHOD_BUFFERED)
 #define FSACTL_FORCE_DELETE_DISK		CTL_CODE(2120, METHOD_NEITHER)
 #define FSACTL_GET_CONTAINERS			2131
+#define FSACTL_SEND_LARGE_FIB			CTL_CODE(2138, METHOD_BUFFERED)
 
 
 struct aac_common
@@ -1667,3 +1711,5 @@ int fib_adapter_complete(struct fib * fibptr, unsigned short size);
 struct aac_driver_ident* aac_get_driver_ident(int devtype);
 int aac_get_adapter_info(struct aac_dev* dev);
 int aac_send_shutdown(struct aac_dev *dev);
+extern int numacb;
+extern int acbsize;
