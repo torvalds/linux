@@ -180,23 +180,13 @@ static int free_dma_iso_ctx(struct dma_iso_ctx *d)
 		kfree(d->prg_reg);
 	}
 
-	if (d->ir_prg)
-		kfree(d->ir_prg);
-
-	if (d->it_prg)
-		kfree(d->it_prg);
-
-	if (d->buffer_status)
-		kfree(d->buffer_status);
-	if (d->buffer_time)
-		kfree(d->buffer_time);
-	if (d->last_used_cmd)
-		kfree(d->last_used_cmd);
-	if (d->next_buffer)
-		kfree(d->next_buffer);
-
+	kfree(d->ir_prg);
+	kfree(d->it_prg);
+	kfree(d->buffer_status);
+	kfree(d->buffer_time);
+	kfree(d->last_used_cmd);
+	kfree(d->next_buffer);
 	list_del(&d->link);
-
 	kfree(d);
 
 	return 0;
@@ -1060,8 +1050,7 @@ static int __video1394_ioctl(struct file *file,
 			PRINT(KERN_ERR, ohci->host->id,
 			      "Buffer %d is already used",v.buffer);
 			spin_unlock_irqrestore(&d->lock,flags);
-			if (psizes)
-				kfree(psizes);
+			kfree(psizes);
 			return -EBUSY;
 		}
 
@@ -1116,9 +1105,7 @@ static int __video1394_ioctl(struct file *file,
 			}
 		}
 
-		if (psizes)
-			kfree(psizes);
-
+		kfree(psizes);
 		return 0;
 
 	}
