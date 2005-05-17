@@ -1095,7 +1095,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 
 		/* Other (Linux-defined) */
-		"cxmmx", NULL, "cyrix_arr", "centaur_mcr", "k8c+",
+		"cxmmx", NULL, "cyrix_arr", "centaur_mcr", NULL,
 		"constant_tsc", NULL, NULL,
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
