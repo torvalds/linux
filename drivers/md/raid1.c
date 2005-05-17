@@ -1197,10 +1197,6 @@ static int run(mddev_t *mddev)
 	if (!conf->r1bio_pool)
 		goto out_no_mem;
 
-	mddev->queue->unplug_fn = raid1_unplug;
-
-	mddev->queue->issue_flush_fn = raid1_issue_flush;
-
 	ITERATE_RDEV(mddev, rdev, tmp) {
 		disk_idx = rdev->raid_disk;
 		if (disk_idx >= mddev->raid_disks
@@ -1281,6 +1277,9 @@ static int run(mddev_t *mddev)
 	 * Ok, everything is just fine now
 	 */
 	mddev->array_size = mddev->size;
+
+	mddev->queue->unplug_fn = raid1_unplug;
+	mddev->queue->issue_flush_fn = raid1_issue_flush;
 
 	return 0;
 
