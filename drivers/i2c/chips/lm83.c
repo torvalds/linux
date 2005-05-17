@@ -155,7 +155,7 @@ struct lm83_data {
  */
 
 #define show_temp(suffix, value) \
-static ssize_t show_temp_##suffix(struct device *dev, char *buf) \
+static ssize_t show_temp_##suffix(struct device *dev, struct device_attribute *attr, char *buf) \
 { \
 	struct lm83_data *data = lm83_update_device(dev); \
 	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->value)); \
@@ -171,7 +171,7 @@ show_temp(high4, temp_high[3]);
 show_temp(crit, temp_crit);
 
 #define set_temp(suffix, value, reg) \
-static ssize_t set_temp_##suffix(struct device *dev, const char *buf, \
+static ssize_t set_temp_##suffix(struct device *dev, struct device_attribute *attr, const char *buf, \
 	size_t count) \
 { \
 	struct i2c_client *client = to_i2c_client(dev); \
@@ -190,7 +190,7 @@ set_temp(high3, temp_high[2], LM83_REG_W_REMOTE2_HIGH);
 set_temp(high4, temp_high[3], LM83_REG_W_REMOTE3_HIGH);
 set_temp(crit, temp_crit, LM83_REG_W_TCRIT);
 
-static ssize_t show_alarms(struct device *dev, char *buf)
+static ssize_t show_alarms(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct lm83_data *data = lm83_update_device(dev);
 	return sprintf(buf, "%d\n", data->alarms);

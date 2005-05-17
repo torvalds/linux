@@ -218,7 +218,7 @@ struct lm90_data {
  */
 
 #define show_temp(value, converter) \
-static ssize_t show_##value(struct device *dev, char *buf) \
+static ssize_t show_##value(struct device *dev, struct device_attribute *attr, char *buf) \
 { \
 	struct lm90_data *data = lm90_update_device(dev); \
 	return sprintf(buf, "%d\n", converter(data->value)); \
@@ -233,7 +233,7 @@ show_temp(temp_crit1, TEMP1_FROM_REG);
 show_temp(temp_crit2, TEMP1_FROM_REG);
 
 #define set_temp1(value, reg) \
-static ssize_t set_##value(struct device *dev, const char *buf, \
+static ssize_t set_##value(struct device *dev, struct device_attribute *attr, const char *buf, \
 	size_t count) \
 { \
 	struct i2c_client *client = to_i2c_client(dev); \
@@ -250,7 +250,7 @@ static ssize_t set_##value(struct device *dev, const char *buf, \
 	return count; \
 }
 #define set_temp2(value, regh, regl) \
-static ssize_t set_##value(struct device *dev, const char *buf, \
+static ssize_t set_##value(struct device *dev, struct device_attribute *attr, const char *buf, \
 	size_t count) \
 { \
 	struct i2c_client *client = to_i2c_client(dev); \
@@ -275,7 +275,7 @@ set_temp1(temp_crit1, LM90_REG_W_LOCAL_CRIT);
 set_temp1(temp_crit2, LM90_REG_W_REMOTE_CRIT);
 
 #define show_temp_hyst(value, basereg) \
-static ssize_t show_##value(struct device *dev, char *buf) \
+static ssize_t show_##value(struct device *dev, struct device_attribute *attr, char *buf) \
 { \
 	struct lm90_data *data = lm90_update_device(dev); \
 	return sprintf(buf, "%d\n", TEMP1_FROM_REG(data->basereg) \
@@ -284,7 +284,7 @@ static ssize_t show_##value(struct device *dev, char *buf) \
 show_temp_hyst(temp_hyst1, temp_crit1);
 show_temp_hyst(temp_hyst2, temp_crit2);
 
-static ssize_t set_temp_hyst1(struct device *dev, const char *buf,
+static ssize_t set_temp_hyst1(struct device *dev, struct device_attribute *attr, const char *buf,
 	size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -300,7 +300,7 @@ static ssize_t set_temp_hyst1(struct device *dev, const char *buf,
 	return count;
 }
 
-static ssize_t show_alarms(struct device *dev, char *buf)
+static ssize_t show_alarms(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct lm90_data *data = lm90_update_device(dev);
 	return sprintf(buf, "%d\n", data->alarms);

@@ -426,15 +426,15 @@ static ssize_t set_fan_min(struct device *dev, const char *buf,
 }
 
 #define show_fan_offset(offset)						\
-static ssize_t show_fan_##offset (struct device *dev, char *buf)	\
+static ssize_t show_fan_##offset (struct device *dev, struct device_attribute *attr, char *buf)	\
 {									\
 	return show_fan(dev, buf, offset - 1);				\
 }									\
-static ssize_t show_fan_##offset##_min (struct device *dev, char *buf)	\
+static ssize_t show_fan_##offset##_min (struct device *dev, struct device_attribute *attr, char *buf)	\
 {									\
 	return show_fan_min(dev, buf, offset - 1);			\
 }									\
-static ssize_t set_fan_##offset##_min (struct device *dev, 		\
+static ssize_t set_fan_##offset##_min (struct device *dev, struct device_attribute *attr, 		\
 	const char *buf, size_t count) 					\
 {									\
 	return set_fan_min(dev, buf, count, offset - 1);		\
@@ -451,7 +451,7 @@ show_fan_offset(4);
 
 /* vid, vrm, alarms */
 
-static ssize_t show_vid_reg(struct device *dev, char *buf)
+static ssize_t show_vid_reg(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct lm85_data *data = lm85_update_device(dev);
 	return sprintf(buf, "%ld\n", (long) vid_from_reg(data->vid, data->vrm));
@@ -459,13 +459,13 @@ static ssize_t show_vid_reg(struct device *dev, char *buf)
 
 static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid_reg, NULL);
 
-static ssize_t show_vrm_reg(struct device *dev, char *buf)
+static ssize_t show_vrm_reg(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct lm85_data *data = lm85_update_device(dev);
 	return sprintf(buf, "%ld\n", (long) data->vrm);
 }
 
-static ssize_t store_vrm_reg(struct device *dev, const char *buf, size_t count)
+static ssize_t store_vrm_reg(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lm85_data *data = i2c_get_clientdata(client);
@@ -478,7 +478,7 @@ static ssize_t store_vrm_reg(struct device *dev, const char *buf, size_t count)
 
 static DEVICE_ATTR(vrm, S_IRUGO | S_IWUSR, show_vrm_reg, store_vrm_reg);
 
-static ssize_t show_alarms_reg(struct device *dev, char *buf)
+static ssize_t show_alarms_reg(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct lm85_data *data = lm85_update_device(dev);
 	return sprintf(buf, "%ld\n", (long) ALARMS_FROM_REG(data->alarms));
@@ -516,16 +516,16 @@ static ssize_t show_pwm_enable(struct device *dev, char *buf, int nr)
 }
 
 #define show_pwm_reg(offset)						\
-static ssize_t show_pwm_##offset (struct device *dev, char *buf)	\
+static ssize_t show_pwm_##offset (struct device *dev, struct device_attribute *attr, char *buf)	\
 {									\
 	return show_pwm(dev, buf, offset - 1);				\
 }									\
-static ssize_t set_pwm_##offset (struct device *dev,			\
+static ssize_t set_pwm_##offset (struct device *dev, struct device_attribute *attr,			\
 				 const char *buf, size_t count)		\
 {									\
 	return set_pwm(dev, buf, count, offset - 1);			\
 }									\
-static ssize_t show_pwm_enable##offset (struct device *dev, char *buf)	\
+static ssize_t show_pwm_enable##offset (struct device *dev, struct device_attribute *attr, char *buf)	\
 {									\
 	return show_pwm_enable(dev, buf, offset - 1);			\
 }									\
@@ -585,24 +585,24 @@ static ssize_t set_in_max(struct device *dev, const char *buf,
 	return count;
 }
 #define show_in_reg(offset)						\
-static ssize_t show_in_##offset (struct device *dev, char *buf)		\
+static ssize_t show_in_##offset (struct device *dev, struct device_attribute *attr, char *buf)		\
 {									\
 	return show_in(dev, buf, offset);				\
 }									\
-static ssize_t show_in_##offset##_min (struct device *dev, char *buf)	\
+static ssize_t show_in_##offset##_min (struct device *dev, struct device_attribute *attr, char *buf)	\
 {									\
 	return show_in_min(dev, buf, offset);				\
 }									\
-static ssize_t show_in_##offset##_max (struct device *dev, char *buf)	\
+static ssize_t show_in_##offset##_max (struct device *dev, struct device_attribute *attr, char *buf)	\
 {									\
 	return show_in_max(dev, buf, offset);				\
 }									\
-static ssize_t set_in_##offset##_min (struct device *dev, 		\
+static ssize_t set_in_##offset##_min (struct device *dev, struct device_attribute *attr, 		\
 	const char *buf, size_t count) 					\
 {									\
 	return set_in_min(dev, buf, count, offset);			\
 }									\
-static ssize_t set_in_##offset##_max (struct device *dev, 		\
+static ssize_t set_in_##offset##_max (struct device *dev, struct device_attribute *attr, 		\
 	const char *buf, size_t count) 					\
 {									\
 	return set_in_max(dev, buf, count, offset);			\
@@ -666,24 +666,24 @@ static ssize_t set_temp_max(struct device *dev, const char *buf,
 	return count;
 }
 #define show_temp_reg(offset)						\
-static ssize_t show_temp_##offset (struct device *dev, char *buf)	\
+static ssize_t show_temp_##offset (struct device *dev, struct device_attribute *attr, char *buf)	\
 {									\
 	return show_temp(dev, buf, offset - 1);				\
 }									\
-static ssize_t show_temp_##offset##_min (struct device *dev, char *buf)	\
+static ssize_t show_temp_##offset##_min (struct device *dev, struct device_attribute *attr, char *buf)	\
 {									\
 	return show_temp_min(dev, buf, offset - 1);			\
 }									\
-static ssize_t show_temp_##offset##_max (struct device *dev, char *buf)	\
+static ssize_t show_temp_##offset##_max (struct device *dev, struct device_attribute *attr, char *buf)	\
 {									\
 	return show_temp_max(dev, buf, offset - 1);			\
 }									\
-static ssize_t set_temp_##offset##_min (struct device *dev, 		\
+static ssize_t set_temp_##offset##_min (struct device *dev, struct device_attribute *attr, 		\
 	const char *buf, size_t count) 					\
 {									\
 	return set_temp_min(dev, buf, count, offset - 1);		\
 }									\
-static ssize_t set_temp_##offset##_max (struct device *dev, 		\
+static ssize_t set_temp_##offset##_max (struct device *dev, struct device_attribute *attr, 		\
 	const char *buf, size_t count) 					\
 {									\
 	return set_temp_max(dev, buf, count, offset - 1);		\
@@ -786,42 +786,42 @@ static ssize_t set_pwm_auto_pwm_freq(struct device *dev, const char *buf,
 	return count;
 }
 #define pwm_auto(offset)						\
-static ssize_t show_pwm##offset##_auto_channels (struct device *dev,	\
+static ssize_t show_pwm##offset##_auto_channels (struct device *dev, struct device_attribute *attr,	\
 	char *buf)							\
 {									\
 	return show_pwm_auto_channels(dev, buf, offset - 1);		\
 }									\
-static ssize_t set_pwm##offset##_auto_channels (struct device *dev,	\
+static ssize_t set_pwm##offset##_auto_channels (struct device *dev, struct device_attribute *attr,	\
 	const char *buf, size_t count)					\
 {									\
 	return set_pwm_auto_channels(dev, buf, count, offset - 1);	\
 }									\
-static ssize_t show_pwm##offset##_auto_pwm_min (struct device *dev,	\
+static ssize_t show_pwm##offset##_auto_pwm_min (struct device *dev, struct device_attribute *attr,	\
 	char *buf)							\
 {									\
 	return show_pwm_auto_pwm_min(dev, buf, offset - 1);		\
 }									\
-static ssize_t set_pwm##offset##_auto_pwm_min (struct device *dev,	\
+static ssize_t set_pwm##offset##_auto_pwm_min (struct device *dev, struct device_attribute *attr,	\
 	const char *buf, size_t count)					\
 {									\
 	return set_pwm_auto_pwm_min(dev, buf, count, offset - 1);	\
 }									\
-static ssize_t show_pwm##offset##_auto_pwm_minctl (struct device *dev,	\
+static ssize_t show_pwm##offset##_auto_pwm_minctl (struct device *dev, struct device_attribute *attr,	\
 	char *buf)							\
 {									\
 	return show_pwm_auto_pwm_minctl(dev, buf, offset - 1);		\
 }									\
-static ssize_t set_pwm##offset##_auto_pwm_minctl (struct device *dev,	\
+static ssize_t set_pwm##offset##_auto_pwm_minctl (struct device *dev, struct device_attribute *attr,	\
 	const char *buf, size_t count)					\
 {									\
 	return set_pwm_auto_pwm_minctl(dev, buf, count, offset - 1);	\
 }									\
-static ssize_t show_pwm##offset##_auto_pwm_freq (struct device *dev,	\
+static ssize_t show_pwm##offset##_auto_pwm_freq (struct device *dev, struct device_attribute *attr,	\
 	char *buf)							\
 {									\
 	return show_pwm_auto_pwm_freq(dev, buf, offset - 1);		\
 }									\
-static ssize_t set_pwm##offset##_auto_pwm_freq(struct device *dev,	\
+static ssize_t set_pwm##offset##_auto_pwm_freq(struct device *dev, struct device_attribute *attr,	\
 	const char *buf, size_t count)					\
 {									\
 	return set_pwm_auto_pwm_freq(dev, buf, count, offset - 1);	\
@@ -962,42 +962,42 @@ static ssize_t set_temp_auto_temp_crit(struct device *dev, const char *buf,
 	return count;
 }
 #define temp_auto(offset)						\
-static ssize_t show_temp##offset##_auto_temp_off (struct device *dev,	\
+static ssize_t show_temp##offset##_auto_temp_off (struct device *dev, struct device_attribute *attr,	\
 	char *buf)							\
 {									\
 	return show_temp_auto_temp_off(dev, buf, offset - 1);		\
 }									\
-static ssize_t set_temp##offset##_auto_temp_off (struct device *dev,	\
+static ssize_t set_temp##offset##_auto_temp_off (struct device *dev, struct device_attribute *attr,	\
 	const char *buf, size_t count)					\
 {									\
 	return set_temp_auto_temp_off(dev, buf, count, offset - 1);	\
 }									\
-static ssize_t show_temp##offset##_auto_temp_min (struct device *dev,	\
+static ssize_t show_temp##offset##_auto_temp_min (struct device *dev, struct device_attribute *attr,	\
 	char *buf)							\
 {									\
 	return show_temp_auto_temp_min(dev, buf, offset - 1);		\
 }									\
-static ssize_t set_temp##offset##_auto_temp_min (struct device *dev,	\
+static ssize_t set_temp##offset##_auto_temp_min (struct device *dev, struct device_attribute *attr,	\
 	const char *buf, size_t count)					\
 {									\
 	return set_temp_auto_temp_min(dev, buf, count, offset - 1);	\
 }									\
-static ssize_t show_temp##offset##_auto_temp_max (struct device *dev,	\
+static ssize_t show_temp##offset##_auto_temp_max (struct device *dev, struct device_attribute *attr,	\
 	char *buf)							\
 {									\
 	return show_temp_auto_temp_max(dev, buf, offset - 1);		\
 }									\
-static ssize_t set_temp##offset##_auto_temp_max (struct device *dev,	\
+static ssize_t set_temp##offset##_auto_temp_max (struct device *dev, struct device_attribute *attr,	\
 	const char *buf, size_t count)					\
 {									\
 	return set_temp_auto_temp_max(dev, buf, count, offset - 1);	\
 }									\
-static ssize_t show_temp##offset##_auto_temp_crit (struct device *dev,	\
+static ssize_t show_temp##offset##_auto_temp_crit (struct device *dev, struct device_attribute *attr,	\
 	char *buf)							\
 {									\
 	return show_temp_auto_temp_crit(dev, buf, offset - 1);		\
 }									\
-static ssize_t set_temp##offset##_auto_temp_crit (struct device *dev,	\
+static ssize_t set_temp##offset##_auto_temp_crit (struct device *dev, struct device_attribute *attr,	\
 	const char *buf, size_t count)					\
 {									\
 	return set_temp_auto_temp_crit(dev, buf, count, offset - 1);	\
