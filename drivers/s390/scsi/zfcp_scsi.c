@@ -924,7 +924,7 @@ struct fc_function_template zfcp_transport_functions = {
  * Generates attribute for a unit.
  */
 #define ZFCP_DEFINE_SCSI_ATTR(_name, _format, _value)                    \
-static ssize_t zfcp_sysfs_scsi_##_name##_show(struct device *dev,        \
+static ssize_t zfcp_sysfs_scsi_##_name##_show(struct device *dev, struct device_attribute *attr,        \
                                               char *buf)                 \
 {                                                                        \
         struct scsi_device *sdev;                                        \
