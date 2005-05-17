@@ -159,9 +159,9 @@ static inline void clear_in_cr4 (unsigned long mask)
 
 
 /*
- * User space process size. 47bits.
+ * User space process size. 47bits minus one guard page.
  */
-#define TASK_SIZE	(0x800000000000UL)
+#define TASK_SIZE	(0x800000000000UL - 4096)
 
 /* This decides where the kernel will search for a free chunk of vm
  * space during mmap's.
