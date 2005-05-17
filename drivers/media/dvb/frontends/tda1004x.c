@@ -406,7 +406,7 @@ static int tda10046_fwupload(struct dvb_frontend* fe)
 
 	/* set parameters */
 	tda1004x_write_byteI(state, TDA10046H_CONFPLL2, 10);
-	tda1004x_write_byteI(state, TDA10046H_CONFPLL3, 0);
+	tda1004x_write_byteI(state, TDA10046H_CONFPLL3, state->config->n_i2c);
 	tda1004x_write_byteI(state, TDA10046H_FREQ_OFFSET, 99);
 	tda1004x_write_byteI(state, TDA10046H_FREQ_PHY2_MSB, 0xd4);
 	tda1004x_write_byteI(state, TDA10046H_FREQ_PHY2_LSB, 0x2c);
@@ -547,7 +547,7 @@ static int tda10046_init(struct dvb_frontend* fe)
 	tda1004x_write_mask(state, TDA1004X_AUTO, 8, 0); // select HP stream
 	tda1004x_write_mask(state, TDA1004X_CONFC1, 0x80, 0); // disable pulse killer
 	tda1004x_write_byteI(state, TDA10046H_CONFPLL2, 10); // PLL M = 10
-	tda1004x_write_byteI(state, TDA10046H_CONFPLL3, 0); // PLL P = N = 0
+	tda1004x_write_byteI(state, TDA10046H_CONFPLL3, state->config->n_i2c); // PLL P = N = 0
 	tda1004x_write_byteI(state, TDA10046H_FREQ_OFFSET, 99); // FREQOFFS = 99
 	tda1004x_write_byteI(state, TDA10046H_FREQ_PHY2_MSB, 0xd4); // } PHY2 = -11221
 	tda1004x_write_byteI(state, TDA10046H_FREQ_PHY2_LSB, 0x2c); // }

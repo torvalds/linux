@@ -37,6 +37,9 @@ struct tda1004x_config
 	/* Does the OCLK signal need inverted? */
 	u8 invert_oclk;
 
+	/* value of N_I2C of the CONF_PLL3 register */
+	u8 n_i2c;
+
 	/* PLL maintenance */
 	int (*pll_init)(struct dvb_frontend* fe);
 	int (*pll_set)(struct dvb_frontend* fe, struct dvb_frontend_parameters* params);
