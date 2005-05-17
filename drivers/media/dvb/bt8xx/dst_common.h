@@ -48,7 +48,6 @@
 #define DST_TYPE_HAS_FW_3	32
 #define DST_TYPE_HAS_FW_BUILD	64
 
-
 /*	Card capability list	*/
 
 #define DST_TYPE_HAS_MAC	1
@@ -58,6 +57,7 @@
 #define DST_TYPE_HAS_MOTO	16
 #define DST_TYPE_HAS_CA		32
 #define	DST_TYPE_HAS_ANALOG	64	/*	Analog inputs	*/
+#define DST_TYPE_HAS_SESSION	128
 
 
 #define RDC_8820_PIO_0_DISABLE	0
@@ -107,7 +107,7 @@ struct dst_state {
 	unsigned long cur_jiff;
 	u8 k22;
 	fe_bandwidth_t bandwidth;
-	u8 dst_hw_cap;
+	u32 dst_hw_cap;
 	u8 dst_fw_version;
 	fe_sec_mini_cmd_t minicmd;
 	u8 messages[256];
@@ -117,8 +117,8 @@ struct dst_types {
 	char *device_id;
 	int offset;
 	u8 dst_type;
-	u64 type_flags;
-	u64 dst_feature;
+	u32 type_flags;
+	u32 dst_feature;
 };
 
 

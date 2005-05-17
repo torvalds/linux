@@ -40,23 +40,16 @@ static unsigned int debug = 1;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(dst_ca_debug, "debug messages, default is 0 (yes)");
 
-static unsigned int session;
-module_param(session, int, 0644);
-MODULE_PARM_DESC(session, "Support for hardware that has multiple sessions, default 0");
-
-static unsigned int new_ca;
-module_param(new_ca, int, 0644);
-MODULE_PARM_DESC(new_ca, "Support for the new CA interface firmware, default 0");
-
 #define dprintk if (debug) printk
 
-
+/*	Need some more work	*/
 static int ca_set_slot_descr(void)
 {
 	/*	We could make this more graceful ?	*/
 	return -EOPNOTSUPP;
 }
 
+/*	Need some more work	*/
 static int ca_set_pid(void)
 {
 	/*	We could make this more graceful ?	*/
@@ -213,7 +206,7 @@ static int ca_get_slot_caps(struct dst_state *state, struct ca_caps *p_ca_caps, 
 	return 0;
 }
 
-
+/*	Need some more work	*/
 static int ca_get_slot_descr(struct dst_state *state, struct ca_msg *p_ca_message, void *arg)
 {
 	return -EOPNOTSUPP;
@@ -302,9 +295,9 @@ static int ca_get_message(struct dst_state *state, struct ca_msg *p_ca_message, 
 	return 0;
 }
 
-static int handle_en50221_tag(struct ca_msg *p_ca_message, struct ca_msg *hw_buffer)
+static int handle_en50221_tag(struct dst_state *state, struct ca_msg *p_ca_message, struct ca_msg *hw_buffer)
 {
-	if (session) {
+	if (state->dst_hw_cap & DST_TYPE_HAS_SESSION) {
 		hw_buffer->msg[2] = p_ca_message->msg[1];		/*		MSB			*/
 		hw_buffer->msg[3] = p_ca_message->msg[2];		/*		LSB			*/
 	}
@@ -351,7 +344,7 @@ static int ca_set_pmt(struct dst_state *state, struct ca_msg *p_ca_message, stru
 	if (verbose > 3)
 		dprintk("%s, p_ca_message length %d (0x%x)\n", __FUNCTION__,p_ca_message->length,p_ca_message->length );
 
-	handle_en50221_tag(p_ca_message, hw_buffer);			/*	EN50221 tag		*/
+	handle_en50221_tag(state, p_ca_message, hw_buffer);			/*	EN50221 tag		*/
 
 	/*	Handle the length field (variable)	*/
 	if (!(p_ca_message->msg[3] & 0x80)) {				/*	Length = 1		*/

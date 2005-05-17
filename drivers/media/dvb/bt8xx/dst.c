@@ -44,13 +44,7 @@ MODULE_PARM_DESC(debug, "debug messages, default is 0 (yes)");
 
 static unsigned int dst_addons;
 module_param(dst_addons, int, 0644);
-MODULE_PARM_DESC(dst_addons, "CA daughterboard, default is 0 (no)");
-
-static unsigned int new_fw;
-module_param(new_fw, int, 0644);
-MODULE_PARM_DESC(new_fw, "Support for the new interface firmware, default 0");
-
-
+MODULE_PARM_DESC(dst_addons, "CA daughterboard, default is 0 (No addons)");
 
 #define dprintk	if (debug) printk
 
@@ -787,7 +781,11 @@ static int dst_probe(struct dst_state *state)
 		dprintk("%s: RDC 8820 RESET Failed.\n", __FUNCTION__);
 		return -1;
 	}
-	msleep(4000);
+	if (dst_addons & DST_TYPE_HAS_CA)
+		msleep(4000);
+	else
+		msleep(100);
+
 	if ((dst_comm_init(state)) < 0) {
 		dprintk("%s: DST Initialization Failed.\n", __FUNCTION__);
 		return -1;
