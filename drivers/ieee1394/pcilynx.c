@@ -43,6 +43,7 @@
 #include <linux/fs.h>
 #include <linux/poll.h>
 #include <linux/kdev_t.h>
+#include <linux/dma-mapping.h>
 #include <asm/byteorder.h>
 #include <asm/atomic.h>
 #include <asm/io.h>
@@ -1185,7 +1186,7 @@ static int __devinit add_card(struct pci_dev *dev,
 
         error = -ENXIO;
 
-        if (pci_set_dma_mask(dev, 0xffffffff))
+        if (pci_set_dma_mask(dev, DMA_32BIT_MASK))
                 FAIL("DMA address limits not supported for PCILynx hardware");
         if (pci_enable_device(dev))
                 FAIL("failed to enable PCILynx hardware");
