@@ -98,7 +98,7 @@ MODULE_PARM_DESC(async_unlink, "Use async unlink mode.");
 #define MAX_PACKS	10
 #define MAX_PACKS_HS	(MAX_PACKS * 8)	/* in high speed mode */
 #define MAX_URBS	5	/* max. 20ms long packets */
-#define SYNC_URBS	2	/* always two urbs for sync */
+#define SYNC_URBS	4	/* always four urbs for sync */
 #define MIN_PACKS_URB	1	/* minimum 1 packet per urb */
 
 typedef struct snd_usb_substream snd_usb_substream_t;
@@ -1240,8 +1240,13 @@ static int set_format(snd_usb_substream_t *subs, struct audioformat *fmt)
 		    get_endpoint(alts, 1)->bRefresh >= 1 &&
 		    get_endpoint(alts, 1)->bRefresh <= 9)
 			subs->syncinterval = get_endpoint(alts, 1)->bRefresh;
-		else
+		else if (snd_usb_get_speed(subs->dev) == USB_SPEED_FULL)
 			subs->syncinterval = 1;
+		else if (get_endpoint(alts, 1)->bInterval >= 1 &&
+			 get_endpoint(alts, 1)->bInterval <= 16)
+			subs->syncinterval = get_endpoint(alts, 1)->bInterval - 1;
+		else
+			subs->syncinterval = 3;
 	}
 
 	/* always fill max packet size */
