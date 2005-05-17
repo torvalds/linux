@@ -162,7 +162,7 @@ static int ca_get_app_info(struct dst_state *state)
 		dprintk("%s: ================================ CI Module Application Info ======================================\n", __FUNCTION__);
 		dprintk("%s: Application Type=[%d], Application Vendor=[%d], Vendor Code=[%d]\n%s: Application info=[%s]\n",
 			__FUNCTION__, state->messages[7], (state->messages[8] << 8) | state->messages[9],
-			(state->messages[10] << 8) | state->messages[11], __FUNCTION__, (char *)(&state->messages[11]));
+			(state->messages[10] << 8) | state->messages[11], __FUNCTION__, (char *)(&state->messages[12]));
 		dprintk("%s: ==================================================================================================\n", __FUNCTION__);
 	}
 
