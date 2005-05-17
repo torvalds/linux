@@ -79,8 +79,8 @@ static int flexcop_set_tone(struct dvb_frontend *fe, fe_sec_tone_mode_t tone)
 
 	v.lnb_switch_freq_200.LNB_CTLPrescaler_sig = 1; /* divide by 2 */
 
-	v.lnb_switch_freq_200.LNB_CTLHighCount_sig =
-		v.lnb_switch_freq_200.LNB_CTLLowCount_sig  = ax;
+	v.lnb_switch_freq_200.LNB_CTLHighCount_sig = ax;
+	v.lnb_switch_freq_200.LNB_CTLLowCount_sig  = ax == 0 ? 0x1ff : ax;
 
 	return fc->write_ibi_reg(fc,lnb_switch_freq_200,v);
 }
