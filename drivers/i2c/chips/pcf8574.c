@@ -76,7 +76,7 @@ static struct i2c_driver pcf8574_driver = {
 };
 
 /* following are the sysfs callback functions */
-static ssize_t show_read(struct device *dev, char *buf)
+static ssize_t show_read(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct pcf8574_data *data = i2c_get_clientdata(client);
@@ -86,13 +86,13 @@ static ssize_t show_read(struct device *dev, char *buf)
 
 static DEVICE_ATTR(read, S_IRUGO, show_read, NULL);
 
-static ssize_t show_write(struct device *dev, char *buf)
+static ssize_t show_write(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct pcf8574_data *data = i2c_get_clientdata(to_i2c_client(dev));
 	return sprintf(buf, "%u\n", data->write);
 }
 
-static ssize_t set_write(struct device *dev, const char *buf,
+static ssize_t set_write(struct device *dev, struct device_attribute *attr, const char *buf,
 			 size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
