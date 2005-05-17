@@ -88,7 +88,7 @@ static void w1_slave_release(struct device *dev)
 	complete(&sl->dev_released);
 }
 
-static ssize_t w1_default_read_name(struct device *dev, char *buf)
+static ssize_t w1_default_read_name(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "No family registered.\n");
 }
@@ -137,7 +137,7 @@ static struct device_attribute w1_slave_attribute_val = {
 	.show = &w1_default_read_name,
 };
 
-static ssize_t w1_master_attribute_show_name(struct device *dev, char *buf)
+static ssize_t w1_master_attribute_show_name(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct w1_master *md = container_of (dev, struct w1_master, dev);
 	ssize_t count;
@@ -152,7 +152,7 @@ static ssize_t w1_master_attribute_show_name(struct device *dev, char *buf)
 	return count;
 }
 
-static ssize_t w1_master_attribute_show_pointer(struct device *dev, char *buf)
+static ssize_t w1_master_attribute_show_pointer(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct w1_master *md = container_of(dev, struct w1_master, dev);
 	ssize_t count;
@@ -166,14 +166,14 @@ static ssize_t w1_master_attribute_show_pointer(struct device *dev, char *buf)
 	return count;
 }
 
-static ssize_t w1_master_attribute_show_timeout(struct device *dev, char *buf)
+static ssize_t w1_master_attribute_show_timeout(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	ssize_t count;
 	count = sprintf(buf, "%d\n", w1_timeout);
 	return count;
 }
 
-static ssize_t w1_master_attribute_show_max_slave_count(struct device *dev, char *buf)
+static ssize_t w1_master_attribute_show_max_slave_count(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct w1_master *md = container_of(dev, struct w1_master, dev);
 	ssize_t count;
@@ -187,7 +187,7 @@ static ssize_t w1_master_attribute_show_max_slave_count(struct device *dev, char
 	return count;
 }
 
-static ssize_t w1_master_attribute_show_attempts(struct device *dev, char *buf)
+static ssize_t w1_master_attribute_show_attempts(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct w1_master *md = container_of(dev, struct w1_master, dev);
 	ssize_t count;
@@ -201,7 +201,7 @@ static ssize_t w1_master_attribute_show_attempts(struct device *dev, char *buf)
 	return count;
 }
 
-static ssize_t w1_master_attribute_show_slave_count(struct device *dev, char *buf)
+static ssize_t w1_master_attribute_show_slave_count(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct w1_master *md = container_of(dev, struct w1_master, dev);
 	ssize_t count;
@@ -215,7 +215,7 @@ static ssize_t w1_master_attribute_show_slave_count(struct device *dev, char *bu
 	return count;
 }
 
-static ssize_t w1_master_attribute_show_slaves(struct device *dev, char *buf)
+static ssize_t w1_master_attribute_show_slaves(struct device *dev, struct device_attribute *attr, char *buf)
 
 {
 	struct w1_master *md = container_of(dev, struct w1_master, dev);
