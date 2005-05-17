@@ -516,6 +516,6 @@ void proc_ide_create(void)
 
 void proc_ide_destroy(void)
 {
-	remove_proc_entry("ide/drivers", proc_ide_root);
+	remove_proc_entry("drivers", proc_ide_root);
 	remove_proc_entry("ide", NULL);
 }
