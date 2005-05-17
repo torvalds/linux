@@ -75,6 +75,8 @@ struct flexcop_device {
 	struct i2c_adapter i2c_adap;
 	struct semaphore i2c_sem;
 
+	struct module *owner;
+
 	/* options and status */
 	int extra_feedcount;
 	int feedcount;

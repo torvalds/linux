@@ -309,6 +309,7 @@ static int flexcop_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	fc->bus_type = FC_PCI;
 
 	fc->dev = &pdev->dev;
+	fc->owner = THIS_MODULE;
 
 /* bus specific part */
 	fc_pci->pdev = pdev;

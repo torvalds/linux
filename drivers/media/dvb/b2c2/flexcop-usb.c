@@ -498,6 +498,7 @@ static int flexcop_usb_probe(struct usb_interface *intf,
 	fc->bus_type = FC_USB;
 
 	fc->dev = &udev->dev;
+	fc->owner = THIS_MODULE;
 
 /* bus specific part */
 	fc_usb->udev = udev;
