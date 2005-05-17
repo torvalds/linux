@@ -46,7 +46,7 @@
 #define DST_TYPE_HAS_FW_1	8
 #define DST_TYPE_HAS_FW_2	16
 #define DST_TYPE_HAS_FW_3	32
-
+#define DST_TYPE_HAS_FW_BUILD	64
 
 
 /*	Card capability list	*/
@@ -117,8 +117,8 @@ struct dst_types {
 	char *device_id;
 	int offset;
 	u8 dst_type;
-	u32 type_flags;
-	u8 dst_feature;
+	u64 type_flags;
+	u64 dst_feature;
 };
 
 
