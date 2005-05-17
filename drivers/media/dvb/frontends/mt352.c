@@ -46,7 +46,7 @@ struct mt352_state {
 	struct dvb_frontend_ops ops;
 
 	/* configuration settings */
-	const struct mt352_config* config;
+	struct mt352_config config;
 };
 
 static int debug;
@@ -59,7 +59,7 @@ static int mt352_single_write(struct dvb_frontend *fe, u8 reg, u8 val)
 {
 	struct mt352_state* state = fe->demodulator_priv;
 	u8 buf[2] = { reg, val };
-	struct i2c_msg msg = { .addr = state->config->demod_address, .flags = 0,
+	struct i2c_msg msg = { .addr = state->config.demod_address, .flags = 0,
 			       .buf = buf, .len = 2 };
 	int err = i2c_transfer(state->i2c, &msg, 1);
 	if (err != 1) {
@@ -84,10 +84,10 @@ static int mt352_read_register(struct mt352_state* state, u8 reg)
 	int ret;
 	u8 b0 [] = { reg };
 	u8 b1 [] = { 0 };
-	struct i2c_msg msg [] = { { .addr = state->config->demod_address,
+	struct i2c_msg msg [] = { { .addr = state->config.demod_address,
 				    .flags = 0,
 				    .buf = b0, .len = 1 },
-				  { .addr = state->config->demod_address,
+				  { .addr = state->config.demod_address,
 				    .flags = I2C_M_RD,
 				    .buf = b1, .len = 1 } };
 
@@ -134,8 +134,8 @@ static void mt352_calc_nominal_rate(struct mt352_state* state,
 		bw = 8;
 		break;
 	}
-	if (state->config->adc_clock)
-		adc_clock = state->config->adc_clock;
+	if (state->config.adc_clock)
+		adc_clock = state->config.adc_clock;
 
 	value = 64 * bw * (1<<16) / (7 * 8);
 	value = value * 1000 / adc_clock;
@@ -152,10 +152,10 @@ static void mt352_calc_input_freq(struct mt352_state* state,
 	int if2       = 36167; /* 36.166667 MHz */
 	int ife,value;
 
-	if (state->config->adc_clock)
-		adc_clock = state->config->adc_clock;
-	if (state->config->if2)
-		if2 = state->config->if2;
+	if (state->config.adc_clock)
+		adc_clock = state->config.adc_clock;
+	if (state->config.if2)
+		if2 = state->config.if2;
 
 	ife = (2*adc_clock - if2);
 	value = -16374 * ife / adc_clock;
@@ -289,10 +289,10 @@ static int mt352_set_parameters(struct dvb_frontend* fe,
 
 	mt352_calc_nominal_rate(state, op->bandwidth, buf+4);
 	mt352_calc_input_freq(state, buf+6);
-	state->config->pll_set(fe, param, buf+8);
+	state->config.pll_set(fe, param, buf+8);
 
 	mt352_write(fe, buf, sizeof(buf));
-	if (state->config->no_tuner) {
+	if (state->config.no_tuner) {
 		/* start decoding */
 		mt352_write(fe, fsm_go, 2);
 	} else {
@@ -516,7 +516,7 @@ static int mt352_init(struct dvb_frontend* fe)
 
 		/* Do a "hard" reset */
 		mt352_write(fe, mt352_reset_attach, sizeof(mt352_reset_attach));
-		return state->config->demod_init(fe);
+		return state->config.demod_init(fe);
 	}
 
 	return 0;
@@ -541,8 +541,8 @@ struct dvb_frontend* mt352_attach(const struct mt352_config* config,
 	memset(state,0,sizeof(*state));
 
 	/* setup the state */
-	state->config = config;
 	state->i2c = i2c;
+	memcpy(&state->config,config,sizeof(struct mt352_config));
 	memcpy(&state->ops, &mt352_ops, sizeof(struct dvb_frontend_ops));
 
 	/* check if the demod is there */
