@@ -395,7 +395,7 @@ int alps_init(struct psmouse *psmouse)
 	}
 
 	if (param[0] & 0x04) {
-		printk(KERN_INFO "  Enabling hardware tapping\n");
+		printk(KERN_INFO "alps.c: Enabling hardware tapping\n");
 		if (alps_tap_mode(psmouse, 1))
 			printk(KERN_WARNING "alps.c: Failed to enable hardware tapping\n");
 	}
