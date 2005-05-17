@@ -343,8 +343,6 @@ static int nxt2002_setup_frontend_parameters (struct dvb_frontend* fe,
 	/* reset the agc now that tuning has been completed */
 	nxt2002_agc_reset(state);
 
-
-
 	/* set target power level */
 	switch (p->u.vsb.modulation) {
 		case QAM_64:

@@ -63,9 +63,3 @@ extern struct dvb_frontend* mt352_attach(const struct mt352_config* config,
 extern int mt352_write(struct dvb_frontend* fe, u8* ibuf, int ilen);
 
 #endif // MT352_H
-
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */
