@@ -371,7 +371,7 @@ A partial list of the supported mount options follows:
 		on newly created files, directories, and devices (create, 
 		mkdir, mknod) which will result in the server setting the
 		uid and gid to the default (usually the server uid of the
-		usern who mounted the share).  Letting the server (rather than
+		user who mounted the share).  Letting the server (rather than
 		the client) set the uid and gid is the default. This
 		parameter has no effect if the CIFS Unix Extensions are not
 		negotiated.
@@ -384,7 +384,7 @@ A partial list of the supported mount options follows:
 		client (e.g. when the application is doing large sequential
 		reads bigger than page size without rereading the same data) 
 		this can provide better performance than the default
-		behavior which caches reads (reaadahead) and writes 
+		behavior which caches reads (readahead) and writes 
 		(writebehind) through the local Linux client pagecache 
 		if oplock (caching token) is granted and held. Note that
 		direct allows write operations larger than page size
