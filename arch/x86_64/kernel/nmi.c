@@ -114,7 +114,7 @@ static __init int cpu_has_lapic(void)
 
 static int __init check_nmi_watchdog (void)
 {
-	int counts[NR_CPUS];
+	int *counts;
 	int cpu;
 
 	if (nmi_watchdog == NMI_NONE)
@@ -124,6 +124,12 @@ static int __init check_nmi_watchdog (void)
 		nmi_watchdog = NMI_NONE;
 		return -1; 
 	}	
+
+	counts = kmalloc(NR_CPUS * sizeof(int),GFP_KERNEL);
+	if (!counts) {
+		nmi_watchdog = NMI_NONE;
+		return 0;
+	}
 
 	printk(KERN_INFO "Testing NMI watchdog ... ");
 
@@ -139,6 +145,7 @@ static int __init check_nmi_watchdog (void)
 			       cpu_pda[cpu].__nmi_count);
 			nmi_active = 0;
 			lapic_nmi_owner &= ~LAPIC_NMI_WATCHDOG;
+			kfree(counts);
 			return -1;
 		}
 	}
@@ -149,6 +156,7 @@ static int __init check_nmi_watchdog (void)
 	if (nmi_watchdog == NMI_LOCAL_APIC)
 		nmi_hz = 1;
 
+	kfree(counts);
 	return 0;
 }
 /* Have this called later during boot so counters are updating */
