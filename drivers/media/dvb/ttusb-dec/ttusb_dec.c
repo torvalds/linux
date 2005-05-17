@@ -1565,15 +1565,15 @@ static void ttusb_dec_exit_filters(struct ttusb_dec *dec)
 	}
 }
 
-int fe_send_command(struct dvb_frontend* fe, const u8 command,
-		    int param_length, const u8 params[],
-		    int *result_length, u8 cmd_result[])
+static int fe_send_command(struct dvb_frontend* fe, const u8 command,
+			   int param_length, const u8 params[],
+			   int *result_length, u8 cmd_result[])
 {
 	struct ttusb_dec* dec = (struct ttusb_dec*) fe->dvb->priv;
 	return ttusb_dec_send_command(dec, command, param_length, params, result_length, cmd_result);
 }
 
-struct ttusbdecfe_config fe_config = {
+static struct ttusbdecfe_config fe_config = {
 	.send_command = fe_send_command
 };
 

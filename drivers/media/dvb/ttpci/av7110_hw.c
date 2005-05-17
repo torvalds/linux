@@ -104,7 +104,7 @@ u32 av7110_debiread(struct av7110 *av7110, u32 config, int addr, int count)
 
 
 /* av7110 ARM core boot stuff */
-
+#if 0
 void av7110_reset_arm(struct av7110 *av7110)
 {
 	saa7146_setgpio(av7110->dev, RESET_LINE, SAA7146_GPIO_OUTLO);
@@ -124,7 +124,7 @@ void av7110_reset_arm(struct av7110 *av7110)
 	av7110->arm_ready = 1;
 	dprintk(1, "reset ARM\n");
 }
-
+#endif  /*  0  */
 
 static int waitdebi(struct av7110 *av7110, int adr, int state)
 {
@@ -335,7 +335,7 @@ int av7110_wait_msgstate(struct av7110 *av7110, u16 flags)
 	return 0;
 }
 
-int __av7110_send_fw_cmd(struct av7110 *av7110, u16* buf, int length)
+static int __av7110_send_fw_cmd(struct av7110 *av7110, u16* buf, int length)
 {
 	int i;
 	unsigned long start;
@@ -455,7 +455,7 @@ int __av7110_send_fw_cmd(struct av7110 *av7110, u16* buf, int length)
 	return 0;
 }
 
-int av7110_send_fw_cmd(struct av7110 *av7110, u16* buf, int length)
+static int av7110_send_fw_cmd(struct av7110 *av7110, u16* buf, int length)
 {
 	int ret;
 
@@ -500,6 +500,7 @@ int av7110_fw_cmd(struct av7110 *av7110, int type, int com, int num, ...)
 	return ret;
 }
 
+#if 0
 int av7110_send_ci_cmd(struct av7110 *av7110, u8 subcom, u8 *buf, u8 len)
 {
 	int i, ret;
@@ -521,6 +522,7 @@ int av7110_send_ci_cmd(struct av7110 *av7110, u8 subcom, u8 *buf, u8 len)
 		printk(KERN_ERR "dvb-ttpci: av7110_send_ci_cmd error %d\n", ret);
 	return ret;
 }
+#endif  /*  0  */
 
 int av7110_fw_request(struct av7110 *av7110, u16 *request_buf,
 		      int request_buf_len, u16 *reply_buf, int reply_buf_len)
@@ -593,7 +595,7 @@ int av7110_fw_request(struct av7110 *av7110, u16 *request_buf,
 	return 0;
 }
 
-int av7110_fw_query(struct av7110 *av7110, u16 tag, u16* buf, s16 length)
+static int av7110_fw_query(struct av7110 *av7110, u16 tag, u16* buf, s16 length)
 {
 	int ret;
 	ret = av7110_fw_request(av7110, &tag, 0, buf, length);

@@ -102,11 +102,6 @@ static int mt352_read_register(struct mt352_state* state, u8 reg)
 	return b1[0];
 }
 
-int mt352_read(struct dvb_frontend *fe, u8 reg)
-{
-	return mt352_read_register(fe->demodulator_priv,reg);
-}
-
 static int mt352_sleep(struct dvb_frontend* fe)
 {
 	static u8 mt352_softdown[] = { CLOCK_CTL, 0x20, 0x08 };
@@ -601,10 +596,3 @@ MODULE_LICENSE("GPL");
 
 EXPORT_SYMBOL(mt352_attach);
 EXPORT_SYMBOL(mt352_write);
-EXPORT_SYMBOL(mt352_read);
-/*
- * Local variables:
- * c-basic-offset: 8
- * compile-command: "make DVB=1"
- * End:
- */

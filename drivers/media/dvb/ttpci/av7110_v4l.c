@@ -52,7 +52,7 @@ int msp_writereg(struct av7110 *av7110, u8 dev, u16 reg, u16 val)
 	return 0;
 }
 
-int msp_readreg(struct av7110 *av7110, u8 dev, u16 reg, u16 *val)
+static int msp_readreg(struct av7110 *av7110, u8 dev, u16 reg, u16 *val)
 {
 	u8 msg1[3] = { dev, reg >> 8, reg & 0xff };
 	u8 msg2[2];

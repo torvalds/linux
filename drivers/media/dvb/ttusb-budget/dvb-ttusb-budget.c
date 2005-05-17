@@ -1065,7 +1065,7 @@ static int alps_tdmb7_pll_set(struct dvb_frontend* fe, struct dvb_frontend_param
 	return 0;
 }
 
-struct cx22700_config alps_tdmb7_config = {
+static struct cx22700_config alps_tdmb7_config = {
 	.demod_address = 0x43,
 	.pll_set = alps_tdmb7_pll_set,
 };
