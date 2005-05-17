@@ -9,7 +9,7 @@
 #define FC_LOG_PREFIX "flexcop-pci"
 #include "flexcop-common.h"
 
-static int enable_pid_filtering = 0;
+static int enable_pid_filtering = 1;
 module_param(enable_pid_filtering, int, 0444);
 MODULE_PARM_DESC(enable_pid_filtering, "enable hardware pid filtering: supported values: 0 (fullts), 1");
 
@@ -45,13 +45,14 @@ struct flexcop_pci {
 	void __iomem *io_mem;
 	u32 irq;
 /* buffersize (at least for DMA1, need to be % 188 == 0,
- * this is logic is required */
+ * this logic is required */
 #define FC_DEFAULT_DMA1_BUFSIZE (1280 * 188)
 #define FC_DEFAULT_DMA2_BUFSIZE (10 * 188)
 	struct flexcop_dma dma[2];
 
 	int active_dma1_addr; /* 0 = addr0 of dma1; 1 = addr1 of dma1 */
 	u32 last_dma1_cur_pos; /* position of the pointer last time the timer/packet irq occured */
+	int count;
 
 	spinlock_t irq_lock;
 
@@ -99,15 +100,6 @@ static irqreturn_t flexcop_pci_irq(int irq, void *dev_id, struct pt_regs *regs)
 
 	spin_lock_irq(&fc_pci->irq_lock);
 
-	deb_irq("irq: %08x cur_addr: %08x (%d), our addrs. 1: %08x 2: %08x; 0x000: "
-			"%08x, 0x00c: %08x\n",v.raw,
-			fc->read_ibi_reg(fc,dma1_008).dma_0x8.dma_cur_addr << 2,
-			fc_pci->active_dma1_addr,
-			fc_pci->dma[0].dma_addr0,fc_pci->dma[0].dma_addr1,
-			fc->read_ibi_reg(fc,dma1_000).raw,
-			fc->read_ibi_reg(fc,dma1_00c).raw);
-
-
 	if (v.irq_20c.DMA1_IRQ_Status == 1) {
 		if (fc_pci->active_dma1_addr == 0)
 			flexcop_pass_dmx_packets(fc_pci->fc_dev,fc_pci->dma[0].cpu_addr0,fc_pci->dma[0].size / 188);
@@ -123,21 +115,28 @@ static irqreturn_t flexcop_pci_irq(int irq, void *dev_id, struct pt_regs *regs)
 			fc->read_ibi_reg(fc,dma1_008).dma_0x8.dma_cur_addr << 2;
 		u32 cur_pos = cur_addr - fc_pci->dma[0].dma_addr0;
 
+		deb_irq("irq: %08x cur_addr: %08x: cur_pos: %08x, last_cur_pos: %08x ",
+				v.raw,cur_addr,cur_pos,fc_pci->last_dma1_cur_pos);
+
 		/* buffer end was reached, restarted from the beginning
 		 * pass the data from last_cur_pos to the buffer end to the demux
 		 */
 		if (cur_pos < fc_pci->last_dma1_cur_pos) {
+			deb_irq(" end was reached: passing %d bytes ",(fc_pci->dma[0].size*2 - 1) - fc_pci->last_dma1_cur_pos);
 			flexcop_pass_dmx_data(fc_pci->fc_dev,
 					fc_pci->dma[0].cpu_addr0 + fc_pci->last_dma1_cur_pos,
-					(fc_pci->dma[0].size*2 - 1) - fc_pci->last_dma1_cur_pos);
+					(fc_pci->dma[0].size*2) - fc_pci->last_dma1_cur_pos);
 			fc_pci->last_dma1_cur_pos = 0;
+			fc_pci->count = 0;
 		}
 
 		if (cur_pos > fc_pci->last_dma1_cur_pos) {
+			deb_irq(" passing %d bytes ",cur_pos - fc_pci->last_dma1_cur_pos);
 			flexcop_pass_dmx_data(fc_pci->fc_dev,
 					fc_pci->dma[0].cpu_addr0 + fc_pci->last_dma1_cur_pos,
 					cur_pos - fc_pci->last_dma1_cur_pos);
 		}
+		deb_irq("\n");
 
 		fc_pci->last_dma1_cur_pos = cur_pos;
 	} else
@@ -300,6 +299,11 @@ static int flexcop_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	fc->get_mac_addr = flexcop_eeprom_check_mac_addr;
 
 	fc->stream_control = flexcop_pci_stream_control;
+
+	if (enable_pid_filtering)
+		info("will use the HW PID filter.");
+	else
+		info("will pass the complete TS to the demuxer.");
 
 	fc->pid_filtering = enable_pid_filtering;
 	fc->bus_type = FC_PCI;

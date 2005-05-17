@@ -76,8 +76,10 @@ struct flexcop_device {
 	struct semaphore i2c_sem;
 
 	/* options and status */
+	int extra_feedcount;
 	int feedcount;
 	int pid_filtering;
+	int fullts_streaming_state;
 
 	/* bus specific callbacks */
 	flexcop_ibi_value (*read_ibi_reg)  (struct flexcop_device *, flexcop_ibi_register);

@@ -104,6 +104,9 @@ static void flexcop_pid_ECM_PID_ctrl(struct flexcop_device *fc, u16 pid, int ono
 
 static void flexcop_pid_control(struct flexcop_device *fc, int index, u16 pid,int onoff)
 {
+	if (pid == 0x2000)
+		return;
+
 	deb_ts("setting pid: %5d %04x at index %d '%s'\n",pid,pid,index,onoff ? "on" : "off");
 
 	/* We could use bit magic here to reduce source code size.
@@ -133,50 +136,50 @@ static void flexcop_pid_control(struct flexcop_device *fc, int index, u16 pid,in
 	}
 }
 
+static int flexcop_toggle_fullts_streaming(struct flexcop_device *fc,int onoff)
+{
+	if (fc->fullts_streaming_state != onoff) {
+		deb_ts("%s full TS transfer\n",onoff ? "enabling" : "disabling");
+		flexcop_pid_group_filter(fc, 0, 0x1fe0 * (!onoff));
+		flexcop_pid_group_filter_ctrl(fc,onoff);
+		fc->fullts_streaming_state = onoff;
+	}
+	return 0;
+}
+
 int flexcop_pid_feed_control(struct flexcop_device *fc, struct dvb_demux_feed *dvbdmxfeed, int onoff)
 {
 	int max_pid_filter = 6 + fc->has_32_hw_pid_filter*32;
 
-	fc->feedcount += (onoff ? 1 : -1);
+	fc->feedcount += onoff ? 1 : -1;
+	if (dvbdmxfeed->index >= max_pid_filter)
+		fc->extra_feedcount += onoff ? 1 : -1;
 
-	/* when doing hw pid filtering, set the pid */
-	if (fc->pid_filtering)
+	/* toggle complete-TS-streaming when:
+	 * - pid_filtering is not enabled and it is the first or last feed requested
+	 * - pid_filtering is enabled,
+	 *   - but the number of requested feeds is exceeded
+	 *   - or the requested pid is 0x2000 */
+
+	if (!fc->pid_filtering && fc->feedcount == onoff)
+		flexcop_toggle_fullts_streaming(fc,onoff);
+
+	if (fc->pid_filtering) {
 		flexcop_pid_control(fc,dvbdmxfeed->index,dvbdmxfeed->pid,onoff);
 
-	/* if it was the first feed request */
-	if (fc->feedcount == onoff && onoff) {
-		if (!fc->pid_filtering) {
-			deb_ts("enabling full TS transfer\n");
-			flexcop_pid_group_filter(fc, 0,0);
-			flexcop_pid_group_filter_ctrl(fc,1);
-		}
-
-		if (fc->stream_control)
-			fc->stream_control(fc,1);
-		flexcop_rcv_data_ctrl(fc,1);
-
-	/* if there is no more feed left to feed */
-	} else if (fc->feedcount == onoff && !onoff) {
-		if (!fc->pid_filtering) {
-			deb_ts("disabling full TS transfer\n");
-			flexcop_pid_group_filter(fc, 0, 0x1fe0);
-			flexcop_pid_group_filter_ctrl(fc,0);
-		}
-
-		flexcop_rcv_data_ctrl(fc,0);
-		if (fc->stream_control)
-			fc->stream_control(fc,0);
+		if (fc->extra_feedcount > 0)
+			flexcop_toggle_fullts_streaming(fc,1);
+		else if (dvbdmxfeed->pid == 0x2000)
+			flexcop_toggle_fullts_streaming(fc,onoff);
+		else
+			flexcop_toggle_fullts_streaming(fc,0);
 	}
 
-	/* if pid_filtering is on and more pids than the hw-filter can provide are
-	 * requested enable the whole bandwidth.
-	 */
-	if (fc->pid_filtering && fc->feedcount > max_pid_filter) {
-		flexcop_pid_group_filter(fc, 0,0);
-		flexcop_pid_group_filter_ctrl(fc,1);
-	} else if (fc->pid_filtering && fc->feedcount <= max_pid_filter) {
-		flexcop_pid_group_filter(fc, 0,0x1fe0);
-		flexcop_pid_group_filter_ctrl(fc,0);
+	/* if it was the first or last feed request change the stream-status */
+	if (fc->feedcount == onoff) {
+		flexcop_rcv_data_ctrl(fc,onoff);
+		if (fc->stream_control)
+			fc->stream_control(fc,onoff);
 	}
 
 	return 0;
