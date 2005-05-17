@@ -274,6 +274,11 @@ Acknowledgements (just for the rewriting part)
 Bjarne Steinsbo thought a lot in the first place of the pci part for this code
 sharing idea.
 
-Andreas Oberritter for providing a recent PCI initialization template (pluto2.c).
+Andreas Oberritter for providing a recent PCI initialization template
+(pluto2.c).
+
+Boleslaw Ciesielski for pointing out a problem with firmware loader.
+
+Vadim Catana for correcting the USB transfer.
 
 comments, critics and ideas to linux-dvb@linuxtv.org or patrick.boettcher@desy.de
