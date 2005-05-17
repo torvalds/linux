@@ -1526,13 +1526,8 @@ static const snd_kcontrol_new_t snd_ac97_ad1888_controls[] = {
 		.get = snd_ac97_ad1888_downmix_get,
 		.put = snd_ac97_ad1888_downmix_put
 	},
-#if 0
-	AC97_SINGLE("Surround Jack as Input", AC97_AD_MISC, 12, 1, 0),
-	AC97_SINGLE("Center/LFE Jack as Input", AC97_AD_MISC, 11, 1, 0),
-#else
 	AC97_SURROUND_JACK_MODE_CTL,
 	AC97_CHANNEL_MODE_CTL,
-#endif
 };
 
 static int patch_ad1888_specific(ac97_t *ac97)
@@ -1601,6 +1596,18 @@ static const snd_kcontrol_new_t snd_ac97_ad1985_controls[] = {
 	AC97_SINGLE("Exchange Center/LFE", AC97_AD_SERIAL_CFG, 3, 1, 0)
 };
 
+static void ad1985_update_jacks(ac97_t *ac97)
+{
+	/* shared Line-In */
+	snd_ac97_update_bits(ac97, AC97_AD_MISC, 1 << 12,
+			     is_shared_linein(ac97) ? 0 : 1 << 12);
+	/* shared Mic */
+	snd_ac97_update_bits(ac97, AC97_AD_MISC, 1 << 11,
+			     is_shared_micin(ac97) ? 0 : 1 << 11);
+	snd_ac97_update_bits(ac97, AC97_AD_SERIAL_CFG, 9 << 11,
+			     is_shared_micin(ac97) ? 0 : 9 << 11);
+}
+
 static int patch_ad1985_specific(ac97_t *ac97)
 {
 	int err;
@@ -1616,7 +1623,7 @@ static struct snd_ac97_build_ops patch_ad1985_build_ops = {
 #ifdef CONFIG_PM
 	.resume = ad18xx_resume,
 #endif
-	.update_jacks = ad1888_update_jacks,
+	.update_jacks = ad1985_update_jacks,
 };
 
 int patch_ad1985(ac97_t * ac97)
