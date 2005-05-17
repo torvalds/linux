@@ -1075,7 +1075,7 @@ static int dvb_video_ioctl(struct inode *inode, struct file *file,
 		}
 		if (ret < 0)
 			break;
-		av7110->videostate.video_format = format;
+		av7110->videostate.display_format = format;
 		ret = av7110_fw_cmd(av7110, COMTYPE_ENCODER, SetPanScanType,
 				    1, (u16) val);
 		break;
