@@ -731,7 +731,8 @@ static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
 	int node = 0;
 	if (c->x86_num_cores == 1)
 		return;
-	cpu_core_id[cpu] = cpu >> hweight32(c->x86_num_cores - 1);
+	/* Fix up the APIC ID following the AMD specification. */
+ 	cpu_core_id[cpu] >>= hweight32(c->x86_num_cores - 1);
 
 #ifdef CONFIG_NUMA
 	/* When an ACPI SRAT table is available use the mappings from SRAT
@@ -745,6 +746,9 @@ static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
 		node = cpu_to_node[cpu];
 	}
 #endif
+	/* For now: - better than BAD_APIC_ID at least*/
+	phys_proc_id[cpu] = cpu_core_id[cpu];
+
 	printk(KERN_INFO "CPU %d(%d) -> Node %d -> Core %d\n",
 			cpu, c->x86_num_cores, node, cpu_core_id[cpu]);
 #endif
@@ -959,6 +963,11 @@ void __init early_identify_cpu(struct cpuinfo_x86 *c)
 		/* Have CPUID level 0 only - unheard of */
 		c->x86 = 4;
 	}
+
+#ifdef CONFIG_SMP
+	phys_proc_id[smp_processor_id()] =
+	cpu_core_id[smp_processor_id()] = (cpuid_ebx(1) >> 24) & 0xff;
+#endif
 }
 
 /*

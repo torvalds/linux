@@ -243,6 +243,13 @@ static void __init early_cpu_detect(void)
 	}
 
 	early_intel_workaround(c);
+
+#ifdef CONFIG_SMP
+#ifdef CONFIG_X86_HT
+	phys_proc_id[smp_processor_id()] =
+#endif
+	cpu_core_id[smp_processor_id()] = (cpuid_ebx(1) >> 24) & 0xff;
+#endif
 }
 
 void __init generic_identify(struct cpuinfo_x86 * c)
