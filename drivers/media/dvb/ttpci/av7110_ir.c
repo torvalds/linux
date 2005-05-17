@@ -10,7 +10,7 @@
 
 #define UP_TIMEOUT (HZ/4)
 
-/* enable ir debugging by or'ing av7110_debug with 16 */
+/* enable ir debugging by or'ing debug with 16 */
 
 static int ir_initialized;
 static struct input_dev input_dev;
