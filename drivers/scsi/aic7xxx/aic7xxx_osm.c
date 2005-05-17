@@ -1332,7 +1332,6 @@ ahc_platform_alloc(struct ahc_softc *ahc, void *platform_arg)
 		return (ENOMEM);
 	memset(ahc->platform_data, 0, sizeof(struct ahc_platform_data));
 	TAILQ_INIT(&ahc->platform_data->completeq);
-	TAILQ_INIT(&ahc->platform_data->device_runq);
 	ahc->platform_data->irq = AHC_LINUX_NOIRQ;
 	ahc_lockinit(ahc);
 	init_timer(&ahc->platform_data->completeq_timer);
@@ -2107,10 +2106,6 @@ ahc_done(struct ahc_softc *ahc, struct scb *scb)
 	    && dev->active == 0
 	    && (dev->flags & AHC_DEV_TIMER_ACTIVE) == 0)
 		ahc_linux_free_device(ahc, dev);
-	else if ((dev->flags & AHC_DEV_ON_RUN_LIST) == 0) {
-		TAILQ_INSERT_TAIL(&ahc->platform_data->device_runq, dev, links);
-		dev->flags |= AHC_DEV_ON_RUN_LIST;
-	}
 
 	if ((scb->flags & SCB_RECOVERY_SCB) != 0) {
 		printf("Recovery SCB completes\n");
