@@ -39,7 +39,7 @@ dev_attr_show(struct kobject * kobj, struct attribute * attr, char * buf)
 	ssize_t ret = -EIO;
 
 	if (dev_attr->show)
-		ret = dev_attr->show(dev, buf);
+		ret = dev_attr->show(dev, dev_attr, buf);
 	return ret;
 }
 
@@ -52,7 +52,7 @@ dev_attr_store(struct kobject * kobj, struct attribute * attr,
 	ssize_t ret = -EIO;
 
 	if (dev_attr->store)
-		ret = dev_attr->store(dev, buf, count);
+		ret = dev_attr->store(dev, dev_attr, buf, count);
 	return ret;
 }
 
