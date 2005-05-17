@@ -1,4 +1,4 @@
-/* 
+/*
     bt878.h - Bt878 audio module (register offsets)
 
     Copyright (C) 2002 Peter Hettkamp <peter.hettkamp@t-online.de>
@@ -120,14 +120,14 @@ struct bt878 {
 	u32 risc_pos;
 
 	struct tasklet_struct tasklet;
-	int shutdown;	
+	int shutdown;
 };
 
 extern struct bt878 bt878[BT878_MAX];
 
 void bt878_start(struct bt878 *bt, u32 controlreg, u32 op_sync_orin,
 		u32 irq_err_ignore);
-void bt878_stop(struct bt878 *bt);	     
+void bt878_stop(struct bt878 *bt);
 
 #if defined(__powerpc__)	/* big-endian */
 extern __inline__ void io_st_le32(volatile unsigned __iomem *addr, unsigned val)

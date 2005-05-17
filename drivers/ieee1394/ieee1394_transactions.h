@@ -53,12 +53,5 @@ int hpsb_read(struct hpsb_host *host, nodeid_t node, unsigned int generation,
 	      u64 addr, quadlet_t *buffer, size_t length);
 int hpsb_write(struct hpsb_host *host, nodeid_t node, unsigned int generation,
 	       u64 addr, quadlet_t *buffer, size_t length);
-int hpsb_lock(struct hpsb_host *host, nodeid_t node, unsigned int generation,
-	      u64 addr, int extcode, quadlet_t *data, quadlet_t arg);
-int hpsb_lock64(struct hpsb_host *host, nodeid_t node, unsigned int generation,
-		u64 addr, int extcode, octlet_t *data, octlet_t arg);
-int hpsb_send_gasp(struct hpsb_host *host, int channel, unsigned int generation,
-                   quadlet_t *buffer, size_t length, u32 specifier_id,
-                   unsigned int version);
 
 #endif /* _IEEE1394_TRANSACTIONS_H */

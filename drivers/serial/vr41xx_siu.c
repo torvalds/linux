@@ -412,10 +412,8 @@ static inline void receive_chars(struct uart_port *port, uint8_t *status,
 
 		if (uart_handle_sysrq_char(port, ch, regs))
 			goto ignore_char;
-		if ((lsr & port->ignore_status_mask) == 0)
-			tty_insert_flip_char(tty, ch, flag);
-		if ((lsr & UART_LSR_OE) && (tty->flip.count < TTY_FLIPBUF_SIZE))
-			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+
+		uart_insert_char(port, lsr, UART_LSR_OE, ch, flag);
 
 	ignore_char:
 		lsr = siu_read(port, UART_LSR);

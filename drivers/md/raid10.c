@@ -1639,9 +1639,6 @@ static int run(mddev_t *mddev)
 			mdname(mddev));
 		goto out_free_conf;
 	}
-	mddev->queue->unplug_fn = raid10_unplug;
-
-	mddev->queue->issue_flush_fn = raid10_issue_flush;
 
 	ITERATE_RDEV(mddev, rdev, tmp) {
 		disk_idx = rdev->raid_disk;
@@ -1712,6 +1709,9 @@ static int run(mddev_t *mddev)
 	sector_div(size, conf->near_copies);
 	mddev->array_size = size/2;
 	mddev->resync_max_sectors = size;
+
+	mddev->queue->unplug_fn = raid10_unplug;
+	mddev->queue->issue_flush_fn = raid10_issue_flush;
 
 	/* Calculate max read-ahead size.
 	 * We need to readahead at least twice a whole stripe....

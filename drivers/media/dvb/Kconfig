@@ -33,7 +33,7 @@ source "drivers/media/dvb/dibusb/Kconfig"
 source "drivers/media/dvb/cinergyT2/Kconfig"
 
 comment "Supported FlexCopII (B2C2) Adapters"
-	depends on DVB_CORE && PCI
+	depends on DVB_CORE && (PCI || USB)
 source "drivers/media/dvb/b2c2/Kconfig"
 
 comment "Supported BT878 Adapters"
