@@ -315,7 +315,7 @@ static inline void reset_ule( struct dvb_net_priv *p )
  */
 static void dvb_net_ule( struct net_device *dev, const u8 *buf, size_t buf_len )
 {
-	struct dvb_net_priv *priv = (struct dvb_net_priv *)dev->priv;
+	struct dvb_net_priv *priv = dev->priv;
 	unsigned long skipped = 0L;
 	u8 *ts, *ts_end, *from_where = NULL, ts_remain = 0, how_much = 0, new_ts = 1;
 	struct ethhdr *ethh = NULL;
@@ -709,7 +709,7 @@ static int dvb_net_ts_callback(const u8 *buffer1, size_t buffer1_len,
 			       const u8 *buffer2, size_t buffer2_len,
 			       struct dmx_ts_feed *feed, enum dmx_success success)
 {
-	struct net_device *dev = (struct net_device *)feed->priv;
+	struct net_device *dev = feed->priv;
 
 	if (buffer2 != 0)
 		printk(KERN_WARNING "buffer2 not 0: %p.\n", buffer2);
@@ -801,7 +801,7 @@ static int dvb_net_sec_callback(const u8 *buffer1, size_t buffer1_len,
 		 struct dmx_section_filter *filter,
 		 enum dmx_success success)
 {
-        struct net_device *dev=(struct net_device *) filter->priv;
+        struct net_device *dev = filter->priv;
 
 	/**
 	 * we rely on the DVB API definition where exactly one complete
@@ -826,7 +826,7 @@ static int dvb_net_filter_sec_set(struct net_device *dev,
 		   struct dmx_section_filter **secfilter,
 		   u8 *mac, u8 *mac_mask)
 {
-	struct dvb_net_priv *priv = (struct dvb_net_priv*) dev->priv;
+	struct dvb_net_priv *priv = dev->priv;
 	int ret;
 
 	*secfilter=NULL;
@@ -870,7 +870,7 @@ static int dvb_net_filter_sec_set(struct net_device *dev,
 static int dvb_net_feed_start(struct net_device *dev)
 {
 	int ret, i;
-	struct dvb_net_priv *priv = (struct dvb_net_priv*) dev->priv;
+	struct dvb_net_priv *priv = dev->priv;
         struct dmx_demux *demux = priv->demux;
         unsigned char *mac = (unsigned char *) dev->dev_addr;
 
@@ -965,7 +965,7 @@ static int dvb_net_feed_start(struct net_device *dev)
 
 static int dvb_net_feed_stop(struct net_device *dev)
 {
-	struct dvb_net_priv *priv = (struct dvb_net_priv*) dev->priv;
+	struct dvb_net_priv *priv = dev->priv;
 	int i;
 
 	dprintk("%s\n", __FUNCTION__);
@@ -1016,7 +1016,7 @@ static int dvb_net_feed_stop(struct net_device *dev)
 
 static int dvb_set_mc_filter (struct net_device *dev, struct dev_mc_list *mc)
 {
-	struct dvb_net_priv *priv = (struct dvb_net_priv*) dev->priv;
+	struct dvb_net_priv *priv = dev->priv;
 
 	if (priv->multi_num == DVB_NET_MULTICAST_MAX)
 		return -ENOMEM;
@@ -1031,7 +1031,7 @@ static int dvb_set_mc_filter (struct net_device *dev, struct dev_mc_list *mc)
 static void wq_set_multicast_list (void *data)
 {
 	struct net_device *dev = data;
-	struct dvb_net_priv *priv = (struct dvb_net_priv*) dev->priv;
+	struct dvb_net_priv *priv = dev->priv;
 
 	dvb_net_feed_stop(dev);
 
@@ -1066,7 +1066,7 @@ static void wq_set_multicast_list (void *data)
 
 static void dvb_net_set_multicast_list (struct net_device *dev)
 {
-	struct dvb_net_priv *priv = (struct dvb_net_priv*) dev->priv;
+	struct dvb_net_priv *priv = dev->priv;
 	schedule_work(&priv->set_multicast_list_wq);
 }
 
@@ -1084,7 +1084,7 @@ static void wq_restart_net_feed (void *data)
 
 static int dvb_net_set_mac (struct net_device *dev, void *p)
 {
-	struct dvb_net_priv *priv = (struct dvb_net_priv*) dev->priv;
+	struct dvb_net_priv *priv = dev->priv;
 	struct sockaddr *addr=p;
 
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
@@ -1098,7 +1098,7 @@ static int dvb_net_set_mac (struct net_device *dev, void *p)
 
 static int dvb_net_open(struct net_device *dev)
 {
-	struct dvb_net_priv *priv = (struct dvb_net_priv*) dev->priv;
+	struct dvb_net_priv *priv = dev->priv;
 
 	priv->in_use++;
 	dvb_net_feed_start(dev);
@@ -1108,7 +1108,7 @@ static int dvb_net_open(struct net_device *dev)
 
 static int dvb_net_stop(struct net_device *dev)
 {
-	struct dvb_net_priv *priv = (struct dvb_net_priv*) dev->priv;
+	struct dvb_net_priv *priv = dev->priv;
 
 	priv->in_use--;
         return dvb_net_feed_stop(dev);
@@ -1228,8 +1228,8 @@ static int dvb_net_remove_if(struct dvb_net *dvbnet, unsigned int num)
 static int dvb_net_do_ioctl(struct inode *inode, struct file *file,
 		  unsigned int cmd, void *parg)
 {
-	struct dvb_device *dvbdev = (struct dvb_device *) file->private_data;
-	struct dvb_net *dvbnet = (struct dvb_net *) dvbdev->priv;
+	struct dvb_device *dvbdev = file->private_data;
+	struct dvb_net *dvbnet = dvbdev->priv;
 
 	if (((file->f_flags&O_ACCMODE)==O_RDONLY))
 		return -EPERM;
@@ -1237,7 +1237,7 @@ static int dvb_net_do_ioctl(struct inode *inode, struct file *file,
 	switch (cmd) {
 	case NET_ADD_IF:
 	{
-		struct dvb_net_if *dvbnetif=(struct dvb_net_if *)parg;
+		struct dvb_net_if *dvbnetif = parg;
 		int result;
 
 		if (!capable(CAP_SYS_ADMIN))
@@ -1258,7 +1258,7 @@ static int dvb_net_do_ioctl(struct inode *inode, struct file *file,
 	{
 		struct net_device *netdev;
 		struct dvb_net_priv *priv_data;
-		struct dvb_net_if *dvbnetif=(struct dvb_net_if *)parg;
+		struct dvb_net_if *dvbnetif = parg;
 
 		if (dvbnetif->if_num >= DVB_NET_DEVICES_MAX ||
 		    !dvbnet->state[dvbnetif->if_num])
@@ -1266,7 +1266,7 @@ static int dvb_net_do_ioctl(struct inode *inode, struct file *file,
 
 		netdev = dvbnet->device[dvbnetif->if_num];
 
-		priv_data=(struct dvb_net_priv*)netdev->priv;
+		priv_data = netdev->priv;
 		dvbnetif->pid=priv_data->pid;
 		dvbnetif->feedtype=priv_data->feedtype;
 		break;
@@ -1288,7 +1288,7 @@ static int dvb_net_do_ioctl(struct inode *inode, struct file *file,
 	/* binary compatiblity cruft */
 	case __NET_ADD_IF_OLD:
 	{
-		struct __dvb_net_if_old *dvbnetif=(struct __dvb_net_if_old *)parg;
+		struct __dvb_net_if_old *dvbnetif = parg;
 		int result;
 
 		if (!capable(CAP_SYS_ADMIN))
@@ -1309,7 +1309,7 @@ static int dvb_net_do_ioctl(struct inode *inode, struct file *file,
 	{
 		struct net_device *netdev;
 		struct dvb_net_priv *priv_data;
-		struct __dvb_net_if_old *dvbnetif=(struct __dvb_net_if_old *)parg;
+		struct __dvb_net_if_old *dvbnetif = parg;
 
 		if (dvbnetif->if_num >= DVB_NET_DEVICES_MAX ||
 		    !dvbnet->state[dvbnetif->if_num])
@@ -1317,7 +1317,7 @@ static int dvb_net_do_ioctl(struct inode *inode, struct file *file,
 
 		netdev = dvbnet->device[dvbnetif->if_num];
 
-		priv_data=(struct dvb_net_priv*)netdev->priv;
+		priv_data = netdev->priv;
 		dvbnetif->pid=priv_data->pid;
 		break;
 	}
