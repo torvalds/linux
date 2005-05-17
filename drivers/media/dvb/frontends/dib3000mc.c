@@ -463,7 +463,7 @@ static int dib3000mc_set_frontend(struct dvb_frontend* fe,
 	int search_state,auto_val;
 	u16 val;
 
-	if (tuner) { /* initial call from dvb */
+	if (tuner && state->config.pll_addr && state->config.pll_set) { /* initial call from dvb */
 		dib3000mc_tuner_pass_ctrl(fe,1,state->config.pll_addr(fe));
 		state->config.pll_set(fe,fep,NULL);
 		dib3000mc_tuner_pass_ctrl(fe,0,state->config.pll_addr(fe));

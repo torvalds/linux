@@ -61,7 +61,7 @@ static int dib3000mb_set_frontend(struct dvb_frontend* fe,
 	fe_code_rate_t fe_cr = FEC_NONE;
 	int search_state, seq;
 
-	if (tuner) {
+	if (tuner && state->config.pll_addr && state->config.pll_set) {
 		dib3000mb_tuner_pass_ctrl(fe,1,state->config.pll_addr(fe));
 		state->config.pll_set(fe, fep, NULL);
 		dib3000mb_tuner_pass_ctrl(fe,0,state->config.pll_addr(fe));
