@@ -727,6 +727,7 @@ static void dvb_net_sec(struct net_device *dev, u8 *pkt, int pkt_len)
         u8 *eth;
         struct sk_buff *skb;
 	struct net_device_stats *stats = &(((struct dvb_net_priv *) dev->priv)->stats);
+	int snap = 0;
 
 	/* note: pkt_len includes a 32bit checksum */
 	if (pkt_len < 16) {
@@ -750,9 +751,12 @@ static void dvb_net_sec(struct net_device *dev, u8 *pkt, int pkt_len)
 		return;
 	}
 	if (pkt[5] & 0x02) {
-		//FIXME: handle LLC/SNAP
-                stats->rx_dropped++;
-                return;
+		/* handle LLC/SNAP, see rfc-1042 */
+		if (pkt_len < 24 || memcmp(&pkt[12], "\xaa\xaa\x03\0\0\0", 6)) {
+			stats->rx_dropped++;
+			return;
+		}
+		snap = 8;
         }
 	if (pkt[7]) {
 		/* FIXME: assemble datagram from multiple sections */
@@ -762,9 +766,9 @@ static void dvb_net_sec(struct net_device *dev, u8 *pkt, int pkt_len)
 	}
 
 	/* we have 14 byte ethernet header (ip header follows);
-	 * 12 byte MPE header; 4 byte checksum; + 2 byte alignment
+	 * 12 byte MPE header; 4 byte checksum; + 2 byte alignment, 8 byte LLC/SNAP
 	 */
-	if (!(skb = dev_alloc_skb(pkt_len - 4 - 12 + 14 + 2))) {
+	if (!(skb = dev_alloc_skb(pkt_len - 4 - 12 + 14 + 2 - snap))) {
 		//printk(KERN_NOTICE "%s: Memory squeeze, dropping packet.\n", dev->name);
 		stats->rx_dropped++;
 		return;
@@ -773,8 +777,8 @@ static void dvb_net_sec(struct net_device *dev, u8 *pkt, int pkt_len)
 	skb->dev = dev;
 
 	/* copy L3 payload */
-	eth = (u8 *) skb_put(skb, pkt_len - 12 - 4 + 14);
-	memcpy(eth + 14, pkt + 12, pkt_len - 12 - 4);
+	eth = (u8 *) skb_put(skb, pkt_len - 12 - 4 + 14 - snap);
+	memcpy(eth + 14, pkt + 12 + snap, pkt_len - 12 - 4 - snap);
 
 	/* create ethernet header: */
         eth[0]=pkt[0x0b];
@@ -786,8 +790,21 @@ static void dvb_net_sec(struct net_device *dev, u8 *pkt, int pkt_len)
 
         eth[6]=eth[7]=eth[8]=eth[9]=eth[10]=eth[11]=0;
 
-	eth[12] = 0x08;	/* ETH_P_IP */
-	eth[13] = 0x00;
+	if (snap) {
+		eth[12] = pkt[18];
+		eth[13] = pkt[19];
+	} else {
+		/* protocol numbers are from rfc-1700 or
+		 * http://www.iana.org/assignments/ethernet-numbers
+		 */
+		if (pkt[12] >> 4 == 6) { /* version field from IP header */
+			eth[12] = 0x86;	/* IPv6 */
+			eth[13] = 0xdd;
+		} else {
+			eth[12] = 0x08;	/* IPv4 */
+			eth[13] = 0x00;
+		}
+	}
 
 	skb->protocol = dvb_net_eth_type_trans(skb, dev);
 
