@@ -17,34 +17,23 @@ Because of this, you need to enable
 "Device drivers" => "Multimedia devices"
   => "Video For Linux" => "BT848 Video For Linux"
 
+Furthermore you need to enable
+"Device drivers" => "Multimedia devices" => "Digital Video Broadcasting Devices"
+  => "DVB for Linux" "DVB Core Support" "Nebula/Pinnacle PCTV/TwinHan PCI Cards"
+
 2) Loading Modules
 ==================
 
 In general you need to load the bttv driver, which will handle the gpio and
-i2c communication for us. Next you need the common dvb-bt8xx device driver
-and one frontend driver.
-
-The bttv driver will HANG YOUR SYSTEM IF YOU DO NOT SPECIFY THE CORRECT 
-CARD ID!
-
-(If you don't get your card running and you suspect that the card id you're
-using is wrong, have a look at "bttv-cards.c" for a list of possible card
-ids.)
-
-Pay attention to failures when you load the frontend drivers
-(e.g. dmesg, /var/log/messages).
+i2c communication for us, plus the common dvb-bt8xx device driver.
+The frontends for Nebula (nxt6000), Pinnacle PCTV (cx24110) and
+TwinHan (dst) are loaded automatically by the dvb-bt8xx device driver.
 
 3a) Nebula / Pinnacle PCTV
 --------------------------
 
-   $ modprobe bttv i2c_hw=1 card=0x68
-   $ modprobe dvb-bt8xx
-   
-For Nebula cards use the "nxt6000" frontend driver:
-   $ modprobe nxt6000
-
-For Pinnacle PCTV cards use the "cx24110" frontend driver:
-   $ modprobe cx24110
+   $ modprobe bttv (normally bttv is being loaded automatically by kmod)
+   $ modprobe dvb-bt8xx (or just place dvb-bt8xx in /etc/modules for automatic loading)
 
 3b) TwinHan
 -----------
