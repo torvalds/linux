@@ -432,7 +432,7 @@ static int tiocx_reload(struct cx_dev *cx_dev)
 	return cx_device_reload(cx_dev);
 }
 
-static ssize_t show_cxdev_control(struct device *dev, char *buf)
+static ssize_t show_cxdev_control(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cx_dev *cx_dev = to_cx_dev(dev);
 
@@ -442,7 +442,7 @@ static ssize_t show_cxdev_control(struct device *dev, char *buf)
 		       tiocx_btchar_get(cx_dev->cx_id.nasid));
 }
 
-static ssize_t store_cxdev_control(struct device *dev, const char *buf,
+static ssize_t store_cxdev_control(struct device *dev, struct device_attribute *attr, const char *buf,
 				   size_t count)
 {
 	int n;
