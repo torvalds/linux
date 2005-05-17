@@ -436,16 +436,11 @@ struct ahc_linux_target {
 /*
  * Per-SCB OSM storage.
  */
-typedef enum {
-	AHC_UP_EH_SEMAPHORE = 0x1
-} ahc_linux_scb_flags;
-
 struct scb_platform_data {
 	struct ahc_linux_device	*dev;
 	dma_addr_t		 buf_busaddr;
 	uint32_t		 xfer_len;
 	uint32_t		 sense_resid;	/* Auto-Sense residual */
-	ahc_linux_scb_flags	 flags;
 };
 
 /*
@@ -454,22 +449,14 @@ struct scb_platform_data {
  * alignment restrictions of the various platforms supported by
  * this driver.
  */
-typedef enum {
-	AHC_RUN_CMPLT_Q_TIMER	 = 0x10
-} ahc_linux_softc_flags;
-
-TAILQ_HEAD(ahc_completeq, ahc_cmd);
-
 struct ahc_platform_data {
 	/*
 	 * Fields accessed from interrupt context.
 	 */
 	struct ahc_linux_target *targets[AHC_NUM_TARGETS]; 
-	struct ahc_completeq	 completeq;
 
 	spinlock_t		 spin_lock;
 	u_int			 qfrozen;
-	struct timer_list	 completeq_timer;
 	struct timer_list	 reset_timer;
 	struct semaphore	 eh_sem;
 	struct Scsi_Host        *host;		/* pointer to scsi host */
@@ -477,7 +464,9 @@ struct ahc_platform_data {
 	uint32_t		 irq;		/* IRQ for this adapter */
 	uint32_t		 bios_address;
 	uint32_t		 mem_busaddr;	/* Mem Base Addr */
-	ahc_linux_softc_flags	 flags;
+
+#define	AHC_UP_EH_SEMAPHORE	 0x1
+	uint32_t		 flags;
 };
 
 /************************** OS Utility Wrappers *******************************/
