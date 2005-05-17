@@ -57,7 +57,6 @@ struct flexcop_device {
 	int init_state;
 
 	/* device information */
-	u8 mac_address[6];
 	int has_32_hw_pid_filter;
 	flexcop_revision_t rev;
 	flexcop_device_type_t dev_type;

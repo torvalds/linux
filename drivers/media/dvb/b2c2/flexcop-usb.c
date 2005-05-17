@@ -180,7 +180,8 @@ static int flexcop_usb_memory_req(struct flexcop_usb *fc_usb,flexcop_usb_request
 
 static int flexcop_usb_get_mac_addr(struct flexcop_device *fc, int extended)
 {
-	return flexcop_usb_memory_req(fc->bus_specific,B2C2_USB_READ_V8_MEM,V8_MEMORY_PAGE_FLASH,0x1f010,1,fc->mac_address,6);
+	return flexcop_usb_memory_req(fc->bus_specific,B2C2_USB_READ_V8_MEM,
+			V8_MEMORY_PAGE_FLASH,0x1f010,1,fc->dvb_adapter.proposed_mac,6);
 }
 
 #if 0

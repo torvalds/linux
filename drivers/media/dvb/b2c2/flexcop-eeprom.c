@@ -129,8 +129,6 @@ static int flexcop_eeprom_lrc_read(struct flexcop_device *fc, u16 addr, u8 *buf,
 	return ret;
 }
 
-/* TODO how is it handled in USB */
-
 /* JJ's comment about extended == 1: it is not presently used anywhere but was
  * added to the low-level functions for possible support of EUI64
  */
@@ -139,18 +137,16 @@ int flexcop_eeprom_check_mac_addr(struct flexcop_device *fc, int extended)
 	u8 buf[8];
 	int ret = 0;
 
-	memset(fc->mac_address,0,6);
-
 	if ((ret = flexcop_eeprom_lrc_read(fc,0x3f8,buf,8,4)) == 0) {
 		if (extended != 0) {
 			err("TODO: extended (EUI64) MAC addresses aren't completely supported yet");
 			ret = -EINVAL;
-/*			memcpy(fc->mac_address,buf,3);
+/*			memcpy(fc->dvb_adapter.proposed_mac,buf,3);
 			mac[3] = 0xfe;
 			mac[4] = 0xff;
-			memcpy(&fc->mac_address[3],&buf[5],3); */
+			memcpy(&fc->dvb_adapter.proposed_mac[3],&buf[5],3); */
 		} else
-			memcpy(fc->mac_address,buf,6);
+			memcpy(fc->dvb_adapter.proposed_mac,buf,6);
 	}
 	return ret;
 }

@@ -233,16 +233,18 @@ int flexcop_device_initialize(struct flexcop_device *fc)
 
 	flexcop_smc_ctrl(fc, 0);
 
+	if ((ret = flexcop_dvb_init(fc)))
+		goto error;
+
+	/* do the MAC address reading after initializing the dvb_adapter */
 	if (fc->get_mac_addr(fc, 0) == 0) {
-		u8 *b = fc->mac_address;
+		u8 *b = fc->dvb_adapter.proposed_mac;
 		info("MAC address = %02x:%02x:%02x:%02x:%02x:%02x", b[0],b[1],b[2],b[3],b[4],b[5]);
-		flexcop_set_mac_filter(fc,fc->mac_address);
+		flexcop_set_mac_filter(fc,b);
 		flexcop_mac_filter_ctrl(fc,1);
 	} else
 		warn("reading of MAC address failed.\n");
 
-	if ((ret = flexcop_dvb_init(fc)))
-		goto error;
 
 	if ((ret = flexcop_i2c_init(fc)))
 		goto error;
