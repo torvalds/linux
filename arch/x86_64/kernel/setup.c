@@ -727,7 +727,7 @@ static void __init display_cacheinfo(struct cpuinfo_x86 *c)
 static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_SMP
-	int cpu = c->x86_apicid;
+	int cpu = smp_processor_id();
 	int node = 0;
 	if (c->x86_num_cores == 1)
 		return;
@@ -929,7 +929,6 @@ void __init early_identify_cpu(struct cpuinfo_x86 *c)
 	c->x86_clflush_size = 64;
 	c->x86_cache_alignment = c->x86_clflush_size;
 	c->x86_num_cores = 1;
-	c->x86_apicid = c == &boot_cpu_data ? 0 : c - cpu_data;
 	c->extended_cpuid_level = 0;
 	memset(&c->x86_capability, 0, sizeof c->x86_capability);
 
@@ -958,7 +957,6 @@ void __init early_identify_cpu(struct cpuinfo_x86 *c)
 		} 
 		if (c->x86_capability[0] & (1<<19)) 
 			c->x86_clflush_size = ((misc >> 8) & 0xff) * 8;
-		c->x86_apicid = misc >> 24;
 	} else {
 		/* Have CPUID level 0 only - unheard of */
 		c->x86 = 4;
