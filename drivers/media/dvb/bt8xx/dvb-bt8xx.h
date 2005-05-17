@@ -31,7 +31,7 @@
 #include "bttv.h"
 #include "mt352.h"
 #include "sp887x.h"
-#include "dst.h"
+#include "dst_common.h"
 #include "nxt6000.h"
 #include "cx24110.h"
 #include "or51211.h"

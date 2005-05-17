@@ -4,8 +4,8 @@
  * Copyright (C) 2002 Peter Hettkamp <peter.hettkamp@t-online.de>
  *
  * large parts based on the bttv driver
- * Copyright (C) 1996,97,98 Ralph  Metzler (rjkm@thp.uni-koeln.de)
- *                        & Marcus Metzler (mocm@thp.uni-koeln.de)
+ * Copyright (C) 1996,97,98 Ralph  Metzler (rjkm@metzlerbros.de)
+ *                        & Marcus Metzler (mocm@metzlerbros.de)
  * (c) 1999,2000 Gerd Knorr <kraxel@goldbach.in-berlin.de>
  *
  * This program is free software; you can redistribute it and/or
@@ -461,9 +461,9 @@ static int __devinit bt878_probe(struct pci_dev *dev,
 	pci_set_drvdata(dev, bt);
 
 /*        if(init_bt878(btv) < 0) {
-                bt878_remove(dev);
-                return -EIO;
-        }
+		bt878_remove(dev);
+		return -EIO;
+	}
 */
 
 	if ((result = bt878_mem_alloc(bt))) {
@@ -536,10 +536,10 @@ static struct pci_device_id bt878_pci_tbl[] __devinitdata = {
 MODULE_DEVICE_TABLE(pci, bt878_pci_tbl);
 
 static struct pci_driver bt878_pci_driver = {
-      .name 	= "bt878",
+      .name	= "bt878",
       .id_table = bt878_pci_tbl,
-      .probe 	= bt878_probe,
-      .remove 	= bt878_remove,
+      .probe	= bt878_probe,
+      .remove	= bt878_remove,
 };
 
 static int bt878_pci_driver_registered = 0;
@@ -558,7 +558,7 @@ static int bt878_init_module(void)
 	       (BT878_VERSION_CODE >> 8) & 0xff,
 	       BT878_VERSION_CODE & 0xff);
 /*
-        bt878_check_chipset();
+	bt878_check_chipset();
 */
 	/* later we register inside of bt878_find_audio_dma()
 	 * because we may want to ignore certain cards */
