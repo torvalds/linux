@@ -9,9 +9,9 @@
 
 #define FC_MAX_I2C_RETRIES 100000
 
-static int flexcop_i2c_operation(struct flexcop_device *fc, flexcop_ibi_value *r100, int max_ack_errors)
+static int flexcop_i2c_operation(struct flexcop_device *fc, flexcop_ibi_value *r100)
 {
-	int i,ack_errors = 0;
+	int i;
 	flexcop_ibi_value r;
 
 	r100->tw_sm_c_100.working_start = 1;
@@ -31,11 +31,7 @@ static int flexcop_i2c_operation(struct flexcop_device *fc, flexcop_ibi_value *r
 			}
 		} else {
 			deb_i2c("suffering from an i2c ack_error\n");
-			if (++ack_errors >= max_ack_errors)
-				break;
-
-			fc->write_ibi_reg(fc, tw_sm_c_100, ibi_zero);
-			fc->write_ibi_reg(fc, tw_sm_c_100, *r100);
+			return -EREMOTEIO;
 		}
 	}
 	deb_i2c("tried %d times i2c operation, never finished or too many ack errors.\n",i);
@@ -48,19 +44,30 @@ static int flexcop_i2c_read4(struct flexcop_device *fc, flexcop_ibi_value r100, 
 	int len = r100.tw_sm_c_100.total_bytes, /* remember total_bytes is buflen-1 */
 		ret;
 
-	if ((ret = flexcop_i2c_operation(fc,&r100,30)) != 0)
-		return ret;
+	if ((ret = flexcop_i2c_operation(fc,&r100)) != 0) {
+		/* The Cablestar needs a different kind of i2c-transfer (does not
+		 * support "Repeat Start"):
+		 * wait for the ACK failure,
+		 * and do a subsequent read with the Bit 30 enabled
+		 */
+		r100.tw_sm_c_100.no_base_addr_ack_error = 1;
+		if ((ret = flexcop_i2c_operation(fc,&r100)) != 0) {
+			deb_i2c("no_base_addr read failed. %d\n",ret);
+			return ret;
+		}
+	}
 
-	r104 = fc->read_ibi_reg(fc,tw_sm_c_104);
-
-	deb_i2c("read: r100: %08x, r104: %08x\n",r100.raw,r104.raw);
-
-	/* there is at least one byte, otherwise we wouldn't be here */
 	buf[0] = r100.tw_sm_c_100.data1_reg;
 
-	if (len > 0) buf[1] = r104.tw_sm_c_104.data2_reg;
-	if (len > 1) buf[2] = r104.tw_sm_c_104.data3_reg;
-	if (len > 2) buf[3] = r104.tw_sm_c_104.data4_reg;
+	if (len > 0) {
+		r104 = fc->read_ibi_reg(fc,tw_sm_c_104);
+		deb_i2c("read: r100: %08x, r104: %08x\n",r100.raw,r104.raw);
+
+		/* there is at least one more byte, otherwise we wouldn't be here */
+		buf[1] = r104.tw_sm_c_104.data2_reg;
+		if (len > 1) buf[2] = r104.tw_sm_c_104.data3_reg;
+		if (len > 2) buf[3] = r104.tw_sm_c_104.data4_reg;
+	}
 
 	return 0;
 }
@@ -82,45 +89,7 @@ static int flexcop_i2c_write4(struct flexcop_device *fc, flexcop_ibi_value r100,
 
 	/* write the additional i2c data before doing the actual i2c operation */
 	fc->write_ibi_reg(fc,tw_sm_c_104,r104);
-
-	return flexcop_i2c_operation(fc,&r100,30);
-}
-
-/* master xfer callback for demodulator */
-static int flexcop_master_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg msgs[], int num)
-{
-	struct flexcop_device *fc = i2c_get_adapdata(i2c_adap);
-	int i, ret = 0;
-
-	if (down_interruptible(&fc->i2c_sem))
-		return -ERESTARTSYS;
-
-	/* reading */
-	if (num == 2 &&
-		msgs[0].flags == 0 &&
-		msgs[1].flags == I2C_M_RD &&
-		msgs[0].buf != NULL &&
-		msgs[1].buf != NULL) {
-
-		ret = fc->i2c_request(fc, FC_READ, FC_I2C_PORT_DEMOD, msgs[0].addr, msgs[0].buf[0], msgs[1].buf, msgs[1].len);
-
-	} else for (i = 0; i < num; i++) { /* writing command */
-		if (msgs[i].flags != 0 || msgs[i].buf == NULL || msgs[i].len < 2) {
-			ret = -EINVAL;
-			break;
-		}
-
-		ret = fc->i2c_request(fc, FC_WRITE, FC_I2C_PORT_DEMOD, msgs[i].addr, msgs[i].buf[0], &msgs[i].buf[1], msgs[i].len - 1);
-	}
-
-	if (ret < 0)
-		err("i2c master_xfer failed");
-	else
-		ret = num;
-
-	up(&fc->i2c_sem);
-
-	return ret;
+	return flexcop_i2c_operation(fc,&r100);
 }
 
 int flexcop_i2c_request(struct flexcop_device *fc, flexcop_access_op_t op,
@@ -159,6 +128,43 @@ int flexcop_i2c_request(struct flexcop_device *fc, flexcop_access_op_t op,
 }
 /* exported for PCI i2c */
 EXPORT_SYMBOL(flexcop_i2c_request);
+
+/* master xfer callback for demodulator */
+static int flexcop_master_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg msgs[], int num)
+{
+	struct flexcop_device *fc = i2c_get_adapdata(i2c_adap);
+	int i, ret = 0;
+
+	if (down_interruptible(&fc->i2c_sem))
+		return -ERESTARTSYS;
+
+	/* reading */
+	if (num == 2 &&
+		msgs[0].flags == 0 &&
+		msgs[1].flags == I2C_M_RD &&
+		msgs[0].buf != NULL &&
+		msgs[1].buf != NULL) {
+
+		ret = fc->i2c_request(fc, FC_READ, FC_I2C_PORT_DEMOD, msgs[0].addr, msgs[0].buf[0], msgs[1].buf, msgs[1].len);
+
+	} else for (i = 0; i < num; i++) { /* writing command */
+		if (msgs[i].flags != 0 || msgs[i].buf == NULL || msgs[i].len < 2) {
+			ret = -EINVAL;
+			break;
+		}
+
+		ret = fc->i2c_request(fc, FC_WRITE, FC_I2C_PORT_DEMOD, msgs[i].addr, msgs[i].buf[0], &msgs[i].buf[1], msgs[i].len - 1);
+	}
+
+	if (ret < 0)
+		err("i2c master_xfer failed");
+	else
+		ret = num;
+
+	up(&fc->i2c_sem);
+
+	return ret;
+}
 
 static u32 flexcop_i2c_func(struct i2c_adapter *adapter)
 {

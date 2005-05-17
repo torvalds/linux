@@ -692,9 +692,10 @@ typedef enum {
 	wan_ctrl_reg_71c    = 0x71c,
 } flexcop_ibi_register;
 
-#define flexcop_set_ibi_value(reg,attr,val) \
+#define flexcop_set_ibi_value(reg,attr,val) { \
 	flexcop_ibi_value v = fc->read_ibi_reg(fc,reg); \
 	v.reg.attr = val; \
 	fc->write_ibi_reg(fc,reg,v); \
+}
 
 #endif

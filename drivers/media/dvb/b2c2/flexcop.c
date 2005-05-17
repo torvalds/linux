@@ -184,10 +184,6 @@ static void flexcop_reset(struct flexcop_device *fc)
 	fc->write_ibi_reg(fc,misc_204,v204);
 	v204.misc_204.Per_reset_sig = 1;
 	fc->write_ibi_reg(fc,misc_204,v204);
-
-/*	v208.raw = 0;
-	v208.ctrl_208.Null_filter_sig = 1;
-	fc->write_ibi_reg(fc,ctrl_208,v208);*/
 }
 
 struct flexcop_device *flexcop_device_kmalloc(size_t bus_specific_len)
