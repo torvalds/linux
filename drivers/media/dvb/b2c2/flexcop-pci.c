@@ -53,6 +53,8 @@ struct flexcop_pci {
 	int active_dma1_addr; /* 0 = addr0 of dma1; 1 = addr1 of dma1 */
 	u32 last_dma1_cur_pos; /* position of the pointer last time the timer/packet irq occured */
 
+	spinlock_t irq_lock;
+
 	struct flexcop_device *fc_dev;
 };
 
@@ -93,6 +95,9 @@ static irqreturn_t flexcop_pci_irq(int irq, void *dev_id, struct pt_regs *regs)
 	struct flexcop_pci *fc_pci = dev_id;
 	struct flexcop_device *fc = fc_pci->fc_dev;
 	flexcop_ibi_value v = fc->read_ibi_reg(fc,irq_20c);
+	irqreturn_t ret = IRQ_HANDLED;
+
+	spin_lock_irq(&fc_pci->irq_lock);
 
 	deb_irq("irq: %08x cur_addr: %08x (%d), our addrs. 1: %08x 2: %08x; 0x000: "
 			"%08x, 0x00c: %08x\n",v.raw,
@@ -101,6 +106,7 @@ static irqreturn_t flexcop_pci_irq(int irq, void *dev_id, struct pt_regs *regs)
 			fc_pci->dma[0].dma_addr0,fc_pci->dma[0].dma_addr1,
 			fc->read_ibi_reg(fc,dma1_000).raw,
 			fc->read_ibi_reg(fc,dma1_00c).raw);
+
 
 	if (v.irq_20c.DMA1_IRQ_Status == 1) {
 		if (fc_pci->active_dma1_addr == 0)
@@ -134,14 +140,17 @@ static irqreturn_t flexcop_pci_irq(int irq, void *dev_id, struct pt_regs *regs)
 		}
 
 		fc_pci->last_dma1_cur_pos = cur_pos;
-	}
+	} else
+		ret = IRQ_NONE;
+
+	spin_unlock_irq(&fc_pci->irq_lock);
 
 /* packet count would be ideal for hw filtering, but it isn't working. Either
  * the data book is wrong, or I'm unable to read it correctly */
 
 /*	if (v.irq_20c.DMA1_Size_IRQ_Status == 1) { packet counter */
 
-	return IRQ_HANDLED;
+	return ret;
 }
 
 static int flexcop_pci_stream_control(struct flexcop_device *fc, int onoff)
@@ -239,6 +248,8 @@ static int flexcop_pci_init(struct flexcop_pci *fc_pci)
 	if ((ret = request_irq(fc_pci->pdev->irq, flexcop_pci_irq,
 					SA_SHIRQ, DRIVER_NAME, fc_pci)) != 0)
 		goto err_pci_iounmap;
+
+	spin_lock_init(&fc_pci->irq_lock);
 
 	fc_pci->init_state |= FC_PCI_INIT;
 	goto success;
