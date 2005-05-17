@@ -70,7 +70,6 @@ static int ves1820_writereg(struct ves1820_state *state, u8 reg, u8 data)
 		printk("ves1820: %s(): writereg error (reg == 0x%02x,"
 			"val == 0x%02x, ret == %i)\n", __FUNCTION__, reg, data, ret);
 
-	msleep(10);
 	return (ret != 1) ? -EREMOTEIO : 0;
 }
 
