@@ -333,6 +333,9 @@ static int __devinit mpc_i2c_probe(struct ocp_device *ocp)
 	} else
 		i2c->irq = 0;
 
+	mpc_i2c_setclock(i2c);
+	ocp_set_drvdata(ocp, i2c);
+
 	i2c->adap = mpc_ops;
 	i2c_set_adapdata(&i2c->adap, i2c);
 
@@ -341,8 +344,6 @@ static int __devinit mpc_i2c_probe(struct ocp_device *ocp)
 		goto fail_add;
 	}
 
-	mpc_i2c_setclock(i2c);
-	ocp_set_drvdata(ocp, i2c);
 	return result;
 
       fail_add:
@@ -358,8 +359,8 @@ static int __devinit mpc_i2c_probe(struct ocp_device *ocp)
 static void __devexit mpc_i2c_remove(struct ocp_device *ocp)
 {
 	struct mpc_i2c *i2c = ocp_get_drvdata(ocp);
-	ocp_set_drvdata(ocp, NULL);
 	i2c_del_adapter(&i2c->adap);
+	ocp_set_drvdata(ocp, NULL);
 
 	if (ocp->def->irq != OCP_IRQ_NA)
 		free_irq(i2c->irq, i2c);
@@ -430,6 +431,9 @@ static int fsl_i2c_probe(struct device *device)
 			goto fail_irq;
 		}
 
+	mpc_i2c_setclock(i2c);
+	dev_set_drvdata(device, i2c);
+
 	i2c->adap = mpc_ops;
 	i2c_set_adapdata(&i2c->adap, i2c);
 	i2c->adap.dev.parent = &pdev->dev;
@@ -438,8 +442,6 @@ static int fsl_i2c_probe(struct device *device)
 		goto fail_add;
 	}
 
-	mpc_i2c_setclock(i2c);
-	dev_set_drvdata(device, i2c);
 	return result;
 
       fail_add:
@@ -456,8 +458,8 @@ static int fsl_i2c_remove(struct device *device)
 {
 	struct mpc_i2c *i2c = dev_get_drvdata(device);
 
-	dev_set_drvdata(device, NULL);
 	i2c_del_adapter(&i2c->adap);
+	dev_set_drvdata(device, NULL);
 
 	if (i2c->irq != 0)
 		free_irq(i2c->irq, i2c);
