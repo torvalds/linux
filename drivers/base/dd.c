@@ -119,7 +119,8 @@ static int __device_attach(struct device_driver * drv, void * data)
  *	driver_probe_device() for each pair. If a compatible
  *	pair is found, break out and return.
  *
- *	Returns 1 if the device was bound to a driver; 0 otherwise.
+ *	Returns 1 if the device was bound to a driver;
+ *	0 if no matching device was found; error code otherwise.
  */
 int device_attach(struct device * dev)
 {
