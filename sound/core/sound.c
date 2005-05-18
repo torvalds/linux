@@ -431,7 +431,6 @@ EXPORT_SYMBOL(snd_card_pci_resume);
 EXPORT_SYMBOL(snd_device_new);
 EXPORT_SYMBOL(snd_device_register);
 EXPORT_SYMBOL(snd_device_free);
-EXPORT_SYMBOL(snd_device_free_all);
   /* isadma.c */
 #ifdef CONFIG_ISA
 EXPORT_SYMBOL(snd_dma_program);

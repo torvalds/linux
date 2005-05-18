@@ -79,6 +79,5 @@ struct _snd_virmidi_dev {
 #define SNDRV_VIRMIDI_SEQ_DISPATCH	2
 
 int snd_virmidi_new(snd_card_t *card, int device, snd_rawmidi_t **rrmidi);
-int snd_virmidi_receive(snd_rawmidi_t *rmidi, snd_seq_event_t *ev);
 
 #endif /* __SOUND_SEQ_VIRMIDI */

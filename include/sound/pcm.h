@@ -848,23 +848,6 @@ int snd_interval_ratnum(snd_interval_t *i,
 
 void _snd_pcm_hw_params_any(snd_pcm_hw_params_t *params);
 void _snd_pcm_hw_param_setempty(snd_pcm_hw_params_t *params, snd_pcm_hw_param_t var);
-int snd_pcm_hw_param_min(snd_pcm_substream_t *substream, 
-			 snd_pcm_hw_params_t *params,
-			 snd_pcm_hw_param_t var,
-			 unsigned int val, int *dir);
-int snd_pcm_hw_param_max(snd_pcm_substream_t *substream, 
-			 snd_pcm_hw_params_t *params,
-			 snd_pcm_hw_param_t var,
-			 unsigned int val, int *dir);
-int snd_pcm_hw_param_setinteger(snd_pcm_substream_t *substream, 
-				snd_pcm_hw_params_t *params,
-				snd_pcm_hw_param_t var);
-int snd_pcm_hw_param_first(snd_pcm_substream_t *substream, 
-			   snd_pcm_hw_params_t *params,
-			   snd_pcm_hw_param_t var, int *dir);
-int snd_pcm_hw_param_last(snd_pcm_substream_t *substream, 
-			  snd_pcm_hw_params_t *params,
-			  snd_pcm_hw_param_t var, int *dir);
 int snd_pcm_hw_param_near(snd_pcm_substream_t *substream, 
 			  snd_pcm_hw_params_t *params,
 			  snd_pcm_hw_param_t var, 
@@ -876,7 +859,6 @@ int snd_pcm_hw_param_set(snd_pcm_substream_t *pcm,
 int snd_pcm_hw_params_choose(snd_pcm_substream_t *substream, snd_pcm_hw_params_t *params);
 
 int snd_pcm_hw_refine(snd_pcm_substream_t *substream, snd_pcm_hw_params_t *params);
-int snd_pcm_hw_params(snd_pcm_substream_t *substream, snd_pcm_hw_params_t *params);
 
 int snd_pcm_hw_constraints_init(snd_pcm_substream_t *substream);
 int snd_pcm_hw_constraints_complete(snd_pcm_substream_t *substream);

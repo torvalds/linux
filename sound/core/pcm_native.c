@@ -337,8 +337,8 @@ out:
 	return err;
 }
 
-int snd_pcm_hw_params(snd_pcm_substream_t *substream,
-		      snd_pcm_hw_params_t *params)
+static int snd_pcm_hw_params(snd_pcm_substream_t *substream,
+			     snd_pcm_hw_params_t *params)
 {
 	snd_pcm_runtime_t *runtime;
 	int err;

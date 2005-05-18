@@ -110,7 +110,7 @@ static int snd_virmidi_dev_receive_event(snd_virmidi_dev_t *rdev, snd_seq_event_
  * handler of a remote port which is attached to the virmidi via
  * SNDRV_VIRMIDI_SEQ_ATTACH.
  */
-/* exported */
+#if 0
 int snd_virmidi_receive(snd_rawmidi_t *rmidi, snd_seq_event_t *ev)
 {
 	snd_virmidi_dev_t *rdev;
@@ -118,6 +118,7 @@ int snd_virmidi_receive(snd_rawmidi_t *rmidi, snd_seq_event_t *ev)
 	rdev = rmidi->private_data;
 	return snd_virmidi_dev_receive_event(rdev, ev);
 }
+#endif  /*  0  */
 
 /*
  * event handler of virmidi port
@@ -548,4 +549,3 @@ module_init(alsa_virmidi_init)
 module_exit(alsa_virmidi_exit)
 
 EXPORT_SYMBOL(snd_virmidi_new);
-EXPORT_SYMBOL(snd_virmidi_receive);

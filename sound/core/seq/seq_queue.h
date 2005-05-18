@@ -111,7 +111,6 @@ int snd_seq_queue_use(int queueid, int client, int use);
 int snd_seq_queue_is_used(int queueid, int client);
 
 int snd_seq_control_queue(snd_seq_event_t *ev, int atomic, int hop);
-void snd_seq_queue_process_event(queue_t *q, snd_seq_event_t *ev, int atomic, int hop);
 
 /*
  * 64bit division - for sync stuff..
