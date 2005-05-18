@@ -122,7 +122,7 @@ raw_ioctl(struct inode *inode, struct file *filp,
 {
 	struct block_device *bdev = filp->private_data;
 
-	return blkdev_ioctl(bdev->bd_inode, filp, command, arg);
+	return blkdev_ioctl(bdev->bd_inode, NULL, command, arg);
 }
 
 static void bind_device(struct raw_config_request *rq)
