@@ -51,14 +51,8 @@
 #define AUDIT_WATCH_LIST	1009	/* List all file/dir watches */
 #define AUDIT_SIGNAL_INFO	1010	/* Get info about sender of signal to auditd */
 
-#define AUDIT_USER_AUTH		1100	/* User space authentication */
-#define AUDIT_USER_ACCT		1101	/* User space acct change */
-#define AUDIT_USER_MGMT		1102	/* User space acct management */
-#define AUDIT_CRED_ACQ		1103	/* User space credential acquired */
-#define AUDIT_CRED_DISP		1104	/* User space credential disposed */
-#define AUDIT_USER_START	1105	/* User space session start */ 
-#define AUDIT_USER_END		1106	/* User space session end */
-#define AUDIT_USER_AVC		1107	/* User space avc message */
+#define AUDIT_FIRST_USER_MSG	1100	/* Userspace messages uninteresting to kernel */
+#define AUDIT_LAST_USER_MSG	1199
  
 #define AUDIT_DAEMON_START      1200    /* Daemon startup record */
 #define AUDIT_DAEMON_END        1201    /* Daemon normal stop record */
@@ -172,13 +166,6 @@
 #define AUDIT_ARCH_SPARC64	(EM_SPARC64|__AUDIT_ARCH_64BIT)
 #define AUDIT_ARCH_V850		(EM_V850|__AUDIT_ARCH_LE)
 #define AUDIT_ARCH_X86_64	(EM_X86_64|__AUDIT_ARCH_64BIT|__AUDIT_ARCH_LE)
-
-#ifndef __KERNEL__
-struct audit_message {
-	struct nlmsghdr nlh;
-	char		data[1200];
-};
-#endif
 
 struct audit_status {
 	__u32		mask;		/* Bit mask for valid entries */
