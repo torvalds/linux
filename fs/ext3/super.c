@@ -225,8 +225,16 @@ void __ext3_std_error (struct super_block * sb, const char * function,
 		       int errno)
 {
 	char nbuf[16];
-	const char *errstr = ext3_decode_error(sb, errno, nbuf);
+	const char *errstr;
 
+	/* Special case: if the error is EROFS, and we're not already
+	 * inside a transaction, then there's really no point in logging
+	 * an error. */
+	if (errno == -EROFS && journal_current_handle() == NULL &&
+	    (sb->s_flags & MS_RDONLY))
+		return;
+
+	errstr = ext3_decode_error(sb, errno, nbuf);
 	printk (KERN_CRIT "EXT3-fs error (device %s) in %s: %s\n",
 		sb->s_id, function, errstr);
 
