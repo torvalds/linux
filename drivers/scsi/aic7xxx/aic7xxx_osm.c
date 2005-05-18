@@ -645,7 +645,9 @@ ahc_linux_slave_alloc(struct scsi_device *device)
 	struct ahc_linux_target *targ;
 	struct scsi_target *starget = device->sdev_target;
 	struct ahc_linux_device *dev;
-	u_int target_offset;
+	unsigned int target_offset;
+	unsigned long flags;
+	int retval = -ENOMEM;
 
 	target_offset = starget->id;
 	if (starget->channel != 0)
@@ -654,12 +656,14 @@ ahc_linux_slave_alloc(struct scsi_device *device)
 	ahc = *((struct ahc_softc **)device->host->hostdata);
 	if (bootverbose)
 		printf("%s: Slave Alloc %d\n", ahc_name(ahc), device->id);
+	ahc_lock(ahc, &flags);
 	targ = ahc->platform_data->targets[target_offset];
 	if (targ == NULL) {
 		targ = ahc_linux_alloc_target(ahc, starget->channel, starget->id);
 		struct seeprom_config *sc = ahc->seep_config;
 		if (targ == NULL)
-			return -ENOMEM;
+			goto out;
+
 		if (sc) {
 			unsigned short scsirate;
 			struct ahc_devinfo devinfo;
@@ -701,10 +705,13 @@ ahc_linux_slave_alloc(struct scsi_device *device)
 	if (dev == NULL) {
 		dev = ahc_linux_alloc_device(ahc, targ, device->lun);
 		if (dev == NULL)
-			return -ENOMEM;
+			goto out;
 	}
+	retval = 0;
 
-	return 0;
+ out:
+	ahc_unlock(ahc, &flags);
+	return retval;
 }
 
 static int
