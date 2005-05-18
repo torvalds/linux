@@ -1244,7 +1244,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 	addr = mm->free_area_cache;
 
 	/* make sure it can fit in the remaining address space */
-	if (addr >= len) {
+	if (addr > len) {
 		vma = find_vma(mm, addr-len);
 		if (!vma || addr <= vma->vm_start)
 			/* remember the address as a hint for next time */
@@ -1266,7 +1266,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 
 		/* try just below the current vma->vm_start */
 		addr = vma->vm_start-len;
-	} while (len <= vma->vm_start);
+	} while (len < vma->vm_start);
 
 	/*
 	 * A failed mmap() very likely causes application failure,
