@@ -1069,6 +1069,7 @@ EXPORT_SYMBOL(snd_pcm_format_little_endian);
 EXPORT_SYMBOL(snd_pcm_format_big_endian);
 EXPORT_SYMBOL(snd_pcm_format_width);
 EXPORT_SYMBOL(snd_pcm_format_physical_width);
+EXPORT_SYMBOL(snd_pcm_format_size);
 EXPORT_SYMBOL(snd_pcm_format_silence_64);
 EXPORT_SYMBOL(snd_pcm_format_set_silence);
 EXPORT_SYMBOL(snd_pcm_build_linear_format);
