@@ -1,5 +1,5 @@
 /*
- * $Id: mtd-abi.h,v 1.10 2005/02/09 09:17:42 pavlov Exp $
+ * $Id: mtd-abi.h,v 1.11 2005/05/19 16:08:58 gleixner Exp $
  *
  * Portions of MTD ABI definition which are shared by kernel and user space 
  */
@@ -61,6 +61,7 @@ struct mtd_oob_buf {
 #define MTD_NANDECC_PLACE	1	// Use the given placement in the structure (YAFFS1 legacy mode)
 #define MTD_NANDECC_AUTOPLACE	2	// Use the default placement scheme
 #define MTD_NANDECC_PLACEONLY	3	// Use the given placement in the structure (Do not store ecc result on read)
+#define MTD_NANDECC_AUTOPL_USR 	4	// Use the given autoplacement scheme rather than using the default
 
 /* OTP mode selection */
 #define MTD_OTP_OFF		0

@@ -59,7 +59,7 @@
  *	The AG-AND chips have nice features for speed improvement,
  *	which are not supported yet. Read / program 4 pages in one go.
  *
- * $Id: nand_base.c,v 1.142 2005/04/11 14:16:07 lavinen Exp $
+ * $Id: nand_base.c,v 1.143 2005/05/19 16:10:22 gleixner Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -1195,7 +1195,8 @@ int nand_do_read_ecc (struct mtd_info *mtd, loff_t from, size_t len,
 		}	
 
 		/* get oob area, if we have no oob buffer from fs-driver */
-		if (!oob_buf || oobsel->useecc == MTD_NANDECC_AUTOPLACE)
+		if (!oob_buf || oobsel->useecc == MTD_NANDECC_AUTOPLACE ||
+			oobsel->useecc == MTD_NANDECC_AUTOPL_USR)
 			oob_data = &this->data_buf[end];
 
 		eccsteps = this->eccsteps;
@@ -1284,6 +1285,7 @@ int nand_do_read_ecc (struct mtd_info *mtd, loff_t from, size_t len,
 			/* without autoplace. Legacy mode used by YAFFS1 */
 			switch(oobsel->useecc) {
 			case MTD_NANDECC_AUTOPLACE:
+			case MTD_NANDECC_AUTOPL_USR:
 				/* Walk through the autoplace chunks */
 				for (i = 0; oobsel->oobfree[i][1]; i++) {
 					int from = oobsel->oobfree[i][0];
@@ -1645,6 +1647,8 @@ static int nand_write_ecc (struct mtd_info *mtd, loff_t to, size_t len,
 		oobsel = this->autooob;
 		autoplace = 1;
 	}	
+	if (oobsel->useecc == MTD_NANDECC_AUTOPL_USR)
+		autoplace = 1;
 
 	/* Setup variables and oob buffer */
 	totalpages = len >> this->page_shift;
@@ -1919,6 +1923,8 @@ static int nand_writev_ecc (struct mtd_info *mtd, const struct kvec *vecs, unsig
 		oobsel = this->autooob;
 		autoplace = 1;
 	}	
+	if (oobsel->useecc == MTD_NANDECC_AUTOPL_USR)
+		autoplace = 1;
 
 	/* Setup start page */
 	page = (int) (to >> this->page_shift);
