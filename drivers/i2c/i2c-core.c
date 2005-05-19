@@ -238,7 +238,7 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 	}
 
 	/* detach any active clients. This must be done first, because
-	 * it can fail; in which case we give upp. */
+	 * it can fail; in which case we give up. */
 	list_for_each_safe(item, _n, &adap->clients) {
 		client = list_entry(item, struct i2c_client, list);
 
