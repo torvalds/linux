@@ -2869,9 +2869,6 @@ static int tg3_poll(struct net_device *netdev, int *budget)
 
 	spin_lock_irqsave(&tp->lock, flags);
 
-	if (tp->tg3_flags & TG3_FLAG_TAGGED_STATUS)
-		tp->last_tag = sblk->status_tag;
-
 	/* handle link change and other phy events */
 	if (!(tp->tg3_flags &
 	      (TG3_FLAG_USE_LINKCHG_REG |
@@ -2896,7 +2893,6 @@ static int tg3_poll(struct net_device *netdev, int *budget)
 	 * All RX "locking" is done by ensuring outside
 	 * code synchronizes with dev->poll()
 	 */
-	done = 1;
 	if (sblk->idx[0].rx_producer != tp->rx_rcb_ptr) {
 		int orig_budget = *budget;
 		int work_done;
@@ -2908,12 +2904,14 @@ static int tg3_poll(struct net_device *netdev, int *budget)
 
 		*budget -= work_done;
 		netdev->quota -= work_done;
-
-		if (work_done >= orig_budget)
-			done = 0;
 	}
 
+	if (tp->tg3_flags & TG3_FLAG_TAGGED_STATUS)
+		tp->last_tag = sblk->status_tag;
+	rmb();
+
 	/* if no more work, tell net stack and NIC we're done */
+	done = !tg3_has_work(tp);
 	if (done) {
 		spin_lock_irqsave(&tp->lock, flags);
 		__netif_rx_complete(netdev);
