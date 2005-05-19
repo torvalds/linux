@@ -4,7 +4,7 @@
  *
  * (C) 2000 Red Hat. GPL'd
  *
- * $Id: cfi_cmdset_0001.c,v 1.176 2005/04/27 20:01:49 tpoynor Exp $
+ * $Id: cfi_cmdset_0001.c,v 1.178 2005/05/19 17:05:43 nico Exp $
  *
  * 
  * 10/10/2000	Nicolas Pitre <nico@cam.org>
@@ -826,10 +826,6 @@ static void put_chip(struct map_info *map, struct flchip *chip, unsigned long ad
  * assembly to make sure inline functions were actually inlined and that gcc
  * didn't emit calls to its own support functions). Also configuring MTD CFI
  * support to a single buswidth and a single interleave is also recommended.
- * Note that not only IRQs are disabled but the preemption count is also
- * increased to prevent other locking primitives (namely spin_unlock) from
- * decrementing the preempt count to zero and scheduling the CPU away while
- * not in array mode.
  */
 
 static void xip_disable(struct map_info *map, struct flchip *chip,
@@ -837,7 +833,6 @@ static void xip_disable(struct map_info *map, struct flchip *chip,
 {
 	/* TODO: chips with no XIP use should ignore and return */
 	(void) map_read(map, adr); /* ensure mmu mapping is up to date */
-	preempt_disable();
 	local_irq_disable();
 }
 
@@ -852,7 +847,6 @@ static void __xipram xip_enable(struct map_info *map, struct flchip *chip,
 	(void) map_read(map, adr);
 	asm volatile (".rep 8; nop; .endr"); /* fill instruction prefetch */
 	local_irq_enable();
-	preempt_enable();
 }
 
 /*
@@ -928,7 +922,7 @@ static void __xipram xip_udelay(struct map_info *map, struct flchip *chip,
 			(void) map_read(map, adr);
 			asm volatile (".rep 8; nop; .endr");
 			local_irq_enable();
-			preempt_enable();
+			spin_unlock(chip->mutex);
 			asm volatile (".rep 8; nop; .endr");
 			cond_resched();
 
@@ -938,15 +932,15 @@ static void __xipram xip_udelay(struct map_info *map, struct flchip *chip,
 			 * a suspended erase state.  If so let's wait
 			 * until it's done.
 			 */
-			preempt_disable();
+			spin_lock(chip->mutex);
 			while (chip->state != newstate) {
 				DECLARE_WAITQUEUE(wait, current);
 				set_current_state(TASK_UNINTERRUPTIBLE);
 				add_wait_queue(&chip->wq, &wait);
-				preempt_enable();
+				spin_unlock(chip->mutex);
 				schedule();
 				remove_wait_queue(&chip->wq, &wait);
-				preempt_disable();
+				spin_lock(chip->mutex);
 			}
 			/* Disallow XIP again */
 			local_irq_disable();
@@ -975,12 +969,14 @@ static void __xipram xip_udelay(struct map_info *map, struct flchip *chip,
  * The INVALIDATE_CACHED_RANGE() macro is normally used in parallel while
  * the flash is actively programming or erasing since we have to poll for
  * the operation to complete anyway.  We can't do that in a generic way with
- * a XIP setup so do it before the actual flash operation in this case.
+ * a XIP setup so do it before the actual flash operation in this case
+ * and stub it out from INVALIDATE_CACHE_UDELAY.
  */
-#undef INVALIDATE_CACHED_RANGE
-#define INVALIDATE_CACHED_RANGE(x...)
-#define XIP_INVAL_CACHED_RANGE(map, from, size) \
-	do { if(map->inval_cache) map->inval_cache(map, from, size); } while(0)
+#define XIP_INVAL_CACHED_RANGE(map, from, size)  \
+	INVALIDATE_CACHED_RANGE(map, from, size)
+
+#define INVALIDATE_CACHE_UDELAY(map, chip, adr, len, usec)  \
+	UDELAY(map, chip, adr, usec)
 
 /*
  * Extra notes:
@@ -1003,10 +999,22 @@ static void __xipram xip_udelay(struct map_info *map, struct flchip *chip,
 
 #define xip_disable(map, chip, adr)
 #define xip_enable(map, chip, adr)
-
-#define UDELAY(map, chip, adr, usec)  cfi_udelay(usec)
-
 #define XIP_INVAL_CACHED_RANGE(x...)
+
+#define UDELAY(map, chip, adr, usec)  \
+do {  \
+	spin_unlock(chip->mutex);  \
+	cfi_udelay(usec);  \
+	spin_lock(chip->mutex);  \
+} while (0)
+
+#define INVALIDATE_CACHE_UDELAY(map, chip, adr, len, usec)  \
+do {  \
+	spin_unlock(chip->mutex);  \
+	INVALIDATE_CACHED_RANGE(map, adr, len);  \
+	cfi_udelay(usec);  \
+	spin_lock(chip->mutex);  \
+} while (0)
 
 #endif
 
@@ -1227,10 +1235,9 @@ static int __xipram do_write_oneword(struct map_info *map, struct flchip *chip,
 	map_write(map, datum, adr);
 	chip->state = mode;
 
-	spin_unlock(chip->mutex);
-	INVALIDATE_CACHED_RANGE(map, adr, map_bankwidth(map));
-	UDELAY(map, chip, adr, chip->word_write_time);
-	spin_lock(chip->mutex);
+	INVALIDATE_CACHE_UDELAY(map, chip,
+				adr, map_bankwidth(map),
+				chip->word_write_time);
 
 	timeo = jiffies + (HZ/2);
 	z = 0;
@@ -1263,10 +1270,8 @@ static int __xipram do_write_oneword(struct map_info *map, struct flchip *chip,
 		}
 
 		/* Latency issues. Drop the lock, wait a while and retry */
-		spin_unlock(chip->mutex);
 		z++;
 		UDELAY(map, chip, adr, 1);
-		spin_lock(chip->mutex);
 	}
 	if (!z) {
 		chip->word_write_time--;
@@ -1430,9 +1435,7 @@ static int __xipram do_write_buffer(struct map_info *map, struct flchip *chip,
 		if (map_word_andequal(map, status, status_OK, status_OK))
 			break;
 
-		spin_unlock(chip->mutex);
 		UDELAY(map, chip, cmd_adr, 1);
-		spin_lock(chip->mutex);
 
 		if (++z > 20) {
 			/* Argh. Not ready for write to buffer */
@@ -1478,10 +1481,9 @@ static int __xipram do_write_buffer(struct map_info *map, struct flchip *chip,
 	map_write(map, CMD(0xd0), cmd_adr);
 	chip->state = FL_WRITING;
 
-	spin_unlock(chip->mutex);
-	INVALIDATE_CACHED_RANGE(map, adr, len);
-	UDELAY(map, chip, cmd_adr, chip->buffer_write_time);
-	spin_lock(chip->mutex);
+	INVALIDATE_CACHE_UDELAY(map, chip, 
+				cmd_adr, len,
+				chip->buffer_write_time);
 
 	timeo = jiffies + (HZ/2);
 	z = 0;
@@ -1513,10 +1515,8 @@ static int __xipram do_write_buffer(struct map_info *map, struct flchip *chip,
 		}
 		
 		/* Latency issues. Drop the lock, wait a while and retry */
-		spin_unlock(chip->mutex);
-		UDELAY(map, chip, cmd_adr, 1);
 		z++;
-		spin_lock(chip->mutex);
+		UDELAY(map, chip, cmd_adr, 1);
 	}
 	if (!z) {
 		chip->buffer_write_time--;
@@ -1644,10 +1644,9 @@ static int __xipram do_erase_oneblock(struct map_info *map, struct flchip *chip,
 	chip->state = FL_ERASING;
 	chip->erase_suspended = 0;
 
-	spin_unlock(chip->mutex);
-	INVALIDATE_CACHED_RANGE(map, adr, len);
-	UDELAY(map, chip, adr, chip->erase_time*1000/2);
-	spin_lock(chip->mutex);
+	INVALIDATE_CACHE_UDELAY(map, chip,
+				adr, len,
+				chip->erase_time*1000/2);
 
 	/* FIXME. Use a timer to check this, and return immediately. */
 	/* Once the state machine's known to be working I'll do that */
@@ -1692,9 +1691,7 @@ static int __xipram do_erase_oneblock(struct map_info *map, struct flchip *chip,
 		}
 		
 		/* Latency issues. Drop the lock, wait a while and retry */
-		spin_unlock(chip->mutex);
 		UDELAY(map, chip, adr, 1000000/HZ);
-		spin_lock(chip->mutex);
 	}
 
 	/* We've broken this before. It doesn't hurt to be safe */
@@ -1866,11 +1863,8 @@ static int __xipram do_xxlock_oneblock(struct map_info *map, struct flchip *chip
 	 * to delay.
 	 */
 
-	if (!extp || !(extp->FeatureSupport & (1 << 5))) {
-		spin_unlock(chip->mutex);
+	if (!extp || !(extp->FeatureSupport & (1 << 5)))
 		UDELAY(map, chip, adr, 1000000/HZ);
-		spin_lock(chip->mutex);
-	}
 
 	/* FIXME. Use a timer to check this, and return immediately. */
 	/* Once the state machine's known to be working I'll do that */
@@ -1897,9 +1891,7 @@ static int __xipram do_xxlock_oneblock(struct map_info *map, struct flchip *chip
 		}
 		
 		/* Latency issues. Drop the lock, wait a while and retry */
-		spin_unlock(chip->mutex);
 		UDELAY(map, chip, adr, 1);
-		spin_lock(chip->mutex);
 	}
 	
 	/* Done and happy. */
@@ -1979,8 +1971,7 @@ do_otp_read(struct map_info *map, struct flchip *chip, u_long offset,
 	}
 
 	/* let's ensure we're not reading back cached data from array mode */
-	if (map->inval_cache)
-		map->inval_cache(map, chip->start + offset, size);
+	INVALIDATE_CACHED_RANGE(map, chip->start + offset, size);
 
 	xip_disable(map, chip, chip->start);
 	if (chip->state != FL_JEDEC_QUERY) {
@@ -1991,8 +1982,7 @@ do_otp_read(struct map_info *map, struct flchip *chip, u_long offset,
 	xip_enable(map, chip, chip->start);
 
 	/* then ensure we don't keep OTP data in the cache */
-	if (map->inval_cache)
-		map->inval_cache(map, chip->start + offset, size);
+	INVALIDATE_CACHED_RANGE(map, chip->start + offset, size);
 
 	put_chip(map, chip, chip->start);
 	spin_unlock(chip->mutex);
