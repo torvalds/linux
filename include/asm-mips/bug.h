@@ -1,6 +1,10 @@
 #ifndef __ASM_BUG_H
 #define __ASM_BUG_H
 
+#include <linux/config.h>
+
+#ifdef CONFIG_BUG
+
 #include <asm/break.h>
 
 #ifdef CONFIG_BUG
@@ -14,3 +18,5 @@ do {									\
 #include <asm-generic/bug.h>
 
 #endif
+
+#endif /* __ASM_BUG_H */
