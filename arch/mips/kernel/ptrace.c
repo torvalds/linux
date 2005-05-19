@@ -28,6 +28,7 @@
 #include <linux/security.h>
 #include <linux/signal.h>
 
+#include <asm/byteorder.h>
 #include <asm/cpu.h>
 #include <asm/fpu.h>
 #include <asm/mipsregs.h>
@@ -308,21 +309,14 @@ out:
 
 static inline int audit_arch(void)
 {
-#ifdef CONFIG_CPU_LITTLE_ENDIAN
+	int arch = EM_MIPS;
 #ifdef CONFIG_64BIT
-	if (!(current->thread.mflags & MF_32BIT_REGS))
-		return AUDIT_ARCH_MIPSEL64;
-#endif /* MIPS64 */
-	return AUDIT_ARCH_MIPSEL;
-
-#else /* big endian... */
-#ifdef CONFIG_64BIT
-	if (!(current->thread.mflags & MF_32BIT_REGS))
-		return AUDIT_ARCH_MIPS64;
-#endif /* MIPS64 */
-	return AUDIT_ARCH_MIPS;
-
-#endif /* endian */
+	arch |=  __AUDIT_ARCH_64BIT;
+#endif
+#if defined(__LITTLE_ENDIAN)
+	arch |=  __AUDIT_ARCH_LE;
+#endif
+	return arch;
 }
 
 /*
@@ -332,11 +326,12 @@ static inline int audit_arch(void)
 asmlinkage void do_syscall_trace(struct pt_regs *regs, int entryexit)
 {
 	if (unlikely(current->audit_context) && entryexit)
-		audit_syscall_exit(current, AUDITSC_RESULT(regs->regs[2]), regs->regs[2]);
+		audit_syscall_exit(current, AUDITSC_RESULT(regs->regs[2]),
+		                   regs->regs[2]);
 
-	if (!test_thread_flag(TIF_SYSCALL_TRACE))
-		goto out;
 	if (!(current->ptrace & PT_PTRACED))
+		goto out;
+	if (!test_thread_flag(TIF_SYSCALL_TRACE))
 		goto out;
 
 	/* The 0x80 provides a way for the tracing parent to distinguish
