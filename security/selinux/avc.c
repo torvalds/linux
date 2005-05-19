@@ -532,6 +532,7 @@ void avc_audit(u32 ssid, u32 tsid,
                u16 tclass, u32 requested,
                struct av_decision *avd, int result, struct avc_audit_data *a)
 {
+	struct task_struct *tsk = current;
 	struct inode *inode = NULL;
 	u32 denied, audited;
 	struct audit_buffer *ab;
@@ -555,6 +556,12 @@ void avc_audit(u32 ssid, u32 tsid,
 	audit_log_format(ab, "avc:  %s ", denied ? "denied" : "granted");
 	avc_dump_av(ab, tclass,audited);
 	audit_log_format(ab, " for ");
+	if (a && a->tsk)
+		tsk = a->tsk;
+	if (a->tsk && a->tsk->pid) {
+		audit_log_format(ab, " pid=%d comm=", tsk->pid);
+		audit_log_untrustedstring(ab, tsk->comm);
+	}
 	if (a) {
 		switch (a->type) {
 		case AVC_AUDIT_DATA_IPC:
