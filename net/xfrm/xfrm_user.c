@@ -162,6 +162,7 @@ static int attach_one_algo(struct xfrm_algo **algpp, u8 *props,
 	struct rtattr *rta = u_arg;
 	struct xfrm_algo *p, *ualg;
 	struct xfrm_algo_desc *algo;
+	int len;
 
 	if (!rta)
 		return 0;
@@ -173,11 +174,12 @@ static int attach_one_algo(struct xfrm_algo **algpp, u8 *props,
 		return -ENOSYS;
 	*props = algo->desc.sadb_alg_id;
 
-	p = kmalloc(sizeof(*ualg) + ualg->alg_key_len, GFP_KERNEL);
+	len = sizeof(*ualg) + (ualg->alg_key_len + 7U) / 8;
+	p = kmalloc(len, GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
 
-	memcpy(p, ualg, sizeof(*ualg) + ualg->alg_key_len);
+	memcpy(p, ualg, len);
 	*algpp = p;
 	return 0;
 }
