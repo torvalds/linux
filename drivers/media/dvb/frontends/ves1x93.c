@@ -263,7 +263,7 @@ static int ves1x93_set_symbolrate (struct ves1x93_state* state, u32 srate)
 
 static int ves1x93_init (struct dvb_frontend* fe)
 {
-	struct ves1x93_state* state = (struct ves1x93_state*) fe->demodulator_priv;
+	struct ves1x93_state* state = fe->demodulator_priv;
 	int i;
 	int val;
 
@@ -289,7 +289,7 @@ static int ves1x93_init (struct dvb_frontend* fe)
 
 static int ves1x93_set_voltage (struct dvb_frontend* fe, fe_sec_voltage_t voltage)
 {
-	struct ves1x93_state* state = (struct ves1x93_state*) fe->demodulator_priv;
+	struct ves1x93_state* state = fe->demodulator_priv;
 
 	switch (voltage) {
 	case SEC_VOLTAGE_13:
@@ -305,7 +305,7 @@ static int ves1x93_set_voltage (struct dvb_frontend* fe, fe_sec_voltage_t voltag
 
 static int ves1x93_read_status(struct dvb_frontend* fe, fe_status_t* status)
 {
-	struct ves1x93_state* state = (struct ves1x93_state*) fe->demodulator_priv;
+	struct ves1x93_state* state = fe->demodulator_priv;
 
 	u8 sync = ves1x93_readreg (state, 0x0e);
 
@@ -346,7 +346,7 @@ static int ves1x93_read_status(struct dvb_frontend* fe, fe_status_t* status)
 
 static int ves1x93_read_ber(struct dvb_frontend* fe, u32* ber)
 {
-	struct ves1x93_state* state = (struct ves1x93_state*) fe->demodulator_priv;
+	struct ves1x93_state* state = fe->demodulator_priv;
 
 	*ber = ves1x93_readreg (state, 0x15);
 	*ber |= (ves1x93_readreg (state, 0x16) << 8);
@@ -358,7 +358,7 @@ static int ves1x93_read_ber(struct dvb_frontend* fe, u32* ber)
 
 static int ves1x93_read_signal_strength(struct dvb_frontend* fe, u16* strength)
 {
-	struct ves1x93_state* state = (struct ves1x93_state*) fe->demodulator_priv;
+	struct ves1x93_state* state = fe->demodulator_priv;
 
 	u8 signal = ~ves1x93_readreg (state, 0x0b);
 	*strength = (signal << 8) | signal;
@@ -368,7 +368,7 @@ static int ves1x93_read_signal_strength(struct dvb_frontend* fe, u16* strength)
 
 static int ves1x93_read_snr(struct dvb_frontend* fe, u16* snr)
 {
-	struct ves1x93_state* state = (struct ves1x93_state*) fe->demodulator_priv;
+	struct ves1x93_state* state = fe->demodulator_priv;
 
 	u8 _snr = ~ves1x93_readreg (state, 0x1c);
 	*snr = (_snr << 8) | _snr;
@@ -378,7 +378,7 @@ static int ves1x93_read_snr(struct dvb_frontend* fe, u16* snr)
 
 static int ves1x93_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
 {
-	struct ves1x93_state* state = (struct ves1x93_state*) fe->demodulator_priv;
+	struct ves1x93_state* state = fe->demodulator_priv;
 
 	*ucblocks = ves1x93_readreg (state, 0x18) & 0x7f;
 
@@ -393,7 +393,7 @@ static int ves1x93_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
 
 static int ves1x93_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_parameters *p)
 {
-	struct ves1x93_state* state = (struct ves1x93_state*) fe->demodulator_priv;
+	struct ves1x93_state* state = fe->demodulator_priv;
 
 	ves1x93_writereg(state, 0x00, 0x11);
 	state->config->pll_set(fe, p);
@@ -408,7 +408,7 @@ static int ves1x93_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 
 static int ves1x93_get_frontend(struct dvb_frontend* fe, struct dvb_frontend_parameters *p)
 {
-	struct ves1x93_state* state = (struct ves1x93_state*) fe->demodulator_priv;
+	struct ves1x93_state* state = fe->demodulator_priv;
 	int afc;
 
 	afc = ((int)((char)(ves1x93_readreg (state, 0x0a) << 1)))/2;
@@ -431,14 +431,14 @@ static int ves1x93_get_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 
 static int ves1x93_sleep(struct dvb_frontend* fe)
 {
-	struct ves1x93_state* state = (struct ves1x93_state*) fe->demodulator_priv;
+	struct ves1x93_state* state = fe->demodulator_priv;
 
 	return ves1x93_writereg (state, 0x00, 0x08);
 }
 
 static void ves1x93_release(struct dvb_frontend* fe)
 {
-	struct ves1x93_state* state = (struct ves1x93_state*) fe->demodulator_priv;
+	struct ves1x93_state* state = fe->demodulator_priv;
 	kfree(state);
 }
 
@@ -451,7 +451,7 @@ struct dvb_frontend* ves1x93_attach(const struct ves1x93_config* config,
 	u8 identity;
 
 	/* allocate memory for the internal state */
-	state = (struct ves1x93_state*) kmalloc(sizeof(struct ves1x93_state), GFP_KERNEL);
+	state = kmalloc(sizeof(struct ves1x93_state), GFP_KERNEL);
 	if (state == NULL) goto error;
 
 	/* setup the state */

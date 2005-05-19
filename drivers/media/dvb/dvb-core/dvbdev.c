@@ -286,9 +286,8 @@ skip:
 }
 
 
-int dvb_register_adapter(struct dvb_adapter **padap, const char *name, struct module *module)
+int dvb_register_adapter(struct dvb_adapter *adap, const char *name, struct module *module)
 {
-	struct dvb_adapter *adap;
 	int num;
 
 	if (down_interruptible (&dvbdev_register_lock))
@@ -297,11 +296,6 @@ int dvb_register_adapter(struct dvb_adapter **padap, const char *name, struct mo
 	if ((num = dvbdev_get_free_adapter_num ()) < 0) {
 		up (&dvbdev_register_lock);
 		return -ENFILE;
-	}
-
-	if (!(*padap = adap = kmalloc(sizeof(struct dvb_adapter), GFP_KERNEL))) {
-		up(&dvbdev_register_lock);
-		return -ENOMEM;
 	}
 
 	memset (adap, 0, sizeof(struct dvb_adapter));
@@ -331,7 +325,6 @@ int dvb_unregister_adapter(struct dvb_adapter *adap)
 		return -ERESTARTSYS;
 	list_del (&adap->list_head);
 	up (&dvbdev_register_lock);
-	kfree (adap);
 	return 0;
 }
 EXPORT_SYMBOL(dvb_unregister_adapter);

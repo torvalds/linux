@@ -13,7 +13,6 @@
   
 #define	INCLUDES
 #include "compat_ioctl.c"
-#include <asm/ioctl32.h>
 
 #define IOCTL_NR(a)	((a) & ~(_IOC_SIZEMASK << _IOC_SIZESHIFT))
 

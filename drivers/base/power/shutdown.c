@@ -19,20 +19,6 @@
 extern struct subsystem devices_subsys;
 
 
-int device_detach_shutdown(struct device * dev)
-{
-	if (!dev->detach_state)
-		return 0;
-
-	if (dev->detach_state == DEVICE_PM_OFF) {
-		if (dev->driver && dev->driver->shutdown)
-			dev->driver->shutdown(dev);
-		return 0;
-	}
-	return dpm_runtime_suspend(dev, dev->detach_state);
-}
-
-
 /**
  * We handle system devices differently - we suspend and shut them
  * down last and resume them first. That way, we don't do anything stupid like
@@ -52,13 +38,12 @@ void device_shutdown(void)
 	struct device * dev;
 
 	down_write(&devices_subsys.rwsem);
-	list_for_each_entry_reverse(dev, &devices_subsys.kset.list, kobj.entry) {
-		pr_debug("shutting down %s: ", dev->bus_id);
+	list_for_each_entry_reverse(dev, &devices_subsys.kset.list,
+				kobj.entry) {
 		if (dev->driver && dev->driver->shutdown) {
-			pr_debug("Ok\n");
+			dev_dbg(dev, "shutdown\n");
 			dev->driver->shutdown(dev);
-		} else
-			pr_debug("Ignored.\n");
+		}
 	}
 	up_write(&devices_subsys.rwsem);
 

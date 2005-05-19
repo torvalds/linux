@@ -914,8 +914,10 @@ static int pkt_handle_queue(struct pktcdvd_device *pd)
 		bio = node->bio;
 		zone = ZONE(bio->bi_sector, pd);
 		list_for_each_entry(p, &pd->cdrw.pkt_active_list, list) {
-			if (p->sector == zone)
+			if (p->sector == zone) {
+				bio = NULL;
 				goto try_next_bio;
+			}
 		}
 		break;
 try_next_bio:

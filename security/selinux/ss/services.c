@@ -476,8 +476,8 @@ int security_compute_av(u32 ssid,
 	int rc = 0;
 
 	if (!ss_initialized) {
-		avd->allowed = requested;
-		avd->decided = requested;
+		avd->allowed = 0xffffffff;
+		avd->decided = 0xffffffff;
 		avd->auditallow = 0;
 		avd->auditdeny = 0xffffffff;
 		avd->seqno = latest_granting;
@@ -1196,9 +1196,11 @@ int security_load_policy(void *data, size_t len)
 		}
 		policydb_loaded_version = policydb.policyvers;
 		ss_initialized = 1;
-
+		seqno = ++latest_granting;
 		LOAD_UNLOCK;
 		selinux_complete_init();
+		avc_ss_reset(seqno);
+		selnl_notify_policyload(seqno);
 		return 0;
 	}
 

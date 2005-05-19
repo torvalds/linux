@@ -240,6 +240,7 @@ config VIDEO_SAA7134
 	select VIDEO_BUF
 	select VIDEO_IR
 	select VIDEO_TUNER
+	select CRC32
 	---help---
 	  This is a video4linux driver for Philips SAA7130/7134 based
 	  TV cards.

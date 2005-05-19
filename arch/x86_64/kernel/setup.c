@@ -727,11 +727,12 @@ static void __init display_cacheinfo(struct cpuinfo_x86 *c)
 static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_SMP
-	int cpu = c->x86_apicid;
+	int cpu = smp_processor_id();
 	int node = 0;
 	if (c->x86_num_cores == 1)
 		return;
-	cpu_core_id[cpu] = cpu >> hweight32(c->x86_num_cores - 1);
+	/* Fix up the APIC ID following the AMD specification. */
+ 	cpu_core_id[cpu] >>= hweight32(c->x86_num_cores - 1);
 
 #ifdef CONFIG_NUMA
 	/* When an ACPI SRAT table is available use the mappings from SRAT
@@ -745,6 +746,9 @@ static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
 		node = cpu_to_node[cpu];
 	}
 #endif
+	/* For now: - better than BAD_APIC_ID at least*/
+	phys_proc_id[cpu] = cpu_core_id[cpu];
+
 	printk(KERN_INFO "CPU %d(%d) -> Node %d -> Core %d\n",
 			cpu, c->x86_num_cores, node, cpu_core_id[cpu]);
 #endif
@@ -925,7 +929,6 @@ void __init early_identify_cpu(struct cpuinfo_x86 *c)
 	c->x86_clflush_size = 64;
 	c->x86_cache_alignment = c->x86_clflush_size;
 	c->x86_num_cores = 1;
-	c->x86_apicid = c == &boot_cpu_data ? 0 : c - cpu_data;
 	c->extended_cpuid_level = 0;
 	memset(&c->x86_capability, 0, sizeof c->x86_capability);
 
@@ -954,11 +957,15 @@ void __init early_identify_cpu(struct cpuinfo_x86 *c)
 		} 
 		if (c->x86_capability[0] & (1<<19)) 
 			c->x86_clflush_size = ((misc >> 8) & 0xff) * 8;
-		c->x86_apicid = misc >> 24;
 	} else {
 		/* Have CPUID level 0 only - unheard of */
 		c->x86 = 4;
 	}
+
+#ifdef CONFIG_SMP
+	phys_proc_id[smp_processor_id()] =
+	cpu_core_id[smp_processor_id()] = (cpuid_ebx(1) >> 24) & 0xff;
+#endif
 }
 
 /*
@@ -1088,7 +1095,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 
 		/* Other (Linux-defined) */
-		"cxmmx", NULL, "cyrix_arr", "centaur_mcr", "k8c+",
+		"cxmmx", NULL, "cyrix_arr", "centaur_mcr", NULL,
 		"constant_tsc", NULL, NULL,
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,

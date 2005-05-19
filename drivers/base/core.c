@@ -31,8 +31,6 @@ int (*platform_notify_remove)(struct device * dev) = NULL;
 #define to_dev(obj) container_of(obj, struct device, kobj)
 #define to_dev_attr(_attr) container_of(_attr, struct device_attribute, attr)
 
-extern struct attribute * dev_default_attrs[];
-
 static ssize_t
 dev_attr_show(struct kobject * kobj, struct attribute * attr, char * buf)
 {
@@ -89,7 +87,6 @@ static void device_release(struct kobject * kobj)
 static struct kobj_type ktype_device = {
 	.release	= device_release,
 	.sysfs_ops	= &dev_sysfs_ops,
-	.default_attrs	= dev_default_attrs,
 };
 
 

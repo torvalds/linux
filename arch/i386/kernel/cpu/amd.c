@@ -24,9 +24,6 @@ __asm__(".align 4\nvide: ret");
 
 static void __init init_amd(struct cpuinfo_x86 *c)
 {
-#ifdef CONFIG_X86_SMP
-	int cpu = c == &boot_cpu_data ? 0 : c - cpu_data;
-#endif
 	u32 l, h;
 	int mbytes = num_physpages >> (20-PAGE_SHIFT);
 	int r;
@@ -205,7 +202,9 @@ static void __init init_amd(struct cpuinfo_x86 *c)
 	 * of two.
 	 */
 	if (c->x86_num_cores > 1) {
-		cpu_core_id[cpu] = cpu >> hweight32(c->x86_num_cores - 1);
+		int cpu = smp_processor_id();
+		/* Fix up the APIC ID following AMD specifications. */
+		cpu_core_id[cpu] >>= hweight32(c->x86_num_cores - 1);
 		printk(KERN_INFO "CPU %d(%d) -> Core %d\n",
 		       cpu, c->x86_num_cores, cpu_core_id[cpu]);
 	}

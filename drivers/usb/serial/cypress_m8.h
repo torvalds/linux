@@ -13,6 +13,7 @@
 /* DeLorme Earthmate USB - a GPS device */
 #define	VENDOR_ID_DELORME		 0x1163
 #define PRODUCT_ID_EARTHMATEUSB		 0x0100
+#define PRODUCT_ID_EARTHMATEUSB_LT20	 0x0200
 
 /* Cypress HID->COM RS232 Adapter */
 #define VENDOR_ID_CYPRESS		 0x04b4

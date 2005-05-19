@@ -176,11 +176,16 @@ static int nxt6000_set_transmission_mode(struct nxt6000_state* state, fe_transmi
 
 static void nxt6000_setup(struct dvb_frontend* fe)
 {
-	struct nxt6000_state* state = (struct nxt6000_state*) fe->demodulator_priv;
+	struct nxt6000_state* state = fe->demodulator_priv;
 
 	nxt6000_writereg(state, RS_COR_SYNC_PARAM, SYNC_PARAM);
 	nxt6000_writereg(state, BER_CTRL, /*(1 << 2) | */ (0x01 << 1) | 0x01);
-	nxt6000_writereg(state, VIT_COR_CTL, VIT_COR_RESYNC);
+	nxt6000_writereg(state, VIT_BERTIME_2, 0x00);  // BER Timer = 0x000200 * 256 = 131072 bits
+	nxt6000_writereg(state, VIT_BERTIME_1, 0x02);  //
+	nxt6000_writereg(state, VIT_BERTIME_0, 0x00);  //
+	nxt6000_writereg(state, VIT_COR_INTEN, 0x98); // Enable BER interrupts
+	nxt6000_writereg(state, VIT_COR_CTL, 0x82);   // Enable BER measurement
+	nxt6000_writereg(state, VIT_COR_CTL, VIT_COR_RESYNC | 0x02 );
 	nxt6000_writereg(state, OFDM_COR_CTL, (0x01 << 5) | (nxt6000_readreg(state, OFDM_COR_CTL) & 0x0F));
 	nxt6000_writereg(state, OFDM_COR_MODEGUARD, FORCEMODE8K | 0x02);
 	nxt6000_writereg(state, OFDM_AGC_CTL, AGCLAST | INITIAL_AGC_BW);
@@ -422,7 +427,7 @@ static void nxt6000_dump_status(struct nxt6000_state *state)
 static int nxt6000_read_status(struct dvb_frontend* fe, fe_status_t* status)
 {
 	u8 core_status;
-	struct nxt6000_state* state = (struct nxt6000_state*) fe->demodulator_priv;
+	struct nxt6000_state* state = fe->demodulator_priv;
 
 	*status = 0;
 
@@ -451,7 +456,7 @@ static int nxt6000_read_status(struct dvb_frontend* fe, fe_status_t* status)
 
 static int nxt6000_init(struct dvb_frontend* fe)
 {
-	struct nxt6000_state* state = (struct nxt6000_state*) fe->demodulator_priv;
+	struct nxt6000_state* state = fe->demodulator_priv;
 
 	nxt6000_reset(state);
 	nxt6000_setup(fe);
@@ -461,7 +466,7 @@ static int nxt6000_init(struct dvb_frontend* fe)
 
 static int nxt6000_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_parameters *param)
 {
-	struct nxt6000_state* state = (struct nxt6000_state*) fe->demodulator_priv;
+	struct nxt6000_state* state = fe->demodulator_priv;
 	int result;
 
 	nxt6000_writereg(state, ENABLE_TUNER_IIC, 0x01);	/* open i2c bus switch */
@@ -482,8 +487,42 @@ static int nxt6000_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 
 static void nxt6000_release(struct dvb_frontend* fe)
 {
-	struct nxt6000_state* state = (struct nxt6000_state*) fe->demodulator_priv;
+	struct nxt6000_state* state = fe->demodulator_priv;
 	kfree(state);
+}
+
+static int nxt6000_read_snr(struct dvb_frontend* fe, u16* snr)
+{
+	struct nxt6000_state* state = fe->demodulator_priv;
+
+	*snr = nxt6000_readreg( state, OFDM_CHC_SNR) / 8;
+
+	return 0;
+}
+
+static int nxt6000_read_ber(struct dvb_frontend* fe, u32* ber)
+{
+	struct nxt6000_state* state = fe->demodulator_priv;
+
+	nxt6000_writereg( state, VIT_COR_INTSTAT, 0x18 );
+
+	*ber = (nxt6000_readreg( state, VIT_BER_1 ) << 8 ) |
+		nxt6000_readreg( state, VIT_BER_0 );
+
+	nxt6000_writereg( state, VIT_COR_INTSTAT, 0x18); // Clear BER Done interrupts
+
+	return 0;
+}
+
+static int nxt6000_read_signal_strength(struct dvb_frontend* fe, u16* signal_strength)
+{
+	struct nxt6000_state* state = fe->demodulator_priv;
+
+	*signal_strength = (short) (511 -
+		(nxt6000_readreg(state, AGC_GAIN_1) +
+		((nxt6000_readreg(state, AGC_GAIN_2) & 0x03) << 8)));
+
+	return 0;
 }
 
 static struct dvb_frontend_ops nxt6000_ops;
@@ -494,7 +533,7 @@ struct dvb_frontend* nxt6000_attach(const struct nxt6000_config* config,
 	struct nxt6000_state* state = NULL;
 
 	/* allocate memory for the internal state */
-	state = (struct nxt6000_state*) kmalloc(sizeof(struct nxt6000_state), GFP_KERNEL);
+	state = kmalloc(sizeof(struct nxt6000_state), GFP_KERNEL);
 	if (state == NULL) goto error;
 
 	/* setup the state */
@@ -542,6 +581,9 @@ static struct dvb_frontend_ops nxt6000_ops = {
 	.set_frontend = nxt6000_set_frontend,
 
 	.read_status = nxt6000_read_status,
+	.read_ber = nxt6000_read_ber,
+	.read_signal_strength = nxt6000_read_signal_strength,
+	.read_snr = nxt6000_read_snr,
 };
 
 module_param(debug, int, 0644);

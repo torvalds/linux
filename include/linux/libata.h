@@ -584,6 +584,13 @@ static inline void scr_write(struct ata_port *ap, unsigned int reg, u32 val)
 	ap->ops->scr_write(ap, reg, val);
 }
 
+static inline void scr_write_flush(struct ata_port *ap, unsigned int reg, 
+				   u32 val)
+{
+	ap->ops->scr_write(ap, reg, val);
+	(void) ap->ops->scr_read(ap, reg);
+}
+
 static inline unsigned int sata_dev_present(struct ata_port *ap)
 {
 	return ((scr_read(ap, SCR_STATUS) & 0xf) == 0x3) ? 1 : 0;
