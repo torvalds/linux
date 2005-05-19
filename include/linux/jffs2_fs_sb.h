@@ -1,4 +1,4 @@
-/* $Id: jffs2_fs_sb.h,v 1.51 2005/02/28 08:21:06 dedekind Exp $ */
+/* $Id: jffs2_fs_sb.h,v 1.52 2005/05/19 16:12:17 gleixner Exp $ */
 
 #ifndef _JFFS2_FS_SB
 #define _JFFS2_FS_SB
@@ -32,7 +32,7 @@ struct jffs2_sb_info {
 	unsigned int flags;
 
 	struct task_struct *gc_task;	/* GC task struct */
-	struct semaphore gc_thread_start; /* GC thread start mutex */
+	struct completion gc_thread_start; /* GC thread start completion */
 	struct completion gc_thread_exit; /* GC thread exit completion port */
 
 	struct semaphore alloc_sem;	/* Used to protect all the following 

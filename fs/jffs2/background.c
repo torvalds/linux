@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: background.c,v 1.50 2004/11/16 20:36:10 dwmw2 Exp $
+ * $Id: background.c,v 1.52 2005/05/19 16:18:08 gleixner Exp $
  *
  */
 
@@ -37,7 +37,7 @@ int jffs2_start_garbage_collect_thread(struct jffs2_sb_info *c)
 	if (c->gc_task)
 		BUG();
 
-	init_MUTEX_LOCKED(&c->gc_thread_start);
+	init_completion(&c->gc_thread_start);
 	init_completion(&c->gc_thread_exit);
 
 	pid = kernel_thread(jffs2_garbage_collect_thread, c, CLONE_FS|CLONE_FILES);
@@ -48,7 +48,7 @@ int jffs2_start_garbage_collect_thread(struct jffs2_sb_info *c)
 	} else {
 		/* Wait for it... */
 		D1(printk(KERN_DEBUG "JFFS2: Garbage collect thread is pid %d\n", pid));
-		down(&c->gc_thread_start);
+		wait_for_completion(&c->gc_thread_start);
 	}
  
 	return ret;
@@ -75,7 +75,7 @@ static int jffs2_garbage_collect_thread(void *_c)
 	allow_signal(SIGCONT);
 
 	c->gc_task = current;
-	up(&c->gc_thread_start);
+	complete(&c->gc_thread_start);
 
 	set_user_nice(current, 10);
 
