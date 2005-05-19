@@ -613,6 +613,18 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx, int type)
 	if (!audit_initialized)
 		return NULL;
 
+	if (audit_backlog_limit
+	    && skb_queue_len(&audit_skb_queue) > audit_backlog_limit) {
+		if (audit_rate_check())
+			printk(KERN_WARNING
+			       "audit: audit_backlog=%d > "
+			       "audit_backlog_limit=%d\n",
+			       skb_queue_len(&audit_skb_queue),
+			       audit_backlog_limit);
+		audit_log_lost("backlog limit exceeded");
+		return NULL;
+	}
+
 	ab = audit_buffer_alloc(ctx, GFP_ATOMIC, type);
 	if (!ab) {
 		audit_log_lost("out of memory in audit_log_start");
