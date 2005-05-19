@@ -731,6 +731,18 @@ ifdef CONFIG_BOOT_ELF64
 all:	$(vmlinux-64)
 endif
 
+ifdef CONFIG_MIPS_ATLAS
+all:	vmlinux.srec
+endif
+
+ifdef CONFIG_MIPS_MALTA
+all:	vmlinux.srec
+endif
+
+ifdef CONFIG_MIPS_SEAD
+all:	vmlinux.srec
+endif
+
 ifdef CONFIG_SNI_RM200_PCI
 all:	vmlinux.ecoff
 endif
