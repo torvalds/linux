@@ -34,14 +34,21 @@ static int verify_one_alg(struct rtattr **xfrma, enum xfrm_attr_type_t type)
 {
 	struct rtattr *rt = xfrma[type - 1];
 	struct xfrm_algo *algp;
+	int len;
 
 	if (!rt)
 		return 0;
 
-	if ((rt->rta_len - sizeof(*rt)) < sizeof(*algp))
+	len = (rt->rta_len - sizeof(*rt)) - sizeof(*algp);
+	if (len < 0)
 		return -EINVAL;
 
 	algp = RTA_DATA(rt);
+
+	len -= (algp->alg_key_len + 7U) / 8; 
+	if (len < 0)
+		return -EINVAL;
+
 	switch (type) {
 	case XFRMA_ALG_AUTH:
 		if (!algp->alg_key_len &&
