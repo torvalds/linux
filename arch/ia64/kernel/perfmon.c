@@ -497,7 +497,7 @@ typedef struct {
 static pfm_stats_t		pfm_stats[NR_CPUS];
 static pfm_session_t		pfm_sessions;	/* global sessions information */
 
-static spinlock_t pfm_alt_install_check;
+static spinlock_t pfm_alt_install_check = SPIN_LOCK_UNLOCKED;
 static pfm_intr_handler_desc_t  *pfm_alt_intr_handler;
 
 static struct proc_dir_entry 	*perfmon_dir;
