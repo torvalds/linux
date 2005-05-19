@@ -692,7 +692,8 @@ static void audit_log_vformat(struct audit_buffer *ab, const char *fmt,
 			goto out;
 		len = vsnprintf(skb->tail, avail, fmt, args2);
 	}
-	skb_put(skb, (len < avail) ? len : avail);
+	if (len > 0)
+		skb_put(skb, len);
 out:
 	return;
 }
@@ -710,20 +711,47 @@ void audit_log_format(struct audit_buffer *ab, const char *fmt, ...)
 	va_end(args);
 }
 
-void audit_log_hex(struct audit_buffer *ab, const unsigned char *buf, size_t len)
+/* This function will take the passed buf and convert it into a string of
+ * ascii hex digits. The new string is placed onto the skb. */
+void audit_log_hex(struct audit_buffer *ab, const unsigned char *buf, 
+		size_t len)
 {
-	int i;
+	int i, avail, new_len;
+	unsigned char *ptr;
+	struct sk_buff *skb;
+	static const unsigned char *hex = "0123456789ABCDEF";
 
-	for (i=0; i<len; i++)
-		audit_log_format(ab, "%02x", buf[i]);
+	BUG_ON(!ab->skb);
+	skb = ab->skb;
+	avail = skb_tailroom(skb);
+	new_len = len<<1;
+	if (new_len >= avail) {
+		/* Round the buffer request up to the next multiple */
+		new_len = AUDIT_BUFSIZ*(((new_len-avail)/AUDIT_BUFSIZ) + 1);
+		avail = audit_expand(ab, new_len);
+		if (!avail)
+			return;
+	}
+
+	ptr = skb->tail;
+	for (i=0; i<len; i++) {
+		*ptr++ = hex[(buf[i] & 0xF0)>>4]; /* Upper nibble */
+		*ptr++ = hex[buf[i] & 0x0F];	  /* Lower nibble */
+	}
+	*ptr = 0;
+	skb_put(skb, len << 1); /* new string is twice the old string */
 }
 
+/* This code will escape a string that is passed to it if the string
+ * contains a control character, unprintable character, double quote mark, 
+ * or a space. Unescaped strings will start and end with a double quote mark.
+ * Strings that are escaped are printed in hex (2 digits per char). */
 void audit_log_untrustedstring(struct audit_buffer *ab, const char *string)
 {
 	const unsigned char *p = string;
 
 	while (*p) {
-		if (*p == '"' || *p == ' ' || *p < 0x20 || *p > 0x7f) {
+		if (*p == '"' || *p < 0x21 || *p > 0x7f) {
 			audit_log_hex(ab, string, strlen(string));
 			return;
 		}
@@ -732,31 +760,28 @@ void audit_log_untrustedstring(struct audit_buffer *ab, const char *string)
 	audit_log_format(ab, "\"%s\"", string);
 }
 
-
-/* This is a helper-function to print the d_path without using a static
- * buffer or allocating another buffer in addition to the one in
- * audit_buffer. */
+/* This is a helper-function to print the escaped d_path */
 void audit_log_d_path(struct audit_buffer *ab, const char *prefix,
 		      struct dentry *dentry, struct vfsmount *vfsmnt)
 {
-	char *p;
-	struct sk_buff *skb = ab->skb;
-	int  len, avail;
+	char *p, *path;
 
 	if (prefix)
 		audit_log_format(ab, " %s", prefix);
 
-	avail = skb_tailroom(skb);
-	p = d_path(dentry, vfsmnt, skb->tail, avail);
-	if (IS_ERR(p)) {
-		/* FIXME: can we save some information here? */
-		audit_log_format(ab, "<toolong>");
-	} else {
-		/* path isn't at start of buffer */
-		len = ((char *)skb->tail + avail - 1) - p;
-		memmove(skb->tail, p, len);
-		skb_put(skb, len);
+	/* We will allow 11 spaces for ' (deleted)' to be appended */
+	path = kmalloc(PATH_MAX+11, GFP_KERNEL);
+	if (!path) {
+		audit_log_format(ab, "<no memory>");
+		return;
 	}
+	p = d_path(dentry, vfsmnt, path, PATH_MAX+11);
+	if (IS_ERR(p)) { /* Should never happen since we send PATH_MAX */
+		/* FIXME: can we save some information here? */
+		audit_log_format(ab, "<too long>");
+	} else 
+		audit_log_untrustedstring(ab, p);
+	kfree(path);
 }
 
 /* Remove queued messages from the audit_txlist and send them to user space. */
