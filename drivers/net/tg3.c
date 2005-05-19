@@ -8775,6 +8775,146 @@ static int __devinit tg3_get_device_address(struct tg3 *tp)
 	return 0;
 }
 
+#define BOUNDARY_SINGLE_CACHELINE	1
+#define BOUNDARY_MULTI_CACHELINE	2
+
+static u32 __devinit tg3_calc_dma_bndry(struct tg3 *tp, u32 val)
+{
+	int cacheline_size;
+	u8 byte;
+	int goal;
+
+	pci_read_config_byte(tp->pdev, PCI_CACHE_LINE_SIZE, &byte);
+	if (byte == 0)
+		cacheline_size = 1024;
+	else
+		cacheline_size = (int) byte * 4;
+
+	/* On 5703 and later chips, the boundary bits have no
+	 * effect.
+	 */
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5700 &&
+	    GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5701 &&
+	    !(tp->tg3_flags2 & TG3_FLG2_PCI_EXPRESS))
+		goto out;
+
+#if defined(CONFIG_PPC64) || defined(CONFIG_IA64) || defined(CONFIG_PARISC)
+	goal = BOUNDARY_MULTI_CACHELINE;
+#else
+#if defined(CONFIG_SPARC64) || defined(CONFIG_ALPHA)
+	goal = BOUNDARY_SINGLE_CACHELINE;
+#else
+	goal = 0;
+#endif
+#endif
+
+	if (!goal)
+		goto out;
+
+	/* PCI controllers on most RISC systems tend to disconnect
+	 * when a device tries to burst across a cache-line boundary.
+	 * Therefore, letting tg3 do so just wastes PCI bandwidth.
+	 *
+	 * Unfortunately, for PCI-E there are only limited
+	 * write-side controls for this, and thus for reads
+	 * we will still get the disconnects.  We'll also waste
+	 * these PCI cycles for both read and write for chips
+	 * other than 5700 and 5701 which do not implement the
+	 * boundary bits.
+	 */
+	if ((tp->tg3_flags & TG3_FLAG_PCIX_MODE) &&
+	    !(tp->tg3_flags2 & TG3_FLG2_PCI_EXPRESS)) {
+		switch (cacheline_size) {
+		case 16:
+		case 32:
+		case 64:
+		case 128:
+			if (goal == BOUNDARY_SINGLE_CACHELINE) {
+				val |= (DMA_RWCTRL_READ_BNDRY_128_PCIX |
+					DMA_RWCTRL_WRITE_BNDRY_128_PCIX);
+			} else {
+				val |= (DMA_RWCTRL_READ_BNDRY_384_PCIX |
+					DMA_RWCTRL_WRITE_BNDRY_384_PCIX);
+			}
+			break;
+
+		case 256:
+			val |= (DMA_RWCTRL_READ_BNDRY_256_PCIX |
+				DMA_RWCTRL_WRITE_BNDRY_256_PCIX);
+			break;
+
+		default:
+			val |= (DMA_RWCTRL_READ_BNDRY_384_PCIX |
+				DMA_RWCTRL_WRITE_BNDRY_384_PCIX);
+			break;
+		};
+	} else if (tp->tg3_flags2 & TG3_FLG2_PCI_EXPRESS) {
+		switch (cacheline_size) {
+		case 16:
+		case 32:
+		case 64:
+			if (goal == BOUNDARY_SINGLE_CACHELINE) {
+				val &= ~DMA_RWCTRL_WRITE_BNDRY_DISAB_PCIE;
+				val |= DMA_RWCTRL_WRITE_BNDRY_64_PCIE;
+				break;
+			}
+			/* fallthrough */
+		case 128:
+		default:
+			val &= ~DMA_RWCTRL_WRITE_BNDRY_DISAB_PCIE;
+			val |= DMA_RWCTRL_WRITE_BNDRY_128_PCIE;
+			break;
+		};
+	} else {
+		switch (cacheline_size) {
+		case 16:
+			if (goal == BOUNDARY_SINGLE_CACHELINE) {
+				val |= (DMA_RWCTRL_READ_BNDRY_16 |
+					DMA_RWCTRL_WRITE_BNDRY_16);
+				break;
+			}
+			/* fallthrough */
+		case 32:
+			if (goal == BOUNDARY_SINGLE_CACHELINE) {
+				val |= (DMA_RWCTRL_READ_BNDRY_32 |
+					DMA_RWCTRL_WRITE_BNDRY_32);
+				break;
+			}
+			/* fallthrough */
+		case 64:
+			if (goal == BOUNDARY_SINGLE_CACHELINE) {
+				val |= (DMA_RWCTRL_READ_BNDRY_64 |
+					DMA_RWCTRL_WRITE_BNDRY_64);
+				break;
+			}
+			/* fallthrough */
+		case 128:
+			if (goal == BOUNDARY_SINGLE_CACHELINE) {
+				val |= (DMA_RWCTRL_READ_BNDRY_128 |
+					DMA_RWCTRL_WRITE_BNDRY_128);
+				break;
+			}
+			/* fallthrough */
+		case 256:
+			val |= (DMA_RWCTRL_READ_BNDRY_256 |
+				DMA_RWCTRL_WRITE_BNDRY_256);
+			break;
+		case 512:
+			val |= (DMA_RWCTRL_READ_BNDRY_512 |
+				DMA_RWCTRL_WRITE_BNDRY_512);
+			break;
+		case 1024:
+		default:
+			val |= (DMA_RWCTRL_READ_BNDRY_1024 |
+				DMA_RWCTRL_WRITE_BNDRY_1024);
+			break;
+		};
+	}
+
+out:
+	return val;
+}
+
 static int __devinit tg3_do_test_dma(struct tg3 *tp, u32 *buf, dma_addr_t buf_dma, int size, int to_device)
 {
 	struct tg3_internal_buffer_desc test_desc;
@@ -8861,7 +9001,7 @@ static int __devinit tg3_do_test_dma(struct tg3 *tp, u32 *buf, dma_addr_t buf_dm
 static int __devinit tg3_test_dma(struct tg3 *tp)
 {
 	dma_addr_t buf_dma;
-	u32 *buf;
+	u32 *buf, saved_dma_rwctrl;
 	int ret;
 
 	buf = pci_alloc_consistent(tp->pdev, TEST_BUFFER_SIZE, &buf_dma);
@@ -8873,46 +9013,7 @@ static int __devinit tg3_test_dma(struct tg3 *tp)
 	tp->dma_rwctrl = ((0x7 << DMA_RWCTRL_PCI_WRITE_CMD_SHIFT) |
 			  (0x6 << DMA_RWCTRL_PCI_READ_CMD_SHIFT));
 
-#ifndef CONFIG_X86
-	{
-		u8 byte;
-		int cacheline_size;
-		pci_read_config_byte(tp->pdev, PCI_CACHE_LINE_SIZE, &byte);
-
-		if (byte == 0)
-			cacheline_size = 1024;
-		else
-			cacheline_size = (int) byte * 4;
-
-		switch (cacheline_size) {
-		case 16:
-		case 32:
-		case 64:
-		case 128:
-			if ((tp->tg3_flags & TG3_FLAG_PCIX_MODE) &&
-			    !(tp->tg3_flags2 & TG3_FLG2_PCI_EXPRESS)) {
-				tp->dma_rwctrl |=
-					DMA_RWCTRL_WRITE_BNDRY_384_PCIX;
-				break;
-			} else if (tp->tg3_flags2 & TG3_FLG2_PCI_EXPRESS) {
-				tp->dma_rwctrl &=
-					~(DMA_RWCTRL_PCI_WRITE_CMD);
-				tp->dma_rwctrl |=
-					DMA_RWCTRL_WRITE_BNDRY_128_PCIE;
-				break;
-			}
-			/* fallthrough */
-		case 256:
-			if (!(tp->tg3_flags & TG3_FLAG_PCIX_MODE) &&
-			    !(tp->tg3_flags2 & TG3_FLG2_PCI_EXPRESS))
-				tp->dma_rwctrl |=
-					DMA_RWCTRL_WRITE_BNDRY_256;
-			else if (!(tp->tg3_flags2 & TG3_FLG2_PCI_EXPRESS))
-				tp->dma_rwctrl |=
-					DMA_RWCTRL_WRITE_BNDRY_256_PCIX;
-		};
-	}
-#endif
+	tp->dma_rwctrl = tg3_calc_dma_bndry(tp, tp->dma_rwctrl);
 
 	if (tp->tg3_flags2 & TG3_FLG2_PCI_EXPRESS) {
 		/* DMA read watermark not used on PCIE */
@@ -8931,7 +9032,7 @@ static int __devinit tg3_test_dma(struct tg3 *tp)
 			if (ccval == 0x6 || ccval == 0x7)
 				tp->dma_rwctrl |= DMA_RWCTRL_ONE_DMA;
 
-			/* Set bit 23 to renable PCIX hw bug fix */
+			/* Set bit 23 to enable PCIX hw bug fix */
 			tp->dma_rwctrl |= 0x009f0000;
 		} else {
 			tp->dma_rwctrl |= 0x001b000f;
@@ -8972,6 +9073,13 @@ static int __devinit tg3_test_dma(struct tg3 *tp)
 	    GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5701)
 		goto out;
 
+	/* It is best to perform DMA test with maximum write burst size
+	 * to expose the 5700/5701 write DMA bug.
+	 */
+	saved_dma_rwctrl = tp->dma_rwctrl;
+	tp->dma_rwctrl &= ~DMA_RWCTRL_WRITE_BNDRY_MASK;
+	tw32(TG3PCI_DMA_RW_CTRL, tp->dma_rwctrl);
+
 	while (1) {
 		u32 *p = buf, i;
 
@@ -9010,8 +9118,9 @@ static int __devinit tg3_test_dma(struct tg3 *tp)
 			if (p[i] == i)
 				continue;
 
-			if ((tp->dma_rwctrl & DMA_RWCTRL_WRITE_BNDRY_MASK) ==
-			    DMA_RWCTRL_WRITE_BNDRY_DISAB) {
+			if ((tp->dma_rwctrl & DMA_RWCTRL_WRITE_BNDRY_MASK) !=
+			    DMA_RWCTRL_WRITE_BNDRY_16) {
+				tp->dma_rwctrl &= ~DMA_RWCTRL_WRITE_BNDRY_MASK;
 				tp->dma_rwctrl |= DMA_RWCTRL_WRITE_BNDRY_16;
 				tw32(TG3PCI_DMA_RW_CTRL, tp->dma_rwctrl);
 				break;
@@ -9027,6 +9136,14 @@ static int __devinit tg3_test_dma(struct tg3 *tp)
 			ret = 0;
 			break;
 		}
+	}
+	if ((tp->dma_rwctrl & DMA_RWCTRL_WRITE_BNDRY_MASK) !=
+	    DMA_RWCTRL_WRITE_BNDRY_16) {
+		/* DMA test passed without adjusting DMA boundary,
+		 * just restore the calculated DMA boundary
+		 */
+		tp->dma_rwctrl = saved_dma_rwctrl;
+		tw32(TG3PCI_DMA_RW_CTRL, tp->dma_rwctrl);
 	}
 
 out:
@@ -9429,6 +9546,8 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	       (tp->tg3_flags & TG3_FLAG_SPLIT_MODE) != 0,
 	       (tp->tg3_flags2 & TG3_FLG2_NO_ETH_WIRE_SPEED) == 0,
 	       (tp->tg3_flags2 & TG3_FLG2_TSO_CAPABLE) != 0);
+	printk(KERN_INFO "%s: dma_rwctrl[%08x]\n",
+	       dev->name, tp->dma_rwctrl);
 
 	return 0;
 
