@@ -15,8 +15,8 @@ do {									\
 } while (0)
 #endif
 
-#include <asm-generic/bug.h>
-
 #endif
+
+#include <asm-generic/bug.h>
 
 #endif /* __ASM_BUG_H */
