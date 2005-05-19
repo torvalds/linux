@@ -169,6 +169,8 @@ struct audit_entry {
 	struct audit_rule rule;
 };
 
+extern int audit_pid;
+
 /* Check to see if two rules are identical.  It is called from
  * audit_del_rule during AUDIT_DEL. */
 static int audit_compare_rule(struct audit_rule *a, struct audit_rule *b)
@@ -768,7 +770,7 @@ void audit_free(struct task_struct *tsk)
 
 	/* Check for system calls that do not go through the exit
 	 * function (e.g., exit_group), then free context block. */
-	if (context->in_syscall && context->auditable)
+	if (context->in_syscall && context->auditable && context->pid != audit_pid)
 		audit_log_exit(context);
 
 	audit_free_context(context);
@@ -903,7 +905,7 @@ void audit_syscall_exit(struct task_struct *tsk, int valid, long return_code)
 	if (likely(!context))
 		return;
 
-	if (context->in_syscall && context->auditable)
+	if (context->in_syscall && context->auditable && context->pid != audit_pid)
 		audit_log_exit(context);
 
 	context->in_syscall = 0;
@@ -1126,7 +1128,6 @@ void audit_signal_info(int sig, struct task_struct *t)
 {
 	extern pid_t audit_sig_pid;
 	extern uid_t audit_sig_uid;
-	extern int audit_pid;
 
 	if (unlikely(audit_pid && t->pid == audit_pid)) {
 		if (sig == SIGTERM || sig == SIGHUP) {
