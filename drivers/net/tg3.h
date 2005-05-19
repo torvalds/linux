@@ -2023,6 +2023,7 @@ struct tg3 {
 
 	struct tg3_hw_status		*hw_status;
 	dma_addr_t			status_mapping;
+	u32				last_tag;
 
 	u32				msg_enable;
 
@@ -2068,6 +2069,7 @@ struct tg3 {
 
 	u32				rx_offset;
 	u32				tg3_flags;
+#define TG3_FLAG_TAGGED_STATUS		0x00000001
 #define TG3_FLAG_TXD_MBOX_HWBUG		0x00000002
 #define TG3_FLAG_RX_CHECKSUMS		0x00000004
 #define TG3_FLAG_USE_LINKCHG_REG	0x00000008
