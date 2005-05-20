@@ -4,7 +4,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (c) 2001-2004 Silicon Graphics, Inc.  All rights reserved.
+ * Copyright (c) 2001-2005 Silicon Graphics, Inc.  All rights reserved.
  */
 
 #ifndef _ASM_IA64_SN_SHUB_MMR_H
@@ -128,6 +128,23 @@
 /*   Description:  Pending II 1 Interrupt                               */
 #define SH_EVENT_OCCURRED_II_INT1_SHFT           30
 #define SH_EVENT_OCCURRED_II_INT1_MASK           0x0000000040000000
+
+/*   SH2_EVENT_OCCURRED_EXTIO_INT2                                      */
+/*   Description:  Pending SHUB 2 EXT IO INT2                           */
+#define SH2_EVENT_OCCURRED_EXTIO_INT2_SHFT       33
+#define SH2_EVENT_OCCURRED_EXTIO_INT2_MASK       0x0000000200000000
+
+/*   SH2_EVENT_OCCURRED_EXTIO_INT3                                      */
+/*   Description:  Pending SHUB 2 EXT IO INT3                           */
+#define SH2_EVENT_OCCURRED_EXTIO_INT3_SHFT       34
+#define SH2_EVENT_OCCURRED_EXTIO_INT3_MASK       0x0000000400000000
+
+#define SH_ALL_INT_MASK \
+	(SH_EVENT_OCCURRED_UART_INT_MASK | SH_EVENT_OCCURRED_IPI_INT_MASK | \
+	 SH_EVENT_OCCURRED_II_INT0_MASK | SH_EVENT_OCCURRED_II_INT1_MASK | \
+	 SH_EVENT_OCCURRED_II_INT1_MASK | SH2_EVENT_OCCURRED_EXTIO_INT2_MASK | \
+	 SH2_EVENT_OCCURRED_EXTIO_INT3_MASK)
+
 
 /* ==================================================================== */
 /*                         LEDS                                         */
@@ -368,6 +385,17 @@
 #define SH_EVENT_OCCURRED_RTC3_INT_MASK          0x0000000004000000
 
 /* ==================================================================== */
+/*                       Register "SH_IPI_ACCESS"                       */
+/*                 CPU interrupt Access Permission Bits                 */
+/* ==================================================================== */
+
+#define SH1_IPI_ACCESS                           0x0000000110060480
+#define SH2_IPI_ACCESS0                          0x0000000010060c00
+#define SH2_IPI_ACCESS1                          0x0000000010060c80
+#define SH2_IPI_ACCESS2                          0x0000000010060d00
+#define SH2_IPI_ACCESS3                          0x0000000010060d80
+
+/* ==================================================================== */
 /*                        Register "SH_INT_CMPB"                        */
 /*                  RTC Compare Value for Processor B                   */
 /* ==================================================================== */
@@ -412,6 +440,19 @@
 #define SH_INT_CMPD_REAL_TIME_CMPD_SHFT          0
 #define SH_INT_CMPD_REAL_TIME_CMPD_MASK          0x007fffffffffffff
 
+/* ==================================================================== */
+/*                Register "SH_MD_DQLP_MMR_DIR_PRIVEC0"                 */
+/*                      privilege vector for acc=0                      */
+/* ==================================================================== */
+
+#define SH1_MD_DQLP_MMR_DIR_PRIVEC0              0x0000000100030300
+
+/* ==================================================================== */
+/*                Register "SH_MD_DQRP_MMR_DIR_PRIVEC0"                 */
+/*                      privilege vector for acc=0                      */
+/* ==================================================================== */
+
+#define SH1_MD_DQRP_MMR_DIR_PRIVEC0              0x0000000100050300
 
 /* ==================================================================== */
 /* Some MMRs are functionally identical (or close enough) on both SHUB1 */
@@ -437,5 +478,23 @@
 #define SH_INT_CMPB		shubmmr(SH, INT_CMPB)
 #define SH_INT_CMPC		shubmmr(SH, INT_CMPC)
 #define SH_INT_CMPD		shubmmr(SH, INT_CMPD)
+
+/* ========================================================================== */
+/*                        Register "SH2_BT_ENG_CSR_0"                         */
+/*                    Engine 0 Control and Status Register                    */
+/* ========================================================================== */
+
+#define SH2_BT_ENG_CSR_0                         0x0000000030040000
+#define SH2_BT_ENG_SRC_ADDR_0                    0x0000000030040080
+#define SH2_BT_ENG_DEST_ADDR_0                   0x0000000030040100
+#define SH2_BT_ENG_NOTIF_ADDR_0                  0x0000000030040180
+
+/* ========================================================================== */
+/*                       BTE interfaces 1-3                                   */
+/* ========================================================================== */
+
+#define SH2_BT_ENG_CSR_1                         0x0000000030050000
+#define SH2_BT_ENG_CSR_2                         0x0000000030060000
+#define SH2_BT_ENG_CSR_3                         0x0000000030070000
 
 #endif /* _ASM_IA64_SN_SHUB_MMR_H */

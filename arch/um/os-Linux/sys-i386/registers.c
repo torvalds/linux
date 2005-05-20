@@ -105,14 +105,15 @@ void init_registers(int pid)
 		panic("check_ptrace : PTRACE_GETREGS failed, errno = %d",
 		      err);
 
+	errno = 0;
 	err = ptrace(PTRACE_GETFPXREGS, pid, 0, exec_fpx_regs);
 	if(!err)
 		return;
+	if(errno != EIO)
+		panic("check_ptrace : PTRACE_GETFPXREGS failed, errno = %d",
+		      errno);
 
 	have_fpx_regs = 0;
-	if(err != EIO)
-		panic("check_ptrace : PTRACE_GETFPXREGS failed, errno = %d",
-		      err);
 
 	err = ptrace(PTRACE_GETFPREGS, pid, 0, exec_fp_regs);
 	if(err)

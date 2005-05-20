@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 1992 - 1997, 2000,2002-2004 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 1992 - 1997, 2000,2002-2005 Silicon Graphics, Inc. All rights reserved.
  */
 
 #include <linux/types.h>
@@ -38,8 +38,11 @@ static irqreturn_t hub_eint_handler(int irq, void *arg, struct pt_regs *ep)
 	if ((int)ret_stuff.v0)
 		panic("hubii_eint_handler(): Fatal TIO Error");
 
-	if (!(nasid & 1)) /* Not a TIO, handle CRB errors */
-		(void)hubiio_crb_error_handler(hubdev_info);
+	if (is_shub1()) {
+		if (!(nasid & 1)) /* Not a TIO, handle CRB errors */
+			(void)hubiio_crb_error_handler(hubdev_info);
+	} else 
+		bte_error_handler((unsigned long)NODEPDA(nasid_to_cnodeid(nasid)));
 
 	return IRQ_HANDLED;
 }

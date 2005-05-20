@@ -161,17 +161,6 @@ asmlinkage unsigned long sys_mmap(unsigned long addr, unsigned long len,
 	}
 }
 
-long sys_shmat_wrapper(int shmid, char __user *shmaddr, int shmflag)
-{
-	unsigned long raddr;
-	int r;
-
-	r = do_shmat(shmid, shmaddr, shmflag, &raddr);
-	if (r < 0)
-		return r;
-	return raddr;
-}
-
 /* Fucking broken ABI */
 
 #ifdef CONFIG_64BIT

@@ -87,21 +87,19 @@ inline void copy_item_head(struct item_head * p_v_to,
 inline int  comp_short_keys (const struct reiserfs_key * le_key,
 			     const struct cpu_key * cpu_key)
 {
-  __u32 * p_s_le_u32, * p_s_cpu_u32;
-  int n_key_length = REISERFS_SHORT_KEY_LEN;
-
-  p_s_le_u32 = (__u32 *)le_key;
-  p_s_cpu_u32 = (__u32 *)&cpu_key->on_disk_key;
-  for( ; n_key_length--; ++p_s_le_u32, ++p_s_cpu_u32 ) {
-    if ( le32_to_cpu (*p_s_le_u32) < *p_s_cpu_u32 )
+  __u32 n;
+  n = le32_to_cpu(le_key->k_dir_id);
+  if (n < cpu_key->on_disk_key.k_dir_id)
       return -1;
-    if ( le32_to_cpu (*p_s_le_u32) > *p_s_cpu_u32 )
+  if (n > cpu_key->on_disk_key.k_dir_id)
       return 1;
-  }
-
+  n = le32_to_cpu(le_key->k_objectid);
+  if (n < cpu_key->on_disk_key.k_objectid)
+      return -1;
+  if (n > cpu_key->on_disk_key.k_objectid)
+      return 1;
   return 0;
 }
-
 
 /* k1 is pointer to on-disk structure which is stored in little-endian
    form. k2 is pointer to cpu variable.
@@ -152,18 +150,15 @@ inline int comp_short_le_keys (const struct reiserfs_key * key1, const struct re
 
 inline void le_key2cpu_key (struct cpu_key * to, const struct reiserfs_key * from)
 {
+    int version;
     to->on_disk_key.k_dir_id = le32_to_cpu (from->k_dir_id);
     to->on_disk_key.k_objectid = le32_to_cpu (from->k_objectid);
     
     // find out version of the key
-    to->version = le_key_version (from);
-    if (to->version == KEY_FORMAT_3_5) {
-	to->on_disk_key.u.k_offset_v1.k_offset = le32_to_cpu (from->u.k_offset_v1.k_offset);
-	to->on_disk_key.u.k_offset_v1.k_uniqueness = le32_to_cpu (from->u.k_offset_v1.k_uniqueness);
-    } else {
-	to->on_disk_key.u.k_offset_v2.k_offset = offset_v2_k_offset(&from->u.k_offset_v2);
-	to->on_disk_key.u.k_offset_v2.k_type = offset_v2_k_type(&from->u.k_offset_v2);
-    } 
+    version = le_key_version (from);
+    to->version = version;
+    to->on_disk_key.k_offset = le_key_k_offset(version, from);
+    to->on_disk_key.k_type = le_key_k_type(version, from);
 }
 
 
@@ -228,8 +223,14 @@ extern struct tree_balance * cur_tb;
 const struct reiserfs_key  MIN_KEY = {0, 0, {{0, 0},}};
 
 /* Maximal possible key. It is never in the tree. */
-const struct reiserfs_key  MAX_KEY = {0xffffffff, 0xffffffff, {{0xffffffff, 0xffffffff},}};
+const struct reiserfs_key  MAX_KEY = {
+	__constant_cpu_to_le32(0xffffffff),
+	__constant_cpu_to_le32(0xffffffff),
+	{{__constant_cpu_to_le32(0xffffffff),
+	__constant_cpu_to_le32(0xffffffff)},}
+};
 
+const struct in_core_key  MAX_IN_CORE_KEY = {~0U, ~0U, ~0ULL>>4, 15};
 
 /* Get delimiting key of the buffer by looking for it in the buffers in the path, starting from the bottom
    of the path, and going upwards.  We must check the path's validity at each step.  If the key is not in
@@ -997,7 +998,7 @@ static char  prepare_for_delete_or_cut(
 	int                   n_unfm_number,    /* Number of the item unformatted nodes. */
 	    n_counter,
 	    n_blk_size;
-	__u32               * p_n_unfm_pointer; /* Pointer to the unformatted node number. */
+	__le32               * p_n_unfm_pointer; /* Pointer to the unformatted node number. */
 	__u32 tmp;
 	struct item_head      s_ih;           /* Item header. */
 	char                  c_mode;           /* Returned mode of the balance. */
@@ -1059,7 +1060,7 @@ static char  prepare_for_delete_or_cut(
 	    /* pointers to be cut */
 	    n_unfm_number -= pos_in_item (p_s_path);
 	    /* Set pointer to the last unformatted node pointer that is to be cut. */
-	    p_n_unfm_pointer = (__u32 *)B_I_PITEM(p_s_bh, &s_ih) + I_UNFM_NUM(&s_ih) - 1 - *p_n_removed;
+	    p_n_unfm_pointer = (__le32 *)B_I_PITEM(p_s_bh, &s_ih) + I_UNFM_NUM(&s_ih) - 1 - *p_n_removed;
 
 
 	    /* We go through the unformatted nodes pointers of the indirect
@@ -1081,8 +1082,8 @@ static char  prepare_for_delete_or_cut(
 		    need_research = 1 ;
 		    break;
 		}
-		RFALSE( p_n_unfm_pointer < (__u32 *)B_I_PITEM(p_s_bh, &s_ih) ||
-			p_n_unfm_pointer > (__u32 *)B_I_PITEM(p_s_bh, &s_ih) + I_UNFM_NUM(&s_ih) - 1,
+		RFALSE( p_n_unfm_pointer < (__le32 *)B_I_PITEM(p_s_bh, &s_ih) ||
+			p_n_unfm_pointer > (__le32 *)B_I_PITEM(p_s_bh, &s_ih) + I_UNFM_NUM(&s_ih) - 1,
 			"vs-5265: pointer out of range");
 
 		/* Hole, nothing to remove. */
@@ -1431,7 +1432,7 @@ int reiserfs_delete_object (struct reiserfs_transaction_handle *th, struct inode
 #if defined( USE_INODE_GENERATION_COUNTER )
     if( !old_format_only ( th -> t_super ) )
       {
-       __u32 *inode_generation;
+       __le32 *inode_generation;
        
        inode_generation = 
          &REISERFS_SB(th -> t_super) -> s_rs -> s_inode_generation;

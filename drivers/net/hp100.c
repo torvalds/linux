@@ -13,8 +13,8 @@
 ** This driver has only been tested with
 ** -- HP J2585B 10/100 Mbit/s PCI Busmaster
 ** -- HP J2585A 10/100 Mbit/s PCI 
-** -- HP J2970  10 Mbit/s PCI Combo 10base-T/BNC
-** -- HP J2973  10 Mbit/s PCI 10base-T
+** -- HP J2970A 10 Mbit/s PCI Combo 10base-T/BNC
+** -- HP J2973A 10 Mbit/s PCI 10base-T
 ** -- HP J2573  10/100 ISA
 ** -- Compex ReadyLink ENET100-VG4  10/100 Mbit/s PCI / EISA
 ** -- Compex FreedomLine 100/VG  10/100 Mbit/s ISA / EISA / PCI

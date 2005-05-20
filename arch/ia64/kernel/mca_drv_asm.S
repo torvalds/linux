@@ -10,6 +10,7 @@
 
 #include <asm/asmmacro.h>
 #include <asm/processor.h>
+#include <asm/ptrace.h>
 
 GLOBAL_ENTRY(mca_handler_bhhook)
 	invala						// clear RSE ?
@@ -20,12 +21,21 @@ GLOBAL_ENTRY(mca_handler_bhhook)
 	;;						
 	alloc		r16=ar.pfs,0,2,1,0		// make a new frame
 	;;
+	mov		ar.rsc=0
+	;;
 	mov		r13=IA64_KR(CURRENT)		// current task pointer
 	;;
-	adds		r12=IA64_TASK_THREAD_KSP_OFFSET,r13
+	mov		r2=r13
 	;;
-	ld8		r12=[r12]			// stack pointer
+	addl		r22=IA64_RBS_OFFSET,r2
 	;;
+	mov		ar.bspstore=r22
+	;;
+	addl		sp=IA64_STK_OFFSET-IA64_PT_REGS_SIZE,r2
+	;;
+	adds		r2=IA64_TASK_THREAD_ON_USTACK_OFFSET,r13
+	;;
+	st1		[r2]=r0				// clear current->thread.on_ustack flag
 	mov		loc0=r16
 	movl		loc1=mca_handler_bh		// recovery C function
 	;;
@@ -34,7 +44,9 @@ GLOBAL_ENTRY(mca_handler_bhhook)
 	;;
 	mov		loc1=rp
 	;;
-	br.call.sptk.many    rp=b6			// not return ...
+	ssm		psr.i
+	;;
+	br.call.sptk.many    rp=b6			// does not return ...
 	;;
 	mov		ar.pfs=loc0
 	mov 		rp=loc1

@@ -281,6 +281,8 @@ ehci_hub_descriptor (
 	temp = 0x0008;			/* per-port overcurrent reporting */
 	if (HCS_PPC (ehci->hcs_params))
 		temp |= 0x0001;		/* per-port power control */
+	else
+		temp |= 0x0002;		/* no power switching */
 #if 0
 // re-enable when we support USB_PORT_FEAT_INDICATOR below.
 	if (HCS_INDICATOR (ehci->hcs_params))

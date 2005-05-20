@@ -100,6 +100,11 @@ enum si_intf_state {
 	/* FIXME - add watchdog stuff. */
 };
 
+/* Some BT-specific defines we need here. */
+#define IPMI_BT_INTMASK_REG		2
+#define IPMI_BT_INTMASK_CLEAR_IRQ_BIT	2
+#define IPMI_BT_INTMASK_ENABLE_IRQ_BIT	1
+
 enum si_type {
     SI_KCS, SI_SMIC, SI_BT
 };
@@ -875,6 +880,17 @@ static irqreturn_t si_irq_handler(int irq, void *data, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t si_bt_irq_handler(int irq, void *data, struct pt_regs *regs)
+{
+	struct smi_info *smi_info = data;
+	/* We need to clear the IRQ flag for the BT interface. */
+	smi_info->io.outputb(&smi_info->io, IPMI_BT_INTMASK_REG,
+			     IPMI_BT_INTMASK_CLEAR_IRQ_BIT
+			     | IPMI_BT_INTMASK_ENABLE_IRQ_BIT);
+	return si_irq_handler(irq, data, regs);
+}
+
+
 static struct ipmi_smi_handlers handlers =
 {
 	.owner                  = THIS_MODULE,
@@ -1001,11 +1017,22 @@ static int std_irq_setup(struct smi_info *info)
 	if (!info->irq)
 		return 0;
 
-	rv = request_irq(info->irq,
-			 si_irq_handler,
-			 SA_INTERRUPT,
-			 DEVICE_NAME,
-			 info);
+	if (info->si_type == SI_BT) {
+		rv = request_irq(info->irq,
+				 si_bt_irq_handler,
+				 SA_INTERRUPT,
+				 DEVICE_NAME,
+				 info);
+		if (!rv)
+			/* Enable the interrupt in the BT interface. */
+			info->io.outputb(&info->io, IPMI_BT_INTMASK_REG,
+					 IPMI_BT_INTMASK_ENABLE_IRQ_BIT);
+	} else
+		rv = request_irq(info->irq,
+				 si_irq_handler,
+				 SA_INTERRUPT,
+				 DEVICE_NAME,
+				 info);
 	if (rv) {
 		printk(KERN_WARNING
 		       "ipmi_si: %s unable to claim interrupt %d,"
@@ -1024,6 +1051,9 @@ static void std_irq_cleanup(struct smi_info *info)
 	if (!info->irq)
 		return;
 
+	if (info->si_type == SI_BT)
+		/* Disable the interrupt in the BT interface. */
+		info->io.outputb(&info->io, IPMI_BT_INTMASK_REG, 0);
 	free_irq(info->irq, info);
 }
 
@@ -1526,8 +1556,17 @@ static int try_init_acpi(int intf_num, struct smi_info **new_info)
 		info->irq_setup = NULL;
 	}
 
-	regspacings[intf_num] = spmi->addr.register_bit_width / 8;
-	info->io.regspacing = spmi->addr.register_bit_width / 8;
+	if (spmi->addr.register_bit_width) {
+		/* A (hopefully) properly formed register bit width. */
+		regspacings[intf_num] = spmi->addr.register_bit_width / 8;
+		info->io.regspacing = spmi->addr.register_bit_width / 8;
+	} else {
+		/* Some broken systems get this wrong and set the value
+		 * to zero.  Assume it is the default spacing.  If that
+		 * is wrong, too bad, the vendor should fix the tables. */
+		regspacings[intf_num] = DEFAULT_REGSPACING;
+		info->io.regspacing = DEFAULT_REGSPACING;
+	}
 	regsizes[intf_num] = regspacings[intf_num];
 	info->io.regsize = regsizes[intf_num];
 	regshifts[intf_num] = spmi->addr.register_bit_offset;
@@ -1578,15 +1617,15 @@ typedef struct dmi_header
 	u16	handle;
 } dmi_header_t;
 
-static int decode_dmi(dmi_header_t *dm, int intf_num)
+static int decode_dmi(dmi_header_t __iomem *dm, int intf_num)
 {
-	u8		*data = (u8 *)dm;
+	u8		__iomem *data = (u8 __iomem *)dm;
 	unsigned long  	base_addr;
 	u8		reg_spacing;
-	u8              len = dm->length;
+	u8              len = readb(&dm->length);
 	dmi_ipmi_data_t *ipmi_data = dmi_data+intf_num;
 
-	ipmi_data->type = data[4];
+	ipmi_data->type = readb(&data[4]);
 
 	memcpy(&base_addr, data+8, sizeof(unsigned long));
 	if (len >= 0x11) {
@@ -1601,12 +1640,12 @@ static int decode_dmi(dmi_header_t *dm, int intf_num)
 		}
 		/* If bit 4 of byte 0x10 is set, then the lsb for the address
 		   is odd. */
-		ipmi_data->base_addr = base_addr | ((data[0x10] & 0x10) >> 4);
+		ipmi_data->base_addr = base_addr | ((readb(&data[0x10]) & 0x10) >> 4);
 
-		ipmi_data->irq = data[0x11];
+		ipmi_data->irq = readb(&data[0x11]);
 
 		/* The top two bits of byte 0x10 hold the register spacing. */
-		reg_spacing = (data[0x10] & 0xC0) >> 6;
+		reg_spacing = (readb(&data[0x10]) & 0xC0) >> 6;
 		switch(reg_spacing){
 		case 0x00: /* Byte boundaries */
 		    ipmi_data->offset = 1;
@@ -1623,12 +1662,18 @@ static int decode_dmi(dmi_header_t *dm, int intf_num)
 		}
 	} else {
 		/* Old DMI spec. */
-		ipmi_data->base_addr = base_addr;
+		/* Note that technically, the lower bit of the base
+		 * address should be 1 if the address is I/O and 0 if
+		 * the address is in memory.  So many systems get that
+		 * wrong (and all that I have seen are I/O) so we just
+		 * ignore that bit and assume I/O.  Systems that use
+		 * memory should use the newer spec, anyway. */
+		ipmi_data->base_addr = base_addr & 0xfffe;
 		ipmi_data->addr_space = IPMI_IO_ADDR_SPACE;
 		ipmi_data->offset = 1;
 	}
 
-	ipmi_data->slave_addr = data[6];
+	ipmi_data->slave_addr = readb(&data[6]);
 
 	if (is_new_interface(-1, ipmi_data->addr_space,ipmi_data->base_addr)) {
 		dmi_data_entries++;
@@ -1642,9 +1687,9 @@ static int decode_dmi(dmi_header_t *dm, int intf_num)
 
 static int dmi_table(u32 base, int len, int num)
 {
-	u8 		  *buf;
-	struct dmi_header *dm;
-	u8 		  *data;
+	u8 		  __iomem *buf;
+	struct dmi_header __iomem *dm;
+	u8 		  __iomem *data;
 	int 		  i=1;
 	int		  status=-1;
 	int               intf_num = 0;
@@ -1657,12 +1702,12 @@ static int dmi_table(u32 base, int len, int num)
 
 	while(i<num && (data - buf) < len)
 	{
-		dm=(dmi_header_t *)data;
+		dm=(dmi_header_t __iomem *)data;
 
-		if((data-buf+dm->length) >= len)
+		if((data-buf+readb(&dm->length)) >= len)
         		break;
 
-		if (dm->type == 38) {
+		if (readb(&dm->type) == 38) {
 			if (decode_dmi(dm, intf_num) == 0) {
 				intf_num++;
 				if (intf_num >= SI_MAX_DRIVERS)
@@ -1670,8 +1715,8 @@ static int dmi_table(u32 base, int len, int num)
 			}
 		}
 
-	        data+=dm->length;
-		while((data-buf) < len && (*data || data[1]))
+	        data+=readb(&dm->length);
+		while((data-buf) < len && (readb(data)||readb(data+1)))
 			data++;
 		data+=2;
 		i++;
@@ -2199,7 +2244,7 @@ static int init_one_smi(int intf_num, struct smi_info **smi)
 	/* Wait until we know that we are out of any interrupt
 	   handlers might have been running before we freed the
 	   interrupt. */
-	synchronize_kernel();
+	synchronize_sched();
 
 	if (new_smi->si_sm) {
 		if (new_smi->handlers)
@@ -2312,7 +2357,7 @@ static void __exit cleanup_one_si(struct smi_info *to_clean)
 	/* Wait until we know that we are out of any interrupt
 	   handlers might have been running before we freed the
 	   interrupt. */
-	synchronize_kernel();
+	synchronize_sched();
 
 	/* Wait for the timer to stop.  This avoids problems with race
 	   conditions removing the timer here. */

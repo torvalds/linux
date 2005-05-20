@@ -12,8 +12,8 @@
 #include <asm/sn/geo.h>
 #include "xtalk/xwidgetdev.h"
 #include "xtalk/hubdev.h"
-#include "pci/pcibus_provider_defs.h"
-#include "pci/pcidev.h"
+#include <asm/sn/pcibus_provider_defs.h>
+#include <asm/sn/pcidev.h>
 #include "pci/tiocp.h"
 #include "pci/pic.h"
 #include "pci/pcibr_provider.h"
@@ -40,7 +40,7 @@ extern int sn_ioif_inited;
  *      we do not have to allocate entries in the PMU.
  */
 
-static uint64_t
+static dma_addr_t
 pcibr_dmamap_ate32(struct pcidev_info *info,
 		   uint64_t paddr, size_t req_size, uint64_t flags)
 {
@@ -109,7 +109,7 @@ pcibr_dmamap_ate32(struct pcidev_info *info,
 	return pci_addr;
 }
 
-static uint64_t
+static dma_addr_t
 pcibr_dmatrans_direct64(struct pcidev_info * info, uint64_t paddr,
 			uint64_t dma_attributes)
 {
@@ -141,7 +141,7 @@ pcibr_dmatrans_direct64(struct pcidev_info * info, uint64_t paddr,
 
 }
 
-static uint64_t
+static dma_addr_t
 pcibr_dmatrans_direct32(struct pcidev_info * info,
 			uint64_t paddr, size_t req_size, uint64_t flags)
 {
@@ -180,11 +180,11 @@ pcibr_dmatrans_direct32(struct pcidev_info * info,
  * DMA mappings for Direct 64 and 32 do not have any DMA maps.
  */
 void
-pcibr_dma_unmap(struct pcidev_info *pcidev_info, dma_addr_t dma_handle,
-		int direction)
+pcibr_dma_unmap(struct pci_dev *hwdev, dma_addr_t dma_handle, int direction)
 {
-	struct pcibus_info *pcibus_info = (struct pcibus_info *)pcidev_info->
-	    pdi_pcibus_info;
+	struct pcidev_info *pcidev_info = SN_PCIDEV_INFO(hwdev);
+	struct pcibus_info *pcibus_info =
+	    (struct pcibus_info *)pcidev_info->pdi_pcibus_info;
 
 	if (IS_PCI32_MAPPED(dma_handle)) {
 		int ate_index;
@@ -301,7 +301,7 @@ void sn_dma_flush(uint64_t addr)
 		spin_lock_irqsave(&((struct sn_flush_device_list *)p)->
 				  sfdl_flush_lock, flags);
 
-		p->sfdl_flush_value = 0;
+		*p->sfdl_flush_addr = 0;
 
 		/* force an interrupt. */
 		*(volatile uint32_t *)(p->sfdl_force_int_addr) = 1;
@@ -316,61 +316,60 @@ void sn_dma_flush(uint64_t addr)
 }
 
 /*
- * Wrapper DMA interface.  Called from pci_dma.c routines.
+ * DMA interfaces.  Called from pci_dma.c routines.
  */
 
-uint64_t
-pcibr_dma_map(struct pcidev_info * pcidev_info, unsigned long phys_addr,
-	      size_t size, unsigned int flags)
+dma_addr_t
+pcibr_dma_map(struct pci_dev * hwdev, unsigned long phys_addr, size_t size)
 {
 	dma_addr_t dma_handle;
-	struct pci_dev *pcidev = pcidev_info->pdi_linux_pcidev;
+	struct pcidev_info *pcidev_info = SN_PCIDEV_INFO(hwdev);
 
-	if (flags & SN_PCIDMA_CONSISTENT) {
-		/* sn_pci_alloc_consistent interfaces */
-		if (pcidev->dev.coherent_dma_mask == ~0UL) {
-			dma_handle =
-			    pcibr_dmatrans_direct64(pcidev_info, phys_addr,
-						    PCI64_ATTR_BAR);
-		} else {
-			dma_handle =
-			    (dma_addr_t) pcibr_dmamap_ate32(pcidev_info,
-							    phys_addr, size,
-							    PCI32_ATE_BAR);
-		}
+	/* SN cannot support DMA addresses smaller than 32 bits. */
+	if (hwdev->dma_mask < 0x7fffffff) {
+		return 0;
+	}
+
+	if (hwdev->dma_mask == ~0UL) {
+		/*
+		 * Handle the most common case: 64 bit cards.  This
+		 * call should always succeed.
+		 */
+
+		dma_handle = pcibr_dmatrans_direct64(pcidev_info, phys_addr,
+						     PCI64_ATTR_PREF);
 	} else {
-		/* map_sg/map_single interfaces */
-
-		/* SN cannot support DMA addresses smaller than 32 bits. */
-		if (pcidev->dma_mask < 0x7fffffff) {
-			return 0;
-		}
-
-		if (pcidev->dma_mask == ~0UL) {
+		/* Handle 32-63 bit cards via direct mapping */
+		dma_handle = pcibr_dmatrans_direct32(pcidev_info, phys_addr,
+						     size, 0);
+		if (!dma_handle) {
 			/*
-			 * Handle the most common case: 64 bit cards.  This
-			 * call should always succeed.
+			 * It is a 32 bit card and we cannot do direct mapping,
+			 * so we use an ATE.
 			 */
 
-			dma_handle =
-			    pcibr_dmatrans_direct64(pcidev_info, phys_addr,
-						    PCI64_ATTR_PREF);
-		} else {
-			/* Handle 32-63 bit cards via direct mapping */
-			dma_handle =
-			    pcibr_dmatrans_direct32(pcidev_info, phys_addr,
-						    size, 0);
-			if (!dma_handle) {
-				/*
-				 * It is a 32 bit card and we cannot do direct mapping,
-				 * so we use an ATE.
-				 */
-
-				dma_handle =
-				    pcibr_dmamap_ate32(pcidev_info, phys_addr,
-						       size, PCI32_ATE_PREF);
-			}
+			dma_handle = pcibr_dmamap_ate32(pcidev_info, phys_addr,
+							size, PCI32_ATE_PREF);
 		}
+	}
+
+	return dma_handle;
+}
+
+dma_addr_t
+pcibr_dma_map_consistent(struct pci_dev * hwdev, unsigned long phys_addr,
+			 size_t size)
+{
+	dma_addr_t dma_handle;
+	struct pcidev_info *pcidev_info = SN_PCIDEV_INFO(hwdev);
+
+	if (hwdev->dev.coherent_dma_mask == ~0UL) {
+		dma_handle = pcibr_dmatrans_direct64(pcidev_info, phys_addr,
+					    PCI64_ATTR_BAR);
+	} else {
+		dma_handle = (dma_addr_t) pcibr_dmamap_ate32(pcidev_info,
+						    phys_addr, size,
+						    PCI32_ATE_BAR);
 	}
 
 	return dma_handle;

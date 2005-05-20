@@ -337,4 +337,11 @@ label:
 	addi    r3,r1,STACK_FRAME_OVERHEAD;				      \
 	EXC_XFER_LITE(0x0900, timer_interrupt)
 
+#define FP_UNAVAILABLE_EXCEPTION					      \
+	START_EXCEPTION(FloatingPointUnavailable)			      \
+	NORMAL_EXCEPTION_PROLOG;					      \
+	bne	load_up_fpu;		/* if from user, just load it up */   \
+	addi	r3,r1,STACK_FRAME_OVERHEAD;				      \
+	EXC_XFER_EE_LITE(0x800, KernelFP)
+
 #endif /* __HEAD_BOOKE_H__ */

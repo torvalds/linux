@@ -275,7 +275,7 @@ static const char *CHIP;
  *
  * After opening, configure non-control endpoints.  Then use normal
  * stream read() and write() requests; and maybe ioctl() to get more
- * precise FIFO status when recovering from cancelation.
+ * precise FIFO status when recovering from cancellation.
  */
 
 static void epio_complete (struct usb_ep *ep, struct usb_request *req)

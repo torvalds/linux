@@ -340,21 +340,18 @@ void ax25_transmit_buffer(ax25_cb *ax25, struct sk_buff *skb, int type)
 
 	ax25_addr_build(ptr, &ax25->source_addr, &ax25->dest_addr, ax25->digipeat, type, ax25->modulus);
 
-	skb->dev = ax25->ax25_dev->dev;
-
-	ax25_queue_xmit(skb);
+	ax25_queue_xmit(skb, ax25->ax25_dev->dev);
 }
 
 /*
  *	A small shim to dev_queue_xmit to add the KISS control byte, and do
  *	any packet forwarding in operation.
  */
-void ax25_queue_xmit(struct sk_buff *skb)
+void ax25_queue_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	unsigned char *ptr;
 
-	skb->protocol = htons(ETH_P_AX25);
-	skb->dev      = ax25_fwd_dev(skb->dev);
+	skb->protocol = ax25_type_trans(skb, ax25_fwd_dev(dev));
 
 	ptr  = skb_push(skb, 1);
 	*ptr = 0x00;			/* KISS */

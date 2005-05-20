@@ -688,7 +688,7 @@ static void neo_flush_uart_read(struct jsm_channel *ch)
 /*
  * No locks are assumed to be held when calling this function.
  */
-void neo_clear_break(struct jsm_channel *ch, int force)
+static void neo_clear_break(struct jsm_channel *ch, int force)
 {
 	unsigned long lock_flags;
 

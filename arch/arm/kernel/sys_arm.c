@@ -227,18 +227,6 @@ asmlinkage int sys_ipc(uint call, int first, int second, int third,
 	}
 }
 
-asmlinkage long sys_shmat(int shmid, char __user *shmaddr, int shmflg,
-			  unsigned long __user *addr)
-{
-	unsigned long ret;
-	long err;
-
-	err = do_shmat(shmid, shmaddr, shmflg, &ret);
-	if (err == 0)
-		err = put_user(ret, addr);
-	return err;
-}
-
 /* Fork a new task - this creates a new program thread.
  * This is called indirectly via a small wrapper
  */
@@ -314,7 +302,7 @@ long execve(const char *filename, char **argv, char **envp)
 		"b	ret_to_user"
 		:
 		: "r" (current_thread_info()),
-		  "Ir" (THREAD_SIZE - 8 - sizeof(regs)),
+		  "Ir" (THREAD_START_SP - sizeof(regs)),
 		  "r" (&regs),
 		  "Ir" (sizeof(regs))
 		: "r0", "r1", "r2", "r3", "ip", "memory");

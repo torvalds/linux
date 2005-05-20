@@ -183,7 +183,7 @@ config M386
 	  - "Winchip-C6" for original IDT Winchip.
 	  - "Winchip-2" for IDT Winchip 2.
 	  - "Winchip-2A" for IDT Winchips with 3dNow! capabilities.
-	  - "MediaGX/Geode" for Cyrix MediaGX aka Geode.
+	  - "GeodeGX1" for Geode GX1 (Cyrix MediaGX).
 	  - "CyrixIII/VIA C3" for VIA Cyrix III or VIA C3.
 	  - "VIA C3-2 for VIA C3-2 "Nehemiah" (model 9 and above).
 
@@ -311,12 +311,10 @@ config MWINCHIP3D
 	  stores for this CPU, which can increase performance of some
 	  operations.
 
-config MGEODE
-	bool "MediaGX/Geode"
+config MGEODEGX1
+	bool "GeodeGX1"
 	help
-	  Select this for a Cyrix MediaGX aka Geode chip. Linux and GCC
-          treat this chip as a 586TSC with some extended instructions
-          and alignment reqirements.
+	  Select this for a Geode GX1 (Cyrix MediaGX) chip.
 
 config MCYRIXIII
 	bool "CyrixIII/VIA-C3"
@@ -368,7 +366,7 @@ config X86_L1_CACHE_SHIFT
 	int
 	default "7" if MPENTIUM4 || X86_GENERIC
 	default "4" if X86_ELAN || M486 || M386
-	default "5" if MWINCHIP3D || MWINCHIP2 || MWINCHIPC6 || MCRUSOE || MEFFICEON || MCYRIXIII || MK6 || MPENTIUMIII || MPENTIUMII || M686 || M586MMX || M586TSC || M586 || MVIAC3_2 || MGEODE
+	default "5" if MWINCHIP3D || MWINCHIP2 || MWINCHIPC6 || MCRUSOE || MEFFICEON || MCYRIXIII || MK6 || MPENTIUMIII || MPENTIUMII || M686 || M586MMX || M586TSC || M586 || MVIAC3_2 || MGEODEGX1
 	default "6" if MK7 || MK8 || MPENTIUMM
 
 config RWSEM_GENERIC_SPINLOCK
@@ -387,7 +385,7 @@ config GENERIC_CALIBRATE_DELAY
 
 config X86_PPRO_FENCE
 	bool
-	depends on M686 || M586MMX || M586TSC || M586 || M486 || M386 || MGEODE
+	depends on M686 || M586MMX || M586TSC || M586 || M486 || M386 || MGEODEGX1
 	default y
 
 config X86_F00F_BUG
@@ -417,7 +415,7 @@ config X86_POPAD_OK
 
 config X86_ALIGNMENT_16
 	bool
-	depends on MWINCHIP3D || MWINCHIP2 || MWINCHIPC6 || MCYRIXIII || X86_ELAN || MK6 || M586MMX || M586TSC || M586 || M486 || MVIAC3_2 || MGEODE
+	depends on MWINCHIP3D || MWINCHIP2 || MWINCHIPC6 || MCYRIXIII || X86_ELAN || MK6 || M586MMX || M586TSC || M586 || M486 || MVIAC3_2 || MGEODEGX1
 	default y
 
 config X86_GOOD_APIC
@@ -442,7 +440,7 @@ config X86_USE_3DNOW
 
 config X86_OOSTORE
 	bool
-	depends on (MWINCHIP3D || MWINCHIP2 || MWINCHIPC6 || MGEODE) && MTRR
+	depends on (MWINCHIP3D || MWINCHIP2 || MWINCHIPC6) && MTRR
 	default y
 
 config HPET_TIMER
@@ -578,7 +576,7 @@ config X86_VISWS_APIC
 
 config X86_TSC
 	bool
-	depends on (MWINCHIP3D || MWINCHIP2 || MCRUSOE || MEFFICEON || MCYRIXIII || MK7 || MK6 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || M586MMX || M586TSC || MK8 || MVIAC3_2 || MGEODE) && !X86_NUMAQ
+	depends on (MWINCHIP3D || MWINCHIP2 || MCRUSOE || MEFFICEON || MCYRIXIII || MK7 || MK6 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || M586MMX || M586TSC || MK8 || MVIAC3_2 || MGEODEGX1) && !X86_NUMAQ
 	default y
 
 config X86_MCE
@@ -651,6 +649,24 @@ config I8K
 	  <http://people.debian.org/~dz/i8k/>
 
 	  Say Y if you intend to run this kernel on a Dell Inspiron 8000.
+	  Say N otherwise.
+
+config X86_REBOOTFIXUPS
+	bool "Enable X86 board specific fixups for reboot"
+	depends on X86
+	default n
+	---help---
+	  This enables chipset and/or board specific fixups to be done
+	  in order to get reboot to work correctly. This is only needed on
+	  some combinations of hardware and BIOS. The symptom, for which
+	  this config is intended, is when reboot ends with a stalled/hung
+	  system.
+
+	  Currently, the only fixup is for the Geode GX1/CS5530A/TROM2.1.
+	  combination.
+
+	  Say Y if you want to enable the fixup. Currently, it's safe to
+	  enable this option even if you don't need it.
 	  Say N otherwise.
 
 config MICROCODE
@@ -1154,6 +1170,10 @@ config PCI_MMCONFIG
 source "drivers/pci/pcie/Kconfig"
 
 source "drivers/pci/Kconfig"
+
+config ISA_DMA_API
+	bool
+	default y
 
 config ISA
 	bool "ISA support"

@@ -983,7 +983,7 @@ static int sisusb_write_mem_bulk(struct sisusb_usb_data *sisusb, u32 addr,
 				msgcount++;
 				if (msgcount < 500)
 					printk(KERN_ERR
-						"sisusbvga[%d]: Wrote %Zd of "
+						"sisusbvga[%d]: Wrote %zd of "
 						"%d bytes, error %d\n",
 						sisusb->minor, *bytes_written,
 						length, ret);
@@ -3105,6 +3105,7 @@ static void sisusb_disconnect(struct usb_interface *intf)
 static struct usb_device_id sisusb_table [] = {
 	{ USB_DEVICE(0x0711, 0x0900) },
 	{ USB_DEVICE(0x182d, 0x021c) },
+	{ USB_DEVICE(0x182d, 0x0269) },
 	{ }
 };
 

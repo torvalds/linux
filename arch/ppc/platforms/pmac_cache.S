@@ -64,27 +64,39 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	mtspr	SPRN_HID0,r4		/* Disable DPM */
 	sync
 
-	/* disp-flush L1 */
-	li	r4,0x4000
-	mtctr	r4
+	/* Disp-flush L1. We have a weird problem here that I never
+	 * totally figured out. On 750FX, using the ROM for the flush
+	 * results in a non-working flush. We use that workaround for
+	 * now until I finally understand what's going on. --BenH
+	 */
+
+	/* ROM base by default */
 	lis	r4,0xfff0
-1:	lwzx	r0,r0,r4
+	mfpvr	r3
+	srwi	r3,r3,16
+	cmplwi	cr0,r3,0x7000
+	bne+	1f
+	/* RAM base on 750FX */
+	li	r4,0
+1:	li	r4,0x4000
+	mtctr	r4
+1:	lwz	r0,0(r4)
 	addi	r4,r4,32
 	bdnz	1b
 	sync
 	isync
 
-	/* disable / invalidate / enable L1 data */
+	/* Disable / invalidate / enable L1 data */
 	mfspr	r3,SPRN_HID0
-	rlwinm	r0,r0,0,~HID0_DCE
+	rlwinm	r3,r3,0,~(HID0_DCE | HID0_ICE)
 	mtspr	SPRN_HID0,r3
 	sync
 	isync
-	ori	r3,r3,HID0_DCE|HID0_DCI
+	ori	r3,r3,(HID0_DCE|HID0_DCI|HID0_ICE|HID0_ICFI)
 	sync
 	isync
 	mtspr	SPRN_HID0,r3
-	xori	r3,r3,HID0_DCI
+	xori	r3,r3,(HID0_DCI|HID0_ICFI)
 	mtspr	SPRN_HID0,r3
 	sync
 
@@ -110,11 +122,20 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	lis	r4,2
 	mtctr	r4
 	lis	r4,0xfff0
-1:	lwzx	r0,r0,r4
+1:	lwz	r0,0(r4)
 	addi	r4,r4,32
 	bdnz	1b
 	sync
 	isync
+	lis	r4,2
+	mtctr	r4
+	lis	r4,0xfff0
+1:	dcbf	0,r4
+	addi	r4,r4,32
+	bdnz	1b
+	sync
+	isync
+
 	/* now disable L2 */
 	rlwinm	r5,r5,0,~L2CR_L2E
 	b	2f
@@ -135,6 +156,13 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	mtspr	SPRN_L2CR,r4
 	sync
 	isync
+
+	/* Wait for the invalidation to complete */
+1:	mfspr	r3,SPRN_L2CR
+	rlwinm.	r0,r3,0,31,31
+	bne	1b
+
+	/* Clear L2I */
 	xoris	r4,r4,L2CR_L2I@h
 	sync
 	mtspr	SPRN_L2CR,r4
@@ -142,14 +170,16 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 
 	/* now disable the L1 data cache */
 	mfspr	r0,SPRN_HID0
-	rlwinm	r0,r0,0,~HID0_DCE
+	rlwinm	r0,r0,0,~(HID0_DCE|HID0_ICE)
 	mtspr	SPRN_HID0,r0
 	sync
 	isync
 
 	/* Restore HID0[DPM] to whatever it was before */
 	sync
-	mtspr	SPRN_HID0,r8
+	mfspr	r0,SPRN_HID0
+	rlwimi	r0,r8,0,11,11		/* Turn back HID0[DPM] */
+	mtspr	SPRN_HID0,r0
 	sync
 
 	/* restore DR and EE */
@@ -201,7 +231,7 @@ flush_disable_745x:
         mtctr   r4
  	li      r4,0
 1:
-        lwzx    r0,r0,r4
+        lwz     r0,0(r4)
         addi    r4,r4,32                /* Go to start of next cache line */
         bdnz    1b
         isync

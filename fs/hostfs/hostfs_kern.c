@@ -521,7 +521,7 @@ int hostfs_commit_write(struct file *file, struct page *page, unsigned from,
 static struct address_space_operations hostfs_aops = {
 	.writepage 	= hostfs_writepage,
 	.readpage	= hostfs_readpage,
-/* 	.set_page_dirty = __set_page_dirty_nobuffers, */
+	.set_page_dirty = __set_page_dirty_nobuffers,
 	.prepare_write	= hostfs_prepare_write,
 	.commit_write	= hostfs_commit_write
 };
@@ -991,13 +991,17 @@ static int hostfs_fill_sb_common(struct super_block *sb, void *d, int silent)
 		goto out_put;
 
 	err = read_inode(root_inode);
-	if(err)
-		goto out_put;
+	if(err){
+                /* No iput in this case because the dput does that for us */
+                dput(sb->s_root);
+                sb->s_root = NULL;
+		goto out_free;
+        }
 
 	return(0);
 
  out_put:
-	iput(root_inode);
+        iput(root_inode);
  out_free:
 	kfree(name);
  out:

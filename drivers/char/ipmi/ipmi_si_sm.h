@@ -51,7 +51,7 @@ struct si_sm_io
 	/* Generic info used by the actual handling routines, the
            state machine shouldn't touch these. */
 	void *info;
-	void *addr;
+	void __iomem *addr;
 	int  regspacing;
 	int  regsize;
 	int  regshift;

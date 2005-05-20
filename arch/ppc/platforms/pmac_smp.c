@@ -91,11 +91,11 @@ extern void __secondary_start_psurge3(void);	/* Temporary horrible hack */
 #define PSURGE_QUAD_BIC(r, v)	(PSURGE_QUAD_OUT((r), PSURGE_QUAD_IN(r) & ~(v)))
 
 /* virtual addresses for the above */
-static volatile u8 *hhead_base;
-static volatile u8 *quad_base;
-static volatile u32 *psurge_pri_intr;
-static volatile u8 *psurge_sec_intr;
-static volatile u32 *psurge_start;
+static volatile u8 __iomem *hhead_base;
+static volatile u8 __iomem *quad_base;
+static volatile u32 __iomem *psurge_pri_intr;
+static volatile u8 __iomem *psurge_sec_intr;
+static volatile u32 __iomem *psurge_start;
 
 /* values for psurge_type */
 #define PSURGE_NONE		-1
@@ -322,10 +322,10 @@ static int __init smp_psurge_probe(void)
 		/* All released cards using this HW design have 4 CPUs */
 		ncpus = 4;
 	} else {
-		iounmap((void *) quad_base);
+		iounmap(quad_base);
 		if ((in_8(hhead_base + HHEAD_CONFIG) & 0x02) == 0) {
 			/* not a dual-cpu card */
-			iounmap((void *) hhead_base);
+			iounmap(hhead_base);
 			psurge_type = PSURGE_NONE;
 			return 1;
 		}

@@ -218,7 +218,8 @@ NORET_TYPE void die(const char *str, struct pt_regs *regs, int err)
 		tsk->comm, tsk->pid, tsk->thread_info + 1);
 
 	if (!user_mode(regs) || in_interrupt()) {
-		dump_mem("Stack: ", regs->ARM_sp, 8192+(unsigned long)tsk->thread_info);
+		dump_mem("Stack: ", regs->ARM_sp,
+			 THREAD_SIZE + (unsigned long)tsk->thread_info);
 		dump_backtrace(regs, tsk);
 		dump_instr(regs);
 	}
@@ -450,13 +451,17 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 
 	case NR(set_tls):
 		thread->tp_value = regs->ARM_r0;
+#if defined(CONFIG_HAS_TLS_REG)
+		asm ("mcr p15, 0, %0, c13, c0, 3" : : "r" (regs->ARM_r0) );
+#elif !defined(CONFIG_TLS_REG_EMUL)
 		/*
-		 * Our user accessible TLS ptr is located at 0xffff0ffc.
-		 * On SMP read access to this address must raise a fault
-		 * and be emulated from the data abort handler.
-		 * m
+		 * User space must never try to access this directly.
+		 * Expect your app to break eventually if you do so.
+		 * The user helper at 0xffff0fe0 must be used instead.
+		 * (see entry-armv.S for details)
 		 */
-		*((unsigned long *)0xffff0ffc) = thread->tp_value;
+		*((unsigned int *)0xffff0ff0) = regs->ARM_r0;
+#endif
 		return 0;
 
 	default:
@@ -492,6 +497,44 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 	notify_die("Oops - bad syscall(2)", regs, &info, no, 0);
 	return 0;
 }
+
+#ifdef CONFIG_TLS_REG_EMUL
+
+/*
+ * We might be running on an ARMv6+ processor which should have the TLS
+ * register but for some reason we can't use it, or maybe an SMP system
+ * using a pre-ARMv6 processor (there are apparently a few prototypes like
+ * that in existence) and therefore access to that register must be
+ * emulated.
+ */
+
+static int get_tp_trap(struct pt_regs *regs, unsigned int instr)
+{
+	int reg = (instr >> 12) & 15;
+	if (reg == 15)
+		return 1;
+	regs->uregs[reg] = current_thread_info()->tp_value;
+	regs->ARM_pc += 4;
+	return 0;
+}
+
+static struct undef_hook arm_mrc_hook = {
+	.instr_mask	= 0x0fff0fff,
+	.instr_val	= 0x0e1d0f70,
+	.cpsr_mask	= PSR_T_BIT,
+	.cpsr_val	= 0,
+	.fn		= get_tp_trap,
+};
+
+static int __init arm_mrc_hook_init(void)
+{
+	register_undef_hook(&arm_mrc_hook);
+	return 0;
+}
+
+late_initcall(arm_mrc_hook_init);
+
+#endif
 
 void __bad_xchg(volatile void *ptr, int size)
 {
@@ -578,9 +621,19 @@ EXPORT_SYMBOL(abort);
 
 void __init trap_init(void)
 {
-	extern void __trap_init(void);
+	extern char __stubs_start[], __stubs_end[];
+	extern char __vectors_start[], __vectors_end[];
+	extern char __kuser_helper_start[], __kuser_helper_end[];
+	int kuser_sz = __kuser_helper_end - __kuser_helper_start;
 
-	__trap_init();
+	/*
+	 * Copy the vectors, stubs and kuser helpers (in entry-armv.S)
+	 * into the vector page, mapped at 0xffff0000, and ensure these
+	 * are visible to the instruction stream.
+	 */
+	memcpy((void *)0xffff0000, __vectors_start, __vectors_end - __vectors_start);
+	memcpy((void *)0xffff0200, __stubs_start, __stubs_end - __stubs_start);
+	memcpy((void *)0xffff1000 - kuser_sz, __kuser_helper_start, kuser_sz);
 	flush_icache_range(0xffff0000, 0xffff0000 + PAGE_SIZE);
 	modify_domain(DOMAIN_USER, DOMAIN_CLIENT);
 }

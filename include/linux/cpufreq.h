@@ -103,6 +103,7 @@ struct cpufreq_policy {
 #define CPUFREQ_PRECHANGE	(0)
 #define CPUFREQ_POSTCHANGE	(1)
 #define CPUFREQ_RESUMECHANGE	(8)
+#define CPUFREQ_SUSPENDCHANGE	(9)
 
 struct cpufreq_freqs {
 	unsigned int cpu;	/* cpu nr */
@@ -200,6 +201,7 @@ struct cpufreq_driver {
 
 	/* optional */
 	int	(*exit)		(struct cpufreq_policy *policy);
+	int	(*suspend)	(struct cpufreq_policy *policy, u32 state);
 	int	(*resume)	(struct cpufreq_policy *policy);
 	struct freq_attr	**attr;
 };
@@ -211,7 +213,8 @@ struct cpufreq_driver {
 #define CPUFREQ_CONST_LOOPS 	0x02	/* loops_per_jiffy or other kernel
 					 * "constants" aren't affected by
 					 * frequency transitions */
-
+#define CPUFREQ_PM_NO_WARN	0x04	/* don't warn on suspend/resume speed
+					 * mismatches */
 
 int cpufreq_register_driver(struct cpufreq_driver *driver_data);
 int cpufreq_unregister_driver(struct cpufreq_driver *driver_data);

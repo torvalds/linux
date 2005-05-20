@@ -86,8 +86,10 @@ static kmem_cache_t *skbuff_head_cache;
  */
 void skb_over_panic(struct sk_buff *skb, int sz, void *here)
 {
-	printk(KERN_INFO "skput:over: %p:%d put:%d dev:%s",
-		here, skb->len, sz, skb->dev ? skb->dev->name : "<NULL>");
+	printk(KERN_EMERG "skb_over_panic: text:%p len:%d put:%d head:%p "
+	                  "data:%p tail:%p end:%p dev:%s\n",
+	       here, skb->len, sz, skb->head, skb->data, skb->tail, skb->end,
+	       skb->dev ? skb->dev->name : "<NULL>");
 	BUG();
 }
 
@@ -102,8 +104,10 @@ void skb_over_panic(struct sk_buff *skb, int sz, void *here)
 
 void skb_under_panic(struct sk_buff *skb, int sz, void *here)
 {
-	printk(KERN_INFO "skput:under: %p:%d put:%d dev:%s",
-               here, skb->len, sz, skb->dev ? skb->dev->name : "<NULL>");
+	printk(KERN_EMERG "skb_under_panic: text:%p len:%d put:%d head:%p "
+	                  "data:%p tail:%p end:%p dev:%s\n",
+	       here, skb->len, sz, skb->head, skb->data, skb->tail, skb->end,
+	       skb->dev ? skb->dev->name : "<NULL>");
 	BUG();
 }
 

@@ -45,7 +45,7 @@ config BPQETHER
 
 config DMASCC
 	tristate "High-speed (DMA) SCC driver for AX.25"
-	depends on ISA && AX25 && BROKEN_ON_SMP
+	depends on ISA && AX25 && BROKEN_ON_SMP && ISA_DMA_API
 	---help---
 	  This is a driver for high-speed SCC boards, i.e. those supporting
 	  DMA on one port. You usually use those boards to connect your
@@ -78,7 +78,7 @@ config DMASCC
 
 config SCC
 	tristate "Z8530 SCC driver"
-	depends on ISA && AX25
+	depends on ISA && AX25 && ISA_DMA_API
 	---help---
 	  These cards are used to connect your Linux box to an amateur radio
 	  in order to communicate with other computers. If you want to use

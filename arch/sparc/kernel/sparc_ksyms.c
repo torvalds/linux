@@ -20,6 +20,7 @@
 #include <linux/in6.h>
 #include <linux/spinlock.h>
 #include <linux/mm.h>
+#include <linux/syscalls.h>
 #ifdef CONFIG_PCI
 #include <linux/pci.h>
 #endif
@@ -89,6 +90,9 @@ extern void ___atomic24_sub(void);
 extern void ___set_bit(void);
 extern void ___clear_bit(void);
 extern void ___change_bit(void);
+extern void ___rw_read_enter(void);
+extern void ___rw_read_exit(void);
+extern void ___rw_write_enter(void);
 
 /* Alias functions whose names begin with "." and export the aliases.
  * The module references will be fixed up by module_frob_arch_sections.
@@ -121,9 +125,9 @@ EXPORT_SYMBOL(_do_write_unlock);
 #endif
 #else
 // XXX find what uses (or used) these.
-// EXPORT_SYMBOL_PRIVATE(_rw_read_enter);
-// EXPORT_SYMBOL_PRIVATE(_rw_read_exit);
-// EXPORT_SYMBOL_PRIVATE(_rw_write_enter);
+EXPORT_SYMBOL(___rw_read_enter);
+EXPORT_SYMBOL(___rw_read_exit);
+EXPORT_SYMBOL(___rw_write_enter);
 #endif
 /* semaphores */
 EXPORT_SYMBOL(__up);
@@ -144,6 +148,9 @@ EXPORT_SYMBOL(___set_bit);
 EXPORT_SYMBOL(___clear_bit);
 EXPORT_SYMBOL(___change_bit);
 
+/* Per-CPU information table */
+EXPORT_PER_CPU_SYMBOL(__cpu_data);
+
 #ifdef CONFIG_SMP
 /* IRQ implementation. */
 EXPORT_SYMBOL(synchronize_irq);
@@ -151,6 +158,10 @@ EXPORT_SYMBOL(synchronize_irq);
 /* Misc SMP information */
 EXPORT_SYMBOL(__cpu_number_map);
 EXPORT_SYMBOL(__cpu_logical_map);
+
+/* CPU online map and active count. */
+EXPORT_SYMBOL(cpu_online_map);
+EXPORT_SYMBOL(phys_cpu_present_map);
 #endif
 
 EXPORT_SYMBOL(__udelay);
@@ -332,3 +343,6 @@ EXPORT_SYMBOL(do_BUG);
 
 /* Sun Power Management Idle Handler */
 EXPORT_SYMBOL(pm_idle);
+
+/* Binfmt_misc needs this */
+EXPORT_SYMBOL(sys_close);

@@ -212,7 +212,7 @@ static struct metapage *read_index_page(struct inode *inode, s64 blkno)
 	s32 xlen;
 
 	rc = xtLookup(inode, blkno, 1, &xflag, &xaddr, &xlen, 1);
-	if (rc || (xlen == 0))
+	if (rc || (xaddr == 0))
 		return NULL;
 
 	return read_metapage(inode, xaddr, PSIZE, 1);
@@ -231,7 +231,7 @@ static struct metapage *get_index_page(struct inode *inode, s64 blkno)
 	s32 xlen;
 
 	rc = xtLookup(inode, blkno, 1, &xflag, &xaddr, &xlen, 1);
-	if (rc || (xlen == 0))
+	if (rc || (xaddr == 0))
 		return NULL;
 
 	return get_metapage(inode, xaddr, PSIZE, 1);
@@ -3181,7 +3181,7 @@ int jfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 			d = (struct ldtentry *) & p->slot[stbl[i]];
 
 			if (((long) jfs_dirent + d->namlen + 1) >
-			    (dirent_buf + PSIZE)) {
+			    (dirent_buf + PAGE_SIZE)) {
 				/* DBCS codepages could overrun dirent_buf */
 				index = i;
 				overflow = 1;

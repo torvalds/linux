@@ -999,8 +999,16 @@ static int i810_check_params(struct fb_var_screeninfo *var,
 	info->monspecs.dclkmin = 15000000;
 
 	if (fb_validate_mode(var, info)) {
-		if (fb_get_mode(FB_MAXTIMINGS, 0, var, info))
+		if (fb_get_mode(FB_MAXTIMINGS, 0, var, info)) {
+			int default_sync = (info->monspecs.hfmin-HFMIN)
+						|(info->monspecs.hfmax-HFMAX)
+						|(info->monspecs.vfmin-VFMIN)
+						|(info->monspecs.vfmax-VFMAX);
+			printk("i810fb: invalid video mode%s\n",
+			    default_sync ? "" :
+			    ". Specifying vsyncN/hsyncN parameters may help");
 			return -EINVAL;
+		}
 	}
 	
 	var->xres = xres;
@@ -2023,10 +2031,10 @@ MODULE_PARM_DESC(vyres, "Virtual vertical resolution in scanlines"
 		 " (default = 480)");
 module_param(hsync1, int, 0);
 MODULE_PARM_DESC(hsync1, "Minimum horizontal frequency of monitor in KHz"
-		 " (default = 31)");
+		 " (default = 29)");
 module_param(hsync2, int, 0);
 MODULE_PARM_DESC(hsync2, "Maximum horizontal frequency of monitor in KHz"
-		 " (default = 31)");
+		 " (default = 30)");
 module_param(vsync1, int, 0);
 MODULE_PARM_DESC(vsync1, "Minimum vertical frequency of monitor in Hz"
 		 " (default = 50)");

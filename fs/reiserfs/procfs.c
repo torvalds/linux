@@ -73,8 +73,8 @@ int reiserfs_global_version_in_proc( char *buffer, char **start, off_t offset,
 #define DFL( x ) D4C( rs -> s_v1.x )
 
 #define objectid_map( s, rs ) (old_format_only (s) ?				\
-                         (__u32 *)((struct reiserfs_super_block_v1 *)rs + 1) :	\
-			 (__u32 *)(rs + 1))
+                         (__le32 *)((struct reiserfs_super_block_v1 *)rs + 1) :	\
+			 (__le32 *)(rs + 1))
 #define MAP( i ) D4C( objectid_map( sb, rs )[ i ] )
 
 #define DJF( x ) le32_to_cpu( rs -> x )

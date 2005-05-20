@@ -116,7 +116,7 @@ static void spaceorb_process_packet(struct spaceorb *spaceorb, struct pt_regs *r
 
 		case 'K':				/* Button data */
 			if (spaceorb->idx != 5) return;
-			for (i = 0; i < 7; i++)
+			for (i = 0; i < 6; i++)
 				input_report_key(dev, spaceorb_buttons[i], (data[2] >> i) & 1);
 
 			break;

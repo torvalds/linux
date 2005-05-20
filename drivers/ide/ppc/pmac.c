@@ -1204,6 +1204,8 @@ pmac_ide_do_suspend(ide_hwif_t *hwif)
 	}
 #endif /* CONFIG_BLK_DEV_IDE_PMAC_BLINK */
 
+	disable_irq(pmif->irq);
+
 	/* The media bay will handle itself just fine */
 	if (pmif->mediabay)
 		return 0;
@@ -1236,7 +1238,6 @@ pmac_ide_do_resume(ide_hwif_t *hwif)
 		ppc_md.feature_call(PMAC_FTR_IDE_ENABLE, pmif->node, pmif->aapl_bus_id, 1);
 		msleep(10);
 		ppc_md.feature_call(PMAC_FTR_IDE_RESET, pmif->node, pmif->aapl_bus_id, 0);
-		msleep(jiffies_to_msecs(IDE_WAKEUP_DELAY));
 
 		/* Kauai has it different */
 		if (pmif->kauai_fcr) {
@@ -1244,10 +1245,14 @@ pmac_ide_do_resume(ide_hwif_t *hwif)
 			fcr |= KAUAI_FCR_UATA_RESET_N | KAUAI_FCR_UATA_ENABLE;
 			writel(fcr, pmif->kauai_fcr);
 		}
+
+		msleep(jiffies_to_msecs(IDE_WAKEUP_DELAY));
 	}
 
 	/* Sanitize drive timings */
 	sanitize_timings(pmif);
+
+	enable_irq(pmif->irq);
 
 	return 0;
 }

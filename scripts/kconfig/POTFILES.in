@@ -1,0 +1,5 @@
+scripts/kconfig/mconf.c
+scripts/kconfig/conf.c
+scripts/kconfig/confdata.c
+scripts/kconfig/gconf.c
+scripts/kconfig/qconf.cc

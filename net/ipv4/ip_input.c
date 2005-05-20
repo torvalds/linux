@@ -7,7 +7,7 @@
  *
  * Version:	$Id: ip_input.c,v 1.55 2002/01/12 07:39:45 davem Exp $
  *
- * Authors:	Ross Biro, <bir7@leland.Stanford.Edu>
+ * Authors:	Ross Biro
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *		Donald Becker, <becker@super.org>
  *		Alan Cox, <Alan.Cox@linux.org>

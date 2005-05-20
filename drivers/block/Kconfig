@@ -6,7 +6,7 @@ menu "Block devices"
 
 config BLK_DEV_FD
 	tristate "Normal floppy disk support"
-	depends on (!ARCH_S390 && !M68K && !IA64 && !UML) || Q40 || (SUN3X && BROKEN) || ARCH_RPC || ARCH_EBSA285
+	depends on (!ARCH_S390 && !M68K && !IA64 && !UML && !ARM) || Q40 || (SUN3X && BROKEN) || ARCH_RPC || ARCH_EBSA285
 	---help---
 	  If you want to use the floppy disk drive(s) of your PC under Linux,
 	  say Y. Information about this driver, especially important for IBM
@@ -105,7 +105,7 @@ config ATARI_SLM
 
 config BLK_DEV_XD
 	tristate "XT hard disk support"
-	depends on ISA
+	depends on ISA && ISA_DMA_API
 	help
 	  Very old 8 bit hard disk controllers used in the IBM XT computer
 	  will be supported if you say Y here.

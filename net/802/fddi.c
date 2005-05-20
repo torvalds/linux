@@ -10,7 +10,7 @@
  * Authors:	Lawrence V. Stefani, <stefani@lkg.dec.com>
  *
  *		fddi.c is based on previous eth.c and tr.c work by
- *			Ross Biro, <bir7@leland.Stanford.Edu>
+ *			Ross Biro
  *			Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *			Mark Evans, <evansmp@uhura.aston.ac.uk>
  *			Florian La Roche, <rzsfl@rz.uni-sb.de>

@@ -48,7 +48,7 @@
 
 DEFINE_SPINLOCK(mostek_lock);
 DEFINE_SPINLOCK(rtc_lock);
-unsigned long mstk48t02_regs = 0UL;
+void __iomem *mstk48t02_regs = NULL;
 #ifdef CONFIG_PCI
 unsigned long ds1287_regs = 0UL;
 #endif
@@ -59,8 +59,8 @@ u64 jiffies_64 = INITIAL_JIFFIES;
 
 EXPORT_SYMBOL(jiffies_64);
 
-static unsigned long mstk48t08_regs = 0UL;
-static unsigned long mstk48t59_regs = 0UL;
+static void __iomem *mstk48t08_regs;
+static void __iomem *mstk48t59_regs;
 
 static int set_rtc_mmss(unsigned long);
 
@@ -520,7 +520,7 @@ void timer_tick_interrupt(struct pt_regs *regs)
 /* Kick start a stopped clock (procedure from the Sun NVRAM/hostid FAQ). */
 static void __init kick_start_clock(void)
 {
-	unsigned long regs = mstk48t02_regs;
+	void __iomem *regs = mstk48t02_regs;
 	u8 sec, tmp;
 	int i, count;
 
@@ -604,7 +604,7 @@ static void __init kick_start_clock(void)
 /* Return nonzero if the clock chip battery is low. */
 static int __init has_low_battery(void)
 {
-	unsigned long regs = mstk48t02_regs;
+	void __iomem *regs = mstk48t02_regs;
 	u8 data1, data2;
 
 	spin_lock_irq(&mostek_lock);
@@ -623,7 +623,7 @@ static int __init has_low_battery(void)
 static void __init set_system_time(void)
 {
 	unsigned int year, mon, day, hour, min, sec;
-	unsigned long mregs = mstk48t02_regs;
+	void __iomem *mregs = mstk48t02_regs;
 #ifdef CONFIG_PCI
 	unsigned long dregs = ds1287_regs;
 #else
@@ -843,7 +843,8 @@ void __init clock_probe(void)
 			    !strcmp(model, "m5823")) {
 				ds1287_regs = edev->resource[0].start;
 			} else {
-				mstk48t59_regs = edev->resource[0].start;
+				mstk48t59_regs = (void __iomem *)
+					edev->resource[0].start;
 				mstk48t02_regs = mstk48t59_regs + MOSTEK_48T59_48T02;
 			}
 			break;
@@ -865,7 +866,8 @@ try_isa_clock:
 			    !strcmp(model, "m5823")) {
 				ds1287_regs = isadev->resource.start;
 			} else {
-				mstk48t59_regs = isadev->resource.start;
+				mstk48t59_regs = (void __iomem *)
+					isadev->resource.start;
 				mstk48t02_regs = mstk48t59_regs + MOSTEK_48T59_48T02;
 			}
 			break;
@@ -893,21 +895,24 @@ try_isa_clock:
 		}
 
 		if(model[5] == '0' && model[6] == '2') {
-			mstk48t02_regs = (((u64)clk_reg[0].phys_addr) |
-					  (((u64)clk_reg[0].which_io)<<32UL));
+			mstk48t02_regs = (void __iomem *)
+				(((u64)clk_reg[0].phys_addr) |
+				 (((u64)clk_reg[0].which_io)<<32UL));
 		} else if(model[5] == '0' && model[6] == '8') {
-			mstk48t08_regs = (((u64)clk_reg[0].phys_addr) |
-					  (((u64)clk_reg[0].which_io)<<32UL));
+			mstk48t08_regs = (void __iomem *)
+				(((u64)clk_reg[0].phys_addr) |
+				 (((u64)clk_reg[0].which_io)<<32UL));
 			mstk48t02_regs = mstk48t08_regs + MOSTEK_48T08_48T02;
 		} else {
-			mstk48t59_regs = (((u64)clk_reg[0].phys_addr) |
-					  (((u64)clk_reg[0].which_io)<<32UL));
+			mstk48t59_regs = (void __iomem *)
+				(((u64)clk_reg[0].phys_addr) |
+				 (((u64)clk_reg[0].which_io)<<32UL));
 			mstk48t02_regs = mstk48t59_regs + MOSTEK_48T59_48T02;
 		}
 		break;
 	}
 
-	if (mstk48t02_regs != 0UL) {
+	if (mstk48t02_regs != NULL) {
 		/* Report a low battery voltage condition. */
 		if (has_low_battery())
 			prom_printf("NVRAM: Low battery voltage!\n");
@@ -1087,7 +1092,7 @@ unsigned long long sched_clock(void)
 static int set_rtc_mmss(unsigned long nowtime)
 {
 	int real_seconds, real_minutes, chip_minutes;
-	unsigned long mregs = mstk48t02_regs;
+	void __iomem *mregs = mstk48t02_regs;
 #ifdef CONFIG_PCI
 	unsigned long dregs = ds1287_regs;
 #else

@@ -13,8 +13,8 @@
 #include <asm/sn/addrs.h>
 #include <asm/sn/arch.h>
 #include "xtalk/xwidgetdev.h"
-#include "pci/pcibus_provider_defs.h"
-#include "pci/pcidev.h"
+#include <asm/sn/pcibus_provider_defs.h>
+#include <asm/sn/pcidev.h>
 #include "pci/pcibr_provider.h"
 #include <asm/sn/shub_mmr.h>
 #include <asm/sn/sn_sal.h>
@@ -82,20 +82,9 @@ static void sn_ack_irq(unsigned int irq)
 	nasid = get_nasid();
 	event_occurred =
 	    HUB_L((uint64_t *) GLOBAL_MMR_ADDR(nasid, SH_EVENT_OCCURRED));
-	if (event_occurred & SH_EVENT_OCCURRED_UART_INT_MASK) {
-		mask |= (1 << SH_EVENT_OCCURRED_UART_INT_SHFT);
-	}
-	if (event_occurred & SH_EVENT_OCCURRED_IPI_INT_MASK) {
-		mask |= (1 << SH_EVENT_OCCURRED_IPI_INT_SHFT);
-	}
-	if (event_occurred & SH_EVENT_OCCURRED_II_INT0_MASK) {
-		mask |= (1 << SH_EVENT_OCCURRED_II_INT0_SHFT);
-	}
-	if (event_occurred & SH_EVENT_OCCURRED_II_INT1_MASK) {
-		mask |= (1 << SH_EVENT_OCCURRED_II_INT1_SHFT);
-	}
+	mask = event_occurred & SH_ALL_INT_MASK;
 	HUB_S((uint64_t *) GLOBAL_MMR_ADDR(nasid, SH_EVENT_OCCURRED_ALIAS),
-	      mask);
+		 mask);
 	__set_bit(irq, (volatile void *)pda->sn_in_service_ivecs);
 
 	move_irq(irq);

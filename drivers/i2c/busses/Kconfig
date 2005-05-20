@@ -237,7 +237,7 @@ config I2C_KEYWEST
 
 config I2C_MPC
 	tristate "MPC107/824x/85xx/52xx"
-	depends on I2C && PPC
+	depends on I2C && PPC32
 	help
 	  If you say yes to this option, support will be included for the
 	  built-in I2C interface on the MPC107/Tsi107/MPC8240/MPC8245 and

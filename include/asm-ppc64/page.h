@@ -23,7 +23,6 @@
 #define PAGE_SHIFT	12
 #define PAGE_SIZE	(ASM_CONST(1) << PAGE_SHIFT)
 #define PAGE_MASK	(~(PAGE_SIZE-1))
-#define PAGE_OFFSET_MASK (PAGE_SIZE-1)
 
 #define SID_SHIFT       28
 #define SID_MASK        0xfffffffffUL
@@ -85,9 +84,6 @@
 /* align addr on a size boundary - adjust address up if needed */
 #define _ALIGN(addr,size)     _ALIGN_UP(addr,size)
 
-/* to align the pointer to the (next) double word boundary */
-#define DOUBLEWORD_ALIGN(addr)	_ALIGN(addr,sizeof(unsigned long))
-
 /* to align the pointer to the (next) page boundary */
 #define PAGE_ALIGN(addr)	_ALIGN(addr, PAGE_SIZE)
 
@@ -100,7 +96,6 @@
 #define REGION_SIZE   4UL
 #define REGION_SHIFT  60UL
 #define REGION_MASK   (((1UL<<REGION_SIZE)-1UL)<<REGION_SHIFT)
-#define REGION_STRIDE (1UL << REGION_SHIFT)
 
 static __inline__ void clear_page(void *addr)
 {
@@ -209,13 +204,13 @@ extern u64 ppc64_pft_size;		/* Log 2 of page table size */
 #define VMALLOCBASE     ASM_CONST(0xD000000000000000)
 #define IOREGIONBASE    ASM_CONST(0xE000000000000000)
 
-#define IO_REGION_ID       (IOREGIONBASE>>REGION_SHIFT)
-#define VMALLOC_REGION_ID  (VMALLOCBASE>>REGION_SHIFT)
-#define KERNEL_REGION_ID   (KERNELBASE>>REGION_SHIFT)
+#define IO_REGION_ID       (IOREGIONBASE >> REGION_SHIFT)
+#define VMALLOC_REGION_ID  (VMALLOCBASE >> REGION_SHIFT)
+#define KERNEL_REGION_ID   (KERNELBASE >> REGION_SHIFT)
 #define USER_REGION_ID     (0UL)
-#define REGION_ID(X)	   (((unsigned long)(X))>>REGION_SHIFT)
+#define REGION_ID(ea)	   (((unsigned long)(ea)) >> REGION_SHIFT)
 
-#define __bpn_to_ba(x) ((((unsigned long)(x))<<PAGE_SHIFT) + KERNELBASE)
+#define __bpn_to_ba(x) ((((unsigned long)(x)) << PAGE_SHIFT) + KERNELBASE)
 #define __ba_to_bpn(x) ((((unsigned long)(x)) & ~REGION_MASK) >> PAGE_SHIFT)
 
 #define __va(x) ((void *)((unsigned long)(x) + KERNELBASE))
@@ -252,10 +247,19 @@ extern u64 ppc64_pft_size;		/* Log 2 of page table size */
 
 /*
  * This is the default if a program doesn't have a PT_GNU_STACK
- * program header entry.
+ * program header entry. The PPC64 ELF ABI has a non executable stack
+ * stack by default, so in the absense of a PT_GNU_STACK program header
+ * we turn execute permission off.
  */
-#define VM_STACK_DEFAULT_FLAGS	(VM_READ | VM_WRITE | VM_EXEC | \
-				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
+#define VM_STACK_DEFAULT_FLAGS32	(VM_READ | VM_WRITE | VM_EXEC | \
+					 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
+
+#define VM_STACK_DEFAULT_FLAGS64	(VM_READ | VM_WRITE | \
+					 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
+
+#define VM_STACK_DEFAULT_FLAGS \
+	(test_thread_flag(TIF_32BIT) ? \
+	 VM_STACK_DEFAULT_FLAGS32 : VM_STACK_DEFAULT_FLAGS64)
 
 #endif /* __KERNEL__ */
 #endif /* _PPC64_PAGE_H */

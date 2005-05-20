@@ -12,7 +12,7 @@ struct pci_controller;
  * pci_io_base returns the memory address at which you can access
  * the I/O space for PCI bus number `bus' (or NULL on error).
  */
-extern void *pci_bus_io_base(unsigned int bus);
+extern void __iomem *pci_bus_io_base(unsigned int bus);
 extern unsigned long pci_bus_io_base_phys(unsigned int bus);
 extern unsigned long pci_bus_mem_base_phys(unsigned int bus);
 
@@ -48,7 +48,7 @@ struct pci_controller {
 	int last_busno;
 	int bus_offset;
 
-	void *io_base_virt;
+	void __iomem *io_base_virt;
 	unsigned long io_base_phys;
 
 	/* Some machines (PReP) have a non 1:1 mapping of

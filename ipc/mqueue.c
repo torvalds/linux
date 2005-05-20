@@ -23,6 +23,7 @@
 #include <linux/skbuff.h>
 #include <linux/netlink.h>
 #include <linux/syscalls.h>
+#include <linux/signal.h>
 #include <net/sock.h>
 #include "util.h"
 
@@ -767,7 +768,7 @@ static inline void pipelined_send(struct mqueue_inode_info *info,
 	list_del(&receiver->list);
 	receiver->state = STATE_PENDING;
 	wake_up_process(receiver->task);
-	wmb();
+	smp_wmb();
 	receiver->state = STATE_READY;
 }
 
@@ -786,7 +787,7 @@ static inline void pipelined_receive(struct mqueue_inode_info *info)
 	list_del(&sender->list);
 	sender->state = STATE_PENDING;
 	wake_up_process(sender->task);
-	wmb();
+	smp_wmb();
 	sender->state = STATE_READY;
 }
 
@@ -976,8 +977,7 @@ asmlinkage long sys_mq_notify(mqd_t mqdes,
 			     notification.sigev_notify != SIGEV_THREAD))
 			return -EINVAL;
 		if (notification.sigev_notify == SIGEV_SIGNAL &&
-			(notification.sigev_signo < 0 ||
-			 notification.sigev_signo > _NSIG)) {
+			!valid_signal(notification.sigev_signo)) {
 			return -EINVAL;
 		}
 		if (notification.sigev_notify == SIGEV_THREAD) {

@@ -2351,6 +2351,10 @@ pmac_suspend_devices(void)
 		return -EBUSY;
 	}
 
+	/* Disable clock spreading on some machines */
+	pmac_tweak_clock_spreading(0);
+
+	/* Stop preemption */
 	preempt_disable();
 
 	/* Make sure the decrementer won't interrupt us */
@@ -2417,10 +2421,11 @@ pmac_wakeup_devices(void)
 
 	/* Re-enable local CPU interrupts */
 	local_irq_enable();
-
 	mdelay(100);
-
 	preempt_enable();
+
+	/* Re-enable clock spreading on some machines */
+	pmac_tweak_clock_spreading(1);
 
 	/* Resume devices */
 	device_resume();

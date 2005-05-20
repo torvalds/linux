@@ -134,6 +134,7 @@ static int sigd_send(struct atm_vcc *vcc,struct sk_buff *skb)
 			break;
 		case as_indicate:
 			vcc = *(struct atm_vcc **) &msg->listen_vcc;
+			sk = sk_atm(vcc);
 			DPRINTK("as_indicate!!!\n");
 			lock_sock(sk);
 			if (sk_acceptq_is_full(sk)) {

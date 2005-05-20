@@ -32,6 +32,7 @@
 #include <linux/user.h>
 #include <linux/security.h>
 #include <linux/audit.h>
+#include <linux/signal.h>
 
 #include <asm/segment.h>
 #include <asm/page.h>
@@ -609,7 +610,7 @@ do_ptrace(struct task_struct *child, long request, long addr, long data)
 		/* continue and stop at next (return from) syscall */
 	case PTRACE_CONT:
 		/* restart after signal. */
-		if ((unsigned long) data >= _NSIG)
+		if (!valid_signal(data))
 			return -EIO;
 		if (request == PTRACE_SYSCALL)
 			set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
@@ -637,7 +638,7 @@ do_ptrace(struct task_struct *child, long request, long addr, long data)
 
 	case PTRACE_SINGLESTEP:
 		/* set the trap flag. */
-		if ((unsigned long) data >= _NSIG)
+		if (!valid_signal(data))
 			return -EIO;
 		clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 		child->exit_code = data;
@@ -711,18 +712,13 @@ out:
 asmlinkage void
 syscall_trace(struct pt_regs *regs, int entryexit)
 {
-	if (unlikely(current->audit_context)) {
-		if (!entryexit)
-			audit_syscall_entry(current, regs->gprs[2],
-					    regs->orig_gpr2, regs->gprs[3],
-					    regs->gprs[4], regs->gprs[5]);
-		else
-			audit_syscall_exit(current, regs->gprs[2]);
-	}
+	if (unlikely(current->audit_context) && entryexit)
+		audit_syscall_exit(current, AUDITSC_RESULT(regs->gprs[2]), regs->gprs[2]);
+
 	if (!test_thread_flag(TIF_SYSCALL_TRACE))
-		return;
+		goto out;
 	if (!(current->ptrace & PT_PTRACED))
-		return;
+		goto out;
 	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD)
 				 ? 0x80 : 0));
 
@@ -735,4 +731,10 @@ syscall_trace(struct pt_regs *regs, int entryexit)
 		send_sig(current->exit_code, current, 1);
 		current->exit_code = 0;
 	}
+ out:
+	if (unlikely(current->audit_context) && !entryexit)
+		audit_syscall_entry(current, 
+				    test_thread_flag(TIF_31BIT)?AUDIT_ARCH_S390:AUDIT_ARCH_S390X,
+				    regs->gprs[2], regs->orig_gpr2, regs->gprs[3],
+				    regs->gprs[4], regs->gprs[5]);
 }

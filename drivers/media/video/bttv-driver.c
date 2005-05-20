@@ -3169,7 +3169,7 @@ static struct video_device radio_template =
 /* ----------------------------------------------------------------------- */
 /* some debug code                                                         */
 
-int bttv_risc_decode(u32 risc)
+static int bttv_risc_decode(u32 risc)
 {
 	static char *instr[16] = {
 		[ BT848_RISC_WRITE     >> 28 ] = "write",
@@ -3206,8 +3206,8 @@ int bttv_risc_decode(u32 risc)
 	return incr[risc >> 28] ? incr[risc >> 28] : 1;
 }
 
-void bttv_risc_disasm(struct bttv *btv,
-		      struct btcx_riscmem *risc)
+static void bttv_risc_disasm(struct bttv *btv,
+			     struct btcx_riscmem *risc)
 {
 	unsigned int i,j,n;
 

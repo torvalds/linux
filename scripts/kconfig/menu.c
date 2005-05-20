@@ -365,9 +365,9 @@ bool menu_is_visible(struct menu *menu)
 const char *menu_get_prompt(struct menu *menu)
 {
 	if (menu->prompt)
-		return menu->prompt->text;
+		return _(menu->prompt->text);
 	else if (menu->sym)
-		return menu->sym->name;
+		return _(menu->sym->name);
 	return NULL;
 }
 

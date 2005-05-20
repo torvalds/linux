@@ -101,68 +101,15 @@ cifs_bp_rename_retry:
 	return full_path;
 }
 
-/* Note: caller must free return buffer */
-char *
-build_wildcard_path_from_dentry(struct dentry *direntry)
+/* char * build_wildcard_path_from_dentry(struct dentry *direntry)
 {
-	struct dentry *temp;
-	int namelen = 0;
-	char *full_path;
-
-	if(direntry == NULL)
-		return NULL;  /* not much we can do if dentry is freed and
-		we need to reopen the file after it was closed implicitly
-		when the server crashed */
-
-cifs_bwp_rename_retry:
-	for (temp = direntry; !IS_ROOT(temp);) {
-		namelen += (1 + temp->d_name.len);
-		temp = temp->d_parent;
-		if(temp == NULL) {
-			cERROR(1,("corrupt dentry"));
-			return NULL;
-		}
-	}
-
-	full_path = kmalloc(namelen+3, GFP_KERNEL);
 	if(full_path == NULL)
 		return full_path;
 
 	full_path[namelen] = '\\';
 	full_path[namelen+1] = '*';
-	full_path[namelen+2] = 0;  /* trailing null */
-
-	for (temp = direntry; !IS_ROOT(temp);) {
-		namelen -= 1 + temp->d_name.len;
-		if (namelen < 0) {
-			break;
-		} else {
-			full_path[namelen] = '\\';
-			strncpy(full_path + namelen + 1, temp->d_name.name,
-				temp->d_name.len);
-			cFYI(0, (" name: %s ", full_path + namelen));
-		}
-		temp = temp->d_parent;
-		if(temp == NULL) {
-			cERROR(1,("corrupt dentry"));
-			kfree(full_path);
-			return NULL;
-		}
-	}
-	if (namelen != 0) {
-		cERROR(1,
-		       ("We did not end path lookup where we expected namelen is %d",
-			namelen));
-		/* presumably this is only possible if we were racing with a rename 
-		of one of the parent directories  (we can not lock the dentries
-		above us to prevent this, but retrying should be harmless) */
-		kfree(full_path);
-		namelen = 0;
-		goto cifs_bwp_rename_retry;
-	}
-
-	return full_path;
-}
+	full_path[namelen+2] = 0;
+BB remove above eight lines BB */
 
 /* Inode operations in similar order to how they appear in the Linux file fs.h */
 
@@ -235,7 +182,8 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 
 	rc = CIFSSMBOpen(xid, pTcon, full_path, disposition,
 			 desiredAccess, CREATE_NOT_DIR,
-			 &fileHandle, &oplock, buf, cifs_sb->local_nls);
+			 &fileHandle, &oplock, buf, cifs_sb->local_nls,
+			 cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
 	if (rc) {
 		cFYI(1, ("cifs_create returned 0x%x ", rc));
 	} else {
@@ -248,13 +196,17 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 					(__u64)current->euid,
 					(__u64)current->egid,
 					0 /* dev */,
-					cifs_sb->local_nls);
+					cifs_sb->local_nls, 
+					cifs_sb->mnt_cifs_flags & 
+						CIFS_MOUNT_MAP_SPECIAL_CHR);
 			} else {
 				CIFSSMBUnixSetPerms(xid, pTcon, full_path, mode,
 					(__u64)-1,
 					(__u64)-1,
 					0 /* dev */,
-					cifs_sb->local_nls);
+					cifs_sb->local_nls,
+					cifs_sb->mnt_cifs_flags & 
+						CIFS_MOUNT_MAP_SPECIAL_CHR);
 			}
 		else {
 			/* BB implement via Windows security descriptors */
@@ -284,51 +236,48 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 			/* mknod case - do not leave file open */
 			CIFSSMBClose(xid, pTcon, fileHandle);
 		} else if(newinode) {
-			pCifsFile = (struct cifsFileInfo *)
+			pCifsFile =
 			   kmalloc(sizeof (struct cifsFileInfo), GFP_KERNEL);
-		
-			if (pCifsFile) {
-				memset((char *)pCifsFile, 0,
-				       sizeof (struct cifsFileInfo));
-				pCifsFile->netfid = fileHandle;
-				pCifsFile->pid = current->tgid;
-				pCifsFile->pInode = newinode;
-				pCifsFile->invalidHandle = FALSE;
-				pCifsFile->closePend     = FALSE;
-				init_MUTEX(&pCifsFile->fh_sem);
-				/* put the following in at open now */
-				/* pCifsFile->pfile = file; */ 
-				write_lock(&GlobalSMBSeslock);
-				list_add(&pCifsFile->tlist,&pTcon->openFileList);
-				pCifsInode = CIFS_I(newinode);
-				if(pCifsInode) {
+			
+			if(pCifsFile == NULL)
+				goto cifs_create_out;
+			memset((char *)pCifsFile, 0,
+			       sizeof (struct cifsFileInfo));
+			pCifsFile->netfid = fileHandle;
+			pCifsFile->pid = current->tgid;
+			pCifsFile->pInode = newinode;
+			pCifsFile->invalidHandle = FALSE;
+			pCifsFile->closePend     = FALSE;
+			init_MUTEX(&pCifsFile->fh_sem);
+			/* set the following in open now 
+				pCifsFile->pfile = file; */
+			write_lock(&GlobalSMBSeslock);
+			list_add(&pCifsFile->tlist,&pTcon->openFileList);
+			pCifsInode = CIFS_I(newinode);
+			if(pCifsInode) {
 				/* if readable file instance put first in list*/
-					if (write_only == TRUE) {
-                                        	list_add_tail(&pCifsFile->flist,
-							&pCifsInode->openFileList);
-					} else {
-						list_add(&pCifsFile->flist,
-							&pCifsInode->openFileList);
-					}
-					if((oplock & 0xF) == OPLOCK_EXCLUSIVE) {
-						pCifsInode->clientCanCacheAll = TRUE;
-						pCifsInode->clientCanCacheRead = TRUE;
-						cFYI(1,("Exclusive Oplock granted on inode %p",
-							newinode));
-					} else if((oplock & 0xF) == OPLOCK_READ)
-						pCifsInode->clientCanCacheRead = TRUE;
+				if (write_only == TRUE) {
+                                       	list_add_tail(&pCifsFile->flist,
+						&pCifsInode->openFileList);
+				} else {
+					list_add(&pCifsFile->flist,
+						&pCifsInode->openFileList);
 				}
-				write_unlock(&GlobalSMBSeslock);
+				if((oplock & 0xF) == OPLOCK_EXCLUSIVE) {
+					pCifsInode->clientCanCacheAll = TRUE;
+					pCifsInode->clientCanCacheRead = TRUE;
+					cFYI(1,("Exclusive Oplock for inode %p",
+						newinode));
+				} else if((oplock & 0xF) == OPLOCK_READ)
+					pCifsInode->clientCanCacheRead = TRUE;
 			}
+			write_unlock(&GlobalSMBSeslock);
 		}
 	} 
-
-	if (buf)
-	    kfree(buf);
-	if (full_path)
-	    kfree(full_path);
+cifs_create_out:
+	kfree(buf);
+	kfree(full_path);
 	FreeXid(xid);
-
 	return rc;
 }
 
@@ -359,11 +308,15 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode, dev_t dev
 		if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID) {
 			rc = CIFSSMBUnixSetPerms(xid, pTcon, full_path,
 				mode,(__u64)current->euid,(__u64)current->egid,
-				device_number, cifs_sb->local_nls);
+				device_number, cifs_sb->local_nls,
+				cifs_sb->mnt_cifs_flags & 
+					CIFS_MOUNT_MAP_SPECIAL_CHR);
 		} else {
 			rc = CIFSSMBUnixSetPerms(xid, pTcon,
 				full_path, mode, (__u64)-1, (__u64)-1,
-				device_number, cifs_sb->local_nls);
+				device_number, cifs_sb->local_nls,
+				cifs_sb->mnt_cifs_flags & 
+					CIFS_MOUNT_MAP_SPECIAL_CHR);
 		}
 
 		if(!rc) {
@@ -375,10 +328,8 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode, dev_t dev
 		}
 	}
 
-	if (full_path)
-		kfree(full_path);
+	kfree(full_path);
 	FreeXid(xid);
-
 	return rc;
 }
 
@@ -447,41 +398,9 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry, struct name
 		if file exists or not but no access BB */
 	}
 
-	if (full_path)
-		kfree(full_path);
+	kfree(full_path);
 	FreeXid(xid);
 	return ERR_PTR(rc);
-}
-
-int
-cifs_dir_open(struct inode *inode, struct file *file)
-{				/* NB: currently unused since searches are opened in readdir */
-	int rc = 0;
-	int xid;
-	struct cifs_sb_info *cifs_sb;
-	struct cifsTconInfo *pTcon;
-	char *full_path = NULL;
-
-	xid = GetXid();
-
-	cifs_sb = CIFS_SB(inode->i_sb);
-	pTcon = cifs_sb->tcon;
-
-	if(file->f_dentry) {
-		down(&file->f_dentry->d_sb->s_vfs_rename_sem);
-		full_path = build_wildcard_path_from_dentry(file->f_dentry);
-		up(&file->f_dentry->d_sb->s_vfs_rename_sem);
-	} else {
-		FreeXid(xid);
-		return -EIO;
-	}
-
-	cFYI(1, ("inode = 0x%p and full path is %s", inode, full_path));
-
-	if (full_path)
-		kfree(full_path);
-	FreeXid(xid);
-	return rc;
 }
 
 static int

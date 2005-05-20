@@ -502,7 +502,7 @@ struct inode *diReadSpecial(struct super_block *sb, ino_t inum, int secondary)
 
 	}
 
-	ip->i_mapping->a_ops = &jfs_aops;
+	ip->i_mapping->a_ops = &jfs_metapage_aops;
 	mapping_set_gfp_mask(ip->i_mapping, GFP_NOFS);
 
 	/* Allocations to metadata inodes should not affect quotas */
@@ -2573,13 +2573,45 @@ diNewIAG(struct inomap * imap, int *iagnop, int agno, struct metapage ** mpp)
 			goto out;
 		}
 
-		/* assign a buffer for the page */
-		mp = get_metapage(ipimap, xaddr, PSIZE, 1);
-		if (!mp) {
+		/*
+		 * start transaction of update of the inode map
+		 * addressing structure pointing to the new iag page;
+		 */
+		tid = txBegin(sb, COMMIT_FORCE);
+		down(&JFS_IP(ipimap)->commit_sem);
+
+		/* update the inode map addressing structure to point to it */
+		if ((rc =
+		     xtInsert(tid, ipimap, 0, blkno, xlen, &xaddr, 0))) {
+			txEnd(tid);
+			up(&JFS_IP(ipimap)->commit_sem);
 			/* Free the blocks allocated for the iag since it was
 			 * not successfully added to the inode map
 			 */
 			dbFree(ipimap, xaddr, (s64) xlen);
+
+			/* release the inode map lock */
+			IWRITE_UNLOCK(ipimap);
+
+			goto out;
+		}
+
+		/* update the inode map's inode to reflect the extension */
+		ipimap->i_size += PSIZE;
+		inode_add_bytes(ipimap, PSIZE);
+
+		/* assign a buffer for the page */
+		mp = get_metapage(ipimap, blkno, PSIZE, 0);
+		if (!mp) {
+			/*
+			 * This is very unlikely since we just created the
+			 * extent, but let's try to handle it correctly
+			 */
+			xtTruncate(tid, ipimap, ipimap->i_size - PSIZE,
+				   COMMIT_PWMAP);
+
+			txAbort(tid, 0);
+			txEnd(tid);
 
 			/* release the inode map lock */
 			IWRITE_UNLOCK(ipimap);
@@ -2605,39 +2637,9 @@ diNewIAG(struct inomap * imap, int *iagnop, int agno, struct metapage ** mpp)
 			iagp->inosmap[i] = cpu_to_le32(ONES);
 
 		/*
-		 * Invalidate the page after writing and syncing it.
-		 * After it's initialized, we access it in a different
-		 * address space
+		 * Write and sync the metapage
 		 */
-		set_bit(META_discard, &mp->flag);
 		flush_metapage(mp);
-
-		/*
-		 * start tyransaction of update of the inode map
-		 * addressing structure pointing to the new iag page;
-		 */
-		tid = txBegin(sb, COMMIT_FORCE);
-		down(&JFS_IP(ipimap)->commit_sem);
-
-		/* update the inode map addressing structure to point to it */
-		if ((rc =
-		     xtInsert(tid, ipimap, 0, blkno, xlen, &xaddr, 0))) {
-			txEnd(tid);
-			up(&JFS_IP(ipimap)->commit_sem);
-			/* Free the blocks allocated for the iag since it was
-			 * not successfully added to the inode map
-			 */
-			dbFree(ipimap, xaddr, (s64) xlen);
-
-			/* release the inode map lock */
-			IWRITE_UNLOCK(ipimap);
-
-			goto out;
-		}
-
-		/* update the inode map's inode to reflect the extension */
-		ipimap->i_size += PSIZE;
-		inode_add_bytes(ipimap, PSIZE);
 
 		/*
 		 * txCommit(COMMIT_FORCE) will synchronously write address 
@@ -2789,6 +2791,7 @@ diUpdatePMap(struct inode *ipimap,
 	u32 mask;
 	struct jfs_log *log;
 	int lsn, difft, diffp;
+	unsigned long flags;
 
 	imap = JFS_IP(ipimap)->i_imap;
 	/* get the iag number containing the inode */
@@ -2805,6 +2808,7 @@ diUpdatePMap(struct inode *ipimap,
 	IREAD_UNLOCK(ipimap);
 	if (rc)
 		return (rc);
+	metapage_wait_for_io(mp);
 	iagp = (struct iag *) mp->data;
 	/* get the inode number and extent number of the inode within
 	 * the iag and the inode number within the extent.
@@ -2868,30 +2872,28 @@ diUpdatePMap(struct inode *ipimap,
 		/* inherit older/smaller lsn */
 		logdiff(difft, lsn, log);
 		logdiff(diffp, mp->lsn, log);
+		LOGSYNC_LOCK(log, flags);
 		if (difft < diffp) {
 			mp->lsn = lsn;
 			/* move mp after tblock in logsync list */
-			LOGSYNC_LOCK(log);
 			list_move(&mp->synclist, &tblk->synclist);
-			LOGSYNC_UNLOCK(log);
 		}
 		/* inherit younger/larger clsn */
-		LOGSYNC_LOCK(log);
 		assert(mp->clsn);
 		logdiff(difft, tblk->clsn, log);
 		logdiff(diffp, mp->clsn, log);
 		if (difft > diffp)
 			mp->clsn = tblk->clsn;
-		LOGSYNC_UNLOCK(log);
+		LOGSYNC_UNLOCK(log, flags);
 	} else {
 		mp->log = log;
 		mp->lsn = lsn;
 		/* insert mp after tblock in logsync list */
-		LOGSYNC_LOCK(log);
+		LOGSYNC_LOCK(log, flags);
 		log->count++;
 		list_add(&mp->synclist, &tblk->synclist);
 		mp->clsn = tblk->clsn;
-		LOGSYNC_UNLOCK(log);
+		LOGSYNC_UNLOCK(log, flags);
 	}
 	write_metapage(mp);
 	return (0);

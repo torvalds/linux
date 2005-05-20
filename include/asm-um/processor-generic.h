@@ -17,12 +17,13 @@ struct task_struct;
 struct mm_struct;
 
 struct thread_struct {
+	/* This flag is set to 1 before calling do_fork (and analyzed in
+	 * copy_thread) to mark that we are begin called from userspace (fork /
+	 * vfork / clone), and reset to 0 after. It is left to 0 when called
+	 * from kernelspace (i.e. kernel_thread() or fork_idle(), as of 2.6.11). */
 	int forking;
 	int nsyscalls;
 	struct pt_regs regs;
-	unsigned long cr2;
-	int err;
-	unsigned long trap_no;
 	int singlestep_syscall;
 	void *fault_addr;
 	void *fault_catcher;
@@ -70,8 +71,6 @@ struct thread_struct {
 	.forking		= 0, \
 	.nsyscalls		= 0, \
         .regs		   	= EMPTY_REGS, \
-	.cr2			= 0, \
-	.err			= 0, \
 	.fault_addr		= NULL, \
 	.prev_sched		= NULL, \
 	.temp_stack		= 0, \
@@ -89,7 +88,11 @@ extern struct task_struct *alloc_task_struct(void);
 extern void release_thread(struct task_struct *);
 extern int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
 extern void dump_thread(struct pt_regs *regs, struct user *u);
-extern void prepare_to_copy(struct task_struct *tsk);
+
+static inline void prepare_to_copy(struct task_struct *tsk)
+{
+}
+
 
 extern unsigned long thread_saved_pc(struct task_struct *t);
 

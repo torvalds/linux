@@ -18,6 +18,7 @@
 #include <linux/security.h>
 #include <linux/audit.h>
 #include <linux/seccomp.h>
+#include <linux/signal.h>
 
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
@@ -467,7 +468,7 @@ asmlinkage long sys_ptrace(long request, long pid, unsigned long addr, long data
 	case PTRACE_CONT:    /* restart after signal. */
 
 		ret = -EIO;
-		if ((unsigned long) data > _NSIG)
+		if (!valid_signal(data))
 			break;
 		if (request == PTRACE_SYSCALL)
 			set_tsk_thread_flag(child,TIF_SYSCALL_TRACE);
@@ -529,7 +530,7 @@ asmlinkage long sys_ptrace(long request, long pid, unsigned long addr, long data
 
 	case PTRACE_SINGLESTEP:    /* set the trap flag. */
 		ret = -EIO;
-		if ((unsigned long) data > _NSIG)
+		if (!valid_signal(data))
 			break;
 		clear_tsk_thread_flag(child,TIF_SYSCALL_TRACE);
 		set_singlestep(child);
@@ -634,20 +635,29 @@ asmlinkage void syscall_trace_enter(struct pt_regs *regs)
 	/* do the secure computing check first */
 	secure_computing(regs->orig_rax);
 
-	if (unlikely(current->audit_context))
-		audit_syscall_entry(current, regs->orig_rax,
-				    regs->rdi, regs->rsi,
-				    regs->rdx, regs->r10);
-
 	if (test_thread_flag(TIF_SYSCALL_TRACE)
 	    && (current->ptrace & PT_PTRACED))
 		syscall_trace(regs);
+
+	if (unlikely(current->audit_context)) {
+		if (test_thread_flag(TIF_IA32)) {
+			audit_syscall_entry(current, AUDIT_ARCH_I386,
+					    regs->orig_rax,
+					    regs->rbx, regs->rcx,
+					    regs->rdx, regs->rsi);
+		} else {
+			audit_syscall_entry(current, AUDIT_ARCH_X86_64,
+					    regs->orig_rax,
+					    regs->rdi, regs->rsi,
+					    regs->rdx, regs->r10);
+		}
+	}
 }
 
 asmlinkage void syscall_trace_leave(struct pt_regs *regs)
 {
 	if (unlikely(current->audit_context))
-		audit_syscall_exit(current, regs->rax);
+		audit_syscall_exit(current, AUDITSC_RESULT(regs->rax), regs->rax);
 
 	if ((test_thread_flag(TIF_SYSCALL_TRACE)
 	     || test_thread_flag(TIF_SINGLESTEP))

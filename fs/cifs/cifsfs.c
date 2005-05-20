@@ -169,7 +169,8 @@ cifs_put_super(struct super_block *sb)
 static int
 cifs_statfs(struct super_block *sb, struct kstatfs *buf)
 {
-	int xid, rc = -EOPNOTSUPP;
+	int xid; 
+	int rc = -EOPNOTSUPP;
 	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *pTcon;
 
@@ -181,31 +182,34 @@ cifs_statfs(struct super_block *sb, struct kstatfs *buf)
 	buf->f_type = CIFS_MAGIC_NUMBER;
 
 	/* instead could get the real value via SMB_QUERY_FS_ATTRIBUTE_INFO */
-	buf->f_namelen = PATH_MAX;	/* PATH_MAX may be too long - it would presumably
-					   be length of total path, note that some servers may be 
-					   able to support more than this, but best to be safe
-					   since Win2k and others can not handle very long filenames */
+	buf->f_namelen = PATH_MAX; /* PATH_MAX may be too long - it would 
+				      presumably be total path, but note
+				      that some servers (includinng Samba 3)
+				      have a shorter maximum path */
 	buf->f_files = 0;	/* undefined */
 	buf->f_ffree = 0;	/* unlimited */
 
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 /* BB we could add a second check for a QFS Unix capability bit */
-    if (pTcon->ses->capabilities & CAP_UNIX)
-	    rc = CIFSSMBQFSPosixInfo(xid, pTcon, buf, cifs_sb->local_nls);
+/* BB FIXME check CIFS_POSIX_EXTENSIONS Unix cap first FIXME BB */
+    if ((pTcon->ses->capabilities & CAP_UNIX) && (CIFS_POSIX_EXTENSIONS &
+			le64_to_cpu(pTcon->fsUnixInfo.Capability)))
+	    rc = CIFSSMBQFSPosixInfo(xid, pTcon, buf);
 
     /* Only need to call the old QFSInfo if failed
     on newer one */
     if(rc)
 #endif /* CIFS_EXPERIMENTAL */
-	rc = CIFSSMBQFSInfo(xid, pTcon, buf, cifs_sb->local_nls);
+	rc = CIFSSMBQFSInfo(xid, pTcon, buf);
 
 	/*     
 	   int f_type;
 	   __fsid_t f_fsid;
 	   int f_namelen;  */
-	/* BB get from info put in tcon struct at mount time with call to QFSAttrInfo */
+	/* BB get from info in tcon struct at mount time call to QFSAttrInfo */
 	FreeXid(xid);
-	return 0;		/* always return success? what if volume is no longer available? */
+	return 0;		/* always return success? what if volume is no
+				   longer available? */
 }
 
 static int cifs_permission(struct inode * inode, int mask, struct nameidata *nd)
@@ -559,6 +563,10 @@ struct file_operations cifs_file_ops = {
 	.flush = cifs_flush,
 	.mmap  = cifs_file_mmap,
 	.sendfile = generic_file_sendfile,
+#ifdef CONFIG_CIFS_POSIX
+	.ioctl	= cifs_ioctl,
+#endif /* CONFIG_CIFS_POSIX */
+
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 	.readv = generic_file_readv,
 	.writev = generic_file_writev,
@@ -579,6 +587,10 @@ struct file_operations cifs_file_direct_ops = {
 	.fsync = cifs_fsync,
 	.flush = cifs_flush,
 	.sendfile = generic_file_sendfile, /* BB removeme BB */
+#ifdef CONFIG_CIFS_POSIX
+	.ioctl  = cifs_ioctl,
+#endif /* CONFIG_CIFS_POSIX */
+
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 	.dir_notify = cifs_dir_notify,
 #endif /* CONFIG_CIFS_EXPERIMENTAL */
@@ -591,6 +603,7 @@ struct file_operations cifs_dir_ops = {
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 	.dir_notify = cifs_dir_notify,
 #endif /* CONFIG_CIFS_EXPERIMENTAL */
+        .ioctl  = cifs_ioctl,
 };
 
 static void
@@ -822,6 +835,7 @@ static int cifs_oplock_thread(void * dummyarg)
 		}
 	} while(!signal_pending(current));
 	complete_and_exit (&cifs_oplock_exited, 0);
+	oplockThread = NULL;
 }
 
 static int __init

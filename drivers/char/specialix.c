@@ -1987,10 +1987,9 @@ static inline int sx_set_serial_info(struct specialix_port * port,
 
 	func_enter();
 	/*
-	error = verify_area(VERIFY_READ, (void *) newinfo, sizeof(tmp));
-	if (error) {
+	if (!access_ok(VERIFY_READ, (void *) newinfo, sizeof(tmp))) {
 		func_exit();
-		return error;
+		return -EFAULT;
 	}
 	*/
 	if (copy_from_user(&tmp, newinfo, sizeof(tmp))) {
@@ -2046,14 +2045,12 @@ static inline int sx_get_serial_info(struct specialix_port * port,
 {
 	struct serial_struct tmp;
 	struct specialix_board *bp = port_Board(port);
-	//	int error;
 	
 	func_enter();
 
 	/*
-	error = verify_area(VERIFY_WRITE, (void *) retinfo, sizeof(tmp));
-	if (error)
-		return error;
+	if (!access_ok(VERIFY_WRITE, (void *) retinfo, sizeof(tmp)))
+		return -EFAULT;
 	*/
 
 	memset(&tmp, 0, sizeof(tmp));

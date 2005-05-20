@@ -70,6 +70,7 @@
 #include <linux/sched.h>
 #include <linux/timer.h>
 #include <linux/interrupt.h>
+#include <linux/dma-mapping.h>
 #include <asm/io.h>
 #include <asm/byteorder.h>
 #include <asm/uaccess.h>
@@ -371,7 +372,7 @@ he_init_one(struct pci_dev *pci_dev, const struct pci_device_id *pci_ent)
 
 	if (pci_enable_device(pci_dev))
 		return -EIO;
-	if (pci_set_dma_mask(pci_dev, HE_DMA_MASK) != 0) {
+	if (pci_set_dma_mask(pci_dev, DMA_32BIT_MASK) != 0) {
 		printk(KERN_WARNING "he: no suitable dma available\n");
 		err = -EIO;
 		goto init_one_failure;

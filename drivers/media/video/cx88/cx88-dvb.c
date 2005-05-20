@@ -31,7 +31,7 @@
 #include <linux/suspend.h>
 
 /* those two frontends need merging via linuxtv cvs ... */
-#define HAVE_CX22702 0
+#define HAVE_CX22702 1
 #define HAVE_OR51132 1
 
 #include "cx88.h"
@@ -91,7 +91,7 @@ static void dvb_buf_release(struct videobuf_queue *q, struct videobuf_buffer *vb
 	cx88_free_buffer(dev->pci, (struct cx88_buffer*)vb);
 }
 
-struct videobuf_queue_ops dvb_qops = {
+static struct videobuf_queue_ops dvb_qops = {
 	.buf_setup    = dvb_buf_setup,
 	.buf_prepare  = dvb_buf_prepare,
 	.buf_queue    = dvb_buf_queue,
@@ -191,7 +191,7 @@ static int or51132_set_ts_param(struct dvb_frontend* fe,
 	return 0;
 }
 
-struct or51132_config pchdtv_hd3000 = {
+static struct or51132_config pchdtv_hd3000 = {
 	.demod_address    = 0x15,
 	.pll_address      = 0x61,
 	.pll_desc         = &dvb_pll_thomson_dtt7610,
@@ -243,10 +243,8 @@ static int dvb_register(struct cx8802_dev *dev)
 		break;
 #endif
 	default:
-		printk("%s: The frontend of your DVB/ATSC card isn't supported yet\n"
-		       "%s: you might want to look out for patches here:\n"
-		       "%s:     http://dl.bytesex.org/patches/\n",
-		       dev->core->name, dev->core->name, dev->core->name);
+		printk("%s: The frontend of your DVB/ATSC card isn't supported yet\n",
+		       dev->core->name);
 		break;
 	}
 	if (NULL == dev->dvb.frontend) {
@@ -308,9 +306,11 @@ static int __devinit dvb_probe(struct pci_dev *pci_dev,
 			    dev);
 	err = dvb_register(dev);
 	if (0 != err)
-		goto fail_free;
+		goto fail_fini;
 	return 0;
 
+ fail_fini:
+	cx8802_fini_common(dev);
  fail_free:
 	kfree(dev);
  fail_core:

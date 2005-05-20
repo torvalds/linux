@@ -305,7 +305,7 @@ xfs_setattr(
 	int			mandlock_before, mandlock_after;
 	struct xfs_dquot	*udqp, *gdqp, *olddquot1, *olddquot2;
 	int			file_owner;
-	int			need_iolock = (flags & ATTR_DMI) == 0;
+	int			need_iolock = 1;
 
 	vp = BHV_TO_VNODE(bdp);
 	vn_trace_entry(vp, __FUNCTION__, (inst_t *)__return_address);
@@ -384,6 +384,9 @@ xfs_setattr(
 	 */
 	tp = NULL;
 	lock_flags = XFS_ILOCK_EXCL;
+	ASSERT(flags & ATTR_NOLOCK ? flags & ATTR_DMI : 1);
+	if (flags & ATTR_NOLOCK)
+		need_iolock = 0;
 	if (!(mask & XFS_AT_SIZE)) {
 		if ((mask != (XFS_AT_CTIME|XFS_AT_ATIME|XFS_AT_MTIME)) ||
 		    (mp->m_flags & XFS_MOUNT_WSYNC)) {
@@ -4320,7 +4323,7 @@ xfs_free_file_space(
 	int			rt;
 	xfs_fileoff_t		startoffset_fsb;
 	xfs_trans_t		*tp;
-	int			need_iolock = (attr_flags & ATTR_DMI) == 0;
+	int			need_iolock = 1;
 
 	vn_trace_entry(XFS_ITOV(ip), __FUNCTION__, (inst_t *)__return_address);
 	mp = ip->i_mount;
@@ -4348,8 +4351,12 @@ xfs_free_file_space(
 			return(error);
 	}
 
+	ASSERT(attr_flags & ATTR_NOLOCK ? attr_flags & ATTR_DMI : 1);
+	if (attr_flags & ATTR_NOLOCK)
+		need_iolock = 0;
 	if (need_iolock)
 		xfs_ilock(ip, XFS_IOLOCK_EXCL);
+
 	rounding = MAX((__uint8_t)(1 << mp->m_sb.sb_blocklog),
 			(__uint8_t)NBPP);
 	ilen = len + (offset & (rounding - 1));

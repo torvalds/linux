@@ -471,6 +471,7 @@ dbUpdatePMap(struct inode *ipbmap,
 	struct metapage *mp;
 	struct jfs_log *log;
 	int lsn, difft, diffp;
+	unsigned long flags;
 
 	/* the blocks better be within the mapsize. */
 	if (blkno + nblocks > bmp->db_mapsize) {
@@ -504,6 +505,7 @@ dbUpdatePMap(struct inode *ipbmap,
 					   0);
 			if (mp == NULL)
 				return -EIO;
+			metapage_wait_for_io(mp);
 		}
 		dp = (struct dmap *) mp->data;
 
@@ -578,34 +580,32 @@ dbUpdatePMap(struct inode *ipbmap,
 		if (mp->lsn != 0) {
 			/* inherit older/smaller lsn */
 			logdiff(diffp, mp->lsn, log);
+			LOGSYNC_LOCK(log, flags);
 			if (difft < diffp) {
 				mp->lsn = lsn;
 
 				/* move bp after tblock in logsync list */
-				LOGSYNC_LOCK(log);
 				list_move(&mp->synclist, &tblk->synclist);
-				LOGSYNC_UNLOCK(log);
 			}
 
 			/* inherit younger/larger clsn */
-			LOGSYNC_LOCK(log);
 			logdiff(difft, tblk->clsn, log);
 			logdiff(diffp, mp->clsn, log);
 			if (difft > diffp)
 				mp->clsn = tblk->clsn;
-			LOGSYNC_UNLOCK(log);
+			LOGSYNC_UNLOCK(log, flags);
 		} else {
 			mp->log = log;
 			mp->lsn = lsn;
 
 			/* insert bp after tblock in logsync list */
-			LOGSYNC_LOCK(log);
+			LOGSYNC_LOCK(log, flags);
 
 			log->count++;
 			list_add(&mp->synclist, &tblk->synclist);
 
 			mp->clsn = tblk->clsn;
-			LOGSYNC_UNLOCK(log);
+			LOGSYNC_UNLOCK(log, flags);
 		}
 	}
 

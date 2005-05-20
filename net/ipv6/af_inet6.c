@@ -28,7 +28,6 @@
 #include <linux/socket.h>
 #include <linux/in.h>
 #include <linux/kernel.h>
-#include <linux/major.h>
 #include <linux/sched.h>
 #include <linux/timer.h>
 #include <linux/string.h>
@@ -88,6 +87,7 @@ int sysctl_ipv6_bindv6only;
 
 #ifdef INET_REFCNT_DEBUG
 atomic_t inet6_sock_nr;
+EXPORT_SYMBOL(inet6_sock_nr);
 #endif
 
 /* The inetsw table contains everything that inet_create needs to

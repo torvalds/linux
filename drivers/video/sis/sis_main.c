@@ -4762,7 +4762,8 @@ static void __devinit sisfb_post_sis315330(struct pci_dev *pdev)
 #endif
 
 
-int __devinit sisfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
+static int __devinit sisfb_probe(struct pci_dev *pdev,
+				 const struct pci_device_id *ent)
 {
 	struct sisfb_chip_info 	*chipinfo = &sisfb_chip_info[ent->driver_data];
 	struct sis_video_info 	*ivideo = NULL;
@@ -5940,7 +5941,7 @@ MODULE_PARM_DESC(videoram,
 #endif
 #endif
 
-int __devinit sisfb_init_module(void)
+static int __devinit sisfb_init_module(void)
 {
 	sisfb_setdefaultparms();
 

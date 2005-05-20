@@ -1,4 +1,4 @@
-/* auditsc.c -- System-call auditing support -*- linux-c -*-
+/* auditsc.c -- System-call auditing support
  * Handles all system-call specific auditing features.
  *
  * Copyright 2003-2004 Red Hat Inc., Durham, North Carolina.
@@ -123,7 +123,7 @@ struct audit_context {
 	int		    major;      /* syscall number */
 	unsigned long	    argv[4];    /* syscall arguments */
 	int		    return_valid; /* return code is valid */
-	int		    return_code;/* syscall return code */
+	long		    return_code;/* syscall return code */
 	int		    auditable;  /* 1 if record should be written */
 	int		    name_count;
 	struct audit_names  names[AUDIT_NAMES];
@@ -135,6 +135,7 @@ struct audit_context {
 	uid_t		    uid, euid, suid, fsuid;
 	gid_t		    gid, egid, sgid, fsgid;
 	unsigned long	    personality;
+	int		    arch;
 
 #if AUDIT_DEBUG
 	int		    put_count;
@@ -250,7 +251,8 @@ static int audit_copy_rule(struct audit_rule *d, struct audit_rule *s)
 	return 0;
 }
 
-int audit_receive_filter(int type, int pid, int uid, int seq, void *data)
+int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
+							uid_t loginuid)
 {
 	u32		   flags;
 	struct audit_entry *entry;
@@ -285,6 +287,7 @@ int audit_receive_filter(int type, int pid, int uid, int seq, void *data)
 			err = audit_add_rule(entry, &audit_entlist);
 		if (!err && (flags & AUDIT_AT_EXIT))
 			err = audit_add_rule(entry, &audit_extlist);
+		audit_log(NULL, "auid %u added an audit rule\n", loginuid);
 		break;
 	case AUDIT_DEL:
 		flags =((struct audit_rule *)data)->flags;
@@ -294,6 +297,7 @@ int audit_receive_filter(int type, int pid, int uid, int seq, void *data)
 			err = audit_del_rule(data, &audit_entlist);
 		if (!err && (flags & AUDIT_AT_EXIT))
 			err = audit_del_rule(data, &audit_extlist);
+		audit_log(NULL, "auid %u removed an audit rule\n", loginuid);
 		break;
 	default:
 		return -EINVAL;
@@ -348,6 +352,10 @@ static int audit_filter_rules(struct task_struct *tsk,
 		case AUDIT_PERS:
 			result = (tsk->personality == value);
 			break;
+		case AUDIT_ARCH:
+			if (ctx) 
+				result = (ctx->arch == value);
+			break;
 
 		case AUDIT_EXIT:
 			if (ctx && ctx->return_valid)
@@ -355,7 +363,7 @@ static int audit_filter_rules(struct task_struct *tsk,
 			break;
 		case AUDIT_SUCCESS:
 			if (ctx && ctx->return_valid)
-				result = (ctx->return_code >= 0);
+				result = (ctx->return_valid == AUDITSC_SUCCESS);
 			break;
 		case AUDIT_DEVMAJOR:
 			if (ctx) {
@@ -648,8 +656,11 @@ static void audit_log_exit(struct audit_context *context)
 	audit_log_format(ab, "syscall=%d", context->major);
 	if (context->personality != PER_LINUX)
 		audit_log_format(ab, " per=%lx", context->personality);
+	audit_log_format(ab, " arch=%x", context->arch);
 	if (context->return_valid)
-		audit_log_format(ab, " exit=%d", context->return_code);
+		audit_log_format(ab, " success=%s exit=%ld", 
+				 (context->return_valid==AUDITSC_SUCCESS)?"yes":"no",
+				 context->return_code);
 	audit_log_format(ab,
 		  " a0=%lx a1=%lx a2=%lx a3=%lx items=%d"
 		  " pid=%d loginuid=%d uid=%d gid=%d"
@@ -696,9 +707,10 @@ static void audit_log_exit(struct audit_context *context)
 		if (!ab)
 			continue; /* audit_panic has been called */
 		audit_log_format(ab, "item=%d", i);
-		if (context->names[i].name)
-			audit_log_format(ab, " name=%s",
-					 context->names[i].name);
+		if (context->names[i].name) {
+			audit_log_format(ab, " name=");
+			audit_log_untrustedstring(ab, context->names[i].name);
+		}
 		if (context->names[i].ino != (unsigned long)-1)
 			audit_log_format(ab, " inode=%lu dev=%02x:%02x mode=%#o"
 					     " uid=%d gid=%d rdev=%02x:%02x",
@@ -772,7 +784,7 @@ static inline unsigned int audit_serial(void)
  * then the record will be written at syscall exit time (otherwise, it
  * will only be written if another part of the kernel requests that it
  * be written). */
-void audit_syscall_entry(struct task_struct *tsk, int major,
+void audit_syscall_entry(struct task_struct *tsk, int arch, int major,
 			 unsigned long a1, unsigned long a2,
 			 unsigned long a3, unsigned long a4)
 {
@@ -826,6 +838,7 @@ void audit_syscall_entry(struct task_struct *tsk, int major,
 	if (!audit_enabled)
 		return;
 
+	context->arch	    = arch;
 	context->major      = major;
 	context->argv[0]    = a1;
 	context->argv[1]    = a2;
@@ -849,13 +862,13 @@ void audit_syscall_entry(struct task_struct *tsk, int major,
  * filtering, or because some other part of the kernel write an audit
  * message), then write out the syscall information.  In call cases,
  * free the names stored from getname(). */
-void audit_syscall_exit(struct task_struct *tsk, int return_code)
+void audit_syscall_exit(struct task_struct *tsk, int valid, long return_code)
 {
 	struct audit_context *context;
 
 	get_task_struct(tsk);
 	task_lock(tsk);
-	context = audit_get_context(tsk, 1, return_code);
+	context = audit_get_context(tsk, valid, return_code);
 	task_unlock(tsk);
 
 	/* Not having a context here is ok, since the parent may have
@@ -868,6 +881,7 @@ void audit_syscall_exit(struct task_struct *tsk, int return_code)
 
 	context->in_syscall = 0;
 	context->auditable  = 0;
+
 	if (context->previous) {
 		struct audit_context *new_context = context->previous;
 		context->previous  = NULL;
@@ -981,7 +995,7 @@ void audit_inode(const char *name, const struct inode *inode)
 }
 
 void audit_get_stamp(struct audit_context *ctx,
-		     struct timespec *t, int *serial)
+		     struct timespec *t, unsigned int *serial)
 {
 	if (ctx) {
 		t->tv_sec  = ctx->ctime.tv_sec;
@@ -996,20 +1010,21 @@ void audit_get_stamp(struct audit_context *ctx,
 
 extern int audit_set_type(struct audit_buffer *ab, int type);
 
-int audit_set_loginuid(struct audit_context *ctx, uid_t loginuid)
+int audit_set_loginuid(struct task_struct *task, uid_t loginuid)
 {
-	if (ctx) {
+	if (task->audit_context) {
 		struct audit_buffer *ab;
 
 		ab = audit_log_start(NULL);
 		if (ab) {
 			audit_log_format(ab, "login pid=%d uid=%u "
 				"old loginuid=%u new loginuid=%u",
-				ctx->pid, ctx->uid, ctx->loginuid, loginuid);
+				task->pid, task->uid, 
+				task->audit_context->loginuid, loginuid);
 			audit_set_type(ab, AUDIT_LOGIN);
 			audit_log_end(ab);
 		}
-		ctx->loginuid = loginuid;
+		task->audit_context->loginuid = loginuid;
 	}
 	return 0;
 }

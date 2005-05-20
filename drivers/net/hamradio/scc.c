@@ -1630,10 +1630,7 @@ static void scc_net_rx(struct scc_channel *scc, struct sk_buff *skb)
 	scc->dev_stat.rx_packets++;
 	scc->dev_stat.rx_bytes += skb->len;
 
-	skb->dev      = scc->dev;
-	skb->protocol = htons(ETH_P_AX25);
-	skb->mac.raw  = skb->data;
-	skb->pkt_type = PACKET_HOST;
+	skb->protocol = ax25_type_trans(skb, scc->dev);
 	
 	netif_rx(skb);
 	scc->dev->last_rx = jiffies;

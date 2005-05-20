@@ -36,6 +36,7 @@ static int tcx_blank(int, struct fb_info *);
 static int tcx_mmap(struct fb_info *, struct file *, struct vm_area_struct *);
 static int tcx_ioctl(struct inode *, struct file *, unsigned int,
 		     unsigned long, struct fb_info *);
+static int tcx_pan_display(struct fb_var_screeninfo *, struct fb_info *);
 
 /*
  *  Frame buffer operations
@@ -45,6 +46,7 @@ static struct fb_ops tcx_ops = {
 	.owner			= THIS_MODULE,
 	.fb_setcolreg		= tcx_setcolreg,
 	.fb_blank		= tcx_blank,
+	.fb_pan_display		= tcx_pan_display,
 	.fb_fillrect		= cfb_fillrect,
 	.fb_copyarea		= cfb_copyarea,
 	.fb_imageblit		= cfb_imageblit,
@@ -151,6 +153,12 @@ static void tcx_reset (struct fb_info *info)
 	spin_lock_irqsave(&par->lock, flags);
 	__tcx_set_control_plane(par);
 	spin_unlock_irqrestore(&par->lock, flags);
+}
+
+static int tcx_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
+{
+	tcx_reset(info);
+	return 0;
 }
 
 /**
@@ -366,6 +374,9 @@ static void tcx_init_one(struct sbus_dev *sdev)
 	all->par.lowdepth = prom_getbool(sdev->prom_node, "tcx-8-bit");
 
 	sbusfb_fill_var(&all->info.var, sdev->prom_node, 8);
+	all->info.var.red.length = 8;
+	all->info.var.green.length = 8;
+	all->info.var.blue.length = 8;
 
 	linebytes = prom_getintdefault(sdev->prom_node, "linebytes",
 				       all->info.var.xres);
@@ -439,6 +450,7 @@ static void tcx_init_one(struct sbus_dev *sdev)
 		return;
 	}
 
+	fb_set_cmap(&all->info.cmap, &all->info);
 	tcx_init_fix(&all->info, linebytes);
 
 	if (register_framebuffer(&all->info) < 0) {
@@ -466,7 +478,7 @@ int __init tcx_init(void)
 		return -ENODEV;
 
 	for_all_sbusdev(sdev, sbus) {
-		if (!strcmp(sdev->prom_name, "tcx"))
+		if (!strcmp(sdev->prom_name, "SUNW,tcx"))
 			tcx_init_one(sdev);
 	}
 

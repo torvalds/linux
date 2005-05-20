@@ -801,7 +801,7 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 	if (!sreq)
 		goto out_free_sdev;
 	result = kmalloc(256, GFP_ATOMIC |
-			(shost->unchecked_isa_dma) ? __GFP_DMA : 0);
+			((shost->unchecked_isa_dma) ? __GFP_DMA : 0));
 	if (!result)
 		goto out_free_sreq;
 

@@ -321,6 +321,10 @@ static int __devinit finish_node_interrupts(struct device_node *np,
 			char *name = get_property(ic->parent, "name", NULL);
 			if (name && !strcmp(name, "u3"))
 				np->intrs[intrcount].line += 128;
+			else if (!(name && !strcmp(name, "mac-io")))
+				/* ignore other cascaded controllers, such as
+				   the k2-sata-root */
+				break;
 		}
 		np->intrs[intrcount].sense = 1;
 		if (n > 1)
@@ -830,7 +834,7 @@ void __init unflatten_device_tree(void)
 {
 	unsigned long start, mem, size;
 	struct device_node **allnextp = &allnodes;
-	char *p;
+	char *p = NULL;
 	int l = 0;
 
 	DBG(" -> unflatten_device_tree()\n");

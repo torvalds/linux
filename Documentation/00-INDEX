@@ -12,8 +12,6 @@ Following translations are available on the WWW:
 
 00-INDEX
 	- this file.
-BK-usage/
-	- directory with info on BitKeeper.
 BUG-HUNTING
 	- brute force method of doing binary search of patches to find bug.
 Changes

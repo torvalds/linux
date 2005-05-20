@@ -46,9 +46,11 @@
 #include <net/act_api.h>
 #include <net/pkt_cls.h>
 
+#define HTSIZE (PAGE_SIZE/sizeof(struct fw_filter *))
+
 struct fw_head
 {
-	struct fw_filter *ht[256];
+	struct fw_filter *ht[HTSIZE];
 };
 
 struct fw_filter
@@ -69,7 +71,28 @@ static struct tcf_ext_map fw_ext_map = {
 
 static __inline__ int fw_hash(u32 handle)
 {
-	return handle&0xFF;
+	if (HTSIZE == 4096)
+		return ((handle >> 24) & 0xFFF) ^
+		       ((handle >> 12) & 0xFFF) ^
+		       (handle & 0xFFF);
+	else if (HTSIZE == 2048)
+		return ((handle >> 22) & 0x7FF) ^
+		       ((handle >> 11) & 0x7FF) ^
+		       (handle & 0x7FF);
+	else if (HTSIZE == 1024)
+		return ((handle >> 20) & 0x3FF) ^
+		       ((handle >> 10) & 0x3FF) ^
+		       (handle & 0x3FF);
+	else if (HTSIZE == 512)
+		return (handle >> 27) ^
+		       ((handle >> 18) & 0x1FF) ^
+		       ((handle >> 9) & 0x1FF) ^
+		       (handle & 0x1FF);
+	else if (HTSIZE == 256) {
+		u8 *t = (u8 *) &handle;
+		return t[0] ^ t[1] ^ t[2] ^ t[3];
+	} else 
+		return handle & (HTSIZE - 1);
 }
 
 static int fw_classify(struct sk_buff *skb, struct tcf_proto *tp,
@@ -152,7 +175,7 @@ static void fw_destroy(struct tcf_proto *tp)
 	if (head == NULL)
 		return;
 
-	for (h=0; h<256; h++) {
+	for (h=0; h<HTSIZE; h++) {
 		while ((f=head->ht[h]) != NULL) {
 			head->ht[h] = f->next;
 			fw_delete_filter(tp, f);
@@ -291,7 +314,7 @@ static void fw_walk(struct tcf_proto *tp, struct tcf_walker *arg)
 	if (arg->stop)
 		return;
 
-	for (h = 0; h < 256; h++) {
+	for (h = 0; h < HTSIZE; h++) {
 		struct fw_filter *f;
 
 		for (f = head->ht[h]; f; f = f->next) {

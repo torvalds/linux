@@ -977,7 +977,7 @@ void __init identify_cpu(struct cpuinfo_x86 *c)
 	if ((xlvl & 0xffff0000) == 0x80000000) {
 		if (xlvl >= 0x80000001) {
 			c->x86_capability[1] = cpuid_edx(0x80000001);
-			c->x86_capability[5] = cpuid_ecx(0x80000001);
+			c->x86_capability[6] = cpuid_ecx(0x80000001);
 		}
 		if (xlvl >= 0x80000004)
 			get_model_name(c); /* Default name */
@@ -1076,7 +1076,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	        "fxsr", "sse", "sse2", "ss", "ht", "tm", "ia64", NULL,
 
 		/* AMD-defined */
-		"pni", NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 		NULL, NULL, NULL, "syscall", NULL, NULL, NULL, NULL,
 		NULL, NULL, NULL, NULL, "nx", NULL, "mmxext", NULL,
 		NULL, "fxsr_opt", NULL, NULL, NULL, "lm", "3dnowext", "3dnow",
@@ -1100,11 +1100,17 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 
+		/* VIA/Cyrix/Centaur-defined */
+		NULL, NULL, "rng", "rng_en", NULL, NULL, "ace", "ace_en",
+		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+
 		/* AMD-defined (#2) */
 		"lahf_lm", "cmp_legacy", NULL, NULL, NULL, NULL, NULL, NULL,
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 	};
 	static char *x86_power_flags[] = { 
 		"ts",	/* temperature sensor */

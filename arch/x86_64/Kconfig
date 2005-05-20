@@ -379,6 +379,11 @@ config GENERIC_IRQ_PROBE
 	bool
 	default y
 
+# we have no ISA slots, but we do have ISA-style DMA.
+config ISA_DMA_API
+	bool
+	default y
+
 menu "Power management options"
 
 source kernel/power/Kconfig

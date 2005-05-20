@@ -13,6 +13,7 @@
 
 #include <linux/config.h>
 
+#ifdef CONFIG_BUG
 /*
  * Tell the user there is some problem.
  */
@@ -44,6 +45,7 @@ do {						\
 
 #define HAVE_ARCH_KGDB_BAD_PAGE
 #define kgdb_bad_page(page) do { kgdb_raise(SIGABRT); } while(0)
+#endif
 #endif
 
 #include <asm-generic/bug.h>

@@ -76,46 +76,47 @@ static inline void __ustw(__u16 val, __u16 *addr)
 	ptr->x = val;
 }
 
-static inline unsigned long __get_unaligned(const void *ptr, size_t size)
-{
-	unsigned long val;
-	switch (size) {
-	case 1:
-		val = *(const __u8 *)ptr;
-		break;
-	case 2:
-		val = __uldw((const __u16 *)ptr);
-		break;
-	case 4:
-		val = __uldl((const __u32 *)ptr);
-		break;
-	case 8:
-		val = __uldq((const __u64 *)ptr);
-		break;
-	default:
-		bad_unaligned_access_length();
-	};
-	return val;
-}
+#define __get_unaligned(ptr, size) ({		\
+	const void *__gu_p = ptr;		\
+	unsigned long val;			\
+	switch (size) {				\
+	case 1:					\
+		val = *(const __u8 *)__gu_p;	\
+		break;				\
+	case 2:					\
+		val = __uldw(__gu_p);		\
+		break;				\
+	case 4:					\
+		val = __uldl(__gu_p);		\
+		break;				\
+	case 8:					\
+		val = __uldq(__gu_p);		\
+		break;				\
+	default:				\
+		bad_unaligned_access_length();	\
+	};					\
+	val;					\
+})
 
-static inline void __put_unaligned(unsigned long val, void *ptr, size_t size)
-{
-	switch (size) {
-	case 1:
-		*(__u8 *)ptr = val;
-	        break;
-	case 2:
-		__ustw(val, (__u16 *)ptr);
-		break;
-	case 4:
-		__ustl(val, (__u32 *)ptr);
-		break;
-	case 8:
-		__ustq(val, (__u64 *)ptr);
-		break;
-	default:
-	    	bad_unaligned_access_length();
-	};
-}
+#define __put_unaligned(val, ptr, size)		\
+do {						\
+	void *__gu_p = ptr;			\
+	switch (size) {				\
+	case 1:					\
+		*(__u8 *)__gu_p = val;		\
+	        break;				\
+	case 2:					\
+		__ustw(val, __gu_p);		\
+		break;				\
+	case 4:					\
+		__ustl(val, __gu_p);		\
+		break;				\
+	case 8:					\
+		__ustq(val, __gu_p);		\
+		break;				\
+	default:				\
+	    	bad_unaligned_access_length();	\
+	};					\
+} while(0)
 
 #endif /* _ASM_GENERIC_UNALIGNED_H */

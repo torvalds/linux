@@ -13,9 +13,6 @@
  *     argument : macaddr=0x00,0x10,0x20,0x30,0x40,0x50
  */
 
-static char version[] =
-        "sunhme.c:v2.02 24/Aug/2003 David S. Miller (davem@redhat.com)\n";
-
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -67,15 +64,24 @@ static char version[] =
 
 #include "sunhme.h"
 
+#define DRV_NAME	"sunhme"
+#define DRV_VERSION	"2.02"
+#define DRV_RELDATE	"8/24/03"
+#define DRV_AUTHOR	"David S. Miller (davem@redhat.com)"
 
-#define DRV_NAME "sunhme"
+static char version[] =
+	DRV_NAME ".c:v" DRV_VERSION " " DRV_RELDATE " " DRV_AUTHOR "\n";
+
+MODULE_VERSION(DRV_VERSION);
+MODULE_AUTHOR(DRV_AUTHOR);
+MODULE_DESCRIPTION("Sun HappyMealEthernet(HME) 10/100baseT ethernet driver");
+MODULE_LICENSE("GPL");
 
 static int macaddr[6];
 
 /* accept MAC address of the form macaddr=0x08,0x00,0x20,0x30,0x40,0x50 */
 module_param_array(macaddr, int, NULL, 0);
 MODULE_PARM_DESC(macaddr, "Happy Meal MAC address to set");
-MODULE_LICENSE("GPL");
 
 static struct happy_meal *root_happy_dev;
 

@@ -170,7 +170,7 @@ static void via_tlbflush_agp3(struct agp_memory *mem)
 }
 
 
-struct agp_bridge_driver via_agp3_driver = {
+static struct agp_bridge_driver via_agp3_driver = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= agp3_generic_sizes,
 	.size_type		= U8_APER_SIZE,
@@ -193,7 +193,7 @@ struct agp_bridge_driver via_agp3_driver = {
 	.agp_destroy_page	= agp_generic_destroy_page,
 };
 
-struct agp_bridge_driver via_driver = {
+static struct agp_bridge_driver via_driver = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= via_generic_sizes,
 	.size_type		= U8_APER_SIZE,

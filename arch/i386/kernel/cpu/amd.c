@@ -24,7 +24,7 @@ __asm__(".align 4\nvide: ret");
 
 static void __init init_amd(struct cpuinfo_x86 *c)
 {
-#ifdef CONFIG_SMP
+#ifdef CONFIG_X86_SMP
 	int cpu = c == &boot_cpu_data ? 0 : c - cpu_data;
 #endif
 	u32 l, h;
@@ -198,7 +198,7 @@ static void __init init_amd(struct cpuinfo_x86 *c)
 			c->x86_num_cores = 1;
 	}
 
-#ifdef CONFIG_SMP
+#ifdef CONFIG_X86_SMP
 	/*
 	 * On a AMD dual core setup the lower bits of the APIC id
 	 * distingush the cores.  Assumes number of cores is a power

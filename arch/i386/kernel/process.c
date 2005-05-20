@@ -400,11 +400,6 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long esp,
 	int err;
 
 	childregs = ((struct pt_regs *) (THREAD_SIZE + (unsigned long) p->thread_info)) - 1;
-	*childregs = *regs;
-	childregs->eax = 0;
-	childregs->esp = esp;
-
-	p->thread.esp = (unsigned long) childregs;
 	/*
 	 * The below -8 is to reserve 8 bytes on top of the ring0 stack.
 	 * This is necessary to guarantee that the entire "struct pt_regs"
@@ -415,7 +410,13 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long esp,
 	 * "struct pt_regs" is possible, but they may contain the
 	 * completely wrong values.
 	 */
-	p->thread.esp0 = (unsigned long) (childregs+1) - 8;
+	childregs = (struct pt_regs *) ((unsigned long) childregs - 8);
+	*childregs = *regs;
+	childregs->eax = 0;
+	childregs->esp = esp;
+
+	p->thread.esp = (unsigned long) childregs;
+	p->thread.esp0 = (unsigned long) (childregs+1);
 
 	p->thread.eip = (unsigned long) ret_from_fork;
 
@@ -611,8 +612,8 @@ struct task_struct fastcall * __switch_to(struct task_struct *prev_p, struct tas
 	 * Save away %fs and %gs. No need to save %es and %ds, as
 	 * those are always kernel segments while inside the kernel.
 	 */
-	asm volatile("movl %%fs,%0":"=m" (*(int *)&prev->fs));
-	asm volatile("movl %%gs,%0":"=m" (*(int *)&prev->gs));
+	asm volatile("mov %%fs,%0":"=m" (prev->fs));
+	asm volatile("mov %%gs,%0":"=m" (prev->gs));
 
 	/*
 	 * Restore %fs and %gs if needed.

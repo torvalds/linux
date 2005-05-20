@@ -957,7 +957,7 @@ static void super_1_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 }
 
 
-struct super_type super_types[] = {
+static struct super_type super_types[] = {
 	[0] = {
 		.name	= "0.90.0",
 		.owner	= THIS_MODULE,
@@ -2740,7 +2740,7 @@ static struct block_device_operations md_fops =
 	.revalidate_disk= md_revalidate,
 };
 
-int md_thread(void * arg)
+static int md_thread(void * arg)
 {
 	mdk_thread_t *thread = arg;
 
@@ -3232,7 +3232,7 @@ void md_handle_safemode(mddev_t *mddev)
 }
 
 
-DECLARE_WAIT_QUEUE_HEAD(resync_wait);
+static DECLARE_WAIT_QUEUE_HEAD(resync_wait);
 
 #define SYNC_MARKS	10
 #define	SYNC_MARK_STEP	(3*HZ)
@@ -3575,8 +3575,8 @@ void md_check_recovery(mddev_t *mddev)
 	}
 }
 
-int md_notify_reboot(struct notifier_block *this,
-					unsigned long code, void *x)
+static int md_notify_reboot(struct notifier_block *this,
+			    unsigned long code, void *x)
 {
 	struct list_head *tmp;
 	mddev_t *mddev;
@@ -3599,7 +3599,7 @@ int md_notify_reboot(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-struct notifier_block md_notifier = {
+static struct notifier_block md_notifier = {
 	.notifier_call	= md_notify_reboot,
 	.next		= NULL,
 	.priority	= INT_MAX, /* before any real devices */
@@ -3616,7 +3616,7 @@ static void md_geninit(void)
 		p->proc_fops = &md_seq_fops;
 }
 
-int __init md_init(void)
+static int __init md_init(void)
 {
 	int minor;
 

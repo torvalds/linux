@@ -83,9 +83,6 @@ void default_idle(void)
  */
 void cpu_idle(void)
 {
-	if (current->pid != 0)
-		goto out;
-
 	/* endless idle loop with no priority at all */
 	for (;;) {
 		if (ARCH_SUN4C_SUN4) {
@@ -126,8 +123,6 @@ void cpu_idle(void)
 		schedule();
 		check_pgt_cache();
 	}
-out:
-	return;
 }
 
 #else
@@ -332,6 +327,17 @@ void show_stack(struct task_struct *tsk, unsigned long *_ksp)
 	} while (++count < 16);
 	printk("\n");
 }
+
+void dump_stack(void)
+{
+	unsigned long *ksp;
+
+	__asm__ __volatile__("mov	%%fp, %0"
+			     : "=r" (ksp));
+	show_stack(current, ksp);
+}
+
+EXPORT_SYMBOL(dump_stack);
 
 /*
  * Note: sparc64 has a pretty intricated thread_saved_pc, check it out.

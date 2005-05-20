@@ -686,11 +686,11 @@ fail:
 
 /*
  * Name resolution.
+ * This is the basic name resolution function, turning a pathname into
+ * the final dentry. We expect 'base' to be positive and a directory.
  *
- * This is the basic name resolution function, turning a pathname
- * into the final dentry.
- *
- * We expect 'base' to be positive and a directory.
+ * Returns 0 and nd will have valid dentry and mnt on success.
+ * Returns error and drops reference to input namei data on failure.
  */
 static fastcall int __link_path_walk(const char * name, struct nameidata *nd)
 {
@@ -929,8 +929,10 @@ int fastcall path_walk(const char * name, struct nameidata *nd)
 	return link_path_walk(name, nd);
 }
 
-/* SMP-safe */
-/* returns 1 if everything is done */
+/* 
+ * SMP-safe: Returns 1 and nd will have valid dentry and mnt, if
+ * everything is done. Returns 0 and drops input nd, if lookup failed;
+ */
 static int __emul_lookup_dentry(const char *name, struct nameidata *nd)
 {
 	if (path_walk(name, nd))
@@ -994,9 +996,10 @@ set_it:
 	}
 }
 
+/* Returns 0 and nd will be valid on success; Retuns error, otherwise. */
 int fastcall path_lookup(const char *name, unsigned int flags, struct nameidata *nd)
 {
-	int retval;
+	int retval = 0;
 
 	nd->last_type = LAST_ROOT; /* if there are only slashes... */
 	nd->flags = flags;
@@ -1009,7 +1012,7 @@ int fastcall path_lookup(const char *name, unsigned int flags, struct nameidata 
 			nd->dentry = dget(current->fs->altroot);
 			read_unlock(&current->fs->lock);
 			if (__emul_lookup_dentry(name,nd))
-				return 0;
+				goto out; /* found in altroot */
 			read_lock(&current->fs->lock);
 		}
 		nd->mnt = mntget(current->fs->rootmnt);
@@ -1021,6 +1024,7 @@ int fastcall path_lookup(const char *name, unsigned int flags, struct nameidata 
 	read_unlock(&current->fs->lock);
 	current->total_link_count = 0;
 	retval = link_path_walk(name, nd);
+out:
 	if (unlikely(current->audit_context
 		     && nd && nd->dentry && nd->dentry->d_inode))
 		audit_inode(name, nd->dentry->d_inode);
@@ -2067,8 +2071,8 @@ exit:
  *	   ->i_sem on parents, which works but leads to some truely excessive
  *	   locking].
  */
-int vfs_rename_dir(struct inode *old_dir, struct dentry *old_dentry,
-	       struct inode *new_dir, struct dentry *new_dentry)
+static int vfs_rename_dir(struct inode *old_dir, struct dentry *old_dentry,
+			  struct inode *new_dir, struct dentry *new_dentry)
 {
 	int error = 0;
 	struct inode *target;
@@ -2112,8 +2116,8 @@ int vfs_rename_dir(struct inode *old_dir, struct dentry *old_dentry,
 	return error;
 }
 
-int vfs_rename_other(struct inode *old_dir, struct dentry *old_dentry,
-	       struct inode *new_dir, struct dentry *new_dentry)
+static int vfs_rename_other(struct inode *old_dir, struct dentry *old_dentry,
+			    struct inode *new_dir, struct dentry *new_dentry)
 {
 	struct inode *target;
 	int error;

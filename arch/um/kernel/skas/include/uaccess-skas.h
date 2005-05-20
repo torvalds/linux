@@ -19,7 +19,7 @@
 	  ((unsigned long) (addr) + (size) >= (unsigned long)(addr))))
 
 static inline int verify_area_skas(int type, const void * addr,
-				   unsigned long size)
+                                   unsigned long size)
 {
 	return(access_ok_skas(type, addr, size) ? 0 : -EFAULT);
 }

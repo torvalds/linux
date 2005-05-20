@@ -29,9 +29,9 @@
 #define SAMPLE_TYPE_AWE32	0x20
 #endif
 
-#ifndef _PATCHKEY
-#define _PATCHKEY(id) ((id<<8)|0xfd)
-#endif
+#define _LINUX_PATCHKEY_H_INDIRECT
+#include <linux/patchkey.h>
+#undef _LINUX_PATCHKEY_H_INDIRECT
 
 /*----------------------------------------------------------------
  * patch information record

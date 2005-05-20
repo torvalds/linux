@@ -496,9 +496,7 @@ static void sctp_v6_inaddr_any(union sctp_addr *addr, unsigned short port)
 /* Is this a wildcard address? */
 static int sctp_v6_is_any(const union sctp_addr *addr)
 {
-	int type;
-	type = ipv6_addr_type((struct in6_addr *)&addr->v6.sin6_addr);
-	return IPV6_ADDR_ANY == type;
+	return ipv6_addr_any(&addr->v6.sin6_addr);
 }
 
 /* Should this be available for binding?   */

@@ -227,7 +227,7 @@ static __inline__ void sun_fd_disable_dma(void)
 	doing_pdma = 0;
 	if (pdma_base) {
 		mmu_unlockarea(pdma_base, pdma_areasize);
-		pdma_base = 0;
+		pdma_base = NULL;
 	}
 }
 

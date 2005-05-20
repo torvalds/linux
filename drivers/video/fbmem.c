@@ -1257,6 +1257,8 @@ int fb_new_modelist(struct fb_info *info)
 static char *video_options[FB_MAX];
 static int ofonly;
 
+extern const char *global_mode_option;
+
 /**
  * fb_get_options - get kernel boot parameters
  * @name:   framebuffer name as it would appear in
@@ -1297,9 +1299,6 @@ int fb_get_options(char *name, char **option)
 	return retval;
 }
 
-
-extern const char *global_mode_option;
-
 /**
  *	video_setup - process command line options
  *	@options: string of options
@@ -1313,7 +1312,7 @@ extern const char *global_mode_option;
  *	Returns zero.
  *
  */
-int __init video_setup(char *options)
+static int __init video_setup(char *options)
 {
 	int i, global = 0;
 

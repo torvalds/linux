@@ -11,6 +11,7 @@ usbserial-obj-$(CONFIG_USB_EZUSB)		+= ezusb.o
 
 usbserial-objs	:= usb-serial.o generic.o bus.o $(usbserial-obj-y)
 
+obj-$(CONFIG_USB_SERIAL_AIRPRIME)		+= airprime.o
 obj-$(CONFIG_USB_SERIAL_BELKIN)			+= belkin_sa.o
 obj-$(CONFIG_USB_SERIAL_CP2101)			+= cp2101.o
 obj-$(CONFIG_USB_SERIAL_CYBERJACK)		+= cyberjack.o
@@ -21,6 +22,7 @@ obj-$(CONFIG_USB_SERIAL_EDGEPORT_TI)		+= io_ti.o
 obj-$(CONFIG_USB_SERIAL_EMPEG)			+= empeg.o
 obj-$(CONFIG_USB_SERIAL_FTDI_SIO)		+= ftdi_sio.o
 obj-$(CONFIG_USB_SERIAL_GARMIN)			+= garmin_gps.o
+obj-$(CONFIG_USB_SERIAL_HP4X)			+= hp4x.o
 obj-$(CONFIG_USB_SERIAL_IPAQ)			+= ipaq.o
 obj-$(CONFIG_USB_SERIAL_IPW)			+= ipw.o
 obj-$(CONFIG_USB_SERIAL_IR)			+= ir-usb.o

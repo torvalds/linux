@@ -3,7 +3,7 @@
  *
  *   Directory search handling
  * 
- *   Copyright (C) International Business Machines  Corp., 2004
+ *   Copyright (C) International Business Machines  Corp., 2004, 2005
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -65,14 +65,14 @@ static int construct_dentry(struct qstr *qstring, struct file *file,
 	struct cifsTconInfo *pTcon;
 	int rc = 0;
 
-	cFYI(1, ("For %s ", qstring->name));
+	cFYI(1, ("For %s", qstring->name));
 	cifs_sb = CIFS_SB(file->f_dentry->d_sb);
 	pTcon = cifs_sb->tcon;
 
 	qstring->hash = full_name_hash(qstring->name, qstring->len);
 	tmp_dentry = d_lookup(file->f_dentry, qstring);
 	if (tmp_dentry) {
-		cFYI(0, (" existing dentry with inode 0x%p", tmp_dentry->d_inode));
+		cFYI(0, ("existing dentry with inode 0x%p", tmp_dentry->d_inode));
 		*ptmp_inode = tmp_dentry->d_inode;
 /* BB overwrite old name? i.e. tmp_dentry->d_name and tmp_dentry->d_name.len??*/
 		if(*ptmp_inode == NULL) {
@@ -105,8 +105,11 @@ static int construct_dentry(struct qstr *qstring, struct file *file,
 }
 
 static void fill_in_inode(struct inode *tmp_inode,
-	FILE_DIRECTORY_INFO *pfindData, int *pobject_type)
+	FILE_DIRECTORY_INFO *pfindData, int *pobject_type, int isNewInode)
 {
+	loff_t local_size;
+	struct timespec local_mtime;
+
 	struct cifsInodeInfo *cifsInfo = CIFS_I(tmp_inode);
 	struct cifs_sb_info *cifs_sb = CIFS_SB(tmp_inode->i_sb);
 	__u32 attr = le32_to_cpu(pfindData->ExtFileAttributes);
@@ -115,6 +118,10 @@ static void fill_in_inode(struct inode *tmp_inode,
 
 	cifsInfo->cifsAttrs = attr;
 	cifsInfo->time = jiffies;
+
+	/* save mtime and size */
+	local_mtime = tmp_inode->i_mtime;
+	local_size  = tmp_inode->i_size;
 
 	/* Linux can not store file creation time unfortunately so ignore it */
 	tmp_inode->i_atime =
@@ -134,7 +141,6 @@ static void fill_in_inode(struct inode *tmp_inode,
 		tmp_inode->i_mode = cifs_sb->mnt_file_mode;
 	}
 
-	cFYI(0,("CIFS FFIRST: Attributes came in as 0x%x",attr));
 	if (attr & ATTR_DIRECTORY) {
 		*pobject_type = DT_DIR;
 		/* override default perms since we do not lock dirs */
@@ -175,30 +181,46 @@ static void fill_in_inode(struct inode *tmp_inode,
 	      (unsigned long)tmp_inode->i_size, tmp_inode->i_blocks,
 	      tmp_inode->i_blksize));
 	if (S_ISREG(tmp_inode->i_mode)) {
-		cFYI(1, (" File inode "));
+		cFYI(1, ("File inode"));
 		tmp_inode->i_op = &cifs_file_inode_ops;
 		if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DIRECT_IO)
 			tmp_inode->i_fop = &cifs_file_direct_ops;
 		else
 			tmp_inode->i_fop = &cifs_file_ops;
 		tmp_inode->i_data.a_ops = &cifs_addr_ops;
+
+		if(isNewInode)
+			return; /* No sense invalidating pages for new inode since we
+					   have not started caching readahead file data yet */
+
+		if (timespec_equal(&tmp_inode->i_mtime, &local_mtime) &&
+			(local_size == tmp_inode->i_size)) {
+			cFYI(1, ("inode exists but unchanged"));
+		} else {
+			/* file may have changed on server */
+			cFYI(1, ("invalidate inode, readdir detected change"));
+			invalidate_remote_inode(tmp_inode);
+		}
 	} else if (S_ISDIR(tmp_inode->i_mode)) {
-		cFYI(1, (" Directory inode"));
+		cFYI(1, ("Directory inode"));
 		tmp_inode->i_op = &cifs_dir_inode_ops;
 		tmp_inode->i_fop = &cifs_dir_ops;
 	} else if (S_ISLNK(tmp_inode->i_mode)) {
-		cFYI(1, (" Symbolic Link inode "));
+		cFYI(1, ("Symbolic Link inode"));
 		tmp_inode->i_op = &cifs_symlink_inode_ops;
 	} else {
-		cFYI(1, (" Init special inode "));
+		cFYI(1, ("Init special inode"));
 		init_special_inode(tmp_inode, tmp_inode->i_mode,
 				   tmp_inode->i_rdev);
 	}
 }
 
 static void unix_fill_in_inode(struct inode *tmp_inode,
-	FILE_UNIX_INFO *pfindData, int *pobject_type)
+	FILE_UNIX_INFO *pfindData, int *pobject_type, int isNewInode)
 {
+	loff_t local_size;
+	struct timespec local_mtime;
+
 	struct cifsInodeInfo *cifsInfo = CIFS_I(tmp_inode);
 	struct cifs_sb_info *cifs_sb = CIFS_SB(tmp_inode->i_sb);
 
@@ -207,6 +229,10 @@ static void unix_fill_in_inode(struct inode *tmp_inode,
 	__u64 end_of_file = le64_to_cpu(pfindData->EndOfFile);
 	cifsInfo->time = jiffies;
 	atomic_inc(&cifsInfo->inUse);
+
+	/* save mtime and size */
+	local_mtime = tmp_inode->i_mtime;
+	local_size  = tmp_inode->i_size;
 
 	tmp_inode->i_atime =
 	    cifs_NTtimeToUnix(le64_to_cpu(pfindData->LastAccessTime));
@@ -265,6 +291,19 @@ static void unix_fill_in_inode(struct inode *tmp_inode,
 		else
 			tmp_inode->i_fop = &cifs_file_ops;
 		tmp_inode->i_data.a_ops = &cifs_addr_ops;
+
+		if(isNewInode)
+			return; /* No sense invalidating pages for new inode since we
+					   have not started caching readahead file data yet */
+
+		if (timespec_equal(&tmp_inode->i_mtime, &local_mtime) &&
+			(local_size == tmp_inode->i_size)) {
+			cFYI(1, ("inode exists but unchanged"));
+		} else {
+			/* file may have changed on server */
+			cFYI(1, ("invalidate inode, readdir detected change"));
+			invalidate_remote_inode(tmp_inode);
+		}
 	} else if (S_ISDIR(tmp_inode->i_mode)) {
 		cFYI(1, ("Directory inode"));
 		tmp_inode->i_op = &cifs_dir_inode_ops;
@@ -314,15 +353,16 @@ static int initiate_cifs_search(const int xid, struct file *file)
 		return -EINVAL;
 
 	down(&file->f_dentry->d_sb->s_vfs_rename_sem);
-	full_path = build_wildcard_path_from_dentry(file->f_dentry);
+	full_path = build_path_from_dentry(file->f_dentry);
 	up(&file->f_dentry->d_sb->s_vfs_rename_sem);
 
 	if(full_path == NULL) {
 		return -ENOMEM;
 	}
 
-	cFYI(1, ("Full path: %s start at: %lld ", full_path, file->f_pos));
+	cFYI(1, ("Full path: %s start at: %lld", full_path, file->f_pos));
 
+ffirst_retry:
 	/* test for Unix extensions */
 	if (pTcon->ses->capabilities & CAP_UNIX) {
 		cifsFile->srch_inf.info_level = SMB_FIND_FILE_UNIX; 
@@ -332,10 +372,16 @@ static int initiate_cifs_search(const int xid, struct file *file)
 		cifsFile->srch_inf.info_level = SMB_FIND_FILE_DIRECTORY_INFO;
 	}
 
-	rc = CIFSFindFirst(xid, pTcon,full_path,cifs_sb->local_nls, 
-		&cifsFile->netfid, &cifsFile->srch_inf); 
+	rc = CIFSFindFirst(xid, pTcon,full_path,cifs_sb->local_nls,
+		&cifsFile->netfid, &cifsFile->srch_inf,
+		cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
 	if(rc == 0)
 		cifsFile->invalidHandle = FALSE;
+	if((rc == -EOPNOTSUPP) && 
+		(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM)) {
+		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_SERVER_INUM;
+		goto ffirst_retry;
+	}
 	kfree(full_path);
 	return rc;
 }
@@ -363,10 +409,15 @@ static char *nxt_dir_entry(char *old_entry, char *end_of_smb)
 	cFYI(1,("new entry %p old entry %p",new_entry,old_entry));
 	/* validate that new_entry is not past end of SMB */
 	if(new_entry >= end_of_smb) {
-		cFYI(1,("search entry %p began after end of SMB %p old entry %p",
-			new_entry,end_of_smb,old_entry)); 
+		cERROR(1,
+		      ("search entry %p began after end of SMB %p old entry %p",
+			new_entry, end_of_smb, old_entry)); 
 		return NULL;
-	} else
+	} else if (new_entry + sizeof(FILE_DIRECTORY_INFO) > end_of_smb) {
+		cERROR(1,("search entry %p extends after end of SMB %p",
+			new_entry, end_of_smb));
+		return NULL;
+	} else 
 		return new_entry;
 
 }
@@ -594,7 +645,12 @@ static int cifs_get_name_from_search_buf(struct qstr *pqst,
 	if(unicode) {
 		/* BB fixme - test with long names */
 		/* Note converted filename can be longer than in unicode */
-		pqst->len = cifs_strfromUCS_le((char *)pqst->name,(wchar_t *)filename,len/2,nlt);
+		if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR)
+			pqst->len = cifs_convertUCSpath((char *)pqst->name,
+					(__le16 *)filename, len/2, nlt);
+		else
+			pqst->len = cifs_strfromUCS_le((char *)pqst->name,
+					(wchar_t *)filename,len/2,nlt);
 	} else {
 		pqst->name = filename;
 		pqst->len = len;
@@ -654,10 +710,15 @@ static int cifs_filldir(char *pfindEntry, struct file *file,
 		insert_inode_hash(tmp_inode);
 	}
 
+	/* we pass in rc below, indicating whether it is a new inode,
+	   so we can figure out whether to invalidate the inode cached
+	   data if the file has changed */
 	if(pCifsF->srch_inf.info_level == SMB_FIND_FILE_UNIX) {
-		unix_fill_in_inode(tmp_inode,(FILE_UNIX_INFO *)pfindEntry,&obj_type);
+		unix_fill_in_inode(tmp_inode,
+				   (FILE_UNIX_INFO *)pfindEntry,&obj_type, rc);
 	} else {
-		fill_in_inode(tmp_inode,(FILE_DIRECTORY_INFO *)pfindEntry,&obj_type);
+		fill_in_inode(tmp_inode,
+			      (FILE_DIRECTORY_INFO *)pfindEntry,&obj_type, rc);
 	}
 	
 	rc = filldir(direntry,qstring.name,qstring.len,file->f_pos,tmp_inode->i_ino,obj_type);
@@ -823,7 +884,11 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 		end_of_smb = cifsFile->srch_inf.ntwrk_buf_start +
 			smbCalcSize((struct smb_hdr *)
 				    cifsFile->srch_inf.ntwrk_buf_start);
-		tmp_buf = kmalloc(NAME_MAX+1,GFP_KERNEL);
+		/* To be safe - for UCS to UTF-8 with strings loaded
+		with the rare long characters alloc more to account for
+		such multibyte target UTF-8 characters. cifs_unicode.c,
+		which actually does the conversion, has the same limit */
+		tmp_buf = kmalloc((2 * NAME_MAX) + 4, GFP_KERNEL);
 		for(i=0;(i<num_to_fill) && (rc == 0);i++) {
 			if(current_entry == NULL) {
 				/* evaluate whether this case is an error */
@@ -831,19 +896,6 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 					  num_to_fill, i));
 				break;
 			}
-
-			/* BB FIXME - need to enable the below code BB */
-
-		/* if((!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM)) ||
-			   (cifsFile->srch_inf.info_level != 
-				   something that supports server inodes)) {
-				create dentry
-				create inode
-				fill in inode new_inode (getting local i_ino)
-			}
-			also create local inode for performance reasons (so we 
-			have a cache of inode metadata) unless this new mount 
-			parm says otherwise */
 
 			rc = cifs_filldir(current_entry, file, 
 					filldir, direntry,tmp_buf);

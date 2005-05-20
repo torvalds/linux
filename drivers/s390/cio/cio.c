@@ -1,7 +1,7 @@
 /*
  *  drivers/s390/cio/cio.c
  *   S/390 common I/O routines -- low level i/o calls
- *   $Revision: 1.131 $
+ *   $Revision: 1.133 $
  *
  *    Copyright (C) 1999-2002 IBM Deutschland Entwicklung GmbH,
  *			      IBM Corporation
@@ -228,7 +228,7 @@ cio_start_key (struct subchannel *sch,	/* subchannel structure */
 int
 cio_start (struct subchannel *sch, struct ccw1 *cpa, __u8 lpm)
 {
-	return cio_start_key(sch, cpa, lpm, default_storage_key);
+	return cio_start_key(sch, cpa, lpm, PAGE_DEFAULT_KEY);
 }
 
 /*

@@ -442,6 +442,25 @@ out:
 }
 
 
+/* changes the irq of func1 to match that of func0 */
+static int ti12xx_align_irqs(struct yenta_socket *socket, int *old_irq)
+{
+	struct pci_dev *func0;
+
+	/* find func0 device */
+	func0 = pci_get_slot(socket->dev->bus, socket->dev->devfn & ~0x07);
+	if (!func0)
+		return 0;
+
+	if (old_irq)
+		*old_irq = socket->cb_irq;
+	socket->cb_irq = socket->dev->irq = func0->irq;
+
+	pci_dev_put(func0);
+
+	return 1;
+}
+
 /*
  * ties INTA and INTB together. also changes the devices irq to that of
  * the function 0 device. call from func1 only.
@@ -449,25 +468,21 @@ out:
  */
 static int ti12xx_tie_interrupts(struct yenta_socket *socket, int *old_irq)
 {
-	struct pci_dev *func0;
 	u32 sysctl;
+	int ret;
 
 	sysctl = config_readl(socket, TI113X_SYSTEM_CONTROL);
 	if (sysctl & TI122X_SCR_INTRTIE)
 		return 0;
 
-	/* find func0 device */
-	func0 = pci_get_slot(socket->dev->bus, socket->dev->devfn & ~0x07);
-	if (!func0)
+	/* align */
+	ret = ti12xx_align_irqs(socket, old_irq);
+	if (!ret)
 		return 0;
 
-	/* change the interrupt to match func0, tie 'em up */
-	*old_irq = socket->cb_irq;
-	socket->cb_irq = socket->dev->irq = func0->irq;
+	/* tie */
 	sysctl |= TI122X_SCR_INTRTIE;
 	config_writel(socket, TI113X_SYSTEM_CONTROL, sysctl);
-
-	pci_dev_put(func0);
 
 	return 1;
 }
@@ -489,13 +504,18 @@ static void ti12xx_untie_interrupts(struct yenta_socket *socket, int old_irq)
  */
 static void ti12xx_irqroute_func1(struct yenta_socket *socket)
 {
-	u32 mfunc, mfunc_old, devctl;
+	u32 mfunc, mfunc_old, devctl, sysctl;
 	int pci_irq_status;
 
 	mfunc = mfunc_old = config_readl(socket, TI122X_MFUNC);
 	devctl = config_readb(socket, TI113X_DEVICE_CONTROL);
 	printk(KERN_INFO "Yenta TI: socket %s, mfunc 0x%08x, devctl 0x%02x\n",
 	       pci_name(socket->dev), mfunc, devctl);
+
+	/* if IRQs are configured as tied, align irq of func1 with func0 */
+	sysctl = config_readl(socket, TI113X_SYSTEM_CONTROL);
+	if (sysctl & TI122X_SCR_INTRTIE)
+		ti12xx_align_irqs(socket, NULL);
 
 	/* make sure PCI interrupts are enabled before probing */
 	ti_init(socket);

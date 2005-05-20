@@ -645,7 +645,7 @@ static int cdrom_mrw_exit(struct cdrom_device_info *cdi)
 		ret = cdrom_mrw_bgformat_susp(cdi, 0);
 	}
 
-	if (!ret)
+	if (!ret && cdi->media_written)
 		ret = cdrom_flush_cache(cdi);
 
 	return ret;

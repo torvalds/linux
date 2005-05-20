@@ -43,6 +43,10 @@ config GENERIC_NVRAM
 	bool
 	default y
 
+config SCHED_NO_NO_OMIT_FRAME_POINTER
+	bool
+	default y
+
 source "init/Kconfig"
 
 menu "Processor"
@@ -53,6 +57,7 @@ choice
 
 config 6xx
 	bool "6xx/7xx/74xx/52xx/82xx/83xx"
+	select PPC_FPU
 	help
 	  There are four types of PowerPC chips supported.  The more common
 	  types (601, 603, 604, 740, 750, 7400), the Motorola embedded
@@ -72,9 +77,11 @@ config 44x
 	bool "44x"
 
 config POWER3
+	select PPC_FPU
 	bool "POWER3"
 
 config POWER4
+	select PPC_FPU
 	bool "POWER4 and 970 (G5)"
 
 config 8xx
@@ -85,6 +92,9 @@ config E500
 	bool "e500"
 
 endchoice
+
+config PPC_FPU
+	bool
 
 config BOOKE
 	bool
@@ -1074,6 +1084,10 @@ source "drivers/zorro/Kconfig"
 source kernel/power/Kconfig
 
 endmenu
+
+config ISA_DMA_API
+	bool
+	default y
 
 menu "Bus options"
 

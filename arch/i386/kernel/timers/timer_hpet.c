@@ -79,7 +79,7 @@ static unsigned long get_offset_hpet(void)
 
 	eax = hpet_readl(HPET_COUNTER);
 	eax -= hpet_last;	/* hpet delta */
-
+	eax = min(hpet_tick, eax);
 	/*
          * Time offset = (hpet delta) * ( usecs per HPET clock )
 	 *             = (hpet delta) * ( usecs per tick / HPET clocks per tick)
@@ -105,9 +105,12 @@ static void mark_offset_hpet(void)
 	last_offset = ((unsigned long long)last_tsc_high<<32)|last_tsc_low;
 	rdtsc(last_tsc_low, last_tsc_high);
 
-	offset = hpet_readl(HPET_T0_CMP) - hpet_tick;
-	if (unlikely(((offset - hpet_last) > hpet_tick) && (hpet_last != 0))) {
-		int lost_ticks = (offset - hpet_last) / hpet_tick;
+	if (hpet_use_timer)
+		offset = hpet_readl(HPET_T0_CMP) - hpet_tick;
+	else
+		offset = hpet_readl(HPET_COUNTER);
+	if (unlikely(((offset - hpet_last) >= (2*hpet_tick)) && (hpet_last != 0))) {
+		int lost_ticks = ((offset - hpet_last) / hpet_tick) - 1;
 		jiffies_64 += lost_ticks;
 	}
 	hpet_last = offset;

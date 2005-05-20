@@ -693,6 +693,10 @@ config RTC_9701JE
 
 endmenu
 
+config ISA_DMA_API
+	bool
+	depends on MPC1211
+	default y
 
 menu "Bus options (PCI, PCMCIA, EISA, MCA, ISA)"
 

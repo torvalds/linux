@@ -23,6 +23,7 @@
 #include "asm/ptrace.h"
 #include "asm/elf.h"
 #include "asm/user.h"
+#include "asm/setup.h"
 #include "ubd_user.h"
 #include "asm/current.h"
 #include "asm/setup.h"
@@ -42,9 +43,9 @@
 #define DEFAULT_COMMAND_LINE "root=98:0"
 
 /* Changed in linux_main and setup_arch, which run before SMP is started */
-char command_line[COMMAND_LINE_SIZE] = { 0 };
+static char command_line[COMMAND_LINE_SIZE] = { 0 };
 
-void add_arg(char *arg)
+static void add_arg(char *arg)
 {
 	if (strlen(command_line) + strlen(arg) + 1 > COMMAND_LINE_SIZE) {
 		printf("add_arg: Too many command line arguments!\n");
@@ -449,7 +450,7 @@ void __init setup_arch(char **cmdline_p)
 {
 	notifier_chain_register(&panic_notifier_list, &panic_exit_notifier);
 	paging_init();
- 	strlcpy(saved_command_line, command_line, COMMAND_LINE_SIZE);
+        strlcpy(saved_command_line, command_line, COMMAND_LINE_SIZE);
  	*cmdline_p = command_line;
 	setup_hostinfo();
 }

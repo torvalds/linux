@@ -26,7 +26,22 @@
 #include "qconf.moc"
 #include "images.c"
 
+#ifdef _
+# undef _
+# define _ qgettext
+#endif
+
 static QApplication *configApp;
+
+static inline QString qgettext(const char* str)
+{
+  return QString::fromLocal8Bit(gettext(str));
+}
+
+static inline QString qgettext(const QString& str)
+{
+  return QString::fromLocal8Bit(gettext(str.latin1()));
+}
 
 ConfigSettings::ConfigSettings()
 	: showAll(false), showName(false), showRange(false), showData(false)
@@ -177,7 +192,7 @@ void ConfigItem::updateMenu(void)
 
 	sym = menu->sym;
 	prop = menu->prompt;
-	prompt = menu_get_prompt(menu);
+	prompt = QString::fromLocal8Bit(menu_get_prompt(menu));
 
 	if (prop) switch (prop->type) {
 	case P_MENU:
@@ -203,7 +218,7 @@ void ConfigItem::updateMenu(void)
 	if (!sym)
 		goto set_prompt;
 
-	setText(nameColIdx, sym->name);
+	setText(nameColIdx, QString::fromLocal8Bit(sym->name));
 
 	type = sym_get_type(sym);
 	switch (type) {
@@ -213,9 +228,9 @@ void ConfigItem::updateMenu(void)
 
 		if (!sym_is_changable(sym) && !list->showAll) {
 			setPixmap(promptColIdx, 0);
-			setText(noColIdx, 0);
-			setText(modColIdx, 0);
-			setText(yesColIdx, 0);
+			setText(noColIdx, QString::null);
+			setText(modColIdx, QString::null);
+			setText(yesColIdx, QString::null);
 			break;
 		}
 		expr = sym_get_tristate_value(sym);
@@ -257,6 +272,7 @@ void ConfigItem::updateMenu(void)
 		const char* data;
 
 		data = sym_get_string_value(sym);
+
 #if QT_VERSION >= 300
 		int i = list->mapIdx(dataColIdx);
 		if (i >= 0)
@@ -264,9 +280,9 @@ void ConfigItem::updateMenu(void)
 #endif
 		setText(dataColIdx, data);
 		if (type == S_STRING)
-			prompt.sprintf("%s: %s", prompt.latin1(), data);
+			prompt = QString("%1: %2").arg(prompt).arg(data);
 		else
-			prompt.sprintf("(%s) %s", data, prompt.latin1());
+			prompt = QString("(%2) %1").arg(prompt).arg(data);
 		break;
 	}
 	if (!sym_has_value(sym) && visible)
@@ -343,9 +359,9 @@ void ConfigLineEdit::show(ConfigItem* i)
 {
 	item = i;
 	if (sym_get_string_value(item->menu->sym))
-		setText(sym_get_string_value(item->menu->sym));
+		setText(QString::fromLocal8Bit(sym_get_string_value(item->menu->sym)));
 	else
-		setText(0);
+		setText(QString::null);
 	Parent::show();
 	setFocus();
 }
@@ -961,7 +977,7 @@ ConfigMainWindow::ConfigMainWindow(void)
 	delete configSettings;
 }
 
-static QString print_filter(const char *str)
+static QString print_filter(const QString &str)
 {
 	QRegExp re("[<>&\"\\n]");
 	QString res = str;
@@ -994,7 +1010,7 @@ static QString print_filter(const char *str)
 
 static void expr_print_help(void *data, const char *str)
 {
-	((QString*)data)->append(print_filter(str));
+	reinterpret_cast<QString*>(data)->append(print_filter(str));
 }
 
 /*
@@ -1009,7 +1025,7 @@ void ConfigMainWindow::setHelp(QListViewItem* item)
 	if (item)
 		menu = ((ConfigItem*)item)->menu;
 	if (!menu) {
-		helpText->setText(NULL);
+		helpText->setText(QString::null);
 		return;
 	}
 
@@ -1019,16 +1035,16 @@ void ConfigMainWindow::setHelp(QListViewItem* item)
 	if (sym) {
 		if (menu->prompt) {
 			head += "<big><b>";
-			head += print_filter(menu->prompt->text);
+			head += print_filter(_(menu->prompt->text));
 			head += "</b></big>";
 			if (sym->name) {
 				head += " (";
-				head += print_filter(sym->name);
+				head += print_filter(_(sym->name));
 				head += ")";
 			}
 		} else if (sym->name) {
 			head += "<big><b>";
-			head += print_filter(sym->name);
+			head += print_filter(_(sym->name));
 			head += "</b></big>";
 		}
 		head += "<br><br>";
@@ -1049,7 +1065,7 @@ void ConfigMainWindow::setHelp(QListViewItem* item)
 				case P_PROMPT:
 				case P_MENU:
 					debug += "prompt: ";
-					debug += print_filter(prop->text);
+					debug += print_filter(_(prop->text));
 					debug += "<br>";
 					break;
 				case P_DEFAULT:
@@ -1088,10 +1104,10 @@ void ConfigMainWindow::setHelp(QListViewItem* item)
 			debug += "<br>";
 		}
 
-		help = print_filter(sym->help);
+		help = print_filter(_(sym->help));
 	} else if (menu->prompt) {
 		head += "<big><b>";
-		head += print_filter(menu->prompt->text);
+		head += print_filter(_(menu->prompt->text));
 		head += "</b></big><br><br>";
 		if (showDebug) {
 			if (menu->prompt->visible.expr) {
@@ -1111,7 +1127,7 @@ void ConfigMainWindow::loadConfig(void)
 	QString s = QFileDialog::getOpenFileName(".config", NULL, this);
 	if (s.isNull())
 		return;
-	if (conf_read(s.latin1()))
+	if (conf_read(QFile::encodeName(s)))
 		QMessageBox::information(this, "qconf", "Unable to load configuration!");
 	ConfigView::updateListAll();
 }
@@ -1127,7 +1143,7 @@ void ConfigMainWindow::saveConfigAs(void)
 	QString s = QFileDialog::getSaveFileName(".config", NULL, this);
 	if (s.isNull())
 		return;
-	if (conf_write(s.latin1()))
+	if (conf_write(QFile::encodeName(s)))
 		QMessageBox::information(this, "qconf", "Unable to save configuration!");
 }
 
@@ -1371,6 +1387,9 @@ int main(int ac, char** av)
 {
 	ConfigMainWindow* v;
 	const char *name;
+
+	bindtextdomain(PACKAGE, LOCALEDIR);
+	textdomain(PACKAGE);
 
 #ifndef LKC_DIRECT_LINK
 	kconfig_load();

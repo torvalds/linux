@@ -7,7 +7,7 @@
  * Bugreports.to..: <Linux390@de.ibm.com>
  * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 1999,2000
  *
- * $Revision: 1.69 $
+ * $Revision: 1.71 $
  */
 
 #include <linux/config.h>
@@ -1101,7 +1101,8 @@ dasd_eckd_build_cp(struct dasd_device * device, struct request *req)
 				if (dasd_eckd_cdl_special(blk_per_trk, recid)){
 					rcmd |= 0x8;
 					count = dasd_eckd_cdl_reclen(recid);
-					if (count < blksize)
+					if (count < blksize &&
+					    rq_data_dir(req) == READ)
 						memset(dst + count, 0xe5,
 						       blksize - count);
 				}

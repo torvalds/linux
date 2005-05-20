@@ -42,7 +42,7 @@ extern int xfs_get_dir_entry (vname_t *, xfs_inode_t **);
 extern int xfs_dir_lookup_int (bhv_desc_t *, uint, vname_t *, xfs_ino_t *,
 				xfs_inode_t **);
 extern int xfs_truncate_file (xfs_mount_t *, xfs_inode_t *);
-extern int xfs_dir_ialloc (xfs_trans_t **, xfs_inode_t *, mode_t, nlink_t,
+extern int xfs_dir_ialloc (xfs_trans_t **, xfs_inode_t *, mode_t, xfs_nlink_t,
 				xfs_dev_t, cred_t *, prid_t, int,
 				xfs_inode_t **, int *);
 extern int xfs_droplink (xfs_trans_t *, xfs_inode_t *);

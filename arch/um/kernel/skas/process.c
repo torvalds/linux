@@ -4,6 +4,7 @@
  */
 
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <errno.h>
 #include <signal.h>
@@ -27,27 +28,37 @@
 #include "chan_user.h"
 #include "signal_user.h"
 #include "registers.h"
+#include "process.h"
 
 int is_skas_winch(int pid, int fd, void *data)
 {
-	if(pid != os_getpid())
+        if(pid != os_getpgrp())
 		return(0);
 
 	register_winch_irq(-1, fd, -1, data);
 	return(1);
 }
 
-static void handle_segv(int pid)
+void get_skas_faultinfo(int pid, struct faultinfo * fi)
 {
-	struct ptrace_faultinfo fault;
 	int err;
 
-	err = ptrace(PTRACE_FAULTINFO, pid, 0, &fault);
+        err = ptrace(PTRACE_FAULTINFO, pid, 0, fi);
 	if(err)
-		panic("handle_segv - PTRACE_FAULTINFO failed, errno = %d\n",
-		      errno);
+                panic("get_skas_faultinfo - PTRACE_FAULTINFO failed, "
+                      "errno = %d\n", errno);
 
-	segv(fault.addr, 0, FAULT_WRITE(fault.is_write), 1, NULL);
+        /* Special handling for i386, which has different structs */
+        if (sizeof(struct ptrace_faultinfo) < sizeof(struct faultinfo))
+                memset((char *)fi + sizeof(struct ptrace_faultinfo), 0,
+                       sizeof(struct faultinfo) -
+                       sizeof(struct ptrace_faultinfo));
+}
+
+static void handle_segv(int pid, union uml_pt_regs * regs)
+{
+        get_skas_faultinfo(pid, &regs->skas.faultinfo);
+        segv(regs->skas.faultinfo, 0, 1, NULL);
 }
 
 /*To use the same value of using_sysemu as the caller, ask it that value (in local_using_sysemu)*/
@@ -163,7 +174,7 @@ void userspace(union uml_pt_regs *regs)
 		if(WIFSTOPPED(status)){
 		  	switch(WSTOPSIG(status)){
 			case SIGSEGV:
-				handle_segv(pid);
+                                handle_segv(pid, regs);
 				break;
 			case SIGTRAP + 0x80:
 			        handle_trap(pid, regs, local_using_sysemu);
@@ -177,7 +188,7 @@ void userspace(union uml_pt_regs *regs)
 			case SIGBUS:
 			case SIGFPE:
 			case SIGWINCH:
-				user_signal(WSTOPSIG(status), regs);
+                                user_signal(WSTOPSIG(status), regs, pid);
 				break;
 			default:
 			        printk("userspace - child stopped with signal "
@@ -190,6 +201,11 @@ void userspace(union uml_pt_regs *regs)
 		}
 	}
 }
+#define INIT_JMP_NEW_THREAD 0
+#define INIT_JMP_REMOVE_SIGSTACK 1
+#define INIT_JMP_CALLBACK 2
+#define INIT_JMP_HALT 3
+#define INIT_JMP_REBOOT 4
 
 void new_thread(void *stack, void **switch_buf_ptr, void **fork_buf_ptr,
 		void (*handler)(int))
@@ -225,7 +241,7 @@ void thread_wait(void *sw, void *fb)
 	*switch_buf = &buf;
 	fork_buf = fb;
 	if(sigsetjmp(buf, 1) == 0)
-		siglongjmp(*fork_buf, 1);
+		siglongjmp(*fork_buf, INIT_JMP_REMOVE_SIGSTACK);
 }
 
 void switch_threads(void *me, void *next)
@@ -249,23 +265,31 @@ int start_idle_thread(void *stack, void *switch_buf_ptr, void **fork_buf_ptr)
 	sigjmp_buf **switch_buf = switch_buf_ptr;
 	int n;
 
+	set_handler(SIGWINCH, (__sighandler_t) sig_handler,
+		    SA_ONSTACK | SA_RESTART, SIGUSR1, SIGIO, SIGALRM,
+		    SIGVTALRM, -1);
+
 	*fork_buf_ptr = &initial_jmpbuf;
 	n = sigsetjmp(initial_jmpbuf, 1);
-	if(n == 0)
-		new_thread_proc((void *) stack, new_thread_handler);
-	else if(n == 1)
-		remove_sigstack();
-	else if(n == 2){
+        switch(n){
+        case INIT_JMP_NEW_THREAD:
+                new_thread_proc((void *) stack, new_thread_handler);
+                break;
+        case INIT_JMP_REMOVE_SIGSTACK:
+                remove_sigstack();
+                break;
+        case INIT_JMP_CALLBACK:
 		(*cb_proc)(cb_arg);
 		siglongjmp(*cb_back, 1);
-	}
-	else if(n == 3){
+                break;
+        case INIT_JMP_HALT:
 		kmalloc_ok = 0;
 		return(0);
-	}
-	else if(n == 4){
+        case INIT_JMP_REBOOT:
 		kmalloc_ok = 0;
 		return(1);
+        default:
+                panic("Bad sigsetjmp return in start_idle_thread - %d\n", n);
 	}
 	siglongjmp(**switch_buf, 1);
 }
@@ -290,7 +314,7 @@ void initial_thread_cb_skas(void (*proc)(void *), void *arg)
 
 	block_signals();
 	if(sigsetjmp(here, 1) == 0)
-		siglongjmp(initial_jmpbuf, 2);
+		siglongjmp(initial_jmpbuf, INIT_JMP_CALLBACK);
 	unblock_signals();
 
 	cb_proc = NULL;
@@ -301,13 +325,13 @@ void initial_thread_cb_skas(void (*proc)(void *), void *arg)
 void halt_skas(void)
 {
 	block_signals();
-	siglongjmp(initial_jmpbuf, 3);
+	siglongjmp(initial_jmpbuf, INIT_JMP_HALT);
 }
 
 void reboot_skas(void)
 {
 	block_signals();
-	siglongjmp(initial_jmpbuf, 4);
+	siglongjmp(initial_jmpbuf, INIT_JMP_REBOOT);
 }
 
 void switch_mm_skas(int mm_fd)

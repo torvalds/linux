@@ -380,8 +380,6 @@ struct he_vcc
 #define PCI_VENDOR_ID_FORE	0x1127
 #define PCI_DEVICE_ID_FORE_HE	0x400
 
-#define HE_DMA_MASK		0xffffffff
-
 #define GEN_CNTL_0				0x40
 #define  INT_PROC_ENBL		(1<<25)
 #define  SLAVE_ENDIAN_MODE	(1<<16)

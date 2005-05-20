@@ -292,7 +292,7 @@ module_param(cdu31a_irq, int, 0);
 
 /* The interrupt handler will wake this queue up when it gets an
    interrupts. */
-DECLARE_WAIT_QUEUE_HEAD(cdu31a_irq_wait);
+static DECLARE_WAIT_QUEUE_HEAD(cdu31a_irq_wait);
 static int irq_flag = 0;
 
 static int curr_control_reg = 0;	/* Current value of the control register */
@@ -2947,7 +2947,7 @@ static int scd_block_media_changed(struct gendisk *disk)
 	return cdrom_media_changed(&scd_info);
 }
 
-struct block_device_operations scd_bdops =
+static struct block_device_operations scd_bdops =
 {
 	.owner		= THIS_MODULE,
 	.open		= scd_block_open,
@@ -3216,7 +3216,7 @@ errout3:
 }
 
 
-void __exit cdu31a_exit(void)
+static void __exit cdu31a_exit(void)
 {
 	del_gendisk(scd_gendisk);
 	put_disk(scd_gendisk);

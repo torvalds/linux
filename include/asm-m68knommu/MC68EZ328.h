@@ -815,7 +815,7 @@ typedef volatile struct {
   volatile unsigned short int nipr;
   volatile unsigned short int pad1;
   volatile unsigned short int pad2;
-} m68328_uart __attribute__((packed));
+} __attribute__((packed)) m68328_uart;
 
 
 /**********

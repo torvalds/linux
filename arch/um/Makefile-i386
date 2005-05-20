@@ -1,4 +1,4 @@
-SUBARCH_CORE := arch/um/sys-i386/
+SUBARCH_CORE := arch/um/sys-i386/ arch/i386/crypto/
 
 TOP_ADDR := $(CONFIG_TOP_ADDR)
 
@@ -32,10 +32,10 @@ $(SYS_DIR)/sc.h: $(SYS_UTIL_DIR)/mk_sc
 $(SYS_DIR)/thread.h: $(SYS_UTIL_DIR)/mk_thread 
 	$(call filechk,gen_header)
 
-$(SYS_UTIL_DIR)/mk_sc: scripts_basic FORCE
+$(SYS_UTIL_DIR)/mk_sc: scripts_basic $(ARCH_DIR)/user-offsets.h FORCE
 	$(Q)$(MAKE) $(build)=$(SYS_UTIL_DIR) $@
 
-$(SYS_UTIL_DIR)/mk_thread: scripts_basic $(ARCH_SYMLINKS) $(GEN_HEADERS) FORCE
+$(SYS_UTIL_DIR)/mk_thread: scripts_basic $(ARCH_DIR)/kernel-offsets.h FORCE
 	$(Q)$(MAKE) $(build)=$(SYS_UTIL_DIR) $@
 
 $(SYS_UTIL_DIR): scripts_basic include/asm FORCE

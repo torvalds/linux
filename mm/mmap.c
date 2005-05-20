@@ -937,9 +937,10 @@ unsigned long do_mmap_pgoff(struct file * file, unsigned long addr,
 	/* mlock MCL_FUTURE? */
 	if (vm_flags & VM_LOCKED) {
 		unsigned long locked, lock_limit;
-		locked = mm->locked_vm << PAGE_SHIFT;
+		locked = len >> PAGE_SHIFT;
+		locked += mm->locked_vm;
 		lock_limit = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur;
-		locked += len;
+		lock_limit >>= PAGE_SHIFT;
 		if (locked > lock_limit && !capable(CAP_IPC_LOCK))
 			return -EAGAIN;
 	}
@@ -1009,8 +1010,7 @@ munmap_back:
 	}
 
 	/* Check against address space limit. */
-	if ((mm->total_vm << PAGE_SHIFT) + len
-	    > current->signal->rlim[RLIMIT_AS].rlim_cur)
+	if (!may_expand_vm(mm, len >> PAGE_SHIFT))
 		return -ENOMEM;
 
 	if (accountable && (!(flags & MAP_NORESERVE) ||
@@ -1421,7 +1421,7 @@ static int acct_stack_growth(struct vm_area_struct * vma, unsigned long size, un
 	struct rlimit *rlim = current->signal->rlim;
 
 	/* address space limit tests */
-	if (mm->total_vm + grow > rlim[RLIMIT_AS].rlim_cur >> PAGE_SHIFT)
+	if (!may_expand_vm(mm, grow))
 		return -ENOMEM;
 
 	/* Stack limit test */
@@ -1823,9 +1823,10 @@ unsigned long do_brk(unsigned long addr, unsigned long len)
 	 */
 	if (mm->def_flags & VM_LOCKED) {
 		unsigned long locked, lock_limit;
-		locked = mm->locked_vm << PAGE_SHIFT;
+		locked = len >> PAGE_SHIFT;
+		locked += mm->locked_vm;
 		lock_limit = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur;
-		locked += len;
+		lock_limit >>= PAGE_SHIFT;
 		if (locked > lock_limit && !capable(CAP_IPC_LOCK))
 			return -EAGAIN;
 	}
@@ -1848,8 +1849,7 @@ unsigned long do_brk(unsigned long addr, unsigned long len)
 	}
 
 	/* Check against address space limits *after* clearing old maps... */
-	if ((mm->total_vm << PAGE_SHIFT) + len
-	    > current->signal->rlim[RLIMIT_AS].rlim_cur)
+	if (!may_expand_vm(mm, len >> PAGE_SHIFT))
 		return -ENOMEM;
 
 	if (mm->map_count > sysctl_max_map_count)
@@ -2018,4 +2018,20 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
 		}
 	}
 	return new_vma;
+}
+
+/*
+ * Return true if the calling process may expand its vm space by the passed
+ * number of pages
+ */
+int may_expand_vm(struct mm_struct *mm, unsigned long npages)
+{
+	unsigned long cur = mm->total_vm;	/* pages */
+	unsigned long lim;
+
+	lim = current->signal->rlim[RLIMIT_AS].rlim_cur >> PAGE_SHIFT;
+
+	if (cur + npages > lim)
+		return 0;
+	return 1;
 }

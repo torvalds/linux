@@ -563,6 +563,9 @@ struct fb_ops {
 	int (*fb_setcolreg)(unsigned regno, unsigned red, unsigned green,
 			    unsigned blue, unsigned transp, struct fb_info *info);
 
+	/* set color registers in batch */
+	int (*fb_setcmap)(struct fb_cmap *cmap, struct fb_info *info);
+
 	/* blank display */
 	int (*fb_blank)(int blank, struct fb_info *info);
 

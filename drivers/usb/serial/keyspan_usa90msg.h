@@ -19,7 +19,7 @@
 
         	This file is available under a BSD-style copyright
 
-	2. The name of InnoSys Incorprated may not be used to endorse or promote
+	2. The name of InnoSys Incorporated may not be used to endorse or promote
    	products derived from this software without specific prior written
    	permission.
 

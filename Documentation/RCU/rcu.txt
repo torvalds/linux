@@ -43,7 +43,9 @@ o	If I am running on a uniprocessor kernel, which can only do one
 
 o	How can I see where RCU is currently used in the Linux kernel?
 
-	Search for "rcu_read_lock", "call_rcu", and "synchronize_kernel".
+	Search for "rcu_read_lock", "rcu_read_unlock", "call_rcu",
+	"rcu_read_lock_bh", "rcu_read_unlock_bh", "call_rcu_bh",
+	"synchronize_rcu", and "synchronize_net".
 
 o	What guidelines should I follow when writing code that uses RCU?
 

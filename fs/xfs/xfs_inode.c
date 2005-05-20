@@ -1130,7 +1130,7 @@ xfs_ialloc(
 	xfs_trans_t	*tp,
 	xfs_inode_t	*pip,
 	mode_t		mode,
-	nlink_t		nlink,
+	xfs_nlink_t	nlink,
 	xfs_dev_t	rdev,
 	cred_t		*cr,
 	xfs_prid_t	prid,

@@ -1699,7 +1699,9 @@ P:	Pavel Roskin
 M:	proski@gnu.org
 P:	David Gibson
 M:	hermes@gibson.dropbear.id.au
-W:	http://www.ozlabs.org/people/dgibson/dldwd
+L:	orinoco-users@lists.sourceforge.net
+L:	orinoco-devel@lists.sourceforge.net
+W:	http://www.nongnu.org/orinoco/
 S:	Maintained
 
 PARALLEL PORT SUPPORT
@@ -2111,6 +2113,13 @@ SOUND
 P:	Jaroslav Kysela
 M:	perex@suse.cz
 L:	alsa-devel@alsa-project.org
+S:	Maintained
+
+TPM DEVICE DRIVER
+P:	Kylene Hall
+M:	kjhall@us.ibm.com
+W:	http://tpmdd.sourceforge.net
+L:	tpmdd-devel@lists.sourceforge.net
 S:	Maintained
 
 UltraSPARC (sparc64):

@@ -7,7 +7,7 @@
  *
  * Version:	@(#)udp.h	1.0.2	05/07/93
  *
- * Authors:	Ross Biro, <bir7@leland.Stanford.Edu>
+ * Authors:	Ross Biro
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *
  * Fixes:

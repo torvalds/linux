@@ -85,10 +85,6 @@ static int console_locked;
  */
 static DEFINE_SPINLOCK(logbuf_lock);
 
-static char __log_buf[__LOG_BUF_LEN];
-static char *log_buf = __log_buf;
-static int log_buf_len = __LOG_BUF_LEN;
-
 #define LOG_BUF_MASK	(log_buf_len-1)
 #define LOG_BUF(idx) (log_buf[(idx) & LOG_BUF_MASK])
 
@@ -99,7 +95,6 @@ static int log_buf_len = __LOG_BUF_LEN;
 static unsigned long log_start;	/* Index into log_buf: next char to be read by syslog() */
 static unsigned long con_start;	/* Index into log_buf: next char to be sent to consoles */
 static unsigned long log_end;	/* Index into log_buf: most-recently-written-char + 1 */
-static unsigned long logged_chars; /* Number of chars produced since last read+clear operation */
 
 /*
  *	Array of consoles built from command line options (console=)
@@ -119,6 +114,13 @@ static int preferred_console = -1;
 
 /* Flag: console code may call schedule() */
 static int console_may_schedule;
+
+#ifdef CONFIG_PRINTK
+
+static char __log_buf[__LOG_BUF_LEN];
+static char *log_buf = __log_buf;
+static int log_buf_len = __LOG_BUF_LEN;
+static unsigned long logged_chars; /* Number of chars produced since last read+clear operation */
 
 /*
  *	Setup a list of consoles. Called from init/main.c
@@ -535,6 +537,7 @@ __setup("time", printk_time_setup);
  * then changes console_loglevel may break. This is because console_loglevel
  * is inspected when the actual printing occurs.
  */
+
 asmlinkage int printk(const char *fmt, ...)
 {
 	va_list args;
@@ -654,6 +657,18 @@ out:
 }
 EXPORT_SYMBOL(printk);
 EXPORT_SYMBOL(vprintk);
+
+#else
+
+asmlinkage long sys_syslog(int type, char __user * buf, int len)
+{
+	return 0;
+}
+
+int do_syslog(int type, char __user * buf, int len) { return 0; }
+static void call_console_drivers(unsigned long start, unsigned long end) {}
+
+#endif
 
 /**
  * acquire_console_sem - lock the console system for exclusive use.
@@ -931,7 +946,7 @@ int unregister_console(struct console * console)
 	return res;
 }
 EXPORT_SYMBOL(unregister_console);
-	
+
 /**
  * tty_write_message - write a message to a certain tty, not just the console.
  *

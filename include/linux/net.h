@@ -7,7 +7,7 @@
  * Version:	@(#)net.h	1.0.3	05/25/93
  *
  * Authors:	Orest Zborowski, <obz@Kodak.COM>
- *		Ross Biro, <bir7@leland.Stanford.Edu>
+ *		Ross Biro
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *
  *		This program is free software; you can redistribute it and/or
@@ -64,19 +64,19 @@ typedef enum {
 #define SOCK_PASSCRED		3
 
 #ifndef ARCH_HAS_SOCKET_TYPES
-/** sock_type - Socket types
- * 
+/**
+ * enum sock_type - Socket types
+ * @SOCK_STREAM: stream (connection) socket
+ * @SOCK_DGRAM: datagram (conn.less) socket
+ * @SOCK_RAW: raw socket
+ * @SOCK_RDM: reliably-delivered message
+ * @SOCK_SEQPACKET: sequential packet socket
+ * @SOCK_PACKET: linux specific way of getting packets at the dev level.
+ *		  For writing rarp and other similar things on the user level.
+ *
  * When adding some new socket type please
  * grep ARCH_HAS_SOCKET_TYPE include/asm-* /socket.h, at least MIPS
  * overrides this enum for binary compat reasons.
- * 
- * @SOCK_STREAM - stream (connection) socket
- * @SOCK_DGRAM - datagram (conn.less) socket
- * @SOCK_RAW - raw socket
- * @SOCK_RDM - reliably-delivered message
- * @SOCK_SEQPACKET - sequential packet socket 
- * @SOCK_PACKET - linux specific way of getting packets at the dev level.
- *		  For writing rarp and other similar things on the user level.
  */
 enum sock_type {
 	SOCK_STREAM	= 1,
@@ -93,15 +93,15 @@ enum sock_type {
 
 /**
  *  struct socket - general BSD socket
- *  @state - socket state (%SS_CONNECTED, etc)
- *  @flags - socket flags (%SOCK_ASYNC_NOSPACE, etc)
- *  @ops - protocol specific socket operations
- *  @fasync_list - Asynchronous wake up list
- *  @file - File back pointer for gc
- *  @sk - internal networking protocol agnostic socket representation
- *  @wait - wait queue for several uses
- *  @type - socket type (%SOCK_STREAM, etc)
- *  @passcred - credentials (used only in Unix Sockets (aka PF_LOCAL))
+ *  @state: socket state (%SS_CONNECTED, etc)
+ *  @flags: socket flags (%SOCK_ASYNC_NOSPACE, etc)
+ *  @ops: protocol specific socket operations
+ *  @fasync_list: Asynchronous wake up list
+ *  @file: File back pointer for gc
+ *  @sk: internal networking protocol agnostic socket representation
+ *  @wait: wait queue for several uses
+ *  @type: socket type (%SOCK_STREAM, etc)
+ *  @passcred: credentials (used only in Unix Sockets (aka PF_LOCAL))
  */
 struct socket {
 	socket_state		state;

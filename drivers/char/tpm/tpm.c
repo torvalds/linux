@@ -143,7 +143,7 @@ static ssize_t tpm_transmit(struct tpm_chip *chip, const char *buf,
 		return -ENODATA;
 	if (count > bufsiz) {
 		dev_err(&chip->pci_dev->dev,
-			"invalid count value %x %x \n", count, bufsiz);
+			"invalid count value %x %zx \n", count, bufsiz);
 		return -E2BIG;
 	}
 
@@ -151,7 +151,7 @@ static ssize_t tpm_transmit(struct tpm_chip *chip, const char *buf,
 
 	if ((len = chip->vendor->send(chip, (u8 *) buf, count)) < 0) {
 		dev_err(&chip->pci_dev->dev,
-			"tpm_transmit: tpm_send: error %d\n", len);
+			"tpm_transmit: tpm_send: error %zd\n", len);
 		return len;
 	}
 
@@ -188,7 +188,7 @@ out_recv:
 	len = chip->vendor->recv(chip, (u8 *) buf, bufsiz);
 	if (len < 0)
 		dev_err(&chip->pci_dev->dev,
-			"tpm_transmit: tpm_recv: error %d\n", len);
+			"tpm_transmit: tpm_recv: error %zd\n", len);
 	up(&chip->tpm_mutex);
 	return len;
 }

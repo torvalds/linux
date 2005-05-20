@@ -48,7 +48,7 @@ int handle_page_fault(unsigned long address, unsigned long ip,
 		goto good_area;
 	else if(!(vma->vm_flags & VM_GROWSDOWN)) 
 		goto out;
-	else if(!ARCH_IS_STACKGROW(address))
+	else if(is_user && !ARCH_IS_STACKGROW(address))
 		goto out;
 	else if(expand_stack(vma, address)) 
 		goto out;
@@ -133,12 +133,19 @@ static int check_remapped_addr(unsigned long address, int is_write)
 	return(0);
 }
 
-unsigned long segv(unsigned long address, unsigned long ip, int is_write, 
-		   int is_user, void *sc)
+/*
+ * We give a *copy* of the faultinfo in the regs to segv.
+ * This must be done, since nesting SEGVs could overwrite
+ * the info in the regs. A pointer to the info then would
+ * give us bad data!
+ */
+unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user, void *sc)
 {
 	struct siginfo si;
 	void *catcher;
 	int err;
+        int is_write = FAULT_WRITE(fi);
+        unsigned long address = FAULT_ADDRESS(fi);
 
         if(!is_user && (address >= start_vm) && (address < end_vm)){
                 flush_tlb_kernel_vm();
@@ -159,7 +166,7 @@ unsigned long segv(unsigned long address, unsigned long ip, int is_write,
 	} 
 	else if(current->thread.fault_addr != NULL)
 		panic("fault_addr set but no fault catcher");
-	else if(arch_fixup(ip, sc))
+        else if(!is_user && arch_fixup(ip, sc))
 		return(0);
 
  	if(!is_user) 
@@ -171,6 +178,7 @@ unsigned long segv(unsigned long address, unsigned long ip, int is_write,
 		si.si_errno = 0;
 		si.si_code = BUS_ADRERR;
 		si.si_addr = (void *)address;
+                current->thread.arch.faultinfo = fi;
 		force_sig_info(SIGBUS, &si, current);
 	}
 	else if(err == -ENOMEM){
@@ -180,22 +188,20 @@ unsigned long segv(unsigned long address, unsigned long ip, int is_write,
 	else {
 		si.si_signo = SIGSEGV;
 		si.si_addr = (void *) address;
-		current->thread.cr2 = address;
-		current->thread.err = is_write;
+                current->thread.arch.faultinfo = fi;
 		force_sig_info(SIGSEGV, &si, current);
 	}
 	return(0);
 }
 
-void bad_segv(unsigned long address, unsigned long ip, int is_write)
+void bad_segv(struct faultinfo fi, unsigned long ip)
 {
 	struct siginfo si;
 
 	si.si_signo = SIGSEGV;
 	si.si_code = SEGV_ACCERR;
-	si.si_addr = (void *) address;
-	current->thread.cr2 = address;
-	current->thread.err = is_write;
+        si.si_addr = (void *) FAULT_ADDRESS(fi);
+        current->thread.arch.faultinfo = fi;
 	force_sig_info(SIGSEGV, &si, current);
 }
 
@@ -204,6 +210,7 @@ void relay_signal(int sig, union uml_pt_regs *regs)
 	if(arch_handle_signal(sig, regs)) return;
 	if(!UPT_IS_USER(regs))
 		panic("Kernel mode signal %d", sig);
+        current->thread.arch.faultinfo = *UPT_FAULTINFO(regs);
 	force_sig(sig, current);
 }
 

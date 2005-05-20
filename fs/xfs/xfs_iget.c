@@ -136,6 +136,40 @@ xfs_chash_free(xfs_mount_t *mp)
 }
 
 /*
+ * Try to move an inode to the front of its hash list if possible
+ * (and if its not there already).  Called right after obtaining
+ * the list version number and then dropping the read_lock on the
+ * hash list in question (which is done right after looking up the
+ * inode in question...).
+ */
+STATIC void
+xfs_ihash_promote(
+	xfs_ihash_t	*ih,
+	xfs_inode_t	*ip,
+	ulong		version)
+{
+	xfs_inode_t	*iq;
+
+	if ((ip->i_prevp != &ih->ih_next) && write_trylock(&ih->ih_lock)) {
+		if (likely(version == ih->ih_version)) {
+			/* remove from list */
+			if ((iq = ip->i_next)) {
+				iq->i_prevp = ip->i_prevp;
+			}
+			*ip->i_prevp = iq;
+
+			/* insert at list head */
+			iq = ih->ih_next;
+			iq->i_prevp = &ip->i_next;
+			ip->i_next = iq;
+			ip->i_prevp = &ih->ih_next;
+			ih->ih_next = ip;
+		}
+		write_unlock(&ih->ih_lock);
+	}
+}
+
+/*
  * Look up an inode by number in the given file system.
  * The inode is looked up in the hash table for the file system
  * represented by the mount point parameter mp.  Each bucket of
@@ -229,7 +263,9 @@ again:
 				XFS_STATS_INC(xs_ig_found);
 
 				ip->i_flags &= ~XFS_IRECLAIMABLE;
+				version = ih->ih_version;
 				read_unlock(&ih->ih_lock);
+				xfs_ihash_promote(ih, ip, version);
 
 				XFS_MOUNT_ILOCK(mp);
 				list_del_init(&ip->i_reclaim);
@@ -259,8 +295,15 @@ again:
 						inode_vp, vp);
 			}
 
+			/*
+			 * Inode cache hit: if ip is not at the front of
+			 * its hash chain, move it there now.
+			 * Do this with the lock held for update, but
+			 * do statistics after releasing the lock.
+			 */
+			version = ih->ih_version;
 			read_unlock(&ih->ih_lock);
-
+			xfs_ihash_promote(ih, ip, version);
 			XFS_STATS_INC(xs_ig_found);
 
 finish_inode:
@@ -547,6 +590,7 @@ xfs_inode_incore(xfs_mount_t	*mp,
 {
 	xfs_ihash_t	*ih;
 	xfs_inode_t	*ip;
+	ulong		version;
 
 	ih = XFS_IHASH(mp, ino);
 	read_lock(&ih->ih_lock);
@@ -554,11 +598,15 @@ xfs_inode_incore(xfs_mount_t	*mp,
 		if (ip->i_ino == ino) {
 			/*
 			 * If we find it and tp matches, return it.
+			 * Also move it to the front of the hash list
+			 * if we find it and it is not already there.
 			 * Otherwise break from the loop and return
 			 * NULL.
 			 */
 			if (ip->i_transp == tp) {
+				version = ih->ih_version;
 				read_unlock(&ih->ih_lock);
+				xfs_ihash_promote(ih, ip, version);
 				return (ip);
 			}
 			break;
@@ -685,6 +733,7 @@ xfs_iextract(
 		iq->i_prevp = ip->i_prevp;
 	}
 	*ip->i_prevp = iq;
+	ih->ih_version++;
 	write_unlock(&ih->ih_lock);
 
 	/*

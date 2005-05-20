@@ -728,12 +728,8 @@ ENTRY(ia64_leave_syscall)
 	mov f8=f0		// clear f8
 	;;
 	ld8 r30=[r2],16		// M0|1 load cr.ifs
-	mov.m ar.ssd=r0		// M2 clear ar.ssd
-	cmp.eq p9,p0=r0,r0	// set p9 to indicate that we should restore cr.ifs
-	;;
 	ld8 r25=[r3],16		// M0|1 load ar.unat
-	mov.m ar.csd=r0		// M2 clear ar.csd
-	mov r22=r0		// clear r22
+	cmp.eq p9,p0=r0,r0	// set p9 to indicate that we should restore cr.ifs
 	;;
 	ld8 r26=[r2],PT(B0)-PT(AR_PFS)	// M0|1 load ar.pfs
 (pKStk)	mov r22=psr		// M2 read PSR now that interrupts are disabled
@@ -756,11 +752,15 @@ ENTRY(ia64_leave_syscall)
 	mov f7=f0		// clear f7
 	;;
 	ld8.fill r12=[r2]	// restore r12 (sp)
+	mov.m ar.ssd=r0		// M2 clear ar.ssd
+	mov r22=r0		// clear r22
+
 	ld8.fill r15=[r3]	// restore r15
+(pUStk) st1 [r14]=r17
 	addl r3=THIS_CPU(ia64_phys_stacked_size_p8),r0
 	;;
-(pUStk)	ld4 r3=[r3]		// r3 = cpu_data->phys_stacked_size_p8
-(pUStk) st1 [r14]=r17
+(pUStk)	ld4 r17=[r3]		// r17 = cpu_data->phys_stacked_size_p8
+	mov.m ar.csd=r0		// M2 clear ar.csd
 	mov b6=r18		// I0  restore b6
 	;;
 	mov r14=r0		// clear r14
@@ -782,7 +782,7 @@ GLOBAL_ENTRY(ia64_ret_from_ia32_execve)
 	st8.spill [r2]=r8	// store return value in slot for r8 and set unat bit
 	.mem.offset 8,0
 	st8.spill [r3]=r0	// clear error indication in slot for r10 and set unat bit
-END(ia64_ret_from_ia32_execve_syscall)
+END(ia64_ret_from_ia32_execve)
 	// fall through
 #endif /* CONFIG_IA32_SUPPORT */
 GLOBAL_ENTRY(ia64_leave_kernel)
@@ -1417,7 +1417,7 @@ sys_call_table:
 	data8 sys_msgrcv
 	data8 sys_msgctl
 	data8 sys_shmget
-	data8 ia64_shmat
+	data8 sys_shmat
 	data8 sys_shmdt				// 1115
 	data8 sys_shmctl
 	data8 sys_syslog

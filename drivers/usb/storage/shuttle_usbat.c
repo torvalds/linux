@@ -786,7 +786,7 @@ static int usbat_flash_check_media(struct us_data *us,
 	if (rc != USB_STOR_XFER_GOOD)
 		return USB_STOR_TRANSPORT_ERROR;
 
-	// Check for media existance
+	// Check for media existence
 	rc = usbat_flash_check_media_present(uio);
 	if (rc == USBAT_FLASH_MEDIA_NONE) {
 		info->sense_key = 0x02;

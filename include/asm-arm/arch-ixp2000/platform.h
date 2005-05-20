@@ -121,6 +121,7 @@ unsigned long ixp2000_gettimeoffset(void);
 
 struct pci_sys_data;
 
+u32 *ixp2000_pci_config_addr(unsigned int bus, unsigned int devfn, int where);
 void ixp2000_pci_preinit(void);
 int ixp2000_pci_setup(int, struct pci_sys_data*);
 struct pci_bus* ixp2000_pci_scan_bus(int, struct pci_sys_data*);

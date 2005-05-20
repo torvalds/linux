@@ -143,8 +143,7 @@ static void ax25_kiss_cmd(ax25_dev *ax25_dev, unsigned char cmd, unsigned char p
 	*p++ = cmd;
 	*p++ = param;
 
-	skb->dev      = ax25_dev->dev;
-	skb->protocol = htons(ETH_P_AX25);
+	skb->protocol = ax25_type_trans(skb, ax25_dev->dev);
 
 	dev_queue_xmit(skb);
 }

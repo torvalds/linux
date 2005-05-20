@@ -172,7 +172,7 @@ static int fe_request_firmware(struct dvb_frontend* fe,
 	return request_firmware(fw, name, &dev->pci->dev);
 }
 
-struct tda1004x_config medion_cardbus = {
+static struct tda1004x_config medion_cardbus = {
 	.demod_address = 0x08,  /* not sure this is correct */
 	.invert        = 0,
         .invert_oclk   = 0,

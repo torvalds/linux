@@ -43,7 +43,7 @@ static int scanlog_debug;
 static unsigned int ibm_scan_log_dump;			/* RTAS token */
 static struct proc_dir_entry *proc_ppc64_scan_log_dump;	/* The proc file */
 
-static ssize_t scanlog_read(struct file *file, char *buf,
+static ssize_t scanlog_read(struct file *file, char __user *buf,
 			    size_t count, loff_t *ppos)
 {
         struct inode * inode = file->f_dentry->d_inode;
@@ -129,7 +129,7 @@ static ssize_t scanlog_read(struct file *file, char *buf,
 	/*NOTREACHED*/
 }
 
-static ssize_t scanlog_write(struct file * file, const char * buf,
+static ssize_t scanlog_write(struct file * file, const char __user * buf,
 			     size_t count, loff_t *ppos)
 {
 	char stkbuf[20];

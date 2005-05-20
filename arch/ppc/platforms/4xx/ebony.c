@@ -149,7 +149,7 @@ ebony_map_irq(struct pci_dev *dev, unsigned char idsel, unsigned char pin)
 static void __init
 ebony_setup_pcix(void)
 {
-	void *pcix_reg_base;
+	void __iomem *pcix_reg_base;
 
 	pcix_reg_base = ioremap64(PCIX0_REG_BASE, PCIX_REG_SIZE);
 
@@ -210,9 +210,8 @@ ebony_setup_hose(void)
 	hose->io_space.end = EBONY_PCI_UPPER_IO;
 	hose->mem_space.start = EBONY_PCI_LOWER_MEM;
 	hose->mem_space.end = EBONY_PCI_UPPER_MEM;
-	isa_io_base =
-		(unsigned long)ioremap64(EBONY_PCI_IO_BASE, EBONY_PCI_IO_SIZE);
-	hose->io_base_virt = (void *)isa_io_base;
+	hose->io_base_virt = ioremap64(EBONY_PCI_IO_BASE, EBONY_PCI_IO_SIZE);
+	isa_io_base = (unsigned long)hose->io_base_virt;
 
 	setup_indirect_pci(hose,
 			EBONY_PCI_CFGA_PLB32,

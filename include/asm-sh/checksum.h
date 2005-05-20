@@ -42,7 +42,7 @@ asmlinkage unsigned int csum_partial_copy_generic(const unsigned char *src, unsi
  *	passed in an incorrect kernel address to one of these functions. 
  *	
  *	If you use these functions directly please don't forget the 
- *	verify_area().
+ *	access_ok().
  */
 static __inline__
 unsigned int csum_partial_copy_nocheck (const unsigned char *src, unsigned char *dst,

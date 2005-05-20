@@ -114,9 +114,6 @@ parse_extended(struct parsed_partitions *state, struct block_device *bdev,
 		 */
 		for (i=0; i<4; i++, p++) {
 			u32 offs, size, next;
-
-			if (SYS_IND(p) == 0)
-				continue;
 			if (!NR_SECTS(p) || is_extended_partition(p))
 				continue;
 
@@ -433,8 +430,6 @@ int msdos_partition(struct parsed_partitions *state, struct block_device *bdev)
 	for (slot = 1 ; slot <= 4 ; slot++, p++) {
 		u32 start = START_SECT(p)*sector_size;
 		u32 size = NR_SECTS(p)*sector_size;
-		if (SYS_IND(p) == 0)
-			continue;
 		if (!size)
 			continue;
 		if (is_extended_partition(p)) {

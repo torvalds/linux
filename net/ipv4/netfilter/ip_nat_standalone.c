@@ -230,6 +230,25 @@ ip_nat_local_fn(unsigned int hooknum,
 	return ret;
 }
 
+static unsigned int
+ip_nat_adjust(unsigned int hooknum,
+	      struct sk_buff **pskb,
+	      const struct net_device *in,
+	      const struct net_device *out,
+	      int (*okfn)(struct sk_buff *))
+{
+	struct ip_conntrack *ct;
+	enum ip_conntrack_info ctinfo;
+
+	ct = ip_conntrack_get(*pskb, &ctinfo);
+	if (ct && test_bit(IPS_SEQ_ADJUST_BIT, &ct->status)) {
+	        DEBUGP("ip_nat_standalone: adjusting sequence number\n");
+	        if (!ip_nat_seq_adjust(pskb, ct, ctinfo))
+	                return NF_DROP;
+	}
+	return NF_ACCEPT;
+}
+
 /* We must be after connection tracking and before packet filtering. */
 
 /* Before packet filtering, change destination */
@@ -250,6 +269,15 @@ static struct nf_hook_ops ip_nat_out_ops = {
 	.priority	= NF_IP_PRI_NAT_SRC,
 };
 
+/* After conntrack, adjust sequence number */
+static struct nf_hook_ops ip_nat_adjust_out_ops = {
+	.hook		= ip_nat_adjust,
+	.owner		= THIS_MODULE,
+	.pf		= PF_INET,
+	.hooknum	= NF_IP_POST_ROUTING,
+	.priority	= NF_IP_PRI_NAT_SEQ_ADJUST,
+};
+
 /* Before packet filtering, change destination */
 static struct nf_hook_ops ip_nat_local_out_ops = {
 	.hook		= ip_nat_local_fn,
@@ -267,6 +295,16 @@ static struct nf_hook_ops ip_nat_local_in_ops = {
 	.hooknum	= NF_IP_LOCAL_IN,
 	.priority	= NF_IP_PRI_NAT_SRC,
 };
+
+/* After conntrack, adjust sequence number */
+static struct nf_hook_ops ip_nat_adjust_in_ops = {
+	.hook		= ip_nat_adjust,
+	.owner		= THIS_MODULE,
+	.pf		= PF_INET,
+	.hooknum	= NF_IP_LOCAL_IN,
+	.priority	= NF_IP_PRI_NAT_SEQ_ADJUST,
+};
+
 
 static int init_or_cleanup(int init)
 {
@@ -296,10 +334,20 @@ static int init_or_cleanup(int init)
 		printk("ip_nat_init: can't register out hook.\n");
 		goto cleanup_inops;
 	}
+	ret = nf_register_hook(&ip_nat_adjust_in_ops);
+	if (ret < 0) {
+		printk("ip_nat_init: can't register adjust in hook.\n");
+		goto cleanup_outops;
+	}
+	ret = nf_register_hook(&ip_nat_adjust_out_ops);
+	if (ret < 0) {
+		printk("ip_nat_init: can't register adjust out hook.\n");
+		goto cleanup_adjustin_ops;
+	}
 	ret = nf_register_hook(&ip_nat_local_out_ops);
 	if (ret < 0) {
 		printk("ip_nat_init: can't register local out hook.\n");
-		goto cleanup_outops;
+		goto cleanup_adjustout_ops;;
 	}
 	ret = nf_register_hook(&ip_nat_local_in_ops);
 	if (ret < 0) {
@@ -312,6 +360,10 @@ static int init_or_cleanup(int init)
 	nf_unregister_hook(&ip_nat_local_in_ops);
  cleanup_localoutops:
 	nf_unregister_hook(&ip_nat_local_out_ops);
+ cleanup_adjustout_ops:
+	nf_unregister_hook(&ip_nat_adjust_out_ops);
+ cleanup_adjustin_ops:
+	nf_unregister_hook(&ip_nat_adjust_in_ops);
  cleanup_outops:
 	nf_unregister_hook(&ip_nat_out_ops);
  cleanup_inops:

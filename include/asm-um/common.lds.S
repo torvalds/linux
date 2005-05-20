@@ -8,11 +8,6 @@
   _sdata = .;
   PROVIDE (sdata = .);
 
-  . = ALIGN(16);		/* Exception table */
-  __start___ex_table = .;
-  __ex_table : { *(__ex_table) }
-  __stop___ex_table = .;
-
   RODATA
 
   .unprotected : { *(.unprotected) }
@@ -20,6 +15,10 @@
   PROVIDE (_unprotected_end = .);
 
   . = ALIGN(4096);
+  __start___ex_table = .;
+  __ex_table : { *(__ex_table) }
+  __stop___ex_table = .;
+
   __uml_setup_start = .;
   .uml.setup.init : { *(.uml.setup.init) }
   __uml_setup_end = .;

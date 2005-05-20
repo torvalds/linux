@@ -24,6 +24,7 @@
 #include <linux/ptrace.h>
 #include <linux/user.h>
 #include <linux/string.h>
+#include <linux/signal.h>
 
 #include <asm/cacheflush.h>
 #include <asm/io.h>
@@ -665,7 +666,7 @@ do_ptrace(long request, struct task_struct *child, long addr, long data)
 	case PTRACE_SYSCALL:
 	case PTRACE_CONT:
 		ret = -EIO;
-		if ((unsigned long) data > _NSIG)
+		if (!valid_signal(data))
 			break;
 		if (request == PTRACE_SYSCALL)
 			set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
@@ -700,7 +701,7 @@ do_ptrace(long request, struct task_struct *child, long addr, long data)
 		unsigned long pc, insn;
 
 		ret = -EIO;
-		if ((unsigned long) data > _NSIG)
+		if (!valid_signal(data))
 			break;
 		clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 		if ((child->ptrace & PT_DTRACE) == 0) {

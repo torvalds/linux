@@ -185,15 +185,12 @@ sl_alloc_bufs(struct slip *sl, int mtu)
 	/* Cleanup */
 err_exit:
 #ifdef SL_INCLUDE_CSLIP
-	if (cbuff)
-		kfree(cbuff);
+	kfree(cbuff);
 	if (slcomp)
 		slhc_free(slcomp);
 #endif
-	if (xbuff)
-		kfree(xbuff);
-	if (rbuff)
-		kfree(rbuff);
+	kfree(xbuff);
+	kfree(rbuff);
 	return err;
 }
 
@@ -204,13 +201,13 @@ sl_free_bufs(struct slip *sl)
 	void * tmp;
 
 	/* Free all SLIP frame buffers. */
-	if ((tmp = xchg(&sl->rbuff, NULL)) != NULL)
-		kfree(tmp);
-	if ((tmp = xchg(&sl->xbuff, NULL)) != NULL)
-		kfree(tmp);
+	tmp = xchg(&sl->rbuff, NULL);
+	kfree(tmp);
+	tmp = xchg(&sl->xbuff, NULL);
+	kfree(tmp);
 #ifdef SL_INCLUDE_CSLIP
-	if ((tmp = xchg(&sl->cbuff, NULL)) != NULL)
-		kfree(tmp);
+	tmp = xchg(&sl->cbuff, NULL);
+	kfree(tmp);
 	if ((tmp = xchg(&sl->slcomp, NULL)) != NULL)
 		slhc_free(tmp);
 #endif
@@ -297,13 +294,10 @@ done_on_bh:
 	spin_unlock_bh(&sl->lock);
 
 done:
-	if (xbuff)
-		kfree(xbuff);
-	if (rbuff)
-		kfree(rbuff);
+	kfree(xbuff);
+	kfree(rbuff);
 #ifdef SL_INCLUDE_CSLIP
-	if (cbuff)
-		kfree(cbuff);
+	kfree(cbuff);
 #endif
 	return err;
 }

@@ -405,9 +405,8 @@ void device_release_driver(struct device * dev)
 
 static void driver_detach(struct device_driver * drv)
 {
-	struct list_head * entry, * next;
-	list_for_each_safe(entry, next, &drv->devices) {
-		struct device * dev = container_of(entry, struct device, driver_list);
+	while (!list_empty(&drv->devices)) {
+		struct device * dev = container_of(drv->devices.next, struct device, driver_list);
 		device_release_driver(dev);
 	}
 }

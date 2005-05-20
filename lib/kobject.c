@@ -216,13 +216,12 @@ int kobject_register(struct kobject * kobj)
 /**
  *	kobject_set_name - Set the name of an object
  *	@kobj:	object.
- *	@name:	name. 
+ *	@fmt:	format string used to build the name
  *
  *	If strlen(name) >= KOBJ_NAME_LEN, then use a dynamically allocated
  *	string that @kobj->k_name points to. Otherwise, use the static 
  *	@kobj->name array.
  */
-
 int kobject_set_name(struct kobject * kobj, const char * fmt, ...)
 {
 	int error = 0;

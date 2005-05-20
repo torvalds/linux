@@ -214,56 +214,39 @@ sa1100_rx_chars(struct sa1100_port *sport, struct pt_regs *regs)
 		 * note that the error handling code is
 		 * out of the main execution path
 		 */
-		if (status & UTSR1_TO_SM(UTSR1_PRE | UTSR1_FRE | UTSR1_ROR))
-			goto handle_error;
+		if (status & UTSR1_TO_SM(UTSR1_PRE | UTSR1_FRE | UTSR1_ROR)) {
+			if (status & UTSR1_TO_SM(UTSR1_PRE))
+				sport->port.icount.parity++;
+			else if (status & UTSR1_TO_SM(UTSR1_FRE))
+				sport->port.icount.frame++;
+			if (status & UTSR1_TO_SM(UTSR1_ROR))
+				sport->port.icount.overrun++;
+
+			status &= sport->port.read_status_mask;
+
+			if (status & UTSR1_TO_SM(UTSR1_PRE))
+				flg = TTY_PARITY;
+			else if (status & UTSR1_TO_SM(UTSR1_FRE))
+				flg = TTY_FRAME;
+
+#ifdef SUPPORT_SYSRQ
+			sport->port.sysrq = 0;
+#endif
+		}
 
 		if (uart_handle_sysrq_char(&sport->port, ch, regs))
 			goto ignore_char;
 
-	error_return:
-		tty_insert_flip_char(tty, ch, flg);
+		if ((status & port->ignore_status_mask & ~UTSR1_TO_SM(UTSR1_ROR)) == 0)
+			tty_insert_flip_char(tty, ch, flg);
+		if (status & ~port->ignore_status_mask & UTSR1_TO_SM(UTSR1_ROR))
+			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+
 	ignore_char:
 		status = UTSR1_TO_SM(UART_GET_UTSR1(sport)) |
 			 UTSR0_TO_SM(UART_GET_UTSR0(sport));
 	}
- out:
 	tty_flip_buffer_push(tty);
-	return;
-
- handle_error:
-	if (status & UTSR1_TO_SM(UTSR1_PRE))
-		sport->port.icount.parity++;
-	else if (status & UTSR1_TO_SM(UTSR1_FRE))
-		sport->port.icount.frame++;
-	if (status & UTSR1_TO_SM(UTSR1_ROR))
-		sport->port.icount.overrun++;
-
-	if (status & sport->port.ignore_status_mask) {
-		if (++ignored > 100)
-			goto out;
-		goto ignore_char;
-	}
-
-	status &= sport->port.read_status_mask;
-
-	if (status & UTSR1_TO_SM(UTSR1_PRE))
-		flg = TTY_PARITY;
-	else if (status & UTSR1_TO_SM(UTSR1_FRE))
-		flg = TTY_FRAME;
-
-	if (status & UTSR1_TO_SM(UTSR1_ROR)) {
-		/*
-		 * overrun does *not* affect the character
-		 * we read from the FIFO
-		 */
-		tty_insert_flip_char(tty, ch, flg);
-		ch = 0;
-		flg = TTY_OVERRUN;
-	}
-#ifdef SUPPORT_SYSRQ
-	sport->port.sysrq = 0;
-#endif
-	goto error_return;
 }
 
 static void sa1100_tx_chars(struct sa1100_port *sport)

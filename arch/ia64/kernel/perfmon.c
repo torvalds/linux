@@ -480,14 +480,6 @@ typedef struct {
 #define PFM_CMD_ARG_MANY	-1 /* cannot be zero */
 
 typedef struct {
-	int	debug;		/* turn on/off debugging via syslog */
-	int	debug_ovfl;	/* turn on/off debug printk in overflow handler */
-	int	fastctxsw;	/* turn on/off fast (unsecure) ctxsw */
-	int	expert_mode;	/* turn on/off value checking */
-	int 	debug_pfm_read;
-} pfm_sysctl_t;
-
-typedef struct {
 	unsigned long pfm_spurious_ovfl_intr_count;	/* keep track of spurious ovfl interrupts */
 	unsigned long pfm_replay_ovfl_intr_count;	/* keep track of replayed ovfl interrupts */
 	unsigned long pfm_ovfl_intr_count; 		/* keep track of ovfl interrupts */
@@ -514,8 +506,8 @@ static LIST_HEAD(pfm_buffer_fmt_list);
 static pmu_config_t		*pmu_conf;
 
 /* sysctl() controls */
-static pfm_sysctl_t pfm_sysctl;
-int pfm_debug_var;
+pfm_sysctl_t pfm_sysctl;
+EXPORT_SYMBOL(pfm_sysctl);
 
 static ctl_table pfm_ctl_table[]={
 	{1, "debug", &pfm_sysctl.debug, sizeof(int), 0666, NULL, &proc_dointvec, NULL,},
@@ -1273,6 +1265,8 @@ out:
 }
 EXPORT_SYMBOL(pfm_unregister_buffer_fmt);
 
+extern void update_pal_halt_status(int);
+
 static int
 pfm_reserve_session(struct task_struct *task, int is_syswide, unsigned int cpu)
 {
@@ -1318,6 +1312,11 @@ pfm_reserve_session(struct task_struct *task, int is_syswide, unsigned int cpu)
 		pfm_sessions.pfs_sys_use_dbregs,
 		is_syswide,
 		cpu));
+
+	/*
+	 * disable default_idle() to go to PAL_HALT
+	 */
+	update_pal_halt_status(0);
 
 	UNLOCK_PFS(flags);
 
@@ -1373,6 +1372,12 @@ pfm_unreserve_session(pfm_context_t *ctx, int is_syswide, unsigned int cpu)
 		pfm_sessions.pfs_sys_use_dbregs,
 		is_syswide,
 		cpu));
+
+	/*
+	 * if possible, enable default_idle() to go into PAL_HALT
+	 */
+	if (pfm_sessions.pfs_task_sessions == 0 && pfm_sessions.pfs_sys_sessions == 0)
+		update_pal_halt_status(1);
 
 	UNLOCK_PFS(flags);
 
@@ -1576,7 +1581,7 @@ pfm_read(struct file *filp, char __user *buf, size_t size, loff_t *ppos)
 		goto abort_locked;
 	}
 
-	DPRINT(("[%d] fd=%d type=%d\n", current->pid, msg->pfm_gen_msg.msg_ctx_fd, msg->pfm_gen_msg.msg_type));
+	DPRINT(("fd=%d type=%d\n", msg->pfm_gen_msg.msg_ctx_fd, msg->pfm_gen_msg.msg_type));
 
 	ret = -EFAULT;
   	if(copy_to_user(buf, msg, sizeof(pfm_msg_t)) == 0) ret = sizeof(pfm_msg_t);
@@ -3695,8 +3700,6 @@ pfm_debug(pfm_context_t *ctx, void *arg, int count, struct pt_regs *regs)
 
 	pfm_sysctl.debug = m == 0 ? 0 : 1;
 
-	pfm_debug_var = pfm_sysctl.debug;
-
 	printk(KERN_INFO "perfmon debugging %s (timing reset)\n", pfm_sysctl.debug ? "on" : "off");
 
 	if (m == 0) {
@@ -4212,7 +4215,7 @@ pfm_context_load(pfm_context_t *ctx, void *arg, int count, struct pt_regs *regs)
 		DPRINT(("cannot load to [%d], invalid ctx_state=%d\n",
 			req->load_pid,
 			ctx->ctx_state));
-		return -EINVAL;
+		return -EBUSY;
 	}
 
 	DPRINT(("load_pid [%d] using_dbreg=%d\n", req->load_pid, ctx->ctx_fl_using_dbreg));
@@ -4714,16 +4717,26 @@ recheck:
 	if (task == current || ctx->ctx_fl_system) return 0;
 
 	/*
-	 * if context is UNLOADED we are safe to go
+	 * we are monitoring another thread
 	 */
-	if (state == PFM_CTX_UNLOADED) return 0;
-
-	/*
-	 * no command can operate on a zombie context
-	 */
-	if (state == PFM_CTX_ZOMBIE) {
-		DPRINT(("cmd %d state zombie cannot operate on context\n", cmd));
-		return -EINVAL;
+	switch(state) {
+		case PFM_CTX_UNLOADED:
+			/*
+			 * if context is UNLOADED we are safe to go
+			 */
+			return 0;
+		case PFM_CTX_ZOMBIE:
+			/*
+			 * no command can operate on a zombie context
+			 */
+			DPRINT(("cmd %d state zombie cannot operate on context\n", cmd));
+			return -EINVAL;
+		case PFM_CTX_MASKED:
+			/*
+			 * PMU state has been saved to software even though
+			 * the thread may still be running.
+			 */
+			if (cmd != PFM_UNLOAD_CONTEXT) return 0;
 	}
 
 	/*
@@ -4996,13 +5009,21 @@ pfm_context_force_terminate(pfm_context_t *ctx, struct pt_regs *regs)
 }
 
 static int pfm_ovfl_notify_user(pfm_context_t *ctx, unsigned long ovfl_pmds);
-
+ /*
+  * pfm_handle_work() can be called with interrupts enabled
+  * (TIF_NEED_RESCHED) or disabled. The down_interruptible
+  * call may sleep, therefore we must re-enable interrupts
+  * to avoid deadlocks. It is safe to do so because this function
+  * is called ONLY when returning to user level (PUStk=1), in which case
+  * there is no risk of kernel stack overflow due to deep
+  * interrupt nesting.
+  */
 void
 pfm_handle_work(void)
 {
 	pfm_context_t *ctx;
 	struct pt_regs *regs;
-	unsigned long flags;
+	unsigned long flags, dummy_flags;
 	unsigned long ovfl_regs;
 	unsigned int reason;
 	int ret;
@@ -5039,18 +5060,15 @@ pfm_handle_work(void)
 	//if (CTX_OVFL_NOBLOCK(ctx)) goto skip_blocking;
 	if (reason == PFM_TRAP_REASON_RESET) goto skip_blocking;
 
+	/*
+	 * restore interrupt mask to what it was on entry.
+	 * Could be enabled/diasbled.
+	 */
 	UNPROTECT_CTX(ctx, flags);
 
-	 /*
-	  * pfm_handle_work() is currently called with interrupts disabled.
-	  * The down_interruptible call may sleep, therefore we
-	  * must re-enable interrupts to avoid deadlocks. It is
-	  * safe to do so because this function is called ONLY
-	  * when returning to user level (PUStk=1), in which case
-	  * there is no risk of kernel stack overflow due to deep
-	  * interrupt nesting.
-	  */
-	BUG_ON(flags & IA64_PSR_I);
+	/*
+	 * force interrupt enable because of down_interruptible()
+	 */
 	local_irq_enable();
 
 	DPRINT(("before block sleeping\n"));
@@ -5064,12 +5082,12 @@ pfm_handle_work(void)
 	DPRINT(("after block sleeping ret=%d\n", ret));
 
 	/*
-	 * disable interrupts to restore state we had upon entering
-	 * this function
+	 * lock context and mask interrupts again
+	 * We save flags into a dummy because we may have
+	 * altered interrupts mask compared to entry in this
+	 * function.
 	 */
-	local_irq_disable();
-
-	PROTECT_CTX(ctx, flags);
+	PROTECT_CTX(ctx, dummy_flags);
 
 	/*
 	 * we need to read the ovfl_regs only after wake-up
@@ -5095,7 +5113,9 @@ skip_blocking:
 	ctx->ctx_ovfl_regs[0] = 0UL;
 
 nothing_to_do:
-
+	/*
+	 * restore flags as they were upon entry
+	 */
 	UNPROTECT_CTX(ctx, flags);
 }
 

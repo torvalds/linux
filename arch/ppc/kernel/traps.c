@@ -176,7 +176,7 @@ static inline int check_io_access(struct pt_regs *regs)
 #else
 #define get_mc_reason(regs)	(mfspr(SPRN_MCSR))
 #endif
-#define REASON_FP		0
+#define REASON_FP		ESR_FP
 #define REASON_ILLEGAL		ESR_PIL
 #define REASON_PRIVILEGED	ESR_PPR
 #define REASON_TRAP		ESR_PTR
@@ -403,7 +403,7 @@ static int emulate_string_inst(struct pt_regs *regs, u32 instword)
 	u8 rA = (instword >> 16) & 0x1f;
 	u8 NB_RB = (instword >> 11) & 0x1f;
 	u32 num_bytes;
-	u32 EA;
+	unsigned long EA;
 	int pos = 0;
 
 	/* Early out if we are an invalid form of lswx */

@@ -139,9 +139,12 @@ static int tcp_v6_get_port(struct sock *sk, unsigned short snum)
 		int rover;
 
 		spin_lock(&tcp_portalloc_lock);
-		rover = tcp_port_rover;
+		if (tcp_port_rover < low)
+			rover = low;
+		else
+			rover = tcp_port_rover;
 		do {	rover++;
-			if ((rover < low) || (rover > high))
+			if (rover > high)
 				rover = low;
 			head = &tcp_bhash[tcp_bhashfn(rover)];
 			spin_lock(&head->lock);

@@ -136,6 +136,7 @@
  */
 #define CAC_BASE		(CACHED   | AS_CAC_SPACE)
 #define AMO_BASE		(UNCACHED | AS_AMO_SPACE)
+#define AMO_PHYS_BASE		(UNCACHED_PHYS | AS_AMO_SPACE)
 #define GET_BASE		(CACHED   | AS_GET_SPACE)
 
 /*
@@ -154,9 +155,17 @@
  *           the chiplet id is zero.  If we implement TIO-TIO dma, we might need
  *           to insert a chiplet id into this macro.  However, it is our belief
  *           right now that this chiplet id will be ICE, which is also zero.
+ *           Nasid starts on bit 40.
  */
-#define PHYS_TO_TIODMA(x)	( (((u64)(x) & NASID_MASK) << 2) | NODE_OFFSET(x))
+#define PHYS_TO_TIODMA(x)	( (((u64)(NASID_GET(x))) << 40) | NODE_OFFSET(x))
 #define PHYS_TO_DMA(x)          ( (((u64)(x) & NASID_MASK) >> 2) | NODE_OFFSET(x))
+
+
+/*
+ * Macros to test for address type.
+ */
+#define IS_AMO_ADDRESS(x)	(((u64)(x) & (REGION_BITS | AS_MASK)) == AMO_BASE)
+#define IS_AMO_PHYS_ADDRESS(x)	(((u64)(x) & (REGION_BITS | AS_MASK)) == AMO_PHYS_BASE)
 
 
 /*
@@ -168,7 +177,10 @@
 #define TIO_BWIN_SIZE_BITS		30	/* big window size: 1G */
 #define NODE_SWIN_BASE(n, w)		((w == 0) ? NODE_BWIN_BASE((n), SWIN0_BIGWIN) \
 		: RAW_NODE_SWIN_BASE(n, w))
+#define TIO_SWIN_BASE(n, w) 		(TIO_IO_BASE(n) + \
+					    ((u64) (w) << TIO_SWIN_SIZE_BITS))
 #define NODE_IO_BASE(n)			(GLOBAL_MMR_SPACE | NASID_SPACE(n))
+#define TIO_IO_BASE(n)                  (UNCACHED | NASID_SPACE(n))
 #define BWIN_SIZE			(1UL << BWIN_SIZE_BITS)
 #define NODE_BWIN_BASE0(n)		(NODE_IO_BASE(n) + BWIN_SIZE)
 #define NODE_BWIN_BASE(n, w)		(NODE_BWIN_BASE0(n) + ((u64) (w) << BWIN_SIZE_BITS))

@@ -32,7 +32,7 @@
 
 #define EDDNR 0x1e9		/* addr of number of edd_info structs at EDDBUF
 				   in boot_params - treat this as 1 byte  */
-#define EDDBUF	0x600		/* addr of edd_info structs in boot_params */
+#define EDDBUF	0xd00		/* addr of edd_info structs in boot_params */
 #define EDDMAXNR 6		/* number of edd_info structs starting at EDDBUF  */
 #define EDDEXTSIZE 8		/* change these if you muck with the structures */
 #define EDDPARMSIZE 74

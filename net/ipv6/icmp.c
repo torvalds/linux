@@ -135,7 +135,7 @@ static int is_ineligible(struct sk_buff *skb)
 	if (len < 0)
 		return 1;
 
-	ptr = ipv6_skip_exthdr(skb, ptr, &nexthdr, len);
+	ptr = ipv6_skip_exthdr(skb, ptr, &nexthdr);
 	if (ptr < 0)
 		return 0;
 	if (nexthdr == IPPROTO_ICMPV6) {
@@ -514,7 +514,7 @@ static void icmpv6_notify(struct sk_buff *skb, int type, int code, u32 info)
 	nexthdr = ((struct ipv6hdr *)skb->data)->nexthdr;
 	if (ipv6_ext_hdr(nexthdr)) {
 		/* now skip over extension headers */
-		inner_offset = ipv6_skip_exthdr(skb, sizeof(struct ipv6hdr), &nexthdr, skb->len - sizeof(struct ipv6hdr));
+		inner_offset = ipv6_skip_exthdr(skb, sizeof(struct ipv6hdr), &nexthdr);
 		if (inner_offset<0)
 			return;
 	} else {

@@ -682,7 +682,8 @@ static void calc_ebrg(int baud, int *n_ret, int *m_ret)
 
 /* Internal routine, port->lock is held and local interrupts are disabled.  */
 static void sunsab_convert_to_sab(struct uart_sunsab_port *up, unsigned int cflag,
-				  unsigned int iflag, int baud)
+				  unsigned int iflag, unsigned int baud,
+				  unsigned int quot)
 {
 	unsigned int ebrg;
 	unsigned char dafo;
@@ -766,6 +767,9 @@ static void sunsab_convert_to_sab(struct uart_sunsab_port *up, unsigned int cfla
 		up->port.ignore_status_mask |= (SAB82532_ISR0_RPF |
 						SAB82532_ISR0_TCD);
 
+	uart_update_timeout(&up->port, cflag,
+			    (up->port.uartclk / (16 * quot)));
+
 	/* Now bang the new settings into the chip.  */
 	sunsab_cec_wait(up);
 	sunsab_tec_wait(up);
@@ -784,10 +788,11 @@ static void sunsab_set_termios(struct uart_port *port, struct termios *termios,
 {
 	struct uart_sunsab_port *up = (struct uart_sunsab_port *) port;
 	unsigned long flags;
-	int baud = uart_get_baud_rate(port, termios, old, 0, 4000000);
+	unsigned int baud = uart_get_baud_rate(port, termios, old, 0, 4000000);
+	unsigned int quot = uart_get_divisor(port, baud);
 
 	spin_lock_irqsave(&up->port.lock, flags);
-	sunsab_convert_to_sab(up, termios->c_cflag, termios->c_iflag, baud);
+	sunsab_convert_to_sab(up, termios->c_cflag, termios->c_iflag, baud, quot);
 	spin_unlock_irqrestore(&up->port.lock, flags);
 }
 
@@ -880,7 +885,7 @@ static int sunsab_console_setup(struct console *con, char *options)
 {
 	struct uart_sunsab_port *up = &sunsab_ports[con->index];
 	unsigned long flags;
-	int baud;
+	unsigned int baud, quot;
 
 	printk("Console: ttyS%d (SAB82532)\n",
 	       (sunsab_reg.minor - 64) + con->index);
@@ -926,7 +931,8 @@ static int sunsab_console_setup(struct console *con, char *options)
 				SAB82532_IMR1_XPR;
 	writeb(up->interrupt_mask1, &up->regs->w.imr1);
 
-	sunsab_convert_to_sab(up, con->cflag, 0, baud);
+	quot = uart_get_divisor(&up->port, baud);
+	sunsab_convert_to_sab(up, con->cflag, 0, baud, quot);
 	sunsab_set_mctrl(&up->port, TIOCM_DTR | TIOCM_RTS);
 
 	spin_unlock_irqrestore(&up->port.lock, flags);

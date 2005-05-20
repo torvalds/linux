@@ -129,7 +129,7 @@ static int default_mbufs = 2;	/* Default number of mmap() buffers */
        int pwc_trace = TRACE_MODULE | TRACE_FLOW | TRACE_PWCX;
 static int power_save = 0;
 static int led_on = 100, led_off = 0; /* defaults to LED that is on while in use */
-       int pwc_preferred_compression = 2; /* 0..3 = uncompressed..high */
+static int pwc_preferred_compression = 2; /* 0..3 = uncompressed..high */
 static struct {
 	int type;
 	char serial_number[30];
@@ -272,7 +272,7 @@ static int pwc_allocate_buffers(struct pwc_device *pdev)
 		return -ENXIO;
 	}
 #endif	
-	/* Allocate Isochronuous pipe buffers */
+	/* Allocate Isochronous pipe buffers */
 	for (i = 0; i < MAX_ISO_BUFS; i++) {
 		if (pdev->sbuf[i].data == NULL) {
 			kbuf = kmalloc(ISO_BUFFER_SIZE, GFP_KERNEL);
@@ -322,7 +322,7 @@ static int pwc_allocate_buffers(struct pwc_device *pdev)
 	  case 730:
 	  case 740:
 	  case 750:
-	    Trace(TRACE_MEMORY,"private_data(%Zd)\n",sizeof(struct pwc_dec23_private));
+	    Trace(TRACE_MEMORY,"private_data(%zu)\n",sizeof(struct pwc_dec23_private));
 	    kbuf = kmalloc(sizeof(struct pwc_dec23_private), GFP_KERNEL);	/* Timon & Kiara */
 	    break;
 	  case 645:
@@ -850,7 +850,7 @@ static int pwc_isoc_init(struct pwc_device *pdev)
 	
 	if (pdev->vmax_packet_size < 0 || pdev->vmax_packet_size > ISO_MAX_FRAME_SIZE) {
 		Err("Failed to find packet size for video endpoint in current alternate setting.\n");
-		return -ENFILE; /* Odd error, that should be noticable */
+		return -ENFILE; /* Odd error, that should be noticeable */
 	}
 
 	/* Set alternate interface */
@@ -1179,7 +1179,7 @@ static ssize_t pwc_video_read(struct file *file, char __user * buf,
 	DECLARE_WAITQUEUE(wait, current);
         int bytes_to_read;
 
-	Trace(TRACE_READ, "video_read(0x%p, %p, %Zd) called.\n", vdev, buf, count);
+	Trace(TRACE_READ, "video_read(0x%p, %p, %zu) called.\n", vdev, buf, count);
 	if (vdev == NULL)
 		return -EFAULT;
 	pdev = vdev->priv;
@@ -2128,7 +2128,7 @@ static int __init usb_pwc_init(void)
 	if (leds[1] >= 0)
 		led_off = leds[1];
 
-	/* Big device node whoopla. Basicly, it allows you to assign a
+	/* Big device node whoopla. Basically, it allows you to assign a
 	   device node (/dev/videoX) to a camera, based on its type
 	   & serial number. The format is [type[.serialnumber]:]node.
 

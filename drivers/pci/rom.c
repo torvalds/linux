@@ -14,7 +14,7 @@
 
 /**
  * pci_enable_rom - enable ROM decoding for a PCI device
- * @dev: PCI device to enable
+ * @pdev: PCI device to enable
  *
  * Enable ROM decoding on @dev.  This involves simply turning on the last
  * bit of the PCI ROM BAR.  Note that some cards may share address decoders
@@ -32,7 +32,7 @@ static void pci_enable_rom(struct pci_dev *pdev)
 
 /**
  * pci_disable_rom - disable ROM decoding for a PCI device
- * @dev: PCI device to disable
+ * @pdev: PCI device to disable
  *
  * Disable ROM decoding on a PCI device by turning off the last bit in the
  * ROM BAR.
@@ -47,7 +47,7 @@ static void pci_disable_rom(struct pci_dev *pdev)
 
 /**
  * pci_map_rom - map a PCI ROM to kernel space
- * @dev: pointer to pci device struct
+ * @pdev: pointer to pci device struct
  * @size: pointer to receive size of pci window over ROM
  * @return: kernel virtual pointer to image of ROM
  *
@@ -132,7 +132,7 @@ void __iomem *pci_map_rom(struct pci_dev *pdev, size_t *size)
 
 /**
  * pci_map_rom_copy - map a PCI ROM to kernel space, create a copy
- * @dev: pointer to pci device struct
+ * @pdev: pointer to pci device struct
  * @size: pointer to receive size of pci window over ROM
  * @return: kernel virtual pointer to image of ROM
  *
@@ -166,7 +166,7 @@ void __iomem *pci_map_rom_copy(struct pci_dev *pdev, size_t *size)
 
 /**
  * pci_unmap_rom - unmap the ROM from kernel space
- * @dev: pointer to pci device struct
+ * @pdev: pointer to pci device struct
  * @rom: virtual address of the previous mapping
  *
  * Remove a mapping of a previously mapped ROM
@@ -187,7 +187,7 @@ void pci_unmap_rom(struct pci_dev *pdev, void __iomem *rom)
 
 /**
  * pci_remove_rom - disable the ROM and remove its sysfs attribute
- * @dev: pointer to pci device struct
+ * @pdev: pointer to pci device struct
  *
  * Remove the rom file in sysfs and disable ROM decoding.
  */
@@ -206,7 +206,7 @@ void pci_remove_rom(struct pci_dev *pdev)
 /**
  * pci_cleanup_rom - internal routine for freeing the ROM copy created
  * by pci_map_rom_copy called from remove.c
- * @dev: pointer to pci device struct
+ * @pdev: pointer to pci device struct
  *
  * Free the copied ROM if we allocated one.
  */

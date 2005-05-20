@@ -16,6 +16,7 @@
 #include <linux/smp_lock.h>
 #include <linux/ptrace.h>
 #include <linux/security.h>
+#include <linux/signal.h>
 
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
@@ -135,7 +136,7 @@ int ptrace_attach(struct task_struct *task)
  	    (current->gid != task->sgid) ||
  	    (current->gid != task->gid)) && !capable(CAP_SYS_PTRACE))
 		goto bad;
-	rmb();
+	smp_rmb();
 	if (!task->mm->dumpable && !capable(CAP_SYS_PTRACE))
 		goto bad;
 	/* the same process cannot be attached many times */
@@ -166,7 +167,7 @@ bad:
 
 int ptrace_detach(struct task_struct *child, unsigned int data)
 {
-	if ((unsigned long) data > _NSIG)
+	if (!valid_signal(data))
 		return	-EIO;
 
 	/* Architecture-specific hardware disable .. */

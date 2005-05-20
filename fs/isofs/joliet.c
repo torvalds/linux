@@ -6,11 +6,9 @@
  *  Joliet: Microsoft's Unicode extensions to iso9660
  */
 
-#include <linux/string.h>
+#include <linux/types.h>
 #include <linux/nls.h>
-#include <linux/mm.h>
-#include <linux/iso_fs.h>
-#include <asm/unaligned.h>
+#include "isofs.h"
 
 /*
  * Convert Unicode 16 to UTF8 or ASCII.

@@ -7,7 +7,7 @@
  *
  * Version:	$Id: ip_output.c,v 1.100 2002/02/01 22:01:03 davem Exp $
  *
- * Authors:	Ross Biro, <bir7@leland.Stanford.Edu>
+ * Authors:	Ross Biro
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *		Donald Becker, <becker@super.org>
  *		Alan Cox, <Alan.Cox@linux.org>
@@ -111,6 +111,7 @@ static int ip_dev_loopback_xmit(struct sk_buff *newskb)
 #ifdef CONFIG_NETFILTER_DEBUG
 	nf_debug_ip_loopback_xmit(newskb);
 #endif
+	nf_reset(newskb);
 	netif_rx(newskb);
 	return 0;
 }
@@ -194,6 +195,8 @@ static inline int ip_finish_output2(struct sk_buff *skb)
 #ifdef CONFIG_NETFILTER_DEBUG
 	nf_debug_ip_finish_output2(skb);
 #endif /*CONFIG_NETFILTER_DEBUG*/
+
+	nf_reset(skb);
 
 	if (hh) {
 		int hh_alen;

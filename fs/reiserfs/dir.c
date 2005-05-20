@@ -209,8 +209,8 @@ static int reiserfs_readdir (struct file * filp, void * dirent, filldir_t filldi
 /* compose directory item containing "." and ".." entries (entries are
    not aligned to 4 byte boundary) */
 /* the last four params are LE */
-void make_empty_dir_item_v1 (char * body, __u32 dirid, __u32 objid,
-			     __u32 par_dirid, __u32 par_objid)
+void make_empty_dir_item_v1 (char * body, __le32 dirid, __le32 objid,
+			     __le32 par_dirid, __le32 par_objid)
 {
     struct reiserfs_de_head * deh;
 
@@ -242,8 +242,8 @@ void make_empty_dir_item_v1 (char * body, __u32 dirid, __u32 objid,
 }
 
 /* compose directory item containing "." and ".." entries */
-void make_empty_dir_item (char * body, __u32 dirid, __u32 objid,
-			  __u32 par_dirid, __u32 par_objid)
+void make_empty_dir_item (char * body, __le32 dirid, __le32 objid,
+			  __le32 par_dirid, __le32 par_objid)
 {
     struct reiserfs_de_head * deh;
 

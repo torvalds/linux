@@ -37,8 +37,18 @@
 
 #include "sunbmac.h"
 
+#define DRV_NAME	"sunbmac"
+#define DRV_VERSION	"2.0"
+#define DRV_RELDATE	"11/24/03"
+#define DRV_AUTHOR	"David S. Miller (davem@redhat.com)"
+
 static char version[] __initdata =
-        "sunbmac.c:v2.0 24/Nov/03 David S. Miller (davem@redhat.com)\n";
+	DRV_NAME ".c:v" DRV_VERSION " " DRV_RELDATE " " DRV_AUTHOR "\n";
+
+MODULE_VERSION(DRV_VERSION);
+MODULE_AUTHOR(DRV_AUTHOR);
+MODULE_DESCRIPTION("Sun BigMAC 100baseT ethernet driver");
+MODULE_LICENSE("GPL");
 
 #undef DEBUG_PROBE
 #undef DEBUG_TX
@@ -1321,4 +1331,3 @@ static void __exit bigmac_cleanup(void)
 
 module_init(bigmac_probe);
 module_exit(bigmac_cleanup);
-MODULE_LICENSE("GPL");

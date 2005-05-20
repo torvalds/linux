@@ -99,6 +99,7 @@ typedef struct pmac_tumbler_t {
 	pmac_gpio_t hp_detect;
 	int headphone_irq;
 	int lineout_irq;
+	unsigned int save_master_vol[2];
 	unsigned int master_vol[2];
 	unsigned int save_master_switch[2];
 	unsigned int master_switch[2];
@@ -177,9 +178,20 @@ static void write_audio_gpio(pmac_gpio_t *gp, int active)
 	if (! gp->addr)
 		return;
 	active = active ? gp->active_val : gp->inactive_val;
-
 	do_gpio_write(gp, active);
 	DBG("(I) gpio %x write %d\n", gp->addr, active);
+}
+
+static int check_audio_gpio(pmac_gpio_t *gp)
+{
+	int ret;
+
+	if (! gp->addr)
+		return 0;
+
+	ret = do_gpio_read(gp);
+
+	return (ret & 0xd) == (gp->active_val & 0xd);
 }
 
 static int read_audio_gpio(pmac_gpio_t *gp)
@@ -683,7 +695,7 @@ static int tumbler_get_mute_switch(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_
 	}
 	if (gp == NULL)
 		return -EINVAL;
-	ucontrol->value.integer.value[0] = ! read_audio_gpio(gp);
+	ucontrol->value.integer.value[0] = !check_audio_gpio(gp);
 	return 0;
 }
 
@@ -711,7 +723,7 @@ static int tumbler_put_mute_switch(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_
 	}
 	if (gp == NULL)
 		return -EINVAL;
-	val = ! read_audio_gpio(gp);
+	val = ! check_audio_gpio(gp);
 	if (val != ucontrol->value.integer.value[0]) {
 		write_audio_gpio(gp, ! ucontrol->value.integer.value[0]);
 		return 1;
@@ -897,11 +909,11 @@ static int tumbler_detect_lineout(pmac_t *chip)
 
 static void check_mute(pmac_t *chip, pmac_gpio_t *gp, int val, int do_notify, snd_kcontrol_t *sw)
 {
-	//pmac_tumbler_t *mix = chip->mixer_data;
-	if (val != read_audio_gpio(gp)) {
+	if (check_audio_gpio(gp) != val) {
 		write_audio_gpio(gp, val);
 		if (do_notify)
-			snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE, &sw->id);
+			snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
+				       &sw->id);
 	}
 }
 
@@ -1128,6 +1140,8 @@ static void tumbler_suspend(pmac_t *chip)
 		disable_irq(mix->lineout_irq);
 	mix->save_master_switch[0] = mix->master_switch[0];
 	mix->save_master_switch[1] = mix->master_switch[1];
+	mix->save_master_vol[0] = mix->master_vol[0];
+	mix->save_master_vol[1] = mix->master_vol[1];
 	mix->master_switch[0] = mix->master_switch[1] = 0;
 	tumbler_set_master_volume(mix);
 	if (!mix->anded_reset) {
@@ -1155,6 +1169,8 @@ static void tumbler_resume(pmac_t *chip)
 	mix->acs &= ~1;
 	mix->master_switch[0] = mix->save_master_switch[0];
 	mix->master_switch[1] = mix->save_master_switch[1];
+	mix->master_vol[0] = mix->save_master_vol[0];
+	mix->master_vol[1] = mix->save_master_vol[1];
 	tumbler_reset_audio(chip);
 	if (mix->i2c.client && mix->i2c.init_client) {
 		if (mix->i2c.init_client(&mix->i2c) < 0)

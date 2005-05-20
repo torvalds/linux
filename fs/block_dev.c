@@ -530,7 +530,7 @@ int check_disk_change(struct block_device *bdev)
 	if (!bdops->media_changed(bdev->bd_disk))
 		return 0;
 
-	if (__invalidate_device(bdev, 0))
+	if (__invalidate_device(bdev))
 		printk("VFS: busy inodes on changed media.\n");
 
 	if (bdops->revalidate_disk)

@@ -8,6 +8,7 @@
 
 #include "linux/threads.h"
 #include "sysdep/ptrace.h"
+#include "sysdep/faultinfo.h"
 
 extern int ncpus;
 extern char *linux_prog;
@@ -31,8 +32,8 @@ extern int current_pid(void);
 extern unsigned long alloc_stack(int order, int atomic);
 extern int do_signal(void);
 extern int is_stack_fault(unsigned long sp);
-extern unsigned long segv(unsigned long address, unsigned long ip, 
-			  int is_write, int is_user, void *sc);
+extern unsigned long segv(struct faultinfo fi, unsigned long ip,
+			  int is_user, void *sc);
 extern int handle_page_fault(unsigned long address, unsigned long ip,
 			     int is_write, int is_user, int *code_out);
 extern void syscall_ready(void);
@@ -82,7 +83,7 @@ extern void timer_irq(union uml_pt_regs *regs);
 extern void unprotect_stack(unsigned long stack);
 extern void do_uml_exitcalls(void);
 extern int attach_debugger(int idle_pid, int pid, int stop);
-extern void bad_segv(unsigned long address, unsigned long ip, int is_write);
+extern void bad_segv(struct faultinfo fi, unsigned long ip);
 extern int config_gdb(char *str);
 extern int remove_gdb(void);
 extern char *uml_strdup(char *string);

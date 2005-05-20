@@ -407,32 +407,38 @@ sctp_vtag_verify(const struct sctp_chunk *chunk,
 	return 0;
 }
 
-/* Check VTAG of the packet matches the sender's own tag OR its peer's
- * tag and the T bit is set in the Chunk Flags.
+/* Check VTAG of the packet matches the sender's own tag and the T bit is
+ * not set, OR its peer's tag and the T bit is set in the Chunk Flags.
  */
 static inline int
 sctp_vtag_verify_either(const struct sctp_chunk *chunk,
 			const struct sctp_association *asoc)
 {
-        /* RFC 2960 Section 8.5.1, sctpimpguide-06 Section 2.13.2
+        /* RFC 2960 Section 8.5.1, sctpimpguide Section 2.41
 	 *
-	 * B) The receiver of a ABORT shall accept the packet if the
-	 * Verification Tag field of the packet matches its own tag OR it
-	 * is set to its peer's tag and the T bit is set in the Chunk
-	 * Flags. Otherwise, the receiver MUST silently discard the packet
-	 * and take no further action.
+	 * B) The receiver of a ABORT MUST accept the packet
+	 *    if the Verification Tag field of the packet matches its own tag
+	 *    and the T bit is not set
+	 *    OR
+	 *    it is set to its peer's tag and the T bit is set in the Chunk
+	 *    Flags.
+	 *    Otherwise, the receiver MUST silently discard the packet
+	 *    and take no further action.
 	 *
-	 * (C) The receiver of a SHUTDOWN COMPLETE shall accept the
-	 * packet if the Verification Tag field of the packet
-	 * matches its own tag OR it is set to its peer's tag and
-	 * the T bit is set in the Chunk Flags.  Otherwise, the
-	 * receiver MUST silently discard the packet and take no
-	 * further action....
-	 *
+	 * C) The receiver of a SHUTDOWN COMPLETE shall accept the packet
+	 *    if the Verification Tag field of the packet matches its own tag
+	 *    and the T bit is not set
+	 *    OR
+	 *    it is set to its peer's tag and the T bit is set in the Chunk
+	 *    Flags.
+	 *    Otherwise, the receiver MUST silently discard the packet
+	 *    and take no further action.  An endpoint MUST ignore the
+	 *    SHUTDOWN COMPLETE if it is not in the SHUTDOWN-ACK-SENT state.
 	 */
-        if ((ntohl(chunk->sctp_hdr->vtag) == asoc->c.my_vtag) ||
-	    (sctp_test_T_bit(chunk) && (ntohl(chunk->sctp_hdr->vtag)
-	    == asoc->c.peer_vtag))) {
+        if ((!sctp_test_T_bit(chunk) &&
+             (ntohl(chunk->sctp_hdr->vtag) == asoc->c.my_vtag)) ||
+	    (sctp_test_T_bit(chunk) &&
+	     (ntohl(chunk->sctp_hdr->vtag) == asoc->c.peer_vtag))) {
                 return 1;
 	}
 

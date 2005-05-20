@@ -23,7 +23,7 @@ struct hwh_internal {
 static LIST_HEAD(_hw_handlers);
 static DECLARE_RWSEM(_hwh_lock);
 
-struct hwh_internal *__find_hw_handler_type(const char *name)
+static struct hwh_internal *__find_hw_handler_type(const char *name)
 {
 	struct hwh_internal *hwhi;
 

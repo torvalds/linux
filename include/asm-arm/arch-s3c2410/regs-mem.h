@@ -12,6 +12,7 @@
  *  Changelog:
  *	29-Sep-2004  BJD  Initial include for Linux
  *      10-Mar-2005  LCVR Changed S3C2410_VA to S3C24XX_VA
+ *      04-Apr-2005  LCVR Added S3C2400 DRAM/BANKSIZE_MASK definitions
  *
 */
 
@@ -183,6 +184,12 @@
 #define S3C2410_REFRESH_TRP_3clk	(1<<20)
 #define S3C2410_REFRESH_TRP_4clk	(2<<20)
 
+#define S3C2400_REFRESH_DRAM_TRP_MASK   (3<<20)
+#define S3C2400_REFRESH_DRAM_TRP_1_5clk (0<<20)
+#define S3C2400_REFRESH_DRAM_TRP_2_5clk (1<<20)
+#define S3C2400_REFRESH_DRAM_TRP_3_5clk (2<<20)
+#define S3C2400_REFRESH_DRAM_TRP_4_5clk (3<<20)
+
 #define S3C2410_REFRESH_TSRC_MASK	(3<<18)
 #define S3C2410_REFRESH_TSRC_4clk	(0<<18)
 #define S3C2410_REFRESH_TSRC_5clk	(1<<18)
@@ -205,6 +212,7 @@
 #define S3C2410_BANKSIZE_4M		(0x5 << 0)
 #define S3C2410_BANKSIZE_2M		(0x4 << 0)
 #define S3C2410_BANKSIZE_MASK		(0x7 << 0)
+#define S3C2400_BANKSIZE_MASK           (0x4 << 0)
 #define S3C2410_BANKSIZE_SCLK_EN	(1<<4)
 #define S3C2410_BANKSIZE_SCKE_EN	(1<<5)
 #define S3C2410_BANKSIZE_BURST		(1<<7)

@@ -115,10 +115,10 @@ out_noerr:
 
 /**
  *	skb_recv_datagram - Receive a datagram skbuff
- *	@sk - socket
- *	@flags - MSG_ flags
- *	@noblock - blocking operation?
- *	@err - error code returned
+ *	@sk: socket
+ *	@flags: MSG_ flags
+ *	@noblock: blocking operation?
+ *	@err: error code returned
  *
  *	Get a datagram skbuff, understands the peeking, nonblocking wakeups
  *	and possible races. This replaces identical code in packet, raw and
@@ -201,10 +201,10 @@ void skb_free_datagram(struct sock *sk, struct sk_buff *skb)
 
 /**
  *	skb_copy_datagram_iovec - Copy a datagram to an iovec.
- *	@skb - buffer to copy
- *	@offset - offset in the buffer to start copying from
- *	@iovec - io vector to copy to
- *	@len - amount of data to copy from buffer to iovec
+ *	@skb: buffer to copy
+ *	@offset: offset in the buffer to start copying from
+ *	@to: io vector to copy to
+ *	@len: amount of data to copy from buffer to iovec
  *
  *	Note: the iovec is modified during the copy.
  */
@@ -377,9 +377,9 @@ fault:
 
 /**
  *	skb_copy_and_csum_datagram_iovec - Copy and checkum skb to user iovec.
- *	@skb - skbuff
- *	@hlen - hardware length
- *	@iovec - io vector
+ *	@skb: skbuff
+ *	@hlen: hardware length
+ *	@iov: io vector
  * 
  *	Caller _must_ check that skb will fit to this iovec.
  *
@@ -425,9 +425,9 @@ fault:
 
 /**
  * 	datagram_poll - generic datagram poll
- *	@file - file struct
- *	@sock - socket
- *	@wait - poll table
+ *	@file: file struct
+ *	@sock: socket
+ *	@wait: poll table
  *
  *	Datagram poll: Again totally generic. This also handles
  *	sequenced packet sockets providing the socket receive queue

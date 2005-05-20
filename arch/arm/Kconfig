@@ -85,6 +85,7 @@ choice
 config ARCH_CLPS7500
 	bool "Cirrus-CL-PS7500FE"
 	select TIMER_ACORN
+	select ISA
 
 config ARCH_CLPS711X
 	bool "CLPS711x/EP721x-based"
@@ -96,6 +97,7 @@ config ARCH_CO285
 
 config ARCH_EBSA110
 	bool "EBSA-110"
+	select ISA
 	help
 	  This is an evaluation board for the StrongARM processor available
 	  from Digital. It has limited hardware on-board, including an onboard
@@ -120,13 +122,16 @@ config ARCH_INTEGRATOR
 
 config ARCH_IOP3XX
 	bool "IOP3xx-based"
+	select PCI
 
 config ARCH_IXP4XX
 	bool "IXP4xx-based"
 	select DMABOUNCE
+	select PCI
 
 config ARCH_IXP2000
 	bool "IXP2400/2800-based"
+	select PCI
 
 config ARCH_L7200
 	bool "LinkUp-L7200"
@@ -155,6 +160,8 @@ config ARCH_RPC
 
 config ARCH_SA1100
 	bool "SA1100-based"
+	select ISA
+	select DISCONTIGMEM
 
 config ARCH_S3C2410
 	bool "Samsung S3C2410"
@@ -165,6 +172,9 @@ config ARCH_S3C2410
 
 config ARCH_SHARK
 	bool "Shark"
+	select ISA
+	select ISA_DMA
+	select PCI
 
 config ARCH_LH7A40X
 	bool "Sharp LH7A40X"
@@ -252,8 +262,6 @@ config ARM_AMBA
 
 config ISA
 	bool
-	depends on FOOTBRIDGE_HOST || ARCH_SHARK || ARCH_CLPS7500 || ARCH_EBSA110 || ARCH_CDB89712 || ARCH_EDB7211 || ARCH_SA1100 || ARCH_MX1ADS
-	default y
 	help
 	  Find out whether you have ISA slots on your motherboard.  ISA is the
 	  name of a bus system, i.e. the way the CPU talks to the other stuff
@@ -263,12 +271,13 @@ config ISA
 
 config ISA_DMA
 	bool
-	depends on FOOTBRIDGE_HOST || ARCH_SHARK
+
+config ISA_DMA_API
+	bool
 	default y
 
 config PCI
 	bool "PCI support" if ARCH_INTEGRATOR_AP
-	default y if ARCH_SHARK || FOOTBRIDGE_HOST || ARCH_IOP3XX || ARCH_IXP4XX || ARCH_IXP2000
 	help
 	  Find out whether you have a PCI motherboard. PCI is the name of a
 	  bus system, i.e. the way the CPU talks to the other stuff inside
@@ -296,7 +305,7 @@ menu "Kernel Features"
 
 config SMP
 	bool "Symmetric Multi-Processing (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && n
+	depends on EXPERIMENTAL #&& n
 	help
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, like most personal computers, say N. If
@@ -336,8 +345,7 @@ config PREEMPT
 
 config DISCONTIGMEM
 	bool
-	depends on ARCH_EDB7211 || ARCH_SA1100 || (ARCH_LH7A40X && !LH7A40X_CONTIGMEM)
-	default y
+	default (ARCH_LH7A40X && !LH7A40X_CONTIGMEM)
 	help
 	  Say Y to support efficient handling of discontiguous physical memory,
 	  for architectures which are either NUMA (Non-Uniform Memory Access)

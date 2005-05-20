@@ -103,7 +103,7 @@ udf_stamp_to_time(time_t *dest, long *dest_usec, kernel_timestamp src)
 		offset = 0;
 
 	if ((src.year < EPOCH_YEAR) ||
-		(src.year > EPOCH_YEAR+MAX_YEAR_SECONDS))
+		(src.year >= EPOCH_YEAR+MAX_YEAR_SECONDS))
 	{
 		*dest = -1;
 		*dest_usec = -1;

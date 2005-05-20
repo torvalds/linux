@@ -120,6 +120,10 @@ static int pci_visit_bridge (struct pci_visit * fn,
 
 /**
  * pci_visit_dev - scans the pci buses.
+ * @fn: callback functions that are called while visiting
+ * @wrapped_dev: the device to scan
+ * @wrapped_parent: the bus where @wrapped_dev is connected to
+ *
  * Every bus and every function is presented to a custom
  * function that can act upon it.
  */

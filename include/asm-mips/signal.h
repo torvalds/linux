@@ -98,34 +98,12 @@ typedef unsigned long old_sigset_t;		/* at least 32 bits */
 #define MINSIGSTKSZ    2048
 #define SIGSTKSZ       8192
 
-#ifdef __KERNEL__
-
-/*
- * These values of sa_flags are used only by the kernel as part of the
- * irq handling routines.
- *
- * SA_INTERRUPT is also used by the irq handling routines.
- * SA_SHIRQ flag is for shared interrupt support on PCI and EISA.
- */
-#define SA_PROBE		SA_ONESHOT
-#define SA_SAMPLE_RANDOM	SA_RESTART
-#define SA_SHIRQ		0x02000000
-
-#endif /* __KERNEL__ */
-
 #define SIG_BLOCK	1	/* for blocking signals */
 #define SIG_UNBLOCK	2	/* for unblocking signals */
 #define SIG_SETMASK	3	/* for setting the signal mask */
 #define SIG_SETMASK32	256	/* Goodie from SGI for BSD compatibility:
 				   set only the low 32 bit of the sigset.  */
-
-/* Type of a signal handler.  */
-typedef void (*__sighandler_t)(int);
-
-/* Fake signal functions */
-#define SIG_DFL	((__sighandler_t)0)	/* default signal handling */
-#define SIG_IGN	((__sighandler_t)1)	/* ignore signal */
-#define SIG_ERR	((__sighandler_t)-1)	/* error return from signal */
+#include <asm-generic/signal.h>
 
 struct sigaction {
 	unsigned int	sa_flags;

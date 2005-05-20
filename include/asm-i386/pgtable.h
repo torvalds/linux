@@ -193,9 +193,9 @@ extern unsigned long long __PAGE_KERNEL, __PAGE_KERNEL_EXEC;
 /*
  * Define this if things work differently on an i386 and an i486:
  * it will (on an i486) warn about kernel memory accesses that are
- * done without a 'verify_area(VERIFY_WRITE,..)'
+ * done without a 'access_ok(VERIFY_WRITE,..)'
  */
-#undef TEST_VERIFY_AREA
+#undef TEST_ACCESS_OK
 
 /* The boot page tables (all created as a single array) */
 extern unsigned long pg0[];

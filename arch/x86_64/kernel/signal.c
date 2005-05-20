@@ -83,7 +83,7 @@ sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
 
 struct rt_sigframe
 {
-	char *pretcode;
+	char __user *pretcode;
 	struct ucontext uc;
 	struct siginfo info;
 };

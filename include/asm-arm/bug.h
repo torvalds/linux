@@ -3,6 +3,7 @@
 
 #include <linux/config.h>
 
+#ifdef CONFIG_BUG
 #ifdef CONFIG_DEBUG_BUGVERBOSE
 extern volatile void __bug(const char *file, int line, void *data);
 
@@ -17,6 +18,8 @@ extern volatile void __bug(const char *file, int line, void *data);
 #endif
 
 #define HAVE_ARCH_BUG
+#endif
+
 #include <asm-generic/bug.h>
 
 #endif

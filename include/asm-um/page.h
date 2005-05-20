@@ -27,7 +27,7 @@ struct page;
 #define clear_user_page(page, vaddr, pg)	clear_page(page)
 #define copy_user_page(to, from, vaddr, pg)	copy_page(to, from)
 
-#if defined(CONFIG_3_LEVEL_PGTABLES) && !defined(CONFIG_64_BIT)
+#if defined(CONFIG_3_LEVEL_PGTABLES) && !defined(CONFIG_64BIT)
 
 typedef struct { unsigned long pte_low, pte_high; } pte_t;
 typedef struct { unsigned long long pmd; } pmd_t;
@@ -44,6 +44,9 @@ typedef struct { unsigned long pgd; } pgd_t;
 #define pte_set_val(pte, phys, prot) \
 	({ (pte).pte_high = (phys) >> 32; \
 	   (pte).pte_low = (phys) | pgprot_val(prot); })
+
+#define pmd_val(x)	((x).pmd)
+#define __pmd(x) ((pmd_t) { (x) } )
 
 typedef unsigned long long pfn_t;
 typedef unsigned long long phys_t;

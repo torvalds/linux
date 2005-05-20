@@ -43,7 +43,9 @@
  * initializer cleaner
  */
 nodemask_t node_online_map = { { [0] = 1UL } };
+EXPORT_SYMBOL(node_online_map);
 nodemask_t node_possible_map = NODE_MASK_ALL;
+EXPORT_SYMBOL(node_possible_map);
 struct pglist_data *pgdat_list;
 unsigned long totalram_pages;
 unsigned long totalhigh_pages;
@@ -799,14 +801,18 @@ __alloc_pages(unsigned int __nocast gfp_mask, unsigned int order,
 	}
 
 	/* This allocation should allow future memory freeing. */
-	if (((p->flags & PF_MEMALLOC) || unlikely(test_thread_flag(TIF_MEMDIE))) && !in_interrupt()) {
-		/* go through the zonelist yet again, ignoring mins */
-		for (i = 0; (z = zones[i]) != NULL; i++) {
-			if (!cpuset_zone_allowed(z))
-				continue;
-			page = buffered_rmqueue(z, order, gfp_mask);
-			if (page)
-				goto got_pg;
+
+	if (((p->flags & PF_MEMALLOC) || unlikely(test_thread_flag(TIF_MEMDIE)))
+			&& !in_interrupt()) {
+		if (!(gfp_mask & __GFP_NOMEMALLOC)) {
+			/* go through the zonelist yet again, ignoring mins */
+			for (i = 0; (z = zones[i]) != NULL; i++) {
+				if (!cpuset_zone_allowed(z))
+					continue;
+				page = buffered_rmqueue(z, order, gfp_mask);
+				if (page)
+					goto got_pg;
+			}
 		}
 		goto nopage;
 	}
@@ -1351,8 +1357,7 @@ static int __init build_zonelists_node(pg_data_t *pgdat, struct zonelist *zoneli
 #define MAX_NODE_LOAD (num_online_nodes())
 static int __initdata node_load[MAX_NUMNODES];
 /**
- * find_next_best_node - find the next node that should appear in a given
- *    node's fallback list
+ * find_next_best_node - find the next node that should appear in a given node's fallback list
  * @node: node whose fallback list we're appending
  * @used_node_mask: nodemask_t of already used nodes
  *
@@ -1671,6 +1676,18 @@ static void __init free_area_init_core(struct pglist_data *pgdat,
 		if (batch < 1)
 			batch = 1;
 
+		/*
+		 * Clamp the batch to a 2^n - 1 value. Having a power
+		 * of 2 value was found to be more likely to have
+		 * suboptimal cache aliasing properties in some cases.
+		 *
+		 * For example if 2 tasks are alternately allocating
+		 * batches of pages, one task can end up with a lot
+		 * of pages of one half of the possible page colors
+		 * and the other with pages of the other colors.
+		 */
+		batch = (1 << fls(batch + batch/2)) - 1;
+
 		for (cpu = 0; cpu < NR_CPUS; cpu++) {
 			struct per_cpu_pages *pcp;
 
@@ -1881,6 +1898,7 @@ static char *vmstat_text[] = {
 	"allocstall",
 
 	"pgrotated",
+	"nr_bounce",
 };
 
 static void *vmstat_start(struct seq_file *m, loff_t *pos)

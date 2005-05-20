@@ -65,7 +65,7 @@ static const char *version =
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 #include <linux/if_arp.h>
-#include <linux/if_ltalk.h>	/* For ltalk_setup() */
+#include <linux/if_ltalk.h>
 #include <linux/delay.h>	/* For udelay() */
 #include <linux/atalk.h>
 #include <linux/spinlock.h>
@@ -223,7 +223,7 @@ struct net_device * __init cops_probe(int unit)
 	int base_addr;
 	int err = 0;
 
-	dev = alloc_netdev(sizeof(struct cops_local), "lt%d", ltalk_setup);
+	dev = alloc_ltalkdev(sizeof(struct cops_local));
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 

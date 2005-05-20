@@ -1,5 +1,5 @@
 /* Driver for USB Mass Storage compliant devices
- * Ununsual Devices File
+ * Unusual Devices File
  *
  * $Id: unusual_devs.h,v 1.32 2002/02/25 02:41:24 mdharm Exp $
  *
@@ -47,6 +47,14 @@
  * Alan Stern <stern@rowland.harvard.edu>, and don't forget to CC: the
  * USB development list <linux-usb-devel@lists.sourceforge.net>.
  */
+
+/* patch submitted by Vivian Bregier <Vivian.Bregier@imag.fr>
+ */
+UNUSUAL_DEV(  0x03eb, 0x2002, 0x0100, 0x0100,
+                "ATMEL",
+                "SND1 Storage",
+                US_SC_DEVICE, US_PR_DEVICE, NULL,
+                US_FL_IGNORE_RESIDUE),
 
 UNUSUAL_DEV(  0x03ee, 0x6901, 0x0000, 0x0100,
 		"Mitsumi",
@@ -517,14 +525,32 @@ UNUSUAL_DEV(  0x05ab, 0x5701, 0x0100, 0x0110,
 		0 ),
 #endif
 
-/* Reported by Avi Kivity <avi@argo.co.il> */
-UNUSUAL_DEV( 0x05ac, 0x1203, 0x0001, 0x0001,
+/* Submitted by Sven Anderson <sven-linux@anderson.de>
+ * There are at least four ProductIDs used for iPods, so I added 0x1202 and
+ * 0x1204. They just need the US_FL_FIX_CAPACITY. As the bcdDevice appears
+ * to change with firmware updates, I changed the range to maximum for all
+ * iPod entries.
+ */
+UNUSUAL_DEV( 0x05ac, 0x1202, 0x0000, 0x9999,
 		"Apple",
 		"iPod",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY ),
 
-UNUSUAL_DEV( 0x05ac, 0x1205, 0x0001, 0x0001,
+/* Reported by Avi Kivity <avi@argo.co.il> */
+UNUSUAL_DEV( 0x05ac, 0x1203, 0x0000, 0x9999,
+		"Apple",
+		"iPod",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY ),
+
+UNUSUAL_DEV( 0x05ac, 0x1204, 0x0000, 0x9999,
+		"Apple",
+		"iPod",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY ),
+
+UNUSUAL_DEV( 0x05ac, 0x1205, 0x0000, 0x9999,
 		"Apple",
 		"iPod",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
@@ -974,6 +1000,13 @@ UNUSUAL_DEV(  0x1019, 0x0c55, 0x0000, 0x9999,
 		"Desknote",
 		"UCR-61S2B",
 		US_SC_DEVICE, US_PR_DEVICE, usb_stor_ucr61s2b_init,
+		0 ),
+
+/* Reported by Vilius Bilinkevicius <vilisas AT xxx DOT lt) */
+UNUSUAL_DEV(  0x132b, 0x000b, 0x0001, 0x0001,
+		"Minolta",
+		"Dimage Z10",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		0 ),
 
 /* Reported by Kotrla Vitezslav <kotrla@ceb.cz> */

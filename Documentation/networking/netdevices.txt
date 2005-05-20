@@ -51,6 +51,8 @@ dev->hard_start_xmit:
 	set_multicast_list
 	Context: BHs disabled
 	Notes: netif_queue_stopped() is guaranteed false
+               Interrupts must be enabled when calling hard_start_xmit.
+                (Interrupts must also be enabled when enabling the BH handler.)
 	Return codes: 
 	o NETDEV_TX_OK everything ok. 
 	o NETDEV_TX_BUSY Cannot transmit packet, try later 

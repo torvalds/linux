@@ -99,7 +99,7 @@ static spinlock_t mv643xx_eth_phy_lock = SPIN_LOCK_UNLOCKED;
 
 static inline u32 mv_read(int offset)
 {
-	void *__iomem reg_base;
+	void __iomem *reg_base;
 
 	reg_base = mv643xx_eth_shared_base - MV643XX_ETH_SHARED_REGS;
 
@@ -108,7 +108,7 @@ static inline u32 mv_read(int offset)
 
 static inline void mv_write(int offset, u32 data)
 {
-	void * __iomem reg_base;
+	void __iomem *reg_base;
 
 	reg_base = mv643xx_eth_shared_base - MV643XX_ETH_SHARED_REGS;
 	writel(data, reg_base + offset);

@@ -99,7 +99,6 @@ extern void disable_APIC_timer(void);
 extern void enable_APIC_timer(void);
 extern void clustered_apic_check(void);
 
-extern int check_nmi_watchdog(void);
 extern void nmi_watchdog_default(void);
 extern int setup_nmi_watchdog(char *);
 

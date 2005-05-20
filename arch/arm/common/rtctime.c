@@ -141,10 +141,10 @@ void rtc_next_alarm_time(struct rtc_time *next, struct rtc_time *now, struct rtc
 	next->tm_sec = alrm->tm_sec;
 }
 
-static inline void rtc_read_time(struct rtc_ops *ops, struct rtc_time *tm)
+static inline int rtc_read_time(struct rtc_ops *ops, struct rtc_time *tm)
 {
 	memset(tm, 0, sizeof(struct rtc_time));
-	ops->read_time(tm);
+	return ops->read_time(tm);
 }
 
 static inline int rtc_set_time(struct rtc_ops *ops, struct rtc_time *tm)
@@ -163,8 +163,7 @@ static inline int rtc_read_alarm(struct rtc_ops *ops, struct rtc_wkalrm *alrm)
 	int ret = -EINVAL;
 	if (ops->read_alarm) {
 		memset(alrm, 0, sizeof(struct rtc_wkalrm));
-		ops->read_alarm(alrm);
-		ret = 0;
+		ret = ops->read_alarm(alrm);
 	}
 	return ret;
 }
@@ -283,7 +282,9 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 		break;
 
 	case RTC_RD_TIME:
-		rtc_read_time(ops, &tm);
+		ret = rtc_read_time(ops, &tm);
+		if (ret)
+			break;
 		ret = copy_to_user(uarg, &tm, sizeof(tm));
 		if (ret)
 			ret = -EFAULT;
@@ -424,15 +425,15 @@ static int rtc_read_proc(char *page, char **start, off_t off, int count, int *eo
 	struct rtc_time tm;
 	char *p = page;
 
-	rtc_read_time(ops, &tm);
-
-	p += sprintf(p,
-		"rtc_time\t: %02d:%02d:%02d\n"
-		"rtc_date\t: %04d-%02d-%02d\n"
-		"rtc_epoch\t: %04lu\n",
-		tm.tm_hour, tm.tm_min, tm.tm_sec,
-		tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
-		rtc_epoch);
+	if (rtc_read_time(ops, &tm) == 0) {
+		p += sprintf(p,
+			"rtc_time\t: %02d:%02d:%02d\n"
+			"rtc_date\t: %04d-%02d-%02d\n"
+			"rtc_epoch\t: %04lu\n",
+			tm.tm_hour, tm.tm_min, tm.tm_sec,
+			tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+			rtc_epoch);
+	}
 
 	if (rtc_read_alarm(ops, &alrm) == 0) {
 		p += sprintf(p, "alrm_time\t: ");

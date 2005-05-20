@@ -220,9 +220,7 @@ void ax25_return_dm(struct net_device *dev, ax25_address *src, ax25_address *des
 	dptr  = skb_push(skb, ax25_addr_size(digi));
 	dptr += ax25_addr_build(dptr, dest, src, &retdigi, AX25_RESPONSE, AX25_MODULUS);
 
-	skb->dev      = dev;
-
-	ax25_queue_xmit(skb);
+	ax25_queue_xmit(skb, dev);
 }
 
 /*

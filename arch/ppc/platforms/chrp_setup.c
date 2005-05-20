@@ -356,7 +356,7 @@ static void __init chrp_find_openpic(void)
 	struct device_node *np;
 	int len, i;
 	unsigned int *iranges;
-	void *isu;
+	void __iomem *isu;
 
 	np = find_type_devices("open-pic");
 	if (np == NULL || np->n_addrs == 0)

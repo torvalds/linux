@@ -220,6 +220,14 @@ static __inline__ void ax25_cb_put(ax25_cb *ax25)
 	}
 }
 
+static inline unsigned short ax25_type_trans(struct sk_buff *skb, struct net_device *dev)
+{
+	skb->dev      = dev;
+	skb->pkt_type = PACKET_HOST;
+	skb->mac.raw  = skb->data;
+	return htons(ETH_P_AX25);
+}
+
 /* af_ax25.c */
 extern struct hlist_head ax25_list;
 extern spinlock_t ax25_list_lock;
@@ -305,7 +313,7 @@ extern ax25_cb *ax25_send_frame(struct sk_buff *, int, ax25_address *, ax25_addr
 extern void ax25_output(ax25_cb *, int, struct sk_buff *);
 extern void ax25_kick(ax25_cb *);
 extern void ax25_transmit_buffer(ax25_cb *, struct sk_buff *, int);
-extern void ax25_queue_xmit(struct sk_buff *);
+extern void ax25_queue_xmit(struct sk_buff *skb, struct net_device *dev);
 extern int  ax25_check_iframes_acked(ax25_cb *, unsigned short);
 
 /* ax25_route.c */

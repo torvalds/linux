@@ -394,13 +394,11 @@ static void sp_bump(struct sixpack *sp, char cmd)
 	if ((skb = dev_alloc_skb(count)) == NULL)
 		goto out_mem;
 
-	skb->dev = sp->dev;
 	ptr = skb_put(skb, count);
 	*ptr++ = cmd;	/* KISS command */
 
 	memcpy(ptr, sp->cooked_buf + 1, count);
-	skb->mac.raw = skb->data;
-	skb->protocol = htons(ETH_P_AX25);
+	skb->protocol = ax25_type_trans(skb, sp->dev);
 	netif_rx(skb);
 	sp->dev->last_rx = jiffies;
 	sp->stats.rx_packets++;

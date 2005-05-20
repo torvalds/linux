@@ -123,9 +123,11 @@ pcibr_lock(struct pcibus_info *pcibus_info)
 }
 #define pcibr_unlock(pcibus_info, flag)  spin_unlock_irqrestore(&pcibus_info->pbi_lock, flag)
 
+extern int  pcibr_init_provider(void);
 extern void *pcibr_bus_fixup(struct pcibus_bussoft *);
-extern uint64_t pcibr_dma_map(struct pcidev_info *, unsigned long, size_t, unsigned int);
-extern void pcibr_dma_unmap(struct pcidev_info *, dma_addr_t, int);
+extern dma_addr_t pcibr_dma_map(struct pci_dev *, unsigned long, size_t);
+extern dma_addr_t pcibr_dma_map_consistent(struct pci_dev *, unsigned long, size_t);
+extern void pcibr_dma_unmap(struct pci_dev *, dma_addr_t, int);
 
 /*
  * prototypes for the bridge asic register access routines in pcibr_reg.c

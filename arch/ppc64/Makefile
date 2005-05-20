@@ -56,9 +56,16 @@ LDFLAGS_vmlinux	:= -Bstatic -e $(KERNELLOAD) -Ttext $(KERNELLOAD)
 CFLAGS		+= -msoft-float -pipe -mminimal-toc -mtraceback=none \
 		   -mcall-aixdesc
 
+GCC_VERSION     := $(call cc-version)
+GCC_BROKEN_VEC	:= $(shell if [ $(GCC_VERSION) -lt 0400 ] ; then echo "y"; fi ;)
+
 ifeq ($(CONFIG_POWER4_ONLY),y)
 ifeq ($(CONFIG_ALTIVEC),y)
+ifeq ($(GCC_BROKEN_VEC),y)
 	CFLAGS += $(call cc-option,-mcpu=970)
+else
+	CFLAGS += $(call cc-option,-mcpu=power4)
+endif
 else
 	CFLAGS += $(call cc-option,-mcpu=power4)
 endif

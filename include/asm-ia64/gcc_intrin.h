@@ -133,13 +133,17 @@ register unsigned long ia64_r13 asm ("r13") __attribute_used__;
 	ia64_intri_res;								\
 })
 
-#define ia64_popcnt(x)						\
-({								\
+#if __GNUC__ >= 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 4)
+# define ia64_popcnt(x)		__builtin_popcountl(x)
+#else
+# define ia64_popcnt(x)						\
+  ({								\
 	__u64 ia64_intri_res;					\
 	asm ("popcnt %0=%1" : "=r" (ia64_intri_res) : "r" (x));	\
 								\
 	ia64_intri_res;						\
-})
+  })
+#endif
 
 #define ia64_getf_exp(x)					\
 ({								\

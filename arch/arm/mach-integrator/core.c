@@ -216,7 +216,9 @@ integrator_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 	write_seqlock(&xtime_lock);
 
-	// ...clear the interrupt
+	/*
+	 * clear the interrupt
+	 */
 	timer1->TimerClear = 1;
 
 	timer_tick(regs);
@@ -264,7 +266,7 @@ void __init integrator_time_init(unsigned long reload, unsigned int ctrl)
 	timer1->TimerValue   = timer_reload;
 	timer1->TimerControl = timer_ctrl;
 
-	/* 
+	/*
 	 * Make irqs happen for the system timer
 	 */
 	setup_irq(IRQ_TIMERINT1, &integrator_timer_irq);

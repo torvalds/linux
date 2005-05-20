@@ -185,7 +185,7 @@ config NET_SCH_GRED
 	depends on NET_SCHED
 	help
 	  Say Y here if you want to use the Generic Random Early Detection
-	  (RED) packet scheduling algorithm for some of your network devices
+	  (GRED) packet scheduling algorithm for some of your network devices
 	  (see the top of <file:net/sched/sch_red.c> for details and
 	  references about the algorithm).
 
@@ -505,4 +505,14 @@ config NET_CLS_POLICE
 	help
 	  Say Y to support traffic policing (bandwidth limits).  Needed for
 	  ingress and egress rate limiting.
+
+config NET_ACT_SIMP
+        tristate "Simple action"
+        depends on NET_CLS_ACT
+        ---help---
+        You must have new iproute2 to use this feature.
+        This adds a very simple action for demonstration purposes
+	The idea is to give action authors a basic example to look at.
+	All this action will do is print on the console the configured
+	policy string followed by _ then packet count.
 

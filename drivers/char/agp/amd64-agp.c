@@ -243,7 +243,7 @@ static void amd64_cleanup(void)
 }
 
 
-struct agp_bridge_driver amd_8151_driver = {
+static struct agp_bridge_driver amd_8151_driver = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= amd_8151_sizes,
 	.size_type		= U32_APER_SIZE,

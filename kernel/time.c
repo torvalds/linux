@@ -516,14 +516,6 @@ int do_settimeofday (struct timespec *tv)
 
 	write_seqlock_irq(&xtime_lock);
 	{
-		/*
-		 * This is revolting. We need to set "xtime" correctly. However, the value
-		 * in this location is the value at the most recent update of wall time.
-		 * Discover what correction gettimeofday would have done, and then undo
-		 * it!
-		 */
-		nsec -= time_interpolator_get_offset();
-
 		wtm_sec  = wall_to_monotonic.tv_sec + (xtime.tv_sec - sec);
 		wtm_nsec = wall_to_monotonic.tv_nsec + (xtime.tv_nsec - nsec);
 

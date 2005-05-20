@@ -1,14 +1,25 @@
 /*
  * SMP boot-related support
  *
- * Copyright (C) 1998-2003 Hewlett-Packard Co
+ * Copyright (C) 1998-2003, 2005 Hewlett-Packard Co
  *	David Mosberger-Tang <davidm@hpl.hp.com>
+ * Copyright (C) 2001, 2004-2005 Intel Corp
+ * 	Rohit Seth <rohit.seth@intel.com>
+ * 	Suresh Siddha <suresh.b.siddha@intel.com>
+ * 	Gordon Jin <gordon.jin@intel.com>
+ *	Ashok Raj  <ashok.raj@intel.com>
  *
  * 01/05/16 Rohit Seth <rohit.seth@intel.com>	Moved SMP booting functions from smp.c to here.
  * 01/04/27 David Mosberger <davidm@hpl.hp.com>	Added ITC synching code.
  * 02/07/31 David Mosberger <davidm@hpl.hp.com>	Switch over to hotplug-CPU boot-sequence.
  *						smp_boot_cpus()/smp_commence() is replaced by
  *						smp_prepare_cpus()/__cpu_up()/smp_cpus_done().
+ * 04/06/21 Ashok Raj		<ashok.raj@intel.com> Added CPU Hotplug Support
+ * 04/12/26 Jin Gordon <gordon.jin@intel.com>
+ * 04/12/26 Rohit Seth <rohit.seth@intel.com>
+ *						Add multi-threading and multi-core detection
+ * 05/01/30 Suresh Siddha <suresh.b.siddha@intel.com>
+ *						Setup cpu_sibling_map and cpu_core_map
  */
 #include <linux/config.h>
 
@@ -58,6 +69,37 @@
 #define Dprintk(x...)
 #endif
 
+#ifdef CONFIG_HOTPLUG_CPU
+/*
+ * Store all idle threads, this can be reused instead of creating
+ * a new thread. Also avoids complicated thread destroy functionality
+ * for idle threads.
+ */
+struct task_struct *idle_thread_array[NR_CPUS];
+
+/*
+ * Global array allocated for NR_CPUS at boot time
+ */
+struct sal_to_os_boot sal_boot_rendez_state[NR_CPUS];
+
+/*
+ * start_ap in head.S uses this to store current booting cpu
+ * info.
+ */
+struct sal_to_os_boot *sal_state_for_booting_cpu = &sal_boot_rendez_state[0];
+
+#define set_brendez_area(x) (sal_state_for_booting_cpu = &sal_boot_rendez_state[(x)]);
+
+#define get_idle_for_cpu(x)		(idle_thread_array[(x)])
+#define set_idle_for_cpu(x,p)	(idle_thread_array[(x)] = (p))
+
+#else
+
+#define get_idle_for_cpu(x)		(NULL)
+#define set_idle_for_cpu(x,p)
+#define set_brendez_area(x)
+#endif
+
 
 /*
  * ITC synchronization related stuff:
@@ -89,6 +131,11 @@ cpumask_t cpu_online_map;
 EXPORT_SYMBOL(cpu_online_map);
 cpumask_t cpu_possible_map;
 EXPORT_SYMBOL(cpu_possible_map);
+
+cpumask_t cpu_core_map[NR_CPUS] __cacheline_aligned;
+cpumask_t cpu_sibling_map[NR_CPUS] __cacheline_aligned;
+int smp_num_siblings = 1;
+int smp_num_cpucores = 1;
 
 /* which logical CPU number maps to which CPU (physical APIC ID) */
 volatile int ia64_cpu_to_sapicid[NR_CPUS];
@@ -124,7 +171,8 @@ sync_master (void *arg)
 	local_irq_save(flags);
 	{
 		for (i = 0; i < NUM_ROUNDS*NUM_ITERS; ++i) {
-			while (!go[MASTER]);
+			while (!go[MASTER])
+				cpu_relax();
 			go[MASTER] = 0;
 			go[SLAVE] = ia64_get_itc();
 		}
@@ -147,7 +195,8 @@ get_delta (long *rt, long *master)
 	for (i = 0; i < NUM_ITERS; ++i) {
 		t0 = ia64_get_itc();
 		go[MASTER] = 1;
-		while (!(tm = go[SLAVE]));
+		while (!(tm = go[SLAVE]))
+			cpu_relax();
 		go[SLAVE] = 0;
 		t1 = ia64_get_itc();
 
@@ -226,7 +275,8 @@ ia64_sync_itc (unsigned int master)
 		return;
 	}
 
-	while (go[MASTER]);	/* wait for master to be ready */
+	while (go[MASTER])
+		cpu_relax();	/* wait for master to be ready */
 
 	spin_lock_irqsave(&itc_sync_lock, flags);
 	{
@@ -345,7 +395,6 @@ start_secondary (void *unused)
 {
 	/* Early console may use I/O ports */
 	ia64_set_kr(IA64_KR_IO_BASE, __pa(ia64_iobase));
-
 	Dprintk("start_secondary: starting CPU 0x%x\n", hard_smp_processor_id());
 	efi_map_pal_code();
 	cpu_init();
@@ -384,6 +433,13 @@ do_boot_cpu (int sapicid, int cpu)
 		.done	= COMPLETION_INITIALIZER(c_idle.done),
 	};
 	DECLARE_WORK(work, do_fork_idle, &c_idle);
+
+ 	c_idle.idle = get_idle_for_cpu(cpu);
+ 	if (c_idle.idle) {
+		init_idle(c_idle.idle, cpu);
+ 		goto do_rest;
+	}
+
 	/*
 	 * We can't use kernel_thread since we must avoid to reschedule the child.
 	 */
@@ -396,10 +452,15 @@ do_boot_cpu (int sapicid, int cpu)
 
 	if (IS_ERR(c_idle.idle))
 		panic("failed fork for CPU %d", cpu);
+
+	set_idle_for_cpu(cpu, c_idle.idle);
+
+do_rest:
 	task_for_booting_cpu = c_idle.idle;
 
 	Dprintk("Sending wakeup vector %lu to AP 0x%x/0x%x.\n", ap_wakeup_vector, cpu, sapicid);
 
+	set_brendez_area(cpu);
 	platform_send_ipi(cpu, ap_wakeup_vector, IA64_IPI_DM_INT, 0);
 
 	/*
@@ -552,19 +613,70 @@ void __devinit smp_prepare_boot_cpu(void)
 	cpu_set(smp_processor_id(), cpu_callin_map);
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
-extern void fixup_irqs(void);
-/* must be called with cpucontrol mutex held */
-static int __devinit cpu_enable(unsigned int cpu)
-{
-	per_cpu(cpu_state,cpu) = CPU_UP_PREPARE;
-	wmb();
+/*
+ * mt_info[] is a temporary store for all info returned by
+ * PAL_LOGICAL_TO_PHYSICAL, to be copied into cpuinfo_ia64 when the
+ * specific cpu comes.
+ */
+static struct {
+	__u32   socket_id;
+	__u16   core_id;
+	__u16   thread_id;
+	__u16   proc_fixed_addr;
+	__u8    valid;
+}mt_info[NR_CPUS] __devinit;
 
-	while (!cpu_online(cpu))
-		cpu_relax();
-	return 0;
+#ifdef CONFIG_HOTPLUG_CPU
+static inline void
+remove_from_mtinfo(int cpu)
+{
+	int i;
+
+	for_each_cpu(i)
+		if (mt_info[i].valid &&  mt_info[i].socket_id ==
+		    				cpu_data(cpu)->socket_id)
+			mt_info[i].valid = 0;
 }
 
+static inline void
+clear_cpu_sibling_map(int cpu)
+{
+	int i;
+
+	for_each_cpu_mask(i, cpu_sibling_map[cpu])
+		cpu_clear(cpu, cpu_sibling_map[i]);
+	for_each_cpu_mask(i, cpu_core_map[cpu])
+		cpu_clear(cpu, cpu_core_map[i]);
+
+	cpu_sibling_map[cpu] = cpu_core_map[cpu] = CPU_MASK_NONE;
+}
+
+static void
+remove_siblinginfo(int cpu)
+{
+	int last = 0;
+
+	if (cpu_data(cpu)->threads_per_core == 1 &&
+	    cpu_data(cpu)->cores_per_socket == 1) {
+		cpu_clear(cpu, cpu_core_map[cpu]);
+		cpu_clear(cpu, cpu_sibling_map[cpu]);
+		return;
+	}
+
+	last = (cpus_weight(cpu_core_map[cpu]) == 1 ? 1 : 0);
+
+	/* remove it from all sibling map's */
+	clear_cpu_sibling_map(cpu);
+
+	/* if this cpu is the last in the core group, remove all its info 
+	 * from mt_info structure
+	 */
+	if (last)
+		remove_from_mtinfo(cpu);
+}
+
+extern void fixup_irqs(void);
+/* must be called with cpucontrol mutex held */
 int __cpu_disable(void)
 {
 	int cpu = smp_processor_id();
@@ -575,9 +687,10 @@ int __cpu_disable(void)
 	if (cpu == 0)
 		return -EBUSY;
 
+	remove_siblinginfo(cpu);
 	fixup_irqs();
 	local_flush_tlb_all();
-	printk ("Disabled cpu %u\n", smp_processor_id());
+	cpu_clear(cpu, cpu_callin_map);
 	return 0;
 }
 
@@ -589,12 +702,7 @@ void __cpu_die(unsigned int cpu)
 		/* They ack this in play_dead by setting CPU_DEAD */
 		if (per_cpu(cpu_state, cpu) == CPU_DEAD)
 		{
-			/*
-			 * TBD: Enable this when physical removal
-			 * or when we put the processor is put in
-			 * SAL_BOOT_RENDEZ mode
-			 * cpu_clear(cpu, cpu_callin_map);
-			 */
+			printk ("CPU %d is now offline\n", cpu);
 			return;
 		}
 		msleep(100);
@@ -602,11 +710,6 @@ void __cpu_die(unsigned int cpu)
  	printk(KERN_ERR "CPU %u didn't die...\n", cpu);
 }
 #else /* !CONFIG_HOTPLUG_CPU */
-static int __devinit cpu_enable(unsigned int cpu)
-{
-	return 0;
-}
-
 int __cpu_disable(void)
 {
 	return -ENOSYS;
@@ -637,6 +740,23 @@ smp_cpus_done (unsigned int dummy)
 	       (int)num_online_cpus(), bogosum/(500000/HZ), (bogosum/(5000/HZ))%100);
 }
 
+static inline void __devinit
+set_cpu_sibling_map(int cpu)
+{
+	int i;
+
+	for_each_online_cpu(i) {
+		if ((cpu_data(cpu)->socket_id == cpu_data(i)->socket_id)) {
+			cpu_set(i, cpu_core_map[cpu]);
+			cpu_set(cpu, cpu_core_map[i]);
+			if (cpu_data(cpu)->core_id == cpu_data(i)->core_id) {
+				cpu_set(i, cpu_sibling_map[cpu]);
+				cpu_set(cpu, cpu_sibling_map[i]);
+			}
+		}
+	}
+}
+
 int __devinit
 __cpu_up (unsigned int cpu)
 {
@@ -648,20 +768,25 @@ __cpu_up (unsigned int cpu)
 		return -EINVAL;
 
 	/*
-	 * Already booted.. just enable and get outa idle lool
+	 * Already booted cpu? not valid anymore since we dont
+	 * do idle loop tightspin anymore.
 	 */
 	if (cpu_isset(cpu, cpu_callin_map))
-	{
-		cpu_enable(cpu);
-		local_irq_enable();
-		while (!cpu_isset(cpu, cpu_online_map))
-			mb();
-		return 0;
-	}
+		return -EINVAL;
+
 	/* Processor goes to start_secondary(), sets online flag */
 	ret = do_boot_cpu(sapicid, cpu);
 	if (ret < 0)
 		return ret;
+
+	if (cpu_data(cpu)->threads_per_core == 1 &&
+	    cpu_data(cpu)->cores_per_socket == 1) {
+		cpu_set(cpu, cpu_sibling_map[cpu]);
+		cpu_set(cpu, cpu_core_map[cpu]);
+		return 0;
+	}
+
+	set_cpu_sibling_map(cpu);
 
 	return 0;
 }
@@ -690,3 +815,106 @@ init_smp_config(void)
 		       ia64_sal_strerror(sal_ret));
 }
 
+static inline int __devinit
+check_for_mtinfo_index(void)
+{
+	int i;
+	
+	for_each_cpu(i)
+		if (!mt_info[i].valid)
+			return i;
+
+	return -1;
+}
+
+/*
+ * Search the mt_info to find out if this socket's cid/tid information is
+ * cached or not. If the socket exists, fill in the core_id and thread_id 
+ * in cpuinfo
+ */
+static int __devinit
+check_for_new_socket(__u16 logical_address, struct cpuinfo_ia64 *c)
+{
+	int i;
+	__u32 sid = c->socket_id;
+
+	for_each_cpu(i) {
+		if (mt_info[i].valid && mt_info[i].proc_fixed_addr == logical_address
+		    && mt_info[i].socket_id == sid) {
+			c->core_id = mt_info[i].core_id;
+			c->thread_id = mt_info[i].thread_id;
+			return 1; /* not a new socket */
+		}
+	}
+	return 0;
+}
+
+/*
+ * identify_siblings(cpu) gets called from identify_cpu. This populates the 
+ * information related to logical execution units in per_cpu_data structure.
+ */
+void __devinit
+identify_siblings(struct cpuinfo_ia64 *c)
+{
+	s64 status;
+	u16 pltid;
+	u64 proc_fixed_addr;
+	int count, i;
+	pal_logical_to_physical_t info;
+
+	if (smp_num_cpucores == 1 && smp_num_siblings == 1)
+		return;
+
+	if ((status = ia64_pal_logical_to_phys(0, &info)) != PAL_STATUS_SUCCESS) {
+		printk(KERN_ERR "ia64_pal_logical_to_phys failed with %ld\n",
+		       status);
+		return;
+	}
+	if ((status = ia64_sal_physical_id_info(&pltid)) != PAL_STATUS_SUCCESS) {
+		printk(KERN_ERR "ia64_sal_pltid failed with %ld\n", status);
+		return;
+	}
+	if ((status = ia64_pal_fixed_addr(&proc_fixed_addr)) != PAL_STATUS_SUCCESS) {
+		printk(KERN_ERR "ia64_pal_fixed_addr failed with %ld\n", status);
+		return;
+	}
+
+	c->socket_id =  (pltid << 8) | info.overview_ppid;
+	c->cores_per_socket = info.overview_cpp;
+	c->threads_per_core = info.overview_tpc;
+	count = c->num_log = info.overview_num_log;
+
+	/* If the thread and core id information is already cached, then
+	 * we will simply update cpu_info and return. Otherwise, we will
+	 * do the PAL calls and cache core and thread id's of all the siblings.
+	 */
+	if (check_for_new_socket(proc_fixed_addr, c))
+		return;
+
+	for (i = 0; i < count; i++) {
+		int index;
+
+		if (i && (status = ia64_pal_logical_to_phys(i, &info))
+			  != PAL_STATUS_SUCCESS) {
+                	printk(KERN_ERR "ia64_pal_logical_to_phys failed"
+					" with %ld\n", status);
+                	return;
+		}
+		if (info.log2_la == proc_fixed_addr) {
+			c->core_id = info.log1_cid;
+			c->thread_id = info.log1_tid;
+		}
+
+		index = check_for_mtinfo_index();
+		/* We will not do the mt_info caching optimization in this case.
+		 */
+		if (index < 0)
+			continue;
+
+		mt_info[index].valid = 1;
+		mt_info[index].socket_id = c->socket_id;
+		mt_info[index].core_id = info.log1_cid;
+		mt_info[index].thread_id = info.log1_tid;
+		mt_info[index].proc_fixed_addr = info.log2_la;
+	}
+}

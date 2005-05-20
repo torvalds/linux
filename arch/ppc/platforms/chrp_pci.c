@@ -129,7 +129,7 @@ static struct pci_ops rtas_pci_ops =
 	rtas_write_config
 };
 
-volatile struct Hydra *Hydra = NULL;
+volatile struct Hydra __iomem *Hydra = NULL;
 
 int __init
 hydra_init(void)
@@ -175,13 +175,14 @@ chrp_pcibios_fixup(void)
 static void __init
 setup_python(struct pci_controller *hose, struct device_node *dev)
 {
-	u32 *reg, val;
+	u32 __iomem *reg;
+	u32 val;
 	unsigned long addr = dev->addrs[0].address;
 
 	setup_indirect_pci(hose, addr + 0xf8000, addr + 0xf8010);
 
 	/* Clear the magic go-slow bit */
-	reg = (u32 *) ioremap(dev->addrs[0].address + 0xf6000, 0x40);
+	reg = ioremap(dev->addrs[0].address + 0xf6000, 0x40);
 	val = in_be32(&reg[12]);
 	if (val & PRG_CL_RESET_VALID) {
 		out_be32(&reg[12], val & ~PRG_CL_RESET_VALID);

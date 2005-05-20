@@ -14,7 +14,6 @@
 #include <linux/string.h>
 #include <asm/processor.h>
 #include <asm/page.h>
-#include <asm/bootinfo.h>
 
 extern void *finddevice(const char *);
 extern int getprop(void *, const char *, void *, int);

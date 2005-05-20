@@ -192,7 +192,7 @@ static struct aper_size_info_32 ali_generic_sizes[7] =
 	{4, 1024, 0, 3}
 };
 
-struct agp_bridge_driver ali_generic_bridge = {
+static struct agp_bridge_driver ali_generic_bridge = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= ali_generic_sizes,
 	.size_type		= U32_APER_SIZE,
@@ -215,7 +215,7 @@ struct agp_bridge_driver ali_generic_bridge = {
 	.agp_destroy_page	= ali_destroy_page,
 };
 
-struct agp_bridge_driver ali_m1541_bridge = {
+static struct agp_bridge_driver ali_m1541_bridge = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= ali_generic_sizes,
 	.size_type		= U32_APER_SIZE,

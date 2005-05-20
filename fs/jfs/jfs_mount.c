@@ -285,11 +285,6 @@ int jfs_mount_rw(struct super_block *sb, int remount)
 	 */
 	logMOUNT(sb);
 
-	/*
-	 * Set page cache allocation policy
-	 */
-	mapping_set_gfp_mask(sb->s_bdev->bd_inode->i_mapping, GFP_NOFS);
-
 	return rc;
 }
 

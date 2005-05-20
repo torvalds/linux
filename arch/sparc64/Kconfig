@@ -118,6 +118,7 @@ config VT_CONSOLE
 
 config HW_CONSOLE
 	bool
+	depends on VT
 	default y
 
 config SMP

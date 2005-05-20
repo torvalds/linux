@@ -32,9 +32,9 @@ the cifs download to your kernel build directory e.g.
 6) make modules (or "make" if CIFS VFS not to be built as a module)
 
 For Linux 2.6:
-1) Download the kernel (e.g. from http://www.kernel.org or from bitkeeper
-at bk://linux.bkbits.net/linux-2.5) and change directory into the top
-of the kernel directory tree (e.g. /usr/src/linux-2.5.73)
+1) Download the kernel (e.g. from http://www.kernel.org)
+and change directory into the top of the kernel directory tree
+(e.g. /usr/src/linux-2.5.73)
 2) make menuconfig (or make xconfig)
 3) select cifs from within the network filesystem choices
 4) save and exit
@@ -75,7 +75,7 @@ Allowing User Mounts
 ====================
 To permit users to mount and unmount over directories they own is possible
 with the cifs vfs.  A way to enable such mounting is to mark the mount.cifs
-utility as suid (e.g. "chmod +s /sbin/mount/cifs). To enable users to 
+utility as suid (e.g. "chmod +s /sbin/mount.cifs). To enable users to 
 umount shares they mount requires
 1) mount.cifs version 1.4 or later
 2) an entry for the share in /etc/fstab indicating that a user may
@@ -96,6 +96,26 @@ mount.cifs with the following flag:
 
 There is a corresponding manual page for cifs mounting in the Samba 3.0 and
 later source tree in docs/manpages/mount.cifs.8 
+
+Allowing User Unmounts
+======================
+To permit users to ummount directories that they have user mounted (see above),
+the utility umount.cifs may be used.  It may be invoked directly, or if 
+umount.cifs is placed in /sbin, umount can invoke the cifs umount helper
+(at least for most versions of the umount utility) for umount of cifs
+mounts, unless umount is invoked with -i (which will avoid invoking a umount
+helper). As with mount.cifs, to enable user unmounts umount.cifs must be marked
+as suid (e.g. "chmod +s /sbin/umount.cifs") or equivalent (some distributions
+allow adding entries to a file to the /etc/permissions file to achieve the
+equivalent suid effect).  For this utility to succeed the target path
+must be a cifs mount, and the uid of the current user must match the uid
+of the user who mounted the resource.
+
+Also note that the customary way of allowing user mounts and unmounts is 
+(instead of using mount.cifs and unmount.cifs as suid) to add a line
+to the file /etc/fstab for each //server/share you wish to mount, but
+this can become unwieldy when potential mount targets include many
+or  unpredictable UNC names.
 
 Samba Considerations 
 ==================== 
@@ -376,6 +396,19 @@ A partial list of the supported mount options follows:
 		attributes) to the server (default) e.g. via setfattr 
 		and getfattr utilities. 
   nouser_xattr  Do not allow getfattr/setfattr to get/set xattrs 
+  mapchars      Translate six of the seven reserved characters (not backslash)
+			*?<>|:
+		to the remap range (above 0xF000), which also
+		allows the CIFS client to recognize files created with
+		such characters by Windows's POSIX emulation. This can
+		also be useful when mounting to most versions of Samba
+		(which also forbids creating and opening files
+		whose names contain any of these seven characters).
+		This has no effect if the server does not support
+		Unicode on the wire.
+ nomapchars     Do not translate any of these seven characters (default).
+ remount        remount the share (often used to change from ro to rw mounts
+	        or vice versa)
 		
 The mount.cifs mount helper also accepts a few mount options before -o
 including:
@@ -392,7 +425,7 @@ Misc /proc/fs/cifs Flags and Debug Info
 =======================================
 Informational pseudo-files:
 DebugData		Displays information about active CIFS sessions
-			and shares.
+			and shares, as well as the cifs.ko version.
 Stats			Lists summary resource usage information as well as per
 			share statistics, if CONFIG_CIFS_STATS in enabled
 			in the kernel configuration.
@@ -449,7 +482,7 @@ and for more extensive tracing including the start of smb requests and responses
 Two other experimental features are under development and to test 
 require enabling CONFIG_CIFS_EXPERIMENTAL
 
-	More efficient write operations and SMB buffer handling
+	More efficient write operations
 
 	DNOTIFY fcntl: needed for support of directory change 
 			    notification and perhaps later for file leases)
@@ -467,8 +500,8 @@ returned success.
 	
 Also note that "cat /proc/fs/cifs/DebugData" will display information about 
 the active sessions and the shares that are mounted.  Note: NTLMv2 enablement 
-will not work since they its implementation is not quite complete yet.
-Do not alter these configuration values unless you are doing specific testing.  
+will not work since its implementation is not quite complete yet. Do not alter
+the ExtendedSecurity configuration value unless you are doing specific testing.
 Enabling extended security works to Windows 2000 Workstations and XP but not to 
 Windows 2000 server or Samba since it does not usually send "raw NTLMSSP" 
 (instead it sends NTLMSSP encapsulated in SPNEGO/GSSAPI, which support is not 

@@ -252,6 +252,7 @@ config VIDEO_SAA7134_DVB
 	depends on VIDEO_SAA7134 && DVB_CORE
 	select VIDEO_BUF_DVB
 	select DVB_MT352
+	select DVB_CX22702
 	---help---
 	  This adds support for DVB cards based on the
 	  Philips saa7134 chip.

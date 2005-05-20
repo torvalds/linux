@@ -6,17 +6,11 @@
  *  Rock Ridge Extensions to iso9660
  */
 
-#include <linux/stat.h>
-#include <linux/time.h>
-#include <linux/iso_fs.h>
-#include <linux/string.h>
-#include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/pagemap.h>
 #include <linux/smp_lock.h>
-#include <linux/buffer_head.h>
-#include <asm/page.h>
 
+#include "isofs.h"
 #include "rock.h"
 
 /* These functions are designed to read the system areas of a directory record

@@ -3,6 +3,7 @@
  * Licensed under the GPL
  */
 
+#include "linux/compiler.h"
 #include "linux/stddef.h"
 #include "linux/kernel.h"
 #include "linux/string.h"
@@ -28,9 +29,12 @@ static unsigned long maybe_map(unsigned long virt, int is_write)
 	if(IS_ERR(phys) || (is_write && !pte_write(pte))){
 		err = handle_page_fault(virt, 0, is_write, 1, &dummy_code);
 		if(err)
-			return(0);
+			return(-1UL);
 		phys = um_virt_to_phys(current, virt, NULL);
 	}
+        if(IS_ERR(phys))
+                phys = (void *) -1;
+
 	return((unsigned long) phys);
 }
 
@@ -41,7 +45,7 @@ static int do_op(unsigned long addr, int len, int is_write,
 	int n;
 
 	addr = maybe_map(addr, is_write);
-	if(addr == -1)
+	if(addr == -1UL)
 		return(-1);
 
 	page = phys_to_page(addr);
@@ -61,8 +65,7 @@ static void do_buffer_op(void *jmpbuf, void *arg_ptr)
 	void *arg;
 	int *res;
 
-	/* Some old gccs recognize __va_copy, but not va_copy */
-	__va_copy(args, *(va_list *)arg_ptr);
+	va_copy(args, *(va_list *)arg_ptr);
 	addr = va_arg(args, unsigned long);
 	len = va_arg(args, int);
 	is_write = va_arg(args, int);

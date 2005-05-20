@@ -243,6 +243,42 @@ unsigned long page_address_in_vma(struct page *page, struct vm_area_struct *vma)
 }
 
 /*
+ * Check that @page is mapped at @address into @mm.
+ *
+ * On success returns with mapped pte and locked mm->page_table_lock.
+ */
+static pte_t *page_check_address(struct page *page, struct mm_struct *mm,
+					unsigned long address)
+{
+	pgd_t *pgd;
+	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *pte;
+
+	/*
+	 * We need the page_table_lock to protect us from page faults,
+	 * munmap, fork, etc...
+	 */
+	spin_lock(&mm->page_table_lock);
+	pgd = pgd_offset(mm, address);
+	if (likely(pgd_present(*pgd))) {
+		pud = pud_offset(pgd, address);
+		if (likely(pud_present(*pud))) {
+			pmd = pmd_offset(pud, address);
+			if (likely(pmd_present(*pmd))) {
+				pte = pte_offset_map(pmd, address);
+				if (likely(pte_present(*pte) &&
+					   page_to_pfn(page) == pte_pfn(*pte)))
+					return pte;
+				pte_unmap(pte);
+			}
+		}
+	}
+	spin_unlock(&mm->page_table_lock);
+	return ERR_PTR(-ENOENT);
+}
+
+/*
  * Subfunctions of page_referenced: page_referenced_one called
  * repeatedly from either page_referenced_anon or page_referenced_file.
  */
@@ -251,9 +287,6 @@ static int page_referenced_one(struct page *page,
 {
 	struct mm_struct *mm = vma->vm_mm;
 	unsigned long address;
-	pgd_t *pgd;
-	pud_t *pud;
-	pmd_t *pmd;
 	pte_t *pte;
 	int referenced = 0;
 
@@ -263,39 +296,18 @@ static int page_referenced_one(struct page *page,
 	if (address == -EFAULT)
 		goto out;
 
-	spin_lock(&mm->page_table_lock);
+	pte = page_check_address(page, mm, address);
+	if (!IS_ERR(pte)) {
+		if (ptep_clear_flush_young(vma, address, pte))
+			referenced++;
 
-	pgd = pgd_offset(mm, address);
-	if (!pgd_present(*pgd))
-		goto out_unlock;
+		if (mm != current->mm && !ignore_token && has_swap_token(mm))
+			referenced++;
 
-	pud = pud_offset(pgd, address);
-	if (!pud_present(*pud))
-		goto out_unlock;
-
-	pmd = pmd_offset(pud, address);
-	if (!pmd_present(*pmd))
-		goto out_unlock;
-
-	pte = pte_offset_map(pmd, address);
-	if (!pte_present(*pte))
-		goto out_unmap;
-
-	if (page_to_pfn(page) != pte_pfn(*pte))
-		goto out_unmap;
-
-	if (ptep_clear_flush_young(vma, address, pte))
-		referenced++;
-
-	if (mm != current->mm && !ignore_token && has_swap_token(mm))
-		referenced++;
-
-	(*mapcount)--;
-
-out_unmap:
-	pte_unmap(pte);
-out_unlock:
-	spin_unlock(&mm->page_table_lock);
+		(*mapcount)--;
+		pte_unmap(pte);
+		spin_unlock(&mm->page_table_lock);
+	}
 out:
 	return referenced;
 }
@@ -502,9 +514,6 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma)
 {
 	struct mm_struct *mm = vma->vm_mm;
 	unsigned long address;
-	pgd_t *pgd;
-	pud_t *pud;
-	pmd_t *pmd;
 	pte_t *pte;
 	pte_t pteval;
 	int ret = SWAP_AGAIN;
@@ -515,30 +524,9 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma)
 	if (address == -EFAULT)
 		goto out;
 
-	/*
-	 * We need the page_table_lock to protect us from page faults,
-	 * munmap, fork, etc...
-	 */
-	spin_lock(&mm->page_table_lock);
-
-	pgd = pgd_offset(mm, address);
-	if (!pgd_present(*pgd))
-		goto out_unlock;
-
-	pud = pud_offset(pgd, address);
-	if (!pud_present(*pud))
-		goto out_unlock;
-
-	pmd = pmd_offset(pud, address);
-	if (!pmd_present(*pmd))
-		goto out_unlock;
-
-	pte = pte_offset_map(pmd, address);
-	if (!pte_present(*pte))
-		goto out_unmap;
-
-	if (page_to_pfn(page) != pte_pfn(*pte))
-		goto out_unmap;
+	pte = page_check_address(page, mm, address);
+	if (IS_ERR(pte))
+		goto out;
 
 	/*
 	 * If the page is mlock()d, we cannot swap it out.
@@ -604,7 +592,6 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma)
 
 out_unmap:
 	pte_unmap(pte);
-out_unlock:
 	spin_unlock(&mm->page_table_lock);
 out:
 	return ret;
@@ -708,7 +695,6 @@ static void try_to_unmap_cluster(unsigned long cursor,
 	}
 
 	pte_unmap(pte);
-
 out_unlock:
 	spin_unlock(&mm->page_table_lock);
 }
@@ -860,3 +846,4 @@ int try_to_unmap(struct page *page)
 		ret = SWAP_SUCCESS;
 	return ret;
 }
+

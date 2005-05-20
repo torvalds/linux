@@ -986,7 +986,13 @@ static int __init snd_pmac_detect(pmac_t *chip)
 			chip->num_freqs = ARRAY_SIZE(tumbler_freqs);
 			chip->model = PMAC_SNAPPER;
 			chip->can_byte_swap = 0; /* FIXME: check this */
-			chip->control_mask = MASK_IEPC | 0x11; /* disable IEE */
+			chip->control_mask = MASK_IEPC | 0x11;/* disable IEE */
+			break;
+		case 0x3a:
+			chip->num_freqs = ARRAY_SIZE(tumbler_freqs);
+			chip->model = PMAC_TOONIE;
+			chip->can_byte_swap = 0; /* FIXME: check this */
+			chip->control_mask = MASK_IEPC | 0x11;/* disable IEE */
 			break;
 		}
 	}

@@ -165,40 +165,9 @@ Description:
 These functions are intended for use by individual drivers, and are defined in 
 struct pci_driver:
 
-        int  (*save_state) (struct pci_dev *dev, u32 state);
-        int  (*suspend) (struct pci_dev *dev, u32 state);
+        int  (*suspend) (struct pci_dev *dev, pm_message_t state);
         int  (*resume) (struct pci_dev *dev);
-        int  (*enable_wake) (struct pci_dev *dev, u32 state, int enable);
-
-
-save_state
-----------
-
-Usage:
-
-if (dev->driver && dev->driver->save_state)
-	dev->driver->save_state(dev,state);
-
-The driver should use this callback to save device state. It should take into
-account the current state of the device and the requested state in order to
-avoid any unnecessary operations.
-
-For example, a video card that supports all 4 states (D0-D3), all controller
-context is preserved when entering D1, but the screen is placed into a low power
-state (blanked). 
-
-The driver can also interpret this function as a notification that it may be
-entering a sleep state in the near future. If it knows that the device cannot
-enter the requested state, either because of lack of support for it, or because
-the device is middle of some critical operation, then it should fail.
-
-This function should not be used to set any state in the device or the driver
-because the device may not actually enter the sleep state (e.g. another driver
-later causes causes a global state transition to fail).
-
-Note that in intermediate low power states, a device's I/O and memory spaces may
-be disabled and may not be available in subsequent transitions to lower power
-states.
+        int  (*enable_wake) (struct pci_dev *dev, pci_power_t state, int enable);
 
 
 suspend

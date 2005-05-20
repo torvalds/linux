@@ -582,7 +582,7 @@ static int scsi_request_sense(struct scsi_cmnd *scmd)
 
 	memcpy(scmd->cmnd, generic_sense, sizeof(generic_sense));
 
-	scsi_result = kmalloc(252, GFP_ATOMIC | (scmd->device->host->hostt->unchecked_isa_dma) ? __GFP_DMA : 0);
+	scsi_result = kmalloc(252, GFP_ATOMIC | ((scmd->device->host->hostt->unchecked_isa_dma) ? __GFP_DMA : 0));
 
 
 	if (unlikely(!scsi_result)) {

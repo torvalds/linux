@@ -156,6 +156,7 @@ static struct gendisk *fake_gendisk[MAX_DEV];
 static struct openflags global_openflags = OPEN_FLAGS;
 
 struct cow {
+	/* This is the backing file, actually */
 	char *file;
 	int fd;
 	unsigned long *bitmap;
@@ -927,10 +928,14 @@ static int ubd_open(struct inode *inode, struct file *filp)
 		}
 	}
 	dev->count++;
-	if((filp->f_mode & FMODE_WRITE) && !dev->openflags.w){
+	set_disk_ro(disk, !dev->openflags.w);
+
+	/* This should no more be needed. And it didn't work anyway to exclude
+	 * read-write remounting of filesystems.*/
+	/*if((filp->f_mode & FMODE_WRITE) && !dev->openflags.w){
 	        if(--dev->count == 0) ubd_close(dev);
 	        err = -EROFS;
-	}
+	}*/
  out:
 	return(err);
 }
@@ -1096,6 +1101,7 @@ static int prepare_request(struct request *req, struct io_thread_req *io_req)
 
 	if(req->rq_status == RQ_INACTIVE) return(1);
 
+	/* This should be impossible now */
 	if((rq_data_dir(req) == WRITE) && !dev->openflags.w){
 		printk("Write attempted on readonly ubd device %s\n", 
 		       disk->disk_name);
@@ -1243,6 +1249,7 @@ static int ubd_check_remapped(int fd, unsigned long address, int is_write,
 
 		/* It's a write to a ubd device */
 
+		/* This should be impossible now */
 		if(!dev->openflags.w){
 			/* It's a write access on a read-only device - probably
 			 * shouldn't happen.  If the kernel is trying to change
@@ -1605,8 +1612,7 @@ void do_io(struct io_thread_req *req)
 				}
 			} while((n < len) && (n != 0));
 			if (n < len) memset(&buf[n], 0, len - n);
-		}
-		else {
+		} else {
 			n = os_write_file(req->fds[bit], buf, len);
 			if(n != len){
 				printk("do_io - write failed err = %d "

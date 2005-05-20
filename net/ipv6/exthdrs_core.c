@@ -41,8 +41,8 @@ int ipv6_ext_hdr(u8 nexthdr)
  * when Linux implements ESP (and maybe AUTH) headers.
  * --AK
  *
- * This function parses (probably truncated) exthdr set "hdr"
- * of length "len". "nexthdrp" initially points to some place,
+ * This function parses (probably truncated) exthdr set "hdr".
+ * "nexthdrp" initially points to some place,
  * where type of the first header can be found.
  *
  * It skips all well-known exthdrs, and returns pointer to the start
@@ -63,7 +63,7 @@ int ipv6_ext_hdr(u8 nexthdr)
  * --ANK (980726)
  */
 
-int ipv6_skip_exthdr(const struct sk_buff *skb, int start, u8 *nexthdrp, int len)
+int ipv6_skip_exthdr(const struct sk_buff *skb, int start, u8 *nexthdrp)
 {
 	u8 nexthdr = *nexthdrp;
 
@@ -71,13 +71,11 @@ int ipv6_skip_exthdr(const struct sk_buff *skb, int start, u8 *nexthdrp, int len
 		struct ipv6_opt_hdr _hdr, *hp;
 		int hdrlen;
 
-		if (len < (int)sizeof(struct ipv6_opt_hdr))
-			return -1;
 		if (nexthdr == NEXTHDR_NONE)
 			return -1;
 		hp = skb_header_pointer(skb, start, sizeof(_hdr), &_hdr);
 		if (hp == NULL)
-			BUG();
+			return -1;
 		if (nexthdr == NEXTHDR_FRAGMENT) {
 			unsigned short _frag_off, *fp;
 			fp = skb_header_pointer(skb,
@@ -97,7 +95,6 @@ int ipv6_skip_exthdr(const struct sk_buff *skb, int start, u8 *nexthdrp, int len
 			hdrlen = ipv6_optlen(hp); 
 
 		nexthdr = hp->nexthdr;
-		len -= hdrlen;
 		start += hdrlen;
 	}
 

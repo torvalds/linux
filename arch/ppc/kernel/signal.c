@@ -511,7 +511,7 @@ int sys_rt_sigreturn(int r3, int r4, int r5, int r6, int r7, int r8,
 }
 
 int sys_debug_setcontext(struct ucontext __user *ctx,
-			 int ndbg, struct sig_dbg_op *dbg,
+			 int ndbg, struct sig_dbg_op __user *dbg,
 			 int r6, int r7, int r8,
 			 struct pt_regs *regs)
 {
@@ -632,7 +632,7 @@ handle_signal(unsigned long sig, struct k_sigaction *ka,
 	if (__put_user((unsigned long) ka->sa.sa_handler, &sc->handler)
 	    || __put_user(oldset->sig[0], &sc->oldmask)
 	    || __put_user(oldset->sig[1], &sc->_unused[3])
-	    || __put_user((struct pt_regs *)frame, &sc->regs)
+	    || __put_user((struct pt_regs __user *)frame, &sc->regs)
 	    || __put_user(sig, &sc->signal))
 		goto badframe;
 

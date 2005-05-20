@@ -463,9 +463,10 @@ struct lbuf {
 
 	s64 l_blkno;		/* 8: log page block number */
 	caddr_t l_ldata;	/* 4: data page */
+	struct page *l_page;	/* The page itself */
+	uint l_offset;		/* Offset of l_ldata within the page */	
 
 	wait_queue_head_t l_ioevent;	/* 4: i/o done event */
-	struct page *l_page;	/* The page itself */
 };
 
 /* Reuse l_freelist for redrive list */
@@ -489,8 +490,9 @@ struct logsyncblk {
  */
 
 #define LOGSYNC_LOCK_INIT(log) spin_lock_init(&(log)->synclock)
-#define LOGSYNC_LOCK(log) spin_lock(&(log)->synclock)
-#define LOGSYNC_UNLOCK(log) spin_unlock(&(log)->synclock)
+#define LOGSYNC_LOCK(log, flags) spin_lock_irqsave(&(log)->synclock, flags)
+#define LOGSYNC_UNLOCK(log, flags) \
+	spin_unlock_irqrestore(&(log)->synclock, flags)
 
 /* compute the difference in bytes of lsn from sync point */
 #define logdiff(diff, lsn, log)\
@@ -506,5 +508,6 @@ extern int lmLogShutdown(struct jfs_log * log);
 extern int lmLogInit(struct jfs_log * log);
 extern int lmLogFormat(struct jfs_log *log, s64 logAddress, int logSize);
 extern void jfs_flush_journal(struct jfs_log * log, int wait);
+extern void jfs_syncpt(struct jfs_log *log);
 
 #endif				/* _H_JFS_LOGMGR */

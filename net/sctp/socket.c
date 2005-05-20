@@ -115,9 +115,17 @@ static inline int sctp_wspace(struct sctp_association *asoc)
 	struct sock *sk = asoc->base.sk;
 	int amt = 0;
 
-	amt = sk->sk_sndbuf - asoc->sndbuf_used;
+	if (asoc->ep->sndbuf_policy) {
+		/* make sure that no association uses more than sk_sndbuf */
+		amt = sk->sk_sndbuf - asoc->sndbuf_used;
+	} else {
+		/* do socket level accounting */
+		amt = sk->sk_sndbuf - atomic_read(&sk->sk_wmem_alloc);
+	}
+
 	if (amt < 0)
 		amt = 0;
+
 	return amt;
 }
 
@@ -138,12 +146,21 @@ static inline void sctp_set_owner_w(struct sctp_chunk *chunk)
 	/* The sndbuf space is tracked per association.  */
 	sctp_association_hold(asoc);
 
+	skb_set_owner_w(chunk->skb, sk);
+
 	chunk->skb->destructor = sctp_wfree;
 	/* Save the chunk pointer in skb for sctp_wfree to use later.  */
 	*((struct sctp_chunk **)(chunk->skb->cb)) = chunk;
 
-	asoc->sndbuf_used += SCTP_DATA_SNDSIZE(chunk);
-	sk->sk_wmem_queued += SCTP_DATA_SNDSIZE(chunk);
+	asoc->sndbuf_used += SCTP_DATA_SNDSIZE(chunk) +
+				sizeof(struct sk_buff) +
+				sizeof(struct sctp_chunk);
+
+	sk->sk_wmem_queued += SCTP_DATA_SNDSIZE(chunk) +
+				sizeof(struct sk_buff) +
+				sizeof(struct sctp_chunk);
+
+	atomic_add(sizeof(struct sctp_chunk), &sk->sk_wmem_alloc);
 }
 
 /* Verify that this is a valid address. */
@@ -3473,7 +3490,7 @@ static int sctp_getsockopt_associnfo(struct sock *sk, int len,
 		return -EINVAL;
 
 	/* Values correspoinding to the specific association */
-	if (assocparams.sasoc_assoc_id != 0) {
+	if (asoc) {
 		assocparams.sasoc_asocmaxrxt = asoc->max_retrans;
 		assocparams.sasoc_peer_rwnd = asoc->peer.rwnd;
 		assocparams.sasoc_local_rwnd = asoc->a_rwnd;
@@ -4422,8 +4439,17 @@ static void sctp_wfree(struct sk_buff *skb)
 	chunk = *((struct sctp_chunk **)(skb->cb));
 	asoc = chunk->asoc;
 	sk = asoc->base.sk;
-	asoc->sndbuf_used -= SCTP_DATA_SNDSIZE(chunk);
-	sk->sk_wmem_queued -= SCTP_DATA_SNDSIZE(chunk);
+	asoc->sndbuf_used -= SCTP_DATA_SNDSIZE(chunk) +
+				sizeof(struct sk_buff) +
+				sizeof(struct sctp_chunk);
+
+	sk->sk_wmem_queued -= SCTP_DATA_SNDSIZE(chunk) +
+				sizeof(struct sk_buff) +
+				sizeof(struct sctp_chunk);
+
+	atomic_sub(sizeof(struct sctp_chunk), &sk->sk_wmem_alloc);
+
+	sock_wfree(skb);
 	__sctp_write_space(asoc);
 
 	sctp_association_put(asoc);

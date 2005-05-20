@@ -26,6 +26,7 @@
 #include <linux/smp_lock.h>
 #include <linux/user.h>
 #include <linux/security.h>
+#include <linux/signal.h>
 
 #include <asm/cpu.h>
 #include <asm/fpu.h>
@@ -257,7 +258,7 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 	case PTRACE_SYSCALL: /* continue and stop at next (return from) syscall */
 	case PTRACE_CONT: { /* restart after signal. */
 		ret = -EIO;
-		if ((unsigned long) data > _NSIG)
+		if (!valid_signal(data))
 			break;
 		if (request == PTRACE_SYSCALL) {
 			set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
@@ -300,25 +301,38 @@ out:
 	return ret;
 }
 
+static inline int audit_arch(void)
+{
+#ifdef CONFIG_CPU_LITTLE_ENDIAN
+#ifdef CONFIG_MIPS64
+	if (!(current->thread.mflags & MF_32BIT_REGS))
+		return AUDIT_ARCH_MIPSEL64;
+#endif /* MIPS64 */
+	return AUDIT_ARCH_MIPSEL;
+
+#else /* big endian... */
+#ifdef CONFIG_MIPS64
+	if (!(current->thread.mflags & MF_32BIT_REGS))
+		return AUDIT_ARCH_MIPS64;
+#endif /* MIPS64 */
+	return AUDIT_ARCH_MIPS;
+
+#endif /* endian */
+}
+
 /*
  * Notification of system call entry/exit
  * - triggered by current->work.syscall_trace
  */
 asmlinkage void do_syscall_trace(struct pt_regs *regs, int entryexit)
 {
-	if (unlikely(current->audit_context)) {
-		if (!entryexit)
-			audit_syscall_entry(current, regs->regs[2],
-			                    regs->regs[4], regs->regs[5],
-			                    regs->regs[6], regs->regs[7]);
-		else
-			audit_syscall_exit(current, regs->regs[2]);
-	}
+	if (unlikely(current->audit_context) && entryexit)
+		audit_syscall_exit(current, AUDITSC_RESULT(regs->regs[2]), regs->regs[2]);
 
 	if (!test_thread_flag(TIF_SYSCALL_TRACE))
-		return;
+		goto out;
 	if (!(current->ptrace & PT_PTRACED))
-		return;
+		goto out;
 
 	/* The 0x80 provides a way for the tracing parent to distinguish
 	   between a syscall stop and SIGTRAP delivery */
@@ -334,4 +348,9 @@ asmlinkage void do_syscall_trace(struct pt_regs *regs, int entryexit)
 		send_sig(current->exit_code, current, 1);
 		current->exit_code = 0;
 	}
+ out:
+	if (unlikely(current->audit_context) && !entryexit)
+		audit_syscall_entry(current, audit_arch(), regs->regs[2],
+				    regs->regs[4], regs->regs[5],
+				    regs->regs[6], regs->regs[7]);
 }

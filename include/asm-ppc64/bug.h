@@ -26,6 +26,8 @@ struct bug_entry *find_bug(unsigned long bugaddr);
  */
 #define BUG_WARNING_TRAP	0x1000000
 
+#ifdef CONFIG_BUG
+
 #define BUG() do {							 \
 	__asm__ __volatile__(						 \
 		"1:	twi 31,0,0\n"					 \
@@ -55,11 +57,12 @@ struct bug_entry *find_bug(unsigned long bugaddr);
 		    "i" (__FILE__), "i" (__FUNCTION__));	\
 } while (0)
 
-#endif
-
 #define HAVE_ARCH_BUG
 #define HAVE_ARCH_BUG_ON
 #define HAVE_ARCH_WARN_ON
+#endif
+#endif
+
 #include <asm-generic/bug.h>
 
 #endif

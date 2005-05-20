@@ -37,7 +37,7 @@ static int pci_master_aborts = 0;
 
 static int clear_master_aborts(void);
 
-static u32 *
+u32 *
 ixp2000_pci_config_addr(unsigned int bus_nr, unsigned int devfn, int where)
 {
 	u32 *paddress;
@@ -208,15 +208,15 @@ ixp2000_pci_preinit(void)
  * use our own resource space.
  */
 static struct resource ixp2000_pci_mem_space = {
-	.start	= 0x00000000,
+	.start	= 0xe0000000,
 	.end	= 0xffffffff,
 	.flags	= IORESOURCE_MEM,
 	.name	= "PCI Mem Space"
 };
 
 static struct resource ixp2000_pci_io_space = {
-	.start	= 0x00000000,
-	.end	= 0xffffffff,
+	.start	= 0x00010000,
+	.end	= 0x0001ffff,
 	.flags	= IORESOURCE_IO,
 	.name	= "PCI I/O Space"
 };

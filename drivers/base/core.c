@@ -139,7 +139,7 @@ static int dev_hotplug(struct kset *kset, struct kobject *kobj, char **envp,
 	buffer = &buffer[length];
 	buffer_size -= length;
 
-	if (dev->bus->hotplug) {
+	if (dev->bus && dev->bus->hotplug) {
 		/* have the bus specific function add its stuff */
 		retval = dev->bus->hotplug (dev, envp, num_envp, buffer, buffer_size);
 			if (retval) {

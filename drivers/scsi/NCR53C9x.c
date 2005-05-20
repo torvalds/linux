@@ -1824,7 +1824,10 @@ static int esp_do_data(struct NCR_ESP *esp, struct ESP_regs *eregs)
 		/* loop */
 		while (hmuch) {
 			int j, fifo_stuck = 0, newphase;
-			unsigned long flags, timeout;
+			unsigned long timeout;
+#if 0
+			unsigned long flags;
+#endif
 #if 0
 			if ( i % 10 )
 				ESPDATA(("\r"));

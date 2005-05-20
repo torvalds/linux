@@ -6,7 +6,7 @@
  * Bugreports.to..: <Linux390@de.ibm.com>
  * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 1999,2000
  *
- * $Revision: 1.63 $
+ * $Revision: 1.64 $
  */
 
 #ifndef DASD_INT_H
@@ -329,8 +329,6 @@ struct dasd_device {
 #define DASD_STOPPED_DC_EIO  16        /* disconnected, return -EIO */
 
 /* per device flags */
-#define DASD_FLAG_RO		0	/* device is read-only */
-#define DASD_FLAG_USE_DIAG	1	/* use diag disciplnie */
 #define DASD_FLAG_DSC_ERROR	2	/* return -EIO when disconnected */
 #define DASD_FLAG_OFFLINE	3	/* device is in offline processing */
 
@@ -500,6 +498,9 @@ void dasd_devmap_exit(void);
 
 struct dasd_device *dasd_create_device(struct ccw_device *);
 void dasd_delete_device(struct dasd_device *);
+
+int dasd_get_feature(struct ccw_device *, int);
+int dasd_set_feature(struct ccw_device *, int, int);
 
 int dasd_add_sysfs_files(struct ccw_device *);
 void dasd_remove_sysfs_files(struct ccw_device *);

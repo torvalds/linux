@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/transport.c
  *
- *   Copyright (C) International Business Machines  Corp., 2002,2004
+ *   Copyright (C) International Business Machines  Corp., 2002,2005
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -41,7 +41,7 @@ AllocMidQEntry(struct smb_hdr *smb_buffer, struct cifsSesInfo *ses)
 	struct mid_q_entry *temp;
 
 	if (ses == NULL) {
-		cERROR(1, ("Null session passed in to AllocMidQEntry "));
+		cERROR(1, ("Null session passed in to AllocMidQEntry"));
 		return NULL;
 	}
 	if (ses->server == NULL) {
@@ -79,7 +79,10 @@ DeleteMidQEntry(struct mid_q_entry *midEntry)
 	list_del(&midEntry->qhead);
 	atomic_dec(&midCount);
 	spin_unlock(&GlobalMid_Lock);
-	cifs_buf_release(midEntry->resp_buf);
+	if(midEntry->largeBuf)
+		cifs_buf_release(midEntry->resp_buf);
+	else
+		cifs_small_buf_release(midEntry->resp_buf);
 	mempool_free(midEntry, cifs_mid_poolp);
 }
 
@@ -182,14 +185,14 @@ smb_send(struct socket *ssocket, struct smb_hdr *smb_buffer,
 
 int
 smb_sendv(struct socket *ssocket, struct smb_hdr *smb_buffer,
-	 unsigned int smb_buf_length, struct kvec * write_vector /* page list */, struct sockaddr *sin)
+	 unsigned int smb_buf_length, struct kvec * write_vector 
+	  /* page list */, struct sockaddr *sin)
 {
 	int rc = 0;
 	int i = 0;
 	struct msghdr smb_msg;
 	number_of_pages += 1; /* account for SMB header */
 	struct kvec * piov  = kmalloc(number_of_pages * sizeof(struct kvec));
-	if(i=0;i<num_pages-1;i++
 	unsigned len = smb_buf_length + 4;
 
 	if(ssocket == NULL)
@@ -213,7 +216,8 @@ smb_sendv(struct socket *ssocket, struct smb_hdr *smb_buffer,
 	dump_smb(smb_buffer, len);
 
 	while (len > 0) {
-		rc = kernel_sendmsg(ssocket, &smb_msg, &iov, number_of_pages, len?);
+		rc = kernel_sendmsg(ssocket, &smb_msg, &iov, number_of_pages, 
+				    len);
 		if ((rc == -ENOSPC) || (rc == -EAGAIN)) {
 			i++;
 			if(i > 60) {
@@ -265,6 +269,9 @@ CIFSSendRcv(const unsigned int xid, struct cifsSesInfo *ses,
 		*pbytes_returned = 0;
 
   
+
+	if(ses->server->tcpStatus == CIFS_EXITING)
+		return -ENOENT;
 
 	/* Ensure that we do not send more than 50 overlapping requests 
 	   to the same server. We may make this configurable later or
@@ -346,11 +353,12 @@ CIFSSendRcv(const unsigned int xid, struct cifsSesInfo *ses,
 	}
 
 	/* BB can we sign efficiently in this path? */
-	rc = cifs_sign_smb(in_buf, ses, &midQ->sequence_number);
+	rc = cifs_sign_smb(in_buf, ses->server, &midQ->sequence_number);
 
 	midQ->midState = MID_REQUEST_SUBMITTED;
-/*	rc = smb_sendv(ses->server->ssocket, in_buf, in_buf->smb_buf_length, piovec,
-		      (struct sockaddr *) &(ses->server->addr.sockAddr));*/
+/*	rc = smb_sendv(ses->server->ssocket, in_buf, in_buf->smb_buf_length,
+		       piovec, 
+		       (struct sockaddr *) &(ses->server->addr.sockAddr));*/
 	if(rc < 0) {
 		DeleteMidQEntry(midQ);
 		up(&ses->server->tcpSem);
@@ -396,6 +404,9 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 		return -EIO;
 	}
 
+	if(ses->server->tcpStatus == CifsExiting)
+		return -ENOENT;
+
 	/* Ensure that we do not send more than 50 overlapping requests 
 	   to the same server. We may make this configurable later or
 	   use ses->maxReq */
@@ -405,7 +416,8 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 	} else {
 		spin_lock(&GlobalMid_Lock); 
 		while(1) {        
-			if(atomic_read(&ses->server->inFlight) >= cifs_max_pending){
+			if(atomic_read(&ses->server->inFlight) >= 
+					cifs_max_pending){
 				spin_unlock(&GlobalMid_Lock);
 				wait_event(ses->server->request_q,
 					atomic_read(&ses->server->inFlight)
@@ -475,7 +487,7 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 		return -EIO;
 	}
 
-	rc = cifs_sign_smb(in_buf, ses, &midQ->sequence_number);
+	rc = cifs_sign_smb(in_buf, ses->server, &midQ->sequence_number);
 
 	midQ->midState = MID_REQUEST_SUBMITTED;
 	rc = smb_send(ses->server->ssocket, in_buf, in_buf->smb_buf_length,
@@ -493,7 +505,7 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 		up(&ses->server->tcpSem);
 	if (long_op == -1)
 		goto cifs_no_response_exit;
-	else if (long_op == 2) /* writes past end of file can take looooong time */
+	else if (long_op == 2) /* writes past end of file can take loong time */
 		timeout = 300 * HZ;
 	else if (long_op == 1)
 		timeout = 45 * HZ; /* should be greater than 
@@ -559,8 +571,7 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 	}
   
 	if (receive_len > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE) {
-		cERROR(1,
-		       ("Frame too large received.  Length: %d  Xid: %d",
+		cERROR(1, ("Frame too large received.  Length: %d  Xid: %d",
 			receive_len, xid));
 		rc = -EIO;
 	} else {		/* rcvd frame is ok */
@@ -575,15 +586,20 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 			dump_smb(out_buf, 92);
 			/* convert the length into a more usable form */
 			if((receive_len > 24) &&
-			   (ses->server->secMode & (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED))) {
-				rc = cifs_verify_signature(out_buf, ses->mac_signing_key,midQ->sequence_number); /* BB fix BB */
-				if(rc)
-					cFYI(1,("Unexpected signature received from server"));
+			   (ses->server->secMode & (SECMODE_SIGN_REQUIRED |
+					SECMODE_SIGN_ENABLED))) {
+				rc = cifs_verify_signature(out_buf,
+						ses->server->mac_signing_key,
+						midQ->sequence_number+1);
+				if(rc) {
+					cERROR(1,("Unexpected SMB signature"));
+					/* BB FIXME add code to kill session */
+				}
 			}
 
 			*pbytes_returned = out_buf->smb_buf_length;
 
-			/* BB special case reconnect tid and reconnect uid here? */
+			/* BB special case reconnect tid and uid here? */
 			rc = map_smb_to_linux_error(out_buf);
 
 			/* convert ByteCount if necessary */

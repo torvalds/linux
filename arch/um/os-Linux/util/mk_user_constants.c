@@ -1,11 +1,5 @@
 #include <stdio.h>
-#include <asm/types.h>
-/* For some reason, x86_64 nowhere defines u64 and u32, even though they're
- * used throughout the headers.
- */
-typedef __u64 u64;
-typedef __u32 u32;
-#include <asm/user.h>
+#include <user-offsets.h>
 
 int main(int argc, char **argv)
 {
@@ -20,7 +14,7 @@ int main(int argc, char **argv)
    * x86_64 (216 vs 168 bytes).  user_regs_struct is the correct size on
    * both x86_64 and i386.
    */
-  printf("#define UM_FRAME_SIZE %d\n", (int) sizeof(struct user_regs_struct));
+  printf("#define UM_FRAME_SIZE %d\n", __UM_FRAME_SIZE);
 
   printf("\n");
   printf("#endif\n");

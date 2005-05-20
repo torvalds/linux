@@ -1,7 +1,7 @@
 VERSION = 2
 PATCHLEVEL = 6
 SUBLEVEL = 12
-EXTRAVERSION =-rc3
+EXTRAVERSION =-rc4
 NAME=Woozy Numbat
 
 # *DOCUMENTATION*
@@ -332,9 +332,7 @@ KALLSYMS	= scripts/kallsyms
 PERL		= perl
 CHECK		= sparse
 
-NOSTDINC_FLAGS  = -nostdinc -isystem $(shell $(CC) -print-file-name=include)
 CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__
-CHECKFLAGS     += $(NOSTDINC_FLAGS)
 MODFLAGS	= -DMODULE
 CFLAGS_MODULE   = $(MODFLAGS)
 AFLAGS_MODULE   = $(MODFLAGS)
@@ -530,6 +528,10 @@ CFLAGS		+= -g
 endif
 
 include $(srctree)/arch/$(ARCH)/Makefile
+
+# arch Makefile may override CC so keep this after arch Makefile is included
+NOSTDINC_FLAGS := -nostdinc -isystem $(shell $(CC) -print-file-name=include)
+CHECKFLAGS     += $(NOSTDINC_FLAGS)
 
 # warn about C99 declaration after statement
 CFLAGS += $(call cc-option,-Wdeclaration-after-statement,)
@@ -1188,8 +1190,8 @@ cmd_TAGS = $(all-sources) | etags -
 quiet_cmd_tags = MAKE   $@
 define cmd_tags
 	rm -f $@; \
-	CTAGSF=`ctags --version | grep -i exuberant >/dev/null && echo "-I __initdata,__exitdata,EXPORT_SYMBOL,EXPORT_SYMBOL_GPL"`; \
-	$(all-sources) | xargs ctags $$CTAGSF -a --extra=+f
+	CTAGSF=`ctags --version | grep -i exuberant >/dev/null && echo "-I __initdata,__exitdata,EXPORT_SYMBOL,EXPORT_SYMBOL_GPL --extra=+f"`; \
+	$(all-sources) | xargs ctags $$CTAGSF -a
 endef
 
 TAGS: FORCE

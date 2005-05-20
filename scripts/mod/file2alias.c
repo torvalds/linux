@@ -47,32 +47,31 @@ do {                                                            \
                 sprintf(str + strlen(str), "*");                \
 } while(0)
 
-/* Looks like "usb:vNpNdlNdhNdcNdscNdpNicNiscNipN" */
-static int do_usb_entry(const char *filename,
-			struct usb_device_id *id, char *alias)
+/* USB is special because the bcdDevice can be matched against a numeric range */
+/* Looks like "usb:vNpNdNdcNdscNdpNicNiscNipN" */
+static void do_usb_entry(struct usb_device_id *id,
+			 unsigned int bcdDevice_initial, int bcdDevice_initial_digits,
+			 unsigned char range_lo, unsigned char range_hi,
+			 struct module *mod)
 {
-	id->match_flags = TO_NATIVE(id->match_flags);
-	id->idVendor = TO_NATIVE(id->idVendor);
-	id->idProduct = TO_NATIVE(id->idProduct);
-	id->bcdDevice_lo = TO_NATIVE(id->bcdDevice_lo);
-	id->bcdDevice_hi = TO_NATIVE(id->bcdDevice_hi);
-
-	/*
-	 * Some modules (visor) have empty slots as placeholder for
-	 * run-time specification that results in catch-all alias
-	 */
-	if (!(id->idVendor | id->bDeviceClass | id->bInterfaceClass))
-		return 1;
-
+	char alias[500];
 	strcpy(alias, "usb:");
 	ADD(alias, "v", id->match_flags&USB_DEVICE_ID_MATCH_VENDOR,
 	    id->idVendor);
 	ADD(alias, "p", id->match_flags&USB_DEVICE_ID_MATCH_PRODUCT,
 	    id->idProduct);
-	ADD(alias, "dl", id->match_flags&USB_DEVICE_ID_MATCH_DEV_LO,
-	    id->bcdDevice_lo);
-	ADD(alias, "dh", id->match_flags&USB_DEVICE_ID_MATCH_DEV_HI,
-	    id->bcdDevice_hi);
+
+	strcat(alias, "d");
+	if (bcdDevice_initial_digits)
+		sprintf(alias + strlen(alias), "%0*X",
+			bcdDevice_initial_digits, bcdDevice_initial);
+	if (range_lo == range_hi)
+		sprintf(alias + strlen(alias), "%u", range_lo);
+	else if (range_lo > 0 || range_hi < 9)
+		sprintf(alias + strlen(alias), "[%u-%u]", range_lo, range_hi);
+	if (bcdDevice_initial_digits < (sizeof(id->bcdDevice_lo) * 2 - 1))
+		strcat(alias, "*");
+
 	ADD(alias, "dc", id->match_flags&USB_DEVICE_ID_MATCH_DEV_CLASS,
 	    id->bDeviceClass);
 	ADD(alias, "dsc",
@@ -90,7 +89,73 @@ static int do_usb_entry(const char *filename,
 	ADD(alias, "ip",
 	    id->match_flags&USB_DEVICE_ID_MATCH_INT_PROTOCOL,
 	    id->bInterfaceProtocol);
-	return 1;
+
+	/* Always end in a wildcard, for future extension */
+	if (alias[strlen(alias)-1] != '*')
+		strcat(alias, "*");
+	buf_printf(&mod->dev_table_buf,
+		   "MODULE_ALIAS(\"%s\");\n", alias);
+}
+
+static void do_usb_entry_multi(struct usb_device_id *id, struct module *mod)
+{
+	unsigned int devlo, devhi;
+	unsigned char chi, clo;
+	int ndigits;
+
+	id->match_flags = TO_NATIVE(id->match_flags);
+	id->idVendor = TO_NATIVE(id->idVendor);
+	id->idProduct = TO_NATIVE(id->idProduct);
+
+	devlo = id->match_flags & USB_DEVICE_ID_MATCH_DEV_LO ?
+		TO_NATIVE(id->bcdDevice_lo) : 0x0U;
+	devhi = id->match_flags & USB_DEVICE_ID_MATCH_DEV_HI ?
+		TO_NATIVE(id->bcdDevice_hi) : ~0x0U;
+
+	/*
+	 * Some modules (visor) have empty slots as placeholder for
+	 * run-time specification that results in catch-all alias
+	 */
+	if (!(id->idVendor | id->bDeviceClass | id->bInterfaceClass))
+		return;
+
+	/* Convert numeric bcdDevice range into fnmatch-able pattern(s) */
+	for (ndigits = sizeof(id->bcdDevice_lo) * 2 - 1; devlo <= devhi; ndigits--) {
+		clo = devlo & 0xf;
+		chi = devhi & 0xf;
+		if (chi > 9)	/* it's bcd not hex */
+			chi = 9;
+		devlo >>= 4;
+		devhi >>= 4;
+
+		if (devlo == devhi || !ndigits) {
+			do_usb_entry(id, devlo, ndigits, clo, chi, mod);
+			break;
+		}
+
+		if (clo > 0)
+			do_usb_entry(id, devlo++, ndigits, clo, 9, mod);
+
+		if (chi < 9)
+			do_usb_entry(id, devhi--, ndigits, 0, chi, mod);
+	}
+}
+
+static void do_usb_table(void *symval, unsigned long size,
+			 struct module *mod)
+{
+	unsigned int i;
+	const unsigned long id_size = sizeof(struct usb_device_id);
+
+	if (size % id_size || size < id_size) {
+		fprintf(stderr, "*** Warning: %s ids %lu bad size "
+			"(each on %lu)\n", mod->name, size, id_size);
+	}
+	/* Leave last one: it's the terminator. */
+	size -= id_size;
+
+	for (i = 0; i < size; i += id_size)
+		do_usb_entry_multi(symval + i, mod);
 }
 
 /* Looks like: ieee1394:venNmoNspNverN */
@@ -280,8 +345,8 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 		do_table(symval, sym->st_size, sizeof(struct pci_device_id),
 			 do_pci_entry, mod);
 	else if (sym_is(symname, "__mod_usb_device_table"))
-		do_table(symval, sym->st_size, sizeof(struct usb_device_id),
-			 do_usb_entry, mod);
+		/* special case to handle bcdDevice ranges */
+		do_usb_table(symval, sym->st_size, mod);
 	else if (sym_is(symname, "__mod_ieee1394_device_table"))
 		do_table(symval, sym->st_size, sizeof(struct ieee1394_device_id),
 			 do_ieee1394_entry, mod);

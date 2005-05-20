@@ -115,7 +115,7 @@ int platform_add_devices(struct platform_device **devs, int num)
 
 /**
  *	platform_device_register - add a platform-level device
- *	@dev:	platform device we're adding
+ *	@pdev:	platform device we're adding
  *
  */
 int platform_device_register(struct platform_device * pdev)
@@ -174,7 +174,7 @@ int platform_device_register(struct platform_device * pdev)
 
 /**
  *	platform_device_unregister - remove a platform-level device
- *	@dev:	platform device we're removing
+ *	@pdev:	platform device we're removing
  *
  *	Note that this function will also release all memory- and port-based
  *	resources owned by the device (@dev->resource).

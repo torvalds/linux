@@ -91,6 +91,7 @@ extern spinlock_t sal_lock;
 #define SAL_PCI_CONFIG_READ		0x01000010
 #define SAL_PCI_CONFIG_WRITE		0x01000011
 #define SAL_FREQ_BASE			0x01000012
+#define SAL_PHYSICAL_ID_INFO		0x01000013
 
 #define SAL_UPDATE_PAL			0x01000020
 
@@ -815,6 +816,17 @@ ia64_sal_update_pal (u64 param_buf, u64 scratch_buf, u64 scratch_buf_size,
 	return isrv.status;
 }
 
+/* Get physical processor die mapping in the platform. */
+static inline s64
+ia64_sal_physical_id_info(u16 *splid)
+{
+	struct ia64_sal_retval isrv;
+	SAL_CALL(isrv, SAL_PHYSICAL_ID_INFO, 0, 0, 0, 0, 0, 0, 0);
+	if (splid)
+		*splid = isrv.v0;
+	return isrv.status;
+}
+
 extern unsigned long sal_platform_features;
 
 extern int (*salinfo_platform_oemdata)(const u8 *, u8 **, u64 *);
@@ -832,6 +844,44 @@ extern int ia64_sal_oemcall_nolock(struct ia64_sal_retval *, u64, u64, u64,
 				   u64, u64, u64, u64, u64);
 extern int ia64_sal_oemcall_reentrant(struct ia64_sal_retval *, u64, u64, u64,
 				      u64, u64, u64, u64, u64);
+#ifdef CONFIG_HOTPLUG_CPU
+/*
+ * System Abstraction Layer Specification
+ * Section 3.2.5.1: OS_BOOT_RENDEZ to SAL return State.
+ * Note: region regs are stored first in head.S _start. Hence they must
+ * stay up front.
+ */
+struct sal_to_os_boot {
+	u64 rr[8];		/* Region Registers */
+	u64	br[6];		/* br0: return addr into SAL boot rendez routine */
+	u64 gr1;		/* SAL:GP */
+	u64 gr12;		/* SAL:SP */
+	u64 gr13;		/* SAL: Task Pointer */
+	u64 fpsr;
+	u64	pfs;
+	u64 rnat;
+	u64 unat;
+	u64 bspstore;
+	u64 dcr;		/* Default Control Register */
+	u64 iva;
+	u64 pta;
+	u64 itv;
+	u64 pmv;
+	u64 cmcv;
+	u64 lrr[2];
+	u64 gr[4];
+	u64 pr;			/* Predicate registers */
+	u64 lc;			/* Loop Count */
+	struct ia64_fpreg fp[20];
+};
+
+/*
+ * Global array allocated for NR_CPUS at boot time
+ */
+extern struct sal_to_os_boot sal_boot_rendez_state[NR_CPUS];
+
+extern void ia64_jump_to_sal(struct sal_to_os_boot *);
+#endif
 
 extern void ia64_sal_handler_init(void *entry_point, void *gpval);
 

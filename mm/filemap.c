@@ -29,11 +29,6 @@
 #include <linux/security.h>
 #include <linux/syscalls.h>
 /*
- * This is needed for the following functions:
- *  - try_to_release_page
- *  - block_invalidatepage
- *  - generic_osync_inode
- *
  * FIXME: remove all knowledge of the buffer layer from the core VM
  */
 #include <linux/buffer_head.h> /* for generic_osync_inode */
@@ -123,8 +118,7 @@ void remove_from_page_cache(struct page *page)
 {
 	struct address_space *mapping = page->mapping;
 
-	if (unlikely(!PageLocked(page)))
-		PAGE_BUG(page);
+	BUG_ON(!PageLocked(page));
 
 	write_lock_irq(&mapping->tree_lock);
 	__remove_from_page_cache(page);
@@ -139,7 +133,25 @@ static int sync_page(void *word)
 	page = container_of((page_flags_t *)word, struct page, flags);
 
 	/*
-	 * FIXME, fercrissake.  What is this barrier here for?
+	 * page_mapping() is being called without PG_locked held.
+	 * Some knowledge of the state and use of the page is used to
+	 * reduce the requirements down to a memory barrier.
+	 * The danger here is of a stale page_mapping() return value
+	 * indicating a struct address_space different from the one it's
+	 * associated with when it is associated with one.
+	 * After smp_mb(), it's either the correct page_mapping() for
+	 * the page, or an old page_mapping() and the page's own
+	 * page_mapping() has gone NULL.
+	 * The ->sync_page() address_space operation must tolerate
+	 * page_mapping() going NULL. By an amazing coincidence,
+	 * this comes about because none of the users of the page
+	 * in the ->sync_page() methods make essential use of the
+	 * page_mapping(), merely passing the page down to the backing
+	 * device's unplug functions when it's non-NULL, which in turn
+	 * ignore it for all cases but swap, where only page->private is
+	 * of interest. When page_mapping() does go NULL, the entire
+	 * call stack gracefully ignores the page and returns.
+	 * -- wli
 	 */
 	smp_mb();
 	mapping = page_mapping(page);
@@ -152,9 +164,10 @@ static int sync_page(void *word)
 /**
  * filemap_fdatawrite_range - start writeback against all of a mapping's
  * dirty pages that lie within the byte offsets <start, end>
- * @mapping: address space structure to write
- * @start: offset in bytes where the range starts
- * @end : offset in bytes where the range ends
+ * @mapping:	address space structure to write
+ * @start:	offset in bytes where the range starts
+ * @end:	offset in bytes where the range ends
+ * @sync_mode:	enable synchronous operation
  *
  * If sync_mode is WB_SYNC_ALL then this is a "data integrity" operation, as
  * opposed to a regular memory * cleansing writeback.  The difference between
@@ -518,8 +531,8 @@ EXPORT_SYMBOL(find_trylock_page);
 /**
  * find_lock_page - locate, pin and lock a pagecache page
  *
- * @mapping - the address_space to search
- * @offset - the page index
+ * @mapping: the address_space to search
+ * @offset: the page index
  *
  * Locates the desired pagecache page, locks it, increments its reference
  * count and returns its address.
@@ -558,9 +571,9 @@ EXPORT_SYMBOL(find_lock_page);
 /**
  * find_or_create_page - locate or add a pagecache page
  *
- * @mapping - the page's address_space
- * @index - the page's index into the mapping
- * @gfp_mask - page allocation mode
+ * @mapping: the page's address_space
+ * @index: the page's index into the mapping
+ * @gfp_mask: page allocation mode
  *
  * Locates a page in the pagecache.  If the page is not present, a new page
  * is allocated using @gfp_mask and is added to the pagecache and to the VM's
@@ -1949,7 +1962,7 @@ generic_file_buffered_write(struct kiocb *iocb, const struct iovec *iov,
 		buf = iov->iov_base + written;
 	else {
 		filemap_set_next_iovec(&cur_iov, &iov_base, written);
-		buf = iov->iov_base + iov_base;
+		buf = cur_iov->iov_base + iov_base;
 	}
 
 	do {
@@ -2007,9 +2020,11 @@ generic_file_buffered_write(struct kiocb *iocb, const struct iovec *iov,
 				count -= status;
 				pos += status;
 				buf += status;
-				if (unlikely(nr_segs > 1))
+				if (unlikely(nr_segs > 1)) {
 					filemap_set_next_iovec(&cur_iov,
 							&iov_base, status);
+					buf = cur_iov->iov_base + iov_base;
+				}
 			}
 		}
 		if (unlikely(copied != bytes))
