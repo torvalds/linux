@@ -688,9 +688,9 @@ static void audit_log_exit(struct audit_context *context)
 				 context->return_code);
 	audit_log_format(ab,
 		  " a0=%lx a1=%lx a2=%lx a3=%lx items=%d"
-		  " pid=%d loginuid=%d uid=%d gid=%d"
-		  " euid=%d suid=%d fsuid=%d"
-		  " egid=%d sgid=%d fsgid=%d",
+		  " pid=%d auid=%u uid=%u gid=%u"
+		  " euid=%u suid=%u fsuid=%u"
+		  " egid=%u sgid=%u fsgid=%u",
 		  context->argv[0],
 		  context->argv[1],
 		  context->argv[2],
@@ -717,7 +717,7 @@ static void audit_log_exit(struct audit_context *context)
 		case AUDIT_IPC: {
 			struct audit_aux_data_ipcctl *axi = (void *)aux;
 			audit_log_format(ab, 
-					 " qbytes=%lx iuid=%d igid=%d mode=%x",
+					 " qbytes=%lx iuid=%u igid=%u mode=%x",
 					 axi->qbytes, axi->uid, axi->gid, axi->mode);
 			break; }
 
@@ -761,7 +761,7 @@ static void audit_log_exit(struct audit_context *context)
 		}
 		if (context->names[i].ino != (unsigned long)-1)
 			audit_log_format(ab, " inode=%lu dev=%02x:%02x mode=%#o"
-					     " ouid=%d ogid=%d rdev=%02x:%02x",
+					     " ouid=%u ogid=%u rdev=%02x:%02x",
 					 context->names[i].ino,
 					 MAJOR(context->names[i].dev),
 					 MINOR(context->names[i].dev),
@@ -1063,7 +1063,7 @@ int audit_set_loginuid(struct task_struct *task, uid_t loginuid)
 		ab = audit_log_start(NULL, AUDIT_LOGIN);
 		if (ab) {
 			audit_log_format(ab, "login pid=%d uid=%u "
-				"old loginuid=%u new loginuid=%u",
+				"old auid=%u new auid=%u",
 				task->pid, task->uid, 
 				task->audit_context->loginuid, loginuid);
 			audit_log_end(ab);

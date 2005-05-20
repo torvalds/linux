@@ -439,12 +439,9 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		if (!ab)
 			break;	/* audit_panic has been called */
 		audit_log_format(ab,
-				 "user pid=%d uid=%d length=%d loginuid=%u"
+				 "user pid=%d uid=%u auid=%u"
 				 " msg='%.1024s'",
-				 pid, uid,
-				 (int)(nlh->nlmsg_len
-				       - ((char *)data - (char *)nlh)),
-				 loginuid, (char *)data);
+				 pid, uid, loginuid, (char *)data);
 		audit_set_pid(ab, pid);
 		audit_log_end(ab);
 		break;
