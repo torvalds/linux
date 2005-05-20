@@ -238,19 +238,21 @@ void iounmap(volatile void __iomem *addr)
 			addr < phys_to_virt(ISA_END_ADDRESS))
 		return;
 
-	p = remove_vm_area((void *) (PAGE_MASK & (unsigned long __force) addr));
+	write_lock(&vmlist_lock);
+	p = __remove_vm_area((void *) (PAGE_MASK & (unsigned long __force) addr));
 	if (!p) { 
-		printk("__iounmap: bad address %p\n", addr);
-		return;
+		printk("iounmap: bad address %p\n", addr);
+		goto out_unlock;
 	}
 
 	if ((p->flags >> 20) && p->phys_addr < virt_to_phys(high_memory) - 1) {
-		/* p->size includes the guard page, but cpa doesn't like that */
 		change_page_attr(virt_to_page(__va(p->phys_addr)),
 				 p->size >> PAGE_SHIFT,
 				 PAGE_KERNEL);
 		global_flush_tlb();
 	} 
+out_unlock:
+	write_unlock(&vmlist_lock);
 	kfree(p); 
 }
 
