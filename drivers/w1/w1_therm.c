@@ -1,8 +1,8 @@
 /*
- * 	w1_therm.c
+ *	w1_therm.c
  *
  * Copyright (c) 2004 Evgeniy Polyakov <johnpol@2ka.mipt.ru>
- * 
+ *
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the therms of the GNU General Public License as published by
@@ -38,7 +38,7 @@ MODULE_AUTHOR("Evgeniy Polyakov <johnpol@2ka.mipt.ru>");
 MODULE_DESCRIPTION("Driver for 1-wire Dallas network protocol, temperature family.");
 
 static u8 bad_roms[][9] = {
-				{0xaa, 0x00, 0x4b, 0x46, 0xff, 0xff, 0x0c, 0x10, 0x87}, 
+				{0xaa, 0x00, 0x4b, 0x46, 0xff, 0xff, 0x0c, 0x10, 0x87},
 				{}
 			};
 
@@ -163,7 +163,7 @@ static int w1_therm_check_rom(u8 rom[9])
 static ssize_t w1_therm_read_bin(struct kobject *kobj, char *buf, loff_t off, size_t count)
 {
 	struct w1_slave *sl = container_of(container_of(kobj, struct device, kobj),
-			      			struct w1_slave, dev);
+					   struct w1_slave, dev);
 	struct w1_master *dev = sl->master;
 	u8 rom[9], crc, verdict;
 	int i, max_trying = 10;
@@ -198,7 +198,7 @@ static ssize_t w1_therm_read_bin(struct kobject *kobj, char *buf, loff_t off, si
 			unsigned int tm = 750;
 
 			memcpy(&match[1], (u64 *) & sl->reg_num, 8);
-			
+
 			w1_write_block(dev, match, 9);
 
 			w1_write_8(dev, W1_CONVERT_TEMP);
@@ -211,7 +211,7 @@ static ssize_t w1_therm_read_bin(struct kobject *kobj, char *buf, loff_t off, si
 
 			if (!w1_reset_bus (dev)) {
 				w1_write_block(dev, match, 9);
-				
+
 				w1_write_8(dev, W1_READ_SCRATCHPAD);
 				if ((count = w1_read_block(dev, rom, 9)) != 9) {
 					dev_warn(&dev->dev, "w1_read_block() returned %d instead of 9.\n", count);

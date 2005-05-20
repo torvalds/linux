@@ -1,8 +1,8 @@
 /*
- * 	w1.h
+ *	w1.h
  *
  * Copyright (c) 2004 Evgeniy Polyakov <johnpol@2ka.mipt.ru>
- * 
+ *
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,9 +25,9 @@
 struct w1_reg_num
 {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
-	__u64	family:8,
-		id:48,
-		crc:8;
+  	__u64	family:8,
+  		id:48,
+  		crc:8;
 #elif defined(__BIG_ENDIAN_BITFIELD)
 	__u64	crc:8,
 		id:48,
@@ -74,11 +74,11 @@ struct w1_slave
 	int			ttl;
 
 	struct w1_master	*master;
-	struct w1_family 	*family;
-	struct device 		dev;
-	struct completion 	dev_released;
+	struct w1_family	*family;
+	struct device		dev;
+	struct completion	dev_released;
 
-	struct bin_attribute 	attr_bin;
+	struct bin_attribute	attr_bin;
 	struct device_attribute	attr_name, attr_val;
 };
 
@@ -90,16 +90,16 @@ struct w1_bus_master
 
 	u8			(*read_bit)(unsigned long);
 	void			(*write_bit)(unsigned long, u8);
-  	
+
 	u8			(*read_byte)(unsigned long);
-  	void			(*write_byte)(unsigned long, u8);
-  	
+	void			(*write_byte)(unsigned long, u8);
+
 	u8			(*read_block)(unsigned long, u8 *, int);
 	void			(*write_block)(unsigned long, u8 *, int);
-	
-  	u8			(*touch_bit)(unsigned long, u8);
-  
-  	u8			(*reset_bus)(unsigned long);
+
+	u8			(*touch_bit)(unsigned long, u8);
+
+	u8			(*reset_bus)(unsigned long);
 
 	void			(*search)(unsigned long, w1_slave_found_callback);
 };
@@ -123,21 +123,20 @@ struct w1_master
 
 	int			need_exit;
 	pid_t			kpid;
-	struct semaphore 	mutex;
+	struct semaphore	mutex;
 
 	struct device_driver	*driver;
-	struct device 		dev;
-	struct completion 	dev_released;
-	struct completion 	dev_exited;
+	struct device		dev;
+	struct completion	dev_released;
+	struct completion	dev_exited;
 
 	struct w1_bus_master	*bus_master;
 
 	u32			seq, groups;
-	struct sock 		*nls;
+	struct sock		*nls;
 };
 
 int w1_create_master_attributes(struct w1_master *);
-void w1_destroy_master_attributes(struct w1_master *);
 void w1_search(struct w1_master *dev);
 
 #endif /* __KERNEL__ */

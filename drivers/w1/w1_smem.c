@@ -1,8 +1,8 @@
 /*
- * 	w1_smem.c
+ *	w1_smem.c
  *
  * Copyright (c) 2004 Evgeniy Polyakov <johnpol@2ka.mipt.ru>
- * 
+ *
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the smems of the GNU General Public License as published by
@@ -70,7 +70,7 @@ static ssize_t w1_smem_read_val(struct device *dev, struct device_attribute *att
 static ssize_t w1_smem_read_bin(struct kobject *kobj, char *buf, loff_t off, size_t count)
 {
 	struct w1_slave *sl = container_of(container_of(kobj, struct device, kobj),
-			      			struct w1_slave, dev);
+					   struct w1_slave, dev);
 	int i;
 
 	atomic_inc(&sl->refcnt);
@@ -90,7 +90,7 @@ static ssize_t w1_smem_read_bin(struct kobject *kobj, char *buf, loff_t off, siz
 	for (i = 0; i < 8; ++i)
 		count += sprintf(buf + count, "%02x ", ((u8 *)&sl->reg_num)[i]);
 	count += sprintf(buf + count, "\n");
-	
+
 out:
 	up(&sl->master->mutex);
 out_dec:
