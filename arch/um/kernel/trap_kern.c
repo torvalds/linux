@@ -57,10 +57,11 @@ int handle_page_fault(unsigned long address, unsigned long ip,
 	*code_out = SEGV_ACCERR;
 	if(is_write && !(vma->vm_flags & VM_WRITE)) 
 		goto out;
+
+        if(!(vma->vm_flags & (VM_READ | VM_EXEC)))
+                goto out;
+
 	page = address & PAGE_MASK;
-	pgd = pgd_offset(mm, page);
-	pud = pud_offset(pgd, page);
-	pmd = pmd_offset(pud, page);
 	do {
  survive:
 		switch (handle_mm_fault(mm, vma, address, is_write)){
