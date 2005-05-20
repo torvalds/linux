@@ -13,7 +13,7 @@
  *
  * This code is GPL
  *
- * $Id: cfi_cmdset_0002.c,v 1.114 2004/12/11 15:43:53 dedekind Exp $
+ * $Id: cfi_cmdset_0002.c,v 1.115 2005/05/20 03:28:23 eric Exp $
  *
  */
 
@@ -43,6 +43,7 @@
 #define MANUFACTURER_AMD	0x0001
 #define MANUFACTURER_SST	0x00BF
 #define SST49LF004B	        0x0060
+#define SST49LF008A		0x005a
 
 static int cfi_amdstd_read (struct mtd_info *, loff_t, size_t, size_t *, u_char *);
 static int cfi_amdstd_write_words(struct mtd_info *, loff_t, size_t, size_t *, const u_char *);
@@ -191,6 +192,7 @@ static struct cfi_fixup cfi_fixup_table[] = {
 };
 static struct cfi_fixup jedec_fixup_table[] = {
 	{ MANUFACTURER_SST, SST49LF004B, fixup_use_fwh_lock, NULL, },
+	{ MANUFACTURER_SST, SST49LF008A, fixup_use_fwh_lock, NULL, },
 	{ 0, 0, NULL, NULL }
 };
 
@@ -399,6 +401,32 @@ static int chip_ready(struct map_info *map, unsigned long addr)
 	t = map_read(map, addr);
 
 	return map_word_equal(map, d, t);
+}
+
+/*
+ * Return true if the chip is ready and has the correct value.
+ *
+ * Ready is one of: read mode, query mode, erase-suspend-read mode (in any
+ * non-suspended sector) and it is indicated by no bits toggling.
+ *
+ * Error are indicated by toggling bits or bits held with the wrong value,
+ * or with bits toggling.
+ *
+ * Note that anything more complicated than checking if no bits are toggling
+ * (including checking DQ5 for an error status) is tricky to get working
+ * correctly and is therefore not done	(particulary with interleaved chips
+ * as each chip must be checked independantly of the others).
+ *
+ */
+static int chip_good(struct map_info *map, unsigned long addr, map_word expected)
+{
+	map_word oldd, curd;
+
+	oldd = map_read(map, addr);
+	curd = map_read(map, addr);
+
+	return	map_word_equal(map, oldd, curd) && 
+		map_word_equal(map, curd, expected);
 }
 
 static int get_chip(struct map_info *map, struct flchip *chip, unsigned long adr, int mode)
@@ -765,26 +793,29 @@ static int do_write_oneword(struct map_info *map, struct flchip *chip, unsigned 
 		}
 
 		if (chip_ready(map, adr))
-			goto op_done;
+			break;
 
-		if (time_after(jiffies, timeo))
+		if (time_after(jiffies, timeo)) {
+			printk(KERN_WARNING "MTD %s(): software timeout\n", __func__);
                         break;
+		}
 
 		/* Latency issues. Drop the lock, wait a while and retry */
 		cfi_spin_unlock(chip->mutex);
 		cfi_udelay(1);
 		cfi_spin_lock(chip->mutex);
 	}
+	/* Did we succeed? */
+	if (!chip_good(map, adr, datum)) {
+		/* reset on all failures. */
+		map_write( map, CMD(0xF0), chip->start );
+		/* FIXME - should have reset delay before continuing */
 
-	printk(KERN_WARNING "MTD %s(): software timeout\n", __func__);
+		if (++retry_cnt <= MAX_WORD_RETRIES) 
+			goto retry;
 
-	/* reset on all failures. */
-	map_write( map, CMD(0xF0), chip->start );
-	/* FIXME - should have reset delay before continuing */
-	if (++retry_cnt <= MAX_WORD_RETRIES) 
-		goto retry;
-
-	ret = -EIO;
+		ret = -EIO;
+	}
  op_done:
 	chip->state = FL_READY;
 	put_chip(map, chip, adr);
@@ -1187,10 +1218,13 @@ static inline int do_erase_chip(struct map_info *map, struct flchip *chip)
 		}
 
 		if (chip_ready(map, adr))
-			goto op_done;
-
-		if (time_after(jiffies, timeo))
 			break;
+
+		if (time_after(jiffies, timeo)) {
+			printk(KERN_WARNING "MTD %s(): software timeout\n",
+				__func__ );
+			break;
+		}
 
 		/* Latency issues. Drop the lock, wait a while and retry */
 		cfi_spin_unlock(chip->mutex);
@@ -1198,16 +1232,15 @@ static inline int do_erase_chip(struct map_info *map, struct flchip *chip)
 		schedule_timeout(1);
 		cfi_spin_lock(chip->mutex);
 	}
+	/* Did we succeed? */
+	if (!chip_good(map, adr, map_word_ff(map))) {
+		/* reset on all failures. */
+		map_write( map, CMD(0xF0), chip->start );
+		/* FIXME - should have reset delay before continuing */
 
-	printk(KERN_WARNING "MTD %s(): software timeout\n",
-	       __func__ );
+		ret = -EIO;
+	}
 
-	/* reset on all failures. */
-	map_write( map, CMD(0xF0), chip->start );
-	/* FIXME - should have reset delay before continuing */
-
-	ret = -EIO;
- op_done:
 	chip->state = FL_READY;
 	put_chip(map, chip, adr);
 	cfi_spin_unlock(chip->mutex);
@@ -1272,10 +1305,13 @@ static inline int do_erase_oneblock(struct map_info *map, struct flchip *chip, u
 		}
 
 		if (chip_ready(map, adr))
-			goto op_done;
-
-		if (time_after(jiffies, timeo))
 			break;
+
+		if (time_after(jiffies, timeo)) {
+			printk(KERN_WARNING "MTD %s(): software timeout\n",
+				__func__ );
+			break;
+		}
 
 		/* Latency issues. Drop the lock, wait a while and retry */
 		cfi_spin_unlock(chip->mutex);
@@ -1283,16 +1319,15 @@ static inline int do_erase_oneblock(struct map_info *map, struct flchip *chip, u
 		schedule_timeout(1);
 		cfi_spin_lock(chip->mutex);
 	}
-	
-	printk(KERN_WARNING "MTD %s(): software timeout\n",
-	       __func__ );
-	
-	/* reset on all failures. */
-	map_write( map, CMD(0xF0), chip->start );
-	/* FIXME - should have reset delay before continuing */
+	/* Did we succeed? */
+	if (chip_good(map, adr, map_word_ff(map))) {
+		/* reset on all failures. */
+		map_write( map, CMD(0xF0), chip->start );
+		/* FIXME - should have reset delay before continuing */
 
-	ret = -EIO;
- op_done:
+		ret = -EIO;
+	}
+
 	chip->state = FL_READY;
 	put_chip(map, chip, adr);
 	cfi_spin_unlock(chip->mutex);
