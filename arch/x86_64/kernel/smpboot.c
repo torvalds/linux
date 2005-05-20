@@ -94,6 +94,7 @@ int smp_threads_ready;
 
 cpumask_t cpu_sibling_map[NR_CPUS] __cacheline_aligned;
 cpumask_t cpu_core_map[NR_CPUS] __cacheline_aligned;
+EXPORT_SYMBOL(cpu_core_map);
 
 /*
  * Trampoline 80x86 program as an array.
