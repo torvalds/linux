@@ -133,12 +133,12 @@ static void sbus_strbuf_flush(struct sbus_iommu *iommu, u32 base, unsigned long 
 		   iommu->strbuf_regs + STRBUF_FSYNC);
 	upa_readq(iommu->sbus_control_reg);
 
-	limit = 10000;
+	limit = 100000;
 	while (iommu->strbuf_flushflag == 0UL) {
 		limit--;
 		if (!limit)
 			break;
-		udelay(10);
+		udelay(1);
 		membar("#LoadLoad");
 	}
 	if (!limit)

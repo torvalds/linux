@@ -392,14 +392,16 @@ static void pci_strbuf_flush(struct pci_strbuf *strbuf, struct pci_iommu *iommu,
 		flushreg = strbuf->strbuf_ctxflush;
 		matchreg = PCI_STC_CTXMATCH_ADDR(strbuf, ctx);
 
-		limit = 10000;
-		do {
-			pci_iommu_write(flushreg, ctx);
-			udelay(10);
+		limit = 100000;
+		pci_iommu_write(flushreg, ctx);
+		for(;;) {
+			if (((long)pci_iommu_read(matchreg)) >= 0L)
+				break;
 			limit--;
 			if (!limit)
 				break;
-		} while(((long)pci_iommu_read(matchreg)) < 0L);
+			udelay(1);
+		}
 		if (!limit)
 			printk(KERN_WARNING "pci_strbuf_flush: ctx flush "
 			       "timeout vaddr[%08x] ctx[%lx]\n",
@@ -414,12 +416,12 @@ static void pci_strbuf_flush(struct pci_strbuf *strbuf, struct pci_iommu *iommu,
 	pci_iommu_write(strbuf->strbuf_fsync, strbuf->strbuf_flushflag_pa);
 	(void) pci_iommu_read(iommu->write_complete_reg);
 
-	limit = 10000;
+	limit = 100000;
 	while (!PCI_STC_FLUSHFLAG_SET(strbuf)) {
 		limit--;
 		if (!limit)
 			break;
-		udelay(10);
+		udelay(1);
 		membar("#LoadLoad");
 	}
 	if (!limit)
