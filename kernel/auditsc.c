@@ -34,6 +34,7 @@
 #include <asm/types.h>
 #include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/mount.h>
 #include <linux/socket.h>
 #include <linux/audit.h>
 #include <linux/personality.h>
@@ -124,6 +125,11 @@ struct audit_aux_data_sockaddr {
 	char			a[0];
 };
 
+struct audit_aux_data_path {
+	struct audit_aux_data	d;
+	struct dentry		*dentry;
+	struct vfsmount		*mnt;
+};
 
 /* The per-task audit context. */
 struct audit_context {
@@ -553,6 +559,11 @@ static inline void audit_free_aux(struct audit_context *context)
 	struct audit_aux_data *aux;
 
 	while ((aux = context->aux)) {
+		if (aux->type == AUDIT_AVC_PATH) {
+			struct audit_aux_data_path *axi = (void *)aux;
+			dput(axi->dentry);
+			mntput(axi->mnt);
+		}
 		context->aux = aux->next;
 		kfree(aux);
 	}
@@ -724,6 +735,14 @@ static void audit_log_exit(struct audit_context *context)
 			audit_log_format(ab, "saddr=");
 			audit_log_hex(ab, axs->a, axs->len);
 			break; }
+
+		case AUDIT_AVC_PATH: {
+			struct audit_aux_data_path *axi = (void *)aux;
+			audit_log_d_path(ab, "path=", axi->dentry, axi->mnt);
+			dput(axi->dentry);
+			mntput(axi->mnt);
+			break; }
+
 		}
 		audit_log_end(ab);
 
@@ -1119,6 +1138,27 @@ int audit_sockaddr(int len, void *a)
 	memcpy(ax->a, a, len);
 
 	ax->d.type = AUDIT_SOCKADDR;
+	ax->d.next = context->aux;
+	context->aux = (void *)ax;
+	return 0;
+}
+
+int audit_avc_path(struct dentry *dentry, struct vfsmount *mnt)
+{
+	struct audit_aux_data_path *ax;
+	struct audit_context *context = current->audit_context;
+
+	if (likely(!context))
+		return 0;
+
+	ax = kmalloc(sizeof(*ax), GFP_ATOMIC);
+	if (!ax)
+		return -ENOMEM;
+
+	ax->dentry = dget(dentry);
+	ax->mnt = mntget(mnt);
+
+	ax->d.type = AUDIT_AVC_PATH;
 	ax->d.next = context->aux;
 	context->aux = (void *)ax;
 	return 0;

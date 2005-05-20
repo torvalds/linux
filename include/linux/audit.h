@@ -69,6 +69,7 @@
 
 #define AUDIT_AVC		1400	/* SE Linux avc denial or grant */
 #define AUDIT_SELINUX_ERR	1401	/* Internal SE Linux Errors */
+#define AUDIT_AVC_PATH		1402	/* dentry, vfsmount pair from avc */
 
 #define AUDIT_KERNEL		2000	/* Asynchronous audit record. NOT A REQUEST. */
 
@@ -225,6 +226,7 @@ extern uid_t audit_get_loginuid(struct audit_context *ctx);
 extern int audit_ipc_perms(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode);
 extern int audit_socketcall(int nargs, unsigned long *args);
 extern int audit_sockaddr(int len, void *addr);
+extern int audit_avc_path(struct dentry *dentry, struct vfsmount *mnt);
 extern void audit_signal_info(int sig, struct task_struct *t);
 #else
 #define audit_alloc(t) ({ 0; })
@@ -240,6 +242,7 @@ extern void audit_signal_info(int sig, struct task_struct *t);
 #define audit_ipc_perms(q,u,g,m) ({ 0; })
 #define audit_socketcall(n,a) ({ 0; })
 #define audit_sockaddr(len, addr) ({ 0; })
+#define audit_avc_path(dentry, mnt) ({ 0; })
 #define audit_signal_info(s,t) do { ; } while (0)
 #endif
 

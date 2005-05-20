@@ -573,13 +573,10 @@ void avc_audit(u32 ssid, u32 tsid,
 		case AVC_AUDIT_DATA_FS:
 			if (a->u.fs.dentry) {
 				struct dentry *dentry = a->u.fs.dentry;
-				if (a->u.fs.mnt) {
-					audit_log_d_path(ab, "path=", dentry,
-							a->u.fs.mnt);
-				} else {
-					audit_log_format(ab, " name=%s",
-							 dentry->d_name.name);
-				}
+				if (a->u.fs.mnt)
+					audit_avc_path(dentry, a->u.fs.mnt);
+				audit_log_format(ab, " name=%s",
+						 dentry->d_name.name);
 				inode = dentry->d_inode;
 			} else if (a->u.fs.inode) {
 				struct dentry *dentry;
@@ -630,8 +627,10 @@ void avc_audit(u32 ssid, u32 tsid,
 				case AF_UNIX:
 					u = unix_sk(sk);
 					if (u->dentry) {
-						audit_log_d_path(ab, "path=",
-							u->dentry, u->mnt);
+						audit_avc_path(u->dentry, u->mnt);
+						audit_log_format(ab, " name=%s",
+								 u->dentry->d_name.name);
+
 						break;
 					}
 					if (!u->addr)
