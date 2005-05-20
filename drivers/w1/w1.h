@@ -79,7 +79,7 @@ struct w1_slave
 	struct completion	dev_released;
 
 	struct bin_attribute	attr_bin;
-	struct device_attribute	attr_name, attr_val;
+	struct device_attribute	attr_name;
 };
 
 typedef void (* w1_slave_found_callback)(unsigned long, u64);

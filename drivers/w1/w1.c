@@ -102,9 +102,6 @@ static ssize_t w1_default_read_bin(struct kobject *kobj, char *buf, loff_t off,
 static struct device_attribute w1_slave_attribute =
 	__ATTR(name, S_IRUGO, w1_default_read_name, NULL);
 
-static struct device_attribute w1_slave_attribute_val =
-	__ATTR(value, S_IRUGO, w1_default_read_name, NULL);
-
 static struct bin_attribute w1_slave_bin_attribute = {
 	.attr = {
 		.name = "w1_slave",
@@ -310,12 +307,9 @@ static int __w1_attach_slave_device(struct w1_slave *sl)
 
 	memcpy(&sl->attr_bin, &w1_slave_bin_attribute, sizeof(sl->attr_bin));
 	memcpy(&sl->attr_name, &w1_slave_attribute, sizeof(sl->attr_name));
-	memcpy(&sl->attr_val, &w1_slave_attribute_val, sizeof(sl->attr_val));
 
 	sl->attr_bin.read = sl->family->fops->rbin;
 	sl->attr_name.show = sl->family->fops->rname;
-	sl->attr_val.show = sl->family->fops->rval;
-	sl->attr_val.attr.name = sl->family->fops->rvalname;
 
 	err = device_create_file(&sl->dev, &sl->attr_name);
 	if (err < 0) {
@@ -326,23 +320,12 @@ static int __w1_attach_slave_device(struct w1_slave *sl)
 		return err;
 	}
 
-	err = device_create_file(&sl->dev, &sl->attr_val);
-	if (err < 0) {
-		dev_err(&sl->dev,
-			 "sysfs file creation for [%s] failed. err=%d\n",
-			 sl->dev.bus_id, err);
-		device_remove_file(&sl->dev, &sl->attr_name);
-		device_unregister(&sl->dev);
-		return err;
-	}
-
 	err = sysfs_create_bin_file(&sl->dev.kobj, &sl->attr_bin);
 	if (err < 0) {
 		dev_err(&sl->dev,
 			 "sysfs file creation for [%s] failed. err=%d\n",
 			 sl->dev.bus_id, err);
 		device_remove_file(&sl->dev, &sl->attr_name);
-		device_remove_file(&sl->dev, &sl->attr_val);
 		device_unregister(&sl->dev);
 		return err;
 	}
@@ -428,7 +411,6 @@ static void w1_slave_detach(struct w1_slave *sl)
 
 	sysfs_remove_bin_file (&sl->dev.kobj, &sl->attr_bin);
 	device_remove_file(&sl->dev, &sl->attr_name);
-	device_remove_file(&sl->dev, &sl->attr_val);
 	device_unregister(&sl->dev);
 	w1_family_put(sl->family);
 

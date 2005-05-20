@@ -30,7 +30,7 @@ static LIST_HEAD(w1_families);
 
 static int w1_check_family(struct w1_family *f)
 {
-	if (!f->fops->rname || !f->fops->rbin || !f->fops->rval || !f->fops->rvalname)
+	if (!f->fops->rname || !f->fops->rbin)
 		return -EINVAL;
 
 	return 0;
