@@ -354,6 +354,7 @@ static int audit_netlink_ok(kernel_cap_t eff_cap, u16 msg_type)
 		if (!cap_raised(eff_cap, CAP_AUDIT_CONTROL))
 			err = -EPERM;
 		break;
+	case AUDIT_USER:
 	case AUDIT_FIRST_USER_MSG...AUDIT_LAST_USER_MSG:
 		if (!cap_raised(eff_cap, CAP_AUDIT_WRITE))
 			err = -EPERM;
@@ -432,6 +433,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 			audit_set_backlog_limit(status_get->backlog_limit,
 							loginuid);
 		break;
+	case AUDIT_USER:
 	case AUDIT_FIRST_USER_MSG...AUDIT_LAST_USER_MSG:
 		ab = audit_log_start(NULL, msg_type);
 		if (!ab)
