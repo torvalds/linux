@@ -2679,6 +2679,11 @@ static void ahc_linux_set_period(struct scsi_target *starget, int period)
 	if (offset == 0)
 		offset = MAX_OFFSET;
 
+	if (period < 9)
+		period = 9;	/* 12.5ns is our minimum */
+	if (period == 9)
+		ppr_options |= MSG_EXT_PPR_DT_REQ;
+
 	ahc_compile_devinfo(&devinfo, shost->this_id, starget->id, 0,
 			    starget->channel + 'A', ROLE_INITIATOR);
 
@@ -2763,6 +2768,12 @@ static void ahc_linux_set_dt(struct scsi_target *starget, int dt)
 	unsigned int period = tinfo->curr.period;
 	unsigned long flags;
 	struct ahc_syncrate *syncrate;
+
+	if (dt) {
+		period = 9;	/* 12.5ns is the only period valid for DT */
+		ppr_options |= MSG_EXT_PPR_DT_REQ;
+	} else if (period == 9)
+		period = 10;	/* if resetting DT, period must be >= 25ns */
 
 	ahc_compile_devinfo(&devinfo, shost->this_id, starget->id, 0,
 			    starget->channel + 'A', ROLE_INITIATOR);
