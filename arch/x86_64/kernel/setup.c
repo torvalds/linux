@@ -719,7 +719,6 @@ static void __init display_cacheinfo(struct cpuinfo_x86 *c)
 	}
 }
 
-#ifdef CONFIG_SMP
 /*
  * On a AMD dual core setup the lower bits of the APIC id distingush the cores.
  * Assumes number of cores is a power of two.
@@ -729,16 +728,24 @@ static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
 #ifdef CONFIG_SMP
 	int cpu = smp_processor_id();
 	int node = 0;
+	unsigned bits;
 	if (c->x86_num_cores == 1)
 		return;
-	/* Fix up the APIC ID following the AMD specification. */
- 	cpu_core_id[cpu] >>= hweight32(c->x86_num_cores - 1);
+
+	bits = 0;
+	while ((1 << bits) < c->x86_num_cores)
+		bits++;
+
+	/* Low order bits define the core id (index of core in socket) */
+	cpu_core_id[cpu] = phys_proc_id[cpu] & ((1 << bits)-1);
+	/* Convert the APIC ID into the socket ID */
+	phys_proc_id[cpu] >>= bits;
 
 #ifdef CONFIG_NUMA
 	/* When an ACPI SRAT table is available use the mappings from SRAT
  	   instead. */
 	if (acpi_numa <= 0) {
-		node = cpu_core_id[cpu];
+		node = phys_proc_id[cpu];
 		if (!node_online(node))
 			node = first_node(node_online_map);
 		cpu_to_node[cpu] = node;
@@ -746,18 +753,11 @@ static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
 		node = cpu_to_node[cpu];
 	}
 #endif
-	/* For now: - better than BAD_APIC_ID at least*/
-	phys_proc_id[cpu] = cpu_core_id[cpu];
 
 	printk(KERN_INFO "CPU %d(%d) -> Node %d -> Core %d\n",
 			cpu, c->x86_num_cores, node, cpu_core_id[cpu]);
 #endif
 }
-#else
-static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
-{
-}
-#endif
 
 static int __init init_amd(struct cpuinfo_x86 *c)
 {
@@ -963,8 +963,7 @@ void __init early_identify_cpu(struct cpuinfo_x86 *c)
 	}
 
 #ifdef CONFIG_SMP
-	phys_proc_id[smp_processor_id()] =
-	cpu_core_id[smp_processor_id()] = (cpuid_ebx(1) >> 24) & 0xff;
+	phys_proc_id[smp_processor_id()] = (cpuid_ebx(1) >> 24) & 0xff;
 #endif
 }
 
