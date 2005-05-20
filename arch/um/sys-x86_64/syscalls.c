@@ -15,6 +15,7 @@
 #include "asm/unistd.h"
 #include "asm/prctl.h" /* XXX This should get the constants from libc */
 #include "choose-mode.h"
+#include "kern.h"
 
 asmlinkage long sys_uname64(struct new_utsname __user * name)
 {
