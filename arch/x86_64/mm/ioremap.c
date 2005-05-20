@@ -133,7 +133,7 @@ ioremap_change_attr(unsigned long phys_addr, unsigned long size,
 					unsigned long flags)
 {
 	int err = 0;
-	if (flags && phys_addr + size - 1 < (end_pfn_map << PAGE_SHIFT)) {
+	if (phys_addr + size - 1 < (end_pfn_map << PAGE_SHIFT)) {
 		unsigned long npages = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
 		unsigned long vaddr = (unsigned long) __va(phys_addr);
 
@@ -214,7 +214,7 @@ void __iomem * __ioremap(unsigned long phys_addr, unsigned long size, unsigned l
 		remove_vm_area((void *)(PAGE_MASK & (unsigned long) addr));
 		return NULL;
 	}
-	if (ioremap_change_attr(phys_addr, size, flags) < 0) {
+	if (flags && ioremap_change_attr(phys_addr, size, flags) < 0) {
 		area->flags &= 0xffffff;
 		vunmap(addr);
 		return NULL;
@@ -251,7 +251,7 @@ void __iomem *ioremap_nocache (unsigned long phys_addr, unsigned long size)
 
 void iounmap(volatile void __iomem *addr)
 {
-	struct vm_struct *p, **pprev;
+	struct vm_struct *p;
 
 	if (addr <= high_memory) 
 		return; 
@@ -260,24 +260,11 @@ void iounmap(volatile void __iomem *addr)
 		return;
 
 	write_lock(&vmlist_lock);
-	for (p = vmlist, pprev = &vmlist; p != NULL; pprev = &p->next, p = *pprev)
-		if (p->addr == (void *)(PAGE_MASK & (unsigned long)addr))
-			break;
-	if (!p) { 
-		printk("__iounmap: bad address %p\n", addr);
-		goto out_unlock;
-	}
-	*pprev = p->next;
-	unmap_vm_area(p);
-	if ((p->flags >> 20) &&
-		p->phys_addr + p->size - 1 < virt_to_phys(high_memory)) {
-		/* p->size includes the guard page, but cpa doesn't like that */
-		change_page_attr_addr((unsigned long)__va(p->phys_addr),
-				 p->size >> PAGE_SHIFT,
-				 PAGE_KERNEL);
-		global_flush_tlb();
-	} 
-out_unlock:
+	p = __remove_vm_area((void *)((unsigned long)addr & PAGE_MASK));
+	if (!p)
+		printk("iounmap: bad address %p\n", addr);
+	else if (p->flags >> 20)
+		ioremap_change_attr(p->phys_addr, p->size, 0);
 	write_unlock(&vmlist_lock);
 	kfree(p); 
 }
