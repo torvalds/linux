@@ -557,12 +557,10 @@ static void __init openpic_initipi(u_int ipi, u_int pri, u_int vec)
  */
 void openpic_cause_IPI(u_int ipi, cpumask_t cpumask)
 {
-	cpumask_t phys;
 	DECL_THIS_CPU;
 
 	CHECK_THIS_CPU;
 	check_arg_ipi(ipi);
-	phys = physmask(cpumask);
 	openpic_write(&OpenPIC->THIS_CPU.IPI_Dispatch(ipi),
 		      cpus_addr(physmask(cpumask))[0]);
 }
