@@ -107,33 +107,6 @@ out_of_memory:
 	goto out;
 }
 
-LIST_HEAD(physmem_remappers);
-
-void register_remapper(struct remapper *info)
-{
-	list_add(&info->list, &physmem_remappers);
-}
-
-static int check_remapped_addr(unsigned long address, int is_write)
-{
-	struct remapper *remapper;
-	struct list_head *ele;
-	__u64 offset;
-	int fd;
-
-	fd = phys_mapping(__pa(address), &offset);
-	if(fd == -1)
-		return(0);
-
-	list_for_each(ele, &physmem_remappers){
-		remapper = list_entry(ele, struct remapper, list);
-		if((*remapper->proc)(fd, address, is_write, offset))
-			return(1);
-	}
-
-	return(0);
-}
-
 /*
  * We give a *copy* of the faultinfo in the regs to segv.
  * This must be done, since nesting SEGVs could overwrite
@@ -152,8 +125,6 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user, void *sc)
                 flush_tlb_kernel_vm();
                 return(0);
         }
-	else if(check_remapped_addr(address & PAGE_MASK, is_write))
-		return(0);
 	else if(current->mm == NULL)
 		panic("Segfault with no mm");
 	err = handle_page_fault(address, ip, is_write, is_user, &si.si_code);
