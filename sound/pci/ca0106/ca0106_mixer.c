@@ -113,7 +113,7 @@ static int snd_ca0106_shared_spdif_put(snd_kcontrol_t * kcontrol,
 		} else {
 			/* Analog */
 			snd_ca0106_ptr_write(emu, SPDIF_SELECT1, 0, 0xf);
-			snd_ca0106_ptr_write(emu, SPDIF_SELECT2, 0, 0x000b0000);
+			snd_ca0106_ptr_write(emu, SPDIF_SELECT2, 0, 0x000f0000);
 			snd_ca0106_ptr_write(emu, CAPTURE_CONTROL, 0,
 				snd_ca0106_ptr_read(emu, CAPTURE_CONTROL, 0) | 0x1000);
 			mask = inl(emu->port + GPIO) | 0x101;
@@ -437,7 +437,7 @@ static snd_kcontrol_new_t snd_ca0106_volume_control_analog_center_lfe =
 static snd_kcontrol_new_t snd_ca0106_volume_control_analog_unknown =
 {
         .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
-        .name =         "Analog Unknown Volume",
+        .name =         "Analog Side Volume",
         .info =         snd_ca0106_volume_info,
         .get =          snd_ca0106_volume_get_analog_unknown,
         .put =          snd_ca0106_volume_put_analog_unknown
