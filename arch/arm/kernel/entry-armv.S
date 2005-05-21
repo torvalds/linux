@@ -24,6 +24,19 @@
 #include "entry-header.S"
 
 /*
+ * Interrupt handling.  Preserves r7, r8, r9
+ */
+	.macro	irq_handler
+1:	get_irqnr_and_base r0, r6, r5, lr
+	movne	r1, sp
+	@
+	@ routine called with r0 = irq number, r1 = struct pt_regs *
+	@
+	adrne	lr, 1b
+	bne	asm_do_IRQ
+	.endm
+
+/*
  * Invalid mode handlers
  */
 	.macro	inv_entry, sym, reason
@@ -136,13 +149,7 @@ __irq_svc:
 	add	r7, r9, #1			@ increment it
 	str	r7, [r8, #TI_PREEMPT]
 #endif
-1:	get_irqnr_and_base r0, r6, r5, lr
-	movne	r1, sp
-	@
-	@ routine called with r0 = irq number, r1 = struct pt_regs *
-	@
-	adrne	lr, 1b
-	bne	asm_do_IRQ
+	irq_handler
 #ifdef CONFIG_PREEMPT
 	ldr	r0, [r8, #TI_FLAGS]		@ get flags
 	tst	r0, #_TIF_NEED_RESCHED
@@ -337,13 +344,7 @@ __irq_usr:
 	add	r7, r9, #1			@ increment it
 	str	r7, [r8, #TI_PREEMPT]
 #endif
-1:	get_irqnr_and_base r0, r6, r5, lr
-	movne	r1, sp
-	adrne	lr, 1b
-	@
-	@ routine called with r0 = irq number, r1 = struct pt_regs *
-	@
-	bne	asm_do_IRQ
+	irq_handler
 #ifdef CONFIG_PREEMPT
 	ldr	r0, [r8, #TI_PREEMPT]
 	teq	r0, r7
