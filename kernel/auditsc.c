@@ -795,36 +795,6 @@ void audit_free(struct task_struct *tsk)
 	audit_free_context(context);
 }
 
-/* Compute a serial number for the audit record.  Audit records are
- * written to user-space as soon as they are generated, so a complete
- * audit record may be written in several pieces.  The timestamp of the
- * record and this serial number are used by the user-space tools to
- * determine which pieces belong to the same audit record.  The
- * (timestamp,serial) tuple is unique for each syscall and is live from
- * syscall entry to syscall exit.
- *
- * Atomic values are only guaranteed to be 24-bit, so we count down.
- *
- * NOTE: Another possibility is to store the formatted records off the
- * audit context (for those records that have a context), and emit them
- * all at syscall exit.  However, this could delay the reporting of
- * significant errors until syscall exit (or never, if the system
- * halts). */
-static inline unsigned int audit_serial(void)
-{
-	static atomic_t serial = ATOMIC_INIT(0xffffff);
-	unsigned int a, b;
-
-	do {
-		a = atomic_read(&serial);
-		if (atomic_dec_and_test(&serial))
-			atomic_set(&serial, 0xffffff);
-		b = atomic_read(&serial);
-	} while (b != a - 1);
-
-	return 0xffffff - b;
-}
-
 /* Fill in audit context at syscall entry.  This only happens if the
  * audit context was created when the task was created and the state or
  * filters demand the audit context be built.  If the state from the
@@ -1042,17 +1012,13 @@ void audit_inode(const char *name, const struct inode *inode)
 	context->names[idx].rdev = inode->i_rdev;
 }
 
-int audit_get_stamp(struct audit_context *ctx,
-		     struct timespec *t, unsigned int *serial)
+void auditsc_get_stamp(struct audit_context *ctx,
+		       struct timespec *t, unsigned int *serial)
 {
-	if (ctx) {
-		t->tv_sec  = ctx->ctime.tv_sec;
-		t->tv_nsec = ctx->ctime.tv_nsec;
-		*serial    = ctx->serial;
-		ctx->auditable = 1;
-		return 1;
-	}
-	return 0;
+	t->tv_sec  = ctx->ctime.tv_sec;
+	t->tv_nsec = ctx->ctime.tv_nsec;
+	*serial    = ctx->serial;
+	ctx->auditable = 1;
 }
 
 int audit_set_loginuid(struct task_struct *task, uid_t loginuid)

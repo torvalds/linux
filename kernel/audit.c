@@ -597,6 +597,47 @@ err:
 	return NULL;
 }
 
+/* Compute a serial number for the audit record.  Audit records are
+ * written to user-space as soon as they are generated, so a complete
+ * audit record may be written in several pieces.  The timestamp of the
+ * record and this serial number are used by the user-space tools to
+ * determine which pieces belong to the same audit record.  The
+ * (timestamp,serial) tuple is unique for each syscall and is live from
+ * syscall entry to syscall exit.
+ *
+ * Atomic values are only guaranteed to be 24-bit, so we count down.
+ *
+ * NOTE: Another possibility is to store the formatted records off the
+ * audit context (for those records that have a context), and emit them
+ * all at syscall exit.  However, this could delay the reporting of
+ * significant errors until syscall exit (or never, if the system
+ * halts). */
+unsigned int audit_serial(void)
+{
+	static atomic_t serial = ATOMIC_INIT(0xffffff);
+	unsigned int a, b;
+
+	do {
+		a = atomic_read(&serial);
+		if (atomic_dec_and_test(&serial))
+			atomic_set(&serial, 0xffffff);
+		b = atomic_read(&serial);
+	} while (b != a - 1);
+
+	return 0xffffff - b;
+}
+
+static inline void audit_get_stamp(struct audit_context *ctx, 
+				   struct timespec *t, unsigned int *serial)
+{
+	if (ctx)
+		auditsc_get_stamp(ctx, t, serial);
+	else {
+		*t = CURRENT_TIME;
+		*serial = audit_serial();
+	}
+}
+
 /* Obtain an audit buffer.  This routine does locking to obtain the
  * audit buffer, but then no locking is required for calls to
  * audit_log_*format.  If the tsk is a task that is currently in a
@@ -630,10 +671,7 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx, int type)
 		return NULL;
 	}
 
-	if (!audit_get_stamp(ab->ctx, &t, &serial)) {
-		t = CURRENT_TIME;
-		serial = 0;
-	}
+	audit_get_stamp(ab->ctx, &t, &serial);
 
 	audit_log_format(ab, "audit(%lu.%03lu:%u): ",
 			 t.tv_sec, t.tv_nsec/1000000, serial);
