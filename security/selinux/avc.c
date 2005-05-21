@@ -558,7 +558,7 @@ void avc_audit(u32 ssid, u32 tsid,
 	audit_log_format(ab, " for ");
 	if (a && a->tsk)
 		tsk = a->tsk;
-	if (a->tsk && a->tsk->pid) {
+	if (tsk && tsk->pid) {
 		audit_log_format(ab, " pid=%d comm=", tsk->pid);
 		audit_log_untrustedstring(ab, tsk->comm);
 	}
