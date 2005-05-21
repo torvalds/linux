@@ -508,9 +508,17 @@ struct snd_ca0106_pcm {
 	unsigned short running;
 };
 
+typedef struct {
+        u32 serial;
+        char * name;
+        int ac97;
+	int gpio_type;
+} ca0106_details_t;
+
 // definition of the chip-specific record
 struct snd_ca0106 {
 	snd_card_t *card;
+	ca0106_details_t *details;
 	struct pci_dev *pci;
 
 	unsigned long port;
