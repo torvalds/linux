@@ -144,20 +144,20 @@ __dabt_svc:
 __irq_svc:
 	svc_entry irq
 #ifdef CONFIG_PREEMPT
-	get_thread_info r8
-	ldr	r9, [r8, #TI_PREEMPT]		@ get preempt count
-	add	r7, r9, #1			@ increment it
-	str	r7, [r8, #TI_PREEMPT]
+	get_thread_info tsk
+	ldr	r8, [tsk, #TI_PREEMPT]		@ get preempt count
+	add	r7, r8, #1			@ increment it
+	str	r7, [tsk, #TI_PREEMPT]
 #endif
 	irq_handler
 #ifdef CONFIG_PREEMPT
-	ldr	r0, [r8, #TI_FLAGS]		@ get flags
+	ldr	r0, [tsk, #TI_FLAGS]		@ get flags
 	tst	r0, #_TIF_NEED_RESCHED
 	blne	svc_preempt
 preempt_return:
-	ldr	r0, [r8, #TI_PREEMPT]		@ read preempt value
+	ldr	r0, [tsk, #TI_PREEMPT]		@ read preempt value
+	str	r8, [tsk, #TI_PREEMPT]		@ restore preempt count
 	teq	r0, r7
-	str	r9, [r8, #TI_PREEMPT]		@ restore preempt count
 	strne	r0, [r0, -r0]			@ bug()
 #endif
 	ldr	r0, [sp, #S_PSR]		@ irqs are already disabled
@@ -168,7 +168,7 @@ preempt_return:
 
 #ifdef CONFIG_PREEMPT
 svc_preempt:
-	teq	r9, #0				@ was preempt count = 0
+	teq	r8, #0				@ was preempt count = 0
 	ldreq	r6, .LCirq_stat
 	movne	pc, lr				@ no
 	ldr	r0, [r6, #4]			@ local_irq_count
@@ -176,9 +176,9 @@ svc_preempt:
 	adds	r0, r0, r1
 	movne	pc, lr
 	mov	r7, #0				@ preempt_schedule_irq
-	str	r7, [r8, #TI_PREEMPT]		@ expects preempt_count == 0
+	str	r7, [tsk, #TI_PREEMPT]		@ expects preempt_count == 0
 1:	bl	preempt_schedule_irq		@ irq en/disable is done inside
-	ldr	r0, [r8, #TI_FLAGS]		@ get new tasks TI_FLAGS
+	ldr	r0, [tsk, #TI_FLAGS]		@ get new tasks TI_FLAGS
 	tst	r0, #_TIF_NEED_RESCHED
 	beq	preempt_return			@ go again
 	b	1b
@@ -338,21 +338,18 @@ __dabt_usr:
 __irq_usr:
 	usr_entry irq
 
+	get_thread_info tsk
 #ifdef CONFIG_PREEMPT
-	get_thread_info r8
-	ldr	r9, [r8, #TI_PREEMPT]		@ get preempt count
-	add	r7, r9, #1			@ increment it
-	str	r7, [r8, #TI_PREEMPT]
+	ldr	r8, [tsk, #TI_PREEMPT]		@ get preempt count
+	add	r7, r8, #1			@ increment it
+	str	r7, [tsk, #TI_PREEMPT]
 #endif
 	irq_handler
 #ifdef CONFIG_PREEMPT
-	ldr	r0, [r8, #TI_PREEMPT]
+	ldr	r0, [tsk, #TI_PREEMPT]
+	str	r8, [tsk, #TI_PREEMPT]
 	teq	r0, r7
-	str	r9, [r8, #TI_PREEMPT]
 	strne	r0, [r0, -r0]
-	mov	tsk, r8
-#else
-	get_thread_info tsk
 #endif
 	mov	why, #0
 	b	ret_to_user
