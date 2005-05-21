@@ -1195,7 +1195,7 @@ static int groups_from_user(struct group_info *group_info,
 	return 0;
 }
 
-/* a simple shell-metzner sort */
+/* a simple Shell sort */
 static void groups_sort(struct group_info *group_info)
 {
 	int base, max, stride;

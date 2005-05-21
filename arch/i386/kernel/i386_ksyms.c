@@ -169,10 +169,6 @@ EXPORT_SYMBOL(rtc_lock);
 EXPORT_SYMBOL_GPL(set_nmi_callback);
 EXPORT_SYMBOL_GPL(unset_nmi_callback);
 
-#undef memcmp
-extern int memcmp(const void *,const void *,__kernel_size_t);
-EXPORT_SYMBOL(memcmp);
-
 EXPORT_SYMBOL(register_die_notifier);
 #ifdef CONFIG_HAVE_DEC_LOCK
 EXPORT_SYMBOL(_atomic_dec_and_lock);

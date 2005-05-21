@@ -479,6 +479,25 @@ uart_handle_cts_change(struct uart_port *port, unsigned int status)
 	}
 }
 
+#include <linux/tty_flip.h>
+
+static inline void
+uart_insert_char(struct uart_port *port, unsigned int status,
+		 unsigned int overrun, unsigned int ch, unsigned int flag)
+{
+	struct tty_struct *tty = port->info->tty;
+
+	if ((status & port->ignore_status_mask & ~overrun) == 0)
+		tty_insert_flip_char(tty, ch, flag);
+
+	/*
+	 * Overrun is special.  Since it's reported immediately,
+	 * it doesn't affect the current character.
+	 */
+	if (status & ~port->ignore_status_mask & overrun)
+		tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+}
+
 /*
  *	UART_ENABLE_MS - determine if port should enable modem status irqs
  */

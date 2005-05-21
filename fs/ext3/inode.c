@@ -844,12 +844,6 @@ get_block:
 	return ret;
 }
 
-static int ext3_writepages_get_block(struct inode *inode, sector_t iblock,
-			struct buffer_head *bh, int create)
-{
-	return ext3_direct_io_get_blocks(inode, iblock, 1, bh, create);
-}
-
 /*
  * `handle' can be NULL if create is zero
  */
@@ -1323,45 +1317,6 @@ out_fail:
 	return ret;
 }
 
-static int
-ext3_writeback_writepage_helper(struct page *page,
-				struct writeback_control *wbc)
-{
-	return block_write_full_page(page, ext3_get_block, wbc);
-}
-
-static int
-ext3_writeback_writepages(struct address_space *mapping,
-				struct writeback_control *wbc)
-{
-	struct inode *inode = mapping->host;
-	handle_t *handle = NULL;
-	int err, ret = 0;
-
-	if (!mapping_tagged(mapping, PAGECACHE_TAG_DIRTY))
-		return ret;
-
-	handle = ext3_journal_start(inode, ext3_writepage_trans_blocks(inode));
-	if (IS_ERR(handle)) {
-		ret = PTR_ERR(handle);
-		return ret;
-	}
-
-        ret = __mpage_writepages(mapping, wbc, ext3_writepages_get_block,
-					ext3_writeback_writepage_helper);
-
-	/*
-	 * Need to reaquire the handle since ext3_writepages_get_block()
-	 * can restart the handle
-	 */
-	handle = journal_current_handle();
-
-	err = ext3_journal_stop(handle);
-	if (!ret)
-		ret = err;
-	return ret;
-}
-
 static int ext3_writeback_writepage(struct page *page,
 				struct writeback_control *wbc)
 {
@@ -1599,7 +1554,6 @@ static struct address_space_operations ext3_writeback_aops = {
 	.readpage	= ext3_readpage,
 	.readpages	= ext3_readpages,
 	.writepage	= ext3_writeback_writepage,
-	.writepages	= ext3_writeback_writepages,
 	.sync_page	= block_sync_page,
 	.prepare_write	= ext3_prepare_write,
 	.commit_write	= ext3_writeback_commit_write,

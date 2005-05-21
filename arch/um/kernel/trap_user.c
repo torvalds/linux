@@ -54,23 +54,22 @@ struct {
 void segv_handler(int sig, union uml_pt_regs *regs)
 {
 	int index, max;
+        struct faultinfo * fi = UPT_FAULTINFO(regs);
 
-	if(UPT_IS_USER(regs) && !UPT_SEGV_IS_FIXABLE(regs)){
-		bad_segv(UPT_FAULT_ADDR(regs), UPT_IP(regs), 
-			 UPT_FAULT_WRITE(regs));
+        if(UPT_IS_USER(regs) && !SEGV_IS_FIXABLE(fi)){
+                bad_segv(*fi, UPT_IP(regs));
 		return;
 	}
 	max = sizeof(segfault_record)/sizeof(segfault_record[0]);
 	index = next_trap_index(max);
 
 	nsegfaults++;
-	segfault_record[index].address = UPT_FAULT_ADDR(regs);
+        segfault_record[index].address = FAULT_ADDRESS(*fi);
 	segfault_record[index].pid = os_getpid();
-	segfault_record[index].is_write = UPT_FAULT_WRITE(regs);
+        segfault_record[index].is_write = FAULT_WRITE(*fi);
 	segfault_record[index].sp = UPT_SP(regs);
 	segfault_record[index].is_user = UPT_IS_USER(regs);
-	segv(UPT_FAULT_ADDR(regs), UPT_IP(regs), UPT_FAULT_WRITE(regs),
-	     UPT_IS_USER(regs), regs);
+        segv(*fi, UPT_IP(regs), UPT_IS_USER(regs), regs);
 }
 
 void usr2_handler(int sig, union uml_pt_regs *regs)

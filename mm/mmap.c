@@ -1244,7 +1244,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 	addr = mm->free_area_cache;
 
 	/* make sure it can fit in the remaining address space */
-	if (addr >= len) {
+	if (addr > len) {
 		vma = find_vma(mm, addr-len);
 		if (!vma || addr <= vma->vm_start)
 			/* remember the address as a hint for next time */
@@ -1266,7 +1266,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 
 		/* try just below the current vma->vm_start */
 		addr = vma->vm_start-len;
-	} while (len <= vma->vm_start);
+	} while (len < vma->vm_start);
 
 	/*
 	 * A failed mmap() very likely causes application failure,
@@ -1302,37 +1302,40 @@ unsigned long
 get_unmapped_area(struct file *file, unsigned long addr, unsigned long len,
 		unsigned long pgoff, unsigned long flags)
 {
-	if (flags & MAP_FIXED) {
-		unsigned long ret;
+	unsigned long ret;
 
-		if (addr > TASK_SIZE - len)
-			return -ENOMEM;
-		if (addr & ~PAGE_MASK)
-			return -EINVAL;
-		if (file && is_file_hugepages(file))  {
-			/*
-			 * Check if the given range is hugepage aligned, and
-			 * can be made suitable for hugepages.
-			 */
-			ret = prepare_hugepage_range(addr, len);
-		} else {
-			/*
-			 * Ensure that a normal request is not falling in a
-			 * reserved hugepage range.  For some archs like IA-64,
-			 * there is a separate region for hugepages.
-			 */
-			ret = is_hugepage_only_range(current->mm, addr, len);
-		}
-		if (ret)
-			return -EINVAL;
-		return addr;
+	if (!(flags & MAP_FIXED)) {
+		unsigned long (*get_area)(struct file *, unsigned long, unsigned long, unsigned long, unsigned long);
+
+		get_area = current->mm->get_unmapped_area;
+		if (file && file->f_op && file->f_op->get_unmapped_area)
+			get_area = file->f_op->get_unmapped_area;
+		addr = get_area(file, addr, len, pgoff, flags);
+		if (IS_ERR_VALUE(addr))
+			return addr;
 	}
 
-	if (file && file->f_op && file->f_op->get_unmapped_area)
-		return file->f_op->get_unmapped_area(file, addr, len,
-						pgoff, flags);
-
-	return current->mm->get_unmapped_area(file, addr, len, pgoff, flags);
+	if (addr > TASK_SIZE - len)
+		return -ENOMEM;
+	if (addr & ~PAGE_MASK)
+		return -EINVAL;
+	if (file && is_file_hugepages(file))  {
+		/*
+		 * Check if the given range is hugepage aligned, and
+		 * can be made suitable for hugepages.
+		 */
+		ret = prepare_hugepage_range(addr, len);
+	} else {
+		/*
+		 * Ensure that a normal request is not falling in a
+		 * reserved hugepage range.  For some archs like IA-64,
+		 * there is a separate region for hugepages.
+		 */
+		ret = is_hugepage_only_range(current->mm, addr, len);
+	}
+	if (ret)
+		return -EINVAL;
+	return addr;
 }
 
 EXPORT_SYMBOL(get_unmapped_area);

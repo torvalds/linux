@@ -32,7 +32,7 @@
 	.text
 
 /*
- * Returns (address we're running at) - (address we were linked at)
+ * Returns (address we were linked at) - (address we are running at)
  * for use before the text and data are mapped to KERNELBASE.
  */
 

@@ -61,7 +61,6 @@
 #include <linux/mempool.h>
 #include <linux/syscalls.h>
 #include <linux/ioctl.h>
-#include <linux/ioctl32.h>
 
 /************************ DEBUG FLAGS *****************************************/
 

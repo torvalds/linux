@@ -5,11 +5,10 @@
  */
 
 #include <stdio.h>
-#define __FRAME_OFFSETS
-#include <asm/ptrace.h>
+#include <user-offsets.h>
 
-#define PRINT_REG(name, val) \
-	printf("#define HOST_%s (%d / sizeof(unsigned long))\n", (name), (val))
+#define SHOW(name) \
+	printf("#define %s (%d / sizeof(unsigned long))\n", #name, name)
 
 int main(int argc, char **argv)
 {
@@ -18,36 +17,35 @@ int main(int argc, char **argv)
 	printf("\n");
 	printf("#ifndef __SKAS_PT_REGS_\n");
 	printf("#define __SKAS_PT_REGS_\n");
-	printf("#define HOST_FRAME_SIZE (%d / sizeof(unsigned long))\n",
-	       FRAME_SIZE);
-	PRINT_REG("RBX", RBX);
-	PRINT_REG("RCX", RCX);
-	PRINT_REG("RDI", RDI);
-	PRINT_REG("RSI", RSI);
-	PRINT_REG("RDX", RDX);
-	PRINT_REG("RBP", RBP);
-	PRINT_REG("RAX", RAX);
-	PRINT_REG("R8", R8);
-	PRINT_REG("R9", R9);
-	PRINT_REG("R10", R10);
-	PRINT_REG("R11", R11);
-	PRINT_REG("R12", R12);
-	PRINT_REG("R13", R13);
-	PRINT_REG("R14", R14);
-	PRINT_REG("R15", R15);
-	PRINT_REG("ORIG_RAX", ORIG_RAX);
-	PRINT_REG("CS", CS);
-	PRINT_REG("SS", SS);
-	PRINT_REG("EFLAGS", EFLAGS);
+	SHOW(HOST_FRAME_SIZE);
+	SHOW(HOST_RBX);
+	SHOW(HOST_RCX);
+	SHOW(HOST_RDI);
+	SHOW(HOST_RSI);
+	SHOW(HOST_RDX);
+	SHOW(HOST_RBP);
+	SHOW(HOST_RAX);
+	SHOW(HOST_R8);
+	SHOW(HOST_R9);
+	SHOW(HOST_R10);
+	SHOW(HOST_R11);
+	SHOW(HOST_R12);
+	SHOW(HOST_R13);
+	SHOW(HOST_R14);
+	SHOW(HOST_R15);
+	SHOW(HOST_ORIG_RAX);
+	SHOW(HOST_CS);
+	SHOW(HOST_SS);
+	SHOW(HOST_EFLAGS);
 #if 0
-	PRINT_REG("FS", FS);
-	PRINT_REG("GS", GS);
-	PRINT_REG("DS", DS);
-	PRINT_REG("ES", ES);
+	SHOW(HOST_FS);
+	SHOW(HOST_GS);
+	SHOW(HOST_DS);
+	SHOW(HOST_ES);
 #endif
 
-	PRINT_REG("IP", RIP);
-	PRINT_REG("SP", RSP);
+	SHOW(HOST_IP);
+	SHOW(HOST_SP);
 	printf("#define HOST_FP_SIZE 0\n");
 	printf("#define HOST_XFP_SIZE 0\n");
 	printf("\n");

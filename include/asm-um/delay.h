@@ -4,4 +4,6 @@
 #include "asm/arch/delay.h"
 #include "asm/archparam.h"
 
+#define MILLION 1000000
+
 #endif

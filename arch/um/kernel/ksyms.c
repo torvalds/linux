@@ -10,7 +10,6 @@
 #include "linux/spinlock.h"
 #include "linux/highmem.h"
 #include "asm/current.h"
-#include "asm/delay.h"
 #include "asm/processor.h"
 #include "asm/unistd.h"
 #include "asm/pgalloc.h"
@@ -28,8 +27,6 @@ EXPORT_SYMBOL(uml_physmem);
 EXPORT_SYMBOL(set_signals);
 EXPORT_SYMBOL(get_signals);
 EXPORT_SYMBOL(kernel_thread);
-EXPORT_SYMBOL(__const_udelay);
-EXPORT_SYMBOL(__udelay);
 EXPORT_SYMBOL(sys_waitpid);
 EXPORT_SYMBOL(task_size);
 EXPORT_SYMBOL(flush_tlb_range);
@@ -60,6 +57,7 @@ EXPORT_SYMBOL(copy_to_user_tt);
 EXPORT_SYMBOL(strncpy_from_user_skas);
 EXPORT_SYMBOL(copy_to_user_skas);
 EXPORT_SYMBOL(copy_from_user_skas);
+EXPORT_SYMBOL(clear_user_skas);
 #endif
 EXPORT_SYMBOL(uml_strdup);
 

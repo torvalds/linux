@@ -48,8 +48,6 @@ static unsigned long long prev_usecs;
 static long long delta;   		/* Deviation per interval */
 #endif
 
-#define MILLION 1000000
-
 void timer_irq(union uml_pt_regs *regs)
 {
 	unsigned long long ticks = 0;
@@ -134,22 +132,6 @@ long um_stime(int __user *tptr)
 	new.tv_nsec = 0;
 	do_settimeofday(&new);
 	return 0;
-}
-
-void __udelay(unsigned long usecs)
-{
-	int i, n;
-
-	n = (loops_per_jiffy * HZ * usecs) / MILLION;
-	for(i=0;i<n;i++) ;
-}
-
-void __const_udelay(unsigned long usecs)
-{
-	int i, n;
-
-	n = (loops_per_jiffy * HZ * usecs) / MILLION;
-	for(i=0;i<n;i++) ;
 }
 
 void timer_handler(int sig, union uml_pt_regs *regs)

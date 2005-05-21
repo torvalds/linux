@@ -63,6 +63,7 @@ typedef __u64			xfs_ino_t;	/* <inode> type */
 typedef __s64			xfs_daddr_t;	/* <disk address> type */
 typedef char *			xfs_caddr_t;	/* <core address> type */
 typedef __u32			xfs_dev_t;
+typedef __u32			xfs_nlink_t;
 
 /* __psint_t is the same size as a pointer */
 #if (BITS_PER_LONG == 32)

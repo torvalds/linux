@@ -26,7 +26,7 @@ struct ps_internal {
 static LIST_HEAD(_path_selectors);
 static DECLARE_RWSEM(_ps_lock);
 
-struct ps_internal *__find_path_selector_type(const char *name)
+static struct ps_internal *__find_path_selector_type(const char *name)
 {
 	struct ps_internal *psi;
 

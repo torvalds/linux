@@ -86,10 +86,11 @@ typedef struct vnode {
 	vnumber_t	v_number;		/* in-core vnode number */
 	vn_bhv_head_t	v_bh;			/* behavior head */
 	spinlock_t	v_lock;			/* VN_LOCK/VN_UNLOCK */
-	struct inode	v_inode;		/* Linux inode */
 #ifdef XFS_VNODE_TRACE
 	struct ktrace	*v_trace;		/* trace header structure    */
 #endif
+	struct inode	v_inode;		/* Linux inode */
+	/* inode MUST be last */
 } vnode_t;
 
 #define v_fbhv			v_bh.bh_first	       /* first behavior */
@@ -409,7 +410,7 @@ typedef struct vattr {
 	int		va_mask;	/* bit-mask of attributes present */
 	enum vtype	va_type;	/* vnode type (for create) */
 	mode_t		va_mode;	/* file access mode and type */
-	nlink_t		va_nlink;	/* number of references to file */
+	xfs_nlink_t	va_nlink;	/* number of references to file */
 	uid_t		va_uid;		/* owner user id */
 	gid_t		va_gid;		/* owner group id */
 	xfs_ino_t	va_nodeid;	/* file id */
@@ -625,6 +626,7 @@ static inline int VN_BAD(struct vnode *vp)
 #define	ATTR_DMI	0x08	/* invocation from a DMI function */
 #define	ATTR_LAZY	0x80	/* set/get attributes lazily */
 #define	ATTR_NONBLOCK	0x100	/* return EAGAIN if operation would block */
+#define ATTR_NOLOCK	0x200	/* Don't grab any conflicting locks */
 
 /*
  * Flags to VOP_FSYNC and VOP_RECLAIM.
@@ -646,8 +648,8 @@ static inline int VN_BAD(struct vnode *vp)
 #define	VNODE_KTRACE_REF	4
 #define	VNODE_KTRACE_RELE	5
 
-extern void vn_trace_entry(struct vnode *, char *, inst_t *);
-extern void vn_trace_exit(struct vnode *, char *, inst_t *);
+extern void vn_trace_entry(struct vnode *, const char *, inst_t *);
+extern void vn_trace_exit(struct vnode *, const char *, inst_t *);
 extern void vn_trace_hold(struct vnode *, char *, int, inst_t *);
 extern void vn_trace_ref(struct vnode *, char *, int, inst_t *);
 extern void vn_trace_rele(struct vnode *, char *, int, inst_t *);

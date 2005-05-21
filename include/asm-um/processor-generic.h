@@ -24,9 +24,6 @@ struct thread_struct {
 	int forking;
 	int nsyscalls;
 	struct pt_regs regs;
-	unsigned long cr2;
-	int err;
-	unsigned long trap_no;
 	int singlestep_syscall;
 	void *fault_addr;
 	void *fault_catcher;
@@ -74,8 +71,6 @@ struct thread_struct {
 	.forking		= 0, \
 	.nsyscalls		= 0, \
         .regs		   	= EMPTY_REGS, \
-	.cr2			= 0, \
-	.err			= 0, \
 	.fault_addr		= NULL, \
 	.prev_sched		= NULL, \
 	.temp_stack		= 0, \

@@ -163,7 +163,6 @@ void __init init_IRQ(void)
 		irq_desc[i].handler = &SIGIO_irq_type;
 		enable_irq(i);
 	}
-	init_irq_signals(0);
 }
 
 /*

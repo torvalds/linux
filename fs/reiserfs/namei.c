@@ -608,7 +608,7 @@ static int reiserfs_create (struct inode * dir, struct dentry *dentry, int mode,
         goto out_failed;
     }
 
-    retval = reiserfs_new_inode (&th, dir, mode, 0, 0/*i_size*/, dentry, inode);
+    retval = reiserfs_new_inode (&th, dir, mode, NULL, 0/*i_size*/, dentry, inode);
     if (retval)
         goto out_failed;
 	

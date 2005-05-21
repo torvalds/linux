@@ -236,6 +236,9 @@ struct ti_ohci {
 
 static inline int cross_bound(unsigned long addr, unsigned int size)
 {
+	if (size == 0)
+		return 0;
+
 	if (size > PAGE_SIZE)
 		return 1;
 

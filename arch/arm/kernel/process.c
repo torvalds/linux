@@ -256,8 +256,6 @@ static unsigned long *thread_info_head;
 static unsigned int nr_thread_info;
 
 #define EXTRA_TASK_STRUCT	4
-#define ll_alloc_task_struct() ((struct thread_info *) __get_free_pages(GFP_KERNEL,1))
-#define ll_free_task_struct(p) free_pages((unsigned long)(p),1)
 
 struct thread_info *alloc_thread_info(struct task_struct *task)
 {
@@ -274,17 +272,16 @@ struct thread_info *alloc_thread_info(struct task_struct *task)
 	}
 
 	if (!thread)
-		thread = ll_alloc_task_struct();
+		thread = (struct thread_info *)
+			   __get_free_pages(GFP_KERNEL, THREAD_SIZE_ORDER);
 
-#ifdef CONFIG_MAGIC_SYSRQ
+#ifdef CONFIG_DEBUG_STACK_USAGE
 	/*
 	 * The stack must be cleared if you want SYSRQ-T to
 	 * give sensible stack usage information
 	 */
-	if (thread) {
-		char *p = (char *)thread;
-		memzero(p+KERNEL_STACK_SIZE, KERNEL_STACK_SIZE);
-	}
+	if (thread)
+		memzero(thread, THREAD_SIZE);
 #endif
 	return thread;
 }
@@ -297,7 +294,7 @@ void free_thread_info(struct thread_info *thread)
 		thread_info_head = p;
 		nr_thread_info += 1;
 	} else
-		ll_free_task_struct(thread);
+		free_pages((unsigned long)thread, THREAD_SIZE_ORDER);
 }
 
 /*
@@ -350,7 +347,7 @@ copy_thread(int nr, unsigned long clone_flags, unsigned long stack_start,
 	struct thread_info *thread = p->thread_info;
 	struct pt_regs *childregs;
 
-	childregs = ((struct pt_regs *)((unsigned long)thread + THREAD_SIZE - 8)) - 1;
+	childregs = ((struct pt_regs *)((unsigned long)thread + THREAD_START_SP)) - 1;
 	*childregs = *regs;
 	childregs->ARM_r0 = 0;
 	childregs->ARM_sp = stack_start;
@@ -447,15 +444,17 @@ EXPORT_SYMBOL(kernel_thread);
 unsigned long get_wchan(struct task_struct *p)
 {
 	unsigned long fp, lr;
-	unsigned long stack_page;
+	unsigned long stack_start, stack_end;
 	int count = 0;
 	if (!p || p == current || p->state == TASK_RUNNING)
 		return 0;
 
-	stack_page = 4096 + (unsigned long)p->thread_info;
+	stack_start = (unsigned long)(p->thread_info + 1);
+	stack_end = ((unsigned long)p->thread_info) + THREAD_SIZE;
+
 	fp = thread_saved_fp(p);
 	do {
-		if (fp < stack_page || fp > 4092+stack_page)
+		if (fp < stack_start || fp > stack_end)
 			return 0;
 		lr = pc_pointer (((unsigned long *)fp)[-1]);
 		if (!in_sched_functions(lr))

@@ -3,6 +3,7 @@
   Linux Driver for Mylex DAC960/AcceleRAID/eXtremeRAID PCI RAID Controllers
 
   Copyright 1998-2001 by Leonard N. Zubkoff <lnz@dandelion.com>
+  Portions Copyright 2002 by Mylex (An IBM Business Unit)
 
   This program is free software; you may redistribute and/or modify it under
   the terms of the GNU General Public License Version 2 as published by the
@@ -532,6 +533,34 @@ static void DAC960_WaitForCommand(DAC960_Controller_T *Controller)
   spin_lock_irq(&Controller->queue_lock);
 }
 
+/*
+  DAC960_GEM_QueueCommand queues Command for DAC960 GEM Series Controllers.
+*/
+
+static void DAC960_GEM_QueueCommand(DAC960_Command_T *Command)
+{
+  DAC960_Controller_T *Controller = Command->Controller;
+  void __iomem *ControllerBaseAddress = Controller->BaseAddress;
+  DAC960_V2_CommandMailbox_T *CommandMailbox = &Command->V2.CommandMailbox;
+  DAC960_V2_CommandMailbox_T *NextCommandMailbox =
+      Controller->V2.NextCommandMailbox;
+
+  CommandMailbox->Common.CommandIdentifier = Command->CommandIdentifier;
+  DAC960_GEM_WriteCommandMailbox(NextCommandMailbox, CommandMailbox);
+
+  if (Controller->V2.PreviousCommandMailbox1->Words[0] == 0 ||
+      Controller->V2.PreviousCommandMailbox2->Words[0] == 0)
+      DAC960_GEM_MemoryMailboxNewCommand(ControllerBaseAddress);
+
+  Controller->V2.PreviousCommandMailbox2 =
+      Controller->V2.PreviousCommandMailbox1;
+  Controller->V2.PreviousCommandMailbox1 = NextCommandMailbox;
+
+  if (++NextCommandMailbox > Controller->V2.LastCommandMailbox)
+      NextCommandMailbox = Controller->V2.FirstCommandMailbox;
+
+  Controller->V2.NextCommandMailbox = NextCommandMailbox;
+}
 
 /*
   DAC960_BA_QueueCommand queues Command for DAC960 BA Series Controllers.
@@ -1464,6 +1493,17 @@ static boolean DAC960_V2_EnableMemoryMailboxInterface(DAC960_Controller_T
     					Controller->V2.FirstStatusMailboxDMA;
   switch (Controller->HardwareType)
     {
+    case DAC960_GEM_Controller:
+      while (DAC960_GEM_HardwareMailboxFullP(ControllerBaseAddress))
+	udelay(1);
+      DAC960_GEM_WriteHardwareMailbox(ControllerBaseAddress, CommandMailboxDMA);
+      DAC960_GEM_HardwareMailboxNewCommand(ControllerBaseAddress);
+      while (!DAC960_GEM_HardwareMailboxStatusAvailableP(ControllerBaseAddress))
+	udelay(1);
+      CommandStatus = DAC960_GEM_ReadCommandStatus(ControllerBaseAddress);
+      DAC960_GEM_AcknowledgeHardwareMailboxInterrupt(ControllerBaseAddress);
+      DAC960_GEM_AcknowledgeHardwareMailboxStatus(ControllerBaseAddress);
+      break;
     case DAC960_BA_Controller:
       while (DAC960_BA_HardwareMailboxFullP(ControllerBaseAddress))
 	udelay(1);
@@ -2627,6 +2667,9 @@ static void DAC960_DetectCleanup(DAC960_Controller_T *Controller)
   if (Controller->MemoryMappedAddress) {
   	switch(Controller->HardwareType)
   	{
+		case DAC960_GEM_Controller:
+			DAC960_GEM_DisableInterrupts(Controller->BaseAddress);
+			break;
 		case DAC960_BA_Controller:
 			DAC960_BA_DisableInterrupts(Controller->BaseAddress);
 			break;
@@ -2705,6 +2748,9 @@ DAC960_DetectController(struct pci_dev *PCI_Device,
 
   switch (Controller->HardwareType)
   {
+	case DAC960_GEM_Controller:
+	  Controller->PCI_Address = pci_resource_start(PCI_Device, 0);
+	  break;
 	case DAC960_BA_Controller:
 	  Controller->PCI_Address = pci_resource_start(PCI_Device, 0);
 	  break;
@@ -2756,6 +2802,36 @@ DAC960_DetectController(struct pci_dev *PCI_Device,
   BaseAddress = Controller->BaseAddress;
   switch (Controller->HardwareType)
   {
+	case DAC960_GEM_Controller:
+	  DAC960_GEM_DisableInterrupts(BaseAddress);
+	  DAC960_GEM_AcknowledgeHardwareMailboxStatus(BaseAddress);
+	  udelay(1000);
+	  while (DAC960_GEM_InitializationInProgressP(BaseAddress))
+	    {
+	      if (DAC960_GEM_ReadErrorStatus(BaseAddress, &ErrorStatus,
+					    &Parameter0, &Parameter1) &&
+		  DAC960_ReportErrorStatus(Controller, ErrorStatus,
+					   Parameter0, Parameter1))
+		goto Failure;
+	      udelay(10);
+	    }
+	  if (!DAC960_V2_EnableMemoryMailboxInterface(Controller))
+	    {
+	      DAC960_Error("Unable to Enable Memory Mailbox Interface "
+			   "for Controller at\n", Controller);
+	      goto Failure;
+	    }
+	  DAC960_GEM_EnableInterrupts(BaseAddress);
+	  Controller->QueueCommand = DAC960_GEM_QueueCommand;
+	  Controller->ReadControllerConfiguration =
+	    DAC960_V2_ReadControllerConfiguration;
+	  Controller->ReadDeviceConfiguration =
+	    DAC960_V2_ReadDeviceConfiguration;
+	  Controller->ReportDeviceConfiguration =
+	    DAC960_V2_ReportDeviceConfiguration;
+	  Controller->QueueReadWriteCommand =
+	    DAC960_V2_QueueReadWriteCommand;
+	  break;
 	case DAC960_BA_Controller:
 	  DAC960_BA_DisableInterrupts(BaseAddress);
 	  DAC960_BA_AcknowledgeHardwareMailboxStatus(BaseAddress);
@@ -5189,6 +5265,47 @@ static void DAC960_V2_ProcessCompletedCommand(DAC960_Command_T *Command)
   wake_up(&Controller->CommandWaitQueue);
 }
 
+/*
+  DAC960_GEM_InterruptHandler handles hardware interrupts from DAC960 GEM Series
+  Controllers.
+*/
+
+static irqreturn_t DAC960_GEM_InterruptHandler(int IRQ_Channel,
+				       void *DeviceIdentifier,
+				       struct pt_regs *InterruptRegisters)
+{
+  DAC960_Controller_T *Controller = (DAC960_Controller_T *) DeviceIdentifier;
+  void __iomem *ControllerBaseAddress = Controller->BaseAddress;
+  DAC960_V2_StatusMailbox_T *NextStatusMailbox;
+  unsigned long flags;
+
+  spin_lock_irqsave(&Controller->queue_lock, flags);
+  DAC960_GEM_AcknowledgeInterrupt(ControllerBaseAddress);
+  NextStatusMailbox = Controller->V2.NextStatusMailbox;
+  while (NextStatusMailbox->Fields.CommandIdentifier > 0)
+    {
+       DAC960_V2_CommandIdentifier_T CommandIdentifier =
+           NextStatusMailbox->Fields.CommandIdentifier;
+       DAC960_Command_T *Command = Controller->Commands[CommandIdentifier-1];
+       Command->V2.CommandStatus = NextStatusMailbox->Fields.CommandStatus;
+       Command->V2.RequestSenseLength =
+           NextStatusMailbox->Fields.RequestSenseLength;
+       Command->V2.DataTransferResidue =
+           NextStatusMailbox->Fields.DataTransferResidue;
+       NextStatusMailbox->Words[0] = 0;
+       if (++NextStatusMailbox > Controller->V2.LastStatusMailbox)
+           NextStatusMailbox = Controller->V2.FirstStatusMailbox;
+       DAC960_V2_ProcessCompletedCommand(Command);
+    }
+  Controller->V2.NextStatusMailbox = NextStatusMailbox;
+  /*
+    Attempt to remove additional I/O Requests from the Controller's
+    I/O Request Queue and queue them to the Controller.
+  */
+  DAC960_ProcessRequest(Controller);
+  spin_unlock_irqrestore(&Controller->queue_lock, flags);
+  return IRQ_HANDLED;
+}
 
 /*
   DAC960_BA_InterruptHandler handles hardware interrupts from DAC960 BA Series
@@ -6962,6 +7079,14 @@ static void DAC960_gam_cleanup(void)
 
 #endif /* DAC960_GAM_MINOR */
 
+static struct DAC960_privdata DAC960_GEM_privdata = {
+	.HardwareType =		DAC960_GEM_Controller,
+	.FirmwareType 	=	DAC960_V2_Controller,
+	.InterruptHandler =	DAC960_GEM_InterruptHandler,
+	.MemoryWindowSize =	DAC960_GEM_RegisterWindowSize,
+};
+
+
 static struct DAC960_privdata DAC960_BA_privdata = {
 	.HardwareType =		DAC960_BA_Controller,
 	.FirmwareType 	=	DAC960_V2_Controller,
@@ -7005,6 +7130,13 @@ static struct DAC960_privdata DAC960_P_privdata = {
 };
 
 static struct pci_device_id DAC960_id_table[] = {
+	{
+		.vendor 	= PCI_VENDOR_ID_MYLEX,
+		.device		= PCI_DEVICE_ID_MYLEX_DAC960_GEM,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (unsigned long) &DAC960_GEM_privdata,
+	},
 	{
 		.vendor 	= PCI_VENDOR_ID_MYLEX,
 		.device		= PCI_DEVICE_ID_MYLEX_DAC960_BA,

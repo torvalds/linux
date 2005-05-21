@@ -145,6 +145,7 @@ SECTIONS
   __init_end = .;
 
   . = ALIGN(4096);
+  _sextratext = .;
   __pmac_begin = .;
   .pmac.text : { *(.pmac.text) }
   .pmac.data : { *(.pmac.data) }
@@ -171,6 +172,7 @@ SECTIONS
   .openfirmware.data : { *(.openfirmware.data) }
   . = ALIGN(4096);
   __openfirmware_end = .;
+  _eextratext = .;
 
   __bss_start = .;
   .bss       :

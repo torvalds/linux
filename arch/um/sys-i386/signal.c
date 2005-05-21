@@ -47,9 +47,6 @@ static int copy_sc_from_user_skas(struct pt_regs *regs,
 	REGS_CS(regs->regs.skas.regs) = sc.cs;
 	REGS_EFLAGS(regs->regs.skas.regs) = sc.eflags;
 	REGS_SS(regs->regs.skas.regs) = sc.ss;
-	regs->regs.skas.fault_addr = sc.cr2;
-	regs->regs.skas.fault_type = FAULT_WRITE(sc.err);
-	regs->regs.skas.trap_type = sc.trapno;
 
 	err = restore_fp_registers(userspace_pid[0], fpregs);
 	if(err < 0){
@@ -62,11 +59,11 @@ static int copy_sc_from_user_skas(struct pt_regs *regs,
 }
 
 int copy_sc_to_user_skas(struct sigcontext *to, struct _fpstate *to_fp,
-			 struct pt_regs *regs, unsigned long fault_addr,
-			 int fault_type)
+                         struct pt_regs *regs)
 {
   	struct sigcontext sc;
 	unsigned long fpregs[HOST_FP_SIZE];
+	struct faultinfo * fi = &current->thread.arch.faultinfo;
 	int err;
 
 	sc.gs = REGS_GS(regs->regs.skas.regs);
@@ -86,9 +83,9 @@ int copy_sc_to_user_skas(struct sigcontext *to, struct _fpstate *to_fp,
 	sc.eflags = REGS_EFLAGS(regs->regs.skas.regs);
 	sc.esp_at_signal = regs->regs.skas.regs[UESP];
 	sc.ss = regs->regs.skas.regs[SS];
-	sc.cr2 = fault_addr;
-	sc.err = TO_SC_ERR(fault_type);
-	sc.trapno = regs->regs.skas.trap_type;
+        sc.cr2 = fi->cr2;
+        sc.err = fi->error_code;
+        sc.trapno = fi->trap_no;
 
 	err = save_fp_registers(userspace_pid[0], fpregs);
 	if(err < 0){
@@ -167,9 +164,7 @@ static int copy_sc_to_user(struct sigcontext *to, struct _fpstate *fp,
 {
 	return(CHOOSE_MODE(copy_sc_to_user_tt(to, fp, UPT_SC(&from->regs),
 					      sizeof(*fp)),
-			   copy_sc_to_user_skas(to, fp, from,
-						current->thread.cr2,
-						current->thread.err)));
+                           copy_sc_to_user_skas(to, fp, from)));
 }
 
 static int copy_ucontext_to_user(struct ucontext *uc, struct _fpstate *fp,

@@ -7,7 +7,7 @@
  *
  * Version:	@(#)Space.c	1.0.7	08/12/93
  *
- * Authors:	Ross Biro, <bir7@leland.Stanford.Edu>
+ * Authors:	Ross Biro
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *		Donald J. Becker, <becker@scyld.com>
  *

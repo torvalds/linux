@@ -1026,7 +1026,8 @@ static void kbd_rawcode(unsigned char data)
 		put_queue(vc, data);
 }
 
-void kbd_keycode(unsigned int keycode, int down, int hw_raw, struct pt_regs *regs)
+static void kbd_keycode(unsigned int keycode, int down,
+			int hw_raw, struct pt_regs *regs)
 {
 	struct vc_data *vc = vc_cons[fg_console].d;
 	unsigned short keysym, *key_map;

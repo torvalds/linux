@@ -637,9 +637,9 @@ extern unsigned long do_mremap(unsigned long addr,
  * These functions are passed a count `nr_to_scan' and a gfpmask.  They should
  * scan `nr_to_scan' objects, attempting to free them.
  *
- * The callback must the number of objects which remain in the cache.
+ * The callback must return the number of objects which remain in the cache.
  *
- * The callback will be passes nr_to_scan == 0 when the VM is querying the
+ * The callback will be passed nr_to_scan == 0 when the VM is querying the
  * cache size, so a fastpath for that case is appropriate.
  */
 typedef int (*shrinker_t)(int nr_to_scan, unsigned int gfp_mask);

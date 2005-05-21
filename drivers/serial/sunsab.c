@@ -61,6 +61,16 @@ struct uart_sunsab_port {
 	unsigned char			pvr_dtr_bit;	/* Which PVR bit is DTR */
 	unsigned char			pvr_dsr_bit;	/* Which PVR bit is DSR */
 	int				type;		/* SAB82532 version	*/
+
+	/* Setting configuration bits while the transmitter is active
+	 * can cause garbage characters to get emitted by the chip.
+	 * Therefore, we cache such writes here and do the real register
+	 * write the next time the transmitter becomes idle.
+	 */
+	unsigned int			cached_ebrg;
+	unsigned char			cached_mode;
+	unsigned char			cached_pvr;
+	unsigned char			cached_dafo;
 };
 
 /*
@@ -236,6 +246,7 @@ receive_chars(struct uart_sunsab_port *up,
 }
 
 static void sunsab_stop_tx(struct uart_port *, unsigned int);
+static void sunsab_tx_idle(struct uart_sunsab_port *);
 
 static void transmit_chars(struct uart_sunsab_port *up,
 			   union sab82532_irq_status *stat)
@@ -258,6 +269,7 @@ static void transmit_chars(struct uart_sunsab_port *up,
 		return;
 
 	set_bit(SAB82532_XPR, &up->irqflags);
+	sunsab_tx_idle(up);
 
 	if (uart_circ_empty(xmit) || uart_tx_stopped(&up->port)) {
 		up->interrupt_mask1 |= SAB82532_IMR1_XPR;
@@ -397,21 +409,21 @@ static void sunsab_set_mctrl(struct uart_port *port, unsigned int mctrl)
 	struct uart_sunsab_port *up = (struct uart_sunsab_port *) port;
 
 	if (mctrl & TIOCM_RTS) {
-		writeb(readb(&up->regs->rw.mode) & ~SAB82532_MODE_FRTS,
-		       &up->regs->rw.mode);
-		writeb(readb(&up->regs->rw.mode) | SAB82532_MODE_RTS,
-		       &up->regs->rw.mode);
+		up->cached_mode &= ~SAB82532_MODE_FRTS;
+		up->cached_mode |= SAB82532_MODE_RTS;
 	} else {
-		writeb(readb(&up->regs->rw.mode) | SAB82532_MODE_FRTS,
-		       &up->regs->rw.mode);
-		writeb(readb(&up->regs->rw.mode) | SAB82532_MODE_RTS,
-		       &up->regs->rw.mode);
+		up->cached_mode |= (SAB82532_MODE_FRTS |
+				    SAB82532_MODE_RTS);
 	}
 	if (mctrl & TIOCM_DTR) {
-		writeb(readb(&up->regs->rw.pvr) & ~(up->pvr_dtr_bit), &up->regs->rw.pvr);
+		up->cached_pvr &= ~(up->pvr_dtr_bit);
 	} else {
-		writeb(readb(&up->regs->rw.pvr) | up->pvr_dtr_bit, &up->regs->rw.pvr);
+		up->cached_pvr |= up->pvr_dtr_bit;
 	}
+
+	set_bit(SAB82532_REGS_PENDING, &up->irqflags);
+	if (test_bit(SAB82532_XPR, &up->irqflags))
+		sunsab_tx_idle(up);
 }
 
 /* port->lock is not held.  */
@@ -447,6 +459,25 @@ static void sunsab_stop_tx(struct uart_port *port, unsigned int tty_stop)
 
 	up->interrupt_mask1 |= SAB82532_IMR1_XPR;
 	writeb(up->interrupt_mask1, &up->regs->w.imr1);
+}
+
+/* port->lock held by caller.  */
+static void sunsab_tx_idle(struct uart_sunsab_port *up)
+{
+	if (test_bit(SAB82532_REGS_PENDING, &up->irqflags)) {
+		u8 tmp;
+
+		clear_bit(SAB82532_REGS_PENDING, &up->irqflags);
+		writeb(up->cached_mode, &up->regs->rw.mode);
+		writeb(up->cached_pvr, &up->regs->rw.pvr);
+		writeb(up->cached_dafo, &up->regs->w.dafo);
+
+		writeb(up->cached_ebrg & 0xff, &up->regs->w.bgr);
+		tmp = readb(&up->regs->rw.ccr2);
+		tmp &= ~0xc0;
+		tmp |= (up->cached_ebrg >> 2) & 0xc0;
+		writeb(tmp, &up->regs->rw.ccr2);
+	}
 }
 
 /* port->lock held by caller.  */
@@ -517,12 +548,16 @@ static void sunsab_break_ctl(struct uart_port *port, int break_state)
 
 	spin_lock_irqsave(&up->port.lock, flags);
 
-	val = readb(&up->regs->rw.dafo);
+	val = up->cached_dafo;
 	if (break_state)
 		val |= SAB82532_DAFO_XBRK;
 	else
 		val &= ~SAB82532_DAFO_XBRK;
-	writeb(val, &up->regs->rw.dafo);
+	up->cached_dafo = val;
+
+	set_bit(SAB82532_REGS_PENDING, &up->irqflags);
+	if (test_bit(SAB82532_XPR, &up->irqflags))
+		sunsab_tx_idle(up);
 
 	spin_unlock_irqrestore(&up->port.lock, flags);
 }
@@ -566,8 +601,9 @@ static int sunsab_startup(struct uart_port *port)
 	       SAB82532_CCR2_TOE, &up->regs->w.ccr2);
 	writeb(0, &up->regs->w.ccr3);
 	writeb(SAB82532_CCR4_MCK4 | SAB82532_CCR4_EBRG, &up->regs->w.ccr4);
-	writeb(SAB82532_MODE_RTS | SAB82532_MODE_FCTS |
-	       SAB82532_MODE_RAC, &up->regs->w.mode);
+	up->cached_mode = (SAB82532_MODE_RTS | SAB82532_MODE_FCTS |
+			   SAB82532_MODE_RAC);
+	writeb(up->cached_mode, &up->regs->w.mode);
 	writeb(SAB82532_RFC_DPS|SAB82532_RFC_RFTH_32, &up->regs->w.rfc);
 	
 	tmp = readb(&up->regs->rw.ccr0);
@@ -598,7 +634,6 @@ static void sunsab_shutdown(struct uart_port *port)
 {
 	struct uart_sunsab_port *up = (struct uart_sunsab_port *) port;
 	unsigned long flags;
-	unsigned char tmp;
 
 	spin_lock_irqsave(&up->port.lock, flags);
 
@@ -609,14 +644,13 @@ static void sunsab_shutdown(struct uart_port *port)
 	writeb(up->interrupt_mask1, &up->regs->w.imr1);
 
 	/* Disable break condition */
-	tmp = readb(&up->regs->rw.dafo);
-	tmp &= ~SAB82532_DAFO_XBRK;
-	writeb(tmp, &up->regs->rw.dafo);
+	up->cached_dafo = readb(&up->regs->rw.dafo);
+	up->cached_dafo &= ~SAB82532_DAFO_XBRK;
+	writeb(up->cached_dafo, &up->regs->rw.dafo);
 
 	/* Disable Receiver */	
-	tmp = readb(&up->regs->rw.mode);
-	tmp &= ~SAB82532_MODE_RAC;
-	writeb(tmp, &up->regs->rw.mode);
+	up->cached_mode &= ~SAB82532_MODE_RAC;
+	writeb(up->cached_mode, &up->regs->rw.mode);
 
 	/*
 	 * XXX FIXME
@@ -685,7 +719,6 @@ static void sunsab_convert_to_sab(struct uart_sunsab_port *up, unsigned int cfla
 				  unsigned int iflag, unsigned int baud,
 				  unsigned int quot)
 {
-	unsigned int ebrg;
 	unsigned char dafo;
 	int bits, n, m;
 
@@ -714,10 +747,11 @@ static void sunsab_convert_to_sab(struct uart_sunsab_port *up, unsigned int cfla
 	} else {
 		dafo |= SAB82532_DAFO_PAR_EVEN;
 	}
+	up->cached_dafo = dafo;
 
 	calc_ebrg(baud, &n, &m);
 
-	ebrg = n | (m << 6);
+	up->cached_ebrg = n | (m << 6);
 
 	up->tec_timeout = (10 * 1000000) / baud;
 	up->cec_timeout = up->tec_timeout >> 2;
@@ -770,16 +804,13 @@ static void sunsab_convert_to_sab(struct uart_sunsab_port *up, unsigned int cfla
 	uart_update_timeout(&up->port, cflag,
 			    (up->port.uartclk / (16 * quot)));
 
-	/* Now bang the new settings into the chip.  */
-	sunsab_cec_wait(up);
-	sunsab_tec_wait(up);
-	writeb(dafo, &up->regs->w.dafo);
-	writeb(ebrg & 0xff, &up->regs->w.bgr);
-	writeb((readb(&up->regs->rw.ccr2) & ~0xc0) | ((ebrg >> 2) & 0xc0),
-	       &up->regs->rw.ccr2);
-
-	writeb(readb(&up->regs->rw.mode) | SAB82532_MODE_RAC, &up->regs->rw.mode);
-
+	/* Now schedule a register update when the chip's
+	 * transmitter is idle.
+	 */
+	up->cached_mode |= SAB82532_MODE_RAC;
+	set_bit(SAB82532_REGS_PENDING, &up->irqflags);
+	if (test_bit(SAB82532_XPR, &up->irqflags))
+		sunsab_tx_idle(up);
 }
 
 /* port->lock is not held.  */
@@ -1084,11 +1115,13 @@ static void __init sunsab_init_hw(void)
 			up->pvr_dsr_bit = (1 << 3);
 			up->pvr_dtr_bit = (1 << 2);
 		}
-		writeb((1 << 1) | (1 << 2) | (1 << 4), &up->regs->w.pvr);
-		writeb(readb(&up->regs->rw.mode) | SAB82532_MODE_FRTS,
-		       &up->regs->rw.mode);
-		writeb(readb(&up->regs->rw.mode) | SAB82532_MODE_RTS,
-		       &up->regs->rw.mode);
+		up->cached_pvr = (1 << 1) | (1 << 2) | (1 << 4);
+		writeb(up->cached_pvr, &up->regs->w.pvr);
+		up->cached_mode = readb(&up->regs->rw.mode);
+		up->cached_mode |= SAB82532_MODE_FRTS;
+		writeb(up->cached_mode, &up->regs->rw.mode);
+		up->cached_mode |= SAB82532_MODE_RTS;
+		writeb(up->cached_mode, &up->regs->rw.mode);
 
 		up->tec_timeout = SAB82532_MAX_TEC_TIMEOUT;
 		up->cec_timeout = SAB82532_MAX_CEC_TIMEOUT;

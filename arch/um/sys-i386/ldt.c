@@ -25,7 +25,7 @@ int sys_modify_ldt_tt(int func, void __user *ptr, unsigned long bytecount)
 #endif
 
 #ifdef CONFIG_MODE_SKAS
-extern int userspace_pid;
+extern int userspace_pid[];
 
 #include "skas_ptrace.h"
 
@@ -56,7 +56,8 @@ int sys_modify_ldt_skas(int func, void __user *ptr, unsigned long bytecount)
 	ldt = ((struct ptrace_ldt) { .func	= func,
 				     .ptr	= buf,
 				     .bytecount = bytecount });
-	res = ptrace(PTRACE_LDT, userspace_pid, 0, (unsigned long) &ldt);
+#warning Need to look up userspace_pid by cpu
+	res = ptrace(PTRACE_LDT, userspace_pid[0], 0, (unsigned long) &ldt);
 	if(res < 0)
 		goto out;
 

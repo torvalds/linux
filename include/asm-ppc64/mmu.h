@@ -15,19 +15,10 @@
 
 #include <linux/config.h>
 #include <asm/page.h>
-#include <linux/stringify.h>
 
-#ifndef __ASSEMBLY__
-
-/* Time to allow for more things here */
-typedef unsigned long mm_context_id_t;
-typedef struct {
-	mm_context_id_t id;
-#ifdef CONFIG_HUGETLB_PAGE
-	pgd_t *huge_pgdir;
-	u16 htlb_segs; /* bitmask */
-#endif
-} mm_context_t;
+/*
+ * Segment table
+ */
 
 #define STE_ESID_V	0x80
 #define STE_ESID_KS	0x20
@@ -36,15 +27,48 @@ typedef struct {
 
 #define STE_VSID_SHIFT	12
 
-struct stab_entry {
-	unsigned long esid_data;
-	unsigned long vsid_data;
-};
+/* Location of cpu0's segment table */
+#define STAB0_PAGE	0x9
+#define STAB0_PHYS_ADDR	(STAB0_PAGE<<PAGE_SHIFT)
+#define STAB0_VIRT_ADDR	(KERNELBASE+STAB0_PHYS_ADDR)
 
-/* Hardware Page Table Entry */
+/*
+ * SLB
+ */
+
+#define SLB_NUM_BOLTED		3
+#define SLB_CACHE_ENTRIES	8
+
+/* Bits in the SLB ESID word */
+#define SLB_ESID_V		ASM_CONST(0x0000000008000000) /* valid */
+
+/* Bits in the SLB VSID word */
+#define SLB_VSID_SHIFT		12
+#define SLB_VSID_KS		ASM_CONST(0x0000000000000800)
+#define SLB_VSID_KP		ASM_CONST(0x0000000000000400)
+#define SLB_VSID_N		ASM_CONST(0x0000000000000200) /* no-execute */
+#define SLB_VSID_L		ASM_CONST(0x0000000000000100) /* largepage 16M */
+#define SLB_VSID_C		ASM_CONST(0x0000000000000080) /* class */
+
+#define SLB_VSID_KERNEL		(SLB_VSID_KP|SLB_VSID_C)
+#define SLB_VSID_USER		(SLB_VSID_KP|SLB_VSID_KS)
+
+/*
+ * Hash table
+ */
 
 #define HPTES_PER_GROUP 8
 
+/* Values for PP (assumes Ks=0, Kp=1) */
+/* pp0 will always be 0 for linux     */
+#define PP_RWXX	0	/* Supervisor read/write, User none */
+#define PP_RWRX 1	/* Supervisor read/write, User read */
+#define PP_RWRW 2	/* Supervisor read/write, User read/write */
+#define PP_RXRX 3	/* Supervisor read,       User read */
+
+#ifndef __ASSEMBLY__
+
+/* Hardware Page Table Entry */
 typedef struct {
 	unsigned long avpn:57; /* vsid | api == avpn  */
 	unsigned long :     2; /* Software use */
@@ -89,14 +113,6 @@ typedef struct {
 		Hpte_dword1_flags flags;
 	} dw1;
 } HPTE; 
-
-/* Values for PP (assumes Ks=0, Kp=1) */
-/* pp0 will always be 0 for linux     */
-#define PP_RWXX	0	/* Supervisor read/write, User none */
-#define PP_RWRX 1	/* Supervisor read/write, User read */
-#define PP_RWRW 2	/* Supervisor read/write, User read/write */
-#define PP_RXRX 3	/* Supervisor read,       User read */
-
 
 extern HPTE *		htab_address;
 extern unsigned long	htab_hash_mask;
@@ -174,31 +190,70 @@ extern int __hash_page(unsigned long ea, unsigned long access,
 
 extern void htab_finish_init(void);
 
+extern void hpte_init_native(void);
+extern void hpte_init_lpar(void);
+extern void hpte_init_iSeries(void);
+
+extern long pSeries_lpar_hpte_insert(unsigned long hpte_group,
+				     unsigned long va, unsigned long prpn,
+				     int secondary, unsigned long hpteflags,
+				     int bolted, int large);
+extern long native_hpte_insert(unsigned long hpte_group, unsigned long va,
+			       unsigned long prpn, int secondary,
+			       unsigned long hpteflags, int bolted, int large);
+
 #endif /* __ASSEMBLY__ */
 
 /*
- * Location of cpu0's segment table
+ * VSID allocation
+ *
+ * We first generate a 36-bit "proto-VSID".  For kernel addresses this
+ * is equal to the ESID, for user addresses it is:
+ *	(context << 15) | (esid & 0x7fff)
+ *
+ * The two forms are distinguishable because the top bit is 0 for user
+ * addresses, whereas the top two bits are 1 for kernel addresses.
+ * Proto-VSIDs with the top two bits equal to 0b10 are reserved for
+ * now.
+ *
+ * The proto-VSIDs are then scrambled into real VSIDs with the
+ * multiplicative hash:
+ *
+ *	VSID = (proto-VSID * VSID_MULTIPLIER) % VSID_MODULUS
+ *	where	VSID_MULTIPLIER = 268435399 = 0xFFFFFC7
+ *		VSID_MODULUS = 2^36-1 = 0xFFFFFFFFF
+ *
+ * This scramble is only well defined for proto-VSIDs below
+ * 0xFFFFFFFFF, so both proto-VSID and actual VSID 0xFFFFFFFFF are
+ * reserved.  VSID_MULTIPLIER is prime, so in particular it is
+ * co-prime to VSID_MODULUS, making this a 1:1 scrambling function.
+ * Because the modulus is 2^n-1 we can compute it efficiently without
+ * a divide or extra multiply (see below).
+ *
+ * This scheme has several advantages over older methods:
+ *
+ * 	- We have VSIDs allocated for every kernel address
+ * (i.e. everything above 0xC000000000000000), except the very top
+ * segment, which simplifies several things.
+ *
+ * 	- We allow for 15 significant bits of ESID and 20 bits of
+ * context for user addresses.  i.e. 8T (43 bits) of address space for
+ * up to 1M contexts (although the page table structure and context
+ * allocation will need changes to take advantage of this).
+ *
+ * 	- The scramble function gives robust scattering in the hash
+ * table (at least based on some initial results).  The previous
+ * method was more susceptible to pathological cases giving excessive
+ * hash collisions.
  */
-#define STAB0_PAGE	0x9
-#define STAB0_PHYS_ADDR	(STAB0_PAGE<<PAGE_SHIFT)
-#define STAB0_VIRT_ADDR	(KERNELBASE+STAB0_PHYS_ADDR)
-
-#define SLB_NUM_BOLTED		3
-#define SLB_CACHE_ENTRIES	8
-
-/* Bits in the SLB ESID word */
-#define SLB_ESID_V		0x0000000008000000	/* entry is valid */
-
-/* Bits in the SLB VSID word */
-#define SLB_VSID_SHIFT		12
-#define SLB_VSID_KS		0x0000000000000800
-#define SLB_VSID_KP		0x0000000000000400
-#define SLB_VSID_N		0x0000000000000200	/* no-execute */
-#define SLB_VSID_L		0x0000000000000100	/* largepage (4M) */
-#define SLB_VSID_C		0x0000000000000080	/* class */
-
-#define SLB_VSID_KERNEL		(SLB_VSID_KP|SLB_VSID_C)
-#define SLB_VSID_USER		(SLB_VSID_KP|SLB_VSID_KS)
+/*
+ * WARNING - If you change these you must make sure the asm
+ * implementations in slb_allocate (slb_low.S), do_stab_bolted
+ * (head.S) and ASM_VSID_SCRAMBLE (below) are changed accordingly.
+ *
+ * You'll also need to change the precomputed VSID values in head.S
+ * which are used by the iSeries firmware.
+ */
 
 #define VSID_MULTIPLIER	ASM_CONST(200730139)	/* 28-bit prime */
 #define VSID_BITS	36
@@ -238,5 +293,51 @@ extern void htab_finish_init(void);
 	addi	rx,rt,1;						\
 	srdi	rx,rx,VSID_BITS;	/* extract 2^36 bit */		\
 	add	rt,rt,rx
+
+
+#ifndef __ASSEMBLY__
+
+typedef unsigned long mm_context_id_t;
+
+typedef struct {
+	mm_context_id_t id;
+#ifdef CONFIG_HUGETLB_PAGE
+	pgd_t *huge_pgdir;
+	u16 htlb_segs; /* bitmask */
+#endif
+} mm_context_t;
+
+
+static inline unsigned long vsid_scramble(unsigned long protovsid)
+{
+#if 0
+	/* The code below is equivalent to this function for arguments
+	 * < 2^VSID_BITS, which is all this should ever be called
+	 * with.  However gcc is not clever enough to compute the
+	 * modulus (2^n-1) without a second multiply. */
+	return ((protovsid * VSID_MULTIPLIER) % VSID_MODULUS);
+#else /* 1 */
+	unsigned long x;
+
+	x = protovsid * VSID_MULTIPLIER;
+	x = (x >> VSID_BITS) + (x & VSID_MODULUS);
+	return (x + ((x+1) >> VSID_BITS)) & VSID_MODULUS;
+#endif /* 1 */
+}
+
+/* This is only valid for addresses >= KERNELBASE */
+static inline unsigned long get_kernel_vsid(unsigned long ea)
+{
+	return vsid_scramble(ea >> SID_SHIFT);
+}
+
+/* This is only valid for user addresses (which are below 2^41) */
+static inline unsigned long get_vsid(unsigned long context, unsigned long ea)
+{
+	return vsid_scramble((context << USER_ESID_BITS)
+			     | (ea >> SID_SHIFT));
+}
+
+#endif /* __ASSEMBLY */
 
 #endif /* _PPC64_MMU_H_ */

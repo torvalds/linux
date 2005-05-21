@@ -35,7 +35,6 @@
 #include <linux/version.h>
 
 /* Core SCSI definitions */
-#include "scsi.h"
 #include <scsi/scsi_host.h>
 #include "aiclib.h"
 #include "cam.h"

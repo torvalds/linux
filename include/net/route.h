@@ -7,7 +7,7 @@
  *
  * Version:	@(#)route.h	1.0.4	05/27/93
  *
- * Authors:	Ross Biro, <bir7@leland.Stanford.Edu>
+ * Authors:	Ross Biro
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  * Fixes:
  *		Alan Cox	:	Reformatted. Added ip_rt_local()

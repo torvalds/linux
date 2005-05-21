@@ -465,8 +465,10 @@ static int atkbd_event(struct input_dev *dev, unsigned int type, unsigned int co
 			if (atkbd->softrepeat) return 0;
 
 			i = j = 0;
-			while (i < 32 && period[i] < dev->rep[REP_PERIOD]) i++;
-			while (j < 4 && delay[j] < dev->rep[REP_DELAY]) j++;
+			while (i < 31 && period[i] < dev->rep[REP_PERIOD])
+				i++;
+			while (j < 3 && delay[j] < dev->rep[REP_DELAY])
+				j++;
 			dev->rep[REP_PERIOD] = period[i];
 			dev->rep[REP_DELAY] = delay[j];
 			param[0] = i | (j << 5);

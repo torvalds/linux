@@ -308,7 +308,8 @@ phase2:
 			break;
 		}
 
-		error = XFS_IOMAP_WRITE_ALLOCATE(mp, io, &imap, &nimaps);
+		error = XFS_IOMAP_WRITE_ALLOCATE(mp, io, offset, count,
+						 &imap, &nimaps);
 		break;
 	case BMAPI_UNWRITTEN:
 		lockmode = 0;
@@ -365,7 +366,7 @@ xfs_flush_space(
 int
 xfs_iomap_write_direct(
 	xfs_inode_t	*ip,
-	loff_t		offset,
+	xfs_off_t	offset,
 	size_t		count,
 	int		flags,
 	xfs_bmbt_irec_t *ret_imap,
@@ -541,7 +542,7 @@ error_out:
 int
 xfs_iomap_write_delay(
 	xfs_inode_t	*ip,
-	loff_t		offset,
+	xfs_off_t	offset,
 	size_t		count,
 	int		ioflag,
 	xfs_bmbt_irec_t *ret_imap,
@@ -746,6 +747,8 @@ write_map:
 int
 xfs_iomap_write_allocate(
 	xfs_inode_t	*ip,
+	xfs_off_t	offset,
+	size_t		count,
 	xfs_bmbt_irec_t *map,
 	int		*retmap)
 {
@@ -770,9 +773,9 @@ xfs_iomap_write_allocate(
 	if ((error = XFS_QM_DQATTACH(mp, ip, 0)))
 		return XFS_ERROR(error);
 
-	offset_fsb = map->br_startoff;
+	offset_fsb = XFS_B_TO_FSBT(mp, offset);
 	count_fsb = map->br_blockcount;
-	map_start_fsb = offset_fsb;
+	map_start_fsb = map->br_startoff;
 
 	XFS_STATS_ADD(xs_xstrat_bytes, XFS_FSB_TO_B(mp, count_fsb));
 
@@ -868,9 +871,9 @@ xfs_iomap_write_allocate(
 					imap[i].br_startoff,
 				        imap[i].br_blockcount,imap[i].br_state);
                         }
-			if ((map->br_startoff >= imap[i].br_startoff) &&
-			    (map->br_startoff < (imap[i].br_startoff +
-						 imap[i].br_blockcount))) {
+			if ((offset_fsb >= imap[i].br_startoff) &&
+			    (offset_fsb < (imap[i].br_startoff +
+					   imap[i].br_blockcount))) {
 				*map = imap[i];
 				*retmap = 1;
 				XFS_STATS_INC(xs_xstrat_quick);
@@ -883,9 +886,8 @@ xfs_iomap_write_allocate(
 		 * file, just surrounding data, try again.
 		 */
 		nimaps--;
-		offset_fsb = imap[nimaps].br_startoff +
-			     imap[nimaps].br_blockcount;
-		map_start_fsb = offset_fsb;
+		map_start_fsb = imap[nimaps].br_startoff +
+				imap[nimaps].br_blockcount;
 	}
 
 trans_cancel:
@@ -899,7 +901,7 @@ error0:
 int
 xfs_iomap_write_unwritten(
 	xfs_inode_t	*ip,
-	loff_t		offset,
+	xfs_off_t	offset,
 	size_t		count)
 {
 	xfs_mount_t	*mp = ip->i_mount;

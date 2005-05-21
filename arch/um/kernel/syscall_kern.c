@@ -17,7 +17,6 @@
 #include "linux/utime.h"
 #include "asm/mman.h"
 #include "asm/uaccess.h"
-#include "asm/ipc.h"
 #include "kern_util.h"
 #include "user_util.h"
 #include "sysdep/syscalls.h"

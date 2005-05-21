@@ -453,7 +453,7 @@ static void frontend_init(struct budget_patch* budget)
 		       budget->dev->pci->subsystem_vendor,
 		       budget->dev->pci->subsystem_device);
 	} else {
-		if (dvb_register_frontend(budget->dvb_adapter, budget->dvb_frontend)) {
+		if (dvb_register_frontend(&budget->dvb_adapter, budget->dvb_frontend)) {
 			printk("budget-av: Frontend registration failed!\n");
 			if (budget->dvb_frontend->ops->release)
 				budget->dvb_frontend->ops->release(budget->dvb_frontend);
@@ -702,7 +702,7 @@ static int budget_patch_attach (struct saa7146_dev* dev, struct saa7146_pci_exte
 
         dev->ext_priv = budget;
 
-	budget->dvb_adapter->priv = budget;
+	budget->dvb_adapter.priv = budget;
 	frontend_init(budget);
 
         return 0;

@@ -1,0 +1,205 @@
+This README escorted the skystar2-driver rewriting procedure. It describes the
+state of the new flexcop-driver set and some internals are written down here
+too.
+
+This document hopefully describes things about the flexcop and its
+device-offsprings. Goal was to write an easy-to-write and easy-to-read set of
+drivers based on the skystar2.c and other information.
+
+Remark: flexcop-pci.c was a copy of skystar2.c, but every line has been
+touched and rewritten.
+
+History & News
+==============
+  2005-04-01 - correct USB ISOC transfers (thanks to Vadim Catana)
+
+
+
+
+General coding processing
+=========================
+
+We should proceed as follows (as long as no one complains):
+
+0) Think before start writing code!
+
+1) rewriting the skystar2.c with the help of the flexcop register descriptions
+and splitting up the files to a pci-bus-part and a flexcop-part.
+The new driver will be called b2c2-flexcop-pci.ko/b2c2-flexcop-usb.ko for the
+device-specific part and b2c2-flexcop.ko for the common flexcop-functions.
+
+2) Search for errors in the leftover of flexcop-pci.c (compare with pluto2.c
+and other pci drivers)
+
+3) make some beautification (see 'Improvements when rewriting (refactoring) is
+done')
+
+4) Testing the new driver and maybe substitute the skystar2.c with it, to reach
+a wider tester audience.
+
+5) creating an usb-bus-part using the already written flexcop code for the pci
+card.
+
+Idea: create a kernel-object for the flexcop and export all important
+functions. This option saves kernel-memory, but maybe a lot of functions have
+to be exported to kernel namespace.
+
+
+Current situation
+=================
+
+0) Done :)
+1) Done (some minor issues left)
+2) Done
+3) Not ready yet, more information is necessary
+4) next to be done (see the table below)
+5) USB driver is working (yes, there are some minor issues)
+
+What seems to be ready?
+-----------------------
+
+1) Rewriting
+1a) i2c is cut off from the flexcop-pci.c and seems to work
+1b) moved tuner and demod stuff from flexcop-pci.c to flexcop-tuner-fe.c
+1c) moved lnb and diseqc stuff from flexcop-pci.c to flexcop-tuner-fe.c
+1e) eeprom (reading MAC address)
+1d) sram (no dynamic sll size detection (commented out) (using default as JJ told me))
+1f) misc. register accesses for reading parameters (e.g. resetting, revision)
+1g) pid/mac filter (flexcop-hw-filter.c)
+1i) dvb-stuff initialization in flexcop.c (done)
+1h) dma stuff (now just using the size-irq, instead of all-together, to be done)
+1j) remove flexcop initialization from flexcop-pci.c completely (done)
+1l) use a well working dma IRQ method (done, see 'Known bugs and problems and TODO')
+1k) cleanup flexcop-files (remove unused EXPORT_SYMBOLs, make static from
+non-static where possible, moved code to proper places)
+
+2) Search for errors in the leftover of flexcop-pci.c (partially done)
+5a) add MAC address reading
+5c) feeding of ISOC data to the software demux (format of the isochronous data
+and speed optimization, no real error) (thanks to Vadim Catana)
+
+What to do in the near future?
+--------------------------------------
+(no special order here)
+
+5) USB driver
+5b) optimize isoc-transfer (submitting/killing isoc URBs when transfer is starting)
+
+Testing changes
+---------------
+
+O             = item is working
+P             = item is partially working
+X             = item is not working
+N             = item does not apply here
+<empty field> = item need to be examined
+
+       | PCI                               | USB
+item   | mt352 | nxt2002 | stv0299 | mt312 | mt352 | nxt2002 | stv0299 | mt312
+-------+-------+---------+---------+-------+-------+---------+---------+-------
+1a)    | O     |         |         |       | N     | N       | N       | N
+1b)    | O     |         |         |       |       |         | O       |
+1c)    | N     | N       |         |       | N     | N       | O       |
+1d)    |                 O                 |                 O
+1e)    |                 O                 |                 O
+1f)    |                                   P
+1g)    |                                   O
+1h)    |                 P                 |
+1i)    |                 O                 |                 N
+1j)    |                 O                 |                 N
+1l)    |                 O                 |                 N
+2)     |                 O                 |                 N
+5a)    |                 N                 |                 O
+5b)*   |                 N                 |
+5c)    |                 N                 |                 O
+
+* - not done yet
+
+Known bugs and problems and TODO
+--------------------------------
+
+1g/h/l) when pid filtering is enabled on the pci card
+
+DMA usage currently:
+  The DMA is splitted in 2 equal-sized subbuffers. The Flexcop writes to first
+  address and triggers an IRQ when it's full and starts writing to the second
+  address. When the second address is full, the IRQ is triggered again, and
+  the flexcop writes to first address again, and so on.
+  The buffersize of each address is currently 640*188 bytes.
+
+  Problem is, when using hw-pid-filtering and doing some low-bandwidth
+  operation (like scanning) the buffers won't be filled enough to trigger
+  the IRQ. That's why:
+
+  When PID filtering is activated, the timer IRQ is used. Every 1.97 ms the IRQ
+  is triggered.  Is the current write address of DMA1 different to the one
+  during the last IRQ, then the data is passed to the demuxer.
+
+  There is an additional DMA-IRQ-method: packet count IRQ. This isn't
+  implemented correctly yet.
+
+  The solution is to disable HW PID filtering, but I don't know how the DVB
+  API software demux behaves on slow systems with 45MBit/s TS.
+
+Solved bugs :)
+--------------
+1g) pid-filtering (somehow pid index 4 and 5 (EMM_PID and ECM_PID) aren't
+working)
+SOLUTION: also index 0 was affected, because net_translation is done for
+these indexes by default
+
+5b) isochronous transfer does only work in the first attempt (for the Sky2PC
+USB, Air2PC is working) SOLUTION: the flexcop was going asleep and never really
+woke up again (don't know if this need fixes, see
+flexcop-fe-tuner.c:flexcop_sleep)
+
+NEWS: when the driver is loaded and unloaded and loaded again (w/o doing
+anything in the while the driver is loaded the first time), no transfers take
+place anymore.
+
+Improvements when rewriting (refactoring) is done
+=================================================
+
+- split sleeping of the flexcop (misc_204.ACPI3_sig = 1;) from lnb_control
+  (enable sleeping for other demods than dvb-s)
+- add support for CableStar (stv0297 Microtune 203x/ALPS) (almost done, incompatibilities with the Nexus-CA)
+
+Debugging
+---------
+- add verbose debugging to skystar2.c (dump the reg_dw_data) and compare it
+  with this flexcop, this is important, because i2c is now using the
+  flexcop_ibi_value union from flexcop-reg.h (do you have a better idea for
+  that, please tell us so).
+
+Everything which is identical in the following table, can be put into a common
+flexcop-module.
+
+                  PCI                  USB
+-------------------------------------------------------------------------------
+Different:
+Register access:  accessing IO memory  USB control message
+I2C bus:          I2C bus of the FC    USB control message
+Data transfer:    DMA                  isochronous transfer
+EEPROM transfer:  through i2c bus      not clear yet
+
+Identical:
+Streaming:                 accessing registers
+PID Filtering:             accessing registers
+Sram destinations:         accessing registers
+Tuner/Demod:                     I2C bus
+DVB-stuff:            can be written for common use
+
+Acknowledgements (just for the rewriting part)
+================
+
+Bjarne Steinsbo thought a lot in the first place of the pci part for this code
+sharing idea.
+
+Andreas Oberritter for providing a recent PCI initialization template
+(pluto2.c).
+
+Boleslaw Ciesielski for pointing out a problem with firmware loader.
+
+Vadim Catana for correcting the USB transfer.
+
+comments, critics and ideas to linux-dvb@linuxtv.org.

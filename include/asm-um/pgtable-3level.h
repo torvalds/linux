@@ -149,7 +149,7 @@ static inline pmd_t pfn_pmd(pfn_t page_nr, pgprot_t pgprot)
 
 #define pte_to_pgoff(p) ((p).pte >> 32)
 
-#define pgoff_to_pte(off) ((pte_t) { ((off) < 32) | _PAGE_FILE })
+#define pgoff_to_pte(off) ((pte_t) { ((off) << 32) | _PAGE_FILE })
 
 #else
 

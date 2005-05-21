@@ -178,10 +178,9 @@ Released 1994-06-13
 	7. ACKNOWLEDGMENTS.
 
 	These drivers wouldn't have been done without the base
-	(and support) from Ross Biro <bir7@leland.stanford.edu>,
-	and D-Link Systems Inc.  The driver relies upon GPL-ed
-	source from D-Link Systems Inc. and from Russel Nelson at
-	Crynwr Software <nelson@crynwr.com>.
+	(and support) from Ross Biro, and D-Link Systems Inc.
+	The driver relies upon GPL-ed source from D-Link Systems Inc.
+	and from Russel Nelson at Crynwr Software <nelson@crynwr.com>.
 
 	Additional input also from:
 	Donald Becker <becker@super.org>, Alan Cox <A.Cox@swansea.ac.uk>

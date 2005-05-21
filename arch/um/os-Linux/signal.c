@@ -8,7 +8,7 @@
 #include "mode.h"
 #include "sysdep/signal.h"
 
-void sig_handler(int sig)
+void sig_handler(ARCH_SIGHDLR_PARAM)
 {
 	struct sigcontext *sc;
 
@@ -19,7 +19,7 @@ void sig_handler(int sig)
 
 extern int timer_irq_inited;
 
-void alarm_handler(int sig)
+void alarm_handler(ARCH_SIGHDLR_PARAM)
 {
 	struct sigcontext *sc;
 

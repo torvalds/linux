@@ -48,7 +48,7 @@ static int prepare_tx(struct net_device *dev, struct archdr *pkt, int length,
 static int ack_tx(struct net_device *dev, int acked);
 
 
-struct ArcProto capmode_proto =
+static struct ArcProto capmode_proto =
 {
 	'r',
 	XMTU,
