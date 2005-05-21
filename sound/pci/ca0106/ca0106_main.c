@@ -1114,7 +1114,7 @@ static int __devinit snd_ca0106_create(snd_card_t *card,
 	//snd_ca0106_ptr_write(chip, SPDIF_SELECT2, 0, 0xf0f003f); /* OSS drivers set this. */
 	/* Analog or Digital output */
 	snd_ca0106_ptr_write(chip, SPDIF_SELECT1, 0, 0xf);
-	snd_ca0106_ptr_write(chip, SPDIF_SELECT2, 0, 0x000b0000); /* 0x0b000000 for digital, 0x000b0000 for analog, from win2000 drivers */
+	snd_ca0106_ptr_write(chip, SPDIF_SELECT2, 0, 0x000f0000); /* 0x0b000000 for digital, 0x000b0000 for analog, from win2000 drivers. Use 0x000f0000 for surround71 */
 	chip->spdif_enable = 0; /* Set digital SPDIF output off */
 	chip->capture_source = 3; /* Set CAPTURE_SOURCE */
 	//snd_ca0106_ptr_write(chip, 0x45, 0, 0); /* Analogue out */
@@ -1145,7 +1145,7 @@ static int __devinit snd_ca0106_create(snd_card_t *card,
 		/* FIXME: Still need to find out what the other GPIO bits do. E.g. For digital spdif out. */
 		outl(0x0, chip->port+GPIO);
 		//outl(0x00f0e000, chip->port+GPIO); /* Analog */
-		outl(0x005f4300, chip->port+GPIO); /* Analog */
+		outl(0x005f4301, chip->port+GPIO); /* Analog */
 	} else {
 		outl(0x0, chip->port+GPIO);
 		outl(0x005f03a3, chip->port+GPIO); /* Analog */
