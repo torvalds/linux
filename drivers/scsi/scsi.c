@@ -113,6 +113,7 @@ const char *const scsi_device_types[MAX_SCSI_DEVICE_CODE] = {
 	"Unknown          ",
 	"RAID             ",
 	"Enclosure        ",
+	"Direct-Access-RBC",
 };
 EXPORT_SYMBOL(scsi_device_types);
 
