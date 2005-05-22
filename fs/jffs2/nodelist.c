@@ -489,13 +489,13 @@ struct jffs2_inode_cache *jffs2_get_ino_cache(struct jffs2_sb_info *c, uint32_t 
 void jffs2_add_ino_cache (struct jffs2_sb_info *c, struct jffs2_inode_cache *new)
 {
 	struct jffs2_inode_cache **prev;
-	D2(printk(KERN_DEBUG "jffs2_add_ino_cache: Add %p (ino #%u)\n", new, new->ino));
+
 	spin_lock(&c->inocache_lock);
- 	if (!new->ino)
- 		new->ino = ++c->highest_ino;
- 
- 	D2(printk(KERN_DEBUG "jffs2_add_ino_cache: Add %p (ino #%u)\n", new, new->ino));
-	
+	if (!new->ino)
+		new->ino = ++c->highest_ino;
+
+	D2(printk(KERN_DEBUG "jffs2_add_ino_cache: Add %p (ino #%u)\n", new, new->ino));
+
 	prev = &c->inocache_list[new->ino % INOCACHE_HASHSIZE];
 
 	while ((*prev) && (*prev)->ino < new->ino) {
