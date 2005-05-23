@@ -650,7 +650,8 @@ static void audit_log_task_info(struct audit_buffer *ab)
 	struct vm_area_struct *vma;
 
 	get_task_comm(name, current);
-	audit_log_format(ab, " comm=%s", name);
+	audit_log_format(ab, " comm=");
+	audit_log_untrustedstring(ab, name);
 
 	if (!mm)
 		return;
