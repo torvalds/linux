@@ -73,7 +73,6 @@ int mcast_setup(char *str, char **mac_out, void *data)
 	struct mcast_init *init = data;
 	char *port_str = NULL, *ttl_str = NULL, *remain;
 	char *last;
-	int n;
 
 	*init = ((struct mcast_init)
 		{ .addr 	= "239.192.168.1",
@@ -89,13 +88,12 @@ int mcast_setup(char *str, char **mac_out, void *data)
 	}
 	
 	if(port_str != NULL){
-		n = simple_strtoul(port_str, &last, 10);
+		init->port = simple_strtoul(port_str, &last, 10);
 		if((*last != '\0') || (last == port_str)){
 			printk(KERN_ERR "mcast_setup - Bad port : '%s'\n", 
 			       port_str);
 			return(0);
 		}
-		init->port = htons(n);
 	}
 
 	if(ttl_str != NULL){

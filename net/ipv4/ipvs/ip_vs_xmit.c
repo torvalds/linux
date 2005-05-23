@@ -508,7 +508,6 @@ ip_vs_icmp_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 			rc = NF_ACCEPT;
 		/* do not touch skb anymore */
 		atomic_inc(&cp->in_pkts);
-		__ip_vs_conn_put(cp);
 		goto out;
 	}
 

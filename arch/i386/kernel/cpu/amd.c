@@ -195,7 +195,7 @@ static void __init init_amd(struct cpuinfo_x86 *c)
 			c->x86_num_cores = 1;
 	}
 
-#ifdef CONFIG_X86_SMP
+#ifdef CONFIG_X86_HT
 	/*
 	 * On a AMD dual core setup the lower bits of the APIC id
 	 * distingush the cores.  Assumes number of cores is a power
@@ -203,8 +203,11 @@ static void __init init_amd(struct cpuinfo_x86 *c)
 	 */
 	if (c->x86_num_cores > 1) {
 		int cpu = smp_processor_id();
-		/* Fix up the APIC ID following AMD specifications. */
-		cpu_core_id[cpu] >>= hweight32(c->x86_num_cores - 1);
+		unsigned bits = 0;
+		while ((1 << bits) < c->x86_num_cores)
+			bits++;
+		cpu_core_id[cpu] = phys_proc_id[cpu] & ((1<<bits)-1);
+		phys_proc_id[cpu] >>= bits;
 		printk(KERN_INFO "CPU %d(%d) -> Core %d\n",
 		       cpu, c->x86_num_cores, cpu_core_id[cpu]);
 	}

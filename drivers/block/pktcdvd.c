@@ -2021,7 +2021,13 @@ static int pkt_open(struct inode *inode, struct file *file)
 	BUG_ON(pd->refcnt < 0);
 
 	pd->refcnt++;
-	if (pd->refcnt == 1) {
+	if (pd->refcnt > 1) {
+		if ((file->f_mode & FMODE_WRITE) &&
+		    !test_bit(PACKET_WRITABLE, &pd->flags)) {
+			ret = -EBUSY;
+			goto out_dec;
+		}
+	} else {
 		if (pkt_open_dev(pd, file->f_mode & FMODE_WRITE)) {
 			ret = -EIO;
 			goto out_dec;
