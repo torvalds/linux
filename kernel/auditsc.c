@@ -307,7 +307,7 @@ int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
 		if (!err && (flags & AUDIT_AT_EXIT))
 			err = audit_add_rule(entry, &audit_extlist);
 		audit_log(NULL, AUDIT_CONFIG_CHANGE, 
-				"auid %u added an audit rule\n", loginuid);
+				"auid=%u added an audit rule\n", loginuid);
 		break;
 	case AUDIT_DEL:
 		flags =((struct audit_rule *)data)->flags;
@@ -318,7 +318,7 @@ int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
 		if (!err && (flags & AUDIT_AT_EXIT))
 			err = audit_del_rule(data, &audit_extlist);
 		audit_log(NULL, AUDIT_CONFIG_CHANGE,
-				"auid %u removed an audit rule\n", loginuid);
+				"auid=%u removed an audit rule\n", loginuid);
 		break;
 	default:
 		return -EINVAL;
@@ -678,10 +678,10 @@ static void audit_log_exit(struct audit_context *context)
 	ab = audit_log_start(context, AUDIT_SYSCALL);
 	if (!ab)
 		return;		/* audit_panic has been called */
-	audit_log_format(ab, "syscall=%d", context->major);
+	audit_log_format(ab, "arch=%x syscall=%d",
+			 context->arch, context->major);
 	if (context->personality != PER_LINUX)
 		audit_log_format(ab, " per=%lx", context->personality);
-	audit_log_format(ab, " arch=%x", context->arch);
 	if (context->return_valid)
 		audit_log_format(ab, " success=%s exit=%ld", 
 				 (context->return_valid==AUDITSC_SUCCESS)?"yes":"no",

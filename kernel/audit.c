@@ -234,7 +234,7 @@ static int audit_set_rate_limit(int limit, uid_t loginuid)
 	int old		 = audit_rate_limit;
 	audit_rate_limit = limit;
 	audit_log(NULL, AUDIT_CONFIG_CHANGE, 
-			"audit_rate_limit=%d old=%d by auid %u",
+			"audit_rate_limit=%d old=%d by auid=%u",
 			audit_rate_limit, old, loginuid);
 	return old;
 }
@@ -244,7 +244,7 @@ static int audit_set_backlog_limit(int limit, uid_t loginuid)
 	int old		 = audit_backlog_limit;
 	audit_backlog_limit = limit;
 	audit_log(NULL, AUDIT_CONFIG_CHANGE,
-			"audit_backlog_limit=%d old=%d by auid %u",
+			"audit_backlog_limit=%d old=%d by auid=%u",
 			audit_backlog_limit, old, loginuid);
 	return old;
 }
@@ -256,7 +256,7 @@ static int audit_set_enabled(int state, uid_t loginuid)
 		return -EINVAL;
 	audit_enabled = state;
 	audit_log(NULL, AUDIT_CONFIG_CHANGE,
-			"audit_enabled=%d old=%d by auid %u",
+			"audit_enabled=%d old=%d by auid=%u",
 			audit_enabled, old, loginuid);
 	return old;
 }
@@ -270,7 +270,7 @@ static int audit_set_failure(int state, uid_t loginuid)
 		return -EINVAL;
 	audit_failure = state;
 	audit_log(NULL, AUDIT_CONFIG_CHANGE,
-			"audit_failure=%d old=%d by auid %u",
+			"audit_failure=%d old=%d by auid=%u",
 			audit_failure, old, loginuid);
 	return old;
 }
@@ -424,7 +424,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 			int old   = audit_pid;
 			audit_pid = status_get->pid;
 			audit_log(NULL, AUDIT_CONFIG_CHANGE,
-				"audit_pid=%d old=%d by auid %u",
+				"audit_pid=%d old=%d by auid=%u",
 				  audit_pid, old, loginuid);
 		}
 		if (status_get->mask & AUDIT_STATUS_RATE_LIMIT)
