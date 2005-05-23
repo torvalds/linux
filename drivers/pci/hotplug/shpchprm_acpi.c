@@ -1626,7 +1626,7 @@ int shpchprm_set_hpp(
 	pci_bus->number = func->bus;
 	devfn = PCI_DEVFN(func->device, func->function);
 
-	ab = find_acpi_bridge_by_bus(acpi_bridges_head, ctrl->seg, ctrl->bus);
+	ab = find_acpi_bridge_by_bus(acpi_bridges_head, ctrl->seg, ctrl->slot_bus);
 
 	if (ab) {
 		if (ab->_hpp) {
