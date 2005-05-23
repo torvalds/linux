@@ -8996,7 +8996,7 @@ static int __devinit tg3_do_test_dma(struct tg3 *tp, u32 *buf, dma_addr_t buf_dm
 	return ret;
 }
 
-#define TEST_BUFFER_SIZE	0x400
+#define TEST_BUFFER_SIZE	0x2000
 
 static int __devinit tg3_test_dma(struct tg3 *tp)
 {
