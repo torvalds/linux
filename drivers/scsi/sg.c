@@ -2472,6 +2472,8 @@ sg_remove_request(Sg_fd * sfp, Sg_request * srp)
 	if ((!sfp) || (!srp) || (!sfp->headrp))
 		return res;
 	write_lock_irqsave(&sfp->rq_list_lock, iflags);
+	if (srp->my_cmdp)
+		srp->my_cmdp->upper_private_data = NULL;
 	prev_rp = sfp->headrp;
 	if (srp == prev_rp) {
 		sfp->headrp = prev_rp->nextrp;
