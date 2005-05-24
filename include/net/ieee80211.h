@@ -93,6 +93,8 @@ struct eapol {
 	u16 length;
 } __attribute__ ((packed));
 
+#define IEEE80211_1ADDR_LEN 10
+#define IEEE80211_2ADDR_LEN 16
 #define IEEE80211_3ADDR_LEN 24
 #define IEEE80211_4ADDR_LEN 30
 #define IEEE80211_FCS_LEN    4
@@ -299,23 +301,6 @@ struct ieee80211_snap_hdr {
 #define WLAN_REASON_STA_REQ_ASSOC_WITHOUT_AUTH 9
 
 
-/* Information Element IDs */
-#define WLAN_EID_SSID 0
-#define WLAN_EID_SUPP_RATES 1
-#define WLAN_EID_FH_PARAMS 2
-#define WLAN_EID_DS_PARAMS 3
-#define WLAN_EID_CF_PARAMS 4
-#define WLAN_EID_TIM 5
-#define WLAN_EID_IBSS_PARAMS 6
-#define WLAN_EID_CHALLENGE 16
-#define WLAN_EID_RSN 48
-#define WLAN_EID_GENERIC 221
-
-#define IEEE80211_MGMT_HDR_LEN 24
-#define IEEE80211_DATA_HDR3_LEN 24
-#define IEEE80211_DATA_HDR4_LEN 30
-
-
 #define IEEE80211_STATMASK_SIGNAL (1<<0)
 #define IEEE80211_STATMASK_RSSI (1<<1)
 #define IEEE80211_STATMASK_NOISE (1<<2)
@@ -489,15 +474,6 @@ Total: 28-2340 bytes
 
 */
 
-struct ieee80211_header_data {
-	u16 frame_ctl;
-	u16 duration_id;
-	u8 addr1[6];
-	u8 addr2[6];
-	u8 addr3[6];
-	u16 seq_ctrl;
-};
-
 #define BEACON_PROBE_SSID_ID_POSITION 12
 
 /* Management Frame Information Element Types */
@@ -542,7 +518,7 @@ struct ieee80211_info_element {
 */
 
 struct ieee80211_authentication {
-	struct ieee80211_header_data header;
+	struct ieee80211_hdr_3addr header;
 	u16 algorithm;
 	u16 transaction;
 	u16 status;
@@ -551,7 +527,7 @@ struct ieee80211_authentication {
 
 
 struct ieee80211_probe_response {
-	struct ieee80211_header_data header;
+	struct ieee80211_hdr_3addr header;
 	u32 time_stamp[2];
 	u16 beacon_interval;
 	u16 capability;
@@ -793,21 +769,21 @@ extern inline int ieee80211_is_valid_mode(struct ieee80211_device *ieee, int mod
 
 extern inline int ieee80211_get_hdrlen(u16 fc)
 {
-	int hdrlen = 24;
+	int hdrlen = IEEE80211_3ADDR_LEN;
 
 	switch (WLAN_FC_GET_TYPE(fc)) {
 	case IEEE80211_FTYPE_DATA:
 		if ((fc & IEEE80211_FCTL_FROMDS) && (fc & IEEE80211_FCTL_TODS))
-			hdrlen = 30; /* Addr4 */
+			hdrlen = IEEE80211_4ADDR_LEN;
 		break;
 	case IEEE80211_FTYPE_CTL:
 		switch (WLAN_FC_GET_STYPE(fc)) {
 		case IEEE80211_STYPE_CTS:
 		case IEEE80211_STYPE_ACK:
-			hdrlen = 10;
+			hdrlen = IEEE80211_1ADDR_LEN;
 			break;
 		default:
-			hdrlen = 16;
+			hdrlen = IEEE80211_2ADDR_LEN;
 			break;
 		}
 		break;
