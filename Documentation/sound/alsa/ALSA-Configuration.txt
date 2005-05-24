@@ -688,15 +688,19 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
                         * TerraTec EWS 88D
                         * TerraTec EWX 24/96
                         * TerraTec DMX 6Fire
+			* TerraTec Phase 88
                         * Hoontech SoundTrack DSP 24
                         * Hoontech SoundTrack DSP 24 Value
                         * Hoontech SoundTrack DSP 24 Media 7.1
+			* Event Electronics, EZ8
                         * Digigram VX442
+			* Lionstracs, Mediastaton
 
     model       - Use the given board model, one of the following:
 		  delta1010, dio2496, delta66, delta44, audiophile, delta410,
 		  delta1010lt, vx442, ewx2496, ews88mt, ews88mt_new, ews88d,
-		  dmx6fire, dsp24, dsp24_value, dsp24_71, ez8
+		  dmx6fire, dsp24, dsp24_value, dsp24_71, ez8,
+		  phase88, mediastation
     omni	- Omni I/O support for MidiMan M-Audio Delta44/66
     cs8427_timeout - reset timeout for the CS8427 chip (S/PDIF transciever)
                      in msec resolution, default value is 500 (0.5 sec)
@@ -705,19 +709,43 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     is not used with all Envy24 based cards (for example in the MidiMan Delta
     serie).
 
+    Note: The supported board is detected by reading EEPROM or PCI
+	  SSID (if EEPROM isn't available).  You can override the
+	  model by passing "model" module option in case that the
+	  driver isn't configured properly or you want to try another
+	  type for testing.
+
   Module snd-ice1724
   ------------------
 
-    Module for Envy24HT (VT/ICE1724) based PCI sound cards.
+    Module for Envy24HT (VT/ICE1724), Envy24PT (VT1720) based PCI sound cards.
 			* MidiMan M Audio Revolution 7.1
 			* AMP Ltd AUDIO2000
-			* TerraTec Aureon Sky-5.1, Space-7.1
+			* TerraTec Aureon 5.1 Sky
+			* TerraTec Aureon 7.1 Space
+			* TerraTec Aureon 7.1 Universe
+			* TerraTec Phase 22
+			* TerraTec Phase 28
+			* AudioTrak Prodigy 7.1
+			* AudioTrak Prodigy 192
+			* Pontis MS300
+			* Albatron K8X800 Pro II 
+			* Chaintech ZNF3-150
+			* Chaintech ZNF3-250
+			* Chaintech 9CJS
+			* Shuttle SN25P
 
     model       - Use the given board model, one of the following:
-		  revo71, amp2000, prodigy71, aureon51, aureon71,
-		  k8x800
+		  revo71, amp2000, prodigy71, prodigy192, aureon51,
+		  aureon71, universe, k8x800, phase22, phase28, ms300
 
     Module supports up to 8 cards and autoprobe.
+
+    Note: The supported board is detected by reading EEPROM or PCI
+	  SSID (if EEPROM isn't available).  You can override the
+	  model by passing "model" module option in case that the
+	  driver isn't configured properly or you want to try another
+	  type for testing.
 
   Module snd-intel8x0
   -------------------
