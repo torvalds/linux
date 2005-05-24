@@ -42,6 +42,11 @@ menu "Advanced Linux Sound Architecture"
 config SND
 	tristate "Advanced Linux Sound Architecture"
 	depends on SOUND
+	help
+	  Say 'Y' or 'M' to enable ALSA (Advanced Linux Sound Architecture),
+	  the new base sound system.
+
+	  For more information, see http://www.alsa-project.org/
 
 source "sound/core/Kconfig"
 
