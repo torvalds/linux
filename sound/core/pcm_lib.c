@@ -1161,10 +1161,10 @@ static void _snd_pcm_hw_param_any(snd_pcm_hw_params_t *params,
 	snd_BUG();
 }
 
+#if 0
 /**
  * snd_pcm_hw_param_any
  */
-#if 0
 int snd_pcm_hw_param_any(snd_pcm_t *pcm, snd_pcm_hw_params_t *params,
 			 snd_pcm_hw_param_t var)
 {
@@ -1184,12 +1184,12 @@ void _snd_pcm_hw_params_any(snd_pcm_hw_params_t *params)
 	params->info = ~0U;
 }
 
+#if 0
 /**
  * snd_pcm_hw_params_any
  *
  * Fill PARAMS with full configuration space boundaries
  */
-#if 0
 int snd_pcm_hw_params_any(snd_pcm_t *pcm, snd_pcm_hw_params_t *params)
 {
 	_snd_pcm_hw_params_any(params);
@@ -1301,6 +1301,7 @@ int _snd_pcm_hw_param_setinteger(snd_pcm_hw_params_t *params,
 	return changed;
 }
 	
+#if 0
 /**
  * snd_pcm_hw_param_setinteger
  *
@@ -1308,7 +1309,6 @@ int _snd_pcm_hw_param_setinteger(snd_pcm_hw_params_t *params,
  * non integer values. Reduce configuration space accordingly.
  * Return -EINVAL if the configuration space is empty
  */
-#if 0
 int snd_pcm_hw_param_setinteger(snd_pcm_t *pcm, 
 				snd_pcm_hw_params_t *params,
 				snd_pcm_hw_param_t var)
