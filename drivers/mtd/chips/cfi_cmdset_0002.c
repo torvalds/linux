@@ -13,7 +13,7 @@
  *
  * This code is GPL
  *
- * $Id: cfi_cmdset_0002.c,v 1.115 2005/05/20 03:28:23 eric Exp $
+ * $Id: cfi_cmdset_0002.c,v 1.116 2005/05/24 13:29:42 gleixner Exp $
  *
  */
 
@@ -1320,7 +1320,7 @@ static inline int do_erase_oneblock(struct map_info *map, struct flchip *chip, u
 		cfi_spin_lock(chip->mutex);
 	}
 	/* Did we succeed? */
-	if (chip_good(map, adr, map_word_ff(map))) {
+	if (!chip_good(map, adr, map_word_ff(map))) {
 		/* reset on all failures. */
 		map_write( map, CMD(0xF0), chip->start );
 		/* FIXME - should have reset delay before continuing */
