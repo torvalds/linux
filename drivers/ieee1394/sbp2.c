@@ -2151,7 +2151,6 @@ static void sbp2_check_sbp2_response(struct scsi_id_instance_data *scsi_id,
 				     struct scsi_cmnd *SCpnt)
 {
 	u8 *scsi_buf = SCpnt->request_buffer;
-	u8 device_type = SBP2_DEVICE_TYPE (scsi_id->sbp2_device_type_and_lun);
 
 	SBP2_DEBUG("sbp2_check_sbp2_response");
 
