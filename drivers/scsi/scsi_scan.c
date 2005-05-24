@@ -293,6 +293,10 @@ static void scsi_target_dev_release(struct device *dev)
 {
 	struct device *parent = dev->parent;
 	struct scsi_target *starget = to_scsi_target(dev);
+	struct Scsi_Host *shost = dev_to_shost(parent);
+
+	if (shost->hostt->target_destroy)
+		shost->hostt->target_destroy(starget);
 	kfree(starget);
 	put_device(parent);
 }
@@ -360,9 +364,23 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	list_add_tail(&starget->siblings, &shost->__targets);
 	spin_unlock_irqrestore(shost->host_lock, flags);
 	/* allocate and add */
-	transport_setup_device(&starget->dev);
-	device_add(&starget->dev);
-	transport_add_device(&starget->dev);
+	transport_setup_device(dev);
+	device_add(dev);
+	transport_add_device(dev);
+	if (shost->hostt->target_alloc) {
+		int error = shost->hostt->target_alloc(starget);
+
+		if(error) {
+			dev_printk(KERN_ERR, dev, "target allocation failed, error %d\n", error);
+			/* don't want scsi_target_reap to do the final
+			 * put because it will be under the host lock */
+			get_device(dev);
+			scsi_target_reap(starget);
+			put_device(dev);
+			return NULL;
+		}
+	}
+
 	return starget;
 
  found:
