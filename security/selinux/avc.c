@@ -575,16 +575,16 @@ void avc_audit(u32 ssid, u32 tsid,
 				struct dentry *dentry = a->u.fs.dentry;
 				if (a->u.fs.mnt)
 					audit_avc_path(dentry, a->u.fs.mnt);
-				audit_log_format(ab, " name=%s",
-						 dentry->d_name.name);
+				audit_log_format(ab, " name=");
+				audit_log_untrustedstring(ab, dentry->d_name.name);
 				inode = dentry->d_inode;
 			} else if (a->u.fs.inode) {
 				struct dentry *dentry;
 				inode = a->u.fs.inode;
 				dentry = d_find_alias(inode);
 				if (dentry) {
-					audit_log_format(ab, " name=%s",
-							 dentry->d_name.name);
+					audit_log_format(ab, " name=");
+					audit_log_untrustedstring(ab, dentry->d_name.name);
 					dput(dentry);
 				}
 			}
@@ -628,23 +628,19 @@ void avc_audit(u32 ssid, u32 tsid,
 					u = unix_sk(sk);
 					if (u->dentry) {
 						audit_avc_path(u->dentry, u->mnt);
-						audit_log_format(ab, " name=%s",
-								 u->dentry->d_name.name);
-
+						audit_log_format(ab, " name=");
+						audit_log_untrustedstring(ab, u->dentry->d_name.name);
 						break;
 					}
 					if (!u->addr)
 						break;
 					len = u->addr->len-sizeof(short);
 					p = &u->addr->name->sun_path[0];
+					audit_log_format(ab, " path=");
 					if (*p)
-						audit_log_format(ab,
-							"path=%*.*s", len,
-							len, p);
+						audit_log_untrustedstring(ab, p);
 					else
-						audit_log_format(ab,
-							"path=@%*.*s", len-1,
-							len-1, p+1);
+						audit_log_hex(ab, p, len);
 					break;
 				}
 			}
