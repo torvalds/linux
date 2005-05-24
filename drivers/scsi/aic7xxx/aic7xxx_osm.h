@@ -79,6 +79,8 @@
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_tcq.h>
+#include <scsi/scsi_transport.h>
+#include <scsi/scsi_transport_spi.h>
 
 /* Core SCSI definitions */
 #define AIC_LIB_PREFIX ahc
@@ -330,8 +332,6 @@ typedef enum {
 
 struct ahc_linux_target;
 struct ahc_linux_device {
-	TAILQ_ENTRY(ahc_linux_device) links;
-
 	/*
 	 * The number of transactions currently
 	 * queued to the device.
@@ -401,17 +401,10 @@ struct ahc_linux_device {
 	 */
 	u_int			commands_since_idle_or_otag;
 #define AHC_OTAG_THRESH	500
-
-	int			lun;
-	struct scsi_device       *scsi_device;
-	struct			ahc_linux_target *target;
 };
 
 struct ahc_linux_target {
-	struct ahc_linux_device	 *devices[AHC_NUM_LUNS];
-	int			  channel;
-	int			  target;
-	int			  refcount;
+	struct scsi_device	 *sdev[AHC_NUM_LUNS];
 	struct ahc_transinfo	  last_tinfo;
 	struct ahc_softc	 *ahc;
 };
@@ -445,7 +438,7 @@ struct ahc_platform_data {
 	/*
 	 * Fields accessed from interrupt context.
 	 */
-	struct ahc_linux_target *targets[AHC_NUM_TARGETS]; 
+	struct scsi_target *starget[AHC_NUM_TARGETS]; 
 
 	spinlock_t		 spin_lock;
 	u_int			 qfrozen;
