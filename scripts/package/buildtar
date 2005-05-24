@@ -1,0 +1,111 @@
+#!/bin/sh
+
+#
+# buildtar 0.0.3
+#
+# (C) 2004-2005 by Jan-Benedict Glaw <jbglaw@lug-owl.de>
+#
+# This script is used to compile a tarball from the currently
+# prepared kernel. Based upon the builddeb script from
+# Wichert Akkerman <wichert@wiggy.net>.
+#
+
+set -e
+
+#
+# Some variables and settings used throughout the script
+#
+version="${VERSION}.${PATCHLEVEL}.${SUBLEVEL}${EXTRAVERSION}${EXTRANAME}"
+tmpdir="${objtree}/tar-install"
+tarball="${objtree}/linux-${version}.tar"
+
+
+#
+# Figure out how to compress, if requested at all
+#
+case "${1}" in
+	tar-pkg)
+		compress="cat"
+		file_ext=""
+		;;
+	targz-pkg)
+		compress="gzip -c9"
+		file_ext=".gz"
+		;;
+	tarbz2-pkg)
+		compress="bzip2 -c9"
+		file_ext=".bz2"
+		;;
+	*)
+		echo "Unknown tarball target \"${1}\" requested, please add it to ${0}." >&2
+		exit 1
+		;;
+esac
+
+
+#
+# Clean-up and re-create the temporary directory
+#
+rm -rf -- "${tmpdir}"
+mkdir -p -- "${tmpdir}/boot"
+
+
+#
+# Try to install modules
+#
+if ! make INSTALL_MOD_PATH="${tmpdir}" modules_install; then
+	echo "" >&2
+	echo "Ignoring error at module_install time, since that could be" >&2
+	echo "a result of missing local modutils/module-init-tools," >&2
+	echo "or you just didn't compile in module support at all..." >&2
+	echo "" >&2
+fi
+
+
+#
+# Install basic kernel files
+#
+cp -v -- System.map "${tmpdir}/boot/System.map-${version}"
+cp -v -- .config "${tmpdir}/boot/config-${version}"
+cp -v -- vmlinux "${tmpdir}/boot/vmlinux-${version}"
+
+
+#
+# Install arch-specific kernel image(s)
+#
+case "${ARCH}" in
+	i386)
+		[ -f arch/i386/boot/bzImage ] && cp -v -- arch/i386/boot/bzImage "${tmpdir}/boot/vmlinuz-${version}"
+		;;
+	alpha)
+		[ -f arch/alpha/boot/vmlinux.gz ] && cp -v -- arch/alpha/boot/vmlinux.gz "${tmpdir}/boot/vmlinuz-${version}"
+		;;
+	vax)
+		[ -f vmlinux.SYS ] && cp -v -- vmlinux.SYS "${tmpdir}/boot/vmlinux-${version}.SYS"
+		[ -f vmlinux.dsk ] && cp -v -- vmlinux.dsk "${tmpdir}/boot/vmlinux-${version}.dsk"
+		;;
+	*)
+		[ -f "${KBUILD_IMAGE}" ] && cp -v -- "${KBUILD_IMAGE}" "${tmpdir}/boot/vmlinux-kbuild-${version}"
+		echo "" >&2
+		echo '** ** **  WARNING  ** ** **' >&2
+		echo "" >&2
+		echo "Your architecture did not define any architecture-dependant files" >&2
+		echo "to be placed into the tarball. Please add those to ${0} ..." >&2
+		echo "" >&2
+		sleep 5
+		;;
+esac
+
+
+#
+# Create the tarball
+#
+(
+	cd "${tmpdir}"
+	tar cf - . | ${compress} > "${tarball}${file_ext}"
+)
+
+echo "Tarball successfully created in ${tarball}${file_ext}"
+
+exit 0
+
