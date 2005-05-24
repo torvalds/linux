@@ -33,6 +33,7 @@
 #define VT1720_SUBDEVICE_ZNF3_150	0x0f2741f6
 #define VT1720_SUBDEVICE_ZNF3_250	0x0f2745f6
 #define VT1720_SUBDEVICE_9CJS		0x0f272327
+#define VT1720_SUBDEVICE_SN25P		0x97123650
 
 extern struct snd_ice1712_card_info  snd_vt1720_mobo_cards[];
 
