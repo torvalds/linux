@@ -204,8 +204,8 @@ cx_device_register(nasid_t nasid, int part_num, int mfg_num,
 	cx_dev->dev.parent = NULL;
 	cx_dev->dev.bus = &tiocx_bus_type;
 	cx_dev->dev.release = tiocx_bus_release;
-	snprintf(cx_dev->dev.bus_id, BUS_ID_SIZE, "%d.0x%x",
-		 cx_dev->cx_id.nasid, cx_dev->cx_id.part_num);
+	snprintf(cx_dev->dev.bus_id, BUS_ID_SIZE, "%d",
+		 cx_dev->cx_id.nasid);
 	device_register(&cx_dev->dev);
 	get_device(&cx_dev->dev);
 
@@ -236,7 +236,6 @@ int cx_device_unregister(struct cx_dev *cx_dev)
  */
 static int cx_device_reload(struct cx_dev *cx_dev)
 {
-	device_remove_file(&cx_dev->dev, &dev_attr_cxdev_control);
 	cx_device_unregister(cx_dev);
 	return cx_device_register(cx_dev->cx_id.nasid, cx_dev->cx_id.part_num,
 				  cx_dev->cx_id.mfg_num, cx_dev->hubdev);
@@ -383,6 +382,7 @@ static int is_fpga_brick(int nasid)
 	switch (tiocx_btchar_get(nasid)) {
 	case L1_BRICKTYPE_SA:
 	case L1_BRICKTYPE_ATHENA:
+	case L1_BRICKTYPE_DAYTONA:
 		return 1;
 	}
 	return 0;
@@ -409,7 +409,7 @@ static int tiocx_reload(struct cx_dev *cx_dev)
 		uint64_t cx_id;
 
 		cx_id =
-		    *(volatile int32_t *)(TIO_SWIN_BASE(nasid, TIOCX_CORELET) +
+		    *(volatile uint64_t *)(TIO_SWIN_BASE(nasid, TIOCX_CORELET) +
 					  WIDGET_ID);
 		part_num = XWIDGET_PART_NUM(cx_id);
 		mfg_num = XWIDGET_MFG_NUM(cx_id);
@@ -458,6 +458,10 @@ static ssize_t store_cxdev_control(struct device *dev, struct device_attribute *
 
 	switch (n) {
 	case 1:
+		tio_corelet_reset(cx_dev->cx_id.nasid, TIOCX_CORELET);
+		tiocx_reload(cx_dev);
+		break;
+	case 2:
 		tiocx_reload(cx_dev);
 		break;
 	case 3:
@@ -537,7 +541,7 @@ static void __exit tiocx_exit(void)
 	bus_unregister(&tiocx_bus_type);
 }
 
-module_init(tiocx_init);
+subsys_initcall(tiocx_init);
 module_exit(tiocx_exit);
 
 /************************************************************************
