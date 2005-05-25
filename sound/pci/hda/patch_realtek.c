@@ -97,10 +97,20 @@ static hda_nid_t alc880_z71v_dac_nids[1] = {
 	0x02
 };
 
+#if 0
+/* The datasheet says the node 0x07 is connected from inputs,
+ * but it shows zero connection in the real implementation.
+ */
 static hda_nid_t alc880_adc_nids[3] = {
 	/* ADC0-2 */
 	0x07, 0x08, 0x09,
 };
+#else
+static hda_nid_t alc880_adc_nids[2] = {
+	/* ADC1-2 */
+	0x08, 0x09,
+};
+#endif
 
 #define ALC880_DIGOUT_NID	0x06
 #define ALC880_DIGIN_NID	0x0a
@@ -380,10 +390,11 @@ static snd_kcontrol_new_t alc880_base_mixer[] = {
 	HDA_CODEC_MUTE("PC Speaker Playback Switch", 0x0b, 0x05, HDA_INPUT),
 	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x0d, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Headphone Playback Switch", 0x19, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Capture Volume", 0x07, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Capture Switch", 0x07, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x08, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE_IDX("Capture Switch", 1, 0x08, 0x0, HDA_INPUT),
+	/* We don't use NID 0x07 - see above */
+	HDA_CODEC_VOLUME("Capture Volume", 0x08, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("Capture Switch", 0x08, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x09, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE_IDX("Capture Switch", 1, 0x09, 0x0, HDA_INPUT),
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		/* The multiple "Capture Source" controls confuse alsamixer
@@ -434,10 +445,11 @@ static snd_kcontrol_new_t alc880_five_stack_mixer[] = {
 	HDA_CODEC_MUTE("PC Speaker Playback Switch", 0x0b, 0x05, HDA_INPUT),
 	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x0d, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Headphone Playback Switch", 0x19, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Capture Volume", 0x07, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Capture Switch", 0x07, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x08, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE_IDX("Capture Switch", 1, 0x08, 0x0, HDA_INPUT),
+	/* We don't use NID 0x07 - see above */
+	HDA_CODEC_VOLUME("Capture Volume", 0x08, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("Capture Switch", 0x08, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x09, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE_IDX("Capture Switch", 1, 0x09, 0x0, HDA_INPUT),
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		/* The multiple "Capture Source" controls confuse alsamixer
@@ -506,6 +518,8 @@ static snd_kcontrol_new_t alc880_z71v_mixer[] = {
 	HDA_CODEC_MUTE("Capture Switch", 0x07, 0x0, HDA_INPUT),
 	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x08, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE_IDX("Capture Switch", 1, 0x08, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME_IDX("Capture Volume", 2, 0x09, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE_IDX("Capture Switch", 2, 0x09, 0x0, HDA_INPUT),
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		/* The multiple "Capture Source" controls confuse alsamixer
@@ -514,7 +528,7 @@ static snd_kcontrol_new_t alc880_z71v_mixer[] = {
 		 */
 		/* .name = "Capture Source", */
 		.name = "Input Source",
-		.count = 2,
+		.count = 3,
 		.info = alc_mux_enum_info,
 		.get = alc_mux_enum_get,
 		.put = alc_mux_enum_put,
@@ -564,8 +578,16 @@ static struct hda_verb alc880_init_verbs_three_stack[] = {
 	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24},
 	/* unmute amp left and right */
 	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
-	/* set connection select to line in (default select for this ADC) */
-	{0x07, AC_VERB_SET_CONNECT_SEL, 0x02},
+	/* set connection select to mic in */
+	{0x07, AC_VERB_SET_CONNECT_SEL, 0x00},
+	/* unmute amp left and right */
+	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
+	/* set connection select to mic in */
+	{0x08, AC_VERB_SET_CONNECT_SEL, 0x00},
+	/* unmute amp left and right */
+	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
+	/* set connection select to mic in */
+	{0x09, AC_VERB_SET_CONNECT_SEL, 0x00},
 	/* unmute front mixer amp left (volume = 0) */
 	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
 	/* mute pin widget amp left and right (no gain on this amp) */
@@ -639,8 +661,16 @@ static struct hda_verb alc880_init_verbs_five_stack[] = {
 	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24},
 	/* unmute amp left and right */
 	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
-	/* set connection select to line in (default select for this ADC) */
-	{0x07, AC_VERB_SET_CONNECT_SEL, 0x02},
+	/* set connection select to mic in */
+	{0x07, AC_VERB_SET_CONNECT_SEL, 0x00},
+	/* unmute amp left and right */
+	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
+	/* set connection select to mic in */
+	{0x08, AC_VERB_SET_CONNECT_SEL, 0x00},
+	/* unmute amp left and right */
+	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
+	/* set connection select to mic in */
+	{0x09, AC_VERB_SET_CONNECT_SEL, 0x00},
 	/* unmute front mixer amp left and right (volume = 0) */
 	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
 	/* mute pin widget amp left and right (no gain on this amp) */
@@ -798,9 +828,16 @@ static struct hda_verb alc880_z71v_init_verbs[] = {
 	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24},
 	/* unmute amp left and right */
 	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
-	/* set connection select to line in (default select for this ADC) */
-	{0x07, AC_VERB_SET_CONNECT_SEL, 0x02},
-
+	/* set connection select to mic in */
+	{0x07, AC_VERB_SET_CONNECT_SEL, 0x00},
+	/* unmute amp left and right */
+	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
+	/* set connection select to mic in */
+	{0x08, AC_VERB_SET_CONNECT_SEL, 0x00},
+	/* unmute amp left and right */
+	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
+	/* set connection select to mic in */
+	{0x09, AC_VERB_SET_CONNECT_SEL, 0x00},
 	/* Unmute input amps (CD, Line In, Mic 1 & Mic 2) for mixer
 	 * widget(nid=0x0B) to support the input path of analog loopback
 	 */
@@ -941,7 +978,9 @@ static struct hda_pcm_stream alc880_pcm_analog_capture = {
 	.substreams = 2,
 	.channels_min = 2,
 	.channels_max = 2,
-	.nid = 0x07, /* NID to query formats and rates */
+	.nid = 0x08, /* NID to query formats and rates
+		      * (0x07 might be broken on some devices)
+		      */
 	.ops = {
 		.prepare = alc880_capture_pcm_prepare,
 		.cleanup = alc880_capture_pcm_cleanup
@@ -1261,6 +1300,13 @@ static struct hda_verb alc880_test_init_verbs[] = {
 	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
 	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
 	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
+	/* ADC set up */
+	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
+	{0x07, AC_VERB_SET_CONNECT_SEL, 0x00},
+	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
+	{0x08, AC_VERB_SET_CONNECT_SEL, 0x00},
+	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
+	{0x09, AC_VERB_SET_CONNECT_SEL, 0x00},
 	{ }
 };
 #endif
@@ -1822,11 +1868,13 @@ static struct hda_verb alc882_init_verbs[] = {
 	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x04 << 8))},
 	/* ADC1: unmute amp left and right */
 	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
+	{0x07, AC_VERB_SET_CONNECT_SEL, 0x00},
 	/* ADC2: unmute amp left and right */
 	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
+	{0x08, AC_VERB_SET_CONNECT_SEL, 0x00},
 	/* ADC3: unmute amp left and right */
-	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
-
+	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
+	{0x09, AC_VERB_SET_CONNECT_SEL, 0x00},
 	/* Unmute front loopback */
 	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x01 << 8))},
 	/* Unmute rear loopback */
