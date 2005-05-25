@@ -53,14 +53,13 @@ static void r4k_wait(void)
 /* The Au1xxx wait is available only if using 32khz counter or
  * external timer source, but specifically not CP0 Counter. */
 int allow_au1k_wait;
+
 static void au1k_wait(void)
 {
-	unsigned long addr = 0;
 	/* using the wait instruction makes CP0 counter unusable */
-	__asm__("la %0,au1k_wait\n\t"
-		".set mips3\n\t"
-		"cache 0x14,0(%0)\n\t"
-		"cache 0x14,32(%0)\n\t"
+	__asm__(".set mips3\n\t"
+		"cache 0x14, 0(%0)\n\t"
+		"cache 0x14, 32(%0)\n\t"
 		"sync\n\t"
 		"nop\n\t"
 		"wait\n\t"
@@ -69,7 +68,7 @@ static void au1k_wait(void)
 		"nop\n\t"
 		"nop\n\t"
 		".set mips0\n\t"
-		: : "r" (addr));
+		: : "r" (au1k_wait));
 }
 
 static inline void check_wait(void)
