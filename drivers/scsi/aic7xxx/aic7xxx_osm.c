@@ -659,8 +659,11 @@ ahc_linux_slave_alloc(struct scsi_device *device)
 	ahc_lock(ahc, &flags);
 	targ = ahc->platform_data->targets[target_offset];
 	if (targ == NULL) {
-		targ = ahc_linux_alloc_target(ahc, starget->channel, starget->id);
-		struct seeprom_config *sc = ahc->seep_config;
+		struct seeprom_config *sc;
+
+		targ = ahc_linux_alloc_target(ahc, starget->channel,
+						starget->id);
+		sc = ahc->seep_config;
 		if (targ == NULL)
 			goto out;
 
