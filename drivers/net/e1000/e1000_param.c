@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   
-  Copyright(c) 1999 - 2004 Intel Corporation. All rights reserved.
+  Copyright(c) 1999 - 2005 Intel Corporation. All rights reserved.
   
   This program is free software; you can redistribute it and/or modify it 
   under the terms of the GNU General Public License as published by the Free 
@@ -478,7 +478,6 @@ e1000_check_options(struct e1000_adapter *adapter)
 				DPRINTK(PROBE, INFO, "%s set to dynamic mode\n", 
 					opt.name);
 				break;
-			case -1:
 			default:
 				e1000_validate_option(&adapter->itr, &opt, 
 					adapter);
