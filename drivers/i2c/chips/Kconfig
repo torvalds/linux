@@ -1,5 +1,5 @@
 #
-# I2C Sensor device configuration
+# I2C Sensor and "other" chip configuration
 #
 
 menu "Hardware Sensors Chip support"
@@ -471,6 +471,23 @@ config ISP1301_OMAP
 	  
 	  This driver can also be built as a module.  If so, the module
 	  will be called isp1301_omap.
+
+# NOTE:  This isn't really OMAP-specific, except for the current
+# interface location in  <include/asm-arm/arch-omap/tps65010.h>
+# and having mostly OMAP-specific board support
+config TPS65010
+	tristate "TPS6501x Power Management chips"
+	depends on I2C && ARCH_OMAP
+	default y if MACH_OMAP_H2 || MACH_OMAP_H3 || MACH_OMAP_OSK
+	help
+	  If you say yes here you get support for the TPS6501x series of
+	  Power Management chips.  These include voltage regulators,
+	  lithium ion/polymer battery charging, and other features that
+	  are often used in portable devices like cell phones and cameras.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called tps65010.
+
 
 config SENSORS_M41T00
 	tristate "ST M41T00 RTC chip"

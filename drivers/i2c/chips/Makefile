@@ -1,5 +1,5 @@
 #
-# Makefile for the kernel hardware sensors chip drivers.
+# Makefile for sensor and "other" I2C chip drivers.
 #
 
 # asb100, then w83781d go first, as they can override other drivers' addresses.
@@ -43,7 +43,9 @@ obj-$(CONFIG_SENSORS_SMSC47M1)	+= smsc47m1.o
 obj-$(CONFIG_SENSORS_VIA686A)	+= via686a.o
 obj-$(CONFIG_SENSORS_W83627EHF)	+= w83627ehf.o
 obj-$(CONFIG_SENSORS_W83L785TS)	+= w83l785ts.o
+
 obj-$(CONFIG_ISP1301_OMAP)	+= isp1301_omap.o
+obj-$(CONFIG_TPS65010)		+= tps65010.o
 
 ifeq ($(CONFIG_I2C_DEBUG_CHIP),y)
 EXTRA_CFLAGS += -DDEBUG
