@@ -1025,11 +1025,17 @@ int rndis_signal_disconnect (int configNr)
 
 void rndis_uninit (int configNr)
 {
+	u8 *buf;
+	u32 length;
+
 	if (configNr >= RNDIS_MAX_CONFIGS)
 		return;
 	rndis_per_dev_params [configNr].used = 0;
 	rndis_per_dev_params [configNr].state = RNDIS_UNINITIALIZED;
-	return;
+
+	/* drain the response queue */
+	while ((buf = rndis_get_next_response(configNr, &length)))
+		rndis_free_response(configNr, buf);
 }
 
 void rndis_set_host_mac (int configNr, const u8 *addr)
