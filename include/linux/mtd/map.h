@@ -1,6 +1,6 @@
 
 /* Overhauled routines for dealing with different mmap regions of flash */
-/* $Id: map.h,v 1.49 2005/05/24 18:45:15 gleixner Exp $ */
+/* $Id: map.h,v 1.51 2005/05/25 10:15:29 gleixner Exp $ */
 
 #ifndef __LINUX_MTD_MAP_H__
 #define __LINUX_MTD_MAP_H__
@@ -351,8 +351,9 @@ static inline map_word map_word_ff(struct map_info *map)
 	map_word r;
 	int i;
 	
-	if (map_bank_width(map) < MAP_FF_LIMIT) {
-		r.x[0] = (1 << (8*map_bank_width(map))) - 1;
+	if (map_bankwidth(map) < MAP_FF_LIMIT) {
+		int bw = 8 * map_bankwidth;
+		r.x[0] = (1 << bw) - 1;
 	} else {
 		for (i=0; i<map_words(map); i++)
 			r.x[i] = ~0UL;
