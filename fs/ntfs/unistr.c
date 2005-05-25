@@ -264,7 +264,7 @@ int ntfs_nlstoucs(const ntfs_volume *vol, const char *ins,
 
 	/* We don't trust outside sources. */
 	if (ins) {
-		ucs = (ntfschar*)kmem_cache_alloc(ntfs_name_cache, SLAB_NOFS);
+		ucs = kmem_cache_alloc(ntfs_name_cache, SLAB_NOFS);
 		if (ucs) {
 			for (i = o = 0; i < ins_len; i += wc_len) {
 				wc_len = nls->char2uni(ins + i, ins_len - i,
