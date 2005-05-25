@@ -419,7 +419,7 @@ struct hda_bus {
 
 	/* codec linked list */
 	struct list_head codec_list;
-	struct hda_codec *caddr_tbl[HDA_MAX_CODEC_ADDRESS]; /* caddr -> codec */
+	struct hda_codec *caddr_tbl[HDA_MAX_CODEC_ADDRESS + 1]; /* caddr -> codec */
 
 	struct semaphore cmd_mutex;
 
