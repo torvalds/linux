@@ -545,6 +545,12 @@ thermostat_init(void)
 	else
 		return -ENODEV;
 
+	prop = (u32 *)get_property(np, "hwsensor-params-version", NULL);
+	printk(KERN_INFO "adt746x: version %d (%ssupported)\n", *prop,
+			 (*prop == 1)?"":"un");
+	if (*prop != 1)
+		return -ENODEV;
+
 	prop = (u32 *)get_property(np, "reg", NULL);
 	if (!prop)
 		return -ENODEV;
