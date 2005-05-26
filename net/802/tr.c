@@ -50,8 +50,8 @@ static void rif_check_expire(unsigned long dummy);
 struct rif_cache_s {	
 	unsigned char addr[TR_ALEN];
 	int iface;
-	__u16 rcf;
-	__u16 rseg[8];
+	__be16 rcf;
+	__be16 rseg[8];
 	struct rif_cache_s *next;
 	unsigned long last_used;
 	unsigned char local_ring;
