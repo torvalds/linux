@@ -62,11 +62,12 @@ struct netem_sched_data {
 	u32 gap;
 	u32 jitter;
 	u32 duplicate;
+	u32 reorder;
 
 	struct crndstate {
 		unsigned long last;
 		unsigned long rho;
-	} delay_cor, loss_cor, dup_cor;
+	} delay_cor, loss_cor, dup_cor, reorder_cor;
 
 	struct disttable {
 		u32  size;
@@ -180,23 +181,23 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		q->duplicate = dupsave;
 	}
 
-	/* 
-	 * Do re-ordering by putting one out of N packets at the front
-	 * of the queue.
-	 * gap == 0 is special case for no-reordering.
-	 */
-	if (q->gap == 0 || q->counter != q->gap) {
+	if (q->gap == 0 		/* not doing reordering */
+	    || q->counter < q->gap 	/* inside last reordering gap */
+	    || q->reorder < get_crandom(&q->reorder_cor)) {
 		psched_time_t now;
 		PSCHED_GET_TIME(now);
-		PSCHED_TADD2(now, 
-			     tabledist(q->latency, q->jitter, &q->delay_cor, q->delay_dist),
+		PSCHED_TADD2(now, tabledist(q->latency, q->jitter, 
+					    &q->delay_cor, q->delay_dist),
 			     cb->time_to_send);
-		
 		++q->counter;
 		ret = q->qdisc->enqueue(skb, q->qdisc);
 	} else {
-		q->counter = 0;
+		/* 
+		 * Do re-ordering by putting one out of N packets at the front
+		 * of the queue.
+		 */
 		PSCHED_GET_TIME(cb->time_to_send);
+		q->counter = 0;
 		ret = q->qdisc->ops->requeue(skb, q->qdisc);
 	}
 
@@ -351,6 +352,19 @@ static int get_correlation(struct Qdisc *sch, const struct rtattr *attr)
 	return 0;
 }
 
+static int get_reorder(struct Qdisc *sch, const struct rtattr *attr)
+{
+	struct netem_sched_data *q = qdisc_priv(sch);
+	const struct tc_netem_reorder *r = RTA_DATA(attr);
+
+	if (RTA_PAYLOAD(attr) != sizeof(*r))
+		return -EINVAL;
+
+	q->reorder = r->probability;
+	init_crandom(&q->reorder_cor, r->correlation);
+	return 0;
+}
+
 static int netem_change(struct Qdisc *sch, struct rtattr *opt)
 {
 	struct netem_sched_data *q = qdisc_priv(sch);
@@ -371,8 +385,14 @@ static int netem_change(struct Qdisc *sch, struct rtattr *opt)
 	q->jitter = qopt->jitter;
 	q->limit = qopt->limit;
 	q->gap = qopt->gap;
+	q->counter = 0;
 	q->loss = qopt->loss;
 	q->duplicate = qopt->duplicate;
+
+	/* for compatiablity with earlier versions.
+	 * if gap is set, need to assume 100% probablity
+	 */
+	q->reorder = ~0;
 
 	/* Handle nested options after initial queue options.
 	 * Should have put all options in nested format but too late now.
@@ -395,6 +415,11 @@ static int netem_change(struct Qdisc *sch, struct rtattr *opt)
 			if (ret)
 				return ret;
 		}
+		if (tb[TCA_NETEM_REORDER-1]) {
+			ret = get_reorder(sch, tb[TCA_NETEM_REORDER-1]);
+			if (ret)
+				return ret;
+		}
 	}
 
 
@@ -412,7 +437,6 @@ static int netem_init(struct Qdisc *sch, struct rtattr *opt)
 	init_timer(&q->timer);
 	q->timer.function = netem_watchdog;
 	q->timer.data = (unsigned long) sch;
-	q->counter = 0;
 
 	q->qdisc = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops);
 	if (!q->qdisc) {
@@ -444,6 +468,7 @@ static int netem_dump(struct Qdisc *sch, struct sk_buff *skb)
 	struct rtattr *rta = (struct rtattr *) b;
 	struct tc_netem_qopt qopt;
 	struct tc_netem_corr cor;
+	struct tc_netem_reorder reorder;
 
 	qopt.latency = q->latency;
 	qopt.jitter = q->jitter;
@@ -457,6 +482,11 @@ static int netem_dump(struct Qdisc *sch, struct sk_buff *skb)
 	cor.loss_corr = q->loss_cor.rho;
 	cor.dup_corr = q->dup_cor.rho;
 	RTA_PUT(skb, TCA_NETEM_CORR, sizeof(cor), &cor);
+
+	reorder.probability = q->reorder;
+	reorder.correlation = q->reorder_cor.rho;
+	RTA_PUT(skb, TCA_NETEM_REORDER, sizeof(reorder), &reorder);
+
 	rta->rta_len = skb->tail - b;
 
 	return skb->len;
