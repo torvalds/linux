@@ -675,6 +675,7 @@ static void audit_log_exit(struct audit_context *context)
 {
 	int i;
 	struct audit_buffer *ab;
+	struct audit_aux_data *aux;
 
 	ab = audit_log_start(context, AUDIT_SYSCALL);
 	if (!ab)
@@ -705,10 +706,8 @@ static void audit_log_exit(struct audit_context *context)
 		  context->egid, context->sgid, context->fsgid);
 	audit_log_task_info(ab);
 	audit_log_end(ab);
-	while (context->aux) {
-		struct audit_aux_data *aux;
 
-		aux = context->aux;
+	for (aux = context->aux; aux; aux = aux->next) {
 
 		ab = audit_log_start(context, aux->type);
 		if (!ab)
@@ -740,15 +739,10 @@ static void audit_log_exit(struct audit_context *context)
 		case AUDIT_AVC_PATH: {
 			struct audit_aux_data_path *axi = (void *)aux;
 			audit_log_d_path(ab, "path=", axi->dentry, axi->mnt);
-			dput(axi->dentry);
-			mntput(axi->mnt);
 			break; }
 
 		}
 		audit_log_end(ab);
-
-		context->aux = aux->next;
-		kfree(aux);
 	}
 
 	for (i = 0; i < context->name_count; i++) {
