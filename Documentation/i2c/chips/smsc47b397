@@ -1,7 +1,19 @@
+Kernel driver smsc47b397
+========================
+
+Supported chips:
+  * SMSC LPC47B397-NC
+    Prefix: 'smsc47b397'
+    Addresses scanned: none, address read from Super I/O config space
+    Datasheet: In this file
+
+Authors: Mark M. Hoffman <mhoffman@lightlink.com>
+         Utilitek Systems, Inc.
+
 November 23, 2004
 
 The following specification describes the SMSC LPC47B397-NC sensor chip
-(for which there is no public datasheet available).  This document was
+(for which there is no public datasheet available). This document was
 provided by Craig Kelly (In-Store Broadcast Network) and edited/corrected
 by Mark M. Hoffman <mhoffman@lightlink.com>.
 
@@ -10,10 +22,10 @@ by Mark M. Hoffman <mhoffman@lightlink.com>.
 Methods for detecting the HP SIO and reading the thermal data on a dc7100.
 
 The thermal information on the dc7100 is contained in the SIO Hardware Monitor
-(HWM).  The information is accessed through an index/data pair.  The index/data
-pair is located at the HWM Base Address + 0 and the HWM Base Address + 1.  The
+(HWM). The information is accessed through an index/data pair. The index/data
+pair is located at the HWM Base Address + 0 and the HWM Base Address + 1. The
 HWM Base address can be obtained from Logical Device 8, registers 0x60 (MSB)
-and 0x61 (LSB).  Currently we are using 0x480 for the HWM Base Address and
+and 0x61 (LSB). Currently we are using 0x480 for the HWM Base Address and
 0x480 and 0x481 for the index/data pair.
 
 Reading temperature information.
@@ -50,7 +62,7 @@ Reading the tach LSB locks the tach MSB.
 The LSB Must be read first.
 
 How to convert the tach reading to RPM.
-The tach reading (TCount) is given by:  (Tach MSB * 256) + (Tach LSB)
+The tach reading (TCount) is given by: (Tach MSB * 256) + (Tach LSB)
 The SIO counts the number of 90kHz (11.111us) pulses per revolution.
 RPM = 60/(TCount * 11.111us)
 
