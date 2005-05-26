@@ -914,8 +914,10 @@ static int pkt_handle_queue(struct pktcdvd_device *pd)
 		bio = node->bio;
 		zone = ZONE(bio->bi_sector, pd);
 		list_for_each_entry(p, &pd->cdrw.pkt_active_list, list) {
-			if (p->sector == zone)
+			if (p->sector == zone) {
+				bio = NULL;
 				goto try_next_bio;
+			}
 		}
 		break;
 try_next_bio:
@@ -2019,7 +2021,13 @@ static int pkt_open(struct inode *inode, struct file *file)
 	BUG_ON(pd->refcnt < 0);
 
 	pd->refcnt++;
-	if (pd->refcnt == 1) {
+	if (pd->refcnt > 1) {
+		if ((file->f_mode & FMODE_WRITE) &&
+		    !test_bit(PACKET_WRITABLE, &pd->flags)) {
+			ret = -EBUSY;
+			goto out_dec;
+		}
+	} else {
 		if (pkt_open_dev(pd, file->f_mode & FMODE_WRITE)) {
 			ret = -EIO;
 			goto out_dec;
@@ -2406,7 +2414,7 @@ static int pkt_ioctl(struct inode *inode, struct file *file, unsigned int cmd, u
 	case CDROM_LAST_WRITTEN:
 	case CDROM_SEND_PACKET:
 	case SCSI_IOCTL_SEND_COMMAND:
-		return ioctl_by_bdev(pd->bdev, cmd, arg);
+		return blkdev_ioctl(pd->bdev->bd_inode, file, cmd, arg);
 
 	case CDROMEJECT:
 		/*
@@ -2414,7 +2422,7 @@ static int pkt_ioctl(struct inode *inode, struct file *file, unsigned int cmd, u
 		 * have to unlock it or else the eject command fails.
 		 */
 		pkt_lock_door(pd, 0);
-		return ioctl_by_bdev(pd->bdev, cmd, arg);
+		return blkdev_ioctl(pd->bdev->bd_inode, file, cmd, arg);
 
 	default:
 		printk("pktcdvd: Unknown ioctl for %s (%x)\n", pd->name, cmd);

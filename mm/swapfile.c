@@ -79,7 +79,7 @@ void swap_unplug_io_fn(struct backing_dev_info *unused_bdi, struct page *page)
 		WARN_ON(page_count(page) <= 1);
 
 		bdi = bdev->bd_inode->i_mapping->backing_dev_info;
-		bdi->unplug_io_fn(bdi, page);
+		blk_run_backing_dev(bdi, page);
 	}
 	up_read(&swap_unplug_sem);
 }

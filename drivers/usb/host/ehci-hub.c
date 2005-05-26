@@ -72,6 +72,7 @@ static int ehci_hub_suspend (struct usb_hcd *hcd)
 	}
 
 	/* turn off now-idle HC */
+	del_timer_sync (&ehci->watchdog);
 	ehci_halt (ehci);
 	hcd->state = HC_STATE_SUSPENDED;
 

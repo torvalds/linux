@@ -259,7 +259,7 @@ static int at76c651_set_parameters(struct dvb_frontend* fe,
 				   struct dvb_frontend_parameters *p)
 {
 	int ret;
-	struct at76c651_state* state = (struct at76c651_state*) fe->demodulator_priv;
+	struct at76c651_state* state = fe->demodulator_priv;
 
 	at76c651_writereg(state, 0x0c, 0xc3);
 	state->config->pll_set(fe, p);
@@ -276,7 +276,7 @@ static int at76c651_set_parameters(struct dvb_frontend* fe,
 
 static int at76c651_set_defaults(struct dvb_frontend* fe)
 {
-	struct at76c651_state* state = (struct at76c651_state*) fe->demodulator_priv;
+	struct at76c651_state* state = fe->demodulator_priv;
 
 	at76c651_set_symbol_rate(state, 6900000);
 	at76c651_set_qam(state, QAM_64);
@@ -294,7 +294,7 @@ static int at76c651_set_defaults(struct dvb_frontend* fe)
 
 static int at76c651_read_status(struct dvb_frontend* fe, fe_status_t* status)
 {
-	struct at76c651_state* state = (struct at76c651_state*) fe->demodulator_priv;
+	struct at76c651_state* state = fe->demodulator_priv;
 	u8 sync;
 
 	/*
@@ -319,7 +319,7 @@ static int at76c651_read_status(struct dvb_frontend* fe, fe_status_t* status)
 
 static int at76c651_read_ber(struct dvb_frontend* fe, u32* ber)
 {
-	struct at76c651_state* state = (struct at76c651_state*) fe->demodulator_priv;
+	struct at76c651_state* state = fe->demodulator_priv;
 
 	*ber = (at76c651_readreg(state, 0x81) & 0x0F) << 16;
 	*ber |= at76c651_readreg(state, 0x82) << 8;
@@ -331,7 +331,7 @@ static int at76c651_read_ber(struct dvb_frontend* fe, u32* ber)
 
 static int at76c651_read_signal_strength(struct dvb_frontend* fe, u16* strength)
 {
-	struct at76c651_state* state = (struct at76c651_state*) fe->demodulator_priv;
+	struct at76c651_state* state = fe->demodulator_priv;
 
 	u8 gain = ~at76c651_readreg(state, 0x91);
 	*strength = (gain << 8) | gain;
@@ -341,7 +341,7 @@ static int at76c651_read_signal_strength(struct dvb_frontend* fe, u16* strength)
 
 static int at76c651_read_snr(struct dvb_frontend* fe, u16* snr)
 {
-	struct at76c651_state* state = (struct at76c651_state*) fe->demodulator_priv;
+	struct at76c651_state* state = fe->demodulator_priv;
 
 	*snr = 0xFFFF -
 	    ((at76c651_readreg(state, 0x8F) << 8) |
@@ -352,7 +352,7 @@ static int at76c651_read_snr(struct dvb_frontend* fe, u16* snr)
 
 static int at76c651_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
 {
-	struct at76c651_state* state = (struct at76c651_state*) fe->demodulator_priv;
+	struct at76c651_state* state = fe->demodulator_priv;
 
 	*ucblocks = at76c651_readreg(state, 0x82);
 
@@ -369,7 +369,7 @@ static int at76c651_get_tune_settings(struct dvb_frontend* fe, struct dvb_fronte
 
 static void at76c651_release(struct dvb_frontend* fe)
 {
-	struct at76c651_state* state = (struct at76c651_state*) fe->demodulator_priv;
+	struct at76c651_state* state = fe->demodulator_priv;
 	kfree(state);
 }
 
@@ -381,7 +381,7 @@ struct dvb_frontend* at76c651_attach(const struct at76c651_config* config,
 	struct at76c651_state* state = NULL;
 
 	/* allocate memory for the internal state */
-	state = (struct at76c651_state*) kmalloc(sizeof(struct at76c651_state), GFP_KERNEL);
+	state = kmalloc(sizeof(struct at76c651_state), GFP_KERNEL);
 	if (state == NULL) goto error;
 
 	/* setup the state */

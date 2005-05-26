@@ -478,7 +478,7 @@ static int s3c2440_clk_add(struct sys_device *sysdev)
 {
 	unsigned long upllcon = __raw_readl(S3C2410_UPLLCON);
 
-	s3c2440_clk_upll.rate = s3c2410_get_pll(upllcon, clk_xtal.rate) * 2;
+	s3c2440_clk_upll.rate = s3c2410_get_pll(upllcon, clk_xtal.rate);
 
 	printk("S3C2440: Clock Support, UPLL %ld.%03ld MHz\n",
 	       print_mhz(s3c2440_clk_upll.rate));

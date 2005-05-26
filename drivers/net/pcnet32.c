@@ -22,8 +22,8 @@
  *************************************************************************/
 
 #define DRV_NAME	"pcnet32"
-#define DRV_VERSION	"1.30i"
-#define DRV_RELDATE	"06.28.2004"
+#define DRV_VERSION	"1.30j"
+#define DRV_RELDATE	"29.04.2005"
 #define PFX		DRV_NAME ": "
 
 static const char *version =
@@ -256,6 +256,7 @@ static int homepna[MAX_UNITS];
  *	   homepna for selecting HomePNA mode for PCNet/Home 79C978.
  * v1.30h  24 Jun 2004 Don Fry correctly select auto, speed, duplex in bcr32.
  * v1.30i  28 Jun 2004 Don Fry change to use module_param.
+ * v1.30j  29 Apr 2005 Don Fry fix skb/map leak with loopback test.
  */
 
 
@@ -395,6 +396,7 @@ static void pcnet32_led_blink_callback(struct net_device *dev);
 static int pcnet32_get_regs_len(struct net_device *dev);
 static void pcnet32_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 	void *ptr);
+static void pcnet32_purge_tx_ring(struct net_device *dev);
 
 enum pci_flags_bit {
     PCI_USES_IO=1, PCI_USES_MEM=2, PCI_USES_MASTER=4,
@@ -785,6 +787,7 @@ static int pcnet32_loopback_test(struct net_device *dev, uint64_t *data1)
     }
 
 clean_up:
+    pcnet32_purge_tx_ring(dev);
     x = a->read_csr(ioaddr, 15) & 0xFFFF;
     a->write_csr(ioaddr, 15, (x & ~0x0044));	/* reset bits 6 and 2 */
 

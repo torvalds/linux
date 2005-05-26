@@ -499,7 +499,7 @@ static int __init set_preferred_console(void)
 {
 	struct device_node *prom_stdout;
 	char *name;
-	int offset;
+	int offset = 0;
 
 	if (of_stdout_device == NULL)
 		return -ENODEV;
@@ -752,6 +752,8 @@ void __init setup_arch(char **cmdline_p)
 	/* Save unparsed command line copy for /proc/cmdline */
 	strlcpy(saved_command_line, cmd_line, COMMAND_LINE_SIZE);
 	*cmdline_p = cmd_line;
+
+	parse_early_param();
 
 	/* set up the bootmem stuff with available memory */
 	do_init_bootmem();

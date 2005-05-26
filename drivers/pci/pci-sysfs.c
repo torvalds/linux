@@ -73,6 +73,17 @@ resource_show(struct device * dev, char * buf)
 	return (str - buf);
 }
 
+static ssize_t modalias_show(struct device *dev, char *buf)
+{
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+
+	return sprintf(buf, "pci:v%08Xd%08Xsv%08Xsd%08Xbc%02Xsc%02Xi%02x\n",
+		       pci_dev->vendor, pci_dev->device,
+		       pci_dev->subsystem_vendor, pci_dev->subsystem_device,
+		       (u8)(pci_dev->class >> 16), (u8)(pci_dev->class >> 8),
+		       (u8)(pci_dev->class));
+}
+
 struct device_attribute pci_dev_attrs[] = {
 	__ATTR_RO(resource),
 	__ATTR_RO(vendor),
@@ -82,6 +93,7 @@ struct device_attribute pci_dev_attrs[] = {
 	__ATTR_RO(class),
 	__ATTR_RO(irq),
 	__ATTR_RO(local_cpus),
+	__ATTR_RO(modalias),
 	__ATTR_NULL,
 };
 

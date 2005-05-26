@@ -38,7 +38,7 @@ static struct sockaddr_in *new_addr(char *addr, unsigned short port)
 	}
 	sin->sin_family = AF_INET;
 	sin->sin_addr.s_addr = in_aton(addr);
-	sin->sin_port = port;
+	sin->sin_port = htons(port);
 	return(sin);
 }
 
@@ -55,28 +55,25 @@ static int mcast_open(void *data)
 	struct mcast_data *pri = data;
 	struct sockaddr_in *sin = pri->mcast_addr;
 	struct ip_mreq mreq;
-	int fd, yes = 1;
+	int fd = -EINVAL, yes = 1, err = -EINVAL;;
 
 
-	if ((sin->sin_addr.s_addr == 0) || (sin->sin_port == 0)) {
-		fd = -EINVAL;
+	if ((sin->sin_addr.s_addr == 0) || (sin->sin_port == 0))
 		goto out;
-	}
 
 	fd = socket(AF_INET, SOCK_DGRAM, 0);
+
 	if (fd < 0){
 		printk("mcast_open : data socket failed, errno = %d\n", 
 		       errno);
-		fd = -ENOMEM;
+		fd = -errno;
 		goto out;
 	}
 
 	if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) < 0) {
 		printk("mcast_open: SO_REUSEADDR failed, errno = %d\n",
 			errno);
-		os_close_file(fd);
-		fd = -EINVAL;
-		goto out;
+		goto out_close;
 	}
 
 	/* set ttl according to config */
@@ -84,26 +81,20 @@ static int mcast_open(void *data)
 		       sizeof(pri->ttl)) < 0) {
 		printk("mcast_open: IP_MULTICAST_TTL failed, error = %d\n",
 			errno);
-		os_close_file(fd);
-		fd = -EINVAL;
-		goto out;
+		goto out_close;
 	}
 
 	/* set LOOP, so data does get fed back to local sockets */
 	if (setsockopt(fd, SOL_IP, IP_MULTICAST_LOOP, &yes, sizeof(yes)) < 0) {
 		printk("mcast_open: IP_MULTICAST_LOOP failed, error = %d\n",
 			errno);
-		os_close_file(fd);
-		fd = -EINVAL;
-		goto out;
+		goto out_close;
 	}
 
 	/* bind socket to mcast address */
 	if (bind(fd, (struct sockaddr *) sin, sizeof(*sin)) < 0) {
 		printk("mcast_open : data bind failed, errno = %d\n", errno);
-		os_close_file(fd);
-		fd = -EINVAL;
-		goto out;
+		goto out_close;
 	}		
 	
 	/* subscribe to the multicast group */
@@ -117,12 +108,15 @@ static int mcast_open(void *data)
 		       "interface on the host.\n");
 		printk("eth0 should be configured in order to use the "
 		       "multicast transport.\n");
-		os_close_file(fd);
-		fd = -EINVAL;
+                goto out_close;
 	}
 
  out:
-	return(fd);
+	return fd;
+
+ out_close:
+        os_close_file(fd);
+        return err;
 }
 
 static void mcast_close(int fd, void *data)
@@ -164,14 +158,3 @@ struct net_user_info mcast_user_info = {
 	.delete_address = NULL,
 	.max_packet	= MAX_PACKET - ETH_HEADER_OTHER
 };
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

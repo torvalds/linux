@@ -101,7 +101,6 @@ enum sock_type {
  *  @sk: internal networking protocol agnostic socket representation
  *  @wait: wait queue for several uses
  *  @type: socket type (%SOCK_STREAM, etc)
- *  @passcred: credentials (used only in Unix Sockets (aka PF_LOCAL))
  */
 struct socket {
 	socket_state		state;

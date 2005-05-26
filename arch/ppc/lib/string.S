@@ -446,6 +446,7 @@ _GLOBAL(__copy_tofrom_user)
 #ifdef CONFIG_8xx
 	/* Don't use prefetch on 8xx */
 	mtctr	r0
+	li	r0,0
 53:	COPY_16_BYTES_WITHEX(0)
 	bdnz	53b
 
@@ -564,7 +565,9 @@ _GLOBAL(__copy_tofrom_user)
 /* or write fault in cacheline loop */
 105:	li	r9,1
 92:	li	r3,LG_CACHELINE_BYTES
-	b	99f
+	mfctr	r8
+	add	r0,r0,r8
+	b	106f
 /* read fault in final word loop */
 108:	li	r9,0
 	b	93f
@@ -585,7 +588,7 @@ _GLOBAL(__copy_tofrom_user)
  * r5 + (ctr << r3), and r9 is 0 for read or 1 for write.
  */
 99:	mfctr	r0
-	slw	r3,r0,r3
+106:	slw	r3,r0,r3
 	add.	r3,r3,r5
 	beq	120f			/* shouldn't happen */
 	cmpwi	0,r9,0

@@ -230,7 +230,6 @@ const struct reiserfs_key  MAX_KEY = {
 	__constant_cpu_to_le32(0xffffffff)},}
 };
 
-const struct in_core_key  MAX_IN_CORE_KEY = {~0U, ~0U, ~0ULL>>4, 15};
 
 /* Get delimiting key of the buffer by looking for it in the buffers in the path, starting from the bottom
    of the path, and going upwards.  We must check the path's validity at each step.  If the key is not in
