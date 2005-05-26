@@ -72,20 +72,20 @@ To program the configuration registers, the following sequence must be followed:
 
 Enter Configuration Mode
 To place the chip into the Configuration State The config key (0x55) is written
-to the CONFIG PORT (0x2E). 
+to the CONFIG PORT (0x2E).
 
 Configuration Mode
 In configuration mode, the INDEX PORT is located at the CONFIG PORT address and
 the DATA PORT is at INDEX PORT address + 1.
 
-The desired configuration registers are accessed in two steps: 
+The desired configuration registers are accessed in two steps:
 a.	Write the index of the Logical Device Number Configuration Register
 	(i.e., 0x07) to the INDEX PORT and then write the number of the
 	desired logical device to the DATA PORT.
 
 b.	Write the address of the desired configuration register within the
 	logical device to the INDEX PORT and then write or read the config-
-	uration register through the DATA PORT.  
+	uration register through the DATA PORT.
 
 Note: If accessing the Global Configuration Registers, step (a) is not required.
 
@@ -96,18 +96,18 @@ The chip returns to the RUN State.  (This is important).
 Programming Example
 The following is an example of how to read the SIO Device ID located at 0x20
 
-; ENTER CONFIGURATION MODE   
+; ENTER CONFIGURATION MODE
 MOV	DX,02EH
 MOV	AX,055H
 OUT	DX,AL
-; GLOBAL CONFIGURATION  REGISTER 
+; GLOBAL CONFIGURATION  REGISTER
 MOV	DX,02EH
 MOV	AL,20H
-OUT	DX,AL 
+OUT	DX,AL
 ; READ THE DATA
 MOV	DX,02FH
 IN	AL,DX
-; EXIT CONFIGURATION MODE     
+; EXIT CONFIGURATION MODE
 MOV	DX,02EH
 MOV	AX,0AAH
 OUT	DX,AL
@@ -122,12 +122,12 @@ Obtaining the HWM Base Address.
 The following is an example of how to read the HWM Base Address located in
 Logical Device 8.
 
-; ENTER CONFIGURATION MODE   
+; ENTER CONFIGURATION MODE
 MOV	DX,02EH
 MOV	AX,055H
 OUT	DX,AL
-; CONFIGURE REGISTER CRE0,   
-; LOGICAL DEVICE 8           
+; CONFIGURE REGISTER CRE0,
+; LOGICAL DEVICE 8
 MOV	DX,02EH
 MOV	AL,07H
 OUT	DX,AL ;Point to LD# Config Reg
@@ -135,12 +135,12 @@ MOV	DX,02FH
 MOV	AL, 08H
 OUT	DX,AL;Point to Logical Device 8
 ;
-MOV	DX,02EH 
+MOV	DX,02EH
 MOV	AL,60H
 OUT	DX,AL	; Point to HWM Base Addr MSB
 MOV	DX,02FH
 IN	AL,DX	; Get MSB of HWM Base Addr
-; EXIT CONFIGURATION MODE     
+; EXIT CONFIGURATION MODE
 MOV	DX,02EH
 MOV	AX,0AAH
 OUT	DX,AL
