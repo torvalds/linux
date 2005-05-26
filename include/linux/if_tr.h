@@ -36,8 +36,8 @@ struct trh_hdr {
 	__u8  fc;			/* frame control field */
 	__u8  daddr[TR_ALEN];		/* destination address */
 	__u8  saddr[TR_ALEN];		/* source address */
-	__u16 rcf;			/* route control field */
-	__u16 rseg[8];			/* routing registers */
+	__be16 rcf;			/* route control field */
+	__be16 rseg[8];			/* routing registers */
 };
 
 #ifdef __KERNEL__
@@ -55,7 +55,7 @@ struct trllc {
 	__u8  ssap;			/* source SAP */
 	__u8  llc;			/* LLC control field */
 	__u8  protid[3];		/* protocol id */
-	__u16 ethertype;		/* ether type field */
+	__be16 ethertype;		/* ether type field */
 };
 
 /* Token-Ring statistics collection data. */
