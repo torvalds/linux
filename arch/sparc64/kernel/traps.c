@@ -421,6 +421,25 @@ asmlinkage void cee_log(unsigned long ce_status,
 	}
 }
 
+int cheetah_pcache_forced_on;
+
+void cheetah_enable_pcache(void)
+{
+	unsigned long dcr;
+
+	printk("CHEETAH: Enabling P-Cache on cpu %d.\n",
+	       smp_processor_id());
+
+	__asm__ __volatile__("ldxa [%%g0] %1, %0"
+			     : "=r" (dcr)
+			     : "i" (ASI_DCU_CONTROL_REG));
+	dcr |= (DCU_PE | DCU_HPE | DCU_SPE | DCU_SL);
+	__asm__ __volatile__("stxa %0, [%%g0] %1\n\t"
+			     "membar #Sync"
+			     : /* no outputs */
+			     : "r" (dcr), "i" (ASI_DCU_CONTROL_REG));
+}
+
 /* Cheetah error trap handling. */
 static unsigned long ecache_flush_physbase;
 static unsigned long ecache_flush_linesize;

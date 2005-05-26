@@ -179,6 +179,7 @@ void free_initmem(void)
 	if (!have_of)
 		FREESEC(openfirmware);
  	printk("\n");
+	ppc_md.progress = NULL;
 #undef FREESEC
 }
 

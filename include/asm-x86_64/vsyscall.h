@@ -25,6 +25,7 @@ enum vsyscall_num {
 
 #define VXTIME_TSC	1
 #define VXTIME_HPET	2
+#define VXTIME_PMTMR	3
 
 struct vxtime_data {
 	long hpet_address;	/* HPET base address */
@@ -53,6 +54,8 @@ extern unsigned long wall_jiffies;
 extern struct timezone sys_tz;
 extern int sysctl_vsyscall;
 extern seqlock_t xtime_lock;
+
+extern int sysctl_vsyscall;
 
 #define ARCH_HAVE_XTIME_LOCK 1
 

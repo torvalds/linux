@@ -1933,7 +1933,7 @@ static ide_startstop_t cdrom_do_block_pc(ide_drive_t *drive, struct request *rq)
 		/*
 		 * check if dma is safe
 		 */
-		if ((rq->data_len & mask) || (addr & mask))
+		if ((rq->data_len & 3) || (addr & mask))
 			info->dma = 0;
 	}
 

@@ -65,7 +65,7 @@ static force_inline void do_vgettimeofday(struct timeval * tv)
 		usec = (__xtime.tv_nsec / 1000) +
 			(__jiffies - __wall_jiffies) * (1000000 / HZ);
 
-		if (__vxtime.mode == VXTIME_TSC) {
+		if (__vxtime.mode != VXTIME_HPET) {
 			sync_core();
 			rdtscll(t);
 			if (t < __vxtime.last_tsc)
@@ -217,8 +217,9 @@ static int __init vsyscall_init(void)
 	BUG_ON((unsigned long) &vtime != VSYSCALL_ADDR(__NR_vtime));
 	BUG_ON((VSYSCALL_ADDR(0) != __fix_to_virt(VSYSCALL_FIRST_PAGE)));
 	map_vsyscall();
-	sysctl_vsyscall = 1;
+#ifdef CONFIG_SYSCTL
 	register_sysctl_table(kernel_root_table2, 0);
+#endif
 	return 0;
 }
 

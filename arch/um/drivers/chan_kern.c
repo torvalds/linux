@@ -20,9 +20,17 @@
 #include "os.h"
 
 #ifdef CONFIG_NOCONFIG_CHAN
+
+/* The printk's here are wrong because we are complaining that there is no
+ * output device, but printk is printing to that output device.  The user will
+ * never see the error.  printf would be better, except it can't run on a
+ * kernel stack because it will overflow it.
+ * Use printk for now since that will avoid crashing.
+ */
+
 static void *not_configged_init(char *str, int device, struct chan_opts *opts)
 {
-	printf(KERN_ERR "Using a channel type which is configured out of "
+	printk(KERN_ERR "Using a channel type which is configured out of "
 	       "UML\n");
 	return(NULL);
 }
@@ -30,27 +38,27 @@ static void *not_configged_init(char *str, int device, struct chan_opts *opts)
 static int not_configged_open(int input, int output, int primary, void *data,
 			      char **dev_out)
 {
-	printf(KERN_ERR "Using a channel type which is configured out of "
+	printk(KERN_ERR "Using a channel type which is configured out of "
 	       "UML\n");
 	return(-ENODEV);
 }
 
 static void not_configged_close(int fd, void *data)
 {
-	printf(KERN_ERR "Using a channel type which is configured out of "
+	printk(KERN_ERR "Using a channel type which is configured out of "
 	       "UML\n");
 }
 
 static int not_configged_read(int fd, char *c_out, void *data)
 {
-	printf(KERN_ERR "Using a channel type which is configured out of "
+	printk(KERN_ERR "Using a channel type which is configured out of "
 	       "UML\n");
 	return(-EIO);
 }
 
 static int not_configged_write(int fd, const char *buf, int len, void *data)
 {
-	printf(KERN_ERR "Using a channel type which is configured out of "
+	printk(KERN_ERR "Using a channel type which is configured out of "
 	       "UML\n");
 	return(-EIO);
 }
@@ -58,7 +66,7 @@ static int not_configged_write(int fd, const char *buf, int len, void *data)
 static int not_configged_console_write(int fd, const char *buf, int len,
 				       void *data)
 {
-	printf(KERN_ERR "Using a channel type which is configured out of "
+	printk(KERN_ERR "Using a channel type which is configured out of "
 	       "UML\n");
 	return(-EIO);
 }
@@ -66,7 +74,7 @@ static int not_configged_console_write(int fd, const char *buf, int len,
 static int not_configged_window_size(int fd, void *data, unsigned short *rows,
 				     unsigned short *cols)
 {
-	printf(KERN_ERR "Using a channel type which is configured out of "
+	printk(KERN_ERR "Using a channel type which is configured out of "
 	       "UML\n");
 	return(-ENODEV);
 }

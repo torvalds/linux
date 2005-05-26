@@ -220,7 +220,7 @@ struct av7110 {
 
 	struct audio_mixer	mixer;
 
-	struct dvb_adapter	 *dvb_adapter;
+	struct dvb_adapter	 dvb_adapter;
 	struct dvb_device	 *video_dev;
 	struct dvb_device	 *audio_dev;
 	struct dvb_device	 *ca_dev;
@@ -274,7 +274,6 @@ extern void av7110_ir_exit (void);
 extern int i2c_writereg(struct av7110 *av7110, u8 id, u8 reg, u8 val);
 extern u8 i2c_readreg(struct av7110 *av7110, u8 id, u8 reg);
 extern int msp_writereg(struct av7110 *av7110, u8 dev, u16 reg, u16 val);
-extern int msp_readreg(struct av7110 *av7110, u8 dev, u16 reg, u16 *val);
 
 
 extern int av7110_init_analog_module(struct av7110 *av7110);

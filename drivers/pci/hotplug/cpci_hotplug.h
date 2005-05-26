@@ -31,7 +31,7 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 
-/* PICMG 2.12 R2.0 HS CSR bits: */
+/* PICMG 2.1 R2.0 HS CSR bits: */
 #define HS_CSR_INS	0x0080
 #define HS_CSR_EXT	0x0040
 #define HS_CSR_PI	0x0030

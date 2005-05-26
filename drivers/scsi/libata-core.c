@@ -1253,11 +1253,11 @@ void __sata_phy_reset(struct ata_port *ap)
 	unsigned long timeout = jiffies + (HZ * 5);
 
 	if (ap->flags & ATA_FLAG_SATA_RESET) {
-		scr_write(ap, SCR_CONTROL, 0x301); /* issue phy wake/reset */
-		scr_read(ap, SCR_STATUS);	/* dummy read; flush */
+		/* issue phy wake/reset */
+		scr_write_flush(ap, SCR_CONTROL, 0x301);
 		udelay(400);			/* FIXME: a guess */
 	}
-	scr_write(ap, SCR_CONTROL, 0x300);	/* issue phy wake/clear reset */
+	scr_write_flush(ap, SCR_CONTROL, 0x300); /* phy wake/clear reset */
 
 	/* wait for phy to become ready, if necessary */
 	do {
@@ -2539,7 +2539,7 @@ static void atapi_request_sense(struct ata_port *ap, struct ata_device *dev,
 	ata_sg_init_one(qc, cmd->sense_buffer, sizeof(cmd->sense_buffer));
 	qc->dma_dir = DMA_FROM_DEVICE;
 
-	memset(&qc->cdb, 0, sizeof(ap->cdb_len));
+	memset(&qc->cdb, 0, ap->cdb_len);
 	qc->cdb[0] = REQUEST_SENSE;
 	qc->cdb[4] = SCSI_SENSE_BUFFERSIZE;
 
@@ -2811,6 +2811,7 @@ void ata_qc_complete(struct ata_queued_cmd *qc, u8 drv_stat)
 
 	/* call completion callback */
 	rc = qc->complete_fn(qc, drv_stat);
+	qc->flags &= ~ATA_QCFLAG_ACTIVE;
 
 	/* if callback indicates not to complete command (non-zero),
 	 * return immediately
@@ -3229,7 +3230,8 @@ irqreturn_t ata_interrupt (int irq, void *dev_instance, struct pt_regs *regs)
 			struct ata_queued_cmd *qc;
 
 			qc = ata_qc_from_tag(ap, ap->active_tag);
-			if (qc && (!(qc->tf.ctl & ATA_NIEN)))
+			if (qc && (!(qc->tf.ctl & ATA_NIEN)) &&
+			    (qc->flags & ATA_QCFLAG_ACTIVE))
 				handled |= ata_host_intr(ap, qc);
 		}
 	}

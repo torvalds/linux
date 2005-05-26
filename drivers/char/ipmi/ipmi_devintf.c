@@ -44,6 +44,7 @@
 #include <linux/ipmi.h>
 #include <asm/semaphore.h>
 #include <linux/init.h>
+#include <linux/device.h>
 
 #define IPMI_DEVINTF_VERSION "v33"
 
@@ -519,15 +520,21 @@ MODULE_PARM_DESC(ipmi_major, "Sets the major number of the IPMI device.  By"
 		 " interface.  Other values will set the major device number"
 		 " to that value.");
 
+static struct class_simple *ipmi_class;
+
 static void ipmi_new_smi(int if_num)
 {
-	devfs_mk_cdev(MKDEV(ipmi_major, if_num),
-		      S_IFCHR | S_IRUSR | S_IWUSR,
+	dev_t dev = MKDEV(ipmi_major, if_num);
+
+	devfs_mk_cdev(dev, S_IFCHR | S_IRUSR | S_IWUSR,
 		      "ipmidev/%d", if_num);
+
+	class_simple_device_add(ipmi_class, dev, NULL, "ipmi%d", if_num);
 }
 
 static void ipmi_smi_gone(int if_num)
 {
+	class_simple_device_remove(MKDEV(ipmi_major, if_num));
 	devfs_remove("ipmidev/%d", if_num);
 }
 
@@ -548,8 +555,15 @@ static __init int init_ipmi_devintf(void)
 	printk(KERN_INFO "ipmi device interface version "
 	       IPMI_DEVINTF_VERSION "\n");
 
+	ipmi_class = class_simple_create(THIS_MODULE, "ipmi");
+	if (IS_ERR(ipmi_class)) {
+		printk(KERN_ERR "ipmi: can't register device class\n");
+		return PTR_ERR(ipmi_class);
+	}
+
 	rv = register_chrdev(ipmi_major, DEVICE_NAME, &ipmi_fops);
 	if (rv < 0) {
+		class_simple_destroy(ipmi_class);
 		printk(KERN_ERR "ipmi: can't get major %d\n", ipmi_major);
 		return rv;
 	}
@@ -563,6 +577,7 @@ static __init int init_ipmi_devintf(void)
 	rv = ipmi_smi_watcher_register(&smi_watcher);
 	if (rv) {
 		unregister_chrdev(ipmi_major, DEVICE_NAME);
+		class_simple_destroy(ipmi_class);
 		printk(KERN_WARNING "ipmi: can't register smi watcher\n");
 		return rv;
 	}
@@ -573,6 +588,7 @@ module_init(init_ipmi_devintf);
 
 static __exit void cleanup_ipmi(void)
 {
+	class_simple_destroy(ipmi_class);
 	ipmi_smi_watcher_unregister(&smi_watcher);
 	devfs_remove(DEVICE_NAME);
 	unregister_chrdev(ipmi_major, DEVICE_NAME);

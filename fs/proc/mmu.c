@@ -50,13 +50,23 @@ void get_vmalloc_info(struct vmalloc_info *vmi)
 		read_lock(&vmlist_lock);
 
 		for (vma = vmlist; vma; vma = vma->next) {
+			unsigned long addr = (unsigned long) vma->addr;
+
+			/*
+			 * Some archs keep another range for modules in vmlist
+			 */
+			if (addr < VMALLOC_START)
+				continue;
+			if (addr >= VMALLOC_END)
+				break;
+
 			vmi->used += vma->size;
 
-			free_area_size = (unsigned long) vma->addr - prev_end;
+			free_area_size = addr - prev_end;
 			if (vmi->largest_chunk < free_area_size)
 				vmi->largest_chunk = free_area_size;
 
-			prev_end = vma->size + (unsigned long) vma->addr;
+			prev_end = vma->size + addr;
 		}
 
 		if (VMALLOC_END - prev_end > vmi->largest_chunk)

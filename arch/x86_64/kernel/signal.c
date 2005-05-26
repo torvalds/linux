@@ -452,7 +452,9 @@ int do_signal(struct pt_regs *regs, sigset_t *oldset)
 			regs->rip -= 2;
 		}
 		if (regs->rax == (unsigned long)-ERESTART_RESTARTBLOCK) {
-			regs->rax = __NR_restart_syscall;
+			regs->rax = test_thread_flag(TIF_IA32) ?
+					__NR_ia32_restart_syscall :
+					__NR_restart_syscall;
 			regs->rip -= 2;
 		}
 	}

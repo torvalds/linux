@@ -625,7 +625,10 @@ int ata_scsi_slave_config(struct scsi_device *sdev)
 		 */
 		if ((dev->flags & ATA_DFLAG_LBA48) &&
 		    ((dev->flags & ATA_DFLAG_LOCK_SECTORS) == 0)) {
-			sdev->host->max_sectors = 2048;
+			/*
+			 * do not overwrite sdev->host->max_sectors, since
+			 * other drives on this host may not support LBA48
+			 */
 			blk_queue_max_sectors(sdev->request_queue, 2048);
 		}
 	}

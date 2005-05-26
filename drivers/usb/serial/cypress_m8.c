@@ -89,6 +89,7 @@ static int interval;
 
 static struct usb_device_id id_table_earthmate [] = {
 	{ USB_DEVICE(VENDOR_ID_DELORME, PRODUCT_ID_EARTHMATEUSB) },
+	{ USB_DEVICE(VENDOR_ID_DELORME, PRODUCT_ID_EARTHMATEUSB_LT20) },
 	{ }						/* Terminating entry */
 };
 
@@ -99,6 +100,7 @@ static struct usb_device_id id_table_cyphidcomrs232 [] = {
 
 static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(VENDOR_ID_DELORME, PRODUCT_ID_EARTHMATEUSB) },
+	{ USB_DEVICE(VENDOR_ID_DELORME, PRODUCT_ID_EARTHMATEUSB_LT20) },
 	{ USB_DEVICE(VENDOR_ID_CYPRESS, PRODUCT_ID_CYPHIDCOM) },
 	{ }						/* Terminating entry */
 };

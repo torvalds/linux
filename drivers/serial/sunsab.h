@@ -126,6 +126,7 @@ union sab82532_irq_status {
 /* irqflags bits */
 #define SAB82532_ALLS			0x00000001
 #define SAB82532_XPR			0x00000002
+#define SAB82532_REGS_PENDING		0x00000004
 
 /* RFIFO Status Byte */
 #define SAB82532_RSTAT_PE		0x80

@@ -117,19 +117,34 @@ static void iommu_flush(struct sbus_iommu *iommu, u32 base, unsigned long npages
 
 #define STRBUF_TAG_VALID	0x02UL
 
-static void strbuf_flush(struct sbus_iommu *iommu, u32 base, unsigned long npages)
+static void sbus_strbuf_flush(struct sbus_iommu *iommu, u32 base, unsigned long npages)
 {
+	unsigned long n;
+	int limit;
+
 	iommu->strbuf_flushflag = 0UL;
-	while (npages--)
-		upa_writeq(base + (npages << IO_PAGE_SHIFT),
+	n = npages;
+	while (n--)
+		upa_writeq(base + (n << IO_PAGE_SHIFT),
 			   iommu->strbuf_regs + STRBUF_PFLUSH);
 
 	/* Whoopee cushion! */
 	upa_writeq(__pa(&iommu->strbuf_flushflag),
 		   iommu->strbuf_regs + STRBUF_FSYNC);
 	upa_readq(iommu->sbus_control_reg);
-	while (iommu->strbuf_flushflag == 0UL)
+
+	limit = 100000;
+	while (iommu->strbuf_flushflag == 0UL) {
+		limit--;
+		if (!limit)
+			break;
+		udelay(1);
 		membar("#LoadLoad");
+	}
+	if (!limit)
+		printk(KERN_WARNING "sbus_strbuf_flush: flushflag timeout "
+		       "vaddr[%08x] npages[%ld]\n",
+		       base, npages);
 }
 
 static iopte_t *alloc_streaming_cluster(struct sbus_iommu *iommu, unsigned long npages)
@@ -406,7 +421,7 @@ void sbus_unmap_single(struct sbus_dev *sdev, dma_addr_t dma_addr, size_t size, 
 
 	spin_lock_irqsave(&iommu->lock, flags);
 	free_streaming_cluster(iommu, dma_base, size >> IO_PAGE_SHIFT);
-	strbuf_flush(iommu, dma_base, size >> IO_PAGE_SHIFT);
+	sbus_strbuf_flush(iommu, dma_base, size >> IO_PAGE_SHIFT);
 	spin_unlock_irqrestore(&iommu->lock, flags);
 }
 
@@ -569,7 +584,7 @@ void sbus_unmap_sg(struct sbus_dev *sdev, struct scatterlist *sg, int nents, int
 	iommu = sdev->bus->iommu;
 	spin_lock_irqsave(&iommu->lock, flags);
 	free_streaming_cluster(iommu, dvma_base, size >> IO_PAGE_SHIFT);
-	strbuf_flush(iommu, dvma_base, size >> IO_PAGE_SHIFT);
+	sbus_strbuf_flush(iommu, dvma_base, size >> IO_PAGE_SHIFT);
 	spin_unlock_irqrestore(&iommu->lock, flags);
 }
 
@@ -581,7 +596,7 @@ void sbus_dma_sync_single_for_cpu(struct sbus_dev *sdev, dma_addr_t base, size_t
 	size = (IO_PAGE_ALIGN(base + size) - (base & IO_PAGE_MASK));
 
 	spin_lock_irqsave(&iommu->lock, flags);
-	strbuf_flush(iommu, base & IO_PAGE_MASK, size >> IO_PAGE_SHIFT);
+	sbus_strbuf_flush(iommu, base & IO_PAGE_MASK, size >> IO_PAGE_SHIFT);
 	spin_unlock_irqrestore(&iommu->lock, flags);
 }
 
@@ -605,7 +620,7 @@ void sbus_dma_sync_sg_for_cpu(struct sbus_dev *sdev, struct scatterlist *sg, int
 	size = IO_PAGE_ALIGN(sg[i].dma_address + sg[i].dma_length) - base;
 
 	spin_lock_irqsave(&iommu->lock, flags);
-	strbuf_flush(iommu, base, size >> IO_PAGE_SHIFT);
+	sbus_strbuf_flush(iommu, base, size >> IO_PAGE_SHIFT);
 	spin_unlock_irqrestore(&iommu->lock, flags);
 }
 

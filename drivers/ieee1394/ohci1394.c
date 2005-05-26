@@ -2931,7 +2931,7 @@ static void free_dma_rcv_ctx(struct dma_rcv_ctx *d)
 		kfree(d->prg_cpu);
 		kfree(d->prg_bus);
 	}
-	if (d->spb) kfree(d->spb);
+	kfree(d->spb);
 
 	/* Mark this context as freed. */
 	d->ohci = NULL;
