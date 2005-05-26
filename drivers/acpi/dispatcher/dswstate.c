@@ -762,6 +762,7 @@ acpi_ds_init_aml_walk (
 	/* The next_op of the next_walk will be the beginning of the method */
 
 	walk_state->next_op = NULL;
+	walk_state->pass_number = (u8) pass_number;
 
 	if (info) {
 		if (info->parameter_type == ACPI_PARAM_GPE) {

@@ -145,15 +145,6 @@ acpi_ds_load1_begin_op (
 
 	if (op) {
 		if (!(walk_state->op_info->flags & AML_NAMED)) {
-#if 0
-			if ((walk_state->op_info->class == AML_CLASS_EXECUTE) ||
-				(walk_state->op_info->class == AML_CLASS_CONTROL)) {
-				acpi_os_printf ("\n\n***EXECUTABLE OPCODE %s***\n\n",
-					walk_state->op_info->name);
-				*out_op = op;
-				return (AE_CTRL_SKIP);
-			}
-#endif
 			*out_op = op;
 			return (AE_OK);
 		}
@@ -486,6 +477,15 @@ acpi_ds_load2_begin_op (
 	ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "Op=%p State=%p\n", op, walk_state));
 
 	if (op) {
+		if ((walk_state->control_state) &&
+			(walk_state->control_state->common.state ==
+				ACPI_CONTROL_CONDITIONAL_EXECUTING)) {
+			/* We are executing a while loop outside of a method */
+
+			status = acpi_ds_exec_begin_op (walk_state, out_op);
+			return_ACPI_STATUS (status);
+		}
+
 		/* We only care about Namespace opcodes here */
 
 		if ((!(walk_state->op_info->flags & AML_NSOPCODE) &&
@@ -493,9 +493,14 @@ acpi_ds_load2_begin_op (
 			(!(walk_state->op_info->flags & AML_NAMED))) {
 			if ((walk_state->op_info->class == AML_CLASS_EXECUTE) ||
 				(walk_state->op_info->class == AML_CLASS_CONTROL)) {
-				ACPI_REPORT_WARNING ((
-					"Encountered executable code at module level, [%s]\n",
-					acpi_ps_get_opcode_name (walk_state->opcode)));
+				ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
+					"Begin/EXEC: %s (fl %8.8X)\n", walk_state->op_info->name,
+					walk_state->op_info->flags));
+
+				/* Executing a type1 or type2 opcode outside of a method */
+
+				status = acpi_ds_exec_begin_op (walk_state, out_op);
+				return_ACPI_STATUS (status);
 			}
 			return_ACPI_STATUS (AE_OK);
 		}
@@ -657,8 +662,10 @@ acpi_ds_load2_begin_op (
 			break;
 		}
 
+		/* Add new entry into namespace */
+
 		status = acpi_ns_lookup (walk_state->scope_info, buffer_ptr, object_type,
-				  ACPI_IMODE_EXECUTE, ACPI_NS_NO_UPSEARCH,
+				  ACPI_IMODE_LOAD_PASS2, ACPI_NS_NO_UPSEARCH,
 				  walk_state, &(node));
 		break;
 	}
@@ -667,7 +674,6 @@ acpi_ds_load2_begin_op (
 		ACPI_REPORT_NSERROR (buffer_ptr, status);
 		return_ACPI_STATUS (status);
 	}
-
 
 	if (!op) {
 		/* Create a new op */
@@ -682,9 +688,7 @@ acpi_ds_load2_begin_op (
 		if (node) {
 			op->named.name = node->name.integer;
 		}
-		if (out_op) {
-			*out_op = op;
-		}
+		*out_op = op;
 	}
 
 	/*
@@ -731,9 +735,24 @@ acpi_ds_load2_end_op (
 	ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "Opcode [%s] Op %p State %p\n",
 			walk_state->op_info->name, op, walk_state));
 
-	/* Only interested in opcodes that have namespace objects */
+	/* Check if opcode had an associated namespace object */
 
 	if (!(walk_state->op_info->flags & AML_NSOBJECT)) {
+#ifndef ACPI_NO_METHOD_EXECUTION
+		/* No namespace object. Executable opcode? */
+
+		if ((walk_state->op_info->class == AML_CLASS_EXECUTE) ||
+			(walk_state->op_info->class == AML_CLASS_CONTROL)) {
+			ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
+				"End/EXEC:   %s (fl %8.8X)\n", walk_state->op_info->name,
+				walk_state->op_info->flags));
+
+			/* Executing a type1 or type2 opcode outside of a method */
+
+			status = acpi_ds_exec_end_op (walk_state);
+			return_ACPI_STATUS (status);
+		}
+#endif
 		return_ACPI_STATUS (AE_OK);
 	}
 
@@ -741,7 +760,6 @@ acpi_ds_load2_end_op (
 		ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
 			"Ending scope Op=%p State=%p\n", op, walk_state));
 	}
-
 
 	object_type = walk_state->op_info->object_type;
 

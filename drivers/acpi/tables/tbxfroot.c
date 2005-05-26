@@ -331,8 +331,10 @@ acpi_get_firmware_table (
 
 
 cleanup:
-	acpi_os_unmap_memory (rsdt_info->pointer,
-		(acpi_size) rsdt_info->pointer->length);
+	if (rsdt_info->pointer) {
+		acpi_os_unmap_memory (rsdt_info->pointer,
+			(acpi_size) rsdt_info->pointer->length);
+	}
 	ACPI_MEM_FREE (rsdt_info);
 
 	if (header) {

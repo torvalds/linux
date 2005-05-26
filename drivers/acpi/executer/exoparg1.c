@@ -127,14 +127,15 @@ acpi_ex_opcode_0A_0T_1R (
 
 cleanup:
 
-	if (!walk_state->result_obj) {
-		walk_state->result_obj = return_desc;
-	}
-
 	/* Delete return object on error */
 
-	if (ACPI_FAILURE (status)) {
+	if ((ACPI_FAILURE (status)) || walk_state->result_obj) {
 		acpi_ut_remove_reference (return_desc);
+	}
+	else {
+		/* Save the return value */
+
+		walk_state->result_obj = return_desc;
 	}
 
 	return_ACPI_STATUS (status);

@@ -139,7 +139,8 @@ acpi_ds_parse_method (
 
 	walk_state = acpi_ds_create_walk_state (owner_id, NULL, NULL, NULL);
 	if (!walk_state) {
-		return_ACPI_STATUS (AE_NO_MEMORY);
+		status = AE_NO_MEMORY;
+		goto cleanup;
 	}
 
 	status = acpi_ds_init_aml_walk (walk_state, op, node,
@@ -147,7 +148,7 @@ acpi_ds_parse_method (
 			  obj_desc->method.aml_length, NULL, 1);
 	if (ACPI_FAILURE (status)) {
 		acpi_ds_delete_walk_state (walk_state);
-		return_ACPI_STATUS (status);
+		goto cleanup;
 	}
 
 	/*
@@ -161,13 +162,14 @@ acpi_ds_parse_method (
 	 */
 	status = acpi_ps_parse_aml (walk_state);
 	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
+		goto cleanup;
 	}
 
 	ACPI_DEBUG_PRINT ((ACPI_DB_PARSE,
 		"**** [%4.4s] Parsed **** named_obj=%p Op=%p\n",
 		acpi_ut_get_node_name (obj_handle), obj_handle, op));
 
+cleanup:
 	acpi_ps_delete_parse_tree (op);
 	return_ACPI_STATUS (status);
 }

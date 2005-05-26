@@ -787,7 +787,6 @@ acpi_ut_release_mutex (
 	acpi_mutex_handle               mutex_id)
 {
 	acpi_status                     status;
-	u32                             i;
 	u32                             this_thread_id;
 
 
@@ -814,25 +813,32 @@ acpi_ut_release_mutex (
 		return (AE_NOT_ACQUIRED);
 	}
 
-	/*
-	 * Deadlock prevention.  Check if this thread owns any mutexes of value
-	 * greater than this one.  If so, the thread has violated the mutex
-	 * ordering rule.  This indicates a coding error somewhere in
-	 * the ACPI subsystem code.
-	 */
-	for (i = mutex_id; i < MAX_MUTEX; i++) {
-		if (acpi_gbl_mutex_info[i].owner_id == this_thread_id) {
-			if (i == mutex_id) {
-				continue;
+#ifdef ACPI_MUTEX_DEBUG
+	{
+		u32                             i;
+		/*
+		 * Mutex debug code, for internal debugging only.
+		 *
+		 * Deadlock prevention.  Check if this thread owns any mutexes of value
+		 * greater than this one.  If so, the thread has violated the mutex
+		 * ordering rule.  This indicates a coding error somewhere in
+		 * the ACPI subsystem code.
+		 */
+		for (i = mutex_id; i < MAX_MUTEX; i++) {
+			if (acpi_gbl_mutex_info[i].owner_id == this_thread_id) {
+				if (i == mutex_id) {
+					continue;
+				}
+
+				ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+					"Invalid release order: owns [%s], releasing [%s]\n",
+					acpi_ut_get_mutex_name (i), acpi_ut_get_mutex_name (mutex_id)));
+
+				return (AE_RELEASE_DEADLOCK);
 			}
-
-			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-				"Invalid release order: owns [%s], releasing [%s]\n",
-				acpi_ut_get_mutex_name (i), acpi_ut_get_mutex_name (mutex_id)));
-
-			return (AE_RELEASE_DEADLOCK);
 		}
 	}
+#endif
 
 	/* Mark unlocked FIRST */
 

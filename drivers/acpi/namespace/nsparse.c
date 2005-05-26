@@ -146,6 +146,7 @@ acpi_ns_parse_table (
 	 * to service the entire parse.  The second pass of the parse then
 	 * performs another complete parse of the AML..
 	 */
+	ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "**** Start pass 1\n"));
 	status = acpi_ns_one_complete_parse (1, table_desc);
 	if (ACPI_FAILURE (status)) {
 		return_ACPI_STATUS (status);
@@ -160,6 +161,7 @@ acpi_ns_parse_table (
 	 * overhead of this is compensated for by the fact that the
 	 * parse objects are all cached.
 	 */
+	ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "**** Start pass 2\n"));
 	status = acpi_ns_one_complete_parse (2, table_desc);
 	if (ACPI_FAILURE (status)) {
 		return_ACPI_STATUS (status);

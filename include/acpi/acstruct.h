@@ -78,7 +78,7 @@ struct acpi_walk_state
 	u8                                  return_used;
 	u16                                 opcode;                             /* Current AML opcode */
 	u8                                  scope_depth;
-	u8                                  reserved1;
+	u8                                  pass_number;                        /* Parse pass during table load */
 	u32                                 arg_count;                          /* push for fixed or var args */
 	u32                                 aml_offset;
 	u32                                 arg_types;

@@ -87,6 +87,9 @@ acpi_ex_read_data_from_field (
 	if (!obj_desc) {
 		return_ACPI_STATUS (AE_AML_NO_OPERAND);
 	}
+	if (!ret_buffer_desc) {
+		return_ACPI_STATUS (AE_BAD_PARAMETER);
+	}
 
 	if (ACPI_GET_OBJECT_TYPE (obj_desc) == ACPI_TYPE_BUFFER_FIELD) {
 		/*
@@ -182,7 +185,7 @@ exit:
 	if (ACPI_FAILURE (status)) {
 		acpi_ut_remove_reference (buffer_desc);
 	}
-	else if (ret_buffer_desc) {
+	else {
 		*ret_buffer_desc = buffer_desc;
 	}
 
