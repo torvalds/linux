@@ -298,7 +298,6 @@ static void usbatm_extract_cells(struct usbatm_data *instance,
 	struct usbatm_vcc_data *cached_vcc = NULL;
 	struct atm_vcc *vcc;
 	struct sk_buff *sarb;
-	struct usbatm_vcc_data *vcc_data;
 	unsigned int stride = instance->rx_channel.stride;
 	int vci, cached_vci = 0;
 	short vpi, cached_vpi = 0;
@@ -311,18 +310,20 @@ static void usbatm_extract_cells(struct usbatm_data *instance,
 
 		vdbg("%s: vpi %hd, vci %d, pti %d", __func__, vpi, vci, pti);
 
-		if (cached_vcc && (vci == cached_vci) && (vpi == cached_vpi))
-			vcc_data = cached_vcc;
-		else if ((vcc_data = usbatm_find_vcc(instance, vpi, vci))) {
-			cached_vcc = vcc_data;
+		if ((vci != cached_vci) || (vpi != cached_vpi)) {
 			cached_vpi = vpi;
 			cached_vci = vci;
-		} else {
-			atm_dbg(instance, "%s: unknown vpi/vci (%hd/%d)!\n", __func__, vpi, vci);
-			continue;
+
+			cached_vcc = usbatm_find_vcc(instance, vpi, vci);
+
+			if (!cached_vcc)
+				atm_dbg(instance, "%s: unknown vpi/vci (%hd/%d)!\n", __func__, vpi, vci);
 		}
 
-		vcc = vcc_data->vcc;
+		if (!cached_vcc)
+			continue;
+
+		vcc = cached_vcc->vcc;
 
 		/* OAM F5 end-to-end */
 		if (pti == ATM_PTI_E2EF5) {
@@ -331,7 +332,7 @@ static void usbatm_extract_cells(struct usbatm_data *instance,
 			continue;
 		}
 
-		sarb = vcc_data->sarb;
+		sarb = cached_vcc->sarb;
 
 		if (sarb->tail + ATM_CELL_PAYLOAD > sarb->end) {
 			atm_dbg(instance, "%s: buffer overrun (sarb->len %u, vcc: 0x%p)!\n",
