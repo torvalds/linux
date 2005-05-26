@@ -1,3 +1,69 @@
+Release Date	: Mon Mar 07 12:27:22 EST 2005 - Seokmann Ju <sju@lsil.com>
+Current Version : 2.20.4.6 (scsi module), 2.20.2.6 (cmm module)
+Older Version	: 2.20.4.5 (scsi module), 2.20.2.5 (cmm module)
+
+1.	Added IOCTL backward compatibility.
+	Convert megaraid_mm driver to new compat_ioctl entry points.
+	I don't have easy access to hardware, so only compile tested.
+		- Signed-off-by:Andi Kleen <ak@muc.de>
+
+2.	megaraid_mbox fix: wrong order of arguments in memset()
+	That, BTW, shows why cross-builds are useful-the only indication of
+	problem had been a new warning showing up in sparse output on alpha
+	build (number of exceeding 256 got truncated).
+		- Signed-off-by: Al Viro
+		<viro@parcelfarce.linux.theplanet.co.uk>
+
+3.	Convert pci_module_init to pci_register_driver
+	Convert from pci_module_init to pci_register_driver
+	(from:http://kerneljanitors.org/TODO)
+		- Signed-off-by: Domen Puncer <domen@coderock.org>
+
+4.	Use the pre defined DMA mask constants from dma-mapping.h
+	Use the DMA_{64,32}BIT_MASK constants from dma-mapping.h when calling
+	pci_set_dma_mask() or pci_set_consistend_dma_mask(). See
+	http://marc.theaimsgroup.com/?t=108001993000001&r=1&w=2 for more
+	details.
+		Signed-off-by: Tobias Klauser <tklauser@nuerscht.ch>
+		Signed-off-by: Domen Puncer <domen@coderock.org>
+
+5.	Remove SSID checking for Dobson, Lindsay, and Verde based products.
+	Checking the SSVID/SSID for controllers which have Dobson, Lindsay,
+	and Verde is unnecessary because device ID has been assigned by LSI
+	and it is unique value. So, all controllers with these IOPs have to be
+	supported by the driver regardless SSVID/SSID.
+
+6.	Date Thu, 27 Jan 2005 04:31:09 +0100 
+	From Herbert Poetzl <> 
+	Subject RFC: assert_spin_locked() for 2.6 
+
+	Greetings!
+
+	overcautious programming will kill your kernel ;)
+	ever thought about checking a spin_lock or even
+	asserting that it must be held (maybe just for
+	spinlock debugging?) ...
+
+	there are several checks present in the kernel
+	where somebody does a variation on the following:
+
+	  BUG_ON(!spin_is_locked(&some_lock));
+
+	so what's wrong about that? nothing, unless you
+	compile the code with CONFIG_DEBUG_SPINLOCK but 
+	without CONFIG_SMP ... in which case the BUG()
+	will kill your kernel ...
+
+	maybe it's not advised to make such assertions, 
+	but here is a solution which works for me ...
+	(compile tested for sh, x86_64 and x86, boot/run
+	tested for x86 only)
+
+	best,
+	Herbert
+
+		- Herbert Poetzl <herbert@13thfloor.at>, Thu, 27 Jan 2005
+
 Release Date	: Thu Feb 03 12:27:22 EST 2005 - Seokmann Ju <sju@lsil.com>
 Current Version	: 2.20.4.5 (scsi module), 2.20.2.5 (cmm module)
 Older Version	: 2.20.4.4 (scsi module), 2.20.2.4 (cmm module)

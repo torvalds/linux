@@ -1053,7 +1053,7 @@ static void ipr_log_array_error(struct ipr_ioa_cfg *ioa_cfg,
 				array_entry->dev_res_addr.lun);
 		}
 
-		if (array_entry->dev_res_addr.bus >= IPR_MAX_NUM_BUSES) {
+		if (array_entry->expected_dev_res_addr.bus >= IPR_MAX_NUM_BUSES) {
 			ipr_err("Expected Location: unknown\n");
 		} else {
 			ipr_err("Expected Location: %d:%d:%d:%d\n",
@@ -5886,6 +5886,7 @@ static void __ipr_remove(struct pci_dev *pdev)
 
 	spin_unlock_irqrestore(ioa_cfg->host->host_lock, host_lock_flags);
 	wait_event(ioa_cfg->reset_wait_q, !ioa_cfg->in_reset_reload);
+	flush_scheduled_work();
 	spin_lock_irqsave(ioa_cfg->host->host_lock, host_lock_flags);
 
 	spin_lock(&ipr_driver_lock);
@@ -5916,8 +5917,6 @@ static void ipr_remove(struct pci_dev *pdev)
 
 	ENTER;
 
-	ioa_cfg->allow_cmds = 0;
-	flush_scheduled_work();
 	ipr_remove_trace_file(&ioa_cfg->host->shost_classdev.kobj,
 			      &ipr_trace_attr);
 	ipr_remove_dump_file(&ioa_cfg->host->shost_classdev.kobj,
