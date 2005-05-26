@@ -697,13 +697,13 @@ static int wait_hwif_ready(ide_hwif_t *hwif)
 	SELECT_DRIVE(&hwif->drives[0]);
 	hwif->OUTB(8, hwif->io_ports[IDE_CONTROL_OFFSET]);
 	mdelay(2);
-	rc = ide_wait_not_busy(hwif, 10000);
+	rc = ide_wait_not_busy(hwif, 35000);
 	if (rc)
 		return rc;
 	SELECT_DRIVE(&hwif->drives[1]);
 	hwif->OUTB(8, hwif->io_ports[IDE_CONTROL_OFFSET]);
 	mdelay(2);
-	rc = ide_wait_not_busy(hwif, 10000);
+	rc = ide_wait_not_busy(hwif, 35000);
 
 	/* Exit function with master reselected (let's be sane) */
 	SELECT_DRIVE(&hwif->drives[0]);
