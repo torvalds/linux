@@ -193,8 +193,9 @@ EXPORT_SYMBOL(smp_num_siblings);
 extern void do_softirq_thunk(void);
 EXPORT_SYMBOL(do_softirq_thunk);
 
-void out_of_line_bug(void);
+#ifdef CONFIG_BUG
 EXPORT_SYMBOL(out_of_line_bug);
+#endif
 
 EXPORT_SYMBOL(init_level4_pgt);
 

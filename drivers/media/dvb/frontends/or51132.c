@@ -102,7 +102,7 @@ static u8 i2c_readbytes (struct or51132_state* state, u8 reg, u8* buf, int len)
 
 static int or51132_load_firmware (struct dvb_frontend* fe, const struct firmware *fw)
 {
-	struct or51132_state* state = (struct or51132_state*) fe->demodulator_priv;
+	struct or51132_state* state = fe->demodulator_priv;
 	static u8 run_buf[] = {0x7F,0x01};
 	static u8 get_ver_buf[] = {0x04,0x00,0x30,0x00,0x00};
 	u8 rec_buf[14];
@@ -240,7 +240,7 @@ static int or51132_sleep(struct dvb_frontend* fe)
 
 static int or51132_setmode(struct dvb_frontend* fe)
 {
-	struct or51132_state* state = (struct or51132_state*) fe->demodulator_priv;
+	struct or51132_state* state = fe->demodulator_priv;
 	unsigned char cmd_buf[4];
 
 	dprintk("setmode %d\n",(int)state->current_modulation);
@@ -316,7 +316,7 @@ static int or51132_set_parameters(struct dvb_frontend* fe,
 {
 	int ret;
 	u8 buf[4];
-	struct or51132_state* state = (struct or51132_state*) fe->demodulator_priv;
+	struct or51132_state* state = fe->demodulator_priv;
 	const struct firmware *fw;
 
 	/* Change only if we are actually changing the modulation */
@@ -391,7 +391,7 @@ static int or51132_set_parameters(struct dvb_frontend* fe,
 
 static int or51132_read_status(struct dvb_frontend* fe, fe_status_t* status)
 {
-	struct or51132_state* state = (struct or51132_state*) fe->demodulator_priv;
+	struct or51132_state* state = fe->demodulator_priv;
 	unsigned char rec_buf[2];
 	unsigned char snd_buf[2];
 	*status = 0;
@@ -464,7 +464,7 @@ static unsigned int i20Log10(unsigned short val)
 
 static int or51132_read_signal_strength(struct dvb_frontend* fe, u16* strength)
 {
-	struct or51132_state* state = (struct or51132_state*) fe->demodulator_priv;
+	struct or51132_state* state = fe->demodulator_priv;
 	unsigned char rec_buf[2];
 	unsigned char snd_buf[2];
 	u8 rcvr_stat;
@@ -512,7 +512,7 @@ static int or51132_read_signal_strength(struct dvb_frontend* fe, u16* strength)
 
 static int or51132_read_snr(struct dvb_frontend* fe, u16* snr)
 {
-	struct or51132_state* state = (struct or51132_state*) fe->demodulator_priv;
+	struct or51132_state* state = fe->demodulator_priv;
 	unsigned char rec_buf[2];
 	unsigned char snd_buf[2];
 	u16 snr_equ;
@@ -549,7 +549,7 @@ static int or51132_get_tune_settings(struct dvb_frontend* fe, struct dvb_fronten
 
 static void or51132_release(struct dvb_frontend* fe)
 {
-	struct or51132_state* state = (struct or51132_state*) fe->demodulator_priv;
+	struct or51132_state* state = fe->demodulator_priv;
 	kfree(state);
 }
 

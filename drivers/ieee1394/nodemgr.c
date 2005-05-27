@@ -1005,8 +1005,7 @@ static struct unit_directory *nodemgr_process_unit_directory
 	return ud;
 
 unit_directory_error:
-	if (ud != NULL)
-		kfree(ud);
+	kfree(ud);
 	return NULL;
 }
 

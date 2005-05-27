@@ -100,12 +100,37 @@ void mem_init(void)
 #endif
 }
 
+/*
+ * Create a page table and place a pointer to it in a middle page
+ * directory entry.
+ */
+static void __init one_page_table_init(pmd_t *pmd)
+{
+	if (pmd_none(*pmd)) {
+		pte_t *pte = (pte_t *) alloc_bootmem_low_pages(PAGE_SIZE);
+		set_pmd(pmd, __pmd(_KERNPG_TABLE +
+					   (unsigned long) __pa(pte)));
+		if (pte != pte_offset_kernel(pmd, 0))
+			BUG();
+	}
+}
+
+static void __init one_md_table_init(pud_t *pud)
+{
+#ifdef CONFIG_3_LEVEL_PGTABLES
+	pmd_t *pmd_table = (pmd_t *) alloc_bootmem_low_pages(PAGE_SIZE);
+	set_pud(pud, __pud(_KERNPG_TABLE + (unsigned long) __pa(pmd_table)));
+	if (pmd_table != pmd_offset(pud, 0))
+		BUG();
+#endif
+}
+
 static void __init fixrange_init(unsigned long start, unsigned long end, 
 				 pgd_t *pgd_base)
 {
 	pgd_t *pgd;
+	pud_t *pud;
 	pmd_t *pmd;
-	pte_t *pte;
 	int i, j;
 	unsigned long vaddr;
 
@@ -115,15 +140,12 @@ static void __init fixrange_init(unsigned long start, unsigned long end,
 	pgd = pgd_base + i;
 
 	for ( ; (i < PTRS_PER_PGD) && (vaddr < end); pgd++, i++) {
-		pmd = (pmd_t *)pgd;
+		pud = pud_offset(pgd, vaddr);
+		if (pud_none(*pud))
+			one_md_table_init(pud);
+		pmd = pmd_offset(pud, vaddr);
 		for (; (j < PTRS_PER_PMD) && (vaddr != end); pmd++, j++) {
-			if (pmd_none(*pmd)) {
-				pte = (pte_t *) alloc_bootmem_low_pages(PAGE_SIZE);
-				set_pmd(pmd, __pmd(_KERNPG_TABLE + 
-						   (unsigned long) __pa(pte)));
-				if (pte != pte_offset_kernel(pmd, 0))
-					BUG();
-			}
+			one_page_table_init(pmd);
 			vaddr += PMD_SIZE;
 		}
 		j = 0;

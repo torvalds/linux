@@ -228,6 +228,30 @@
 #define PD31_BIN_SPI2_TXD    ( GPIO_PORTD | GPIO_BIN | 31 )
 
 /*
+ * PWM controller
+ */
+#define PWMC	__REG(IMX_PWM_BASE + 0x00)	/* PWM Control Register		*/
+#define PWMS	__REG(IMX_PWM_BASE + 0x04)	/* PWM Sample Register		*/
+#define PWMP	__REG(IMX_PWM_BASE + 0x08)	/* PWM Period Register		*/
+#define PWMCNT	__REG(IMX_PWM_BASE + 0x0C)	/* PWM Counter Register		*/
+
+#define PWMC_HCTR		(0x01<<18)		/* Halfword FIFO Data Swapping	*/
+#define PWMC_BCTR		(0x01<<17)		/* Byte FIFO Data Swapping	*/
+#define PWMC_SWR		(0x01<<16)		/* Software Reset		*/
+#define PWMC_CLKSRC		(0x01<<15)		/* Clock Source			*/
+#define PWMC_PRESCALER(x)	(((x-1) & 0x7F) << 8)	/* PRESCALER			*/
+#define PWMC_IRQ		(0x01<< 7)		/* Interrupt Request		*/
+#define PWMC_IRQEN		(0x01<< 6)		/* Interrupt Request Enable	*/
+#define PWMC_FIFOAV		(0x01<< 5)		/* FIFO Available		*/
+#define PWMC_EN			(0x01<< 4)		/* Enables/Disables the PWM	*/
+#define PWMC_REPEAT(x)		(((x) & 0x03) << 2)	/* Sample Repeats		*/
+#define PWMC_CLKSEL(x)		(((x) & 0x03) << 0)	/* Clock Selection		*/
+
+#define PWMS_SAMPLE(x)		((x) & 0xFFFF)		/* Contains a two-sample word	*/
+#define PWMP_PERIOD(x)		((x) & 0xFFFF)		/* Represents the PWM's period	*/
+#define PWMC_COUNTER(x)		((x) & 0xFFFF)		/* Represents the current count value	*/
+
+/*
  *  DMA Controller
  */
 #define DCR     __REG(IMX_DMAC_BASE +0x00)	/* DMA Control Register */

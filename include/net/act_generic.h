@@ -2,8 +2,8 @@
  * include/net/act_generic.h
  *
 */
-#ifndef ACT_GENERIC_H
-#define ACT_GENERIC_H
+#ifndef _NET_ACT_GENERIC_H
+#define _NET_ACT_GENERIC_H
 static inline int tcf_defact_release(struct tcf_defact *p, int bind)
 {
 	int ret = 0;

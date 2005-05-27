@@ -273,9 +273,6 @@ struct device {
 					   BIOS data relevant to device) */
 	struct dev_pm_info	power;
 
-	u32		detach_state;	/* State to enter when device is
-					   detached from its driver. */
-
 	u64		*dma_mask;	/* dma mask (if dma'able device) */
 	u64		coherent_dma_mask;/* Like dma_mask, but for
 					     alloc_coherent mappings as

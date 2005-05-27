@@ -4355,16 +4355,7 @@ int tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 					goto no_ack;
 			}
 
-			if (eaten) {
-				if (tcp_in_quickack_mode(tp)) {
-					tcp_send_ack(sk);
-				} else {
-					tcp_send_delayed_ack(sk);
-				}
-			} else {
-				__tcp_ack_snd_check(sk, 0);
-			}
-
+			__tcp_ack_snd_check(sk, 0);
 no_ack:
 			if (eaten)
 				__kfree_skb(skb);

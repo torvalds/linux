@@ -150,7 +150,8 @@ void vfree(void *addr)
 	kfree(addr);
 }
 
-void *__vmalloc(unsigned long size, int gfp_mask, pgprot_t prot)
+void *__vmalloc(unsigned long size, unsigned int __nocast gfp_mask,
+			pgprot_t prot)
 {
 	/*
 	 * kmalloc doesn't like __GFP_HIGHMEM for some reason

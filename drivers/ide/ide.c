@@ -196,8 +196,6 @@ ide_hwif_t ide_hwifs[MAX_HWIFS];	/* master data repository */
 
 EXPORT_SYMBOL(ide_hwifs);
 
-static struct list_head ide_drives = LIST_HEAD_INIT(ide_drives);
-
 /*
  * Do not even *think* about calling this!
  */
@@ -357,54 +355,6 @@ static int ide_system_bus_speed(void)
 	}
 	return system_bus_speed;
 }
-
-/*
- *	drives_lock protects the list of drives, drivers_lock the
- *	list of drivers.  Currently nobody takes both at once.
- */
-
-static DEFINE_SPINLOCK(drives_lock);
-static DEFINE_SPINLOCK(drivers_lock);
-static LIST_HEAD(drivers);
-
-/* Iterator for the driver list. */
-
-static void *m_start(struct seq_file *m, loff_t *pos)
-{
-	struct list_head *p;
-	loff_t l = *pos;
-	spin_lock(&drivers_lock);
-	list_for_each(p, &drivers)
-		if (!l--)
-			return list_entry(p, ide_driver_t, drivers);
-	return NULL;
-}
-
-static void *m_next(struct seq_file *m, void *v, loff_t *pos)
-{
-	struct list_head *p = ((ide_driver_t *)v)->drivers.next;
-	(*pos)++;
-	return p==&drivers ? NULL : list_entry(p, ide_driver_t, drivers);
-}
-
-static void m_stop(struct seq_file *m, void *v)
-{
-	spin_unlock(&drivers_lock);
-}
-
-static int show_driver(struct seq_file *m, void *v)
-{
-	ide_driver_t *driver = v;
-	seq_printf(m, "%s version %s\n", driver->name, driver->version);
-	return 0;
-}
-
-struct seq_operations ide_drivers_op = {
-	.start	= m_start,
-	.next	= m_next,
-	.stop	= m_stop,
-	.show	= show_driver
-};
 
 #ifdef CONFIG_PROC_FS
 struct proc_dir_entry *proc_ide_root;
@@ -630,7 +580,7 @@ void ide_unregister(unsigned int index)
 	ide_hwif_t *hwif, *g;
 	static ide_hwif_t tmp_hwif; /* protected by ide_cfg_sem */
 	ide_hwgroup_t *hwgroup;
-	int irq_count = 0, unit, i;
+	int irq_count = 0, unit;
 
 	BUG_ON(index >= MAX_HWIFS);
 
@@ -643,22 +593,21 @@ void ide_unregister(unsigned int index)
 		goto abort;
 	for (unit = 0; unit < MAX_DRIVES; ++unit) {
 		drive = &hwif->drives[unit];
-		if (!drive->present)
+		if (!drive->present) {
+			if (drive->devfs_name[0] != '\0') {
+				devfs_remove(drive->devfs_name);
+				drive->devfs_name[0] = '\0';
+			}
 			continue;
-		if (drive->usage || DRIVER(drive)->busy)
-			goto abort;
-		drive->dead = 1;
+		}
+		spin_unlock_irq(&ide_lock);
+		device_unregister(&drive->gendev);
+		down(&drive->gendev_rel_sem);
+		spin_lock_irq(&ide_lock);
 	}
 	hwif->present = 0;
 
 	spin_unlock_irq(&ide_lock);
-
-	for (unit = 0; unit < MAX_DRIVES; ++unit) {
-		drive = &hwif->drives[unit];
-		if (!drive->present)
-			continue;
-		DRIVER(drive)->cleanup(drive);
-	}
 
 	destroy_proc_ide_interface(hwif);
 
@@ -687,44 +636,6 @@ void ide_unregister(unsigned int index)
 	 * Remove us from the hwgroup, and free
 	 * the hwgroup if we were the only member
 	 */
-	for (i = 0; i < MAX_DRIVES; ++i) {
-		drive = &hwif->drives[i];
-		if (drive->devfs_name[0] != '\0') {
-			devfs_remove(drive->devfs_name);
-			drive->devfs_name[0] = '\0';
-		}
-		if (!drive->present)
-			continue;
-		if (drive == drive->next) {
-			/* special case: last drive from hwgroup. */
-			BUG_ON(hwgroup->drive != drive);
-			hwgroup->drive = NULL;
-		} else {
-			ide_drive_t *walk;
-
-			walk = hwgroup->drive;
-			while (walk->next != drive)
-				walk = walk->next;
-			walk->next = drive->next;
-			if (hwgroup->drive == drive) {
-				hwgroup->drive = drive->next;
-				hwgroup->hwif = HWIF(hwgroup->drive);
-			}
-		}
-		BUG_ON(hwgroup->drive == drive);
-		if (drive->id != NULL) {
-			kfree(drive->id);
-			drive->id = NULL;
-		}
-		drive->present = 0;
-		/* Messed up locking ... */
-		spin_unlock_irq(&ide_lock);
-		blk_cleanup_queue(drive->queue);
-		device_unregister(&drive->gendev);
-		down(&drive->gendev_rel_sem);
-		spin_lock_irq(&ide_lock);
-		drive->queue = NULL;
-	}
 	if (hwif->next == hwif) {
 		BUG_ON(hwgroup->hwif != hwif);
 		kfree(hwgroup);
@@ -1303,73 +1214,6 @@ int system_bus_clock (void)
 }
 
 EXPORT_SYMBOL(system_bus_clock);
-
-/*
- *	Locking is badly broken here - since way back.  That sucker is
- * root-only, but that's not an excuse...  The real question is what
- * exclusion rules do we want here.
- */
-int ide_replace_subdriver (ide_drive_t *drive, const char *driver)
-{
-	if (!drive->present || drive->usage || drive->dead)
-		goto abort;
-	if (DRIVER(drive)->cleanup(drive))
-		goto abort;
-	strlcpy(drive->driver_req, driver, sizeof(drive->driver_req));
-	if (ata_attach(drive)) {
-		spin_lock(&drives_lock);
-		list_del_init(&drive->list);
-		spin_unlock(&drives_lock);
-		drive->driver_req[0] = 0;
-		ata_attach(drive);
-	} else {
-		drive->driver_req[0] = 0;
-	}
-	if (drive->driver && !strcmp(drive->driver->name, driver))
-		return 0;
-abort:
-	return 1;
-}
-
-/**
- *	ata_attach		-	attach an ATA/ATAPI device
- *	@drive: drive to attach
- *
- *	Takes a drive that is as yet not assigned to any midlayer IDE
- *	driver (or is assigned to the default driver) and figures out
- *	which driver would like to own it. If nobody claims the drive
- *	then it is automatically attached to the default driver used for
- *	unclaimed objects.
- *
- *	A return of zero indicates attachment to a driver, of one
- *	attachment to the default driver.
- *
- *	Takes drivers_lock.
- */
-
-int ata_attach(ide_drive_t *drive)
-{
-	struct list_head *p;
-	spin_lock(&drivers_lock);
-	list_for_each(p, &drivers) {
-		ide_driver_t *driver = list_entry(p, ide_driver_t, drivers);
-		if (!try_module_get(driver->owner))
-			continue;
-		spin_unlock(&drivers_lock);
-		if (driver->attach(drive) == 0) {
-			module_put(driver->owner);
-			drive->gendev.driver = &driver->gen_driver;
-			return 0;
-		}
-		spin_lock(&drivers_lock);
-		module_put(driver->owner);
-	}
-	drive->gendev.driver = NULL;
-	spin_unlock(&drivers_lock);
-	if (ide_register_subdriver(drive, NULL))
-		panic("ide: default attach failed");
-	return 1;
-}
 
 static int generic_ide_suspend(struct device *dev, pm_message_t state)
 {
@@ -2013,27 +1857,11 @@ static void __init probe_for_hwifs (void)
 #endif
 }
 
-int ide_register_subdriver(ide_drive_t *drive, ide_driver_t *driver)
+void ide_register_subdriver(ide_drive_t *drive, ide_driver_t *driver)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&ide_lock, flags);
-	if (!drive->present || drive->driver != NULL ||
-	    drive->usage || drive->dead) {
-		spin_unlock_irqrestore(&ide_lock, flags);
-		return 1;
-	}
-	drive->driver = driver;
-	spin_unlock_irqrestore(&ide_lock, flags);
-	spin_lock(&drives_lock);
-	list_add_tail(&drive->list, driver ? &driver->drives : &ide_drives);
-	spin_unlock(&drives_lock);
-//	printk(KERN_INFO "%s: attached %s driver.\n", drive->name, driver->name);
 #ifdef CONFIG_PROC_FS
-	if (driver)
-		ide_add_proc_entries(drive->proc, driver->proc, drive);
+	ide_add_proc_entries(drive->proc, driver->proc, drive);
 #endif
-	return 0;
 }
 
 EXPORT_SYMBOL(ide_register_subdriver);
@@ -2041,123 +1869,30 @@ EXPORT_SYMBOL(ide_register_subdriver);
 /**
  *	ide_unregister_subdriver	-	disconnect drive from driver
  *	@drive: drive to unplug
+ *	@driver: driver
  *
  *	Disconnect a drive from the driver it was attached to and then
  *	clean up the various proc files and other objects attached to it.
  *
- *	Takes ide_setting_sem, ide_lock and drives_lock.
+ *	Takes ide_setting_sem and ide_lock.
  *	Caller must hold none of the locks.
- *
- *	No locking versus subdriver unload because we are moving to the
- *	default driver anyway. Wants double checking.
  */
 
-int ide_unregister_subdriver (ide_drive_t *drive)
+void ide_unregister_subdriver(ide_drive_t *drive, ide_driver_t *driver)
 {
 	unsigned long flags;
 	
 	down(&ide_setting_sem);
 	spin_lock_irqsave(&ide_lock, flags);
-	if (drive->usage || drive->driver == NULL || DRIVER(drive)->busy) {
-		spin_unlock_irqrestore(&ide_lock, flags);
-		up(&ide_setting_sem);
-		return 1;
-	}
 #ifdef CONFIG_PROC_FS
-	ide_remove_proc_entries(drive->proc, DRIVER(drive)->proc);
+	ide_remove_proc_entries(drive->proc, driver->proc);
 #endif
 	auto_remove_settings(drive);
-	drive->driver = NULL;
 	spin_unlock_irqrestore(&ide_lock, flags);
 	up(&ide_setting_sem);
-	spin_lock(&drives_lock);
-	list_del_init(&drive->list);
-	spin_unlock(&drives_lock);
-	/* drive will be added to &ide_drives in ata_attach() */
-	return 0;
 }
 
 EXPORT_SYMBOL(ide_unregister_subdriver);
-
-static int ide_drive_remove(struct device * dev)
-{
-	ide_drive_t * drive = container_of(dev,ide_drive_t,gendev);
-	DRIVER(drive)->cleanup(drive);
-	return 0;
-}
-
-/**
- *	ide_register_driver	-	register IDE device driver
- *	@driver: the IDE device driver
- *
- *	Register a new device driver and then scan the devices
- *	on the IDE bus in case any should be attached to the
- *	driver we have just registered.  If so attach them.
- *
- *	Takes drivers_lock and drives_lock.
- */
-
-int ide_register_driver(ide_driver_t *driver)
-{
-	struct list_head list;
-	struct list_head *list_loop;
-	struct list_head *tmp_storage;
-
-	spin_lock(&drivers_lock);
-	list_add(&driver->drivers, &drivers);
-	spin_unlock(&drivers_lock);
-
-	INIT_LIST_HEAD(&list);
-	spin_lock(&drives_lock);
-	list_splice_init(&ide_drives, &list);
-	spin_unlock(&drives_lock);
-
-	list_for_each_safe(list_loop, tmp_storage, &list) {
-		ide_drive_t *drive = container_of(list_loop, ide_drive_t, list);
-		list_del_init(&drive->list);
-		if (drive->present)
-			ata_attach(drive);
-	}
-	driver->gen_driver.name = (char *) driver->name;
-	driver->gen_driver.bus = &ide_bus_type;
-	driver->gen_driver.remove = ide_drive_remove;
-	return driver_register(&driver->gen_driver);
-}
-
-EXPORT_SYMBOL(ide_register_driver);
-
-/**
- *	ide_unregister_driver	-	unregister IDE device driver
- *	@driver: the IDE device driver
- *
- *	Called when a driver module is being unloaded. We reattach any
- *	devices to whatever driver claims them next (typically the default
- *	driver).
- *
- *	Takes drivers_lock and called functions will take ide_setting_sem.
- */
-
-void ide_unregister_driver(ide_driver_t *driver)
-{
-	ide_drive_t *drive;
-
-	spin_lock(&drivers_lock);
-	list_del(&driver->drivers);
-	spin_unlock(&drivers_lock);
-
-	driver_unregister(&driver->gen_driver);
-
-	while(!list_empty(&driver->drives)) {
-		drive = list_entry(driver->drives.next, ide_drive_t, list);
-		if (driver->cleanup(drive)) {
-			printk(KERN_ERR "%s: cleanup_module() called while still busy\n", drive->name);
-			BUG();
-		}
-		ata_attach(drive);
-	}
-}
-
-EXPORT_SYMBOL(ide_unregister_driver);
 
 /*
  * Probe module
@@ -2165,11 +1900,19 @@ EXPORT_SYMBOL(ide_unregister_driver);
 
 EXPORT_SYMBOL(ide_lock);
 
+static int ide_bus_match(struct device *dev, struct device_driver *drv)
+{
+	return 1;
+}
+
 struct bus_type ide_bus_type = {
 	.name		= "ide",
+	.match		= ide_bus_match,
 	.suspend	= generic_ide_suspend,
 	.resume		= generic_ide_resume,
 };
+
+EXPORT_SYMBOL_GPL(ide_bus_type);
 
 /*
  * This is gets invoked once during initialization, to set *everything* up

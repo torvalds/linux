@@ -201,6 +201,11 @@ void userspace(union uml_pt_regs *regs)
 		}
 	}
 }
+#define INIT_JMP_NEW_THREAD 0
+#define INIT_JMP_REMOVE_SIGSTACK 1
+#define INIT_JMP_CALLBACK 2
+#define INIT_JMP_HALT 3
+#define INIT_JMP_REBOOT 4
 
 void new_thread(void *stack, void **switch_buf_ptr, void **fork_buf_ptr,
 		void (*handler)(int))
@@ -236,7 +241,7 @@ void thread_wait(void *sw, void *fb)
 	*switch_buf = &buf;
 	fork_buf = fb;
 	if(sigsetjmp(buf, 1) == 0)
-		siglongjmp(*fork_buf, 1);
+		siglongjmp(*fork_buf, INIT_JMP_REMOVE_SIGSTACK);
 }
 
 void switch_threads(void *me, void *next)
@@ -266,21 +271,25 @@ int start_idle_thread(void *stack, void *switch_buf_ptr, void **fork_buf_ptr)
 
 	*fork_buf_ptr = &initial_jmpbuf;
 	n = sigsetjmp(initial_jmpbuf, 1);
-	if(n == 0)
-		new_thread_proc((void *) stack, new_thread_handler);
-	else if(n == 1)
-		remove_sigstack();
-	else if(n == 2){
+        switch(n){
+        case INIT_JMP_NEW_THREAD:
+                new_thread_proc((void *) stack, new_thread_handler);
+                break;
+        case INIT_JMP_REMOVE_SIGSTACK:
+                remove_sigstack();
+                break;
+        case INIT_JMP_CALLBACK:
 		(*cb_proc)(cb_arg);
 		siglongjmp(*cb_back, 1);
-	}
-	else if(n == 3){
+                break;
+        case INIT_JMP_HALT:
 		kmalloc_ok = 0;
 		return(0);
-	}
-	else if(n == 4){
+        case INIT_JMP_REBOOT:
 		kmalloc_ok = 0;
 		return(1);
+        default:
+                panic("Bad sigsetjmp return in start_idle_thread - %d\n", n);
 	}
 	siglongjmp(**switch_buf, 1);
 }
@@ -305,7 +314,7 @@ void initial_thread_cb_skas(void (*proc)(void *), void *arg)
 
 	block_signals();
 	if(sigsetjmp(here, 1) == 0)
-		siglongjmp(initial_jmpbuf, 2);
+		siglongjmp(initial_jmpbuf, INIT_JMP_CALLBACK);
 	unblock_signals();
 
 	cb_proc = NULL;
@@ -316,13 +325,13 @@ void initial_thread_cb_skas(void (*proc)(void *), void *arg)
 void halt_skas(void)
 {
 	block_signals();
-	siglongjmp(initial_jmpbuf, 3);
+	siglongjmp(initial_jmpbuf, INIT_JMP_HALT);
 }
 
 void reboot_skas(void)
 {
 	block_signals();
-	siglongjmp(initial_jmpbuf, 4);
+	siglongjmp(initial_jmpbuf, INIT_JMP_REBOOT);
 }
 
 void switch_mm_skas(int mm_fd)

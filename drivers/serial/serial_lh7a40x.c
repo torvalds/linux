@@ -190,18 +190,7 @@ lh7a40xuart_rx_chars (struct uart_port* port)
 		if (uart_handle_sysrq_char (port, (unsigned char) data, regs))
 			continue;
 
-		if ((data & port->ignore_status_mask) == 0) {
-			tty_insert_flip_char(tty, data, flag);
-		}
-		if ((data & RxOverrunError)
-		    && tty->flip.count < TTY_FLIPBUF_SIZE) {
-			/*
-			 * Overrun is special, since it's reported
-			 * immediately, and doesn't affect the current
-			 * character
-			 */
-			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
-		}
+		uart_insert_char(port, data, RxOverrunError, data, flag);
 	}
 	tty_flip_buffer_push (tty);
 	return;

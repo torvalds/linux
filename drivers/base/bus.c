@@ -390,7 +390,6 @@ void device_release_driver(struct device * dev)
 		sysfs_remove_link(&drv->kobj, kobject_name(&dev->kobj));
 		sysfs_remove_link(&dev->kobj, "driver");
 		list_del_init(&dev->driver_list);
-		device_detach_shutdown(dev);
 		if (drv->remove)
 			drv->remove(dev);
 		dev->driver = NULL;

@@ -130,6 +130,7 @@ struct controller {
 	u8 slot_bus;		/* Bus where the slots handled by this controller sit */
 	u8 ctrlcap;
 	u16 vendor_id;
+	u8 cap_base;
 };
 
 struct irq_mapping {

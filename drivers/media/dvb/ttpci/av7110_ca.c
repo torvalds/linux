@@ -123,7 +123,7 @@ static void ci_ll_release(struct dvb_ringbuffer *cirbuf, struct dvb_ringbuffer *
 }
 
 static int ci_ll_reset(struct dvb_ringbuffer *cibuf, struct file *file,
-		int slots, ca_slot_info_t *slot)
+		       int slots, ca_slot_info_t *slot)
 {
 	int i;
 	int len = 0;
@@ -370,7 +370,7 @@ static struct dvb_device dvbdev_ca = {
 
 int av7110_ca_register(struct av7110 *av7110)
 {
-	return dvb_register_device(av7110->dvb_adapter, &av7110->ca_dev,
+	return dvb_register_device(&av7110->dvb_adapter, &av7110->ca_dev,
 				   &dvbdev_ca, av7110, DVB_DEVICE_CA);
 }
 

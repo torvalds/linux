@@ -30,7 +30,4 @@ struct xics_ipi_struct {
 
 extern struct xics_ipi_struct xics_ipi_message[NR_CPUS] __cacheline_aligned;
 
-extern unsigned int default_distrib_server;
-extern unsigned int interrupt_server_size;
-
 #endif /* _PPC64_KERNEL_XICS_H */

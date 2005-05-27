@@ -365,7 +365,7 @@ static int stv0297_set_inversion(struct stv0297_state *state, fe_spectral_invers
 
 int stv0297_enable_plli2c(struct dvb_frontend *fe)
 {
-	struct stv0297_state *state = (struct stv0297_state *) fe->demodulator_priv;
+	struct stv0297_state *state = fe->demodulator_priv;
 
 	stv0297_writereg(state, 0x87, 0x78);
 	stv0297_writereg(state, 0x86, 0xc8);
@@ -375,7 +375,7 @@ int stv0297_enable_plli2c(struct dvb_frontend *fe)
 
 static int stv0297_init(struct dvb_frontend *fe)
 {
-	struct stv0297_state *state = (struct stv0297_state *) fe->demodulator_priv;
+	struct stv0297_state *state = fe->demodulator_priv;
 	int i;
 
 	/* soft reset */
@@ -416,7 +416,7 @@ static int stv0297_init(struct dvb_frontend *fe)
 
 static int stv0297_sleep(struct dvb_frontend *fe)
 {
-	struct stv0297_state *state = (struct stv0297_state *) fe->demodulator_priv;
+	struct stv0297_state *state = fe->demodulator_priv;
 
 	stv0297_writereg_mask(state, 0x80, 1, 1);
 
@@ -425,7 +425,7 @@ static int stv0297_sleep(struct dvb_frontend *fe)
 
 static int stv0297_read_status(struct dvb_frontend *fe, fe_status_t * status)
 {
-	struct stv0297_state *state = (struct stv0297_state *) fe->demodulator_priv;
+	struct stv0297_state *state = fe->demodulator_priv;
 
 	u8 sync = stv0297_readreg(state, 0xDF);
 
@@ -438,7 +438,7 @@ static int stv0297_read_status(struct dvb_frontend *fe, fe_status_t * status)
 
 static int stv0297_read_ber(struct dvb_frontend *fe, u32 * ber)
 {
-	struct stv0297_state *state = (struct stv0297_state *) fe->demodulator_priv;
+	struct stv0297_state *state = fe->demodulator_priv;
 	u8 BER[3];
 
 	stv0297_writereg(state, 0xA0, 0x80);	// Start Counting bit errors for 4096 Bytes
@@ -453,7 +453,7 @@ static int stv0297_read_ber(struct dvb_frontend *fe, u32 * ber)
 
 static int stv0297_read_signal_strength(struct dvb_frontend *fe, u16 * strength)
 {
-	struct stv0297_state *state = (struct stv0297_state *) fe->demodulator_priv;
+	struct stv0297_state *state = fe->demodulator_priv;
 	u8 STRENGTH[2];
 
 	stv0297_readregs(state, 0x41, STRENGTH, 2);
@@ -464,7 +464,7 @@ static int stv0297_read_signal_strength(struct dvb_frontend *fe, u16 * strength)
 
 static int stv0297_read_snr(struct dvb_frontend *fe, u16 * snr)
 {
-	struct stv0297_state *state = (struct stv0297_state *) fe->demodulator_priv;
+	struct stv0297_state *state = fe->demodulator_priv;
 	u8 SNR[2];
 
 	stv0297_readregs(state, 0x07, SNR, 2);
@@ -475,7 +475,7 @@ static int stv0297_read_snr(struct dvb_frontend *fe, u16 * snr)
 
 static int stv0297_read_ucblocks(struct dvb_frontend *fe, u32 * ucblocks)
 {
-	struct stv0297_state *state = (struct stv0297_state *) fe->demodulator_priv;
+	struct stv0297_state *state = fe->demodulator_priv;
 
 	*ucblocks = (stv0297_readreg(state, 0xD5) << 8)
 		| stv0297_readreg(state, 0xD4);
@@ -485,7 +485,7 @@ static int stv0297_read_ucblocks(struct dvb_frontend *fe, u32 * ucblocks)
 
 static int stv0297_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_parameters *p)
 {
-	struct stv0297_state *state = (struct stv0297_state *) fe->demodulator_priv;
+	struct stv0297_state *state = fe->demodulator_priv;
 	int u_threshold;
 	int initial_u;
 	int blind_u;
@@ -689,7 +689,7 @@ timeout:
 
 static int stv0297_get_frontend(struct dvb_frontend *fe, struct dvb_frontend_parameters *p)
 {
-	struct stv0297_state *state = (struct stv0297_state *) fe->demodulator_priv;
+	struct stv0297_state *state = fe->demodulator_priv;
 	int reg_00, reg_83;
 
 	reg_00 = stv0297_readreg(state, 0x00);
@@ -725,7 +725,7 @@ static int stv0297_get_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 
 static void stv0297_release(struct dvb_frontend *fe)
 {
-	struct stv0297_state *state = (struct stv0297_state *) fe->demodulator_priv;
+	struct stv0297_state *state = fe->demodulator_priv;
 	kfree(state);
 }
 
@@ -737,7 +737,7 @@ struct dvb_frontend *stv0297_attach(const struct stv0297_config *config,
 	struct stv0297_state *state = NULL;
 
 	/* allocate memory for the internal state */
-	state = (struct stv0297_state *) kmalloc(sizeof(struct stv0297_state), GFP_KERNEL);
+	state = kmalloc(sizeof(struct stv0297_state), GFP_KERNEL);
 	if (state == NULL)
 		goto error;
 

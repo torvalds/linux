@@ -515,6 +515,8 @@ struct xfrm_dst
 	struct dst_entry *route;
 	u32 route_mtu_cached;
 	u32 child_mtu_cached;
+	u32 route_cookie;
+	u32 path_cookie;
 };
 
 static inline void xfrm_dst_destroy(struct xfrm_dst *xdst)

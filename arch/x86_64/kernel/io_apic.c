@@ -42,6 +42,8 @@
 
 int sis_apic_bug; /* not actually supported, dummy for compile */
 
+static int no_timer_check;
+
 static DEFINE_SPINLOCK(ioapic_lock);
 
 /*
@@ -1601,7 +1603,7 @@ static inline void check_timer(void)
 		 * Ok, does IRQ0 through the IOAPIC work?
 		 */
 		unmask_IO_APIC_irq(0);
-		if (timer_irq_works()) {
+		if (!no_timer_check && timer_irq_works()) {
 			nmi_watchdog_default();
 			if (nmi_watchdog == NMI_IO_APIC) {
 				disable_8259A_irq(0);
@@ -1670,6 +1672,13 @@ static inline void check_timer(void)
 	apic_printk(APIC_VERBOSE," failed :(.\n");
 	panic("IO-APIC + timer doesn't work! Try using the 'noapic' kernel parameter\n");
 }
+
+static int __init notimercheck(char *s)
+{
+	no_timer_check = 1;
+	return 1;
+}
+__setup("no_timer_check", notimercheck);
 
 /*
  *
@@ -1803,76 +1812,6 @@ device_initcall(ioapic_init_sysfs);
 #ifdef CONFIG_ACPI_BOOT
 
 #define IO_APIC_MAX_ID		0xFE
-
-int __init io_apic_get_unique_id (int ioapic, int apic_id)
-{
-	union IO_APIC_reg_00 reg_00;
-	static physid_mask_t apic_id_map;
-	unsigned long flags;
-	int i = 0;
-
-	/*
-	 * The P4 platform supports up to 256 APIC IDs on two separate APIC 
-	 * buses (one for LAPICs, one for IOAPICs), where predecessors only 
-	 * supports up to 16 on one shared APIC bus.
-	 * 
-	 * TBD: Expand LAPIC/IOAPIC support on P4-class systems to take full
-	 *      advantage of new APIC bus architecture.
-	 */
-
-	if (physids_empty(apic_id_map))
-		apic_id_map = phys_cpu_present_map;
-
-	spin_lock_irqsave(&ioapic_lock, flags);
-	reg_00.raw = io_apic_read(ioapic, 0);
-	spin_unlock_irqrestore(&ioapic_lock, flags);
-
-	if (apic_id >= IO_APIC_MAX_ID) {
-		apic_printk(APIC_QUIET, KERN_WARNING "IOAPIC[%d]: Invalid apic_id %d, trying "
-			"%d\n", ioapic, apic_id, reg_00.bits.ID);
-		apic_id = reg_00.bits.ID;
-	}
-
-	/*
-	 * Every APIC in a system must have a unique ID or we get lots of nice 
-	 * 'stuck on smp_invalidate_needed IPI wait' messages.
-	 */
-	if (physid_isset(apic_id, apic_id_map)) {
-
-		for (i = 0; i < IO_APIC_MAX_ID; i++) {
-			if (!physid_isset(i, apic_id_map))
-				break;
-		}
-
-		if (i == IO_APIC_MAX_ID)
-			panic("Max apic_id exceeded!\n");
-
-		apic_printk(APIC_VERBOSE, KERN_WARNING "IOAPIC[%d]: apic_id %d already used, "
-			"trying %d\n", ioapic, apic_id, i);
-
-		apic_id = i;
-	} 
-
-	physid_set(apic_id, apic_id_map);
-
-	if (reg_00.bits.ID != apic_id) {
-		reg_00.bits.ID = apic_id;
-
-		spin_lock_irqsave(&ioapic_lock, flags);
-		io_apic_write(ioapic, 0, reg_00.raw);
-		reg_00.raw = io_apic_read(ioapic, 0);
-		spin_unlock_irqrestore(&ioapic_lock, flags);
-
-		/* Sanity check */
-		if (reg_00.bits.ID != apic_id)
-			panic("IOAPIC[%d]: Unable change apic_id!\n", ioapic);
-	}
-
-	apic_printk(APIC_VERBOSE,KERN_INFO "IOAPIC[%d]: Assigned apic_id %d\n", ioapic, apic_id);
-
-	return apic_id;
-}
-
 
 int __init io_apic_get_version (int ioapic)
 {

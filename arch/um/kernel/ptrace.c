@@ -19,14 +19,29 @@
 #include "skas_ptrace.h"
 #include "sysdep/ptrace.h"
 
+static inline void set_singlestepping(struct task_struct *child, int on)
+{
+        if (on)
+                child->ptrace |= PT_DTRACE;
+        else
+                child->ptrace &= ~PT_DTRACE;
+        child->thread.singlestep_syscall = 0;
+
+#ifdef SUBARCH_SET_SINGLESTEPPING
+        SUBARCH_SET_SINGLESTEPPING(child, on);
+#endif
+}
+
 /*
  * Called by kernel/ptrace.c when detaching..
  */
 void ptrace_disable(struct task_struct *child)
 { 
-	child->ptrace &= ~PT_DTRACE;
-	child->thread.singlestep_syscall = 0;
+        set_singlestepping(child,0);
 }
+
+extern int peek_user(struct task_struct * child, long addr, long data);
+extern int poke_user(struct task_struct * child, long addr, long data);
 
 long sys_ptrace(long request, long pid, long addr, long data)
 {
@@ -67,6 +82,10 @@ long sys_ptrace(long request, long pid, long addr, long data)
 		goto out_tsk;
 	}
 
+#ifdef SUBACH_PTRACE_SPECIAL
+        SUBARCH_PTRACE_SPECIAL(child,request,addr,data);
+#endif
+
 	ret = ptrace_check_attach(child, request == PTRACE_KILL);
 	if (ret < 0)
 		goto out_tsk;
@@ -87,28 +106,9 @@ long sys_ptrace(long request, long pid, long addr, long data)
 	}
 
 	/* read the word at location addr in the USER area. */
-	case PTRACE_PEEKUSR: {
-		unsigned long tmp;
-
-		ret = -EIO;
-		if ((addr & 3) || addr < 0) 
-			break;
-
-		tmp = 0;  /* Default return condition */
-		if(addr < MAX_REG_OFFSET){
-			tmp = getreg(child, addr);
-		}
-#if defined(CONFIG_UML_X86) && !defined(CONFIG_64BIT)
-		else if((addr >= offsetof(struct user, u_debugreg[0])) &&
-			(addr <= offsetof(struct user, u_debugreg[7]))){
-			addr -= offsetof(struct user, u_debugreg[0]);
-			addr = addr >> 2;
-			tmp = child->thread.arch.debugregs[addr];
-		}
-#endif
-		ret = put_user(tmp, (unsigned long __user *) data);
-		break;
-	}
+        case PTRACE_PEEKUSR:
+                ret = peek_user(child, addr, data);
+                break;
 
 	/* when I and D space are separate, this will have to be fixed. */
 	case PTRACE_POKETEXT: /* write the word at location addr. */
@@ -121,26 +121,8 @@ long sys_ptrace(long request, long pid, long addr, long data)
 		break;
 
 	case PTRACE_POKEUSR: /* write the word at location addr in the USER area */
-		ret = -EIO;
-		if ((addr & 3) || addr < 0)
-			break;
-
-		if (addr < MAX_REG_OFFSET) {
-			ret = putreg(child, addr, data);
-			break;
-		}
-#if defined(CONFIG_UML_X86) && !defined(CONFIG_64BIT)
-		else if((addr >= offsetof(struct user, u_debugreg[0])) &&
-			(addr <= offsetof(struct user, u_debugreg[7]))){
-			  addr -= offsetof(struct user, u_debugreg[0]);
-			  addr = addr >> 2;
-			  if((addr == 4) || (addr == 5)) break;
-			  child->thread.arch.debugregs[addr] = data;
-			  ret = 0;
-		}
-#endif
-
-		break;
+                ret = poke_user(child, addr, data);
+                break;
 
 	case PTRACE_SYSCALL: /* continue and stop at next (return from) syscall */
 	case PTRACE_CONT: { /* restart after signal. */
@@ -148,8 +130,7 @@ long sys_ptrace(long request, long pid, long addr, long data)
 		if (!valid_signal(data))
 			break;
 
-		child->ptrace &= ~PT_DTRACE;
-		child->thread.singlestep_syscall = 0;
+                set_singlestepping(child, 0);
 		if (request == PTRACE_SYSCALL) {
 			set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 		}
@@ -172,8 +153,7 @@ long sys_ptrace(long request, long pid, long addr, long data)
 		if (child->exit_state == EXIT_ZOMBIE)	/* already dead */
 			break;
 
-		child->ptrace &= ~PT_DTRACE;
-		child->thread.singlestep_syscall = 0;
+                set_singlestepping(child, 0);
 		child->exit_code = SIGKILL;
 		wake_up_process(child);
 		break;
@@ -184,8 +164,7 @@ long sys_ptrace(long request, long pid, long addr, long data)
 		if (!valid_signal(data))
 			break;
 		clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		child->ptrace |= PT_DTRACE;
-		child->thread.singlestep_syscall = 0;
+                set_singlestepping(child, 1);
 		child->exit_code = data;
 		/* give it a chance to run. */
 		wake_up_process(child);

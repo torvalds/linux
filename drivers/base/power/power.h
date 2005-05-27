@@ -1,18 +1,7 @@
-
-
-enum {
-	DEVICE_PM_ON,
-	DEVICE_PM1,
-	DEVICE_PM2,
-	DEVICE_PM3,
-	DEVICE_PM_OFF,
-};
-
 /*
  * shutdown.c
  */
 
-extern int device_detach_shutdown(struct device *);
 extern void device_shutdown(void);
 
 

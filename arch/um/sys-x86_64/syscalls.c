@@ -15,6 +15,7 @@
 #include "asm/unistd.h"
 #include "asm/prctl.h" /* XXX This should get the constants from libc */
 #include "choose-mode.h"
+#include "kern.h"
 
 asmlinkage long sys_uname64(struct new_utsname __user * name)
 {
@@ -43,6 +44,8 @@ long sys_modify_ldt_tt(int func, void *ptr, unsigned long bytecount)
 
 #ifdef CONFIG_MODE_SKAS
 extern int userspace_pid[];
+
+#include "skas_ptrace.h"
 
 long sys_modify_ldt_skas(int func, void *ptr, unsigned long bytecount)
 {

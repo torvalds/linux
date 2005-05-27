@@ -515,6 +515,7 @@ void __init time_init(void)
 	do_gtod.varp = &do_gtod.vars[0];
 	do_gtod.var_idx = 0;
 	do_gtod.varp->tb_orig_stamp = tb_last_stamp;
+	get_paca()->next_jiffy_update_tb = tb_last_stamp + tb_ticks_per_jiffy;
 	do_gtod.varp->stamp_xsec = xtime.tv_sec * XSEC_PER_SEC;
 	do_gtod.tb_ticks_per_sec = tb_ticks_per_sec;
 	do_gtod.varp->tb_to_xs = tb_to_xs;

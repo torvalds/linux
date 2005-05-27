@@ -499,6 +499,7 @@ static int ib_umad_open(struct inode *inode, struct file *filp)
 static int ib_umad_close(struct inode *inode, struct file *filp)
 {
 	struct ib_umad_file *file = filp->private_data;
+	struct ib_umad_packet *packet, *tmp;
 	int i;
 
 	for (i = 0; i < IB_UMAD_MAX_AGENTS; ++i)
@@ -506,6 +507,9 @@ static int ib_umad_close(struct inode *inode, struct file *filp)
 			ib_dereg_mr(file->mr[i]);
 			ib_unregister_mad_agent(file->agent[i]);
 		}
+
+	list_for_each_entry_safe(packet, tmp, &file->recv_list, list)
+		kfree(packet);
 
 	kfree(file);
 
