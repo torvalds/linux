@@ -1286,8 +1286,10 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  sample rates (e.g. 44.1kHz of mp3 playback), please let us
 	  know the PCI subsystem vendor/device id's (output of
 	  "lspci -nv").
-	  If dxs_support=5 does not work, try dxs_support=1; if it
-	  doesn't work too, try dxs_support=4.  If it still doesn't
+	  If dxs_support=5 does not work, try dxs_support=4; if it
+	  doesn't work too, try dxs_support=1.  (dxs_support=1 is
+	  usually for old motherboards.  The correct implementated
+	  board should work with 4 or 5.)  If it still doesn't
 	  work and the default setting is ok, dxs_support=3 is the
 	  right choice.  If the default setting doesn't work at all,
 	  try dxs_support=2 to disable the DXS channels.
