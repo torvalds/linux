@@ -457,10 +457,10 @@ static void rtl8169_hw_start(struct net_device *dev);
 static int rtl8169_close(struct net_device *dev);
 static void rtl8169_set_rx_mode(struct net_device *dev);
 static void rtl8169_tx_timeout(struct net_device *dev);
-static struct net_device_stats *rtl8169_get_stats(struct net_device *netdev);
+static struct net_device_stats *rtl8169_get_stats(struct net_device *dev);
 static int rtl8169_rx_interrupt(struct net_device *, struct rtl8169_private *,
 				void __iomem *);
-static int rtl8169_change_mtu(struct net_device *netdev, int new_mtu);
+static int rtl8169_change_mtu(struct net_device *dev, int new_mtu);
 static void rtl8169_down(struct net_device *dev);
 
 #ifdef CONFIG_R8169_NAPI
@@ -2360,7 +2360,7 @@ rtl8169_rx_interrupt(struct net_device *dev, struct rtl8169_private *tp,
 	rx_left = NUM_RX_DESC + tp->dirty_rx - cur_rx;
 	rx_left = rtl8169_rx_quota(rx_left, (u32) dev->quota);
 
-	while (rx_left > 0) {
+	for (; rx_left > 0; rx_left--, cur_rx++) {
 		unsigned int entry = cur_rx % NUM_RX_DESC;
 		struct RxDesc *desc = tp->RxDescArray + entry;
 		u32 status;
@@ -2370,7 +2370,7 @@ rtl8169_rx_interrupt(struct net_device *dev, struct rtl8169_private *tp,
 
 		if (status & DescOwn)
 			break;
-		if (status & RxRES) {
+		if (unlikely(status & RxRES)) {
 			if (netif_msg_rx_err(tp)) {
 				printk(KERN_INFO
 				       "%s: Rx ERROR. status = %08x\n",
@@ -2397,7 +2397,7 @@ rtl8169_rx_interrupt(struct net_device *dev, struct rtl8169_private *tp,
 				tp->stats.rx_dropped++;
 				tp->stats.rx_length_errors++;
 				rtl8169_mark_to_asic(desc, tp->rx_buf_sz);
-				goto move_on;
+				continue;
 			}
 
 			rtl8169_rx_csum(skb, desc);
@@ -2426,9 +2426,6 @@ rtl8169_rx_interrupt(struct net_device *dev, struct rtl8169_private *tp,
 			tp->stats.rx_bytes += pkt_size;
 			tp->stats.rx_packets++;
 		}
-move_on:		
-		cur_rx++; 
-		rx_left--;
 	}
 
 	count = cur_rx - tp->cur_rx;
