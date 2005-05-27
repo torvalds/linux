@@ -31,7 +31,6 @@ extern int sysemu_supported;
 #ifdef UML_CONFIG_MODE_SKAS
 
 #include "skas_ptregs.h"
-#include "sysdep/faultinfo.h"
 
 #define REGS_IP(r) ((r)[HOST_IP])
 #define REGS_SP(r) ((r)[HOST_SP])
@@ -59,6 +58,7 @@ extern int sysemu_supported;
 #define PTRACE_SYSEMU_SINGLESTEP 32
 #endif
 
+#include "sysdep/faultinfo.h"
 #include "choose-mode.h"
 
 union uml_pt_regs {

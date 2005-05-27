@@ -11,9 +11,8 @@ config DVB_BT8XX
 	  the Nebula cards, the Pinnacle PCTV cards, the Twinhan DST cards and
 	  pcHDTV HD2000 cards.
 
-          Since these cards have no MPEG decoder onboard, they transmit
+	  Since these cards have no MPEG decoder onboard, they transmit
 	  only compressed MPEG data over the PCI bus, so you need
 	  an external software decoder to watch TV on your computer.
 
 	  Say Y if you own such a device and want to use it.
-

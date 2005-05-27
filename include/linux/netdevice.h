@@ -503,7 +503,7 @@ static inline void *netdev_priv(struct net_device *dev)
 #define SET_NETDEV_DEV(net, pdev)	((net)->class_dev.dev = (pdev))
 
 struct packet_type {
-	unsigned short		type;	/* This is really htons(ether_type).	*/
+	__be16			type;	/* This is really htons(ether_type).	*/
 	struct net_device		*dev;	/* NULL is wildcarded here		*/
 	int			(*func) (struct sk_buff *, struct net_device *,
 					 struct packet_type *);

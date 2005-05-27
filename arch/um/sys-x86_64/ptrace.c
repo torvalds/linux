@@ -5,10 +5,11 @@
  */
 
 #define __FRAME_OFFSETS
-#include "asm/ptrace.h"
-#include "linux/sched.h"
-#include "linux/errno.h"
-#include "asm/elf.h"
+#include <asm/ptrace.h>
+#include <linux/sched.h>
+#include <linux/errno.h>
+#include <asm/uaccess.h>
+#include <asm/elf.h>
 
 /* XXX x86_64 */
 unsigned long not_ss;

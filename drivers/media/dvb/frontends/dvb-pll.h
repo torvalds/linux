@@ -2,6 +2,9 @@
  * $Id: dvb-pll.h,v 1.2 2005/02/10 11:43:41 kraxel Exp $
  */
 
+#ifndef __DVB_PLL_H__
+#define __DVB_PLL_H__
+
 struct dvb_pll_desc {
 	char *name;
 	u32  min;
@@ -26,9 +29,4 @@ extern struct dvb_pll_desc dvb_pll_unknown_1;
 int dvb_pll_configure(struct dvb_pll_desc *desc, u8 *buf,
 		      u32 freq, int bandwidth);
 
-/*
- * Local variables:
- * c-basic-offset: 8
- * compile-command: "make DVB=1"
- * End:
- */
+#endif

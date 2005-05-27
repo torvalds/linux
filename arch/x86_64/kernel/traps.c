@@ -332,10 +332,12 @@ void handle_BUG(struct pt_regs *regs)
 	printk(KERN_ALERT "Kernel BUG at %.50s:%d\n", f.filename, f.line);
 } 
 
+#ifdef CONFIG_BUG
 void out_of_line_bug(void)
 { 
 	BUG(); 
 } 
+#endif
 
 static DEFINE_SPINLOCK(die_lock);
 static int die_owner = -1;

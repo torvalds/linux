@@ -738,6 +738,7 @@ static int amd8111e_rx_poll(struct net_device *dev, int * budget)
 	short vtag;
 #endif
 	int rx_pkt_limit = dev->quota;
+	unsigned long flags;
 	
 	do{   
 		/* process receive packets until we use the quota*/
@@ -841,18 +842,19 @@ static int amd8111e_rx_poll(struct net_device *dev, int * budget)
 	/* Receive descriptor is empty now */
 	dev->quota -= num_rx_pkt;
 	*budget -= num_rx_pkt;
+
+	spin_lock_irqsave(&lp->lock, flags);
 	netif_rx_complete(dev);
-	/* enable receive interrupt */
 	writel(VAL0|RINTEN0, mmio + INTEN0);
 	writel(VAL2 | RDMD0, mmio + CMD0);
+	spin_unlock_irqrestore(&lp->lock, flags);
 	return 0;
+
 rx_not_empty:
 	/* Do not call a netif_rx_complete */
 	dev->quota -= num_rx_pkt;	
 	*budget -= num_rx_pkt;
 	return 1;
-
-	
 }
 
 #else
@@ -1261,18 +1263,20 @@ static irqreturn_t amd8111e_interrupt(int irq, void *dev_id, struct pt_regs *reg
 	struct net_device * dev = (struct net_device *) dev_id;
 	struct amd8111e_priv *lp = netdev_priv(dev);
 	void __iomem *mmio = lp->mmio;
-	unsigned int intr0;
+	unsigned int intr0, intren0;
 	unsigned int handled = 1;
 
-	if(dev == NULL)
+	if(unlikely(dev == NULL))
 		return IRQ_NONE;
 
-	if (regs) spin_lock (&lp->lock);
+	spin_lock(&lp->lock);
+
 	/* disabling interrupt */
 	writel(INTREN, mmio + CMD0);
 
 	/* Read interrupt status */
 	intr0 = readl(mmio + INT0);
+	intren0 = readl(mmio + INTEN0);
 
 	/* Process all the INT event until INTR bit is clear. */
 
@@ -1293,11 +1297,11 @@ static irqreturn_t amd8111e_interrupt(int irq, void *dev_id, struct pt_regs *reg
 			/* Schedule a polling routine */
 			__netif_rx_schedule(dev);
 		}
-		else {
+		else if (intren0 & RINTEN0) {
 			printk("************Driver bug! \
 				interrupt while in poll\n");
-			/* Fix by disabling interrupts */
-			writel(RINT0, mmio + INT0);
+			/* Fix by disable receive interrupts */
+			writel(RINTEN0, mmio + INTEN0);
 		}
 	}
 #else
@@ -1321,7 +1325,7 @@ static irqreturn_t amd8111e_interrupt(int irq, void *dev_id, struct pt_regs *reg
 err_no_interrupt:
 	writel( VAL0 | INTREN,mmio + CMD0);
 	
-	if (regs) spin_unlock(&lp->lock);
+	spin_unlock(&lp->lock);
 	
 	return IRQ_RETVAL(handled);
 }

@@ -1555,6 +1555,7 @@ config SIS900
 	tristate "SiS 900/7016 PCI Fast Ethernet Adapter support"
 	depends on NET_PCI && PCI
 	select CRC32
+	select MII
 	---help---
 	  This is a driver for the Fast Ethernet PCI network cards based on
 	  the SiS 900 and SiS 7016 chips. The SiS 900 core is also embedded in
@@ -2030,6 +2031,15 @@ config TIGON3
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called tg3.  This is recommended.
+
+config BNX2
+	tristate "Broadcom NetXtremeII support"
+	depends on PCI
+	help
+	  This driver supports Broadcom NetXtremeII gigabit Ethernet cards.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called bnx2.  This is recommended.
 
 config GIANFAR
 	tristate "Gianfar Ethernet"
