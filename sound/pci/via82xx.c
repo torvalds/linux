@@ -2179,6 +2179,7 @@ static int __devinit check_dxs_list(struct pci_dev *pci)
 		{ .vendor = 0x147b, .device = 0x1413, .action = VIA_DXS_ENABLE }, /* ABIT KV8 Pro */
 		{ .vendor = 0x147b, .device = 0x1415, .action = VIA_DXS_NO_VRA }, /* Abit AV8 */
 		{ .vendor = 0x14ff, .device = 0x0403, .action = VIA_DXS_ENABLE }, /* Twinhead mobo */
+		{ .vendor = 0x14ff, .device = 0x0408, .action = VIA_DXS_NO_VRA }, /* Twinhead mobo */
 		{ .vendor = 0x1584, .device = 0x8120, .action = VIA_DXS_ENABLE }, /* Gericom/Targa/Vobis/Uniwill laptop */
 		{ .vendor = 0x1584, .device = 0x8123, .action = VIA_DXS_NO_VRA }, /* Uniwill (Targa Visionary XP-210) */
 		{ .vendor = 0x161f, .device = 0x202b, .action = VIA_DXS_NO_VRA }, /* Amira Note book */
