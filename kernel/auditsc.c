@@ -145,6 +145,8 @@ struct audit_context {
 	int		    auditable;  /* 1 if record should be written */
 	int		    name_count;
 	struct audit_names  names[AUDIT_NAMES];
+	struct dentry *	    pwd;
+	struct vfsmount *   pwdmnt;
 	struct audit_context *previous; /* For nested syscalls */
 	struct audit_aux_data *aux;
 
@@ -552,6 +554,12 @@ static inline void audit_free_names(struct audit_context *context)
 		if (context->names[i].name)
 			__putname(context->names[i].name);
 	context->name_count = 0;
+	if (context->pwd)
+		dput(context->pwd);
+	if (context->pwdmnt)
+		mntput(context->pwdmnt);
+	context->pwd = NULL;
+	context->pwdmnt = NULL;
 }
 
 static inline void audit_free_aux(struct audit_context *context)
@@ -745,10 +753,18 @@ static void audit_log_exit(struct audit_context *context)
 		audit_log_end(ab);
 	}
 
+	if (context->pwd && context->pwdmnt) {
+		ab = audit_log_start(context, AUDIT_CWD);
+		if (ab) {
+			audit_log_d_path(ab, "cwd=", context->pwd, context->pwdmnt);
+			audit_log_end(ab);
+		}
+	}
 	for (i = 0; i < context->name_count; i++) {
 		ab = audit_log_start(context, AUDIT_PATH);
 		if (!ab)
 			continue; /* audit_panic has been called */
+
 		audit_log_format(ab, "item=%d", i);
 		if (context->names[i].name) {
 			audit_log_format(ab, " name=");
@@ -929,6 +945,13 @@ void audit_getname(const char *name)
 	context->names[context->name_count].name = name;
 	context->names[context->name_count].ino  = (unsigned long)-1;
 	++context->name_count;
+	if (!context->pwd) {
+		read_lock(&current->fs->lock);
+		context->pwd = dget(current->fs->pwd);
+		context->pwdmnt = mntget(current->fs->pwdmnt);
+		read_unlock(&current->fs->lock);
+	}
+		
 }
 
 /* Intercept a putname request.  Called from

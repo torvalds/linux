@@ -61,11 +61,12 @@
 
 #define AUDIT_SYSCALL		1300	/* Syscall event */
 #define AUDIT_FS_WATCH		1301	/* Filesystem watch event */
-#define AUDIT_PATH		1302	/* Filname path information */
+#define AUDIT_PATH		1302	/* Filename path information */
 #define AUDIT_IPC		1303	/* IPC record */
 #define AUDIT_SOCKETCALL	1304	/* sys_socketcall arguments */
 #define AUDIT_CONFIG_CHANGE	1305	/* Audit system configuration change */
 #define AUDIT_SOCKADDR		1306	/* sockaddr copied as syscall arg */
+#define AUDIT_CWD		1307	/* Current working directory */
 
 #define AUDIT_AVC		1400	/* SE Linux avc denial or grant */
 #define AUDIT_SELINUX_ERR	1401	/* Internal SE Linux Errors */
