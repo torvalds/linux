@@ -982,15 +982,14 @@ int ntfs_attr_lookup(const ATTR_TYPE type, const ntfschar *name,
 static inline void ntfs_attr_init_search_ctx(ntfs_attr_search_ctx *ctx,
 		ntfs_inode *ni, MFT_RECORD *mrec)
 {
-	ctx->mrec = mrec;
-	/* Sanity checks are performed elsewhere. */
-	ctx->attr = (ATTR_RECORD*)((u8*)mrec + le16_to_cpu(mrec->attrs_offset));
-	ctx->is_first = TRUE;
-	ctx->ntfs_ino = ni;
-	ctx->al_entry = NULL;
-	ctx->base_ntfs_ino = NULL;
-	ctx->base_mrec = NULL;
-	ctx->base_attr = NULL;
+	*ctx = (ntfs_attr_search_ctx) {
+		.mrec = mrec,
+		/* Sanity checks are performed elsewhere. */
+		.attr = (ATTR_RECORD*)((u8*)mrec +
+				le16_to_cpu(mrec->attrs_offset)),
+		.is_first = TRUE,
+		.ntfs_ino = ni,
+	};
 }
 
 /**

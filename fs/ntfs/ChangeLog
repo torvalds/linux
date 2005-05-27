@@ -116,6 +116,9 @@ ToDo/Notes:
 	- Use MAX_BUF_PER_PAGE instead of variable sized array allocation for
 	  better code generation and one less sparse warning in fs/ntfs/aops.c.
 	- Remove spurious void pointer casts from fs/ntfs/.  (Pekka Enberg)
+	- Use C99 style structure initialization after memory allocation where
+	  possible (fs/ntfs/{attrib.c,index.c,super.c}).  Thanks to Al Viro and
+	  Pekka Enberg.
 
 2.1.22 - Many bug and race fixes and error handling improvements.
 

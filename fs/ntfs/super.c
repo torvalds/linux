@@ -2292,36 +2292,19 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 		return -ENOMEM;
 	}
 	/* Initialize ntfs_volume structure. */
-	memset(vol, 0, sizeof(ntfs_volume));
-	vol->sb = sb;
-	vol->upcase = NULL;
-	vol->attrdef = NULL;
-	vol->mft_ino = NULL;
-	vol->mftbmp_ino = NULL;
+	*vol = (ntfs_volume) {
+		.sb = sb,
+		/*
+		 * Default is group and other don't have any access to files or
+		 * directories while owner has full access. Further, files by
+		 * default are not executable but directories are of course
+		 * browseable.
+		 */
+		.fmask = 0177,
+		.dmask = 0077,
+	};
 	init_rwsem(&vol->mftbmp_lock);
-#ifdef NTFS_RW
-	vol->mftmirr_ino = NULL;
-	vol->logfile_ino = NULL;
-#endif /* NTFS_RW */
-	vol->lcnbmp_ino = NULL;
 	init_rwsem(&vol->lcnbmp_lock);
-	vol->vol_ino = NULL;
-	vol->root_ino = NULL;
-	vol->secure_ino = NULL;
-	vol->extend_ino = NULL;
-#ifdef NTFS_RW
-	vol->quota_ino = NULL;
-	vol->quota_q_ino = NULL;
-#endif /* NTFS_RW */
-	vol->nls_map = NULL;
-
-	/*
-	 * Default is group and other don't have any access to files or
-	 * directories while owner has full access. Further, files by default
-	 * are not executable but directories are of course browseable.
-	 */
-	vol->fmask = 0177;
-	vol->dmask = 0077;
 
 	unlock_kernel();
 

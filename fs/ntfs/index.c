@@ -1,7 +1,7 @@
 /*
  * index.c - NTFS kernel index handling.  Part of the Linux-NTFS project.
  *
- * Copyright (c) 2004 Anton Altaparmakov
+ * Copyright (c) 2004-2005 Anton Altaparmakov
  *
  * This program/include file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as published
@@ -39,18 +39,8 @@ ntfs_index_context *ntfs_index_ctx_get(ntfs_inode *idx_ni)
 	ntfs_index_context *ictx;
 
 	ictx = kmem_cache_alloc(ntfs_index_ctx_cache, SLAB_NOFS);
-	if (ictx) {
-		ictx->idx_ni = idx_ni;
-		ictx->entry = NULL;
-		ictx->data = NULL;
-		ictx->data_len = 0;
-		ictx->is_in_root = 0;
-		ictx->ir = NULL;
-		ictx->actx = NULL;
-		ictx->base_ni = NULL;
-		ictx->ia = NULL;
-		ictx->page = NULL;
-	}
+	if (ictx)
+		*ictx = (ntfs_index_context){ .idx_ni = idx_ni };
 	return ictx;
 }
 
