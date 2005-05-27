@@ -69,7 +69,13 @@ VERSION 2.2LK	<2005/01/25>
 #include <asm/io.h>
 #include <asm/irq.h>
 
-#define RTL8169_VERSION "2.2LK"
+#ifdef CONFIG_R8169_NAPI
+#define NAPI_SUFFIX	"-NAPI"
+#else
+#define NAPI_SUFFIX	""
+#endif
+
+#define RTL8169_VERSION "2.2LK" NAPI_SUFFIX
 #define MODULENAME "r8169"
 #define PFX MODULENAME ": "
 
@@ -1367,7 +1373,6 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 #ifdef CONFIG_R8169_NAPI
 	dev->poll = rtl8169_poll;
 	dev->weight = R8169_NAPI_WEIGHT;
-	printk(KERN_INFO PFX "NAPI enabled\n");
 #endif
 
 #ifdef CONFIG_R8169_VLAN
