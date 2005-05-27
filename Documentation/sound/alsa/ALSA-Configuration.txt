@@ -733,11 +733,13 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 			* Chaintech ZNF3-150
 			* Chaintech ZNF3-250
 			* Chaintech 9CJS
+			* Chaintech AV-710
 			* Shuttle SN25P
 
     model       - Use the given board model, one of the following:
 		  revo71, amp2000, prodigy71, prodigy192, aureon51,
-		  aureon71, universe, k8x800, phase22, phase28, ms300
+		  aureon71, universe, k8x800, phase22, phase28, ms300,
+		  av710
 
     Module supports up to 8 cards and autoprobe.
 
