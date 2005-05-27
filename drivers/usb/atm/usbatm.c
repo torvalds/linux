@@ -949,6 +949,7 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 	struct usb_device *usb_dev = interface_to_usbdev(intf);
 	struct usbatm_data *instance;
 	char *buf;
+	size_t instance_size = sizeof(*instance) + sizeof(struct urb *) * (num_rcv_urbs + num_snd_urbs);
 	int error = -ENOMEM;
 	int i, length;
 	int need_heavy;
@@ -960,14 +961,13 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 			intf->altsetting->desc.bInterfaceNumber);
 
 	/* instance init */
-	instance = kmalloc(sizeof(*instance) + sizeof(struct urb *) * (num_rcv_urbs + num_snd_urbs),
-			   GFP_KERNEL);
+	instance = kmalloc(instance_size, GFP_KERNEL);
 	if (!instance) {
 		dev_dbg(dev, "%s: no memory for instance data!\n", __func__);
 		return -ENOMEM;
 	}
 
-	memset(instance, 0, sizeof(*instance));
+	memset(instance, 0, instance_size);
 
 	/* public fields */
 
@@ -1051,6 +1051,8 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 			goto fail_unbind;
 		}
 
+		instance->urbs[i] = urb;
+
 		buffer = kmalloc(channel->buf_size, GFP_KERNEL);
 		if (!buffer) {
 			dev_dbg(dev, "%s: no memory for buffer %d!\n", __func__, i);
@@ -1078,7 +1080,6 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 
 		vdbg("%s: alloced buffer 0x%p buf size %u urb 0x%p",
 		     __func__, urb->transfer_buffer, urb->transfer_buffer_length, urb);
-		instance->urbs[i] = urb;
 	}
 
 	if (need_heavy && driver->heavy_init) {
