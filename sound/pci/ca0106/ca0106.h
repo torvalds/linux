@@ -589,6 +589,7 @@ struct snd_ca0106 {
 	u32 spdif_bits[4];             /* s/pdif out setup */
 	int spdif_enable;
 	int capture_source;
+	int capture_mic_line_in;
 
 	struct snd_dma_buffer buffer;
 };
