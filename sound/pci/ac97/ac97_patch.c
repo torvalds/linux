@@ -1604,8 +1604,8 @@ static void ad1985_update_jacks(ac97_t *ac97)
 	/* shared Mic */
 	snd_ac97_update_bits(ac97, AC97_AD_MISC, 1 << 11,
 			     is_shared_micin(ac97) ? 0 : 1 << 11);
-	snd_ac97_update_bits(ac97, AC97_AD_SERIAL_CFG, 9 << 11,
-			     is_shared_micin(ac97) ? 0 : 9 << 11);
+	snd_ac97_update_bits(ac97, AC97_AD_SERIAL_CFG, 1 << 9,
+			     is_shared_micin(ac97) ? 0 : 1 << 9);
 }
 
 static int patch_ad1985_specific(ac97_t *ac97)
