@@ -129,7 +129,16 @@ static long snd_pcm_oss_bytes(snd_pcm_substream_t *substream, long frames)
 	long bytes = frames_to_bytes(runtime, frames);
 	if (buffer_size == runtime->oss.buffer_bytes)
 		return bytes;
-	return (long)(((int64_t)runtime->oss.buffer_bytes * (int64_t)bytes) / (int64_t)buffer_size);
+#if BITS_PER_LONG >= 64
+	return runtime->oss.buffer_bytes * bytes / buffer_size;
+#else
+	{
+		u64 bsize = (u64)runtime->oss.buffer_bytes * (u64)bytes;
+		u32 rem;
+		div64_32(&bsize, buffer_size, &rem);
+		return (long)bsize;
+	}
+#endif
 }
 
 static long snd_pcm_alsa_frames(snd_pcm_substream_t *substream, long bytes)
