@@ -1,7 +1,7 @@
 /*
  *  Copyright (c) 2004 James Courtier-Dutton <James@superbug.demon.co.uk>
  *  Driver CA0106 chips. e.g. Sound Blaster Audigy LS and Live 24bit
- *  Version: 0.0.17
+ *  Version: 0.0.18
  *
  *  FEATURES currently supported:
  *    See ca0106_main.c for features.
@@ -39,7 +39,9 @@
  *    Modified Copyright message.
  *  0.0.17
  *    Add iec958 file in proc file system to show status of SPDIF in.
- *    
+ *  0.0.18
+ *    Implement support for Line-in capture on SB Live 24bit.
+ *
  *  This code was initally based on code from ALSA's emu10k1x.c which is:
  *  Copyright (c) by Francisco Moraes <fmoraes@nc.rr.com>
  *
@@ -407,6 +409,20 @@ static void snd_ca0106_proc_reg_write(snd_info_entry_t *entry,
         }
 }
 
+static void snd_ca0106_proc_i2c_write(snd_info_entry_t *entry, 
+				       snd_info_buffer_t * buffer)
+{
+	ca0106_t *emu = entry->private_data;
+        char line[64];
+        unsigned int reg, val;
+        while (!snd_info_get_line(buffer, line, sizeof(line))) {
+                if (sscanf(line, "%x %x", &reg, &val) != 2)
+                        continue;
+                if ((reg <= 0x7f) || (val <= 0x1ff)) {
+                        snd_ca0106_i2c_write(emu, reg, val);
+		}
+        }
+}
 
 int __devinit snd_ca0106_proc_init(ca0106_t * emu)
 {
@@ -428,6 +444,13 @@ int __devinit snd_ca0106_proc_init(ca0106_t * emu)
 		snd_info_set_text_ops(entry, emu, 1024, snd_ca0106_proc_reg_read1);
 		entry->c.text.write_size = 64;
 		entry->c.text.write = snd_ca0106_proc_reg_write;
+		entry->mode |= S_IWUSR;
+//		entry->private_data = emu;
+	}
+	if(! snd_card_proc_new(emu->card, "ca0106_i2c", &entry)) {
+		snd_info_set_text_ops(entry, emu, 1024, snd_ca0106_proc_i2c_write);
+		entry->c.text.write_size = 64;
+		entry->c.text.write = snd_ca0106_proc_i2c_write;
 		entry->mode |= S_IWUSR;
 //		entry->private_data = emu;
 	}
