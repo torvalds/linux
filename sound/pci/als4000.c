@@ -367,7 +367,7 @@ static irqreturn_t snd_als4000_interrupt(int irq, void *dev_id, struct pt_regs *
 	if ((gcr_status & 0x40) && (chip->capture_substream)) /* capturing */
 		snd_pcm_period_elapsed(chip->capture_substream);
 	if ((gcr_status & 0x10) && (chip->rmidi)) /* MPU401 interrupt */
-		snd_mpu401_uart_interrupt(irq, chip->rmidi, regs);
+		snd_mpu401_uart_interrupt(irq, chip->rmidi->private_data, regs);
 	/* release the gcr */
 	outb(gcr_status, chip->alt_port + 0xe);
 	
