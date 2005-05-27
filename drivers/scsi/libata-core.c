@@ -2071,7 +2071,7 @@ void ata_sg_init_one(struct ata_queued_cmd *qc, void *buf, unsigned int buflen)
 	sg = qc->sg;
 	sg->page = virt_to_page(buf);
 	sg->offset = (unsigned long) buf & ~PAGE_MASK;
-	sg_dma_len(sg) = buflen;
+	sg->length = buflen;
 }
 
 void ata_sg_init(struct ata_queued_cmd *qc, struct scatterlist *sg,
@@ -2101,11 +2101,12 @@ static int ata_sg_setup_one(struct ata_queued_cmd *qc)
 	dma_addr_t dma_address;
 
 	dma_address = dma_map_single(ap->host_set->dev, qc->buf_virt,
-				     sg_dma_len(sg), dir);
+				     sg->length, dir);
 	if (dma_mapping_error(dma_address))
 		return -1;
 
 	sg_dma_address(sg) = dma_address;
+	sg_dma_len(sg) = sg->length;
 
 	DPRINTK("mapped buffer of %d bytes for %s\n", sg_dma_len(sg),
 		qc->tf.flags & ATA_TFLAG_WRITE ? "write" : "read");
@@ -2310,7 +2311,7 @@ static void ata_pio_sector(struct ata_queued_cmd *qc)
 	qc->cursect++;
 	qc->cursg_ofs++;
 
-	if ((qc->cursg_ofs * ATA_SECT_SIZE) == sg_dma_len(&sg[qc->cursg])) {
+	if ((qc->cursg_ofs * ATA_SECT_SIZE) == (&sg[qc->cursg])->length) {
 		qc->cursg++;
 		qc->cursg_ofs = 0;
 	}
@@ -2347,7 +2348,7 @@ next_page:
 	page = nth_page(page, (offset >> PAGE_SHIFT));
 	offset %= PAGE_SIZE;
 
-	count = min(sg_dma_len(sg) - qc->cursg_ofs, bytes);
+	count = min(sg->length - qc->cursg_ofs, bytes);
 
 	/* don't cross page boundaries */
 	count = min(count, (unsigned int)PAGE_SIZE - offset);
@@ -2358,7 +2359,7 @@ next_page:
 	qc->curbytes += count;
 	qc->cursg_ofs += count;
 
-	if (qc->cursg_ofs == sg_dma_len(sg)) {
+	if (qc->cursg_ofs == sg->length) {
 		qc->cursg++;
 		qc->cursg_ofs = 0;
 	}
@@ -2371,7 +2372,7 @@ next_page:
 	kunmap(page);
 
 	if (bytes) {
-		if (qc->cursg_ofs < sg_dma_len(sg))
+		if (qc->cursg_ofs < sg->length)
 			goto next_page;
 		goto next_sg;
 	}

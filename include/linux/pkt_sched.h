@@ -427,6 +427,7 @@ enum
 	TCA_NETEM_UNSPEC,
 	TCA_NETEM_CORR,
 	TCA_NETEM_DELAY_DIST,
+	TCA_NETEM_REORDER,
 	__TCA_NETEM_MAX,
 };
 
@@ -437,7 +438,7 @@ struct tc_netem_qopt
 	__u32	latency;	/* added delay (us) */
 	__u32   limit;		/* fifo limit (packets) */
 	__u32	loss;		/* random packet loss (0=none ~0=100%) */
-	__u32	gap;		/* re-ordering gap (0 for delay all) */
+	__u32	gap;		/* re-ordering gap (0 for none) */
 	__u32   duplicate;	/* random packet dup  (0=none ~0=100%) */
 	__u32	jitter;		/* random jitter in latency (us) */
 };
@@ -447,6 +448,12 @@ struct tc_netem_corr
 	__u32	delay_corr;	/* delay correlation */
 	__u32	loss_corr;	/* packet loss correlation */
 	__u32	dup_corr;	/* duplicate correlation  */
+};
+
+struct tc_netem_reorder
+{
+	__u32	probability;
+	__u32	correlation;
 };
 
 #define NETEM_DIST_SCALE	8192

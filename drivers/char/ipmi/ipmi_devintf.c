@@ -520,7 +520,7 @@ MODULE_PARM_DESC(ipmi_major, "Sets the major number of the IPMI device.  By"
 		 " interface.  Other values will set the major device number"
 		 " to that value.");
 
-static struct class *ipmi_class;
+static struct class_simple *ipmi_class;
 
 static void ipmi_new_smi(int if_num)
 {
@@ -534,7 +534,7 @@ static void ipmi_new_smi(int if_num)
 
 static void ipmi_smi_gone(int if_num)
 {
-	class_simple_device_remove(ipmi_class, MKDEV(ipmi_major, if_num));
+	class_simple_device_remove(MKDEV(ipmi_major, if_num));
 	devfs_remove("ipmidev/%d", if_num);
 }
 
