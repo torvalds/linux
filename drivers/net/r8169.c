@@ -201,6 +201,8 @@ static struct {
 enum RTL8169_registers {
 	MAC0 = 0,		/* Ethernet hardware address. */
 	MAR0 = 8,		/* Multicast filter. */
+	CounterAddrLow = 0x10,
+	CounterAddrHigh = 0x14,
 	TxDescStartAddrLow = 0x20,
 	TxDescStartAddrHigh = 0x24,
 	TxHDescStartAddrLow = 0x28,
@@ -342,6 +344,9 @@ enum RTL8169_register_content {
 
 	/* _TBICSRBit */
 	TBILinkOK = 0x02000000,
+
+	/* DumpCounterCommand */
+	CounterDump = 0x8,
 };
 
 enum _DescStatusBit {
@@ -910,6 +915,98 @@ static void rtl8169_set_msglevel(struct net_device *dev, u32 value)
 	tp->msg_enable = value;
 }
 
+static const char rtl8169_gstrings[][ETH_GSTRING_LEN] = {
+	"tx_packets",
+	"rx_packets",
+	"tx_errors",
+	"rx_errors",
+	"rx_missed",
+	"align_errors",
+	"tx_single_collisions",
+	"tx_multi_collisions",
+	"unicast",
+	"broadcast",
+	"multicast",
+	"tx_aborted",
+	"tx_underrun",
+};
+
+struct rtl8169_counters {
+	u64	tx_packets;
+	u64	rx_packets;
+	u64	tx_errors;
+	u32	rx_errors;
+	u16	rx_missed;
+	u16	align_errors;
+	u32	tx_one_collision;
+	u32	tx_multi_collision;
+	u64	rx_unicast;
+	u64	rx_broadcast;
+	u32	rx_multicast;
+	u16	tx_aborted;
+	u16	tx_underun;
+};
+
+static int rtl8169_get_stats_count(struct net_device *dev)
+{
+	return ARRAY_SIZE(rtl8169_gstrings);
+}
+
+static void rtl8169_get_ethtool_stats(struct net_device *dev,
+				      struct ethtool_stats *stats, u64 *data)
+{
+	struct rtl8169_private *tp = netdev_priv(dev);
+	void __iomem *ioaddr = tp->mmio_addr;
+	struct rtl8169_counters *counters;
+	dma_addr_t paddr;
+	u32 cmd;
+
+	ASSERT_RTNL();
+
+	counters = pci_alloc_consistent(tp->pci_dev, sizeof(*counters), &paddr);
+	if (!counters)
+		return;
+
+	RTL_W32(CounterAddrHigh, (u64)paddr >> 32);
+	cmd = (u64)paddr & DMA_32BIT_MASK;
+	RTL_W32(CounterAddrLow, cmd);
+	RTL_W32(CounterAddrLow, cmd | CounterDump);
+
+	while (RTL_R32(CounterAddrLow) & CounterDump) {
+		if (msleep_interruptible(1))
+			break;
+	}
+
+	RTL_W32(CounterAddrLow, 0);
+	RTL_W32(CounterAddrHigh, 0);
+
+	data[0]	= le64_to_cpu(counters->tx_packets);
+	data[1] = le64_to_cpu(counters->rx_packets);
+	data[2] = le64_to_cpu(counters->tx_errors);
+	data[3] = le32_to_cpu(counters->rx_errors);
+	data[4] = le16_to_cpu(counters->rx_missed);
+	data[5] = le16_to_cpu(counters->align_errors);
+	data[6] = le32_to_cpu(counters->tx_one_collision);
+	data[7] = le32_to_cpu(counters->tx_multi_collision);
+	data[8] = le64_to_cpu(counters->rx_unicast);
+	data[9] = le64_to_cpu(counters->rx_broadcast);
+	data[10] = le32_to_cpu(counters->rx_multicast);
+	data[11] = le16_to_cpu(counters->tx_aborted);
+	data[12] = le16_to_cpu(counters->tx_underun);
+
+	pci_free_consistent(tp->pci_dev, sizeof(*counters), counters, paddr);
+}
+
+static void rtl8169_get_strings(struct net_device *dev, u32 stringset, u8 *data)
+{
+	switch(stringset) {
+	case ETH_SS_STATS:
+		memcpy(data, *rtl8169_gstrings, sizeof(rtl8169_gstrings));
+		break;
+	}
+}
+
+
 static struct ethtool_ops rtl8169_ethtool_ops = {
 	.get_drvinfo		= rtl8169_get_drvinfo,
 	.get_regs_len		= rtl8169_get_regs_len,
@@ -927,6 +1024,9 @@ static struct ethtool_ops rtl8169_ethtool_ops = {
 	.get_tso		= ethtool_op_get_tso,
 	.set_tso		= ethtool_op_set_tso,
 	.get_regs		= rtl8169_get_regs,
+	.get_strings		= rtl8169_get_strings,
+	.get_stats_count	= rtl8169_get_stats_count,
+	.get_ethtool_stats	= rtl8169_get_ethtool_stats,
 };
 
 static void rtl8169_write_gmii_reg_bit(void __iomem *ioaddr, int reg, int bitnum,
