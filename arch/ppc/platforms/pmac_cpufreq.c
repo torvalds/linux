@@ -271,6 +271,8 @@ static int __pmac pmu_set_cpu_speed(int low_speed)
 #ifdef DEBUG_FREQ
 	printk(KERN_DEBUG "HID1, before: %x\n", mfspr(SPRN_HID1));
 #endif
+	pmu_suspend();
+
 	/* Disable all interrupt sources on openpic */
  	pic_prio = openpic_get_priority();
 	openpic_set_priority(0xf);
@@ -344,6 +346,8 @@ static int __pmac pmu_set_cpu_speed(int low_speed)
 #ifdef DEBUG_FREQ
 	debug_calc_bogomips();
 #endif
+
+	pmu_resume();
 
 	preempt_enable();
 
