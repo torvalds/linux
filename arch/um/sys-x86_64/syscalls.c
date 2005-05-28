@@ -133,23 +133,27 @@ static long arch_prctl_tt(int code, unsigned long addr)
 
 #ifdef CONFIG_MODE_SKAS
 
+/* XXX: Must also call arch_prctl in the host, beside saving the segment bases! */
 static long arch_prctl_skas(int code, unsigned long addr)
 {
 	long ret = 0;
 
 	switch(code){
-	case ARCH_SET_GS:
-		current->thread.regs.regs.skas.regs[GS_BASE / sizeof(unsigned long)] = addr;
-		break;
 	case ARCH_SET_FS:
 		current->thread.regs.regs.skas.regs[FS_BASE / sizeof(unsigned long)] = addr;
 		break;
+	case ARCH_SET_GS:
+		current->thread.regs.regs.skas.regs[GS_BASE / sizeof(unsigned long)] = addr;
+		break;
 	case ARCH_GET_FS:
-		ret = put_user(current->thread.regs.regs.skas.regs[GS / sizeof(unsigned long)], &addr);
+		ret = put_user(current->thread.regs.regs.skas.
+				regs[FS_BASE / sizeof(unsigned long)],
+				(unsigned long __user *)addr);
 	        break;
 	case ARCH_GET_GS:
-		ret = put_user(current->thread.regs.regs.skas.regs[FS / sizeof(unsigned \
-long)], &addr);
+		ret = put_user(current->thread.regs.regs.skas.
+				regs[GS_BASE / sizeof(unsigned long)],
+				(unsigned long __user *)addr);
 	        break;
 	default:
 		ret = -EINVAL;
