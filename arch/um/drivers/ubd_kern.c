@@ -439,9 +439,9 @@ static int udb_setup(char *str)
 __setup("udb", udb_setup);
 __uml_help(udb_setup,
 "udb\n"
-"    This option is here solely to catch ubd -> udb typos, which can be\n\n"
-"    to impossible to catch visually unless you specifically look for\n\n"
-"    them.  The only result of any option starting with 'udb' is an error\n\n"
+"    This option is here solely to catch ubd -> udb typos, which can be\n"
+"    to impossible to catch visually unless you specifically look for\n"
+"    them.  The only result of any option starting with 'udb' is an error\n"
 "    in the boot output.\n\n"
 );
 
