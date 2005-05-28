@@ -215,11 +215,15 @@ static struct pnp_driver i8042_pnp_aux_driver = {
 
 static void i8042_pnp_exit(void)
 {
-	if (i8042_pnp_kbd_registered)
+	if (i8042_pnp_kbd_registered) {
+		i8042_pnp_kbd_registered = 0;
 		pnp_unregister_driver(&i8042_pnp_kbd_driver);
+	}
 
-	if (i8042_pnp_aux_registered)
+	if (i8042_pnp_aux_registered) {
+		i8042_pnp_aux_registered = 0;
 		pnp_unregister_driver(&i8042_pnp_aux_driver);
+	}
 }
 
 static int i8042_pnp_init(void)
