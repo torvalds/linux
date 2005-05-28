@@ -439,9 +439,6 @@ mpc85xx_cds_setup_arch(void)
 
 	printk("mpc85xx_cds_setup_arch\n");
 
-	/* VIA IDE configuration */
-        ppc_md.pcibios_fixup = mpc85xx_cds_pcibios_fixup;
-
 #ifdef CONFIG_CPM2
 	cpm2_reset();
 #endif
@@ -462,6 +459,9 @@ mpc85xx_cds_setup_arch(void)
 	loops_per_jiffy = freq / HZ;
 
 #ifdef CONFIG_PCI
+	/* VIA IDE configuration */
+        ppc_md.pcibios_fixup = mpc85xx_cds_pcibios_fixup;
+
 	/* setup PCI host bridges */
 	mpc85xx_setup_hose();
 #endif
