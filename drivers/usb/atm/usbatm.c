@@ -949,7 +949,6 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 	struct usb_device *usb_dev = interface_to_usbdev(intf);
 	struct usbatm_data *instance;
 	char *buf;
-	size_t instance_size = sizeof(*instance) + sizeof(struct urb *) * (num_rcv_urbs + num_snd_urbs);
 	int error = -ENOMEM;
 	int i, length;
 	int need_heavy;
@@ -961,13 +960,11 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 			intf->altsetting->desc.bInterfaceNumber);
 
 	/* instance init */
-	instance = kmalloc(instance_size, GFP_KERNEL);
+	instance = kcalloc(1, sizeof(*instance) + sizeof(struct urb *) * (num_rcv_urbs + num_snd_urbs), GFP_KERNEL);
 	if (!instance) {
 		dev_dbg(dev, "%s: no memory for instance data!\n", __func__);
 		return -ENOMEM;
 	}
-
-	memset(instance, 0, instance_size);
 
 	/* public fields */
 
