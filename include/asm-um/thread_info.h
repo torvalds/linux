@@ -41,18 +41,17 @@ struct thread_info {
 #define init_thread_info	(init_thread_union.thread_info)
 #define init_stack		(init_thread_union.stack)
 
+#define THREAD_SIZE ((1 << CONFIG_KERNEL_STACK_ORDER) * PAGE_SIZE)
 /* how to get the thread information struct from C */
 static inline struct thread_info *current_thread_info(void)
 {
 	struct thread_info *ti;
-	unsigned long mask = PAGE_SIZE *
-		(1 << CONFIG_KERNEL_STACK_ORDER) - 1;
-        ti = (struct thread_info *) (((unsigned long) &ti) & ~mask);
+	unsigned long mask = THREAD_SIZE - 1;
+	ti = (struct thread_info *) (((unsigned long) &ti) & ~mask);
 	return ti;
 }
 
 /* thread information allocation */
-#define THREAD_SIZE ((1 << CONFIG_KERNEL_STACK_ORDER) * PAGE_SIZE)
 #define alloc_thread_info(tsk) \
 	((struct thread_info *) kmalloc(THREAD_SIZE, GFP_KERNEL))
 #define free_thread_info(ti) kfree(ti)
