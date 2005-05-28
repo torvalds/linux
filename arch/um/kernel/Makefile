@@ -14,7 +14,7 @@ obj-y = config.o exec_kern.o exitcode.o \
 	tlb.o trap_kern.o trap_user.o uaccess_user.o um_arch.o umid.o \
 	user_util.o
 
-obj-$(CONFIG_BLK_DEV_INITRD) += initrd_kern.o initrd_user.o
+obj-$(CONFIG_BLK_DEV_INITRD) += initrd.o
 obj-$(CONFIG_GPROF)	+= gprof_syms.o
 obj-$(CONFIG_GCOV)	+= gmon_syms.o
 obj-$(CONFIG_TTY_LOG)	+= tty_log.o

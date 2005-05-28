@@ -28,9 +28,9 @@ static inline void set_singlestepping(struct task_struct *child, int on)
         child->thread.singlestep_syscall = 0;
 
 #ifdef SUBARCH_SET_SINGLESTEPPING
-        SUBARCH_SET_SINGLESTEPPING(child, on)
+        SUBARCH_SET_SINGLESTEPPING(child, on);
 #endif
-                }
+}
 
 /*
  * Called by kernel/ptrace.c when detaching..
@@ -83,7 +83,7 @@ long sys_ptrace(long request, long pid, long addr, long data)
 	}
 
 #ifdef SUBACH_PTRACE_SPECIAL
-        SUBARCH_PTRACE_SPECIAL(child,request,addr,data)
+        SUBARCH_PTRACE_SPECIAL(child,request,addr,data);
 #endif
 
 	ret = ptrace_check_attach(child, request == PTRACE_KILL);

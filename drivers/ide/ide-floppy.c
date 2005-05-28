@@ -1865,13 +1865,13 @@ static void idefloppy_setup (ide_drive_t *drive, idefloppy_floppy_t *floppy)
 	idefloppy_add_settings(drive);
 }
 
-static int idefloppy_cleanup (ide_drive_t *drive)
+static int ide_floppy_remove(struct device *dev)
 {
+	ide_drive_t *drive = to_ide_device(dev);
 	idefloppy_floppy_t *floppy = drive->driver_data;
 	struct gendisk *g = floppy->disk;
 
-	if (ide_unregister_subdriver(drive))
-		return 1;
+	ide_unregister_subdriver(drive, floppy->driver);
 
 	del_gendisk(g);
 
@@ -1916,26 +1916,24 @@ static ide_proc_entry_t idefloppy_proc[] = {
 
 #endif	/* CONFIG_PROC_FS */
 
-static int idefloppy_attach(ide_drive_t *drive);
+static int ide_floppy_probe(struct device *);
 
-/*
- *	IDE subdriver functions, registered with ide.c
- */
 static ide_driver_t idefloppy_driver = {
 	.owner			= THIS_MODULE,
-	.name			= "ide-floppy",
+	.gen_driver = {
+		.name		= "ide-floppy",
+		.bus		= &ide_bus_type,
+		.probe		= ide_floppy_probe,
+		.remove		= ide_floppy_remove,
+	},
 	.version		= IDEFLOPPY_VERSION,
 	.media			= ide_floppy,
-	.busy			= 0,
 	.supports_dsc_overlap	= 0,
-	.cleanup		= idefloppy_cleanup,
 	.do_request		= idefloppy_do_request,
 	.end_request		= idefloppy_do_end_request,
 	.error			= __ide_error,
 	.abort			= __ide_abort,
 	.proc			= idefloppy_proc,
-	.attach			= idefloppy_attach,
-	.drives			= LIST_HEAD_INIT(idefloppy_driver.drives),
 };
 
 static int idefloppy_open(struct inode *inode, struct file *filp)
@@ -2122,8 +2120,9 @@ static struct block_device_operations idefloppy_ops = {
 	.revalidate_disk= idefloppy_revalidate_disk
 };
 
-static int idefloppy_attach (ide_drive_t *drive)
+static int ide_floppy_probe(struct device *dev)
 {
+	ide_drive_t *drive = to_ide_device(dev);
 	idefloppy_floppy_t *floppy;
 	struct gendisk *g;
 
@@ -2152,10 +2151,7 @@ static int idefloppy_attach (ide_drive_t *drive)
 
 	ide_init_disk(g, drive);
 
-	if (ide_register_subdriver(drive, &idefloppy_driver)) {
-		printk (KERN_ERR "ide-floppy: %s: Failed to register the driver with ide.c\n", drive->name);
-		goto out_put_disk;
-	}
+	ide_register_subdriver(drive, &idefloppy_driver);
 
 	memset(floppy, 0, sizeof(*floppy));
 
@@ -2169,9 +2165,8 @@ static int idefloppy_attach (ide_drive_t *drive)
 
 	drive->driver_data = floppy;
 
-	DRIVER(drive)->busy++;
 	idefloppy_setup (drive, floppy);
-	DRIVER(drive)->busy--;
+
 	g->minors = 1 << PARTN_BITS;
 	g->driverfs_dev = &drive->gendev;
 	strcpy(g->devfs_name, drive->devfs_name);
@@ -2181,19 +2176,17 @@ static int idefloppy_attach (ide_drive_t *drive)
 	add_disk(g);
 	return 0;
 
-out_put_disk:
-	put_disk(g);
 out_free_floppy:
 	kfree(floppy);
 failed:
-	return 1;
+	return -ENODEV;
 }
 
 MODULE_DESCRIPTION("ATAPI FLOPPY Driver");
 
 static void __exit idefloppy_exit (void)
 {
-	ide_unregister_driver(&idefloppy_driver);
+	driver_unregister(&idefloppy_driver.gen_driver);
 }
 
 /*
@@ -2202,8 +2195,7 @@ static void __exit idefloppy_exit (void)
 static int idefloppy_init (void)
 {
 	printk("ide-floppy driver " IDEFLOPPY_VERSION "\n");
-	ide_register_driver(&idefloppy_driver);
-	return 0;
+	return driver_register(&idefloppy_driver.gen_driver);
 }
 
 module_init(idefloppy_init);

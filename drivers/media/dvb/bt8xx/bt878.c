@@ -4,27 +4,27 @@
  * Copyright (C) 2002 Peter Hettkamp <peter.hettkamp@t-online.de>
  *
  * large parts based on the bttv driver
- * Copyright (C) 1996,97,98 Ralph  Metzler (rjkm@thp.uni-koeln.de)
- *                        & Marcus Metzler (mocm@thp.uni-koeln.de)
+ * Copyright (C) 1996,97,98 Ralph  Metzler (rjkm@metzlerbros.de)
+ *                        & Marcus Metzler (mocm@metzlerbros.de)
  * (c) 1999,2000 Gerd Knorr <kraxel@goldbach.in-berlin.de>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
- * 
+ *
 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
- * 
+ *
  */
 
 #include <linux/module.h>
@@ -58,7 +58,7 @@ module_param_named(verbose, bt878_verbose, int, 0444);
 MODULE_PARM_DESC(verbose,
 		 "verbose startup messages, default is 1 (yes)");
 module_param_named(debug, bt878_debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
+MODULE_PARM_DESC(debug, "Turn on/off debugging, default is 0 (off).");
 
 int bt878_num;
 struct bt878 bt878[BT878_MAX];
@@ -128,21 +128,21 @@ static int bt878_mem_alloc(struct bt878 *bt)
 }
 
 /* RISC instructions */
-#define RISC_WRITE        	(0x01 << 28)
-#define RISC_JUMP         	(0x07 << 28)
-#define RISC_SYNC         	(0x08 << 28)
+#define RISC_WRITE		(0x01 << 28)
+#define RISC_JUMP		(0x07 << 28)
+#define RISC_SYNC		(0x08 << 28)
 
 /* RISC bits */
-#define RISC_WR_SOL       	(1 << 27)
-#define RISC_WR_EOL       	(1 << 26)
-#define RISC_IRQ          	(1 << 24)
+#define RISC_WR_SOL		(1 << 27)
+#define RISC_WR_EOL		(1 << 26)
+#define RISC_IRQ		(1 << 24)
 #define RISC_STATUS(status)	((((~status) & 0x0F) << 20) | ((status & 0x0F) << 16))
-#define RISC_SYNC_RESYNC  	(1 << 15)
-#define RISC_SYNC_FM1     	0x06
-#define RISC_SYNC_VRO     	0x0C
+#define RISC_SYNC_RESYNC	(1 << 15)
+#define RISC_SYNC_FM1		0x06
+#define RISC_SYNC_VRO		0x0C
 
 #define RISC_FLUSH()		bt->risc_pos = 0
-#define RISC_INSTR(instr) 	bt->risc_cpu[bt->risc_pos++] = cpu_to_le32(instr)
+#define RISC_INSTR(instr)	bt->risc_cpu[bt->risc_pos++] = cpu_to_le32(instr)
 
 static int bt878_make_risc(struct bt878 *bt)
 {
@@ -173,7 +173,7 @@ static void bt878_risc_program(struct bt878 *bt, u32 op_sync_orin)
 	RISC_INSTR(RISC_SYNC | RISC_SYNC_FM1 | op_sync_orin);
 	RISC_INSTR(0);
 
-	dprintk("bt878: risc len lines %u, bytes per line %u\n", 
+	dprintk("bt878: risc len lines %u, bytes per line %u\n",
 			bt->line_count, bt->line_bytes);
 	for (line = 0; line < bt->line_count; line++) {
 		// At the beginning of every block we issue an IRQ with previous (finished) block number set
@@ -228,14 +228,14 @@ void bt878_start(struct bt878 *bt, u32 controlreg, u32 op_sync_orin,
 	 * Hacked for DST to:
 	 * SCERR | OCERR | FDSR | FTRGT | FBUS | RISCI
 	 */
-	int_mask = BT878_ASCERR | BT878_AOCERR | BT878_APABORT | 
-		BT878_ARIPERR | BT878_APPERR | BT878_AFDSR | BT878_AFTRGT | 
+	int_mask = BT878_ASCERR | BT878_AOCERR | BT878_APABORT |
+		BT878_ARIPERR | BT878_APPERR | BT878_AFDSR | BT878_AFTRGT |
 		BT878_AFBUS | BT878_ARISCI;
 
 
 	/* ignore pesky bits */
 	int_mask &= ~irq_err_ignore;
-	
+
 	btwrite(int_mask, BT878_AINT_MASK);
 	btwrite(controlreg, BT878_AGPIO_DMA_CTL);
 }
@@ -461,9 +461,9 @@ static int __devinit bt878_probe(struct pci_dev *dev,
 	pci_set_drvdata(dev, bt);
 
 /*        if(init_bt878(btv) < 0) {
-                bt878_remove(dev);
-                return -EIO;
-        }
+		bt878_remove(dev);
+		return -EIO;
+	}
 */
 
 	if ((result = bt878_mem_alloc(bt))) {
@@ -536,10 +536,10 @@ static struct pci_device_id bt878_pci_tbl[] __devinitdata = {
 MODULE_DEVICE_TABLE(pci, bt878_pci_tbl);
 
 static struct pci_driver bt878_pci_driver = {
-      .name 	= "bt878",
+      .name	= "bt878",
       .id_table = bt878_pci_tbl,
-      .probe 	= bt878_probe,
-      .remove 	= bt878_remove,
+      .probe	= bt878_probe,
+      .remove	= bt878_remove,
 };
 
 static int bt878_pci_driver_registered = 0;
@@ -558,7 +558,7 @@ static int bt878_init_module(void)
 	       (BT878_VERSION_CODE >> 8) & 0xff,
 	       BT878_VERSION_CODE & 0xff);
 /*
-        bt878_check_chipset();
+	bt878_check_chipset();
 */
 	/* later we register inside of bt878_find_audio_dma()
 	 * because we may want to ignore certain cards */

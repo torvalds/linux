@@ -9,8 +9,6 @@
 #include "linux/in6.h"
 #include "asm/uaccess.h"
 
-extern unsigned int csum_partial_copy_from(const unsigned char *src, unsigned char *dst, int len,
-					   int sum, int *err_ptr);
 extern unsigned csum_partial(const unsigned char *buff, unsigned len,
                              unsigned sum);
 
@@ -31,10 +29,15 @@ unsigned int csum_partial_copy_nocheck(const unsigned char *src, unsigned char *
 }
 
 static __inline__
-unsigned int csum_partial_copy_from_user(const unsigned char *src, unsigned char *dst,
-					 int len, int sum, int *err_ptr)
+unsigned int csum_partial_copy_from_user(const unsigned char *src,
+                                         unsigned char *dst, int len, int sum,
+                                         int *err_ptr)
 {
-	return csum_partial_copy_from(src, dst, len, sum, err_ptr);
+        if(copy_from_user(dst, src, len)){
+                *err_ptr = -EFAULT;
+                return(-1);
+        }
+        return csum_partial(dst, len, sum);
 }
 
 /**
@@ -137,15 +140,6 @@ static inline unsigned add32_with_carry(unsigned a, unsigned b)
         return a;
 }
 
-#endif
+extern unsigned short ip_compute_csum(unsigned char * buff, int len);
 
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */
+#endif

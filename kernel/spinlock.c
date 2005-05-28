@@ -294,7 +294,7 @@ EXPORT_SYMBOL(_spin_unlock_irq);
 void __lockfunc _spin_unlock_bh(spinlock_t *lock)
 {
 	_raw_spin_unlock(lock);
-	preempt_enable();
+	preempt_enable_no_resched();
 	local_bh_enable();
 }
 EXPORT_SYMBOL(_spin_unlock_bh);
@@ -318,7 +318,7 @@ EXPORT_SYMBOL(_read_unlock_irq);
 void __lockfunc _read_unlock_bh(rwlock_t *lock)
 {
 	_raw_read_unlock(lock);
-	preempt_enable();
+	preempt_enable_no_resched();
 	local_bh_enable();
 }
 EXPORT_SYMBOL(_read_unlock_bh);
@@ -342,7 +342,7 @@ EXPORT_SYMBOL(_write_unlock_irq);
 void __lockfunc _write_unlock_bh(rwlock_t *lock)
 {
 	_raw_write_unlock(lock);
-	preempt_enable();
+	preempt_enable_no_resched();
 	local_bh_enable();
 }
 EXPORT_SYMBOL(_write_unlock_bh);
@@ -354,7 +354,7 @@ int __lockfunc _spin_trylock_bh(spinlock_t *lock)
 	if (_raw_spin_trylock(lock))
 		return 1;
 
-	preempt_enable();
+	preempt_enable_no_resched();
 	local_bh_enable();
 	return 0;
 }

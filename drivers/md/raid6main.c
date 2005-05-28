@@ -1779,9 +1779,6 @@ static int run (mddev_t *mddev)
 	atomic_set(&conf->active_stripes, 0);
 	atomic_set(&conf->preread_active_stripes, 0);
 
-	mddev->queue->unplug_fn = raid6_unplug_device;
-	mddev->queue->issue_flush_fn = raid6_issue_flush;
-
 	PRINTK("raid6: run(%s) called.\n", mdname(mddev));
 
 	ITERATE_RDEV(mddev,rdev,tmp) {
@@ -1895,6 +1892,9 @@ static int run (mddev_t *mddev)
 
 	/* Ok, everything is just fine now */
 	mddev->array_size =  mddev->size * (mddev->raid_disks - 2);
+
+	mddev->queue->unplug_fn = raid6_unplug_device;
+	mddev->queue->issue_flush_fn = raid6_issue_flush;
 	return 0;
 abort:
 	if (conf) {

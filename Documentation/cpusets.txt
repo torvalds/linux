@@ -252,8 +252,7 @@ in a tasks processor placement.
 There is an exception to the above.  If hotplug funtionality is used
 to remove all the CPUs that are currently assigned to a cpuset,
 then the kernel will automatically update the cpus_allowed of all
-tasks attached to CPUs in that cpuset with the online CPUs of the
-nearest parent cpuset that still has some CPUs online.  When memory
+tasks attached to CPUs in that cpuset to allow all CPUs.  When memory
 hotplug functionality for removing Memory Nodes is available, a
 similar exception is expected to apply there as well.  In general,
 the kernel prefers to violate cpuset placement, over starving a task

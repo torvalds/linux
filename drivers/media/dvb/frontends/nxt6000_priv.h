@@ -65,11 +65,26 @@
 #define BER_DONE               (0x08)
 #define BER_OVERFLOW           (0x10)
 
+/* 0x38 VIT_BERTIME_2 */
+#define VIT_BERTIME_2      (0x38)
+
+/* 0x39 VIT_BERTIME_1 */
+#define VIT_BERTIME_1      (0x39)
+
+/* 0x3A VIT_BERTIME_0 */
+#define VIT_BERTIME_0      (0x3a)
+
 			     /* 0x38 OFDM_BERTimer *//* Use the alias registers */
 #define A_VIT_BER_TIMER_0      (0x1D)
 
 			     /* 0x3A VIT_BER_TIMER_0 *//* Use the alias registers */
 #define A_VIT_BER_0            (0x1B)
+
+/* 0x3B VIT_BER_1 */
+#define VIT_BER_1              (0x3b)
+
+/* 0x3C VIT_BER_0 */
+#define VIT_BER_0              (0x3c)
 
 /* 0x40 OFDM_COR_CTL */
 #define OFDM_COR_CTL           (0x40)
@@ -116,6 +131,12 @@
 /* 0x4B OFDM_ITB_CTL */
 #define OFDM_ITB_CTL           (0x4B)
 #define ITBINV                 (0x01)
+
+/* 0x49 AGC_GAIN_1 */
+#define AGC_GAIN_1             (0x49)
+
+/* 0x4A AGC_GAIN_2 */
+#define AGC_GAIN_2             (0x4A)
 
 /* 0x4C OFDM_ITB_FREQ_1 */
 #define OFDM_ITB_FREQ_1        (0x4C)
