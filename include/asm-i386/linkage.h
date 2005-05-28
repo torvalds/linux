@@ -5,9 +5,7 @@
 #define FASTCALL(x)	x __attribute__((regparm(3)))
 #define fastcall	__attribute__((regparm(3)))
 
-#ifdef CONFIG_REGPARM
-# define prevent_tail_call(ret) __asm__ ("" : "=r" (ret) : "0" (ret))
-#endif
+#define prevent_tail_call(ret) __asm__ ("" : "=r" (ret) : "0" (ret))
 
 #ifdef CONFIG_X86_ALIGNMENT_16
 #define __ALIGN .align 16,0x90

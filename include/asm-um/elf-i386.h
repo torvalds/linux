@@ -5,7 +5,7 @@
 #ifndef __UM_ELF_I386_H
 #define __UM_ELF_I386_H
 
-#include "user.h"
+#include <asm/user.h>
 
 #define R_386_NONE	0
 #define R_386_32	1

@@ -698,7 +698,7 @@ int skb_cow_data(struct sk_buff *skb, int tailbits, struct sk_buff **trailer)
 				return -ENOMEM;
 
 			if (skb1->sk)
-				skb_set_owner_w(skb, skb1->sk);
+				skb_set_owner_w(skb2, skb1->sk);
 
 			/* Looking around. Are we still alive?
 			 * OK, link new skb, drop old one */

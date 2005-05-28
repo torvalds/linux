@@ -1946,7 +1946,6 @@ struct tvcard bttv_tvcards[] = {
         .no_tda9875     = 1,
         .no_tda7432     = 1,
         .tuner_type     = TUNER_ABSENT,
-        .no_video       = 1,
 	.pll            = PLL_28,
 },{
 	.name           = "Teppro TEV-560/InterVision IV-560",

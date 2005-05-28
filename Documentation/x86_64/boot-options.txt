@@ -25,6 +25,9 @@ APICs
 
    noapictimer	 Don't set up the APIC timer
 
+   no_timer_check Don't check the IO-APIC timer. This can work around
+		 problems with incorrect timer initialization on some boards.
+
 Early Console
 
    syntax: earlyprintk=vga

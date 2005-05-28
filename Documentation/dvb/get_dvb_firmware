@@ -107,7 +107,7 @@ sub tda10045 {
 sub tda10046 {
     my $sourcefile = "tt_budget_217g.zip";
     my $url = "http://www.technotrend.de/new/217g/$sourcefile";
-    my $hash = "a25b579e37109af60f4a36c37893957c";
+    my $hash = "6a7e1e2f2644b162ff0502367553c72d";
     my $outfile = "dvb-fe-tda10046.fw";
     my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 1);
 
@@ -115,7 +115,7 @@ sub tda10046 {
 
     wgetfile($sourcefile, $url);
     unzip($sourcefile, $tmpdir);
-    extract("$tmpdir/software/OEM/PCI/App/ttlcdacc.dll", 0x3f731, 24479, "$tmpdir/fwtmp");
+    extract("$tmpdir/software/OEM/PCI/App/ttlcdacc.dll", 0x3f731, 24478, "$tmpdir/fwtmp");
     verify("$tmpdir/fwtmp", $hash);
     copy("$tmpdir/fwtmp", $outfile);
 

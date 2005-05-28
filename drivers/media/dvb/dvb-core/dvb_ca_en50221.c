@@ -829,7 +829,7 @@ EXPORT_SYMBOL(dvb_ca_en50221_camready_irq);
  */
 void dvb_ca_en50221_camchange_irq(struct dvb_ca_en50221 *pubca, int slot, int change_type)
 {
-	struct dvb_ca_private *ca = (struct dvb_ca_private *) pubca->private;
+	struct dvb_ca_private *ca = pubca->private;
 
 	dprintk("CAMCHANGE IRQ slot:%i change_type:%i\n", slot, change_type);
 
@@ -857,7 +857,7 @@ EXPORT_SYMBOL(dvb_ca_en50221_frda_irq);
  */
 void dvb_ca_en50221_camready_irq(struct dvb_ca_en50221 *pubca, int slot)
 {
-	struct dvb_ca_private *ca = (struct dvb_ca_private *) pubca->private;
+	struct dvb_ca_private *ca = pubca->private;
 
 	dprintk("CAMREADY IRQ slot:%i\n", slot);
 
@@ -876,7 +876,7 @@ void dvb_ca_en50221_camready_irq(struct dvb_ca_en50221 *pubca, int slot)
  */
 void dvb_ca_en50221_frda_irq(struct dvb_ca_en50221 *pubca, int slot)
 {
-	struct dvb_ca_private *ca = (struct dvb_ca_private *) pubca->private;
+	struct dvb_ca_private *ca = pubca->private;
 	int flags;
 
 	dprintk("FR/DA IRQ slot:%i\n", slot);
@@ -993,7 +993,7 @@ static void dvb_ca_en50221_thread_update_delay(struct dvb_ca_private *ca)
  */
 static int dvb_ca_en50221_thread(void *data)
 {
-	struct dvb_ca_private *ca = (struct dvb_ca_private *) data;
+	struct dvb_ca_private *ca = data;
 	char name[15];
 	int slot;
 	int flags;
@@ -1202,8 +1202,8 @@ static int dvb_ca_en50221_thread(void *data)
 static int dvb_ca_en50221_io_do_ioctl(struct inode *inode, struct file *file,
 				      unsigned int cmd, void *parg)
 {
-	struct dvb_device *dvbdev = (struct dvb_device *) file->private_data;
-	struct dvb_ca_private *ca = (struct dvb_ca_private *) dvbdev->priv;
+	struct dvb_device *dvbdev = file->private_data;
+	struct dvb_ca_private *ca = dvbdev->priv;
 	int err = 0;
 	int slot;
 
@@ -1225,7 +1225,7 @@ static int dvb_ca_en50221_io_do_ioctl(struct inode *inode, struct file *file,
 		break;
 
 	case CA_GET_CAP: {
-		struct ca_caps *caps = (struct ca_caps *) parg;
+		struct ca_caps *caps = parg;
 
 		caps->slot_num = ca->slot_count;
 		caps->slot_type = CA_CI_LINK;
@@ -1235,7 +1235,7 @@ static int dvb_ca_en50221_io_do_ioctl(struct inode *inode, struct file *file,
 	}
 
 	case CA_GET_SLOT_INFO: {
-		struct ca_slot_info *info = (struct ca_slot_info *) parg;
+		struct ca_slot_info *info = parg;
 
 		if ((info->num > ca->slot_count) || (info->num < 0))
 			return -EINVAL;
@@ -1291,8 +1291,8 @@ static int dvb_ca_en50221_io_ioctl(struct inode *inode, struct file *file,
 static ssize_t dvb_ca_en50221_io_write(struct file *file,
 				       const char __user * buf, size_t count, loff_t * ppos)
 {
-	struct dvb_device *dvbdev = (struct dvb_device *) file->private_data;
-	struct dvb_ca_private *ca = (struct dvb_ca_private *) dvbdev->priv;
+	struct dvb_device *dvbdev = file->private_data;
+	struct dvb_ca_private *ca = dvbdev->priv;
 	u8 slot, connection_id;
 	int status;
 	char fragbuf[HOST_LINK_BUF_SIZE];
@@ -1428,8 +1428,8 @@ static int dvb_ca_en50221_io_read_condition(struct dvb_ca_private *ca, int *resu
 static ssize_t dvb_ca_en50221_io_read(struct file *file, char __user * buf,
 				      size_t count, loff_t * ppos)
 {
-	struct dvb_device *dvbdev = (struct dvb_device *) file->private_data;
-	struct dvb_ca_private *ca = (struct dvb_ca_private *) dvbdev->priv;
+	struct dvb_device *dvbdev = file->private_data;
+	struct dvb_ca_private *ca = dvbdev->priv;
 	int status;
 	int result = 0;
 	u8 hdr[2];
@@ -1526,8 +1526,8 @@ static ssize_t dvb_ca_en50221_io_read(struct file *file, char __user * buf,
  */
 static int dvb_ca_en50221_io_open(struct inode *inode, struct file *file)
 {
-	struct dvb_device *dvbdev = (struct dvb_device *) file->private_data;
-	struct dvb_ca_private *ca = (struct dvb_ca_private *) dvbdev->priv;
+	struct dvb_device *dvbdev = file->private_data;
+	struct dvb_ca_private *ca = dvbdev->priv;
 	int err;
 	int i;
 
@@ -1569,8 +1569,8 @@ static int dvb_ca_en50221_io_open(struct inode *inode, struct file *file)
  */
 static int dvb_ca_en50221_io_release(struct inode *inode, struct file *file)
 {
-	struct dvb_device *dvbdev = (struct dvb_device *) file->private_data;
-	struct dvb_ca_private *ca = (struct dvb_ca_private *) dvbdev->priv;
+	struct dvb_device *dvbdev = file->private_data;
+	struct dvb_ca_private *ca = dvbdev->priv;
 	int err = 0;
 
 	dprintk("%s\n", __FUNCTION__);
@@ -1597,8 +1597,8 @@ static int dvb_ca_en50221_io_release(struct inode *inode, struct file *file)
  */
 static unsigned int dvb_ca_en50221_io_poll(struct file *file, poll_table * wait)
 {
-	struct dvb_device *dvbdev = (struct dvb_device *) file->private_data;
-	struct dvb_ca_private *ca = (struct dvb_ca_private *) dvbdev->priv;
+	struct dvb_device *dvbdev = file->private_data;
+	struct dvb_ca_private *ca = dvbdev->priv;
 	unsigned int mask = 0;
 	int slot;
 	int result = 0;
@@ -1750,7 +1750,7 @@ EXPORT_SYMBOL(dvb_ca_en50221_release);
  */
 void dvb_ca_en50221_release(struct dvb_ca_en50221 *pubca)
 {
-	struct dvb_ca_private *ca = (struct dvb_ca_private *) pubca->private;
+	struct dvb_ca_private *ca = pubca->private;
 	int i;
 
 	dprintk("%s\n", __FUNCTION__);

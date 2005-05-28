@@ -1136,7 +1136,7 @@ int xfrm_bundle_ok(struct xfrm_dst *first, struct flowi *fl, int family)
 	struct xfrm_dst *last;
 	u32 mtu;
 
-	if (!dst_check(dst->path, 0) ||
+	if (!dst_check(dst->path, ((struct xfrm_dst *)dst)->path_cookie) ||
 	    (dst->dev && !netif_running(dst->dev)))
 		return 0;
 
@@ -1156,7 +1156,7 @@ int xfrm_bundle_ok(struct xfrm_dst *first, struct flowi *fl, int family)
 			xdst->child_mtu_cached = mtu;
 		}
 
-		if (!dst_check(xdst->route, 0))
+		if (!dst_check(xdst->route, xdst->route_cookie))
 			return 0;
 		mtu = dst_mtu(xdst->route);
 		if (xdst->route_mtu_cached != mtu) {

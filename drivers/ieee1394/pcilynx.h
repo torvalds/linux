@@ -55,16 +55,6 @@ struct ti_lynx {
         void __iomem *aux_port;
 	quadlet_t bus_info_block[5];
 
-#ifdef CONFIG_IEEE1394_PCILYNX_PORTS
-        atomic_t aux_intr_seen;
-        wait_queue_head_t aux_intr_wait;
-
-        void *mem_dma_buffer;
-        dma_addr_t mem_dma_buffer_dma;
-        struct semaphore mem_dma_mutex;
-        wait_queue_head_t mem_dma_intr_wait;
-#endif
-
         /*
          * use local RAM of LOCALRAM_SIZE bytes for PCLs, which allows for
          * LOCALRAM_SIZE * 8 PCLs (each sized 128 bytes);
@@ -72,11 +62,9 @@ struct ti_lynx {
          */
         u8 pcl_bmap[LOCALRAM_SIZE / 1024];
 
-#ifndef CONFIG_IEEE1394_PCILYNX_LOCALRAM
 	/* point to PCLs memory area if needed */
 	void *pcl_mem;
         dma_addr_t pcl_mem_dma;
-#endif
 
         /* PCLs for local mem / aux transfers */
         pcl_t dmem_pcl;
@@ -378,39 +366,6 @@ struct ti_pcl {
 #define pcloffs(MEMBER) (offsetof(struct ti_pcl, MEMBER))
 
 
-#ifdef CONFIG_IEEE1394_PCILYNX_LOCALRAM
-
-static inline void put_pcl(const struct ti_lynx *lynx, pcl_t pclid,
-                           const struct ti_pcl *pcl)
-{
-        int i;
-        u32 *in = (u32 *)pcl;
-        u32 *out = (u32 *)(lynx->local_ram + pclid * sizeof(struct ti_pcl));
-
-        for (i = 0; i < 32; i++, out++, in++) {
-                writel(*in, out);
-        }
-}
-
-static inline void get_pcl(const struct ti_lynx *lynx, pcl_t pclid,
-                           struct ti_pcl *pcl)
-{
-        int i;
-        u32 *out = (u32 *)pcl;
-        u32 *in = (u32 *)(lynx->local_ram + pclid * sizeof(struct ti_pcl));
-
-        for (i = 0; i < 32; i++, out++, in++) {
-                *out = readl(in);
-        }
-}
-
-static inline u32 pcl_bus(const struct ti_lynx *lynx, pcl_t pclid)
-{
-        return pci_resource_start(lynx->dev, 1) + pclid * sizeof(struct ti_pcl);
-}
-
-#else /* CONFIG_IEEE1394_PCILYNX_LOCALRAM */
-
 static inline void put_pcl(const struct ti_lynx *lynx, pcl_t pclid,
                            const struct ti_pcl *pcl)
 {
@@ -431,10 +386,8 @@ static inline u32 pcl_bus(const struct ti_lynx *lynx, pcl_t pclid)
         return lynx->pcl_mem_dma + pclid * sizeof(struct ti_pcl);
 }
 
-#endif /* CONFIG_IEEE1394_PCILYNX_LOCALRAM */
 
-
-#if defined (CONFIG_IEEE1394_PCILYNX_LOCALRAM) || defined (__BIG_ENDIAN)
+#if defined (__BIG_ENDIAN)
 typedef struct ti_pcl pcltmp_t;
 
 static inline struct ti_pcl *edit_pcl(const struct ti_lynx *lynx, pcl_t pclid,

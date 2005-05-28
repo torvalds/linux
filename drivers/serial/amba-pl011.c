@@ -163,18 +163,8 @@ pl011_rx_chars(struct uart_amba_port *uap)
 		if (uart_handle_sysrq_char(&uap->port, ch, regs))
 			goto ignore_char;
 
-		if ((rsr & uap->port.ignore_status_mask) == 0) {
-			tty_insert_flip_char(tty, ch, flag);
-		}
-		if ((rsr & UART01x_RSR_OE) &&
-		    tty->flip.count < TTY_FLIPBUF_SIZE) {
-			/*
-			 * Overrun is special, since it's reported
-			 * immediately, and doesn't affect the current
-			 * character
-			 */
-			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
-		}
+		uart_insert_char(&uap->port, rsr, UART01x_RSR_OE, ch, flag);
+
 	ignore_char:
 		status = readw(uap->port.membase + UART01x_FR);
 	}

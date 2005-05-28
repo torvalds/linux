@@ -565,7 +565,7 @@ struct file_operations linvfs_file_operations = {
 	.sendfile	= linvfs_sendfile,
 	.unlocked_ioctl	= linvfs_ioctl,
 #ifdef CONFIG_COMPAT
-	.compat_ioctl   = xfs_compat_ioctl,
+	.compat_ioctl	= linvfs_compat_ioctl,
 #endif
 	.mmap		= linvfs_file_mmap,
 	.open		= linvfs_open,
@@ -587,7 +587,7 @@ struct file_operations linvfs_invis_file_operations = {
 	.sendfile	= linvfs_sendfile,
 	.unlocked_ioctl	= linvfs_ioctl_invis,
 #ifdef CONFIG_COMPAT
-	.compat_ioctl   = xfs_compat_invis_ioctl,
+	.compat_ioctl	= linvfs_compat_invis_ioctl,
 #endif
 	.mmap		= linvfs_file_mmap,
 	.open		= linvfs_open,
@@ -600,6 +600,9 @@ struct file_operations linvfs_dir_operations = {
 	.read		= generic_read_dir,
 	.readdir	= linvfs_readdir,
 	.unlocked_ioctl	= linvfs_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= linvfs_compat_ioctl,
+#endif
 	.fsync		= linvfs_fsync,
 };
 

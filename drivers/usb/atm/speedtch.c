@@ -386,6 +386,8 @@ static void speedtch_poll_status(struct speedtch_instance_data *instance)
 		if (instance->u.atm_dev->signal != ATM_PHY_SIG_LOST) {
 			instance->u.atm_dev->signal = ATM_PHY_SIG_LOST;
 			printk(KERN_NOTICE "ADSL line is down\n");
+			/* It'll never resync again unless we ask it to... */
+			speedtch_start_synchro(instance);
 		}
 		break;
 
