@@ -241,7 +241,7 @@ static int i8042_pnp_init(void)
 #if defined(__ia64__)
 		return -ENODEV;
 #else
-		printk(KERN_WARNING "PNP: No PS/2 controller found. Probing ports directly.\n");
+		printk(KERN_INFO "PNP: No PS/2 controller found. Probing ports directly.\n");
 		return 0;
 #endif
 	}
