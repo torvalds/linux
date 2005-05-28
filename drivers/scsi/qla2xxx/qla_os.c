@@ -613,12 +613,8 @@ qla2xxx_eh_device_reset(struct scsi_cmnd *cmd)
 	qla_printk(KERN_INFO, ha,
 	    "scsi(%ld:%d:%d): DEVICE RESET ISSUED.\n", ha->host_no, id, lun);
 
-	spin_unlock_irq(ha->host->host_lock);
-
-	if (qla2x00_wait_for_hba_online(ha) != QLA_SUCCESS) {
-		spin_lock_irq(ha->host->host_lock);
+	if (qla2x00_wait_for_hba_online(ha) != QLA_SUCCESS)
 		goto eh_dev_reset_done;
-	}
 
 	if (qla2x00_wait_for_loop_ready(ha) == QLA_SUCCESS) {
 		if (qla2x00_device_reset(ha, fcport) == 0)
@@ -669,8 +665,6 @@ qla2xxx_eh_device_reset(struct scsi_cmnd *cmd)
 	    "scsi(%ld:%d:%d): DEVICE RESET SUCCEEDED.\n", ha->host_no, id, lun);
 
 eh_dev_reset_done:
-	spin_lock_irq(ha->host->host_lock);
-
 	return ret;
 }
 

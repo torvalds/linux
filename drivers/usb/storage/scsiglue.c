@@ -253,8 +253,6 @@ static int device_reset(struct scsi_cmnd *srb)
 
 	US_DEBUGP("%s called\n", __FUNCTION__);
 
-	scsi_unlock(us_to_host(us));
-
 	/* lock the device pointers and do the reset */
 	down(&(us->dev_semaphore));
 	if (test_bit(US_FLIDX_DISCONNECTING, &us->flags)) {
@@ -264,8 +262,6 @@ static int device_reset(struct scsi_cmnd *srb)
 		result = us->transport_reset(us);
 	up(&(us->dev_semaphore));
 
-	/* lock the host for the return */
-	scsi_lock(us_to_host(us));
 	return result;
 }
 

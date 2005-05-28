@@ -867,7 +867,13 @@ static int sym53c8xx_eh_abort_handler(struct scsi_cmnd *cmd)
 
 static int sym53c8xx_eh_device_reset_handler(struct scsi_cmnd *cmd)
 {
-	return sym_eh_handler(SYM_EH_DEVICE_RESET, "DEVICE RESET", cmd);
+	int rc;
+
+	spin_lock_irq(cmd->device->host->host_lock);
+	rc = sym_eh_handler(SYM_EH_DEVICE_RESET, "DEVICE RESET", cmd);
+	spin_unlock_irq(cmd->device->host->host_lock);
+
+	return rc;
 }
 
 static int sym53c8xx_eh_bus_reset_handler(struct scsi_cmnd *cmd)

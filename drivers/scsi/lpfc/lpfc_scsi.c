@@ -928,7 +928,7 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 }
 
 static int
-lpfc_reset_lun_handler(struct scsi_cmnd *cmnd)
+__lpfc_reset_lun_handler(struct scsi_cmnd *cmnd)
 {
 	struct Scsi_Host *shost = cmnd->device->host;
 	struct lpfc_hba *phba = (struct lpfc_hba *)shost->hostdata[0];
@@ -1038,6 +1038,16 @@ out_free_scsi_buf:
 	lpfc_free_scsi_buf(lpfc_cmd);
 out:
 	return ret;
+}
+
+static int
+lpfc_reset_lun_handler(struct scsi_cmnd *cmnd)
+{
+	int rc;
+	spin_lock_irq(cmnd->device->host->host_lock);
+	rc = __lpfc_reset_lun_handler(cmnd);
+	spin_unlock_irq(cmnd->device->host->host_lock);
+	return rc;
 }
 
 /*

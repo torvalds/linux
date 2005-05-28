@@ -2615,7 +2615,7 @@ static int sbp2scsi_abort(struct scsi_cmnd *SCpnt)
 /*
  * Called by scsi stack when something has really gone wrong.
  */
-static int sbp2scsi_reset(struct scsi_cmnd *SCpnt)
+static int __sbp2scsi_reset(struct scsi_cmnd *SCpnt)
 {
 	struct scsi_id_instance_data *scsi_id =
 		(struct scsi_id_instance_data *)SCpnt->device->host->hostdata[0];
@@ -2628,6 +2628,18 @@ static int sbp2scsi_reset(struct scsi_cmnd *SCpnt)
 	}
 
 	return(SUCCESS);
+}
+
+static int sbp2scsi_reset(struct scsi_cmnd *SCpnt)
+{
+	unsigned long flags;
+	int rc;
+
+	spin_lock_irqsave(SCpnt->device->host->host_lock, flags);
+	rc = __sbp2scsi_reset(SCpnt);
+	spin_unlock_irqrestore(SCpnt->device->host->host_lock, flags);
+
+	return rc;
 }
 
 static const char *sbp2scsi_info (struct Scsi_Host *host)

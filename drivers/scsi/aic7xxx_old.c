@@ -10358,7 +10358,7 @@ aic7xxx_queue(Scsi_Cmnd *cmd, void (*fn)(Scsi_Cmnd *))
  *   Returns an enumerated type that indicates the status of the operation.
  *-F*************************************************************************/
 static int
-aic7xxx_bus_device_reset(Scsi_Cmnd *cmd)
+__aic7xxx_bus_device_reset(Scsi_Cmnd *cmd)
 {
   struct aic7xxx_host  *p;
   struct aic7xxx_scb   *scb;
@@ -10549,6 +10549,18 @@ aic7xxx_bus_device_reset(Scsi_Cmnd *cmd)
     return FAILED;
   else
     return SUCCESS;
+}
+
+static int
+aic7xxx_bus_device_reset(Scsi_Cmnd *cmd)
+{
+      int rc;
+
+      spin_lock_irq(cmd->device->host->host_lock);
+      rc = __aic7xxx_bus_device_reset(cmd);
+      spin_unlock_irq(cmd->device->host->host_lock);
+
+      return rc;
 }
 
 

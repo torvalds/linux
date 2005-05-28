@@ -1801,7 +1801,6 @@ int
 mptscsih_dev_reset(struct scsi_cmnd * SCpnt)
 {
 	MPT_SCSI_HOST	*hd;
-	spinlock_t	*host_lock = SCpnt->device->host->host_lock;
 
 	/* If we can't locate our host adapter structure, return FAILED status.
 	 */
@@ -1818,7 +1817,6 @@ mptscsih_dev_reset(struct scsi_cmnd * SCpnt)
 	printk(KERN_WARNING MYNAM ": %s: >> Attempting target reset! (sc=%p)\n",
 	       hd->ioc->name, SCpnt);
 
-	spin_unlock_irq(host_lock);
 	if (mptscsih_TMHandler(hd, MPI_SCSITASKMGMT_TASKTYPE_TARGET_RESET,
 		SCpnt->device->channel, SCpnt->device->id,
 		0, 0, 5 /* 5 second timeout */)
@@ -1830,12 +1828,10 @@ mptscsih_dev_reset(struct scsi_cmnd * SCpnt)
 		 		hd->ioc->name, SCpnt);
 		hd->tmPending = 0;
 		hd->tmState = TM_STATE_NONE;
-		spin_lock_irq(host_lock);
 		return FAILED;
 	}
-	spin_lock_irq(host_lock);
-	return SUCCESS;
 
+	return SUCCESS;
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/

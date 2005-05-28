@@ -2726,7 +2726,7 @@ megaraid_abort_handler(struct scsi_cmnd *scp)
  * host
  **/
 static int
-megaraid_reset_handler(struct scsi_cmnd *scp)
+__megaraid_reset_handler(struct scsi_cmnd *scp)
 {
 	adapter_t	*adapter;
 	scb_t		*scb;
@@ -2845,6 +2845,18 @@ megaraid_reset_handler(struct scsi_cmnd *scp)
 	}
 
 	return rval;
+}
+
+static int
+megaraid_reset_handler(struct scsi_cmnd *cmd)
+{
+	int rc;
+
+	spin_lock_irq(cmd->device->host->host_lock);
+	rc = __megaraid_reset_handler(cmd);
+	spin_unlock_irq(cmd->device->host->host_lock);
+
+	return rc;
 }
 
 

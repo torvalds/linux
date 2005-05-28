@@ -636,8 +636,6 @@ zfcp_scsi_eh_device_reset_handler(struct scsi_cmnd *scpnt)
 	struct zfcp_unit *unit = (struct zfcp_unit *) scpnt->device->hostdata;
 	struct Scsi_Host *scsi_host = scpnt->device->host;
 
-	spin_unlock_irq(scsi_host->host_lock);
-
 	if (!unit) {
 		ZFCP_LOG_NORMAL("bug: Tried reset for nonexistent unit\n");
 		retval = SUCCESS;
@@ -680,7 +678,6 @@ zfcp_scsi_eh_device_reset_handler(struct scsi_cmnd *scpnt)
 		retval = SUCCESS;
 	}
  out:
-	spin_lock_irq(scsi_host->host_lock);
 	return retval;
 }
 

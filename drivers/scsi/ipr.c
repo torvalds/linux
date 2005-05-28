@@ -2916,7 +2916,7 @@ static int ipr_eh_host_reset(struct scsi_cmnd * scsi_cmd)
  * Return value:
  *	SUCCESS / FAILED
  **/
-static int ipr_eh_dev_reset(struct scsi_cmnd * scsi_cmd)
+static int __ipr_eh_dev_reset(struct scsi_cmnd * scsi_cmd)
 {
 	struct ipr_cmnd *ipr_cmd;
 	struct ipr_ioa_cfg *ioa_cfg;
@@ -2968,6 +2968,17 @@ static int ipr_eh_dev_reset(struct scsi_cmnd * scsi_cmd)
 
 	LEAVE;
 	return (IPR_IOASC_SENSE_KEY(ioasc) ? FAILED : SUCCESS);
+}
+
+static int ipr_eh_dev_reset(struct scsi_cmnd * cmd)
+{
+	int rc;
+
+	spin_lock_irq(cmd->device->host->host_lock);
+	rc = __ipr_eh_dev_reset(cmd);
+	spin_unlock_irq(cmd->device->host->host_lock);
+
+	return rc;
 }
 
 /**

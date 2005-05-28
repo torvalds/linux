@@ -857,17 +857,14 @@ static int scsi_eh_abort_cmds(struct list_head *work_q,
  **/
 static int scsi_try_bus_device_reset(struct scsi_cmnd *scmd)
 {
-	unsigned long flags;
-	int rtn = FAILED;
+	int rtn;
 
 	if (!scmd->device->host->hostt->eh_device_reset_handler)
-		return rtn;
+		return FAILED;
 
 	scmd->owner = SCSI_OWNER_LOWLEVEL;
 
-	spin_lock_irqsave(scmd->device->host->host_lock, flags);
 	rtn = scmd->device->host->hostt->eh_device_reset_handler(scmd);
-	spin_unlock_irqrestore(scmd->device->host->host_lock, flags);
 
 	if (rtn == SUCCESS) {
 		scmd->device->was_reset = 1;
