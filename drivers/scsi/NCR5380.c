@@ -2825,11 +2825,17 @@ static int NCR5380_abort(Scsi_Cmnd * cmd) {
  * Locks: host lock taken by caller
  */
 
-static int NCR5380_bus_reset(Scsi_Cmnd * cmd) {
-	NCR5380_local_declare();
-	NCR5380_setup(cmd->device->host);
+static int NCR5380_bus_reset(Scsi_Cmnd * cmd)
+{
+	struct Scsi_Host *instance = cmd->device->host;
 
-	NCR5380_print_status(cmd->device->host);
-	do_reset(cmd->device->host);
+	NCR5380_local_declare();
+	NCR5380_setup(instance);
+	NCR5380_print_status(instance);
+
+	spin_lock_irq(instance->host_lock);
+	do_reset(instance);
+	spin_unlock_irq(instance->host_lock);
+
 	return SUCCESS;
 }

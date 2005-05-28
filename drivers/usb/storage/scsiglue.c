@@ -276,8 +276,6 @@ static int bus_reset(struct scsi_cmnd *srb)
 
 	US_DEBUGP("%s called\n", __FUNCTION__);
 
-	scsi_unlock(us_to_host(us));
-
 	/* The USB subsystem doesn't handle synchronisation between
 	 * a device's several drivers. Therefore we reset only devices
 	 * with just one interface, which we of course own. */
@@ -304,7 +302,6 @@ static int bus_reset(struct scsi_cmnd *srb)
 	up(&(us->dev_semaphore));
 
 	/* lock the host for the return */
-	scsi_lock(us_to_host(us));
 	return result < 0 ? FAILED : SUCCESS;
 }
 

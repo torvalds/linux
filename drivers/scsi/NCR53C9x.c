@@ -1467,13 +1467,11 @@ int esp_reset(Scsi_Cmnd *SCptr)
 {
 	struct NCR_ESP *esp = (struct NCR_ESP *) SCptr->device->host->hostdata;
 
+	spin_lock_irq(esp->ehost->host_lock);
 	(void) esp_do_resetbus(esp, esp->eregs);
-
 	spin_unlock_irq(esp->ehost->host_lock);
 
 	wait_event(esp->reset_queue, (esp->resetting_bus == 0));
-
-	spin_lock_irq(esp->ehost->host_lock);
 
 	return SUCCESS;
 }

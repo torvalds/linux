@@ -97,6 +97,7 @@
 #include <linux/delay.h>
 #include <linux/blkdev.h>
 #include <linux/stat.h>
+#include <linux/delay.h>
 
 #include <asm/io.h>
 #include <asm/system.h>
@@ -1631,7 +1632,7 @@ static int seagate_st0x_bus_reset(Scsi_Cmnd * SCpnt)
 	/* assert  RESET signal on SCSI bus.  */
 	WRITE_CONTROL (BASE_CMD | CMD_RST);
 
-	udelay (20 * 1000);
+	mdelay (20);
 
 	WRITE_CONTROL (BASE_CMD);
 	st0x_aborted = DID_RESET;

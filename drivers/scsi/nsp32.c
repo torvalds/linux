@@ -2987,6 +2987,8 @@ static int nsp32_eh_bus_reset(struct scsi_cmnd *SCpnt)
 	nsp32_hw_data *data = (nsp32_hw_data *)SCpnt->device->host->hostdata;
 	unsigned int   base = SCpnt->device->host->io_port;
 
+	spin_lock_irq(SCpnt->device->host->host_lock);
+
 	nsp32_msg(KERN_INFO, "Bus Reset");	
 	nsp32_dbg(NSP32_DEBUG_BUSRESET, "SCpnt=0x%x", SCpnt);
 
@@ -2994,6 +2996,7 @@ static int nsp32_eh_bus_reset(struct scsi_cmnd *SCpnt)
 	nsp32_do_bus_reset(data);
 	nsp32_write2(base, IRQ_CONTROL, 0);
 
+	spin_unlock_irq(SCpnt->device->host->host_lock);
 	return SUCCESS;	/* SCSI bus reset is succeeded at any time. */
 }
 

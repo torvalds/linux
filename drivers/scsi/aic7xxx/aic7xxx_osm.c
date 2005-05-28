@@ -829,10 +829,14 @@ ahc_linux_bus_reset(struct scsi_cmnd *cmd)
 {
 	struct ahc_softc *ahc;
 	int    found;
+	unsigned long flags;
 
 	ahc = *(struct ahc_softc **)cmd->device->host->hostdata;
+
+	ahc_lock(ahc, &flags);
 	found = ahc_reset_channel(ahc, cmd->device->channel + 'A',
 				  /*initiate reset*/TRUE);
+	ahc_unlock(ahc, &flags);
 
 	if (bootverbose)
 		printf("%s: SCSI bus reset delivered. "

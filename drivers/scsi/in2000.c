@@ -1644,14 +1644,16 @@ static int in2000_bus_reset(Scsi_Cmnd * cmd)
 	struct Scsi_Host *instance;
 	struct IN2000_hostdata *hostdata;
 	int x;
+	unsigned long flags;
 
 	instance = cmd->device->host;
 	hostdata = (struct IN2000_hostdata *) instance->hostdata;
 
 	printk(KERN_WARNING "scsi%d: Reset. ", instance->host_no);
 
-	/* do scsi-reset here */
+	spin_lock_irqsave(instance->host_lock, flags);
 
+	/* do scsi-reset here */
 	reset_hardware(instance, RESET_CARD_AND_BUS);
 	for (x = 0; x < 8; x++) {
 		hostdata->busy[x] = 0;
@@ -1668,6 +1670,8 @@ static int in2000_bus_reset(Scsi_Cmnd * cmd)
 	hostdata->outgoing_len = 0;
 
 	cmd->result = DID_RESET << 16;
+
+	spin_unlock_irqrestore(instance->host_lock, flags);
 	return SUCCESS;
 }
 

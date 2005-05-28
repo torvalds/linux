@@ -511,8 +511,14 @@ int qlogicfas408_abort(Scsi_Cmnd * cmd)
 int qlogicfas408_bus_reset(Scsi_Cmnd * cmd)
 {
 	struct qlogicfas408_priv *priv = get_priv_by_cmd(cmd);
+	unsigned long flags;
+
 	priv->qabort = 2;
+
+	spin_lock_irqsave(cmd->device->host->host_lock, flags);
 	ql_zap(priv);
+	spin_unlock_irqrestore(cmd->device->host->host_lock, flags);
+
 	return SUCCESS;
 }
 

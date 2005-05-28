@@ -221,7 +221,11 @@ int __init a2091_detect(Scsi_Host_Template *tpnt)
 static int a2091_bus_reset(Scsi_Cmnd *cmd)
 {
 	/* FIXME perform bus-specific reset */
+
+	spin_lock_irq(cmd->device->host->host_lock);
 	wd33c93_host_reset(cmd);
+	spin_unlock_irq(cmd->device->host->host_lock);
+
 	return SUCCESS;
 }
 

@@ -1957,23 +1957,30 @@ NCR_700_bus_reset(struct scsi_cmnd * SCp)
 	printk(KERN_INFO "scsi%d (%d:%d) New error handler wants BUS reset, cmd %p\n\t",
 	       SCp->device->host->host_no, SCp->device->id, SCp->device->lun, SCp);
 	scsi_print_command(SCp);
+
 	/* In theory, eh_complete should always be null because the
 	 * eh is single threaded, but just in case we're handling a
 	 * reset via sg or something */
-	while(hostdata->eh_complete != NULL) {
+	spin_lock_irq(SCp->device->host->host_lock);
+	while (hostdata->eh_complete != NULL) {
 		spin_unlock_irq(SCp->device->host->host_lock);
 		msleep_interruptible(100);
 		spin_lock_irq(SCp->device->host->host_lock);
 	}
+
 	hostdata->eh_complete = &complete;
 	NCR_700_internal_bus_reset(SCp->device->host);
+
 	spin_unlock_irq(SCp->device->host->host_lock);
 	wait_for_completion(&complete);
 	spin_lock_irq(SCp->device->host->host_lock);
+
 	hostdata->eh_complete = NULL;
 	/* Revalidate the transport parameters of the failing device */
 	if(hostdata->fast)
 		spi_schedule_dv_device(SCp->device);
+
+	spin_unlock_irq(SCp->device->host->host_lock);
 	return SUCCESS;
 }
 

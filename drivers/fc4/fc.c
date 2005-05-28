@@ -983,7 +983,10 @@ int fcp_scsi_dev_reset(Scsi_Cmnd *SCpnt)
 	fc->rst_pkt->request->rq_status = RQ_SCSI_BUSY;
 
 	fc->rst_pkt->done = fcp_scsi_reset_done;
+
+	spin_lock_irqsave(SCpnt->device->host->host_lock, flags);
 	fcp_scsi_queue_it(fc, fc->rst_pkt, fcmd, 0);
+	spin_unlock_irqrestore(SCpnt->device->host->host_lock, flags);
 	
 	down(&sem);
 

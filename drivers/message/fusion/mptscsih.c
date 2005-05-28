@@ -1865,7 +1865,6 @@ mptscsih_bus_reset(struct scsi_cmnd * SCpnt)
 		hd->timeouts++;
 
 	/* We are now ready to execute the task management request. */
-	spin_unlock_irq(host_lock);
 	if (mptscsih_TMHandler(hd, MPI_SCSITASKMGMT_TASKTYPE_RESET_BUS,
 		SCpnt->device->channel, 0, 0, 0, 5 /* 5 second timeout */)
 	    < 0){
@@ -1881,7 +1880,7 @@ mptscsih_bus_reset(struct scsi_cmnd * SCpnt)
 		spin_lock_irq(host_lock);
 		return FAILED;
 	}
-	spin_lock_irq(host_lock);
+
 	return SUCCESS;
 }
 

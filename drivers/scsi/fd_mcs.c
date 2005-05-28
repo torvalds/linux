@@ -1243,6 +1243,7 @@ static int fd_mcs_abort(Scsi_Cmnd * SCpnt)
 
 static int fd_mcs_bus_reset(Scsi_Cmnd * SCpnt) {
 	struct Scsi_Host *shpnt = SCpnt->device->host;
+	unsigned long flags;
 
 #if DEBUG_RESET
 	static int called_once = 0;
@@ -1259,12 +1260,16 @@ static int fd_mcs_bus_reset(Scsi_Cmnd * SCpnt) {
 	called_once = 1;
 #endif
 
+	spin_lock_irqsave(shpnt->host_lock, flags);
+
 	outb(1, SCSI_Cntl_port);
 	do_pause(2);
 	outb(0, SCSI_Cntl_port);
 	do_pause(115);
 	outb(0, SCSI_Mode_Cntl_port);
 	outb(PARITY_MASK, TMC_Cntl_port);
+
+	spin_unlock_irqrestore(shpnt->host_lock, flags);
 
 	/* Unless this is the very first call (i.e., SCPnt == NULL), everything
 	   is probably hosed at this point.  We will, however, try to keep
