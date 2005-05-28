@@ -44,6 +44,7 @@ config IEEE80211_CRYPT_WEP
 config IEEE80211_CRYPT_CCMP
 	tristate "IEEE 802.11i CCMP support"
 	depends on IEEE80211
+	select CRYPTO
 	select CRYPTO_AES
 	---help---
 	Include software based cipher suites in support of IEEE 802.11i 
@@ -56,6 +57,7 @@ config IEEE80211_CRYPT_CCMP
 config IEEE80211_CRYPT_TKIP
 	tristate "IEEE 802.11i TKIP encryption"
 	depends on IEEE80211
+	select CRYPTO
 	select CRYPTO_MICHAEL_MIC
 	---help---
 	Include software based cipher suites in support of IEEE 802.11i 

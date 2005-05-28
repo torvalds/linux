@@ -885,7 +885,7 @@ struct ipw2100_priv {
 
 
 
-#define IPW_HEADER_802_11_SIZE		 sizeof(struct ieee80211_header_data)
+#define IPW_HEADER_802_11_SIZE		 sizeof(struct ieee80211_hdr_3addr)
 #define IPW_MAX_80211_PAYLOAD_SIZE              2304U
 #define IPW_MAX_802_11_PAYLOAD_LENGTH		2312
 #define IPW_MAX_ACCEPTABLE_TX_FRAME_LENGTH	1536
@@ -900,7 +900,7 @@ struct ipw2100_priv {
 		IPW_802_11_FCS_LENGTH)
 
 #define IPW_802_11_PAYLOAD_OFFSET \
-        (sizeof(struct ieee80211_header_data) + \
+        (sizeof(struct ieee80211_hdr_3addr) + \
          sizeof(struct ieee80211_snap_hdr))
 
 struct ipw2100_rx {
