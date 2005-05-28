@@ -802,8 +802,6 @@ static int i8042_controller_init(void)
  */
 static void i8042_controller_reset(void)
 {
-	unsigned char param;
-
 /*
  * Reset the controller if requested.
  */
