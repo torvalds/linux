@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2004 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.  All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -66,7 +66,6 @@
 #include "xfs_buf_item.h"
 #include "xfs_utils.h"
 #include "xfs_version.h"
-#include "xfs_ioctl32.h"
 
 #include <linux/namei.h>
 #include <linux/init.h>

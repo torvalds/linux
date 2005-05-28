@@ -246,7 +246,7 @@ static inline int set_video_mode_Nala(struct pwc_device *pdev, int size, int fra
 	   switch(pdev->type) {
 	     case 645:
 	     case 646:
-	       pwc_dec1_init(pdev->type, pdev->release, buf, pdev->decompress_data);
+/*	       pwc_dec1_init(pdev->type, pdev->release, buf, pdev->decompress_data); */
 	       break;
 
 	     case 675:
@@ -256,7 +256,7 @@ static inline int set_video_mode_Nala(struct pwc_device *pdev, int size, int fra
 	     case 730:
 	     case 740:
 	     case 750:
-	       pwc_dec23_init(pdev->type, pdev->release, buf, pdev->decompress_data);
+/*	       pwc_dec23_init(pdev->type, pdev->release, buf, pdev->decompress_data); */
 	       break;
 	   }
 	}
@@ -318,8 +318,8 @@ static inline int set_video_mode_Timon(struct pwc_device *pdev, int size, int fr
 	if (ret < 0)
 		return ret;
 
-	if (pChoose->bandlength > 0 && pdev->vpalette != VIDEO_PALETTE_RAW)
-	   pwc_dec23_init(pdev->type, pdev->release, buf, pdev->decompress_data);
+/* 	if (pChoose->bandlength > 0 && pdev->vpalette != VIDEO_PALETTE_RAW)
+	   pwc_dec23_init(pdev->type, pdev->release, buf, pdev->decompress_data); */
 
 	pdev->cmd_len = 13;
 	memcpy(pdev->cmd_buf, buf, 13);
@@ -397,8 +397,8 @@ static inline int set_video_mode_Kiara(struct pwc_device *pdev, int size, int fr
 	if (ret < 0)
 		return ret;
 
-	if (pChoose->bandlength > 0 && pdev->vpalette != VIDEO_PALETTE_RAW)
-	  pwc_dec23_init(pdev->type, pdev->release, buf, pdev->decompress_data);
+/*	if (pChoose->bandlength > 0 && pdev->vpalette != VIDEO_PALETTE_RAW)
+	  pwc_dec23_init(pdev->type, pdev->release, buf, pdev->decompress_data); */
 
 	pdev->cmd_len = 12;
 	memcpy(pdev->cmd_buf, buf, 12);
