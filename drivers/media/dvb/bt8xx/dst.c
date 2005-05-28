@@ -906,10 +906,7 @@ static int dst_tone_power_cmd(struct dst_state* state)
 	if (state->dst_type == DST_TYPE_IS_TERR)
 		return 0;
 
-	if (state->voltage == SEC_VOLTAGE_OFF)
-		paket[4] = 0;
-	else
-		paket[4] = 1;
+	paket[4] = state->tx_tuna[4];
 
 	if (state->tone == SEC_TONE_ON)
 		paket[2] = 0x02;
@@ -1062,7 +1059,6 @@ static int dst_set_diseqc(struct dvb_frontend* fe, struct dvb_diseqc_master_cmd*
 
 static int dst_set_voltage(struct dvb_frontend* fe, fe_sec_voltage_t voltage)
 {
-	u8 *val;
 	int need_cmd;
 	struct dst_state* state = fe->demodulator_priv;
 
@@ -1072,29 +1068,23 @@ static int dst_set_voltage(struct dvb_frontend* fe, fe_sec_voltage_t voltage)
 		return 0;
 
 	need_cmd = 0;
-	val = &state->tx_tuna[0];
-	val[8] &= ~0x40;
 	switch (voltage) {
-	case SEC_VOLTAGE_13:
-		if ((state->diseq_flags & HAS_POWER) == 0)
+		case SEC_VOLTAGE_13:
+		case SEC_VOLTAGE_18:
+			if ((state->diseq_flags & HAS_POWER) == 0)
+				need_cmd = 1;
+			state->diseq_flags |= HAS_POWER;
+			state->tx_tuna[4] = 0x01;
+			break;
+
+		case SEC_VOLTAGE_OFF:
 			need_cmd = 1;
-		state->diseq_flags |= HAS_POWER;
-		break;
+			state->diseq_flags &= ~(HAS_POWER | HAS_LOCK | ATTEMPT_TUNE);
+			state->tx_tuna[4] = 0x00;
+			break;
 
-	case SEC_VOLTAGE_18:
-		if ((state->diseq_flags & HAS_POWER) == 0)
-			need_cmd = 1;
-		state->diseq_flags |= HAS_POWER;
-		val[8] |= 0x40;
-		break;
-
-	case SEC_VOLTAGE_OFF:
-		need_cmd = 1;
-		state->diseq_flags &= ~(HAS_POWER | HAS_LOCK | ATTEMPT_TUNE);
-		break;
-
-	default:
-		return -EINVAL;
+		default:
+			return -EINVAL;
 	}
 	if (need_cmd)
 		dst_tone_power_cmd(state);
