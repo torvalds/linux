@@ -28,6 +28,12 @@
 #define BCSR_PHYS_ADDR		((uint)0xf8000000)
 #define BCSR_SIZE		((uint)(32 * 1024))
 
+#define BCSR_MISC_REG2_OFF	0x07
+#define BCSR_MISC_REG2_PORESET	0x01
+
+#define BCSR_MISC_REG3_OFF	0x08
+#define BCSR_MISC_REG3_CNFLOCK	0x80
+
 #ifdef CONFIG_PCI
 /* PCI interrupt controller */
 #define PIRQA        MPC83xx_IRQ_IRQ4
