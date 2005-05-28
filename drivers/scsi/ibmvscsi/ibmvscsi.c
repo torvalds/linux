@@ -874,9 +874,7 @@ static int ibmvscsi_eh_abort_handler(struct scsi_cmnd *cmd)
 		return FAILED;
 	}
 
-	spin_unlock_irq(hostdata->host->host_lock);
 	wait_for_completion(&evt->comp);
-	spin_lock_irq(hostdata->host->host_lock);
 
 	/* make sure we got a good response */
 	if (unlikely(srp_rsp.srp.generic.type != SRP_RSP_TYPE)) {

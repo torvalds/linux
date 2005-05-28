@@ -819,12 +819,15 @@ ips_eh_abort(Scsi_Cmnd * SC)
 	ips_ha_t *ha;
 	ips_copp_wait_item_t *item;
 	int ret;
+	unsigned long cpu_flags;
+	struct Scsi_Host *host;
 
 	METHOD_TRACE("ips_eh_abort", 1);
 
 	if (!SC)
 		return (FAILED);
 
+	host = SC->device->host;
 	ha = (ips_ha_t *) SC->device->host->hostdata;
 
 	if (!ha)
@@ -832,6 +835,8 @@ ips_eh_abort(Scsi_Cmnd * SC)
 
 	if (!ha->active)
 		return (FAILED);
+
+	IPS_LOCK_SAVE(host->host_lock, cpu_flags);
 
 	/* See if the command is on the copp queue */
 	item = ha->copp_waitlist.head;
@@ -851,6 +856,8 @@ ips_eh_abort(Scsi_Cmnd * SC)
 		/* command must have already been sent */
 		ret = (FAILED);
 	}
+
+	IPS_UNLOCK_RESTORE(host->host_lock, cpu_flags);
 	return ret;
 }
 

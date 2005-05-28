@@ -1707,7 +1707,6 @@ mptscsih_abort(struct scsi_cmnd * SCpnt)
 	MPT_FRAME_HDR	*mf;
 	u32		 ctx2abort;
 	int		 scpnt_idx;
-	spinlock_t	*host_lock = SCpnt->device->host->host_lock;
 
 	/* If we can't locate our host adapter structure, return FAILED status.
 	 */
@@ -1755,7 +1754,6 @@ mptscsih_abort(struct scsi_cmnd * SCpnt)
 
 	hd->abortSCpnt = SCpnt;
 
-	spin_unlock_irq(host_lock);
 	if (mptscsih_TMHandler(hd, MPI_SCSITASKMGMT_TASKTYPE_ABORT_TASK,
 		SCpnt->device->channel, SCpnt->device->id, SCpnt->device->lun,
 		ctx2abort, 2 /* 2 second timeout */)
@@ -1772,8 +1770,6 @@ mptscsih_abort(struct scsi_cmnd * SCpnt)
 		hd->tmPending = 0;
 		hd->tmState = TM_STATE_NONE;
 
-		spin_lock_irq(host_lock);
-
 		/* Unmap the DMA buffers, if any. */
 		if (SCpnt->use_sg) {
 			pci_unmap_sg(ioc->pcidev, (struct scatterlist *) SCpnt->request_buffer,
@@ -1789,7 +1785,6 @@ mptscsih_abort(struct scsi_cmnd * SCpnt)
 		mpt_free_msg_frame(ioc, mf);
 		return FAILED;
 	}
-	spin_lock_irq(host_lock);
 	return SUCCESS;
 }
 

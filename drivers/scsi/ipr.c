@@ -3068,6 +3068,12 @@ static int ipr_cancel_op(struct scsi_cmnd * scsi_cmd)
 	ioa_cfg = (struct ipr_ioa_cfg *)scsi_cmd->device->host->hostdata;
 	res = scsi_cmd->device->hostdata;
 
+	/* If we are currently going through reset/reload, return failed.
+	 * This will force the mid-layer to call ipr_eh_host_reset,
+	 * which will then go to sleep and wait for the reset to complete
+	 */
+	if (ioa_cfg->in_reset_reload || ioa_cfg->ioa_is_dead)
+		return FAILED;
 	if (!res || (!ipr_is_gscsi(res) && !ipr_is_vset_device(res)))
 		return FAILED;
 
@@ -3118,23 +3124,17 @@ static int ipr_cancel_op(struct scsi_cmnd * scsi_cmd)
  **/
 static int ipr_eh_abort(struct scsi_cmnd * scsi_cmd)
 {
-	struct ipr_ioa_cfg *ioa_cfg;
+	unsigned long flags;
+	int rc;
 
 	ENTER;
-	ioa_cfg = (struct ipr_ioa_cfg *) scsi_cmd->device->host->hostdata;
 
-	/* If we are currently going through reset/reload, return failed. This will force the
-	   mid-layer to call ipr_eh_host_reset, which will then go to sleep and wait for the
-	   reset to complete */
-	if (ioa_cfg->in_reset_reload)
-		return FAILED;
-	if (ioa_cfg->ioa_is_dead)
-		return FAILED;
-	if (!scsi_cmd->device->hostdata)
-		return FAILED;
+	spin_lock_irqsave(scsi_cmd->device->host->host_lock, flags);
+	rc = ipr_cancel_op(scsi_cmd);
+	spin_unlock_irqrestore(scsi_cmd->device->host->host_lock, flags);
 
 	LEAVE;
-	return ipr_cancel_op(scsi_cmd);
+	return rc;
 }
 
 /**

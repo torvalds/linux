@@ -879,7 +879,7 @@ static int ultrastor_abort(Scsi_Cmnd *SCpnt)
 	ogm_addr = (unsigned int)isa_bus_to_virt(inl(port0 + 23));
 	icm_status = inb(port0 + 27);
 	icm_addr = (unsigned int)isa_bus_to_virt(inl(port0 + 28));
-	spin_lock_irqsave(host->host_lock, flags);
+	spin_unlock_irqrestore(host->host_lock, flags);
       }
 
     /* First check to see if an interrupt is pending.  I suspect the SiS

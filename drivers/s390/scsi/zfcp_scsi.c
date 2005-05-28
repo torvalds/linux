@@ -433,7 +433,7 @@ zfcp_port_lookup(struct zfcp_adapter *adapter, int channel, scsi_id_t id)
  *		FAILED	- otherwise
  */
 int
-zfcp_scsi_eh_abort_handler(struct scsi_cmnd *scpnt)
+__zfcp_scsi_eh_abort_handler(struct scsi_cmnd *scpnt)
 {
 	int retval = SUCCESS;
 	struct zfcp_fsf_req *new_fsf_req, *old_fsf_req;
@@ -609,6 +609,17 @@ zfcp_scsi_eh_abort_handler(struct scsi_cmnd *scpnt)
 
 	spin_lock_irq(scsi_host->host_lock);
 	return retval;
+}
+
+int
+zfcp_scsi_eh_abort_handler(struct scsi_cmnd *scpnt)
+{
+	int rc;
+	struct Scsi_Host *scsi_host = scpnt->device->host;
+	spin_lock_irq(scsi_host->host_lock);
+	rc = __zfcp_scsi_eh_abort_handler(scpnt);
+	spin_unlock_irq(scsi_host->host_lock);
+	return rc;
 }
 
 /*

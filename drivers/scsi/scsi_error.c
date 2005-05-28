@@ -526,10 +526,8 @@ static int scsi_send_eh_cmnd(struct scsi_cmnd *scmd, int timeout)
 		 * abort a timed out command or not.  not sure how
 		 * we should treat them differently anyways.
 		 */
-		spin_lock_irqsave(shost->host_lock, flags);
 		if (shost->hostt->eh_abort_handler)
 			shost->hostt->eh_abort_handler(scmd);
-		spin_unlock_irqrestore(shost->host_lock, flags);
 			
 		scmd->request->rq_status = RQ_SCSI_DONE;
 		scmd->owner = SCSI_OWNER_ERROR_HANDLER;
@@ -735,11 +733,8 @@ static int scsi_eh_get_sense(struct list_head *work_q,
  **/
 static int scsi_try_to_abort_cmd(struct scsi_cmnd *scmd)
 {
-	unsigned long flags;
-	int rtn = FAILED;
-
 	if (!scmd->device->host->hostt->eh_abort_handler)
-		return rtn;
+		return FAILED;
 
 	/*
 	 * scsi_done was called just after the command timed out and before
@@ -750,11 +745,7 @@ static int scsi_try_to_abort_cmd(struct scsi_cmnd *scmd)
 
 	scmd->owner = SCSI_OWNER_LOWLEVEL;
 
-	spin_lock_irqsave(scmd->device->host->host_lock, flags);
-	rtn = scmd->device->host->hostt->eh_abort_handler(scmd);
-	spin_unlock_irqrestore(scmd->device->host->host_lock, flags);
-
-	return rtn;
+	return scmd->device->host->hostt->eh_abort_handler(scmd);
 }
 
 /**

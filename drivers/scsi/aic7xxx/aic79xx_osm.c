@@ -941,7 +941,7 @@ ahd_linux_queue(Scsi_Cmnd * cmd, void (*scsi_done) (Scsi_Cmnd *))
 	 */
 	cmd->scsi_done = scsi_done;
 
-	ahd_midlayer_entrypoint_lock(ahd, &flags);
+	ahd_lock(ahd, &flags);
 
 	/*
 	 * Close the race of a command that was in the process of
@@ -955,7 +955,7 @@ ahd_linux_queue(Scsi_Cmnd * cmd, void (*scsi_done) (Scsi_Cmnd *))
 		ahd_cmd_set_transaction_status(cmd, CAM_REQUEUE_REQ);
 		ahd_linux_queue_cmd_complete(ahd, cmd);
 		ahd_schedule_completeq(ahd);
-		ahd_midlayer_entrypoint_unlock(ahd, &flags);
+		ahd_unlock(ahd, &flags);
 		return (0);
 	}
 	dev = ahd_linux_get_device(ahd, cmd->device->channel,
@@ -965,7 +965,7 @@ ahd_linux_queue(Scsi_Cmnd * cmd, void (*scsi_done) (Scsi_Cmnd *))
 		ahd_cmd_set_transaction_status(cmd, CAM_RESRC_UNAVAIL);
 		ahd_linux_queue_cmd_complete(ahd, cmd);
 		ahd_schedule_completeq(ahd);
-		ahd_midlayer_entrypoint_unlock(ahd, &flags);
+		ahd_unlock(ahd, &flags);
 		printf("%s: aic79xx_linux_queue - Unable to allocate device!\n",
 		       ahd_name(ahd));
 		return (0);
@@ -979,7 +979,7 @@ ahd_linux_queue(Scsi_Cmnd * cmd, void (*scsi_done) (Scsi_Cmnd *))
 		dev->flags |= AHD_DEV_ON_RUN_LIST;
 		ahd_linux_run_device_queues(ahd);
 	}
-	ahd_midlayer_entrypoint_unlock(ahd, &flags);
+	ahd_unlock(ahd, &flags);
 	return (0);
 }
 

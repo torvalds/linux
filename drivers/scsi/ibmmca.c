@@ -2118,7 +2118,7 @@ static int ibmmca_queuecommand(Scsi_Cmnd * cmd, void (*done) (Scsi_Cmnd *))
 	return 0;
 }
 
-static int ibmmca_abort(Scsi_Cmnd * cmd)
+static int __ibmmca_abort(Scsi_Cmnd * cmd)
 {
 	/* Abort does not work, as the adapter never generates an interrupt on
 	 * whatever situation is simulated, even when really pending commands
@@ -2223,6 +2223,18 @@ static int ibmmca_abort(Scsi_Cmnd * cmd)
 #endif
 		return FAILED;
 	}
+}
+
+static int ibmmca_abort(Scsi_Cmnd * cmd)
+{
+	struct Scsi_Host *shpnt = cmd->device->host;
+	int rc;
+
+	spin_lock_irq(shpnt->host_lock);
+	rc = __ibmmca_abort(cmd);
+	spin_unlock_irq(shpnt->host_lock);
+
+	return rc;
 }
 
 static int ibmmca_host_reset(Scsi_Cmnd * cmd)

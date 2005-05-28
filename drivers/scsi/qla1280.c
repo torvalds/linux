@@ -1098,7 +1098,13 @@ qla1280_error_action(struct scsi_cmnd *cmd, enum action action)
 static int
 qla1280_eh_abort(struct scsi_cmnd * cmd)
 {
-	return qla1280_error_action(cmd, ABORT_COMMAND);
+	int rc;
+
+	spin_lock_irq(cmd->device->host->host_lock);
+	rc = qla1280_error_action(cmd, ABORT_COMMAND);
+	spin_unlock_irq(cmd->device->host->host_lock);
+
+	return rc;
 }
 
 /**************************************************************************

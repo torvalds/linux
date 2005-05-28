@@ -2566,7 +2566,7 @@ megaraid_mbox_dpc(unsigned long devp)
  * aborted. All the commands issued to the F/W must complete.
  **/
 static int
-megaraid_abort_handler(struct scsi_cmnd *scp)
+__megaraid_abort_handler(struct scsi_cmnd *scp)
 {
 	adapter_t		*adapter;
 	mraid_device_t		*raid_dev;
@@ -2697,6 +2697,21 @@ megaraid_abort_handler(struct scsi_cmnd *scp)
 	// failure and wait for reset. In host reset handler, we will find out
 	// if the HBA is still live
 	return FAILED;
+}
+
+static int
+megaraid_abort_handler(struct scsi_cmnd *scp)
+{
+	adapter_t	*adapter;
+	int rc;
+
+	adapter		= SCP2ADAPTER(scp);
+
+	spin_lock_irq(adapter->host_lock);
+	rc = __megaraid_abort_handler(scp);
+	spin_unlock_irq(adapter->host_lock);
+
+	return rc;
 }
 
 

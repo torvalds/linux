@@ -10585,7 +10585,7 @@ aic7xxx_panic_abort(struct aic7xxx_host *p, Scsi_Cmnd *cmd)
  *   Abort the current SCSI command(s).
  *-F*************************************************************************/
 static int
-aic7xxx_abort(Scsi_Cmnd *cmd)
+__aic7xxx_abort(Scsi_Cmnd *cmd)
 {
   struct aic7xxx_scb  *scb = NULL;
   struct aic7xxx_host *p;
@@ -10801,6 +10801,19 @@ success:
   unpause_sequencer(p, FALSE);
   return SUCCESS;
 }
+
+static int
+aic7xxx_abort(Scsi_Cmnd *cmd)
+{
+	int rc;
+
+	spin_lock_irq(cmd->device->host->host_lock);
+	rc = __aic7xxx_abort(cmd);
+	spin_unlock_irq(cmd->device->host->host_lock);
+
+	return rc;
+}
+
 
 /*+F*************************************************************************
  * Function:

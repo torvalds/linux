@@ -2249,6 +2249,8 @@ ahc_linux_queue_recovery_cmd(struct scsi_cmnd *cmd, scb_flag flag)
 		printf(" 0x%x", cmd->cmnd[cdb_byte]);
 	printf("\n");
 
+	spin_lock_irq(&ahc->platform_data->spin_lock);
+
 	/*
 	 * First determine if we currently own this command.
 	 * Start by searching the device queue.  If not found
@@ -2503,6 +2505,8 @@ done:
 		}
 		spin_lock_irq(&ahc->platform_data->spin_lock);
 	}
+
+	spin_unlock_irq(&ahc->platform_data->spin_lock);
 	return (retval);
 }
 

@@ -1671,7 +1671,7 @@ static int in2000_bus_reset(Scsi_Cmnd * cmd)
 	return SUCCESS;
 }
 
-static int in2000_abort(Scsi_Cmnd * cmd)
+static int __in2000_abort(Scsi_Cmnd * cmd)
 {
 	struct Scsi_Host *instance;
 	struct IN2000_hostdata *hostdata;
@@ -1792,6 +1792,16 @@ static int in2000_abort(Scsi_Cmnd * cmd)
 	return SUCCESS;
 }
 
+static int in2000_abort(Scsi_Cmnd * cmd)
+{
+	int rc;
+
+	spin_lock_irq(cmd->device->host->host_lock);
+	rc = __in2000_abort(cmd);
+	spin_unlock_irq(cmd->device->host->host_lock);
+
+	return rc;
+}
 
 
 #define MAX_IN2000_HOSTS 3

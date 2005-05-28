@@ -476,7 +476,6 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 	serial = cmd->serial_number;
 
 	/* Check active list for command command. */
-	spin_unlock_irq(ha->host->host_lock);
 	spin_lock(&ha->hardware_lock);
 	for (i = 1; i < MAX_OUTSTANDING_COMMANDS; i++) {
 		sp = ha->outstanding_cmds[i];
@@ -516,7 +515,6 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 		}
 		spin_lock(&ha->hardware_lock);
 	}
-	spin_lock_irq(ha->host->host_lock);
 
 	qla_printk(KERN_INFO, ha, 
 	    "scsi(%ld:%d:%d): Abort command issued -- %lx %x.\n", ha->host_no,

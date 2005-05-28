@@ -233,13 +233,11 @@ static int command_abort(struct scsi_cmnd *srb)
 		set_bit(US_FLIDX_ABORTING, &us->flags);
 		usb_stor_stop_transport(us);
 	}
-	scsi_unlock(us_to_host(us));
 
 	/* Wait for the aborted command to finish */
 	wait_for_completion(&us->notify);
 
 	/* Reacquire the lock and allow USB transfers to resume */
-	scsi_lock(us_to_host(us));
 	clear_bit(US_FLIDX_ABORTING, &us->flags);
 	clear_bit(US_FLIDX_TIMED_OUT, &us->flags);
 	return SUCCESS;
