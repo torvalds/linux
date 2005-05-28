@@ -216,10 +216,10 @@ static snd_pcm_hardware_t snd_ca0106_capture_hw = {
 				 SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
 				 SNDRV_PCM_INFO_MMAP_VALID),
-	.formats =		SNDRV_PCM_FMTBIT_S16_LE,
-	.rates =		SNDRV_PCM_RATE_48000,
-	.rate_min =		48000,
-	.rate_max =		48000,
+	.formats =		SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE,
+	.rates =		SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_192000,
+	.rate_min =		44100,
+	.rate_max =		192000,
 	.channels_min =		2,
 	.channels_max =		2,
 	.buffer_bytes_max =	((65536 - 64) * 8),
@@ -607,6 +607,61 @@ static int snd_ca0106_pcm_prepare_capture(snd_pcm_substream_t *substream)
 	snd_pcm_runtime_t *runtime = substream->runtime;
 	ca0106_pcm_t *epcm = runtime->private_data;
 	int channel = epcm->channel_id;
+	u32 hcfg_mask = HCFG_CAPTURE_S32_LE;
+	u32 hcfg_set = 0x00000000;
+	u32 hcfg;
+	u32 over_sampling=0x2;
+	u32 reg71_mask = 0x0000c000 ; /* Global. Set ADC rate. */
+	u32 reg71_set = 0;
+	u32 reg71;
+	
+        //snd_printk("prepare:channel_number=%d, rate=%d, format=0x%x, channels=%d, buffer_size=%ld, period_size=%ld, periods=%u, frames_to_bytes=%d\n",channel, runtime->rate, runtime->format, runtime->channels, runtime->buffer_size, runtime->period_size, runtime->periods, frames_to_bytes(runtime, 1));
+        //snd_printk("dma_addr=%x, dma_area=%p, table_base=%p\n",runtime->dma_addr, runtime->dma_area, table_base);
+	//snd_printk("dma_addr=%x, dma_area=%p, dma_bytes(size)=%x\n",emu->buffer.addr, emu->buffer.area, emu->buffer.bytes);
+	/* reg71 controls ADC rate. */
+	switch (runtime->rate) {
+	case 44100:
+		reg71_set = 0x00004000;
+		break;
+        case 48000:
+		reg71_set = 0; 
+		break;
+	case 96000:
+		reg71_set = 0x00008000;
+		over_sampling=0xa;
+		break;
+	case 192000:
+		reg71_set = 0x0000c000; 
+		over_sampling=0xa;
+		break;
+	default:
+		reg71_set = 0; 
+		break;
+	}
+	/* Format is a global setting */
+	/* FIXME: Only let the first channel accessed set this. */
+	switch (runtime->format) {
+	case SNDRV_PCM_FORMAT_S16_LE:
+		hcfg_set = 0;
+		break;
+	case SNDRV_PCM_FORMAT_S32_LE:
+		hcfg_set = HCFG_CAPTURE_S32_LE;
+		break;
+	default:
+		hcfg_set = 0;
+		break;
+	}
+	hcfg = inl(emu->port + HCFG) ;
+	hcfg = (hcfg & ~hcfg_mask) | hcfg_set;
+	outl(hcfg, emu->port + HCFG);
+	reg71 = snd_ca0106_ptr_read(emu, 0x71, 0);
+	reg71 = (reg71 & ~reg71_mask) | reg71_set;
+	snd_ca0106_ptr_write(emu, 0x71, 0, reg71);
+        if (emu->details->i2c_adc == 1) { /* The SB0410 and SB0413 use I2C to control ADC. */
+	        snd_ca0106_i2c_write(emu, ADC_MASTER, over_sampling); /* Adjust the over sampler to better suit the capture rate. */
+	}
+
+
         //printk("prepare:channel_number=%d, rate=%d, format=0x%x, channels=%d, buffer_size=%ld, period_size=%ld, frames_to_bytes=%d\n",channel, runtime->rate, runtime->format, runtime->channels, runtime->buffer_size, runtime->period_size,  frames_to_bytes(runtime, 1));
 	snd_ca0106_ptr_write(emu, 0x13, channel, 0);
 	snd_ca0106_ptr_write(emu, CAPTURE_DMA_ADDR, channel, runtime->dma_addr);
