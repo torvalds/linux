@@ -22,7 +22,6 @@
 #include "init.h"
 #include "irq_user.h"
 #include "mconsole_kern.h"
-#include "2_5compat.h"
 
 static int ssl_version = 1;
 
