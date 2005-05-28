@@ -2833,31 +2833,3 @@ static int NCR5380_bus_reset(Scsi_Cmnd * cmd) {
 	do_reset(cmd->device->host);
 	return SUCCESS;
 }
-
-/* 
- * Function : int NCR5380_device_reset (Scsi_Cmnd *cmd)
- * 
- * Purpose : reset a SCSI device
- *
- * Returns : FAILED
- *
- * Locks: io_request_lock held by caller
- */
-
-static int NCR5380_device_reset(Scsi_Cmnd * cmd) {
-	return FAILED;
-}
-
-/* 
- * Function : int NCR5380_host_reset (Scsi_Cmnd *cmd)
- * 
- * Purpose : reset a SCSI device
- *
- * Returns : FAILED
- *
- * Locks: io_request_lock held by caller
- */
-
-static int NCR5380_host_reset(Scsi_Cmnd * cmd) {
-	return FAILED;
-}

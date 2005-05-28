@@ -516,24 +516,6 @@ int qlogicfas408_bus_reset(Scsi_Cmnd * cmd)
 	return SUCCESS;
 }
 
-/* 
- *	Reset SCSI host controller
- */
-
-int qlogicfas408_host_reset(Scsi_Cmnd * cmd)
-{
-	return FAILED;
-}
-
-/* 
- *	Reset SCSI device
- */
-
-int qlogicfas408_device_reset(Scsi_Cmnd * cmd)
-{
-	return FAILED;
-}
-
 /*
  *	Return info string
  */
@@ -626,8 +608,6 @@ EXPORT_SYMBOL(qlogicfas408_info);
 EXPORT_SYMBOL(qlogicfas408_queuecommand);
 EXPORT_SYMBOL(qlogicfas408_abort);
 EXPORT_SYMBOL(qlogicfas408_bus_reset);
-EXPORT_SYMBOL(qlogicfas408_device_reset);
-EXPORT_SYMBOL(qlogicfas408_host_reset);
 EXPORT_SYMBOL(qlogicfas408_biosparam);
 EXPORT_SYMBOL(qlogicfas408_ihandl);
 EXPORT_SYMBOL(qlogicfas408_get_chip_type);

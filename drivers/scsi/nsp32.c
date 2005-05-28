@@ -294,7 +294,6 @@ static struct scsi_host_template nsp32_template = {
 	.this_id			= NSP32_HOST_SCSIID,
 	.use_clustering			= DISABLE_CLUSTERING,
 	.eh_abort_handler       	= nsp32_eh_abort,
-/*	.eh_device_reset_handler	= NULL, */
 	.eh_bus_reset_handler		= nsp32_eh_bus_reset,
 	.eh_host_reset_handler		= nsp32_eh_host_reset,
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,74))

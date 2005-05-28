@@ -1671,17 +1671,6 @@ static int in2000_bus_reset(Scsi_Cmnd * cmd)
 	return SUCCESS;
 }
 
-static int in2000_host_reset(Scsi_Cmnd * cmd)
-{
-	return FAILED;
-}
-
-static int in2000_device_reset(Scsi_Cmnd * cmd)
-{
-	return FAILED;
-}
-
-
 static int in2000_abort(Scsi_Cmnd * cmd)
 {
 	struct Scsi_Host *instance;
@@ -2311,8 +2300,6 @@ static Scsi_Host_Template driver_template = {
 	.queuecommand    		= in2000_queuecommand,
 	.eh_abort_handler		= in2000_abort,
 	.eh_bus_reset_handler		= in2000_bus_reset,
-	.eh_device_reset_handler	= in2000_device_reset,
-	.eh_host_reset_handler	= in2000_host_reset, 
 	.bios_param      		= in2000_biosparam, 
 	.can_queue       		= IN2000_CAN_Q,
 	.this_id         		= IN2000_HOST_ID,

@@ -785,21 +785,6 @@ int sym53c416_queuecommand(Scsi_Cmnd *SCpnt, void (*done)(Scsi_Cmnd *))
 	return 0;
 }
 
-static int sym53c416_abort(Scsi_Cmnd *SCpnt)
-{
-	return FAILED;
-}
-
-static int sym53c416_bus_reset(Scsi_Cmnd *SCpnt)
-{
-	return FAILED;
-}
-
-static int sym53c416_device_reset(Scsi_Cmnd *SCpnt)
-{
-	return FAILED;
-}
-
 static int sym53c416_host_reset(Scsi_Cmnd *SCpnt)
 {
 	int base;
@@ -865,10 +850,7 @@ static Scsi_Host_Template driver_template = {
 	.detect =		sym53c416_detect,
 	.info =			sym53c416_info,	
 	.queuecommand =		sym53c416_queuecommand,
-	.eh_abort_handler =	sym53c416_abort,
 	.eh_host_reset_handler =sym53c416_host_reset,
-	.eh_bus_reset_handler = sym53c416_bus_reset,
-	.eh_device_reset_handler =sym53c416_device_reset,
 	.release = 		sym53c416_release,
 	.bios_param =		sym53c416_bios_param,
 	.can_queue =		1,

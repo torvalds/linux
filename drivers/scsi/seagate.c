@@ -1640,16 +1640,6 @@ static int seagate_st0x_bus_reset(Scsi_Cmnd * SCpnt)
 	return SUCCESS;
 }
 
-static int seagate_st0x_host_reset(Scsi_Cmnd *SCpnt)
-{
-	return FAILED;
-}
-
-static int seagate_st0x_device_reset(Scsi_Cmnd *SCpnt)
-{
-	return FAILED;
-}
-
 static int seagate_st0x_release(struct Scsi_Host *shost)
 {
 	if (shost->irq)
@@ -1665,8 +1655,6 @@ static Scsi_Host_Template driver_template = {
 	.queuecommand   	= seagate_st0x_queue_command,
 	.eh_abort_handler	= seagate_st0x_abort,
 	.eh_bus_reset_handler	= seagate_st0x_bus_reset,
-	.eh_host_reset_handler	= seagate_st0x_host_reset,
-	.eh_device_reset_handler = seagate_st0x_device_reset,
 	.can_queue      	= 1,
 	.this_id        	= 7,
 	.sg_tablesize   	= SG_ALL,

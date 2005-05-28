@@ -1241,16 +1241,6 @@ static int fd_mcs_abort(Scsi_Cmnd * SCpnt)
 	return SUCCESS;
 }
 
-static int fd_mcs_host_reset(Scsi_Cmnd * SCpnt)
-{
-	return FAILED;
-}
-
-static int fd_mcs_device_reset(Scsi_Cmnd * SCpnt) 
-{
-	return FAILED;
-}
-
 static int fd_mcs_bus_reset(Scsi_Cmnd * SCpnt) {
 	struct Scsi_Host *shpnt = SCpnt->device->host;
 
@@ -1357,8 +1347,6 @@ static Scsi_Host_Template driver_template = {
 	.queuecommand   		= fd_mcs_queue, 
 	.eh_abort_handler		= fd_mcs_abort,
 	.eh_bus_reset_handler		= fd_mcs_bus_reset,
-	.eh_host_reset_handler		= fd_mcs_host_reset,
-	.eh_device_reset_handler	= fd_mcs_device_reset,
 	.bios_param     		= fd_mcs_biosparam,
 	.can_queue      		= 1,
 	.this_id        		= 7,

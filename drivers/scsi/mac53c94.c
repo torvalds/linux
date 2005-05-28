@@ -98,11 +98,6 @@ static int mac53c94_queue(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *
 	return 0;
 }
 
-static int mac53c94_abort(struct scsi_cmnd *cmd)
-{
-	return FAILED;
-}
-
 static int mac53c94_host_reset(struct scsi_cmnd *cmd)
 {
 	struct fsc_state *state = (struct fsc_state *) cmd->device->host->hostdata;
@@ -416,7 +411,6 @@ static struct scsi_host_template mac53c94_template = {
 	.proc_name	= "53c94",
 	.name		= "53C94",
 	.queuecommand	= mac53c94_queue,
-	.eh_abort_handler = mac53c94_abort,
 	.eh_host_reset_handler = mac53c94_host_reset,
 	.can_queue	= 1,
 	.this_id	= 7,

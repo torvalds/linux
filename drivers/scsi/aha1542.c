@@ -1348,20 +1348,6 @@ static int aha1542_restart(struct Scsi_Host *shost)
 	return 0;
 }
 
-static int aha1542_abort(Scsi_Cmnd * SCpnt)
-{
-
-	/*
-	 * The abort command does not leave the device in a clean state where
-	 *  it is available to be used again.  Until this gets worked out, we
-	 * will leave it commented out.  
-	 */
-
-	printk(KERN_ERR "aha1542.c: Unable to abort command for target %d\n",
-	       SCpnt->device->id);
-	return FAILED;
-}
-
 /*
  * This is a device reset.  This is handled by sending a special command
  * to the device.
@@ -1817,7 +1803,6 @@ static Scsi_Host_Template driver_template = {
 	.detect			= aha1542_detect,
 	.release		= aha1542_release,
 	.queuecommand		= aha1542_queuecommand,
-	.eh_abort_handler	= aha1542_abort,
 	.eh_device_reset_handler= aha1542_dev_reset,
 	.eh_bus_reset_handler	= aha1542_bus_reset,
 	.eh_host_reset_handler	= aha1542_host_reset,

@@ -367,14 +367,6 @@ static int aac_ioctl(struct scsi_device *sdev, int cmd, void __user * arg)
 }
 
 /*
- * XXX: does aac really need no error handling??
- */
-static int aac_eh_abort(struct scsi_cmnd *cmd)
-{
-	return FAILED;
-}
-
-/*
  *	aac_eh_reset	- Reset command handling
  *	@scsi_cmd:	SCSI command block causing the reset
  *
@@ -683,7 +675,6 @@ static struct scsi_host_template aac_driver_template = {
 	.bios_param     		= aac_biosparm,	
 	.shost_attrs			= aac_attrs,
 	.slave_configure		= aac_slave_configure,
-	.eh_abort_handler		= aac_eh_abort,
 	.eh_host_reset_handler		= aac_eh_reset,
 	.can_queue      		= AAC_NUM_IO_FIB,	
 	.this_id        		= 16,
