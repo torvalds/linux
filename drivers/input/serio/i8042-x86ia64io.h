@@ -227,7 +227,7 @@ static int i8042_pnp_init(void)
 	int result_kbd, result_aux;
 
 	if (i8042_nopnp) {
-		printk("i8042: PNP detection disabled\n");
+		printk(KERN_INFO "i8042: PNP detection disabled\n");
 		return 0;
 	}
 
@@ -265,7 +265,7 @@ static int i8042_pnp_init(void)
 		i8042_pnp_kbd_irq = i8042_kbd_irq;
 	}
 
-	if (result_aux > 0 && !i8042_pnp_aux_irq) {
+	if (!i8042_pnp_aux_irq) {
 		printk(KERN_WARNING "PNP: PS/2 controller doesn't have AUX irq; using default %#x\n", i8042_aux_irq);
 		i8042_pnp_aux_irq = i8042_aux_irq;
 	}
