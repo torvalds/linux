@@ -98,7 +98,13 @@ extern unsigned long uml_physmem;
 
 extern unsigned long to_phys(void *virt);
 extern void *to_virt(unsigned long phys);
-#define __pa(virt) to_phys((void *) virt)
+
+/* Cast to unsigned long before casting to void * to avoid a warning from
+ * mmap_kmem about cutting a long long down to a void *.  Not sure that
+ * casting is the right thing, but 32-bit UML can't have 64-bit virtual
+ * addresses
+ */
+#define __pa(virt) to_phys((void *) (unsigned long) virt)
 #define __va(phys) to_virt((unsigned long) phys)
 
 #define page_to_pfn(page) ((page) - mem_map)
