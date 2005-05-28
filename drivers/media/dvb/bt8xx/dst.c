@@ -915,13 +915,11 @@ static int dst_tone_power_cmd(struct dst_state* state)
 		paket[2] = 0x02;
 	else
 		paket[2] = 0;
-	if (state->minicmd == SEC_MINI_A)
-		paket[3] = 0x02;
-	else
-		paket[3] = 0;
 
+	paket[3] = state->tx_tuna[3];
 	paket[7] = dst_check_sum (paket, 7);
 	dst_command(state, paket, 8);
+
 	return 0;
 }
 
@@ -1133,6 +1131,29 @@ static int dst_set_tone(struct dvb_frontend* fe, fe_sec_tone_mode_t tone)
 
 	return 0;
 }
+
+static int dst_send_burst(struct dvb_frontend *fe, fe_sec_mini_cmd_t minicmd)
+{
+	struct dst_state *state = fe->demodulator_priv;
+
+	if ((state->dst_type == DST_TYPE_IS_TERR) || (state->dst_type == DST_TYPE_IS_CABLE))
+		return 0;
+
+	state->minicmd = minicmd;
+
+	switch (minicmd) {
+		case SEC_MINI_A:
+			state->tx_tuna[3] = 0x02;
+			break;
+		case SEC_MINI_B:
+			state->tx_tuna[3] = 0xff;
+			break;
+	}
+	dst_tone_power_cmd(state);
+
+	return 0;
+}
+
 
 static int dst_init(struct dvb_frontend* fe)
 {
@@ -1346,7 +1367,7 @@ static struct dvb_frontend_ops dst_dvbs_ops = {
 	.read_signal_strength = dst_read_signal_strength,
 	.read_snr = dst_read_snr,
 
-	.diseqc_send_burst = dst_set_tone,
+	.diseqc_send_burst = dst_send_burst,
 	.diseqc_send_master_cmd = dst_set_diseqc,
 	.set_voltage = dst_set_voltage,
 	.set_tone = dst_set_tone,
