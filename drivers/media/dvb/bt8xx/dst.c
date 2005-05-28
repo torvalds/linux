@@ -907,12 +907,7 @@ static int dst_tone_power_cmd(struct dst_state* state)
 		return 0;
 
 	paket[4] = state->tx_tuna[4];
-
-	if (state->tone == SEC_TONE_ON)
-		paket[2] = 0x02;
-	else
-		paket[2] = 0;
-
+	paket[2] = state->tx_tuna[2];
 	paket[3] = state->tx_tuna[3];
 	paket[7] = dst_check_sum (paket, 7);
 	dst_command(state, paket, 8);
@@ -1094,7 +1089,6 @@ static int dst_set_voltage(struct dvb_frontend* fe, fe_sec_voltage_t voltage)
 
 static int dst_set_tone(struct dvb_frontend* fe, fe_sec_tone_mode_t tone)
 {
-	u8 *val;
 	struct dst_state* state = fe->demodulator_priv;
 
 	state->tone = tone;
@@ -1102,20 +1096,17 @@ static int dst_set_tone(struct dvb_frontend* fe, fe_sec_tone_mode_t tone)
 	if (state->dst_type == DST_TYPE_IS_TERR)
 		return 0;
 
-	val = &state->tx_tuna[0];
-
-	val[8] &= ~0x1;
-
 	switch (tone) {
-	case SEC_TONE_OFF:
-		break;
+		case SEC_TONE_OFF:
+			state->tx_tuna[2] = 0xff;
+			break;
 
-	case SEC_TONE_ON:
-		val[8] |= 1;
-		break;
+		case SEC_TONE_ON:
+			state->tx_tuna[2] = 0x02;
+			break;
 
-	default:
-		return -EINVAL;
+		default:
+			return -EINVAL;
 	}
 	dst_tone_power_cmd(state);
 
