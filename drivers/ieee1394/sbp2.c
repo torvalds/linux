@@ -2453,8 +2453,6 @@ static void sbp2scsi_complete_command(struct scsi_id_instance_data *scsi_id,
 				      u32 scsi_status, struct scsi_cmnd *SCpnt,
 				      void (*done)(struct scsi_cmnd *))
 {
-	unsigned long flags;
-
 	SBP2_DEBUG("sbp2scsi_complete_command");
 
 	/*
@@ -2553,11 +2551,7 @@ static void sbp2scsi_complete_command(struct scsi_id_instance_data *scsi_id,
 	/*
 	 * Tell scsi stack that we're done with this command
 	 */
-	spin_lock_irqsave(scsi_id->scsi_host->host_lock,flags);
 	done (SCpnt);
-	spin_unlock_irqrestore(scsi_id->scsi_host->host_lock,flags);
-
-	return;
 }
 
 

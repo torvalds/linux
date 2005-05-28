@@ -954,9 +954,7 @@ static int ultrastor_abort(Scsi_Cmnd *SCpnt)
     SCpnt->result = DID_ABORT << 16;
     
     /* Take the host lock to guard against scsi layer re-entry */
-    spin_lock_irqsave(host->host_lock, flags);
     done(SCpnt);
-    spin_unlock_irqrestore(host->host_lock, flags);
 
     /* Need to set a timeout here in case command never completes.  */
     return SUCCESS;
