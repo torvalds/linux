@@ -1041,7 +1041,7 @@ static int dst_set_diseqc(struct dvb_frontend* fe, struct dvb_diseqc_master_cmd*
 	struct dst_state* state = fe->demodulator_priv;
 	u8 paket[8] = { 0x00, 0x08, 0x04, 0xe0, 0x10, 0x38, 0xf0, 0xec };
 
-	if (state->dst_type == DST_TYPE_IS_TERR)
+	if (state->dst_type != DST_TYPE_IS_SAT)
 		return 0;
 
 	if (cmd->msg_len == 0 || cmd->msg_len > 4)
@@ -1059,7 +1059,7 @@ static int dst_set_voltage(struct dvb_frontend* fe, fe_sec_voltage_t voltage)
 
 	state->voltage = voltage;
 
-	if (state->dst_type == DST_TYPE_IS_TERR)
+	if (state->dst_type != DST_TYPE_IS_SAT)
 		return 0;
 
 	need_cmd = 0;
@@ -1093,7 +1093,7 @@ static int dst_set_tone(struct dvb_frontend* fe, fe_sec_tone_mode_t tone)
 
 	state->tone = tone;
 
-	if (state->dst_type == DST_TYPE_IS_TERR)
+	if (state->dst_type != DST_TYPE_IS_SAT)
 		return 0;
 
 	switch (tone) {
@@ -1117,7 +1117,7 @@ static int dst_send_burst(struct dvb_frontend *fe, fe_sec_mini_cmd_t minicmd)
 {
 	struct dst_state *state = fe->demodulator_priv;
 
-	if ((state->dst_type == DST_TYPE_IS_TERR) || (state->dst_type == DST_TYPE_IS_CABLE))
+	if (state->dst_type != DST_TYPE_IS_SAT)
 		return 0;
 
 	state->minicmd = minicmd;
