@@ -972,7 +972,7 @@ static int psmouse_set_maxproto(const char *val, struct kernel_param *kp)
 		return -EINVAL;
 
 	if (!strncmp(val, "any", 3)) {
-		*((unsigned int *)kp->arg) = -1UL;
+		*((unsigned int *)kp->arg) = -1U;
 		return 0;
 	}
 
