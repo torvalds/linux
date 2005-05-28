@@ -277,7 +277,10 @@ int snd_ca0106_i2c_write(ca0106_t *emu,
 	}
 
 	tmp = reg << 25 | value << 16;
-	snd_ca0106_ptr_write(emu, I2C_D0, 0, tmp);
+	/* Not sure what this I2C channel controls. */
+	/* snd_ca0106_ptr_write(emu, I2C_D0, 0, tmp); */
+
+	/* This controls the I2C connected to the WM8775 ADC Codec */
 	snd_ca0106_ptr_write(emu, I2C_D1, 0, tmp);
 
 	for(retry=0;retry<10;retry++)
