@@ -88,9 +88,11 @@ static struct dmi_system_id __initdata i8042_dmi_noloop_table[] = {
 };
 
 /*
- * Some Fujitsu notebooks are ahving trouble with touhcpads if
+ * Some Fujitsu notebooks are having trouble with touchpads if
  * active multiplexing mode is activated. Luckily they don't have
  * external PS/2 ports so we can safely disable it.
+ * ... apparently some Toshibas don't like MUX mode either and
+ * die horrible death on reboot.
  */
 static struct dmi_system_id __initdata i8042_dmi_nomux_table[] = {
 	{
@@ -119,6 +121,13 @@ static struct dmi_system_id __initdata i8042_dmi_nomux_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "FMVLT70H"),
+		},
+	},
+	{
+		.ident = "Toshiba P10",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Satellite P10"),
 		},
 	},
 	{ }
