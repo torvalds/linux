@@ -23,6 +23,9 @@ enum channel_types {
 	/* Device is a OSA2 card */
 	channel_type_osa2,
 
+	/* Device is a CLAW channel device */
+	channel_type_claw,
+
 	/* Device is a channel, but we don't know
 	 * anything about it */
 	channel_type_unknown,

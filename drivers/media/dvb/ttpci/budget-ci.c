@@ -395,7 +395,7 @@ static int ciintf_init(struct budget_ci *budget_ci)
 	budget_ci->ca.slot_shutdown = ciintf_slot_shutdown;
 	budget_ci->ca.slot_ts_enable = ciintf_slot_ts_enable;
 	budget_ci->ca.data = budget_ci;
-	if ((result = dvb_ca_en50221_init(budget_ci->budget.dvb_adapter,
+	if ((result = dvb_ca_en50221_init(&budget_ci->budget.dvb_adapter,
 					  &budget_ci->ca,
 					  DVB_CA_EN50221_FLAG_IRQ_CAMCHANGE |
 					  DVB_CA_EN50221_FLAG_IRQ_FR |
@@ -881,7 +881,7 @@ static void frontend_init(struct budget_ci *budget_ci)
 		       budget_ci->budget.dev->pci->subsystem_device);
 	} else {
 		if (dvb_register_frontend
-		    (budget_ci->budget.dvb_adapter, budget_ci->budget.dvb_frontend)) {
+		    (&budget_ci->budget.dvb_adapter, budget_ci->budget.dvb_frontend)) {
 			printk("budget-ci: Frontend registration failed!\n");
 			if (budget_ci->budget.dvb_frontend->ops->release)
 				budget_ci->budget.dvb_frontend->ops->release(budget_ci->budget.dvb_frontend);
@@ -916,7 +916,7 @@ static int budget_ci_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 
 	ciintf_init(budget_ci);
 
-	budget_ci->budget.dvb_adapter->priv = budget_ci;
+	budget_ci->budget.dvb_adapter.priv = budget_ci;
 	frontend_init(budget_ci);
 
 	return 0;

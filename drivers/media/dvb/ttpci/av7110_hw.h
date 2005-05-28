@@ -364,7 +364,6 @@ enum av7110_command_type {
 
 
 
-extern void av7110_reset_arm(struct av7110 *av7110);
 extern int av7110_bootarm(struct av7110 *av7110);
 extern int av7110_firmversion(struct av7110 *av7110);
 #define FW_CI_LL_SUPPORT(arm_app) ((arm_app) & 0x80000000)
@@ -373,12 +372,8 @@ extern int av7110_firmversion(struct av7110 *av7110);
 
 extern int av7110_wait_msgstate(struct av7110 *av7110, u16 flags);
 extern int av7110_fw_cmd(struct av7110 *av7110, int type, int com, int num, ...);
-extern int __av7110_send_fw_cmd(struct av7110 *av7110, u16* buf, int length);
-extern int av7110_send_fw_cmd(struct av7110 *av7110, u16* buf, int length);
-extern int av7110_send_ci_cmd(struct av7110 *av7110, u8 subcom, u8 *buf, u8 len);
 extern int av7110_fw_request(struct av7110 *av7110, u16 *request_buf,
 			     int request_buf_len, u16 *reply_buf, int reply_buf_len);
-extern int av7110_fw_query(struct av7110 *av7110, u16 tag, u16* Buff, s16 length);
 
 
 /* DEBI (saa7146 data extension bus interface) access */

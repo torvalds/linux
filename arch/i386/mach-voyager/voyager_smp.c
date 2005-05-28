@@ -97,7 +97,6 @@ static void ack_vic_irq(unsigned int irq);
 static void vic_enable_cpi(void);
 static void do_boot_cpu(__u8 cpuid);
 static void do_quad_bootstrap(void);
-static inline void wrapper_smp_local_timer_interrupt(struct pt_regs *);
 
 int hard_smp_processor_id(void);
 
@@ -123,6 +122,14 @@ send_QIC_CPI(__u32 cpuset, __u8 cpi)
 			send_one_QIC_CPI(cpu, cpi - QIC_CPI_OFFSET);
 		}
 	}
+}
+
+static inline void
+wrapper_smp_local_timer_interrupt(struct pt_regs *regs)
+{
+	irq_enter();
+	smp_local_timer_interrupt(regs);
+	irq_exit();
 }
 
 static inline void
@@ -1247,14 +1254,6 @@ smp_vic_timer_interrupt(struct pt_regs *regs)
 {
 	send_CPI_allbutself(VIC_TIMER_CPI);
 	smp_local_timer_interrupt(regs);
-}
-
-static inline void
-wrapper_smp_local_timer_interrupt(struct pt_regs *regs)
-{
-	irq_enter();
-	smp_local_timer_interrupt(regs);
-	irq_exit();
 }
 
 /* local (per CPU) timer interrupt.  It does both profiling and

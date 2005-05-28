@@ -386,9 +386,7 @@ int wake_bit_function(wait_queue_t *wait, unsigned mode, int sync, void *key);
 	wait_queue_t name = {						\
 		.task		= current,				\
 		.func		= autoremove_wake_function,		\
-		.task_list	= {	.next = &(name).task_list,	\
-					.prev = &(name).task_list,	\
-				},					\
+		.task_list	= LIST_HEAD_INIT((name).task_list),	\
 	}
 
 #define DEFINE_WAIT_BIT(name, word, bit)				\

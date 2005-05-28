@@ -13,6 +13,29 @@
 
 #include <asm/cacheflush.h>
 #include <asm/system.h>
+#include <asm/tlbflush.h>
+
+#ifdef CONFIG_CPU_CACHE_VIPT
+#define ALIAS_FLUSH_START	0xffff4000
+
+#define TOP_PTE(x)	pte_offset_kernel(top_pmd, x)
+
+static void flush_pfn_alias(unsigned long pfn, unsigned long vaddr)
+{
+	unsigned long to = ALIAS_FLUSH_START + (CACHE_COLOUR(vaddr) << PAGE_SHIFT);
+
+	set_pte(TOP_PTE(to), pfn_pte(pfn, PAGE_KERNEL));
+	flush_tlb_kernel_page(to);
+
+	asm(	"mcrr	p15, 0, %1, %0, c14\n"
+	"	mcrr	p15, 0, %1, %0, c5\n"
+	    :
+	    : "r" (to), "r" (to + PAGE_SIZE - L1_CACHE_BYTES)
+	    : "cc");
+}
+#else
+#define flush_pfn_alias(pfn,vaddr)	do { } while (0)
+#endif
 
 static void __flush_dcache_page(struct address_space *mapping, struct page *page)
 {
@@ -37,6 +60,18 @@ static void __flush_dcache_page(struct address_space *mapping, struct page *page
 		return;
 
 	/*
+	 * This is a page cache page.  If we have a VIPT cache, we
+	 * only need to do one flush - which would be at the relevant
+	 * userspace colour, which is congruent with page->index.
+	 */
+	if (cache_is_vipt()) {
+		if (cache_is_vipt_aliasing())
+			flush_pfn_alias(page_to_pfn(page),
+					page->index << PAGE_CACHE_SHIFT);
+		return;
+	}
+
+	/*
 	 * There are possible user space mappings of this page:
 	 * - VIVT cache: we need to also write back and invalidate all user
 	 *   data in the current VM view associated with this page.
@@ -57,8 +92,6 @@ static void __flush_dcache_page(struct address_space *mapping, struct page *page
 			continue;
 		offset = (pgoff - mpnt->vm_pgoff) << PAGE_SHIFT;
 		flush_cache_page(mpnt, mpnt->vm_start + offset, page_to_pfn(page));
-		if (cache_is_vipt())
-			break;
 	}
 	flush_dcache_mmap_unlock(mapping);
 }

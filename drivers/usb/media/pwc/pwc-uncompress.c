@@ -122,6 +122,7 @@ int pwc_decompress(struct pwc_device *pdev)
 
 		switch (pdev->type)
 		 {
+#if 0		 
 		  case 675:
 		  case 680:
 		  case 690:
@@ -137,6 +138,7 @@ int pwc_decompress(struct pwc_device *pdev)
 		  case 645:
 		  case 646:
 		    /* TODO & FIXME */
+#endif		    
 		    return -ENXIO; /* No such device or address: missing decompressor */
 		    break;
 		 }
