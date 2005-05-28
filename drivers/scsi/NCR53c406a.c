@@ -725,6 +725,9 @@ static int NCR53c406a_queue(Scsi_Cmnd * SCpnt, void (*done) (Scsi_Cmnd *))
 static int NCR53c406a_host_reset(Scsi_Cmnd * SCpnt)
 {
 	DEB(printk("NCR53c406a_reset called\n"));
+
+	spin_lock_irq(SCpnt->device->host->host_lock);
+
 	outb(C4_IMG, CONFIG4);	/* Select reg set 0 */
 	outb(CHIP_RESET, CMD_REG);
 	outb(SCSI_NOP, CMD_REG);	/* required after reset */
@@ -732,6 +735,9 @@ static int NCR53c406a_host_reset(Scsi_Cmnd * SCpnt)
 	chip_init();
 
 	rtrc(2);
+
+	spin_unlock_irq(SCpnt->device->host->host_lock);
+
 	return SUCCESS;
 }
 

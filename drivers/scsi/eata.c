@@ -1948,16 +1948,20 @@ static int eata2x_eh_host_reset(struct scsi_cmnd *SCarg)
 	       ha->board_name, SCarg->device->channel, SCarg->device->id,
 	       SCarg->device->lun, SCarg->pid);
 
+	spin_lock_irq(shost->host_lock);
+
 	if (SCarg->host_scribble == NULL)
 		printk("%s: reset, pid %ld inactive.\n", ha->board_name, SCarg->pid);
 
 	if (ha->in_reset) {
 		printk("%s: reset, exit, already in reset.\n", ha->board_name);
+		spin_unlock_irq(shost->host_lock);
 		return FAILED;
 	}
 
 	if (wait_on_busy(shost->io_port, MAXLOOP)) {
 		printk("%s: reset, exit, timeout error.\n", ha->board_name);
+		spin_unlock_irq(shost->host_lock);
 		return FAILED;
 	}
 
@@ -2012,6 +2016,7 @@ static int eata2x_eh_host_reset(struct scsi_cmnd *SCarg)
 
 	if (do_dma(shost->io_port, 0, RESET_PIO)) {
 		printk("%s: reset, cannot reset, timeout error.\n", ha->board_name);
+		spin_unlock_irq(shost->host_lock);
 		return FAILED;
 	}
 
@@ -2024,9 +2029,12 @@ static int eata2x_eh_host_reset(struct scsi_cmnd *SCarg)
 	ha->in_reset = 1;
 
 	spin_unlock_irq(shost->host_lock);
+
+	/* FIXME: use a sleep instead */
 	time = jiffies;
 	while ((jiffies - time) < (10 * HZ) && limit++ < 200000)
 		udelay(100L);
+
 	spin_lock_irq(shost->host_lock);
 
 	printk("%s: reset, interrupts disabled, loops %d.\n", ha->board_name, limit);
@@ -2076,6 +2084,7 @@ static int eata2x_eh_host_reset(struct scsi_cmnd *SCarg)
 	else
 		printk("%s: reset, exit.\n", ha->board_name);
 
+	spin_unlock_irq(shost->host_lock);
 	return SUCCESS;
 }
 

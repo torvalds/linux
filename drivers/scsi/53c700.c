@@ -1991,8 +1991,13 @@ NCR_700_host_reset(struct scsi_cmnd * SCp)
 	       SCp->device->host->host_no, SCp->device->id, SCp->device->lun);
 	scsi_print_command(SCp);
 
+	spin_lock_irq(SCp->device->host->host_lock);
+
 	NCR_700_internal_bus_reset(SCp->device->host);
 	NCR_700_chip_reset(SCp->device->host);
+
+	spin_unlock_irq(SCp->device->host->host_lock);
+
 	return SUCCESS;
 }
 

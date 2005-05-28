@@ -1082,9 +1082,7 @@ static int scsi_try_host_reset(struct scsi_cmnd *scmd)
 	if (!scmd->device->host->hostt->eh_host_reset_handler)
 		return FAILED;
 
-	spin_lock_irqsave(scmd->device->host->host_lock, flags);
 	rtn = scmd->device->host->hostt->eh_host_reset_handler(scmd);
-	spin_unlock_irqrestore(scmd->device->host->host_lock, flags);
 
 	if (rtn == SUCCESS) {
 		if (!scmd->device->host->hostt->skip_settle_delay)

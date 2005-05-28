@@ -755,8 +755,6 @@ zfcp_scsi_eh_host_reset_handler(struct scsi_cmnd *scpnt)
 	struct zfcp_unit *unit;
 	struct Scsi_Host *scsi_host = scpnt->device->host;
 
-	spin_unlock_irq(scsi_host->host_lock);
-
 	unit = (struct zfcp_unit *) scpnt->device->hostdata;
 	ZFCP_LOG_NORMAL("host reset because of problems with "
 			"unit 0x%016Lx\n", unit->fcp_lun);
@@ -764,7 +762,6 @@ zfcp_scsi_eh_host_reset_handler(struct scsi_cmnd *scpnt)
 	zfcp_erp_wait(unit->port->adapter);
 	retval = SUCCESS;
 
-	spin_lock_irq(scsi_host->host_lock);
 	return retval;
 }
 

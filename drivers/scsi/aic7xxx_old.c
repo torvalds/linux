@@ -10845,6 +10845,8 @@ aic7xxx_reset(Scsi_Cmnd *cmd)
   struct aic_dev_data *aic_dev;
 
   p = (struct aic7xxx_host *) cmd->device->host->hostdata;
+  spin_lock_irq(p->host->host_lock);
+
   aic_dev = AIC_DEV(cmd);
   if(aic7xxx_position(cmd) < p->scb_data->numscbs)
   {
@@ -10884,6 +10886,7 @@ aic7xxx_reset(Scsi_Cmnd *cmd)
      * longer have it.
      */
     unpause_sequencer(p, FALSE);
+    spin_unlock_irq(p->host->host_lock);
     return SUCCESS;
   }
     
@@ -10907,7 +10910,6 @@ aic7xxx_reset(Scsi_Cmnd *cmd)
   unpause_sequencer(p, FALSE);
   spin_unlock_irq(p->host->host_lock);
   ssleep(2);
-  spin_lock_irq(p->host->host_lock);
   return SUCCESS;
 }
 

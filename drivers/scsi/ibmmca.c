@@ -2237,7 +2237,7 @@ static int ibmmca_abort(Scsi_Cmnd * cmd)
 	return rc;
 }
 
-static int ibmmca_host_reset(Scsi_Cmnd * cmd)
+static int __ibmmca_host_reset(Scsi_Cmnd * cmd)
 {
 	struct Scsi_Host *shpnt;
 	Scsi_Cmnd *cmd_aid;
@@ -2322,6 +2322,18 @@ static int ibmmca_host_reset(Scsi_Cmnd * cmd)
 		}
 	}
 	return SUCCESS;
+}
+
+static int ibmmca_host_reset(Scsi_Cmnd * cmd)
+{
+	struct Scsi_Host *shpnt = cmd->device->host;
+	int rc;
+
+	spin_lock_irq(shpnt->host_lock);
+	rc = __ibmmca_host_reset(cmd);
+	spin_unlock_irq(shpnt->host_lock);
+
+	return rc;
 }
 
 static int ibmmca_biosparam(struct scsi_device *sdev, struct block_device *bdev, sector_t capacity, int *info)

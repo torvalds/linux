@@ -627,7 +627,9 @@ SYM53C500_host_reset(struct scsi_cmnd *SCpnt)
 	int port_base = SCpnt->device->host->io_port;
 
 	DEB(printk("SYM53C500_host_reset called\n"));
+	spin_lock_irq(SCpnt->device->host->host_lock);
 	SYM53C500_int_host_reset(port_base);
+	spin_unlock_irq(SCpnt->device->host->host_lock);
 
 	return SUCCESS;
 }

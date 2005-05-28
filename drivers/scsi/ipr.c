@@ -2885,7 +2885,7 @@ static int ipr_slave_alloc(struct scsi_device *sdev)
  * Return value:
  * 	SUCCESS / FAILED
  **/
-static int ipr_eh_host_reset(struct scsi_cmnd * scsi_cmd)
+static int __ipr_eh_host_reset(struct scsi_cmnd * scsi_cmd)
 {
 	struct ipr_ioa_cfg *ioa_cfg;
 	int rc;
@@ -2902,6 +2902,17 @@ static int ipr_eh_host_reset(struct scsi_cmnd * scsi_cmd)
 	rc = ipr_reset_reload(ioa_cfg, IPR_SHUTDOWN_ABBREV);
 
 	LEAVE;
+	return rc;
+}
+
+static int ipr_eh_host_reset(struct scsi_cmnd * cmd)
+{
+	int rc;
+
+	spin_lock_irq(cmd->device->host->host_lock);
+	rc = __ipr_eh_host_reset(cmd);
+	spin_unlock_irq(cmd->device->host->host_lock);
+
 	return rc;
 }
 

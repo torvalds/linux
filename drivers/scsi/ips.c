@@ -873,7 +873,7 @@ ips_eh_abort(Scsi_Cmnd * SC)
 /*                                                                          */
 /****************************************************************************/
 static int
-ips_eh_reset(Scsi_Cmnd * SC)
+__ips_eh_reset(Scsi_Cmnd * SC)
 {
 	int ret;
 	int i;
@@ -1058,6 +1058,18 @@ ips_eh_reset(Scsi_Cmnd * SC)
 	return (SUCCESS);
 #endif				/* NO_IPS_RESET */
 
+}
+
+static int
+ips_eh_reset(Scsi_Cmnd * SC)
+{
+	int rc;
+
+	spin_lock_irq(SC->device->host->host_lock);
+	rc = __ips_eh_reset(SC);
+	spin_unlock_irq(SC->device->host->host_lock);
+
+	return rc;
 }
 
 /****************************************************************************/

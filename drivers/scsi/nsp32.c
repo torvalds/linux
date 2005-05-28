@@ -3051,11 +3051,14 @@ static int nsp32_eh_host_reset(struct scsi_cmnd *SCpnt)
 	nsp32_msg(KERN_INFO, "Host Reset");	
 	nsp32_dbg(NSP32_DEBUG_BUSRESET, "SCpnt=0x%x", SCpnt);
 
+	spin_lock_irq(SCpnt->device->host->host_lock);
+
 	nsp32hw_init(data);
 	nsp32_write2(base, IRQ_CONTROL, IRQ_CONTROL_ALL_IRQ_MASK);
 	nsp32_do_bus_reset(data);
 	nsp32_write2(base, IRQ_CONTROL, 0);
 
+	spin_unlock_irq(SCpnt->device->host->host_lock);
 	return SUCCESS;	/* Host reset is succeeded at any time. */
 }
 

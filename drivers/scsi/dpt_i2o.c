@@ -746,7 +746,7 @@ static int adpt_bus_reset(struct scsi_cmnd* cmd)
 }
 
 // This version of reset is called by the eh_error_handler
-static int adpt_reset(struct scsi_cmnd* cmd)
+static int __adpt_reset(struct scsi_cmnd* cmd)
 {
 	adpt_hba* pHba;
 	int rcode;
@@ -760,6 +760,17 @@ static int adpt_reset(struct scsi_cmnd* cmd)
 		printk(KERN_WARNING"%s: HBA reset failed (%x)\n",pHba->name, rcode);
 		return FAILED;
 	}
+}
+
+static int adpt_reset(struct scsi_cmnd* cmd)
+{
+	int rc;
+
+	spin_lock_irq(cmd->device->host->host_lock);
+	rc = __adpt_reset(cmd);
+	spin_unlock_irq(cmd->device->host->host_lock);
+
+	return rc;
 }
 
 // This version of reset is called by the ioctls and indirectly from eh_error_handler via adpt_reset

@@ -1530,7 +1530,6 @@ static int aha1542_host_reset(Scsi_Cmnd * SCpnt)
 	 * check for timeout, and if we are doing something like this
 	 * we are pretty desperate anyways.
 	 */
-	spin_unlock_irq(SCpnt->device->host->host_lock);
 	ssleep(4);
 	spin_lock_irq(SCpnt->device->host->host_lock);
 
@@ -1574,9 +1573,11 @@ static int aha1542_host_reset(Scsi_Cmnd * SCpnt)
 		}
 	}
 
+	spin_unlock_irq(SCpnt->device->host->host_lock);
 	return SUCCESS;
 
 fail:
+	spin_unlock_irq(SCpnt->device->host->host_lock);
 	return FAILED;
 }
 
