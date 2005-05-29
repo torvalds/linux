@@ -82,6 +82,17 @@ static int lifebook_absolute_mode(struct psmouse *psmouse)
 	return 0;
 }
 
+static void lifebook_set_resolution(struct psmouse *psmouse, unsigned int resolution)
+{
+	unsigned char params[] = { 0, 1, 2, 2, 3 };
+
+	if (resolution == 0 || resolution > 400)
+		resolution = 400;
+
+	ps2_command(&psmouse->ps2dev, &params[resolution / 100], PSMOUSE_CMD_SETRES);
+	psmouse->resolution = 50 << params[resolution / 100];
+}
+
 static void lifebook_disconnect(struct psmouse *psmouse)
 {
 	psmouse_reset(psmouse);
@@ -113,6 +124,7 @@ int lifebook_init(struct psmouse *psmouse)
 	input_set_abs_params(&psmouse->dev, ABS_Y, 0, 1024, 0, 0);
 
 	psmouse->protocol_handler = lifebook_process_byte;
+	psmouse->set_resolution = lifebook_set_resolution;
 	psmouse->disconnect = lifebook_disconnect;
 	psmouse->reconnect  = lifebook_absolute_mode;
 	psmouse->pktsize = 3;
