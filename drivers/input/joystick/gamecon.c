@@ -1,12 +1,12 @@
 /*
  * NES, SNES, N64, MultiSystem, PSX gamepad driver for Linux
  *
- *  Copyright (c) 1999-2004 	Vojtech Pavlik <vojtech@suse.cz>
- *  Copyright (c) 2004 		Peter Nelson <rufus-kernel@hackish.org>
+ *  Copyright (c) 1999-2004	Vojtech Pavlik <vojtech@suse.cz>
+ *  Copyright (c) 2004		Peter Nelson <rufus-kernel@hackish.org>
  *
  *  Based on the work of:
- *  	Andree Borrmann		John Dahlstrom
- *  	David Kuder		Nathan Hand
+ *	Andree Borrmann		John Dahlstrom
+ *	David Kuder		Nathan Hand
  */
 
 /*
@@ -433,7 +433,7 @@ static void gc_timer(unsigned long private)
 		gc_psx_read_packet(gc, data_psx, data);
 
 		for (i = 0; i < 5; i++) {
-	 		switch (data[i]) {
+			switch (data[i]) {
 
 				case GC_PSX_RUMBLE:
 

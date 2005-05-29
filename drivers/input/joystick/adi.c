@@ -82,7 +82,7 @@ static char adi_cm2_abs[] =	{ ABS_X, ABS_Y, ABS_Z, ABS_RX, ABS_RY, ABS_RZ };
 static char adi_wmf_abs[] =	{ ABS_WHEEL, ABS_GAS, ABS_BRAKE, ABS_HAT0X, ABS_HAT0Y, ABS_HAT1X, ABS_HAT1Y, ABS_HAT2X, ABS_HAT2Y };
 
 static short adi_wmgpe_key[] =	{ BTN_A, BTN_B, BTN_C, BTN_X, BTN_Y, BTN_Z,  BTN_TL, BTN_TR, BTN_START, BTN_MODE, BTN_SELECT };
-static short adi_wmi_key[] = 	{ BTN_TRIGGER,  BTN_TOP, BTN_THUMB, BTN_TOP2, BTN_BASE, BTN_BASE2, BTN_BASE3, BTN_BASE4, BTN_EXTRA };
+static short adi_wmi_key[] =	{ BTN_TRIGGER,  BTN_TOP, BTN_THUMB, BTN_TOP2, BTN_BASE, BTN_BASE2, BTN_BASE3, BTN_BASE4, BTN_EXTRA };
 static short adi_wmed3d_key[] =	{ BTN_TRIGGER, BTN_THUMB, BTN_THUMB2, BTN_TOP, BTN_TOP2, BTN_BASE, BTN_BASE2 };
 static short adi_cm2_key[] =	{ BTN_1, BTN_2, BTN_3, BTN_4, BTN_5, BTN_6, BTN_7, BTN_8 };
 
@@ -183,7 +183,7 @@ static void adi_move_bits(struct adi_port *port, int length)
 	int i;
 	struct adi *adi = port->adi;
 
- 	adi[0].idx = adi[1].idx = 0;
+	adi[0].idx = adi[1].idx = 0;
 
 	if (adi[0].ret <= 0 || adi[1].ret <= 0) return;
 	if (adi[0].data[0] & 0x20 || ~adi[1].data[0] & 0x20) return;

@@ -4,8 +4,8 @@
  *  Copyright (c) 1999-2001 Vojtech Pavlik
  *
  *  Based on the work of:
- *  	David Thompson
- *  	Joseph Krahn
+ *	David Thompson
+ *	Joseph Krahn
  */
 
 /*

@@ -99,7 +99,7 @@ static void tgfx_timer(unsigned long private)
 	for (i = 0; i < 7; i++)
 		if (tgfx->sticks & (1 << i)) {
 
- 			dev = tgfx->dev + i;
+			dev = tgfx->dev + i;
 
 			parport_write_data(tgfx->pd->port, ~(1 << i));
 			data1 = parport_read_status(tgfx->pd->port) ^ 0x7f;
@@ -122,22 +122,22 @@ static void tgfx_timer(unsigned long private)
 
 static int tgfx_open(struct input_dev *dev)
 {
-        struct tgfx *tgfx = dev->private;
-        if (!tgfx->used++) {
+	struct tgfx *tgfx = dev->private;
+	if (!tgfx->used++) {
 		parport_claim(tgfx->pd);
 		parport_write_control(tgfx->pd->port, 0x04);
-                mod_timer(&tgfx->timer, jiffies + TGFX_REFRESH_TIME);
+		mod_timer(&tgfx->timer, jiffies + TGFX_REFRESH_TIME);
 	}
-        return 0;
+	return 0;
 }
 
 static void tgfx_close(struct input_dev *dev)
 {
-        struct tgfx *tgfx = dev->private;
-        if (!--tgfx->used) {
-                del_timer(&tgfx->timer);
+	struct tgfx *tgfx = dev->private;
+	if (!--tgfx->used) {
+		del_timer(&tgfx->timer);
 		parport_write_control(tgfx->pd->port, 0x00);
-        	parport_release(tgfx->pd);
+		parport_release(tgfx->pd);
 	}
 }
 
