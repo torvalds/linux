@@ -7281,6 +7281,32 @@ out:
 	return err;
 }
 
+#define TG3_SERDES_TIMEOUT_SEC	2
+#define TG3_COPPER_TIMEOUT_SEC	6
+
+static int tg3_test_link(struct tg3 *tp)
+{
+	int i, max;
+
+	if (!netif_running(tp->dev))
+		return -ENODEV;
+
+	if (tp->tg3_flags2 & TG3_FLG2_PHY_SERDES)
+		max = TG3_SERDES_TIMEOUT_SEC;
+	else
+		max = TG3_COPPER_TIMEOUT_SEC;
+
+	for (i = 0; i < max; i++) {
+		if (netif_carrier_ok(tp->dev))
+			return 0;
+
+		if (msleep_interruptible(1000))
+			break;
+	}
+
+	return -EIO;
+}
+
 static void tg3_self_test(struct net_device *dev, struct ethtool_test *etest,
 			  u64 *data)
 {
@@ -7291,6 +7317,10 @@ static void tg3_self_test(struct net_device *dev, struct ethtool_test *etest,
 	if (tg3_test_nvram(tp) != 0) {
 		etest->flags |= ETH_TEST_FL_FAILED;
 		data[0] = 1;
+	}
+	if (tg3_test_link(tp) != 0) {
+		etest->flags |= ETH_TEST_FL_FAILED;
+		data[1] = 1;
 	}
 }
 
