@@ -63,8 +63,4 @@ config GAMEPORT_FM801
 	tristate "ForteMedia FM801 gameport support"
 	depends on PCI
 
-config GAMEPORT_CS461X
-	tristate "Crystal SoundFusion gameport support"
-	depends on PCI
-
 endif
