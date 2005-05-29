@@ -5894,6 +5894,9 @@ static int tg3_test_interrupt(struct tg3 *tp)
 	int err, i;
 	u32 int_mbox = 0;
 
+	if (!netif_running(dev))
+		return -ENODEV;
+
 	tg3_disable_ints(tp);
 
 	free_irq(tp->pdev->irq, dev);
@@ -7728,6 +7731,15 @@ static void tg3_self_test(struct net_device *dev, struct ethtool_test *etest,
 			etest->flags |= ETH_TEST_FL_FAILED;
 			data[4] = 1;
 		}
+
+		spin_unlock(&tp->tx_lock);
+		spin_unlock_irq(&tp->lock);
+		if (tg3_test_interrupt(tp) != 0) {
+			etest->flags |= ETH_TEST_FL_FAILED;
+			data[5] = 1;
+		}
+		spin_lock_irq(&tp->lock);
+		spin_lock(&tp->tx_lock);
 
 		tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
 		if (netif_running(dev)) {
