@@ -7239,9 +7239,59 @@ static void tg3_get_ethtool_stats (struct net_device *dev,
 	memcpy(tmp_stats, tg3_get_estats(tp), sizeof(tp->estats));
 }
 
+#define NVRAM_TEST_SIZE 0x100
+
+static int tg3_test_nvram(struct tg3 *tp)
+{
+	u32 *buf, csum;
+	int i, j, err = 0;
+
+	buf = kmalloc(NVRAM_TEST_SIZE, GFP_KERNEL);
+	if (buf == NULL)
+		return -ENOMEM;
+
+	for (i = 0, j = 0; i < NVRAM_TEST_SIZE; i += 4, j++) {
+		u32 val;
+
+		if ((err = tg3_nvram_read(tp, i, &val)) != 0)
+			break;
+		buf[j] = cpu_to_le32(val);
+	}
+	if (i < NVRAM_TEST_SIZE)
+		goto out;
+
+	err = -EIO;
+	if (cpu_to_be32(buf[0]) != TG3_EEPROM_MAGIC)
+		goto out;
+
+	/* Bootstrap checksum at offset 0x10 */
+	csum = calc_crc((unsigned char *) buf, 0x10);
+	if(csum != cpu_to_le32(buf[0x10/4]))
+		goto out;
+
+	/* Manufacturing block starts at offset 0x74, checksum at 0xfc */
+	csum = calc_crc((unsigned char *) &buf[0x74/4], 0x88);
+	if (csum != cpu_to_le32(buf[0xfc/4]))
+		 goto out;
+
+	err = 0;
+
+out:
+	kfree(buf);
+	return err;
+}
+
 static void tg3_self_test(struct net_device *dev, struct ethtool_test *etest,
 			  u64 *data)
 {
+	struct tg3 *tp = netdev_priv(dev);
+
+	memset(data, 0, sizeof(u64) * TG3_NUM_TEST);
+
+	if (tg3_test_nvram(tp) != 0) {
+		etest->flags |= ETH_TEST_FL_FAILED;
+		data[0] = 1;
+	}
 }
 
 static int tg3_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
