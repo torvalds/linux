@@ -51,7 +51,8 @@ MODULE_PARM_DESC(map, "Map of attached joysticks in form of <a>,<b> (default is 
 
 __obsolete_setup("amijoy=");
 
-static int amijoy_used[2] = { 0, 0 };
+static int amijoy_used;
+static DECLARE_MUTEX(amijoy_sem);
 static struct input_dev amijoy_dev[2];
 static char *amijoy_phys[2] = { "amijoy/input0", "amijoy/input1" };
 
@@ -84,26 +85,30 @@ static irqreturn_t amijoy_interrupt(int irq, void *dummy, struct pt_regs *fp)
 
 static int amijoy_open(struct input_dev *dev)
 {
-	int *used = dev->private;
+	int err;
 
-	if ((*used)++)
-		return 0;
+	err = down_interruptible(&amijoy_sem);
+	if (err)
+		return err;
 
-	if (request_irq(IRQ_AMIGA_VERTB, amijoy_interrupt, 0, "amijoy", amijoy_interrupt)) {
-		(*used)--;
+	if (!amijoy_used && request_irq(IRQ_AMIGA_VERTB, amijoy_interrupt, 0, "amijoy", amijoy_interrupt)) {
 		printk(KERN_ERR "amijoy.c: Can't allocate irq %d\n", IRQ_AMIGA_VERTB);
-		return -EBUSY;
+		err = -EBUSY;
+		goto out;
 	}
 
-	return 0;
+	amijoy_used++;
+out:
+	up(&amijoy_sem);
+	return err;
 }
 
 static void amijoy_close(struct input_dev *dev)
 {
-	int *used = dev->private;
-
-	if (!--(*used))
+	down(&amijoysem);
+	if (!--amijoy_used)
 		free_irq(IRQ_AMIGA_VERTB, amijoy_interrupt);
+	up(&amijoy_sem);
 }
 
 static int __init amijoy_init(void)
@@ -137,8 +142,6 @@ static int __init amijoy_init(void)
 			amijoy_dev[i].id.vendor = 0x0001;
 			amijoy_dev[i].id.product = 0x0003;
 			amijoy_dev[i].id.version = 0x0100;
-
-			amijoy_dev[i].private = amijoy_used + i;
 
 			input_register_device(amijoy_dev + i);
 			printk(KERN_INFO "input: %s at joy%ddat\n", amijoy_name, i);
