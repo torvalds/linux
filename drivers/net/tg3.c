@@ -7520,6 +7520,62 @@ out:
 	return -EIO;
 }
 
+static int tg3_do_mem_test(struct tg3 *tp, u32 offset, u32 len)
+{
+	static u32 test_pattern[] = { 0x00000000, 0xffffffff, 0xaa55a55a };
+	int i;
+	u32 j;
+
+	for (i = 0; i < sizeof(test_pattern)/sizeof(u32); i++) {
+		for (j = 0; j < len; j += 4) {
+			u32 val;
+
+			tg3_write_mem(tp, offset + j, test_pattern[i]);
+			tg3_read_mem(tp, offset + j, &val);
+			if (val != test_pattern[i])
+				return -EIO;
+		}
+	}
+	return 0;
+}
+
+static int tg3_test_memory(struct tg3 *tp)
+{
+	static struct mem_entry {
+		u32 offset;
+		u32 len;
+	} mem_tbl_570x[] = {
+		{ 0x00000000, 0x01000},
+		{ 0x00002000, 0x1c000},
+		{ 0xffffffff, 0x00000}
+	}, mem_tbl_5705[] = {
+		{ 0x00000100, 0x0000c},
+		{ 0x00000200, 0x00008},
+		{ 0x00000b50, 0x00400},
+		{ 0x00004000, 0x00800},
+		{ 0x00006000, 0x01000},
+		{ 0x00008000, 0x02000},
+		{ 0x00010000, 0x0e000},
+		{ 0xffffffff, 0x00000}
+	};
+	struct mem_entry *mem_tbl;
+	int err = 0;
+	int i;
+
+	if (tp->tg3_flags2 & TG3_FLG2_5705_PLUS)
+		mem_tbl = mem_tbl_5705;
+	else
+		mem_tbl = mem_tbl_570x;
+
+	for (i = 0; mem_tbl[i].offset != 0xffffffff; i++) {
+		if ((err = tg3_do_mem_test(tp, mem_tbl[i].offset,
+		    mem_tbl[i].len)) != 0)
+			break;
+	}
+	
+	return err;
+}
+
 static void tg3_self_test(struct net_device *dev, struct ethtool_test *etest,
 			  u64 *data)
 {
@@ -7552,6 +7608,10 @@ static void tg3_self_test(struct net_device *dev, struct ethtool_test *etest,
 		if (tg3_test_registers(tp) != 0) {
 			etest->flags |= ETH_TEST_FL_FAILED;
 			data[2] = 1;
+		}
+		if (tg3_test_memory(tp) != 0) {
+			etest->flags |= ETH_TEST_FL_FAILED;
+			data[3] = 1;
 		}
 
 		tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
