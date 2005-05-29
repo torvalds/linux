@@ -7576,6 +7576,117 @@ static int tg3_test_memory(struct tg3 *tp)
 	return err;
 }
 
+static int tg3_test_loopback(struct tg3 *tp)
+{
+	u32 mac_mode, send_idx, rx_start_idx, rx_idx, tx_idx, opaque_key;
+	u32 desc_idx;
+	struct sk_buff *skb, *rx_skb;
+	u8 *tx_data;
+	dma_addr_t map;
+	int num_pkts, tx_len, rx_len, i, err;
+	struct tg3_rx_buffer_desc *desc;
+
+	if (!netif_running(tp->dev))
+		return -ENODEV;
+
+	err = -EIO;
+
+	tg3_abort_hw(tp, 1);
+
+	/* Clearing this flag to keep interrupts disabled */
+	tp->tg3_flags &= ~TG3_FLAG_INIT_COMPLETE;
+	tg3_reset_hw(tp);
+
+	mac_mode = (tp->mac_mode & ~MAC_MODE_PORT_MODE_MASK) |
+		   MAC_MODE_PORT_INT_LPBACK | MAC_MODE_LINK_POLARITY |
+		   MAC_MODE_PORT_MODE_GMII;
+	tw32(MAC_MODE, mac_mode);
+
+	tx_len = 1514;
+	skb = dev_alloc_skb(tx_len);
+	tx_data = skb_put(skb, tx_len);
+	memcpy(tx_data, tp->dev->dev_addr, 6);
+	memset(tx_data + 6, 0x0, 8);
+
+	tw32(MAC_RX_MTU_SIZE, tx_len + 4);
+
+	for (i = 14; i < tx_len; i++)
+		tx_data[i] = (u8) (i & 0xff);
+
+	map = pci_map_single(tp->pdev, skb->data, tx_len, PCI_DMA_TODEVICE);
+
+	tw32_f(HOSTCC_MODE, tp->coalesce_mode | HOSTCC_MODE_ENABLE |
+	     HOSTCC_MODE_NOW);
+
+	udelay(10);
+
+	rx_start_idx = tp->hw_status->idx[0].rx_producer;
+
+	send_idx = 0;
+	num_pkts = 0;
+
+	tg3_set_txd(tp, send_idx, map, tx_len, 0, 1);
+
+	send_idx++;
+	num_pkts++;
+
+	tw32_tx_mbox(MAILBOX_SNDHOST_PROD_IDX_0 + TG3_64BIT_REG_LOW, send_idx);
+	tr32(MAILBOX_SNDHOST_PROD_IDX_0 + TG3_64BIT_REG_LOW);
+
+	udelay(10);
+
+	for (i = 0; i < 10; i++) {
+		tw32_f(HOSTCC_MODE, tp->coalesce_mode | HOSTCC_MODE_ENABLE |
+		       HOSTCC_MODE_NOW);
+
+		udelay(10);
+
+		tx_idx = tp->hw_status->idx[0].tx_consumer;
+		rx_idx = tp->hw_status->idx[0].rx_producer;
+		if ((tx_idx == send_idx) &&
+		    (rx_idx == (rx_start_idx + num_pkts)))
+			break;
+	}
+
+	pci_unmap_single(tp->pdev, map, tx_len, PCI_DMA_TODEVICE);
+	dev_kfree_skb(skb);
+
+	if (tx_idx != send_idx)
+		goto out;
+
+	if (rx_idx != rx_start_idx + num_pkts)
+		goto out;
+
+	desc = &tp->rx_rcb[rx_start_idx];
+	desc_idx = desc->opaque & RXD_OPAQUE_INDEX_MASK;
+	opaque_key = desc->opaque & RXD_OPAQUE_RING_MASK;
+	if (opaque_key != RXD_OPAQUE_RING_STD)
+		goto out;
+
+	if ((desc->err_vlan & RXD_ERR_MASK) != 0 &&
+	    (desc->err_vlan != RXD_ERR_ODD_NIBBLE_RCVD_MII))
+		goto out;
+
+	rx_len = ((desc->idx_len & RXD_LEN_MASK) >> RXD_LEN_SHIFT) - 4;
+	if (rx_len != tx_len)
+		goto out;
+
+	rx_skb = tp->rx_std_buffers[desc_idx].skb;
+
+	map = pci_unmap_addr(&tp->rx_std_buffers[desc_idx], mapping);
+	pci_dma_sync_single_for_cpu(tp->pdev, map, rx_len, PCI_DMA_FROMDEVICE);
+
+	for (i = 14; i < tx_len; i++) {
+		if (*(rx_skb->data + i) != (u8) (i & 0xff))
+			goto out;
+	}
+	err = 0;
+	
+	/* tg3_free_rings will unmap and free the rx_skb */
+out:
+	return err;
+}
+
 static void tg3_self_test(struct net_device *dev, struct ethtool_test *etest,
 			  u64 *data)
 {
@@ -7612,6 +7723,10 @@ static void tg3_self_test(struct net_device *dev, struct ethtool_test *etest,
 		if (tg3_test_memory(tp) != 0) {
 			etest->flags |= ETH_TEST_FL_FAILED;
 			data[3] = 1;
+		}
+		if (tg3_test_loopback(tp) != 0) {
+			etest->flags |= ETH_TEST_FL_FAILED;
+			data[4] = 1;
 		}
 
 		tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
