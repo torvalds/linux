@@ -290,6 +290,8 @@ static void ahci_host_stop(struct ata_host_set *host_set)
 {
 	struct ahci_host_priv *hpriv = host_set->private_data;
 	kfree(hpriv);
+
+	ata_host_stop(host_set);
 }
 
 static int ahci_port_start(struct ata_port *ap)
