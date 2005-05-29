@@ -401,7 +401,7 @@ struct net_device
 	} reg_state;
 
 	/* Net device features */
-	int			features;
+	unsigned long		features;
 #define NETIF_F_SG		1	/* Scatter/gather IO. */
 #define NETIF_F_IP_CSUM		2	/* Can checksum only TCP/UDP over IPv4. */
 #define NETIF_F_NO_CSUM		4	/* Does not require checksum. F.e. loopack. */

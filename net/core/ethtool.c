@@ -682,7 +682,7 @@ int dev_ethtool(struct ifreq *ifr)
 	void __user *useraddr = ifr->ifr_data;
 	u32 ethcmd;
 	int rc;
-	int old_features;
+	unsigned long old_features;
 
 	/*
 	 * XXX: This can be pushed down into the ethtool_* handlers that
