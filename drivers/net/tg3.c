@@ -3083,7 +3083,7 @@ static irqreturn_t tg3_test_isr(int irq, void *dev_id,
 }
 
 static int tg3_init_hw(struct tg3 *);
-static int tg3_halt(struct tg3 *, int);
+static int tg3_halt(struct tg3 *, int, int);
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void tg3_poll_controller(struct net_device *dev)
@@ -3107,7 +3107,7 @@ static void tg3_reset_task(void *_data)
 	restart_timer = tp->tg3_flags2 & TG3_FLG2_RESTART_TIMER;
 	tp->tg3_flags2 &= ~TG3_FLG2_RESTART_TIMER;
 
-	tg3_halt(tp, 0);
+	tg3_halt(tp, RESET_KIND_SHUTDOWN, 0);
 	tg3_init_hw(tp);
 
 	tg3_netif_start(tp);
@@ -3453,7 +3453,7 @@ static int tg3_change_mtu(struct net_device *dev, int new_mtu)
 	spin_lock_irq(&tp->lock);
 	spin_lock(&tp->tx_lock);
 
-	tg3_halt(tp, 1);
+	tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
 
 	tg3_set_mtu(dev, tp, new_mtu);
 
@@ -4144,19 +4144,19 @@ static void tg3_stop_fw(struct tg3 *tp)
 }
 
 /* tp->lock is held. */
-static int tg3_halt(struct tg3 *tp, int silent)
+static int tg3_halt(struct tg3 *tp, int kind, int silent)
 {
 	int err;
 
 	tg3_stop_fw(tp);
 
-	tg3_write_sig_pre_reset(tp, RESET_KIND_SHUTDOWN);
+	tg3_write_sig_pre_reset(tp, kind);
 
 	tg3_abort_hw(tp, silent);
 	err = tg3_chip_reset(tp);
 
-	tg3_write_sig_legacy(tp, RESET_KIND_SHUTDOWN);
-	tg3_write_sig_post_reset(tp, RESET_KIND_SHUTDOWN);
+	tg3_write_sig_legacy(tp, kind);
+	tg3_write_sig_post_reset(tp, kind);
 
 	if (err)
 		return err;
@@ -5997,7 +5997,7 @@ static int tg3_test_msi(struct tg3 *tp)
 	spin_lock_irq(&tp->lock);
 	spin_lock(&tp->tx_lock);
 
-	tg3_halt(tp, 1);
+	tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
 	err = tg3_init_hw(tp);
 
 	spin_unlock(&tp->tx_lock);
@@ -6073,7 +6073,7 @@ static int tg3_open(struct net_device *dev)
 
 	err = tg3_init_hw(tp);
 	if (err) {
-		tg3_halt(tp, 1);
+		tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
 		tg3_free_rings(tp);
 	} else {
 		if (tp->tg3_flags & TG3_FLAG_TAGGED_STATUS)
@@ -6117,7 +6117,7 @@ static int tg3_open(struct net_device *dev)
 				pci_disable_msi(tp->pdev);
 				tp->tg3_flags2 &= ~TG3_FLG2_USING_MSI;
 			}
-			tg3_halt(tp, 1);
+			tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
 			tg3_free_rings(tp);
 			tg3_free_consistent(tp);
 
@@ -6390,7 +6390,7 @@ static int tg3_close(struct net_device *dev)
 
 	tg3_disable_ints(tp);
 
-	tg3_halt(tp, 1);
+	tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
 	tg3_free_rings(tp);
 	tp->tg3_flags &=
 		~(TG3_FLAG_INIT_COMPLETE |
@@ -7110,7 +7110,7 @@ static int tg3_set_ringparam(struct net_device *dev, struct ethtool_ringparam *e
 	tp->tx_pending = ering->tx_pending;
 
 	if (netif_running(dev)) {
-		tg3_halt(tp, 1);
+		tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
 		tg3_init_hw(tp);
 		tg3_netif_start(tp);
 	}
@@ -7153,7 +7153,7 @@ static int tg3_set_pauseparam(struct net_device *dev, struct ethtool_pauseparam 
 		tp->tg3_flags &= ~TG3_FLAG_TX_PAUSE;
 
 	if (netif_running(dev)) {
-		tg3_halt(tp, 1);
+		tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
 		tg3_init_hw(tp);
 		tg3_netif_start(tp);
 	}
@@ -9586,7 +9586,7 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	    (tr32(WDMAC_MODE) & WDMAC_MODE_ENABLE)) {
 		pci_save_state(tp->pdev);
 		tw32(MEMARB_MODE, MEMARB_MODE_ENABLE);
-		tg3_halt(tp, 1);
+		tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
 	}
 
 	err = tg3_test_dma(tp);
@@ -9713,7 +9713,7 @@ static int tg3_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	spin_lock_irq(&tp->lock);
 	spin_lock(&tp->tx_lock);
-	tg3_halt(tp, 1);
+	tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
 	spin_unlock(&tp->tx_lock);
 	spin_unlock_irq(&tp->lock);
 
