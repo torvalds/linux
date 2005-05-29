@@ -859,6 +859,10 @@ struct input_dev {
 	int (*erase_effect)(struct input_dev *dev, int effect_id);
 
 	struct input_handle *grab;
+
+	struct semaphore sem;	/* serializes open and close operations */
+	unsigned int users;
+
 	struct device *dev;
 
 	struct list_head	h_list;
