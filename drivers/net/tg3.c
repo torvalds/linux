@@ -133,6 +133,8 @@
 /* number of ETHTOOL_GSTATS u64's */
 #define TG3_NUM_STATS		(sizeof(struct tg3_ethtool_stats)/sizeof(u64))
 
+#define TG3_NUM_TEST		6
+
 static char version[] __devinitdata =
 	DRV_MODULE_NAME ".c:v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
 
@@ -314,6 +316,17 @@ static struct {
 	{ "nic_irqs" },
 	{ "nic_avoided_irqs" },
 	{ "nic_tx_threshold_hit" }
+};
+
+static struct {
+	const char string[ETH_GSTRING_LEN];
+} ethtool_test_keys[TG3_NUM_TEST] = {
+	{ "nvram test     (online) " },
+	{ "link test      (online) " },
+	{ "register test  (offline)" },
+	{ "memory test    (offline)" },
+	{ "loopback test  (offline)" },
+	{ "interrupt test (offline)" },
 };
 
 static void tg3_write_indirect_reg32(struct tg3 *tp, u32 off, u32 val)
@@ -7199,11 +7212,19 @@ static int tg3_get_stats_count (struct net_device *dev)
 	return TG3_NUM_STATS;
 }
 
+static int tg3_get_test_count (struct net_device *dev)
+{
+	return TG3_NUM_TEST;
+}
+
 static void tg3_get_strings (struct net_device *dev, u32 stringset, u8 *buf)
 {
 	switch (stringset) {
 	case ETH_SS_STATS:
 		memcpy(buf, &ethtool_stats_keys, sizeof(ethtool_stats_keys));
+		break;
+	case ETH_SS_TEST:
+		memcpy(buf, &ethtool_test_keys, sizeof(ethtool_test_keys));
 		break;
 	default:
 		WARN_ON(1);	/* we need a WARN() */
@@ -7216,6 +7237,11 @@ static void tg3_get_ethtool_stats (struct net_device *dev,
 {
 	struct tg3 *tp = netdev_priv(dev);
 	memcpy(tmp_stats, tg3_get_estats(tp), sizeof(tp->estats));
+}
+
+static void tg3_self_test(struct net_device *dev, struct ethtool_test *etest,
+			  u64 *data)
+{
 }
 
 static int tg3_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
@@ -7331,6 +7357,8 @@ static struct ethtool_ops tg3_ethtool_ops = {
 	.get_tso		= ethtool_op_get_tso,
 	.set_tso		= tg3_set_tso,
 #endif
+	.self_test_count	= tg3_get_test_count,
+	.self_test		= tg3_self_test,
 	.get_strings		= tg3_get_strings,
 	.get_stats_count	= tg3_get_stats_count,
 	.get_ethtool_stats	= tg3_get_ethtool_stats,
