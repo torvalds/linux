@@ -190,6 +190,18 @@ config USB_MTOUCH
 	  To compile this driver as a module, choose M here: the
 	  module will be called mtouchusb.
 
+config USB_ITMTOUCH
+	tristate "ITM Touch USB Touchscreen Driver"
+	depends on USB && INPUT
+	---help---
+	  Say Y here if you want to use a ITM Touch USB
+	  Touchscreen controller.
+
+	  This touchscreen is used in LG 1510SF monitors.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called itmtouch.
+
 config USB_EGALAX
 	tristate "eGalax TouchKit USB Touchscreen Driver"
 	depends on USB && INPUT
