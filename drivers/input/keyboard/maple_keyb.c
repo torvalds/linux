@@ -40,7 +40,6 @@ struct dc_kbd {
 	struct input_dev dev;
 	unsigned char new[8];
 	unsigned char old[8];
-	int open;
 };
 
 
@@ -95,22 +94,6 @@ static void dc_kbd_callback(struct mapleq *mq)
 	}
 }
 
-
-static int dc_kbd_open(struct input_dev *dev)
-{
-	struct dc_kbd *kbd = dev->private;
-	kbd->open++;
-	return 0;
-}
-
-
-static void dc_kbd_close(struct input_dev *dev)
-{
-	struct dc_kbd *kbd = dev->private;
-	kbd->open--;
-}
-
-
 static int dc_kbd_connect(struct maple_device *dev)
 {
 	int i;
@@ -133,9 +116,6 @@ static int dc_kbd_connect(struct maple_device *dev)
 	clear_bit(0, kbd->dev.keybit);
 
 	kbd->dev.private = kbd;
-	kbd->dev.open = dc_kbd_open;
-	kbd->dev.close = dc_kbd_close;
-	kbd->dev.event = NULL;
 
 	kbd->dev.name = dev->product_name;
 	kbd->dev.id.bustype = BUS_MAPLE;
