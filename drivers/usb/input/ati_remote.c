@@ -113,11 +113,11 @@
 #define DATA_BUFSIZE      63    /* size of URB data buffers */
 #define ATI_INPUTNUM      1     /* Which input device to register as */
 
-static unsigned long channel_mask = 0;
+static unsigned long channel_mask;
 module_param(channel_mask, ulong, 0444);
 MODULE_PARM_DESC(channel_mask, "Bitmask of remote control channels to ignore");
 
-static int debug = 0;
+static int debug;
 module_param(debug, int, 0444);
 MODULE_PARM_DESC(debug, "Enable extra debug messages and information");
 
@@ -173,8 +173,6 @@ struct ati_remote {
 	unsigned char *outbuf;
 	dma_addr_t inbuf_dma;
 	dma_addr_t outbuf_dma;
-
-	int open;                   /* open counter */
 
 	unsigned char old_data[2];  /* Detect duplicate events */
 	unsigned long old_jiffies;
@@ -328,25 +326,16 @@ static void ati_remote_dump(unsigned char *data, unsigned int len)
 static int ati_remote_open(struct input_dev *inputdev)
 {
 	struct ati_remote *ati_remote = inputdev->private;
-	int retval = 0;
-
-	down(&disconnect_sem);
-
-	if (ati_remote->open++)
-		goto exit;
 
 	/* On first open, submit the read urb which was set up previously. */
 	ati_remote->irq_urb->dev = ati_remote->udev;
 	if (usb_submit_urb(ati_remote->irq_urb, GFP_KERNEL)) {
 		dev_err(&ati_remote->interface->dev,
 			"%s: usb_submit_urb failed!\n", __FUNCTION__);
-		ati_remote->open--;
-		retval = -EIO;
+		return -EIO;
 	}
 
-exit:
-	up(&disconnect_sem);
-	return retval;
+	return 0;
 }
 
 /*
@@ -356,8 +345,7 @@ static void ati_remote_close(struct input_dev *inputdev)
 {
 	struct ati_remote *ati_remote = inputdev->private;
 
-	if (!--ati_remote->open)
-		usb_kill_urb(ati_remote->irq_urb);
+	usb_kill_urb(ati_remote->irq_urb);
 }
 
 /*
@@ -602,8 +590,6 @@ static void ati_remote_irq_in(struct urb *urb, struct pt_regs *regs)
  */
 static void ati_remote_delete(struct ati_remote *ati_remote)
 {
-	if (!ati_remote) return;
-
 	if (ati_remote->irq_urb)
 		usb_kill_urb(ati_remote->irq_urb);
 
@@ -799,8 +785,6 @@ static void ati_remote_disconnect(struct usb_interface *interface)
 {
 	struct ati_remote *ati_remote;
 
-	down(&disconnect_sem);
-
 	ati_remote = usb_get_intfdata(interface);
 	usb_set_intfdata(interface, NULL);
 	if (!ati_remote) {
@@ -809,8 +793,6 @@ static void ati_remote_disconnect(struct usb_interface *interface)
 	}
 
 	ati_remote_delete(ati_remote);
-
-	up(&disconnect_sem);
 }
 
 /*

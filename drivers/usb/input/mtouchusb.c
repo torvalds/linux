@@ -98,7 +98,6 @@ struct mtouch_usb {
 	struct urb *irq;
 	struct usb_device *udev;
 	struct input_dev input;
-	int open;
 	char name[128];
 	char phys[64];
 };
@@ -155,15 +154,10 @@ static int mtouchusb_open(struct input_dev *input)
 {
 	struct mtouch_usb *mtouch = input->private;
 
-	if (mtouch->open++)
-		return 0;
-
 	mtouch->irq->dev = mtouch->udev;
 
-	if (usb_submit_urb(mtouch->irq, GFP_ATOMIC)) {
-		mtouch->open--;
+	if (usb_submit_urb(mtouch->irq, GFP_ATOMIC))
 		return -EIO;
-	}
 
 	return 0;
 }
@@ -172,8 +166,7 @@ static void mtouchusb_close(struct input_dev *input)
 {
 	struct mtouch_usb *mtouch = input->private;
 
-	if (!--mtouch->open)
-		usb_kill_urb(mtouch->irq);
+	usb_kill_urb(mtouch->irq);
 }
 
 static int mtouchusb_alloc_buffers(struct usb_device *udev, struct mtouch_usb *mtouch)

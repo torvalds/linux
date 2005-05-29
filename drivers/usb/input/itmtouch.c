@@ -137,15 +137,10 @@ static int itmtouch_open(struct input_dev *input)
 {
 	struct itmtouch_dev *itmtouch = input->private;
 
-	if (itmtouch->users++)
-		return 0;
-
 	itmtouch->readurb->dev = itmtouch->usbdev;
 
-	if (usb_submit_urb(itmtouch->readurb, GFP_KERNEL)) {
-		itmtouch->users--;
+	if (usb_submit_urb(itmtouch->readurb, GFP_KERNEL))
 		return -EIO;
-	}
 
 	return 0;
 }
@@ -154,8 +149,7 @@ static void itmtouch_close(struct input_dev *input)
 {
 	struct itmtouch_dev *itmtouch = input->private;
 
-	if (!--itmtouch->users)
-		usb_kill_urb(itmtouch->readurb);
+	usb_kill_urb(itmtouch->readurb);
 }
 
 static int itmtouch_probe(struct usb_interface *intf, const struct usb_device_id *id)

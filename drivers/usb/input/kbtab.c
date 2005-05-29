@@ -36,7 +36,6 @@ struct kbtab {
 	struct input_dev dev;
 	struct usb_device *usbdev;
 	struct urb *irq;
-	int open;
 	int x, y;
 	int button;
 	int pressure;
@@ -105,14 +104,9 @@ static int kbtab_open(struct input_dev *dev)
 {
 	struct kbtab *kbtab = dev->private;
 
-	if (kbtab->open++)
-		return 0;
-
 	kbtab->irq->dev = kbtab->usbdev;
-	if (usb_submit_urb(kbtab->irq, GFP_KERNEL)) {
-		kbtab->open--;
+	if (usb_submit_urb(kbtab->irq, GFP_KERNEL))
 		return -EIO;
-	}
 
 	return 0;
 }
@@ -121,8 +115,7 @@ static void kbtab_close(struct input_dev *dev)
 {
 	struct kbtab *kbtab = dev->private;
 
-	if (!--kbtab->open)
-		usb_kill_urb(kbtab->irq);
+	usb_kill_urb(kbtab->irq);
 }
 
 static int kbtab_probe(struct usb_interface *intf, const struct usb_device_id *id)

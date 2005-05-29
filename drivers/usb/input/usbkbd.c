@@ -72,7 +72,6 @@ struct usb_kbd {
 	unsigned char newleds;
 	char name[128];
 	char phys[64];
-	int open;
 
 	unsigned char *new;
 	struct usb_ctrlrequest *cr;
@@ -180,14 +179,9 @@ static int usb_kbd_open(struct input_dev *dev)
 {
 	struct usb_kbd *kbd = dev->private;
 
-	if (kbd->open++)
-		return 0;
-
 	kbd->irq->dev = kbd->usbdev;
-	if (usb_submit_urb(kbd->irq, GFP_KERNEL)) {
-		kbd->open--;
+	if (usb_submit_urb(kbd->irq, GFP_KERNEL))
 		return -EIO;
-	}
 
 	return 0;
 }
@@ -196,8 +190,7 @@ static void usb_kbd_close(struct input_dev *dev)
 {
 	struct usb_kbd *kbd = dev->private;
 
-	if (!--kbd->open)
-		usb_kill_urb(kbd->irq);
+	usb_kill_urb(kbd->irq);
 }
 
 static int usb_kbd_alloc_mem(struct usb_device *dev, struct usb_kbd *kbd)

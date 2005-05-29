@@ -324,7 +324,6 @@ struct aiptek {
 	struct aiptek_settings curSetting;	/* tablet's current programmable */
 	struct aiptek_settings newSetting;	/* ... and new param settings    */
 	unsigned int ifnum;			/* interface number for IO       */
-	int openCount;				/* module use counter            */
 	int diagnostic;				/* tablet diagnostic codes       */
 	unsigned long eventCount;		/* event count                   */
 	int inDelay;				/* jitter: in jitter delay?      */
@@ -814,15 +813,9 @@ static int aiptek_open(struct input_dev *inputdev)
 {
 	struct aiptek *aiptek = inputdev->private;
 
-	if (aiptek->openCount++ > 0) {
-		return 0;
-	}
-
 	aiptek->urb->dev = aiptek->usbdev;
-	if (usb_submit_urb(aiptek->urb, GFP_KERNEL) != 0) {
-		aiptek->openCount--;
+	if (usb_submit_urb(aiptek->urb, GFP_KERNEL) != 0)
 		return -EIO;
-	}
 
 	return 0;
 }
@@ -834,9 +827,7 @@ static void aiptek_close(struct input_dev *inputdev)
 {
 	struct aiptek *aiptek = inputdev->private;
 
-	if (--aiptek->openCount == 0) {
-		usb_kill_urb(aiptek->urb);
-	}
+	usb_kill_urb(aiptek->urb);
 }
 
 /***********************************************************************
@@ -2252,7 +2243,6 @@ static void aiptek_disconnect(struct usb_interface *intf)
 				AIPTEK_PACKET_LENGTH,
 				aiptek->data, aiptek->data_dma);
 		kfree(aiptek);
-		aiptek = NULL;
 	}
 }
 

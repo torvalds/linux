@@ -102,7 +102,6 @@ struct wacom {
 	struct urb *irq;
 	struct wacom_features *features;
 	int tool[2];
-	int open;
 	__u32 serial[2];
 	char phys[32];
 };
@@ -771,14 +770,9 @@ static int wacom_open(struct input_dev *dev)
 {
 	struct wacom *wacom = dev->private;
 
-	if (wacom->open++)
-		return 0;
-
 	wacom->irq->dev = wacom->usbdev;
-	if (usb_submit_urb(wacom->irq, GFP_KERNEL)) {
-		wacom->open--;
+	if (usb_submit_urb(wacom->irq, GFP_KERNEL))
 		return -EIO;
-	}
 
 	return 0;
 }
@@ -787,8 +781,7 @@ static void wacom_close(struct input_dev *dev)
 {
 	struct wacom *wacom = dev->private;
 
-	if (!--wacom->open)
-		usb_kill_urb(wacom->irq);
+	usb_kill_urb(wacom->irq);
 }
 
 static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *id)

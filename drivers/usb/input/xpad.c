@@ -110,7 +110,6 @@ struct usb_xpad {
 	dma_addr_t idata_dma;
 
 	char phys[65];				/* physical device path */
-	int open_count;				/* reference count */
 };
 
 /*
@@ -197,14 +196,9 @@ static int xpad_open (struct input_dev *dev)
 {
 	struct usb_xpad *xpad = dev->private;
 
-	if (xpad->open_count++)
-		return 0;
-
 	xpad->irq_in->dev = xpad->udev;
-	if (usb_submit_urb(xpad->irq_in, GFP_KERNEL)) {
-		xpad->open_count--;
+	if (usb_submit_urb(xpad->irq_in, GFP_KERNEL))
 		return -EIO;
-	}
 
 	return 0;
 }
@@ -213,8 +207,7 @@ static void xpad_close (struct input_dev *dev)
 {
 	struct usb_xpad *xpad = dev->private;
 
-	if (!--xpad->open_count)
-		usb_kill_urb(xpad->irq_in);
+	usb_kill_urb(xpad->irq_in);
 }
 
 static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id)

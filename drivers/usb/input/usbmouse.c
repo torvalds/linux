@@ -51,7 +51,6 @@ struct usb_mouse {
 	struct usb_device *usbdev;
 	struct input_dev dev;
 	struct urb *irq;
-	int open;
 
 	signed char *data;
 	dma_addr_t data_dma;
@@ -101,14 +100,9 @@ static int usb_mouse_open(struct input_dev *dev)
 {
 	struct usb_mouse *mouse = dev->private;
 
-	if (mouse->open++)
-		return 0;
-
 	mouse->irq->dev = mouse->usbdev;
-	if (usb_submit_urb(mouse->irq, GFP_KERNEL)) {
-		mouse->open--;
+	if (usb_submit_urb(mouse->irq, GFP_KERNEL))
 		return -EIO;
-	}
 
 	return 0;
 }
@@ -117,8 +111,7 @@ static void usb_mouse_close(struct input_dev *dev)
 {
 	struct usb_mouse *mouse = dev->private;
 
-	if (!--mouse->open)
-		usb_kill_urb(mouse->irq);
+	usb_kill_urb(mouse->irq);
 }
 
 static int usb_mouse_probe(struct usb_interface * intf, const struct usb_device_id * id)
