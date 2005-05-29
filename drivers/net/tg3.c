@@ -4370,7 +4370,12 @@ static int tg3_load_firmware_cpu(struct tg3 *tp, u32 cpu_base, u32 cpu_scratch_b
 	 */
 	tp->tg3_flags |= TG3_FLAG_PCIX_TARGET_HWBUG;
 
+	/* It is possible that bootcode is still loading at this point.
+	 * Get the nvram lock first before halting the cpu.
+	 */
+	tg3_nvram_lock(tp);
 	err = tg3_halt_cpu(tp, cpu_base);
+	tg3_nvram_unlock(tp);
 	if (err)
 		goto out;
 
