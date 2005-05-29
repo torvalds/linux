@@ -491,7 +491,9 @@ static long evdev_ioctl_compat(struct file *file, unsigned int cmd, unsigned lon
 	struct input_dev *dev = evdev->handle.dev;
 	struct input_absinfo abs;
 	void __user *p = compat_ptr(arg);
+#ifdef __BIG_ENDIAN
 	int i;
+#endif
 
 	if (!evdev->exist) return -ENODEV;
 
