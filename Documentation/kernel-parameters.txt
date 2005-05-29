@@ -1104,7 +1104,7 @@ running once the system is up.
 			See Documentation/ramdisk.txt.
 
 	psmouse.proto=  [HW,MOUSE] Highest PS2 mouse protocol extension to
-			probe for (bare|imps|exps).
+			probe for (bare|imps|exps|lifebook|any).
 	psmouse.rate=	[HW,MOUSE] Set desired mouse report rate, in reports
 			per second.
 	psmouse.resetafter=

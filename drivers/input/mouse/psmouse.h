@@ -77,6 +77,7 @@ enum psmouse_type {
 	PSMOUSE_IMEX,
 	PSMOUSE_SYNAPTICS,
 	PSMOUSE_ALPS,
+	PSMOUSE_LIFEBOOK,
 };
 
 int psmouse_sliced_command(struct psmouse *psmouse, unsigned char command);

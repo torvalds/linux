@@ -24,6 +24,7 @@
 #include "synaptics.h"
 #include "logips2pp.h"
 #include "alps.h"
+#include "lifebook.h"
 
 #define DRIVER_DESC	"PS/2 mouse driver"
 
@@ -34,12 +35,12 @@ MODULE_LICENSE("GPL");
 static unsigned int psmouse_max_proto = -1U;
 static int psmouse_set_maxproto(const char *val, struct kernel_param *kp);
 static int psmouse_get_maxproto(char *buffer, struct kernel_param *kp);
-static char *psmouse_proto_abbrev[] = { NULL, "bare", NULL, NULL, NULL, "imps", "exps", NULL, NULL, NULL };
+static char *psmouse_proto_abbrev[] = { NULL, "bare", NULL, NULL, NULL, "imps", "exps", NULL, NULL, "lifebook" };
 #define param_check_proto_abbrev(name, p)	__param_check(name, p, unsigned int)
 #define param_set_proto_abbrev			psmouse_set_maxproto
 #define param_get_proto_abbrev			psmouse_get_maxproto
 module_param_named(proto, psmouse_max_proto, proto_abbrev, 0644);
-MODULE_PARM_DESC(proto, "Highest protocol extension to probe (bare, imps, exps, any). Useful for KVM switches.");
+MODULE_PARM_DESC(proto, "Highest protocol extension to probe (bare, imps, exps, lifebook, any). Useful for KVM switches.");
 
 static unsigned int psmouse_resolution = 200;
 module_param_named(resolution, psmouse_resolution, uint, 0644);
@@ -67,7 +68,7 @@ __obsolete_setup("psmouse_smartscroll=");
 __obsolete_setup("psmouse_resetafter=");
 __obsolete_setup("psmouse_rate=");
 
-static char *psmouse_protocols[] = { "None", "PS/2", "PS2++", "ThinkPS/2", "GenPS/2", "ImPS/2", "ImExPS/2", "SynPS/2", "AlpsPS/2" };
+static char *psmouse_protocols[] = { "None", "PS/2", "PS2++", "ThinkPS/2", "GenPS/2", "ImPS/2", "ImExPS/2", "SynPS/2", "AlpsPS/2", "LBPS/2" };
 
 /*
  * psmouse_process_byte() analyzes the PS/2 data stream and reports
@@ -423,6 +424,9 @@ static int psmouse_extensions(struct psmouse *psmouse,
 {
 	int synaptics_hardware = 0;
 
+	if (lifebook_detect(psmouse, max_proto, set_properties) == 0)
+		return PSMOUSE_LIFEBOOK;
+
 /*
  * Try Kensington ThinkingMouse (we try first, because synaptics probe
  * upsets the thinkingmouse).
@@ -575,6 +579,8 @@ static void psmouse_set_rate(struct psmouse *psmouse, unsigned int rate)
 
 static void psmouse_initialize(struct psmouse *psmouse)
 {
+        if (psmouse->type==PSMOUSE_LIFEBOOK)
+                return;
 /*
  * We set the mouse into streaming mode.
  */
