@@ -579,8 +579,6 @@ static void psmouse_set_rate(struct psmouse *psmouse, unsigned int rate)
 
 static void psmouse_initialize(struct psmouse *psmouse)
 {
-        if (psmouse->type==PSMOUSE_LIFEBOOK)
-                return;
 /*
  * We set the mouse into streaming mode.
  */

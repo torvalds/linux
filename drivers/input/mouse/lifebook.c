@@ -20,12 +20,9 @@
 #include "psmouse.h"
 #include "lifebook.h"
 
-static int max_y = 1024;
-
-
 static struct dmi_system_id lifebook_dmi_table[] = {
        {
-               .ident = "Fujitsu Siemens Lifebook B-Sereis",
+               .ident = "Lifebook B",
                .matches = {
                        DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK B Series"),
                },
@@ -39,7 +36,7 @@ static psmouse_ret_t lifebook_process_byte(struct psmouse *psmouse, struct pt_re
 	unsigned char *packet = psmouse->packet;
 	struct input_dev *dev = &psmouse->dev;
 
-	if ( psmouse->pktcnt != 3 )
+	if (psmouse->pktcnt != 3)
 		return PSMOUSE_GOOD_DATA;
 
 	input_regs(dev, regs);
@@ -49,12 +46,12 @@ static psmouse_ret_t lifebook_process_byte(struct psmouse *psmouse, struct pt_re
 		input_report_abs(dev, ABS_X,
 				 (packet[1] | ((packet[0] & 0x30) << 4)));
 		input_report_abs(dev, ABS_Y,
-				 max_y - (packet[2] | ((packet[0] & 0xC0) << 2)));
+				 1024 - (packet[2] | ((packet[0] & 0xC0) << 2)));
 	} else {
-		input_report_rel(dev, REL_X, 
-				((packet[0] & 0x10) ? packet[1]-256 : packet[1]));
-		input_report_rel(dev, REL_Y, 
-				(- (int)((packet[0] & 0x20) ? packet[2]-256 : packet[2])));
+		input_report_rel(dev, REL_X,
+				((packet[0] & 0x10) ? packet[1] - 256 : packet[1]));
+		input_report_rel(dev, REL_Y,
+				 -(int)((packet[0] & 0x20) ? packet[2] - 256 : packet[2]));
 	}
 
 	input_report_key(dev, BTN_LEFT, packet[0] & 0x01);
@@ -71,25 +68,16 @@ static int lifebook_initialize(struct psmouse *psmouse)
 	struct ps2dev *ps2dev = &psmouse->ps2dev;
 	unsigned char param;
 
-	if (ps2_command(ps2dev, NULL, PSMOUSE_CMD_DISABLE))
+	if (psmouse_reset(psmouse))
 		return -1;
 
-	if (ps2_command(ps2dev, NULL, PSMOUSE_CMD_RESET_BAT))
-		return -1;
-
-	/* 
+	/*
 	   Enable absolute output -- ps2_command fails always but if
 	   you leave this call out the touchsreen will never send
 	   absolute coordinates
-	*/ 
+	*/
 	param = 0x07;
 	ps2_command(ps2dev, &param, PSMOUSE_CMD_SETRES);
-
-	psmouse->set_rate(psmouse, psmouse->rate);
-	psmouse->set_resolution(psmouse, psmouse->resolution);
-	
-	if (ps2_command(ps2dev, NULL, PSMOUSE_CMD_ENABLE))
-		return -1;
 
 	return 0;
 }
@@ -99,11 +87,10 @@ static void lifebook_disconnect(struct psmouse *psmouse)
 	psmouse_reset(psmouse);
 }
 
-int lifebook_detect(struct psmouse *psmouse, unsigned int max_proto, 
+int lifebook_detect(struct psmouse *psmouse, unsigned int max_proto,
                     int set_properties)
 {
-        if (!dmi_check_system(lifebook_dmi_table) && 
-            (max_proto != PSMOUSE_LIFEBOOK) )
+        if (!dmi_check_system(lifebook_dmi_table) && max_proto != PSMOUSE_LIFEBOOK)
                 return -1;
 
 	if (set_properties) {
