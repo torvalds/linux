@@ -682,6 +682,7 @@ int dev_ethtool(struct ifreq *ifr)
 	void __user *useraddr = ifr->ifr_data;
 	u32 ethcmd;
 	int rc;
+	int old_features;
 
 	/*
 	 * XXX: This can be pushed down into the ethtool_* handlers that
@@ -703,6 +704,8 @@ int dev_ethtool(struct ifreq *ifr)
 		if ((rc = dev->ethtool_ops->begin(dev)) < 0)
 			return rc;
 
+	old_features = dev->features;
+
 	switch (ethcmd) {
 	case ETHTOOL_GSET:
 		rc = ethtool_get_settings(dev, useraddr);
@@ -712,7 +715,6 @@ int dev_ethtool(struct ifreq *ifr)
 		break;
 	case ETHTOOL_GDRVINFO:
 		rc = ethtool_get_drvinfo(dev, useraddr);
-
 		break;
 	case ETHTOOL_GREGS:
 		rc = ethtool_get_regs(dev, useraddr);
@@ -801,6 +803,10 @@ int dev_ethtool(struct ifreq *ifr)
 	
 	if(dev->ethtool_ops->complete)
 		dev->ethtool_ops->complete(dev);
+
+	if (old_features != dev->features)
+		netdev_features_change(dev);
+
 	return rc;
 
  ioctl:
