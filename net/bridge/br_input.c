@@ -26,7 +26,7 @@ static int br_pass_frame_up_finish(struct sk_buff *skb)
 #ifdef CONFIG_NETFILTER_DEBUG
 	skb->nf_debug = 0;
 #endif
-	netif_rx(skb);
+	netif_receive_skb(skb);
 
 	return 0;
 }
