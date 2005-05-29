@@ -61,11 +61,11 @@ static struct alps_model_info alps_model_data[] = {
 
 /*
  * ALPS abolute Mode - new format
- * 
- * byte 0:  1    ?    ?    ?    1    ?    ?    ? 
+ *
+ * byte 0:  1    ?    ?    ?    1    ?    ?    ?
  * byte 1:  0   x6   x5   x4   x3   x2   x1   x0
  * byte 2:  0   x10  x9   x8   x7    ?  fin  ges
- * byte 3:  0   y9   y8   y7    1    M    R    L 
+ * byte 3:  0   y9   y8   y7    1    M    R    L
  * byte 4:  0   y6   y5   y4   y3   y2   y1   y0
  * byte 5:  0   z6   z5   z4   z3   z2   z1   z0
  *
@@ -85,7 +85,7 @@ static void alps_process_packet(struct psmouse *psmouse, struct pt_regs *regs)
 	input_regs(dev, regs);
 
 	if ((packet[0] & 0xc8) == 0x08) {   /* 3-byte PS/2 packet */
-		input_report_key(dev2, BTN_LEFT,   packet[0] & 1);    
+		input_report_key(dev2, BTN_LEFT,   packet[0] & 1);
 		input_report_key(dev2, BTN_RIGHT,  packet[0] & 2);
 		input_report_key(dev2, BTN_MIDDLE, packet[0] & 4);
 		input_report_rel(dev2, REL_X,
@@ -436,8 +436,8 @@ int alps_init(struct psmouse *psmouse)
 	priv->dev2.id.bustype = BUS_I8042;
 	priv->dev2.id.vendor = 0x0002;
 	priv->dev2.id.product = PSMOUSE_ALPS;
-	priv->dev2.id.version = 0x0000; 
-	
+	priv->dev2.id.version = 0x0000;
+
 	priv->dev2.evbit[0] = BIT(EV_KEY) | BIT(EV_REL);
 	priv->dev2.relbit[LONG(REL_X)] |= BIT(REL_X) | BIT(REL_Y);
 	priv->dev2.keybit[LONG(BTN_LEFT)] |= BIT(BTN_LEFT) | BIT(BTN_MIDDLE) | BIT(BTN_RIGHT);
@@ -461,17 +461,15 @@ init_fail:
 int alps_detect(struct psmouse *psmouse, int set_properties)
 {
 	int version;
-	struct alps_model_info *model; 
+	struct alps_model_info *model;
 
 	if (!(model = alps_get_model(psmouse, &version)))
 		return -1;
 
 	if (set_properties) {
 		psmouse->vendor = "ALPS";
-		if (model->flags & ALPS_DUALPOINT) 
-			psmouse->name = "DualPoint TouchPad";
-		else
-			psmouse->name = "GlidePoint";
+		psmouse->name = model->flags & ALPS_DUALPOINT ?
+				"DualPoint TouchPad" : "GlidePoint";
 		psmouse->model = version;
 	}
 	return 0;

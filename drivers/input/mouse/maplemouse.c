@@ -1,6 +1,6 @@
 /*
  *	$Id: maplemouse.c,v 1.2 2004/03/22 01:18:15 lethal Exp $
- * 	SEGA Dreamcast mouse driver
+ *	SEGA Dreamcast mouse driver
  *	Based on drivers/usb/usbmouse.c
  */
 
@@ -83,7 +83,7 @@ static int dc_mouse_connect(struct maple_device *dev)
 
 	mouse->dev.name = dev->product_name;
 	mouse->dev.id.bustype = BUS_MAPLE;
-	
+
 	input_register_device(&mouse->dev);
 
 	maple_getcond_callback(dev, dc_mouse_callback, 1, MAPLE_FUNC_MOUSE);

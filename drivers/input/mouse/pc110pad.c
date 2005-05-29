@@ -4,7 +4,7 @@
  *  Copyright (c) 2000-2001 Vojtech Pavlik
  *
  *  Based on the work of:
- *	Alan Cox	Robin O'Leary	
+ *	Alan Cox	Robin O'Leary
  */
 
 /*
@@ -74,7 +74,7 @@ static irqreturn_t pc110pad_interrupt(int irq, void *ptr, struct pt_regs *regs)
 
 	if (pc110pad_count < 3)
 		return IRQ_HANDLED;
-	
+
 	input_regs(&pc110pad_dev, regs);
 	input_report_key(&pc110pad_dev, BTN_TOUCH,
 		pc110pad_data[0] & 0x01);
@@ -145,7 +145,7 @@ static int __init pc110pad_init(void)
 
 	pc110pad_dev.absmax[ABS_X] = 0x1ff;
 	pc110pad_dev.absmax[ABS_Y] = 0x0ff;
-        
+
 	pc110pad_dev.open = pc110pad_open;
         pc110pad_dev.close = pc110pad_close;
 
@@ -156,17 +156,17 @@ static int __init pc110pad_init(void)
 	pc110pad_dev.id.product = 0x0001;
 	pc110pad_dev.id.version = 0x0100;
 
-	input_register_device(&pc110pad_dev);	
+	input_register_device(&pc110pad_dev);
 
 	printk(KERN_INFO "input: %s at %#x irq %d\n",
 		pc110pad_name, pc110pad_io, pc110pad_irq);
-	
+
 	return 0;
 }
- 
+
 static void __exit pc110pad_exit(void)
 {
-	input_unregister_device(&pc110pad_dev);	
+	input_unregister_device(&pc110pad_dev);
 
 	outb(PC110PAD_OFF, pc110pad_io + 2);
 

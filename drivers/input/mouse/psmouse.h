@@ -99,7 +99,7 @@ static ssize_t psmouse_do_set_##_name(struct device *d, const char *b, size_t s)
 {										\
 	return psmouse_attr_set_helper(d, b, s, psmouse_attr_set_##_name);	\
 }										\
-static struct device_attribute psmouse_attr_##_name = 				\
+static struct device_attribute psmouse_attr_##_name =				\
 	__ATTR(_name, S_IWUSR | S_IRUGO,					\
 		psmouse_do_show_##_name, psmouse_do_set_##_name);
 
