@@ -56,7 +56,6 @@ static int pc110pad_io = 0x15e0;
 static struct input_dev pc110pad_dev;
 static int pc110pad_data[3];
 static int pc110pad_count;
-static int pc110pad_used;
 
 static char *pc110pad_name = "IBM PC110 TouchPad";
 static char *pc110pad_phys = "isa15e0/input0";
@@ -90,15 +89,11 @@ static irqreturn_t pc110pad_interrupt(int irq, void *ptr, struct pt_regs *regs)
 
 static void pc110pad_close(struct input_dev *dev)
 {
-	if (!--pc110pad_used)
-		outb(PC110PAD_OFF, pc110pad_io + 2);
+	outb(PC110PAD_OFF, pc110pad_io + 2);
 }
 
 static int pc110pad_open(struct input_dev *dev)
 {
-	if (pc110pad_used++)
-		return 0;
-
 	pc110pad_interrupt(0,NULL,NULL);
 	pc110pad_interrupt(0,NULL,NULL);
 	pc110pad_interrupt(0,NULL,NULL);

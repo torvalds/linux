@@ -87,29 +87,23 @@ MODULE_PARM_DESC(irq, "IRQ number (5=default)");
 
 __obsolete_setup("inport_irq=");
 
-static int inport_used;
-
 static irqreturn_t inport_interrupt(int irq, void *dev_id, struct pt_regs *regs);
 
 static int inport_open(struct input_dev *dev)
 {
-	if (!inport_used++) {
-		if (request_irq(inport_irq, inport_interrupt, 0, "inport", NULL))
-			return -EBUSY;
-		outb(INPORT_REG_MODE, INPORT_CONTROL_PORT);
-		outb(INPORT_MODE_IRQ | INPORT_MODE_BASE, INPORT_DATA_PORT);
-	}
+	if (request_irq(inport_irq, inport_interrupt, 0, "inport", NULL))
+		return -EBUSY;
+	outb(INPORT_REG_MODE, INPORT_CONTROL_PORT);
+	outb(INPORT_MODE_IRQ | INPORT_MODE_BASE, INPORT_DATA_PORT);
 
 	return 0;
 }
 
 static void inport_close(struct input_dev *dev)
 {
-	if (!--inport_used) {
-		outb(INPORT_REG_MODE, INPORT_CONTROL_PORT);
-		outb(INPORT_MODE_BASE, INPORT_DATA_PORT);
-		free_irq(inport_irq, NULL);
-	}
+	outb(INPORT_REG_MODE, INPORT_CONTROL_PORT);
+	outb(INPORT_MODE_BASE, INPORT_DATA_PORT);
+	free_irq(inport_irq, NULL);
 }
 
 static struct input_dev inport_dev = {

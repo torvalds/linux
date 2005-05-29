@@ -77,16 +77,11 @@ MODULE_PARM_DESC(irq, "IRQ number (5=default)");
 
 __obsolete_setup("logibm_irq=");
 
-static int logibm_used = 0;
-
 static irqreturn_t logibm_interrupt(int irq, void *dev_id, struct pt_regs *regs);
 
 static int logibm_open(struct input_dev *dev)
 {
-	if (logibm_used++)
-		return 0;
 	if (request_irq(logibm_irq, logibm_interrupt, 0, "logibm", NULL)) {
-		logibm_used--;
 		printk(KERN_ERR "logibm.c: Can't allocate irq %d\n", logibm_irq);
 		return -EBUSY;
 	}
@@ -96,8 +91,6 @@ static int logibm_open(struct input_dev *dev)
 
 static void logibm_close(struct input_dev *dev)
 {
-	if (--logibm_used)
-		return;
 	outb(LOGIBM_DISABLE_IRQ, LOGIBM_CONTROL_PORT);
 	free_irq(logibm_irq, NULL);
 }
