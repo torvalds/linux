@@ -1233,6 +1233,13 @@ int hid_wait_io(struct hid_device *hid)
 	return 0;
 }
 
+static int hid_set_idle(struct usb_device *dev, int ifnum, int report, int idle)
+{
+	usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
+		HID_REQ_SET_IDLE, USB_TYPE_CLASS | USB_RECIP_INTERFACE, (idle << 8) | report,
+		ifnum, NULL, 0, USB_CTRL_SET_TIMEOUT);
+}
+
 static int hid_get_class_descriptor(struct usb_device *dev, int ifnum,
 		unsigned char type, void *buf, int size)
 {
@@ -1301,10 +1308,6 @@ void hid_init_reports(struct hid_device *hid)
 
 	if (err)
 		warn("timeout initializing reports\n");
-
-	usb_control_msg(hid->dev, usb_sndctrlpipe(hid->dev, 0),
-		HID_REQ_SET_IDLE, USB_TYPE_CLASS | USB_RECIP_INTERFACE, 0,
-		hid->ifnum, NULL, 0, USB_CTRL_SET_TIMEOUT);
 }
 
 #define USB_VENDOR_ID_WACOM		0x056a
@@ -1571,6 +1574,8 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 		dbg("couldn't allocate rdesc memory");
 		return NULL;
 	}
+
+	hid_set_idle(dev, interface->desc.bInterfaceNumber, 0, 0);
 
 	if ((n = hid_get_class_descriptor(dev, interface->desc.bInterfaceNumber, HID_DT_REPORT, rdesc, rsize)) < 0) {
 		dbg("reading report descriptor failed");
