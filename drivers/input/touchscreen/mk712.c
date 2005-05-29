@@ -77,7 +77,6 @@ MODULE_PARM_DESC(irq, "IRQ of MK712 touchscreen controller");
 #define MK712_READ_ONE_POINT			0x20
 #define MK712_POWERUP				0x40
 
-static int mk712_used = 0;
 static struct input_dev mk712_dev;
 static DEFINE_SPINLOCK(mk712_lock);
 
@@ -130,17 +129,14 @@ static int mk712_open(struct input_dev *dev)
 
 	spin_lock_irqsave(&mk712_lock, flags);
 
-	if (!mk712_used++) {
+	outb(0, mk712_io + MK712_CONTROL); /* Reset */
 
-		outb(0, mk712_io + MK712_CONTROL); /* Reset */
+	outb(MK712_ENABLE_INT | MK712_INT_ON_CONVERSION_COMPLETE |
+		MK712_INT_ON_CHANGE_IN_TOUCH_STATUS |
+		MK712_ENABLE_PERIODIC_CONVERSIONS |
+		MK712_POWERUP, mk712_io + MK712_CONTROL);
 
-		outb(MK712_ENABLE_INT | MK712_INT_ON_CONVERSION_COMPLETE |
-			MK712_INT_ON_CHANGE_IN_TOUCH_STATUS |
-			MK712_ENABLE_PERIODIC_CONVERSIONS |
-			MK712_POWERUP, mk712_io + MK712_CONTROL);
-
-		outb(10, mk712_io + MK712_RATE); /* 187 points per second */
-	}
+	outb(10, mk712_io + MK712_RATE); /* 187 points per second */
 
 	spin_unlock_irqrestore(&mk712_lock, flags);
 
@@ -153,8 +149,7 @@ static void mk712_close(struct input_dev *dev)
 
 	spin_lock_irqsave(&mk712_lock, flags);
 
-	if (!--mk712_used)
-		outb(0, mk712_io + MK712_CONTROL);
+	outb(0, mk712_io + MK712_CONTROL);
 
 	spin_unlock_irqrestore(&mk712_lock, flags);
 }
