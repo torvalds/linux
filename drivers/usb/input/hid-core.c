@@ -232,7 +232,7 @@ static int hid_add_field(struct hid_parser *parser, unsigned report_type, unsign
 	report->size += parser->global.report_size * parser->global.report_count;
 
 	if (!parser->local.usage_index) /* Ignore padding fields */
-		return 0; 
+		return 0;
 
 	usages = max_t(int, parser->local.usage_index, parser->global.report_count);
 
@@ -1622,7 +1622,7 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 		/* Change the polling interval of mice. */
 		if (hid->collection->usage == HID_GD_MOUSE && hid_mousepoll_interval > 0)
 			interval = hid_mousepoll_interval;
-		
+
 		if (endpoint->bEndpointAddress & USB_DIR_IN) {
 			if (hid->urbin)
 				continue;

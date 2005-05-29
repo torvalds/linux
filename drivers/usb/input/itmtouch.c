@@ -18,14 +18,14 @@
  * Based upon original work by Chris Collins <xfire-itmtouch@xware.cx>.
  *
  * Kudos to ITM for providing me with the datasheet for the panel,
- * even though it was a day later than I had finished writing this 
+ * even though it was a day later than I had finished writing this
  * driver.
- * 
+ *
  * It has meant that I've been able to correct my interpretation of the
  * protocol packets however.
- * 
+ *
  * CC -- 2003/9/29
- * 
+ *
  * History
  * 1.0 & 1.1  2003 (CC) vojtech@suse.cz
  *   Original version for 2.4.x kernels
@@ -33,10 +33,10 @@
  * 1.2  02/03/2005 (HCE) hc@mivu.no
  *   Complete rewrite to support Linux 2.6.10, thanks to mtouchusb.c for hints.
  *   Unfortunately no calibration support at this time.
- * 
+ *
  * 1.2.1  09/03/2005 (HCE) hc@mivu.no
  *   Code cleanup and adjusting syntax to start matching kernel standards
- * 
+ *
  *****************************************************************************/
 
 #include <linux/config.h>
@@ -71,7 +71,7 @@ MODULE_DESCRIPTION( DRIVER_DESC );
 MODULE_LICENSE( DRIVER_LICENSE );
 
 struct itmtouch_dev {
-	struct usb_device 	*usbdev; /* usb device */
+	struct usb_device	*usbdev; /* usb device */
 	struct input_dev	inputdev; /* input device */
 	struct urb		*readurb; /* urb */
 	char			rbuf[ITM_BUFSIZE]; /* data */
@@ -121,7 +121,7 @@ static void itmtouch_irq(struct urb *urb, struct pt_regs *regs)
 		input_report_abs(dev, ABS_X, (data[0] & 0x1F) << 7 | (data[3] & 0x7F));
 		input_report_abs(dev, ABS_Y, (data[1] & 0x1F) << 7 | (data[4] & 0x7F));
 	}
-	
+
 	input_report_abs(dev, ABS_PRESSURE, (data[2] & 1) << 7 | (data[5] & 0x7F));
 	input_report_key(dev, BTN_TOUCH, ~data[7] & 0x20);
 	input_sync(dev);
@@ -142,8 +142,7 @@ static int itmtouch_open(struct input_dev *input)
 
 	itmtouch->readurb->dev = itmtouch->usbdev;
 
-	if (usb_submit_urb(itmtouch->readurb, GFP_KERNEL))
-	{
+	if (usb_submit_urb(itmtouch->readurb, GFP_KERNEL)) {
 		itmtouch->users--;
 		return -EIO;
 	}
@@ -178,13 +177,13 @@ static int itmtouch_probe(struct usb_interface *intf, const struct usb_device_id
 	}
 
 	itmtouch->usbdev = udev;
-	
+
 	itmtouch->inputdev.private = itmtouch;
 	itmtouch->inputdev.open = itmtouch_open;
 	itmtouch->inputdev.close = itmtouch_close;
 
 	usb_make_path(udev, path, PATH_SIZE);
-	
+
 	itmtouch->inputdev.evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
 	itmtouch->inputdev.absbit[0] = BIT(ABS_X) | BIT(ABS_Y) | BIT(ABS_PRESSURE);
 	itmtouch->inputdev.keybit[LONG(BTN_TOUCH)] = BIT(BTN_TOUCH);
@@ -194,12 +193,12 @@ static int itmtouch_probe(struct usb_interface *intf, const struct usb_device_id
 	itmtouch->inputdev.id.bustype = BUS_USB;
 	itmtouch->inputdev.id.vendor = udev->descriptor.idVendor;
 	itmtouch->inputdev.id.product = udev->descriptor.idProduct;
-	itmtouch->inputdev.id.version = udev->descriptor.bcdDevice;	
+	itmtouch->inputdev.id.version = udev->descriptor.bcdDevice;
 	itmtouch->inputdev.dev = &intf->dev;
 
 	if (!strlen(itmtouch->name))
 		sprintf(itmtouch->name, "USB ITM touchscreen");
-	
+
 	/* device limits */
 	/* as specified by the ITM datasheet, X and Y are 12bit,
 	 * Z (pressure) is 8 bit. However, the fields are defined up
@@ -212,26 +211,20 @@ static int itmtouch_probe(struct usb_interface *intf, const struct usb_device_id
 	/* initialise the URB so we can read from the transport stream */
 	pipe = usb_rcvintpipe(itmtouch->usbdev, endpoint->bEndpointAddress);
 	maxp = usb_maxpacket(udev, pipe, usb_pipeout(pipe));
-	
+
 	if (maxp > ITM_BUFSIZE)
 		maxp = ITM_BUFSIZE;
 
 	itmtouch->readurb = usb_alloc_urb(0, GFP_KERNEL);
-	
+
 	if (!itmtouch->readurb) {
 		dbg("%s - usb_alloc_urb failed: itmtouch->readurb", __FUNCTION__);
 		kfree(itmtouch);
 		return -ENOMEM;
 	}
-	
-	usb_fill_int_urb(itmtouch->readurb,
-			itmtouch->usbdev,
-			pipe,
-			itmtouch->rbuf, 
-			maxp,
-			itmtouch_irq,
-			itmtouch,
-			endpoint->bInterval);
+
+	usb_fill_int_urb(itmtouch->readurb, itmtouch->usbdev, pipe, itmtouch->rbuf,
+			 maxp, itmtouch_irq, itmtouch, endpoint->bInterval);
 
 	input_register_device(&itmtouch->inputdev);
 
@@ -242,7 +235,7 @@ static int itmtouch_probe(struct usb_interface *intf, const struct usb_device_id
 }
 
 static void itmtouch_disconnect(struct usb_interface *intf)
-{	
+{
 	struct itmtouch_dev *itmtouch = usb_get_intfdata(intf);
 
 	usb_set_intfdata(intf, NULL);
@@ -258,11 +251,11 @@ static void itmtouch_disconnect(struct usb_interface *intf)
 MODULE_DEVICE_TABLE(usb, itmtouch_ids);
 
 static struct usb_driver itmtouch_driver = {
-		.owner =        THIS_MODULE,
-		.name =         "itmtouch",
-		.probe =        itmtouch_probe,
-		.disconnect =   itmtouch_disconnect,
-		.id_table =     itmtouch_ids,
+	.owner =        THIS_MODULE,
+	.name =         "itmtouch",
+	.probe =        itmtouch_probe,
+	.disconnect =   itmtouch_disconnect,
+	.id_table =     itmtouch_ids,
 };
 
 static int __init itmtouch_init(void)
