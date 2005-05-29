@@ -150,7 +150,7 @@ static const ac97_codec_id_t snd_ac97_codec_ids[] = {
 { 0x4e534331, 0xffffffff, "LM4549",		NULL,		NULL },
 { 0x4e534350, 0xffffffff, "LM4550",		NULL,		NULL },
 { 0x50534304, 0xffffffff, "UCB1400",		NULL,		NULL },
-{ 0x53494c20, 0xffffffe0, "Si3036,8",		NULL,		mpatch_si3036 },
+{ 0x53494c20, 0xffffffe0, "Si3036,8",		mpatch_si3036,	mpatch_si3036, AC97_MODEM_PATCH },
 { 0x54524102, 0xffffffff, "TR28022",		NULL,		NULL },
 { 0x54524106, 0xffffffff, "TR28026",		NULL,		NULL },
 { 0x54524108, 0xffffffff, "TR28028",		patch_tritech_tr28028,	NULL }, // added by xin jin [07/09/99]
@@ -665,6 +665,11 @@ AC97_SINGLE("LFE Playback Volume", AC97_CENTER_LFE_MASTER, 8, 31, 1)
 
 static const snd_kcontrol_new_t snd_ac97_control_eapd =
 AC97_SINGLE("External Amplifier", AC97_POWERDOWN, 15, 1, 1);
+
+static const snd_kcontrol_new_t snd_ac97_controls_modem_switches[2] = {
+AC97_SINGLE("Off-hook Switch", AC97_GPIO_STATUS, 0, 1, 0),
+AC97_SINGLE("Caller ID Switch", AC97_GPIO_STATUS, 2, 1, 0)
+};
 
 /* change the existing EAPD control as inverted */
 static void set_inv_eapd(ac97_t *ac97, snd_kcontrol_t *kctl)
@@ -1526,13 +1531,25 @@ static int snd_ac97_mixer_build(ac97_t * ac97)
 
 static int snd_ac97_modem_build(snd_card_t * card, ac97_t * ac97)
 {
-	/* TODO */
+	int err, idx;
+
 	//printk("AC97_GPIO_CFG = %x\n",snd_ac97_read(ac97,AC97_GPIO_CFG));
 	snd_ac97_write(ac97, AC97_GPIO_CFG, 0xffff & ~(AC97_GPIO_LINE1_OH));
 	snd_ac97_write(ac97, AC97_GPIO_POLARITY, 0xffff & ~(AC97_GPIO_LINE1_OH));
 	snd_ac97_write(ac97, AC97_GPIO_STICKY, 0xffff);
 	snd_ac97_write(ac97, AC97_GPIO_WAKEUP, 0x0);
 	snd_ac97_write(ac97, AC97_MISC_AFE, 0x0);
+
+	/* build modem switches */
+	for (idx = 0; idx < ARRAY_SIZE(snd_ac97_controls_modem_switches); idx++)
+		if ((err = snd_ctl_add(card, snd_ac97_cnew(&snd_ac97_controls_modem_switches[idx], ac97))) < 0)
+			return err;
+
+	/* build chip specific controls */
+	if (ac97->build_ops->build_specific)
+		if ((err = ac97->build_ops->build_specific(ac97)) < 0)
+			return err;
+
 	return 0;
 }
 
