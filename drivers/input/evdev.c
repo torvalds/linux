@@ -236,7 +236,7 @@ static ssize_t evdev_read_compat(struct file * file, char __user * buffer, size_
 		event_compat.value = event->value;
 
 		if (copy_to_user(buffer + retval, &event_compat,
-			 sizeof(struct input_event_compat))) return -EFAULT;
+			sizeof(struct input_event_compat))) return -EFAULT;
 		list->tail = (list->tail + 1) & (EVDEV_BUFFER_SIZE - 1);
 		retval += sizeof(struct input_event_compat);
 	}
@@ -272,7 +272,7 @@ static ssize_t evdev_read(struct file * file, char __user * buffer, size_t count
 
 	while (list->head != list->tail && retval + sizeof(struct input_event) <= count) {
 		if (copy_to_user(buffer + retval, list->buffer + list->tail,
-			 sizeof(struct input_event))) return -EFAULT;
+			sizeof(struct input_event))) return -EFAULT;
 		list->tail = (list->tail + 1) & (EVDEV_BUFFER_SIZE - 1);
 		retval += sizeof(struct input_event);
 	}
@@ -371,105 +371,112 @@ static long evdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		default:
 
-			if (_IOC_TYPE(cmd) != 'E' || _IOC_DIR(cmd) != _IOC_READ)
+			if (_IOC_TYPE(cmd) != 'E')
 				return -EINVAL;
 
-			if ((_IOC_NR(cmd) & ~EV_MAX) == _IOC_NR(EVIOCGBIT(0,0))) {
+			if (_IOC_DIR(cmd) == _IOC_READ) {
 
-				long *bits;
-				int len;
+				if ((_IOC_NR(cmd) & ~EV_MAX) == _IOC_NR(EVIOCGBIT(0,0))) {
 
-				switch (_IOC_NR(cmd) & EV_MAX) {
-					case      0: bits = dev->evbit;  len = EV_MAX;  break;
-					case EV_KEY: bits = dev->keybit; len = KEY_MAX; break;
-					case EV_REL: bits = dev->relbit; len = REL_MAX; break;
-					case EV_ABS: bits = dev->absbit; len = ABS_MAX; break;
-					case EV_MSC: bits = dev->mscbit; len = MSC_MAX; break;
-					case EV_LED: bits = dev->ledbit; len = LED_MAX; break;
-					case EV_SND: bits = dev->sndbit; len = SND_MAX; break;
-					case EV_FF:  bits = dev->ffbit;  len = FF_MAX;  break;
-					default: return -EINVAL;
+					long *bits;
+					int len;
+
+					switch (_IOC_NR(cmd) & EV_MAX) {
+						case      0: bits = dev->evbit;  len = EV_MAX;  break;
+						case EV_KEY: bits = dev->keybit; len = KEY_MAX; break;
+						case EV_REL: bits = dev->relbit; len = REL_MAX; break;
+						case EV_ABS: bits = dev->absbit; len = ABS_MAX; break;
+						case EV_MSC: bits = dev->mscbit; len = MSC_MAX; break;
+						case EV_LED: bits = dev->ledbit; len = LED_MAX; break;
+						case EV_SND: bits = dev->sndbit; len = SND_MAX; break;
+						case EV_FF:  bits = dev->ffbit;  len = FF_MAX;  break;
+						default: return -EINVAL;
+					}
+					len = NBITS(len) * sizeof(long);
+					if (len > _IOC_SIZE(cmd)) len = _IOC_SIZE(cmd);
+					return copy_to_user(p, bits, len) ? -EFAULT : len;
 				}
-				len = NBITS(len) * sizeof(long);
-				if (len > _IOC_SIZE(cmd)) len = _IOC_SIZE(cmd);
-				return copy_to_user(p, bits, len) ? -EFAULT : len;
+
+				if (_IOC_NR(cmd) == _IOC_NR(EVIOCGKEY(0))) {
+					int len;
+					len = NBITS(KEY_MAX) * sizeof(long);
+					if (len > _IOC_SIZE(cmd)) len = _IOC_SIZE(cmd);
+					return copy_to_user(p, dev->key, len) ? -EFAULT : len;
+				}
+
+				if (_IOC_NR(cmd) == _IOC_NR(EVIOCGLED(0))) {
+					int len;
+					len = NBITS(LED_MAX) * sizeof(long);
+					if (len > _IOC_SIZE(cmd)) len = _IOC_SIZE(cmd);
+					return copy_to_user(p, dev->led, len) ? -EFAULT : len;
+				}
+
+				if (_IOC_NR(cmd) == _IOC_NR(EVIOCGSND(0))) {
+					int len;
+					len = NBITS(SND_MAX) * sizeof(long);
+					if (len > _IOC_SIZE(cmd)) len = _IOC_SIZE(cmd);
+					return copy_to_user(p, dev->snd, len) ? -EFAULT : len;
+				}
+
+				if (_IOC_NR(cmd) == _IOC_NR(EVIOCGNAME(0))) {
+					int len;
+					if (!dev->name) return -ENOENT;
+					len = strlen(dev->name) + 1;
+					if (len > _IOC_SIZE(cmd)) len = _IOC_SIZE(cmd);
+					return copy_to_user(p, dev->name, len) ? -EFAULT : len;
+				}
+
+				if (_IOC_NR(cmd) == _IOC_NR(EVIOCGPHYS(0))) {
+					int len;
+					if (!dev->phys) return -ENOENT;
+					len = strlen(dev->phys) + 1;
+					if (len > _IOC_SIZE(cmd)) len = _IOC_SIZE(cmd);
+					return copy_to_user(p, dev->phys, len) ? -EFAULT : len;
+				}
+
+				if (_IOC_NR(cmd) == _IOC_NR(EVIOCGUNIQ(0))) {
+					int len;
+					if (!dev->uniq) return -ENOENT;
+					len = strlen(dev->uniq) + 1;
+					if (len > _IOC_SIZE(cmd)) len = _IOC_SIZE(cmd);
+					return copy_to_user(p, dev->uniq, len) ? -EFAULT : len;
+				}
+
+				if ((_IOC_NR(cmd) & ~ABS_MAX) == _IOC_NR(EVIOCGABS(0))) {
+
+					int t = _IOC_NR(cmd) & ABS_MAX;
+
+					abs.value = dev->abs[t];
+					abs.minimum = dev->absmin[t];
+					abs.maximum = dev->absmax[t];
+					abs.fuzz = dev->absfuzz[t];
+					abs.flat = dev->absflat[t];
+
+					if (copy_to_user(p, &abs, sizeof(struct input_absinfo)))
+						return -EFAULT;
+
+					return 0;
+				}
+
 			}
 
-			if (_IOC_NR(cmd) == _IOC_NR(EVIOCGKEY(0))) {
-				int len;
-				len = NBITS(KEY_MAX) * sizeof(long);
-				if (len > _IOC_SIZE(cmd)) len = _IOC_SIZE(cmd);
-				return copy_to_user(p, dev->key, len) ? -EFAULT : len;
-			}
+			if (_IOC_DIR(cmd) == _IOC_WRITE) {
 
-			if (_IOC_NR(cmd) == _IOC_NR(EVIOCGLED(0))) {
-				int len;
-				len = NBITS(LED_MAX) * sizeof(long);
-				if (len > _IOC_SIZE(cmd)) len = _IOC_SIZE(cmd);
-				return copy_to_user(p, dev->led, len) ? -EFAULT : len;
-			}
+				if ((_IOC_NR(cmd) & ~ABS_MAX) == _IOC_NR(EVIOCSABS(0))) {
 
-			if (_IOC_NR(cmd) == _IOC_NR(EVIOCGSND(0))) {
-				int len;
-				len = NBITS(SND_MAX) * sizeof(long);
-				if (len > _IOC_SIZE(cmd)) len = _IOC_SIZE(cmd);
-				return copy_to_user(p, dev->snd, len) ? -EFAULT : len;
-			}
+					int t = _IOC_NR(cmd) & ABS_MAX;
 
-			if (_IOC_NR(cmd) == _IOC_NR(EVIOCGNAME(0))) {
-				int len;
-				if (!dev->name) return -ENOENT;
-				len = strlen(dev->name) + 1;
-				if (len > _IOC_SIZE(cmd)) len = _IOC_SIZE(cmd);
-				return copy_to_user(p, dev->name, len) ? -EFAULT : len;
-			}
+					if (copy_from_user(&abs, p, sizeof(struct input_absinfo)))
+						return -EFAULT;
 
-			if (_IOC_NR(cmd) == _IOC_NR(EVIOCGPHYS(0))) {
-				int len;
-				if (!dev->phys) return -ENOENT;
-				len = strlen(dev->phys) + 1;
-				if (len > _IOC_SIZE(cmd)) len = _IOC_SIZE(cmd);
-				return copy_to_user(p, dev->phys, len) ? -EFAULT : len;
-			}
+					dev->abs[t] = abs.value;
+					dev->absmin[t] = abs.minimum;
+					dev->absmax[t] = abs.maximum;
+					dev->absfuzz[t] = abs.fuzz;
+					dev->absflat[t] = abs.flat;
 
-			if (_IOC_NR(cmd) == _IOC_NR(EVIOCGUNIQ(0))) {
-				int len;
-				if (!dev->uniq) return -ENOENT;
-				len = strlen(dev->uniq) + 1;
-				if (len > _IOC_SIZE(cmd)) len = _IOC_SIZE(cmd);
-				return copy_to_user(p, dev->uniq, len) ? -EFAULT : len;
-			}
-
-			if ((_IOC_NR(cmd) & ~ABS_MAX) == _IOC_NR(EVIOCGABS(0))) {
-
-				int t = _IOC_NR(cmd) & ABS_MAX;
-
-				abs.value = dev->abs[t];
-				abs.minimum = dev->absmin[t];
-				abs.maximum = dev->absmax[t];
-				abs.fuzz = dev->absfuzz[t];
-				abs.flat = dev->absflat[t];
-
-				if (copy_to_user(p, &abs, sizeof(struct input_absinfo)))
-					return -EFAULT;
-
-				return 0;
-			}
-
-			if ((_IOC_NR(cmd) & ~ABS_MAX) == _IOC_NR(EVIOCSABS(0))) {
-
-				int t = _IOC_NR(cmd) & ABS_MAX;
-
-				if (copy_from_user(&abs, p, sizeof(struct input_absinfo)))
-					return -EFAULT;
-
-				dev->abs[t] = abs.value;
-				dev->absmin[t] = abs.minimum;
-				dev->absmax[t] = abs.maximum;
-				dev->absfuzz[t] = abs.fuzz;
-				dev->absflat[t] = abs.flat;
-
-				return 0;
+					return 0;
+				}
 			}
 	}
 	return -EINVAL;
@@ -484,6 +491,28 @@ static long evdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 #define LONG_COMPAT(x) ((x)/BITS_PER_LONG_COMPAT)
 #define test_bit_compat(bit, array) ((array[LONG_COMPAT(bit)] >> OFF_COMPAT(bit)) & 1)
 
+#ifdef __BIG_ENDIAN
+#define bit_to_user(bit, max) \
+do { \
+	int i; \
+	int len = NBITS_COMPAT((max)) * sizeof(compat_long_t); \
+	if (len > _IOC_SIZE(cmd)) len = _IOC_SIZE(cmd); \
+	for (i = 0; i < len / sizeof(compat_long_t); i++) \
+		if (copy_to_user((compat_long_t*) p + i, \
+				 (compat_long_t*) (bit) + i + 1 - ((i % 2) << 1), \
+				 sizeof(compat_long_t))) \
+			return -EFAULT; \
+	return len; \
+} while (0)
+#else
+#define bit_to_user(bit, max) \
+do { \
+	int len = NBITS_COMPAT((max)) * sizeof(compat_long_t); \
+	if (len > _IOC_SIZE(cmd)) len = _IOC_SIZE(cmd); \
+	return copy_to_user(p, (bit), len) ? -EFAULT : len; \
+} while (0)
+#endif
+
 static long evdev_ioctl_compat(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct evdev_list *list = file->private_data;
@@ -491,9 +520,6 @@ static long evdev_ioctl_compat(struct file *file, unsigned int cmd, unsigned lon
 	struct input_dev *dev = evdev->handle.dev;
 	struct input_absinfo abs;
 	void __user *p = compat_ptr(arg);
-#ifdef __BIG_ENDIAN
-	int i;
-#endif
 
 	if (!evdev->exist) return -ENODEV;
 
@@ -511,141 +537,96 @@ static long evdev_ioctl_compat(struct file *file, unsigned int cmd, unsigned lon
 
 		default:
 
-			if (_IOC_TYPE(cmd) != 'E' || _IOC_DIR(cmd) != _IOC_READ)
+			if (_IOC_TYPE(cmd) != 'E')
 				return -EINVAL;
 
-			if ((_IOC_NR(cmd) & ~EV_MAX) == _IOC_NR(EVIOCGBIT(0,0))) {
+			if (_IOC_DIR(cmd) == _IOC_READ) {
 
-				long *bits;
-				int len;
+				if ((_IOC_NR(cmd) & ~EV_MAX) == _IOC_NR(EVIOCGBIT(0,0))) {
+					long *bits;
+					int max;
 
-				switch (_IOC_NR(cmd) & EV_MAX) {
-					case      0: bits = dev->evbit;  len = EV_MAX;  break;
-					case EV_KEY: bits = dev->keybit; len = KEY_MAX; break;
-					case EV_REL: bits = dev->relbit; len = REL_MAX; break;
-					case EV_ABS: bits = dev->absbit; len = ABS_MAX; break;
-					case EV_MSC: bits = dev->mscbit; len = MSC_MAX; break;
-					case EV_LED: bits = dev->ledbit; len = LED_MAX; break;
-					case EV_SND: bits = dev->sndbit; len = SND_MAX; break;
-					case EV_FF:  bits = dev->ffbit;  len = FF_MAX;  break;
-					default: return -EINVAL;
+					switch (_IOC_NR(cmd) & EV_MAX) {
+						case      0: bits = dev->evbit;  max = EV_MAX;  break;
+						case EV_KEY: bits = dev->keybit; max = KEY_MAX; break;
+						case EV_REL: bits = dev->relbit; max = REL_MAX; break;
+						case EV_ABS: bits = dev->absbit; max = ABS_MAX; break;
+						case EV_MSC: bits = dev->mscbit; max = MSC_MAX; break;
+						case EV_LED: bits = dev->ledbit; max = LED_MAX; break;
+						case EV_SND: bits = dev->sndbit; max = SND_MAX; break;
+						case EV_FF:  bits = dev->ffbit;  max = FF_MAX;  break;
+						default: return -EINVAL;
+					}
+					bit_to_user(bits, max);
 				}
-				len = NBITS_COMPAT(len) * sizeof(compat_long_t);
-				if (len > _IOC_SIZE(cmd)) len = _IOC_SIZE(cmd);
-#ifdef __BIG_ENDIAN
-				for (i = 0; i < len / sizeof(compat_long_t); i++)
-					if (copy_to_user((compat_long_t*) p + i,
-							 (compat_long_t*) bits + i + 1 - ((i % 2) << 1),
-							 sizeof(compat_long_t)))
+
+				if (_IOC_NR(cmd) == _IOC_NR(EVIOCGKEY(0)))
+					bit_to_user(dev->key, KEY_MAX);
+
+				if (_IOC_NR(cmd) == _IOC_NR(EVIOCGLED(0)))
+					bit_to_user(dev->led, LED_MAX);
+
+				if (_IOC_NR(cmd) == _IOC_NR(EVIOCGSND(0)))
+					bit_to_user(dev->snd, SND_MAX);
+
+				if (_IOC_NR(cmd) == _IOC_NR(EVIOCGNAME(0))) {
+					int len;
+					if (!dev->name) return -ENOENT;
+					len = strlen(dev->name) + 1;
+					if (len > _IOC_SIZE(cmd)) len = _IOC_SIZE(cmd);
+					return copy_to_user(p, dev->name, len) ? -EFAULT : len;
+				}
+
+				if (_IOC_NR(cmd) == _IOC_NR(EVIOCGPHYS(0))) {
+					int len;
+					if (!dev->phys) return -ENOENT;
+					len = strlen(dev->phys) + 1;
+					if (len > _IOC_SIZE(cmd)) len = _IOC_SIZE(cmd);
+					return copy_to_user(p, dev->phys, len) ? -EFAULT : len;
+				}
+
+				if (_IOC_NR(cmd) == _IOC_NR(EVIOCGUNIQ(0))) {
+					int len;
+					if (!dev->uniq) return -ENOENT;
+					len = strlen(dev->uniq) + 1;
+					if (len > _IOC_SIZE(cmd)) len = _IOC_SIZE(cmd);
+					return copy_to_user(p, dev->uniq, len) ? -EFAULT : len;
+				}
+
+				if ((_IOC_NR(cmd) & ~ABS_MAX) == _IOC_NR(EVIOCGABS(0))) {
+
+					int t = _IOC_NR(cmd) & ABS_MAX;
+
+					abs.value = dev->abs[t];
+					abs.minimum = dev->absmin[t];
+					abs.maximum = dev->absmax[t];
+					abs.fuzz = dev->absfuzz[t];
+					abs.flat = dev->absflat[t];
+
+					if (copy_to_user(p, &abs, sizeof(struct input_absinfo)))
 						return -EFAULT;
-				return len;
-#else
-				return copy_to_user(p, bits, len) ? -EFAULT : len;
-#endif
+
+					return 0;
+				}
 			}
 
-			if (_IOC_NR(cmd) == _IOC_NR(EVIOCGKEY(0))) {
-				int len;
-				len = NBITS_COMPAT(KEY_MAX) * sizeof(compat_long_t);
-				if (len > _IOC_SIZE(cmd)) len = _IOC_SIZE(cmd);
-#ifdef __BIG_ENDIAN
-				for (i = 0; i < len / sizeof(compat_long_t); i++)
-					if (copy_to_user((compat_long_t*) p + i,
-							 (compat_long_t*) dev->key + i + 1 - ((i % 2) << 1),
-							 sizeof(compat_long_t)))
+			if (_IOC_DIR(cmd) == _IOC_WRITE) {
+
+				if ((_IOC_NR(cmd) & ~ABS_MAX) == _IOC_NR(EVIOCSABS(0))) {
+
+					int t = _IOC_NR(cmd) & ABS_MAX;
+
+					if (copy_from_user(&abs, p, sizeof(struct input_absinfo)))
 						return -EFAULT;
-				return len;
-#else
-				return copy_to_user(p, dev->key, len) ? -EFAULT : len;
-#endif
-			}
 
-			if (_IOC_NR(cmd) == _IOC_NR(EVIOCGLED(0))) {
-				int len;
-				len = NBITS_COMPAT(LED_MAX) * sizeof(compat_long_t);
-				if (len > _IOC_SIZE(cmd)) len = _IOC_SIZE(cmd);
-#ifdef __BIG_ENDIAN
-				for (i = 0; i < len / sizeof(compat_long_t); i++)
-					if (copy_to_user((compat_long_t*) p + i,
-							 (compat_long_t*) dev->led + i + 1 - ((i % 2) << 1),
-							 sizeof(compat_long_t)))
-						return -EFAULT;
-				return len;
-#else
-				return copy_to_user(p, dev->led, len) ? -EFAULT : len;
-#endif
-			}
+					dev->abs[t] = abs.value;
+					dev->absmin[t] = abs.minimum;
+					dev->absmax[t] = abs.maximum;
+					dev->absfuzz[t] = abs.fuzz;
+					dev->absflat[t] = abs.flat;
 
-			if (_IOC_NR(cmd) == _IOC_NR(EVIOCGSND(0))) {
-				int len;
-				len = NBITS_COMPAT(SND_MAX) * sizeof(compat_long_t);
-				if (len > _IOC_SIZE(cmd)) len = _IOC_SIZE(cmd);
-#ifdef __BIG_ENDIAN
-				for (i = 0; i < len / sizeof(compat_long_t); i++)
-					if (copy_to_user((compat_long_t*) p + i,
-							 (compat_long_t*) dev->snd + i + 1 - ((i % 2) << 1),
-							 sizeof(compat_long_t)))
-						return -EFAULT;
-				return len;
-#else
-				return copy_to_user(p, dev->snd, len) ? -EFAULT : len;
-#endif
-			}
-
-			if (_IOC_NR(cmd) == _IOC_NR(EVIOCGNAME(0))) {
-				int len;
-				if (!dev->name) return -ENOENT;
-				len = strlen(dev->name) + 1;
-				if (len > _IOC_SIZE(cmd)) len = _IOC_SIZE(cmd);
-				return copy_to_user(p, dev->name, len) ? -EFAULT : len;
-			}
-
-			if (_IOC_NR(cmd) == _IOC_NR(EVIOCGPHYS(0))) {
-				int len;
-				if (!dev->phys) return -ENOENT;
-				len = strlen(dev->phys) + 1;
-				if (len > _IOC_SIZE(cmd)) len = _IOC_SIZE(cmd);
-				return copy_to_user(p, dev->phys, len) ? -EFAULT : len;
-			}
-
-			if (_IOC_NR(cmd) == _IOC_NR(EVIOCGUNIQ(0))) {
-				int len;
-				if (!dev->uniq) return -ENOENT;
-				len = strlen(dev->uniq) + 1;
-				if (len > _IOC_SIZE(cmd)) len = _IOC_SIZE(cmd);
-				return copy_to_user(p, dev->uniq, len) ? -EFAULT : len;
-			}
-
-			if ((_IOC_NR(cmd) & ~ABS_MAX) == _IOC_NR(EVIOCGABS(0))) {
-
-				int t = _IOC_NR(cmd) & ABS_MAX;
-
-				abs.value = dev->abs[t];
-				abs.minimum = dev->absmin[t];
-				abs.maximum = dev->absmax[t];
-				abs.fuzz = dev->absfuzz[t];
-				abs.flat = dev->absflat[t];
-
-				if (copy_to_user(p, &abs, sizeof(struct input_absinfo)))
-					return -EFAULT;
-
-				return 0;
-			}
-
-			if ((_IOC_NR(cmd) & ~ABS_MAX) == _IOC_NR(EVIOCSABS(0))) {
-
-				int t = _IOC_NR(cmd) & ABS_MAX;
-
-				if (copy_from_user(&abs, p, sizeof(struct input_absinfo)))
-					return -EFAULT;
-
-				dev->abs[t] = abs.value;
-				dev->absmin[t] = abs.minimum;
-				dev->absmax[t] = abs.maximum;
-				dev->absfuzz[t] = abs.fuzz;
-				dev->absflat[t] = abs.flat;
-
-				return 0;
+					return 0;
+				}
 			}
 	}
 	return -EINVAL;
