@@ -11,7 +11,7 @@
 #ifndef _LIFEBOOK_H
 #define _LIFEBOOK_H
 
-int lifebook_detect(struct psmouse *psmouse, unsigned int max_proto,
-                    int set_properties);
+int lifebook_detect(struct psmouse *psmouse, int set_properties);
+int lifebook_init(struct psmouse *psmouse);
 
 #endif

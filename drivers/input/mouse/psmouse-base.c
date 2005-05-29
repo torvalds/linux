@@ -424,8 +424,18 @@ static int psmouse_extensions(struct psmouse *psmouse,
 {
 	int synaptics_hardware = 0;
 
-	if (lifebook_detect(psmouse, max_proto, set_properties) == 0)
-		return PSMOUSE_LIFEBOOK;
+/*
+ * We always check for lifebook because it does not disturb mouse
+ * (it only checks DMI information).
+ */
+	if (lifebook_detect(psmouse, set_properties) == 0 ||
+	    max_proto == PSMOUSE_LIFEBOOK) {
+
+		if (max_proto > PSMOUSE_IMEX) {
+			if (!set_properties || lifebook_init(psmouse) == 0)
+				return PSMOUSE_LIFEBOOK;
+		}
+	}
 
 /*
  * Try Kensington ThinkingMouse (we try first, because synaptics probe

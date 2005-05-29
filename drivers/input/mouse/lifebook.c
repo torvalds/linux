@@ -63,7 +63,7 @@ static psmouse_ret_t lifebook_process_byte(struct psmouse *psmouse, struct pt_re
 	return PSMOUSE_FULL_PACKET;
 }
 
-static int lifebook_initialize(struct psmouse *psmouse)
+static int lifebook_absolute_mode(struct psmouse *psmouse)
 {
 	struct ps2dev *ps2dev = &psmouse->ps2dev;
 	unsigned char param;
@@ -87,27 +87,36 @@ static void lifebook_disconnect(struct psmouse *psmouse)
 	psmouse_reset(psmouse);
 }
 
-int lifebook_detect(struct psmouse *psmouse, unsigned int max_proto,
-                    int set_properties)
+int lifebook_detect(struct psmouse *psmouse, int set_properties)
 {
-        if (!dmi_check_system(lifebook_dmi_table) && max_proto != PSMOUSE_LIFEBOOK)
+        if (!dmi_check_system(lifebook_dmi_table))
                 return -1;
 
 	if (set_properties) {
-		psmouse->vendor = "Fujitsu Lifebook";
-		psmouse->name = "TouchScreen";
-		psmouse->dev.evbit[0] = BIT(EV_ABS) | BIT(EV_KEY) | BIT(EV_REL);
-		psmouse->dev.keybit[LONG(BTN_LEFT)] = BIT(BTN_LEFT) | BIT(BTN_MIDDLE) | BIT(BTN_RIGHT);
-		psmouse->dev.keybit[LONG(BTN_TOUCH)] = BIT(BTN_TOUCH);
-		psmouse->dev.relbit[0] = BIT(REL_X) | BIT(REL_Y);
-		input_set_abs_params(&psmouse->dev, ABS_X, 0, 1024, 0, 0);
-		input_set_abs_params(&psmouse->dev, ABS_Y, 0, 1024, 0, 0);
-
-		psmouse->protocol_handler = lifebook_process_byte;
-		psmouse->disconnect = lifebook_disconnect;
-		psmouse->reconnect  = lifebook_initialize;
-		psmouse->pktsize = 3;
+		psmouse->vendor = "Fujitsu";
+		psmouse->name = "Lifebook TouchScreen";
 	}
 
-        return lifebook_initialize(psmouse);
+        return 0;
 }
+
+int lifebook_init(struct psmouse *psmouse)
+{
+	if (lifebook_absolute_mode(psmouse))
+		return -1;
+
+	psmouse->dev.evbit[0] = BIT(EV_ABS) | BIT(EV_KEY) | BIT(EV_REL);
+	psmouse->dev.keybit[LONG(BTN_LEFT)] = BIT(BTN_LEFT) | BIT(BTN_MIDDLE) | BIT(BTN_RIGHT);
+	psmouse->dev.keybit[LONG(BTN_TOUCH)] = BIT(BTN_TOUCH);
+	psmouse->dev.relbit[0] = BIT(REL_X) | BIT(REL_Y);
+	input_set_abs_params(&psmouse->dev, ABS_X, 0, 1024, 0, 0);
+	input_set_abs_params(&psmouse->dev, ABS_Y, 0, 1024, 0, 0);
+
+	psmouse->protocol_handler = lifebook_process_byte;
+	psmouse->disconnect = lifebook_disconnect;
+	psmouse->reconnect  = lifebook_absolute_mode;
+	psmouse->pktsize = 3;
+
+	return 0;
+}
+
