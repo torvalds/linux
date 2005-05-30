@@ -859,10 +859,8 @@ static void release_urb_ctx(snd_urb_ctx_t *u)
 		usb_free_urb(u->urb);
 		u->urb = NULL;
 	}
-	if (u->buf) {
-		kfree(u->buf);
-		u->buf = NULL;
-	}
+	kfree(u->buf);
+	u->buf = NULL;
 }
 
 /*
@@ -880,10 +878,8 @@ static void release_substream_urbs(snd_usb_substream_t *subs, int force)
 		release_urb_ctx(&subs->dataurb[i]);
 	for (i = 0; i < SYNC_URBS; i++)
 		release_urb_ctx(&subs->syncurb[i]);
-	if (subs->tmpbuf) {
-		kfree(subs->tmpbuf);
-		subs->tmpbuf = NULL;
-	}
+	kfree(subs->tmpbuf);
+	subs->tmpbuf = NULL;
 	subs->nurbs = 0;
 }
 

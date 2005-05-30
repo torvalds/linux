@@ -332,11 +332,7 @@ static void snd_ca0106_intr_enable(ca0106_t *emu, unsigned int intrenb)
 
 static void snd_ca0106_pcm_free_substream(snd_pcm_runtime_t *runtime)
 {
-	ca0106_pcm_t *epcm = runtime->private_data;
-  
-	if (epcm) {
-		kfree(epcm);
-	}
+	kfree(runtime->private_data);
 }
 
 /* open_playback callback */

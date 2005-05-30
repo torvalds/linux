@@ -491,10 +491,8 @@ static int clean_via_table(viadev_t *dev, snd_pcm_substream_t *substream,
 		snd_dma_free_pages(&dev->table);
 		dev->table.area = NULL;
 	}
-	if (dev->idx_table) {
-		kfree(dev->idx_table);
-		dev->idx_table = NULL;
-	}
+	kfree(dev->idx_table);
+	dev->idx_table = NULL;
 	return 0;
 }
 

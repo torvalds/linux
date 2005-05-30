@@ -361,10 +361,7 @@ static void snd_emu10k1x_gpio_write(emu10k1x_t *emu, unsigned int value)
 
 static void snd_emu10k1x_pcm_free_substream(snd_pcm_runtime_t *runtime)
 {
-	emu10k1x_pcm_t *epcm = runtime->private_data;
-  
-	if (epcm)
-		kfree(epcm);
+	kfree(runtime->private_data);
 }
 
 static void snd_emu10k1x_pcm_interrupt(emu10k1x_t *emu, emu10k1x_voice_t *voice)

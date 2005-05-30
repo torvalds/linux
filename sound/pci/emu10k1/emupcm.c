@@ -991,9 +991,7 @@ static void snd_emu10k1_pcm_efx_mixer_notify(emu10k1_t *emu, int idx, int activa
 
 static void snd_emu10k1_pcm_free_substream(snd_pcm_runtime_t *runtime)
 {
-	emu10k1_pcm_t *epcm = runtime->private_data;
-
-	kfree(epcm);
+	kfree(runtime->private_data);
 }
 
 static int snd_emu10k1_efx_playback_close(snd_pcm_substream_t * substream)

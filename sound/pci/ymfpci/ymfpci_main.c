@@ -829,9 +829,7 @@ static snd_pcm_hardware_t snd_ymfpci_capture =
 
 static void snd_ymfpci_pcm_free_substream(snd_pcm_runtime_t *runtime)
 {
-	ymfpci_pcm_t *ypcm = runtime->private_data;
-	
-	kfree(ypcm);
+	kfree(runtime->private_data);
 }
 
 static int snd_ymfpci_playback_open_1(snd_pcm_substream_t * substream)

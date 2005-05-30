@@ -1469,14 +1469,10 @@ static int snd_timer_user_tselect(struct file *file, snd_timer_select_t __user *
 	if ((err = snd_timer_open(&tu->timeri, str, &tselect.id, current->pid)) < 0)
 		goto __err;
 
-	if (tu->queue) {
-		kfree(tu->queue);
-		tu->queue = NULL;
-	}
-	if (tu->tqueue) {
-		kfree(tu->tqueue);
-		tu->tqueue = NULL;
-	}
+	kfree(tu->queue);
+	tu->queue = NULL;
+	kfree(tu->tqueue);
+	tu->tqueue = NULL;
 	if (tu->tread) {
 		tu->tqueue = (snd_timer_tread_t *)kmalloc(tu->queue_size * sizeof(snd_timer_tread_t), GFP_KERNEL);
 		if (tu->tqueue == NULL)
