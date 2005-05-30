@@ -671,7 +671,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
           module did formerly.  It will allocate the buffers in advance
           when any HDSP cards are found.  To make the buffer
           allocation sure, load snd-page-alloc module in the early
-          stage of boot sequence.
+          stage of boot sequence.  See "Early Buffer Allocation"
+	  section.
 
   Module snd-ice1712
   ------------------
@@ -1067,7 +1068,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
           module did formerly.  It will allocate the buffers in advance
           when any RME9652 cards are found.  To make the buffer
           allocation sure, load snd-page-alloc module in the early
-          stage of boot sequence.
+          stage of boot sequence.  See "Early Buffer Allocation"
+	  section.
 
   Module snd-sa11xx-uda1341 (on arm only)
   ---------------------------------------
@@ -1543,6 +1545,36 @@ Proc interfaces (/proc/asound)
   Example: echo "x11amp 128 16384" > /proc/asound/card0/pcm0p/oss
            echo "squake 0 0 disable" > /proc/asound/card0/pcm0c/oss
 	   echo "rvplayer 0 0 block" > /proc/asound/card0/pcm0p/oss
+
+
+Early Buffer Allocation
+=======================
+
+Some drivers (e.g. hdsp) require the large contiguous buffers, and
+sometimes it's too late to find such spaces when the driver module is
+actually loaded due to memory fragmentation.  You can pre-allocate the
+PCM buffers by loading snd-page-alloc module and write commands to its
+proc file in prior, for example, in the early boot stage like
+/etc/init.d/*.local scripts.
+
+Reading the proc file /proc/drivers/snd-page-alloc shows the current
+usage of page allocation.  In writing, you can send the following
+commands to the snd-page-alloc driver:
+
+  - add VENDOR DEVICE MASK SIZE BUFFERS
+
+    VENDOR and DEVICE are PCI vendor and device IDs.  They take
+    integer numbers (0x prefix is needed for the hex).
+    MASK is the PCI DMA mask.  Pass 0 if not restricted.
+    SIZE is the size of each buffer to allocate.  You can pass
+    k and m suffix for KB and MB.  The max number is 16MB.
+    BUFFERS is the number of buffers to allocate.  It must be greater
+    than 0.  The max number is 4.
+
+  - erase
+
+    This will erase the all pre-allocated buffers which are not in
+    use.
 
 
 Links
