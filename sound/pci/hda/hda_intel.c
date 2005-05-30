@@ -286,6 +286,7 @@ struct snd_azx {
 
 	/* flags */
 	int position_fix;
+	unsigned int initialized: 1;
 };
 
 /*
@@ -1235,7 +1236,7 @@ static int azx_resume(snd_card_t *card)
  */
 static int azx_free(azx_t *chip)
 {
-	if (chip->remap_addr) {
+	if (chip->initialized) {
 		int i;
 
 		for (i = 0; i < MAX_ICH6_DEV; i++)
@@ -1360,6 +1361,8 @@ static int __devinit azx_create(snd_card_t *card, struct pci_dev *pci,
 
 	/* initialize chip */
 	azx_init_chip(chip);
+
+	chip->initialized = 1;
 
 	/* codec detection */
 	if (! chip->codec_mask) {
