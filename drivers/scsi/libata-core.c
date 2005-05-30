@@ -1190,7 +1190,12 @@ err_out:
  *	ata_bus_probe - Reset and probe ATA bus
  *	@ap: Bus to probe
  *
+ *	Master ATA bus probing function.  Initiates a hardware-dependent
+ *	bus reset, then attempts to identify any devices found on
+ *	the bus.
+ *
  *	LOCKING:
+ *	PCI/etc. bus probe sem.
  *
  *	RETURNS:
  *	Zero on success, non-zero on error.
@@ -1229,10 +1234,14 @@ err_out:
 }
 
 /**
- *	ata_port_probe -
- *	@ap:
+ *	ata_port_probe - Mark port as enabled
+ *	@ap: Port for which we indicate enablement
  *
- *	LOCKING:
+ *	Modify @ap data structure such that the system
+ *	thinks that the entire port is enabled.
+ *
+ *	LOCKING: host_set lock, or some other form of
+ *	serialization.
  */
 
 void ata_port_probe(struct ata_port *ap)
@@ -1248,7 +1257,8 @@ void ata_port_probe(struct ata_port *ap)
  *	PHY registers, to wake up the phy (and device), and
  *	clear any reset condition.
  *
- *	LOCKING: None.  Serialized during ata_bus_probe().
+ *	LOCKING:
+ *	PCI/etc. bus probe sem.
  *
  */
 void __sata_phy_reset(struct ata_port *ap)
@@ -1299,7 +1309,8 @@ void __sata_phy_reset(struct ata_port *ap)
  *	This function resets the SATA bus, and then probes
  *	the bus for devices.
  *
- *	LOCKING: None.  Serialized during ata_bus_probe().
+ *	LOCKING:
+ *	PCI/etc. bus probe sem.
  *
  */
 void sata_phy_reset(struct ata_port *ap)
@@ -1431,7 +1442,8 @@ static void ata_host_set_dma(struct ata_port *ap, u8 xfer_mode,
  *
  *	Set ATA device disk transfer mode (PIO3, UDMA6, etc.).
  *
- *	LOCKING: None.  Serialized during ata_bus_probe().
+ *	LOCKING:
+ *	PCI/etc. bus probe sem.
  *
  */
 static void ata_set_mode(struct ata_port *ap)
@@ -1571,10 +1583,14 @@ static void ata_bus_post_reset(struct ata_port *ap, unsigned int devmask)
 }
 
 /**
- *	ata_bus_edd -
- *	@ap:
+ *	ata_bus_edd - Issue EXECUTE DEVICE DIAGNOSTIC command.
+ *	@ap: Port to reset and probe
  *
- *	LOCKING: None.  Serialized during ata_bus_probe().
+ *	Use the EXECUTE DEVICE DIAGNOSTIC command to reset and
+ *	probe the bus.  Not often used these days.
+ *
+ *	LOCKING:
+ *	PCI/etc. bus probe sem.
  *
  */
 
@@ -1651,8 +1667,8 @@ static unsigned int ata_bus_softreset(struct ata_port *ap,
  *	the device is ATA or ATAPI.
  *
  *	LOCKING:
- *	Inherited from caller.  Some functions called by this function
- *	obtain the host_set lock.
+ *	PCI/etc. bus probe sem.
+ *	Obtains host_set lock.
  *
  *	SIDE EFFECTS:
  *	Sets ATA_FLAG_PORT_DISABLED if bus reset fails.
@@ -1894,7 +1910,11 @@ static int fgb(u32 bitmap)
  *	@xfer_mode_out: (output) SET FEATURES - XFER MODE code
  *	@xfer_shift_out: (output) bit shift that selects this mode
  *
+ *	Based on host and device capabilities, determine the
+ *	maximum transfer mode that is amenable to all.
+ *
  *	LOCKING:
+ *	PCI/etc. bus probe sem.
  *
  *	RETURNS:
  *	Zero on success, negative on error.
@@ -1930,7 +1950,8 @@ static int ata_choose_xfer_mode(struct ata_port *ap,
  *	Issue SET FEATURES - XFER MODE command to device @dev
  *	on port @ap.
  *
- *	LOCKING: None.  Serialized during ata_bus_probe().
+ *	LOCKING:
+ *	PCI/etc. bus probe sem.
  */
 
 static void ata_dev_set_xfermode(struct ata_port *ap, struct ata_device *dev)
@@ -1968,10 +1989,13 @@ static void ata_dev_set_xfermode(struct ata_port *ap, struct ata_device *dev)
 }
 
 /**
- *	ata_sg_clean -
- *	@qc:
+ *	ata_sg_clean - Unmap DMA memory associated with command
+ *	@qc: Command containing DMA memory to be released
+ *
+ *	Unmap all mapped DMA memory associated with this command.
  *
  *	LOCKING:
+ *	spin_lock_irqsave(host_set lock)
  */
 
 static void ata_sg_clean(struct ata_queued_cmd *qc)
@@ -2058,6 +2082,8 @@ static void ata_fill_sg(struct ata_queued_cmd *qc)
  *	supplied PACKET command.
  *
  *	LOCKING:
+ *	spin_lock_irqsave(host_set lock)
+ *
  *	RETURNS: 0 when ATAPI DMA can be used
  *               nonzero otherwise
  */
@@ -2088,6 +2114,19 @@ void ata_qc_prep(struct ata_queued_cmd *qc)
 	ata_fill_sg(qc);
 }
 
+/**
+ *	ata_sg_init_one - Associate command with memory buffer
+ *	@qc: Command to be associated
+ *	@buf: Memory buffer
+ *	@buflen: Length of memory buffer, in bytes.
+ *
+ *	Initialize the data-related elements of queued_cmd @qc
+ *	to point to a single memory buffer, @buf of byte length @buflen.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host_set lock)
+ */
+
 void ata_sg_init_one(struct ata_queued_cmd *qc, void *buf, unsigned int buflen)
 {
 	struct scatterlist *sg;
@@ -2105,6 +2144,20 @@ void ata_sg_init_one(struct ata_queued_cmd *qc, void *buf, unsigned int buflen)
 	sg->length = buflen;
 }
 
+/**
+ *	ata_sg_init - Associate command with scatter-gather table.
+ *	@qc: Command to be associated
+ *	@sg: Scatter-gather table.
+ *	@n_elem: Number of elements in s/g table.
+ *
+ *	Initialize the data-related elements of queued_cmd @qc
+ *	to point to a scatter-gather table @sg, containing @n_elem
+ *	elements.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host_set lock)
+ */
+
 void ata_sg_init(struct ata_queued_cmd *qc, struct scatterlist *sg,
 		 unsigned int n_elem)
 {
@@ -2114,14 +2167,16 @@ void ata_sg_init(struct ata_queued_cmd *qc, struct scatterlist *sg,
 }
 
 /**
- *	ata_sg_setup_one -
- *	@qc:
+ *	ata_sg_setup_one - DMA-map the memory buffer associated with a command.
+ *	@qc: Command with memory buffer to be mapped.
+ *
+ *	DMA-map the memory buffer associated with queued_cmd @qc.
  *
  *	LOCKING:
  *	spin_lock_irqsave(host_set lock)
  *
  *	RETURNS:
- *
+ *	Zero on success, negative on error.
  */
 
 static int ata_sg_setup_one(struct ata_queued_cmd *qc)
@@ -2146,13 +2201,16 @@ static int ata_sg_setup_one(struct ata_queued_cmd *qc)
 }
 
 /**
- *	ata_sg_setup -
- *	@qc:
+ *	ata_sg_setup - DMA-map the scatter-gather table associated with a command.
+ *	@qc: Command with scatter-gather table to be mapped.
+ *
+ *	DMA-map the scatter-gather table associated with queued_cmd @qc.
  *
  *	LOCKING:
  *	spin_lock_irqsave(host_set lock)
  *
  *	RETURNS:
+ *	Zero on success, negative on error.
  *
  */
 
@@ -2182,6 +2240,7 @@ static int ata_sg_setup(struct ata_queued_cmd *qc)
  *	@ap:
  *
  *	LOCKING:
+ *	None.  (executing in kernel thread context)
  *
  *	RETURNS:
  *
@@ -2229,6 +2288,7 @@ static unsigned long ata_pio_poll(struct ata_port *ap)
  *	@ap:
  *
  *	LOCKING:
+ *	None.  (executing in kernel thread context)
  */
 
 static void ata_pio_complete (struct ata_port *ap)
@@ -2446,6 +2506,7 @@ err_out:
  *	@ap:
  *
  *	LOCKING:
+ *	None.  (executing in kernel thread context)
  */
 
 static void ata_pio_block(struct ata_port *ap)
@@ -2614,6 +2675,7 @@ static void atapi_request_sense(struct ata_port *ap, struct ata_device *dev,
  *	transaction completed successfully.
  *
  *	LOCKING:
+ *	Inherited from SCSI layer (none, can sleep)
  */
 
 static void ata_qc_timeout(struct ata_queued_cmd *qc)
@@ -2723,6 +2785,7 @@ out:
  *	@dev: Device from whom we request an available command structure
  *
  *	LOCKING:
+ *	None.
  */
 
 static struct ata_queued_cmd *ata_qc_new(struct ata_port *ap)
@@ -2748,6 +2811,7 @@ static struct ata_queued_cmd *ata_qc_new(struct ata_port *ap)
  *	@dev: Device from whom we request an available command structure
  *
  *	LOCKING:
+ *	None.
  */
 
 struct ata_queued_cmd *ata_qc_new_init(struct ata_port *ap,
@@ -2812,6 +2876,7 @@ static void __ata_qc_complete(struct ata_queued_cmd *qc)
  *	in case something prevents using it.
  *
  *	LOCKING:
+ *	spin_lock_irqsave(host_set lock)
  *
  */
 void ata_qc_free(struct ata_queued_cmd *qc)
@@ -2825,9 +2890,13 @@ void ata_qc_free(struct ata_queued_cmd *qc)
 /**
  *	ata_qc_complete - Complete an active ATA command
  *	@qc: Command to complete
- *	@drv_stat: ATA status register contents
+ *	@drv_stat: ATA Status register contents
+ *
+ *	Indicate to the mid and upper layers that an ATA
+ *	command has completed, with either an ok or not-ok status.
  *
  *	LOCKING:
+ *	spin_lock_irqsave(host_set lock)
  *
  */
 
@@ -3234,13 +3303,18 @@ idle_irq:
 
 /**
  *	ata_interrupt - Default ATA host interrupt handler
- *	@irq: irq line
- *	@dev_instance: pointer to our host information structure
+ *	@irq: irq line (unused)
+ *	@dev_instance: pointer to our ata_host_set information structure
  *	@regs: unused
  *
+ *	Default interrupt handler for PCI IDE devices.  Calls
+ *	ata_host_intr() for each port that is not disabled.
+ *
  *	LOCKING:
+ *	Obtains host_set lock during operation.
  *
  *	RETURNS:
+ *	IRQ_NONE or IRQ_HANDLED.
  *
  */
 
@@ -3381,7 +3455,11 @@ static void ata_host_remove(struct ata_port *ap, unsigned int do_unregister)
  *	@ent: Probe information provided by low-level driver
  *	@port_no: Port number associated with this ata_port
  *
+ *	Initialize a new ata_port structure, and its associated
+ *	scsi_host.
+ *
  *	LOCKING:
+ *	Inherited from caller.
  *
  */
 
@@ -3436,9 +3514,13 @@ static void ata_host_init(struct ata_port *ap, struct Scsi_Host *host,
  *	@host_set: Collections of ports to which we add
  *	@port_no: Port number associated with this host
  *
+ *	Attach low-level ATA driver to system.
+ *
  *	LOCKING:
+ *	PCI/etc. bus probe sem.
  *
  *	RETURNS:
+ *	New ata_port on success, for NULL on error.
  *
  */
 
@@ -3471,12 +3553,22 @@ err_out:
 }
 
 /**
- *	ata_device_add -
- *	@ent:
+ *	ata_device_add - Register hardware device with ATA and SCSI layers
+ *	@ent: Probe information describing hardware device to be registered
+ *
+ *	This function processes the information provided in the probe
+ *	information struct @ent, allocates the necessary ATA and SCSI
+ *	host information structures, initializes them, and registers
+ *	everything with requisite kernel subsystems.
+ *
+ *	This function requests irqs, probes the ATA bus, and probes
+ *	the SCSI bus.
  *
  *	LOCKING:
+ *	PCI/etc. bus probe sem.
  *
  *	RETURNS:
+ *	Number of ports registered.  Zero on error (no ports registered).
  *
  */
 
@@ -3755,6 +3847,7 @@ ata_pci_init_legacy_mode(struct pci_dev *pdev, struct ata_port_info **port,
  *	Inherited from PCI layer (may sleep).
  *
  *	RETURNS:
+ *	Zero on success, negative on errno-based value on error.
  *
  */
 
@@ -3973,15 +4066,6 @@ int pci_test_config_bits(struct pci_dev *pdev, struct pci_bits *bits)
 }
 #endif /* CONFIG_PCI */
 
-
-/**
- *	ata_init -
- *
- *	LOCKING:
- *
- *	RETURNS:
- *
- */
 
 static int __init ata_init(void)
 {

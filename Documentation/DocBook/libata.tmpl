@@ -58,26 +58,6 @@
   </para>
   </chapter>
 
-  <chapter id="libataThanks">
-     <title>Thanks</title>
-  <para>
-  The bulk of the ATA knowledge comes thanks to long conversations with
-  Andre Hedrick (www.linux-ide.org), and long hours pondering the ATA
-  and SCSI specifications.
-  </para>
-  <para>
-  Thanks to Alan Cox for pointing out similarities 
-  between SATA and SCSI, and in general for motivation to hack on
-  libata.
-  </para>
-  <para>
-  libata's device detection
-  method, ata_pio_devchk, and in general all the early probing was
-  based on extensive study of Hale Landis's probe/reset code in his
-  ATADRVR driver (www.ata-atapi.com).
-  </para>
-  </chapter>
-
   <chapter id="libataDriverApi">
      <title>libata Driver API</title>
      <sect1>
@@ -312,6 +292,26 @@ and other resources, etc.
   <chapter id="SILInt">
      <title>sata_sil Internals</title>
 !Idrivers/scsi/sata_sil.c
+  </chapter>
+
+  <chapter id="libataThanks">
+     <title>Thanks</title>
+  <para>
+  The bulk of the ATA knowledge comes thanks to long conversations with
+  Andre Hedrick (www.linux-ide.org), and long hours pondering the ATA
+  and SCSI specifications.
+  </para>
+  <para>
+  Thanks to Alan Cox for pointing out similarities 
+  between SATA and SCSI, and in general for motivation to hack on
+  libata.
+  </para>
+  <para>
+  libata's device detection
+  method, ata_pio_devchk, and in general all the early probing was
+  based on extensive study of Hale Landis's probe/reset code in his
+  ATADRVR driver (www.ata-atapi.com).
+  </para>
   </chapter>
 
 </book>
