@@ -28,6 +28,7 @@
 #include <asm/uaccess.h>
 #include <asm/i387.h>
 #include <asm/proto.h>
+#include <asm/ia32_unistd.h>
 
 /* #define DEBUG_SIG 1 */
 

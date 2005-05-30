@@ -278,7 +278,9 @@ phase2:
 	switch (flags & (BMAPI_WRITE|BMAPI_ALLOCATE|BMAPI_UNWRITTEN)) {
 	case BMAPI_WRITE:
 		/* If we found an extent, return it */
-		if (nimaps && (imap.br_startblock != HOLESTARTBLOCK)) {
+		if (nimaps &&
+		    (imap.br_startblock != HOLESTARTBLOCK) && 
+		    (imap.br_startblock != DELAYSTARTBLOCK)) {
 			xfs_iomap_map_trace(XFS_IOMAP_WRITE_MAP, io,
 					offset, count, iomapp, &imap, flags);
 			break;

@@ -329,6 +329,8 @@ static void nv_host_stop (struct ata_host_set *host_set)
 		host->host_desc->disable_hotplug(host_set);
 
 	kfree(host);
+
+	ata_host_stop(host_set);
 }
 
 static int nv_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
