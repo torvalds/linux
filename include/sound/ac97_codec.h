@@ -573,8 +573,8 @@ enum {
 };
 
 struct ac97_quirk {
-	unsigned short vendor;	/* PCI vendor id */
-	unsigned short device;	/* PCI device id */
+	unsigned short subvendor; /* PCI subsystem vendor id */
+	unsigned short subdevice; /* PCI sybsystem device id */
 	unsigned short mask;	/* device id bit mask, 0 = accept all */
 	unsigned int codec_id;	/* codec id (if any), 0 = accept all */
 	const char *name;	/* name shown as info */

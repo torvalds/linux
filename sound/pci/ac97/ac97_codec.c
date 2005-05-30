@@ -2542,11 +2542,11 @@ int snd_ac97_tune_hardware(ac97_t *ac97, struct ac97_quirk *quirk, const char *o
 		return result;
 	}
 
-	for (; quirk->vendor; quirk++) {
-		if (quirk->vendor != ac97->subsystem_vendor)
+	for (; quirk->subvendor; quirk++) {
+		if (quirk->subvendor != ac97->subsystem_vendor)
 			continue;
-		if ((! quirk->mask && quirk->device == ac97->subsystem_device) ||
-		    quirk->device == (quirk->mask & ac97->subsystem_device)) {
+		if ((! quirk->mask && quirk->subdevice == ac97->subsystem_device) ||
+		    quirk->subdevice == (quirk->mask & ac97->subsystem_device)) {
 			if (quirk->codec_id && quirk->codec_id != ac97->id)
 				continue;
 			snd_printdd("ac97 quirk for %s (%04x:%04x)\n", quirk->name, ac97->subsystem_vendor, ac97->subsystem_device);
