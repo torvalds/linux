@@ -14,7 +14,7 @@
   </authorgroup>
 
   <copyright>
-   <year>2003</year>
+   <year>2003-2005</year>
    <holder>Jeff Garzik</holder>
   </copyright>
 
@@ -145,14 +145,25 @@ void (*exec_command)(struct ata_port *ap, struct ata_taskfile *tf);
 	</para>
 
 	<programlisting>
-u8   (*check_status)(struct ata_port *ap);
-void (*dev_select)(struct ata_port *ap, unsigned int device);
+int (*check_atapi_dma) (struct ata_queued_cmd *qc);
 	</programlisting>
 
 	<para>
-	Reads the Status ATA shadow register from hardware.  On some
-	hardware, this has the side effect of clearing the interrupt
-	condition.
+Allow low-level driver to filter ATA PACKET commands, returning a status
+indicating whether or not it is OK to use DMA for the supplied PACKET
+command.
+	</para>
+
+	<programlisting>
+u8   (*check_status)(struct ata_port *ap);
+u8   (*check_altstatus)(struct ata_port *ap);
+u8   (*check_err)(struct ata_port *ap);
+	</programlisting>
+
+	<para>
+	Reads the Status/AltStatus/Error ATA shadow register from
+	hardware.  On some hardware, reading the Status register has
+	the side effect of clearing the interrupt condition.
 	</para>
 
 	<programlisting>
@@ -162,7 +173,8 @@ void (*dev_select)(struct ata_port *ap, unsigned int device);
 	<para>
 	Issues the low-level hardware command(s) that causes one of N
 	hardware devices to be considered 'selected' (active and
-	available for use) on the ATA bus.
+	available for use) on the ATA bus.  This generally has no
+meaning on FIS-based devices.
 	</para>
 
 	<programlisting>
@@ -180,12 +192,20 @@ void (*phy_reset) (struct ata_port *ap);
 	<programlisting>
 void (*bmdma_setup) (struct ata_queued_cmd *qc);
 void (*bmdma_start) (struct ata_queued_cmd *qc);
+void (*bmdma_stop) (struct ata_port *ap);
+u8   (*bmdma_status) (struct ata_port *ap);
 	</programlisting>
 
 	<para>
-	When setting up an IDE BMDMA transaction, these hooks arm
-	(->bmdma_setup) and fire (->bmdma_start) the hardware's DMA
-	engine.
+When setting up an IDE BMDMA transaction, these hooks arm
+(->bmdma_setup), fire (->bmdma_start), and halt (->bmdma_stop)
+the hardware's DMA engine.  ->bmdma_status is used to read the standard
+PCI IDE DMA Status register.
+	</para>
+
+	<para>
+These hooks are typically either no-ops, or simply not implemented, in
+FIS-based drivers.
 	</para>
 
 	<programlisting>
@@ -205,9 +225,7 @@ int (*qc_issue) (struct ata_queued_cmd *qc);
 	->qc_issue is used to make a command active, once the hardware
 	and S/G tables have been prepared.  IDE BMDMA drivers use the
 	helper function ata_qc_issue_prot() for taskfile protocol-based
-	dispatch.  More advanced drivers roll their own ->qc_issue
-	implementation, using this as the "issue new ATA command to
-	hardware" hook.
+	dispatch.  More advanced drivers implement their own ->qc_issue.
 	</para>
 
 	<programlisting>
@@ -215,8 +233,10 @@ void (*eng_timeout) (struct ata_port *ap);
 	</programlisting>
 
 	<para>
-	This is a high level error handling function, called from the
-	error handling thread, when a command times out.
+This is a high level error handling function, called from the
+error handling thread, when a command times out.  Most newer
+hardware will implement its own error handling code here.  IDE BMDMA
+drivers may use the helper function ata_eng_timeout().
 	</para>
 
 	<programlisting>
@@ -255,14 +275,14 @@ void (*host_stop) (struct ata_host_set *host_set);
 	tasks.  
 	</para>
 	<para>
-	->host_stop() is called when the rmmod or hot unplug process
-	begins.  The hook must stop all hardware interrupts, DMA
-	engines, etc.
-	</para>
-	<para>
 	->port_stop() is called after ->host_stop().  It's sole function
 	is to release DMA/memory resources, now that they are no longer
 	actively being used.
+	</para>
+	<para>
+	->host_stop() is called after all ->port_stop() calls
+have completed.  The hook must finalize hardware shutdown, release DMA
+and other resources, etc.
 	</para>
 
      </sect1>

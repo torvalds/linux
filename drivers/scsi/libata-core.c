@@ -1241,10 +1241,14 @@ void ata_port_probe(struct ata_port *ap)
 }
 
 /**
- *	__sata_phy_reset -
- *	@ap:
+ *	__sata_phy_reset - Wake/reset a low-level SATA PHY
+ *	@ap: SATA port associated with target SATA PHY.
  *
- *	LOCKING:
+ *	This function issues commands to standard SATA Sxxx
+ *	PHY registers, to wake up the phy (and device), and
+ *	clear any reset condition.
+ *
+ *	LOCKING: None.  Serialized during ata_bus_probe().
  *
  */
 void __sata_phy_reset(struct ata_port *ap)
@@ -1289,10 +1293,13 @@ void __sata_phy_reset(struct ata_port *ap)
 }
 
 /**
- *	__sata_phy_reset -
- *	@ap:
+ *	sata_phy_reset - Reset SATA bus.
+ *	@ap: SATA port associated with target SATA PHY.
  *
- *	LOCKING:
+ *	This function resets the SATA bus, and then probes
+ *	the bus for devices.
+ *
+ *	LOCKING: None.  Serialized during ata_bus_probe().
  *
  */
 void sata_phy_reset(struct ata_port *ap)
@@ -1304,10 +1311,16 @@ void sata_phy_reset(struct ata_port *ap)
 }
 
 /**
- *	ata_port_disable -
- *	@ap:
+ *	ata_port_disable - Disable port.
+ *	@ap: Port to be disabled.
  *
- *	LOCKING:
+ *	Modify @ap data structure such that the system
+ *	thinks that the entire port is disabled, and should
+ *	never attempt to probe or communicate with devices
+ *	on this port.
+ *
+ *	LOCKING: host_set lock, or some other form of
+ *	serialization.
  */
 
 void ata_port_disable(struct ata_port *ap)
@@ -1416,7 +1429,9 @@ static void ata_host_set_dma(struct ata_port *ap, u8 xfer_mode,
  *	ata_set_mode - Program timings and issue SET FEATURES - XFER
  *	@ap: port on which timings will be programmed
  *
- *	LOCKING:
+ *	Set ATA device disk transfer mode (PIO3, UDMA6, etc.).
+ *
+ *	LOCKING: None.  Serialized during ata_bus_probe().
  *
  */
 static void ata_set_mode(struct ata_port *ap)
@@ -1467,7 +1482,10 @@ err_out:
  *	@tmout_pat: impatience timeout
  *	@tmout: overall timeout
  *
- *	LOCKING:
+ *	Sleep until ATA Status register bit BSY clears,
+ *	or a timeout occurs.
+ *
+ *	LOCKING: None.
  *
  */
 
@@ -1556,7 +1574,7 @@ static void ata_bus_post_reset(struct ata_port *ap, unsigned int devmask)
  *	ata_bus_edd -
  *	@ap:
  *
- *	LOCKING:
+ *	LOCKING: None.  Serialized during ata_bus_probe().
  *
  */
 
@@ -1909,7 +1927,10 @@ static int ata_choose_xfer_mode(struct ata_port *ap,
  *	@ap: Port associated with device @dev
  *	@dev: Device to which command will be sent
  *
- *	LOCKING:
+ *	Issue SET FEATURES - XFER MODE command to device @dev
+ *	on port @ap.
+ *
+ *	LOCKING: None.  Serialized during ata_bus_probe().
  */
 
 static void ata_dev_set_xfermode(struct ata_port *ap, struct ata_device *dev)
@@ -1981,7 +2002,11 @@ static void ata_sg_clean(struct ata_queued_cmd *qc)
  *	ata_fill_sg - Fill PCI IDE PRD table
  *	@qc: Metadata associated with taskfile to be transferred
  *
+ *	Fill PCI IDE PRD (scatter-gather) table with segments
+ *	associated with the current disk command.
+ *
  *	LOCKING:
+ *	spin_lock_irqsave(host_set lock)
  *
  */
 static void ata_fill_sg(struct ata_queued_cmd *qc)
@@ -2028,6 +2053,10 @@ static void ata_fill_sg(struct ata_queued_cmd *qc)
  *	ata_check_atapi_dma - Check whether ATAPI DMA can be supported
  *	@qc: Metadata associated with taskfile to check
  *
+ *	Allow low-level driver to filter ATA PACKET commands, returning
+ *	a status indicating whether or not it is OK to use DMA for the
+ *	supplied PACKET command.
+ *
  *	LOCKING:
  *	RETURNS: 0 when ATAPI DMA can be used
  *               nonzero otherwise
@@ -2045,6 +2074,8 @@ int ata_check_atapi_dma(struct ata_queued_cmd *qc)
 /**
  *	ata_qc_prep - Prepare taskfile for submission
  *	@qc: Metadata associated with taskfile to be prepared
+ *
+ *	Prepare ATA taskfile for submission.
  *
  *	LOCKING:
  *	spin_lock_irqsave(host_set lock)
