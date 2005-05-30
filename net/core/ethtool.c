@@ -29,7 +29,7 @@ u32 ethtool_op_get_link(struct net_device *dev)
 
 u32 ethtool_op_get_tx_csum(struct net_device *dev)
 {
-	return (dev->features & NETIF_F_IP_CSUM) != 0;
+	return (dev->features & (NETIF_F_IP_CSUM | NETIF_F_HW_CSUM)) != 0;
 }
 
 int ethtool_op_set_tx_csum(struct net_device *dev, u32 data)
@@ -42,6 +42,15 @@ int ethtool_op_set_tx_csum(struct net_device *dev, u32 data)
 	return 0;
 }
 
+int ethtool_op_set_tx_hw_csum(struct net_device *dev, u32 data)
+{
+	if (data)
+		dev->features |= NETIF_F_HW_CSUM;
+	else
+		dev->features &= ~NETIF_F_HW_CSUM;
+
+	return 0;
+}
 u32 ethtool_op_get_sg(struct net_device *dev)
 {
 	return (dev->features & NETIF_F_SG) != 0;
@@ -823,3 +832,4 @@ EXPORT_SYMBOL(ethtool_op_get_tx_csum);
 EXPORT_SYMBOL(ethtool_op_set_sg);
 EXPORT_SYMBOL(ethtool_op_set_tso);
 EXPORT_SYMBOL(ethtool_op_set_tx_csum);
+EXPORT_SYMBOL(ethtool_op_set_tx_hw_csum);
