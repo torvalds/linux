@@ -44,11 +44,26 @@
 
 <toc></toc>
 
+  <chapter id="libataIntroduction">
+     <title>Introduction</title>
+  <para>
+  libATA is a library used inside the Linux kernel to support ATA host
+  controllers and devices.  libATA provides an ATA driver API, class
+  transports for ATA and ATAPI devices, and SCSI&lt;-&gt;ATA translation
+  for ATA devices according to the T10 SAT specification.
+  </para>
+  <para>
+  This Guide documents the libATA driver API, library functions, library
+  internals, and a couple sample ATA low-level drivers.
+  </para>
+  </chapter>
+
   <chapter id="libataThanks">
      <title>Thanks</title>
   <para>
   The bulk of the ATA knowledge comes thanks to long conversations with
-  Andre Hedrick (www.linux-ide.org).
+  Andre Hedrick (www.linux-ide.org), and long hours pondering the ATA
+  and SCSI specifications.
   </para>
   <para>
   Thanks to Alan Cox for pointing out similarities 
