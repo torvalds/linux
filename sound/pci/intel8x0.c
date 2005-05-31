@@ -1858,6 +1858,12 @@ static struct ac97_quirk ac97_quirks[] __devinitdata = {
 	},
 	{
 		.subvendor = 0x10cf,
+		.subdevice = 0x1225,
+		.name = "Fujitsu-Siemens T3010",
+		.type = AC97_TUNE_HP_ONLY
+	},
+	{
+		.subvendor = 0x10cf,
 		.subdevice = 0x1253,
 		.name = "Fujitsu S6210",	/* STAC9750/51 */
 		.type = AC97_TUNE_HP_ONLY
