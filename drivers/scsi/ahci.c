@@ -39,7 +39,7 @@
 #include <asm/io.h>
 
 #define DRV_NAME	"ahci"
-#define DRV_VERSION	"1.00"
+#define DRV_VERSION	"1.01"
 
 
 enum {
@@ -1086,8 +1086,6 @@ static void ahci_remove_one (struct pci_dev *pdev)
 
 	have_msi = hpriv->have_msi;
 	free_irq(host_set->irq, host_set);
-	host_set->ops->host_stop(host_set);
-	iounmap(host_set->mmio_base);
 
 	for (i = 0; i < host_set->n_ports; i++) {
 		ap = host_set->ports[i];
@@ -1096,12 +1094,14 @@ static void ahci_remove_one (struct pci_dev *pdev)
 		scsi_host_put(ap->host);
 	}
 
+	host_set->ops->host_stop(host_set);
+	kfree(host_set);
+
 	if (have_msi)
 		pci_disable_msi(pdev);
 	else
 		pci_intx(pdev, 0);
 	pci_release_regions(pdev);
-	kfree(host_set);
 	pci_disable_device(pdev);
 	dev_set_drvdata(dev, NULL);
 }
