@@ -1753,7 +1753,7 @@ static void schizo_pbm_iommu_init(struct pci_pbm_info *pbm)
 
 	/* Setup initial software IOMMU state. */
 	spin_lock_init(&iommu->lock);
-	iommu->iommu_cur_ctx = 0;
+	iommu->ctx_lowest_free = 1;
 
 	/* Register addresses, SCHIZO has iommu ctx flushing. */
 	iommu->iommu_control  = pbm->pbm_regs + SCHIZO_IOMMU_CONTROL;
