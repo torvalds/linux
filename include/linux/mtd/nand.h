@@ -5,7 +5,7 @@
  *                     Steven J. Hill <sjhill@realitydiluted.com>
  *		       Thomas Gleixner <tglx@linutronix.de>
  *
- * $Id: nand.h,v 1.71 2005/02/09 12:12:59 gleixner Exp $
+ * $Id: nand.h,v 1.73 2005/05/31 19:39:17 gleixner Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -253,10 +253,13 @@ struct nand_chip;
  * struct nand_hw_control - Control structure for hardware controller (e.g ECC generator) shared among independend devices
  * @lock:               protection lock  
  * @active:		the mtd device which holds the controller currently
+ * @wq:			wait queue to sleep on if a NAND operation is in progress
+ *                      used instead of the per chip wait queue when a hw controller is available
  */
 struct nand_hw_control {
 	spinlock_t	 lock;
 	struct nand_chip *active;
+	wait_queue_head_t wq;
 };
 
 /**

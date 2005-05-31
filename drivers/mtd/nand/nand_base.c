@@ -59,7 +59,7 @@
  *	The AG-AND chips have nice features for speed improvement,
  *	which are not supported yet. Read / program 4 pages in one go.
  *
- * $Id: nand_base.c,v 1.143 2005/05/19 16:10:22 gleixner Exp $
+ * $Id: nand_base.c,v 1.145 2005/05/31 20:32:53 gleixner Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -167,17 +167,21 @@ static void nand_release_device (struct mtd_info *mtd)
 
 	/* De-select the NAND device */
 	this->select_chip(mtd, -1);
-	/* Do we have a hardware controller ? */
+
 	if (this->controller) {
+		/* Release the controller and the chip */
 		spin_lock(&this->controller->lock);
 		this->controller->active = NULL;
+		this->state = FL_READY;
+		wake_up(&this->controller->wq);
 		spin_unlock(&this->controller->lock);
+	} else {
+		/* Release the chip */
+		spin_lock(&this->chip_lock);
+		this->state = FL_READY;
+		wake_up(&this->wq);
+		spin_unlock(&this->chip_lock);
 	}
-	/* Release the chip */
-	spin_lock (&this->chip_lock);
-	this->state = FL_READY;
-	wake_up (&this->wq);
-	spin_unlock (&this->chip_lock);
 }
 
 /**
@@ -753,37 +757,34 @@ static void nand_command_lp (struct mtd_info *mtd, unsigned command, int column,
  */
 static void nand_get_device (struct nand_chip *this, struct mtd_info *mtd, int new_state)
 {
-	struct nand_chip *active = this;
-
+	struct nand_chip *active;
+	spinlock_t *lock;
+	wait_queue_head_t *wq;
 	DECLARE_WAITQUEUE (wait, current);
 
-	/* 
-	 * Grab the lock and see if the device is available 
-	*/
+	lock = (this->controller) ? &this->controller->lock : &this->chip_lock;
+	wq = (this->controller) ? &this->controller->wq : &this->wq;
 retry:
+	active = this;
+	spin_lock(lock);
+
 	/* Hardware controller shared among independend devices */
 	if (this->controller) {
-		spin_lock (&this->controller->lock);
 		if (this->controller->active)
 			active = this->controller->active;
 		else
 			this->controller->active = this;
-		spin_unlock (&this->controller->lock);
 	}
-	
-	if (active == this) {
-		spin_lock (&this->chip_lock);
-		if (this->state == FL_READY) {
-			this->state = new_state;
-			spin_unlock (&this->chip_lock);
-			return;
-		}
-	}	
-	set_current_state (TASK_UNINTERRUPTIBLE);
-	add_wait_queue (&active->wq, &wait);
-	spin_unlock (&active->chip_lock);
-	schedule ();
-	remove_wait_queue (&active->wq, &wait);
+	if (active == this && this->state == FL_READY) {
+		this->state = new_state;
+		spin_unlock(lock);
+		return;
+	}
+	set_current_state(TASK_UNINTERRUPTIBLE);
+	add_wait_queue(wq, &wait);
+	spin_unlock(lock);
+	schedule();
+	remove_wait_queue(wq, &wait);
 	goto retry;
 }
 
