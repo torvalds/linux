@@ -26,6 +26,71 @@ static struct backing_dev_info sysfs_backing_dev_info = {
 	.capabilities	= BDI_CAP_NO_ACCT_DIRTY | BDI_CAP_NO_WRITEBACK,
 };
 
+static struct inode_operations sysfs_inode_operations ={
+	.setattr	= sysfs_setattr,
+};
+
+int sysfs_setattr(struct dentry * dentry, struct iattr * iattr)
+{
+	struct inode * inode = dentry->d_inode;
+	struct sysfs_dirent * sd = dentry->d_fsdata;
+	struct iattr * sd_iattr;
+	unsigned int ia_valid = iattr->ia_valid;
+	int error;
+
+	if (!sd)
+		return -EINVAL;
+
+	sd_iattr = sd->s_iattr;
+
+	error = inode_change_ok(inode, iattr);
+	if (error)
+		return error;
+
+	error = inode_setattr(inode, iattr);
+	if (error)
+		return error;
+
+	if (!sd_iattr) {
+		/* setting attributes for the first time, allocate now */
+		sd_iattr = kmalloc(sizeof(struct iattr), GFP_KERNEL);
+		if (!sd_iattr)
+			return -ENOMEM;
+		/* assign default attributes */
+		memset(sd_iattr, 0, sizeof(struct iattr));
+		sd_iattr->ia_mode = sd->s_mode;
+		sd_iattr->ia_uid = 0;
+		sd_iattr->ia_gid = 0;
+		sd_iattr->ia_atime = sd_iattr->ia_mtime = sd_iattr->ia_ctime = CURRENT_TIME;
+		sd->s_iattr = sd_iattr;
+	}
+
+	/* attributes were changed atleast once in past */
+
+	if (ia_valid & ATTR_UID)
+		sd_iattr->ia_uid = iattr->ia_uid;
+	if (ia_valid & ATTR_GID)
+		sd_iattr->ia_gid = iattr->ia_gid;
+	if (ia_valid & ATTR_ATIME)
+		sd_iattr->ia_atime = timespec_trunc(iattr->ia_atime,
+						inode->i_sb->s_time_gran);
+	if (ia_valid & ATTR_MTIME)
+		sd_iattr->ia_mtime = timespec_trunc(iattr->ia_mtime,
+						inode->i_sb->s_time_gran);
+	if (ia_valid & ATTR_CTIME)
+		sd_iattr->ia_ctime = timespec_trunc(iattr->ia_ctime,
+						inode->i_sb->s_time_gran);
+	if (ia_valid & ATTR_MODE) {
+		umode_t mode = iattr->ia_mode;
+
+		if (!in_group_p(inode->i_gid) && !capable(CAP_FSETID))
+			mode &= ~S_ISGID;
+		sd_iattr->ia_mode = mode;
+	}
+
+	return error;
+}
+
 struct inode * sysfs_new_inode(mode_t mode)
 {
 	struct inode * inode = new_inode(sysfs_sb);

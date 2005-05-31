@@ -73,6 +73,7 @@ struct sysfs_dirent {
 	int			s_type;
 	umode_t			s_mode;
 	struct dentry		* s_dentry;
+	struct iattr		* s_iattr;
 };
 
 #define SYSFS_ROOT		0x0001
