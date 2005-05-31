@@ -2,7 +2,7 @@
 extern struct vfsmount * sysfs_mount;
 extern kmem_cache_t *sysfs_dir_cachep;
 
-extern struct inode * sysfs_new_inode(mode_t mode);
+extern struct inode * sysfs_new_inode(mode_t mode, struct sysfs_dirent *);
 extern int sysfs_create(struct dentry *, int mode, int (*init)(struct inode *));
 
 extern int sysfs_make_dirent(struct sysfs_dirent *, struct dentry *, void *,

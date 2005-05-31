@@ -91,18 +91,42 @@ int sysfs_setattr(struct dentry * dentry, struct iattr * iattr)
 	return error;
 }
 
-struct inode * sysfs_new_inode(mode_t mode)
+static inline void set_default_inode_attr(struct inode * inode, mode_t mode)
+{
+	inode->i_mode = mode;
+	inode->i_uid = 0;
+	inode->i_gid = 0;
+	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+}
+
+static inline void set_inode_attr(struct inode * inode, struct iattr * iattr)
+{
+	inode->i_mode = iattr->ia_mode;
+	inode->i_uid = iattr->ia_uid;
+	inode->i_gid = iattr->ia_gid;
+	inode->i_atime = iattr->ia_atime;
+	inode->i_mtime = iattr->ia_mtime;
+	inode->i_ctime = iattr->ia_ctime;
+}
+
+struct inode * sysfs_new_inode(mode_t mode, struct sysfs_dirent * sd)
 {
 	struct inode * inode = new_inode(sysfs_sb);
 	if (inode) {
-		inode->i_mode = mode;
-		inode->i_uid = 0;
-		inode->i_gid = 0;
 		inode->i_blksize = PAGE_CACHE_SIZE;
 		inode->i_blocks = 0;
-		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 		inode->i_mapping->a_ops = &sysfs_aops;
 		inode->i_mapping->backing_dev_info = &sysfs_backing_dev_info;
+		inode->i_op = &sysfs_inode_operations;
+
+		if (sd->s_iattr) {
+			/* sysfs_dirent has non-default attributes
+			 * get them for the new inode from persistent copy
+			 * in sysfs_dirent
+			 */
+			set_inode_attr(inode, sd->s_iattr);
+		} else
+			set_default_inode_attr(inode, mode);
 	}
 	return inode;
 }
@@ -113,7 +137,8 @@ int sysfs_create(struct dentry * dentry, int mode, int (*init)(struct inode *))
 	struct inode * inode = NULL;
 	if (dentry) {
 		if (!dentry->d_inode) {
-			if ((inode = sysfs_new_inode(mode))) {
+			struct sysfs_dirent * sd = dentry->d_fsdata;
+			if ((inode = sysfs_new_inode(mode, sd))) {
 				if (dentry->d_parent && dentry->d_parent->d_inode) {
 					struct inode *p_inode = dentry->d_parent->d_inode;
 					p_inode->i_mtime = p_inode->i_ctime = CURRENT_TIME;
