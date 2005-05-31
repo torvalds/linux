@@ -1881,6 +1881,12 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4, unsigned long
 		     &getprop_rval, sizeof(getprop_rval));
 
 	/*
+	 * On pSeries, inform the firmware about our capabilities
+	 */
+	if (RELOC(of_platform) & PLATFORM_PSERIES)
+		prom_send_capabilities();
+
+	/*
 	 * On pSeries, copy the CPU hold code
 	 */
        	if (RELOC(of_platform) & PLATFORM_PSERIES)
