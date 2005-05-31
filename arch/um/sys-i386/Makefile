@@ -9,11 +9,11 @@ USER_OBJS := bugs.o ptrace_user.o sigcontext.o fault.o
 
 SYMLINKS = bitops.c semaphore.c highmem.c module.c
 
+include arch/um/scripts/Makefile.rules
+
 bitops.c-dir = lib
 semaphore.c-dir = kernel
 highmem.c-dir = mm
 module.c-dir = kernel
 
 subdir- := util
-
-include arch/um/scripts/Makefile.rules

@@ -31,7 +31,7 @@
 #include <asm/immap_cpm2.h>
 #include <asm/cpm2.h>
 
-#include "m8260_pci.h"
+#include "m82xx_pci.h"
 
 #ifdef CONFIG_8260_PCI9
 /*#include <asm/mpc8260_pci9.h>*/ /* included in asm/io.h */
@@ -248,11 +248,11 @@ EXPORT_SYMBOL(idma_pci9_read_le);
 
 static inline int is_pci_mem(unsigned long addr)
 {
-	if (addr >= MPC826x_PCI_LOWER_MMIO &&
-	    addr <= MPC826x_PCI_UPPER_MMIO)
+	if (addr >= M82xx_PCI_LOWER_MMIO &&
+		addr <= M82xx_PCI_UPPER_MMIO)
 		return 1;
-	if (addr >= MPC826x_PCI_LOWER_MEM &&
-	    addr <= MPC826x_PCI_UPPER_MEM)
+	if (addr >= M82xx_PCI_LOWER_MEM &&
+		addr <= M82xx_PCI_UPPER_MEM)
 		return 1;
 	return 0;
 }

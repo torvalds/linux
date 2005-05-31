@@ -27,8 +27,11 @@ struct scsi_transport_template;
 
 struct spi_transport_attrs {
 	int period;		/* value in the PPR/SDTR command */
+	int min_period;
 	int offset;
+	int max_offset;
 	unsigned int width:1;	/* 0 - narrow, 1 - wide */
+	unsigned int max_width:1;
 	unsigned int iu:1;	/* Information Units enabled */
 	unsigned int dt:1;	/* DT clocking enabled */
 	unsigned int qas:1;	/* Quick Arbitration and Selection enabled */
@@ -63,8 +66,11 @@ struct spi_host_attrs {
 
 /* accessor functions */
 #define spi_period(x)	(((struct spi_transport_attrs *)&(x)->starget_data)->period)
+#define spi_min_period(x) (((struct spi_transport_attrs *)&(x)->starget_data)->min_period)
 #define spi_offset(x)	(((struct spi_transport_attrs *)&(x)->starget_data)->offset)
+#define spi_max_offset(x) (((struct spi_transport_attrs *)&(x)->starget_data)->max_offset)
 #define spi_width(x)	(((struct spi_transport_attrs *)&(x)->starget_data)->width)
+#define spi_max_width(x) (((struct spi_transport_attrs *)&(x)->starget_data)->max_width)
 #define spi_iu(x)	(((struct spi_transport_attrs *)&(x)->starget_data)->iu)
 #define spi_dt(x)	(((struct spi_transport_attrs *)&(x)->starget_data)->dt)
 #define spi_qas(x)	(((struct spi_transport_attrs *)&(x)->starget_data)->qas)

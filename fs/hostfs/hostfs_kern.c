@@ -23,7 +23,6 @@
 #include "kern_util.h"
 #include "kern.h"
 #include "user_util.h"
-#include "2_5compat.h"
 #include "init.h"
 
 struct hostfs_inode_info {

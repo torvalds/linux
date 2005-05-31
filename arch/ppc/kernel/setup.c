@@ -499,7 +499,7 @@ static int __init set_preferred_console(void)
 {
 	struct device_node *prom_stdout;
 	char *name;
-	int offset;
+	int offset = 0;
 
 	if (of_stdout_device == NULL)
 		return -ENODEV;

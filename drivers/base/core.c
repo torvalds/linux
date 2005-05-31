@@ -245,6 +245,7 @@ int device_add(struct device *dev)
 
 	if ((error = kobject_add(&dev->kobj)))
 		goto Error;
+	kobject_hotplug(&dev->kobj, KOBJ_ADD);
 	if ((error = device_pm_add(dev)))
 		goto PMError;
 	if ((error = bus_add_device(dev)))
@@ -257,14 +258,13 @@ int device_add(struct device *dev)
 	/* notify platform of device entry */
 	if (platform_notify)
 		platform_notify(dev);
-
-	kobject_hotplug(&dev->kobj, KOBJ_ADD);
  Done:
 	put_device(dev);
 	return error;
  BusError:
 	device_pm_remove(dev);
  PMError:
+	kobject_hotplug(&dev->kobj, KOBJ_REMOVE);
 	kobject_del(&dev->kobj);
  Error:
 	if (parent)

@@ -147,7 +147,7 @@ struct ib_sa_path_rec {
 	/* reserved */
 	u8           sl;
 	u8           mtu_selector;
-	enum ib_mtu  mtu;
+	u8           mtu;
 	u8           rate_selector;
 	u8           rate;
 	u8           packet_life_time_selector;
@@ -180,7 +180,7 @@ struct ib_sa_mcmember_rec {
 	u32          qkey;
 	u16          mlid;
 	u8           mtu_selector;
-	enum         ib_mtu mtu;
+	u8           mtu;
 	u8           traffic_class;
 	u16          pkey;
 	u8 	     rate_selector;

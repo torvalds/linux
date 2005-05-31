@@ -68,6 +68,7 @@ extern struct smp_ops_t *smp_ops;
 
 static void (*pmac_tb_freeze)(int freeze);
 static struct device_node *pmac_tb_clock_chip_host;
+static u8 pmac_tb_pulsar_addr;
 static DEFINE_SPINLOCK(timebase_lock);
 static unsigned long timebase;
 
@@ -106,12 +107,9 @@ static void smp_core99_pulsar_tb_freeze(int freeze)
 	u8 data;
 	int rc;
 
-	/* Strangely, the device-tree says address is 0xd2, but darwin
-	 * accesses 0xd0 ...
-	 */
 	pmac_low_i2c_setmode(pmac_tb_clock_chip_host, pmac_low_i2c_mode_combined);
 	rc = pmac_low_i2c_xfer(pmac_tb_clock_chip_host,
-			       0xd4 | pmac_low_i2c_read,
+			       pmac_tb_pulsar_addr | pmac_low_i2c_read,
 			       0x2e, &data, 1);
 	if (rc != 0)
 		goto bail;
@@ -120,7 +118,7 @@ static void smp_core99_pulsar_tb_freeze(int freeze)
 
 	pmac_low_i2c_setmode(pmac_tb_clock_chip_host, pmac_low_i2c_mode_stdsub);
 	rc = pmac_low_i2c_xfer(pmac_tb_clock_chip_host,
-			       0xd4 | pmac_low_i2c_write,
+			       pmac_tb_pulsar_addr | pmac_low_i2c_write,
 			       0x2e, &data, 1);
  bail:
 	if (rc != 0) {
@@ -185,6 +183,12 @@ static int __init smp_core99_probe(void)
 	if (ncpus <= 1)
 		return 1;
 
+	/* HW sync only on these platforms */
+	if (!machine_is_compatible("PowerMac7,2") &&
+	    !machine_is_compatible("PowerMac7,3") &&
+	    !machine_is_compatible("RackMac3,1"))
+		goto nohwsync;
+
 	/* Look for the clock chip */
 	for (cc = NULL; (cc = of_find_node_by_name(cc, "i2c-hwclock")) != NULL;) {
 		struct device_node *p = of_get_parent(cc);
@@ -198,11 +202,18 @@ static int __init smp_core99_probe(void)
 			goto next;
 		switch (*reg) {
 		case 0xd2:
-			pmac_tb_freeze = smp_core99_cypress_tb_freeze;
-			printk(KERN_INFO "Timebase clock is Cypress chip\n");
+			if (device_is_compatible(cc, "pulsar-legacy-slewing")) {
+				pmac_tb_freeze = smp_core99_pulsar_tb_freeze;
+				pmac_tb_pulsar_addr = 0xd2;
+				printk(KERN_INFO "Timebase clock is Pulsar chip\n");
+			} else if (device_is_compatible(cc, "cy28508")) {
+				pmac_tb_freeze = smp_core99_cypress_tb_freeze;
+				printk(KERN_INFO "Timebase clock is Cypress chip\n");
+			}
 			break;
 		case 0xd4:
 			pmac_tb_freeze = smp_core99_pulsar_tb_freeze;
+			pmac_tb_pulsar_addr = 0xd4;
 			printk(KERN_INFO "Timebase clock is Pulsar chip\n");
 			break;
 		}
@@ -210,12 +221,15 @@ static int __init smp_core99_probe(void)
 			pmac_tb_clock_chip_host = p;
 			smp_ops->give_timebase = smp_core99_give_timebase;
 			smp_ops->take_timebase = smp_core99_take_timebase;
+			of_node_put(cc);
+			of_node_put(p);
 			break;
 		}
 	next:
 		of_node_put(p);
 	}
 
+ nohwsync:
 	mpic_request_ipis();
 
 	return ncpus;

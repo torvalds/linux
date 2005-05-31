@@ -1750,7 +1750,44 @@ static void __init flatten_device_tree(void)
 	prom_printf("Device tree struct  0x%x -> 0x%x\n",
 		    RELOC(dt_struct_start), RELOC(dt_struct_end));
 
- }
+}
+
+
+static void __init fixup_device_tree(void)
+{
+	unsigned long offset = reloc_offset();
+	phandle u3, i2c, mpic;
+	u32 u3_rev;
+	u32 interrupts[2];
+	u32 parent;
+
+	/* Some G5s have a missing interrupt definition, fix it up here */
+	u3 = call_prom("finddevice", 1, 1, ADDR("/u3@0,f8000000"));
+	if ((long)u3 <= 0)
+		return;
+	i2c = call_prom("finddevice", 1, 1, ADDR("/u3@0,f8000000/i2c@f8001000"));
+	if ((long)i2c <= 0)
+		return;
+	mpic = call_prom("finddevice", 1, 1, ADDR("/u3@0,f8000000/mpic@f8040000"));
+	if ((long)mpic <= 0)
+		return;
+
+	/* check if proper rev of u3 */
+	if (prom_getprop(u3, "device-rev", &u3_rev, sizeof(u3_rev)) <= 0)
+		return;
+	if (u3_rev != 0x35)
+		return;
+	/* does it need fixup ? */
+	if (prom_getproplen(i2c, "interrupts") > 0)
+		return;
+	/* interrupt on this revision of u3 is number 0 and level */
+	interrupts[0] = 0;
+	interrupts[1] = 1;
+	prom_setprop(i2c, "interrupts", &interrupts, sizeof(interrupts));
+	parent = (u32)mpic;
+	prom_setprop(i2c, "interrupt-parent", &parent, sizeof(parent));
+}
+
 
 static void __init prom_find_boot_cpu(void)
 {
@@ -1844,6 +1881,12 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4, unsigned long
 		     &getprop_rval, sizeof(getprop_rval));
 
 	/*
+	 * On pSeries, inform the firmware about our capabilities
+	 */
+	if (RELOC(of_platform) & PLATFORM_PSERIES)
+		prom_send_capabilities();
+
+	/*
 	 * On pSeries, copy the CPU hold code
 	 */
        	if (RELOC(of_platform) & PLATFORM_PSERIES)
@@ -1918,6 +1961,11 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4, unsigned long
 		prom_setprop(_prom->chosen, "linux,tce-alloc-end",
 			PTRRELOC(&prom_tce_alloc_end), sizeof(RELOC(prom_tce_alloc_end)));
 	}
+
+	/*
+	 * Fixup any known bugs in the device-tree
+	 */
+	fixup_device_tree();
 
 	/*
 	 * Now finally create the flattened device-tree
