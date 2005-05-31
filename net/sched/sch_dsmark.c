@@ -73,8 +73,13 @@ static int dsmark_graft(struct Qdisc *sch,unsigned long arg,
 
 	DPRINTK("dsmark_graft(sch %p,[qdisc %p],new %p,old %p)\n",sch,p,new,
 	    old);
-	if (!new)
-		new = &noop_qdisc;
+
+	if (new == NULL) {
+		new = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops);
+		if (new == NULL)
+			new = &noop_qdisc;
+	}
+
 	sch_tree_lock(sch);
 	*old = xchg(&p->q,new);
 	if (*old)
