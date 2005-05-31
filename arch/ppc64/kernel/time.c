@@ -325,9 +325,7 @@ int timer_interrupt(struct pt_regs * regs)
 
 	irq_enter();
 
-#ifndef CONFIG_PPC_ISERIES
 	profile_tick(CPU_PROFILING, regs);
-#endif
 
 	lpaca->lppaca.int_dword.fields.decr_int = 0;
 
