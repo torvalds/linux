@@ -1537,13 +1537,13 @@ static int snd_pcm_oss_get_ptr(snd_pcm_oss_file_t *pcm_oss_file, int stream, str
 			snd_pcm_oss_simulate_fill(substream, delay);
 		info.bytes = snd_pcm_oss_bytes(substream, runtime->status->hw_ptr) & INT_MAX;
 	} else {
-		delay = snd_pcm_oss_bytes(substream, delay) + fixup;
-		info.blocks = delay / runtime->oss.period_bytes;
+		delay = snd_pcm_oss_bytes(substream, delay);
 		if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
-			if (runtime->oss.bytes == 0)
-				delay = 0;
+			info.blocks = (runtime->oss.buffer_bytes - delay - fixup) / runtime->oss.period_bytes;
 			info.bytes = (runtime->oss.bytes - delay) & INT_MAX;
 		} else {
+			delay += fixup;
+			info.blocks = delay / runtime->oss.period_bytes;
 			info.bytes = (runtime->oss.bytes + delay) & INT_MAX;
 		}
 	}
