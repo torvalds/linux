@@ -88,9 +88,11 @@ static struct dmi_system_id __initdata i8042_dmi_noloop_table[] = {
 };
 
 /*
- * Some Fujitsu notebooks are ahving trouble with touhcpads if
+ * Some Fujitsu notebooks are having trouble with touchpads if
  * active multiplexing mode is activated. Luckily they don't have
  * external PS/2 ports so we can safely disable it.
+ * ... apparently some Toshibas don't like MUX mode either and
+ * die horrible death on reboot.
  */
 static struct dmi_system_id __initdata i8042_dmi_nomux_table[] = {
 	{
@@ -115,10 +117,24 @@ static struct dmi_system_id __initdata i8042_dmi_nomux_table[] = {
 		},
 	},
 	{
+		.ident = "Fujitsu Lifebook S6230",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "LifeBook S6230"),
+		},
+	},
+	{
 		.ident = "Fujitsu T70H",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "FMVLT70H"),
+		},
+	},
+	{
+		.ident = "Toshiba P10",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Satellite P10"),
 		},
 	},
 	{ }
@@ -215,11 +231,15 @@ static struct pnp_driver i8042_pnp_aux_driver = {
 
 static void i8042_pnp_exit(void)
 {
-	if (i8042_pnp_kbd_registered)
+	if (i8042_pnp_kbd_registered) {
+		i8042_pnp_kbd_registered = 0;
 		pnp_unregister_driver(&i8042_pnp_kbd_driver);
+	}
 
-	if (i8042_pnp_aux_registered)
+	if (i8042_pnp_aux_registered) {
+		i8042_pnp_aux_registered = 0;
 		pnp_unregister_driver(&i8042_pnp_aux_driver);
+	}
 }
 
 static int i8042_pnp_init(void)
@@ -227,7 +247,7 @@ static int i8042_pnp_init(void)
 	int result_kbd, result_aux;
 
 	if (i8042_nopnp) {
-		printk("i8042: PNP detection disabled\n");
+		printk(KERN_INFO "i8042: PNP detection disabled\n");
 		return 0;
 	}
 
@@ -241,7 +261,7 @@ static int i8042_pnp_init(void)
 #if defined(__ia64__)
 		return -ENODEV;
 #else
-		printk(KERN_WARNING "PNP: No PS/2 controller found. Probing ports directly.\n");
+		printk(KERN_INFO "PNP: No PS/2 controller found. Probing ports directly.\n");
 		return 0;
 #endif
 	}
@@ -265,7 +285,7 @@ static int i8042_pnp_init(void)
 		i8042_pnp_kbd_irq = i8042_kbd_irq;
 	}
 
-	if (result_aux > 0 && !i8042_pnp_aux_irq) {
+	if (!i8042_pnp_aux_irq) {
 		printk(KERN_WARNING "PNP: PS/2 controller doesn't have AUX irq; using default %#x\n", i8042_aux_irq);
 		i8042_pnp_aux_irq = i8042_aux_irq;
 	}

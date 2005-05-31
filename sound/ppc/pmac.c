@@ -876,7 +876,7 @@ static void __init detect_byte_swap(pmac_t *chip)
  */
 static int __init snd_pmac_detect(pmac_t *chip)
 {
-	struct device_node *sound;
+	struct device_node *sound = NULL;
 	unsigned int *prop, l;
 	struct macio_chip* macio;
 
@@ -906,20 +906,22 @@ static int __init snd_pmac_detect(pmac_t *chip)
 		chip->is_pbook_G3 = 1;
 	chip->node = find_devices("awacs");
 	if (chip->node)
-		return 0; /* ok */
+		sound = chip->node;
 
 	/*
 	 * powermac G3 models have a node called "davbus"
 	 * with a child called "sound".
 	 */
-	chip->node = find_devices("davbus");
+	if (!chip->node)
+		chip->node = find_devices("davbus");
 	/*
 	 * if we didn't find a davbus device, try 'i2s-a' since
 	 * this seems to be what iBooks have
 	 */
 	if (! chip->node) {
 		chip->node = find_devices("i2s-a");
-		if (chip->node && chip->node->parent && chip->node->parent->parent) {
+		if (chip->node && chip->node->parent &&
+		    chip->node->parent->parent) {
 			if (device_is_compatible(chip->node->parent->parent,
 						 "K2-Keylargo"))
 				chip->is_k2 = 1;
@@ -928,9 +930,11 @@ static int __init snd_pmac_detect(pmac_t *chip)
 	if (! chip->node)
 		return -ENODEV;
 
-	sound = find_devices("sound");
-	while (sound && sound->parent != chip->node)
-		sound = sound->next;
+	if (!sound) {
+		sound = find_devices("sound");
+		while (sound && sound->parent != chip->node)
+			sound = sound->next;
+	}
 	if (! sound)
 		return -ENODEV;
 	prop = (unsigned int *) get_property(sound, "sub-frame", NULL);
@@ -1019,7 +1023,8 @@ static int __init snd_pmac_detect(pmac_t *chip)
 		}
 	}
 	if (chip->pdev == NULL)
-		printk(KERN_WARNING "snd-powermac: can't locate macio PCI device !\n");
+		printk(KERN_WARNING "snd-powermac: can't locate macio PCI"
+		       " device !\n");
 
 	detect_byte_swap(chip);
 
@@ -1027,7 +1032,8 @@ static int __init snd_pmac_detect(pmac_t *chip)
 	   are available */
 	prop = (unsigned int *) get_property(sound, "sample-rates", &l);
 	if (! prop)
-		prop = (unsigned int *) get_property(sound, "output-frame-rates", &l);
+		prop = (unsigned int *) get_property(sound,
+						     "output-frame-rates", &l);
 	if (prop) {
 		int i;
 		chip->freqs_ok = 0;
@@ -1054,7 +1060,8 @@ static int __init snd_pmac_detect(pmac_t *chip)
 /*
  * exported - boolean info callbacks for ease of programming
  */
-int snd_pmac_boolean_stereo_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+int snd_pmac_boolean_stereo_info(snd_kcontrol_t *kcontrol,
+				 snd_ctl_elem_info_t *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
 	uinfo->count = 2;
@@ -1063,7 +1070,8 @@ int snd_pmac_boolean_stereo_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *
 	return 0;
 }
 
-int snd_pmac_boolean_mono_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+int snd_pmac_boolean_mono_info(snd_kcontrol_t *kcontrol,
+			       snd_ctl_elem_info_t *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
 	uinfo->count = 1;

@@ -73,7 +73,7 @@ static inline struct thread_info *current_thread_info(void)
 
 #define THREAD_SIZE  8192
 
-#define PREEMPT_ACTIVE		0x4000000
+#define PREEMPT_ACTIVE		0x10000000
 
 /* thread information flags */
 #define TIF_SYSCALL_TRACE	0	/* syscall trace active */

@@ -228,17 +228,17 @@ MODULE_DESCRIPTION(
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DEVICE_TABLE(pci, intelfb_pci_table);
 
-static int accel        __initdata = 1;
-static int vram         __initdata = 4;
-static int hwcursor     __initdata = 1;
-static int mtrr         __initdata = 1;
-static int fixed        __initdata = 0;
-static int noinit       __initdata = 0;
-static int noregister   __initdata = 0;
-static int probeonly    __initdata = 0;
-static int idonly       __initdata = 0;
-static int bailearly    __initdata = 0;
-static char *mode       __initdata = NULL;
+static int accel        = 1;
+static int vram         = 4;
+static int hwcursor     = 1;
+static int mtrr         = 1;
+static int fixed        = 0;
+static int noinit       = 0;
+static int noregister   = 0;
+static int probeonly    = 0;
+static int idonly       = 0;
+static int bailearly    = 0;
+static char *mode       = NULL;
 
 module_param(accel, bool, S_IRUGO);
 MODULE_PARM_DESC(accel, "Enable console acceleration");

@@ -67,6 +67,8 @@ int gameport_open(struct gameport *gameport, struct gameport_driver *drv, int mo
 void gameport_close(struct gameport *gameport);
 void gameport_rescan(struct gameport *gameport);
 
+#if defined(CONFIG_GAMEPORT) || (defined(MODULE) && defined(CONFIG_GAMEPORT_MODULE))
+
 void __gameport_register_port(struct gameport *gameport, struct module *owner);
 static inline void gameport_register_port(struct gameport *gameport)
 {
@@ -74,6 +76,29 @@ static inline void gameport_register_port(struct gameport *gameport)
 }
 
 void gameport_unregister_port(struct gameport *gameport);
+
+void gameport_set_phys(struct gameport *gameport, const char *fmt, ...)
+	__attribute__ ((format (printf, 2, 3)));
+
+#else
+
+static inline void gameport_register_port(struct gameport *gameport)
+{
+	return;
+}
+
+static inline void gameport_unregister_port(struct gameport *gameport)
+{
+	return;
+}
+
+static inline void gameport_set_phys(struct gameport *gameport,
+				     const char *fmt, ...)
+{
+	return;
+}
+
+#endif
 
 static inline struct gameport *gameport_allocate_port(void)
 {
@@ -91,9 +116,6 @@ static inline void gameport_set_name(struct gameport *gameport, const char *name
 {
 	strlcpy(gameport->name, name, sizeof(gameport->name));
 }
-
-void gameport_set_phys(struct gameport *gameport, const char *fmt, ...)
-	__attribute__ ((format (printf, 2, 3)));
 
 /*
  * Use the following fucntions to manipulate gameport's per-port
