@@ -101,18 +101,19 @@ static int create_dir(struct kobject * k, struct dentry * p,
 	down(&p->d_inode->i_sem);
 	*d = sysfs_get_dentry(p,n);
 	if (!IS_ERR(*d)) {
-		error = sysfs_create(*d, mode, init_dir);
+		error = sysfs_make_dirent(p->d_fsdata, *d, k, mode, SYSFS_DIR);
 		if (!error) {
-			error = sysfs_make_dirent(p->d_fsdata, *d, k, mode,
-						SYSFS_DIR);
+			error = sysfs_create(*d, mode, init_dir);
 			if (!error) {
 				p->d_inode->i_nlink++;
 				(*d)->d_op = &sysfs_dentry_ops;
 				d_rehash(*d);
 			}
 		}
-		if (error && (error != -EEXIST))
+		if (error && (error != -EEXIST)) {
+			sysfs_put((*d)->d_fsdata);
 			d_drop(*d);
+		}
 		dput(*d);
 	} else
 		error = PTR_ERR(*d);
@@ -171,17 +172,19 @@ static int sysfs_attach_attr(struct sysfs_dirent * sd, struct dentry * dentry)
                 init = init_file;
         }
 
+	dentry->d_fsdata = sysfs_get(sd);
+	sd->s_dentry = dentry;
 	error = sysfs_create(dentry, (attr->mode & S_IALLUGO) | S_IFREG, init);
-	if (error)
+	if (error) {
+		sysfs_put(sd);
 		return error;
+	}
 
         if (bin_attr) {
 		dentry->d_inode->i_size = bin_attr->size;
 		dentry->d_inode->i_fop = &bin_fops;
 	}
 	dentry->d_op = &sysfs_dentry_ops;
-	dentry->d_fsdata = sysfs_get(sd);
-	sd->s_dentry = dentry;
 	d_rehash(dentry);
 
 	return 0;
@@ -191,13 +194,15 @@ static int sysfs_attach_link(struct sysfs_dirent * sd, struct dentry * dentry)
 {
 	int err = 0;
 
+	dentry->d_fsdata = sysfs_get(sd);
+	sd->s_dentry = dentry;
 	err = sysfs_create(dentry, S_IFLNK|S_IRWXUGO, init_symlink);
 	if (!err) {
 		dentry->d_op = &sysfs_dentry_ops;
-		dentry->d_fsdata = sysfs_get(sd);
-		sd->s_dentry = dentry;
 		d_rehash(dentry);
-	}
+	} else
+		sysfs_put(sd);
+
 	return err;
 }
 
