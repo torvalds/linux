@@ -163,14 +163,15 @@ static void dsmark_walk(struct Qdisc *sch,struct qdisc_walker *walker)
 		return;
 	for (i = 0; i < p->indices; i++) {
 		if (p->mask[i] == 0xff && !p->value[i])
-			continue;
+			goto ignore;
 		if (walker->count >= walker->skip) {
 			if (walker->fn(sch, i+1, walker) < 0) {
 				walker->stop = 1;
 				break;
 			}
 		}
-                walker->count++;
+ignore:		
+		walker->count++;
         }
 }
 
