@@ -1936,7 +1936,7 @@ static ide_startstop_t cdrom_do_block_pc(ide_drive_t *drive, struct request *rq)
 		 * NOTE! The "len" and "addr" checks should possibly have
 		 * separate masks.
 		 */
-		if ((rq->data_len & mask) || (addr & mask))
+		if ((rq->data_len & 15) || (addr & mask))
 			info->dma = 0;
 	}
 
