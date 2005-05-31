@@ -105,6 +105,10 @@
 #endif
 #endif
 
+#ifndef cpu_has_dsp
+#define cpu_has_dsp		(cpu_data[0].ases & MIPS_ASE_DSP)
+#endif
+
 /*
  * Certain CPUs may throw bizarre exceptions if not the whole cacheline
  * contains valid instructions.  For these we ensure proper alignment of

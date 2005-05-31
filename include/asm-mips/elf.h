@@ -193,33 +193,76 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 
 #ifdef __KERNEL__
 
+struct mips_abi;
+
+extern struct mips_abi mips_abi;
+extern struct mips_abi mips_abi_32;
+extern struct mips_abi mips_abi_n32;
+
 #ifdef CONFIG_32BIT
 
-#define SET_PERSONALITY(ex, ibcs2)			\
-do {							\
-	if (ibcs2)					\
-		set_personality(PER_SVR4);		\
-	set_personality(PER_LINUX);			\
+#define SET_PERSONALITY(ex, ibcs2)					\
+do {									\
+	if (ibcs2)							\
+		set_personality(PER_SVR4);				\
+	set_personality(PER_LINUX);					\
+									\
+	current->thread.abi = &mips_abi;				\
 } while (0)
 
 #endif /* CONFIG_32BIT */
 
 #ifdef CONFIG_64BIT
 
-#define SET_PERSONALITY(ex, ibcs2)				\
-do {	current->thread.mflags &= ~MF_ABI_MASK;			\
-	if ((ex).e_ident[EI_CLASS] == ELFCLASS32) {		\
-		if ((((ex).e_flags & EF_MIPS_ABI2) != 0) &&	\
-		     ((ex).e_flags & EF_MIPS_ABI) == 0)		\
-			current->thread.mflags |= MF_N32;	\
-		else						\
-			current->thread.mflags |= MF_O32;	\
-	} else							\
-		current->thread.mflags |= MF_N64;		\
-	if (ibcs2)						\
-		set_personality(PER_SVR4);			\
-	else if (current->personality != PER_LINUX32)		\
-		set_personality(PER_LINUX);			\
+#ifdef CONFIG_MIPS32_N32
+#define __SET_PERSONALITY32_N32()					\
+	do {								\
+		current->thread.mflags |= MF_N32;			\
+		current->thread.abi = &mips_abi_n32;			\
+	} while (0)
+#else
+#define __SET_PERSONALITY32_N32()					\
+	do { } while (0)
+#endif
+
+#ifdef CONFIG_MIPS32_O32
+#define __SET_PERSONALITY32_O32()					\
+	do {								\
+		current->thread.mflags |= MF_O32;			\
+		current->thread.abi = &mips_abi_32;			\
+	} while (0)
+#else
+#define __SET_PERSONALITY32_O32()					\
+	do { } while (0)
+#endif
+
+#ifdef CONFIG_MIPS32_COMPAT
+#define __SET_PERSONALITY32(ex)						\
+do {									\
+	if ((((ex).e_flags & EF_MIPS_ABI2) != 0) &&			\
+	     ((ex).e_flags & EF_MIPS_ABI) == 0)				\
+		__SET_PERSONALITY32_N32();				\
+	else								\
+		__SET_PERSONALITY32_O32();				\
+} while (0)
+#else
+#define __SET_PERSONALITY32(ex)	do { } while (0)
+#endif
+
+#define SET_PERSONALITY(ex, ibcs2)					\
+do {									\
+	current->thread.mflags &= ~MF_ABI_MASK;				\
+	if ((ex).e_ident[EI_CLASS] == ELFCLASS32)			\
+		__SET_PERSONALITY32(ex);				\
+	else {								\
+		current->thread.mflags |= MF_N64;			\
+		current->thread.abi = &mips_abi;			\
+	}								\
+									\
+	if (ibcs2)							\
+		set_personality(PER_SVR4);				\
+	else if (current->personality != PER_LINUX32)			\
+		set_personality(PER_LINUX);				\
 } while (0)
 
 #endif /* CONFIG_64BIT */

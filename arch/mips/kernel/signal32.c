@@ -21,6 +21,7 @@
 #include <linux/suspend.h>
 #include <linux/compiler.h>
 
+#include <asm/abi.h>
 #include <asm/asm.h>
 #include <linux/bitops.h>
 #include <asm/cacheflush.h>
@@ -334,8 +335,9 @@ asmlinkage int sys32_sigaltstack(nabi_no_regargs struct pt_regs regs)
 
 static int restore_sigcontext32(struct pt_regs *regs, struct sigcontext32 *sc)
 {
+	u32 used_math;
 	int err = 0;
-	__u32 used_math;
+	s32 treg;
 
 	/* Always make any pending restarted system calls return -EINTR */
 	current_thread_info()->restart_block.fn = do_no_restart_syscall;
@@ -343,6 +345,15 @@ static int restore_sigcontext32(struct pt_regs *regs, struct sigcontext32 *sc)
 	err |= __get_user(regs->cp0_epc, &sc->sc_pc);
 	err |= __get_user(regs->hi, &sc->sc_mdhi);
 	err |= __get_user(regs->lo, &sc->sc_mdlo);
+	if (cpu_has_dsp) {
+		err |= __get_user(treg, &sc->sc_hi1); mthi1(treg);
+		err |= __get_user(treg, &sc->sc_lo1); mtlo1(treg);
+		err |= __get_user(treg, &sc->sc_hi2); mthi2(treg);
+		err |= __get_user(treg, &sc->sc_lo2); mtlo2(treg);
+		err |= __get_user(treg, &sc->sc_hi3); mthi3(treg);
+		err |= __get_user(treg, &sc->sc_lo3); mtlo3(treg);
+		err |= __get_user(treg, &sc->sc_dsp); wrdsp(treg, DSP_MASK);
+	}
 
 #define restore_gp_reg(i) do {						\
 	err |= __get_user(regs->regs[i], &sc->sc_regs[i]);		\
@@ -562,8 +573,15 @@ static inline int setup_sigcontext32(struct pt_regs *regs,
 
 	err |= __put_user(regs->hi, &sc->sc_mdhi);
 	err |= __put_user(regs->lo, &sc->sc_mdlo);
-	err |= __put_user(regs->cp0_cause, &sc->sc_cause);
-	err |= __put_user(regs->cp0_badvaddr, &sc->sc_badvaddr);
+	if (cpu_has_dsp) {
+		err |= __put_user(rddsp(DSP_MASK), &sc->sc_hi1);
+		err |= __put_user(mfhi1(), &sc->sc_hi1);
+		err |= __put_user(mflo1(), &sc->sc_lo1);
+		err |= __put_user(mfhi2(), &sc->sc_hi2);
+		err |= __put_user(mflo2(), &sc->sc_lo2);
+		err |= __put_user(mfhi3(), &sc->sc_hi3);
+		err |= __put_user(mflo3(), &sc->sc_lo3);
+	}
 
 	err |= __put_user(!!used_math(), &sc->sc_used_math);
 
@@ -613,7 +631,7 @@ static inline void *get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
 	return (void *)((sp - frame_size) & ALMASK);
 }
 
-static inline void setup_frame(struct k_sigaction * ka, struct pt_regs *regs,
+void setup_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
 			       int signr, sigset_t *set)
 {
 	struct sigframe *frame;
@@ -666,9 +684,7 @@ give_sigsegv:
 	force_sigsegv(signr, current);
 }
 
-static inline void setup_rt_frame(struct k_sigaction * ka,
-				  struct pt_regs *regs, int signr,
-				  sigset_t *set, siginfo_t *info)
+void setup_rt_frame_32(struct k_sigaction * ka, struct pt_regs *regs, int signr,	sigset_t *set, siginfo_t *info)
 {
 	struct rt_sigframe32 *frame;
 	int err = 0;
@@ -759,9 +775,9 @@ static inline void handle_signal(unsigned long sig, siginfo_t *info,
 	regs->regs[0] = 0;		/* Don't deal with this again.  */
 
 	if (ka->sa.sa_flags & SA_SIGINFO)
-		setup_rt_frame(ka, regs, sig, oldset, info);
+		current->thread.abi->setup_rt_frame(ka, regs, sig, oldset, info);
 	else
-		setup_frame(ka, regs, sig, oldset);
+		current->thread.abi->setup_frame(ka, regs, sig, oldset);
 
 	spin_lock_irq(&current->sighand->siglock);
 	sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);

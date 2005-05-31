@@ -25,6 +25,7 @@
 #include <asm/branch.h>
 #include <asm/break.h>
 #include <asm/cpu.h>
+#include <asm/dsp.h>
 #include <asm/fpu.h>
 #include <asm/module.h>
 #include <asm/pgtable.h>
@@ -54,6 +55,7 @@ extern asmlinkage void handle_tr(void);
 extern asmlinkage void handle_fpe(void);
 extern asmlinkage void handle_mdmx(void);
 extern asmlinkage void handle_watch(void);
+extern asmlinkage void handle_dsp(void);
 extern asmlinkage void handle_mcheck(void);
 extern asmlinkage void handle_reserved(void);
 
@@ -775,6 +777,14 @@ asmlinkage void do_mcheck(struct pt_regs *regs)
 	      (regs->cp0_status & ST0_TS) ? "" : "not ");
 }
 
+asmlinkage void do_dsp(struct pt_regs *regs)
+{
+	if (cpu_has_dsp)
+		panic("Unexpected DSP exception\n");
+
+	force_sig(SIGILL, current);
+}
+
 asmlinkage void do_reserved(struct pt_regs *regs)
 {
 	/*
@@ -984,8 +994,11 @@ void __init per_cpu_trap_init(void)
 #endif
 	if (current_cpu_data.isa_level == MIPS_CPU_ISA_IV)
 		status_set |= ST0_XX;
-	change_c0_status(ST0_CU|ST0_FR|ST0_BEV|ST0_TS|ST0_KX|ST0_SX|ST0_UX,
+	change_c0_status(ST0_CU|ST0_MX|ST0_FR|ST0_BEV|ST0_TS|ST0_KX|ST0_SX|ST0_UX,
 			 status_set);
+
+	if (cpu_has_dsp)
+		set_c0_status(ST0_MX);
 
 	/*
 	 * Some MIPS CPUs have a dedicated interrupt vector which reduces the
@@ -1078,21 +1091,6 @@ void __init trap_init(void)
 	set_except_vector(11, handle_cpu);
 	set_except_vector(12, handle_ov);
 	set_except_vector(13, handle_tr);
-	set_except_vector(22, handle_mdmx);
-
-	if (cpu_has_fpu && !cpu_has_nofpuex)
-		set_except_vector(15, handle_fpe);
-
-	if (cpu_has_mcheck)
-		set_except_vector(24, handle_mcheck);
-
-	if (cpu_has_vce)
-		/* Special exception: R4[04]00 uses also the divec space. */
-		memcpy((void *)(CAC_BASE + 0x180), &except_vec3_r4000, 0x100);
-	else if (cpu_has_4kex)
-		memcpy((void *)(CAC_BASE + 0x180), &except_vec3_generic, 0x80);
-	else
-		memcpy((void *)(CAC_BASE + 0x080), &except_vec3_generic, 0x80);
 
 	if (current_cpu_data.cputype == CPU_R6000 ||
 	    current_cpu_data.cputype == CPU_R6000A) {
@@ -1107,6 +1105,25 @@ void __init trap_init(void)
 		//set_except_vector(14, handle_mc);
 		//set_except_vector(15, handle_ndc);
 	}
+
+	if (cpu_has_fpu && !cpu_has_nofpuex)
+		set_except_vector(15, handle_fpe);
+
+	set_except_vector(22, handle_mdmx);
+
+	if (cpu_has_mcheck)
+		set_except_vector(24, handle_mcheck);
+
+	if (cpu_has_dsp)
+		set_except_vector(26, handle_dsp);
+
+	if (cpu_has_vce)
+		/* Special exception: R4[04]00 uses also the divec space. */
+		memcpy((void *)(CAC_BASE + 0x180), &except_vec3_r4000, 0x100);
+	else if (cpu_has_4kex)
+		memcpy((void *)(CAC_BASE + 0x180), &except_vec3_generic, 0x80);
+	else
+		memcpy((void *)(CAC_BASE + 0x080), &except_vec3_generic, 0x80);
 
 	signal_init();
 #ifdef CONFIG_MIPS32_COMPAT

@@ -25,8 +25,10 @@
 #include <linux/init.h>
 #include <linux/completion.h>
 
+#include <asm/abi.h>
 #include <asm/bootinfo.h>
 #include <asm/cpu.h>
+#include <asm/dsp.h>
 #include <asm/fpu.h>
 #include <asm/pgtable.h>
 #include <asm/system.h>
@@ -54,6 +56,54 @@ ATTRIB_NORET void cpu_idle(void)
 	}
 }
 
+extern int do_signal(sigset_t *oldset, struct pt_regs *regs);
+extern int do_signal32(sigset_t *oldset, struct pt_regs *regs);
+
+/*
+ * Native o32 and N64 ABI without DSP ASE
+ */
+extern void setup_frame(struct k_sigaction * ka, struct pt_regs *regs,
+        int signr, sigset_t *set);
+extern void setup_rt_frame(struct k_sigaction * ka, struct pt_regs *regs,
+        int signr, sigset_t *set, siginfo_t *info);
+
+struct mips_abi mips_abi = {
+	.do_signal	= do_signal,
+#ifdef CONFIG_TRAD_SIGNALS
+	.setup_frame	= setup_frame,
+#endif
+	.setup_rt_frame	= setup_rt_frame
+};
+
+#ifdef CONFIG_MIPS32_O32
+/*
+ * o32 compatibility on 64-bit kernels, without DSP ASE
+ */
+extern void setup_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
+        int signr, sigset_t *set);
+extern void setup_rt_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
+        int signr, sigset_t *set, siginfo_t *info);
+
+struct mips_abi mips_abi_32 = {
+	.do_signal	= do_signal32,
+	.setup_frame	= setup_frame_32,
+	.setup_rt_frame	= setup_rt_frame_32
+};
+#endif /* CONFIG_MIPS32_O32 */
+
+#ifdef CONFIG_MIPS32_N32
+/*
+ * N32 on 64-bit kernels, without DSP ASE
+ */
+extern void setup_rt_frame_n32(struct k_sigaction * ka, struct pt_regs *regs,
+        int signr, sigset_t *set, siginfo_t *info);
+
+struct mips_abi mips_abi_n32 = {
+	.do_signal	= do_signal,
+	.setup_rt_frame	= setup_rt_frame_n32
+};
+#endif /* CONFIG_MIPS32_N32 */
+
 asmlinkage void ret_from_fork(void);
 
 void start_thread(struct pt_regs * regs, unsigned long pc, unsigned long sp)
@@ -70,6 +120,8 @@ void start_thread(struct pt_regs * regs, unsigned long pc, unsigned long sp)
 	regs->cp0_status = status;
 	clear_used_math();
 	lose_fpu();
+	if (cpu_has_dsp)
+		__init_dsp();
 	regs->cp0_epc = pc;
 	regs->regs[29] = sp;
 	current_thread_info()->addr_limit = USER_DS;
@@ -95,9 +147,11 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 
 	preempt_disable();
 
-	if (is_fpu_owner()) {
+	if (is_fpu_owner())
 		save_fp(p);
-	}
+
+	if (cpu_has_dsp)
+		save_dsp(p);
 
 	preempt_enable();
 

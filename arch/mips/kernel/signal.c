@@ -21,6 +21,7 @@
 #include <linux/unistd.h>
 #include <linux/compiler.h>
 
+#include <asm/abi.h>
 #include <asm/asm.h>
 #include <linux/bitops.h>
 #include <asm/cacheflush.h>
@@ -36,7 +37,7 @@
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
-static int do_signal(sigset_t *oldset, struct pt_regs *regs);
+int do_signal(sigset_t *oldset, struct pt_regs *regs);
 
 /*
  * Atomically swap in the new signal mask, and wait for a signal.
@@ -216,7 +217,7 @@ _sys_sigreturn(nabi_no_regargs struct pt_regs regs)
 badframe:
 	force_sig(SIGSEGV, current);
 }
-#endif
+#endif /* CONFIG_TRAD_SIGNALS */
 
 save_static_function(sys_rt_sigreturn);
 __attribute_used__ noinline static void
@@ -262,7 +263,7 @@ badframe:
 }
 
 #ifdef CONFIG_TRAD_SIGNALS
-static void inline setup_frame(struct k_sigaction * ka, struct pt_regs *regs,
+void setup_frame(struct k_sigaction * ka, struct pt_regs *regs,
 	int signr, sigset_t *set)
 {
 	struct sigframe *frame;
@@ -318,7 +319,7 @@ give_sigsegv:
 }
 #endif
 
-static void inline setup_rt_frame(struct k_sigaction * ka, struct pt_regs *regs,
+void setup_rt_frame(struct k_sigaction * ka, struct pt_regs *regs,
 	int signr, sigset_t *set, siginfo_t *info)
 {
 	struct rt_sigframe *frame;
@@ -410,22 +411,10 @@ static inline void handle_signal(unsigned long sig, siginfo_t *info,
 
 	regs->regs[0] = 0;		/* Don't deal with this again.  */
 
-#ifdef CONFIG_TRAD_SIGNALS
-	if (ka->sa.sa_flags & SA_SIGINFO) {
-#else
-	if (1) {
-#endif
-#ifdef CONFIG_MIPS32_N32
-		if ((current->thread.mflags & MF_ABI_MASK) == MF_N32)
-			setup_rt_frame_n32 (ka, regs, sig, oldset, info);
-		else
-#endif
-			setup_rt_frame(ka, regs, sig, oldset, info);
-	}
-#ifdef CONFIG_TRAD_SIGNALS
+	if (sig_uses_siginfo(ka))
+		current->thread.abi->setup_rt_frame(ka, regs, sig, oldset, info);
 	else
-		setup_frame(ka, regs, sig, oldset);
-#endif
+		current->thread.abi->setup_frame(ka, regs, sig, oldset);
 
 	spin_lock_irq(&current->sighand->siglock);
 	sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
@@ -435,20 +424,11 @@ static inline void handle_signal(unsigned long sig, siginfo_t *info,
 	spin_unlock_irq(&current->sighand->siglock);
 }
 
-extern int do_signal32(sigset_t *oldset, struct pt_regs *regs);
-extern int do_irix_signal(sigset_t *oldset, struct pt_regs *regs);
-
-static int do_signal(sigset_t *oldset, struct pt_regs *regs)
+int do_signal(sigset_t *oldset, struct pt_regs *regs)
 {
 	struct k_sigaction ka;
 	siginfo_t info;
 	int signr;
-
-#ifdef CONFIG_BINFMT_ELF32
-	if ((current->thread.mflags & MF_ABI_MASK) == MF_O32) {
-		return do_signal32(oldset, regs);
-	}
-#endif
 
 	/*
 	 * We want the common case to go fast, which is why we may in certain
@@ -501,18 +481,6 @@ asmlinkage void do_notify_resume(struct pt_regs *regs, sigset_t *oldset,
 {
 	/* deal with pending signal delivery */
 	if (thread_info_flags & _TIF_SIGPENDING) {
-#ifdef CONFIG_BINFMT_ELF32
-		if (likely((current->thread.mflags & MF_ABI_MASK) == MF_O32)) {
-			do_signal32(oldset, regs);
-			return;
-		}
-#endif
-#ifdef CONFIG_BINFMT_IRIX
-		if (unlikely(current->personality != PER_LINUX)) {
-			do_irix_signal(oldset, regs);
-			return;
-		}
-#endif
-		do_signal(oldset, regs);
+		current->thread.abi->do_signal(oldset, regs);
 	}
 }

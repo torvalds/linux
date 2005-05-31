@@ -77,6 +77,7 @@
 #define PRID_IMP_4KEMPR2	0x9100
 #define PRID_IMP_4KSD		0x9200
 #define PRID_IMP_24K		0x9300
+#define PRID_IMP_24KE		0x9600
 
 #define PRID_IMP_UNKNOWN	0xff00
 
@@ -232,5 +233,6 @@
 #define MIPS_ASE_MDMX		0x00000002 /* MIPS digital media extension */
 #define MIPS_ASE_MIPS3D		0x00000004 /* MIPS-3D */
 #define MIPS_ASE_SMARTMIPS	0x00000008 /* SmartMIPS */
+#define MIPS_ASE_DSP		0x00000010 /* Signal Processing ASE */
 
 #endif /* _ASM_CPU_H */

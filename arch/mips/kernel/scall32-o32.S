@@ -620,7 +620,7 @@ einval:	li	v0, -EINVAL
 	sys	sys_ni_syscall		0	/* sys_vserver */
 	sys	sys_waitid		5
 	sys	sys_ni_syscall		0	/* available, was setaltroot */
-	sys	sys_add_key		5
+	sys	sys_add_key		5	/* 4280 */
 	sys	sys_request_key		4
 	sys	sys_keyctl		5
 	sys	sys_set_thread_area	1

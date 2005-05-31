@@ -482,6 +482,8 @@ static inline unsigned int decode_config3(struct cpuinfo_mips *c)
 
 	if (config3 & MIPS_CONF3_SM)
 		c->ases |= MIPS_ASE_SMARTMIPS;
+	if (config3 & MIPS_CONF3_DSP)
+		c->ases |= MIPS_ASE_DSP;
 
 	return config3 & MIPS_CONF_M;
 }
@@ -529,6 +531,7 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c)
 		c->cputype = CPU_20KC;
 		break;
 	case PRID_IMP_24K:
+	case PRID_IMP_24KE:
 		c->cputype = CPU_24K;
 		break;
 	case PRID_IMP_25KF:

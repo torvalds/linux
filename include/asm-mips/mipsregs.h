@@ -281,6 +281,11 @@
 #define ST0_DL			(_ULCAST_(1) << 24)
 
 /*
+ * Enable the MIPS DSP ASE
+ */
+#define ST0_MX			0x01000000
+
+/*
  * Bitfields in the TX39 family CP0 Configuration Register 3
  */
 #define TX39_CONF_ICS_SHIFT	19
@@ -510,6 +515,7 @@
 #define MIPS_CONF3_VINT		(_ULCAST_(1) <<  5)
 #define MIPS_CONF3_VEIC		(_ULCAST_(1) <<  6)
 #define MIPS_CONF3_LPA		(_ULCAST_(1) <<  7)
+#define MIPS_CONF3_DSP		(_ULCAST_(1) << 10)
 
 /*
  * Bits in the MIPS32/64 coprocessor 1 (FPU) revision register.
@@ -985,6 +991,287 @@ do {									\
 	".set\tpop"						\
         : "=r" (__res));                                        \
         __res;})
+
+#define rddsp(mask)							\
+({									\
+	unsigned int __res;						\
+									\
+	__asm__ __volatile__(						\
+	"	.set	push				\n"		\
+	"	.set	noat				\n"		\
+	"	# rddsp $1, %x1				\n"		\
+	"	.word	0x7c000cb8 | (%x1 << 16)	\n"		\
+	"	move	%0, $1				\n"		\
+	"	.set	pop				\n"		\
+	: "=r" (__res)							\
+	: "i" (mask));							\
+	__res;								\
+})
+
+#define wrdsp(val, mask)						\
+do {									\
+	unsigned int __res;						\
+									\
+	__asm__ __volatile__(						\
+	"	.set	push					\n"	\
+	"	.set	noat					\n"	\
+	"	move	$1, %0					\n"	\
+	"	# wrdsp $1, %x1					\n"	\
+	"	.word	0x7c2004f8 | (%x1 << 15)		\n"	\
+	"	.set	pop					\n"	\
+        :								\
+	: "r" (val), "i" (mask));					\
+        __res;								\
+} while (0)
+
+#if 0	/* Need DSP ASE capable assembler ... */
+#define mflo0() ({ long mflo0; __asm__("mflo %0, $ac0" : "=r" (mflo0)); mflo0;})
+#define mflo1() ({ long mflo1; __asm__("mflo %0, $ac1" : "=r" (mflo1)); mflo1;})
+#define mflo2() ({ long mflo2; __asm__("mflo %0, $ac2" : "=r" (mflo2)); mflo2;})
+#define mflo3() ({ long mflo3; __asm__("mflo %0, $ac3" : "=r" (mflo3)); mflo3;})
+
+#define mfhi0() ({ long mfhi0; __asm__("mfhi %0, $ac0" : "=r" (mfhi0)); mfhi0;})
+#define mfhi1() ({ long mfhi1; __asm__("mfhi %0, $ac1" : "=r" (mfhi1)); mfhi1;})
+#define mfhi2() ({ long mfhi2; __asm__("mfhi %0, $ac2" : "=r" (mfhi2)); mfhi2;})
+#define mfhi3() ({ long mfhi3; __asm__("mfhi %0, $ac3" : "=r" (mfhi3)); mfhi3;})
+
+#define mtlo0(x) __asm__("mtlo %0, $ac0" ::"r" (x))
+#define mtlo1(x) __asm__("mtlo %0, $ac1" ::"r" (x))
+#define mtlo2(x) __asm__("mtlo %0, $ac2" ::"r" (x))
+#define mtlo3(x) __asm__("mtlo %0, $ac3" ::"r" (x))
+
+#define mthi0(x) __asm__("mthi %0, $ac0" ::"r" (x))
+#define mthi1(x) __asm__("mthi %0, $ac1" ::"r" (x))
+#define mthi2(x) __asm__("mthi %0, $ac2" ::"r" (x))
+#define mthi3(x) __asm__("mthi %0, $ac3" ::"r" (x))
+
+#else
+
+#define mfhi0()								\
+({									\
+	unsigned long __treg;						\
+									\
+	__asm__ __volatile__(						\
+	"	.set	push			\n"			\
+	"	.set	noat			\n"			\
+	"	# mfhi	%0, $ac0		\n"			\
+	"	.word	0x00000810		\n"			\
+	"	move	%0, $1			\n"			\
+	"	.set	pop			\n"			\
+	: "=r" (__treg));						\
+	__treg;								\
+})
+
+#define mfhi1()								\
+({									\
+	unsigned long __treg;						\
+									\
+	__asm__ __volatile__(						\
+	"	.set	push			\n"			\
+	"	.set	noat			\n"			\
+	"	# mfhi	%0, $ac1		\n"			\
+	"	.word	0x00200810		\n"			\
+	"	move	%0, $1			\n"			\
+	"	.set	pop			\n"			\
+	: "=r" (__treg));						\
+	__treg;								\
+})
+
+#define mfhi2()								\
+({									\
+	unsigned long __treg;						\
+									\
+	__asm__ __volatile__(						\
+	"	.set	push			\n"			\
+	"	.set	noat			\n"			\
+	"	# mfhi	%0, $ac2		\n"			\
+	"	.word	0x00400810		\n"			\
+	"	move	%0, $1			\n"			\
+	"	.set	pop			\n"			\
+	: "=r" (__treg));						\
+	__treg;								\
+})
+
+#define mfhi3()								\
+({									\
+	unsigned long __treg;						\
+									\
+	__asm__ __volatile__(						\
+	"	.set	push			\n"			\
+	"	.set	noat			\n"			\
+	"	# mfhi	%0, $ac3		\n"			\
+	"	.word	0x00600810		\n"			\
+	"	move	%0, $1			\n"			\
+	"	.set	pop			\n"			\
+	: "=r" (__treg));						\
+	__treg;								\
+})
+
+#define mflo0()								\
+({									\
+	unsigned long __treg;						\
+									\
+	__asm__ __volatile__(						\
+	"	.set	push			\n"			\
+	"	.set	noat			\n"			\
+	"	# mflo	%0, $ac0		\n"			\
+	"	.word	0x00000812		\n"			\
+	"	move	%0, $1			\n"			\
+	"	.set	pop			\n"			\
+	: "=r" (__treg));						\
+	__treg;								\
+})
+
+#define mflo1()								\
+({									\
+	unsigned long __treg;						\
+									\
+	__asm__ __volatile__(						\
+	"	.set	push			\n"			\
+	"	.set	noat			\n"			\
+	"	# mflo	%0, $ac1		\n"			\
+	"	.word	0x00200812		\n"			\
+	"	move	%0, $1			\n"			\
+	"	.set	pop			\n"			\
+	: "=r" (__treg));						\
+	__treg;								\
+})
+
+#define mflo2()								\
+({									\
+	unsigned long __treg;						\
+									\
+	__asm__ __volatile__(						\
+	"	.set	push			\n"			\
+	"	.set	noat			\n"			\
+	"	# mflo	%0, $ac2		\n"			\
+	"	.word	0x00400812		\n"			\
+	"	move	%0, $1			\n"			\
+	"	.set	pop			\n"			\
+	: "=r" (__treg));						\
+	__treg;								\
+})
+
+#define mflo3()								\
+({									\
+	unsigned long __treg;						\
+									\
+	__asm__ __volatile__(						\
+	"	.set	push			\n"			\
+	"	.set	noat			\n"			\
+	"	# mflo	%0, $ac3		\n"			\
+	"	.word	0x00600812		\n"			\
+	"	move	%0, $1			\n"			\
+	"	.set	pop			\n"			\
+	: "=r" (__treg));						\
+	__treg;								\
+})
+
+#define mthi0(x)							\
+do {									\
+	__asm__ __volatile__(						\
+	"	.set	push					\n"	\
+	"	.set	noat					\n"	\
+	"	move	$1, %0					\n"	\
+	"	# mthi	$1, $ac0				\n"	\
+	"	.word	0x00200011				\n"	\
+	"	.set	pop					\n"	\
+	:								\
+	: "r" (x));							\
+} while (0)
+
+#define mthi1(x)							\
+do {									\
+	__asm__ __volatile__(						\
+	"	.set	push					\n"	\
+	"	.set	noat					\n"	\
+	"	move	$1, %0					\n"	\
+	"	# mthi	$1, $ac1				\n"	\
+	"	.word	0x00200811				\n"	\
+	"	.set	pop					\n"	\
+	:								\
+	: "r" (x));							\
+} while (0)
+
+#define mthi2(x)							\
+do {									\
+	__asm__ __volatile__(						\
+	"	.set	push					\n"	\
+	"	.set	noat					\n"	\
+	"	move	$1, %0					\n"	\
+	"	# mthi	$1, $ac2				\n"	\
+	"	.word	0x00201011				\n"	\
+	"	.set	pop					\n"	\
+	:								\
+	: "r" (x));							\
+} while (0)
+
+#define mthi3(x)							\
+do {									\
+	__asm__ __volatile__(						\
+	"	.set	push					\n"	\
+	"	.set	noat					\n"	\
+	"	move	$1, %0					\n"	\
+	"	# mthi	$1, $ac3				\n"	\
+	"	.word	0x00201811				\n"	\
+	"	.set	pop					\n"	\
+	:								\
+	: "r" (x));							\
+} while (0)
+
+#define mtlo0(x)							\
+do {									\
+	__asm__ __volatile__(						\
+	"	.set	push					\n"	\
+	"	.set	noat					\n"	\
+	"	move	$1, %0					\n"	\
+	"	# mtlo	$1, $ac0				\n"	\
+	"	.word	0x00200013				\n"	\
+	"	.set	pop					\n"	\
+	:								\
+	: "r" (x));							\
+} while (0)
+
+#define mtlo1(x)							\
+do {									\
+	__asm__ __volatile__(						\
+	"	.set	push					\n"	\
+	"	.set	noat					\n"	\
+	"	move	$1, %0					\n"	\
+	"	# mtlo	$1, $ac1				\n"	\
+	"	.word	0x00200813				\n"	\
+	"	.set	pop					\n"	\
+	:								\
+	: "r" (x));							\
+} while (0)
+
+#define mtlo2(x)							\
+do {									\
+	__asm__ __volatile__(						\
+	"	.set	push					\n"	\
+	"	.set	noat					\n"	\
+	"	move	$1, %0					\n"	\
+	"	# mtlo	$1, $ac2				\n"	\
+	"	.word	0x00201013				\n"	\
+	"	.set	pop					\n"	\
+	:								\
+	: "r" (x));							\
+} while (0)
+
+#define mtlo3(x)							\
+do {									\
+	__asm__ __volatile__(						\
+	"	.set	push					\n"	\
+	"	.set	noat					\n"	\
+	"	move	$1, %0					\n"	\
+	"	# mtlo	$1, $ac3				\n"	\
+	"	.word	0x00201813				\n"	\
+	"	.set	pop					\n"	\
+	:								\
+	: "r" (x));							\
+} while (0)
+
+#endif
 
 /*
  * TLB operations.

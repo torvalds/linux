@@ -22,6 +22,8 @@
 #define MMLO		68
 #define FPC_CSR		69
 #define FPC_EIR		70
+#define DSP_BASE	71		/* 3 more hi / lo register pairs */
+#define DSP_CONTROL	77
 
 /*
  * This struct defines the way the registers are stored on the stack during a
@@ -38,8 +40,8 @@ struct pt_regs {
 
 	/* Saved special registers. */
 	unsigned long cp0_status;
-	unsigned long lo;
 	unsigned long hi;
+	unsigned long lo;
 	unsigned long cp0_badvaddr;
 	unsigned long cp0_cause;
 	unsigned long cp0_epc;

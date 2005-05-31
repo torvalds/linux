@@ -22,7 +22,7 @@
  */
 int __compute_return_epc(struct pt_regs *regs)
 {
-	unsigned int *addr, bit, fcr31;
+	unsigned int *addr, bit, fcr31, dspcontrol;
 	long epc;
 	union mips_instruction insn;
 
@@ -96,6 +96,18 @@ int __compute_return_epc(struct pt_regs *regs)
 			if ((long)regs->regs[insn.i_format.rs] >= 0)
 				epc = epc + 4 + (insn.i_format.simmediate << 2);
 			else
+				epc += 8;
+			regs->cp0_epc = epc;
+			break;
+		case bposge32_op:
+			if (!cpu_has_dsp)
+				goto sigill;
+
+			dspcontrol = rddsp(0x01);
+
+			if (dspcontrol >= 32) {
+				epc = epc + 4 + (insn.i_format.simmediate << 2);
+			} else
 				epc += 8;
 			regs->cp0_epc = epc;
 			break;
@@ -198,6 +210,11 @@ int __compute_return_epc(struct pt_regs *regs)
 
 unaligned:
 	printk("%s: unaligned epc - sending SIGBUS.\n", current->comm);
+	force_sig(SIGBUS, current);
+	return -EFAULT;
+
+sigill:
+	printk("%s: DSP branch but not DSP ASE - sending SIGBUS.\n", current->comm);
 	force_sig(SIGBUS, current);
 	return -EFAULT;
 }

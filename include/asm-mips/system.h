@@ -17,6 +17,7 @@
 
 #include <asm/addrspace.h>
 #include <asm/cpu-features.h>
+#include <asm/dsp.h>
 #include <asm/ptrace.h>
 #include <asm/war.h>
 #include <asm/interrupt.h>
@@ -154,9 +155,13 @@ extern asmlinkage void *resume(void *last, void *next, void *next_ti);
 
 struct task_struct;
 
-#define switch_to(prev,next,last) \
-do { \
-	(last) = resume(prev, next, next->thread_info); \
+#define switch_to(prev,next,last)					\
+do {									\
+	if (cpu_has_dsp)						\
+		__save_dsp(prev);					\
+	(last) = resume(prev, next, next->thread_info);			\
+	if (cpu_has_dsp)						\
+		__restore_dsp(current);					\
 } while(0)
 
 #define ROT_IN_PIECES							\
