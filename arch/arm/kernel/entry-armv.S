@@ -269,6 +269,8 @@ __pabt_svc:
 	.word	__temp_und
 .LCabt:
 	.word	__temp_abt
+.LCcralign:
+	.word	cr_alignment
 #ifdef MULTI_ABORT
 .LCprocfns:
 	.word	processor
@@ -311,7 +313,7 @@ __pabt_svc:
 	@
 	@ Enable the alignment trap while in kernel mode
 	@
-	alignment_trap r7, r0, __temp_\sym
+	alignment_trap r0
 
 	@
 	@ Clear FP to mark the first stack frame
