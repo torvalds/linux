@@ -495,24 +495,24 @@ static int uhci_reset(struct usb_hcd *hcd)
 
 	/* The UHCI spec says devices must have 2 ports, and goes on to say
 	 * they may have more but gives no way to determine how many there
-	 * are.  However, according to the UHCI spec, Bit 7 of the port
+	 * are.  However according to the UHCI spec, Bit 7 of the port
 	 * status and control register is always set to 1.  So we try to
-	 * use this to our advantage.
+	 * use this to our advantage.  Another common failure mode when
+	 * a nonexistent register is addressed is to return all ones, so
+	 * we test for that also.
 	 */
 	for (port = 0; port < (io_size - USBPORTSC1) / 2; port++) {
 		unsigned int portstatus;
 
 		portstatus = inw(uhci->io_addr + USBPORTSC1 + (port * 2));
-		if (!(portstatus & 0x0080))
+		if (!(portstatus & 0x0080) || portstatus == 0xffff)
 			break;
 	}
 	if (debug)
 		dev_info(uhci_dev(uhci), "detected %d ports\n", port);
 
-	/* Anything less than 2 or greater than 7 is weird,
-	 * so we'll ignore it.
-	 */
-	if (port < 2 || port > UHCI_RH_MAXCHILD) {
+	/* Anything greater than 7 is weird so we'll ignore it. */
+	if (port > UHCI_RH_MAXCHILD) {
 		dev_info(uhci_dev(uhci), "port count misdetected? "
 				"forcing to 2 ports\n");
 		port = 2;
