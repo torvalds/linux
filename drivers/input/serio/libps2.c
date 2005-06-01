@@ -29,6 +29,7 @@ MODULE_LICENSE("GPL");
 
 EXPORT_SYMBOL(ps2_init);
 EXPORT_SYMBOL(ps2_sendbyte);
+EXPORT_SYMBOL(ps2_drain);
 EXPORT_SYMBOL(ps2_command);
 EXPORT_SYMBOL(ps2_schedule_command);
 EXPORT_SYMBOL(ps2_handle_ack);
@@ -45,11 +46,11 @@ struct ps2work {
 
 
 /*
- * ps2_sendbyte() sends a byte to the mouse, and waits for acknowledge.
- * It doesn't handle retransmission, though it could - because when there would
- * be need for retransmissions, the mouse has to be replaced anyway.
+ * ps2_sendbyte() sends a byte to the device and waits for acknowledge.
+ * It doesn't handle retransmission, though it could - because if there
+ * is a need for retransmissions device has to be replaced anyway.
  *
- * ps2_sendbyte() can only be called from a process context
+ * ps2_sendbyte() can only be called from a process context.
  */
 
 int ps2_sendbyte(struct ps2dev *ps2dev, unsigned char byte, int timeout)
@@ -72,6 +73,31 @@ int ps2_sendbyte(struct ps2dev *ps2dev, unsigned char byte, int timeout)
 }
 
 /*
+ * ps2_drain() waits for device to transmit requested number of bytes
+ * and discards them.
+ */
+
+void ps2_drain(struct ps2dev *ps2dev, int maxbytes, int timeout)
+{
+	if (maxbytes > sizeof(ps2dev->cmdbuf)) {
+		WARN_ON(1);
+		maxbytes = sizeof(ps2dev->cmdbuf);
+	}
+
+	down(&ps2dev->cmd_sem);
+
+	serio_pause_rx(ps2dev->serio);
+	ps2dev->flags = PS2_FLAG_CMD;
+	ps2dev->cmdcnt = maxbytes;
+	serio_continue_rx(ps2dev->serio);
+
+	wait_event_timeout(ps2dev->wait,
+			   !(ps2dev->flags & PS2_FLAG_CMD),
+			   msecs_to_jiffies(timeout));
+	up(&ps2dev->cmd_sem);
+}
+
+/*
  * ps2_command() sends a command and its parameters to the mouse,
  * then waits for the response and puts it in the param array.
  *
@@ -85,6 +111,11 @@ int ps2_command(struct ps2dev *ps2dev, unsigned char *param, int command)
 	int receive = (command >> 8) & 0xf;
 	int rc = -1;
 	int i;
+
+	if (receive > sizeof(ps2dev->cmdbuf)) {
+		WARN_ON(1);
+		return -1;
+	}
 
 	down(&ps2dev->cmd_sem);
 
@@ -101,10 +132,9 @@ int ps2_command(struct ps2dev *ps2dev, unsigned char *param, int command)
 	 * ACKing the reset command, and so it can take a long
 	 * time before the ACK arrrives.
 	 */
-	if (command & 0xff)
-		if (ps2_sendbyte(ps2dev, command & 0xff,
-			command == PS2_CMD_RESET_BAT ? 1000 : 200))
-			goto out;
+	if (ps2_sendbyte(ps2dev, command & 0xff,
+			 command == PS2_CMD_RESET_BAT ? 1000 : 200))
+		goto out;
 
 	for (i = 0; i < send; i++)
 		if (ps2_sendbyte(ps2dev, param[i], 200))

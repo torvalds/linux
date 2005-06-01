@@ -270,7 +270,6 @@ static struct alps_model_info *alps_get_model(struct psmouse *psmouse, int *vers
 static int alps_passthrough_mode(struct psmouse *psmouse, int enable)
 {
 	struct ps2dev *ps2dev = &psmouse->ps2dev;
-	unsigned char param[3];
 	int cmd = enable ? PSMOUSE_CMD_SETSCALE21 : PSMOUSE_CMD_SETSCALE11;
 
 	if (ps2_command(ps2dev, NULL, cmd) ||
@@ -280,7 +279,7 @@ static int alps_passthrough_mode(struct psmouse *psmouse, int enable)
 		return -1;
 
 	/* we may get 3 more bytes, just ignore them */
-	ps2_command(ps2dev, param, 0x0300);
+	ps2_drain(ps2dev, 3, 100);
 
 	return 0;
 }
