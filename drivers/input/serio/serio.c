@@ -42,6 +42,7 @@ MODULE_LICENSE("GPL");
 EXPORT_SYMBOL(serio_interrupt);
 EXPORT_SYMBOL(__serio_register_port);
 EXPORT_SYMBOL(serio_unregister_port);
+EXPORT_SYMBOL(serio_unregister_child_port);
 EXPORT_SYMBOL(__serio_unregister_port_delayed);
 EXPORT_SYMBOL(__serio_register_driver);
 EXPORT_SYMBOL(serio_unregister_driver);
@@ -179,12 +180,12 @@ static void serio_queue_event(void *object, struct module *owner,
 	spin_lock_irqsave(&serio_event_lock, flags);
 
 	/*
- 	 * Scan event list for the other events for the same serio port,
+	 * Scan event list for the other events for the same serio port,
 	 * starting with the most recent one. If event is the same we
 	 * do not need add new one. If event is of different type we
 	 * need to add this event and should not look further because
 	 * we need to preseve sequence of distinct events.
- 	 */
+	 */
 	list_for_each_entry_reverse(event, &serio_event_list, node) {
 		if (event->object == object) {
 			if (event->type == event_type)
@@ -650,6 +651,19 @@ void serio_unregister_port(struct serio *serio)
 	down(&serio_sem);
 	serio_disconnect_port(serio);
 	serio_destroy_port(serio);
+	up(&serio_sem);
+}
+
+/*
+ * Safely unregisters child port if one is present.
+ */
+void serio_unregister_child_port(struct serio *serio)
+{
+	down(&serio_sem);
+	if (serio->child) {
+		serio_disconnect_port(serio->child);
+		serio_destroy_port(serio->child);
+	}
 	up(&serio_sem);
 }
 

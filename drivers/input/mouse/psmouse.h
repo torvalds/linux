@@ -78,6 +78,7 @@ enum psmouse_type {
 	PSMOUSE_SYNAPTICS,
 	PSMOUSE_ALPS,
 	PSMOUSE_LIFEBOOK,
+	PSMOUSE_AUTO		/* This one should always be last */
 };
 
 int psmouse_sliced_command(struct psmouse *psmouse, unsigned char command);
