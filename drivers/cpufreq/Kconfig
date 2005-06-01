@@ -46,6 +46,10 @@ config CPU_FREQ_STAT_DETAILS
          This will show detail CPU frequency translation table in sysfs file
          system
 
+# Note that it is not currently possible to set the other governors (such as ondemand)
+# as the default, since if they fail to initialise, cpufreq will be
+# left in an undefined state.
+
 choice
 	prompt "Default CPUFreq governor"
 	default CPU_FREQ_DEFAULT_GOV_USERSPACE if CPU_FREQ_SA1100 || CPU_FREQ_SA1110
