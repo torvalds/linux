@@ -1103,8 +1103,6 @@ ia64_mca_cpe_int_caller(int cpe_irq, void *arg, struct pt_regs *ptregs)
 	return IRQ_HANDLED;
 }
 
-#endif /* CONFIG_ACPI */
-
 /*
  *  ia64_mca_cpe_poll
  *
@@ -1121,6 +1119,8 @@ ia64_mca_cpe_poll (unsigned long dummy)
 	/* Trigger a CPE interrupt cascade  */
 	platform_send_ipi(first_cpu(cpu_online_map), IA64_CPEP_VECTOR, IA64_IPI_DM_INT, 0);
 }
+
+#endif /* CONFIG_ACPI */
 
 /*
  * C portion of the OS INIT handler
