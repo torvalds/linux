@@ -51,7 +51,8 @@ static unsigned int 				def_sampling_rate;
 #define MIN_SAMPLING_RATE			(def_sampling_rate / 2)
 #define MAX_SAMPLING_RATE			(500 * def_sampling_rate)
 #define DEF_SAMPLING_RATE_LATENCY_MULTIPLIER	(1000)
-#define DEF_SAMPLING_DOWN_FACTOR		(10)
+#define DEF_SAMPLING_DOWN_FACTOR		(1)
+#define MAX_SAMPLING_DOWN_FACTOR		(10)
 #define TRANSITION_LATENCY_LIMIT		(10 * 1000)
 
 static void do_dbs_timer(void *data);
@@ -127,6 +128,9 @@ static ssize_t store_sampling_down_factor(struct cpufreq_policy *unused,
 	int ret;
 	ret = sscanf (buf, "%u", &input);
 	if (ret != 1 )
+		return -EINVAL;
+
+	if (input > MAX_SAMPLING_DOWN_FACTOR || input < 1)
 		return -EINVAL;
 
 	down(&dbs_sem);
