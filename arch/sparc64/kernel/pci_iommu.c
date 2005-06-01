@@ -422,14 +422,12 @@ static void pci_strbuf_flush(struct pci_strbuf *strbuf, struct pci_iommu *iommu,
 		flushreg = strbuf->strbuf_ctxflush;
 		matchreg = PCI_STC_CTXMATCH_ADDR(strbuf, ctx);
 
-		if (pci_iommu_read(matchreg) == 0)
-			goto do_flush_sync;
-
 		pci_iommu_write(flushreg, ctx);
-		if ((val = pci_iommu_read(matchreg)) == 0)
+		val = pci_iommu_read(matchreg);
+		val &= 0xffff;
+		if (!val)
 			goto do_flush_sync;
 
-		val &= 0xffff;
 		while (val) {
 			if (val & 0x1)
 				pci_iommu_write(flushreg, ctx);
