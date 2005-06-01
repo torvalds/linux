@@ -1566,7 +1566,7 @@ static void __init scan_dt_build_struct(phandle node, unsigned long *mem_start,
 {
 	int l, align;
 	phandle child;
-	char *namep, *prev_name, *sstart;
+	char *namep, *prev_name, *sstart, *p, *ep;
 	unsigned long soff;
 	unsigned char *valp;
 	unsigned long offset = reloc_offset();
@@ -1588,6 +1588,14 @@ static void __init scan_dt_build_struct(phandle node, unsigned long *mem_start,
 			call_prom("package-to-path", 3, 1, node, namep, l);
 		}
 		namep[l] = '\0';
+		/* Fixup an Apple bug where they have bogus \0 chars in the
+		 * middle of the path in some properties
+		 */
+		for (p = namep, ep = namep + l; p < ep; p++)
+			if (*p == '\0') {
+				memmove(p, p+1, ep - p);
+				ep--; l--;
+			}
 		*mem_start = _ALIGN(((unsigned long) namep) + strlen(namep) + 1, 4);
 	}
 

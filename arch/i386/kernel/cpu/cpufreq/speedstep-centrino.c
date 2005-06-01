@@ -54,6 +54,8 @@ enum {
 	CPU_DOTHAN_A1,
 	CPU_DOTHAN_A2,
 	CPU_DOTHAN_B0,
+	CPU_MP4HT_D0,
+	CPU_MP4HT_E0,
 };
 
 static const struct cpu_id cpu_ids[] = {
@@ -61,6 +63,8 @@ static const struct cpu_id cpu_ids[] = {
 	[CPU_DOTHAN_A1]	= { 6, 13, 1 },
 	[CPU_DOTHAN_A2]	= { 6, 13, 2 },
 	[CPU_DOTHAN_B0]	= { 6, 13, 6 },
+	[CPU_MP4HT_D0]	= {15,  3, 4 },
+	[CPU_MP4HT_E0]	= {15,  4, 1 },
 };
 #define N_IDS	(sizeof(cpu_ids)/sizeof(cpu_ids[0]))
 
@@ -226,6 +230,8 @@ static struct cpu_model models[] =
 	{ &cpu_ids[CPU_DOTHAN_A1], NULL, 0, NULL },
 	{ &cpu_ids[CPU_DOTHAN_A2], NULL, 0, NULL },
 	{ &cpu_ids[CPU_DOTHAN_B0], NULL, 0, NULL },
+	{ &cpu_ids[CPU_MP4HT_D0], NULL, 0, NULL },
+	{ &cpu_ids[CPU_MP4HT_E0], NULL, 0, NULL },
 
 	{ NULL, }
 };

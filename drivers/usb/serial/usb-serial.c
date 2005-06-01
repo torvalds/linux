@@ -1297,13 +1297,6 @@ static int __init usb_serial_init(void)
 		goto exit_bus;
 	}
 
-	/* register the generic driver, if we should */
-	result = usb_serial_generic_register(debug);
-	if (result < 0) {
-		err("%s - registering generic driver failed", __FUNCTION__);
-		goto exit_generic;
-	}
-
 	usb_serial_tty_driver->owner = THIS_MODULE;
 	usb_serial_tty_driver->driver_name = "usbserial";
 	usb_serial_tty_driver->devfs_name = "usb/tts/";
@@ -1329,17 +1322,24 @@ static int __init usb_serial_init(void)
 		goto exit_tty;
 	}
 
+	/* register the generic driver, if we should */
+	result = usb_serial_generic_register(debug);
+	if (result < 0) {
+		err("%s - registering generic driver failed", __FUNCTION__);
+		goto exit_generic;
+	}
+
 	info(DRIVER_DESC " " DRIVER_VERSION);
 
 	return result;
+
+exit_generic:
+	usb_deregister(&usb_serial_driver);
 
 exit_tty:
 	tty_unregister_driver(usb_serial_tty_driver);
 
 exit_reg_driver:
-	usb_serial_generic_deregister();
-
-exit_generic:
 	bus_unregister(&usb_serial_bus_type);
 
 exit_bus:
