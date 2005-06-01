@@ -34,12 +34,8 @@
  */
 
 #define DEF_FREQUENCY_UP_THRESHOLD		(80)
-#define MIN_FREQUENCY_UP_THRESHOLD		(0)
+#define MIN_FREQUENCY_UP_THRESHOLD		(11)
 #define MAX_FREQUENCY_UP_THRESHOLD		(100)
-
-#define DEF_FREQUENCY_DOWN_THRESHOLD		(20)
-#define MIN_FREQUENCY_DOWN_THRESHOLD		(0)
-#define MAX_FREQUENCY_DOWN_THRESHOLD		(100)
 
 /* 
  * The polling frequency of this governor depends on the capability of 
@@ -77,14 +73,11 @@ struct dbs_tuners {
 	unsigned int 		sampling_rate;
 	unsigned int		sampling_down_factor;
 	unsigned int		up_threshold;
-	unsigned int		down_threshold;
 	unsigned int		ignore_nice;
-	unsigned int		freq_step;
 };
 
 static struct dbs_tuners dbs_tuners_ins = {
 	.up_threshold 		= DEF_FREQUENCY_UP_THRESHOLD,
-	.down_threshold 	= DEF_FREQUENCY_DOWN_THRESHOLD,
 	.sampling_down_factor 	= DEF_SAMPLING_DOWN_FACTOR,
 };
 
@@ -125,9 +118,7 @@ static ssize_t show_##file_name						\
 show_one(sampling_rate, sampling_rate);
 show_one(sampling_down_factor, sampling_down_factor);
 show_one(up_threshold, up_threshold);
-show_one(down_threshold, down_threshold);
 show_one(ignore_nice, ignore_nice);
-show_one(freq_step, freq_step);
 
 static ssize_t store_sampling_down_factor(struct cpufreq_policy *unused, 
 		const char *buf, size_t count)
@@ -173,34 +164,12 @@ static ssize_t store_up_threshold(struct cpufreq_policy *unused,
 
 	down(&dbs_sem);
 	if (ret != 1 || input > MAX_FREQUENCY_UP_THRESHOLD || 
-			input < MIN_FREQUENCY_UP_THRESHOLD ||
-			input <= dbs_tuners_ins.down_threshold) {
+			input < MIN_FREQUENCY_UP_THRESHOLD) {
 		up(&dbs_sem);
 		return -EINVAL;
 	}
 
 	dbs_tuners_ins.up_threshold = input;
-	up(&dbs_sem);
-
-	return count;
-}
-
-static ssize_t store_down_threshold(struct cpufreq_policy *unused, 
-		const char *buf, size_t count)
-{
-	unsigned int input;
-	int ret;
-	ret = sscanf (buf, "%u", &input);
-
-	down(&dbs_sem);
-	if (ret != 1 || input > MAX_FREQUENCY_DOWN_THRESHOLD || 
-			input < MIN_FREQUENCY_DOWN_THRESHOLD ||
-			input >= dbs_tuners_ins.up_threshold) {
-		up(&dbs_sem);
-		return -EINVAL;
-	}
-
-	dbs_tuners_ins.down_threshold = input;
 	up(&dbs_sem);
 
 	return count;
@@ -240,29 +209,6 @@ static ssize_t store_ignore_nice(struct cpufreq_policy *policy,
 	return count;
 }
 
-static ssize_t store_freq_step(struct cpufreq_policy *policy,
-		const char *buf, size_t count)
-{
-	unsigned int input;
-	int ret;
-
-	ret = sscanf (buf, "%u", &input);
-
-	if ( ret != 1 )
-		return -EINVAL;
-
-	if ( input > 100 )
-		input = 100;
-	
-	/* no need to test here if freq_step is zero as the user might actually
-	 * want this, they would be crazy though :) */
-	down(&dbs_sem);
-	dbs_tuners_ins.freq_step = input;
-	up(&dbs_sem);
-
-	return count;
-}
-
 #define define_one_rw(_name) \
 static struct freq_attr _name = \
 __ATTR(_name, 0644, show_##_name, store_##_name)
@@ -270,9 +216,7 @@ __ATTR(_name, 0644, show_##_name, store_##_name)
 define_one_rw(sampling_rate);
 define_one_rw(sampling_down_factor);
 define_one_rw(up_threshold);
-define_one_rw(down_threshold);
 define_one_rw(ignore_nice);
-define_one_rw(freq_step);
 
 static struct attribute * dbs_attributes[] = {
 	&sampling_rate_max.attr,
@@ -280,9 +224,7 @@ static struct attribute * dbs_attributes[] = {
 	&sampling_rate.attr,
 	&sampling_down_factor.attr,
 	&up_threshold.attr,
-	&down_threshold.attr,
 	&ignore_nice.attr,
-	&freq_step.attr,
 	NULL
 };
 
@@ -295,8 +237,8 @@ static struct attribute_group dbs_attr_group = {
 
 static void dbs_check_cpu(int cpu)
 {
-	unsigned int idle_ticks, up_idle_ticks, down_idle_ticks;
-	unsigned int freq_down_step;
+	unsigned int idle_ticks, up_idle_ticks, total_ticks;
+	unsigned int freq_next;
 	unsigned int freq_down_sampling_rate;
 	static int down_skip[NR_CPUS];
 	struct cpu_dbs_info_s *this_dbs_info;
@@ -310,17 +252,15 @@ static void dbs_check_cpu(int cpu)
 
 	policy = this_dbs_info->cur_policy;
 	/* 
-	 * The default safe range is 20% to 80% 
-	 * Every sampling_rate, we check
-	 * 	- If current idle time is less than 20%, then we try to 
-	 * 	  increase frequency
-	 * Every sampling_rate*sampling_down_factor, we check
-	 * 	- If current idle time is more than 80%, then we try to
-	 * 	  decrease frequency
+	 * Every sampling_rate, we check, if current idle time is less
+	 * than 20% (default), then we try to increase frequency
+	 * Every sampling_rate*sampling_down_factor, we look for a the lowest
+	 * frequency which can sustain the load while keeping idle time over
+	 * 30%. If such a frequency exist, we try to decrease to this frequency.
 	 *
 	 * Any frequency increase takes it to the maximum frequency. 
 	 * Frequency reduction happens at minimum steps of 
-	 * 5% (default) of max_frequency 
+	 * 5% (default) of current frequency 
 	 */
 
 	/* Check for frequency increase */
@@ -383,33 +323,27 @@ static void dbs_check_cpu(int cpu)
 			idle_ticks = tmp_idle_ticks;
 	}
 
-	/* Scale idle ticks by 100 and compare with up and down ticks */
-	idle_ticks *= 100;
 	down_skip[cpu] = 0;
+	/* if we cannot reduce the frequency anymore, break out early */
+	if (policy->cur == policy->min)
+		return;
 
+	/* Compute how many ticks there are between two measurements */
 	freq_down_sampling_rate = dbs_tuners_ins.sampling_rate *
 		dbs_tuners_ins.sampling_down_factor;
-	down_idle_ticks = (100 - dbs_tuners_ins.down_threshold) *
-		usecs_to_jiffies(freq_down_sampling_rate);
+	total_ticks = usecs_to_jiffies(freq_down_sampling_rate);
 
-	if (idle_ticks > down_idle_ticks) {
-		/* if we are already at the lowest speed then break out early
-		 * or if we 'cannot' reduce the speed as the user might want
-		 * freq_step to be zero */
-		if (policy->cur == policy->min || dbs_tuners_ins.freq_step == 0)
-			return;
+	/*
+	 * The optimal frequency is the frequency that is the lowest that
+	 * can support the current CPU usage without triggering the up
+	 * policy. To be safe, we focus 10 points under the threshold.
+	 */
+	freq_next = ((total_ticks - idle_ticks) * 100) / total_ticks;
+	freq_next = (freq_next * policy->cur) / 
+			(dbs_tuners_ins.up_threshold - 10);
 
-		freq_down_step = (dbs_tuners_ins.freq_step * policy->max) / 100;
-
-		/* max freq cannot be less than 100. But who knows.... */
-		if (unlikely(freq_down_step == 0))
-			freq_down_step = 5;
-
-		__cpufreq_driver_target(policy,
-			policy->cur - freq_down_step,
-			CPUFREQ_RELATION_H);
-		return;
-	}
+	if (freq_next <= ((policy->cur * 95) / 100))
+		__cpufreq_driver_target(policy, freq_next, CPUFREQ_RELATION_L);
 }
 
 static void do_dbs_timer(void *data)
@@ -487,7 +421,6 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 					DEF_SAMPLING_RATE_LATENCY_MULTIPLIER;
 			dbs_tuners_ins.sampling_rate = def_sampling_rate;
 			dbs_tuners_ins.ignore_nice = 0;
-			dbs_tuners_ins.freq_step = 5;
 
 			dbs_timer_init();
 		}
