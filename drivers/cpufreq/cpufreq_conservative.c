@@ -369,7 +369,13 @@ static void dbs_check_cpu(int cpu)
 
 	if (idle_ticks < up_idle_ticks) {
 		down_skip[cpu] = 0;
-		this_dbs_info->prev_cpu_idle_down = total_idle_ticks;
+		for_each_cpu_mask(j, policy->cpus) {
+			struct cpu_dbs_info_s *j_dbs_info;
+
+			j_dbs_info = &per_cpu(cpu_dbs_info, j);
+			j_dbs_info->prev_cpu_idle_down = 
+					j_dbs_info->prev_cpu_idle_up;
+		}
 		/* if we are already at full speed then break out early */
 		if (requested_freq[cpu] == policy->max)
 			return;
