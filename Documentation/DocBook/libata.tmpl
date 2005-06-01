@@ -60,9 +60,22 @@
 
   <chapter id="libataDriverApi">
      <title>libata Driver API</title>
+     <para>
+     struct ata_port_operations is defined for every low-level libata
+     hardware driver, and it controls how the low-level driver
+     interfaces with the ATA and SCSI layers.
+     </para>
+     <para>
+     FIS-based drivers will hook into the system with ->qc_prep() and
+     ->qc_issue() high-level hooks.  Hardware which behaves in a manner
+     similar to PCI IDE hardware may utilize several generic helpers,
+     defining at a bare minimum the bus I/O addresses of the ATA shadow
+     register blocks.
+     </para>
      <sect1>
         <title>struct ata_port_operations</title>
 
+	<sect2><title>Disable ATA port</title>
 	<programlisting>
 void (*port_disable) (struct ata_port *);
 	</programlisting>
@@ -73,6 +86,9 @@ void (*port_disable) (struct ata_port *);
 	unplug).
 	</para>
 
+	</sect2>
+
+	<sect2><title>Post-IDENTIFY device configuration</title>
 	<programlisting>
 void (*dev_config) (struct ata_port *, struct ata_device *);
 	</programlisting>
@@ -83,6 +99,9 @@ void (*dev_config) (struct ata_port *, struct ata_device *);
 	issue of SET FEATURES - XFER MODE, and prior to operation.
 	</para>
 
+	</sect2>
+
+	<sect2><title>Set PIO/DMA mode</title>
 	<programlisting>
 void (*set_piomode) (struct ata_port *, struct ata_device *);
 void (*set_dmamode) (struct ata_port *, struct ata_device *);
@@ -103,6 +122,9 @@ void (*post_set_mode) (struct ata_port *ap);
 	->set_dma_mode() is only called if DMA is possible.
 	</para>
 
+	</sect2>
+
+	<sect2><title>Taskfile read/write</title>
 	<programlisting>
 void (*tf_load) (struct ata_port *ap, struct ata_taskfile *tf);
 void (*tf_read) (struct ata_port *ap, struct ata_taskfile *tf);
@@ -115,6 +137,9 @@ void (*tf_read) (struct ata_port *ap, struct ata_taskfile *tf);
 	taskfile register values.
 	</para>
 
+	</sect2>
+
+	<sect2><title>ATA command execute</title>
 	<programlisting>
 void (*exec_command)(struct ata_port *ap, struct ata_taskfile *tf);
 	</programlisting>
@@ -124,6 +149,9 @@ void (*exec_command)(struct ata_port *ap, struct ata_taskfile *tf);
 	->tf_load(), to be initiated in hardware.
 	</para>
 
+	</sect2>
+
+	<sect2><title>Per-cmd ATAPI DMA capabilities filter</title>
 	<programlisting>
 int (*check_atapi_dma) (struct ata_queued_cmd *qc);
 	</programlisting>
@@ -134,6 +162,9 @@ indicating whether or not it is OK to use DMA for the supplied PACKET
 command.
 	</para>
 
+	</sect2>
+
+	<sect2><title>Read specific ATA shadow registers</title>
 	<programlisting>
 u8   (*check_status)(struct ata_port *ap);
 u8   (*check_altstatus)(struct ata_port *ap);
@@ -146,6 +177,9 @@ u8   (*check_err)(struct ata_port *ap);
 	the side effect of clearing the interrupt condition.
 	</para>
 
+	</sect2>
+
+	<sect2><title>Select ATA device on bus</title>
 	<programlisting>
 void (*dev_select)(struct ata_port *ap, unsigned int device);
 	</programlisting>
@@ -157,6 +191,9 @@ void (*dev_select)(struct ata_port *ap, unsigned int device);
 meaning on FIS-based devices.
 	</para>
 
+	</sect2>
+
+	<sect2><title>Reset ATA bus</title>
 	<programlisting>
 void (*phy_reset) (struct ata_port *ap);
 	</programlisting>
@@ -169,6 +206,9 @@ void (*phy_reset) (struct ata_port *ap);
 	functions ata_bus_reset() or sata_phy_reset() for this hook.
 	</para>
 
+	</sect2>
+
+	<sect2><title>Control PCI IDE BMDMA engine</title>
 	<programlisting>
 void (*bmdma_setup) (struct ata_queued_cmd *qc);
 void (*bmdma_start) (struct ata_queued_cmd *qc);
@@ -188,6 +228,9 @@ These hooks are typically either no-ops, or simply not implemented, in
 FIS-based drivers.
 	</para>
 
+	</sect2>
+
+	<sect2><title>High-level taskfile hooks</title>
 	<programlisting>
 void (*qc_prep) (struct ata_queued_cmd *qc);
 int (*qc_issue) (struct ata_queued_cmd *qc);
@@ -208,6 +251,9 @@ int (*qc_issue) (struct ata_queued_cmd *qc);
 	dispatch.  More advanced drivers implement their own ->qc_issue.
 	</para>
 
+	</sect2>
+
+	<sect2><title>Timeout (error) handling</title>
 	<programlisting>
 void (*eng_timeout) (struct ata_port *ap);
 	</programlisting>
@@ -219,6 +265,9 @@ hardware will implement its own error handling code here.  IDE BMDMA
 drivers may use the helper function ata_eng_timeout().
 	</para>
 
+	</sect2>
+
+	<sect2><title>Hardware interrupt handling</title>
 	<programlisting>
 irqreturn_t (*irq_handler)(int, void *, struct pt_regs *);
 void (*irq_clear) (struct ata_port *);
@@ -231,6 +280,9 @@ void (*irq_clear) (struct ata_port *);
 	is quiet.
 	</para>
 
+	</sect2>
+
+	<sect2><title>SATA phy read/write</title>
 	<programlisting>
 u32 (*scr_read) (struct ata_port *ap, unsigned int sc_reg);
 void (*scr_write) (struct ata_port *ap, unsigned int sc_reg,
@@ -242,6 +294,9 @@ void (*scr_write) (struct ata_port *ap, unsigned int sc_reg,
 	if ->phy_reset hook called the sata_phy_reset() helper function.
 	</para>
 
+	</sect2>
+
+	<sect2><title>Init and shutdown</title>
 	<programlisting>
 int (*port_start) (struct ata_port *ap);
 void (*port_stop) (struct ata_port *ap);
@@ -264,6 +319,8 @@ void (*host_stop) (struct ata_host_set *host_set);
 have completed.  The hook must finalize hardware shutdown, release DMA
 and other resources, etc.
 	</para>
+
+	</sect2>
 
      </sect1>
   </chapter>
