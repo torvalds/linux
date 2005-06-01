@@ -23,6 +23,7 @@
 #include <linux/dmi.h>
 
 #include <asm/msr.h>
+#include <asm/timer.h>
 #include <asm/timex.h>
 #include <asm/io.h>
 #include <asm/system.h>
@@ -586,8 +587,12 @@ static int __init powernow_cpu_init (struct cpufreq_policy *policy)
 
 	rdmsrl (MSR_K7_FID_VID_STATUS, fidvidstatus.val);
 
-	/* A K7 with powernow technology is set to max frequency by BIOS */
-	fsb = (10 * cpu_khz) / fid_codes[fidvidstatus.bits.MFID];
+	/* recalibrate cpu_khz */
+	result = recalibrate_cpu_khz();
+	if (result)
+		return result;
+
+	fsb = (10 * cpu_khz) / fid_codes[fidvidstatus.bits.CFID];
 	if (!fsb) {
 		printk(KERN_WARNING PFX "can not determine bus frequency\n");
 		return -EINVAL;
