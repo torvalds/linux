@@ -30,10 +30,11 @@
 
 #define ALPS_DUALPOINT	0x01
 #define ALPS_WHEEL	0x02
-#define ALPS_FW_BK	0x04
+#define ALPS_FW_BK_1	0x04
 #define ALPS_4BTN	0x08
 #define ALPS_OLDPROTO	0x10
 #define ALPS_PASS	0x20
+#define ALPS_FW_BK_2	0x40
 
 static struct alps_model_info alps_model_data[] = {
 	{ { 0x33, 0x02, 0x0a },	0x88, 0xf8, ALPS_OLDPROTO },		/* UMAX-530T */
@@ -43,11 +44,11 @@ static struct alps_model_info alps_model_data[] = {
 	{ { 0x63, 0x02, 0x14 },	0xf8, 0xf8, 0 },
 	{ { 0x63, 0x02, 0x28 },	0xf8, 0xf8, 0 },
 	{ { 0x63, 0x02, 0x3c },	0x8f, 0x8f, ALPS_WHEEL },		/* Toshiba Satellite S2400-103 */
-	{ { 0x63, 0x02, 0x50 },	0xef, 0xef, ALPS_FW_BK },		/* NEC Versa L320 */
+	{ { 0x63, 0x02, 0x50 },	0xef, 0xef, ALPS_FW_BK_1 },		/* NEC Versa L320 */
 	{ { 0x63, 0x02, 0x64 },	0xf8, 0xf8, 0 },
 	{ { 0x63, 0x03, 0xc8 }, 0xf8, 0xf8, ALPS_PASS },		/* Dell Latitude D800 */
 	{ { 0x73, 0x02, 0x0a },	0xf8, 0xf8, 0 },
-	{ { 0x73, 0x02, 0x14 },	0xf8, 0xf8, 0 },
+	{ { 0x73, 0x02, 0x14 },	0xf8, 0xf8, ALPS_FW_BK_2 },		/* Ahtec Laptop */
 	{ { 0x20, 0x02, 0x0e },	0xf8, 0xf8, ALPS_PASS | ALPS_DUALPOINT }, /* XXX */
 	{ { 0x22, 0x02, 0x0a },	0xf8, 0xf8, ALPS_PASS | ALPS_DUALPOINT },
 	{ { 0x22, 0x02, 0x14 }, 0xff, 0xff, ALPS_PASS | ALPS_DUALPOINT }, /* Dell Latitude D600 */
@@ -81,6 +82,7 @@ static void alps_process_packet(struct psmouse *psmouse, struct pt_regs *regs)
 	struct input_dev *dev = &psmouse->dev;
 	struct input_dev *dev2 = &priv->dev2;
 	int x, y, z, ges, fin, left, right, middle;
+	int back = 0, forward = 0;
 
 	input_regs(dev, regs);
 
@@ -110,6 +112,18 @@ static void alps_process_packet(struct psmouse *psmouse, struct pt_regs *regs)
 		x = packet[1] | ((packet[2] & 0x78) << (7 - 3));
 		y = packet[4] | ((packet[3] & 0x70) << (7 - 4));
 		z = packet[5];
+	}
+
+	if (priv->i->flags & ALPS_FW_BK_1) {
+		back = packet[2] & 4;
+		forward = packet[0] & 0x10;
+	}
+
+	if (priv->i->flags & ALPS_FW_BK_2) {
+		back = packet[3] & 4;
+		forward = packet[2] & 4;
+		if ((middle = forward && back))
+			forward = back = 0;
 	}
 
 	ges = packet[2] & 1;
@@ -155,13 +169,12 @@ static void alps_process_packet(struct psmouse *psmouse, struct pt_regs *regs)
 	input_report_abs(dev, ABS_PRESSURE, z);
 	input_report_key(dev, BTN_TOOL_FINGER, z > 0);
 
-
 	if (priv->i->flags & ALPS_WHEEL)
 		input_report_rel(dev, REL_WHEEL, ((packet[0] >> 4) & 0x07) | ((packet[2] >> 2) & 0x08));
 
-	if (priv->i->flags & ALPS_FW_BK) {
-		input_report_key(dev, BTN_FORWARD, packet[0] & 0x10);
-		input_report_key(dev, BTN_BACK, packet[2] & 0x04);
+	if (priv->i->flags & (ALPS_FW_BK_1 | ALPS_FW_BK_2)) {
+		input_report_key(dev, BTN_FORWARD, forward);
+		input_report_key(dev, BTN_BACK, back);
 	}
 
 	input_sync(dev);
@@ -425,7 +438,7 @@ int alps_init(struct psmouse *psmouse)
 		psmouse->dev.relbit[LONG(REL_WHEEL)] |= BIT(REL_WHEEL);
 	}
 
-	if (priv->i->flags & ALPS_FW_BK) {
+	if (priv->i->flags & (ALPS_FW_BK_1 | ALPS_FW_BK_2)) {
 		psmouse->dev.keybit[LONG(BTN_FORWARD)] |= BIT(BTN_FORWARD);
 		psmouse->dev.keybit[LONG(BTN_BACK)] |= BIT(BTN_BACK);
 	}
