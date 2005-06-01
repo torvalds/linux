@@ -120,9 +120,10 @@ static int longhaul_get_cpu_mult(void)
 static void do_powersaver(union msr_longhaul *longhaul,
 			unsigned int clock_ratio_index)
 {
-	int version;
-	unsigned long flags;
 	struct pci_dev *dev;
+	unsigned long flags;
+	unsigned int tmp_mask;
+	int version;
 	int i;
 	u16 pci_cmd;
 	u16 cmd_state[64];
@@ -163,6 +164,10 @@ static void do_powersaver(union msr_longhaul *longhaul,
 		}
 	} while (dev != NULL);
 
+	tmp_mask=inb(0x21);	/* works on C3. save mask. */
+	outb(0xFE,0x21);	/* TMR0 only */
+	outb(0xFF,0x80);	/* delay */
+
 	local_irq_enable();
 
 	__hlt();
@@ -170,6 +175,8 @@ static void do_powersaver(union msr_longhaul *longhaul,
 	__hlt();
 
 	local_irq_disable();
+
+	outb(tmp_mask,0x21);	/* restore mask */
 
 	/* restore pci bus master state for all devices */
 	dev = NULL;
