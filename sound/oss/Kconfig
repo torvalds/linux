@@ -52,7 +52,7 @@ config SOUND_CMPCI_MIDI
 
 config SOUND_CMPCI_JOYSTICK
 	bool "Enable joystick"
-	depends on SOUND_CMPCI && X86
+	depends on SOUND_CMPCI && X86 && (GAMEPORT=y || SOUND_CMPCI=GAMEPORT)
 	help
 	  Say Y here in order to enable the joystick port on a sound card using
 	  the CMI8338 or the CMI8738 chipset.  You need to config the
