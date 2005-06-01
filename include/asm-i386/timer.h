@@ -53,6 +53,7 @@ extern struct init_timer_opts timer_cyclone_init;
 
 extern unsigned long calibrate_tsc(void);
 extern void init_cpu_khz(void);
+extern int recalibrate_cpu_khz(void);
 #ifdef CONFIG_HPET_TIMER
 extern struct init_timer_opts timer_hpet_init;
 extern unsigned long calibrate_tsc_hpet(unsigned long *tsc_hpet_quotient_ptr);
