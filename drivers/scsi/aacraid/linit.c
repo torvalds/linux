@@ -533,6 +533,134 @@ static long aac_compat_cfg_ioctl(struct file *file, unsigned cmd, unsigned long 
 }
 #endif
 
+static ssize_t aac_show_model(struct class_device *class_dev,
+		char *buf)
+{
+	struct aac_dev *dev = (struct aac_dev*)class_to_shost(class_dev)->hostdata;
+	int len;
+
+	len = snprintf(buf, PAGE_SIZE, "%s\n",
+		  aac_drivers[dev->cardtype].model);
+	return len;
+}
+
+static ssize_t aac_show_vendor(struct class_device *class_dev,
+		char *buf)
+{
+	struct aac_dev *dev = (struct aac_dev*)class_to_shost(class_dev)->hostdata;
+	int len;
+
+	len = snprintf(buf, PAGE_SIZE, "%s\n",
+		  aac_drivers[dev->cardtype].vname);
+	return len;
+}
+
+static ssize_t aac_show_kernel_version(struct class_device *class_dev,
+		char *buf)
+{
+	struct aac_dev *dev = (struct aac_dev*)class_to_shost(class_dev)->hostdata;
+	int len, tmp;
+
+	tmp = le32_to_cpu(dev->adapter_info.kernelrev);
+	len = snprintf(buf, PAGE_SIZE, "%d.%d-%d[%d]\n", 
+	  tmp >> 24, (tmp >> 16) & 0xff, tmp & 0xff,
+	  le32_to_cpu(dev->adapter_info.kernelbuild));
+	return len;
+}
+
+static ssize_t aac_show_monitor_version(struct class_device *class_dev,
+		char *buf)
+{
+	struct aac_dev *dev = (struct aac_dev*)class_to_shost(class_dev)->hostdata;
+	int len, tmp;
+
+	tmp = le32_to_cpu(dev->adapter_info.monitorrev);
+	len = snprintf(buf, PAGE_SIZE, "%d.%d-%d[%d]\n", 
+	  tmp >> 24, (tmp >> 16) & 0xff, tmp & 0xff,
+	  le32_to_cpu(dev->adapter_info.monitorbuild));
+	return len;
+}
+
+static ssize_t aac_show_bios_version(struct class_device *class_dev,
+		char *buf)
+{
+	struct aac_dev *dev = (struct aac_dev*)class_to_shost(class_dev)->hostdata;
+	int len, tmp;
+
+	tmp = le32_to_cpu(dev->adapter_info.biosrev);
+	len = snprintf(buf, PAGE_SIZE, "%d.%d-%d[%d]\n", 
+	  tmp >> 24, (tmp >> 16) & 0xff, tmp & 0xff,
+	  le32_to_cpu(dev->adapter_info.biosbuild));
+	return len;
+}
+
+static ssize_t aac_show_serial_number(struct class_device *class_dev,
+		char *buf)
+{
+	struct aac_dev *dev = (struct aac_dev*)class_to_shost(class_dev)->hostdata;
+	int len = 0;
+
+	if (le32_to_cpu(dev->adapter_info.serial[0]) != 0xBAD0)
+		len = snprintf(buf, PAGE_SIZE, "%x\n",
+		  le32_to_cpu(dev->adapter_info.serial[0]));
+	return len;
+}
+
+
+static struct class_device_attribute aac_model = {
+	.attr = {
+		.name = "model",
+		.mode = S_IRUGO,
+	},
+	.show = aac_show_model,
+};
+static struct class_device_attribute aac_vendor = {
+	.attr = {
+		.name = "vendor",
+		.mode = S_IRUGO,
+	},
+	.show = aac_show_vendor,
+};
+static struct class_device_attribute aac_kernel_version = {
+	.attr = {
+		.name = "hba_kernel_version",
+		.mode = S_IRUGO,
+	},
+	.show = aac_show_kernel_version,
+};
+static struct class_device_attribute aac_monitor_version = {
+	.attr = {
+		.name = "hba_monitor_version",
+		.mode = S_IRUGO,
+	},
+	.show = aac_show_monitor_version,
+};
+static struct class_device_attribute aac_bios_version = {
+	.attr = {
+		.name = "hba_bios_version",
+		.mode = S_IRUGO,
+	},
+	.show = aac_show_bios_version,
+};
+static struct class_device_attribute aac_serial_number = {
+	.attr = {
+		.name = "serial_number",
+		.mode = S_IRUGO,
+	},
+	.show = aac_show_serial_number,
+};
+
+static struct class_device_attribute *aac_attrs[] = {
+	&aac_model,
+	&aac_vendor,
+	&aac_kernel_version,
+	&aac_monitor_version,
+	&aac_bios_version,
+	&aac_serial_number,
+	NULL
+};
+
+
 static struct file_operations aac_cfg_fops = {
 	.owner		= THIS_MODULE,
 	.ioctl		= aac_cfg_ioctl,
@@ -553,6 +681,7 @@ static struct scsi_host_template aac_driver_template = {
 #endif
 	.queuecommand   		= aac_queuecommand,
 	.bios_param     		= aac_biosparm,	
+	.shost_attrs			= aac_attrs,
 	.slave_configure		= aac_slave_configure,
 	.eh_abort_handler		= aac_eh_abort,
 	.eh_host_reset_handler		= aac_eh_reset,
