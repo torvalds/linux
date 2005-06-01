@@ -592,7 +592,7 @@ static int __init powernow_cpu_init (struct cpufreq_policy *policy)
 		printk(KERN_WARNING PFX "can not determine bus frequency\n");
 		return -EINVAL;
 	}
-	dprintk("FSB: %3d.%03d MHz\n", fsb/1000, fsb%1000);
+	dprintk("FSB: %3dMHz\n", fsb/1000);
 
 	if (dmi_check_system(powernow_dmi_table) || acpi_force) {
 		printk (KERN_INFO PFX "PSB/PST known to be broken.  Trying ACPI instead\n");
