@@ -697,6 +697,8 @@ static int input_handlers_read(char *buf, char **start, off_t pos, int count, in
 	return (count > cnt) ? cnt : count;
 }
 
+static struct file_operations input_fileops;
+
 static int __init input_proc_init(void)
 {
 	struct proc_dir_entry *entry;
@@ -711,6 +713,8 @@ static int __init input_proc_init(void)
 		return -ENOMEM;
 	}
 	entry->owner = THIS_MODULE;
+	input_fileops = *entry->proc_fops;
+	entry->proc_fops = &input_fileops;
 	entry->proc_fops->poll = input_devices_poll;
 	entry = create_proc_read_entry("handlers", 0, proc_bus_input_dir, input_handlers_read, NULL);
 	if (entry == NULL) {
