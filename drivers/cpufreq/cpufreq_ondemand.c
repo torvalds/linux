@@ -333,6 +333,10 @@ static void dbs_check_cpu(int cpu)
 			usecs_to_jiffies(dbs_tuners_ins.sampling_rate);
 
 	if (idle_ticks < up_idle_ticks) {
+		/* if we are already at full speed then break out early */
+		if (policy->cur == policy->max)
+			return;
+		
 		__cpufreq_driver_target(policy, policy->max, 
 			CPUFREQ_RELATION_H);
 		down_skip[cpu] = 0;
@@ -386,6 +390,10 @@ static void dbs_check_cpu(int cpu)
 			usecs_to_jiffies(freq_down_sampling_rate);
 
 	if (idle_ticks > down_idle_ticks ) {
+		/* if we are already at the lowest speed then break out early */
+		if (policy->cur == policy->min)
+			return;
+		
 		freq_down_step = (5 * policy->max) / 100;
 
 		/* max freq cannot be less than 100. But who knows.... */
