@@ -67,6 +67,37 @@ static void serio_destroy_port(struct serio *serio);
 static void serio_reconnect_port(struct serio *serio);
 static void serio_disconnect_port(struct serio *serio);
 
+static int serio_connect_driver(struct serio *serio, struct serio_driver *drv)
+{
+	int retval;
+
+	down(&serio->drv_sem);
+	retval = drv->connect(serio, drv);
+	up(&serio->drv_sem);
+
+	return retval;
+}
+
+static int serio_reconnect_driver(struct serio *serio)
+{
+	int retval = -1;
+
+	down(&serio->drv_sem);
+	if (serio->drv && serio->drv->reconnect)
+		retval = serio->drv->reconnect(serio);
+	up(&serio->drv_sem);
+
+	return retval;
+}
+
+static void serio_disconnect_driver(struct serio *serio)
+{
+	down(&serio->drv_sem);
+	if (serio->drv)
+		serio->drv->disconnect(serio);
+	up(&serio->drv_sem);
+}
+
 static int serio_match_port(const struct serio_device_id *ids, struct serio *serio)
 {
 	while (ids->type || ids->proto) {
@@ -90,7 +121,7 @@ static void serio_bind_driver(struct serio *serio, struct serio_driver *drv)
 
 	if (serio_match_port(drv->id_table, serio)) {
 		serio->dev.driver = &drv->driver;
-		if (drv->connect(serio, drv)) {
+		if (serio_connect_driver(serio, drv)) {
 			serio->dev.driver = NULL;
 			goto out;
 		}
@@ -550,7 +581,7 @@ static void serio_destroy_port(struct serio *serio)
 static void serio_reconnect_port(struct serio *serio)
 {
 	do {
-		if (!serio->drv || !serio->drv->reconnect || serio->drv->reconnect(serio)) {
+		if (serio_reconnect_driver(serio)) {
 			serio_disconnect_port(serio);
 			serio_find_driver(serio);
 			/* Ok, old children are now gone, we are done */
@@ -679,15 +710,14 @@ static int serio_driver_probe(struct device *dev)
 	struct serio *serio = to_serio_port(dev);
 	struct serio_driver *drv = to_serio_driver(dev->driver);
 
-	return drv->connect(serio, drv);
+	return serio_connect_driver(serio, drv);
 }
 
 static int serio_driver_remove(struct device *dev)
 {
 	struct serio *serio = to_serio_port(dev);
-	struct serio_driver *drv = to_serio_driver(dev->driver);
 
-	drv->disconnect(serio);
+	serio_disconnect_driver(serio);
 	return 0;
 }
 
@@ -723,11 +753,9 @@ start_over:
 
 static void serio_set_drv(struct serio *serio, struct serio_driver *drv)
 {
-	down(&serio->drv_sem);
 	serio_pause_rx(serio);
 	serio->drv = drv;
 	serio_continue_rx(serio);
-	up(&serio->drv_sem);
 }
 
 static int serio_bus_match(struct device *dev, struct device_driver *drv)
@@ -787,7 +815,7 @@ static int serio_resume(struct device *dev)
 {
 	struct serio *serio = to_serio_port(dev);
 
-	if (!serio->drv || !serio->drv->reconnect || serio->drv->reconnect(serio)) {
+	if (serio_reconnect_driver(serio)) {
 		/*
 		 * Driver re-probing can take a while, so better let kseriod
 		 * deal with it.

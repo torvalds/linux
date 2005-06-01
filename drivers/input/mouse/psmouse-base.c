@@ -68,6 +68,15 @@ __obsolete_setup("psmouse_smartscroll=");
 __obsolete_setup("psmouse_resetafter=");
 __obsolete_setup("psmouse_rate=");
 
+/*
+ * psmouse_sem protects all operations changing state of mouse
+ * (connecting, disconnecting, changing rate or resolution via
+ * sysfs). We could use a per-device semaphore but since there
+ * rarely more than one PS/2 mouse connected and since semaphore
+ * is taken in "slow" paths it is not worth it.
+ */
+static DECLARE_MUTEX(psmouse_sem);
+
 static char *psmouse_protocols[] = { "None", "PS/2", "PS2++", "ThinkPS/2", "GenPS/2", "ImPS/2", "ImExPS/2", "SynPS/2", "AlpsPS/2", "LBPS/2" };
 
 /*
@@ -667,23 +676,28 @@ static void psmouse_cleanup(struct serio *serio)
 
 static void psmouse_disconnect(struct serio *serio)
 {
-	struct psmouse *psmouse, *parent;
+	struct psmouse *psmouse, *parent = NULL;
+
+	psmouse = serio_get_drvdata(serio);
 
 	device_remove_file(&serio->dev, &psmouse_attr_rate);
 	device_remove_file(&serio->dev, &psmouse_attr_resolution);
 	device_remove_file(&serio->dev, &psmouse_attr_resetafter);
 
-	psmouse = serio_get_drvdata(serio);
+	down(&psmouse_sem);
+
 	psmouse_set_state(psmouse, PSMOUSE_CMD_MODE);
 
 	if (serio->parent && serio->id.type == SERIO_PS_PSTHRU) {
 		parent = serio_get_drvdata(serio->parent);
-		if (parent->pt_deactivate)
-			parent->pt_deactivate(parent);
+		psmouse_deactivate(parent);
 	}
 
 	if (psmouse->disconnect)
 		psmouse->disconnect(psmouse);
+
+	if (parent && parent->pt_deactivate)
+		parent->pt_deactivate(parent);
 
 	psmouse_set_state(psmouse, PSMOUSE_IGNORE);
 
@@ -691,6 +705,11 @@ static void psmouse_disconnect(struct serio *serio)
 	serio_close(serio);
 	serio_set_drvdata(serio, NULL);
 	kfree(psmouse);
+
+	if (parent)
+		psmouse_activate(parent);
+
+	up(&psmouse_sem);
 }
 
 /*
@@ -702,6 +721,8 @@ static int psmouse_connect(struct serio *serio, struct serio_driver *drv)
 	struct psmouse *psmouse, *parent = NULL;
 	int retval;
 
+	down(&psmouse_sem);
+
 	/*
 	 * If this is a pass-through port deactivate parent so the device
 	 * connected to this port can be successfully identified
@@ -711,12 +732,10 @@ static int psmouse_connect(struct serio *serio, struct serio_driver *drv)
 		psmouse_deactivate(parent);
 	}
 
-	if (!(psmouse = kmalloc(sizeof(struct psmouse), GFP_KERNEL))) {
+	if (!(psmouse = kcalloc(1, sizeof(struct psmouse), GFP_KERNEL))) {
 		retval = -ENOMEM;
 		goto out;
 	}
-
-	memset(psmouse, 0, sizeof(struct psmouse));
 
 	ps2_init(&psmouse->ps2dev, serio);
 	sprintf(psmouse->phys, "%s/input0", serio->phys);
@@ -785,10 +804,11 @@ static int psmouse_connect(struct serio *serio, struct serio_driver *drv)
 	retval = 0;
 
 out:
-	/* If this is a pass-through port the parent awaits to be activated */
+	/* If this is a pass-through port the parent needs to be re-activated */
 	if (parent)
 		psmouse_activate(parent);
 
+	up(&psmouse_sem);
 	return retval;
 }
 
@@ -804,6 +824,8 @@ static int psmouse_reconnect(struct serio *serio)
 		printk(KERN_DEBUG "psmouse: reconnect request, but serio is disconnected, ignoring...\n");
 		return -1;
 	}
+
+	down(&psmouse_sem);
 
 	if (serio->parent && serio->id.type == SERIO_PS_PSTHRU) {
 		parent = serio_get_drvdata(serio->parent);
@@ -837,6 +859,7 @@ out:
 	if (parent)
 		psmouse_activate(parent);
 
+	up(&psmouse_sem);
 	return rc;
 }
 
@@ -907,7 +930,16 @@ ssize_t psmouse_attr_set_helper(struct device *dev, const char *buf, size_t coun
 
 	if (serio->drv != &psmouse_drv) {
 		retval = -ENODEV;
-		goto out;
+		goto out_unpin;
+	}
+
+	retval = down_interruptible(&psmouse_sem);
+	if (retval)
+		goto out_unpin;
+
+	if (psmouse->state == PSMOUSE_IGNORE) {
+		retval = -ENODEV;
+		goto out_up;
 	}
 
 	if (serio->parent && serio->id.type == SERIO_PS_PSTHRU) {
@@ -922,7 +954,9 @@ ssize_t psmouse_attr_set_helper(struct device *dev, const char *buf, size_t coun
 	if (parent)
 		psmouse_activate(parent);
 
-out:
+ out_up:
+	up(&psmouse_sem);
+ out_unpin:
 	serio_unpin_driver(serio);
 	return retval;
 }
