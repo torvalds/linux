@@ -57,7 +57,6 @@ static unsigned int 				def_sampling_rate;
 #define DEF_SAMPLING_RATE_LATENCY_MULTIPLIER	(1000)
 #define DEF_SAMPLING_DOWN_FACTOR		(10)
 #define TRANSITION_LATENCY_LIMIT		(10 * 1000)
-#define sampling_rate_in_HZ(x)			(((x * HZ) < (1000 * 1000))?1:((x * HZ) / (1000 * 1000)))
 
 static void do_dbs_timer(void *data);
 
@@ -281,7 +280,7 @@ static void dbs_check_cpu(int cpu)
 	/* Scale idle ticks by 100 and compare with up and down ticks */
 	idle_ticks *= 100;
 	up_idle_ticks = (100 - dbs_tuners_ins.up_threshold) *
-			sampling_rate_in_HZ(dbs_tuners_ins.sampling_rate);
+			usecs_to_jiffies(dbs_tuners_ins.sampling_rate);
 
 	if (idle_ticks < up_idle_ticks) {
 		__cpufreq_driver_target(policy, policy->max, 
@@ -328,7 +327,7 @@ static void dbs_check_cpu(int cpu)
 	freq_down_sampling_rate = dbs_tuners_ins.sampling_rate *
 		dbs_tuners_ins.sampling_down_factor;
 	down_idle_ticks = (100 - dbs_tuners_ins.down_threshold) *
-			sampling_rate_in_HZ(freq_down_sampling_rate);
+			usecs_to_jiffies(freq_down_sampling_rate);
 
 	if (idle_ticks > down_idle_ticks ) {
 		freq_down_step = (5 * policy->max) / 100;
@@ -348,11 +347,10 @@ static void do_dbs_timer(void *data)
 { 
 	int i;
 	down(&dbs_sem);
-	for (i = 0; i < NR_CPUS; i++)
-		if (cpu_online(i))
-			dbs_check_cpu(i);
+	for_each_online_cpu(i)
+		dbs_check_cpu(i);
 	schedule_delayed_work(&dbs_work, 
-			sampling_rate_in_HZ(dbs_tuners_ins.sampling_rate));
+			usecs_to_jiffies(dbs_tuners_ins.sampling_rate));
 	up(&dbs_sem);
 } 
 
@@ -360,7 +358,7 @@ static inline void dbs_timer_init(void)
 {
 	INIT_WORK(&dbs_work, do_dbs_timer, NULL);
 	schedule_delayed_work(&dbs_work,
-			sampling_rate_in_HZ(dbs_tuners_ins.sampling_rate));
+			usecs_to_jiffies(dbs_tuners_ins.sampling_rate));
 	return;
 }
 
