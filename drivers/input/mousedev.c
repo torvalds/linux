@@ -220,6 +220,7 @@ static void mousedev_notify_readers(struct mousedev *mousedev, struct mousedev_h
 	struct mousedev_list *list;
 	struct mousedev_motion *p;
 	unsigned long flags;
+	int wake_readers = 0;
 
 	list_for_each_entry(list, &mousedev->list, node) {
 		spin_lock_irqsave(&list->packet_lock, flags);
@@ -255,11 +256,14 @@ static void mousedev_notify_readers(struct mousedev *mousedev, struct mousedev_h
 
 		spin_unlock_irqrestore(&list->packet_lock, flags);
 
-		if (list->ready)
+		if (list->ready) {
 			kill_fasync(&list->fasync, SIGIO, POLL_IN);
+			wake_readers = 1;
+		}
 	}
 
-	wake_up_interruptible(&mousedev->wait);
+	if (wake_readers)
+		wake_up_interruptible(&mousedev->wait);
 }
 
 static void mousedev_touchpad_touch(struct mousedev *mousedev, int value)
