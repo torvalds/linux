@@ -85,19 +85,21 @@ static int no_schedule;
 static int has_cpu_l2lve;
 
 
-#define PMAC_CPU_LOW_SPEED	1
-#define PMAC_CPU_HIGH_SPEED	0
-
 /* There are only two frequency states for each processor. Values
  * are in kHz for the time being.
  */
-#define CPUFREQ_HIGH                  PMAC_CPU_HIGH_SPEED
-#define CPUFREQ_LOW                   PMAC_CPU_LOW_SPEED
+#define CPUFREQ_HIGH                  0
+#define CPUFREQ_LOW                   1
 
 static struct cpufreq_frequency_table pmac_cpu_freqs[] = {
 	{CPUFREQ_HIGH, 		0},
 	{CPUFREQ_LOW,		0},
 	{0,			CPUFREQ_TABLE_END},
+};
+
+static struct freq_attr* pmac_cpu_freqs_attr[] = {
+	&cpufreq_freq_attr_scaling_available_freqs,
+	NULL,
 };
 
 static inline void local_delay(unsigned long ms)
@@ -269,6 +271,8 @@ static int __pmac pmu_set_cpu_speed(int low_speed)
 #ifdef DEBUG_FREQ
 	printk(KERN_DEBUG "HID1, before: %x\n", mfspr(SPRN_HID1));
 #endif
+	pmu_suspend();
+
 	/* Disable all interrupt sources on openpic */
  	pic_prio = openpic_get_priority();
 	openpic_set_priority(0xf);
@@ -343,6 +347,8 @@ static int __pmac pmu_set_cpu_speed(int low_speed)
 	debug_calc_bogomips();
 #endif
 
+	pmu_resume();
+
 	preempt_enable();
 
 	return 0;
@@ -355,7 +361,7 @@ static int __pmac do_set_cpu_speed(int speed_mode, int notify)
 	static unsigned long prev_l3cr;
 
 	freqs.old = cur_freq;
-	freqs.new = (speed_mode == PMAC_CPU_HIGH_SPEED) ? hi_freq : low_freq;
+	freqs.new = (speed_mode == CPUFREQ_HIGH) ? hi_freq : low_freq;
 	freqs.cpu = smp_processor_id();
 
 	if (freqs.old == freqs.new)
@@ -363,7 +369,7 @@ static int __pmac do_set_cpu_speed(int speed_mode, int notify)
 
 	if (notify)
 		cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
-	if (speed_mode == PMAC_CPU_LOW_SPEED &&
+	if (speed_mode == CPUFREQ_LOW &&
 	    cpu_has_feature(CPU_FTR_L3CR)) {
 		l3cr = _get_L3CR();
 		if (l3cr & L3CR_L3E) {
@@ -371,8 +377,8 @@ static int __pmac do_set_cpu_speed(int speed_mode, int notify)
 			_set_L3CR(0);
 		}
 	}
-	set_speed_proc(speed_mode == PMAC_CPU_LOW_SPEED);
-	if (speed_mode == PMAC_CPU_HIGH_SPEED &&
+	set_speed_proc(speed_mode == CPUFREQ_LOW);
+	if (speed_mode == CPUFREQ_HIGH &&
 	    cpu_has_feature(CPU_FTR_L3CR)) {
 		l3cr = _get_L3CR();
 		if ((prev_l3cr & L3CR_L3E) && l3cr != prev_l3cr)
@@ -380,7 +386,7 @@ static int __pmac do_set_cpu_speed(int speed_mode, int notify)
 	}
 	if (notify)
 		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
-	cur_freq = (speed_mode == PMAC_CPU_HIGH_SPEED) ? hi_freq : low_freq;
+	cur_freq = (speed_mode == CPUFREQ_HIGH) ? hi_freq : low_freq;
 
 	return 0;
 }
@@ -423,7 +429,8 @@ static int __pmac pmac_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	policy->cpuinfo.transition_latency	= CPUFREQ_ETERNAL;
 	policy->cur = cur_freq;
 
-	return cpufreq_frequency_table_cpuinfo(policy, &pmac_cpu_freqs[0]);
+	cpufreq_frequency_table_get_attr(pmac_cpu_freqs, policy->cpu);
+	return cpufreq_frequency_table_cpuinfo(policy, pmac_cpu_freqs);
 }
 
 static u32 __pmac read_gpio(struct device_node *np)
@@ -457,7 +464,7 @@ static int __pmac pmac_cpufreq_suspend(struct cpufreq_policy *policy, u32 state)
 	no_schedule = 1;
 	sleep_freq = cur_freq;
 	if (cur_freq == low_freq)
-		do_set_cpu_speed(PMAC_CPU_HIGH_SPEED, 0);
+		do_set_cpu_speed(CPUFREQ_HIGH, 0);
 	return 0;
 }
 
@@ -473,8 +480,8 @@ static int __pmac pmac_cpufreq_resume(struct cpufreq_policy *policy)
 	 * is that we force a switch to whatever it was, which is
 	 * probably high speed due to our suspend() routine
 	 */
-	do_set_cpu_speed(sleep_freq == low_freq ? PMAC_CPU_LOW_SPEED
-			 : PMAC_CPU_HIGH_SPEED, 0);
+	do_set_cpu_speed(sleep_freq == low_freq ?
+			 CPUFREQ_LOW : CPUFREQ_HIGH, 0);
 
 	no_schedule = 0;
 	return 0;
@@ -488,6 +495,7 @@ static struct cpufreq_driver pmac_cpufreq_driver = {
 	.suspend	= pmac_cpufreq_suspend,
 	.resume		= pmac_cpufreq_resume,
 	.flags		= CPUFREQ_PM_NO_WARN,
+	.attr		= pmac_cpu_freqs_attr,
 	.name		= "powermac",
 	.owner		= THIS_MODULE,
 };

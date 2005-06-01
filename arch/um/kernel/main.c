@@ -71,7 +71,7 @@ static __init void do_uml_initcalls(void)
 
 static void last_ditch_exit(int sig)
 {
-	CHOOSE_MODE(kmalloc_ok = 0, (void) 0);
+        kmalloc_ok = 0;
 	signal(SIGINT, SIG_DFL);
 	signal(SIGTERM, SIG_DFL);
 	signal(SIGHUP, SIG_DFL);
@@ -87,7 +87,7 @@ int main(int argc, char **argv, char **envp)
 {
 	char **new_argv;
 	sigset_t mask;
-	int ret, i;
+	int ret, i, err;
 
 	/* Enable all signals except SIGIO - in some environments, we can
 	 * enter with some signals blocked
@@ -160,27 +160,29 @@ int main(int argc, char **argv, char **envp)
 	 */
 	change_sig(SIGPROF, 0);
 
+        /* This signal stuff used to be in the reboot case.  However,
+         * sometimes a SIGVTALRM can come in when we're halting (reproducably
+         * when writing out gcov information, presumably because that takes
+         * some time) and cause a segfault.
+         */
+
+        /* stop timers and set SIG*ALRM to be ignored */
+        disable_timer();
+
+        /* disable SIGIO for the fds and set SIGIO to be ignored */
+        err = deactivate_all_fds();
+        if(err)
+                printf("deactivate_all_fds failed, errno = %d\n", -err);
+
+        /* Let any pending signals fire now.  This ensures
+         * that they won't be delivered after the exec, when
+         * they are definitely not expected.
+         */
+        unblock_signals();
+
 	/* Reboot */
 	if(ret){
-		int err;
-
 		printf("\n");
-
-		/* stop timers and set SIG*ALRM to be ignored */
-		disable_timer();
-
-		/* disable SIGIO for the fds and set SIGIO to be ignored */
-		err = deactivate_all_fds();
-		if(err)
-			printf("deactivate_all_fds failed, errno = %d\n",
-			       -err);
-
-		/* Let any pending signals fire now.  This ensures
-		 * that they won't be delivered after the exec, when
-		 * they are definitely not expected.
-		 */
-		unblock_signals();
-
 		execvp(new_argv[0], new_argv);
 		perror("Failed to exec kernel");
 		ret = 1;

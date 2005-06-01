@@ -29,8 +29,6 @@
 
 #include "pwc.h"
 #include "pwc-uncompress.h"
-#include "pwc-dec1.h"
-#include "pwc-dec23.h"
 
 int pwc_decompress(struct pwc_device *pdev)
 {

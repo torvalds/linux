@@ -336,7 +336,7 @@ unsigned int speedstep_get_freqs(unsigned int processor,
 	if (!prev_speed)
 		return -EIO;
 
-	dprintk("previous seped is %u\n", prev_speed);
+	dprintk("previous speed is %u\n", prev_speed);
 	
 	local_irq_save(flags);
 
@@ -348,7 +348,7 @@ unsigned int speedstep_get_freqs(unsigned int processor,
 		goto out;
 	}
 
-	dprintk("low seped is %u\n", *low_speed);
+	dprintk("low speed is %u\n", *low_speed);
 
 	/* switch to high state */
 	set_state(SPEEDSTEP_HIGH);
@@ -358,7 +358,7 @@ unsigned int speedstep_get_freqs(unsigned int processor,
 		goto out;
 	}
 
-	dprintk("high seped is %u\n", *high_speed);
+	dprintk("high speed is %u\n", *high_speed);
 
 	if (*low_speed == *high_speed) {
 		ret = -ENODEV;

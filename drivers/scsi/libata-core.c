@@ -3322,6 +3322,13 @@ void ata_port_stop (struct ata_port *ap)
 	dma_free_coherent(dev, ATA_PRD_TBL_SZ, ap->prd, ap->prd_dma);
 }
 
+void ata_host_stop (struct ata_host_set *host_set)
+{
+	if (host_set->mmio_base)
+		iounmap(host_set->mmio_base);
+}
+
+
 /**
  *	ata_host_remove - Unregister SCSI host structure with upper layers
  *	@ap: Port to unregister
@@ -3878,10 +3885,6 @@ void ata_pci_remove_one (struct pci_dev *pdev)
 	}
 
 	free_irq(host_set->irq, host_set);
-	if (host_set->ops->host_stop)
-		host_set->ops->host_stop(host_set);
-	if (host_set->mmio_base)
-		iounmap(host_set->mmio_base);
 
 	for (i = 0; i < host_set->n_ports; i++) {
 		ap = host_set->ports[i];
@@ -3899,6 +3902,9 @@ void ata_pci_remove_one (struct pci_dev *pdev)
 
 		scsi_host_put(ap->host);
 	}
+
+	if (host_set->ops->host_stop)
+		host_set->ops->host_stop(host_set);
 
 	kfree(host_set);
 
@@ -3997,6 +4003,7 @@ EXPORT_SYMBOL_GPL(ata_chk_err);
 EXPORT_SYMBOL_GPL(ata_exec_command);
 EXPORT_SYMBOL_GPL(ata_port_start);
 EXPORT_SYMBOL_GPL(ata_port_stop);
+EXPORT_SYMBOL_GPL(ata_host_stop);
 EXPORT_SYMBOL_GPL(ata_interrupt);
 EXPORT_SYMBOL_GPL(ata_qc_prep);
 EXPORT_SYMBOL_GPL(ata_bmdma_setup);

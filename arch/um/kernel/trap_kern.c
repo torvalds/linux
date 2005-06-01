@@ -23,7 +23,6 @@
 #include "kern.h"
 #include "chan_kern.h"
 #include "mconsole_kern.h"
-#include "2_5compat.h"
 #include "mem.h"
 #include "mem_kern.h"
 

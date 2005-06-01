@@ -41,7 +41,7 @@
 (pKStk) addl r3=THIS_CPU(ia64_mca_data),r3;;							\
 (pKStk) ld8 r3 = [r3];;										\
 (pKStk) addl r3=IA64_MCA_CPU_INIT_STACK_OFFSET,r3;;						\
-(pKStk) addl sp=IA64_STK_OFFSET-IA64_PT_REGS_SIZE,r3;						\
+(pKStk) addl r1=IA64_STK_OFFSET-IA64_PT_REGS_SIZE,r3;						\
 (pUStk)	mov ar.rsc=0;		/* set enforced lazy mode, pl 0, little-endian, loadrs=0 */	\
 (pUStk)	addl r22=IA64_RBS_OFFSET,r1;		/* compute base of register backing store */	\
 	;;											\
@@ -50,7 +50,6 @@
 (pUStk)	mov r23=ar.bspstore;				/* save ar.bspstore */			\
 (pUStk)	dep r22=-1,r22,61,3;			/* compute kernel virtual addr of RBS */	\
 	;;											\
-(pKStk) addl r1=-IA64_PT_REGS_SIZE,r1;		/* if in kernel mode, use sp (r12) */		\
 (pUStk)	mov ar.bspstore=r22;			/* switch to kernel RBS */			\
 	;;											\
 (pUStk)	mov r18=ar.bsp;										\

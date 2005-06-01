@@ -27,7 +27,9 @@
 #include <linux/bcd.h>
 #include <linux/kallsyms.h>
 #include <linux/acpi.h>
+#ifdef CONFIG_ACPI
 #include <acpi/achware.h>	/* for PM timer frequency */
+#endif
 #include <asm/8253pit.h>
 #include <asm/pgtable.h>
 #include <asm/vsyscall.h>

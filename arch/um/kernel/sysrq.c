@@ -3,6 +3,7 @@
  * Licensed under the GPL
  */
 
+#include "linux/config.h"
 #include "linux/sched.h"
 #include "linux/kernel.h"
 #include "linux/module.h"
@@ -12,14 +13,14 @@
 #include "sysrq.h"
 #include "user_util.h"
 
-void show_trace(unsigned long * stack)
+/* Catch non-i386 SUBARCH's. */
+#if !defined(CONFIG_UML_X86) || defined(CONFIG_64BIT)
+void show_trace(struct task_struct *task, unsigned long * stack)
 {
-	/* XXX: Copy the CONFIG_FRAME_POINTER stack-walking backtrace from
-	 * arch/i386/kernel/traps.c, and then move this to sys-i386/sysrq.c.*/
         unsigned long addr;
 
         if (!stack) {
-                stack = (unsigned long*) &stack;
+		stack = (unsigned long*) &stack;
 		WARN_ON(1);
 	}
 
@@ -35,6 +36,7 @@ void show_trace(unsigned long * stack)
         }
         printk("\n");
 }
+#endif
 
 /*
  * stack dumps generator - this is used by arch-independent code.
@@ -44,7 +46,7 @@ void dump_stack(void)
 {
 	unsigned long stack;
 
-	show_trace(&stack);
+	show_trace(current, &stack);
 }
 EXPORT_SYMBOL(dump_stack);
 
@@ -59,7 +61,11 @@ void show_stack(struct task_struct *task, unsigned long *esp)
 	int i;
 
 	if (esp == NULL) {
-		if (task != current) {
+		if (task != current && task != NULL) {
+			/* XXX: Isn't this bogus? I.e. isn't this the
+			 * *userspace* stack of this task? If not so, use this
+			 * even when task == current (as in i386).
+			 */
 			esp = (unsigned long *) KSTK_ESP(task);
 			/* Which one? No actual difference - just coding style.*/
 			//esp = (unsigned long *) PT_REGS_IP(&task->thread.regs);
@@ -77,5 +83,6 @@ void show_stack(struct task_struct *task, unsigned long *esp)
 		printk("%08lx ", *stack++);
 	}
 
-	show_trace(esp);
+	printk("Call Trace: \n");
+	show_trace(current, esp);
 }

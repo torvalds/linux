@@ -624,7 +624,7 @@ static struct {
 	__u16   thread_id;
 	__u16   proc_fixed_addr;
 	__u8    valid;
-}mt_info[NR_CPUS] __devinit;
+} mt_info[NR_CPUS] __devinitdata;
 
 #ifdef CONFIG_HOTPLUG_CPU
 static inline void
