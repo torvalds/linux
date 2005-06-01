@@ -149,6 +149,10 @@
 
 #define FMODE_DMFM 0x10
 
+#if defined(CONFIG_GAMEPORT) || (defined(MODULE) && defined(CONFIG_GAMEPORT_MODULE))
+#define SUPPORT_JOYSTICK 1
+#endif
+
 static struct pci_driver solo1_driver;
 
 /* --------------------------------------------------------------------- */
@@ -226,7 +230,9 @@ struct solo1_state {
 		unsigned char obuf[MIDIOUTBUF];
 	} midi;
 
+#if SUPPORT_JOYSTICK
 	struct gameport *gameport;
+#endif
 };
 
 /* --------------------------------------------------------------------- */
@@ -2280,6 +2286,7 @@ solo1_resume(struct pci_dev *pci_dev) {
 	return 0;
 }
 
+#ifdef SUPPORT_JOYSTICK
 static int __devinit solo1_register_gameport(struct solo1_state *s, int io_port)
 {
 	struct gameport *gp;
@@ -2305,6 +2312,19 @@ static int __devinit solo1_register_gameport(struct solo1_state *s, int io_port)
 
 	return 0;
 }
+
+static inline void solo1_unregister_gameport(struct solo1_state *s)
+{
+	if (s->gameport) {
+		int gpio = s->gameport->io;
+		gameport_unregister_port(s->gameport);
+		release_region(gpio, GAMEPORT_EXTENT);
+	}
+}
+#else
+static inline int solo1_register_gameport(struct solo1_state *s, int io_port) { return -ENOSYS; }
+static inline void solo1_unregister_gameport(struct solo1_state *s) { }
+#endif /* SUPPORT_JOYSTICK */
 
 static int __devinit solo1_probe(struct pci_dev *pcidev, const struct pci_device_id *pciid)
 {
@@ -2437,11 +2457,7 @@ static void __devexit solo1_remove(struct pci_dev *dev)
 	synchronize_irq(s->irq);
 	pci_write_config_word(s->dev, 0x60, 0); /* turn off DDMA controller address space */
 	free_irq(s->irq, s);
-	if (s->gameport) {
-		int gpio = s->gameport->io;
-		gameport_unregister_port(s->gameport);
-		release_region(gpio, GAMEPORT_EXTENT);
-	}
+	solo1_unregister_gameport(s);
 	release_region(s->iobase, IOBASE_EXTENT);
 	release_region(s->sbbase+FMSYNTH_EXTENT, SBBASE_EXTENT-FMSYNTH_EXTENT);
 	release_region(s->ddmabase, DDMABASE_EXTENT);
