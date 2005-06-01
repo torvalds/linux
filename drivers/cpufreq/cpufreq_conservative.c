@@ -89,6 +89,15 @@ static struct dbs_tuners dbs_tuners_ins = {
 	.sampling_down_factor 	= DEF_SAMPLING_DOWN_FACTOR,
 };
 
+static inline unsigned int get_cpu_idle_time(unsigned int cpu)
+{
+	return	kstat_cpu(cpu).cpustat.idle +
+		kstat_cpu(cpu).cpustat.iowait +
+		( !dbs_tuners_ins.ignore_nice ? 
+		  kstat_cpu(cpu).cpustat.nice :
+		  0);
+}
+
 /************************** sysfs interface ************************/
 static ssize_t show_sampling_rate_max(struct cpufreq_policy *policy, char *buf)
 {
@@ -221,16 +230,10 @@ static ssize_t store_ignore_nice(struct cpufreq_policy *policy,
 	dbs_tuners_ins.ignore_nice = input;
 
 	/* we need to re-evaluate prev_cpu_idle_up and prev_cpu_idle_down */
-	for_each_cpu_mask(j, policy->cpus) {
+	for_each_online_cpu(j) {
 		struct cpu_dbs_info_s *j_dbs_info;
 		j_dbs_info = &per_cpu(cpu_dbs_info, j);
-		j_dbs_info->cur_policy = policy;
-
-		j_dbs_info->prev_cpu_idle_up =
-			kstat_cpu(j).cpustat.idle +
-			kstat_cpu(j).cpustat.iowait +
-			( !dbs_tuners_ins.ignore_nice
-			  ? kstat_cpu(j).cpustat.nice : 0 );
+		j_dbs_info->prev_cpu_idle_up = get_cpu_idle_time(j);
 		j_dbs_info->prev_cpu_idle_down = j_dbs_info->prev_cpu_idle_up;
 	}
 	up(&dbs_sem);
@@ -335,11 +338,7 @@ static void dbs_check_cpu(int cpu)
 	 */
 
 	/* Check for frequency increase */
-	total_idle_ticks = kstat_cpu(cpu).cpustat.idle +
-		kstat_cpu(cpu).cpustat.iowait;
-	  /* consider 'nice' tasks as 'idle' time too if required */
-	  if (dbs_tuners_ins.ignore_nice == 0)
-		total_idle_ticks += kstat_cpu(cpu).cpustat.nice;
+	total_idle_ticks = get_cpu_idle_time(cpu);
 	idle_ticks = total_idle_ticks -
 		this_dbs_info->prev_cpu_idle_up;
 	this_dbs_info->prev_cpu_idle_up = total_idle_ticks;
@@ -354,11 +353,7 @@ static void dbs_check_cpu(int cpu)
 
 		j_dbs_info = &per_cpu(cpu_dbs_info, j);
 		/* Check for frequency increase */
-		total_idle_ticks = kstat_cpu(j).cpustat.idle +
-			kstat_cpu(j).cpustat.iowait;
-		  /* consider 'nice' too? */
-		  if (dbs_tuners_ins.ignore_nice == 0)
-			   total_idle_ticks += kstat_cpu(j).cpustat.nice;
+		total_idle_ticks = get_cpu_idle_time(j);
 		tmp_idle_ticks = total_idle_ticks -
 			j_dbs_info->prev_cpu_idle_up;
 		j_dbs_info->prev_cpu_idle_up = total_idle_ticks;
@@ -373,6 +368,8 @@ static void dbs_check_cpu(int cpu)
 		usecs_to_jiffies(dbs_tuners_ins.sampling_rate);
 
 	if (idle_ticks < up_idle_ticks) {
+		down_skip[cpu] = 0;
+		this_dbs_info->prev_cpu_idle_down = total_idle_ticks;
 		/* if we are already at full speed then break out early */
 		if (requested_freq[cpu] == policy->max)
 			return;
@@ -389,8 +386,6 @@ static void dbs_check_cpu(int cpu)
 
 		__cpufreq_driver_target(policy, requested_freq[cpu], 
 			CPUFREQ_RELATION_H);
-		down_skip[cpu] = 0;
-		this_dbs_info->prev_cpu_idle_down = total_idle_ticks;
 		return;
 	}
 
@@ -399,11 +394,7 @@ static void dbs_check_cpu(int cpu)
 	if (down_skip[cpu] < dbs_tuners_ins.sampling_down_factor)
 		return;
 
-	total_idle_ticks = kstat_cpu(cpu).cpustat.idle +
-		kstat_cpu(cpu).cpustat.iowait;
-	  /* consider 'nice' too? */
-	  if (dbs_tuners_ins.ignore_nice == 0)
-		  total_idle_ticks += kstat_cpu(cpu).cpustat.nice;
+	total_idle_ticks = this_dbs_info->prev_cpu_idle_up;
 	idle_ticks = total_idle_ticks -
 		this_dbs_info->prev_cpu_idle_down;
 	this_dbs_info->prev_cpu_idle_down = total_idle_ticks;
@@ -417,11 +408,7 @@ static void dbs_check_cpu(int cpu)
 
 		j_dbs_info = &per_cpu(cpu_dbs_info, j);
 		/* Check for frequency increase */
-		total_idle_ticks = kstat_cpu(j).cpustat.idle +
-			kstat_cpu(j).cpustat.iowait;
-		  /* consider 'nice' too? */
-		  if (dbs_tuners_ins.ignore_nice == 0)
-			total_idle_ticks += kstat_cpu(j).cpustat.nice;
+		total_idle_ticks = j_dbs_info->prev_cpu_idle_up;
 		tmp_idle_ticks = total_idle_ticks -
 			j_dbs_info->prev_cpu_idle_down;
 		j_dbs_info->prev_cpu_idle_down = total_idle_ticks;
@@ -516,11 +503,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 			j_dbs_info = &per_cpu(cpu_dbs_info, j);
 			j_dbs_info->cur_policy = policy;
 		
-			j_dbs_info->prev_cpu_idle_up = 
-				kstat_cpu(j).cpustat.idle +
-				kstat_cpu(j).cpustat.iowait +
-				( !dbs_tuners_ins.ignore_nice
-				  ? kstat_cpu(j).cpustat.nice : 0 );
+			j_dbs_info->prev_cpu_idle_up = get_cpu_idle_time(j);
 			j_dbs_info->prev_cpu_idle_down
 				= j_dbs_info->prev_cpu_idle_up;
 		}
