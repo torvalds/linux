@@ -31,10 +31,9 @@
 #include <linux/serio.h>
 #include <linux/errno.h>
 #include <linux/wait.h>
-#include <linux/completion.h>
 #include <linux/sched.h>
-#include <linux/smp_lock.h>
 #include <linux/slab.h>
+#include <linux/kthread.h>
 
 MODULE_AUTHOR("Vojtech Pavlik <vojtech@ucw.cz>");
 MODULE_DESCRIPTION("Serio abstraction core");
@@ -138,8 +137,7 @@ struct serio_event {
 static DEFINE_SPINLOCK(serio_event_lock);	/* protects serio_event_list */
 static LIST_HEAD(serio_event_list);
 static DECLARE_WAIT_QUEUE_HEAD(serio_wait);
-static DECLARE_COMPLETION(serio_exited);
-static int serio_pid;
+static struct task_struct *serio_task;
 
 static void serio_queue_event(void *object, struct module *owner,
 			      enum serio_event_type event_type)
@@ -337,20 +335,15 @@ static struct serio *serio_get_pending_child(struct serio *parent)
 
 static int serio_thread(void *nothing)
 {
-	lock_kernel();
-	daemonize("kseriod");
-	allow_signal(SIGTERM);
-
 	do {
 		serio_handle_events();
-		wait_event_interruptible(serio_wait, !list_empty(&serio_event_list));
+		wait_event_interruptible(serio_wait,
+			kthread_should_stop() || !list_empty(&serio_event_list));
 		try_to_freeze(PF_FREEZE);
-	} while (!signal_pending(current));
+	} while (!kthread_should_stop());
 
 	printk(KERN_DEBUG "serio: kseriod exiting\n");
-
-	unlock_kernel();
-	complete_and_exit(&serio_exited, 0);
+	return 0;
 }
 
 
@@ -848,9 +841,10 @@ irqreturn_t serio_interrupt(struct serio *serio,
 
 static int __init serio_init(void)
 {
-	if (!(serio_pid = kernel_thread(serio_thread, NULL, CLONE_KERNEL))) {
+	serio_task = kthread_run(serio_thread, NULL, "kseriod");
+	if (IS_ERR(serio_task)) {
 		printk(KERN_ERR "serio: Failed to start kseriod\n");
-		return -1;
+		return PTR_ERR(serio_task);
 	}
 
 	serio_bus.dev_attrs = serio_device_attrs;
@@ -866,8 +860,7 @@ static int __init serio_init(void)
 static void __exit serio_exit(void)
 {
 	bus_unregister(&serio_bus);
-	kill_proc(serio_pid, SIGTERM, 1);
-	wait_for_completion(&serio_exited);
+	kthread_stop(serio_task);
 }
 
 module_init(serio_init);
