@@ -117,16 +117,24 @@ static void iommu_flush(struct sbus_iommu *iommu, u32 base, unsigned long npages
 
 #define STRBUF_TAG_VALID	0x02UL
 
-static void sbus_strbuf_flush(struct sbus_iommu *iommu, u32 base, unsigned long npages)
+static void sbus_strbuf_flush(struct sbus_iommu *iommu, u32 base, unsigned long npages, int direction)
 {
 	unsigned long n;
 	int limit;
 
-	iommu->strbuf_flushflag = 0UL;
 	n = npages;
 	while (n--)
 		upa_writeq(base + (n << IO_PAGE_SHIFT),
 			   iommu->strbuf_regs + STRBUF_PFLUSH);
+
+	/* If the device could not have possibly put dirty data into
+	 * the streaming cache, no flush-flag synchronization needs
+	 * to be performed.
+	 */
+	if (direction == SBUS_DMA_TODEVICE)
+		return;
+
+	iommu->strbuf_flushflag = 0UL;
 
 	/* Whoopee cushion! */
 	upa_writeq(__pa(&iommu->strbuf_flushflag),
@@ -421,7 +429,7 @@ void sbus_unmap_single(struct sbus_dev *sdev, dma_addr_t dma_addr, size_t size, 
 
 	spin_lock_irqsave(&iommu->lock, flags);
 	free_streaming_cluster(iommu, dma_base, size >> IO_PAGE_SHIFT);
-	sbus_strbuf_flush(iommu, dma_base, size >> IO_PAGE_SHIFT);
+	sbus_strbuf_flush(iommu, dma_base, size >> IO_PAGE_SHIFT, direction);
 	spin_unlock_irqrestore(&iommu->lock, flags);
 }
 
@@ -584,7 +592,7 @@ void sbus_unmap_sg(struct sbus_dev *sdev, struct scatterlist *sg, int nents, int
 	iommu = sdev->bus->iommu;
 	spin_lock_irqsave(&iommu->lock, flags);
 	free_streaming_cluster(iommu, dvma_base, size >> IO_PAGE_SHIFT);
-	sbus_strbuf_flush(iommu, dvma_base, size >> IO_PAGE_SHIFT);
+	sbus_strbuf_flush(iommu, dvma_base, size >> IO_PAGE_SHIFT, direction);
 	spin_unlock_irqrestore(&iommu->lock, flags);
 }
 
@@ -596,7 +604,7 @@ void sbus_dma_sync_single_for_cpu(struct sbus_dev *sdev, dma_addr_t base, size_t
 	size = (IO_PAGE_ALIGN(base + size) - (base & IO_PAGE_MASK));
 
 	spin_lock_irqsave(&iommu->lock, flags);
-	sbus_strbuf_flush(iommu, base & IO_PAGE_MASK, size >> IO_PAGE_SHIFT);
+	sbus_strbuf_flush(iommu, base & IO_PAGE_MASK, size >> IO_PAGE_SHIFT, direction);
 	spin_unlock_irqrestore(&iommu->lock, flags);
 }
 
@@ -620,7 +628,7 @@ void sbus_dma_sync_sg_for_cpu(struct sbus_dev *sdev, struct scatterlist *sg, int
 	size = IO_PAGE_ALIGN(sg[i].dma_address + sg[i].dma_length) - base;
 
 	spin_lock_irqsave(&iommu->lock, flags);
-	sbus_strbuf_flush(iommu, base, size >> IO_PAGE_SHIFT);
+	sbus_strbuf_flush(iommu, base, size >> IO_PAGE_SHIFT, direction);
 	spin_unlock_irqrestore(&iommu->lock, flags);
 }
 
