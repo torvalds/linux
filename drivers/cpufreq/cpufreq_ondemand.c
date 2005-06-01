@@ -78,6 +78,7 @@ struct dbs_tuners {
 	unsigned int		sampling_down_factor;
 	unsigned int		up_threshold;
 	unsigned int		down_threshold;
+	unsigned int		ignore_nice;
 };
 
 static struct dbs_tuners dbs_tuners_ins = {
@@ -115,6 +116,7 @@ show_one(sampling_rate, sampling_rate);
 show_one(sampling_down_factor, sampling_down_factor);
 show_one(up_threshold, up_threshold);
 show_one(down_threshold, down_threshold);
+show_one(ignore_nice, ignore_nice);
 
 static ssize_t store_sampling_down_factor(struct cpufreq_policy *unused, 
 		const char *buf, size_t count)
@@ -193,6 +195,46 @@ static ssize_t store_down_threshold(struct cpufreq_policy *unused,
 	return count;
 }
 
+static ssize_t store_ignore_nice(struct cpufreq_policy *policy,
+		const char *buf, size_t count)
+{
+	unsigned int input;
+	int ret;
+
+	unsigned int j;
+	
+	ret = sscanf (buf, "%u", &input);
+	if ( ret != 1 )
+		return -EINVAL;
+
+	if ( input > 1 )
+		input = 1;
+	
+	down(&dbs_sem);
+	if ( input == dbs_tuners_ins.ignore_nice ) { /* nothing to do */
+		up(&dbs_sem);
+		return count;
+	}
+	dbs_tuners_ins.ignore_nice = input;
+
+	/* we need to re-evaluate prev_cpu_idle_up and prev_cpu_idle_down */
+	for_each_cpu_mask(j, policy->cpus) {
+		struct cpu_dbs_info_s *j_dbs_info;
+		j_dbs_info = &per_cpu(cpu_dbs_info, j);
+		j_dbs_info->cur_policy = policy;
+
+		j_dbs_info->prev_cpu_idle_up =
+			kstat_cpu(j).cpustat.idle +
+			kstat_cpu(j).cpustat.iowait +
+			( !dbs_tuners_ins.ignore_nice
+			  ? kstat_cpu(j).cpustat.nice : 0 );
+		j_dbs_info->prev_cpu_idle_down = j_dbs_info->prev_cpu_idle_up;
+	}
+	up(&dbs_sem);
+
+	return count;
+}
+
 #define define_one_rw(_name) \
 static struct freq_attr _name = \
 __ATTR(_name, 0644, show_##_name, store_##_name)
@@ -201,6 +243,7 @@ define_one_rw(sampling_rate);
 define_one_rw(sampling_down_factor);
 define_one_rw(up_threshold);
 define_one_rw(down_threshold);
+define_one_rw(ignore_nice);
 
 static struct attribute * dbs_attributes[] = {
 	&sampling_rate_max.attr,
@@ -209,6 +252,7 @@ static struct attribute * dbs_attributes[] = {
 	&sampling_down_factor.attr,
 	&up_threshold.attr,
 	&down_threshold.attr,
+	&ignore_nice.attr,
 	NULL
 };
 
@@ -253,6 +297,9 @@ static void dbs_check_cpu(int cpu)
 	/* Check for frequency increase */
 	total_idle_ticks = kstat_cpu(cpu).cpustat.idle +
 		kstat_cpu(cpu).cpustat.iowait;
+	  /* consider 'nice' tasks as 'idle' time too if required */
+	  if (dbs_tuners_ins.ignore_nice == 0)
+		total_idle_ticks += kstat_cpu(cpu).cpustat.nice;
 	idle_ticks = total_idle_ticks -
 		this_dbs_info->prev_cpu_idle_up;
 	this_dbs_info->prev_cpu_idle_up = total_idle_ticks;
@@ -269,6 +316,9 @@ static void dbs_check_cpu(int cpu)
 		/* Check for frequency increase */
 		total_idle_ticks = kstat_cpu(j).cpustat.idle +
 			kstat_cpu(j).cpustat.iowait;
+		  /* consider 'nice' too? */
+		  if (dbs_tuners_ins.ignore_nice == 0)
+			   total_idle_ticks += kstat_cpu(j).cpustat.nice;
 		tmp_idle_ticks = total_idle_ticks -
 			j_dbs_info->prev_cpu_idle_up;
 		j_dbs_info->prev_cpu_idle_up = total_idle_ticks;
@@ -297,6 +347,9 @@ static void dbs_check_cpu(int cpu)
 
 	total_idle_ticks = kstat_cpu(cpu).cpustat.idle +
 		kstat_cpu(cpu).cpustat.iowait;
+	  /* consider 'nice' too? */
+	  if (dbs_tuners_ins.ignore_nice == 0)
+		  total_idle_ticks += kstat_cpu(cpu).cpustat.nice;
 	idle_ticks = total_idle_ticks -
 		this_dbs_info->prev_cpu_idle_down;
 	this_dbs_info->prev_cpu_idle_down = total_idle_ticks;
@@ -312,6 +365,9 @@ static void dbs_check_cpu(int cpu)
 		/* Check for frequency increase */
 		total_idle_ticks = kstat_cpu(j).cpustat.idle +
 			kstat_cpu(j).cpustat.iowait;
+		  /* consider 'nice' too? */
+		  if (dbs_tuners_ins.ignore_nice == 0)
+			total_idle_ticks += kstat_cpu(j).cpustat.nice;
 		tmp_idle_ticks = total_idle_ticks -
 			j_dbs_info->prev_cpu_idle_down;
 		j_dbs_info->prev_cpu_idle_down = total_idle_ticks;
@@ -397,10 +453,11 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		
 			j_dbs_info->prev_cpu_idle_up = 
 				kstat_cpu(j).cpustat.idle +
-				kstat_cpu(j).cpustat.iowait;
-			j_dbs_info->prev_cpu_idle_down = 
-				kstat_cpu(j).cpustat.idle +
-				kstat_cpu(j).cpustat.iowait;
+				kstat_cpu(j).cpustat.iowait +
+				( !dbs_tuners_ins.ignore_nice
+				  ? kstat_cpu(j).cpustat.nice : 0 );
+			j_dbs_info->prev_cpu_idle_down
+				= j_dbs_info->prev_cpu_idle_up;
 		}
 		this_dbs_info->enable = 1;
 		sysfs_create_group(&policy->kobj, &dbs_attr_group);
@@ -420,6 +477,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 			def_sampling_rate = (latency / 1000) *
 					DEF_SAMPLING_RATE_LATENCY_MULTIPLIER;
 			dbs_tuners_ins.sampling_rate = def_sampling_rate;
+			dbs_tuners_ins.ignore_nice = 0;
 
 			dbs_timer_init();
 		}
