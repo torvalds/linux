@@ -379,6 +379,8 @@ static int usblp_open(struct inode *inode, struct file *file)
 	usblp->writeurb->transfer_buffer_length = 0;
 	usblp->wcomplete = 1; /* we begin writeable */
 	usblp->rcomplete = 0;
+	usblp->writeurb->status = 0;
+	usblp->readurb->status = 0;
 
 	if (usblp->bidir) {
 		usblp->readcount = 0;
