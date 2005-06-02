@@ -874,6 +874,15 @@ int pci_scan_bridge(struct pci_bus *bus, struct pci_dev * dev, int max, int pass
 #define	pci_pool_alloc(pool, flags, handle) dma_pool_alloc(pool, flags, handle)
 #define	pci_pool_free(pool, vaddr, addr) dma_pool_free(pool, vaddr, addr)
 
+enum pci_dma_burst_strategy {
+	PCI_DMA_BURST_INFINITY,	/* make bursts as large as possible,
+				   strategy_parameter is N/A */
+	PCI_DMA_BURST_BOUNDARY, /* disconnect at every strategy_parameter
+				   byte boundaries */
+	PCI_DMA_BURST_MULTIPLE, /* disconnect at some multiple of
+				   strategy_parameter byte boundaries */
+};
+
 #if defined(CONFIG_ISA) || defined(CONFIG_EISA)
 extern struct pci_dev *isa_bridge;
 #endif
