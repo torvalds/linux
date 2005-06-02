@@ -305,6 +305,7 @@ config HPET_TIMER
 
 config X86_PM_TIMER
 	bool "PM timer"
+	depends on ACPI
 	default y
 	help
 	  Support the ACPI PM timer for time keeping. This is slow,
@@ -421,7 +422,7 @@ config PCI_DIRECT
 
 config PCI_MMCONFIG
 	bool "Support mmconfig PCI config space access"
-	depends on PCI
+	depends on PCI && ACPI
 	select ACPI_BOOT
 
 config UNORDERED_IO

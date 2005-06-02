@@ -735,11 +735,15 @@ static inline int do_one_broadcast(struct sock *sk,
 
 	sock_hold(sk);
 	if (p->skb2 == NULL) {
-		if (atomic_read(&p->skb->users) != 1) {
+		if (skb_shared(p->skb)) {
 			p->skb2 = skb_clone(p->skb, p->allocation);
 		} else {
-			p->skb2 = p->skb;
-			atomic_inc(&p->skb->users);
+			p->skb2 = skb_get(p->skb);
+			/*
+			 * skb ownership may have been set when
+			 * delivered to a previous socket.
+			 */
+			skb_orphan(p->skb2);
 		}
 	}
 	if (p->skb2 == NULL) {
@@ -785,11 +789,12 @@ int netlink_broadcast(struct sock *ssk, struct sk_buff *skb, u32 pid,
 	sk_for_each_bound(sk, node, &nl_table[ssk->sk_protocol].mc_list)
 		do_one_broadcast(sk, &info);
 
+	kfree_skb(skb);
+
 	netlink_unlock_table();
 
 	if (info.skb2)
 		kfree_skb(info.skb2);
-	kfree_skb(skb);
 
 	if (info.delivered) {
 		if (info.congested && (allocation & __GFP_WAIT))

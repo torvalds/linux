@@ -13,6 +13,8 @@
  * This should be a per-architecture thing, to allow different
  * error and pointer decisions.
  */
+#define IS_ERR_VALUE(x) unlikely((x) > (unsigned long)-1000L)
+
 static inline void *ERR_PTR(long error)
 {
 	return (void *) error;
@@ -25,7 +27,7 @@ static inline long PTR_ERR(const void *ptr)
 
 static inline long IS_ERR(const void *ptr)
 {
-	return unlikely((unsigned long)ptr > (unsigned long)-1000L);
+	return IS_ERR_VALUE((unsigned long)ptr);
 }
 
 #endif /* _LINUX_ERR_H */

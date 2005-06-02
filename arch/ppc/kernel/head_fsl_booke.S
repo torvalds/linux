@@ -232,7 +232,8 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	tlbwe
 
 /* 7. Jump to KERNELBASE mapping */
-	li	r7,0
+	lis	r7,MSR_KERNEL@h
+	ori	r7,r7,MSR_KERNEL@l
 	bl	1f			/* Find our address */
 1:	mflr	r9
 	rlwimi	r6,r9,0,20,31
@@ -291,6 +292,18 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	mfspr	r2,SPRN_HID0
 	oris	r2,r2,HID0_DOZE@h
 	mtspr	SPRN_HID0, r2
+#endif
+
+#if !defined(CONFIG_BDI_SWITCH)
+	/*
+	 * The Abatron BDI JTAG debugger does not tolerate others
+	 * mucking with the debug registers.
+	 */
+	lis	r2,DBCR0_IDM@h
+	mtspr	SPRN_DBCR0,r2
+	/* clear any residual debug events */
+	li	r2,-1
+	mtspr	SPRN_DBSR,r2
 #endif
 
 	/*

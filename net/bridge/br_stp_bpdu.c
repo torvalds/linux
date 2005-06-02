@@ -140,6 +140,9 @@ int br_stp_handle_bpdu(struct sk_buff *skb)
 	struct net_bridge *br = p->br;
 	unsigned char *buf;
 
+	/* insert into forwarding database after filtering to avoid spoofing */
+	br_fdb_update(p->br, p, eth_hdr(skb)->h_source);
+
 	/* need at least the 802 and STP headers */
 	if (!pskb_may_pull(skb, sizeof(header)+1) ||
 	    memcmp(skb->data, header, sizeof(header)))

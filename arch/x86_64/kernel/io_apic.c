@@ -37,10 +37,13 @@
 #include <asm/desc.h>
 #include <asm/proto.h>
 #include <asm/mach_apic.h>
+#include <asm/acpi.h>
 
 #define __apicdebuginit  __init
 
 int sis_apic_bug; /* not actually supported, dummy for compile */
+
+static int no_timer_check;
 
 static DEFINE_SPINLOCK(ioapic_lock);
 
@@ -1601,7 +1604,7 @@ static inline void check_timer(void)
 		 * Ok, does IRQ0 through the IOAPIC work?
 		 */
 		unmask_IO_APIC_irq(0);
-		if (timer_irq_works()) {
+		if (!no_timer_check && timer_irq_works()) {
 			nmi_watchdog_default();
 			if (nmi_watchdog == NMI_IO_APIC) {
 				disable_8259A_irq(0);
@@ -1670,6 +1673,13 @@ static inline void check_timer(void)
 	apic_printk(APIC_VERBOSE," failed :(.\n");
 	panic("IO-APIC + timer doesn't work! Try using the 'noapic' kernel parameter\n");
 }
+
+static int __init notimercheck(char *s)
+{
+	no_timer_check = 1;
+	return 1;
+}
+__setup("no_timer_check", notimercheck);
 
 /*
  *

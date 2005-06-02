@@ -57,6 +57,7 @@ EXPORT_SYMBOL(copy_to_user_tt);
 EXPORT_SYMBOL(strncpy_from_user_skas);
 EXPORT_SYMBOL(copy_to_user_skas);
 EXPORT_SYMBOL(copy_from_user_skas);
+EXPORT_SYMBOL(clear_user_skas);
 #endif
 EXPORT_SYMBOL(uml_strdup);
 

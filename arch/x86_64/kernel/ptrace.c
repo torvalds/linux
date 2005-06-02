@@ -380,7 +380,7 @@ asmlinkage long sys_ptrace(long request, long pid, unsigned long addr, long data
 			break;
 
 		switch (addr) { 
-		case 0 ... sizeof(struct user_regs_struct):
+		case 0 ... sizeof(struct user_regs_struct) - sizeof(long):
 			tmp = getreg(child, addr);
 			break;
 		case offsetof(struct user, u_debugreg[0]):
@@ -425,7 +425,7 @@ asmlinkage long sys_ptrace(long request, long pid, unsigned long addr, long data
 			break;
 
 		switch (addr) { 
-		case 0 ... sizeof(struct user_regs_struct): 
+		case 0 ... sizeof(struct user_regs_struct) - sizeof(long):
 			ret = putreg(child, addr, data);
 			break;
 		/* Disallows to set a breakpoint into the vsyscall */

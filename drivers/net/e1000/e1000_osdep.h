@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   
-  Copyright(c) 1999 - 2004 Intel Corporation. All rights reserved.
+  Copyright(c) 1999 - 2005 Intel Corporation. All rights reserved.
   
   This program is free software; you can redistribute it and/or modify it 
   under the terms of the GNU General Public License as published by the Free 
@@ -42,7 +42,12 @@
 #include <linux/sched.h>
 
 #ifndef msec_delay
-#define msec_delay(x) msleep(x)
+#define msec_delay(x)	do { if(in_interrupt()) { \
+				/* Don't mdelay in interrupt context! */ \
+	                	BUG(); \
+			} else { \
+				msleep(x); \
+			} } while(0)
 
 /* Some workarounds require millisecond delays and are run during interrupt
  * context.  Most notably, when establishing link, the phy may need tweaking
@@ -95,6 +100,29 @@ typedef enum {
     readl((a)->hw_addr + \
         (((a)->mac_type >= e1000_82543) ? E1000_##reg : E1000_82542_##reg) + \
         ((offset) << 2)))
+
+#define E1000_READ_REG_ARRAY_DWORD E1000_READ_REG_ARRAY
+#define E1000_WRITE_REG_ARRAY_DWORD E1000_WRITE_REG_ARRAY
+
+#define E1000_WRITE_REG_ARRAY_WORD(a, reg, offset, value) ( \
+    writew((value), ((a)->hw_addr + \
+        (((a)->mac_type >= e1000_82543) ? E1000_##reg : E1000_82542_##reg) + \
+        ((offset) << 1))))
+
+#define E1000_READ_REG_ARRAY_WORD(a, reg, offset) ( \
+    readw((a)->hw_addr + \
+        (((a)->mac_type >= e1000_82543) ? E1000_##reg : E1000_82542_##reg) + \
+        ((offset) << 1)))
+
+#define E1000_WRITE_REG_ARRAY_BYTE(a, reg, offset, value) ( \
+    writeb((value), ((a)->hw_addr + \
+        (((a)->mac_type >= e1000_82543) ? E1000_##reg : E1000_82542_##reg) + \
+        (offset))))
+
+#define E1000_READ_REG_ARRAY_BYTE(a, reg, offset) ( \
+    readb((a)->hw_addr + \
+        (((a)->mac_type >= e1000_82543) ? E1000_##reg : E1000_82542_##reg) + \
+        (offset)))
 
 #define E1000_WRITE_FLUSH(a) E1000_READ_REG(a, STATUS)
 

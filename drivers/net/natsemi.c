@@ -2433,9 +2433,9 @@ static void __set_rx_mode(struct net_device *dev)
 		rx_mode = RxFilterEnable | AcceptBroadcast
 			| AcceptMulticast | AcceptMyPhys;
 		for (i = 0; i < 64; i += 2) {
-			writew(HASH_TABLE + i, ioaddr + RxFilterAddr);
-			writew((mc_filter[i+1]<<8) + mc_filter[i],
-				ioaddr + RxFilterData);
+			writel(HASH_TABLE + i, ioaddr + RxFilterAddr);
+			writel((mc_filter[i + 1] << 8) + mc_filter[i],
+			       ioaddr + RxFilterData);
 		}
 	}
 	writel(rx_mode, ioaddr + RxFilterAddr);

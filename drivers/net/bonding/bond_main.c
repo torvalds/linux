@@ -3037,7 +3037,7 @@ static void bond_activebackup_arp_mon(struct net_device *bond_dev)
 			bond_set_slave_inactive_flags(bond->current_arp_slave);
 
 			/* search for next candidate */
-			bond_for_each_slave_from(bond, slave, i, bond->current_arp_slave) {
+			bond_for_each_slave_from(bond, slave, i, bond->current_arp_slave->next) {
 				if (IS_UP(slave->dev)) {
 					slave->link = BOND_LINK_BACK;
 					bond_set_slave_active_flags(slave);

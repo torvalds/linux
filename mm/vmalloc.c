@@ -248,6 +248,28 @@ struct vm_struct *get_vm_area(unsigned long size, unsigned long flags)
 	return __get_vm_area(size, flags, VMALLOC_START, VMALLOC_END);
 }
 
+/* Caller must hold vmlist_lock */
+struct vm_struct *__remove_vm_area(void *addr)
+{
+	struct vm_struct **p, *tmp;
+
+	for (p = &vmlist ; (tmp = *p) != NULL ;p = &tmp->next) {
+		 if (tmp->addr == addr)
+			 goto found;
+	}
+	return NULL;
+
+found:
+	unmap_vm_area(tmp);
+	*p = tmp->next;
+
+	/*
+	 * Remove the guard page.
+	 */
+	tmp->size -= PAGE_SIZE;
+	return tmp;
+}
+
 /**
  *	remove_vm_area  -  find and remove a contingous kernel virtual area
  *
@@ -255,30 +277,15 @@ struct vm_struct *get_vm_area(unsigned long size, unsigned long flags)
  *
  *	Search for the kernel VM area starting at @addr, and remove it.
  *	This function returns the found VM area, but using it is NOT safe
- *	on SMP machines.
+ *	on SMP machines, except for its size or flags.
  */
 struct vm_struct *remove_vm_area(void *addr)
 {
-	struct vm_struct **p, *tmp;
-
+	struct vm_struct *v;
 	write_lock(&vmlist_lock);
-	for (p = &vmlist ; (tmp = *p) != NULL ;p = &tmp->next) {
-		 if (tmp->addr == addr)
-			 goto found;
-	}
+	v = __remove_vm_area(addr);
 	write_unlock(&vmlist_lock);
-	return NULL;
-
-found:
-	unmap_vm_area(tmp);
-	*p = tmp->next;
-	write_unlock(&vmlist_lock);
-
-	/*
-	 * Remove the guard page.
-	 */
-	tmp->size -= PAGE_SIZE;
-	return tmp;
+	return v;
 }
 
 void __vunmap(void *addr, int deallocate_pages)

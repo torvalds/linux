@@ -8,6 +8,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
+#include <linux/delay.h>
 
 #include <asm/pbm.h>
 
@@ -195,6 +196,34 @@ static iopte_t *alloc_consistent_cluster(struct pci_iommu *iommu, unsigned long 
 	return NULL;
 }
 
+static int iommu_alloc_ctx(struct pci_iommu *iommu)
+{
+	int lowest = iommu->ctx_lowest_free;
+	int sz = IOMMU_NUM_CTXS - lowest;
+	int n = find_next_zero_bit(iommu->ctx_bitmap, sz, lowest);
+
+	if (unlikely(n == sz)) {
+		n = find_next_zero_bit(iommu->ctx_bitmap, lowest, 1);
+		if (unlikely(n == lowest)) {
+			printk(KERN_WARNING "IOMMU: Ran out of contexts.\n");
+			n = 0;
+		}
+	}
+	if (n)
+		__set_bit(n, iommu->ctx_bitmap);
+
+	return n;
+}
+
+static inline void iommu_free_ctx(struct pci_iommu *iommu, int ctx)
+{
+	if (likely(ctx)) {
+		__clear_bit(ctx, iommu->ctx_bitmap);
+		if (ctx < iommu->ctx_lowest_free)
+			iommu->ctx_lowest_free = ctx;
+	}
+}
+
 /* Allocate and map kernel buffer of size SIZE using consistent mode
  * DMA for PCI device PDEV.  Return non-NULL cpu-side address if
  * successful and set *DMA_ADDRP to the PCI side dma address.
@@ -235,7 +264,7 @@ void *pci_alloc_consistent(struct pci_dev *pdev, size_t size, dma_addr_t *dma_ad
 	npages = size >> IO_PAGE_SHIFT;
 	ctx = 0;
 	if (iommu->iommu_ctxflush)
-		ctx = iommu->iommu_cur_ctx++;
+		ctx = iommu_alloc_ctx(iommu);
 	first_page = __pa(first_page);
 	while (npages--) {
 		iopte_val(*iopte) = (IOPTE_CONSISTENT(ctx) |
@@ -316,6 +345,8 @@ void pci_free_consistent(struct pci_dev *pdev, size_t size, void *cpu, dma_addr_
 		}
 	}
 
+	iommu_free_ctx(iommu, ctx);
+
 	spin_unlock_irqrestore(&iommu->lock, flags);
 
 	order = get_order(size);
@@ -359,7 +390,7 @@ dma_addr_t pci_map_single(struct pci_dev *pdev, void *ptr, size_t sz, int direct
 	base_paddr = __pa(oaddr & IO_PAGE_MASK);
 	ctx = 0;
 	if (iommu->iommu_ctxflush)
-		ctx = iommu->iommu_cur_ctx++;
+		ctx = iommu_alloc_ctx(iommu);
 	if (strbuf->strbuf_enabled)
 		iopte_protection = IOPTE_STREAMING(ctx);
 	else
@@ -379,6 +410,70 @@ bad:
 	return PCI_DMA_ERROR_CODE;
 }
 
+static void pci_strbuf_flush(struct pci_strbuf *strbuf, struct pci_iommu *iommu, u32 vaddr, unsigned long ctx, unsigned long npages, int direction)
+{
+	int limit;
+
+	if (strbuf->strbuf_ctxflush &&
+	    iommu->iommu_ctxflush) {
+		unsigned long matchreg, flushreg;
+		u64 val;
+
+		flushreg = strbuf->strbuf_ctxflush;
+		matchreg = PCI_STC_CTXMATCH_ADDR(strbuf, ctx);
+
+		pci_iommu_write(flushreg, ctx);
+		val = pci_iommu_read(matchreg);
+		val &= 0xffff;
+		if (!val)
+			goto do_flush_sync;
+
+		while (val) {
+			if (val & 0x1)
+				pci_iommu_write(flushreg, ctx);
+			val >>= 1;
+		}
+		val = pci_iommu_read(matchreg);
+		if (unlikely(val)) {
+			printk(KERN_WARNING "pci_strbuf_flush: ctx flush "
+			       "timeout matchreg[%lx] ctx[%lx]\n",
+			       val, ctx);
+			goto do_page_flush;
+		}
+	} else {
+		unsigned long i;
+
+	do_page_flush:
+		for (i = 0; i < npages; i++, vaddr += IO_PAGE_SIZE)
+			pci_iommu_write(strbuf->strbuf_pflush, vaddr);
+	}
+
+do_flush_sync:
+	/* If the device could not have possibly put dirty data into
+	 * the streaming cache, no flush-flag synchronization needs
+	 * to be performed.
+	 */
+	if (direction == PCI_DMA_TODEVICE)
+		return;
+
+	PCI_STC_FLUSHFLAG_INIT(strbuf);
+	pci_iommu_write(strbuf->strbuf_fsync, strbuf->strbuf_flushflag_pa);
+	(void) pci_iommu_read(iommu->write_complete_reg);
+
+	limit = 100000;
+	while (!PCI_STC_FLUSHFLAG_SET(strbuf)) {
+		limit--;
+		if (!limit)
+			break;
+		udelay(1);
+		membar("#LoadLoad");
+	}
+	if (!limit)
+		printk(KERN_WARNING "pci_strbuf_flush: flushflag timeout "
+		       "vaddr[%08x] ctx[%lx] npages[%ld]\n",
+		       vaddr, ctx, npages);
+}
+
 /* Unmap a single streaming mode DMA translation. */
 void pci_unmap_single(struct pci_dev *pdev, dma_addr_t bus_addr, size_t sz, int direction)
 {
@@ -386,7 +481,7 @@ void pci_unmap_single(struct pci_dev *pdev, dma_addr_t bus_addr, size_t sz, int 
 	struct pci_iommu *iommu;
 	struct pci_strbuf *strbuf;
 	iopte_t *base;
-	unsigned long flags, npages, i, ctx;
+	unsigned long flags, npages, ctx;
 
 	if (direction == PCI_DMA_NONE)
 		BUG();
@@ -414,35 +509,16 @@ void pci_unmap_single(struct pci_dev *pdev, dma_addr_t bus_addr, size_t sz, int 
 		ctx = (iopte_val(*base) & IOPTE_CONTEXT) >> 47UL;
 
 	/* Step 1: Kick data out of streaming buffers if necessary. */
-	if (strbuf->strbuf_enabled) {
-		u32 vaddr = bus_addr;
-
-		PCI_STC_FLUSHFLAG_INIT(strbuf);
-		if (strbuf->strbuf_ctxflush &&
-		    iommu->iommu_ctxflush) {
-			unsigned long matchreg, flushreg;
-
-			flushreg = strbuf->strbuf_ctxflush;
-			matchreg = PCI_STC_CTXMATCH_ADDR(strbuf, ctx);
-			do {
-				pci_iommu_write(flushreg, ctx);
-			} while(((long)pci_iommu_read(matchreg)) < 0L);
-		} else {
-			for (i = 0; i < npages; i++, vaddr += IO_PAGE_SIZE)
-				pci_iommu_write(strbuf->strbuf_pflush, vaddr);
-		}
-
-		pci_iommu_write(strbuf->strbuf_fsync, strbuf->strbuf_flushflag_pa);
-		(void) pci_iommu_read(iommu->write_complete_reg);
-		while (!PCI_STC_FLUSHFLAG_SET(strbuf))
-			membar("#LoadLoad");
-	}
+	if (strbuf->strbuf_enabled)
+		pci_strbuf_flush(strbuf, iommu, bus_addr, ctx, npages, direction);
 
 	/* Step 2: Clear out first TSB entry. */
 	iopte_make_dummy(iommu, base);
 
 	free_streaming_cluster(iommu, bus_addr - iommu->page_table_map_base,
 			       npages, ctx);
+
+	iommu_free_ctx(iommu, ctx);
 
 	spin_unlock_irqrestore(&iommu->lock, flags);
 }
@@ -583,7 +659,7 @@ int pci_map_sg(struct pci_dev *pdev, struct scatterlist *sglist, int nelems, int
 	/* Step 4: Choose a context if necessary. */
 	ctx = 0;
 	if (iommu->iommu_ctxflush)
-		ctx = iommu->iommu_cur_ctx++;
+		ctx = iommu_alloc_ctx(iommu);
 
 	/* Step 5: Create the mappings. */
 	if (strbuf->strbuf_enabled)
@@ -647,35 +723,16 @@ void pci_unmap_sg(struct pci_dev *pdev, struct scatterlist *sglist, int nelems, 
 		ctx = (iopte_val(*base) & IOPTE_CONTEXT) >> 47UL;
 
 	/* Step 1: Kick data out of streaming buffers if necessary. */
-	if (strbuf->strbuf_enabled) {
-		u32 vaddr = (u32) bus_addr;
-
-		PCI_STC_FLUSHFLAG_INIT(strbuf);
-		if (strbuf->strbuf_ctxflush &&
-		    iommu->iommu_ctxflush) {
-			unsigned long matchreg, flushreg;
-
-			flushreg = strbuf->strbuf_ctxflush;
-			matchreg = PCI_STC_CTXMATCH_ADDR(strbuf, ctx);
-			do {
-				pci_iommu_write(flushreg, ctx);
-			} while(((long)pci_iommu_read(matchreg)) < 0L);
-		} else {
-			for (i = 0; i < npages; i++, vaddr += IO_PAGE_SIZE)
-				pci_iommu_write(strbuf->strbuf_pflush, vaddr);
-		}
-
-		pci_iommu_write(strbuf->strbuf_fsync, strbuf->strbuf_flushflag_pa);
-		(void) pci_iommu_read(iommu->write_complete_reg);
-		while (!PCI_STC_FLUSHFLAG_SET(strbuf))
-			membar("#LoadLoad");
-	}
+	if (strbuf->strbuf_enabled)
+		pci_strbuf_flush(strbuf, iommu, bus_addr, ctx, npages, direction);
 
 	/* Step 2: Clear out first TSB entry. */
 	iopte_make_dummy(iommu, base);
 
 	free_streaming_cluster(iommu, bus_addr - iommu->page_table_map_base,
 			       npages, ctx);
+
+	iommu_free_ctx(iommu, ctx);
 
 	spin_unlock_irqrestore(&iommu->lock, flags);
 }
@@ -715,28 +772,7 @@ void pci_dma_sync_single_for_cpu(struct pci_dev *pdev, dma_addr_t bus_addr, size
 	}
 
 	/* Step 2: Kick data out of streaming buffers. */
-	PCI_STC_FLUSHFLAG_INIT(strbuf);
-	if (iommu->iommu_ctxflush &&
-	    strbuf->strbuf_ctxflush) {
-		unsigned long matchreg, flushreg;
-
-		flushreg = strbuf->strbuf_ctxflush;
-		matchreg = PCI_STC_CTXMATCH_ADDR(strbuf, ctx);
-		do {
-			pci_iommu_write(flushreg, ctx);
-		} while(((long)pci_iommu_read(matchreg)) < 0L);
-	} else {
-		unsigned long i;
-
-		for (i = 0; i < npages; i++, bus_addr += IO_PAGE_SIZE)
-			pci_iommu_write(strbuf->strbuf_pflush, bus_addr);
-	}
-
-	/* Step 3: Perform flush synchronization sequence. */
-	pci_iommu_write(strbuf->strbuf_fsync, strbuf->strbuf_flushflag_pa);
-	(void) pci_iommu_read(iommu->write_complete_reg);
-	while (!PCI_STC_FLUSHFLAG_SET(strbuf))
-		membar("#LoadLoad");
+	pci_strbuf_flush(strbuf, iommu, bus_addr, ctx, npages, direction);
 
 	spin_unlock_irqrestore(&iommu->lock, flags);
 }
@@ -749,7 +785,8 @@ void pci_dma_sync_sg_for_cpu(struct pci_dev *pdev, struct scatterlist *sglist, i
 	struct pcidev_cookie *pcp;
 	struct pci_iommu *iommu;
 	struct pci_strbuf *strbuf;
-	unsigned long flags, ctx;
+	unsigned long flags, ctx, npages, i;
+	u32 bus_addr;
 
 	pcp = pdev->sysdata;
 	iommu = pcp->pbm->iommu;
@@ -772,36 +809,14 @@ void pci_dma_sync_sg_for_cpu(struct pci_dev *pdev, struct scatterlist *sglist, i
 	}
 
 	/* Step 2: Kick data out of streaming buffers. */
-	PCI_STC_FLUSHFLAG_INIT(strbuf);
-	if (iommu->iommu_ctxflush &&
-	    strbuf->strbuf_ctxflush) {
-		unsigned long matchreg, flushreg;
-
-		flushreg = strbuf->strbuf_ctxflush;
-		matchreg = PCI_STC_CTXMATCH_ADDR(strbuf, ctx);
-		do {
-			pci_iommu_write(flushreg, ctx);
-		} while (((long)pci_iommu_read(matchreg)) < 0L);
-	} else {
-		unsigned long i, npages;
-		u32 bus_addr;
-
-		bus_addr = sglist[0].dma_address & IO_PAGE_MASK;
-
-		for(i = 1; i < nelems; i++)
-			if (!sglist[i].dma_length)
-				break;
-		i--;
-		npages = (IO_PAGE_ALIGN(sglist[i].dma_address + sglist[i].dma_length) - bus_addr) >> IO_PAGE_SHIFT;
-		for (i = 0; i < npages; i++, bus_addr += IO_PAGE_SIZE)
-			pci_iommu_write(strbuf->strbuf_pflush, bus_addr);
-	}
-
-	/* Step 3: Perform flush synchronization sequence. */
-	pci_iommu_write(strbuf->strbuf_fsync, strbuf->strbuf_flushflag_pa);
-	(void) pci_iommu_read(iommu->write_complete_reg);
-	while (!PCI_STC_FLUSHFLAG_SET(strbuf))
-		membar("#LoadLoad");
+	bus_addr = sglist[0].dma_address & IO_PAGE_MASK;
+	for(i = 1; i < nelems; i++)
+		if (!sglist[i].dma_length)
+			break;
+	i--;
+	npages = (IO_PAGE_ALIGN(sglist[i].dma_address + sglist[i].dma_length)
+		  - bus_addr) >> IO_PAGE_SHIFT;
+	pci_strbuf_flush(strbuf, iommu, bus_addr, ctx, npages, direction);
 
 	spin_unlock_irqrestore(&iommu->lock, flags);
 }

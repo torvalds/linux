@@ -68,8 +68,7 @@ static void gunze_process_packet(struct gunze* gunze, struct pt_regs *regs)
 
 	if (gunze->idx != GUNZE_MAX_LENGTH || gunze->data[5] != ',' ||
 		(gunze->data[0] != 'T' && gunze->data[0] != 'R')) {
-		gunze->data[10] = 0;
-		printk(KERN_WARNING "gunze.c: bad packet: >%s<\n", gunze->data);
+		printk(KERN_WARNING "gunze.c: bad packet: >%.*s<\n", GUNZE_MAX_LENGTH, gunze->data);
 		return;
 	}
 
