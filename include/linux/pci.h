@@ -586,7 +586,7 @@ struct pci_dev {
 #define PCI_NUM_RESOURCES 11
 
 #ifndef PCI_BUS_NUM_RESOURCES
-#define PCI_BUS_NUM_RESOURCES 4
+#define PCI_BUS_NUM_RESOURCES 8
 #endif
   
 #define PCI_REGION_FLAG_MASK 0x0fU	/* These bits of resource flags tell us the PCI region flags */
