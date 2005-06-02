@@ -186,6 +186,28 @@ static void ata_tf_load_mmio(struct ata_port *ap, struct ata_taskfile *tf)
 	ata_wait_idle(ap);
 }
 
+
+/**
+ *	ata_tf_load - send taskfile registers to host controller
+ *	@ap: Port to which output is sent
+ *	@tf: ATA taskfile register set
+ *
+ *	Outputs ATA taskfile to standard ATA host controller using MMIO
+ *	or PIO as indicated by the ATA_FLAG_MMIO flag.
+ *	Writes the control, feature, nsect, lbal, lbam, and lbah registers.
+ *	Optionally (ATA_TFLAG_LBA48) writes hob_feature, hob_nsect,
+ *	hob_lbal, hob_lbam, and hob_lbah.
+ *
+ *	This function waits for idle (!BUSY and !DRQ) after writing
+ *	registers.  If the control register has a new value, this
+ *	function also waits for idle after writing control and before
+ *	writing the remaining registers.
+ *
+ *	May be used as the tf_load() entry in ata_port_operations.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ */
 void ata_tf_load(struct ata_port *ap, struct ata_taskfile *tf)
 {
 	if (ap->flags & ATA_FLAG_MMIO)
@@ -195,11 +217,11 @@ void ata_tf_load(struct ata_port *ap, struct ata_taskfile *tf)
 }
 
 /**
- *	ata_exec_command - issue ATA command to host controller
+ *	ata_exec_command_pio - issue ATA command to host controller
  *	@ap: port to which command is being issued
  *	@tf: ATA taskfile register set
  *
- *	Issues PIO/MMIO write to ATA command register, with proper
+ *	Issues PIO write to ATA command register, with proper
  *	synchronization with interrupt handler / other threads.
  *
  *	LOCKING:
@@ -235,6 +257,18 @@ static void ata_exec_command_mmio(struct ata_port *ap, struct ata_taskfile *tf)
 	ata_pause(ap);
 }
 
+
+/**
+ *	ata_exec_command - issue ATA command to host controller
+ *	@ap: port to which command is being issued
+ *	@tf: ATA taskfile register set
+ *
+ *	Issues PIO/MMIO write to ATA command register, with proper
+ *	synchronization with interrupt handler / other threads.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host_set lock)
+ */
 void ata_exec_command(struct ata_port *ap, struct ata_taskfile *tf)
 {
 	if (ap->flags & ATA_FLAG_MMIO)
@@ -305,7 +339,7 @@ void ata_tf_to_host_nolock(struct ata_port *ap, struct ata_taskfile *tf)
 }
 
 /**
- *	ata_tf_read - input device's ATA taskfile shadow registers
+ *	ata_tf_read_pio - input device's ATA taskfile shadow registers
  *	@ap: Port from which input is read
  *	@tf: ATA taskfile register set for storing input
  *
@@ -368,6 +402,23 @@ static void ata_tf_read_mmio(struct ata_port *ap, struct ata_taskfile *tf)
 	}
 }
 
+
+/**
+ *	ata_tf_read - input device's ATA taskfile shadow registers
+ *	@ap: Port from which input is read
+ *	@tf: ATA taskfile register set for storing input
+ *
+ *	Reads ATA taskfile registers for currently-selected device
+ *	into @tf.
+ *
+ *	Reads nsect, lbal, lbam, lbah, and device.  If ATA_TFLAG_LBA48
+ *	is set, also reads the hob registers.
+ *
+ *	May be used as the tf_read() entry in ata_port_operations.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ */
 void ata_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
 {
 	if (ap->flags & ATA_FLAG_MMIO)
@@ -381,7 +432,7 @@ void ata_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
  *	@ap: port where the device is
  *
  *	Reads ATA taskfile status register for currently-selected device
- *	and return it's value. This also clears pending interrupts
+ *	and return its value. This also clears pending interrupts
  *      from this device
  *
  *	LOCKING:
@@ -397,7 +448,7 @@ static u8 ata_check_status_pio(struct ata_port *ap)
  *	@ap: port where the device is
  *
  *	Reads ATA taskfile status register for currently-selected device
- *	via MMIO and return it's value. This also clears pending interrupts
+ *	via MMIO and return its value. This also clears pending interrupts
  *      from this device
  *
  *	LOCKING:
@@ -408,6 +459,20 @@ static u8 ata_check_status_mmio(struct ata_port *ap)
        	return readb((void __iomem *) ap->ioaddr.status_addr);
 }
 
+
+/**
+ *	ata_check_status - Read device status reg & clear interrupt
+ *	@ap: port where the device is
+ *
+ *	Reads ATA taskfile status register for currently-selected device
+ *	and return its value. This also clears pending interrupts
+ *      from this device
+ *
+ *	May be used as the check_status() entry in ata_port_operations.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ */
 u8 ata_check_status(struct ata_port *ap)
 {
 	if (ap->flags & ATA_FLAG_MMIO)
@@ -415,6 +480,20 @@ u8 ata_check_status(struct ata_port *ap)
 	return ata_check_status_pio(ap);
 }
 
+
+/**
+ *	ata_altstatus - Read device alternate status reg
+ *	@ap: port where the device is
+ *
+ *	Reads ATA taskfile alternate status register for
+ *	currently-selected device and return its value.
+ *
+ *	Note: may NOT be used as the check_altstatus() entry in
+ *	ata_port_operations.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ */
 u8 ata_altstatus(struct ata_port *ap)
 {
 	if (ap->ops->check_altstatus)
@@ -425,6 +504,20 @@ u8 ata_altstatus(struct ata_port *ap)
 	return inb(ap->ioaddr.altstatus_addr);
 }
 
+
+/**
+ *	ata_chk_err - Read device error reg
+ *	@ap: port where the device is
+ *
+ *	Reads ATA taskfile error register for
+ *	currently-selected device and return its value.
+ *
+ *	Note: may NOT be used as the check_err() entry in
+ *	ata_port_operations.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ */
 u8 ata_chk_err(struct ata_port *ap)
 {
 	if (ap->ops->check_err)
@@ -873,9 +966,23 @@ void ata_dev_id_string(u16 *id, unsigned char *s,
 	}
 }
 
+
+/**
+ *	ata_noop_dev_select - Select device 0/1 on ATA bus
+ *	@ap: ATA channel to manipulate
+ *	@device: ATA device (numbered from zero) to select
+ *
+ *	This function performs no actual function.
+ *
+ *	May be used as the dev_select() entry in ata_port_operations.
+ *
+ *	LOCKING:
+ *	caller.
+ */
 void ata_noop_dev_select (struct ata_port *ap, unsigned int device)
 {
 }
+
 
 /**
  *	ata_std_dev_select - Select device 0/1 on ATA bus
@@ -884,7 +991,9 @@ void ata_noop_dev_select (struct ata_port *ap, unsigned int device)
  *
  *	Use the method defined in the ATA specification to
  *	make either device 0, or device 1, active on the
- *	ATA channel.
+ *	ATA channel.  Works with both PIO and MMIO.
+ *
+ *	May be used as the dev_select() entry in ata_port_operations.
  *
  *	LOCKING:
  *	caller.
@@ -2127,6 +2236,19 @@ void ata_qc_prep(struct ata_queued_cmd *qc)
  *	spin_lock_irqsave(host_set lock)
  */
 
+
+
+/**
+ *	ata_sg_init_one - Prepare a one-entry scatter-gather list.
+ *	@qc:  Queued command
+ *	@buf:  transfer buffer
+ *	@buflen:  length of buf
+ *
+ *	Builds a single-entry scatter-gather list to initiate a
+ *	transfer utilizing the specified buffer.
+ *
+ *	LOCKING:
+ */
 void ata_sg_init_one(struct ata_queued_cmd *qc, void *buf, unsigned int buflen)
 {
 	struct scatterlist *sg;
@@ -2156,6 +2278,18 @@ void ata_sg_init_one(struct ata_queued_cmd *qc, void *buf, unsigned int buflen)
  *
  *	LOCKING:
  *	spin_lock_irqsave(host_set lock)
+ */
+
+
+/**
+ *	ata_sg_init - Assign a scatter gather list to a queued command
+ *	@qc:  Queued command
+ *	@sg:  Scatter-gather list
+ *	@n_elem:  length of sg list
+ *
+ *	Attaches a scatter-gather list to a queued command.
+ *
+ *	LOCKING:
  */
 
 void ata_sg_init(struct ata_queued_cmd *qc, struct scatterlist *sg,
@@ -2331,6 +2465,18 @@ static void ata_pio_complete (struct ata_port *ap)
 	ata_qc_complete(qc, drv_stat);
 }
 
+
+/**
+ *	swap_buf_le16 -
+ *	@buf:  Buffer to swap
+ *	@buf_words:  Number of 16-bit words in buffer.
+ *
+ *	Swap halves of 16-bit words if needed to convert from
+ *	little-endian byte order to native cpu byte order, or
+ *	vice-versa.
+ *
+ *	LOCKING:
+ */
 void swap_buf_le16(u16 *buf, unsigned int buf_words)
 {
 #ifdef __BIG_ENDIAN
@@ -2992,6 +3138,7 @@ err_out:
 	return -1;
 }
 
+
 /**
  *	ata_qc_issue_prot - issue taskfile to device in proto-dependent manner
  *	@qc: command to issue to device
@@ -3000,6 +3147,8 @@ err_out:
  *	starts an ATA command.  ATA commands are grouped into
  *	classes called "protocols", and issuing each type of protocol
  *	is slightly different.
+ *
+ *	May be used as the qc_issue() entry in ata_port_operations.
  *
  *	LOCKING:
  *	spin_lock_irqsave(host_set lock)
@@ -3058,7 +3207,7 @@ int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 }
 
 /**
- *	ata_bmdma_setup - Set up PCI IDE BMDMA transaction
+ *	ata_bmdma_setup_mmio - Set up PCI IDE BMDMA transaction
  *	@qc: Info associated with this ATA transaction.
  *
  *	LOCKING:
@@ -3165,6 +3314,18 @@ static void ata_bmdma_start_pio (struct ata_queued_cmd *qc)
 	     ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
 }
 
+
+/**
+ *	ata_bmdma_start - Start a PCI IDE BMDMA transaction
+ *	@qc: Info associated with this ATA transaction.
+ *
+ *	Writes the ATA_DMA_START flag to the DMA command register.
+ *
+ *	May be used as the bmdma_start() entry in ata_port_operations.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host_set lock)
+ */
 void ata_bmdma_start(struct ata_queued_cmd *qc)
 {
 	if (qc->ap->flags & ATA_FLAG_MMIO)
@@ -3173,6 +3334,20 @@ void ata_bmdma_start(struct ata_queued_cmd *qc)
 		ata_bmdma_start_pio(qc);
 }
 
+
+/**
+ *	ata_bmdma_setup - Set up PCI IDE BMDMA transaction
+ *	@qc: Info associated with this ATA transaction.
+ *
+ *	Writes address of PRD table to device's PRD Table Address
+ *	register, sets the DMA control register, and calls
+ *	ops->exec_command() to start the transfer.
+ *
+ *	May be used as the bmdma_setup() entry in ata_port_operations.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host_set lock)
+ */
 void ata_bmdma_setup(struct ata_queued_cmd *qc)
 {
 	if (qc->ap->flags & ATA_FLAG_MMIO)
@@ -3180,6 +3355,19 @@ void ata_bmdma_setup(struct ata_queued_cmd *qc)
 	else
 		ata_bmdma_setup_pio(qc);
 }
+
+
+/**
+ *	ata_bmdma_irq_clear - Clear PCI IDE BMDMA interrupt.
+ *	@qc: Info associated with this ATA transaction.
+ *
+ *	Clear interrupt and error flags in DMA status register.
+ *
+ *	May be used as the irq_clear() entry in ata_port_operations.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host_set lock)
+ */
 
 void ata_bmdma_irq_clear(struct ata_port *ap)
 {
@@ -3193,6 +3381,19 @@ void ata_bmdma_irq_clear(struct ata_port *ap)
 
 }
 
+
+/**
+ *	ata_bmdma_status - Read PCI IDE BMDMA status
+ *	@qc: Info associated with this ATA transaction.
+ *
+ *	Read and return BMDMA status register.
+ *
+ *	May be used as the bmdma_status() entry in ata_port_operations.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host_set lock)
+ */
+
 u8 ata_bmdma_status(struct ata_port *ap)
 {
 	u8 host_stat;
@@ -3203,6 +3404,19 @@ u8 ata_bmdma_status(struct ata_port *ap)
 	host_stat = inb(ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
 	return host_stat;
 }
+
+
+/**
+ *	ata_bmdma_stop - Stop PCI IDE BMDMA transfer
+ *	@qc: Info associated with this ATA transaction.
+ *
+ *	Clears the ATA_DMA_START flag in the dma control register
+ *
+ *	May be used as the bmdma_stop() entry in ata_port_operations.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host_set lock)
+ */
 
 void ata_bmdma_stop(struct ata_port *ap)
 {
@@ -3407,6 +3621,19 @@ err_out:
 	ata_qc_complete(qc, ATA_ERR);
 }
 
+
+/**
+ *	ata_port_start - Set port up for dma.
+ *	@ap: Port to initialize
+ *
+ *	Called just after data structures for each port are
+ *	initialized.  Allocates space for PRD table.
+ *
+ *	May be used as the port_start() entry in ata_port_operations.
+ *
+ *	LOCKING:
+ */
+
 int ata_port_start (struct ata_port *ap)
 {
 	struct device *dev = ap->host_set->dev;
@@ -3419,6 +3646,18 @@ int ata_port_start (struct ata_port *ap)
 
 	return 0;
 }
+
+
+/**
+ *	ata_port_stop - Undo ata_port_start()
+ *	@ap: Port to shut down
+ *
+ *	Frees the PRD table.
+ *
+ *	May be used as the port_stop() entry in ata_port_operations.
+ *
+ *	LOCKING:
+ */
 
 void ata_port_stop (struct ata_port *ap)
 {
@@ -3720,7 +3959,15 @@ int ata_scsi_release(struct Scsi_Host *host)
 /**
  *	ata_std_ports - initialize ioaddr with standard port offsets.
  *	@ioaddr: IO address structure to be initialized
+ *
+ *	Utility function which initializes data_addr, error_addr,
+ *	feature_addr, nsect_addr, lbal_addr, lbam_addr, lbah_addr,
+ *	device_addr, status_addr, and command_addr to standard offsets
+ *	relative to cmd_addr.
+ *
+ *	Does not set ctl_addr, altstatus_addr, bmdma_addr, or scr_addr.
  */
+
 void ata_std_ports(struct ata_ioports *ioaddr)
 {
 	ioaddr->data_addr = ioaddr->cmd_addr + ATA_REG_DATA;
@@ -3761,6 +4008,20 @@ ata_probe_ent_alloc(struct device *dev, struct ata_port_info *port)
 
 	return probe_ent;
 }
+
+
+
+/**
+ *	ata_pci_init_native_mode - Initialize native-mode driver
+ *	@pdev:  pci device to be initialized
+ *	@port:  array[2] of pointers to port info structures.
+ *
+ *	Utility function which allocates and initializes an
+ *	ata_probe_ent structure for a standard dual-port
+ *	PIO-based IDE controller.  The returned ata_probe_ent
+ *	structure can be passed to ata_device_add().  The returned
+ *	ata_probe_ent structure should then be freed with kfree().
+ */
 
 #ifdef CONFIG_PCI
 struct ata_probe_ent *
@@ -3842,6 +4103,14 @@ ata_pci_init_legacy_mode(struct pci_dev *pdev, struct ata_port_info **port,
  *	@pdev: Controller to be initialized
  *	@port_info: Information from low-level host driver
  *	@n_ports: Number of ports attached to host controller
+ *
+ *	This is a helper function which can be called from a driver's
+ *	xxx_init_one() probe function if the hardware uses traditional
+ *	IDE taskfile registers.
+ *
+ *	This function calls pci_enable_device(), reserves its register
+ *	regions, sets the dma mask, enables bus master mode, and calls
+ *	ata_device_add()
  *
  *	LOCKING:
  *	Inherited from PCI layer (may sleep).
