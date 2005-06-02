@@ -188,7 +188,6 @@ static int __cleanup_transaction(journal_t *journal, transaction_t *transaction)
 		} else {
 			jbd_unlock_bh_state(bh);
 		}
-		jh = next_jh;
 	} while (jh != last_jh);
 
 	return ret;
