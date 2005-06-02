@@ -164,6 +164,9 @@
 #define	SPRN_USIA	0x3AB	/* User Sampled Instruction Address Register */
 #define	SPRN_XER	0x001	/* Fixed Point Exception Register */
 #define SPRN_VRSAVE     0x100   /* Vector save */
+#define SPRN_CTRLF	0x088
+#define SPRN_CTRLT	0x098
+#define   CTRL_RUNLATCH	0x1
 
 /* Performance monitor SPRs */
 #define SPRN_SIAR	780
@@ -278,12 +281,6 @@
 
 #define XGLUE(a,b) a##b
 #define GLUE(a,b) XGLUE(a,b)
-
-/* iSeries CTRL register (for runlatch) */
-
-#define CTRLT		0x098
-#define CTRLF		0x088
-#define RUNLATCH	0x0001
 
 #ifdef __ASSEMBLY__
 
@@ -498,6 +495,24 @@ static inline void prefetchw(const void *x)
 #define spin_lock_prefetch(x)	prefetchw(x)
 
 #define HAVE_ARCH_PICK_MMAP_LAYOUT
+
+static inline void ppc64_runlatch_on(void)
+{
+	unsigned long ctrl;
+
+	ctrl = mfspr(SPRN_CTRLF);
+	ctrl |= CTRL_RUNLATCH;
+	mtspr(SPRN_CTRLT, ctrl);
+}
+
+static inline void ppc64_runlatch_off(void)
+{
+	unsigned long ctrl;
+
+	ctrl = mfspr(SPRN_CTRLF);
+	ctrl &= ~CTRL_RUNLATCH;
+	mtspr(SPRN_CTRLT, ctrl);
+}
 
 #endif /* __KERNEL__ */
 
