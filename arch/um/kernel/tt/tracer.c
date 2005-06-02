@@ -26,6 +26,7 @@
 #include "kern_util.h"
 #include "chan_user.h"
 #include "ptrace_user.h"
+#include "irq_user.h"
 #include "mode.h"
 #include "tt.h"
 
@@ -33,7 +34,7 @@ static int tracer_winch[2];
 
 int is_tracer_winch(int pid, int fd, void *data)
 {
-	if(pid != tracing_pid)
+	if(pid != os_getpgrp())
 		return(0);
 
 	register_winch_irq(tracer_winch[0], fd, -1, data);
@@ -89,8 +90,10 @@ void tracer_panic(char *format, ...)
 
 static void tracer_segv(int sig, struct sigcontext sc)
 {
+        struct faultinfo fi;
+        GET_FAULTINFO_FROM_SC(fi, &sc);
 	printf("Tracing thread segfault at address 0x%lx, ip 0x%lx\n",
-	       SC_FAULT_ADDR(&sc), SC_IP(&sc));
+               FAULT_ADDRESS(fi), SC_IP(&sc));
 	while(1)
 		pause();
 }
@@ -117,6 +120,7 @@ static int signal_tramp(void *arg)
 	signal(SIGSEGV, (__sighandler_t) sig_handler);
 	set_cmdline("(idle thread)");
 	set_init_pid(os_getpid());
+	init_irq_signals(0);
 	proc = arg;
 	return((*proc)(NULL));
 }

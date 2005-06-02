@@ -19,7 +19,6 @@ extern int copy_thread_tt(int nr, unsigned long clone_flags, unsigned long sp,
 			  unsigned long stack_top, struct task_struct *p,
 			  struct pt_regs *regs);
 extern void release_thread_tt(struct task_struct *task);
-extern void exit_thread_tt(void);
 extern void initial_thread_cb_tt(void (*proc)(void *), void *arg);
 extern void init_idle_tt(void);
 extern void flush_tlb_kernel_range_tt(unsigned long start, unsigned long end);

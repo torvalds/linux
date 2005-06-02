@@ -10,7 +10,7 @@
  * Author:	Lawrence V. Stefani, <stefani@lkg.dec.com>
  *
  *		fddidevice.h is based on previous trdevice.h work by
- *			Ross Biro, <bir7@leland.Stanford.Edu>
+ *			Ross Biro
  *			Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *			Alan Cox, <gw4pts@gw4pts.ampr.org>
  *

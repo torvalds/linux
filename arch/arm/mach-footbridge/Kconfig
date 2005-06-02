@@ -5,6 +5,9 @@ menu "Footbridge Implementations"
 config ARCH_CATS
 	bool "CATS"
 	select FOOTBRIDGE_HOST
+	select ISA
+	select ISA_DMA
+	select PCI
 	help
 	  Say Y here if you intend to run this kernel on the CATS.
 
@@ -13,6 +16,9 @@ config ARCH_CATS
 config ARCH_PERSONAL_SERVER
 	bool "Compaq Personal Server"
 	select FOOTBRIDGE_HOST
+	select ISA
+	select ISA_DMA
+	select PCI
 	---help---
 	  Say Y here if you intend to run this kernel on the Compaq
 	  Personal Server.
@@ -42,6 +48,9 @@ config ARCH_EBSA285_HOST
 	bool "EBSA285 (host mode)"
 	select ARCH_EBSA285
 	select FOOTBRIDGE_HOST
+	select ISA
+	select ISA_DMA
+	select PCI
 	help
 	  Say Y here if you intend to run this kernel on the EBSA285 card
 	  in host ("central function") mode.
@@ -51,6 +60,9 @@ config ARCH_EBSA285_HOST
 config ARCH_NETWINDER
 	bool "NetWinder"
 	select FOOTBRIDGE_HOST
+	select ISA
+	select ISA_DMA
+	select PCI
 	help
 	  Say Y here if you intend to run this kernel on the Rebel.COM
 	  NetWinder.  Information about this machine can be found at:

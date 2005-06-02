@@ -54,7 +54,7 @@ asmlinkage void ret_from_fork(void);
 void default_idle(void)
 {
 	while(1) {
-		if (need_resched()) {
+		if (!need_resched()) {
 			local_irq_enable();
 			__asm__("sleep");
 			local_irq_disable();

@@ -88,9 +88,9 @@ int conf_read(const char *name)
 			name = conf_expand_value(name);
 			in = zconf_fopen(name);
 			if (in) {
-				printf("#\n"
-				       "# using defaults found in %s\n"
-				       "#\n", name);
+				printf(_("#\n"
+				         "# using defaults found in %s\n"
+				         "#\n"), name);
 				break;
 			}
 		}
@@ -312,11 +312,11 @@ int conf_write(const char *name)
 	if (env && *env)
 		use_timestamp = 0;
 
-	fprintf(out, "#\n"
-		     "# Automatically generated make config: don't edit\n"
-		     "# Linux kernel version: %s\n"
-		     "%s%s"
-		     "#\n",
+	fprintf(out, _("#\n"
+		       "# Automatically generated make config: don't edit\n"
+		       "# Linux kernel version: %s\n"
+		       "%s%s"
+		       "#\n"),
 		     sym_get_string_value(sym),
 		     use_timestamp ? "# " : "",
 		     use_timestamp ? ctime(&now) : "");

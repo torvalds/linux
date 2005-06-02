@@ -172,7 +172,7 @@ static void wrandom_select_route(const struct flowi *flp,
 		    multipath_comparekeys(&rt->fl, flp)) {
 			struct multipath_candidate* mpc =
 				(struct multipath_candidate*)
-				kmalloc(size_mpc, GFP_KERNEL);
+				kmalloc(size_mpc, GFP_ATOMIC);
 
 			if (!mpc)
 				return;
@@ -244,7 +244,7 @@ static void wrandom_set_nhinfo(__u32 network,
 	if (!target_route) {
 		const size_t size_rt = sizeof(struct multipath_route);
 		target_route = (struct multipath_route *)
-			kmalloc(size_rt, GFP_KERNEL);
+			kmalloc(size_rt, GFP_ATOMIC);
 
 		target_route->gw = nh->nh_gw;
 		target_route->oif = nh->nh_oif;
@@ -265,7 +265,7 @@ static void wrandom_set_nhinfo(__u32 network,
 	if (!target_dest) {
 		const size_t size_dst = sizeof(struct multipath_dest);
 		target_dest = (struct multipath_dest*)
-			kmalloc(size_dst, GFP_KERNEL);
+			kmalloc(size_dst, GFP_ATOMIC);
 
 		target_dest->nh_info = nh;
 		target_dest->network = network;

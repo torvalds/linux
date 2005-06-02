@@ -211,12 +211,22 @@ struct {
  */
 #define ADDR(x)		(u32) ((unsigned long)(x) - offset)
 
+/*
+ * Error results ... some OF calls will return "-1" on error, some
+ * will return 0, some will return either. To simplify, here are
+ * macros to use with any ihandle or phandle return value to check if
+ * it is valid
+ */
+
+#define PROM_ERROR		(-1u)
+#define PHANDLE_VALID(p)	((p) != 0 && (p) != PROM_ERROR)
+#define IHANDLE_VALID(i)	((i) != 0 && (i) != PROM_ERROR)
+
+
 /* This is the one and *ONLY* place where we actually call open
  * firmware from, since we need to make sure we're running in 32b
  * mode when we do.  We switch back to 64b mode upon return.
  */
-
-#define PROM_ERROR	(-1)
 
 static int __init call_prom(const char *service, int nargs, int nret, ...)
 {
@@ -587,14 +597,13 @@ static void __init prom_send_capabilities(void)
 {
 	unsigned long offset = reloc_offset();
 	ihandle elfloader;
-	int ret;
 
 	elfloader = call_prom("open", 1, 1, ADDR("/packages/elf-loader"));
 	if (elfloader == 0) {
 		prom_printf("couldn't open /packages/elf-loader\n");
 		return;
 	}
-	ret = call_prom("call-method", 3, 1, ADDR("process-elf-header"),
+	call_prom("call-method", 3, 1, ADDR("process-elf-header"),
 			elfloader, ADDR(&fake_elf));
 	call_prom("close", 1, 0, elfloader);
 }
@@ -646,7 +655,7 @@ static unsigned long __init alloc_up(unsigned long size, unsigned long align)
 	    base = _ALIGN_UP(base + 0x100000, align)) {
 		prom_debug("    trying: 0x%x\n\r", base);
 		addr = (unsigned long)prom_claim(base, size, 0);
-		if ((int)addr != PROM_ERROR)
+		if (addr != PROM_ERROR)
 			break;
 		addr = 0;
 		if (align == 0)
@@ -708,7 +717,7 @@ static unsigned long __init alloc_down(unsigned long size, unsigned long align,
 	for(; base > RELOC(alloc_bottom); base = _ALIGN_DOWN(base - 0x100000, align))  {
 		prom_debug("    trying: 0x%x\n\r", base);
 		addr = (unsigned long)prom_claim(base, size, 0);
-		if ((int)addr != PROM_ERROR)
+		if (addr != PROM_ERROR)
 			break;
 		addr = 0;
 	}
@@ -902,18 +911,19 @@ static void __init prom_instantiate_rtas(void)
 {
 	unsigned long offset = reloc_offset();
 	struct prom_t *_prom = PTRRELOC(&prom);
-	phandle prom_rtas, rtas_node;
+	phandle rtas_node;
+	ihandle rtas_inst;
 	u32 base, entry = 0;
 	u32 size = 0;
 
 	prom_debug("prom_instantiate_rtas: start...\n");
 
-	prom_rtas = call_prom("finddevice", 1, 1, ADDR("/rtas"));
-	prom_debug("prom_rtas: %x\n", prom_rtas);
-	if (prom_rtas == (phandle) -1)
+	rtas_node = call_prom("finddevice", 1, 1, ADDR("/rtas"));
+	prom_debug("rtas_node: %x\n", rtas_node);
+	if (!PHANDLE_VALID(rtas_node))
 		return;
 
-	prom_getprop(prom_rtas, "rtas-size", &size, sizeof(size));
+	prom_getprop(rtas_node, "rtas-size", &size, sizeof(size));
 	if (size == 0)
 		return;
 
@@ -922,14 +932,18 @@ static void __init prom_instantiate_rtas(void)
 		prom_printf("RTAS allocation failed !\n");
 		return;
 	}
-	prom_printf("instantiating rtas at 0x%x", base);
 
-	rtas_node = call_prom("open", 1, 1, ADDR("/rtas"));
-	prom_printf("...");
+	rtas_inst = call_prom("open", 1, 1, ADDR("/rtas"));
+	if (!IHANDLE_VALID(rtas_inst)) {
+		prom_printf("opening rtas package failed");
+		return;
+	}
+
+	prom_printf("instantiating rtas at 0x%x ...", base);
 
 	if (call_prom("call-method", 3, 2,
 		      ADDR("instantiate-rtas"),
-		      rtas_node, base) != PROM_ERROR) {
+		      rtas_inst, base) != PROM_ERROR) {
 		entry = (long)_prom->args.rets[1];
 	}
 	if (entry == 0) {
@@ -940,8 +954,8 @@ static void __init prom_instantiate_rtas(void)
 
 	reserve_mem(base, size);
 
-	prom_setprop(prom_rtas, "linux,rtas-base", &base, sizeof(base));
-	prom_setprop(prom_rtas, "linux,rtas-entry", &entry, sizeof(entry));
+	prom_setprop(rtas_node, "linux,rtas-base", &base, sizeof(base));
+	prom_setprop(rtas_node, "linux,rtas-entry", &entry, sizeof(entry));
 
 	prom_debug("rtas base     = 0x%x\n", base);
 	prom_debug("rtas entry    = 0x%x\n", entry);
@@ -1062,7 +1076,7 @@ static void __init prom_initialize_tce_table(void)
 
 		prom_printf("opening PHB %s", path);
 		phb_node = call_prom("open", 1, 1, path);
-		if ( (long)phb_node <= 0)
+		if (phb_node == 0)
 			prom_printf("... failed\n");
 		else
 			prom_printf("... done\n");
@@ -1279,12 +1293,12 @@ static void __init prom_init_client_services(unsigned long pp)
 
 	/* get a handle for the stdout device */
 	_prom->chosen = call_prom("finddevice", 1, 1, ADDR("/chosen"));
-	if ((long)_prom->chosen <= 0)
+	if (!PHANDLE_VALID(_prom->chosen))
 		prom_panic("cannot find chosen"); /* msg won't be printed :( */
 
 	/* get device tree root */
 	_prom->root = call_prom("finddevice", 1, 1, ADDR("/"));
-	if ((long)_prom->root <= 0)
+	if (!PHANDLE_VALID(_prom->root))
 		prom_panic("cannot find device tree root"); /* msg won't be printed :( */
 }
 
@@ -1356,9 +1370,8 @@ static int __init prom_find_machine_type(void)
 	}
 	/* Default to pSeries. We need to know if we are running LPAR */
 	rtas = call_prom("finddevice", 1, 1, ADDR("/rtas"));
-	if (rtas != (phandle) -1) {
-		unsigned long x;
-		x = prom_getproplen(rtas, "ibm,hypertas-functions");
+	if (!PHANDLE_VALID(rtas)) {
+		int x = prom_getproplen(rtas, "ibm,hypertas-functions");
 		if (x != PROM_ERROR) {
 			prom_printf("Hypertas detected, assuming LPAR !\n");
 			return PLATFORM_PSERIES_LPAR;
@@ -1426,12 +1439,13 @@ static void __init prom_check_displays(void)
 		 * leave some room at the end of the path for appending extra
 		 * arguments
 		 */
-		if (call_prom("package-to-path", 3, 1, node, path, PROM_SCRATCH_SIZE-10) < 0)
+		if (call_prom("package-to-path", 3, 1, node, path,
+			      PROM_SCRATCH_SIZE-10) == PROM_ERROR)
 			continue;
 		prom_printf("found display   : %s, opening ... ", path);
 		
 		ih = call_prom("open", 1, 1, path);
-		if (ih == (ihandle)0 || ih == (ihandle)-1) {
+		if (ih == 0) {
 			prom_printf("failed\n");
 			continue;
 		}
@@ -1514,6 +1528,12 @@ static unsigned long __init dt_find_string(char *str)
 	return 0;
 }
 
+/*
+ * The Open Firmware 1275 specification states properties must be 31 bytes or
+ * less, however not all firmwares obey this. Make it 64 bytes to be safe.
+ */
+#define MAX_PROPERTY_NAME 64
+
 static void __init scan_dt_build_strings(phandle node, unsigned long *mem_start,
 					 unsigned long *mem_end)
 {
@@ -1527,10 +1547,12 @@ static void __init scan_dt_build_strings(phandle node, unsigned long *mem_start,
 	/* get and store all property names */
 	prev_name = RELOC("");
 	for (;;) {
-		
-		/* 32 is max len of name including nul. */
-		namep = make_room(mem_start, mem_end, 32, 1);
-		if (call_prom("nextprop", 3, 1, node, prev_name, namep) <= 0) {
+		int rc;
+
+		/* 64 is max len of name including nul. */
+		namep = make_room(mem_start, mem_end, MAX_PROPERTY_NAME, 1);
+		rc = call_prom("nextprop", 3, 1, node, prev_name, namep);
+		if (rc != 1) {
 			/* No more nodes: unwind alloc */
 			*mem_start = (unsigned long)namep;
 			break;
@@ -1555,18 +1577,12 @@ static void __init scan_dt_build_strings(phandle node, unsigned long *mem_start,
 	}
 }
 
-/*
- * The Open Firmware 1275 specification states properties must be 31 bytes or
- * less, however not all firmwares obey this. Make it 64 bytes to be safe.
- */
-#define MAX_PROPERTY_NAME 64
-
 static void __init scan_dt_build_struct(phandle node, unsigned long *mem_start,
 					unsigned long *mem_end)
 {
 	int l, align;
 	phandle child;
-	char *namep, *prev_name, *sstart;
+	char *namep, *prev_name, *sstart, *p, *ep;
 	unsigned long soff;
 	unsigned char *valp;
 	unsigned long offset = reloc_offset();
@@ -1588,6 +1604,14 @@ static void __init scan_dt_build_struct(phandle node, unsigned long *mem_start,
 			call_prom("package-to-path", 3, 1, node, namep, l);
 		}
 		namep[l] = '\0';
+		/* Fixup an Apple bug where they have bogus \0 chars in the
+		 * middle of the path in some properties
+		 */
+		for (p = namep, ep = namep + l; p < ep; p++)
+			if (*p == '\0') {
+				memmove(p, p+1, ep - p);
+				ep--; l--;
+			}
 		*mem_start = _ALIGN(((unsigned long) namep) + strlen(namep) + 1, 4);
 	}
 
@@ -1599,7 +1623,10 @@ static void __init scan_dt_build_struct(phandle node, unsigned long *mem_start,
 	prev_name = RELOC("");
 	sstart = (char *)RELOC(dt_string_start);
 	for (;;) {
-		if (call_prom("nextprop", 3, 1, node, prev_name, pname) <= 0)
+		int rc;
+
+		rc = call_prom("nextprop", 3, 1, node, prev_name, pname);
+		if (rc != 1)
 			break;
 
 		/* find string offset */
@@ -1615,7 +1642,7 @@ static void __init scan_dt_build_struct(phandle node, unsigned long *mem_start,
 		l = call_prom("getproplen", 2, 1, node, pname);
 
 		/* sanity checks */
-		if (l < 0)
+		if (l == PROM_ERROR)
 			continue;
 		if (l > MAX_PROPERTY_LENGTH) {
 			prom_printf("WARNING: ignoring large property ");
@@ -1750,7 +1777,45 @@ static void __init flatten_device_tree(void)
 	prom_printf("Device tree struct  0x%x -> 0x%x\n",
 		    RELOC(dt_struct_start), RELOC(dt_struct_end));
 
- }
+}
+
+
+static void __init fixup_device_tree(void)
+{
+	unsigned long offset = reloc_offset();
+	phandle u3, i2c, mpic;
+	u32 u3_rev;
+	u32 interrupts[2];
+	u32 parent;
+
+	/* Some G5s have a missing interrupt definition, fix it up here */
+	u3 = call_prom("finddevice", 1, 1, ADDR("/u3@0,f8000000"));
+	if (!PHANDLE_VALID(u3))
+		return;
+	i2c = call_prom("finddevice", 1, 1, ADDR("/u3@0,f8000000/i2c@f8001000"));
+	if (!PHANDLE_VALID(i2c))
+		return;
+	mpic = call_prom("finddevice", 1, 1, ADDR("/u3@0,f8000000/mpic@f8040000"));
+	if (!PHANDLE_VALID(mpic))
+		return;
+
+	/* check if proper rev of u3 */
+	if (prom_getprop(u3, "device-rev", &u3_rev, sizeof(u3_rev))
+	    == PROM_ERROR)
+		return;
+	if (u3_rev != 0x35)
+		return;
+	/* does it need fixup ? */
+	if (prom_getproplen(i2c, "interrupts") > 0)
+		return;
+	/* interrupt on this revision of u3 is number 0 and level */
+	interrupts[0] = 0;
+	interrupts[1] = 1;
+	prom_setprop(i2c, "interrupts", &interrupts, sizeof(interrupts));
+	parent = (u32)mpic;
+	prom_setprop(i2c, "interrupt-parent", &parent, sizeof(parent));
+}
+
 
 static void __init prom_find_boot_cpu(void)
 {
@@ -1844,6 +1909,12 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4, unsigned long
 		     &getprop_rval, sizeof(getprop_rval));
 
 	/*
+	 * On pSeries, inform the firmware about our capabilities
+	 */
+	if (RELOC(of_platform) & PLATFORM_PSERIES)
+		prom_send_capabilities();
+
+	/*
 	 * On pSeries, copy the CPU hold code
 	 */
        	if (RELOC(of_platform) & PLATFORM_PSERIES)
@@ -1918,6 +1989,11 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4, unsigned long
 		prom_setprop(_prom->chosen, "linux,tce-alloc-end",
 			PTRRELOC(&prom_tce_alloc_end), sizeof(RELOC(prom_tce_alloc_end)));
 	}
+
+	/*
+	 * Fixup any known bugs in the device-tree
+	 */
+	fixup_device_tree();
 
 	/*
 	 * Now finally create the flattened device-tree

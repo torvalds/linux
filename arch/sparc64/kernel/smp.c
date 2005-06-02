@@ -123,6 +123,9 @@ void __init smp_callin(void)
 
 	smp_setup_percpu_timer();
 
+	if (cheetah_pcache_forced_on)
+		cheetah_enable_pcache();
+
 	local_irq_enable();
 
 	calibrate_delay();

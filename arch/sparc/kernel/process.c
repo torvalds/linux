@@ -83,9 +83,6 @@ void default_idle(void)
  */
 void cpu_idle(void)
 {
-	if (current->pid != 0)
-		goto out;
-
 	/* endless idle loop with no priority at all */
 	for (;;) {
 		if (ARCH_SUN4C_SUN4) {
@@ -126,8 +123,6 @@ void cpu_idle(void)
 		schedule();
 		check_pgt_cache();
 	}
-out:
-	return;
 }
 
 #else

@@ -422,7 +422,8 @@ int cifs_unlink(struct inode *inode, struct dentry *direntry)
 			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
 
 	if (!rc) {
-		direntry->d_inode->i_nlink--;
+		if(direntry->d_inode)
+			direntry->d_inode->i_nlink--;
 	} else if (rc == -ENOENT) {
 		d_drop(direntry);
 	} else if (rc == -ETXTBSY) {
@@ -440,7 +441,8 @@ int cifs_unlink(struct inode *inode, struct dentry *direntry)
 					      cifs_sb->mnt_cifs_flags & 
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
 			CIFSSMBClose(xid, pTcon, netfid);
-			direntry->d_inode->i_nlink--;
+			if(direntry->d_inode)
+				direntry->d_inode->i_nlink--;
 		}
 	} else if (rc == -EACCES) {
 		/* try only if r/o attribute set in local lookup data? */
@@ -494,7 +496,8 @@ int cifs_unlink(struct inode *inode, struct dentry *direntry)
 					    cifs_sb->mnt_cifs_flags & 
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
 			if (!rc) {
-				direntry->d_inode->i_nlink--;
+				if(direntry->d_inode)
+					direntry->d_inode->i_nlink--;
 			} else if (rc == -ETXTBSY) {
 				int oplock = FALSE;
 				__u16 netfid;
@@ -514,17 +517,20 @@ int cifs_unlink(struct inode *inode, struct dentry *direntry)
 						cifs_sb->mnt_cifs_flags &
 						    CIFS_MOUNT_MAP_SPECIAL_CHR);
 					CIFSSMBClose(xid, pTcon, netfid);
-		                        direntry->d_inode->i_nlink--;
+					if(direntry->d_inode)
+			                        direntry->d_inode->i_nlink--;
 				}
 			/* BB if rc = -ETXTBUSY goto the rename logic BB */
 			}
 		}
 	}
-	cifsInode = CIFS_I(direntry->d_inode);
-	cifsInode->time = 0;	/* will force revalidate to get info when
-				   needed */
-	direntry->d_inode->i_ctime = inode->i_ctime = inode->i_mtime =
-		current_fs_time(inode->i_sb);
+	if(direntry->d_inode) {
+		cifsInode = CIFS_I(direntry->d_inode);
+		cifsInode->time = 0;	/* will force revalidate to get info
+					   when needed */
+		direntry->d_inode->i_ctime = current_fs_time(inode->i_sb);
+	}
+	inode->i_ctime = inode->i_mtime = current_fs_time(inode->i_sb);
 	cifsInode = CIFS_I(inode);
 	cifsInode->time = 0;	/* force revalidate of dir as well */
 

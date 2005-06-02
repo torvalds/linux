@@ -7,7 +7,7 @@
  *
  * Version:	@(#)route.h	1.0.4	05/27/93
  *
- * Authors:	Ross Biro, <bir7@leland.Stanford.Edu>
+ * Authors:	Ross Biro
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  * Fixes:
  *		Alan Cox	:	Reformatted. Added ip_rt_local()
@@ -181,9 +181,6 @@ static inline int ip_route_newports(struct rtable **rp, u16 sport, u16 dport,
 		memcpy(&fl, &(*rp)->fl, sizeof(fl));
 		fl.fl_ip_sport = sport;
 		fl.fl_ip_dport = dport;
-#if defined(CONFIG_IP_ROUTE_MULTIPATH_CACHED)
-		fl.flags |= FLOWI_FLAG_MULTIPATHOLDROUTE;
-#endif
 		ip_rt_put(*rp);
 		*rp = NULL;
 		return ip_route_output_flow(rp, &fl, sk, 0);

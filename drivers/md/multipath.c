@@ -103,7 +103,8 @@ static void multipath_end_bh_io (struct multipath_bh *mp_bh, int err)
 	mempool_free(mp_bh, conf->pool);
 }
 
-int multipath_end_request(struct bio *bio, unsigned int bytes_done, int error)
+static int multipath_end_request(struct bio *bio, unsigned int bytes_done,
+				 int error)
 {
 	int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
 	struct multipath_bh * mp_bh = (struct multipath_bh *)(bio->bi_private);
@@ -461,10 +462,6 @@ static int multipath_run (mddev_t *mddev)
 	}
 	memset(conf->multipaths, 0, sizeof(struct multipath_info)*mddev->raid_disks);
 
-	mddev->queue->unplug_fn = multipath_unplug;
-
-	mddev->queue->issue_flush_fn = multipath_issue_flush;
-
 	conf->working_disks = 0;
 	ITERATE_RDEV(mddev,rdev,tmp) {
 		disk_idx = rdev->raid_disk;
@@ -527,6 +524,10 @@ static int multipath_run (mddev_t *mddev)
 	 * Ok, everything is just fine now
 	 */
 	mddev->array_size = mddev->size;
+
+	mddev->queue->unplug_fn = multipath_unplug;
+	mddev->queue->issue_flush_fn = multipath_issue_flush;
+
 	return 0;
 
 out_free_conf:

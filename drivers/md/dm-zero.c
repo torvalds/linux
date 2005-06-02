@@ -55,7 +55,7 @@ static struct target_type zero_target = {
 	.map    = zero_map,
 };
 
-int __init dm_zero_init(void)
+static int __init dm_zero_init(void)
 {
 	int r = dm_register_target(&zero_target);
 
@@ -65,7 +65,7 @@ int __init dm_zero_init(void)
 	return r;
 }
 
-void __exit dm_zero_exit(void)
+static void __exit dm_zero_exit(void)
 {
 	int r = dm_unregister_target(&zero_target);
 

@@ -2421,7 +2421,7 @@ pmac_wakeup_devices(void)
 
 	/* Re-enable local CPU interrupts */
 	local_irq_enable();
-	mdelay(100);
+	mdelay(10);
 	preempt_enable();
 
 	/* Re-enable clock spreading on some machines */
@@ -2549,7 +2549,9 @@ powerbook_sleep_Core99(void)
 		return ret;
 	}
 
-	printk(KERN_DEBUG "HID1, before: %x\n", mfspr(SPRN_HID1));
+	/* Stop environment and ADB interrupts */
+	pmu_request(&req, NULL, 2, PMU_SET_INTR_MASK, 0);
+	pmu_wait_complete(&req);
 
 	/* Tell PMU what events will wake us up */
 	pmu_request(&req, NULL, 4, PMU_POWER_EVENTS, PMU_PWR_CLR_WAKEUP_EVENTS,
@@ -2610,8 +2612,6 @@ powerbook_sleep_Core99(void)
 	pmu_wait_complete(&req);
 	pmu_request(&req, NULL, 2, PMU_SET_INTR_MASK, pmu_intr_mask);
 	pmu_wait_complete(&req);
-
-	printk(KERN_DEBUG "HID1, after: %x\n", mfspr(SPRN_HID1));
 
 	pmac_wakeup_devices();
 

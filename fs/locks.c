@@ -406,12 +406,12 @@ static void lease_release_private_callback(struct file_lock *fl)
 	fl->fl_file->f_owner.signum = 0;
 }
 
-int lease_mylease_callback(struct file_lock *fl, struct file_lock *try)
+static int lease_mylease_callback(struct file_lock *fl, struct file_lock *try)
 {
 	return fl->fl_file == try->fl_file;
 }
 
-struct lock_manager_operations lease_manager_ops = {
+static struct lock_manager_operations lease_manager_ops = {
 	.fl_break = lease_break_callback,
 	.fl_release_private = lease_release_private_callback,
 	.fl_mylease = lease_mylease_callback,
@@ -1274,7 +1274,7 @@ int fcntl_getlease(struct file *filp)
  *
  *	Called with kernel lock held.
  */
-int __setlease(struct file *filp, long arg, struct file_lock **flp)
+static int __setlease(struct file *filp, long arg, struct file_lock **flp)
 {
 	struct file_lock *fl, **before, **my_before = NULL, *lease = *flp;
 	struct dentry *dentry = filp->f_dentry;

@@ -515,10 +515,49 @@ open_exec_out:
 }
 #endif /* HAVE_FOP_OPEN_EXEC */
 
+/*
+ * Temporary workaround to the AIO direct IO write problem.
+ * This code can go and we can revert to do_sync_write once
+ * the writepage(s) rework is merged.
+ */
+STATIC ssize_t
+linvfs_write(
+	struct file	*filp,
+	const char	__user *buf,
+	size_t		len,
+	loff_t		*ppos)
+{
+	struct kiocb	kiocb;
+	ssize_t		ret;
+
+	init_sync_kiocb(&kiocb, filp);
+	kiocb.ki_pos = *ppos;
+	ret = __linvfs_write(&kiocb, buf, 0, len, kiocb.ki_pos);
+	*ppos = kiocb.ki_pos;
+	return ret;
+}
+STATIC ssize_t
+linvfs_write_invis(
+	struct file	*filp,
+	const char	__user *buf,
+	size_t		len,
+	loff_t		*ppos)
+{
+	struct kiocb	kiocb;
+	ssize_t		ret;
+
+	init_sync_kiocb(&kiocb, filp);
+	kiocb.ki_pos = *ppos;
+	ret = __linvfs_write(&kiocb, buf, IO_INVIS, len, kiocb.ki_pos);
+	*ppos = kiocb.ki_pos;
+	return ret;
+}
+
+
 struct file_operations linvfs_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= do_sync_read,
-	.write		= do_sync_write,
+	.write		= linvfs_write,
 	.readv		= linvfs_readv,
 	.writev		= linvfs_writev,
 	.aio_read	= linvfs_aio_read,
@@ -526,7 +565,7 @@ struct file_operations linvfs_file_operations = {
 	.sendfile	= linvfs_sendfile,
 	.unlocked_ioctl	= linvfs_ioctl,
 #ifdef CONFIG_COMPAT
-	.compat_ioctl   = xfs_compat_ioctl,
+	.compat_ioctl	= linvfs_compat_ioctl,
 #endif
 	.mmap		= linvfs_file_mmap,
 	.open		= linvfs_open,
@@ -540,7 +579,7 @@ struct file_operations linvfs_file_operations = {
 struct file_operations linvfs_invis_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= do_sync_read,
-	.write		= do_sync_write,
+	.write		= linvfs_write_invis,
 	.readv		= linvfs_readv_invis,
 	.writev		= linvfs_writev_invis,
 	.aio_read	= linvfs_aio_read_invis,
@@ -548,7 +587,7 @@ struct file_operations linvfs_invis_file_operations = {
 	.sendfile	= linvfs_sendfile,
 	.unlocked_ioctl	= linvfs_ioctl_invis,
 #ifdef CONFIG_COMPAT
-	.compat_ioctl   = xfs_compat_invis_ioctl,
+	.compat_ioctl	= linvfs_compat_invis_ioctl,
 #endif
 	.mmap		= linvfs_file_mmap,
 	.open		= linvfs_open,
@@ -561,6 +600,9 @@ struct file_operations linvfs_dir_operations = {
 	.read		= generic_read_dir,
 	.readdir	= linvfs_readdir,
 	.unlocked_ioctl	= linvfs_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= linvfs_compat_ioctl,
+#endif
 	.fsync		= linvfs_fsync,
 };
 

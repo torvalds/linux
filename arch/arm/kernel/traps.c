@@ -218,7 +218,8 @@ NORET_TYPE void die(const char *str, struct pt_regs *regs, int err)
 		tsk->comm, tsk->pid, tsk->thread_info + 1);
 
 	if (!user_mode(regs) || in_interrupt()) {
-		dump_mem("Stack: ", regs->ARM_sp, 8192+(unsigned long)tsk->thread_info);
+		dump_mem("Stack: ", regs->ARM_sp,
+			 THREAD_SIZE + (unsigned long)tsk->thread_info);
 		dump_backtrace(regs, tsk);
 		dump_instr(regs);
 	}
@@ -450,9 +451,9 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 
 	case NR(set_tls):
 		thread->tp_value = regs->ARM_r0;
-#ifdef CONFIG_HAS_TLS_REG
+#if defined(CONFIG_HAS_TLS_REG)
 		asm ("mcr p15, 0, %0, c13, c0, 3" : : "r" (regs->ARM_r0) );
-#else
+#elif !defined(CONFIG_TLS_REG_EMUL)
 		/*
 		 * User space must never try to access this directly.
 		 * Expect your app to break eventually if you do so.
@@ -497,11 +498,14 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 	return 0;
 }
 
-#if defined(CONFIG_CPU_32v6) && !defined(CONFIG_HAS_TLS_REG)
+#ifdef CONFIG_TLS_REG_EMUL
 
 /*
  * We might be running on an ARMv6+ processor which should have the TLS
- * register, but for some reason we can't use it and have to emulate it.
+ * register but for some reason we can't use it, or maybe an SMP system
+ * using a pre-ARMv6 processor (there are apparently a few prototypes like
+ * that in existence) and therefore access to that register must be
+ * emulated.
  */
 
 static int get_tp_trap(struct pt_regs *regs, unsigned int instr)

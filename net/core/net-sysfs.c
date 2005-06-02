@@ -21,6 +21,7 @@
 #define to_net_dev(class) container_of(class, struct net_device, class_dev)
 
 static const char fmt_hex[] = "%#x\n";
+static const char fmt_long_hex[] = "%#lx\n";
 static const char fmt_dec[] = "%d\n";
 static const char fmt_ulong[] = "%lu\n";
 
@@ -91,7 +92,7 @@ static CLASS_DEVICE_ATTR(field, S_IRUGO, show_##field, NULL)		\
 NETDEVICE_ATTR(addr_len, fmt_dec);
 NETDEVICE_ATTR(iflink, fmt_dec);
 NETDEVICE_ATTR(ifindex, fmt_dec);
-NETDEVICE_ATTR(features, fmt_hex);
+NETDEVICE_ATTR(features, fmt_long_hex);
 NETDEVICE_ATTR(type, fmt_dec);
 
 /* use same locking rules as GIFHWADDR ioctl's */

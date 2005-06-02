@@ -29,9 +29,12 @@ static unsigned long maybe_map(unsigned long virt, int is_write)
 	if(IS_ERR(phys) || (is_write && !pte_write(pte))){
 		err = handle_page_fault(virt, 0, is_write, 1, &dummy_code);
 		if(err)
-			return(0);
+			return(-1UL);
 		phys = um_virt_to_phys(current, virt, NULL);
 	}
+        if(IS_ERR(phys))
+                phys = (void *) -1;
+
 	return((unsigned long) phys);
 }
 
@@ -42,7 +45,7 @@ static int do_op(unsigned long addr, int len, int is_write,
 	int n;
 
 	addr = maybe_map(addr, is_write);
-	if(addr == -1)
+	if(addr == -1UL)
 		return(-1);
 
 	page = phys_to_page(addr);

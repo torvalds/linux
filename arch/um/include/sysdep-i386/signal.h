@@ -8,6 +8,8 @@
 
 #include <signal.h>
 
+#define ARCH_SIGHDLR_PARAM int sig
+
 #define ARCH_GET_SIGCONTEXT(sc, sig) \
 	do sc = (struct sigcontext *) (&sig + 1); while(0)
 

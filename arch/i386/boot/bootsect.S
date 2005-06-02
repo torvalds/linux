@@ -83,7 +83,7 @@ bugger_off_msg:
 	.ascii	"\n"
 	.ascii	"Remove disk and press any key to reboot . . .\r\n"
 	.byte	0
-	
+
 
 	# Kernel attributes; used by setup
 

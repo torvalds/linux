@@ -27,6 +27,7 @@
 *.so
 *.tex
 *.ver
+*.xml
 *_MODULES
 *_vga16.c
 *cscope*
@@ -110,6 +111,7 @@ mkdep
 mktables
 modpost
 modversions.h*
+offsets.h
 oui.c*
 parse.c*
 parse.h*
@@ -134,4 +136,5 @@ vmlinux-*
 vmlinux.lds
 vsyscall.lds
 wanxlfw.inc
+uImage
 zImage

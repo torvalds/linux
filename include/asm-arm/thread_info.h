@@ -14,6 +14,10 @@
 
 #include <asm/fpstate.h>
 
+#define THREAD_SIZE_ORDER	1
+#define THREAD_SIZE		8192
+#define THREAD_START_SP		(THREAD_SIZE - 8)
+
 #ifndef __ASSEMBLY__
 
 struct task_struct;
@@ -76,8 +80,6 @@ struct thread_info {
 
 #define init_thread_info	(init_thread_union.thread_info)
 #define init_stack		(init_thread_union.stack)
-
-#define THREAD_SIZE		8192
 
 /*
  * how to get the thread information struct from C

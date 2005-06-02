@@ -57,7 +57,7 @@ static int copy_sc_from_user_skas(struct pt_regs *regs,
 int copy_sc_to_user_skas(struct sigcontext *to, struct _fpstate *to_fp,
                         struct pt_regs *regs, unsigned long mask)
 {
-	unsigned long eflags;
+        struct faultinfo * fi = &current->thread.arch.faultinfo;
 	int err = 0;
 
 	err |= __put_user(0, &to->gs);
@@ -84,14 +84,16 @@ int copy_sc_to_user_skas(struct sigcontext *to, struct _fpstate *to_fp,
 	err |= PUTREG(regs, R14, to, r14);
 	err |= PUTREG(regs, R15, to, r15);
 	err |= PUTREG(regs, CS, to, cs); /* XXX x86_64 doesn't do this */
-	err |= __put_user(current->thread.err, &to->err);
-	err |= __put_user(current->thread.trap_no, &to->trapno);
+
+        err |= __put_user(fi->cr2, &to->cr2);
+        err |= __put_user(fi->error_code, &to->err);
+        err |= __put_user(fi->trap_no, &to->trapno);
+
 	err |= PUTREG(regs, RIP, to, rip);
 	err |= PUTREG(regs, EFLAGS, to, eflags);
 #undef PUTREG
 
 	err |= __put_user(mask, &to->oldmask);
-	err |= __put_user(current->thread.cr2, &to->cr2);
 
 	return(err);
 }
@@ -166,7 +168,7 @@ int setup_signal_stack_si(unsigned long stack_top, int sig,
 
 	frame = (struct rt_sigframe __user *)
 		round_down(stack_top - sizeof(struct rt_sigframe), 16) - 8;
-	frame -= 128;
+	((unsigned char *) frame) -= 128;
 
 	if (!access_ok(VERIFY_WRITE, fp, sizeof(struct _fpstate)))
 		goto out;

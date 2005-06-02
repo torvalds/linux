@@ -1103,8 +1103,6 @@ ia64_mca_cpe_int_caller(int cpe_irq, void *arg, struct pt_regs *ptregs)
 	return IRQ_HANDLED;
 }
 
-#endif /* CONFIG_ACPI */
-
 /*
  *  ia64_mca_cpe_poll
  *
@@ -1121,6 +1119,8 @@ ia64_mca_cpe_poll (unsigned long dummy)
 	/* Trigger a CPE interrupt cascade  */
 	platform_send_ipi(first_cpu(cpu_online_map), IA64_CPEP_VECTOR, IA64_IPI_DM_INT, 0);
 }
+
+#endif /* CONFIG_ACPI */
 
 /*
  * C portion of the OS INIT handler
@@ -1390,8 +1390,7 @@ ia64_mca_init(void)
 	register_percpu_irq(IA64_MCA_WAKEUP_VECTOR, &mca_wkup_irqaction);
 
 #ifdef CONFIG_ACPI
-	/* Setup the CPEI/P vector and handler */
-	cpe_vector = acpi_request_vector(ACPI_INTERRUPT_CPEI);
+	/* Setup the CPEI/P handler */
 	register_percpu_irq(IA64_CPEP_VECTOR, &mca_cpep_irqaction);
 #endif
 
@@ -1436,6 +1435,7 @@ ia64_mca_late_init(void)
 
 #ifdef CONFIG_ACPI
 	/* Setup the CPEI/P vector and handler */
+	cpe_vector = acpi_request_vector(ACPI_INTERRUPT_CPEI);
 	init_timer(&cpe_poll_timer);
 	cpe_poll_timer.function = ia64_mca_cpe_poll;
 

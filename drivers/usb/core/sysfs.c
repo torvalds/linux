@@ -286,6 +286,39 @@ static ssize_t show_interface_string(struct device *dev, char *buf)
 }
 static DEVICE_ATTR(interface, S_IRUGO, show_interface_string, NULL);
 
+static ssize_t show_modalias(struct device *dev, char *buf)
+{
+	struct usb_interface *intf;
+	struct usb_device *udev;
+
+	intf = to_usb_interface(dev);
+	udev = interface_to_usbdev(intf);
+	if (udev->descriptor.bDeviceClass == 0) {
+		struct usb_host_interface *alt = intf->cur_altsetting;
+
+		return sprintf(buf, "usb:v%04Xp%04Xd%04Xdc%02Xdsc%02Xdp%02Xic%02Xisc%02Xip%02X\n",
+			       le16_to_cpu(udev->descriptor.idVendor),
+			       le16_to_cpu(udev->descriptor.idProduct),
+			       le16_to_cpu(udev->descriptor.bcdDevice),
+			       udev->descriptor.bDeviceClass,
+			       udev->descriptor.bDeviceSubClass,
+			       udev->descriptor.bDeviceProtocol,
+			       alt->desc.bInterfaceClass,
+			       alt->desc.bInterfaceSubClass,
+			       alt->desc.bInterfaceProtocol);
+ 	} else {
+		return sprintf(buf, "usb:v%04Xp%04Xd%04Xdc%02Xdsc%02Xdp%02Xic*isc*ip*\n",
+			       le16_to_cpu(udev->descriptor.idVendor),
+			       le16_to_cpu(udev->descriptor.idProduct),
+			       le16_to_cpu(udev->descriptor.bcdDevice),
+			       udev->descriptor.bDeviceClass,
+			       udev->descriptor.bDeviceSubClass,
+			       udev->descriptor.bDeviceProtocol);
+	}
+
+}
+static DEVICE_ATTR(modalias, S_IRUGO, show_modalias, NULL);
+
 static struct attribute *intf_attrs[] = {
 	&dev_attr_bInterfaceNumber.attr,
 	&dev_attr_bAlternateSetting.attr,
@@ -293,6 +326,7 @@ static struct attribute *intf_attrs[] = {
 	&dev_attr_bInterfaceClass.attr,
 	&dev_attr_bInterfaceSubClass.attr,
 	&dev_attr_bInterfaceProtocol.attr,
+	&dev_attr_modalias.attr,
 	NULL,
 };
 static struct attribute_group intf_attr_grp = {

@@ -219,17 +219,21 @@ config USB_EPSON2888
 	  by some sample firmware from Epson.
 
 config USB_ZAURUS
-	boolean "Sharp Zaurus (stock ROMs)"
+	boolean "Sharp Zaurus (stock ROMs) and compatible"
 	depends on USB_USBNET
 	select CRC32
 	default y
 	help
 	  Choose this option to support the usb networking links used by
 	  Zaurus models like the SL-5000D, SL-5500, SL-5600, A-300, B-500.
+	  This also supports some related device firmware, as used in some
+	  PDAs from Olympus and some cell phones from Motorola.
 
-	  If you install an alternate ROM image, you may no longer need
-	  to support this protocol.  Only the "eth-fd" driver really needs
-	  this non-conformant variant of CDC Ethernet protocol.
+	  If you install an alternate ROM image, such as the Linux 2.6 based
+	  versions of OpenZaurus, you should no longer need to support this
+	  protocol.  Only the "eth-fd" or "net_fd" drivers in these devices
+	  really need this non-conformant variant of CDC Ethernet (or in
+	  some cases CDC MDLM) protocol, not "g_ether".
 
 config USB_CDCETHER
 	boolean "CDC Ethernet support (smart devices such as cable modems)"

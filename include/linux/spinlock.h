@@ -248,7 +248,7 @@ typedef struct {
 
 #define _spin_trylock_bh(lock)	({preempt_disable(); local_bh_disable(); \
 				_raw_spin_trylock(lock) ? \
-				1 : ({preempt_enable(); local_bh_enable(); 0;});})
+				1 : ({preempt_enable_no_resched(); local_bh_enable(); 0;});})
 
 #define _spin_lock(lock)	\
 do { \
@@ -383,7 +383,7 @@ do { \
 #define _spin_unlock_bh(lock) \
 do { \
 	_raw_spin_unlock(lock); \
-	preempt_enable(); \
+	preempt_enable_no_resched(); \
 	local_bh_enable(); \
 	__release(lock); \
 } while (0)
@@ -391,7 +391,7 @@ do { \
 #define _write_unlock_bh(lock) \
 do { \
 	_raw_write_unlock(lock); \
-	preempt_enable(); \
+	preempt_enable_no_resched(); \
 	local_bh_enable(); \
 	__release(lock); \
 } while (0)
@@ -423,8 +423,8 @@ do { \
 #define _read_unlock_bh(lock)	\
 do { \
 	_raw_read_unlock(lock);	\
+	preempt_enable_no_resched();	\
 	local_bh_enable();	\
-	preempt_enable();	\
 	__release(lock); \
 } while (0)
 

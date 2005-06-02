@@ -81,10 +81,6 @@ unsigned char irqs[4] = {
 int irqhit=0;
 #endif
 
-#ifndef MIN
-#define MIN(a,b) ((a) < (b) ? (a) : (b))
-#endif
-
 static struct tty_driver *aurora_driver;
 static struct Aurora_board aurora_board[AURORA_NBOARD] = {
 	{0,},
@@ -594,7 +590,7 @@ static void aurora_transmit(struct Aurora_board const * bp, int chip)
 					    &bp->r[chip]->r[CD180_TDR]);
 				port->COR2 &= ~COR2_ETC;
 			}
-			count = MIN(port->break_length, 0xff);
+			count = min(port->break_length, 0xff);
 			sbus_writeb(CD180_C_ESC,
 				    &bp->r[chip]->r[CD180_TDR]);
 			sbus_writeb(CD180_C_DELAY,
@@ -1575,7 +1571,7 @@ static int aurora_write(struct tty_struct * tty,
 	save_flags(flags);
 	while (1) {
 		cli();
-		c = MIN(count, MIN(SERIAL_XMIT_SIZE - port->xmit_cnt - 1,
+		c = min(count, min(SERIAL_XMIT_SIZE - port->xmit_cnt - 1,
 				   SERIAL_XMIT_SIZE - port->xmit_head));
 		if (c <= 0) {
 			restore_flags(flags);

@@ -7,7 +7,7 @@
  *
  * Version:	@(#)loopback.c	1.0.4b	08/16/93
  *
- * Authors:	Ross Biro, <bir7@leland.Stanford.Edu>
+ * Authors:	Ross Biro
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *		Donald Becker, <becker@scyld.com>
  *

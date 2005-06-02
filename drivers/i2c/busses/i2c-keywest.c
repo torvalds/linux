@@ -516,6 +516,11 @@ create_iface(struct device_node *np, struct device *dev)
 	u32 *psteps, *prate;
 	int rc;
 
+	if (np->n_intrs < 1 || np->n_addrs < 1) {
+		printk(KERN_ERR "%s: Missing interrupt or address !\n",
+		       np->full_name);
+		return -ENODEV;
+	}
 	if (pmac_low_i2c_lock(np))
 		return -ENODEV;
 

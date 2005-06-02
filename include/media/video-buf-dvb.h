@@ -16,7 +16,7 @@ struct videobuf_dvb {
 	int                        nfeeds;
 
 	/* videobuf_dvb_(un)register manges this */
-	struct dvb_adapter         *adapter;
+	struct dvb_adapter         adapter;
 	struct dvb_demux           demux;
 	struct dmxdev              dmxdev;
 	struct dmx_frontend        fe_hw;

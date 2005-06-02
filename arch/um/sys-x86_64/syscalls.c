@@ -7,12 +7,15 @@
 #include "linux/linkage.h"
 #include "linux/slab.h"
 #include "linux/shm.h"
+#include "linux/utsname.h"
+#include "linux/personality.h"
 #include "asm/uaccess.h"
 #define __FRAME_OFFSETS
 #include "asm/ptrace.h"
 #include "asm/unistd.h"
 #include "asm/prctl.h" /* XXX This should get the constants from libc */
 #include "choose-mode.h"
+#include "kern.h"
 
 asmlinkage long sys_uname64(struct new_utsname __user * name)
 {
@@ -41,6 +44,8 @@ long sys_modify_ldt_tt(int func, void *ptr, unsigned long bytecount)
 
 #ifdef CONFIG_MODE_SKAS
 extern int userspace_pid[];
+
+#include "skas_ptrace.h"
 
 long sys_modify_ldt_skas(int func, void *ptr, unsigned long bytecount)
 {
@@ -128,23 +133,27 @@ static long arch_prctl_tt(int code, unsigned long addr)
 
 #ifdef CONFIG_MODE_SKAS
 
+/* XXX: Must also call arch_prctl in the host, beside saving the segment bases! */
 static long arch_prctl_skas(int code, unsigned long addr)
 {
 	long ret = 0;
 
 	switch(code){
-	case ARCH_SET_GS:
-		current->thread.regs.regs.skas.regs[GS_BASE / sizeof(unsigned long)] = addr;
-		break;
 	case ARCH_SET_FS:
 		current->thread.regs.regs.skas.regs[FS_BASE / sizeof(unsigned long)] = addr;
 		break;
+	case ARCH_SET_GS:
+		current->thread.regs.regs.skas.regs[GS_BASE / sizeof(unsigned long)] = addr;
+		break;
 	case ARCH_GET_FS:
-		ret = put_user(current->thread.regs.regs.skas.regs[GS / sizeof(unsigned long)], &addr);
+		ret = put_user(current->thread.regs.regs.skas.
+				regs[FS_BASE / sizeof(unsigned long)],
+				(unsigned long __user *)addr);
 	        break;
 	case ARCH_GET_GS:
-		ret = put_user(current->thread.regs.regs.skas.regs[FS / sizeof(unsigned \
-long)], &addr);
+		ret = put_user(current->thread.regs.regs.skas.
+				regs[GS_BASE / sizeof(unsigned long)],
+				(unsigned long __user *)addr);
 	        break;
 	default:
 		ret = -EINVAL;

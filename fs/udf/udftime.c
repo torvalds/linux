@@ -46,7 +46,7 @@
 #endif
 
 /* How many days come before each month (0-12).  */
-const unsigned short int __mon_yday[2][13] =
+static const unsigned short int __mon_yday[2][13] =
 {
 	/* Normal years.  */
 	{ 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365 },
@@ -103,7 +103,7 @@ udf_stamp_to_time(time_t *dest, long *dest_usec, kernel_timestamp src)
 		offset = 0;
 
 	if ((src.year < EPOCH_YEAR) ||
-		(src.year > EPOCH_YEAR+MAX_YEAR_SECONDS))
+		(src.year >= EPOCH_YEAR+MAX_YEAR_SECONDS))
 	{
 		*dest = -1;
 		*dest_usec = -1;

@@ -626,8 +626,18 @@ inspect_node(phandle node, struct device_node *dad,
 	l = call_prom("package-to-path", 3, 1, node,
 		      mem_start, mem_end - mem_start);
 	if (l >= 0) {
+		char *p, *ep;
+
 		np->full_name = PTRUNRELOC((char *) mem_start);
 		*(char *)(mem_start + l) = 0;
+		/* Fixup an Apple bug where they have bogus \0 chars in the
+		 * middle of the path in some properties
+		 */
+		for (p = (char *)mem_start, ep = p + l; p < ep; p++)
+			if ((*p) == '\0') {
+				memmove(p, p+1, ep - p);
+				ep--;
+			}
 		mem_start = ALIGNUL(mem_start + l + 1);
 	}
 

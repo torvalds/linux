@@ -135,7 +135,7 @@ static void sp887x_setup_agc (struct sp887x_state* state)
  */
 static int sp887x_initial_setup (struct dvb_frontend* fe, const struct firmware *fw)
 {
-	struct sp887x_state* state = (struct sp887x_state*) fe->demodulator_priv;
+	struct sp887x_state* state = fe->demodulator_priv;
 	u8 buf [BLOCKSIZE+2];
 	int i;
 	int fw_size = fw->size;
@@ -344,7 +344,7 @@ static void sp887x_correct_offsets (struct sp887x_state* state,
 static int sp887x_setup_frontend_parameters (struct dvb_frontend* fe,
 					     struct dvb_frontend_parameters *p)
 {
-	struct sp887x_state* state = (struct sp887x_state*) fe->demodulator_priv;
+	struct sp887x_state* state = fe->demodulator_priv;
 	int actual_freq, err;
 	u16 val, reg0xc05;
 
@@ -405,7 +405,7 @@ static int sp887x_setup_frontend_parameters (struct dvb_frontend* fe,
 
 static int sp887x_read_status(struct dvb_frontend* fe, fe_status_t* status)
 {
-	struct sp887x_state* state = (struct sp887x_state*) fe->demodulator_priv;
+	struct sp887x_state* state = fe->demodulator_priv;
 	u16 snr12 = sp887x_readreg(state, 0xf16);
 	u16 sync0x200 = sp887x_readreg(state, 0x200);
 	u16 sync0xf17 = sp887x_readreg(state, 0xf17);
@@ -439,7 +439,7 @@ static int sp887x_read_status(struct dvb_frontend* fe, fe_status_t* status)
 
 static int sp887x_read_ber(struct dvb_frontend* fe, u32* ber)
 {
-	struct sp887x_state* state = (struct sp887x_state*) fe->demodulator_priv;
+	struct sp887x_state* state = fe->demodulator_priv;
 
 	*ber = (sp887x_readreg(state, 0xc08) & 0x3f) |
 	       (sp887x_readreg(state, 0xc07) << 6);
@@ -453,7 +453,7 @@ static int sp887x_read_ber(struct dvb_frontend* fe, u32* ber)
 
 static int sp887x_read_signal_strength(struct dvb_frontend* fe, u16* strength)
 {
-	struct sp887x_state* state = (struct sp887x_state*) fe->demodulator_priv;
+	struct sp887x_state* state = fe->demodulator_priv;
 
 	u16 snr12 = sp887x_readreg(state, 0xf16);
 	u32 signal = 3 * (snr12 << 4);
@@ -464,7 +464,7 @@ static int sp887x_read_signal_strength(struct dvb_frontend* fe, u16* strength)
 
 static int sp887x_read_snr(struct dvb_frontend* fe, u16* snr)
 {
-	struct sp887x_state* state = (struct sp887x_state*) fe->demodulator_priv;
+	struct sp887x_state* state = fe->demodulator_priv;
 
 	u16 snr12 = sp887x_readreg(state, 0xf16);
 	*snr = (snr12 << 4) | (snr12 >> 8);
@@ -474,7 +474,7 @@ static int sp887x_read_snr(struct dvb_frontend* fe, u16* snr)
 
 static int sp887x_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
 {
-	struct sp887x_state* state = (struct sp887x_state*) fe->demodulator_priv;
+	struct sp887x_state* state = fe->demodulator_priv;
 
 	*ucblocks = sp887x_readreg(state, 0xc0c);
 	if (*ucblocks == 0xfff)
@@ -485,7 +485,7 @@ static int sp887x_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
 
 static int sp887x_sleep(struct dvb_frontend* fe)
 {
-	struct sp887x_state* state = (struct sp887x_state*) fe->demodulator_priv;
+	struct sp887x_state* state = fe->demodulator_priv;
 
 	/* tristate TS output and disable interface pins */
 	sp887x_writereg(state, 0xc18, 0x000);
@@ -495,7 +495,7 @@ static int sp887x_sleep(struct dvb_frontend* fe)
 
 static int sp887x_init(struct dvb_frontend* fe)
 {
-	struct sp887x_state* state = (struct sp887x_state*) fe->demodulator_priv;
+	struct sp887x_state* state = fe->demodulator_priv;
         const struct firmware *fw = NULL;
 	int ret;
 
@@ -534,7 +534,7 @@ static int sp887x_get_tune_settings(struct dvb_frontend* fe, struct dvb_frontend
 
 static void sp887x_release(struct dvb_frontend* fe)
 {
-	struct sp887x_state* state = (struct sp887x_state*) fe->demodulator_priv;
+	struct sp887x_state* state = fe->demodulator_priv;
 	kfree(state);
 }
 
@@ -546,7 +546,7 @@ struct dvb_frontend* sp887x_attach(const struct sp887x_config* config,
 	struct sp887x_state* state = NULL;
 
 	/* allocate memory for the internal state */
-	state = (struct sp887x_state*) kmalloc(sizeof(struct sp887x_state), GFP_KERNEL);
+	state = kmalloc(sizeof(struct sp887x_state), GFP_KERNEL);
 	if (state == NULL) goto error;
 
 	/* setup the state */

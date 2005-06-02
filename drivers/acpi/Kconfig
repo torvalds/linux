@@ -40,12 +40,11 @@ config ACPI
 	  available at:
 	  <http://www.acpi.info>
 
+if ACPI
+
 config ACPI_BOOT
 	bool
-	depends on ACPI || X86_HT
 	default y
-
-if ACPI
 
 config ACPI_INTERPRETER
 	bool

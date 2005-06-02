@@ -410,17 +410,22 @@ config CPU_BPREDICT_DISABLE
 	help
 	  Say Y here to disable branch prediction.  If unsure, say N.
 
+config TLS_REG_EMUL
+	bool
+	default y if SMP && (CPU_32v5 || CPU_32v4 || CPU_32v3)
+	help
+	  An SMP system using a pre-ARMv6 processor (there are apparently
+	  a few prototypes like that in existence) and therefore access to
+	  that required register must be emulated.
+
 config HAS_TLS_REG
 	bool
-	depends on CPU_32v6 && !CPU_32v5 && !CPU_32v4 && !CPU_32v3
-	default y
+	depends on !TLS_REG_EMUL
+	default y if SMP || CPU_32v7
 	help
 	  This selects support for the CP15 thread register.
-	  It is defined to be available on ARMv6 or later.  However
-	  if the kernel is configured to support multiple CPUs including
-	  a pre-ARMv6 processors, or if a given ARMv6 processor doesn't
-	  implement the thread register for some reason, then access to
-	  this register from user space must be trapped and emulated.
-	  If user space is relying on the __kuser_get_tls code then
-	  there should not be any impact.
+	  It is defined to be available on some ARMv6 processors (including
+	  all SMP capable ARMv6's) or later processors.  User space may
+	  assume directly accessing that register and always obtain the
+	  expected value only on ARMv7 and above.
 

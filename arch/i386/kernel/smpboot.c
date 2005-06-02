@@ -888,6 +888,7 @@ void *xquad_portio;
 
 cpumask_t cpu_sibling_map[NR_CPUS] __cacheline_aligned;
 cpumask_t cpu_core_map[NR_CPUS] __cacheline_aligned;
+EXPORT_SYMBOL(cpu_core_map);
 
 static void __init smp_boot_cpus(unsigned int max_cpus)
 {
@@ -1073,8 +1074,10 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 			cpu_set(cpu, cpu_sibling_map[cpu]);
 		}
 
-		if (siblings != smp_num_siblings)
+		if (siblings != smp_num_siblings) {
 			printk(KERN_WARNING "WARNING: %d siblings found for CPU%d, should be %d\n", siblings, cpu, smp_num_siblings);
+			smp_num_siblings = siblings;
+		}
 
 		if (c->x86_num_cores > 1) {
 			for (i = 0; i < NR_CPUS; i++) {

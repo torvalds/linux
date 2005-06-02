@@ -1701,12 +1701,13 @@ static int do_swap_page(struct mm_struct * mm,
 	spin_lock(&mm->page_table_lock);
 	page_table = pte_offset_map(pmd, address);
 	if (unlikely(!pte_same(*page_table, orig_pte))) {
-		pte_unmap(page_table);
-		spin_unlock(&mm->page_table_lock);
-		unlock_page(page);
-		page_cache_release(page);
 		ret = VM_FAULT_MINOR;
-		goto out;
+		goto out_nomap;
+	}
+
+	if (unlikely(!PageUptodate(page))) {
+		ret = VM_FAULT_SIGBUS;
+		goto out_nomap;
 	}
 
 	/* The page isn't present yet, go ahead with the fault. */
@@ -1741,6 +1742,12 @@ static int do_swap_page(struct mm_struct * mm,
 	spin_unlock(&mm->page_table_lock);
 out:
 	return ret;
+out_nomap:
+	pte_unmap(page_table);
+	spin_unlock(&mm->page_table_lock);
+	unlock_page(page);
+	page_cache_release(page);
+	goto out;
 }
 
 /*

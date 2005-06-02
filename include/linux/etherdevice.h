@@ -7,7 +7,7 @@
  *
  * Version:	@(#)eth.h	1.0.4	05/13/93
  *
- * Authors:	Ross Biro, <bir7@leland.Stanford.Edu>
+ * Authors:	Ross Biro
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *
  *		Relocated to include/linux where it belongs by Alan Cox 
@@ -56,18 +56,32 @@ static inline int is_zero_ether_addr(const u8 *addr)
 }
 
 /**
+ * is_multicast_ether_addr - Determine if the given Ethernet address is a
+ * multicast address.
+ *
+ * @addr: Pointer to a six-byte array containing the Ethernet address
+ *
+ * Return true if the address is a multicast address.
+ */
+static inline int is_multicast_ether_addr(const u8 *addr)
+{
+	return addr[0] & 0x01;
+}
+
+/**
  * is_valid_ether_addr - Determine if the given Ethernet address is valid
  * @addr: Pointer to a six-byte array containing the Ethernet address
  *
  * Check that the Ethernet address (MAC) is not 00:00:00:00:00:00, is not
- * a multicast address, and is not FF:FF:FF:FF:FF:FF.  The multicast
- * and FF:FF:... tests are combined into the single test "!(addr[0]&1)".
+ * a multicast address, and is not FF:FF:FF:FF:FF:FF.
  *
  * Return true if the address is valid.
  */
 static inline int is_valid_ether_addr(const u8 *addr)
 {
-	return !(addr[0]&1) && !is_zero_ether_addr(addr);
+	/* FF:FF:FF:FF:FF:FF is a multicast address so we don't need to
+	 * explicitly check for it here. */
+	return !is_multicast_ether_addr(addr) && !is_zero_ether_addr(addr);
 }
 
 /**
@@ -83,6 +97,6 @@ static inline void random_ether_addr(u8 *addr)
 	addr [0] &= 0xfe;	/* clear multicast bit */
 	addr [0] |= 0x02;	/* set local assignment bit (IEEE802) */
 }
-#endif
+#endif	/* __KERNEL__ */
 
 #endif	/* _LINUX_ETHERDEVICE_H */

@@ -46,6 +46,10 @@ config GENERIC_IOMAP
 	bool
 	default y
 
+config SCHED_NO_NO_OMIT_FRAME_POINTER
+	bool
+	default y
+
 choice
 	prompt "System type"
 	default IA64_GENERIC

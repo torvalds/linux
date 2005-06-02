@@ -1649,6 +1649,7 @@ xfs_vget(
 #define MNTOPT_SWIDTH	"swidth"	/* data volume stripe width */
 #define MNTOPT_NOUUID	"nouuid"	/* ignore filesystem UUID */
 #define MNTOPT_MTPT	"mtpt"		/* filesystem mount point */
+#define MNTOPT_ALLOCSIZE    "allocsize"    /* preferred allocation size */
 #define MNTOPT_IHASHSIZE    "ihashsize"    /* size of inode hash table */
 #define MNTOPT_NORECOVERY   "norecovery"   /* don't run XFS recovery */
 #define MNTOPT_NOLOGFLUSH   "nologflush"   /* don't hard flush on log writes */
@@ -1657,6 +1658,28 @@ xfs_vget(
 #define MNTOPT_IKEEP	"ikeep"		/* do not free empty inode clusters */
 #define MNTOPT_NOIKEEP	"noikeep"	/* free empty inode clusters */
 
+STATIC unsigned long
+suffix_strtoul(const char *cp, char **endp, unsigned int base)
+{
+	int	last, shift_left_factor = 0;
+	char	*value = (char *)cp;
+
+	last = strlen(value) - 1;
+	if (value[last] == 'K' || value[last] == 'k') {
+		shift_left_factor = 10;
+		value[last] = '\0';
+	}
+	if (value[last] == 'M' || value[last] == 'm') {
+		shift_left_factor = 20;
+		value[last] = '\0';
+	}
+	if (value[last] == 'G' || value[last] == 'g') {
+		shift_left_factor = 30;
+		value[last] = '\0';
+	}
+
+	return simple_strtoul(cp, endp, base) << shift_left_factor;
+}
 
 int
 xfs_parseargs(
@@ -1688,60 +1711,60 @@ xfs_parseargs(
 		if (!strcmp(this_char, MNTOPT_LOGBUFS)) {
 			if (!value || !*value) {
 				printk("XFS: %s option requires an argument\n",
-					MNTOPT_LOGBUFS);
+					this_char);
 				return EINVAL;
 			}
 			args->logbufs = simple_strtoul(value, &eov, 10);
 		} else if (!strcmp(this_char, MNTOPT_LOGBSIZE)) {
-			int	last, in_kilobytes = 0;
-
 			if (!value || !*value) {
 				printk("XFS: %s option requires an argument\n",
-					MNTOPT_LOGBSIZE);
+					this_char);
 				return EINVAL;
 			}
-			last = strlen(value) - 1;
-			if (value[last] == 'K' || value[last] == 'k') {
-				in_kilobytes = 1;
-				value[last] = '\0';
-			}
-			args->logbufsize = simple_strtoul(value, &eov, 10);
-			if (in_kilobytes)
-				args->logbufsize <<= 10;
+			args->logbufsize = suffix_strtoul(value, &eov, 10);
 		} else if (!strcmp(this_char, MNTOPT_LOGDEV)) {
 			if (!value || !*value) {
 				printk("XFS: %s option requires an argument\n",
-					MNTOPT_LOGDEV);
+					this_char);
 				return EINVAL;
 			}
 			strncpy(args->logname, value, MAXNAMELEN);
 		} else if (!strcmp(this_char, MNTOPT_MTPT)) {
 			if (!value || !*value) {
 				printk("XFS: %s option requires an argument\n",
-					MNTOPT_MTPT);
+					this_char);
 				return EINVAL;
 			}
 			strncpy(args->mtpt, value, MAXNAMELEN);
 		} else if (!strcmp(this_char, MNTOPT_RTDEV)) {
 			if (!value || !*value) {
 				printk("XFS: %s option requires an argument\n",
-					MNTOPT_RTDEV);
+					this_char);
 				return EINVAL;
 			}
 			strncpy(args->rtname, value, MAXNAMELEN);
 		} else if (!strcmp(this_char, MNTOPT_BIOSIZE)) {
 			if (!value || !*value) {
 				printk("XFS: %s option requires an argument\n",
-					MNTOPT_BIOSIZE); 
+					this_char);
 				return EINVAL;
 			}
 			iosize = simple_strtoul(value, &eov, 10);
 			args->flags |= XFSMNT_IOSIZE;
 			args->iosizelog = (uint8_t) iosize;
+		} else if (!strcmp(this_char, MNTOPT_ALLOCSIZE)) {
+			if (!value || !*value) {
+				printk("XFS: %s option requires an argument\n",
+					this_char);
+				return EINVAL;
+			}
+			iosize = suffix_strtoul(value, &eov, 10);
+			args->flags |= XFSMNT_IOSIZE;
+			args->iosizelog = ffs(iosize) - 1;
 		} else if (!strcmp(this_char, MNTOPT_IHASHSIZE)) {
 			if (!value || !*value) {
 				printk("XFS: %s option requires an argument\n",
-					this_char); 
+					this_char);
 				return EINVAL;
 			}
 			args->flags |= XFSMNT_IHASHSIZE;
@@ -1756,7 +1779,7 @@ xfs_parseargs(
 			args->flags |= XFSMNT_INO64;
 #if !XFS_BIG_INUMS
 			printk("XFS: %s option not allowed on this system\n",
-				MNTOPT_INO64);
+				this_char);
 			return EINVAL;
 #endif
 		} else if (!strcmp(this_char, MNTOPT_NOALIGN)) {
@@ -1766,14 +1789,14 @@ xfs_parseargs(
 		} else if (!strcmp(this_char, MNTOPT_SUNIT)) {
 			if (!value || !*value) {
 				printk("XFS: %s option requires an argument\n",
-					MNTOPT_SUNIT);
+					this_char);
 				return EINVAL;
 			}
 			dsunit = simple_strtoul(value, &eov, 10);
 		} else if (!strcmp(this_char, MNTOPT_SWIDTH)) {
 			if (!value || !*value) {
 				printk("XFS: %s option requires an argument\n",
-					MNTOPT_SWIDTH);
+					this_char);
 				return EINVAL;
 			}
 			dswidth = simple_strtoul(value, &eov, 10);
@@ -1781,7 +1804,7 @@ xfs_parseargs(
 			args->flags &= ~XFSMNT_32BITINODES;
 #if !XFS_BIG_INUMS
 			printk("XFS: %s option not allowed on this system\n",
-				MNTOPT_64BITINODE);
+				this_char);
 			return EINVAL;
 #endif
 		} else if (!strcmp(this_char, MNTOPT_NOUUID)) {
@@ -1877,7 +1900,7 @@ xfs_showargs(
 		seq_printf(m, "," MNTOPT_IHASHSIZE "=%d", mp->m_ihsize);
 
 	if (mp->m_flags & XFS_MOUNT_DFLT_IOSIZE)
-		seq_printf(m, "," MNTOPT_BIOSIZE "=%d", mp->m_writeio_log);
+		seq_printf(m, "," MNTOPT_ALLOCSIZE "=%d", 1<<mp->m_writeio_log);
 
 	if (mp->m_logbufs > 0)
 		seq_printf(m, "," MNTOPT_LOGBUFS "=%d", mp->m_logbufs);

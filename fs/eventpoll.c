@@ -320,7 +320,7 @@ static struct super_block *eventpollfs_get_sb(struct file_system_type *fs_type,
 /*
  * This semaphore is used to serialize ep_free() and eventpoll_release_file().
  */
-struct semaphore epsem;
+static struct semaphore epsem;
 
 /* Safe wake up implementation */
 static struct poll_safewake psw;

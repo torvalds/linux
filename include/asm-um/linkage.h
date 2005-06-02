@@ -1,7 +1,6 @@
-#ifndef __ASM_LINKAGE_H
-#define __ASM_LINKAGE_H
+#ifndef __ASM_UM_LINKAGE_H
+#define __ASM_UM_LINKAGE_H
 
-#define FASTCALL(x)	x __attribute__((regparm(3)))
-#define fastcall        __attribute__((regparm(3)))
+#include "asm/arch/linkage.h"
 
 #endif

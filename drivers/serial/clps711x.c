@@ -143,10 +143,7 @@ static irqreturn_t clps711xuart_int_rx(int irq, void *dev_id, struct pt_regs *re
 		 * CHECK: does overrun affect the current character?
 		 * ASSUMPTION: it does not.
 		 */
-		if ((ch & port->ignore_status_mask & ~RXSTAT_OVERRUN) == 0)
-			tty_insert_flip_char(tty, ch, flg);
-		if ((ch & ~port->ignore_status_mask & RXSTAT_OVERRUN) == 0)
-			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+		uart_insert_char(port, ch, UARTDR_OVERR, ch, flg);
 
 	ignore_char:
 		status = clps_readl(SYSFLG(port));

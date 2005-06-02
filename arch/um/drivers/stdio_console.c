@@ -28,7 +28,6 @@
 #include "irq_user.h"
 #include "mconsole_kern.h"
 #include "init.h"
-#include "2_5compat.h"
 
 #define MAX_TTYS (16)
 

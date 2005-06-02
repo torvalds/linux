@@ -19,14 +19,29 @@
 #include "skas_ptrace.h"
 #include "sysdep/ptrace.h"
 
+static inline void set_singlestepping(struct task_struct *child, int on)
+{
+        if (on)
+                child->ptrace |= PT_DTRACE;
+        else
+                child->ptrace &= ~PT_DTRACE;
+        child->thread.singlestep_syscall = 0;
+
+#ifdef SUBARCH_SET_SINGLESTEPPING
+        SUBARCH_SET_SINGLESTEPPING(child, on);
+#endif
+}
+
 /*
  * Called by kernel/ptrace.c when detaching..
  */
 void ptrace_disable(struct task_struct *child)
 { 
-	child->ptrace &= ~PT_DTRACE;
-	child->thread.singlestep_syscall = 0;
+        set_singlestepping(child,0);
 }
+
+extern int peek_user(struct task_struct * child, long addr, long data);
+extern int poke_user(struct task_struct * child, long addr, long data);
 
 long sys_ptrace(long request, long pid, long addr, long data)
 {
@@ -67,6 +82,10 @@ long sys_ptrace(long request, long pid, long addr, long data)
 		goto out_tsk;
 	}
 
+#ifdef SUBACH_PTRACE_SPECIAL
+        SUBARCH_PTRACE_SPECIAL(child,request,addr,data);
+#endif
+
 	ret = ptrace_check_attach(child, request == PTRACE_KILL);
 	if (ret < 0)
 		goto out_tsk;
@@ -87,26 +106,9 @@ long sys_ptrace(long request, long pid, long addr, long data)
 	}
 
 	/* read the word at location addr in the USER area. */
-	case PTRACE_PEEKUSR: {
-		unsigned long tmp;
-
-		ret = -EIO;
-		if ((addr & 3) || addr < 0) 
-			break;
-
-		tmp = 0;  /* Default return condition */
-		if(addr < MAX_REG_OFFSET){
-			tmp = getreg(child, addr);
-		}
-		else if((addr >= offsetof(struct user, u_debugreg[0])) &&
-			(addr <= offsetof(struct user, u_debugreg[7]))){
-			addr -= offsetof(struct user, u_debugreg[0]);
-			addr = addr >> 2;
-			tmp = child->thread.arch.debugregs[addr];
-		}
-		ret = put_user(tmp, (unsigned long __user *) data);
-		break;
-	}
+        case PTRACE_PEEKUSR:
+                ret = peek_user(child, addr, data);
+                break;
 
 	/* when I and D space are separate, this will have to be fixed. */
 	case PTRACE_POKETEXT: /* write the word at location addr. */
@@ -119,26 +121,8 @@ long sys_ptrace(long request, long pid, long addr, long data)
 		break;
 
 	case PTRACE_POKEUSR: /* write the word at location addr in the USER area */
-		ret = -EIO;
-		if ((addr & 3) || addr < 0)
-			break;
-
-		if (addr < MAX_REG_OFFSET) {
-			ret = putreg(child, addr, data);
-			break;
-		}
-#if 0 /* XXX x86_64 */
-		else if((addr >= offsetof(struct user, u_debugreg[0])) &&
-			(addr <= offsetof(struct user, u_debugreg[7]))){
-			  addr -= offsetof(struct user, u_debugreg[0]);
-			  addr = addr >> 2;
-			  if((addr == 4) || (addr == 5)) break;
-			  child->thread.arch.debugregs[addr] = data;
-			  ret = 0;
-		}
-#endif
-
-		break;
+                ret = poke_user(child, addr, data);
+                break;
 
 	case PTRACE_SYSCALL: /* continue and stop at next (return from) syscall */
 	case PTRACE_CONT: { /* restart after signal. */
@@ -146,8 +130,7 @@ long sys_ptrace(long request, long pid, long addr, long data)
 		if (!valid_signal(data))
 			break;
 
-		child->ptrace &= ~PT_DTRACE;
-		child->thread.singlestep_syscall = 0;
+                set_singlestepping(child, 0);
 		if (request == PTRACE_SYSCALL) {
 			set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 		}
@@ -170,8 +153,7 @@ long sys_ptrace(long request, long pid, long addr, long data)
 		if (child->exit_state == EXIT_ZOMBIE)	/* already dead */
 			break;
 
-		child->ptrace &= ~PT_DTRACE;
-		child->thread.singlestep_syscall = 0;
+                set_singlestepping(child, 0);
 		child->exit_code = SIGKILL;
 		wake_up_process(child);
 		break;
@@ -182,8 +164,7 @@ long sys_ptrace(long request, long pid, long addr, long data)
 		if (!valid_signal(data))
 			break;
 		clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		child->ptrace |= PT_DTRACE;
-		child->thread.singlestep_syscall = 0;
+                set_singlestepping(child, 1);
 		child->exit_code = data;
 		/* give it a chance to run. */
 		wake_up_process(child);
@@ -250,23 +231,19 @@ long sys_ptrace(long request, long pid, long addr, long data)
 		break;
 #endif
 	case PTRACE_FAULTINFO: {
-		struct ptrace_faultinfo fault;
-
-		fault = ((struct ptrace_faultinfo) 
-			{ .is_write	= child->thread.err,
-			  .addr		= child->thread.cr2 });
-		ret = copy_to_user((unsigned long __user *) data, &fault,
-				   sizeof(fault));
+                /* Take the info from thread->arch->faultinfo,
+                 * but transfer max. sizeof(struct ptrace_faultinfo).
+                 * On i386, ptrace_faultinfo is smaller!
+                 */
+                ret = copy_to_user((unsigned long __user *) data,
+                                   &child->thread.arch.faultinfo,
+                                   sizeof(struct ptrace_faultinfo));
 		if(ret)
 			break;
 		break;
 	}
-	case PTRACE_SIGPENDING:
-		ret = copy_to_user((unsigned long __user *) data,
-				   &child->pending.signal,
-				   sizeof(child->pending.signal));
-		break;
 
+#ifdef PTRACE_LDT
 	case PTRACE_LDT: {
 		struct ptrace_ldt ldt;
 
@@ -282,6 +259,7 @@ long sys_ptrace(long request, long pid, long addr, long data)
 		ret = -EIO;
 		break;
 	}
+#endif
 #ifdef CONFIG_PROC_MM
 	case PTRACE_SWITCH_MM: {
 		struct mm_struct *old = child->mm;
@@ -344,11 +322,9 @@ void syscall_trace(union uml_pt_regs *regs, int entryexit)
 					    UPT_SYSCALL_ARG2(regs),
 					    UPT_SYSCALL_ARG3(regs),
 					    UPT_SYSCALL_ARG4(regs));
-		else {
-                        int res = UPT_SYSCALL_RET(regs);
-			audit_syscall_exit(current, AUDITSC_RESULT(res),
-                                           res);
-                }
+		else audit_syscall_exit(current,
+                                        AUDITSC_RESULT(UPT_SYSCALL_RET(regs)),
+                                        UPT_SYSCALL_RET(regs));
 	}
 
 	/* Fake a debug trap */
@@ -378,14 +354,3 @@ void syscall_trace(union uml_pt_regs *regs, int entryexit)
 		current->exit_code = 0;
 	}
 }
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

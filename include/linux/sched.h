@@ -578,7 +578,7 @@ struct task_struct {
 	unsigned long flags;	/* per process flags, defined below */
 	unsigned long ptrace;
 
-	int lock_depth;		/* Lock depth */
+	int lock_depth;		/* BKL lock depth */
 
 	int prio, static_prio;
 	struct list_head run_list;
@@ -661,7 +661,10 @@ struct task_struct {
 	struct key *thread_keyring;	/* keyring private to this thread */
 #endif
 	int oomkilladj; /* OOM kill score adjustment (bit shift). */
-	char comm[TASK_COMM_LEN];
+	char comm[TASK_COMM_LEN]; /* executable name excluding path
+				     - access with [gs]et_task_comm (which lock
+				       it with task_lock())
+				     - initialized normally by flush_old_exec */
 /* file system info */
 	int link_count, total_link_count;
 /* ipc stuff */

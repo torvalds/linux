@@ -107,20 +107,20 @@ static const char *mcdx_c_version
    The _direct_ size is the number of sectors we're allowed to skip
    directly (performing a read instead of requesting the new sector
    needed */
-const int REQUEST_SIZE = 800;	/* should be less then 255 * 4 */
-const int DIRECT_SIZE = 400;	/* should be less then REQUEST_SIZE */
+static const int REQUEST_SIZE = 800;	/* should be less then 255 * 4 */
+static const int DIRECT_SIZE = 400;	/* should be less then REQUEST_SIZE */
 
 enum drivemodes { TOC, DATA, RAW, COOKED };
 enum datamodes { MODE0, MODE1, MODE2 };
 enum resetmodes { SOFT, HARD };
 
-const int SINGLE = 0x01;	/* single speed drive (FX001S, LU) */
-const int DOUBLE = 0x02;	/* double speed drive (FX001D, ..? */
-const int DOOR = 0x04;		/* door locking capability */
-const int MULTI = 0x08;		/* multi session capability */
+static const int SINGLE = 0x01;		/* single speed drive (FX001S, LU) */
+static const int DOUBLE = 0x02;		/* double speed drive (FX001D, ..? */
+static const int DOOR = 0x04;		/* door locking capability */
+static const int MULTI = 0x08;		/* multi session capability */
 
-const unsigned char READ1X = 0xc0;
-const unsigned char READ2X = 0xc1;
+static const unsigned char READ1X = 0xc0;
+static const unsigned char READ2X = 0xc1;
 
 
 /* DECLARATIONS ****************************************************/
@@ -210,9 +210,7 @@ struct s_drive_stuff {
  	repeated here to show what's going on.  And to sense, if they're
 	changed elsewhere. */
 
-/* declared in blk.h */
-int mcdx_init(void);
-void do_mcdx_request(request_queue_t * q);
+static int mcdx_init(void);
 
 static int mcdx_block_open(struct inode *inode, struct file *file)
 {
@@ -569,7 +567,7 @@ static int mcdx_audio_ioctl(struct cdrom_device_info *cdi,
 	}
 }
 
-void do_mcdx_request(request_queue_t * q)
+static void do_mcdx_request(request_queue_t * q)
 {
 	struct s_drive_stuff *stuffp;
 	struct request *req;
@@ -1028,7 +1026,7 @@ int __mcdx_init(void)
 	return 0;
 }
 
-void __exit mcdx_exit(void)
+static void __exit mcdx_exit(void)
 {
 	int i;
 
@@ -1075,7 +1073,7 @@ module_exit(mcdx_exit);
 
 /* Support functions ************************************************/
 
-int __init mcdx_init_drive(int drive)
+static int __init mcdx_init_drive(int drive)
 {
 	struct s_version version;
 	struct gendisk *disk;
@@ -1261,7 +1259,7 @@ int __init mcdx_init_drive(int drive)
 	return 0;
 }
 
-int __init mcdx_init(void)
+static int __init mcdx_init(void)
 {
 	int drive;
 	xwarn("Version 2.14(hs) \n");

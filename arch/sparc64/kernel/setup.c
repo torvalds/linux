@@ -383,6 +383,17 @@ static void __init process_switch(char c)
 		/* Use PROM debug console. */
 		register_console(&prom_debug_console);
 		break;
+	case 'P':
+		/* Force UltraSPARC-III P-Cache on. */
+		if (tlb_type != cheetah) {
+			printk("BOOT: Ignoring P-Cache force option.\n");
+			break;
+		}
+		cheetah_pcache_forced_on = 1;
+		add_taint(TAINT_MACHINE_CHECK);
+		cheetah_enable_pcache();
+		break;
+
 	default:
 		printk("Unknown boot switch (-%c)\n", c);
 		break;

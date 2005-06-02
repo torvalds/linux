@@ -12,6 +12,7 @@ EXPORT_SYMBOL(__do_copy_to_user);
 EXPORT_SYMBOL(__do_strncpy_from_user);
 EXPORT_SYMBOL(__do_strnlen_user); 
 EXPORT_SYMBOL(__do_clear_user);
+EXPORT_SYMBOL(clear_user_tt);
 
 EXPORT_SYMBOL(tracing_pid);
 EXPORT_SYMBOL(honeypot);
