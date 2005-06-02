@@ -3359,7 +3359,7 @@ void ata_bmdma_setup(struct ata_queued_cmd *qc)
 
 /**
  *	ata_bmdma_irq_clear - Clear PCI IDE BMDMA interrupt.
- *	@qc: Info associated with this ATA transaction.
+ *	@ap: Port associated with this ATA transaction.
  *
  *	Clear interrupt and error flags in DMA status register.
  *
@@ -3384,7 +3384,7 @@ void ata_bmdma_irq_clear(struct ata_port *ap)
 
 /**
  *	ata_bmdma_status - Read PCI IDE BMDMA status
- *	@qc: Info associated with this ATA transaction.
+ *	@ap: Port associated with this ATA transaction.
  *
  *	Read and return BMDMA status register.
  *
@@ -3408,7 +3408,7 @@ u8 ata_bmdma_status(struct ata_port *ap)
 
 /**
  *	ata_bmdma_stop - Stop PCI IDE BMDMA transfer
- *	@qc: Info associated with this ATA transaction.
+ *	@ap: Port associated with this ATA transaction.
  *
  *	Clears the ATA_DMA_START flag in the dma control register
  *
