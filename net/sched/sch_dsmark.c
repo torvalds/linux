@@ -18,7 +18,7 @@
 #include <asm/byteorder.h>
 
 
-#if 1 /* control */
+#if 0 /* control */
 #define DPRINTK(format,args...) printk(KERN_DEBUG format,##args)
 #else
 #define DPRINTK(format,args...)
@@ -73,8 +73,13 @@ static int dsmark_graft(struct Qdisc *sch,unsigned long arg,
 
 	DPRINTK("dsmark_graft(sch %p,[qdisc %p],new %p,old %p)\n",sch,p,new,
 	    old);
-	if (!new)
-		new = &noop_qdisc;
+
+	if (new == NULL) {
+		new = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops);
+		if (new == NULL)
+			new = &noop_qdisc;
+	}
+
 	sch_tree_lock(sch);
 	*old = xchg(&p->q,new);
 	if (*old)
@@ -163,14 +168,15 @@ static void dsmark_walk(struct Qdisc *sch,struct qdisc_walker *walker)
 		return;
 	for (i = 0; i < p->indices; i++) {
 		if (p->mask[i] == 0xff && !p->value[i])
-			continue;
+			goto ignore;
 		if (walker->count >= walker->skip) {
 			if (walker->fn(sch, i+1, walker) < 0) {
 				walker->stop = 1;
 				break;
 			}
 		}
-                walker->count++;
+ignore:		
+		walker->count++;
         }
 }
 

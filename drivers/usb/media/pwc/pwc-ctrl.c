@@ -48,8 +48,6 @@
 #include "pwc-uncompress.h"
 #include "pwc-kiara.h"
 #include "pwc-timon.h"
-#include "pwc-dec1.h"
-#include "pwc-dec23.h"
 
 /* Request types: video */
 #define SET_LUM_CTL			0x01

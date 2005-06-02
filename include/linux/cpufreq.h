@@ -49,7 +49,7 @@ int cpufreq_unregister_notifier(struct notifier_block *nb, unsigned int list);
 /* Frequency values here are CPU kHz so that hardware which doesn't run 
  * with some frequencies can complain without having to guess what per 
  * cent / per mille means. 
- * Maximum transition latency is in microseconds - if it's unknown,
+ * Maximum transition latency is in nanoseconds - if it's unknown,
  * CPUFREQ_ETERNAL shall be used.
  */
 

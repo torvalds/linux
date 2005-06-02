@@ -30,6 +30,7 @@
 #include <asm/pgalloc.h>
 #include <asm/io_apic.h>
 #include <asm/proto.h>
+#include <asm/acpi.h>
 
 /* Have we found an MP table */
 int smp_found_config;

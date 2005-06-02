@@ -275,7 +275,7 @@ static void __init openpic_enable_sie(void)
 }
 #endif
 
-#if defined(CONFIG_EPIC_SERIAL_MODE) || defined(CONFIG_PM)
+#if defined(CONFIG_EPIC_SERIAL_MODE)
 static void openpic_reset(void)
 {
 	openpic_setfield(&OpenPIC->Global.Global_Configuration0,
@@ -992,8 +992,6 @@ int openpic_resume(struct sys_device *sysdev)
 		spin_unlock_irqrestore(&openpic_setup_lock, flags);
 		return 0;
 	}
-
-	openpic_reset();
 
 	/* OpenPIC sometimes seem to need some time to be fully back up... */
 	do {
