@@ -498,4 +498,16 @@ config SENSORS_M41T00
 	  This driver can also be built as a module.  If so, the module
 	  will be called m41t00.
 
+config SENSORS_MAX6875
+	tristate "MAXIM MAX6875 Power supply supervisor"
+	depends on I2C && EXPERIMENTAL
+	help
+	  If you say yes here you get support for the MAX6875
+	  EEPROM-Programmable, Hex/Quad, Power-Suppy Sequencers/Supervisors.
+
+          This provides a interface to program the EEPROM and reset the chip.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called max6875.
+
 endmenu
