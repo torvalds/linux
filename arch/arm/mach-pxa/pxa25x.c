@@ -102,3 +102,32 @@ unsigned int get_lcdclk_frequency_10khz(void)
 }
 
 EXPORT_SYMBOL(get_lcdclk_frequency_10khz);
+
+
+int pxa_cpu_pm_prepare(suspend_state_t state)
+{
+	switch (state) {
+	case PM_SUSPEND_MEM:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+void pxa_cpu_pm_enter(suspend_state_t state)
+{
+	extern void pxa_cpu_suspend(unsigned int);
+	extern void pxa_cpu_resume(void);
+
+	CKEN = 0;
+
+	switch (state) {
+	case PM_SUSPEND_MEM:
+		/* set resume return address */
+		PSPR = virt_to_phys(pxa_cpu_resume);
+		pxa_cpu_suspend(3);
+		break;
+	}
+}
