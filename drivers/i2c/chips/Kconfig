@@ -417,6 +417,17 @@ config SENSORS_DS1337
 	  This driver can also be built as a module.  If so, the module
 	  will be called ds1337.
 
+config SENSORS_DS1374
+	tristate "Maxim/Dallas Semiconductor DS1374 Real Time Clock"
+	depends on I2C && EXPERIMENTAL
+	select I2C_SENSOR
+	help
+	  If you say yes here you get support for Dallas Semiconductor
+	  DS1374 real-time clock chips.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called ds1374.
+
 config SENSORS_EEPROM
 	tristate "EEPROM reader"
 	depends on I2C && EXPERIMENTAL
