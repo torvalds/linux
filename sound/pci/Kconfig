@@ -274,6 +274,19 @@ config SND_HDSP
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-hdsp.
 
+config SND_HDSPM
+	tristate "RME Hammerfall DSP MADI"
+	depends on SND
+	select SND_HWDEP
+	select SND_RAWMIDI
+	select SND_PCM
+	help
+	  Say Y here to include support for RME Hammerfall DSP MADI
+	  soundcards.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-hdspm.
+
 config SND_TRIDENT
 	tristate "Trident 4D-Wave DX/NX; SiS 7018"
 	depends on SND
