@@ -135,7 +135,7 @@ struct device w1_device = {
 
 static ssize_t w1_master_attribute_show_name(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct w1_master *md = container_of (dev, struct w1_master, dev);
+	struct w1_master *md = container_of(dev, struct w1_master, dev);
 	ssize_t count;
 
 	if (down_interruptible (&md->mutex))
@@ -212,7 +212,6 @@ static ssize_t w1_master_attribute_show_slave_count(struct device *dev, struct d
 }
 
 static ssize_t w1_master_attribute_show_slaves(struct device *dev, struct device_attribute *attr, char *buf)
-
 {
 	struct w1_master *md = container_of(dev, struct w1_master, dev);
 	int c = PAGE_SIZE;
@@ -286,13 +285,13 @@ static int __w1_attach_slave_device(struct w1_slave *sl)
 	sl->dev.release = &w1_slave_release;
 
 	snprintf(&sl->dev.bus_id[0], sizeof(sl->dev.bus_id),
-		  "%02x-%012llx",
-		  (unsigned int) sl->reg_num.family,
-		  (unsigned long long) sl->reg_num.id);
-	snprintf (&sl->name[0], sizeof(sl->name),
-		  "%02x-%012llx",
-		  (unsigned int) sl->reg_num.family,
-		  (unsigned long long) sl->reg_num.id);
+		 "%02x-%012llx",
+		 (unsigned int) sl->reg_num.family,
+		 (unsigned long long) sl->reg_num.id);
+	snprintf(&sl->name[0], sizeof(sl->name),
+		 "%02x-%012llx",
+		 (unsigned int) sl->reg_num.family,
+		 (unsigned long long) sl->reg_num.id);
 
 	dev_dbg(&sl->dev, "%s: registering %s.\n", __func__,
 		&sl->dev.bus_id[0]);
@@ -300,8 +299,8 @@ static int __w1_attach_slave_device(struct w1_slave *sl)
 	err = device_register(&sl->dev);
 	if (err < 0) {
 		dev_err(&sl->dev,
-			 "Device registration [%s] failed. err=%d\n",
-			 sl->dev.bus_id, err);
+			"Device registration [%s] failed. err=%d\n",
+			sl->dev.bus_id, err);
 		return err;
 	}
 
@@ -314,8 +313,8 @@ static int __w1_attach_slave_device(struct w1_slave *sl)
 	err = device_create_file(&sl->dev, &sl->attr_name);
 	if (err < 0) {
 		dev_err(&sl->dev,
-			 "sysfs file creation for [%s] failed. err=%d\n",
-			 sl->dev.bus_id, err);
+			"sysfs file creation for [%s] failed. err=%d\n",
+			sl->dev.bus_id, err);
 		device_unregister(&sl->dev);
 		return err;
 	}
@@ -323,8 +322,8 @@ static int __w1_attach_slave_device(struct w1_slave *sl)
 	err = sysfs_create_bin_file(&sl->dev.kobj, &sl->attr_bin);
 	if (err < 0) {
 		dev_err(&sl->dev,
-			 "sysfs file creation for [%s] failed. err=%d\n",
-			 sl->dev.bus_id, err);
+			"sysfs file creation for [%s] failed. err=%d\n",
+			sl->dev.bus_id, err);
 		device_remove_file(&sl->dev, &sl->attr_name);
 		device_unregister(&sl->dev);
 		return err;
@@ -483,25 +482,38 @@ static void w1_slave_found(unsigned long data, u64 rn)
 	atomic_dec(&dev->refcnt);
 }
 
-void w1_search(struct w1_master *dev)
+/**
+ * Performs a ROM Search & registers any devices found.
+ * The 1-wire search is a simple binary tree search.
+ * For each bit of the address, we read two bits and write one bit.
+ * The bit written will put to sleep all devies that don't match that bit.
+ * When the two reads differ, the direction choice is obvious.
+ * When both bits are 0, we must choose a path to take.
+ * When we can scan all 64 bits without having to choose a path, we are done.
+ *
+ * See "Application note 187 1-wire search algorithm" at www.maxim-ic.com
+ *
+ * @dev        The master device to search
+ * @cb         Function to call when a device is found
+ */
+void w1_search(struct w1_master *dev, w1_slave_found_callback cb)
 {
-	u64 last, rn, tmp;
-	int i, count = 0;
-	int last_family_desc, last_zero, last_device;
-	int search_bit, id_bit, comp_bit, desc_bit;
+	u64 last_rn, rn, tmp64;
+	int i, slave_count = 0;
+	int last_zero, last_device;
+	int search_bit, desc_bit;
+	u8  triplet_ret = 0;
 
-	search_bit = id_bit = comp_bit = 0;
-	rn = tmp = last = 0;
-	last_device = last_zero = last_family_desc = 0;
+	search_bit = 0;
+	rn = last_rn = 0;
+	last_device = 0;
+	last_zero = -1;
 
 	desc_bit = 64;
 
-	while (!(id_bit && comp_bit) && !last_device &&
-	       count++ < dev->max_slave_count) {
-		last = rn;
+	while ( !last_device && (slave_count++ < dev->max_slave_count) ) {
+		last_rn = rn;
 		rn = 0;
-
-		last_family_desc = 0;
 
 		/*
 		 * Reset bus and all 1-wire device state machines
@@ -514,59 +526,39 @@ void w1_search(struct w1_master *dev)
 			break;
 		}
 
-#if 1
+		/* Start the search */
 		w1_write_8(dev, W1_SEARCH);
 		for (i = 0; i < 64; ++i) {
-			/*
-			 * Read 2 bits from bus.
-			 * All who don't sleep must send ID bit and COMPLEMENT ID bit.
-			 * They actually are ANDed between all senders.
-			 */
-			id_bit = w1_touch_bit(dev, 1);
-			comp_bit = w1_touch_bit(dev, 1);
+			/* Determine the direction/search bit */
+			if (i == desc_bit)
+				search_bit = 1;	  /* took the 0 path last time, so take the 1 path */
+			else if (i > desc_bit)
+				search_bit = 0;	  /* take the 0 path on the next branch */
+			else
+				search_bit = ((last_rn >> i) & 0x1);
 
-			if (id_bit && comp_bit)
+			/** Read two bits and write one bit */
+			triplet_ret = w1_triplet(dev, search_bit);
+
+			/* quit if no device responded */
+			if ( (triplet_ret & 0x03) == 0x03 )
 				break;
 
-			if (id_bit == 0 && comp_bit == 0) {
-				if (i == desc_bit)
-					search_bit = 1;
-				else if (i > desc_bit)
-					search_bit = 0;
-				else
-					search_bit = ((last >> i) & 0x1);
+			/* If both directions were valid, and we took the 0 path... */
+			if (triplet_ret == 0)
+				last_zero = i;
 
-				if (search_bit == 0) {
-					last_zero = i;
-					if (last_zero < 9)
-						last_family_desc = last_zero;
-				}
-
-			} else
-				search_bit = id_bit;
-
-			tmp = search_bit;
-			rn |= (tmp << i);
-
-			/*
-			 * Write 1 bit to bus
-			 * and make all who don't have "search_bit" in "i"'th position
-			 * in it's registration number sleep.
-			 */
-			if (dev->bus_master->touch_bit)
-				w1_touch_bit(dev, search_bit);
-			else
-				w1_write_bit(dev, search_bit);
-
+			/* extract the direction taken & update the device number */
+			tmp64 = (triplet_ret >> 2);
+			rn |= (tmp64 << i);
 		}
-#endif
 
-		if (desc_bit == last_zero)
-			last_device = 1;
-
-		desc_bit = last_zero;
-
-		w1_slave_found(dev->bus_master->data, rn);
+		if ( (triplet_ret & 0x03) != 0x03 ) {
+			if ( (desc_bit == last_zero) || (last_zero < 0))
+				last_device = 1;
+			desc_bit = last_zero;
+			cb(dev->bus_master->data, rn);
+		}
 	}
 }
 

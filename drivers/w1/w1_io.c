@@ -130,6 +130,47 @@ static u8 w1_read_bit(struct w1_master *dev)
 }
 
 /**
+ * Does a triplet - used for searching ROM addresses.
+ * Return bits:
+ *  bit 0 = id_bit
+ *  bit 1 = comp_bit
+ *  bit 2 = dir_taken
+ * If both bits 0 & 1 are set, the search should be restarted.
+ *
+ * @param dev     the master device
+ * @param bdir    the bit to write if both id_bit and comp_bit are 0
+ * @return        bit fields - see above
+ */
+u8 w1_triplet(struct w1_master *dev, int bdir)
+{
+	if ( dev->bus_master->triplet )
+		return(dev->bus_master->triplet(dev->bus_master->data, bdir));
+	else {
+		u8 id_bit   = w1_touch_bit(dev, 1);
+		u8 comp_bit = w1_touch_bit(dev, 1);
+		u8 retval;
+
+		if ( id_bit && comp_bit )
+			return(0x03);  /* error */
+
+		if ( !id_bit && !comp_bit ) {
+			/* Both bits are valid, take the direction given */
+			retval = bdir ? 0x04 : 0;
+		} else {
+			/* Only one bit is valid, take that direction */
+			bdir = id_bit;
+			retval = id_bit ? 0x05 : 0x02;
+		}
+
+		if ( dev->bus_master->touch_bit )
+			w1_touch_bit(dev, bdir);
+		else
+			w1_write_bit(dev, bdir);
+		return(retval);
+	}
+}
+
+/**
  * Reads 8 bits.
  *
  * @param dev     the master device
@@ -233,7 +274,7 @@ void w1_search_devices(struct w1_master *dev, w1_slave_found_callback cb)
 	if (dev->bus_master->search)
 		dev->bus_master->search(dev->bus_master->data, cb);
 	else
-		w1_search(dev);
+		w1_search(dev, cb);
 }
 
 EXPORT_SYMBOL(w1_touch_bit);

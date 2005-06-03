@@ -26,6 +26,7 @@
 
 void w1_delay(unsigned long);
 u8 w1_touch_bit(struct w1_master *, int);
+u8 w1_triplet(struct w1_master *dev, int bdir);
 void w1_write_8(struct w1_master *, u8);
 u8 w1_read_8(struct w1_master *);
 int w1_reset_bus(struct w1_master *);

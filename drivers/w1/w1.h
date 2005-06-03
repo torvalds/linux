@@ -25,9 +25,9 @@
 struct w1_reg_num
 {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
-  	__u64	family:8,
-  		id:48,
-  		crc:8;
+	__u64	family:8,
+		id:48,
+		crc:8;
 #elif defined(__BIG_ENDIAN_BITFIELD)
 	__u64	crc:8,
 		id:48,
@@ -84,24 +84,71 @@ struct w1_slave
 
 typedef void (* w1_slave_found_callback)(unsigned long, u64);
 
+
+/**
+ * Note: read_bit and write_bit are very low level functions and should only
+ * be used with hardware that doesn't really support 1-wire operations,
+ * like a parallel/serial port.
+ * Either define read_bit and write_bit OR define, at minimum, touch_bit and
+ * reset_bus.
+ */
 struct w1_bus_master
 {
-	unsigned long		data;
+	/** the first parameter in all the functions below */
+	unsigned long	data;
 
-	u8			(*read_bit)(unsigned long);
-	void			(*write_bit)(unsigned long, u8);
+	/**
+	 * Sample the line level
+	 * @return the level read (0 or 1)
+	 */
+	u8		(*read_bit)(unsigned long);
 
-	u8			(*read_byte)(unsigned long);
-	void			(*write_byte)(unsigned long, u8);
+	/** Sets the line level */
+	void		(*write_bit)(unsigned long, u8);
 
-	u8			(*read_block)(unsigned long, u8 *, int);
-	void			(*write_block)(unsigned long, u8 *, int);
+	/**
+	 * touch_bit is the lowest-level function for devices that really
+	 * support the 1-wire protocol.
+	 * touch_bit(0) = write-0 cycle
+	 * touch_bit(1) = write-1 / read cycle
+	 * @return the bit read (0 or 1)
+	 */
+	u8		(*touch_bit)(unsigned long, u8);
 
-	u8			(*touch_bit)(unsigned long, u8);
+	/**
+	 * Reads a bytes. Same as 8 touch_bit(1) calls.
+	 * @return the byte read
+	 */
+	u8		(*read_byte)(unsigned long);
 
-	u8			(*reset_bus)(unsigned long);
+	/**
+	 * Writes a byte. Same as 8 touch_bit(x) calls.
+	 */
+	void		(*write_byte)(unsigned long, u8);
 
-	void			(*search)(unsigned long, w1_slave_found_callback);
+	/**
+	 * Same as a series of read_byte() calls
+	 * @return the number of bytes read
+	 */
+	u8		(*read_block)(unsigned long, u8 *, int);
+
+	/** Same as a series of write_byte() calls */
+	void		(*write_block)(unsigned long, const u8 *, int);
+
+	/**
+	 * Combines two reads and a smart write for ROM searches
+	 * @return bit0=Id bit1=comp_id bit2=dir_taken
+	 */
+	u8		(*triplet)(unsigned long, u8);
+
+	/**
+	 * long write-0 with a read for the presence pulse detection
+	 * @return -1=Error, 0=Device present, 1=No device present
+	 */
+	u8		(*reset_bus)(unsigned long);
+
+	/** Really nice hardware can handles the ROM searches */
+	void		(*search)(unsigned long, w1_slave_found_callback);
 };
 
 struct w1_master
@@ -137,7 +184,7 @@ struct w1_master
 };
 
 int w1_create_master_attributes(struct w1_master *);
-void w1_search(struct w1_master *dev);
+void w1_search(struct w1_master *dev, w1_slave_found_callback cb);
 
 #endif /* __KERNEL__ */
 
