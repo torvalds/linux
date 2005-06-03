@@ -59,6 +59,19 @@ static pid_t control_thread;
 static int control_needs_exit;
 static DECLARE_COMPLETION(w1_control_complete);
 
+/* stuff for the default family */
+static ssize_t w1_famdefault_read_name(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct w1_slave *sl = container_of(dev, struct w1_slave, dev);
+	return(sprintf(buf, "%s\n", sl->name));
+}
+static struct w1_family_ops w1_default_fops = {
+	.rname = &w1_famdefault_read_name,
+};
+static struct w1_family w1_default_family = {
+	.fops = &w1_default_fops,
+};
+
 static int w1_master_match(struct device *dev, struct device_driver *drv)
 {
 	return 1;
@@ -360,14 +373,16 @@ static int __w1_attach_slave_device(struct w1_slave *sl)
 		return err;
 	}
 
-	err = sysfs_create_bin_file(&sl->dev.kobj, &sl->attr_bin);
-	if (err < 0) {
-		dev_err(&sl->dev,
-			"sysfs file creation for [%s] failed. err=%d\n",
-			sl->dev.bus_id, err);
-		device_remove_file(&sl->dev, &sl->attr_name);
-		device_unregister(&sl->dev);
-		return err;
+	if ( sl->attr_bin.read ) {
+		err = sysfs_create_bin_file(&sl->dev.kobj, &sl->attr_bin);
+		if (err < 0) {
+			dev_err(&sl->dev,
+				"sysfs file creation for [%s] failed. err=%d\n",
+				sl->dev.bus_id, err);
+			device_remove_file(&sl->dev, &sl->attr_name);
+			device_unregister(&sl->dev);
+			return err;
+		}
 	}
 
 	list_add_tail(&sl->w1_slave_entry, &sl->master->slist);
@@ -403,12 +418,10 @@ static int w1_attach_slave_device(struct w1_master *dev, struct w1_reg_num *rn)
 	spin_lock(&w1_flock);
 	f = w1_family_registered(rn->family);
 	if (!f) {
-		spin_unlock(&w1_flock);
+		f= &w1_default_family;
 		dev_info(&dev->dev, "Family %x for %02x.%012llx.%02x is not registered.\n",
 			  rn->family, rn->family,
 			  (unsigned long long)rn->id, rn->crc);
-		kfree(sl);
-		return -ENODEV;
 	}
 	__w1_family_get(f);
 	spin_unlock(&w1_flock);
@@ -449,7 +462,9 @@ static void w1_slave_detach(struct w1_slave *sl)
 			flush_signals(current);
 	}
 
-	sysfs_remove_bin_file (&sl->dev.kobj, &sl->attr_bin);
+	if ( sl->attr_bin.read ) {
+		sysfs_remove_bin_file (&sl->dev.kobj, &sl->attr_bin);
+	}
 	device_remove_file(&sl->dev, &sl->attr_name);
 	device_unregister(&sl->dev);
 	w1_family_put(sl->family);
