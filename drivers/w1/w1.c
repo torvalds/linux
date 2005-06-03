@@ -148,6 +148,39 @@ static ssize_t w1_master_attribute_show_name(struct device *dev, struct device_a
 	return count;
 }
 
+static ssize_t w1_master_attribute_store_search(struct device * dev,
+						struct device_attribute *attr,
+						const char * buf, size_t count)
+{
+	struct w1_master *md = container_of(dev, struct w1_master, dev);
+
+	if (down_interruptible (&md->mutex))
+		return -EBUSY;
+
+	md->search_count = simple_strtol(buf, NULL, 0);
+
+	up(&md->mutex);
+
+	return count;
+}
+
+static ssize_t w1_master_attribute_show_search(struct device *dev,
+					       struct device_attribute *attr,
+					       char *buf)
+{
+	struct w1_master *md = container_of(dev, struct w1_master, dev);
+	ssize_t count;
+
+	if (down_interruptible (&md->mutex))
+		return -EBUSY;
+
+	count = sprintf(buf, "%d\n", md->search_count);
+
+	up(&md->mutex);
+
+	return count;
+}
+
 static ssize_t w1_master_attribute_show_pointer(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct w1_master *md = container_of(dev, struct w1_master, dev);
@@ -242,6 +275,12 @@ static ssize_t w1_master_attribute_show_slaves(struct device *dev, struct device
 		__ATTR(w1_master_##_name, _mode,		\
 		       w1_master_attribute_show_##_name, NULL)
 
+#define W1_MASTER_ATTR_RW(_name, _mode)				\
+	struct device_attribute w1_master_attribute_##_name =	\
+		__ATTR(w1_master_##_name, _mode,		\
+		       w1_master_attribute_show_##_name,	\
+		       w1_master_attribute_store_##_name)
+
 static W1_MASTER_ATTR_RO(name, S_IRUGO);
 static W1_MASTER_ATTR_RO(slaves, S_IRUGO);
 static W1_MASTER_ATTR_RO(slave_count, S_IRUGO);
@@ -249,6 +288,7 @@ static W1_MASTER_ATTR_RO(max_slave_count, S_IRUGO);
 static W1_MASTER_ATTR_RO(attempts, S_IRUGO);
 static W1_MASTER_ATTR_RO(timeout, S_IRUGO);
 static W1_MASTER_ATTR_RO(pointer, S_IRUGO);
+static W1_MASTER_ATTR_RW(search, S_IRUGO | S_IWUGO);
 
 static struct attribute *w1_master_default_attrs[] = {
 	&w1_master_attribute_name.attr,
@@ -258,6 +298,7 @@ static struct attribute *w1_master_default_attrs[] = {
 	&w1_master_attribute_attempts.attr,
 	&w1_master_attribute_timeout.attr,
 	&w1_master_attribute_pointer.attr,
+	&w1_master_attribute_search.attr,
 	NULL
 };
 
@@ -643,11 +684,14 @@ int w1_process(void *data)
 		if (!dev->initialized)
 			continue;
 
+		if (dev->search_count == 0)
+			continue;
+
 		if (down_interruptible(&dev->mutex))
 			continue;
 
 		list_for_each_entry(sl, &dev->slist, w1_slave_entry)
-				clear_bit(W1_SLAVE_ACTIVE, (long *)&sl->flags);
+			clear_bit(W1_SLAVE_ACTIVE, (long *)&sl->flags);
 
 		w1_search_devices(dev, w1_slave_found);
 
@@ -662,6 +706,10 @@ int w1_process(void *data)
 			} else if (test_bit(W1_SLAVE_ACTIVE, (unsigned long *)&sl->flags))
 				sl->ttl = dev->slave_ttl;
 		}
+
+		if (dev->search_count > 0)
+			dev->search_count--;
+
 		up(&dev->mutex);
 	}
 

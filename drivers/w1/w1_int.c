@@ -69,6 +69,7 @@ static struct w1_master * w1_alloc_dev(u32 id, int slave_count, int slave_ttl,
 	dev->initialized	= 0;
 	dev->id			= id;
 	dev->slave_ttl		= slave_ttl;
+        dev->search_count	= -1; /* continual scan */
 
 	atomic_set(&dev->refcnt, 2);
 

@@ -162,6 +162,7 @@ struct w1_master
 	int			slave_ttl;
 	int			initialized;
 	u32			id;
+	int			search_count;
 
 	atomic_t		refcnt;
 
