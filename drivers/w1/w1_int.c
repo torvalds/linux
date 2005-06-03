@@ -121,6 +121,14 @@ int w1_add_master_device(struct w1_bus_master *master)
 	int retval = 0;
 	struct w1_netlink_msg msg;
 
+        /* validate minimum functionality */
+        if (!(master->touch_bit && master->reset_bus) &&
+            !(master->write_bit && master->read_bit))
+        {
+           printk(KERN_ERR "w1_add_master_device: invalid function set\n");
+           return(-EINVAL);
+        }
+
 	dev = w1_alloc_dev(w1_ids++, w1_max_slave_count, w1_max_slave_ttl, &w1_driver, &w1_device);
 	if (!dev)
 		return -ENOMEM;
