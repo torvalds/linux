@@ -674,6 +674,17 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
           stage of boot sequence.  See "Early Buffer Allocation"
 	  section.
 
+  Module snd-hdspm
+  ----------------
+
+    Module for RME HDSP MADI board.
+
+    precise_ptr		- Enable precise pointer, or disable.
+    line_outs_monitor	- Send playback streams to analog outs by default.
+    enable_monitor	- Enable Analog Out on Channel 63/64 by default.
+
+    See hdspm.txt for details.
+
   Module snd-ice1712
   ------------------
 
