@@ -2552,9 +2552,9 @@ static void ahc_linux_set_period(struct scsi_target *starget, int period)
 				      starget->channel + 'A',
 				      shost->this_id, starget->id, &tstate);
 	struct ahc_devinfo devinfo;
-	unsigned int ppr_options = tinfo->curr.ppr_options;
+	unsigned int ppr_options = tinfo->goal.ppr_options;
 	unsigned long flags;
-	unsigned long offset = tinfo->curr.offset;
+	unsigned long offset = tinfo->goal.offset;
 	struct ahc_syncrate *syncrate;
 
 	if (offset == 0)
@@ -2600,8 +2600,8 @@ static void ahc_linux_set_offset(struct scsi_target *starget, int offset)
 			    starget->channel + 'A', ROLE_INITIATOR);
 	if (offset != 0) {
 		syncrate = ahc_find_syncrate(ahc, &period, &ppr_options, AHC_SYNCRATE_DT);
-		period = tinfo->curr.period;
-		ppr_options = tinfo->curr.ppr_options;
+		period = tinfo->goal.period;
+		ppr_options = tinfo->goal.ppr_options;
 	}
 	ahc_lock(ahc, &flags);
 	ahc_set_syncrate(ahc, &devinfo, syncrate, period, offset,
@@ -2619,9 +2619,9 @@ static void ahc_linux_set_dt(struct scsi_target *starget, int dt)
 				      starget->channel + 'A',
 				      shost->this_id, starget->id, &tstate);
 	struct ahc_devinfo devinfo;
-	unsigned int ppr_options = tinfo->curr.ppr_options
+	unsigned int ppr_options = tinfo->goal.ppr_options
 		& ~MSG_EXT_PPR_DT_REQ;
-	unsigned int period = tinfo->curr.period;
+	unsigned int period = tinfo->goal.period;
 	unsigned long flags;
 	struct ahc_syncrate *syncrate;
 
@@ -2635,7 +2635,7 @@ static void ahc_linux_set_dt(struct scsi_target *starget, int dt)
 			    starget->channel + 'A', ROLE_INITIATOR);
 	syncrate = ahc_find_syncrate(ahc, &period, &ppr_options,AHC_SYNCRATE_DT);
 	ahc_lock(ahc, &flags);
-	ahc_set_syncrate(ahc, &devinfo, syncrate, period, tinfo->curr.offset,
+	ahc_set_syncrate(ahc, &devinfo, syncrate, period, tinfo->goal.offset,
 			 ppr_options, AHC_TRANS_GOAL, FALSE);
 	ahc_unlock(ahc, &flags);
 }
@@ -2650,9 +2650,9 @@ static void ahc_linux_set_qas(struct scsi_target *starget, int qas)
 				      starget->channel + 'A',
 				      shost->this_id, starget->id, &tstate);
 	struct ahc_devinfo devinfo;
-	unsigned int ppr_options = tinfo->curr.ppr_options
+	unsigned int ppr_options = tinfo->goal.ppr_options
 		& ~MSG_EXT_PPR_QAS_REQ;
-	unsigned int period = tinfo->curr.period;
+	unsigned int period = tinfo->goal.period;
 	unsigned long flags;
 	struct ahc_syncrate *syncrate;
 
@@ -2663,7 +2663,7 @@ static void ahc_linux_set_qas(struct scsi_target *starget, int qas)
 			    starget->channel + 'A', ROLE_INITIATOR);
 	syncrate = ahc_find_syncrate(ahc, &period, &ppr_options, AHC_SYNCRATE_DT);
 	ahc_lock(ahc, &flags);
-	ahc_set_syncrate(ahc, &devinfo, syncrate, period, tinfo->curr.offset,
+	ahc_set_syncrate(ahc, &devinfo, syncrate, period, tinfo->goal.offset,
 			 ppr_options, AHC_TRANS_GOAL, FALSE);
 	ahc_unlock(ahc, &flags);
 }
@@ -2678,9 +2678,9 @@ static void ahc_linux_set_iu(struct scsi_target *starget, int iu)
 				      starget->channel + 'A',
 				      shost->this_id, starget->id, &tstate);
 	struct ahc_devinfo devinfo;
-	unsigned int ppr_options = tinfo->curr.ppr_options
+	unsigned int ppr_options = tinfo->goal.ppr_options
 		& ~MSG_EXT_PPR_IU_REQ;
-	unsigned int period = tinfo->curr.period;
+	unsigned int period = tinfo->goal.period;
 	unsigned long flags;
 	struct ahc_syncrate *syncrate;
 
@@ -2691,7 +2691,7 @@ static void ahc_linux_set_iu(struct scsi_target *starget, int iu)
 			    starget->channel + 'A', ROLE_INITIATOR);
 	syncrate = ahc_find_syncrate(ahc, &period, &ppr_options, AHC_SYNCRATE_DT);
 	ahc_lock(ahc, &flags);
-	ahc_set_syncrate(ahc, &devinfo, syncrate, period, tinfo->curr.offset,
+	ahc_set_syncrate(ahc, &devinfo, syncrate, period, tinfo->goal.offset,
 			 ppr_options, AHC_TRANS_GOAL, FALSE);
 	ahc_unlock(ahc, &flags);
 }
