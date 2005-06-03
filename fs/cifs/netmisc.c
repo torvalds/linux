@@ -133,7 +133,6 @@ static const struct smb_to_posix_error mapping_table_ERRHRD[] = {
 int
 cifs_inet_pton(int address_family, char *cp,void *dst)
 {
-	struct in_addr address;
 	int value;
 	int digit;
 	int i;
@@ -190,8 +189,7 @@ cifs_inet_pton(int address_family, char *cp,void *dst)
 	if (value > addr_class_max[end - bytes])
 		return 0;
 
-	address.s_addr = *((__be32 *) bytes) | htonl(value);
-	*((__be32 *)dst) = address.s_addr;
+	*((__be32 *)dst) = *((__be32 *) bytes) | htonl(value);
 	return 1; /* success */
 }
 
