@@ -469,6 +469,8 @@ static void w1_slave_detach(struct w1_slave *sl)
 	device_unregister(&sl->dev);
 	w1_family_put(sl->family);
 
+	sl->master->slave_count--;
+
 	memcpy(&msg.id.id, &sl->reg_num, sizeof(msg.id.id));
 	msg.type = W1_SLAVE_REMOVE;
 	w1_netlink_send(sl->master, &msg);
@@ -491,6 +493,20 @@ static struct w1_master *w1_search_master(unsigned long data)
 
 	return (found)?dev:NULL;
 }
+
+void w1_reconnect_slaves(struct w1_family *f)
+{
+	struct w1_master *dev;
+
+	spin_lock_bh(&w1_mlock);
+	list_for_each_entry(dev, &w1_masters, w1_master_entry) {
+		dev_info(&dev->dev, "Reconnecting slaves in %s into new family %02x.\n",
+				dev->name, f->fid);
+		set_bit(W1_MASTER_NEED_RECONNECT, &dev->flags);
+	}
+	spin_unlock_bh(&w1_mlock);
+}
+
 
 static void w1_slave_found(unsigned long data, u64 rn)
 {
@@ -637,7 +653,7 @@ static int w1_control(void *data)
 			flush_signals(current);
 
 		list_for_each_entry_safe(dev, n, &w1_masters, w1_master_entry) {
-			if (!control_needs_exit && !dev->need_exit)
+			if (!control_needs_exit && !dev->flags)
 				continue;
 			/*
 			 * Little race: we can create thread but not set the flag.
@@ -648,12 +664,8 @@ static int w1_control(void *data)
 				continue;
 			}
 
-			spin_lock_bh(&w1_mlock);
-			list_del(&dev->w1_master_entry);
-			spin_unlock_bh(&w1_mlock);
-
 			if (control_needs_exit) {
-				dev->need_exit = 1;
+				set_bit(W1_MASTER_NEED_EXIT, &dev->flags);
 
 				err = kill_proc(dev->kpid, SIGTERM, 1);
 				if (err)
@@ -662,16 +674,42 @@ static int w1_control(void *data)
 						 dev->kpid);
 			}
 
-			wait_for_completion(&dev->dev_exited);
+			if (test_bit(W1_MASTER_NEED_EXIT, &dev->flags)) {
+				wait_for_completion(&dev->dev_exited);
+				spin_lock_bh(&w1_mlock);
+				list_del(&dev->w1_master_entry);
+				spin_unlock_bh(&w1_mlock);
 
-			list_for_each_entry_safe(sl, sln, &dev->slist, w1_slave_entry) {
-				list_del(&sl->w1_slave_entry);
+				list_for_each_entry_safe(sl, sln, &dev->slist, w1_slave_entry) {
+					list_del(&sl->w1_slave_entry);
 
-				w1_slave_detach(sl);
-				kfree(sl);
+					w1_slave_detach(sl);
+					kfree(sl);
+				}
+				w1_destroy_master_attributes(dev);
+				atomic_dec(&dev->refcnt);
+				continue;
 			}
-			w1_destroy_master_attributes(dev);
-			atomic_dec(&dev->refcnt);
+
+			if (test_bit(W1_MASTER_NEED_RECONNECT, &dev->flags)) {
+				dev_info(&dev->dev, "Reconnecting slaves in device %s.\n", dev->name);
+				down(&dev->mutex);
+				list_for_each_entry(sl, &dev->slist, w1_slave_entry) {
+					if (sl->family->fid == W1_FAMILY_DEFAULT) {
+						struct w1_reg_num rn;
+						list_del(&sl->w1_slave_entry);
+						w1_slave_detach(sl);
+
+						memcpy(&rn, &sl->reg_num, sizeof(rn));
+
+						kfree(sl);
+
+						w1_attach_slave_device(dev, &rn);
+					}
+				}
+				clear_bit(W1_MASTER_NEED_RECONNECT, &dev->flags);
+				up(&dev->mutex);
+			}
 		}
 	}
 
@@ -686,14 +724,14 @@ int w1_process(void *data)
 	daemonize("%s", dev->name);
 	allow_signal(SIGTERM);
 
-	while (!dev->need_exit) {
+	while (!test_bit(W1_MASTER_NEED_EXIT, &dev->flags)) {
 		try_to_freeze(PF_FREEZE);
 		msleep_interruptible(w1_timeout * 1000);
 
 		if (signal_pending(current))
 			flush_signals(current);
 
-		if (dev->need_exit)
+		if (test_bit(W1_MASTER_NEED_EXIT, &dev->flags))
 			break;
 
 		if (!dev->initialized)

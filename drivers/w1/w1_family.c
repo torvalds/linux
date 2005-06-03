@@ -60,8 +60,9 @@ int w1_register_family(struct w1_family *newf)
 		newf->need_exit = 0;
 		list_add_tail(&newf->family_entry, &w1_families);
 	}
-
 	spin_unlock(&w1_flock);
+
+	w1_reconnect_slaves(newf);
 
 	return ret;
 }

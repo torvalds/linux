@@ -151,6 +151,9 @@ struct w1_bus_master
 	void		(*search)(unsigned long, w1_slave_found_callback);
 };
 
+#define W1_MASTER_NEED_EXIT		0
+#define W1_MASTER_NEED_RECONNECT	1
+
 struct w1_master
 {
 	struct list_head	w1_master_entry;
@@ -169,7 +172,8 @@ struct w1_master
 	void			*priv;
 	int			priv_size;
 
-	int			need_exit;
+	long			flags;
+
 	pid_t			kpid;
 	struct semaphore	mutex;
 

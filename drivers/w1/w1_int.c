@@ -124,10 +124,9 @@ int w1_add_master_device(struct w1_bus_master *master)
 
         /* validate minimum functionality */
         if (!(master->touch_bit && master->reset_bus) &&
-            !(master->write_bit && master->read_bit))
-        {
-           printk(KERN_ERR "w1_add_master_device: invalid function set\n");
-           return(-EINVAL);
+            !(master->write_bit && master->read_bit)) {
+		printk(KERN_ERR "w1_add_master_device: invalid function set\n");
+		return(-EINVAL);
         }
 
 	dev = w1_alloc_dev(w1_ids++, w1_max_slave_count, w1_max_slave_ttl, &w1_driver, &w1_device);
@@ -163,7 +162,7 @@ int w1_add_master_device(struct w1_bus_master *master)
 	return 0;
 
 err_out_kill_thread:
-	dev->need_exit = 1;
+	set_bit(W1_MASTER_NEED_EXIT, &dev->flags);
 	if (kill_proc(dev->kpid, SIGTERM, 1))
 		dev_err(&dev->dev,
 			 "Failed to send signal to w1 kernel thread %d.\n",
@@ -181,7 +180,7 @@ void __w1_remove_master_device(struct w1_master *dev)
 	int err;
 	struct w1_netlink_msg msg;
 
-	dev->need_exit = 1;
+	set_bit(W1_MASTER_NEED_EXIT, &dev->flags);
 	err = kill_proc(dev->kpid, SIGTERM, 1);
 	if (err)
 		dev_err(&dev->dev,
