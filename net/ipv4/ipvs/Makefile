@@ -11,7 +11,7 @@ ip_vs_proto-objs-$(CONFIG_IP_VS_PROTO_AH) += ip_vs_proto_ah.o
 
 ip_vs-objs :=	ip_vs_conn.o ip_vs_core.o ip_vs_ctl.o ip_vs_sched.o	   \
 		ip_vs_xmit.o ip_vs_app.o ip_vs_sync.o	   		   \
-		ip_vs_est.o ip_vs_proto.o ip_vs_proto_icmp.o		   \
+		ip_vs_est.o ip_vs_proto.o 				   \
 		$(ip_vs_proto-objs-y)
 
 
