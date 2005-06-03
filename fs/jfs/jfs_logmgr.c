@@ -1617,6 +1617,8 @@ void jfs_flush_journal(struct jfs_log *log, int wait)
 		}
 	}
 	assert(list_empty(&log->cqueue));
+
+#ifdef CONFIG_JFS_DEBUG
 	if (!list_empty(&log->synclist)) {
 		struct logsyncblk *lp;
 
@@ -1631,9 +1633,8 @@ void jfs_flush_journal(struct jfs_log *log, int wait)
 				dump_mem("orphan tblock", lp,
 					 sizeof(struct tblock));
 		}
-//		current->state = TASK_INTERRUPTIBLE;
-//		schedule();
 	}
+#endif
 	//assert(list_empty(&log->synclist));
 	clear_bit(log_FLUSH, &log->flag);
 }
