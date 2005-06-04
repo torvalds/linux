@@ -1412,7 +1412,6 @@ static int bmac_open(struct net_device *dev)
 	bp->opened = 1;
 	bmac_reset_and_enable(dev);
 	enable_irq(dev->irq);
-	dev->flags |= IFF_RUNNING;
 	return 0;
 }
 
@@ -1425,7 +1424,6 @@ static int bmac_close(struct net_device *dev)
 	int i;
 
 	bp->sleeping = 1;
-	dev->flags &= ~(IFF_UP | IFF_RUNNING);
 
 	/* disable rx and tx */
 	config = bmread(dev, RXCFG);
