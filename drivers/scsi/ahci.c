@@ -134,6 +134,9 @@ enum {
 	PORT_CMD_ICC_ACTIVE	= (0x1 << 28), /* Put i/f in active state */
 	PORT_CMD_ICC_PARTIAL	= (0x2 << 28), /* Put i/f in partial state */
 	PORT_CMD_ICC_SLUMBER	= (0x6 << 28), /* Put i/f in slumber state */
+
+	/* hpriv->flags bits */
+	AHCI_FLAG_MSI		= (1 << 0),
 };
 
 struct ahci_cmd_hdr {
@@ -153,7 +156,6 @@ struct ahci_sg {
 
 struct ahci_host_priv {
 	unsigned long		flags;
-	unsigned int		have_msi; /* is PCI MSI enabled? */
 	u32			cap;	/* cache of HOST_CAP register */
 	u32			port_map; /* cache of HOST_PORTS_IMPL reg */
 };
@@ -797,8 +799,6 @@ static int ahci_host_init(struct ata_probe_ent *probe_ent)
 				return rc;
 			}
 		}
-
-		hpriv->flags |= HOST_CAP_64;
 	} else {
 		rc = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
 		if (rc) {
@@ -1036,7 +1036,8 @@ static int ahci_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	probe_ent->mmio_base = mmio_base;
 	probe_ent->private_data = hpriv;
 
-	hpriv->have_msi = have_msi;
+	if (have_msi)
+		hpriv->flags |= AHCI_FLAG_MSI;
 
 	/* initialize adapter */
 	rc = ahci_host_init(probe_ent);
@@ -1084,7 +1085,7 @@ static void ahci_remove_one (struct pci_dev *pdev)
 		scsi_remove_host(ap->host);
 	}
 
-	have_msi = hpriv->have_msi;
+	have_msi = hpriv->flags & AHCI_FLAG_MSI;
 	free_irq(host_set->irq, host_set);
 
 	for (i = 0; i < host_set->n_ports; i++) {
