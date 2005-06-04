@@ -1001,21 +1001,6 @@ config EEXPRESS_PRO
 	  <file:Documentation/networking/net-modules.txt>. The module
 	  will be called eepro.
 
-config FMV18X
-	tristate "FMV-181/182/183/184 support (OBSOLETE)"
-	depends on NET_ISA && OBSOLETE
-	---help---
-	  If you have a Fujitsu FMV-181/182/183/184 network (Ethernet) card,
-	  say Y and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  If you use an FMV-183 or FMV-184 and it is not working, you may need
-	  to disable Plug & Play mode of the card.
-
-	  To compile this driver as a module, choose M here and read
-	  <file:Documentation/networking/net-modules.txt>. The module
-	  will be called fmv18x.
-
 config HPLAN_PLUS
 	tristate "HP PCLAN+ (27247B and 27252A) support"
 	depends on NET_ISA
@@ -1103,14 +1088,6 @@ config SEEQ8005
 	  To compile this driver as a module, choose M here and read
 	  <file:Documentation/networking/net-modules.txt>. The module
 	  will be called seeq8005.
-
-config SK_G16
-	tristate "SK_G16 support (OBSOLETE)"
-	depends on NET_ISA && OBSOLETE
-	help
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
 
 config SKMC
 	tristate "SKnet MCA support"
