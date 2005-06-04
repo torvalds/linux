@@ -154,7 +154,7 @@
 						 * bit 9 0 = Mute / 1 = Analog out.
 						 * bit 10 0 = Line-in / 1 = Mic-in.
 						 * bit 11 0 = ? / 1 = ?
-						 * bit 12 0 = ? / 1 = ?
+						 * bit 12 0 = 48 Khz / 1 = 96 Khz Analog out on SB Live 24bit.
 						 * bit 13 0 = ? / 1 = ?
 						 * bit 14 0 = Mute / 1 = Analog out
 						 * bit 15 0 = ? / 1 = ?

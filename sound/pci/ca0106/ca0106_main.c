@@ -1277,7 +1277,7 @@ static int __devinit snd_ca0106_create(snd_card_t *card,
 		/* FIXME: Still need to find out what the other GPIO bits do. E.g. For digital spdif out. */
 		outl(0x0, chip->port+GPIO);
 		//outl(0x00f0e000, chip->port+GPIO); /* Analog */
-		outl(0x005f4301, chip->port+GPIO); /* Analog */
+		outl(0x005f5301, chip->port+GPIO); /* Analog */
 	} else {
 		outl(0x0, chip->port+GPIO);
 		outl(0x005f03a3, chip->port+GPIO); /* Analog */
