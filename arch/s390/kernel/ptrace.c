@@ -761,6 +761,13 @@ syscall_trace(struct pt_regs *regs, int entryexit)
 				 ? 0x80 : 0));
 
 	/*
+	 * If the debuffer has set an invalid system call number,
+	 * we prepare to skip the system call restart handling.
+	 */
+	if (!entryexit && regs->gprs[2] >= NR_syscalls)
+		regs->trap = -1;
+
+	/*
 	 * this isn't the same as continuing with a signal, but it will do
 	 * for normal use.  strace only continues with a signal if the
 	 * stopping signal is not SIGTRAP.  -brl
