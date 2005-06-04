@@ -49,10 +49,10 @@
 /* PCI interrupt controller */
 #define PCI_INT_STAT_REG	0xF8200000
 #define PCI_INT_MASK_REG	0xF8200004
-#define PIRQA			(NR_SIU_INTS + 0)
-#define PIRQB			(NR_SIU_INTS + 1)
-#define PIRQC			(NR_SIU_INTS + 2)
-#define PIRQD			(NR_SIU_INTS + 3)
+#define PIRQA			(NR_CPM_INTS + 0)
+#define PIRQB			(NR_CPM_INTS + 1)
+#define PIRQC			(NR_CPM_INTS + 2)
+#define PIRQD			(NR_CPM_INTS + 3)
 
 /*
  * PCI memory map definitions for MPC8266ADS-PCI.
@@ -68,28 +68,23 @@
  *	0x00000000-0x1FFFFFFF	0x00000000-0x1FFFFFFF	MPC8266 local memory
  */
 
-/* window for a PCI master to access MPC8266 memory */
-#define PCI_SLV_MEM_LOCAL	0x00000000	/* Local base */
-#define PCI_SLV_MEM_BUS		0x00000000	/* PCI base */
+/* All the other PCI memory map definitions reside at syslib/m82xx_pci.h
+   Here we should redefine what is unique for this board */
+#define M82xx_PCI_SLAVE_MEM_LOCAL	0x00000000	/* Local base */
+#define M82xx_PCI_SLAVE_MEM_BUS		0x00000000	/* PCI base */
+#define M82xx_PCI_SLAVE_MEM_SIZE	0x10000000	/* 256 Mb */
 
-/* window for the processor to access PCI memory with prefetching */
-#define PCI_MSTR_MEM_LOCAL	0x80000000	/* Local base */
-#define PCI_MSTR_MEM_BUS	0x80000000	/* PCI base   */
-#define PCI_MSTR_MEM_SIZE	0x20000000	/* 512MB */
+#define M82xx_PCI_SLAVE_SEC_WND_SIZE	~(0x40000000 - 1U)	/* 2 x 512Mb  */
+#define M82xx_PCI_SLAVE_SEC_WND_BASE	0x80000000		/* PCI Memory base */
 
-/* window for the processor to access PCI memory without prefetching */
-#define PCI_MSTR_MEMIO_LOCAL	0xA0000000	/* Local base */
-#define PCI_MSTR_MEMIO_BUS	0xA0000000	/* PCI base   */
-#define PCI_MSTR_MEMIO_SIZE	0x20000000	/* 512MB */
+#if defined(CONFIG_ADS8272)
+#define PCI_INT_TO_SIU 	SIU_INT_IRQ2
+#elif defined(CONFIG_PQ2FADS)
+#define PCI_INT_TO_SIU 	SIU_INT_IRQ6
+#else
+#warning PCI Bridge will be without interrupts support
+#endif
 
-/* window for the processor to access PCI I/O */
-#define PCI_MSTR_IO_LOCAL	0xF4000000	/* Local base */
-#define PCI_MSTR_IO_BUS         0x00000000	/* PCI base   */
-#define PCI_MSTR_IO_SIZE        0x04000000	/* 64MB */
-
-#define _IO_BASE		PCI_MSTR_IO_LOCAL
-#define _ISA_MEM_BASE		PCI_MSTR_MEMIO_LOCAL
-#define PCI_DRAM_OFFSET		PCI_SLV_MEM_BUS
 #endif /* CONFIG_PCI */
 
 #endif /* __MACH_ADS8260_DEFS */

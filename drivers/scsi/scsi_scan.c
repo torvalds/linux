@@ -1197,6 +1197,7 @@ struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
 	if (!starget)
 		return ERR_PTR(-ENOMEM);
 
+	get_device(&starget->dev);
 	down(&shost->scan_mutex);
 	res = scsi_probe_and_add_lun(starget, lun, NULL, &sdev, 1, hostdata);
 	if (res != SCSI_SCAN_LUN_PRESENT)

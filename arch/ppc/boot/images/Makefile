@@ -22,7 +22,8 @@ targets += uImage
 $(obj)/uImage: $(obj)/vmlinux.gz
 	$(Q)rm -f $@
 	$(call if_changed,uimage)
-	@echo '  Image: $@' $(if $(wildcard $@),'is ready','not made')
+	@echo -n '  Image: $@ '
+	@if [ -f $@ ]; then echo 'is ready' ; else echo 'not made'; fi
 
 # Files generated that shall be removed upon make clean
 clean-files	:= sImage vmapus vmlinux* miboot* zImage* uImage

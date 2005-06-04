@@ -183,7 +183,7 @@ int dibusb_fe_init(struct usb_dibusb* dib)
 		       dib->dibdev->name);
 		return -ENODEV;
 	} else {
-		if (dvb_register_frontend(dib->adapter, dib->fe)) {
+		if (dvb_register_frontend(&dib->adapter, dib->fe)) {
 			err("Frontend registration failed.");
 			if (dib->fe->ops->release)
 				dib->fe->ops->release(dib->fe);
@@ -206,7 +206,7 @@ int dibusb_i2c_init(struct usb_dibusb *dib)
 {
 	int ret = 0;
 
-	dib->adapter->priv = dib;
+	dib->adapter.priv = dib;
 
 	strncpy(dib->i2c_adap.name,dib->dibdev->name,I2C_NAME_SIZE);
 #ifdef I2C_ADAP_CLASS_TV_DIGITAL

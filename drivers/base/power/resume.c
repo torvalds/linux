@@ -22,8 +22,17 @@ extern int sysdev_resume(void);
 
 int resume_device(struct device * dev)
 {
-	if (dev->bus && dev->bus->resume)
+	if (dev->power.pm_parent
+			&& dev->power.pm_parent->power.power_state) {
+		dev_err(dev, "PM: resume from %d, parent %s still %d\n",
+			dev->power.power_state,
+			dev->power.pm_parent->bus_id,
+			dev->power.pm_parent->power.power_state);
+	}
+	if (dev->bus && dev->bus->resume) {
+		dev_dbg(dev,"resuming\n");
 		return dev->bus->resume(dev);
+	}
 	return 0;
 }
 

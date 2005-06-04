@@ -193,6 +193,12 @@ static  int aui[MAX_TLAN_BOARDS];
 static  int duplex[MAX_TLAN_BOARDS];
 static  int speed[MAX_TLAN_BOARDS];
 static  int boards_found;
+module_param_array(aui, int, NULL, 0);
+module_param_array(duplex, int, NULL, 0);
+module_param_array(speed, int, NULL, 0);
+MODULE_PARM_DESC(aui, "ThunderLAN use AUI port(s) (0-1)");
+MODULE_PARM_DESC(duplex, "ThunderLAN duplex setting(s) (0-default, 1-half, 2-full)");
+MODULE_PARM_DESC(speed, "ThunderLAN port speen setting(s) (0,10,100)");
 
 MODULE_AUTHOR("Maintainer: Samuel Chessman <chessman@tux.org>");
 MODULE_DESCRIPTION("Driver for TI ThunderLAN based ethernet PCI adapters");
@@ -204,8 +210,13 @@ MODULE_LICENSE("GPL");
 
 /* Turn on debugging. See Documentation/networking/tlan.txt for details */
 static  int		debug;
+module_param(debug, int, 0);
+MODULE_PARM_DESC(debug, "ThunderLAN debug mask");
 
 static	int		bbuf;
+module_param(bbuf, int, 0);
+MODULE_PARM_DESC(bbuf, "ThunderLAN use big buffer (0-1)");
+
 static	u8		*TLanPadBuffer;
 static  dma_addr_t	TLanPadBufferDMA;
 static	char		TLanSignature[] = "TLAN";
@@ -2381,6 +2392,7 @@ TLan_FinishReset( struct net_device *dev )
 		TLan_SetTimer( dev, (10*HZ), TLAN_TIMER_FINISH_RESET );
 		return;
 	}
+	TLan_SetMulticastList(dev);
 
 } /* TLan_FinishReset */
 

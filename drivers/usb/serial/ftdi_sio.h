@@ -144,6 +144,8 @@
 
 /* ELV USB Module UO100 (PID sent by Stefan Frings) */
 #define FTDI_ELV_UO100_PID	0xFB58	/* Product Id */
+/* ELV USB Module UM100 (PID sent by Arnim Laeuger) */
+#define FTDI_ELV_UM100_PID	0xFB5A	/* Product Id */
 
 /*
  * Definitions for ID TECH (www.idt-net.com) devices

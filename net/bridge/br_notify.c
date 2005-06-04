@@ -65,6 +65,15 @@ static int br_device_event(struct notifier_block *unused, unsigned long event, v
 		}
 		break;
 
+	case NETDEV_FEAT_CHANGE:
+		if (br->dev->flags & IFF_UP) 
+			br_features_recompute(br);
+
+		/* could do recursive feature change notification
+		 * but who would care?? 
+		 */
+		break;
+
 	case NETDEV_DOWN:
 		if (br->dev->flags & IFF_UP)
 			br_stp_disable_port(p);

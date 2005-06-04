@@ -1075,7 +1075,7 @@ static int dvb_video_ioctl(struct inode *inode, struct file *file,
 		}
 		if (ret < 0)
 			break;
-		av7110->videostate.video_format = format;
+		av7110->videostate.display_format = format;
 		ret = av7110_fw_cmd(av7110, COMTYPE_ENCODER, SetPanScanType,
 				    1, (u16) val);
 		break;
@@ -1230,14 +1230,20 @@ static int dvb_audio_ioctl(struct inode *inode, struct file *file,
 		switch(av7110->audiostate.channel_select) {
 		case AUDIO_STEREO:
 			audcom(av7110, AUDIO_CMD_STEREO);
+			if (av7110->adac_type == DVB_ADAC_CRYSTAL)
+				i2c_writereg(av7110, 0x20, 0x02, 0x49);
 			break;
 
 		case AUDIO_MONO_LEFT:
 			audcom(av7110, AUDIO_CMD_MONO_L);
+			if (av7110->adac_type == DVB_ADAC_CRYSTAL)
+				i2c_writereg(av7110, 0x20, 0x02, 0x4a);
 			break;
 
 		case AUDIO_MONO_RIGHT:
 			audcom(av7110, AUDIO_CMD_MONO_R);
+			if (av7110->adac_type == DVB_ADAC_CRYSTAL)
+				i2c_writereg(av7110, 0x20, 0x02, 0x45);
 			break;
 
 		default:
@@ -1409,10 +1415,10 @@ int av7110_av_register(struct av7110 *av7110)
 	av7110->video_events.overflow = 0;
 	memset(&av7110->video_size, 0, sizeof (video_size_t));
 
-	dvb_register_device(av7110->dvb_adapter, &av7110->video_dev,
+	dvb_register_device(&av7110->dvb_adapter, &av7110->video_dev,
 			    &dvbdev_video, av7110, DVB_DEVICE_VIDEO);
 
-	dvb_register_device(av7110->dvb_adapter, &av7110->audio_dev,
+	dvb_register_device(&av7110->dvb_adapter, &av7110->audio_dev,
 			    &dvbdev_audio, av7110, DVB_DEVICE_AUDIO);
 
 	return 0;

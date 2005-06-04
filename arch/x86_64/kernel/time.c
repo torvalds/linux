@@ -26,6 +26,10 @@
 #include <linux/sysdev.h>
 #include <linux/bcd.h>
 #include <linux/kallsyms.h>
+#include <linux/acpi.h>
+#ifdef CONFIG_ACPI
+#include <acpi/achware.h>	/* for PM timer frequency */
+#endif
 #include <asm/8253pit.h>
 #include <asm/pgtable.h>
 #include <asm/vsyscall.h>
@@ -396,6 +400,10 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 			(offset - vxtime.last)*(NSEC_PER_SEC/HZ) / hpet_tick;
 
 		vxtime.last = offset;
+#ifdef CONFIG_X86_PM_TIMER
+	} else if (vxtime.mode == VXTIME_PMTMR) {
+		lost = pmtimer_mark_offset();
+#endif
 	} else {
 		offset = (((tsc - vxtime.last_tsc) *
 			   vxtime.tsc_quot) >> 32) - (USEC_PER_SEC / HZ);
@@ -898,6 +906,13 @@ void __init time_init(void)
 			hpet_period;
 		cpu_khz = hpet_calibrate_tsc();
 		timename = "HPET";
+#ifdef CONFIG_X86_PM_TIMER
+	} else if (pmtmr_ioport) {
+		vxtime_hz = PM_TIMER_FREQUENCY;
+		timename = "PM";
+		pit_init();
+		cpu_khz = pit_calibrate_tsc();
+#endif
 	} else {
 		pit_init();
 		cpu_khz = pit_calibrate_tsc();
@@ -923,35 +938,50 @@ void __init time_init(void)
 }
 
 /*
+ * Make an educated guess if the TSC is trustworthy and synchronized
+ * over all CPUs.
+ */
+static __init int unsynchronized_tsc(void)
+{
+#ifdef CONFIG_SMP
+	if (oem_force_hpet_timer())
+		return 1;
+ 	/* Intel systems are normally all synchronized. Exceptions
+ 	   are handled in the OEM check above. */
+ 	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
+ 		return 0;
+ 	/* All in a single socket - should be synchronized */
+ 	if (cpus_weight(cpu_core_map[0]) == num_online_cpus())
+ 		return 0;
+#endif
+ 	/* Assume multi socket systems are not synchronized */
+ 	return num_online_cpus() > 1;
+}
+
+/*
  * Decide after all CPUs are booted what mode gettimeofday should use.
  */
 void __init time_init_gtod(void)
 {
 	char *timetype;
 
-	/*
-	 * AMD systems with more than one CPU don't have fully synchronized
-	 * TSCs. Always use HPET gettimeofday for these, although it is slower.
-	 * Intel SMP systems usually have synchronized TSCs, so use always
-	 * the TSC.
-	 *
-	 * Exceptions:
-	 * IBM Summit2 checked by oem_force_hpet_timer().
- 	 * AMD dual core may also not need HPET. Check me.
-	 *
-	 * Can be turned off with "notsc".
-	 */
-	if (num_online_cpus() > 1 &&
-	    boot_cpu_data.x86_vendor == X86_VENDOR_AMD)
-		notsc = 1;
-	/* Some systems will want to disable TSC and use HPET. */
-	if (oem_force_hpet_timer())
+	if (unsynchronized_tsc())
 		notsc = 1;
 	if (vxtime.hpet_address && notsc) {
 		timetype = "HPET";
 		vxtime.last = hpet_readl(HPET_T0_CMP) - hpet_tick;
 		vxtime.mode = VXTIME_HPET;
 		do_gettimeoffset = do_gettimeoffset_hpet;
+#ifdef CONFIG_X86_PM_TIMER
+	/* Using PM for gettimeofday is quite slow, but we have no other
+	   choice because the TSC is too unreliable on some systems. */
+	} else if (pmtmr_ioport && !vxtime.hpet_address && notsc) {
+		timetype = "PM";
+		do_gettimeoffset = do_gettimeoffset_pm;
+		vxtime.mode = VXTIME_PMTMR;
+		sysctl_vsyscall = 0;
+		printk(KERN_INFO "Disabling vsyscall due to use of PM timer\n");
+#endif
 	} else {
 		timetype = vxtime.hpet_address ? "HPET/TSC" : "PIT/TSC";
 		vxtime.mode = VXTIME_TSC;

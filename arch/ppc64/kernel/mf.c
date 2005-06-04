@@ -1,7 +1,7 @@
 /*
   * mf.c
   * Copyright (C) 2001 Troy D. Armstrong  IBM Corporation
-  * Copyright (C) 2004 Stephen Rothwell  IBM Corporation
+  * Copyright (C) 2004-2005 Stephen Rothwell  IBM Corporation
   *
   * This modules exists as an interface between a Linux secondary partition
   * running on an iSeries and the primary partition's Virtual Service
@@ -36,10 +36,12 @@
 
 #include <asm/time.h>
 #include <asm/uaccess.h>
+#include <asm/paca.h>
 #include <asm/iSeries/vio.h>
 #include <asm/iSeries/mf.h>
 #include <asm/iSeries/HvLpConfig.h>
 #include <asm/iSeries/ItSpCommArea.h>
+#include <asm/iSeries/ItLpQueue.h>
 
 /*
  * This is the structure layout for the Machine Facilites LPAR event
@@ -696,36 +698,23 @@ static void get_rtc_time_complete(void *token, struct ce_msg_data *ce_msg)
 	complete(&rtc->com);
 }
 
-int mf_get_rtc(struct rtc_time *tm)
+static int rtc_set_tm(int rc, u8 *ce_msg, struct rtc_time *tm)
 {
-	struct ce_msg_comp_data ce_complete;
-	struct rtc_time_data rtc_data;
-	int rc;
-
-	memset(&ce_complete, 0, sizeof(ce_complete));
-	memset(&rtc_data, 0, sizeof(rtc_data));
-	init_completion(&rtc_data.com);
-	ce_complete.handler = &get_rtc_time_complete;
-	ce_complete.token = &rtc_data;
-	rc = signal_ce_msg_simple(0x40, &ce_complete);
-	if (rc)
-		return rc;
-	wait_for_completion(&rtc_data.com);
 	tm->tm_wday = 0;
 	tm->tm_yday = 0;
 	tm->tm_isdst = 0;
-	if (rtc_data.rc) {
+	if (rc) {
 		tm->tm_sec = 0;
 		tm->tm_min = 0;
 		tm->tm_hour = 0;
 		tm->tm_mday = 15;
 		tm->tm_mon = 5;
 		tm->tm_year = 52;
-		return rtc_data.rc;
+		return rc;
 	}
 
-	if ((rtc_data.ce_msg.ce_msg[2] == 0xa9) ||
-	    (rtc_data.ce_msg.ce_msg[2] == 0xaf)) {
+	if ((ce_msg[2] == 0xa9) ||
+	    (ce_msg[2] == 0xaf)) {
 		/* TOD clock is not set */
 		tm->tm_sec = 1;
 		tm->tm_min = 1;
@@ -736,7 +725,6 @@ int mf_get_rtc(struct rtc_time *tm)
 		mf_set_rtc(tm);
 	}
 	{
-		u8 *ce_msg = rtc_data.ce_msg.ce_msg;
 		u8 year = ce_msg[5];
 		u8 sec = ce_msg[6];
 		u8 min = ce_msg[7];
@@ -763,6 +751,63 @@ int mf_get_rtc(struct rtc_time *tm)
 	}
 
 	return 0;
+}
+
+int mf_get_rtc(struct rtc_time *tm)
+{
+	struct ce_msg_comp_data ce_complete;
+	struct rtc_time_data rtc_data;
+	int rc;
+
+	memset(&ce_complete, 0, sizeof(ce_complete));
+	memset(&rtc_data, 0, sizeof(rtc_data));
+	init_completion(&rtc_data.com);
+	ce_complete.handler = &get_rtc_time_complete;
+	ce_complete.token = &rtc_data;
+	rc = signal_ce_msg_simple(0x40, &ce_complete);
+	if (rc)
+		return rc;
+	wait_for_completion(&rtc_data.com);
+	return rtc_set_tm(rtc_data.rc, rtc_data.ce_msg.ce_msg, tm);
+}
+
+struct boot_rtc_time_data {
+	int busy;
+	struct ce_msg_data ce_msg;
+	int rc;
+};
+
+static void get_boot_rtc_time_complete(void *token, struct ce_msg_data *ce_msg)
+{
+	struct boot_rtc_time_data *rtc = token;
+
+	memcpy(&rtc->ce_msg, ce_msg, sizeof(rtc->ce_msg));
+	rtc->rc = 0;
+	rtc->busy = 0;
+}
+
+int mf_get_boot_rtc(struct rtc_time *tm)
+{
+	struct ce_msg_comp_data ce_complete;
+	struct boot_rtc_time_data rtc_data;
+	int rc;
+
+	memset(&ce_complete, 0, sizeof(ce_complete));
+	memset(&rtc_data, 0, sizeof(rtc_data));
+	rtc_data.busy = 1;
+	ce_complete.handler = &get_boot_rtc_time_complete;
+	ce_complete.token = &rtc_data;
+	rc = signal_ce_msg_simple(0x40, &ce_complete);
+	if (rc)
+		return rc;
+	/* We need to poll here as we are not yet taking interrupts */
+	while (rtc_data.busy) {
+		extern unsigned long lpevent_count;
+		struct ItLpQueue *lpq = get_paca()->lpqueue_ptr;
+		if (lpq && ItLpQueue_isLpIntPending(lpq))
+			lpevent_count += ItLpQueue_process(lpq, NULL);
+	}
+	return rtc_set_tm(rtc_data.rc, rtc_data.ce_msg.ce_msg, tm);
 }
 
 int mf_set_rtc(struct rtc_time *tm)

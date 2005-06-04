@@ -174,6 +174,7 @@ void tulip_mdio_write(struct net_device *dev, int phy_id, int location, int val)
 				break;
 		}
 		spin_unlock_irqrestore(&tp->mii_lock, flags);
+		return;
 	}
 		
 	/* Establish sync by sending 32 logic ones. */

@@ -131,7 +131,7 @@ int dibusb_dvb_init(struct usb_dibusb *dib)
 		deb_info("dvb_register_adapter failed: error %d", ret);
 		goto err;
 	}
-	dib->adapter->priv = dib;
+	dib->adapter.priv = dib;
 	
 /* i2c is done in dibusb_i2c_init */
 	
@@ -151,18 +151,18 @@ int dibusb_dvb_init(struct usb_dibusb *dib)
 	dib->dmxdev.filternum = dib->demux.filternum;
 	dib->dmxdev.demux = &dib->demux.dmx;
 	dib->dmxdev.capabilities = 0;
-	if ((ret = dvb_dmxdev_init(&dib->dmxdev, dib->adapter)) < 0) {
+	if ((ret = dvb_dmxdev_init(&dib->dmxdev, &dib->adapter)) < 0) {
 		err("dvb_dmxdev_init failed: error %d",ret);
 		goto err_dmx_dev;
 	}
 
-	dvb_net_init(dib->adapter, &dib->dvb_net, &dib->demux.dmx);
+	dvb_net_init(&dib->adapter, &dib->dvb_net, &dib->demux.dmx);
 
 	goto success;
 err_dmx_dev:
 	dvb_dmx_release(&dib->demux);
 err_dmx:
-	dvb_unregister_adapter(dib->adapter);
+	dvb_unregister_adapter(&dib->adapter);
 err:
 	return ret;
 success:
@@ -179,7 +179,7 @@ int dibusb_dvb_exit(struct usb_dibusb *dib)
 		dib->demux.dmx.close(&dib->demux.dmx);
 		dvb_dmxdev_release(&dib->dmxdev);
 		dvb_dmx_release(&dib->demux);
-		dvb_unregister_adapter(dib->adapter);
+		dvb_unregister_adapter(&dib->adapter);
 	}
 	return 0;
 }

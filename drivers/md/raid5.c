@@ -1620,9 +1620,6 @@ static int run (mddev_t *mddev)
 	atomic_set(&conf->active_stripes, 0);
 	atomic_set(&conf->preread_active_stripes, 0);
 
-	mddev->queue->unplug_fn = raid5_unplug_device;
-	mddev->queue->issue_flush_fn = raid5_issue_flush;
-
 	PRINTK("raid5: run(%s) called.\n", mdname(mddev));
 
 	ITERATE_RDEV(mddev,rdev,tmp) {
@@ -1728,6 +1725,10 @@ memory = conf->max_nr_stripes * (sizeof(struct stripe_head) +
 	}
 
 	/* Ok, everything is just fine now */
+
+	mddev->queue->unplug_fn = raid5_unplug_device;
+	mddev->queue->issue_flush_fn = raid5_issue_flush;
+
 	mddev->array_size =  mddev->size * (mddev->raid_disks - 1);
 	return 0;
 abort:

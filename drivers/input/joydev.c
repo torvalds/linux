@@ -422,7 +422,7 @@ static struct input_handle *joydev_connect(struct input_handler *handler, struct
 			joydev->nkey++;
 		}
 
-	for (i = 0; i < BTN_JOYSTICK - BTN_MISC + 1; i++)
+	for (i = 0; i < BTN_JOYSTICK - BTN_MISC; i++)
 		if (test_bit(i + BTN_MISC, dev->keybit)) {
 			joydev->keymap[i] = joydev->nkey;
 			joydev->keypam[joydev->nkey] = i + BTN_MISC;
