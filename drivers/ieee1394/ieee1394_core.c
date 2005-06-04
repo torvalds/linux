@@ -520,7 +520,7 @@ int hpsb_send_packet(struct hpsb_packet *packet)
 
 	if (!packet->no_waiter || packet->expect_response) {
 		atomic_inc(&packet->refcnt);
-		packet->sendtime = jiffies;
+		packet->sendtime = jiffies + 10 * HZ;
 		skb_queue_tail(&host->pending_packet_queue, packet->skb);
 	}
 
@@ -1248,7 +1248,6 @@ EXPORT_SYMBOL(hpsb_make_phypacket);
 EXPORT_SYMBOL(hpsb_make_isopacket);
 EXPORT_SYMBOL(hpsb_read);
 EXPORT_SYMBOL(hpsb_write);
-EXPORT_SYMBOL(hpsb_lock);
 EXPORT_SYMBOL(hpsb_packet_success);
 
 /** highlevel.c **/

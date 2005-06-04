@@ -111,12 +111,6 @@ struct seq_operations cpuinfo_op = {
 	.show	= show_cpuinfo,
 };
 
-pte_t * __bad_pagetable(void)
-{
-	panic("Someone should implement __bad_pagetable");
-	return(NULL);
-}
-
 /* Set in linux_main */
 unsigned long host_task_size;
 unsigned long task_size;

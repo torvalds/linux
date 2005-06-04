@@ -200,7 +200,7 @@ static int cx22702_get_tps (struct cx22702_state *state, struct dvb_ofdm_paramet
 static int cx22702_set_tps (struct dvb_frontend* fe, struct dvb_frontend_parameters *p)
 {
 	u8 val;
-	struct cx22702_state* state = (struct cx22702_state*) fe->demodulator_priv;
+	struct cx22702_state* state = fe->demodulator_priv;
 
 	/* set PLL */
         cx22702_writereg (state, 0x0D, cx22702_readreg(state,0x0D) &0xfe);
@@ -338,7 +338,7 @@ static int cx22702_set_tps (struct dvb_frontend* fe, struct dvb_frontend_paramet
 static int cx22702_init (struct dvb_frontend* fe)
 {
 	int i;
-	struct cx22702_state* state = (struct cx22702_state*) fe->demodulator_priv;
+	struct cx22702_state* state = fe->demodulator_priv;
 
 	cx22702_writereg (state, 0x00, 0x02);
 
@@ -360,7 +360,7 @@ static int cx22702_init (struct dvb_frontend* fe)
 
 static int cx22702_read_status(struct dvb_frontend* fe, fe_status_t* status)
 {
-	struct cx22702_state* state = (struct cx22702_state*) fe->demodulator_priv;
+	struct cx22702_state* state = fe->demodulator_priv;
 	u8 reg0A;
 	u8 reg23;
 
@@ -389,7 +389,7 @@ static int cx22702_read_status(struct dvb_frontend* fe, fe_status_t* status)
 
 static int cx22702_read_ber(struct dvb_frontend* fe, u32* ber)
 {
-	struct cx22702_state* state = (struct cx22702_state*) fe->demodulator_priv;
+	struct cx22702_state* state = fe->demodulator_priv;
 
 	if(cx22702_readreg (state, 0xE4) & 0x02) {
 		/* Realtime statistics */
@@ -406,7 +406,7 @@ static int cx22702_read_ber(struct dvb_frontend* fe, u32* ber)
 
 static int cx22702_read_signal_strength(struct dvb_frontend* fe, u16* signal_strength)
 {
-	struct cx22702_state* state = (struct cx22702_state*) fe->demodulator_priv;
+	struct cx22702_state* state = fe->demodulator_priv;
 
 	*signal_strength = cx22702_readreg (state, 0x23);
 
@@ -415,7 +415,7 @@ static int cx22702_read_signal_strength(struct dvb_frontend* fe, u16* signal_str
 
 static int cx22702_read_snr(struct dvb_frontend* fe, u16* snr)
 {
-	struct cx22702_state* state = (struct cx22702_state*) fe->demodulator_priv;
+	struct cx22702_state* state = fe->demodulator_priv;
 
 	u16 rs_ber=0;
 	if(cx22702_readreg (state, 0xE4) & 0x02) {
@@ -434,7 +434,7 @@ static int cx22702_read_snr(struct dvb_frontend* fe, u16* snr)
 
 static int cx22702_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
 {
-	struct cx22702_state* state = (struct cx22702_state*) fe->demodulator_priv;
+	struct cx22702_state* state = fe->demodulator_priv;
 
 	u8 _ucblocks;
 
@@ -449,7 +449,7 @@ static int cx22702_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
 
 static int cx22702_get_frontend(struct dvb_frontend* fe, struct dvb_frontend_parameters *p)
 {
-	struct cx22702_state* state = (struct cx22702_state*) fe->demodulator_priv;
+	struct cx22702_state* state = fe->demodulator_priv;
 
 	u8 reg0C = cx22702_readreg (state, 0x0C);
 
@@ -459,7 +459,7 @@ static int cx22702_get_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 
 static void cx22702_release(struct dvb_frontend* fe)
 {
-	struct cx22702_state* state = (struct cx22702_state*) fe->demodulator_priv;
+	struct cx22702_state* state = fe->demodulator_priv;
 	kfree(state);
 }
 
@@ -471,7 +471,7 @@ struct dvb_frontend* cx22702_attach(const struct cx22702_config* config,
 	struct cx22702_state* state = NULL;
 
 	/* allocate memory for the internal state */
-	state = (struct cx22702_state*) kmalloc(sizeof(struct cx22702_state), GFP_KERNEL);
+	state = kmalloc(sizeof(struct cx22702_state), GFP_KERNEL);
 	if (state == NULL) goto error;
 
 	/* setup the state */

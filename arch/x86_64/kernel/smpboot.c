@@ -56,6 +56,7 @@
 #include <asm/kdebug.h>
 #include <asm/tlbflush.h>
 #include <asm/proto.h>
+#include <asm/nmi.h>
 
 /* Change for real CPU hotplug. Note other files need to be fixed
    first too. */
@@ -93,6 +94,7 @@ int smp_threads_ready;
 
 cpumask_t cpu_sibling_map[NR_CPUS] __cacheline_aligned;
 cpumask_t cpu_core_map[NR_CPUS] __cacheline_aligned;
+EXPORT_SYMBOL(cpu_core_map);
 
 /*
  * Trampoline 80x86 program as an array.
@@ -125,96 +127,210 @@ static void __cpuinit smp_store_cpu_info(int id)
 
 	*c = boot_cpu_data;
 	identify_cpu(c);
+	print_cpu_info(c);
 }
 
 /*
- * Synchronize TSCs of CPUs
+ * New Funky TSC sync algorithm borrowed from IA64.
+ * Main advantage is that it doesn't reset the TSCs fully and
+ * in general looks more robust and it works better than my earlier
+ * attempts. I believe it was written by David Mosberger. Some minor
+ * adjustments for x86-64 by me -AK
  *
- * This new algorithm is less accurate than the old "zero TSCs"
- * one, but we cannot zero TSCs anymore in the new hotplug CPU
- * model.
+ * Original comment reproduced below.
+ *
+ * Synchronize TSC of the current (slave) CPU with the TSC of the
+ * MASTER CPU (normally the time-keeper CPU).  We use a closed loop to
+ * eliminate the possibility of unaccounted-for errors (such as
+ * getting a machine check in the middle of a calibration step).  The
+ * basic idea is for the slave to ask the master what itc value it has
+ * and to read its own itc before and after the master responds.  Each
+ * iteration gives us three timestamps:
+ *
+ *	slave		master
+ *
+ *	t0 ---\
+ *             ---\
+ *		   --->
+ *			tm
+ *		   /---
+ *	       /---
+ *	t1 <---
+ *
+ *
+ * The goal is to adjust the slave's TSC such that tm falls exactly
+ * half-way between t0 and t1.  If we achieve this, the clocks are
+ * synchronized provided the interconnect between the slave and the
+ * master is symmetric.  Even if the interconnect were asymmetric, we
+ * would still know that the synchronization error is smaller than the
+ * roundtrip latency (t0 - t1).
+ *
+ * When the interconnect is quiet and symmetric, this lets us
+ * synchronize the TSC to within one or two cycles.  However, we can
+ * only *guarantee* that the synchronization is accurate to within a
+ * round-trip time, which is typically in the range of several hundred
+ * cycles (e.g., ~500 cycles).  In practice, this means that the TSCs
+ * are usually almost perfectly synchronized, but we shouldn't assume
+ * that the accuracy is much better than half a micro second or so.
+ *
+ * [there are other errors like the latency of RDTSC and of the
+ * WRMSR. These can also account to hundreds of cycles. So it's
+ * probably worse. It claims 153 cycles error on a dual Opteron,
+ * but I suspect the numbers are actually somewhat worse -AK]
  */
 
-static atomic_t __cpuinitdata tsc_flag;
+#define MASTER	0
+#define SLAVE	(SMP_CACHE_BYTES/8)
+
+/* Intentionally don't use cpu_relax() while TSC synchronization
+   because we don't want to go into funky power save modi or cause
+   hypervisors to schedule us away.  Going to sleep would likely affect
+   latency and low latency is the primary objective here. -AK */
+#define no_cpu_relax() barrier()
+
 static __cpuinitdata DEFINE_SPINLOCK(tsc_sync_lock);
-static unsigned long long __cpuinitdata bp_tsc, ap_tsc;
+static volatile __cpuinitdata unsigned long go[SLAVE + 1];
+static int notscsync __cpuinitdata;
 
-#define NR_LOOPS 5
+#undef DEBUG_TSC_SYNC
 
-static void __cpuinit sync_tsc_bp_init(int init)
+#define NUM_ROUNDS	64	/* magic value */
+#define NUM_ITERS	5	/* likewise */
+
+/* Callback on boot CPU */
+static __cpuinit void sync_master(void *arg)
 {
-	if (init)
-		_raw_spin_lock(&tsc_sync_lock);
-	else
-		_raw_spin_unlock(&tsc_sync_lock);
-	atomic_set(&tsc_flag, 0);
-}
+	unsigned long flags, i;
 
-/*
- * Synchronize TSC on AP with BP.
- */
-static void __cpuinit __sync_tsc_ap(void)
-{
-	if (!cpu_has_tsc)
-		return;
-	Dprintk("AP %d syncing TSC\n", smp_processor_id());
-
-	while (atomic_read(&tsc_flag) != 0)
-		cpu_relax();
-	atomic_inc(&tsc_flag);
-	mb();
-	_raw_spin_lock(&tsc_sync_lock);
-	wrmsrl(MSR_IA32_TSC, bp_tsc);
-	_raw_spin_unlock(&tsc_sync_lock);
-	rdtscll(ap_tsc);
-	mb();
-	atomic_inc(&tsc_flag);
-	mb();
-}
-
-static void __cpuinit sync_tsc_ap(void)
-{
-	int i;
-	for (i = 0; i < NR_LOOPS; i++)
-		__sync_tsc_ap();
-}
-
-/*
- * Synchronize TSC from BP to AP.
- */
-static void __cpuinit __sync_tsc_bp(int cpu)
-{
-	if (!cpu_has_tsc)
+	if (smp_processor_id() != boot_cpu_id)
 		return;
 
-	/* Wait for AP */
-	while (atomic_read(&tsc_flag) == 0)
-		cpu_relax();
-	/* Save BPs TSC */
-	sync_core();
-	rdtscll(bp_tsc);
-	/* Don't do the sync core here to avoid too much latency. */
-	mb();
-	/* Start the AP */
-	_raw_spin_unlock(&tsc_sync_lock);
-	/* Wait for AP again */
-	while (atomic_read(&tsc_flag) < 2)
-		cpu_relax();
-	rdtscl(bp_tsc);
-	barrier();
-}
+	go[MASTER] = 0;
 
-static void __cpuinit sync_tsc_bp(int cpu)
-{
-	int i;
-	for (i = 0; i < NR_LOOPS - 1; i++) {
-		__sync_tsc_bp(cpu);
-		sync_tsc_bp_init(1);
+	local_irq_save(flags);
+	{
+		for (i = 0; i < NUM_ROUNDS*NUM_ITERS; ++i) {
+			while (!go[MASTER])
+				no_cpu_relax();
+			go[MASTER] = 0;
+			rdtscll(go[SLAVE]);
+		}
 	}
-	__sync_tsc_bp(cpu);
-	printk(KERN_INFO "Synced TSC of CPU %d difference %Ld\n",
-	       cpu, ap_tsc - bp_tsc);
+	local_irq_restore(flags);
 }
+
+/*
+ * Return the number of cycles by which our tsc differs from the tsc
+ * on the master (time-keeper) CPU.  A positive number indicates our
+ * tsc is ahead of the master, negative that it is behind.
+ */
+static inline long
+get_delta(long *rt, long *master)
+{
+	unsigned long best_t0 = 0, best_t1 = ~0UL, best_tm = 0;
+	unsigned long tcenter, t0, t1, tm;
+	int i;
+
+	for (i = 0; i < NUM_ITERS; ++i) {
+		rdtscll(t0);
+		go[MASTER] = 1;
+		while (!(tm = go[SLAVE]))
+			no_cpu_relax();
+		go[SLAVE] = 0;
+		rdtscll(t1);
+
+		if (t1 - t0 < best_t1 - best_t0)
+			best_t0 = t0, best_t1 = t1, best_tm = tm;
+	}
+
+	*rt = best_t1 - best_t0;
+	*master = best_tm - best_t0;
+
+	/* average best_t0 and best_t1 without overflow: */
+	tcenter = (best_t0/2 + best_t1/2);
+	if (best_t0 % 2 + best_t1 % 2 == 2)
+		++tcenter;
+	return tcenter - best_tm;
+}
+
+static __cpuinit void sync_tsc(void)
+{
+	int i, done = 0;
+	long delta, adj, adjust_latency = 0;
+	unsigned long flags, rt, master_time_stamp, bound;
+#if DEBUG_TSC_SYNC
+	static struct syncdebug {
+		long rt;	/* roundtrip time */
+		long master;	/* master's timestamp */
+		long diff;	/* difference between midpoint and master's timestamp */
+		long lat;	/* estimate of tsc adjustment latency */
+	} t[NUM_ROUNDS] __cpuinitdata;
+#endif
+
+	go[MASTER] = 1;
+
+	smp_call_function(sync_master, NULL, 1, 0);
+
+	while (go[MASTER])	/* wait for master to be ready */
+		no_cpu_relax();
+
+	spin_lock_irqsave(&tsc_sync_lock, flags);
+	{
+		for (i = 0; i < NUM_ROUNDS; ++i) {
+			delta = get_delta(&rt, &master_time_stamp);
+			if (delta == 0) {
+				done = 1;	/* let's lock on to this... */
+				bound = rt;
+			}
+
+			if (!done) {
+				unsigned long t;
+				if (i > 0) {
+					adjust_latency += -delta;
+					adj = -delta + adjust_latency/4;
+				} else
+					adj = -delta;
+
+				rdtscll(t);
+				wrmsrl(MSR_IA32_TSC, t + adj);
+			}
+#if DEBUG_TSC_SYNC
+			t[i].rt = rt;
+			t[i].master = master_time_stamp;
+			t[i].diff = delta;
+			t[i].lat = adjust_latency/4;
+#endif
+		}
+	}
+	spin_unlock_irqrestore(&tsc_sync_lock, flags);
+
+#if DEBUG_TSC_SYNC
+	for (i = 0; i < NUM_ROUNDS; ++i)
+		printk("rt=%5ld master=%5ld diff=%5ld adjlat=%5ld\n",
+		       t[i].rt, t[i].master, t[i].diff, t[i].lat);
+#endif
+
+	printk(KERN_INFO
+	       "CPU %d: synchronized TSC with CPU %u (last diff %ld cycles, "
+	       "maxerr %lu cycles)\n",
+	       smp_processor_id(), boot_cpu_id, delta, rt);
+}
+
+static void __cpuinit tsc_sync_wait(void)
+{
+	if (notscsync || !cpu_has_tsc)
+		return;
+	printk(KERN_INFO "CPU %d: Syncing TSC to CPU %u.\n", smp_processor_id(),
+			boot_cpu_id);
+	sync_tsc();
+}
+
+static __init int notscsync_setup(char *s)
+{
+	notscsync = 1;
+	return 0;
+}
+__setup("notscsync", notscsync_setup);
 
 static atomic_t init_deasserted __cpuinitdata;
 
@@ -315,11 +431,6 @@ void __cpuinit start_secondary(void)
 	cpu_init();
 	smp_callin();
 
-	/*
-	 * Synchronize the TSC with the BP
-	 */
-	sync_tsc_ap();
-
 	/* otherwise gcc will move up the smp_processor_id before the cpu_init */
 	barrier();
 
@@ -334,7 +445,6 @@ void __cpuinit start_secondary(void)
 		enable_8259A_irq(0);
 	}
 
-
 	enable_APIC_timer();
 
 	/*
@@ -342,6 +452,11 @@ void __cpuinit start_secondary(void)
 	 */
 	cpu_set(smp_processor_id(), cpu_online_map);
 	mb();
+
+	/* Wait for TSC sync to not schedule things before.
+	   We still process interrupts, which could see an inconsistent
+	   time in that window unfortunately. */
+	tsc_sync_wait();
 
 	cpu_idle();
 }
@@ -531,7 +646,6 @@ static int __cpuinit do_boot_cpu(int cpu, int apicid)
 		printk("failed fork for CPU %d\n", cpu);
 		return PTR_ERR(idle);
 	}
-	x86_cpu_to_apicid[cpu] = apicid;
 
 	cpu_pda[cpu].pcurrent = idle;
 
@@ -600,8 +714,6 @@ static int __cpuinit do_boot_cpu(int cpu, int apicid)
 
 		if (cpu_isset(cpu, cpu_callin_map)) {
 			/* number CPUs logically, starting from 1 (BSP is 0) */
-			Dprintk("OK.\n");
-			print_cpu_info(&cpu_data[cpu]);
 			Dprintk("CPU has booted.\n");
 		} else {
 			boot_error = 1;
@@ -842,7 +954,6 @@ void __cpuinit smp_prepare_cpus(unsigned int max_cpus)
 		      GET_APIC_ID(apic_read(APIC_ID)), boot_cpu_id);
 		/* Or can we switch back to PIC here? */
 	}
-	x86_cpu_to_apicid[0] = boot_cpu_id;
 
 	/*
 	 * Now start the IO-APICs
@@ -889,17 +1000,13 @@ int __cpuinit __cpu_up(unsigned int cpu)
 		printk("__cpu_up: bad cpu %d\n", cpu);
 		return -EINVAL;
 	}
-	sync_tsc_bp_init(1);
 
 	/* Boot it! */
 	err = do_boot_cpu(cpu, apicid);
 	if (err < 0) {
-		sync_tsc_bp_init(0);
 		Dprintk("do_boot_cpu failed %d\n", err);
 		return err;
 	}
-
-	sync_tsc_bp(cpu);
 
 	/* Unleash the CPU! */
 	Dprintk("waiting for cpu %d\n", cpu);
@@ -923,4 +1030,6 @@ void __cpuinit smp_cpus_done(unsigned int max_cpus)
 
 	detect_siblings();
 	time_init_gtod();
+
+	check_nmi_watchdog();
 }

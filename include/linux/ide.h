@@ -664,7 +664,6 @@ typedef struct ide_drive_s {
 
 	struct request		*rq;	/* current request */
 	struct ide_drive_s 	*next;	/* circular list of hwgroup drives */
-	struct ide_driver_s	*driver;/* (ide_driver_t *) */
 	void		*driver_data;	/* extra driver data */
 	struct hd_driveid	*id;	/* drive model identification info */
 	struct proc_dir_entry *proc;	/* /proc/ide/ directory entry */
@@ -757,6 +756,8 @@ typedef struct ide_drive_s {
 	struct device	gendev;
 	struct semaphore gendev_rel_sem;	/* to deal with device release() */
 } ide_drive_t;
+
+#define to_ide_device(dev)container_of(dev, ide_drive_t, gendev)
 
 #define IDE_CHIPSET_PCI_MASK	\
     ((1<<ide_pci)|(1<<ide_cmd646)|(1<<ide_ali14xx))
@@ -1086,27 +1087,19 @@ enum {
  */
 typedef struct ide_driver_s {
 	struct module			*owner;
-	const char			*name;
 	const char			*version;
 	u8				media;
-	unsigned busy			: 1;
 	unsigned supports_dsc_overlap	: 1;
-	int		(*cleanup)(ide_drive_t *);
 	ide_startstop_t	(*do_request)(ide_drive_t *, struct request *, sector_t);
 	int		(*end_request)(ide_drive_t *, int, int);
 	ide_startstop_t	(*error)(ide_drive_t *, struct request *rq, u8, u8);
 	ide_startstop_t	(*abort)(ide_drive_t *, struct request *rq);
 	int		(*ioctl)(ide_drive_t *, struct inode *, struct file *, unsigned int, unsigned long);
 	ide_proc_entry_t	*proc;
-	int		(*attach)(ide_drive_t *);
 	void		(*ata_prebuilder)(ide_drive_t *);
 	void		(*atapi_prebuilder)(ide_drive_t *);
 	struct device_driver	gen_driver;
-	struct list_head drives;
-	struct list_head drivers;
 } ide_driver_t;
-
-#define DRIVER(drive)		((drive)->driver)
 
 int generic_ide_ioctl(ide_drive_t *, struct file *, struct block_device *, unsigned, unsigned long);
 
@@ -1328,8 +1321,6 @@ extern void ide_init_subdrivers(void);
 
 void ide_init_disk(struct gendisk *, ide_drive_t *);
 
-extern int ata_attach(ide_drive_t *);
-
 extern int ideprobe_init(void);
 
 extern void ide_scan_pcibus(int scan_direction) __init;
@@ -1342,11 +1333,8 @@ extern void default_hwif_iops(ide_hwif_t *);
 extern void default_hwif_mmiops(ide_hwif_t *);
 extern void default_hwif_transport(ide_hwif_t *);
 
-int ide_register_driver(ide_driver_t *driver);
-void ide_unregister_driver(ide_driver_t *driver);
-int ide_register_subdriver(ide_drive_t *, ide_driver_t *);
-int ide_unregister_subdriver (ide_drive_t *drive);
-int ide_replace_subdriver(ide_drive_t *drive, const char *driver);
+void ide_register_subdriver(ide_drive_t *, ide_driver_t *);
+void ide_unregister_subdriver(ide_drive_t *, ide_driver_t *);
 
 #define ON_BOARD		1
 #define NEVER_BOARD		0

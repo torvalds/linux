@@ -16,5 +16,4 @@ EXPORT_SYMBOL(__up_wakeup);
 EXPORT_SYMBOL(__memcpy);
 
 /* Networking helper routines. */
-/*EXPORT_SYMBOL(csum_partial_copy_from);
-EXPORT_SYMBOL(csum_partial_copy_to);*/
+EXPORT_SYMBOL(ip_compute_csum);

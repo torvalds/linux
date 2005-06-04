@@ -2,8 +2,8 @@
  * SL811HS HCD (Host Controller Driver) for USB.
  *
  * Copyright (C) 2004 Psion Teklogix (for NetBook PRO)
- * Copyright (C) 2004 David Brownell
- * 
+ * Copyright (C) 2004-2005 David Brownell
+ *
  * Periodic scheduling is based on Roman's OHCI code
  * 	Copyright (C) 1999 Roman Weissgaerber
  *
@@ -15,7 +15,7 @@
  * For documentation, see the SL811HS spec and the "SL811HS Embedded Host"
  * document (providing significant pieces missing from that spec); plus
  * the SL811S spec if you want peripheral side info.
- */ 
+ */
 
 /*
  * Status:  Passed basic stress testing, works with hubs, mice, keyboards,
@@ -67,7 +67,7 @@
 MODULE_DESCRIPTION("SL811HS USB Host Controller Driver");
 MODULE_LICENSE("GPL");
 
-#define DRIVER_VERSION	"15 Dec 2004"
+#define DRIVER_VERSION	"19 May 2005"
 
 
 #ifndef DEBUG
@@ -121,6 +121,10 @@ static void port_power(struct sl811 *sl811, int is_on)
 	/* reset as thoroughly as we can */
 	if (sl811->board && sl811->board->reset)
 		sl811->board->reset(hcd->self.controller);
+	else {
+		sl811_write(sl811, SL11H_CTLREG1, SL11H_CTL1MASK_SE0);
+		mdelay(20);
+	}
 
 	sl811_write(sl811, SL11H_IRQ_ENABLE, 0);
 	sl811_write(sl811, SL11H_CTLREG1, sl811->ctrl1);
@@ -443,6 +447,7 @@ static void finish_request(
 	spin_lock(&urb->lock);
 	if (urb->status == -EINPROGRESS)
 		urb->status = status;
+	urb->hcpriv = NULL;
 	spin_unlock(&urb->lock);
 
 	spin_unlock(&sl811->lock);
@@ -472,7 +477,7 @@ static void finish_request(
 		if (*prev)
 			*prev = ep->next;
 		sl811->load[i] -= ep->load;
-	}	
+	}
 	ep->branch = PERIODIC_SIZE;
 	sl811->periodic_count--;
 	sl811_to_hcd(sl811)->self.bandwidth_allocated
@@ -661,9 +666,9 @@ retry:
 
 #ifdef	QUIRK2
 	/* this may no longer be necessary ... */
-	if (irqstat == 0 && ret == IRQ_NONE) {
+	if (irqstat == 0) {
 		irqstat = checkdone(sl811);
-		if (irqstat /* && irq != ~0 */ )
+		if (irqstat)
 			sl811->stat_lost++;
 	}
 #endif
@@ -722,7 +727,8 @@ retry:
 		if (sl811->active_a) {
 			sl811_write(sl811, SL811_EP_A(SL11H_HOSTCTLREG), 0);
 			finish_request(sl811, sl811->active_a,
-				container_of(sl811->active_a->hep->urb_list.next,
+				container_of(sl811->active_a
+						->hep->urb_list.next,
 					struct urb, urb_list),
 				NULL, -ESHUTDOWN);
 			sl811->active_a = NULL;
@@ -731,7 +737,8 @@ retry:
 		if (sl811->active_b) {
 			sl811_write(sl811, SL811_EP_B(SL11H_HOSTCTLREG), 0);
 			finish_request(sl811, sl811->active_b,
-				container_of(sl811->active_b->hep->urb_list.next,
+				container_of(sl811->active_b
+						->hep->urb_list.next,
 					struct urb, urb_list),
 				NULL, -ESHUTDOWN);
 			sl811->active_b = NULL;
@@ -761,7 +768,7 @@ retry:
 			goto retry;
 	}
 
-	if (sl811->periodic_count == 0 && list_empty(&sl811->async)) 
+	if (sl811->periodic_count == 0 && list_empty(&sl811->async))
 		sofirq_off(sl811);
 	sl811_write(sl811, SL11H_IRQ_ENABLE, sl811->irq_enable);
 
@@ -796,7 +803,7 @@ static int balance(struct sl811 *sl811, u16 period, u16 load)
 			}
 			if (j < PERIODIC_SIZE)
 				continue;
-			branch = i; 
+			branch = i;
 		}
 	}
 	return branch;
@@ -890,6 +897,7 @@ static int sl811h_urb_enqueue(
 			break;
 		}
 
+		ep->hep = hep;
 		hep->hcpriv = ep;
 	}
 
@@ -961,15 +969,16 @@ fail:
 static int sl811h_urb_dequeue(struct usb_hcd *hcd, struct urb *urb)
 {
 	struct sl811		*sl811 = hcd_to_sl811(hcd);
-	struct usb_host_endpoint *hep = urb->hcpriv;
+	struct usb_host_endpoint *hep;
 	unsigned long		flags;
 	struct sl811h_ep	*ep;
 	int			retval = 0;
 
-	if (!hep)
-		return -EINVAL;
-
 	spin_lock_irqsave(&sl811->lock, flags);
+	hep = urb->hcpriv;
+	if (!hep)
+		goto fail;
+
 	ep = hep->hcpriv;
 	if (ep) {
 		/* finish right away if this urb can't be active ...
@@ -1017,6 +1026,7 @@ static int sl811h_urb_dequeue(struct usb_hcd *hcd, struct urb *urb)
 			VDBG("dequeue, urb %p active %s; wait4irq\n", urb,
 				(sl811->active_a == ep) ? "A" : "B");
 	} else
+fail:
 		retval = -EINVAL;
 	spin_unlock_irqrestore(&sl811->lock, flags);
 	return retval;
@@ -1576,6 +1586,9 @@ sl811h_start(struct usb_hcd *hcd)
 	if (sl811->board && sl811->board->power)
 		hub_set_power_budget(udev, sl811->board->power * 2);
 
+	/* enable power and interupts */
+	port_power(sl811, 1);
+
 	return 0;
 }
 
@@ -1618,7 +1631,7 @@ static struct hc_driver sl811h_hc_driver = {
 
 /*-------------------------------------------------------------------------*/
 
-static int __init_or_module
+static int __devexit
 sl811h_remove(struct device *dev)
 {
 	struct usb_hcd		*hcd = dev_get_drvdata(dev);
@@ -1631,21 +1644,20 @@ sl811h_remove(struct device *dev)
 	remove_debug_file(sl811);
 	usb_remove_hcd(hcd);
 
-	iounmap(sl811->data_reg);
+	/* some platforms may use IORESOURCE_IO */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	release_mem_region(res->start, 1);
+	if (res)
+		iounmap(sl811->data_reg);
 
-	iounmap(sl811->addr_reg);
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(res->start, 1);
+	if (res)
+		iounmap(sl811->addr_reg);
 
 	usb_put_hcd(hcd);
 	return 0;
 }
 
-#define resource_len(r) (((r)->end - (r)->start) + 1)
-
-static int __init
+static int __devinit
 sl811h_probe(struct device *dev)
 {
 	struct usb_hcd		*hcd;
@@ -1656,7 +1668,7 @@ sl811h_probe(struct device *dev)
 	void __iomem		*addr_reg;
 	void __iomem		*data_reg;
 	int			retval;
-	u8			tmp;
+	u8			tmp, ioaddr = 0;
 
 	/* basic sanity checks first.  board-specific init logic should
 	 * have initialized these three resources and probably board
@@ -1664,13 +1676,8 @@ sl811h_probe(struct device *dev)
 	 * minimal sanity checking.
 	 */
 	pdev = container_of(dev, struct platform_device, dev);
-	if (pdev->num_resources < 3)
-		return -ENODEV;
-
-	addr = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	data = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	irq = platform_get_irq(pdev, 0);
-	if (!addr || !data || irq < 0)
+	if (pdev->num_resources < 3 || irq < 0)
 		return -ENODEV;
 
 	/* refuse to confuse usbcore */
@@ -1679,24 +1686,31 @@ sl811h_probe(struct device *dev)
 		return -EINVAL;
 	}
 
-	if (!request_mem_region(addr->start, 1, hcd_name)) {
-		retval = -EBUSY;
-		goto err1;
-	}
-	addr_reg = ioremap(addr->start, resource_len(addr));
-	if (addr_reg == NULL) {
-		retval = -ENOMEM;
-		goto err2;
-	}
+	/* the chip may be wired for either kind of addressing */
+	addr = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	data = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	retval = -EBUSY;
+	if (!addr || !data) {
+		addr = platform_get_resource(pdev, IORESOURCE_IO, 0);
+		data = platform_get_resource(pdev, IORESOURCE_IO, 1);
+		if (!addr || !data)
+			return -ENODEV;
+		ioaddr = 1;
 
-	if (!request_mem_region(data->start, 1, hcd_name)) {
-		retval = -EBUSY;
-		goto err3;
-	}
-	data_reg = ioremap(data->start, resource_len(addr));
-	if (data_reg == NULL) {
-		retval = -ENOMEM;
-		goto err4;
+		addr_reg = (void __iomem *) addr->start;
+		data_reg = (void __iomem *) data->start;
+	} else {
+		addr_reg = ioremap(addr->start, 1);
+		if (addr_reg == NULL) {
+			retval = -ENOMEM;
+			goto err2;
+		}
+
+		data_reg = ioremap(data->start, 1);
+		if (data_reg == NULL) {
+			retval = -ENOMEM;
+			goto err4;
+		}
 	}
 
 	/* allocate and initialize hcd */
@@ -1737,12 +1751,14 @@ sl811h_probe(struct device *dev)
 		goto err6;
 	}
 
-	/* sl811s would need a different handler for this irq */
-#ifdef	CONFIG_ARM
-	/* Cypress docs say the IRQ is IRQT_HIGH ... */
-	set_irq_type(irq, IRQT_RISING);
-#endif
-	retval = usb_add_hcd(hcd, irq, SA_INTERRUPT);
+	/* The chip's IRQ is level triggered, active high.  A requirement
+	 * for platform device setup is to cope with things like signal
+	 * inverters (e.g. CF is active low) or working only with edge
+	 * triggers (e.g. most ARM CPUs).  Initial driver stress testing
+	 * was on a system with single edge triggering, so most sorts of
+	 * triggering arrangement should work.
+	 */
+	retval = usb_add_hcd(hcd, irq, SA_INTERRUPT | SA_SHIRQ);
 	if (retval != 0)
 		goto err6;
 
@@ -1752,14 +1768,12 @@ sl811h_probe(struct device *dev)
  err6:
 	usb_put_hcd(hcd);
  err5:
-	iounmap(data_reg);
+	if (!ioaddr)
+		iounmap(data_reg);
  err4:
-	release_mem_region(data->start, 1);
- err3:
-	iounmap(addr_reg);
+	if (!ioaddr)
+		iounmap(addr_reg);
  err2:
-	release_mem_region(addr->start, 1);
- err1:
 	DBG("init error, %d\n", retval);
 	return retval;
 }
@@ -1767,7 +1781,7 @@ sl811h_probe(struct device *dev)
 #ifdef	CONFIG_PM
 
 /* for this device there's no useful distinction between the controller
- * and its root hub, except that the root hub only gets direct PM calls 
+ * and its root hub, except that the root hub only gets direct PM calls
  * when CONFIG_USB_SUSPEND is enabled.
  */
 
@@ -1821,20 +1835,22 @@ sl811h_resume(struct device *dev, u32 phase)
 #endif
 
 
-static struct device_driver sl811h_driver = {
+/* this driver is exported so sl811_cs can depend on it */
+struct device_driver sl811h_driver = {
 	.name =		(char *) hcd_name,
 	.bus =		&platform_bus_type,
 
 	.probe =	sl811h_probe,
-	.remove =	sl811h_remove,
+	.remove =	__devexit_p(sl811h_remove),
 
 	.suspend =	sl811h_suspend,
 	.resume =	sl811h_resume,
 };
+EXPORT_SYMBOL(sl811h_driver);
 
 /*-------------------------------------------------------------------------*/
- 
-static int __init sl811h_init(void) 
+
+static int __init sl811h_init(void)
 {
 	if (usb_disabled())
 		return -ENODEV;
@@ -1844,8 +1860,8 @@ static int __init sl811h_init(void)
 }
 module_init(sl811h_init);
 
-static void __exit sl811h_cleanup(void) 
-{	
+static void __exit sl811h_cleanup(void)
+{
 	driver_unregister(&sl811h_driver);
 }
 module_exit(sl811h_cleanup);

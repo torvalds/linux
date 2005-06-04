@@ -164,7 +164,9 @@ static int finish_unfinished (struct super_block * s)
  
     /* compose key to look for "save" links */
     max_cpu_key.version = KEY_FORMAT_3_5;
-    max_cpu_key.on_disk_key = MAX_IN_CORE_KEY;
+    max_cpu_key.on_disk_key.k_dir_id = ~0U;
+    max_cpu_key.on_disk_key.k_objectid = ~0U;
+    set_cpu_key_k_offset (&max_cpu_key, ~0U);
     max_cpu_key.key_length = 3;
 
 #ifdef CONFIG_QUOTA

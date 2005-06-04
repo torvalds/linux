@@ -21,6 +21,8 @@ struct bug_frame {
 	asm volatile("ud2 ; .quad %c1 ; .short %c0" :: \
 		     "i"(__LINE__), "i" (__stringify(__FILE__)))
 void out_of_line_bug(void);
+#else
+static inline void out_of_line_bug(void) { }
 #endif
 
 #include <asm-generic/bug.h>

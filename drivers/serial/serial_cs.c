@@ -661,10 +661,10 @@ void serial_config(dev_link_t * link)
 	/* Is this a multiport card? */
 	tuple->DesiredTuple = CISTPL_MANFID;
 	if (first_tuple(handle, tuple, parse) == CS_SUCCESS) {
-		info->manfid = le16_to_cpu(buf[0]);
+		info->manfid = parse->manfid.manf;
 		for (i = 0; i < MULTI_COUNT; i++)
 			if ((info->manfid == multi_id[i].manfid) &&
-			    (le16_to_cpu(buf[1]) == multi_id[i].prodid))
+			    (parse->manfid.card == multi_id[i].prodid))
 				break;
 		if (i < MULTI_COUNT)
 			info->multi = multi_id[i].multi;

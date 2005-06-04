@@ -61,6 +61,7 @@ static struct plat_serial8250_port serial_platform_data[] = {
 		.iotype		= UPIO_MEM,
 		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
 	},
+	{ },
 };
 
 struct platform_device ppc_sys_platform_devices[] = {

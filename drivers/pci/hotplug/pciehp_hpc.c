@@ -109,20 +109,20 @@ enum ctrl_offsets {
 };
 static int pcie_cap_base = 0;		/* Base of the PCI Express capability item structure */ 
 
-#define PCIE_CAP_ID	( pcie_cap_base + PCIECAPID )
-#define NXT_CAP_PTR	( pcie_cap_base + NXTCAPPTR )
-#define CAP_REG		( pcie_cap_base + CAPREG )
-#define DEV_CAP		( pcie_cap_base + DEVCAP )
-#define DEV_CTRL	( pcie_cap_base + DEVCTRL )
-#define DEV_STATUS	( pcie_cap_base + DEVSTATUS )
-#define LNK_CAP		( pcie_cap_base + LNKCAP )
-#define LNK_CTRL	( pcie_cap_base + LNKCTRL )
-#define LNK_STATUS	( pcie_cap_base + LNKSTATUS )
-#define SLOT_CAP	( pcie_cap_base + SLOTCAP )
-#define SLOT_CTRL	( pcie_cap_base + SLOTCTRL )
-#define SLOT_STATUS	( pcie_cap_base + SLOTSTATUS )
-#define ROOT_CTRL	( pcie_cap_base + ROOTCTRL )
-#define ROOT_STATUS	( pcie_cap_base + ROOTSTATUS )
+#define PCIE_CAP_ID(cb)	( cb + PCIECAPID )
+#define NXT_CAP_PTR(cb)	( cb + NXTCAPPTR )
+#define CAP_REG(cb)	( cb + CAPREG )
+#define DEV_CAP(cb)	( cb + DEVCAP )
+#define DEV_CTRL(cb)	( cb + DEVCTRL )
+#define DEV_STATUS(cb)	( cb + DEVSTATUS )
+#define LNK_CAP(cb)	( cb + LNKCAP )
+#define LNK_CTRL(cb)	( cb + LNKCTRL )
+#define LNK_STATUS(cb)	( cb + LNKSTATUS )
+#define SLOT_CAP(cb)	( cb + SLOTCAP )
+#define SLOT_CTRL(cb)	( cb + SLOTCTRL )
+#define SLOT_STATUS(cb)	( cb + SLOTSTATUS )
+#define ROOT_CTRL(cb)	( cb + ROOTCTRL )
+#define ROOT_STATUS(cb)	( cb + ROOTSTATUS )
 
 #define hp_register_read_word(pdev, reg , value)		\
 	pci_read_config_word(pdev, reg, &value)
@@ -303,7 +303,7 @@ static int pcie_write_cmd(struct slot *slot, u16 cmd)
 		return -1;
 	}
 
-	retval = hp_register_read_word(php_ctlr->pci_dev, SLOT_STATUS, slot_status);
+	retval = hp_register_read_word(php_ctlr->pci_dev, SLOT_STATUS(slot->ctrl->cap_base), slot_status);
 	if (retval) {
 			err("%s : hp_register_read_word SLOT_STATUS failed\n", __FUNCTION__);
 			return retval;
@@ -317,7 +317,7 @@ static int pcie_write_cmd(struct slot *slot, u16 cmd)
 	}
 
 	dbg("%s: Before hp_register_write_word SLOT_CTRL %x\n", __FUNCTION__, cmd);
-	retval = hp_register_write_word(php_ctlr->pci_dev, SLOT_CTRL, cmd | CMD_CMPL_INTR_ENABLE);
+	retval = hp_register_write_word(php_ctlr->pci_dev, SLOT_CTRL(slot->ctrl->cap_base), cmd | CMD_CMPL_INTR_ENABLE);
 	if (retval) {
 		err("%s : hp_register_write_word SLOT_CTRL failed\n", __FUNCTION__);
 		return retval;
@@ -342,7 +342,7 @@ static int hpc_check_lnk_status(struct controller *ctrl)
 		return -1;
 	}
 	
-	retval = hp_register_read_word(php_ctlr->pci_dev, LNK_STATUS, lnk_status);
+	retval = hp_register_read_word(php_ctlr->pci_dev, LNK_STATUS(ctrl->cap_base), lnk_status);
 
 	if (retval) {
 		err("%s : hp_register_read_word LNK_STATUS failed\n", __FUNCTION__);
@@ -376,14 +376,14 @@ static int hpc_get_attention_status(struct slot *slot, u8 *status)
 		return -1;
 	}
 
-	retval = hp_register_read_word(php_ctlr->pci_dev, SLOT_CTRL, slot_ctrl);
+	retval = hp_register_read_word(php_ctlr->pci_dev, SLOT_CTRL(slot->ctrl->cap_base), slot_ctrl);
 
 	if (retval) {
 		err("%s : hp_register_read_word SLOT_CTRL failed\n", __FUNCTION__);
 		return retval;
 	}
 
-	dbg("%s: SLOT_CTRL %x, value read %x\n", __FUNCTION__,SLOT_CTRL, slot_ctrl);
+	dbg("%s: SLOT_CTRL %x, value read %x\n", __FUNCTION__,SLOT_CTRL(slot->ctrl->cap_base), slot_ctrl);
 
 	atten_led_state = (slot_ctrl & ATTN_LED_CTRL) >> 6;
 
@@ -423,13 +423,13 @@ static int hpc_get_power_status(struct slot * slot, u8 *status)
 		return -1;
 	}
 
-	retval = hp_register_read_word(php_ctlr->pci_dev, SLOT_CTRL, slot_ctrl);
+	retval = hp_register_read_word(php_ctlr->pci_dev, SLOT_CTRL(slot->ctrl->cap_base), slot_ctrl);
 
 	if (retval) {
 		err("%s : hp_register_read_word SLOT_CTRL failed\n", __FUNCTION__);
 		return retval;
 	}
-	dbg("%s: SLOT_CTRL %x value read %x\n", __FUNCTION__, SLOT_CTRL, slot_ctrl);
+	dbg("%s: SLOT_CTRL %x value read %x\n", __FUNCTION__, SLOT_CTRL(slot->ctrl->cap_base), slot_ctrl);
 
 	pwr_state = (slot_ctrl & PWR_CTRL) >> 10;
 
@@ -463,7 +463,7 @@ static int hpc_get_latch_status(struct slot *slot, u8 *status)
 		return -1;
 	}
 
-	retval = hp_register_read_word(php_ctlr->pci_dev, SLOT_STATUS, slot_status);
+	retval = hp_register_read_word(php_ctlr->pci_dev, SLOT_STATUS(slot->ctrl->cap_base), slot_status);
 
 	if (retval) {
 		err("%s : hp_register_read_word SLOT_STATUS failed\n", __FUNCTION__);
@@ -490,7 +490,7 @@ static int hpc_get_adapter_status(struct slot *slot, u8 *status)
 		return -1;
 	}
 
-	retval = hp_register_read_word(php_ctlr->pci_dev, SLOT_STATUS, slot_status);
+	retval = hp_register_read_word(php_ctlr->pci_dev, SLOT_STATUS(slot->ctrl->cap_base), slot_status);
 
 	if (retval) {
 		err("%s : hp_register_read_word SLOT_STATUS failed\n", __FUNCTION__);
@@ -518,7 +518,7 @@ static int hpc_query_power_fault(struct slot * slot)
 		return -1;
 	}
 
-	retval = hp_register_read_word(php_ctlr->pci_dev, SLOT_STATUS, slot_status);
+	retval = hp_register_read_word(php_ctlr->pci_dev, SLOT_STATUS(slot->ctrl->cap_base), slot_status);
 
 	if (retval) {
 		err("%s : hp_register_read_word SLOT_STATUS failed\n", __FUNCTION__);
@@ -549,7 +549,7 @@ static int hpc_set_attention_status(struct slot *slot, u8 value)
 		err("%s: Invalid HPC slot number!\n", __FUNCTION__);
 		return -1;
 	}
-	rc = hp_register_read_word(php_ctlr->pci_dev, SLOT_CTRL, slot_ctrl);
+	rc = hp_register_read_word(php_ctlr->pci_dev, SLOT_CTRL(slot->ctrl->cap_base), slot_ctrl);
 
 	if (rc) {
 		err("%s : hp_register_read_word SLOT_CTRL failed\n", __FUNCTION__);
@@ -574,7 +574,7 @@ static int hpc_set_attention_status(struct slot *slot, u8 value)
 		slot_cmd = slot_cmd | HP_INTR_ENABLE; 
 
 	pcie_write_cmd(slot, slot_cmd);
-	dbg("%s: SLOT_CTRL %x write cmd %x\n", __FUNCTION__, SLOT_CTRL, slot_cmd);
+	dbg("%s: SLOT_CTRL %x write cmd %x\n", __FUNCTION__, SLOT_CTRL(slot->ctrl->cap_base), slot_cmd);
 	
 	return rc;
 }
@@ -598,7 +598,7 @@ static void hpc_set_green_led_on(struct slot *slot)
 		return ;
 	}
 
-	rc = hp_register_read_word(php_ctlr->pci_dev, SLOT_CTRL, slot_ctrl);
+	rc = hp_register_read_word(php_ctlr->pci_dev, SLOT_CTRL(slot->ctrl->cap_base), slot_ctrl);
 
 	if (rc) {
 		err("%s : hp_register_read_word SLOT_CTRL failed\n", __FUNCTION__);
@@ -611,7 +611,7 @@ static void hpc_set_green_led_on(struct slot *slot)
 
 	pcie_write_cmd(slot, slot_cmd);
 
-	dbg("%s: SLOT_CTRL %x write cmd %x\n",__FUNCTION__, SLOT_CTRL, slot_cmd);
+	dbg("%s: SLOT_CTRL %x write cmd %x\n",__FUNCTION__, SLOT_CTRL(slot->ctrl->cap_base), slot_cmd);
 	return;
 }
 
@@ -633,7 +633,7 @@ static void hpc_set_green_led_off(struct slot *slot)
 		return ;
 	}
 
-	rc = hp_register_read_word(php_ctlr->pci_dev, SLOT_CTRL, slot_ctrl);
+	rc = hp_register_read_word(php_ctlr->pci_dev, SLOT_CTRL(slot->ctrl->cap_base), slot_ctrl);
 
 	if (rc) {
 		err("%s : hp_register_read_word SLOT_CTRL failed\n", __FUNCTION__);
@@ -646,7 +646,7 @@ static void hpc_set_green_led_off(struct slot *slot)
 	if (!pciehp_poll_mode)
 		slot_cmd = slot_cmd | HP_INTR_ENABLE; 
 	pcie_write_cmd(slot, slot_cmd);
-	dbg("%s: SLOT_CTRL %x write cmd %x\n", __FUNCTION__, SLOT_CTRL, slot_cmd);
+	dbg("%s: SLOT_CTRL %x write cmd %x\n", __FUNCTION__, SLOT_CTRL(slot->ctrl->cap_base), slot_cmd);
 
 	return;
 }
@@ -669,7 +669,7 @@ static void hpc_set_green_led_blink(struct slot *slot)
 		return ;
 	}
 
-	rc = hp_register_read_word(php_ctlr->pci_dev, SLOT_CTRL, slot_ctrl);
+	rc = hp_register_read_word(php_ctlr->pci_dev, SLOT_CTRL(slot->ctrl->cap_base), slot_ctrl);
 
 	if (rc) {
 		err("%s : hp_register_read_word SLOT_CTRL failed\n", __FUNCTION__);
@@ -683,7 +683,7 @@ static void hpc_set_green_led_blink(struct slot *slot)
 		slot_cmd = slot_cmd | HP_INTR_ENABLE; 
 	pcie_write_cmd(slot, slot_cmd);
 
-	dbg("%s: SLOT_CTRL %x write cmd %x\n",__FUNCTION__, SLOT_CTRL, slot_cmd);
+	dbg("%s: SLOT_CTRL %x write cmd %x\n",__FUNCTION__, SLOT_CTRL(slot->ctrl->cap_base), slot_cmd);
 	return;
 }
 
@@ -707,7 +707,7 @@ int pcie_get_ctlr_slot_config(struct controller *ctrl,
 	*first_device_num = 0;
 	*num_ctlr_slots = 1; 
 
-	rc = hp_register_read_dword(php_ctlr->pci_dev, SLOT_CAP, slot_cap);
+	rc = hp_register_read_dword(php_ctlr->pci_dev, SLOT_CAP(ctrl->cap_base), slot_cap);
 
 	if (rc) {
 		err("%s : hp_register_read_dword SLOT_CAP failed\n", __FUNCTION__);
@@ -793,13 +793,13 @@ static int hpc_power_on_slot(struct slot * slot)
 		return -1;
 	}
 
-	retval = hp_register_read_word(php_ctlr->pci_dev, SLOT_CTRL, slot_ctrl);
+	retval = hp_register_read_word(php_ctlr->pci_dev, SLOT_CTRL(slot->ctrl->cap_base), slot_ctrl);
 
 	if (retval) {
 		err("%s : hp_register_read_word SLOT_CTRL failed\n", __FUNCTION__);
 		return retval;
 	}
-	dbg("%s: SLOT_CTRL %x, value read %xn", __FUNCTION__, SLOT_CTRL, 
+	dbg("%s: SLOT_CTRL %x, value read %xn", __FUNCTION__, SLOT_CTRL(slot->ctrl->cap_base),
 		slot_ctrl);
 
 	slot_cmd = (slot_ctrl & ~PWR_CTRL) | POWER_ON;
@@ -813,7 +813,7 @@ static int hpc_power_on_slot(struct slot * slot)
 		err("%s: Write %x command failed!\n", __FUNCTION__, slot_cmd);
 		return -1;
 	}
-	dbg("%s: SLOT_CTRL %x write cmd %x\n",__FUNCTION__, SLOT_CTRL, slot_cmd);
+	dbg("%s: SLOT_CTRL %x write cmd %x\n",__FUNCTION__, SLOT_CTRL(slot->ctrl->cap_base), slot_cmd);
 
 	DBG_LEAVE_ROUTINE
 
@@ -842,13 +842,13 @@ static int hpc_power_off_slot(struct slot * slot)
 		err("%s: Invalid HPC slot number!\n", __FUNCTION__);
 		return -1;
 	}
-	retval = hp_register_read_word(php_ctlr->pci_dev, SLOT_CTRL, slot_ctrl);
+	retval = hp_register_read_word(php_ctlr->pci_dev, SLOT_CTRL(slot->ctrl->cap_base), slot_ctrl);
 
 	if (retval) {
 		err("%s : hp_register_read_word SLOT_CTRL failed\n", __FUNCTION__);
 		return retval;
 	}
-	dbg("%s: SLOT_CTRL %x, value read %x\n", __FUNCTION__, SLOT_CTRL, 
+	dbg("%s: SLOT_CTRL %x, value read %x\n", __FUNCTION__, SLOT_CTRL(slot->ctrl->cap_base),
 		slot_ctrl);
 
 	slot_cmd = (slot_ctrl & ~PWR_CTRL) | POWER_OFF;
@@ -862,7 +862,7 @@ static int hpc_power_off_slot(struct slot * slot)
 		err("%s: Write command failed!\n", __FUNCTION__);
 		return -1;
 	}
-	dbg("%s: SLOT_CTRL %x write cmd %x\n",__FUNCTION__, SLOT_CTRL, slot_cmd);
+	dbg("%s: SLOT_CTRL %x write cmd %x\n",__FUNCTION__, SLOT_CTRL(slot->ctrl->cap_base), slot_cmd);
 
 	DBG_LEAVE_ROUTINE
 
@@ -900,7 +900,7 @@ static irqreturn_t pcie_isr(int IRQ, void *dev_id, struct pt_regs *regs)
 		return IRQ_NONE;
 	}
 
-	rc = hp_register_read_word(php_ctlr->pci_dev, SLOT_STATUS, slot_status);
+	rc = hp_register_read_word(php_ctlr->pci_dev, SLOT_STATUS(ctrl->cap_base), slot_status);
 	if (rc) {
 		err("%s : hp_register_read_word SLOT_STATUS failed\n", __FUNCTION__);
 		return IRQ_NONE;
@@ -918,7 +918,7 @@ static irqreturn_t pcie_isr(int IRQ, void *dev_id, struct pt_regs *regs)
 	dbg("%s: intr_loc %x\n", __FUNCTION__, intr_loc);
 	/* Mask Hot-plug Interrupt Enable */
 	if (!pciehp_poll_mode) {
-		rc = hp_register_read_word(php_ctlr->pci_dev, SLOT_CTRL, temp_word);
+		rc = hp_register_read_word(php_ctlr->pci_dev, SLOT_CTRL(ctrl->cap_base), temp_word);
 		if (rc) {
 			err("%s : hp_register_read_word SLOT_CTRL failed\n", __FUNCTION__);
 			return IRQ_NONE;
@@ -928,14 +928,14 @@ static irqreturn_t pcie_isr(int IRQ, void *dev_id, struct pt_regs *regs)
 		dbg("%s: hp_register_read_word SLOT_CTRL with value %x\n", __FUNCTION__, temp_word);
 		temp_word = (temp_word & ~HP_INTR_ENABLE & ~CMD_CMPL_INTR_ENABLE) | 0x00;
 
-		rc = hp_register_write_word(php_ctlr->pci_dev, SLOT_CTRL, temp_word);
+		rc = hp_register_write_word(php_ctlr->pci_dev, SLOT_CTRL(ctrl->cap_base), temp_word);
 		if (rc) {
 			err("%s : hp_register_write_word SLOT_CTRL failed\n", __FUNCTION__);
 			return IRQ_NONE;
 		}
 		dbg("%s: hp_register_write_word SLOT_CTRL with value %x\n", __FUNCTION__, temp_word);
 		
-		rc = hp_register_read_word(php_ctlr->pci_dev, SLOT_STATUS, slot_status);
+		rc = hp_register_read_word(php_ctlr->pci_dev, SLOT_STATUS(ctrl->cap_base), slot_status);
 		if (rc) {
 			err("%s : hp_register_read_word SLOT_STATUS failed\n", __FUNCTION__);
 			return IRQ_NONE;
@@ -944,7 +944,7 @@ static irqreturn_t pcie_isr(int IRQ, void *dev_id, struct pt_regs *regs)
 		
 		/* Clear command complete interrupt caused by this write */
 		temp_word = 0x1f;
-		rc = hp_register_write_word(php_ctlr->pci_dev, SLOT_STATUS, temp_word);
+		rc = hp_register_write_word(php_ctlr->pci_dev, SLOT_STATUS(ctrl->cap_base), temp_word);
 		if (rc) {
 			err("%s : hp_register_write_word SLOT_STATUS failed\n", __FUNCTION__);
 			return IRQ_NONE;
@@ -975,14 +975,14 @@ static irqreturn_t pcie_isr(int IRQ, void *dev_id, struct pt_regs *regs)
 
 	/* Clear all events after serving them */
 	temp_word = 0x1F;
-	rc = hp_register_write_word(php_ctlr->pci_dev, SLOT_STATUS, temp_word);
+	rc = hp_register_write_word(php_ctlr->pci_dev, SLOT_STATUS(ctrl->cap_base), temp_word);
 	if (rc) {
 		err("%s : hp_register_write_word SLOT_STATUS failed\n", __FUNCTION__);
 		return IRQ_NONE;
 	}
 	/* Unmask Hot-plug Interrupt Enable */
 	if (!pciehp_poll_mode) {
-		rc = hp_register_read_word(php_ctlr->pci_dev, SLOT_CTRL, temp_word);
+		rc = hp_register_read_word(php_ctlr->pci_dev, SLOT_CTRL(ctrl->cap_base), temp_word);
 		if (rc) {
 			err("%s : hp_register_read_word SLOT_CTRL failed\n", __FUNCTION__);
 			return IRQ_NONE;
@@ -992,14 +992,14 @@ static irqreturn_t pcie_isr(int IRQ, void *dev_id, struct pt_regs *regs)
 		dbg("%s: hp_register_read_word SLOT_CTRL with value %x\n", __FUNCTION__, temp_word);
 		temp_word = (temp_word & ~HP_INTR_ENABLE) | HP_INTR_ENABLE;
 
-		rc = hp_register_write_word(php_ctlr->pci_dev, SLOT_CTRL, temp_word);
+		rc = hp_register_write_word(php_ctlr->pci_dev, SLOT_CTRL(ctrl->cap_base), temp_word);
 		if (rc) {
 			err("%s : hp_register_write_word SLOT_CTRL failed\n", __FUNCTION__);
 			return IRQ_NONE;
 		}
 		dbg("%s: hp_register_write_word SLOT_CTRL with value %x\n", __FUNCTION__, temp_word); 	
 	
-		rc = hp_register_read_word(php_ctlr->pci_dev, SLOT_STATUS, slot_status);
+		rc = hp_register_read_word(php_ctlr->pci_dev, SLOT_STATUS(ctrl->cap_base), slot_status);
 		if (rc) {
 			err("%s : hp_register_read_word SLOT_STATUS failed\n", __FUNCTION__);
 			return IRQ_NONE;
@@ -1008,7 +1008,7 @@ static irqreturn_t pcie_isr(int IRQ, void *dev_id, struct pt_regs *regs)
 		
 		/* Clear command complete interrupt caused by this write */
 		temp_word = 0x1F;
-		rc = hp_register_write_word(php_ctlr->pci_dev, SLOT_STATUS, temp_word);
+		rc = hp_register_write_word(php_ctlr->pci_dev, SLOT_STATUS(ctrl->cap_base), temp_word);
 		if (rc) {
 			err("%s : hp_register_write_word SLOT_STATUS failed\n", __FUNCTION__);
 			return IRQ_NONE;
@@ -1038,7 +1038,7 @@ static int hpc_get_max_lnk_speed (struct slot *slot, enum pci_bus_speed *value)
 		return -1;
 	}
 
-	retval = hp_register_read_dword(php_ctlr->pci_dev, LNK_CAP, lnk_cap);
+	retval = hp_register_read_dword(php_ctlr->pci_dev, LNK_CAP(slot->ctrl->cap_base), lnk_cap);
 
 	if (retval) {
 		err("%s : hp_register_read_dword  LNK_CAP failed\n", __FUNCTION__);
@@ -1079,7 +1079,7 @@ static int hpc_get_max_lnk_width (struct slot *slot, enum pcie_link_width *value
 		return -1;
 	}
 
-	retval = hp_register_read_dword(php_ctlr->pci_dev, LNK_CAP, lnk_cap);
+	retval = hp_register_read_dword(php_ctlr->pci_dev, LNK_CAP(slot->ctrl->cap_base), lnk_cap);
 
 	if (retval) {
 		err("%s : hp_register_read_dword  LNK_CAP failed\n", __FUNCTION__);
@@ -1141,7 +1141,7 @@ static int hpc_get_cur_lnk_speed (struct slot *slot, enum pci_bus_speed *value)
 		return -1;
 	}
 
-	retval = hp_register_read_word(php_ctlr->pci_dev, LNK_STATUS, lnk_status);
+	retval = hp_register_read_word(php_ctlr->pci_dev, LNK_STATUS(slot->ctrl->cap_base), lnk_status);
 
 	if (retval) {
 		err("%s : hp_register_read_word LNK_STATUS failed\n", __FUNCTION__);
@@ -1182,7 +1182,7 @@ static int hpc_get_cur_lnk_width (struct slot *slot, enum pcie_link_width *value
 		return -1;
 	}
 
-	retval = hp_register_read_word(php_ctlr->pci_dev, LNK_STATUS, lnk_status);
+	retval = hp_register_read_word(php_ctlr->pci_dev, LNK_STATUS(slot->ctrl->cap_base), lnk_status);
 
 	if (retval) {
 		err("%s : hp_register_read_word LNK_STATUS failed\n", __FUNCTION__);
@@ -1292,47 +1292,48 @@ int pcie_init(struct controller * ctrl,
 		goto abort_free_ctlr;
 	}
 
-	pcie_cap_base = cap_base;
+	ctrl->cap_base = cap_base;
 
 	dbg("%s: pcie_cap_base %x\n", __FUNCTION__, pcie_cap_base);
 
-	rc = hp_register_read_word(pdev, CAP_REG, cap_reg);
+	rc = hp_register_read_word(pdev, CAP_REG(ctrl->cap_base), cap_reg);
 	if (rc) {
 		err("%s : hp_register_read_word CAP_REG failed\n", __FUNCTION__);
 		goto abort_free_ctlr;
 	}
-	dbg("%s: CAP_REG offset %x cap_reg %x\n", __FUNCTION__, CAP_REG, cap_reg);
+	dbg("%s: CAP_REG offset %x cap_reg %x\n", __FUNCTION__, CAP_REG(ctrl->cap_base), cap_reg);
 
-	if (((cap_reg & SLOT_IMPL) == 0) || ((cap_reg & DEV_PORT_TYPE) != 0x0040)){
+	if (((cap_reg & SLOT_IMPL) == 0) || (((cap_reg & DEV_PORT_TYPE) != 0x0040)
+		&& ((cap_reg & DEV_PORT_TYPE) != 0x0060))) {
 		dbg("%s : This is not a root port or the port is not connected to a slot\n", __FUNCTION__);
 		goto abort_free_ctlr;
 	}
 
-	rc = hp_register_read_dword(php_ctlr->pci_dev, SLOT_CAP, slot_cap);
+	rc = hp_register_read_dword(php_ctlr->pci_dev, SLOT_CAP(ctrl->cap_base), slot_cap);
 	if (rc) {
 		err("%s : hp_register_read_word CAP_REG failed\n", __FUNCTION__);
 		goto abort_free_ctlr;
 	}
-	dbg("%s: SLOT_CAP offset %x slot_cap %x\n", __FUNCTION__, SLOT_CAP, slot_cap);
+	dbg("%s: SLOT_CAP offset %x slot_cap %x\n", __FUNCTION__, SLOT_CAP(ctrl->cap_base), slot_cap);
 
 	if (!(slot_cap & HP_CAP)) {
 		dbg("%s : This slot is not hot-plug capable\n", __FUNCTION__);
 		goto abort_free_ctlr;
 	}
 	/* For debugging purpose */
-	rc = hp_register_read_word(php_ctlr->pci_dev, SLOT_STATUS, slot_status);
+	rc = hp_register_read_word(php_ctlr->pci_dev, SLOT_STATUS(ctrl->cap_base), slot_status);
 	if (rc) {
 		err("%s : hp_register_read_word SLOT_STATUS failed\n", __FUNCTION__);
 		goto abort_free_ctlr;
 	}
-	dbg("%s: SLOT_STATUS offset %x slot_status %x\n", __FUNCTION__, SLOT_STATUS, slot_status);
+	dbg("%s: SLOT_STATUS offset %x slot_status %x\n", __FUNCTION__, SLOT_STATUS(ctrl->cap_base), slot_status);
 
-	rc = hp_register_read_word(php_ctlr->pci_dev, SLOT_CTRL, slot_ctrl);
+	rc = hp_register_read_word(php_ctlr->pci_dev, SLOT_CTRL(ctrl->cap_base), slot_ctrl);
 	if (rc) {
 		err("%s : hp_register_read_word SLOT_CTRL failed\n", __FUNCTION__);
 		goto abort_free_ctlr;
 	}
-	dbg("%s: SLOT_CTRL offset %x slot_ctrl %x\n", __FUNCTION__, SLOT_CTRL, slot_ctrl);
+	dbg("%s: SLOT_CTRL offset %x slot_ctrl %x\n", __FUNCTION__, SLOT_CTRL(ctrl->cap_base), slot_ctrl);
 
 	if (first) {
 		spin_lock_init(&hpc_event_lock);
@@ -1372,36 +1373,37 @@ int pcie_init(struct controller * ctrl,
 	php_ctlr->num_slots = 1;
 
 	/* Mask Hot-plug Interrupt Enable */
-	rc = hp_register_read_word(pdev, SLOT_CTRL, temp_word);
+	rc = hp_register_read_word(pdev, SLOT_CTRL(ctrl->cap_base), temp_word);
 	if (rc) {
 		err("%s : hp_register_read_word SLOT_CTRL failed\n", __FUNCTION__);
 		goto abort_free_ctlr;
 	}
 
-	dbg("%s: SLOT_CTRL %x value read %x\n", __FUNCTION__, SLOT_CTRL, temp_word);
+	dbg("%s: SLOT_CTRL %x value read %x\n", __FUNCTION__, SLOT_CTRL(ctrl->cap_base), temp_word);
 	temp_word = (temp_word & ~HP_INTR_ENABLE & ~CMD_CMPL_INTR_ENABLE) | 0x00;
 
-	rc = hp_register_write_word(pdev, SLOT_CTRL, temp_word);
+	rc = hp_register_write_word(pdev, SLOT_CTRL(ctrl->cap_base), temp_word);
 	if (rc) {
 		err("%s : hp_register_write_word SLOT_CTRL failed\n", __FUNCTION__);
 		goto abort_free_ctlr;
 	}
 	dbg("%s : Mask HPIE hp_register_write_word SLOT_CTRL %x\n", __FUNCTION__, temp_word);
 
-	rc = hp_register_read_word(php_ctlr->pci_dev, SLOT_STATUS, slot_status);
+	rc = hp_register_read_word(php_ctlr->pci_dev, SLOT_STATUS(ctrl->cap_base), slot_status);
 	if (rc) {
 		err("%s : hp_register_read_word SLOT_STATUS failed\n", __FUNCTION__);
 		goto abort_free_ctlr;
 	}
-	dbg("%s: Mask HPIE SLOT_STATUS offset %x reads slot_status %x\n", __FUNCTION__, SLOT_STATUS, slot_status);
+	dbg("%s: Mask HPIE SLOT_STATUS offset %x reads slot_status %x\n", __FUNCTION__, SLOT_STATUS(ctrl->cap_base)
+		, slot_status);
 
 	temp_word = 0x1F; /* Clear all events */
-	rc = hp_register_write_word(php_ctlr->pci_dev, SLOT_STATUS, temp_word);
+	rc = hp_register_write_word(php_ctlr->pci_dev, SLOT_STATUS(ctrl->cap_base), temp_word);
 	if (rc) {
 		err("%s : hp_register_write_word SLOT_STATUS failed\n", __FUNCTION__);
 		goto abort_free_ctlr;
 	}
-	dbg("%s: SLOT_STATUS offset %x writes slot_status %x\n", __FUNCTION__, SLOT_STATUS, temp_word);
+	dbg("%s: SLOT_STATUS offset %x writes slot_status %x\n", __FUNCTION__, SLOT_STATUS(ctrl->cap_base), temp_word);
 
 	if (pciehp_poll_mode)  {/* Install interrupt polling code */
 		/* Install and start the interrupt polling timer */
@@ -1417,12 +1419,12 @@ int pcie_init(struct controller * ctrl,
 		}
 	}
 
-	rc = hp_register_read_word(pdev, SLOT_CTRL, temp_word);
+	rc = hp_register_read_word(pdev, SLOT_CTRL(ctrl->cap_base), temp_word);
 	if (rc) {
 		err("%s : hp_register_read_word SLOT_CTRL failed\n", __FUNCTION__);
 		goto abort_free_ctlr;
 	}
-	dbg("%s: SLOT_CTRL %x value read %x\n", __FUNCTION__, SLOT_CTRL, temp_word);
+	dbg("%s: SLOT_CTRL %x value read %x\n", __FUNCTION__, SLOT_CTRL(ctrl->cap_base), temp_word);
 	dbg("%s: slot_cap %x\n", __FUNCTION__, slot_cap);
 
 	intr_enable = intr_enable | PRSN_DETECT_ENABLE;
@@ -1446,27 +1448,27 @@ int pcie_init(struct controller * ctrl,
 	dbg("%s: temp_word %x\n", __FUNCTION__, temp_word);
 
 	/* Unmask Hot-plug Interrupt Enable for the interrupt notification mechanism case */
-	rc = hp_register_write_word(pdev, SLOT_CTRL, temp_word);
+	rc = hp_register_write_word(pdev, SLOT_CTRL(ctrl->cap_base), temp_word);
 	if (rc) {
 		err("%s : hp_register_write_word SLOT_CTRL failed\n", __FUNCTION__);
 		goto abort_free_ctlr;
 	}
 	dbg("%s : Unmask HPIE hp_register_write_word SLOT_CTRL with %x\n", __FUNCTION__, temp_word);
-	rc = hp_register_read_word(php_ctlr->pci_dev, SLOT_STATUS, slot_status);
+	rc = hp_register_read_word(php_ctlr->pci_dev, SLOT_STATUS(ctrl->cap_base), slot_status);
 	if (rc) {
 		err("%s : hp_register_read_word SLOT_STATUS failed\n", __FUNCTION__);
 		goto abort_free_ctlr;
 	}
 	dbg("%s: Unmask HPIE SLOT_STATUS offset %x reads slot_status %x\n", __FUNCTION__, 
-		SLOT_STATUS, slot_status);
+		SLOT_STATUS(ctrl->cap_base), slot_status);
 	
 	temp_word =  0x1F; /* Clear all events */
-	rc = hp_register_write_word(php_ctlr->pci_dev, SLOT_STATUS, temp_word);
+	rc = hp_register_write_word(php_ctlr->pci_dev, SLOT_STATUS(ctrl->cap_base), temp_word);
 	if (rc) {
 		err("%s : hp_register_write_word SLOT_STATUS failed\n", __FUNCTION__);
 		goto abort_free_ctlr;
 	}
-	dbg("%s: SLOT_STATUS offset %x writes slot_status %x\n", __FUNCTION__, SLOT_STATUS, temp_word);
+	dbg("%s: SLOT_STATUS offset %x writes slot_status %x\n", __FUNCTION__, SLOT_STATUS(ctrl->cap_base), temp_word);
 	
 	/*  Add this HPC instance into the HPC list */
 	spin_lock(&list_lock);

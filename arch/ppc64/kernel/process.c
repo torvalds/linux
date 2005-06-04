@@ -378,9 +378,6 @@ copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 		childregs->gpr[1] = sp + sizeof(struct pt_regs);
 		p->thread.regs = NULL;	/* no user register state */
 		clear_ti_thread_flag(p->thread_info, TIF_32BIT);
-#ifdef CONFIG_PPC_ISERIES
-		set_ti_thread_flag(p->thread_info, TIF_RUN_LIGHT);
-#endif
 	} else {
 		childregs->gpr[1] = usp;
 		p->thread.regs = childregs;

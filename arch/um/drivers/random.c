@@ -1,5 +1,10 @@
-/* Much of this ripped from hw_random.c */
-
+/* Copyright (C) 2005 Jeff Dike <jdike@addtoit.com> */
+/* Much of this ripped from drivers/char/hw_random.c, see there for other
+ * copyright.
+ *
+ * This software may be used and distributed according to the terms
+ * of the GNU General Public License, incorporated herein by reference.
+ */
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
@@ -12,8 +17,6 @@
  */
 #define RNG_VERSION "1.0.0"
 #define RNG_MODULE_NAME "random"
-#define RNG_DRIVER_NAME   RNG_MODULE_NAME " virtual driver " RNG_VERSION
-#define PFX RNG_MODULE_NAME ": "
 
 #define RNG_MISCDEV_MINOR		183 /* official */
 
@@ -98,7 +101,7 @@ static int __init rng_init (void)
 
 	err = misc_register (&rng_miscdev);
 	if (err) {
-		printk (KERN_ERR PFX "misc device register failed\n");
+		printk (KERN_ERR RNG_MODULE_NAME ": misc device register failed\n");
 		goto err_out_cleanup_hw;
 	}
 
@@ -120,3 +123,6 @@ static void __exit rng_cleanup (void)
 
 module_init (rng_init);
 module_exit (rng_cleanup);
+
+MODULE_DESCRIPTION("UML Host Random Number Generator (RNG) driver");
+MODULE_LICENSE("GPL");

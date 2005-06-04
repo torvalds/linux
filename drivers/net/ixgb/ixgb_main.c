@@ -47,7 +47,7 @@ char ixgb_driver_string[] = "Intel(R) PRO/10GbE Network Driver";
 #else
 #define DRIVERNAPI "-NAPI"
 #endif
-char ixgb_driver_version[] = "1.0.90-k2"DRIVERNAPI;
+char ixgb_driver_version[] = "1.0.95-k2"DRIVERNAPI;
 char ixgb_copyright[] = "Copyright (c) 1999-2005 Intel Corporation.";
 
 /* ixgb_pci_tbl - PCI Device ID Table
@@ -103,6 +103,7 @@ static int ixgb_change_mtu(struct net_device *netdev, int new_mtu);
 static int ixgb_set_mac(struct net_device *netdev, void *p);
 static irqreturn_t ixgb_intr(int irq, void *data, struct pt_regs *regs);
 static boolean_t ixgb_clean_tx_irq(struct ixgb_adapter *adapter);
+
 #ifdef CONFIG_IXGB_NAPI
 static int ixgb_clean(struct net_device *netdev, int *budget);
 static boolean_t ixgb_clean_rx_irq(struct ixgb_adapter *adapter,
@@ -120,33 +121,20 @@ static void ixgb_vlan_rx_add_vid(struct net_device *netdev, uint16_t vid);
 static void ixgb_vlan_rx_kill_vid(struct net_device *netdev, uint16_t vid);
 static void ixgb_restore_vlan(struct ixgb_adapter *adapter);
 
-static int ixgb_notify_reboot(struct notifier_block *, unsigned long event,
-			      void *ptr);
-static int ixgb_suspend(struct pci_dev *pdev, uint32_t state);
-
 #ifdef CONFIG_NET_POLL_CONTROLLER
 /* for netdump / net console */
 static void ixgb_netpoll(struct net_device *dev);
 #endif
-
-struct notifier_block ixgb_notifier_reboot = {
-	.notifier_call = ixgb_notify_reboot,
-	.next = NULL,
-	.priority = 0
-};
 
 /* Exported from other modules */
 
 extern void ixgb_check_options(struct ixgb_adapter *adapter);
 
 static struct pci_driver ixgb_driver = {
-	.name = ixgb_driver_name,
+	.name     = ixgb_driver_name,
 	.id_table = ixgb_pci_tbl,
-	.probe = ixgb_probe,
-	.remove = __devexit_p(ixgb_remove),
-	/* Power Managment Hooks */
-	.suspend = NULL,
-	.resume = NULL
+	.probe    = ixgb_probe,
+	.remove   = __devexit_p(ixgb_remove),
 };
 
 MODULE_AUTHOR("Intel Corporation, <linux.nics@intel.com>");
@@ -169,17 +157,12 @@ MODULE_LICENSE("GPL");
 static int __init
 ixgb_init_module(void)
 {
-	int ret;
 	printk(KERN_INFO "%s - version %s\n",
 	       ixgb_driver_string, ixgb_driver_version);
 
 	printk(KERN_INFO "%s\n", ixgb_copyright);
 
-	ret = pci_module_init(&ixgb_driver);
-	if(ret >= 0) {
-		register_reboot_notifier(&ixgb_notifier_reboot);
-	}
-	return ret;
+	return pci_module_init(&ixgb_driver);
 }
 
 module_init(ixgb_init_module);
@@ -194,7 +177,6 @@ module_init(ixgb_init_module);
 static void __exit
 ixgb_exit_module(void)
 {
-	unregister_reboot_notifier(&ixgb_notifier_reboot);
 	pci_unregister_driver(&ixgb_driver);
 }
 
@@ -224,8 +206,8 @@ ixgb_irq_enable(struct ixgb_adapter *adapter)
 {
 	if(atomic_dec_and_test(&adapter->irq_sem)) {
 		IXGB_WRITE_REG(&adapter->hw, IMS,
-			   IXGB_INT_RXT0 | IXGB_INT_RXDMT0 | IXGB_INT_TXDW |
-			   IXGB_INT_RXO | IXGB_INT_LSC);
+			       IXGB_INT_RXT0 | IXGB_INT_RXDMT0 | IXGB_INT_TXDW |
+			       IXGB_INT_LSC);
 		IXGB_WRITE_FLUSH(&adapter->hw);
 	}
 }
@@ -1209,9 +1191,9 @@ ixgb_tso(struct ixgb_adapter *adapter, struct sk_buff *skb)
 						| IXGB_CONTEXT_DESC_CMD_TSE
 						| IXGB_CONTEXT_DESC_CMD_IP
 						| IXGB_CONTEXT_DESC_CMD_TCP
-						| IXGB_CONTEXT_DESC_CMD_RS
 						| IXGB_CONTEXT_DESC_CMD_IDE
 						| (skb->len - (hdr_len)));
+
 
 		if(++i == adapter->tx_ring.count) i = 0;
 		adapter->tx_ring.next_to_use = i;
@@ -1247,8 +1229,7 @@ ixgb_tx_csum(struct ixgb_adapter *adapter, struct sk_buff *skb)
 		context_desc->mss = 0;
 		context_desc->cmd_type_len =
 			cpu_to_le32(IXGB_CONTEXT_DESC_TYPE
-					| IXGB_TX_DESC_CMD_RS 
-					| IXGB_TX_DESC_CMD_IDE);
+				    | IXGB_TX_DESC_CMD_IDE);
 
 		if(++i == adapter->tx_ring.count) i = 0;
 		adapter->tx_ring.next_to_use = i;
@@ -1273,6 +1254,7 @@ ixgb_tx_map(struct ixgb_adapter *adapter, struct sk_buff *skb,
 
 	unsigned int nr_frags = skb_shinfo(skb)->nr_frags;
 	unsigned int f;
+
 	len -= skb->data_len;
 
 	i = tx_ring->next_to_use;
@@ -1526,14 +1508,33 @@ ixgb_change_mtu(struct net_device *netdev, int new_mtu)
 void
 ixgb_update_stats(struct ixgb_adapter *adapter)
 {
+	struct net_device *netdev = adapter->netdev;
+
+	if((netdev->flags & IFF_PROMISC) || (netdev->flags & IFF_ALLMULTI) ||
+	   (netdev->mc_count > IXGB_MAX_NUM_MULTICAST_ADDRESSES)) {
+		u64 multi = IXGB_READ_REG(&adapter->hw, MPRCL);
+		u32 bcast_l = IXGB_READ_REG(&adapter->hw, BPRCL);
+		u32 bcast_h = IXGB_READ_REG(&adapter->hw, BPRCH);
+		u64 bcast = ((u64)bcast_h << 32) | bcast_l; 
+
+		multi |= ((u64)IXGB_READ_REG(&adapter->hw, MPRCH) << 32);
+		/* fix up multicast stats by removing broadcasts */
+		multi -= bcast;
+		
+		adapter->stats.mprcl += (multi & 0xFFFFFFFF);
+		adapter->stats.mprch += (multi >> 32);
+		adapter->stats.bprcl += bcast_l; 
+		adapter->stats.bprch += bcast_h;
+	} else {
+		adapter->stats.mprcl += IXGB_READ_REG(&adapter->hw, MPRCL);
+		adapter->stats.mprch += IXGB_READ_REG(&adapter->hw, MPRCH);
+		adapter->stats.bprcl += IXGB_READ_REG(&adapter->hw, BPRCL);
+		adapter->stats.bprch += IXGB_READ_REG(&adapter->hw, BPRCH);
+	}
 	adapter->stats.tprl += IXGB_READ_REG(&adapter->hw, TPRL);
 	adapter->stats.tprh += IXGB_READ_REG(&adapter->hw, TPRH);
 	adapter->stats.gprcl += IXGB_READ_REG(&adapter->hw, GPRCL);
 	adapter->stats.gprch += IXGB_READ_REG(&adapter->hw, GPRCH);
-	adapter->stats.bprcl += IXGB_READ_REG(&adapter->hw, BPRCL);
-	adapter->stats.bprch += IXGB_READ_REG(&adapter->hw, BPRCH);
-	adapter->stats.mprcl += IXGB_READ_REG(&adapter->hw, MPRCL);
-	adapter->stats.mprch += IXGB_READ_REG(&adapter->hw, MPRCH);
 	adapter->stats.uprcl += IXGB_READ_REG(&adapter->hw, UPRCL);
 	adapter->stats.uprch += IXGB_READ_REG(&adapter->hw, UPRCH);
 	adapter->stats.vprcl += IXGB_READ_REG(&adapter->hw, VPRCL);
@@ -1823,7 +1824,6 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter)
 	struct pci_dev *pdev = adapter->pdev;
 	struct ixgb_rx_desc *rx_desc, *next_rxd;
 	struct ixgb_buffer *buffer_info, *next_buffer, *next2_buffer;
-	struct sk_buff *skb, *next_skb;
 	uint32_t length;
 	unsigned int i, j;
 	boolean_t cleaned = FALSE;
@@ -1833,6 +1833,8 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter)
 	buffer_info = &rx_ring->buffer_info[i];
 
 	while(rx_desc->status & IXGB_RX_DESC_STATUS_DD) {
+		struct sk_buff *skb, *next_skb;
+		u8 status;
 
 #ifdef CONFIG_IXGB_NAPI
 		if(*work_done >= work_to_do)
@@ -1840,7 +1842,9 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter)
 
 		(*work_done)++;
 #endif
+		status = rx_desc->status;
 		skb = buffer_info->skb;
+
 		prefetch(skb->data);
 
 		if(++i == rx_ring->count) i = 0;
@@ -1855,7 +1859,6 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter)
 		next_skb = next_buffer->skb;
 		prefetch(next_skb);
 
-
 		cleaned = TRUE;
 
 		pci_unmap_single(pdev,
@@ -1865,7 +1868,7 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter)
 
 		length = le16_to_cpu(rx_desc->length);
 
-		if(unlikely(!(rx_desc->status & IXGB_RX_DESC_STATUS_EOP))) {
+		if(unlikely(!(status & IXGB_RX_DESC_STATUS_EOP))) {
 
 			/* All receives must fit into a single buffer */
 
@@ -1873,12 +1876,7 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter)
 					 "length<%x>\n", length);
 
 			dev_kfree_skb_irq(skb);
-			rx_desc->status = 0;
-			buffer_info->skb = NULL;
-
-			rx_desc = next_rxd;
-			buffer_info = next_buffer;
-			continue;
+			goto rxdesc_done;
 		}
 
 		if (unlikely(rx_desc->errors
@@ -1887,12 +1885,7 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter)
 				IXGB_RX_DESC_ERRORS_RXE))) {
 
 			dev_kfree_skb_irq(skb);
-			rx_desc->status = 0;
-			buffer_info->skb = NULL;
-
-			rx_desc = next_rxd;
-			buffer_info = next_buffer;
-			continue;
+			goto rxdesc_done;
 		}
 
 		/* Good Receive */
@@ -1903,7 +1896,7 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter)
 
 		skb->protocol = eth_type_trans(skb, netdev);
 #ifdef CONFIG_IXGB_NAPI
-		if(adapter->vlgrp && (rx_desc->status & IXGB_RX_DESC_STATUS_VP)) {
+		if(adapter->vlgrp && (status & IXGB_RX_DESC_STATUS_VP)) {
 			vlan_hwaccel_receive_skb(skb, adapter->vlgrp,
 				le16_to_cpu(rx_desc->special) &
 					IXGB_RX_DESC_SPECIAL_VLAN_MASK);
@@ -1911,7 +1904,7 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter)
 			netif_receive_skb(skb);
 		}
 #else /* CONFIG_IXGB_NAPI */
-		if(adapter->vlgrp && (rx_desc->status & IXGB_RX_DESC_STATUS_VP)) {
+		if(adapter->vlgrp && (status & IXGB_RX_DESC_STATUS_VP)) {
 			vlan_hwaccel_rx(skb, adapter->vlgrp,
 				le16_to_cpu(rx_desc->special) &
 					IXGB_RX_DESC_SPECIAL_VLAN_MASK);
@@ -1921,9 +1914,12 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter)
 #endif /* CONFIG_IXGB_NAPI */
 		netdev->last_rx = jiffies;
 
+rxdesc_done:
+		/* clean up descriptor, might be written over by hw */
 		rx_desc->status = 0;
 		buffer_info->skb = NULL;
 
+		/* use prefetched values */
 		rx_desc = next_rxd;
 		buffer_info = next_buffer;
 	}
@@ -1959,8 +1955,8 @@ ixgb_alloc_rx_buffers(struct ixgb_adapter *adapter)
 
 	num_group_tail_writes = IXGB_RX_BUFFER_WRITE;
 
-	/* leave one descriptor unused */
-	while(--cleancount > 0) {
+	/* leave three descriptors unused */
+	while(--cleancount > 2) {
 		rx_desc = IXGB_RX_DESC(*rx_ring, i);
 
 		skb = dev_alloc_skb(adapter->rx_buffer_len + NET_IP_ALIGN);
@@ -1987,6 +1983,10 @@ ixgb_alloc_rx_buffers(struct ixgb_adapter *adapter)
 				   PCI_DMA_FROMDEVICE);
 
 		rx_desc->buff_addr = cpu_to_le64(buffer_info->dma);
+		/* guarantee DD bit not set now before h/w gets descriptor
+		 * this is the rest of the workaround for h/w double 
+		 * writeback. */
+		rx_desc->status = 0;
 
 		if((i & ~(num_group_tail_writes- 1)) == i) {
 			/* Force memory writes to complete before letting h/w
@@ -2099,54 +2099,6 @@ ixgb_restore_vlan(struct ixgb_adapter *adapter)
 	}
 }
 
-/**
- * ixgb_notify_reboot - handles OS notification of reboot event.
- * @param nb notifier block, unused
- * @param event Event being passed to driver to act upon
- * @param p A pointer to our net device
- **/
-static int
-ixgb_notify_reboot(struct notifier_block *nb, unsigned long event, void *p)
-{
-	struct pci_dev *pdev = NULL;
-
-	switch(event) {
-	case SYS_DOWN:
-	case SYS_HALT:
-	case SYS_POWER_OFF:
-		while ((pdev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pdev))) {
-			if (pci_dev_driver(pdev) == &ixgb_driver)
-				ixgb_suspend(pdev, 3);
-		}
-	}
-	return NOTIFY_DONE;
-}
-
-/**
- * ixgb_suspend - driver suspend function called from notify.
- * @param pdev pci driver structure used for passing to
- * @param state power state to enter 
- **/
-static int
-ixgb_suspend(struct pci_dev *pdev, uint32_t state)
-{
-	struct net_device *netdev = pci_get_drvdata(pdev);
-	struct ixgb_adapter *adapter = netdev->priv;
-
-	netif_device_detach(netdev);
-
-	if(netif_running(netdev))
-		ixgb_down(adapter, TRUE);
-
-	pci_save_state(pdev);
-
-	state = (state > 0) ? 3 : 0;
-	pci_set_power_state(pdev, state);
-	msec_delay(200);
-
-	return 0;
-}
-
 #ifdef CONFIG_NET_POLL_CONTROLLER
 /*
  * Polling 'interrupt' - used by things like netconsole to send skbs
@@ -2157,6 +2109,7 @@ ixgb_suspend(struct pci_dev *pdev, uint32_t state)
 static void ixgb_netpoll(struct net_device *dev)
 {
 	struct ixgb_adapter *adapter = dev->priv;
+
 	disable_irq(adapter->pdev->irq);
 	ixgb_intr(adapter->pdev->irq, dev, NULL);
 	enable_irq(adapter->pdev->irq);

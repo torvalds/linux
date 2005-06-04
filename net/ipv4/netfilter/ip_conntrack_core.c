@@ -940,37 +940,25 @@ void ip_ct_refresh_acct(struct ip_conntrack *ct,
 struct sk_buff *
 ip_ct_gather_frags(struct sk_buff *skb, u_int32_t user)
 {
-	struct sock *sk = skb->sk;
 #ifdef CONFIG_NETFILTER_DEBUG
 	unsigned int olddebug = skb->nf_debug;
 #endif
 
-	if (sk) {
-		sock_hold(sk);
-		skb_orphan(skb);
-	}
+	skb_orphan(skb);
 
 	local_bh_disable(); 
 	skb = ip_defrag(skb, user);
 	local_bh_enable();
 
-	if (!skb) {
-		if (sk)
-			sock_put(sk);
-		return skb;
-	}
-
-	if (sk) {
-		skb_set_owner_w(skb, sk);
-		sock_put(sk);
-	}
-
-	ip_send_check(skb->nh.iph);
-	skb->nfcache |= NFC_ALTERED;
+	if (skb) {
+		ip_send_check(skb->nh.iph);
+		skb->nfcache |= NFC_ALTERED;
 #ifdef CONFIG_NETFILTER_DEBUG
-	/* Packet path as if nothing had happened. */
-	skb->nf_debug = olddebug;
+		/* Packet path as if nothing had happened. */
+		skb->nf_debug = olddebug;
 #endif
+	}
+
 	return skb;
 }
 

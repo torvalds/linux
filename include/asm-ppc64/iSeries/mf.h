@@ -52,6 +52,7 @@ extern void mf_clear_src(void);
 extern void mf_init(void);
 
 extern int mf_get_rtc(struct rtc_time *tm);
+extern int mf_get_boot_rtc(struct rtc_time *tm);
 extern int mf_set_rtc(struct rtc_time *tm);
 
 #endif /* _ASM_PPC64_ISERIES_MF_H */

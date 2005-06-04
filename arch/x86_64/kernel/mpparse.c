@@ -30,6 +30,7 @@
 #include <asm/pgalloc.h>
 #include <asm/io_apic.h>
 #include <asm/proto.h>
+#include <asm/acpi.h>
 
 /* Have we found an MP table */
 int smp_found_config;
@@ -107,6 +108,7 @@ static int __init mpf_checksum(unsigned char *mp, int len)
 static void __init MP_processor_info (struct mpc_config_processor *m)
 {
 	int ver;
+	static int found_bsp=0;
 
 	if (!(m->mpc_cpuflag & CPU_ENABLED))
 		return;
@@ -124,11 +126,6 @@ static void __init MP_processor_info (struct mpc_config_processor *m)
 	if (num_processors >= NR_CPUS) {
 		printk(KERN_WARNING "WARNING: NR_CPUS limit of %i reached."
 			" Processor ignored.\n", NR_CPUS);
-		return;
-	}
-	if (num_processors >= maxcpus) {
-		printk(KERN_WARNING "WARNING: maxcpus limit of %i reached."
-			" Processor ignored.\n", maxcpus);
 		return;
 	}
 
@@ -150,7 +147,19 @@ static void __init MP_processor_info (struct mpc_config_processor *m)
 		ver = 0x10;
 	}
 	apic_version[m->mpc_apicid] = ver;
-	bios_cpu_apicid[num_processors - 1] = m->mpc_apicid;
+ 	if (m->mpc_cpuflag & CPU_BOOTPROCESSOR) {
+ 		/*
+ 		 * bios_cpu_apicid is required to have processors listed
+ 		 * in same order as logical cpu numbers. Hence the first
+ 		 * entry is BSP, and so on.
+ 		 */
+ 		bios_cpu_apicid[0] = m->mpc_apicid;
+ 		x86_cpu_to_apicid[0] = m->mpc_apicid;
+ 		found_bsp = 1;
+ 	} else {
+ 		bios_cpu_apicid[num_processors - found_bsp] = m->mpc_apicid;
+ 		x86_cpu_to_apicid[num_processors - found_bsp] = m->mpc_apicid;
+ 	}
 }
 
 static void __init MP_bus_info (struct mpc_config_bus *m)
@@ -759,7 +768,7 @@ void __init mp_register_ioapic (
 	mp_ioapics[idx].mpc_apicaddr = address;
 
 	set_fixmap_nocache(FIX_IO_APIC_BASE_0 + idx, address);
-	mp_ioapics[idx].mpc_apicid = io_apic_get_unique_id(idx, id);
+	mp_ioapics[idx].mpc_apicid = id;
 	mp_ioapics[idx].mpc_apicver = io_apic_get_version(idx);
 	
 	/* 

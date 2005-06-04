@@ -289,13 +289,8 @@ done:
  * Return information to handle /proc support for the driver.
  */
 int
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-ahc_linux_proc_info(char *buffer, char **start, off_t offset,
-		    int length, int hostno, int inout)
-#else
 ahc_linux_proc_info(struct Scsi_Host *shost, char *buffer, char **start,
 		    off_t offset, int length, int inout)
-#endif
 {
 	struct	ahc_softc *ahc;
 	struct	info_str info;
@@ -307,15 +302,7 @@ ahc_linux_proc_info(struct Scsi_Host *shost, char *buffer, char **start,
 
 	retval = -EINVAL;
 	ahc_list_lock(&s);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-	TAILQ_FOREACH(ahc, &ahc_tailq, links) {
-		if (ahc->platform_data->host->host_no == hostno)
-			break;
-	}
-#else
 	ahc = ahc_find_softc(*(struct ahc_softc **)shost->hostdata);
-#endif
-
 	if (ahc == NULL)
 		goto done;
 

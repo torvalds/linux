@@ -314,6 +314,28 @@ int br_min_mtu(const struct net_bridge *br)
 	return mtu;
 }
 
+/*
+ * Recomputes features using slave's features
+ */
+void br_features_recompute(struct net_bridge *br)
+{
+	struct net_bridge_port *p;
+	unsigned long features, checksum;
+
+	features = NETIF_F_SG | NETIF_F_FRAGLIST 
+		| NETIF_F_HIGHDMA | NETIF_F_TSO;
+	checksum = NETIF_F_IP_CSUM;	/* least commmon subset */
+
+	list_for_each_entry(p, &br->port_list, list) {
+		if (!(p->dev->features 
+		      & (NETIF_F_IP_CSUM|NETIF_F_NO_CSUM|NETIF_F_HW_CSUM)))
+			checksum = 0;
+		features &= p->dev->features;
+	}
+
+	br->dev->features = features | checksum | NETIF_F_LLTX;
+}
+
 /* called with RTNL */
 int br_add_if(struct net_bridge *br, struct net_device *dev)
 {
@@ -368,6 +390,7 @@ int br_del_if(struct net_bridge *br, struct net_device *dev)
 
 	spin_lock_bh(&br->lock);
 	br_stp_recalculate_bridge_id(br);
+	br_features_recompute(br);
 	spin_unlock_bh(&br->lock);
 
 	return 0;

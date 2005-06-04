@@ -23,9 +23,9 @@
 LIST_HEAD(saa7146_devices);
 DECLARE_MUTEX(saa7146_devices_lock);
 
-static int saa7146_num = 0;
+static int saa7146_num;
 
-unsigned int saa7146_debug = 0;
+unsigned int saa7146_debug;
 
 module_param(saa7146_debug, int, 0644);
 MODULE_PARM_DESC(saa7146_debug, "debug level (default: 0)");

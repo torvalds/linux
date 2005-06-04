@@ -53,5 +53,7 @@ extern void die_nmi(char *str, struct pt_regs *regs);
 
 extern int panic_on_timeout;
 extern int unknown_nmi_panic;
+
+extern int check_nmi_watchdog(void);
  
 #endif /* ASM_NMI_H */
