@@ -232,23 +232,6 @@ void scsi_do_req(struct scsi_request *sreq, const void *cmnd,
 }
 EXPORT_SYMBOL(scsi_do_req);
 
-static void scsi_wait_done(struct scsi_cmnd *cmd)
-{
-	struct request *req = cmd->request;
-	struct request_queue *q = cmd->device->request_queue;
-	unsigned long flags;
-
-	req->rq_status = RQ_SCSI_DONE;	/* Busy, but indicate request done */
-
-	spin_lock_irqsave(q->queue_lock, flags);
-	if (blk_rq_tagged(req))
-		blk_queue_end_tag(q, req);
-	spin_unlock_irqrestore(q->queue_lock, flags);
-
-	if (req->waiting)
-		complete(req->waiting);
-}
-
 /* This is the end routine we get to if a command was never attached
  * to the request.  Simply complete the request without changing
  * rq_status; this will cause a DRIVER_ERROR. */
@@ -263,19 +246,36 @@ void scsi_wait_req(struct scsi_request *sreq, const void *cmnd, void *buffer,
 		   unsigned bufflen, int timeout, int retries)
 {
 	DECLARE_COMPLETION(wait);
-	
-	sreq->sr_request->waiting = &wait;
-	sreq->sr_request->rq_status = RQ_SCSI_BUSY;
-	sreq->sr_request->end_io = scsi_wait_req_end_io;
-	scsi_do_req(sreq, cmnd, buffer, bufflen, scsi_wait_done,
-			timeout, retries);
+	struct request *req;
+
+	if (bufflen)
+		req = blk_rq_map_kern(sreq->sr_device->request_queue,
+				      sreq->sr_data_direction == DMA_TO_DEVICE,
+				      buffer, bufflen, __GFP_WAIT);
+	else
+		req = blk_get_request(sreq->sr_device->request_queue, READ,
+				      __GFP_WAIT);
+	req->flags |= REQ_NOMERGE;
+	req->waiting = &wait;
+	req->end_io = scsi_wait_req_end_io;
+	req->cmd_len = COMMAND_SIZE(((u8 *)cmnd)[0]);
+	req->sense = sreq->sr_sense_buffer;
+	req->sense_len = 0;
+	memcpy(req->cmd, cmnd, req->cmd_len);
+	req->timeout = timeout;
+	req->flags |= REQ_BLOCK_PC;
+	req->rq_disk = NULL;
+	blk_insert_request(sreq->sr_device->request_queue, req,
+			   sreq->sr_data_direction == DMA_TO_DEVICE, NULL);
 	wait_for_completion(&wait);
 	sreq->sr_request->waiting = NULL;
-	if (sreq->sr_request->rq_status != RQ_SCSI_DONE)
+	sreq->sr_result = req->errors;
+	if (req->errors)
 		sreq->sr_result |= (DRIVER_ERROR << 24);
 
-	__scsi_release_request(sreq);
+	blk_put_request(req);
 }
+
 EXPORT_SYMBOL(scsi_wait_req);
 
 /*
@@ -878,11 +878,12 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes,
 		return;
 	}
 	if (result) {
-		printk(KERN_INFO "SCSI error : <%d %d %d %d> return code "
-		       "= 0x%x\n", cmd->device->host->host_no,
-		       cmd->device->channel,
-		       cmd->device->id,
-		       cmd->device->lun, result);
+		if (!(req->flags & REQ_SPECIAL))
+			printk(KERN_INFO "SCSI error : <%d %d %d %d> return code "
+			       "= 0x%x\n", cmd->device->host->host_no,
+			       cmd->device->channel,
+			       cmd->device->id,
+			       cmd->device->lun, result);
 
 		if (driver_byte(result) & DRIVER_SENSE)
 			scsi_print_sense("", cmd);
@@ -1020,6 +1021,12 @@ static int scsi_issue_flush_fn(request_queue_t *q, struct gendisk *disk,
 	return -EOPNOTSUPP;
 }
 
+static void scsi_generic_done(struct scsi_cmnd *cmd)
+{
+	BUG_ON(!blk_pc_request(cmd->request));
+	scsi_io_completion(cmd, cmd->result == 0 ? cmd->bufflen : 0, 0);
+}
+
 static int scsi_prep_fn(struct request_queue *q, struct request *req)
 {
 	struct scsi_device *sdev = q->queuedata;
@@ -1061,7 +1068,7 @@ static int scsi_prep_fn(struct request_queue *q, struct request *req)
 	 * these two cases differently.  We differentiate by looking
 	 * at request->cmd, as this tells us the real story.
 	 */
-	if (req->flags & REQ_SPECIAL) {
+	if (req->flags & REQ_SPECIAL && req->special) {
 		struct scsi_request *sreq = req->special;
 
 		if (sreq->sr_magic == SCSI_REQ_MAGIC) {
@@ -1073,7 +1080,7 @@ static int scsi_prep_fn(struct request_queue *q, struct request *req)
 			cmd = req->special;
 	} else if (req->flags & (REQ_CMD | REQ_BLOCK_PC)) {
 
-		if(unlikely(specials_only)) {
+		if(unlikely(specials_only) && !(req->flags & REQ_SPECIAL)) {
 			if(specials_only == SDEV_QUIESCE ||
 					specials_only == SDEV_BLOCK)
 				return BLKPREP_DEFER;
@@ -1142,11 +1149,26 @@ static int scsi_prep_fn(struct request_queue *q, struct request *req)
 		/*
 		 * Initialize the actual SCSI command for this request.
 		 */
-		drv = *(struct scsi_driver **)req->rq_disk->private_data;
-		if (unlikely(!drv->init_command(cmd))) {
-			scsi_release_buffers(cmd);
-			scsi_put_command(cmd);
-			return BLKPREP_KILL;
+		if (req->rq_disk) {
+			drv = *(struct scsi_driver **)req->rq_disk->private_data;
+			if (unlikely(!drv->init_command(cmd))) {
+				scsi_release_buffers(cmd);
+				scsi_put_command(cmd);
+				return BLKPREP_KILL;
+			}
+		} else {
+			memcpy(cmd->cmnd, req->cmd, sizeof(cmd->cmnd));
+			if (rq_data_dir(req) == WRITE)
+				cmd->sc_data_direction = DMA_TO_DEVICE;
+			else if (req->data_len)
+				cmd->sc_data_direction = DMA_FROM_DEVICE;
+			else
+				cmd->sc_data_direction = DMA_NONE;
+			
+			cmd->transfersize = req->data_len;
+			cmd->allowed = 3;
+			cmd->timeout_per_command = req->timeout;
+			cmd->done = scsi_generic_done;
 		}
 	}
 
