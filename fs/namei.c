@@ -543,11 +543,15 @@ static inline int do_follow_link(struct path *path, struct nameidata *nd)
 	current->link_count++;
 	current->total_link_count++;
 	nd->depth++;
+	if (path->mnt != nd->mnt)
+		mntput(nd->mnt);
 	err = __do_follow_link(path, nd);
 	current->link_count--;
 	nd->depth--;
 	return err;
 loop:
+	if (path->mnt != nd->mnt)
+		mntput(nd->mnt);
 	dput(path->dentry);
 	path_release(nd);
 	return err;
@@ -801,8 +805,6 @@ static fastcall int __link_path_walk(const char * name, struct nameidata *nd)
 			goto out_dput;
 
 		if (inode->i_op->follow_link) {
-			if (nd->mnt != next.mnt)
-				mntput(nd->mnt);
 			err = do_follow_link(&next, nd);
 			if (err)
 				goto return_err;
@@ -856,8 +858,6 @@ last_component:
 		inode = next.dentry->d_inode;
 		if ((lookup_flags & LOOKUP_FOLLOW)
 		    && inode && inode->i_op && inode->i_op->follow_link) {
-			if (next.mnt != nd->mnt)
-				mntput(nd->mnt);
 			err = do_follow_link(&next, nd);
 			if (err)
 				goto return_err;
