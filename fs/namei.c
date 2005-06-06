@@ -1524,8 +1524,10 @@ do_link:
 	error = security_inode_follow_link(path.dentry, nd);
 	if (error)
 		goto exit_dput;
+	mntget(path.mnt);
 	error = __do_follow_link(path.dentry, nd);
 	dput(path.dentry);
+	mntput(path.mnt);
 	path.mnt = nd->mnt;
 	if (error)
 		return error;
