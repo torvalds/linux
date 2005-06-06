@@ -506,7 +506,8 @@ static inline int __do_follow_link(struct path *path, struct nameidata *nd)
 	touch_atime(nd->mnt, dentry);
 	nd_set_link(nd, NULL);
 
-	mntget(path->mnt);
+	if (path->mnt == nd->mnt)
+		mntget(path->mnt);
 	error = dentry->d_inode->i_op->follow_link(dentry, nd);
 	if (!error) {
 		char *s = nd_get_link(nd);
@@ -543,8 +544,6 @@ static inline int do_follow_link(struct path *path, struct nameidata *nd)
 	current->link_count++;
 	current->total_link_count++;
 	nd->depth++;
-	if (path->mnt != nd->mnt)
-		mntput(path->mnt);
 	err = __do_follow_link(path, nd);
 	current->link_count--;
 	nd->depth--;
@@ -1550,8 +1549,6 @@ do_link:
 	error = security_inode_follow_link(path.dentry, nd);
 	if (error)
 		goto exit_dput;
-	if (nd->mnt != path.mnt)
-		mntput(path.mnt);
 	error = __do_follow_link(&path, nd);
 	if (error)
 		return error;
