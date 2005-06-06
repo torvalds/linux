@@ -596,20 +596,17 @@ static int __follow_mount(struct path *path)
 	return res;
 }
 
-static int follow_mount(struct vfsmount **mnt, struct dentry **dentry)
+static void follow_mount(struct vfsmount **mnt, struct dentry **dentry)
 {
-	int res = 0;
 	while (d_mountpoint(*dentry)) {
 		struct vfsmount *mounted = lookup_mnt(*mnt, *dentry);
 		if (!mounted)
 			break;
+		dput(*dentry);
 		mntput(*mnt);
 		*mnt = mounted;
-		dput(*dentry);
 		*dentry = dget(mounted->mnt_root);
-		res = 1;
 	}
-	return res;
 }
 
 /* no need for dcache_lock, as serialization is taken care in
@@ -630,41 +627,41 @@ int follow_down(struct vfsmount **mnt, struct dentry **dentry)
 	return 0;
 }
 
-static inline void follow_dotdot(struct vfsmount **mnt, struct dentry **dentry)
+static inline void follow_dotdot(struct nameidata *nd)
 {
 	while(1) {
 		struct vfsmount *parent;
-		struct dentry *old = *dentry;
+		struct dentry *old = nd->dentry;
 
                 read_lock(&current->fs->lock);
-		if (*dentry == current->fs->root &&
-		    *mnt == current->fs->rootmnt) {
+		if (nd->dentry == current->fs->root &&
+		    nd->mnt == current->fs->rootmnt) {
                         read_unlock(&current->fs->lock);
 			break;
 		}
                 read_unlock(&current->fs->lock);
 		spin_lock(&dcache_lock);
-		if (*dentry != (*mnt)->mnt_root) {
-			*dentry = dget((*dentry)->d_parent);
+		if (nd->dentry != nd->mnt->mnt_root) {
+			nd->dentry = dget(nd->dentry->d_parent);
 			spin_unlock(&dcache_lock);
 			dput(old);
 			break;
 		}
 		spin_unlock(&dcache_lock);
 		spin_lock(&vfsmount_lock);
-		parent = (*mnt)->mnt_parent;
-		if (parent == *mnt) {
+		parent = nd->mnt->mnt_parent;
+		if (parent == nd->mnt) {
 			spin_unlock(&vfsmount_lock);
 			break;
 		}
 		mntget(parent);
-		*dentry = dget((*mnt)->mnt_mountpoint);
+		nd->dentry = dget(nd->mnt->mnt_mountpoint);
 		spin_unlock(&vfsmount_lock);
 		dput(old);
-		mntput(*mnt);
-		*mnt = parent;
+		mntput(nd->mnt);
+		nd->mnt = parent;
 	}
-	follow_mount(mnt, dentry);
+	follow_mount(&nd->mnt, &nd->dentry);
 }
 
 /*
@@ -772,7 +769,7 @@ static fastcall int __link_path_walk(const char * name, struct nameidata *nd)
 			case 2:	
 				if (this.name[1] != '.')
 					break;
-				follow_dotdot(&nd->mnt, &nd->dentry);
+				follow_dotdot(nd);
 				inode = nd->dentry->d_inode;
 				/* fallthrough */
 			case 1:
@@ -839,7 +836,7 @@ last_component:
 			case 2:	
 				if (this.name[1] != '.')
 					break;
-				follow_dotdot(&nd->mnt, &nd->dentry);
+				follow_dotdot(nd);
 				inode = nd->dentry->d_inode;
 				/* fallthrough */
 			case 1:
