@@ -682,6 +682,7 @@ static int do_lookup(struct nameidata *nd, struct qstr *name,
 done:
 	path->mnt = mnt;
 	path->dentry = dentry;
+	__follow_mount(path);
 	return 0;
 
 need_lookup:
@@ -789,8 +790,6 @@ static fastcall int __link_path_walk(const char * name, struct nameidata *nd)
 		err = do_lookup(nd, &this, &next);
 		if (err)
 			break;
-		/* Check mountpoints.. */
-		__follow_mount(&next);
 
 		err = -ENOENT;
 		inode = next.dentry->d_inode;
@@ -850,7 +849,6 @@ last_component:
 		err = do_lookup(nd, &this, &next);
 		if (err)
 			break;
-		__follow_mount(&next);
 		inode = next.dentry->d_inode;
 		if ((lookup_flags & LOOKUP_FOLLOW)
 		    && inode && inode->i_op && inode->i_op->follow_link) {
