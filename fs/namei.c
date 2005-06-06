@@ -1442,6 +1442,7 @@ int open_namei(const char * pathname, int flag, int mode, struct nameidata *nd)
 	nd->flags &= ~LOOKUP_PARENT;
 	down(&dir->d_inode->i_sem);
 	path.dentry = __lookup_hash(&nd->last, nd->dentry, nd);
+	path.mnt = nd->mnt;
 
 do_last:
 	error = PTR_ERR(path.dentry);
@@ -1479,7 +1480,8 @@ do_last:
 		error = -ELOOP;
 		if (flag & O_NOFOLLOW)
 			goto exit_dput;
-		while (__follow_down(&nd->mnt,&path.dentry) && d_mountpoint(path.dentry));
+		while (__follow_down(&path.mnt,&path.dentry) && d_mountpoint(path.dentry));
+		nd->mnt = path.mnt;
 	}
 	error = -ENOENT;
 	if (!path.dentry->d_inode)
@@ -1524,6 +1526,7 @@ do_link:
 		goto exit_dput;
 	error = __do_follow_link(path.dentry, nd);
 	dput(path.dentry);
+	path.mnt = nd->mnt;
 	if (error)
 		return error;
 	nd->flags &= ~LOOKUP_PARENT;
