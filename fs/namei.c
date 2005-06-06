@@ -526,7 +526,6 @@ static inline int __do_follow_link(struct dentry *dentry, struct nameidata *nd)
 static inline int do_follow_link(struct path *path, struct nameidata *nd)
 {
 	int err = -ELOOP;
-	mntget(path->mnt);
 	if (current->link_count >= MAX_NESTED_LINKS)
 		goto loop;
 	if (current->total_link_count >= 40)
@@ -539,16 +538,16 @@ static inline int do_follow_link(struct path *path, struct nameidata *nd)
 	current->link_count++;
 	current->total_link_count++;
 	nd->depth++;
+	mntget(path->mnt);
 	err = __do_follow_link(path->dentry, nd);
+	dput(path->dentry);
+	mntput(path->mnt);
 	current->link_count--;
 	nd->depth--;
-	dput(path->dentry);
-	mntput(path->mnt);
 	return err;
 loop:
-	path_release(nd);
 	dput(path->dentry);
-	mntput(path->mnt);
+	path_release(nd);
 	return err;
 }
 
