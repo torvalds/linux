@@ -1506,8 +1506,6 @@ do_last:
 			mntput(path.mnt);
 			goto exit;
 		}
-		mntput(nd->mnt);
-		nd->mnt = path.mnt;
 	}
 	error = -ENOENT;
 	if (!path.dentry->d_inode)
@@ -1517,6 +1515,9 @@ do_last:
 
 	dput(nd->dentry);
 	nd->dentry = path.dentry;
+	if (nd->mnt != path.mnt)
+		mntput(nd->mnt);
+	nd->mnt = path.mnt;
 	error = -EISDIR;
 	if (path.dentry->d_inode && S_ISDIR(path.dentry->d_inode->i_mode))
 		goto exit;
@@ -1528,6 +1529,9 @@ ok:
 
 exit_dput:
 	dput(path.dentry);
+	if (nd->mnt != path.mnt)
+		mntput(nd->mnt);
+	nd->mnt = path.mnt;
 exit:
 	path_release(nd);
 	return error;
@@ -1550,6 +1554,9 @@ do_link:
 	error = security_inode_follow_link(path.dentry, nd);
 	if (error)
 		goto exit_dput;
+	if (nd->mnt != path.mnt)
+		mntput(nd->mnt);
+	nd->mnt = path.mnt;
 	error = __do_follow_link(&path, nd);
 	if (error)
 		return error;
