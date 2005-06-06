@@ -791,8 +791,6 @@ static fastcall int __link_path_walk(const char * name, struct nameidata *nd)
 			break;
 		/* Check mountpoints.. */
 		__follow_mount(&next);
-		if (nd->mnt != next.mnt)
-			mntput(nd->mnt);
 
 		err = -ENOENT;
 		inode = next.dentry->d_inode;
@@ -803,6 +801,8 @@ static fastcall int __link_path_walk(const char * name, struct nameidata *nd)
 			goto out_dput;
 
 		if (inode->i_op->follow_link) {
+			if (nd->mnt != next.mnt)
+				mntput(nd->mnt);
 			err = do_follow_link(&next, nd);
 			if (err)
 				goto return_err;
@@ -815,6 +815,8 @@ static fastcall int __link_path_walk(const char * name, struct nameidata *nd)
 				break;
 		} else {
 			dput(nd->dentry);
+			if (nd->mnt != next.mnt)
+				mntput(nd->mnt);
 			nd->mnt = next.mnt;
 			nd->dentry = next.dentry;
 		}
@@ -851,17 +853,19 @@ last_component:
 		if (err)
 			break;
 		__follow_mount(&next);
-		if (nd->mnt != next.mnt)
-			mntput(nd->mnt);
 		inode = next.dentry->d_inode;
 		if ((lookup_flags & LOOKUP_FOLLOW)
 		    && inode && inode->i_op && inode->i_op->follow_link) {
+			if (next.mnt != nd->mnt)
+				mntput(nd->mnt);
 			err = do_follow_link(&next, nd);
 			if (err)
 				goto return_err;
 			inode = nd->dentry->d_inode;
 		} else {
 			dput(nd->dentry);
+			if (nd->mnt != next.mnt)
+				mntput(nd->mnt);
 			nd->mnt = next.mnt;
 			nd->dentry = next.dentry;
 		}
@@ -901,6 +905,8 @@ return_base:
 		return 0;
 out_dput:
 		dput(next.dentry);
+		if (nd->mnt != next.mnt)
+			mntput(nd->mnt);
 		break;
 	}
 	path_release(nd);
