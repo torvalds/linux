@@ -498,12 +498,15 @@ struct path {
 	struct dentry *dentry;
 };
 
-static inline int __do_follow_link(struct dentry *dentry, struct nameidata *nd)
+static inline int __do_follow_link(struct path *path, struct nameidata *nd)
 {
 	int error;
+	struct dentry *dentry = path->dentry;
 
 	touch_atime(nd->mnt, dentry);
 	nd_set_link(nd, NULL);
+
+	mntget(path->mnt);
 	error = dentry->d_inode->i_op->follow_link(dentry, nd);
 	if (!error) {
 		char *s = nd_get_link(nd);
@@ -512,6 +515,8 @@ static inline int __do_follow_link(struct dentry *dentry, struct nameidata *nd)
 		if (dentry->d_inode->i_op->put_link)
 			dentry->d_inode->i_op->put_link(dentry, nd);
 	}
+	dput(dentry);
+	mntput(path->mnt);
 
 	return error;
 }
@@ -538,10 +543,7 @@ static inline int do_follow_link(struct path *path, struct nameidata *nd)
 	current->link_count++;
 	current->total_link_count++;
 	nd->depth++;
-	mntget(path->mnt);
-	err = __do_follow_link(path->dentry, nd);
-	dput(path->dentry);
-	mntput(path->mnt);
+	err = __do_follow_link(path, nd);
 	current->link_count--;
 	nd->depth--;
 	return err;
@@ -1523,10 +1525,7 @@ do_link:
 	error = security_inode_follow_link(path.dentry, nd);
 	if (error)
 		goto exit_dput;
-	mntget(path.mnt);
-	error = __do_follow_link(path.dentry, nd);
-	dput(path.dentry);
-	mntput(path.mnt);
+	error = __do_follow_link(&path, nd);
 	path.mnt = nd->mnt;
 	if (error)
 		return error;
