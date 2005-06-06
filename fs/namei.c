@@ -576,6 +576,23 @@ int follow_up(struct vfsmount **mnt, struct dentry **dentry)
 /* no need for dcache_lock, as serialization is taken care in
  * namespace.c
  */
+static int __follow_mount(struct path *path)
+{
+	int res = 0;
+	while (d_mountpoint(path->dentry)) {
+		struct vfsmount *mounted = lookup_mnt(path->mnt, path->dentry);
+		if (!mounted)
+			break;
+		dput(path->dentry);
+		if (res)
+			mntput(path->mnt);
+		path->mnt = mounted;
+		path->dentry = dget(mounted->mnt_root);
+		res = 1;
+	}
+	return res;
+}
+
 static int follow_mount(struct vfsmount **mnt, struct dentry **dentry)
 {
 	int res = 0;
@@ -778,7 +795,9 @@ static fastcall int __link_path_walk(const char * name, struct nameidata *nd)
 		if (err)
 			break;
 		/* Check mountpoints.. */
-		follow_mount(&next.mnt, &next.dentry);
+		__follow_mount(&next);
+		if (nd->mnt != next.mnt)
+			mntput(nd->mnt);
 
 		err = -ENOENT;
 		inode = next.dentry->d_inode;
@@ -836,7 +855,9 @@ last_component:
 		err = do_lookup(nd, &this, &next);
 		if (err)
 			break;
-		follow_mount(&next.mnt, &next.dentry);
+		__follow_mount(&next);
+		if (nd->mnt != next.mnt)
+			mntput(nd->mnt);
 		inode = next.dentry->d_inode;
 		if ((lookup_flags & LOOKUP_FOLLOW)
 		    && inode && inode->i_op && inode->i_op->follow_link) {
