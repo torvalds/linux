@@ -1501,11 +1501,8 @@ do_last:
 
 	if (__follow_mount(&path)) {
 		error = -ELOOP;
-		if (flag & O_NOFOLLOW) {
-			dput(path.dentry);
-			mntput(path.mnt);
-			goto exit;
-		}
+		if (flag & O_NOFOLLOW)
+			goto exit_dput;
 	}
 	error = -ENOENT;
 	if (!path.dentry->d_inode)
@@ -1530,8 +1527,7 @@ ok:
 exit_dput:
 	dput(path.dentry);
 	if (nd->mnt != path.mnt)
-		mntput(nd->mnt);
-	nd->mnt = path.mnt;
+		mntput(path.mnt);
 exit:
 	path_release(nd);
 	return error;
