@@ -31,6 +31,7 @@ obj-$(CONFIG_USB_MOUSE)		+= input/
 obj-$(CONFIG_USB_MTOUCH)	+= input/
 obj-$(CONFIG_USB_POWERMATE)	+= input/
 obj-$(CONFIG_USB_WACOM)		+= input/
+obj-$(CONFIG_USB_ACECAD)	+= input/
 obj-$(CONFIG_USB_XPAD)		+= input/
 
 obj-$(CONFIG_USB_DABUSB)	+= media/

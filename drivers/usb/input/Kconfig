@@ -151,6 +151,18 @@ config USB_WACOM
 	  To compile this driver as a module, choose M here: the
 	  module will be called wacom.
 
+config USB_ACECAD
+	tristate "Acecad Flair tablet support"
+	depends on USB && INPUT
+	help
+	  Say Y here if you want to use the USB version of the Acecad Flair
+	  tablet.  Make sure to say Y to "Mouse support"
+	  (CONFIG_INPUT_MOUSEDEV) and/or "Event interface support"
+	  (CONFIG_INPUT_EVDEV) as well.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called acecad.
+
 config USB_KBTAB
 	tristate "KB Gear JamStudio tablet support"
 	depends on USB && INPUT
