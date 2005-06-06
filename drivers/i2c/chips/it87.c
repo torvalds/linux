@@ -37,8 +37,8 @@
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
 #include <linux/i2c-sensor.h>
-#include <linux/i2c-sysfs.h>
 #include <linux/i2c-vid.h>
+#include <linux/hwmon-sysfs.h>
 #include <asm/io.h>
 
 
