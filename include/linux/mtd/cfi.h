@@ -1,7 +1,7 @@
 
 /* Common Flash Interface structures 
  * See http://support.intel.com/design/flash/technote/index.htm
- * $Id: cfi.h,v 1.53 2005/03/15 19:03:13 gleixner Exp $
+ * $Id: cfi.h,v 1.54 2005/06/06 23:04:36 tpoynor Exp $
  */
 
 #ifndef __MTD_CFI_H__
@@ -426,16 +426,6 @@ static inline void cfi_udelay(int us)
 		udelay(us);
 		cond_resched();
 	}
-}
-
-static inline void cfi_spin_lock(spinlock_t *mutex)
-{
-	spin_lock_bh(mutex);
-}
-
-static inline void cfi_spin_unlock(spinlock_t *mutex)
-{
-	spin_unlock_bh(mutex);
 }
 
 struct cfi_extquery *cfi_read_pri(struct map_info *map, uint16_t adr, uint16_t size,
