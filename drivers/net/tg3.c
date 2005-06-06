@@ -7,7 +7,12 @@
  * Copyright (C) 2005 Broadcom Corporation.
  *
  * Firmware is:
- * 	Copyright (C) 2000-2003 Broadcom Corporation.
+ *	Derived from proprietary unpublished source code,
+ *	Copyright (C) 2000-2003 Broadcom Corporation.
+ *
+ *	Permission is hereby granted for the distribution of this firmware
+ *	data in hexadecimal or equivalent format, provided this copyright
+ *	notice is accompanying it.
  */
 
 #include <linux/config.h>
