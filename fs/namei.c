@@ -1526,14 +1526,11 @@ do_link:
 	if (error)
 		goto exit_dput;
 	error = __do_follow_link(&path, nd);
-	path.mnt = nd->mnt;
 	if (error)
 		return error;
 	nd->flags &= ~LOOKUP_PARENT;
-	if (nd->last_type == LAST_BIND) {
-		path.dentry = nd->dentry;
+	if (nd->last_type == LAST_BIND)
 		goto ok;
-	}
 	error = -EISDIR;
 	if (nd->last_type != LAST_NORM)
 		goto exit;
@@ -1549,6 +1546,7 @@ do_link:
 	dir = nd->dentry;
 	down(&dir->d_inode->i_sem);
 	path.dentry = __lookup_hash(&nd->last, nd->dentry, nd);
+	path.mnt = nd->mnt;
 	putname(nd->last.name);
 	goto do_last;
 }
