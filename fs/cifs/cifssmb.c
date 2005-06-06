@@ -567,7 +567,7 @@ DelFileRetry:
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-		    cifsConvertToUCS((__u16 *) pSMB->fileName, fileName, 
+		    cifsConvertToUCS((__le16 *) pSMB->fileName, fileName, 
 				     PATH_MAX, nls_codepage, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
@@ -665,7 +665,7 @@ MkDirRetry:
 		return rc;
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
-		name_len = cifsConvertToUCS((__u16 *) pSMB->DirName, name, 
+		name_len = cifsConvertToUCS((__le16 *) pSMB->DirName, name, 
 					    PATH_MAX, nls_codepage, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
@@ -719,7 +719,7 @@ openRetry:
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		count = 1;	/* account for one byte pad to word boundary */
 		name_len =
-		    cifsConvertToUCS((__u16 *) (pSMB->fileName + 1),
+		    cifsConvertToUCS((__le16 *) (pSMB->fileName + 1),
 				     fileName, PATH_MAX, nls_codepage, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
@@ -1141,7 +1141,7 @@ renameRetry:
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-		    cifsConvertToUCS((__u16 *) pSMB->OldFileName, fromName, 
+		    cifsConvertToUCS((__le16 *) pSMB->OldFileName, fromName, 
 				     PATH_MAX, nls_codepage, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
@@ -1149,7 +1149,7 @@ renameRetry:
 	/* protocol requires ASCII signature byte on Unicode string */
 		pSMB->OldFileName[name_len + 1] = 0x00;
 		name_len2 =
-		    cifsConvertToUCS((__u16 *) &pSMB->OldFileName[name_len + 2],
+		    cifsConvertToUCS((__le16 *) &pSMB->OldFileName[name_len + 2],
 				     toName, PATH_MAX, nls_codepage, remap);
 		name_len2 += 1 /* trailing null */  + 1 /* Signature word */ ;
 		name_len2 *= 2;	/* convert to bytes */
@@ -1236,10 +1236,10 @@ int CIFSSMBRenameOpenFile(const int xid,struct cifsTconInfo *pTcon,
 	/* unicode only call */
 	if(target_name == NULL) {
 		sprintf(dummy_string,"cifs%x",pSMB->hdr.Mid);
-	        len_of_str = cifsConvertToUCS((__u16 *)rename_info->target_name,
+	        len_of_str = cifsConvertToUCS((__le16 *)rename_info->target_name,
 					dummy_string, 24, nls_codepage, remap);
 	} else {
-		len_of_str = cifsConvertToUCS((__u16 *)rename_info->target_name,
+		len_of_str = cifsConvertToUCS((__le16 *)rename_info->target_name,
 					target_name, PATH_MAX, nls_codepage, remap);
 	}
 	rename_info->target_name_len = cpu_to_le32(2 * len_of_str);
@@ -1296,7 +1296,7 @@ copyRetry:
 	pSMB->Flags = cpu_to_le16(flags & COPY_TREE);
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
-		name_len = cifsConvertToUCS((__u16 *) pSMB->OldFileName, 
+		name_len = cifsConvertToUCS((__le16 *) pSMB->OldFileName, 
 					    fromName, PATH_MAX, nls_codepage,
 					    remap);
 		name_len++;     /* trailing null */
@@ -1304,7 +1304,7 @@ copyRetry:
 		pSMB->OldFileName[name_len] = 0x04;     /* pad */
 		/* protocol requires ASCII signature byte on Unicode string */
 		pSMB->OldFileName[name_len + 1] = 0x00;
-		name_len2 = cifsConvertToUCS((__u16 *)&pSMB->OldFileName[name_len + 2], 
+		name_len2 = cifsConvertToUCS((__le16 *)&pSMB->OldFileName[name_len + 2], 
 				toName, PATH_MAX, nls_codepage, remap);
 		name_len2 += 1 /* trailing null */  + 1 /* Signature word */ ;
 		name_len2 *= 2; /* convert to bytes */
@@ -1453,7 +1453,7 @@ createHardLinkRetry:
 		return rc;
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
-		name_len = cifsConvertToUCS((__u16 *) pSMB->FileName, toName,
+		name_len = cifsConvertToUCS((__le16 *) pSMB->FileName, toName,
 					    PATH_MAX, nls_codepage, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
@@ -1476,7 +1476,7 @@ createHardLinkRetry:
 	data_offset = (char *) (&pSMB->hdr.Protocol) + offset;
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len_target =
-		    cifsConvertToUCS((__u16 *) data_offset, fromName, PATH_MAX,
+		    cifsConvertToUCS((__le16 *) data_offset, fromName, PATH_MAX,
 				     nls_codepage, remap);
 		name_len_target++;	/* trailing null */
 		name_len_target *= 2;
@@ -1546,14 +1546,14 @@ winCreateHardLinkRetry:
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-		    cifsConvertToUCS((__u16 *) pSMB->OldFileName, fromName,
+		    cifsConvertToUCS((__le16 *) pSMB->OldFileName, fromName,
 				     PATH_MAX, nls_codepage, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
 		pSMB->OldFileName[name_len] = 0;	/* pad */
 		pSMB->OldFileName[name_len + 1] = 0x04; 
 		name_len2 =
-		    cifsConvertToUCS((__u16 *)&pSMB->OldFileName[name_len + 2], 
+		    cifsConvertToUCS((__le16 *)&pSMB->OldFileName[name_len + 2], 
 				     toName, PATH_MAX, nls_codepage, remap);
 		name_len2 += 1 /* trailing null */  + 1 /* Signature word */ ;
 		name_len2 *= 2;	/* convert to bytes */
@@ -1939,7 +1939,7 @@ queryAclRetry:
                                                                                                                                              
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-			cifsConvertToUCS((__u16 *) pSMB->FileName, searchName, 
+			cifsConvertToUCS((__le16 *) pSMB->FileName, searchName, 
 					 PATH_MAX, nls_codepage, remap);
 		name_len++;     /* trailing null */
 		name_len *= 2;
@@ -2024,7 +2024,7 @@ setAclRetry:
 		return rc;
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-			cifsConvertToUCS((__u16 *) pSMB->FileName, fileName, 
+			cifsConvertToUCS((__le16 *) pSMB->FileName, fileName, 
 				      PATH_MAX, nls_codepage, remap);
 		name_len++;     /* trailing null */
 		name_len *= 2;
@@ -2188,7 +2188,7 @@ QPathInfoRetry:
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-		    cifsConvertToUCS((__u16 *) pSMB->FileName, searchName, 
+		    cifsConvertToUCS((__le16 *) pSMB->FileName, searchName, 
 				     PATH_MAX, nls_codepage, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
@@ -2269,7 +2269,7 @@ UnixQPathInfoRetry:
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-		    cifsConvertToUCS((__u16 *) pSMB->FileName, searchName,
+		    cifsConvertToUCS((__le16 *) pSMB->FileName, searchName,
 				  PATH_MAX, nls_codepage, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
@@ -2350,7 +2350,7 @@ findUniqueRetry:
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-		    cifsConvertToUCS((wchar_t *) pSMB->FileName, searchName, PATH_MAX
+		    cifsConvertToUCS((__le16 *) pSMB->FileName, searchName, PATH_MAX
 				  /* find define for this maxpathcomponent */
 				  , nls_codepage);
 		name_len++;	/* trailing null */
@@ -2435,7 +2435,7 @@ findFirstRetry:
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-		    cifsConvertToUCS((__u16 *) pSMB->FileName,searchName,
+		    cifsConvertToUCS((__le16 *) pSMB->FileName,searchName,
 				 PATH_MAX, nls_codepage, remap);
 		/* We can not add the asterik earlier in case
 		it got remapped to 0xF03A as if it were part of the
@@ -2726,7 +2726,7 @@ GetInodeNumberRetry:
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-			cifsConvertToUCS((__u16 *) pSMB->FileName, searchName,
+			cifsConvertToUCS((__le16 *) pSMB->FileName, searchName,
 				PATH_MAX,nls_codepage, remap);
 		name_len++;     /* trailing null */
 		name_len *= 2;
@@ -2837,7 +2837,7 @@ getDFSRetry:
 	if (ses->capabilities & CAP_UNICODE) {
 		pSMB->hdr.Flags2 |= SMBFLG2_UNICODE;
 		name_len =
-		    cifsConvertToUCS((__u16 *) pSMB->RequestFileName,
+		    cifsConvertToUCS((__le16 *) pSMB->RequestFileName,
 				     searchName, PATH_MAX, nls_codepage, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
@@ -3369,7 +3369,7 @@ SetEOFRetry:
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-		    cifsConvertToUCS((__u16 *) pSMB->FileName, fileName,
+		    cifsConvertToUCS((__le16 *) pSMB->FileName, fileName,
 				     PATH_MAX, nls_codepage, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
@@ -3627,7 +3627,7 @@ SetTimesRetry:
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-		    cifsConvertToUCS((__u16 *) pSMB->FileName, fileName,
+		    cifsConvertToUCS((__le16 *) pSMB->FileName, fileName,
 				     PATH_MAX, nls_codepage, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
@@ -3708,7 +3708,7 @@ SetAttrLgcyRetry:
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-			ConvertToUCS((wchar_t *) pSMB->fileName, fileName, 
+			ConvertToUCS((__le16 *) pSMB->fileName, fileName, 
 				PATH_MAX, nls_codepage);
 		name_len++;     /* trailing null */
 		name_len *= 2;
@@ -3759,7 +3759,7 @@ setPermsRetry:
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-		    cifsConvertToUCS((__u16 *) pSMB->FileName, fileName, 
+		    cifsConvertToUCS((__le16 *) pSMB->FileName, fileName, 
 				     PATH_MAX, nls_codepage, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
@@ -3904,7 +3904,7 @@ QAllEAsRetry:
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-		    cifsConvertToUCS((wchar_t *) pSMB->FileName, searchName, 
+		    cifsConvertToUCS((__le16 *) pSMB->FileName, searchName, 
 				     PATH_MAX, nls_codepage, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
@@ -4047,7 +4047,7 @@ QEARetry:
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-		    cifsConvertToUCS((__u16 *) pSMB->FileName, searchName, 
+		    cifsConvertToUCS((__le16 *) pSMB->FileName, searchName, 
 				     PATH_MAX, nls_codepage, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
@@ -4194,7 +4194,7 @@ SetEARetry:
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-		    cifsConvertToUCS((__u16 *) pSMB->FileName, fileName, 
+		    cifsConvertToUCS((__le16 *) pSMB->FileName, fileName, 
 				     PATH_MAX, nls_codepage, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;

@@ -47,14 +47,6 @@ static void remove_node_proc_entries(struct device_node *np)
 		remove_proc_entry(pp->name, np->pde);
 		pp = pp->next;
 	}
-
-	/* Assuming that symlinks have the same parent directory as
-	 * np->pde.
-	 */
-	if (np->name_link)
-		remove_proc_entry(np->name_link->name, parent->pde);
-	if (np->addr_link)
-		remove_proc_entry(np->addr_link->name, parent->pde);
 	if (np->pde)
 		remove_proc_entry(np->pde->name, parent->pde);
 }

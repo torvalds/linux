@@ -1265,7 +1265,7 @@ static void __init sabre_iommu_init(struct pci_controller_info *p,
 
 	/* Setup initial software IOMMU state. */
 	spin_lock_init(&iommu->lock);
-	iommu->iommu_cur_ctx = 0;
+	iommu->ctx_lowest_free = 1;
 
 	/* Register addresses. */
 	iommu->iommu_control  = p->pbm_A.controller_regs + SABRE_IOMMU_CONTROL;
