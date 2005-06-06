@@ -544,15 +544,15 @@ static inline int do_follow_link(struct path *path, struct nameidata *nd)
 	current->total_link_count++;
 	nd->depth++;
 	if (path->mnt != nd->mnt)
-		mntput(nd->mnt);
+		mntput(path->mnt);
 	err = __do_follow_link(path, nd);
 	current->link_count--;
 	nd->depth--;
 	return err;
 loop:
-	if (path->mnt != nd->mnt)
-		mntput(nd->mnt);
 	dput(path->dentry);
+	if (path->mnt != nd->mnt)
+		mntput(path->mnt);
 	path_release(nd);
 	return err;
 }
@@ -906,7 +906,7 @@ return_base:
 out_dput:
 		dput(next.dentry);
 		if (nd->mnt != next.mnt)
-			mntput(nd->mnt);
+			mntput(next.mnt);
 		break;
 	}
 	path_release(nd);
@@ -1551,8 +1551,7 @@ do_link:
 	if (error)
 		goto exit_dput;
 	if (nd->mnt != path.mnt)
-		mntput(nd->mnt);
-	nd->mnt = path.mnt;
+		mntput(path.mnt);
 	error = __do_follow_link(&path, nd);
 	if (error)
 		return error;
