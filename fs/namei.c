@@ -526,6 +526,7 @@ static inline int __do_follow_link(struct dentry *dentry, struct nameidata *nd)
 static inline int do_follow_link(struct path *path, struct nameidata *nd)
 {
 	int err = -ELOOP;
+	mntget(path->mnt);
 	if (current->link_count >= MAX_NESTED_LINKS)
 		goto loop;
 	if (current->total_link_count >= 40)
@@ -541,9 +542,13 @@ static inline int do_follow_link(struct path *path, struct nameidata *nd)
 	err = __do_follow_link(path->dentry, nd);
 	current->link_count--;
 	nd->depth--;
+	dput(path->dentry);
+	mntput(path->mnt);
 	return err;
 loop:
 	path_release(nd);
+	dput(path->dentry);
+	mntput(path->mnt);
 	return err;
 }
 
@@ -783,10 +788,7 @@ static fastcall int __link_path_walk(const char * name, struct nameidata *nd)
 			goto out_dput;
 
 		if (inode->i_op->follow_link) {
-			mntget(next.mnt);
 			err = do_follow_link(&next, nd);
-			dput(next.dentry);
-			mntput(next.mnt);
 			if (err)
 				goto return_err;
 			err = -ENOENT;
@@ -837,10 +839,7 @@ last_component:
 		inode = next.dentry->d_inode;
 		if ((lookup_flags & LOOKUP_FOLLOW)
 		    && inode && inode->i_op && inode->i_op->follow_link) {
-			mntget(next.mnt);
 			err = do_follow_link(&next, nd);
-			dput(next.dentry);
-			mntput(next.mnt);
 			if (err)
 				goto return_err;
 			inode = nd->dentry->d_inode;
