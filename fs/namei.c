@@ -503,7 +503,7 @@ static inline int __do_follow_link(struct path *path, struct nameidata *nd)
 	int error;
 	struct dentry *dentry = path->dentry;
 
-	touch_atime(nd->mnt, dentry);
+	touch_atime(path->mnt, dentry);
 	nd_set_link(nd, NULL);
 
 	if (path->mnt == nd->mnt)
