@@ -612,26 +612,21 @@ static int follow_mount(struct vfsmount **mnt, struct dentry **dentry)
 /* no need for dcache_lock, as serialization is taken care in
  * namespace.c
  */
-static inline int __follow_down(struct vfsmount **mnt, struct dentry **dentry)
+int follow_down(struct vfsmount **mnt, struct dentry **dentry)
 {
 	struct vfsmount *mounted;
 
 	mounted = lookup_mnt(*mnt, *dentry);
 	if (mounted) {
+		dput(*dentry);
 		mntput(*mnt);
 		*mnt = mounted;
-		dput(*dentry);
 		*dentry = dget(mounted->mnt_root);
 		return 1;
 	}
 	return 0;
 }
 
-int follow_down(struct vfsmount **mnt, struct dentry **dentry)
-{
-	return __follow_down(mnt,dentry);
-}
- 
 static inline void follow_dotdot(struct vfsmount **mnt, struct dentry **dentry)
 {
 	while(1) {
@@ -1498,11 +1493,14 @@ do_last:
 	if (flag & O_EXCL)
 		goto exit_dput;
 
-	if (d_mountpoint(path.dentry)) {
+	if (__follow_mount(&path)) {
 		error = -ELOOP;
-		if (flag & O_NOFOLLOW)
-			goto exit_dput;
-		while (__follow_down(&path.mnt,&path.dentry) && d_mountpoint(path.dentry));
+		if (flag & O_NOFOLLOW) {
+			dput(path.dentry);
+			mntput(path.mnt);
+			goto exit;
+		}
+		mntput(nd->mnt);
 		nd->mnt = path.mnt;
 	}
 	error = -ENOENT;
