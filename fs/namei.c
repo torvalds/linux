@@ -493,6 +493,11 @@ fail:
 	return PTR_ERR(link);
 }
 
+struct path {
+	struct vfsmount *mnt;
+	struct dentry *dentry;
+};
+
 static inline int __do_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
 	int error;
@@ -518,7 +523,7 @@ static inline int __do_follow_link(struct dentry *dentry, struct nameidata *nd)
  * Without that kind of total limit, nasty chains of consecutive
  * symlinks can cause almost arbitrarily long lookups. 
  */
-static inline int do_follow_link(struct dentry *dentry, struct nameidata *nd)
+static inline int do_follow_link(struct path *path, struct nameidata *nd)
 {
 	int err = -ELOOP;
 	if (current->link_count >= MAX_NESTED_LINKS)
@@ -527,13 +532,13 @@ static inline int do_follow_link(struct dentry *dentry, struct nameidata *nd)
 		goto loop;
 	BUG_ON(nd->depth >= MAX_NESTED_LINKS);
 	cond_resched();
-	err = security_inode_follow_link(dentry, nd);
+	err = security_inode_follow_link(path->dentry, nd);
 	if (err)
 		goto loop;
 	current->link_count++;
 	current->total_link_count++;
 	nd->depth++;
-	err = __do_follow_link(dentry, nd);
+	err = __do_follow_link(path->dentry, nd);
 	current->link_count--;
 	nd->depth--;
 	return err;
@@ -640,11 +645,6 @@ static inline void follow_dotdot(struct vfsmount **mnt, struct dentry **dentry)
 	}
 	follow_mount(mnt, dentry);
 }
-
-struct path {
-	struct vfsmount *mnt;
-	struct dentry *dentry;
-};
 
 /*
  *  It's more convoluted than I'd like it to be, but... it's still fairly
@@ -784,7 +784,7 @@ static fastcall int __link_path_walk(const char * name, struct nameidata *nd)
 
 		if (inode->i_op->follow_link) {
 			mntget(next.mnt);
-			err = do_follow_link(next.dentry, nd);
+			err = do_follow_link(&next, nd);
 			dput(next.dentry);
 			mntput(next.mnt);
 			if (err)
@@ -838,7 +838,7 @@ last_component:
 		if ((lookup_flags & LOOKUP_FOLLOW)
 		    && inode && inode->i_op && inode->i_op->follow_link) {
 			mntget(next.mnt);
-			err = do_follow_link(next.dentry, nd);
+			err = do_follow_link(&next, nd);
 			dput(next.dentry);
 			mntput(next.mnt);
 			if (err)
