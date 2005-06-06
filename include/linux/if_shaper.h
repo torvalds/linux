@@ -23,7 +23,7 @@ struct shaper
 	__u32 shapeclock;
 	unsigned long recovery;	/* Time we can next clock a packet out on
 				   an empty queue */
-        unsigned long locked;
+	struct semaphore sem;
         struct net_device_stats stats;
 	struct net_device *dev;
 	int  (*hard_start_xmit) (struct sk_buff *skb,
@@ -38,7 +38,6 @@ struct shaper
 	int (*hard_header_cache)(struct neighbour *neigh, struct hh_cache *hh);
 	void (*header_cache_update)(struct hh_cache *hh, struct net_device *dev, unsigned char *  haddr);
 	struct net_device_stats* (*get_stats)(struct net_device *dev);
-	wait_queue_head_t  wait_queue;
 	struct timer_list timer;
 };
 

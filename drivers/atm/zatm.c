@@ -902,7 +902,7 @@ static void close_tx(struct atm_vcc *vcc)
 		zatm_dev->tx_bw += vcc->qos.txtp.min_pcr;
 		dealloc_shaper(vcc->dev,zatm_vcc->shaper);
 	}
-	if (zatm_vcc->ring) kfree(zatm_vcc->ring);
+	kfree(zatm_vcc->ring);
 }
 
 
@@ -1339,12 +1339,9 @@ static int __init zatm_start(struct atm_dev *dev)
 	return 0;
     out:
 	for (i = 0; i < NR_MBX; i++)
-		if (zatm_dev->mbx_start[i] != 0)
-			kfree((void *) zatm_dev->mbx_start[i]);
-	if (zatm_dev->rx_map != NULL)
-		kfree(zatm_dev->rx_map);
-	if (zatm_dev->tx_map != NULL)
-		kfree(zatm_dev->tx_map);
+		kfree(zatm_dev->mbx_start[i]);
+	kfree(zatm_dev->rx_map);
+	kfree(zatm_dev->tx_map);
 	free_irq(zatm_dev->irq, dev);
 	return error;
 }

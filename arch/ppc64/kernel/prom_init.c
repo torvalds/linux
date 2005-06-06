@@ -1370,7 +1370,7 @@ static int __init prom_find_machine_type(void)
 	}
 	/* Default to pSeries. We need to know if we are running LPAR */
 	rtas = call_prom("finddevice", 1, 1, ADDR("/rtas"));
-	if (!PHANDLE_VALID(rtas)) {
+	if (PHANDLE_VALID(rtas)) {
 		int x = prom_getproplen(rtas, "ibm,hypertas-functions");
 		if (x != PROM_ERROR) {
 			prom_printf("Hypertas detected, assuming LPAR !\n");
