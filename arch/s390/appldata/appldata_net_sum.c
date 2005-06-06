@@ -57,7 +57,7 @@ struct appldata_net_sum_data {
 	u64 rx_dropped;		/* no space in linux buffers     */
 	u64 tx_dropped;		/* no space available in linux   */
 	u64 collisions;		/* collisions while transmitting */
-} appldata_net_sum_data;
+} __attribute__((packed)) appldata_net_sum_data;
 
 
 static inline void appldata_print_debug(struct appldata_net_sum_data *net_data)

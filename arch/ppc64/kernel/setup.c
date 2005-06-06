@@ -103,11 +103,6 @@ extern void unflatten_device_tree(void);
 
 extern void smp_release_cpus(void);
 
-unsigned long decr_overclock = 1;
-unsigned long decr_overclock_proc0 = 1;
-unsigned long decr_overclock_set = 0;
-unsigned long decr_overclock_proc0_set = 0;
-
 int have_of = 1;
 int boot_cpuid = 0;
 int boot_cpuid_phys = 0;
@@ -1120,63 +1115,14 @@ void ppc64_dump_msg(unsigned int src, const char *msg)
 	printk("[dump]%04x %s\n", src, msg);
 }
 
-int set_spread_lpevents( char * str )
-{
-	/* The parameter is the number of processors to share in processing lp events */
-	unsigned long i;
-	unsigned long val = simple_strtoul( str, NULL, 0 );
-	if ( ( val > 0 ) && ( val <= NR_CPUS ) ) {
-		for ( i=1; i<val; ++i )
-			paca[i].lpqueue_ptr = paca[0].lpqueue_ptr;
-		printk("lpevent processing spread over %ld processors\n", val);
-	}
-	else
-		printk("invalid spreaqd_lpevents %ld\n", val);
-	return 1;
-}	
-
 /* This should only be called on processor 0 during calibrate decr */
 void setup_default_decr(void)
 {
 	struct paca_struct *lpaca = get_paca();
 
-	if ( decr_overclock_set && !decr_overclock_proc0_set )
-		decr_overclock_proc0 = decr_overclock;
-
-	lpaca->default_decr = tb_ticks_per_jiffy / decr_overclock_proc0;	
+	lpaca->default_decr = tb_ticks_per_jiffy;
 	lpaca->next_jiffy_update_tb = get_tb() + tb_ticks_per_jiffy;
 }
-
-int set_decr_overclock_proc0( char * str )
-{
-	unsigned long val = simple_strtoul( str, NULL, 0 );
-	if ( ( val >= 1 ) && ( val <= 48 ) ) {
-		decr_overclock_proc0_set = 1;
-		decr_overclock_proc0 = val;
-		printk("proc 0 decrementer overclock factor of %ld\n", val);
-	}
-	else
-		printk("invalid proc 0 decrementer overclock factor of %ld\n", val);
-	return 1;
-}
-
-int set_decr_overclock( char * str )
-{
-	unsigned long val = simple_strtoul( str, NULL, 0 );
-	if ( ( val >= 1 ) && ( val <= 48 ) ) {
-		decr_overclock_set = 1;
-		decr_overclock = val;
-		printk("decrementer overclock factor of %ld\n", val);
-	}
-	else
-		printk("invalid decrementer overclock factor of %ld\n", val);
-	return 1;
-
-}
-
-__setup("spread_lpevents=", set_spread_lpevents );
-__setup("decr_overclock_proc0=", set_decr_overclock_proc0 );
-__setup("decr_overclock=", set_decr_overclock );
 
 #ifndef CONFIG_PPC_ISERIES
 /*

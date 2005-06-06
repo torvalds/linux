@@ -68,7 +68,7 @@ struct appldata_mem_data {
 	u64 pgmajfault;		/* page faults (major only) */
 // <-- New in 2.6
 
-} appldata_mem_data;
+} __attribute__((packed)) appldata_mem_data;
 
 
 static inline void appldata_debug_print(struct appldata_mem_data *mem_data)

@@ -676,10 +676,10 @@ static int __devinit ns_init_card(int i, struct pci_dev *pcidev)
    PRINTK("nicstar%d: RSQ base at 0x%x.\n", i, (u32) card->rsq.base);
       
    /* Initialize SCQ0, the only VBR SCQ used */
-   card->scq1 = (scq_info *) NULL;
-   card->scq2 = (scq_info *) NULL;
+   card->scq1 = NULL;
+   card->scq2 = NULL;
    card->scq0 = get_scq(VBR_SCQSIZE, NS_VRSCD0);
-   if (card->scq0 == (scq_info *) NULL)
+   if (card->scq0 == NULL)
    {
       printk("nicstar%d: can't get SCQ0.\n", i);
       error = 12;
@@ -993,24 +993,24 @@ static scq_info *get_scq(int size, u32 scd)
    int i;
 
    if (size != VBR_SCQSIZE && size != CBR_SCQSIZE)
-      return (scq_info *) NULL;
+      return NULL;
 
    scq = (scq_info *) kmalloc(sizeof(scq_info), GFP_KERNEL);
-   if (scq == (scq_info *) NULL)
-      return (scq_info *) NULL;
+   if (scq == NULL)
+      return NULL;
    scq->org = kmalloc(2 * size, GFP_KERNEL);
    if (scq->org == NULL)
    {
       kfree(scq);
-      return (scq_info *) NULL;
+      return NULL;
    }
    scq->skb = (struct sk_buff **) kmalloc(sizeof(struct sk_buff *) *
                                           (size / NS_SCQE_SIZE), GFP_KERNEL);
-   if (scq->skb == (struct sk_buff **) NULL)
+   if (scq->skb == NULL)
    {
       kfree(scq->org);
       kfree(scq);
-      return (scq_info *) NULL;
+      return NULL;
    }
    scq->num_entries = size / NS_SCQE_SIZE;
    scq->base = (ns_scqe *) ALIGN_ADDRESS(scq->org, size);
@@ -1498,7 +1498,7 @@ static int ns_open(struct atm_vcc *vcc)
          vc->cbr_scd = NS_FRSCD + frscdi * NS_FRSCD_SIZE;
 
          scq = get_scq(CBR_SCQSIZE, vc->cbr_scd);
-         if (scq == (scq_info *) NULL)
+         if (scq == NULL)
          {
             PRINTK("nicstar%d: can't get fixed rate SCQ.\n", card->index);
             card->scd2vc[frscdi] = NULL;
