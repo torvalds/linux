@@ -155,6 +155,15 @@ static int slave_configure(struct scsi_device *sdev)
 		 * If this device makes that mistake, tell the sd driver. */
 		if (us->flags & US_FL_FIX_CAPACITY)
 			sdev->fix_capacity = 1;
+
+		/* USB-IDE bridges tend to report SK = 0x04 (Non-recoverable
+		 * Hardware Error) when any low-level error occurs,
+		 * recoverable or not.  Setting this flag tells the SCSI
+		 * midlayer to retry such commands, which frequently will
+		 * succeed and fix the error.  The worst this can lead to
+		 * is an occasional series of retries that will all fail. */
+		sdev->retry_hwerror = 1;
+
 	} else {
 
 		/* Non-disk-type devices don't need to blacklist any pages
