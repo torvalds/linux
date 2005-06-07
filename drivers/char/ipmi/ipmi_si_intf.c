@@ -1484,6 +1484,9 @@ static int try_init_acpi(int intf_num, struct smi_info **new_info)
 	char             *io_type;
 	u8 		 addr_space;
 
+	if (acpi_disabled)
+		return -ENODEV;
+
 	if (acpi_failure)
 		return -ENODEV;
 
