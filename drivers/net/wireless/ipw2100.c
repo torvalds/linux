@@ -493,7 +493,7 @@ int ipw2100_get_ordinal(struct ipw2100_priv *priv, u32 ord,
 			*len = IPW_ORD_TAB_1_ENTRY_SIZE;
 
 			IPW_DEBUG_WARNING(DRV_NAME
-			       ": ordinal buffer length too small, need %d\n",
+			       ": ordinal buffer length too small, need %zd\n",
 			       IPW_ORD_TAB_1_ENTRY_SIZE);
 
 			return -EINVAL;
@@ -2302,7 +2302,7 @@ static inline void ipw2100_corruption_detected(struct ipw2100_priv *priv,
 #endif
 
 	IPW_DEBUG_INFO(DRV_NAME ": PCI latency error detected at "
-		       "0x%04X.\n", i * sizeof(struct ipw2100_status));
+		       "0x%04zX.\n", i * sizeof(struct ipw2100_status));
 
 #ifdef ACPI_CSTATE_LIMIT_DEFINED
 	IPW_DEBUG_INFO(DRV_NAME ": Disabling C3 transitions.\n");
@@ -2398,7 +2398,7 @@ static inline void isr_rx(struct ipw2100_priv *priv, int i,
 	/* Make a copy of the frame so we can dump it to the logs if
 	 * ieee80211_rx fails */
 	memcpy(packet_data, packet->skb->data,
-	       min(status->frame_size, IPW_RX_NIC_BUFFER_LENGTH));
+	       min_t(u32, status->frame_size, IPW_RX_NIC_BUFFER_LENGTH));
 #endif
 
 	if (!ieee80211_rx(priv->ieee, packet->skb, stats)) {
@@ -2730,21 +2730,21 @@ static inline int __ipw2100_tx_process(struct ipw2100_priv *priv)
 	{
 		int i = txq->oldest;
 		IPW_DEBUG_TX(
-			"TX%d V=%p P=%p T=%p L=%d\n", i,
+			"TX%d V=%p P=%04X T=%04X L=%d\n", i,
 			&txq->drv[i],
-			(void*)txq->nic + i * sizeof(struct ipw2100_bd),
-			(void*)txq->drv[i].host_addr,
+			(u32)(txq->nic + i * sizeof(struct ipw2100_bd)),
+			txq->drv[i].host_addr,
 			txq->drv[i].buf_length);
 
 		if (packet->type == DATA) {
 			i = (i + 1) % txq->entries;
 
 			IPW_DEBUG_TX(
-				"TX%d V=%p P=%p T=%p L=%d\n", i,
+				"TX%d V=%p P=%04X T=%04X L=%d\n", i,
 				&txq->drv[i],
-				(void*)txq->nic + i *
-				sizeof(struct ipw2100_bd),
-				(void*)txq->drv[i].host_addr,
+				(u32)(txq->nic + i *
+				sizeof(struct ipw2100_bd)),
+				(u32)txq->drv[i].host_addr,
 				txq->drv[i].buf_length);
 		}
 	}
@@ -4212,7 +4212,7 @@ static void bd_queue_initialize(
 {
 	IPW_DEBUG_INFO("enter\n");
 
-	IPW_DEBUG_INFO("initializing bd queue at virt=%p, phys=%08x\n", q->drv, q->nic);
+	IPW_DEBUG_INFO("initializing bd queue at virt=%p, phys=%08x\n", q->drv, (u32)q->nic);
 
 	write_register(priv->net_dev, base, q->nic);
 	write_register(priv->net_dev, size, q->entries);
@@ -8431,7 +8431,7 @@ int ipw2100_get_firmware(struct ipw2100_priv *priv, struct ipw2100_fw *fw)
 		       priv->net_dev->name, fw_name);
 		return rc;
 	}
-	IPW_DEBUG_INFO("firmware data %p size %d\n", fw->fw_entry->data,
+	IPW_DEBUG_INFO("firmware data %p size %zd\n", fw->fw_entry->data,
 			   fw->fw_entry->size);
 
 	ipw2100_mod_firmware_load(fw);

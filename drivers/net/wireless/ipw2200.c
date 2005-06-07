@@ -241,8 +241,8 @@ static void _ipw_write_reg8(struct ipw_priv *priv, u32 reg, u8 value)
 	IPW_DEBUG_IO(" reg = 0x%8X : value = 0x%8X\n", reg, value);
 	_ipw_write32(priv, CX2_INDIRECT_ADDR, reg & CX2_INDIRECT_ADDR_MASK);
 	_ipw_write8(priv, CX2_INDIRECT_DATA, value);
-	IPW_DEBUG_IO(" reg = 0x%8X : value = 0x%8X\n", 
-		     (unsigned)(priv->hw_base + CX2_INDIRECT_DATA),
+	IPW_DEBUG_IO(" reg = 0x%8lX : value = 0x%8X\n", 
+		     (unsigned long)(priv->hw_base + CX2_INDIRECT_DATA),
 		     value);
 }
 
@@ -508,7 +508,7 @@ static int ipw_get_ordinal(struct ipw_priv *priv, u32 ord, void *val,
 		/* verify we have enough room to store the value */
 		if (*len < sizeof(u32)) {
 			IPW_DEBUG_ORD("ordinal buffer length too small, "
-				      "need %d\n", sizeof(u32));
+				      "need %zd\n", sizeof(u32));
 			return -EINVAL;
 		}
 
@@ -541,7 +541,7 @@ static int ipw_get_ordinal(struct ipw_priv *priv, u32 ord, void *val,
 		/* verify we have enough room to store the value */
 		if (*len < sizeof(u32)) {
 			IPW_DEBUG_ORD("ordinal buffer length too small, "
-				      "need %d\n", sizeof(u32));
+				      "need %zd\n", sizeof(u32));
 			return -EINVAL;
 		}
 
@@ -1740,7 +1740,7 @@ static int ipw_fw_dma_write_command_block(struct ipw_priv *priv, int index, stru
 	u32 address = CX2_SHARED_SRAM_DMA_CONTROL + (sizeof(struct command_block) * index); 
 	IPW_DEBUG_FW(">> :\n");
 
-	ipw_write_indirect(priv, address, (u8*)cb, sizeof(struct command_block));
+	ipw_write_indirect(priv, address, (u8*)cb, (int)sizeof(struct command_block));
 
 	IPW_DEBUG_FW("<< :\n");
 	return 0;
@@ -2342,7 +2342,7 @@ static int ipw_get_fw(struct ipw_priv *priv,
 		return -EINVAL;
 	}
 
-	IPW_DEBUG_INFO("Loading firmware '%s' file v%d.%d (%d bytes)\n",
+	IPW_DEBUG_INFO("Loading firmware '%s' file v%d.%d (%zd bytes)\n",
 		       name,
 		       IPW_FW_MAJOR(header->version),
 		       IPW_FW_MINOR(header->version),
@@ -2697,7 +2697,7 @@ static int ipw_queue_tx_init(struct ipw_priv *priv,
 
 	q->bd = pci_alloc_consistent(dev,sizeof(q->bd[0])*count, &q->q.dma_addr);
 	if (!q->bd) {
-		IPW_ERROR("pci_alloc_consistent(%d) failed\n",
+		IPW_ERROR("pci_alloc_consistent(%zd) failed\n",
 				sizeof(q->bd[0]) * count);
 		kfree(q->txb);
 		q->txb = NULL;
@@ -3466,8 +3466,8 @@ static inline void ipw_rx_notification(struct ipw_priv* priv,
 				       x->channel_num);
 		} else {
 			IPW_DEBUG_SCAN("Scan result of wrong size %d "
-				       "(should be %d)\n",
-				       notif->size,sizeof(*x));
+				       "(should be %zd)\n",
+				       notif->size, sizeof(*x));
 		}
 		break;
 	}
@@ -3482,8 +3482,8 @@ static inline void ipw_rx_notification(struct ipw_priv* priv,
 				       x->status);
 		} else {
 			IPW_ERROR("Scan completed of wrong size %d "
-				  "(should be %d)\n",
-				  notif->size,sizeof(*x));
+				  "(should be %zd)\n",
+				  notif->size, sizeof(*x));
 		}
 	
 		priv->status &= ~(STATUS_SCANNING | STATUS_SCAN_ABORTING);
@@ -3515,7 +3515,7 @@ static inline void ipw_rx_notification(struct ipw_priv* priv,
 			IPW_ERROR("Frag length: %d\n", x->frag_length);
 		} else {
 			IPW_ERROR("Frag length of wrong size %d "
-				  "(should be %d)\n",
+				  "(should be %zd)\n",
 				  notif->size, sizeof(*x));
 		}
 		break;
@@ -3532,8 +3532,8 @@ static inline void ipw_rx_notification(struct ipw_priv* priv,
 			memcpy(&priv->last_link_deterioration, x, sizeof(*x));
 		} else {
 			IPW_ERROR("Link Deterioration of wrong size %d "
-				  "(should be %d)\n",
-				  notif->size,sizeof(*x));
+				  "(should be %zd)\n",
+				  notif->size, sizeof(*x));
 		}
 		break;
 	}
@@ -3552,7 +3552,7 @@ static inline void ipw_rx_notification(struct ipw_priv* priv,
 		struct notif_beacon_state *x = &notif->u.beacon_state;
 		if (notif->size != sizeof(*x)) {
 			IPW_ERROR("Beacon state of wrong size %d (should "
-				  "be %d)\n", notif->size, sizeof(*x));
+				  "be %zd)\n", notif->size, sizeof(*x));
 			break;
 		}
 
@@ -3602,8 +3602,8 @@ static inline void ipw_rx_notification(struct ipw_priv* priv,
 			break;
 		} 
 
-		IPW_ERROR("TGi Tx Key of wrong size %d (should be %d)\n",
-			  notif->size,sizeof(*x));
+		IPW_ERROR("TGi Tx Key of wrong size %d (should be %zd)\n",
+			  notif->size, sizeof(*x));
 		break;
 	}
 
@@ -3616,8 +3616,8 @@ static inline void ipw_rx_notification(struct ipw_priv* priv,
 			break;
 		} 
 		
-		IPW_ERROR("Calibration of wrong size %d (should be %d)\n",
-			  notif->size,sizeof(*x));
+		IPW_ERROR("Calibration of wrong size %d (should be %zd)\n",
+			  notif->size, sizeof(*x));
 		break;
 	}
 
@@ -3628,7 +3628,7 @@ static inline void ipw_rx_notification(struct ipw_priv* priv,
 			break;
 		}
 
-		IPW_ERROR("Noise stat is wrong size %d (should be %d)\n",
+		IPW_ERROR("Noise stat is wrong size %d (should be %zd)\n",
 			  notif->size, sizeof(u32));
 		break;
 	}
@@ -4823,7 +4823,7 @@ static inline void ipw_handle_data_packet(struct ipw_priv *priv,
 	}
 
 	/* Advance skb->data to the start of the actual payload */
-	skb_reserve(rxb->skb, (u32)&pkt->u.frame.data[0] - (u32)pkt);
+	skb_reserve(rxb->skb, offsetof(struct ipw_rx_packet, u.frame.data));
 
 	/* Set the size of the skb to the size of the frame */
 	skb_put(rxb->skb, pkt->u.frame.length);
