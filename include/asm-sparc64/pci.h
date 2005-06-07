@@ -220,6 +220,7 @@ static inline int pci_dma_mapping_error(dma_addr_t dma_addr)
 	return (dma_addr == PCI_DMA_ERROR_CODE);
 }
 
+#ifdef CONFIG_PCI
 static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 					enum pci_dma_burst_strategy *strat,
 					unsigned long *strategy_parameter)
@@ -236,6 +237,7 @@ static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 	*strat = PCI_DMA_BURST_BOUNDARY;
 	*strategy_parameter = cacheline_size;
 }
+#endif
 
 /* Return the index of the PCI controller for device PDEV. */
 

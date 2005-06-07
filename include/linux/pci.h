@@ -985,6 +985,8 @@ static inline int pci_proc_domain(struct pci_bus *bus)
 }
 #endif
 
+#define pci_dma_burst_advice(pdev, strat, strategy_parameter) do { } while (0)
+
 #endif /* !CONFIG_PCI */
 
 /* these helpers provide future and backwards compatibility

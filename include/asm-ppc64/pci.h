@@ -78,6 +78,7 @@ static inline int pci_dac_dma_supported(struct pci_dev *hwdev,u64 mask)
 	return 0;
 }
 
+#ifdef CONFIG_PCI
 static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 					enum pci_dma_burst_strategy *strat,
 					unsigned long *strategy_parameter)
@@ -94,6 +95,7 @@ static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 	*strat = PCI_DMA_BURST_MULTIPLE;
 	*strategy_parameter = cacheline_size;
 }
+#endif
 
 extern int pci_domain_nr(struct pci_bus *bus);
 

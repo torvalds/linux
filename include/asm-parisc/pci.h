@@ -230,6 +230,7 @@ extern inline void pcibios_register_hba(struct pci_hba_data *x)
 /* export the pci_ DMA API in terms of the dma_ one */
 #include <asm-generic/pci-dma-compat.h>
 
+#ifdef CONFIG_PCI
 static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 					enum pci_dma_burst_strategy *strat,
 					unsigned long *strategy_parameter)
@@ -246,6 +247,7 @@ static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 	*strat = PCI_DMA_BURST_MULTIPLE;
 	*strategy_parameter = cacheline_size;
 }
+#endif
 
 extern void
 pcibios_resource_to_bus(struct pci_dev *dev, struct pci_bus_region *region,
