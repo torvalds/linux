@@ -255,50 +255,23 @@ static int device_reset(struct scsi_cmnd *srb)
 
 	/* lock the device pointers and do the reset */
 	down(&(us->dev_semaphore));
-	if (test_bit(US_FLIDX_DISCONNECTING, &us->flags)) {
-		result = FAILED;
-		US_DEBUGP("No reset during disconnect\n");
-	} else
-		result = us->transport_reset(us);
+	result = us->transport_reset(us);
 	up(&(us->dev_semaphore));
 
-	return result;
+	return result < 0 ? FAILED : SUCCESS;
 }
 
-/* This resets the device's USB port. */
-/* It refuses to work if there's more than one interface in
- * the device, so that other users are not affected. */
+/* Simulate a SCSI bus reset by resetting the device's USB port. */
 /* This is always called with scsi_lock(host) held */
 static int bus_reset(struct scsi_cmnd *srb)
 {
 	struct us_data *us = host_to_us(srb->device->host);
-	int result, rc;
+	int result;
 
 	US_DEBUGP("%s called\n", __FUNCTION__);
 
-	/* The USB subsystem doesn't handle synchronisation between
-	 * a device's several drivers. Therefore we reset only devices
-	 * with just one interface, which we of course own. */
-
 	down(&(us->dev_semaphore));
-	if (test_bit(US_FLIDX_DISCONNECTING, &us->flags)) {
-		result = -EIO;
-		US_DEBUGP("No reset during disconnect\n");
-	} else if (us->pusb_dev->actconfig->desc.bNumInterfaces != 1) {
-		result = -EBUSY;
-		US_DEBUGP("Refusing to reset a multi-interface device\n");
-	} else {
-		rc = usb_lock_device_for_reset(us->pusb_dev, us->pusb_intf);
-		if (rc < 0) {
-			US_DEBUGP("unable to lock device for reset: %d\n", rc);
-			result = rc;
-		} else {
-			result = usb_reset_device(us->pusb_dev);
-			if (rc)
-				usb_unlock_device(us->pusb_dev);
-			US_DEBUGP("usb_reset_device returns %d\n", result);
-		}
-	}
+	result = usb_stor_port_reset(us);
 	up(&(us->dev_semaphore));
 
 	/* lock the host for the return */
@@ -318,6 +291,14 @@ void usb_stor_report_device_reset(struct us_data *us)
 		for (i = 1; i < host->max_id; ++i)
 			scsi_report_device_reset(host, 0, i);
 	}
+}
+
+/* Report a driver-initiated bus reset to the SCSI layer.
+ * Calling this for a SCSI-initiated reset is unnecessary but harmless.
+ * The caller must own the SCSI host lock. */
+void usb_stor_report_bus_reset(struct us_data *us)
+{
+	scsi_report_bus_reset(us_to_host(us), 0);
 }
 
 /***********************************************************************
