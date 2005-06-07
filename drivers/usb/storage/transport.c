@@ -266,8 +266,9 @@ int usb_stor_clear_halt(struct us_data *us, unsigned int pipe)
 		NULL, 0, 3*HZ);
 
 	/* reset the endpoint toggle */
-	usb_settoggle(us->pusb_dev, usb_pipeendpoint(pipe),
-		usb_pipeout(pipe), 0);
+	if (result >= 0)
+		usb_settoggle(us->pusb_dev, usb_pipeendpoint(pipe),
+				usb_pipeout(pipe), 0);
 
 	US_DEBUGP("%s: result = %d\n", __FUNCTION__, result);
 	return result;
@@ -1124,7 +1125,7 @@ int usb_stor_Bulk_transport(struct scsi_cmnd *srb, struct us_data *us)
  * It's handy that every transport mechanism uses the control endpoint for
  * resets.
  *
- * Basically, we send a reset with a 20-second timeout, so we don't get
+ * Basically, we send a reset with a 5-second timeout, so we don't get
  * jammed attempting to do the reset.
  */
 static int usb_stor_reset_common(struct us_data *us,
@@ -1145,13 +1146,9 @@ static int usb_stor_reset_common(struct us_data *us,
 	clear_bit(US_FLIDX_ABORTING, &us->flags);
 	scsi_unlock(us_to_host(us));
 
-	/* A 20-second timeout may seem rather long, but a LaCie
-	 * StudioDrive USB2 device takes 16+ seconds to get going
-	 * following a powerup or USB attach event.
-	 */
 	result = usb_stor_control_msg(us, us->send_ctrl_pipe,
 			request, requesttype, value, index, data, size,
-			20*HZ);
+			5*HZ);
 	if (result < 0) {
 		US_DEBUGP("Soft reset failed: %d\n", result);
 		goto Done;
@@ -1173,8 +1170,10 @@ static int usb_stor_reset_common(struct us_data *us,
 	US_DEBUGP("Soft reset: clearing bulk-out endpoint halt\n");
 	result2 = usb_stor_clear_halt(us, us->send_bulk_pipe);
 
-	/* return a result code based on the result of the control message */
-	if (result < 0 || result2 < 0) {
+	/* return a result code based on the result of the clear-halts */
+	if (result >= 0)
+		result = result2;
+	if (result < 0) {
 		US_DEBUGP("Soft reset failed\n");
 		goto Done;
 	}
