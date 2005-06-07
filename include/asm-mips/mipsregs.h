@@ -1010,8 +1010,6 @@ do {									\
 
 #define wrdsp(val, mask)						\
 do {									\
-	unsigned int __res;						\
-									\
 	__asm__ __volatile__(						\
 	"	.set	push					\n"	\
 	"	.set	noat					\n"	\
@@ -1021,7 +1019,6 @@ do {									\
 	"	.set	pop					\n"	\
         :								\
 	: "r" (val), "i" (mask));					\
-        __res;								\
 } while (0)
 
 #if 0	/* Need DSP ASE capable assembler ... */
