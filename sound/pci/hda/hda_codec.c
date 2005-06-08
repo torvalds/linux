@@ -566,9 +566,10 @@ void snd_hda_codec_setup_stream(struct hda_codec *codec, hda_nid_t nid, u32 stre
  * amp access functions
  */
 
-#define HDA_HASH_KEY(nid,dir,idx) (u32)((nid) + (idx) * 32 + (dir) * 64)
+/* FIXME: more better hash key? */
+#define HDA_HASH_KEY(nid,dir,idx) (u32)((nid) + ((idx) << 16) + ((dir) << 24))
 #define INFO_AMP_CAPS	(1<<0)
-#define INFO_AMP_VOL	(1<<1)
+#define INFO_AMP_VOL(ch)	(1 << (1 + (ch)))
 
 /* initialize the hash table */
 static void init_amp_hash(struct hda_codec *codec)
@@ -627,28 +628,29 @@ static u32 query_amp_caps(struct hda_codec *codec, hda_nid_t nid, int direction)
 
 /*
  * read the current volume to info
- * if the cache exists, read from the cache.
+ * if the cache exists, read the cache value.
  */
-static void get_vol_mute(struct hda_codec *codec, struct hda_amp_info *info,
+static unsigned int get_vol_mute(struct hda_codec *codec, struct hda_amp_info *info,
 			 hda_nid_t nid, int ch, int direction, int index)
 {
 	u32 val, parm;
 
-	if (info->status & (INFO_AMP_VOL << ch))
-		return;
+	if (info->status & INFO_AMP_VOL(ch))
+		return info->vol[ch];
 
 	parm = ch ? AC_AMP_GET_RIGHT : AC_AMP_GET_LEFT;
 	parm |= direction == HDA_OUTPUT ? AC_AMP_GET_OUTPUT : AC_AMP_GET_INPUT;
 	parm |= index;
 	val = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_AMP_GAIN_MUTE, parm);
 	info->vol[ch] = val & 0xff;
-	info->status |= INFO_AMP_VOL << ch;
+	info->status |= INFO_AMP_VOL(ch);
+	return info->vol[ch];
 }
 
 /*
- * write the current volume in info to the h/w
+ * write the current volume in info to the h/w and update the cache
  */
-static void put_vol_mute(struct hda_codec *codec,
+static void put_vol_mute(struct hda_codec *codec, struct hda_amp_info *info,
 			 hda_nid_t nid, int ch, int direction, int index, int val)
 {
 	u32 parm;
@@ -658,30 +660,34 @@ static void put_vol_mute(struct hda_codec *codec,
 	parm |= index << AC_AMP_SET_INDEX_SHIFT;
 	parm |= val;
 	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE, parm);
+	info->vol[ch] = val;
 }
 
 /*
- * read/write AMP value.  The volume is between 0 to 0x7f, 0x80 = mute bit.
+ * read AMP value.  The volume is between 0 to 0x7f, 0x80 = mute bit.
  */
 static int snd_hda_codec_amp_read(struct hda_codec *codec, hda_nid_t nid, int ch, int direction, int index)
 {
 	struct hda_amp_info *info = get_alloc_amp_hash(codec, HDA_HASH_KEY(nid, direction, index));
 	if (! info)
 		return 0;
-	get_vol_mute(codec, info, nid, ch, direction, index);
-	return info->vol[ch];
+	return get_vol_mute(codec, info, nid, ch, direction, index);
 }
 
-static int snd_hda_codec_amp_write(struct hda_codec *codec, hda_nid_t nid, int ch, int direction, int idx, int val)
+/*
+ * update the AMP value, mask = bit mask to set, val = the value
+ */
+static int snd_hda_codec_amp_update(struct hda_codec *codec, hda_nid_t nid, int ch, int direction, int idx, int mask, int val)
 {
 	struct hda_amp_info *info = get_alloc_amp_hash(codec, HDA_HASH_KEY(nid, direction, idx));
+
 	if (! info)
 		return 0;
-	get_vol_mute(codec, info, nid, ch, direction, idx);
+	val &= mask;
+	val |= get_vol_mute(codec, info, nid, ch, direction, idx) & ~mask;
 	if (info->vol[ch] == val && ! codec->in_resume)
 		return 0;
-	put_vol_mute(codec, nid, ch, direction, idx, val);
-	info->vol[ch] = val;
+	put_vol_mute(codec, info, nid, ch, direction, idx, val);
 	return 1;
 }
 
@@ -740,21 +746,15 @@ int snd_hda_mixer_amp_volume_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t 
 	int chs = get_amp_channels(kcontrol);
 	int dir = get_amp_direction(kcontrol);
 	int idx = get_amp_index(kcontrol);
-	int val;
 	long *valp = ucontrol->value.integer.value;
 	int change = 0;
 
-	if (chs & 1) {
-		val = *valp & 0x7f;
-		val |= snd_hda_codec_amp_read(codec, nid, 0, dir, idx) & 0x80;
-		change = snd_hda_codec_amp_write(codec, nid, 0, dir, idx, val);
-		valp++;
-	}
-	if (chs & 2) {
-		val = *valp & 0x7f;
-		val |= snd_hda_codec_amp_read(codec, nid, 1, dir, idx) & 0x80;
-		change |= snd_hda_codec_amp_write(codec, nid, 1, dir, idx, val);
-	}
+	if (chs & 1)
+		change = snd_hda_codec_amp_update(codec, nid, 0, dir, idx,
+						  0x7f, *valp);
+	if (chs & 2)
+		change |= snd_hda_codec_amp_update(codec, nid, 1, dir, idx,
+						   0x7f, valp[1]);
 	return change;
 }
 
@@ -793,21 +793,15 @@ int snd_hda_mixer_amp_switch_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t 
 	int chs = get_amp_channels(kcontrol);
 	int dir = get_amp_direction(kcontrol);
 	int idx = get_amp_index(kcontrol);
-	int val;
 	long *valp = ucontrol->value.integer.value;
 	int change = 0;
 
-	if (chs & 1) {
-		val = snd_hda_codec_amp_read(codec, nid, 0, dir, idx) & 0x7f;
-		val |= *valp ? 0 : 0x80;
-		change = snd_hda_codec_amp_write(codec, nid, 0, dir, idx, val);
-		valp++;
-	}
-	if (chs & 2) {
-		val = snd_hda_codec_amp_read(codec, nid, 1, dir, idx) & 0x7f;
-		val |= *valp ? 0 : 0x80;
-		change = snd_hda_codec_amp_write(codec, nid, 1, dir, idx, val);
-	}
+	if (chs & 1)
+		change = snd_hda_codec_amp_update(codec, nid, 0, dir, idx,
+						  0x80, *valp ? 0 : 0x80);
+	if (chs & 2)
+		change |= snd_hda_codec_amp_update(codec, nid, 1, dir, idx,
+						   0x80, valp[1] ? 0 : 0x80);
 	return change;
 }
 
