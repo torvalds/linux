@@ -318,7 +318,7 @@ static int ad1986a_pcm_amp_vol_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_
 	return change;
 }
 
-#define ad1986a_pcm_amp_sw_info		snd_hda_mixer_amp_volume_info
+#define ad1986a_pcm_amp_sw_info		snd_hda_mixer_amp_switch_info
 
 static int ad1986a_pcm_amp_sw_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
 {
