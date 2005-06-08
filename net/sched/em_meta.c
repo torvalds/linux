@@ -639,9 +639,9 @@ static int meta_int_compare(struct meta_obj *a, struct meta_obj *b)
 	/* Let gcc optimize it, the unlikely is not really based on
 	 * some numbers but jump free code for mismatches seems
 	 * more logical. */
-	if (unlikely(a == b))
+	if (unlikely(a->value == b->value))
 		return 0;
-	else if (a < b)
+	else if (a->value < b->value)
 		return -1;
 	else
 		return 1;
