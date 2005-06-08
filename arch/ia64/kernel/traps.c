@@ -220,13 +220,21 @@ disabled_fph_fault (struct pt_regs *regs)
 
 	/* first, grant user-level access to fph partition: */
 	psr->dfh = 0;
+
+	/*
+	 * Make sure that no other task gets in on this processor
+	 * while we're claiming the FPU
+	 */
+	preempt_disable();
 #ifndef CONFIG_SMP
 	{
 		struct task_struct *fpu_owner
 			= (struct task_struct *)ia64_get_kr(IA64_KR_FPU_OWNER);
 
-		if (ia64_is_local_fpu_owner(current))
+		if (ia64_is_local_fpu_owner(current)) {
+			preempt_enable_no_resched();
 			return;
+		}
 
 		if (fpu_owner)
 			ia64_flush_fph(fpu_owner);
@@ -244,6 +252,7 @@ disabled_fph_fault (struct pt_regs *regs)
 		 */
 		psr->mfh = 1;
 	}
+	preempt_enable_no_resched();
 }
 
 static inline int
