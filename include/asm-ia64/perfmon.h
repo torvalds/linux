@@ -177,6 +177,10 @@ typedef union {
 
 extern long perfmonctl(int fd, int cmd, void *arg, int narg);
 
+typedef struct {
+	void (*handler)(int irq, void *arg, struct pt_regs *regs);
+} pfm_intr_handler_desc_t;
+
 extern void pfm_save_regs (struct task_struct *);
 extern void pfm_load_regs (struct task_struct *);
 
@@ -187,6 +191,10 @@ extern void pfm_syst_wide_update_task(struct task_struct *, unsigned long info, 
 extern void pfm_inherit(struct task_struct *task, struct pt_regs *regs);
 extern void pfm_init_percpu(void);
 extern void pfm_handle_work(void);
+extern int  pfm_install_alt_pmu_interrupt(pfm_intr_handler_desc_t *h);
+extern int  pfm_remove_alt_pmu_interrupt(pfm_intr_handler_desc_t *h);
+
+
 
 /*
  * Reset PMD register flags

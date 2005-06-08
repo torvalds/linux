@@ -29,6 +29,7 @@
 #include <linux/cpufreq.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/pci.h>
 
 #include <asm/msr.h>
 #include <asm/timex.h>
@@ -119,7 +120,13 @@ static int longhaul_get_cpu_mult(void)
 static void do_powersaver(union msr_longhaul *longhaul,
 			unsigned int clock_ratio_index)
 {
+	struct pci_dev *dev;
+	unsigned long flags;
+	unsigned int tmp_mask;
 	int version;
+	int i;
+	u16 pci_cmd;
+	u16 cmd_state[64];
 
 	switch (cpu_model) {
 	case CPU_EZRA_T:
@@ -137,17 +144,58 @@ static void do_powersaver(union msr_longhaul *longhaul,
 	longhaul->bits.SoftBusRatio4 = (clock_ratio_index & 0x10) >> 4;
 	longhaul->bits.EnableSoftBusRatio = 1;
 	longhaul->bits.RevisionKey = 0;
-	local_irq_disable();
-	wrmsrl(MSR_VIA_LONGHAUL, longhaul->val);
+
+	preempt_disable();
+	local_irq_save(flags);
+
+	/*
+	 * get current pci bus master state for all devices
+	 * and clear bus master bit
+	 */
+	dev = NULL;
+	i = 0;
+	do {
+		dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev);
+		if (dev != NULL) {
+			pci_read_config_word(dev, PCI_COMMAND, &pci_cmd);
+			cmd_state[i++] = pci_cmd;
+			pci_cmd &= ~PCI_COMMAND_MASTER;
+			pci_write_config_word(dev, PCI_COMMAND, pci_cmd);
+		}
+	} while (dev != NULL);
+
+	tmp_mask=inb(0x21);	/* works on C3. save mask. */
+	outb(0xFE,0x21);	/* TMR0 only */
+	outb(0xFF,0x80);	/* delay */
+
 	local_irq_enable();
+
+	__hlt();
+	wrmsrl(MSR_VIA_LONGHAUL, longhaul->val);
 	__hlt();
 
+	local_irq_disable();
+
+	outb(tmp_mask,0x21);	/* restore mask */
+
+	/* restore pci bus master state for all devices */
+	dev = NULL;
+	i = 0;
+	do {
+		dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev);
+		if (dev != NULL) {
+			pci_cmd = cmd_state[i++];
+			pci_write_config_byte(dev, PCI_COMMAND, pci_cmd);
+		}
+	} while (dev != NULL);
+	local_irq_restore(flags);
+	preempt_enable();
+
+	/* disable bus ratio bit */
 	rdmsrl(MSR_VIA_LONGHAUL, longhaul->val);
 	longhaul->bits.EnableSoftBusRatio = 0;
 	longhaul->bits.RevisionKey = version;
-	local_irq_disable();
 	wrmsrl(MSR_VIA_LONGHAUL, longhaul->val);
-	local_irq_enable();
 }
 
 /**
@@ -578,7 +626,7 @@ static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 		longhaul_setup_voltagescaling();
 
 	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
-	policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
+	policy->cpuinfo.transition_latency = 200000;	/* nsec */
 	policy->cur = calc_speed(longhaul_get_cpu_mult());
 
 	ret = cpufreq_frequency_table_cpuinfo(policy, longhaul_table);

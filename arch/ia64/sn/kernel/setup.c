@@ -271,6 +271,8 @@ void __init sn_setup(char **cmdline_p)
 	int major = sn_sal_rev_major(), minor = sn_sal_rev_minor();
 	extern void sn_cpu_init(void);
 
+	ia64_sn_plat_set_error_handling_features();
+
 	/*
 	 * If the generic code has enabled vga console support - lets
 	 * get rid of it again. This is a kludge for the fact that ACPI

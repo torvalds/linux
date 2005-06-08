@@ -46,7 +46,7 @@
 #endif
 
 /* How many days come before each month (0-12).  */
-const unsigned short int __mon_yday[2][13] =
+static const unsigned short int __mon_yday[2][13] =
 {
 	/* Normal years.  */
 	{ 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365 },

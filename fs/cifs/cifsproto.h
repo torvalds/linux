@@ -228,7 +228,7 @@ extern int CIFSGetSrvInodeNumber(const int xid, struct cifsTconInfo *tcon,
 			const struct nls_table *nls_codepage, 
 			int remap_special_chars);
 #endif /* CONFIG_CIFS_EXPERIMENTAL */
-extern int cifs_convertUCSpath(char *target, const __u16 *source, int maxlen,
+extern int cifs_convertUCSpath(char *target, const __le16 *source, int maxlen,
 			const struct nls_table * codepage);
 extern int cifsConvertToUCS(__le16 * target, const char *source, int maxlen,
 			const struct nls_table * cp, int mapChars);

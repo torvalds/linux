@@ -12,15 +12,8 @@
 #include <asm/uaccess.h>
 
 #ifndef HAVE_ARCH_DEVTREE_FIXUPS
-static inline void set_node_proc_entry(struct device_node *np, struct proc_dir_entry *de)
-{
-}
-
-static void inline set_node_name_link(struct device_node *np, struct proc_dir_entry *de)
-{
-}
-
-static void inline set_node_addr_link(struct device_node *np, struct proc_dir_entry *de)
+static inline void set_node_proc_entry(struct device_node *np,
+				       struct proc_dir_entry *de)
 {
 }
 #endif
@@ -58,89 +51,67 @@ static int property_read_proc(char *page, char **start, off_t off,
 /*
  * Process a node, adding entries for its children and its properties.
  */
-void proc_device_tree_add_node(struct device_node *np, struct proc_dir_entry *de)
+void proc_device_tree_add_node(struct device_node *np,
+			       struct proc_dir_entry *de)
 {
 	struct property *pp;
 	struct proc_dir_entry *ent;
-	struct device_node *child, *sib;
-	const char *p, *at;
-	int l;
-	struct proc_dir_entry *list, **lastp, *al;
+	struct device_node *child;
+	struct proc_dir_entry *list = NULL, **lastp;
+	const char *p;
 
 	set_node_proc_entry(np, de);
 	lastp = &list;
+	for (child = NULL; (child = of_get_next_child(np, child));) {
+		p = strrchr(child->full_name, '/');
+		if (!p)
+			p = child->full_name;
+		else
+			++p;
+		ent = proc_mkdir(p, de);
+		if (ent == 0)
+			break;
+		*lastp = ent;
+		ent->next = NULL;
+		lastp = &ent->next;
+		proc_device_tree_add_node(child, ent);
+	}
+	of_node_put(child);
 	for (pp = np->properties; pp != 0; pp = pp->next) {
+		/*
+		 * Yet another Apple device-tree bogosity: on some machines,
+		 * they have properties & nodes with the same name. Those
+		 * properties are quite unimportant for us though, thus we
+		 * simply "skip" them here, but we do have to check.
+		 */
+		for (ent = list; ent != NULL; ent = ent->next)
+			if (!strcmp(ent->name, pp->name))
+				break;
+		if (ent != NULL) {
+			printk(KERN_WARNING "device-tree: property \"%s\" name"
+			       " conflicts with node in %s\n", pp->name,
+			       np->full_name);
+			continue;
+		}
+
 		/*
 		 * Unfortunately proc_register puts each new entry
 		 * at the beginning of the list.  So we rearrange them.
 		 */
-		ent = create_proc_read_entry(pp->name, strncmp(pp->name, "security-", 9) ?
-					     S_IRUGO : S_IRUSR, de, property_read_proc, pp);
+		ent = create_proc_read_entry(pp->name,
+					     strncmp(pp->name, "security-", 9)
+					     ? S_IRUGO : S_IRUSR, de,
+					     property_read_proc, pp);
 		if (ent == 0)
 			break;
 		if (!strncmp(pp->name, "security-", 9))
 		     ent->size = 0; /* don't leak number of password chars */
 		else
 		     ent->size = pp->length;
+		ent->next = NULL;
 		*lastp = ent;
 		lastp = &ent->next;
 	}
-	child = NULL;
-	while ((child = of_get_next_child(np, child))) {
-		p = strrchr(child->full_name, '/');
-		if (!p)
-			p = child->full_name;
-		else
-			++p;
-		/* chop off '@0' if the name ends with that */
-		l = strlen(p);
-		if (l > 2 && p[l-2] == '@' && p[l-1] == '0')
-			l -= 2;
-		ent = proc_mkdir(p, de);
-		if (ent == 0)
-			break;
-		*lastp = ent;
-		lastp = &ent->next;
-		proc_device_tree_add_node(child, ent);
-
-		/*
-		 * If we left the address part on the name, consider
-		 * adding symlinks from the name and address parts.
-		 */
-		if (p[l] != 0 || (at = strchr(p, '@')) == 0)
-			continue;
-
-		/*
-		 * If this is the first node with a given name property,
-		 * add a symlink with the name property as its name.
-		 */
-		sib = NULL;
-		while ((sib = of_get_next_child(np, sib)) && sib != child)
-			if (sib->name && strcmp(sib->name, child->name) == 0)
-				break;
-		if (sib == child && strncmp(p, child->name, l) != 0) {
-			al = proc_symlink(child->name, de, ent->name);
-			if (al == 0) {
-				of_node_put(sib);
-				break;
-			}
-			set_node_name_link(child, al);
-			*lastp = al;
-			lastp = &al->next;
-		}
-		of_node_put(sib);
-		/*
-		 * Add another directory with the @address part as its name.
-		 */
-		al = proc_symlink(at, de, ent->name);
-		if (al == 0)
-			break;
-		set_node_addr_link(child, al);
-		*lastp = al;
-		lastp = &al->next;
-	}
-	of_node_put(child);
-	*lastp = NULL;
 	de->subdir = list;
 }
 
