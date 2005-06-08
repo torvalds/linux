@@ -45,12 +45,17 @@ static struct pt_regs jprobe_saved_regs;
 
 int arch_prepare_kprobe(struct kprobe *p)
 {
+	int ret = 0;
 	kprobe_opcode_t insn = *p->addr;
 
-	if (IS_MTMSRD(insn) || IS_RFID(insn))
-		/* cannot put bp on RFID/MTMSRD */
-		return 1;
-	return 0;
+	if ((unsigned long)p->addr & 0x03) {
+		printk("Attempt to register kprobe at an unaligned address\n");
+		ret = -EINVAL;
+	} else if (IS_MTMSRD(insn) || IS_RFID(insn)) {
+		printk("Cannot register a kprobe on rfid or mtmsrd\n");
+		ret = -EINVAL;
+	}
+	return ret;
 }
 
 void arch_copy_kprobe(struct kprobe *p)
