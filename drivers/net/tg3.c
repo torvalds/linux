@@ -9695,10 +9695,24 @@ static int __devinit tg3_test_dma(struct tg3 *tp)
 	}
 	if ((tp->dma_rwctrl & DMA_RWCTRL_WRITE_BNDRY_MASK) !=
 	    DMA_RWCTRL_WRITE_BNDRY_16) {
+		static struct pci_device_id dma_wait_state_chipsets[] = {
+			{ PCI_DEVICE(PCI_VENDOR_ID_APPLE,
+				     PCI_DEVICE_ID_APPLE_UNI_N_PCI15) },
+			{ },
+		};
+
 		/* DMA test passed without adjusting DMA boundary,
-		 * just restore the calculated DMA boundary
+		 * now look for chipsets that are known to expose the
+		 * DMA bug without failing the test.
 		 */
-		tp->dma_rwctrl = saved_dma_rwctrl;
+		if (pci_dev_present(dma_wait_state_chipsets)) {
+			tp->dma_rwctrl &= ~DMA_RWCTRL_WRITE_BNDRY_MASK;
+			tp->dma_rwctrl |= DMA_RWCTRL_WRITE_BNDRY_16;
+		}
+		else
+			/* Safe to use the calculated DMA boundary. */
+			tp->dma_rwctrl = saved_dma_rwctrl;
+
 		tw32(TG3PCI_DMA_RW_CTRL, tp->dma_rwctrl);
 	}
 
