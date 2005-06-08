@@ -233,8 +233,6 @@ int kprobe_exceptions_notify(struct notifier_block *self, unsigned long val,
 	 */
 	preempt_disable();
 	switch (val) {
-	case DIE_IABR_MATCH:
-	case DIE_DABR_MATCH:
 	case DIE_BPT:
 		if (kprobe_handler(args->regs))
 			ret = NOTIFY_STOP;
