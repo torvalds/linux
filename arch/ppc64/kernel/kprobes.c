@@ -177,8 +177,6 @@ static void resume_execution(struct kprobe *p, struct pt_regs *regs)
 	ret = emulate_step(regs, p->ainsn.insn[0]);
 	if (ret == 0)
 		regs->nip = (unsigned long)p->addr + 4;
-
-	regs->msr &= ~MSR_SE;
 }
 
 static inline int post_kprobe_handler(struct pt_regs *regs)
@@ -215,6 +213,7 @@ static inline int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 
 	if (kprobe_status & KPROBE_HIT_SS) {
 		resume_execution(current_kprobe, regs);
+		regs->msr &= ~MSR_SE;
 		regs->msr |= kprobe_saved_msr;
 
 		unlock_kprobes();
