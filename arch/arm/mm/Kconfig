@@ -228,7 +228,6 @@ config CPU_SA1100
 	select CPU_CACHE_V4WB
 	select CPU_CACHE_VIVT
 	select CPU_TLB_V4WB
-	select CPU_MINICACHE
 
 # XScale
 config CPU_XSCALE
@@ -239,7 +238,6 @@ config CPU_XSCALE
 	select CPU_ABRT_EV5T
 	select CPU_CACHE_VIVT
 	select CPU_TLB_V4WBI
-	select CPU_MINICACHE
 
 # ARMv6
 config CPU_V6
@@ -344,11 +342,6 @@ config CPU_TLB_V4WBI
 
 config CPU_TLB_V6
 	bool
-
-config CPU_MINICACHE
-	bool
-	help
-	  Processor has a minicache.
 
 comment "Processor Features"
 

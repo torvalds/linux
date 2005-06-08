@@ -785,6 +785,10 @@ int s3c2410_dma_free(dmach_t channel, s3c2410_dma_client_t *client)
 	chan->client = NULL;
 	chan->in_use = 0;
 
+	if (chan->irq_claimed)
+		free_irq(chan->irq, (void *)chan);
+	chan->irq_claimed = 0;
+
 	local_irq_restore(flags);
 
 	return 0;
