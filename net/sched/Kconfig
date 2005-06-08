@@ -405,7 +405,7 @@ config NET_EMATCH_STACK
 	---help---
 	  Size of the local stack variable used while evaluating the tree of
 	  ematches. Limits the depth of the tree, i.e. the number of
-	  encapsulated precedences. Every level requires 4 bytes of addtional
+	  encapsulated precedences. Every level requires 4 bytes of additional
 	  stack space.
 
 config NET_EMATCH_CMP
