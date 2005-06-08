@@ -168,7 +168,7 @@ static int winch_tramp(int fd, struct tty_struct *tty, int *fd_out)
 		printk("winch_tramp : failed to read synchronization byte\n");
 		printk("read failed, err = %d\n", -n);
 		printk("fd %d will not support SIGWINCH\n", fd);
-		*fd_out = -1;
+                pid = -1;
 	}
 	return(pid);
 }
@@ -186,7 +186,7 @@ void register_winch(int fd, struct tty_struct *tty)
 	if(!CHOOSE_MODE_PROC(is_tracer_winch, is_skas_winch, pid, fd,
 			     tty) && (pid == -1)){
 		thread = winch_tramp(fd, tty, &thread_fd);
-		if(fd != -1){
+		if(thread > 0){
 			register_winch_irq(thread_fd, fd, thread, tty);
 
 			count = os_write_file(thread_fd, &c, sizeof(c));
