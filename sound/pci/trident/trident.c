@@ -143,7 +143,8 @@ static int __devinit snd_trident_probe(struct pci_dev *pci,
 			return err;
 		}
 	}
-	if ((err = snd_mpu401_uart_new(card, 0, MPU401_HW_TRID4DWAVE,
+	if (trident->device != TRIDENT_DEVICE_ID_SI7018 &&
+	    (err = snd_mpu401_uart_new(card, 0, MPU401_HW_TRID4DWAVE,
 				       trident->midi_port, 1,
 				       trident->irq, 0, &trident->rmidi)) < 0) {
 		snd_card_free(card);
