@@ -422,3 +422,11 @@ config HAS_TLS_REG
 	  assume directly accessing that register and always obtain the
 	  expected value only on ARMv7 and above.
 
+config NEEDS_SYSCALL_FOR_CMPXCHG
+	bool
+	default y if SMP && (CPU_32v5 || CPU_32v4 || CPU_32v3)
+	help
+	  SMP on a pre-ARMv6 processor?  Well OK then.
+	  Forget about fast user space cmpxchg support.
+	  It is just not possible.
+
