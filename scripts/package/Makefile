@@ -94,7 +94,8 @@ clean-dirs += $(objtree)/tar-install/
 # ---------------------------------------------------------------------------
 help:
 	@echo '  rpm-pkg         - Build the kernel as an RPM package'
-	@echo '  binrpm-pkg      - Build an rpm package containing the compiled kernel & modules'
+	@echo '  binrpm-pkg      - Build an rpm package containing the compiled kernel
+	@echo '                    and modules'
 	@echo '  deb-pkg         - Build the kernel as an deb package'
 	@echo '  tar-pkg         - Build the kernel as an uncompressed tarball'
 	@echo '  targz-pkg       - Build the kernel as a gzip compressed tarball'
