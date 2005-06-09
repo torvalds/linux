@@ -7,7 +7,12 @@
  * Copyright (C) 2005 Broadcom Corporation.
  *
  * Firmware is:
- * 	Copyright (C) 2000-2003 Broadcom Corporation.
+ *	Derived from proprietary unpublished source code,
+ *	Copyright (C) 2000-2003 Broadcom Corporation.
+ *
+ *	Permission is hereby granted for the distribution of this firmware
+ *	data in hexadecimal or equivalent format, provided this copyright
+ *	notice is accompanying it.
  */
 
 #include <linux/config.h>
@@ -61,8 +66,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.29"
-#define DRV_MODULE_RELDATE	"May 23, 2005"
+#define DRV_MODULE_VERSION	"3.31"
+#define DRV_MODULE_RELDATE	"June 8, 2005"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -8555,6 +8560,16 @@ static void __devinit tg3_get_eeprom_hw_cfg(struct tg3 *tp)
 
 		case NIC_SRAM_DATA_CFG_LED_MODE_MAC:
 			tp->led_ctrl = LED_CTRL_MODE_MAC;
+
+			/* Default to PHY_1_MODE if 0 (MAC_MODE) is
+			 * read on some older 5700/5701 bootcode.
+			 */
+			if (GET_ASIC_REV(tp->pci_chip_rev_id) ==
+			    ASIC_REV_5700 ||
+			    GET_ASIC_REV(tp->pci_chip_rev_id) ==
+			    ASIC_REV_5701)
+				tp->led_ctrl = LED_CTRL_MODE_PHY_1;
+
 			break;
 
 		case SHASTA_EXT_LED_SHARED:
@@ -9680,10 +9695,24 @@ static int __devinit tg3_test_dma(struct tg3 *tp)
 	}
 	if ((tp->dma_rwctrl & DMA_RWCTRL_WRITE_BNDRY_MASK) !=
 	    DMA_RWCTRL_WRITE_BNDRY_16) {
+		static struct pci_device_id dma_wait_state_chipsets[] = {
+			{ PCI_DEVICE(PCI_VENDOR_ID_APPLE,
+				     PCI_DEVICE_ID_APPLE_UNI_N_PCI15) },
+			{ },
+		};
+
 		/* DMA test passed without adjusting DMA boundary,
-		 * just restore the calculated DMA boundary
+		 * now look for chipsets that are known to expose the
+		 * DMA bug without failing the test.
 		 */
-		tp->dma_rwctrl = saved_dma_rwctrl;
+		if (pci_dev_present(dma_wait_state_chipsets)) {
+			tp->dma_rwctrl &= ~DMA_RWCTRL_WRITE_BNDRY_MASK;
+			tp->dma_rwctrl |= DMA_RWCTRL_WRITE_BNDRY_16;
+		}
+		else
+			/* Safe to use the calculated DMA boundary. */
+			tp->dma_rwctrl = saved_dma_rwctrl;
+
 		tw32(TG3PCI_DMA_RW_CTRL, tp->dma_rwctrl);
 	}
 

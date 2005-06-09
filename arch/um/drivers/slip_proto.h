@@ -12,7 +12,8 @@
 #define SLIP_ESC_END         0334	/* ESC ESC_END means END 'data'	*/
 #define SLIP_ESC_ESC         0335	/* ESC ESC_ESC means ESC 'data'	*/
 
-static inline int slip_unesc(unsigned char c,char *buf,int *pos, int *esc)
+static inline int slip_unesc(unsigned char c, unsigned char *buf, int *pos,
+                             int *esc)
 {
 	int ret;
 

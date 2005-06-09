@@ -619,7 +619,7 @@ _GLOBAL(flush_instruction_cache)
 _GLOBAL(flush_icache_range)
 BEGIN_FTR_SECTION
 	blr				/* for 601, do nothing */
-END_FTR_SECTION_IFSET(PPC_FEATURE_UNIFIED_CACHE)
+END_FTR_SECTION_IFCLR(CPU_FTR_SPLIT_ID_CACHE)
 	li	r5,L1_CACHE_LINE_SIZE-1
 	andc	r3,r3,r5
 	subf	r4,r3,r4
@@ -736,7 +736,7 @@ _GLOBAL(flush_dcache_all)
 _GLOBAL(__flush_dcache_icache)
 BEGIN_FTR_SECTION
 	blr					/* for 601, do nothing */
-END_FTR_SECTION_IFSET(PPC_FEATURE_UNIFIED_CACHE)
+END_FTR_SECTION_IFCLR(CPU_FTR_SPLIT_ID_CACHE)
 	rlwinm	r3,r3,0,0,19			/* Get page base address */
 	li	r4,4096/L1_CACHE_LINE_SIZE	/* Number of lines in a page */
 	mtctr	r4
@@ -764,7 +764,7 @@ END_FTR_SECTION_IFSET(PPC_FEATURE_UNIFIED_CACHE)
 _GLOBAL(__flush_dcache_icache_phys)
 BEGIN_FTR_SECTION
 	blr					/* for 601, do nothing */
-END_FTR_SECTION_IFSET(PPC_FEATURE_UNIFIED_CACHE)
+END_FTR_SECTION_IFCLR(CPU_FTR_SPLIT_ID_CACHE)
 	mfmsr	r10
 	rlwinm	r0,r10,0,28,26			/* clear DR */
 	mtmsr	r0

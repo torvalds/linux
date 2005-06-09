@@ -45,12 +45,17 @@ static struct pt_regs jprobe_saved_regs;
 
 int arch_prepare_kprobe(struct kprobe *p)
 {
+	int ret = 0;
 	kprobe_opcode_t insn = *p->addr;
 
-	if (IS_MTMSRD(insn) || IS_RFID(insn))
-		/* cannot put bp on RFID/MTMSRD */
-		return 1;
-	return 0;
+	if ((unsigned long)p->addr & 0x03) {
+		printk("Attempt to register kprobe at an unaligned address\n");
+		ret = -EINVAL;
+	} else if (IS_MTMSRD(insn) || IS_RFID(insn)) {
+		printk("Cannot register a kprobe on rfid or mtmsrd\n");
+		ret = -EINVAL;
+	}
+	return ret;
 }
 
 void arch_copy_kprobe(struct kprobe *p)
@@ -172,8 +177,6 @@ static void resume_execution(struct kprobe *p, struct pt_regs *regs)
 	ret = emulate_step(regs, p->ainsn.insn[0]);
 	if (ret == 0)
 		regs->nip = (unsigned long)p->addr + 4;
-
-	regs->msr &= ~MSR_SE;
 }
 
 static inline int post_kprobe_handler(struct pt_regs *regs)
@@ -210,6 +213,7 @@ static inline int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 
 	if (kprobe_status & KPROBE_HIT_SS) {
 		resume_execution(current_kprobe, regs);
+		regs->msr &= ~MSR_SE;
 		regs->msr |= kprobe_saved_msr;
 
 		unlock_kprobes();
@@ -233,8 +237,6 @@ int kprobe_exceptions_notify(struct notifier_block *self, unsigned long val,
 	 */
 	preempt_disable();
 	switch (val) {
-	case DIE_IABR_MATCH:
-	case DIE_DABR_MATCH:
 	case DIE_BPT:
 		if (kprobe_handler(args->regs))
 			ret = NOTIFY_STOP;

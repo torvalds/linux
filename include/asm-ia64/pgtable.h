@@ -8,7 +8,7 @@
  * This hopefully works with any (fixed) IA-64 page-size, as defined
  * in <asm/page.h>.
  *
- * Copyright (C) 1998-2004 Hewlett-Packard Co
+ * Copyright (C) 1998-2005 Hewlett-Packard Co
  *	David Mosberger-Tang <davidm@hpl.hp.com>
  */
 
@@ -551,7 +551,11 @@ do {											\
 
 /* These tell get_user_pages() that the first gate page is accessible from user-level.  */
 #define FIXADDR_USER_START	GATE_ADDR
-#define FIXADDR_USER_END	(GATE_ADDR + 2*PERCPU_PAGE_SIZE)
+#ifdef HAVE_BUGGY_SEGREL
+# define FIXADDR_USER_END	(GATE_ADDR + 2*PAGE_SIZE)
+#else
+# define FIXADDR_USER_END	(GATE_ADDR + 2*PERCPU_PAGE_SIZE)
+#endif
 
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_DIRTY
