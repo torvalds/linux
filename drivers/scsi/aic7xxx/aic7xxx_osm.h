@@ -129,23 +129,6 @@ typedef struct scsi_cmnd      *ahc_io_ctx_t;
 #define ahc_le32toh(x)	le32_to_cpu(x)
 #define ahc_le64toh(x)	le64_to_cpu(x)
 
-#ifndef LITTLE_ENDIAN
-#define LITTLE_ENDIAN 1234
-#endif
-
-#ifndef BIG_ENDIAN
-#define BIG_ENDIAN 4321
-#endif
-
-#ifndef BYTE_ORDER
-#if defined(__BIG_ENDIAN)
-#define BYTE_ORDER BIG_ENDIAN
-#endif
-#if defined(__LITTLE_ENDIAN)
-#define BYTE_ORDER LITTLE_ENDIAN
-#endif
-#endif /* BYTE_ORDER */
-
 /************************* Configuration Data *********************************/
 extern u_int aic7xxx_no_probe;
 extern u_int aic7xxx_allow_memio;
