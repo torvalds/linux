@@ -101,7 +101,7 @@ static hda_nid_t alc880_z71v_dac_nids[1] = {
 
 #if 0
 /* The datasheet says the node 0x07 is connected from inputs,
- * but it shows zero connection in the real implementation.
+ * but it shows zero connection in the real implementation on some devices.
  */
 static hda_nid_t alc880_adc_nids[3] = {
 	/* ADC0-2 */
@@ -373,7 +373,7 @@ static int alc880_ch_mode_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *uc
 #define AMP_VAL_IDX_SHIFT	19
 #define AMP_VAL_IDX_MASK	(0x0f<<19)
 
-static int alc_bind_vol_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+static int alc_bind_switch_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct alc_spec *spec = codec->spec;
@@ -382,13 +382,13 @@ static int alc_bind_vol_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinf
 	down(&spec->bind_mutex);
 	pval = kcontrol->private_value;
 	kcontrol->private_value = pval & ~AMP_VAL_IDX_MASK; /* index 0 */
-	snd_hda_mixer_amp_volume_info(kcontrol, uinfo);
+	snd_hda_mixer_amp_switch_info(kcontrol, uinfo);
 	kcontrol->private_value = pval;
 	up(&spec->bind_mutex);
 	return 0;
 }
 
-static int alc_bind_vol_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int alc_bind_switch_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct alc_spec *spec = codec->spec;
@@ -397,13 +397,13 @@ static int alc_bind_vol_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucon
 	down(&spec->bind_mutex);
 	pval = kcontrol->private_value;
 	kcontrol->private_value = pval & ~AMP_VAL_IDX_MASK; /* index 0 */
-	snd_hda_mixer_amp_volume_get(kcontrol, ucontrol);
+	snd_hda_mixer_amp_switch_get(kcontrol, ucontrol);
 	kcontrol->private_value = pval;
 	up(&spec->bind_mutex);
 	return 0;
 }
 
-static int alc_bind_vol_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int alc_bind_switch_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct alc_spec *spec = codec->spec;
@@ -415,21 +415,21 @@ static int alc_bind_vol_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucon
 	indices = (pval & AMP_VAL_IDX_MASK) >> AMP_VAL_IDX_SHIFT;
 	for (i = 0; i < indices; i++) {
 		kcontrol->private_value = (pval & ~AMP_VAL_IDX_MASK) | (i << AMP_VAL_IDX_SHIFT);
-		change |= snd_hda_mixer_amp_volume_put(kcontrol, ucontrol);
+		change |= snd_hda_mixer_amp_switch_put(kcontrol, ucontrol);
 	}
 	kcontrol->private_value = pval;
 	up(&spec->bind_mutex);
 	return change;
 }
 
-#define ALC_BIND_VOL_MONO(xname, nid, channel, indices, direction) \
+#define ALC_BIND_MUTE_MONO(xname, nid, channel, indices, direction) \
 	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = 0,  \
-	  .info = alc_bind_vol_info, \
-	  .get = alc_bind_vol_get, \
-	  .put = alc_bind_vol_put, \
+	  .info = alc_bind_switch_info, \
+	  .get = alc_bind_switch_get, \
+	  .put = alc_bind_switch_put, \
 	  .private_value = HDA_COMPOSE_AMP_VAL(nid, channel, indices, direction) }
 
-#define ALC_BIND_VOL(xname,nid,indices,dir) ALC_BIND_VOL_MONO(xname,nid,3,indices,dir)
+#define ALC_BIND_MUTE(xname,nid,indices,dir) ALC_BIND_MUTE_MONO(xname,nid,3,indices,dir)
 
 /*
  */
@@ -439,14 +439,14 @@ static int alc_bind_vol_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucon
  *                 HP=0x19
  */
 static snd_kcontrol_new_t alc880_base_mixer[] = {
-	ALC_BIND_VOL("Front Playback Volume", 0x0c, 2, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Front Playback Switch", 0x14, 0x0, HDA_OUTPUT),
-	ALC_BIND_VOL("Surround Playback Volume", 0x0f, 2, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Surround Playback Switch", 0x1a, 0x0, HDA_OUTPUT),
-	ALC_BIND_VOL_MONO("Center Playback Volume", 0x0e, 1, 2, HDA_OUTPUT),
-	ALC_BIND_VOL_MONO("LFE Playback Volume", 0x0e, 2, 2, HDA_OUTPUT),
-	HDA_CODEC_MUTE_MONO("Center Playback Switch", 0x18, 1, 0x0, HDA_OUTPUT),
-	HDA_CODEC_MUTE_MONO("LFE Playback Switch", 0x18, 2, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
+	ALC_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),
+	HDA_CODEC_VOLUME("Surround Playback Volume", 0x0f, 0x0, HDA_OUTPUT),
+	ALC_BIND_MUTE("Surround Playback Switch", 0x1a, 2, HDA_INPUT),
+	HDA_CODEC_VOLUME_MONO("Center Playback Volume", 0x0e, 1, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME_MONO("LFE Playback Volume", 0x0e, 2, 0x0, HDA_OUTPUT),
+	ALC_BIND_MUTE_MONO("Center Playback Switch", 0x0e, 1, 2, HDA_INPUT),
+	ALC_BIND_MUTE_MONO("LFE Playback Switch", 0x0e, 2, 2, HDA_INPUT),
 	HDA_CODEC_VOLUME("CD Playback Volume", 0x0b, 0x04, HDA_INPUT),
 	HDA_CODEC_MUTE("CD Playback Switch", 0x0b, 0x04, HDA_INPUT),
 	HDA_CODEC_VOLUME("Line Playback Volume", 0x0b, 0x02, HDA_INPUT),
@@ -457,8 +457,8 @@ static snd_kcontrol_new_t alc880_base_mixer[] = {
 	HDA_CODEC_MUTE("Front Mic Playback Switch", 0x0b, 0x3, HDA_INPUT),
 	HDA_CODEC_VOLUME("PC Speaker Playback Volume", 0x0b, 0x05, HDA_INPUT),
 	HDA_CODEC_MUTE("PC Speaker Playback Switch", 0x0b, 0x05, HDA_INPUT),
-	ALC_BIND_VOL("Headphone Playback Volume", 0x0d, 2, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Headphone Playback Switch", 0x19, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x0d, 0x0, HDA_OUTPUT),
+	ALC_BIND_MUTE("Headphone Playback Switch", 0x0d, 2, HDA_INPUT),
 	/* We don't use NID 0x07 - see above */
 	HDA_CODEC_VOLUME("Capture Volume", 0x08, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x08, 0x0, HDA_INPUT),
@@ -492,16 +492,16 @@ static snd_kcontrol_new_t alc880_base_mixer[] = {
  *                 Line-In/Side=0x1a, Mic=0x18, F-Mic=0x1b, HP=0x19
  */
 static snd_kcontrol_new_t alc880_five_stack_mixer[] = {
-	ALC_BIND_VOL("Front Playback Volume", 0x0c, 2, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Front Playback Switch", 0x14, 0x0, HDA_OUTPUT),
-	ALC_BIND_VOL("Surround Playback Volume", 0x0f, 2, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Surround Playback Switch", 0x17, 0x0, HDA_OUTPUT),
-	ALC_BIND_VOL_MONO("Center Playback Volume", 0x0e, 1, 2, HDA_OUTPUT),
-	ALC_BIND_VOL_MONO("LFE Playback Volume", 0x0e, 2, 2, HDA_OUTPUT),
-	HDA_CODEC_MUTE_MONO("Center Playback Switch", 0x16, 1, 0x0, HDA_OUTPUT),
-	HDA_CODEC_MUTE_MONO("LFE Playback Switch", 0x16, 2, 0x0, HDA_OUTPUT),
-	ALC_BIND_VOL("Side Playback Volume", 0x0d, 2, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Side Playback Switch", 0x1a, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
+	ALC_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),
+	HDA_CODEC_VOLUME("Surround Playback Volume", 0x0f, 0x0, HDA_OUTPUT),
+	ALC_BIND_MUTE("Surround Playback Switch", 0x0f, 2, HDA_INPUT),
+	HDA_CODEC_VOLUME_MONO("Center Playback Volume", 0x0e, 1, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME_MONO("LFE Playback Volume", 0x0e, 2, 0x0, HDA_OUTPUT),
+	ALC_BIND_MUTE_MONO("Center Playback Switch", 0x0e, 1, 2, HDA_INPUT),
+	ALC_BIND_MUTE_MONO("LFE Playback Switch", 0x0e, 2, 2, HDA_INPUT),
+	HDA_CODEC_VOLUME("Side Playback Volume", 0x0d, 0x0, HDA_OUTPUT),
+	ALC_BIND_MUTE("Side Playback Switch", 0x0d, 2, HDA_INPUT),
 	HDA_CODEC_VOLUME("CD Playback Volume", 0x0b, 0x04, HDA_INPUT),
 	HDA_CODEC_MUTE("CD Playback Switch", 0x0b, 0x04, HDA_INPUT),
 	HDA_CODEC_VOLUME("Line Playback Volume", 0x0b, 0x02, HDA_INPUT),
@@ -575,10 +575,10 @@ static snd_kcontrol_new_t alc880_w810_base_mixer[] = {
 };
 
 static snd_kcontrol_new_t alc880_z71v_mixer[] = {
-	ALC_BIND_VOL("Front Playback Volume", 0x0c, 2, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Front Playback Switch", 0x14, 0x0, HDA_OUTPUT),
-	ALC_BIND_VOL("Headphone Playback Volume", 0x0d, 2, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Headphone Playback Switch", 0x15, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
+	ALC_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),
+	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x0d, 0x0, HDA_OUTPUT),
+	ALC_BIND_MUTE("Headphone Playback Switch", 0x0d, 2, HDA_INPUT),
 	HDA_CODEC_VOLUME("CD Playback Volume", 0x0b, 0x04, HDA_INPUT),
 	HDA_CODEC_MUTE("CD Playback Switch", 0x0b, 0x04, HDA_INPUT),
 	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
@@ -636,51 +636,66 @@ static int alc_build_controls(struct hda_codec *codec)
  * initialize the codec volumes, etc
  */
 
+#define AMP_IN_MUTE(idx)	(0x7080 | ((idx)<<8))
+#define AMP_IN_UNMUTE(idx)	(0x7000 | ((idx)<<8))
+#define AMP_OUT_MUTE	0xb080
+#define AMP_OUT_UNMUTE	0xb000
+#define AMP_OUT_ZERO	0xb000
+#define PIN_IN		0x20
+#define PIN_VREF	0x24
+#define PIN_OUT		0x40
+#define PIN_HP		0xc0
+
 static struct hda_verb alc880_init_verbs_three_stack[] = {
+	/* Set pin widgets for output */
+	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x17, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
 	/* Line In pin widget for input */
-	{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20},
+	{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
 	/* CD pin widget for input */
-	{0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20},
+	{0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
 	/* Mic1 (rear panel) pin widget for input and vref at 80% */
-	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24},
+	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF},
 	/* Mic2 (front panel) pin widget for input and vref at 80% */
-	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24},
-	/* unmute amp left and right */
-	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
+	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF},
+	/* unmute capture amp left and right */
+	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
 	/* set connection select to mic in */
 	{0x07, AC_VERB_SET_CONNECT_SEL, 0x00},
-	/* unmute amp left and right */
-	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
+	/* unmute capture1 amp left and right */
+	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
 	/* set connection select to mic in */
 	{0x08, AC_VERB_SET_CONNECT_SEL, 0x00},
-	/* unmute amp left and right */
-	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
+	/* unmute capture2 amp left and right */
+	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
 	/* set connection select to mic in */
 	{0x09, AC_VERB_SET_CONNECT_SEL, 0x00},
-	/* unmute front mixer amp left (volume = 0) */
-	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
-	/* mute pin widget amp left and right (no gain on this amp) */
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, 0x0000},
-	/* unmute rear mixer amp left and right (volume = 0) */
-	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
-	/* mute pin widget amp left and right (no gain on this amp) */
-	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, 0x0000},
-	/* unmute rear mixer amp left and right (volume = 0) */
-	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
-	/* mute pin widget amp left and right (no gain on this amp) */
-	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, 0x0000},
+	/* set vol=0 front mixer amp */
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
+	/* unmute front-out pin widget amp (no gain on this amp) */
+	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	/* set vol=0 rear mixer amp */
+	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
+	/* mute line-in pin widget amp left and right (no gain on this amp) */
+	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
+	/* set vol=0 clfe mixer amp */
+	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
+	/* mute mic pin widget amp left and right (no gain on this amp) */
+	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
 
 	/* using rear surround as the path for headphone output */
-	/* unmute rear surround mixer amp left and right (volume = 0) */
-	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
+	/* set vol=0 rear surround mixer amp */
+	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
 	/* PASD 3 stack boards use the Mic 2 as the headphone output */
 	/* need to program the selector associated with the Mic 2 pin widget to
 	 * surround path (index 0x01) for headphone output */
 	{0x11, AC_VERB_SET_CONNECT_SEL, 0x01},
-	/* mute pin widget amp left and right (no gain on this amp) */
-	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, 0x0000},
+	/* unmute pin widget amp left and right (no gain on this amp) */
+	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
 	/* need to retask the Mic 2 pin widget to output */
-	{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
+	{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
 
 	/* Unmute input amps (CD, Line In, Mic 1 & Mic 2) for mixer widget(nid=0x0B)
 	 * to support the input path of analog loopback
@@ -688,14 +703,14 @@ static struct hda_verb alc880_init_verbs_three_stack[] = {
 	 * mic (mic 2)
 	 */
 	/* Amp Indexes: CD = 0x04, Line In 1 = 0x02, Mic 1 = 0x00 & Line In 2 = 0x03 */
-	/* unmute CD */
-	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x04 << 8))},
+	/* mute CD */
+	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(4)},
 	/* unmute Line In */
-	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x02 << 8))},
-	/* unmute Mic 1 */
-	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x00 << 8))},
-	/* unmute Line In 2 (for PASD boards Mic 2) */
-	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x03 << 8))},
+	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(2)},
+	/* mute Mic 1 */
+	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	/* mute Line In 2 (for PASD boards Mic 2) */
+	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(3)},
 
 	/* Unmute input amps for the line out paths to support the output path of
 	 * analog loopback
@@ -704,66 +719,70 @@ static struct hda_verb alc880_init_verbs_three_stack[] = {
 	 */
 	/* Amp Indexes: DAC = 0x01 & mixer = 0x00 */
 	/* Unmute Front out path */
-	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x00 << 8))},
-	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x01 << 8))},
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
 	/* Unmute Surround (used as HP) out path */
-	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x00 << 8))},
-	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x01 << 8))},
+	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
 	/* Unmute C/LFE out path */
-	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x00 << 8))},
-	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x01 << 8))}, /* mute */
+	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
 	/* Unmute rear Surround out path */
-	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x00 << 8))},
-	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x01 << 8))},
+	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
 
 	{ }
 };
 
 static struct hda_verb alc880_init_verbs_five_stack[] = {
+	/* Set pin widgets for output */
+	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x17, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
 	/* Line In pin widget for input */
-	{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20},
+	{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
 	/* CD pin widget for input */
-	{0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20},
+	{0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
 	/* Mic1 (rear panel) pin widget for input and vref at 80% */
-	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24},
+	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF},
 	/* Mic2 (front panel) pin widget for input and vref at 80% */
-	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24},
-	/* unmute amp left and right */
-	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
+	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF},
+	/* mute capture amp left and right */
+	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
 	/* set connection select to mic in */
 	{0x07, AC_VERB_SET_CONNECT_SEL, 0x00},
-	/* unmute amp left and right */
-	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
+	/* mute amp1 left and right */
+	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
 	/* set connection select to mic in */
 	{0x08, AC_VERB_SET_CONNECT_SEL, 0x00},
-	/* unmute amp left and right */
-	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
+	/* mute amp left and right */
+	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
 	/* set connection select to mic in */
 	{0x09, AC_VERB_SET_CONNECT_SEL, 0x00},
-	/* unmute front mixer amp left and right (volume = 0) */
-	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
-	/* mute pin widget amp left and right (no gain on this amp) */
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, 0x0000},
-	/* five rear and clfe */
-	/* unmute rear mixer amp left and right (volume = 0)  */
-	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
-	/* mute pin widget amp left and right (no gain on this amp) */
-	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, 0x0000},
-	/* unmute clfe mixer amp left and right (volume = 0) */
-	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
-	/* mute pin widget amp left and right (no gain on this amp) */
-	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, 0x0000},
+	/* set vol=0 front mixer amp */
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
+	/* unmute front-out pin widget amp (no gain on this amp) */
+	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	/* set vol=0 rear mixer amp */
+	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
+	/* unmute rear-out pin widget (no gain on this amp) */
+	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	/* set vol=0 clfe mixer amp */
+	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
+	/* unmute clfe-pin widget amp (no gain on this amp) */
+	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
 
 	/* using rear surround as the path for headphone output */
-	/* unmute rear surround mixer amp left and right (volume = 0) */
-	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
+	/* set vol=0 rear surround mixer amp */
+	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
 	/* PASD 3 stack boards use the Mic 2 as the headphone output */
 	/* need to program the selector associated with the Mic 2 pin widget to
 	 * surround path (index 0x01) for headphone output
 	 */
 	{0x11, AC_VERB_SET_CONNECT_SEL, 0x01},
 	/* mute pin widget amp left and right (no gain on this amp) */
-	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, 0x0000},
+	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
 	/* need to retask the Mic 2 pin widget to output */
 	{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
 
@@ -773,13 +792,13 @@ static struct hda_verb alc880_init_verbs_five_stack[] = {
 	/* Note: PASD motherboards uses the Line In 2 as the input for front panel mic (mic 2) */
 	/* Amp Indexes: CD = 0x04, Line In 1 = 0x02, Mic 1 = 0x00 & Line In 2 = 0x03*/
 	/* unmute CD */
-	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x04 << 8))},
+	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(4)},
 	/* unmute Line In */
-	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x02 << 8))},
+	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(2)},
 	/* unmute Mic 1 */
-	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x00 << 8))},
+	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
 	/* unmute Line In 2 (for PASD boards Mic 2) */
-	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x03 << 8))},
+	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(3)},
 
 	/* Unmute input amps for the line out paths to support the output path of
 	 * analog loopback
@@ -788,123 +807,121 @@ static struct hda_verb alc880_init_verbs_five_stack[] = {
 	 */
 	/* Amp Indexes: DAC = 0x01 & mixer = 0x00 */
 	/* Unmute Front out path */
-	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x00 << 8))},
-	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x01 << 8))},
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
 	/* Unmute Surround (used as HP) out path */
-	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x00 << 8))},
-	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x01 << 8))},
+	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
 	/* Unmute C/LFE out path */
-	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x00 << 8))},
-	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x01 << 8))}, /* mute */
+	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
 	/* Unmute rear Surround out path */
-	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x00 << 8))},
-	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x01 << 8))},
+	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
 
 	{ }
 };
 
 static struct hda_verb alc880_w810_init_verbs[] = {
 	/* front channel selector/amp: input 0: DAC: unmuted, (no volume selection) */
-	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 
 	/* front channel selector/amp: input 1: capture mix: muted, (no volume selection) */
-	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, 0x7180},
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
 
 	/* front channel selector/amp: output 0: unmuted, max volume */
-	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
 
 	/* front out pin: muted, (no volume selection)  */
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
+	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
 
 	/* front out pin: NOT headphone enable, out enable, vref disabled */
-	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
+	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
 
 
 	/* surround channel selector/amp: input 0: DAC: unmuted, (no volume selection) */
-	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
+	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 
 	/* surround channel selector/amp: input 1: capture mix: muted, (no volume selection) */
-	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, 0x7180},
+	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
 
 	/* surround channel selector/amp: output 0: unmuted, max volume */
-	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
+	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
 
 	/* surround out pin: muted, (no volume selection)  */
-	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
+	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
 
 	/* surround out pin: NOT headphone enable, out enable, vref disabled */
-	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
+	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
 
 
 	/* c/lfe channel selector/amp: input 0: DAC: unmuted, (no volume selection) */
-	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
+	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 
 	/* c/lfe channel selector/amp: input 1: capture mix: muted, (no volume selection) */
-	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, 0x7180},
+	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
 
 	/* c/lfe channel selector/amp: output 0: unmuted, max volume */
-	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
+	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
 
 	/* c/lfe out pin: muted, (no volume selection)  */
-	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
+	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
 
 	/* c/lfe out pin: NOT headphone enable, out enable, vref disabled */
-	{0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
+	{0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
 
 
 	/* hphone/speaker input selector: front DAC */
 	{0x13, AC_VERB_SET_CONNECT_SEL, 0x0},
 
 	/* hphone/speaker out pin: muted, (no volume selection)  */
-	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
+	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
 
 	/* hphone/speaker out pin: NOT headphone enable, out enable, vref disabled */
-	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
+	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
 
 
 	{ }
 };
 
 static struct hda_verb alc880_z71v_init_verbs[] = {
-	/* front channel selector/amp: input 0: DAC: unmuted, (no volume selection) */
-	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
-	/* front channel selector/amp: input 1: capture mix: muted, (no volume selection) */
-	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, 0x7180},
-	/* front channel selector/amp: output 0: unmuted, max volume */
-	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
-	/* front out pin: muted, (no volume selection)  */
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
+	/* front channel selector/amp: muted, DAC and mix (no vol) */
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
+	/* front channel selector/amp: output 0: vol=0 */
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
+	/* front out pin: unmuted, (no volume selection)  */
+	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
 	/* front out pin: NOT headphone enable, out enable, vref disabled */
-	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
-	/* headphone channel selector/amp: input 0: DAC: unmuted, (no volume selection) */
-	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
-	/* headphone channel selector/amp: input 1: capture mix: muted, (no volume selection) */
-	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, 0x7180},
-	/* headphone channel selector/amp: output 0: unmuted, max volume */
-	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
-	/* headphone out pin: muted, (no volume selection)  */
-	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
+	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	/* headphone channel selector/amp: muted, DAC and mix (no vol) */
+	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
+	/* headphone channel selector/amp: output 0: vol=0 */
+	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
+	/* headphone out pin: muted, (no volume selection) */
+	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
 	/* headpohne out pin: headphone enable, out enable, vref disabled */
-	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, 0xc0},
+	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
 
 	/* Line In pin widget for input */
-	{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20},
+	{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
 	/* CD pin widget for input */
-	{0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20},
+	{0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
 	/* Mic1 (rear panel) pin widget for input and vref at 80% */
-	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24},
+	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF},
 	/* Mic2 (front panel) pin widget for input and vref at 80% */
-	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24},
+	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF},
 	/* unmute amp left and right */
-	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
+	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
 	/* set connection select to mic in */
 	{0x07, AC_VERB_SET_CONNECT_SEL, 0x00},
 	/* unmute amp left and right */
-	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
+	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
 	/* set connection select to mic in */
 	{0x08, AC_VERB_SET_CONNECT_SEL, 0x00},
 	/* unmute amp left and right */
-	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
+	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
 	/* set connection select to mic in */
 	{0x09, AC_VERB_SET_CONNECT_SEL, 0x00},
 	/* Unmute input amps (CD, Line In, Mic 1 & Mic 2) for mixer
@@ -913,13 +930,13 @@ static struct hda_verb alc880_z71v_init_verbs[] = {
 	/* Note: PASD motherboards uses the Line In 2 as the input for front panel mic (mic 2) */
 	/* Amp Indexes: CD = 0x04, Line In 1 = 0x02, Mic 1 = 0x00 & Line In 2 = 0x03*/
 	/* unmute CD */
-	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x04 << 8))},
+	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(4)},
 	/* unmute Line In */
-	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x02 << 8))},
+	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(2)},
 	/* unmute Mic 1 */
-	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x00 << 8))},
+	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
 	/* unmute Line In 2 (for PASD boards Mic 2) */
-	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x03 << 8))},
+	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(3)},
 
 	{ }
 };
@@ -1284,10 +1301,14 @@ static int alc_test_pin_src_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *
 			}
 
 static snd_kcontrol_new_t alc880_test_mixer[] = {
-	ALC_BIND_VOL("Front Playback Volume", 0x0c, 2, HDA_OUTPUT),
-	ALC_BIND_VOL("Surround Playback Volume", 0x0d, 2, HDA_OUTPUT),
-	ALC_BIND_VOL("CLFE Playback Volume", 0x0e, 2, HDA_OUTPUT),
-	ALC_BIND_VOL("Side Playback Volume", 0x0f, 2, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Surround Playback Volume", 0x0d, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("CLFE Playback Volume", 0x0e, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Side Playback Volume", 0x0f, 0x0, HDA_OUTPUT),
+	ALC_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),
+	ALC_BIND_MUTE("Surround Playback Switch", 0x0d, 2, HDA_INPUT),
+	ALC_BIND_MUTE("CLFE Playback Volume", 0x0e, 2, HDA_INPUT),
+	ALC_BIND_MUTE("Side Playback Volume", 0x0f, 2, HDA_INPUT),
 	PIN_CTL_TEST("Front Pin Mode", 0x14),
 	PIN_CTL_TEST("Surround Pin Mode", 0x15),
 	PIN_CTL_TEST("CLFE Pin Mode", 0x16),
@@ -1310,10 +1331,10 @@ static snd_kcontrol_new_t alc880_test_mixer[] = {
 	HDA_CODEC_MUTE("In-4 Playback Switch", 0x0b, 0x3, HDA_INPUT),
 	HDA_CODEC_VOLUME("CD Playback Volume", 0x0b, 0x4, HDA_INPUT),
 	HDA_CODEC_MUTE("CD Playback Switch", 0x0b, 0x4, HDA_INPUT),
-	HDA_CODEC_VOLUME("Capture Volume", 0x07, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Capture Switch", 0x07, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x08, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE_IDX("Capture Switch", 1, 0x08, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Capture Volume", 0x08, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("Capture Switch", 0x08, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x09, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE_IDX("Capture Switch", 1, 0x09, 0x0, HDA_INPUT),
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Input Source",
@@ -1328,54 +1349,59 @@ static snd_kcontrol_new_t alc880_test_mixer[] = {
 		.info = alc880_ch_mode_info,
 		.get = alc880_ch_mode_get,
 		.put = alc880_ch_mode_put,
-		.private_value = ARRAY_SIZE(alc880_test_modes),
 	},
 	{ } /* end */
 };
 
 static struct hda_verb alc880_test_init_verbs[] = {
 	/* Unmute inputs of 0x0c - 0x0f */
-	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
-	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, 0x7100},
-	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
-	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, 0x7100},
-	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
-	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, 0x7100},
-	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
-	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, 0x7100},
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
+	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
+	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
+	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
 	/* Vol output for 0x0c-0x0f */
-	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
-	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
-	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
-	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
+	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
+	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
+	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
 	/* Set output pins 0x14-0x17 */
-	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
-	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
-	{0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
-	{0x17, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
+	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x17, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
 	/* Unmute output pins 0x14-0x17 */
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
-	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
-	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
-	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
+	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
 	/* Set input pins 0x18-0x1c */
-	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24}, /* vref 80% */
-	{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24},
-	{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20},
-	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20},
-	{0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20},
+	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF},
+	{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF},
+	{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
+	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
+	{0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
 	/* Mute input pins 0x18-0x1b */
-	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
-	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
-	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
-	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
+	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
+	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
+	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
+	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
 	/* ADC set up */
-	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
+	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
 	{0x07, AC_VERB_SET_CONNECT_SEL, 0x00},
-	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
+	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
 	{0x08, AC_VERB_SET_CONNECT_SEL, 0x00},
-	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
+	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
 	{0x09, AC_VERB_SET_CONNECT_SEL, 0x00},
+	/* Analog input/passthru */
+	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
+	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(2)},
+	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(3)},
+	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(4)},
 	{ }
 };
 #endif
@@ -1621,10 +1647,8 @@ static struct alc_channel_mode alc260_modes[1] = {
 };
 
 snd_kcontrol_new_t alc260_base_mixer[] = {
-	ALC_BIND_VOL("Front Playback Volume", 0x08, 2, HDA_OUTPUT),
-	/* use LINE2 for the output */
-	/* HDA_CODEC_MUTE("Front Playback Switch", 0x0f, 0x0, HDA_OUTPUT), */
-	HDA_CODEC_MUTE("Front Playback Switch", 0x15, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Front Playback Volume", 0x08, 0x0, HDA_OUTPUT),
+	ALC_BIND_MUTE("Front Playback Switch", 0x08, 2, HDA_INPUT),
 	HDA_CODEC_VOLUME("CD Playback Volume", 0x07, 0x04, HDA_INPUT),
 	HDA_CODEC_MUTE("CD Playback Switch", 0x07, 0x04, HDA_INPUT),
 	HDA_CODEC_VOLUME("Line Playback Volume", 0x07, 0x02, HDA_INPUT),
@@ -1635,10 +1659,10 @@ snd_kcontrol_new_t alc260_base_mixer[] = {
 	HDA_CODEC_MUTE("Front Mic Playback Switch", 0x07, 0x01, HDA_INPUT),
 	HDA_CODEC_VOLUME("PC Speaker Playback Volume", 0x07, 0x05, HDA_INPUT),
 	HDA_CODEC_MUTE("PC Speaker Playback Switch", 0x07, 0x05, HDA_INPUT),
-	ALC_BIND_VOL("Headphone Playback Volume", 0x09, 2, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Headphone Playback Switch", 0x10, 0x0, HDA_OUTPUT),
-	ALC_BIND_VOL_MONO("Mono Playback Volume", 0x0a, 1, 2, HDA_OUTPUT),
-	HDA_CODEC_MUTE_MONO("Mono Playback Switch", 0x11, 1, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x09, 0x0, HDA_OUTPUT),
+	ALC_BIND_MUTE("Headphone Playback Switch", 0x09, 2, HDA_INPUT),
+	HDA_CODEC_VOLUME_MONO("Mono Playback Volume", 0x0a, 1, 0x0, HDA_OUTPUT),
+	ALC_BIND_MUTE_MONO("Mono Playback Switch", 0x0a, 1, 2, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Capture Volume", 0x04, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x04, 0x0, HDA_INPUT),
 	{
@@ -1653,58 +1677,58 @@ snd_kcontrol_new_t alc260_base_mixer[] = {
 
 static struct hda_verb alc260_init_verbs[] = {
 	/* Line In pin widget for input */
-	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20},
+	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
 	/* CD pin widget for input */
-	{0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20},
+	{0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
 	/* Mic1 (rear panel) pin widget for input and vref at 80% */
-	{0x12, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24},
+	{0x12, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF},
 	/* Mic2 (front panel) pin widget for input and vref at 80% */
-	{0x13, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24},
+	{0x13, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF},
 	/* LINE-2 is used for line-out in rear */
-	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
+	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
 	/* select line-out */
 	{0x15, AC_VERB_SET_CONNECT_SEL, 0x00},
 	/* LINE-OUT pin */
-	{0x0f, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
+	{0x0f, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
 	/* enable HP */
-	{0x10, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
+	{0x10, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
 	/* enable Mono */
-	{0x11, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
-	/* unmute amp left and right */
-	{0x04, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
+	{0x11, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	/* mute capture amp left and right */
+	{0x04, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
 	/* set connection select to line in (default select for this ADC) */
 	{0x04, AC_VERB_SET_CONNECT_SEL, 0x02},
-	/* unmute Line-Out mixer amp left and right (volume = 0) */
-	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
-	/* mute pin widget amp left and right (no gain on this amp) */
-	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
-	/* unmute HP mixer amp left and right (volume = 0) */
-	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
-	/* mute pin widget amp left and right (no gain on this amp) */
-	{0x10, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
-	/* unmute Mono mixer amp left and right (volume = 0) */
-	{0x0a, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
-	/* mute pin widget amp left and right (no gain on this amp) */
-	{0x11, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
-	/* mute LINE-2 out */
-	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
+	/* set vol=0 Line-Out mixer amp left and right */
+	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
+	/* unmute pin widget amp left and right (no gain on this amp) */
+	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	/* set vol=0 HP mixer amp left and right */
+	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
+	/* unmute pin widget amp left and right (no gain on this amp) */
+	{0x10, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	/* set vol=0 Mono mixer amp left and right */
+	{0x0a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
+	/* unmute pin widget amp left and right (no gain on this amp) */
+	{0x11, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	/* unmute LINE-2 out pin */
+	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
 	/* Amp Indexes: CD = 0x04, Line In 1 = 0x02, Mic 1 = 0x00 & Line In 2 = 0x03 */
-	/* unmute CD */
-	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x04 << 8))},
-	/* unmute Line In */
-	{0x07,  AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x02 << 8))},
-	/* unmute Mic */
-	{0x07,  AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x00 << 8))},
+	/* mute CD */
+	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(4)},
+	/* mute Line In */
+	{0x07,  AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(2)},
+	/* mute Mic */
+	{0x07,  AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
 	/* Amp Indexes: DAC = 0x01 & mixer = 0x00 */
-	/* Unmute Front out path */
-	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x00 << 8))},
-	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x01 << 8))},
-	/* Unmute Headphone out path */
-	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x00 << 8))},
-	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x01 << 8))},
-	/* Unmute Mono out path */
-	{0x0a, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x00 << 8))},
-	{0x0a, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x01 << 8))},
+	/* mute Front out path */
+	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
+	/* mute Headphone out path */
+	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
+	/* mute Mono out path */
+	{0x0a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x0a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
 	{ }
 };
 
@@ -1828,16 +1852,16 @@ static int alc882_mux_enum_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *u
  *                 Mic=0x18, Front Mic=0x19, Line-In=0x1a, HP=0x1b
  */
 static snd_kcontrol_new_t alc882_base_mixer[] = {
-	ALC_BIND_VOL("Front Playback Volume", 0x0c, 2, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Front Playback Switch", 0x14, 0x0, HDA_OUTPUT),
-	ALC_BIND_VOL("Surround Playback Volume", 0x0d, 2, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Surround Playback Switch", 0x15, 0x0, HDA_OUTPUT),
-	ALC_BIND_VOL_MONO("Center Playback Volume", 0x0e, 1, 2, HDA_OUTPUT),
-	ALC_BIND_VOL_MONO("LFE Playback Volume", 0x0e, 2, 2, HDA_OUTPUT),
-	HDA_CODEC_MUTE_MONO("Center Playback Switch", 0x16, 1, 0x0, HDA_OUTPUT),
-	HDA_CODEC_MUTE_MONO("LFE Playback Switch", 0x16, 2, 0x0, HDA_OUTPUT),
-	ALC_BIND_VOL("Side Playback Volume", 0x0f, 2, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Side Playback Switch", 0x17, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
+	ALC_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),
+	HDA_CODEC_VOLUME("Surround Playback Volume", 0x0d, 0x0, HDA_OUTPUT),
+	ALC_BIND_MUTE("Surround Playback Switch", 0x0d, 2, HDA_INPUT),
+	HDA_CODEC_VOLUME_MONO("Center Playback Volume", 0x0e, 1, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME_MONO("LFE Playback Volume", 0x0e, 2, 0x0, HDA_OUTPUT),
+	ALC_BIND_MUTE_MONO("Center Playback Switch", 0x0e, 1, 2, HDA_INPUT),
+	ALC_BIND_MUTE_MONO("LFE Playback Switch", 0x0e, 2, 2, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Side Playback Volume", 0x0f, 0x0, HDA_OUTPUT),
+	ALC_BIND_MUTE("Side Playback Switch", 0x0f, 2, HDA_INPUT),
 	HDA_CODEC_MUTE("Headphone Playback Switch", 0x1b, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("CD Playback Volume", 0x0b, 0x04, HDA_INPUT),
 	HDA_CODEC_MUTE("CD Playback Switch", 0x0b, 0x04, HDA_INPUT),
@@ -1869,91 +1893,87 @@ static snd_kcontrol_new_t alc882_base_mixer[] = {
 
 static struct hda_verb alc882_init_verbs[] = {
 	/* Front mixer: unmute input/output amp left and right (volume = 0) */
-	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
-	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x00 << 8))},
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
 	/* Rear mixer */
-	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
-	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x00 << 8))},
+	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
+	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
 	/* CLFE mixer */
-	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
-	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x00 << 8))},
+	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
+	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
 	/* Side mixer */
-	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
-	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x00 << 8))},
+	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
+	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
 
 	/* Front Pin: to output mode */
-	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
+	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
 	/* Front Pin: mute amp left and right (no volume) */
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, 0x0000},
+	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
 	/* select Front mixer (0x0c, index 0) */
 	{0x14, AC_VERB_SET_CONNECT_SEL, 0x00},
 	/* Rear Pin */
-	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
+	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
 	/* Rear Pin: mute amp left and right (no volume) */
-	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, 0x0000},
+	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
 	/* select Rear mixer (0x0d, index 1) */
 	{0x15, AC_VERB_SET_CONNECT_SEL, 0x01},
 	/* CLFE Pin */
-	{0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
+	{0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
 	/* CLFE Pin: mute amp left and right (no volume) */
-	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, 0x0000},
+	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
 	/* select CLFE mixer (0x0e, index 2) */
 	{0x16, AC_VERB_SET_CONNECT_SEL, 0x02},
 	/* Side Pin */
-	{0x17, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
+	{0x17, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
 	/* Side Pin: mute amp left and right (no volume) */
-	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, 0x0000},
+	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
 	/* select Side mixer (0x0f, index 3) */
 	{0x17, AC_VERB_SET_CONNECT_SEL, 0x03},
 	/* Headphone Pin */
-	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
+	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
 	/* Headphone Pin: mute amp left and right (no volume) */
-	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, 0x0000},
+	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
 	/* select Front mixer (0x0c, index 0) */
 	{0x1b, AC_VERB_SET_CONNECT_SEL, 0x00},
 	/* Mic (rear) pin widget for input and vref at 80% */
-	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24},
+	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF},
 	/* Front Mic pin widget for input and vref at 80% */
-	{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24},
+	{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF},
 	/* Line In pin widget for input */
-	{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20},
+	{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
 	/* CD pin widget for input */
-	{0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20},
+	{0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
 
 	/* FIXME: use matrix-type input source selection */
 	/* Mixer elements: 0x18, 19, 1a, 1b, 1c, 1d, 14, 15, 16, 17, 0b */
 	/* Input mixer1: unmute Mic, F-Mic, Line, CD inputs */
-	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x00 << 8))},
-	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x03 << 8))},
-	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x02 << 8))},
-	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x04 << 8))},
+	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(3)},
+	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(2)},
+	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(4)},
 	/* Input mixer2 */
-	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x00 << 8))},
-	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x03 << 8))},
-	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x02 << 8))},
-	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x04 << 8))},
+	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(3)},
+	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(2)},
+	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(4)},
 	/* Input mixer3 */
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x00 << 8))},
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x03 << 8))},
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x02 << 8))},
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x04 << 8))},
-	/* ADC1: unmute amp left and right */
-	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(3)},
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(2)},
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(4)},
+	/* ADC1: mute amp left and right */
+	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
 	{0x07, AC_VERB_SET_CONNECT_SEL, 0x00},
-	/* ADC2: unmute amp left and right */
-	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
+	/* ADC2: mute amp left and right */
+	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
 	{0x08, AC_VERB_SET_CONNECT_SEL, 0x00},
-	/* ADC3: unmute amp left and right */
-	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
+	/* ADC3: mute amp left and right */
+	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
 	{0x09, AC_VERB_SET_CONNECT_SEL, 0x00},
-	/* Unmute front loopback */
-	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x01 << 8))},
-	/* Unmute rear loopback */
-	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x01 << 8))},
-	/* Mute CLFE loopback */
-	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x01 << 8))},
-	/* Unmute side loopback */
-	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x01 << 8))},
 
 	{ }
 };
