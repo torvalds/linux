@@ -1682,10 +1682,11 @@ int snd_hda_multi_out_analog_prepare(struct hda_codec *codec, struct hda_multi_o
 		snd_hda_codec_setup_stream(codec, mout->hp_nid, stream_tag, 0, format);
 	/* surrounds */
 	for (i = 1; i < mout->num_dacs; i++) {
-		if (i == HDA_REAR && chs == 2) /* copy front to rear */
-			snd_hda_codec_setup_stream(codec, nids[i], stream_tag, 0, format);
-		else if (chs >= (i + 1) * 2) /* independent out */
+		if (chs >= (i + 1) * 2) /* independent out */
 			snd_hda_codec_setup_stream(codec, nids[i], stream_tag, i * 2,
+						   format);
+		else /* copy front */
+			snd_hda_codec_setup_stream(codec, nids[i], stream_tag, 0,
 						   format);
 	}
 	return 0;
