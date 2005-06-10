@@ -1458,6 +1458,7 @@ static struct pci_device_id azx_ids[] = {
 	{ 0x8086, 0x269a, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 }, /* ESB2 */
 	{ 0x1002, 0x437b, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 }, /* ATI SB450 */
 	{ 0x1106, 0x3288, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 }, /* VIA VT8251/VT8237A */
+	{ 0x10b9, 0x5461, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 }, /* ULI */
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, azx_ids);
