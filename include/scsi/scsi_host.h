@@ -641,12 +641,6 @@ static inline void scsi_assign_lock(struct Scsi_Host *shost, spinlock_t *lock)
 	shost->host_lock = lock;
 }
 
-static inline void scsi_set_device(struct Scsi_Host *shost,
-                                   struct device *dev)
-{
-        shost->shost_gendev.parent = dev;
-}
-
 static inline struct device *scsi_get_device(struct Scsi_Host *shost)
 {
         return shost->shost_gendev.parent;

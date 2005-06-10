@@ -7756,7 +7756,6 @@ struct Scsi_Host * __init ncr_attach(struct scsi_host_template *tpnt,
 	 * your module_init */
 	BUG_ON(!ncr53c8xx_transport_template);
 	instance->transportt	= ncr53c8xx_transport_template;
-	scsi_set_device(instance, device->dev);
 
 	/* Patch script to physical addresses */
 	ncr_script_fill(&script0, &scripth0);

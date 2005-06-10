@@ -938,7 +938,6 @@ struct Scsi_Host *__fdomain_16x0_detect(struct scsi_host_template *tpnt )
    }
    shpnt->irq = interrupt_level;
    shpnt->io_port = port_base;
-   scsi_set_device(shpnt, &pdev->dev);
    shpnt->n_io_port = 0x10;
    print_banner( shpnt );
 

@@ -4556,8 +4556,6 @@ advansys_detect(struct scsi_host_template *tpnt)
                 continue;
             }
 
-	    scsi_set_device(shp, dev);
-
             /* Save a pointer to the Scsi_Host of each board found. */
             asc_host[asc_board_count++] = shp;
 

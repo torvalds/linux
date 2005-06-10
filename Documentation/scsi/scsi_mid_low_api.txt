@@ -388,7 +388,6 @@ Summary:
    scsi_remove_device - detach and remove a SCSI device
    scsi_remove_host - detach and remove all SCSI devices owned by host
    scsi_report_bus_reset - report scsi _bus_ reset observed
-   scsi_set_device - place device reference in host structure
    scsi_track_queue_full - track successive QUEUE_FULL events 
    scsi_unblock_requests - allow further commands to be queued to given host
    scsi_unregister - [calls scsi_host_put()]
@@ -738,20 +737,6 @@ int scsi_remove_host(struct Scsi_Host *shost)
  *      Defined in: drivers/scsi/scsi_error.c .
  **/
 void scsi_report_bus_reset(struct Scsi_Host * shost, int channel)
-
-
-/**
- * scsi_set_device - place device reference in host structure
- * @shost: a pointer to a scsi host instance
- * @pdev: pointer to device instance to assign
- *
- *      Returns nothing
- *
- *      Might block: no
- *
- *      Defined in: include/scsi/scsi_host.h .
- **/
-void scsi_set_device(struct Scsi_Host * shost, struct device * dev)
 
 
 /**

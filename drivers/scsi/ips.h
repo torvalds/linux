@@ -111,7 +111,7 @@
       #define IPS_UNREGISTER_HOSTS(SHT)
       #define IPS_ADD_HOST(shost,device)   do { scsi_add_host(shost,device); scsi_scan_host(shost); } while (0)
       #define IPS_REMOVE_HOST(shost)       scsi_remove_host(shost)
-      #define IPS_SCSI_SET_DEVICE(sh,ha)   scsi_set_device(sh, &(ha)->pcidev->dev)
+      #define IPS_SCSI_SET_DEVICE(sh,ha)   do { } while (0)
       #define IPS_PRINTK(level, pcidev, format, arg...)                 \
             dev_printk(level , &((pcidev)->dev) , format , ## arg)
    #endif

@@ -2719,9 +2719,7 @@ static int nsp32_detect(Scsi_Host_Template *sht)
 	host->unique_id = data->BaseAddress;
 	host->n_io_port	= data->NumAddress;
 	host->base      = (unsigned long)data->MmioAddress;
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,5,63))
-	scsi_set_device(host, &PCIDEV->dev);
-#else
+#if (LINUX_VERSION_CODE <= KERNEL_VERSION(2,5,63))
 	scsi_set_pci_device(host, PCIDEV);
 #endif
 

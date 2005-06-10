@@ -694,7 +694,6 @@ static int isp1020_detect(Scsi_Host_Template *tmpt)
 		memset(hostdata, 0, sizeof(struct isp1020_hostdata));
 
 		hostdata->pci_dev = pdev;
-		scsi_set_device(host, &pdev->dev);
 
 		if (isp1020_init(host))
 			goto fail_and_unregister;

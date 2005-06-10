@@ -287,10 +287,6 @@ mptspi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		sh->sg_tablesize = numSGE;
 	}
 
-	/* Set the pci device pointer in Scsi_Host structure.
-	 */
-	scsi_set_device(sh, &ioc->pcidev->dev);
-
 	spin_unlock_irqrestore(&ioc->FreeQlock, flags);
 
 	hd = (MPT_SCSI_HOST *) sh->hostdata;

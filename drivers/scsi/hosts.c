@@ -180,11 +180,6 @@ static void scsi_host_dev_release(struct device *dev)
 	scsi_destroy_command_freelist(shost);
 	kfree(shost->shost_data);
 
-	/*
-	 * Some drivers (eg aha1542) do scsi_register()/scsi_unregister()
-	 * during probing without performing a scsi_set_device() in between.
-	 * In this case dev->parent is NULL.
-	 */
 	if (parent)
 		put_device(parent);
 	kfree(shost);
