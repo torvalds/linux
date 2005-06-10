@@ -190,25 +190,13 @@ aic7770_eisa_dev_probe(struct device *dev)
 static int
 aic7770_eisa_dev_remove(struct device *dev)
 {
-	struct ahc_softc *ahc;
-	u_long l;
+	struct ahc_softc *ahc = dev_get_drvata(dev);
+	u_long s;
 
-	/*
-	 * We should be able to just perform
-	 * the free directly, but check our
-	 * list for extra sanity.
-	 */
-	ahc_list_lock(&l);
-	ahc = ahc_find_softc((struct ahc_softc *)dev->driver_data);
-	if (ahc != NULL) {
-		u_long s;
-
-		ahc_lock(ahc, &s);
-		ahc_intr_enable(ahc, FALSE);
-		ahc_unlock(ahc, &s);
-		ahc_free(ahc);
-	}
-	ahc_list_unlock(&l);
+	ahc_lock(ahc, &s);
+	ahc_intr_enable(ahc, FALSE);
+	ahc_unlock(ahc, &s);
+	ahc_free(ahc);
 
 	return (0);
 }

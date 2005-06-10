@@ -297,19 +297,12 @@ int
 ahc_linux_proc_info(struct Scsi_Host *shost, char *buffer, char **start,
 		    off_t offset, int length, int inout)
 {
-	struct	ahc_softc *ahc;
+	struct	ahc_softc *ahc = *(struct ahc_softc **)shost->hostdata;
 	struct	info_str info;
 	char	ahc_info[256];
-	u_long	s;
 	u_int	max_targ;
 	u_int	i;
 	int	retval;
-
-	retval = -EINVAL;
-	ahc_list_lock(&s);
-	ahc = ahc_find_softc(*(struct ahc_softc **)shost->hostdata);
-	if (ahc == NULL)
-		goto done;
 
 	 /* Has data been written to the file? */ 
 	if (inout == TRUE) {
@@ -372,6 +365,5 @@ ahc_linux_proc_info(struct Scsi_Host *shost, char *buffer, char **start,
 	}
 	retval = info.pos > info.offset ? info.pos - info.offset : 0;
 done:
-	ahc_list_unlock(&s);
 	return (retval);
 }
