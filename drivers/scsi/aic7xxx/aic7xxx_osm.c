@@ -501,17 +501,6 @@ ahc_linux_detect(struct scsi_host_template *template)
 	int     found = 0;
 
 	/*
-	 * Sanity checking of Linux SCSI data structures so
-	 * that some of our hacks^H^H^H^H^Hassumptions aren't
-	 * violated.
-	 */
-	if (offsetof(struct ahc_cmd_internal, end)
-	  > offsetof(struct scsi_cmnd, host_scribble)) {
-		printf("ahc_linux_detect: SCSI data structures changed.\n");
-		printf("ahc_linux_detect: Unable to attach\n");
-		return (0);
-	}
-	/*
 	 * If we've been passed any parameters, process them now.
 	 */
 	if (aic7xxx)
@@ -1587,10 +1576,9 @@ ahc_linux_run_command(struct ahc_softc *ahc, struct ahc_linux_device *dev,
 	/*
 	 * Get an scb to use.
 	 */
-	if ((scb = ahc_get_scb(ahc)) == NULL) {
-			ahc->flags |= AHC_RESOURCE_SHORTAGE;
-			return SCSI_MLQUEUE_HOST_BUSY;
-	}
+	scb = ahc_get_scb(ahc);
+	if (!scb)
+		return SCSI_MLQUEUE_HOST_BUSY;
 
 	scb->io_ctx = cmd;
 	scb->platform_data->dev = dev;

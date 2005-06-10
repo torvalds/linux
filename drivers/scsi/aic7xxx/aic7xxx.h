@@ -346,7 +346,6 @@ typedef enum {
 					  * controller.
 					  */
 	AHC_NEWEEPROM_FMT     = 0x4000,
-	AHC_RESOURCE_SHORTAGE = 0x8000,
 	AHC_TQINFIFO_BLOCKED  = 0x10000,  /* Blocked waiting for ATIOs */
 	AHC_INT50_SPEEDFLEX   = 0x20000,  /*
 					   * Internal 50pin connector
