@@ -62,9 +62,6 @@
 #include <linux/syscalls.h>
 #include <linux/ioctl.h>
 
-/************************ DEBUG FLAGS *****************************************/
-
-#define	ZFCP_PRINT_FLAGS
 
 /********************* GENERAL DEFINES *********************************/
 
@@ -470,17 +467,6 @@ do { \
 #else
 # define ZFCP_LOG_TRACE(fmt, args...) \
 	ZFCP_LOG(ZFCP_LOG_LEVEL_TRACE, fmt , ##args)
-#endif
-
-#ifndef ZFCP_PRINT_FLAGS
-# define ZFCP_LOG_FLAGS(level, fmt, args...)
-#else
-extern u32 flags_dump;
-# define ZFCP_LOG_FLAGS(level, fmt, args...) \
-do { \
-	if (level <= flags_dump) \
-		_ZFCP_LOG(fmt, ##args); \
-} while (0)
 #endif
 
 /*************** ADAPTER/PORT/UNIT AND FSF_REQ STATUS FLAGS ******************/

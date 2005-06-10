@@ -229,52 +229,14 @@ zfcp_qdio_handler_error_check(struct zfcp_adapter *adapter,
 			ZFCP_LOG_TRACE("status is"
 				       " QDIO_STATUS_OUTBOUND_INT \n");
 		}
-	}			// if (ZFCP_LOG_CHECK(ZFCP_LOG_LEVEL_TRACE))
+	}
 	if (unlikely(status & QDIO_STATUS_LOOK_FOR_ERROR)) {
 		retval = -EIO;
-
-		ZFCP_LOG_FLAGS(1, "QDIO_STATUS_LOOK_FOR_ERROR \n");
 
 		ZFCP_LOG_INFO("QDIO problem occurred (status=0x%x, "
 			      "qdio_error=0x%x, siga_error=0x%x)\n",
 			      status, qdio_error, siga_error);
 
-		if (status & QDIO_STATUS_ACTIVATE_CHECK_CONDITION) {
-			ZFCP_LOG_FLAGS(2,
-				       "QDIO_STATUS_ACTIVATE_CHECK_CONDITION\n");
-		}
-		if (status & QDIO_STATUS_MORE_THAN_ONE_QDIO_ERROR) {
-			ZFCP_LOG_FLAGS(2,
-				       "QDIO_STATUS_MORE_THAN_ONE_QDIO_ERROR\n");
-		}
-		if (status & QDIO_STATUS_MORE_THAN_ONE_SIGA_ERROR) {
-			ZFCP_LOG_FLAGS(2,
-				       "QDIO_STATUS_MORE_THAN_ONE_SIGA_ERROR\n");
-		}
-
-		if (siga_error & QDIO_SIGA_ERROR_ACCESS_EXCEPTION) {
-			ZFCP_LOG_FLAGS(2, "QDIO_SIGA_ERROR_ACCESS_EXCEPTION\n");
-		}
-
-		if (siga_error & QDIO_SIGA_ERROR_B_BIT_SET) {
-			ZFCP_LOG_FLAGS(2, "QDIO_SIGA_ERROR_B_BIT_SET\n");
-		}
-
-		switch (qdio_error) {
-		case 0:
-			ZFCP_LOG_FLAGS(3, "QDIO_OK");
-			break;
-		case SLSB_P_INPUT_ERROR:
-			ZFCP_LOG_FLAGS(1, "SLSB_P_INPUT_ERROR\n");
-			break;
-		case SLSB_P_OUTPUT_ERROR:
-			ZFCP_LOG_FLAGS(1, "SLSB_P_OUTPUT_ERROR\n");
-			break;
-		default:
-			ZFCP_LOG_NORMAL("bug: unknown QDIO error 0x%x\n",
-					qdio_error);
-			break;
-		}
 		/* Restarting IO on the failed adapter from scratch */
 		debug_text_event(adapter->erp_dbf, 1, "qdio_err");
                /*

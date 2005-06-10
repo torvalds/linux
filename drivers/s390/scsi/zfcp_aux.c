@@ -97,11 +97,6 @@ MODULE_PARM_DESC(loglevel,
 		 "FC ERP QDIO CIO Config FSF SCSI Other, "
 		 "levels: 0=none 1=normal 2=devel 3=trace");
 
-#ifdef ZFCP_PRINT_FLAGS
-u32 flags_dump = 0;
-module_param(flags_dump, uint, 0);
-#endif
-
 /****************************************************************/
 /************** Functions without logging ***********************/
 /****************************************************************/
@@ -1483,19 +1478,15 @@ zfcp_fsf_incoming_els_rscn(struct zfcp_adapter *adapter,
 		fcp_rscn_element++;
 		switch (fcp_rscn_element->addr_format) {
 		case ZFCP_PORT_ADDRESS:
-			ZFCP_LOG_FLAGS(1, "ZFCP_PORT_ADDRESS\n");
 			range_mask = ZFCP_PORTS_RANGE_PORT;
 			break;
 		case ZFCP_AREA_ADDRESS:
-			ZFCP_LOG_FLAGS(1, "ZFCP_AREA_ADDRESS\n");
 			range_mask = ZFCP_PORTS_RANGE_AREA;
 			break;
 		case ZFCP_DOMAIN_ADDRESS:
-			ZFCP_LOG_FLAGS(1, "ZFCP_DOMAIN_ADDRESS\n");
 			range_mask = ZFCP_PORTS_RANGE_DOMAIN;
 			break;
 		case ZFCP_FABRIC_ADDRESS:
-			ZFCP_LOG_FLAGS(1, "ZFCP_FABRIC_ADDRESS\n");
 			range_mask = ZFCP_PORTS_RANGE_FABRIC;
 			break;
 		default:
