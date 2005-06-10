@@ -849,28 +849,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 	},
-	{	/* 405EP */
-		.pvr_mask		= 0xffff0000,
-		.pvr_value		= 0x51210000,
-		.cpu_name		= "405EP",
-		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
-			CPU_FTR_USE_TB,
-		.cpu_user_features	= PPC_FEATURE_32 |
-			PPC_FEATURE_HAS_MMU | PPC_FEATURE_HAS_4xxMAC,
-		.icache_bsize		= 32,
-		.dcache_bsize		= 32,
-	},
-	{	/* 405EP */
-		.pvr_mask		= 0xffff0000,
-		.pvr_value		= 0x51210000,
-		.cpu_name		= "405EP",
-		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
-			CPU_FTR_USE_TB,
-		.cpu_user_features	= PPC_FEATURE_32 |
-			PPC_FEATURE_HAS_MMU | PPC_FEATURE_HAS_4xxMAC,
-		.icache_bsize		= 32,
-		.dcache_bsize		= 32,
-	},
 
 #endif /* CONFIG_40x */
 #ifdef CONFIG_44x
