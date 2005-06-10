@@ -44,109 +44,6 @@
 #include <linux/device.h>
 #include <linux/eisa.h>
 
-#define EISA_MFCTR_CHAR0(ID) (char)(((ID>>26) & 0x1F) | '@')  /* Bits 26-30 */
-#define EISA_MFCTR_CHAR1(ID) (char)(((ID>>21) & 0x1F) | '@')  /* Bits 21-25 */
-#define EISA_MFCTR_CHAR2(ID) (char)(((ID>>16) & 0x1F) | '@')  /* Bits 16-20 */
-#define EISA_PRODUCT_ID(ID)  (short)((ID>>4)  & 0xFFF)        /* Bits  4-15 */
-#define EISA_REVISION_ID(ID) (uint8_t)(ID & 0x0F)             /* Bits  0-3  */
-
-static int aic7770_eisa_dev_probe(struct device *dev);
-static int aic7770_eisa_dev_remove(struct device *dev);
-static struct eisa_driver aic7770_driver = {
-	.driver = {
-		.name   = "aic7xxx",
-		.probe  = aic7770_eisa_dev_probe,
-		.remove = aic7770_eisa_dev_remove,
-	}
-};
-
-typedef  struct device *aic7770_dev_t;
-
-static int aic7770_linux_config(struct aic7770_identity *entry,
-				aic7770_dev_t dev, u_int eisaBase);
-
-int
-ahc_linux_eisa_init(void)
-{
-	struct eisa_device_id *eid;
-	struct aic7770_identity *id;
-	int i;
-
-	if (aic7xxx_probe_eisa_vl == 0)
-		return -ENODEV;
-
-	/*
-	 * Linux requires the EISA IDs to be specified in
-	 * the EISA ID string format.  Perform the conversion
-	 * and setup a table with a NUL terminal entry.
-	 */
-	aic7770_driver.id_table = malloc(sizeof(struct eisa_device_id) *
-					 (ahc_num_aic7770_devs + 1),
-					 M_DEVBUF, M_NOWAIT);
-	if (aic7770_driver.id_table == NULL)
-		return -ENOMEM;
-
-	for (eid = (struct eisa_device_id *)aic7770_driver.id_table,
-	     id = aic7770_ident_table, i = 0;
-	     i < ahc_num_aic7770_devs; eid++, id++, i++) {
-
-		sprintf(eid->sig, "%c%c%c%03X%01X",
-			EISA_MFCTR_CHAR0(id->full_id),
-			EISA_MFCTR_CHAR1(id->full_id),
-			EISA_MFCTR_CHAR2(id->full_id),
-			EISA_PRODUCT_ID(id->full_id),
-			EISA_REVISION_ID(id->full_id));
-		eid->driver_data = i;
-	}
-	eid->sig[0] = 0;
-
-	return eisa_driver_register(&aic7770_driver);
-}
-
-void
-ahc_linux_eisa_exit(void)
-{
-	if(aic7xxx_probe_eisa_vl != 0 && aic7770_driver.id_table != NULL) {
-		eisa_driver_unregister(&aic7770_driver);
-		free(aic7770_driver.id_table, M_DEVBUF);
-	}
-}
-
-static int
-aic7770_linux_config(struct aic7770_identity *entry, aic7770_dev_t dev,
-		     u_int eisaBase)
-{
-	struct	ahc_softc *ahc;
-	char	buf[80];
-	char   *name;
-	int	error;
-
-	/*
-	 * Allocate a softc for this card and
-	 * set it up for attachment by our
-	 * common detect routine.
-	 */
-	sprintf(buf, "ahc_eisa:%d", eisaBase >> 12);
-	name = malloc(strlen(buf) + 1, M_DEVBUF, M_NOWAIT);
-	if (name == NULL)
-		return (ENOMEM);
-	strcpy(name, buf);
-	ahc = ahc_alloc(&aic7xxx_driver_template, name);
-	if (ahc == NULL)
-		return (ENOMEM);
-	error = aic7770_config(ahc, entry, eisaBase);
-	if (error != 0) {
-		ahc->bsh.ioport = 0;
-		ahc_free(ahc);
-		return (error);
-	}
-
-	dev->driver_data = (void *)ahc;
-	if (aic7xxx_detect_complete)
-		error = ahc_linux_register_host(ahc, &aic7xxx_driver_template);
-	return (error);
-}
-
 int
 aic7770_map_registers(struct ahc_softc *ahc, u_int port)
 {
@@ -178,25 +75,79 @@ aic7770_map_int(struct ahc_softc *ahc, u_int irq)
 }
 
 static int
-aic7770_eisa_dev_probe(struct device *dev)
+aic7770_probe(struct device *dev)
 {
-	struct eisa_device *edev;
+	struct eisa_device *edev = to_eisa_device(dev);
+	u_int eisaBase = edev->base_addr+AHC_EISA_SLOT_OFFSET;
+	struct	ahc_softc *ahc;
+	char	buf[80];
+	char   *name;
+	int	error;
 
-	edev = to_eisa_device(dev);
-	return (aic7770_linux_config(aic7770_ident_table + edev->id.driver_data,
-				    dev, edev->base_addr+AHC_EISA_SLOT_OFFSET));
+	sprintf(buf, "ahc_eisa:%d", eisaBase >> 12);
+	name = malloc(strlen(buf) + 1, M_DEVBUF, M_NOWAIT);
+	if (name == NULL)
+		return (ENOMEM);
+	strcpy(name, buf);
+	ahc = ahc_alloc(&aic7xxx_driver_template, name);
+	if (ahc == NULL)
+		return (ENOMEM);
+	error = aic7770_config(ahc, aic7770_ident_table + edev->id.driver_data,
+			       eisaBase);
+	if (error != 0) {
+		ahc->bsh.ioport = 0;
+		ahc_free(ahc);
+		return (error);
+	}
+
+ 	dev_set_drvdata(dev, ahc);
+
+	if (aic7xxx_detect_complete)
+		error = ahc_linux_register_host(ahc, &aic7xxx_driver_template);
+	return (error);
 }
 
 static int
-aic7770_eisa_dev_remove(struct device *dev)
+aic7770_remove(struct device *dev)
 {
-	struct ahc_softc *ahc = dev_get_drvata(dev);
+	struct ahc_softc *ahc = dev_get_drvdata(dev);
 	u_long s;
 
 	ahc_lock(ahc, &s);
 	ahc_intr_enable(ahc, FALSE);
 	ahc_unlock(ahc, &s);
-	ahc_free(ahc);
 
-	return (0);
+	ahc_free(ahc);
+	return 0;
+}
+ 
+static struct eisa_device_id aic7770_ids[] = {
+	{ "ADP7771", 0 }, /* AHA 274x */
+	{ "ADP7756", 1 }, /* AHA 284x BIOS enabled */
+	{ "ADP7757", 2 }, /* AHA 284x BIOS disabled */
+	{ "ADP7782", 3 }, /* AHA 274x Olivetti OEM */
+	{ "ADP7783", 4 }, /* AHA 274x Olivetti OEM (Differential) */
+	{ "ADP7770", 5 }, /* AIC7770 generic */
+	{ "" }
+};
+  
+static struct eisa_driver aic7770_driver = {
+	.id_table	= aic7770_ids,
+	.driver = {
+		.name   = "aic7xxx",
+		.probe  = aic7770_probe,
+		.remove = aic7770_remove,
+	}
+};
+  
+int
+ahc_linux_eisa_init(void)
+{
+	return eisa_driver_register(&aic7770_driver);
+}
+  
+void
+ahc_linux_eisa_exit(void)
+{
+	eisa_driver_unregister(&aic7770_driver);
 }

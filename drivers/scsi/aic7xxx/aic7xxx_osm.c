@@ -330,22 +330,6 @@ static uint32_t aic7xxx_extended;
 static uint32_t aic7xxx_pci_parity = ~0;
 
 /*
- * Certain newer motherboards have put new PCI based devices into the
- * IO spaces that used to typically be occupied by VLB or EISA cards.
- * This overlap can cause these newer motherboards to lock up when scanned
- * for older EISA and VLB devices.  Setting this option to non-0 will
- * cause the driver to skip scanning for any VLB or EISA controllers and
- * only support the PCI controllers.  NOTE: this means that if the kernel
- * os compiled with PCI support disabled, then setting this to non-0
- * would result in never finding any devices :)
- */
-#ifndef CONFIG_AIC7XXX_PROBE_EISA_VL
-uint32_t aic7xxx_probe_eisa_vl;
-#else
-uint32_t aic7xxx_probe_eisa_vl = ~0;
-#endif
-
-/*
  * There are lots of broken chipsets in the world.  Some of them will
  * violate the PCI spec when we issue byte sized memory writes to our
  * controller.  I/O mapped register access, if allowed by the given
@@ -1101,8 +1085,6 @@ aic7xxx_setup(char *s)
 		{ "debug", &ahc_debug },
 #endif
 		{ "reverse_scan", &aic7xxx_reverse_scan },
-		{ "no_probe", &aic7xxx_probe_eisa_vl },
-		{ "probe_eisa_vl", &aic7xxx_probe_eisa_vl },
 		{ "periodic_otag", &aic7xxx_periodic_otag },
 		{ "pci_parity", &aic7xxx_pci_parity },
 		{ "seltime", &aic7xxx_seltime },
