@@ -174,22 +174,6 @@ ahc_linux_pci_dev_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	char		*name;
 	int		 error;
 
-	/*
-	 * Some BIOSen report the same device multiple times.
-	 */
-	TAILQ_FOREACH(ahc, &ahc_tailq, links) {
-		struct pci_dev *probed_pdev;
-
-		probed_pdev = ahc->dev_softc;
-		if (probed_pdev->bus->number == pdev->bus->number
-		 && probed_pdev->devfn == pdev->devfn)
-			break;
-	}
-	if (ahc != NULL) {
-		/* Skip duplicate. */
-		return (-ENODEV);
-	}
-
 	pci = pdev;
 	entry = ahc_find_pci_device(pci);
 	if (entry == NULL)
