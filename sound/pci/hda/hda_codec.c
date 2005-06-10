@@ -1540,7 +1540,8 @@ int snd_hda_check_board_config(struct hda_codec *codec, struct hda_board_config 
 		pci_read_config_word(codec->bus->pci, PCI_SUBSYSTEM_ID, &subsystem_device);
 		for (c = tbl; c->modelname || c->pci_subvendor; c++) {
 			if (c->pci_subvendor == subsystem_vendor &&
-			    c->pci_subdevice == subsystem_device)
+			    (! c->pci_subdevice /* all match */||
+			     (c->pci_subdevice == subsystem_device)))
 				return c->config;
 		}
 	}
