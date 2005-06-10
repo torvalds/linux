@@ -27,6 +27,7 @@
 
 DEFINE_SPINLOCK(w1_flock);
 static LIST_HEAD(w1_families);
+extern void w1_reconnect_slaves(struct w1_family *f);
 
 static int w1_check_family(struct w1_family *f)
 {
