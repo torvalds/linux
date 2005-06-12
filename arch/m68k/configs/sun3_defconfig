@@ -173,7 +173,6 @@ CONFIG_SCSI_CONSTANTS=y
 #
 # CONFIG_SCSI_SATA is not set
 # CONFIG_SCSI_DEBUG is not set
-CONFIG_SUN3_SCSI=y
 
 #
 # Multi-device support (RAID and LVM)
