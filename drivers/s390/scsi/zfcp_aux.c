@@ -218,12 +218,19 @@ zfcp_in_els_dbf_event(struct zfcp_adapter *adapter, const char *text,
  * Parse "device=..." parameter string.
  */
 static int __init
-zfcp_device_setup(char *str)
+zfcp_device_setup(char *devstr)
 {
-	char *tmp;
+	char *tmp, *str;
+	size_t len;
 
-	if (!str)
+	if (!devstr)
 		return 0;
+
+	len = strlen(devstr) + 1;
+	str = (char *) kmalloc(len, GFP_KERNEL);
+	if (!str)
+		goto err_out;
+	memcpy(str, devstr, len);
 
 	tmp = strchr(str, ',');
 	if (!tmp)
@@ -241,10 +248,12 @@ zfcp_device_setup(char *str)
 	zfcp_data.init_fcp_lun = simple_strtoull(tmp, &tmp, 0);
 	if (*tmp != '\0')
 		goto err_out;
+	kfree(str);
 	return 1;
 
  err_out:
 	ZFCP_LOG_NORMAL("Parse error for device parameter string %s\n", str);
+	kfree(str);
 	return 0;
 }
 
