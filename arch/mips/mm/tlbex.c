@@ -1239,7 +1239,7 @@ static void __init build_r4000_tlb_refill_handler(void)
 	{
 		int i;
 
-		for (i = 0; i < 64; i++)
+		for (i = 0; i < final_len; i++)
 			printk("%08x\n", final_handler[i]);
 	}
 #endif
@@ -1506,7 +1506,7 @@ static void __init build_r3000_tlb_load_handler(void)
 	{
 		int i;
 
-		for (i = 0; i < FASTPATH_SIZE; i++)
+		for (i = 0; i < (p - handle_tlbl); i++)
 			printk("%08x\n", handle_tlbl[i]);
 	}
 #endif
@@ -1547,7 +1547,7 @@ static void __init build_r3000_tlb_store_handler(void)
 	{
 		int i;
 
-		for (i = 0; i < FASTPATH_SIZE; i++)
+		for (i = 0; i < (p - handle_tlbs); i++)
 			printk("%08x\n", handle_tlbs[i]);
 	}
 #endif
@@ -1588,7 +1588,7 @@ static void __init build_r3000_tlb_modify_handler(void)
 	{
 		int i;
 
-		for (i = 0; i < FASTPATH_SIZE; i++)
+		for (i = 0; i < (p - handle_tlbm); i++)
 			printk("%08x\n", handle_tlbm[i]);
 	}
 #endif
@@ -1680,7 +1680,7 @@ static void __init build_r4000_tlb_load_handler(void)
 	{
 		int i;
 
-		for (i = 0; i < FASTPATH_SIZE; i++)
+		for (i = 0; i < (p - handle_tlbl); i++)
 			printk("%08x\n", handle_tlbl[i]);
 	}
 #endif
@@ -1719,7 +1719,7 @@ static void __init build_r4000_tlb_store_handler(void)
 	{
 		int i;
 
-		for (i = 0; i < FASTPATH_SIZE; i++)
+		for (i = 0; i < (p - handle_tlbs); i++)
 			printk("%08x\n", handle_tlbs[i]);
 	}
 #endif
@@ -1759,7 +1759,7 @@ static void __init build_r4000_tlb_modify_handler(void)
 	{
 		int i;
 
-		for (i = 0; i < FASTPATH_SIZE; i++)
+		for (i = 0; i < (p - handle_tlbm); i++)
 			printk("%08x\n", handle_tlbm[i]);
 	}
 #endif
