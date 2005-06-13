@@ -116,7 +116,7 @@ extern int  zfcp_fsf_send_fcp_command_task(struct zfcp_adapter *,
 					   struct timer_list*, int);
 extern int  zfcp_fsf_req_complete(struct zfcp_fsf_req *);
 extern void zfcp_fsf_incoming_els(struct zfcp_fsf_req *);
-extern void zfcp_fsf_req_cleanup(struct zfcp_fsf_req *);
+extern void zfcp_fsf_req_free(struct zfcp_fsf_req *);
 extern struct zfcp_fsf_req *zfcp_fsf_send_fcp_command_task_management(
 	struct zfcp_adapter *, struct zfcp_unit *, u8, int);
 extern struct zfcp_fsf_req *zfcp_fsf_abort_fcp_command(

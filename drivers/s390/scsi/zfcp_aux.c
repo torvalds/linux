@@ -520,7 +520,7 @@ zfcp_cfdc_dev_ioctl(struct file *file, unsigned int command,
 
  out:
 	if (fsf_req != NULL)
-		zfcp_fsf_req_cleanup(fsf_req);
+		zfcp_fsf_req_free(fsf_req);
 
 	if ((adapter != NULL) && (retval != -ENXIO))
 		zfcp_adapter_put(adapter);
@@ -1149,7 +1149,7 @@ zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	INIT_LIST_HEAD(&adapter->port_remove_lh);
 
 	/* initialize list of fsf requests */
-	rwlock_init(&adapter->fsf_req_list_lock);
+	spin_lock_init(&adapter->fsf_req_list_lock);
 	INIT_LIST_HEAD(&adapter->fsf_req_list_head);
 
 	/* initialize abort lock */
@@ -1234,9 +1234,9 @@ zfcp_adapter_dequeue(struct zfcp_adapter *adapter)
 	zfcp_sysfs_adapter_remove_files(&adapter->ccw_device->dev);
 	dev_set_drvdata(&adapter->ccw_device->dev, NULL);
 	/* sanity check: no pending FSF requests */
-	read_lock_irqsave(&adapter->fsf_req_list_lock, flags);
+	spin_lock_irqsave(&adapter->fsf_req_list_lock, flags);
 	retval = !list_empty(&adapter->fsf_req_list_head);
-	read_unlock_irqrestore(&adapter->fsf_req_list_lock, flags);
+	spin_unlock_irqrestore(&adapter->fsf_req_list_lock, flags);
 	if (retval) {
 		ZFCP_LOG_NORMAL("bug: adapter %s (%p) still in use, "
 				"%i requests outstanding\n",

@@ -891,7 +891,7 @@ zfcp_erp_strategy_check_fsfreq(struct zfcp_erp_action *erp_action)
 
 	if (erp_action->fsf_req) {
 		/* take lock to ensure that request is not being deleted meanwhile */
-		write_lock(&adapter->fsf_req_list_lock);
+		spin_lock(&adapter->fsf_req_list_lock);
 		/* check whether fsf req does still exist */
 		list_for_each_entry(fsf_req, &adapter->fsf_req_list_head, list)
 		    if (fsf_req == erp_action->fsf_req)
@@ -934,7 +934,7 @@ zfcp_erp_strategy_check_fsfreq(struct zfcp_erp_action *erp_action)
 			 */
 			erp_action->fsf_req = NULL;
 		}
-		write_unlock(&adapter->fsf_req_list_lock);
+		spin_unlock(&adapter->fsf_req_list_lock);
 	} else
 		debug_text_event(adapter->erp_dbf, 3, "a_ca_noreq");
 

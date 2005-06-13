@@ -861,7 +861,7 @@ struct zfcp_adapter {
 	u32			ports;	           /* number of remote ports */
         struct timer_list       scsi_er_timer;     /* SCSI err recovery watch */
 	struct list_head	fsf_req_list_head; /* head of FSF req list */
-	rwlock_t		fsf_req_list_lock; /* lock for ops on list of
+	spinlock_t		fsf_req_list_lock; /* lock for ops on list of
 						      FSF requests */
         atomic_t       		fsf_reqs_active;   /* # active FSF reqs */
 	struct zfcp_qdio_queue	request_queue;	   /* request queue */

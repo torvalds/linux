@@ -575,7 +575,7 @@ zfcp_scsi_eh_abort_handler(struct scsi_cmnd *scpnt)
 	    *(u64 *) & new_fsf_req->qtcb->header.fsf_status_qual.word[0];
 	dbf_fsf_qual[1] =
 	    *(u64 *) & new_fsf_req->qtcb->header.fsf_status_qual.word[2];
-	zfcp_fsf_req_cleanup(new_fsf_req);
+	zfcp_fsf_req_free(new_fsf_req);
 #else
 	retval = zfcp_fsf_req_wait_and_cleanup(new_fsf_req,
 					       ZFCP_UNINTERRUPTIBLE, &status);

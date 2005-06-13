@@ -61,7 +61,6 @@ static int zfcp_fsf_fsfstatus_eval(struct zfcp_fsf_req *);
 static int zfcp_fsf_fsfstatus_qual_eval(struct zfcp_fsf_req *);
 static int zfcp_fsf_req_dispatch(struct zfcp_fsf_req *);
 static void zfcp_fsf_req_dismiss(struct zfcp_fsf_req *);
-static void zfcp_fsf_req_free(struct zfcp_fsf_req *);
 
 /* association between FSF command and FSF QTCB type */
 static u32 fsf_qtcb_type[] = {
@@ -149,13 +148,13 @@ zfcp_fsf_req_alloc(mempool_t *pool, int req_flags)
  *
  * locks:       none
  */
-static void
+void
 zfcp_fsf_req_free(struct zfcp_fsf_req *fsf_req)
 {
 	if (likely(fsf_req->pool != NULL))
 		mempool_free(fsf_req, fsf_req->pool);
-		else
-			kfree(fsf_req);
+	else
+		kfree(fsf_req);
 }
 
 /*
@@ -170,30 +169,21 @@ zfcp_fsf_req_free(struct zfcp_fsf_req *fsf_req)
 int
 zfcp_fsf_req_dismiss_all(struct zfcp_adapter *adapter)
 {
-	int retval = 0;
 	struct zfcp_fsf_req *fsf_req, *tmp;
+	unsigned long flags;
+	LIST_HEAD(remove_queue);
 
-	list_for_each_entry_safe(fsf_req, tmp, &adapter->fsf_req_list_head,
-				 list)
-	    zfcp_fsf_req_dismiss(fsf_req);
-	/* wait_event_timeout? */
-	while (!list_empty(&adapter->fsf_req_list_head)) {
-		ZFCP_LOG_DEBUG("fsf req list of adapter %s not yet empty\n",
-			       zfcp_get_busid_by_adapter(adapter));
-		/* wait for woken intiators to clean up their requests */
-		msleep(jiffies_to_msecs(ZFCP_FSFREQ_CLEANUP_TIMEOUT));
+	spin_lock_irqsave(&adapter->fsf_req_list_lock, flags);
+	list_splice_init(&adapter->fsf_req_list_head, &remove_queue);
+	atomic_set(&adapter->fsf_reqs_active, 0);
+	spin_unlock_irqrestore(&adapter->fsf_req_list_lock, flags);
+
+	list_for_each_entry_safe(fsf_req, tmp, &remove_queue, list) {
+		list_del(&fsf_req->list);
+		zfcp_fsf_req_dismiss(fsf_req);
 	}
 
-	/* consistency check */
-	if (atomic_read(&adapter->fsf_reqs_active)) {
-		ZFCP_LOG_NORMAL("bug: There are still %d FSF requests pending "
-				"on adapter %s after cleanup.\n",
-				atomic_read(&adapter->fsf_reqs_active),
-				zfcp_get_busid_by_adapter(adapter));
-		atomic_set(&adapter->fsf_reqs_active, 0);
-	}
-
-	return retval;
+	return 0;
 }
 
 /*
@@ -226,10 +216,6 @@ zfcp_fsf_req_complete(struct zfcp_fsf_req *fsf_req)
 {
 	int retval = 0;
 	int cleanup;
-	struct zfcp_adapter *adapter = fsf_req->adapter;
-
-	/* do some statistics */
-	atomic_dec(&adapter->fsf_reqs_active);
 
 	if (unlikely(fsf_req->fsf_command == FSF_QTCB_UNSOLICITED_STATUS)) {
 		ZFCP_LOG_DEBUG("Status read response received\n");
@@ -260,7 +246,7 @@ zfcp_fsf_req_complete(struct zfcp_fsf_req *fsf_req)
 		 * lock must not be held here since it will be
 		 * grabed by the called routine, too
 		 */
-		zfcp_fsf_req_cleanup(fsf_req);
+		zfcp_fsf_req_free(fsf_req);
 	} else {
 		/* notify initiator waiting for the requests completion */
 		ZFCP_LOG_TRACE("waking initiator of FSF request %p\n",fsf_req);
@@ -936,7 +922,7 @@ zfcp_fsf_status_read_handler(struct zfcp_fsf_req *fsf_req)
 
 	if (fsf_req->status & ZFCP_STATUS_FSFREQ_DISMISSED) {
 		mempool_free(status_buffer, adapter->pool.data_status_read);
-		zfcp_fsf_req_cleanup(fsf_req);
+		zfcp_fsf_req_free(fsf_req);
 		goto out;
 	}
 
@@ -1033,7 +1019,7 @@ zfcp_fsf_status_read_handler(struct zfcp_fsf_req *fsf_req)
 		break;
 	}
 	mempool_free(status_buffer, adapter->pool.data_status_read);
-	zfcp_fsf_req_cleanup(fsf_req);
+	zfcp_fsf_req_free(fsf_req);
 	/*
 	 * recycle buffer and start new request repeat until outbound
 	 * queue is empty or adapter shutdown is requested
@@ -2258,7 +2244,7 @@ zfcp_fsf_exchange_port_data(struct zfcp_adapter *adapter,
 	wait_event(fsf_req->completion_wq,
 		   fsf_req->status & ZFCP_STATUS_FSFREQ_COMPLETED);
 	del_timer_sync(timer);
-	zfcp_fsf_req_cleanup(fsf_req);
+	zfcp_fsf_req_free(fsf_req);
  out:
 	kfree(timer);
 	return retval;
@@ -4607,7 +4593,7 @@ zfcp_fsf_req_wait_and_cleanup(struct zfcp_fsf_req *fsf_req,
 	*status = fsf_req->status;
 
 	/* cleanup request */
-	zfcp_fsf_req_cleanup(fsf_req);
+	zfcp_fsf_req_free(fsf_req);
  out:
 	return retval;
 }
@@ -4806,9 +4792,9 @@ zfcp_fsf_req_send(struct zfcp_fsf_req *fsf_req, struct timer_list *timer)
 		inc_seq_no = 0;
 
 	/* put allocated FSF request at list tail */
-	write_lock_irqsave(&adapter->fsf_req_list_lock, flags);
+	spin_lock_irqsave(&adapter->fsf_req_list_lock, flags);
 	list_add_tail(&fsf_req->list, &adapter->fsf_req_list_head);
-	write_unlock_irqrestore(&adapter->fsf_req_list_lock, flags);
+	spin_unlock_irqrestore(&adapter->fsf_req_list_lock, flags);
 
 	/* figure out expiration time of timeout and start timeout */
 	if (unlikely(timer)) {
@@ -4852,9 +4838,9 @@ zfcp_fsf_req_send(struct zfcp_fsf_req *fsf_req, struct timer_list *timer)
 		 */
 		if (timer)
 			del_timer(timer);
-		write_lock_irqsave(&adapter->fsf_req_list_lock, flags);
+		spin_lock_irqsave(&adapter->fsf_req_list_lock, flags);
 		list_del(&fsf_req->list);
-		write_unlock_irqrestore(&adapter->fsf_req_list_lock, flags);
+		spin_unlock_irqrestore(&adapter->fsf_req_list_lock, flags);
 		/*
 		 * adjust the number of free SBALs in request queue as well as
 		 * position of first one
@@ -4890,27 +4876,6 @@ zfcp_fsf_req_send(struct zfcp_fsf_req *fsf_req, struct timer_list *timer)
 		atomic_inc(&adapter->fsf_reqs_active);
 	}
 	return retval;
-}
-
-/*
- * function:    zfcp_fsf_req_cleanup
- *
- * purpose:	cleans up an FSF request and removes it from the specified list
- *
- * returns:
- *
- * assumption:	no pending SB in SBALEs other than QTCB
- */
-void
-zfcp_fsf_req_cleanup(struct zfcp_fsf_req *fsf_req)
-{
-	struct zfcp_adapter *adapter = fsf_req->adapter;
-	unsigned long flags;
-
-	write_lock_irqsave(&adapter->fsf_req_list_lock, flags);
-	list_del(&fsf_req->list);
-	write_unlock_irqrestore(&adapter->fsf_req_list_lock, flags);
-	zfcp_fsf_req_free(fsf_req);
 }
 
 #undef ZFCP_LOG_AREA
