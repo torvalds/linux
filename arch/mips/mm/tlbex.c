@@ -1486,6 +1486,7 @@ static void __init build_r3000_tlb_load_handler(void)
 
 	build_r3000_tlbchange_handler_head(&p, K0, K1);
 	build_pte_present(&p, &l, &r, K0, K1, label_nopage_tlbl);
+	i_nop(&p); /* load delay */
 	build_make_valid(&p, &r, K0, K1);
 	build_r3000_pte_reload(&p, K1);
 	build_r3000_tlb_write(&p, &l, &r, K0);
@@ -1527,6 +1528,7 @@ static void __init build_r3000_tlb_store_handler(void)
 
 	build_r3000_tlbchange_handler_head(&p, K0, K1);
 	build_pte_writable(&p, &l, &r, K0, K1, label_nopage_tlbs);
+	i_nop(&p); /* load delay */
 	build_make_write(&p, &r, K0, K1);
 	build_r3000_pte_reload(&p, K1);
 	build_r3000_tlb_write(&p, &l, &r, K0);
@@ -1568,6 +1570,7 @@ static void __init build_r3000_tlb_modify_handler(void)
 
 	build_r3000_tlbchange_handler_head(&p, K0, K1);
 	build_pte_modifiable(&p, &l, &r, K0, K1, label_nopage_tlbm);
+	i_nop(&p); /* load delay */
 	build_make_write(&p, &r, K0, K1);
 	build_r3000_pte_reload(&p, K1);
 	i_tlbwi(&p);
