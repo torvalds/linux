@@ -16,6 +16,7 @@
  * initialization stuff for PXA machines which can be overridden later if
  * need be.
  */
+#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -103,6 +104,7 @@ unsigned int get_lcdclk_frequency_10khz(void)
 
 EXPORT_SYMBOL(get_lcdclk_frequency_10khz);
 
+#ifdef CONFIG_PM
 
 int pxa_cpu_pm_prepare(suspend_state_t state)
 {
@@ -131,3 +133,5 @@ void pxa_cpu_pm_enter(suspend_state_t state)
 		break;
 	}
 }
+
+#endif
