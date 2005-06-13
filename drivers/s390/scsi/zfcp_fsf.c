@@ -1771,8 +1771,8 @@ zfcp_fsf_send_els(struct zfcp_send_els *els)
 static int zfcp_fsf_send_els_handler(struct zfcp_fsf_req *fsf_req)
 {
 	struct zfcp_adapter *adapter;
-	fc_id_t d_id;
 	struct zfcp_port *port;
+	fc_id_t d_id;
 	struct fsf_qtcb_header *header;
 	struct fsf_qtcb_bottom_support *bottom;
 	struct zfcp_send_els *send_els;
@@ -1781,6 +1781,7 @@ static int zfcp_fsf_send_els_handler(struct zfcp_fsf_req *fsf_req)
 
 	send_els = fsf_req->data.send_els;
 	adapter = send_els->adapter;
+	port = send_els->port;
 	d_id = send_els->d_id;
 	header = &fsf_req->qtcb->header;
 	bottom = &fsf_req->qtcb->bottom.support;
@@ -1817,13 +1818,8 @@ static int zfcp_fsf_send_els_handler(struct zfcp_fsf_req *fsf_req)
 		switch (header->fsf_status_qual.word[0]){
 		case FSF_SQ_INVOKE_LINK_TEST_PROCEDURE:
 			debug_text_event(adapter->erp_dbf, 1, "fsf_sq_ltest");
-			if (send_els->ls_code != ZFCP_LS_ADISC) {
-				read_lock(&zfcp_data.config_lock);
-				port = zfcp_get_port_by_did(adapter, d_id);
-				if (port)
-					zfcp_test_link(port);
-				read_unlock(&zfcp_data.config_lock);
-			}
+			if (port && (send_els->ls_code != ZFCP_LS_ADISC))
+				zfcp_test_link(port);
 			fsf_req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 			break;
 		case FSF_SQ_ULP_DEPENDENT_ERP_REQUIRED:
@@ -1913,11 +1909,8 @@ static int zfcp_fsf_send_els_handler(struct zfcp_fsf_req *fsf_req)
 			}
 		}
 		debug_text_event(adapter->erp_dbf, 1, "fsf_s_access");
-		read_lock(&zfcp_data.config_lock);
-		port = zfcp_get_port_by_did(adapter, d_id);
 		if (port != NULL)
 			zfcp_erp_port_access_denied(port);
-		read_unlock(&zfcp_data.config_lock);
 		fsf_req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 		break;
 

@@ -35,7 +35,7 @@
 
 #include "zfcp_ext.h"
 
-static int zfcp_erp_adisc(struct zfcp_adapter *, fc_id_t);
+static int zfcp_erp_adisc(struct zfcp_port *);
 static void zfcp_erp_adisc_handler(unsigned long);
 
 static int zfcp_erp_adapter_reopen_internal(struct zfcp_adapter *, int);
@@ -295,12 +295,12 @@ zfcp_erp_unit_shutdown(struct zfcp_unit *unit, int clear_mask)
 
 /**
  * zfcp_erp_adisc - send ADISC ELS command
- * @adapter: adapter structure
- * @d_id: d_id of port where ADISC is sent to
+ * @port: port structure
  */
 int
-zfcp_erp_adisc(struct zfcp_adapter *adapter, fc_id_t d_id)
+zfcp_erp_adisc(struct zfcp_port *port)
 {
+	struct zfcp_adapter *adapter = port->adapter;
 	struct zfcp_send_els *send_els;
 	struct zfcp_ls_adisc *adisc;
 	void *address = NULL;
@@ -332,7 +332,8 @@ zfcp_erp_adisc(struct zfcp_adapter *adapter, fc_id_t d_id)
 	send_els->req_count = send_els->resp_count = 1;
 
 	send_els->adapter = adapter;
-	send_els->d_id = d_id;
+	send_els->port = port;
+	send_els->d_id = port->d_id;
 	send_els->handler = zfcp_erp_adisc_handler;
 	send_els->handler_data = (unsigned long) send_els;
 
@@ -350,7 +351,7 @@ zfcp_erp_adisc(struct zfcp_adapter *adapter, fc_id_t d_id)
 	ZFCP_LOG_INFO("ADISC request from s_id 0x%08x to d_id 0x%08x "
 		      "(wwpn=0x%016Lx, wwnn=0x%016Lx, "
 		      "hard_nport_id=0x%08x, nport_id=0x%08x)\n",
-		      adapter->s_id, d_id, (wwn_t) adisc->wwpn,
+		      adapter->s_id, send_els->d_id, (wwn_t) adisc->wwpn,
 		      (wwn_t) adisc->wwnn, adisc->hard_nport_id,
 		      adisc->nport_id);
 
@@ -367,7 +368,7 @@ zfcp_erp_adisc(struct zfcp_adapter *adapter, fc_id_t d_id)
 	retval = zfcp_fsf_send_els(send_els);
 	if (retval != 0) {
 		ZFCP_LOG_NORMAL("error: initiation of Send ELS failed for port "
-				"0x%08x on adapter %s\n", d_id,
+				"0x%08x on adapter %s\n", send_els->d_id,
 				zfcp_get_busid_by_adapter(adapter));
 		del_timer(send_els->timer);
 		goto freemem;
@@ -411,13 +412,8 @@ zfcp_erp_adisc_handler(unsigned long data)
 	del_timer(send_els->timer);
 
 	adapter = send_els->adapter;
+	port = send_els->port;
 	d_id = send_els->d_id;
-
-	read_lock(&zfcp_data.config_lock);
-	port = zfcp_get_port_by_did(send_els->adapter, send_els->d_id);
-	read_unlock(&zfcp_data.config_lock);
-
-	BUG_ON(port == NULL);
 
 	/* request rejected or timed out */
 	if (send_els->status != 0) {
@@ -482,7 +478,7 @@ zfcp_test_link(struct zfcp_port *port)
 	int retval;
 
 	zfcp_port_get(port);
-	retval = zfcp_erp_adisc(port->adapter, port->d_id);
+	retval = zfcp_erp_adisc(port);
 	if (retval != 0) {
 		zfcp_port_put(port);
 		ZFCP_LOG_NORMAL("reopen needed for port 0x%016Lx "

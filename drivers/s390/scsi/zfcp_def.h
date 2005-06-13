@@ -751,6 +751,7 @@ typedef void (*zfcp_send_els_handler_t)(unsigned long);
 /**
  * struct zfcp_send_els - used to pass parameters to function zfcp_fsf_send_els
  * @adapter: adapter where request is sent from
+ * @port: port where ELS is destinated (port reference count has to be increased)
  * @d_id: destiniation id of port where request is sent to
  * @req: scatter-gather list for request
  * @resp: scatter-gather list for response
@@ -765,6 +766,7 @@ typedef void (*zfcp_send_els_handler_t)(unsigned long);
  */
 struct zfcp_send_els {
 	struct zfcp_adapter *adapter;
+	struct zfcp_port *port;
 	fc_id_t d_id;
 	struct scatterlist *req;
 	struct scatterlist *resp;
