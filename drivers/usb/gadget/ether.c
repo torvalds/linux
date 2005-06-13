@@ -2428,6 +2428,7 @@ autoconf_fail:
 	dev->req->complete = eth_setup_complete;
 
 	/* ... and maybe likewise for status transfer */
+#ifdef DEV_CONFIG_CDC
 	if (dev->status_ep) {
 		dev->stat_req = eth_req_alloc (dev->status_ep,
 					STATUS_BYTECOUNT, GFP_KERNEL);
@@ -2437,6 +2438,7 @@ autoconf_fail:
 		}
 		dev->stat_req->context = NULL;
 	}
+#endif
 
 	/* finish hookup to lower layer ... */
 	dev->gadget = gadget;
