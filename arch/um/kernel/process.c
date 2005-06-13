@@ -30,7 +30,6 @@
 #include "init.h"
 #include "os.h"
 #include "uml-config.h"
-#include "ptrace_user.h"
 #include "choose-mode.h"
 #include "mode.h"
 #ifdef UML_CONFIG_MODE_SKAS
