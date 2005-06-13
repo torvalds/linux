@@ -215,7 +215,7 @@ snd_kcontrol_t *snd_ctl_new(snd_kcontrol_t * control, unsigned int access)
  *
  * Returns the pointer of the newly generated instance, or NULL on failure.
  */
-snd_kcontrol_t *snd_ctl_new1(snd_kcontrol_new_t * ncontrol, void *private_data)
+snd_kcontrol_t *snd_ctl_new1(const snd_kcontrol_new_t * ncontrol, void *private_data)
 {
 	snd_kcontrol_t kctl;
 	unsigned int access;
