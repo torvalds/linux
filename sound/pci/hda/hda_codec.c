@@ -1520,9 +1520,9 @@ int snd_hda_build_pcms(struct hda_bus *bus)
  *
  * If no entries are matching, the function returns a negative value.
  */
-int snd_hda_check_board_config(struct hda_codec *codec, struct hda_board_config *tbl)
+int snd_hda_check_board_config(struct hda_codec *codec, const struct hda_board_config *tbl)
 {
-	struct hda_board_config *c;
+	const struct hda_board_config *c;
 
 	if (codec->bus->modelname) {
 		for (c = tbl; c->modelname || c->pci_subvendor; c++) {
@@ -1711,6 +1711,105 @@ int snd_hda_multi_out_analog_cleanup(struct hda_codec *codec, struct hda_multi_o
 		mout->dig_out_used = 0;
 	}
 	up(&codec->spdif_mutex);
+	return 0;
+}
+
+/*
+ * Helper for automatic ping configuration
+ */
+/* parse all pin widgets and store the useful pin nids to cfg */
+int snd_hda_parse_pin_def_config(struct hda_codec *codec, struct auto_pin_cfg *cfg)
+{
+	hda_nid_t nid, nid_start;
+	int i, j, nodes;
+	short seq, sequences[4], assoc_line_out;
+
+	memset(cfg, 0, sizeof(*cfg));
+
+	memset(sequences, 0, sizeof(sequences));
+	assoc_line_out = 0;
+
+	nodes = snd_hda_get_sub_nodes(codec, codec->afg, &nid_start);
+	for (nid = nid_start; nid < nodes + nid_start; nid++) {
+		unsigned int wid_caps = snd_hda_param_read(codec, nid,
+							   AC_PAR_AUDIO_WIDGET_CAP);
+		unsigned int wid_type = (wid_caps & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
+		unsigned int def_conf;
+		short assoc, loc;
+
+		/* read all default configuration for pin complex */
+		if (wid_type != AC_WID_PIN)
+			continue;
+		def_conf = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_CONFIG_DEFAULT, 0);
+		if (get_defcfg_connect(def_conf) == AC_JACK_PORT_NONE)
+			continue;
+		loc = get_defcfg_location(def_conf);
+		switch (get_defcfg_device(def_conf)) {
+		case AC_JACK_LINE_OUT:
+		case AC_JACK_SPEAKER:
+			seq = get_defcfg_sequence(def_conf);
+			assoc = get_defcfg_association(def_conf);
+			if (! assoc)
+				continue;
+			if (! assoc_line_out)
+				assoc_line_out = assoc;
+			else if (assoc_line_out != assoc)
+				continue;
+			if (cfg->line_outs >= ARRAY_SIZE(cfg->line_out_pins))
+				continue;
+			cfg->line_out_pins[cfg->line_outs] = nid;
+			sequences[cfg->line_outs] = seq;
+			cfg->line_outs++;
+			break;
+		case AC_JACK_HP_OUT:
+			cfg->hp_pin = nid;
+			break;
+		case AC_JACK_MIC_IN:
+			if (loc == AC_JACK_LOC_FRONT)
+				cfg->input_pins[AUTO_PIN_FRONT_MIC] = nid;
+			else
+				cfg->input_pins[AUTO_PIN_MIC] = nid;
+			break;
+		case AC_JACK_LINE_IN:
+			if (loc == AC_JACK_LOC_FRONT)
+				cfg->input_pins[AUTO_PIN_FRONT_LINE] = nid;
+			else
+				cfg->input_pins[AUTO_PIN_LINE] = nid;
+			break;
+		case AC_JACK_CD:
+			cfg->input_pins[AUTO_PIN_CD] = nid;
+			break;
+		case AC_JACK_AUX:
+			cfg->input_pins[AUTO_PIN_AUX] = nid;
+			break;
+		case AC_JACK_SPDIF_OUT:
+			cfg->dig_out_pin = nid;
+			break;
+		case AC_JACK_SPDIF_IN:
+			cfg->dig_in_pin = nid;
+			break;
+		}
+	}
+
+	/* sort by sequence */
+	for (i = 0; i < cfg->line_outs; i++)
+		for (j = i + 1; j < cfg->line_outs; j++)
+			if (sequences[i] > sequences[j]) {
+				seq = sequences[i];
+				sequences[i] = sequences[j];
+				sequences[j] = seq;
+				nid = cfg->line_out_pins[i];
+				cfg->line_out_pins[i] = cfg->line_out_pins[j];
+				cfg->line_out_pins[j] = nid;
+			}
+
+	/* Swap surround and CLFE: the association order is front/CLFE/surr/back */
+	if (cfg->line_outs >= 3) {
+		nid = cfg->line_out_pins[1];
+		cfg->line_out_pins[1] = cfg->line_out_pins[2];
+		cfg->line_out_pins[2] = nid;
+	}
+
 	return 0;
 }
 

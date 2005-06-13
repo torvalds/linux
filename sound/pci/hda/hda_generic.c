@@ -68,8 +68,8 @@ struct hda_gspec {
 /*
  * retrieve the default device type from the default config value
  */
-#define get_defcfg_type(node) (((node)->def_cfg & AC_DEFCFG_DEVICE) >> AC_DEFCFG_DEVICE_SHIFT)
-#define get_defcfg_location(node) (((node)->def_cfg & AC_DEFCFG_LOCATION) >> AC_DEFCFG_LOCATION_SHIFT)
+#define defcfg_type(node) (((node)->def_cfg & AC_DEFCFG_DEVICE) >> AC_DEFCFG_DEVICE_SHIFT)
+#define defcfg_location(node) (((node)->def_cfg & AC_DEFCFG_LOCATION) >> AC_DEFCFG_LOCATION_SHIFT)
 
 /*
  * destructor
@@ -323,7 +323,7 @@ static struct hda_gnode *parse_output_jack(struct hda_codec *codec,
 		if (! (node->pin_caps & AC_PINCAP_OUT))
 			continue;
 		if (jack_type >= 0) {
-			if (jack_type != get_defcfg_type(node))
+			if (jack_type != defcfg_type(node))
 				continue;
 			if (node->wid_caps & AC_WCAP_DIGITAL)
 				continue; /* skip SPDIF */
@@ -418,8 +418,8 @@ static int capture_source_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *uc
  */
 static const char *get_input_type(struct hda_gnode *node, unsigned int *pinctl)
 {
-	unsigned int location = get_defcfg_location(node);
-	switch (get_defcfg_type(node)) {
+	unsigned int location = defcfg_location(node);
+	switch (defcfg_type(node)) {
 	case AC_JACK_LINE_IN:
 		if ((location & 0x0f) == AC_JACK_LOC_FRONT)
 			return "Front Line";

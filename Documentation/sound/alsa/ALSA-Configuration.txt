@@ -638,6 +638,9 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  5stack-digout	5-jack in back, 2-jack in front, a SPDIF out
 	  w810		3-jack
 	  z71v		3-jack (HP shared SPDIF)
+	  asus		3-jack
+	  uniwill	3-jack
+	  F1734		2-jack
 
 	CMI9880
 	  minimal	3-jack in back
@@ -645,6 +648,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  full		6-jack in back, 2-jack in front
 	  full_dig	6-jack in back, 2-jack in front, SPDIF I/O
 	  allout	5-jack in back, 2-jack in front, SPDIF out
+	  auto		auto-config reading BIOS (default)
 
     Note 2: If you get click noises on output, try the module option
 	    position_fix=1 or 2.  position_fix=1 will use the SD_LPIB
