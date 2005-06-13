@@ -635,11 +635,17 @@ ia64_flush_fph (struct task_struct *task)
 {
 	struct ia64_psr *psr = ia64_psr(ia64_task_regs(task));
 
+	/*
+	 * Prevent migrating this task while
+	 * we're fiddling with the FPU state
+	 */
+	preempt_disable();
 	if (ia64_is_local_fpu_owner(task) && psr->mfh) {
 		psr->mfh = 0;
 		task->thread.flags |= IA64_THREAD_FPH_VALID;
 		ia64_save_fpu(&task->thread.fph[0]);
 	}
+	preempt_enable();
 }
 
 /*

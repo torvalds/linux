@@ -11,6 +11,23 @@
 #include <linux/string.h>
 #include <linux/ctype.h>
 
+extern __u32 __div64_32(unsigned long long *dividend, __u32 divisor);
+
+/* The unnecessary pointer compare is there
+ * to check for type safety (n must be 64bit)
+ */
+# define do_div(n,base) ({				\
+	__u32 __base = (base);			\
+	__u32 __rem;					\
+	(void)(((typeof((n)) *)0) == ((unsigned long long *)0));	\
+	if (((n) >> 32) == 0) {			\
+		__rem = (__u32)(n) % __base;		\
+		(n) = (__u32)(n) / __base;		\
+	} else 						\
+		__rem = __div64_32(&(n), __base);	\
+	__rem;						\
+ })
+
 int (*prom)(void *);
 
 void *chosen_handle;
@@ -352,7 +369,7 @@ static int skip_atoi(const char **s)
 #define SPECIAL	32		/* 0x */
 #define LARGE	64		/* use 'ABCDEF' instead of 'abcdef' */
 
-static char * number(char * str, long num, int base, int size, int precision, int type)
+static char * number(char * str, unsigned long long num, int base, int size, int precision, int type)
 {
 	char c,sign,tmp[66];
 	const char *digits="0123456789abcdefghijklmnopqrstuvwxyz";
@@ -367,9 +384,9 @@ static char * number(char * str, long num, int base, int size, int precision, in
 	c = (type & ZEROPAD) ? '0' : ' ';
 	sign = 0;
 	if (type & SIGN) {
-		if (num < 0) {
+		if ((signed long long)num < 0) {
 			sign = '-';
-			num = -num;
+			num = - (signed long long)num;
 			size--;
 		} else if (type & PLUS) {
 			sign = '+';
@@ -389,8 +406,7 @@ static char * number(char * str, long num, int base, int size, int precision, in
 	if (num == 0)
 		tmp[i++]='0';
 	else while (num != 0) {
-		tmp[i++] = digits[num % base];
-		num /= base;
+		tmp[i++] = digits[do_div(num, base)];
 	}
 	if (i > precision)
 		precision = i;
@@ -426,7 +442,7 @@ int sprintf(char * buf, const char *fmt, ...);
 int vsprintf(char *buf, const char *fmt, va_list args)
 {
 	int len;
-	unsigned long num;
+	unsigned long long num;
 	int i, base;
 	char * str;
 	const char *s;

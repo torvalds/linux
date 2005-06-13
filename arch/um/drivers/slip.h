@@ -12,8 +12,8 @@ struct slip_data {
 	char *addr;
 	char *gate_addr;
 	int slave;
-	char ibuf[ENC_BUF_SIZE];
-	char obuf[ENC_BUF_SIZE];
+	unsigned char ibuf[ENC_BUF_SIZE];
+	unsigned char obuf[ENC_BUF_SIZE];
 	int more; /* more data: do not read fd until ibuf has been drained */
 	int pos;
 	int esc;

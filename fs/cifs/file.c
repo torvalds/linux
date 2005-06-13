@@ -1365,6 +1365,8 @@ static void cifs_copy_cache_pages(struct address_space *mapping,
 				      GFP_KERNEL)) {
 			page_cache_release(page);
 			cFYI(1, ("Add page cache failed"));
+			data += PAGE_CACHE_SIZE;
+			bytes_read -= PAGE_CACHE_SIZE;
 			continue;
 		}
 

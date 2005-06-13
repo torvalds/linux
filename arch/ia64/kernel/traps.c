@@ -111,6 +111,24 @@ ia64_bad_break (unsigned long break_num, struct pt_regs *regs)
 	siginfo_t siginfo;
 	int sig, code;
 
+	/* break.b always sets cr.iim to 0, which causes problems for
+	 * debuggers.  Get the real break number from the original instruction,
+	 * but only for kernel code.  User space break.b is left alone, to
+	 * preserve the existing behaviour.  All break codings have the same
+	 * format, so there is no need to check the slot type.
+	 */
+	if (break_num == 0 && !user_mode(regs)) {
+		struct ia64_psr *ipsr = ia64_psr(regs);
+		unsigned long *bundle = (unsigned long *)regs->cr_iip;
+		unsigned long slot;
+		switch (ipsr->ri) {
+		      case 0:  slot = (bundle[0] >>  5); break;
+		      case 1:  slot = (bundle[0] >> 46) | (bundle[1] << 18); break;
+		      default: slot = (bundle[1] >> 23); break;
+		}
+		break_num = ((slot >> 36 & 1) << 20) | (slot >> 6 & 0xfffff);
+	}
+
 	/* SIGILL, SIGFPE, SIGSEGV, and SIGBUS want these field initialized: */
 	siginfo.si_addr = (void __user *) (regs->cr_iip + ia64_psr(regs)->ri);
 	siginfo.si_imm = break_num;
@@ -202,13 +220,21 @@ disabled_fph_fault (struct pt_regs *regs)
 
 	/* first, grant user-level access to fph partition: */
 	psr->dfh = 0;
+
+	/*
+	 * Make sure that no other task gets in on this processor
+	 * while we're claiming the FPU
+	 */
+	preempt_disable();
 #ifndef CONFIG_SMP
 	{
 		struct task_struct *fpu_owner
 			= (struct task_struct *)ia64_get_kr(IA64_KR_FPU_OWNER);
 
-		if (ia64_is_local_fpu_owner(current))
+		if (ia64_is_local_fpu_owner(current)) {
+			preempt_enable_no_resched();
 			return;
+		}
 
 		if (fpu_owner)
 			ia64_flush_fph(fpu_owner);
@@ -226,6 +252,7 @@ disabled_fph_fault (struct pt_regs *regs)
 		 */
 		psr->mfh = 1;
 	}
+	preempt_enable_no_resched();
 }
 
 static inline int

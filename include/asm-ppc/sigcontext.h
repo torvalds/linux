@@ -2,7 +2,7 @@
 #define _ASM_PPC_SIGCONTEXT_H
 
 #include <asm/ptrace.h>
-
+#include <linux/compiler.h>
 
 struct sigcontext {
 	unsigned long	_unused[4];

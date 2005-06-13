@@ -68,8 +68,11 @@ void new_thread_handler(int sig)
 	 * 0 if it just exits
 	 */
 	n = run_kernel_thread(fn, arg, &current->thread.exec_buf);
-	if(n == 1)
+	if(n == 1){
+		/* Handle any immediate reschedules or signals */
+		interrupt_end();
 		userspace(&current->thread.regs.regs);
+	}
 	else do_exit(0);
 }
 
@@ -96,6 +99,8 @@ void fork_handler(int sig)
 	schedule_tail(current->thread.prev_sched);
 	current->thread.prev_sched = NULL;
 
+	/* Handle any immediate reschedules or signals */
+	interrupt_end();
 	userspace(&current->thread.regs.regs);
 }
 

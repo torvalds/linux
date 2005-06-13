@@ -304,6 +304,15 @@ static void __init mainstone_map_io(void)
 	PWER  = 0xC0000002;
 	PRER  = 0x00000002;
 	PFER  = 0x00000002;
+ 	/*	for use I SRAM as framebuffer.	*/
+ 	PSLR |= 0xF04;
+ 	PCFR = 0x66;
+ 	/*	For Keypad wakeup.	*/
+ 	KPC &=~KPC_ASACT;
+ 	KPC |=KPC_AS;
+ 	PKWR  = 0x000FD000;
+ 	/*	Need read PKWR back after set it.	*/
+ 	PKWR;
 }
 
 MACHINE_START(MAINSTONE, "Intel HCDDBBVA0 Development Platform (aka Mainstone)")
