@@ -1753,7 +1753,10 @@ static void zfcp_ns_gid_pn_handler(unsigned long data)
 	ct_iu_req = zfcp_sg_to_address(ct->req);
 	ct_iu_resp = zfcp_sg_to_address(ct->resp);
 
-	if ((ct->status != 0) || zfcp_check_ct_response(&ct_iu_resp->header)) {
+	if (ct->status != 0)
+		goto failed;
+
+	if (zfcp_check_ct_response(&ct_iu_resp->header)) {
 		/* FIXME: do we need some specific erp entry points */
 		atomic_set_mask(ZFCP_STATUS_PORT_INVALID_WWPN, &port->status);
 		goto failed;
