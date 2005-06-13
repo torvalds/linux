@@ -1267,8 +1267,7 @@ zfcp_fsf_abort_fcp_command_handler(struct zfcp_fsf_req *new_fsf_req)
 		case FSF_SQ_INVOKE_LINK_TEST_PROCEDURE:
 			debug_text_event(new_fsf_req->adapter->erp_dbf, 1,
 					 "fsf_sq_ltest");
-			/* reopening link to port */
-			zfcp_erp_port_reopen(unit->port, 0);
+			zfcp_test_link(unit->port);
 			new_fsf_req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 			break;
 		case FSF_SQ_ULP_DEPENDENT_ERP_REQUIRED:
@@ -3125,7 +3124,7 @@ zfcp_fsf_open_unit_handler(struct zfcp_fsf_req *fsf_req)
 			/* Re-establish link to port */
 			debug_text_event(adapter->erp_dbf, 1,
 					 "fsf_sq_ltest");
-			zfcp_erp_port_reopen(unit->port, 0);
+			zfcp_test_link(unit->port);
 			fsf_req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 			break;
 		case FSF_SQ_ULP_DEPENDENT_ERP_REQUIRED:
@@ -3368,7 +3367,7 @@ zfcp_fsf_close_unit_handler(struct zfcp_fsf_req *fsf_req)
 			/* re-establish link to port */
 			debug_text_event(fsf_req->adapter->erp_dbf, 1,
 					 "fsf_sq_ltest");
-			zfcp_erp_port_reopen(unit->port, 0);
+			zfcp_test_link(unit->port);
 			fsf_req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 			break;
 		case FSF_SQ_ULP_DEPENDENT_ERP_REQUIRED:
@@ -3931,12 +3930,7 @@ zfcp_fsf_send_fcp_command_handler(struct zfcp_fsf_req *fsf_req)
 			/* re-establish link to port */
 			debug_text_event(fsf_req->adapter->erp_dbf, 1,
 					 "fsf_sq_ltest");
-			zfcp_erp_port_reopen(unit->port, 0);
-			zfcp_cmd_dbf_event_fsf(
-				"sqltest",
-				fsf_req,
-				&header->fsf_status_qual,
-				sizeof (union fsf_status_qual));
+ 			zfcp_test_link(unit->port);
 			fsf_req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 			break;
 		case FSF_SQ_ULP_DEPENDENT_ERP_REQUIRED:
@@ -3944,11 +3938,6 @@ zfcp_fsf_send_fcp_command_handler(struct zfcp_fsf_req *fsf_req)
 			/* let scsi stack deal with retries and escalation */
 			debug_text_event(fsf_req->adapter->erp_dbf, 1,
 					 "fsf_sq_ulp");
-			zfcp_cmd_dbf_event_fsf(
-				"sqdeperp",
-				fsf_req,
-				&header->fsf_status_qual,
-				sizeof (union fsf_status_qual));
 			fsf_req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 			break;
 		default:
