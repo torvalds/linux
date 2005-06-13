@@ -47,6 +47,10 @@ extern int SendReceive(const unsigned int /* xid */ , struct cifsSesInfo *,
 			struct smb_hdr * /* input */ ,
 			struct smb_hdr * /* out */ ,
 			int * /* bytes returned */ , const int long_op);
+extern int SendReceive2(const unsigned int /* xid */ , struct cifsSesInfo *,
+			struct smb_hdr * /* input */ , int hdr_len,
+			const char * /* SMB data to send */ , int data_len,
+			int * /* bytes returned */ , const int long_op);
 extern int checkSMBhdr(struct smb_hdr *smb, __u16 mid);
 extern int checkSMB(struct smb_hdr *smb, __u16 mid, int length);
 extern int is_valid_oplock_break(struct smb_hdr *smb);
@@ -222,7 +226,7 @@ extern int CIFSSMBWrite(const int xid, struct cifsTconInfo *tcon,
 extern int CIFSSMBWrite2(const int xid, struct cifsTconInfo *tcon,
 			const int netfid, const unsigned int count,
 			const __u64 offset, unsigned int *nbytes, 
-			const char __user *buf,const int long_op);
+			const char *buf,const int long_op);
 extern int CIFSGetSrvInodeNumber(const int xid, struct cifsTconInfo *tcon,
 			const unsigned char *searchName, __u64 * inode_number,
 			const struct nls_table *nls_codepage, 

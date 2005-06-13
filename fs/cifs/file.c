@@ -791,9 +791,8 @@ static ssize_t cifs_write(struct file *file, const char *write_data,
 
 	pTcon = cifs_sb->tcon;
 
-	/* cFYI(1,
-	   (" write %d bytes to offset %lld of %s", write_size,
-	   *poffset, file->f_dentry->d_name.name)); */
+	cFYI(1,(" write %d bytes to offset %lld of %s", write_size,
+	   *poffset, file->f_dentry->d_name.name)); /* BB removeme BB */
 
 	if (file->private_data == NULL)
 		return -EBADF;
@@ -846,7 +845,21 @@ static ssize_t cifs_write(struct file *file, const char *write_data,
 				if (rc != 0)
 					break;
 			}
-
+#ifdef CIFS_EXPERIMENTAL
+			/* BB FIXME We can not sign across two buffers yet */
+			cERROR(1,("checking signing")); /* BB removeme BB */
+			if(pTcon->ses->server->secMode & 
+			   (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED) == 0)
+				rc = CIFSSMBWrite2(xid, pTcon,
+						open_file->netfid,
+						min_t(const int, cifs_sb->wsize,
+						    write_size - total_written),
+						*poffset, &bytes_written,
+						write_data + total_written, 
+						long_op);
+			} else
+			/* BB FIXME fixup indentation of line below */
+#endif			
 			rc = CIFSSMBWrite(xid, pTcon,
 				 open_file->netfid,
 				 min_t(const int, cifs_sb->wsize, 
