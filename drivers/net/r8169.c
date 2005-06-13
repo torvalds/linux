@@ -415,7 +415,7 @@ struct rtl8169_private {
 	struct work_struct task;
 };
 
-MODULE_AUTHOR("Realtek and the Linux r8169 crew <netdev@oss.sgi.com>");
+MODULE_AUTHOR("Realtek and the Linux r8169 crew <netdev@vger.kernel.org>");
 MODULE_DESCRIPTION("RealTek RTL-8169 Gigabit Ethernet driver");
 module_param_array(media, int, &num_media, 0);
 module_param(rx_copybreak, int, 0);
