@@ -149,8 +149,10 @@ typedef u32 scsi_lun_t;
 #define FSF_QTCB_UNSOLICITED_STATUS		0x6305
 #define ZFCP_STATUS_READ_FAILED_THRESHOLD	3
 #define ZFCP_STATUS_READS_RECOM		        FSF_STATUS_READS_RECOM
-#define ZFCP_EXCHANGE_CONFIG_DATA_RETRIES	6
-#define ZFCP_EXCHANGE_CONFIG_DATA_SLEEP		50
+
+/* Do 1st retry in 1 second, then double the timeout for each following retry */
+#define ZFCP_EXCHANGE_CONFIG_DATA_FIRST_SLEEP	100
+#define ZFCP_EXCHANGE_CONFIG_DATA_RETRIES	7
 
 /* timeout value for "default timer" for fsf requests */
 #define ZFCP_FSF_REQUEST_TIMEOUT (60*HZ);

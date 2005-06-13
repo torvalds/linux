@@ -2286,12 +2286,12 @@ zfcp_erp_adapter_strategy_open_fsf_xconfig(struct zfcp_erp_action *erp_action)
 {
 	int retval = ZFCP_ERP_SUCCEEDED;
 	int retries;
+	int sleep = ZFCP_EXCHANGE_CONFIG_DATA_FIRST_SLEEP;
 	struct zfcp_adapter *adapter = erp_action->adapter;
 
 	atomic_clear_mask(ZFCP_STATUS_ADAPTER_XCONFIG_OK, &adapter->status);
-	retries = ZFCP_EXCHANGE_CONFIG_DATA_RETRIES;
 
-	do {
+	for (retries = ZFCP_EXCHANGE_CONFIG_DATA_RETRIES; retries; retries--) {
 		atomic_clear_mask(ZFCP_STATUS_ADAPTER_HOST_CON_INIT,
 				  &adapter->status);
 		ZFCP_LOG_DEBUG("Doing exchange config data\n");
@@ -2329,16 +2329,17 @@ zfcp_erp_adapter_strategy_open_fsf_xconfig(struct zfcp_erp_action *erp_action)
 				      zfcp_get_busid_by_adapter(adapter));
 			break;
 		}
-		if (atomic_test_mask(ZFCP_STATUS_ADAPTER_HOST_CON_INIT,
-				     &adapter->status)) {
-			ZFCP_LOG_DEBUG("host connection still initialising... "
-				       "waiting and retrying...\n");
-			/* sleep a little bit before retry */
-			msleep(jiffies_to_msecs(ZFCP_EXCHANGE_CONFIG_DATA_SLEEP));
-		}
-	} while ((retries--) &&
-		 atomic_test_mask(ZFCP_STATUS_ADAPTER_HOST_CON_INIT,
-				  &adapter->status));
+
+		if (!atomic_test_mask(ZFCP_STATUS_ADAPTER_HOST_CON_INIT,
+				     &adapter->status))
+			break;
+
+		ZFCP_LOG_DEBUG("host connection still initialising... "
+			       "waiting and retrying...\n");
+		/* sleep a little bit before retry */
+		msleep(jiffies_to_msecs(sleep));
+		sleep *= 2;
+	}
 
 	if (!atomic_test_mask(ZFCP_STATUS_ADAPTER_XCONFIG_OK,
 			      &adapter->status)) {
