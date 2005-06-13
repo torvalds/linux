@@ -881,7 +881,7 @@ static int __init tc_action_init(void)
 		link_p[RTM_GETACTION-RTM_BASE].dumpit = tc_dump_action;
 	}
 
-	printk("TC classifier action (bugs to netdev@oss.sgi.com cc "
+	printk("TC classifier action (bugs to netdev@vger.kernel.org cc "
 	       "hadi@cyberus.ca)\n");
 	return 0;
 }
