@@ -203,7 +203,7 @@ irqreturn_t dec_ecc_be_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	int action = dec_ecc_be_backend(regs, 0, 1);
 
 	if (action == MIPS_BE_DISCARD)
-		return IRQ_NONE;
+		return IRQ_HANDLED;
 
 	/*
 	 * FIXME: Find affected processes and kill them, otherwise we
