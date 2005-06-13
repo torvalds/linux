@@ -6,6 +6,7 @@
  * Synthesize TLB refill handlers at runtime.
  *
  * Copyright (C) 2004,2005 by Thiemo Seufer
+ * Copyright (C) 2005  Maciej W. Rozycki
  */
 
 #include <stdarg.h>
@@ -410,7 +411,6 @@ enum label_id {
 	label_nopage_tlbm,
 	label_smp_pgtable_change,
 	label_r3000_write_probe_fail,
-	label_r3000_write_probe_ok
 };
 
 struct label {
@@ -443,7 +443,6 @@ L_LA(_nopage_tlbs)
 L_LA(_nopage_tlbm)
 L_LA(_smp_pgtable_change)
 L_LA(_r3000_write_probe_fail)
-L_LA(_r3000_write_probe_ok)
 
 /* convenience macros for instructions */
 #ifdef CONFIG_64BIT
@@ -1414,34 +1413,41 @@ build_pte_modifiable(u32 **p, struct label **l, struct reloc **r,
  * R3000 style TLB load/store/modify handlers.
  */
 
-/* This places the pte in the page table at PTR into ENTRYLO0. */
+/*
+ * This places the pte into ENTRYLO0 and writes it with tlbwi.
+ * Then it returns.
+ */
 static void __init
-build_r3000_pte_reload(u32 **p, unsigned int ptr)
+build_r3000_pte_reload_tlbwi(u32 **p, unsigned int pte, unsigned int tmp)
 {
-	i_lw(p, ptr, 0, ptr);
-	i_nop(p); /* load delay */
-	i_mtc0(p, ptr, C0_ENTRYLO0);
-	i_nop(p); /* cp0 delay */
+	i_mtc0(p, pte, C0_ENTRYLO0); /* cp0 delay */
+	i_mfc0(p, tmp, C0_EPC); /* cp0 delay */
+	i_tlbwi(p);
+	i_jr(p, tmp);
+	i_rfe(p); /* branch delay */
 }
 
 /*
- * The index register may have the probe fail bit set,
- * because we would trap on access kseg2, i.e. without refill.
+ * This places the pte into ENTRYLO0 and writes it with tlbwi
+ * or tlbwr as appropriate.  This is because the index register
+ * may have the probe fail bit set as a result of a trap on a
+ * kseg2 access, i.e. without refill.  Then it returns.
  */
 static void __init
-build_r3000_tlb_write(u32 **p, struct label **l, struct reloc **r,
-		      unsigned int tmp)
+build_r3000_tlb_reload_write(u32 **p, struct label **l, struct reloc **r,
+			     unsigned int pte, unsigned int tmp)
 {
 	i_mfc0(p, tmp, C0_INDEX);
-	i_nop(p); /* cp0 delay */
-	il_bltz(p, r, tmp, label_r3000_write_probe_fail);
-	i_nop(p); /* branch delay */
-	i_tlbwi(p);
-	il_b(p, r, label_r3000_write_probe_ok);
-	i_nop(p); /* branch delay */
+	i_mtc0(p, pte, C0_ENTRYLO0); /* cp0 delay */
+	il_bltz(p, r, tmp, label_r3000_write_probe_fail); /* cp0 delay */
+	i_mfc0(p, tmp, C0_EPC); /* branch delay */
+	i_tlbwi(p); /* cp0 delay */
+	i_jr(p, tmp);
+	i_rfe(p); /* branch delay */
 	l_r3000_write_probe_fail(l, *p);
-	i_tlbwr(p);
-	l_r3000_write_probe_ok(l, *p);
+	i_tlbwr(p); /* cp0 delay */
+	i_jr(p, tmp);
+	i_rfe(p); /* branch delay */
 }
 
 static void __init
@@ -1461,17 +1467,7 @@ build_r3000_tlbchange_handler_head(u32 **p, unsigned int pte,
 	i_andi(p, pte, pte, 0xffc); /* load delay */
 	i_addu(p, ptr, ptr, pte);
 	i_lw(p, pte, 0, ptr);
-	i_nop(p); /* load delay */
-	i_tlbp(p);
-}
-
-static void __init
-build_r3000_tlbchange_handler_tail(u32 **p, unsigned int tmp)
-{
-	i_mfc0(p, tmp, C0_EPC);
-	i_nop(p); /* cp0 delay */
-	i_jr(p, tmp);
-	i_rfe(p); /* branch delay */
+	i_tlbp(p); /* load delay */
 }
 
 static void __init build_r3000_tlb_load_handler(void)
@@ -1488,9 +1484,7 @@ static void __init build_r3000_tlb_load_handler(void)
 	build_pte_present(&p, &l, &r, K0, K1, label_nopage_tlbl);
 	i_nop(&p); /* load delay */
 	build_make_valid(&p, &r, K0, K1);
-	build_r3000_pte_reload(&p, K1);
-	build_r3000_tlb_write(&p, &l, &r, K0);
-	build_r3000_tlbchange_handler_tail(&p, K0);
+	build_r3000_tlb_reload_write(&p, &l, &r, K0, K1);
 
 	l_nopage_tlbl(&l, p);
 	i_j(&p, (unsigned long)tlb_do_page_fault_0 & 0x0fffffff);
@@ -1530,9 +1524,7 @@ static void __init build_r3000_tlb_store_handler(void)
 	build_pte_writable(&p, &l, &r, K0, K1, label_nopage_tlbs);
 	i_nop(&p); /* load delay */
 	build_make_write(&p, &r, K0, K1);
-	build_r3000_pte_reload(&p, K1);
-	build_r3000_tlb_write(&p, &l, &r, K0);
-	build_r3000_tlbchange_handler_tail(&p, K0);
+	build_r3000_tlb_reload_write(&p, &l, &r, K0, K1);
 
 	l_nopage_tlbs(&l, p);
 	i_j(&p, (unsigned long)tlb_do_page_fault_1 & 0x0fffffff);
@@ -1572,9 +1564,7 @@ static void __init build_r3000_tlb_modify_handler(void)
 	build_pte_modifiable(&p, &l, &r, K0, K1, label_nopage_tlbm);
 	i_nop(&p); /* load delay */
 	build_make_write(&p, &r, K0, K1);
-	build_r3000_pte_reload(&p, K1);
-	i_tlbwi(&p);
-	build_r3000_tlbchange_handler_tail(&p, K0);
+	build_r3000_pte_reload_tlbwi(&p, K0, K1);
 
 	l_nopage_tlbm(&l, p);
 	i_j(&p, (unsigned long)tlb_do_page_fault_1 & 0x0fffffff);
