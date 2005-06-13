@@ -1228,7 +1228,7 @@ zfcp_fsf_abort_fcp_command_handler(struct zfcp_fsf_req *new_fsf_req)
 			      zfcp_get_busid_by_unit(unit));
 		debug_text_event(new_fsf_req->adapter->erp_dbf, 2,
 				 "fsf_s_pboxed");
-		zfcp_erp_port_reopen(unit->port, 0);
+		zfcp_erp_port_boxed(unit->port);
 		new_fsf_req->status |= ZFCP_STATUS_FSFREQ_ERROR
 		    | ZFCP_STATUS_FSFREQ_RETRY;
 		break;
@@ -1240,10 +1240,7 @@ zfcp_fsf_abort_fcp_command_handler(struct zfcp_fsf_req *new_fsf_req)
                         unit->fcp_lun, unit->port->wwpn,
                         zfcp_get_busid_by_unit(unit));
                 debug_text_event(new_fsf_req->adapter->erp_dbf, 1, "fsf_s_lboxed");
-                zfcp_erp_unit_reopen(unit, 0);
-                zfcp_cmd_dbf_event_fsf("unitbox", new_fsf_req,
-                        &new_fsf_req->qtcb->header.fsf_status_qual,
-                        sizeof(union fsf_status_qual));
+		zfcp_erp_unit_boxed(unit);
                 new_fsf_req->status |= ZFCP_STATUS_FSFREQ_ERROR
                         | ZFCP_STATUS_FSFREQ_RETRY;
                 break;
@@ -1573,7 +1570,7 @@ zfcp_fsf_send_ct_handler(struct zfcp_fsf_req *fsf_req)
 			      "(adapter %s, port d_id=0x%08x)\n",
 			      zfcp_get_busid_by_port(port), port->d_id);
 		debug_text_event(adapter->erp_dbf, 2, "fsf_s_pboxed");
-		zfcp_erp_port_reopen(port, 0);
+		zfcp_erp_port_boxed(port);
 		fsf_req->status |= ZFCP_STATUS_FSFREQ_ERROR
 		    | ZFCP_STATUS_FSFREQ_RETRY;
 		break;
@@ -2460,6 +2457,9 @@ zfcp_fsf_open_port_handler(struct zfcp_fsf_req *fsf_req)
 		/* mark port as open */
 		atomic_set_mask(ZFCP_STATUS_COMMON_OPEN |
 				ZFCP_STATUS_PORT_PHYS_OPEN, &port->status);
+		atomic_clear_mask(ZFCP_STATUS_COMMON_ACCESS_DENIED |
+		                  ZFCP_STATUS_COMMON_ACCESS_BOXED,
+		                  &port->status);
 		retval = 0;
 		/* check whether D_ID has changed during open */
 		/*
@@ -2803,7 +2803,7 @@ zfcp_fsf_close_physical_port_handler(struct zfcp_fsf_req *fsf_req)
 			       port->wwpn,
 			       zfcp_get_busid_by_port(port));
 		debug_text_event(fsf_req->adapter->erp_dbf, 1, "fsf_s_pboxed");
-		zfcp_erp_port_reopen(port, 0);
+		zfcp_erp_port_boxed(port);
 		fsf_req->status |= ZFCP_STATUS_FSFREQ_ERROR |
 			ZFCP_STATUS_FSFREQ_RETRY;
 		break;
@@ -3035,7 +3035,7 @@ zfcp_fsf_open_unit_handler(struct zfcp_fsf_req *fsf_req)
 			       "needs to be reopened\n",
 			       unit->port->wwpn, zfcp_get_busid_by_unit(unit));
 		debug_text_event(adapter->erp_dbf, 2, "fsf_s_pboxed");
-		zfcp_erp_port_reopen(unit->port, 0);
+		zfcp_erp_port_boxed(unit->port);
 		fsf_req->status |= ZFCP_STATUS_FSFREQ_ERROR |
 			ZFCP_STATUS_FSFREQ_RETRY;
 		break;
@@ -3145,7 +3145,9 @@ zfcp_fsf_open_unit_handler(struct zfcp_fsf_req *fsf_req)
 			       unit->handle);
 		/* mark unit as open */
 		atomic_set_mask(ZFCP_STATUS_COMMON_OPEN, &unit->status);
-
+		atomic_clear_mask(ZFCP_STATUS_COMMON_ACCESS_DENIED |
+		                  ZFCP_STATUS_COMMON_ACCESS_BOXED,
+		                  &unit->status);
 		if (adapter->supported_features & FSF_FEATURE_LUN_SHARING){
 			if (!exclusive)
 		                atomic_set_mask(ZFCP_STATUS_UNIT_SHARED,
@@ -3335,7 +3337,7 @@ zfcp_fsf_close_unit_handler(struct zfcp_fsf_req *fsf_req)
 			       unit->port->wwpn,
 			       zfcp_get_busid_by_unit(unit));
 		debug_text_event(fsf_req->adapter->erp_dbf, 2, "fsf_s_pboxed");
-		zfcp_erp_port_reopen(unit->port, 0);
+		zfcp_erp_port_boxed(unit->port);
 		fsf_req->status |= ZFCP_STATUS_FSFREQ_ERROR |
 			ZFCP_STATUS_FSFREQ_RETRY;
 		break;
@@ -3881,10 +3883,7 @@ zfcp_fsf_send_fcp_command_handler(struct zfcp_fsf_req *fsf_req)
 			       "needs to be reopened\n",
 			       unit->port->wwpn, zfcp_get_busid_by_unit(unit));
 		debug_text_event(fsf_req->adapter->erp_dbf, 2, "fsf_s_pboxed");
-		zfcp_erp_port_reopen(unit->port, 0);
-		zfcp_cmd_dbf_event_fsf("portbox", fsf_req,
-				       &header->fsf_status_qual,
-				       sizeof (union fsf_status_qual));
+		zfcp_erp_port_boxed(unit->port);
 		fsf_req->status |= ZFCP_STATUS_FSFREQ_ERROR |
 			ZFCP_STATUS_FSFREQ_RETRY;
 		break;
@@ -3895,10 +3894,7 @@ zfcp_fsf_send_fcp_command_handler(struct zfcp_fsf_req *fsf_req)
 				zfcp_get_busid_by_unit(unit),
 				unit->port->wwpn, unit->fcp_lun);
 		debug_text_event(fsf_req->adapter->erp_dbf, 1, "fsf_s_lboxed");
-		zfcp_erp_unit_reopen(unit, 0);
-		zfcp_cmd_dbf_event_fsf("unitbox", fsf_req,
-				       &header->fsf_status_qual,
-				       sizeof(union fsf_status_qual));
+		zfcp_erp_unit_boxed(unit);
 		fsf_req->status |= ZFCP_STATUS_FSFREQ_ERROR
 			| ZFCP_STATUS_FSFREQ_RETRY;
 		break;

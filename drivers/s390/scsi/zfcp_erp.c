@@ -3482,6 +3482,45 @@ zfcp_erp_action_to_ready(struct zfcp_erp_action *erp_action)
 }
 
 /*
+ * function:	zfcp_erp_port_boxed
+ *
+ * purpose:
+ */
+void
+zfcp_erp_port_boxed(struct zfcp_port *port)
+{
+	struct zfcp_adapter *adapter = port->adapter;
+	unsigned long flags;
+
+	debug_text_event(adapter->erp_dbf, 3, "p_access_boxed");
+	debug_event(adapter->erp_dbf, 3, &port->wwpn, sizeof(wwn_t));
+	read_lock_irqsave(&zfcp_data.config_lock, flags);
+	zfcp_erp_modify_port_status(port,
+			ZFCP_STATUS_COMMON_ACCESS_BOXED,
+			ZFCP_SET);
+	read_unlock_irqrestore(&zfcp_data.config_lock, flags);
+	zfcp_erp_port_reopen(port, ZFCP_STATUS_COMMON_ERP_FAILED);
+}
+
+/*
+ * function:	zfcp_erp_unit_boxed
+ *
+ * purpose:
+ */
+void
+zfcp_erp_unit_boxed(struct zfcp_unit *unit)
+{
+	struct zfcp_adapter *adapter = unit->port->adapter;
+
+	debug_text_event(adapter->erp_dbf, 3, "u_access_boxed");
+	debug_event(adapter->erp_dbf, 3, &unit->fcp_lun, sizeof(fcp_lun_t));
+	zfcp_erp_modify_unit_status(unit,
+			ZFCP_STATUS_COMMON_ACCESS_BOXED,
+			ZFCP_SET);
+	zfcp_erp_unit_reopen(unit, ZFCP_STATUS_COMMON_ERP_FAILED);
+}
+
+/*
  * function:	zfcp_erp_port_access_denied
  *
  * purpose:
@@ -3492,11 +3531,13 @@ zfcp_erp_port_access_denied(struct zfcp_port *port)
 	struct zfcp_adapter *adapter = port->adapter;
 	unsigned long flags;
 
-	debug_text_event(adapter->erp_dbf, 3, "p_access_block");
+	debug_text_event(adapter->erp_dbf, 3, "p_access_denied");
 	debug_event(adapter->erp_dbf, 3, &port->wwpn, sizeof(wwn_t));
 	read_lock_irqsave(&zfcp_data.config_lock, flags);
-	zfcp_erp_modify_port_status(port, ZFCP_STATUS_COMMON_ERP_FAILED |
-				    ZFCP_STATUS_COMMON_ACCESS_DENIED, ZFCP_SET);
+	zfcp_erp_modify_port_status(port,
+			ZFCP_STATUS_COMMON_ERP_FAILED |
+			ZFCP_STATUS_COMMON_ACCESS_DENIED,
+			ZFCP_SET);
 	read_unlock_irqrestore(&zfcp_data.config_lock, flags);
 }
 
@@ -3510,10 +3551,12 @@ zfcp_erp_unit_access_denied(struct zfcp_unit *unit)
 {
 	struct zfcp_adapter *adapter = unit->port->adapter;
 
-	debug_text_event(adapter->erp_dbf, 3, "u_access_block");
+	debug_text_event(adapter->erp_dbf, 3, "u_access_denied");
 	debug_event(adapter->erp_dbf, 3, &unit->fcp_lun, sizeof(fcp_lun_t));
-	zfcp_erp_modify_unit_status(unit, ZFCP_STATUS_COMMON_ERP_FAILED |
-				    ZFCP_STATUS_COMMON_ACCESS_DENIED, ZFCP_SET);
+	zfcp_erp_modify_unit_status(unit,
+			ZFCP_STATUS_COMMON_ERP_FAILED |
+			ZFCP_STATUS_COMMON_ACCESS_DENIED,
+			ZFCP_SET);
 }
 
 /*
@@ -3527,7 +3570,7 @@ zfcp_erp_adapter_access_changed(struct zfcp_adapter *adapter)
 	struct zfcp_port *port;
 	unsigned long flags;
 
-	debug_text_event(adapter->erp_dbf, 3, "a_access_unblock");
+	debug_text_event(adapter->erp_dbf, 3, "a_access_recover");
 	debug_event(adapter->erp_dbf, 3, &adapter->name, 8);
 
 	read_lock_irqsave(&zfcp_data.config_lock, flags);
@@ -3550,10 +3593,12 @@ zfcp_erp_port_access_changed(struct zfcp_port *port)
 	struct zfcp_adapter *adapter = port->adapter;
 	struct zfcp_unit *unit;
 
-	debug_text_event(adapter->erp_dbf, 3, "p_access_unblock");
+	debug_text_event(adapter->erp_dbf, 3, "p_access_recover");
 	debug_event(adapter->erp_dbf, 3, &port->wwpn, sizeof(wwn_t));
 
 	if (!atomic_test_mask(ZFCP_STATUS_COMMON_ACCESS_DENIED,
+			      &port->status) &&
+	    !atomic_test_mask(ZFCP_STATUS_COMMON_ACCESS_BOXED,
 			      &port->status)) {
 		if (!atomic_test_mask(ZFCP_STATUS_PORT_WKA, &port->status))
 			list_for_each_entry(unit, &port->unit_list_head, list)
@@ -3580,10 +3625,13 @@ zfcp_erp_unit_access_changed(struct zfcp_unit *unit)
 {
 	struct zfcp_adapter *adapter = unit->port->adapter;
 
-	debug_text_event(adapter->erp_dbf, 3, "u_access_unblock");
+	debug_text_event(adapter->erp_dbf, 3, "u_access_recover");
 	debug_event(adapter->erp_dbf, 3, &unit->fcp_lun, sizeof(fcp_lun_t));
 
-	if (!atomic_test_mask(ZFCP_STATUS_COMMON_ACCESS_DENIED, &unit->status))
+	if (!atomic_test_mask(ZFCP_STATUS_COMMON_ACCESS_DENIED,
+			      &unit->status) &&
+	    !atomic_test_mask(ZFCP_STATUS_COMMON_ACCESS_BOXED,
+			      &unit->status))
 		return;
 
 	ZFCP_LOG_NORMAL("reopen of unit 0x%016Lx on port 0x%016Lx "
