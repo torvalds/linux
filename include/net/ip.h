@@ -163,6 +163,7 @@ DECLARE_SNMP_STAT(struct linux_mib, net_statistics);
 
 extern int sysctl_local_port_range[2];
 extern int sysctl_ip_default_ttl;
+extern int sysctl_ip_nonlocal_bind;
 
 #ifdef CONFIG_INET
 /* The function in 2.2 was invalid, producing wrong result for
