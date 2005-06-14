@@ -2211,8 +2211,9 @@ static int __devinit check_dxs_list(struct pci_dev *pci)
 	 * not detected, try 48k rate only to be sure.
 	 */
 	printk(KERN_INFO "via82xx: Assuming DXS channels with 48k fixed sample rate.\n");
-	printk(KERN_INFO "         Please try dxs_support=1 or dxs_support=4 option\n");
+	printk(KERN_INFO "         Please try dxs_support=5 option\n");
 	printk(KERN_INFO "         and report if it works on your machine.\n");
+	printk(KERN_INFO "         For more details, read ALSA-Configuration.txt.\n");
 	return VIA_DXS_48K;
 };
 
