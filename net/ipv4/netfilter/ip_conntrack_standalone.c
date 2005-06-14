@@ -256,6 +256,7 @@ static void *exp_seq_next(struct seq_file *s, void *v, loff_t *pos)
 {
  	struct list_head *e = v;
 
+	++*pos;
 	e = e->next;
 
 	if (e == &ip_conntrack_expect_list)
