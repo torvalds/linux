@@ -3289,7 +3289,7 @@ static void snd_usb_audio_disconnect(struct usb_device *dev, void *ptr)
 		}
 		usb_chip[chip->index] = NULL;
 		up(&register_mutex);
-		snd_card_free_in_thread(card);
+		snd_card_free(card);
 	} else {
 		up(&register_mutex);
 	}
