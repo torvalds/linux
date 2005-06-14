@@ -621,20 +621,35 @@ ahc_linux_target_alloc(struct scsi_target *starget)
 	memset(targ, 0, sizeof(*targ));
 
 	if (sc) {
-		if ((ahc->features & AHC_ULTRA2) != 0) {
-			scsirate = sc->device_flags[target_offset] & CFXFER;
-		} else {
-			scsirate = (sc->device_flags[target_offset] & CFXFER) << 4;
-			if (sc->device_flags[target_offset] & CFSYNCH)
-				scsirate |= SOFS;
+		int maxsync = AHC_SYNCRATE_DT;
+		int ultra = 0;
+		int flags = sc->device_flags[target_offset];
+
+		if (ahc->flags & AHC_NEWEEPROM_FMT) {
+		    if (flags & CFSYNCHISULTRA)
+			ultra = 1;
+		} else if (flags & CFULTRAEN)
+			ultra = 1;
+		/* AIC nutcase; 10MHz appears as ultra = 1, CFXFER = 0x04
+		 * change it to ultra=0, CFXFER = 0 */
+		if(ultra && (flags & CFXFER) == 0x04) {
+			ultra = 0;
+			flags &= ~CFXFER;
 		}
-		if (sc->device_flags[target_offset] & CFWIDEB) {
-			scsirate |= WIDEXFER;
-			spi_max_width(starget) = 1;
-		} else
-			spi_max_width(starget) = 0;
+	    
+		if ((ahc->features & AHC_ULTRA2) != 0) {
+			scsirate = (flags & CFXFER) | (ultra ? 0x8 : 0);
+		} else {
+			scsirate = (flags & CFXFER) << 4;
+			maxsync = ultra ? AHC_SYNCRATE_ULTRA : 
+				AHC_SYNCRATE_FAST;
+		}
+		spi_max_width(starget) = (flags & CFWIDEB) ? 1 : 0;
+		if (!(flags & CFSYNCH))
+			spi_max_offset(starget) = 0;
 		spi_min_period(starget) = 
-			ahc_find_period(ahc, scsirate, AHC_SYNCRATE_DT);
+			ahc_find_period(ahc, scsirate, maxsync);
+
 		tinfo = ahc_fetch_transinfo(ahc, channel, ahc->our_id,
 					    starget->id, &tstate);
 	}
