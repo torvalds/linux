@@ -176,6 +176,7 @@ static inline unsigned long __xchg_u32(volatile int * m, unsigned int val)
 		unsigned long dummy;
 
 		__asm__ __volatile__(
+		"	.set	mips2					\n"
 		"1:	ll	%0, %3			# xchg_u32	\n"
 		"	move	%2, %z4					\n"
 		"	sc	%2, %1					\n"
@@ -184,6 +185,7 @@ static inline unsigned long __xchg_u32(volatile int * m, unsigned int val)
 #ifdef CONFIG_SMP
 		"	sync						\n"
 #endif
+		"	.set	mips0					\n"
 		: "=&r" (retval), "=m" (*m), "=&r" (dummy)
 		: "R" (*m), "Jr" (val)
 		: "memory");
@@ -191,6 +193,7 @@ static inline unsigned long __xchg_u32(volatile int * m, unsigned int val)
 		unsigned long dummy;
 
 		__asm__ __volatile__(
+		"	.set	mips2					\n"
 		"1:	ll	%0, %3			# xchg_u32	\n"
 		"	move	%2, %z4					\n"
 		"	sc	%2, %1					\n"
@@ -198,6 +201,7 @@ static inline unsigned long __xchg_u32(volatile int * m, unsigned int val)
 #ifdef CONFIG_SMP
 		"	sync						\n"
 #endif
+		"	.set	mips0					\n"
 		: "=&r" (retval), "=m" (*m), "=&r" (dummy)
 		: "R" (*m), "Jr" (val)
 		: "memory");
@@ -222,6 +226,7 @@ static inline __u64 __xchg_u64(volatile __u64 * m, __u64 val)
 		unsigned long dummy;
 
 		__asm__ __volatile__(
+		"	.set	mips3					\n"
 		"1:	lld	%0, %3			# xchg_u64	\n"
 		"	move	%2, %z4					\n"
 		"	scd	%2, %1					\n"
@@ -230,6 +235,7 @@ static inline __u64 __xchg_u64(volatile __u64 * m, __u64 val)
 #ifdef CONFIG_SMP
 		"	sync						\n"
 #endif
+		"	.set	mips0					\n"
 		: "=&r" (retval), "=m" (*m), "=&r" (dummy)
 		: "R" (*m), "Jr" (val)
 		: "memory");
@@ -237,6 +243,7 @@ static inline __u64 __xchg_u64(volatile __u64 * m, __u64 val)
 		unsigned long dummy;
 
 		__asm__ __volatile__(
+		"	.set	mips3					\n"
 		"1:	lld	%0, %3			# xchg_u64	\n"
 		"	move	%2, %z4					\n"
 		"	scd	%2, %1					\n"
@@ -244,6 +251,7 @@ static inline __u64 __xchg_u64(volatile __u64 * m, __u64 val)
 #ifdef CONFIG_SMP
 		"	sync						\n"
 #endif
+		"	.set	mips0					\n"
 		: "=&r" (retval), "=m" (*m), "=&r" (dummy)
 		: "R" (*m), "Jr" (val)
 		: "memory");
@@ -291,7 +299,9 @@ static inline unsigned long __cmpxchg_u32(volatile int * m, unsigned long old,
 
 	if (cpu_has_llsc && R10000_LLSC_WAR) {
 		__asm__ __volatile__(
+		"	.set	push					\n"
 		"	.set	noat					\n"
+		"	.set	mips2					\n"
 		"1:	ll	%0, %2			# __cmpxchg_u32	\n"
 		"	bne	%0, %z3, 2f				\n"
 		"	move	$1, %z4					\n"
@@ -302,13 +312,15 @@ static inline unsigned long __cmpxchg_u32(volatile int * m, unsigned long old,
 		"	sync						\n"
 #endif
 		"2:							\n"
-		"	.set	at					\n"
+		"	.set	pop					\n"
 		: "=&r" (retval), "=m" (*m)
 		: "R" (*m), "Jr" (old), "Jr" (new)
 		: "memory");
 	} else if (cpu_has_llsc) {
 		__asm__ __volatile__(
+		"	.set	push					\n"
 		"	.set	noat					\n"
+		"	.set	mips2					\n"
 		"1:	ll	%0, %2			# __cmpxchg_u32	\n"
 		"	bne	%0, %z3, 2f				\n"
 		"	move	$1, %z4					\n"
@@ -318,7 +330,7 @@ static inline unsigned long __cmpxchg_u32(volatile int * m, unsigned long old,
 		"	sync						\n"
 #endif
 		"2:							\n"
-		"	.set	at					\n"
+		"	.set	pop					\n"
 		: "=&r" (retval), "=m" (*m)
 		: "R" (*m), "Jr" (old), "Jr" (new)
 		: "memory");
@@ -343,7 +355,9 @@ static inline unsigned long __cmpxchg_u64(volatile int * m, unsigned long old,
 
 	if (cpu_has_llsc) {
 		__asm__ __volatile__(
+		"	.set	push					\n"
 		"	.set	noat					\n"
+		"	.set	mips3					\n"
 		"1:	lld	%0, %2			# __cmpxchg_u64	\n"
 		"	bne	%0, %z3, 2f				\n"
 		"	move	$1, %z4					\n"
@@ -354,13 +368,15 @@ static inline unsigned long __cmpxchg_u64(volatile int * m, unsigned long old,
 		"	sync						\n"
 #endif
 		"2:							\n"
-		"	.set	at					\n"
+		"	.set	pop					\n"
 		: "=&r" (retval), "=m" (*m)
 		: "R" (*m), "Jr" (old), "Jr" (new)
 		: "memory");
 	} else if (cpu_has_llsc) {
 		__asm__ __volatile__(
+		"	.set	push					\n"
 		"	.set	noat					\n"
+		"	.set	mips2					\n"
 		"1:	lld	%0, %2			# __cmpxchg_u64	\n"
 		"	bne	%0, %z3, 2f				\n"
 		"	move	$1, %z4					\n"
@@ -370,7 +386,7 @@ static inline unsigned long __cmpxchg_u64(volatile int * m, unsigned long old,
 		"	sync						\n"
 #endif
 		"2:							\n"
-		"	.set	at					\n"
+		"	.set	pop					\n"
 		: "=&r" (retval), "=m" (*m)
 		: "R" (*m), "Jr" (old), "Jr" (new)
 		: "memory");

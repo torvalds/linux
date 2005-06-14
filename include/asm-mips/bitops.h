@@ -18,14 +18,16 @@
 #if (_MIPS_SZLONG == 32)
 #define SZLONG_LOG 5
 #define SZLONG_MASK 31UL
-#define __LL	"ll	"
-#define __SC	"sc	"
+#define __LL		"ll	"
+#define __SC		"sc	"
+#define __SET_MIPS	".set	mips2	"
 #define cpu_to_lelongp(x) cpu_to_le32p((__u32 *) (x))
 #elif (_MIPS_SZLONG == 64)
 #define SZLONG_LOG 6
 #define SZLONG_MASK 63UL
-#define __LL	"lld	"
-#define __SC	"scd	"
+#define __LL		"lld	"
+#define __SC		"scd	"
+#define __SET_MIPS	".set	mips3	"
 #define cpu_to_lelongp(x) cpu_to_le64p((__u64 *) (x))
 #endif
 
@@ -72,18 +74,22 @@ static inline void set_bit(unsigned long nr, volatile unsigned long *addr)
 
 	if (cpu_has_llsc && R10000_LLSC_WAR) {
 		__asm__ __volatile__(
+		"	" __SET_MIPS "					\n"
 		"1:	" __LL "%0, %1			# set_bit	\n"
 		"	or	%0, %2					\n"
-		"	"__SC	"%0, %1					\n"
+		"	" __SC	"%0, %1					\n"
 		"	beqzl	%0, 1b					\n"
+		"	.set	mips0					\n"
 		: "=&r" (temp), "=m" (*m)
 		: "ir" (1UL << (nr & SZLONG_MASK)), "m" (*m));
 	} else if (cpu_has_llsc) {
 		__asm__ __volatile__(
+		"	" __SET_MIPS "					\n"
 		"1:	" __LL "%0, %1			# set_bit	\n"
 		"	or	%0, %2					\n"
-		"	"__SC	"%0, %1					\n"
+		"	" __SC	"%0, %1					\n"
 		"	beqz	%0, 1b					\n"
+		"	.set	mips0					\n"
 		: "=&r" (temp), "=m" (*m)
 		: "ir" (1UL << (nr & SZLONG_MASK)), "m" (*m));
 	} else {
@@ -132,18 +138,22 @@ static inline void clear_bit(unsigned long nr, volatile unsigned long *addr)
 
 	if (cpu_has_llsc && R10000_LLSC_WAR) {
 		__asm__ __volatile__(
+		"	" __SET_MIPS "					\n"
 		"1:	" __LL "%0, %1			# clear_bit	\n"
 		"	and	%0, %2					\n"
 		"	" __SC "%0, %1					\n"
 		"	beqzl	%0, 1b					\n"
+		"	.set	mips0					\n"
 		: "=&r" (temp), "=m" (*m)
 		: "ir" (~(1UL << (nr & SZLONG_MASK))), "m" (*m));
 	} else if (cpu_has_llsc) {
 		__asm__ __volatile__(
+		"	" __SET_MIPS "					\n"
 		"1:	" __LL "%0, %1			# clear_bit	\n"
 		"	and	%0, %2					\n"
 		"	" __SC "%0, %1					\n"
 		"	beqz	%0, 1b					\n"
+		"	.set	mips0					\n"
 		: "=&r" (temp), "=m" (*m)
 		: "ir" (~(1UL << (nr & SZLONG_MASK))), "m" (*m));
 	} else {
@@ -191,10 +201,12 @@ static inline void change_bit(unsigned long nr, volatile unsigned long *addr)
 		unsigned long temp;
 
 		__asm__ __volatile__(
+		"	" __SET_MIPS "				\n"
 		"1:	" __LL "%0, %1		# change_bit	\n"
 		"	xor	%0, %2				\n"
-		"	"__SC	"%0, %1				\n"
+		"	" __SC	"%0, %1				\n"
 		"	beqzl	%0, 1b				\n"
+		"	.set	mips0				\n"
 		: "=&r" (temp), "=m" (*m)
 		: "ir" (1UL << (nr & SZLONG_MASK)), "m" (*m));
 	} else if (cpu_has_llsc) {
@@ -202,10 +214,12 @@ static inline void change_bit(unsigned long nr, volatile unsigned long *addr)
 		unsigned long temp;
 
 		__asm__ __volatile__(
+		"	" __SET_MIPS "				\n"
 		"1:	" __LL "%0, %1		# change_bit	\n"
 		"	xor	%0, %2				\n"
-		"	"__SC	"%0, %1				\n"
+		"	" __SC	"%0, %1				\n"
 		"	beqz	%0, 1b				\n"
+		"	.set	mips0				\n"
 		: "=&r" (temp), "=m" (*m)
 		: "ir" (1UL << (nr & SZLONG_MASK)), "m" (*m));
 	} else {
@@ -253,14 +267,16 @@ static inline int test_and_set_bit(unsigned long nr,
 		unsigned long temp, res;
 
 		__asm__ __volatile__(
+		"	" __SET_MIPS "					\n"
 		"1:	" __LL "%0, %1		# test_and_set_bit	\n"
 		"	or	%2, %0, %3				\n"
 		"	" __SC	"%2, %1					\n"
 		"	beqzl	%2, 1b					\n"
 		"	and	%2, %0, %3				\n"
 #ifdef CONFIG_SMP
-		"sync							\n"
+		"	sync						\n"
 #endif
+		"	.set	mips0					\n"
 		: "=&r" (temp), "=m" (*m), "=&r" (res)
 		: "r" (1UL << (nr & SZLONG_MASK)), "m" (*m)
 		: "memory");
@@ -271,16 +287,18 @@ static inline int test_and_set_bit(unsigned long nr,
 		unsigned long temp, res;
 
 		__asm__ __volatile__(
-		"	.set	noreorder	# test_and_set_bit	\n"
-		"1:	" __LL "%0, %1					\n"
+		"	.set	push					\n"
+		"	.set	noreorder				\n"
+		"	" __SET_MIPS "					\n"
+		"1:	" __LL "%0, %1		# test_and_set_bit	\n"
 		"	or	%2, %0, %3				\n"
 		"	" __SC	"%2, %1					\n"
 		"	beqz	%2, 1b					\n"
 		"	 and	%2, %0, %3				\n"
 #ifdef CONFIG_SMP
-		"sync							\n"
+		"	sync						\n"
 #endif
-		".set\treorder"
+		"	.set	pop					\n"
 		: "=&r" (temp), "=m" (*m), "=&r" (res)
 		: "r" (1UL << (nr & SZLONG_MASK)), "m" (*m)
 		: "memory");
@@ -343,15 +361,17 @@ static inline int test_and_clear_bit(unsigned long nr,
 		unsigned long temp, res;
 
 		__asm__ __volatile__(
+		"	" __SET_MIPS "					\n"
 		"1:	" __LL	"%0, %1		# test_and_clear_bit	\n"
 		"	or	%2, %0, %3				\n"
 		"	xor	%2, %3					\n"
-			__SC 	"%2, %1					\n"
+		"	" __SC 	"%2, %1					\n"
 		"	beqzl	%2, 1b					\n"
 		"	and	%2, %0, %3				\n"
 #ifdef CONFIG_SMP
 		"	sync						\n"
 #endif
+		"	.set	mips0					\n"
 		: "=&r" (temp), "=m" (*m), "=&r" (res)
 		: "r" (1UL << (nr & SZLONG_MASK)), "m" (*m)
 		: "memory");
@@ -362,17 +382,19 @@ static inline int test_and_clear_bit(unsigned long nr,
 		unsigned long temp, res;
 
 		__asm__ __volatile__(
-		"	.set	noreorder	# test_and_clear_bit	\n"
-		"1:	" __LL	"%0, %1					\n"
+		"	.set	push					\n"
+		"	.set	noreorder				\n"
+		"	" __SET_MIPS "					\n"
+		"1:	" __LL	"%0, %1		# test_and_clear_bit	\n"
 		"	or	%2, %0, %3				\n"
 		"	xor	%2, %3					\n"
-			__SC 	"%2, %1					\n"
+		"	" __SC 	"%2, %1					\n"
 		"	beqz	%2, 1b					\n"
 		"	 and	%2, %0, %3				\n"
 #ifdef CONFIG_SMP
 		"	sync						\n"
 #endif
-		"	.set	reorder					\n"
+		"	.set	pop					\n"
 		: "=&r" (temp), "=m" (*m), "=&r" (res)
 		: "r" (1UL << (nr & SZLONG_MASK)), "m" (*m)
 		: "memory");
@@ -435,14 +457,16 @@ static inline int test_and_change_bit(unsigned long nr,
 		unsigned long temp, res;
 
 		__asm__ __volatile__(
-		"1:	" __LL	" %0, %1	# test_and_change_bit	\n"
+		"	" __SET_MIPS "					\n"
+		"1:	" __LL	"%0, %1		# test_and_change_bit	\n"
 		"	xor	%2, %0, %3				\n"
-		"	"__SC	"%2, %1					\n"
+		"	" __SC	"%2, %1					\n"
 		"	beqzl	%2, 1b					\n"
 		"	and	%2, %0, %3				\n"
 #ifdef CONFIG_SMP
 		"	sync						\n"
 #endif
+		"	.set	mips0					\n"
 		: "=&r" (temp), "=m" (*m), "=&r" (res)
 		: "r" (1UL << (nr & SZLONG_MASK)), "m" (*m)
 		: "memory");
@@ -453,16 +477,18 @@ static inline int test_and_change_bit(unsigned long nr,
 		unsigned long temp, res;
 
 		__asm__ __volatile__(
-		"	.set	noreorder	# test_and_change_bit	\n"
-		"1:	" __LL	" %0, %1				\n"
+		"	.set	push					\n"
+		"	.set	noreorder				\n"
+		"	" __SET_MIPS "					\n"
+		"1:	" __LL	"%0, %1		# test_and_change_bit	\n"
 		"	xor	%2, %0, %3				\n"
-		"	"__SC	"\t%2, %1				\n"
+		"	" __SC	"\t%2, %1				\n"
 		"	beqz	%2, 1b					\n"
 		"	 and	%2, %0, %3				\n"
 #ifdef CONFIG_SMP
 		"	sync						\n"
 #endif
-		"	.set	reorder					\n"
+		"	.set	pop					\n"
 		: "=&r" (temp), "=m" (*m), "=&r" (res)
 		: "r" (1UL << (nr & SZLONG_MASK)), "m" (*m)
 		: "memory");
