@@ -6,7 +6,7 @@
  *   
  *  Copyright (C) 2004 Thomas Gleixner (tglx@linutronix.de)
  *
- * $Id: nand_bbt.c,v 1.31 2005/02/16 17:09:36 dedekind Exp $
+ * $Id: nand_bbt.c,v 1.33 2005/06/14 15:47:56 gleixner Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -80,14 +80,14 @@ static int check_pattern (uint8_t *buf, int len, int paglen, struct nand_bbt_des
 	int i, end = 0;
 	uint8_t *p = buf;
 
+	end = paglen + td->offs;
 	if (td->options & NAND_BBT_SCANEMPTY) {
-		end = paglen + td->offs;
 		for (i = 0; i < end; i++) {
 			if (p[i] != 0xff)
 				return -1;
 		}
-		p += end;
 	}	
+	p += end;
 	
 	/* Compare the pattern */
 	for (i = 0; i < td->len; i++) {
@@ -102,6 +102,32 @@ static int check_pattern (uint8_t *buf, int len, int paglen, struct nand_bbt_des
 			if (*p++ != 0xff)
 				return -1;
 		}
+	}
+	return 0;
+}
+
+/** 
+ * check_short_pattern - [GENERIC] check if a pattern is in the buffer
+ * @buf:	the buffer to search
+ * @len:	the length of buffer to search
+ * @paglen:	the pagelength
+ * @td:		search pattern descriptor
+ *
+ * Check for a pattern at the given place. Used to search bad block
+ * tables and good / bad block identifiers. Same as check_pattern, but 
+ * no optional empty check and the pattern is expected to start
+ * at offset 0.
+ *
+*/
+static int check_short_pattern (uint8_t *buf, int len, int paglen, struct nand_bbt_descr *td)
+{
+	int i;
+	uint8_t *p = buf;
+
+	/* Compare the pattern */
+	for (i = 0; i < td->len; i++) {
+		if (p[i] != td->pattern[i])
+			return -1;
 	}
 	return 0;
 }
@@ -316,18 +342,25 @@ static int create_bbt (struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_descr
 							readlen, &retlen, &buf[0]);
 				if (ret)
 					return ret;
-			}
-			if (check_pattern (&buf[j * scanlen], scanlen, mtd->oobblock, bd)) {
-				this->bbt[i >> 3] |= 0x03 << (i & 0x6);
-				printk (KERN_WARNING "Bad eraseblock %d at 0x%08x\n", 
-					i >> 1, (unsigned int) from);
-				break;
+
+				if (check_short_pattern (&buf[j * scanlen], scanlen, mtd->oobblock, bd)) {
+					this->bbt[i >> 3] |= 0x03 << (i & 0x6);
+					printk (KERN_WARNING "Bad eraseblock %d at 0x%08x\n", 
+						i >> 1, (unsigned int) from);
+					break;
+				}
+			} else {
+				if (check_pattern (&buf[j * scanlen], scanlen, mtd->oobblock, bd)) {
+					this->bbt[i >> 3] |= 0x03 << (i & 0x6);
+					printk (KERN_WARNING "Bad eraseblock %d at 0x%08x\n", 
+						i >> 1, (unsigned int) from);
+					break;
+				}
 			}
 		}
 		i += 2;
 		from += (1 << this->bbt_erase_shift);
 	}
-
 	return 0;
 }
 
