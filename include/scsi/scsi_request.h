@@ -54,6 +54,9 @@ extern void scsi_do_req(struct scsi_request *, const void *cmnd,
 			void *buffer, unsigned bufflen,
 			void (*done) (struct scsi_cmnd *),
 			int timeout, int retries);
+extern int scsi_execute_req(struct scsi_device *sdev, unsigned char *cmd,
+			    int data_direction, void *buffer, unsigned bufflen,
+			    unsigned char *sense, int timeout, int retries);
 
 struct scsi_mode_data {
 	__u32	length;

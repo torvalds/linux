@@ -246,7 +246,7 @@ void scsi_wait_req(struct scsi_request *sreq, const void *cmnd, void *buffer,
 		   unsigned bufflen, int timeout, int retries)
 {
 	DECLARE_COMPLETION(wait);
-	int write = sreq->sr_data_direction == DMA_TO_DEVICE;
+	int write = (sreq->sr_data_direction == DMA_TO_DEVICE);
 	struct request *req;
 
 	req = blk_get_request(sreq->sr_device->request_queue, write,
@@ -280,6 +280,55 @@ void scsi_wait_req(struct scsi_request *sreq, const void *cmnd, void *buffer,
 }
 
 EXPORT_SYMBOL(scsi_wait_req);
+
+/**
+ * scsi_execute_req - insert request and wait for the result
+ * @sdev:	scsi device
+ * @cmd:	scsi command
+ * @data_direction: data direction
+ * @buffer:	data buffer
+ * @bufflen:	len of buffer
+ * @sense:	optional sense buffer
+ * @timeout:	request timeout in seconds
+ * @retries:	number of times to retry request
+ *
+ * scsi_execute_req returns the req->errors value which is the
+ * the scsi_cmnd result field.
+ **/
+int scsi_execute_req(struct scsi_device *sdev, unsigned char *cmd,
+		     int data_direction, void *buffer, unsigned bufflen,
+		     unsigned char *sense, int timeout, int retries)
+{
+	struct request *req;
+	int write = (data_direction == DMA_TO_DEVICE);
+	int ret = DRIVER_ERROR << 24;
+
+	req = blk_get_request(sdev->request_queue, write, __GFP_WAIT);
+
+	if (bufflen &&	blk_rq_map_kern(sdev->request_queue, req,
+					buffer, bufflen, __GFP_WAIT))
+		goto out;
+
+	req->cmd_len = COMMAND_SIZE(cmd[0]);
+	memcpy(req->cmd, cmd, req->cmd_len);
+	req->sense = sense;
+	req->sense_len = 0;
+	req->timeout = timeout;
+	req->flags |= REQ_BLOCK_PC | REQ_SPECIAL;
+
+	/*
+	 * head injection *required* here otherwise quiesce won't work
+	 */
+	blk_execute_rq(req->q, NULL, req, 1);
+
+	ret = req->errors;
+ out:
+	blk_put_request(req);
+
+	return ret;
+}
+
+EXPORT_SYMBOL(scsi_execute_req);
 
 /*
  * Function:    scsi_init_cmd_errh()
