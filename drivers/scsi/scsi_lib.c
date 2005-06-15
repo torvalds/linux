@@ -246,15 +246,18 @@ void scsi_wait_req(struct scsi_request *sreq, const void *cmnd, void *buffer,
 		   unsigned bufflen, int timeout, int retries)
 {
 	DECLARE_COMPLETION(wait);
+	int write = sreq->sr_data_direction == DMA_TO_DEVICE;
 	struct request *req;
 
-	if (bufflen)
-		req = blk_rq_map_kern(sreq->sr_device->request_queue,
-				      sreq->sr_data_direction == DMA_TO_DEVICE,
-				      buffer, bufflen, __GFP_WAIT);
-	else
-		req = blk_get_request(sreq->sr_device->request_queue, READ,
-				      __GFP_WAIT);
+	req = blk_get_request(sreq->sr_device->request_queue, write,
+			      __GFP_WAIT);
+	if (bufflen && blk_rq_map_kern(sreq->sr_device->request_queue, req,
+				       buffer, bufflen, __GFP_WAIT)) {
+		sreq->sr_result = DRIVER_ERROR << 24;
+		blk_put_request(req);
+		return;
+	}
+
 	req->flags |= REQ_NOMERGE;
 	req->waiting = &wait;
 	req->end_io = scsi_wait_req_end_io;
