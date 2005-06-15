@@ -6,6 +6,10 @@ config 64BIT
 	bool
 	default y
 
+config TOP_ADDR
+ 	hex
+	default 0x80000000
+
 config 3_LEVEL_PGTABLES
        bool
        default y

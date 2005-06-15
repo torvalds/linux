@@ -9,7 +9,7 @@
  *
  * Authors:	Original taken from Berkeley UNIX 4.3, (c) UCB 1986-1988
  *		Portions taken from the KA9Q/NOS (v2.00m PA0GRI) source.
- *		Ross Biro, <bir7@leland.Stanford.Edu>
+ *		Ross Biro
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *		Florian La Roche,
  *		Jonathan Layes <layes@loran.com>

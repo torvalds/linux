@@ -32,9 +32,32 @@ MODULE_LICENSE("GPL");
 static struct i2c_driver driver;
 static struct i2c_client client_template;
 
+enum saa6752hs_videoformat {
+	SAA6752HS_VF_D1 = 0,    /* standard D1 video format: 720x576 */
+	SAA6752HS_VF_2_3_D1 = 1,/* 2/3D1 video format: 480x576 */
+	SAA6752HS_VF_1_2_D1 = 2,/* 1/2D1 video format: 352x576 */
+	SAA6752HS_VF_SIF = 3,   /* SIF video format: 352x288 */
+	SAA6752HS_VF_UNKNOWN,
+};
+
+static const struct v4l2_format v4l2_format_table[] =
+{
+	[SAA6752HS_VF_D1] = {
+		.fmt = { .pix = { .width = 720, .height = 576 }, }, },
+	[SAA6752HS_VF_2_3_D1] = {
+		.fmt = { .pix = { .width = 480, .height = 576 }, }, },
+	[SAA6752HS_VF_1_2_D1] = {
+		.fmt = { .pix = { .width = 352, .height = 576 }, }, },
+	[SAA6752HS_VF_SIF] = {
+		.fmt = { .pix = { .width = 352, .height = 288 }, }, },
+	[SAA6752HS_VF_UNKNOWN] = {
+		.fmt = { .pix = { .width = 0, .height = 0 }, }, },
+};
+
 struct saa6752hs_state {
 	struct i2c_client             client;
 	struct v4l2_mpeg_compression  params;
+	enum saa6752hs_videoformat    video_format;
 };
 
 enum saa6752hs_command {
@@ -256,6 +279,51 @@ static int saa6752hs_set_bitrate(struct i2c_client* client,
 	return 0;
 }
 
+static void saa6752hs_set_subsampling(struct i2c_client* client,
+				      struct v4l2_format* f)
+{
+	struct saa6752hs_state *h = i2c_get_clientdata(client);
+	int dist_352, dist_480, dist_720;
+
+	/*
+	  FIXME: translate and round width/height into EMPRESS
+	  subsample type:
+
+	  type   |   PAL   |  NTSC
+	  ---------------------------
+	  SIF    | 352x288 | 352x240
+	  1/2 D1 | 352x576 | 352x480
+	  2/3 D1 | 480x576 | 480x480
+	  D1     | 720x576 | 720x480
+	*/
+
+	dist_352 = abs(f->fmt.pix.width - 352);
+	dist_480 = abs(f->fmt.pix.width - 480);
+	dist_720 = abs(f->fmt.pix.width - 720);
+	if (dist_720 < dist_480) {
+		f->fmt.pix.width = 720;
+		f->fmt.pix.height = 576;
+		h->video_format = SAA6752HS_VF_D1;
+	}
+	else if (dist_480 < dist_352) {
+		f->fmt.pix.width = 480;
+		f->fmt.pix.height = 576;
+		h->video_format = SAA6752HS_VF_2_3_D1;
+	}
+	else {
+		f->fmt.pix.width = 352;
+		if (abs(f->fmt.pix.height - 576) <
+		    abs(f->fmt.pix.height - 288)) {
+			f->fmt.pix.height = 576;
+			h->video_format = SAA6752HS_VF_1_2_D1;
+		}
+		else {
+			f->fmt.pix.height = 288;
+			h->video_format = SAA6752HS_VF_SIF;
+		}
+	}
+}
+
 
 static void saa6752hs_set_params(struct i2c_client* client,
 				 struct v4l2_mpeg_compression* params)
@@ -315,7 +383,7 @@ static int saa6752hs_init(struct i2c_client* client)
 
 	// Set video format - must be done first as it resets other settings
 	buf[0] = 0x41;
-	buf[1] = 0 /* MPEG_VIDEO_FORMAT_D1 */;
+	buf[1] = h->video_format;
 	i2c_master_send(client, buf, 2);
 
         // set bitrate
@@ -494,6 +562,25 @@ saa6752hs_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	case VIDIOC_G_MPEGCOMP:
 		*params = h->params;
 		break;
+	case VIDIOC_G_FMT:
+	{
+           struct v4l2_format *f = arg;
+
+	   if (h->video_format == SAA6752HS_VF_UNKNOWN)
+		   h->video_format = SAA6752HS_VF_D1;
+	   f->fmt.pix.width =
+		   v4l2_format_table[h->video_format].fmt.pix.width;
+	   f->fmt.pix.height =
+		   v4l2_format_table[h->video_format].fmt.pix.height;
+	   break ;
+	}
+	case VIDIOC_S_FMT:
+	{
+		struct v4l2_format *f = arg;
+
+		saa6752hs_set_subsampling(client, f);
+		break;
+	}
 	default:
 		/* nothing */
 		break;

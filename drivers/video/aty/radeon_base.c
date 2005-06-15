@@ -2374,10 +2374,9 @@ static int radeonfb_pci_register (struct pci_dev *pdev,
 	} while (   rinfo->fb_base == 0 &&
 		  ((rinfo->mapped_vram /=2) >= MIN_MAPPED_VRAM) );
 
-	if (rinfo->fb_base)
-		memset_io(rinfo->fb_base, 0, rinfo->mapped_vram);
-	else {
-		printk (KERN_ERR "radeonfb (%s): cannot map FB\n", pci_name(rinfo->pdev));
+	if (rinfo->fb_base == NULL) {
+		printk (KERN_ERR "radeonfb (%s): cannot map FB\n",
+			pci_name(rinfo->pdev));
 		ret = -EIO;
 		goto err_unmap_rom;
 	}

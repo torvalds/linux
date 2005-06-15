@@ -320,8 +320,7 @@ static void native_flush_hash_range(unsigned long context,
 
 	j = 0;
 	for (i = 0; i < number; i++) {
-		if ((batch->addr[i] >= USER_START) &&
-		    (batch->addr[i] <= USER_END))
+		if (batch->addr[i] < KERNELBASE)
 			vsid = get_vsid(context, batch->addr[i]);
 		else
 			vsid = get_kernel_vsid(batch->addr[i]);

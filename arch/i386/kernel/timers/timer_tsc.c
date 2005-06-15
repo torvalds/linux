@@ -320,6 +320,26 @@ core_initcall(cpufreq_tsc);
 static inline void cpufreq_delayed_get(void) { return; }
 #endif 
 
+int recalibrate_cpu_khz(void)
+{
+#ifndef CONFIG_SMP
+	unsigned long cpu_khz_old = cpu_khz;
+
+	if (cpu_has_tsc) {
+		init_cpu_khz();
+		cpu_data[0].loops_per_jiffy =
+		    cpufreq_scale(cpu_data[0].loops_per_jiffy,
+			          cpu_khz_old,
+				  cpu_khz);
+		return 0;
+	} else
+		return -ENODEV;
+#else
+	return -ENODEV;
+#endif
+}
+EXPORT_SYMBOL(recalibrate_cpu_khz);
+
 static void mark_offset_tsc(void)
 {
 	unsigned long lost,delay;

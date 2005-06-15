@@ -197,7 +197,7 @@ static void
 sa1100_rx_chars(struct sa1100_port *sport, struct pt_regs *regs)
 {
 	struct tty_struct *tty = sport->port.info->tty;
-	unsigned int status, ch, flg, ignored = 0;
+	unsigned int status, ch, flg;
 
 	status = UTSR1_TO_SM(UART_GET_UTSR1(sport)) |
 		 UTSR0_TO_SM(UART_GET_UTSR0(sport));
@@ -237,10 +237,7 @@ sa1100_rx_chars(struct sa1100_port *sport, struct pt_regs *regs)
 		if (uart_handle_sysrq_char(&sport->port, ch, regs))
 			goto ignore_char;
 
-		if ((status & port->ignore_status_mask & ~UTSR1_TO_SM(UTSR1_ROR)) == 0)
-			tty_insert_flip_char(tty, ch, flg);
-		if (status & ~port->ignore_status_mask & UTSR1_TO_SM(UTSR1_ROR))
-			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+		uart_insert_char(&sport->port, status, UTSR1_TO_SM(UTSR1_ROR), ch, flg);
 
 	ignore_char:
 		status = UTSR1_TO_SM(UART_GET_UTSR1(sport)) |

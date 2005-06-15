@@ -8,6 +8,8 @@
 
 #include "expr.h"
 
+#include <libintl.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -22,6 +24,12 @@ extern "C" {
 #undef P
 
 #define SRCTREE "srctree"
+
+#define PACKAGE "linux"
+#define LOCALEDIR "/usr/share/locale"
+
+#define _(text) gettext(text)
+#define N_(text) (text)
 
 int zconfparse(void);
 void zconfdump(FILE *out);

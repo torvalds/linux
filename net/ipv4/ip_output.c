@@ -7,7 +7,7 @@
  *
  * Version:	$Id: ip_output.c,v 1.100 2002/02/01 22:01:03 davem Exp $
  *
- * Authors:	Ross Biro, <bir7@leland.Stanford.Edu>
+ * Authors:	Ross Biro
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *		Donald Becker, <becker@super.org>
  *		Alan Cox, <Alan.Cox@linux.org>
@@ -490,6 +490,14 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff*))
 			/* Partially cloned skb? */
 			if (skb_shared(frag))
 				goto slow_path;
+
+			BUG_ON(frag->sk);
+			if (skb->sk) {
+				sock_hold(skb->sk);
+				frag->sk = skb->sk;
+				frag->destructor = sock_wfree;
+				skb->truesize -= frag->truesize;
+			}
 		}
 
 		/* Everything is OK. Generate! */

@@ -257,13 +257,13 @@ static int putreg(struct task_struct *child,
 			value &= 0xffff;
 			return 0;
 		case offsetof(struct user_regs_struct,fs_base):
-			if (!((value >> 48) == 0 || (value >> 48) == 0xffff))
-				return -EIO; 
+			if (value >= TASK_SIZE)
+				return -EIO;
 			child->thread.fs = value;
 			return 0;
 		case offsetof(struct user_regs_struct,gs_base):
-			if (!((value >> 48) == 0 || (value >> 48) == 0xffff))
-				return -EIO; 
+			if (value >= TASK_SIZE)
+				return -EIO;
 			child->thread.gs = value;
 			return 0;
 		case offsetof(struct user_regs_struct, eflags):
@@ -276,6 +276,11 @@ static int putreg(struct task_struct *child,
 			if ((value & 3) != 3)
 				return -EIO;
 			value &= 0xffff;
+			break;
+		case offsetof(struct user_regs_struct, rip):
+			/* Check if the new RIP address is canonical */
+			if (value >= TASK_SIZE)
+				return -EIO;
 			break;
 	}
 	put_stack_long(child, regno - sizeof(struct pt_regs), value);
@@ -375,7 +380,7 @@ asmlinkage long sys_ptrace(long request, long pid, unsigned long addr, long data
 			break;
 
 		switch (addr) { 
-		case 0 ... sizeof(struct user_regs_struct):
+		case 0 ... sizeof(struct user_regs_struct) - sizeof(long):
 			tmp = getreg(child, addr);
 			break;
 		case offsetof(struct user, u_debugreg[0]):
@@ -420,7 +425,7 @@ asmlinkage long sys_ptrace(long request, long pid, unsigned long addr, long data
 			break;
 
 		switch (addr) { 
-		case 0 ... sizeof(struct user_regs_struct): 
+		case 0 ... sizeof(struct user_regs_struct) - sizeof(long):
 			ret = putreg(child, addr, data);
 			break;
 		/* Disallows to set a breakpoint into the vsyscall */
@@ -635,20 +640,29 @@ asmlinkage void syscall_trace_enter(struct pt_regs *regs)
 	/* do the secure computing check first */
 	secure_computing(regs->orig_rax);
 
-	if (unlikely(current->audit_context))
-		audit_syscall_entry(current, regs->orig_rax,
-				    regs->rdi, regs->rsi,
-				    regs->rdx, regs->r10);
-
 	if (test_thread_flag(TIF_SYSCALL_TRACE)
 	    && (current->ptrace & PT_PTRACED))
 		syscall_trace(regs);
+
+	if (unlikely(current->audit_context)) {
+		if (test_thread_flag(TIF_IA32)) {
+			audit_syscall_entry(current, AUDIT_ARCH_I386,
+					    regs->orig_rax,
+					    regs->rbx, regs->rcx,
+					    regs->rdx, regs->rsi);
+		} else {
+			audit_syscall_entry(current, AUDIT_ARCH_X86_64,
+					    regs->orig_rax,
+					    regs->rdi, regs->rsi,
+					    regs->rdx, regs->r10);
+		}
+	}
 }
 
 asmlinkage void syscall_trace_leave(struct pt_regs *regs)
 {
 	if (unlikely(current->audit_context))
-		audit_syscall_exit(current, regs->rax);
+		audit_syscall_exit(current, AUDITSC_RESULT(regs->rax), regs->rax);
 
 	if ((test_thread_flag(TIF_SYSCALL_TRACE)
 	     || test_thread_flag(TIF_SINGLESTEP))

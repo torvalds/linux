@@ -1210,7 +1210,7 @@ grow_buffers(struct block_device *bdev, sector_t block, int size)
 	return 1;
 }
 
-struct buffer_head *
+static struct buffer_head *
 __getblk_slow(struct block_device *bdev, sector_t block, int size)
 {
 	/* Size must be multiple of hard sectorsize */
@@ -1809,7 +1809,6 @@ static int __block_write_full_page(struct inode *inode, struct page *page,
 	} while (bh != head);
 
 	do {
-		get_bh(bh);
 		if (!buffer_mapped(bh))
 			continue;
 		/*
@@ -1838,7 +1837,6 @@ static int __block_write_full_page(struct inode *inode, struct page *page,
 	 */
 	BUG_ON(PageWriteback(page));
 	set_page_writeback(page);
-	unlock_page(page);
 
 	do {
 		struct buffer_head *next = bh->b_this_page;
@@ -1846,9 +1844,9 @@ static int __block_write_full_page(struct inode *inode, struct page *page,
 			submit_bh(WRITE, bh);
 			nr_underway++;
 		}
-		put_bh(bh);
 		bh = next;
 	} while (bh != head);
+	unlock_page(page);
 
 	err = 0;
 done:
@@ -1887,7 +1885,6 @@ recover:
 	bh = head;
 	/* Recovery: lock and submit the mapped buffers */
 	do {
-		get_bh(bh);
 		if (buffer_mapped(bh) && buffer_dirty(bh)) {
 			lock_buffer(bh);
 			mark_buffer_async_write(bh);
@@ -1910,7 +1907,6 @@ recover:
 			submit_bh(WRITE, bh);
 			nr_underway++;
 		}
-		put_bh(bh);
 		bh = next;
 	} while (bh != head);
 	goto done;
@@ -1953,7 +1949,7 @@ static int __block_prepare_write(struct inode *inode, struct page *page,
 		if (!buffer_mapped(bh)) {
 			err = get_block(inode, block, bh, 1);
 			if (err)
-				goto out;
+				break;
 			if (buffer_new(bh)) {
 				clear_buffer_new(bh);
 				unmap_underlying_metadata(bh->b_bdev,
@@ -1995,10 +1991,12 @@ static int __block_prepare_write(struct inode *inode, struct page *page,
 	while(wait_bh > wait) {
 		wait_on_buffer(*--wait_bh);
 		if (!buffer_uptodate(*wait_bh))
-			return -EIO;
+			err = -EIO;
 	}
-	return 0;
-out:
+	if (!err)
+		return err;
+
+	/* Error case: */
 	/*
 	 * Zero out any newly allocated blocks to avoid exposing stale
 	 * data.  If BH_New is set, we know that the block was newly
@@ -2096,9 +2094,12 @@ int block_read_full_page(struct page *page, get_block_t *get_block)
 			continue;
 
 		if (!buffer_mapped(bh)) {
+			int err = 0;
+
 			fully_mapped = 0;
 			if (iblock < lblock) {
-				if (get_block(inode, iblock, bh, 0))
+				err = get_block(inode, iblock, bh, 0);
+				if (err)
 					SetPageError(page);
 			}
 			if (!buffer_mapped(bh)) {
@@ -2106,7 +2107,8 @@ int block_read_full_page(struct page *page, get_block_t *get_block)
 				memset(kaddr + i * blocksize, 0, blocksize);
 				flush_dcache_page(page);
 				kunmap_atomic(kaddr, KM_USER0);
-				set_buffer_uptodate(bh);
+				if (!err)
+					set_buffer_uptodate(bh);
 				continue;
 			}
 			/*
@@ -3115,7 +3117,7 @@ void __init buffer_init(void)
 
 	bh_cachep = kmem_cache_create("buffer_head",
 			sizeof(struct buffer_head), 0,
-			SLAB_PANIC, init_buffer_head, NULL);
+			SLAB_RECLAIM_ACCOUNT|SLAB_PANIC, init_buffer_head, NULL);
 
 	/*
 	 * Limit the bh occupancy to 10% of ZONE_NORMAL

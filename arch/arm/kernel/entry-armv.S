@@ -17,8 +17,8 @@
 
 #include <asm/glue.h>
 #include <asm/vfpmacros.h>
-#include <asm/hardware.h>		@ should be moved into entry-macro.S
-#include <asm/arch/irqs.h>		@ should be moved into entry-macro.S
+#include <asm/hardware.h>		/* should be moved into entry-macro.S */
+#include <asm/arch/irqs.h>		/* should be moved into entry-macro.S */
 #include <asm/arch/entry-macro.S>
 
 #include "entry-header.S"
@@ -269,7 +269,7 @@ __pabt_svc:
 	add	r5, sp, #S_PC
 	ldmia	r7, {r2 - r4}			@ Get USR pc, cpsr
 
-#if __LINUX_ARM_ARCH__ < 6
+#if __LINUX_ARM_ARCH__ < 6 && !defined(CONFIG_NEEDS_SYSCALL_FOR_CMPXCHG)
 	@ make sure our user space atomic helper is aborted
 	cmp	r2, #VIRT_OFFSET
 	bichs	r3, r3, #PSR_Z_BIT
@@ -505,9 +505,9 @@ ENTRY(__switch_to)
 	mra	r4, r5, acc0
 	stmia   ip, {r4, r5}
 #endif
-#ifdef CONFIG_HAS_TLS_REG
+#if defined(CONFIG_HAS_TLS_REG)
 	mcr	p15, 0, r3, c13, c0, 3		@ set TLS register
-#else
+#elif !defined(CONFIG_TLS_REG_EMUL)
 	mov	r4, #0xffff0fff
 	str	r3, [r4, #-15]			@ TLS val at 0xffff0ff0
 #endif
@@ -616,11 +616,17 @@ __kuser_helper_start:
 
 __kuser_cmpxchg:				@ 0xffff0fc0
 
-#if __LINUX_ARM_ARCH__ < 6
+#if defined(CONFIG_NEEDS_SYSCALL_FOR_CMPXCHG)
 
-#ifdef CONFIG_SMP  /* sanity check */
-#error "CONFIG_SMP on a machine supporting pre-ARMv6 processors?"
-#endif
+	/*
+	 * Poor you.  No fast solution possible...
+	 * The kernel itself must perform the operation.
+	 * A special ghost syscall is used for that (see traps.c).
+	 */
+	swi	#0x9ffff0
+	mov	pc, lr
+
+#elif __LINUX_ARM_ARCH__ < 6
 
 	/*
 	 * Theory of operation:
@@ -690,11 +696,7 @@ __kuser_cmpxchg:				@ 0xffff0fc0
 
 __kuser_get_tls:				@ 0xffff0fe0
 
-#ifndef CONFIG_HAS_TLS_REG
-
-#ifdef CONFIG_SMP  /* sanity check */
-#error "CONFIG_SMP without CONFIG_HAS_TLS_REG is wrong"
-#endif
+#if !defined(CONFIG_HAS_TLS_REG) && !defined(CONFIG_TLS_REG_EMUL)
 
 	ldr	r0, [pc, #(16 - 8)]		@ TLS stored at 0xffff0ff0
 	mov	pc, lr

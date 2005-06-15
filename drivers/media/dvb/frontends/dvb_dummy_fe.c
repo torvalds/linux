@@ -100,7 +100,7 @@ static int dvb_dummy_fe_set_voltage(struct dvb_frontend* fe, fe_sec_voltage_t vo
 
 static void dvb_dummy_fe_release(struct dvb_frontend* fe)
 {
-	struct dvb_dummy_fe_state* state = (struct dvb_dummy_fe_state*) fe->demodulator_priv;
+	struct dvb_dummy_fe_state* state = fe->demodulator_priv;
 	kfree(state);
 }
 
@@ -111,7 +111,7 @@ struct dvb_frontend* dvb_dummy_fe_ofdm_attach(void)
 	struct dvb_dummy_fe_state* state = NULL;
 
 	/* allocate memory for the internal state */
-	state = (struct dvb_dummy_fe_state*) kmalloc(sizeof(struct dvb_dummy_fe_state), GFP_KERNEL);
+	state = kmalloc(sizeof(struct dvb_dummy_fe_state), GFP_KERNEL);
 	if (state == NULL) goto error;
 
 	/* setup the state */
@@ -134,7 +134,7 @@ struct dvb_frontend* dvb_dummy_fe_qpsk_attach()
 	struct dvb_dummy_fe_state* state = NULL;
 
 	/* allocate memory for the internal state */
-	state = (struct dvb_dummy_fe_state*) kmalloc(sizeof(struct dvb_dummy_fe_state), GFP_KERNEL);
+	state = kmalloc(sizeof(struct dvb_dummy_fe_state), GFP_KERNEL);
 	if (state == NULL) goto error;
 
 	/* setup the state */
@@ -157,7 +157,7 @@ struct dvb_frontend* dvb_dummy_fe_qam_attach()
 	struct dvb_dummy_fe_state* state = NULL;
 
 	/* allocate memory for the internal state */
-	state = (struct dvb_dummy_fe_state*) kmalloc(sizeof(struct dvb_dummy_fe_state), GFP_KERNEL);
+	state = kmalloc(sizeof(struct dvb_dummy_fe_state), GFP_KERNEL);
 	if (state == NULL) goto error;
 
 	/* setup the state */

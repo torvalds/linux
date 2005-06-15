@@ -41,9 +41,6 @@
  *
  ***************************************************************************/
 
-static char ixj_c_rcsid[] = "$Id: ixj.c,v 4.7 2001/08/13 06:19:33 craigs Exp $";
-static char ixj_c_revision[] = "$Revision: 4.7 $";
-
 /*
  * $Log: ixj.c,v $
  *
@@ -6172,8 +6169,14 @@ static int ixj_ioctl(struct inode *inode, struct file *file_p, unsigned int cmd,
 		retval = j->serial;
 		break;
 	case IXJCTL_VERSION:
-		if (copy_to_user(argp, ixj_c_revision, strlen(ixj_c_revision))) 
-			retval = -EFAULT;
+		{
+			char arg_str[100];
+			snprintf(arg_str, sizeof(arg_str),
+				"\nDriver version %i.%i.%i", IXJ_VER_MAJOR,
+				IXJ_VER_MINOR, IXJ_BLD_VER);
+			if (copy_to_user(argp, arg_str, strlen(arg_str)))
+				retval = -EFAULT;
+		}
 		break;
 	case PHONE_RING_CADENCE:
 		j->ring_cadence = arg;
@@ -7168,9 +7171,6 @@ static int ixj_get_status_proc(char *buf)
 	int cnt;
 	IXJ *j;
 	len = 0;
-	len += sprintf(buf + len, "%s", ixj_c_rcsid);
-	len += sprintf(buf + len, "\n%s", ixj_h_rcsid);
-	len += sprintf(buf + len, "\n%s", ixjuser_h_rcsid);
 	len += sprintf(buf + len, "\nDriver version %i.%i.%i", IXJ_VER_MAJOR, IXJ_VER_MINOR, IXJ_BLD_VER);
 	len += sprintf(buf + len, "\nsizeof IXJ struct %Zd bytes", sizeof(IXJ));
 	len += sprintf(buf + len, "\nsizeof DAA struct %Zd bytes", sizeof(DAA_REGS));
@@ -7790,7 +7790,7 @@ static int __init ixj_init(void)
 	if ((probe = ixj_probe_pci(&cnt)) < 0) {
 		return probe;
 	}
-	printk("%s\n", ixj_c_rcsid);
+	printk(KERN_INFO "ixj driver initialized.\n");
 	create_proc_read_entry ("ixj", 0, NULL, ixj_read_proc, NULL);
 	return probe;
 }

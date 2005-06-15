@@ -27,9 +27,10 @@ extern void map(int fd, unsigned long virt, unsigned long len, int r, int w,
 extern int unmap(int fd, void *addr, unsigned long len);
 extern int protect(int fd, unsigned long addr, unsigned long len, 
 		   int r, int w, int x);
-extern void user_signal(int sig, union uml_pt_regs *regs);
+extern void user_signal(int sig, union uml_pt_regs *regs, int pid);
 extern int new_mm(int from);
 extern void start_userspace(int cpu);
+extern void get_skas_faultinfo(int pid, struct faultinfo * fi);
 extern long execute_syscall_skas(void *r);
 
 #endif

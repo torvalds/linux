@@ -40,6 +40,7 @@
 #include <asm/pgalloc.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
+#include <asm/unistd.h>
 
 #ifdef CONFIG_S390_SUPPORT
 #include "compat_ptrace.h"
@@ -130,13 +131,19 @@ static int
 peek_user(struct task_struct *child, addr_t addr, addr_t data)
 {
 	struct user *dummy = NULL;
-	addr_t offset, tmp;
+	addr_t offset, tmp, mask;
 
 	/*
 	 * Stupid gdb peeks/pokes the access registers in 64 bit with
 	 * an alignment of 4. Programmers from hell...
 	 */
-	if ((addr & 3) || addr > sizeof(struct user) - __ADDR_MASK)
+	mask = __ADDR_MASK;
+#ifdef CONFIG_ARCH_S390X
+	if (addr >= (addr_t) &dummy->regs.acrs &&
+	    addr < (addr_t) &dummy->regs.orig_gpr2)
+		mask = 3;
+#endif
+	if ((addr & mask) || addr > sizeof(struct user) - __ADDR_MASK)
 		return -EIO;
 
 	if (addr < (addr_t) &dummy->regs.acrs) {
@@ -153,6 +160,16 @@ peek_user(struct task_struct *child, addr_t addr, addr_t data)
 		 * access registers are stored in the thread structure
 		 */
 		offset = addr - (addr_t) &dummy->regs.acrs;
+#ifdef CONFIG_ARCH_S390X
+		/*
+		 * Very special case: old & broken 64 bit gdb reading
+		 * from acrs[15]. Result is a 64 bit value. Read the
+		 * 32 bit acrs[15] value and shift it by 32. Sick...
+		 */
+		if (addr == (addr_t) &dummy->regs.acrs[15])
+			tmp = ((unsigned long) child->thread.acrs[15]) << 32;
+		else
+#endif
 		tmp = *(addr_t *)((addr_t) &child->thread.acrs + offset);
 
 	} else if (addr == (addr_t) &dummy->regs.orig_gpr2) {
@@ -167,6 +184,9 @@ peek_user(struct task_struct *child, addr_t addr, addr_t data)
 		 */
 		offset = addr - (addr_t) &dummy->regs.fp_regs;
 		tmp = *(addr_t *)((addr_t) &child->thread.fp_regs + offset);
+		if (addr == (addr_t) &dummy->regs.fp_regs.fpc)
+			tmp &= (unsigned long) FPC_VALID_MASK
+				<< (BITS_PER_LONG - 32);
 
 	} else if (addr < (addr_t) (&dummy->regs.per_info + 1)) {
 		/*
@@ -191,13 +211,19 @@ static int
 poke_user(struct task_struct *child, addr_t addr, addr_t data)
 {
 	struct user *dummy = NULL;
-	addr_t offset;
+	addr_t offset, mask;
 
 	/*
 	 * Stupid gdb peeks/pokes the access registers in 64 bit with
 	 * an alignment of 4. Programmers from hell indeed...
 	 */
-	if ((addr & 3) || addr > sizeof(struct user) - __ADDR_MASK)
+	mask = __ADDR_MASK;
+#ifdef CONFIG_ARCH_S390X
+	if (addr >= (addr_t) &dummy->regs.acrs &&
+	    addr < (addr_t) &dummy->regs.orig_gpr2)
+		mask = 3;
+#endif
+	if ((addr & mask) || addr > sizeof(struct user) - __ADDR_MASK)
 		return -EIO;
 
 	if (addr < (addr_t) &dummy->regs.acrs) {
@@ -224,6 +250,17 @@ poke_user(struct task_struct *child, addr_t addr, addr_t data)
 		 * access registers are stored in the thread structure
 		 */
 		offset = addr - (addr_t) &dummy->regs.acrs;
+#ifdef CONFIG_ARCH_S390X
+		/*
+		 * Very special case: old & broken 64 bit gdb writing
+		 * to acrs[15] with a 64 bit value. Ignore the lower
+		 * half of the value and write the upper 32 bit to
+		 * acrs[15]. Sick...
+		 */
+		if (addr == (addr_t) &dummy->regs.acrs[15])
+			child->thread.acrs[15] = (unsigned int) (data >> 32);
+		else
+#endif
 		*(addr_t *)((addr_t) &child->thread.acrs + offset) = data;
 
 	} else if (addr == (addr_t) &dummy->regs.orig_gpr2) {
@@ -237,7 +274,8 @@ poke_user(struct task_struct *child, addr_t addr, addr_t data)
 		 * floating point regs. are stored in the thread structure
 		 */
 		if (addr == (addr_t) &dummy->regs.fp_regs.fpc &&
-		    (data & ~FPC_VALID_MASK) != 0)
+		    (data & ~((unsigned long) FPC_VALID_MASK
+			      << (BITS_PER_LONG - 32))) != 0)
 			return -EINVAL;
 		offset = addr - (addr_t) &dummy->regs.fp_regs;
 		*(addr_t *)((addr_t) &child->thread.fp_regs + offset) = data;
@@ -712,20 +750,22 @@ out:
 asmlinkage void
 syscall_trace(struct pt_regs *regs, int entryexit)
 {
-	if (unlikely(current->audit_context)) {
-		if (!entryexit)
-			audit_syscall_entry(current, regs->gprs[2],
-					    regs->orig_gpr2, regs->gprs[3],
-					    regs->gprs[4], regs->gprs[5]);
-		else
-			audit_syscall_exit(current, regs->gprs[2]);
-	}
+	if (unlikely(current->audit_context) && entryexit)
+		audit_syscall_exit(current, AUDITSC_RESULT(regs->gprs[2]), regs->gprs[2]);
+
 	if (!test_thread_flag(TIF_SYSCALL_TRACE))
-		return;
+		goto out;
 	if (!(current->ptrace & PT_PTRACED))
-		return;
+		goto out;
 	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD)
 				 ? 0x80 : 0));
+
+	/*
+	 * If the debuffer has set an invalid system call number,
+	 * we prepare to skip the system call restart handling.
+	 */
+	if (!entryexit && regs->gprs[2] >= NR_syscalls)
+		regs->trap = -1;
 
 	/*
 	 * this isn't the same as continuing with a signal, but it will do
@@ -736,4 +776,10 @@ syscall_trace(struct pt_regs *regs, int entryexit)
 		send_sig(current->exit_code, current, 1);
 		current->exit_code = 0;
 	}
+ out:
+	if (unlikely(current->audit_context) && !entryexit)
+		audit_syscall_entry(current, 
+				    test_thread_flag(TIF_31BIT)?AUDIT_ARCH_S390:AUDIT_ARCH_S390X,
+				    regs->gprs[2], regs->orig_gpr2, regs->gprs[3],
+				    regs->gprs[4], regs->gprs[5]);
 }

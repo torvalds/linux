@@ -134,6 +134,7 @@ static struct ata_port_operations svia_sata_ops = {
 
 	.port_start		= ata_port_start,
 	.port_stop		= ata_port_stop,
+	.host_stop		= ata_host_stop,
 };
 
 static struct ata_port_info svia_port_info = {

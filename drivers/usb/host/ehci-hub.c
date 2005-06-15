@@ -72,6 +72,7 @@ static int ehci_hub_suspend (struct usb_hcd *hcd)
 	}
 
 	/* turn off now-idle HC */
+	del_timer_sync (&ehci->watchdog);
 	ehci_halt (ehci);
 	hcd->state = HC_STATE_SUSPENDED;
 
@@ -281,6 +282,8 @@ ehci_hub_descriptor (
 	temp = 0x0008;			/* per-port overcurrent reporting */
 	if (HCS_PPC (ehci->hcs_params))
 		temp |= 0x0001;		/* per-port power control */
+	else
+		temp |= 0x0002;		/* no power switching */
 #if 0
 // re-enable when we support USB_PORT_FEAT_INDICATOR below.
 	if (HCS_INDICATOR (ehci->hcs_params))
@@ -436,9 +439,12 @@ static int ehci_hub_control (
 			/* force reset to complete */
 			writel (temp & ~PORT_RESET,
 					&ehci->regs->port_status [wIndex]);
+			/* REVISIT:  some hardware needs 550+ usec to clear
+			 * this bit; seems too long to spin routinely...
+			 */
 			retval = handshake (
 					&ehci->regs->port_status [wIndex],
-					PORT_RESET, 0, 500);
+					PORT_RESET, 0, 750);
 			if (retval != 0) {
 				ehci_err (ehci, "port %d reset error %d\n",
 					wIndex + 1, retval);

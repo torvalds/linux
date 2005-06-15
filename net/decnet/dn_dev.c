@@ -1426,7 +1426,7 @@ static struct rtnetlink_link dnet_rtnetlink_table[RTM_NR_MSGTYPES] =
 	[RTM_GETRULE  - RTM_BASE] = { .dumpit	= dn_fib_dump_rules,	},
 #else
 	[RTM_GETROUTE - RTM_BASE] = { .doit	= dn_cache_getroute,
-				      .dumpit	= dn_cache_dump,	
+				      .dumpit	= dn_cache_dump,	},
 #endif
 
 };

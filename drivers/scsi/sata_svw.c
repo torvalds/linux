@@ -313,6 +313,7 @@ static struct ata_port_operations k2_sata_ops = {
 	.scr_write		= k2_sata_scr_write,
 	.port_start		= ata_port_start,
 	.port_stop		= ata_port_stop,
+	.host_stop		= ata_host_stop,
 };
 
 static void k2_sata_setup_port(struct ata_ioports *port, unsigned long base)
@@ -395,7 +396,7 @@ static int k2_sata_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 
 	/* Clear a magic bit in SCR1 according to Darwin, those help
 	 * some funky seagate drives (though so far, those were already
-	 * set by the firmware on the machines I had access to
+	 * set by the firmware on the machines I had access to)
 	 */
 	writel(readl(mmio_base + K2_SATA_SICR1_OFFSET) & ~0x00040000,
 	       mmio_base + K2_SATA_SICR1_OFFSET);

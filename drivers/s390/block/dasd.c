@@ -7,7 +7,7 @@
  * Bugreports.to..: <Linux390@de.ibm.com>
  * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 1999-2001
  *
- * $Revision: 1.161 $
+ * $Revision: 1.164 $
  */
 
 #include <linux/config.h>
@@ -1766,9 +1766,9 @@ dasd_generic_probe (struct ccw_device *cdev,
 		printk(KERN_WARNING
 		       "dasd_generic_probe: could not add sysfs entries "
 		       "for %s\n", cdev->dev.bus_id);
+	} else {
+		cdev->handler = &dasd_int_handler;
 	}
-
-	cdev->handler = &dasd_int_handler;
 
 	return ret;
 }
@@ -1779,6 +1779,8 @@ void
 dasd_generic_remove (struct ccw_device *cdev)
 {
 	struct dasd_device *device;
+
+	cdev->handler = NULL;
 
 	dasd_remove_sysfs_files(cdev);
 	device = dasd_device_from_cdev(cdev);
@@ -1810,13 +1812,13 @@ dasd_generic_set_online (struct ccw_device *cdev,
 	struct dasd_device *device;
 	int feature_diag, rc;
 
-	feature_diag = dasd_get_feature(cdev, DASD_FEATURE_USEDIAG);
-	if (feature_diag < 0)
-		return feature_diag;
-
 	device = dasd_create_device(cdev);
 	if (IS_ERR(device))
 		return PTR_ERR(device);
+
+	feature_diag = dasd_get_feature(cdev, DASD_FEATURE_USEDIAG);
+	if (feature_diag < 0)
+		return feature_diag;
 
 	if (feature_diag) {
 	  	if (!dasd_diag_discipline_pointer) {

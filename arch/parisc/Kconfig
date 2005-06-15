@@ -45,6 +45,10 @@ config GENERIC_IRQ_PROBE
 config PM
 	bool
 
+config ISA_DMA_API
+	bool
+	default y
+
 source "init/Kconfig"
 
 

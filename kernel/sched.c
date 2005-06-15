@@ -3755,19 +3755,22 @@ EXPORT_SYMBOL(cond_resched);
  */
 int cond_resched_lock(spinlock_t * lock)
 {
+	int ret = 0;
+
 	if (need_lockbreak(lock)) {
 		spin_unlock(lock);
 		cpu_relax();
+		ret = 1;
 		spin_lock(lock);
 	}
 	if (need_resched()) {
 		_raw_spin_unlock(lock);
 		preempt_enable_no_resched();
 		__cond_resched();
+		ret = 1;
 		spin_lock(lock);
-		return 1;
 	}
-	return 0;
+	return ret;
 }
 
 EXPORT_SYMBOL(cond_resched_lock);
@@ -4243,7 +4246,7 @@ static void move_task_off_dead_cpu(int dead_cpu, struct task_struct *tsk)
 
 	/* No more Mr. Nice Guy. */
 	if (dest_cpu == NR_CPUS) {
-		tsk->cpus_allowed = cpuset_cpus_allowed(tsk);
+		cpus_setall(tsk->cpus_allowed);
 		dest_cpu = any_online_cpu(tsk->cpus_allowed);
 
 		/*

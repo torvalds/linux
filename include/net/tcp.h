@@ -7,7 +7,7 @@
  *
  * Version:	@(#)tcp.h	1.0.5	05/23/93
  *
- * Authors:	Ross Biro, <bir7@leland.Stanford.Edu>
+ * Authors:	Ross Biro
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *
  *		This program is free software; you can redistribute it and/or

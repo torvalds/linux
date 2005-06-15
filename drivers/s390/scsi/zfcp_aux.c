@@ -52,7 +52,7 @@ static inline int zfcp_sg_list_copy_from_user(struct zfcp_sg_list *,
 static inline int zfcp_sg_list_copy_to_user(void __user *,
 					    struct zfcp_sg_list *, size_t);
 
-static int zfcp_cfdc_dev_ioctl(struct file *, unsigned int, unsigned long);
+static long zfcp_cfdc_dev_ioctl(struct file *, unsigned int, unsigned long);
 
 #define ZFCP_CFDC_IOC_MAGIC                     0xDD
 #define ZFCP_CFDC_IOC \

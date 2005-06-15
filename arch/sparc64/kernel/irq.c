@@ -756,7 +756,7 @@ void handler_irq(int irq, struct pt_regs *regs)
 		clear_softint(clr_mask);
 	}
 #else
-	int should_forward = 1;
+	int should_forward = 0;
 
 	clear_softint(1 << irq);
 #endif
@@ -1007,10 +1007,10 @@ static int retarget_one_irq(struct irqaction *p, int goal_cpu)
 	}
 	upa_writel(tid | IMAP_VALID, imap);
 
-	while (!cpu_online(goal_cpu)) {
+	do {
 		if (++goal_cpu >= NR_CPUS)
 			goal_cpu = 0;
-	}
+	} while (!cpu_online(goal_cpu));
 
 	return goal_cpu;
 }

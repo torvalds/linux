@@ -243,7 +243,7 @@ void unload_nls(struct nls_table *nls)
 	module_put(nls->owner);
 }
 
-wchar_t charset2uni[256] = {
+static wchar_t charset2uni[256] = {
 	/* 0x00*/
 	0x0000, 0x0001, 0x0002, 0x0003,
 	0x0004, 0x0005, 0x0006, 0x0007,

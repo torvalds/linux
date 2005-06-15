@@ -1384,7 +1384,7 @@ SiSInitPCIetc(SiS_Private *SiS_Pr, PSIS_HW_INFO HwInfo)
 /*             HELPER: SetLVDSetc            */
 /*********************************************/
 
-void
+static void
 SiSSetLVDSetc(SiS_Private *SiS_Pr, PSIS_HW_INFO HwInfo)
 {
    USHORT temp;
@@ -1625,7 +1625,7 @@ SiS_ResetSegmentRegisters(SiS_Private *SiS_Pr,PSIS_HW_INFO HwInfo)
 /*             HELPER: GetVBType             */
 /*********************************************/
 
-void
+static void
 SiS_GetVBType(SiS_Private *SiS_Pr, PSIS_HW_INFO HwInfo)
 {
   USHORT flag=0, rev=0, nolcd=0, p4_0f, p4_25, p4_27;

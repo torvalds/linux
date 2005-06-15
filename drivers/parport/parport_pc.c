@@ -67,6 +67,10 @@
 
 #define PARPORT_PC_MAX_PORTS PARPORT_MAX
 
+#ifdef CONFIG_ISA_DMA_API
+#define HAS_DMA
+#endif
+
 /* ECR modes */
 #define ECR_SPP 00
 #define ECR_PS2 01
@@ -610,6 +614,7 @@ dump_parport_state ("leave fifo_write_block_pio", port);
 	return length - left;
 }
 
+#ifdef HAS_DMA
 static size_t parport_pc_fifo_write_block_dma (struct parport *port,
 					       const void *buf, size_t length)
 {
@@ -732,6 +737,17 @@ dump_parport_state ("enter fifo_write_block_dma", port);
 dump_parport_state ("leave fifo_write_block_dma", port);
 	return length - left;
 }
+#endif
+
+static inline size_t parport_pc_fifo_write_block(struct parport *port,
+					       const void *buf, size_t length)
+{
+#ifdef HAS_DMA
+	if (port->dma != PARPORT_DMA_NONE)
+		return parport_pc_fifo_write_block_dma (port, buf, length);
+#endif
+	return parport_pc_fifo_write_block_pio (port, buf, length);
+}
 
 /* Parallel Port FIFO mode (ECP chipsets) */
 static size_t parport_pc_compat_write_block_pio (struct parport *port,
@@ -758,10 +774,7 @@ static size_t parport_pc_compat_write_block_pio (struct parport *port,
 	port->physport->ieee1284.phase = IEEE1284_PH_FWD_DATA;
 
 	/* Write the data to the FIFO. */
-	if (port->dma != PARPORT_DMA_NONE)
-		written = parport_pc_fifo_write_block_dma (port, buf, length);
-	else
-		written = parport_pc_fifo_write_block_pio (port, buf, length);
+	written = parport_pc_fifo_write_block(port, buf, length);
 
 	/* Finish up. */
 	/* For some hardware we don't want to touch the mode until
@@ -856,10 +869,7 @@ static size_t parport_pc_ecp_write_block_pio (struct parport *port,
 	port->physport->ieee1284.phase = IEEE1284_PH_FWD_DATA;
 
 	/* Write the data to the FIFO. */
-	if (port->dma != PARPORT_DMA_NONE)
-		written = parport_pc_fifo_write_block_dma (port, buf, length);
-	else
-		written = parport_pc_fifo_write_block_pio (port, buf, length);
+	written = parport_pc_fifo_write_block(port, buf, length);
 
 	/* Finish up. */
 	/* For some hardware we don't want to touch the mode until
@@ -2285,6 +2295,7 @@ struct parport *parport_pc_probe_port (unsigned long int base,
 		}
 
 #ifdef CONFIG_PARPORT_PC_FIFO
+#ifdef HAS_DMA
 		if (p->dma != PARPORT_DMA_NONE) {
 			if (request_dma (p->dma, p->name)) {
 				printk (KERN_WARNING "%s: dma %d in use, "
@@ -2306,7 +2317,8 @@ struct parport *parport_pc_probe_port (unsigned long int base,
 				}
 			}
 		}
-#endif /* CONFIG_PARPORT_PC_FIFO */
+#endif
+#endif
 	}
 
 	/* Done probing.  Now put the port into a sensible start-up state. */
@@ -2367,11 +2379,13 @@ void parport_pc_unregister_port (struct parport *p)
 	if (p->modes & PARPORT_MODE_ECP)
 		release_region(p->base_hi, 3);
 #ifdef CONFIG_PARPORT_PC_FIFO
+#ifdef HAS_DMA
 	if (priv->dma_buf)
 		pci_free_consistent(priv->dev, PAGE_SIZE,
 				    priv->dma_buf,
 				    priv->dma_handle);
-#endif /* CONFIG_PARPORT_PC_FIFO */
+#endif
+#endif
 	kfree (p->private_data);
 	parport_put_port(p);
 	kfree (ops); /* hope no-one cached it */

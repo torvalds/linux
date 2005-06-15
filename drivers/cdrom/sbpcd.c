@@ -5895,7 +5895,7 @@ int __init sbpcd_init(void)
 }
 /*==========================================================================*/
 #ifdef MODULE
-void sbpcd_exit(void)
+static void sbpcd_exit(void)
 {
 	int j;
 	

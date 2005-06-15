@@ -79,15 +79,18 @@ static int mpage_end_io_write(struct bio *bio, unsigned int bytes_done, int err)
 		if (--bvec >= bio->bi_io_vec)
 			prefetchw(&bvec->bv_page->flags);
 
-		if (!uptodate)
+		if (!uptodate){
 			SetPageError(page);
+			if (page->mapping)
+				set_bit(AS_EIO, &page->mapping->flags);
+		}
 		end_page_writeback(page);
 	} while (bvec >= bio->bi_io_vec);
 	bio_put(bio);
 	return 0;
 }
 
-struct bio *mpage_bio_submit(int rw, struct bio *bio)
+static struct bio *mpage_bio_submit(int rw, struct bio *bio)
 {
 	bio->bi_end_io = mpage_end_io_read;
 	if (rw == WRITE)
@@ -627,15 +630,6 @@ int
 mpage_writepages(struct address_space *mapping,
 		struct writeback_control *wbc, get_block_t get_block)
 {
-	return __mpage_writepages(mapping, wbc, get_block,
-		mapping->a_ops->writepage);
-}
-
-int
-__mpage_writepages(struct address_space *mapping,
-		struct writeback_control *wbc, get_block_t get_block,
-		writepage_t writepage_fn)
-{
 	struct backing_dev_info *bdi = mapping->backing_dev_info;
 	struct bio *bio = NULL;
 	sector_t last_block_in_bio = 0;
@@ -725,7 +719,7 @@ retry:
 			} else {
 				bio = __mpage_writepage(bio, page, get_block,
 						&last_block_in_bio, &ret, wbc,
-						writepage_fn);
+						page->mapping->a_ops->writepage);
 			}
 			if (unlikely(ret == WRITEPAGE_ACTIVATE))
 				unlock_page(page);
@@ -755,7 +749,6 @@ retry:
 	return ret;
 }
 EXPORT_SYMBOL(mpage_writepages);
-EXPORT_SYMBOL(__mpage_writepages);
 
 int mpage_writepage(struct page *page, get_block_t get_block,
 	struct writeback_control *wbc)

@@ -7,7 +7,7 @@
  *
  * Version:	@(#)eth.c	1.0.7	05/25/93
  *
- * Authors:	Ross Biro, <bir7@leland.Stanford.Edu>
+ * Authors:	Ross Biro
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *		Mark Evans, <evansmp@uhura.aston.ac.uk>
  *		Florian  La Roche, <rzsfl@rz.uni-sb.de>

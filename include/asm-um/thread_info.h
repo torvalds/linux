@@ -41,18 +41,17 @@ struct thread_info {
 #define init_thread_info	(init_thread_union.thread_info)
 #define init_stack		(init_thread_union.stack)
 
+#define THREAD_SIZE ((1 << CONFIG_KERNEL_STACK_ORDER) * PAGE_SIZE)
 /* how to get the thread information struct from C */
 static inline struct thread_info *current_thread_info(void)
 {
 	struct thread_info *ti;
-	unsigned long mask = PAGE_SIZE *
-		(1 << CONFIG_KERNEL_STACK_ORDER) - 1;
-        ti = (struct thread_info *) (((unsigned long) &ti) & ~mask);
+	unsigned long mask = THREAD_SIZE - 1;
+	ti = (struct thread_info *) (((unsigned long) &ti) & ~mask);
 	return ti;
 }
 
 /* thread information allocation */
-#define THREAD_SIZE ((1 << CONFIG_KERNEL_STACK_ORDER) * PAGE_SIZE)
 #define alloc_thread_info(tsk) \
 	((struct thread_info *) kmalloc(THREAD_SIZE, GFP_KERNEL))
 #define free_thread_info(ti) kfree(ti)
@@ -62,7 +61,7 @@ static inline struct thread_info *current_thread_info(void)
 
 #endif
 
-#define PREEMPT_ACTIVE		0x4000000
+#define PREEMPT_ACTIVE		0x10000000
 
 #define TIF_SYSCALL_TRACE	0	/* syscall trace active */
 #define TIF_SIGPENDING		1	/* signal pending */
@@ -72,12 +71,14 @@ static inline struct thread_info *current_thread_info(void)
 					 */
 #define TIF_RESTART_BLOCK 	4
 #define TIF_MEMDIE	 	5
+#define TIF_SYSCALL_AUDIT	6
 
 #define _TIF_SYSCALL_TRACE	(1 << TIF_SYSCALL_TRACE)
 #define _TIF_SIGPENDING		(1 << TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED	(1 << TIF_NEED_RESCHED)
 #define _TIF_POLLING_NRFLAG     (1 << TIF_POLLING_NRFLAG)
-#define _TIF_RESTART_BLOCK	(1 << TIF_RESTART_BLOCK)
+#define _TIF_MEMDIE		(1 << TIF_MEMDIE)
+#define _TIF_SYSCALL_AUDIT	(1 << TIF_SYSCALL_AUDIT)
 
 #endif
 

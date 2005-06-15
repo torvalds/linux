@@ -183,7 +183,7 @@ static void zd1201_usbtx(struct urb *urb, struct pt_regs *regs)
 	return;
 }
 
-/* Incomming data */
+/* Incoming data */
 static void zd1201_usbrx(struct urb *urb, struct pt_regs *regs)
 {
 	struct zd1201 *zd = urb->context;
@@ -772,7 +772,7 @@ static int zd1201_net_stop(struct net_device *dev)
 /*
 	RFC 1042 encapsulates Ethernet frames in 802.11 frames
 	by prefixing them with 0xaa, 0xaa, 0x03) followed by a SNAP OID of 0
-	(0x00, 0x00, 0x00). Zd requires an additionnal padding, copy
+	(0x00, 0x00, 0x00). Zd requires an additional padding, copy
 	of ethernet addresses, length of the standard RFC 1042 packet
 	and a command byte (which is nul for tx).
 	
@@ -1098,7 +1098,7 @@ static int zd1201_get_range(struct net_device *dev,
 
 /*	Little bit of magic here: we only get the quality if we poll
  *	for it, and we never get an actual request to trigger such
- *	a poll. Therefore we 'asume' that the user will soon ask for
+ *	a poll. Therefore we 'assume' that the user will soon ask for
  *	the stats after asking the bssid.
  */
 static int zd1201_get_wap(struct net_device *dev,
@@ -1108,7 +1108,7 @@ static int zd1201_get_wap(struct net_device *dev,
 	unsigned char buffer[6];
 
 	if (!zd1201_getconfig(zd, ZD1201_RID_COMMSQUALITY, buffer, 6)) {
-		/* Unfortunatly the quality and noise reported is useless.
+		/* Unfortunately the quality and noise reported is useless.
 		   they seem to be accumulators that increase until you
 		   read them, unless we poll on a fixed interval we can't
 		   use them

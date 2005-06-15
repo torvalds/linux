@@ -223,7 +223,7 @@ static int hard_dma_setup(char *addr, unsigned long size, int mode, int io)
 	return 0;
 }
 
-struct fd_routine_l {
+static struct fd_routine_l {
 	int (*_request_dma)(unsigned int dmanr, const char * device_id);
 	void (*_free_dma)(unsigned int dmanr);
 	int (*_get_dma_residue)(unsigned int dummy);

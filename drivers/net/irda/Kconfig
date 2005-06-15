@@ -310,7 +310,7 @@ config SIGMATEL_FIR
 
 config NSC_FIR
 	tristate "NSC PC87108/PC87338"
-	depends on IRDA
+	depends on IRDA && ISA_DMA_API
 	help
 	  Say Y here if you want to build support for the NSC PC87108 and
 	  PC87338 IrDA chipsets.  This driver supports SIR,
@@ -321,7 +321,7 @@ config NSC_FIR
 
 config WINBOND_FIR
 	tristate "Winbond W83977AF (IR)"
-	depends on IRDA
+	depends on IRDA && ISA_DMA_API
 	help
 	  Say Y here if you want to build IrDA support for the Winbond
 	  W83977AF super-io chipset.  This driver should be used for the IrDA
@@ -347,7 +347,7 @@ config AU1000_FIR
 
 config SMC_IRCC_FIR
 	tristate "SMSC IrCC (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && IRDA
+	depends on EXPERIMENTAL && IRDA && ISA_DMA_API
 	help
 	  Say Y here if you want to build support for the SMC Infrared
 	  Communications Controller.  It is used in a wide variety of
@@ -357,7 +357,7 @@ config SMC_IRCC_FIR
 
 config ALI_FIR
 	tristate "ALi M5123 FIR (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && IRDA
+	depends on EXPERIMENTAL && IRDA && ISA_DMA_API
 	help
 	  Say Y here if you want to build support for the ALi M5123 FIR
 	  Controller.  The ALi M5123 FIR Controller is embedded in ALi M1543C,
@@ -385,11 +385,11 @@ config SA1100_FIR
 
 config VIA_FIR
 	tristate "VIA VT8231/VT1211 SIR/MIR/FIR"
-	depends on IRDA
+	depends on IRDA && ISA_DMA_API
 	help
 	  Say Y here if you want to build support for the VIA VT8231
 	  and VIA VT1211 IrDA controllers, found on the motherboards using
-	  those those VIA chipsets. To use this controller, you will need
+	  those VIA chipsets. To use this controller, you will need
 	  to plug a specific 5 pins FIR IrDA dongle in the specific
 	  motherboard connector. The driver provides support for SIR, MIR
 	  and FIR (4Mbps) speeds.

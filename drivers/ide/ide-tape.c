@@ -4681,21 +4681,12 @@ static void idetape_setup (ide_drive_t *drive, idetape_tape_t *tape, int minor)
 	idetape_add_settings(drive);
 }
 
-static int idetape_cleanup (ide_drive_t *drive)
+static int ide_tape_remove(struct device *dev)
 {
+	ide_drive_t *drive = to_ide_device(dev);
 	idetape_tape_t *tape = drive->driver_data;
-	unsigned long flags;
 
-	spin_lock_irqsave(&ide_lock, flags);
-	if (test_bit(IDETAPE_BUSY, &tape->flags) || drive->usage ||
-	    tape->first_stage != NULL || tape->merge_stage_size) {
-		spin_unlock_irqrestore(&ide_lock, flags);
-		return 1;
-	}
-
-	spin_unlock_irqrestore(&ide_lock, flags);
-	DRIVER(drive)->busy = 0;
-	(void) ide_unregister_subdriver(drive);
+	ide_unregister_subdriver(drive, tape->driver);
 
 	ide_unregister_region(tape->disk);
 
@@ -4709,6 +4700,8 @@ static void ide_tape_release(struct kref *kref)
 	struct ide_tape_obj *tape = to_ide_tape(kref);
 	ide_drive_t *drive = tape->drive;
 	struct gendisk *g = tape->disk;
+
+	BUG_ON(tape->first_stage != NULL || tape->merge_stage_size);
 
 	drive->dsc_overlap = 0;
 	drive->driver_data = NULL;
@@ -4747,26 +4740,24 @@ static ide_proc_entry_t idetape_proc[] = {
 
 #endif
 
-static int idetape_attach(ide_drive_t *drive);
+static int ide_tape_probe(struct device *);
 
-/*
- *	IDE subdriver functions, registered with ide.c
- */
 static ide_driver_t idetape_driver = {
 	.owner			= THIS_MODULE,
-	.name			= "ide-tape",
+	.gen_driver = {
+		.name		= "ide-tape",
+		.bus		= &ide_bus_type,
+		.probe		= ide_tape_probe,
+		.remove		= ide_tape_remove,
+	},
 	.version		= IDETAPE_VERSION,
 	.media			= ide_tape,
-	.busy			= 1,
 	.supports_dsc_overlap 	= 1,
-	.cleanup		= idetape_cleanup,
 	.do_request		= idetape_do_request,
 	.end_request		= idetape_end_request,
 	.error			= __ide_error,
 	.abort			= __ide_abort,
 	.proc			= idetape_proc,
-	.attach			= idetape_attach,
-	.drives			= LIST_HEAD_INIT(idetape_driver.drives),
 };
 
 /*
@@ -4829,8 +4820,9 @@ static struct block_device_operations idetape_block_ops = {
 	.ioctl		= idetape_ioctl,
 };
 
-static int idetape_attach (ide_drive_t *drive)
+static int ide_tape_probe(struct device *dev)
 {
+	ide_drive_t *drive = to_ide_device(dev);
 	idetape_tape_t *tape;
 	struct gendisk *g;
 	int minor;
@@ -4865,10 +4857,7 @@ static int idetape_attach (ide_drive_t *drive)
 
 	ide_init_disk(g, drive);
 
-	if (ide_register_subdriver(drive, &idetape_driver)) {
-		printk(KERN_ERR "ide-tape: %s: Failed to register the driver with ide.c\n", drive->name);
-		goto out_put_disk;
-	}
+	ide_register_subdriver(drive, &idetape_driver);
 
 	memset(tape, 0, sizeof(*tape));
 
@@ -4902,12 +4891,11 @@ static int idetape_attach (ide_drive_t *drive)
 	ide_register_region(g);
 
 	return 0;
-out_put_disk:
-	put_disk(g);
+
 out_free_tape:
 	kfree(tape);
 failed:
-	return 1;
+	return -ENODEV;
 }
 
 MODULE_DESCRIPTION("ATAPI Streaming TAPE Driver");
@@ -4915,7 +4903,7 @@ MODULE_LICENSE("GPL");
 
 static void __exit idetape_exit (void)
 {
-	ide_unregister_driver(&idetape_driver);
+	driver_unregister(&idetape_driver.gen_driver);
 	unregister_chrdev(IDETAPE_MAJOR, "ht");
 }
 
@@ -4928,8 +4916,7 @@ static int idetape_init (void)
 		printk(KERN_ERR "ide-tape: Failed to register character device interface\n");
 		return -EBUSY;
 	}
-	ide_register_driver(&idetape_driver);
-	return 0;
+	return driver_register(&idetape_driver.gen_driver);
 }
 
 module_init(idetape_init);

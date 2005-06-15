@@ -7,7 +7,7 @@
  *
  * Version:	$Id: udp.c,v 1.102 2002/02/01 22:01:04 davem Exp $
  *
- * Authors:	Ross Biro, <bir7@leland.Stanford.Edu>
+ * Authors:	Ross Biro
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *		Arnt Gulbrandsen, <agulbra@nvg.unit.no>
  *		Alan Cox, <Alan.Cox@linux.org>
@@ -738,7 +738,7 @@ int udp_ioctl(struct sock *sk, int cmd, unsigned long arg)
 			unsigned long amount;
 
 			amount = 0;
-			spin_lock_irq(&sk->sk_receive_queue.lock);
+			spin_lock_bh(&sk->sk_receive_queue.lock);
 			skb = skb_peek(&sk->sk_receive_queue);
 			if (skb != NULL) {
 				/*
@@ -748,7 +748,7 @@ int udp_ioctl(struct sock *sk, int cmd, unsigned long arg)
 				 */
 				amount = skb->len - sizeof(struct udphdr);
 			}
-			spin_unlock_irq(&sk->sk_receive_queue.lock);
+			spin_unlock_bh(&sk->sk_receive_queue.lock);
 			return put_user(amount, (int __user *)arg);
 		}
 
@@ -848,12 +848,12 @@ csum_copy_err:
 	/* Clear queue. */
 	if (flags&MSG_PEEK) {
 		int clear = 0;
-		spin_lock_irq(&sk->sk_receive_queue.lock);
+		spin_lock_bh(&sk->sk_receive_queue.lock);
 		if (skb == skb_peek(&sk->sk_receive_queue)) {
 			__skb_unlink(skb, &sk->sk_receive_queue);
 			clear = 1;
 		}
-		spin_unlock_irq(&sk->sk_receive_queue.lock);
+		spin_unlock_bh(&sk->sk_receive_queue.lock);
 		if (clear)
 			kfree_skb(skb);
 	}
@@ -1334,7 +1334,7 @@ unsigned int udp_poll(struct file *file, struct socket *sock, poll_table *wait)
 		struct sk_buff_head *rcvq = &sk->sk_receive_queue;
 		struct sk_buff *skb;
 
-		spin_lock_irq(&rcvq->lock);
+		spin_lock_bh(&rcvq->lock);
 		while ((skb = skb_peek(rcvq)) != NULL) {
 			if (udp_checksum_complete(skb)) {
 				UDP_INC_STATS_BH(UDP_MIB_INERRORS);
@@ -1345,7 +1345,7 @@ unsigned int udp_poll(struct file *file, struct socket *sock, poll_table *wait)
 				break;
 			}
 		}
-		spin_unlock_irq(&rcvq->lock);
+		spin_unlock_bh(&rcvq->lock);
 
 		/* nothing to see, move along */
 		if (skb == NULL)

@@ -123,7 +123,11 @@ static inline void it_real_arm(struct task_struct *p, unsigned long interval)
 		return;
 	if (interval > (unsigned long) LONG_MAX)
 		interval = LONG_MAX;
-	p->signal->real_timer.expires = jiffies + interval;
+	/* the "+ 1" below makes sure that the timer doesn't go off before
+	 * the interval requested. This could happen if
+	 * time requested % (usecs per jiffy) is more than the usecs left
+	 * in the current jiffy */
+	p->signal->real_timer.expires = jiffies + interval + 1;
 	add_timer(&p->signal->real_timer);
 }
 

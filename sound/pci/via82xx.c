@@ -1836,7 +1836,7 @@ static void __devinit snd_via82xx_proc_init(via82xx_t *chip)
  *
  */
 
-static int __devinit snd_via82xx_chip_init(via82xx_t *chip)
+static int snd_via82xx_chip_init(via82xx_t *chip)
 {
 	unsigned int val;
 	int max_count;

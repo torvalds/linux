@@ -1341,7 +1341,7 @@ extern int fs_may_remount_ro(struct super_block *);
 
 extern int check_disk_change(struct block_device *);
 extern int invalidate_inodes(struct super_block *);
-extern int __invalidate_device(struct block_device *, int);
+extern int __invalidate_device(struct block_device *);
 extern int invalidate_partition(struct gendisk *, int);
 unsigned long invalidate_mapping_pages(struct address_space *mapping,
 					pgoff_t start, pgoff_t end);

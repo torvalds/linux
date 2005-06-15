@@ -635,11 +635,17 @@ ia64_flush_fph (struct task_struct *task)
 {
 	struct ia64_psr *psr = ia64_psr(ia64_task_regs(task));
 
+	/*
+	 * Prevent migrating this task while
+	 * we're fiddling with the FPU state
+	 */
+	preempt_disable();
 	if (ia64_is_local_fpu_owner(task) && psr->mfh) {
 		psr->mfh = 0;
 		task->thread.flags |= IA64_THREAD_FPH_VALID;
 		ia64_save_fpu(&task->thread.fph[0]);
 	}
+	preempt_enable();
 }
 
 /*
@@ -692,16 +698,30 @@ convert_to_non_syscall (struct task_struct *child, struct pt_regs  *pt,
 			unsigned long cfm)
 {
 	struct unw_frame_info info, prev_info;
-	unsigned long ip, pr;
+	unsigned long ip, sp, pr;
 
 	unw_init_from_blocked_task(&info, child);
 	while (1) {
 		prev_info = info;
 		if (unw_unwind(&info) < 0)
 			return;
-		if (unw_get_rp(&info, &ip) < 0)
+
+		unw_get_sp(&info, &sp);
+		if ((long)((unsigned long)child + IA64_STK_OFFSET - sp)
+		    < IA64_PT_REGS_SIZE) {
+			dprintk("ptrace.%s: ran off the top of the kernel "
+				"stack\n", __FUNCTION__);
 			return;
-		if (ip < FIXADDR_USER_END)
+		}
+		if (unw_get_pr (&prev_info, &pr) < 0) {
+			unw_get_rp(&prev_info, &ip);
+			dprintk("ptrace.%s: failed to read "
+				"predicate register (ip=0x%lx)\n",
+				__FUNCTION__, ip);
+			return;
+		}
+		if (unw_is_intr_frame(&info)
+		    && (pr & (1UL << PRED_USER_STACK)))
 			break;
 	}
 
@@ -1616,20 +1636,25 @@ syscall_trace_enter (long arg0, long arg1, long arg2, long arg3,
 		     long arg4, long arg5, long arg6, long arg7,
 		     struct pt_regs regs)
 {
-	long syscall;
-
-	if (unlikely(current->audit_context)) {
-		if (IS_IA32_PROCESS(&regs))
-			syscall = regs.r1;
-		else
-			syscall = regs.r15;
-
-		audit_syscall_entry(current, syscall, arg0, arg1, arg2, arg3);
-	}
-
-	if (test_thread_flag(TIF_SYSCALL_TRACE)
+	if (test_thread_flag(TIF_SYSCALL_TRACE) 
 	    && (current->ptrace & PT_PTRACED))
 		syscall_trace();
+
+	if (unlikely(current->audit_context)) {
+		long syscall;
+		int arch;
+
+		if (IS_IA32_PROCESS(&regs)) {
+			syscall = regs.r1;
+			arch = AUDIT_ARCH_I386;
+		} else {
+			syscall = regs.r15;
+			arch = AUDIT_ARCH_IA64;
+		}
+
+		audit_syscall_entry(current, arch, syscall, arg0, arg1, arg2, arg3);
+	}
+
 }
 
 /* "asmlinkage" so the input arguments are preserved... */
@@ -1640,7 +1665,7 @@ syscall_trace_leave (long arg0, long arg1, long arg2, long arg3,
 		     struct pt_regs regs)
 {
 	if (unlikely(current->audit_context))
-		audit_syscall_exit(current, regs.r8);
+		audit_syscall_exit(current, AUDITSC_RESULT(regs.r10), regs.r8);
 
 	if (test_thread_flag(TIF_SYSCALL_TRACE)
 	    && (current->ptrace & PT_PTRACED))

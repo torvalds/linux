@@ -5,6 +5,7 @@
 
 #include <asm-generic/vmlinux.lds.h>
 #include <linux/config.h>
+#include <asm/thread_info.h>
 	
 OUTPUT_ARCH(arm)
 ENTRY(stext)
@@ -103,7 +104,7 @@ SECTIONS
 	__data_loc = ALIGN(4);		/* location in binary */
 	. = DATAADDR;
 #else
-	. = ALIGN(8192);
+	. = ALIGN(THREAD_SIZE);
 	__data_loc = .;
 #endif
 

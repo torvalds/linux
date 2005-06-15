@@ -5041,7 +5041,7 @@ ov6xx0_configure(struct usb_ov511 *ov)
 		{ OV511_I2C_BUS, 0x2a, 0x04 }, /* Disable framerate adjust */
 //		{ OV511_I2C_BUS, 0x2b, 0xac }, /* Framerate; Set 2a[7] first */
 		{ OV511_I2C_BUS, 0x2d, 0x99 },
-		{ OV511_I2C_BUS, 0x33, 0xa0 }, /* Color Procesing Parameter */
+		{ OV511_I2C_BUS, 0x33, 0xa0 }, /* Color Processing Parameter */
 		{ OV511_I2C_BUS, 0x34, 0xd2 }, /* Max A/D range */
 		{ OV511_I2C_BUS, 0x38, 0x8b },
 		{ OV511_I2C_BUS, 0x39, 0x40 },

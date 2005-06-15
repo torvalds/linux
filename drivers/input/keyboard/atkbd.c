@@ -54,7 +54,7 @@ static int atkbd_softraw = 1;
 module_param_named(softraw, atkbd_softraw, bool, 0);
 MODULE_PARM_DESC(softraw, "Use software generated rawmode");
 
-static int atkbd_scroll = 1;
+static int atkbd_scroll = 0;
 module_param_named(scroll, atkbd_scroll, bool, 0);
 MODULE_PARM_DESC(scroll, "Enable scroll-wheel on MS Office and similar keyboards");
 
@@ -171,9 +171,9 @@ static struct {
 	unsigned char set2;
 } atkbd_scroll_keys[] = {
 	{ ATKBD_SCR_1,     0xc5 },
-	{ ATKBD_SCR_2,     0xa9 },
-	{ ATKBD_SCR_4,     0xb6 },
-	{ ATKBD_SCR_8,     0xa7 },
+	{ ATKBD_SCR_2,     0x9d },
+	{ ATKBD_SCR_4,     0xa4 },
+	{ ATKBD_SCR_8,     0x9b },
 	{ ATKBD_SCR_CLICK, 0xe0 },
 	{ ATKBD_SCR_LEFT,  0xcb },
 	{ ATKBD_SCR_RIGHT, 0xd2 },
@@ -465,8 +465,10 @@ static int atkbd_event(struct input_dev *dev, unsigned int type, unsigned int co
 			if (atkbd->softrepeat) return 0;
 
 			i = j = 0;
-			while (i < 32 && period[i] < dev->rep[REP_PERIOD]) i++;
-			while (j < 4 && delay[j] < dev->rep[REP_DELAY]) j++;
+			while (i < 31 && period[i] < dev->rep[REP_PERIOD])
+				i++;
+			while (j < 3 && delay[j] < dev->rep[REP_DELAY])
+				j++;
 			dev->rep[REP_PERIOD] = period[i];
 			dev->rep[REP_DELAY] = delay[j];
 			param[0] = i | (j << 5);

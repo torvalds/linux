@@ -431,7 +431,7 @@ nomem:
  * (2) error, where io->status is a negative errno value.  The number
  *     of io->bytes transferred before the error is usually less
  *     than requested, and can be nonzero.
- * (3) cancelation, a type of error with status -ECONNRESET that
+ * (3) cancellation, a type of error with status -ECONNRESET that
  *     is initiated by usb_sg_cancel().
  *
  * When this function returns, all memory allocated through usb_sg_init() or
@@ -1282,7 +1282,7 @@ static void release_interface(struct device *dev)
  * bus rwsem; usb device driver probe() methods cannot use this routine.
  *
  * Returns zero on success, or else the status code returned by the
- * underlying call that failed.  On succesful completion, each interface
+ * underlying call that failed.  On successful completion, each interface
  * in the original device configuration has been destroyed, and each one
  * in the new configuration has been probed by all relevant usb device
  * drivers currently known to the kernel.

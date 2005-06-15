@@ -29,6 +29,7 @@
 #include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/jiffies.h>
 #include <asm/io.h>
 
 #include "bttvp.h"
@@ -130,17 +131,14 @@ static u32 functionality(struct i2c_adapter *adap)
 static int
 bttv_i2c_wait_done(struct bttv *btv)
 {
-	DECLARE_WAITQUEUE(wait, current);
 	int rc = 0;
 
-	add_wait_queue(&btv->i2c_queue, &wait);
-	if (0 == btv->i2c_done)
-		msleep_interruptible(20);
-	remove_wait_queue(&btv->i2c_queue, &wait);
+	/* timeout */
+	if (wait_event_interruptible_timeout(btv->i2c_queue,
+		btv->i2c_done, msecs_to_jiffies(85)) == -ERESTARTSYS)
 
-	if (0 == btv->i2c_done)
-		/* timeout */
-		rc = -EIO;
+	rc = -EIO;
+
 	if (btv->i2c_done & BT848_INT_RACK)
 		rc = 1;
 	btv->i2c_done = 0;
@@ -365,6 +363,9 @@ int bttv_I2CWrite(struct bttv *btv, unsigned char addr, unsigned char b1,
 /* read EEPROM content */
 void __devinit bttv_readee(struct bttv *btv, unsigned char *eedata, int addr)
 {
+	memset(eedata, 0, 256);
+	if (0 != btv->i2c_rc)
+		return;
 	btv->i2c_client.addr = addr >> 1;
 	tveeprom_read(&btv->i2c_client, eedata, 256);
 }

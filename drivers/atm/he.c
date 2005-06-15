@@ -412,8 +412,7 @@ he_init_one(struct pci_dev *pci_dev, const struct pci_device_id *pci_ent)
 init_one_failure:
 	if (atm_dev)
 		atm_dev_deregister(atm_dev);
-	if (he_dev)
-		kfree(he_dev);
+	kfree(he_dev);
 	pci_disable_device(pci_dev);
 	return err;
 }
@@ -2534,8 +2533,7 @@ he_open(struct atm_vcc *vcc)
 open_failed:
 
 	if (err) {
-		if (he_vcc)
-			kfree(he_vcc);
+		kfree(he_vcc);
 		clear_bit(ATM_VF_ADDR, &vcc->flags);
 	}
 	else

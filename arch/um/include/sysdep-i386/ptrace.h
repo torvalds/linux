@@ -8,6 +8,8 @@
 
 #include "uml-config.h"
 #include "user_constants.h"
+#include "sysdep/faultinfo.h"
+#include "choose-mode.h"
 
 #define MAX_REG_NR (UM_FRAME_SIZE / sizeof(unsigned long))
 #define MAX_REG_OFFSET (UM_FRAME_SIZE)
@@ -53,24 +55,17 @@ extern int sysemu_supported;
 
 #define REGS_RESTART_SYSCALL(r) IP_RESTART_SYSCALL(REGS_IP(r))
 
-#define REGS_SEGV_IS_FIXABLE(r) SEGV_IS_FIXABLE((r)->trap_type)
-
-#define REGS_FAULT_ADDR(r) ((r)->fault_addr)
-
-#define REGS_FAULT_WRITE(r) FAULT_WRITE((r)->fault_type)
-
 #endif
 #ifndef PTRACE_SYSEMU_SINGLESTEP
 #define PTRACE_SYSEMU_SINGLESTEP 32
 #endif
-
-#include "choose-mode.h"
 
 union uml_pt_regs {
 #ifdef UML_CONFIG_MODE_TT
 	struct tt_regs {
 		long syscall;
 		void *sc;
+                struct faultinfo faultinfo;
 	} tt;
 #endif
 #ifdef UML_CONFIG_MODE_SKAS
@@ -78,9 +73,7 @@ union uml_pt_regs {
 		unsigned long regs[HOST_FRAME_SIZE];
 		unsigned long fp[HOST_FP_SIZE];
 		unsigned long xfp[HOST_XFP_SIZE];
-		unsigned long fault_addr;
-		unsigned long fault_type;
-		unsigned long trap_type;
+                struct faultinfo faultinfo;
 		long syscall;
 		int is_user;
 	} skas;
@@ -217,15 +210,8 @@ struct syscall_args {
 #define UPT_SYSCALL_NR(r) UPT_ORIG_EAX(r)
 #define UPT_SYSCALL_RET(r) UPT_EAX(r)
 
-#define UPT_SEGV_IS_FIXABLE(r) \
-	CHOOSE_MODE(SC_SEGV_IS_FIXABLE(UPT_SC(r)), \
-                    REGS_SEGV_IS_FIXABLE(&r->skas))
-
-#define UPT_FAULT_ADDR(r) \
-	__CHOOSE_MODE(SC_FAULT_ADDR(UPT_SC(r)), REGS_FAULT_ADDR(&r->skas))
-
-#define UPT_FAULT_WRITE(r) \
-	CHOOSE_MODE(SC_FAULT_WRITE(UPT_SC(r)), REGS_FAULT_WRITE(&r->skas))
+#define UPT_FAULTINFO(r) \
+        CHOOSE_MODE((&(r)->tt.faultinfo), (&(r)->skas.faultinfo))
 
 #endif
 

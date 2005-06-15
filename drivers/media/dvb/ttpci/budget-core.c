@@ -298,7 +298,7 @@ static int budget_register(struct budget *budget)
 	budget->dmxdev.demux = &dvbdemux->dmx;
 	budget->dmxdev.capabilities = 0;
 
-	dvb_dmxdev_init(&budget->dmxdev, budget->dvb_adapter);
+	dvb_dmxdev_init(&budget->dmxdev, &budget->dvb_adapter);
 
 	budget->hw_frontend.source = DMX_FRONTEND_0;
 
@@ -316,7 +316,7 @@ static int budget_register(struct budget *budget)
 	if (ret < 0)
 		return ret;
 
-	dvb_net_init(budget->dvb_adapter, &budget->dvb_net, &dvbdemux->dmx);
+	dvb_net_init(&budget->dvb_adapter, &budget->dvb_net, &dvbdemux->dmx);
 
 	return 0;
 }
@@ -385,11 +385,11 @@ int ttpci_budget_init(struct budget *budget, struct saa7146_dev *dev,
 	strcpy(budget->i2c_adap.name, budget->card->name);
 
 	if (i2c_add_adapter(&budget->i2c_adap) < 0) {
-		dvb_unregister_adapter(budget->dvb_adapter);
+		dvb_unregister_adapter(&budget->dvb_adapter);
 		return -ENOMEM;
 	}
 
-	ttpci_eeprom_parse_mac(&budget->i2c_adap, budget->dvb_adapter->proposed_mac);
+	ttpci_eeprom_parse_mac(&budget->i2c_adap, budget->dvb_adapter.proposed_mac);
 
 	if (NULL ==
 	    (budget->grabbing = saa7146_vmalloc_build_pgtable(dev->pci, length, &budget->pt))) {
@@ -417,7 +417,7 @@ err:
 
 	vfree(budget->grabbing);
 
-	dvb_unregister_adapter(budget->dvb_adapter);
+	dvb_unregister_adapter(&budget->dvb_adapter);
 
 	return ret;
 }
@@ -432,7 +432,7 @@ int ttpci_budget_deinit(struct budget *budget)
 
 	i2c_del_adapter(&budget->i2c_adap);
 
-	dvb_unregister_adapter(budget->dvb_adapter);
+	dvb_unregister_adapter(&budget->dvb_adapter);
 
 	tasklet_kill(&budget->vpe_tasklet);
 

@@ -1,5 +1,5 @@
 /*
- *   Copyright (C) International Business Machines Corp., 2000-2004
+ *   Copyright (C) International Business Machines Corp., 2000-2005
  *
  *   This program is free software;  you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -688,7 +688,7 @@ static int xtSearch(struct inode *ip, s64 xoff,	s64 *nextp,
 				/* search hit - internal page:
 				 * descend/search its child page
 				 */
-				if (index < p->header.nextindex - 1)
+				if (index < le16_to_cpu(p->header.nextindex)-1)
 					next = offsetXAD(&p->xad[index + 1]);
 				goto next;
 			}
@@ -705,7 +705,7 @@ static int xtSearch(struct inode *ip, s64 xoff,	s64 *nextp,
 		 * base is the smallest index with key (Kj) greater than
 		 * search key (K) and may be zero or maxentry index.
 		 */
-		if (base < p->header.nextindex)
+		if (base < le16_to_cpu(p->header.nextindex))
 			next = offsetXAD(&p->xad[base]);
 		/*
 		 * search miss - leaf page:

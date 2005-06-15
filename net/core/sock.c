@@ -9,7 +9,7 @@
  *
  * Version:	$Id: sock.c,v 1.117 2002/02/01 22:01:03 davem Exp $
  *
- * Authors:	Ross Biro, <bir7@leland.Stanford.Edu>
+ * Authors:	Ross Biro
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *		Florian La Roche, <flla@stud.uni-sb.de>
  *		Alan Cox, <A.Cox@swansea.ac.uk>
@@ -635,7 +635,11 @@ struct sock *sk_alloc(int family, int priority, struct proto *prot, int zero_it)
 		if (zero_it) {
 			memset(sk, 0, prot->obj_size);
 			sk->sk_family = family;
-			sk->sk_prot = prot;
+			/*
+			 * See comment in struct sock definition to understand
+			 * why we need sk_prot_creator -acme
+			 */
+			sk->sk_prot = sk->sk_prot_creator = prot;
 			sock_lock_init(sk);
 		}
 		
@@ -654,7 +658,7 @@ struct sock *sk_alloc(int family, int priority, struct proto *prot, int zero_it)
 void sk_free(struct sock *sk)
 {
 	struct sk_filter *filter;
-	struct module *owner = sk->sk_prot->owner;
+	struct module *owner = sk->sk_prot_creator->owner;
 
 	if (sk->sk_destruct)
 		sk->sk_destruct(sk);
@@ -672,8 +676,8 @@ void sk_free(struct sock *sk)
 		       __FUNCTION__, atomic_read(&sk->sk_omem_alloc));
 
 	security_sk_free(sk);
-	if (sk->sk_prot->slab != NULL)
-		kmem_cache_free(sk->sk_prot->slab, sk);
+	if (sk->sk_prot_creator->slab != NULL)
+		kmem_cache_free(sk->sk_prot_creator->slab, sk);
 	else
 		kfree(sk);
 	module_put(owner);

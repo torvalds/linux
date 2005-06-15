@@ -26,7 +26,6 @@
 #define FTDI_SIO_PID	0x8372	/* Product Id SIO application of 8U100AX  */
 #define FTDI_8U232AM_PID 0x6001 /* Similar device to SIO above */
 #define FTDI_8U232AM_ALT_PID 0x6006 /* FTDI's alternate PID for above */
-#define FTDI_8U232AM_ALT_ALT_PID 0xf3c0 /* FTDI's second alternate PID for above */
 #define FTDI_8U2232C_PID 0x6010 /* Dual channel device */
 #define FTDI_RELAIS_PID	0xFA10  /* Relais device from Rudolf Gugler */
 #define FTDI_NF_RIC_VID	0x0DCD	/* Vendor Id */
@@ -137,7 +136,7 @@
 /*
  * Home Electronics (www.home-electro.com) USB gadgets
  */
-#define FTDI_HE_TIRA1_PID	0xFA78	/* Tira-1 IR tranceiver */
+#define FTDI_HE_TIRA1_PID	0xFA78	/* Tira-1 IR transceiver */
 
 /* USB-UIRT - An infrared receiver and transmitter using the 8U232AM chip */
 /* http://home.earthlink.net/~jrhees/USBUIRT/index.htm */
@@ -145,6 +144,8 @@
 
 /* ELV USB Module UO100 (PID sent by Stefan Frings) */
 #define FTDI_ELV_UO100_PID	0xFB58	/* Product Id */
+/* ELV USB Module UM100 (PID sent by Arnim Laeuger) */
+#define FTDI_ELV_UM100_PID	0xFB5A	/* Product Id */
 
 /*
  * Definitions for ID TECH (www.idt-net.com) devices
@@ -157,7 +158,8 @@
  */
 #define OCT_VID			0x0B39	/* OCT vendor ID */
 /* Note: OCT US101 is also rebadged as Dick Smith Electronics (NZ) XH6381 */
-/* Also rebadged as SIIG Inc. model US2308 */
+/* Also rebadged as Dick Smith Electronics (Aus) XH6451 */
+/* Also rebadged as SIIG Inc. model US2308 hardware version 1 */
 #define OCT_US101_PID		0x0421	/* OCT US101 USB to RS-232 */
 
 /* an infrared receiver for user access control with IR tags */
@@ -236,16 +238,36 @@
 
 /*
  * RM Michaelides CANview USB (http://www.rmcan.com)
- * CAN filedbus interface adapter, addad by port GmbH www.port.de)
+ * CAN fieldbus interface adapter, added by port GmbH www.port.de)
+ * Ian Abbott changed the macro names for consistency.
  */
-#define FTDI_RM_VID		0x0403	/* Vendor  Id */
-#define FTDI_RMCANVIEW_PID	0xfd60	/* Product Id */
+#define FTDI_RM_CANVIEW_PID	0xfd60	/* Product Id */
 
 /*
  * EVER Eco Pro UPS (http://www.ever.com.pl/)
  */
 
 #define	EVER_ECO_PRO_CDS	0xe520	/* RS-232 converter */
+
+/*
+ * 4N-GALAXY.DE PIDs for CAN-USB, USB-RS232, USB-RS422, USB-RS485,
+ * USB-TTY activ, USB-TTY passiv.  Some PIDs are used by several devices
+ * and I'm not entirely sure which are used by which.
+ */
+#define FTDI_4N_GALAXY_DE_0_PID	0x8372
+#define FTDI_4N_GALAXY_DE_1_PID	0xF3C0
+#define FTDI_4N_GALAXY_DE_2_PID	0xF3C1
+
+/*
+ * Mobility Electronics products.
+ */
+#define MOBILITY_VID			0x1342
+#define MOBILITY_USB_SERIAL_PID		0x0202	/* EasiDock USB 200 serial */
+
+/*
+ * Active Robots product ids.
+ */
+#define FTDI_ACTIVE_ROBOTS_PID	0xE548	/* USB comms board */
 
 /* Commands */
 #define FTDI_SIO_RESET 		0 /* Reset the port */
@@ -258,10 +280,6 @@
 #define FTDI_SIO_SET_ERROR_CHAR	7 /* Set the error character */
 #define FTDI_SIO_SET_LATENCY_TIMER	9 /* Set the latency timer */
 #define FTDI_SIO_GET_LATENCY_TIMER	10 /* Get the latency timer */
-
-/* Port interface code for FT2232C */
-#define INTERFACE_A		1
-#define INTERFACE_B		2
 
 
 /*

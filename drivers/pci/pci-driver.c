@@ -318,6 +318,14 @@ static int pci_device_resume(struct device * dev)
 	return 0;
 }
 
+static void pci_device_shutdown(struct device *dev)
+{
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+	struct pci_driver *drv = pci_dev->driver;
+
+	if (drv && drv->shutdown)
+		drv->shutdown(pci_dev);
+}
 
 #define kobj_to_pci_driver(obj) container_of(obj, struct device_driver, kobj)
 #define attr_to_driver_attribute(obj) container_of(obj, struct driver_attribute, attr)
@@ -373,7 +381,7 @@ pci_populate_driver_dir(struct pci_driver *drv)
  * 
  * Adds the driver structure to the list of registered drivers.
  * Returns a negative value on error, otherwise 0. 
- * If no error occured, the driver remains registered even if 
+ * If no error occurred, the driver remains registered even if 
  * no device was claimed during registration.
  */
 int pci_register_driver(struct pci_driver *drv)
@@ -385,6 +393,7 @@ int pci_register_driver(struct pci_driver *drv)
 	drv->driver.bus = &pci_bus_type;
 	drv->driver.probe = pci_device_probe;
 	drv->driver.remove = pci_device_remove;
+	drv->driver.shutdown = pci_device_shutdown,
 	drv->driver.owner = drv->owner;
 	drv->driver.kobj.ktype = &pci_driver_kobj_type;
 	pci_init_dynids(&drv->dynids);

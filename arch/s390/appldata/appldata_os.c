@@ -49,7 +49,7 @@ struct appldata_os_per_cpu {
 	u32 per_cpu_softirq;	/* ... spent in softirqs            */
 	u32 per_cpu_iowait;	/* ... spent while waiting for I/O  */
 // <-- New in 2.6
-};
+} __attribute__((packed));
 
 struct appldata_os_data {
 	u64 timestamp;
@@ -75,7 +75,7 @@ struct appldata_os_data {
 
 	/* per cpu data */
 	struct appldata_os_per_cpu os_cpu[0];
-};
+} __attribute__((packed));
 
 static struct appldata_os_data *appldata_os_data;
 

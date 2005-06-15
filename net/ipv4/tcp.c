@@ -7,7 +7,7 @@
  *
  * Version:	$Id: tcp.c,v 1.216 2002/02/01 22:01:04 davem Exp $
  *
- * Authors:	Ross Biro, <bir7@leland.Stanford.Edu>
+ * Authors:	Ross Biro
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *		Mark Evans, <evansmp@uhura.aston.ac.uk>
  *		Corey Minyard <wf-rch!minyard@relay.EU.net>
@@ -2338,7 +2338,7 @@ void __init tcp_init(void)
 			(tcp_bhash_size * sizeof(struct tcp_bind_hashbucket));
 			order++)
 		;
-	if (order > 4) {
+	if (order >= 4) {
 		sysctl_local_port_range[0] = 32768;
 		sysctl_local_port_range[1] = 61000;
 		sysctl_tcp_max_tw_buckets = 180000;

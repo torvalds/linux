@@ -9,6 +9,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/cpumask.h>
+#include "pci.h"
 
 #define CARDBUS_LATENCY_TIMER	176	/* secondary latency timer */
 #define CARDBUS_RESERVE_BUSNR	3
@@ -124,7 +125,7 @@ static inline unsigned int pci_calc_resource_flags(unsigned int flags)
 /*
  * Find the extent of a PCI decode..
  */
-static u32 pci_size(u32 base, u32 maxbase, unsigned long mask)
+static u32 pci_size(u32 base, u32 maxbase, u32 mask)
 {
 	u32 size = mask & maxbase;	/* Find the significant bits */
 	if (!size)

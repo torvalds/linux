@@ -507,6 +507,7 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 	int ret, i;
 	unsigned int id, lun;
 	unsigned long serial;
+	unsigned long flags;
 
 	if (!CMD_SP(cmd))
 		return FAILED;
@@ -519,7 +520,7 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 
 	/* Check active list for command command. */
 	spin_unlock_irq(ha->host->host_lock);
-	spin_lock(&ha->hardware_lock);
+	spin_lock_irqsave(&ha->hardware_lock, flags);
 	for (i = 1; i < MAX_OUTSTANDING_COMMANDS; i++) {
 		sp = ha->outstanding_cmds[i];
 
@@ -534,7 +535,7 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 		    sp->state));
 		DEBUG3(qla2x00_print_scsi_cmd(cmd);)
 
-		spin_unlock(&ha->hardware_lock);
+		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 		if (qla2x00_abort_command(ha, sp)) {
 			DEBUG2(printk("%s(%ld): abort_command "
 			    "mbx failed.\n", __func__, ha->host_no));
@@ -543,20 +544,19 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 			    "mbx success.\n", __func__, ha->host_no));
 			ret = SUCCESS;
 		}
-		spin_lock(&ha->hardware_lock);
+		spin_lock_irqsave(&ha->hardware_lock, flags);
 
 		break;
 	}
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	/* Wait for the command to be returned. */
 	if (ret == SUCCESS) {
-		spin_unlock(&ha->hardware_lock);
 		if (qla2x00_eh_wait_on_command(ha, cmd) != QLA_SUCCESS) {
 			qla_printk(KERN_ERR, ha, 
 			    "scsi(%ld:%d:%d): Abort handler timed out -- %lx "
 			    "%x.\n", ha->host_no, id, lun, serial, ret);
 		}
-		spin_lock(&ha->hardware_lock);
 	}
 	spin_lock_irq(ha->host->host_lock);
 
@@ -588,6 +588,7 @@ qla2x00_eh_wait_for_pending_target_commands(scsi_qla_host_t *ha, unsigned int t)
 	int	status;
 	srb_t		*sp;
 	struct scsi_cmnd *cmd;
+	unsigned long flags;
 
 	status = 0;
 
@@ -596,11 +597,11 @@ qla2x00_eh_wait_for_pending_target_commands(scsi_qla_host_t *ha, unsigned int t)
 	 * array
 	 */
 	for (cnt = 1; cnt < MAX_OUTSTANDING_COMMANDS; cnt++) {
-		spin_lock(&ha->hardware_lock);
+		spin_lock_irqsave(&ha->hardware_lock, flags);
 		sp = ha->outstanding_cmds[cnt];
 		if (sp) {
 			cmd = sp->cmd;
-			spin_unlock(&ha->hardware_lock);
+			spin_unlock_irqrestore(&ha->hardware_lock, flags);
 			if (cmd->device->id == t) {
 				if (!qla2x00_eh_wait_on_command(ha, cmd)) {
 					status = 1;
@@ -608,7 +609,7 @@ qla2x00_eh_wait_for_pending_target_commands(scsi_qla_host_t *ha, unsigned int t)
 				}
 			}
 		} else {
-			spin_unlock(&ha->hardware_lock);
+			spin_unlock_irqrestore(&ha->hardware_lock, flags);
 		}
 	}
 	return (status);
@@ -740,6 +741,7 @@ qla2x00_eh_wait_for_pending_commands(scsi_qla_host_t *ha)
 	int	status;
 	srb_t		*sp;
 	struct scsi_cmnd *cmd;
+	unsigned long flags;
 
 	status = 1;
 
@@ -748,17 +750,17 @@ qla2x00_eh_wait_for_pending_commands(scsi_qla_host_t *ha)
 	 * array
 	 */
 	for (cnt = 1; cnt < MAX_OUTSTANDING_COMMANDS; cnt++) {
-		spin_lock(&ha->hardware_lock);
+		spin_lock_irqsave(&ha->hardware_lock, flags);
 		sp = ha->outstanding_cmds[cnt];
 		if (sp) {
 			cmd = sp->cmd;
-			spin_unlock(&ha->hardware_lock);
+			spin_unlock_irqrestore(&ha->hardware_lock, flags);
 			status = qla2x00_eh_wait_on_command(ha, cmd);
 			if (status == 0)
 				break;
 		}
 		else {
-			spin_unlock(&ha->hardware_lock);
+			spin_unlock_irqrestore(&ha->hardware_lock, flags);
 		}
 	}
 	return (status);
@@ -2350,7 +2352,8 @@ qla2x00_module_init(void)
 #if DEBUG_QLA2100
 	strcat(qla2x00_version_str, "-debug");
 #endif
-	qla2xxx_transport_template = qla2x00_alloc_transport_tmpl();
+	qla2xxx_transport_template =
+	    fc_attach_transport(&qla2xxx_transport_functions);
 	if (!qla2xxx_transport_template)
 		return -ENODEV;
 

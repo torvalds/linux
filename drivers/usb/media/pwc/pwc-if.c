@@ -68,8 +68,6 @@
 #include "pwc-ioctl.h"
 #include "pwc-kiara.h"
 #include "pwc-timon.h"
-#include "pwc-dec23.h"
-#include "pwc-dec1.h"
 #include "pwc-uncompress.h"
 
 /* Function prototypes and driver templates */
@@ -272,7 +270,7 @@ static int pwc_allocate_buffers(struct pwc_device *pdev)
 		return -ENXIO;
 	}
 #endif	
-	/* Allocate Isochronuous pipe buffers */
+	/* Allocate Isochronous pipe buffers */
 	for (i = 0; i < MAX_ISO_BUFS; i++) {
 		if (pdev->sbuf[i].data == NULL) {
 			kbuf = kmalloc(ISO_BUFFER_SIZE, GFP_KERNEL);
@@ -322,6 +320,7 @@ static int pwc_allocate_buffers(struct pwc_device *pdev)
 	  case 730:
 	  case 740:
 	  case 750:
+#if 0	  
 	    Trace(TRACE_MEMORY,"private_data(%zu)\n",sizeof(struct pwc_dec23_private));
 	    kbuf = kmalloc(sizeof(struct pwc_dec23_private), GFP_KERNEL);	/* Timon & Kiara */
 	    break;
@@ -330,11 +329,9 @@ static int pwc_allocate_buffers(struct pwc_device *pdev)
 	    /* TODO & FIXME */
 	    kbuf = kmalloc(sizeof(struct pwc_dec23_private), GFP_KERNEL);
 	    break;
+#endif	 
+	;
 	 }
-	if (kbuf == NULL) {
-	   Err("Failed to allocate decompress table.\n");
-	   return -ENOMEM;
-	}
 	pdev->decompress_data = kbuf;
 	
 	/* Allocate image buffer; double buffer for mmap() */
@@ -850,7 +847,7 @@ static int pwc_isoc_init(struct pwc_device *pdev)
 	
 	if (pdev->vmax_packet_size < 0 || pdev->vmax_packet_size > ISO_MAX_FRAME_SIZE) {
 		Err("Failed to find packet size for video endpoint in current alternate setting.\n");
-		return -ENFILE; /* Odd error, that should be noticable */
+		return -ENFILE; /* Odd error, that should be noticeable */
 	}
 
 	/* Set alternate interface */
@@ -1131,11 +1128,11 @@ static int pwc_video_close(struct inode *inode, struct file *file)
 	  case 730:
 	  case 740:
 	  case 750:
-	    pwc_dec23_exit();	/* Timon & Kiara */
+/*	    pwc_dec23_exit();	*//* Timon & Kiara */
 	    break;
 	  case 645:
 	  case 646:
-	    pwc_dec1_exit();
+/*	    pwc_dec1_exit(); */
 	    break;
 	 }
 
@@ -2128,7 +2125,7 @@ static int __init usb_pwc_init(void)
 	if (leds[1] >= 0)
 		led_off = leds[1];
 
-	/* Big device node whoopla. Basicly, it allows you to assign a
+	/* Big device node whoopla. Basically, it allows you to assign a
 	   device node (/dev/videoX) to a camera, based on its type
 	   & serial number. The format is [type[.serialnumber]:]node.
 

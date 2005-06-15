@@ -73,6 +73,17 @@ resource_show(struct device * dev, char * buf)
 	return (str - buf);
 }
 
+static ssize_t modalias_show(struct device *dev, char *buf)
+{
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+
+	return sprintf(buf, "pci:v%08Xd%08Xsv%08Xsd%08Xbc%02Xsc%02Xi%02x\n",
+		       pci_dev->vendor, pci_dev->device,
+		       pci_dev->subsystem_vendor, pci_dev->subsystem_device,
+		       (u8)(pci_dev->class >> 16), (u8)(pci_dev->class >> 8),
+		       (u8)(pci_dev->class));
+}
+
 struct device_attribute pci_dev_attrs[] = {
 	__ATTR_RO(resource),
 	__ATTR_RO(vendor),
@@ -82,6 +93,7 @@ struct device_attribute pci_dev_attrs[] = {
 	__ATTR_RO(class),
 	__ATTR_RO(irq),
 	__ATTR_RO(local_cpus),
+	__ATTR_RO(modalias),
 	__ATTR_NULL,
 };
 
@@ -91,6 +103,7 @@ pci_read_config(struct kobject *kobj, char *buf, loff_t off, size_t count)
 	struct pci_dev *dev = to_pci_dev(container_of(kobj,struct device,kobj));
 	unsigned int size = 64;
 	loff_t init_off = off;
+	u8 *data = (u8*) buf;
 
 	/* Several chips lock up trying to read undefined config space */
 	if (capable(CAP_SYS_ADMIN)) {
@@ -108,30 +121,47 @@ pci_read_config(struct kobject *kobj, char *buf, loff_t off, size_t count)
 		size = count;
 	}
 
-	while (off & 3) {
-		unsigned char val;
+	if ((off & 1) && size) {
+		u8 val;
 		pci_read_config_byte(dev, off, &val);
-		buf[off - init_off] = val;
+		data[off - init_off] = val;
 		off++;
-		if (--size == 0)
-			break;
+		size--;
+	}
+
+	if ((off & 3) && size > 2) {
+		u16 val;
+		pci_read_config_word(dev, off, &val);
+		data[off - init_off] = val & 0xff;
+		data[off - init_off + 1] = (val >> 8) & 0xff;
+		off += 2;
+		size -= 2;
 	}
 
 	while (size > 3) {
-		unsigned int val;
+		u32 val;
 		pci_read_config_dword(dev, off, &val);
-		buf[off - init_off] = val & 0xff;
-		buf[off - init_off + 1] = (val >> 8) & 0xff;
-		buf[off - init_off + 2] = (val >> 16) & 0xff;
-		buf[off - init_off + 3] = (val >> 24) & 0xff;
+		data[off - init_off] = val & 0xff;
+		data[off - init_off + 1] = (val >> 8) & 0xff;
+		data[off - init_off + 2] = (val >> 16) & 0xff;
+		data[off - init_off + 3] = (val >> 24) & 0xff;
 		off += 4;
 		size -= 4;
 	}
 
-	while (size > 0) {
-		unsigned char val;
+	if (size >= 2) {
+		u16 val;
+		pci_read_config_word(dev, off, &val);
+		data[off - init_off] = val & 0xff;
+		data[off - init_off + 1] = (val >> 8) & 0xff;
+		off += 2;
+		size -= 2;
+	}
+
+	if (size > 0) {
+		u8 val;
 		pci_read_config_byte(dev, off, &val);
-		buf[off - init_off] = val;
+		data[off - init_off] = val;
 		off++;
 		--size;
 	}
@@ -145,6 +175,7 @@ pci_write_config(struct kobject *kobj, char *buf, loff_t off, size_t count)
 	struct pci_dev *dev = to_pci_dev(container_of(kobj,struct device,kobj));
 	unsigned int size = count;
 	loff_t init_off = off;
+	u8 *data = (u8*) buf;
 
 	if (off > dev->cfg_size)
 		return 0;
@@ -152,26 +183,41 @@ pci_write_config(struct kobject *kobj, char *buf, loff_t off, size_t count)
 		size = dev->cfg_size - off;
 		count = size;
 	}
-
-	while (off & 3) {
-		pci_write_config_byte(dev, off, buf[off - init_off]);
+	
+	if ((off & 1) && size) {
+		pci_write_config_byte(dev, off, data[off - init_off]);
 		off++;
-		if (--size == 0)
-			break;
+		size--;
 	}
+	
+	if ((off & 3) && size > 2) {
+		u16 val = data[off - init_off];
+		val |= (u16) data[off - init_off + 1] << 8;
+                pci_write_config_word(dev, off, val);
+                off += 2;
+                size -= 2;
+        }
 
 	while (size > 3) {
-		unsigned int val = buf[off - init_off];
-		val |= (unsigned int) buf[off - init_off + 1] << 8;
-		val |= (unsigned int) buf[off - init_off + 2] << 16;
-		val |= (unsigned int) buf[off - init_off + 3] << 24;
+		u32 val = data[off - init_off];
+		val |= (u32) data[off - init_off + 1] << 8;
+		val |= (u32) data[off - init_off + 2] << 16;
+		val |= (u32) data[off - init_off + 3] << 24;
 		pci_write_config_dword(dev, off, val);
 		off += 4;
 		size -= 4;
 	}
+	
+	if (size >= 2) {
+		u16 val = data[off - init_off];
+		val |= (u16) data[off - init_off + 1] << 8;
+		pci_write_config_word(dev, off, val);
+		off += 2;
+		size -= 2;
+	}
 
-	while (size > 0) {
-		pci_write_config_byte(dev, off, buf[off - init_off]);
+	if (size) {
+		pci_write_config_byte(dev, off, data[off - init_off]);
 		off++;
 		--size;
 	}

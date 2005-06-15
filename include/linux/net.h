@@ -7,7 +7,7 @@
  * Version:	@(#)net.h	1.0.3	05/25/93
  *
  * Authors:	Orest Zborowski, <obz@Kodak.COM>
- *		Ross Biro, <bir7@leland.Stanford.Edu>
+ *		Ross Biro
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *
  *		This program is free software; you can redistribute it and/or
@@ -101,7 +101,6 @@ enum sock_type {
  *  @sk: internal networking protocol agnostic socket representation
  *  @wait: wait queue for several uses
  *  @type: socket type (%SOCK_STREAM, etc)
- *  @passcred: credentials (used only in Unix Sockets (aka PF_LOCAL))
  */
 struct socket {
 	socket_state		state;

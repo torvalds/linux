@@ -7,7 +7,6 @@
 #include "linux/slab.h"
 #include "linux/signal.h"
 #include "linux/interrupt.h"
-#include "asm/semaphore.h"
 #include "asm/irq.h"
 #include "irq_user.h"
 #include "irq_kern.h"

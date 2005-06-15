@@ -41,9 +41,6 @@ extern unsigned long highmem;
 extern char host_info[];
 
 extern char saved_command_line[];
-extern char command_line[];
-
-extern char *tempdir;
 
 extern unsigned long _stext, _etext, _sdata, _edata, __bss_start, _end;
 extern unsigned long _unprotected_end;
@@ -67,7 +64,6 @@ extern void *um_kmalloc(int size);
 extern int switcheroo(int fd, int prot, void *from, void *to, int size);
 extern void setup_machinename(char *machine_out);
 extern void setup_hostinfo(void);
-extern void add_arg(char *arg);
 extern void init_new_thread_stack(void *sig_stack, void (*usr1_handler)(int));
 extern void init_new_thread_signals(int altstack);
 extern void do_exec(int old_pid, int new_pid);

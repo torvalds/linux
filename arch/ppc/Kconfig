@@ -43,6 +43,10 @@ config GENERIC_NVRAM
 	bool
 	default y
 
+config SCHED_NO_NO_OMIT_FRAME_POINTER
+	bool
+	default y
+
 source "init/Kconfig"
 
 menu "Processor"
@@ -73,9 +77,11 @@ config 44x
 	bool "44x"
 
 config POWER3
+	select PPC_FPU
 	bool "POWER3"
 
 config POWER4
+	select PPC_FPU
 	bool "POWER4 and 970 (G5)"
 
 config 8xx
@@ -1079,6 +1085,10 @@ source kernel/power/Kconfig
 
 endmenu
 
+config ISA_DMA_API
+	bool
+	default y
+
 menu "Bus options"
 
 config ISA
@@ -1133,12 +1143,12 @@ config PCI_QSPAN
 
 config PCI_8260
 	bool
-	depends on PCI && 8260 && !8272
+	depends on PCI && 8260
 	default y
 
 config 8260_PCI9
 	bool "  Enable workaround for MPC826x erratum PCI 9"
-	depends on PCI_8260
+	depends on PCI_8260 && !ADS8272
 	default y
 
 choice

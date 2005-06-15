@@ -31,8 +31,6 @@ int (*platform_notify_remove)(struct device * dev) = NULL;
 #define to_dev(obj) container_of(obj, struct device, kobj)
 #define to_dev_attr(_attr) container_of(_attr, struct device_attribute, attr)
 
-extern struct attribute * dev_default_attrs[];
-
 static ssize_t
 dev_attr_show(struct kobject * kobj, struct attribute * attr, char * buf)
 {
@@ -89,7 +87,6 @@ static void device_release(struct kobject * kobj)
 static struct kobj_type ktype_device = {
 	.release	= device_release,
 	.sysfs_ops	= &dev_sysfs_ops,
-	.default_attrs	= dev_default_attrs,
 };
 
 
@@ -139,7 +136,7 @@ static int dev_hotplug(struct kset *kset, struct kobject *kobj, char **envp,
 	buffer = &buffer[length];
 	buffer_size -= length;
 
-	if (dev->bus->hotplug) {
+	if (dev->bus && dev->bus->hotplug) {
 		/* have the bus specific function add its stuff */
 		retval = dev->bus->hotplug (dev, envp, num_envp, buffer, buffer_size);
 			if (retval) {
@@ -248,6 +245,7 @@ int device_add(struct device *dev)
 
 	if ((error = kobject_add(&dev->kobj)))
 		goto Error;
+	kobject_hotplug(&dev->kobj, KOBJ_ADD);
 	if ((error = device_pm_add(dev)))
 		goto PMError;
 	if ((error = bus_add_device(dev)))
@@ -260,14 +258,13 @@ int device_add(struct device *dev)
 	/* notify platform of device entry */
 	if (platform_notify)
 		platform_notify(dev);
-
-	kobject_hotplug(&dev->kobj, KOBJ_ADD);
  Done:
 	put_device(dev);
 	return error;
  BusError:
 	device_pm_remove(dev);
  PMError:
+	kobject_hotplug(&dev->kobj, KOBJ_REMOVE);
 	kobject_del(&dev->kobj);
  Error:
 	if (parent)

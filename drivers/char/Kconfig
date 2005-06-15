@@ -153,7 +153,7 @@ config DIGIEPCA
 
 config ESPSERIAL
 	tristate "Hayes ESP serial port support"
-	depends on SERIAL_NONSTANDARD && ISA && BROKEN_ON_SMP
+	depends on SERIAL_NONSTANDARD && ISA && BROKEN_ON_SMP && ISA_DMA_API
 	help
 	  This is a driver which supports Hayes ESP serial ports.  Both single
 	  port cards and multiport cards are supported.  Make sure to read
@@ -195,7 +195,7 @@ config ISI
 
 config SYNCLINK
 	tristate "Microgate SyncLink card support"
-	depends on SERIAL_NONSTANDARD && PCI
+	depends on SERIAL_NONSTANDARD && PCI && ISA_DMA_API
 	help
 	  Provides support for the SyncLink ISA and PCI multiprotocol serial
 	  adapters. These adapters support asynchronous and HDLC bit
@@ -408,7 +408,7 @@ config SGI_TIOCX
 
 config SGI_MBCS
        tristate "SGI FPGA Core Services driver support"
-       depends on (IA64_SGI_SN2 || IA64_GENERIC)
+       depends on SGI_TIOCX
        help
          If you have an SGI Altix with an attached SABrick
          say Y or M here, otherwise say N.

@@ -777,7 +777,7 @@ GLOBAL_ENTRY(ia64_ret_from_ia32_execve)
 	st8.spill [r2]=r8	// store return value in slot for r8 and set unat bit
 	.mem.offset 8,0
 	st8.spill [r3]=r0	// clear error indication in slot for r10 and set unat bit
-END(ia64_ret_from_ia32_execve_syscall)
+END(ia64_ret_from_ia32_execve)
 	// fall through
 #endif /* CONFIG_IA32_SUPPORT */
 GLOBAL_ENTRY(ia64_leave_kernel)
@@ -1176,7 +1176,7 @@ ENTRY(notify_resume_user)
 	;;
 (pNonSys) mov out2=0				// out2==0 => not a syscall
 	.fframe 16
-	.spillpsp ar.unat, 16			// (note that offset is relative to psp+0x10!)
+	.spillsp ar.unat, 16
 	st8 [sp]=r9,-16				// allocate space for ar.unat and save it
 	st8 [out1]=loc1,-8			// save ar.pfs, out1=&sigscratch
 	.body
@@ -1202,7 +1202,7 @@ GLOBAL_ENTRY(sys_rt_sigsuspend)
 	adds out2=8,sp				// out2=&sigscratch->ar_pfs
 	;;
 	.fframe 16
-	.spillpsp ar.unat, 16			// (note that offset is relative to psp+0x10!)
+	.spillsp ar.unat, 16
 	st8 [sp]=r9,-16				// allocate space for ar.unat and save it
 	st8 [out2]=loc1,-8			// save ar.pfs, out2=&sigscratch
 	.body

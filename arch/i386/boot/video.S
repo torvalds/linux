@@ -1924,36 +1924,36 @@ skip10:	movb	%ah, %al
 	ret
 
 store_edid:
-	pushw	%es				# just save all registers 
-	pushw	%ax				
+	pushw	%es				# just save all registers
+	pushw	%ax
 	pushw	%bx
 	pushw   %cx
 	pushw	%dx
 	pushw   %di
 
-	pushw	%fs                             
+	pushw	%fs
 	popw    %es
 
 	movl	$0x13131313, %eax		# memset block with 0x13
 	movw    $32, %cx
 	movw	$0x140, %di
 	cld
-	rep 
-	stosl  
+	rep
+	stosl
 
-	movw	$0x4f15, %ax                    # do VBE/DDC 
+	movw	$0x4f15, %ax                    # do VBE/DDC
 	movw	$0x01, %bx
 	movw	$0x00, %cx
 	movw    $0x01, %dx
 	movw	$0x140, %di
-	int	$0x10	
+	int	$0x10
 
-	popw	%di				# restore all registers        
+	popw	%di				# restore all registers
 	popw	%dx
 	popw	%cx
 	popw	%bx
 	popw	%ax
-	popw	%es	
+	popw	%es
 	ret
 
 # VIDEO_SELECT-only variables

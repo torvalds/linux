@@ -217,6 +217,13 @@ static void resume_execution(struct kprobe *p, struct pt_regs *regs)
 		*tos &= ~(TF_MASK | IF_MASK);
 		*tos |= kprobe_old_eflags;
 		break;
+	case 0xc3:		/* ret/lret */
+	case 0xcb:
+	case 0xc2:
+	case 0xca:
+		regs->eflags &= ~TF_MASK;
+		/* eip is already adjusted, no more changes required*/
+		return;
 	case 0xe8:		/* call relative - Fix return addr */
 		*tos = orig_eip + (*tos - copy_eip);
 		break;

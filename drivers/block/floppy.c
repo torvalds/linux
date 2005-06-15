@@ -3345,7 +3345,7 @@ static inline int set_geometry(unsigned int cmd, struct floppy_struct *g,
 			struct block_device *bdev = opened_bdev[cnt];
 			if (!bdev || ITYPE(drive_state[cnt].fd_device) != type)
 				continue;
-			__invalidate_device(bdev, 0);
+			__invalidate_device(bdev);
 		}
 		up(&open_lock);
 	} else {

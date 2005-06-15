@@ -9,6 +9,7 @@
 
 #include "uml-config.h"
 #include "user_constants.h"
+#include "sysdep/faultinfo.h"
 
 #define MAX_REG_OFFSET (UM_FRAME_SIZE)
 #define MAX_REG_NR ((MAX_REG_OFFSET) / sizeof(unsigned long))
@@ -83,6 +84,7 @@ union uml_pt_regs {
 		long syscall;
 		unsigned long orig_rax;
 		void *sc;
+                struct faultinfo faultinfo;
 	} tt;
 #endif
 #ifdef UML_CONFIG_MODE_SKAS
@@ -90,9 +92,7 @@ union uml_pt_regs {
 		/* XXX */
 		unsigned long regs[27];
 		unsigned long fp[65];
-		unsigned long fault_addr;
-		unsigned long fault_type;
-		unsigned long trap_type;
+                struct faultinfo faultinfo;
 		long syscall;
 		int is_user;
 	} skas;
@@ -135,6 +135,7 @@ extern int mode_tt;
 	__CHOOSE_MODE(SC_EFLAGS(UPT_SC(r)), REGS_EFLAGS((r)->skas.regs))
 #define UPT_SC(r) ((r)->tt.sc)
 #define UPT_SYSCALL_NR(r) __CHOOSE_MODE((r)->tt.syscall, (r)->skas.syscall)
+#define UPT_SYSCALL_RET(r) UPT_RAX(r)
 
 extern int user_context(unsigned long sp);
 
@@ -196,32 +197,32 @@ struct syscall_args {
 
 
 #define UPT_SET(regs, reg, val) \
-        ({      unsigned long val; \
+        ({      unsigned long __upt_val = val; \
                 switch(reg){ \
-		case R8: UPT_R8(regs) = val; break; \
-		case R9: UPT_R9(regs) = val; break; \
-		case R10: UPT_R10(regs) = val; break; \
-		case R11: UPT_R11(regs) = val; break; \
-		case R12: UPT_R12(regs) = val; break; \
-		case R13: UPT_R13(regs) = val; break; \
-		case R14: UPT_R14(regs) = val; break; \
-		case R15: UPT_R15(regs) = val; break; \
-                case RIP: UPT_IP(regs) = val; break; \
-                case RSP: UPT_SP(regs) = val; break; \
-                case RAX: UPT_RAX(regs) = val; break; \
-                case RBX: UPT_RBX(regs) = val; break; \
-                case RCX: UPT_RCX(regs) = val; break; \
-                case RDX: UPT_RDX(regs) = val; break; \
-                case RSI: UPT_RSI(regs) = val; break; \
-                case RDI: UPT_RDI(regs) = val; break; \
-                case RBP: UPT_RBP(regs) = val; break; \
-                case ORIG_RAX: UPT_ORIG_RAX(regs) = val; break; \
-                case CS: UPT_CS(regs) = val; break; \
-                case DS: UPT_DS(regs) = val; break; \
-                case ES: UPT_ES(regs) = val; break; \
-                case FS: UPT_FS(regs) = val; break; \
-                case GS: UPT_GS(regs) = val; break; \
-                case EFLAGS: UPT_EFLAGS(regs) = val; break; \
+                case R8: UPT_R8(regs) = __upt_val; break; \
+                case R9: UPT_R9(regs) = __upt_val; break; \
+                case R10: UPT_R10(regs) = __upt_val; break; \
+                case R11: UPT_R11(regs) = __upt_val; break; \
+                case R12: UPT_R12(regs) = __upt_val; break; \
+                case R13: UPT_R13(regs) = __upt_val; break; \
+                case R14: UPT_R14(regs) = __upt_val; break; \
+                case R15: UPT_R15(regs) = __upt_val; break; \
+                case RIP: UPT_IP(regs) = __upt_val; break; \
+                case RSP: UPT_SP(regs) = __upt_val; break; \
+                case RAX: UPT_RAX(regs) = __upt_val; break; \
+                case RBX: UPT_RBX(regs) = __upt_val; break; \
+                case RCX: UPT_RCX(regs) = __upt_val; break; \
+                case RDX: UPT_RDX(regs) = __upt_val; break; \
+                case RSI: UPT_RSI(regs) = __upt_val; break; \
+                case RDI: UPT_RDI(regs) = __upt_val; break; \
+                case RBP: UPT_RBP(regs) = __upt_val; break; \
+                case ORIG_RAX: UPT_ORIG_RAX(regs) = __upt_val; break; \
+                case CS: UPT_CS(regs) = __upt_val; break; \
+                case DS: UPT_DS(regs) = __upt_val; break; \
+                case ES: UPT_ES(regs) = __upt_val; break; \
+                case FS: UPT_FS(regs) = __upt_val; break; \
+                case GS: UPT_GS(regs) = __upt_val; break; \
+                case EFLAGS: UPT_EFLAGS(regs) = __upt_val; break; \
                 default :  \
                         panic("Bad register in UPT_SET : %d\n", reg);  \
 			break; \
@@ -241,24 +242,7 @@ struct syscall_args {
 	CHOOSE_MODE(SC_SEGV_IS_FIXABLE(UPT_SC(r)), \
                     REGS_SEGV_IS_FIXABLE(&r->skas))
 
-#define UPT_FAULT_ADDR(r) \
-	__CHOOSE_MODE(SC_FAULT_ADDR(UPT_SC(r)), REGS_FAULT_ADDR(&r->skas))
-
-#define UPT_FAULT_WRITE(r) \
-	CHOOSE_MODE(SC_FAULT_WRITE(UPT_SC(r)), REGS_FAULT_WRITE(&r->skas))
-
-#define UPT_TRAP(r) __CHOOSE_MODE(SC_TRAP_TYPE(UPT_SC(r)), REGS_TRAP(&r->skas))
-#define UPT_ERR(r) __CHOOSE_MODE(SC_FAULT_TYPE(UPT_SC(r)), REGS_ERR(&r->skas))
+#define UPT_FAULTINFO(r) \
+        CHOOSE_MODE((&(r)->tt.faultinfo), (&(r)->skas.faultinfo))
 
 #endif
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

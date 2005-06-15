@@ -8,7 +8,7 @@
  * Version:	@(#)if.h	1.0.2	04/18/93
  *
  * Authors:	Original taken from Berkeley UNIX 4.3, (c) UCB 1982-1988
- *		Ross Biro, <bir7@leland.Stanford.Edu>
+ *		Ross Biro
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *
  *		This program is free software; you can redistribute it and/or

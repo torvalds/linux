@@ -7,7 +7,7 @@
  *
  * Version:	$Id: af_inet.c,v 1.137 2002/02/01 22:01:03 davem Exp $
  *
- * Authors:	Ross Biro, <bir7@leland.Stanford.Edu>
+ * Authors:	Ross Biro
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *		Florian La Roche, <flla@stud.uni-sb.de>
  *		Alan Cox, <A.Cox@swansea.ac.uk>
@@ -1181,6 +1181,7 @@ EXPORT_SYMBOL(inet_stream_connect);
 EXPORT_SYMBOL(inet_stream_ops);
 EXPORT_SYMBOL(inet_unregister_protosw);
 EXPORT_SYMBOL(net_statistics);
+EXPORT_SYMBOL(sysctl_ip_nonlocal_bind);
 
 #ifdef INET_REFCNT_DEBUG
 EXPORT_SYMBOL(inet_sock_nr);

@@ -1308,10 +1308,10 @@ static int unconfigure_boot_device (u8 busno, u8 device, u8 function)
 			/* ????????? DO WE NEED TO WRITE ANYTHING INTO THE PCI CONFIG SPACE BACK ?????????? */
 		} else {
 			/* This is Memory */
-			start_address &= PCI_BASE_ADDRESS_MEM_MASK;
 			if (start_address & PCI_BASE_ADDRESS_MEM_PREFETCH) {
 				/* pfmem */
 				debug ("start address of pfmem is %x\n", start_address);
+				start_address &= PCI_BASE_ADDRESS_MEM_MASK;
 
 				if (ibmphp_find_resource (bus, start_address, &pfmem, PFMEM) < 0) {
 					err ("cannot find corresponding PFMEM resource to remove\n");
@@ -1325,6 +1325,8 @@ static int unconfigure_boot_device (u8 busno, u8 device, u8 function)
 			} else {
 				/* regular memory */
 				debug ("start address of mem is %x\n", start_address);
+				start_address &= PCI_BASE_ADDRESS_MEM_MASK;
+
 				if (ibmphp_find_resource (bus, start_address, &mem, MEM) < 0) {
 					err ("cannot find corresponding MEM resource to remove\n");
 					return -EIO;
@@ -1422,9 +1424,9 @@ static int unconfigure_boot_bridge (u8 busno, u8 device, u8 function)
 			/* ????????? DO WE NEED TO WRITE ANYTHING INTO THE PCI CONFIG SPACE BACK ?????????? */
 		} else {
 			/* This is Memory */
-			start_address &= PCI_BASE_ADDRESS_MEM_MASK;
 			if (start_address & PCI_BASE_ADDRESS_MEM_PREFETCH) {
 				/* pfmem */
+				start_address &= PCI_BASE_ADDRESS_MEM_MASK;
 				if (ibmphp_find_resource (bus, start_address, &pfmem, PFMEM) < 0) {
 					err ("cannot find corresponding PFMEM resource to remove\n");
 					return -EINVAL;
@@ -1436,6 +1438,7 @@ static int unconfigure_boot_bridge (u8 busno, u8 device, u8 function)
 				}
 			} else {
 				/* regular memory */
+				start_address &= PCI_BASE_ADDRESS_MEM_MASK;
 				if (ibmphp_find_resource (bus, start_address, &mem, MEM) < 0) {
 					err ("cannot find corresponding MEM resource to remove\n");
 					return -EINVAL;

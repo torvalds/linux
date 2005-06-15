@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <asm/dma.h>	/* isa_dma_bridge_buggy */
+#include "pci.h"
 
 
 /**
@@ -398,10 +399,10 @@ pci_enable_device(struct pci_dev *dev)
 {
 	int err;
 
-	dev->is_enabled = 1;
 	if ((err = pci_enable_device_bars(dev, (1 << PCI_NUM_RESOURCES) - 1)))
 		return err;
 	pci_fixup_device(pci_fixup_enable, dev);
+	dev->is_enabled = 1;
 	return 0;
 }
 
@@ -427,16 +428,15 @@ pci_disable_device(struct pci_dev *dev)
 {
 	u16 pci_command;
 	
-	dev->is_enabled = 0;
-	dev->is_busmaster = 0;
-
 	pci_read_config_word(dev, PCI_COMMAND, &pci_command);
 	if (pci_command & PCI_COMMAND_MASTER) {
 		pci_command &= ~PCI_COMMAND_MASTER;
 		pci_write_config_word(dev, PCI_COMMAND, pci_command);
 	}
+	dev->is_busmaster = 0;
 
 	pcibios_disable_device(dev);
+	dev->is_enabled = 0;
 }
 
 /**
@@ -749,17 +749,6 @@ pci_set_dma_mask(struct pci_dev *dev, u64 mask)
 }
     
 int
-pci_dac_set_dma_mask(struct pci_dev *dev, u64 mask)
-{
-	if (!pci_dac_dma_supported(dev, mask))
-		return -EIO;
-
-	dev->dma_mask = mask;
-
-	return 0;
-}
-
-int
 pci_set_consistent_dma_mask(struct pci_dev *dev, u64 mask)
 {
 	if (!pci_dma_supported(dev, mask))
@@ -821,7 +810,6 @@ EXPORT_SYMBOL(pci_set_master);
 EXPORT_SYMBOL(pci_set_mwi);
 EXPORT_SYMBOL(pci_clear_mwi);
 EXPORT_SYMBOL(pci_set_dma_mask);
-EXPORT_SYMBOL(pci_dac_set_dma_mask);
 EXPORT_SYMBOL(pci_set_consistent_dma_mask);
 EXPORT_SYMBOL(pci_assign_resource);
 EXPORT_SYMBOL(pci_find_parent_resource);

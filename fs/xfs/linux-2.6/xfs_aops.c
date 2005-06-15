@@ -558,7 +558,8 @@ xfs_submit_page(
 	int			i;
 
 	BUG_ON(PageWriteback(page));
-	set_page_writeback(page);
+	if (bh_count)
+		set_page_writeback(page);
 	if (clear_dirty)
 		clear_page_dirty(page);
 	unlock_page(page);
@@ -578,9 +579,6 @@ xfs_submit_page(
 
 		if (probed_page && clear_dirty)
 			wbc->nr_to_write--;	/* Wrote an "extra" page */
-	} else {
-		end_page_writeback(page);
-		wbc->pages_skipped++;	/* We didn't write this page */
 	}
 }
 
@@ -602,21 +600,26 @@ xfs_convert_page(
 {
 	struct buffer_head	*bh_arr[MAX_BUF_PER_PAGE], *bh, *head;
 	xfs_iomap_t		*mp = iomapp, *tmp;
-	unsigned long		end, offset;
-	pgoff_t			end_index;
-	int			i = 0, index = 0;
+	unsigned long		offset, end_offset;
+	int			index = 0;
 	int			bbits = inode->i_blkbits;
+	int			len, page_dirty;
 
-	end_index = i_size_read(inode) >> PAGE_CACHE_SHIFT;
-	if (page->index < end_index) {
-		end = PAGE_CACHE_SIZE;
-	} else {
-		end = i_size_read(inode) & (PAGE_CACHE_SIZE-1);
-	}
+	end_offset = (i_size_read(inode) & (PAGE_CACHE_SIZE - 1));
+
+	/*
+	 * page_dirty is initially a count of buffers on the page before
+	 * EOF and is decrememted as we move each into a cleanable state.
+	 */
+	len = 1 << inode->i_blkbits;
+	end_offset = max(end_offset, PAGE_CACHE_SIZE);
+	end_offset = roundup(end_offset, len);
+	page_dirty = end_offset / len;
+
+	offset = 0;
 	bh = head = page_buffers(page);
 	do {
-		offset = i << bbits;
-		if (offset >= end)
+		if (offset >= end_offset)
 			break;
 		if (!(PageUptodate(page) || buffer_uptodate(bh)))
 			continue;
@@ -625,6 +628,7 @@ xfs_convert_page(
 			if (startio) {
 				lock_buffer(bh);
 				bh_arr[index++] = bh;
+				page_dirty--;
 			}
 			continue;
 		}
@@ -657,10 +661,11 @@ xfs_convert_page(
 			unlock_buffer(bh);
 			mark_buffer_dirty(bh);
 		}
-	} while (i++, (bh = bh->b_this_page) != head);
+		page_dirty--;
+	} while (offset += len, (bh = bh->b_this_page) != head);
 
-	if (startio) {
-		xfs_submit_page(page, wbc, bh_arr, index, 1, index == i);
+	if (startio && index) {
+		xfs_submit_page(page, wbc, bh_arr, index, 1, !page_dirty);
 	} else {
 		unlock_page(page);
 	}
@@ -725,8 +730,11 @@ xfs_page_state_convert(
 	__uint64_t              end_offset;
 	pgoff_t                 end_index, last_index, tlast;
 	int			len, err, i, cnt = 0, uptodate = 1;
-	int			flags = startio ? 0 : BMAPI_TRYLOCK;
-	int			page_dirty, delalloc = 0;
+	int			flags;
+	int			page_dirty;
+
+	/* wait for other IO threads? */
+	flags = (startio && wbc->sync_mode != WB_SYNC_NONE) ? 0 : BMAPI_TRYLOCK;
 
 	/* Is this page beyond the end of the file? */
 	offset = i_size_read(inode);
@@ -740,19 +748,22 @@ xfs_page_state_convert(
 		}
 	}
 
-	offset = (loff_t)page->index << PAGE_CACHE_SHIFT;
 	end_offset = min_t(unsigned long long,
-			offset + PAGE_CACHE_SIZE, i_size_read(inode));
-
-	bh = head = page_buffers(page);
-	iomp = NULL;
+			(loff_t)(page->index + 1) << PAGE_CACHE_SHIFT, offset);
+	offset = (loff_t)page->index << PAGE_CACHE_SHIFT;
 
 	/*
-	 * page_dirty is initially a count of buffers on the page and
-	 * is decrememted as we move each into a cleanable state.
+	 * page_dirty is initially a count of buffers on the page before
+	 * EOF and is decrememted as we move each into a cleanable state.
 	 */
-	len = bh->b_size;
-	page_dirty = PAGE_CACHE_SIZE / len;
+	len = 1 << inode->i_blkbits;
+	p_offset = max(p_offset, PAGE_CACHE_SIZE);
+	p_offset = roundup(p_offset, len);
+	page_dirty = p_offset / len;
+
+	iomp = NULL;
+	p_offset = 0;
+	bh = head = page_buffers(page);
 
 	do {
 		if (offset >= end_offset)
@@ -804,7 +815,6 @@ xfs_page_state_convert(
 		 */
 		} else if (buffer_delay(bh)) {
 			if (!iomp) {
-				delalloc = 1;
 				err = xfs_map_blocks(inode, offset, len, &iomap,
 						BMAPI_ALLOCATE | flags);
 				if (err) {
@@ -875,14 +885,14 @@ xfs_page_state_convert(
 	if (uptodate && bh == head)
 		SetPageUptodate(page);
 
-	if (startio)
-		xfs_submit_page(page, wbc, bh_arr, cnt, 0, 1);
+	if (startio) {
+		xfs_submit_page(page, wbc, bh_arr, cnt, 0, !page_dirty);
+	}
 
 	if (iomp) {
-		tlast = (iomp->iomap_offset + iomp->iomap_bsize - 1) >>
+		offset = (iomp->iomap_offset + iomp->iomap_bsize - 1) >>
 					PAGE_CACHE_SHIFT;
-		if (delalloc && (tlast > last_index))
-			tlast = last_index;
+		tlast = min_t(pgoff_t, offset, last_index);
 		xfs_cluster_write(inode, page->index + 1, iomp, wbc,
 					startio, unmapped, tlast);
 	}

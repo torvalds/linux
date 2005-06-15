@@ -303,6 +303,21 @@ config HPET_TIMER
 	  as it is off-chip.  You can find the HPET spec at
 	  <http://www.intel.com/labs/platcomp/hpet/hpetspec.htm>.
 
+config X86_PM_TIMER
+	bool "PM timer"
+	depends on ACPI
+	default y
+	help
+	  Support the ACPI PM timer for time keeping. This is slow,
+	  but is useful on some chipsets without HPET on systems with more
+	  than one CPU. On a single processor or single socket multi core
+	  system it is normally not required.
+	  When the PM timer is active 64bit vsyscalls are disabled
+	  and should not be enabled (/proc/sys/kernel/vsyscall64 should
+	  not be changed).
+	  The kernel selects the PM timer only as a last resort, so it is
+	  useful to enable just in case.
+
 config HPET_EMULATE_RTC
 	bool "Provide RTC interrupt"
 	depends on HPET_TIMER && RTC=y
@@ -379,6 +394,11 @@ config GENERIC_IRQ_PROBE
 	bool
 	default y
 
+# we have no ISA slots, but we do have ISA-style DMA.
+config ISA_DMA_API
+	bool
+	default y
+
 menu "Power management options"
 
 source kernel/power/Kconfig
@@ -402,7 +422,7 @@ config PCI_DIRECT
 
 config PCI_MMCONFIG
 	bool "Support mmconfig PCI config space access"
-	depends on PCI
+	depends on PCI && ACPI
 	select ACPI_BOOT
 
 config UNORDERED_IO

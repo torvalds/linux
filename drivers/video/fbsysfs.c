@@ -241,7 +241,7 @@ static ssize_t show_virtual(struct class_device *class_device, char *buf)
 	struct fb_info *fb_info =
 		(struct fb_info *)class_get_devdata(class_device);
 	return snprintf(buf, PAGE_SIZE, "%d,%d\n", fb_info->var.xres_virtual,
-			fb_info->var.xres_virtual);
+			fb_info->var.yres_virtual);
 }
 
 static ssize_t store_cmap(struct class_device *class_device, const char * buf,
@@ -354,7 +354,7 @@ static ssize_t show_pan(struct class_device *class_device, char *buf)
 			fb_info->var.xoffset);
 }
 
-struct class_device_attribute class_device_attrs[] = {
+static struct class_device_attribute class_device_attrs[] = {
 	__ATTR(bits_per_pixel, S_IRUGO|S_IWUSR, show_bpp, store_bpp),
 	__ATTR(blank, S_IRUGO|S_IWUSR, show_blank, store_blank),
 	__ATTR(color_map, S_IRUGO|S_IWUSR, show_cmap, store_cmap),

@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <signal.h>
 #include "sysdep/ptrace.h"
+#include "sysdep/sigcontext.h"
 #include "signal_user.h"
 #include "user_util.h"
 #include "kern_util.h"
@@ -28,6 +29,11 @@ void sig_handler_common_tt(int sig, void *sc_ptr)
 		change_sig(SIGSEGV, 1);
 
 	r = &TASK_REGS(get_current())->tt;
+        if ( sig == SIGFPE || sig == SIGSEGV ||
+             sig == SIGBUS || sig == SIGILL ||
+             sig == SIGTRAP ) {
+                GET_FAULTINFO_FROM_SC(r->faultinfo, sc);
+        }
 	save_regs = *r;
 	is_user = user_context(SC_SP(sc));
 	r->sc = sc;

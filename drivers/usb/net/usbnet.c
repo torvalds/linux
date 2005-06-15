@@ -1517,6 +1517,26 @@ static void cdc_unbind (struct usbnet *dev, struct usb_interface *intf)
 	}
 }
 
+#endif	/* NEED_GENERIC_CDC */
+
+
+#ifdef	CONFIG_USB_CDCETHER
+#define	HAVE_HARDWARE
+
+/*-------------------------------------------------------------------------
+ *
+ * Communications Device Class, Ethernet Control model
+ *
+ * Takes two interfaces.  The DATA interface is inactive till an altsetting
+ * is selected.  Configuration data includes class descriptors.
+ *
+ * This should interop with whatever the 2.4 "CDCEther.c" driver
+ * (by Brad Hards) talked with.
+ *
+ *-------------------------------------------------------------------------*/
+
+#include <linux/ctype.h>
+
 
 static void dumpspeed (struct usbnet *dev, __le32 *speeds)
 {
@@ -1566,26 +1586,6 @@ static void cdc_status (struct usbnet *dev, struct urb *urb)
 		break;
 	}
 }
-
-#endif	/* NEED_GENERIC_CDC */
-
-
-#ifdef	CONFIG_USB_CDCETHER
-#define	HAVE_HARDWARE
-
-/*-------------------------------------------------------------------------
- *
- * Communications Device Class, Ethernet Control model
- * 
- * Takes two interfaces.  The DATA interface is inactive till an altsetting
- * is selected.  Configuration data includes class descriptors.
- *
- * This should interop with whatever the 2.4 "CDCEther.c" driver
- * (by Brad Hards) talked with.
- *
- *-------------------------------------------------------------------------*/
-
-#include <linux/ctype.h>
 
 static u8 nibble (unsigned char c)
 {
@@ -2765,7 +2765,7 @@ static int blan_mdlm_bind (struct usbnet *dev, struct usb_interface *intf)
 			}
 			/* expect bcdVersion 1.0, ignore */
 			if (memcmp(&desc->bGUID, blan_guid, 16)
-				    || memcmp(&desc->bGUID, blan_guid, 16) ) {
+				    && memcmp(&desc->bGUID, safe_guid, 16) ) {
 				/* hey, this one might _really_ be MDLM! */
 				dev_dbg (&intf->dev, "MDLM guid\n");
 				goto bad_desc;
@@ -2797,11 +2797,13 @@ static int blan_mdlm_bind (struct usbnet *dev, struct usb_interface *intf)
 			 *  - bPad (ignored, for PADAFTER -- BLAN-only)
 			 * bits are:
 			 *  - 0x01 -- Zaurus framing (add CRC)
-			 *  - 0x02 -- PADBEFORE
-			 *  - 0x04 -- PADAFTER
+			 *  - 0x02 -- PADBEFORE (CRC includes some padding)
+			 *  - 0x04 -- PADAFTER (some padding after CRC)
 			 *  - 0x08 -- "fermat" packet mangling (for hw bugs)
+			 * the PADBEFORE appears not to matter; we interop
+			 * with devices that use it and those that don't.
 			 */
-			if (detail->bDetailData[1] != 0x01) {
+			if ((detail->bDetailData[1] & ~02) != 0x01) {
 				/* bmDataCapabilites == 0 would be fine too,
 				 * but framing is minidriver-coupled for now.
 				 */

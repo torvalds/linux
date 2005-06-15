@@ -63,7 +63,7 @@ msg_loop:
 	jz	die
 	movb	$0xe, %ah
 	movw	$7, %bx
- 	int	$0x10
+	int	$0x10
 	jmp	msg_loop
 
 die:
@@ -71,7 +71,7 @@ die:
 	xorw	%ax, %ax
 	int	$0x16
 	int	$0x19
-	
+
 	# int 0x19 should never return.  In case it does anyway,
 	# invoke the BIOS reset code...
 	ljmp	$0xf000,$0xfff0

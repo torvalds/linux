@@ -89,6 +89,10 @@ config PAGESIZE_16
           machine with 4MB of memory.
 endmenu
 
+config ISA_DMA_API
+	bool
+	default y
+
 menu "General setup"
 
 # Compressed boot loader in ROM.  Yes, we really want to ask about

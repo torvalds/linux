@@ -1,6 +1,11 @@
 /*
  * usbusy2y.c - ALSA USB US-428 Driver
  *
+2005-04-14 Karsten Wiese
+	Version 0.8.7.2:
+	Call snd_card_free() instead of snd_card_free_in_thread() to prevent oops with dead keyboard symptom.
+	Tested ok with kernel 2.6.12-rc2.
+
 2004-12-14 Karsten Wiese
 	Version 0.8.7.1:
 	snd_pcm_open for rawusb pcm-devices now returns -EBUSY if called without rawusb's hwdep device being open.
@@ -143,7 +148,7 @@
 
 
 MODULE_AUTHOR("Karsten Wiese <annabellesgarden@yahoo.de>");
-MODULE_DESCRIPTION("TASCAM "NAME_ALLCAPS" Version 0.8.7.1");
+MODULE_DESCRIPTION("TASCAM "NAME_ALLCAPS" Version 0.8.7.2");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{TASCAM(0x1604), "NAME_ALLCAPS"(0x8001)(0x8005)(0x8007) }}");
 
@@ -430,8 +435,6 @@ static void usX2Y_usb_disconnect(struct usb_device* device, void* ptr)
 	if (ptr) {
 		usX2Ydev_t* usX2Y = usX2Y((snd_card_t*)ptr);
 		struct list_head* p;
-		if (usX2Y->chip_status == USX2Y_STAT_CHIP_HUP)	// on 2.6.1 kernel snd_usbmidi_disconnect()
-			return;					// calls us back. better leave :-) .
 		usX2Y->chip.shutdown = 1;
 		usX2Y->chip_status = USX2Y_STAT_CHIP_HUP;
 		usX2Y_unlinkSeq(&usX2Y->AS04);
@@ -443,7 +446,7 @@ static void usX2Y_usb_disconnect(struct usb_device* device, void* ptr)
 		}
 		if (usX2Y->us428ctls_sharedmem) 
 			wake_up(&usX2Y->us428ctls_wait_queue_head);
-		snd_card_free_in_thread((snd_card_t*)ptr);
+		snd_card_free((snd_card_t*)ptr);
 	}
 }
 

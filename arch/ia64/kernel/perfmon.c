@@ -11,7 +11,7 @@
  * Version Perfmon-2.x is a rewrite of perfmon-1.x
  * by Stephane Eranian, Hewlett Packard Co.
  *
- * Copyright (C) 1999-2003, 2005  Hewlett Packard Co
+ * Copyright (C) 1999-2005  Hewlett Packard Co
  *               Stephane Eranian <eranian@hpl.hp.com>
  *               David Mosberger-Tang <davidm@hpl.hp.com>
  *
@@ -497,6 +497,9 @@ typedef struct {
 static pfm_stats_t		pfm_stats[NR_CPUS];
 static pfm_session_t		pfm_sessions;	/* global sessions information */
 
+static spinlock_t pfm_alt_install_check = SPIN_LOCK_UNLOCKED;
+static pfm_intr_handler_desc_t  *pfm_alt_intr_handler;
+
 static struct proc_dir_entry 	*perfmon_dir;
 static pfm_uuid_t		pfm_null_uuid = {0,};
 
@@ -606,6 +609,7 @@ DEFINE_PER_CPU(unsigned long, pfm_syst_info);
 DEFINE_PER_CPU(struct task_struct *, pmu_owner);
 DEFINE_PER_CPU(pfm_context_t  *, pmu_ctx);
 DEFINE_PER_CPU(unsigned long, pmu_activation_number);
+EXPORT_PER_CPU_SYMBOL_GPL(pfm_syst_info);
 
 
 /* forward declaration */
@@ -1265,6 +1269,8 @@ out:
 }
 EXPORT_SYMBOL(pfm_unregister_buffer_fmt);
 
+extern void update_pal_halt_status(int);
+
 static int
 pfm_reserve_session(struct task_struct *task, int is_syswide, unsigned int cpu)
 {
@@ -1311,6 +1317,11 @@ pfm_reserve_session(struct task_struct *task, int is_syswide, unsigned int cpu)
 		is_syswide,
 		cpu));
 
+	/*
+	 * disable default_idle() to go to PAL_HALT
+	 */
+	update_pal_halt_status(0);
+
 	UNLOCK_PFS(flags);
 
 	return 0;
@@ -1318,7 +1329,7 @@ pfm_reserve_session(struct task_struct *task, int is_syswide, unsigned int cpu)
 error_conflict:
 	DPRINT(("system wide not possible, conflicting session [%d] on CPU%d\n",
   		pfm_sessions.pfs_sys_session[cpu]->pid,
-		smp_processor_id()));
+		cpu));
 abort:
 	UNLOCK_PFS(flags);
 
@@ -1365,6 +1376,12 @@ pfm_unreserve_session(pfm_context_t *ctx, int is_syswide, unsigned int cpu)
 		pfm_sessions.pfs_sys_use_dbregs,
 		is_syswide,
 		cpu));
+
+	/*
+	 * if possible, enable default_idle() to go into PAL_HALT
+	 */
+	if (pfm_sessions.pfs_task_sessions == 0 && pfm_sessions.pfs_sys_sessions == 0)
+		update_pal_halt_status(1);
 
 	UNLOCK_PFS(flags);
 
@@ -4202,7 +4219,7 @@ pfm_context_load(pfm_context_t *ctx, void *arg, int count, struct pt_regs *regs)
 		DPRINT(("cannot load to [%d], invalid ctx_state=%d\n",
 			req->load_pid,
 			ctx->ctx_state));
-		return -EINVAL;
+		return -EBUSY;
 	}
 
 	DPRINT(("load_pid [%d] using_dbreg=%d\n", req->load_pid, ctx->ctx_fl_using_dbreg));
@@ -4704,16 +4721,26 @@ recheck:
 	if (task == current || ctx->ctx_fl_system) return 0;
 
 	/*
-	 * if context is UNLOADED we are safe to go
+	 * we are monitoring another thread
 	 */
-	if (state == PFM_CTX_UNLOADED) return 0;
-
-	/*
-	 * no command can operate on a zombie context
-	 */
-	if (state == PFM_CTX_ZOMBIE) {
-		DPRINT(("cmd %d state zombie cannot operate on context\n", cmd));
-		return -EINVAL;
+	switch(state) {
+		case PFM_CTX_UNLOADED:
+			/*
+			 * if context is UNLOADED we are safe to go
+			 */
+			return 0;
+		case PFM_CTX_ZOMBIE:
+			/*
+			 * no command can operate on a zombie context
+			 */
+			DPRINT(("cmd %d state zombie cannot operate on context\n", cmd));
+			return -EINVAL;
+		case PFM_CTX_MASKED:
+			/*
+			 * PMU state has been saved to software even though
+			 * the thread may still be running.
+			 */
+			if (cmd != PFM_UNLOAD_CONTEXT) return 0;
 	}
 
 	/*
@@ -5532,26 +5559,32 @@ pfm_interrupt_handler(int irq, void *arg, struct pt_regs *regs)
 	int ret;
 
 	this_cpu = get_cpu();
-	min      = pfm_stats[this_cpu].pfm_ovfl_intr_cycles_min;
-	max      = pfm_stats[this_cpu].pfm_ovfl_intr_cycles_max;
+	if (likely(!pfm_alt_intr_handler)) {
+		min = pfm_stats[this_cpu].pfm_ovfl_intr_cycles_min;
+		max = pfm_stats[this_cpu].pfm_ovfl_intr_cycles_max;
 
-	start_cycles = ia64_get_itc();
+		start_cycles = ia64_get_itc();
 
-	ret = pfm_do_interrupt_handler(irq, arg, regs);
+		ret = pfm_do_interrupt_handler(irq, arg, regs);
 
-	total_cycles = ia64_get_itc();
+		total_cycles = ia64_get_itc();
 
-	/*
-	 * don't measure spurious interrupts
-	 */
-	if (likely(ret == 0)) {
-		total_cycles -= start_cycles;
+		/*
+		 * don't measure spurious interrupts
+		 */
+		if (likely(ret == 0)) {
+			total_cycles -= start_cycles;
 
-		if (total_cycles < min) pfm_stats[this_cpu].pfm_ovfl_intr_cycles_min = total_cycles;
-		if (total_cycles > max) pfm_stats[this_cpu].pfm_ovfl_intr_cycles_max = total_cycles;
+			if (total_cycles < min) pfm_stats[this_cpu].pfm_ovfl_intr_cycles_min = total_cycles;
+			if (total_cycles > max) pfm_stats[this_cpu].pfm_ovfl_intr_cycles_max = total_cycles;
 
-		pfm_stats[this_cpu].pfm_ovfl_intr_cycles += total_cycles;
+			pfm_stats[this_cpu].pfm_ovfl_intr_cycles += total_cycles;
+		}
 	}
+	else {
+		(*pfm_alt_intr_handler->handler)(irq, arg, regs);
+	}
+
 	put_cpu_no_resched();
 	return IRQ_HANDLED;
 }
@@ -6401,6 +6434,141 @@ static struct irqaction perfmon_irqaction = {
 	.flags   = SA_INTERRUPT,
 	.name    = "perfmon"
 };
+
+static void
+pfm_alt_save_pmu_state(void *data)
+{
+	struct pt_regs *regs;
+
+	regs = ia64_task_regs(current);
+
+	DPRINT(("called\n"));
+
+	/*
+	 * should not be necessary but
+	 * let's take not risk
+	 */
+	pfm_clear_psr_up();
+	pfm_clear_psr_pp();
+	ia64_psr(regs)->pp = 0;
+
+	/*
+	 * This call is required
+	 * May cause a spurious interrupt on some processors
+	 */
+	pfm_freeze_pmu();
+
+	ia64_srlz_d();
+}
+
+void
+pfm_alt_restore_pmu_state(void *data)
+{
+	struct pt_regs *regs;
+
+	regs = ia64_task_regs(current);
+
+	DPRINT(("called\n"));
+
+	/*
+	 * put PMU back in state expected
+	 * by perfmon
+	 */
+	pfm_clear_psr_up();
+	pfm_clear_psr_pp();
+	ia64_psr(regs)->pp = 0;
+
+	/*
+	 * perfmon runs with PMU unfrozen at all times
+	 */
+	pfm_unfreeze_pmu();
+
+	ia64_srlz_d();
+}
+
+int
+pfm_install_alt_pmu_interrupt(pfm_intr_handler_desc_t *hdl)
+{
+	int ret, i;
+	int reserve_cpu;
+
+	/* some sanity checks */
+	if (hdl == NULL || hdl->handler == NULL) return -EINVAL;
+
+	/* do the easy test first */
+	if (pfm_alt_intr_handler) return -EBUSY;
+
+	/* one at a time in the install or remove, just fail the others */
+	if (!spin_trylock(&pfm_alt_install_check)) {
+		return -EBUSY;
+	}
+
+	/* reserve our session */
+	for_each_online_cpu(reserve_cpu) {
+		ret = pfm_reserve_session(NULL, 1, reserve_cpu);
+		if (ret) goto cleanup_reserve;
+	}
+
+	/* save the current system wide pmu states */
+	ret = on_each_cpu(pfm_alt_save_pmu_state, NULL, 0, 1);
+	if (ret) {
+		DPRINT(("on_each_cpu() failed: %d\n", ret));
+		goto cleanup_reserve;
+	}
+
+	/* officially change to the alternate interrupt handler */
+	pfm_alt_intr_handler = hdl;
+
+	spin_unlock(&pfm_alt_install_check);
+
+	return 0;
+
+cleanup_reserve:
+	for_each_online_cpu(i) {
+		/* don't unreserve more than we reserved */
+		if (i >= reserve_cpu) break;
+
+		pfm_unreserve_session(NULL, 1, i);
+	}
+
+	spin_unlock(&pfm_alt_install_check);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(pfm_install_alt_pmu_interrupt);
+
+int
+pfm_remove_alt_pmu_interrupt(pfm_intr_handler_desc_t *hdl)
+{
+	int i;
+	int ret;
+
+	if (hdl == NULL) return -EINVAL;
+
+	/* cannot remove someone else's handler! */
+	if (pfm_alt_intr_handler != hdl) return -EINVAL;
+
+	/* one at a time in the install or remove, just fail the others */
+	if (!spin_trylock(&pfm_alt_install_check)) {
+		return -EBUSY;
+	}
+
+	pfm_alt_intr_handler = NULL;
+
+	ret = on_each_cpu(pfm_alt_restore_pmu_state, NULL, 0, 1);
+	if (ret) {
+		DPRINT(("on_each_cpu() failed: %d\n", ret));
+	}
+
+	for_each_online_cpu(i) {
+		pfm_unreserve_session(NULL, 1, i);
+	}
+
+	spin_unlock(&pfm_alt_install_check);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(pfm_remove_alt_pmu_interrupt);
 
 /*
  * perfmon initialization routine, called from the initcall() table

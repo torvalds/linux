@@ -14,6 +14,7 @@
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
 #include <asm/semaphore.h>
+#include <asm/imalloc.h>
 
 static DECLARE_MUTEX(imlist_sem);
 struct vm_struct * imlist = NULL;
@@ -23,11 +24,11 @@ static int get_free_im_addr(unsigned long size, unsigned long *im_addr)
 	unsigned long addr;
 	struct vm_struct **p, *tmp;
 
-	addr = IMALLOC_START;
+	addr = ioremap_bot;
 	for (p = &imlist; (tmp = *p) ; p = &tmp->next) {
 		if (size + addr < (unsigned long) tmp->addr)
 			break;
-		if ((unsigned long)tmp->addr >= IMALLOC_START) 
+		if ((unsigned long)tmp->addr >= ioremap_bot)
 			addr = tmp->size + (unsigned long) tmp->addr;
 		if (addr > IMALLOC_END-size) 
 			return 1;

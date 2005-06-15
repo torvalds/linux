@@ -242,7 +242,7 @@ static void free_devices(struct list_head *devices)
 	}
 }
 
-void table_destroy(struct dm_table *t)
+static void table_destroy(struct dm_table *t)
 {
 	unsigned int i;
 

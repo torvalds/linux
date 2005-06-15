@@ -30,6 +30,11 @@ extern void ia32_syscall(void);
 extern void iommu_hole_init(void);
 
 extern void time_init_gtod(void);
+extern int pmtimer_mark_offset(void);
+extern unsigned int do_gettimeoffset_pm(void);
+extern u32 pmtmr_ioport;
+extern unsigned long long monotonic_base;
+extern int sysctl_vsyscall;
 
 extern void do_softirq_thunk(void);
 

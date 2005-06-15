@@ -90,6 +90,22 @@ static struct hotplug_slot_ops pciehp_hotplug_slot_ops = {
   	.get_cur_bus_speed =	get_cur_bus_speed,
 };
 
+/**
+ * release_slot - free up the memory used by a slot
+ * @hotplug_slot: slot to free
+ */
+static void release_slot(struct hotplug_slot *hotplug_slot)
+{
+	struct slot *slot = hotplug_slot->private;
+
+	dbg("%s - physical_slot = %s\n", __FUNCTION__, hotplug_slot->name);
+
+	kfree(slot->hotplug_slot->info);
+	kfree(slot->hotplug_slot->name);
+	kfree(slot->hotplug_slot);
+	kfree(slot);
+}
+
 static int init_slots(struct controller *ctrl)
 {
 	struct slot *new_slot;
@@ -139,7 +155,8 @@ static int init_slots(struct controller *ctrl)
 
 		/* register this slot with the hotplug pci core */
 		new_slot->hotplug_slot->private = new_slot;
-		make_slot_name (new_slot->hotplug_slot->name, SLOT_NAME_SIZE, new_slot);
+		new_slot->hotplug_slot->release = &release_slot;
+		make_slot_name(new_slot->hotplug_slot->name, SLOT_NAME_SIZE, new_slot);
 		new_slot->hotplug_slot->ops = &pciehp_hotplug_slot_ops;
 
 		new_slot->hpc_ops->get_power_status(new_slot, &(new_slot->hotplug_slot->info->power_status));
@@ -188,10 +205,6 @@ static int cleanup_slots (struct controller * ctrl)
 	while (old_slot) {
 		next_slot = old_slot->next;
 		pci_hp_deregister (old_slot->hotplug_slot);
-		kfree(old_slot->hotplug_slot->info);
-		kfree(old_slot->hotplug_slot->name);
-		kfree(old_slot->hotplug_slot);
-		kfree(old_slot);
 		old_slot = next_slot;
 	}
 
@@ -594,7 +607,7 @@ static int pciehp_resume (struct pcie_device *dev)
 static struct pcie_port_service_id port_pci_ids[] = { { 
 	.vendor = PCI_ANY_ID, 
 	.device = PCI_ANY_ID,
-	.port_type = PCIE_RC_PORT, 
+	.port_type = PCIE_ANY_PORT,
 	.service_type = PCIE_PORT_SERVICE_HP,
 	.driver_data =	0, 
 	}, { /* end: all zeroes */ }

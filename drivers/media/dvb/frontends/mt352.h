@@ -61,12 +61,5 @@ extern struct dvb_frontend* mt352_attach(const struct mt352_config* config,
 					 struct i2c_adapter* i2c);
 
 extern int mt352_write(struct dvb_frontend* fe, u8* ibuf, int ilen);
-extern int mt352_read(struct dvb_frontend *fe, u8 reg);
 
 #endif // MT352_H
-
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

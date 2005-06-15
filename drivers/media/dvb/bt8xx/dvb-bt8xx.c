@@ -142,7 +142,7 @@ static int thomson_dtt7579_demod_init(struct dvb_frontend* fe)
 	mt352_write(fe, mt352_adc_ctl_1_cfg, sizeof(mt352_adc_ctl_1_cfg));
 
 	mt352_write(fe, mt352_agc_cfg, sizeof(mt352_agc_cfg));
-        mt352_write(fe, mt352_gpp_ctl_cfg, sizeof(mt352_gpp_ctl_cfg));
+	mt352_write(fe, mt352_gpp_ctl_cfg, sizeof(mt352_gpp_ctl_cfg));
 	mt352_write(fe, mt352_capt_range_cfg, sizeof(mt352_capt_range_cfg));
 
 	return 0;
@@ -161,7 +161,7 @@ static int thomson_dtt7579_pll_set(struct dvb_frontend* fe, struct dvb_frontend_
 	else if (params->frequency < 771000000) cp = 0xbc;
 	else cp = 0xf4;
 
-        if (params->frequency == 0) bs = 0x03;
+	if (params->frequency == 0) bs = 0x03;
 	else if (params->frequency < 443250000) bs = 0x02;
 	else bs = 0x08;
 
@@ -190,44 +190,44 @@ static int cx24108_pll_set(struct dvb_frontend* fe, struct dvb_frontend_paramete
 
 
    u32 osci[]={950000,1019000,1075000,1178000,1296000,1432000,
-               1576000,1718000,1856000,2036000,2150000};
+	       1576000,1718000,1856000,2036000,2150000};
    u32 bandsel[]={0,0x00020000,0x00040000,0x00100800,0x00101000,
-               0x00102000,0x00104000,0x00108000,0x00110000,
-               0x00120000,0x00140000};
+	       0x00102000,0x00104000,0x00108000,0x00110000,
+	       0x00120000,0x00140000};
 
 #define XTAL 1011100 /* Hz, really 1.0111 MHz and a /10 prescaler */
-        printk("cx24108 debug: entering SetTunerFreq, freq=%d\n",freq);
+	printk("cx24108 debug: entering SetTunerFreq, freq=%d\n",freq);
 
-        /* This is really the bit driving the tuner chip cx24108 */
+	/* This is really the bit driving the tuner chip cx24108 */
 
-        if(freq<950000) freq=950000; /* kHz */
-        if(freq>2150000) freq=2150000; /* satellite IF is 950..2150MHz */
+	if(freq<950000) freq=950000; /* kHz */
+	if(freq>2150000) freq=2150000; /* satellite IF is 950..2150MHz */
 
-        /* decide which VCO to use for the input frequency */
-        for(i=1;(i<sizeof(osci)/sizeof(osci[0]))&&(osci[i]<freq);i++);
-        printk("cx24108 debug: select vco #%d (f=%d)\n",i,freq);
-        band=bandsel[i];
-        /* the gain values must be set by SetSymbolrate */
-        /* compute the pll divider needed, from Conexant data sheet,
-           resolved for (n*32+a), remember f(vco) is f(receive) *2 or *4,
-           depending on the divider bit. It is set to /4 on the 2 lowest
-           bands  */
-        n=((i<=2?2:1)*freq*10L)/(XTAL/100);
-        a=n%32; n/=32; if(a==0) n--;
-        pump=(freq<(osci[i-1]+osci[i])/2);
-        pll=0xf8000000|
-            ((pump?1:2)<<(14+11))|
-            ((n&0x1ff)<<(5+11))|
-            ((a&0x1f)<<11);
-        /* everything is shifted left 11 bits to left-align the bits in the
-           32bit word. Output to the tuner goes MSB-aligned, after all */
-        printk("cx24108 debug: pump=%d, n=%d, a=%d\n",pump,n,a);
-        cx24110_pll_write(fe,band);
-        /* set vga and vca to their widest-band settings, as a precaution.
-           SetSymbolrate might not be called to set this up */
-        cx24110_pll_write(fe,0x500c0000);
-        cx24110_pll_write(fe,0x83f1f800);
-        cx24110_pll_write(fe,pll);
+	/* decide which VCO to use for the input frequency */
+	for(i=1;(i<sizeof(osci)/sizeof(osci[0]))&&(osci[i]<freq);i++);
+	printk("cx24108 debug: select vco #%d (f=%d)\n",i,freq);
+	band=bandsel[i];
+	/* the gain values must be set by SetSymbolrate */
+	/* compute the pll divider needed, from Conexant data sheet,
+	   resolved for (n*32+a), remember f(vco) is f(receive) *2 or *4,
+	   depending on the divider bit. It is set to /4 on the 2 lowest
+	   bands  */
+	n=((i<=2?2:1)*freq*10L)/(XTAL/100);
+	a=n%32; n/=32; if(a==0) n--;
+	pump=(freq<(osci[i-1]+osci[i])/2);
+	pll=0xf8000000|
+	    ((pump?1:2)<<(14+11))|
+	    ((n&0x1ff)<<(5+11))|
+	    ((a&0x1f)<<11);
+	/* everything is shifted left 11 bits to left-align the bits in the
+	   32bit word. Output to the tuner goes MSB-aligned, after all */
+	printk("cx24108 debug: pump=%d, n=%d, a=%d\n",pump,n,a);
+	cx24110_pll_write(fe,band);
+	/* set vga and vca to their widest-band settings, as a precaution.
+	   SetSymbolrate might not be called to set this up */
+	cx24110_pll_write(fe,0x500c0000);
+	cx24110_pll_write(fe,0x83f1f800);
+	cx24110_pll_write(fe,pll);
 /*        writereg(client,0x56,0x7f);*/
 
 	return 0;
@@ -299,7 +299,7 @@ static int advbt771_samsung_tdtc9251dh0_demod_init(struct dvb_frontend* fe)
 	static u8 mt352_reset [] = { 0x50, 0x80 };
 	static u8 mt352_adc_ctl_1_cfg [] = { 0x8E, 0x40 };
 	static u8 mt352_agc_cfg [] = { 0x67, 0x10, 0x23, 0x00, 0xFF, 0xFF,
-	                               0x00, 0xFF, 0x00, 0x40, 0x40 };
+				       0x00, 0xFF, 0x00, 0x40, 0x40 };
 	static u8 mt352_av771_extra[] = { 0xB5, 0x7A };
 	static u8 mt352_capt_range_cfg[] = { 0x75, 0x32 };
 
@@ -463,6 +463,9 @@ static struct nxt6000_config vp3021_alps_tded4_config = {
 
 static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 {
+	int ret;
+	struct dst_state* state = NULL;
+
 	switch(type) {
 #ifdef BTTV_DVICO_DVBT_LITE
 	case BTTV_DVICO_DVBT_LITE:
@@ -503,7 +506,25 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 		break;
 
 	case BTTV_TWINHAN_DST:
-		card->fe = dst_attach(&dst_config, card->i2c_adapter, card->bt);
+		/*	DST is not a frontend driver !!!		*/
+		state = (struct dst_state *) kmalloc(sizeof (struct dst_state), GFP_KERNEL);
+		/*	Setup the Card					*/
+		state->config = &dst_config;
+		state->i2c = card->i2c_adapter;
+		state->bt = card->bt;
+
+		/*	DST is not a frontend, attaching the ASIC	*/
+		if ((dst_attach(state, &card->dvb_adapter)) == NULL) {
+			printk("%s: Could not find a Twinhan DST.\n", __FUNCTION__);
+			break;
+		}
+		card->fe = &state->frontend;
+
+		/*	Attach other DST peripherals if any		*/
+		/*	Conditional Access device			*/
+		if (state->dst_hw_cap & DST_TYPE_HAS_CA) {
+			ret = dst_ca_attach(state, &card->dvb_adapter);
+		}
 		if (card->fe != NULL) {
 			break;
 		}
@@ -531,7 +552,7 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 		       card->bt->dev->subsystem_vendor,
 		       card->bt->dev->subsystem_device);
 	} else {
-		if (dvb_register_frontend(card->dvb_adapter, card->fe)) {
+		if (dvb_register_frontend(&card->dvb_adapter, card->fe)) {
 			printk("dvb-bt8xx: Frontend registration failed!\n");
 			if (card->fe->ops->release)
 				card->fe->ops->release(card->fe);
@@ -550,7 +571,7 @@ static int __init dvb_bt8xx_load_card(struct dvb_bt8xx_card *card, u32 type)
 		return result;
 
 	}
-	card->dvb_adapter->priv = card;
+	card->dvb_adapter.priv = card;
 
 	card->bt->adapter = card->i2c_adapter;
 
@@ -568,7 +589,7 @@ static int __init dvb_bt8xx_load_card(struct dvb_bt8xx_card *card, u32 type)
 	if ((result = dvb_dmx_init(&card->demux)) < 0) {
 		printk("dvb_bt8xx: dvb_dmx_init failed (errno = %d)\n", result);
 
-		dvb_unregister_adapter(card->dvb_adapter);
+		dvb_unregister_adapter(&card->dvb_adapter);
 		return result;
 	}
 
@@ -576,11 +597,11 @@ static int __init dvb_bt8xx_load_card(struct dvb_bt8xx_card *card, u32 type)
 	card->dmxdev.demux = &card->demux.dmx;
 	card->dmxdev.capabilities = 0;
 
-	if ((result = dvb_dmxdev_init(&card->dmxdev, card->dvb_adapter)) < 0) {
+	if ((result = dvb_dmxdev_init(&card->dmxdev, &card->dvb_adapter)) < 0) {
 		printk("dvb_bt8xx: dvb_dmxdev_init failed (errno = %d)\n", result);
 
 		dvb_dmx_release(&card->demux);
-		dvb_unregister_adapter(card->dvb_adapter);
+		dvb_unregister_adapter(&card->dvb_adapter);
 		return result;
 	}
 
@@ -591,7 +612,7 @@ static int __init dvb_bt8xx_load_card(struct dvb_bt8xx_card *card, u32 type)
 
 		dvb_dmxdev_release(&card->dmxdev);
 		dvb_dmx_release(&card->demux);
-		dvb_unregister_adapter(card->dvb_adapter);
+		dvb_unregister_adapter(&card->dvb_adapter);
 		return result;
 	}
 
@@ -603,7 +624,7 @@ static int __init dvb_bt8xx_load_card(struct dvb_bt8xx_card *card, u32 type)
 		card->demux.dmx.remove_frontend(&card->demux.dmx, &card->fe_hw);
 		dvb_dmxdev_release(&card->dmxdev);
 		dvb_dmx_release(&card->demux);
-		dvb_unregister_adapter(card->dvb_adapter);
+		dvb_unregister_adapter(&card->dvb_adapter);
 		return result;
 	}
 
@@ -614,11 +635,11 @@ static int __init dvb_bt8xx_load_card(struct dvb_bt8xx_card *card, u32 type)
 		card->demux.dmx.remove_frontend(&card->demux.dmx, &card->fe_hw);
 		dvb_dmxdev_release(&card->dmxdev);
 		dvb_dmx_release(&card->demux);
-		dvb_unregister_adapter(card->dvb_adapter);
+		dvb_unregister_adapter(&card->dvb_adapter);
 		return result;
 	}
 
-	dvb_net_init(card->dvb_adapter, &card->dvbnet, &card->demux.dmx);
+	dvb_net_init(&card->dvb_adapter, &card->dvbnet, &card->demux.dmx);
 
 	tasklet_init(&card->bt->tasklet, dvb_bt8xx_task, (unsigned long) card);
 
@@ -648,7 +669,7 @@ static int dvb_bt8xx_probe(struct device *dev)
 	case BTTV_PINNACLESAT:
 		card->gpio_mode = 0x0400c060;
 		/* should be: BT878_A_GAIN=0,BT878_A_PWRDN,BT878_DA_DPM,BT878_DA_SBR,
-		              BT878_DA_IOM=1,BT878_DA_APP to enable serial highspeed mode. */
+			      BT878_DA_IOM=1,BT878_DA_APP to enable serial highspeed mode. */
 		card->op_sync_orin = 0;
 		card->irq_err_ignore = 0;
 		break;
@@ -759,7 +780,7 @@ static int dvb_bt8xx_remove(struct device *dev)
 	dvb_dmxdev_release(&card->dmxdev);
 	dvb_dmx_release(&card->demux);
 	if (card->fe) dvb_unregister_frontend(card->fe);
-	dvb_unregister_adapter(card->dvb_adapter);
+	dvb_unregister_adapter(&card->dvb_adapter);
 
 	kfree(card);
 

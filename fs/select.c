@@ -55,7 +55,8 @@ struct poll_table_page {
  * as all select/poll functions have to call it to add an entry to the
  * poll table.
  */
-void __pollwait(struct file *filp, wait_queue_head_t *wait_address, poll_table *p);
+static void __pollwait(struct file *filp, wait_queue_head_t *wait_address,
+		       poll_table *p);
 
 void poll_initwait(struct poll_wqueues *pwq)
 {
@@ -87,7 +88,8 @@ void poll_freewait(struct poll_wqueues *pwq)
 
 EXPORT_SYMBOL(poll_freewait);
 
-void __pollwait(struct file *filp, wait_queue_head_t *wait_address, poll_table *_p)
+static void __pollwait(struct file *filp, wait_queue_head_t *wait_address,
+		       poll_table *_p)
 {
 	struct poll_wqueues *p = container_of(_p, struct poll_wqueues, pt);
 	struct poll_table_page *table = p->table;

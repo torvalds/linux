@@ -52,8 +52,8 @@ struct mod_arch_specific
 #define MODULE_PROC_FAMILY "CYRIXIII "
 #elif defined CONFIG_MVIAC3_2
 #define MODULE_PROC_FAMILY "VIAC3-2 "
-#elif CONFIG_MGEODE
-#define MODULE_PROC_FAMILY "GEODE "
+#elif CONFIG_MGEODEGX1
+#define MODULE_PROC_FAMILY "GEODEGX1 "
 #else
 #error unknown processor family
 #endif

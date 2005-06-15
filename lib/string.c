@@ -65,6 +65,7 @@ EXPORT_SYMBOL(strnicmp);
  * @dest: Where to copy the string to
  * @src: Where to copy the string from
  */
+#undef strcpy
 char * strcpy(char * dest,const char *src)
 {
 	char *tmp = dest;
@@ -85,6 +86,10 @@ EXPORT_SYMBOL(strcpy);
  *
  * The result is not %NUL-terminated if the source exceeds
  * @count bytes.
+ *
+ * In the case where the length of @src is less than  that  of
+ * count, the remainder of @dest will be padded with %NUL.
+ *
  */
 char * strncpy(char * dest,const char *src,size_t count)
 {
@@ -132,6 +137,7 @@ EXPORT_SYMBOL(strlcpy);
  * @dest: The string to be appended to
  * @src: The string to append to it
  */
+#undef strcat
 char * strcat(char * dest, const char * src)
 {
 	char *tmp = dest;
@@ -209,6 +215,7 @@ EXPORT_SYMBOL(strlcat);
  * @cs: One string
  * @ct: Another string
  */
+#undef strcmp
 int strcmp(const char * cs,const char * ct)
 {
 	register signed char __res;
@@ -514,6 +521,7 @@ EXPORT_SYMBOL(memmove);
  * @ct: Another area of memory
  * @count: The size of the area.
  */
+#undef memcmp
 int memcmp(const void * cs,const void * ct,size_t count)
 {
 	const unsigned char *su1, *su2;

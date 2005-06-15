@@ -11,6 +11,7 @@ usbserial-obj-$(CONFIG_USB_EZUSB)		+= ezusb.o
 
 usbserial-objs	:= usb-serial.o generic.o bus.o $(usbserial-obj-y)
 
+obj-$(CONFIG_USB_SERIAL_AIRPRIME)		+= airprime.o
 obj-$(CONFIG_USB_SERIAL_BELKIN)			+= belkin_sa.o
 obj-$(CONFIG_USB_SERIAL_CP2101)			+= cp2101.o
 obj-$(CONFIG_USB_SERIAL_CYBERJACK)		+= cyberjack.o
@@ -31,6 +32,7 @@ obj-$(CONFIG_USB_SERIAL_KLSI)			+= kl5kusb105.o
 obj-$(CONFIG_USB_SERIAL_KOBIL_SCT)		+= kobil_sct.o
 obj-$(CONFIG_USB_SERIAL_MCT_U232)		+= mct_u232.o
 obj-$(CONFIG_USB_SERIAL_OMNINET)		+= omninet.o
+obj-$(CONFIG_USB_SERIAL_OPTION)			+= option.o
 obj-$(CONFIG_USB_SERIAL_PL2303)			+= pl2303.o
 obj-$(CONFIG_USB_SERIAL_SAFE)			+= safe_serial.o
 obj-$(CONFIG_USB_SERIAL_TI)			+= ti_usb_3410_5052.o

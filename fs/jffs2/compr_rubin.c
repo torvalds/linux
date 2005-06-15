@@ -228,8 +228,10 @@ int jffs2_rubinmips_compress(unsigned char *data_in, unsigned char *cpage_out,
 	return rubin_do_compress(BIT_DIVIDER_MIPS, bits_mips, data_in, cpage_out, sourcelen, dstlen);
 }
 #endif
-int jffs2_dynrubin_compress(unsigned char *data_in, unsigned char *cpage_out, 
-		   uint32_t *sourcelen, uint32_t *dstlen, void *model)
+static int jffs2_dynrubin_compress(unsigned char *data_in,
+				   unsigned char *cpage_out,
+				   uint32_t *sourcelen, uint32_t *dstlen,
+				   void *model)
 {
 	int bits[8];
 	unsigned char histo[256];
@@ -306,15 +308,19 @@ static void rubin_do_decompress(int bit_divider, int *bits, unsigned char *cdata
 }		   
 
 
-int jffs2_rubinmips_decompress(unsigned char *data_in, unsigned char *cpage_out, 
-		   uint32_t sourcelen, uint32_t dstlen, void *model)
+static int jffs2_rubinmips_decompress(unsigned char *data_in,
+				      unsigned char *cpage_out,
+				      uint32_t sourcelen, uint32_t dstlen,
+				      void *model)
 {
 	rubin_do_decompress(BIT_DIVIDER_MIPS, bits_mips, data_in, cpage_out, sourcelen, dstlen);
         return 0;
 }
 
-int jffs2_dynrubin_decompress(unsigned char *data_in, unsigned char *cpage_out, 
-		   uint32_t sourcelen, uint32_t dstlen, void *model)
+static int jffs2_dynrubin_decompress(unsigned char *data_in,
+				     unsigned char *cpage_out,
+				     uint32_t sourcelen, uint32_t dstlen,
+				     void *model)
 {
 	int bits[8];
 	int c;

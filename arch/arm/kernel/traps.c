@@ -218,7 +218,8 @@ NORET_TYPE void die(const char *str, struct pt_regs *regs, int err)
 		tsk->comm, tsk->pid, tsk->thread_info + 1);
 
 	if (!user_mode(regs) || in_interrupt()) {
-		dump_mem("Stack: ", regs->ARM_sp, 8192+(unsigned long)tsk->thread_info);
+		dump_mem("Stack: ", regs->ARM_sp,
+			 THREAD_SIZE + (unsigned long)tsk->thread_info);
 		dump_backtrace(regs, tsk);
 		dump_instr(regs);
 	}
@@ -450,9 +451,9 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 
 	case NR(set_tls):
 		thread->tp_value = regs->ARM_r0;
-#ifdef CONFIG_HAS_TLS_REG
+#if defined(CONFIG_HAS_TLS_REG)
 		asm ("mcr p15, 0, %0, c13, c0, 3" : : "r" (regs->ARM_r0) );
-#else
+#elif !defined(CONFIG_TLS_REG_EMUL)
 		/*
 		 * User space must never try to access this directly.
 		 * Expect your app to break eventually if you do so.
@@ -462,6 +463,55 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 		*((unsigned int *)0xffff0ff0) = regs->ARM_r0;
 #endif
 		return 0;
+
+#ifdef CONFIG_NEEDS_SYSCALL_FOR_CMPXCHG
+	/*
+	 * Atomically store r1 in *r2 if *r2 is equal to r0 for user space.
+	 * Return zero in r0 if *MEM was changed or non-zero if no exchange
+	 * happened.  Also set the user C flag accordingly.
+	 * If access permissions have to be fixed up then non-zero is
+	 * returned and the operation has to be re-attempted.
+	 *
+	 * *NOTE*: This is a ghost syscall private to the kernel.  Only the
+	 * __kuser_cmpxchg code in entry-armv.S should be aware of its
+	 * existence.  Don't ever use this from user code.
+	 */
+	case 0xfff0:
+	{
+		extern void do_DataAbort(unsigned long addr, unsigned int fsr,
+					 struct pt_regs *regs);
+		unsigned long val;
+		unsigned long addr = regs->ARM_r2;
+		struct mm_struct *mm = current->mm;
+		pgd_t *pgd; pmd_t *pmd; pte_t *pte;
+
+		regs->ARM_cpsr &= ~PSR_C_BIT;
+		spin_lock(&mm->page_table_lock);
+		pgd = pgd_offset(mm, addr);
+		if (!pgd_present(*pgd))
+			goto bad_access;
+		pmd = pmd_offset(pgd, addr);
+		if (!pmd_present(*pmd))
+			goto bad_access;
+		pte = pte_offset_map(pmd, addr);
+		if (!pte_present(*pte) || !pte_write(*pte))
+			goto bad_access;
+		val = *(unsigned long *)addr;
+		val -= regs->ARM_r0;
+		if (val == 0) {
+			*(unsigned long *)addr = regs->ARM_r1;
+			regs->ARM_cpsr |= PSR_C_BIT;
+		}
+		spin_unlock(&mm->page_table_lock);
+		return val;
+
+		bad_access:
+		spin_unlock(&mm->page_table_lock);
+		/* simulate a read access fault */
+		do_DataAbort(addr, 15 + (1 << 11), regs);
+		return -1;
+	}
+#endif
 
 	default:
 		/* Calls 9f00xx..9f07ff are defined to return -ENOSYS
@@ -497,11 +547,14 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 	return 0;
 }
 
-#if defined(CONFIG_CPU_32v6) && !defined(CONFIG_HAS_TLS_REG)
+#ifdef CONFIG_TLS_REG_EMUL
 
 /*
  * We might be running on an ARMv6+ processor which should have the TLS
- * register, but for some reason we can't use it and have to emulate it.
+ * register but for some reason we can't use it, or maybe an SMP system
+ * using a pre-ARMv6 processor (there are apparently a few prototypes like
+ * that in existence) and therefore access to that register must be
+ * emulated.
  */
 
 static int get_tp_trap(struct pt_regs *regs, unsigned int instr)

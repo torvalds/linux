@@ -47,7 +47,7 @@ static struct file_operations bad_file_ops =
 	.get_unmapped_area = EIO_ERROR,
 };
 
-struct inode_operations bad_inode_ops =
+static struct inode_operations bad_inode_ops =
 {
 	.create		= EIO_ERROR,
 	.lookup		= EIO_ERROR,

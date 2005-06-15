@@ -1758,6 +1758,7 @@ sys_init_module(void __user *umod,
 		const char __user *uargs)
 {
 	struct module *mod;
+	mm_segment_t old_fs = get_fs();
 	int ret = 0;
 
 	/* Must have permission */
@@ -1775,6 +1776,9 @@ sys_init_module(void __user *umod,
 		return PTR_ERR(mod);
 	}
 
+	/* flush the icache in correct context */
+	set_fs(KERNEL_DS);
+
 	/* Flush the instruction cache, since we've played with text */
 	if (mod->module_init)
 		flush_icache_range((unsigned long)mod->module_init,
@@ -1782,6 +1786,8 @@ sys_init_module(void __user *umod,
 				   + mod->init_size);
 	flush_icache_range((unsigned long)mod->module_core,
 			   (unsigned long)mod->module_core + mod->core_size);
+
+	set_fs(old_fs);
 
 	/* Now sew it into the lists.  They won't access us, since
            strong_try_module_get() will fail. */
