@@ -144,6 +144,22 @@ config I2C_I810
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i810.
 
+config I2C_PXA
+	tristate "Intel PXA2XX I2C adapter (EXPERIMENTAL)"
+	depends on I2C && EXPERIMENTAL && ARCH_PXA
+	help
+	  If you have devices in the PXA I2C bus, say yes to this option.
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-pxa.
+
+config I2C_PXA_SLAVE
+	bool "Intel PXA2XX I2C Slave comms support"
+	depends on I2C_PXA
+	help
+	  Support I2C slave mode communications on the PXA I2C bus.  This
+	  is necessary for systems where the PXA may be a target on the
+	  I2C bus.
+
 config I2C_PIIX4
 	tristate "Intel PIIX4"
 	depends on I2C && PCI

@@ -203,6 +203,7 @@
 #define I2C_ALGO_MV64XXX 0x190000	/* Marvell mv64xxx i2c ctlr	*/
 #define I2C_ALGO_PCA	0x1a0000	/* PCA 9564 style adapters	*/
 #define I2C_ALGO_AU1550	0x1b0000        /* Au1550 PSC algorithm		*/
+#define I2C_ALGO_PXA	0x1c0000	/* Intel PXA I2C algorithm	*/
 
 #define I2C_ALGO_EXP	0x800000	/* experimental			*/
 
