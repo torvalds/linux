@@ -160,7 +160,7 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext *sc)
 static inline void *
 get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size)
 {
-	unsigned long sp, almask;
+	unsigned long sp;
 
 	/* Default to using normal stack */
 	sp = regs->regs[29];
@@ -176,10 +176,32 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size)
 	if ((ka->sa.sa_flags & SA_ONSTACK) && (sas_ss_flags (sp) == 0))
 		sp = current->sas_ss_sp + current->sas_ss_size;
 
-	if (PLAT_TRAMPOLINE_STUFF_LINE)
-		almask = ~(PLAT_TRAMPOLINE_STUFF_LINE - 1);
-	else
-		almask = ALMASK;
+	return (void *)((sp - frame_size) & (ICACHE_REFILLS_WORKAROUND_WAR ? 32 : ALMASK));
+}
 
-	return (void *)((sp - frame_size) & almask);
+static inline int install_sigtramp(unsigned int __user *tramp,
+	unsigned int syscall)
+{
+	int err;
+
+	/*
+	 * Set up the return code ...
+	 *
+	 *         li      v0, __NR__foo_sigreturn
+	 *         syscall
+	 */
+
+	err = __put_user(0x24020000 + syscall, tramp + 0);
+	err |= __put_user(0x0000000c          , tramp + 1);
+	if (ICACHE_REFILLS_WORKAROUND_WAR) {
+		err |= __put_user(0, tramp + 2);
+		err |= __put_user(0, tramp + 3);
+		err |= __put_user(0, tramp + 4);
+		err |= __put_user(0, tramp + 5);
+		err |= __put_user(0, tramp + 6);
+		err |= __put_user(0, tramp + 7);
+	}
+	flush_cache_sigtramp((unsigned long) tramp);
+
+	return err;
 }

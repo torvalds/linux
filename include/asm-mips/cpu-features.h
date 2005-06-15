@@ -109,17 +109,6 @@
 #define cpu_has_dsp		(cpu_data[0].ases & MIPS_ASE_DSP)
 #endif
 
-/*
- * Certain CPUs may throw bizarre exceptions if not the whole cacheline
- * contains valid instructions.  For these we ensure proper alignment of
- * signal trampolines and pad them to the size of a full cache lines with
- * nops.  This is also used in structure definitions so can't be a test macro
- * like the others.
- */
-#ifndef PLAT_TRAMPOLINE_STUFF_LINE
-#define PLAT_TRAMPOLINE_STUFF_LINE	0UL
-#endif
-
 #ifdef CONFIG_32BIT
 # ifndef cpu_has_nofpuex
 # define cpu_has_nofpuex	(cpu_data[0].options & MIPS_CPU_NOFPUEX)

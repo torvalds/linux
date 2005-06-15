@@ -8,6 +8,7 @@
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  */
 #include <linux/config.h>
+#include <linux/cache.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/personality.h>
@@ -30,6 +31,7 @@
 #include <asm/uaccess.h>
 #include <asm/ucontext.h>
 #include <asm/cpu-features.h>
+#include <asm/war.h>
 
 #include "signal-common.h"
 
@@ -157,26 +159,39 @@ asmlinkage int sys_sigaltstack(nabi_no_regargs struct pt_regs regs)
 	return do_sigaltstack(uss, uoss, usp);
 }
 
-#if PLAT_TRAMPOLINE_STUFF_LINE
-#define __tramp __attribute__((aligned(PLAT_TRAMPOLINE_STUFF_LINE)))
-#else
-#define __tramp
-#endif
-
+/*
+ * Horribly complicated - with the bloody RM9000 workarounds enabled
+ * the signal trampolines is moving to the end of the structure so we can
+ * increase the alignment without breaking software compatibility.
+ */
 #ifdef CONFIG_TRAD_SIGNALS
 struct sigframe {
 	u32 sf_ass[4];			/* argument save space for o32 */
-	u32 sf_code[2] __tramp;		/* signal trampoline */
-	struct sigcontext sf_sc __tramp;
+#if ICACHE_REFILLS_WORKAROUND_WAR
+	u32 sf_pad[2];
+#else
+	u32 sf_code[2];			/* signal trampoline */
+#endif
+	struct sigcontext sf_sc;
 	sigset_t sf_mask;
+#if ICACHE_REFILLS_WORKAROUND_WAR
+	u32 sf_code[8] ____cacheline_aligned;	/* signal trampoline */
+#endif
 };
 #endif
 
 struct rt_sigframe {
 	u32 rs_ass[4];			/* argument save space for o32 */
-	u32 rs_code[2] __tramp;		/* signal trampoline */
-	struct siginfo rs_info __tramp;
+#if ICACHE_REFILLS_WORKAROUND_WAR
+	u32 rs_pad[2];
+#else
+	u32 rs_code[2];			/* signal trampoline */
+#endif
+	struct siginfo rs_info;
 	struct ucontext rs_uc;
+#if ICACHE_REFILLS_WORKAROUND_WAR
+	u32 rs_code[8] ____cacheline_aligned;	/* signal trampoline */
+#endif
 };
 
 #ifdef CONFIG_TRAD_SIGNALS
@@ -273,17 +288,7 @@ void setup_frame(struct k_sigaction * ka, struct pt_regs *regs,
 	if (!access_ok(VERIFY_WRITE, frame, sizeof (*frame)))
 		goto give_sigsegv;
 
-	/*
-	 * Set up the return code ...
-	 *
-	 *         li      v0, __NR_sigreturn
-	 *         syscall
-	 */
-	if (PLAT_TRAMPOLINE_STUFF_LINE)
-		__clear_user(frame->sf_code, PLAT_TRAMPOLINE_STUFF_LINE);
-	err |= __put_user(0x24020000 + __NR_sigreturn, frame->sf_code + 0);
-	err |= __put_user(0x0000000c                 , frame->sf_code + 1);
-	flush_cache_sigtramp((unsigned long) frame->sf_code);
+	install_sigtramp(frame->sf_code, __NR_sigreturn);
 
 	err |= setup_sigcontext(regs, &frame->sf_sc);
 	err |= __copy_to_user(&frame->sf_mask, set, sizeof(*set));
@@ -329,17 +334,7 @@ void setup_rt_frame(struct k_sigaction * ka, struct pt_regs *regs,
 	if (!access_ok(VERIFY_WRITE, frame, sizeof (*frame)))
 		goto give_sigsegv;
 
-	/*
-	 * Set up the return code ...
-	 *
-	 *         li      v0, __NR_rt_sigreturn
-	 *         syscall
-	 */
-	if (PLAT_TRAMPOLINE_STUFF_LINE)
-		__clear_user(frame->rs_code, PLAT_TRAMPOLINE_STUFF_LINE);
-	err |= __put_user(0x24020000 + __NR_rt_sigreturn, frame->rs_code + 0);
-	err |= __put_user(0x0000000c                    , frame->rs_code + 1);
-	flush_cache_sigtramp((unsigned long) frame->rs_code);
+	install_sigtramp(frame->rs_code, __NR_rt_sigreturn);
 
 	/* Create siginfo.  */
 	err |= copy_siginfo_to_user(&frame->rs_info, info);

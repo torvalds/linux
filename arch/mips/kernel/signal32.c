@@ -7,6 +7,7 @@
  * Copyright (C) 1994 - 2000  Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  */
+#include <linux/cache.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
@@ -30,6 +31,7 @@
 #include <asm/ucontext.h>
 #include <asm/system.h>
 #include <asm/fpu.h>
+#include <asm/war.h>
 
 #define SI_PAD_SIZE32   ((SI_MAX_SIZE/sizeof(int)) - 3)
 
@@ -392,16 +394,30 @@ static int restore_sigcontext32(struct pt_regs *regs, struct sigcontext32 *sc)
 
 struct sigframe {
 	u32 sf_ass[4];			/* argument save space for o32 */
+#if ICACHE_REFILLS_WORKAROUND_WAR
+	u32 sf_pad[2];
+#else
 	u32 sf_code[2];			/* signal trampoline */
+#endif
 	struct sigcontext32 sf_sc;
 	sigset_t sf_mask;
+#if ICACHE_REFILLS_WORKAROUND_WAR
+	u32 sf_code[8] ____cacheline_aligned;	/* signal trampoline */
+#endif
 };
 
 struct rt_sigframe32 {
 	u32 rs_ass[4];			/* argument save space for o32 */
+#if ICACHE_REFILLS_WORKAROUND_WAR
+	u32 rs_pad[2];
+#else
 	u32 rs_code[2];			/* signal trampoline */
+#endif
 	compat_siginfo_t rs_info;
 	struct ucontext32 rs_uc;
+#if ICACHE_REFILLS_WORKAROUND_WAR
+	u32 rs_code[8] __attribute__((aligned(32)));	/* signal trampoline */
+#endif
 };
 
 int copy_siginfo_to_user32(compat_siginfo_t *to, siginfo_t *from)
