@@ -15,6 +15,7 @@
 
 #include <linux/init.h>
 #include <linux/device.h>
+#include <linux/sysdev.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/bitops.h>
@@ -62,7 +63,6 @@ static struct irqchip mainstone_irq_chip = {
 	.unmask		= mainstone_unmask_irq,
 };
 
-
 static void mainstone_irq_handler(unsigned int irq, struct irqdesc *desc,
 				  struct pt_regs *regs)
 {
@@ -99,6 +99,35 @@ static void __init mainstone_init_irq(void)
 	set_irq_chained_handler(IRQ_GPIO(0), mainstone_irq_handler);
 	set_irq_type(IRQ_GPIO(0), IRQT_FALLING);
 }
+
+#ifdef CONFIG_PM
+
+static int mainstone_irq_resume(struct sys_device *dev)
+{
+	MST_INTMSKENA = mainstone_irq_enabled;
+	return 0;
+}
+
+static struct sysdev_class mainstone_irq_sysclass = {
+	set_kset_name("cpld_irq"),
+	.resume = mainstone_irq_resume,
+};
+
+static struct sys_device mainstone_irq_device = {
+	.cls = &mainstone_irq_sysclass,
+};
+
+static int __init mainstone_irq_device_init(void)
+{
+	int ret = sysdev_class_register(&mainstone_irq_sysclass);
+	if (ret == 0)
+		ret = sysdev_register(&mainstone_irq_device);
+	return ret;
+}
+
+device_initcall(mainstone_irq_device_init);
+
+#endif
 
 
 static struct resource smc91x_resources[] = {
