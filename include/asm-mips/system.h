@@ -431,7 +431,7 @@ extern void *set_except_vector(int n, void *addr);
 extern void per_cpu_trap_init(void);
 
 extern NORET_TYPE void __die(const char *, struct pt_regs *, const char *file,
-	const char *func, unsigned long line);
+	const char *func, unsigned long line) ATTRIB_NORET;
 extern void __die_if_kernel(const char *, struct pt_regs *, const char *file,
 	const char *func, unsigned long line);
 

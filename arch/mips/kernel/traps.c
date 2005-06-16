@@ -254,8 +254,9 @@ void show_registers(struct pt_regs *regs)
 
 static DEFINE_SPINLOCK(die_lock);
 
-NORET_TYPE void __die(const char * str, struct pt_regs * regs,
-	const char * file, const char * func, unsigned long line)
+NORET_TYPE void ATTRIB_NORET __die(const char * str, struct pt_regs * regs,
+				   const char * file, const char * func,
+				   unsigned long line)
 {
 	static int die_counter;
 
