@@ -133,7 +133,9 @@ EXPORT_SYMBOL(scsi_host_set_state);
  **/
 void scsi_remove_host(struct Scsi_Host *shost)
 {
+	down(&shost->scan_mutex);
 	scsi_host_set_state(shost, SHOST_CANCEL);
+	up(&shost->scan_mutex);
 	scsi_forget_host(shost);
 	scsi_proc_host_rm(shost);
 
