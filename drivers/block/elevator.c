@@ -317,7 +317,7 @@ void __elv_add_request(request_queue_t *q, struct request *rq, int where,
 			int nrq = q->rq.count[READ] + q->rq.count[WRITE]
 				  - q->in_flight;
 
-			if (nrq == q->unplug_thresh)
+			if (nrq >= q->unplug_thresh)
 				__generic_unplug_device(q);
 		}
 	} else
