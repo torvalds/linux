@@ -627,7 +627,7 @@ int scsi_dispatch_cmd(struct scsi_cmnd *cmd)
 	spin_lock_irqsave(host->host_lock, flags);
 	scsi_cmd_get_serial(host, cmd); 
 
-	if (unlikely(host->shost_state == SHOST_CANCEL)) {
+	if (unlikely(host->shost_state == SHOST_DEL)) {
 		cmd->result = (DID_NO_CONNECT << 16);
 		scsi_done(cmd);
 	} else {

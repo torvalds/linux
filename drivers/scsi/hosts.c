@@ -128,29 +128,13 @@ int scsi_host_set_state(struct Scsi_Host *shost, enum scsi_host_state state)
 EXPORT_SYMBOL(scsi_host_set_state);
 
 /**
- * scsi_host_cancel - cancel outstanding IO to this host
- * @shost:	pointer to struct Scsi_Host
- * recovery:	recovery requested to run.
- **/
-static void scsi_host_cancel(struct Scsi_Host *shost, int recovery)
-{
-	struct scsi_device *sdev;
-
-	scsi_host_set_state(shost, SHOST_CANCEL);
-	shost_for_each_device(sdev, shost) {
-		scsi_device_cancel(sdev, recovery);
-	}
-	wait_event(shost->host_wait, (shost->shost_state != SHOST_RECOVERY));
-}
-
-/**
  * scsi_remove_host - remove a scsi host
  * @shost:	a pointer to a scsi host to remove
  **/
 void scsi_remove_host(struct Scsi_Host *shost)
 {
+	scsi_host_set_state(shost, SHOST_CANCEL);
 	scsi_forget_host(shost);
-	scsi_host_cancel(shost, 0);
 	scsi_proc_host_rm(shost);
 
 	scsi_host_set_state(shost, SHOST_DEL);
