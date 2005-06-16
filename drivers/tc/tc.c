@@ -8,7 +8,7 @@
  * for more details.
  *
  * Copyright (c) Harald Koerfgen, 1998
- * Copyright (c) 2001, 2003  Maciej W. Rozycki
+ * Copyright (c) 2001, 2003, 2005  Maciej W. Rozycki
  */
 #include <linux/string.h>
 #include <linux/init.h>
@@ -177,7 +177,7 @@ static void __init tc_probe(unsigned long startaddr, unsigned long size,
 /*
  * the main entry
  */
-void __init tc_init(void)
+static int __init tc_init(void)
 {
 	int tc_clock;
 	int i;
@@ -185,7 +185,7 @@ void __init tc_init(void)
 	unsigned long slot_size;
 
 	if (!TURBOCHANNEL)
-		return;
+		return 0;
 
 	for (i = 0; i < MAX_SLOT; i++) {
 		tc_bus[i].base_addr = 0;
@@ -246,6 +246,8 @@ void __init tc_init(void)
 			}
 #endif
 	}
+
+	return 0;
 }
 
 subsys_initcall(tc_init);
