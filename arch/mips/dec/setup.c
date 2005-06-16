@@ -1,19 +1,20 @@
 /*
- * Setup the interrupt stuff.
+ * System-specific setup, especially interrupts.
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
  * Copyright (C) 1998 Harald Koerfgen
- * Copyright (C) 2000, 2001, 2002, 2003  Maciej W. Rozycki
+ * Copyright (C) 2000, 2001, 2002, 2003, 2005  Maciej W. Rozycki
  */
-#include <linux/sched.h>
-#include <linux/interrupt.h>
-#include <linux/param.h>
 #include <linux/console.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
+#include <linux/ioport.h>
 #include <linux/module.h>
+#include <linux/param.h>
+#include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
 
@@ -139,6 +140,9 @@ void __init plat_setup(void)
 	_machine_restart = dec_machine_restart;
 	_machine_halt = dec_machine_halt;
 	_machine_power_off = dec_machine_power_off;
+
+	ioport_resource.start = ~0UL;
+	ioport_resource.end = 0UL;
 }
 
 /*
