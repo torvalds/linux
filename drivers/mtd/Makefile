@@ -1,7 +1,7 @@
 #
 # Makefile for the memory technology device drivers.
 #
-# $Id: Makefile.common,v 1.5 2004/08/10 20:51:49 dwmw2 Exp $
+# $Id: Makefile.common,v 1.6 2005/06/16 08:49:29 sean Exp $
 
 # Core functionality.
 mtd-y				:= mtdcore.o
@@ -20,6 +20,7 @@ obj-$(CONFIG_MTD_BLOCK_RO)	+= mtdblock_ro.o mtd_blkdevs.o
 obj-$(CONFIG_FTL)		+= ftl.o mtd_blkdevs.o
 obj-$(CONFIG_NFTL)		+= nftl.o mtd_blkdevs.o
 obj-$(CONFIG_INFTL)		+= inftl.o mtd_blkdevs.o
+obj-$(CONFIG_RFD_FTL)		+= rfd_ftl.o mtd_blkdevs.o
 
 nftl-objs		:= nftlcore.o nftlmount.o
 inftl-objs		:= inftlcore.o inftlmount.o

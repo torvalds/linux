@@ -97,14 +97,11 @@ config MTD_TS5500
 	depends on X86 && MTD_JEDECPROBE && MTD_PARTITIONS
 	help
 	  This provides a driver for the on-board flash of the Technologic
-	  System's TS-5500 board. The flash is split into 3 partitions
+	  System's TS-5500 board. The 2MB flash is split into 3 partitions
 	  which are accessed as separate MTD devices.
 
-	  mtd0 and mtd2 are the two BIOS drives. Unfortunately the BIOS
-	  uses a proprietary flash translation layer from General Software,
-	  which is not supported (the drives cannot be mounted). You can
-	  create your own file system (jffs for example), but the BIOS
-	  won't be able to boot from it.
+	  mtd0 and mtd2 are the two BIOS drives, which use the resident
+	  flash disk (RFD) flash translation layer.
 
 	  mtd1 allows you to reprogram your BIOS. BE VERY CAREFUL.
 

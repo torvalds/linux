@@ -1,4 +1,4 @@
-# $Id: Kconfig,v 1.7 2004/11/22 11:33:56 ijc Exp $
+# $Id: Kconfig,v 1.9 2005/06/16 08:49:29 sean Exp $
 
 menu "Memory Technology Devices (MTD)"
 
@@ -252,6 +252,16 @@ config INFTL
 	  hardware, although under the terms of the GPL you're obviously
 	  permitted to copy, modify and distribute the code as you wish. Just
 	  not use it.
+
+config RFD_FTL
+        tristate "Resident Flash Disk (Flash Translation Layer) support"
+	depends on MTD
+	---help---
+	  This provides support for the flash translation layer known 
+	  as the Resident Flash Disk (RFD), as used by the Embedded BIOS 
+	  of General Software.
+	  See http://www.gensw.com/pages/prod/bios/rfd.htm for further
+	  information.
 
 source "drivers/mtd/chips/Kconfig"
 

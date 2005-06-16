@@ -19,13 +19,11 @@
  *
  * Note:
  * - In order for detection to work, jumper 3 must be set.
- * - Drive A and B use a proprietary FTL from General Software which isn't 
- *   supported as of yet so standard drives can't be mounted; you can create 
- *   your own (e.g. jffs) file system.
+ * - Drive A and B use the resident flash disk (RFD) flash translation layer. 
  * - If you have created your own jffs file system and the bios overwrites 
  *   it during boot, try disabling Drive A: and B: in the boot order.
  *
- * $Id: ts5500_flash.c,v 1.2 2004/11/28 09:40:40 dwmw2 Exp $
+ * $Id: ts5500_flash.c,v 1.3 2005/06/16 08:49:30 sean Exp $
  */
 
 #include <linux/config.h>
