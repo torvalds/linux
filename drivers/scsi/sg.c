@@ -1027,8 +1027,7 @@ sg_ioctl(struct inode *inode, struct file *filp,
 		if (sdp->detached)
 			return -ENODEV;
 		if (filp->f_flags & O_NONBLOCK) {
-			if (test_bit(SHOST_RECOVERY,
-				     &sdp->device->host->shost_state))
+			if (sdp->device->host->shost_state == SHOST_RECOVERY)
 				return -EBUSY;
 		} else if (!scsi_block_when_processing_errors(sdp->device))
 			return -EBUSY;

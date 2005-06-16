@@ -75,7 +75,7 @@ int scsi_eh_scmd_add(struct scsi_cmnd *scmd, int eh_flag)
 
 	scmd->eh_eflags |= eh_flag;
 	list_add_tail(&scmd->eh_entry, &shost->eh_cmd_q);
-	set_bit(SHOST_RECOVERY, &shost->shost_state);
+	scsi_host_set_state(shost, SHOST_RECOVERY);
 	shost->host_failed++;
 	scsi_eh_wakeup(shost);
 	spin_unlock_irqrestore(shost->host_lock, flags);
@@ -197,7 +197,8 @@ int scsi_block_when_processing_errors(struct scsi_device *sdev)
 {
 	int online;
 
-	wait_event(sdev->host->host_wait, (!test_bit(SHOST_RECOVERY, &sdev->host->shost_state)));
+	wait_event(sdev->host->host_wait, (sdev->host->shost_state !=
+					   SHOST_RECOVERY));
 
 	online = scsi_device_online(sdev);
 
@@ -1458,7 +1459,7 @@ static void scsi_restart_operations(struct Scsi_Host *shost)
 	SCSI_LOG_ERROR_RECOVERY(3, printk("%s: waking up host to restart\n",
 					  __FUNCTION__));
 
-	clear_bit(SHOST_RECOVERY, &shost->shost_state);
+	scsi_host_set_state(shost, SHOST_RUNNING);
 
 	wake_up(&shost->host_wait);
 

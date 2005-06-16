@@ -429,12 +429,15 @@ struct scsi_host_template {
 };
 
 /*
- * shost states
+ * shost state: If you alter this, you also need to alter scsi_sysfs.c
+ * (for the ascii descriptions) and the state model enforcer:
+ * scsi_host_set_state()
  */
-enum {
-	SHOST_ADD,
-	SHOST_DEL,
+enum scsi_host_state {
+	SHOST_CREATED = 1,
+	SHOST_RUNNING,
 	SHOST_CANCEL,
+	SHOST_DEL,
 	SHOST_RECOVERY,
 };
 
@@ -575,7 +578,7 @@ struct Scsi_Host {
 	unsigned int  irq;
 	
 
-	unsigned long shost_state;
+	enum scsi_host_state shost_state;
 
 	/* ldm bits */
 	struct device		shost_gendev;
@@ -633,6 +636,7 @@ extern void scsi_remove_host(struct Scsi_Host *);
 extern struct Scsi_Host *scsi_host_get(struct Scsi_Host *);
 extern void scsi_host_put(struct Scsi_Host *t);
 extern struct Scsi_Host *scsi_host_lookup(unsigned short);
+extern const char *scsi_host_state_name(enum scsi_host_state);
 
 extern u64 scsi_calculate_bounce_limit(struct Scsi_Host *);
 
