@@ -192,18 +192,6 @@ static void probe_sccs(void);
 static void change_speed(struct dec_serial *info);
 static void rs_wait_until_sent(struct tty_struct *tty, int timeout);
 
-/*
- * tmp_buf is used as a temporary buffer by serial_write.  We need to
- * lock it in case the copy_from_user blocks while swapping in a page,
- * and some other program tries to do a serial write at the same time.
- * Since the lock will only come under contention when the system is
- * swapping and available memory is low, it makes sense to share one
- * buffer across all the serial ports, since it significantly saves
- * memory if large numbers of serial ports are open.
- */
-static unsigned char tmp_buf[4096]; /* This is cheating */
-static DECLARE_MUTEX(tmp_buf_sem);
-
 static inline int serial_paranoia_check(struct dec_serial *info,
 					char *name, const char *routine)
 {
