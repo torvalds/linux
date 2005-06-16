@@ -15,7 +15,7 @@
 
 #include <asm/addrspace.h>
 
-#define KN01_SLOT_BASE	KSEG1ADDR(0x10000000)
+#define KN01_SLOT_BASE	CKSEG1ADDR(0x10000000)
 #define KN01_SLOT_SIZE	0x01000000
 
 /*
@@ -51,7 +51,7 @@
 /*
  * Frame buffer memory address.
  */
-#define KN01_VFB_MEM	KSEG1ADDR(0x0fc00000)
+#define KN01_VFB_MEM	CKSEG1ADDR(0x0fc00000)
 
 /*
  * CPU interrupt bits.

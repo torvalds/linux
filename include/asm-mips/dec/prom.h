@@ -24,7 +24,7 @@
  * PMAX/3MAX PROM entry points for DS2100/3100's and DS5000/2xx's.
  * Many of these will work for MIPSen as well!
  */
-#define VEC_RESET		(u64 *)KSEG1ADDR(0x1fc00000)
+#define VEC_RESET		(u64 *)CKSEG1ADDR(0x1fc00000)
 							/* Prom base address */
 
 #define PMAX_PROM_ENTRY(x)	(VEC_RESET + (x))	/* Prom jump table */

@@ -1637,21 +1637,21 @@ static void __init probe_sccs(void)
 #ifdef CONFIG_MACH_DECSTATION
 	case MACH_DS5000_2X0:
 	case MACH_DS5900:
-		system_base = KSEG1ADDR(0x1f800000);
+		system_base = CKSEG1ADDR(0x1f800000);
 		n_chips = 2;
 		zs_parms = &ds_parms;
 		zs_parms->irq0 = dec_interrupt[DEC_IRQ_SCC0];
 		zs_parms->irq1 = dec_interrupt[DEC_IRQ_SCC1];
 		break;
 	case MACH_DS5000_1XX:
-		system_base = KSEG1ADDR(0x1c000000);
+		system_base = CKSEG1ADDR(0x1c000000);
 		n_chips = 2;
 		zs_parms = &ds_parms;
 		zs_parms->irq0 = dec_interrupt[DEC_IRQ_SCC0];
 		zs_parms->irq1 = dec_interrupt[DEC_IRQ_SCC1];
 		break;
 	case MACH_DS5000_XX:
-		system_base = KSEG1ADDR(0x1c000000);
+		system_base = CKSEG1ADDR(0x1c000000);
 		n_chips = 1;
 		zs_parms = &ds_parms;
 		zs_parms->irq0 = dec_interrupt[DEC_IRQ_SCC0];

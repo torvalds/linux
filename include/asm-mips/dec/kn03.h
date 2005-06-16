@@ -19,7 +19,7 @@
 #include <asm/dec/ecc.h>
 #include <asm/dec/ioasic_addrs.h>
 
-#define KN03_SLOT_BASE	KSEG1ADDR(0x1f800000)
+#define KN03_SLOT_BASE	CKSEG1ADDR(0x1f800000)
 
 /*
  * Some port addresses...

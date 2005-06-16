@@ -22,7 +22,7 @@
 #include <asm/dec/ecc.h>
 
 
-#define KN02_SLOT_BASE	KSEG1ADDR(0x1fc00000)
+#define KN02_SLOT_BASE	CKSEG1ADDR(0x1fc00000)
 #define KN02_SLOT_SIZE	0x00080000
 
 /*

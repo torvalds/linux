@@ -197,7 +197,7 @@ void __init tc_init(void)
 	}
 
 	info = (tcinfo *) rex_gettcinfo();
-	slot0addr = (unsigned long)KSEG1ADDR(rex_slot_address(0));
+	slot0addr = (unsigned long)CKSEG1ADDR(rex_slot_address(0));
 
 	switch (mips_machtype) {
 	case MACH_DS5000_200:
@@ -245,7 +245,6 @@ void __init tc_init(void)
 					tc_bus[i].name, tc_bus[i].firmware);
 			}
 #endif
-		ioport_resource.end = KSEG2 - 1;
 	}
 }
 

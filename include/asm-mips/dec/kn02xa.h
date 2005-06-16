@@ -20,7 +20,7 @@
 #include <asm/addrspace.h>
 #include <asm/dec/ioasic_addrs.h>
 
-#define KN02XA_SLOT_BASE	KSEG1ADDR(0x1c000000)
+#define KN02XA_SLOT_BASE	CKSEG1ADDR(0x1c000000)
 
 /*
  * Some port addresses...
@@ -32,16 +32,16 @@
 /*
  * Memory control ASIC registers.
  */
-#define KN02XA_MER	KSEG1ADDR(0x0c400000)	/* memory error register */
-#define KN02XA_MSR	KSEG1ADDR(0x0c800000)	/* memory size register */
+#define KN02XA_MER	CKSEG1ADDR(0x0c400000)	/* memory error register */
+#define KN02XA_MSR	CKSEG1ADDR(0x0c800000)	/* memory size register */
 
 /*
  * CPU control ASIC registers.
  */
-#define KN02XA_MEM_CONF	KSEG1ADDR(0x0e000000)	/* write timeout config */
-#define KN02XA_EAR	KSEG1ADDR(0x0e000004)	/* error address register */
-#define KN02XA_BOOT0	KSEG1ADDR(0x0e000008)	/* boot 0 register */
-#define KN02XA_MEM_INTR	KSEG1ADDR(0x0e00000c)	/* write err IRQ stat & ack */
+#define KN02XA_MEM_CONF	CKSEG1ADDR(0x0e000000)	/* write timeout config */
+#define KN02XA_EAR	CKSEG1ADDR(0x0e000004)	/* error address register */
+#define KN02XA_BOOT0	CKSEG1ADDR(0x0e000008)	/* boot 0 register */
+#define KN02XA_MEM_INTR	CKSEG1ADDR(0x0e00000c)	/* write err IRQ stat & ack */
 
 /*
  * Memory Error Register bits, common definitions.

@@ -144,7 +144,8 @@ static int dec_ecc_be_backend(struct pt_regs *regs, int is_fixup, int invoker)
 			} else if (!sngl) {
 				status = dbestr;
 			} else {
-				volatile u32 *ptr = (void *)KSEG1ADDR(address);
+				volatile u32 *ptr =
+					(void *)CKSEG1ADDR(address);
 
 				*ptr = *ptr;		/* Rewrite. */
 				iob();
