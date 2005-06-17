@@ -451,7 +451,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 	 *	Allocate and initialize a Fib then setup a BlockWrite command
 	 */
 	if (!(srbfib = fib_alloc(dev))) {
-		return -1;
+		return -ENOMEM;
 	}
 	fib_init(srbfib);
 
@@ -490,10 +490,11 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 	srbcmd->channel  = cpu_to_le32(user_srbcmd->channel);
 	srbcmd->id	 = cpu_to_le32(user_srbcmd->id);
 	srbcmd->lun      = cpu_to_le32(user_srbcmd->lun);
-	srbcmd->flags    = cpu_to_le32(flags);
 	srbcmd->timeout  = cpu_to_le32(user_srbcmd->timeout);
-	srbcmd->retry_limit =cpu_to_le32(0); // Obsolete parameter
+	srbcmd->flags    = cpu_to_le32(flags);
+	srbcmd->retry_limit = 0; // Obsolete parameter
 	srbcmd->cdb_size = cpu_to_le32(user_srbcmd->cdb_size);
+	memcpy(srbcmd->cdb, user_srbcmd->cdb, sizeof(srbcmd->cdb));
 	
 	switch (flags & (SRB_DataIn | SRB_DataOut)) {
 	case SRB_DataOut:
@@ -508,7 +509,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 	default:
 		data_dir = DMA_NONE;
 	}
-	if (le32_to_cpu(srbcmd->sg.count) > (sizeof(sg_list)/sizeof(sg_list[0]))) {
+	if (user_srbcmd->sg.count > (sizeof(sg_list)/sizeof(sg_list[0]))) {
 		dprintk((KERN_DEBUG"aacraid: too many sg entries %d\n",
 		  le32_to_cpu(srbcmd->sg.count)));
 		rcode = -EINVAL;
@@ -592,7 +593,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 		struct sgmap* psg = &srbcmd->sg;
 		byte_count = 0;
 
-		actual_fibsize = sizeof (struct aac_srb) + (((le32_to_cpu(srbcmd->sg.count) & 0xff) - 1) * sizeof (struct sgentry));
+		actual_fibsize = sizeof (struct aac_srb) + (((user_srbcmd->sg.count & 0xff) - 1) * sizeof (struct sgentry));
 		if(actual_fibsize != fibsize){ // User made a mistake - should not continue
 			dprintk((KERN_DEBUG"aacraid: Bad Size specified in Raw SRB command\n"));
 			rcode = -EINVAL;
@@ -639,7 +640,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 
 	if (status != 0){
 		dprintk((KERN_DEBUG"aacraid: Could not send raw srb fib to hba\n")); 
-		rcode = -1;
+		rcode = -ENXIO;
 		goto cleanup;
 	}
 
