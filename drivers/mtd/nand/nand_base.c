@@ -59,7 +59,7 @@
  *	The AG-AND chips have nice features for speed improvement,
  *	which are not supported yet. Read / program 4 pages in one go.
  *
- * $Id: nand_base.c,v 1.145 2005/05/31 20:32:53 gleixner Exp $
+ * $Id: nand_base.c,v 1.146 2005/06/17 15:02:06 gleixner Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -2686,8 +2686,8 @@ void nand_release (struct mtd_info *mtd)
 		kfree (this->data_buf);
 }
 
-EXPORT_SYMBOL (nand_scan);
-EXPORT_SYMBOL (nand_release);
+EXPORT_SYMBOL_GPL (nand_scan);
+EXPORT_SYMBOL_GPL (nand_release);
 
 MODULE_LICENSE ("GPL");
 MODULE_AUTHOR ("Steven J. Hill <sjhill@realitydiluted.com>, Thomas Gleixner <tglx@linutronix.de>");
