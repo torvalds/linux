@@ -270,6 +270,7 @@ static void S24C16_set_bit(struct sym_device *np, u_char write_bit, u_char *gpre
 
 	}
 	OUTB(np, nc_gpreg, *gpreg);
+	INB(np, nc_mbox1);
 	udelay(5);
 }
 
@@ -547,6 +548,7 @@ static int sym_read_Symbios_nvram(struct sym_device *np, Symbios_nvram *nvram)
 static void T93C46_Clk(struct sym_device *np, u_char *gpreg)
 {
 	OUTB(np, nc_gpreg, *gpreg | 0x04);
+	INB(np, nc_mbox1);
 	udelay(2);
 	OUTB(np, nc_gpreg, *gpreg);
 }
@@ -574,6 +576,7 @@ static void T93C46_Write_Bit(struct sym_device *np, u_char write_bit, u_char *gp
 	*gpreg |= 0x10;
 		
 	OUTB(np, nc_gpreg, *gpreg);
+	INB(np, nc_mbox1);
 	udelay(2);
 
 	T93C46_Clk(np, gpreg);
@@ -586,6 +589,7 @@ static void T93C46_Stop(struct sym_device *np, u_char *gpreg)
 {
 	*gpreg &= 0xef;
 	OUTB(np, nc_gpreg, *gpreg);
+	INB(np, nc_mbox1);
 	udelay(2);
 
 	T93C46_Clk(np, gpreg);
@@ -733,7 +737,8 @@ static int sym_read_parisc_pdc(struct sym_device *np, struct pdc_initiator *pdc)
 	return SYM_PARISC_PDC;
 }
 #else
-static int sym_read_parisc_pdc(struct sym_device *np, struct pdc_initiator *x)
+static inline int sym_read_parisc_pdc(struct sym_device *np,
+					struct pdc_initiator *x)
 {
 	return 0;
 }

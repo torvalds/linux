@@ -154,7 +154,9 @@ struct scsi_target {
 	unsigned int		id; /* target id ... replace
 				     * scsi_device.id eventually */
 	unsigned long		create:1; /* signal that it needs to be added */
-	unsigned long		starget_data[0];
+	void 			*hostdata; /* available to low-level driver */
+	unsigned long		starget_data[0]; /* for the transport */
+	/* starget_data must be the last element!!!! */
 } __attribute__((aligned(sizeof(unsigned long))));
 
 #define to_scsi_target(d)	container_of(d, struct scsi_target, dev)

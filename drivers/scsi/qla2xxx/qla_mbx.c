@@ -219,10 +219,8 @@ qla2x00_mailbox_command(scsi_qla_host_t *ha, mbx_cmd_t *mcp)
 		ha->flags.mbox_int = 0;
 		clear_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags);
 
-		if (ha->mailbox_out[0] != MBS_COMMAND_COMPLETE) {
-			qla2x00_stats.mboxerr++;
+		if (ha->mailbox_out[0] != MBS_COMMAND_COMPLETE)
 			rval = QLA_FUNCTION_FAILED;
-		}
 
 		/* Load return mailbox registers. */
 		iptr2 = mcp->mb;
@@ -249,8 +247,6 @@ qla2x00_mailbox_command(scsi_qla_host_t *ha, mbx_cmd_t *mcp)
 		qla2x00_dump_regs(ha);
 #endif
 
-		qla2x00_stats.mboxtout++;
-		ha->total_mbx_timeout++;
 		rval = QLA_FUNCTION_TIMEOUT;
 	}
 

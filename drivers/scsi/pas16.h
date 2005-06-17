@@ -120,8 +120,6 @@ static int pas16_biosparam(struct scsi_device *, struct block_device *,
 static int pas16_detect(Scsi_Host_Template *);
 static int pas16_queue_command(Scsi_Cmnd *, void (*done)(Scsi_Cmnd *));
 static int pas16_bus_reset(Scsi_Cmnd *);
-static int pas16_host_reset(Scsi_Cmnd *);
-static int pas16_device_reset(Scsi_Cmnd *);
 
 #ifndef CMD_PER_LUN
 #define CMD_PER_LUN 2
@@ -164,9 +162,7 @@ static int pas16_device_reset(Scsi_Cmnd *);
 #define do_NCR5380_intr do_pas16_intr
 #define NCR5380_queue_command pas16_queue_command
 #define NCR5380_abort pas16_abort
-#define NCR5380_device_reset pas16_device_reset
 #define NCR5380_bus_reset pas16_bus_reset
-#define NCR5380_host_reset pas16_host_reset
 #define NCR5380_proc_info pas16_proc_info
 
 /* 15 14 12 10 7 5 3 

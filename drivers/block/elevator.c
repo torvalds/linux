@@ -286,6 +286,13 @@ void elv_requeue_request(request_queue_t *q, struct request *rq)
 	}
 
 	/*
+	 * the request is prepped and may have some resources allocated.
+	 * allowing unprepped requests to pass this one may cause resource
+	 * deadlock.  turn on softbarrier.
+	 */
+	rq->flags |= REQ_SOFTBARRIER;
+
+	/*
 	 * if iosched has an explicit requeue hook, then use that. otherwise
 	 * just put the request at the front of the queue
 	 */
@@ -381,6 +388,12 @@ struct request *elv_next_request(request_queue_t *q)
 		if (ret == BLKPREP_OK) {
 			break;
 		} else if (ret == BLKPREP_DEFER) {
+			/*
+			 * the request may have been (partially) prepped.
+			 * we need to keep this request in the front to
+			 * avoid resource deadlock.  turn on softbarrier.
+			 */
+			rq->flags |= REQ_SOFTBARRIER;
 			rq = NULL;
 			break;
 		} else if (ret == BLKPREP_KILL) {
