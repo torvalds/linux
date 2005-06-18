@@ -463,6 +463,7 @@
 #include <linux/if_arp.h>
 #include <linux/etherdevice.h>
 #include <linux/wireless.h>
+#include <net/ieee80211.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
