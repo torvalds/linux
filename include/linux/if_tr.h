@@ -19,6 +19,8 @@
 #ifndef _LINUX_IF_TR_H
 #define _LINUX_IF_TR_H
 
+#include <asm/byteorder.h>	/* For __be16 */
+
 /* IEEE 802.5 Token-Ring magic constants.  The frame sizes omit the preamble
    and FCS/CRC (frame check sequence). */
 #define TR_ALEN		6		/* Octets in one token-ring addr */

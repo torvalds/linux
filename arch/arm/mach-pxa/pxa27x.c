@@ -120,6 +120,8 @@ EXPORT_SYMBOL(get_clk_frequency_khz);
 EXPORT_SYMBOL(get_memclk_frequency_10khz);
 EXPORT_SYMBOL(get_lcdclk_frequency_10khz);
 
+#ifdef CONFIG_PM
+
 int pxa_cpu_pm_prepare(suspend_state_t state)
 {
 	switch (state) {
@@ -152,6 +154,8 @@ void pxa_cpu_pm_enter(suspend_state_t state)
 		break;
 	}
 }
+
+#endif
 
 /*
  * device registration specific to PXA27x.

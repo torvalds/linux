@@ -543,7 +543,7 @@ static void versatile_clcd_enable(struct clcd_fb *fb)
 		val |= SYS_CLCD_MODE_5551;
 		break;
 	case 6:
-		val |= SYS_CLCD_MODE_565_BLSB;
+		val |= SYS_CLCD_MODE_565_RLSB;
 		break;
 	case 8:
 		val |= SYS_CLCD_MODE_888;

@@ -22,8 +22,8 @@ obj-y := stdio_console.o fd.o chan_kern.o chan_user.o line.o
 obj-$(CONFIG_SSL) += ssl.o
 obj-$(CONFIG_STDERR_CONSOLE) += stderr_console.o
 
-obj-$(CONFIG_UML_NET_SLIP) += slip.o
-obj-$(CONFIG_UML_NET_SLIRP) += slirp.o
+obj-$(CONFIG_UML_NET_SLIP) += slip.o slip_common.o
+obj-$(CONFIG_UML_NET_SLIRP) += slirp.o slip_common.o
 obj-$(CONFIG_UML_NET_DAEMON) += daemon.o 
 obj-$(CONFIG_UML_NET_MCAST) += mcast.o 
 #obj-$(CONFIG_UML_NET_PCAP) += pcap.o $(PCAP)
@@ -41,6 +41,6 @@ obj-$(CONFIG_UML_WATCHDOG) += harddog.o
 obj-$(CONFIG_BLK_DEV_COW_COMMON) += cow_user.o
 obj-$(CONFIG_UML_RANDOM) += random.o
 
-USER_OBJS := fd.o null.o pty.o tty.o xterm.o
+USER_OBJS := fd.o null.o pty.o tty.o xterm.o slip_common.o
 
 include arch/um/scripts/Makefile.rules

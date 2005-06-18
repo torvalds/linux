@@ -17,6 +17,7 @@
 #include <linux/blkdev.h>
 #include <linux/parport.h>
 #include <linux/workqueue.h>
+#include <linux/delay.h>
 #include <asm/io.h>
 
 #include <scsi/scsi.h>
@@ -891,9 +892,9 @@ static int ppa_reset(struct scsi_cmnd *cmd)
 
 	ppa_connect(dev, CONNECT_NORMAL);
 	ppa_reset_pulse(dev->base);
-	udelay(1000);		/* device settle delay */
+	mdelay(1);		/* device settle delay */
 	ppa_disconnect(dev);
-	udelay(1000);		/* device settle delay */
+	mdelay(1);		/* device settle delay */
 	return SUCCESS;
 }
 
