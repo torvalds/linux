@@ -94,6 +94,7 @@ struct orinoco_private {
 	unsigned int has_sensitivity:1;
 	unsigned int has_hostscan:1;
 	unsigned int broken_disableport:1;
+	unsigned int broken_monitor:1;
 
 	/* Configuration paramaters */
 	u32 iw_mode;
