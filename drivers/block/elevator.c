@@ -220,11 +220,6 @@ void elevator_exit(elevator_t *e)
 	kfree(e);
 }
 
-static int elevator_global_init(void)
-{
-	return 0;
-}
-
 int elv_merge(request_queue_t *q, struct request **req, struct bio *bio)
 {
 	elevator_t *e = q->elevator;
@@ -322,7 +317,7 @@ void __elv_add_request(request_queue_t *q, struct request *rq, int where,
 			int nrq = q->rq.count[READ] + q->rq.count[WRITE]
 				  - q->in_flight;
 
-			if (nrq == q->unplug_thresh)
+			if (nrq >= q->unplug_thresh)
 				__generic_unplug_device(q);
 		}
 	} else
@@ -691,8 +686,6 @@ ssize_t elv_iosched_show(request_queue_t *q, char *name)
 	len += sprintf(len+name, "\n");
 	return len;
 }
-
-module_init(elevator_global_init);
 
 EXPORT_SYMBOL(elv_add_request);
 EXPORT_SYMBOL(__elv_add_request);

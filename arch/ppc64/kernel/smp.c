@@ -334,7 +334,6 @@ void smp_call_function_interrupt(void)
 	}
 }
 
-extern unsigned long decr_overclock;
 extern struct gettimeofday_struct do_gtod;
 
 struct thread_info *current_set[NR_CPUS];
@@ -491,7 +490,7 @@ int __devinit __cpu_up(unsigned int cpu)
 	if (smp_ops->cpu_bootable && !smp_ops->cpu_bootable(cpu))
 		return -EINVAL;
 
-	paca[cpu].default_decr = tb_ticks_per_jiffy / decr_overclock;
+	paca[cpu].default_decr = tb_ticks_per_jiffy;
 
 	if (!cpu_has_feature(CPU_FTR_SLB)) {
 		void *tmp;

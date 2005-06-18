@@ -665,15 +665,6 @@ static int piix_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	return ata_pci_init_one(pdev, port_info, n_ports);
 }
 
-/**
- *	piix_init -
- *
- *	LOCKING:
- *
- *	RETURNS:
- *
- */
-
 static int __init piix_init(void)
 {
 	int rc;
@@ -688,13 +679,6 @@ static int __init piix_init(void)
 	DPRINTK("done\n");
 	return 0;
 }
-
-/**
- *	piix_exit -
- *
- *	LOCKING:
- *
- */
 
 static void __exit piix_exit(void)
 {

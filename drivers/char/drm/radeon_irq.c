@@ -123,11 +123,6 @@ static int radeon_wait_irq(drm_device_t *dev, int swi_nr)
 
 	dev_priv->stats.boxes |= RADEON_BOX_WAIT_IDLE;
 
-	/* This is a hack to work around mysterious freezes on certain
-	 * systems:
-	 */ 
-	radeon_acknowledge_irqs( dev_priv );
-
 	DRM_WAIT_ON( ret, dev_priv->swi_queue, 3 * DRM_HZ, 
 		     RADEON_READ( RADEON_LAST_SWI_REG ) >= swi_nr );
 

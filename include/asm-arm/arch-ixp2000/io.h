@@ -75,8 +75,8 @@ static inline void insw(u32 ptr, void *buf, int length)
 	 * Is this cycle meant for the CS8900?
 	 */
 	if ((machine_is_ixdp2401() || machine_is_ixdp2801()) && 
-		((port >= IXDP2X01_CS8900_VIRT_BASE) && 
-		 (port <= IXDP2X01_CS8900_VIRT_END))) {
+		(((u32)port >= (u32)IXDP2X01_CS8900_VIRT_BASE) &&
+		 ((u32)port <= (u32)IXDP2X01_CS8900_VIRT_END))) {
 		u8 *buf8 = (u8*)buf;
 		register u32 tmp32;
 
@@ -100,8 +100,8 @@ static inline void outsw(u32 ptr, void *buf, int length)
 	 * Is this cycle meant for the CS8900?
 	 */
 	if ((machine_is_ixdp2401() || machine_is_ixdp2801()) && 
-		((port >= IXDP2X01_CS8900_VIRT_BASE) && 
-		 (port <= IXDP2X01_CS8900_VIRT_END))) {
+		(((u32)port >= (u32)IXDP2X01_CS8900_VIRT_BASE) &&
+		 ((u32)port <= (u32)IXDP2X01_CS8900_VIRT_END))) {
 		register u32 tmp32;
 		u8 *buf8 = (u8*)buf;
 		do {
@@ -124,8 +124,8 @@ static inline u16 inw(u32 ptr)
 	 * Is this cycle meant for the CS8900?
 	 */
 	if ((machine_is_ixdp2401() || machine_is_ixdp2801()) && 
-		((port >= IXDP2X01_CS8900_VIRT_BASE) && 
-		 (port <= IXDP2X01_CS8900_VIRT_END))) {
+		(((u32)port >= (u32)IXDP2X01_CS8900_VIRT_BASE) &&
+		 ((u32)port <= (u32)IXDP2X01_CS8900_VIRT_END))) {
 		return (u16)(*port);  
 	}
 
@@ -137,8 +137,8 @@ static inline void outw(u16 value, u32 ptr)
 	register volatile u32 *port = (volatile u32 *)ptr;
 
 	if ((machine_is_ixdp2401() || machine_is_ixdp2801()) && 
-		((port >= IXDP2X01_CS8900_VIRT_BASE) && 
-		 (port <= IXDP2X01_CS8900_VIRT_END))) {
+		(((u32)port >= (u32)IXDP2X01_CS8900_VIRT_BASE) &&
+		 ((u32)port <= (u32)IXDP2X01_CS8900_VIRT_END))) {
 		*port = value;  
 		return;
 	}

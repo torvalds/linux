@@ -199,24 +199,33 @@ out:
 	return ret;
 }
 
-static int __init set_fakeppc(char *str)
+long ppc64_personality(unsigned long personality)
 {
-	if (*str)
-		return 0;
-	init_task.personality = PER_LINUX32;
-	return 1;
-}
-__setup("fakeppc", set_fakeppc);
+	long ret;
 
-asmlinkage int sys_uname(struct old_utsname __user * name)
+	if (personality(current->personality) == PER_LINUX32
+	    && personality == PER_LINUX)
+		personality = PER_LINUX32;
+	ret = sys_personality(personality);
+	if (ret == PER_LINUX32)
+		ret = PER_LINUX;
+	return ret;
+}
+
+long ppc64_newuname(struct new_utsname __user * name)
 {
-	int err = -EFAULT;
-	
+	int err = 0;
+
 	down_read(&uts_sem);
-	if (name && !copy_to_user(name, &system_utsname, sizeof (*name)))
-		err = 0;
+	if (copy_to_user(name, &system_utsname, sizeof(*name)))
+		err = -EFAULT;
 	up_read(&uts_sem);
-	
+	if (!err && personality(current->personality) == PER_LINUX32) {
+		/* change ppc64 to ppc */
+		if (__put_user(0, name->machine + 3)
+		    || __put_user(0, name->machine + 4))
+			err = -EFAULT;
+	}
 	return err;
 }
 

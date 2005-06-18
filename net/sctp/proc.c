@@ -132,14 +132,25 @@ void sctp_snmp_proc_exit(void)
 static void sctp_seq_dump_local_addrs(struct seq_file *seq, struct sctp_ep_common *epb)
 {
 	struct list_head *pos;
+	struct sctp_association *asoc;
 	struct sctp_sockaddr_entry *laddr;
-	union sctp_addr *addr;
+	struct sctp_transport *peer;
+	union sctp_addr *addr, *primary = NULL;
 	struct sctp_af *af;
+
+	if (epb->type == SCTP_EP_TYPE_ASSOCIATION) {
+	    asoc = sctp_assoc(epb);
+	    peer = asoc->peer.primary_path;
+	    primary = &peer->saddr;
+	}
 
 	list_for_each(pos, &epb->bind_addr.address_list) {
 		laddr = list_entry(pos, struct sctp_sockaddr_entry, list);
 		addr = (union sctp_addr *)&laddr->a;
 		af = sctp_get_af_specific(addr->sa.sa_family);
+		if (primary && af->cmp_addr(addr, primary)) {
+			seq_printf(seq, "*");
+		}
 		af->seq_dump_addr(seq, addr);
 	}
 }
@@ -149,16 +160,53 @@ static void sctp_seq_dump_remote_addrs(struct seq_file *seq, struct sctp_associa
 {
 	struct list_head *pos;
 	struct sctp_transport *transport;
-	union sctp_addr *addr;
+	union sctp_addr *addr, *primary;
 	struct sctp_af *af;
 
+	primary = &(assoc->peer.primary_addr);
 	list_for_each(pos, &assoc->peer.transport_addr_list) {
 		transport = list_entry(pos, struct sctp_transport, transports);
 		addr = (union sctp_addr *)&transport->ipaddr;
 		af = sctp_get_af_specific(addr->sa.sa_family);
+		if (af->cmp_addr(addr, primary)) {
+			seq_printf(seq, "*");
+		}
 		af->seq_dump_addr(seq, addr);
 	}
 }
+
+static void * sctp_eps_seq_start(struct seq_file *seq, loff_t *pos)
+{
+	if (*pos > sctp_ep_hashsize)
+		return NULL;
+
+	if (*pos < 0)
+		*pos = 0;
+
+	if (*pos == 0)
+		seq_printf(seq, " ENDPT     SOCK   STY SST HBKT LPORT   UID INODE LADDRS\n");
+
+	++*pos;
+
+	return (void *)pos;
+}
+
+static void sctp_eps_seq_stop(struct seq_file *seq, void *v)
+{
+	return;
+}
+
+
+static void * sctp_eps_seq_next(struct seq_file *seq, void *v, loff_t *pos)
+{
+	if (*pos > sctp_ep_hashsize)
+		return NULL;
+
+	++*pos;
+
+	return pos;
+}
+
 
 /* Display sctp endpoints (/proc/net/sctp/eps). */
 static int sctp_eps_seq_show(struct seq_file *seq, void *v)
@@ -167,38 +215,50 @@ static int sctp_eps_seq_show(struct seq_file *seq, void *v)
 	struct sctp_ep_common *epb;
 	struct sctp_endpoint *ep;
 	struct sock *sk;
-	int hash;
+	int    hash = *(int *)v;
 
-	seq_printf(seq, " ENDPT     SOCK   STY SST HBKT LPORT LADDRS\n");
-	for (hash = 0; hash < sctp_ep_hashsize; hash++) {
-		head = &sctp_ep_hashtable[hash];
-		read_lock(&head->lock);
-		for (epb = head->chain; epb; epb = epb->next) {
-			ep = sctp_ep(epb);
-			sk = epb->sk;
-			seq_printf(seq, "%8p %8p %-3d %-3d %-4d %-5d ", ep, sk,
-				   sctp_sk(sk)->type, sk->sk_state, hash,
-				   epb->bind_addr.port);
-			sctp_seq_dump_local_addrs(seq, epb);
-			seq_printf(seq, "\n");
-		}
-		read_unlock(&head->lock);
+	if (hash > sctp_ep_hashsize)
+		return -ENOMEM;
+
+	head = &sctp_ep_hashtable[hash-1];
+	sctp_local_bh_disable();
+	read_lock(&head->lock);
+	for (epb = head->chain; epb; epb = epb->next) {
+		ep = sctp_ep(epb);
+		sk = epb->sk;
+		seq_printf(seq, "%8p %8p %-3d %-3d %-4d %-5d %5d %5lu ", ep, sk,
+			   sctp_sk(sk)->type, sk->sk_state, hash-1,
+			   epb->bind_addr.port,
+			   sock_i_uid(sk), sock_i_ino(sk));
+
+		sctp_seq_dump_local_addrs(seq, epb);
+		seq_printf(seq, "\n");
 	}
+	read_unlock(&head->lock);
+	sctp_local_bh_enable();
 
 	return 0;
 }
 
+static struct seq_operations sctp_eps_ops = {
+	.start = sctp_eps_seq_start,
+	.next  = sctp_eps_seq_next,
+	.stop  = sctp_eps_seq_stop,
+	.show  = sctp_eps_seq_show,
+};
+
+
 /* Initialize the seq file operations for 'eps' object. */
 static int sctp_eps_seq_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, sctp_eps_seq_show, NULL);
+	return seq_open(file, &sctp_eps_ops);
 }
 
 static struct file_operations sctp_eps_seq_fops = {
 	.open	 = sctp_eps_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
-	.release = single_release,
+	.release = seq_release,
 };
 
 /* Set up the proc fs entry for 'eps' object. */
@@ -221,6 +281,40 @@ void sctp_eps_proc_exit(void)
 	remove_proc_entry("eps", proc_net_sctp);
 }
 
+
+static void * sctp_assocs_seq_start(struct seq_file *seq, loff_t *pos)
+{
+	if (*pos > sctp_assoc_hashsize)
+		return NULL;
+
+	if (*pos < 0)
+		*pos = 0;
+
+	if (*pos == 0)
+		seq_printf(seq, " ASSOC     SOCK   STY SST ST HBKT ASSOC-ID TX_QUEUE RX_QUEUE UID INODE LPORT "
+				"RPORT LADDRS <-> RADDRS\n");
+
+	++*pos;
+
+	return (void *)pos;
+}
+
+static void sctp_assocs_seq_stop(struct seq_file *seq, void *v)
+{
+	return;
+}
+
+
+static void * sctp_assocs_seq_next(struct seq_file *seq, void *v, loff_t *pos)
+{
+	if (*pos > sctp_assoc_hashsize)
+		return NULL;
+
+	++*pos;
+
+	return pos;
+}
+
 /* Display sctp associations (/proc/net/sctp/assocs). */
 static int sctp_assocs_seq_show(struct seq_file *seq, void *v)
 {
@@ -228,43 +322,57 @@ static int sctp_assocs_seq_show(struct seq_file *seq, void *v)
 	struct sctp_ep_common *epb;
 	struct sctp_association *assoc;
 	struct sock *sk;
-	int hash;
+	int    hash = *(int *)v;
 
-	seq_printf(seq, " ASSOC     SOCK   STY SST ST HBKT LPORT RPORT "
-			"LADDRS <-> RADDRS\n");
-	for (hash = 0; hash < sctp_assoc_hashsize; hash++) {
-		head = &sctp_assoc_hashtable[hash];
-		read_lock(&head->lock);
-		for (epb = head->chain; epb; epb = epb->next) {
-			assoc = sctp_assoc(epb);
-			sk = epb->sk;
-			seq_printf(seq,
-				   "%8p %8p %-3d %-3d %-2d %-4d %-5d %-5d ",
-				   assoc, sk, sctp_sk(sk)->type, sk->sk_state,
-				   assoc->state, hash, epb->bind_addr.port,
-				   assoc->peer.port);
-			sctp_seq_dump_local_addrs(seq, epb);
-			seq_printf(seq, "<-> ");
-			sctp_seq_dump_remote_addrs(seq, assoc);
-			seq_printf(seq, "\n");
-		}
-		read_unlock(&head->lock);
+	if (hash > sctp_assoc_hashsize)
+		return -ENOMEM;
+
+	head = &sctp_assoc_hashtable[hash-1];
+	sctp_local_bh_disable();
+	read_lock(&head->lock);
+	for (epb = head->chain; epb; epb = epb->next) {
+		assoc = sctp_assoc(epb);
+		sk = epb->sk;
+		seq_printf(seq,
+			   "%8p %8p %-3d %-3d %-2d %-4d %4d %8d %8d %7d %5lu %-5d %5d ",
+			   assoc, sk, sctp_sk(sk)->type, sk->sk_state,
+			   assoc->state, hash-1, assoc->assoc_id,
+			   (sk->sk_rcvbuf - assoc->rwnd),
+			   assoc->sndbuf_used,
+			   sock_i_uid(sk), sock_i_ino(sk),
+			   epb->bind_addr.port,
+			   assoc->peer.port);
+
+		seq_printf(seq, " ");
+		sctp_seq_dump_local_addrs(seq, epb);
+		seq_printf(seq, "<-> ");
+		sctp_seq_dump_remote_addrs(seq, assoc);
+		seq_printf(seq, "\n");
 	}
+	read_unlock(&head->lock);
+	sctp_local_bh_enable();
 
 	return 0;
 }
 
+static struct seq_operations sctp_assoc_ops = {
+	.start = sctp_assocs_seq_start,
+	.next  = sctp_assocs_seq_next,
+	.stop  = sctp_assocs_seq_stop,
+	.show  = sctp_assocs_seq_show,
+};
+
 /* Initialize the seq file operations for 'assocs' object. */
 static int sctp_assocs_seq_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, sctp_assocs_seq_show, NULL);
+	return seq_open(file, &sctp_assoc_ops);
 }
 
 static struct file_operations sctp_assocs_seq_fops = {
 	.open	 = sctp_assocs_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
-	.release = single_release,
+	.release = seq_release,
 };
 
 /* Set up the proc fs entry for 'assocs' object. */

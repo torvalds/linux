@@ -12,7 +12,7 @@ Don is no longer the prime maintainer of this version of the driver.
 Please report problems to one or more of:
 
   Andrew Morton <andrewm@uow.edu.au>
-  Netdev mailing list <netdev@oss.sgi.com>
+  Netdev mailing list <netdev@vger.kernel.org>
   Linux kernel mailing list <linux-kernel@vger.kernel.org>
 
 Please note the 'Reporting and Diagnosing Problems' section at the end
