@@ -651,6 +651,9 @@ err_setup_rx:
 		E1000_WRITE_REG(&adapter->hw, R, (test[pat] & W));             \
 		value = E1000_READ_REG(&adapter->hw, R);                       \
 		if(value != (test[pat] & W & M)) {                             \
+			DPRINTK(DRV, ERR, "pattern test reg %04X failed: got " \
+			        "0x%08X expected 0x%08X\n",                    \
+			        E1000_##R, value, (test[pat] & W & M));        \
 			*data = (adapter->hw.mac_type < e1000_82543) ?         \
 				E1000_82542_##R : E1000_##R;                   \
 			return 1;                                              \
@@ -663,7 +666,9 @@ err_setup_rx:
 	uint32_t value;                                                        \
 	E1000_WRITE_REG(&adapter->hw, R, W & M);                               \
 	value = E1000_READ_REG(&adapter->hw, R);                               \
-	if ((W & M) != (value & M)) {                                          \
+	if((W & M) != (value & M)) {                                          \
+		DPRINTK(DRV, ERR, "set/check reg %04X test failed: got 0x%08X "\
+		        "expected 0x%08X\n", E1000_##R, (value & M), (W & M)); \
 		*data = (adapter->hw.mac_type < e1000_82543) ?                 \
 			E1000_82542_##R : E1000_##R;                           \
 		return 1;                                                      \
@@ -673,18 +678,33 @@ err_setup_rx:
 static int
 e1000_reg_test(struct e1000_adapter *adapter, uint64_t *data)
 {
-	uint32_t value;
-	uint32_t i;
+	uint32_t value, before, after;
+	uint32_t i, toggle;
 
 	/* The status register is Read Only, so a write should fail.
 	 * Some bits that get toggled are ignored.
 	 */
-	value = (E1000_READ_REG(&adapter->hw, STATUS) & (0xFFFFF833));
-	E1000_WRITE_REG(&adapter->hw, STATUS, (0xFFFFFFFF));
-	if(value != (E1000_READ_REG(&adapter->hw, STATUS) & (0xFFFFF833))) {
+        switch (adapter->hw.mac_type) {
+	case e1000_82573:
+		toggle = 0x7FFFF033;
+		break;
+	default:
+		toggle = 0xFFFFF833;
+		break;
+	}
+
+	before = E1000_READ_REG(&adapter->hw, STATUS);
+	value = (E1000_READ_REG(&adapter->hw, STATUS) & toggle);
+	E1000_WRITE_REG(&adapter->hw, STATUS, toggle);
+	after = E1000_READ_REG(&adapter->hw, STATUS) & toggle;
+	if(value != after) {
+		DPRINTK(DRV, ERR, "failed STATUS register test got: "
+		        "0x%08X expected: 0x%08X\n", after, value);
 		*data = 1;
 		return 1;
 	}
+	/* restore previous status */
+	E1000_WRITE_REG(&adapter->hw, STATUS, before);
 
 	REG_PATTERN_TEST(FCAL, 0xFFFFFFFF, 0xFFFFFFFF);
 	REG_PATTERN_TEST(FCAH, 0x0000FFFF, 0xFFFFFFFF);
