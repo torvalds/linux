@@ -3376,6 +3376,7 @@ e1000_mii_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 	int retval;
 	uint16_t mii_reg;
 	uint16_t spddplx;
+	unsigned long flags;
 
 	if(adapter->hw.media_type != e1000_media_type_copper)
 		return -EOPNOTSUPP;
@@ -3385,22 +3386,29 @@ e1000_mii_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 		data->phy_id = adapter->hw.phy_addr;
 		break;
 	case SIOCGMIIREG:
-		if (!capable(CAP_NET_ADMIN))
+		if(!capable(CAP_NET_ADMIN))
 			return -EPERM;
-		if (e1000_read_phy_reg(&adapter->hw, data->reg_num & 0x1F,
-				   &data->val_out))
+		spin_lock_irqsave(&adapter->stats_lock, flags);
+		if(e1000_read_phy_reg(&adapter->hw, data->reg_num & 0x1F,
+				   &data->val_out)) {
+			spin_unlock_irqrestore(&adapter->stats_lock, flags);
 			return -EIO;
+		}
+		spin_unlock_irqrestore(&adapter->stats_lock, flags);
 		break;
 	case SIOCSMIIREG:
-		if (!capable(CAP_NET_ADMIN))
+		if(!capable(CAP_NET_ADMIN))
 			return -EPERM;
-		if (data->reg_num & ~(0x1F))
+		if(data->reg_num & ~(0x1F))
 			return -EFAULT;
 		mii_reg = data->val_in;
-		if (e1000_write_phy_reg(&adapter->hw, data->reg_num,
-					mii_reg))
+		spin_lock_irqsave(&adapter->stats_lock, flags);
+		if(e1000_write_phy_reg(&adapter->hw, data->reg_num,
+					mii_reg)) {
+			spin_unlock_irqrestore(&adapter->stats_lock, flags);
 			return -EIO;
-		if (adapter->hw.phy_type == e1000_phy_m88) {
+		}
+		if(adapter->hw.phy_type == e1000_phy_m88) {
 			switch (data->reg_num) {
 			case PHY_CTRL:
 				if(mii_reg & MII_CR_POWER_DOWN)
@@ -3420,8 +3428,12 @@ e1000_mii_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 						   HALF_DUPLEX;
 					retval = e1000_set_spd_dplx(adapter,
 								    spddplx);
-					if(retval)
+					if(retval) {
+						spin_unlock_irqrestore(
+							&adapter->stats_lock, 
+							flags);
 						return retval;
+					}
 				}
 				if(netif_running(adapter->netdev)) {
 					e1000_down(adapter);
@@ -3431,8 +3443,11 @@ e1000_mii_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 				break;
 			case M88E1000_PHY_SPEC_CTRL:
 			case M88E1000_EXT_PHY_SPEC_CTRL:
-				if (e1000_phy_reset(&adapter->hw))
+				if(e1000_phy_reset(&adapter->hw)) {
+					spin_unlock_irqrestore(
+						&adapter->stats_lock, flags);
 					return -EIO;
+				}
 				break;
 			}
 		} else {
@@ -3448,6 +3463,7 @@ e1000_mii_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 				break;
 			}
 		}
+		spin_unlock_irqrestore(&adapter->stats_lock, flags);
 		break;
 	default:
 		return -EOPNOTSUPP;
