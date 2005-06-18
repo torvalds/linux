@@ -2994,7 +2994,7 @@ e1000_clean_rx_irq_ps(struct e1000_adapter *adapter)
 
 	i = rx_ring->next_to_clean;
 	rx_desc = E1000_RX_DESC_PS(*rx_ring, i);
-	staterr = rx_desc->wb.middle.status_error;
+	staterr = le32_to_cpu(rx_desc->wb.middle.status_error);
 
 	while(staterr & E1000_RXD_STAT_DD) {
 		buffer_info = &rx_ring->buffer_info[i];
@@ -3065,16 +3065,16 @@ e1000_clean_rx_irq_ps(struct e1000_adapter *adapter)
 #ifdef CONFIG_E1000_NAPI
 		if(unlikely(adapter->vlgrp && (staterr & E1000_RXD_STAT_VP))) {
 			vlan_hwaccel_receive_skb(skb, adapter->vlgrp,
-				le16_to_cpu(rx_desc->wb.middle.vlan &
-					E1000_RXD_SPC_VLAN_MASK));
+				le16_to_cpu(rx_desc->wb.middle.vlan) &
+				E1000_RXD_SPC_VLAN_MASK);
 		} else {
 			netif_receive_skb(skb);
 		}
 #else /* CONFIG_E1000_NAPI */
 		if(unlikely(adapter->vlgrp && (staterr & E1000_RXD_STAT_VP))) {
 			vlan_hwaccel_rx(skb, adapter->vlgrp,
-				le16_to_cpu(rx_desc->wb.middle.vlan &
-					E1000_RXD_SPC_VLAN_MASK));
+				le16_to_cpu(rx_desc->wb.middle.vlan) &
+				E1000_RXD_SPC_VLAN_MASK);
 		} else {
 			netif_rx(skb);
 		}
@@ -3087,7 +3087,7 @@ next_desc:
 		if(unlikely(++i == rx_ring->count)) i = 0;
 
 		rx_desc = E1000_RX_DESC_PS(*rx_ring, i);
-		staterr = rx_desc->wb.middle.status_error;
+		staterr = le32_to_cpu(rx_desc->wb.middle.status_error);
 	}
 	rx_ring->next_to_clean = i;
 	adapter->alloc_rx_buf(adapter);
