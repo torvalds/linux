@@ -1625,17 +1625,26 @@ e1000_phys_id(struct net_device *netdev, uint32_t data)
 	if(!data || data > (uint32_t)(MAX_SCHEDULE_TIMEOUT / HZ))
 		data = (uint32_t)(MAX_SCHEDULE_TIMEOUT / HZ);
 
-	if(!adapter->blink_timer.function) {
-		init_timer(&adapter->blink_timer);
-		adapter->blink_timer.function = e1000_led_blink_callback;
-		adapter->blink_timer.data = (unsigned long) adapter;
+	if(adapter->hw.mac_type < e1000_82573) {
+		if(!adapter->blink_timer.function) {
+			init_timer(&adapter->blink_timer);
+			adapter->blink_timer.function = e1000_led_blink_callback;
+			adapter->blink_timer.data = (unsigned long) adapter;
+		}
+		e1000_setup_led(&adapter->hw);
+		mod_timer(&adapter->blink_timer, jiffies);
+		msleep_interruptible(data * 1000);
+		del_timer_sync(&adapter->blink_timer);
+	}
+	else {
+		E1000_WRITE_REG(&adapter->hw, LEDCTL, (E1000_LEDCTL_LED2_BLINK_RATE |
+			E1000_LEDCTL_LED1_BLINK | E1000_LEDCTL_LED2_BLINK | 
+			(E1000_LEDCTL_MODE_LED_ON << E1000_LEDCTL_LED2_MODE_SHIFT) |
+			(E1000_LEDCTL_MODE_LINK_ACTIVITY << E1000_LEDCTL_LED1_MODE_SHIFT) |
+			(E1000_LEDCTL_MODE_LED_OFF << E1000_LEDCTL_LED0_MODE_SHIFT)));
+		msleep_interruptible(data * 1000);
 	}
 
-	e1000_setup_led(&adapter->hw);
-	mod_timer(&adapter->blink_timer, jiffies);
-
-	msleep_interruptible(data * 1000);
-	del_timer_sync(&adapter->blink_timer);
 	e1000_led_off(&adapter->hw);
 	clear_bit(E1000_LED_ON, &adapter->led_status);
 	e1000_cleanup_led(&adapter->hw);
