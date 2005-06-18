@@ -2607,7 +2607,6 @@ static void __atapi_pio_bytes(struct ata_queued_cmd *qc, unsigned int bytes)
 next_sg:
 	sg = &qc->sg[qc->cursg];
 
-next_page:
 	page = sg->page;
 	offset = sg->offset + qc->cursg_ofs;
 
@@ -2615,6 +2614,7 @@ next_page:
 	page = nth_page(page, (offset >> PAGE_SHIFT));
 	offset %= PAGE_SIZE;
 
+	/* don't overrun current sg */
 	count = min(sg->length - qc->cursg_ofs, bytes);
 
 	/* don't cross page boundaries */
@@ -2639,8 +2639,6 @@ next_page:
 	kunmap(page);
 
 	if (bytes) {
-		if (qc->cursg_ofs < sg->length)
-			goto next_page;
 		goto next_sg;
 	}
 }

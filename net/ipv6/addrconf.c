@@ -372,6 +372,7 @@ static struct inet6_dev * ipv6_add_dev(struct net_device *dev)
 		ndev->regen_timer.data = (unsigned long) ndev;
 		if ((dev->flags&IFF_LOOPBACK) ||
 		    dev->type == ARPHRD_TUNNEL ||
+		    dev->type == ARPHRD_NONE ||
 		    dev->type == ARPHRD_SIT) {
 			printk(KERN_INFO
 				"Disabled Privacy Extensions on device %p(%s)\n",

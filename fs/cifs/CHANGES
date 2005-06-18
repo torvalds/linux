@@ -6,7 +6,8 @@ kills the cifsd thread (NB: killing the cifs kernel threads is not
 recommended, unmount and rmmod cifs will kill them when they are
 no longer needed).  Fix readdir to ASCII servers (ie older servers
 which do not support Unicode) and also require asterik.
-
+Fix out of memory case in which data could be written one page
+off in the page cache.
 
 Version 1.33
 ------------

@@ -497,7 +497,7 @@ source "drivers/cpufreq/Kconfig"
 
 config CPU_FREQ_SA1100
 	bool
-	depends on CPU_FREQ && (SA1100_LART || SA1100_PLEB)
+	depends on CPU_FREQ && (SA1100_H3100 || SA1100_H3600 || SA1100_H3800 || SA1100_LART || SA1100_PLEB || SA1100_BADGE4 || SA1100_HACKKIT)
 	default y
 
 config CPU_FREQ_SA1110
@@ -689,7 +689,9 @@ source "drivers/block/Kconfig"
 
 source "drivers/acorn/block/Kconfig"
 
-if ARCH_CLPS7500 || ARCH_IOP3XX || ARCH_IXP4XX || ARCH_L7200 || ARCH_LH7A40X || ARCH_PXA || ARCH_RPC || ARCH_S3C2410 || ARCH_SA1100 || ARCH_SHARK || FOOTBRIDGE
+if PCMCIA || ARCH_CLPS7500 || ARCH_IOP3XX || ARCH_IXP4XX \
+	|| ARCH_L7200 || ARCH_LH7A40X || ARCH_PXA || ARCH_RPC \
+	|| ARCH_S3C2410 || ARCH_SA1100 || ARCH_SHARK || FOOTBRIDGE
 source "drivers/ide/Kconfig"
 endif
 

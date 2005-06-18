@@ -393,7 +393,10 @@ int pci_register_driver(struct pci_driver *drv)
 	drv->driver.bus = &pci_bus_type;
 	drv->driver.probe = pci_device_probe;
 	drv->driver.remove = pci_device_remove;
-	drv->driver.shutdown = pci_device_shutdown,
+	/* FIXME, once all of the existing PCI drivers have been fixed to set
+	 * the pci shutdown function, this test can go away. */
+	if (!drv->driver.shutdown)
+		drv->driver.shutdown = pci_device_shutdown,
 	drv->driver.owner = drv->owner;
 	drv->driver.kobj.ktype = &pci_driver_kobj_type;
 	pci_init_dynids(&drv->dynids);

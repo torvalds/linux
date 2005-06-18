@@ -985,6 +985,9 @@ static int do_end_io(struct multipath *m, struct bio *bio,
 	if (!error)
 		return 0;	/* I/O complete */
 
+	if ((error == -EWOULDBLOCK) && bio_rw_ahead(bio))
+		return error;
+
 	spin_lock(&m->lock);
 	if (!m->nr_valid_paths) {
 		if (!m->queue_if_no_path || m->suspended) {

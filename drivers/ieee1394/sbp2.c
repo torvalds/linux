@@ -745,7 +745,8 @@ static struct scsi_id_instance_data *sbp2_alloc_device(struct unit_directory *ud
 	list_add_tail(&scsi_id->scsi_list, &hi->scsi_ids);
 
 	/* Register our host with the SCSI stack. */
-	scsi_host = scsi_host_alloc(&scsi_driver_template, 0);
+	scsi_host = scsi_host_alloc(&scsi_driver_template,
+				    sizeof (unsigned long));
 	if (!scsi_host) {
 		SBP2_ERR("failed to register scsi host");
 		goto failed_alloc;

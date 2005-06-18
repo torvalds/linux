@@ -207,6 +207,7 @@ int sysctl_icmp_ignore_bogus_error_responses;
 
 int sysctl_icmp_ratelimit = 1 * HZ;
 int sysctl_icmp_ratemask = 0x1818;
+int sysctl_icmp_errors_use_inbound_ifaddr;
 
 /*
  *	ICMP control array. This specifies what to do with each ICMP.
@@ -511,8 +512,12 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, u32 info)
 	 */
 
 	saddr = iph->daddr;
-	if (!(rt->rt_flags & RTCF_LOCAL))
-		saddr = 0;
+	if (!(rt->rt_flags & RTCF_LOCAL)) {
+		if (sysctl_icmp_errors_use_inbound_ifaddr)
+			saddr = inet_select_addr(skb_in->dev, 0, RT_SCOPE_LINK);
+		else
+			saddr = 0;
+	}
 
 	tos = icmp_pointers[type].error ? ((iph->tos & IPTOS_TOS_MASK) |
 					   IPTOS_PREC_INTERNETCONTROL) :

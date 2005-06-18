@@ -315,9 +315,12 @@ int cpci_unconfigure_slot(struct slot* slot)
 				    PCI_DEVFN(PCI_SLOT(slot->devfn), i));
 		if (dev) {
 			pci_remove_bus_device(dev);
-			slot->dev = NULL;
+			pci_dev_put(dev);
 		}
 	}
+	pci_dev_put(slot->dev);
+	slot->dev = NULL;
+
 	dbg("%s - exit", __FUNCTION__);
 	return 0;
 }

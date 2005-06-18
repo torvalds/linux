@@ -73,7 +73,7 @@ S: Status, one of the following:
 3C359 NETWORK DRIVER
 P:	Mike Phillips
 M:	mikep@linuxtr.net
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 L:	linux-tr@linuxtr.net
 W:	http://www.linuxtr.net
 S:	Maintained
@@ -81,13 +81,13 @@ S:	Maintained
 3C505 NETWORK DRIVER
 P:	Philip Blundell
 M:	philb@gnu.org
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 3CR990 NETWORK DRIVER
 P:	David Dillow
 M:	dave@thedillows.org
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 3W-XXXX ATA-RAID CONTROLLER DRIVER
@@ -130,7 +130,7 @@ S:	Maintained
 8169 10/100/1000 GIGABIT ETHERNET DRIVER
 P:	Francois Romieu
 M:	romieu@fr.zoreil.com
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 8250/16?50 (AND CLONE UARTS) SERIAL DRIVER
@@ -143,7 +143,7 @@ S:	Maintained
 8390 NETWORK DRIVERS [WD80x3/SMC-ELITE, SMC-ULTRA, NE2000, 3C503, etc.]
 P:	Paul Gortmaker
 M:	p_gortmaker@yahoo.com
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 A2232 SERIAL BOARD DRIVER
@@ -332,7 +332,7 @@ S:	Maintained
 
 ARPD SUPPORT
 P:	Jonathan Layes
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 ASUS ACPI EXTRAS DRIVER
@@ -706,7 +706,7 @@ S:	Orphaned
 
 DIGI RIGHTSWITCH NETWORK DRIVER
 P:	Rick Richardson
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 W:	http://www.digi.com
 S:	Orphaned
 
@@ -812,7 +812,7 @@ S:	Maintained
 ETHEREXPRESS-16 NETWORK DRIVER
 P:	Philip Blundell
 M:	philb@gnu.org
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 ETHERNET BRIDGE
@@ -875,7 +875,7 @@ S:	Maintained
 FRAME RELAY DLCI/FRAD (Sangoma drivers too)
 P:	Mike McLagan
 M:	mike.mclagan@linux.org
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 FREEVXFS FILESYSTEM
@@ -1215,7 +1215,7 @@ S:	Maintained
 IPX NETWORK LAYER
 P:	Arnaldo Carvalho de Melo
 M:	acme@conectiva.com.br
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 IRDA SUBSYSTEM
@@ -1482,7 +1482,7 @@ MARVELL MV64340 ETHERNET DRIVER
 P:	Manish Lachwani
 M:	Manish_Lachwani@pmc-sierra.com
 L:	linux-mips@linux-mips.org
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 S:	Supported
 
 MATROX FRAMEBUFFER DRIVER
@@ -1592,13 +1592,13 @@ P:	Andrew Morton
 M:	akpm@osdl.org
 P:	Jeff Garzik
 M:	jgarzik@pobox.com
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 NETWORKING [GENERAL]
 P:	Networking Team
-M:	netdev@oss.sgi.com
-L:	netdev@oss.sgi.com
+M:	netdev@vger.kernel.org
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 NETWORKING [IPv4/IPv6]
@@ -1614,7 +1614,7 @@ P:	Hideaki YOSHIFUJI
 M:	yoshfuji@linux-ipv6.org
 P:	Patrick McHardy
 M:	kaber@coreworks.de
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 IPVS
@@ -1634,7 +1634,7 @@ NI5010 NETWORK DRIVER
 P:	Jan-Pascal van Best and Andreas Mohr
 M:	Jan-Pascal van Best <jvbest@qv3pluto.leidenuniv.nl>
 M:	Andreas Mohr <100.30936@germany.net>
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 NINJA SCSI-3 / NINJA SCSI-32Bi (16bit/CardBus) PCMCIA SCSI HOST ADAPTER DRIVER
@@ -1676,7 +1676,7 @@ P:	Peter De Shrijver
 M:	p2@ace.ulyssis.student.kuleuven.ac.be
 P:	Mike Phillips
 M:	mikep@linuxtr.net 
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 L:	linux-tr@linuxtr.net
 W:	http://www.linuxtr.net
 S:	Maintained
@@ -1783,7 +1783,7 @@ S:	Unmaintained
 PCNET32 NETWORK DRIVER
 P:	Thomas Bogendörfer
 M:	tsbogend@alpha.franken.de
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 PHRAM MTD DRIVER
@@ -1795,7 +1795,7 @@ S:	Maintained
 POSIX CLOCKS and TIMERS
 P:	George Anzinger
 M:	george@mvista.com
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 S:	Supported
 
 PNP SUPPORT
@@ -1830,7 +1830,7 @@ S:	Supported
 PRISM54 WIRELESS DRIVER
 P:	Prism54 Development Team
 M:	prism54-private@prism54.org
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 W:	http://prism54.org
 S:	Maintained
 
@@ -2047,7 +2047,7 @@ SIS 900/7016 FAST ETHERNET DRIVER
 P:	Daniele Venzano
 M:	venza@brownhat.org
 W:	http://www.brownhat.org/sis900.html
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 SIS FRAMEBUFFER DRIVER
@@ -2106,7 +2106,7 @@ S:	Maintained
 SONIC NETWORK DRIVER
 P:	Thomas Bogendoerfer
 M:	tsbogend@alpha.franken.de
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 SONY VAIO CONTROL DEVICE DRIVER
@@ -2163,7 +2163,7 @@ S:	Supported
 SPX NETWORK LAYER
 P:	Jay Schulist
 M:	jschlst@samba.org
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 S:	Supported
 
 SRM (Alpha) environment access
@@ -2242,7 +2242,7 @@ S:	Maintained
 TOKEN-RING NETWORK DRIVER
 P:	Mike Phillips
 M:	mikep@linuxtr.net
-L:	netdev@oss.sgi.com
+L:	netdev@vger.kernel.org
 L:	linux-tr@linuxtr.net
 W:	http://www.linuxtr.net
 S:	Maintained

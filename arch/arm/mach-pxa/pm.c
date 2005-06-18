@@ -29,9 +29,6 @@
  */
 #undef DEBUG
 
-extern void pxa_cpu_suspend(void);
-extern void pxa_cpu_resume(void);
-
 #define SAVE(x)		sleep_save[SLEEP_SAVE_##x] = x
 #define RESTORE(x)	x = sleep_save[SLEEP_SAVE_##x]
 
@@ -63,6 +60,12 @@ enum {	SLEEP_SAVE_START = 0,
 	SLEEP_SAVE_ICMR,
 	SLEEP_SAVE_CKEN,
 
+#ifdef CONFIG_PXA27x
+ 	SLEEP_SAVE_MDREFR,
+ 	SLEEP_SAVE_PWER, SLEEP_SAVE_PCFR, SLEEP_SAVE_PRER,
+ 	SLEEP_SAVE_PFER, SLEEP_SAVE_PKWR,
+#endif
+
 	SLEEP_SAVE_CKSUM,
 
 	SLEEP_SAVE_SIZE
@@ -75,9 +78,7 @@ static int pxa_pm_enter(suspend_state_t state)
 	unsigned long checksum = 0;
 	struct timespec delta, rtc;
 	int i;
-
-	if (state != PM_SUSPEND_MEM)
-		return -EINVAL;
+	extern void pxa_cpu_pm_enter(suspend_state_t state);
 
 #ifdef CONFIG_IWMMXT
 	/* force any iWMMXt context to ram **/
@@ -100,16 +101,17 @@ static int pxa_pm_enter(suspend_state_t state)
 	SAVE(GAFR2_L); SAVE(GAFR2_U);
 
 #ifdef CONFIG_PXA27x
+	SAVE(MDREFR);
 	SAVE(GPLR3); SAVE(GPDR3); SAVE(GRER3); SAVE(GFER3); SAVE(PGSR3);
 	SAVE(GAFR3_L); SAVE(GAFR3_U);
+	SAVE(PWER); SAVE(PCFR); SAVE(PRER);
+	SAVE(PFER); SAVE(PKWR);
 #endif
 
 	SAVE(ICMR);
 	ICMR = 0;
 
 	SAVE(CKEN);
-	CKEN = 0;
-
 	SAVE(PSTR);
 
 	/* Note: wake up source are set up in each machine specific files */
@@ -123,16 +125,13 @@ static int pxa_pm_enter(suspend_state_t state)
 	/* Clear sleep reset status */
 	RCSR = RCSR_SMR;
 
-	/* set resume return address */
-	PSPR = virt_to_phys(pxa_cpu_resume);
-
 	/* before sleeping, calculate and save a checksum */
 	for (i = 0; i < SLEEP_SAVE_SIZE - 1; i++)
 		checksum += sleep_save[i];
 	sleep_save[SLEEP_SAVE_CKSUM] = checksum;
 
 	/* *** go zzz *** */
-	pxa_cpu_suspend();
+	pxa_cpu_pm_enter(state);
 
 	/* after sleeping, validate the checksum */
 	checksum = 0;
@@ -145,7 +144,7 @@ static int pxa_pm_enter(suspend_state_t state)
 		LUB_HEXLED = 0xbadbadc5;
 #endif
 		while (1)
-			pxa_cpu_suspend();
+			pxa_cpu_pm_enter(state);
 	}
 
 	/* ensure not to come back here if it wasn't intended */
@@ -162,8 +161,11 @@ static int pxa_pm_enter(suspend_state_t state)
 	RESTORE(PGSR0); RESTORE(PGSR1); RESTORE(PGSR2);
 
 #ifdef CONFIG_PXA27x
+	RESTORE(MDREFR);
 	RESTORE(GAFR3_L); RESTORE(GAFR3_U); RESTORE_GPLEVEL(3);
 	RESTORE(GPDR3); RESTORE(GRER3); RESTORE(GFER3); RESTORE(PGSR3);
+	RESTORE(PWER); RESTORE(PCFR); RESTORE(PRER);
+	RESTORE(PFER); RESTORE(PKWR);
 #endif
 
 	PSSR = PSSR_RDH | PSSR_PH;
@@ -197,7 +199,9 @@ unsigned long sleep_phys_sp(void *sp)
  */
 static int pxa_pm_prepare(suspend_state_t state)
 {
-	return 0;
+	extern int pxa_cpu_pm_prepare(suspend_state_t state);
+
+	return pxa_cpu_pm_prepare(state);
 }
 
 /*
