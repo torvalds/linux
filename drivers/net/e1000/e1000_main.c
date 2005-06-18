@@ -2769,13 +2769,13 @@ e1000_clean_tx_irq(struct e1000_adapter *adapter)
 			i = tx_ring->next_to_clean;
 			eop = tx_ring->buffer_info[i].next_to_watch;
 			eop_desc = E1000_TX_DESC(*tx_ring, eop);
-			DPRINTK(TX_ERR, ERR, "Detected Tx Unit Hang\n"
+			DPRINTK(DRV, ERR, "Detected Tx Unit Hang\n"
 					"  TDH                  <%x>\n"
 					"  TDT                  <%x>\n"
 					"  next_to_use          <%x>\n"
 					"  next_to_clean        <%x>\n"
 					"buffer_info[next_to_clean]\n"
-					"  dma                  <%llx>\n"
+					"  dma                  <%zx>\n"
 					"  time_stamp           <%lx>\n"
 					"  next_to_watch        <%x>\n"
 					"  jiffies              <%lx>\n"
