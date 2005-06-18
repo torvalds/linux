@@ -105,7 +105,7 @@ static const char e1000_gstrings_test[][ETH_GSTRING_LEN] = {
 static int
 e1000_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 {
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 
 	if(hw->media_type == e1000_media_type_copper) {
@@ -179,7 +179,7 @@ e1000_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 static int
 e1000_set_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 {
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 
 	if(ecmd->autoneg == AUTONEG_ENABLE) {
@@ -206,7 +206,7 @@ static void
 e1000_get_pauseparam(struct net_device *netdev,
                      struct ethtool_pauseparam *pause)
 {
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 
 	pause->autoneg = 
@@ -226,7 +226,7 @@ static int
 e1000_set_pauseparam(struct net_device *netdev,
                      struct ethtool_pauseparam *pause)
 {
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 	
 	adapter->fc_autoneg = pause->autoneg;
@@ -259,14 +259,14 @@ e1000_set_pauseparam(struct net_device *netdev,
 static uint32_t
 e1000_get_rx_csum(struct net_device *netdev)
 {
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 	return adapter->rx_csum;
 }
 
 static int
 e1000_set_rx_csum(struct net_device *netdev, uint32_t data)
 {
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 	adapter->rx_csum = data;
 
 	if(netif_running(netdev)) {
@@ -286,7 +286,7 @@ e1000_get_tx_csum(struct net_device *netdev)
 static int
 e1000_set_tx_csum(struct net_device *netdev, uint32_t data)
 {
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 
 	if(adapter->hw.mac_type < e1000_82543) {
 		if (!data)
@@ -306,8 +306,8 @@ e1000_set_tx_csum(struct net_device *netdev, uint32_t data)
 static int
 e1000_set_tso(struct net_device *netdev, uint32_t data)
 {
-	struct e1000_adapter *adapter = netdev->priv;
-	if ((adapter->hw.mac_type < e1000_82544) ||
+	struct e1000_adapter *adapter = netdev_priv(netdev);
+	if((adapter->hw.mac_type < e1000_82544) ||
 	    (adapter->hw.mac_type == e1000_82547)) 
 		return data ? -EINVAL : 0;
 
@@ -322,14 +322,14 @@ e1000_set_tso(struct net_device *netdev, uint32_t data)
 static uint32_t
 e1000_get_msglevel(struct net_device *netdev)
 {
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 	return adapter->msg_enable;
 }
 
 static void
 e1000_set_msglevel(struct net_device *netdev, uint32_t data)
 {
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 	adapter->msg_enable = data;
 }
 
@@ -344,7 +344,7 @@ static void
 e1000_get_regs(struct net_device *netdev,
 	       struct ethtool_regs *regs, void *p)
 {
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 	uint32_t *regs_buff = p;
 	uint16_t phy_data;
@@ -432,7 +432,7 @@ e1000_get_regs(struct net_device *netdev,
 static int
 e1000_get_eeprom_len(struct net_device *netdev)
 {
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 	return adapter->hw.eeprom.word_size * 2;
 }
 
@@ -440,7 +440,7 @@ static int
 e1000_get_eeprom(struct net_device *netdev,
                       struct ethtool_eeprom *eeprom, uint8_t *bytes)
 {
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 	uint16_t *eeprom_buff;
 	int first_word, last_word;
@@ -486,7 +486,7 @@ static int
 e1000_set_eeprom(struct net_device *netdev,
                       struct ethtool_eeprom *eeprom, uint8_t *bytes)
 {
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 	uint16_t *eeprom_buff;
 	void *ptr;
@@ -547,7 +547,7 @@ static void
 e1000_get_drvinfo(struct net_device *netdev,
                        struct ethtool_drvinfo *drvinfo)
 {
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 
 	strncpy(drvinfo->driver,  e1000_driver_name, 32);
 	strncpy(drvinfo->version, e1000_driver_version, 32);
@@ -563,7 +563,7 @@ static void
 e1000_get_ringparam(struct net_device *netdev,
                     struct ethtool_ringparam *ring)
 {
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 	e1000_mac_type mac_type = adapter->hw.mac_type;
 	struct e1000_desc_ring *txdr = &adapter->tx_ring;
 	struct e1000_desc_ring *rxdr = &adapter->rx_ring;
@@ -584,7 +584,7 @@ static int
 e1000_set_ringparam(struct net_device *netdev,
                     struct ethtool_ringparam *ring)
 {
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 	e1000_mac_type mac_type = adapter->hw.mac_type;
 	struct e1000_desc_ring *txdr = &adapter->tx_ring;
 	struct e1000_desc_ring *rxdr = &adapter->rx_ring;
@@ -766,7 +766,7 @@ e1000_test_intr(int irq,
 		struct pt_regs *regs)
 {
 	struct net_device *netdev = (struct net_device *) data;
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 
 	adapter->test_icr |= E1000_READ_REG(&adapter->hw, ICR);
 
@@ -1422,7 +1422,7 @@ static void
 e1000_diag_test(struct net_device *netdev,
 		   struct ethtool_test *eth_test, uint64_t *data)
 {
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 	boolean_t if_running = netif_running(netdev);
 
 	if(eth_test->flags == ETH_TEST_FL_OFFLINE) {
@@ -1482,7 +1482,7 @@ e1000_diag_test(struct net_device *netdev,
 static void
 e1000_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 {
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 
 	switch(adapter->hw.device_id) {
@@ -1527,7 +1527,7 @@ e1000_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 static int
 e1000_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 {
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 
 	switch(adapter->hw.device_id) {
@@ -1588,7 +1588,7 @@ e1000_led_blink_callback(unsigned long data)
 static int
 e1000_phys_id(struct net_device *netdev, uint32_t data)
 {
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 
 	if(!data || data > (uint32_t)(MAX_SCHEDULE_TIMEOUT / HZ))
 		data = (uint32_t)(MAX_SCHEDULE_TIMEOUT / HZ);
@@ -1614,7 +1614,7 @@ e1000_phys_id(struct net_device *netdev, uint32_t data)
 static int
 e1000_nway_reset(struct net_device *netdev)
 {
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 	if(netif_running(netdev)) {
 		e1000_down(adapter);
 		e1000_up(adapter);
@@ -1632,7 +1632,7 @@ static void
 e1000_get_ethtool_stats(struct net_device *netdev, 
 		struct ethtool_stats *stats, uint64_t *data)
 {
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 	int i;
 
 	e1000_update_stats(adapter);

@@ -517,7 +517,7 @@ e1000_probe(struct pci_dev *pdev,
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 
 	pci_set_drvdata(pdev, netdev);
-	adapter = netdev->priv;
+	adapter = netdev_priv(netdev);
 	adapter->netdev = netdev;
 	adapter->pdev = pdev;
 	adapter->hw.back = adapter;
@@ -738,7 +738,7 @@ static void __devexit
 e1000_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 	uint32_t manc, swsm;
 
 	flush_scheduled_work();
@@ -871,7 +871,7 @@ e1000_sw_init(struct e1000_adapter *adapter)
 static int
 e1000_open(struct net_device *netdev)
 {
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 	int err;
 
 	/* allocate transmit descriptors */
@@ -919,7 +919,7 @@ err_setup_tx:
 static int
 e1000_close(struct net_device *netdev)
 {
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 
 	e1000_down(adapter);
 
@@ -1599,7 +1599,7 @@ e1000_leave_82542_rst(struct e1000_adapter *adapter)
 static int
 e1000_set_mac(struct net_device *netdev, void *p)
 {
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct sockaddr *addr = p;
 
 	if(!is_valid_ether_addr(addr->sa_data))
@@ -1634,7 +1634,7 @@ e1000_set_mac(struct net_device *netdev, void *p)
 static void
 e1000_set_multi(struct net_device *netdev)
 {
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 	struct dev_mc_list *mc_ptr;
 	unsigned long flags;
@@ -2213,7 +2213,7 @@ e1000_transfer_dhcp_info(struct e1000_adapter *adapter, struct sk_buff *skb)
 static int
 e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 {
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 	unsigned int first, max_per_txd = E1000_MAX_DATA_PER_TXD;
 	unsigned int max_txd_pwr = E1000_MAX_TXD_PWR;
 	unsigned int tx_flags = 0;
@@ -2344,7 +2344,7 @@ e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 static void
 e1000_tx_timeout(struct net_device *netdev)
 {
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 
 	/* Do the reset outside of interrupt context */
 	schedule_work(&adapter->tx_timeout_task);
@@ -2353,7 +2353,7 @@ e1000_tx_timeout(struct net_device *netdev)
 static void
 e1000_tx_timeout_task(struct net_device *netdev)
 {
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 
 	e1000_down(adapter);
 	e1000_up(adapter);
@@ -2370,7 +2370,7 @@ e1000_tx_timeout_task(struct net_device *netdev)
 static struct net_device_stats *
 e1000_get_stats(struct net_device *netdev)
 {
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 
 	e1000_update_stats(adapter);
 	return &adapter->net_stats;
@@ -2387,7 +2387,7 @@ e1000_get_stats(struct net_device *netdev)
 static int
 e1000_change_mtu(struct net_device *netdev, int new_mtu)
 {
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 	int max_frame = new_mtu + ENET_HEADER_SIZE + ETHERNET_FCS_SIZE;
 
 	if((max_frame < MINIMUM_ETHERNET_FRAME_SIZE) ||
@@ -2598,7 +2598,7 @@ static irqreturn_t
 e1000_intr(int irq, void *data, struct pt_regs *regs)
 {
 	struct net_device *netdev = data;
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 	uint32_t icr = E1000_READ_REG(hw, ICR);
 #ifndef CONFIG_E1000_NAPI
@@ -2661,7 +2661,7 @@ e1000_intr(int irq, void *data, struct pt_regs *regs)
 static int
 e1000_clean(struct net_device *netdev, int *budget)
 {
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 	int work_to_do = min(*budget, netdev->quota);
 	int tx_cleaned;
 	int work_done = 0;
@@ -3371,7 +3371,7 @@ e1000_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 static int
 e1000_mii_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 {
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct mii_ioctl_data *data = if_mii(ifr);
 	int retval;
 	uint16_t mii_reg;
@@ -3520,7 +3520,7 @@ e1000_io_write(struct e1000_hw *hw, unsigned long port, uint32_t value)
 static void
 e1000_vlan_rx_register(struct net_device *netdev, struct vlan_group *grp)
 {
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 	uint32_t ctrl, rctl;
 
 	e1000_irq_disable(adapter);
@@ -3560,7 +3560,7 @@ e1000_vlan_rx_register(struct net_device *netdev, struct vlan_group *grp)
 static void
 e1000_vlan_rx_add_vid(struct net_device *netdev, uint16_t vid)
 {
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 	uint32_t vfta, index;
 	if((adapter->hw.mng_cookie.status &
 		E1000_MNG_DHCP_COOKIE_STATUS_VLAN_SUPPORT) &&
@@ -3576,7 +3576,7 @@ e1000_vlan_rx_add_vid(struct net_device *netdev, uint16_t vid)
 static void
 e1000_vlan_rx_kill_vid(struct net_device *netdev, uint16_t vid)
 {
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 	uint32_t vfta, index;
 
 	e1000_irq_disable(adapter);
@@ -3663,7 +3663,7 @@ static int
 e1000_suspend(struct pci_dev *pdev, uint32_t state)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 	uint32_t ctrl, ctrl_ext, rctl, manc, status, swsm;
 	uint32_t wufc = adapter->wol;
 
@@ -3756,8 +3756,8 @@ static int
 e1000_resume(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
-	struct e1000_adapter *adapter = netdev->priv;
 	uint32_t manc, ret, swsm;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 
 	pci_set_power_state(pdev, 0);
 	pci_restore_state(pdev);
@@ -3804,7 +3804,7 @@ e1000_resume(struct pci_dev *pdev)
 static void
 e1000_netpoll(struct net_device *netdev)
 {
-	struct e1000_adapter *adapter = netdev->priv;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 	disable_irq(adapter->pdev->irq);
 	e1000_intr(adapter->pdev->irq, netdev, NULL);
 	enable_irq(adapter->pdev->irq);
