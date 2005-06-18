@@ -1234,6 +1234,7 @@ e1000_set_phy_loopback(struct e1000_adapter *adapter)
 	case e1000_82541_rev_2:
 	case e1000_82547:
 	case e1000_82547_rev_2:
+	case e1000_82573:
 		return e1000_integrated_phy_loopback(adapter);
 		break;
 
