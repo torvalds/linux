@@ -22,6 +22,8 @@
 
 #define WIRELESS_SPY		// enable iwspy support
 
+#define MAX_SCAN_LEN		4096
+
 #define ORINOCO_MAX_KEY_SIZE	14
 #define ORINOCO_MAX_KEYS	4
 
@@ -48,6 +50,7 @@ struct orinoco_private {
 	/* driver state */
 	int open;
 	u16 last_linkstatus;
+	struct work_struct join_work;
 
 	/* Net device stuff */
 	struct net_device *ndev;
@@ -84,6 +87,8 @@ struct orinoco_private {
 	int bitratemode;
  	char nick[IW_ESSID_MAX_SIZE+1];
 	char desired_essid[IW_ESSID_MAX_SIZE+1];
+	char desired_bssid[ETH_ALEN];
+	int bssid_fixed;
 	u16 frag_thresh, mwo_robust;
 	u16 channel;
 	u16 ap_density, rts_thresh;
