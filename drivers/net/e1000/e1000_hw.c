@@ -1198,9 +1198,9 @@ e1000_copper_link_igp_setup(struct e1000_hw *hw)
         ret_val = e1000_write_phy_reg(hw, PHY_1000T_CTRL, phy_data);
         if(ret_val)
             return ret_val;
-        }
+    }
 
-   return E1000_SUCCESS;
+    return E1000_SUCCESS;
 }
 
 

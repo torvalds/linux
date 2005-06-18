@@ -29,6 +29,8 @@
 #include "e1000.h"
 
 /* Change Log
+ * 6.0.58       4/20/05
+ *   o Accepted ethtool cleanup patch from Stephen Hemminger 
  * 6.0.44+	2/15/05
  *   o applied Anton's patch to resolve tx hang in hardware
  *   o Applied Andrew Mortons patch - e1000 stops working after resume
@@ -41,9 +43,9 @@ char e1000_driver_string[] = "Intel(R) PRO/1000 Network Driver";
 #else
 #define DRIVERNAPI "-NAPI"
 #endif
-#define DRV_VERSION "6.0.54-k2"DRIVERNAPI
+#define DRV_VERSION		"6.0.60-k2"DRIVERNAPI
 char e1000_driver_version[] = DRV_VERSION;
-char e1000_copyright[] = "Copyright (c) 1999-2004 Intel Corporation.";
+char e1000_copyright[] = "Copyright (c) 1999-2005 Intel Corporation.";
 
 /* e1000_pci_tbl - PCI Device ID Table
  *
@@ -2672,8 +2674,8 @@ e1000_clean(struct net_device *netdev, int *budget)
 	*budget -= work_done;
 	netdev->quota -= work_done;
 	
-	/* If no Tx and no Rx work done, exit the polling mode */
 	if ((!tx_cleaned && (work_done == 0)) || !netif_running(netdev)) {
+	/* If no Tx and not enough Rx work done, exit the polling mode */
 		netif_rx_complete(netdev);
 		e1000_irq_enable(adapter);
 		return 0;
@@ -3763,12 +3765,12 @@ static int
 e1000_resume(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
-	uint32_t manc, ret, swsm;
 	struct e1000_adapter *adapter = netdev_priv(netdev);
+	uint32_t manc, ret_val, swsm;
 
 	pci_set_power_state(pdev, 0);
 	pci_restore_state(pdev);
-	ret = pci_enable_device(pdev);
+	ret_val = pci_enable_device(pdev);
 	pci_set_master(pdev);
 
 	pci_enable_wake(pdev, 3, 0);
