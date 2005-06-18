@@ -32,6 +32,20 @@ struct orinoco_key {
 	char data[ORINOCO_MAX_KEY_SIZE];
 } __attribute__ ((packed));
 
+struct header_struct {
+	/* 802.3 */
+	u8 dest[ETH_ALEN];
+	u8 src[ETH_ALEN];
+	u16 len;
+	/* 802.2 */
+	u8 dsap;
+	u8 ssap;
+	u8 ctrl;
+	/* SNAP */
+	u8 oui[3];
+	u16 ethertype;
+} __attribute__ ((packed));
+
 typedef enum {
 	FIRMWARE_TYPE_AGERE,
 	FIRMWARE_TYPE_INTERSIL,
@@ -51,6 +65,7 @@ struct orinoco_private {
 	int open;
 	u16 last_linkstatus;
 	struct work_struct join_work;
+	struct work_struct wevent_work;
 
 	/* Net device stuff */
 	struct net_device *ndev;
@@ -77,6 +92,7 @@ struct orinoco_private {
 	unsigned int has_pm:1;
 	unsigned int has_preamble:1;
 	unsigned int has_sensitivity:1;
+	unsigned int has_hostscan:1;
 	unsigned int broken_disableport:1;
 
 	/* Configuration paramaters */
@@ -103,6 +119,12 @@ struct orinoco_private {
 	/* Configuration dependent variables */
 	int port_type, createibss;
 	int promiscuous, mc_count;
+
+	/* Scanning support */
+	int	scan_inprogress;	/* Scan pending... */
+	u32	scan_mode;		/* Type of scan done */
+	char *	scan_result;		/* Result of previous scan */
+	int	scan_len;		/* Lenght of result */
 };
 
 #ifdef ORINOCO_DEBUG
