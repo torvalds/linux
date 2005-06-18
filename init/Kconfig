@@ -164,6 +164,7 @@ config SYSCTL
 
 config AUDIT
 	bool "Auditing support"
+	depends on NET
 	default y if SECURITY_SELINUX
 	help
 	  Enable auditing infrastructure that can be used with another
@@ -173,7 +174,7 @@ config AUDIT
 
 config AUDITSYSCALL
 	bool "Enable system-call auditing support"
-	depends on AUDIT && (X86 || PPC64 || ARCH_S390 || IA64 || UML)
+	depends on AUDIT && (X86 || PPC || PPC64 || ARCH_S390 || IA64 || UML)
 	default y if SECURITY_SELINUX
 	help
 	  Enable low-overhead system-call auditing infrastructure that
