@@ -1671,8 +1671,10 @@ static irqreturn_t e100_intr(int irq, void *dev_id, struct pt_regs *regs)
 	if(stat_ack & stat_ack_rnr)
 		nic->ru_running = RU_SUSPENDED;
 
-	e100_disable_irq(nic);
-	netif_rx_schedule(netdev);
+	if(likely(netif_rx_schedule_prep(netdev))) {
+		e100_disable_irq(nic);
+		__netif_rx_schedule(netdev);
+	}
 
 	return IRQ_HANDLED;
 }
