@@ -141,9 +141,9 @@ e1000_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 				     SUPPORTED_FIBRE |
 				     SUPPORTED_Autoneg);
 
-		ecmd->advertising = (SUPPORTED_1000baseT_Full |
-				     SUPPORTED_FIBRE |
-				     SUPPORTED_Autoneg);
+		ecmd->advertising = (ADVERTISED_1000baseT_Full |
+				     ADVERTISED_FIBRE |
+				     ADVERTISED_Autoneg);
 
 		ecmd->port = PORT_FIBRE;
 
@@ -184,8 +184,19 @@ e1000_set_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 
 	if(ecmd->autoneg == AUTONEG_ENABLE) {
 		hw->autoneg = 1;
-		hw->autoneg_advertised = 0x002F;
-		ecmd->advertising = 0x002F;
+		if(hw->media_type == e1000_media_type_fiber)
+			hw->autoneg_advertised = ADVERTISED_1000baseT_Full |
+				     ADVERTISED_FIBRE |
+				     ADVERTISED_Autoneg;
+		else 
+			hw->autoneg_advertised = ADVERTISED_10baseT_Half |
+						  ADVERTISED_10baseT_Full |
+						  ADVERTISED_100baseT_Half |
+						  ADVERTISED_100baseT_Full |
+						  ADVERTISED_1000baseT_Full|
+						  ADVERTISED_Autoneg |
+						  ADVERTISED_TP;
+		ecmd->advertising = hw->autoneg_advertised;
 	} else
 		if(e1000_set_spd_dplx(adapter, ecmd->speed + ecmd->duplex))
 			return -EINVAL;
