@@ -3617,6 +3617,13 @@ e1000_set_spd_dplx(struct e1000_adapter *adapter, uint16_t spddplx)
 {
 	adapter->hw.autoneg = 0;
 
+	/* Fiber NICs only allow 1000 gbps Full duplex */
+	if((adapter->hw.media_type == e1000_media_type_fiber) &&
+		spddplx != (SPEED_1000 + DUPLEX_FULL)) {
+		DPRINTK(PROBE, ERR, "Unsupported Speed/Duplex configuration\n");
+		return -EINVAL;
+	}
+
 	switch(spddplx) {
 	case SPEED_10 + DUPLEX_HALF:
 		adapter->hw.forced_speed_duplex = e1000_10_half;
