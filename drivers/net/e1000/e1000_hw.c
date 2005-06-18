@@ -354,18 +354,27 @@ e1000_set_media_type(struct e1000_hw *hw)
         hw->media_type = e1000_media_type_internal_serdes;
         break;
     default:
-        if(hw->mac_type >= e1000_82543) {
+        switch (hw->mac_type) {
+        case e1000_82542_rev2_0:
+        case e1000_82542_rev2_1:
+            hw->media_type = e1000_media_type_fiber;
+            break;
+        case e1000_82573:
+            /* The STATUS_TBIMODE bit is reserved or reused for the this
+             * device.
+             */
+            hw->media_type = e1000_media_type_copper;
+            break;
+        default:
             status = E1000_READ_REG(hw, STATUS);
-            if(status & E1000_STATUS_TBIMODE) {
+            if (status & E1000_STATUS_TBIMODE) {
                 hw->media_type = e1000_media_type_fiber;
                 /* tbi_compatibility not valid on fiber */
                 hw->tbi_compatibility_en = FALSE;
             } else {
                 hw->media_type = e1000_media_type_copper;
             }
-        } else {
-            /* This is an 82542 (fiber only) */
-            hw->media_type = e1000_media_type_fiber;
+            break;
         }
     }
 }
