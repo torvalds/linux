@@ -462,6 +462,7 @@
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>
 #include <linux/etherdevice.h>
+#include <linux/ethtool.h>
 #include <linux/wireless.h>
 #include <net/iw_handler.h>
 #include <net/ieee80211.h>
@@ -542,6 +543,7 @@ MODULE_PARM_DESC(ignore_disconnect, "Don't report lost link to the network layer
 #define MAX_RID_LEN 1024
 
 static const struct iw_handler_def orinoco_handler_def;
+static struct ethtool_ops orinoco_ethtool_ops;
 
 /********************************************************************/
 /* Data tables                                                      */
@@ -2412,6 +2414,7 @@ struct net_device *alloc_orinocodev(int sizeof_card,
 	dev->tx_timeout = orinoco_tx_timeout;
 	dev->watchdog_timeo = HZ; /* 1 second timeout */
 	dev->get_stats = orinoco_get_stats;
+	dev->ethtool_ops = &orinoco_ethtool_ops;
 	dev->get_wireless_stats = orinoco_get_wireless_stats;
 	dev->wireless_handlers = (struct iw_handler_def *)&orinoco_handler_def;
 	dev->change_mtu = orinoco_change_mtu;
@@ -3928,6 +3931,27 @@ static const struct iw_handler_def orinoco_handler_def = {
 	.standard = orinoco_handler,
 	.private = orinoco_private_handler,
 	.private_args = orinoco_privtab,
+};
+
+static void orinoco_get_drvinfo(struct net_device *dev,
+				struct ethtool_drvinfo *info)
+{
+	struct orinoco_private *priv = netdev_priv(dev);
+
+	strncpy(info->driver, DRIVER_NAME, sizeof(info->driver) - 1);
+	strncpy(info->version, DRIVER_VERSION, sizeof(info->version) - 1);
+	strncpy(info->fw_version, priv->fw_name, sizeof(info->fw_version) - 1);
+	if (dev->class_dev.dev)
+		strncpy(info->bus_info, dev->class_dev.dev->bus_id,
+			sizeof(info->bus_info) - 1);
+	else
+		snprintf(info->bus_info, sizeof(info->bus_info) - 1,
+			 "PCMCIA %p", priv->hw.iobase);
+}
+
+static struct ethtool_ops orinoco_ethtool_ops = {
+	.get_drvinfo = orinoco_get_drvinfo,
+	.get_link = ethtool_op_get_link,
 };
 
 /********************************************************************/
