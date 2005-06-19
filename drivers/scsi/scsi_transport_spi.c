@@ -106,8 +106,6 @@ static int sprint_frac(char *dest, int value, int denom)
 	return result;
 }
 
-/* Modification of scsi_wait_req that will clear UNIT ATTENTION conditions
- * resulting from (likely) bus and device resets */
 static int spi_execute(struct scsi_device *sdev, const void *cmd,
 		       enum dma_data_direction dir,
 		       void *buffer, unsigned bufflen,
@@ -117,8 +115,6 @@ static int spi_execute(struct scsi_device *sdev, const void *cmd,
 	unsigned char sense[SCSI_SENSE_BUFFERSIZE];
 
 	for(i = 0; i < DV_RETRIES; i++) {
-
-		/* FIXME: need to set REQ_FAILFAST */
 		result = scsi_execute(sdev, cmd, dir, buffer, bufflen,
 				      sense, DV_TIMEOUT, /* retries */ 1,
 				      REQ_FAILFAST);
