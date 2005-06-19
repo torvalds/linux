@@ -656,13 +656,18 @@ static struct sk_buff * pfkey_xfrm_state2msg(struct xfrm_state *x, int add_keys,
 	sa->sadb_sa_exttype = SADB_EXT_SA;
 	sa->sadb_sa_spi = x->id.spi;
 	sa->sadb_sa_replay = x->props.replay_window;
-	sa->sadb_sa_state = SADB_SASTATE_DYING;
-	if (x->km.state == XFRM_STATE_VALID && !x->km.dying)
-		sa->sadb_sa_state = SADB_SASTATE_MATURE;
-	else if (x->km.state == XFRM_STATE_ACQ)
+	switch (x->km.state) {
+	case XFRM_STATE_VALID:
+		sa->sadb_sa_state = x->km.dying ?
+			SADB_SASTATE_DYING : SADB_SASTATE_MATURE;
+		break;
+	case XFRM_STATE_ACQ:
 		sa->sadb_sa_state = SADB_SASTATE_LARVAL;
-	else if (x->km.state == XFRM_STATE_EXPIRED)
+		break;
+	default:
 		sa->sadb_sa_state = SADB_SASTATE_DEAD;
+		break;
+	}
 	sa->sadb_sa_auth = 0;
 	if (x->aalg) {
 		struct xfrm_algo_desc *a = xfrm_aalg_get_byname(x->aalg->alg_name, 0);
