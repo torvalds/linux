@@ -484,7 +484,7 @@ extern void sk_stream_kill_queues(struct sock *sk);
 
 extern int sk_wait_data(struct sock *sk, long *timeo);
 
-struct or_calltable;
+struct request_sock_ops;
 
 /* Networking protocol blocks we attach to sockets.
  * socket layer -> transport layer interface
@@ -549,7 +549,7 @@ struct proto {
 	kmem_cache_t		*slab;
 	unsigned int		obj_size;
 
-	struct or_calltable	*rsk_prot;
+	struct request_sock_ops	*rsk_prot;
 
 	struct module		*owner;
 

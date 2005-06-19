@@ -109,7 +109,7 @@ struct ip_options {
 #define optlength(opt) (sizeof(struct ip_options) + opt->optlen)
 
 struct inet_request_sock {
-	struct open_request	req;
+	struct request_sock	req;
 	u32			loc_addr;
 	u32			rmt_addr;
 	u16			rmt_port;
@@ -123,7 +123,7 @@ struct inet_request_sock {
 	struct ip_options	*opt;
 };
 
-static inline struct inet_request_sock *inet_rsk(const struct open_request *sk)
+static inline struct inet_request_sock *inet_rsk(const struct request_sock *sk)
 {
 	return (struct inet_request_sock *)sk;
 }

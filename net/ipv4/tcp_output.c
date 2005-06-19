@@ -1356,7 +1356,7 @@ int tcp_send_synack(struct sock *sk)
  * Prepare a SYN-ACK.
  */
 struct sk_buff * tcp_make_synack(struct sock *sk, struct dst_entry *dst,
-				 struct open_request *req)
+				 struct request_sock *req)
 {
 	struct inet_request_sock *ireq = inet_rsk(req);
 	struct tcp_sock *tp = tcp_sk(sk);

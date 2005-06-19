@@ -36,7 +36,7 @@
  *					ACK bit.
  *		Andi Kleen :		Implemented fast path mtu discovery.
  *	     				Fixed many serious bugs in the
- *					open_request handling and moved
+ *					request_sock handling and moved
  *					most of it into the af independent code.
  *					Added tail drop and some other bugfixes.
  *					Added new listen sematics.
@@ -869,13 +869,13 @@ static __inline__ u32 tcp_v4_synq_hash(u32 raddr, u16 rport, u32 rnd)
 	return (jhash_2words(raddr, (u32) rport, rnd) & (TCP_SYNQ_HSIZE - 1));
 }
 
-static struct open_request *tcp_v4_search_req(struct tcp_sock *tp,
-					      struct open_request ***prevp,
+static struct request_sock *tcp_v4_search_req(struct tcp_sock *tp,
+					      struct request_sock ***prevp,
 					      __u16 rport,
 					      __u32 raddr, __u32 laddr)
 {
 	struct tcp_listen_opt *lopt = tp->listen_opt;
-	struct open_request *req, **prev;
+	struct request_sock *req, **prev;
 
 	for (prev = &lopt->syn_table[tcp_v4_synq_hash(raddr, rport, lopt->hash_rnd)];
 	     (req = *prev) != NULL;
@@ -885,7 +885,7 @@ static struct open_request *tcp_v4_search_req(struct tcp_sock *tp,
 		if (ireq->rmt_port == rport &&
 		    ireq->rmt_addr == raddr &&
 		    ireq->loc_addr == laddr &&
-		    TCP_INET_FAMILY(req->class->family)) {
+		    TCP_INET_FAMILY(req->rsk_ops->family)) {
 			BUG_TRAP(!req->sk);
 			*prevp = prev;
 			break;
@@ -895,7 +895,7 @@ static struct open_request *tcp_v4_search_req(struct tcp_sock *tp,
 	return req;
 }
 
-static void tcp_v4_synq_add(struct sock *sk, struct open_request *req)
+static void tcp_v4_synq_add(struct sock *sk, struct request_sock *req)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct tcp_listen_opt *lopt = tp->listen_opt;
@@ -1052,7 +1052,7 @@ void tcp_v4_err(struct sk_buff *skb, u32 info)
 	}
 
 	switch (sk->sk_state) {
-		struct open_request *req, **prev;
+		struct request_sock *req, **prev;
 	case TCP_LISTEN:
 		if (sock_owned_by_user(sk))
 			goto out;
@@ -1256,14 +1256,14 @@ static void tcp_v4_timewait_ack(struct sock *sk, struct sk_buff *skb)
 	tcp_tw_put(tw);
 }
 
-static void tcp_v4_or_send_ack(struct sk_buff *skb, struct open_request *req)
+static void tcp_v4_reqsk_send_ack(struct sk_buff *skb, struct request_sock *req)
 {
 	tcp_v4_send_ack(skb, tcp_rsk(req)->snt_isn + 1, tcp_rsk(req)->rcv_isn + 1, req->rcv_wnd,
 			req->ts_recent);
 }
 
 static struct dst_entry* tcp_v4_route_req(struct sock *sk,
-					  struct open_request *req)
+					  struct request_sock *req)
 {
 	struct rtable *rt;
 	const struct inet_request_sock *ireq = inet_rsk(req);
@@ -1294,10 +1294,10 @@ static struct dst_entry* tcp_v4_route_req(struct sock *sk,
 
 /*
  *	Send a SYN-ACK after having received an ACK.
- *	This still operates on a open_request only, not on a big
+ *	This still operates on a request_sock only, not on a big
  *	socket.
  */
-static int tcp_v4_send_synack(struct sock *sk, struct open_request *req,
+static int tcp_v4_send_synack(struct sock *sk, struct request_sock *req,
 			      struct dst_entry *dst)
 {
 	const struct inet_request_sock *ireq = inet_rsk(req);
@@ -1332,9 +1332,9 @@ out:
 }
 
 /*
- *	IPv4 open_request destructor.
+ *	IPv4 request_sock destructor.
  */
-static void tcp_v4_or_free(struct open_request *req)
+static void tcp_v4_reqsk_destructor(struct request_sock *req)
 {
 	if (inet_rsk(req)->opt)
 		kfree(inet_rsk(req)->opt);
@@ -1353,7 +1353,7 @@ static inline void syn_flood_warning(struct sk_buff *skb)
 }
 
 /*
- * Save and compile IPv4 options into the open_request if needed.
+ * Save and compile IPv4 options into the request_sock if needed.
  */
 static inline struct ip_options *tcp_v4_save_options(struct sock *sk,
 						     struct sk_buff *skb)
@@ -1389,12 +1389,12 @@ static inline struct ip_options *tcp_v4_save_options(struct sock *sk,
  */
 int sysctl_max_syn_backlog = 256;
 
-struct or_calltable or_ipv4 = {
+struct request_sock_ops tcp_request_sock_ops = {
 	.family		=	PF_INET,
 	.obj_size	=	sizeof(struct tcp_request_sock),
 	.rtx_syn_ack	=	tcp_v4_send_synack,
-	.send_ack	=	tcp_v4_or_send_ack,
-	.destructor	=	tcp_v4_or_free,
+	.send_ack	=	tcp_v4_reqsk_send_ack,
+	.destructor	=	tcp_v4_reqsk_destructor,
 	.send_reset	=	tcp_v4_send_reset,
 };
 
@@ -1402,7 +1402,7 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 {
 	struct inet_request_sock *ireq;
 	struct tcp_options_received tmp_opt;
-	struct open_request *req;
+	struct request_sock *req;
 	__u32 saddr = skb->nh.iph->saddr;
 	__u32 daddr = skb->nh.iph->daddr;
 	__u32 isn = TCP_SKB_CB(skb)->when;
@@ -1439,7 +1439,7 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	if (sk_acceptq_is_full(sk) && tcp_synq_young(sk) > 1)
 		goto drop;
 
-	req = tcp_openreq_alloc(&or_ipv4);
+	req = reqsk_alloc(&tcp_request_sock_ops);
 	if (!req)
 		goto drop;
 
@@ -1535,14 +1535,14 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 		goto drop_and_free;
 
 	if (want_cookie) {
-	   	tcp_openreq_free(req);
+	   	reqsk_free(req);
 	} else {
 		tcp_v4_synq_add(sk, req);
 	}
 	return 0;
 
 drop_and_free:
-	tcp_openreq_free(req);
+	reqsk_free(req);
 drop:
 	TCP_INC_STATS_BH(TCP_MIB_ATTEMPTFAILS);
 	return 0;
@@ -1554,7 +1554,7 @@ drop:
  * now create the new socket.
  */
 struct sock *tcp_v4_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
-				  struct open_request *req,
+				  struct request_sock *req,
 				  struct dst_entry *dst)
 {
 	struct inet_request_sock *ireq;
@@ -1613,9 +1613,9 @@ static struct sock *tcp_v4_hnd_req(struct sock *sk, struct sk_buff *skb)
 	struct iphdr *iph = skb->nh.iph;
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sock *nsk;
-	struct open_request **prev;
+	struct request_sock **prev;
 	/* Find possible connection requests. */
-	struct open_request *req = tcp_v4_search_req(tp, &prev, th->source,
+	struct request_sock *req = tcp_v4_search_req(tp, &prev, th->source,
 						     iph->saddr, iph->daddr);
 	if (req)
 		return tcp_check_req(sk, skb, req, prev);
@@ -2152,13 +2152,13 @@ static void *listening_get_next(struct seq_file *seq, void *cur)
 	++st->num;
 
 	if (st->state == TCP_SEQ_STATE_OPENREQ) {
-		struct open_request *req = cur;
+		struct request_sock *req = cur;
 
 	       	tp = tcp_sk(st->syn_wait_sk);
 		req = req->dl_next;
 		while (1) {
 			while (req) {
-				if (req->class->family == st->family) {
+				if (req->rsk_ops->family == st->family) {
 					cur = req;
 					goto out;
 				}
@@ -2459,7 +2459,7 @@ void tcp_proc_unregister(struct tcp_seq_afinfo *afinfo)
 	memset(afinfo->seq_fops, 0, sizeof(*afinfo->seq_fops)); 
 }
 
-static void get_openreq4(struct sock *sk, struct open_request *req,
+static void get_openreq4(struct sock *sk, struct request_sock *req,
 			 char *tmpbuf, int i, int uid)
 {
 	const struct inet_request_sock *ireq = inet_rsk(req);
@@ -2627,7 +2627,7 @@ struct proto tcp_prot = {
 	.sysctl_rmem		= sysctl_tcp_rmem,
 	.max_header		= MAX_TCP_HEADER,
 	.obj_size		= sizeof(struct tcp_sock),
-	.rsk_prot		= &or_ipv4,
+	.rsk_prot		= &tcp_request_sock_ops,
 };
 
 

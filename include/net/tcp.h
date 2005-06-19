@@ -641,7 +641,7 @@ struct tcp_func {
 
 	struct sock *		(*syn_recv_sock)	(struct sock *sk,
 							 struct sk_buff *skb,
-							 struct open_request *req,
+							 struct request_sock *req,
 							 struct dst_entry *dst);
     
 	int			(*remember_stamp)	(struct sock *sk);
@@ -785,8 +785,8 @@ extern enum tcp_tw_status	tcp_timewait_state_process(struct tcp_tw_bucket *tw,
 							   unsigned len);
 
 extern struct sock *		tcp_check_req(struct sock *sk,struct sk_buff *skb,
-					      struct open_request *req,
-					      struct open_request **prev);
+					      struct request_sock *req,
+					      struct request_sock **prev);
 extern int			tcp_child_process(struct sock *parent,
 						  struct sock *child,
 						  struct sk_buff *skb);
@@ -836,12 +836,12 @@ extern int			tcp_v4_conn_request(struct sock *sk,
 						    struct sk_buff *skb);
 
 extern struct sock *		tcp_create_openreq_child(struct sock *sk,
-							 struct open_request *req,
+							 struct request_sock *req,
 							 struct sk_buff *skb);
 
 extern struct sock *		tcp_v4_syn_recv_sock(struct sock *sk,
 						     struct sk_buff *skb,
-						     struct open_request *req,
+						     struct request_sock *req,
 							struct dst_entry *dst);
 
 extern int			tcp_v4_do_rcv(struct sock *sk,
@@ -855,7 +855,7 @@ extern int			tcp_connect(struct sock *sk);
 
 extern struct sk_buff *		tcp_make_synack(struct sock *sk,
 						struct dst_entry *dst,
-						struct open_request *req);
+						struct request_sock *req);
 
 extern int			tcp_disconnect(struct sock *sk, int flags);
 
@@ -1683,7 +1683,7 @@ static inline int tcp_full_space(const struct sock *sk)
 	return tcp_win_from_space(sk->sk_rcvbuf); 
 }
 
-static inline void tcp_acceptq_queue(struct sock *sk, struct open_request *req,
+static inline void tcp_acceptq_queue(struct sock *sk, struct request_sock *req,
 					 struct sock *child)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -1707,11 +1707,11 @@ struct tcp_listen_opt
 	int			qlen_young;
 	int			clock_hand;
 	u32			hash_rnd;
-	struct open_request	*syn_table[TCP_SYNQ_HSIZE];
+	struct request_sock	*syn_table[TCP_SYNQ_HSIZE];
 };
 
 static inline void
-tcp_synq_removed(struct sock *sk, struct open_request *req)
+tcp_synq_removed(struct sock *sk, struct request_sock *req)
 {
 	struct tcp_listen_opt *lopt = tcp_sk(sk)->listen_opt;
 
@@ -1745,23 +1745,23 @@ static inline int tcp_synq_is_full(struct sock *sk)
 	return tcp_synq_len(sk) >> tcp_sk(sk)->listen_opt->max_qlen_log;
 }
 
-static inline void tcp_synq_unlink(struct tcp_sock *tp, struct open_request *req,
-				       struct open_request **prev)
+static inline void tcp_synq_unlink(struct tcp_sock *tp, struct request_sock *req,
+				       struct request_sock **prev)
 {
 	write_lock(&tp->syn_wait_lock);
 	*prev = req->dl_next;
 	write_unlock(&tp->syn_wait_lock);
 }
 
-static inline void tcp_synq_drop(struct sock *sk, struct open_request *req,
-				     struct open_request **prev)
+static inline void tcp_synq_drop(struct sock *sk, struct request_sock *req,
+				     struct request_sock **prev)
 {
 	tcp_synq_unlink(tcp_sk(sk), req, prev);
 	tcp_synq_removed(sk, req);
-	tcp_openreq_free(req);
+	reqsk_free(req);
 }
 
-static __inline__ void tcp_openreq_init(struct open_request *req,
+static __inline__ void tcp_openreq_init(struct request_sock *req,
 					struct tcp_options_received *rx_opt,
 					struct sk_buff *skb)
 {

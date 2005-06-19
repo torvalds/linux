@@ -19,28 +19,28 @@
 #include <linux/types.h>
 #include <net/sock.h>
 
-struct open_request;
+struct request_sock;
 struct sk_buff;
 struct dst_entry;
 struct proto;
 
-struct or_calltable {
+struct request_sock_ops {
 	int		family;
 	kmem_cache_t	*slab;
 	int		obj_size;
 	int		(*rtx_syn_ack)(struct sock *sk,
-				       struct open_request *req,
+				       struct request_sock *req,
 				       struct dst_entry *dst);
 	void		(*send_ack)(struct sk_buff *skb,
-				    struct open_request *req);
+				    struct request_sock *req);
 	void		(*send_reset)(struct sk_buff *skb);
-	void		(*destructor)(struct open_request *req);
+	void		(*destructor)(struct request_sock *req);
 };
 
-/* struct open_request - mini sock to represent a connection request
+/* struct request_sock - mini sock to represent a connection request
  */
-struct open_request {
-	struct open_request		*dl_next; /* Must be first member! */
+struct request_sock {
+	struct request_sock		*dl_next; /* Must be first member! */
 	u16				mss;
 	u8				retrans;
 	u8				__pad;
@@ -49,29 +49,29 @@ struct open_request {
 	u32				rcv_wnd;	  /* rcv_wnd offered first time */
 	u32				ts_recent;
 	unsigned long			expires;
-	struct or_calltable		*class;
+	struct request_sock_ops		*rsk_ops;
 	struct sock			*sk;
 };
 
-static inline struct open_request *tcp_openreq_alloc(struct or_calltable *class)
+static inline struct request_sock *reqsk_alloc(struct request_sock_ops *ops)
 {
-	struct open_request *req = kmem_cache_alloc(class->slab, SLAB_ATOMIC);
+	struct request_sock *req = kmem_cache_alloc(ops->slab, SLAB_ATOMIC);
 
 	if (req != NULL)
-		req->class = class;
+		req->rsk_ops = ops;
 
 	return req;
 }
 
-static inline void tcp_openreq_fastfree(struct open_request *req)
+static inline void __reqsk_free(struct request_sock *req)
 {
-	kmem_cache_free(req->class->slab, req);
+	kmem_cache_free(req->rsk_ops->slab, req);
 }
 
-static inline void tcp_openreq_free(struct open_request *req)
+static inline void reqsk_free(struct request_sock *req)
 {
-	req->class->destructor(req);
-	tcp_openreq_fastfree(req);
+	req->rsk_ops->destructor(req);
+	__reqsk_free(req);
 }
 
 #endif /* _REQUEST_SOCK_H */

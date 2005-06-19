@@ -468,7 +468,7 @@ static void tcp_synack_timer(struct sock *sk)
 	int max_retries = tp->syn_retries ? : sysctl_tcp_synack_retries;
 	int thresh = max_retries;
 	unsigned long now = jiffies;
-	struct open_request **reqp, *req;
+	struct request_sock **reqp, *req;
 	int i, budget;
 
 	if (lopt == NULL || lopt->qlen == 0)
@@ -514,7 +514,7 @@ static void tcp_synack_timer(struct sock *sk)
 			if (time_after_eq(now, req->expires)) {
 				if ((req->retrans < thresh ||
 				     (inet_rsk(req)->acked && req->retrans < max_retries))
-				    && !req->class->rtx_syn_ack(sk, req, NULL)) {
+				    && !req->rsk_ops->rtx_syn_ack(sk, req, NULL)) {
 					unsigned long timeo;
 
 					if (req->retrans++ == 0)
@@ -533,7 +533,7 @@ static void tcp_synack_timer(struct sock *sk)
 				lopt->qlen--;
 				if (req->retrans == 0)
 					lopt->qlen_young--;
-				tcp_openreq_free(req);
+				reqsk_free(req);
 				continue;
 			}
 			reqp = &req->dl_next;

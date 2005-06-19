@@ -65,7 +65,7 @@
 #include <linux/seq_file.h>
 
 static void	tcp_v6_send_reset(struct sk_buff *skb);
-static void	tcp_v6_or_send_ack(struct sk_buff *skb, struct open_request *req);
+static void	tcp_v6_reqsk_send_ack(struct sk_buff *skb, struct request_sock *req);
 static void	tcp_v6_send_check(struct sock *sk, struct tcphdr *th, int len, 
 				  struct sk_buff *skb);
 
@@ -394,15 +394,15 @@ static u32 tcp_v6_synq_hash(struct in6_addr *raddr, u16 rport, u32 rnd)
 	return c & (TCP_SYNQ_HSIZE - 1);
 }
 
-static struct open_request *tcp_v6_search_req(struct tcp_sock *tp,
-					      struct open_request ***prevp,
+static struct request_sock *tcp_v6_search_req(struct tcp_sock *tp,
+					      struct request_sock ***prevp,
 					      __u16 rport,
 					      struct in6_addr *raddr,
 					      struct in6_addr *laddr,
 					      int iif)
 {
 	struct tcp_listen_opt *lopt = tp->listen_opt;
-	struct open_request *req, **prev;  
+	struct request_sock *req, **prev;  
 
 	for (prev = &lopt->syn_table[tcp_v6_synq_hash(raddr, rport, lopt->hash_rnd)];
 	     (req = *prev) != NULL;
@@ -410,7 +410,7 @@ static struct open_request *tcp_v6_search_req(struct tcp_sock *tp,
 		const struct tcp6_request_sock *treq = tcp6_rsk(req);
 
 		if (inet_rsk(req)->rmt_port == rport &&
-		    req->class->family == AF_INET6 &&
+		    req->rsk_ops->family == AF_INET6 &&
 		    ipv6_addr_equal(&treq->rmt_addr, raddr) &&
 		    ipv6_addr_equal(&treq->loc_addr, laddr) &&
 		    (!treq->iif || treq->iif == iif)) {
@@ -908,9 +908,9 @@ static void tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 
 	icmpv6_err_convert(type, code, &err);
 
-	/* Might be for an open_request */
+	/* Might be for an request_sock */
 	switch (sk->sk_state) {
-		struct open_request *req, **prev;
+		struct request_sock *req, **prev;
 	case TCP_LISTEN:
 		if (sock_owned_by_user(sk))
 			goto out;
@@ -959,7 +959,7 @@ out:
 }
 
 
-static int tcp_v6_send_synack(struct sock *sk, struct open_request *req,
+static int tcp_v6_send_synack(struct sock *sk, struct request_sock *req,
 			      struct dst_entry *dst)
 {
 	struct tcp6_request_sock *treq = tcp6_rsk(req);
@@ -1027,18 +1027,18 @@ done:
 	return err;
 }
 
-static void tcp_v6_or_free(struct open_request *req)
+static void tcp_v6_reqsk_destructor(struct request_sock *req)
 {
 	if (tcp6_rsk(req)->pktopts)
 		kfree_skb(tcp6_rsk(req)->pktopts);
 }
 
-static struct or_calltable or_ipv6 = {
+static struct request_sock_ops tcp6_request_sock_ops = {
 	.family		=	AF_INET6,
 	.obj_size	=	sizeof(struct tcp6_request_sock),
 	.rtx_syn_ack	=	tcp_v6_send_synack,
-	.send_ack	=	tcp_v6_or_send_ack,
-	.destructor	=	tcp_v6_or_free,
+	.send_ack	=	tcp_v6_reqsk_send_ack,
+	.destructor	=	tcp_v6_reqsk_destructor,
 	.send_reset	=	tcp_v6_send_reset
 };
 
@@ -1223,7 +1223,7 @@ static void tcp_v6_timewait_ack(struct sock *sk, struct sk_buff *skb)
 	tcp_tw_put(tw);
 }
 
-static void tcp_v6_or_send_ack(struct sk_buff *skb, struct open_request *req)
+static void tcp_v6_reqsk_send_ack(struct sk_buff *skb, struct request_sock *req)
 {
 	tcp_v6_send_ack(skb, tcp_rsk(req)->snt_isn + 1, tcp_rsk(req)->rcv_isn + 1, req->rcv_wnd, req->ts_recent);
 }
@@ -1231,7 +1231,7 @@ static void tcp_v6_or_send_ack(struct sk_buff *skb, struct open_request *req)
 
 static struct sock *tcp_v6_hnd_req(struct sock *sk,struct sk_buff *skb)
 {
-	struct open_request *req, **prev;
+	struct request_sock *req, **prev;
 	struct tcphdr *th = skb->h.th;
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sock *nsk;
@@ -1264,7 +1264,7 @@ static struct sock *tcp_v6_hnd_req(struct sock *sk,struct sk_buff *skb)
 	return sk;
 }
 
-static void tcp_v6_synq_add(struct sock *sk, struct open_request *req)
+static void tcp_v6_synq_add(struct sock *sk, struct request_sock *req)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct tcp_listen_opt *lopt = tp->listen_opt;
@@ -1292,7 +1292,7 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct tcp_options_received tmp_opt;
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct open_request *req = NULL;
+	struct request_sock *req = NULL;
 	__u32 isn = TCP_SKB_CB(skb)->when;
 
 	if (skb->protocol == htons(ETH_P_IP))
@@ -1313,7 +1313,7 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	if (sk_acceptq_is_full(sk) && tcp_synq_young(sk) > 1)
 		goto drop;
 
-	req = tcp_openreq_alloc(&or_ipv6);
+	req = reqsk_alloc(&tcp6_request_sock_ops);
 	if (req == NULL)
 		goto drop;
 
@@ -1358,14 +1358,14 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 
 drop:
 	if (req)
-		tcp_openreq_free(req);
+		reqsk_free(req);
 
 	TCP_INC_STATS_BH(TCP_MIB_ATTEMPTFAILS);
 	return 0; /* don't send reset */
 }
 
 static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
-					  struct open_request *req,
+					  struct request_sock *req,
 					  struct dst_entry *dst)
 {
 	struct tcp6_request_sock *treq = tcp6_rsk(req);
@@ -2055,7 +2055,7 @@ static int tcp_v6_destroy_sock(struct sock *sk)
 
 /* Proc filesystem TCPv6 sock list dumping. */
 static void get_openreq6(struct seq_file *seq, 
-			 struct sock *sk, struct open_request *req, int i, int uid)
+			 struct sock *sk, struct request_sock *req, int i, int uid)
 {
 	struct in6_addr *dest, *src;
 	int ttd = req->expires - jiffies;
@@ -2244,7 +2244,7 @@ struct proto tcpv6_prot = {
 	.sysctl_rmem		= sysctl_tcp_rmem,
 	.max_header		= MAX_TCP_HEADER,
 	.obj_size		= sizeof(struct tcp6_sock),
-	.rsk_prot		= &or_ipv6,
+	.rsk_prot		= &tcp6_request_sock_ops,
 };
 
 static struct inet6_protocol tcpv6_protocol = {

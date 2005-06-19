@@ -455,7 +455,7 @@ static int tcpdiag_dump_sock(struct sk_buff *skb, struct sock *sk,
 }
 
 static int tcpdiag_fill_req(struct sk_buff *skb, struct sock *sk,
-			    struct open_request *req,
+			    struct request_sock *req,
 			    u32 pid, u32 seq)
 {
 	const struct inet_request_sock *ireq = inet_rsk(req);
@@ -542,7 +542,7 @@ static int tcpdiag_dump_reqs(struct sk_buff *skb, struct sock *sk,
 	}
 
 	for (j = s_j; j < TCP_SYNQ_HSIZE; j++) {
-		struct open_request *req, *head = lopt->syn_table[j];
+		struct request_sock *req, *head = lopt->syn_table[j];
 
 		reqnum = 0;
 		for (req = head; req; reqnum++, req = req->dl_next) {

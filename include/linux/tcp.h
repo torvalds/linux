@@ -236,7 +236,7 @@ struct tcp_request_sock {
 	__u32			 snt_isn;
 };
 
-static inline struct tcp_request_sock *tcp_rsk(const struct open_request *req)
+static inline struct tcp_request_sock *tcp_rsk(const struct request_sock *req)
 {
 	return (struct tcp_request_sock *)req;
 }
@@ -393,8 +393,8 @@ struct tcp_sock {
 	struct tcp_listen_opt	*listen_opt;
 
 	/* FIFO of established children */
-	struct open_request	*accept_queue;
-	struct open_request	*accept_queue_tail;
+	struct request_sock	*accept_queue;
+	struct request_sock	*accept_queue_tail;
 
 	unsigned int		keepalive_time;	  /* time before keep alive takes place */
 	unsigned int		keepalive_intvl;  /* time interval between keep alive probes */

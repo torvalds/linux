@@ -201,7 +201,7 @@ struct tcp6_request_sock {
 	int			iif;
 };
 
-static inline struct tcp6_request_sock *tcp6_rsk(const struct open_request *sk)
+static inline struct tcp6_request_sock *tcp6_rsk(const struct request_sock *sk)
 {
 	return (struct tcp6_request_sock *)sk;
 }

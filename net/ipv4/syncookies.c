@@ -169,10 +169,10 @@ static inline int cookie_check(struct sk_buff *skb, __u32 cookie)
 	return mssind < NUM_MSS ? msstab[mssind] + 1 : 0;
 }
 
-extern struct or_calltable or_ipv4;
+extern struct request_sock_ops tcp_request_sock_ops;
 
 static inline struct sock *get_cookie_sock(struct sock *sk, struct sk_buff *skb,
-					   struct open_request *req,
+					   struct request_sock *req,
 					   struct dst_entry *dst)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -182,7 +182,7 @@ static inline struct sock *get_cookie_sock(struct sock *sk, struct sk_buff *skb,
 	if (child)
 		tcp_acceptq_queue(sk, req, child);
 	else
-		tcp_openreq_free(req);
+		reqsk_free(req);
 
 	return child;
 }
@@ -195,7 +195,7 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 	struct tcp_sock *tp = tcp_sk(sk);
 	__u32 cookie = ntohl(skb->h.th->ack_seq) - 1; 
 	struct sock *ret = sk;
-	struct open_request *req; 
+	struct request_sock *req; 
 	int mss; 
 	struct rtable *rt; 
 	__u8 rcv_wscale;
@@ -212,7 +212,7 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 	NET_INC_STATS_BH(LINUX_MIB_SYNCOOKIESRECV);
 
 	ret = NULL;
-	req = tcp_openreq_alloc(&or_ipv4); /* for safety */
+	req = reqsk_alloc(&tcp_request_sock_ops); /* for safety */
 	if (!req)
 		goto out;
 
@@ -262,7 +262,7 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 					       { .sport = skb->h.th->dest,
 						 .dport = skb->h.th->source } } };
 		if (ip_route_output_key(&rt, &fl)) {
-			tcp_openreq_free(req);
+			reqsk_free(req);
 			goto out; 
 		}
 	}

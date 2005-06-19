@@ -684,7 +684,7 @@ out:
  * Actually, we could lots of memory writes here. tp of listening
  * socket contains all necessary default parameters.
  */
-struct sock *tcp_create_openreq_child(struct sock *sk, struct open_request *req, struct sk_buff *skb)
+struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req, struct sk_buff *skb)
 {
 	/* allocate the newsk from the same slab of the master sock,
 	 * if not, at sk_free time we'll try to free it from the wrong
@@ -853,12 +853,12 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct open_request *req,
 
 /* 
  *	Process an incoming packet for SYN_RECV sockets represented
- *	as an open_request.
+ *	as a request_sock.
  */
 
 struct sock *tcp_check_req(struct sock *sk,struct sk_buff *skb,
-			   struct open_request *req,
-			   struct open_request **prev)
+			   struct request_sock *req,
+			   struct request_sock **prev)
 {
 	struct tcphdr *th = skb->h.th;
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -903,7 +903,7 @@ struct sock *tcp_check_req(struct sock *sk,struct sk_buff *skb,
 		 * Enforce "SYN-ACK" according to figure 8, figure 6
 		 * of RFC793, fixed by RFC1122.
 		 */
-		req->class->rtx_syn_ack(sk, req, NULL);
+		req->rsk_ops->rtx_syn_ack(sk, req, NULL);
 		return NULL;
 	}
 
@@ -975,7 +975,7 @@ struct sock *tcp_check_req(struct sock *sk,struct sk_buff *skb,
 					  tcp_rsk(req)->rcv_isn + 1, tcp_rsk(req)->rcv_isn + 1 + req->rcv_wnd)) {
 		/* Out of window: send ACK and drop. */
 		if (!(flg & TCP_FLAG_RST))
-			req->class->send_ack(skb, req);
+			req->rsk_ops->send_ack(skb, req);
 		if (paws_reject)
 			NET_INC_STATS_BH(LINUX_MIB_PAWSESTABREJECTED);
 		return NULL;
@@ -1035,7 +1035,7 @@ struct sock *tcp_check_req(struct sock *sk,struct sk_buff *skb,
 	embryonic_reset:
 		NET_INC_STATS_BH(LINUX_MIB_EMBRYONICRSTS);
 		if (!(flg & TCP_FLAG_RST))
-			req->class->send_reset(skb);
+			req->rsk_ops->send_reset(skb);
 
 		tcp_synq_drop(sk, req, prev);
 		return NULL;

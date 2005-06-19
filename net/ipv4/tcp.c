@@ -516,8 +516,8 @@ static void tcp_listen_stop (struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct tcp_listen_opt *lopt = tp->listen_opt;
-	struct open_request *acc_req = tp->accept_queue;
-	struct open_request *req;
+	struct request_sock *acc_req = tp->accept_queue;
+	struct request_sock *req;
 	int i;
 
 	tcp_delete_keepalive_timer(sk);
@@ -533,7 +533,7 @@ static void tcp_listen_stop (struct sock *sk)
 			while ((req = lopt->syn_table[i]) != NULL) {
 				lopt->syn_table[i] = req->dl_next;
 				lopt->qlen--;
-				tcp_openreq_free(req);
+				reqsk_free(req);
 
 		/* Following specs, it would be better either to send FIN
 		 * (and enter FIN-WAIT-1, it is normal close)
@@ -573,7 +573,7 @@ static void tcp_listen_stop (struct sock *sk)
 		sock_put(child);
 
 		sk_acceptq_removed(sk);
-		tcp_openreq_fastfree(req);
+		__reqsk_free(req);
 	}
 	BUG_TRAP(!sk->sk_ack_backlog);
 }
@@ -1894,7 +1894,7 @@ static int wait_for_connect(struct sock *sk, long timeo)
 struct sock *tcp_accept(struct sock *sk, int flags, int *err)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct open_request *req;
+	struct request_sock *req;
 	struct sock *newsk;
 	int error;
 
@@ -1927,7 +1927,7 @@ struct sock *tcp_accept(struct sock *sk, int flags, int *err)
 
  	newsk = req->sk;
 	sk_acceptq_removed(sk);
-	tcp_openreq_fastfree(req);
+	__reqsk_free(req);
 	BUG_TRAP(newsk->sk_state != TCP_SYN_RECV);
 	release_sock(sk);
 	return newsk;
