@@ -75,10 +75,15 @@
 #define AUDIT_KERNEL		2000	/* Asynchronous audit record. NOT A REQUEST. */
 
 /* Rule flags */
-#define AUDIT_PER_TASK 0x01	/* Apply rule at task creation (not syscall) */
-#define AUDIT_AT_ENTRY 0x02	/* Apply rule at syscall entry */
-#define AUDIT_AT_EXIT  0x04	/* Apply rule at syscall exit */
-#define AUDIT_PREPEND  0x10	/* Prepend to front of list */
+#define AUDIT_FILTER_USER	0x00	/* Apply rule to user-generated messages */
+#define AUDIT_FILTER_TASK	0x01	/* Apply rule at task creation (not syscall) */
+#define AUDIT_FILTER_ENTRY	0x02	/* Apply rule at syscall entry */
+#define AUDIT_FILTER_WATCH	0x03	/* Apply rule to file system watches */
+#define AUDIT_FILTER_EXIT	0x04	/* Apply rule at syscall exit */
+
+#define AUDIT_NR_FILTERS	5
+
+#define AUDIT_FILTER_PREPEND	0x10	/* Prepend to front of list */
 
 /* Rule actions */
 #define AUDIT_NEVER    0	/* Do not build context if rule matches */
@@ -230,6 +235,7 @@ extern int audit_socketcall(int nargs, unsigned long *args);
 extern int audit_sockaddr(int len, void *addr);
 extern int audit_avc_path(struct dentry *dentry, struct vfsmount *mnt);
 extern void audit_signal_info(int sig, struct task_struct *t);
+extern int audit_filter_user(struct task_struct *tsk, int type);
 #else
 #define audit_alloc(t) ({ 0; })
 #define audit_free(t) do { ; } while (0)
@@ -246,6 +252,7 @@ extern void audit_signal_info(int sig, struct task_struct *t);
 #define audit_sockaddr(len, addr) ({ 0; })
 #define audit_avc_path(dentry, mnt) ({ 0; })
 #define audit_signal_info(s,t) do { ; } while (0)
+#define audit_filter_user(struct ({ 1; })
 #endif
 
 #ifdef CONFIG_AUDIT

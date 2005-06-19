@@ -167,9 +167,16 @@ struct audit_context {
 /* There are three lists of rules -- one to search at task creation
  * time, one to search at syscall entry time, and another to search at
  * syscall exit time. */
-static LIST_HEAD(audit_tsklist);
-static LIST_HEAD(audit_entlist);
-static LIST_HEAD(audit_extlist);
+static struct list_head audit_filter_list[AUDIT_NR_FILTERS] = {
+	LIST_HEAD_INIT(audit_filter_list[0]),
+	LIST_HEAD_INIT(audit_filter_list[1]),
+	LIST_HEAD_INIT(audit_filter_list[2]),
+	LIST_HEAD_INIT(audit_filter_list[3]),
+	LIST_HEAD_INIT(audit_filter_list[4]),
+#if AUDIT_NR_FILTERS != 5
+#error Fix audit_filter_list initialiser
+#endif
+};
 
 struct audit_entry {
 	struct list_head  list;
@@ -210,16 +217,15 @@ static int audit_compare_rule(struct audit_rule *a, struct audit_rule *b)
 /* Note that audit_add_rule and audit_del_rule are called via
  * audit_receive() in audit.c, and are protected by
  * audit_netlink_sem. */
-static inline int audit_add_rule(struct audit_entry *entry,
-				 struct list_head *list)
+static inline void audit_add_rule(struct audit_entry *entry,
+				  struct list_head *list)
 {
-	if (entry->rule.flags & AUDIT_PREPEND) {
-		entry->rule.flags &= ~AUDIT_PREPEND;
+	if (entry->rule.flags & AUDIT_FILTER_PREPEND) {
+		entry->rule.flags &= ~AUDIT_FILTER_PREPEND;
 		list_add_rcu(&entry->list, list);
 	} else {
 		list_add_tail_rcu(&entry->list, list);
 	}
-	return 0;
 }
 
 static void audit_free_rule(struct rcu_head *head)
@@ -245,7 +251,7 @@ static inline int audit_del_rule(struct audit_rule *rule,
 			return 0;
 		}
 	}
-	return -EFAULT;		/* No matching rule */
+	return -ENOENT;		/* No matching rule */
 }
 
 /* Copy rule from user-space to kernel-space.  Called during
@@ -259,6 +265,8 @@ static int audit_copy_rule(struct audit_rule *d, struct audit_rule *s)
 	    && s->action != AUDIT_ALWAYS)
 		return -1;
 	if (s->field_count < 0 || s->field_count > AUDIT_MAX_FIELDS)
+		return -1;
+	if ((s->flags & ~AUDIT_FILTER_PREPEND) >= AUDIT_NR_FILTERS)
 		return -1;
 
 	d->flags	= s->flags;
@@ -275,23 +283,20 @@ static int audit_copy_rule(struct audit_rule *d, struct audit_rule *s)
 int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
 							uid_t loginuid)
 {
-	u32		   flags;
 	struct audit_entry *entry;
 	int		   err = 0;
+	int i;
+	unsigned listnr;
 
 	switch (type) {
 	case AUDIT_LIST:
 		/* The *_rcu iterators not needed here because we are
 		   always called with audit_netlink_sem held. */
-		list_for_each_entry(entry, &audit_tsklist, list)
-			audit_send_reply(pid, seq, AUDIT_LIST, 0, 1,
-					 &entry->rule, sizeof(entry->rule));
-		list_for_each_entry(entry, &audit_entlist, list)
-			audit_send_reply(pid, seq, AUDIT_LIST, 0, 1,
-					 &entry->rule, sizeof(entry->rule));
-		list_for_each_entry(entry, &audit_extlist, list)
-			audit_send_reply(pid, seq, AUDIT_LIST, 0, 1,
-					 &entry->rule, sizeof(entry->rule));
+		for (i=0; i<AUDIT_NR_FILTERS; i++) {
+			list_for_each_entry(entry, &audit_filter_list[i], list)
+				audit_send_reply(pid, seq, AUDIT_LIST, 0, 1,
+						 &entry->rule, sizeof(entry->rule));
+		}
 		audit_send_reply(pid, seq, AUDIT_LIST, 1, 1, NULL, 0);
 		break;
 	case AUDIT_ADD:
@@ -301,26 +306,20 @@ int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
 			kfree(entry);
 			return -EINVAL;
 		}
-		flags = entry->rule.flags;
-		if (!err && (flags & AUDIT_PER_TASK))
-			err = audit_add_rule(entry, &audit_tsklist);
-		if (!err && (flags & AUDIT_AT_ENTRY))
-			err = audit_add_rule(entry, &audit_entlist);
-		if (!err && (flags & AUDIT_AT_EXIT))
-			err = audit_add_rule(entry, &audit_extlist);
+		listnr = entry->rule.flags & ~AUDIT_FILTER_PREPEND;
+		audit_add_rule(entry, &audit_filter_list[listnr]);
 		audit_log(NULL, AUDIT_CONFIG_CHANGE, 
 				"auid=%u added an audit rule\n", loginuid);
 		break;
 	case AUDIT_DEL:
-		flags =((struct audit_rule *)data)->flags;
-		if (!err && (flags & AUDIT_PER_TASK))
-			err = audit_del_rule(data, &audit_tsklist);
-		if (!err && (flags & AUDIT_AT_ENTRY))
-			err = audit_del_rule(data, &audit_entlist);
-		if (!err && (flags & AUDIT_AT_EXIT))
-			err = audit_del_rule(data, &audit_extlist);
-		audit_log(NULL, AUDIT_CONFIG_CHANGE,
-				"auid=%u removed an audit rule\n", loginuid);
+		listnr =((struct audit_rule *)data)->flags & ~AUDIT_FILTER_PREPEND;
+		if (listnr >= AUDIT_NR_FILTERS)
+			return -EINVAL;
+
+		err = audit_del_rule(data, &audit_filter_list[listnr]);
+		if (!err)
+			audit_log(NULL, AUDIT_CONFIG_CHANGE,
+				  "auid=%u removed an audit rule\n", loginuid);
 		break;
 	default:
 		return -EINVAL;
@@ -454,7 +453,7 @@ static enum audit_state audit_filter_task(struct task_struct *tsk)
 	enum audit_state   state;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(e, &audit_tsklist, list) {
+	list_for_each_entry_rcu(e, &audit_filter_list[AUDIT_FILTER_TASK], list) {
 		if (audit_filter_rules(tsk, &e->rule, NULL, &state)) {
 			rcu_read_unlock();
 			return state;
@@ -490,6 +489,23 @@ static enum audit_state audit_filter_syscall(struct task_struct *tsk,
 	return AUDIT_BUILD_CONTEXT;
 }
 
+int audit_filter_user(struct task_struct *tsk, int type)
+{
+	struct audit_entry *e;
+	enum audit_state   state;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(e, &audit_filter_list[AUDIT_FILTER_USER], list) {
+		if (audit_filter_rules(tsk, &e->rule, NULL, &state)) {
+			rcu_read_unlock();
+			return state != AUDIT_DISABLED;
+		}
+	}
+	rcu_read_unlock();
+	return 1; /* Audit by default */
+
+}
+
 /* This should be called with task_lock() held. */
 static inline struct audit_context *audit_get_context(struct task_struct *tsk,
 						      int return_valid,
@@ -504,7 +520,7 @@ static inline struct audit_context *audit_get_context(struct task_struct *tsk,
 
 	if (context->in_syscall && !context->auditable) {
 		enum audit_state state;
-		state = audit_filter_syscall(tsk, context, &audit_extlist);
+		state = audit_filter_syscall(tsk, context, &audit_filter_list[AUDIT_FILTER_EXIT]);
 		if (state == AUDIT_RECORD_CONTEXT)
 			context->auditable = 1;
 	}
@@ -876,7 +892,7 @@ void audit_syscall_entry(struct task_struct *tsk, int arch, int major,
 
 	state = context->state;
 	if (state == AUDIT_SETUP_CONTEXT || state == AUDIT_BUILD_CONTEXT)
-		state = audit_filter_syscall(tsk, context, &audit_entlist);
+		state = audit_filter_syscall(tsk, context, &audit_filter_list[AUDIT_FILTER_ENTRY]);
 	if (likely(state == AUDIT_DISABLED))
 		return;
 

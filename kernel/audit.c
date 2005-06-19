@@ -107,13 +107,6 @@ static struct sk_buff_head audit_skb_queue;
 static struct task_struct *kauditd_task;
 static DECLARE_WAIT_QUEUE_HEAD(kauditd_wait);
 
-/* There are three lists of rules -- one to search at task creation
- * time, one to search at syscall entry time, and another to search at
- * syscall exit time. */
-static LIST_HEAD(audit_tsklist);
-static LIST_HEAD(audit_entlist);
-static LIST_HEAD(audit_extlist);
-
 /* The netlink socket is only to be read by 1 CPU, which lets us assume
  * that list additions and deletions never happen simultaneously in
  * auditsc.c */
@@ -376,6 +369,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	u16			msg_type = nlh->nlmsg_type;
 	uid_t			loginuid; /* loginuid of sender */
 	struct audit_sig_info   sig_data;
+	struct task_struct *tsk;
 
 	err = audit_netlink_ok(NETLINK_CB(skb).eff_cap, msg_type);
 	if (err)
@@ -435,15 +429,25 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		break;
 	case AUDIT_USER:
 	case AUDIT_FIRST_USER_MSG...AUDIT_LAST_USER_MSG:
-		ab = audit_log_start(NULL, msg_type);
-		if (!ab)
-			break;	/* audit_panic has been called */
-		audit_log_format(ab,
-				 "user pid=%d uid=%u auid=%u"
-				 " msg='%.1024s'",
-				 pid, uid, loginuid, (char *)data);
-		audit_set_pid(ab, pid);
-		audit_log_end(ab);
+		read_lock(&tasklist_lock);
+		tsk = find_task_by_pid(pid);
+		if (tsk)
+			get_task_struct(tsk);
+		read_unlock(&tasklist_lock);
+		if (!tsk)
+			return -ESRCH;
+
+		if (audit_filter_user(tsk, msg_type)) {
+			    ab = audit_log_start(NULL, msg_type);
+			    if (ab) {
+				    audit_log_format(ab,
+						     "user pid=%d uid=%u auid=%u msg='%.1024s'",
+						     pid, uid, loginuid, (char *)data);
+				    audit_set_pid(ab, pid);
+				    audit_log_end(ab);
+			    }
+		}
+		put_task_struct(tsk);
 		break;
 	case AUDIT_ADD:
 	case AUDIT_DEL:
