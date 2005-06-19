@@ -55,4 +55,18 @@ extern void smp_cross_call(cpumask_t callmap);
  */
 extern int boot_secondary(unsigned int cpu, struct task_struct *);
 
+/*
+ * Perform platform specific initialisation of the specified CPU.
+ */
+extern void platform_secondary_init(unsigned int cpu);
+
+/*
+ * Initial data for bringing up a secondary CPU.
+ */
+struct secondary_data {
+	unsigned long pgdir;
+	void *stack;
+};
+extern struct secondary_data secondary_data;
+
 #endif /* ifndef __ASM_ARM_SMP_H */

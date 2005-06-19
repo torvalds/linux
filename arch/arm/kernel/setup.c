@@ -328,7 +328,7 @@ static void __init setup_processor(void)
  * cpu_init dumps the cache information, initialises SMP specific
  * information, and sets up the per-CPU stacks.
  */
-void __init cpu_init(void)
+void cpu_init(void)
 {
 	unsigned int cpu = smp_processor_id();
 	struct stack *stk = &stacks[cpu];
