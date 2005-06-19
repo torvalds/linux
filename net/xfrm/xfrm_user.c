@@ -1168,7 +1168,7 @@ nlmsg_failure:
 
 static int inline xfrm_sa_len(struct xfrm_state *x)
 {
-	int l = NLMSG_LENGTH(sizeof(struct xfrm_usersa_info));
+	int l = 0;
 	if (x->aalg)
 		l += RTA_SPACE(sizeof(*x->aalg) + (x->aalg->alg_key_len+7)/8);
 	if (x->ealg)
@@ -1184,20 +1184,39 @@ static int inline xfrm_sa_len(struct xfrm_state *x)
 static int xfrm_notify_sa(struct xfrm_state *x, struct km_event *c)
 {
 	struct xfrm_usersa_info *p;
+	struct xfrm_usersa_id *id;
 	struct nlmsghdr *nlh;
 	struct sk_buff *skb;
 	unsigned char *b;
 	int len = xfrm_sa_len(x);
+	int headlen;
+
+	headlen = sizeof(*p);
+	if (c->event == XFRM_MSG_DELSA) {
+		len += RTA_SPACE(headlen);
+		headlen = sizeof(*id);
+	}
+	len += NLMSG_SPACE(headlen);
 
 	skb = alloc_skb(len, GFP_ATOMIC);
 	if (skb == NULL)
 		return -ENOMEM;
 	b = skb->tail;
 
-	nlh = NLMSG_PUT(skb, c->pid, c->seq, c->event, sizeof(*p));
+	nlh = NLMSG_PUT(skb, c->pid, c->seq, c->event, headlen);
 	nlh->nlmsg_flags = 0;
 
 	p = NLMSG_DATA(nlh);
+	if (c->event == XFRM_MSG_DELSA) {
+		id = NLMSG_DATA(nlh);
+		memcpy(&id->daddr, &x->id.daddr, sizeof(id->daddr));
+		id->spi = x->id.spi;
+		id->family = x->props.family;
+		id->proto = x->id.proto;
+
+		p = RTA_DATA(__RTA_PUT(skb, XFRMA_SA, sizeof(*p)));
+	}
+
 	copy_to_user_state(x, p);
 
 	if (x->aalg)
@@ -1398,20 +1417,39 @@ static int xfrm_exp_policy_notify(struct xfrm_policy *xp, int dir, struct km_eve
 static int xfrm_notify_policy(struct xfrm_policy *xp, int dir, struct km_event *c)
 {
 	struct xfrm_userpolicy_info *p;
+	struct xfrm_userpolicy_id *id;
 	struct nlmsghdr *nlh;
 	struct sk_buff *skb;
 	unsigned char *b;
 	int len = RTA_SPACE(sizeof(struct xfrm_user_tmpl) * xp->xfrm_nr);
-	len += NLMSG_SPACE(sizeof(struct xfrm_userpolicy_info));
+	int headlen;
+
+	headlen = sizeof(*p);
+	if (c->event == XFRM_MSG_DELPOLICY) {
+		len += RTA_SPACE(headlen);
+		headlen = sizeof(*id);
+	}
+	len += NLMSG_SPACE(headlen);
 
 	skb = alloc_skb(len, GFP_ATOMIC);
 	if (skb == NULL)
 		return -ENOMEM;
 	b = skb->tail;
 
-	nlh = NLMSG_PUT(skb, c->pid, c->seq, c->event, sizeof(*p));
+	nlh = NLMSG_PUT(skb, c->pid, c->seq, c->event, headlen);
 
 	p = NLMSG_DATA(nlh);
+	if (c->event == XFRM_MSG_DELPOLICY) {
+		id = NLMSG_DATA(nlh);
+		memset(id, 0, sizeof(*id));
+		id->dir = dir;
+		if (c->data.byid)
+			id->index = xp->index;
+		else
+			memcpy(&id->sel, &xp->selector, sizeof(id->sel));
+
+		p = RTA_DATA(__RTA_PUT(skb, XFRMA_POLICY, sizeof(*p)));
+	}
 
 	nlh->nlmsg_flags = 0;
 
@@ -1424,6 +1462,7 @@ static int xfrm_notify_policy(struct xfrm_policy *xp, int dir, struct km_event *
 	return netlink_broadcast(xfrm_nl, skb, 0, XFRMGRP_POLICY, GFP_ATOMIC);
 
 nlmsg_failure:
+rtattr_failure:
 	kfree_skb(skb);
 	return -1;
 }
