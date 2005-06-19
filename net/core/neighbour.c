@@ -1555,7 +1555,9 @@ out:
 
 static int neightbl_fill_parms(struct sk_buff *skb, struct neigh_parms *parms)
 {
-	struct rtattr *nest = RTA_NEST(skb, NDTA_PARMS);
+	struct rtattr *nest = NULL;
+	
+	nest = RTA_NEST(skb, NDTA_PARMS);
 
 	if (parms->dev)
 		RTA_PUT_U32(skb, NDTPA_IFINDEX, parms->dev->ifindex);
