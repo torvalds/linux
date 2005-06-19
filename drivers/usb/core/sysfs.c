@@ -286,7 +286,7 @@ static ssize_t show_interface_string(struct device *dev, struct device_attribute
 }
 static DEVICE_ATTR(interface, S_IRUGO, show_interface_string, NULL);
 
-static ssize_t show_modalias(struct device *dev, char *buf)
+static ssize_t show_modalias(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct usb_interface *intf;
 	struct usb_device *udev;
