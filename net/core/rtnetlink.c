@@ -100,6 +100,7 @@ static const int rtm_min[RTM_NR_FAMILIES] =
 	[RTM_FAM(RTM_NEWPREFIX)]    = NLMSG_LENGTH(sizeof(struct rtgenmsg)),
 	[RTM_FAM(RTM_GETMULTICAST)] = NLMSG_LENGTH(sizeof(struct rtgenmsg)),
 	[RTM_FAM(RTM_GETANYCAST)]   = NLMSG_LENGTH(sizeof(struct rtgenmsg)),
+	[RTM_FAM(RTM_NEWNEIGHTBL)]  = NLMSG_LENGTH(sizeof(struct ndtmsg)),
 };
 
 static const int rta_max[RTM_NR_FAMILIES] =
@@ -113,6 +114,7 @@ static const int rta_max[RTM_NR_FAMILIES] =
 	[RTM_FAM(RTM_NEWTCLASS)]    = TCA_MAX,
 	[RTM_FAM(RTM_NEWTFILTER)]   = TCA_MAX,
 	[RTM_FAM(RTM_NEWACTION)]    = TCAA_MAX,
+	[RTM_FAM(RTM_NEWNEIGHTBL)]  = NDTA_MAX,
 };
 
 void __rta_fill(struct sk_buff *skb, int attrtype, int attrlen, const void *data)
@@ -649,14 +651,16 @@ static void rtnetlink_rcv(struct sock *sk, int len)
 
 static struct rtnetlink_link link_rtnetlink_table[RTM_NR_MSGTYPES] =
 {
-	[RTM_GETLINK  - RTM_BASE] = { .dumpit = rtnetlink_dump_ifinfo },
-	[RTM_SETLINK  - RTM_BASE] = { .doit   = do_setlink	      },
-	[RTM_GETADDR  - RTM_BASE] = { .dumpit = rtnetlink_dump_all    },
-	[RTM_GETROUTE - RTM_BASE] = { .dumpit = rtnetlink_dump_all    },
-	[RTM_NEWNEIGH - RTM_BASE] = { .doit   = neigh_add	      },
-	[RTM_DELNEIGH - RTM_BASE] = { .doit   = neigh_delete	      },
-	[RTM_GETNEIGH - RTM_BASE] = { .dumpit = neigh_dump_info	      },
-	[RTM_GETRULE  - RTM_BASE] = { .dumpit = rtnetlink_dump_all    },
+	[RTM_GETLINK     - RTM_BASE] = { .dumpit = rtnetlink_dump_ifinfo },
+	[RTM_SETLINK     - RTM_BASE] = { .doit   = do_setlink		 },
+	[RTM_GETADDR     - RTM_BASE] = { .dumpit = rtnetlink_dump_all	 },
+	[RTM_GETROUTE    - RTM_BASE] = { .dumpit = rtnetlink_dump_all	 },
+	[RTM_NEWNEIGH    - RTM_BASE] = { .doit   = neigh_add		 },
+	[RTM_DELNEIGH    - RTM_BASE] = { .doit   = neigh_delete		 },
+	[RTM_GETNEIGH    - RTM_BASE] = { .dumpit = neigh_dump_info	 },
+	[RTM_GETRULE     - RTM_BASE] = { .dumpit = rtnetlink_dump_all	 },
+	[RTM_GETNEIGHTBL - RTM_BASE] = { .dumpit = neightbl_dump_info	 },
+	[RTM_SETNEIGHTBL - RTM_BASE] = { .doit   = neightbl_set		 },
 };
 
 static int rtnetlink_event(struct notifier_block *this, unsigned long event, void *ptr)

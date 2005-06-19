@@ -65,6 +65,7 @@ struct neighbour;
 
 struct neigh_parms
 {
+	struct net_device *dev;
 	struct neigh_parms *next;
 	int	(*neigh_setup)(struct neighbour *);
 	struct neigh_table *tbl;
@@ -251,6 +252,9 @@ extern int neigh_dump_info(struct sk_buff *skb, struct netlink_callback *cb);
 extern int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg);
 extern int neigh_delete(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg);
 extern void neigh_app_ns(struct neighbour *n);
+
+extern int neightbl_dump_info(struct sk_buff *skb, struct netlink_callback *cb);
+extern int neightbl_set(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg);
 
 extern void neigh_for_each(struct neigh_table *tbl, void (*cb)(struct neighbour *, void *), void *cookie);
 extern void __neigh_for_each_release(struct neigh_table *tbl, int (*cb)(struct neighbour *));
