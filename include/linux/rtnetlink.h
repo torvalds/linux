@@ -924,7 +924,8 @@ extern void __rta_fill(struct sk_buff *skb, int attrtype, int attrlen, const voi
 	(skb)->len; })
 
 #define RTA_NEST_CANCEL(skb, start) \
-({	skb_trim(skb, (unsigned char *) (start) - (skb)->data); \
+({	if (start) \
+		skb_trim(skb, (unsigned char *) (start) - (skb)->data); \
 	-1; })
 
 #define RTA_GET_U32(rta) \
