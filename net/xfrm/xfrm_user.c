@@ -296,7 +296,7 @@ static int xfrm_add_sa(struct sk_buff *skb, struct nlmsghdr *nlh, void **xfrma)
 	if (err < 0) {
 		x->km.state = XFRM_STATE_DEAD;
 		xfrm_state_put(x);
-		return err;
+		goto out;
 	}
 
 	c.seq = nlh->nlmsg_seq;
@@ -304,8 +304,8 @@ static int xfrm_add_sa(struct sk_buff *skb, struct nlmsghdr *nlh, void **xfrma)
 	c.event = nlh->nlmsg_type;
 
 	km_state_notify(x, &c);
+out:
 	xfrm_state_put(x);
-
 	return err;
 }
 

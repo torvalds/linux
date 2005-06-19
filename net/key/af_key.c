@@ -1333,7 +1333,7 @@ static int pfkey_add(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hdr,
 	if (err < 0) {
 		x->km.state = XFRM_STATE_DEAD;
 		xfrm_state_put(x);
-		return err;
+		goto out;
 	}
 
 	if (hdr->sadb_msg_type == SADB_ADD)
@@ -1343,8 +1343,8 @@ static int pfkey_add(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hdr,
 	c.seq = hdr->sadb_msg_seq;
 	c.pid = hdr->sadb_msg_pid;
 	km_state_notify(x, &c);
+out:
 	xfrm_state_put(x);
-
 	return err;
 }
 
