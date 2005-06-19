@@ -897,6 +897,14 @@ extern void __rta_fill(struct sk_buff *skb, int attrtype, int attrlen, const voi
 		goto rtattr_failure; \
 	memcpy(skb_put(skb, RTA_ALIGN(attrlen)), data, attrlen); })
 
+#define RTA_PUT_U8(skb, attrtype, value) \
+({	u8 _tmp = (value); \
+	RTA_PUT(skb, attrtype, sizeof(u8), &_tmp); })
+
+#define RTA_PUT_U16(skb, attrtype, value) \
+({	u16 _tmp = (value); \
+	RTA_PUT(skb, attrtype, sizeof(u16), &_tmp); })
+
 #define RTA_PUT_U32(skb, attrtype, value) \
 ({	u32 _tmp = (value); \
 	RTA_PUT(skb, attrtype, sizeof(u32), &_tmp); })
@@ -914,6 +922,9 @@ extern void __rta_fill(struct sk_buff *skb, int attrtype, int attrlen, const voi
 #define RTA_PUT_STRING(skb, attrtype, value) \
 	RTA_PUT(skb, attrtype, strlen(value) + 1, value)
 
+#define RTA_PUT_FLAG(skb, attrtype) \
+	RTA_PUT(skb, attrtype, 0, NULL);
+
 #define RTA_NEST(skb, type) \
 ({	struct rtattr *__start = (struct rtattr *) (skb)->tail; \
 	RTA_PUT(skb, type, 0, NULL); \
@@ -928,6 +939,16 @@ extern void __rta_fill(struct sk_buff *skb, int attrtype, int attrlen, const voi
 		skb_trim(skb, (unsigned char *) (start) - (skb)->data); \
 	-1; })
 
+#define RTA_GET_U8(rta) \
+({	if (!rta || RTA_PAYLOAD(rta) < sizeof(u8)) \
+		goto rtattr_failure; \
+	*(u8 *) RTA_DATA(rta); })
+
+#define RTA_GET_U16(rta) \
+({	if (!rta || RTA_PAYLOAD(rta) < sizeof(u16)) \
+		goto rtattr_failure; \
+	*(u16 *) RTA_DATA(rta); })
+
 #define RTA_GET_U32(rta) \
 ({	if (!rta || RTA_PAYLOAD(rta) < sizeof(u32)) \
 		goto rtattr_failure; \
@@ -939,6 +960,8 @@ extern void __rta_fill(struct sk_buff *skb, int attrtype, int attrlen, const voi
 		goto rtattr_failure; \
 	memcpy(&_tmp, RTA_DATA(rta), sizeof(_tmp)); \
 	_tmp; })
+
+#define RTA_GET_FLAG(rta) (!!(rta))
 
 #define RTA_GET_SECS(rta) ((unsigned long) RTA_GET_U64(rta) * HZ)
 #define RTA_GET_MSECS(rta) (msecs_to_jiffies((unsigned long) RTA_GET_U64(rta)))
