@@ -1590,8 +1590,8 @@ static int neightbl_fill_info(struct neigh_table *tbl, struct sk_buff *skb,
 	struct nlmsghdr *nlh;
 	struct ndtmsg *ndtmsg;
 
-	nlh = NLMSG_PUT_ANSWER(skb, cb, RTM_NEWNEIGHTBL, sizeof(struct ndtmsg));
-	nlh->nlmsg_flags |= NLM_F_MULTI;
+	nlh = NLMSG_NEW_ANSWER(skb, cb, RTM_NEWNEIGHTBL, sizeof(struct ndtmsg),
+			       NLM_F_MULTI);
 
 	ndtmsg = NLMSG_DATA(nlh);
 
@@ -1675,8 +1675,8 @@ static int neightbl_fill_param_info(struct neigh_table *tbl,
 	struct ndtmsg *ndtmsg;
 	struct nlmsghdr *nlh;
 
-	nlh = NLMSG_PUT_ANSWER(skb, cb, RTM_NEWNEIGHTBL, sizeof(struct ndtmsg));
-	nlh->nlmsg_flags |= NLM_F_MULTI;
+	nlh = NLMSG_NEW_ANSWER(skb, cb, RTM_NEWNEIGHTBL, sizeof(struct ndtmsg),
+			       NLM_F_MULTI);
 
 	ndtmsg = NLMSG_DATA(nlh);
 

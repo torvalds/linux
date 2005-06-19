@@ -156,7 +156,7 @@ struct netlink_notify
 };
 
 static __inline__ struct nlmsghdr *
-__nlmsg_put(struct sk_buff *skb, u32 pid, u32 seq, int type, int len)
+__nlmsg_put(struct sk_buff *skb, u32 pid, u32 seq, int type, int len, int flags)
 {
 	struct nlmsghdr *nlh;
 	int size = NLMSG_LENGTH(len);
@@ -164,20 +164,23 @@ __nlmsg_put(struct sk_buff *skb, u32 pid, u32 seq, int type, int len)
 	nlh = (struct nlmsghdr*)skb_put(skb, NLMSG_ALIGN(size));
 	nlh->nlmsg_type = type;
 	nlh->nlmsg_len = size;
-	nlh->nlmsg_flags = 0;
+	nlh->nlmsg_flags = flags;
 	nlh->nlmsg_pid = pid;
 	nlh->nlmsg_seq = seq;
 	return nlh;
 }
 
-#define NLMSG_PUT(skb, pid, seq, type, len) \
+#define NLMSG_NEW(skb, pid, seq, type, len, flags) \
 ({	if (skb_tailroom(skb) < (int)NLMSG_SPACE(len)) \
 		goto nlmsg_failure; \
-	__nlmsg_put(skb, pid, seq, type, len); })
+	__nlmsg_put(skb, pid, seq, type, len, flags); })
 
-#define NLMSG_PUT_ANSWER(skb, cb, type, len) \
-	NLMSG_PUT(skb, NETLINK_CB((cb)->skb).pid, \
-		  (cb)->nlh->nlmsg_seq, type, len)
+#define NLMSG_PUT(skb, pid, seq, type, len) \
+	NLMSG_NEW(skb, pid, seq, type, len, 0)
+
+#define NLMSG_NEW_ANSWER(skb, cb, type, len, flags) \
+	NLMSG_NEW(skb, NETLINK_CB((cb)->skb).pid, \
+		  (cb)->nlh->nlmsg_seq, type, len, flags)
 
 #define NLMSG_END(skb, nlh) \
 ({	(nlh)->nlmsg_len = (skb)->tail - (unsigned char *) (nlh); \
