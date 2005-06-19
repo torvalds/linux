@@ -332,7 +332,7 @@ static void raw_probe_proto_opt(struct flowi *fl, struct msghdr *msg)
 	u8 __user *type = NULL;
 	u8 __user *code = NULL;
 	int probed = 0;
-	int i;
+	unsigned int i;
 
 	if (!msg->msg_iov)
 		return;
