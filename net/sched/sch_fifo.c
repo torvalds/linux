@@ -11,39 +11,21 @@
 
 #include <linux/config.h>
 #include <linux/module.h>
-#include <asm/uaccess.h>
-#include <asm/system.h>
-#include <linux/bitops.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/string.h>
-#include <linux/mm.h>
-#include <linux/socket.h>
-#include <linux/sockios.h>
-#include <linux/in.h>
 #include <linux/errno.h>
-#include <linux/interrupt.h>
-#include <linux/if_ether.h>
-#include <linux/inet.h>
 #include <linux/netdevice.h>
-#include <linux/etherdevice.h>
-#include <linux/notifier.h>
-#include <net/ip.h>
-#include <net/route.h>
 #include <linux/skbuff.h>
-#include <net/sock.h>
 #include <net/pkt_sched.h>
 
 /* 1 band FIFO pseudo-"scheduler" */
 
 struct fifo_sched_data
 {
-	unsigned limit;
+	u32 limit;
 };
 
-static int
-bfifo_enqueue(struct sk_buff *skb, struct Qdisc* sch)
+static int bfifo_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 {
 	struct fifo_sched_data *q = qdisc_priv(sch);
 
@@ -53,8 +35,7 @@ bfifo_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 	return qdisc_reshape_fail(skb, sch);
 }
 
-static int
-pfifo_enqueue(struct sk_buff *skb, struct Qdisc* sch)
+static int pfifo_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 {
 	struct fifo_sched_data *q = qdisc_priv(sch);
 
@@ -69,40 +50,37 @@ static int fifo_init(struct Qdisc *sch, struct rtattr *opt)
 	struct fifo_sched_data *q = qdisc_priv(sch);
 
 	if (opt == NULL) {
-		unsigned int limit = sch->dev->tx_queue_len ? : 1;
+		u32 limit = sch->dev->tx_queue_len ? : 1;
 
 		if (sch->ops == &bfifo_qdisc_ops)
-			q->limit = limit*sch->dev->mtu;
-		else	
-			q->limit = limit;
+			limit *= sch->dev->mtu;
+
+		q->limit = limit;
 	} else {
 		struct tc_fifo_qopt *ctl = RTA_DATA(opt);
-		if (opt->rta_len < RTA_LENGTH(sizeof(*ctl)))
+
+		if (RTA_PAYLOAD(opt) < sizeof(*ctl))
 			return -EINVAL;
+
 		q->limit = ctl->limit;
 	}
+
 	return 0;
 }
 
 static int fifo_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct fifo_sched_data *q = qdisc_priv(sch);
-	unsigned char	 *b = skb->tail;
-	struct tc_fifo_qopt opt;
+	struct tc_fifo_qopt opt = { .limit = q->limit };
 
-	opt.limit = q->limit;
 	RTA_PUT(skb, TCA_OPTIONS, sizeof(opt), &opt);
-
 	return skb->len;
 
 rtattr_failure:
-	skb_trim(skb, b - skb->data);
 	return -1;
 }
 
 struct Qdisc_ops pfifo_qdisc_ops = {
-	.next		=	NULL,
-	.cl_ops		=	NULL,
 	.id		=	"pfifo",
 	.priv_size	=	sizeof(struct fifo_sched_data),
 	.enqueue	=	pfifo_enqueue,
@@ -111,15 +89,12 @@ struct Qdisc_ops pfifo_qdisc_ops = {
 	.drop		=	qdisc_queue_drop,
 	.init		=	fifo_init,
 	.reset		=	qdisc_reset_queue,
-	.destroy	=	NULL,
 	.change		=	fifo_init,
 	.dump		=	fifo_dump,
 	.owner		=	THIS_MODULE,
 };
 
 struct Qdisc_ops bfifo_qdisc_ops = {
-	.next		=	NULL,
-	.cl_ops		=	NULL,
 	.id		=	"bfifo",
 	.priv_size	=	sizeof(struct fifo_sched_data),
 	.enqueue	=	bfifo_enqueue,
@@ -128,7 +103,6 @@ struct Qdisc_ops bfifo_qdisc_ops = {
 	.drop		=	qdisc_queue_drop,
 	.init		=	fifo_init,
 	.reset		=	qdisc_reset_queue,
-	.destroy	=	NULL,
 	.change		=	fifo_init,
 	.dump		=	fifo_dump,
 	.owner		=	THIS_MODULE,
