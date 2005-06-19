@@ -73,7 +73,7 @@ resource_show(struct device * dev, struct device_attribute *attr, char * buf)
 	return (str - buf);
 }
 
-static ssize_t modalias_show(struct device *dev, char *buf)
+static ssize_t modalias_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 
