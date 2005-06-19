@@ -449,7 +449,7 @@ static int eata_pio_abort(struct scsi_cmnd *cmd)
 {
 	uint loop = HZ;
 
-	DBG(DBG_ABNORM, printk(KERN_WARNING "eata_pio_abort called pid: %ld " "target: %x lun: %x reason %x\n", cmd->pid, cmd->device->id, cmd->device->lun, cmd->abort_reason));
+	DBG(DBG_ABNORM, printk(KERN_WARNING "eata_pio_abort called pid: %ld " "target: %x lun: %x\n", cmd->pid, cmd->device->id, cmd->device->lun));
 
 
 	while (inb(cmd->device->host->base + HA_RAUXSTAT) & HA_ABUSY)
@@ -484,7 +484,7 @@ static int eata_pio_host_reset(struct scsi_cmnd *cmd)
 	struct scsi_cmnd *sp;
 	struct Scsi_Host *host = cmd->device->host;
 
-	DBG(DBG_ABNORM, printk(KERN_WARNING "eata_pio_reset called pid:%ld target:" " %x lun: %x reason %x\n", cmd->pid, cmd->device->id, cmd->device->lun, cmd->abort_reason));
+	DBG(DBG_ABNORM, printk(KERN_WARNING "eata_pio_reset called pid:%ld target:" " %x lun: %x\n", cmd->pid, cmd->device->id, cmd->device->lun));
 
 	spin_lock_irq(host->host_lock);
 

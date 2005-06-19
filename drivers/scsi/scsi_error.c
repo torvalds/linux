@@ -1829,7 +1829,6 @@ scsi_reset_provider(struct scsi_device *dev, int flag)
 	scmd->bufflen			= 0;
 	scmd->request_buffer		= NULL;
 	scmd->request_bufflen		= 0;
-	scmd->abort_reason		= DID_ABORT;
 
 	scmd->cmd_len			= 0;
 

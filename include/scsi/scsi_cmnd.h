@@ -79,8 +79,6 @@ struct scsi_cmnd {
 					 * sense info */
 	unsigned short use_sg;	/* Number of pieces of scatter-gather */
 	unsigned short sglist_len;	/* size of malloc'd scatter-gather list */
-	unsigned short abort_reason;	/* If the mid-level code requests an
-					 * abort, this is the reason. */
 	unsigned bufflen;	/* Size of data buffer */
 	void *buffer;		/* Data buffer */
 

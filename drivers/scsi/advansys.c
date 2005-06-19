@@ -9192,8 +9192,8 @@ asc_prt_scsi_cmnd(struct scsi_cmnd *s)
         s->sc_data_direction, s->resid);
 
     printk(
-" use_sg %u, sglist_len %u, abort_reason 0x%x\n",
-        s->use_sg, s->sglist_len, s->abort_reason);
+" use_sg %u, sglist_len %u\n",
+        s->use_sg, s->sglist_len);
 
     printk(
 " serial_number 0x%x, retries %d, allowed %d\n",

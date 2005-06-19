@@ -719,7 +719,6 @@ void scsi_init_cmd_from_req(struct scsi_cmnd *cmd, struct scsi_request *sreq)
 	/*
 	 * Start the timer ticking.
 	 */
-	cmd->abort_reason = 0;
 	cmd->result = 0;
 
 	SCSI_LOG_MLQUEUE(3, printk("Leaving scsi_init_cmd_from_req()\n"));
