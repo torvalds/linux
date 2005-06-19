@@ -47,61 +47,10 @@ bfifo_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 {
 	struct fifo_sched_data *q = qdisc_priv(sch);
 
-	if (sch->qstats.backlog + skb->len <= q->limit) {
-		__skb_queue_tail(&sch->q, skb);
-		sch->qstats.backlog += skb->len;
-		sch->bstats.bytes += skb->len;
-		sch->bstats.packets++;
-		return 0;
-	}
-	sch->qstats.drops++;
-#ifdef CONFIG_NET_CLS_POLICE
-	if (sch->reshape_fail==NULL || sch->reshape_fail(skb, sch))
-#endif
-		kfree_skb(skb);
-	return NET_XMIT_DROP;
-}
+	if (likely(sch->qstats.backlog + skb->len <= q->limit))
+		return qdisc_enqueue_tail(skb, sch);
 
-static int
-bfifo_requeue(struct sk_buff *skb, struct Qdisc* sch)
-{
-	__skb_queue_head(&sch->q, skb);
-	sch->qstats.backlog += skb->len;
-	sch->qstats.requeues++;
-	return 0;
-}
-
-static struct sk_buff *
-bfifo_dequeue(struct Qdisc* sch)
-{
-	struct sk_buff *skb;
-
-	skb = __skb_dequeue(&sch->q);
-	if (skb)
-		sch->qstats.backlog -= skb->len;
-	return skb;
-}
-
-static unsigned int 
-fifo_drop(struct Qdisc* sch)
-{
-	struct sk_buff *skb;
-
-	skb = __skb_dequeue_tail(&sch->q);
-	if (skb) {
-		unsigned int len = skb->len;
-		sch->qstats.backlog -= len;
-		kfree_skb(skb);
-		return len;
-	}
-	return 0;
-}
-
-static void
-fifo_reset(struct Qdisc* sch)
-{
-	skb_queue_purge(&sch->q);
-	sch->qstats.backlog = 0;
+	return qdisc_reshape_fail(skb, sch);
 }
 
 static int
@@ -109,33 +58,10 @@ pfifo_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 {
 	struct fifo_sched_data *q = qdisc_priv(sch);
 
-	if (sch->q.qlen < q->limit) {
-		__skb_queue_tail(&sch->q, skb);
-		sch->bstats.bytes += skb->len;
-		sch->bstats.packets++;
-		return 0;
-	}
-	sch->qstats.drops++;
-#ifdef CONFIG_NET_CLS_POLICE
-	if (sch->reshape_fail==NULL || sch->reshape_fail(skb, sch))
-#endif
-		kfree_skb(skb);
-	return NET_XMIT_DROP;
-}
+	if (likely(skb_queue_len(&sch->q) < q->limit))
+		return qdisc_enqueue_tail(skb, sch);
 
-static int
-pfifo_requeue(struct sk_buff *skb, struct Qdisc* sch)
-{
-	__skb_queue_head(&sch->q, skb);
-	sch->qstats.requeues++;
-	return 0;
-}
-
-
-static struct sk_buff *
-pfifo_dequeue(struct Qdisc* sch)
-{
-	return __skb_dequeue(&sch->q);
+	return qdisc_reshape_fail(skb, sch);
 }
 
 static int fifo_init(struct Qdisc *sch, struct rtattr *opt)
@@ -180,11 +106,11 @@ struct Qdisc_ops pfifo_qdisc_ops = {
 	.id		=	"pfifo",
 	.priv_size	=	sizeof(struct fifo_sched_data),
 	.enqueue	=	pfifo_enqueue,
-	.dequeue	=	pfifo_dequeue,
-	.requeue	=	pfifo_requeue,
-	.drop		=	fifo_drop,
+	.dequeue	=	qdisc_dequeue_head,
+	.requeue	=	qdisc_requeue,
+	.drop		=	qdisc_queue_drop,
 	.init		=	fifo_init,
-	.reset		=	fifo_reset,
+	.reset		=	qdisc_reset_queue,
 	.destroy	=	NULL,
 	.change		=	fifo_init,
 	.dump		=	fifo_dump,
@@ -197,11 +123,11 @@ struct Qdisc_ops bfifo_qdisc_ops = {
 	.id		=	"bfifo",
 	.priv_size	=	sizeof(struct fifo_sched_data),
 	.enqueue	=	bfifo_enqueue,
-	.dequeue	=	bfifo_dequeue,
-	.requeue	=	bfifo_requeue,
-	.drop		=	fifo_drop,
+	.dequeue	=	qdisc_dequeue_head,
+	.requeue	=	qdisc_requeue,
+	.drop		=	qdisc_queue_drop,
 	.init		=	fifo_init,
-	.reset		=	fifo_reset,
+	.reset		=	qdisc_reset_queue,
 	.destroy	=	NULL,
 	.change		=	fifo_init,
 	.dump		=	fifo_dump,
