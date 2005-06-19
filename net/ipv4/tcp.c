@@ -499,7 +499,7 @@ int tcp_listen_start(struct sock *sk)
 static void tcp_listen_stop (struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct tcp_listen_opt *lopt;
+	struct listen_sock *lopt;
 	struct request_sock *acc_req;
 	struct request_sock *req;
 	int i;

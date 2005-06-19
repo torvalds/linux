@@ -78,11 +78,11 @@ static inline void reqsk_free(struct request_sock *req)
 
 extern int sysctl_max_syn_backlog;
 
-/** struct tcp_listen_opt - listen state
+/** struct listen_sock - listen state
  *
  * @max_qlen_log - log_2 of maximal queued SYNs/REQUESTs
  */
-struct tcp_listen_opt {
+struct listen_sock {
 	u8			max_qlen_log;
 	/* 3 bytes hole, try to use */
 	int			qlen;
@@ -111,15 +111,15 @@ struct request_sock_queue {
 	struct request_sock	*rskq_accept_head;
 	struct request_sock	*rskq_accept_tail;
 	rwlock_t		syn_wait_lock;
-	struct tcp_listen_opt	*listen_opt;
+	struct listen_sock	*listen_opt;
 };
 
 extern int reqsk_queue_alloc(struct request_sock_queue *queue,
 			     const int nr_table_entries);
 
-static inline struct tcp_listen_opt *reqsk_queue_yank_listen_sk(struct request_sock_queue *queue)
+static inline struct listen_sock *reqsk_queue_yank_listen_sk(struct request_sock_queue *queue)
 {
-	struct tcp_listen_opt *lopt;
+	struct listen_sock *lopt;
 
 	write_lock_bh(&queue->syn_wait_lock);
 	lopt = queue->listen_opt;
@@ -203,7 +203,7 @@ static inline struct sock *reqsk_queue_get_child(struct request_sock_queue *queu
 static inline int reqsk_queue_removed(struct request_sock_queue *queue,
 				      struct request_sock *req)
 {
-	struct tcp_listen_opt *lopt = queue->listen_opt;
+	struct listen_sock *lopt = queue->listen_opt;
 
 	if (req->retrans == 0)
 		--lopt->qlen_young;
@@ -213,7 +213,7 @@ static inline int reqsk_queue_removed(struct request_sock_queue *queue,
 
 static inline int reqsk_queue_added(struct request_sock_queue *queue)
 {
-	struct tcp_listen_opt *lopt = queue->listen_opt;
+	struct listen_sock *lopt = queue->listen_opt;
 	const int prev_qlen = lopt->qlen;
 
 	lopt->qlen_young++;
@@ -240,7 +240,7 @@ static inline void reqsk_queue_hash_req(struct request_sock_queue *queue,
 					u32 hash, struct request_sock *req,
 					unsigned timeout)
 {
-	struct tcp_listen_opt *lopt = queue->listen_opt;
+	struct listen_sock *lopt = queue->listen_opt;
 
 	req->expires = jiffies + timeout;
 	req->retrans = 0;

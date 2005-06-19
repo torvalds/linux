@@ -21,9 +21,9 @@
 int reqsk_queue_alloc(struct request_sock_queue *queue,
 		      const int nr_table_entries)
 {
-	const int lopt_size = sizeof(struct tcp_listen_opt) +
+	const int lopt_size = sizeof(struct listen_sock) +
 			      nr_table_entries * sizeof(struct request_sock *);
-	struct tcp_listen_opt *lopt = kmalloc(lopt_size, GFP_KERNEL);
+	struct listen_sock *lopt = kmalloc(lopt_size, GFP_KERNEL);
 
 	if (lopt == NULL)
 		return -ENOMEM;

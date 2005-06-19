@@ -874,7 +874,7 @@ static struct request_sock *tcp_v4_search_req(struct tcp_sock *tp,
 					      __u16 rport,
 					      __u32 raddr, __u32 laddr)
 {
-	struct tcp_listen_opt *lopt = tp->accept_queue.listen_opt;
+	struct listen_sock *lopt = tp->accept_queue.listen_opt;
 	struct request_sock *req, **prev;
 
 	for (prev = &lopt->syn_table[tcp_v4_synq_hash(raddr, rport, lopt->hash_rnd)];
@@ -898,7 +898,7 @@ static struct request_sock *tcp_v4_search_req(struct tcp_sock *tp,
 static void tcp_v4_synq_add(struct sock *sk, struct request_sock *req)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct tcp_listen_opt *lopt = tp->accept_queue.listen_opt;
+	struct listen_sock *lopt = tp->accept_queue.listen_opt;
 	u32 h = tcp_v4_synq_hash(inet_rsk(req)->rmt_addr, inet_rsk(req)->rmt_port, lopt->hash_rnd);
 
 	reqsk_queue_hash_req(&tp->accept_queue, h, req, TCP_TIMEOUT_INIT);
