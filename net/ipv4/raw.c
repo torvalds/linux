@@ -384,7 +384,7 @@ static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	int err;
 
 	err = -EMSGSIZE;
-	if (len < 0 || len > 0xFFFF)
+	if (len > 0xFFFF)
 		goto out;
 
 	/*
