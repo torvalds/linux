@@ -564,7 +564,6 @@ static __inline__ int tcp_sk_listen_hashfn(struct sock *sk)
 #define TCP_NAGLE_PUSH		4	/* Cork is overriden for already queued data */
 
 /* sysctl variables for tcp */
-extern int sysctl_max_syn_backlog;
 extern int sysctl_tcp_timestamps;
 extern int sysctl_tcp_window_scaling;
 extern int sysctl_tcp_sack;
