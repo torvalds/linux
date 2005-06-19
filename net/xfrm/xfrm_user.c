@@ -883,6 +883,7 @@ static int xfrm_get_policy(struct sk_buff *skb, struct nlmsghdr *nlh, void **xfr
 					      MSG_DONTWAIT);
 		}
 	} else {
+		c.data.byid = p->index;
 		c.event = XFRM_SAP_DELETED;
 		c.seq = nlh->nlmsg_seq;
 		c.pid = nlh->nlmsg_pid;
