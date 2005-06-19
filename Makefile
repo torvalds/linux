@@ -1177,10 +1177,10 @@ define all-sources
 endef
 
 quiet_cmd_cscope-file = FILELST cscope.files
-      cmd_cscope-file = $(all-sources) > cscope.files
+      cmd_cscope-file = (echo \-k; echo \-q; $(all-sources)) > cscope.files
 
 quiet_cmd_cscope = MAKE    cscope.out
-      cmd_cscope = cscope -k -b -q
+      cmd_cscope = cscope -b
 
 cscope: FORCE
 	$(call cmd,cscope-file)
