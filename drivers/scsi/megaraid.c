@@ -35,6 +35,7 @@
 #include <linux/blkdev.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
+#include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/proc_fs.h>
 #include <linux/reboot.h>
@@ -4477,8 +4478,6 @@ mega_internal_command(adapter_t *adapter, lockscope_t ls, megacmd_t *mc,
 
 	scb->idx = CMDID_INT_CMDS;
 
-	scmd->state = 0;
-
 	/*
 	 * Get the lock only if the caller has not acquired it already
 	 */
@@ -4488,15 +4487,7 @@ mega_internal_command(adapter_t *adapter, lockscope_t ls, megacmd_t *mc,
 
 	if( ls == LOCK_INT ) spin_unlock_irqrestore(&adapter->lock, flags);
 
-	/*
-	 * Wait till this command finishes. Do not use
-	 * wait_event_interruptible(). It causes panic if CTRL-C is hit when
-	 * dumping e.g., physical disk information through /proc interface.
-	 */
-#if 0
-	wait_event_interruptible(adapter->int_waitq, scmd->state);
-#endif
-	wait_event(adapter->int_waitq, scmd->state);
+	wait_for_completion(&adapter->int_waitq);
 
 	rval = scmd->result;
 	mc->status = scmd->result;
@@ -4530,16 +4521,7 @@ mega_internal_done(Scsi_Cmnd *scmd)
 
 	adapter = (adapter_t *)scmd->device->host->hostdata;
 
-	scmd->state = 1; /* thread waiting for its command to complete */
-
-	/*
-	 * See comment in mega_internal_command() routine for
-	 * wait_event_interruptible()
-	 */
-#if 0
-	wake_up_interruptible(&adapter->int_waitq);
-#endif
-	wake_up(&adapter->int_waitq);
+	complete(&adapter->int_waitq);
 
 }
 
@@ -4861,7 +4843,7 @@ megaraid_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 		
 	init_MUTEX(&adapter->int_mtx);
-	init_waitqueue_head(&adapter->int_waitq);
+	init_completion(&adapter->int_waitq);
 
 	adapter->this_id = DEFAULT_INITIATOR_ID;
 	adapter->host->this_id = DEFAULT_INITIATOR_ID;

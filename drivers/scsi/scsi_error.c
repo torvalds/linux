@@ -74,10 +74,6 @@ int scsi_eh_scmd_add(struct scsi_cmnd *scmd, int eh_flag)
 	spin_lock_irqsave(shost->host_lock, flags);
 
 	scsi_eh_eflags_set(scmd, eh_flag);
-	/*
-	 * FIXME: Can we stop setting owner and state.
-	 */
-	scmd->state = SCSI_STATE_FAILED;
 	list_add_tail(&scmd->eh_entry, &shost->eh_cmd_q);
 	set_bit(SHOST_RECOVERY, &shost->shost_state);
 	shost->host_failed++;
@@ -634,8 +630,6 @@ static void scsi_eh_finish_cmd(struct scsi_cmnd *scmd,
 			       struct list_head *done_q)
 {
 	scmd->device->host->host_failed--;
-	scmd->state = SCSI_STATE_BHQUEUE;
-
 	scsi_eh_eflags_clr_all(scmd);
 
 	/*
@@ -1803,7 +1797,6 @@ scsi_reset_provider(struct scsi_device *dev, int flag)
 	scmd->request = &req;
 	memset(&scmd->eh_timeout, 0, sizeof(scmd->eh_timeout));
 	scmd->request->rq_status      	= RQ_SCSI_BUSY;
-	scmd->state                   	= SCSI_STATE_INITIALIZING;
 
 	memset(&scmd->cmnd, '\0', sizeof(scmd->cmnd));
     

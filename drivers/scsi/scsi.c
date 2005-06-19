@@ -259,7 +259,6 @@ struct scsi_cmnd *scsi_get_command(struct scsi_device *dev, int gfp_mask)
 
 		memset(cmd, 0, sizeof(*cmd));
 		cmd->device = dev;
-		cmd->state = SCSI_STATE_UNUSED;
 		init_timer(&cmd->eh_timeout);
 		INIT_LIST_HEAD(&cmd->list);
 		spin_lock_irqsave(&dev->list_lock, flags);
@@ -609,9 +608,6 @@ int scsi_dispatch_cmd(struct scsi_cmnd *cmd)
 	 * We will use a queued command if possible, otherwise we will
 	 * emulate the queuing and calling of completion function ourselves.
 	 */
-
-	cmd->state = SCSI_STATE_QUEUED;
-
 	atomic_inc(&cmd->device->iorequest_cnt);
 
 	/*
@@ -764,7 +760,6 @@ void __scsi_done(struct scsi_cmnd *cmd)
 	 * Set the serial numbers back to zero
 	 */
 	cmd->serial_number = 0;
-	cmd->state = SCSI_STATE_BHQUEUE;
 
 	atomic_inc(&cmd->device->iodone_cnt);
 	if (cmd->result)
@@ -884,8 +879,6 @@ void scsi_finish_command(struct scsi_cmnd *cmd)
 
 	SCSI_LOG_MLCOMPLETE(4, printk("Notifying upper driver of completion "
 				"for device %d %x\n", sdev->id, cmd->result));
-
-	cmd->state = SCSI_STATE_FINISHED;
 
 	/*
 	 * We can get here with use_sg=0, causing a panic in the upper level

@@ -31,7 +31,6 @@ struct scsi_cmnd {
 	int     sc_magic;
 
 	struct scsi_device *device;
-	unsigned short state;
 	struct scsi_request *sc_request;
 
 	struct list_head list;  /* scsi_cmnd participates in queue lists */

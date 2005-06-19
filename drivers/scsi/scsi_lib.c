@@ -146,11 +146,6 @@ int scsi_queue_insert(struct scsi_cmnd *cmd, int reason)
 		device->device_blocked = device->max_device_blocked;
 
 	/*
-	 * Register the fact that we own the thing for now.
-	 */
-	cmd->state = SCSI_STATE_MLQUEUE;
-
-	/*
 	 * Decrement the counters, since these commands are no longer
 	 * active on the host/device.
 	 */
