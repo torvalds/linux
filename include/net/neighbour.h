@@ -69,8 +69,6 @@ struct neigh_parms
 	struct neigh_parms *next;
 	int	(*neigh_setup)(struct neighbour *);
 	struct neigh_table *tbl;
-	int	entries;
-	void	*priv;
 
 	void	*sysctl_table;
 
@@ -193,7 +191,6 @@ struct neigh_table
 	atomic_t		entries;
 	rwlock_t		lock;
 	unsigned long		last_rand;
-	struct neigh_parms	*parms_list;
 	kmem_cache_t		*kmem_cachep;
 	struct neigh_statistics	*stats;
 	struct neighbour	**hash_buckets;
