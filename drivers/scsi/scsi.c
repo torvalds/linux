@@ -260,7 +260,6 @@ struct scsi_cmnd *scsi_get_command(struct scsi_device *dev, int gfp_mask)
 		memset(cmd, 0, sizeof(*cmd));
 		cmd->device = dev;
 		cmd->state = SCSI_STATE_UNUSED;
-		cmd->owner = SCSI_OWNER_NOBODY;
 		init_timer(&cmd->eh_timeout);
 		INIT_LIST_HEAD(&cmd->list);
 		spin_lock_irqsave(&dev->list_lock, flags);
@@ -612,7 +611,6 @@ int scsi_dispatch_cmd(struct scsi_cmnd *cmd)
 	 */
 
 	cmd->state = SCSI_STATE_QUEUED;
-	cmd->owner = SCSI_OWNER_LOWLEVEL;
 
 	atomic_inc(&cmd->device->iorequest_cnt);
 
@@ -683,7 +681,6 @@ void scsi_init_cmd_from_req(struct scsi_cmnd *cmd, struct scsi_request *sreq)
 {
 	sreq->sr_command = cmd;
 
-	cmd->owner = SCSI_OWNER_MIDLEVEL;
 	cmd->cmd_len = sreq->sr_cmd_len;
 	cmd->use_sg = sreq->sr_use_sg;
 
@@ -768,7 +765,6 @@ void __scsi_done(struct scsi_cmnd *cmd)
 	 */
 	cmd->serial_number = 0;
 	cmd->state = SCSI_STATE_BHQUEUE;
-	cmd->owner = SCSI_OWNER_BH_HANDLER;
 
 	atomic_inc(&cmd->device->iodone_cnt);
 	if (cmd->result)
@@ -889,7 +885,6 @@ void scsi_finish_command(struct scsi_cmnd *cmd)
 	SCSI_LOG_MLCOMPLETE(4, printk("Notifying upper driver of completion "
 				"for device %d %x\n", sdev->id, cmd->result));
 
-	cmd->owner = SCSI_OWNER_HIGHLEVEL;
 	cmd->state = SCSI_STATE_FINISHED;
 
 	/*

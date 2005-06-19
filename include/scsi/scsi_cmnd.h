@@ -32,7 +32,6 @@ struct scsi_cmnd {
 
 	struct scsi_device *device;
 	unsigned short state;
-	unsigned short owner;
 	struct scsi_request *sc_request;
 
 	struct list_head list;  /* scsi_cmnd participates in queue lists */

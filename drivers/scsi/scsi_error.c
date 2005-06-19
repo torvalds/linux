@@ -77,7 +77,6 @@ int scsi_eh_scmd_add(struct scsi_cmnd *scmd, int eh_flag)
 	/*
 	 * FIXME: Can we stop setting owner and state.
 	 */
-	scmd->owner = SCSI_OWNER_ERROR_HANDLER;
 	scmd->state = SCSI_STATE_FAILED;
 	list_add_tail(&scmd->eh_entry, &shost->eh_cmd_q);
 	set_bit(SHOST_RECOVERY, &shost->shost_state);
@@ -451,7 +450,6 @@ static void scsi_eh_done(struct scsi_cmnd *scmd)
 	 */
 	if (del_timer(&scmd->eh_timeout)) {
 		scmd->request->rq_status = RQ_SCSI_DONE;
-		scmd->owner = SCSI_OWNER_ERROR_HANDLER;
 
 		SCSI_LOG_ERROR_RECOVERY(3, printk("%s scmd: %p result: %x\n",
 					   __FUNCTION__, scmd, scmd->result));
@@ -484,8 +482,6 @@ static int scsi_send_eh_cmnd(struct scsi_cmnd *scmd, int timeout)
 	 * we will use a queued command if possible, otherwise we will
 	 * emulate the queuing and calling of completion function ourselves.
 	 */
-	scmd->owner = SCSI_OWNER_LOWLEVEL;
-
 	if (sdev->scsi_level <= SCSI_2)
 		scmd->cmnd[1] = (scmd->cmnd[1] & 0x1f) |
 			(sdev->lun << 5 & 0xe0);
@@ -514,7 +510,6 @@ static int scsi_send_eh_cmnd(struct scsi_cmnd *scmd, int timeout)
 	 */
 	if (scsi_eh_eflags_chk(scmd, SCSI_EH_REC_TIMEOUT)) {
 		scsi_eh_eflags_clr(scmd,  SCSI_EH_REC_TIMEOUT);
-		scmd->owner = SCSI_OWNER_LOWLEVEL;
 
 		/*
 		 * as far as the low level driver is
@@ -530,8 +525,6 @@ static int scsi_send_eh_cmnd(struct scsi_cmnd *scmd, int timeout)
 			shost->hostt->eh_abort_handler(scmd);
 			
 		scmd->request->rq_status = RQ_SCSI_DONE;
-		scmd->owner = SCSI_OWNER_ERROR_HANDLER;
-			
 		rtn = FAILED;
 	}
 
@@ -742,9 +735,6 @@ static int scsi_try_to_abort_cmd(struct scsi_cmnd *scmd)
 	 */
 	if (scmd->serial_number == 0)
 		return SUCCESS;
-
-	scmd->owner = SCSI_OWNER_LOWLEVEL;
-
 	return scmd->device->host->hostt->eh_abort_handler(scmd);
 }
 
@@ -862,10 +852,7 @@ static int scsi_try_bus_device_reset(struct scsi_cmnd *scmd)
 	if (!scmd->device->host->hostt->eh_device_reset_handler)
 		return FAILED;
 
-	scmd->owner = SCSI_OWNER_LOWLEVEL;
-
 	rtn = scmd->device->host->hostt->eh_device_reset_handler(scmd);
-
 	if (rtn == SUCCESS) {
 		scmd->device->was_reset = 1;
 		scmd->device->expecting_cc_ua = 1;
@@ -1048,7 +1035,6 @@ static int scsi_try_bus_reset(struct scsi_cmnd *scmd)
 
 	SCSI_LOG_ERROR_RECOVERY(3, printk("%s: Snd Bus RST\n",
 					  __FUNCTION__));
-	scmd->owner = SCSI_OWNER_LOWLEVEL;
 
 	if (!scmd->device->host->hostt->eh_bus_reset_handler)
 		return FAILED;
@@ -1077,7 +1063,6 @@ static int scsi_try_host_reset(struct scsi_cmnd *scmd)
 
 	SCSI_LOG_ERROR_RECOVERY(3, printk("%s: Snd Host RST\n",
 					  __FUNCTION__));
-	scmd->owner = SCSI_OWNER_LOWLEVEL;
 
 	if (!scmd->device->host->hostt->eh_host_reset_handler)
 		return FAILED;
@@ -1819,8 +1804,7 @@ scsi_reset_provider(struct scsi_device *dev, int flag)
 	memset(&scmd->eh_timeout, 0, sizeof(scmd->eh_timeout));
 	scmd->request->rq_status      	= RQ_SCSI_BUSY;
 	scmd->state                   	= SCSI_STATE_INITIALIZING;
-	scmd->owner	     		= SCSI_OWNER_MIDLEVEL;
-    
+
 	memset(&scmd->cmnd, '\0', sizeof(scmd->cmnd));
     
 	scmd->scsi_done		= scsi_reset_provider_done_command;

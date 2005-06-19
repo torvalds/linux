@@ -13,17 +13,6 @@ struct Scsi_Host;
 
 
 /*
- * These are the values that the owner field can take.
- * They are used as an indication of who the command belongs to.
- */
-#define SCSI_OWNER_HIGHLEVEL      0x100
-#define SCSI_OWNER_MIDLEVEL       0x101
-#define SCSI_OWNER_LOWLEVEL       0x102
-#define SCSI_OWNER_ERROR_HANDLER  0x103
-#define SCSI_OWNER_BH_HANDLER     0x104
-#define SCSI_OWNER_NOBODY         0x105
-
-/*
  * Magic values for certain scsi structs. Shouldn't ever be used.
  */
 #define SCSI_CMND_MAGIC		0xE25C23A5

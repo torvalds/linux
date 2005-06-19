@@ -149,7 +149,6 @@ int scsi_queue_insert(struct scsi_cmnd *cmd, int reason)
 	 * Register the fact that we own the thing for now.
 	 */
 	cmd->state = SCSI_STATE_MLQUEUE;
-	cmd->owner = SCSI_OWNER_MIDLEVEL;
 
 	/*
 	 * Decrement the counters, since these commands are no longer
@@ -299,7 +298,6 @@ EXPORT_SYMBOL(scsi_wait_req);
  */
 static int scsi_init_cmd_errh(struct scsi_cmnd *cmd)
 {
-	cmd->owner = SCSI_OWNER_MIDLEVEL;
 	cmd->serial_number = 0;
 
 	memset(cmd->sense_buffer, 0, sizeof cmd->sense_buffer);
