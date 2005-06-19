@@ -301,10 +301,7 @@ static int xfrm_add_sa(struct sk_buff *skb, struct nlmsghdr *nlh, void **xfrma)
 
 	c.seq = nlh->nlmsg_seq;
 	c.pid = nlh->nlmsg_pid;
-	if (nlh->nlmsg_type == XFRM_MSG_NEWSA)
-		c.event = XFRM_SAP_ADDED;
-	else
-		c.event = XFRM_SAP_UPDATED;
+	c.event = nlh->nlmsg_type;
 
 	km_state_notify(x, &c);
 	xfrm_state_put(x);
@@ -336,7 +333,7 @@ static int xfrm_del_sa(struct sk_buff *skb, struct nlmsghdr *nlh, void **xfrma)
 
 	c.seq = nlh->nlmsg_seq;
 	c.pid = nlh->nlmsg_pid;
-	c.event = XFRM_SAP_DELETED;
+	c.event = nlh->nlmsg_type;
 	km_state_notify(x, &c);
 	xfrm_state_put(x);
 
@@ -728,11 +725,7 @@ static int xfrm_add_policy(struct sk_buff *skb, struct nlmsghdr *nlh, void **xfr
 		return err;
 	}
 
-	if (!excl)
-		c.event = XFRM_SAP_UPDATED;
-	else
-		c.event = XFRM_SAP_ADDED;
-
+	c.event = nlh->nlmsg_type;
 	c.seq = nlh->nlmsg_seq;
 	c.pid = nlh->nlmsg_pid;
 	km_policy_notify(xp, p->dir, &c);
@@ -884,7 +877,7 @@ static int xfrm_get_policy(struct sk_buff *skb, struct nlmsghdr *nlh, void **xfr
 		}
 	} else {
 		c.data.byid = p->index;
-		c.event = XFRM_SAP_DELETED;
+		c.event = nlh->nlmsg_type;
 		c.seq = nlh->nlmsg_seq;
 		c.pid = nlh->nlmsg_pid;
 		km_policy_notify(xp, p->dir, &c);
@@ -902,7 +895,7 @@ static int xfrm_flush_sa(struct sk_buff *skb, struct nlmsghdr *nlh, void **xfrma
 
 	xfrm_state_flush(p->proto);
 	c.data.proto = p->proto;
-	c.event = XFRM_SAP_FLUSHED;
+	c.event = nlh->nlmsg_type;
 	c.seq = nlh->nlmsg_seq;
 	c.pid = nlh->nlmsg_pid;
 	km_state_notify(NULL, &c);
@@ -915,7 +908,7 @@ static int xfrm_flush_policy(struct sk_buff *skb, struct nlmsghdr *nlh, void **x
 	struct km_event c;
 
 	xfrm_policy_flush();
-	c.event = XFRM_SAP_FLUSHED;
+	c.event = nlh->nlmsg_type;
 	c.seq = nlh->nlmsg_seq;
 	c.pid = nlh->nlmsg_pid;
 	km_policy_notify(NULL, 0, &c);
@@ -1193,7 +1186,6 @@ static int xfrm_notify_sa(struct xfrm_state *x, struct km_event *c)
 	struct xfrm_usersa_info *p;
 	struct nlmsghdr *nlh;
 	struct sk_buff *skb;
-	u32 nlt;
 	unsigned char *b;
 	int len = xfrm_sa_len(x);
 
@@ -1202,16 +1194,7 @@ static int xfrm_notify_sa(struct xfrm_state *x, struct km_event *c)
 		return -ENOMEM;
 	b = skb->tail;
 
-	if (c->event == XFRM_SAP_ADDED)
-		nlt = XFRM_MSG_NEWSA;
-	else if (c->event == XFRM_SAP_UPDATED)
-		nlt = XFRM_MSG_UPDSA;
-	else if (c->event == XFRM_SAP_DELETED)
-		nlt = XFRM_MSG_DELSA;
-	else
-		goto nlmsg_failure;
-
-	nlh = NLMSG_PUT(skb, c->pid, c->seq, nlt, sizeof(*p));
+	nlh = NLMSG_PUT(skb, c->pid, c->seq, c->event, sizeof(*p));
 	nlh->nlmsg_flags = 0;
 
 	p = NLMSG_DATA(nlh);
@@ -1243,13 +1226,13 @@ static int xfrm_send_state_notify(struct xfrm_state *x, struct km_event *c)
 {
 
 	switch (c->event) {
-	case XFRM_SAP_EXPIRED:
+	case XFRM_MSG_EXPIRE:
 		return xfrm_exp_state_notify(x, c);
-	case XFRM_SAP_DELETED:
-	case XFRM_SAP_UPDATED:
-	case XFRM_SAP_ADDED:
+	case XFRM_MSG_DELSA:
+	case XFRM_MSG_UPDSA:
+	case XFRM_MSG_NEWSA:
 		return xfrm_notify_sa(x, c);
-	case XFRM_SAP_FLUSHED:
+	case XFRM_MSG_FLUSHSA:
 		return xfrm_notify_sa_flush(c);
 	default:
 		 printk("xfrm_user: Unknown SA event %d\n", c->event);
@@ -1417,7 +1400,6 @@ static int xfrm_notify_policy(struct xfrm_policy *xp, int dir, struct km_event *
 	struct xfrm_userpolicy_info *p;
 	struct nlmsghdr *nlh;
 	struct sk_buff *skb;
-	u32 nlt = 0 ;
 	unsigned char *b;
 	int len = RTA_SPACE(sizeof(struct xfrm_user_tmpl) * xp->xfrm_nr);
 	len += NLMSG_SPACE(sizeof(struct xfrm_userpolicy_info));
@@ -1427,16 +1409,7 @@ static int xfrm_notify_policy(struct xfrm_policy *xp, int dir, struct km_event *
 		return -ENOMEM;
 	b = skb->tail;
 
-	if (c->event == XFRM_SAP_ADDED)
-		nlt = XFRM_MSG_NEWPOLICY;
-	else if (c->event == XFRM_SAP_UPDATED)
-		nlt = XFRM_MSG_UPDPOLICY;
-	else if (c->event == XFRM_SAP_DELETED)
-		nlt = XFRM_MSG_DELPOLICY;
-	else
-		goto nlmsg_failure;
-
-	nlh = NLMSG_PUT(skb, c->pid, c->seq, nlt, sizeof(*p));
+	nlh = NLMSG_PUT(skb, c->pid, c->seq, c->event, sizeof(*p));
 
 	p = NLMSG_DATA(nlh);
 
@@ -1483,13 +1456,13 @@ static int xfrm_send_policy_notify(struct xfrm_policy *xp, int dir, struct km_ev
 {
 
 	switch (c->event) {
-	case XFRM_SAP_ADDED:
-	case XFRM_SAP_UPDATED:
-	case XFRM_SAP_DELETED:
+	case XFRM_MSG_NEWPOLICY:
+	case XFRM_MSG_UPDPOLICY:
+	case XFRM_MSG_DELPOLICY:
 		return xfrm_notify_policy(xp, dir, c);
-	case XFRM_SAP_FLUSHED:
+	case XFRM_MSG_FLUSHPOLICY:
 		return xfrm_notify_policy_flush(c);
-	case XFRM_SAP_EXPIRED:
+	case XFRM_MSG_POLEXPIRE:
 		return xfrm_exp_policy_notify(xp, dir, c);
 	default:
 		printk("xfrm_user: Unknown Policy event %d\n", c->event);

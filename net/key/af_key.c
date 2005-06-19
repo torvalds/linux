@@ -1248,13 +1248,13 @@ static int pfkey_acquire(struct sock *sk, struct sk_buff *skb, struct sadb_msg *
 static inline int event2poltype(int event)
 {
 	switch (event) {
-	case XFRM_SAP_DELETED:
+	case XFRM_MSG_DELPOLICY:
 		return SADB_X_SPDDELETE;
-	case XFRM_SAP_ADDED:
+	case XFRM_MSG_NEWPOLICY:
 		return SADB_X_SPDADD;
-	case XFRM_SAP_UPDATED:
+	case XFRM_MSG_UPDPOLICY:
 		return SADB_X_SPDUPDATE;
-	case XFRM_SAP_EXPIRED:
+	case XFRM_MSG_POLEXPIRE:
 	//	return SADB_X_SPDEXPIRE;
 	default:
 		printk("pfkey: Unknown policy event %d\n", event);
@@ -1267,13 +1267,13 @@ static inline int event2poltype(int event)
 static inline int event2keytype(int event)
 {
 	switch (event) {
-	case XFRM_SAP_DELETED:
+	case XFRM_MSG_DELSA:
 		return SADB_DELETE;
-	case XFRM_SAP_ADDED:
+	case XFRM_MSG_NEWSA:
 		return SADB_ADD;
-	case XFRM_SAP_UPDATED:
+	case XFRM_MSG_UPDSA:
 		return SADB_UPDATE;
-	case XFRM_SAP_EXPIRED:
+	case XFRM_MSG_EXPIRE:
 		return SADB_EXPIRE;
 	default:
 		printk("pfkey: Unknown SA event %d\n", event);
@@ -1290,7 +1290,7 @@ static int key_notify_sa(struct xfrm_state *x, struct km_event *c)
 	struct sadb_msg *hdr;
 	int hsc = 3;
 
-	if (c->event == XFRM_SAP_DELETED)
+	if (c->event == XFRM_MSG_DELSA)
 		hsc = 0;
 
 	skb = pfkey_xfrm_state2msg(x, 0, hsc);
@@ -1337,9 +1337,9 @@ static int pfkey_add(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hdr,
 	}
 
 	if (hdr->sadb_msg_type == SADB_ADD)
-		c.event = XFRM_SAP_ADDED;
+		c.event = XFRM_MSG_NEWSA;
 	else
-		c.event = XFRM_SAP_UPDATED;
+		c.event = XFRM_MSG_UPDSA;
 	c.seq = hdr->sadb_msg_seq;
 	c.pid = hdr->sadb_msg_pid;
 	km_state_notify(x, &c);
@@ -1376,7 +1376,7 @@ static int pfkey_delete(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 
 	c.seq = hdr->sadb_msg_seq;
 	c.pid = hdr->sadb_msg_pid;
-	c.event = XFRM_SAP_DELETED;
+	c.event = XFRM_MSG_DELSA;
 	km_state_notify(x, &c);
 	xfrm_state_put(x);
 
@@ -1552,7 +1552,7 @@ static int pfkey_flush(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hd
 	c.data.proto = proto;
 	c.seq = hdr->sadb_msg_seq;
 	c.pid = hdr->sadb_msg_pid;
-	c.event = XFRM_SAP_FLUSHED;
+	c.event = XFRM_MSG_FLUSHSA;
 	km_state_notify(NULL, &c);
 
 	return 0;
@@ -1962,7 +1962,7 @@ static int key_notify_policy(struct xfrm_policy *xp, int dir, struct km_event *c
 	out_hdr = (struct sadb_msg *) out_skb->data;
 	out_hdr->sadb_msg_version = PF_KEY_V2;
 
-	if (c->data.byid && c->event == XFRM_SAP_DELETED)
+	if (c->data.byid && c->event == XFRM_MSG_DELPOLICY)
 		out_hdr->sadb_msg_type = SADB_X_SPDDELETE2;
 	else
 		out_hdr->sadb_msg_type = event2poltype(c->event);
@@ -2058,9 +2058,9 @@ static int pfkey_spdadd(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 	}
 
 	if (hdr->sadb_msg_type == SADB_X_SPDUPDATE)
-		c.event = XFRM_SAP_UPDATED;
-	else
-		c.event = XFRM_SAP_ADDED;
+		c.event = XFRM_MSG_UPDPOLICY;
+	else 
+		c.event = XFRM_MSG_NEWPOLICY;
 
 	c.seq = hdr->sadb_msg_seq;
 	c.pid = hdr->sadb_msg_pid;
@@ -2118,7 +2118,7 @@ static int pfkey_spddelete(struct sock *sk, struct sk_buff *skb, struct sadb_msg
 
 	c.seq = hdr->sadb_msg_seq;
 	c.pid = hdr->sadb_msg_pid;
-	c.event = XFRM_SAP_DELETED;
+	c.event = XFRM_MSG_DELPOLICY;
 	km_policy_notify(xp, pol->sadb_x_policy_dir-1, &c);
 
 	xfrm_pol_put(xp);
@@ -2174,7 +2174,7 @@ static int pfkey_spdget(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 	c.pid = hdr->sadb_msg_pid;
 	if (hdr->sadb_msg_type == SADB_X_SPDDELETE2) {
 		c.data.byid = 1;
-		c.event = XFRM_SAP_DELETED;
+		c.event = XFRM_MSG_DELPOLICY;
 		km_policy_notify(xp, pol->sadb_x_policy_dir-1, &c);
 	} else {
 		err = key_pol_get_resp(sk, xp, hdr, pol->sadb_x_policy_dir-1);
@@ -2238,7 +2238,7 @@ static int pfkey_spdflush(struct sock *sk, struct sk_buff *skb, struct sadb_msg 
 	struct km_event c;
 
 	xfrm_policy_flush();
-	c.event = XFRM_SAP_FLUSHED;
+	c.event = XFRM_MSG_FLUSHPOLICY;
 	c.pid = hdr->sadb_msg_pid;
 	c.seq = hdr->sadb_msg_seq;
 	km_policy_notify(NULL, 0, &c);
@@ -2479,13 +2479,13 @@ static int key_notify_sa_expire(struct xfrm_state *x, struct km_event *c)
 static int pfkey_send_notify(struct xfrm_state *x, struct km_event *c)
 {
 	switch (c->event) {
-	case XFRM_SAP_EXPIRED:
+	case XFRM_MSG_EXPIRE:
 		return key_notify_sa_expire(x, c);
-	case XFRM_SAP_DELETED:
-	case XFRM_SAP_ADDED:
-	case XFRM_SAP_UPDATED:
+	case XFRM_MSG_DELSA:
+	case XFRM_MSG_NEWSA:
+	case XFRM_MSG_UPDSA:
 		return key_notify_sa(x, c);
-	case XFRM_SAP_FLUSHED:
+	case XFRM_MSG_FLUSHSA:
 		return key_notify_sa_flush(c);
 	default:
 		printk("pfkey: Unknown SA event %d\n", c->event);
@@ -2498,13 +2498,13 @@ static int pfkey_send_notify(struct xfrm_state *x, struct km_event *c)
 static int pfkey_send_policy_notify(struct xfrm_policy *xp, int dir, struct km_event *c)
 {
 	switch (c->event) {
-	case XFRM_SAP_EXPIRED:
+	case XFRM_MSG_POLEXPIRE:
 		return key_notify_policy_expire(xp, c);
-	case XFRM_SAP_DELETED:
-	case XFRM_SAP_ADDED:
-	case XFRM_SAP_UPDATED:
+	case XFRM_MSG_DELPOLICY:
+	case XFRM_MSG_NEWPOLICY:
+	case XFRM_MSG_UPDPOLICY:
 		return key_notify_policy(xp, dir, c);
-	case XFRM_SAP_FLUSHED:
+	case XFRM_MSG_FLUSHPOLICY:
 		return key_notify_policy_flush(c);
 	default:
 		printk("pfkey: Unknown policy event %d\n", c->event);

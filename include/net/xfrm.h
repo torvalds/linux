@@ -158,18 +158,6 @@ enum {
 	XFRM_STATE_DEAD
 };
 
-/* events that could be sent by kernel */
-enum {
-	XFRM_SAP_INVALID,
-	XFRM_SAP_EXPIRED,
-	XFRM_SAP_ADDED,
-	XFRM_SAP_UPDATED,
-	XFRM_SAP_DELETED,
-	XFRM_SAP_FLUSHED,
-	__XFRM_SAP_MAX
-};
-#define XFRM_SAP_MAX (__XFRM_SAP_MAX - 1)
-
 /* callback structure passed from either netlink or pfkey */
 struct km_event
 {
