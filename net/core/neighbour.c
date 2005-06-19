@@ -1859,18 +1859,17 @@ out:
 }
 
 static int neigh_fill_info(struct sk_buff *skb, struct neighbour *n,
-			   u32 pid, u32 seq, int event)
+			   u32 pid, u32 seq, int event, unsigned int flags)
 {
 	unsigned long now = jiffies;
 	unsigned char *b = skb->tail;
 	struct nda_cacheinfo ci;
 	int locked = 0;
 	u32 probes;
-	struct nlmsghdr *nlh = NLMSG_PUT(skb, pid, seq, event,
-					 sizeof(struct ndmsg));
+	struct nlmsghdr *nlh = NLMSG_NEW(skb, pid, seq, event,
+					 sizeof(struct ndmsg), flags);
 	struct ndmsg *ndm = NLMSG_DATA(nlh);
 
-	nlh->nlmsg_flags = pid ? NLM_F_MULTI : 0;
 	ndm->ndm_family	 = n->ops->family;
 	ndm->ndm_flags	 = n->flags;
 	ndm->ndm_type	 = n->type;
@@ -1920,7 +1919,8 @@ static int neigh_dump_table(struct neigh_table *tbl, struct sk_buff *skb,
 				continue;
 			if (neigh_fill_info(skb, n, NETLINK_CB(cb->skb).pid,
 					    cb->nlh->nlmsg_seq,
-					    RTM_NEWNEIGH) <= 0) {
+					    RTM_NEWNEIGH,
+					    NLM_F_MULTI) <= 0) {
 				read_unlock_bh(&tbl->lock);
 				rc = -1;
 				goto out;
@@ -2329,7 +2329,7 @@ void neigh_app_ns(struct neighbour *n)
 	if (!skb)
 		return;
 
-	if (neigh_fill_info(skb, n, 0, 0, RTM_GETNEIGH) < 0) {
+	if (neigh_fill_info(skb, n, 0, 0, RTM_GETNEIGH, 0) < 0) {
 		kfree_skb(skb);
 		return;
 	}
@@ -2348,7 +2348,7 @@ static void neigh_app_notify(struct neighbour *n)
 	if (!skb)
 		return;
 
-	if (neigh_fill_info(skb, n, 0, 0, RTM_NEWNEIGH) < 0) {
+	if (neigh_fill_info(skb, n, 0, 0, RTM_NEWNEIGH, 0) < 0) {
 		kfree_skb(skb);
 		return;
 	}

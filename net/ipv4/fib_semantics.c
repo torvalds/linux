@@ -286,7 +286,7 @@ void rtmsg_fib(int event, u32 key, struct fib_alias *fa,
 	if (fib_dump_info(skb, pid, n->nlmsg_seq, event, tb_id,
 			  fa->fa_type, fa->fa_scope, &key, z,
 			  fa->fa_tos,
-			  fa->fa_info) < 0) {
+			  fa->fa_info, 0) < 0) {
 		kfree_skb(skb);
 		return;
 	}
@@ -932,13 +932,13 @@ u32 __fib_res_prefsrc(struct fib_result *res)
 int
 fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
 	      u8 tb_id, u8 type, u8 scope, void *dst, int dst_len, u8 tos,
-	      struct fib_info *fi)
+	      struct fib_info *fi, unsigned int flags)
 {
 	struct rtmsg *rtm;
 	struct nlmsghdr  *nlh;
 	unsigned char	 *b = skb->tail;
 
-	nlh = NLMSG_PUT(skb, pid, seq, event, sizeof(*rtm));
+	nlh = NLMSG_NEW(skb, pid, seq, event, sizeof(*rtm), flags);
 	rtm = NLMSG_DATA(nlh);
 	rtm->rtm_family = AF_INET;
 	rtm->rtm_dst_len = dst_len;
