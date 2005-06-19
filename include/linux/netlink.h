@@ -171,8 +171,21 @@ __nlmsg_put(struct sk_buff *skb, u32 pid, u32 seq, int type, int len)
 }
 
 #define NLMSG_PUT(skb, pid, seq, type, len) \
-({ if (skb_tailroom(skb) < (int)NLMSG_SPACE(len)) goto nlmsg_failure; \
-   __nlmsg_put(skb, pid, seq, type, len); })
+({	if (skb_tailroom(skb) < (int)NLMSG_SPACE(len)) \
+		goto nlmsg_failure; \
+	__nlmsg_put(skb, pid, seq, type, len); })
+
+#define NLMSG_PUT_ANSWER(skb, cb, type, len) \
+	NLMSG_PUT(skb, NETLINK_CB((cb)->skb).pid, \
+		  (cb)->nlh->nlmsg_seq, type, len)
+
+#define NLMSG_END(skb, nlh) \
+({	(nlh)->nlmsg_len = (skb)->tail - (unsigned char *) (nlh); \
+	(skb)->len; })
+
+#define NLMSG_CANCEL(skb, nlh) \
+({	skb_trim(skb, (unsigned char *) (nlh) - (skb)->data); \
+	-1; })
 
 extern int netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
 			      struct nlmsghdr *nlh,
