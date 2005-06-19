@@ -514,7 +514,10 @@ done:
 		kfree(ipc.opt);
 	ip_rt_put(rt);
 
-out:	return err < 0 ? err : len;
+out:
+	if (err < 0)
+		return err;
+	return len;
 
 do_confirm:
 	dst_confirm(&rt->u.dst);
@@ -610,7 +613,10 @@ static int raw_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		copied = skb->len;
 done:
 	skb_free_datagram(sk, skb);
-out:	return err ? err : copied;
+out:
+	if (err)
+		return err;
+	return copied;
 }
 
 static int raw_init(struct sock *sk)
