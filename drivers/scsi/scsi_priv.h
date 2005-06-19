@@ -21,15 +21,6 @@ struct Scsi_Host;
 /*
  * Scsi Error Handler Flags
  */
-#define scsi_eh_eflags_chk(scp, flags) \
-	((scp)->eh_eflags & (flags))
-#define scsi_eh_eflags_set(scp, flags) \
-	do { (scp)->eh_eflags |= (flags); } while(0)
-#define scsi_eh_eflags_clr(scp, flags) \
-	do { (scp)->eh_eflags &= ~(flags); } while(0)
-#define scsi_eh_eflags_clr_all(scp) \
-	(scp->eh_eflags = 0)
-
 #define SCSI_EH_CANCEL_CMD	0x0001	/* Cancel this cmd */
 #define SCSI_EH_REC_TIMEOUT	0x0002	/* EH retry timed out */
 

@@ -73,7 +73,7 @@ int scsi_eh_scmd_add(struct scsi_cmnd *scmd, int eh_flag)
 
 	spin_lock_irqsave(shost->host_lock, flags);
 
-	scsi_eh_eflags_set(scmd, eh_flag);
+	scmd->eh_eflags |= eh_flag;
 	list_add_tail(&scmd->eh_entry, &shost->eh_cmd_q);
 	set_bit(SHOST_RECOVERY, &shost->shost_state);
 	shost->host_failed++;
@@ -228,8 +228,7 @@ static inline void scsi_eh_prt_fail_stats(struct Scsi_Host *shost,
 		list_for_each_entry(scmd, work_q, eh_entry) {
 			if (scmd->device == sdev) {
 				++total_failures;
-				if (scsi_eh_eflags_chk(scmd,
-						       SCSI_EH_CANCEL_CMD))
+				if (scmd->eh_eflags & SCSI_EH_CANCEL_CMD)
 					++cmd_cancel;
 				else 
 					++cmd_failed;
@@ -425,7 +424,7 @@ static int scsi_eh_completed_normally(struct scsi_cmnd *scmd)
  **/
 static void scsi_eh_times_out(struct scsi_cmnd *scmd)
 {
-	scsi_eh_eflags_set(scmd, SCSI_EH_REC_TIMEOUT);
+	scmd->eh_eflags |= SCSI_EH_REC_TIMEOUT;
 	SCSI_LOG_ERROR_RECOVERY(3, printk("%s: scmd:%p\n", __FUNCTION__,
 					  scmd));
 
@@ -504,8 +503,8 @@ static int scsi_send_eh_cmnd(struct scsi_cmnd *scmd, int timeout)
 	 * see if timeout.  if so, tell the host to forget about it.
 	 * in other words, we don't want a callback any more.
 	 */
-	if (scsi_eh_eflags_chk(scmd, SCSI_EH_REC_TIMEOUT)) {
-		scsi_eh_eflags_clr(scmd,  SCSI_EH_REC_TIMEOUT);
+	if (scmd->eh_eflags & SCSI_EH_REC_TIMEOUT) {
+		scmd->eh_eflags &= ~SCSI_EH_REC_TIMEOUT;
 
 		/*
 		 * as far as the low level driver is
@@ -630,7 +629,7 @@ static void scsi_eh_finish_cmd(struct scsi_cmnd *scmd,
 			       struct list_head *done_q)
 {
 	scmd->device->host->host_failed--;
-	scsi_eh_eflags_clr_all(scmd);
+	scmd->eh_eflags = 0;
 
 	/*
 	 * set this back so that the upper level can correctly free up
@@ -669,7 +668,7 @@ static int scsi_eh_get_sense(struct list_head *work_q,
 
 	list_for_each_safe(lh, lh_sf, work_q) {
 		scmd = list_entry(lh, struct scsi_cmnd, eh_entry);
-		if (scsi_eh_eflags_chk(scmd, SCSI_EH_CANCEL_CMD) ||
+		if ((scmd->eh_eflags & SCSI_EH_CANCEL_CMD) ||
 		    SCSI_SENSE_VALID(scmd))
 			continue;
 
@@ -805,14 +804,14 @@ static int scsi_eh_abort_cmds(struct list_head *work_q,
 
 	list_for_each_safe(lh, lh_sf, work_q) {
 		scmd = list_entry(lh, struct scsi_cmnd, eh_entry);
-		if (!scsi_eh_eflags_chk(scmd, SCSI_EH_CANCEL_CMD))
+		if (!(scmd->eh_eflags & SCSI_EH_CANCEL_CMD))
 			continue;
 		SCSI_LOG_ERROR_RECOVERY(3, printk("%s: aborting cmd:"
 						  "0x%p\n", current->comm,
 						  scmd));
 		rtn = scsi_try_to_abort_cmd(scmd);
 		if (rtn == SUCCESS) {
-			scsi_eh_eflags_clr(scmd,  SCSI_EH_CANCEL_CMD);
+			scmd->eh_eflags &= ~SCSI_EH_CANCEL_CMD;
 			if (!scsi_device_online(scmd->device) ||
 			    !scsi_eh_tur(scmd)) {
 				scsi_eh_finish_cmd(scmd, done_q);
@@ -1194,7 +1193,7 @@ static void scsi_eh_offline_sdevs(struct list_head *work_q,
 				scmd->device->id,
 				scmd->device->lun);
 		scsi_device_set_state(scmd->device, SDEV_OFFLINE);
-		if (scsi_eh_eflags_chk(scmd, SCSI_EH_CANCEL_CMD)) {
+		if (scmd->eh_eflags & SCSI_EH_CANCEL_CMD) {
 			/*
 			 * FIXME: Handle lost cmds.
 			 */

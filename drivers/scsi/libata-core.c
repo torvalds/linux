@@ -2864,7 +2864,7 @@ static void ata_qc_timeout(struct ata_queued_cmd *qc)
 	if (qc->dev->class == ATA_DEV_ATAPI && qc->scsicmd) {
 		struct scsi_cmnd *cmd = qc->scsicmd;
 
-		if (!scsi_eh_eflags_chk(cmd, SCSI_EH_CANCEL_CMD)) {
+		if (!(cmd->eh_eflags & SCSI_EH_CANCEL_CMD)) {
 
 			/* finish completing original command */
 			__ata_qc_complete(qc);
