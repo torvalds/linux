@@ -311,12 +311,17 @@ static const u8 prio2band[TC_PRIO_MAX+1] =
    generic prio+fifo combination.
  */
 
+static inline struct sk_buff_head *prio2list(struct sk_buff *skb,
+					     struct Qdisc *qdisc)
+{
+	struct sk_buff_head *list = qdisc_priv(qdisc);
+	return list + prio2band[skb->priority & TC_PRIO_MAX];
+}
+
 static int
 pfifo_fast_enqueue(struct sk_buff *skb, struct Qdisc* qdisc)
 {
-	struct sk_buff_head *list = qdisc_priv(qdisc);
-
-	list += prio2band[skb->priority&TC_PRIO_MAX];
+	struct sk_buff_head *list = prio2list(skb, qdisc);
 
 	if (skb_queue_len(list) < qdisc->dev->tx_queue_len) {
 		qdisc->q.qlen++;
@@ -345,12 +350,8 @@ pfifo_fast_dequeue(struct Qdisc* qdisc)
 static int
 pfifo_fast_requeue(struct sk_buff *skb, struct Qdisc* qdisc)
 {
-	struct sk_buff_head *list = qdisc_priv(qdisc);
-
-	list += prio2band[skb->priority&TC_PRIO_MAX];
-
 	qdisc->q.qlen++;
-	return __qdisc_requeue(skb, qdisc, list);
+	return __qdisc_requeue(skb, qdisc, prio2list(skb, qdisc));
 }
 
 static void
