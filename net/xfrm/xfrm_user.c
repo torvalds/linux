@@ -900,7 +900,7 @@ static int xfrm_flush_sa(struct sk_buff *skb, struct nlmsghdr *nlh, void **xfrma
 	struct xfrm_usersa_flush *p = NLMSG_DATA(nlh);
 
 	xfrm_state_flush(p->proto);
-	c.data = p->proto;
+	c.data.proto = p->proto;
 	c.event = XFRM_SAP_FLUSHED;
 	c.seq = nlh->nlmsg_seq;
 	c.pid = nlh->nlmsg_pid;
@@ -1129,14 +1129,13 @@ nlmsg_failure:
 static int xfrm_exp_state_notify(struct xfrm_state *x, struct km_event *c)
 {
 	struct sk_buff *skb;
-	int hard = c ->data;
 
 	/* fix to do alloc using NLM macros */
 	skb = alloc_skb(sizeof(struct xfrm_user_expire) + 16, GFP_ATOMIC);
 	if (skb == NULL)
 		return -ENOMEM;
 
-	if (build_expire(skb, x, hard) < 0)
+	if (build_expire(skb, x, c->data.hard) < 0)
 		BUG();
 
 	NETLINK_CB(skb).dst_groups = XFRMGRP_EXPIRE;
@@ -1162,7 +1161,7 @@ static int xfrm_notify_sa_flush(struct km_event *c)
 	nlh->nlmsg_flags = 0;
 
 	p = NLMSG_DATA(nlh);
-	p->proto = c->data;
+	p->proto = c->data.proto;
 
 	nlh->nlmsg_len = skb->tail - b;
 
@@ -1404,7 +1403,7 @@ static int xfrm_exp_policy_notify(struct xfrm_policy *xp, int dir, struct km_eve
 	if (skb == NULL)
 		return -ENOMEM;
 
-	if (build_polexpire(skb, xp, dir, c->data) < 0)
+	if (build_polexpire(skb, xp, dir, c->data.hard) < 0)
 		BUG();
 
 	NETLINK_CB(skb).dst_groups = XFRMGRP_EXPIRE;

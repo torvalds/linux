@@ -173,7 +173,12 @@ enum {
 /* callback structure passed from either netlink or pfkey */
 struct km_event
 {
-	u32	data;
+	union {
+		u32 hard;
+		u32 proto;
+		u32 byid;
+	} data;
+
 	u32	seq;
 	u32	pid;
 	u32	event;

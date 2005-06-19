@@ -835,7 +835,7 @@ static void km_state_expired(struct xfrm_state *x, int hard)
 {
 	struct km_event c;
 
-	c.data = hard;
+	c.data.hard = hard;
 	c.event = XFRM_SAP_EXPIRED;
 	km_state_notify(x, &c);
 
@@ -883,8 +883,7 @@ void km_policy_expired(struct xfrm_policy *pol, int dir, int hard)
 {
 	struct km_event c;
 
-	c.data = hard;
-	c.data = hard;
+	c.data.hard = hard;
 	c.event = XFRM_SAP_EXPIRED;
 	km_policy_notify(pol, dir, &c);
 

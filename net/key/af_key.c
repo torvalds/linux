@@ -1293,13 +1293,6 @@ static int key_notify_sa(struct xfrm_state *x, struct km_event *c)
 	if (c->event == XFRM_SAP_DELETED)
 		hsc = 0;
 
-	if (c->event == XFRM_SAP_EXPIRED) {
-		if (c->data)
-			hsc = 2;
-		else
-			hsc = 1;
-	}
-
 	skb = pfkey_xfrm_state2msg(x, 0, hsc);
 
 	if (IS_ERR(skb))
@@ -1534,7 +1527,7 @@ static int key_notify_sa_flush(struct km_event *c)
 	if (!skb)
 		return -ENOBUFS;
 	hdr = (struct sadb_msg *) skb_put(skb, sizeof(struct sadb_msg));
-	hdr->sadb_msg_satype = pfkey_proto2satype(c->data);
+	hdr->sadb_msg_satype = pfkey_proto2satype(c->data.proto);
 	hdr->sadb_msg_seq = c->seq;
 	hdr->sadb_msg_pid = c->pid;
 	hdr->sadb_msg_version = PF_KEY_V2;
@@ -1556,7 +1549,7 @@ static int pfkey_flush(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hd
 		return -EINVAL;
 
 	xfrm_state_flush(proto);
-	c.data = proto;
+	c.data.proto = proto;
 	c.seq = hdr->sadb_msg_seq;
 	c.pid = hdr->sadb_msg_pid;
 	c.event = XFRM_SAP_FLUSHED;
@@ -1969,7 +1962,7 @@ static int key_notify_policy(struct xfrm_policy *xp, int dir, struct km_event *c
 	out_hdr = (struct sadb_msg *) out_skb->data;
 	out_hdr->sadb_msg_version = PF_KEY_V2;
 
-	if (c->data && c->event == XFRM_SAP_DELETED)
+	if (c->data.byid && c->event == XFRM_SAP_DELETED)
 		out_hdr->sadb_msg_type = SADB_X_SPDDELETE2;
 	else
 		out_hdr->sadb_msg_type = event2poltype(c->event);
@@ -2180,7 +2173,7 @@ static int pfkey_spdget(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 	c.seq = hdr->sadb_msg_seq;
 	c.pid = hdr->sadb_msg_pid;
 	if (hdr->sadb_msg_type == SADB_X_SPDDELETE2) {
-		c.data = 1; // to signal pfkey of SADB_X_SPDDELETE2
+		c.data.byid = 1;
 		c.event = XFRM_SAP_DELETED;
 		km_policy_notify(xp, pol->sadb_x_policy_dir-1, &c);
 	} else {
@@ -2460,7 +2453,7 @@ static int key_notify_sa_expire(struct xfrm_state *x, struct km_event *c)
 	int hard;
 	int hsc;
 
-	hard = c->data;
+	hard = c->data.hard;
 	if (hard)
 		hsc = 2;
 	else
