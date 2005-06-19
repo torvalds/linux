@@ -318,16 +318,12 @@ pfifo_fast_enqueue(struct sk_buff *skb, struct Qdisc* qdisc)
 
 	list += prio2band[skb->priority&TC_PRIO_MAX];
 
-	if (list->qlen < qdisc->dev->tx_queue_len) {
-		__skb_queue_tail(list, skb);
+	if (skb_queue_len(list) < qdisc->dev->tx_queue_len) {
 		qdisc->q.qlen++;
-		qdisc->bstats.bytes += skb->len;
-		qdisc->bstats.packets++;
-		return 0;
+		return __qdisc_enqueue_tail(skb, qdisc, list);
 	}
-	qdisc->qstats.drops++;
-	kfree_skb(skb);
-	return NET_XMIT_DROP;
+
+	return qdisc_drop(skb, qdisc);
 }
 
 static struct sk_buff *
@@ -335,10 +331,9 @@ pfifo_fast_dequeue(struct Qdisc* qdisc)
 {
 	int prio;
 	struct sk_buff_head *list = qdisc_priv(qdisc);
-	struct sk_buff *skb;
 
 	for (prio = 0; prio < 3; prio++, list++) {
-		skb = __skb_dequeue(list);
+		struct sk_buff *skb = __qdisc_dequeue_head(qdisc, list);
 		if (skb) {
 			qdisc->q.qlen--;
 			return skb;
@@ -354,10 +349,8 @@ pfifo_fast_requeue(struct sk_buff *skb, struct Qdisc* qdisc)
 
 	list += prio2band[skb->priority&TC_PRIO_MAX];
 
-	__skb_queue_head(list, skb);
 	qdisc->q.qlen++;
-	qdisc->qstats.requeues++;
-	return 0;
+	return __qdisc_requeue(skb, qdisc, list);
 }
 
 static void
@@ -367,7 +360,9 @@ pfifo_fast_reset(struct Qdisc* qdisc)
 	struct sk_buff_head *list = qdisc_priv(qdisc);
 
 	for (prio=0; prio < 3; prio++)
-		skb_queue_purge(list+prio);
+		__qdisc_reset_queue(qdisc, list + prio);
+
+	qdisc->qstats.backlog = 0;
 	qdisc->q.qlen = 0;
 }
 
