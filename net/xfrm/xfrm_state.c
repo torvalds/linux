@@ -154,6 +154,7 @@ static void xfrm_timer_handler(unsigned long data)
 			next = tmo;
 	}
 
+	x->km.dying = warn;
 	if (warn)
 		km_state_expired(x, 0);
 resched:
@@ -169,9 +170,8 @@ expired:
 		next = 2;
 		goto resched;
 	}
-	if (x->id.spi != 0)
+	if (!__xfrm_state_delete(x) && x->id.spi)
 		km_state_expired(x, 1);
-	__xfrm_state_delete(x);
 
 out:
 	spin_unlock(&x->lock);
@@ -566,16 +566,18 @@ int xfrm_state_check_expire(struct xfrm_state *x)
 
 	if (x->curlft.bytes >= x->lft.hard_byte_limit ||
 	    x->curlft.packets >= x->lft.hard_packet_limit) {
-		km_state_expired(x, 1);
-		if (!mod_timer(&x->timer, jiffies + XFRM_ACQ_EXPIRES*HZ))
+		x->km.state = XFRM_STATE_EXPIRED;
+		if (!mod_timer(&x->timer, jiffies))
 			xfrm_state_hold(x);
 		return -EINVAL;
 	}
 
 	if (!x->km.dying &&
 	    (x->curlft.bytes >= x->lft.soft_byte_limit ||
-	     x->curlft.packets >= x->lft.soft_packet_limit))
+	     x->curlft.packets >= x->lft.soft_packet_limit)) {
+		x->km.dying = 1;
 		km_state_expired(x, 0);
+	}
 	return 0;
 }
 EXPORT_SYMBOL(xfrm_state_check_expire);
@@ -833,10 +835,6 @@ static void km_state_expired(struct xfrm_state *x, int hard)
 {
 	struct km_event c;
 
-	if (hard)
-		x->km.state = XFRM_STATE_EXPIRED;
-	else
-		x->km.dying = 1;
 	c.data = hard;
 	c.event = XFRM_SAP_EXPIRED;
 	km_state_notify(x, &c);

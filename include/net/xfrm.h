@@ -679,7 +679,7 @@ static inline int xfrm_sk_clone_policy(struct sock *sk)
 	return 0;
 }
 
-extern void xfrm_policy_delete(struct xfrm_policy *pol, int dir);
+extern int xfrm_policy_delete(struct xfrm_policy *pol, int dir);
 
 static inline void xfrm_sk_free_policy(struct sock *sk)
 {
