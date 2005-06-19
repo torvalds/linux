@@ -243,31 +243,27 @@ static void dev_watchdog_down(struct net_device *dev)
    cheaper.
  */
 
-static int
-noop_enqueue(struct sk_buff *skb, struct Qdisc * qdisc)
+static int noop_enqueue(struct sk_buff *skb, struct Qdisc * qdisc)
 {
 	kfree_skb(skb);
 	return NET_XMIT_CN;
 }
 
-static struct sk_buff *
-noop_dequeue(struct Qdisc * qdisc)
+static struct sk_buff *noop_dequeue(struct Qdisc * qdisc)
 {
 	return NULL;
 }
 
-static int
-noop_requeue(struct sk_buff *skb, struct Qdisc* qdisc)
+static int noop_requeue(struct sk_buff *skb, struct Qdisc* qdisc)
 {
 	if (net_ratelimit())
-		printk(KERN_DEBUG "%s deferred output. It is buggy.\n", skb->dev->name);
+		printk(KERN_DEBUG "%s deferred output. It is buggy.\n",
+		       skb->dev->name);
 	kfree_skb(skb);
 	return NET_XMIT_CN;
 }
 
 struct Qdisc_ops noop_qdisc_ops = {
-	.next		=	NULL,
-	.cl_ops		=	NULL,
 	.id		=	"noop",
 	.priv_size	=	0,
 	.enqueue	=	noop_enqueue,
@@ -285,8 +281,6 @@ struct Qdisc noop_qdisc = {
 };
 
 static struct Qdisc_ops noqueue_qdisc_ops = {
-	.next		=	NULL,
-	.cl_ops		=	NULL,
 	.id		=	"noqueue",
 	.priv_size	=	0,
 	.enqueue	=	noop_enqueue,
