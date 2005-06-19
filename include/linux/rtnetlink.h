@@ -789,6 +789,51 @@ extern void __rta_fill(struct sk_buff *skb, int attrtype, int attrlen, const voi
 ({	if (unlikely(skb_tailroom(skb) < (int)(attrlen))) \
 		goto rtattr_failure; \
 	memcpy(skb_put(skb, RTA_ALIGN(attrlen)), data, attrlen); })
+
+#define RTA_PUT_U32(skb, attrtype, value) \
+({	u32 _tmp = (value); \
+	RTA_PUT(skb, attrtype, sizeof(u32), &_tmp); })
+
+#define RTA_PUT_U64(skb, attrtype, value) \
+({	u64 _tmp = (value); \
+	RTA_PUT(skb, attrtype, sizeof(u64), &_tmp); })
+
+#define RTA_PUT_SECS(skb, attrtype, value) \
+	RTA_PUT_U64(skb, attrtype, (value) / HZ)
+
+#define RTA_PUT_MSECS(skb, attrtype, value) \
+	RTA_PUT_U64(skb, attrtype, jiffies_to_msecs(value))
+
+#define RTA_PUT_STRING(skb, attrtype, value) \
+	RTA_PUT(skb, attrtype, strlen(value) + 1, value)
+
+#define RTA_NEST(skb, type) \
+({	struct rtattr *__start = (struct rtattr *) (skb)->tail; \
+	RTA_PUT(skb, type, 0, NULL); \
+	__start;  })
+
+#define RTA_NEST_END(skb, start) \
+({	(start)->rta_len = ((skb)->tail - (unsigned char *) (start)); \
+	(skb)->len; })
+
+#define RTA_NEST_CANCEL(skb, start) \
+({	skb_trim(skb, (unsigned char *) (start) - (skb)->data); \
+	-1; })
+
+#define RTA_GET_U32(rta) \
+({	if (!rta || RTA_PAYLOAD(rta) < sizeof(u32)) \
+		goto rtattr_failure; \
+	*(u32 *) RTA_DATA(rta); })
+
+#define RTA_GET_U64(rta) \
+({	u64 _tmp; \
+	if (!rta || RTA_PAYLOAD(rta) < sizeof(u64)) \
+		goto rtattr_failure; \
+	memcpy(&_tmp, RTA_DATA(rta), sizeof(_tmp)); \
+	_tmp; })
+
+#define RTA_GET_SECS(rta) ((unsigned long) RTA_GET_U64(rta) * HZ)
+#define RTA_GET_MSECS(rta) (msecs_to_jiffies((unsigned long) RTA_GET_U64(rta)))
 		
 static inline struct rtattr *
 __rta_reserve(struct sk_buff *skb, int attrtype, int attrlen)
