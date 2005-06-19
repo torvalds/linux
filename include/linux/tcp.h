@@ -230,6 +230,17 @@ struct tcp_options_received {
 	__u16	mss_clamp;	/* Maximal mss, negotiated at connection setup */
 };
 
+struct tcp_request_sock {
+	struct inet_request_sock req;
+	__u32			 rcv_isn;
+	__u32			 snt_isn;
+};
+
+static inline struct tcp_request_sock *tcp_rsk(const struct open_request *req)
+{
+	return (struct tcp_request_sock *)req;
+}
+
 struct tcp_sock {
 	/* inet_sock has to be the first member of tcp_sock */
 	struct inet_sock	inet;

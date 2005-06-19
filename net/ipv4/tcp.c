@@ -271,7 +271,6 @@ int sysctl_tcp_fin_timeout = TCP_FIN_TIMEOUT;
 
 DEFINE_SNMP_STAT(struct tcp_mib, tcp_statistics);
 
-kmem_cache_t *tcp_openreq_cachep;
 kmem_cache_t *tcp_bucket_cachep;
 kmem_cache_t *tcp_timewait_cachep;
 
@@ -2271,13 +2270,6 @@ void __init tcp_init(void)
 		__skb_cb_too_small_for_tcp(sizeof(struct tcp_skb_cb),
 					   sizeof(skb->cb));
 
-	tcp_openreq_cachep = kmem_cache_create("tcp_open_request",
-						   sizeof(struct open_request),
-					       0, SLAB_HWCACHE_ALIGN,
-					       NULL, NULL);
-	if (!tcp_openreq_cachep)
-		panic("tcp_init: Cannot alloc open_request cache.");
-
 	tcp_bucket_cachep = kmem_cache_create("tcp_bind_bucket",
 					      sizeof(struct tcp_bind_bucket),
 					      0, SLAB_HWCACHE_ALIGN,
@@ -2374,7 +2366,6 @@ EXPORT_SYMBOL(tcp_destroy_sock);
 EXPORT_SYMBOL(tcp_disconnect);
 EXPORT_SYMBOL(tcp_getsockopt);
 EXPORT_SYMBOL(tcp_ioctl);
-EXPORT_SYMBOL(tcp_openreq_cachep);
 EXPORT_SYMBOL(tcp_poll);
 EXPORT_SYMBOL(tcp_read_sock);
 EXPORT_SYMBOL(tcp_recvmsg);

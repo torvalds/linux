@@ -193,6 +193,19 @@ struct inet6_skb_parm {
 
 #define IP6CB(skb)	((struct inet6_skb_parm*)((skb)->cb))
 
+struct tcp6_request_sock {
+	struct tcp_request_sock	req;
+	struct in6_addr		loc_addr;
+	struct in6_addr		rmt_addr;
+	struct sk_buff		*pktopts;
+	int			iif;
+};
+
+static inline struct tcp6_request_sock *tcp6_rsk(const struct open_request *sk)
+{
+	return (struct tcp6_request_sock *)sk;
+}
+
 /**
  * struct ipv6_pinfo - ipv6 private area
  *

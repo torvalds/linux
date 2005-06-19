@@ -880,9 +880,11 @@ static struct open_request *tcp_v4_search_req(struct tcp_sock *tp,
 	for (prev = &lopt->syn_table[tcp_v4_synq_hash(raddr, rport, lopt->hash_rnd)];
 	     (req = *prev) != NULL;
 	     prev = &req->dl_next) {
-		if (req->rmt_port == rport &&
-		    req->af.v4_req.rmt_addr == raddr &&
-		    req->af.v4_req.loc_addr == laddr &&
+		const struct inet_request_sock *ireq = inet_rsk(req);
+
+		if (ireq->rmt_port == rport &&
+		    ireq->rmt_addr == raddr &&
+		    ireq->loc_addr == laddr &&
 		    TCP_INET_FAMILY(req->class->family)) {
 			BUG_TRAP(!req->sk);
 			*prevp = prev;
@@ -897,7 +899,7 @@ static void tcp_v4_synq_add(struct sock *sk, struct open_request *req)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct tcp_listen_opt *lopt = tp->listen_opt;
-	u32 h = tcp_v4_synq_hash(req->af.v4_req.rmt_addr, req->rmt_port, lopt->hash_rnd);
+	u32 h = tcp_v4_synq_hash(inet_rsk(req)->rmt_addr, inet_rsk(req)->rmt_port, lopt->hash_rnd);
 
 	req->expires = jiffies + TCP_TIMEOUT_INIT;
 	req->retrans = 0;
@@ -1065,7 +1067,7 @@ void tcp_v4_err(struct sk_buff *skb, u32 info)
 		 */
 		BUG_TRAP(!req->sk);
 
-		if (seq != req->snt_isn) {
+		if (seq != tcp_rsk(req)->snt_isn) {
 			NET_INC_STATS_BH(LINUX_MIB_OUTOFWINDOWICMPS);
 			goto out;
 		}
@@ -1256,7 +1258,7 @@ static void tcp_v4_timewait_ack(struct sock *sk, struct sk_buff *skb)
 
 static void tcp_v4_or_send_ack(struct sk_buff *skb, struct open_request *req)
 {
-	tcp_v4_send_ack(skb, req->snt_isn + 1, req->rcv_isn + 1, req->rcv_wnd,
+	tcp_v4_send_ack(skb, tcp_rsk(req)->snt_isn + 1, tcp_rsk(req)->rcv_isn + 1, req->rcv_wnd,
 			req->ts_recent);
 }
 
@@ -1264,18 +1266,19 @@ static struct dst_entry* tcp_v4_route_req(struct sock *sk,
 					  struct open_request *req)
 {
 	struct rtable *rt;
-	struct ip_options *opt = req->af.v4_req.opt;
+	const struct inet_request_sock *ireq = inet_rsk(req);
+	struct ip_options *opt = inet_rsk(req)->opt;
 	struct flowi fl = { .oif = sk->sk_bound_dev_if,
 			    .nl_u = { .ip4_u =
 				      { .daddr = ((opt && opt->srr) ?
 						  opt->faddr :
-						  req->af.v4_req.rmt_addr),
-					.saddr = req->af.v4_req.loc_addr,
+						  ireq->rmt_addr),
+					.saddr = ireq->loc_addr,
 					.tos = RT_CONN_FLAGS(sk) } },
 			    .proto = IPPROTO_TCP,
 			    .uli_u = { .ports =
 				       { .sport = inet_sk(sk)->sport,
-					 .dport = req->rmt_port } } };
+					 .dport = ireq->rmt_port } } };
 
 	if (ip_route_output_flow(&rt, &fl, sk, 0)) {
 		IP_INC_STATS_BH(IPSTATS_MIB_OUTNOROUTES);
@@ -1297,6 +1300,7 @@ static struct dst_entry* tcp_v4_route_req(struct sock *sk,
 static int tcp_v4_send_synack(struct sock *sk, struct open_request *req,
 			      struct dst_entry *dst)
 {
+	const struct inet_request_sock *ireq = inet_rsk(req);
 	int err = -1;
 	struct sk_buff * skb;
 
@@ -1310,14 +1314,14 @@ static int tcp_v4_send_synack(struct sock *sk, struct open_request *req,
 		struct tcphdr *th = skb->h.th;
 
 		th->check = tcp_v4_check(th, skb->len,
-					 req->af.v4_req.loc_addr,
-					 req->af.v4_req.rmt_addr,
+					 ireq->loc_addr,
+					 ireq->rmt_addr,
 					 csum_partial((char *)th, skb->len,
 						      skb->csum));
 
-		err = ip_build_and_send_pkt(skb, sk, req->af.v4_req.loc_addr,
-					    req->af.v4_req.rmt_addr,
-					    req->af.v4_req.opt);
+		err = ip_build_and_send_pkt(skb, sk, ireq->loc_addr,
+					    ireq->rmt_addr,
+					    ireq->opt);
 		if (err == NET_XMIT_CN)
 			err = 0;
 	}
@@ -1332,8 +1336,8 @@ out:
  */
 static void tcp_v4_or_free(struct open_request *req)
 {
-	if (req->af.v4_req.opt)
-		kfree(req->af.v4_req.opt);
+	if (inet_rsk(req)->opt)
+		kfree(inet_rsk(req)->opt);
 }
 
 static inline void syn_flood_warning(struct sk_buff *skb)
@@ -1387,6 +1391,7 @@ int sysctl_max_syn_backlog = 256;
 
 struct or_calltable or_ipv4 = {
 	.family		=	PF_INET,
+	.obj_size	=	sizeof(struct tcp_request_sock),
 	.rtx_syn_ack	=	tcp_v4_send_synack,
 	.send_ack	=	tcp_v4_or_send_ack,
 	.destructor	=	tcp_v4_or_free,
@@ -1395,6 +1400,7 @@ struct or_calltable or_ipv4 = {
 
 int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 {
+	struct inet_request_sock *ireq;
 	struct tcp_options_received tmp_opt;
 	struct open_request *req;
 	__u32 saddr = skb->nh.iph->saddr;
@@ -1433,7 +1439,7 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	if (sk_acceptq_is_full(sk) && tcp_synq_young(sk) > 1)
 		goto drop;
 
-	req = tcp_openreq_alloc();
+	req = tcp_openreq_alloc(&or_ipv4);
 	if (!req)
 		goto drop;
 
@@ -1461,10 +1467,10 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 
 	tcp_openreq_init(req, &tmp_opt, skb);
 
-	req->af.v4_req.loc_addr = daddr;
-	req->af.v4_req.rmt_addr = saddr;
-	req->af.v4_req.opt = tcp_v4_save_options(sk, skb);
-	req->class = &or_ipv4;
+	ireq = inet_rsk(req);
+	ireq->loc_addr = daddr;
+	ireq->rmt_addr = saddr;
+	ireq->opt = tcp_v4_save_options(sk, skb);
 	if (!want_cookie)
 		TCP_ECN_create_request(req, skb->h.th);
 
@@ -1523,7 +1529,7 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 
 		isn = tcp_v4_init_sequence(sk, skb);
 	}
-	req->snt_isn = isn;
+	tcp_rsk(req)->snt_isn = isn;
 
 	if (tcp_v4_send_synack(sk, req, dst))
 		goto drop_and_free;
@@ -1551,6 +1557,7 @@ struct sock *tcp_v4_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 				  struct open_request *req,
 				  struct dst_entry *dst)
 {
+	struct inet_request_sock *ireq;
 	struct inet_sock *newinet;
 	struct tcp_sock *newtp;
 	struct sock *newsk;
@@ -1570,11 +1577,12 @@ struct sock *tcp_v4_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 
 	newtp		      = tcp_sk(newsk);
 	newinet		      = inet_sk(newsk);
-	newinet->daddr	      = req->af.v4_req.rmt_addr;
-	newinet->rcv_saddr    = req->af.v4_req.loc_addr;
-	newinet->saddr	      = req->af.v4_req.loc_addr;
-	newinet->opt	      = req->af.v4_req.opt;
-	req->af.v4_req.opt    = NULL;
+	ireq		      = inet_rsk(req);
+	newinet->daddr	      = ireq->rmt_addr;
+	newinet->rcv_saddr    = ireq->loc_addr;
+	newinet->saddr	      = ireq->loc_addr;
+	newinet->opt	      = ireq->opt;
+	ireq->opt	      = NULL;
 	newinet->mc_index     = tcp_v4_iif(skb);
 	newinet->mc_ttl	      = skb->nh.iph->ttl;
 	newtp->ext_header_len = 0;
@@ -2454,15 +2462,16 @@ void tcp_proc_unregister(struct tcp_seq_afinfo *afinfo)
 static void get_openreq4(struct sock *sk, struct open_request *req,
 			 char *tmpbuf, int i, int uid)
 {
+	const struct inet_request_sock *ireq = inet_rsk(req);
 	int ttd = req->expires - jiffies;
 
 	sprintf(tmpbuf, "%4d: %08X:%04X %08X:%04X"
 		" %02X %08X:%08X %02X:%08lX %08X %5d %8d %u %d %p",
 		i,
-		req->af.v4_req.loc_addr,
+		ireq->loc_addr,
 		ntohs(inet_sk(sk)->sport),
-		req->af.v4_req.rmt_addr,
-		ntohs(req->rmt_port),
+		ireq->rmt_addr,
+		ntohs(ireq->rmt_port),
 		TCP_SYN_RECV,
 		0, 0, /* could print option size, but that is af dependent. */
 		1,    /* timers active (only the expire timer) */
@@ -2618,6 +2627,7 @@ struct proto tcp_prot = {
 	.sysctl_rmem		= sysctl_tcp_rmem,
 	.max_header		= MAX_TCP_HEADER,
 	.obj_size		= sizeof(struct tcp_sock),
+	.rsk_prot		= &or_ipv4,
 };
 
 

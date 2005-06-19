@@ -692,6 +692,8 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct open_request *req,
 	struct sock *newsk = sk_alloc(PF_INET, GFP_ATOMIC, sk->sk_prot, 0);
 
 	if(newsk != NULL) {
+		struct inet_request_sock *ireq = inet_rsk(req);
+		struct tcp_request_sock *treq = tcp_rsk(req);
 		struct tcp_sock *newtp;
 		struct sk_filter *filter;
 
@@ -703,7 +705,7 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct open_request *req,
 		tcp_sk(newsk)->bind_hash = NULL;
 
 		/* Clone the TCP header template */
-		inet_sk(newsk)->dport = req->rmt_port;
+		inet_sk(newsk)->dport = ireq->rmt_port;
 
 		sock_lock_init(newsk);
 		bh_lock_sock(newsk);
@@ -739,14 +741,14 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct open_request *req,
 		/* Now setup tcp_sock */
 		newtp = tcp_sk(newsk);
 		newtp->pred_flags = 0;
-		newtp->rcv_nxt = req->rcv_isn + 1;
-		newtp->snd_nxt = req->snt_isn + 1;
-		newtp->snd_una = req->snt_isn + 1;
-		newtp->snd_sml = req->snt_isn + 1;
+		newtp->rcv_nxt = treq->rcv_isn + 1;
+		newtp->snd_nxt = treq->snt_isn + 1;
+		newtp->snd_una = treq->snt_isn + 1;
+		newtp->snd_sml = treq->snt_isn + 1;
 
 		tcp_prequeue_init(newtp);
 
-		tcp_init_wl(newtp, req->snt_isn, req->rcv_isn);
+		tcp_init_wl(newtp, treq->snt_isn, treq->rcv_isn);
 
 		newtp->retransmits = 0;
 		newtp->backoff = 0;
@@ -775,10 +777,10 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct open_request *req,
 		tcp_set_ca_state(newtp, TCP_CA_Open);
 		tcp_init_xmit_timers(newsk);
 		skb_queue_head_init(&newtp->out_of_order_queue);
-		newtp->rcv_wup = req->rcv_isn + 1;
-		newtp->write_seq = req->snt_isn + 1;
+		newtp->rcv_wup = treq->rcv_isn + 1;
+		newtp->write_seq = treq->snt_isn + 1;
 		newtp->pushed_seq = newtp->write_seq;
-		newtp->copied_seq = req->rcv_isn + 1;
+		newtp->copied_seq = treq->rcv_isn + 1;
 
 		newtp->rx_opt.saw_tstamp = 0;
 
@@ -808,18 +810,18 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct open_request *req,
 		newsk->sk_socket = NULL;
 		newsk->sk_sleep = NULL;
 
-		newtp->rx_opt.tstamp_ok = req->tstamp_ok;
-		if((newtp->rx_opt.sack_ok = req->sack_ok) != 0) {
+		newtp->rx_opt.tstamp_ok = ireq->tstamp_ok;
+		if((newtp->rx_opt.sack_ok = ireq->sack_ok) != 0) {
 			if (sysctl_tcp_fack)
 				newtp->rx_opt.sack_ok |= 2;
 		}
 		newtp->window_clamp = req->window_clamp;
 		newtp->rcv_ssthresh = req->rcv_wnd;
 		newtp->rcv_wnd = req->rcv_wnd;
-		newtp->rx_opt.wscale_ok = req->wscale_ok;
+		newtp->rx_opt.wscale_ok = ireq->wscale_ok;
 		if (newtp->rx_opt.wscale_ok) {
-			newtp->rx_opt.snd_wscale = req->snd_wscale;
-			newtp->rx_opt.rcv_wscale = req->rcv_wscale;
+			newtp->rx_opt.snd_wscale = ireq->snd_wscale;
+			newtp->rx_opt.rcv_wscale = ireq->rcv_wscale;
 		} else {
 			newtp->rx_opt.snd_wscale = newtp->rx_opt.rcv_wscale = 0;
 			newtp->window_clamp = min(newtp->window_clamp, 65535U);
@@ -881,7 +883,7 @@ struct sock *tcp_check_req(struct sock *sk,struct sk_buff *skb,
 	}
 
 	/* Check for pure retransmitted SYN. */
-	if (TCP_SKB_CB(skb)->seq == req->rcv_isn &&
+	if (TCP_SKB_CB(skb)->seq == tcp_rsk(req)->rcv_isn &&
 	    flg == TCP_FLAG_SYN &&
 	    !paws_reject) {
 		/*
@@ -959,7 +961,7 @@ struct sock *tcp_check_req(struct sock *sk,struct sk_buff *skb,
 	 * Invalid ACK: reset will be sent by listening socket
 	 */
 	if ((flg & TCP_FLAG_ACK) &&
-	    (TCP_SKB_CB(skb)->ack_seq != req->snt_isn+1))
+	    (TCP_SKB_CB(skb)->ack_seq != tcp_rsk(req)->snt_isn + 1))
 		return sk;
 
 	/* Also, it would be not so bad idea to check rcv_tsecr, which
@@ -970,7 +972,7 @@ struct sock *tcp_check_req(struct sock *sk,struct sk_buff *skb,
 	/* RFC793: "first check sequence number". */
 
 	if (paws_reject || !tcp_in_window(TCP_SKB_CB(skb)->seq, TCP_SKB_CB(skb)->end_seq,
-					  req->rcv_isn+1, req->rcv_isn+1+req->rcv_wnd)) {
+					  tcp_rsk(req)->rcv_isn + 1, tcp_rsk(req)->rcv_isn + 1 + req->rcv_wnd)) {
 		/* Out of window: send ACK and drop. */
 		if (!(flg & TCP_FLAG_RST))
 			req->class->send_ack(skb, req);
@@ -981,12 +983,12 @@ struct sock *tcp_check_req(struct sock *sk,struct sk_buff *skb,
 
 	/* In sequence, PAWS is OK. */
 
-	if (tmp_opt.saw_tstamp && !after(TCP_SKB_CB(skb)->seq, req->rcv_isn+1))
+	if (tmp_opt.saw_tstamp && !after(TCP_SKB_CB(skb)->seq, tcp_rsk(req)->rcv_isn + 1))
 			req->ts_recent = tmp_opt.rcv_tsval;
 
-		if (TCP_SKB_CB(skb)->seq == req->rcv_isn) {
+		if (TCP_SKB_CB(skb)->seq == tcp_rsk(req)->rcv_isn) {
 			/* Truncate SYN, it is out of window starting
-			   at req->rcv_isn+1. */
+			   at tcp_rsk(req)->rcv_isn + 1. */
 			flg &= ~TCP_FLAG_SYN;
 		}
 
@@ -1003,8 +1005,8 @@ struct sock *tcp_check_req(struct sock *sk,struct sk_buff *skb,
 			return NULL;
 
 		/* If TCP_DEFER_ACCEPT is set, drop bare ACK. */
-		if (tp->defer_accept && TCP_SKB_CB(skb)->end_seq == req->rcv_isn+1) {
-			req->acked = 1;
+		if (tp->defer_accept && TCP_SKB_CB(skb)->end_seq == tcp_rsk(req)->rcv_isn + 1) {
+			inet_rsk(req)->acked = 1;
 			return NULL;
 		}
 
@@ -1026,7 +1028,7 @@ struct sock *tcp_check_req(struct sock *sk,struct sk_buff *skb,
 
 	listen_overflow:
 		if (!sysctl_tcp_abort_on_overflow) {
-			req->acked = 1;
+			inet_rsk(req)->acked = 1;
 			return NULL;
 		}
 

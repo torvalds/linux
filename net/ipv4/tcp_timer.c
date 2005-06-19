@@ -513,7 +513,7 @@ static void tcp_synack_timer(struct sock *sk)
 		while ((req = *reqp) != NULL) {
 			if (time_after_eq(now, req->expires)) {
 				if ((req->retrans < thresh ||
-				     (req->acked && req->retrans < max_retries))
+				     (inet_rsk(req)->acked && req->retrans < max_retries))
 				    && !req->class->rtx_syn_ack(sk, req, NULL)) {
 					unsigned long timeo;
 

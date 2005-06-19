@@ -31,6 +31,7 @@
 #include <linux/cache.h>
 #include <linux/percpu.h>
 #include <net/checksum.h>
+#include <net/request_sock.h>
 #include <net/sock.h>
 #include <net/snmp.h>
 #include <net/ip.h>
@@ -612,74 +613,6 @@ extern int sysctl_tcp_tso_win_divisor;
 extern atomic_t tcp_memory_allocated;
 extern atomic_t tcp_sockets_allocated;
 extern int tcp_memory_pressure;
-
-struct open_request;
-
-struct or_calltable {
-	int  family;
-	int  (*rtx_syn_ack)	(struct sock *sk, struct open_request *req, struct dst_entry*);
-	void (*send_ack)	(struct sk_buff *skb, struct open_request *req);
-	void (*destructor)	(struct open_request *req);
-	void (*send_reset)	(struct sk_buff *skb);
-};
-
-struct tcp_v4_open_req {
-	__u32			loc_addr;
-	__u32			rmt_addr;
-	struct ip_options	*opt;
-};
-
-#if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
-struct tcp_v6_open_req {
-	struct in6_addr		loc_addr;
-	struct in6_addr		rmt_addr;
-	struct sk_buff		*pktopts;
-	int			iif;
-};
-#endif
-
-/* this structure is too big */
-struct open_request {
-	struct open_request	*dl_next; /* Must be first member! */
-	__u32			rcv_isn;
-	__u32			snt_isn;
-	__u16			rmt_port;
-	__u16			mss;
-	__u8			retrans;
-	__u8			__pad;
-	__u16	snd_wscale : 4, 
-		rcv_wscale : 4, 
-		tstamp_ok : 1,
-		sack_ok : 1,
-		wscale_ok : 1,
-		ecn_ok : 1,
-		acked : 1;
-	/* The following two fields can be easily recomputed I think -AK */
-	__u32			window_clamp;	/* window clamp at creation time */
-	__u32			rcv_wnd;	/* rcv_wnd offered first time */
-	__u32			ts_recent;
-	unsigned long		expires;
-	struct or_calltable	*class;
-	struct sock		*sk;
-	union {
-		struct tcp_v4_open_req v4_req;
-#if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
-		struct tcp_v6_open_req v6_req;
-#endif
-	} af;
-};
-
-/* SLAB cache for open requests. */
-extern kmem_cache_t *tcp_openreq_cachep;
-
-#define tcp_openreq_alloc()		kmem_cache_alloc(tcp_openreq_cachep, SLAB_ATOMIC)
-#define tcp_openreq_fastfree(req)	kmem_cache_free(tcp_openreq_cachep, req)
-
-static inline void tcp_openreq_free(struct open_request *req)
-{
-	req->class->destructor(req);
-	tcp_openreq_fastfree(req);
-}
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 #define TCP_INET_FAMILY(fam) ((fam) == AF_INET)
@@ -1832,17 +1765,19 @@ static __inline__ void tcp_openreq_init(struct open_request *req,
 					struct tcp_options_received *rx_opt,
 					struct sk_buff *skb)
 {
+	struct inet_request_sock *ireq = inet_rsk(req);
+
 	req->rcv_wnd = 0;		/* So that tcp_send_synack() knows! */
-	req->rcv_isn = TCP_SKB_CB(skb)->seq;
+	tcp_rsk(req)->rcv_isn = TCP_SKB_CB(skb)->seq;
 	req->mss = rx_opt->mss_clamp;
 	req->ts_recent = rx_opt->saw_tstamp ? rx_opt->rcv_tsval : 0;
-	req->tstamp_ok = rx_opt->tstamp_ok;
-	req->sack_ok = rx_opt->sack_ok;
-	req->snd_wscale = rx_opt->snd_wscale;
-	req->wscale_ok = rx_opt->wscale_ok;
-	req->acked = 0;
-	req->ecn_ok = 0;
-	req->rmt_port = skb->h.th->source;
+	ireq->tstamp_ok = rx_opt->tstamp_ok;
+	ireq->sack_ok = rx_opt->sack_ok;
+	ireq->snd_wscale = rx_opt->snd_wscale;
+	ireq->wscale_ok = rx_opt->wscale_ok;
+	ireq->acked = 0;
+	ireq->ecn_ok = 0;
+	ireq->rmt_port = skb->h.th->source;
 }
 
 extern void tcp_enter_memory_pressure(void);
