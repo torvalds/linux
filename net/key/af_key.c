@@ -1240,13 +1240,85 @@ static int pfkey_acquire(struct sock *sk, struct sk_buff *skb, struct sadb_msg *
 	return 0;
 }
 
+static inline int event2poltype(int event)
+{
+	switch (event) {
+	case XFRM_SAP_DELETED:
+		return SADB_X_SPDDELETE;
+	case XFRM_SAP_ADDED:
+		return SADB_X_SPDADD;
+	case XFRM_SAP_UPDATED:
+		return SADB_X_SPDUPDATE;
+	case XFRM_SAP_EXPIRED:
+	//	return SADB_X_SPDEXPIRE;
+	default:
+		printk("pfkey: Unknown policy event %d\n", event);
+		break;
+	}
+
+	return 0;
+}
+
+static inline int event2keytype(int event)
+{
+	switch (event) {
+	case XFRM_SAP_DELETED:
+		return SADB_DELETE;
+	case XFRM_SAP_ADDED:
+		return SADB_ADD;
+	case XFRM_SAP_UPDATED:
+		return SADB_UPDATE;
+	case XFRM_SAP_EXPIRED:
+		return SADB_EXPIRE;
+	default:
+		printk("pfkey: Unknown SA event %d\n", event);
+		break;
+	}
+
+	return 0;
+}
+
+/* ADD/UPD/DEL */
+static int key_notify_sa(struct xfrm_state *x, struct km_event *c)
+{
+	struct sk_buff *skb;
+	struct sadb_msg *hdr;
+	int hsc = 3;
+
+	if (c->event == XFRM_SAP_DELETED)
+		hsc = 0;
+
+	if (c->event == XFRM_SAP_EXPIRED) {
+		if (c->data)
+			hsc = 2;
+		else
+			hsc = 1;
+	}
+
+	skb = pfkey_xfrm_state2msg(x, 0, hsc);
+
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	hdr = (struct sadb_msg *) skb->data;
+	hdr->sadb_msg_version = PF_KEY_V2;
+	hdr->sadb_msg_type = event2keytype(c->event);
+	hdr->sadb_msg_satype = pfkey_proto2satype(x->id.proto);
+	hdr->sadb_msg_errno = 0;
+	hdr->sadb_msg_reserved = 0;
+	hdr->sadb_msg_seq = c->seq;
+	hdr->sadb_msg_pid = c->pid;
+
+	pfkey_broadcast(skb, GFP_ATOMIC, BROADCAST_ALL, NULL);
+
+	return 0;
+}
 
 static int pfkey_add(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hdr, void **ext_hdrs)
 {
-	struct sk_buff *out_skb;
-	struct sadb_msg *out_hdr;
 	struct xfrm_state *x;
 	int err;
+	struct km_event c;
 
 	xfrm_probe_algs();
 	
@@ -1254,6 +1326,7 @@ static int pfkey_add(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hdr,
 	if (IS_ERR(x))
 		return PTR_ERR(x);
 
+	xfrm_state_hold(x);
 	if (hdr->sadb_msg_type == SADB_ADD)
 		err = xfrm_state_add(x);
 	else
@@ -1265,27 +1338,23 @@ static int pfkey_add(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hdr,
 		return err;
 	}
 
-	out_skb = pfkey_xfrm_state2msg(x, 0, 3);
-	if (IS_ERR(out_skb))
-		return  PTR_ERR(out_skb); /* XXX Should we return 0 here ? */
+	if (hdr->sadb_msg_type == SADB_ADD)
+		c.event = XFRM_SAP_ADDED;
+	else
+		c.event = XFRM_SAP_UPDATED;
+	c.seq = hdr->sadb_msg_seq;
+	c.pid = hdr->sadb_msg_pid;
+	km_state_notify(x, &c);
+	xfrm_state_put(x);
 
-	out_hdr = (struct sadb_msg *) out_skb->data;
-	out_hdr->sadb_msg_version = hdr->sadb_msg_version;
-	out_hdr->sadb_msg_type = hdr->sadb_msg_type;
-	out_hdr->sadb_msg_satype = pfkey_proto2satype(x->id.proto);
-	out_hdr->sadb_msg_errno = 0;
-	out_hdr->sadb_msg_reserved = 0;
-	out_hdr->sadb_msg_seq = hdr->sadb_msg_seq;
-	out_hdr->sadb_msg_pid = hdr->sadb_msg_pid;
-
-	pfkey_broadcast(out_skb, GFP_ATOMIC, BROADCAST_ALL, sk);
-
-	return 0;
+	return err;
 }
 
 static int pfkey_delete(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hdr, void **ext_hdrs)
 {
 	struct xfrm_state *x;
+	struct km_event c;
+	int err;
 
 	if (!ext_hdrs[SADB_EXT_SA-1] ||
 	    !present_and_same_family(ext_hdrs[SADB_EXT_ADDRESS_SRC-1],
@@ -1301,13 +1370,19 @@ static int pfkey_delete(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 		return -EPERM;
 	}
 	
-	xfrm_state_delete(x);
+	err = xfrm_state_delete(x);
+	if (err < 0) {
+		xfrm_state_put(x);
+		return err;
+	}
+
+	c.seq = hdr->sadb_msg_seq;
+	c.pid = hdr->sadb_msg_pid;
+	c.event = XFRM_SAP_DELETED;
+	km_state_notify(x, &c);
 	xfrm_state_put(x);
 
-	pfkey_broadcast(skb_clone(skb, GFP_KERNEL), GFP_KERNEL, 
-			BROADCAST_ALL, sk);
-
-	return 0;
+	return err;
 }
 
 static int pfkey_get(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hdr, void **ext_hdrs)
@@ -1445,28 +1520,42 @@ static int pfkey_register(struct sock *sk, struct sk_buff *skb, struct sadb_msg 
 	return 0;
 }
 
+static int key_notify_sa_flush(struct km_event *c)
+{
+	struct sk_buff *skb;
+	struct sadb_msg *hdr;
+
+	skb = alloc_skb(sizeof(struct sadb_msg) + 16, GFP_ATOMIC);
+	if (!skb)
+		return -ENOBUFS;
+	hdr = (struct sadb_msg *) skb_put(skb, sizeof(struct sadb_msg));
+	hdr->sadb_msg_satype = pfkey_proto2satype(c->data);
+	hdr->sadb_msg_seq = c->seq;
+	hdr->sadb_msg_pid = c->pid;
+	hdr->sadb_msg_version = PF_KEY_V2;
+	hdr->sadb_msg_errno = (uint8_t) 0;
+	hdr->sadb_msg_len = (sizeof(struct sadb_msg) / sizeof(uint64_t));
+
+	pfkey_broadcast(skb, GFP_ATOMIC, BROADCAST_ALL, NULL);
+
+	return 0;
+}
+
 static int pfkey_flush(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hdr, void **ext_hdrs)
 {
 	unsigned proto;
-	struct sk_buff *skb_out;
-	struct sadb_msg *hdr_out;
+	struct km_event c;
 
 	proto = pfkey_satype2proto(hdr->sadb_msg_satype);
 	if (proto == 0)
 		return -EINVAL;
 
-	skb_out = alloc_skb(sizeof(struct sadb_msg) + 16, GFP_KERNEL);
-	if (!skb_out)
-		return -ENOBUFS;
-
 	xfrm_state_flush(proto);
-
-	hdr_out = (struct sadb_msg *) skb_put(skb_out, sizeof(struct sadb_msg));
-	pfkey_hdr_dup(hdr_out, hdr);
-	hdr_out->sadb_msg_errno = (uint8_t) 0;
-	hdr_out->sadb_msg_len = (sizeof(struct sadb_msg) / sizeof(uint64_t));
-
-	pfkey_broadcast(skb_out, GFP_KERNEL, BROADCAST_ALL, NULL);
+	c.data = proto;
+	c.seq = hdr->sadb_msg_seq;
+	c.pid = hdr->sadb_msg_pid;
+	c.event = XFRM_SAP_FLUSHED;
+	km_state_notify(NULL, &c);
 
 	return 0;
 }
@@ -1859,6 +1948,35 @@ static void pfkey_xfrm_policy2msg(struct sk_buff *skb, struct xfrm_policy *xp, i
 	hdr->sadb_msg_reserved = atomic_read(&xp->refcnt);
 }
 
+static int key_notify_policy(struct xfrm_policy *xp, int dir, struct km_event *c)
+{
+	struct sk_buff *out_skb;
+	struct sadb_msg *out_hdr;
+	int err;
+
+	out_skb = pfkey_xfrm_policy2msg_prep(xp);
+	if (IS_ERR(out_skb)) {
+		err = PTR_ERR(out_skb);
+		goto out;
+	}
+	pfkey_xfrm_policy2msg(out_skb, xp, dir);
+
+	out_hdr = (struct sadb_msg *) out_skb->data;
+	out_hdr->sadb_msg_version = PF_KEY_V2;
+
+	if (c->data && c->event == XFRM_SAP_DELETED)
+		out_hdr->sadb_msg_type = SADB_X_SPDDELETE2;
+	else
+		out_hdr->sadb_msg_type = event2poltype(c->event);
+	out_hdr->sadb_msg_errno = 0;
+	out_hdr->sadb_msg_seq = c->seq;
+	out_hdr->sadb_msg_pid = c->pid;
+	pfkey_broadcast(out_skb, GFP_ATOMIC, BROADCAST_ALL, NULL);
+out:
+	return 0;
+
+}
+
 static int pfkey_spdadd(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hdr, void **ext_hdrs)
 {
 	int err;
@@ -1866,8 +1984,7 @@ static int pfkey_spdadd(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 	struct sadb_address *sa;
 	struct sadb_x_policy *pol;
 	struct xfrm_policy *xp;
-	struct sk_buff *out_skb;
-	struct sadb_msg *out_hdr;
+	struct km_event c;
 
 	if (!present_and_same_family(ext_hdrs[SADB_EXT_ADDRESS_SRC-1],
 				     ext_hdrs[SADB_EXT_ADDRESS_DST-1]) ||
@@ -1935,31 +2052,23 @@ static int pfkey_spdadd(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 	    (err = parse_ipsecrequests(xp, pol)) < 0)
 		goto out;
 
-	out_skb = pfkey_xfrm_policy2msg_prep(xp);
-	if (IS_ERR(out_skb)) {
-		err =  PTR_ERR(out_skb);
-		goto out;
-	}
-
 	err = xfrm_policy_insert(pol->sadb_x_policy_dir-1, xp,
 				 hdr->sadb_msg_type != SADB_X_SPDUPDATE);
 	if (err) {
-		kfree_skb(out_skb);
-		goto out;
+		kfree(xp);
+		return err;
 	}
 
-	pfkey_xfrm_policy2msg(out_skb, xp, pol->sadb_x_policy_dir-1);
+	if (hdr->sadb_msg_type == SADB_X_SPDUPDATE)
+		c.event = XFRM_SAP_UPDATED;
+	else
+		c.event = XFRM_SAP_ADDED;
 
+	c.seq = hdr->sadb_msg_seq;
+	c.pid = hdr->sadb_msg_pid;
+
+	km_policy_notify(xp, pol->sadb_x_policy_dir-1, &c);
 	xfrm_pol_put(xp);
-
-	out_hdr = (struct sadb_msg *) out_skb->data;
-	out_hdr->sadb_msg_version = hdr->sadb_msg_version;
-	out_hdr->sadb_msg_type = hdr->sadb_msg_type;
-	out_hdr->sadb_msg_satype = 0;
-	out_hdr->sadb_msg_errno = 0;
-	out_hdr->sadb_msg_seq = hdr->sadb_msg_seq;
-	out_hdr->sadb_msg_pid = hdr->sadb_msg_pid;
-	pfkey_broadcast(out_skb, GFP_ATOMIC, BROADCAST_ALL, sk);
 	return 0;
 
 out:
@@ -1973,9 +2082,8 @@ static int pfkey_spddelete(struct sock *sk, struct sk_buff *skb, struct sadb_msg
 	struct sadb_address *sa;
 	struct sadb_x_policy *pol;
 	struct xfrm_policy *xp;
-	struct sk_buff *out_skb;
-	struct sadb_msg *out_hdr;
 	struct xfrm_selector sel;
+	struct km_event c;
 
 	if (!present_and_same_family(ext_hdrs[SADB_EXT_ADDRESS_SRC-1],
 				     ext_hdrs[SADB_EXT_ADDRESS_DST-1]) ||
@@ -2010,25 +2118,40 @@ static int pfkey_spddelete(struct sock *sk, struct sk_buff *skb, struct sadb_msg
 
 	err = 0;
 
+	c.seq = hdr->sadb_msg_seq;
+	c.pid = hdr->sadb_msg_pid;
+	c.event = XFRM_SAP_DELETED;
+	km_policy_notify(xp, pol->sadb_x_policy_dir-1, &c);
+
+	xfrm_pol_put(xp);
+	return err;
+}
+
+static int key_pol_get_resp(struct sock *sk, struct xfrm_policy *xp, struct sadb_msg *hdr, int dir)
+{
+	int err;
+	struct sk_buff *out_skb;
+	struct sadb_msg *out_hdr;
+	err = 0;
+
 	out_skb = pfkey_xfrm_policy2msg_prep(xp);
 	if (IS_ERR(out_skb)) {
 		err =  PTR_ERR(out_skb);
 		goto out;
 	}
-	pfkey_xfrm_policy2msg(out_skb, xp, pol->sadb_x_policy_dir-1);
+	pfkey_xfrm_policy2msg(out_skb, xp, dir);
 
 	out_hdr = (struct sadb_msg *) out_skb->data;
 	out_hdr->sadb_msg_version = hdr->sadb_msg_version;
-	out_hdr->sadb_msg_type = SADB_X_SPDDELETE;
+	out_hdr->sadb_msg_type = hdr->sadb_msg_type;
 	out_hdr->sadb_msg_satype = 0;
 	out_hdr->sadb_msg_errno = 0;
 	out_hdr->sadb_msg_seq = hdr->sadb_msg_seq;
 	out_hdr->sadb_msg_pid = hdr->sadb_msg_pid;
-	pfkey_broadcast(out_skb, GFP_ATOMIC, BROADCAST_ALL, sk);
+	pfkey_broadcast(out_skb, GFP_ATOMIC, BROADCAST_ONE, sk);
 	err = 0;
 
 out:
-	xfrm_pol_put(xp);
 	return err;
 }
 
@@ -2037,8 +2160,7 @@ static int pfkey_spdget(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 	int err;
 	struct sadb_x_policy *pol;
 	struct xfrm_policy *xp;
-	struct sk_buff *out_skb;
-	struct sadb_msg *out_hdr;
+	struct km_event c;
 
 	if ((pol = ext_hdrs[SADB_X_EXT_POLICY-1]) == NULL)
 		return -EINVAL;
@@ -2050,24 +2172,16 @@ static int pfkey_spdget(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 
 	err = 0;
 
-	out_skb = pfkey_xfrm_policy2msg_prep(xp);
-	if (IS_ERR(out_skb)) {
-		err =  PTR_ERR(out_skb);
-		goto out;
+	c.seq = hdr->sadb_msg_seq;
+	c.pid = hdr->sadb_msg_pid;
+	if (hdr->sadb_msg_type == SADB_X_SPDDELETE2) {
+		c.data = 1; // to signal pfkey of SADB_X_SPDDELETE2
+		c.event = XFRM_SAP_DELETED;
+		km_policy_notify(xp, pol->sadb_x_policy_dir-1, &c);
+	} else {
+		err = key_pol_get_resp(sk, xp, hdr, pol->sadb_x_policy_dir-1);
 	}
-	pfkey_xfrm_policy2msg(out_skb, xp, pol->sadb_x_policy_dir-1);
 
-	out_hdr = (struct sadb_msg *) out_skb->data;
-	out_hdr->sadb_msg_version = hdr->sadb_msg_version;
-	out_hdr->sadb_msg_type = hdr->sadb_msg_type;
-	out_hdr->sadb_msg_satype = 0;
-	out_hdr->sadb_msg_errno = 0;
-	out_hdr->sadb_msg_seq = hdr->sadb_msg_seq;
-	out_hdr->sadb_msg_pid = hdr->sadb_msg_pid;
-	pfkey_broadcast(out_skb, GFP_ATOMIC, BROADCAST_ALL, sk);
-	err = 0;
-
-out:
 	xfrm_pol_put(xp);
 	return err;
 }
@@ -2102,22 +2216,34 @@ static int pfkey_spddump(struct sock *sk, struct sk_buff *skb, struct sadb_msg *
 	return xfrm_policy_walk(dump_sp, &data);
 }
 
-static int pfkey_spdflush(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hdr, void **ext_hdrs)
+static int key_notify_policy_flush(struct km_event *c)
 {
 	struct sk_buff *skb_out;
-	struct sadb_msg *hdr_out;
+	struct sadb_msg *hdr;
 
-	skb_out = alloc_skb(sizeof(struct sadb_msg) + 16, GFP_KERNEL);
+	skb_out = alloc_skb(sizeof(struct sadb_msg) + 16, GFP_ATOMIC);
 	if (!skb_out)
 		return -ENOBUFS;
+	hdr = (struct sadb_msg *) skb_put(skb_out, sizeof(struct sadb_msg));
+	hdr->sadb_msg_seq = c->seq;
+	hdr->sadb_msg_pid = c->pid;
+	hdr->sadb_msg_version = PF_KEY_V2;
+	hdr->sadb_msg_errno = (uint8_t) 0;
+	hdr->sadb_msg_len = (sizeof(struct sadb_msg) / sizeof(uint64_t));
+	pfkey_broadcast(skb_out, GFP_ATOMIC, BROADCAST_ALL, NULL);
+	return 0;
+
+}
+
+static int pfkey_spdflush(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hdr, void **ext_hdrs)
+{
+	struct km_event c;
 
 	xfrm_policy_flush();
-
-	hdr_out = (struct sadb_msg *) skb_put(skb_out, sizeof(struct sadb_msg));
-	pfkey_hdr_dup(hdr_out, hdr);
-	hdr_out->sadb_msg_errno = (uint8_t) 0;
-	hdr_out->sadb_msg_len = (sizeof(struct sadb_msg) / sizeof(uint64_t));
-	pfkey_broadcast(skb_out, GFP_KERNEL, BROADCAST_ALL, NULL);
+	c.event = XFRM_SAP_FLUSHED;
+	c.pid = hdr->sadb_msg_pid;
+	c.seq = hdr->sadb_msg_seq;
+	km_policy_notify(NULL, 0, &c);
 
 	return 0;
 }
@@ -2317,11 +2443,23 @@ static void dump_esp_combs(struct sk_buff *skb, struct xfrm_tmpl *t)
 	}
 }
 
-static int pfkey_send_notify(struct xfrm_state *x, int hard)
+static int key_notify_policy_expire(struct xfrm_policy *xp, struct km_event *c)
+{
+	return 0;
+}
+
+static int key_notify_sa_expire(struct xfrm_state *x, struct km_event *c)
 {
 	struct sk_buff *out_skb;
 	struct sadb_msg *out_hdr;
-	int hsc = (hard ? 2 : 1);
+	int hard;
+	int hsc;
+
+	hard = c->data;
+	if (hard)
+		hsc = 2;
+	else
+		hsc = 1;
 
 	out_skb = pfkey_xfrm_state2msg(x, 0, hsc);
 	if (IS_ERR(out_skb))
@@ -2337,6 +2475,44 @@ static int pfkey_send_notify(struct xfrm_state *x, int hard)
 	out_hdr->sadb_msg_pid = 0;
 
 	pfkey_broadcast(out_skb, GFP_ATOMIC, BROADCAST_REGISTERED, NULL);
+	return 0;
+}
+
+static int pfkey_send_notify(struct xfrm_state *x, struct km_event *c)
+{
+	switch (c->event) {
+	case XFRM_SAP_EXPIRED:
+		return key_notify_sa_expire(x, c);
+	case XFRM_SAP_DELETED:
+	case XFRM_SAP_ADDED:
+	case XFRM_SAP_UPDATED:
+		return key_notify_sa(x, c);
+	case XFRM_SAP_FLUSHED:
+		return key_notify_sa_flush(c);
+	default:
+		printk("pfkey: Unknown SA event %d\n", c->event);
+		break;
+	}
+
+	return 0;
+}
+
+static int pfkey_send_policy_notify(struct xfrm_policy *xp, int dir, struct km_event *c)
+{
+	switch (c->event) {
+	case XFRM_SAP_EXPIRED:
+		return key_notify_policy_expire(xp, c);
+	case XFRM_SAP_DELETED:
+	case XFRM_SAP_ADDED:
+	case XFRM_SAP_UPDATED:
+		return key_notify_policy(xp, dir, c);
+	case XFRM_SAP_FLUSHED:
+		return key_notify_policy_flush(c);
+	default:
+		printk("pfkey: Unknown policy event %d\n", c->event);
+		break;
+	}
+
 	return 0;
 }
 
@@ -2856,6 +3032,7 @@ static struct xfrm_mgr pfkeyv2_mgr =
 	.acquire	= pfkey_send_acquire,
 	.compile_policy	= pfkey_compile_policy,
 	.new_mapping	= pfkey_send_new_mapping,
+	.notify_policy	= pfkey_send_policy_notify,
 };
 
 static void __exit ipsec_pfkey_exit(void)
