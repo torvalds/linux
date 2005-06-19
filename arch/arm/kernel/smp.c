@@ -145,7 +145,8 @@ int __init __cpu_up(unsigned int cpu)
 	pgd_free(pgd);
 
 	if (ret) {
-		printk(KERN_CRIT "cpu_up: processor %d failed to boot\n", cpu);
+		printk(KERN_CRIT "CPU%u: processor failed to boot\n", cpu);
+
 		/*
 		 * FIXME: We need to clean up the new idle thread. --rmk
 		 */
