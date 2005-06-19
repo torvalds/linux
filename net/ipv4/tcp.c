@@ -316,7 +316,7 @@ EXPORT_SYMBOL(tcp_enter_memory_pressure);
 static __inline__ unsigned int tcp_listen_poll(struct sock *sk,
 					       poll_table *wait)
 {
-	return tcp_sk(sk)->accept_queue ? (POLLIN | POLLRDNORM) : 0;
+	return !reqsk_queue_empty(&tcp_sk(sk)->accept_queue) ? (POLLIN | POLLRDNORM) : 0;
 }
 
 /*
@@ -462,27 +462,14 @@ int tcp_listen_start(struct sock *sk)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct tcp_listen_opt *lopt;
+	int rc = reqsk_queue_alloc(&tp->accept_queue, TCP_SYNQ_HSIZE);
+
+	if (rc != 0)
+		return rc;
 
 	sk->sk_max_ack_backlog = 0;
 	sk->sk_ack_backlog = 0;
-	tp->accept_queue = tp->accept_queue_tail = NULL;
-	rwlock_init(&tp->syn_wait_lock);
 	tcp_delack_init(tp);
-
-	lopt = kmalloc(sizeof(struct tcp_listen_opt), GFP_KERNEL);
-	if (!lopt)
-		return -ENOMEM;
-
-	memset(lopt, 0, sizeof(struct tcp_listen_opt));
-	for (lopt->max_qlen_log = 6; ; lopt->max_qlen_log++)
-		if ((1 << lopt->max_qlen_log) >= sysctl_max_syn_backlog)
-			break;
-	get_random_bytes(&lopt->hash_rnd, 4);
-
-	write_lock_bh(&tp->syn_wait_lock);
-	tp->listen_opt = lopt;
-	write_unlock_bh(&tp->syn_wait_lock);
 
 	/* There is race window here: we announce ourselves listening,
 	 * but this transition is still not validated by get_port().
@@ -500,10 +487,7 @@ int tcp_listen_start(struct sock *sk)
 	}
 
 	sk->sk_state = TCP_CLOSE;
-	write_lock_bh(&tp->syn_wait_lock);
-	tp->listen_opt = NULL;
-	write_unlock_bh(&tp->syn_wait_lock);
-	kfree(lopt);
+	reqsk_queue_destroy(&tp->accept_queue);
 	return -EADDRINUSE;
 }
 
@@ -515,18 +499,16 @@ int tcp_listen_start(struct sock *sk)
 static void tcp_listen_stop (struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct tcp_listen_opt *lopt = tp->listen_opt;
-	struct request_sock *acc_req = tp->accept_queue;
+	struct tcp_listen_opt *lopt;
+	struct request_sock *acc_req;
 	struct request_sock *req;
 	int i;
 
 	tcp_delete_keepalive_timer(sk);
 
 	/* make all the listen_opt local to us */
-	write_lock_bh(&tp->syn_wait_lock);
-	tp->listen_opt = NULL;
-	write_unlock_bh(&tp->syn_wait_lock);
-	tp->accept_queue = tp->accept_queue_tail = NULL;
+	lopt = reqsk_queue_yank_listen_sk(&tp->accept_queue);
+	acc_req = reqsk_queue_yank_acceptq(&tp->accept_queue);
 
 	if (lopt->qlen) {
 		for (i = 0; i < TCP_SYNQ_HSIZE; i++) {
@@ -1867,11 +1849,11 @@ static int wait_for_connect(struct sock *sk, long timeo)
 		prepare_to_wait_exclusive(sk->sk_sleep, &wait,
 					  TASK_INTERRUPTIBLE);
 		release_sock(sk);
-		if (!tp->accept_queue)
+		if (reqsk_queue_empty(&tp->accept_queue))
 			timeo = schedule_timeout(timeo);
 		lock_sock(sk);
 		err = 0;
-		if (tp->accept_queue)
+		if (!reqsk_queue_empty(&tp->accept_queue))
 			break;
 		err = -EINVAL;
 		if (sk->sk_state != TCP_LISTEN)
@@ -1894,7 +1876,6 @@ static int wait_for_connect(struct sock *sk, long timeo)
 struct sock *tcp_accept(struct sock *sk, int flags, int *err)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct request_sock *req;
 	struct sock *newsk;
 	int error;
 
@@ -1905,37 +1886,31 @@ struct sock *tcp_accept(struct sock *sk, int flags, int *err)
 	 */
 	error = -EINVAL;
 	if (sk->sk_state != TCP_LISTEN)
-		goto out;
+		goto out_err;
 
 	/* Find already established connection */
-	if (!tp->accept_queue) {
+	if (reqsk_queue_empty(&tp->accept_queue)) {
 		long timeo = sock_rcvtimeo(sk, flags & O_NONBLOCK);
 
 		/* If this is a non blocking socket don't sleep */
 		error = -EAGAIN;
 		if (!timeo)
-			goto out;
+			goto out_err;
 
 		error = wait_for_connect(sk, timeo);
 		if (error)
-			goto out;
+			goto out_err;
 	}
 
-	req = tp->accept_queue;
-	if ((tp->accept_queue = req->dl_next) == NULL)
-		tp->accept_queue_tail = NULL;
-
- 	newsk = req->sk;
-	sk_acceptq_removed(sk);
-	__reqsk_free(req);
+	newsk = reqsk_queue_get_child(&tp->accept_queue, sk);
 	BUG_TRAP(newsk->sk_state != TCP_SYN_RECV);
-	release_sock(sk);
-	return newsk;
-
 out:
 	release_sock(sk);
+	return newsk;
+out_err:
+	newsk = NULL;
 	*err = error;
-	return NULL;
+	goto out;
 }
 
 /*

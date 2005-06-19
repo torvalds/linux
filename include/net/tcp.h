@@ -1686,71 +1686,41 @@ static inline int tcp_full_space(const struct sock *sk)
 static inline void tcp_acceptq_queue(struct sock *sk, struct request_sock *req,
 					 struct sock *child)
 {
-	struct tcp_sock *tp = tcp_sk(sk);
-
-	req->sk = child;
-	sk_acceptq_added(sk);
-
-	if (!tp->accept_queue_tail) {
-		tp->accept_queue = req;
-	} else {
-		tp->accept_queue_tail->dl_next = req;
-	}
-	tp->accept_queue_tail = req;
-	req->dl_next = NULL;
+	reqsk_queue_add(&tcp_sk(sk)->accept_queue, req, sk, child);
 }
-
-struct tcp_listen_opt
-{
-	u8			max_qlen_log;	/* log_2 of maximal queued SYNs */
-	int			qlen;
-	int			qlen_young;
-	int			clock_hand;
-	u32			hash_rnd;
-	struct request_sock	*syn_table[TCP_SYNQ_HSIZE];
-};
 
 static inline void
 tcp_synq_removed(struct sock *sk, struct request_sock *req)
 {
-	struct tcp_listen_opt *lopt = tcp_sk(sk)->listen_opt;
-
-	if (--lopt->qlen == 0)
+	if (reqsk_queue_removed(&tcp_sk(sk)->accept_queue, req) == 0)
 		tcp_delete_keepalive_timer(sk);
-	if (req->retrans == 0)
-		lopt->qlen_young--;
 }
 
 static inline void tcp_synq_added(struct sock *sk)
 {
-	struct tcp_listen_opt *lopt = tcp_sk(sk)->listen_opt;
-
-	if (lopt->qlen++ == 0)
+	if (reqsk_queue_added(&tcp_sk(sk)->accept_queue) == 0)
 		tcp_reset_keepalive_timer(sk, TCP_TIMEOUT_INIT);
-	lopt->qlen_young++;
 }
 
 static inline int tcp_synq_len(struct sock *sk)
 {
-	return tcp_sk(sk)->listen_opt->qlen;
+	return reqsk_queue_len(&tcp_sk(sk)->accept_queue);
 }
 
 static inline int tcp_synq_young(struct sock *sk)
 {
-	return tcp_sk(sk)->listen_opt->qlen_young;
+	return reqsk_queue_len_young(&tcp_sk(sk)->accept_queue);
 }
 
 static inline int tcp_synq_is_full(struct sock *sk)
 {
-	return tcp_synq_len(sk) >> tcp_sk(sk)->listen_opt->max_qlen_log;
+	return reqsk_queue_is_full(&tcp_sk(sk)->accept_queue);
 }
 
 static inline void tcp_synq_unlink(struct tcp_sock *tp, struct request_sock *req,
-				       struct request_sock **prev)
+				   struct request_sock **prev)
 {
-	write_lock(&tp->syn_wait_lock);
-	*prev = req->dl_next;
-	write_unlock(&tp->syn_wait_lock);
+	reqsk_queue_unlink(&tp->accept_queue, req, prev);
 }
 
 static inline void tcp_synq_drop(struct sock *sk, struct request_sock *req,

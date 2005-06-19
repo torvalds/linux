@@ -529,9 +529,9 @@ static int tcpdiag_dump_reqs(struct sk_buff *skb, struct sock *sk,
 
 	entry.family = sk->sk_family;
 
-	read_lock_bh(&tp->syn_wait_lock);
+	read_lock_bh(&tp->accept_queue.syn_wait_lock);
 
-	lopt = tp->listen_opt;
+	lopt = tp->accept_queue.listen_opt;
 	if (!lopt || !lopt->qlen)
 		goto out;
 
@@ -588,7 +588,7 @@ static int tcpdiag_dump_reqs(struct sk_buff *skb, struct sock *sk,
 	}
 
 out:
-	read_unlock_bh(&tp->syn_wait_lock);
+	read_unlock_bh(&tp->accept_queue.syn_wait_lock);
 
 	return err;
 }

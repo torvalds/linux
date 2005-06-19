@@ -874,7 +874,7 @@ static struct request_sock *tcp_v4_search_req(struct tcp_sock *tp,
 					      __u16 rport,
 					      __u32 raddr, __u32 laddr)
 {
-	struct tcp_listen_opt *lopt = tp->listen_opt;
+	struct tcp_listen_opt *lopt = tp->accept_queue.listen_opt;
 	struct request_sock *req, **prev;
 
 	for (prev = &lopt->syn_table[tcp_v4_synq_hash(raddr, rport, lopt->hash_rnd)];
@@ -898,18 +898,10 @@ static struct request_sock *tcp_v4_search_req(struct tcp_sock *tp,
 static void tcp_v4_synq_add(struct sock *sk, struct request_sock *req)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct tcp_listen_opt *lopt = tp->listen_opt;
+	struct tcp_listen_opt *lopt = tp->accept_queue.listen_opt;
 	u32 h = tcp_v4_synq_hash(inet_rsk(req)->rmt_addr, inet_rsk(req)->rmt_port, lopt->hash_rnd);
 
-	req->expires = jiffies + TCP_TIMEOUT_INIT;
-	req->retrans = 0;
-	req->sk = NULL;
-	req->dl_next = lopt->syn_table[h];
-
-	write_lock(&tp->syn_wait_lock);
-	lopt->syn_table[h] = req;
-	write_unlock(&tp->syn_wait_lock);
-
+	reqsk_queue_hash_req(&tp->accept_queue, h, req, TCP_TIMEOUT_INIT);
 	tcp_synq_added(sk);
 }
 
@@ -2167,17 +2159,17 @@ static void *listening_get_next(struct seq_file *seq, void *cur)
 			if (++st->sbucket >= TCP_SYNQ_HSIZE)
 				break;
 get_req:
-			req = tp->listen_opt->syn_table[st->sbucket];
+			req = tp->accept_queue.listen_opt->syn_table[st->sbucket];
 		}
 		sk	  = sk_next(st->syn_wait_sk);
 		st->state = TCP_SEQ_STATE_LISTENING;
-		read_unlock_bh(&tp->syn_wait_lock);
+		read_unlock_bh(&tp->accept_queue.syn_wait_lock);
 	} else {
 	       	tp = tcp_sk(sk);
-		read_lock_bh(&tp->syn_wait_lock);
-		if (tp->listen_opt && tp->listen_opt->qlen)
+		read_lock_bh(&tp->accept_queue.syn_wait_lock);
+		if (reqsk_queue_len(&tp->accept_queue))
 			goto start_req;
-		read_unlock_bh(&tp->syn_wait_lock);
+		read_unlock_bh(&tp->accept_queue.syn_wait_lock);
 		sk = sk_next(sk);
 	}
 get_sk:
@@ -2187,8 +2179,8 @@ get_sk:
 			goto out;
 		}
 	       	tp = tcp_sk(sk);
-		read_lock_bh(&tp->syn_wait_lock);
-		if (tp->listen_opt && tp->listen_opt->qlen) {
+		read_lock_bh(&tp->accept_queue.syn_wait_lock);
+		if (reqsk_queue_len(&tp->accept_queue)) {
 start_req:
 			st->uid		= sock_i_uid(sk);
 			st->syn_wait_sk = sk;
@@ -2196,7 +2188,7 @@ start_req:
 			st->sbucket	= 0;
 			goto get_req;
 		}
-		read_unlock_bh(&tp->syn_wait_lock);
+		read_unlock_bh(&tp->accept_queue.syn_wait_lock);
 	}
 	if (++st->bucket < TCP_LHTABLE_SIZE) {
 		sk = sk_head(&tcp_listening_hash[st->bucket]);
@@ -2383,7 +2375,7 @@ static void tcp_seq_stop(struct seq_file *seq, void *v)
 	case TCP_SEQ_STATE_OPENREQ:
 		if (v) {
 			struct tcp_sock *tp = tcp_sk(st->syn_wait_sk);
-			read_unlock_bh(&tp->syn_wait_lock);
+			read_unlock_bh(&tp->accept_queue.syn_wait_lock);
 		}
 	case TCP_SEQ_STATE_LISTENING:
 		if (v != SEQ_START_TOKEN)

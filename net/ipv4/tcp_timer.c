@@ -464,7 +464,7 @@ out_unlock:
 static void tcp_synack_timer(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct tcp_listen_opt *lopt = tp->listen_opt;
+	struct tcp_listen_opt *lopt = tp->accept_queue.listen_opt;
 	int max_retries = tp->syn_retries ? : sysctl_tcp_synack_retries;
 	int thresh = max_retries;
 	unsigned long now = jiffies;
@@ -527,12 +527,8 @@ static void tcp_synack_timer(struct sock *sk)
 				}
 
 				/* Drop this request */
-				write_lock(&tp->syn_wait_lock);
-				*reqp = req->dl_next;
-				write_unlock(&tp->syn_wait_lock);
-				lopt->qlen--;
-				if (req->retrans == 0)
-					lopt->qlen_young--;
+				tcp_synq_unlink(tp, req, reqp);
+				reqsk_queue_removed(&tp->accept_queue, req);
 				reqsk_free(req);
 				continue;
 			}

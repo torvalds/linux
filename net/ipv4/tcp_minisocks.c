@@ -790,10 +790,8 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 		newtp->probes_out = 0;
 		newtp->rx_opt.num_sacks = 0;
 		newtp->urg_data = 0;
-		newtp->listen_opt = NULL;
-		newtp->accept_queue = newtp->accept_queue_tail = NULL;
-		/* Deinitialize syn_wait_lock to trap illegal accesses. */
-		memset(&newtp->syn_wait_lock, 0, sizeof(newtp->syn_wait_lock));
+		/* Deinitialize accept_queue to trap illegal accesses. */
+		memset(&newtp->accept_queue, 0, sizeof(newtp->accept_queue));
 
 		/* Back to base struct sock members. */
 		newsk->sk_err = 0;
