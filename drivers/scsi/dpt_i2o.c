@@ -418,11 +418,6 @@ static int adpt_queue(struct scsi_cmnd * cmd, void (*done) (struct scsi_cmnd *))
 		return 1;
 	}
 
-	if(cmd->eh_state != SCSI_STATE_QUEUED){
-		// If we are not doing error recovery
-		mod_timer(&cmd->eh_timeout, timeout);
-	}
-
 	// TODO if the cmd->device if offline then I may need to issue a bus rescan
 	// followed by a get_lct to see if the device is there anymore
 	if((pDev = (struct adpt_device*) (cmd->device->hostdata)) == NULL) {

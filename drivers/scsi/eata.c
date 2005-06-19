@@ -1899,16 +1899,6 @@ static int eata2x_eh_abort(struct scsi_cmnd *SCarg)
 			printk("%s: abort, mbox %d, interrupt pending.\n",
 			       ha->board_name, i);
 
-		if (SCarg->eh_state == SCSI_STATE_TIMEOUT) {
-			unmap_dma(i, ha);
-			SCarg->host_scribble = NULL;
-			ha->cp_stat[i] = FREE;
-			printk
-			    ("%s, abort, mbox %d, eh_state timeout, pid %ld.\n",
-			     ha->board_name, i, SCarg->pid);
-			return SUCCESS;
-		}
-
 		return FAILED;
 	}
 
