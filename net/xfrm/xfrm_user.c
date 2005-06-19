@@ -1123,9 +1123,9 @@ nlmsg_failure:
 static int xfrm_exp_state_notify(struct xfrm_state *x, struct km_event *c)
 {
 	struct sk_buff *skb;
+	int len = NLMSG_LENGTH(sizeof(struct xfrm_user_expire));
 
-	/* fix to do alloc using NLM macros */
-	skb = alloc_skb(sizeof(struct xfrm_user_expire) + 16, GFP_ATOMIC);
+	skb = alloc_skb(len, GFP_ATOMIC);
 	if (skb == NULL)
 		return -ENOMEM;
 
