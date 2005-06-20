@@ -888,11 +888,6 @@ static int tok_open(struct net_device *dev)
 	ti->sap_status   = CLOSED; /* CLOSED or OPEN      */
 	ti->open_failure =     NO; /* NO     or YES       */
 	ti->open_mode    = MANUAL; /* MANUAL or AUTOMATIC */
-	/* 12/2000 not typical Linux, but we can use RUNNING to let us know when
-	the network has crapped out or cables are disconnected. Useful because
-	the IFF_UP flag stays up the whole time, until ifconfig tr0 down.
-	*/
-	dev->flags &= ~IFF_RUNNING;
 
 	ti->sram_phys &= ~1; /* to reverse what we do in tok_close */
 	/* init the spinlock */
@@ -1242,7 +1237,7 @@ irqreturn_t tok_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		ti->open_status = CLOSED;
 		ti->sap_status  = CLOSED;
 		ti->open_mode   = AUTOMATIC;
-		dev->flags &= ~IFF_RUNNING;
+		netif_carrier_off(dev);
 		netif_stop_queue(dev);
 		ti->open_action = RESTART;
 		outb(0, dev->base_addr + ADAPTRESET);
@@ -1323,7 +1318,7 @@ irqreturn_t tok_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 				break;
 			}
 			netif_wake_queue(dev);
-			dev->flags |= IFF_RUNNING;/*BMS 12/2000*/
+			netif_carrier_on(dev);
 			break;
 		case DIR_INTERRUPT:
 		case DIR_MOD_OPEN_PARAMS:
@@ -1427,7 +1422,7 @@ irqreturn_t tok_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 								ring_status);
 			if(ring_status& (REMOVE_RECV|AUTO_REMOVAL|LOBE_FAULT)){
 				netif_stop_queue(dev);
-				dev->flags &= ~IFF_RUNNING;/*not typical Linux*/
+				netif_carrier_off(dev);
 				DPRINTK("Remove received, or Auto-removal error"
 					", or Lobe fault\n");
 				DPRINTK("We'll try to reopen the closed adapter"

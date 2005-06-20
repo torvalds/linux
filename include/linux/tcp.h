@@ -230,6 +230,17 @@ struct tcp_options_received {
 	__u16	mss_clamp;	/* Maximal mss, negotiated at connection setup */
 };
 
+struct tcp_request_sock {
+	struct inet_request_sock req;
+	__u32			 rcv_isn;
+	__u32			 snt_isn;
+};
+
+static inline struct tcp_request_sock *tcp_rsk(const struct request_sock *req)
+{
+	return (struct tcp_request_sock *)req;
+}
+
 struct tcp_sock {
 	/* inet_sock has to be the first member of tcp_sock */
 	struct inet_sock	inet;
@@ -368,22 +379,7 @@ struct tcp_sock {
 
 	__u32	total_retrans;	/* Total retransmits for entire connection */
 
-	/* The syn_wait_lock is necessary only to avoid proc interface having
-	 * to grab the main lock sock while browsing the listening hash
-	 * (otherwise it's deadlock prone).
-	 * This lock is acquired in read mode only from listening_get_next()
-	 * and it's acquired in write mode _only_ from code that is actively
-	 * changing the syn_wait_queue. All readers that are holding
-	 * the master sock lock don't need to grab this lock in read mode
-	 * too as the syn_wait_queue writes are always protected from
-	 * the main sock lock.
-	 */
-	rwlock_t		syn_wait_lock;
-	struct tcp_listen_opt	*listen_opt;
-
-	/* FIFO of established children */
-	struct open_request	*accept_queue;
-	struct open_request	*accept_queue_tail;
+	struct request_sock_queue accept_queue; /* FIFO of established children */
 
 	unsigned int		keepalive_time;	  /* time before keep alive takes place */
 	unsigned int		keepalive_intvl;  /* time interval between keep alive probes */

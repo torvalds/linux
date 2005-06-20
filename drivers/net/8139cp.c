@@ -54,6 +54,7 @@
 
 #include <linux/config.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/compiler.h>
 #include <linux/netdevice.h>
@@ -91,16 +92,17 @@ KERN_INFO DRV_NAME ": 10/100 PCI Ethernet driver v" DRV_VERSION " (" DRV_RELDATE
 
 MODULE_AUTHOR("Jeff Garzik <jgarzik@pobox.com>");
 MODULE_DESCRIPTION("RealTek RTL-8139C+ series 10/100 PCI Ethernet driver");
+MODULE_VERSION(DRV_VERSION);
 MODULE_LICENSE("GPL");
 
 static int debug = -1;
-MODULE_PARM (debug, "i");
+module_param(debug, int, 0);
 MODULE_PARM_DESC (debug, "8139cp: bitmapped message enable number");
 
 /* Maximum number of multicast addresses to filter (vs. Rx-all-multicast).
    The RTL chips use a 64 element hash table based on the Ethernet CRC.  */
 static int multicast_filter_limit = 32;
-MODULE_PARM (multicast_filter_limit, "i");
+module_param(multicast_filter_limit, int, 0);
 MODULE_PARM_DESC (multicast_filter_limit, "8139cp: maximum number of filtered multicast addresses");
 
 #define PFX			DRV_NAME ": "
@@ -186,6 +188,9 @@ enum {
 	RingEnd		= (1 << 30), /* End of descriptor ring */
 	FirstFrag	= (1 << 29), /* First segment of a packet */
 	LastFrag	= (1 << 28), /* Final segment of a packet */
+	LargeSend	= (1 << 27), /* TCP Large Send Offload (TSO) */
+	MSSShift	= 16,	     /* MSS value position */
+	MSSMask		= 0xfff,     /* MSS value: 11 bits */
 	TxError		= (1 << 23), /* Tx error summary */
 	RxError		= (1 << 20), /* Rx error summary */
 	IPCS		= (1 << 18), /* Calculate IP checksum */
@@ -312,7 +317,7 @@ struct cp_desc {
 struct ring_info {
 	struct sk_buff		*skb;
 	dma_addr_t		mapping;
-	unsigned		frag;
+	u32			len;
 };
 
 struct cp_dma_stats {
@@ -394,6 +399,9 @@ struct cp_private {
 static void __cp_set_rx_mode (struct net_device *dev);
 static void cp_tx (struct cp_private *cp);
 static void cp_clean_rings (struct cp_private *cp);
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void cp_poll_controller(struct net_device *dev);
+#endif
 
 static struct pci_device_id cp_pci_tbl[] = {
 	{ PCI_VENDOR_ID_REALTEK, PCI_DEVICE_ID_REALTEK_8139,
@@ -688,6 +696,19 @@ cp_interrupt (int irq, void *dev_instance, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+/*
+ * Polling receive - used by netconsole and other diagnostic tools
+ * to allow network i/o with interrupts disabled.
+ */
+static void cp_poll_controller(struct net_device *dev)
+{
+	disable_irq(dev->irq);
+	cp_interrupt(dev->irq, dev, NULL);
+	enable_irq(dev->irq);
+}
+#endif
+
 static void cp_tx (struct cp_private *cp)
 {
 	unsigned tx_head = cp->tx_head;
@@ -707,7 +728,7 @@ static void cp_tx (struct cp_private *cp)
 			BUG();
 
 		pci_unmap_single(cp->pdev, cp->tx_skb[tx_tail].mapping,
-					skb->len, PCI_DMA_TODEVICE);
+				 cp->tx_skb[tx_tail].len, PCI_DMA_TODEVICE);
 
 		if (status & LastFrag) {
 			if (status & (TxError | TxFIFOUnder)) {
@@ -749,10 +770,11 @@ static int cp_start_xmit (struct sk_buff *skb, struct net_device *dev)
 {
 	struct cp_private *cp = netdev_priv(dev);
 	unsigned entry;
-	u32 eor;
+	u32 eor, flags;
 #if CP_VLAN_TAG_USED
 	u32 vlan_tag = 0;
 #endif
+	int mss = 0;
 
 	spin_lock_irq(&cp->lock);
 
@@ -772,6 +794,9 @@ static int cp_start_xmit (struct sk_buff *skb, struct net_device *dev)
 
 	entry = cp->tx_head;
 	eor = (entry == (CP_TX_RING_SIZE - 1)) ? RingEnd : 0;
+	if (dev->features & NETIF_F_TSO)
+		mss = skb_shinfo(skb)->tso_size;
+
 	if (skb_shinfo(skb)->nr_frags == 0) {
 		struct cp_desc *txd = &cp->tx_ring[entry];
 		u32 len;
@@ -783,26 +808,26 @@ static int cp_start_xmit (struct sk_buff *skb, struct net_device *dev)
 		txd->addr = cpu_to_le64(mapping);
 		wmb();
 
-		if (skb->ip_summed == CHECKSUM_HW) {
+		flags = eor | len | DescOwn | FirstFrag | LastFrag;
+
+		if (mss)
+			flags |= LargeSend | ((mss & MSSMask) << MSSShift);
+		else if (skb->ip_summed == CHECKSUM_HW) {
 			const struct iphdr *ip = skb->nh.iph;
 			if (ip->protocol == IPPROTO_TCP)
-				txd->opts1 = cpu_to_le32(eor | len | DescOwn |
-							 FirstFrag | LastFrag |
-							 IPCS | TCPCS);
+				flags |= IPCS | TCPCS;
 			else if (ip->protocol == IPPROTO_UDP)
-				txd->opts1 = cpu_to_le32(eor | len | DescOwn |
-							 FirstFrag | LastFrag |
-							 IPCS | UDPCS);
+				flags |= IPCS | UDPCS;
 			else
-				BUG();
-		} else
-			txd->opts1 = cpu_to_le32(eor | len | DescOwn |
-						 FirstFrag | LastFrag);
+				WARN_ON(1);	/* we need a WARN() */
+		}
+
+		txd->opts1 = cpu_to_le32(flags);
 		wmb();
 
 		cp->tx_skb[entry].skb = skb;
 		cp->tx_skb[entry].mapping = mapping;
-		cp->tx_skb[entry].frag = 0;
+		cp->tx_skb[entry].len = len;
 		entry = NEXT_TX(entry);
 	} else {
 		struct cp_desc *txd;
@@ -820,7 +845,7 @@ static int cp_start_xmit (struct sk_buff *skb, struct net_device *dev)
 					       first_len, PCI_DMA_TODEVICE);
 		cp->tx_skb[entry].skb = skb;
 		cp->tx_skb[entry].mapping = first_mapping;
-		cp->tx_skb[entry].frag = 1;
+		cp->tx_skb[entry].len = first_len;
 		entry = NEXT_TX(entry);
 
 		for (frag = 0; frag < skb_shinfo(skb)->nr_frags; frag++) {
@@ -836,16 +861,19 @@ static int cp_start_xmit (struct sk_buff *skb, struct net_device *dev)
 						 len, PCI_DMA_TODEVICE);
 			eor = (entry == (CP_TX_RING_SIZE - 1)) ? RingEnd : 0;
 
-			if (skb->ip_summed == CHECKSUM_HW) {
-				ctrl = eor | len | DescOwn | IPCS;
+			ctrl = eor | len | DescOwn;
+
+			if (mss)
+				ctrl |= LargeSend |
+					((mss & MSSMask) << MSSShift);
+			else if (skb->ip_summed == CHECKSUM_HW) {
 				if (ip->protocol == IPPROTO_TCP)
-					ctrl |= TCPCS;
+					ctrl |= IPCS | TCPCS;
 				else if (ip->protocol == IPPROTO_UDP)
-					ctrl |= UDPCS;
+					ctrl |= IPCS | UDPCS;
 				else
 					BUG();
-			} else
-				ctrl = eor | len | DescOwn;
+			}
 
 			if (frag == skb_shinfo(skb)->nr_frags - 1)
 				ctrl |= LastFrag;
@@ -860,7 +888,7 @@ static int cp_start_xmit (struct sk_buff *skb, struct net_device *dev)
 
 			cp->tx_skb[entry].skb = skb;
 			cp->tx_skb[entry].mapping = mapping;
-			cp->tx_skb[entry].frag = frag + 2;
+			cp->tx_skb[entry].len = len;
 			entry = NEXT_TX(entry);
 		}
 
@@ -1074,7 +1102,6 @@ static int cp_refill_rx (struct cp_private *cp)
 		cp->rx_skb[i].mapping = pci_map_single(cp->pdev,
 			skb->tail, cp->rx_buf_sz, PCI_DMA_FROMDEVICE);
 		cp->rx_skb[i].skb = skb;
-		cp->rx_skb[i].frag = 0;
 
 		cp->rx_ring[i].opts2 = 0;
 		cp->rx_ring[i].addr = cpu_to_le64(cp->rx_skb[i].mapping);
@@ -1126,9 +1153,6 @@ static void cp_clean_rings (struct cp_private *cp)
 {
 	unsigned i;
 
-	memset(cp->rx_ring, 0, sizeof(struct cp_desc) * CP_RX_RING_SIZE);
-	memset(cp->tx_ring, 0, sizeof(struct cp_desc) * CP_TX_RING_SIZE);
-
 	for (i = 0; i < CP_RX_RING_SIZE; i++) {
 		if (cp->rx_skb[i].skb) {
 			pci_unmap_single(cp->pdev, cp->rx_skb[i].mapping,
@@ -1140,12 +1164,17 @@ static void cp_clean_rings (struct cp_private *cp)
 	for (i = 0; i < CP_TX_RING_SIZE; i++) {
 		if (cp->tx_skb[i].skb) {
 			struct sk_buff *skb = cp->tx_skb[i].skb;
+
 			pci_unmap_single(cp->pdev, cp->tx_skb[i].mapping,
-					 skb->len, PCI_DMA_TODEVICE);
-			dev_kfree_skb(skb);
+				 	 cp->tx_skb[i].len, PCI_DMA_TODEVICE);
+			if (le32_to_cpu(cp->tx_ring[i].opts1) & LastFrag)
+				dev_kfree_skb(skb);
 			cp->net_stats.tx_dropped++;
 		}
 	}
+
+	memset(cp->rx_ring, 0, sizeof(struct cp_desc) * CP_RX_RING_SIZE);
+	memset(cp->tx_ring, 0, sizeof(struct cp_desc) * CP_TX_RING_SIZE);
 
 	memset(&cp->rx_skb, 0, sizeof(struct ring_info) * CP_RX_RING_SIZE);
 	memset(&cp->tx_skb, 0, sizeof(struct ring_info) * CP_TX_RING_SIZE);
@@ -1538,6 +1567,8 @@ static struct ethtool_ops cp_ethtool_ops = {
 	.set_tx_csum		= ethtool_op_set_tx_csum, /* local! */
 	.get_sg			= ethtool_op_get_sg,
 	.set_sg			= ethtool_op_set_sg,
+	.get_tso		= ethtool_op_get_tso,
+	.set_tso		= ethtool_op_set_tso,
 	.get_regs		= cp_get_regs,
 	.get_wol		= cp_get_wol,
 	.set_wol		= cp_set_wol,
@@ -1749,6 +1780,9 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->get_stats = cp_get_stats;
 	dev->do_ioctl = cp_ioctl;
 	dev->poll = cp_rx_poll;
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	dev->poll_controller = cp_poll_controller;
+#endif
 	dev->weight = 16;	/* arbitrary? from NAPI_HOWTO.txt. */
 #ifdef BROKEN
 	dev->change_mtu = cp_change_mtu;
@@ -1767,6 +1801,10 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (pci_using_dac)
 		dev->features |= NETIF_F_HIGHDMA;
+
+#if 0 /* disabled by default until verified */
+	dev->features |= NETIF_F_TSO;
+#endif
 
 	dev->irq = pdev->irq;
 

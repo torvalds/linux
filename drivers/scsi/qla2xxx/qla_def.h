@@ -252,30 +252,11 @@ typedef struct srb {
 	/* Request state */
 	uint16_t state;
 
-	/* Timing counts. */
-	unsigned long e_start;		/* Start of extend timeout */
-	unsigned long r_start;		/* Start of request */
-	unsigned long u_start;		/* When sent to RISC */
-	unsigned long f_start;		/* When placed in FO queue*/
-
 	/* Single transfer DMA context */
 	dma_addr_t dma_handle;
 
 	uint32_t request_sense_length;
 	uint8_t *request_sense_ptr;
-
-	int ext_history;
-
-	/* Suspend delay */
-	int delay;
-
-	/* Raw completion info for use by failover ? */
-	uint8_t	fo_retry_cnt;		/* Retry count this request */
-	uint8_t	err_id;			/* error id */
-#define SRB_ERR_PORT	1		/* Request failed -- "port down" */
-#define SRB_ERR_LOOP	2		/* Request failed -- "loop down" */
-#define SRB_ERR_DEVICE	3		/* Request failed -- "device error" */
-#define SRB_ERR_OTHER	4
 
 	/* SRB magic number */
 	uint16_t magic;
@@ -2082,23 +2063,8 @@ typedef struct scsi_qla_host {
 	uint32_t	current_outstanding_cmd; 
 	srb_t		*status_srb;	/* Status continuation entry. */
 
-	unsigned long	last_irq_cpu;	/* cpu where we got our last irq */
-
 	uint16_t           revision;
 	uint8_t           ports;
-	u_long            actthreads;
-	u_long            ipreq_cnt;
-	u_long            qthreads;
-
-	uint32_t        total_isr_cnt;		/* Interrupt count */
-	uint32_t        total_isp_aborts;	/* controller err cnt */
-	uint32_t        total_lip_cnt;		/* LIP cnt */
-	uint32_t	total_dev_errs;		/* device error cnt */
-	uint32_t	total_ios;		/* IO cnt */
-	uint64_t	total_bytes;		/* xfr byte cnt */
-	uint32_t	total_mbx_timeout;	/* mailbox timeout cnt */
-	uint32_t 	total_loop_resync; 	/* loop resyn cnt */
-	uint32_t	dropped_frame_error_cnt;
 
 	/* ISP configuration data. */
 	uint16_t	loop_id;		/* Host adapter loop id */
@@ -2124,8 +2090,6 @@ typedef struct scsi_qla_host {
 #define P2P_LOOP  3
 
         uint8_t		marker_needed; 
-	uint8_t		sns_retry_cnt;
-	uint8_t		mem_err;
 
 	uint8_t		interrupts_on;
 
@@ -2138,16 +2102,11 @@ typedef struct scsi_qla_host {
 	uint16_t	nvram_base;
 
 	uint16_t	loop_reset_delay;
-	uint16_t	minimum_timeout;
 	uint8_t		retry_count;
 	uint8_t		login_timeout;
 	uint16_t	r_a_tov;
 	int		port_down_retry_count;
-	uint8_t		loop_down_timeout;
 	uint8_t		mbx_count;
-	uint16_t	max_probe_luns;
-	uint16_t	max_luns;
-	uint16_t	max_targets;
 	uint16_t	last_loop_id;
 
         uint32_t	login_retry_count; 
@@ -2181,7 +2140,6 @@ typedef struct scsi_qla_host {
 	uint8_t dpc_active;                  /* DPC routine is active */
 
 	/* Timeout timers. */
-	uint8_t         queue_restart_timer;   
 	uint8_t         loop_down_abort_time;    /* port down timer */
 	atomic_t        loop_down_timer;         /* loop down timer */
 	uint8_t         link_down_timeout;       /* link down timeout */
@@ -2230,18 +2188,6 @@ typedef struct scsi_qla_host {
 
 	mbx_cmd_t 	mc;
 
-	uint8_t	*cmdline;
-
-	uint32_t failover_type;
-	uint32_t failback_delay;
-	unsigned long   cfg_flags;
-#define	CFG_ACTIVE	0	/* CFG during a failover, event update, or ioctl */
-#define	CFG_FAILOVER	1	/* CFG during path change */
-
-	uint32_t	binding_type;
-#define BIND_BY_PORT_NAME	0
-#define BIND_BY_PORT_ID		1
-
 	/* Basic firmware related information. */
 	struct qla_board_info	*brd_info;
 	uint16_t	fw_major_version;
@@ -2273,12 +2219,6 @@ typedef struct scsi_qla_host {
 	uint8_t     node_name[WWN_SIZE];
 	uint8_t     nvram_version; 
 	uint32_t    isp_abort_cnt;
-
-	/* Adapter I/O statistics for failover */
-	uint64_t	IosRequested;
-	uint64_t	BytesRequested;
-	uint64_t	IosExecuted;
-	uint64_t	BytesExecuted;
 
 	/* Needed for BEACON */
 	uint16_t	beacon_blink_led;

@@ -92,9 +92,7 @@ static Scsi_Host_Template nsp_driver_template = {
 #endif
 	.info			 = nsp_info,
 	.queuecommand		 = nsp_queuecommand,
-/*	.eh_strategy_handler	 = nsp_eh_strategy,*/
 /*	.eh_abort_handler	 = nsp_eh_abort,*/
-/*	.eh_device_reset_handler = nsp_eh_device_reset,*/
 	.eh_bus_reset_handler	 = nsp_eh_bus_reset,
 	.eh_host_reset_handler	 = nsp_eh_host_reset,
 	.can_queue		 = 1,
@@ -1536,25 +1534,12 @@ nsp_proc_info(
 /* error handler                                                 */
 /*---------------------------------------------------------------*/
 
-/*static int nsp_eh_strategy(struct Scsi_Host *Shost)
-{
-	return FAILED;
-}*/
-
 /*
 static int nsp_eh_abort(Scsi_Cmnd *SCpnt)
 {
 	nsp_dbg(NSP_DEBUG_BUSRESET, "SCpnt=0x%p", SCpnt);
 
 	return nsp_eh_bus_reset(SCpnt);
-}*/
-
-/*
-static int nsp_eh_device_reset(Scsi_Cmnd *SCpnt)
-{
-	nsp_dbg(NSP_DEBUG_BUSRESET, "%s: SCpnt=0x%p", SCpnt);
-
-	return FAILED;
 }*/
 
 static int nsp_bus_reset(nsp_hw_data *data)

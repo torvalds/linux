@@ -98,7 +98,9 @@ static irqreturn_t aac_rkt_intr(int irq, void *dev_id, struct pt_regs *regs)
  *	for its	completion.
  */
 
-static int rkt_sync_cmd(struct aac_dev *dev, u32 command, u32 p1, u32 *status)
+static int rkt_sync_cmd(struct aac_dev *dev, u32 command,
+	u32 p1, u32 p2, u32 p3, u32 p4, u32 p5, u32 p6,
+	u32 *status, u32 *r1, u32 *r2, u32 *r3, u32 *r4)
 {
 	unsigned long start;
 	int ok;
@@ -107,12 +109,12 @@ static int rkt_sync_cmd(struct aac_dev *dev, u32 command, u32 p1, u32 *status)
 	 */
 	rkt_writel(dev, InboundMailbox0, command);
 	/*
-	 *	Write the parameters into Mailboxes 1 - 4
+	 *	Write the parameters into Mailboxes 1 - 6
 	 */
 	rkt_writel(dev, InboundMailbox1, p1);
-	rkt_writel(dev, InboundMailbox2, 0);
-	rkt_writel(dev, InboundMailbox3, 0);
-	rkt_writel(dev, InboundMailbox4, 0);
+	rkt_writel(dev, InboundMailbox2, p2);
+	rkt_writel(dev, InboundMailbox3, p3);
+	rkt_writel(dev, InboundMailbox4, p4);
 	/*
 	 *	Clear the synch command doorbell to start on a clean slate.
 	 */
@@ -169,6 +171,14 @@ static int rkt_sync_cmd(struct aac_dev *dev, u32 command, u32 p1, u32 *status)
 	 */
 	if (status)
 		*status = rkt_readl(dev, IndexRegs.Mailbox[0]);
+	if (r1)
+		*r1 = rkt_readl(dev, IndexRegs.Mailbox[1]);
+	if (r2)
+		*r2 = rkt_readl(dev, IndexRegs.Mailbox[2]);
+	if (r3)
+		*r3 = rkt_readl(dev, IndexRegs.Mailbox[3]);
+	if (r4)
+		*r4 = rkt_readl(dev, IndexRegs.Mailbox[4]);
 	/*
 	 *	Clear the synch command doorbell.
 	 */
@@ -190,8 +200,8 @@ static int rkt_sync_cmd(struct aac_dev *dev, u32 command, u32 p1, u32 *status)
 
 static void aac_rkt_interrupt_adapter(struct aac_dev *dev)
 {
-	u32 ret;
-	rkt_sync_cmd(dev, BREAKPOINT_REQUEST, 0, &ret);
+	rkt_sync_cmd(dev, BREAKPOINT_REQUEST, 0, 0, 0, 0, 0, 0,
+	  NULL, NULL, NULL, NULL, NULL);
 }
 
 /**
@@ -220,7 +230,8 @@ static void aac_rkt_notify_adapter(struct aac_dev *dev, u32 event)
 		rkt_writel(dev, MUnit.IDR,INBOUNDDOORBELL_3);
 		break;
 	case HostShutdown:
-//		rkt_sync_cmd(dev, HOST_CRASHING, 0, 0, 0, 0, &ret);
+//		rkt_sync_cmd(dev, HOST_CRASHING, 0, 0, 0, 0, 0, 0,
+//		  NULL, NULL, NULL, NULL, NULL);
 		break;
 	case FastIo:
 		rkt_writel(dev, MUnit.IDR,INBOUNDDOORBELL_6);
@@ -243,16 +254,10 @@ static void aac_rkt_notify_adapter(struct aac_dev *dev, u32 event)
 
 static void aac_rkt_start_adapter(struct aac_dev *dev)
 {
-	u32 status;
 	struct aac_init *init;
 
 	init = dev->init;
 	init->HostElapsedSeconds = cpu_to_le32(get_seconds());
-	/*
-	 *	Tell the adapter we are back and up and running so it will scan
-	 *	its command queues and enable our interrupts
-	 */
-	dev->irq_mask = (DoorBellPrintfReady | OUTBOUNDDOORBELL_1 | OUTBOUNDDOORBELL_2 | OUTBOUNDDOORBELL_3 | OUTBOUNDDOORBELL_4);
 	/*
 	 *	First clear out all interrupts.  Then enable the one's that we
 	 *	can handle.
@@ -263,7 +268,8 @@ static void aac_rkt_start_adapter(struct aac_dev *dev)
 	rkt_writeb(dev, MUnit.OIMR, dev->OIMR = 0xfb);
 
 	// We can only use a 32 bit address here
-	rkt_sync_cmd(dev, INIT_STRUCT_BASE_ADDRESS, (u32)(ulong)dev->init_pa, &status);
+	rkt_sync_cmd(dev, INIT_STRUCT_BASE_ADDRESS, (u32)(ulong)dev->init_pa,
+	  0, 0, 0, 0, 0, NULL, NULL, NULL, NULL, NULL);
 }
 
 /**
@@ -288,8 +294,8 @@ static int aac_rkt_check_health(struct aac_dev *dev)
 	if (status & KERNEL_PANIC) {
 		char * buffer;
 		struct POSTSTATUS {
-			u32 Post_Command;
-			u32 Post_Address;
+			__le32 Post_Command;
+			__le32 Post_Address;
 		} * post;
 		dma_addr_t paddr, baddr;
 		int ret;
@@ -310,7 +316,8 @@ static int aac_rkt_check_health(struct aac_dev *dev)
 		post->Post_Command = cpu_to_le32(COMMAND_POST_RESULTS);
                 post->Post_Address = cpu_to_le32(baddr);
                 rkt_writel(dev, MUnit.IMRx[0], paddr);
-                rkt_sync_cmd(dev, COMMAND_POST_RESULTS, baddr, &status);
+                rkt_sync_cmd(dev, COMMAND_POST_RESULTS, baddr, 0, 0, 0, 0, 0,
+		  NULL, NULL, NULL, NULL, NULL);
 		pci_free_consistent(dev->pdev, sizeof(struct POSTSTATUS),
 		  post, paddr);
                 if ((buffer[0] == '0') && (buffer[1] == 'x')) {

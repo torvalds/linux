@@ -4368,15 +4368,11 @@ static struct sk_buff *sctp_skb_recv_datagram(struct sock *sk, int flags,
 		 *  However, this function was corrent in any case. 8)
 		 */
 		if (flags & MSG_PEEK) {
-			unsigned long cpu_flags;
-
-			sctp_spin_lock_irqsave(&sk->sk_receive_queue.lock,
-					       cpu_flags);
+			spin_lock_bh(&sk->sk_receive_queue.lock);
 			skb = skb_peek(&sk->sk_receive_queue);
 			if (skb)
 				atomic_inc(&skb->users);
-			sctp_spin_unlock_irqrestore(&sk->sk_receive_queue.lock,
-						    cpu_flags);
+			spin_unlock_bh(&sk->sk_receive_queue.lock);
 		} else {
 			skb = skb_dequeue(&sk->sk_receive_queue);
 		}

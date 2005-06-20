@@ -169,10 +169,10 @@ static inline int cookie_check(struct sk_buff *skb, __u32 cookie)
 	return mssind < NUM_MSS ? msstab[mssind] + 1 : 0;
 }
 
-extern struct or_calltable or_ipv4;
+extern struct request_sock_ops tcp_request_sock_ops;
 
 static inline struct sock *get_cookie_sock(struct sock *sk, struct sk_buff *skb,
-					   struct open_request *req,
+					   struct request_sock *req,
 					   struct dst_entry *dst)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -182,7 +182,7 @@ static inline struct sock *get_cookie_sock(struct sock *sk, struct sk_buff *skb,
 	if (child)
 		tcp_acceptq_queue(sk, req, child);
 	else
-		tcp_openreq_free(req);
+		reqsk_free(req);
 
 	return child;
 }
@@ -190,10 +190,12 @@ static inline struct sock *get_cookie_sock(struct sock *sk, struct sk_buff *skb,
 struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 			     struct ip_options *opt)
 {
+	struct inet_request_sock *ireq;
+	struct tcp_request_sock *treq;
 	struct tcp_sock *tp = tcp_sk(sk);
 	__u32 cookie = ntohl(skb->h.th->ack_seq) - 1; 
 	struct sock *ret = sk;
-	struct open_request *req; 
+	struct request_sock *req; 
 	int mss; 
 	struct rtable *rt; 
 	__u8 rcv_wscale;
@@ -209,19 +211,20 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 
 	NET_INC_STATS_BH(LINUX_MIB_SYNCOOKIESRECV);
 
-	req = tcp_openreq_alloc();
 	ret = NULL;
+	req = reqsk_alloc(&tcp_request_sock_ops); /* for safety */
 	if (!req)
 		goto out;
 
-	req->rcv_isn		= htonl(skb->h.th->seq) - 1;
-	req->snt_isn		= cookie; 
+	ireq = inet_rsk(req);
+	treq = tcp_rsk(req);
+	treq->rcv_isn		= htonl(skb->h.th->seq) - 1;
+	treq->snt_isn		= cookie; 
 	req->mss		= mss;
- 	req->rmt_port		= skb->h.th->source;
-	req->af.v4_req.loc_addr = skb->nh.iph->daddr;
-	req->af.v4_req.rmt_addr = skb->nh.iph->saddr;
-	req->class		= &or_ipv4; /* for savety */
-	req->af.v4_req.opt	= NULL;
+ 	ireq->rmt_port		= skb->h.th->source;
+	ireq->loc_addr		= skb->nh.iph->daddr;
+	ireq->rmt_addr		= skb->nh.iph->saddr;
+	ireq->opt		= NULL;
 
 	/* We throwed the options of the initial SYN away, so we hope
 	 * the ACK carries the same options again (see RFC1122 4.2.3.8)
@@ -229,17 +232,15 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 	if (opt && opt->optlen) {
 		int opt_size = sizeof(struct ip_options) + opt->optlen;
 
-		req->af.v4_req.opt = kmalloc(opt_size, GFP_ATOMIC);
-		if (req->af.v4_req.opt) {
-			if (ip_options_echo(req->af.v4_req.opt, skb)) {
-				kfree(req->af.v4_req.opt);
-				req->af.v4_req.opt = NULL;
-			}
+		ireq->opt = kmalloc(opt_size, GFP_ATOMIC);
+		if (ireq->opt != NULL && ip_options_echo(ireq->opt, skb)) {
+			kfree(ireq->opt);
+			ireq->opt = NULL;
 		}
 	}
 
-	req->snd_wscale = req->rcv_wscale = req->tstamp_ok = 0;
-	req->wscale_ok	= req->sack_ok = 0; 
+	ireq->snd_wscale = ireq->rcv_wscale = ireq->tstamp_ok = 0;
+	ireq->wscale_ok	 = ireq->sack_ok = 0; 
 	req->expires	= 0UL; 
 	req->retrans	= 0; 
 	
@@ -253,15 +254,15 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 		struct flowi fl = { .nl_u = { .ip4_u =
 					      { .daddr = ((opt && opt->srr) ?
 							  opt->faddr :
-							  req->af.v4_req.rmt_addr),
-						.saddr = req->af.v4_req.loc_addr,
+							  ireq->rmt_addr),
+						.saddr = ireq->loc_addr,
 						.tos = RT_CONN_FLAGS(sk) } },
 				    .proto = IPPROTO_TCP,
 				    .uli_u = { .ports =
 					       { .sport = skb->h.th->dest,
 						 .dport = skb->h.th->source } } };
 		if (ip_route_output_key(&rt, &fl)) {
-			tcp_openreq_free(req);
+			reqsk_free(req);
 			goto out; 
 		}
 	}
@@ -272,7 +273,7 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 				  &req->rcv_wnd, &req->window_clamp, 
 				  0, &rcv_wscale);
 	/* BTW win scale with syncookies is 0 by definition */
-	req->rcv_wscale	  = rcv_wscale; 
+	ireq->rcv_wscale  = rcv_wscale; 
 
 	ret = get_cookie_sock(sk, skb, req, &rt->u.dst);
 out:	return ret;

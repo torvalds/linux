@@ -520,7 +520,7 @@ static void int_callback(struct urb *u, struct pt_regs *regs)
 
 	/* we check the link state to report changes */
 	if (kaweth->linkstate != (act_state = ( kaweth->intbuffer[STATE_OFFSET] | STATE_MASK) >> STATE_SHIFT)) {
-		if (!act_state)
+		if (act_state)
 			netif_carrier_on(kaweth->net);
 		else
 			netif_carrier_off(kaweth->net);

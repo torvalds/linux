@@ -97,7 +97,7 @@ static void sym_print_msg(struct sym_ccb *cp, char *label, u_char *msg)
 static void sym_print_nego_msg(struct sym_hcb *np, int target, char *label, u_char *msg)
 {
 	struct sym_tcb *tp = &np->target[target];
-	dev_info(&tp->sdev->sdev_target->dev, "%s: ", label);
+	dev_info(&tp->starget->dev, "%s: ", label);
 
 	sym_show_msg(msg);
 	printf(".\n");
@@ -149,8 +149,10 @@ static char *sym_scsi_bus_mode(int mode)
 static void sym_chip_reset (struct sym_hcb *np)
 {
 	OUTB(np, nc_istat, SRST);
+	INB(np, nc_mbox1);
 	udelay(10);
 	OUTB(np, nc_istat, 0);
+	INB(np, nc_mbox1);
 	udelay(2000);	/* For BUS MODE to settle */
 }
 
@@ -216,6 +218,7 @@ int sym_reset_scsi_bus(struct sym_hcb *np, int enab_int)
 	OUTB(np, nc_stest3, TE);
 	OUTB(np, nc_dcntl, (np->rv_dcntl & IRQM));
 	OUTB(np, nc_scntl1, CRST);
+	INB(np, nc_mbox1);
 	udelay(200);
 
 	if (!SYM_SETUP_SCSI_BUS_CHECK)
@@ -280,8 +283,10 @@ static void sym_selectclock(struct sym_hcb *np, u_char scntl3)
 		if (!i)
 			printf("%s: the chip cannot lock the frequency\n",
 				sym_name(np));
-	} else
-		udelay((50+10));
+	} else {
+		INB(np, nc_mbox1);
+		udelay(50+10);
+	}
 	OUTB(np, nc_stest3, HSC);		/* Halt the scsi clock	*/
 	OUTB(np, nc_scntl3, scntl3);
 	OUTB(np, nc_stest1, (DBLEN|DBLSEL));/* Select clock multiplier	*/
@@ -1445,7 +1450,7 @@ static void sym_check_goals(struct sym_hcb *np, struct scsi_target *starget,
 static int sym_prepare_nego(struct sym_hcb *np, struct sym_ccb *cp, u_char *msgptr)
 {
 	struct sym_tcb *tp = &np->target[cp->target];
-	struct scsi_target *starget = tp->sdev->sdev_target;
+	struct scsi_target *starget = tp->starget;
 	struct sym_trans *goal = &tp->tgoal;
 	int msglen = 0;
 	int nego;
@@ -1690,7 +1695,7 @@ static void sym_flush_comp_queue(struct sym_hcb *np, int cam_status)
 		if (cam_status)
 			sym_set_cam_status(cmd, cam_status);
 #ifdef SYM_OPT_HANDLE_DEVICE_QUEUEING
-		if (sym_get_cam_status(cmd) == CAM_REQUEUE_REQ) {
+		if (sym_get_cam_status(cmd) == DID_SOFT_ERROR) {
 			struct sym_tcb *tp = &np->target[cp->target];
 			struct sym_lcb *lp = sym_lp(tp, cp->lun);
 			if (lp) {
@@ -1791,12 +1796,13 @@ void sym_start_up (struct sym_hcb *np, int reason)
 	/*
 	 *  Wakeup all pending jobs.
 	 */
-	sym_flush_busy_queue(np, CAM_SCSI_BUS_RESET);
+	sym_flush_busy_queue(np, DID_RESET);
 
 	/*
 	 *  Init chip.
 	 */
 	OUTB(np, nc_istat,  0x00);			/*  Remove Reset, abort */
+	INB(np, nc_mbox1);
 	udelay(2000); /* The 895 needs time for the bus mode to settle */
 
 	OUTB(np, nc_scntl0, np->rv_scntl0 | 0xc0);
@@ -1905,6 +1911,7 @@ void sym_start_up (struct sym_hcb *np, int reason)
 	if (np->features & (FE_ULTRA2|FE_ULTRA3)) {
 		OUTONW(np, nc_sien, SBMC);
 		if (reason == 0) {
+			INB(np, nc_mbox1);
 			mdelay(100);
 			INW(np, nc_sist);
 		}
@@ -2074,7 +2081,7 @@ static void sym_settrans(struct sym_hcb *np, int target, u_char opts, u_char ofs
 static void sym_setwide(struct sym_hcb *np, int target, u_char wide)
 {
 	struct sym_tcb *tp = &np->target[target];
-	struct scsi_target *starget = tp->sdev->sdev_target;
+	struct scsi_target *starget = tp->starget;
 
 	if (spi_width(starget) == wide)
 		return;
@@ -2102,7 +2109,7 @@ sym_setsync(struct sym_hcb *np, int target,
             u_char ofs, u_char per, u_char div, u_char fak)
 {
 	struct sym_tcb *tp = &np->target[target];
-	struct scsi_target *starget = tp->sdev->sdev_target;
+	struct scsi_target *starget = tp->starget;
 	u_char wide = (tp->head.wval & EWS) ? BUS_16_BIT : BUS_8_BIT;
 
 	sym_settrans(np, target, 0, ofs, per, wide, div, fak);
@@ -2129,7 +2136,7 @@ sym_setpprot(struct sym_hcb *np, int target, u_char opts, u_char ofs,
              u_char per, u_char wide, u_char div, u_char fak)
 {
 	struct sym_tcb *tp = &np->target[target];
-	struct scsi_target *starget = tp->sdev->sdev_target;
+	struct scsi_target *starget = tp->starget;
 
 	sym_settrans(np, target, opts, ofs, per, wide, div, fak);
 
@@ -2944,7 +2951,7 @@ unknown_int:
  *  Dequeue from the START queue all CCBs that match 
  *  a given target/lun/task condition (-1 means all),
  *  and move them from the BUSY queue to the COMP queue 
- *  with CAM_REQUEUE_REQ status condition.
+ *  with DID_SOFT_ERROR status condition.
  *  This function is used during error handling/recovery.
  *  It is called with SCRIPTS not running.
  */
@@ -2974,7 +2981,7 @@ sym_dequeue_from_squeue(struct sym_hcb *np, int i, int target, int lun, int task
 		if ((target == -1 || cp->target == target) &&
 		    (lun    == -1 || cp->lun    == lun)    &&
 		    (task   == -1 || cp->tag    == task)) {
-			sym_set_cam_status(cp->cmd, CAM_REQUEUE_REQ);
+			sym_set_cam_status(cp->cmd, DID_SOFT_ERROR);
 			sym_remque(&cp->link_ccbq);
 			sym_insque_tail(&cp->link_ccbq, &np->comp_ccbq);
 		}
@@ -3093,13 +3100,13 @@ static void sym_sir_bad_scsi_status(struct sym_hcb *np, int num, struct sym_ccb 
 		/*
 		 *  Message table indirect structure.
 		 */
-		cp->phys.smsg.addr	= cpu_to_scr(CCB_BA(cp, scsi_smsg2));
+		cp->phys.smsg.addr	= CCB_BA(cp, scsi_smsg2);
 		cp->phys.smsg.size	= cpu_to_scr(msglen);
 
 		/*
 		 *  sense command
 		 */
-		cp->phys.cmd.addr	= cpu_to_scr(CCB_BA(cp, sensecmd));
+		cp->phys.cmd.addr	= CCB_BA(cp, sensecmd);
 		cp->phys.cmd.size	= cpu_to_scr(6);
 
 		/*
@@ -3116,7 +3123,7 @@ static void sym_sir_bad_scsi_status(struct sym_hcb *np, int num, struct sym_ccb 
 		 *  sense data
 		 */
 		memset(cp->sns_bbuf, 0, SYM_SNS_BBUF_LEN);
-		cp->phys.sense.addr	= cpu_to_scr(CCB_BA(cp, sns_bbuf));
+		cp->phys.sense.addr	= CCB_BA(cp, sns_bbuf);
 		cp->phys.sense.size	= cpu_to_scr(SYM_SNS_BBUF_LEN);
 
 		/*
@@ -3198,7 +3205,7 @@ int sym_clear_tasks(struct sym_hcb *np, int cam_status, int target, int lun, int
 		sym_insque_tail(&cp->link_ccbq, &np->comp_ccbq);
 
 		/* Preserve the software timeout condition */
-		if (sym_get_cam_status(cmd) != CAM_CMD_TIMEOUT)
+		if (sym_get_cam_status(cmd) != DID_TIME_OUT)
 			sym_set_cam_status(cmd, cam_status);
 		++i;
 #if 0
@@ -3366,7 +3373,7 @@ static void sym_sir_task_recovery(struct sym_hcb *np, int num)
 		 *  Make sure at least our IO to abort has been dequeued.
 		 */
 #ifndef SYM_OPT_HANDLE_DEVICE_QUEUEING
-		assert(i && sym_get_cam_status(cp->cmd) == CAM_REQUEUE_REQ);
+		assert(i && sym_get_cam_status(cp->cmd) == DID_SOFT_ERROR);
 #else
 		sym_remque(&cp->link_ccbq);
 		sym_insque_tail(&cp->link_ccbq, &np->comp_ccbq);
@@ -3375,9 +3382,9 @@ static void sym_sir_task_recovery(struct sym_hcb *np, int num)
 		 *  Keep track in cam status of the reason of the abort.
 		 */
 		if (cp->to_abort == 2)
-			sym_set_cam_status(cp->cmd, CAM_CMD_TIMEOUT);
+			sym_set_cam_status(cp->cmd, DID_TIME_OUT);
 		else
-			sym_set_cam_status(cp->cmd, CAM_REQ_ABORTED);
+			sym_set_cam_status(cp->cmd, DID_ABORT);
 
 		/*
 		 *  Complete with error everything that we have dequeued.
@@ -3491,7 +3498,7 @@ static void sym_sir_task_recovery(struct sym_hcb *np, int num)
 		 *  conditions not due to timeout.
 		 */
 		if (cp->to_abort == 2)
-			sym_set_cam_status(cp->cmd, CAM_CMD_TIMEOUT);
+			sym_set_cam_status(cp->cmd, DID_TIME_OUT);
 		cp->to_abort = 0; /* We donnot expect to fail here */
 		break;
 
@@ -3502,7 +3509,7 @@ static void sym_sir_task_recovery(struct sym_hcb *np, int num)
 	case SIR_ABORT_SENT:
 		target = INB(np, nc_sdid) & 0xf;
 		tp = &np->target[target];
-		starget = tp->sdev->sdev_target;
+		starget = tp->starget;
 		
 		/*
 		**  If we didn't abort anything, leave here.
@@ -3551,7 +3558,7 @@ static void sym_sir_task_recovery(struct sym_hcb *np, int num)
 		 */
 		i = (INL(np, nc_scratcha) - np->squeue_ba) / 4;
 		sym_dequeue_from_squeue(np, i, target, lun, -1);
-		sym_clear_tasks(np, CAM_REQ_ABORTED, target, lun, task);
+		sym_clear_tasks(np, DID_ABORT, target, lun, task);
 		sym_flush_comp_queue(np, 0);
 
  		/*
@@ -3566,7 +3573,7 @@ static void sym_sir_task_recovery(struct sym_hcb *np, int num)
 	 *  Print to the log the message we intend to send.
 	 */
 	if (num == SIR_TARGET_SELECTED) {
-		dev_info(&tp->sdev->sdev_target->dev, "control msgout:");
+		dev_info(&tp->starget->dev, "control msgout:");
 		sym_printl_hex(np->abrt_msg, np->abrt_tbl.size);
 		np->abrt_tbl.size = cpu_to_scr(np->abrt_tbl.size);
 	}
@@ -3876,6 +3883,8 @@ int sym_compute_residual(struct sym_hcb *np, struct sym_ccb *cp)
 		u_int tmp = scr_to_cpu(cp->phys.data[dp_sg].size);
 		resid += (tmp & 0xffffff);
 	}
+
+	resid -= cp->odd_byte_adjustment;
 
 	/*
 	 *  Hopefully, the result is not too wrong.
@@ -4758,10 +4767,8 @@ struct sym_ccb *sym_get_ccb (struct sym_hcb *np, struct scsi_cmnd *cmd, u_char t
 	}
 
 #endif
-	/*
-	 *  Remember all informations needed to free this CCB.
-	 */
 	cp->to_abort = 0;
+	cp->odd_byte_adjustment = 0;
 	cp->tag	   = tag;
 	cp->order  = tag_order;
 	cp->target = tn;
@@ -5104,7 +5111,7 @@ static void sym_alloc_lcb_tags (struct sym_hcb *np, u_char tn, u_char ln)
 	lp->itlq_tbl = sym_calloc_dma(SYM_CONF_MAX_TASK*4, "ITLQ_TBL");
 	if (!lp->itlq_tbl)
 		goto fail;
-	lp->cb_tags = kcalloc(SYM_CONF_MAX_TASK, 1, GFP_KERNEL);
+	lp->cb_tags = kcalloc(SYM_CONF_MAX_TASK, 1, GFP_ATOMIC);
 	if (!lp->cb_tags) {
 		sym_mfree_dma(lp->itlq_tbl, SYM_CONF_MAX_TASK*4, "ITLQ_TBL");
 		lp->itlq_tbl = NULL;
@@ -5243,7 +5250,7 @@ int sym_queue_scsiio(struct sym_hcb *np, struct scsi_cmnd *cmd, struct sym_ccb *
 	/*
 	 *  message
 	 */
-	cp->phys.smsg.addr	= cpu_to_scr(CCB_BA(cp, scsi_smsg));
+	cp->phys.smsg.addr	= CCB_BA(cp, scsi_smsg);
 	cp->phys.smsg.size	= cpu_to_scr(msglen);
 
 	/*
@@ -5343,7 +5350,7 @@ int sym_abort_scsiio(struct sym_hcb *np, struct scsi_cmnd *cmd, int timed_out)
 }
 
 /*
- *  Complete execution of a SCSI command with extented 
+ *  Complete execution of a SCSI command with extended 
  *  error, SCSI status error, or having been auto-sensed.
  *
  *  The SCRIPTS processor is not running there, so we 
@@ -5441,7 +5448,7 @@ if (resid)
 		/*
 		 *  Let's requeue it to device.
 		 */
-		sym_set_cam_status(cmd, CAM_REQUEUE_REQ);
+		sym_set_cam_status(cmd, DID_SOFT_ERROR);
 		goto finish;
 	}
 weirdness:

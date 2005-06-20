@@ -31,6 +31,7 @@
 #include <linux/cache.h>
 #include <linux/percpu.h>
 #include <net/checksum.h>
+#include <net/request_sock.h>
 #include <net/sock.h>
 #include <net/snmp.h>
 #include <net/ip.h>
@@ -563,7 +564,6 @@ static __inline__ int tcp_sk_listen_hashfn(struct sock *sk)
 #define TCP_NAGLE_PUSH		4	/* Cork is overriden for already queued data */
 
 /* sysctl variables for tcp */
-extern int sysctl_max_syn_backlog;
 extern int sysctl_tcp_timestamps;
 extern int sysctl_tcp_window_scaling;
 extern int sysctl_tcp_sack;
@@ -613,74 +613,6 @@ extern atomic_t tcp_memory_allocated;
 extern atomic_t tcp_sockets_allocated;
 extern int tcp_memory_pressure;
 
-struct open_request;
-
-struct or_calltable {
-	int  family;
-	int  (*rtx_syn_ack)	(struct sock *sk, struct open_request *req, struct dst_entry*);
-	void (*send_ack)	(struct sk_buff *skb, struct open_request *req);
-	void (*destructor)	(struct open_request *req);
-	void (*send_reset)	(struct sk_buff *skb);
-};
-
-struct tcp_v4_open_req {
-	__u32			loc_addr;
-	__u32			rmt_addr;
-	struct ip_options	*opt;
-};
-
-#if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
-struct tcp_v6_open_req {
-	struct in6_addr		loc_addr;
-	struct in6_addr		rmt_addr;
-	struct sk_buff		*pktopts;
-	int			iif;
-};
-#endif
-
-/* this structure is too big */
-struct open_request {
-	struct open_request	*dl_next; /* Must be first member! */
-	__u32			rcv_isn;
-	__u32			snt_isn;
-	__u16			rmt_port;
-	__u16			mss;
-	__u8			retrans;
-	__u8			__pad;
-	__u16	snd_wscale : 4, 
-		rcv_wscale : 4, 
-		tstamp_ok : 1,
-		sack_ok : 1,
-		wscale_ok : 1,
-		ecn_ok : 1,
-		acked : 1;
-	/* The following two fields can be easily recomputed I think -AK */
-	__u32			window_clamp;	/* window clamp at creation time */
-	__u32			rcv_wnd;	/* rcv_wnd offered first time */
-	__u32			ts_recent;
-	unsigned long		expires;
-	struct or_calltable	*class;
-	struct sock		*sk;
-	union {
-		struct tcp_v4_open_req v4_req;
-#if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
-		struct tcp_v6_open_req v6_req;
-#endif
-	} af;
-};
-
-/* SLAB cache for open requests. */
-extern kmem_cache_t *tcp_openreq_cachep;
-
-#define tcp_openreq_alloc()		kmem_cache_alloc(tcp_openreq_cachep, SLAB_ATOMIC)
-#define tcp_openreq_fastfree(req)	kmem_cache_free(tcp_openreq_cachep, req)
-
-static inline void tcp_openreq_free(struct open_request *req)
-{
-	req->class->destructor(req);
-	tcp_openreq_fastfree(req);
-}
-
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 #define TCP_INET_FAMILY(fam) ((fam) == AF_INET)
 #else
@@ -708,7 +640,7 @@ struct tcp_func {
 
 	struct sock *		(*syn_recv_sock)	(struct sock *sk,
 							 struct sk_buff *skb,
-							 struct open_request *req,
+							 struct request_sock *req,
 							 struct dst_entry *dst);
     
 	int			(*remember_stamp)	(struct sock *sk);
@@ -852,8 +784,8 @@ extern enum tcp_tw_status	tcp_timewait_state_process(struct tcp_tw_bucket *tw,
 							   unsigned len);
 
 extern struct sock *		tcp_check_req(struct sock *sk,struct sk_buff *skb,
-					      struct open_request *req,
-					      struct open_request **prev);
+					      struct request_sock *req,
+					      struct request_sock **prev);
 extern int			tcp_child_process(struct sock *parent,
 						  struct sock *child,
 						  struct sk_buff *skb);
@@ -903,12 +835,12 @@ extern int			tcp_v4_conn_request(struct sock *sk,
 						    struct sk_buff *skb);
 
 extern struct sock *		tcp_create_openreq_child(struct sock *sk,
-							 struct open_request *req,
+							 struct request_sock *req,
 							 struct sk_buff *skb);
 
 extern struct sock *		tcp_v4_syn_recv_sock(struct sock *sk,
 						     struct sk_buff *skb,
-						     struct open_request *req,
+						     struct request_sock *req,
 							struct dst_entry *dst);
 
 extern int			tcp_v4_do_rcv(struct sock *sk,
@@ -922,7 +854,7 @@ extern int			tcp_connect(struct sock *sk);
 
 extern struct sk_buff *		tcp_make_synack(struct sock *sk,
 						struct dst_entry *dst,
-						struct open_request *req);
+						struct request_sock *req);
 
 extern int			tcp_disconnect(struct sock *sk, int flags);
 
@@ -1750,99 +1682,71 @@ static inline int tcp_full_space(const struct sock *sk)
 	return tcp_win_from_space(sk->sk_rcvbuf); 
 }
 
-static inline void tcp_acceptq_queue(struct sock *sk, struct open_request *req,
+static inline void tcp_acceptq_queue(struct sock *sk, struct request_sock *req,
 					 struct sock *child)
 {
-	struct tcp_sock *tp = tcp_sk(sk);
-
-	req->sk = child;
-	sk_acceptq_added(sk);
-
-	if (!tp->accept_queue_tail) {
-		tp->accept_queue = req;
-	} else {
-		tp->accept_queue_tail->dl_next = req;
-	}
-	tp->accept_queue_tail = req;
-	req->dl_next = NULL;
+	reqsk_queue_add(&tcp_sk(sk)->accept_queue, req, sk, child);
 }
 
-struct tcp_listen_opt
-{
-	u8			max_qlen_log;	/* log_2 of maximal queued SYNs */
-	int			qlen;
-	int			qlen_young;
-	int			clock_hand;
-	u32			hash_rnd;
-	struct open_request	*syn_table[TCP_SYNQ_HSIZE];
-};
-
 static inline void
-tcp_synq_removed(struct sock *sk, struct open_request *req)
+tcp_synq_removed(struct sock *sk, struct request_sock *req)
 {
-	struct tcp_listen_opt *lopt = tcp_sk(sk)->listen_opt;
-
-	if (--lopt->qlen == 0)
+	if (reqsk_queue_removed(&tcp_sk(sk)->accept_queue, req) == 0)
 		tcp_delete_keepalive_timer(sk);
-	if (req->retrans == 0)
-		lopt->qlen_young--;
 }
 
 static inline void tcp_synq_added(struct sock *sk)
 {
-	struct tcp_listen_opt *lopt = tcp_sk(sk)->listen_opt;
-
-	if (lopt->qlen++ == 0)
+	if (reqsk_queue_added(&tcp_sk(sk)->accept_queue) == 0)
 		tcp_reset_keepalive_timer(sk, TCP_TIMEOUT_INIT);
-	lopt->qlen_young++;
 }
 
 static inline int tcp_synq_len(struct sock *sk)
 {
-	return tcp_sk(sk)->listen_opt->qlen;
+	return reqsk_queue_len(&tcp_sk(sk)->accept_queue);
 }
 
 static inline int tcp_synq_young(struct sock *sk)
 {
-	return tcp_sk(sk)->listen_opt->qlen_young;
+	return reqsk_queue_len_young(&tcp_sk(sk)->accept_queue);
 }
 
 static inline int tcp_synq_is_full(struct sock *sk)
 {
-	return tcp_synq_len(sk) >> tcp_sk(sk)->listen_opt->max_qlen_log;
+	return reqsk_queue_is_full(&tcp_sk(sk)->accept_queue);
 }
 
-static inline void tcp_synq_unlink(struct tcp_sock *tp, struct open_request *req,
-				       struct open_request **prev)
+static inline void tcp_synq_unlink(struct tcp_sock *tp, struct request_sock *req,
+				   struct request_sock **prev)
 {
-	write_lock(&tp->syn_wait_lock);
-	*prev = req->dl_next;
-	write_unlock(&tp->syn_wait_lock);
+	reqsk_queue_unlink(&tp->accept_queue, req, prev);
 }
 
-static inline void tcp_synq_drop(struct sock *sk, struct open_request *req,
-				     struct open_request **prev)
+static inline void tcp_synq_drop(struct sock *sk, struct request_sock *req,
+				     struct request_sock **prev)
 {
 	tcp_synq_unlink(tcp_sk(sk), req, prev);
 	tcp_synq_removed(sk, req);
-	tcp_openreq_free(req);
+	reqsk_free(req);
 }
 
-static __inline__ void tcp_openreq_init(struct open_request *req,
+static __inline__ void tcp_openreq_init(struct request_sock *req,
 					struct tcp_options_received *rx_opt,
 					struct sk_buff *skb)
 {
+	struct inet_request_sock *ireq = inet_rsk(req);
+
 	req->rcv_wnd = 0;		/* So that tcp_send_synack() knows! */
-	req->rcv_isn = TCP_SKB_CB(skb)->seq;
+	tcp_rsk(req)->rcv_isn = TCP_SKB_CB(skb)->seq;
 	req->mss = rx_opt->mss_clamp;
 	req->ts_recent = rx_opt->saw_tstamp ? rx_opt->rcv_tsval : 0;
-	req->tstamp_ok = rx_opt->tstamp_ok;
-	req->sack_ok = rx_opt->sack_ok;
-	req->snd_wscale = rx_opt->snd_wscale;
-	req->wscale_ok = rx_opt->wscale_ok;
-	req->acked = 0;
-	req->ecn_ok = 0;
-	req->rmt_port = skb->h.th->source;
+	ireq->tstamp_ok = rx_opt->tstamp_ok;
+	ireq->sack_ok = rx_opt->sack_ok;
+	ireq->snd_wscale = rx_opt->snd_wscale;
+	ireq->wscale_ok = rx_opt->wscale_ok;
+	ireq->acked = 0;
+	ireq->ecn_ok = 0;
+	ireq->rmt_port = skb->h.th->source;
 }
 
 extern void tcp_enter_memory_pressure(void);
