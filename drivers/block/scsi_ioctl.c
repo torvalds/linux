@@ -216,7 +216,7 @@ static int sg_io(struct file *file, request_queue_t *q,
 		struct gendisk *bd_disk, struct sg_io_hdr *hdr)
 {
 	unsigned long start_time;
-	int reading, writing, ret;
+	int reading, writing, ret = 0;
 	struct request *rq;
 	struct bio *bio;
 	char sense[SCSI_SENSE_BUFFERSIZE];
@@ -249,7 +249,6 @@ static int sg_io(struct file *file, request_queue_t *q,
 			reading = 1;
 			break;
 		}
-	}
 
 	rq = blk_get_request(q, writing ? WRITE : READ, GFP_KERNEL);
 	if (!rq)
@@ -335,7 +334,7 @@ static int sg_io(struct file *file, request_queue_t *q,
 			hdr->sb_len_wr = len;
 	}
 
-	if (blk_rq_unmap_user(rq, bio, hdr->dxfer_len))
+	if (blk_rq_unmap_user(bio, hdr->dxfer_len))
 		ret = -EFAULT;
 
 	/* may not have succeeded, but output values written to control
