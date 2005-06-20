@@ -41,6 +41,7 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
+#include <linux/dma-mapping.h>
 #include <linux/blkdev.h>
 #include <linux/genhd.h>
 #include <linux/completion.h>
@@ -125,8 +126,6 @@ static struct board_type products[] = {
 /* Originally cciss driver only supports 8 major numbers */
 #define MAX_CTLR_ORIG 	8
 
-
-#define CCISS_DMA_MASK	0xFFFFFFFF	/* 32 bit DMA */
 
 static ctlr_info_t *hba[MAX_CTLR];
 
@@ -2393,11 +2392,6 @@ static int cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 		printk(KERN_ERR "cciss: Unable to Enable PCI device\n");
 		return( -1);
 	}
-	if (pci_set_dma_mask(pdev, CCISS_DMA_MASK ) != 0)
-	{
-		printk(KERN_ERR "cciss:  Unable to set DMA mask\n");
-		return(-1);
-	}
 
 	subsystem_vendor_id = pdev->subsystem_vendor;
 	subsystem_device_id = pdev->subsystem_device;
@@ -2747,9 +2741,9 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 	hba[i]->pdev = pdev;
 
 	/* configure PCI DMA stuff */
-	if (!pci_set_dma_mask(pdev, 0xffffffffffffffffULL))
+	if (!pci_set_dma_mask(pdev, DMA_64BIT_MASK))
 		printk("cciss: using DAC cycles\n");
-	else if (!pci_set_dma_mask(pdev, 0xffffffff))
+	else if (!pci_set_dma_mask(pdev, DMA_32BIT_MASK))
 		printk("cciss: not using DAC cycles\n");
 	else {
 		printk("cciss: no suitable DMA available\n");

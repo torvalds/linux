@@ -79,6 +79,8 @@
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_tcq.h>
+#include <scsi/scsi_transport.h>
+#include <scsi/scsi_transport_spi.h>
 
 /* Core SCSI definitions */
 #define AIC_LIB_PREFIX ahc
@@ -126,23 +128,6 @@ typedef struct scsi_cmnd      *ahc_io_ctx_t;
 #define ahc_le16toh(x)	le16_to_cpu(x)
 #define ahc_le32toh(x)	le32_to_cpu(x)
 #define ahc_le64toh(x)	le64_to_cpu(x)
-
-#ifndef LITTLE_ENDIAN
-#define LITTLE_ENDIAN 1234
-#endif
-
-#ifndef BIG_ENDIAN
-#define BIG_ENDIAN 4321
-#endif
-
-#ifndef BYTE_ORDER
-#if defined(__BIG_ENDIAN)
-#define BYTE_ORDER BIG_ENDIAN
-#endif
-#if defined(__LITTLE_ENDIAN)
-#define BYTE_ORDER LITTLE_ENDIAN
-#endif
-#endif /* BYTE_ORDER */
 
 /************************* Configuration Data *********************************/
 extern u_int aic7xxx_no_probe;
@@ -283,35 +268,6 @@ ahc_scb_timer_reset(struct scb *scb, u_int usec)
 
 #define AIC7XXX_DRIVER_VERSION "6.2.36"
 
-/**************************** Front End Queues ********************************/
-/*
- * Data structure used to cast the Linux struct scsi_cmnd to something
- * that allows us to use the queue macros.  The linux structure has
- * plenty of space to hold the links fields as required by the queue
- * macros, but the queue macors require them to have the correct type.
- */
-struct ahc_cmd_internal {
-	/* Area owned by the Linux scsi layer. */
-	uint8_t	private[offsetof(struct scsi_cmnd, SCp.Status)];
-	union {
-		STAILQ_ENTRY(ahc_cmd)	ste;
-		LIST_ENTRY(ahc_cmd)	le;
-		TAILQ_ENTRY(ahc_cmd)	tqe;
-	} links;
-	uint32_t			end;
-};
-
-struct ahc_cmd {
-	union {
-		struct ahc_cmd_internal	icmd;
-		struct scsi_cmnd	scsi_cmd;
-	} un;
-};
-
-#define acmd_icmd(cmd) ((cmd)->un.icmd)
-#define acmd_scsi_cmd(cmd) ((cmd)->un.scsi_cmd)
-#define acmd_links un.icmd.links
-
 /*************************** Device Data Structures ***************************/
 /*
  * A per probed device structure used to deal with some error recovery
@@ -320,7 +276,6 @@ struct ahc_cmd {
  * after a successfully completed inquiry command to the target when
  * that inquiry data indicates a lun is present.
  */
-TAILQ_HEAD(ahc_busyq, ahc_cmd);
 typedef enum {
 	AHC_DEV_FREEZE_TIL_EMPTY = 0x02, /* Freeze queue until active == 0 */
 	AHC_DEV_Q_BASIC		 = 0x10, /* Allow basic device queuing */
@@ -330,8 +285,6 @@ typedef enum {
 
 struct ahc_linux_target;
 struct ahc_linux_device {
-	TAILQ_ENTRY(ahc_linux_device) links;
-
 	/*
 	 * The number of transactions currently
 	 * queued to the device.
@@ -401,17 +354,10 @@ struct ahc_linux_device {
 	 */
 	u_int			commands_since_idle_or_otag;
 #define AHC_OTAG_THRESH	500
-
-	int			lun;
-	struct scsi_device       *scsi_device;
-	struct			ahc_linux_target *target;
 };
 
 struct ahc_linux_target {
-	struct ahc_linux_device	 *devices[AHC_NUM_LUNS];
-	int			  channel;
-	int			  target;
-	int			  refcount;
+	struct scsi_device	 *sdev[AHC_NUM_LUNS];
 	struct ahc_transinfo	  last_tinfo;
 	struct ahc_softc	 *ahc;
 };
@@ -445,7 +391,7 @@ struct ahc_platform_data {
 	/*
 	 * Fields accessed from interrupt context.
 	 */
-	struct ahc_linux_target *targets[AHC_NUM_TARGETS]; 
+	struct scsi_target *starget[AHC_NUM_TARGETS]; 
 
 	spinlock_t		 spin_lock;
 	u_int			 qfrozen;
@@ -659,7 +605,6 @@ typedef enum
 
 /**************************** VL/EISA Routines ********************************/
 #ifdef CONFIG_EISA
-extern uint32_t aic7xxx_probe_eisa_vl;
 int			 ahc_linux_eisa_init(void);
 void			 ahc_linux_eisa_exit(void);
 int			 aic7770_map_registers(struct ahc_softc *ahc,
@@ -924,7 +869,6 @@ ahc_notify_xfer_settings_change(struct ahc_softc *ahc,
 static __inline void
 ahc_platform_scb_free(struct ahc_softc *ahc, struct scb *scb)
 {
-	ahc->flags &= ~AHC_RESOURCE_SHORTAGE;
 }
 
 int	ahc_platform_alloc(struct ahc_softc *ahc, void *platform_arg);

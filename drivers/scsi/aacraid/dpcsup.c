@@ -99,7 +99,7 @@ unsigned int aac_response_normal(struct aac_queue * q)
 			/*
 			 *	Doctor the fib
 			 */
-			*(u32 *)hwfib->data = cpu_to_le32(ST_OK);
+			*(__le32 *)hwfib->data = cpu_to_le32(ST_OK);
 			hwfib->header.XferState |= cpu_to_le32(AdapterProcessed);
 		}
 
@@ -107,7 +107,7 @@ unsigned int aac_response_normal(struct aac_queue * q)
 
 		if (hwfib->header.Command == cpu_to_le16(NuFileSystem))
 		{
-			u32 *pstatus = (u32 *)hwfib->data;
+			__le32 *pstatus = (__le32 *)hwfib->data;
 			if (*pstatus & cpu_to_le32(0xffff0000))
 				*pstatus = cpu_to_le32(ST_OK);
 		}
@@ -205,7 +205,7 @@ unsigned int aac_command_normal(struct aac_queue *q)
 			/*
 			 *	Set the status of this FIB
 			 */
-			*(u32 *)hw_fib->data = cpu_to_le32(ST_OK);
+			*(__le32 *)hw_fib->data = cpu_to_le32(ST_OK);
 			fib_adapter_complete(fib, sizeof(u32));
 			spin_lock_irqsave(q->lock, flags);
 		}		

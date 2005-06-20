@@ -1368,16 +1368,25 @@ sd_read_write_protect_flag(struct scsi_disk *sdkp, char *diskname,
  */
 static void
 sd_read_cache_type(struct scsi_disk *sdkp, char *diskname,
-		   struct scsi_request *SRpnt, unsigned char *buffer) {
+		   struct scsi_request *SRpnt, unsigned char *buffer)
+{
 	int len = 0, res;
 
-	const int dbd = 0;	   /* DBD */
-	const int modepage = 0x08; /* current values, cache page */
+	int dbd;
+	int modepage;
 	struct scsi_mode_data data;
 	struct scsi_sense_hdr sshdr;
 
 	if (sdkp->device->skip_ms_page_8)
 		goto defaults;
+
+	if (sdkp->device->type == TYPE_RBC) {
+		modepage = 6;
+		dbd = 8;
+	} else {
+		modepage = 8;
+		dbd = 0;
+	}
 
 	/* cautiously ask */
 	res = sd_do_mode_sense(SRpnt, dbd, modepage, buffer, 4, &data);
@@ -1409,11 +1418,20 @@ sd_read_cache_type(struct scsi_disk *sdkp, char *diskname,
 			"write back, no read (daft)"
 		};
 		int ct = 0;
-		int offset = data.header_length +
-			data.block_descriptor_length + 2;
+		int offset = data.header_length + data.block_descriptor_length;
 
-		sdkp->WCE = ((buffer[offset] & 0x04) != 0);
-		sdkp->RCD = ((buffer[offset] & 0x01) != 0);
+		if ((buffer[offset] & 0x3f) != modepage) {
+			printk(KERN_ERR "%s: got wrong page\n", diskname);
+			goto defaults;
+		}
+
+		if (modepage == 8) {
+			sdkp->WCE = ((buffer[offset + 2] & 0x04) != 0);
+			sdkp->RCD = ((buffer[offset + 2] & 0x01) != 0);
+		} else {
+			sdkp->WCE = ((buffer[offset + 2] & 0x01) == 0);
+			sdkp->RCD = 0;
+		}
 
 		ct =  sdkp->RCD + 2*sdkp->WCE;
 
@@ -1533,7 +1551,7 @@ static int sd_probe(struct device *dev)
 	int error;
 
 	error = -ENODEV;
-	if ((sdp->type != TYPE_DISK) && (sdp->type != TYPE_MOD))
+	if (sdp->type != TYPE_DISK && sdp->type != TYPE_MOD && sdp->type != TYPE_RBC)
 		goto out;
 
 	SCSI_LOG_HLQUEUE(3, printk("sd_attach: scsi device: <%d,%d,%d,%d>\n", 
@@ -1570,7 +1588,7 @@ static int sd_probe(struct device *dev)
 	sdkp->openers = 0;
 
 	if (!sdp->timeout) {
-		if (sdp->type == TYPE_DISK)
+		if (sdp->type != TYPE_MOD)
 			sdp->timeout = SD_TIMEOUT;
 		else
 			sdp->timeout = SD_MOD_TIMEOUT;

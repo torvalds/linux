@@ -83,7 +83,7 @@ static u32 frequency_gpio;
 static u32 slew_done_gpio;
 static int no_schedule;
 static int has_cpu_l2lve;
-
+static int is_pmu_based;
 
 /* There are only two frequency states for each processor. Values
  * are in kHz for the time being.
@@ -463,7 +463,7 @@ static int __pmac pmac_cpufreq_suspend(struct cpufreq_policy *policy, u32 state)
 	 */
 	no_schedule = 1;
 	sleep_freq = cur_freq;
-	if (cur_freq == low_freq)
+	if (cur_freq == low_freq && !is_pmu_based)
 		do_set_cpu_speed(CPUFREQ_HIGH, 0);
 	return 0;
 }
@@ -588,6 +588,7 @@ static int __pmac pmac_cpufreq_init_MacRISC3(struct device_node *cpunode)
 		return 1;
 	hi_freq = (*value) / 1000;
 	set_speed_proc = pmu_set_cpu_speed;
+	is_pmu_based = 1;
 
 	return 0;
 }
@@ -692,6 +693,7 @@ static int __init pmac_cpufreq_setup(void)
 		hi_freq = cur_freq;
 		low_freq = 400000;
 		set_speed_proc = pmu_set_cpu_speed;
+		is_pmu_based = 1;
 	}
 	/* Else check for TiPb 400 & 500 */
 	else if (machine_is_compatible("PowerBook3,2")) {
@@ -703,6 +705,7 @@ static int __init pmac_cpufreq_setup(void)
 		hi_freq = cur_freq;
 		low_freq = 300000;
 		set_speed_proc = pmu_set_cpu_speed;
+		is_pmu_based = 1;
 	}
 	/* Else check for 750FX */
 	else if (PVR_VER(mfspr(SPRN_PVR)) == 0x7000)

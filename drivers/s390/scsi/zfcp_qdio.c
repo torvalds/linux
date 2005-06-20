@@ -229,52 +229,14 @@ zfcp_qdio_handler_error_check(struct zfcp_adapter *adapter,
 			ZFCP_LOG_TRACE("status is"
 				       " QDIO_STATUS_OUTBOUND_INT \n");
 		}
-	}			// if (ZFCP_LOG_CHECK(ZFCP_LOG_LEVEL_TRACE))
+	}
 	if (unlikely(status & QDIO_STATUS_LOOK_FOR_ERROR)) {
 		retval = -EIO;
-
-		ZFCP_LOG_FLAGS(1, "QDIO_STATUS_LOOK_FOR_ERROR \n");
 
 		ZFCP_LOG_INFO("QDIO problem occurred (status=0x%x, "
 			      "qdio_error=0x%x, siga_error=0x%x)\n",
 			      status, qdio_error, siga_error);
 
-		if (status & QDIO_STATUS_ACTIVATE_CHECK_CONDITION) {
-			ZFCP_LOG_FLAGS(2,
-				       "QDIO_STATUS_ACTIVATE_CHECK_CONDITION\n");
-		}
-		if (status & QDIO_STATUS_MORE_THAN_ONE_QDIO_ERROR) {
-			ZFCP_LOG_FLAGS(2,
-				       "QDIO_STATUS_MORE_THAN_ONE_QDIO_ERROR\n");
-		}
-		if (status & QDIO_STATUS_MORE_THAN_ONE_SIGA_ERROR) {
-			ZFCP_LOG_FLAGS(2,
-				       "QDIO_STATUS_MORE_THAN_ONE_SIGA_ERROR\n");
-		}
-
-		if (siga_error & QDIO_SIGA_ERROR_ACCESS_EXCEPTION) {
-			ZFCP_LOG_FLAGS(2, "QDIO_SIGA_ERROR_ACCESS_EXCEPTION\n");
-		}
-
-		if (siga_error & QDIO_SIGA_ERROR_B_BIT_SET) {
-			ZFCP_LOG_FLAGS(2, "QDIO_SIGA_ERROR_B_BIT_SET\n");
-		}
-
-		switch (qdio_error) {
-		case 0:
-			ZFCP_LOG_FLAGS(3, "QDIO_OK");
-			break;
-		case SLSB_P_INPUT_ERROR:
-			ZFCP_LOG_FLAGS(1, "SLSB_P_INPUT_ERROR\n");
-			break;
-		case SLSB_P_OUTPUT_ERROR:
-			ZFCP_LOG_FLAGS(1, "SLSB_P_OUTPUT_ERROR\n");
-			break;
-		default:
-			ZFCP_LOG_NORMAL("bug: unknown QDIO error 0x%x\n",
-					qdio_error);
-			break;
-		}
 		/* Restarting IO on the failed adapter from scratch */
 		debug_text_event(adapter->erp_dbf, 1, "qdio_err");
                /*
@@ -484,37 +446,37 @@ int
 zfcp_qdio_reqid_check(struct zfcp_adapter *adapter, void *sbale_addr)
 {
 	struct zfcp_fsf_req *fsf_req;
-	int retval = 0;
 
 	/* invalid (per convention used in this driver) */
 	if (unlikely(!sbale_addr)) {
 		ZFCP_LOG_NORMAL("bug: invalid reqid\n");
-		retval = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
 	/* valid request id and thus (hopefully :) valid fsf_req address */
 	fsf_req = (struct zfcp_fsf_req *) sbale_addr;
 
+	/* serialize with zfcp_fsf_req_dismiss_all */
+	spin_lock(&adapter->fsf_req_list_lock);
+	if (list_empty(&adapter->fsf_req_list_head)) {
+		spin_unlock(&adapter->fsf_req_list_lock);
+		return 0;
+	}
+	list_del(&fsf_req->list);
+	atomic_dec(&adapter->fsf_reqs_active);
+	spin_unlock(&adapter->fsf_req_list_lock);
+	
 	if (unlikely(adapter != fsf_req->adapter)) {
 		ZFCP_LOG_NORMAL("bug: invalid reqid (fsf_req=%p, "
 				"fsf_req->adapter=%p, adapter=%p)\n",
 				fsf_req, fsf_req->adapter, adapter);
-		retval = -EINVAL;
-		goto out;
-	}
-
-	ZFCP_LOG_TRACE("fsf_req at %p, QTCB at %p\n", fsf_req, fsf_req->qtcb);
-	if (likely(fsf_req->qtcb)) {
-		ZFCP_LOG_TRACE("hex dump of QTCB:\n");
-		ZFCP_HEX_DUMP(ZFCP_LOG_LEVEL_TRACE, (char *) fsf_req->qtcb,
-			      sizeof(struct fsf_qtcb));
+		return -EINVAL;
 	}
 
 	/* finish the FSF request */
 	zfcp_fsf_req_complete(fsf_req);
- out:
-	return retval;
+
+	return 0;
 }
 
 /**

@@ -32,7 +32,7 @@ int tap_open_common(void *dev, char *gate_addr)
 	return(0);
 }
 
-void tap_check_ips(char *gate_addr, char *eth_addr)
+void tap_check_ips(char *gate_addr, unsigned char *eth_addr)
 {
 	int tap_addr[4];
 

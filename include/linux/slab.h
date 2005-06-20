@@ -64,6 +64,7 @@ extern int kmem_cache_shrink(kmem_cache_t *);
 extern void *kmem_cache_alloc(kmem_cache_t *, unsigned int __nocast);
 extern void kmem_cache_free(kmem_cache_t *, void *);
 extern unsigned int kmem_cache_size(kmem_cache_t *);
+extern const char *kmem_cache_name(kmem_cache_t *);
 extern kmem_cache_t *kmem_find_general_cachep(size_t size, int gfpflags);
 
 /* Size description struct for general caches. */

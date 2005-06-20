@@ -14,7 +14,7 @@ quiet_cmd_make_link = SYMLINK $@
 cmd_make_link       = ln -sf $(srctree)/arch/$(SUBARCH)/$($(notdir $@)-dir)/$(notdir $@) $@
 
 # this needs to be before the foreach, because targets does not accept
-# complete paths like $(obj)/$(f). To make sure this works, use a := assignment,
+# complete paths like $(obj)/$(f). To make sure this works, use a := assignment
 # or we will get $(obj)/$(f) in the "targets" value.
 # Also, this forces you to use the := syntax when assigning to targets.
 # Otherwise the line below will cause an infinite loop (if you don't know why,

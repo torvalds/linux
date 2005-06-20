@@ -3934,22 +3934,6 @@ ahc_softc_insert(struct ahc_softc *ahc)
 	ahc->init_level++;
 }
 
-/*
- * Verify that the passed in softc pointer is for a
- * controller that is still configured.
- */
-struct ahc_softc *
-ahc_find_softc(struct ahc_softc *ahc)
-{
-	struct ahc_softc *list_ahc;
-
-	TAILQ_FOREACH(list_ahc, &ahc_tailq, links) {
-		if (list_ahc == ahc)
-			return (ahc);
-	}
-	return (NULL);
-}
-
 void
 ahc_set_unit(struct ahc_softc *ahc, int unit)
 {

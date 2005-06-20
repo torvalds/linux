@@ -202,7 +202,7 @@ _GLOBAL(DoSyscall)
 	rlwinm	r11,r11,0,~_TIFL_FORCE_NOERROR
 	stw	r11,TI_LOCAL_FLAGS(r10)
 	lwz	r11,TI_FLAGS(r10)
-	andi.	r11,r11,_TIF_SYSCALL_TRACE
+	andi.	r11,r11,_TIF_SYSCALL_T_OR_A
 	bne-	syscall_dotrace
 syscall_dotrace_cont:
 	cmplwi	0,r0,NR_syscalls
@@ -237,7 +237,7 @@ ret_from_syscall:
 	SYNC
 	MTMSRD(r10)
 	lwz	r9,TI_FLAGS(r12)
-	andi.	r0,r9,(_TIF_SYSCALL_TRACE|_TIF_SIGPENDING|_TIF_NEED_RESCHED)
+	andi.	r0,r9,(_TIF_SYSCALL_T_OR_A|_TIF_SIGPENDING|_TIF_NEED_RESCHED)
 	bne-	syscall_exit_work
 syscall_exit_cont:
 #if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
@@ -277,7 +277,8 @@ syscall_dotrace:
 	SAVE_NVGPRS(r1)
 	li	r0,0xc00
 	stw	r0,TRAP(r1)
-	bl	do_syscall_trace
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	bl	do_syscall_trace_enter
 	lwz	r0,GPR0(r1)	/* Restore original registers */
 	lwz	r3,GPR3(r1)
 	lwz	r4,GPR4(r1)
@@ -291,7 +292,7 @@ syscall_dotrace:
 syscall_exit_work:
 	stw	r6,RESULT(r1)	/* Save result */
 	stw	r3,GPR3(r1)	/* Update return value */
-	andi.	r0,r9,_TIF_SYSCALL_TRACE
+	andi.	r0,r9,_TIF_SYSCALL_T_OR_A
 	beq	5f
 	ori	r10,r10,MSR_EE
 	SYNC
@@ -303,7 +304,8 @@ syscall_exit_work:
 	li	r4,0xc00
 	stw	r4,TRAP(r1)
 4:
-	bl	do_syscall_trace
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	bl	do_syscall_trace_leave
 	REST_NVGPRS(r1)
 2:
 	lwz	r3,GPR3(r1)
@@ -627,8 +629,8 @@ sigreturn_exit:
 	subi	r1,r3,STACK_FRAME_OVERHEAD
 	rlwinm	r12,r1,0,0,18	/* current_thread_info() */
 	lwz	r9,TI_FLAGS(r12)
-	andi.	r0,r9,_TIF_SYSCALL_TRACE
-	bnel-	do_syscall_trace
+	andi.	r0,r9,_TIF_SYSCALL_T_OR_A
+	bnel-	do_syscall_trace_leave
 	/* fall through */
 
 	.globl	ret_from_except_full

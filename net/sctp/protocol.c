@@ -378,10 +378,13 @@ static int sctp_v4_available(union sctp_addr *addr, struct sctp_sock *sp)
 {
 	int ret = inet_addr_type(addr->v4.sin_addr.s_addr);
 
-	/* FIXME: ip_nonlocal_bind sysctl support. */
 
-	if (addr->v4.sin_addr.s_addr != INADDR_ANY && ret != RTN_LOCAL)
+	if (addr->v4.sin_addr.s_addr != INADDR_ANY &&
+	   ret != RTN_LOCAL &&
+	   !sp->inet.freebind &&
+	   !sysctl_ip_nonlocal_bind)
 		return 0;
+
 	return 1;
 }
 

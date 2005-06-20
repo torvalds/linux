@@ -25,6 +25,8 @@
 #ifndef _LINUX_ACPI_H
 #define _LINUX_ACPI_H
 
+#include <linux/config.h>
+
 #ifdef	CONFIG_ACPI
 
 #ifndef _LINUX

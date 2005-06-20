@@ -1,10 +1,10 @@
-/* 
- * Copyright (C) 2002 Jeff Dike (jdike@karaya.com)
- * Licensed under the GPL
- */
+#ifndef __UM_SLIP_COMMON_H
+#define __UM_SLIP_COMMON_H
 
-#ifndef __UM_SLIP_PROTO_H__
-#define __UM_SLIP_PROTO_H__
+#define BUF_SIZE 1500
+ /* two bytes each for a (pathological) max packet of escaped chars +  *
+  * terminating END char + initial END char                            */
+#define ENC_BUF_SIZE (2 * BUF_SIZE + 2)
 
 /* SLIP protocol characters. */
 #define SLIP_END             0300	/* indicates end of frame	*/
@@ -12,7 +12,8 @@
 #define SLIP_ESC_END         0334	/* ESC ESC_END means END 'data'	*/
 #define SLIP_ESC_ESC         0335	/* ESC ESC_ESC means ESC 'data'	*/
 
-static inline int slip_unesc(unsigned char c,char *buf,int *pos, int *esc)
+static inline int slip_unesc(unsigned char c, unsigned char *buf, int *pos,
+                             int *esc)
 {
 	int ret;
 
@@ -79,15 +80,25 @@ static inline int slip_esc(unsigned char *s, unsigned char *d, int len)
 	return (ptr - d);
 }
 
-#endif
+struct slip_proto {
+	unsigned char ibuf[ENC_BUF_SIZE];
+	unsigned char obuf[ENC_BUF_SIZE];
+	int more; /* more data: do not read fd until ibuf has been drained */
+	int pos;
+	int esc;
+};
 
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */
+#define SLIP_PROTO_INIT { \
+	.ibuf  	= { '\0' }, \
+	.obuf  	= { '\0' }, \
+        .more	= 0, \
+	.pos	= 0, \
+	.esc	= 0 \
+}
+
+extern int slip_proto_read(int fd, void *buf, int len,
+			   struct slip_proto *slip);
+extern int slip_proto_write(int fd, void *buf, int len,
+			    struct slip_proto *slip);
+
+#endif
