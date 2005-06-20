@@ -31,31 +31,27 @@ Boston, MA 02111-1307, USA.  */
 
 #include "gcclib.h"
 
-s64
-__ashrdi3 (s64 u, int b)
+s64 __ashrdi3(s64 u, int b)
 {
-  DIunion w;
-  int bm;
-  DIunion uu;
+	DIunion w;
+	int bm;
+	DIunion uu;
 
-  if (b == 0)
-    return u;
+	if (b == 0)
+		return u;
 
-  uu.ll = u;
+	uu.ll = u;
 
-  bm = (sizeof (s32) * BITS_PER_UNIT) - b;
-  if (bm <= 0)
-    {
-      /* w.s.high = 1..1 or 0..0 */
-      w.s.high = uu.s.high >> (sizeof (s32) * BITS_PER_UNIT - 1);
-      w.s.low = uu.s.high >> -bm;
-    }
-  else
-    {
-      u32 carries = (u32)uu.s.high << bm;
-      w.s.high = uu.s.high >> b;
-      w.s.low = ((u32)uu.s.low >> b) | carries;
-    }
+	bm = (sizeof(s32) * BITS_PER_UNIT) - b;
+	if (bm <= 0) {
+		/* w.s.high = 1..1 or 0..0 */
+		w.s.high = uu.s.high >> (sizeof(s32) * BITS_PER_UNIT - 1);
+		w.s.low = uu.s.high >> -bm;
+	} else {
+		u32 carries = (u32) uu.s.high << bm;
+		w.s.high = uu.s.high >> b;
+		w.s.low = ((u32) uu.s.low >> b) | carries;
+	}
 
-  return w.ll;
+	return w.ll;
 }

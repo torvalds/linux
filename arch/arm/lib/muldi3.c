@@ -52,26 +52,21 @@ Boston, MA 02111-1307, USA.  */
            : "r" ((u32) (a)),                                       \
              "r" ((u32) (b)));}
 
-
 #define __umulsidi3(u, v) \
   ({DIunion __w;                                                        \
     umul_ppmm (__w.s.high, __w.s.low, u, v);                            \
     __w.ll; })
 
-
-s64
-__muldi3 (s64 u, s64 v)
+s64 __muldi3(s64 u, s64 v)
 {
-  DIunion w;
-  DIunion uu, vv;
+	DIunion w;
+	DIunion uu, vv;
 
-  uu.ll = u,
-  vv.ll = v;
+	uu.ll = u, vv.ll = v;
 
-  w.ll = __umulsidi3 (uu.s.low, vv.s.low);
-  w.s.high += ((u32) uu.s.low * (u32) vv.s.high
-               + (u32) uu.s.high * (u32) vv.s.low);
+	w.ll = __umulsidi3(uu.s.low, vv.s.low);
+	w.s.high += ((u32) uu.s.low * (u32) vv.s.high
+		     + (u32) uu.s.high * (u32) vv.s.low);
 
-  return w.ll;
+	return w.ll;
 }
-

@@ -3,18 +3,20 @@
 
 #include <linux/types.h>
 
-#define BITS_PER_UNIT  8
-#define SI_TYPE_SIZE (sizeof(s32) * BITS_PER_UNIT)
+#define BITS_PER_UNIT	8
+#define SI_TYPE_SIZE	(sizeof(s32) * BITS_PER_UNIT)
 
 #ifdef __ARMEB__
-  struct DIstruct {s32 high, low;};
+struct DIstruct {
+	s32 high, low;
+};
 #else
-  struct DIstruct {s32 low, high;};
+struct DIstruct {
+	s32 low, high;
+};
 #endif
 
-typedef union
-{
-  struct DIstruct s;
-  s64 ll;
+typedef union {
+	struct DIstruct s;
+	s64 ll;
 } DIunion;
-

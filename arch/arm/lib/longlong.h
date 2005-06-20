@@ -114,7 +114,7 @@
 	     "r" ((u32) (b)));}
 #define UMUL_TIME 20
 #define UDIV_TIME 100
-#endif /* __arm__ */
+#endif				/* __arm__ */
 
 #define __umulsidi3(u, v) \
   ({DIunion __w;							\
