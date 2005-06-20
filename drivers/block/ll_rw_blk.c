@@ -2090,7 +2090,7 @@ EXPORT_SYMBOL(blk_insert_request);
 /**
  * blk_rq_map_user - map user data to a request, for REQ_BLOCK_PC usage
  * @q:		request queue where request should be inserted
- * @rw:		READ or WRITE data
+ * @rq:		request structure to fill
  * @ubuf:	the user buffer
  * @len:	length of user data
  *
@@ -2194,12 +2194,11 @@ EXPORT_SYMBOL(blk_rq_map_user_iov);
 
 /**
  * blk_rq_unmap_user - unmap a request with user data
- * @rq:		request to be unmapped
- * @bio:	bio for the request
+ * @bio:	bio to be unmapped
  * @ulen:	length of user buffer
  *
  * Description:
- *    Unmap a request previously mapped by blk_rq_map_user().
+ *    Unmap a bio previously mapped by blk_rq_map_user().
  */
 int blk_rq_unmap_user(struct bio *bio, unsigned int ulen)
 {
@@ -2220,9 +2219,10 @@ EXPORT_SYMBOL(blk_rq_unmap_user);
 /**
  * blk_rq_map_kern - map kernel data to a request, for REQ_BLOCK_PC usage
  * @q:		request queue where request should be inserted
- * @rw:		READ or WRITE data
+ * @rq:		request to fill
  * @kbuf:	the kernel buffer
  * @len:	length of user data
+ * @gfp_mask:	memory allocation flags
  */
 int blk_rq_map_kern(request_queue_t *q, struct request *rq, void *kbuf,
 		    unsigned int len, unsigned int gfp_mask)
@@ -2251,6 +2251,18 @@ int blk_rq_map_kern(request_queue_t *q, struct request *rq, void *kbuf,
 
 EXPORT_SYMBOL(blk_rq_map_kern);
 
+/**
+ * blk_execute_rq_nowait - insert a request into queue for execution
+ * @q:		queue to insert the request in
+ * @bd_disk:	matching gendisk
+ * @rq:		request to insert
+ * @at_head:    insert request at head or tail of queue
+ * @done:	I/O completion handler
+ *
+ * Description:
+ *    Insert a fully prepared request at the back of the io scheduler queue
+ *    for execution.  Don't wait for completion.
+ */
 void blk_execute_rq_nowait(request_queue_t *q, struct gendisk *bd_disk,
 			   struct request *rq, int at_head,
 			   void (*done)(struct request *))
@@ -2273,7 +2285,7 @@ void blk_execute_rq_nowait(request_queue_t *q, struct gendisk *bd_disk,
  *
  * Description:
  *    Insert a fully prepared request at the back of the io scheduler queue
- *    for execution.
+ *    for execution and wait for completion.
  */
 int blk_execute_rq(request_queue_t *q, struct gendisk *bd_disk,
 		   struct request *rq, int at_head)
