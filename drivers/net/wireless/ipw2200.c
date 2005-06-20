@@ -6979,10 +6979,9 @@ static int ipw_pci_probe(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
-#define PCI_DMA_32BIT 0x00000000ffffffffULL
-	err = pci_set_dma_mask(pdev, PCI_DMA_32BIT);
+	err = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
 	if (!err) 
-		err = pci_set_consistent_dma_mask(pdev, PCI_DMA_32BIT);
+		err = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
 	if (err) {
 		printk(KERN_WARNING DRV_NAME ": No suitable DMA available.\n");
 		goto out_pci_disable_device;
