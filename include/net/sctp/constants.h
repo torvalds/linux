@@ -263,13 +263,6 @@ enum { SCTP_MIN_PMTU = 576 };
 enum { SCTP_MAX_DUP_TSNS = 16 };
 enum { SCTP_MAX_GABS = 16 };
 
-typedef enum {
-	SCTP_COUNTER_INIT_ERROR,
-} sctp_counter_t;
-
-/* How many counters does an association need? */
-#define SCTP_NUMBER_COUNTERS	5
-
 /* Here we define the default timers.  */
 
 /* cookie timer def = ? seconds */

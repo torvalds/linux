@@ -414,11 +414,13 @@ static void sctp_do_8_2_transport_strike(struct sctp_association *asoc,
 	 */
 	asoc->overall_error_count++;
 
-	if (transport->active &&
+	if (transport->state != SCTP_INACTIVE &&
 	    (transport->error_count++ >= transport->max_retrans)) {
-		SCTP_DEBUG_PRINTK("transport_strike: transport "
-				  "IP:%d.%d.%d.%d failed.\n",
-				  NIPQUAD(transport->ipaddr.v4.sin_addr));
+		SCTP_DEBUG_PRINTK_IPADDR("transport_strike:association %p",
+					 " transport IP: port:%d failed.\n",
+					 asoc,
+					 (&transport->ipaddr),
+					 transport->ipaddr.v4.sin_port);
 		sctp_assoc_control_transport(asoc, transport,
 					     SCTP_TRANSPORT_DOWN,
 					     SCTP_FAILED_THRESHOLD);
@@ -593,7 +595,7 @@ static void sctp_cmd_transport_on(sctp_cmd_seq_t *cmds,
 	/* Mark the destination transport address as active if it is not so
 	 * marked.
 	 */
-	if (!t->active)
+	if (t->state == SCTP_INACTIVE)
 		sctp_assoc_control_transport(asoc, t, SCTP_TRANSPORT_UP,
 					     SCTP_HEARTBEAT_SUCCESS);
 
@@ -665,8 +667,11 @@ static void sctp_cmd_new_state(sctp_cmd_seq_t *cmds,
 
 	asoc->state = state;
 
+	SCTP_DEBUG_PRINTK("sctp_cmd_new_state: asoc %p[%s]\n",
+			  asoc, sctp_state_tbl[state]);
+
 	if (sctp_style(sk, TCP)) {
-		/* Change the sk->sk_state of a TCP-style socket that has 
+		/* Change the sk->sk_state of a TCP-style socket that has
 		 * sucessfully completed a connect() call.
 		 */
 		if (sctp_state(asoc, ESTABLISHED) && sctp_sstate(sk, CLOSED))
@@ -676,6 +681,16 @@ static void sctp_cmd_new_state(sctp_cmd_seq_t *cmds,
 		if (sctp_state(asoc, SHUTDOWN_RECEIVED) &&
 		    sctp_sstate(sk, ESTABLISHED))
 			sk->sk_shutdown |= RCV_SHUTDOWN;
+	}
+
+	if (sctp_state(asoc, COOKIE_WAIT)) {
+		/* Reset init timeouts since they may have been
+		 * increased due to timer expirations.
+		 */
+		asoc->timeouts[SCTP_EVENT_TIMEOUT_T1_INIT] =
+			asoc->ep->timeouts[SCTP_EVENT_TIMEOUT_T1_INIT];
+		asoc->timeouts[SCTP_EVENT_TIMEOUT_T1_COOKIE] =
+			asoc->ep->timeouts[SCTP_EVENT_TIMEOUT_T1_COOKIE];
 	}
 
 	if (sctp_state(asoc, ESTABLISHED) ||
@@ -1120,10 +1135,10 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 			 * to be executed only during failed attempts of
 			 * association establishment.
 			 */
-			if ((asoc->peer.retran_path != 
-			     asoc->peer.primary_path) && 
-			    (asoc->counters[SCTP_COUNTER_INIT_ERROR] > 0)) {
-				sctp_add_cmd_sf(commands, 
+			if ((asoc->peer.retran_path !=
+			     asoc->peer.primary_path) &&
+			    (asoc->init_err_counter > 0)) {
+				sctp_add_cmd_sf(commands,
 				                SCTP_CMD_FORCE_PRIM_RETRAN,
 						SCTP_NULL());
 			}
@@ -1237,18 +1252,67 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 				sctp_association_put(asoc);
 			break;
 
+		case SCTP_CMD_INIT_CHOOSE_TRANSPORT:
+			chunk = cmd->obj.ptr;
+			t = sctp_assoc_choose_init_transport(asoc);
+			asoc->init_last_sent_to = t;
+			chunk->transport = t;
+			t->init_sent_count++;
+			break;
+
 		case SCTP_CMD_INIT_RESTART:
 			/* Do the needed accounting and updates
 			 * associated with restarting an initialization
-			 * timer.
+			 * timer. Only multiply the timeout by two if
+			 * all transports have been tried at the current
+			 * timeout.
 			 */
-			asoc->counters[SCTP_COUNTER_INIT_ERROR]++;
-			asoc->timeouts[cmd->obj.to] *= 2;
-			if (asoc->timeouts[cmd->obj.to] >
+			t = asoc->init_last_sent_to;
+			asoc->init_err_counter++;
+
+			if (t->init_sent_count > (asoc->init_cycle + 1)) {
+				asoc->timeouts[SCTP_EVENT_TIMEOUT_T1_INIT] *= 2;
+				if (asoc->timeouts[SCTP_EVENT_TIMEOUT_T1_INIT] >
+				    asoc->max_init_timeo) {
+					asoc->timeouts[SCTP_EVENT_TIMEOUT_T1_INIT] =
+						asoc->max_init_timeo;
+				}
+				asoc->init_cycle++;
+				SCTP_DEBUG_PRINTK(
+					"T1 INIT Timeout adjustment"
+					" init_err_counter: %d"
+					" cycle: %d"
+					" timeout: %d\n",
+					asoc->init_err_counter,
+					asoc->init_cycle,
+					asoc->timeouts[SCTP_EVENT_TIMEOUT_T1_INIT]);
+			}
+
+			sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_RESTART,
+					SCTP_TO(SCTP_EVENT_TIMEOUT_T1_INIT));
+			break;
+
+		case SCTP_CMD_COOKIEECHO_RESTART:
+			/* Do the needed accounting and updates
+			 * associated with restarting an initialization
+			 * timer. Only multiply the timeout by two if
+			 * all transports have been tried at the current
+			 * timeout.
+			 */
+			asoc->init_err_counter++;
+
+			asoc->timeouts[SCTP_EVENT_TIMEOUT_T1_COOKIE] *= 2;
+			if (asoc->timeouts[SCTP_EVENT_TIMEOUT_T1_COOKIE] >
 			    asoc->max_init_timeo) {
-				asoc->timeouts[cmd->obj.to] =
+				asoc->timeouts[SCTP_EVENT_TIMEOUT_T1_COOKIE] =
 					asoc->max_init_timeo;
 			}
+			SCTP_DEBUG_PRINTK(
+				"T1 COOKIE Timeout adjustment"
+				" init_err_counter: %d"
+				" timeout: %d\n",
+				asoc->init_err_counter,
+				asoc->timeouts[SCTP_EVENT_TIMEOUT_T1_COOKIE]);
 
 			/* If we've sent any data bundled with
 			 * COOKIE-ECHO we need to resend.
@@ -1261,7 +1325,7 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 
 			sctp_add_cmd_sf(commands,
 					SCTP_CMD_TIMER_RESTART,
-					SCTP_TO(cmd->obj.to));
+					SCTP_TO(SCTP_EVENT_TIMEOUT_T1_COOKIE));
 			break;
 
 		case SCTP_CMD_INIT_FAILED:
@@ -1273,12 +1337,13 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 					      subtype, chunk, cmd->obj.u32);
 			break;
 
-		case SCTP_CMD_COUNTER_INC:
-			asoc->counters[cmd->obj.counter]++;
+		case SCTP_CMD_INIT_COUNTER_INC:
+			asoc->init_err_counter++;
 			break;
 
-		case SCTP_CMD_COUNTER_RESET:
-			asoc->counters[cmd->obj.counter] = 0;
+		case SCTP_CMD_INIT_COUNTER_RESET:
+			asoc->init_err_counter = 0;
+			asoc->init_cycle = 0;
 			break;
 
 		case SCTP_CMD_REPORT_DUP:
