@@ -1310,7 +1310,7 @@ static void reset_dev_param(struct AdapterCtlBlk *acb)
  * @cmd - some command for this host (for fetching hooks)
  * Returns: SUCCESS (0x2002) on success, else FAILED (0x2003).
  */
-static int dc395x_eh_bus_reset(struct scsi_cmnd *cmd)
+static int __dc395x_eh_bus_reset(struct scsi_cmnd *cmd)
 {
 	struct AdapterCtlBlk *acb =
 		(struct AdapterCtlBlk *)cmd->device->host->hostdata;
@@ -1356,6 +1356,16 @@ static int dc395x_eh_bus_reset(struct scsi_cmnd *cmd)
 	return SUCCESS;
 }
 
+static int dc395x_eh_bus_reset(struct scsi_cmnd *cmd)
+{
+	int rc;
+
+	spin_lock_irq(cmd->device->host->host_lock);
+	rc = __dc395x_eh_bus_reset(cmd);
+	spin_unlock_irq(cmd->device->host->host_lock);
+
+	return rc;
+}
 
 /*
  * abort an errant SCSI command

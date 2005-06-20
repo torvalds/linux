@@ -158,7 +158,6 @@ int fc_do_prli(fc_channel *, unsigned char);
 int fcp_scsi_queuecommand(Scsi_Cmnd *, void (* done)(Scsi_Cmnd *));
 int fcp_scsi_abort(Scsi_Cmnd *);
 int fcp_scsi_dev_reset(Scsi_Cmnd *);
-int fcp_scsi_bus_reset(Scsi_Cmnd *);
 int fcp_scsi_host_reset(Scsi_Cmnd *);
 
 #endif /* !(_FCP_SCSI_H) */

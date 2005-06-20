@@ -1,12 +1,12 @@
 /*
- *  Copyright (c) 2000-2003 LSI Logic Corporation.
+ *  Copyright (c) 2000-2004 LSI Logic Corporation.
  *
  *
  *           Name:  mpi_targ.h
  *          Title:  MPI Target mode messages and structures
  *  Creation Date:  June 22, 2000
  *
- *    mpi_targ.h Version:  01.05.xx
+ *    mpi_targ.h Version:  01.05.04
  *
  *  Version History
  *  ---------------
@@ -43,6 +43,16 @@
  *                      Added PRIORITY_REASON_TARGET_BUSY.
  *  11-15-02  01.02.08  Added AliasID field to MPI_TARGET_SCSI_SPI_CMD_BUFFER.
  *  04-01-03  01.02.09  Added OptionalOxid field to MPI_TARGET_FCP_CMD_BUFFER.
+ *  05-11-04  01.03.01  Original release for MPI v1.3.
+ *  08-19-04  01.05.01  Added new request message structures for
+ *                      MSG_TARGET_CMD_BUF_POST_BASE_REQUEST,
+ *                      MSG_TARGET_CMD_BUF_POST_LIST_REQUEST, and
+ *                      MSG_TARGET_ASSIST_EXT_REQUEST.
+ *                      Added new structures for SAS SSP Command buffer, SSP
+ *                      Task buffer, and SSP Status IU.
+ *  10-05-04  01.05.02  MSG_TARGET_CMD_BUFFER_POST_BASE_LIST_REPLY added.
+ *  02-22-05  01.05.03  Changed a comment.
+ *  03-11-05  01.05.04  Removed TargetAssistExtended Request.
  *  --------------------------------------------------------------------------
  */
 
@@ -133,18 +143,6 @@ typedef struct _MSG_PRIORITY_CMD_RECEIVED_REPLY
 } MSG_PRIORITY_CMD_RECEIVED_REPLY, MPI_POINTER PTR_MSG_PRIORITY_CMD_RECEIVED_REPLY,
   PriorityCommandReceivedReply_t, MPI_POINTER pPriorityCommandReceivedReply_t;
 
-#define PRIORITY_REASON_NO_DISCONNECT           (0x00)
-#define PRIORITY_REASON_SCSI_TASK_MANAGEMENT    (0x01)
-#define PRIORITY_REASON_CMD_PARITY_ERR          (0x02)
-#define PRIORITY_REASON_MSG_OUT_PARITY_ERR      (0x03)
-#define PRIORITY_REASON_LQ_CRC_ERR              (0x04)
-#define PRIORITY_REASON_CMD_CRC_ERR             (0x05)
-#define PRIORITY_REASON_PROTOCOL_ERR            (0x06)
-#define PRIORITY_REASON_DATA_OUT_PARITY_ERR     (0x07)
-#define PRIORITY_REASON_DATA_OUT_CRC_ERR        (0x08)
-#define PRIORITY_REASON_TARGET_BUSY             (0x09)
-#define PRIORITY_REASON_UNKNOWN                 (0xFF)
-
 
 typedef struct _MSG_TARGET_CMD_BUFFER_POST_ERROR_REPLY
 {
@@ -164,6 +162,89 @@ typedef struct _MSG_TARGET_CMD_BUFFER_POST_ERROR_REPLY
   MPI_POINTER PTR_MSG_TARGET_CMD_BUFFER_POST_ERROR_REPLY,
   TargetCmdBufferPostErrorReply_t, MPI_POINTER pTargetCmdBufferPostErrorReply_t;
 
+#define PRIORITY_REASON_NO_DISCONNECT           (0x00)
+#define PRIORITY_REASON_SCSI_TASK_MANAGEMENT    (0x01)
+#define PRIORITY_REASON_CMD_PARITY_ERR          (0x02)
+#define PRIORITY_REASON_MSG_OUT_PARITY_ERR      (0x03)
+#define PRIORITY_REASON_LQ_CRC_ERR              (0x04)
+#define PRIORITY_REASON_CMD_CRC_ERR             (0x05)
+#define PRIORITY_REASON_PROTOCOL_ERR            (0x06)
+#define PRIORITY_REASON_DATA_OUT_PARITY_ERR     (0x07)
+#define PRIORITY_REASON_DATA_OUT_CRC_ERR        (0x08)
+#define PRIORITY_REASON_TARGET_BUSY             (0x09)
+#define PRIORITY_REASON_UNKNOWN                 (0xFF)
+
+
+/****************************************************************************/
+/* Target Command Buffer Post Base Request                                  */
+/****************************************************************************/
+
+typedef struct _MSG_TARGET_CMD_BUF_POST_BASE_REQUEST
+{
+    U8                      BufferPostFlags;            /* 00h */
+    U8                      PortNumber;                 /* 01h */
+    U8                      ChainOffset;                /* 02h */
+    U8                      Function;                   /* 03h */
+    U16                     TotalCmdBuffers;            /* 04h */
+    U8                      Reserved;                   /* 06h */
+    U8                      MsgFlags;                   /* 07h */
+    U32                     MsgContext;                 /* 08h */
+    U32                     Reserved1;                  /* 0Ch */
+    U16                     CmdBufferLength;            /* 10h */
+    U16                     NextCmdBufferOffset;        /* 12h */
+    U32                     BaseAddressLow;             /* 14h */
+    U32                     BaseAddressHigh;            /* 18h */
+} MSG_TARGET_CMD_BUF_POST_BASE_REQUEST,
+  MPI_POINTER PTR__MSG_TARGET_CMD_BUF_POST_BASE_REQUEST,
+  TargetCmdBufferPostBaseRequest_t,
+  MPI_POINTER pTargetCmdBufferPostBaseRequest_t;
+
+#define CMD_BUFFER_POST_BASE_FLAGS_AUTO_POST_ALL    (0x01)
+
+
+typedef struct _MSG_TARGET_CMD_BUFFER_POST_BASE_LIST_REPLY
+{
+    U16                     Reserved;                   /* 00h */
+    U8                      MsgLength;                  /* 02h */
+    U8                      Function;                   /* 03h */
+    U16                     Reserved1;                  /* 04h */
+    U8                      Reserved2;                  /* 06h */
+    U8                      MsgFlags;                   /* 07h */
+    U32                     MsgContext;                 /* 08h */
+    U16                     Reserved3;                  /* 0Ch */
+    U16                     IOCStatus;                  /* 0Eh */
+    U32                     IOCLogInfo;                 /* 10h */
+} MSG_TARGET_CMD_BUFFER_POST_BASE_LIST_REPLY,
+  MPI_POINTER PTR_MSG_TARGET_CMD_BUFFER_POST_BASE_LIST_REPLY,
+  TargetCmdBufferPostBaseListReply_t,
+  MPI_POINTER pTargetCmdBufferPostBaseListReply_t;
+
+
+/****************************************************************************/
+/* Target Command Buffer Post List Request                                  */
+/****************************************************************************/
+
+typedef struct _MSG_TARGET_CMD_BUF_POST_LIST_REQUEST
+{
+    U8                      Reserved;                   /* 00h */
+    U8                      PortNumber;                 /* 01h */
+    U8                      ChainOffset;                /* 02h */
+    U8                      Function;                   /* 03h */
+    U16                     CmdBufferCount;             /* 04h */
+    U8                      Reserved1;                  /* 06h */
+    U8                      MsgFlags;                   /* 07h */
+    U32                     MsgContext;                 /* 08h */
+    U32                     Reserved2;                  /* 0Ch */
+    U16                     IoIndex[2];                 /* 10h */
+} MSG_TARGET_CMD_BUF_POST_LIST_REQUEST,
+  MPI_POINTER PTR_MSG_TARGET_CMD_BUF_POST_LIST_REQUEST,
+  TargetCmdBufferPostListRequest_t,
+  MPI_POINTER pTargetCmdBufferPostListRequest_t;
+
+
+/****************************************************************************/
+/* Command Buffer Formats (with 16 byte CDB)                                */
+/****************************************************************************/
 
 typedef struct _MPI_TARGET_FCP_CMD_BUFFER
 {
@@ -199,6 +280,46 @@ typedef struct _MPI_TARGET_SCSI_SPI_CMD_BUFFER
 } MPI_TARGET_SCSI_SPI_CMD_BUFFER,
   MPI_POINTER PTR_MPI_TARGET_SCSI_SPI_CMD_BUFFER,
   MpiTargetScsiSpiCmdBuffer, MPI_POINTER pMpiTargetScsiSpiCmdBuffer;
+
+
+typedef struct _MPI_TARGET_SSP_CMD_BUFFER
+{
+    U8      FrameType;                                  /* 00h */
+    U8      Reserved1;                                  /* 01h */
+    U16     Reserved2;                                  /* 02h */
+    U16     InitiatorTag;                               /* 04h */
+    U16     DevHandle;                                  /* 06h */
+    /* COMMAND information unit starts here */
+    U8      LogicalUnitNumber[8];                       /* 08h */
+    U8      Reserved3;                                  /* 10h */
+    U8      TaskAttribute; /* lower 3 bits */           /* 11h */
+    U8      Reserved4;                                  /* 12h */
+    U8      AdditionalCDBLength; /* upper 5 bits */     /* 13h */
+    U8      CDB[16];                                    /* 14h */
+    /* Additional CDB bytes extend past the CDB field */
+} MPI_TARGET_SSP_CMD_BUFFER, MPI_POINTER PTR_MPI_TARGET_SSP_CMD_BUFFER,
+  MpiTargetSspCmdBuffer, MPI_POINTER pMpiTargetSspCmdBuffer;
+
+typedef struct _MPI_TARGET_SSP_TASK_BUFFER
+{
+    U8      FrameType;                                  /* 00h */
+    U8      Reserved1;                                  /* 01h */
+    U16     Reserved2;                                  /* 02h */
+    U16     InitiatorTag;                               /* 04h */
+    U16     DevHandle;                                  /* 06h */
+    /* TASK information unit starts here */
+    U8      LogicalUnitNumber[8];                       /* 08h */
+    U8      Reserved3;                                  /* 10h */
+    U8      Reserved4;                                  /* 11h */
+    U8      TaskManagementFunction;                     /* 12h */
+    U8      Reserved5;                                  /* 13h */
+    U16     ManagedTaskTag;                             /* 14h */
+    U16     Reserved6;                                  /* 16h */
+    U32     Reserved7;                                  /* 18h */
+    U32     Reserved8;                                  /* 1Ch */
+    U32     Reserved9;                                  /* 20h */
+} MPI_TARGET_SSP_TASK_BUFFER, MPI_POINTER PTR_MPI_TARGET_SSP_TASK_BUFFER,
+  MpiTargetSspTaskBuffer, MPI_POINTER pMpiTargetSspTaskBuffer;
 
 
 /****************************************************************************/
@@ -307,6 +428,27 @@ typedef struct _MPI_TARGET_SCSI_SPI_STATUS_IU
     U8      SenseData[52]; /* Pad the IU to 64 bytes */ /* 0Ch */
 } MPI_TARGET_SCSI_SPI_STATUS_IU, MPI_POINTER PTR_MPI_TARGET_SCSI_SPI_STATUS_IU,
   TargetScsiSpiStatusIU_t, MPI_POINTER pTargetScsiSpiStatusIU_t;
+
+/*
+ * NOTE: The SSP status IU is big-endian. When used on a little-endian system,
+ * this structure properly orders the bytes.
+ */
+typedef struct _MPI_TARGET_SSP_RSP_IU
+{
+    U32     Reserved0[6]; /* reserved for SSP header */ /* 00h */
+    /* start of RESPONSE information unit */
+    U32     Reserved1;                                  /* 18h */
+    U32     Reserved2;                                  /* 1Ch */
+    U16     Reserved3;                                  /* 20h */
+    U8      DataPres; /* lower 2 bits */                /* 22h */
+    U8      Status;                                     /* 23h */
+    U32     Reserved4;                                  /* 24h */
+    U32     SenseDataLength;                            /* 28h */
+    U32     ResponseDataLength;                         /* 2Ch */
+    U8      ResponseSenseData[4];                       /* 30h */
+} MPI_TARGET_SSP_RSP_IU, MPI_POINTER PTR_MPI_TARGET_SSP_RSP_IU,
+  MpiTargetSspRspIu_t, MPI_POINTER pMpiTargetSspRspIu_t;
+
 
 /****************************************************************************/
 /* Target Mode Abort Request                                                */

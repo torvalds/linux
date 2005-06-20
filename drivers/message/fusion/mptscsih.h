@@ -1,26 +1,13 @@
 /*
- *  linux/drivers/message/fusion/mptscsih.h
+ *  linux/drivers/message/fusion/mptscsi.h
  *      High performance SCSI / Fibre Channel SCSI Host device driver.
  *      For use with PCI chip/adapter(s):
  *          LSIFC9xx/LSI409xx Fibre Channel
  *      running LSI Logic Fusion MPT (Message Passing Technology) firmware.
  *
- *  Credits:
- *      This driver would not exist if not for Alan Cox's development
- *      of the linux i2o driver.
- *
- *      A huge debt of gratitude is owed to David S. Miller (DaveM)
- *      for fixing much of the stupid and broken stuff in the early
- *      driver while porting to sparc64 platform.  THANK YOU!
- *
- *      (see also mptbase.c)
- *
- *  Copyright (c) 1999-2004 LSI Logic Corporation
- *  Originally By: Steven J. Ralston
- *  (mailto:netscape.net)
+ *  Copyright (c) 1999-2005 LSI Logic Corporation
  *  (mailto:mpt_linux_developer@lsil.com)
  *
- *  $Id: mptscsih.h,v 1.21 2002/12/03 21:26:35 pdelaney Exp $
  */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*
@@ -91,4 +78,30 @@
 #define MPTSCSIH_MIN_SYNC               0x08
 #define MPTSCSIH_SAF_TE                 0
 
+
 #endif
+
+extern void mptscsih_remove(struct pci_dev *);
+extern void mptscsih_shutdown(struct device *);
+#ifdef CONFIG_PM
+extern int mptscsih_suspend(struct pci_dev *pdev, u32 state);
+extern int mptscsih_resume(struct pci_dev *pdev);
+#endif
+extern int mptscsih_proc_info(struct Scsi_Host *host, char *buffer, char **start, off_t offset, int length, int func);
+extern const char * mptscsih_info(struct Scsi_Host *SChost);
+extern int mptscsih_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *));
+extern int mptscsih_slave_alloc(struct scsi_device *device);
+extern void mptscsih_slave_destroy(struct scsi_device *device);
+extern int mptscsih_slave_configure(struct scsi_device *device);
+extern int mptscsih_abort(struct scsi_cmnd * SCpnt);
+extern int mptscsih_dev_reset(struct scsi_cmnd * SCpnt);
+extern int mptscsih_bus_reset(struct scsi_cmnd * SCpnt);
+extern int mptscsih_host_reset(struct scsi_cmnd *SCpnt);
+extern int mptscsih_bios_param(struct scsi_device * sdev, struct block_device *bdev, sector_t capacity, int geom[]);
+extern int mptscsih_io_done(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *r);
+extern int mptscsih_taskmgmt_complete(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *r);
+extern int mptscsih_scandv_complete(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *r);
+extern int mptscsih_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply);
+extern int mptscsih_ioc_reset(MPT_ADAPTER *ioc, int post_reset);
+extern ssize_t mptscsih_store_queue_depth(struct device *dev, const char *buf, size_t count);
+extern void mptscsih_timer_expired(unsigned long data);

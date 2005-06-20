@@ -22,8 +22,6 @@
 #ifndef CONFIG_SCSI_OMIT_FLASHPOINT
 
 
-#define UNIX
-#define FW_TYPE		_SCCB_MGR_
 #define MAX_CARDS	8
 #undef BUSTYPE_PCI
 
@@ -34,8 +32,6 @@
 #define OS_OutPortByte(port, value)	outb(value, port)
 #define OS_OutPortWord(port, value)	outw(value, port)
 #define OS_OutPortLong(port, value)	outl(value, port)
-#define OS_Lock(x)
-#define OS_UnLock(x)
 
 
 /*
@@ -51,163 +47,16 @@
 #define SccbMgr_isr			FlashPoint_HandleInterrupt
 
 
-/*
-  Define name replacements to avoid kernel namespace pollution.
-*/
-
-#define BL_Card				FPT_BL_Card
-#define BusMasterInit			FPT_BusMasterInit
-#define CalcCrc16			FPT_CalcCrc16
-#define CalcLrc				FPT_CalcLrc
-#define ChkIfChipInitialized		FPT_ChkIfChipInitialized
-#define DiagBusMaster			FPT_DiagBusMaster
-#define DiagEEPROM			FPT_DiagEEPROM
-#define DiagXbow			FPT_DiagXbow
-#define GetTarLun			FPT_GetTarLun
-#define RNVRamData			FPT_RNVRamData
-#define RdStack				FPT_RdStack
-#define SccbMgrTableInitAll		FPT_SccbMgrTableInitAll
-#define SccbMgrTableInitCard		FPT_SccbMgrTableInitCard
-#define SccbMgrTableInitTarget		FPT_SccbMgrTableInitTarget
-#define SccbMgr_bad_isr			FPT_SccbMgr_bad_isr
-#define SccbMgr_scsi_reset		FPT_SccbMgr_scsi_reset
-#define SccbMgr_timer_expired		FPT_SccbMgr_timer_expired
-#define SendMsg				FPT_SendMsg
-#define Wait				FPT_Wait
-#define Wait1Second			FPT_Wait1Second
-#define WrStack				FPT_WrStack
-#define XbowInit			FPT_XbowInit
-#define autoCmdCmplt			FPT_autoCmdCmplt
-#define autoLoadDefaultMap		FPT_autoLoadDefaultMap
-#define busMstrDataXferStart		FPT_busMstrDataXferStart
-#define busMstrSGDataXferStart		FPT_busMstrSGDataXferStart
-#define busMstrTimeOut			FPT_busMstrTimeOut
-#define dataXferProcessor		FPT_dataXferProcessor
-#define default_intena			FPT_default_intena
-#define hostDataXferAbort		FPT_hostDataXferAbort
-#define hostDataXferRestart		FPT_hostDataXferRestart
-#define inisci				FPT_inisci
-#define mbCards				FPT_mbCards
-#define nvRamInfo			FPT_nvRamInfo
-#define phaseBusFree			FPT_phaseBusFree
-#define phaseChkFifo			FPT_phaseChkFifo
-#define phaseCommand			FPT_phaseCommand
-#define phaseDataIn			FPT_phaseDataIn
-#define phaseDataOut			FPT_phaseDataOut
-#define phaseDecode			FPT_phaseDecode
-#define phaseIllegal			FPT_phaseIllegal
-#define phaseMsgIn			FPT_phaseMsgIn
-#define phaseMsgOut			FPT_phaseMsgOut
-#define phaseStatus			FPT_phaseStatus
-#define queueAddSccb			FPT_queueAddSccb
-#define queueCmdComplete		FPT_queueCmdComplete
-#define queueDisconnect			FPT_queueDisconnect
-#define queueFindSccb			FPT_queueFindSccb
-#define queueFlushSccb			FPT_queueFlushSccb
-#define queueFlushTargSccb		FPT_queueFlushTargSccb
-#define queueSearchSelect		FPT_queueSearchSelect
-#define queueSelectFail			FPT_queueSelectFail
-#define s_PhaseTbl			FPT_s_PhaseTbl
-#define scamHAString			FPT_scamHAString
-#define scamInfo			FPT_scamInfo
-#define scarb				FPT_scarb
-#define scasid				FPT_scasid
-#define scbusf				FPT_scbusf
-#define sccbMgrTbl			FPT_sccbMgrTbl
-#define schkdd				FPT_schkdd
-#define scini				FPT_scini
-#define sciso				FPT_sciso
-#define scmachid			FPT_scmachid
-#define scsavdi				FPT_scsavdi
-#define scsel				FPT_scsel
-#define scsell				FPT_scsell
-#define scsendi				FPT_scsendi
-#define scvalq				FPT_scvalq
-#define scwirod				FPT_scwirod
-#define scwiros				FPT_scwiros
-#define scwtsel				FPT_scwtsel
-#define scxferc				FPT_scxferc
-#define sdecm				FPT_sdecm
-#define sfm				FPT_sfm
-#define shandem				FPT_shandem
-#define sinits				FPT_sinits
-#define sisyncn				FPT_sisyncn
-#define sisyncr				FPT_sisyncr
-#define siwidn				FPT_siwidn
-#define siwidr				FPT_siwidr
-#define sres				FPT_sres
-#define sresb				FPT_sresb
-#define ssel				FPT_ssel
-#define ssenss				FPT_ssenss
-#define sssyncv				FPT_sssyncv
-#define stsyncn				FPT_stsyncn
-#define stwidn				FPT_stwidn
-#define sxfrp				FPT_sxfrp
-#define utilEERead			FPT_utilEERead
-#define utilEEReadOrg			FPT_utilEEReadOrg
-#define utilEESendCmdAddr		FPT_utilEESendCmdAddr
-#define utilEEWrite			FPT_utilEEWrite
-#define utilEEWriteOnOff		FPT_utilEEWriteOnOff
-#define utilUpdateResidual		FPT_utilUpdateResidual
-
-
-/*----------------------------------------------------------------------
- *
- *
- *   Copyright 1995-1996 by Mylex Corporation.  All Rights Reserved
- *
- *   This file is available under both the GNU General Public License
- *   and a BSD-style copyright; see LICENSE.FlashPoint for details.
- *
- *   $Workfile:   globals.h  $
- *
- *   Description:  Common shared global defines.
- *
- *   $Date: 1996/09/04 01:26:13 $
- *
- *   $Revision: 1.11 $
- *
- *----------------------------------------------------------------------*/
-#ifndef __GLOBALS_H__
-#define __GLOBALS_H__
-
-#define _UCB_MGR_  1
-#define _SCCB_MGR_ 2
-
-/*#include <osflags.h>*/
-
 #define MAX_CDBLEN  12
 
 #define SCAM_LEV_2	1
 
 #define CRCMASK	0xA001
 
-/*  In your osflags.h file, please ENSURE that only ONE OS FLAG 
-    is on at a time !!! Also, please make sure you turn set the 
- 	 variable FW_TYPE to either _UCB_MGR_ or _SCCB_MGR_  !!! */
-
-#if defined(DOS) || defined(WIN95_16) || defined(OS2) || defined(OTHER_16)
-   #define       COMPILER_16_BIT 1
-#elif defined(NETWARE) || defined(NT) || defined(WIN95_32) || defined(UNIX) || defined(OTHER_32) || defined(SOLARIS_REAL_MODE)
-   #define       COMPILER_32_BIT 1
-#endif
-
-
 #define     BL_VENDOR_ID      0x104B
 #define     FP_DEVICE_ID      0x8130
 #define     MM_DEVICE_ID      0x1040
 
-
-#ifndef FALSE
-#define FALSE           0
-#endif
-#ifndef TRUE
-#define TRUE            (!(FALSE))
-#endif
-
-#ifndef NULL
-#define NULL            0
-#endif
 
 #define FAILURE         0xFFFFFFFFL
 
@@ -222,26 +71,10 @@ typedef unsigned long * PULONG;
 typedef void *          PVOID;
 
 
-#if defined(COMPILER_16_BIT)
-typedef unsigned char far       * uchar_ptr;
-typedef unsigned short far      * ushort_ptr;
-typedef unsigned long far       * ulong_ptr;
-#endif  /* 16_BIT_COMPILER */
-
-#if defined(COMPILER_32_BIT)
 typedef unsigned char           * uchar_ptr;
 typedef unsigned short          * ushort_ptr;
 typedef unsigned long           * ulong_ptr;
-#endif  /* 32_BIT_COMPILER */
 
-
-/*	 			NEW TYPE DEFINITIONS (shared with Mylex North)
-
-**  Use following type defines to avoid confusion in 16 and 32-bit
-**  environments.  Avoid using 'int' as it denotes 16 bits in 16-bit
-**  environment and 32 in 32-bit environments.
-
-*/
 
 #define s08bits	char
 #define s16bits 	short
@@ -251,21 +84,9 @@ typedef unsigned long           * ulong_ptr;
 #define u16bits	unsigned s16bits
 #define u32bits	unsigned s32bits
 
-#if defined(COMPILER_16_BIT)
-
-typedef u08bits far 	* pu08bits;
-typedef u16bits far 	* pu16bits;
-typedef u32bits far	* pu32bits;
-
-#endif	/* COMPILER_16_BIT */
-
-#if defined(COMPILER_32_BIT)
-
 typedef u08bits 	* pu08bits;
 typedef u16bits 	* pu16bits;
 typedef u32bits 	* pu32bits;
-
-#endif	/* COMPILER_32_BIT */
 
 
 #define BIT(x)          ((UCHAR)(1<<(x)))    /* single-bit mask in bit position x */
@@ -273,173 +94,9 @@ typedef u32bits 	* pu32bits;
 
 
 
-#if defined(DOS)
-/*#include <dos.h>*/
-	#undef inportb          /* undefine for Borland Lib */
-	#undef inport           /* they may have define I/O function in LIB */
-	#undef outportb
-	#undef outport
 
-	#define OS_InPortByte(ioport) 		inportb(ioport)
-	#define OS_InPortWord(ioport) 		inport(ioport)
-	#define OS_InPortLong(ioport)			inportq(ioport, val)
-	#define OS_OutPortByte(ioport, val) outportb(ioport, val)
-	#define OS_OutPortWord(ioport, val)	outport(ioport, val)
-	#define OS_OutPortLong(ioport)		outportq(ioport, val)
-#endif	/* DOS */
-
-#if defined(NETWARE) || defined(OTHER_32) ||  defined(OTHER_16)
-	extern u08bits	OS_InPortByte(u32bits ioport);
-	extern u16bits	OS_InPortWord(u32bits ioport);
-	extern u32bits	OS_InPortLong(u32bits ioport);
-
-	extern OS_InPortByteBuffer(u32bits ioport, pu08bits buffer, u32bits count);
-	extern OS_InPortWordBuffer(u32bits ioport, pu16bits buffer, u32bits count);
-	extern OS_OutPortByte(u32bits ioport, u08bits val);
-	extern OS_OutPortWord(u32bits ioport, u16bits val);
-	extern OS_OutPortLong(u32bits ioport, u32bits val);
-	extern OS_OutPortByteBuffer(u32bits ioport, pu08bits buffer, u32bits count);
-	extern OS_OutPortWordBuffer(u32bits ioport, pu16bits buffer, u32bits count);
-#endif	/* NETWARE || OTHER_32 || OTHER_16 */
-
-#if defined (NT) || defined(WIN95_32) || defined(WIN95_16)
-	#if defined(NT)
-
-		extern __declspec(dllimport) u08bits ScsiPortReadPortUchar(pu08bits ioport);
-		extern __declspec(dllimport) u16bits ScsiPortReadPortUshort(pu16bits ioport);
-		extern __declspec(dllimport) u32bits ScsiPortReadPortUlong(pu32bits ioport);
-		extern __declspec(dllimport) void ScsiPortWritePortUchar(pu08bits ioport, u08bits val);
-		extern __declspec(dllimport) void ScsiPortWritePortUshort(pu16bits port, u16bits val);
-		extern __declspec(dllimport) void ScsiPortWritePortUlong(pu32bits port, u32bits val);
-
-	#else
-
-		extern u08bits ScsiPortReadPortUchar(pu08bits ioport);
-		extern u16bits ScsiPortReadPortUshort(pu16bits ioport);
-		extern u32bits ScsiPortReadPortUlong(pu32bits ioport);
-		extern void ScsiPortWritePortUchar(pu08bits ioport, u08bits val);
-		extern void ScsiPortWritePortUshort(pu16bits port, u16bits val);
-		extern void ScsiPortWritePortUlong(pu32bits port, u32bits val);
-	#endif
-
-
-	#define OS_InPortByte(ioport) ScsiPortReadPortUchar((pu08bits) ioport)
-	#define OS_InPortWord(ioport) ScsiPortReadPortUshort((pu16bits) ioport)
-	#define OS_InPortLong(ioport) ScsiPortReadPortUlong((pu32bits) ioport)
-
-	#define OS_OutPortByte(ioport, val) ScsiPortWritePortUchar((pu08bits) ioport, (u08bits) val)
-	#define OS_OutPortWord(ioport, val) ScsiPortWritePortUshort((pu16bits) ioport, (u16bits) val)
-	#define OS_OutPortLong(ioport, val) ScsiPortWritePortUlong((pu32bits) ioport, (u32bits) val)
-	#define OS_OutPortByteBuffer(ioport, buffer, count) \
-		ScsiPortWritePortBufferUchar((pu08bits)&port, (pu08bits) buffer, (u32bits) count)
-	#define OS_OutPortWordBuffer(ioport, buffer, count) \
-		ScsiPortWritePortBufferUshort((pu16bits)&port, (pu16bits) buffer, (u32bits) count)
-
-	#define OS_Lock(x)
-	#define OS_UnLock(x)
-#endif /* NT || WIN95_32 || WIN95_16 */
-
-#if defined (UNIX) && !defined(OS_InPortByte)
-	#define OS_InPortByte(ioport)    inb((u16bits)ioport)
-	#define OS_InPortWord(ioport)    inw((u16bits)ioport)
-	#define OS_InPortLong(ioport)    inl((u16bits)ioport)
-	#define OS_OutPortByte(ioport,val)  outb((u16bits)ioport, (u08bits)val)
-	#define OS_OutPortWord(ioport,val)  outw((u16bits)ioport, (u16bits)val)
-	#define OS_OutPortLong(ioport,val)  outl((u16bits)ioport, (u32bits)val)
-
-	#define OS_Lock(x)
-	#define OS_UnLock(x)
-#endif /* UNIX */
-
-
-#if defined(OS2)
-	extern u08bits	inb(u32bits ioport);
-	extern u16bits	inw(u32bits ioport);
-	extern void	outb(u32bits ioport, u08bits val);
-	extern void	outw(u32bits ioport, u16bits val);
-
-	#define OS_InPortByte(ioport)			inb(ioport)
-	#define OS_InPortWord(ioport)			inw(ioport)
-	#define OS_OutPortByte(ioport, val)	outb(ioport, val)
-	#define OS_OutPortWord(ioport, val)	outw(ioport, val)
-	extern u32bits	OS_InPortLong(u32bits ioport);
-	extern void	OS_OutPortLong(u32bits ioport, u32bits val);
-
-	#define OS_Lock(x)
-	#define OS_UnLock(x)
-#endif /* OS2 */
-
-#if defined(SOLARIS_REAL_MODE)
-
-extern unsigned char    inb(unsigned long ioport);
-extern unsigned short   inw(unsigned long ioport);
-
-#define OS_InPortByte(ioport)    inb(ioport)
-#define OS_InPortWord(ioport)    inw(ioport)
-
-extern void OS_OutPortByte(unsigned long ioport, unsigned char val);
-extern void OS_OutPortWord(unsigned long ioport, unsigned short val);
-extern unsigned long  OS_InPortLong(unsigned long ioport);
-extern void     OS_OutPortLong(unsigned long ioport, unsigned long val);
-
-#define OS_Lock(x)
-#define OS_UnLock(x)
-
-#endif  /* SOLARIS_REAL_MODE */
-
-#endif  /* __GLOBALS_H__ */
-
-/*----------------------------------------------------------------------
- *
- *
- *   Copyright 1995-1996 by Mylex Corporation.  All Rights Reserved
- *
- *   This file is available under both the GNU General Public License
- *   and a BSD-style copyright; see LICENSE.FlashPoint for details.
- *
- *   $Workfile:   sccbmgr.h  $
- *
- *   Description:  Common shared SCCB Interface defines and SCCB 
- *						 Manager specifics defines.
- *
- *   $Date: 1996/10/24 23:09:33 $
- *
- *   $Revision: 1.14 $
- *
- *----------------------------------------------------------------------*/
-
-#ifndef __SCCB_H__
-#define __SCCB_H__
-
-/*#include <osflags.h>*/
-/*#include <globals.h>*/
-
-#if defined(BUGBUG)
-#define debug_size 32
-#endif
-
-#if defined(DOS)
-
-   typedef struct _SCCB near *PSCCB;
-	#if (FW_TYPE == _SCCB_MGR_)
-   	typedef void (*CALL_BK_FN)(PSCCB);
-	#endif
-
-#elif defined(OS2)
-
-   typedef struct _SCCB far *PSCCB;
-	#if (FW_TYPE == _SCCB_MGR_)
-   	typedef void (far *CALL_BK_FN)(PSCCB);
-	#endif
-
-#else
-
-   typedef struct _SCCB *PSCCB;
-	#if (FW_TYPE == _SCCB_MGR_)
-   	typedef void (*CALL_BK_FN)(PSCCB);
-	#endif
-
-#endif
+typedef struct _SCCB *PSCCB;
+typedef void (*CALL_BK_FN)(PSCCB);
 
 
 typedef struct SCCBMgr_info {
@@ -466,25 +123,13 @@ typedef struct SCCBMgr_info {
    ULONG    si_secondary_range;
 } SCCBMGR_INFO;
 
-#if defined(DOS)
-   typedef SCCBMGR_INFO *      PSCCBMGR_INFO;
-#else
-   #if defined (COMPILER_16_BIT)
-   typedef SCCBMGR_INFO far *  PSCCBMGR_INFO;
-   #else
-   typedef SCCBMGR_INFO *      PSCCBMGR_INFO;
-   #endif
-#endif // defined(DOS)
+typedef SCCBMGR_INFO *      PSCCBMGR_INFO;
 
 
-
-
-#if (FW_TYPE==_SCCB_MGR_)
-	#define SCSI_PARITY_ENA		  0x0001
-	#define LOW_BYTE_TERM		  0x0010
-	#define HIGH_BYTE_TERM		  0x0020
-	#define BUSTYPE_PCI	  0x3
-#endif
+#define SCSI_PARITY_ENA		  0x0001
+#define LOW_BYTE_TERM		  0x0010
+#define HIGH_BYTE_TERM		  0x0020
+#define BUSTYPE_PCI	  0x3
 
 #define SUPPORT_16TAR_32LUN	  0x0002
 #define SOFT_RESET		  0x0004
@@ -553,9 +198,6 @@ typedef struct _SCCB {
    UCHAR   Save_CdbLen;
    UCHAR   Sccb_XferState;
    ULONG   Sccb_SGoffset;
-#if (FW_TYPE == _UCB_MGR_)
-   PUCB    Sccb_ucb_ptr;
-#endif
    } SCCB;
 
 #define SCCB_SIZE sizeof(SCCB)
@@ -626,25 +268,9 @@ typedef struct _SCCB {
 
 
 
-#if (FW_TYPE==_UCB_MGR_)  
-   #define  HBA_AUTO_SENSE_FAIL        0x1B  
-   #define  HBA_TQ_REJECTED            0x1C  
-   #define  HBA_UNSUPPORTED_MSG         0x1D  
-   #define  HBA_HW_ERROR               0x20  
-   #define  HBA_ATN_NOT_RESPONDED      0x21  
-   #define  HBA_SCSI_RESET_BY_ADAPTER  0x22
-   #define  HBA_SCSI_RESET_BY_TARGET   0x23
-   #define  HBA_WRONG_CONNECTION       0x24
-   #define  HBA_BUS_DEVICE_RESET       0x25
-   #define  HBA_ABORT_QUEUE            0x26
-
-#else // these are not defined in BUDI/UCB
-
-   #define SCCB_INVALID_DIRECTION      0x18  /* Invalid target direction */
-   #define SCCB_DUPLICATE_SCCB         0x19  /* Duplicate SCCB */
-   #define SCCB_SCSI_RST               0x35  /* SCSI RESET detected. */
-
-#endif // (FW_TYPE==_UCB_MGR_)  
+#define SCCB_INVALID_DIRECTION      0x18  /* Invalid target direction */
+#define SCCB_DUPLICATE_SCCB         0x19  /* Duplicate SCCB */
+#define SCCB_SCSI_RST               0x35  /* SCSI RESET detected. */
 
 
 #define SCCB_IN_PROCESS            0x00
@@ -657,115 +283,20 @@ typedef struct _SCCB {
 #define SCCB_SIZE sizeof(SCCB)
 
 
-
-
-#if (FW_TYPE == _UCB_MGR_)
-	void SccbMgr_start_sccb(CARD_HANDLE pCurrCard, PUCB p_ucb);
-	s32bits SccbMgr_abort_sccb(CARD_HANDLE pCurrCard, PUCB p_ucb);
-	u08bits SccbMgr_my_int(CARD_HANDLE pCurrCard);
-	s32bits SccbMgr_isr(CARD_HANDLE pCurrCard);
-	void SccbMgr_scsi_reset(CARD_HANDLE pCurrCard);
-	void SccbMgr_timer_expired(CARD_HANDLE pCurrCard);
-	void SccbMgr_unload_card(CARD_HANDLE pCurrCard);
-	void SccbMgr_restore_foreign_state(CARD_HANDLE pCurrCard);
-	void SccbMgr_restore_native_state(CARD_HANDLE pCurrCard);
-	void SccbMgr_save_foreign_state(PADAPTER_INFO pAdapterInfo);
-
-#endif
-
-
-#if (FW_TYPE == _SCCB_MGR_)
-
- #if defined (DOS)
-	int    SccbMgr_sense_adapter(PSCCBMGR_INFO pCardInfo);
-	USHORT SccbMgr_config_adapter(PSCCBMGR_INFO pCardInfo);
-	void  SccbMgr_start_sccb(USHORT pCurrCard, PSCCB p_SCCB);
-	int   SccbMgr_abort_sccb(USHORT pCurrCard, PSCCB p_SCCB);
-	UCHAR SccbMgr_my_int(USHORT pCurrCard);
-	int   SccbMgr_isr(USHORT pCurrCard);
-	void  SccbMgr_scsi_reset(USHORT pCurrCard);
-	void  SccbMgr_timer_expired(USHORT pCurrCard);
-	USHORT SccbMgr_status(USHORT pCurrCard);
-	void SccbMgr_unload_card(USHORT pCurrCard);
-
- #else    //non-DOS
-
-	int   SccbMgr_sense_adapter(PSCCBMGR_INFO pCardInfo);
-	ULONG SccbMgr_config_adapter(PSCCBMGR_INFO pCardInfo);
-	void  SccbMgr_start_sccb(ULONG pCurrCard, PSCCB p_SCCB);
-	int   SccbMgr_abort_sccb(ULONG pCurrCard, PSCCB p_SCCB);
-	UCHAR SccbMgr_my_int(ULONG pCurrCard);
-	int   SccbMgr_isr(ULONG pCurrCard);
-	void  SccbMgr_scsi_reset(ULONG pCurrCard);
-	void  SccbMgr_enable_int(ULONG pCurrCard);
-	void  SccbMgr_disable_int(ULONG pCurrCard);
-	void  SccbMgr_timer_expired(ULONG pCurrCard);
-	void SccbMgr_unload_card(ULONG pCurrCard);
-
-  #endif
-#endif  // (FW_TYPE == _SCCB_MGR_)
-
-#endif  /* __SCCB_H__ */
-
-/*----------------------------------------------------------------------
- *
- *
- *   Copyright 1995-1996 by Mylex Corporation.  All Rights Reserved
- *
- *   This file is available under both the GNU General Public License
- *   and a BSD-style copyright; see LICENSE.FlashPoint for details.
- *
- *   $Workfile:   blx30.h  $
- *
- *   Description: This module contains SCCB/UCB Manager implementation
- *                specific stuff.
- *
- *   $Date: 1996/11/13 18:34:22 $
- *
- *   $Revision: 1.10 $
- *
- *----------------------------------------------------------------------*/
-
-
-#ifndef __blx30_H__
-#define __blx30_H__
-
-/*#include <globals.h>*/
-
 #define  ORION_FW_REV      3110
-
-
-
 
 #define HARP_REVD    1
 
 
-#if defined(DOS)
-#define QUEUE_DEPTH     8+1            /*1 for Normal disconnect 0 for Q'ing. */
-#else
 #define QUEUE_DEPTH     254+1            /*1 for Normal disconnect 32 for Q'ing. */
-#endif   // defined(DOS)
 
 #define	MAX_MB_CARDS	4					/* Max. no of cards suppoerted on Mother Board */
 
 #define WIDE_SCSI       1
 
-#if defined(WIDE_SCSI)
-   #if defined(DOS)
-      #define MAX_SCSI_TAR    16
-      #define MAX_LUN         8
-		#define LUN_MASK			0x07
-   #else
-      #define MAX_SCSI_TAR    16
-      #define MAX_LUN         32
-		#define LUN_MASK			0x1f
-	
-   #endif
-#else
-   #define MAX_SCSI_TAR    8
-   #define MAX_LUN         8
-	#define LUN_MASK			0x07
-#endif 
+#define MAX_SCSI_TAR    16
+#define MAX_LUN         32
+#define LUN_MASK			0x1f
 
 #if defined(HARP_REVA)
 #define SG_BUF_CNT      15             /*Number of prefetched elements. */
@@ -778,116 +309,12 @@ typedef struct _SCCB {
 #define SG_ELEMENT_MASK 0xFFFFFFFFL
 
 
-#if (FW_TYPE == _UCB_MGR_)
-	#define OPC_DECODE_NORMAL       0x0f7f
-#endif   // _UCB_MGR_
-
-
-
-#if defined(DOS)
-
-/*#include <dos.h>*/
-	#define RD_HARPOON(ioport)          (OS_InPortByte(ioport))
-	#define RDW_HARPOON(ioport)         (OS_InPortWord(ioport))
-	#define WR_HARPOON(ioport,val)      (OS_OutPortByte(ioport,val))
-	#define WRW_HARPOON(ioport,val)     (OS_OutPortWord(ioport,val))
-
-	#define RD_HARP32(port,offset,data)  asm{db 66h;         \
-                                       push ax;             \
-                                       mov dx,port;         \
-                                       add dx, offset;      \
-                                       db 66h;              \
-                                       in ax,dx;            \
-                                       db 66h;              \
-                                       mov word ptr data,ax;\
-                                       db 66h;              \
-                                       pop ax}
-
-	#define WR_HARP32(port,offset,data) asm{db 66h;          \
-                                       push ax;             \
-                                       mov dx,port;         \
-                                       add dx, offset;      \
-                                       db 66h;              \
-                                       mov ax,word ptr data;\
-                                       db 66h;              \
-                                       out dx,ax;           \
-                                       db 66h;              \
-                                       pop ax}
-#endif	/* DOS */
-
-#if defined(NETWARE) || defined(OTHER_32) ||  defined(OTHER_16)
-	#define RD_HARPOON(ioport)     OS_InPortByte((unsigned long)ioport)
-	#define RDW_HARPOON(ioport)    OS_InPortWord((unsigned long)ioport)
-	#define RD_HARP32(ioport,offset,data) (data = OS_InPortLong(ioport + offset))
-	#define WR_HARPOON(ioport,val) OS_OutPortByte((ULONG)ioport,(UCHAR) val)
-	#define WRW_HARPOON(ioport,val)  OS_OutPortWord((ULONG)ioport,(USHORT)val)
-	#define WR_HARP32(ioport,offset,data)  OS_OutPortLong((ioport + offset), data)
-#endif	/* NETWARE || OTHER_32 || OTHER_16 */
-
-#if defined(NT) || defined(WIN95_32) || defined(WIN95_16)
-	#define RD_HARPOON(ioport)          OS_InPortByte((ULONG)ioport)
-	#define RDW_HARPOON(ioport)         OS_InPortWord((ULONG)ioport)
-	#define RD_HARP32(ioport,offset,data) (data = OS_InPortLong((ULONG)(ioport + offset)))
-	#define WR_HARPOON(ioport,val)      OS_OutPortByte((ULONG)ioport,(UCHAR) val)
-	#define WRW_HARPOON(ioport,val)     OS_OutPortWord((ULONG)ioport,(USHORT)val)
-	#define WR_HARP32(ioport,offset,data)  OS_OutPortLong((ULONG)(ioport + offset), data)
-#endif /* NT || WIN95_32 || WIN95_16 */
-
-#if defined (UNIX)
-	#define RD_HARPOON(ioport)          OS_InPortByte((u32bits)ioport)
-	#define RDW_HARPOON(ioport)         OS_InPortWord((u32bits)ioport)
-	#define RD_HARP32(ioport,offset,data) (data = OS_InPortLong((u32bits)(ioport + offset)))
-	#define WR_HARPOON(ioport,val)      OS_OutPortByte((u32bits)ioport,(u08bits) val)
-	#define WRW_HARPOON(ioport,val)       OS_OutPortWord((u32bits)ioport,(u16bits)val)
-	#define WR_HARP32(ioport,offset,data)  OS_OutPortLong((u32bits)(ioport + offset), data)
-#endif /* UNIX */
-
-#if defined(OS2)
-	#define RD_HARPOON(ioport)          OS_InPortByte((unsigned long)ioport)
-	#define RDW_HARPOON(ioport)         OS_InPortWord((unsigned long)ioport)
-	#define RD_HARP32(ioport,offset,data) (data = OS_InPortLong((ULONG)(ioport + offset)))
-	#define WR_HARPOON(ioport,val)      OS_OutPortByte((ULONG)ioport,(UCHAR) val)
-	#define WRW_HARPOON(ioport,val)       OS_OutPortWord((ULONG)ioport,(USHORT)val)
-	#define WR_HARP32(ioport,offset,data)  OS_OutPortLong(((ULONG)(ioport + offset)), data)
-#endif /* OS2 */
-
-#if defined(SOLARIS_REAL_MODE)
-
-	#define RD_HARPOON(ioport)          OS_InPortByte((unsigned long)ioport)
-	#define RDW_HARPOON(ioport)         OS_InPortWord((unsigned long)ioport)
-	#define RD_HARP32(ioport,offset,data) (data = OS_InPortLong((ULONG)(ioport + offset)))
-	#define WR_HARPOON(ioport,val)      OS_OutPortByte((ULONG)ioport,(UCHAR) val)
-	#define WRW_HARPOON(ioport,val)       OS_OutPortWord((ULONG)ioport,(USHORT)val)
-	#define WR_HARP32(ioport,offset,data)  OS_OutPortLong((ULONG)(ioport + offset), (ULONG)data)
-
-#endif  /* SOLARIS_REAL_MODE */
-
-#endif  /* __BLX30_H__ */
-
-
-/*----------------------------------------------------------------------
- * 
- *
- *   Copyright 1995-1996 by Mylex Corporation.  All Rights Reserved
- *
- *   This file is available under both the GNU General Public License
- *   and a BSD-style copyright; see LICENSE.FlashPoint for details.
- *
- *   $Workfile:   target.h  $
- *
- *   Description:  Definitions for Target related structures
- *
- *   $Date: 1996/12/11 22:06:20 $
- *
- *   $Revision: 1.9 $
- *
- *----------------------------------------------------------------------*/
-
-#ifndef __TARGET__
-#define __TARGET__
-
-/*#include <globals.h>*/
-/*#include <blx30.h>*/
+#define RD_HARPOON(ioport)          OS_InPortByte((u32bits)ioport)
+#define RDW_HARPOON(ioport)         OS_InPortWord((u32bits)ioport)
+#define RD_HARP32(ioport,offset,data) (data = OS_InPortLong((u32bits)(ioport + offset)))
+#define WR_HARPOON(ioport,val)      OS_OutPortByte((u32bits)ioport,(u08bits) val)
+#define WRW_HARPOON(ioport,val)       OS_OutPortWord((u32bits)ioport,(u16bits)val)
+#define WR_HARP32(ioport,offset,data)  OS_OutPortLong((u32bits)(ioport + offset), data)
 
 
 #define  TAR_SYNC_MASK     (BIT(7)+BIT(6))
@@ -919,16 +346,7 @@ typedef struct _SCCB {
 #define  EE_WIDE_SCSI      BIT(7)
 
 
-#if defined(DOS)
-   typedef struct SCCBMgr_tar_info near *PSCCBMgr_tar_info;
-
-#elif defined(OS2)
-   typedef struct SCCBMgr_tar_info far *PSCCBMgr_tar_info;
-
-#else
-   typedef struct SCCBMgr_tar_info *PSCCBMgr_tar_info;
-
-#endif
+typedef struct SCCBMgr_tar_info *PSCCBMgr_tar_info;
 
 
 typedef struct SCCBMgr_tar_info {
@@ -949,11 +367,7 @@ typedef struct SCCBMgr_tar_info {
 typedef struct NVRAMInfo {
 	UCHAR		niModel;								/* Model No. of card */
 	UCHAR		niCardNo;							/* Card no. */
-#if defined(DOS)
-	USHORT	niBaseAddr;							/* Port Address of card */
-#else
 	ULONG		niBaseAddr;							/* Port Address of card */
-#endif
 	UCHAR		niSysConf;							/* Adapter Configuration byte - Byte 16 of eeprom map */
 	UCHAR		niScsiConf;							/* SCSI Configuration byte - Byte 17 of eeprom map */
 	UCHAR		niScamConf;							/* SCAM Configuration byte - Byte 20 of eeprom map */
@@ -962,13 +376,7 @@ typedef struct NVRAMInfo {
 	UCHAR		niScamTbl[MAX_SCSI_TAR][4];	/* Compressed Scam name string of Targets */
 }NVRAMINFO;
 
-#if defined(DOS)
-typedef NVRAMINFO near *PNVRamInfo;
-#elif defined (OS2)
-typedef NVRAMINFO far *PNVRamInfo;
-#else
 typedef NVRAMINFO *PNVRamInfo;
-#endif
 
 #define	MODEL_LT		1
 #define	MODEL_DL		2
@@ -978,17 +386,9 @@ typedef NVRAMINFO *PNVRamInfo;
 
 typedef struct SCCBcard {
    PSCCB currentSCCB;
-#if (FW_TYPE==_SCCB_MGR_)
    PSCCBMGR_INFO cardInfo;
-#else
-   PADAPTER_INFO cardInfo;
-#endif
 
-#if defined(DOS)
-   USHORT ioPort;
-#else
    ULONG ioPort;
-#endif
 
    USHORT cmdCounter;
    UCHAR  discQCount;
@@ -1002,13 +402,7 @@ typedef struct SCCBcard {
       
 }SCCBCARD;
 
-#if defined(DOS)
-typedef struct SCCBcard near *PSCCBcard;
-#elif defined (OS2)
-typedef struct SCCBcard far *PSCCBcard;
-#else
 typedef struct SCCBcard *PSCCBcard;
-#endif
 
 
 #define F_TAG_STARTED		0x01
@@ -1062,29 +456,6 @@ typedef struct SCCBscam_info {
    enum scam_id_st state;
     
 } SCCBSCAM_INFO, *PSCCBSCAM_INFO;
-
-#endif
-/*----------------------------------------------------------------------
- *
- *
- *   Copyright 1995-1996 by Mylex Corporation.  All Rights Reserved
- *
- *   This file is available under both the GNU General Public License
- *   and a BSD-style copyright; see LICENSE.FlashPoint for details.
- *
- *   $Workfile:   scsi2.h  $
- *
- *   Description:  Register definitions for HARPOON ASIC.
- *
- *   $Date: 1996/11/13 18:32:57 $
- *
- *   $Revision: 1.4 $
- *
- *----------------------------------------------------------------------*/
-
-#ifndef __SCSI_H__
-#define __SCSI_H__
-
 
 
 #define  SCSI_TEST_UNIT_READY    0x00
@@ -1195,29 +566,6 @@ typedef struct SCCBscam_info {
 #define  SYNC5MBS                0x32
 #define  MAX_OFFSET              0x0F  /* Maxbyteoffset for Sync Xfers */
 
-#endif
-/*----------------------------------------------------------------------
- *  
- *
- *   Copyright 1995-1996 by Mylex Corporation.  All Rights Reserved
- *
- *   This file is available under both the GNU General Public License
- *   and a BSD-style copyright; see LICENSE.FlashPoint for details.
- *
- *   $Workfile:   eeprom.h  $
- *
- *   Description:  Definitions for EEPROM related structures
- *
- *   $Date: 1996/11/13 18:28:39 $
- *
- *   $Revision: 1.4 $
- *
- *----------------------------------------------------------------------*/
-
-#ifndef __EEPROM__
-#define __EEPROM__
-
-/*#include <globals.h>*/
 
 #define  EEPROM_WD_CNT     256
 
@@ -1279,31 +627,6 @@ typedef struct SCCBscam_info {
    #define  WIDE_NEGO_BIT     BIT(7)
    #define  DISC_ENABLE_BIT   BIT(6)
 
-
-#endif
-/*----------------------------------------------------------------------
- *
- *
- *   Copyright 1995-1996 by Mylex Corporation.  All Rights Reserved
- *
- *   This file is available under both the GNU General Public License
- *   and a BSD-style copyright; see LICENSE.FlashPoint for details.
- *
- *   $Workfile:   harpoon.h  $
- *
- *   Description:  Register definitions for HARPOON ASIC.
- *
- *   $Date: 1997/07/09 21:44:36 $
- *
- *   $Revision: 1.9 $
- *
- *----------------------------------------------------------------------*/
-
-
-/*#include <globals.h>*/
-
-#ifndef __HARPOON__
-#define __HARPOON__
 
 
    #define  hp_vendor_id_0       0x00		/* LSB */
@@ -1577,8 +900,6 @@ typedef struct SCCBscam_info {
    #define  hp_reserved_3F       0x3F
 
 
-
-   extern USHORT default_intena;
 
    #define  hp_intena		 0x40
 
@@ -1972,15 +1293,6 @@ typedef struct SCCBscam_info {
                                  xfercnt <<= 16,\
                                  xfercnt |= RDW_HARPOON((USHORT)(port+hp_xfercnt_0)))
  */
-#if defined(DOS)
-#define HP_SETUP_ADDR_CNT(port,addr,count) (WRW_HARPOON((USHORT)(port+hp_host_addr_lo), (USHORT)(addr & 0x0000FFFFL)),\
-         addr >>= 16,\
-         WRW_HARPOON((USHORT)(port+hp_host_addr_hmi), (USHORT)(addr & 0x0000FFFFL)),\
-         WR_HARP32(port,hp_xfercnt_0,count),\
-         WRW_HARPOON((USHORT)(port+hp_xfer_cnt_lo), (USHORT)(count & 0x0000FFFFL)),\
-         count >>= 16,\
-         WR_HARPOON(port+hp_xfer_cnt_hi, (count & 0xFF)))
-#else
 #define HP_SETUP_ADDR_CNT(port,addr,count) (WRW_HARPOON((port+hp_host_addr_lo), (USHORT)(addr & 0x0000FFFFL)),\
          addr >>= 16,\
          WRW_HARPOON((port+hp_host_addr_hmi), (USHORT)(addr & 0x0000FFFFL)),\
@@ -1988,7 +1300,6 @@ typedef struct SCCBscam_info {
          WRW_HARPOON((port+hp_xfer_cnt_lo), (USHORT)(count & 0x0000FFFFL)),\
          count >>= 16,\
          WR_HARPOON(port+hp_xfer_cnt_hi, (count & 0xFF)))
-#endif
 
 #define ACCEPT_MSG(port) {while(RD_HARPOON(port+hp_scsisig) & SCSI_REQ){}\
                           WR_HARPOON(port+hp_scsisig, S_ILL_PH);}
@@ -2020,383 +1331,145 @@ typedef struct SCCBscam_info {
 
 
 
-#endif
 
-
-#if (FW_TYPE==_UCB_MGR_)
-void ReadNVRam(PSCCBcard pCurrCard,PUCB p_ucb);
-void WriteNVRam(PSCCBcard pCurrCard,PUCB p_ucb);
-void UpdateCheckSum(u32bits baseport);
-#endif // (FW_TYPE==_UCB_MGR_)
-
-#if defined(DOS)
-UCHAR sfm(USHORT port, PSCCB pcurrSCCB);
-void  scsiStartAuto(USHORT port);
-UCHAR sisyncn(USHORT port, UCHAR p_card, UCHAR syncFlag);
-void  ssel(USHORT port, UCHAR p_card);
-void  sres(USHORT port, UCHAR p_card, PSCCBcard pCurrCard);
-void  sdecm(UCHAR message, USHORT port, UCHAR p_card);
-void  shandem(USHORT port, UCHAR p_card,PSCCB pCurrSCCB);
-void  stsyncn(USHORT port, UCHAR p_card);
-void  sisyncr(USHORT port,UCHAR sync_pulse, UCHAR offset);
-void  sssyncv(USHORT p_port, UCHAR p_id, UCHAR p_sync_value, PSCCBMgr_tar_info currTar_Info);
-void  sresb(USHORT port, UCHAR p_card);
-void  sxfrp(USHORT p_port, UCHAR p_card);
-void  schkdd(USHORT port, UCHAR p_card);
-UCHAR RdStack(USHORT port, UCHAR index);
-void  WrStack(USHORT portBase, UCHAR index, UCHAR data);
-UCHAR ChkIfChipInitialized(USHORT ioPort);
-
-#if defined(V302)
-UCHAR GetTarLun(USHORT port, UCHAR p_card, UCHAR our_target, PSCCBcard pCurrCard, PUCHAR tag, PUCHAR lun);
-#endif
-
-void SendMsg(USHORT port, UCHAR message);
-void  queueFlushTargSccb(UCHAR p_card, UCHAR thisTarg, UCHAR error_code);
-UCHAR scsellDOS(USHORT p_port, UCHAR targ_id);
-#else
-UCHAR sfm(ULONG port, PSCCB pcurrSCCB);
 void  scsiStartAuto(ULONG port);
-UCHAR sisyncn(ULONG port, UCHAR p_card, UCHAR syncFlag);
-void  ssel(ULONG port, UCHAR p_card);
-void  sres(ULONG port, UCHAR p_card, PSCCBcard pCurrCard);
-void  sdecm(UCHAR message, ULONG port, UCHAR p_card);
-void  shandem(ULONG port, UCHAR p_card,PSCCB pCurrSCCB);
-void  stsyncn(ULONG port, UCHAR p_card);
-void  sisyncr(ULONG port,UCHAR sync_pulse, UCHAR offset);
-void  sssyncv(ULONG p_port, UCHAR p_id, UCHAR p_sync_value, PSCCBMgr_tar_info currTar_Info);
-void  sresb(ULONG port, UCHAR p_card);
-void  sxfrp(ULONG p_port, UCHAR p_card);
-void  schkdd(ULONG port, UCHAR p_card);
-UCHAR RdStack(ULONG port, UCHAR index);
-void  WrStack(ULONG portBase, UCHAR index, UCHAR data);
-UCHAR ChkIfChipInitialized(ULONG ioPort);
+static UCHAR FPT_sisyncn(ULONG port, UCHAR p_card, UCHAR syncFlag);
+static void  FPT_ssel(ULONG port, UCHAR p_card);
+static void  FPT_sres(ULONG port, UCHAR p_card, PSCCBcard pCurrCard);
+static void  FPT_shandem(ULONG port, UCHAR p_card,PSCCB pCurrSCCB);
+static void  FPT_stsyncn(ULONG port, UCHAR p_card);
+static void  FPT_sisyncr(ULONG port,UCHAR sync_pulse, UCHAR offset);
+static void  FPT_sssyncv(ULONG p_port, UCHAR p_id, UCHAR p_sync_value,
+			 PSCCBMgr_tar_info currTar_Info);
+static void  FPT_sresb(ULONG port, UCHAR p_card);
+static void  FPT_sxfrp(ULONG p_port, UCHAR p_card);
+static void  FPT_schkdd(ULONG port, UCHAR p_card);
+static UCHAR FPT_RdStack(ULONG port, UCHAR index);
+static void  FPT_WrStack(ULONG portBase, UCHAR index, UCHAR data);
+static UCHAR FPT_ChkIfChipInitialized(ULONG ioPort);
 
-#if defined(V302)
-UCHAR GetTarLun(ULONG port, UCHAR p_card, UCHAR our_target, PSCCBcard pCurrCard, PUCHAR tar, PUCHAR lun);
-#endif
+static void FPT_SendMsg(ULONG port, UCHAR message);
+static void  FPT_queueFlushTargSccb(UCHAR p_card, UCHAR thisTarg,
+				    UCHAR error_code);
 
-void SendMsg(ULONG port, UCHAR message);
-void  queueFlushTargSccb(UCHAR p_card, UCHAR thisTarg, UCHAR error_code);
-#endif
+static void  FPT_sinits(PSCCB p_sccb, UCHAR p_card);
+static void  FPT_RNVRamData(PNVRamInfo pNvRamInfo);
 
-void  ssenss(PSCCBcard pCurrCard);
-void  sinits(PSCCB p_sccb, UCHAR p_card);
-void  RNVRamData(PNVRamInfo pNvRamInfo);
-
-#if defined(WIDE_SCSI)
-   #if defined(DOS)
-   UCHAR siwidn(USHORT port, UCHAR p_card);
-   void  stwidn(USHORT port, UCHAR p_card);
-   void  siwidr(USHORT port, UCHAR width);
-   #else
-   UCHAR siwidn(ULONG port, UCHAR p_card);
-   void  stwidn(ULONG port, UCHAR p_card);
-   void  siwidr(ULONG port, UCHAR width);
-   #endif
-#endif
+static UCHAR FPT_siwidn(ULONG port, UCHAR p_card);
+static void  FPT_stwidn(ULONG port, UCHAR p_card);
+static void  FPT_siwidr(ULONG port, UCHAR width);
 
 
-void  queueSelectFail(PSCCBcard pCurrCard, UCHAR p_card);
-void  queueDisconnect(PSCCB p_SCCB, UCHAR p_card);
-void  queueCmdComplete(PSCCBcard pCurrCard, PSCCB p_SCCB, UCHAR p_card);
-void  queueSearchSelect(PSCCBcard pCurrCard, UCHAR p_card);
-void  queueFlushSccb(UCHAR p_card, UCHAR error_code);
-void  queueAddSccb(PSCCB p_SCCB, UCHAR card);
-UCHAR queueFindSccb(PSCCB p_SCCB, UCHAR p_card);
-void  utilUpdateResidual(PSCCB p_SCCB);
-USHORT CalcCrc16(UCHAR buffer[]);
-UCHAR  CalcLrc(UCHAR buffer[]);
+static void  FPT_queueSelectFail(PSCCBcard pCurrCard, UCHAR p_card);
+static void  FPT_queueDisconnect(PSCCB p_SCCB, UCHAR p_card);
+static void  FPT_queueCmdComplete(PSCCBcard pCurrCard, PSCCB p_SCCB,
+				  UCHAR p_card);
+static void  FPT_queueSearchSelect(PSCCBcard pCurrCard, UCHAR p_card);
+static void  FPT_queueFlushSccb(UCHAR p_card, UCHAR error_code);
+static void  FPT_queueAddSccb(PSCCB p_SCCB, UCHAR card);
+static UCHAR FPT_queueFindSccb(PSCCB p_SCCB, UCHAR p_card);
+static void  FPT_utilUpdateResidual(PSCCB p_SCCB);
+static USHORT FPT_CalcCrc16(UCHAR buffer[]);
+static UCHAR  FPT_CalcLrc(UCHAR buffer[]);
 
 
-#if defined(DOS)
-void  Wait1Second(USHORT p_port);
-void  Wait(USHORT p_port, UCHAR p_delay);
-void  utilEEWriteOnOff(USHORT p_port,UCHAR p_mode);
-void  utilEEWrite(USHORT p_port, USHORT ee_data, USHORT ee_addr);
-USHORT utilEERead(USHORT p_port, USHORT ee_addr);
-USHORT utilEEReadOrg(USHORT p_port, USHORT ee_addr);
-void  utilEESendCmdAddr(USHORT p_port, UCHAR ee_cmd, USHORT ee_addr);
-#else
-void  Wait1Second(ULONG p_port);
-void  Wait(ULONG p_port, UCHAR p_delay);
-void  utilEEWriteOnOff(ULONG p_port,UCHAR p_mode);
-void  utilEEWrite(ULONG p_port, USHORT ee_data, USHORT ee_addr);
-USHORT utilEERead(ULONG p_port, USHORT ee_addr);
-USHORT utilEEReadOrg(ULONG p_port, USHORT ee_addr);
-void  utilEESendCmdAddr(ULONG p_port, UCHAR ee_cmd, USHORT ee_addr);
-#endif
+static void  FPT_Wait1Second(ULONG p_port);
+static void  FPT_Wait(ULONG p_port, UCHAR p_delay);
+static void  FPT_utilEEWriteOnOff(ULONG p_port,UCHAR p_mode);
+static void  FPT_utilEEWrite(ULONG p_port, USHORT ee_data, USHORT ee_addr);
+static USHORT FPT_utilEERead(ULONG p_port, USHORT ee_addr);
+static USHORT FPT_utilEEReadOrg(ULONG p_port, USHORT ee_addr);
+static void  FPT_utilEESendCmdAddr(ULONG p_port, UCHAR ee_cmd, USHORT ee_addr);
 
 
 
-#if defined(OS2)
-   void  far phaseDataOut(ULONG port, UCHAR p_card);
-   void  far phaseDataIn(ULONG port, UCHAR p_card);
-   void  far phaseCommand(ULONG port, UCHAR p_card);
-   void  far phaseStatus(ULONG port, UCHAR p_card);
-   void  far phaseMsgOut(ULONG port, UCHAR p_card);
-   void  far phaseMsgIn(ULONG port, UCHAR p_card);
-   void  far phaseIllegal(ULONG port, UCHAR p_card);
-#else
-   #if defined(DOS)
-      void  phaseDataOut(USHORT port, UCHAR p_card);
-      void  phaseDataIn(USHORT port, UCHAR p_card);
-      void  phaseCommand(USHORT port, UCHAR p_card);
-      void  phaseStatus(USHORT port, UCHAR p_card);
-      void  phaseMsgOut(USHORT port, UCHAR p_card);
-      void  phaseMsgIn(USHORT port, UCHAR p_card);
-      void  phaseIllegal(USHORT port, UCHAR p_card);
-   #else
-      void  phaseDataOut(ULONG port, UCHAR p_card);
-      void  phaseDataIn(ULONG port, UCHAR p_card);
-      void  phaseCommand(ULONG port, UCHAR p_card);
-      void  phaseStatus(ULONG port, UCHAR p_card);
-      void  phaseMsgOut(ULONG port, UCHAR p_card);
-      void  phaseMsgIn(ULONG port, UCHAR p_card);
-      void  phaseIllegal(ULONG port, UCHAR p_card);
-   #endif
-#endif
+static void  FPT_phaseDataOut(ULONG port, UCHAR p_card);
+static void  FPT_phaseDataIn(ULONG port, UCHAR p_card);
+static void  FPT_phaseCommand(ULONG port, UCHAR p_card);
+static void  FPT_phaseStatus(ULONG port, UCHAR p_card);
+static void  FPT_phaseMsgOut(ULONG port, UCHAR p_card);
+static void  FPT_phaseMsgIn(ULONG port, UCHAR p_card);
+static void  FPT_phaseIllegal(ULONG port, UCHAR p_card);
 
-#if defined(DOS)
-void  phaseDecode(USHORT port, UCHAR p_card);
-void  phaseChkFifo(USHORT port, UCHAR p_card);
-void  phaseBusFree(USHORT p_port, UCHAR p_card);
-#else
-void  phaseDecode(ULONG port, UCHAR p_card);
-void  phaseChkFifo(ULONG port, UCHAR p_card);
-void  phaseBusFree(ULONG p_port, UCHAR p_card);
-#endif
+static void  FPT_phaseDecode(ULONG port, UCHAR p_card);
+static void  FPT_phaseChkFifo(ULONG port, UCHAR p_card);
+static void  FPT_phaseBusFree(ULONG p_port, UCHAR p_card);
 
 
 
 
-#if defined(DOS)
-void  XbowInit(USHORT port, UCHAR scamFlg);
-void  BusMasterInit(USHORT p_port);
-int   DiagXbow(USHORT port);
-int   DiagBusMaster(USHORT port);
-void  DiagEEPROM(USHORT p_port);
-#else
-void  XbowInit(ULONG port, UCHAR scamFlg);
-void  BusMasterInit(ULONG p_port);
-int   DiagXbow(ULONG port);
-int   DiagBusMaster(ULONG port);
-void  DiagEEPROM(ULONG p_port);
-#endif
+static void  FPT_XbowInit(ULONG port, UCHAR scamFlg);
+static void  FPT_BusMasterInit(ULONG p_port);
+static void  FPT_DiagEEPROM(ULONG p_port);
 
 
 
 
-#if defined(DOS)
-void  busMstrAbort(USHORT port);
-UCHAR busMstrTimeOut(USHORT port);
-void  dataXferProcessor(USHORT port, PSCCBcard pCurrCard);
-void  busMstrSGDataXferStart(USHORT port, PSCCB pCurrSCCB);
-void  busMstrDataXferStart(USHORT port, PSCCB pCurrSCCB);
-void  hostDataXferAbort(USHORT port, UCHAR p_card, PSCCB pCurrSCCB);
-#else
 void  busMstrAbort(ULONG port);
-UCHAR busMstrTimeOut(ULONG port);
-void  dataXferProcessor(ULONG port, PSCCBcard pCurrCard);
-void  busMstrSGDataXferStart(ULONG port, PSCCB pCurrSCCB);
-void  busMstrDataXferStart(ULONG port, PSCCB pCurrSCCB);
-void  hostDataXferAbort(ULONG port, UCHAR p_card, PSCCB pCurrSCCB);
-#endif
-void  hostDataXferRestart(PSCCB currSCCB);
+static void  FPT_dataXferProcessor(ULONG port, PSCCBcard pCurrCard);
+static void  FPT_busMstrSGDataXferStart(ULONG port, PSCCB pCurrSCCB);
+static void  FPT_busMstrDataXferStart(ULONG port, PSCCB pCurrSCCB);
+static void  FPT_hostDataXferAbort(ULONG port, UCHAR p_card, PSCCB pCurrSCCB);
+static void  FPT_hostDataXferRestart(PSCCB currSCCB);
 
 
-#if defined (DOS)
-UCHAR SccbMgr_bad_isr(USHORT p_port, UCHAR p_card, PSCCBcard pCurrCard, USHORT p_int);
-#else
-UCHAR SccbMgr_bad_isr(ULONG p_port, UCHAR p_card, PSCCBcard pCurrCard, USHORT p_int);
+static UCHAR FPT_SccbMgr_bad_isr(ULONG p_port, UCHAR p_card,
+				 PSCCBcard pCurrCard, USHORT p_int);
 
-#endif
-
-void  SccbMgrTableInitAll(void);
-void  SccbMgrTableInitCard(PSCCBcard pCurrCard, UCHAR p_card);
-void  SccbMgrTableInitTarget(UCHAR p_card, UCHAR target);
+static void  FPT_SccbMgrTableInitAll(void);
+static void  FPT_SccbMgrTableInitCard(PSCCBcard pCurrCard, UCHAR p_card);
+static void  FPT_SccbMgrTableInitTarget(UCHAR p_card, UCHAR target);
 
 
 
-void  scini(UCHAR p_card, UCHAR p_our_id, UCHAR p_power_up);
+static void  FPT_scini(UCHAR p_card, UCHAR p_our_id, UCHAR p_power_up);
 
-#if defined(DOS)
-int   scarb(USHORT p_port, UCHAR p_sel_type);
-void  scbusf(USHORT p_port);
-void  scsel(USHORT p_port);
-void  scasid(UCHAR p_card, USHORT p_port);
-UCHAR scxferc(USHORT p_port, UCHAR p_data);
-UCHAR scsendi(USHORT p_port, UCHAR p_id_string[]);
-UCHAR sciso(USHORT p_port, UCHAR p_id_string[]);
-void  scwirod(USHORT p_port, UCHAR p_data_bit);
-void  scwiros(USHORT p_port, UCHAR p_data_bit);
-UCHAR scvalq(UCHAR p_quintet);
-UCHAR scsell(USHORT p_port, UCHAR targ_id);
-void  scwtsel(USHORT p_port);
-void  inisci(UCHAR p_card, USHORT p_port, UCHAR p_our_id);
-void  scsavdi(UCHAR p_card, USHORT p_port);
-#else
-int   scarb(ULONG p_port, UCHAR p_sel_type);
-void  scbusf(ULONG p_port);
-void  scsel(ULONG p_port);
-void  scasid(UCHAR p_card, ULONG p_port);
-UCHAR scxferc(ULONG p_port, UCHAR p_data);
-UCHAR scsendi(ULONG p_port, UCHAR p_id_string[]);
-UCHAR sciso(ULONG p_port, UCHAR p_id_string[]);
-void  scwirod(ULONG p_port, UCHAR p_data_bit);
-void  scwiros(ULONG p_port, UCHAR p_data_bit);
-UCHAR scvalq(UCHAR p_quintet);
-UCHAR scsell(ULONG p_port, UCHAR targ_id);
-void  scwtsel(ULONG p_port);
-void  inisci(UCHAR p_card, ULONG p_port, UCHAR p_our_id);
-void  scsavdi(UCHAR p_card, ULONG p_port);
-#endif
-UCHAR scmachid(UCHAR p_card, UCHAR p_id_string[]);
+static int   FPT_scarb(ULONG p_port, UCHAR p_sel_type);
+static void  FPT_scbusf(ULONG p_port);
+static void  FPT_scsel(ULONG p_port);
+static void  FPT_scasid(UCHAR p_card, ULONG p_port);
+static UCHAR FPT_scxferc(ULONG p_port, UCHAR p_data);
+static UCHAR FPT_scsendi(ULONG p_port, UCHAR p_id_string[]);
+static UCHAR FPT_sciso(ULONG p_port, UCHAR p_id_string[]);
+static void  FPT_scwirod(ULONG p_port, UCHAR p_data_bit);
+static void  FPT_scwiros(ULONG p_port, UCHAR p_data_bit);
+static UCHAR FPT_scvalq(UCHAR p_quintet);
+static UCHAR FPT_scsell(ULONG p_port, UCHAR targ_id);
+static void  FPT_scwtsel(ULONG p_port);
+static void  FPT_inisci(UCHAR p_card, ULONG p_port, UCHAR p_our_id);
+static void  FPT_scsavdi(UCHAR p_card, ULONG p_port);
+static UCHAR FPT_scmachid(UCHAR p_card, UCHAR p_id_string[]);
 
 
-#if defined(DOS)
-void  autoCmdCmplt(USHORT p_port, UCHAR p_card);
-void  autoLoadDefaultMap(USHORT p_port);
-#else
-void  autoCmdCmplt(ULONG p_port, UCHAR p_card);
-void  autoLoadDefaultMap(ULONG p_port);
-#endif
+static void  FPT_autoCmdCmplt(ULONG p_port, UCHAR p_card);
+static void  FPT_autoLoadDefaultMap(ULONG p_port);
 
 
 
-#if (FW_TYPE==_SCCB_MGR_)
-	void  OS_start_timer(unsigned long ioport, unsigned long timeout);
-	void  OS_stop_timer(unsigned long ioport, unsigned long timeout);
-	void  OS_disable_int(unsigned char intvec);
-	void  OS_enable_int(unsigned char intvec);
-	void  OS_delay(unsigned long count);
-	int   OS_VirtToPhys(u32bits CardHandle, u32bits *physaddr, u32bits *virtaddr);
-	#if !(defined(UNIX) || defined(OS2) || defined(SOLARIS_REAL_MODE)) 
-	void  OS_Lock(PSCCBMGR_INFO pCardInfo);
-	void  OS_UnLock(PSCCBMGR_INFO pCardInfo);
-#endif // if FW_TYPE == ...
+void  OS_start_timer(unsigned long ioport, unsigned long timeout);
+void  OS_stop_timer(unsigned long ioport, unsigned long timeout);
+void  OS_disable_int(unsigned char intvec);
+void  OS_enable_int(unsigned char intvec);
+void  OS_delay(unsigned long count);
+int   OS_VirtToPhys(u32bits CardHandle, u32bits *physaddr, u32bits *virtaddr);
 
-#endif
-
-extern SCCBCARD BL_Card[MAX_CARDS];
-extern SCCBMGR_TAR_INFO sccbMgrTbl[MAX_CARDS][MAX_SCSI_TAR];
+static SCCBMGR_TAR_INFO FPT_sccbMgrTbl[MAX_CARDS][MAX_SCSI_TAR] = { { { 0 } } };
+static SCCBCARD FPT_BL_Card[MAX_CARDS] = { { 0 } };
+static SCCBSCAM_INFO FPT_scamInfo[MAX_SCSI_TAR] = { { { 0 } } };
+static NVRAMINFO FPT_nvRamInfo[MAX_MB_CARDS] = { { 0 } };
 
 
-#if defined(OS2)
-   extern void (far *s_PhaseTbl[8]) (ULONG, UCHAR);
-#else
-   #if defined(DOS)
-      extern void (*s_PhaseTbl[8]) (USHORT, UCHAR);
-   #else
-      extern void (*s_PhaseTbl[8]) (ULONG, UCHAR);
-   #endif
-#endif
+static UCHAR FPT_mbCards = 0;
+static UCHAR FPT_scamHAString[] = {0x63, 0x07, 'B', 'U', 'S', 'L', 'O', 'G', 'I', 'C', \
+				   ' ', 'B', 'T', '-', '9', '3', '0', \
+				   0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, \
+				   0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20};
 
-extern SCCBSCAM_INFO scamInfo[MAX_SCSI_TAR];
-extern NVRAMINFO nvRamInfo[MAX_MB_CARDS];
-#if defined(DOS) || defined(OS2)
-extern UCHAR temp_id_string[ID_STRING_LENGTH];
-#endif
-extern UCHAR scamHAString[];
+static USHORT FPT_default_intena = 0;
 
 
-extern UCHAR mbCards;
-#if defined(BUGBUG)
-extern UCHAR debug_int[MAX_CARDS][debug_size];
-extern UCHAR debug_index[MAX_CARDS];
-void Debug_Load(UCHAR p_card, UCHAR p_bug_data);
-#endif
+static void (*FPT_s_PhaseTbl[8]) (ULONG, UCHAR)= { 0 };
 
-#if (FW_TYPE==_SCCB_MGR_)
-#if defined(DOS)
-   extern UCHAR first_time;
-#endif
-#endif /* (FW_TYPE==_SCCB_MGR_) */
-
-#if (FW_TYPE==_UCB_MGR_)
-#if defined(DOS)
-   extern u08bits first_time;
-#endif
-#endif /* (FW_TYPE==_UCB_MGR_) */
-
-#if defined(BUGBUG)
-void Debug_Load(UCHAR p_card, UCHAR p_bug_data);
-#endif
-
-extern unsigned int SccbGlobalFlags;
-
-
-#ident "$Id: sccb.c 1.18 1997/06/10 16:47:04 mohan Exp $"
-/*----------------------------------------------------------------------
- *
- *
- *   Copyright 1995-1996 by Mylex Corporation.  All Rights Reserved
- *
- *   This file is available under both the GNU General Public License
- *   and a BSD-style copyright; see LICENSE.FlashPoint for details.
- *
- *   $Workfile:   sccb.c  $
- *
- *   Description:  Functions relating to handling of the SCCB interface
- *                 between the device driver and the HARPOON.
- *
- *   $Date: 1997/06/10 16:47:04 $
- *
- *   $Revision: 1.18 $
- *
- *----------------------------------------------------------------------*/
-
-/*#include <globals.h>*/
-
-#if (FW_TYPE==_UCB_MGR_)
-	/*#include <budi.h>*/
-	/*#include <budioctl.h>*/
-#endif
-
-/*#include <sccbmgr.h>*/
-/*#include <blx30.h>*/
-/*#include <target.h>*/
-/*#include <eeprom.h>*/
-/*#include <scsi2.h>*/
-/*#include <harpoon.h>*/
-
-
-
-#if (FW_TYPE==_SCCB_MGR_)
-#define mOS_Lock(card)    OS_Lock((PSCCBMGR_INFO)(((PSCCBcard)card)->cardInfo))
-#define mOS_UnLock(card)  OS_UnLock((PSCCBMGR_INFO)(((PSCCBcard)card)->cardInfo))
-#else /* FW_TYPE==_UCB_MGR_ */
-#define mOS_Lock(card)    OS_Lock((u32bits)(((PSCCBcard)card)->ioPort))
-#define mOS_UnLock(card)  OS_UnLock((u32bits)(((PSCCBcard)card)->ioPort))
-#endif
-
-
-/*
-extern SCCBMGR_TAR_INFO sccbMgrTbl[MAX_CARDS][MAX_SCSI_TAR];
-extern SCCBCARD BL_Card[MAX_CARDS];
-
-extern NVRAMINFO nvRamInfo[MAX_MB_CARDS];
-extern UCHAR mbCards;
-
-#if defined (OS2)
-   extern void (far *s_PhaseTbl[8]) (ULONG, UCHAR);
-#else
-   #if defined(DOS)
-      extern void (*s_PhaseTbl[8]) (USHORT, UCHAR);
-   #else
-      extern void (*s_PhaseTbl[8]) (ULONG, UCHAR);
-   #endif
-#endif
-
-
-#if defined(BUGBUG)
-extern UCHAR debug_int[MAX_CARDS][debug_size];
-extern UCHAR debug_index[MAX_CARDS];
-void Debug_Load(UCHAR p_card, UCHAR p_bug_data);
-#endif
-*/
-
-#if (FW_TYPE==_SCCB_MGR_)
 
 /*---------------------------------------------------------------------
  *
@@ -2406,27 +1479,16 @@ void Debug_Load(UCHAR p_card, UCHAR p_bug_data);
  *
  *---------------------------------------------------------------------*/
 
-int SccbMgr_sense_adapter(PSCCBMGR_INFO pCardInfo)
+static int SccbMgr_sense_adapter(PSCCBMGR_INFO pCardInfo)
 {
-#if defined(DOS)
-#else
    static UCHAR first_time = 1;
-#endif
 
    UCHAR i,j,id,ScamFlg;
    USHORT temp,temp2,temp3,temp4,temp5,temp6;
-#if defined(DOS)
-   USHORT ioport;
-#else
    ULONG ioport;
-#endif
 	PNVRamInfo pCurrNvRam;
 
-#if defined(DOS)
-   ioport = (USHORT)pCardInfo->si_baseaddr;
-#else
    ioport = pCardInfo->si_baseaddr;
-#endif
 
 
    if (RD_HARPOON(ioport+hp_vendor_id_0) != ORION_VEND_0)
@@ -2455,36 +1517,31 @@ int SccbMgr_sense_adapter(PSCCBMGR_INFO pCardInfo)
 
    if (first_time)
       {
-      SccbMgrTableInitAll();
+      FPT_SccbMgrTableInitAll();
       first_time = 0;
-		mbCards = 0;
+		FPT_mbCards = 0;
       }
 
-	if(RdStack(ioport, 0) != 0x00) {
-		if(ChkIfChipInitialized(ioport) == FALSE)
+	if(FPT_RdStack(ioport, 0) != 0x00) {
+		if(FPT_ChkIfChipInitialized(ioport) == 0)
 		{
 			pCurrNvRam = NULL;
 		   WR_HARPOON(ioport+hp_semaphore, 0x00);
-			XbowInit(ioport, 0);             /*Must Init the SCSI before attempting */
-			DiagEEPROM(ioport);
+			FPT_XbowInit(ioport, 0);             /*Must Init the SCSI before attempting */
+			FPT_DiagEEPROM(ioport);
 		}
 		else
 		{
-			if(mbCards < MAX_MB_CARDS) {
-				pCurrNvRam = &nvRamInfo[mbCards];
-				mbCards++;
+			if(FPT_mbCards < MAX_MB_CARDS) {
+				pCurrNvRam = &FPT_nvRamInfo[FPT_mbCards];
+				FPT_mbCards++;
 				pCurrNvRam->niBaseAddr = ioport;
-				RNVRamData(pCurrNvRam);
+				FPT_RNVRamData(pCurrNvRam);
 			}else
 				return((int) FAILURE);
 		}
 	}else
 		pCurrNvRam = NULL;
-#if defined (NO_BIOS_OPTION)
-	pCurrNvRam = NULL;
-   XbowInit(ioport, 0);                /*Must Init the SCSI before attempting */
-   DiagEEPROM(ioport);
-#endif  /* No BIOS Option */
 
    WR_HARPOON(ioport+hp_clkctrl_0, CLKCTRL_DEFAULT);
    WR_HARPOON(ioport+hp_sys_ctrl, 0x00);
@@ -2492,7 +1549,7 @@ int SccbMgr_sense_adapter(PSCCBMGR_INFO pCardInfo)
 	if(pCurrNvRam)
 		pCardInfo->si_id = pCurrNvRam->niAdapId;
 	else
-	   pCardInfo->si_id = (UCHAR)(utilEERead(ioport, (ADAPTER_SCSI_ID/2)) &
+	   pCardInfo->si_id = (UCHAR)(FPT_utilEERead(ioport, (ADAPTER_SCSI_ID/2)) &
    	   (UCHAR)0x0FF);
 
    pCardInfo->si_lun = 0x00;
@@ -2510,7 +1567,7 @@ int SccbMgr_sense_adapter(PSCCBMGR_INFO pCardInfo)
 			temp = ((temp & 0x03) + ((temp << 4) & 0xc0)) +
 					 (((temp << 4) & 0x0300) + ((temp << 8) & 0xc000));
 		}else
-	      temp = utilEERead(ioport, (USHORT)((SYNC_RATE_TBL/2)+id));
+	      temp = FPT_utilEERead(ioport, (USHORT)((SYNC_RATE_TBL/2)+id));
 
       for (i = 0; i < 2; temp >>=8,i++) {
 
@@ -2549,12 +1606,12 @@ int SccbMgr_sense_adapter(PSCCBMGR_INFO pCardInfo)
 	if(pCurrNvRam)
 		i = pCurrNvRam->niSysConf;
 	else
-	   i = (UCHAR)(utilEERead(ioport, (SYSTEM_CONFIG/2)));
+	   i = (UCHAR)(FPT_utilEERead(ioport, (SYSTEM_CONFIG/2)));
 
 	if(pCurrNvRam)
 		ScamFlg = pCurrNvRam->niScamConf;
 	else
-	   ScamFlg = (UCHAR) utilEERead(ioport, SCAM_CONFIG/2);
+	   ScamFlg = (UCHAR) FPT_utilEERead(ioport, SCAM_CONFIG/2);
 
    pCardInfo->si_flags = 0x0000;
 
@@ -2613,9 +1670,9 @@ int SccbMgr_sense_adapter(PSCCBMGR_INFO pCardInfo)
 				break;
 		}
 	}else{
-	   temp = utilEERead(ioport, (MODEL_NUMB_0/2));
+	   temp = FPT_utilEERead(ioport, (MODEL_NUMB_0/2));
    	pCardInfo->si_card_model[0] = (UCHAR)(temp >> 8);
-	   temp = utilEERead(ioport, (MODEL_NUMB_2/2));
+	   temp = FPT_utilEERead(ioport, (MODEL_NUMB_2/2));
 
    	pCardInfo->si_card_model[1] = (UCHAR)(temp & 0x00FF);
 	   pCardInfo->si_card_model[2] = (UCHAR)(temp >> 8);
@@ -2677,28 +1734,16 @@ int SccbMgr_sense_adapter(PSCCBMGR_INFO pCardInfo)
 
    SGRAM_ACCESS(ioport);
 
-   s_PhaseTbl[0] = phaseDataOut;
-   s_PhaseTbl[1] = phaseDataIn;
-   s_PhaseTbl[2] = phaseIllegal;
-   s_PhaseTbl[3] = phaseIllegal;
-   s_PhaseTbl[4] = phaseCommand;
-   s_PhaseTbl[5] = phaseStatus;
-   s_PhaseTbl[6] = phaseMsgOut;
-   s_PhaseTbl[7] = phaseMsgIn;
+   FPT_s_PhaseTbl[0] = FPT_phaseDataOut;
+   FPT_s_PhaseTbl[1] = FPT_phaseDataIn;
+   FPT_s_PhaseTbl[2] = FPT_phaseIllegal;
+   FPT_s_PhaseTbl[3] = FPT_phaseIllegal;
+   FPT_s_PhaseTbl[4] = FPT_phaseCommand;
+   FPT_s_PhaseTbl[5] = FPT_phaseStatus;
+   FPT_s_PhaseTbl[6] = FPT_phaseMsgOut;
+   FPT_s_PhaseTbl[7] = FPT_phaseMsgIn;
 
    pCardInfo->si_present = 0x01;
-
-#if defined(BUGBUG)
-
-
-   for (i = 0; i < MAX_CARDS; i++) {
-
-      for (id=0; id<debug_size; id++)
-         debug_int[i][id] =  (UCHAR)0x00;
-      debug_index[i] = 0;
-      }
-
-#endif
 
    return(0);
 }
@@ -2712,27 +1757,15 @@ int SccbMgr_sense_adapter(PSCCBMGR_INFO pCardInfo)
  *
  *---------------------------------------------------------------------*/
 
-#if defined(DOS)
-USHORT SccbMgr_config_adapter(PSCCBMGR_INFO pCardInfo)
-#else
-ULONG SccbMgr_config_adapter(PSCCBMGR_INFO pCardInfo)
-#endif
+static ULONG SccbMgr_config_adapter(PSCCBMGR_INFO pCardInfo)
 {
    PSCCBcard CurrCard = NULL;
 	PNVRamInfo pCurrNvRam;
    UCHAR i,j,thisCard, ScamFlg;
    USHORT temp,sync_bit_map,id;
-#if defined(DOS)
-   USHORT ioport;
-#else
    ULONG ioport;
-#endif
 
-#if defined(DOS)
-   ioport = (USHORT)pCardInfo->si_baseaddr;
-#else
    ioport = pCardInfo->si_baseaddr;
-#endif
 
    for(thisCard =0; thisCard <= MAX_CARDS; thisCard++) {
 
@@ -2741,24 +1774,24 @@ ULONG SccbMgr_config_adapter(PSCCBMGR_INFO pCardInfo)
 	 return(FAILURE);
          }
 
-      if (BL_Card[thisCard].ioPort == ioport) {
+      if (FPT_BL_Card[thisCard].ioPort == ioport) {
 
-         CurrCard = &BL_Card[thisCard];
-         SccbMgrTableInitCard(CurrCard,thisCard);
+         CurrCard = &FPT_BL_Card[thisCard];
+         FPT_SccbMgrTableInitCard(CurrCard,thisCard);
          break;
          }
 
-      else if (BL_Card[thisCard].ioPort == 0x00) {
+      else if (FPT_BL_Card[thisCard].ioPort == 0x00) {
 
-         BL_Card[thisCard].ioPort = ioport;
-         CurrCard = &BL_Card[thisCard];
+         FPT_BL_Card[thisCard].ioPort = ioport;
+         CurrCard = &FPT_BL_Card[thisCard];
 
-			if(mbCards)
-				for(i = 0; i < mbCards; i++){
-					if(CurrCard->ioPort == nvRamInfo[i].niBaseAddr)
-						CurrCard->pNvRamInfo = &nvRamInfo[i];
+			if(FPT_mbCards)
+				for(i = 0; i < FPT_mbCards; i++){
+					if(CurrCard->ioPort == FPT_nvRamInfo[i].niBaseAddr)
+						CurrCard->pNvRamInfo = &FPT_nvRamInfo[i];
 				}
-         SccbMgrTableInitCard(CurrCard,thisCard);
+         FPT_SccbMgrTableInitCard(CurrCard,thisCard);
          CurrCard->cardIndex = thisCard;
          CurrCard->cardInfo = pCardInfo;
 
@@ -2772,22 +1805,14 @@ ULONG SccbMgr_config_adapter(PSCCBMGR_INFO pCardInfo)
 		ScamFlg = pCurrNvRam->niScamConf;
 	}
 	else{
-	   ScamFlg = (UCHAR) utilEERead(ioport, SCAM_CONFIG/2);
+	   ScamFlg = (UCHAR) FPT_utilEERead(ioport, SCAM_CONFIG/2);
 	}
 
 
-   BusMasterInit(ioport);
-   XbowInit(ioport, ScamFlg);
+   FPT_BusMasterInit(ioport);
+   FPT_XbowInit(ioport, ScamFlg);
 
-#if defined (NO_BIOS_OPTION)
-
-
-   if (DiagXbow(ioport)) return(FAILURE);
-   if (DiagBusMaster(ioport)) return(FAILURE);
-
-#endif  /* No BIOS Option */
-
-   autoLoadDefaultMap(ioport);
+   FPT_autoLoadDefaultMap(ioport);
 
 
    for (i = 0,id = 0x01; i != pCardInfo->si_id; i++,id <<= 1){}
@@ -2814,9 +1839,9 @@ ULONG SccbMgr_config_adapter(PSCCBMGR_INFO pCardInfo)
 
    if (!(pCardInfo->si_flags & SOFT_RESET)) {
 
-      sresb(ioport,thisCard);
+      FPT_sresb(ioport,thisCard);
 
-         scini(thisCard, pCardInfo->si_id, 0);
+         FPT_scini(thisCard, pCardInfo->si_id, 0);
       }
 
 
@@ -2829,7 +1854,7 @@ ULONG SccbMgr_config_adapter(PSCCBMGR_INFO pCardInfo)
 			CurrCard->globalFlags |= F_GREEN_PC;
 	}
 	else{
-	   if (utilEERead(ioport, (SYSTEM_CONFIG/2)) & GREEN_PC_ENA)
+	   if (FPT_utilEERead(ioport, (SYSTEM_CONFIG/2)) & GREEN_PC_ENA)
    	   CurrCard->globalFlags |= F_GREEN_PC;
 	}
 
@@ -2840,7 +1865,7 @@ ULONG SccbMgr_config_adapter(PSCCBMGR_INFO pCardInfo)
 			CurrCard->globalFlags |= F_DO_RENEGO;
 	}
 	else{
-	   if (utilEERead(ioport, (SCSI_CONFIG/2)) & RENEGO_ENA)
+	   if (FPT_utilEERead(ioport, (SCSI_CONFIG/2)) & RENEGO_ENA)
    	   CurrCard->globalFlags |= F_DO_RENEGO;
 	}
 
@@ -2849,7 +1874,7 @@ ULONG SccbMgr_config_adapter(PSCCBMGR_INFO pCardInfo)
 			CurrCard->globalFlags |= F_CONLUN_IO;
 	}
 	else{
-	   if (utilEERead(ioport, (SCSI_CONFIG/2)) & CONNIO_ENA)
+	   if (FPT_utilEERead(ioport, (SCSI_CONFIG/2)) & CONNIO_ENA)
    	   CurrCard->globalFlags |= F_CONLUN_IO;
 	}
 
@@ -2859,7 +1884,7 @@ ULONG SccbMgr_config_adapter(PSCCBMGR_INFO pCardInfo)
    for (i = 0,id = 1; i < MAX_SCSI_TAR; i++, id <<= 1) {
 
       if (temp & id)
-	 sccbMgrTbl[thisCard][i].TarStatus |= TAR_ALLOW_DISC;
+	 FPT_sccbMgrTbl[thisCard][i].TarStatus |= TAR_ALLOW_DISC;
       }
 
    sync_bit_map = 0x0001;
@@ -2871,38 +1896,33 @@ ULONG SccbMgr_config_adapter(PSCCBMGR_INFO pCardInfo)
 			temp = ((temp & 0x03) + ((temp << 4) & 0xc0)) +
 					 (((temp << 4) & 0x0300) + ((temp << 8) & 0xc000));
 		}else
-	      temp = utilEERead(ioport, (USHORT)((SYNC_RATE_TBL/2)+id));
+	      temp = FPT_utilEERead(ioport, (USHORT)((SYNC_RATE_TBL/2)+id));
 
       for (i = 0; i < 2; temp >>=8,i++) {
 
          if (pCardInfo->si_per_targ_init_sync & sync_bit_map) {
 
-            sccbMgrTbl[thisCard][id*2+i].TarEEValue = (UCHAR)temp;
+            FPT_sccbMgrTbl[thisCard][id*2+i].TarEEValue = (UCHAR)temp;
             }
 
          else {
-	    sccbMgrTbl[thisCard][id*2+i].TarStatus |= SYNC_SUPPORTED;
-            sccbMgrTbl[thisCard][id*2+i].TarEEValue =
+	    FPT_sccbMgrTbl[thisCard][id*2+i].TarStatus |= SYNC_SUPPORTED;
+            FPT_sccbMgrTbl[thisCard][id*2+i].TarEEValue =
                (UCHAR)(temp & ~EE_SYNC_MASK);
             }
 
-#if defined(WIDE_SCSI)
 /*         if ((pCardInfo->si_per_targ_wide_nego & sync_bit_map) ||
             (id*2+i >= 8)){
 */
          if (pCardInfo->si_per_targ_wide_nego & sync_bit_map){
 
-            sccbMgrTbl[thisCard][id*2+i].TarEEValue |= EE_WIDE_SCSI;
+            FPT_sccbMgrTbl[thisCard][id*2+i].TarEEValue |= EE_WIDE_SCSI;
 
             }
 
          else { /* NARROW SCSI */
-            sccbMgrTbl[thisCard][id*2+i].TarStatus |= WIDE_NEGOCIATED;
+            FPT_sccbMgrTbl[thisCard][id*2+i].TarStatus |= WIDE_NEGOCIATED;
             }
-
-#else
-         sccbMgrTbl[thisCard][id*2+i].TarStatus |= WIDE_NEGOCIATED;
-#endif
 
 
 	 sync_bit_map <<= 1;
@@ -2915,1285 +1935,97 @@ ULONG SccbMgr_config_adapter(PSCCBMGR_INFO pCardInfo)
    WR_HARPOON((ioport+hp_semaphore),
       (UCHAR)(RD_HARPOON((ioport+hp_semaphore)) | SCCB_MGR_PRESENT));
 
-#if defined(DOS)
-   return((USHORT)CurrCard);
-#else
    return((ULONG)CurrCard);
-#endif
 }
 
-#else  			/* end (FW_TYPE==_SCCB_MGR_)  */
-
-
-
-STATIC s16bits FP_PresenceCheck(PMGR_INFO pMgrInfo)
-{
-	PMGR_ENTRYPNTS	pMgr_EntryPnts = &pMgrInfo->mi_Functions;
-
-      pMgr_EntryPnts->UCBMgr_probe_adapter = probe_adapter;
-      pMgr_EntryPnts->UCBMgr_init_adapter = init_adapter;
-      pMgr_EntryPnts->UCBMgr_start_UCB = SccbMgr_start_sccb;
-      pMgr_EntryPnts->UCBMgr_build_UCB = build_UCB;
-      pMgr_EntryPnts->UCBMgr_abort_UCB = SccbMgr_abort_sccb;
-      pMgr_EntryPnts->UCBMgr_my_int = SccbMgr_my_int;
-      pMgr_EntryPnts->UCBMgr_isr = SccbMgr_isr;
-      pMgr_EntryPnts->UCBMgr_scsi_reset = SccbMgr_scsi_reset;
-      pMgr_EntryPnts->UCBMgr_timer_expired = SccbMgr_timer_expired;
-#ifndef NO_IOCTLS
-	  pMgr_EntryPnts->UCBMgr_unload_card = SccbMgr_unload_card;
-	  pMgr_EntryPnts->UCBMgr_save_foreign_state =
-	  									SccbMgr_save_foreign_state;
-	  pMgr_EntryPnts->UCBMgr_restore_foreign_state =
-	  									SccbMgr_restore_foreign_state;
-	  pMgr_EntryPnts->UCBMgr_restore_native_state =
-	  									SccbMgr_restore_native_state;
-#endif /*NO_IOCTLS*/
-
-      pMgrInfo->mi_SGListFormat=0x01;
-      pMgrInfo->mi_DataPtrFormat=0x01;
-      pMgrInfo->mi_MaxSGElements= (u16bits) 0xffffffff;
-      pMgrInfo->mi_MgrPrivateLen=sizeof(SCCB);
-      pMgrInfo->mi_PCIVendorID=BL_VENDOR_ID;
-      pMgrInfo->mi_PCIDeviceID=FP_DEVICE_ID;
-      pMgrInfo->mi_MgrAttributes= ATTR_IO_MAPPED +
-											 ATTR_PHYSICAL_ADDRESS +
-											 ATTR_VIRTUAL_ADDRESS +
-											 ATTR_OVERLAPPED_IO_IOCTLS_OK;
-      pMgrInfo->mi_IoRangeLen = 256;
-      return(0);
-}
-
-
-
-/*---------------------------------------------------------------------
- *
- * Function: probe_adapter
- *
- * Description: Setup and/or Search for cards and return info to caller.
- *
- *---------------------------------------------------------------------*/
-STATIC s32bits probe_adapter(PADAPTER_INFO pAdapterInfo)
-{
-   u16bits temp,temp2,temp3,temp4;
-   u08bits i,j,id;
-
-#if defined(DOS)
-#else
-   static u08bits first_time = 1;
-#endif
-   BASE_PORT ioport;
-	PNVRamInfo pCurrNvRam;
-
-   ioport = (BASE_PORT)pAdapterInfo->ai_baseaddr;
-
-
-
-   if (RD_HARPOON(ioport+hp_vendor_id_0) != ORION_VEND_0)
-      return(1);
-
-   if ((RD_HARPOON(ioport+hp_vendor_id_1) != ORION_VEND_1))
-      return(2);
-
-   if ((RD_HARPOON(ioport+hp_device_id_0) != ORION_DEV_0))
-      return(3);
-
-   if ((RD_HARPOON(ioport+hp_device_id_1) != ORION_DEV_1))
-      return(4);
-
-
-   if (RD_HARPOON(ioport+hp_rev_num) != 0x0f){
-
-
-/* For new Harpoon then check for sub_device ID LSB
-   the bits(0-3) must be all ZERO for compatible with
-   current version of SCCBMgr, else skip this Harpoon
-	device. */
-
-	   if (RD_HARPOON(ioport+hp_sub_device_id_0) & 0x0f)
-	      return(5);
-	}
-
-   if (first_time) {
-
-      SccbMgrTableInitAll();
-      first_time = 0;
-		mbCards = 0;
-      }
-
-	if(RdStack(ioport, 0) != 0x00) {
-		if(ChkIfChipInitialized(ioport) == FALSE)
-		{
-			pCurrNvRam = NULL;
-		   WR_HARPOON(ioport+hp_semaphore, 0x00);
-			XbowInit(ioport, 0);                /*Must Init the SCSI before attempting */
-			DiagEEPROM(ioport);
-		}
-		else
-		{
-			if(mbCards < MAX_MB_CARDS) {
-				pCurrNvRam = &nvRamInfo[mbCards];
-				mbCards++;
-				pCurrNvRam->niBaseAddr = ioport;
-				RNVRamData(pCurrNvRam);
-			}else
-				return((int) FAILURE);
-		}
-	}else
-		pCurrNvRam = NULL;
-
-#if defined (NO_BIOS_OPTION)
-	pCurrNvRam = NULL;
-   XbowInit(ioport, 0);                /*Must Init the SCSI before attempting */
-   DiagEEPROM(ioport);
-#endif  /* No BIOS Option */
-
-   WR_HARPOON(ioport+hp_clkctrl_0, CLKCTRL_DEFAULT);
-   WR_HARPOON(ioport+hp_sys_ctrl, 0x00);
-
-	if(pCurrNvRam)
-		pAdapterInfo->ai_id = pCurrNvRam->niAdapId;
-	else
-   	pAdapterInfo->ai_id = (u08bits)(utilEERead(ioport, (ADAPTER_SCSI_ID/2)) &
-      	(u08bits)0x0FF);
-
-   pAdapterInfo->ai_lun = 0x00;
-   pAdapterInfo->ai_fw_revision[0] = '3';
-   pAdapterInfo->ai_fw_revision[1] = '1';
-   pAdapterInfo->ai_fw_revision[2] = '1';
-   pAdapterInfo->ai_fw_revision[3] = ' ';
-   pAdapterInfo->ai_NumChannels = 1;
-
-   temp2 = 0x0000;
-   temp3 = 0x0000;
-   temp4 = 0x0000;
-
-   for (id = 0; id < (16/2); id++) {
-
-		if(pCurrNvRam){
-			temp = (USHORT) pCurrNvRam->niSyncTbl[id];
-			temp = ((temp & 0x03) + ((temp << 4) & 0xc0)) +
-					 (((temp << 4) & 0x0300) + ((temp << 8) & 0xc000));
-		}else
-	      temp = utilEERead(ioport, (u16bits)((SYNC_RATE_TBL/2)+id));
-
-      for (i = 0; i < 2; temp >>=8,i++) {
-
-         if ((temp & 0x03) != AUTO_RATE_00) {
-
-            temp2 >>= 0x01;
-            temp2 |= 0x8000;
-            }
-
-         else {
-            temp2 >>= 0x01;
-            }
-
-         if (temp & DISC_ENABLE_BIT) {
-
-            temp3 >>= 0x01;
-            temp3 |= 0x8000;
-            }
-
-         else {
-            temp3 >>= 0x01;
-            }
-
-         if (temp & WIDE_NEGO_BIT) {
-
-            temp4 >>= 0x01;
-            temp4 |= 0x8000;
-            }
-
-         else {
-            temp4 >>= 0x01;
-            }
-
-         }
-      }
-
-   pAdapterInfo->ai_per_targ_init_sync = temp2;
-   pAdapterInfo->ai_per_targ_no_disc = temp3;
-   pAdapterInfo->ai_per_targ_wide_nego = temp4;
-	if(pCurrNvRam)
-		i = pCurrNvRam->niSysConf;
-	else
-   	i = (u08bits)(utilEERead(ioport, (SYSTEM_CONFIG/2)));
-
-   /*
-   ** interrupts always level-triggered for FlashPoint
-   */
-   pAdapterInfo->ai_stateinfo |= LEVEL_TRIG;
-
-   if (i & 0x01)
-      pAdapterInfo->ai_stateinfo |= SCSI_PARITY_ENA;
-
-	if (i & 0x02)	/* SCSI Bus reset in AutoSCSI Set ? */
-	{
-		if(pCurrNvRam)
-		{
-			j = pCurrNvRam->niScamConf;
-		}
-		else
-		{
-		j = (u08bits) utilEERead(ioport, SCAM_CONFIG/2);
-		}
-		if(j & SCAM_ENABLED)
-		{
-			if(j & SCAM_LEVEL2)
-			{
-				pAdapterInfo->ai_stateinfo |= SCAM2_ENA;
-			}
-			else
-			{
-				pAdapterInfo->ai_stateinfo |= SCAM1_ENA;
-			}
-		}
-	}
-   j = (RD_HARPOON(ioport+hp_bm_ctrl) & ~SCSI_TERM_ENA_L);
-   if (i & 0x04) {
-      j |= SCSI_TERM_ENA_L;
-      pAdapterInfo->ai_stateinfo |= LOW_BYTE_TERM_ENA;
-      }
-   WR_HARPOON(ioport+hp_bm_ctrl, j );
-
-   j = (RD_HARPOON(ioport+hp_ee_ctrl) & ~SCSI_TERM_ENA_H);
-   if (i & 0x08) {
-      j |= SCSI_TERM_ENA_H;
-      pAdapterInfo->ai_stateinfo |= HIGH_BYTE_TERM_ENA;
-      }
-   WR_HARPOON(ioport+hp_ee_ctrl, j );
-
-	if(RD_HARPOON(ioport + hp_page_ctrl) & BIOS_SHADOW)
-	{
-		pAdapterInfo->ai_FlashRomSize = 64 * 1024;	/* 64k ROM */
-	}
-	else
-	{
-		pAdapterInfo->ai_FlashRomSize = 32 * 1024;	/* 32k ROM */
-	}
-
-   pAdapterInfo->ai_stateinfo |= (FAST20_ENA | TAG_QUEUE_ENA);
-   if (!(RD_HARPOON(ioport+hp_page_ctrl) & NARROW_SCSI_CARD))
-	{
-      pAdapterInfo->ai_attributes |= (WIDE_CAPABLE | FAST20_CAPABLE
-													| SCAM2_CAPABLE
-													| TAG_QUEUE_CAPABLE
-													| SUPRESS_UNDERRRUNS_CAPABLE
-													| SCSI_PARITY_CAPABLE);
-		pAdapterInfo->ai_MaxTarg = 16;
-		pAdapterInfo->ai_MaxLun  = 32;
-	}
-	else
-	{
-      pAdapterInfo->ai_attributes |= (FAST20_CAPABLE | SCAM2_CAPABLE
-													| TAG_QUEUE_CAPABLE
-													| SUPRESS_UNDERRRUNS_CAPABLE
-													| SCSI_PARITY_CAPABLE);
-		pAdapterInfo->ai_MaxTarg = 8;
-		pAdapterInfo->ai_MaxLun  = 8;
-	}
-
-   pAdapterInfo->ai_product_family = HARPOON_FAMILY;
-   pAdapterInfo->ai_HBAbustype = BUSTYPE_PCI;
-
-   for (i=0;i<CARD_MODEL_NAMELEN;i++)
-   {
-      pAdapterInfo->ai_card_model[i]=' '; /* initialize the ai_card_model */
-   }
-
-	if(pCurrNvRam){
-	pAdapterInfo->ai_card_model[0] = '9';
-		switch(pCurrNvRam->niModel & 0x0f){
-			case MODEL_LT:
-			pAdapterInfo->ai_card_model[1] = '3';
-			pAdapterInfo->ai_card_model[2] = '0';
-				break;
-			case MODEL_LW:
-			pAdapterInfo->ai_card_model[1] = '5';
-			pAdapterInfo->ai_card_model[2] = '0';
-				break;
-			case MODEL_DL:
-			pAdapterInfo->ai_card_model[1] = '3';
-			pAdapterInfo->ai_card_model[2] = '2';
-				break;
-			case MODEL_DW:
-			pAdapterInfo->ai_card_model[1] = '5';
-			pAdapterInfo->ai_card_model[2] = '2';
-				break;
-		}
-	}else{
-	   temp = utilEERead(ioport, (MODEL_NUMB_0/2));
-		pAdapterInfo->ai_card_model[0] = (u08bits)(temp >> 8);
-	   temp = utilEERead(ioport, (MODEL_NUMB_2/2));
-
-		pAdapterInfo->ai_card_model[1] = (u08bits)(temp & 0x00FF);
-	   pAdapterInfo->ai_card_model[2] = (u08bits)(temp >> 8);
-	}
-
-
-
-   pAdapterInfo->ai_FiberProductType = 0;
-
-   pAdapterInfo->ai_secondary_range = 0;
-
-   for (i=0;i<WORLD_WIDE_NAMELEN;i++)
-   {
-      pAdapterInfo->ai_worldwidename[i]='\0';
-   }
-
-   for (i=0;i<VENDOR_NAMELEN;i++)
-   {
-      pAdapterInfo->ai_vendorstring[i]='\0';
-   }
-   	pAdapterInfo->ai_vendorstring[0]='B';
-   	pAdapterInfo->ai_vendorstring[1]='U';
-   	pAdapterInfo->ai_vendorstring[2]='S';
-   	pAdapterInfo->ai_vendorstring[3]='L';
-   	pAdapterInfo->ai_vendorstring[4]='O';
-   	pAdapterInfo->ai_vendorstring[5]='G';
-   	pAdapterInfo->ai_vendorstring[6]='I';
-   	pAdapterInfo->ai_vendorstring[7]='C';
-
-	for (i=0;i<FAMILY_NAMELEN;i++)
-	{
-	   pAdapterInfo->ai_AdapterFamilyString[i]='\0';
-	}
-   	pAdapterInfo->ai_AdapterFamilyString[0]='F';
-   	pAdapterInfo->ai_AdapterFamilyString[1]='L';
-   	pAdapterInfo->ai_AdapterFamilyString[2]='A';
-   	pAdapterInfo->ai_AdapterFamilyString[3]='S';
-   	pAdapterInfo->ai_AdapterFamilyString[4]='H';
-   	pAdapterInfo->ai_AdapterFamilyString[5]='P';
-   	pAdapterInfo->ai_AdapterFamilyString[6]='O';
-   	pAdapterInfo->ai_AdapterFamilyString[7]='I';
-   	pAdapterInfo->ai_AdapterFamilyString[8]='N';
-   	pAdapterInfo->ai_AdapterFamilyString[9]='T';
-
-   ARAM_ACCESS(ioport);
-
-   for ( i = 0; i < 4; i++ ) {
-
-      pAdapterInfo->ai_XlatInfo[i] =
-         RD_HARPOON(ioport+hp_aramBase+BIOS_DATA_OFFSET+i);
-      }
-
-	/* return with -1 if no sort, else return with
-	   logical card number sorted by BIOS (zero-based) */
-
-
-	pAdapterInfo->ai_relative_cardnum = 
-      (u08bits)(RD_HARPOON(ioport+hp_aramBase+BIOS_RELATIVE_CARD)-1); 
-
-   SGRAM_ACCESS(ioport);
-
-   s_PhaseTbl[0] = phaseDataOut;
-   s_PhaseTbl[1] = phaseDataIn;
-   s_PhaseTbl[2] = phaseIllegal;
-   s_PhaseTbl[3] = phaseIllegal;
-   s_PhaseTbl[4] = phaseCommand;
-   s_PhaseTbl[5] = phaseStatus;
-   s_PhaseTbl[6] = phaseMsgOut;
-   s_PhaseTbl[7] = phaseMsgIn;
-
-   pAdapterInfo->ai_present = 0x01;
-
-#if defined(BUGBUG)
-
-
-   for (i = 0; i < MAX_CARDS; i++) {
-
-      for (id=0; id<debug_size; id++)
-         debug_int[i][id] =  (u08bits)0x00;
-      debug_index[i] = 0;
-      }
-
-#endif
-
-   return(0);
-}
-
-
-
-
-
-/*---------------------------------------------------------------------
- *
- * Function: init_adapter, exported to BUDI via UCBMgr_init_adapter entry
- *
- *
- * Description: Setup adapter for normal operation (hard reset).
- *
- *---------------------------------------------------------------------*/
-STATIC CARD_HANDLE init_adapter(PADAPTER_INFO pCardInfo)
-{
-   PSCCBcard CurrCard;
-	PNVRamInfo pCurrNvRam;
-   u08bits i,j,thisCard, ScamFlg;
-   u16bits temp,sync_bit_map,id;
-   BASE_PORT ioport;
-
-   ioport = (BASE_PORT)pCardInfo->ai_baseaddr;
-
-   for(thisCard =0; thisCard <= MAX_CARDS; thisCard++) {
-
-      if (thisCard == MAX_CARDS) {
-
-         return(FAILURE);
-         }
-
-      if (BL_Card[thisCard].ioPort == ioport) {
-
-         CurrCard = &BL_Card[thisCard];
-         SccbMgrTableInitCard(CurrCard,thisCard);
-         break;
-         }
-
-      else if (BL_Card[thisCard].ioPort == 0x00) {
-
-         BL_Card[thisCard].ioPort = ioport;
-         CurrCard = &BL_Card[thisCard];
-
-			if(mbCards)
-				for(i = 0; i < mbCards; i++){
-					if(CurrCard->ioPort == nvRamInfo[i].niBaseAddr)
-						CurrCard->pNvRamInfo = &nvRamInfo[i];
-				}
-         SccbMgrTableInitCard(CurrCard,thisCard);
-         CurrCard->cardIndex = thisCard;
-         CurrCard->cardInfo = pCardInfo;
-
-         break;
-         }
-      }
-
-	pCurrNvRam = CurrCard->pNvRamInfo;
-
-   
-	if(pCurrNvRam){
-		ScamFlg = pCurrNvRam->niScamConf;
-	}
-	else{
-	   ScamFlg = (UCHAR) utilEERead(ioport, SCAM_CONFIG/2);
-	}
-	
-
-   BusMasterInit(ioport);
-   XbowInit(ioport, ScamFlg);
-
-#if defined (NO_BIOS_OPTION)
-
-
-   if (DiagXbow(ioport)) return(FAILURE);
-   if (DiagBusMaster(ioport)) return(FAILURE);
-
-#endif  /* No BIOS Option */
-
-   autoLoadDefaultMap(ioport);
-
-
-   for (i = 0,id = 0x01; i != pCardInfo->ai_id; i++,id <<= 1){}
-
-   WR_HARPOON(ioport+hp_selfid_0, id);
-   WR_HARPOON(ioport+hp_selfid_1, 0x00);
-   WR_HARPOON(ioport+hp_arb_id, pCardInfo->ai_id);
-   CurrCard->ourId = (unsigned char) pCardInfo->ai_id;
-
-   i = (u08bits) pCardInfo->ai_stateinfo;
-   if (i & SCSI_PARITY_ENA)
-       WR_HARPOON(ioport+hp_portctrl_1,(HOST_MODE8 | CHK_SCSI_P));
-
-   j = (RD_HARPOON(ioport+hp_bm_ctrl) & ~SCSI_TERM_ENA_L);
-   if (i & LOW_BYTE_TERM_ENA)
-      j |= SCSI_TERM_ENA_L;
-   WR_HARPOON(ioport+hp_bm_ctrl, j);
-
-   j = (RD_HARPOON(ioport+hp_ee_ctrl) & ~SCSI_TERM_ENA_H);
-   if (i & HIGH_BYTE_TERM_ENA)
-      j |= SCSI_TERM_ENA_H;
-   WR_HARPOON(ioport+hp_ee_ctrl, j );
-
-
-   if (!(pCardInfo->ai_stateinfo & NO_RESET_IN_INIT)) {
-
-      sresb(ioport,thisCard);
-
-         scini(thisCard, (u08bits) pCardInfo->ai_id, 0);
-      }
-
-
-
-   if (pCardInfo->ai_stateinfo & SUPRESS_UNDERRRUNS_ENA)
-      CurrCard->globalFlags |= F_NO_FILTER;
-
-	if(pCurrNvRam){
-		if(pCurrNvRam->niSysConf & 0x10)
-			CurrCard->globalFlags |= F_GREEN_PC;
-	}
-	else{
-	   if (utilEERead(ioport, (SYSTEM_CONFIG/2)) & GREEN_PC_ENA)
-   	   CurrCard->globalFlags |= F_GREEN_PC;
-	}
-
-	/* Set global flag to indicate Re-Negotiation to be done on all
-		ckeck condition */
-	if(pCurrNvRam){
-		if(pCurrNvRam->niScsiConf & 0x04)
-			CurrCard->globalFlags |= F_DO_RENEGO;
-	}
-	else{
-	   if (utilEERead(ioport, (SCSI_CONFIG/2)) & RENEGO_ENA)
-   	   CurrCard->globalFlags |= F_DO_RENEGO;
-	}
-
-	if(pCurrNvRam){
-		if(pCurrNvRam->niScsiConf & 0x08)
-			CurrCard->globalFlags |= F_CONLUN_IO;
-	}
-	else{
-	   if (utilEERead(ioport, (SCSI_CONFIG/2)) & CONNIO_ENA)
-   	   CurrCard->globalFlags |= F_CONLUN_IO;
-	}
-
-   temp = pCardInfo->ai_per_targ_no_disc;
-
-   for (i = 0,id = 1; i < MAX_SCSI_TAR; i++, id <<= 1) {
-
-      if (temp & id)
-         sccbMgrTbl[thisCard][i].TarStatus |= TAR_ALLOW_DISC;
-      }
-
-   sync_bit_map = 0x0001;
-
-   for (id = 0; id < (MAX_SCSI_TAR/2); id++){
-
-		if(pCurrNvRam){
-			temp = (USHORT) pCurrNvRam->niSyncTbl[id];
-			temp = ((temp & 0x03) + ((temp << 4) & 0xc0)) +
-					 (((temp << 4) & 0x0300) + ((temp << 8) & 0xc000));
-		}else
-	      temp = utilEERead(ioport, (u16bits)((SYNC_RATE_TBL/2)+id));
-
-      for (i = 0; i < 2; temp >>=8,i++){
-
-         if (pCardInfo->ai_per_targ_init_sync & sync_bit_map){
-
-            sccbMgrTbl[thisCard][id*2+i].TarEEValue = (u08bits)temp;
-            }
-
-         else {
-            sccbMgrTbl[thisCard][id*2+i].TarStatus |= SYNC_SUPPORTED;
-            sccbMgrTbl[thisCard][id*2+i].TarEEValue =
-               (u08bits)(temp & ~EE_SYNC_MASK);
-            }
-
-#if defined(WIDE_SCSI)
-/*         if ((pCardInfo->ai_per_targ_wide_nego & sync_bit_map) ||
-            (id*2+i >= 8)){
-*/
-         if (pCardInfo->ai_per_targ_wide_nego & sync_bit_map){
-
-            sccbMgrTbl[thisCard][id*2+i].TarEEValue |= EE_WIDE_SCSI;
-
-            }
-
-         else { /* NARROW SCSI */
-            sccbMgrTbl[thisCard][id*2+i].TarStatus |= WIDE_NEGOCIATED;
-            }
-
-#else
-         sccbMgrTbl[thisCard][id*2+i].TarStatus |= WIDE_NEGOCIATED;
-#endif
-
-
-         sync_bit_map <<= 1;
-         }
-      }
-
-
-   pCardInfo->ai_SGListFormat=0x01;
-   pCardInfo->ai_DataPtrFormat=0x01;
-   pCardInfo->ai_AEN_mask &= SCSI_RESET_COMPLETE;
-
-   WR_HARPOON((ioport+hp_semaphore),
-      (u08bits)(RD_HARPOON((ioport+hp_semaphore)) | SCCB_MGR_PRESENT));
-
-   return((u32bits)CurrCard);
-
-}
-
-
-/*---------------------------------------------------------------------
- *
- * Function: build_ucb, exported to BUDI via UCBMgr_build_ucb entry
- *
- * Description: prepare fw portion of ucb. do not start, resource not guaranteed
- *             so don't manipulate anything that's derived from states which
- *             may change
- *
- *---------------------------------------------------------------------*/
-void build_UCB(CARD_HANDLE pCurrCard, PUCB p_ucb)
-{
-
-   u08bits thisCard;
-   u08bits i,j;
-
-   PSCCB p_sccb;
-
-
-   thisCard = ((PSCCBcard) pCurrCard)->cardIndex;
-
-
-   p_sccb=(PSCCB)p_ucb->UCB_MgrPrivatePtr;
-
-
-   p_sccb->Sccb_ucb_ptr=p_ucb;
-
-   switch (p_ucb->UCB_opcode & (OPC_DEVICE_RESET+OPC_XFER_SG+OPC_CHK_RESIDUAL))
-   {
-      case OPC_DEVICE_RESET:
-         p_sccb->OperationCode=RESET_COMMAND;
-         break;
-      case OPC_XFER_SG:
-         p_sccb->OperationCode=SCATTER_GATHER_COMMAND;
-         break;
-      case OPC_XFER_SG+OPC_CHK_RESIDUAL:
-         p_sccb->OperationCode=RESIDUAL_SG_COMMAND;
-         break;
-      case OPC_CHK_RESIDUAL:
-
-	      p_sccb->OperationCode=RESIDUAL_COMMAND;
-	      break;
-      default:
-	      p_sccb->OperationCode=SCSI_INITIATOR_COMMAND;
-	      break;
-   }
-
-   if (p_ucb->UCB_opcode & OPC_TQ_ENABLE)
-   {
-      p_sccb->ControlByte = (u08bits)((p_ucb->UCB_opcode & OPC_TQ_MASK)>>2) | F_USE_CMD_Q;
-   }
-   else
-   {
-      p_sccb->ControlByte = 0;
-   }
-
-
-   p_sccb->CdbLength = (u08bits)p_ucb->UCB_cdblen;
-
-   if (p_ucb->UCB_opcode & OPC_NO_AUTO_SENSE)
-   {
-      p_sccb->RequestSenseLength = 0;
-   }
-   else
-   {
-      p_sccb->RequestSenseLength = (unsigned char) p_ucb->UCB_senselen;
-   }
-
-
-   if (p_ucb->UCB_opcode & OPC_XFER_SG)
-   {
-      p_sccb->DataPointer=p_ucb->UCB_virt_dataptr;
-      p_sccb->DataLength = (((u32bits)p_ucb->UCB_NumSgElements)<<3);
-   }
-   else
-   {
-      p_sccb->DataPointer=p_ucb->UCB_phys_dataptr;
-      p_sccb->DataLength=p_ucb->UCB_datalen;
-   };
-
-   p_sccb->HostStatus=0;
-   p_sccb->TargetStatus=0;
-   p_sccb->TargID=(unsigned char)p_ucb->UCB_targid;
-   p_sccb->Lun=(unsigned char) p_ucb->UCB_lun;
-   p_sccb->SccbIOPort=((PSCCBcard)pCurrCard)->ioPort;
-
-   j=p_ucb->UCB_cdblen;
-   for (i=0;i<j;i++)
-   {
-      p_sccb->Cdb[i] = p_ucb->UCB_cdb[i];
-   }
-
-   p_sccb->SensePointer=p_ucb->UCB_phys_senseptr;
-
-   sinits(p_sccb,thisCard);
-
-}
-#ifndef NO_IOCTLS
-
-/*---------------------------------------------------------------------
- *
- * Function: GetDevSyncRate
- *
- *---------------------------------------------------------------------*/
-STATIC  int GetDevSyncRate(PSCCBcard pCurrCard,PUCB p_ucb)
-{
-	struct _SYNC_RATE_INFO * pSyncStr;
-   PSCCBMgr_tar_info currTar_Info;
-	BASE_PORT ioport;
-	u08bits scsiID, j;
-
-#if (FW_TYPE != _SCCB_MGR_)
-	if( p_ucb->UCB_targid >= pCurrCard->cardInfo->ai_MaxTarg )
-	{
-		return(1);
-	}
-#endif
-
-	ioport  = pCurrCard->ioPort;
-	pSyncStr	= (struct _SYNC_RATE_INFO *) p_ucb->UCB_virt_dataptr;
-	scsiID = (u08bits) p_ucb->UCB_targid;
-   currTar_Info = &sccbMgrTbl[pCurrCard->cardIndex][scsiID];
-	j = currTar_Info->TarSyncCtrl;
-
-	switch (currTar_Info->TarEEValue & EE_SYNC_MASK)
-	{
-		case EE_SYNC_ASYNC:
-			pSyncStr->RequestMegaXferRate = 0x00;
-			break;
-		case EE_SYNC_5MB:
-			pSyncStr->RequestMegaXferRate = (j & NARROW_SCSI) ? 50 : 100;
-			break;
-		case EE_SYNC_10MB:
-			pSyncStr->RequestMegaXferRate = (j & NARROW_SCSI) ? 100 : 200;
-			break;
-		case EE_SYNC_20MB:
-			pSyncStr->RequestMegaXferRate = (j & NARROW_SCSI) ? 200 : 400;
-			break;
-	}
-
-	switch ((j >> 5) & 0x07)
-	{
-		case 0x00:
-			if((j & 0x07) == 0x00)
-			{
-				pSyncStr->ActualMegaXferRate = 0x00;	/* Async Mode */
-			}
-			else
-			{
-				pSyncStr->ActualMegaXferRate = (j & NARROW_SCSI) ? 200 : 400;
-			}
-			break;
-		case 0x01:
-			pSyncStr->ActualMegaXferRate = (j & NARROW_SCSI) ? 100 : 200;
-			break;
-		case 0x02:
-			pSyncStr->ActualMegaXferRate = (j & NARROW_SCSI) ? 66 : 122;
-			break;
-		case 0x03:
-			pSyncStr->ActualMegaXferRate = (j & NARROW_SCSI) ? 50 : 100;
-			break;
-		case 0x04:
-			pSyncStr->ActualMegaXferRate = (j & NARROW_SCSI) ? 40 : 80;
-			break;
-		case 0x05:
-			pSyncStr->ActualMegaXferRate = (j & NARROW_SCSI) ? 33 : 66;
-			break;
-		case 0x06:
-			pSyncStr->ActualMegaXferRate = (j & NARROW_SCSI) ? 28 : 56;
-			break;
-		case 0x07:
-			pSyncStr->ActualMegaXferRate = (j & NARROW_SCSI) ? 25 : 50;
-			break;
-	}
-	pSyncStr->NegotiatedOffset = j & 0x0f;
-
-	return(0);
-}
-
-/*---------------------------------------------------------------------
- *
- * Function: SetDevSyncRate
- *
- *---------------------------------------------------------------------*/
-STATIC int SetDevSyncRate(PSCCBcard pCurrCard, PUCB p_ucb)
-{
-	struct _SYNC_RATE_INFO * pSyncStr;
-   PSCCBMgr_tar_info currTar_Info;
-	BASE_PORT ioPort;
-	u08bits scsiID, i, j, syncVal;
-	u16bits syncOffset, actualXferRate;
-	union {
-		u08bits tempb[2];
-		u16bits tempw;
-	}temp2;
-
-#if (FW_TYPE != _SCCB_MGR_)
-	if( p_ucb->UCB_targid >= pCurrCard->cardInfo->ai_MaxTarg )
-	{
-		return(1);
-	}
-#endif
-
-	ioPort  = pCurrCard->ioPort;
-	pSyncStr	= (struct _SYNC_RATE_INFO *) p_ucb->UCB_virt_dataptr;
-	scsiID = (u08bits) p_ucb->UCB_targid;
-   currTar_Info = &sccbMgrTbl[pCurrCard->cardIndex][scsiID];
-	i = RD_HARPOON(ioPort+hp_xfer_pad);		/* Save current value */
-	WR_HARPOON(ioPort+hp_xfer_pad, (i | ID_UNLOCK));
-	WR_HARPOON(ioPort+hp_select_id, ((scsiID << 4) | scsiID));
-	j = RD_HARPOON(ioPort+hp_synctarg_0);
-	WR_HARPOON(ioPort+hp_xfer_pad, i);		/* restore value */
-
-	actualXferRate = pSyncStr->ActualMegaXferRate;
-	if(!(j & NARROW_SCSI))
-	{
-		actualXferRate <<= 1;
-	}
-	if(actualXferRate == 0x00)
-	{
-		syncVal = EE_SYNC_ASYNC;			/* Async Mode */
-	}
-	if(actualXferRate == 0x0200)
-	{
-		syncVal = EE_SYNC_20MB;				/* 20/40 MB Mode */
-	}
-	if(actualXferRate > 0x0050 && actualXferRate < 0x0200 )
-	{
-		syncVal = EE_SYNC_10MB;				/* 10/20 MB Mode */
-	}
-	else
-	{
-		syncVal = EE_SYNC_5MB;				/* 5/10 MB Mode */
-	}
-	if(currTar_Info->TarEEValue && EE_SYNC_MASK == syncVal)
-		return(0);
-	currTar_Info->TarEEValue = (currTar_Info->TarEEValue & !EE_SYNC_MASK)
-											| syncVal;
-	syncOffset = (SYNC_RATE_TBL + scsiID) / 2;
-	temp2.tempw = utilEERead(ioPort, syncOffset);
-	if(scsiID & 0x01)
-	{
-		temp2.tempb[0] = (temp2.tempb[0] & !EE_SYNC_MASK) | syncVal;
-	}
-	else
-	{
-		temp2.tempb[1] = (temp2.tempb[1] & !EE_SYNC_MASK) | syncVal;
-	}
-	utilEEWriteOnOff(ioPort, 1);
-	utilEEWrite(ioPort, temp2.tempw, syncOffset);
-	utilEEWriteOnOff(ioPort, 0);
-	UpdateCheckSum(ioPort);
-
-	return(0);
-}
-/*---------------------------------------------------------------------
- *
- * Function: GetDevWideMode
- *
- *---------------------------------------------------------------------*/
-int GetDevWideMode(PSCCBcard pCurrCard,PUCB p_ucb)
-{
-	u08bits *pData;
-
-	pData = (u08bits *)p_ucb->UCB_virt_dataptr;
-	if(sccbMgrTbl[pCurrCard->cardIndex][p_ucb->UCB_targid].TarEEValue
-				& EE_WIDE_SCSI)
-	{
-		*pData = 1;
-	}
-	else
-	{
-		*pData = 0;
-	}
-
-	return(0);
-}
-
-/*---------------------------------------------------------------------
- *
- * Function: SetDevWideMode
- *
- *---------------------------------------------------------------------*/
-int SetDevWideMode(PSCCBcard pCurrCard,PUCB p_ucb)
-{
-	u08bits *pData;
-   PSCCBMgr_tar_info currTar_Info;
-	BASE_PORT ioPort;
-	u08bits scsiID, scsiWideMode;
-	u16bits syncOffset;
-	union {
-		u08bits tempb[2];
-		u16bits tempw;
-	}temp2;
-
-#if (FW_TYPE != _SCCB_MGR_)
-	if( !(pCurrCard->cardInfo->ai_attributes & WIDE_CAPABLE) )
-	{
-		return(1);
-	}
-
-	if( p_ucb->UCB_targid >= pCurrCard->cardInfo->ai_MaxTarg )
-	{
-		return(1);
-	}
-#endif
-
-	ioPort  = pCurrCard->ioPort;
-	pData = (u08bits *)p_ucb->UCB_virt_dataptr;
-	scsiID = (u08bits) p_ucb->UCB_targid;
-	currTar_Info = &sccbMgrTbl[pCurrCard->cardIndex][scsiID];
-
-	if(*pData)
-	{
-		if(currTar_Info->TarEEValue & EE_WIDE_SCSI)
-		{
-			return(0);
-		}
-		else
-		{
-			scsiWideMode = EE_WIDE_SCSI;
-		}
-	}
-	else
-	{
-		if(!(currTar_Info->TarEEValue & EE_WIDE_SCSI))
-		{
-			return(0);
-		}
-		else
-		{
-			scsiWideMode = 0;
-		}
-	}
-	currTar_Info->TarEEValue = (currTar_Info->TarEEValue & !EE_WIDE_SCSI)
-											| scsiWideMode;
-
-	syncOffset = (SYNC_RATE_TBL + scsiID) / 2;
-	temp2.tempw = utilEERead(ioPort, syncOffset);
-	if(scsiID & 0x01)
-	{
-		temp2.tempb[0] = (temp2.tempb[0] & !EE_WIDE_SCSI) | scsiWideMode;
-	}
-	else
-	{
-		temp2.tempb[1] = (temp2.tempb[1] & !EE_WIDE_SCSI) | scsiWideMode;
-	}
-	utilEEWriteOnOff(ioPort, 1);
-	utilEEWrite(ioPort, temp2.tempw, syncOffset);
-	utilEEWriteOnOff(ioPort, 0);
-	UpdateCheckSum(ioPort);
-
-	return(0);
-}
-
-/*---------------------------------------------------------------------
- *
- * Function: ReadNVRam
- *
- *---------------------------------------------------------------------*/
-void ReadNVRam(PSCCBcard pCurrCard,PUCB p_ucb)
-{
-	u08bits *pdata;
-	u16bits i,numwrds,numbytes,offset,temp;
-	u08bits OneMore = FALSE;
-#if defined(DOS)
-	u16bits ioport;
-#else
-	u32bits ioport;
-#endif
-
-	numbytes = (u16bits) p_ucb->UCB_datalen;
-	ioport  = pCurrCard->ioPort;
-   pdata   = (u08bits *) p_ucb->UCB_virt_dataptr;
-	offset  = (u16bits) (p_ucb->UCB_IOCTLParams[0]);
-
-
-
-   if (offset & 0x1)
-	{
-	    *((u16bits*) pdata) = utilEERead(ioport,(u16bits)((offset - 1) / 2)); /* 16 bit read */
-		 *pdata = *(pdata + 1);
-		 ++offset;
-   	 ++pdata;
-		 --numbytes;
-	}
-
-	numwrds = numbytes / 2;
-	if (numbytes & 1)
-	 	OneMore = TRUE;
-
-	for (i = 0; i < numwrds; i++)
-	{
-   	*((u16bits*) pdata) = utilEERead(ioport,(u16bits)(offset / 2));
-		pdata += 2;
-		offset += 2;
-   }
-	if (OneMore)
-	{
-		--pdata;
-		-- offset;
-   	temp = utilEERead(ioport,(u16bits)(offset / 2));
-		*pdata = (u08bits) (temp);
-	}
-
-} /* end proc ReadNVRam */
-
-
-/*---------------------------------------------------------------------
- *
- * Function: WriteNVRam
- *
- *---------------------------------------------------------------------*/
-void WriteNVRam(PSCCBcard pCurrCard,PUCB p_ucb)
-{
-	u08bits *pdata;
-	u16bits i,numwrds,numbytes,offset, eeprom_end;
-	u08bits OneMore = FALSE;
-	union {
-		u08bits  tempb[2];
-		u16bits  tempw;
-	} temp2;
-
-#if defined(DOS)
-	u16bits ioport;
-#else
-	u32bits ioport;
-#endif
-
-	numbytes = (u16bits) p_ucb->UCB_datalen;
-	ioport  = pCurrCard->ioPort;
-   pdata   = (u08bits *) p_ucb->UCB_virt_dataptr;
-	offset  = (u16bits) (p_ucb->UCB_IOCTLParams[0]);
-
-   if (RD_HARPOON(ioport+hp_page_ctrl) & NARROW_SCSI_CARD)
-      eeprom_end = 512;
-   else
-      eeprom_end = 768;
-	
-	if(offset > eeprom_end)
-		return;
-
-	if((offset + numbytes) > eeprom_end)
-		numbytes = eeprom_end - offset;
-
-    utilEEWriteOnOff(ioport,1);   /* Enable write access to the EEPROM */
-
-
-
-   if (offset & 0x1)
-	{
-	    temp2.tempw = utilEERead(ioport,(u16bits)((offset - 1) / 2)); /* 16 bit read */
-		 temp2.tempb[1] = *pdata;
-	    utilEEWrite(ioport, temp2.tempw, (u16bits)((offset -1) / 2));
-		 *pdata = *(pdata + 1);
-		 ++offset;
-   	 ++pdata;
-		 --numbytes;
-	}
-
-	numwrds = numbytes / 2;
-	if (numbytes & 1)
-	 	OneMore = TRUE;
-
-	for (i = 0; i < numwrds; i++)
-	{
-   	utilEEWrite(ioport, *((pu16bits)pdata),(u16bits)(offset / 2));
-		pdata += 2;
-		offset += 2;
-   }
-	if (OneMore)
-	{
-
-   	temp2.tempw = utilEERead(ioport,(u16bits)(offset / 2));
-		temp2.tempb[0] = *pdata;
-   	utilEEWrite(ioport, temp2.tempw, (u16bits)(offset / 2));
-	}
-   utilEEWriteOnOff(ioport,0);   /* Turn off write access */
-   UpdateCheckSum((u32bits)ioport);
-
-} /* end proc WriteNVRam */
-
-
-
-/*---------------------------------------------------------------------
- *
- * Function: UpdateCheckSum
- *
- * Description: Update Check Sum in EEPROM
- *
- *---------------------------------------------------------------------*/
-
-
-void UpdateCheckSum(u32bits baseport)
-{
-	USHORT i,sum_data, eeprom_end;
-
-	sum_data = 0x0000;
-
-
-   if (RD_HARPOON(baseport+hp_page_ctrl) & NARROW_SCSI_CARD)
-      eeprom_end = 512;
-   else
-      eeprom_end = 768;
-
-	for (i = 1; i < eeprom_end/2; i++)
-	{
-		sum_data += utilEERead(baseport, i);
-	}
-
-   utilEEWriteOnOff(baseport,1);   /* Enable write access to the EEPROM */
-
-   utilEEWrite(baseport, sum_data, EEPROM_CHECK_SUM/2);
-   utilEEWriteOnOff(baseport,0);   /* Turn off write access */
-}
-
-void SccbMgr_save_foreign_state(PADAPTER_INFO pAdapterInfo)
-{
-}
-
-
-void SccbMgr_restore_foreign_state(CARD_HANDLE pCurrCard)
-{
-}
-
-void SccbMgr_restore_native_state(CARD_HANDLE pCurrCard)
-{
-}
-
-#endif /* NO_IOCTLS */
-
-#endif /* (FW_TYPE==_UCB_MGR_)   */
-
-#ifndef NO_IOCTLS
-#if (FW_TYPE==_UCB_MGR_)
-void SccbMgr_unload_card(CARD_HANDLE pCurrCard)
-#else
-#if defined(DOS)
-void SccbMgr_unload_card(USHORT pCurrCard)
-#else
-void SccbMgr_unload_card(ULONG pCurrCard)
-#endif
-#endif
+static void SccbMgr_unload_card(ULONG pCurrCard)
 {
 	UCHAR i;
-#if defined(DOS)
-	USHORT portBase;
-	USHORT regOffset;
-#else
 	ULONG portBase;
 	ULONG regOffset;
-#endif
 	ULONG scamData;
-#if defined(OS2)
-	ULONG far *pScamTbl;
-#else
 	ULONG *pScamTbl;
-#endif
 	PNVRamInfo pCurrNvRam;
 
 	pCurrNvRam = ((PSCCBcard)pCurrCard)->pNvRamInfo;
 
 	if(pCurrNvRam){
-		WrStack(pCurrNvRam->niBaseAddr, 0, pCurrNvRam->niModel);
-		WrStack(pCurrNvRam->niBaseAddr, 1, pCurrNvRam->niSysConf);
-		WrStack(pCurrNvRam->niBaseAddr, 2, pCurrNvRam->niScsiConf);
-		WrStack(pCurrNvRam->niBaseAddr, 3, pCurrNvRam->niScamConf);
-		WrStack(pCurrNvRam->niBaseAddr, 4, pCurrNvRam->niAdapId);
+		FPT_WrStack(pCurrNvRam->niBaseAddr, 0, pCurrNvRam->niModel);
+		FPT_WrStack(pCurrNvRam->niBaseAddr, 1, pCurrNvRam->niSysConf);
+		FPT_WrStack(pCurrNvRam->niBaseAddr, 2, pCurrNvRam->niScsiConf);
+		FPT_WrStack(pCurrNvRam->niBaseAddr, 3, pCurrNvRam->niScamConf);
+		FPT_WrStack(pCurrNvRam->niBaseAddr, 4, pCurrNvRam->niAdapId);
 
 		for(i = 0; i < MAX_SCSI_TAR / 2; i++)
-			WrStack(pCurrNvRam->niBaseAddr, (UCHAR)(i+5), pCurrNvRam->niSyncTbl[i]);
+			FPT_WrStack(pCurrNvRam->niBaseAddr, (UCHAR)(i+5), pCurrNvRam->niSyncTbl[i]);
 
 		portBase = pCurrNvRam->niBaseAddr;
 
 		for(i = 0; i < MAX_SCSI_TAR; i++){
 			regOffset = hp_aramBase + 64 + i*4;
-#if defined(OS2)
-			pScamTbl = (ULONG far *) &pCurrNvRam->niScamTbl[i];
-#else
 			pScamTbl = (ULONG *) &pCurrNvRam->niScamTbl[i];
-#endif
 			scamData = *pScamTbl;
 			WR_HARP32(portBase, regOffset, scamData);
 		}
 
 	}else{
-		WrStack(((PSCCBcard)pCurrCard)->ioPort, 0, 0);
+		FPT_WrStack(((PSCCBcard)pCurrCard)->ioPort, 0, 0);
 	}
 }
-#endif /* NO_IOCTLS */
 
 
-void RNVRamData(PNVRamInfo pNvRamInfo)
+static void FPT_RNVRamData(PNVRamInfo pNvRamInfo)
 {
 	UCHAR i;
-#if defined(DOS)
-	USHORT portBase;
-	USHORT regOffset;
-#else
 	ULONG portBase;
 	ULONG regOffset;
-#endif
 	ULONG scamData;
-#if defined (OS2)
-	ULONG far *pScamTbl;
-#else
 	ULONG *pScamTbl;
-#endif
 
-	pNvRamInfo->niModel    = RdStack(pNvRamInfo->niBaseAddr, 0);
-	pNvRamInfo->niSysConf  = RdStack(pNvRamInfo->niBaseAddr, 1);
-	pNvRamInfo->niScsiConf = RdStack(pNvRamInfo->niBaseAddr, 2);
-	pNvRamInfo->niScamConf = RdStack(pNvRamInfo->niBaseAddr, 3);
-	pNvRamInfo->niAdapId   = RdStack(pNvRamInfo->niBaseAddr, 4);
+	pNvRamInfo->niModel    = FPT_RdStack(pNvRamInfo->niBaseAddr, 0);
+	pNvRamInfo->niSysConf  = FPT_RdStack(pNvRamInfo->niBaseAddr, 1);
+	pNvRamInfo->niScsiConf = FPT_RdStack(pNvRamInfo->niBaseAddr, 2);
+	pNvRamInfo->niScamConf = FPT_RdStack(pNvRamInfo->niBaseAddr, 3);
+	pNvRamInfo->niAdapId   = FPT_RdStack(pNvRamInfo->niBaseAddr, 4);
 
 	for(i = 0; i < MAX_SCSI_TAR / 2; i++)
-		pNvRamInfo->niSyncTbl[i] = RdStack(pNvRamInfo->niBaseAddr, (UCHAR)(i+5));
+		pNvRamInfo->niSyncTbl[i] = FPT_RdStack(pNvRamInfo->niBaseAddr, (UCHAR)(i+5));
 
 	portBase = pNvRamInfo->niBaseAddr;
 
 	for(i = 0; i < MAX_SCSI_TAR; i++){
 		regOffset = hp_aramBase + 64 + i*4;
 		RD_HARP32(portBase, regOffset, scamData);
-#if defined(OS2)
-		pScamTbl = (ULONG far *) &pNvRamInfo->niScamTbl[i];
-#else
 		pScamTbl = (ULONG *) &pNvRamInfo->niScamTbl[i];
-#endif
 		*pScamTbl = scamData;
 	}
 
 }
 
-#if defined(DOS)
-UCHAR RdStack(USHORT portBase, UCHAR index)
-#else
-UCHAR RdStack(ULONG portBase, UCHAR index)
-#endif
+static UCHAR FPT_RdStack(ULONG portBase, UCHAR index)
 {
 	WR_HARPOON(portBase + hp_stack_addr, index);
 	return(RD_HARPOON(portBase + hp_stack_data));
 }
 
-#if defined(DOS)
-void WrStack(USHORT portBase, UCHAR index, UCHAR data)
-#else
-void WrStack(ULONG portBase, UCHAR index, UCHAR data)
-#endif
+static void FPT_WrStack(ULONG portBase, UCHAR index, UCHAR data)
 {
 	WR_HARPOON(portBase + hp_stack_addr, index);
 	WR_HARPOON(portBase + hp_stack_data, data);
 }
 
 
-#if (FW_TYPE==_UCB_MGR_)
-u08bits ChkIfChipInitialized(BASE_PORT ioPort)
-#else
-#if defined(DOS)
-UCHAR ChkIfChipInitialized(USHORT ioPort)
-#else
-UCHAR ChkIfChipInitialized(ULONG ioPort)
-#endif
-#endif
+static UCHAR FPT_ChkIfChipInitialized(ULONG ioPort)
 {
-	if((RD_HARPOON(ioPort + hp_arb_id) & 0x0f) != RdStack(ioPort, 4))
-		return(FALSE);
+	if((RD_HARPOON(ioPort + hp_arb_id) & 0x0f) != FPT_RdStack(ioPort, 4))
+		return(0);
 	if((RD_HARPOON(ioPort + hp_clkctrl_0) & CLKCTRL_DEFAULT)
 								!= CLKCTRL_DEFAULT)
-		return(FALSE);
+		return(0);
 	if((RD_HARPOON(ioPort + hp_seltimeout) == TO_250ms) ||
 		(RD_HARPOON(ioPort + hp_seltimeout) == TO_290ms))
-		return(TRUE);
-	return(FALSE);
+		return(1);
+	return(0);
 
 }
 /*---------------------------------------------------------------------
@@ -4205,185 +2037,29 @@ UCHAR ChkIfChipInitialized(ULONG ioPort)
  *              callback function.
  *
  *---------------------------------------------------------------------*/
-#if (FW_TYPE==_UCB_MGR_)
-void SccbMgr_start_sccb(CARD_HANDLE pCurrCard, PUCB p_ucb)
-#else
-#if defined(DOS)
-void SccbMgr_start_sccb(USHORT pCurrCard, PSCCB p_Sccb)
-#else
-void SccbMgr_start_sccb(ULONG pCurrCard, PSCCB p_Sccb)
-#endif
-#endif
+static void SccbMgr_start_sccb(ULONG pCurrCard, PSCCB p_Sccb)
 {
-#if defined(DOS)
-   USHORT ioport;
-#else
    ULONG ioport;
-#endif
    UCHAR thisCard, lun;
 	PSCCB pSaveSccb;
    CALL_BK_FN callback;
 
-#if (FW_TYPE==_UCB_MGR_)
-   PSCCB p_Sccb;
-#endif
-
-   mOS_Lock((PSCCBcard)pCurrCard);
    thisCard = ((PSCCBcard) pCurrCard)->cardIndex;
    ioport = ((PSCCBcard) pCurrCard)->ioPort;
-
-#if (FW_TYPE==_UCB_MGR_)
-   p_Sccb = (PSCCB)p_ucb->UCB_MgrPrivatePtr;
-#endif
 
 	if((p_Sccb->TargID > MAX_SCSI_TAR) || (p_Sccb->Lun > MAX_LUN))
 	{
 
-#if (FW_TYPE==_UCB_MGR_)
-		p_ucb->UCB_hbastat = SCCB_COMPLETE;
-		p_ucb->UCB_status=SCCB_ERROR;
-		callback = (CALL_BK_FN)p_ucb->UCB_callback;
-		if (callback)
-			callback(p_ucb);
-#endif
-
-#if (FW_TYPE==_SCCB_MGR_)
 		p_Sccb->HostStatus = SCCB_COMPLETE;
 		p_Sccb->SccbStatus = SCCB_ERROR;
 		callback = (CALL_BK_FN)p_Sccb->SccbCallback;
 		if (callback)
 			callback(p_Sccb);
-#endif
 
-		mOS_UnLock((PSCCBcard)pCurrCard);
 		return;
 	}
 
-#if (FW_TYPE==_SCCB_MGR_)
-   sinits(p_Sccb,thisCard);
-#endif
-
-
-#if (FW_TYPE==_UCB_MGR_)
-#ifndef NO_IOCTLS
-
-   if (p_ucb->UCB_opcode & OPC_IOCTL)
-	{
-
-		switch (p_ucb->UCB_IOCTLCommand) 
-		{
-			case READ_NVRAM:
-				ReadNVRam((PSCCBcard)pCurrCard,p_ucb);
-				p_ucb->UCB_status=UCB_SUCCESS;
-				callback = (CALL_BK_FN)p_ucb->UCB_callback;
-				if (callback)
-					callback(p_ucb);
-				mOS_UnLock((PSCCBcard)pCurrCard);
-				return;
-
-			case WRITE_NVRAM:
-				WriteNVRam((PSCCBcard)pCurrCard,p_ucb);
-				p_ucb->UCB_status=UCB_SUCCESS;
-				callback = (CALL_BK_FN)p_ucb->UCB_callback;
-				if (callback)
-					callback(p_ucb);
-				mOS_UnLock((PSCCBcard)pCurrCard);
-				return;
-
-			case SEND_SCSI_PASSTHRU:
-#if (FW_TYPE != _SCCB_MGR_)
-				if( p_ucb->UCB_targid >=
-				    ((PSCCBcard)pCurrCard)->cardInfo->ai_MaxTarg )
-				{
-					p_ucb->UCB_status = UCB_ERROR;
-					p_ucb->UCB_hbastat = HASTAT_HW_ERROR;
-					callback = (CALL_BK_FN)p_ucb->UCB_callback;
-					if (callback)
-						callback(p_ucb);
-					mOS_UnLock((PSCCBcard)pCurrCard);
-					return;
-				}
-#endif
-				break;
-
-			case HARD_RESET:
-				p_ucb->UCB_status = UCB_INVALID;
-				callback = (CALL_BK_FN)p_ucb->UCB_callback;
-				if (callback)
-					callback(p_ucb);
-				mOS_UnLock((PSCCBcard)pCurrCard);
-				return;
-			case GET_DEVICE_SYNCRATE:
-				if( !GetDevSyncRate((PSCCBcard)pCurrCard,p_ucb) )
-				{
-					p_ucb->UCB_status = UCB_SUCCESS;
-				}
-				else
-				{
-					p_ucb->UCB_status = UCB_ERROR;
-					p_ucb->UCB_hbastat = HASTAT_HW_ERROR;
-				}
-				callback = (CALL_BK_FN)p_ucb->UCB_callback;
-				if (callback)
-					callback(p_ucb);
-				mOS_UnLock((PSCCBcard)pCurrCard);
-				return;
-			case SET_DEVICE_SYNCRATE:
-				if( !SetDevSyncRate((PSCCBcard)pCurrCard,p_ucb) )
-				{
-					p_ucb->UCB_status = UCB_SUCCESS;
-				}
-				else
-				{
-					p_ucb->UCB_status = UCB_ERROR;
-					p_ucb->UCB_hbastat = HASTAT_HW_ERROR;
-				}
-				callback = (CALL_BK_FN)p_ucb->UCB_callback;
-				if (callback)
-					callback(p_ucb);
-				mOS_UnLock((PSCCBcard)pCurrCard);
-				return;
-			case GET_WIDE_MODE:
-				if( !GetDevWideMode((PSCCBcard)pCurrCard,p_ucb) )
-				{
-					p_ucb->UCB_status = UCB_SUCCESS;
-				}
-				else
-				{
-					p_ucb->UCB_status = UCB_ERROR;
-					p_ucb->UCB_hbastat = HASTAT_HW_ERROR;
-				}
-				callback = (CALL_BK_FN)p_ucb->UCB_callback;
-				if (callback)
-					callback(p_ucb);
-				mOS_UnLock((PSCCBcard)pCurrCard);
-				return;
-			case SET_WIDE_MODE:
-				if( !SetDevWideMode((PSCCBcard)pCurrCard,p_ucb) )
-				{
-					p_ucb->UCB_status = UCB_SUCCESS;
-				}
-				else
-				{
-					p_ucb->UCB_status = UCB_ERROR;
-					p_ucb->UCB_hbastat = HASTAT_HW_ERROR;
-				}
-				callback = (CALL_BK_FN)p_ucb->UCB_callback;
-				if (callback)
-					callback(p_ucb);
-				mOS_UnLock((PSCCBcard)pCurrCard);
-				return;
-			default:
-				p_ucb->UCB_status=UCB_INVALID;
-				callback = (CALL_BK_FN)p_ucb->UCB_callback;
-				if (callback)
-					callback(p_ucb);
-				mOS_UnLock((PSCCBcard)pCurrCard);
-				return;
-		}
-	}
-#endif /* NO_IOCTLS */
-#endif /* (FW_TYPE==_UCB_MGR_) */
+   FPT_sinits(p_Sccb,thisCard);
 
 
    if (!((PSCCBcard) pCurrCard)->cmdCounter)
@@ -4408,12 +2084,12 @@ void SccbMgr_start_sccb(ULONG pCurrCard, PSCCB p_Sccb)
 			{
 				pSaveSccb = ((PSCCBcard) pCurrCard)->currentSCCB;
 				((PSCCBcard) pCurrCard)->currentSCCB = p_Sccb;
-				queueSelectFail(&BL_Card[thisCard], thisCard);
+				FPT_queueSelectFail(&FPT_BL_Card[thisCard], thisCard);
 				((PSCCBcard) pCurrCard)->currentSCCB = pSaveSccb;
 			}
 		else
 			{
-	      queueAddSccb(p_Sccb,thisCard);
+	      FPT_queueAddSccb(p_Sccb,thisCard);
 			}
       }
 
@@ -4423,12 +2099,12 @@ void SccbMgr_start_sccb(ULONG pCurrCard, PSCCB p_Sccb)
 				{
 					pSaveSccb = ((PSCCBcard) pCurrCard)->currentSCCB;
 					((PSCCBcard) pCurrCard)->currentSCCB = p_Sccb;
-					queueSelectFail(&BL_Card[thisCard], thisCard);
+					FPT_queueSelectFail(&FPT_BL_Card[thisCard], thisCard);
 					((PSCCBcard) pCurrCard)->currentSCCB = pSaveSccb;
 				}
 			else
 				{
-		      queueAddSccb(p_Sccb,thisCard);
+		      FPT_queueAddSccb(p_Sccb,thisCard);
 				}
       }
 
@@ -4437,23 +2113,17 @@ void SccbMgr_start_sccb(ULONG pCurrCard, PSCCB p_Sccb)
       MDISABLE_INT(ioport);
 
 		if((((PSCCBcard) pCurrCard)->globalFlags & F_CONLUN_IO) && 
-			((sccbMgrTbl[thisCard][p_Sccb->TargID].TarStatus & TAR_TAG_Q_MASK) != TAG_Q_TRYING))
+			((FPT_sccbMgrTbl[thisCard][p_Sccb->TargID].TarStatus & TAR_TAG_Q_MASK) != TAG_Q_TRYING))
 			lun = p_Sccb->Lun;
 		else
 			lun = 0;
       if ((((PSCCBcard) pCurrCard)->currentSCCB == NULL) &&
-         (sccbMgrTbl[thisCard][p_Sccb->TargID].TarSelQ_Cnt == 0) &&
-         (sccbMgrTbl[thisCard][p_Sccb->TargID].TarLUNBusy[lun]
-         == FALSE)) {
+         (FPT_sccbMgrTbl[thisCard][p_Sccb->TargID].TarSelQ_Cnt == 0) &&
+         (FPT_sccbMgrTbl[thisCard][p_Sccb->TargID].TarLUNBusy[lun]
+         == 0)) {
 
             ((PSCCBcard) pCurrCard)->currentSCCB = p_Sccb;
-			   mOS_UnLock((PSCCBcard)pCurrCard);
-#if defined(DOS)
-            ssel((USHORT)p_Sccb->SccbIOPort,thisCard);
-#else
-	    ssel(p_Sccb->SccbIOPort,thisCard);
-#endif
-			   mOS_Lock((PSCCBcard)pCurrCard);
+	    FPT_ssel(p_Sccb->SccbIOPort,thisCard);
          }
 
       else {
@@ -4462,12 +2132,12 @@ void SccbMgr_start_sccb(ULONG pCurrCard, PSCCB p_Sccb)
 				{
 					pSaveSccb = ((PSCCBcard) pCurrCard)->currentSCCB;
 					((PSCCBcard) pCurrCard)->currentSCCB = p_Sccb;
-					queueSelectFail(&BL_Card[thisCard], thisCard);
+					FPT_queueSelectFail(&FPT_BL_Card[thisCard], thisCard);
 					((PSCCBcard) pCurrCard)->currentSCCB = pSaveSccb;
 				}
 			else
 				{
-	         	queueAddSccb(p_Sccb,thisCard);
+	         	FPT_queueAddSccb(p_Sccb,thisCard);
 				}
          }
 
@@ -4475,7 +2145,6 @@ void SccbMgr_start_sccb(ULONG pCurrCard, PSCCB p_Sccb)
       MENABLE_INT(ioport);
       }
 
-   mOS_UnLock((PSCCBcard)pCurrCard);
 }
 
 
@@ -4488,22 +2157,9 @@ void SccbMgr_start_sccb(ULONG pCurrCard, PSCCB p_Sccb)
  *              callback function.
  *
  *---------------------------------------------------------------------*/
-#if (FW_TYPE==_UCB_MGR_)
-s32bits SccbMgr_abort_sccb(CARD_HANDLE pCurrCard, PUCB p_ucb)
-#else
-#if defined(DOS)
-int SccbMgr_abort_sccb(USHORT pCurrCard, PSCCB p_Sccb)
-#else
-int SccbMgr_abort_sccb(ULONG pCurrCard, PSCCB p_Sccb)
-#endif
-#endif
-
+static int SccbMgr_abort_sccb(ULONG pCurrCard, PSCCB p_Sccb)
 {
-#if defined(DOS)
-	USHORT ioport;
-#else
 	ULONG ioport;
-#endif
 
 	UCHAR thisCard;
 	CALL_BK_FN callback;
@@ -4512,29 +2168,15 @@ int SccbMgr_abort_sccb(ULONG pCurrCard, PSCCB p_Sccb)
 	PSCCBMgr_tar_info currTar_Info;
 
 
-#if (FW_TYPE==_UCB_MGR_)
-	PSCCB    p_Sccb;
-	p_Sccb=(PSCCB)p_ucb->UCB_MgrPrivatePtr;
-#endif
-
 	ioport = ((PSCCBcard) pCurrCard)->ioPort;
 
 	thisCard = ((PSCCBcard)pCurrCard)->cardIndex;
 
-	mOS_Lock((PSCCBcard)pCurrCard);
-
-	if (RD_HARPOON(ioport+hp_page_ctrl) & G_INT_DISABLE)
-	{
-		mOS_UnLock((PSCCBcard)pCurrCard);
-	}
-
-	else
+	if (!(RD_HARPOON(ioport+hp_page_ctrl) & G_INT_DISABLE))
 	{
 
-		if (queueFindSccb(p_Sccb,thisCard))
+		if (FPT_queueFindSccb(p_Sccb,thisCard))
 		{
-
-			mOS_UnLock((PSCCBcard)pCurrCard);
 
 			((PSCCBcard)pCurrCard)->cmdCounter--;
 
@@ -4542,23 +2184,15 @@ int SccbMgr_abort_sccb(ULONG pCurrCard, PSCCB p_Sccb)
 				WR_HARPOON(ioport+hp_semaphore,(RD_HARPOON(ioport+hp_semaphore)
 					& (UCHAR)(~(SCCB_MGR_ACTIVE | TICKLE_ME)) ));
 
-#if (FW_TYPE==_SCCB_MGR_)
 			p_Sccb->SccbStatus = SCCB_ABORT;
 			callback = p_Sccb->SccbCallback;
 			callback(p_Sccb);
-#else
-			p_ucb->UCB_status=SCCB_ABORT;
-			callback = (CALL_BK_FN)p_ucb->UCB_callback;
-			callback(p_ucb);
-#endif
 
 			return(0);
 		}
 
 		else
 		{
-			mOS_UnLock((PSCCBcard)pCurrCard);
-
 			if (((PSCCBcard)pCurrCard)->currentSCCB == p_Sccb)
 			{
 				p_Sccb->SccbStatus = SCCB_ABORT;
@@ -4579,21 +2213,18 @@ int SccbMgr_abort_sccb(ULONG pCurrCard, PSCCB p_Sccb)
 					{
 						p_Sccb->SccbStatus = SCCB_ABORT;
 						p_Sccb->Sccb_scsistat = ABORT_ST;
-#if (FW_TYPE==_UCB_MGR_)
-						p_ucb->UCB_status=SCCB_ABORT;
-#endif
 						p_Sccb->Sccb_scsimsg = SMABORT_TAG;
 
 						if(((PSCCBcard) pCurrCard)->currentSCCB == NULL)
 						{
 							((PSCCBcard) pCurrCard)->currentSCCB = p_Sccb;
-							ssel(ioport, thisCard);
+							FPT_ssel(ioport, thisCard);
 						}
 						else
 						{
 							pSaveSCCB = ((PSCCBcard) pCurrCard)->currentSCCB;
 							((PSCCBcard) pCurrCard)->currentSCCB = p_Sccb;
-							queueSelectFail((PSCCBcard) pCurrCard, thisCard);
+							FPT_queueSelectFail((PSCCBcard) pCurrCard, thisCard);
 							((PSCCBcard) pCurrCard)->currentSCCB = pSaveSCCB;
 						}
 					}
@@ -4602,9 +2233,9 @@ int SccbMgr_abort_sccb(ULONG pCurrCard, PSCCB p_Sccb)
 				}
 				else
 				{
-					currTar_Info = &sccbMgrTbl[thisCard][p_Sccb->TargID];
+					currTar_Info = &FPT_sccbMgrTbl[thisCard][p_Sccb->TargID];
 
-					if(BL_Card[thisCard].discQ_Tbl[currTar_Info->LunDiscQ_Idx[p_Sccb->Lun]] 
+					if(FPT_BL_Card[thisCard].discQ_Tbl[currTar_Info->LunDiscQ_Idx[p_Sccb->Lun]] 
 							== p_Sccb)
 					{
 						p_Sccb->SccbStatus = SCCB_ABORT;
@@ -4626,37 +2257,20 @@ int SccbMgr_abort_sccb(ULONG pCurrCard, PSCCB p_Sccb)
  *              interrupt for this card and disable the IRQ Pin if so.
  *
  *---------------------------------------------------------------------*/
-#if (FW_TYPE==_UCB_MGR_)
-u08bits SccbMgr_my_int(CARD_HANDLE pCurrCard)
-#else
-#if defined(DOS)
-UCHAR SccbMgr_my_int(USHORT pCurrCard)
-#else
-UCHAR SccbMgr_my_int(ULONG pCurrCard)
-#endif
-#endif
+static UCHAR SccbMgr_my_int(ULONG pCurrCard)
 {
-#if defined(DOS)
-   USHORT ioport;
-#else
    ULONG ioport;
-#endif
 
    ioport = ((PSCCBcard)pCurrCard)->ioPort;
 
    if (RD_HARPOON(ioport+hp_int_status) & INT_ASSERTED)
    {
-
-#if defined(DOS)
-      MDISABLE_INT(ioport);
-#endif
-
-      return(TRUE);
+      return(1);
    }
 
    else
 
-      return(FALSE);
+      return(0);
 }
 
 
@@ -4670,36 +2284,18 @@ UCHAR SccbMgr_my_int(ULONG pCurrCard)
  *              us.
  *
  *---------------------------------------------------------------------*/
-#if (FW_TYPE==_UCB_MGR_)
-s32bits SccbMgr_isr(CARD_HANDLE pCurrCard)
-#else
-#if defined(DOS)
-int SccbMgr_isr(USHORT pCurrCard)
-#else
-int SccbMgr_isr(ULONG pCurrCard)
-#endif
-#endif
+static int SccbMgr_isr(ULONG pCurrCard)
 {
    PSCCB currSCCB;
    UCHAR thisCard,result,bm_status, bm_int_st;
    USHORT hp_int;
    UCHAR i, target;
-#if defined(DOS)
-   USHORT ioport;
-#else
    ULONG ioport;
-#endif
-
-   mOS_Lock((PSCCBcard)pCurrCard);
 
    thisCard = ((PSCCBcard)pCurrCard)->cardIndex;
    ioport = ((PSCCBcard)pCurrCard)->ioPort;
 
    MDISABLE_INT(ioport);
-
-#if defined(BUGBUG)
-   WR_HARPOON(ioport+hp_user_defined_D, RD_HARPOON(ioport+hp_int_status));
-#endif
 
    if ((bm_int_st=RD_HARPOON(ioport+hp_int_status)) & EXT_STATUS_ON)
 		bm_status = RD_HARPOON(ioport+hp_ext_status) & (UCHAR)BAD_EXT_STATUS;
@@ -4708,33 +2304,20 @@ int SccbMgr_isr(ULONG pCurrCard)
 
    WR_HARPOON(ioport+hp_int_mask, (INT_CMD_COMPL | SCSI_INTERRUPT));
 
-   mOS_UnLock((PSCCBcard)pCurrCard);
-
-   while ((hp_int = RDW_HARPOON((ioport+hp_intstat)) & default_intena) |
+   while ((hp_int = RDW_HARPOON((ioport+hp_intstat)) & FPT_default_intena) |
 	  bm_status)
      {
 
        currSCCB = ((PSCCBcard)pCurrCard)->currentSCCB;
 
-#if defined(BUGBUG)
-   Debug_Load(thisCard,(UCHAR) 0XFF);
-   Debug_Load(thisCard,bm_int_st);
-
-   Debug_Load(thisCard,hp_int_0);
-   Debug_Load(thisCard,hp_int_1);
-#endif
-
-
       if (hp_int & (FIFO | TIMEOUT | RESET | SCAM_SEL) || bm_status) {
-         result = SccbMgr_bad_isr(ioport,thisCard,((PSCCBcard)pCurrCard),hp_int);
+         result = FPT_SccbMgr_bad_isr(ioport,thisCard,((PSCCBcard)pCurrCard),hp_int);
          WRW_HARPOON((ioport+hp_intstat), (FIFO | TIMEOUT | RESET | SCAM_SEL));
          bm_status = 0;
 
          if (result) {
 
-			   mOS_Lock((PSCCBcard)pCurrCard);
             MENABLE_INT(ioport);
-			   mOS_UnLock((PSCCBcard)pCurrCard);
             return(result);
             }
          }
@@ -4753,7 +2336,7 @@ int SccbMgr_isr(ULONG pCurrCard)
 
          if (((PSCCBcard)pCurrCard)->globalFlags & F_HOST_XFER_ACT)
 
-            phaseChkFifo(ioport, thisCard);
+            FPT_phaseChkFifo(ioport, thisCard);
 
 /*         WRW_HARPOON((ioport+hp_intstat),
             (BUS_FREE | ICMD_COMP | ITAR_DISC | XFER_CNT_0));
@@ -4761,7 +2344,7 @@ int SccbMgr_isr(ULONG pCurrCard)
 
 		 WRW_HARPOON((ioport+hp_intstat), CLR_ALL_INT_1);
 
-         autoCmdCmplt(ioport,thisCard);
+         FPT_autoCmdCmplt(ioport,thisCard);
 
          }
 
@@ -4771,7 +2354,7 @@ int SccbMgr_isr(ULONG pCurrCard)
 
          if (((PSCCBcard)pCurrCard)->globalFlags & F_HOST_XFER_ACT) {
 
-            phaseChkFifo(ioport, thisCard);
+            FPT_phaseChkFifo(ioport, thisCard);
 
             }
 
@@ -4784,7 +2367,7 @@ int SccbMgr_isr(ULONG pCurrCard)
             }
 
          currSCCB->Sccb_scsistat = DISCONNECT_ST;
-         queueDisconnect(currSCCB,thisCard);
+         FPT_queueDisconnect(currSCCB,thisCard);
 
             /* Wait for the BusFree before starting a new command.  We
                must also check for being reselected since the BusFree
@@ -4803,9 +2386,7 @@ int SccbMgr_isr(ULONG pCurrCard)
 	   */
 	   if (!(RDW_HARPOON((ioport+hp_intstat)) & (BUS_FREE | RSEL)))
 	     {
-	       mOS_Lock((PSCCBcard)pCurrCard);
 	       MENABLE_INT(ioport);
-	       mOS_UnLock((PSCCBcard)pCurrCard);
 	       return 0xFE;
 	     }
 
@@ -4825,7 +2406,7 @@ int SccbMgr_isr(ULONG pCurrCard)
 		      {
             if (((PSCCBcard)pCurrCard)->globalFlags & F_HOST_XFER_ACT)
 			      {
-               phaseChkFifo(ioport, thisCard);
+               FPT_phaseChkFifo(ioport, thisCard);
                }
 
             if (RD_HARPOON(ioport+hp_gp_reg_1) == SMSAVE_DATA_PTR)
@@ -4837,11 +2418,11 @@ int SccbMgr_isr(ULONG pCurrCard)
 
             WRW_HARPOON((ioport+hp_intstat), (BUS_FREE | ITAR_DISC));
             currSCCB->Sccb_scsistat = DISCONNECT_ST;
-            queueDisconnect(currSCCB,thisCard);
+            FPT_queueDisconnect(currSCCB,thisCard);
             }
 
-         sres(ioport,thisCard,((PSCCBcard)pCurrCard));
-         phaseDecode(ioport,thisCard);
+         FPT_sres(ioport,thisCard,((PSCCBcard)pCurrCard));
+         FPT_phaseDecode(ioport,thisCard);
 
          }
 
@@ -4850,7 +2431,7 @@ int SccbMgr_isr(ULONG pCurrCard)
          {
 
             WRW_HARPOON((ioport+hp_intstat), (IDO_STRT | XFER_CNT_0));
-            phaseDecode(ioport,thisCard);
+            FPT_phaseDecode(ioport,thisCard);
 
          }
 
@@ -4860,7 +2441,7 @@ int SccbMgr_isr(ULONG pCurrCard)
 	 	   WRW_HARPOON((ioport+hp_intstat), (PHASE | IUNKWN | PROG_HLT));
 	 	   if ((RD_HARPOON(ioport+hp_prgmcnt_0) & (UCHAR)0x3f)< (UCHAR)SELCHK)
 	    		{
-	    		phaseDecode(ioport,thisCard);
+	    		FPT_phaseDecode(ioport,thisCard);
 	    		}
 	 	   else
 	    		{
@@ -4885,7 +2466,7 @@ int SccbMgr_isr(ULONG pCurrCard)
 
          WRW_HARPOON((ioport+hp_intstat), XFER_CNT_0);
 
-         schkdd(ioport,thisCard);
+         FPT_schkdd(ioport,thisCard);
 
          }
 
@@ -4896,10 +2477,10 @@ int SccbMgr_isr(ULONG pCurrCard)
 
         	if (((PSCCBcard)pCurrCard)->globalFlags & F_HOST_XFER_ACT) {
 
-           	hostDataXferAbort(ioport,thisCard,currSCCB);
+           	FPT_hostDataXferAbort(ioport,thisCard,currSCCB);
 				}
 
-         phaseBusFree(ioport,thisCard);
+         FPT_phaseBusFree(ioport,thisCard);
 			}
 
 
@@ -4919,12 +2500,12 @@ int SccbMgr_isr(ULONG pCurrCard)
 
          if (((PSCCBcard)pCurrCard)->currentSCCB == NULL) {
 
-            queueSearchSelect(((PSCCBcard)pCurrCard),thisCard);
+            FPT_queueSearchSelect(((PSCCBcard)pCurrCard),thisCard);
             }
 
          if (((PSCCBcard)pCurrCard)->currentSCCB != NULL) {
             ((PSCCBcard)pCurrCard)->globalFlags &= ~F_NEW_SCCB_CMD;
-            ssel(ioport,thisCard);
+            FPT_ssel(ioport,thisCard);
             }
 
          break;
@@ -4933,9 +2514,7 @@ int SccbMgr_isr(ULONG pCurrCard)
 
       }  /*end while */
 
-   mOS_Lock((PSCCBcard)pCurrCard);
    MENABLE_INT(ioport);
-   mOS_UnLock((PSCCBcard)pCurrCard);
 
    return(0);
 }
@@ -4950,18 +2529,12 @@ int SccbMgr_isr(ULONG pCurrCard)
  *              processing time.
  *
  *---------------------------------------------------------------------*/
-#if defined(DOS)
-UCHAR SccbMgr_bad_isr(USHORT p_port, UCHAR p_card, PSCCBcard pCurrCard, USHORT p_int)
-#else
-UCHAR SccbMgr_bad_isr(ULONG p_port, UCHAR p_card, PSCCBcard pCurrCard, USHORT p_int)
-#endif
+static UCHAR FPT_SccbMgr_bad_isr(ULONG p_port, UCHAR p_card,
+				 PSCCBcard pCurrCard, USHORT p_int)
 {
-#if defined(HARP_REVX)
-   ULONG timer;
-#endif
-UCHAR temp, ScamFlg;
-PSCCBMgr_tar_info currTar_Info;
-PNVRamInfo pCurrNvRam;
+   UCHAR temp, ScamFlg;
+   PSCCBMgr_tar_info currTar_Info;
+   PNVRamInfo pCurrNvRam;
 
 
    if (RD_HARPOON(p_port+hp_ext_status) &
@@ -4971,7 +2544,7 @@ PNVRamInfo pCurrNvRam;
       if (pCurrCard->globalFlags & F_HOST_XFER_ACT)
          {
 
-         hostDataXferAbort(p_port,p_card, pCurrCard->currentSCCB);
+         FPT_hostDataXferAbort(p_port,p_card, pCurrCard->currentSCCB);
          }
 
       if (RD_HARPOON(p_port+hp_pci_stat_cfg) & REC_MASTER_ABORT)
@@ -4990,7 +2563,7 @@ PNVRamInfo pCurrNvRam;
          if (!pCurrCard->currentSCCB->HostStatus)
             pCurrCard->currentSCCB->HostStatus = SCCB_BM_ERR;
 
-         sxfrp(p_port,p_card);
+         FPT_sxfrp(p_port,p_card);
 
 	     temp = (UCHAR)(RD_HARPOON(p_port+hp_ee_ctrl) &
 							(EXT_ARB_ACK | SCSI_TERM_ENA_H));
@@ -4999,7 +2572,7 @@ PNVRamInfo pCurrNvRam;
 
          if (!(RDW_HARPOON((p_port+hp_intstat)) & (BUS_FREE | RESET)))
             {
-            phaseDecode(p_port,p_card);
+            FPT_phaseDecode(p_port,p_card);
             }
          }
       }
@@ -5014,13 +2587,13 @@ PNVRamInfo pCurrNvRam;
 
                if (pCurrCard->globalFlags & F_HOST_XFER_ACT)
 
-               hostDataXferAbort(p_port,p_card, pCurrCard->currentSCCB);
+               FPT_hostDataXferAbort(p_port,p_card, pCurrCard->currentSCCB);
                }
 
 
            DISABLE_AUTO(p_port);
 
-           sresb(p_port,p_card);
+           FPT_sresb(p_port,p_card);
 
            while(RD_HARPOON(p_port+hp_scsictrl_0) & SCSI_RST) {}
 
@@ -5029,12 +2602,12 @@ PNVRamInfo pCurrNvRam;
 					ScamFlg = pCurrNvRam->niScamConf;
 				}
 				else{
-				   ScamFlg = (UCHAR) utilEERead(p_port, SCAM_CONFIG/2);
+				   ScamFlg = (UCHAR) FPT_utilEERead(p_port, SCAM_CONFIG/2);
 				}
 
-           XbowInit(p_port, ScamFlg);
+           FPT_XbowInit(p_port, ScamFlg);
 
-               scini(p_card, pCurrCard->ourId, 0);
+               FPT_scini(p_card, pCurrCard->ourId, 0);
 
            return(0xFF);
          }
@@ -5044,34 +2617,8 @@ PNVRamInfo pCurrNvRam;
 
       WRW_HARPOON((p_port+hp_intstat), FIFO);
 
-#if defined(HARP_REVX)
-
-      for (timer=0x00FFFFFFL; timer != 0x00000000L; timer--) {
-
-         if (RD_HARPOON(p_port+hp_xferstat) & FIFO_EMPTY)
-            break;
-
-         if (RDW_HARPOON((p_port+hp_intstat)) & BUS_FREE)
-            break;
-         }
-
-
-      if ( (RD_HARPOON(p_port+hp_xferstat) & FIFO_EMPTY) &&
-           (RD_HARPOON(p_port+hp_fiforead) !=
-            RD_HARPOON(p_port+hp_fifowrite)) &&
-           (RD_HARPOON(p_port+hp_xfercnt_0))
-         )
-
-            WR_HARPOON((p_port+hp_xferstat), 0x01);
-
-/*      else
- */
-/*         sxfrp(p_port,p_card);
- */
-#else
       if (pCurrCard->currentSCCB != NULL)
-         sxfrp(p_port,p_card);
-#endif
+         FPT_sxfrp(p_port,p_card);
       }
 
    else if (p_int & TIMEOUT)
@@ -5085,12 +2632,12 @@ PNVRamInfo pCurrNvRam;
       pCurrCard->currentSCCB->HostStatus = SCCB_SELECTION_TIMEOUT;
 
 
-		currTar_Info = &sccbMgrTbl[p_card][pCurrCard->currentSCCB->TargID];
+		currTar_Info = &FPT_sccbMgrTbl[p_card][pCurrCard->currentSCCB->TargID];
 		if((pCurrCard->globalFlags & F_CONLUN_IO) &&
 			((currTar_Info->TarStatus & TAR_TAG_Q_MASK) != TAG_Q_TRYING))
-	      currTar_Info->TarLUNBusy[pCurrCard->currentSCCB->Lun] = FALSE;
+	      currTar_Info->TarLUNBusy[pCurrCard->currentSCCB->Lun] = 0;
 		else
-	      currTar_Info->TarLUNBusy[0] = FALSE;
+	      currTar_Info->TarLUNBusy[0] = 0;
 
 
       if (currTar_Info->TarEEValue & EE_SYNC_MASK)
@@ -5104,26 +2651,23 @@ PNVRamInfo pCurrNvRam;
          currTar_Info->TarStatus &= ~TAR_WIDE_MASK;
          }
 
-      sssyncv(p_port, pCurrCard->currentSCCB->TargID, NARROW_SCSI,currTar_Info);
+      FPT_sssyncv(p_port, pCurrCard->currentSCCB->TargID, NARROW_SCSI,currTar_Info);
 
-      queueCmdComplete(pCurrCard, pCurrCard->currentSCCB, p_card);
+      FPT_queueCmdComplete(pCurrCard, pCurrCard->currentSCCB, p_card);
 
       }
-
-#if defined(SCAM_LEV_2)
 
    else if (p_int & SCAM_SEL)
       {
 
-      scarb(p_port,LEVEL2_TAR);
-      scsel(p_port);
-      scasid(p_card, p_port);
+      FPT_scarb(p_port,LEVEL2_TAR);
+      FPT_scsel(p_port);
+      FPT_scasid(p_card, p_port);
 
-      scbusf(p_port);
+      FPT_scbusf(p_port);
 
       WRW_HARPOON((p_port+hp_intstat), SCAM_SEL);
       }
-#endif
 
    return(0x00);
 }
@@ -5131,126 +2675,25 @@ PNVRamInfo pCurrNvRam;
 
 /*---------------------------------------------------------------------
  *
- * Function: SccbMgr_scsi_reset
- *
- * Description: A SCSI bus reset will be generated and all outstanding
- *              Sccbs will be returned via the callback.
- *
- *---------------------------------------------------------------------*/
-#if (FW_TYPE==_UCB_MGR_)
-void SccbMgr_scsi_reset(CARD_HANDLE pCurrCard)
-#else
-#if defined(DOS)
-void SccbMgr_scsi_reset(USHORT pCurrCard)
-#else
-void SccbMgr_scsi_reset(ULONG pCurrCard)
-#endif
-#endif
-{
-   UCHAR thisCard;
-
-   thisCard = ((PSCCBcard)pCurrCard)->cardIndex;
-
-   mOS_Lock((PSCCBcard)pCurrCard);
-
-   if (((PSCCBcard) pCurrCard)->globalFlags & F_GREEN_PC)
-      {
-      WR_HARPOON(((PSCCBcard) pCurrCard)->ioPort+hp_clkctrl_0, CLKCTRL_DEFAULT);
-      WR_HARPOON(((PSCCBcard) pCurrCard)->ioPort+hp_sys_ctrl, 0x00);
-      }
-
-   sresb(((PSCCBcard)pCurrCard)->ioPort,thisCard);
-
-   if (RD_HARPOON(((PSCCBcard)pCurrCard)->ioPort+hp_ext_status) & BM_CMD_BUSY)
-      {
-      WR_HARPOON(((PSCCBcard) pCurrCard)->ioPort+hp_page_ctrl,
-         (RD_HARPOON(((PSCCBcard) pCurrCard)->ioPort+hp_page_ctrl)
-         & ~SCATTER_EN));
-
-      WR_HARPOON(((PSCCBcard) pCurrCard)->ioPort+hp_sg_addr,0x00);
-
-      ((PSCCBcard) pCurrCard)->globalFlags &= ~F_HOST_XFER_ACT;
-      busMstrTimeOut(((PSCCBcard) pCurrCard)->ioPort);
-
-      WR_HARPOON(((PSCCBcard) pCurrCard)->ioPort+hp_int_mask,
-         (INT_CMD_COMPL | SCSI_INTERRUPT));
-      }
-
-/*
-      if (utilEERead(((PSCCBcard)pCurrCard)->ioPort, (SCAM_CONFIG/2))
-            & SCAM_ENABLED)
-*/
-         scini(thisCard, ((PSCCBcard)pCurrCard)->ourId, 0);
-
-#if (FW_TYPE==_UCB_MGR_)
-   ((PSCCBcard)pCurrCard)->cardInfo->ai_AEN_routine(0x01,pCurrCard,0,0,0,0);
-#endif
-
-   mOS_UnLock((PSCCBcard)pCurrCard);
-}
-
-
-/*---------------------------------------------------------------------
- *
- * Function: SccbMgr_timer_expired
- *
- * Description: This function allow me to kill my own job that has not
- *              yet completed, and has cause a timeout to occur.  This
- *              timeout has caused the upper level driver to call this
- *              function.
- *
- *---------------------------------------------------------------------*/
-
-#if (FW_TYPE==_UCB_MGR_)
-void SccbMgr_timer_expired(CARD_HANDLE pCurrCard)
-#else
-#if defined(DOS)
-void SccbMgr_timer_expired(USHORT pCurrCard)
-#else
-void SccbMgr_timer_expired(ULONG pCurrCard)
-#endif
-#endif
-{
-}
-
-#if defined(DOS)
-/*---------------------------------------------------------------------
- *
- * Function: SccbMgr_status
- *
- * Description: This function returns the number of outstanding SCCB's.
- *              This is specific to the DOS enviroment, which needs this
- *              to help them keep protected and real mode commands staight.
- *
- *---------------------------------------------------------------------*/
-
-USHORT SccbMgr_status(USHORT pCurrCard)
-{
-   return(BL_Card[pCurrCard].cmdCounter);
-}
-#endif
-
-/*---------------------------------------------------------------------
- *
  * Function: SccbMgrTableInit
  *
  * Description: Initialize all Sccb manager data structures.
  *
  *---------------------------------------------------------------------*/
 
-void SccbMgrTableInitAll()
+static void FPT_SccbMgrTableInitAll()
 {
    UCHAR thisCard;
 
    for (thisCard = 0; thisCard < MAX_CARDS; thisCard++)
       {
-      SccbMgrTableInitCard(&BL_Card[thisCard],thisCard);
+      FPT_SccbMgrTableInitCard(&FPT_BL_Card[thisCard],thisCard);
 
-      BL_Card[thisCard].ioPort      = 0x00;
-      BL_Card[thisCard].cardInfo    = NULL;
-      BL_Card[thisCard].cardIndex   = 0xFF;
-      BL_Card[thisCard].ourId       = 0x00;
-		BL_Card[thisCard].pNvRamInfo	= NULL;
+      FPT_BL_Card[thisCard].ioPort      = 0x00;
+      FPT_BL_Card[thisCard].cardInfo    = NULL;
+      FPT_BL_Card[thisCard].cardIndex   = 0xFF;
+      FPT_BL_Card[thisCard].ourId       = 0x00;
+		FPT_BL_Card[thisCard].pNvRamInfo	= NULL;
       }
 }
 
@@ -5263,20 +2706,20 @@ void SccbMgrTableInitAll()
  *
  *---------------------------------------------------------------------*/
 
-void SccbMgrTableInitCard(PSCCBcard pCurrCard, UCHAR p_card)
+static void FPT_SccbMgrTableInitCard(PSCCBcard pCurrCard, UCHAR p_card)
 {
    UCHAR scsiID, qtag;
 
 	for (qtag = 0; qtag < QUEUE_DEPTH; qtag++)
 	{
-		BL_Card[p_card].discQ_Tbl[qtag] = NULL;
+		FPT_BL_Card[p_card].discQ_Tbl[qtag] = NULL;
 	}
 
    for (scsiID = 0; scsiID < MAX_SCSI_TAR; scsiID++)
       {
-      sccbMgrTbl[p_card][scsiID].TarStatus = 0;
-      sccbMgrTbl[p_card][scsiID].TarEEValue = 0;
-      SccbMgrTableInitTarget(p_card, scsiID);
+      FPT_sccbMgrTbl[p_card][scsiID].TarStatus = 0;
+      FPT_sccbMgrTbl[p_card][scsiID].TarEEValue = 0;
+      FPT_SccbMgrTableInitTarget(p_card, scsiID);
       }
 
    pCurrCard->scanIndex = 0x00;
@@ -5298,13 +2741,13 @@ void SccbMgrTableInitCard(PSCCBcard pCurrCard, UCHAR p_card)
  *
  *---------------------------------------------------------------------*/
 
-void SccbMgrTableInitTarget(UCHAR p_card, UCHAR target)
+static void FPT_SccbMgrTableInitTarget(UCHAR p_card, UCHAR target)
 {
 
 	UCHAR lun, qtag;
 	PSCCBMgr_tar_info currTar_Info;
 
-	currTar_Info = &sccbMgrTbl[p_card][target];
+	currTar_Info = &FPT_sccbMgrTbl[p_card][target];
 
 	currTar_Info->TarSelQ_Cnt = 0;
 	currTar_Info->TarSyncCtrl = 0;
@@ -5312,160 +2755,28 @@ void SccbMgrTableInitTarget(UCHAR p_card, UCHAR target)
 	currTar_Info->TarSelQ_Head = NULL;
 	currTar_Info->TarSelQ_Tail = NULL;
 	currTar_Info->TarTagQ_Cnt = 0;
-	currTar_Info->TarLUN_CA = FALSE;
+	currTar_Info->TarLUN_CA = 0;
 
 
 	for (lun = 0; lun < MAX_LUN; lun++)
 	{
-		currTar_Info->TarLUNBusy[lun] = FALSE;
+		currTar_Info->TarLUNBusy[lun] = 0;
 		currTar_Info->LunDiscQ_Idx[lun] = 0;
 	}
 
 	for (qtag = 0; qtag < QUEUE_DEPTH; qtag++)
 	{
-		if(BL_Card[p_card].discQ_Tbl[qtag] != NULL)
+		if(FPT_BL_Card[p_card].discQ_Tbl[qtag] != NULL)
 		{
-			if(BL_Card[p_card].discQ_Tbl[qtag]->TargID == target)
+			if(FPT_BL_Card[p_card].discQ_Tbl[qtag]->TargID == target)
 			{
-				BL_Card[p_card].discQ_Tbl[qtag] = NULL;
-				BL_Card[p_card].discQCount--;
+				FPT_BL_Card[p_card].discQ_Tbl[qtag] = NULL;
+				FPT_BL_Card[p_card].discQCount--;
 			}
 		}
 	}
 }
 
-#if defined(BUGBUG)
-
-/*****************************************************************
- * Save the current byte in the debug array
- *****************************************************************/
-
-
-void Debug_Load(UCHAR p_card, UCHAR p_bug_data)
-{
-   debug_int[p_card][debug_index[p_card]] = p_bug_data;
-   debug_index[p_card]++;
-
-   if (debug_index[p_card] == debug_size)
-
-      debug_index[p_card] = 0;
-}
-
-#endif
-#ident "$Id: sccb_dat.c 1.10 1997/02/22 03:16:02 awin Exp $"
-/*----------------------------------------------------------------------
- *
- *
- *   Copyright 1995-1996 by Mylex Corporation.  All Rights Reserved
- *
- *   This file is available under both the GNU General Public License
- *   and a BSD-style copyright; see LICENSE.FlashPoint for details.
- *
- *   $Workfile:   sccb_dat.c  $
- *
- *   Description:  Functions relating to handling of the SCCB interface 
- *                 between the device driver and the HARPOON.
- *
- *   $Date: 1997/02/22 03:16:02 $
- *
- *   $Revision: 1.10 $
- *
- *----------------------------------------------------------------------*/
-
-/*#include <globals.h>*/
-
-#if (FW_TYPE==_UCB_MGR_)
-	/*#include <budi.h>*/
-#endif
-
-/*#include <sccbmgr.h>*/
-/*#include <blx30.h>*/
-/*#include <target.h>*/
-/*#include <harpoon.h>*/
-
-/*
-**  IMPORTANT NOTE!!!
-**
-**  You MUST preassign all data to a valid value or zero.  This is
-**  required due to the MS compiler bug under OS/2 and Solaris Real-Mode
-**  driver environment.
-*/
-
-
-SCCBMGR_TAR_INFO sccbMgrTbl[MAX_CARDS][MAX_SCSI_TAR] = { { { 0 } } };
-SCCBCARD BL_Card[MAX_CARDS] = { { 0 } };
-SCCBSCAM_INFO scamInfo[MAX_SCSI_TAR] = { { { 0 } } };
-NVRAMINFO nvRamInfo[MAX_MB_CARDS] = { { 0 } };
-
-
-#if defined(OS2)
-void (far *s_PhaseTbl[8]) (ULONG, UCHAR) = { 0 };
-UCHAR temp_id_string[ID_STRING_LENGTH] = { 0 };
-#elif defined(SOLARIS_REAL_MODE) || defined(__STDC__)
-void (*s_PhaseTbl[8]) (ULONG, UCHAR) = { 0 };
-#else
-void (*s_PhaseTbl[8]) ();
-#endif
-
-#if defined(DOS)
-UCHAR first_time = 0;
-#endif
-
-UCHAR mbCards = 0;
-UCHAR scamHAString[] = {0x63, 0x07, 'B', 'U', 'S', 'L', 'O', 'G', 'I', 'C', \
-								' ', 'B', 'T', '-', '9', '3', '0', \
-								0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, \
-								0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20};
-
-USHORT default_intena = 0;
-
-#if defined(BUGBUG)
-UCHAR    debug_int[MAX_CARDS][debug_size] = { 0 };
-UCHAR    debug_index[MAX_CARDS] = { 0 };
-UCHAR    reserved_1[3] = { 0 };
-#endif
-#ident "$Id: scsi.c 1.23 1997/07/09 21:42:54 mohan Exp $"
-/*----------------------------------------------------------------------
- *
- *
- *   Copyright 1995-1996 by Mylex Corporation.  All Rights Reserved
- *
- *   This file is available under both the GNU General Public License
- *   and a BSD-style copyright; see LICENSE.FlashPoint for details.
- *
- *   $Workfile:   scsi.c  $
- *
- *   Description:  Functions for handling SCSI bus functions such as
- *                 selection/reselection, sync negotiation, message-in
- *                 decoding.
- *
- *   $Date: 1997/07/09 21:42:54 $
- *
- *   $Revision: 1.23 $
- *
- *----------------------------------------------------------------------*/
-
-/*#include <globals.h>*/
-
-#if (FW_TYPE==_UCB_MGR_)
-	/*#include <budi.h>*/
-#endif
-
-/*#include <sccbmgr.h>*/
-/*#include <blx30.h>*/
-/*#include <target.h>*/
-/*#include <scsi2.h>*/
-/*#include <eeprom.h>*/
-/*#include <harpoon.h>*/
-
-
-/*
-extern SCCBCARD BL_Card[MAX_CARDS];
-extern SCCBMGR_TAR_INFO sccbMgrTbl[MAX_CARDS][MAX_SCSI_TAR];
-#if defined(BUGBUG)
-void Debug_Load(UCHAR p_card, UCHAR p_bug_data);
-#endif
-*/
 
 /*---------------------------------------------------------------------
  *
@@ -5476,11 +2787,7 @@ void Debug_Load(UCHAR p_card, UCHAR p_bug_data);
  *
  *---------------------------------------------------------------------*/
 
-#if defined(DOS)
-UCHAR sfm(USHORT port, PSCCB pCurrSCCB)
-#else
-UCHAR sfm(ULONG port, PSCCB pCurrSCCB)
-#endif
+static UCHAR FPT_sfm(ULONG port, PSCCB pCurrSCCB)
 {
 	UCHAR message;
 	USHORT TimeOutLoop;
@@ -5547,42 +2854,27 @@ UCHAR sfm(ULONG port, PSCCB pCurrSCCB)
 
 /*---------------------------------------------------------------------
  *
- * Function: ssel
+ * Function: FPT_ssel
  *
  * Description: Load up automation and select target device.
  *
  *---------------------------------------------------------------------*/
 
-#if defined(DOS)
-void ssel(USHORT port, UCHAR p_card)
-#else
-void ssel(ULONG port, UCHAR p_card)
-#endif
+static void FPT_ssel(ULONG port, UCHAR p_card)
 {
 
-#if defined(DOS)
    UCHAR auto_loaded, i, target, *theCCB;
-#elif defined(OS2)
-   UCHAR auto_loaded, i, target;
-   UCHAR far *theCCB;
-#else
-   UCHAR auto_loaded, i, target, *theCCB;
-#endif
 
-#if defined(DOS)
-   USHORT cdb_reg;
-#else
    ULONG cdb_reg;
-#endif
    PSCCBcard CurrCard;
    PSCCB currSCCB;
    PSCCBMgr_tar_info currTar_Info;
    UCHAR lastTag, lun;
 
-   CurrCard = &BL_Card[p_card];
+   CurrCard = &FPT_BL_Card[p_card];
    currSCCB = CurrCard->currentSCCB;
    target = currSCCB->TargID;
-   currTar_Info = &sccbMgrTbl[p_card][target];
+   currTar_Info = &FPT_sccbMgrTbl[p_card][target];
    lastTag = CurrCard->tagQ_Lst;
 
    ARAM_ACCESS(port);
@@ -5599,59 +2891,52 @@ void ssel(ULONG port, UCHAR p_card)
 		lun = 0;
 
 
-#if defined(DOS)
-   currTar_Info->TarLUNBusy[lun] = TRUE;
-
-#else
-
    if (CurrCard->globalFlags & F_TAG_STARTED)
       {
       if (!(currSCCB->ControlByte & F_USE_CMD_Q))
          {
-      	if ((currTar_Info->TarLUN_CA == FALSE)
+      	if ((currTar_Info->TarLUN_CA == 0)
       	    && ((currTar_Info->TarStatus & TAR_TAG_Q_MASK)
       	    == TAG_Q_TRYING))
             {
 
 	         if (currTar_Info->TarTagQ_Cnt !=0)
                   {
-         		   currTar_Info->TarLUNBusy[lun] = TRUE;
-            		queueSelectFail(CurrCard,p_card);
+         		   currTar_Info->TarLUNBusy[lun] = 1;
+            		FPT_queueSelectFail(CurrCard,p_card);
 					   SGRAM_ACCESS(port);
          		   return;
          		   }
 
             else {
-         		  currTar_Info->TarLUNBusy[lun] = TRUE;
+         		  currTar_Info->TarLUNBusy[lun] = 1;
          		  }
 
    	      }  /*End non-tagged */
 
 	      else {
-	         currTar_Info->TarLUNBusy[lun] = TRUE;
+	         currTar_Info->TarLUNBusy[lun] = 1;
 	         }
 
 	      }  /*!Use cmd Q Tagged */
 
 	   else {
-   	     if (currTar_Info->TarLUN_CA == TRUE)
+   	     if (currTar_Info->TarLUN_CA == 1)
                {
-      	      queueSelectFail(CurrCard,p_card);
+      	      FPT_queueSelectFail(CurrCard,p_card);
 				   SGRAM_ACCESS(port);
       	      return;
 	            }
 
-	        currTar_Info->TarLUNBusy[lun] = TRUE;
+	        currTar_Info->TarLUNBusy[lun] = 1;
 
    	     }  /*else use cmd Q tagged */
 
       }  /*if glob tagged started */
 
    else {
-        currTar_Info->TarLUNBusy[lun] = TRUE;
+        currTar_Info->TarLUNBusy[lun] = 1;
         }
-
-#endif /* DOS */
 
 
 
@@ -5661,8 +2946,8 @@ void ssel(ULONG port, UCHAR p_card)
 	{
 		if(CurrCard->discQCount >= QUEUE_DEPTH)
 		{
-			currTar_Info->TarLUNBusy[lun] = TRUE;
-			queueSelectFail(CurrCard,p_card);
+			currTar_Info->TarLUNBusy[lun] = 1;
+			FPT_queueSelectFail(CurrCard,p_card);
 			SGRAM_ACCESS(port);
 			return;
 		}
@@ -5680,8 +2965,8 @@ void ssel(ULONG port, UCHAR p_card)
 		}
 		if(i == QUEUE_DEPTH)
 		{
-			currTar_Info->TarLUNBusy[lun] = TRUE;
-			queueSelectFail(CurrCard,p_card);
+			currTar_Info->TarLUNBusy[lun] = 1;
+			FPT_queueSelectFail(CurrCard,p_card);
 			SGRAM_ACCESS(port);
 			return;
 		}
@@ -5689,7 +2974,7 @@ void ssel(ULONG port, UCHAR p_card)
 
 
 
-   auto_loaded = FALSE;
+   auto_loaded = 0;
 
    WR_HARPOON(port+hp_select_id, target);
    WR_HARPOON(port+hp_gp_reg_3, target);  /* Use by new automation logic */
@@ -5703,7 +2988,7 @@ void ssel(ULONG port, UCHAR p_card)
       currSCCB->Sccb_scsimsg = SMDEV_RESET;
 
       WR_HARPOON(port+hp_autostart_3, (SELECT+SELCHK_STRT));
-      auto_loaded = TRUE;
+      auto_loaded = 1;
       currSCCB->Sccb_scsistat = SELECT_BDR_ST;
 
       if (currTar_Info->TarEEValue & EE_SYNC_MASK)
@@ -5712,16 +2997,13 @@ void ssel(ULONG port, UCHAR p_card)
 	      currTar_Info->TarStatus &= ~TAR_SYNC_MASK;
 	      }
 
-#if defined(WIDE_SCSI)
-
       if (currTar_Info->TarEEValue & EE_WIDE_SCSI)
          {
       	currTar_Info->TarStatus &= ~TAR_WIDE_MASK;
       	}
-#endif
 
-      sssyncv(port, target, NARROW_SCSI,currTar_Info);
-      SccbMgrTableInitTarget(p_card, target);
+      FPT_sssyncv(port, target, NARROW_SCSI,currTar_Info);
+      FPT_SccbMgrTableInitTarget(p_card, target);
 
       }
 
@@ -5740,24 +3022,18 @@ void ssel(ULONG port, UCHAR p_card)
 			WRW_HARPOON((port+SYNC_MSGS+4), (BRH_OP+ALWAYS+NP ));
 
 			WR_HARPOON(port+hp_autostart_3, (SELECT+SELCHK_STRT));
-			auto_loaded = TRUE;
+			auto_loaded = 1;
 		
 		}
 
-#if defined(WIDE_SCSI)
-
-
    else if (!(currTar_Info->TarStatus & WIDE_NEGOCIATED))  {
-      auto_loaded = siwidn(port,p_card);
+      auto_loaded = FPT_siwidn(port,p_card);
       currSCCB->Sccb_scsistat = SELECT_WN_ST;
       }
 
-#endif
-
-
    else if (!((currTar_Info->TarStatus & TAR_SYNC_MASK)
       == SYNC_SUPPORTED))  {
-      auto_loaded = sisyncn(port,p_card, FALSE);
+      auto_loaded = FPT_sisyncn(port,p_card, 0);
       currSCCB->Sccb_scsistat = SELECT_SN_ST;
       }
 
@@ -5765,7 +3041,6 @@ void ssel(ULONG port, UCHAR p_card)
    if (!auto_loaded)
       {
 
-#if !defined(DOS)
       if (currSCCB->ControlByte & F_USE_CMD_Q)
          {
 
@@ -5789,7 +3064,7 @@ void ssel(ULONG port, UCHAR p_card)
                the wheels fall off. */
             currSCCB->Sccb_scsistat = SELECT_ST;
 
-	         currTar_Info->TarLUNBusy[lun] = TRUE;
+	         currTar_Info->TarLUNBusy[lun] = 1;
             }
 
          else
@@ -5818,8 +3093,8 @@ void ssel(ULONG port, UCHAR p_card)
 
             if ( i == QUEUE_DEPTH )
                {
-   	         currTar_Info->TarLUNBusy[lun] = TRUE;
-               queueSelectFail(CurrCard,p_card);
+   	         currTar_Info->TarLUNBusy[lun] = 1;
+               FPT_queueSelectFail(CurrCard,p_card);
 				   SGRAM_ACCESS(port);
    	         return;
    	         }
@@ -5832,7 +3107,6 @@ void ssel(ULONG port, UCHAR p_card)
 
       else
          {
-#endif   /* !DOS */
 
          WRW_HARPOON((port+ID_MSG_STRT),BRH_OP+ALWAYS+NTCMD);
 
@@ -5842,16 +3116,10 @@ void ssel(ULONG port, UCHAR p_card)
          currSCCB->Sccb_scsistat = SELECT_ST;
 
          WR_HARPOON(port+hp_autostart_3, (SELECT+SELCHK_STRT));
-#if !defined(DOS)
          }
-#endif
 
 
-#if defined(OS2)
-      theCCB = (UCHAR far *)&currSCCB->Cdb[0];
-#else
       theCCB = (UCHAR *)&currSCCB->Cdb[0];
-#endif
 
       cdb_reg = port + CMD_STRT;
 
@@ -5867,10 +3135,8 @@ void ssel(ULONG port, UCHAR p_card)
 
       }  /* auto_loaded */
 
-#if defined(WIDE_SCSI)
    WRW_HARPOON((port+hp_fiforead), (USHORT) 0x00);
    WR_HARPOON(port+hp_xferstat, 0x00);
-#endif
 
    WRW_HARPOON((port+hp_intstat), (PROG_HLT | TIMEOUT | SEL | BUS_FREE));
 
@@ -5899,30 +3165,16 @@ void ssel(ULONG port, UCHAR p_card)
 
 /*---------------------------------------------------------------------
  *
- * Function: sres
+ * Function: FPT_sres
  *
  * Description: Hookup the correct CCB and handle the incoming messages.
  *
  *---------------------------------------------------------------------*/
 
-#if defined(DOS)
-void sres(USHORT port, UCHAR p_card, PSCCBcard pCurrCard)
-#else
-void sres(ULONG port, UCHAR p_card, PSCCBcard pCurrCard)
-#endif
+static void FPT_sres(ULONG port, UCHAR p_card, PSCCBcard pCurrCard)
 {
 
-#if defined(V302)
-#ifdef DOS
-   UCHAR our_target,message, msgRetryCount;
-   extern UCHAR lun, tag;
-#else
-   UCHAR our_target,message,lun,tag, msgRetryCount;
-#endif
-
-#else  /* V302 */
    UCHAR our_target, message, lun = 0, tag, msgRetryCount;
-#endif /* V302 */
 
 
    PSCCBMgr_tar_info currTar_Info;
@@ -5933,7 +3185,7 @@ void sres(ULONG port, UCHAR p_card, PSCCBcard pCurrCard)
 
 	if(pCurrCard->currentSCCB != NULL)
 	{
-		currTar_Info = &sccbMgrTbl[p_card][pCurrCard->currentSCCB->TargID];
+		currTar_Info = &FPT_sccbMgrTbl[p_card][pCurrCard->currentSCCB->TargID];
 		DISABLE_AUTO(port);
 
 
@@ -5954,7 +3206,7 @@ void sres(ULONG port, UCHAR p_card, PSCCBcard pCurrCard)
 		if(((pCurrCard->globalFlags & F_CONLUN_IO) &&
 			((currTar_Info->TarStatus & TAR_TAG_Q_MASK) != TAG_Q_TRYING)))
 		{
-      	currTar_Info->TarLUNBusy[currSCCB->Lun] = FALSE;
+      	currTar_Info->TarLUNBusy[currSCCB->Lun] = 0;
 			if(currSCCB->Sccb_scsistat != ABORT_ST)
 			{
 				pCurrCard->discQCount--;
@@ -5964,7 +3216,7 @@ void sres(ULONG port, UCHAR p_card, PSCCBcard pCurrCard)
 		}
 		else
 		{
-	      currTar_Info->TarLUNBusy[0] = FALSE;
+	      currTar_Info->TarLUNBusy[0] = 0;
 			if(currSCCB->Sccb_tag)
 			{
 				if(currSCCB->Sccb_scsistat != ABORT_ST)
@@ -5982,29 +3234,21 @@ void sres(ULONG port, UCHAR p_card, PSCCBcard pCurrCard)
 			}
 		}
 
-      queueSelectFail(&BL_Card[p_card],p_card);
+      FPT_queueSelectFail(&FPT_BL_Card[p_card],p_card);
 	}
 
-#if defined(WIDE_SCSI)
 	WRW_HARPOON((port+hp_fiforead), (USHORT) 0x00);
-#endif
 
 
 	our_target = (UCHAR)(RD_HARPOON(port+hp_select_id) >> 4);
-	currTar_Info = &sccbMgrTbl[p_card][our_target];
+	currTar_Info = &FPT_sccbMgrTbl[p_card][our_target];
 
 
 	msgRetryCount = 0;
 	do
 	{
 
-#if defined(V302)
-
-		message = GetTarLun(port, p_card, our_target, pCurrCard, &tag, &lun);
-
-#else /* V302 */
-
-		currTar_Info = &sccbMgrTbl[p_card][our_target];
+		currTar_Info = &FPT_sccbMgrTbl[p_card][our_target];
 		tag = 0;
 
 
@@ -6022,7 +3266,7 @@ void sres(ULONG port, UCHAR p_card, PSCCBcard pCurrCard)
 		if ((RD_HARPOON(port+hp_scsisig) & S_SCSI_PHZ) == S_MSGI_PH)
 		{
 
-			message = sfm(port,pCurrCard->currentSCCB);
+			message = FPT_sfm(port,pCurrCard->currentSCCB);
 			if (message)
 			{
 
@@ -6030,7 +3274,6 @@ void sres(ULONG port, UCHAR p_card, PSCCBcard pCurrCard)
 				{
 					lun = message & (UCHAR)LUN_MASK;
 
-#if !defined(DOS)
 					if ((currTar_Info->TarStatus & TAR_TAG_Q_MASK) == TAG_Q_TRYING)
 					{
 						if (currTar_Info->TarTagQ_Cnt != 0)
@@ -6041,21 +3284,21 @@ void sres(ULONG port, UCHAR p_card, PSCCBcard pCurrCard)
 								ACCEPT_MSG(port);    /*Release the ACK for ID msg. */
 
 
-								message = sfm(port,pCurrCard->currentSCCB);
+								message = FPT_sfm(port,pCurrCard->currentSCCB);
 								if (message)
 								{
 									ACCEPT_MSG(port);
 								}
 
 								else
-   								message = FALSE;
+   								message = 0;
 
-								if(message != FALSE)
+								if(message != 0)
 								{
-									tag = sfm(port,pCurrCard->currentSCCB);
+									tag = FPT_sfm(port,pCurrCard->currentSCCB);
 
 									if (!(tag)) 
-										message = FALSE;
+										message = 0;
 								}
 
 							} /*C.A. exists! */
@@ -6063,7 +3306,6 @@ void sres(ULONG port, UCHAR p_card, PSCCBcard pCurrCard)
 						} /*End Q cnt != 0 */
 
 					} /*End Tag cmds supported! */
-#endif /* !DOS */
 
 				} /*End valid ID message.  */
 
@@ -6078,7 +3320,7 @@ void sres(ULONG port, UCHAR p_card, PSCCBcard pCurrCard)
 			else
 			{
 
-				message = FALSE;
+				message = 0;
 			}
 		}
 		else
@@ -6091,49 +3333,47 @@ void sres(ULONG port, UCHAR p_card, PSCCBcard pCurrCard)
 
 			return;
 		}
-	
-#endif /* V302 */
 
-		if(message == FALSE)
+		if(message == 0)
 		{
 			msgRetryCount++;
 			if(msgRetryCount == 1)
 			{
-				SendMsg(port, SMPARITY);
+				FPT_SendMsg(port, SMPARITY);
 			}
 			else
 			{
-				SendMsg(port, SMDEV_RESET);
+				FPT_SendMsg(port, SMDEV_RESET);
 
-				sssyncv(port, our_target, NARROW_SCSI,currTar_Info);
+				FPT_sssyncv(port, our_target, NARROW_SCSI,currTar_Info);
 
-				if (sccbMgrTbl[p_card][our_target].TarEEValue & EE_SYNC_MASK) 
+				if (FPT_sccbMgrTbl[p_card][our_target].TarEEValue & EE_SYNC_MASK) 
 				{
 			
-					sccbMgrTbl[p_card][our_target].TarStatus &= ~TAR_SYNC_MASK;
+					FPT_sccbMgrTbl[p_card][our_target].TarStatus &= ~TAR_SYNC_MASK;
 
 				}
 
-				if (sccbMgrTbl[p_card][our_target].TarEEValue & EE_WIDE_SCSI) 
+				if (FPT_sccbMgrTbl[p_card][our_target].TarEEValue & EE_WIDE_SCSI) 
 				{
 
-					sccbMgrTbl[p_card][our_target].TarStatus &= ~TAR_WIDE_MASK;
+					FPT_sccbMgrTbl[p_card][our_target].TarStatus &= ~TAR_WIDE_MASK;
 				}
 
 
-				queueFlushTargSccb(p_card, our_target, SCCB_COMPLETE);
-				SccbMgrTableInitTarget(p_card,our_target);
+				FPT_queueFlushTargSccb(p_card, our_target, SCCB_COMPLETE);
+				FPT_SccbMgrTableInitTarget(p_card,our_target);
 				return;
 			}
 		}
-	}while(message == FALSE);
+	}while(message == 0);
 
 
 
 	if(((pCurrCard->globalFlags & F_CONLUN_IO) &&
 		((currTar_Info->TarStatus & TAR_TAG_Q_MASK) != TAG_Q_TRYING)))
 	{
-		currTar_Info->TarLUNBusy[lun] = TRUE;
+		currTar_Info->TarLUNBusy[lun] = 1;
 		pCurrCard->currentSCCB = pCurrCard->discQ_Tbl[currTar_Info->LunDiscQ_Idx[lun]];
 		if(pCurrCard->currentSCCB != NULL)
 		{
@@ -6146,7 +3386,7 @@ void sres(ULONG port, UCHAR p_card, PSCCBcard pCurrCard)
 	}
 	else
 	{
-		currTar_Info->TarLUNBusy[0] = TRUE;
+		currTar_Info->TarLUNBusy[0] = 1;
 
 
 		if (tag)
@@ -6182,7 +3422,7 @@ void sres(ULONG port, UCHAR p_card, PSCCBcard pCurrCard)
 		/* During Abort Tag command, the target could have got re-selected
 			and completed the command. Check the select Q and remove the CCB
 			if it is in the Select Q */
-			queueFindSccb(pCurrCard->currentSCCB, p_card);
+			FPT_queueFindSccb(pCurrCard->currentSCCB, p_card);
 		}
 	}
 
@@ -6192,106 +3432,7 @@ void sres(ULONG port, UCHAR p_card, PSCCBcard pCurrCard)
 	  (RD_HARPOON(port+hp_scsisig) & SCSI_BSY)) ;
 }
 
-#if defined(V302)
-
-#if defined(DOS)
-UCHAR GetTarLun(USHORT port, UCHAR p_card, UCHAR our_target, PSCCBcard pCurrCard, PUCHAR tag, PUCHAR lun)
-#else
-UCHAR GetTarLun(ULONG port, UCHAR p_card, UCHAR our_target, PSCCBcard pCurrCard, PUCHAR tag, PUCHAR lun)
-#endif
-{
-   UCHAR message;
-   PSCCBMgr_tar_info currTar_Info;
-
-
-	currTar_Info = &sccbMgrTbl[p_card][our_target];
-	*tag = 0;
-
-
-	while(!(RD_HARPOON(port+hp_scsisig) & SCSI_REQ))
-	{
-		if (! (RD_HARPOON(port+hp_scsisig) & SCSI_BSY))
-		{
-
-			WRW_HARPOON((port+hp_intstat), PHASE);
-			return(TRUE);
-		}
-	}
-
-	WRW_HARPOON((port+hp_intstat), PHASE);
-	if ((RD_HARPOON(port+hp_scsisig) & S_SCSI_PHZ) == S_MSGI_PH)
-	{
-
-		message = sfm(port,pCurrCard->currentSCCB);
-		if (message)
-		{
-
-			if (message <= (0x80 | LUN_MASK))
-			{
-				*lun = message & (UCHAR)LUN_MASK;
-
-#if !defined(DOS)
-				if ((currTar_Info->TarStatus & TAR_TAG_Q_MASK) == TAG_Q_TRYING)
-				{
-					if (currTar_Info->TarTagQ_Cnt != 0)
-					{
-
-						if (!(currTar_Info->TarLUN_CA))
-						{
-							ACCEPT_MSG(port);    /*Release the ACK for ID msg. */
-
-
-							message = sfm(port,pCurrCard->currentSCCB);
-							if (message)
-							{
-								ACCEPT_MSG(port);
-							}
-
-							else
-   							return(FALSE);
-
-							*tag = sfm(port,pCurrCard->currentSCCB);
-
-							if (!(*tag)) return(FALSE);
-
-						} /*C.A. exists! */
-
-					} /*End Q cnt != 0 */
-
-				} /*End Tag cmds supported! */
-#endif /* !DOS */
-
-			} /*End valid ID message.  */
-
-			else
-			{
-
-				ACCEPT_MSG_ATN(port);
-			}
-
-		} /* End good id message. */
-
-		else
-		{
-
-			return(FALSE);
-		}
-	}
-	else
-	{
-		ACCEPT_MSG_ATN(port);
-		return(TRUE);
-	}
-	return(TRUE);
-}
-
-#endif /* V302 */
-
-#if defined(DOS)
-void SendMsg(USHORT port, UCHAR message)
-#else
-void SendMsg(ULONG port, UCHAR message)
-#endif
+static void FPT_SendMsg(ULONG port, UCHAR message)
 {
 	while(!(RD_HARPOON(port+hp_scsisig) & SCSI_REQ))
 	{
@@ -6334,26 +3475,22 @@ void SendMsg(ULONG port, UCHAR message)
 
 /*---------------------------------------------------------------------
  *
- * Function: sdecm
+ * Function: FPT_sdecm
  *
  * Description: Determine the proper responce to the message from the
  *              target device.
  *
  *---------------------------------------------------------------------*/
-#if defined(DOS)
-void sdecm(UCHAR message, USHORT port, UCHAR p_card)
-#else
-void sdecm(UCHAR message, ULONG port, UCHAR p_card)
-#endif
+static void FPT_sdecm(UCHAR message, ULONG port, UCHAR p_card)
 {
 	PSCCB currSCCB;
 	PSCCBcard CurrCard;
 	PSCCBMgr_tar_info currTar_Info;
 
-	CurrCard = &BL_Card[p_card];
+	CurrCard = &FPT_BL_Card[p_card];
 	currSCCB = CurrCard->currentSCCB;
 
-	currTar_Info = &sccbMgrTbl[p_card][currSCCB->TargID];
+	currTar_Info = &FPT_sccbMgrTbl[p_card][currSCCB->TargID];
 
 	if (message == SMREST_DATA_PTR)
 	{
@@ -6361,7 +3498,7 @@ void sdecm(UCHAR message, ULONG port, UCHAR p_card)
 		{
 			currSCCB->Sccb_ATC = currSCCB->Sccb_savedATC;
 
-			hostDataXferRestart(currSCCB);
+			FPT_hostDataXferRestart(currSCCB);
 		}
 
 		ACCEPT_MSG(port);
@@ -6417,7 +3554,6 @@ void sdecm(UCHAR message, ULONG port, UCHAR p_card)
 					currTar_Info->TarEEValue &= ~EE_SYNC_MASK;
 				}
 
-#if defined(WIDE_SCSI)
 				else if ((currSCCB->Sccb_scsistat == SELECT_WN_ST))
 				{
 
@@ -6428,7 +3564,6 @@ void sdecm(UCHAR message, ULONG port, UCHAR p_card)
 					currTar_Info->TarEEValue &= ~EE_WIDE_SCSI;
 
 				}
-#endif
 
 				else if ((currTar_Info->TarStatus & TAR_TAG_Q_MASK) == TAG_Q_TRYING )
 				{
@@ -6460,9 +3595,9 @@ void sdecm(UCHAR message, ULONG port, UCHAR p_card)
 
 				if((CurrCard->globalFlags & F_CONLUN_IO) &&
 					((currTar_Info->TarStatus & TAR_TAG_Q_MASK) != TAG_Q_TRYING))
-					currTar_Info->TarLUNBusy[currSCCB->Lun] = TRUE;
+					currTar_Info->TarLUNBusy[currSCCB->Lun] = 1;
 				else
-					currTar_Info->TarLUNBusy[0] = TRUE;
+					currTar_Info->TarLUNBusy[0] = 1;
 
 
 				currSCCB->ControlByte &= ~(UCHAR)F_USE_CMD_Q;
@@ -6490,7 +3625,7 @@ void sdecm(UCHAR message, ULONG port, UCHAR p_card)
 	{
 
 		ACCEPT_MSG(port);
-		shandem(port,p_card,currSCCB);
+		FPT_shandem(port,p_card,currSCCB);
 	}
 
 	else if (message == SMIGNORWR)
@@ -6498,7 +3633,7 @@ void sdecm(UCHAR message, ULONG port, UCHAR p_card)
 
 		ACCEPT_MSG(port);          /* ACK the RESIDUE MSG */
 
-		message = sfm(port,currSCCB);
+		message = FPT_sfm(port,currSCCB);
 
 		if(currSCCB->Sccb_scsimsg != SMPARITY)
 			ACCEPT_MSG(port);
@@ -6520,25 +3655,21 @@ void sdecm(UCHAR message, ULONG port, UCHAR p_card)
 
 /*---------------------------------------------------------------------
  *
- * Function: shandem
+ * Function: FPT_shandem
  *
  * Description: Decide what to do with the extended message.
  *
  *---------------------------------------------------------------------*/
-#if defined(DOS)
-void shandem(USHORT port, UCHAR p_card, PSCCB pCurrSCCB)
-#else
-void shandem(ULONG port, UCHAR p_card, PSCCB pCurrSCCB)
-#endif
+static void FPT_shandem(ULONG port, UCHAR p_card, PSCCB pCurrSCCB)
 {
 	UCHAR length,message;
 
-	length = sfm(port,pCurrSCCB);
+	length = FPT_sfm(port,pCurrSCCB);
 	if (length) 
 	{
 
 		ACCEPT_MSG(port);
-		message = sfm(port,pCurrSCCB);
+		message = FPT_sfm(port,pCurrSCCB);
 		if (message) 
 		{
 
@@ -6549,7 +3680,7 @@ void shandem(ULONG port, UCHAR p_card, PSCCB pCurrSCCB)
 				{
 
 					ACCEPT_MSG(port);
-					stsyncn(port,p_card);
+					FPT_stsyncn(port,p_card);
 				}
 				else 
 				{
@@ -6558,7 +3689,6 @@ void shandem(ULONG port, UCHAR p_card, PSCCB pCurrSCCB)
 					ACCEPT_MSG_ATN(port);
 				}
 			}
-#if defined(WIDE_SCSI)
 			else if (message == SMWDTR) 
 			{
 
@@ -6566,7 +3696,7 @@ void shandem(ULONG port, UCHAR p_card, PSCCB pCurrSCCB)
 				{
 
 					ACCEPT_MSG(port);
-					stwidn(port,p_card);
+					FPT_stwidn(port,p_card);
 				}
 				else 
 				{
@@ -6577,7 +3707,6 @@ void shandem(ULONG port, UCHAR p_card, PSCCB pCurrSCCB)
 					WR_HARPOON(port+hp_autostart_1, (AUTO_IMMED+DISCONNECT_START));
 				}
 			}
-#endif
 			else 
 			{
 
@@ -6603,24 +3732,20 @@ void shandem(ULONG port, UCHAR p_card, PSCCB pCurrSCCB)
 
 /*---------------------------------------------------------------------
  *
- * Function: sisyncn
+ * Function: FPT_sisyncn
  *
  * Description: Read in a message byte from the SCSI bus, and check
  *              for a parity error.
  *
  *---------------------------------------------------------------------*/
 
-#if defined(DOS)
-UCHAR sisyncn(USHORT port, UCHAR p_card, UCHAR syncFlag)
-#else
-UCHAR sisyncn(ULONG port, UCHAR p_card, UCHAR syncFlag)
-#endif
+static UCHAR FPT_sisyncn(ULONG port, UCHAR p_card, UCHAR syncFlag)
 {
    PSCCB currSCCB;
    PSCCBMgr_tar_info currTar_Info;
 
-   currSCCB = BL_Card[p_card].currentSCCB;
-   currTar_Info = &sccbMgrTbl[p_card][currSCCB->TargID];
+   currSCCB = FPT_BL_Card[p_card].currentSCCB;
+   currTar_Info = &FPT_sccbMgrTbl[p_card][currSCCB->TargID];
 
    if (!((currTar_Info->TarStatus & TAR_SYNC_MASK) == SYNC_TRYING)) {
 
@@ -6656,7 +3781,7 @@ UCHAR sisyncn(ULONG port, UCHAR p_card, UCHAR syncFlag)
       WRW_HARPOON((port+SYNC_MSGS+12),(BRH_OP+ALWAYS+NP      ));
 
 
-		if(syncFlag == FALSE)
+		if(syncFlag == 0)
 		{
 		   WR_HARPOON(port+hp_autostart_3, (SELECT+SELCHK_STRT));
 	      currTar_Info->TarStatus = ((currTar_Info->TarStatus &
@@ -6668,14 +3793,14 @@ UCHAR sisyncn(ULONG port, UCHAR p_card, UCHAR syncFlag)
 		}
 
 
-      return(TRUE);
+      return(1);
       }
 
    else {
 
       currTar_Info->TarStatus |=	 (UCHAR)SYNC_SUPPORTED;
       currTar_Info->TarEEValue &= ~EE_SYNC_MASK;
-      return(FALSE);
+      return(0);
       }
 }
 
@@ -6683,26 +3808,22 @@ UCHAR sisyncn(ULONG port, UCHAR p_card, UCHAR syncFlag)
 
 /*---------------------------------------------------------------------
  *
- * Function: stsyncn
+ * Function: FPT_stsyncn
  *
  * Description: The has sent us a Sync Nego message so handle it as
  *              necessary.
  *
  *---------------------------------------------------------------------*/
-#if defined(DOS)
-void stsyncn(USHORT port, UCHAR p_card)
-#else
-void stsyncn(ULONG port, UCHAR p_card)
-#endif
+static void FPT_stsyncn(ULONG port, UCHAR p_card)
 {
    UCHAR sync_msg,offset,sync_reg,our_sync_msg;
    PSCCB currSCCB;
    PSCCBMgr_tar_info currTar_Info;
 
-   currSCCB = BL_Card[p_card].currentSCCB;
-   currTar_Info = &sccbMgrTbl[p_card][currSCCB->TargID];
+   currSCCB = FPT_BL_Card[p_card].currentSCCB;
+   currTar_Info = &FPT_sccbMgrTbl[p_card][currSCCB->TargID];
 
-   sync_msg = sfm(port,currSCCB);
+   sync_msg = FPT_sfm(port,currSCCB);
 
 	if((sync_msg == 0x00) && (currSCCB->Sccb_scsimsg == SMPARITY))
 	{
@@ -6713,7 +3834,7 @@ void stsyncn(ULONG port, UCHAR p_card)
    ACCEPT_MSG(port);
 
 
-   offset = sfm(port,currSCCB);
+   offset = FPT_sfm(port,currSCCB);
 
 	if((offset == 0x00) && (currSCCB->Sccb_scsimsg == SMPARITY))
 	{
@@ -6783,7 +3904,6 @@ void stsyncn(ULONG port, UCHAR p_card)
       }
 
 
-#if defined(WIDE_SCSI)
    if (currTar_Info->TarStatus & WIDE_ENABLED)
 
       sync_reg |= offset;
@@ -6792,11 +3912,7 @@ void stsyncn(ULONG port, UCHAR p_card)
 
       sync_reg |= (offset | NARROW_SCSI);
 
-#else
-   sync_reg |= (offset | NARROW_SCSI);
-#endif
-
-   sssyncv(port,currSCCB->TargID,sync_reg,currTar_Info);
+   FPT_sssyncv(port,currSCCB->TargID,sync_reg,currTar_Info);
 
 
    if (currSCCB->Sccb_scsistat == SELECT_SN_ST) {
@@ -6815,7 +3931,7 @@ void stsyncn(ULONG port, UCHAR p_card)
 
       ACCEPT_MSG_ATN(port);
 
-      sisyncr(port,sync_msg,offset);
+      FPT_sisyncr(port,sync_msg,offset);
 
       currTar_Info->TarStatus = ((currTar_Info->TarStatus &
          ~(UCHAR)TAR_SYNC_MASK) | (UCHAR)SYNC_SUPPORTED);
@@ -6825,16 +3941,12 @@ void stsyncn(ULONG port, UCHAR p_card)
 
 /*---------------------------------------------------------------------
  *
- * Function: sisyncr
+ * Function: FPT_sisyncr
  *
  * Description: Answer the targets sync message.
  *
  *---------------------------------------------------------------------*/
-#if defined(DOS)
-void sisyncr(USHORT port,UCHAR sync_pulse, UCHAR offset)
-#else
-void sisyncr(ULONG port,UCHAR sync_pulse, UCHAR offset)
-#endif
+static void FPT_sisyncr(ULONG port,UCHAR sync_pulse, UCHAR offset)
 {
    ARAM_ACCESS(port);
    WRW_HARPOON((port+SYNC_MSGS+0), (MPM_OP+AMSG_OUT+SMEXT ));
@@ -6856,28 +3968,22 @@ void sisyncr(ULONG port,UCHAR sync_pulse, UCHAR offset)
 
 
 
-#if defined(WIDE_SCSI)
-
 /*---------------------------------------------------------------------
  *
- * Function: siwidn
+ * Function: FPT_siwidn
  *
  * Description: Read in a message byte from the SCSI bus, and check
  *              for a parity error.
  *
  *---------------------------------------------------------------------*/
 
-#if defined(DOS)
-UCHAR siwidn(USHORT port, UCHAR p_card)
-#else
-UCHAR siwidn(ULONG port, UCHAR p_card)
-#endif
+static UCHAR FPT_siwidn(ULONG port, UCHAR p_card)
 {
    PSCCB currSCCB;
    PSCCBMgr_tar_info currTar_Info;
 
-   currSCCB = BL_Card[p_card].currentSCCB;
-   currTar_Info = &sccbMgrTbl[p_card][currSCCB->TargID];
+   currSCCB = FPT_BL_Card[p_card].currentSCCB;
+   currTar_Info = &FPT_sccbMgrTbl[p_card][currSCCB->TargID];
 
    if (!((currTar_Info->TarStatus & TAR_WIDE_MASK) == WIDE_NEGOCIATED)) {
 
@@ -6900,7 +4006,7 @@ UCHAR siwidn(ULONG port, UCHAR p_card)
       currTar_Info->TarStatus = ((currTar_Info->TarStatus &
          ~(UCHAR)TAR_WIDE_MASK) | (UCHAR)WIDE_ENABLED);
 
-      return(TRUE);
+      return(1);
       }
 
    else {
@@ -6909,7 +4015,7 @@ UCHAR siwidn(ULONG port, UCHAR p_card)
                ~(UCHAR)TAR_WIDE_MASK) | WIDE_NEGOCIATED);
 
       currTar_Info->TarEEValue &= ~EE_WIDE_SCSI;
-      return(FALSE);
+      return(0);
       }
 }
 
@@ -6917,26 +4023,22 @@ UCHAR siwidn(ULONG port, UCHAR p_card)
 
 /*---------------------------------------------------------------------
  *
- * Function: stwidn
+ * Function: FPT_stwidn
  *
  * Description: The has sent us a Wide Nego message so handle it as
  *              necessary.
  *
  *---------------------------------------------------------------------*/
-#if defined(DOS)
-void stwidn(USHORT port, UCHAR p_card)
-#else
-void stwidn(ULONG port, UCHAR p_card)
-#endif
+static void FPT_stwidn(ULONG port, UCHAR p_card)
 {
    UCHAR width;
    PSCCB currSCCB;
    PSCCBMgr_tar_info currTar_Info;
 
-   currSCCB = BL_Card[p_card].currentSCCB;
-   currTar_Info = &sccbMgrTbl[p_card][currSCCB->TargID];
+   currSCCB = FPT_BL_Card[p_card].currentSCCB;
+   currTar_Info = &FPT_sccbMgrTbl[p_card][currSCCB->TargID];
 
-   width = sfm(port,currSCCB);
+   width = FPT_sfm(port,currSCCB);
 
 	if((width == 0x00) && (currSCCB->Sccb_scsimsg == SMPARITY))
 	{
@@ -6958,7 +4060,7 @@ void stwidn(ULONG port, UCHAR p_card)
       }
 
 
-   sssyncv(port,currSCCB->TargID,width,currTar_Info);
+   FPT_sssyncv(port,currSCCB->TargID,width,currTar_Info);
 
 
    if (currSCCB->Sccb_scsistat == SELECT_WN_ST)
@@ -6972,7 +4074,7 @@ void stwidn(ULONG port, UCHAR p_card)
 		{
 	      ACCEPT_MSG_ATN(port);
 		   ARAM_ACCESS(port);
-	     	sisyncn(port,p_card, TRUE);
+	     	FPT_sisyncn(port,p_card, 1);
 	      currSCCB->Sccb_scsistat = SELECT_SN_ST;
 		   SGRAM_ACCESS(port);
 		}
@@ -6993,7 +4095,7 @@ void stwidn(ULONG port, UCHAR p_card)
       else
       	 width = SM8BIT;
 
-      siwidr(port,width);
+      FPT_siwidr(port,width);
 
       currTar_Info->TarStatus |= (WIDE_NEGOCIATED | WIDE_ENABLED);
       }
@@ -7002,16 +4104,12 @@ void stwidn(ULONG port, UCHAR p_card)
 
 /*---------------------------------------------------------------------
  *
- * Function: siwidr
+ * Function: FPT_siwidr
  *
  * Description: Answer the targets Wide nego message.
  *
  *---------------------------------------------------------------------*/
-#if defined(DOS)
-void siwidr(USHORT port, UCHAR width)
-#else
-void siwidr(ULONG port, UCHAR width)
-#endif
+static void FPT_siwidr(ULONG port, UCHAR width)
 {
    ARAM_ACCESS(port);
    WRW_HARPOON((port+SYNC_MSGS+0), (MPM_OP+AMSG_OUT+SMEXT ));
@@ -7030,23 +4128,18 @@ void siwidr(ULONG port, UCHAR width)
    while (!(RDW_HARPOON((port+hp_intstat)) & (BUS_FREE | AUTO_INT))) {}
 }
 
-#endif
-
 
 
 /*---------------------------------------------------------------------
  *
- * Function: sssyncv
+ * Function: FPT_sssyncv
  *
  * Description: Write the desired value to the Sync Register for the
  *              ID specified.
  *
  *---------------------------------------------------------------------*/
-#if defined(DOS)
-void sssyncv(USHORT p_port, UCHAR p_id, UCHAR p_sync_value,PSCCBMgr_tar_info currTar_Info)
-#else
-void sssyncv(ULONG p_port, UCHAR p_id, UCHAR p_sync_value,PSCCBMgr_tar_info currTar_Info)
-#endif
+static void FPT_sssyncv(ULONG p_port, UCHAR p_id, UCHAR p_sync_value,
+			PSCCBMgr_tar_info currTar_Info)
 {
    UCHAR index;
 
@@ -7112,16 +4205,12 @@ void sssyncv(ULONG p_port, UCHAR p_id, UCHAR p_sync_value,PSCCBMgr_tar_info curr
 
 /*---------------------------------------------------------------------
  *
- * Function: sresb
+ * Function: FPT_sresb
  *
  * Description: Reset the desired card's SCSI bus.
  *
  *---------------------------------------------------------------------*/
-#if defined(DOS)
-void sresb(USHORT port, UCHAR p_card)
-#else
-void sresb(ULONG port, UCHAR p_card)
-#endif
+static void FPT_sresb(ULONG port, UCHAR p_card)
 {
    UCHAR scsiID, i;
 
@@ -7145,7 +4234,7 @@ void sresb(ULONG port, UCHAR p_card)
 
    WR_HARPOON(port+hp_scsictrl_0, ENA_SCAM_SEL);
 
-   Wait(port, TO_5ms);
+   FPT_Wait(port, TO_5ms);
 
    WRW_HARPOON((port+hp_intstat), CLR_ALL_INT);
 
@@ -7153,7 +4242,7 @@ void sresb(ULONG port, UCHAR p_card)
 
    for (scsiID = 0; scsiID < MAX_SCSI_TAR; scsiID++)
       {
-      currTar_Info = &sccbMgrTbl[p_card][scsiID];
+      currTar_Info = &FPT_sccbMgrTbl[p_card][scsiID];
 
       if (currTar_Info->TarEEValue & EE_SYNC_MASK)
          {
@@ -7166,21 +4255,21 @@ void sresb(ULONG port, UCHAR p_card)
       	currTar_Info->TarStatus &= ~TAR_WIDE_MASK;
       	}
 
-      sssyncv(port, scsiID, NARROW_SCSI,currTar_Info);
+      FPT_sssyncv(port, scsiID, NARROW_SCSI,currTar_Info);
 
-      SccbMgrTableInitTarget(p_card, scsiID);
+      FPT_SccbMgrTableInitTarget(p_card, scsiID);
       }
 
-   BL_Card[p_card].scanIndex = 0x00;
-   BL_Card[p_card].currentSCCB = NULL;
-   BL_Card[p_card].globalFlags &= ~(F_TAG_STARTED | F_HOST_XFER_ACT 
+   FPT_BL_Card[p_card].scanIndex = 0x00;
+   FPT_BL_Card[p_card].currentSCCB = NULL;
+   FPT_BL_Card[p_card].globalFlags &= ~(F_TAG_STARTED | F_HOST_XFER_ACT 
 													| F_NEW_SCCB_CMD);
-   BL_Card[p_card].cmdCounter  = 0x00;
-	BL_Card[p_card].discQCount = 0x00;
-   BL_Card[p_card].tagQ_Lst = 0x01; 
+   FPT_BL_Card[p_card].cmdCounter  = 0x00;
+	FPT_BL_Card[p_card].discQCount = 0x00;
+   FPT_BL_Card[p_card].tagQ_Lst = 0x01; 
 
 	for(i = 0; i < QUEUE_DEPTH; i++)
-		BL_Card[p_card].discQ_Tbl[i] = NULL;
+		FPT_BL_Card[p_card].discQ_Tbl[i] = NULL;
 
    WR_HARPOON(port+hp_page_ctrl,
       (RD_HARPOON(port+hp_page_ctrl) & ~G_INT_DISABLE));
@@ -7189,12 +4278,12 @@ void sresb(ULONG port, UCHAR p_card)
 
 /*---------------------------------------------------------------------
  *
- * Function: ssenss
+ * Function: FPT_ssenss
  *
  * Description: Setup for the Auto Sense command.
  *
  *---------------------------------------------------------------------*/
-void ssenss(PSCCBcard pCurrCard)
+static void FPT_ssenss(PSCCBcard pCurrCard)
 {
    UCHAR i;
    PSCCB currSCCB;
@@ -7236,27 +4325,23 @@ void ssenss(PSCCBcard pCurrCard)
 
 /*---------------------------------------------------------------------
  *
- * Function: sxfrp
+ * Function: FPT_sxfrp
  *
  * Description: Transfer data into the bit bucket until the device
  *              decides to switch phase.
  *
  *---------------------------------------------------------------------*/
 
-#if defined(DOS)
-void sxfrp(USHORT p_port, UCHAR p_card)
-#else
-void sxfrp(ULONG p_port, UCHAR p_card)
-#endif
+static void FPT_sxfrp(ULONG p_port, UCHAR p_card)
 {
    UCHAR curr_phz;
 
 
    DISABLE_AUTO(p_port);
 
-   if (BL_Card[p_card].globalFlags & F_HOST_XFER_ACT) {
+   if (FPT_BL_Card[p_card].globalFlags & F_HOST_XFER_ACT) {
 
-      hostDataXferAbort(p_port,p_card,BL_Card[p_card].currentSCCB);
+      FPT_hostDataXferAbort(p_port,p_card,FPT_BL_Card[p_card].currentSCCB);
 
       }
 
@@ -7322,25 +4407,21 @@ void sxfrp(ULONG p_port, UCHAR p_card)
 
 /*---------------------------------------------------------------------
  *
- * Function: schkdd
+ * Function: FPT_schkdd
  *
  * Description: Make sure data has been flushed from both FIFOs and abort
  *              the operations if necessary.
  *
  *---------------------------------------------------------------------*/
 
-#if defined(DOS)
-void schkdd(USHORT port, UCHAR p_card)
-#else
-void schkdd(ULONG port, UCHAR p_card)
-#endif
+static void FPT_schkdd(ULONG port, UCHAR p_card)
 {
    USHORT TimeOutLoop;
 	UCHAR sPhase;
 
    PSCCB currSCCB;
 
-   currSCCB = BL_Card[p_card].currentSCCB;
+   currSCCB = FPT_BL_Card[p_card].currentSCCB;
 
 
    if ((currSCCB->Sccb_scsistat != DATA_OUT_ST) &&
@@ -7378,7 +4459,7 @@ void schkdd(ULONG port, UCHAR p_card)
       }
 
 
-   hostDataXferAbort(port,p_card,currSCCB);
+   FPT_hostDataXferAbort(port,p_card,currSCCB);
 
 
    while (RD_HARPOON(port+hp_scsisig) & SCSI_ACK) {}
@@ -7412,21 +4493,21 @@ void schkdd(ULONG port, UCHAR p_card)
 	   if (!(currSCCB->Sccb_XferState & F_ALL_XFERRED))
          {
 	      if (currSCCB->Sccb_XferState & F_HOST_XFER_DIR) {
-	         phaseDataIn(port,p_card);
+	         FPT_phaseDataIn(port,p_card);
 	      	}
 
 	   	else {
-	       phaseDataOut(port,p_card);
+	       FPT_phaseDataOut(port,p_card);
 	       	}
 	   	}
 		else
       	{
-	   	sxfrp(port,p_card);
+	   	FPT_sxfrp(port,p_card);
 	   	if (!(RDW_HARPOON((port+hp_intstat)) &
 		      (BUS_FREE | ICMD_COMP | ITAR_DISC | RESET)))
          {
    		WRW_HARPOON((port+hp_intstat), AUTO_INT);
-		   phaseDecode(port,p_card);
+		   FPT_phaseDecode(port,p_card);
 		   }
 	   }
 
@@ -7440,13 +4521,13 @@ void schkdd(ULONG port, UCHAR p_card)
 
 /*---------------------------------------------------------------------
  *
- * Function: sinits
+ * Function: FPT_sinits
  *
  * Description: Setup SCCB manager fields in this SCCB.
  *
  *---------------------------------------------------------------------*/
 
-void sinits(PSCCB p_sccb, UCHAR p_card)
+static void FPT_sinits(PSCCB p_sccb, UCHAR p_card)
 {
    PSCCBMgr_tar_info currTar_Info;
 
@@ -7454,7 +4535,7 @@ void sinits(PSCCB p_sccb, UCHAR p_card)
 	{
 		return;
 	}
-   currTar_Info = &sccbMgrTbl[p_card][p_sccb->TargID];
+   currTar_Info = &FPT_sccbMgrTbl[p_card][p_sccb->TargID];
 
    p_sccb->Sccb_XferState     = 0x00;
    p_sccb->Sccb_XferCnt       = p_sccb->DataLength;
@@ -7485,7 +4566,7 @@ void sinits(PSCCB p_sccb, UCHAR p_card)
 	else send Cmd with Disconnect Disable */
 
 /*
-   if (((!(BL_Card[p_card].globalFlags & F_SINGLE_DEVICE)) &&
+   if (((!(FPT_BL_Card[p_card].globalFlags & F_SINGLE_DEVICE)) &&
       (currTar_Info->TarStatus & TAR_ALLOW_DISC)) ||
       (currTar_Info->TarStatus & TAG_Q_TRYING)) {
 */
@@ -7518,55 +4599,6 @@ void sinits(PSCCB p_sccb, UCHAR p_card)
 }
 
 
-#ident "$Id: phase.c 1.11 1997/01/31 02:08:49 mohan Exp $"
-/*----------------------------------------------------------------------
- *
- *
- *   Copyright 1995-1996 by Mylex Corporation.  All Rights Reserved
- *
- *   This file is available under both the GNU General Public License
- *   and a BSD-style copyright; see LICENSE.FlashPoint for details.
- *
- *   $Workfile:   phase.c  $
- *
- *   Description:  Functions to initially handle the SCSI bus phase when
- *                 the target asserts request (and the automation is not
- *                 enabled to handle the situation).
- *
- *   $Date: 1997/01/31 02:08:49 $
- *
- *   $Revision: 1.11 $
- *
- *----------------------------------------------------------------------*/
-
-/*#include <globals.h>*/
-
-#if (FW_TYPE==_UCB_MGR_)
-	/*#include <budi.h>*/
-#endif
-
-/*#include <sccbmgr.h>*/
-/*#include <blx30.h>*/
-/*#include <target.h>*/
-/*#include <scsi2.h>*/
-/*#include <harpoon.h>*/
-
-
-/*
-extern SCCBCARD BL_Card[MAX_CARDS];
-extern SCCBMGR_TAR_INFO sccbMgrTbl[MAX_CARDS][MAX_SCSI_TAR];
-
-#if defined(OS2)
-   extern void (far *s_PhaseTbl[8]) (ULONG, UCHAR);
-#else
-   #if defined(DOS)
-      extern void (*s_PhaseTbl[8]) (USHORT, UCHAR);
-   #else
-      extern void (*s_PhaseTbl[8]) (ULONG, UCHAR);
-   #endif
-#endif
-*/
-
 /*---------------------------------------------------------------------
  *
  * Function: Phase Decode
@@ -7575,29 +4607,17 @@ extern SCCBMGR_TAR_INFO sccbMgrTbl[MAX_CARDS][MAX_SCSI_TAR];
  *
  *---------------------------------------------------------------------*/
 
-#if defined(DOS)
-void phaseDecode(USHORT p_port, UCHAR p_card)
-#else
-void phaseDecode(ULONG p_port, UCHAR p_card)
-#endif
+static void FPT_phaseDecode(ULONG p_port, UCHAR p_card)
 {
    unsigned char phase_ref;
-#if defined(OS2)
-   void (far *phase) (ULONG, UCHAR);
-#else
-   #if defined(DOS)
-      void (*phase) (USHORT, UCHAR);
-   #else
-      void (*phase) (ULONG, UCHAR);
-   #endif
-#endif
+   void (*phase) (ULONG, UCHAR);
 
 
    DISABLE_AUTO(p_port);
 
    phase_ref = (UCHAR) (RD_HARPOON(p_port+hp_scsisig) & S_SCSI_PHZ);
 
-   phase = s_PhaseTbl[phase_ref];
+   phase = FPT_s_PhaseTbl[phase_ref];
 
    (*phase)(p_port, p_card);           /* Call the correct phase func */
 }
@@ -7612,20 +4632,12 @@ void phaseDecode(ULONG p_port, UCHAR p_card)
  *
  *---------------------------------------------------------------------*/
 
-#if defined(OS2)
-void far phaseDataOut(ULONG port, UCHAR p_card)
-#else
-#if defined(DOS)
-void phaseDataOut(USHORT port, UCHAR p_card)
-#else
-void phaseDataOut(ULONG port, UCHAR p_card)
-#endif
-#endif
+static void FPT_phaseDataOut(ULONG port, UCHAR p_card)
 {
 
    PSCCB currSCCB;
 
-   currSCCB = BL_Card[p_card].currentSCCB;
+   currSCCB = FPT_BL_Card[p_card].currentSCCB;
    if (currSCCB == NULL)
       {
       return;  /* Exit if No SCCB record */
@@ -7640,14 +4652,7 @@ void phaseDataOut(ULONG port, UCHAR p_card)
 
    WR_HARPOON(port+hp_autostart_0, (END_DATA+END_DATA_START));
 
-   dataXferProcessor(port, &BL_Card[p_card]);
-
-#if defined(NOBUGBUG)
-   if (RDW_HARPOON((port+hp_intstat)) & XFER_CNT_0)
-      WRW_HARPOON((port+hp_intstat), XFER_CNT_0);
-
-#endif
-
+   FPT_dataXferProcessor(port, &FPT_BL_Card[p_card]);
 
    if (currSCCB->Sccb_XferCnt == 0) {
 
@@ -7656,9 +4661,9 @@ void phaseDataOut(ULONG port, UCHAR p_card)
 	 (currSCCB->HostStatus == SCCB_COMPLETE))
 	 currSCCB->HostStatus = SCCB_DATA_OVER_RUN;
 
-      sxfrp(port,p_card);
+      FPT_sxfrp(port,p_card);
       if (!(RDW_HARPOON((port+hp_intstat)) & (BUS_FREE | RESET)))
-	    phaseDecode(port,p_card);
+	    FPT_phaseDecode(port,p_card);
       }
 }
 
@@ -7671,20 +4676,12 @@ void phaseDataOut(ULONG port, UCHAR p_card)
  *
  *---------------------------------------------------------------------*/
 
-#if defined(OS2)
-void far phaseDataIn(ULONG port, UCHAR p_card)
-#else
-#if defined(DOS)
-void phaseDataIn(USHORT port, UCHAR p_card)
-#else
-void phaseDataIn(ULONG port, UCHAR p_card)
-#endif
-#endif
+static void FPT_phaseDataIn(ULONG port, UCHAR p_card)
 {
 
    PSCCB currSCCB;
 
-   currSCCB = BL_Card[p_card].currentSCCB;
+   currSCCB = FPT_BL_Card[p_card].currentSCCB;
 
    if (currSCCB == NULL)
       {
@@ -7702,7 +4699,7 @@ void phaseDataIn(ULONG port, UCHAR p_card)
 
    WR_HARPOON(port+hp_autostart_0, (END_DATA+END_DATA_START));
 
-   dataXferProcessor(port, &BL_Card[p_card]);
+   FPT_dataXferProcessor(port, &FPT_BL_Card[p_card]);
 
    if (currSCCB->Sccb_XferCnt == 0) {
 
@@ -7711,9 +4708,9 @@ void phaseDataIn(ULONG port, UCHAR p_card)
 	 (currSCCB->HostStatus == SCCB_COMPLETE))
 	 currSCCB->HostStatus = SCCB_DATA_OVER_RUN;
 
-      sxfrp(port,p_card);
+      FPT_sxfrp(port,p_card);
       if (!(RDW_HARPOON((port+hp_intstat)) & (BUS_FREE | RESET)))
-	    phaseDecode(port,p_card);
+	    FPT_phaseDecode(port,p_card);
 
       }
 }
@@ -7726,25 +4723,13 @@ void phaseDataIn(ULONG port, UCHAR p_card)
  *
  *---------------------------------------------------------------------*/
 
-#if defined(OS2)
-void far phaseCommand(ULONG p_port, UCHAR p_card)
-#else
-#if defined(DOS)
-void phaseCommand(USHORT p_port, UCHAR p_card)
-#else
-void phaseCommand(ULONG p_port, UCHAR p_card)
-#endif
-#endif
+static void FPT_phaseCommand(ULONG p_port, UCHAR p_card)
 {
    PSCCB currSCCB;
-#if defined(DOS)
-   USHORT cdb_reg;
-#else
    ULONG cdb_reg;
-#endif
    UCHAR i;
 
-   currSCCB = BL_Card[p_card].currentSCCB;
+   currSCCB = FPT_BL_Card[p_card].currentSCCB;
 
    if (currSCCB->OperationCode == RESET_COMMAND) {
 
@@ -7790,15 +4775,7 @@ void phaseCommand(ULONG p_port, UCHAR p_card)
  *
  *---------------------------------------------------------------------*/
 
-#if defined(OS2)
-void far phaseStatus(ULONG port, UCHAR p_card)
-#else
-#if defined(DOS)
-void phaseStatus(USHORT port, UCHAR p_card)
-#else
-void phaseStatus(ULONG port, UCHAR p_card)
-#endif
-#endif
+static void FPT_phaseStatus(ULONG port, UCHAR p_card)
 {
    /* Start-up the automation to finish off this command and let the
       isr handle the interrupt for command complete when it comes in.
@@ -7820,21 +4797,13 @@ void phaseStatus(ULONG port, UCHAR p_card)
  *
  *---------------------------------------------------------------------*/
 
-#if defined(OS2)
-void far phaseMsgOut(ULONG port, UCHAR p_card)
-#else
-#if defined(DOS)
-void phaseMsgOut(USHORT port, UCHAR p_card)
-#else
-void phaseMsgOut(ULONG port, UCHAR p_card)
-#endif
-#endif
+static void FPT_phaseMsgOut(ULONG port, UCHAR p_card)
 {
 	UCHAR message,scsiID;
 	PSCCB currSCCB;
 	PSCCBMgr_tar_info currTar_Info;
 
-	currSCCB = BL_Card[p_card].currentSCCB;
+	currSCCB = FPT_BL_Card[p_card].currentSCCB;
 
 	if (currSCCB != NULL) {
 
@@ -7845,34 +4814,34 @@ void phaseMsgOut(ULONG port, UCHAR p_card)
 		{
 
 
-			currTar_Info = &sccbMgrTbl[p_card][scsiID];
+			currTar_Info = &FPT_sccbMgrTbl[p_card][scsiID];
 			currTar_Info->TarSyncCtrl = 0;
-			sssyncv(port, scsiID, NARROW_SCSI,currTar_Info);
+			FPT_sssyncv(port, scsiID, NARROW_SCSI,currTar_Info);
 
-			if (sccbMgrTbl[p_card][scsiID].TarEEValue & EE_SYNC_MASK) 
+			if (FPT_sccbMgrTbl[p_card][scsiID].TarEEValue & EE_SYNC_MASK) 
 			{
 
-				sccbMgrTbl[p_card][scsiID].TarStatus &= ~TAR_SYNC_MASK;
+				FPT_sccbMgrTbl[p_card][scsiID].TarStatus &= ~TAR_SYNC_MASK;
 
 			}
 
-			if (sccbMgrTbl[p_card][scsiID].TarEEValue & EE_WIDE_SCSI) 
+			if (FPT_sccbMgrTbl[p_card][scsiID].TarEEValue & EE_WIDE_SCSI) 
 			{
 
-				sccbMgrTbl[p_card][scsiID].TarStatus &= ~TAR_WIDE_MASK;
+				FPT_sccbMgrTbl[p_card][scsiID].TarStatus &= ~TAR_WIDE_MASK;
 			}
 
 
-			queueFlushSccb(p_card,SCCB_COMPLETE);
-			SccbMgrTableInitTarget(p_card,scsiID);
+			FPT_queueFlushSccb(p_card,SCCB_COMPLETE);
+			FPT_SccbMgrTableInitTarget(p_card,scsiID);
 		}
 		else if (currSCCB->Sccb_scsistat == ABORT_ST)
 		{
 			currSCCB->HostStatus = SCCB_COMPLETE;
-			if(BL_Card[p_card].discQ_Tbl[currSCCB->Sccb_tag] != NULL)
+			if(FPT_BL_Card[p_card].discQ_Tbl[currSCCB->Sccb_tag] != NULL)
 			{
-				BL_Card[p_card].discQ_Tbl[currSCCB->Sccb_tag] = NULL;
-				sccbMgrTbl[p_card][scsiID].TarTagQ_Cnt--;
+				FPT_BL_Card[p_card].discQ_Tbl[currSCCB->Sccb_tag] = NULL;
+				FPT_sccbMgrTbl[p_card][scsiID].TarTagQ_Cnt--;
 			}
 					
 		}
@@ -7885,7 +4854,7 @@ void phaseMsgOut(ULONG port, UCHAR p_card)
 			{
 				currSCCB->Sccb_MGRFlags |= F_DEV_SELECTED;
 		
-				ssel(port,p_card);
+				FPT_ssel(port,p_card);
 				return;
 			}
 		}
@@ -7895,7 +4864,7 @@ void phaseMsgOut(ULONG port, UCHAR p_card)
 
 			if (message == SMABORT)
 
-				queueFlushSccb(p_card,SCCB_COMPLETE);
+				FPT_queueFlushSccb(p_card,SCCB_COMPLETE);
 		}
 
 	}
@@ -7930,25 +4899,25 @@ void phaseMsgOut(ULONG port, UCHAR p_card)
 			if (currSCCB != NULL) 
 			{
 
-				if((BL_Card[p_card].globalFlags & F_CONLUN_IO) &&
-					((sccbMgrTbl[p_card][currSCCB->TargID].TarStatus & TAR_TAG_Q_MASK) != TAG_Q_TRYING))
-					sccbMgrTbl[p_card][currSCCB->TargID].TarLUNBusy[currSCCB->Lun] = FALSE;
+				if((FPT_BL_Card[p_card].globalFlags & F_CONLUN_IO) &&
+					((FPT_sccbMgrTbl[p_card][currSCCB->TargID].TarStatus & TAR_TAG_Q_MASK) != TAG_Q_TRYING))
+					FPT_sccbMgrTbl[p_card][currSCCB->TargID].TarLUNBusy[currSCCB->Lun] = 0;
 				else
-					sccbMgrTbl[p_card][currSCCB->TargID].TarLUNBusy[0] = FALSE;
+					FPT_sccbMgrTbl[p_card][currSCCB->TargID].TarLUNBusy[0] = 0;
 
-				queueCmdComplete(&BL_Card[p_card],currSCCB, p_card);
+				FPT_queueCmdComplete(&FPT_BL_Card[p_card],currSCCB, p_card);
 			}
 
 			else 
 			{
-				BL_Card[p_card].globalFlags |= F_NEW_SCCB_CMD;
+				FPT_BL_Card[p_card].globalFlags |= F_NEW_SCCB_CMD;
 			}
 		}
 
 		else 
 		{
 
-			sxfrp(port,p_card);
+			FPT_sxfrp(port,p_card);
 		}
 	}
 
@@ -7962,7 +4931,7 @@ void phaseMsgOut(ULONG port, UCHAR p_card)
 		}
 		else
 		{
-			sxfrp(port,p_card);
+			FPT_sxfrp(port,p_card);
 		}
 	}
 }
@@ -7976,25 +4945,17 @@ void phaseMsgOut(ULONG port, UCHAR p_card)
  *
  *---------------------------------------------------------------------*/
 
-#if defined(OS2)
-void far phaseMsgIn(ULONG port, UCHAR p_card)
-#else
-#if defined(DOS)
-void phaseMsgIn(USHORT port, UCHAR p_card)
-#else
-void phaseMsgIn(ULONG port, UCHAR p_card)
-#endif
-#endif
+static void FPT_phaseMsgIn(ULONG port, UCHAR p_card)
 {
 	UCHAR message;
 	PSCCB currSCCB;
 
-	currSCCB = BL_Card[p_card].currentSCCB;
+	currSCCB = FPT_BL_Card[p_card].currentSCCB;
 
-	if (BL_Card[p_card].globalFlags & F_HOST_XFER_ACT) 
+	if (FPT_BL_Card[p_card].globalFlags & F_HOST_XFER_ACT) 
 	{
 
-		phaseChkFifo(port, p_card);
+		FPT_phaseChkFifo(port, p_card);
 	}
 
 	message = RD_HARPOON(port+hp_scsidata_0);
@@ -8008,12 +4969,12 @@ void phaseMsgIn(ULONG port, UCHAR p_card)
 	else 
 	{
 
-		message = sfm(port,currSCCB);
+		message = FPT_sfm(port,currSCCB);
 		if (message) 
 		{
 
 
-			sdecm(message,port,p_card);
+			FPT_sdecm(message,port,p_card);
 
 		}
 		else
@@ -8037,19 +4998,11 @@ void phaseMsgIn(ULONG port, UCHAR p_card)
  *
  *---------------------------------------------------------------------*/
 
-#if defined(OS2)
-void far phaseIllegal(ULONG port, UCHAR p_card)
-#else
-#if defined(DOS)
-void phaseIllegal(USHORT port, UCHAR p_card)
-#else
-void phaseIllegal(ULONG port, UCHAR p_card)
-#endif
-#endif
+static void FPT_phaseIllegal(ULONG port, UCHAR p_card)
 {
    PSCCB currSCCB;
 
-   currSCCB = BL_Card[p_card].currentSCCB;
+   currSCCB = FPT_BL_Card[p_card].currentSCCB;
 
    WR_HARPOON(port+hp_scsisig, RD_HARPOON(port+hp_scsisig));
    if (currSCCB != NULL) {
@@ -8073,16 +5026,12 @@ void phaseIllegal(ULONG port, UCHAR p_card)
  *
  *---------------------------------------------------------------------*/
 
-#if defined(DOS)
-void phaseChkFifo(USHORT port, UCHAR p_card)
-#else
-void phaseChkFifo(ULONG port, UCHAR p_card)
-#endif
+static void FPT_phaseChkFifo(ULONG port, UCHAR p_card)
 {
    ULONG xfercnt;
    PSCCB currSCCB;
 
-   currSCCB = BL_Card[p_card].currentSCCB;
+   currSCCB = FPT_BL_Card[p_card].currentSCCB;
 
    if (currSCCB->Sccb_scsistat == DATA_IN_ST)
       {
@@ -8104,9 +5053,9 @@ void phaseChkFifo(ULONG port, UCHAR p_card)
 	         WRW_HARPOON((port+hp_intstat), PARITY);
 	         }
 
-	      hostDataXferAbort(port,p_card,currSCCB);
+	      FPT_hostDataXferAbort(port,p_card,currSCCB);
 
-	      dataXferProcessor(port, &BL_Card[p_card]);
+	      FPT_dataXferProcessor(port, &FPT_BL_Card[p_card]);
 
 	      while((!(RD_HARPOON(port+hp_xferstat) & FIFO_EMPTY)) &&
 	         (RD_HARPOON(port+hp_ext_status) & BM_CMD_BUSY)) {}
@@ -8116,22 +5065,7 @@ void phaseChkFifo(ULONG port, UCHAR p_card)
 
 
 
-#if defined(DOS)
-   asm { mov dx,port;
-      add dx,hp_xfercnt_2;
-      in  al,dx;
-      dec dx;
-      xor ah,ah;
-      mov word ptr xfercnt+2,ax;
-      in  al,dx;
-      dec dx;
-      mov ah,al;
-      in  al,dx;
-      mov word ptr xfercnt,ax;
-      }
-#else
    GET_XFER_CNT(port,xfercnt);
-#endif
 
 
    WR_HARPOON(port+hp_xfercnt_0, 0x00);
@@ -8151,7 +5085,7 @@ void phaseChkFifo(ULONG port, UCHAR p_card)
       }
 
 
-   hostDataXferAbort(port,p_card,currSCCB);
+   FPT_hostDataXferAbort(port,p_card,currSCCB);
 
 
    WR_HARPOON(port+hp_fifowrite, 0x00);
@@ -8170,15 +5104,11 @@ void phaseChkFifo(ULONG port, UCHAR p_card)
  *              because of command complete or from a disconnect.
  *
  *---------------------------------------------------------------------*/
-#if defined(DOS)
-void phaseBusFree(USHORT port, UCHAR p_card)
-#else
-void phaseBusFree(ULONG port, UCHAR p_card)
-#endif
+static void FPT_phaseBusFree(ULONG port, UCHAR p_card)
 {
    PSCCB currSCCB;
 
-   currSCCB = BL_Card[p_card].currentSCCB;
+   currSCCB = FPT_BL_Card[p_card].currentSCCB;
 
    if (currSCCB != NULL)
       {
@@ -8189,35 +5119,34 @@ void phaseBusFree(ULONG port, UCHAR p_card)
       if (currSCCB->OperationCode == RESET_COMMAND)
          {
 
-			if((BL_Card[p_card].globalFlags & F_CONLUN_IO) &&
-				((sccbMgrTbl[p_card][currSCCB->TargID].TarStatus & TAR_TAG_Q_MASK) != TAG_Q_TRYING))
-	   		 sccbMgrTbl[p_card][currSCCB->TargID].TarLUNBusy[currSCCB->Lun] = FALSE;
+			if((FPT_BL_Card[p_card].globalFlags & F_CONLUN_IO) &&
+				((FPT_sccbMgrTbl[p_card][currSCCB->TargID].TarStatus & TAR_TAG_Q_MASK) != TAG_Q_TRYING))
+	   		 FPT_sccbMgrTbl[p_card][currSCCB->TargID].TarLUNBusy[currSCCB->Lun] = 0;
 			else
-		   	 sccbMgrTbl[p_card][currSCCB->TargID].TarLUNBusy[0] = FALSE;
+		   	 FPT_sccbMgrTbl[p_card][currSCCB->TargID].TarLUNBusy[0] = 0;
 
-	      queueCmdComplete(&BL_Card[p_card], currSCCB, p_card);
+	      FPT_queueCmdComplete(&FPT_BL_Card[p_card], currSCCB, p_card);
 
-	      queueSearchSelect(&BL_Card[p_card],p_card);
+	      FPT_queueSearchSelect(&FPT_BL_Card[p_card],p_card);
 
 	      }
 
       else if(currSCCB->Sccb_scsistat == SELECT_SN_ST)
 	      {
-	      sccbMgrTbl[p_card][currSCCB->TargID].TarStatus |=
+	      FPT_sccbMgrTbl[p_card][currSCCB->TargID].TarStatus |=
 			         (UCHAR)SYNC_SUPPORTED;
-	      sccbMgrTbl[p_card][currSCCB->TargID].TarEEValue &= ~EE_SYNC_MASK;
+	      FPT_sccbMgrTbl[p_card][currSCCB->TargID].TarEEValue &= ~EE_SYNC_MASK;
 	      }
 
       else if(currSCCB->Sccb_scsistat == SELECT_WN_ST)
 	      {
-	      sccbMgrTbl[p_card][currSCCB->TargID].TarStatus =
-		            (sccbMgrTbl[p_card][currSCCB->TargID].
+	      FPT_sccbMgrTbl[p_card][currSCCB->TargID].TarStatus =
+		            (FPT_sccbMgrTbl[p_card][currSCCB->TargID].
 		   TarStatus & ~WIDE_ENABLED) | WIDE_NEGOCIATED;
 
-	      sccbMgrTbl[p_card][currSCCB->TargID].TarEEValue &= ~EE_WIDE_SCSI;
+	      FPT_sccbMgrTbl[p_card][currSCCB->TargID].TarEEValue &= ~EE_WIDE_SCSI;
 	      }
 
-#if !defined(DOS)
       else if(currSCCB->Sccb_scsistat == SELECT_Q_ST)
 	      {
 	      /* Make sure this is not a phony BUS_FREE.  If we were
@@ -8227,8 +5156,8 @@ void phaseBusFree(ULONG port, UCHAR p_card)
 	      if ((!(RD_HARPOON(port+hp_scsisig) & SCSI_BSY)) ||
 	         (RDW_HARPOON((port+hp_intstat)) & RSEL))
 	         {
-	         sccbMgrTbl[p_card][currSCCB->TargID].TarStatus &= ~TAR_TAG_Q_MASK;
-	         sccbMgrTbl[p_card][currSCCB->TargID].TarStatus |= TAG_Q_REJECT;
+	         FPT_sccbMgrTbl[p_card][currSCCB->TargID].TarStatus &= ~TAR_TAG_Q_MASK;
+	         FPT_sccbMgrTbl[p_card][currSCCB->TargID].TarStatus |= TAG_Q_REJECT;
 	         }
 
 	      else
@@ -8236,7 +5165,6 @@ void phaseBusFree(ULONG port, UCHAR p_card)
 	         return;
 	         }
          }
-#endif
 
       else
 	      {
@@ -8248,62 +5176,24 @@ void phaseBusFree(ULONG port, UCHAR p_card)
 	         currSCCB->HostStatus = SCCB_PHASE_SEQUENCE_FAIL;
 	         }
 
-			if((BL_Card[p_card].globalFlags & F_CONLUN_IO) &&
-				((sccbMgrTbl[p_card][currSCCB->TargID].TarStatus & TAR_TAG_Q_MASK) != TAG_Q_TRYING))
-	   		 sccbMgrTbl[p_card][currSCCB->TargID].TarLUNBusy[currSCCB->Lun] = FALSE;
+			if((FPT_BL_Card[p_card].globalFlags & F_CONLUN_IO) &&
+				((FPT_sccbMgrTbl[p_card][currSCCB->TargID].TarStatus & TAR_TAG_Q_MASK) != TAG_Q_TRYING))
+	   		 FPT_sccbMgrTbl[p_card][currSCCB->TargID].TarLUNBusy[currSCCB->Lun] = 0;
 			else
-		   	 sccbMgrTbl[p_card][currSCCB->TargID].TarLUNBusy[0] = FALSE;
+		   	 FPT_sccbMgrTbl[p_card][currSCCB->TargID].TarLUNBusy[0] = 0;
 
-	      queueCmdComplete(&BL_Card[p_card], currSCCB, p_card);
+	      FPT_queueCmdComplete(&FPT_BL_Card[p_card], currSCCB, p_card);
 	      return;
 	      }
 
 
-      BL_Card[p_card].globalFlags |= F_NEW_SCCB_CMD;
+      FPT_BL_Card[p_card].globalFlags |= F_NEW_SCCB_CMD;
 
       } /*end if !=null */
 }
 
 
 
-
-#ident "$Id: automate.c 1.14 1997/01/31 02:11:46 mohan Exp $"
-/*----------------------------------------------------------------------
- *
- *
- *   Copyright 1995-1996 by Mylex Corporation.  All Rights Reserved
- *
- *   This file is available under both the GNU General Public License
- *   and a BSD-style copyright; see LICENSE.FlashPoint for details.
- *
- *   $Workfile:   automate.c  $
- *
- *   Description:  Functions relating to programming the automation of
- *                 the HARPOON.
- *
- *   $Date: 1997/01/31 02:11:46 $
- *
- *   $Revision: 1.14 $
- *
- *----------------------------------------------------------------------*/
-
-/*#include <globals.h>*/
-
-#if (FW_TYPE==_UCB_MGR_)
-	/*#include <budi.h>*/
-#endif
-
-/*#include <sccbmgr.h>*/
-/*#include <blx30.h>*/
-/*#include <target.h>*/
-/*#include <scsi2.h>*/
-/*#include <harpoon.h>*/
-
-/*
-extern SCCBCARD BL_Card[MAX_CARDS];
-extern SCCBMGR_TAR_INFO sccbMgrTbl[MAX_CARDS][MAX_SCSI_TAR];
-extern SCCBCARD BL_Card[MAX_CARDS];
-*/
 
 /*---------------------------------------------------------------------
  *
@@ -8312,17 +5202,9 @@ extern SCCBCARD BL_Card[MAX_CARDS];
  * Description: Load the Automation RAM with the defualt map values.
  *
  *---------------------------------------------------------------------*/
-#if defined(DOS)
-void autoLoadDefaultMap(USHORT p_port)
-#else
-void autoLoadDefaultMap(ULONG p_port)
-#endif
+static void FPT_autoLoadDefaultMap(ULONG p_port)
 {
-#if defined(DOS)
-   USHORT map_addr;
-#else
    ULONG map_addr;
-#endif
 
    ARAM_ACCESS(p_port);
    map_addr = p_port + hp_aramBase;
@@ -8428,86 +5310,82 @@ void autoLoadDefaultMap(ULONG p_port)
  *
  *---------------------------------------------------------------------*/
 
-#if defined(DOS)
-void autoCmdCmplt(USHORT p_port, UCHAR p_card)
-#else
-void autoCmdCmplt(ULONG p_port, UCHAR p_card)
-#endif
+static void FPT_autoCmdCmplt(ULONG p_port, UCHAR p_card)
 {
    PSCCB currSCCB;
    UCHAR status_byte;
 
-   currSCCB = BL_Card[p_card].currentSCCB;
+   currSCCB = FPT_BL_Card[p_card].currentSCCB;
 
    status_byte = RD_HARPOON(p_port+hp_gp_reg_0);
 
-   sccbMgrTbl[p_card][currSCCB->TargID].TarLUN_CA = FALSE;
+   FPT_sccbMgrTbl[p_card][currSCCB->TargID].TarLUN_CA = 0;
 
    if (status_byte != SSGOOD) {
 
       if (status_byte == SSQ_FULL) {
 
 
-			if(((BL_Card[p_card].globalFlags & F_CONLUN_IO) &&
-				((sccbMgrTbl[p_card][currSCCB->TargID].TarStatus & TAR_TAG_Q_MASK) != TAG_Q_TRYING)))
+			if(((FPT_BL_Card[p_card].globalFlags & F_CONLUN_IO) &&
+				((FPT_sccbMgrTbl[p_card][currSCCB->TargID].TarStatus & TAR_TAG_Q_MASK) != TAG_Q_TRYING)))
 			{
-	         sccbMgrTbl[p_card][currSCCB->TargID].TarLUNBusy[currSCCB->Lun] = TRUE;
-				if(BL_Card[p_card].discQCount != 0)
-					BL_Card[p_card].discQCount--;
-				BL_Card[p_card].discQ_Tbl[sccbMgrTbl[p_card][currSCCB->TargID].LunDiscQ_Idx[currSCCB->Lun]] = NULL;
+	         FPT_sccbMgrTbl[p_card][currSCCB->TargID].TarLUNBusy[currSCCB->Lun] = 1;
+				if(FPT_BL_Card[p_card].discQCount != 0)
+					FPT_BL_Card[p_card].discQCount--;
+				FPT_BL_Card[p_card].discQ_Tbl[FPT_sccbMgrTbl[p_card][currSCCB->TargID].LunDiscQ_Idx[currSCCB->Lun]] = NULL;
 			}
 			else
 			{
-	         sccbMgrTbl[p_card][currSCCB->TargID].TarLUNBusy[0] = TRUE;
+	         FPT_sccbMgrTbl[p_card][currSCCB->TargID].TarLUNBusy[0] = 1;
 				if(currSCCB->Sccb_tag)
 				{
-					if(BL_Card[p_card].discQCount != 0)
-						BL_Card[p_card].discQCount--;
-					BL_Card[p_card].discQ_Tbl[currSCCB->Sccb_tag] = NULL;
+					if(FPT_BL_Card[p_card].discQCount != 0)
+						FPT_BL_Card[p_card].discQCount--;
+					FPT_BL_Card[p_card].discQ_Tbl[currSCCB->Sccb_tag] = NULL;
 				}else
 				{
-					if(BL_Card[p_card].discQCount != 0)
-						BL_Card[p_card].discQCount--;
-					BL_Card[p_card].discQ_Tbl[sccbMgrTbl[p_card][currSCCB->TargID].LunDiscQ_Idx[0]] = NULL;
+					if(FPT_BL_Card[p_card].discQCount != 0)
+						FPT_BL_Card[p_card].discQCount--;
+					FPT_BL_Card[p_card].discQ_Tbl[FPT_sccbMgrTbl[p_card][currSCCB->TargID].LunDiscQ_Idx[0]] = NULL;
 				}
 			}
 
          currSCCB->Sccb_MGRFlags |= F_STATUSLOADED;
 
-         queueSelectFail(&BL_Card[p_card],p_card);
+         FPT_queueSelectFail(&FPT_BL_Card[p_card],p_card);
 
          return;
          }
 
       if(currSCCB->Sccb_scsistat == SELECT_SN_ST)
          {
-         sccbMgrTbl[p_card][currSCCB->TargID].TarStatus |=
+         FPT_sccbMgrTbl[p_card][currSCCB->TargID].TarStatus |=
             (UCHAR)SYNC_SUPPORTED;
 
-	      sccbMgrTbl[p_card][currSCCB->TargID].TarEEValue &= ~EE_SYNC_MASK;
-         BL_Card[p_card].globalFlags |= F_NEW_SCCB_CMD;
+	      FPT_sccbMgrTbl[p_card][currSCCB->TargID].TarEEValue &= ~EE_SYNC_MASK;
+         FPT_BL_Card[p_card].globalFlags |= F_NEW_SCCB_CMD;
 
-			if(((BL_Card[p_card].globalFlags & F_CONLUN_IO) &&
-				((sccbMgrTbl[p_card][currSCCB->TargID].TarStatus & TAR_TAG_Q_MASK) != TAG_Q_TRYING)))
+			if(((FPT_BL_Card[p_card].globalFlags & F_CONLUN_IO) &&
+				((FPT_sccbMgrTbl[p_card][currSCCB->TargID].TarStatus & TAR_TAG_Q_MASK) != TAG_Q_TRYING)))
 			{
-	         sccbMgrTbl[p_card][currSCCB->TargID].TarLUNBusy[currSCCB->Lun] = TRUE;
-				if(BL_Card[p_card].discQCount != 0)
-					BL_Card[p_card].discQCount--;
-				BL_Card[p_card].discQ_Tbl[sccbMgrTbl[p_card][currSCCB->TargID].LunDiscQ_Idx[currSCCB->Lun]] = NULL;
+	         FPT_sccbMgrTbl[p_card][currSCCB->TargID].TarLUNBusy[currSCCB->Lun] = 1;
+				if(FPT_BL_Card[p_card].discQCount != 0)
+					FPT_BL_Card[p_card].discQCount--;
+				FPT_BL_Card[p_card].discQ_Tbl[FPT_sccbMgrTbl[p_card][currSCCB->TargID].LunDiscQ_Idx[currSCCB->Lun]] = NULL;
 			}
 			else
 			{
-	         sccbMgrTbl[p_card][currSCCB->TargID].TarLUNBusy[0] = TRUE;
+	         FPT_sccbMgrTbl[p_card][currSCCB->TargID].TarLUNBusy[0] = 1;
 				if(currSCCB->Sccb_tag)
 				{
-					if(BL_Card[p_card].discQCount != 0)
-						BL_Card[p_card].discQCount--;
-					BL_Card[p_card].discQ_Tbl[currSCCB->Sccb_tag] = NULL;
+					if(FPT_BL_Card[p_card].discQCount != 0)
+						FPT_BL_Card[p_card].discQCount--;
+					FPT_BL_Card[p_card].discQ_Tbl[currSCCB->Sccb_tag] = NULL;
 				}else
 				{
-					if(BL_Card[p_card].discQCount != 0)
-						BL_Card[p_card].discQCount--;
-					BL_Card[p_card].discQ_Tbl[sccbMgrTbl[p_card][currSCCB->TargID].LunDiscQ_Idx[0]] = NULL;
+					if(FPT_BL_Card[p_card].discQCount != 0)
+						FPT_BL_Card[p_card].discQCount--;
+					FPT_BL_Card[p_card].discQ_Tbl[FPT_sccbMgrTbl[p_card][currSCCB->TargID].LunDiscQ_Idx[0]] = NULL;
 				}
 			}
          return;
@@ -8517,34 +5395,34 @@ void autoCmdCmplt(ULONG p_port, UCHAR p_card)
       if(currSCCB->Sccb_scsistat == SELECT_WN_ST)
          {
 
-	      sccbMgrTbl[p_card][currSCCB->TargID].TarStatus =
-	         (sccbMgrTbl[p_card][currSCCB->TargID].
+	      FPT_sccbMgrTbl[p_card][currSCCB->TargID].TarStatus =
+	         (FPT_sccbMgrTbl[p_card][currSCCB->TargID].
 	         TarStatus & ~WIDE_ENABLED) | WIDE_NEGOCIATED;
 
-	      sccbMgrTbl[p_card][currSCCB->TargID].TarEEValue &= ~EE_WIDE_SCSI;
-         BL_Card[p_card].globalFlags |= F_NEW_SCCB_CMD;
+	      FPT_sccbMgrTbl[p_card][currSCCB->TargID].TarEEValue &= ~EE_WIDE_SCSI;
+         FPT_BL_Card[p_card].globalFlags |= F_NEW_SCCB_CMD;
 
-			if(((BL_Card[p_card].globalFlags & F_CONLUN_IO) &&
-				((sccbMgrTbl[p_card][currSCCB->TargID].TarStatus & TAR_TAG_Q_MASK) != TAG_Q_TRYING)))
+			if(((FPT_BL_Card[p_card].globalFlags & F_CONLUN_IO) &&
+				((FPT_sccbMgrTbl[p_card][currSCCB->TargID].TarStatus & TAR_TAG_Q_MASK) != TAG_Q_TRYING)))
 			{
-	         sccbMgrTbl[p_card][currSCCB->TargID].TarLUNBusy[currSCCB->Lun] = TRUE;
-				if(BL_Card[p_card].discQCount != 0)
-					BL_Card[p_card].discQCount--;
-				BL_Card[p_card].discQ_Tbl[sccbMgrTbl[p_card][currSCCB->TargID].LunDiscQ_Idx[currSCCB->Lun]] = NULL;
+	         FPT_sccbMgrTbl[p_card][currSCCB->TargID].TarLUNBusy[currSCCB->Lun] = 1;
+				if(FPT_BL_Card[p_card].discQCount != 0)
+					FPT_BL_Card[p_card].discQCount--;
+				FPT_BL_Card[p_card].discQ_Tbl[FPT_sccbMgrTbl[p_card][currSCCB->TargID].LunDiscQ_Idx[currSCCB->Lun]] = NULL;
 			}
 			else
 			{
-	         sccbMgrTbl[p_card][currSCCB->TargID].TarLUNBusy[0] = TRUE;
+	         FPT_sccbMgrTbl[p_card][currSCCB->TargID].TarLUNBusy[0] = 1;
 				if(currSCCB->Sccb_tag)
 				{
-					if(BL_Card[p_card].discQCount != 0)
-						BL_Card[p_card].discQCount--;
-					BL_Card[p_card].discQ_Tbl[currSCCB->Sccb_tag] = NULL;
+					if(FPT_BL_Card[p_card].discQCount != 0)
+						FPT_BL_Card[p_card].discQCount--;
+					FPT_BL_Card[p_card].discQ_Tbl[currSCCB->Sccb_tag] = NULL;
 				}else
 				{
-					if(BL_Card[p_card].discQCount != 0)
-						BL_Card[p_card].discQCount--;
-					BL_Card[p_card].discQ_Tbl[sccbMgrTbl[p_card][currSCCB->TargID].LunDiscQ_Idx[0]] = NULL;
+					if(FPT_BL_Card[p_card].discQCount != 0)
+						FPT_BL_Card[p_card].discQCount--;
+					FPT_BL_Card[p_card].discQ_Tbl[FPT_sccbMgrTbl[p_card][currSCCB->TargID].LunDiscQ_Idx[0]] = NULL;
 				}
 			}
          return;
@@ -8553,15 +5431,15 @@ void autoCmdCmplt(ULONG p_port, UCHAR p_card)
      
 	   if (status_byte == SSCHECK) 
 		{
-			if(BL_Card[p_card].globalFlags & F_DO_RENEGO)
+			if(FPT_BL_Card[p_card].globalFlags & F_DO_RENEGO)
 			{
-				if (sccbMgrTbl[p_card][currSCCB->TargID].TarEEValue & EE_SYNC_MASK)
+				if (FPT_sccbMgrTbl[p_card][currSCCB->TargID].TarEEValue & EE_SYNC_MASK)
 				{
-					sccbMgrTbl[p_card][currSCCB->TargID].TarStatus &= ~TAR_SYNC_MASK;
+					FPT_sccbMgrTbl[p_card][currSCCB->TargID].TarStatus &= ~TAR_SYNC_MASK;
 				}
-				if (sccbMgrTbl[p_card][currSCCB->TargID].TarEEValue & EE_WIDE_SCSI)
+				if (FPT_sccbMgrTbl[p_card][currSCCB->TargID].TarEEValue & EE_WIDE_SCSI)
 				{
-					sccbMgrTbl[p_card][currSCCB->TargID].TarStatus &= ~TAR_WIDE_MASK;
+					FPT_sccbMgrTbl[p_card][currSCCB->TargID].TarStatus &= ~TAR_WIDE_MASK;
 				}
 			}
 		}
@@ -8573,135 +5451,61 @@ void autoCmdCmplt(ULONG p_port, UCHAR p_card)
 
          if (status_byte == SSCHECK) {
 
-            sccbMgrTbl[p_card][currSCCB->TargID].TarLUN_CA
-               = TRUE;
+            FPT_sccbMgrTbl[p_card][currSCCB->TargID].TarLUN_CA
+               = 1;
      
 
-#if (FW_TYPE==_SCCB_MGR_)
             if (currSCCB->RequestSenseLength != NO_AUTO_REQUEST_SENSE) {
 
                if (currSCCB->RequestSenseLength == 0)
                   currSCCB->RequestSenseLength = 14;
 
-               ssenss(&BL_Card[p_card]);
-               BL_Card[p_card].globalFlags |= F_NEW_SCCB_CMD;
+               FPT_ssenss(&FPT_BL_Card[p_card]);
+               FPT_BL_Card[p_card].globalFlags |= F_NEW_SCCB_CMD;
 
- 					if(((BL_Card[p_card].globalFlags & F_CONLUN_IO) &&
-						((sccbMgrTbl[p_card][currSCCB->TargID].TarStatus & TAR_TAG_Q_MASK) != TAG_Q_TRYING)))
+ 					if(((FPT_BL_Card[p_card].globalFlags & F_CONLUN_IO) &&
+						((FPT_sccbMgrTbl[p_card][currSCCB->TargID].TarStatus & TAR_TAG_Q_MASK) != TAG_Q_TRYING)))
 					{
-			         sccbMgrTbl[p_card][currSCCB->TargID].TarLUNBusy[currSCCB->Lun] = TRUE;
-						if(BL_Card[p_card].discQCount != 0)
-							BL_Card[p_card].discQCount--;
-						BL_Card[p_card].discQ_Tbl[sccbMgrTbl[p_card][currSCCB->TargID].LunDiscQ_Idx[currSCCB->Lun]] = NULL;
+			         FPT_sccbMgrTbl[p_card][currSCCB->TargID].TarLUNBusy[currSCCB->Lun] = 1;
+						if(FPT_BL_Card[p_card].discQCount != 0)
+							FPT_BL_Card[p_card].discQCount--;
+						FPT_BL_Card[p_card].discQ_Tbl[FPT_sccbMgrTbl[p_card][currSCCB->TargID].LunDiscQ_Idx[currSCCB->Lun]] = NULL;
 					}
 					else
 					{
-	   		      sccbMgrTbl[p_card][currSCCB->TargID].TarLUNBusy[0] = TRUE;
+	   		      FPT_sccbMgrTbl[p_card][currSCCB->TargID].TarLUNBusy[0] = 1;
 						if(currSCCB->Sccb_tag)
 						{
-							if(BL_Card[p_card].discQCount != 0)
-								BL_Card[p_card].discQCount--;
-							BL_Card[p_card].discQ_Tbl[currSCCB->Sccb_tag] = NULL;
+							if(FPT_BL_Card[p_card].discQCount != 0)
+								FPT_BL_Card[p_card].discQCount--;
+							FPT_BL_Card[p_card].discQ_Tbl[currSCCB->Sccb_tag] = NULL;
 						}else
 						{
-							if(BL_Card[p_card].discQCount != 0)
-								BL_Card[p_card].discQCount--;
-							BL_Card[p_card].discQ_Tbl[sccbMgrTbl[p_card][currSCCB->TargID].LunDiscQ_Idx[0]] = NULL;
+							if(FPT_BL_Card[p_card].discQCount != 0)
+								FPT_BL_Card[p_card].discQCount--;
+							FPT_BL_Card[p_card].discQ_Tbl[FPT_sccbMgrTbl[p_card][currSCCB->TargID].LunDiscQ_Idx[0]] = NULL;
 						}
 					}
                return;
                }
-#else
-				   if ((!(currSCCB->Sccb_ucb_ptr->UCB_opcode & OPC_NO_AUTO_SENSE)) &&
-			   		(currSCCB->RequestSenseLength))
-				   {
-				   	ssenss(&BL_Card[p_card]);
-				      BL_Card[p_card].globalFlags |= F_NEW_SCCB_CMD;
-
-						if(((BL_Card[p_card].globalFlags & F_CONLUN_IO) &&
-							((sccbMgrTbl[p_card][currSCCB->TargID].TarStatus & TAR_TAG_Q_MASK) != TAG_Q_TRYING)))
-						{
-	      			   sccbMgrTbl[p_card][currSCCB->TargID].TarLUNBusy[currSCCB->Lun] = TRUE;
-							if(BL_Card[p_card].discQCount != 0)
-								BL_Card[p_card].discQCount--;
-							BL_Card[p_card].discQ_Tbl[sccbMgrTbl[p_card][currSCCB->TargID].LunDiscQ_Idx[currSCCB->Lun]] = NULL;
-						}
-						else
-						{
-	      			   sccbMgrTbl[p_card][currSCCB->TargID].TarLUNBusy[0] = TRUE;
-							if(currSCCB->Sccb_tag)
-							{
-								if(BL_Card[p_card].discQCount != 0)
-									BL_Card[p_card].discQCount--;
-								BL_Card[p_card].discQ_Tbl[currSCCB->Sccb_tag] = NULL;
-							}else
-							{
-								if(BL_Card[p_card].discQCount != 0)
-									BL_Card[p_card].discQCount--;
-								BL_Card[p_card].discQ_Tbl[sccbMgrTbl[p_card][currSCCB->TargID].LunDiscQ_Idx[0]] = NULL;
-							}
-						}
-				      return;
-				   }
-
-#endif
             }
          }
       }
 
 
-	if((BL_Card[p_card].globalFlags & F_CONLUN_IO) &&
-		((sccbMgrTbl[p_card][currSCCB->TargID].TarStatus & TAR_TAG_Q_MASK) != TAG_Q_TRYING))
-	   sccbMgrTbl[p_card][currSCCB->TargID].TarLUNBusy[currSCCB->Lun] = FALSE;
+	if((FPT_BL_Card[p_card].globalFlags & F_CONLUN_IO) &&
+		((FPT_sccbMgrTbl[p_card][currSCCB->TargID].TarStatus & TAR_TAG_Q_MASK) != TAG_Q_TRYING))
+	   FPT_sccbMgrTbl[p_card][currSCCB->TargID].TarLUNBusy[currSCCB->Lun] = 0;
 	else
-	   sccbMgrTbl[p_card][currSCCB->TargID].TarLUNBusy[0] = FALSE;
+	   FPT_sccbMgrTbl[p_card][currSCCB->TargID].TarLUNBusy[0] = 0;
 
 
-   queueCmdComplete(&BL_Card[p_card], currSCCB, p_card);
+   FPT_queueCmdComplete(&FPT_BL_Card[p_card], currSCCB, p_card);
 }
-#ident "$Id: busmstr.c 1.8 1997/01/31 02:10:27 mohan Exp $"
-/*----------------------------------------------------------------------
- *
- *
- *   Copyright 1995-1996 by Mylex Corporation.  All Rights Reserved
- *
- *   This file is available under both the GNU General Public License
- *   and a BSD-style copyright; see LICENSE.FlashPoint for details.
- *
- *   $Workfile:   busmstr.c  $
- *
- *   Description:  Functions to start, stop, and abort BusMaster operations.
- *
- *   $Date: 1997/01/31 02:10:27 $
- *
- *   $Revision: 1.8 $
- *
- *----------------------------------------------------------------------*/
-
-/*#include <globals.h>*/
-
-#if (FW_TYPE==_UCB_MGR_)
-	/*#include <budi.h>*/
-#endif
-
-/*#include <sccbmgr.h>*/
-/*#include <blx30.h>*/
-/*#include <target.h>*/
-/*#include <scsi2.h>*/
-/*#include <harpoon.h>*/
-
-
-/*
-extern SCCBCARD BL_Card[MAX_CARDS];
-extern SCCBMGR_TAR_INFO sccbMgrTbl[MAX_CARDS][MAX_SCSI_TAR];
-*/
 
 #define SHORT_WAIT   0x0000000F
 #define LONG_WAIT    0x0000FFFFL
 
-#if defined(BUGBUG)
-void Debug_Load(UCHAR p_card, UCHAR p_bug_data);
-#endif
 
 /*---------------------------------------------------------------------
  *
@@ -8721,11 +5525,7 @@ void Debug_Load(UCHAR p_card, UCHAR p_bug_data);
  *              
  *---------------------------------------------------------------------*/
 
-#if defined(DOS)
-void dataXferProcessor(USHORT port, PSCCBcard pCurrCard)
-#else
-void dataXferProcessor(ULONG port, PSCCBcard pCurrCard)
-#endif
+static void FPT_dataXferProcessor(ULONG port, PSCCBcard pCurrCard)
 {
    PSCCB currSCCB;
 
@@ -8741,7 +5541,7 @@ void dataXferProcessor(ULONG port, PSCCBcard pCurrCard)
  				}
 			pCurrCard->globalFlags |= F_HOST_XFER_ACT;
          
-         busMstrSGDataXferStart(port, currSCCB);
+         FPT_busMstrSGDataXferStart(port, currSCCB);
 			}
 
       else
@@ -8750,7 +5550,7 @@ void dataXferProcessor(ULONG port, PSCCBcard pCurrCard)
 				{
 				pCurrCard->globalFlags |= F_HOST_XFER_ACT;
          
-         	busMstrDataXferStart(port, currSCCB);
+         	FPT_busMstrDataXferStart(port, currSCCB);
          	}
 			}
 }
@@ -8763,20 +5563,12 @@ void dataXferProcessor(ULONG port, PSCCBcard pCurrCard)
  * Description:
  *
  *---------------------------------------------------------------------*/
-#if defined(DOS)
-void busMstrSGDataXferStart(USHORT p_port, PSCCB pcurrSCCB)
-#else
-void busMstrSGDataXferStart(ULONG p_port, PSCCB pcurrSCCB)
-#endif
+static void FPT_busMstrSGDataXferStart(ULONG p_port, PSCCB pcurrSCCB)
 {
    ULONG count,addr,tmpSGCnt;
    UINT sg_index;
    UCHAR sg_count, i;
-#if defined(DOS)
-   USHORT reg_offset;
-#else
    ULONG reg_offset;
-#endif
 
 
    if (pcurrSCCB->Sccb_XferState & F_HOST_XFER_DIR) {
@@ -8802,17 +5594,6 @@ void busMstrSGDataXferStart(ULONG p_port, PSCCB pcurrSCCB)
    while ((sg_count < (UCHAR)SG_BUF_CNT) &&
       ((ULONG)(sg_index * (UINT)SG_ELEMENT_SIZE) < pcurrSCCB->DataLength) ) {
 
-#if defined(COMPILER_16_BIT) && !defined(DOS)
-      tmpSGCnt += *(((ULONG far *)pcurrSCCB->DataPointer)+
-         (sg_index * 2));
-
-      count |= *(((ULONG far *)pcurrSCCB->DataPointer)+
-         (sg_index * 2));
-
-      addr = *(((ULONG far *)pcurrSCCB->DataPointer)+
-         ((sg_index * 2) + 1));
-
-#else
       tmpSGCnt += *(((ULONG *)pcurrSCCB->DataPointer)+
          (sg_index * 2));
 
@@ -8821,7 +5602,6 @@ void busMstrSGDataXferStart(ULONG p_port, PSCCB pcurrSCCB)
 
       addr = *(((ULONG *)pcurrSCCB->DataPointer)+
          ((sg_index * 2) + 1));
-#endif
 
 
       if ((!sg_count) && (pcurrSCCB->Sccb_SGoffset)) {
@@ -8888,11 +5668,7 @@ void busMstrSGDataXferStart(ULONG p_port, PSCCB pcurrSCCB)
  * Description: 
  *
  *---------------------------------------------------------------------*/
-#if defined(DOS)
-void busMstrDataXferStart(USHORT p_port, PSCCB pcurrSCCB)
-#else
-void busMstrDataXferStart(ULONG p_port, PSCCB pcurrSCCB)
-#endif
+static void FPT_busMstrDataXferStart(ULONG p_port, PSCCB pcurrSCCB)
 {
    ULONG addr,count;
 
@@ -8909,37 +5685,7 @@ void busMstrDataXferStart(ULONG p_port, PSCCB pcurrSCCB)
 
       }
 
-#if defined(DOS)
-   asm { mov dx,p_port;
-         mov ax,word ptr count;
-         add dx,hp_xfer_cnt_lo;
-         out dx,al;
-         inc dx;
-         xchg ah,al
-         out dx,al;
-         inc dx;
-         mov ax,word ptr count+2;
-         out dx,al;
-         inc dx;
-         inc dx;
-         mov ax,word ptr addr;
-         out dx,al;
-         inc dx;
-         xchg ah,al
-         out dx,al;
-         inc dx;
-         mov ax,word ptr addr+2;
-         out dx,al;
-         inc dx;
-         xchg ah,al
-         out dx,al;
-         }
-
-   WR_HARP32(p_port,hp_xfercnt_0,count);
-
-#else
    HP_SETUP_ADDR_CNT(p_port,addr,count);
-#endif
 
 
    if (pcurrSCCB->Sccb_XferState & F_HOST_XFER_DIR) {
@@ -8975,11 +5721,7 @@ void busMstrDataXferStart(ULONG p_port, PSCCB pcurrSCCB)
  *               command busy is also time out, it'll just give up.
  *
  *---------------------------------------------------------------------*/
-#if defined(DOS)
-UCHAR busMstrTimeOut(USHORT p_port)
-#else
-UCHAR busMstrTimeOut(ULONG p_port)
-#endif
+static UCHAR FPT_busMstrTimeOut(ULONG p_port)
 {
    ULONG timeout;
 
@@ -9001,11 +5743,11 @@ UCHAR busMstrTimeOut(ULONG p_port)
    RD_HARPOON(p_port+hp_int_status);           /*Clear command complete */
 
    if (RD_HARPOON(p_port+hp_ext_status) & BM_CMD_BUSY) {
-      return(TRUE);
+      return(1);
       }
 
    else {
-      return(FALSE);
+      return(0);
       }
 }
 
@@ -9017,18 +5759,14 @@ UCHAR busMstrTimeOut(ULONG p_port)
  * Description: Abort any in progress transfer.
  *
  *---------------------------------------------------------------------*/
-#if defined(DOS)
-void hostDataXferAbort(USHORT port, UCHAR p_card, PSCCB pCurrSCCB)
-#else
-void hostDataXferAbort(ULONG port, UCHAR p_card, PSCCB pCurrSCCB)
-#endif
+static void FPT_hostDataXferAbort(ULONG port, UCHAR p_card, PSCCB pCurrSCCB)
 {
 
    ULONG timeout;
    ULONG remain_cnt;
    UINT sg_ptr;
 
-   BL_Card[p_card].globalFlags &= ~F_HOST_XFER_ACT;
+   FPT_BL_Card[p_card].globalFlags &= ~F_HOST_XFER_ACT;
 
    if (pCurrSCCB->Sccb_XferState & F_AUTO_SENSE) {
 
@@ -9044,7 +5782,7 @@ void hostDataXferAbort(ULONG port, UCHAR p_card, PSCCB pCurrSCCB)
 
          if (RD_HARPOON(port+hp_ext_status) & BM_CMD_BUSY) {
 
-            if (busMstrTimeOut(port)) {
+            if (FPT_busMstrTimeOut(port)) {
 
                if (pCurrSCCB->HostStatus == 0x00)
 
@@ -9060,10 +5798,6 @@ void hostDataXferAbort(ULONG port, UCHAR p_card, PSCCB pCurrSCCB)
 
                      {
                      pCurrSCCB->HostStatus = SCCB_BM_ERR;
-#if defined(BUGBUG)
-                     WR_HARPOON(port+hp_dual_addr_lo,
-                        RD_HARPOON(port+hp_ext_status));
-#endif
                      }
             }
          }
@@ -9092,22 +5826,12 @@ void hostDataXferAbort(ULONG port, UCHAR p_card, PSCCB pCurrSCCB)
 
             sg_ptr--;
 
-#if defined(COMPILER_16_BIT) && !defined(DOS)
-            if (remain_cnt > (ULONG)(*(((ULONG far *)pCurrSCCB->
-               DataPointer) + (sg_ptr * 2)))) {
-
-               remain_cnt -= (ULONG)(*(((ULONG far *)pCurrSCCB->
-                  DataPointer) + (sg_ptr * 2)));
-               }
-
-#else
             if (remain_cnt > (ULONG)(*(((ULONG *)pCurrSCCB->
                DataPointer) + (sg_ptr * 2)))) {
 
                remain_cnt -= (ULONG)(*(((ULONG *)pCurrSCCB->
                   DataPointer) + (sg_ptr * 2)));
                }
-#endif
 
             else {
 
@@ -9147,7 +5871,7 @@ void hostDataXferAbort(ULONG port, UCHAR p_card, PSCCB pCurrSCCB)
 
          if (RD_HARPOON(port+hp_ext_status) & BM_CMD_BUSY) {
 
-            busMstrTimeOut(port);
+            FPT_busMstrTimeOut(port);
             }
 
          else {
@@ -9159,10 +5883,6 @@ void hostDataXferAbort(ULONG port, UCHAR p_card, PSCCB pCurrSCCB)
                   if (pCurrSCCB->HostStatus == 0x00) {
 
                      pCurrSCCB->HostStatus = SCCB_BM_ERR;
-#if defined(BUGBUG)
-                     WR_HARPOON(port+hp_dual_addr_lo,
-                        RD_HARPOON(port+hp_ext_status));
-#endif
                      }
                   }
                }
@@ -9203,7 +5923,7 @@ void hostDataXferAbort(ULONG port, UCHAR p_card, PSCCB pCurrSCCB)
                   pCurrSCCB->HostStatus = SCCB_BM_ERR;
                   }
 
-               busMstrTimeOut(port);
+               FPT_busMstrTimeOut(port);
                }
             }
 
@@ -9214,10 +5934,6 @@ void hostDataXferAbort(ULONG port, UCHAR p_card, PSCCB pCurrSCCB)
                if (pCurrSCCB->HostStatus == 0x00) {
 
                   pCurrSCCB->HostStatus = SCCB_BM_ERR;
-#if defined(BUGBUG)
-                  WR_HARPOON(port+hp_dual_addr_lo,
-                     RD_HARPOON(port+hp_ext_status));
-#endif
                   }
                }
             }
@@ -9241,7 +5957,7 @@ void hostDataXferAbort(ULONG port, UCHAR p_card, PSCCB pCurrSCCB)
                pCurrSCCB->HostStatus = SCCB_BM_ERR;
                }
 
-            busMstrTimeOut(port);
+            FPT_busMstrTimeOut(port);
             }
          }
 
@@ -9253,10 +5969,6 @@ void hostDataXferAbort(ULONG port, UCHAR p_card, PSCCB pCurrSCCB)
             if (pCurrSCCB->HostStatus == 0x00) {
 
                pCurrSCCB->HostStatus = SCCB_BM_ERR;
-#if defined(BUGBUG)
-               WR_HARPOON(port+hp_dual_addr_lo,
-                  RD_HARPOON(port+hp_ext_status));
-#endif
                }
             }
 
@@ -9305,15 +6017,11 @@ void hostDataXferAbort(ULONG port, UCHAR p_card, PSCCB pCurrSCCB)
  *              pointers message.
  *
  *---------------------------------------------------------------------*/
-void hostDataXferRestart(PSCCB currSCCB)
+static void FPT_hostDataXferRestart(PSCCB currSCCB)
 {
    ULONG data_count;
    UINT  sg_index;
-#if defined(COMPILER_16_BIT) && !defined(DOS)
-   ULONG far *sg_ptr;
-#else
    ULONG *sg_ptr;
-#endif
 
    if (currSCCB->Sccb_XferState & F_SG_XFER) {
 
@@ -9322,11 +6030,7 @@ void hostDataXferRestart(PSCCB currSCCB)
       sg_index = 0xffff;         /*Index by long words into sg list. */
       data_count = 0;            /*Running count of SG xfer counts. */
 
-#if defined(COMPILER_16_BIT) && !defined(DOS)
-      sg_ptr = (ULONG far *)currSCCB->DataPointer;
-#else
       sg_ptr = (ULONG *)currSCCB->DataPointer;
-#endif
 
       while (data_count < currSCCB->Sccb_ATC) {
 
@@ -9351,78 +6055,28 @@ void hostDataXferRestart(PSCCB currSCCB)
       currSCCB->Sccb_XferCnt = currSCCB->DataLength - currSCCB->Sccb_ATC;
       }
 }
-#ident "$Id: scam.c 1.17 1997/03/20 23:49:37 mohan Exp $"
-/*----------------------------------------------------------------------
- *
- *
- *   Copyright 1995-1996 by Mylex Corporation.  All Rights Reserved
- *
- *   This file is available under both the GNU General Public License
- *   and a BSD-style copyright; see LICENSE.FlashPoint for details.
- *
- *   $Workfile:   scam.c  $
- *
- *   Description:  Functions relating to handling of the SCAM selection
- *                 and the determination of the SCSI IDs to be assigned
- *                 to all perspective SCSI targets.
- *
- *   $Date: 1997/03/20 23:49:37 $
- *
- *   $Revision: 1.17 $
- *
- *----------------------------------------------------------------------*/
-
-/*#include <globals.h>*/
-
-#if (FW_TYPE==_UCB_MGR_)
-	/*#include <budi.h>*/
-#endif
-
-/*#include <sccbmgr.h>*/
-/*#include <blx30.h>*/
-/*#include <target.h>*/
-/*#include <scsi2.h>*/
-/*#include <eeprom.h>*/
-/*#include <harpoon.h>*/
 
 
 
-/*
-extern SCCBMGR_TAR_INFO sccbMgrTbl[MAX_CARDS][MAX_SCSI_TAR];
-extern SCCBCARD BL_Card[MAX_CARDS];
-extern SCCBSCAM_INFO scamInfo[MAX_SCSI_TAR];
-extern NVRAMINFO nvRamInfo[MAX_MB_CARDS];
-#if defined(DOS) || defined(OS2)
-extern UCHAR temp_id_string[ID_STRING_LENGTH];
-#endif
-extern UCHAR scamHAString[];
-*/
 /*---------------------------------------------------------------------
  *
- * Function: scini
+ * Function: FPT_scini
  *
  * Description: Setup all data structures necessary for SCAM selection.
  *
  *---------------------------------------------------------------------*/
 
-void scini(UCHAR p_card, UCHAR p_our_id, UCHAR p_power_up)
+static void FPT_scini(UCHAR p_card, UCHAR p_our_id, UCHAR p_power_up)
 {
 
-#if defined(SCAM_LEV_2)
    UCHAR loser,assigned_id;
-#endif
-#if defined(DOS)
-
-   USHORT p_port;
-#else
    ULONG p_port;
-#endif
 
    UCHAR i,k,ScamFlg ;
    PSCCBcard currCard;
 	PNVRamInfo pCurrNvRam;
 
-   currCard = &BL_Card[p_card];
+   currCard = &FPT_BL_Card[p_card];
    p_port = currCard->ioPort;
 	pCurrNvRam = currCard->pNvRamInfo;
 
@@ -9432,72 +6086,68 @@ void scini(UCHAR p_card, UCHAR p_our_id, UCHAR p_power_up)
 		i = pCurrNvRam->niSysConf;
 	}
 	else{
-	   ScamFlg = (UCHAR) utilEERead(p_port, SCAM_CONFIG/2);
-	   i = (UCHAR)(utilEERead(p_port, (SYSTEM_CONFIG/2)));
+	   ScamFlg = (UCHAR) FPT_utilEERead(p_port, SCAM_CONFIG/2);
+	   i = (UCHAR)(FPT_utilEERead(p_port, (SYSTEM_CONFIG/2)));
 	}
 	if(!(i & 0x02))	/* check if reset bus in AutoSCSI parameter set */
 		return;
 
-   inisci(p_card,p_port, p_our_id);
+   FPT_inisci(p_card,p_port, p_our_id);
 
    /* Force to wait 1 sec after SCSI bus reset. Some SCAM device FW
       too slow to return to SCAM selection */
 
    /* if (p_power_up)
-         Wait1Second(p_port);
+         FPT_Wait1Second(p_port);
       else
-         Wait(p_port, TO_250ms); */
+         FPT_Wait(p_port, TO_250ms); */
 
-   Wait1Second(p_port);
-
-#if defined(SCAM_LEV_2)
+   FPT_Wait1Second(p_port);
 
    if ((ScamFlg & SCAM_ENABLED) && (ScamFlg & SCAM_LEVEL2))
       {
-      while (!(scarb(p_port,INIT_SELTD))) {}
+      while (!(FPT_scarb(p_port,INIT_SELTD))) {}
 
-      scsel(p_port);
+      FPT_scsel(p_port);
 
       do {
-         scxferc(p_port,SYNC_PTRN);
-         scxferc(p_port,DOM_MSTR);
-         loser = scsendi(p_port,&scamInfo[p_our_id].id_string[0]);
+         FPT_scxferc(p_port,SYNC_PTRN);
+         FPT_scxferc(p_port,DOM_MSTR);
+         loser = FPT_scsendi(p_port,&FPT_scamInfo[p_our_id].id_string[0]);
          } while ( loser == 0xFF );
 
-      scbusf(p_port);
+      FPT_scbusf(p_port);
 
       if ((p_power_up) && (!loser))
          {
-         sresb(p_port,p_card);
-         Wait(p_port, TO_250ms);
+         FPT_sresb(p_port,p_card);
+         FPT_Wait(p_port, TO_250ms);
 
-         while (!(scarb(p_port,INIT_SELTD))) {}
+         while (!(FPT_scarb(p_port,INIT_SELTD))) {}
 
-         scsel(p_port);
+         FPT_scsel(p_port);
 
          do {
-            scxferc(p_port, SYNC_PTRN);
-            scxferc(p_port, DOM_MSTR);
-            loser = scsendi(p_port,&scamInfo[p_our_id].
+            FPT_scxferc(p_port, SYNC_PTRN);
+            FPT_scxferc(p_port, DOM_MSTR);
+            loser = FPT_scsendi(p_port,&FPT_scamInfo[p_our_id].
                id_string[0]);
             } while ( loser == 0xFF );
 
-         scbusf(p_port);
+         FPT_scbusf(p_port);
          }
       }
 
    else
       {
-      loser = FALSE;
+      loser = 0;
       }
 
 
    if (!loser)
       {
 
-#endif  /* SCAM_LEV_2 */
-
-      scamInfo[p_our_id].state = ID_ASSIGNED;
+      FPT_scamInfo[p_our_id].state = ID_ASSIGNED;
 
 
 		if (ScamFlg & SCAM_ENABLED)
@@ -9505,18 +6155,18 @@ void scini(UCHAR p_card, UCHAR p_our_id, UCHAR p_power_up)
 
 	      for (i=0; i < MAX_SCSI_TAR; i++)
   		   {
-      	   if ((scamInfo[i].state == ID_UNASSIGNED) ||
-  	      	   (scamInfo[i].state == ID_UNUSED))
+      	   if ((FPT_scamInfo[i].state == ID_UNASSIGNED) ||
+  	      	   (FPT_scamInfo[i].state == ID_UNUSED))
 	  	      {
-   	     	   if (scsell(p_port,i))
+   	     	   if (FPT_scsell(p_port,i))
       	  	   {
-            	   scamInfo[i].state = LEGACY;
-  	            	if ((scamInfo[i].id_string[0] != 0xFF) ||
-     	            	(scamInfo[i].id_string[1] != 0xFA))
+            	   FPT_scamInfo[i].state = LEGACY;
+  	            	if ((FPT_scamInfo[i].id_string[0] != 0xFF) ||
+     	            	(FPT_scamInfo[i].id_string[1] != 0xFA))
 	     	         {
 
-   	        	      scamInfo[i].id_string[0] = 0xFF;
-      	        	   scamInfo[i].id_string[1] = 0xFA;
+   	        	      FPT_scamInfo[i].id_string[0] = 0xFF;
+      	        	   FPT_scamInfo[i].id_string[1] = 0xFA;
 							if(pCurrNvRam == NULL)
 	         	         currCard->globalFlags |= F_UPDATE_EEPROM;
                	}
@@ -9524,45 +6174,43 @@ void scini(UCHAR p_card, UCHAR p_our_id, UCHAR p_power_up)
    	  	   }
       	}
 
-	      sresb(p_port,p_card);
-      	Wait1Second(p_port);
-         while (!(scarb(p_port,INIT_SELTD))) {}
-         scsel(p_port);
-         scasid(p_card, p_port);
+	      FPT_sresb(p_port,p_card);
+      	FPT_Wait1Second(p_port);
+         while (!(FPT_scarb(p_port,INIT_SELTD))) {}
+         FPT_scsel(p_port);
+         FPT_scasid(p_card, p_port);
          }
-
-#if defined(SCAM_LEV_2)
 
       }
 
    else if ((loser) && (ScamFlg & SCAM_ENABLED))
       {
-      scamInfo[p_our_id].id_string[0] = SLV_TYPE_CODE0;
-      assigned_id = FALSE;
-      scwtsel(p_port);
+      FPT_scamInfo[p_our_id].id_string[0] = SLV_TYPE_CODE0;
+      assigned_id = 0;
+      FPT_scwtsel(p_port);
 
       do {
-         while (scxferc(p_port,0x00) != SYNC_PTRN) {}
+         while (FPT_scxferc(p_port,0x00) != SYNC_PTRN) {}
 
-         i = scxferc(p_port,0x00);
+         i = FPT_scxferc(p_port,0x00);
          if (i == ASSIGN_ID)
             {
-            if (!(scsendi(p_port,&scamInfo[p_our_id].id_string[0])))
+            if (!(FPT_scsendi(p_port,&FPT_scamInfo[p_our_id].id_string[0])))
                   {
-                  i = scxferc(p_port,0x00);
-                  if (scvalq(i))
+                  i = FPT_scxferc(p_port,0x00);
+                  if (FPT_scvalq(i))
                      {
-                     k = scxferc(p_port,0x00);
+                     k = FPT_scxferc(p_port,0x00);
 
-                     if (scvalq(k))
+                     if (FPT_scvalq(k))
                         {
                         currCard->ourId =
                            ((UCHAR)(i<<3)+(k & (UCHAR)7)) & (UCHAR) 0x3F;
-                        inisci(p_card, p_port, p_our_id);
-                        scamInfo[currCard->ourId].state = ID_ASSIGNED;
-                        scamInfo[currCard->ourId].id_string[0]
+                        FPT_inisci(p_card, p_port, p_our_id);
+                        FPT_scamInfo[currCard->ourId].state = ID_ASSIGNED;
+                        FPT_scamInfo[currCard->ourId].id_string[0]
                            = SLV_TYPE_CODE0;
-                        assigned_id = TRUE;
+                        assigned_id = 1;
                         }
                      }
                   }
@@ -9570,43 +6218,31 @@ void scini(UCHAR p_card, UCHAR p_our_id, UCHAR p_power_up)
 
          else if (i == SET_P_FLAG)
             {
-               if (!(scsendi(p_port,
-                        &scamInfo[p_our_id].id_string[0])))
-                        scamInfo[p_our_id].id_string[0] |= 0x80;
+               if (!(FPT_scsendi(p_port,
+                        &FPT_scamInfo[p_our_id].id_string[0])))
+                        FPT_scamInfo[p_our_id].id_string[0] |= 0x80;
             }
          }while (!assigned_id);
 
-      while (scxferc(p_port,0x00) != CFG_CMPLT) {}
+      while (FPT_scxferc(p_port,0x00) != CFG_CMPLT) {}
       }
 
-#endif   /* SCAM_LEV_2 */
    if (ScamFlg & SCAM_ENABLED)
       {
-      scbusf(p_port);
+      FPT_scbusf(p_port);
       if (currCard->globalFlags & F_UPDATE_EEPROM)
          {
-         scsavdi(p_card, p_port);
+         FPT_scsavdi(p_card, p_port);
          currCard->globalFlags &= ~F_UPDATE_EEPROM;
          }
       }
 
 
-#if defined(DOS)
-   for (i=0; i < MAX_SCSI_TAR; i++)
-   {
-     	if (((ScamFlg & SCAM_ENABLED) && (scamInfo[i].state == LEGACY))
-			|| (i != p_our_id))
-        	{
-         scsellDOS(p_port,i);
-  	      }
-  	}
-#endif
-
 /*
    for (i=0,k=0; i < MAX_SCSI_TAR; i++)
       {
-      if ((scamInfo[i].state == ID_ASSIGNED) ||
-         (scamInfo[i].state == LEGACY))
+      if ((FPT_scamInfo[i].state == ID_ASSIGNED) ||
+         (FPT_scamInfo[i].state == LEGACY))
          k++;
       }
 
@@ -9620,17 +6256,13 @@ void scini(UCHAR p_card, UCHAR p_our_id, UCHAR p_power_up)
 
 /*---------------------------------------------------------------------
  *
- * Function: scarb
+ * Function: FPT_scarb
  *
  * Description: Gain control of the bus and wait SCAM select time (250ms)
  *
  *---------------------------------------------------------------------*/
 
-#if defined(DOS)
-int scarb(USHORT p_port, UCHAR p_sel_type)
-#else
-int scarb(ULONG p_port, UCHAR p_sel_type)
-#endif
+static int FPT_scarb(ULONG p_port, UCHAR p_sel_type)
 {
    if (p_sel_type == INIT_SELTD)
       {
@@ -9639,10 +6271,10 @@ int scarb(ULONG p_port, UCHAR p_sel_type)
 
 
       if (RD_HARPOON(p_port+hp_scsisig) & SCSI_SEL)
-         return(FALSE);
+         return(0);
 
       if (RD_HARPOON(p_port+hp_scsidata_0) != 00)
-         return(FALSE);
+         return(0);
 
       WR_HARPOON(p_port+hp_scsisig, (RD_HARPOON(p_port+hp_scsisig) | SCSI_BSY));
 
@@ -9650,7 +6282,7 @@ int scarb(ULONG p_port, UCHAR p_sel_type)
 
          WR_HARPOON(p_port+hp_scsisig, (RD_HARPOON(p_port+hp_scsisig) &
             ~SCSI_BSY));
-         return(FALSE);
+         return(0);
          }
 
 
@@ -9660,7 +6292,7 @@ int scarb(ULONG p_port, UCHAR p_sel_type)
 
          WR_HARPOON(p_port+hp_scsisig, (RD_HARPOON(p_port+hp_scsisig) &
             ~(SCSI_BSY | SCSI_SEL)));
-         return(FALSE);
+         return(0);
          }
       }
 
@@ -9669,9 +6301,7 @@ int scarb(ULONG p_port, UCHAR p_sel_type)
       & ~ACTdeassert));
    WR_HARPOON(p_port+hp_scsireset, SCAM_EN);
    WR_HARPOON(p_port+hp_scsidata_0, 0x00);
-#if defined(WIDE_SCSI)
    WR_HARPOON(p_port+hp_scsidata_1, 0x00);
-#endif
    WR_HARPOON(p_port+hp_portctrl_0, SCSI_BUS_EN);
 
    WR_HARPOON(p_port+hp_scsisig, (RD_HARPOON(p_port+hp_scsisig) | SCSI_MSG));
@@ -9679,25 +6309,21 @@ int scarb(ULONG p_port, UCHAR p_sel_type)
    WR_HARPOON(p_port+hp_scsisig, (RD_HARPOON(p_port+hp_scsisig)
       & ~SCSI_BSY));
 
-   Wait(p_port,TO_250ms);
+   FPT_Wait(p_port,TO_250ms);
 
-   return(TRUE);
+   return(1);
 }
 
 
 /*---------------------------------------------------------------------
  *
- * Function: scbusf
+ * Function: FPT_scbusf
  *
  * Description: Release the SCSI bus and disable SCAM selection.
  *
  *---------------------------------------------------------------------*/
 
-#if defined(DOS)
-void scbusf(USHORT p_port)
-#else
-void scbusf(ULONG p_port)
-#endif
+static void FPT_scbusf(ULONG p_port)
 {
    WR_HARPOON(p_port+hp_page_ctrl,
       (RD_HARPOON(p_port+hp_page_ctrl) | G_INT_DISABLE));
@@ -9717,11 +6343,7 @@ void scbusf(ULONG p_port)
    WR_HARPOON(p_port+hp_clkctrl_0, (RD_HARPOON(p_port+hp_clkctrl_0)
       | ACTdeassert));
 
-#if defined(SCAM_LEV_2)
    WRW_HARPOON((p_port+hp_intstat), (BUS_FREE | AUTO_INT | SCAM_SEL));
-#else
-   WRW_HARPOON((p_port+hp_intstat), (BUS_FREE | AUTO_INT));
-#endif
 
    WR_HARPOON(p_port+hp_page_ctrl,
       (RD_HARPOON(p_port+hp_page_ctrl) & ~G_INT_DISABLE));
@@ -9731,35 +6353,24 @@ void scbusf(ULONG p_port)
 
 /*---------------------------------------------------------------------
  *
- * Function: scasid
+ * Function: FPT_scasid
  *
  * Description: Assign an ID to all the SCAM devices.
  *
  *---------------------------------------------------------------------*/
 
-#if defined(DOS)
-void scasid(UCHAR p_card, USHORT p_port)
-#else
-void scasid(UCHAR p_card, ULONG p_port)
-#endif
+static void FPT_scasid(UCHAR p_card, ULONG p_port)
 {
-#if defined(DOS) || defined(OS2)
-   /* Use external defined in global space area, instead of Stack
-      space. WIN/95 DOS doesnot work TINY mode. The OS doesnot intialize
-      SS equal to DS. Thus the array allocated on stack doesnot get
-      access correctly */
-#else
    UCHAR temp_id_string[ID_STRING_LENGTH];
-#endif
 
    UCHAR i,k,scam_id;
 	UCHAR crcBytes[3];
 	PNVRamInfo pCurrNvRam;
 	ushort_ptr pCrcBytes;
 
-	pCurrNvRam = BL_Card[p_card].pNvRamInfo;
+	pCurrNvRam = FPT_BL_Card[p_card].pNvRamInfo;
 
-   i=FALSE;
+   i=0;
 
    while (!i)
       {
@@ -9769,36 +6380,36 @@ void scasid(UCHAR p_card, ULONG p_port)
          temp_id_string[k] = (UCHAR) 0x00;
          }
 
-      scxferc(p_port,SYNC_PTRN);
-      scxferc(p_port,ASSIGN_ID);
+      FPT_scxferc(p_port,SYNC_PTRN);
+      FPT_scxferc(p_port,ASSIGN_ID);
 
-      if (!(sciso(p_port,&temp_id_string[0])))
+      if (!(FPT_sciso(p_port,&temp_id_string[0])))
          {
 			if(pCurrNvRam){
 				pCrcBytes = (ushort_ptr)&crcBytes[0];
-				*pCrcBytes = CalcCrc16(&temp_id_string[0]);
-				crcBytes[2] = CalcLrc(&temp_id_string[0]);
+				*pCrcBytes = FPT_CalcCrc16(&temp_id_string[0]);
+				crcBytes[2] = FPT_CalcLrc(&temp_id_string[0]);
 				temp_id_string[1] = crcBytes[2];
 				temp_id_string[2] = crcBytes[0];
 				temp_id_string[3] = crcBytes[1];
 				for(k = 4; k < ID_STRING_LENGTH; k++)
 					temp_id_string[k] = (UCHAR) 0x00;
 			}
-         i = scmachid(p_card,temp_id_string);
+         i = FPT_scmachid(p_card,temp_id_string);
 
          if (i == CLR_PRIORITY)
             {
-            scxferc(p_port,MISC_CODE);
-            scxferc(p_port,CLR_P_FLAG);
-            i = FALSE;  /*Not the last ID yet. */
+            FPT_scxferc(p_port,MISC_CODE);
+            FPT_scxferc(p_port,CLR_P_FLAG);
+            i = 0;  /*Not the last ID yet. */
             }
 
          else if (i != NO_ID_AVAIL)
             {
             if (i < 8 )
-               scxferc(p_port,ID_0_7);
+               FPT_scxferc(p_port,ID_0_7);
             else
-               scxferc(p_port,ID_8_F);
+               FPT_scxferc(p_port,ID_8_F);
 
             scam_id = (i & (UCHAR) 0x07);
 
@@ -9807,21 +6418,21 @@ void scasid(UCHAR p_card, ULONG p_port)
                if (!( k & i ))
                   scam_id += 0x08;        /*Count number of zeros in DB0-3. */
 
-            scxferc(p_port,scam_id);
+            FPT_scxferc(p_port,scam_id);
 
-            i = FALSE;  /*Not the last ID yet. */
+            i = 0;  /*Not the last ID yet. */
             }
          }
 
       else
          {
-         i = TRUE;
+         i = 1;
          }
 
       }  /*End while */
 
-   scxferc(p_port,SYNC_PTRN);
-   scxferc(p_port,CFG_CMPLT);
+   FPT_scxferc(p_port,SYNC_PTRN);
+   FPT_scxferc(p_port,CFG_CMPLT);
 }
 
 
@@ -9830,21 +6441,17 @@ void scasid(UCHAR p_card, ULONG p_port)
 
 /*---------------------------------------------------------------------
  *
- * Function: scsel
+ * Function: FPT_scsel
  *
  * Description: Select all the SCAM devices.
  *
  *---------------------------------------------------------------------*/
 
-#if defined(DOS)
-void scsel(USHORT p_port)
-#else
-void scsel(ULONG p_port)
-#endif
+static void FPT_scsel(ULONG p_port)
 {
 
    WR_HARPOON(p_port+hp_scsisig, SCSI_SEL);
-   scwiros(p_port, SCSI_MSG);
+   FPT_scwiros(p_port, SCSI_MSG);
 
    WR_HARPOON(p_port+hp_scsisig, (SCSI_SEL | SCSI_BSY));
 
@@ -9855,11 +6462,11 @@ void scsel(ULONG p_port)
 
 
    WR_HARPOON(p_port+hp_scsisig, (SCSI_BSY | SCSI_IOBIT | SCSI_CD));
-   scwiros(p_port, SCSI_SEL);
+   FPT_scwiros(p_port, SCSI_SEL);
 
    WR_HARPOON(p_port+hp_scsidata_0, (UCHAR)(RD_HARPOON(p_port+hp_scsidata_0) &
       ~(UCHAR)BIT(6)));
-   scwirod(p_port, BIT(6));
+   FPT_scwirod(p_port, BIT(6));
 
    WR_HARPOON(p_port+hp_scsisig, (SCSI_SEL | SCSI_BSY | SCSI_IOBIT | SCSI_CD));
 }
@@ -9868,17 +6475,13 @@ void scsel(ULONG p_port)
 
 /*---------------------------------------------------------------------
  *
- * Function: scxferc
+ * Function: FPT_scxferc
  *
  * Description: Handshake the p_data (DB4-0) across the bus.
  *
  *---------------------------------------------------------------------*/
 
-#if defined(DOS)
-UCHAR scxferc(USHORT p_port, UCHAR p_data)
-#else
-UCHAR scxferc(ULONG p_port, UCHAR p_data)
-#endif
+static UCHAR FPT_scxferc(ULONG p_port, UCHAR p_data)
 {
    UCHAR curr_data, ret_data;
 
@@ -9890,7 +6493,7 @@ UCHAR scxferc(ULONG p_port, UCHAR p_data)
 
    WR_HARPOON(p_port+hp_scsidata_0, curr_data);
 
-   scwirod(p_port,BIT(7));              /*Wait for DB7 to be released. */
+   FPT_scwirod(p_port,BIT(7));              /*Wait for DB7 to be released. */
 	while (!(RD_HARPOON(p_port+hp_scsidata_0) & BIT(5)));
 
    ret_data = (RD_HARPOON(p_port+hp_scsidata_0) & (UCHAR) 0x1F);
@@ -9903,7 +6506,7 @@ UCHAR scxferc(ULONG p_port, UCHAR p_data)
 
    WR_HARPOON(p_port+hp_scsidata_0, curr_data);
 
-   scwirod(p_port,BIT(5));              /*Wait for DB5 to be released. */
+   FPT_scwirod(p_port,BIT(5));              /*Wait for DB5 to be released. */
 
    curr_data &= ~(BIT(4)|BIT(3)|BIT(2)|BIT(1)|BIT(0)); /*Release data bits */
    curr_data |= BIT(7);
@@ -9914,7 +6517,7 @@ UCHAR scxferc(ULONG p_port, UCHAR p_data)
 
    WR_HARPOON(p_port+hp_scsidata_0, curr_data);
 
-   scwirod(p_port,BIT(6));              /*Wait for DB6 to be released. */
+   FPT_scwirod(p_port,BIT(6));              /*Wait for DB6 to be released. */
 
    return(ret_data);
 }
@@ -9922,39 +6525,35 @@ UCHAR scxferc(ULONG p_port, UCHAR p_data)
 
 /*---------------------------------------------------------------------
  *
- * Function: scsendi
+ * Function: FPT_scsendi
  *
  * Description: Transfer our Identification string to determine if we
  *              will be the dominant master.
  *
  *---------------------------------------------------------------------*/
 
-#if defined(DOS)
-UCHAR scsendi(USHORT p_port, UCHAR p_id_string[])
-#else
-UCHAR scsendi(ULONG p_port, UCHAR p_id_string[])
-#endif
+static UCHAR FPT_scsendi(ULONG p_port, UCHAR p_id_string[])
 {
    UCHAR ret_data,byte_cnt,bit_cnt,defer;
 
-   defer = FALSE;
+   defer = 0;
 
    for (byte_cnt = 0; byte_cnt < ID_STRING_LENGTH; byte_cnt++) {
 
       for (bit_cnt = 0x80; bit_cnt != 0 ; bit_cnt >>= 1) {
 
          if (defer)
-            ret_data = scxferc(p_port,00);
+            ret_data = FPT_scxferc(p_port,00);
 
          else if (p_id_string[byte_cnt] & bit_cnt)
 
-               ret_data = scxferc(p_port,02);
+               ret_data = FPT_scxferc(p_port,02);
 
             else {
 
-               ret_data = scxferc(p_port,01);
+               ret_data = FPT_scxferc(p_port,01);
                if (ret_data & 02)
-                  defer = TRUE;
+                  defer = 1;
                }
 
          if ((ret_data & 0x1C) == 0x10)
@@ -9980,17 +6579,13 @@ UCHAR scsendi(ULONG p_port, UCHAR p_id_string[])
 
 /*---------------------------------------------------------------------
  *
- * Function: sciso
+ * Function: FPT_sciso
  *
  * Description: Transfer the Identification string.
  *
  *---------------------------------------------------------------------*/
 
-#if defined(DOS)
-UCHAR sciso(USHORT p_port, UCHAR p_id_string[])
-#else
-UCHAR sciso(ULONG p_port, UCHAR p_id_string[])
-#endif
+static UCHAR FPT_sciso(ULONG p_port, UCHAR p_id_string[])
 {
    UCHAR ret_data,the_data,byte_cnt,bit_cnt;
 
@@ -10000,7 +6595,7 @@ UCHAR sciso(ULONG p_port, UCHAR p_id_string[])
 
       for (bit_cnt = 0; bit_cnt < 8; bit_cnt++) {
 
-         ret_data = scxferc(p_port,0);
+         ret_data = FPT_scxferc(p_port,0);
 
          if (ret_data & 0xFC)
             return(0xFF);
@@ -10020,8 +6615,8 @@ UCHAR sciso(ULONG p_port, UCHAR p_id_string[])
 				{
 					byte_cnt = 0;
 					bit_cnt = 0;
-					scxferc(p_port, SYNC_PTRN);
-					scxferc(p_port, ASSIGN_ID);
+					FPT_scxferc(p_port, SYNC_PTRN);
+					FPT_scxferc(p_port, ASSIGN_ID);
 					continue;
 				}
 */
@@ -10044,18 +6639,14 @@ UCHAR sciso(ULONG p_port, UCHAR p_id_string[])
 
 /*---------------------------------------------------------------------
  *
- * Function: scwirod
+ * Function: FPT_scwirod
  *
  * Description: Sample the SCSI data bus making sure the signal has been
  *              deasserted for the correct number of consecutive samples.
  *
  *---------------------------------------------------------------------*/
 
-#if defined(DOS)
-void scwirod(USHORT p_port, UCHAR p_data_bit)
-#else
-void scwirod(ULONG p_port, UCHAR p_data_bit)
-#endif
+static void FPT_scwirod(ULONG p_port, UCHAR p_data_bit)
 {
    UCHAR i;
 
@@ -10077,18 +6668,14 @@ void scwirod(ULONG p_port, UCHAR p_data_bit)
 
 /*---------------------------------------------------------------------
  *
- * Function: scwiros
+ * Function: FPT_scwiros
  *
  * Description: Sample the SCSI Signal lines making sure the signal has been
  *              deasserted for the correct number of consecutive samples.
  *
  *---------------------------------------------------------------------*/
 
-#if defined(DOS)
-void scwiros(USHORT p_port, UCHAR p_data_bit)
-#else
-void scwiros(ULONG p_port, UCHAR p_data_bit)
-#endif
+static void FPT_scwiros(ULONG p_port, UCHAR p_data_bit)
 {
    UCHAR i;
 
@@ -10109,13 +6696,13 @@ void scwiros(ULONG p_port, UCHAR p_data_bit)
 
 /*---------------------------------------------------------------------
  *
- * Function: scvalq
+ * Function: FPT_scvalq
  *
  * Description: Make sure we received a valid data byte.
  *
  *---------------------------------------------------------------------*/
 
-UCHAR scvalq(UCHAR p_quintet)
+static UCHAR FPT_scvalq(UCHAR p_quintet)
 {
    UCHAR count;
 
@@ -10125,16 +6712,16 @@ UCHAR scvalq(UCHAR p_quintet)
       }
 
    if (p_quintet & 0x18)
-      return(FALSE);
+      return(0);
 
    else
-      return(TRUE);
+      return(1);
 }
 
 
 /*---------------------------------------------------------------------
  *
- * Function: scsell
+ * Function: FPT_scsell
  *
  * Description: Select the specified device ID using a selection timeout
  *              less than 4ms.  If somebody responds then it is a legacy
@@ -10142,17 +6729,9 @@ UCHAR scvalq(UCHAR p_quintet)
  *
  *---------------------------------------------------------------------*/
 
-#if defined(DOS)
-UCHAR scsell(USHORT p_port, UCHAR targ_id)
-#else
-UCHAR scsell(ULONG p_port, UCHAR targ_id)
-#endif
+static UCHAR FPT_scsell(ULONG p_port, UCHAR targ_id)
 {
-#if defined(DOS)
-   USHORT i;
-#else
    ULONG i;
-#endif
 
    WR_HARPOON(p_port+hp_page_ctrl,
       (RD_HARPOON(p_port+hp_page_ctrl) | G_INT_DISABLE));
@@ -10182,7 +6761,7 @@ UCHAR scsell(ULONG p_port, UCHAR targ_id)
 	    (RESET | PROG_HLT | TIMEOUT | AUTO_INT))) {}
 
    if (RDW_HARPOON((p_port+hp_intstat)) & RESET)
-         Wait(p_port, TO_250ms);
+         FPT_Wait(p_port, TO_250ms);
 
    DISABLE_AUTO(p_port);
 
@@ -10199,7 +6778,7 @@ UCHAR scsell(ULONG p_port, UCHAR targ_id)
       WR_HARPOON(p_port+hp_page_ctrl,
          (RD_HARPOON(p_port+hp_page_ctrl) & ~G_INT_DISABLE));
 
-      return(FALSE);  /*No legacy device */
+      return(0);  /*No legacy device */
       }
 
    else {
@@ -10217,108 +6796,19 @@ UCHAR scsell(ULONG p_port, UCHAR targ_id)
       WR_HARPOON(p_port+hp_page_ctrl,
          (RD_HARPOON(p_port+hp_page_ctrl) & ~G_INT_DISABLE));
 
-      return(TRUE);  /*Found one of them oldies! */
+      return(1);  /*Found one of them oldies! */
       }
 }
 
-#if defined(DOS)
 /*---------------------------------------------------------------------
  *
- * Function: scsell for DOS
- *
- * Description: Select the specified device ID using a selection timeout
- *              less than 2ms.  This was specially required to solve
- *              the problem with Plextor 12X CD-ROM drive. This drive
- *					 was responding the Selection at the end of 4ms and 
- *					 hanging the system.
- *
- *---------------------------------------------------------------------*/
-
-UCHAR scsellDOS(USHORT p_port, UCHAR targ_id)
-{
-   USHORT i;
-
-   WR_HARPOON(p_port+hp_page_ctrl,
-      (RD_HARPOON(p_port+hp_page_ctrl) | G_INT_DISABLE));
-
-   ARAM_ACCESS(p_port);
-
-   WR_HARPOON(p_port+hp_addstat,(RD_HARPOON(p_port+hp_addstat) | SCAM_TIMER));
-   WR_HARPOON(p_port+hp_seltimeout,TO_2ms);
-
-
-   for (i = p_port+CMD_STRT; i < p_port+CMD_STRT+12; i+=2) {
-      WRW_HARPOON(i, (MPM_OP+ACOMMAND));
-      }
-   WRW_HARPOON(i, (BRH_OP+ALWAYS+    NP));
-
-   WRW_HARPOON((p_port+hp_intstat),
-	       (RESET | TIMEOUT | SEL | BUS_FREE | AUTO_INT));
-
-   WR_HARPOON(p_port+hp_select_id, targ_id);
-
-   WR_HARPOON(p_port+hp_portctrl_0, SCSI_PORT);
-   WR_HARPOON(p_port+hp_autostart_3, (SELECT | CMD_ONLY_STRT));
-   WR_HARPOON(p_port+hp_scsictrl_0, (SEL_TAR | ENA_RESEL));
-
-
-   while (!(RDW_HARPOON((p_port+hp_intstat)) &
-	    (RESET | PROG_HLT | TIMEOUT | AUTO_INT))) {}
-
-   if (RDW_HARPOON((p_port+hp_intstat)) & RESET)
-         Wait(p_port, TO_250ms);
-
-   DISABLE_AUTO(p_port);
-
-   WR_HARPOON(p_port+hp_addstat,(RD_HARPOON(p_port+hp_addstat) & ~SCAM_TIMER));
-   WR_HARPOON(p_port+hp_seltimeout,TO_290ms);
-
-   SGRAM_ACCESS(p_port);
-
-   if (RDW_HARPOON((p_port+hp_intstat)) & (RESET | TIMEOUT) ) {
-
-      WRW_HARPOON((p_port+hp_intstat),
-		  (RESET | TIMEOUT | SEL | BUS_FREE | PHASE));
-
-      WR_HARPOON(p_port+hp_page_ctrl,
-         (RD_HARPOON(p_port+hp_page_ctrl) & ~G_INT_DISABLE));
-
-      return(FALSE);  /*No legacy device */
-      }
-
-   else {
-
-      while(!(RDW_HARPOON((p_port+hp_intstat)) & BUS_FREE)) {
-				if (RD_HARPOON(p_port+hp_scsisig) & SCSI_REQ)
-					{
-					WR_HARPOON(p_port+hp_scsisig, (SCSI_ACK + S_ILL_PH));
-      			ACCEPT_MSG(p_port);
-					}
-		}
-
-      WRW_HARPOON((p_port+hp_intstat), CLR_ALL_INT_1);
-
-      WR_HARPOON(p_port+hp_page_ctrl,
-         (RD_HARPOON(p_port+hp_page_ctrl) & ~G_INT_DISABLE));
-
-      return(TRUE);  /*Found one of them oldies! */
-      }
-}
-#endif  /* DOS */
-
-/*---------------------------------------------------------------------
- *
- * Function: scwtsel
+ * Function: FPT_scwtsel
  *
  * Description: Wait to be selected by another SCAM initiator.
  *
  *---------------------------------------------------------------------*/
 
-#if defined(DOS)
-void scwtsel(USHORT p_port)
-#else
-void scwtsel(ULONG p_port)
-#endif
+static void FPT_scwtsel(ULONG p_port)
 {
    while(!(RDW_HARPOON((p_port+hp_intstat)) & SCAM_SEL)) {}
 }
@@ -10326,23 +6816,19 @@ void scwtsel(ULONG p_port)
 
 /*---------------------------------------------------------------------
  *
- * Function: inisci
+ * Function: FPT_inisci
  *
  * Description: Setup the data Structure with the info from the EEPROM.
  *
  *---------------------------------------------------------------------*/
 
-#if defined(DOS)
-void inisci(UCHAR p_card, USHORT p_port, UCHAR p_our_id)
-#else
-void inisci(UCHAR p_card, ULONG p_port, UCHAR p_our_id)
-#endif
+static void FPT_inisci(UCHAR p_card, ULONG p_port, UCHAR p_our_id)
 {
    UCHAR i,k,max_id;
    USHORT ee_data;
 	PNVRamInfo pCurrNvRam;
 
-	pCurrNvRam = BL_Card[p_card].pNvRamInfo;
+	pCurrNvRam = FPT_BL_Card[p_card].pNvRamInfo;
 
    if (RD_HARPOON(p_port+hp_page_ctrl) & NARROW_SCSI_CARD)
       max_id = 0x08;
@@ -10354,14 +6840,14 @@ void inisci(UCHAR p_card, ULONG p_port, UCHAR p_our_id)
 		for(i = 0; i < max_id; i++){
 
 			for(k = 0; k < 4; k++)
-				scamInfo[i].id_string[k] = pCurrNvRam->niScamTbl[i][k];
+				FPT_scamInfo[i].id_string[k] = pCurrNvRam->niScamTbl[i][k];
 			for(k = 4; k < ID_STRING_LENGTH; k++)
-				scamInfo[i].id_string[k] = (UCHAR) 0x00;
+				FPT_scamInfo[i].id_string[k] = (UCHAR) 0x00;
 
-	      if(scamInfo[i].id_string[0] == 0x00)
-      	   scamInfo[i].state = ID_UNUSED;  /*Default to unused ID. */
+	      if(FPT_scamInfo[i].id_string[0] == 0x00)
+      	   FPT_scamInfo[i].state = ID_UNUSED;  /*Default to unused ID. */
 	      else
-   	      scamInfo[i].state = ID_UNASSIGNED;  /*Default to unassigned ID. */
+   	      FPT_scamInfo[i].state = ID_UNASSIGNED;  /*Default to unassigned ID. */
 
 		}
 	}else {
@@ -10369,38 +6855,38 @@ void inisci(UCHAR p_card, ULONG p_port, UCHAR p_our_id)
    	   {
       	for (k=0; k < ID_STRING_LENGTH; k+=2)
 	         {
-   	      ee_data = utilEERead(p_port, (USHORT)((EE_SCAMBASE/2) +
+   	      ee_data = FPT_utilEERead(p_port, (USHORT)((EE_SCAMBASE/2) +
       	     (USHORT) (i*((USHORT)ID_STRING_LENGTH/2)) + (USHORT)(k/2)));
-         	scamInfo[i].id_string[k] = (UCHAR) ee_data;
+         	FPT_scamInfo[i].id_string[k] = (UCHAR) ee_data;
 	         ee_data >>= 8;
-   	      scamInfo[i].id_string[k+1] = (UCHAR) ee_data;
+   	      FPT_scamInfo[i].id_string[k+1] = (UCHAR) ee_data;
       	   }
 
-	      if ((scamInfo[i].id_string[0] == 0x00) ||
-   	       (scamInfo[i].id_string[0] == 0xFF))
+	      if ((FPT_scamInfo[i].id_string[0] == 0x00) ||
+   	       (FPT_scamInfo[i].id_string[0] == 0xFF))
 
-      	   scamInfo[i].state = ID_UNUSED;  /*Default to unused ID. */
+      	   FPT_scamInfo[i].state = ID_UNUSED;  /*Default to unused ID. */
 
 	      else
-   	      scamInfo[i].state = ID_UNASSIGNED;  /*Default to unassigned ID. */
+   	      FPT_scamInfo[i].state = ID_UNASSIGNED;  /*Default to unassigned ID. */
 
       	}
 	}
 	for(k = 0; k < ID_STRING_LENGTH; k++)
-		scamInfo[p_our_id].id_string[k] = scamHAString[k];
+		FPT_scamInfo[p_our_id].id_string[k] = FPT_scamHAString[k];
 
 }
 
 /*---------------------------------------------------------------------
  *
- * Function: scmachid
+ * Function: FPT_scmachid
  *
  * Description: Match the Device ID string with our values stored in
  *              the EEPROM.
  *
  *---------------------------------------------------------------------*/
 
-UCHAR scmachid(UCHAR p_card, UCHAR p_id_string[])
+static UCHAR FPT_scmachid(UCHAR p_card, UCHAR p_id_string[])
 {
 
    UCHAR i,k,match;
@@ -10408,27 +6894,19 @@ UCHAR scmachid(UCHAR p_card, UCHAR p_id_string[])
 
    for (i=0; i < MAX_SCSI_TAR; i++) {
 
-#if !defined(SCAM_LEV_2)
-      if (scamInfo[i].state == ID_UNASSIGNED)
-         {
-#endif
-         match = TRUE;
+         match = 1;
 
          for (k=0; k < ID_STRING_LENGTH; k++)
             {
-            if (p_id_string[k] != scamInfo[i].id_string[k])
-               match = FALSE;
+            if (p_id_string[k] != FPT_scamInfo[i].id_string[k])
+               match = 0;
             }
 
          if (match)
             {
-            scamInfo[i].state = ID_ASSIGNED;
+            FPT_scamInfo[i].state = ID_ASSIGNED;
             return(i);
             }
-
-#if !defined(SCAM_LEV_2)
-         }
-#endif
 
       }
 
@@ -10448,17 +6926,17 @@ UCHAR scmachid(UCHAR p_card, UCHAR p_id_string[])
       {
       i--;
 
-      if (scamInfo[match].state == ID_UNUSED)
+      if (FPT_scamInfo[match].state == ID_UNUSED)
          {
          for (k=0; k < ID_STRING_LENGTH; k++)
             {
-            scamInfo[match].id_string[k] = p_id_string[k];
+            FPT_scamInfo[match].id_string[k] = p_id_string[k];
             }
 
-         scamInfo[match].state = ID_ASSIGNED;
+         FPT_scamInfo[match].state = ID_ASSIGNED;
 
-			if(BL_Card[p_card].pNvRamInfo == NULL)
-	         BL_Card[p_card].globalFlags |= F_UPDATE_EEPROM;
+			if(FPT_BL_Card[p_card].pNvRamInfo == NULL)
+	         FPT_BL_Card[p_card].globalFlags |= F_UPDATE_EEPROM;
          return(match);
 
          }
@@ -10498,17 +6976,17 @@ UCHAR scmachid(UCHAR p_card, UCHAR p_id_string[])
 
       i--;
 
-      if (scamInfo[match].state == ID_UNASSIGNED)
+      if (FPT_scamInfo[match].state == ID_UNASSIGNED)
          {
          for (k=0; k < ID_STRING_LENGTH; k++)
             {
-            scamInfo[match].id_string[k] = p_id_string[k];
+            FPT_scamInfo[match].id_string[k] = p_id_string[k];
             }
 
-         scamInfo[match].id_string[0] |= BIT(7);
-         scamInfo[match].state = ID_ASSIGNED;
-			if(BL_Card[p_card].pNvRamInfo == NULL)
-	         BL_Card[p_card].globalFlags |= F_UPDATE_EEPROM;
+         FPT_scamInfo[match].id_string[0] |= BIT(7);
+         FPT_scamInfo[match].state = ID_ASSIGNED;
+			if(FPT_BL_Card[p_card].pNvRamInfo == NULL)
+	         FPT_BL_Card[p_card].globalFlags |= F_UPDATE_EEPROM;
          return(match);
 
          }
@@ -10531,17 +7009,13 @@ UCHAR scmachid(UCHAR p_card, UCHAR p_id_string[])
 
 /*---------------------------------------------------------------------
  *
- * Function: scsavdi
+ * Function: FPT_scsavdi
  *
  * Description: Save off the device SCAM ID strings.
  *
  *---------------------------------------------------------------------*/
 
-#if defined(DOS)
-void scsavdi(UCHAR p_card, USHORT p_port)
-#else
-void scsavdi(UCHAR p_card, ULONG p_port)
-#endif
+static void FPT_scsavdi(UCHAR p_card, ULONG p_port)
 {
    UCHAR i,k,max_id;
    USHORT ee_data,sum_data;
@@ -10551,11 +7025,11 @@ void scsavdi(UCHAR p_card, ULONG p_port)
 
    for (i = 1; i < EE_SCAMBASE/2; i++)
       {
-      sum_data += utilEERead(p_port, i);
+      sum_data += FPT_utilEERead(p_port, i);
       }
 
 
-   utilEEWriteOnOff(p_port,1);   /* Enable write access to the EEPROM */
+   FPT_utilEEWriteOnOff(p_port,1);   /* Enable write access to the EEPROM */
 
    if (RD_HARPOON(p_port+hp_page_ctrl) & NARROW_SCSI_CARD)
       max_id = 0x08;
@@ -10568,64 +7042,29 @@ void scsavdi(UCHAR p_card, ULONG p_port)
 
       for (k=0; k < ID_STRING_LENGTH; k+=2)
          {
-         ee_data = scamInfo[i].id_string[k+1];
+         ee_data = FPT_scamInfo[i].id_string[k+1];
          ee_data <<= 8;
-         ee_data |= scamInfo[i].id_string[k];
+         ee_data |= FPT_scamInfo[i].id_string[k];
          sum_data += ee_data;
-         utilEEWrite(p_port, ee_data, (USHORT)((EE_SCAMBASE/2) +
+         FPT_utilEEWrite(p_port, ee_data, (USHORT)((EE_SCAMBASE/2) +
             (USHORT)(i*((USHORT)ID_STRING_LENGTH/2)) + (USHORT)(k/2)));
          }
       }
 
 
-   utilEEWrite(p_port, sum_data, EEPROM_CHECK_SUM/2);
-   utilEEWriteOnOff(p_port,0);   /* Turn off write access */
+   FPT_utilEEWrite(p_port, sum_data, EEPROM_CHECK_SUM/2);
+   FPT_utilEEWriteOnOff(p_port,0);   /* Turn off write access */
 }
-#ident "$Id: diagnose.c 1.10 1997/06/10 16:51:47 mohan Exp $"
-/*----------------------------------------------------------------------
- *
- *
- *   Copyright 1995-1996 by Mylex Corporation.  All Rights Reserved
- *
- *   This file is available under both the GNU General Public License
- *   and a BSD-style copyright; see LICENSE.FlashPoint for details.
- *
- *   $Workfile:   diagnose.c  $
- *
- *   Description:  Diagnostic funtions for testing the integrity of
- *                 the HARPOON.
- *
- *   $Date: 1997/06/10 16:51:47 $
- *
- *   $Revision: 1.10 $
- *
- *----------------------------------------------------------------------*/
-
-/*#include <globals.h>*/
-
-#if (FW_TYPE==_UCB_MGR_)
-	/*#include <budi.h>*/
-#endif
-
-/*#include <sccbmgr.h>*/
-/*#include <blx30.h>*/
-/*#include <target.h>*/
-/*#include <eeprom.h>*/
-/*#include <harpoon.h>*/
 
 /*---------------------------------------------------------------------
  *
- * Function: XbowInit
+ * Function: FPT_XbowInit
  *
  * Description: Setup the Xbow for normal operation.
  *
  *---------------------------------------------------------------------*/
 
-#if defined(DOS)
-void XbowInit(USHORT port, UCHAR ScamFlg)
-#else
-void XbowInit(ULONG port, UCHAR ScamFlg)
-#endif
+static void FPT_XbowInit(ULONG port, UCHAR ScamFlg)
 {
 UCHAR i;
 
@@ -10647,18 +7086,13 @@ UCHAR i;
 
    WRW_HARPOON((port+hp_intstat), CLR_ALL_INT);
 
-#if defined(SCAM_LEV_2)
-   default_intena = RESET | RSEL | PROG_HLT | TIMEOUT |
+   FPT_default_intena = RESET | RSEL | PROG_HLT | TIMEOUT |
 		    BUS_FREE | XFER_CNT_0 | AUTO_INT;
 
    if ((ScamFlg & SCAM_ENABLED) && (ScamFlg & SCAM_LEVEL2))
-		default_intena |= SCAM_SEL;
+		FPT_default_intena |= SCAM_SEL;
 
-#else
-   default_intena = RESET | RSEL | PROG_HLT | TIMEOUT |
-		    BUS_FREE | XFER_CNT_0 | AUTO_INT;
-#endif
-   WRW_HARPOON((port+hp_intena), default_intena);
+   WRW_HARPOON((port+hp_intena), FPT_default_intena);
 
    WR_HARPOON(port+hp_seltimeout,TO_290ms);
 
@@ -10667,26 +7101,6 @@ UCHAR i;
    if (RD_HARPOON(port+hp_page_ctrl) & NARROW_SCSI_CARD)
       WR_HARPOON(port+hp_addstat,SCSI_MODE8);
 
-#if defined(NO_BIOS_OPTION)
-
-   WR_HARPOON(port+hp_synctarg_0,NARROW_SCSI);
-   WR_HARPOON(port+hp_synctarg_1,NARROW_SCSI);
-   WR_HARPOON(port+hp_synctarg_2,NARROW_SCSI);
-   WR_HARPOON(port+hp_synctarg_3,NARROW_SCSI);
-   WR_HARPOON(port+hp_synctarg_4,NARROW_SCSI);
-   WR_HARPOON(port+hp_synctarg_5,NARROW_SCSI);
-   WR_HARPOON(port+hp_synctarg_6,NARROW_SCSI);
-   WR_HARPOON(port+hp_synctarg_7,NARROW_SCSI);
-   WR_HARPOON(port+hp_synctarg_8,NARROW_SCSI);
-   WR_HARPOON(port+hp_synctarg_9,NARROW_SCSI);
-   WR_HARPOON(port+hp_synctarg_10,NARROW_SCSI);
-   WR_HARPOON(port+hp_synctarg_11,NARROW_SCSI);
-   WR_HARPOON(port+hp_synctarg_12,NARROW_SCSI);
-   WR_HARPOON(port+hp_synctarg_13,NARROW_SCSI);
-   WR_HARPOON(port+hp_synctarg_14,NARROW_SCSI);
-   WR_HARPOON(port+hp_synctarg_15,NARROW_SCSI);
-
-#endif
 	WR_HARPOON(port+hp_page_ctrl, i);
 
 }
@@ -10694,17 +7108,13 @@ UCHAR i;
 
 /*---------------------------------------------------------------------
  *
- * Function: BusMasterInit
+ * Function: FPT_BusMasterInit
  *
  * Description: Initialize the BusMaster for normal operations.
  *
  *---------------------------------------------------------------------*/
 
-#if defined(DOS)
-void BusMasterInit(USHORT p_port)
-#else
-void BusMasterInit(ULONG p_port)
-#endif
+static void FPT_BusMasterInit(ULONG p_port)
 {
 
 
@@ -10719,13 +7129,6 @@ void BusMasterInit(ULONG p_port)
    WR_HARPOON(p_port+hp_ee_ctrl, (SCSI_TERM_ENA_H));
 
 
-#if defined(NT)
-
-   WR_HARPOON(p_port+hp_pci_cmd_cfg, (RD_HARPOON(p_port+hp_pci_cmd_cfg)
-      & ~MEM_SPACE_ENA));
-
-#endif
-
    RD_HARPOON(p_port+hp_int_status);        /*Clear interrupts. */
    WR_HARPOON(p_port+hp_int_mask, (INT_CMD_COMPL | SCSI_INTERRUPT));
    WR_HARPOON(p_port+hp_page_ctrl, (RD_HARPOON(p_port+hp_page_ctrl) &
@@ -10735,147 +7138,14 @@ void BusMasterInit(ULONG p_port)
 
 /*---------------------------------------------------------------------
  *
- * Function: DiagXbow
- *
- * Description: Test Xbow integrity.  Non-zero return indicates an error.
- *
- *---------------------------------------------------------------------*/
-
-#if defined(DOS)
-int DiagXbow(USHORT port)
-#else
-int DiagXbow(ULONG port)
-#endif
-{
-   unsigned char fifo_cnt,loop_cnt;
-
-   unsigned char fifodata[5];
-   fifodata[0] = 0x00;
-   fifodata[1] = 0xFF;
-   fifodata[2] = 0x55;
-   fifodata[3] = 0xAA;
-   fifodata[4] = 0x00;
-
-
-   WRW_HARPOON((port+hp_intstat), CLR_ALL_INT);
-   WRW_HARPOON((port+hp_intena), 0x0000);
-
-   WR_HARPOON(port+hp_seltimeout,TO_5ms);
-
-   WR_HARPOON(port+hp_portctrl_0,START_TO);
-
-
-   for(fifodata[4] = 0x01; fifodata[4] != (UCHAR) 0; fifodata[4] = fifodata[4] << 1) {
-
-      WR_HARPOON(port+hp_selfid_0,fifodata[4]);
-      WR_HARPOON(port+hp_selfid_1,fifodata[4]);
-
-      if ((RD_HARPOON(port+hp_selfid_0) != fifodata[4]) ||
-          (RD_HARPOON(port+hp_selfid_1) != fifodata[4]))
-         return(1);
-      }
-
-
-   for(loop_cnt = 0; loop_cnt < 4; loop_cnt++) {
-
-      WR_HARPOON(port+hp_portctrl_0,(HOST_PORT | HOST_WRT | START_TO));
-
-
-      for (fifo_cnt = 0; fifo_cnt < FIFO_LEN; fifo_cnt++) {
-
-         WR_HARPOON(port+hp_fifodata_0, fifodata[loop_cnt]);
-         }
-
-
-      if (!(RD_HARPOON(port+hp_xferstat) & FIFO_FULL))
-         return(1);
-
-
-      WR_HARPOON(port+hp_portctrl_0,(HOST_PORT | START_TO));
-
-      for (fifo_cnt = 0; fifo_cnt < FIFO_LEN; fifo_cnt++) {
-
-         if (RD_HARPOON(port+hp_fifodata_0) != fifodata[loop_cnt])
-            return(1);
-         }
-
-
-      if (!(RD_HARPOON(port+hp_xferstat) & FIFO_EMPTY))
-         return(1);
-      }
-
-
-   while(!(RDW_HARPOON((port+hp_intstat)) & TIMEOUT)) {}
-
-
-   WR_HARPOON(port+hp_seltimeout,TO_290ms);
-
-   WRW_HARPOON((port+hp_intstat), CLR_ALL_INT);
-
-   WRW_HARPOON((port+hp_intena), default_intena);
-
-   return(0);
-}
-
-
-/*---------------------------------------------------------------------
- *
- * Function: DiagBusMaster
- *
- * Description: Test BusMaster integrity.  Non-zero return indicates an
- *              error.
- *
- *---------------------------------------------------------------------*/
-
-#if defined(DOS)
-int DiagBusMaster(USHORT port)
-#else
-int DiagBusMaster(ULONG port)
-#endif
-{
-   UCHAR testdata;
-
-   for(testdata = (UCHAR) 1; testdata != (UCHAR)0; testdata = testdata << 1) {
-
-      WR_HARPOON(port+hp_xfer_cnt_lo,testdata);
-      WR_HARPOON(port+hp_xfer_cnt_mi,testdata);
-      WR_HARPOON(port+hp_xfer_cnt_hi,testdata);
-      WR_HARPOON(port+hp_host_addr_lo,testdata);
-      WR_HARPOON(port+hp_host_addr_lmi,testdata);
-      WR_HARPOON(port+hp_host_addr_hmi,testdata);
-      WR_HARPOON(port+hp_host_addr_hi,testdata);
-
-      if ((RD_HARPOON(port+hp_xfer_cnt_lo) != testdata)   ||
-          (RD_HARPOON(port+hp_xfer_cnt_mi) != testdata)   ||
-          (RD_HARPOON(port+hp_xfer_cnt_hi) != testdata)   ||
-          (RD_HARPOON(port+hp_host_addr_lo) != testdata)  ||
-          (RD_HARPOON(port+hp_host_addr_lmi) != testdata) ||
-          (RD_HARPOON(port+hp_host_addr_hmi) != testdata) ||
-          (RD_HARPOON(port+hp_host_addr_hi) != testdata))
-
-         return(1);
-      }
-   RD_HARPOON(port+hp_int_status);        /*Clear interrupts. */
-   return(0);
-}
-
-
-
-/*---------------------------------------------------------------------
- *
- * Function: DiagEEPROM
+ * Function: FPT_DiagEEPROM
  *
  * Description: Verfiy checksum and 'Key' and initialize the EEPROM if
  *              necessary.
  *
  *---------------------------------------------------------------------*/
 
-#if defined(DOS)
-void DiagEEPROM(USHORT p_port)
-#else
-void DiagEEPROM(ULONG p_port)
-#endif
-
+static void FPT_DiagEEPROM(ULONG p_port)
 {
    USHORT index,temp,max_wd_cnt;
 
@@ -10884,185 +7154,148 @@ void DiagEEPROM(ULONG p_port)
    else
       max_wd_cnt = EEPROM_WD_CNT * 2;
 
-   temp = utilEERead(p_port, FW_SIGNATURE/2);
+   temp = FPT_utilEERead(p_port, FW_SIGNATURE/2);
 
    if (temp == 0x4641) {
 
       for (index = 2; index < max_wd_cnt; index++) {
 
-         temp += utilEERead(p_port, index);
+         temp += FPT_utilEERead(p_port, index);
 
          }
 
-      if (temp == utilEERead(p_port, EEPROM_CHECK_SUM/2)) {
+      if (temp == FPT_utilEERead(p_port, EEPROM_CHECK_SUM/2)) {
 
          return;          /*EEPROM is Okay so return now! */
          }
       }
 
 
-   utilEEWriteOnOff(p_port,(UCHAR)1);
+   FPT_utilEEWriteOnOff(p_port,(UCHAR)1);
 
    for (index = 0; index < max_wd_cnt; index++) {
 
-      utilEEWrite(p_port, 0x0000, index);
+      FPT_utilEEWrite(p_port, 0x0000, index);
       }
 
    temp = 0;
 
-   utilEEWrite(p_port, 0x4641, FW_SIGNATURE/2);
+   FPT_utilEEWrite(p_port, 0x4641, FW_SIGNATURE/2);
    temp += 0x4641;
-   utilEEWrite(p_port, 0x3920, MODEL_NUMB_0/2);
+   FPT_utilEEWrite(p_port, 0x3920, MODEL_NUMB_0/2);
    temp += 0x3920;
-   utilEEWrite(p_port, 0x3033, MODEL_NUMB_2/2);
+   FPT_utilEEWrite(p_port, 0x3033, MODEL_NUMB_2/2);
    temp += 0x3033;
-   utilEEWrite(p_port, 0x2020, MODEL_NUMB_4/2);
+   FPT_utilEEWrite(p_port, 0x2020, MODEL_NUMB_4/2);
    temp += 0x2020;
-   utilEEWrite(p_port, 0x70D3, SYSTEM_CONFIG/2);
+   FPT_utilEEWrite(p_port, 0x70D3, SYSTEM_CONFIG/2);
    temp += 0x70D3;
-   utilEEWrite(p_port, 0x0010, BIOS_CONFIG/2);
+   FPT_utilEEWrite(p_port, 0x0010, BIOS_CONFIG/2);
    temp += 0x0010;
-   utilEEWrite(p_port, 0x0003, SCAM_CONFIG/2);
+   FPT_utilEEWrite(p_port, 0x0003, SCAM_CONFIG/2);
    temp += 0x0003;
-   utilEEWrite(p_port, 0x0007, ADAPTER_SCSI_ID/2);
+   FPT_utilEEWrite(p_port, 0x0007, ADAPTER_SCSI_ID/2);
    temp += 0x0007;
 
-   utilEEWrite(p_port, 0x0000, IGNORE_B_SCAN/2);
+   FPT_utilEEWrite(p_port, 0x0000, IGNORE_B_SCAN/2);
    temp += 0x0000;
-   utilEEWrite(p_port, 0x0000, SEND_START_ENA/2);
+   FPT_utilEEWrite(p_port, 0x0000, SEND_START_ENA/2);
    temp += 0x0000;
-   utilEEWrite(p_port, 0x0000, DEVICE_ENABLE/2);
+   FPT_utilEEWrite(p_port, 0x0000, DEVICE_ENABLE/2);
    temp += 0x0000;
 
-   utilEEWrite(p_port, 0x4242, SYNC_RATE_TBL01/2);
+   FPT_utilEEWrite(p_port, 0x4242, SYNC_RATE_TBL01/2);
    temp += 0x4242;
-   utilEEWrite(p_port, 0x4242, SYNC_RATE_TBL23/2);
+   FPT_utilEEWrite(p_port, 0x4242, SYNC_RATE_TBL23/2);
    temp += 0x4242;
-   utilEEWrite(p_port, 0x4242, SYNC_RATE_TBL45/2);
+   FPT_utilEEWrite(p_port, 0x4242, SYNC_RATE_TBL45/2);
    temp += 0x4242;
-   utilEEWrite(p_port, 0x4242, SYNC_RATE_TBL67/2);
+   FPT_utilEEWrite(p_port, 0x4242, SYNC_RATE_TBL67/2);
    temp += 0x4242;
-   utilEEWrite(p_port, 0x4242, SYNC_RATE_TBL89/2);
+   FPT_utilEEWrite(p_port, 0x4242, SYNC_RATE_TBL89/2);
    temp += 0x4242;
-   utilEEWrite(p_port, 0x4242, SYNC_RATE_TBLab/2);
+   FPT_utilEEWrite(p_port, 0x4242, SYNC_RATE_TBLab/2);
    temp += 0x4242;
-   utilEEWrite(p_port, 0x4242, SYNC_RATE_TBLcd/2);
+   FPT_utilEEWrite(p_port, 0x4242, SYNC_RATE_TBLcd/2);
    temp += 0x4242;
-   utilEEWrite(p_port, 0x4242, SYNC_RATE_TBLef/2);
+   FPT_utilEEWrite(p_port, 0x4242, SYNC_RATE_TBLef/2);
    temp += 0x4242;
 
 
-   utilEEWrite(p_port, 0x6C46, 64/2);  /*PRODUCT ID */
+   FPT_utilEEWrite(p_port, 0x6C46, 64/2);  /*PRODUCT ID */
    temp += 0x6C46;
-   utilEEWrite(p_port, 0x7361, 66/2);  /* FlashPoint LT   */
+   FPT_utilEEWrite(p_port, 0x7361, 66/2);  /* FlashPoint LT   */
    temp += 0x7361;
-   utilEEWrite(p_port, 0x5068, 68/2);
+   FPT_utilEEWrite(p_port, 0x5068, 68/2);
    temp += 0x5068;
-   utilEEWrite(p_port, 0x696F, 70/2);
+   FPT_utilEEWrite(p_port, 0x696F, 70/2);
    temp += 0x696F;
-   utilEEWrite(p_port, 0x746E, 72/2);
+   FPT_utilEEWrite(p_port, 0x746E, 72/2);
    temp += 0x746E;
-   utilEEWrite(p_port, 0x4C20, 74/2);
+   FPT_utilEEWrite(p_port, 0x4C20, 74/2);
    temp += 0x4C20;
-   utilEEWrite(p_port, 0x2054, 76/2);
+   FPT_utilEEWrite(p_port, 0x2054, 76/2);
    temp += 0x2054;
-   utilEEWrite(p_port, 0x2020, 78/2);
+   FPT_utilEEWrite(p_port, 0x2020, 78/2);
    temp += 0x2020;
 
    index = ((EE_SCAMBASE/2)+(7*16));
-   utilEEWrite(p_port, (0x0700+TYPE_CODE0), index);
+   FPT_utilEEWrite(p_port, (0x0700+TYPE_CODE0), index);
    temp += (0x0700+TYPE_CODE0);
    index++;
-   utilEEWrite(p_port, 0x5542, index);            /*Vendor ID code */
+   FPT_utilEEWrite(p_port, 0x5542, index);            /*Vendor ID code */
    temp += 0x5542;                                /* BUSLOGIC      */
    index++;
-   utilEEWrite(p_port, 0x4C53, index);
+   FPT_utilEEWrite(p_port, 0x4C53, index);
    temp += 0x4C53;
    index++;
-   utilEEWrite(p_port, 0x474F, index);
+   FPT_utilEEWrite(p_port, 0x474F, index);
    temp += 0x474F;
    index++;
-   utilEEWrite(p_port, 0x4349, index);
+   FPT_utilEEWrite(p_port, 0x4349, index);
    temp += 0x4349;
    index++;
-   utilEEWrite(p_port, 0x5442, index);            /*Vendor unique code */
+   FPT_utilEEWrite(p_port, 0x5442, index);            /*Vendor unique code */
    temp += 0x5442;                         /* BT- 930           */
    index++;
-   utilEEWrite(p_port, 0x202D, index);
+   FPT_utilEEWrite(p_port, 0x202D, index);
    temp += 0x202D;
    index++;
-   utilEEWrite(p_port, 0x3339, index);
+   FPT_utilEEWrite(p_port, 0x3339, index);
    temp += 0x3339;
    index++;                                 /*Serial #          */
-   utilEEWrite(p_port, 0x2030, index);             /* 01234567         */
+   FPT_utilEEWrite(p_port, 0x2030, index);             /* 01234567         */
    temp += 0x2030;
    index++;
-   utilEEWrite(p_port, 0x5453, index);
+   FPT_utilEEWrite(p_port, 0x5453, index);
    temp += 0x5453;
    index++;
-   utilEEWrite(p_port, 0x5645, index);
+   FPT_utilEEWrite(p_port, 0x5645, index);
    temp += 0x5645;
    index++;
-   utilEEWrite(p_port, 0x2045, index);
+   FPT_utilEEWrite(p_port, 0x2045, index);
    temp += 0x2045;
    index++;
-   utilEEWrite(p_port, 0x202F, index);
+   FPT_utilEEWrite(p_port, 0x202F, index);
    temp += 0x202F;
    index++;
-   utilEEWrite(p_port, 0x4F4A, index);
+   FPT_utilEEWrite(p_port, 0x4F4A, index);
    temp += 0x4F4A;
    index++;
-   utilEEWrite(p_port, 0x204E, index);
+   FPT_utilEEWrite(p_port, 0x204E, index);
    temp += 0x204E;
    index++;
-   utilEEWrite(p_port, 0x3539, index);
+   FPT_utilEEWrite(p_port, 0x3539, index);
    temp += 0x3539;
 
 
 
-   utilEEWrite(p_port, temp, EEPROM_CHECK_SUM/2);
+   FPT_utilEEWrite(p_port, temp, EEPROM_CHECK_SUM/2);
 
-   utilEEWriteOnOff(p_port,(UCHAR)0);
+   FPT_utilEEWriteOnOff(p_port,(UCHAR)0);
 
 }
 
-#ident "$Id: utility.c 1.23 1997/06/10 16:55:06 mohan Exp $"
-/*----------------------------------------------------------------------
- *
- *
- *   Copyright 1995-1996 by Mylex Corporation.  All Rights Reserved
- *
- *   This file is available under both the GNU General Public License
- *   and a BSD-style copyright; see LICENSE.FlashPoint for details.
- *
- *   $Workfile:   utility.c  $
- *
- *   Description:  Utility functions relating to queueing and EEPROM
- *                 manipulation and any other garbage functions.
- *
- *   $Date: 1997/06/10 16:55:06 $
- *
- *   $Revision: 1.23 $
- *
- *----------------------------------------------------------------------*/
-/*#include <globals.h>*/
-
-#if (FW_TYPE==_UCB_MGR_)
-	/*#include <budi.h>*/
-#endif
-
-/*#include <sccbmgr.h>*/
-/*#include <blx30.h>*/
-/*#include <target.h>*/
-/*#include <scsi2.h>*/
-/*#include <harpoon.h>*/
-
-
-/*
-extern SCCBCARD BL_Card[MAX_CARDS];
-extern SCCBMGR_TAR_INFO sccbMgrTbl[MAX_CARDS][MAX_SCSI_TAR];
-extern unsigned int SccbGlobalFlags;
-*/
 
 /*---------------------------------------------------------------------
  *
@@ -11072,7 +7305,7 @@ extern unsigned int SccbGlobalFlags;
  *
  *---------------------------------------------------------------------*/
 
-void queueSearchSelect(PSCCBcard pCurrCard, UCHAR p_card)
+static void FPT_queueSearchSelect(PSCCBcard pCurrCard, UCHAR p_card)
 {
    UCHAR scan_ptr, lun;
    PSCCBMgr_tar_info currTar_Info;
@@ -11081,7 +7314,7 @@ void queueSearchSelect(PSCCBcard pCurrCard, UCHAR p_card)
    scan_ptr = pCurrCard->scanIndex;
 	do 
 	{
-		currTar_Info = &sccbMgrTbl[p_card][scan_ptr];
+		currTar_Info = &FPT_sccbMgrTbl[p_card][scan_ptr];
 		if((pCurrCard->globalFlags & F_CONLUN_IO) && 
 			((currTar_Info->TarStatus & TAR_TAG_Q_MASK) != TAG_Q_TRYING))
 		{
@@ -11094,7 +7327,7 @@ void queueSearchSelect(PSCCBcard pCurrCard, UCHAR p_card)
 				
 				for(lun=0; lun < MAX_LUN; lun++)
 				{
-					if(currTar_Info->TarLUNBusy[lun] == FALSE)
+					if(currTar_Info->TarLUNBusy[lun] == 0)
 					{
 
 						pCurrCard->currentSCCB = currTar_Info->TarSelQ_Head;
@@ -11153,7 +7386,7 @@ void queueSearchSelect(PSCCBcard pCurrCard, UCHAR p_card)
 		else
 		{
 			if ((currTar_Info->TarSelQ_Cnt != 0) &&
-				(currTar_Info->TarLUNBusy[0] == FALSE))
+				(currTar_Info->TarLUNBusy[0] == 0))
 			{
 
 				pCurrCard->currentSCCB = currTar_Info->TarSelQ_Head;
@@ -11203,7 +7436,7 @@ void queueSearchSelect(PSCCBcard pCurrCard, UCHAR p_card)
  *
  *---------------------------------------------------------------------*/
 
-void queueSelectFail(PSCCBcard pCurrCard, UCHAR p_card)
+static void FPT_queueSelectFail(PSCCBcard pCurrCard, UCHAR p_card)
 {
    UCHAR thisTarg;
    PSCCBMgr_tar_info currTar_Info;
@@ -11211,7 +7444,7 @@ void queueSelectFail(PSCCBcard pCurrCard, UCHAR p_card)
    if (pCurrCard->currentSCCB != NULL)
 	  {
 	  thisTarg = (UCHAR)(((PSCCB)(pCurrCard->currentSCCB))->TargID);
-      currTar_Info = &sccbMgrTbl[p_card][thisTarg];
+      currTar_Info = &FPT_sccbMgrTbl[p_card][thisTarg];
 
       pCurrCard->currentSCCB->Sccb_backlink = (PSCCB)NULL;
 
@@ -11242,102 +7475,9 @@ void queueSelectFail(PSCCBcard pCurrCard, UCHAR p_card)
  *
  *---------------------------------------------------------------------*/
 
-void queueCmdComplete(PSCCBcard pCurrCard, PSCCB p_sccb, UCHAR p_card)
+static void FPT_queueCmdComplete(PSCCBcard pCurrCard, PSCCB p_sccb,
+				 UCHAR p_card)
 {
-
-#if (FW_TYPE==_UCB_MGR_)
-
-   u08bits SCSIcmd;
-   CALL_BK_FN callback;
-   PSCCBMgr_tar_info currTar_Info;
-
-   PUCB p_ucb;
-   p_ucb=p_sccb->Sccb_ucb_ptr;
-
-   SCSIcmd = p_sccb->Cdb[0];
-
-
-   if (!(p_sccb->Sccb_XferState & F_ALL_XFERRED))
-   {
-
-      if ((p_ucb->UCB_opcode & OPC_CHK_UNDER_OVER_RUN)                     &&
-         (p_sccb->HostStatus == SCCB_COMPLETE)                             &&
-         (p_sccb->TargetStatus != SSCHECK))
-
-         if ((SCSIcmd == SCSI_READ)             ||
-             (SCSIcmd == SCSI_WRITE)            ||
-             (SCSIcmd == SCSI_READ_EXTENDED)    ||
-             (SCSIcmd == SCSI_WRITE_EXTENDED)   ||
-             (SCSIcmd == SCSI_WRITE_AND_VERIFY) ||
-             (SCSIcmd == SCSI_START_STOP_UNIT)  ||
-             (pCurrCard->globalFlags & F_NO_FILTER)
-            )
-               p_sccb->HostStatus = SCCB_DATA_UNDER_RUN;
-   }
-
-   p_ucb->UCB_status=SCCB_SUCCESS;
-
-   if ((p_ucb->UCB_hbastat=p_sccb->HostStatus) || (p_ucb->UCB_scsistat=p_sccb->TargetStatus))
-   {
-      p_ucb->UCB_status=SCCB_ERROR;
-   }
-
-   if ((p_sccb->OperationCode == RESIDUAL_SG_COMMAND) ||
-      (p_sccb->OperationCode == RESIDUAL_COMMAND))
-   {
-
-         utilUpdateResidual(p_sccb);
-
-         p_ucb->UCB_datalen=p_sccb->DataLength;
-   }
-
-   pCurrCard->cmdCounter--;
-   if (!pCurrCard->cmdCounter)
-   {
-
-      if (pCurrCard->globalFlags & F_GREEN_PC)
-      {
-         WR_HARPOON(pCurrCard->ioPort+hp_clkctrl_0,(PWR_DWN | CLKCTRL_DEFAULT));
-         WR_HARPOON(pCurrCard->ioPort+hp_sys_ctrl, STOP_CLK);
-      }
-
-      WR_HARPOON(pCurrCard->ioPort+hp_semaphore,
-      (RD_HARPOON(pCurrCard->ioPort+hp_semaphore) & ~SCCB_MGR_ACTIVE));
-   }
-
-	if(pCurrCard->discQCount != 0)
-	{
-      currTar_Info = &sccbMgrTbl[p_card][p_sccb->TargID];
-		if(((pCurrCard->globalFlags & F_CONLUN_IO) &&
-			((currTar_Info->TarStatus & TAR_TAG_Q_MASK) != TAG_Q_TRYING)))
-		{
-			pCurrCard->discQCount--;
-			pCurrCard->discQ_Tbl[currTar_Info->LunDiscQ_Idx[p_sccb->Lun]] = NULL;
-		}
-		else
-		{
-			if(p_sccb->Sccb_tag)
-			{
-				pCurrCard->discQCount--;
-				pCurrCard->discQ_Tbl[p_sccb->Sccb_tag] = NULL;
-			}else
-			{
-				pCurrCard->discQCount--;
-				pCurrCard->discQ_Tbl[currTar_Info->LunDiscQ_Idx[0]] = NULL;
-			}
-		}
-
-	}
-   callback = (CALL_BK_FN)p_ucb->UCB_callback;
-   callback(p_ucb);
-   pCurrCard->globalFlags |= F_NEW_SCCB_CMD;
-   pCurrCard->currentSCCB = NULL;
-}
-
-
-
-
-#else
 
    UCHAR i, SCSIcmd;
    CALL_BK_FN callback;
@@ -11383,7 +7523,7 @@ void queueCmdComplete(PSCCBcard pCurrCard, PSCCB p_sccb, UCHAR p_card)
    if ((p_sccb->OperationCode == RESIDUAL_SG_COMMAND) ||
 	  (p_sccb->OperationCode == RESIDUAL_COMMAND)) {
 
-		 utilUpdateResidual(p_sccb);
+		 FPT_utilUpdateResidual(p_sccb);
 		 }
 
    pCurrCard->cmdCounter--;
@@ -11401,7 +7541,7 @@ void queueCmdComplete(PSCCBcard pCurrCard, PSCCB p_sccb, UCHAR p_card)
 
 	if(pCurrCard->discQCount != 0)
 	{
-      currTar_Info = &sccbMgrTbl[p_card][p_sccb->TargID];
+      currTar_Info = &FPT_sccbMgrTbl[p_card][p_sccb->TargID];
 		if(((pCurrCard->globalFlags & F_CONLUN_IO) &&
 			((currTar_Info->TarStatus & TAR_TAG_Q_MASK) != TAG_Q_TRYING)))
 		{
@@ -11428,7 +7568,6 @@ void queueCmdComplete(PSCCBcard pCurrCard, PSCCB p_sccb, UCHAR p_card)
    pCurrCard->globalFlags |= F_NEW_SCCB_CMD;
    pCurrCard->currentSCCB = NULL;
 }
-#endif /* ( if FW_TYPE==...) */
 
 
 /*---------------------------------------------------------------------
@@ -11438,30 +7577,30 @@ void queueCmdComplete(PSCCBcard pCurrCard, PSCCB p_sccb, UCHAR p_card)
  * Description: Add SCCB to our disconnect array.
  *
  *---------------------------------------------------------------------*/
-void queueDisconnect(PSCCB p_sccb, UCHAR p_card)
+static void FPT_queueDisconnect(PSCCB p_sccb, UCHAR p_card)
 {
    PSCCBMgr_tar_info currTar_Info;
 
-	currTar_Info = &sccbMgrTbl[p_card][p_sccb->TargID];
+	currTar_Info = &FPT_sccbMgrTbl[p_card][p_sccb->TargID];
 
-	if(((BL_Card[p_card].globalFlags & F_CONLUN_IO) &&
+	if(((FPT_BL_Card[p_card].globalFlags & F_CONLUN_IO) &&
 		((currTar_Info->TarStatus & TAR_TAG_Q_MASK) != TAG_Q_TRYING)))
 	{
-		BL_Card[p_card].discQ_Tbl[currTar_Info->LunDiscQ_Idx[p_sccb->Lun]] = p_sccb;
+		FPT_BL_Card[p_card].discQ_Tbl[currTar_Info->LunDiscQ_Idx[p_sccb->Lun]] = p_sccb;
 	}
 	else
 	{
 		if (p_sccb->Sccb_tag)
 		{
-			BL_Card[p_card].discQ_Tbl[p_sccb->Sccb_tag] = p_sccb;
-			sccbMgrTbl[p_card][p_sccb->TargID].TarLUNBusy[0] = FALSE;
-			sccbMgrTbl[p_card][p_sccb->TargID].TarTagQ_Cnt++;
+			FPT_BL_Card[p_card].discQ_Tbl[p_sccb->Sccb_tag] = p_sccb;
+			FPT_sccbMgrTbl[p_card][p_sccb->TargID].TarLUNBusy[0] = 0;
+			FPT_sccbMgrTbl[p_card][p_sccb->TargID].TarTagQ_Cnt++;
 		}else
 		{
-			BL_Card[p_card].discQ_Tbl[currTar_Info->LunDiscQ_Idx[0]] = p_sccb;
+			FPT_BL_Card[p_card].discQ_Tbl[currTar_Info->LunDiscQ_Idx[0]] = p_sccb;
 		}
 	}
-	BL_Card[p_card].currentSCCB = NULL;
+	FPT_BL_Card[p_card].currentSCCB = NULL;
 }
 
 
@@ -11473,29 +7612,29 @@ void queueDisconnect(PSCCB p_sccb, UCHAR p_card)
  *
  *---------------------------------------------------------------------*/
 
-void  queueFlushSccb(UCHAR p_card, UCHAR error_code)
+static void  FPT_queueFlushSccb(UCHAR p_card, UCHAR error_code)
 {
    UCHAR qtag,thisTarg;
    PSCCB currSCCB;
    PSCCBMgr_tar_info currTar_Info;
 
-   currSCCB = BL_Card[p_card].currentSCCB;
+   currSCCB = FPT_BL_Card[p_card].currentSCCB;
 	if(currSCCB != NULL)
 	{
 	   thisTarg = (UCHAR)currSCCB->TargID;
-   	currTar_Info = &sccbMgrTbl[p_card][thisTarg];
+   	currTar_Info = &FPT_sccbMgrTbl[p_card][thisTarg];
 
 	   for (qtag=0; qtag<QUEUE_DEPTH; qtag++) {
 
-		  if (BL_Card[p_card].discQ_Tbl[qtag] && 
-					(BL_Card[p_card].discQ_Tbl[qtag]->TargID == thisTarg))
+		  if (FPT_BL_Card[p_card].discQ_Tbl[qtag] && 
+					(FPT_BL_Card[p_card].discQ_Tbl[qtag]->TargID == thisTarg))
 			 {
 
-			 BL_Card[p_card].discQ_Tbl[qtag]->HostStatus = (UCHAR)error_code;
+			 FPT_BL_Card[p_card].discQ_Tbl[qtag]->HostStatus = (UCHAR)error_code;
 			
-			 queueCmdComplete(&BL_Card[p_card],BL_Card[p_card].discQ_Tbl[qtag], p_card);
+			 FPT_queueCmdComplete(&FPT_BL_Card[p_card],FPT_BL_Card[p_card].discQ_Tbl[qtag], p_card);
 
-			 BL_Card[p_card].discQ_Tbl[qtag] = NULL;
+			 FPT_BL_Card[p_card].discQ_Tbl[qtag] = NULL;
 			 currTar_Info->TarTagQ_Cnt--;
 
 			 }
@@ -11512,24 +7651,25 @@ void  queueFlushSccb(UCHAR p_card, UCHAR error_code)
  *
  *---------------------------------------------------------------------*/
 
-void  queueFlushTargSccb(UCHAR p_card, UCHAR thisTarg, UCHAR error_code)
+static void  FPT_queueFlushTargSccb(UCHAR p_card, UCHAR thisTarg,
+				    UCHAR error_code)
 {
    UCHAR qtag;
    PSCCBMgr_tar_info currTar_Info;
 
-   currTar_Info = &sccbMgrTbl[p_card][thisTarg];
+   currTar_Info = &FPT_sccbMgrTbl[p_card][thisTarg];
 
    for (qtag=0; qtag<QUEUE_DEPTH; qtag++) {
 
-	  if (BL_Card[p_card].discQ_Tbl[qtag] && 
-				(BL_Card[p_card].discQ_Tbl[qtag]->TargID == thisTarg))
+	  if (FPT_BL_Card[p_card].discQ_Tbl[qtag] && 
+				(FPT_BL_Card[p_card].discQ_Tbl[qtag]->TargID == thisTarg))
 		 {
 
-		 BL_Card[p_card].discQ_Tbl[qtag]->HostStatus = (UCHAR)error_code;
+		 FPT_BL_Card[p_card].discQ_Tbl[qtag]->HostStatus = (UCHAR)error_code;
 
-		 queueCmdComplete(&BL_Card[p_card],BL_Card[p_card].discQ_Tbl[qtag], p_card);
+		 FPT_queueCmdComplete(&FPT_BL_Card[p_card],FPT_BL_Card[p_card].discQ_Tbl[qtag], p_card);
 
-		 BL_Card[p_card].discQ_Tbl[qtag] = NULL;
+		 FPT_BL_Card[p_card].discQ_Tbl[qtag] = NULL;
 		 currTar_Info->TarTagQ_Cnt--;
 
 		 }
@@ -11541,10 +7681,10 @@ void  queueFlushTargSccb(UCHAR p_card, UCHAR thisTarg, UCHAR error_code)
 
 
 
-void queueAddSccb(PSCCB p_SCCB, UCHAR p_card)
+static void FPT_queueAddSccb(PSCCB p_SCCB, UCHAR p_card)
 {
    PSCCBMgr_tar_info currTar_Info;
-   currTar_Info = &sccbMgrTbl[p_card][p_SCCB->TargID];
+   currTar_Info = &FPT_sccbMgrTbl[p_card][p_SCCB->TargID];
 
    p_SCCB->Sccb_forwardlink = NULL;
 
@@ -11575,12 +7715,12 @@ void queueAddSccb(PSCCB p_SCCB, UCHAR p_card)
  *
  *---------------------------------------------------------------------*/
 
-UCHAR queueFindSccb(PSCCB p_SCCB, UCHAR p_card)
+static UCHAR FPT_queueFindSccb(PSCCB p_SCCB, UCHAR p_card)
 {
    PSCCB q_ptr;
    PSCCBMgr_tar_info currTar_Info;
 
-   currTar_Info = &sccbMgrTbl[p_card][p_SCCB->TargID];
+   currTar_Info = &FPT_sccbMgrTbl[p_card][p_SCCB->TargID];
 
    q_ptr = currTar_Info->TarSelQ_Head;
 
@@ -11609,7 +7749,7 @@ UCHAR queueFindSccb(PSCCB p_SCCB, UCHAR p_card)
 
 		 currTar_Info->TarSelQ_Cnt--;
 
-		 return(TRUE);
+		 return(1);
 		 }
 
 	  else {
@@ -11618,7 +7758,7 @@ UCHAR queueFindSccb(PSCCB p_SCCB, UCHAR p_card)
 	  }
 
 
-   return(FALSE);
+   return(0);
 
 }
 
@@ -11636,15 +7776,11 @@ UCHAR queueFindSccb(PSCCB p_SCCB, UCHAR p_card)
  *
  *---------------------------------------------------------------------*/
 
-void  utilUpdateResidual(PSCCB p_SCCB)
+static void  FPT_utilUpdateResidual(PSCCB p_SCCB)
 {
    ULONG partial_cnt;
    UINT  sg_index;
-#if defined(COMPILER_16_BIT) && !defined(DOS)
-   ULONG far *sg_ptr;
-#else
    ULONG *sg_ptr;
-#endif
 
    if (p_SCCB->Sccb_XferState & F_ALL_XFERRED) {
 
@@ -11657,11 +7793,7 @@ void  utilUpdateResidual(PSCCB p_SCCB)
 
 		 sg_index = p_SCCB->Sccb_sgseg;
 
-#if defined(COMPILER_16_BIT) && !defined(DOS)
-		 sg_ptr = (ULONG far *)p_SCCB->DataPointer;
-#else
 		 sg_ptr = (ULONG *)p_SCCB->DataPointer;
-#endif
 
 		 if (p_SCCB->Sccb_SGoffset) {
 
@@ -11694,17 +7826,13 @@ void  utilUpdateResidual(PSCCB p_SCCB)
  *
  *---------------------------------------------------------------------*/
 
-#if defined(DOS)
-void Wait1Second(USHORT p_port)
-#else
-void Wait1Second(ULONG p_port)
-#endif
+static void FPT_Wait1Second(ULONG p_port)
 {
    UCHAR i;
 
    for(i=0; i < 4; i++) {
 
-	  Wait(p_port, TO_250ms);
+	  FPT_Wait(p_port, TO_250ms);
 
 	  if ((RD_HARPOON(p_port+hp_scsictrl_0) & SCSI_RST))
 		 break;
@@ -11717,17 +7845,13 @@ void Wait1Second(ULONG p_port)
 
 /*---------------------------------------------------------------------
  *
- * Function: Wait
+ * Function: FPT_Wait
  *
  * Description: Wait the desired delay.
  *
  *---------------------------------------------------------------------*/
 
-#if defined(DOS)
-void Wait(USHORT p_port, UCHAR p_delay)
-#else
-void Wait(ULONG p_port, UCHAR p_delay)
-#endif
+static void FPT_Wait(ULONG p_port, UCHAR p_delay)
 {
    UCHAR old_timer;
    UCHAR green_flag;
@@ -11739,7 +7863,7 @@ void Wait(ULONG p_port, UCHAR p_delay)
 
    WR_HARPOON(p_port+hp_seltimeout,p_delay);
    WRW_HARPOON((p_port+hp_intstat), TIMEOUT);
-   WRW_HARPOON((p_port+hp_intena), (default_intena & ~TIMEOUT));
+   WRW_HARPOON((p_port+hp_intena), (FPT_default_intena & ~TIMEOUT));
 
 
    WR_HARPOON(p_port+hp_portctrl_0,
@@ -11758,7 +7882,7 @@ void Wait(ULONG p_port, UCHAR p_delay)
 	  (RD_HARPOON(p_port+hp_portctrl_0) & ~START_TO));
 
    WRW_HARPOON((p_port+hp_intstat), TIMEOUT);
-   WRW_HARPOON((p_port+hp_intena), default_intena);
+   WRW_HARPOON((p_port+hp_intena), FPT_default_intena);
 
    WR_HARPOON(p_port+hp_clkctrl_0,green_flag);
 
@@ -11775,11 +7899,7 @@ void Wait(ULONG p_port, UCHAR p_delay)
  *
  *---------------------------------------------------------------------*/
 
-#if defined(DOS)
-void utilEEWriteOnOff(USHORT p_port,UCHAR p_mode)
-#else
-void utilEEWriteOnOff(ULONG p_port,UCHAR p_mode)
-#endif
+static void FPT_utilEEWriteOnOff(ULONG p_port,UCHAR p_mode)
 {
    UCHAR ee_value;
 
@@ -11787,12 +7907,12 @@ void utilEEWriteOnOff(ULONG p_port,UCHAR p_mode)
 
    if (p_mode)
 
-	  utilEESendCmdAddr(p_port, EWEN, EWEN_ADDR);
+	  FPT_utilEESendCmdAddr(p_port, EWEN, EWEN_ADDR);
 
    else
 
 
-	  utilEESendCmdAddr(p_port, EWDS, EWDS_ADDR);
+	  FPT_utilEESendCmdAddr(p_port, EWDS, EWDS_ADDR);
 
    WR_HARPOON(p_port+hp_ee_ctrl, (ee_value | SEE_MS)); /*Turn off CS */
    WR_HARPOON(p_port+hp_ee_ctrl, ee_value);       /*Turn off Master Select */
@@ -11808,11 +7928,7 @@ void utilEEWriteOnOff(ULONG p_port,UCHAR p_mode)
  *
  *---------------------------------------------------------------------*/
 
-#if defined(DOS)
-void utilEEWrite(USHORT p_port, USHORT ee_data, USHORT ee_addr)
-#else
-void utilEEWrite(ULONG p_port, USHORT ee_data, USHORT ee_addr)
-#endif
+static void FPT_utilEEWrite(ULONG p_port, USHORT ee_data, USHORT ee_addr)
 {
 
    UCHAR ee_value;
@@ -11823,7 +7939,7 @@ void utilEEWrite(ULONG p_port, USHORT ee_data, USHORT ee_addr)
 
 
 
-   utilEESendCmdAddr(p_port, EE_WRITE, ee_addr);
+   FPT_utilEESendCmdAddr(p_port, EE_WRITE, ee_addr);
 
 
    ee_value |= (SEE_MS + SEE_CS);
@@ -11847,7 +7963,7 @@ void utilEEWrite(ULONG p_port, USHORT ee_data, USHORT ee_addr)
    ee_value &= (EXT_ARB_ACK | SCSI_TERM_ENA_H);
    WR_HARPOON(p_port+hp_ee_ctrl, (ee_value | SEE_MS));
 
-   Wait(p_port, TO_10ms);
+   FPT_Wait(p_port, TO_10ms);
 
    WR_HARPOON(p_port+hp_ee_ctrl, (ee_value | SEE_MS | SEE_CS)); /* Set CS to EEPROM */
    WR_HARPOON(p_port+hp_ee_ctrl, (ee_value | SEE_MS));       /* Turn off CS */
@@ -11863,19 +7979,15 @@ void utilEEWrite(ULONG p_port, USHORT ee_data, USHORT ee_addr)
  *
  *---------------------------------------------------------------------*/
 
-#if defined(DOS)
-USHORT utilEERead(USHORT p_port, USHORT ee_addr)
-#else
-USHORT utilEERead(ULONG p_port, USHORT ee_addr)
-#endif
+static USHORT FPT_utilEERead(ULONG p_port, USHORT ee_addr)
 {
    USHORT i, ee_data1, ee_data2;
 
 	i = 0;
-	ee_data1 = utilEEReadOrg(p_port, ee_addr);
+	ee_data1 = FPT_utilEEReadOrg(p_port, ee_addr);
 	do
 	{
-		ee_data2 = utilEEReadOrg(p_port, ee_addr);
+		ee_data2 = FPT_utilEEReadOrg(p_port, ee_addr);
 
 		if(ee_data1 == ee_data2)
 			return(ee_data1);
@@ -11897,11 +8009,7 @@ USHORT utilEERead(ULONG p_port, USHORT ee_addr)
  *
  *---------------------------------------------------------------------*/
 
-#if defined(DOS)
-USHORT utilEEReadOrg(USHORT p_port, USHORT ee_addr)
-#else
-USHORT utilEEReadOrg(ULONG p_port, USHORT ee_addr)
-#endif
+static USHORT FPT_utilEEReadOrg(ULONG p_port, USHORT ee_addr)
 {
 
    UCHAR ee_value;
@@ -11911,7 +8019,7 @@ USHORT utilEEReadOrg(ULONG p_port, USHORT ee_addr)
 		   (SEE_MS | SEE_CS));
 
 
-   utilEESendCmdAddr(p_port, EE_READ, ee_addr);
+   FPT_utilEESendCmdAddr(p_port, EE_READ, ee_addr);
 
 
    ee_value |= (SEE_MS + SEE_CS);
@@ -11949,11 +8057,7 @@ USHORT utilEEReadOrg(ULONG p_port, USHORT ee_addr)
  *
  *---------------------------------------------------------------------*/
 
-#if defined(DOS)
-void utilEESendCmdAddr(USHORT p_port, UCHAR ee_cmd, USHORT ee_addr)
-#else
-void utilEESendCmdAddr(ULONG p_port, UCHAR ee_cmd, USHORT ee_addr)
-#endif
+static void FPT_utilEESendCmdAddr(ULONG p_port, UCHAR ee_cmd, USHORT ee_addr)
 {
    UCHAR ee_value;
    UCHAR narrow_flg;
@@ -12016,7 +8120,7 @@ void utilEESendCmdAddr(ULONG p_port, UCHAR ee_cmd, USHORT ee_addr)
 	  }
 }
 
-USHORT CalcCrc16(UCHAR buffer[])
+static USHORT FPT_CalcCrc16(UCHAR buffer[])
 {
    USHORT crc=0;
 	int i,j;
@@ -12036,7 +8140,7 @@ USHORT CalcCrc16(UCHAR buffer[])
 	return(crc);
 }
 
-UCHAR CalcLrc(UCHAR buffer[])
+static UCHAR FPT_CalcLrc(UCHAR buffer[])
 {
 	int i;
 	UCHAR lrc;
@@ -12109,33 +8213,6 @@ FlashPoint__HandleInterrupt(FlashPoint_CardHandle_T CardHandle)
 #define FlashPoint_HandleInterrupt	    FlashPoint__HandleInterrupt
 
 
-/*
-  FlashPoint_InquireTargetInfo returns the Synchronous Period, Synchronous
-  Offset, and Wide Transfers Active information for TargetID on CardHandle.
-*/
-
-void FlashPoint_InquireTargetInfo(FlashPoint_CardHandle_T CardHandle,
-				  int TargetID,
-				  unsigned char *SynchronousPeriod,
-				  unsigned char *SynchronousOffset,
-				  unsigned char *WideTransfersActive)
-{
-  SCCBMGR_TAR_INFO *TargetInfo =
-    &sccbMgrTbl[((SCCBCARD *)CardHandle)->cardIndex][TargetID];
-  if ((TargetInfo->TarSyncCtrl & SYNC_OFFSET) > 0)
-    {
-      *SynchronousPeriod = 5 * ((TargetInfo->TarSyncCtrl >> 5) + 1);
-      *SynchronousOffset = TargetInfo->TarSyncCtrl & SYNC_OFFSET;
-    }
-  else
-    {
-      *SynchronousPeriod = 0;
-      *SynchronousOffset = 0;
-    }
-  *WideTransfersActive = (TargetInfo->TarSyncCtrl & NARROW_SCSI ? 0 : 1);
-}
-
-
 #else  /* CONFIG_SCSI_OMIT_FLASHPOINT */
 
 
@@ -12151,9 +8228,6 @@ extern int FlashPoint_AbortCCB(FlashPoint_CardHandle_T, struct BusLogic_CCB *);
 extern boolean FlashPoint_InterruptPending(FlashPoint_CardHandle_T);
 extern int FlashPoint_HandleInterrupt(FlashPoint_CardHandle_T);
 extern void FlashPoint_ReleaseHostAdapter(FlashPoint_CardHandle_T);
-extern void FlashPoint_InquireTargetInfo(FlashPoint_CardHandle_T,
-					 int, unsigned char *,
-					 unsigned char *, unsigned char *);
 
 
 #endif /* CONFIG_SCSI_OMIT_FLASHPOINT */
