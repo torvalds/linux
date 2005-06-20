@@ -50,7 +50,7 @@ static DEFINE_SPINLOCK(xfrm_state_gc_lock);
 
 static int xfrm_state_gc_flush_bundles;
 
-static void __xfrm_state_delete(struct xfrm_state *x);
+static int __xfrm_state_delete(struct xfrm_state *x);
 
 static struct xfrm_state_afinfo *xfrm_state_get_afinfo(unsigned short family);
 static void xfrm_state_put_afinfo(struct xfrm_state_afinfo *afinfo);
@@ -154,6 +154,7 @@ static void xfrm_timer_handler(unsigned long data)
 			next = tmo;
 	}
 
+	x->km.dying = warn;
 	if (warn)
 		km_state_expired(x, 0);
 resched:
@@ -169,9 +170,8 @@ expired:
 		next = 2;
 		goto resched;
 	}
-	if (x->id.spi != 0)
+	if (!__xfrm_state_delete(x) && x->id.spi)
 		km_state_expired(x, 1);
-	__xfrm_state_delete(x);
 
 out:
 	spin_unlock(&x->lock);
@@ -215,8 +215,10 @@ void __xfrm_state_destroy(struct xfrm_state *x)
 }
 EXPORT_SYMBOL(__xfrm_state_destroy);
 
-static void __xfrm_state_delete(struct xfrm_state *x)
+static int __xfrm_state_delete(struct xfrm_state *x)
 {
+	int err = -ESRCH;
+
 	if (x->km.state != XFRM_STATE_DEAD) {
 		x->km.state = XFRM_STATE_DEAD;
 		spin_lock(&xfrm_state_lock);
@@ -245,14 +247,21 @@ static void __xfrm_state_delete(struct xfrm_state *x)
 		 * is what we are dropping here.
 		 */
 		atomic_dec(&x->refcnt);
+		err = 0;
 	}
+
+	return err;
 }
 
-void xfrm_state_delete(struct xfrm_state *x)
+int xfrm_state_delete(struct xfrm_state *x)
 {
+	int err;
+
 	spin_lock_bh(&x->lock);
-	__xfrm_state_delete(x);
+	err = __xfrm_state_delete(x);
 	spin_unlock_bh(&x->lock);
+
+	return err;
 }
 EXPORT_SYMBOL(xfrm_state_delete);
 
@@ -557,16 +566,18 @@ int xfrm_state_check_expire(struct xfrm_state *x)
 
 	if (x->curlft.bytes >= x->lft.hard_byte_limit ||
 	    x->curlft.packets >= x->lft.hard_packet_limit) {
-		km_state_expired(x, 1);
-		if (!mod_timer(&x->timer, jiffies + XFRM_ACQ_EXPIRES*HZ))
+		x->km.state = XFRM_STATE_EXPIRED;
+		if (!mod_timer(&x->timer, jiffies))
 			xfrm_state_hold(x);
 		return -EINVAL;
 	}
 
 	if (!x->km.dying &&
 	    (x->curlft.bytes >= x->lft.soft_byte_limit ||
-	     x->curlft.packets >= x->lft.soft_packet_limit))
+	     x->curlft.packets >= x->lft.soft_packet_limit)) {
+		x->km.dying = 1;
 		km_state_expired(x, 0);
+	}
 	return 0;
 }
 EXPORT_SYMBOL(xfrm_state_check_expire);
@@ -796,34 +807,56 @@ EXPORT_SYMBOL(xfrm_replay_advance);
 static struct list_head xfrm_km_list = LIST_HEAD_INIT(xfrm_km_list);
 static DEFINE_RWLOCK(xfrm_km_lock);
 
-static void km_state_expired(struct xfrm_state *x, int hard)
+void km_policy_notify(struct xfrm_policy *xp, int dir, struct km_event *c)
 {
 	struct xfrm_mgr *km;
 
-	if (hard)
-		x->km.state = XFRM_STATE_EXPIRED;
-	else
-		x->km.dying = 1;
-
 	read_lock(&xfrm_km_lock);
 	list_for_each_entry(km, &xfrm_km_list, list)
-		km->notify(x, hard);
+		if (km->notify_policy)
+			km->notify_policy(xp, dir, c);
 	read_unlock(&xfrm_km_lock);
+}
+
+void km_state_notify(struct xfrm_state *x, struct km_event *c)
+{
+	struct xfrm_mgr *km;
+	read_lock(&xfrm_km_lock);
+	list_for_each_entry(km, &xfrm_km_list, list)
+		if (km->notify)
+			km->notify(x, c);
+	read_unlock(&xfrm_km_lock);
+}
+
+EXPORT_SYMBOL(km_policy_notify);
+EXPORT_SYMBOL(km_state_notify);
+
+static void km_state_expired(struct xfrm_state *x, int hard)
+{
+	struct km_event c;
+
+	c.data.hard = hard;
+	c.event = XFRM_MSG_EXPIRE;
+	km_state_notify(x, &c);
 
 	if (hard)
 		wake_up(&km_waitq);
 }
 
+/*
+ * We send to all registered managers regardless of failure
+ * We are happy with one success
+*/
 static int km_query(struct xfrm_state *x, struct xfrm_tmpl *t, struct xfrm_policy *pol)
 {
-	int err = -EINVAL;
+	int err = -EINVAL, acqret;
 	struct xfrm_mgr *km;
 
 	read_lock(&xfrm_km_lock);
 	list_for_each_entry(km, &xfrm_km_list, list) {
-		err = km->acquire(x, t, pol, XFRM_POLICY_OUT);
-		if (!err)
-			break;
+		acqret = km->acquire(x, t, pol, XFRM_POLICY_OUT);
+		if (!acqret)
+			err = acqret;
 	}
 	read_unlock(&xfrm_km_lock);
 	return err;
@@ -848,13 +881,11 @@ EXPORT_SYMBOL(km_new_mapping);
 
 void km_policy_expired(struct xfrm_policy *pol, int dir, int hard)
 {
-	struct xfrm_mgr *km;
+	struct km_event c;
 
-	read_lock(&xfrm_km_lock);
-	list_for_each_entry(km, &xfrm_km_list, list)
-		if (km->notify_policy)
-			km->notify_policy(pol, dir, hard);
-	read_unlock(&xfrm_km_lock);
+	c.data.hard = hard;
+	c.event = XFRM_MSG_POLEXPIRE;
+	km_policy_notify(pol, dir, &c);
 
 	if (hard)
 		wake_up(&km_waitq);

@@ -10,6 +10,7 @@ struct block_device;
 struct module;
 struct scsi_cmnd;
 struct scsi_device;
+struct scsi_target;
 struct Scsi_Host;
 struct scsi_host_cmd_pool;
 struct scsi_transport_template;
@@ -226,6 +227,30 @@ struct scsi_host_template {
 	 * Status: OPTIONAL
 	 */
 	void (* slave_destroy)(struct scsi_device *);
+
+	/*
+	 * Before the mid layer attempts to scan for a new device attached
+	 * to a target where no target currently exists, it will call this
+	 * entry in your driver.  Should your driver need to allocate any
+	 * structs or perform any other init items in order to send commands
+	 * to a currently unused target, then this is where you can perform
+	 * those allocations.
+	 *
+	 * Return values: 0 on success, non-0 on failure
+	 *
+	 * Status: OPTIONAL
+	 */
+	int (* target_alloc)(struct scsi_target *);
+
+	/*
+	 * Immediately prior to deallocating the target structure, and
+	 * after all activity to attached scsi devices has ceased, the
+	 * midlayer calls this point so that the driver may deallocate
+	 * and terminate any references to the target.
+	 *
+	 * Status: OPTIONAL
+	 */
+	void (* target_destroy)(struct scsi_target *);
 
 	/*
 	 * fill in this function to allow the queue depth of this host

@@ -1071,7 +1071,7 @@ static int sbp2_handle_physdma_read(struct hpsb_host *host, int nodeid, quadlet_
 static __inline__ int sbp2_command_conversion_device_type(u8 device_type)
 {
 	return (((device_type == TYPE_DISK) ||
-		 (device_type == TYPE_SDAD) ||
+		 (device_type == TYPE_RBC) ||
 		 (device_type == TYPE_ROM)) ? 1:0);
 }
 
@@ -2112,102 +2112,6 @@ static int sbp2_send_command(struct scsi_id_instance_data *scsi_id,
  */
 static void sbp2_check_sbp2_command(struct scsi_id_instance_data *scsi_id, unchar *cmd)
 {
-	unchar new_cmd[16];
-	u8 device_type = SBP2_DEVICE_TYPE (scsi_id->sbp2_device_type_and_lun);
-
-	SBP2_DEBUG("sbp2_check_sbp2_command");
-
-	switch (*cmd) {
-
-		case READ_6:
-
-			if (sbp2_command_conversion_device_type(device_type)) {
-
-				SBP2_DEBUG("Convert READ_6 to READ_10");
-
-				/*
-				 * Need to turn read_6 into read_10
-				 */
-				new_cmd[0] = 0x28;
-				new_cmd[1] = (cmd[1] & 0xe0);
-				new_cmd[2] = 0x0;
-				new_cmd[3] = (cmd[1] & 0x1f);
-				new_cmd[4] = cmd[2];
-				new_cmd[5] = cmd[3];
-				new_cmd[6] = 0x0;
-				new_cmd[7] = 0x0;
-				new_cmd[8] = cmd[4];
-				new_cmd[9] = cmd[5];
-
-				memcpy(cmd, new_cmd, 10);
-
-			}
-
-			break;
-
-		case WRITE_6:
-
-			if (sbp2_command_conversion_device_type(device_type)) {
-
-				SBP2_DEBUG("Convert WRITE_6 to WRITE_10");
-
-				/*
-				 * Need to turn write_6 into write_10
-				 */
-				new_cmd[0] = 0x2a;
-				new_cmd[1] = (cmd[1] & 0xe0);
-				new_cmd[2] = 0x0;
-				new_cmd[3] = (cmd[1] & 0x1f);
-				new_cmd[4] = cmd[2];
-				new_cmd[5] = cmd[3];
-				new_cmd[6] = 0x0;
-				new_cmd[7] = 0x0;
-				new_cmd[8] = cmd[4];
-				new_cmd[9] = cmd[5];
-
-				memcpy(cmd, new_cmd, 10);
-
-			}
-
-			break;
-
-		case MODE_SENSE:
-
-			if (sbp2_command_conversion_device_type(device_type)) {
-
-				SBP2_DEBUG("Convert MODE_SENSE_6 to MODE_SENSE_10");
-
-				/*
-				 * Need to turn mode_sense_6 into mode_sense_10
-				 */
-				new_cmd[0] = 0x5a;
-				new_cmd[1] = cmd[1];
-				new_cmd[2] = cmd[2];
-				new_cmd[3] = 0x0;
-				new_cmd[4] = 0x0;
-				new_cmd[5] = 0x0;
-				new_cmd[6] = 0x0;
-				new_cmd[7] = 0x0;
-				new_cmd[8] = cmd[4];
-				new_cmd[9] = cmd[5];
-
-				memcpy(cmd, new_cmd, 10);
-
-			}
-
-			break;
-
-		case MODE_SELECT:
-
-			/*
-			 * TODO. Probably need to change mode select to 10 byte version
-			 */
-
-		default:
-			break;
-	}
-
-	return;
 }
 
 /*
@@ -2248,7 +2152,6 @@ static void sbp2_check_sbp2_response(struct scsi_id_instance_data *scsi_id,
 				     struct scsi_cmnd *SCpnt)
 {
 	u8 *scsi_buf = SCpnt->request_buffer;
-	u8 device_type = SBP2_DEVICE_TYPE (scsi_id->sbp2_device_type_and_lun);
 
 	SBP2_DEBUG("sbp2_check_sbp2_response");
 
@@ -2273,41 +2176,12 @@ static void sbp2_check_sbp2_response(struct scsi_id_instance_data *scsi_id,
 			}
 
 			/*
-			 * Check for Simple Direct Access Device and change it to TYPE_DISK
-			 */
-			if ((scsi_buf[0] & 0x1f) == TYPE_SDAD) {
-				SBP2_DEBUG("Changing TYPE_SDAD to TYPE_DISK");
-				scsi_buf[0] &= 0xe0;
-			}
-
-			/*
 			 * Fix ansi revision and response data format
 			 */
 			scsi_buf[2] |= 2;
 			scsi_buf[3] = (scsi_buf[3] & 0xf0) | 2;
 
 			break;
-
-		case MODE_SENSE:
-
-			if (sbp2_command_conversion_device_type(device_type)) {
-
-				SBP2_DEBUG("Modify mode sense response (10 byte version)");
-
-				scsi_buf[0] = scsi_buf[1];	/* Mode data length */
-				scsi_buf[1] = scsi_buf[2];	/* Medium type */
-				scsi_buf[2] = scsi_buf[3];	/* Device specific parameter */
-				scsi_buf[3] = scsi_buf[7];	/* Block descriptor length */
-				memcpy(scsi_buf + 4, scsi_buf + 8, scsi_buf[0]);
-			}
-
-			break;
-
-		case MODE_SELECT:
-
-			/*
-			 * TODO. Probably need to change mode select to 10 byte version
-			 */
 
 		default:
 			break;
@@ -2580,8 +2454,6 @@ static void sbp2scsi_complete_command(struct scsi_id_instance_data *scsi_id,
 				      u32 scsi_status, struct scsi_cmnd *SCpnt,
 				      void (*done)(struct scsi_cmnd *))
 {
-	unsigned long flags;
-
 	SBP2_DEBUG("sbp2scsi_complete_command");
 
 	/*
@@ -2680,18 +2552,15 @@ static void sbp2scsi_complete_command(struct scsi_id_instance_data *scsi_id,
 	/*
 	 * Tell scsi stack that we're done with this command
 	 */
-	spin_lock_irqsave(scsi_id->scsi_host->host_lock,flags);
 	done (SCpnt);
-	spin_unlock_irqrestore(scsi_id->scsi_host->host_lock,flags);
-
-	return;
 }
 
 
 static int sbp2scsi_slave_configure (struct scsi_device *sdev)
 {
 	blk_queue_dma_alignment(sdev->request_queue, (512 - 1));
-
+	sdev->use_10_for_rw = 1;
+	sdev->use_10_for_ms = 1;
 	return 0;
 }
 
@@ -2747,7 +2616,7 @@ static int sbp2scsi_abort(struct scsi_cmnd *SCpnt)
 /*
  * Called by scsi stack when something has really gone wrong.
  */
-static int sbp2scsi_reset(struct scsi_cmnd *SCpnt)
+static int __sbp2scsi_reset(struct scsi_cmnd *SCpnt)
 {
 	struct scsi_id_instance_data *scsi_id =
 		(struct scsi_id_instance_data *)SCpnt->device->host->hostdata[0];
@@ -2760,6 +2629,18 @@ static int sbp2scsi_reset(struct scsi_cmnd *SCpnt)
 	}
 
 	return(SUCCESS);
+}
+
+static int sbp2scsi_reset(struct scsi_cmnd *SCpnt)
+{
+	unsigned long flags;
+	int rc;
+
+	spin_lock_irqsave(SCpnt->device->host->host_lock, flags);
+	rc = __sbp2scsi_reset(SCpnt);
+	spin_unlock_irqrestore(SCpnt->device->host->host_lock, flags);
+
+	return rc;
 }
 
 static const char *sbp2scsi_info (struct Scsi_Host *host)

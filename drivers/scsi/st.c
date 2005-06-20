@@ -17,7 +17,7 @@
    Last modified: 18-JAN-1998 Richard Gooch <rgooch@atnf.csiro.au> Devfs support
  */
 
-static char *verstr = "20050312";
+static char *verstr = "20050501";
 
 #include <linux/module.h>
 
@@ -29,6 +29,7 @@ static char *verstr = "20050312";
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/mtio.h>
+#include <linux/cdrom.h>
 #include <linux/ioctl.h>
 #include <linux/fcntl.h>
 #include <linux/spinlock.h>
@@ -50,6 +51,7 @@ static char *verstr = "20050312";
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_ioctl.h>
 #include <scsi/scsi_request.h>
+#include <scsi/sg.h>
 
 
 /* The driver prints some debugging information on the console if DEBUG
@@ -3463,7 +3465,10 @@ static int st_ioctl(struct inode *inode, struct file *file,
 		case SCSI_IOCTL_GET_BUS_NUMBER:
 			break;
 		default:
-			if (!capable(CAP_SYS_ADMIN))
+			if ((cmd_in == SG_IO ||
+			     cmd_in == SCSI_IOCTL_SEND_COMMAND ||
+			     cmd_in == CDROM_SEND_PACKET) &&
+			    !capable(CAP_SYS_RAWIO))
 				i = -EPERM;
 			else
 				i = scsi_cmd_ioctl(file, STp->disk, cmd_in, p);
@@ -3471,10 +3476,12 @@ static int st_ioctl(struct inode *inode, struct file *file,
 				return i;
 			break;
 	}
-	if (!capable(CAP_SYS_ADMIN) &&
-	    (cmd_in == SCSI_IOCTL_START_UNIT || cmd_in == SCSI_IOCTL_STOP_UNIT))
-		return -EPERM;
-	return scsi_ioctl(STp->device, cmd_in, p);
+	retval = scsi_ioctl(STp->device, cmd_in, p);
+	if (!retval && cmd_in == SCSI_IOCTL_STOP_UNIT) { /* unload */
+		STp->rew_at_close = 0;
+		STp->ready = ST_NO_TAPE;
+	}
+	return retval;
 
  out:
 	up(&STp->lock);

@@ -2620,6 +2620,12 @@ unsigned int kmem_cache_size(kmem_cache_t *cachep)
 }
 EXPORT_SYMBOL(kmem_cache_size);
 
+const char *kmem_cache_name(kmem_cache_t *cachep)
+{
+	return cachep->name;
+}
+EXPORT_SYMBOL_GPL(kmem_cache_name);
+
 struct ccupdate_struct {
 	kmem_cache_t *cachep;
 	struct array_cache *new[NR_CPUS];

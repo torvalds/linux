@@ -294,7 +294,6 @@ static struct scsi_host_template nsp32_template = {
 	.this_id			= NSP32_HOST_SCSIID,
 	.use_clustering			= DISABLE_CLUSTERING,
 	.eh_abort_handler       	= nsp32_eh_abort,
-/*	.eh_device_reset_handler	= NULL, */
 	.eh_bus_reset_handler		= nsp32_eh_bus_reset,
 	.eh_host_reset_handler		= nsp32_eh_host_reset,
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,74))
@@ -2988,6 +2987,8 @@ static int nsp32_eh_bus_reset(struct scsi_cmnd *SCpnt)
 	nsp32_hw_data *data = (nsp32_hw_data *)SCpnt->device->host->hostdata;
 	unsigned int   base = SCpnt->device->host->io_port;
 
+	spin_lock_irq(SCpnt->device->host->host_lock);
+
 	nsp32_msg(KERN_INFO, "Bus Reset");	
 	nsp32_dbg(NSP32_DEBUG_BUSRESET, "SCpnt=0x%x", SCpnt);
 
@@ -2995,6 +2996,7 @@ static int nsp32_eh_bus_reset(struct scsi_cmnd *SCpnt)
 	nsp32_do_bus_reset(data);
 	nsp32_write2(base, IRQ_CONTROL, 0);
 
+	spin_unlock_irq(SCpnt->device->host->host_lock);
 	return SUCCESS;	/* SCSI bus reset is succeeded at any time. */
 }
 
@@ -3049,11 +3051,14 @@ static int nsp32_eh_host_reset(struct scsi_cmnd *SCpnt)
 	nsp32_msg(KERN_INFO, "Host Reset");	
 	nsp32_dbg(NSP32_DEBUG_BUSRESET, "SCpnt=0x%x", SCpnt);
 
+	spin_lock_irq(SCpnt->device->host->host_lock);
+
 	nsp32hw_init(data);
 	nsp32_write2(base, IRQ_CONTROL, IRQ_CONTROL_ALL_IRQ_MASK);
 	nsp32_do_bus_reset(data);
 	nsp32_write2(base, IRQ_CONTROL, 0);
 
+	spin_unlock_irq(SCpnt->device->host->host_lock);
 	return SUCCESS;	/* Host reset is succeeded at any time. */
 }
 

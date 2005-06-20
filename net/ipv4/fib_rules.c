@@ -367,13 +367,14 @@ static struct notifier_block fib_rules_notifier = {
 
 static __inline__ int inet_fill_rule(struct sk_buff *skb,
 				     struct fib_rule *r,
-				     struct netlink_callback *cb)
+				     struct netlink_callback *cb,
+				     unsigned int flags)
 {
 	struct rtmsg *rtm;
 	struct nlmsghdr  *nlh;
 	unsigned char	 *b = skb->tail;
 
-	nlh = NLMSG_PUT(skb, NETLINK_CREDS(cb->skb)->pid, cb->nlh->nlmsg_seq, RTM_NEWRULE, sizeof(*rtm));
+	nlh = NLMSG_NEW_ANSWER(skb, cb, RTM_NEWRULE, sizeof(*rtm), flags);
 	rtm = NLMSG_DATA(nlh);
 	rtm->rtm_family = AF_INET;
 	rtm->rtm_dst_len = r->r_dst_len;
@@ -422,7 +423,7 @@ int inet_dump_rules(struct sk_buff *skb, struct netlink_callback *cb)
 	for (r=fib_rules, idx=0; r; r = r->r_next, idx++) {
 		if (idx < s_idx)
 			continue;
-		if (inet_fill_rule(skb, r, cb) < 0)
+		if (inet_fill_rule(skb, r, cb, NLM_F_MULTI) < 0)
 			break;
 	}
 	read_unlock(&fib_rules_lock);

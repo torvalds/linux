@@ -116,7 +116,7 @@ extern int  zfcp_fsf_send_fcp_command_task(struct zfcp_adapter *,
 					   struct timer_list*, int);
 extern int  zfcp_fsf_req_complete(struct zfcp_fsf_req *);
 extern void zfcp_fsf_incoming_els(struct zfcp_fsf_req *);
-extern void zfcp_fsf_req_cleanup(struct zfcp_fsf_req *);
+extern void zfcp_fsf_req_free(struct zfcp_fsf_req *);
 extern struct zfcp_fsf_req *zfcp_fsf_send_fcp_command_task_management(
 	struct zfcp_adapter *, struct zfcp_unit *, u8, int);
 extern struct zfcp_fsf_req *zfcp_fsf_abort_fcp_command(
@@ -171,6 +171,8 @@ extern int  zfcp_erp_async_handler(struct zfcp_erp_action *, unsigned long);
 
 extern int  zfcp_test_link(struct zfcp_port *);
 
+extern void zfcp_erp_port_boxed(struct zfcp_port *);
+extern void zfcp_erp_unit_boxed(struct zfcp_unit *);
 extern void zfcp_erp_port_access_denied(struct zfcp_port *);
 extern void zfcp_erp_unit_access_denied(struct zfcp_unit *);
 extern void zfcp_erp_adapter_access_changed(struct zfcp_adapter *);

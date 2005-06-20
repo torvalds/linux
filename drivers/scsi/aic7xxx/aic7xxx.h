@@ -346,7 +346,6 @@ typedef enum {
 					  * controller.
 					  */
 	AHC_NEWEEPROM_FMT     = 0x4000,
-	AHC_RESOURCE_SHORTAGE = 0x8000,
 	AHC_TQINFIFO_BLOCKED  = 0x10000,  /* Blocked waiting for ATIOs */
 	AHC_INT50_SPEEDFLEX   = 0x20000,  /*
 					   * Internal 50pin connector
@@ -1200,7 +1199,6 @@ void			 ahc_pause_and_flushwork(struct ahc_softc *ahc);
 int			 ahc_suspend(struct ahc_softc *ahc); 
 int			 ahc_resume(struct ahc_softc *ahc);
 void			 ahc_softc_insert(struct ahc_softc *);
-struct ahc_softc	*ahc_find_softc(struct ahc_softc *ahc);
 void			 ahc_set_unit(struct ahc_softc *, int);
 void			 ahc_set_name(struct ahc_softc *, char *);
 void			 ahc_alloc_scbs(struct ahc_softc *ahc);

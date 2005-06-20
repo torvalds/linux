@@ -133,6 +133,8 @@ static int pxa_pm_enter(suspend_state_t state)
 	/* *** go zzz *** */
 	pxa_cpu_pm_enter(state);
 
+	cpu_init();
+
 	/* after sleeping, validate the checksum */
 	checksum = 0;
 	for (i = 0; i < SLEEP_SAVE_SIZE - 1; i++)
