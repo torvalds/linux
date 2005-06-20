@@ -16,7 +16,7 @@
 
 #include <linux/config.h>
 
-#ifdef CONFIG_ARCH_IXDP2X01
+#if defined(CONFIG_ARCH_IXDP2X01) || defined(CONFIG_ARCH_PNX0105)
 /* IXDP2401/IXDP2801 uses dword-aligned register addressing */
 #define CS89x0_PORT(reg) ((reg) * 2)
 #else
