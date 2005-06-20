@@ -216,7 +216,7 @@ static int sg_io(struct file *file, request_queue_t *q,
 		struct gendisk *bd_disk, struct sg_io_hdr *hdr)
 {
 	unsigned long start_time;
-	int reading, writing, ret = 0;
+	int writing = 0, ret = 0;
 	struct request *rq;
 	struct bio *bio;
 	char sense[SCSI_SENSE_BUFFERSIZE];
@@ -234,19 +234,15 @@ static int sg_io(struct file *file, request_queue_t *q,
 	if (hdr->dxfer_len > (q->max_sectors << 9))
 		return -EIO;
 
-	reading = writing = 0;
 	if (hdr->dxfer_len)
 		switch (hdr->dxfer_direction) {
 		default:
 			return -EINVAL;
 		case SG_DXFER_TO_FROM_DEV:
-			reading = 1;
-			/* fall through */
 		case SG_DXFER_TO_DEV:
 			writing = 1;
 			break;
 		case SG_DXFER_FROM_DEV:
-			reading = 1;
 			break;
 		}
 
