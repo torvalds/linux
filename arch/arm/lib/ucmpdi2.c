@@ -31,20 +31,20 @@ Boston, MA 02111-1307, USA.  */
 
 #include "gcclib.h"
 
-word_type
-__ucmpdi2 (DItype a, DItype b)
+int
+__ucmpdi2 (s64 a, s64 b)
 {
   DIunion au, bu;
 
   au.ll = a, bu.ll = b;
 
-  if ((USItype) au.s.high < (USItype) bu.s.high)
+  if ((u32) au.s.high < (u32) bu.s.high)
     return 0;
-  else if ((USItype) au.s.high > (USItype) bu.s.high)
+  else if ((u32) au.s.high > (u32) bu.s.high)
     return 2;
-  if ((USItype) au.s.low < (USItype) bu.s.low)
+  if ((u32) au.s.low < (u32) bu.s.low)
     return 0;
-  else if ((USItype) au.s.low > (USItype) bu.s.low)
+  else if ((u32) au.s.low > (u32) bu.s.low)
     return 2;
   return 1;
 }

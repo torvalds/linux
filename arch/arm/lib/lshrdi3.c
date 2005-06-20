@@ -31,11 +31,11 @@ Boston, MA 02111-1307, USA.  */
 
 #include "gcclib.h"
 
-DItype
-__lshrdi3 (DItype u, word_type b)
+s64
+__lshrdi3 (s64 u, int b)
 {
   DIunion w;
-  word_type bm;
+  int bm;
   DIunion uu;
 
   if (b == 0)
@@ -43,17 +43,17 @@ __lshrdi3 (DItype u, word_type b)
 
   uu.ll = u;
 
-  bm = (sizeof (SItype) * BITS_PER_UNIT) - b;
+  bm = (sizeof (s32) * BITS_PER_UNIT) - b;
   if (bm <= 0)
     {
       w.s.high = 0;
-      w.s.low = (USItype)uu.s.high >> -bm;
+      w.s.low = (u32)uu.s.high >> -bm;
     }
   else
     {
-      USItype carries = (USItype)uu.s.high << bm;
-      w.s.high = (USItype)uu.s.high >> b;
-      w.s.low = ((USItype)uu.s.low >> b) | carries;
+      u32 carries = (u32)uu.s.high << bm;
+      w.s.high = (u32)uu.s.high >> b;
+      w.s.low = ((u32)uu.s.low >> b) | carries;
     }
 
   return w.ll;

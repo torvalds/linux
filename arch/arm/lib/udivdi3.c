@@ -32,7 +32,7 @@ Boston, MA 02111-1307, USA.  */
 #include "gcclib.h"
 #include "longlong.h"
 
-static const UQItype __clz_tab[] =
+static const u8 __clz_tab[] =
 {
   0,1,2,2,3,3,3,3,4,4,4,4,4,4,4,4,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,
   6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
@@ -44,15 +44,15 @@ static const UQItype __clz_tab[] =
   8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,
 };
 
-UDItype
-__udivmoddi4 (UDItype n, UDItype d, UDItype *rp)
+u64
+__udivmoddi4 (u64 n, u64 d, u64 *rp)
 {
   DIunion ww;
   DIunion nn, dd;
   DIunion rr;
-  USItype d0, d1, n0, n1, n2;
-  USItype q0, q1;
-  USItype b, bm;
+  u32 d0, d1, n0, n1, n2;
+  u32 q0, q1;
+  u32 b, bm;
 
   nn.ll = n;
   dd.ll = d;
@@ -185,7 +185,7 @@ __udivmoddi4 (UDItype n, UDItype d, UDItype *rp)
             }
           else
             {
-              USItype m1, m0;
+              u32 m1, m0;
               /* Normalize.  */
 
               b = SI_TYPE_SIZE - bm;
@@ -224,16 +224,16 @@ __udivmoddi4 (UDItype n, UDItype d, UDItype *rp)
   return ww.ll;
 }
 
-UDItype
-__udivdi3 (UDItype n, UDItype d)
+u64
+__udivdi3 (u64 n, u64 d)
 {
-  return __udivmoddi4 (n, d, (UDItype *) 0);
+  return __udivmoddi4 (n, d, (u64 *) 0);
 }
 
-UDItype
-__umoddi3 (UDItype u, UDItype v)
+u64
+__umoddi3 (u64 u, u64 v)
 {
-  UDItype w;
+  u64 w;
 
   (void) __udivmoddi4 (u ,v, &w);
 

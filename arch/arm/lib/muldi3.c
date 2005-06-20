@@ -32,7 +32,7 @@ Boston, MA 02111-1307, USA.  */
 #include "gcclib.h"
 
 #define umul_ppmm(xh, xl, a, b) \
-{register USItype __t0, __t1, __t2;                                     \
+{register u32 __t0, __t1, __t2;                                     \
   __asm__ ("%@ Inlined umul_ppmm					\n\
         mov     %2, %5, lsr #16						\n\
         mov     %0, %6, lsr #16						\n\
@@ -46,11 +46,11 @@ Boston, MA 02111-1307, USA.  */
         addcs   %0, %0, #65536						\n\
         adds    %1, %1, %3, lsl #16					\n\
         adc     %0, %0, %3, lsr #16"                                    \
-           : "=&r" ((USItype) (xh)),                                    \
-             "=r" ((USItype) (xl)),                                     \
+           : "=&r" ((u32) (xh)),                                    \
+             "=r" ((u32) (xl)),                                     \
              "=&r" (__t0), "=&r" (__t1), "=r" (__t2)                    \
-           : "r" ((USItype) (a)),                                       \
-             "r" ((USItype) (b)));}
+           : "r" ((u32) (a)),                                       \
+             "r" ((u32) (b)));}
 
 
 #define __umulsidi3(u, v) \
@@ -59,8 +59,8 @@ Boston, MA 02111-1307, USA.  */
     __w.ll; })
 
 
-DItype
-__muldi3 (DItype u, DItype v)
+s64
+__muldi3 (s64 u, s64 v)
 {
   DIunion w;
   DIunion uu, vv;
@@ -69,8 +69,8 @@ __muldi3 (DItype u, DItype v)
   vv.ll = v;
 
   w.ll = __umulsidi3 (uu.s.low, vv.s.low);
-  w.s.high += ((USItype) uu.s.low * (USItype) vv.s.high
-               + (USItype) uu.s.high * (USItype) vv.s.low);
+  w.s.high += ((u32) uu.s.low * (u32) vv.s.high
+               + (u32) uu.s.high * (u32) vv.s.low);
 
   return w.ll;
 }
