@@ -2097,6 +2097,10 @@ static int cdrom_read_cdda_bpc(struct cdrom_device_info *cdi, __u8 __user *ubuf,
 	if (!q)
 		return -ENXIO;
 
+	rq = blk_get_request(q, READ, GFP_KERNEL);
+	if (!rq)
+		return -ENOMEM;
+
 	cdi->last_sense = 0;
 
 	while (nframes) {
@@ -2108,9 +2112,9 @@ static int cdrom_read_cdda_bpc(struct cdrom_device_info *cdi, __u8 __user *ubuf,
 
 		len = nr * CD_FRAMESIZE_RAW;
 
-		rq = blk_rq_map_user(q, READ, ubuf, len);
-		if (IS_ERR(rq))
-			return PTR_ERR(rq);
+		ret = blk_rq_map_user(q, rq, ubuf, len);
+		if (ret)
+			break;
 
 		memset(rq->cmd, 0, sizeof(rq->cmd));
 		rq->cmd[0] = GPCMD_READ_CD;
@@ -2138,7 +2142,7 @@ static int cdrom_read_cdda_bpc(struct cdrom_device_info *cdi, __u8 __user *ubuf,
 			cdi->last_sense = s->sense_key;
 		}
 
-		if (blk_rq_unmap_user(rq, bio, len))
+		if (blk_rq_unmap_user(bio, len))
 			ret = -EFAULT;
 
 		if (ret)
@@ -2149,6 +2153,7 @@ static int cdrom_read_cdda_bpc(struct cdrom_device_info *cdi, __u8 __user *ubuf,
 		ubuf += len;
 	}
 
+	blk_put_request(rq);
 	return ret;
 }
 

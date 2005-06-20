@@ -2107,21 +2107,19 @@ EXPORT_SYMBOL(blk_insert_request);
  *    original bio must be passed back in to blk_rq_unmap_user() for proper
  *    unmapping.
  */
-struct request *blk_rq_map_user(request_queue_t *q, int rw, void __user *ubuf,
-				unsigned int len)
+int blk_rq_map_user(request_queue_t *q, struct request *rq, void __user *ubuf,
+		    unsigned int len)
 {
 	unsigned long uaddr;
-	struct request *rq;
 	struct bio *bio;
+	int reading;
 
 	if (len > (q->max_sectors << 9))
-		return ERR_PTR(-EINVAL);
-	if ((!len && ubuf) || (len && !ubuf))
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
+	if (!len || !ubuf)
+		return -EINVAL;
 
-	rq = blk_get_request(q, rw, __GFP_WAIT);
-	if (!rq)
-		return ERR_PTR(-ENOMEM);
+	reading = rq_data_dir(rq) == READ;
 
 	/*
 	 * if alignment requirement is satisfied, map in user pages for
@@ -2129,9 +2127,9 @@ struct request *blk_rq_map_user(request_queue_t *q, int rw, void __user *ubuf,
 	 */
 	uaddr = (unsigned long) ubuf;
 	if (!(uaddr & queue_dma_alignment(q)) && !(len & queue_dma_alignment(q)))
-		bio = bio_map_user(q, NULL, uaddr, len, rw == READ);
+		bio = bio_map_user(q, NULL, uaddr, len, reading);
 	else
-		bio = bio_copy_user(q, uaddr, len, rw == READ);
+		bio = bio_copy_user(q, uaddr, len, reading);
 
 	if (!IS_ERR(bio)) {
 		rq->bio = rq->biotail = bio;
@@ -2139,14 +2137,13 @@ struct request *blk_rq_map_user(request_queue_t *q, int rw, void __user *ubuf,
 
 		rq->buffer = rq->data = NULL;
 		rq->data_len = len;
-		return rq;
+		return 0;
 	}
 
 	/*
 	 * bio is the err-ptr
 	 */
-	blk_put_request(rq);
-	return (struct request *) bio;
+	return PTR_ERR(bio);
 }
 
 EXPORT_SYMBOL(blk_rq_map_user);
@@ -2160,7 +2157,7 @@ EXPORT_SYMBOL(blk_rq_map_user);
  * Description:
  *    Unmap a request previously mapped by blk_rq_map_user().
  */
-int blk_rq_unmap_user(struct request *rq, struct bio *bio, unsigned int ulen)
+int blk_rq_unmap_user(struct bio *bio, unsigned int ulen)
 {
 	int ret = 0;
 
@@ -2171,8 +2168,7 @@ int blk_rq_unmap_user(struct request *rq, struct bio *bio, unsigned int ulen)
 			ret = bio_uncopy_user(bio);
 	}
 
-	blk_put_request(rq);
-	return ret;
+	return 0;
 }
 
 EXPORT_SYMBOL(blk_rq_unmap_user);
@@ -2184,39 +2180,29 @@ EXPORT_SYMBOL(blk_rq_unmap_user);
  * @kbuf:	the kernel buffer
  * @len:	length of user data
  */
-struct request *blk_rq_map_kern(request_queue_t *q, int rw, void *kbuf,
-				unsigned int len, unsigned int gfp_mask)
+int blk_rq_map_kern(request_queue_t *q, struct request *rq, void *kbuf,
+		    unsigned int len, unsigned int gfp_mask)
 {
-	struct request *rq;
 	struct bio *bio;
 
 	if (len > (q->max_sectors << 9))
-		return ERR_PTR(-EINVAL);
-	if ((!len && kbuf) || (len && !kbuf))
-		return ERR_PTR(-EINVAL);
-
-	rq = blk_get_request(q, rw, gfp_mask);
-	if (!rq)
-		return ERR_PTR(-ENOMEM);
+		return -EINVAL;
+	if (!len || !kbuf)
+		return -EINVAL;
 
 	bio = bio_map_kern(q, kbuf, len, gfp_mask);
-	if (!IS_ERR(bio)) {
-		if (rw)
-			bio->bi_rw |= (1 << BIO_RW);
+	if (IS_ERR(bio))
+		return PTR_ERR(bio);
 
-		rq->bio = rq->biotail = bio;
-		blk_rq_bio_prep(q, rq, bio);
+	if (rq_data_dir(rq) == WRITE)
+		bio->bi_rw |= (1 << BIO_RW);
 
-		rq->buffer = rq->data = NULL;
-		rq->data_len = len;
-		return rq;
-	}
+	rq->bio = rq->biotail = bio;
+	blk_rq_bio_prep(q, rq, bio);
 
-	/*
-	 * bio is the err-ptr
-	 */
-	blk_put_request(rq);
-	return (struct request *) bio;
+	rq->buffer = rq->data = NULL;
+	rq->data_len = len;
+	return 0;
 }
 
 EXPORT_SYMBOL(blk_rq_map_kern);
