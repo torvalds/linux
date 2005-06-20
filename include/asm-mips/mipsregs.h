@@ -425,6 +425,7 @@
 #define CONF_SM			(_ULCAST_(1) << 16)
 #define CONF_SC			(_ULCAST_(1) << 17)
 #define CONF_EW			(_ULCAST_(3) << 18)
+#define CONF_SB			(_ULCAST_(3) << 22)
 #define CONF_EP			(_ULCAST_(15)<< 24)
 #define CONF_EC			(_ULCAST_(7) << 28)
 #define CONF_CM			(_ULCAST_(1) << 31)
@@ -432,14 +433,18 @@
 /* Bits specific to the R4xx0.  */
 #define R4K_CONF_SW		(_ULCAST_(1) << 20)
 #define R4K_CONF_SS		(_ULCAST_(1) << 21)
-#define R4K_CONF_SB		(_ULCAST_(3) << 22)
 
 /* Bits specific to the R5000.  */
 #define R5K_CONF_SE		(_ULCAST_(1) << 12)
 #define R5K_CONF_SS		(_ULCAST_(3) << 20)
 
 /* Bits specific to the RM7000.  */
-#define R7K_CONF_SE		(_ULCAST_(1) << 3)
+#define RM7K_CONF_SE		(_ULCAST_(1) <<  3)
+#define RM7K_CONF_TE		(_ULCAST_(1) << 12)
+#define RM7K_CONF_CLK		(_ULCAST_(1) << 16)
+#define RM7K_CONF_TC		(_ULCAST_(1) << 17)
+#define RM7K_CONF_SI		(_ULCAST_(3) << 20)
+#define RM7K_CONF_SC		(_ULCAST_(1) << 31)
 
 /* Bits specific to the R10000.  */
 #define R10K_CONF_DN		(_ULCAST_(3) <<  3)

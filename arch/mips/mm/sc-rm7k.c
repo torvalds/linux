@@ -103,7 +103,7 @@ static __init void __rm7k_sc_enable(void)
 {
 	int i;
 
-	set_c0_config(R7K_CONF_SE);
+	set_c0_config(RM7K_CONF_SE);
 
 	write_c0_taglo(0);
 	write_c0_taghi(0);
@@ -122,16 +122,16 @@ static __init void __rm7k_sc_enable(void)
 
 static __init void rm7k_sc_enable(void)
 {
-	if (read_c0_config() & R7K_CONF_SE)
+	if (read_c0_config() & RM7K_CONF_SE)
 		return;
 
-	printk(KERN_INFO "Enabling secondary cache...");
+	printk(KERN_INFO "Enabling secondary cache...\n");
 	run_uncached(__rm7k_sc_enable);
 }
 
 static void rm7k_sc_disable(void)
 {
-	clear_c0_config(R7K_CONF_SE);
+	clear_c0_config(RM7K_CONF_SE);
 }
 
 struct bcache_ops rm7k_sc_ops = {
@@ -145,19 +145,19 @@ void __init rm7k_sc_init(void)
 {
 	unsigned int config = read_c0_config();
 
-	if ((config >> 31) & 1)		/* Bit 31 set -> no S-Cache */
+	if ((config & RM7K_CONF_SC))
 		return;
 
 	printk(KERN_INFO "Secondary cache size %dK, linesize %d bytes.\n",
 	       (scache_size >> 10), sc_lsize);
 
-	if (!(config & R7K_CONF_SE))
+	if (!(config & RM7K_CONF_SE))
 		rm7k_sc_enable();
 
 	/*
 	 * While we're at it let's deal with the tertiary cache.
 	 */
-	if (!((config >> 17) & 1)) {
+	if (!(config & RM7K_CONF_TC)) {
 
 		/*
 		 * We can't enable the L3 cache yet. There may be board-specific
@@ -170,9 +170,9 @@ void __init rm7k_sc_init(void)
 		 * to probe it.
 		 */
 		printk(KERN_INFO "Tertiary cache present, %s enabled\n",
-		       config&(1<<12) ? "already" : "not (yet)");
+		       (config & RM7K_CONF_TE) ? "already" : "not (yet)");
 
-		if ((config >> 12) & 1)
+		if ((config & RM7K_CONF_TE))
 			rm7k_tcache_enabled = 1;
 	}
 
