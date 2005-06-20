@@ -5305,7 +5305,7 @@ static int ipw2100_set_key_index(struct ipw2100_priv *priv,
 		.host_command = WEP_KEY_INDEX,
 		.host_command_sequence = 0,
 		.host_command_length = 4,
-		.host_command_parameters[0] = idx,
+		.host_command_parameters = { idx },
 	};
 	int err;
 
