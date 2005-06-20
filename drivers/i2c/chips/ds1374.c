@@ -27,8 +27,6 @@
 #include <linux/rtc.h>
 #include <linux/bcd.h>
 
-#include <asm/rtc.h>
-
 #define DS1374_REG_TOD0		0x00
 #define DS1374_REG_TOD1		0x01
 #define DS1374_REG_TOD2		0x02
