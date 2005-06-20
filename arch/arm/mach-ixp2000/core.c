@@ -162,12 +162,13 @@ void __init ixp2000_map_io(void)
 static unsigned ticks_per_jiffy;
 static unsigned ticks_per_usec;
 static unsigned next_jiffy_time;
+static volatile unsigned long *missing_jiffy_timer_csr;
 
 unsigned long ixp2000_gettimeoffset (void)
 {
  	unsigned long offset;
 
-	offset = next_jiffy_time - *IXP2000_T4_CSR;
+	offset = next_jiffy_time - *missing_jiffy_timer_csr;
 
 	return offset / ticks_per_usec;
 }
@@ -179,7 +180,7 @@ static int ixp2000_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	/* clear timer 1 */
 	ixp2000_reg_write(IXP2000_T1_CLR, 1);
 	
-	while ((next_jiffy_time - *IXP2000_T4_CSR) > ticks_per_jiffy) {
+	while ((next_jiffy_time - *missing_jiffy_timer_csr) > ticks_per_jiffy) {
 		timer_tick(regs);
 		next_jiffy_time -= ticks_per_jiffy;
 	}
@@ -197,20 +198,37 @@ static struct irqaction ixp2000_timer_irq = {
 
 void __init ixp2000_init_time(unsigned long tick_rate)
 {
-	ixp2000_reg_write(IXP2000_T1_CLR, 0);
-	ixp2000_reg_write(IXP2000_T4_CLR, 0);
-
 	ticks_per_jiffy = (tick_rate + HZ/2) / HZ;
 	ticks_per_usec = tick_rate / 1000000;
 
+	/*
+	 * We use timer 1 as our timer interrupt.
+	 */
+	ixp2000_reg_write(IXP2000_T1_CLR, 0);
 	ixp2000_reg_write(IXP2000_T1_CLD, ticks_per_jiffy - 1);
 	ixp2000_reg_write(IXP2000_T1_CTL, (1 << 7));
 
 	/*
-	 * We use T4 as a monotonic counter to track missed jiffies
+	 * We use a second timer as a monotonic counter for tracking
+	 * missed jiffies.  The IXP2000 has four timers, but if we're
+	 * on an A-step IXP2800, timer 2 and 3 don't work, so on those
+	 * chips we use timer 4.  Timer 4 is the only timer that can
+	 * be used for the watchdog, so we use timer 2 if we're on a
+	 * non-buggy chip.
 	 */
-	ixp2000_reg_write(IXP2000_T4_CLD, -1);
-	ixp2000_reg_write(IXP2000_T4_CTL, (1 << 7));
+	if ((*IXP2000_PRODUCT_ID & 0x001ffef0) == 0x00000000) {
+		printk(KERN_INFO "Enabling IXP2800 erratum #25 workaround\n");
+
+		ixp2000_reg_write(IXP2000_T4_CLR, 0);
+		ixp2000_reg_write(IXP2000_T4_CLD, -1);
+		ixp2000_reg_write(IXP2000_T4_CTL, (1 << 7));
+		missing_jiffy_timer_csr = IXP2000_T4_CSR;
+	} else {
+		ixp2000_reg_write(IXP2000_T2_CLR, 0);
+		ixp2000_reg_write(IXP2000_T2_CLD, -1);
+		ixp2000_reg_write(IXP2000_T2_CTL, (1 << 7));
+		missing_jiffy_timer_csr = IXP2000_T2_CSR;
+	}
  	next_jiffy_time = 0xffffffff;
 
 	/* register for interrupt */
