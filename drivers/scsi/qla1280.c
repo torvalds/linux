@@ -2853,7 +2853,7 @@ qla1280_bus_reset(struct scsi_qla_host *ha, int bus)
 		ha->bus_settings[bus].failed_reset_count++;
 	} else {
 		spin_unlock_irq(HOST_LOCK);
-		schedule_timeout(reset_delay * HZ);
+		ssleep(reset_delay);
 		spin_lock_irq(HOST_LOCK);
 
 		ha->bus_settings[bus].scsi_bus_dead = 0;
