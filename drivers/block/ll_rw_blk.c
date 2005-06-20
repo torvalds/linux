@@ -2269,13 +2269,14 @@ void blk_execute_rq_nowait(request_queue_t *q, struct gendisk *bd_disk,
  * @q:		queue to insert the request in
  * @bd_disk:	matching gendisk
  * @rq:		request to insert
+ * @at_head:    insert request at head or tail of queue
  *
  * Description:
  *    Insert a fully prepared request at the back of the io scheduler queue
  *    for execution.
  */
 int blk_execute_rq(request_queue_t *q, struct gendisk *bd_disk,
-		   struct request *rq)
+		   struct request *rq, int at_head)
 {
 	DECLARE_COMPLETION(wait);
 	char sense[SCSI_SENSE_BUFFERSIZE];
@@ -2294,7 +2295,7 @@ int blk_execute_rq(request_queue_t *q, struct gendisk *bd_disk,
 	}
 
 	rq->waiting = &wait;
-	blk_execute_rq_nowait(q, bd_disk, rq, 0, blk_end_sync_rq);
+	blk_execute_rq_nowait(q, bd_disk, rq, at_head, blk_end_sync_rq);
 	wait_for_completion(&wait);
 	rq->waiting = NULL;
 
@@ -2361,7 +2362,7 @@ int blkdev_scsi_issue_flush_fn(request_queue_t *q, struct gendisk *disk,
 	rq->data_len = 0;
 	rq->timeout = 60 * HZ;
 
-	ret = blk_execute_rq(q, disk, rq);
+	ret = blk_execute_rq(q, disk, rq, 0);
 
 	if (ret && error_sector)
 		*error_sector = rq->sector;

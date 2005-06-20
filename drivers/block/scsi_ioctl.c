@@ -308,7 +308,7 @@ static int sg_io(struct file *file, request_queue_t *q,
 	 * (if he doesn't check that is his problem).
 	 * N.B. a non-zero SCSI status is _not_ necessarily an error.
 	 */
-	blk_execute_rq(q, bd_disk, rq);
+	blk_execute_rq(q, bd_disk, rq, 0);
 
 	/* write to all output members */
 	hdr->status = 0xff & rq->errors;
@@ -420,7 +420,7 @@ static int sg_scsi_ioctl(struct file *file, request_queue_t *q,
 	rq->data_len = bytes;
 	rq->flags |= REQ_BLOCK_PC;
 
-	blk_execute_rq(q, bd_disk, rq);
+	blk_execute_rq(q, bd_disk, rq, 0);
 	err = rq->errors & 0xff;	/* only 8 bit SCSI status */
 	if (err) {
 		if (rq->sense_len && rq->sense) {
@@ -573,7 +573,7 @@ int scsi_cmd_ioctl(struct file *file, struct gendisk *bd_disk, unsigned int cmd,
 			rq->cmd[0] = GPCMD_START_STOP_UNIT;
 			rq->cmd[4] = 0x02 + (close != 0);
 			rq->cmd_len = 6;
-			err = blk_execute_rq(q, bd_disk, rq);
+			err = blk_execute_rq(q, bd_disk, rq, 0);
 			blk_put_request(rq);
 			break;
 		default:

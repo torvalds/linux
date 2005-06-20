@@ -2136,7 +2136,7 @@ static int cdrom_read_cdda_bpc(struct cdrom_device_info *cdi, __u8 __user *ubuf,
 		if (rq->bio)
 			blk_queue_bounce(q, &rq->bio);
 
-		if (blk_execute_rq(q, cdi->disk, rq)) {
+		if (blk_execute_rq(q, cdi->disk, rq, 0)) {
 			struct request_sense *s = rq->sense;
 			ret = -EIO;
 			cdi->last_sense = s->sense_key;
