@@ -437,7 +437,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		if (!tsk)
 			return -ESRCH;
 
-		if (audit_filter_user(tsk, msg_type)) {
+		if (audit_enabled && audit_filter_user(tsk, msg_type)) {
 			    ab = audit_log_start(NULL, msg_type);
 			    if (ab) {
 				    audit_log_format(ab,
