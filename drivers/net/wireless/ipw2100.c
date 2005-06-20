@@ -1116,7 +1116,6 @@ static inline int rf_kill_active(struct ipw2100_priv *priv)
 {
 #define MAX_RF_KILL_CHECKS 5
 #define RF_KILL_CHECK_DELAY 40
-#define RF_KILL_CHECK_THRESHOLD 3
 
 	unsigned short value = 0;
 	u32 reg = 0;
