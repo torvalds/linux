@@ -925,7 +925,7 @@ static int sw_reset_and_clock(struct ipw2100_priv *priv)
 }
 
 /*********************************************************************
-    Procedure   :   ipw2100_ipw2100_download_firmware
+    Procedure   :   ipw2100_download_firmware
     Purpose     :   Initiaze adapter after power on.
                     The sequence is:
                     1. assert s/w reset first!
@@ -1192,7 +1192,6 @@ static int ipw2100_get_hw_features(struct ipw2100_priv *priv)
  */
 static int ipw2100_start_adapter(struct ipw2100_priv *priv)
 {
-#define IPW_WAIT_FW_INIT_COMPLETE_DELAY (40 * HZ / 1000)
 	int i;
 	u32 inta, inta_mask, gpio;
 
@@ -1229,7 +1228,7 @@ static int ipw2100_start_adapter(struct ipw2100_priv *priv)
 	i = 5000;
 	do {
   		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(IPW_WAIT_FW_INIT_COMPLETE_DELAY);
+		schedule_timeout(40 * HZ / 1000);
 		/* Todo... wait for sync command ... */
 
 		read_register(priv->net_dev, IPW_REG_INTA, &inta);
@@ -1694,7 +1693,7 @@ static int ipw2100_up(struct ipw2100_priv *priv, int deferred)
 	} else
 		priv->status |= STATUS_POWERED;
 
-	/* Load the firmeware, start the clocks, etc. */
+	/* Load the firmware, start the clocks, etc. */
 	if (ipw2100_start_adapter(priv)) {
 	       	IPW_DEBUG_ERROR("%s: Failed to start the firmware.\n",
 				priv->net_dev->name);
@@ -6498,7 +6497,7 @@ static int ipw2100_pci_init_one(struct pci_dev *pci_dev,
 	if ((val & 0x0000ff00) != 0)
 		pci_write_config_dword(pci_dev, 0x40, val & 0xffff00ff);
 
-	pci_set_power_state(pci_dev, 0);
+	pci_set_power_state(pci_dev, PCI_D0);
 
 	if (!ipw2100_hw_is_adapter_in_system(dev)) {
 		printk(KERN_WARNING DRV_NAME
@@ -8034,7 +8033,7 @@ static iw_handler ipw2100_wx_handlers[] =
         ipw2100_wx_set_wap,       /* SIOCSIWAP */
         ipw2100_wx_get_wap,       /* SIOCGIWAP */
         NULL,                     /* -- hole -- */
-        NULL,                     /* SIOCGIWAPLIST -- depricated */
+        NULL,                     /* SIOCGIWAPLIST -- deprecated */
         ipw2100_wx_set_scan,      /* SIOCSIWSCAN */
         ipw2100_wx_get_scan,      /* SIOCGIWSCAN */
         ipw2100_wx_set_essid,     /* SIOCSIWESSID */
