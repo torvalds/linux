@@ -191,6 +191,7 @@
  *		Feb 2001	davej		PCI enable cleanups.
  *		04 Aug 2003	macro		Converted to the DMA API.
  *		14 Aug 2004	macro		Fix device names reported.
+ *		14 Jun 2005	macro		Use irqreturn_t.
  */
 
 /* Include files */
@@ -217,8 +218,8 @@
 
 /* Version information string should be updated prior to each new release!  */
 #define DRV_NAME "defxx"
-#define DRV_VERSION "v1.07"
-#define DRV_RELDATE "2004/08/14"
+#define DRV_VERSION "v1.08"
+#define DRV_RELDATE "2005/06/14"
 
 static char version[] __devinitdata =
 	DRV_NAME ": " DRV_VERSION " " DRV_RELDATE
@@ -247,7 +248,8 @@ static int		dfx_close(struct net_device *dev);
 static void		dfx_int_pr_halt_id(DFX_board_t *bp);
 static void		dfx_int_type_0_process(DFX_board_t *bp);
 static void		dfx_int_common(struct net_device *dev);
-static void		dfx_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t	dfx_interrupt(int irq, void *dev_id,
+				      struct pt_regs *regs);
 
 static struct		net_device_stats *dfx_ctl_get_stats(struct net_device *dev);
 static void		dfx_ctl_set_multicast_list(struct net_device *dev);
@@ -437,7 +439,8 @@ static int __devinit dfx_init_one_pci_or_eisa(struct pci_dev *pdev, long ioaddr)
 	}
 
 	SET_MODULE_OWNER(dev);
-	SET_NETDEV_DEV(dev, &pdev->dev);
+	if (pdev != NULL)
+		SET_NETDEV_DEV(dev, &pdev->dev);
 
 	bp = dev->priv;
 
@@ -1225,7 +1228,7 @@ static int dfx_open(struct net_device *dev)
 	
 	/* Register IRQ - support shared interrupts by passing device ptr */
 
-	ret = request_irq(dev->irq, (void *)dfx_interrupt, SA_SHIRQ, dev->name, dev);
+	ret = request_irq(dev->irq, dfx_interrupt, SA_SHIRQ, dev->name, dev);
 	if (ret) {
 		printk(KERN_ERR "%s: Requested IRQ %d is busy\n", dev->name, dev->irq);
 		return ret;
@@ -1680,13 +1683,13 @@ static void dfx_int_common(struct net_device *dev)
  * =================
  * = dfx_interrupt =
  * =================
- *   
+ *
  * Overview:
  *   Interrupt processing routine
- *  
+ *
  * Returns:
- *   None
- *       
+ *   Whether a valid interrupt was seen.
+ *
  * Arguments:
  *   irq	- interrupt vector
  *   dev_id	- pointer to device information
@@ -1699,7 +1702,8 @@ static void dfx_int_common(struct net_device *dev)
  *   structure context.
  *
  * Return Codes:
- *   None
+ *   IRQ_HANDLED - an IRQ was handled.
+ *   IRQ_NONE    - no IRQ was handled.
  *
  * Assumptions:
  *   The interrupt acknowledgement at the hardware level (eg. ACKing the PIC
@@ -1712,59 +1716,69 @@ static void dfx_int_common(struct net_device *dev)
  *   Interrupts are disabled, then reenabled at the adapter.
  */
 
-static void dfx_interrupt(int irq, void *dev_id, struct pt_regs	*regs)
-	{
+static irqreturn_t dfx_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+{
 	struct net_device	*dev = dev_id;
 	DFX_board_t		*bp;	/* private board structure pointer */
-	u8				tmp;	/* used for disabling/enabling ints */
 
 	/* Get board pointer only if device structure is valid */
 
 	bp = dev->priv;
 
-	spin_lock(&bp->lock);
-	
 	/* See if we're already servicing an interrupt */
 
 	/* Service adapter interrupts */
 
-	if (bp->bus_type == DFX_BUS_TYPE_PCI)
-		{
-		/* Disable PDQ-PFI interrupts at PFI */
+	if (bp->bus_type == DFX_BUS_TYPE_PCI) {
+		u32 status;
 
-		dfx_port_write_long(bp, PFI_K_REG_MODE_CTRL, PFI_MODE_M_DMA_ENB);
+		dfx_port_read_long(bp, PFI_K_REG_STATUS, &status);
+		if (!(status & PFI_STATUS_M_PDQ_INT))
+			return IRQ_NONE;
+
+		spin_lock(&bp->lock);
+
+		/* Disable PDQ-PFI interrupts at PFI */
+		dfx_port_write_long(bp, PFI_K_REG_MODE_CTRL,
+				    PFI_MODE_M_DMA_ENB);
 
 		/* Call interrupt service routine for this adapter */
-
 		dfx_int_common(dev);
 
 		/* Clear PDQ interrupt status bit and reenable interrupts */
-
-		dfx_port_write_long(bp, PFI_K_REG_STATUS, PFI_STATUS_M_PDQ_INT);
+		dfx_port_write_long(bp, PFI_K_REG_STATUS,
+				    PFI_STATUS_M_PDQ_INT);
 		dfx_port_write_long(bp, PFI_K_REG_MODE_CTRL,
-					(PFI_MODE_M_PDQ_INT_ENB + PFI_MODE_M_DMA_ENB));
-		}
-	else
-		{
-		/* Disable interrupts at the ESIC */
+				    (PFI_MODE_M_PDQ_INT_ENB |
+				     PFI_MODE_M_DMA_ENB));
 
-		dfx_port_read_byte(bp, PI_ESIC_K_IO_CONFIG_STAT_0, &tmp);
-		tmp &= ~PI_CONFIG_STAT_0_M_INT_ENB;
-		dfx_port_write_byte(bp, PI_ESIC_K_IO_CONFIG_STAT_0, tmp);
+		spin_unlock(&bp->lock);
+	} else {
+		u8 status;
+
+		dfx_port_read_byte(bp, PI_ESIC_K_IO_CONFIG_STAT_0, &status);
+		if (!(status & PI_CONFIG_STAT_0_M_PEND))
+			return IRQ_NONE;
+
+		spin_lock(&bp->lock);
+
+		/* Disable interrupts at the ESIC */
+		status &= ~PI_CONFIG_STAT_0_M_INT_ENB;
+		dfx_port_write_byte(bp, PI_ESIC_K_IO_CONFIG_STAT_0, status);
 
 		/* Call interrupt service routine for this adapter */
-
 		dfx_int_common(dev);
 
 		/* Reenable interrupts at the ESIC */
+		dfx_port_read_byte(bp, PI_ESIC_K_IO_CONFIG_STAT_0, &status);
+		status |= PI_CONFIG_STAT_0_M_INT_ENB;
+		dfx_port_write_byte(bp, PI_ESIC_K_IO_CONFIG_STAT_0, status);
 
-		dfx_port_read_byte(bp, PI_ESIC_K_IO_CONFIG_STAT_0, &tmp);
-		tmp |= PI_CONFIG_STAT_0_M_INT_ENB;
-		dfx_port_write_byte(bp, PI_ESIC_K_IO_CONFIG_STAT_0, tmp);
-		}
-
-	spin_unlock(&bp->lock);
+		spin_unlock(&bp->lock);
 	}
+
+	return IRQ_HANDLED;
+}
 
 
 /*
