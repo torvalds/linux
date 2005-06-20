@@ -477,6 +477,9 @@ static enum audit_state audit_filter_syscall(struct task_struct *tsk,
 	int		   word = AUDIT_WORD(ctx->major);
 	int		   bit  = AUDIT_BIT(ctx->major);
 
+	if (audit_pid && ctx->pid == audit_pid)
+		return AUDIT_DISABLED;
+
 	rcu_read_lock();
 	list_for_each_entry_rcu(e, list, list) {
 		if ((e->rule.mask[word] & bit) == bit
@@ -493,6 +496,9 @@ int audit_filter_user(struct task_struct *tsk, int type)
 {
 	struct audit_entry *e;
 	enum audit_state   state;
+
+	if (audit_pid && tsk->pid == audit_pid)
+		return AUDIT_DISABLED;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(e, &audit_filter_list[AUDIT_FILTER_USER], list) {
@@ -816,7 +822,7 @@ void audit_free(struct task_struct *tsk)
 
 	/* Check for system calls that do not go through the exit
 	 * function (e.g., exit_group), then free context block. */
-	if (context->in_syscall && context->auditable && context->pid != audit_pid)
+	if (context->in_syscall && context->auditable)
 		audit_log_exit(context);
 
 	audit_free_context(context);
@@ -921,7 +927,7 @@ void audit_syscall_exit(struct task_struct *tsk, int valid, long return_code)
 	if (likely(!context))
 		return;
 
-	if (context->in_syscall && context->auditable && context->pid != audit_pid)
+	if (context->in_syscall && context->auditable)
 		audit_log_exit(context);
 
 	context->in_syscall = 0;
