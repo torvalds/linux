@@ -642,8 +642,8 @@ static ssize_t show_debug_level(struct device_driver *d, char *buf)
 {
 	return sprintf(buf, "0x%08X\n", ipw_debug_level);
 }
-static ssize_t store_debug_level(struct device_driver *d, const char *buf, 
-				 size_t count)
+static ssize_t store_debug_level(struct device_driver *d,
+				const char *buf, size_t count)
 {
 	char *p = (char *)buf;
 	u32 val;
@@ -667,23 +667,26 @@ static ssize_t store_debug_level(struct device_driver *d, const char *buf,
 static DRIVER_ATTR(debug_level, S_IWUSR | S_IRUGO, 
 		   show_debug_level, store_debug_level);
 
-static ssize_t show_status(struct device *d, char *buf)
+static ssize_t show_status(struct device *d,
+			struct device_attribute *attr, char *buf)
 {
-	struct ipw_priv *p = (struct ipw_priv *)d->driver_data;
+	struct ipw_priv *p = d->driver_data;
 	return sprintf(buf, "0x%08x\n", (int)p->status);
 }
 static DEVICE_ATTR(status, S_IRUGO, show_status, NULL);
 
-static ssize_t show_cfg(struct device *d, char *buf)
+static ssize_t show_cfg(struct device *d, struct device_attribute *attr,
+			char *buf)
 {
-	struct ipw_priv *p = (struct ipw_priv *)d->driver_data;
+	struct ipw_priv *p = d->driver_data;
 	return sprintf(buf, "0x%08x\n", (int)p->config);
 }
 static DEVICE_ATTR(cfg, S_IRUGO, show_cfg, NULL);
 
-static ssize_t show_nic_type(struct device *d, char *buf)
+static ssize_t show_nic_type(struct device *d,
+			struct device_attribute *attr, char *buf)
 {
-	struct ipw_priv *p = (struct ipw_priv *)d->driver_data;
+	struct ipw_priv *p = d->driver_data;
 	u8 type = p->eeprom[EEPROM_NIC_TYPE];
 
 	switch (type) {
@@ -703,8 +706,8 @@ static ssize_t show_nic_type(struct device *d, char *buf)
 }
 static DEVICE_ATTR(nic_type, S_IRUGO, show_nic_type, NULL);
 
-static ssize_t dump_error_log(struct device *d, const char *buf,
-			      size_t count)
+static ssize_t dump_error_log(struct device *d,
+		struct device_attribute *attr, const char *buf, size_t count)
 {
 	char *p = (char *)buf;
 
@@ -715,8 +718,8 @@ static ssize_t dump_error_log(struct device *d, const char *buf,
 }
 static DEVICE_ATTR(dump_errors, S_IWUSR, NULL, dump_error_log);
 
-static ssize_t dump_event_log(struct device *d, const char *buf,
-			      size_t count)
+static ssize_t dump_event_log(struct device *d,
+		struct device_attribute *attr, const char *buf, size_t count)
 {
 	char *p = (char *)buf;
 
@@ -727,10 +730,11 @@ static ssize_t dump_event_log(struct device *d, const char *buf,
 }
 static DEVICE_ATTR(dump_events, S_IWUSR, NULL, dump_event_log);
 
-static ssize_t show_ucode_version(struct device *d, char *buf)
+static ssize_t show_ucode_version(struct device *d,
+			struct device_attribute *attr, char *buf)
 {
 	u32 len = sizeof(u32), tmp = 0;
-	struct ipw_priv *p = (struct ipw_priv*)d->driver_data;
+	struct ipw_priv *p = d->driver_data;
 
 	if(ipw_get_ordinal(p, IPW_ORD_STAT_UCODE_VERSION, &tmp, &len))
 		return 0;
@@ -739,10 +743,11 @@ static ssize_t show_ucode_version(struct device *d, char *buf)
 }
 static DEVICE_ATTR(ucode_version, S_IWUSR|S_IRUGO, show_ucode_version, NULL);
 
-static ssize_t show_rtc(struct device *d, char *buf)
+static ssize_t show_rtc(struct device *d, struct device_attribute *attr,
+			char *buf)
 {
 	u32 len = sizeof(u32), tmp = 0;
-	struct ipw_priv *p = (struct ipw_priv*)d->driver_data;
+	struct ipw_priv *p = d->driver_data;
 
 	if(ipw_get_ordinal(p, IPW_ORD_STAT_RTC, &tmp, &len))
 		return 0;
@@ -755,35 +760,38 @@ static DEVICE_ATTR(rtc, S_IWUSR|S_IRUGO, show_rtc, NULL);
  * Add a device attribute to view/control the delay between eeprom
  * operations.
  */
-static ssize_t show_eeprom_delay(struct device *d, char *buf)
+static ssize_t show_eeprom_delay(struct device *d,
+			struct device_attribute *attr, char *buf)
 {
 	int n = ((struct ipw_priv*)d->driver_data)->eeprom_delay;
 	return sprintf(buf, "%i\n", n);
 }
-static ssize_t store_eeprom_delay(struct device *d, const char *buf, 
-				  size_t count)
+static ssize_t store_eeprom_delay(struct device *d,
+			struct device_attribute *attr, const char *buf,
+			size_t count)
 {
-	struct ipw_priv *p = (struct ipw_priv*)d->driver_data;
+	struct ipw_priv *p = d->driver_data;
 	sscanf(buf, "%i", &p->eeprom_delay);
 	return strnlen(buf, count);
 }
 static DEVICE_ATTR(eeprom_delay, S_IWUSR|S_IRUGO, 
 		   show_eeprom_delay,store_eeprom_delay);
 
-static ssize_t show_command_event_reg(struct device *d, char *buf)
+static ssize_t show_command_event_reg(struct device *d,
+			struct device_attribute *attr, char *buf)
 {
 	u32 reg = 0;
-	struct ipw_priv *p = (struct ipw_priv *)d->driver_data;
+	struct ipw_priv *p = d->driver_data;
 
 	reg = ipw_read_reg32(p, CX2_INTERNAL_CMD_EVENT);
 	return sprintf(buf, "0x%08x\n", reg);
 }
-static ssize_t store_command_event_reg(struct device *d, 
-				       const char *buf, 
-				       size_t count)
+static ssize_t store_command_event_reg(struct device *d,
+				struct device_attribute *attr, const char *buf,
+				size_t count)
 {
 	u32 reg;
-	struct ipw_priv *p = (struct ipw_priv *)d->driver_data;
+	struct ipw_priv *p = d->driver_data;
 
 	sscanf(buf, "%x", &reg);
 	ipw_write_reg32(p, CX2_INTERNAL_CMD_EVENT, reg);
@@ -792,20 +800,21 @@ static ssize_t store_command_event_reg(struct device *d,
 static DEVICE_ATTR(command_event_reg, S_IWUSR|S_IRUGO, 
 		   show_command_event_reg,store_command_event_reg);
 
-static ssize_t show_mem_gpio_reg(struct device *d, char *buf)
+static ssize_t show_mem_gpio_reg(struct device *d,
+				struct device_attribute *attr, char *buf)
 {
 	u32 reg = 0;
-	struct ipw_priv *p = (struct ipw_priv *)d->driver_data;
+	struct ipw_priv *p = d->driver_data;
 
 	reg = ipw_read_reg32(p, 0x301100);
 	return sprintf(buf, "0x%08x\n", reg);
 }
-static ssize_t store_mem_gpio_reg(struct device *d, 
-				  const char *buf, 
-				  size_t count)
+static ssize_t store_mem_gpio_reg(struct device *d,
+			struct device_attribute *attr, const char *buf,
+			size_t count)
 {
 	u32 reg;
-	struct ipw_priv *p = (struct ipw_priv *)d->driver_data;
+	struct ipw_priv *p = d->driver_data;
 
 	sscanf(buf, "%x", &reg);
 	ipw_write_reg32(p, 0x301100, reg);
@@ -814,10 +823,11 @@ static ssize_t store_mem_gpio_reg(struct device *d,
 static DEVICE_ATTR(mem_gpio_reg, S_IWUSR|S_IRUGO,
 		   show_mem_gpio_reg,store_mem_gpio_reg);
 
-static ssize_t show_indirect_dword(struct device *d, char *buf)
+static ssize_t show_indirect_dword(struct device *d,
+				struct device_attribute *attr, char *buf)
 {
 	u32 reg = 0;
-	struct ipw_priv *priv = (struct ipw_priv *)d->driver_data;
+	struct ipw_priv *priv = d->driver_data;
 	if (priv->status & STATUS_INDIRECT_DWORD) 
 		reg = ipw_read_reg32(priv, priv->indirect_dword);
 	else 
@@ -825,11 +835,11 @@ static ssize_t show_indirect_dword(struct device *d, char *buf)
 	
 	return sprintf(buf, "0x%08x\n", reg);
 }
-static ssize_t store_indirect_dword(struct device *d, 
-				   const char *buf, 
-				   size_t count)
+static ssize_t store_indirect_dword(struct device *d,
+				struct device_attribute *attr, const char *buf,
+				size_t count)
 {
-	struct ipw_priv *priv = (struct ipw_priv *)d->driver_data;
+	struct ipw_priv *priv = d->driver_data;
 
 	sscanf(buf, "%x", &priv->indirect_dword);
 	priv->status |= STATUS_INDIRECT_DWORD;
@@ -838,10 +848,11 @@ static ssize_t store_indirect_dword(struct device *d,
 static DEVICE_ATTR(indirect_dword, S_IWUSR|S_IRUGO, 
 		   show_indirect_dword,store_indirect_dword);
 
-static ssize_t show_indirect_byte(struct device *d, char *buf)
+static ssize_t show_indirect_byte(struct device *d,
+			struct device_attribute *attr, char *buf)
 {
 	u8 reg = 0;
-	struct ipw_priv *priv = (struct ipw_priv *)d->driver_data;
+	struct ipw_priv *priv = d->driver_data;
 	if (priv->status & STATUS_INDIRECT_BYTE) 
 		reg = ipw_read_reg8(priv, priv->indirect_byte);
 	else 
@@ -849,11 +860,11 @@ static ssize_t show_indirect_byte(struct device *d, char *buf)
 
 	return sprintf(buf, "0x%02x\n", reg);
 }
-static ssize_t store_indirect_byte(struct device *d, 
-				   const char *buf, 
-				   size_t count)
+static ssize_t store_indirect_byte(struct device *d,
+				struct device_attribute *attr, const char *buf,
+				size_t count)
 {
-	struct ipw_priv *priv = (struct ipw_priv *)d->driver_data;
+	struct ipw_priv *priv = d->driver_data;
 
 	sscanf(buf, "%x", &priv->indirect_byte);
 	priv->status |= STATUS_INDIRECT_BYTE;
@@ -862,10 +873,11 @@ static ssize_t store_indirect_byte(struct device *d,
 static DEVICE_ATTR(indirect_byte, S_IWUSR|S_IRUGO, 
 		   show_indirect_byte, store_indirect_byte);
 
-static ssize_t show_direct_dword(struct device *d, char *buf)
+static ssize_t show_direct_dword(struct device *d,
+				struct device_attribute *attr, char *buf)
 {
 	u32 reg = 0;
-	struct ipw_priv *priv = (struct ipw_priv *)d->driver_data;
+	struct ipw_priv *priv = d->driver_data;
 
 	if (priv->status & STATUS_DIRECT_DWORD) 
 		reg = ipw_read32(priv, priv->direct_dword);
@@ -874,11 +886,11 @@ static ssize_t show_direct_dword(struct device *d, char *buf)
 
 	return sprintf(buf, "0x%08x\n", reg);
 }
-static ssize_t store_direct_dword(struct device *d, 
-				 const char *buf, 
-				 size_t count)
+static ssize_t store_direct_dword(struct device *d,
+			struct device_attribute *attr, const char *buf,
+			size_t count)
 {
-	struct ipw_priv *priv = (struct ipw_priv *)d->driver_data;
+	struct ipw_priv *priv = d->driver_data;
 
 	sscanf(buf, "%x", &priv->direct_dword);
 	priv->status |= STATUS_DIRECT_DWORD;
@@ -898,13 +910,14 @@ static inline int rf_kill_active(struct ipw_priv *priv)
 	return (priv->status & STATUS_RF_KILL_HW) ? 1 : 0;
 }
 
-static ssize_t show_rf_kill(struct device *d, char *buf)
+static ssize_t show_rf_kill(struct device *d, struct device_attribute *attr,
+				char *buf)
 {
 	/* 0 - RF kill not enabled
 	   1 - SW based RF kill active (sysfs) 
 	   2 - HW based RF kill active
 	   3 - Both HW and SW baed RF kill active */
-	struct ipw_priv *priv = (struct ipw_priv *)d->driver_data;
+	struct ipw_priv *priv = d->driver_data;
 	int val = ((priv->status & STATUS_RF_KILL_SW) ? 0x1 : 0x0) |
 		(rf_kill_active(priv) ? 0x2 : 0x0);
 	return sprintf(buf, "%i\n", val);
@@ -943,9 +956,10 @@ static int ipw_radio_kill_sw(struct ipw_priv *priv, int disable_radio)
 	return 1;
 }
 
-static ssize_t store_rf_kill(struct device *d, const char *buf, size_t count)
+static ssize_t store_rf_kill(struct device *d,  struct device_attribute *attr,
+				const char *buf, size_t count)
 {
-	struct ipw_priv *priv = (struct ipw_priv *)d->driver_data;
+	struct ipw_priv *priv = d->driver_data;
 	
 	ipw_radio_kill_sw(priv, buf[0] == '1');
 
