@@ -146,6 +146,7 @@ that only one external action is invoked at a time.
 #include <linux/netdevice.h>
 #include <linux/ethtool.h>
 #include <linux/pci.h>
+#include <linux/dma-mapping.h>
 #include <linux/proc_fs.h>
 #include <linux/skbuff.h>
 #include <asm/uaccess.h>
@@ -6423,10 +6424,6 @@ static struct net_device *ipw2100_alloc_device(
 	return dev;
 }
 
-
-
-#define PCI_DMA_32BIT   0x00000000ffffffffULL
-
 static int ipw2100_pci_init_one(struct pci_dev *pci_dev,
 				const struct pci_device_id *ent)
 {
@@ -6480,7 +6477,7 @@ static int ipw2100_pci_init_one(struct pci_dev *pci_dev,
 	pci_set_master(pci_dev);
 	pci_set_drvdata(pci_dev, priv);
 
-	err = pci_set_dma_mask(pci_dev, PCI_DMA_32BIT);
+	err = pci_set_dma_mask(pci_dev, DMA_32BIT_MASK);
 	if (err) {
 		printk(KERN_WARNING DRV_NAME
 		       "Error calling pci_set_dma_mask.\n");
