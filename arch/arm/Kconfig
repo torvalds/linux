@@ -280,7 +280,7 @@ config ISA_DMA_API
 	default y
 
 config PCI
-	bool "PCI support" if ARCH_INTEGRATOR_AP
+	bool "PCI support" if ARCH_INTEGRATOR_AP || ARCH_VERSATILE_PB
 	help
 	  Find out whether you have a PCI motherboard. PCI is the name of a
 	  bus system, i.e. the way the CPU talks to the other stuff inside
