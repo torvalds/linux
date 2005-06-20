@@ -293,7 +293,7 @@ int usb_driver_claim_interface(struct usb_driver *driver,
 	/* if interface was already added, bind now; else let
 	 * the future device_add() bind it, bypassing probe()
 	 */
-	if (!klist_node_attached (&dev->knode_bus))
+	if (klist_node_attached(&dev->knode_bus))
 		device_bind_driver(dev);
 
 	return 0;
