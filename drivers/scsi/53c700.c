@@ -2125,7 +2125,7 @@ static int NCR_700_change_queue_type(struct scsi_device *SDp, int tag_type)
 }
 
 static ssize_t
-NCR_700_show_active_tags(struct device *dev, char *buf)
+NCR_700_show_active_tags(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct scsi_device *SDp = to_scsi_device(dev);
 

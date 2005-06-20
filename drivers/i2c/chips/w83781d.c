@@ -309,18 +309,18 @@ store_in_reg(MAX, max);
 
 #define sysfs_in_offset(offset) \
 static ssize_t \
-show_regs_in_##offset (struct device *dev, char *buf) \
+show_regs_in_##offset (struct device *dev, struct device_attribute *attr, char *buf) \
 { \
         return show_in(dev, buf, offset); \
 } \
 static DEVICE_ATTR(in##offset##_input, S_IRUGO, show_regs_in_##offset, NULL);
 
 #define sysfs_in_reg_offset(reg, offset) \
-static ssize_t show_regs_in_##reg##offset (struct device *dev, char *buf) \
+static ssize_t show_regs_in_##reg##offset (struct device *dev, struct device_attribute *attr, char *buf) \
 { \
 	return show_in_##reg (dev, buf, offset); \
 } \
-static ssize_t store_regs_in_##reg##offset (struct device *dev, const char *buf, size_t count) \
+static ssize_t store_regs_in_##reg##offset (struct device *dev, struct device_attribute *attr, const char *buf, size_t count) \
 { \
 	return store_in_##reg (dev, buf, count, offset); \
 } \
@@ -378,18 +378,18 @@ store_fan_min(struct device *dev, const char *buf, size_t count, int nr)
 }
 
 #define sysfs_fan_offset(offset) \
-static ssize_t show_regs_fan_##offset (struct device *dev, char *buf) \
+static ssize_t show_regs_fan_##offset (struct device *dev, struct device_attribute *attr, char *buf) \
 { \
 	return show_fan(dev, buf, offset); \
 } \
 static DEVICE_ATTR(fan##offset##_input, S_IRUGO, show_regs_fan_##offset, NULL);
 
 #define sysfs_fan_min_offset(offset) \
-static ssize_t show_regs_fan_min##offset (struct device *dev, char *buf) \
+static ssize_t show_regs_fan_min##offset (struct device *dev, struct device_attribute *attr, char *buf) \
 { \
 	return show_fan_min(dev, buf, offset); \
 } \
-static ssize_t store_regs_fan_min##offset (struct device *dev, const char *buf, size_t count) \
+static ssize_t store_regs_fan_min##offset (struct device *dev, struct device_attribute *attr, const char *buf, size_t count) \
 { \
 	return store_fan_min(dev, buf, count, offset); \
 } \
@@ -452,18 +452,18 @@ store_temp_reg(HYST, max_hyst);
 
 #define sysfs_temp_offset(offset) \
 static ssize_t \
-show_regs_temp_##offset (struct device *dev, char *buf) \
+show_regs_temp_##offset (struct device *dev, struct device_attribute *attr, char *buf) \
 { \
 	return show_temp(dev, buf, offset); \
 } \
 static DEVICE_ATTR(temp##offset##_input, S_IRUGO, show_regs_temp_##offset, NULL);
 
 #define sysfs_temp_reg_offset(reg, offset) \
-static ssize_t show_regs_temp_##reg##offset (struct device *dev, char *buf) \
+static ssize_t show_regs_temp_##reg##offset (struct device *dev, struct device_attribute *attr, char *buf) \
 { \
 	return show_temp_##reg (dev, buf, offset); \
 } \
-static ssize_t store_regs_temp_##reg##offset (struct device *dev, const char *buf, size_t count) \
+static ssize_t store_regs_temp_##reg##offset (struct device *dev, struct device_attribute *attr, const char *buf, size_t count) \
 { \
 	return store_temp_##reg (dev, buf, count, offset); \
 } \
@@ -486,7 +486,7 @@ device_create_file(&client->dev, &dev_attr_temp##offset##_max_hyst); \
 } while (0)
 
 static ssize_t
-show_vid_reg(struct device *dev, char *buf)
+show_vid_reg(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct w83781d_data *data = w83781d_update_device(dev);
 	return sprintf(buf, "%ld\n", (long) vid_from_reg(data->vid, data->vrm));
@@ -497,14 +497,14 @@ DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid_reg, NULL);
 #define device_create_file_vid(client) \
 device_create_file(&client->dev, &dev_attr_cpu0_vid);
 static ssize_t
-show_vrm_reg(struct device *dev, char *buf)
+show_vrm_reg(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct w83781d_data *data = w83781d_update_device(dev);
 	return sprintf(buf, "%ld\n", (long) data->vrm);
 }
 
 static ssize_t
-store_vrm_reg(struct device *dev, const char *buf, size_t count)
+store_vrm_reg(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct w83781d_data *data = i2c_get_clientdata(client);
@@ -521,7 +521,7 @@ DEVICE_ATTR(vrm, S_IRUGO | S_IWUSR, show_vrm_reg, store_vrm_reg);
 #define device_create_file_vrm(client) \
 device_create_file(&client->dev, &dev_attr_vrm);
 static ssize_t
-show_alarms_reg(struct device *dev, char *buf)
+show_alarms_reg(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct w83781d_data *data = w83781d_update_device(dev);
 	return sprintf(buf, "%ld\n", (long) ALARMS_FROM_REG(data->alarms));
@@ -531,13 +531,13 @@ static
 DEVICE_ATTR(alarms, S_IRUGO, show_alarms_reg, NULL);
 #define device_create_file_alarms(client) \
 device_create_file(&client->dev, &dev_attr_alarms);
-static ssize_t show_beep_mask (struct device *dev, char *buf)
+static ssize_t show_beep_mask (struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct w83781d_data *data = w83781d_update_device(dev);
 	return sprintf(buf, "%ld\n",
 		       (long)BEEP_MASK_FROM_REG(data->beep_mask, data->type));
 }
-static ssize_t show_beep_enable (struct device *dev, char *buf)
+static ssize_t show_beep_enable (struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct w83781d_data *data = w83781d_update_device(dev);
 	return sprintf(buf, "%ld\n",
@@ -583,11 +583,11 @@ store_beep_reg(struct device *dev, const char *buf, size_t count,
 }
 
 #define sysfs_beep(REG, reg) \
-static ssize_t show_regs_beep_##reg (struct device *dev, char *buf) \
+static ssize_t show_regs_beep_##reg (struct device *dev, struct device_attribute *attr, char *buf) \
 { \
-	return show_beep_##reg(dev, buf); \
+	return show_beep_##reg(dev, attr, buf); \
 } \
-static ssize_t store_regs_beep_##reg (struct device *dev, const char *buf, size_t count) \
+static ssize_t store_regs_beep_##reg (struct device *dev, struct device_attribute *attr, const char *buf, size_t count) \
 { \
 	return store_beep_reg(dev, buf, count, BEEP_##REG); \
 } \
@@ -653,11 +653,11 @@ store_fan_div_reg(struct device *dev, const char *buf, size_t count, int nr)
 }
 
 #define sysfs_fan_div(offset) \
-static ssize_t show_regs_fan_div_##offset (struct device *dev, char *buf) \
+static ssize_t show_regs_fan_div_##offset (struct device *dev, struct device_attribute *attr, char *buf) \
 { \
 	return show_fan_div_reg(dev, buf, offset); \
 } \
-static ssize_t store_regs_fan_div_##offset (struct device *dev, const char *buf, size_t count) \
+static ssize_t store_regs_fan_div_##offset (struct device *dev, struct device_attribute *attr, const char *buf, size_t count) \
 { \
 	return store_fan_div_reg(dev, buf, count, offset - 1); \
 } \
@@ -737,11 +737,11 @@ store_pwmenable_reg(struct device *dev, const char *buf, size_t count, int nr)
 }
 
 #define sysfs_pwm(offset) \
-static ssize_t show_regs_pwm_##offset (struct device *dev, char *buf) \
+static ssize_t show_regs_pwm_##offset (struct device *dev, struct device_attribute *attr, char *buf) \
 { \
 	return show_pwm_reg(dev, buf, offset); \
 } \
-static ssize_t store_regs_pwm_##offset (struct device *dev, \
+static ssize_t store_regs_pwm_##offset (struct device *dev, struct device_attribute *attr, \
 		const char *buf, size_t count) \
 { \
 	return store_pwm_reg(dev, buf, count, offset); \
@@ -750,11 +750,11 @@ static DEVICE_ATTR(pwm##offset, S_IRUGO | S_IWUSR, \
 		show_regs_pwm_##offset, store_regs_pwm_##offset);
 
 #define sysfs_pwmenable(offset) \
-static ssize_t show_regs_pwmenable_##offset (struct device *dev, char *buf) \
+static ssize_t show_regs_pwmenable_##offset (struct device *dev, struct device_attribute *attr, char *buf) \
 { \
 	return show_pwmenable_reg(dev, buf, offset); \
 } \
-static ssize_t store_regs_pwmenable_##offset (struct device *dev, \
+static ssize_t store_regs_pwmenable_##offset (struct device *dev, struct device_attribute *attr, \
 		const char *buf, size_t count) \
 { \
 	return store_pwmenable_reg(dev, buf, count, offset); \
@@ -832,11 +832,11 @@ store_sensor_reg(struct device *dev, const char *buf, size_t count, int nr)
 }
 
 #define sysfs_sensor(offset) \
-static ssize_t show_regs_sensor_##offset (struct device *dev, char *buf) \
+static ssize_t show_regs_sensor_##offset (struct device *dev, struct device_attribute *attr, char *buf) \
 { \
     return show_sensor_reg(dev, buf, offset); \
 } \
-static ssize_t store_regs_sensor_##offset (struct device *dev, const char *buf, size_t count) \
+static ssize_t store_regs_sensor_##offset (struct device *dev, struct device_attribute *attr, const char *buf, size_t count) \
 { \
     return store_sensor_reg(dev, buf, count, offset); \
 } \

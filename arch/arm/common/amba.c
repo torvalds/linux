@@ -169,7 +169,7 @@ static void amba_device_release(struct device *dev)
 }
 
 #define amba_attr(name,fmt,arg...)				\
-static ssize_t show_##name(struct device *_dev, char *buf)	\
+static ssize_t show_##name(struct device *_dev, struct device_attribute *attr, char *buf)	\
 {								\
 	struct amba_device *dev = to_amba_device(_dev);		\
 	return sprintf(buf, fmt, arg);				\

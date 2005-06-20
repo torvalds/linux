@@ -2648,7 +2648,7 @@ static const char *sbp2scsi_info (struct Scsi_Host *host)
         return "SCSI emulation for IEEE-1394 SBP-2 Devices";
 }
 
-static ssize_t sbp2_sysfs_ieee1394_id_show(struct device *dev, char *buf)
+static ssize_t sbp2_sysfs_ieee1394_id_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct scsi_device *sdev;
 	struct scsi_id_instance_data *scsi_id;

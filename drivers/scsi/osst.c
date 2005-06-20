@@ -5608,13 +5608,13 @@ static ssize_t osst_filemark_cnt_show(struct class_device *class_dev, char *buf)
 
 CLASS_DEVICE_ATTR(file_count, S_IRUGO, osst_filemark_cnt_show, NULL);
 
-static struct class_simple * osst_sysfs_class;
+static struct class *osst_sysfs_class;
 
 static int osst_sysfs_valid = 0;
 
 static void osst_sysfs_init(void)
 {
-	osst_sysfs_class = class_simple_create(THIS_MODULE, "onstream_tape");
+	osst_sysfs_class = class_create(THIS_MODULE, "onstream_tape");
 	if ( IS_ERR(osst_sysfs_class) )
 		printk(KERN_WARNING "osst :W: Unable to register sysfs class\n");
 	else
@@ -5627,7 +5627,7 @@ static void osst_sysfs_add(dev_t dev, struct device *device, struct osst_tape * 
 
 	if (!osst_sysfs_valid) return;
 
-	osst_class_member = class_simple_device_add(osst_sysfs_class, dev, device, "%s", name);
+	osst_class_member = class_device_create(osst_sysfs_class, dev, device, "%s", name);
 	if (IS_ERR(osst_class_member)) {
 		printk(KERN_WARNING "osst :W: Unable to add sysfs class member %s\n", name);
 		return;
@@ -5645,13 +5645,13 @@ static void osst_sysfs_destroy(dev_t dev)
 {
 	if (!osst_sysfs_valid) return; 
 
-	class_simple_device_remove(dev);
+	class_device_destroy(osst_sysfs_class, dev);
 }
 
 static void osst_sysfs_cleanup(void)
 {
 	if (osst_sysfs_valid) {
-		class_simple_destroy(osst_sysfs_class);
+		class_destroy(osst_sysfs_class);
 		osst_sysfs_valid = 0;
 	}
 }

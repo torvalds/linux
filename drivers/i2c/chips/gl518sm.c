@@ -164,14 +164,14 @@ static struct i2c_driver gl518_driver = {
  */
 
 #define show(type, suffix, value)					\
-static ssize_t show_##suffix(struct device *dev, char *buf)		\
+static ssize_t show_##suffix(struct device *dev, struct device_attribute *attr, char *buf)		\
 {									\
 	struct gl518_data *data = gl518_update_device(dev);		\
 	return sprintf(buf, "%d\n", type##_FROM_REG(data->value));	\
 }
 
 #define show_fan(suffix, value, index)					\
-static ssize_t show_##suffix(struct device *dev, char *buf)		\
+static ssize_t show_##suffix(struct device *dev, struct device_attribute *attr, char *buf)		\
 {									\
 	struct gl518_data *data = gl518_update_device(dev);		\
 	return sprintf(buf, "%d\n", FAN_FROM_REG(data->value[index],	\
@@ -205,7 +205,7 @@ show(BOOL, beep_enable, beep_enable);
 show(BEEP_MASK, beep_mask, beep_mask);
 
 #define set(type, suffix, value, reg)					\
-static ssize_t set_##suffix(struct device *dev, const char *buf,	\
+static ssize_t set_##suffix(struct device *dev, struct device_attribute *attr, const char *buf,	\
 	size_t count)							\
 {									\
 	struct i2c_client *client = to_i2c_client(dev);			\
@@ -220,7 +220,7 @@ static ssize_t set_##suffix(struct device *dev, const char *buf,	\
 }
 
 #define set_bits(type, suffix, value, reg, mask, shift)			\
-static ssize_t set_##suffix(struct device *dev, const char *buf,	\
+static ssize_t set_##suffix(struct device *dev, struct device_attribute *attr, const char *buf,	\
 	size_t count)							\
 {									\
 	struct i2c_client *client = to_i2c_client(dev);			\
@@ -258,7 +258,7 @@ set_high(IN, in_max3, voltage_max[3], GL518_REG_VIN3_LIMIT);
 set_bits(BOOL, beep_enable, beep_enable, GL518_REG_CONF, 0x04, 2);
 set(BEEP_MASK, beep_mask, beep_mask, GL518_REG_ALARM);
 
-static ssize_t set_fan_min1(struct device *dev, const char *buf, size_t count)
+static ssize_t set_fan_min1(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct gl518_data *data = i2c_get_clientdata(client);
@@ -284,7 +284,7 @@ static ssize_t set_fan_min1(struct device *dev, const char *buf, size_t count)
 	return count;
 }
 
-static ssize_t set_fan_min2(struct device *dev, const char *buf, size_t count)
+static ssize_t set_fan_min2(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct gl518_data *data = i2c_get_clientdata(client);

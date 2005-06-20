@@ -42,8 +42,8 @@ static u8 bad_roms[][9] = {
 				{}
 			};
 
-static ssize_t w1_therm_read_name(struct device *, char *);
-static ssize_t w1_therm_read_temp(struct device *, char *);
+static ssize_t w1_therm_read_name(struct device *, struct device_attribute *attr, char *);
+static ssize_t w1_therm_read_temp(struct device *, struct device_attribute *attr, char *);
 static ssize_t w1_therm_read_bin(struct kobject *, char *, loff_t, size_t);
 
 static struct w1_family_ops w1_therm_fops = {
@@ -53,7 +53,7 @@ static struct w1_family_ops w1_therm_fops = {
 	.rvalname = "temp1_input",
 };
 
-static ssize_t w1_therm_read_name(struct device *dev, char *buf)
+static ssize_t w1_therm_read_name(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct w1_slave *sl = container_of(dev, struct w1_slave, dev);
 
@@ -77,7 +77,7 @@ static inline int w1_convert_temp(u8 rom[9])
 	return t;
 }
 
-static ssize_t w1_therm_read_temp(struct device *dev, char *buf)
+static ssize_t w1_therm_read_temp(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct w1_slave *sl = container_of(dev, struct w1_slave, dev);
 

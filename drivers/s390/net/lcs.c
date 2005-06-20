@@ -1984,7 +1984,7 @@ lcs_open_device(struct net_device *dev)
  * show function for portno called by cat or similar things
  */
 static ssize_t
-lcs_portno_show (struct device *dev, char *buf)
+lcs_portno_show (struct device *dev, struct device_attribute *attr, char *buf)
 {
         struct lcs_card *card;
 
@@ -2000,7 +2000,7 @@ lcs_portno_show (struct device *dev, char *buf)
  * store the value which is piped to file portno
  */
 static ssize_t
-lcs_portno_store (struct device *dev, const char *buf, size_t count)
+lcs_portno_store (struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
         struct lcs_card *card;
         int value;
@@ -2021,7 +2021,7 @@ lcs_portno_store (struct device *dev, const char *buf, size_t count)
 static DEVICE_ATTR(portno, 0644, lcs_portno_show, lcs_portno_store);
 
 static ssize_t
-lcs_type_show(struct device *dev, char *buf)
+lcs_type_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct ccwgroup_device *cgdev;
 
@@ -2035,7 +2035,7 @@ lcs_type_show(struct device *dev, char *buf)
 static DEVICE_ATTR(type, 0444, lcs_type_show, NULL);
 
 static ssize_t
-lcs_timeout_show(struct device *dev, char *buf)
+lcs_timeout_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct lcs_card *card;
 
@@ -2045,7 +2045,7 @@ lcs_timeout_show(struct device *dev, char *buf)
 }
 
 static ssize_t
-lcs_timeout_store (struct device *dev, const char *buf, size_t count)
+lcs_timeout_store (struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
         struct lcs_card *card;
         int value;

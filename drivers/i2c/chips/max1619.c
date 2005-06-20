@@ -122,7 +122,7 @@ struct max1619_data {
  */
 
 #define show_temp(value) \
-static ssize_t show_##value(struct device *dev, char *buf) \
+static ssize_t show_##value(struct device *dev, struct device_attribute *attr, char *buf) \
 { \
 	struct max1619_data *data = max1619_update_device(dev); \
 	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->value)); \
@@ -135,7 +135,7 @@ show_temp(temp_crit2);
 show_temp(temp_hyst2);
 
 #define set_temp2(value, reg) \
-static ssize_t set_##value(struct device *dev, const char *buf, \
+static ssize_t set_##value(struct device *dev, struct device_attribute *attr, const char *buf, \
 	size_t count) \
 { \
 	struct i2c_client *client = to_i2c_client(dev); \
@@ -154,7 +154,7 @@ set_temp2(temp_high2, MAX1619_REG_W_REMOTE_HIGH);
 set_temp2(temp_crit2, MAX1619_REG_W_REMOTE_CRIT);
 set_temp2(temp_hyst2, MAX1619_REG_W_TCRIT_HYST);
 
-static ssize_t show_alarms(struct device *dev, char *buf)
+static ssize_t show_alarms(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct max1619_data *data = max1619_update_device(dev);
 	return sprintf(buf, "%d\n", data->alarms);

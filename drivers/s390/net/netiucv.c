@@ -1356,7 +1356,7 @@ netiucv_change_mtu (struct net_device * dev, int new_mtu)
  *****************************************************************************/
 
 static ssize_t
-user_show (struct device *dev, char *buf)
+user_show (struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct netiucv_priv *priv = dev->driver_data;
 
@@ -1365,7 +1365,7 @@ user_show (struct device *dev, char *buf)
 }
 
 static ssize_t
-user_write (struct device *dev, const char *buf, size_t count)
+user_write (struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct netiucv_priv *priv = dev->driver_data;
 	struct net_device *ndev = priv->conn->netdev;
@@ -1422,7 +1422,7 @@ user_write (struct device *dev, const char *buf, size_t count)
 static DEVICE_ATTR(user, 0644, user_show, user_write);
 
 static ssize_t
-buffer_show (struct device *dev, char *buf)
+buffer_show (struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct netiucv_priv *priv = dev->driver_data;
 
@@ -1431,7 +1431,7 @@ buffer_show (struct device *dev, char *buf)
 }
 
 static ssize_t
-buffer_write (struct device *dev, const char *buf, size_t count)
+buffer_write (struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct netiucv_priv *priv = dev->driver_data;
 	struct net_device *ndev = priv->conn->netdev;
@@ -1486,7 +1486,7 @@ buffer_write (struct device *dev, const char *buf, size_t count)
 static DEVICE_ATTR(buffer, 0644, buffer_show, buffer_write);
 
 static ssize_t
-dev_fsm_show (struct device *dev, char *buf)
+dev_fsm_show (struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct netiucv_priv *priv = dev->driver_data;
 
@@ -1497,7 +1497,7 @@ dev_fsm_show (struct device *dev, char *buf)
 static DEVICE_ATTR(device_fsm_state, 0444, dev_fsm_show, NULL);
 
 static ssize_t
-conn_fsm_show (struct device *dev, char *buf)
+conn_fsm_show (struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct netiucv_priv *priv = dev->driver_data;
 
@@ -1508,7 +1508,7 @@ conn_fsm_show (struct device *dev, char *buf)
 static DEVICE_ATTR(connection_fsm_state, 0444, conn_fsm_show, NULL);
 
 static ssize_t
-maxmulti_show (struct device *dev, char *buf)
+maxmulti_show (struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct netiucv_priv *priv = dev->driver_data;
 
@@ -1517,7 +1517,7 @@ maxmulti_show (struct device *dev, char *buf)
 }
 
 static ssize_t
-maxmulti_write (struct device *dev, const char *buf, size_t count)
+maxmulti_write (struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct netiucv_priv *priv = dev->driver_data;
 
@@ -1529,7 +1529,7 @@ maxmulti_write (struct device *dev, const char *buf, size_t count)
 static DEVICE_ATTR(max_tx_buffer_used, 0644, maxmulti_show, maxmulti_write);
 
 static ssize_t
-maxcq_show (struct device *dev, char *buf)
+maxcq_show (struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct netiucv_priv *priv = dev->driver_data;
 
@@ -1538,7 +1538,7 @@ maxcq_show (struct device *dev, char *buf)
 }
 
 static ssize_t
-maxcq_write (struct device *dev, const char *buf, size_t count)
+maxcq_write (struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct netiucv_priv *priv = dev->driver_data;
 	
@@ -1550,7 +1550,7 @@ maxcq_write (struct device *dev, const char *buf, size_t count)
 static DEVICE_ATTR(max_chained_skbs, 0644, maxcq_show, maxcq_write);
 
 static ssize_t
-sdoio_show (struct device *dev, char *buf)
+sdoio_show (struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct netiucv_priv *priv = dev->driver_data;
 
@@ -1559,7 +1559,7 @@ sdoio_show (struct device *dev, char *buf)
 }
 
 static ssize_t
-sdoio_write (struct device *dev, const char *buf, size_t count)
+sdoio_write (struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct netiucv_priv *priv = dev->driver_data;
 	
@@ -1571,7 +1571,7 @@ sdoio_write (struct device *dev, const char *buf, size_t count)
 static DEVICE_ATTR(tx_single_write_ops, 0644, sdoio_show, sdoio_write);
 
 static ssize_t
-mdoio_show (struct device *dev, char *buf)
+mdoio_show (struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct netiucv_priv *priv = dev->driver_data;
 
@@ -1580,7 +1580,7 @@ mdoio_show (struct device *dev, char *buf)
 }
 
 static ssize_t
-mdoio_write (struct device *dev, const char *buf, size_t count)
+mdoio_write (struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct netiucv_priv *priv = dev->driver_data;
 	
@@ -1592,7 +1592,7 @@ mdoio_write (struct device *dev, const char *buf, size_t count)
 static DEVICE_ATTR(tx_multi_write_ops, 0644, mdoio_show, mdoio_write);
 
 static ssize_t
-txlen_show (struct device *dev, char *buf)
+txlen_show (struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct netiucv_priv *priv = dev->driver_data;
 
@@ -1601,7 +1601,7 @@ txlen_show (struct device *dev, char *buf)
 }
 
 static ssize_t
-txlen_write (struct device *dev, const char *buf, size_t count)
+txlen_write (struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct netiucv_priv *priv = dev->driver_data;
 	
@@ -1613,7 +1613,7 @@ txlen_write (struct device *dev, const char *buf, size_t count)
 static DEVICE_ATTR(netto_bytes, 0644, txlen_show, txlen_write);
 
 static ssize_t
-txtime_show (struct device *dev, char *buf)
+txtime_show (struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct netiucv_priv *priv = dev->driver_data;
 
@@ -1622,7 +1622,7 @@ txtime_show (struct device *dev, char *buf)
 }
 
 static ssize_t
-txtime_write (struct device *dev, const char *buf, size_t count)
+txtime_write (struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct netiucv_priv *priv = dev->driver_data;
 	
@@ -1634,7 +1634,7 @@ txtime_write (struct device *dev, const char *buf, size_t count)
 static DEVICE_ATTR(max_tx_io_time, 0644, txtime_show, txtime_write);
 
 static ssize_t
-txpend_show (struct device *dev, char *buf)
+txpend_show (struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct netiucv_priv *priv = dev->driver_data;
 
@@ -1643,7 +1643,7 @@ txpend_show (struct device *dev, char *buf)
 }
 
 static ssize_t
-txpend_write (struct device *dev, const char *buf, size_t count)
+txpend_write (struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct netiucv_priv *priv = dev->driver_data;
 
@@ -1655,7 +1655,7 @@ txpend_write (struct device *dev, const char *buf, size_t count)
 static DEVICE_ATTR(tx_pending, 0644, txpend_show, txpend_write);
 
 static ssize_t
-txmpnd_show (struct device *dev, char *buf)
+txmpnd_show (struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct netiucv_priv *priv = dev->driver_data;
 
@@ -1664,7 +1664,7 @@ txmpnd_show (struct device *dev, char *buf)
 }
 
 static ssize_t
-txmpnd_write (struct device *dev, const char *buf, size_t count)
+txmpnd_write (struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct netiucv_priv *priv = dev->driver_data;
 

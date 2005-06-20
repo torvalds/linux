@@ -651,50 +651,45 @@ static int usb_rh_urb_dequeue (struct usb_hcd *hcd, struct urb *urb)
 /*-------------------------------------------------------------------------*/
 
 /* exported only within usbcore */
-struct usb_bus *usb_bus_get (struct usb_bus *bus)
-{
-	struct class_device *tmp;
-
-	if (!bus)
-		return NULL;
-
-	tmp = class_device_get(&bus->class_dev);
-	if (tmp)        
-		return to_usb_bus(tmp);
-	else
-		return NULL;
-}
-
-/* exported only within usbcore */
-void usb_bus_put (struct usb_bus *bus)
+struct usb_bus *usb_bus_get(struct usb_bus *bus)
 {
 	if (bus)
-		class_device_put(&bus->class_dev);
+		kref_get(&bus->kref);
+	return bus;
 }
 
-/*-------------------------------------------------------------------------*/
-
-static void usb_host_release(struct class_device *class_dev)
+static void usb_host_release(struct kref *kref)
 {
-	struct usb_bus *bus = to_usb_bus(class_dev);
+	struct usb_bus *bus = container_of(kref, struct usb_bus, kref);
 
 	if (bus->release)
 		bus->release(bus);
 }
 
-static struct class usb_host_class = {
-	.name		= "usb_host",
-	.release	= &usb_host_release,
-};
+/* exported only within usbcore */
+void usb_bus_put(struct usb_bus *bus)
+{
+	if (bus)
+		kref_put(&bus->kref, usb_host_release);
+}
+
+/*-------------------------------------------------------------------------*/
+
+static struct class *usb_host_class;
 
 int usb_host_init(void)
 {
-	return class_register(&usb_host_class);
+	int retval = 0;
+
+	usb_host_class = class_create(THIS_MODULE, "usb_host");
+	if (IS_ERR(usb_host_class))
+		retval = PTR_ERR(usb_host_class);
+	return retval;
 }
 
 void usb_host_cleanup(void)
 {
-	class_unregister(&usb_host_class);
+	class_destroy(usb_host_class);
 }
 
 /**
@@ -719,8 +714,7 @@ static void usb_bus_init (struct usb_bus *bus)
 
 	INIT_LIST_HEAD (&bus->bus_list);
 
-	class_device_initialize(&bus->class_dev);
-	bus->class_dev.class = &usb_host_class;
+	kref_init(&bus->kref);
 }
 
 /**
@@ -761,7 +755,6 @@ struct usb_bus *usb_alloc_bus (struct usb_operations *op)
 static int usb_register_bus(struct usb_bus *bus)
 {
 	int busnum;
-	int retval;
 
 	down (&usb_bus_list_lock);
 	busnum = find_next_zero_bit (busmap.busmap, USB_MAXBUS, 1);
@@ -774,14 +767,14 @@ static int usb_register_bus(struct usb_bus *bus)
 		return -E2BIG;
 	}
 
-	snprintf(bus->class_dev.class_id, BUS_ID_SIZE, "usb%d", busnum);
-	bus->class_dev.dev = bus->controller;
-	retval = class_device_add(&bus->class_dev);
-	if (retval) {
+	bus->class_dev = class_device_create(usb_host_class, MKDEV(0,0), bus->controller, "usb%d", busnum);
+	if (IS_ERR(bus->class_dev)) {
 		clear_bit(busnum, busmap.busmap);
 		up(&usb_bus_list_lock);
-		return retval;
+		return PTR_ERR(bus->class_dev);
 	}
+
+	class_set_devdata(bus->class_dev, bus);
 
 	/* Add it to the local list of buses */
 	list_add (&bus->bus_list, &usb_bus_list);
@@ -820,7 +813,7 @@ static void usb_deregister_bus (struct usb_bus *bus)
 
 	clear_bit (bus->busnum, busmap.busmap);
 
-	class_device_del(&bus->class_dev);
+	class_device_unregister(bus->class_dev);
 }
 
 /**

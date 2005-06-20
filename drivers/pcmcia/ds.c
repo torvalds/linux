@@ -604,14 +604,14 @@ static int pcmcia_bus_match(struct device * dev, struct device_driver * drv) {
 /************************ per-device sysfs output ***************************/
 
 #define pcmcia_device_attr(field, test, format)				\
-static ssize_t field##_show (struct device *dev, char *buf)		\
+static ssize_t field##_show (struct device *dev, struct device_attribute *attr, char *buf)		\
 {									\
 	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);		\
 	return p_dev->test ? sprintf (buf, format, p_dev->field) : -ENODEV; \
 }
 
 #define pcmcia_device_stringattr(name, field)					\
-static ssize_t name##_show (struct device *dev, char *buf)		\
+static ssize_t name##_show (struct device *dev, struct device_attribute *attr, char *buf)		\
 {									\
 	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);		\
 	return p_dev->field ? sprintf (buf, "%s\n", p_dev->field) : -ENODEV; \

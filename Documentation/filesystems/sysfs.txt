@@ -214,7 +214,7 @@ Other notes:
 
 A very simple (and naive) implementation of a device attribute is:
 
-static ssize_t show_name(struct device * dev, char * buf)
+static ssize_t show_name(struct device *dev, struct device_attribute *attr, char *buf)
 {
         return sprintf(buf,"%s\n",dev->name);
 }
