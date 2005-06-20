@@ -30,6 +30,8 @@
 #include <linux/dmapool.h>
 #include <linux/list.h>
 
+#include <asm/cacheflush.h>
+
 #undef DEBUG
 
 #undef STATS
