@@ -355,7 +355,7 @@ struct ipw2100_data_header {
 	u16 fragment_size;
 } __attribute__ ((packed));
 
-// Host command data structure
+/* Host command data structure */
 struct host_command {
 	u32 host_command;		// COMMAND ID
 	u32 host_command1;		// COMMAND ID
@@ -701,7 +701,7 @@ struct ipw2100_priv {
 #define MSDU_TX_RATES          62
 
 
-// Rogue AP Detection
+/* Rogue AP Detection */
 #define SET_STATION_STAT_BITS      64
 #define CLEAR_STATIONS_STAT_BITS   65
 #define LEAP_ROGUE_MODE            66	//TODO tbw replaced by CFG_LEAP_ROGUE_AP
@@ -711,25 +711,16 @@ struct ipw2100_priv {
 
 
 
-// system configuration bit mask:
-//#define IPW_CFG_ANTENNA_SETTING           0x03
-//#define IPW_CFG_ANTENNA_A                 0x01
-//#define IPW_CFG_ANTENNA_B                 0x02
+/* system configuration bit mask: */
 #define IPW_CFG_MONITOR               0x00004
-//#define IPW_CFG_TX_STATUS_ENABLE    0x00008
 #define IPW_CFG_PREAMBLE_AUTO        0x00010
 #define IPW_CFG_IBSS_AUTO_START     0x00020
-//#define IPW_CFG_KERBEROS_ENABLE     0x00040
 #define IPW_CFG_LOOPBACK            0x00100
-//#define IPW_CFG_WNMP_PING_PASS      0x00200
-//#define IPW_CFG_DEBUG_ENABLE        0x00400
 #define IPW_CFG_ANSWER_BCSSID_PROBE 0x00800
-//#define IPW_CFG_BT_PRIORITY         0x01000
 #define IPW_CFG_BT_SIDEBAND_SIGNAL	0x02000
 #define IPW_CFG_802_1x_ENABLE       0x04000
 #define IPW_CFG_BSS_MASK		0x08000
 #define IPW_CFG_IBSS_MASK		0x10000
-//#define IPW_CFG_DYNAMIC_CW          0x10000
 
 #define IPW_SCAN_NOASSOCIATE (1<<0)
 #define IPW_SCAN_MIXED_CELL (1<<1)
@@ -913,7 +904,7 @@ struct ipw2100_rx {
 	} rx_data;
 } __attribute__ ((packed));
 
-// Bit 0-7 are for 802.11b tx rates - .  Bit 5-7 are reserved
+/* Bit 0-7 are for 802.11b tx rates - .  Bit 5-7 are reserved */
 #define TX_RATE_1_MBIT              0x0001
 #define TX_RATE_2_MBIT              0x0002
 #define TX_RATE_5_5_MBIT            0x0004
@@ -1193,7 +1184,6 @@ typedef enum _ORDINAL_TABLE_1 {	// NS - means Not Supported by FW
 	IPW_ORD_UCODE_VERSION,	// Ucode Version
 	IPW_ORD_HW_RF_SWITCH_STATE = 214,	// HW RF Kill Switch State
 } ORDINALTABLE1;
-//ENDOF TABLE1
 
 // ordinal table 2
 // Variable length data:
