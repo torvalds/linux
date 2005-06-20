@@ -1055,6 +1055,27 @@ int xfrm_state_mtu(struct xfrm_state *x, int mtu)
 }
 
 EXPORT_SYMBOL(xfrm_state_mtu);
+
+int xfrm_init_state(struct xfrm_state *x)
+{
+	int err;
+
+	err = -ENOENT;
+	x->type = xfrm_get_type(x->id.proto, x->props.family);
+	if (x->type == NULL)
+		goto error;
+
+	err = x->type->init_state(x);
+	if (err)
+		goto error;
+
+	x->km.state = XFRM_STATE_VALID;
+
+error:
+	return err;
+}
+
+EXPORT_SYMBOL(xfrm_init_state);
  
 void __init xfrm_state_init(void)
 {

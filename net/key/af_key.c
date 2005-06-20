@@ -1096,17 +1096,11 @@ static struct xfrm_state * pfkey_msg2xfrm_state(struct sadb_msg *hdr,
 		}
 	}
 
-	x->type = xfrm_get_type(proto, x->props.family);
-	if (x->type == NULL) {
-		err = -ENOPROTOOPT;
+	err = xfrm_init_state(x);
+	if (err)
 		goto out;
-	}
-	if (x->type->init_state(x, NULL)) {
-		err = -EINVAL;
-		goto out;
-	}
+
 	x->km.seq = hdr->sadb_msg_seq;
-	x->km.state = XFRM_STATE_VALID;
 	return x;
 
 out:
