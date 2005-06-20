@@ -25,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/mempool.h>
 #include <linux/workqueue.h>
+#include <scsi/sg.h>		/* for struct sg_iovec */
 
 #define BIO_POOL_SIZE 256
 
@@ -549,22 +550,34 @@ out_bmd:
 	return ERR_PTR(ret);
 }
 
-static struct bio *__bio_map_user(request_queue_t *q, struct block_device *bdev,
-				  unsigned long uaddr, unsigned int len,
-				  int write_to_vm)
+static struct bio *__bio_map_user_iov(request_queue_t *q,
+				      struct block_device *bdev,
+				      struct sg_iovec *iov, int iov_count,
+				      int write_to_vm)
 {
-	unsigned long end = (uaddr + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	unsigned long start = uaddr >> PAGE_SHIFT;
-	const int nr_pages = end - start;
-	int ret, offset, i;
+	int i, j;
+	int nr_pages = 0;
 	struct page **pages;
 	struct bio *bio;
+	int cur_page = 0;
+	int ret, offset;
 
-	/*
-	 * transfer and buffer must be aligned to at least hardsector
-	 * size for now, in the future we can relax this restriction
-	 */
-	if ((uaddr & queue_dma_alignment(q)) || (len & queue_dma_alignment(q)))
+	for (i = 0; i < iov_count; i++) {
+		unsigned long uaddr = (unsigned long)iov[i].iov_base;
+		unsigned long len = iov[i].iov_len;
+		unsigned long end = (uaddr + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
+		unsigned long start = uaddr >> PAGE_SHIFT;
+
+		nr_pages += end - start;
+		/*
+		 * transfer and buffer must be aligned to at least hardsector
+		 * size for now, in the future we can relax this restriction
+		 */
+		if ((uaddr & queue_dma_alignment(q)) || (len & queue_dma_alignment(q)))
+			return ERR_PTR(-EINVAL);
+	}
+
+	if (!nr_pages)
 		return ERR_PTR(-EINVAL);
 
 	bio = bio_alloc(GFP_KERNEL, nr_pages);
@@ -576,41 +589,53 @@ static struct bio *__bio_map_user(request_queue_t *q, struct block_device *bdev,
 	if (!pages)
 		goto out;
 
-	down_read(&current->mm->mmap_sem);
-	ret = get_user_pages(current, current->mm, uaddr, nr_pages,
-						write_to_vm, 0, pages, NULL);
-	up_read(&current->mm->mmap_sem);
+	memset(pages, 0, nr_pages * sizeof(struct page *));
 
-	if (ret < nr_pages)
-		goto out;
+	for (i = 0; i < iov_count; i++) {
+		unsigned long uaddr = (unsigned long)iov[i].iov_base;
+		unsigned long len = iov[i].iov_len;
+		unsigned long end = (uaddr + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
+		unsigned long start = uaddr >> PAGE_SHIFT;
+		const int local_nr_pages = end - start;
+		const int page_limit = cur_page + local_nr_pages;
+		
+		down_read(&current->mm->mmap_sem);
+		ret = get_user_pages(current, current->mm, uaddr,
+				     local_nr_pages,
+				     write_to_vm, 0, &pages[cur_page], NULL);
+		up_read(&current->mm->mmap_sem);
 
-	bio->bi_bdev = bdev;
+		if (ret < local_nr_pages)
+			goto out_unmap;
 
-	offset = uaddr & ~PAGE_MASK;
-	for (i = 0; i < nr_pages; i++) {
-		unsigned int bytes = PAGE_SIZE - offset;
 
-		if (len <= 0)
-			break;
+		offset = uaddr & ~PAGE_MASK;
+		for (j = cur_page; j < page_limit; j++) {
+			unsigned int bytes = PAGE_SIZE - offset;
 
-		if (bytes > len)
-			bytes = len;
+			if (len <= 0)
+				break;
+			
+			if (bytes > len)
+				bytes = len;
 
+			/*
+			 * sorry...
+			 */
+			if (__bio_add_page(q, bio, pages[j], bytes, offset) < bytes)
+				break;
+
+			len -= bytes;
+			offset = 0;
+		}
+
+		cur_page = j;
 		/*
-		 * sorry...
+		 * release the pages we didn't map into the bio, if any
 		 */
-		if (__bio_add_page(q, bio, pages[i], bytes, offset) < bytes)
-			break;
-
-		len -= bytes;
-		offset = 0;
+		while (j < page_limit)
+			page_cache_release(pages[j++]);
 	}
-
-	/*
-	 * release the pages we didn't map into the bio, if any
-	 */
-	while (i < nr_pages)
-		page_cache_release(pages[i++]);
 
 	kfree(pages);
 
@@ -620,9 +645,17 @@ static struct bio *__bio_map_user(request_queue_t *q, struct block_device *bdev,
 	if (!write_to_vm)
 		bio->bi_rw |= (1 << BIO_RW);
 
+	bio->bi_bdev = bdev;
 	bio->bi_flags |= (1 << BIO_USER_MAPPED);
 	return bio;
-out:
+
+ out_unmap:
+	for (i = 0; i < nr_pages; i++) {
+		if(!pages[i])
+			break;
+		page_cache_release(pages[i]);
+	}
+ out:
 	kfree(pages);
 	bio_put(bio);
 	return ERR_PTR(ret);
@@ -642,9 +675,33 @@ out:
 struct bio *bio_map_user(request_queue_t *q, struct block_device *bdev,
 			 unsigned long uaddr, unsigned int len, int write_to_vm)
 {
-	struct bio *bio;
+	struct sg_iovec iov;
 
-	bio = __bio_map_user(q, bdev, uaddr, len, write_to_vm);
+	iov.iov_base = (__user void *)uaddr;
+	iov.iov_len = len;
+
+	return bio_map_user_iov(q, bdev, &iov, 1, write_to_vm);
+}
+
+/**
+ *	bio_map_user_iov - map user sg_iovec table into bio
+ *	@q: the request_queue_t for the bio
+ *	@bdev: destination block device
+ *	@iov:	the iovec.
+ *	@iov_count: number of elements in the iovec
+ *	@write_to_vm: bool indicating writing to pages or not
+ *
+ *	Map the user space address into a bio suitable for io to a block
+ *	device. Returns an error pointer in case of error.
+ */
+struct bio *bio_map_user_iov(request_queue_t *q, struct block_device *bdev,
+			     struct sg_iovec *iov, int iov_count,
+			     int write_to_vm)
+{
+	struct bio *bio;
+	int len = 0, i;
+
+	bio = __bio_map_user_iov(q, bdev, iov, iov_count, write_to_vm);
 
 	if (IS_ERR(bio))
 		return bio;
@@ -656,6 +713,9 @@ struct bio *bio_map_user(request_queue_t *q, struct block_device *bdev,
 	 * reference to it
 	 */
 	bio_get(bio);
+
+	for (i = 0; i < iov_count; i++)
+		len += iov[i].iov_len;
 
 	if (bio->bi_size == len)
 		return bio;

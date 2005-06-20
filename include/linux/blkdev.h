@@ -561,6 +561,7 @@ extern void blk_queue_activity_fn(request_queue_t *, activity_fn *, void *);
 extern int blk_rq_map_user(request_queue_t *, struct request *, void __user *, unsigned int);
 extern int blk_rq_unmap_user(struct bio *, unsigned int);
 extern int blk_rq_map_kern(request_queue_t *, struct request *, void *, unsigned int, unsigned int);
+extern int blk_rq_map_user_iov(request_queue_t *, struct request *, struct sg_iovec *, int);
 extern int blk_execute_rq(request_queue_t *, struct gendisk *, struct request *);
 
 static inline request_queue_t *bdev_get_queue(struct block_device *bdev)

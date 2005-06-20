@@ -2149,6 +2149,50 @@ int blk_rq_map_user(request_queue_t *q, struct request *rq, void __user *ubuf,
 EXPORT_SYMBOL(blk_rq_map_user);
 
 /**
+ * blk_rq_map_user_iov - map user data to a request, for REQ_BLOCK_PC usage
+ * @q:		request queue where request should be inserted
+ * @rq:		request to map data to
+ * @iov:	pointer to the iovec
+ * @iov_count:	number of elements in the iovec
+ *
+ * Description:
+ *    Data will be mapped directly for zero copy io, if possible. Otherwise
+ *    a kernel bounce buffer is used.
+ *
+ *    A matching blk_rq_unmap_user() must be issued at the end of io, while
+ *    still in process context.
+ *
+ *    Note: The mapped bio may need to be bounced through blk_queue_bounce()
+ *    before being submitted to the device, as pages mapped may be out of
+ *    reach. It's the callers responsibility to make sure this happens. The
+ *    original bio must be passed back in to blk_rq_unmap_user() for proper
+ *    unmapping.
+ */
+int blk_rq_map_user_iov(request_queue_t *q, struct request *rq,
+			struct sg_iovec *iov, int iov_count)
+{
+	struct bio *bio;
+
+	if (!iov || iov_count <= 0)
+		return -EINVAL;
+
+	/* we don't allow misaligned data like bio_map_user() does.  If the
+	 * user is using sg, they're expected to know the alignment constraints
+	 * and respect them accordingly */
+	bio = bio_map_user_iov(q, NULL, iov, iov_count, rq_data_dir(rq)== READ);
+	if (IS_ERR(bio))
+		return PTR_ERR(bio);
+
+	rq->bio = rq->biotail = bio;
+	blk_rq_bio_prep(q, rq, bio);
+	rq->buffer = rq->data = NULL;
+	rq->data_len = bio->bi_size;
+	return 0;
+}
+
+EXPORT_SYMBOL(blk_rq_map_user_iov);
+
+/**
  * blk_rq_unmap_user - unmap a request with user data
  * @rq:		request to be unmapped
  * @bio:	bio for the request
@@ -2207,6 +2251,19 @@ int blk_rq_map_kern(request_queue_t *q, struct request *rq, void *kbuf,
 
 EXPORT_SYMBOL(blk_rq_map_kern);
 
+void blk_execute_rq_nowait(request_queue_t *q, struct gendisk *bd_disk,
+			   struct request *rq, int at_head,
+			   void (*done)(struct request *))
+{
+	int where = at_head ? ELEVATOR_INSERT_FRONT : ELEVATOR_INSERT_BACK;
+
+	rq->rq_disk = bd_disk;
+	rq->flags |= REQ_NOMERGE;
+	rq->end_io = done;
+	elv_add_request(q, rq, where, 1);
+	generic_unplug_device(q);
+}
+
 /**
  * blk_execute_rq - insert a request into queue for execution
  * @q:		queue to insert the request in
@@ -2224,8 +2281,6 @@ int blk_execute_rq(request_queue_t *q, struct gendisk *bd_disk,
 	char sense[SCSI_SENSE_BUFFERSIZE];
 	int err = 0;
 
-	rq->rq_disk = bd_disk;
-
 	/*
 	 * we need an extra reference to the request, so we can look at
 	 * it after io completion
@@ -2238,11 +2293,8 @@ int blk_execute_rq(request_queue_t *q, struct gendisk *bd_disk,
 		rq->sense_len = 0;
 	}
 
-	rq->flags |= REQ_NOMERGE;
 	rq->waiting = &wait;
-	rq->end_io = blk_end_sync_rq;
-	elv_add_request(q, rq, ELEVATOR_INSERT_BACK, 1);
-	generic_unplug_device(q);
+	blk_execute_rq_nowait(q, bd_disk, rq, 0, blk_end_sync_rq);
 	wait_for_completion(&wait);
 	rq->waiting = NULL;
 

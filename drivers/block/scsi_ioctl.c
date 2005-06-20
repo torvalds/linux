@@ -231,17 +231,11 @@ static int sg_io(struct file *file, request_queue_t *q,
 	if (verify_command(file, cmd))
 		return -EPERM;
 
-	/*
-	 * we'll do that later
-	 */
-	if (hdr->iovec_count)
-		return -EOPNOTSUPP;
-
 	if (hdr->dxfer_len > (q->max_sectors << 9))
 		return -EIO;
 
 	reading = writing = 0;
-	if (hdr->dxfer_len) {
+	if (hdr->dxfer_len)
 		switch (hdr->dxfer_direction) {
 		default:
 			return -EINVAL;
@@ -261,11 +255,29 @@ static int sg_io(struct file *file, request_queue_t *q,
 	if (!rq)
 		return -ENOMEM;
 
-	if (reading || writing) {
-		ret = blk_rq_map_user(q, rq, hdr->dxferp, hdr->dxfer_len);
-		if (ret)
+	if (hdr->iovec_count) {
+		const int size = sizeof(struct sg_iovec) * hdr->iovec_count;
+		struct sg_iovec *iov;
+
+		iov = kmalloc(size, GFP_KERNEL);
+		if (!iov) {
+			ret = -ENOMEM;
 			goto out;
-	}
+		}
+
+		if (copy_from_user(iov, hdr->dxferp, size)) {
+			kfree(iov);
+			ret = -EFAULT;
+			goto out;
+		}
+
+		ret = blk_rq_map_user_iov(q, rq, iov, hdr->iovec_count);
+		kfree(iov);
+	} else if (hdr->dxfer_len)
+		ret = blk_rq_map_user(q, rq, hdr->dxferp, hdr->dxfer_len);
+
+	if (ret)
+		goto out;
 
 	/*
 	 * fill in request structure
