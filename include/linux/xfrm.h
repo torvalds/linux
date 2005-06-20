@@ -196,6 +196,7 @@ struct xfrm_usersa_info {
 	__u8				flags;
 #define XFRM_STATE_NOECN	1
 #define XFRM_STATE_DECAP_DSCP	2
+#define XFRM_STATE_NOPMTUDISC	4
 };
 
 struct xfrm_usersa_id {

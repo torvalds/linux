@@ -134,7 +134,6 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 	ep->last_key = ep->current_key = 0;
 	ep->key_changed_at = jiffies;
 
-	ep->debug_name = "unnamedEndpoint";
 	return ep;
 }
 
