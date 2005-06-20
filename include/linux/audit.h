@@ -220,7 +220,7 @@ extern void audit_syscall_entry(struct task_struct *task, int arch,
 extern void audit_syscall_exit(struct task_struct *task, int failed, long return_code);
 extern void audit_getname(const char *name);
 extern void audit_putname(const char *name);
-extern void audit_inode(const char *name, const struct inode *inode);
+extern void audit_inode(const char *name, const struct inode *inode, unsigned flags);
 
 				/* Private API (for audit.c only) */
 extern int  audit_receive_filter(int type, int pid, int uid, int seq,
@@ -243,7 +243,7 @@ extern int audit_filter_user(struct task_struct *tsk, int type);
 #define audit_syscall_exit(t,f,r) do { ; } while (0)
 #define audit_getname(n) do { ; } while (0)
 #define audit_putname(n) do { ; } while (0)
-#define audit_inode(n,i) do { ; } while (0)
+#define audit_inode(n,i,f) do { ; } while (0)
 #define audit_receive_filter(t,p,u,s,d,l) ({ -EOPNOTSUPP; })
 #define auditsc_get_stamp(c,t,s) do { BUG(); } while (0)
 #define audit_get_loginuid(c) ({ -1; })

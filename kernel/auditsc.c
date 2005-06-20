@@ -95,6 +95,7 @@ struct audit_names {
 	uid_t		uid;
 	gid_t		gid;
 	dev_t		rdev;
+	unsigned	flags;
 };
 
 struct audit_aux_data {
@@ -792,6 +793,8 @@ static void audit_log_exit(struct audit_context *context)
 			audit_log_format(ab, " name=");
 			audit_log_untrustedstring(ab, context->names[i].name);
 		}
+		audit_log_format(ab, " flags=%x\n", context->names[i].flags);
+			 
 		if (context->names[i].ino != (unsigned long)-1)
 			audit_log_format(ab, " inode=%lu dev=%02x:%02x mode=%#o"
 					     " ouid=%u ogid=%u rdev=%02x:%02x",
@@ -1018,7 +1021,7 @@ void audit_putname(const char *name)
 
 /* Store the inode and device from a lookup.  Called from
  * fs/namei.c:path_lookup(). */
-void audit_inode(const char *name, const struct inode *inode)
+void audit_inode(const char *name, const struct inode *inode, unsigned flags)
 {
 	int idx;
 	struct audit_context *context = current->audit_context;
@@ -1044,12 +1047,13 @@ void audit_inode(const char *name, const struct inode *inode)
 		++context->ino_count;
 #endif
 	}
-	context->names[idx].ino  = inode->i_ino;
-	context->names[idx].dev	 = inode->i_sb->s_dev;
-	context->names[idx].mode = inode->i_mode;
-	context->names[idx].uid  = inode->i_uid;
-	context->names[idx].gid  = inode->i_gid;
-	context->names[idx].rdev = inode->i_rdev;
+	context->names[idx].flags = flags;
+	context->names[idx].ino   = inode->i_ino;
+	context->names[idx].dev	  = inode->i_sb->s_dev;
+	context->names[idx].mode  = inode->i_mode;
+	context->names[idx].uid   = inode->i_uid;
+	context->names[idx].gid   = inode->i_gid;
+	context->names[idx].rdev  = inode->i_rdev;
 }
 
 void auditsc_get_stamp(struct audit_context *ctx,
