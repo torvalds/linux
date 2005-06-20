@@ -204,6 +204,7 @@ struct xfrm_state_afinfo {
 	rwlock_t		lock;
 	struct list_head	*state_bydst;
 	struct list_head	*state_byspi;
+	int			(*init_flags)(struct xfrm_state *x);
 	void			(*init_tempsel)(struct xfrm_state *x, struct flowi *fl,
 						struct xfrm_tmpl *tmpl,
 						xfrm_address_t *daddr, xfrm_address_t *saddr);
