@@ -2177,16 +2177,6 @@ int blk_rq_unmap_user(struct request *rq, struct bio *bio, unsigned int ulen)
 
 EXPORT_SYMBOL(blk_rq_unmap_user);
 
-static int blk_rq_map_kern_endio(struct bio *bio, unsigned int bytes_done,
-				 int error)
-{
-	if (bio->bi_size)
-		return 1;
-
-	bio_put(bio);
-	return 0;
-}
-
 /**
  * blk_rq_map_kern - map kernel data to a request, for REQ_BLOCK_PC usage
  * @q:		request queue where request should be inserted
@@ -2213,7 +2203,6 @@ struct request *blk_rq_map_kern(request_queue_t *q, int rw, void *kbuf,
 	if (!IS_ERR(bio)) {
 		if (rw)
 			bio->bi_rw |= (1 << BIO_RW);
-		bio->bi_end_io = blk_rq_map_kern_endio;
 
 		rq->bio = rq->biotail = bio;
 		blk_rq_bio_prep(q, rq, bio);

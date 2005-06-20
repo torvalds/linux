@@ -701,6 +701,16 @@ void bio_unmap_user(struct bio *bio)
 	bio_put(bio);
 }
 
+static int bio_map_kern_endio(struct bio *bio, unsigned int bytes_done, int err)
+{
+	if (bio->bi_size)
+		return 1;
+
+	bio_put(bio);
+	return 0;
+}
+
+
 static struct bio *__bio_map_kern(request_queue_t *q, void *data,
 				  unsigned int len, unsigned int gfp_mask)
 {
@@ -734,6 +744,7 @@ static struct bio *__bio_map_kern(request_queue_t *q, void *data,
 		offset = 0;
 	}
 
+	bio->bi_end_io = bio_map_kern_endio;
 	return bio;
 }
 
