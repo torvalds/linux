@@ -281,6 +281,7 @@ static inline void rq_init(request_queue_t *q, struct request *rq)
 	rq->special = NULL;
 	rq->data_len = 0;
 	rq->data = NULL;
+	rq->nr_phys_segments = 0;
 	rq->sense = NULL;
 	rq->end_io = NULL;
 	rq->end_io_data = NULL;
@@ -2175,6 +2176,61 @@ int blk_rq_unmap_user(struct request *rq, struct bio *bio, unsigned int ulen)
 }
 
 EXPORT_SYMBOL(blk_rq_unmap_user);
+
+static int blk_rq_map_kern_endio(struct bio *bio, unsigned int bytes_done,
+				 int error)
+{
+	if (bio->bi_size)
+		return 1;
+
+	bio_put(bio);
+	return 0;
+}
+
+/**
+ * blk_rq_map_kern - map kernel data to a request, for REQ_BLOCK_PC usage
+ * @q:		request queue where request should be inserted
+ * @rw:		READ or WRITE data
+ * @kbuf:	the kernel buffer
+ * @len:	length of user data
+ */
+struct request *blk_rq_map_kern(request_queue_t *q, int rw, void *kbuf,
+				unsigned int len, unsigned int gfp_mask)
+{
+	struct request *rq;
+	struct bio *bio;
+
+	if (len > (q->max_sectors << 9))
+		return ERR_PTR(-EINVAL);
+	if ((!len && kbuf) || (len && !kbuf))
+		return ERR_PTR(-EINVAL);
+
+	rq = blk_get_request(q, rw, gfp_mask);
+	if (!rq)
+		return ERR_PTR(-ENOMEM);
+
+	bio = bio_map_kern(q, kbuf, len, gfp_mask);
+	if (!IS_ERR(bio)) {
+		if (rw)
+			bio->bi_rw |= (1 << BIO_RW);
+		bio->bi_end_io = blk_rq_map_kern_endio;
+
+		rq->bio = rq->biotail = bio;
+		blk_rq_bio_prep(q, rq, bio);
+
+		rq->buffer = rq->data = NULL;
+		rq->data_len = len;
+		return rq;
+	}
+
+	/*
+	 * bio is the err-ptr
+	 */
+	blk_put_request(rq);
+	return (struct request *) bio;
+}
+
+EXPORT_SYMBOL(blk_rq_map_kern);
 
 /**
  * blk_execute_rq - insert a request into queue for execution

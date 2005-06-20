@@ -701,6 +701,71 @@ void bio_unmap_user(struct bio *bio)
 	bio_put(bio);
 }
 
+static struct bio *__bio_map_kern(request_queue_t *q, void *data,
+				  unsigned int len, unsigned int gfp_mask)
+{
+	unsigned long kaddr = (unsigned long)data;
+	unsigned long end = (kaddr + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	unsigned long start = kaddr >> PAGE_SHIFT;
+	const int nr_pages = end - start;
+	int offset, i;
+	struct bio *bio;
+
+	bio = bio_alloc(gfp_mask, nr_pages);
+	if (!bio)
+		return ERR_PTR(-ENOMEM);
+
+	offset = offset_in_page(kaddr);
+	for (i = 0; i < nr_pages; i++) {
+		unsigned int bytes = PAGE_SIZE - offset;
+
+		if (len <= 0)
+			break;
+
+		if (bytes > len)
+			bytes = len;
+
+		if (__bio_add_page(q, bio, virt_to_page(data), bytes,
+				   offset) < bytes)
+			break;
+
+		data += bytes;
+		len -= bytes;
+		offset = 0;
+	}
+
+	return bio;
+}
+
+/**
+ *	bio_map_kern	-	map kernel address into bio
+ *	@q: the request_queue_t for the bio
+ *	@data: pointer to buffer to map
+ *	@len: length in bytes
+ *	@gfp_mask: allocation flags for bio allocation
+ *
+ *	Map the kernel address into a bio suitable for io to a block
+ *	device. Returns an error pointer in case of error.
+ */
+struct bio *bio_map_kern(request_queue_t *q, void *data, unsigned int len,
+			 unsigned int gfp_mask)
+{
+	struct bio *bio;
+
+	bio = __bio_map_kern(q, data, len, gfp_mask);
+	if (IS_ERR(bio))
+		return bio;
+
+	if (bio->bi_size == len)
+		return bio;
+
+	/*
+	 * Don't support partial mappings.
+	 */
+	bio_put(bio);
+	return ERR_PTR(-EINVAL);
+}
+
 /*
  * bio_set_pages_dirty() and bio_check_pages_dirty() are support functions
  * for performing direct-IO in BIOs.
@@ -1088,6 +1153,7 @@ EXPORT_SYMBOL(bio_add_page);
 EXPORT_SYMBOL(bio_get_nr_vecs);
 EXPORT_SYMBOL(bio_map_user);
 EXPORT_SYMBOL(bio_unmap_user);
+EXPORT_SYMBOL(bio_map_kern);
 EXPORT_SYMBOL(bio_pair_release);
 EXPORT_SYMBOL(bio_split);
 EXPORT_SYMBOL(bio_split_pool);

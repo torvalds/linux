@@ -282,6 +282,8 @@ extern int bio_get_nr_vecs(struct block_device *);
 extern struct bio *bio_map_user(struct request_queue *, struct block_device *,
 				unsigned long, unsigned int, int);
 extern void bio_unmap_user(struct bio *);
+extern struct bio *bio_map_kern(struct request_queue *, void *, unsigned int,
+				unsigned int);
 extern void bio_set_pages_dirty(struct bio *bio);
 extern void bio_check_pages_dirty(struct bio *bio);
 extern struct bio *bio_copy_user(struct request_queue *, unsigned long, unsigned int, int);
