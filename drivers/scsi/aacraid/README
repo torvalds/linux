@@ -13,6 +13,7 @@ Supported Cards/Chipsets
 	Adaptec 2020S
 	Adaptec 2025S
 	Adaptec 2120S
+	Adaptec 2130S
 	Adaptec 2200S
 	Adaptec 2230S
 	Adaptec 2240S
@@ -35,6 +36,13 @@ Supported Cards/Chipsets
 	HP NetRAID-4M
 	Legend S220
 	Legend S230
+	IBM ServeRAID 8i
+	ICP 9014R0
+	ICP 9024R0
+	ICP 9047MA
+	ICP 9087MA
+	ICP 9085LI
+	ICP 5085AU
 
 People
 -------------------------

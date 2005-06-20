@@ -276,7 +276,6 @@ int aac_get_containers(struct aac_dev *dev)
 
 	if (maximum_num_containers < MAXIMUM_NUM_CONTAINERS)
 		maximum_num_containers = MAXIMUM_NUM_CONTAINERS;
-
 	fsa_dev_ptr = (struct fsa_dev_info *) kmalloc(
 	  sizeof(*fsa_dev_ptr) * maximum_num_containers, GFP_KERNEL);
 	if (!fsa_dev_ptr) {
@@ -527,6 +526,11 @@ static char *container_types[] = {
         "V-MIRRORS",          
         "PSEUDO R4",          
 	"RAID50",
+	"RAID5D",
+	"RAID5D0",
+	"RAID1E",
+	"RAID6",
+	"RAID60",
         "Unknown"
 };
 
@@ -610,7 +614,9 @@ int aac_get_adapter_info(struct aac_dev* dev)
 	struct fib* fibptr;
 	int rcode;
 	u32 tmp;
-	struct aac_adapter_info * info;
+	struct aac_adapter_info *info;
+	struct aac_bus_info *command;
+	struct aac_bus_info_response *bus_info;
 
 	if (!(fibptr = fib_alloc(dev)))
 		return -ENOMEM;
@@ -653,6 +659,36 @@ int aac_get_adapter_info(struct aac_dev* dev)
 
 		if (rcode >= 0)
 			memcpy(&dev->supplement_adapter_info, info, sizeof(*info));
+	}
+
+
+	/* 
+	 * GetBusInfo 
+	 */
+
+	fib_init(fibptr);
+
+	bus_info = (struct aac_bus_info_response *) fib_data(fibptr);
+
+	memset(bus_info, 0, sizeof(*bus_info));
+
+	command = (struct aac_bus_info *)bus_info;
+
+	command->Command = cpu_to_le32(VM_Ioctl);
+	command->ObjType = cpu_to_le32(FT_DRIVE);
+	command->MethodId = cpu_to_le32(1);
+	command->CtlCmd = cpu_to_le32(GetBusInfo);
+
+	rcode = fib_send(ContainerCommand,
+			 fibptr,
+			 sizeof (*bus_info),
+			 FsaNormal,
+			 1, 1,
+			 NULL, NULL);
+
+	if (rcode >= 0 && le32_to_cpu(bus_info->Status) == ST_OK) {
+		dev->maximum_num_physicals = le32_to_cpu(bus_info->TargetsPerBus);
+		dev->maximum_num_channels = le32_to_cpu(bus_info->BusCount);
 	}
 
 	tmp = le32_to_cpu(dev->adapter_info.kernelrev);
@@ -1818,7 +1854,9 @@ static int aac_send_srb_fib(struct scsi_cmnd* scsicmd)
 	u32 flag;
 	u32 timeout;
 
-	if( scsicmd->device->id > 15 || scsicmd->device->lun > 7) {
+	dev = (struct aac_dev *)scsicmd->device->host->hostdata;
+	if (scsicmd->device->id >= dev->maximum_num_physicals || 
+			scsicmd->device->lun > 7) {
 		scsicmd->result = DID_NO_CONNECT << 16;
 		scsicmd->scsi_done(scsicmd);
 		return 0;
