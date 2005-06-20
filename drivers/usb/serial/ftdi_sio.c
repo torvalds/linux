@@ -1985,53 +1985,6 @@ static int ftdi_ioctl (struct usb_serial_port *port, struct file * file, unsigne
 	/* Based on code from acm.c and others */
 	switch (cmd) {
 
-	case TIOCMBIS: /* turns on (Sets) the lines as specified by the mask */
-		dbg("%s TIOCMBIS", __FUNCTION__);
- 	        if (get_user(mask, (unsigned long __user *) arg))
-			return -EFAULT;
-  	        if (mask & TIOCM_DTR){
-			if ((ret = set_dtr(port, HIGH)) < 0) {
-				err("Urb to set DTR failed");
-				return(ret);
-			}
-		}
-		if (mask & TIOCM_RTS) {
-			if ((ret = set_rts(port, HIGH)) < 0){
-				err("Urb to set RTS failed");
-				return(ret);
-			}
-		}
-		return(0);
-		break;
-
-	case TIOCMBIC: /* turns off (Clears) the lines as specified by the mask */
-		dbg("%s TIOCMBIC", __FUNCTION__);
- 	        if (get_user(mask, (unsigned long __user *) arg))
-			return -EFAULT;
-  	        if (mask & TIOCM_DTR){
-			if ((ret = set_dtr(port, LOW)) < 0){
-				err("Urb to unset DTR failed");
-				return(ret);
-			}
-		}	
-		if (mask & TIOCM_RTS) {
-			if ((ret = set_rts(port, LOW)) < 0){
-				err("Urb to unset RTS failed");
-				return(ret);
-			}
-		}
-		return(0);
-		break;
-
-		/*
-		 * I had originally implemented TCSET{A,S}{,F,W} and
-		 * TCGET{A,S} here separately, however when testing I
-		 * found that the higher layers actually do the termios
-		 * conversions themselves and pass the call onto
-		 * ftdi_sio_set_termios. 
-		 *
-		 */
-
 	case TIOCGSERIAL: /* gets serial port data */
 		return get_serial_info(port, (struct serial_struct __user *) arg);
 
