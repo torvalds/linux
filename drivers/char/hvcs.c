@@ -1466,7 +1466,7 @@ static inline struct hvcs_struct *from_vio_dev(struct vio_dev *viod)
 }
 /* The sysfs interface for the driver and devices */
 
-static ssize_t hvcs_partner_vtys_show(struct device *dev, char *buf)
+static ssize_t hvcs_partner_vtys_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct vio_dev *viod = to_vio_dev(dev);
 	struct hvcs_struct *hvcsd = from_vio_dev(viod);
@@ -1480,7 +1480,7 @@ static ssize_t hvcs_partner_vtys_show(struct device *dev, char *buf)
 }
 static DEVICE_ATTR(partner_vtys, S_IRUGO, hvcs_partner_vtys_show, NULL);
 
-static ssize_t hvcs_partner_clcs_show(struct device *dev, char *buf)
+static ssize_t hvcs_partner_clcs_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct vio_dev *viod = to_vio_dev(dev);
 	struct hvcs_struct *hvcsd = from_vio_dev(viod);
@@ -1494,7 +1494,7 @@ static ssize_t hvcs_partner_clcs_show(struct device *dev, char *buf)
 }
 static DEVICE_ATTR(partner_clcs, S_IRUGO, hvcs_partner_clcs_show, NULL);
 
-static ssize_t hvcs_current_vty_store(struct device *dev, const char * buf,
+static ssize_t hvcs_current_vty_store(struct device *dev, struct device_attribute *attr, const char * buf,
 		size_t count)
 {
 	/*
@@ -1505,7 +1505,7 @@ static ssize_t hvcs_current_vty_store(struct device *dev, const char * buf,
 	return -EPERM;
 }
 
-static ssize_t hvcs_current_vty_show(struct device *dev, char *buf)
+static ssize_t hvcs_current_vty_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct vio_dev *viod = to_vio_dev(dev);
 	struct hvcs_struct *hvcsd = from_vio_dev(viod);
@@ -1521,7 +1521,7 @@ static ssize_t hvcs_current_vty_show(struct device *dev, char *buf)
 static DEVICE_ATTR(current_vty,
 	S_IRUGO | S_IWUSR, hvcs_current_vty_show, hvcs_current_vty_store);
 
-static ssize_t hvcs_vterm_state_store(struct device *dev, const char *buf,
+static ssize_t hvcs_vterm_state_store(struct device *dev, struct device_attribute *attr, const char *buf,
 		size_t count)
 {
 	struct vio_dev *viod = to_vio_dev(dev);
@@ -1559,7 +1559,7 @@ static ssize_t hvcs_vterm_state_store(struct device *dev, const char *buf,
 	return count;
 }
 
-static ssize_t hvcs_vterm_state_show(struct device *dev, char *buf)
+static ssize_t hvcs_vterm_state_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct vio_dev *viod = to_vio_dev(dev);
 	struct hvcs_struct *hvcsd = from_vio_dev(viod);
@@ -1574,7 +1574,7 @@ static ssize_t hvcs_vterm_state_show(struct device *dev, char *buf)
 static DEVICE_ATTR(vterm_state, S_IRUGO | S_IWUSR,
 		hvcs_vterm_state_show, hvcs_vterm_state_store);
 
-static ssize_t hvcs_index_show(struct device *dev, char *buf)
+static ssize_t hvcs_index_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct vio_dev *viod = to_vio_dev(dev);
 	struct hvcs_struct *hvcsd = from_vio_dev(viod);

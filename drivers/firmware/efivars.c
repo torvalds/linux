@@ -352,7 +352,7 @@ static ssize_t efivar_attr_show(struct kobject *kobj, struct attribute *attr,
 {
 	struct efivar_entry *var = to_efivar_entry(kobj);
 	struct efivar_attribute *efivar_attr = to_efivar_attr(attr);
-	ssize_t ret = 0;
+	ssize_t ret = -EIO;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
@@ -368,7 +368,7 @@ static ssize_t efivar_attr_store(struct kobject *kobj, struct attribute *attr,
 {
 	struct efivar_entry *var = to_efivar_entry(kobj);
 	struct efivar_attribute *efivar_attr = to_efivar_attr(attr);
-	ssize_t ret = 0;
+	ssize_t ret = -EIO;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;

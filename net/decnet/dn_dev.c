@@ -716,13 +716,13 @@ static int dn_dev_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh, void *a
 }
 
 static int dn_dev_fill_ifaddr(struct sk_buff *skb, struct dn_ifaddr *ifa,
-				u32 pid, u32 seq, int event)
+				u32 pid, u32 seq, int event, unsigned int flags)
 {
 	struct ifaddrmsg *ifm;
 	struct nlmsghdr *nlh;
 	unsigned char *b = skb->tail;
 
-	nlh = NLMSG_PUT(skb, pid, seq, event, sizeof(*ifm));
+	nlh = NLMSG_NEW(skb, pid, seq, event, sizeof(*ifm), flags);
 	ifm = NLMSG_DATA(nlh);
 
 	ifm->ifa_family = AF_DECnet;
@@ -755,7 +755,7 @@ static void rtmsg_ifa(int event, struct dn_ifaddr *ifa)
 		netlink_set_err(rtnl, 0, RTMGRP_DECnet_IFADDR, ENOBUFS);
 		return;
 	}
-	if (dn_dev_fill_ifaddr(skb, ifa, 0, 0, event) < 0) {
+	if (dn_dev_fill_ifaddr(skb, ifa, 0, 0, event, 0) < 0) {
 		kfree_skb(skb);
 		netlink_set_err(rtnl, 0, RTMGRP_DECnet_IFADDR, EINVAL);
 		return;
@@ -790,7 +790,8 @@ static int dn_dev_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
 			if (dn_dev_fill_ifaddr(skb, ifa,
 					       NETLINK_CB(cb->skb).pid,
 					       cb->nlh->nlmsg_seq,
-					       RTM_NEWADDR) <= 0)
+					       RTM_NEWADDR,
+					       NLM_F_MULTI) <= 0)
 				goto done;
 		}
 	}

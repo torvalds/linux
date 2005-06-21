@@ -64,7 +64,7 @@ static struct list_head snd_minors_hash[SNDRV_CARDS];
 
 static DECLARE_MUTEX(sound_mutex);
 
-extern struct class_simple *sound_class;
+extern struct class *sound_class;
 
 
 #ifdef CONFIG_KMOD
@@ -231,7 +231,7 @@ int snd_register_device(int type, snd_card_t * card, int dev, snd_minor_t * reg,
 		devfs_mk_cdev(MKDEV(major, minor), S_IFCHR | device_mode, "snd/%s", name);
 	if (card)
 		device = card->dev;
-	class_simple_device_add(sound_class, MKDEV(major, minor), device, name);
+	class_device_create(sound_class, MKDEV(major, minor), device, "%s", name);
 
 	up(&sound_mutex);
 	return 0;
@@ -263,7 +263,7 @@ int snd_unregister_device(int type, snd_card_t * card, int dev)
 
 	if (strncmp(mptr->name, "controlC", 8) || card->number >= cards_limit) /* created in sound.c */
 		devfs_remove("snd/%s", mptr->name);
-	class_simple_device_remove(MKDEV(major, minor));
+	class_device_destroy(sound_class, MKDEV(major, minor));
 
 	list_del(&mptr->list);
 	up(&sound_mutex);

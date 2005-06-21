@@ -862,6 +862,15 @@ UNUSUAL_DEV(  0x090a, 0x1001, 0x0100, 0x0100,
 		US_SC_DEVICE, US_PR_BULK, NULL,
 		US_FL_NEED_OVERRIDE ),
 
+/* Reported by Filippo Bardelli <filibard@libero.it>
+ * The device reports a subclass of RBC, which is wrong.
+ */
+UNUSUAL_DEV(  0x090a, 0x1050, 0x0100, 0x0100,
+		"Trumpion Microelectronics, Inc.",
+		"33520 USB Digital Voice Recorder",
+		US_SC_UFI, US_PR_DEVICE, NULL,
+		0),
+
 /* Trumpion Microelectronics MP3 player (felipe_alfaro@linuxmail.org) */
 UNUSUAL_DEV( 0x090a, 0x1200, 0x0000, 0x9999,
 		"Trumpion",

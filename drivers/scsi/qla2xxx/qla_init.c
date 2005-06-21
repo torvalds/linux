@@ -85,9 +85,7 @@ qla2x00_initialize_adapter(scsi_qla_host_t *ha)
 	atomic_set(&ha->loop_down_timer, LOOP_DOWN_TIME);
 	atomic_set(&ha->loop_state, LOOP_DOWN);
 	ha->device_flags = 0;
-	ha->sns_retry_cnt = 0;
 	ha->dpc_flags = 0;
-	ha->failback_delay = 0;
 	ha->flags.management_server_logged_in = 0;
 	ha->marker_needed = 0;
 	ha->mbx_flags = 0;
@@ -171,8 +169,6 @@ check_fw_ready_again:
 
 				if (wait_time == 0)
 					rval = QLA_FUNCTION_FAILED;
-				if (ha->mem_err)
-					restart_risc = 1;
 			} else if (ha->device_flags & DFLG_NO_CABLE)
 				/* If no cable, then all is good. */
 				rval = QLA_SUCCESS;
@@ -1410,12 +1406,7 @@ qla2x00_nvram_config(scsi_qla_host_t *ha)
 	/* Set minimum RATOV to 200 tenths of a second. */
 	ha->r_a_tov = 200;
 
-	ha->minimum_timeout =
-	    (ha->login_timeout * ha->retry_count) + nv->port_down_retry_count;
 	ha->loop_reset_delay = nv->reset_delay;
-
-	/* Will get the value from NVRAM. */
-	ha->loop_down_timeout = LOOP_DOWN_TIMEOUT;
 
 	/* Link Down Timeout = 0:
 	 *
@@ -1429,17 +1420,12 @@ qla2x00_nvram_config(scsi_qla_host_t *ha)
 	 */						
 	if (nv->link_down_timeout == 0) {
 		ha->loop_down_abort_time =
-		    (LOOP_DOWN_TIME - ha->loop_down_timeout);
+		    (LOOP_DOWN_TIME - LOOP_DOWN_TIMEOUT);
 	} else {
 		ha->link_down_timeout =	 nv->link_down_timeout;
 		ha->loop_down_abort_time =
 		    (LOOP_DOWN_TIME - ha->link_down_timeout);
 	} 
-
-	ha->max_luns = MAX_LUNS;
-	ha->max_probe_luns = le16_to_cpu(nv->max_luns_per_target);
-	if (ha->max_probe_luns == 0)
-		ha->max_probe_luns = MIN_LUNS;
 
 	/*
 	 * Need enough time to try and get the port back.
@@ -1456,16 +1442,6 @@ qla2x00_nvram_config(scsi_qla_host_t *ha)
 		ha->login_retry_count = ha->port_down_retry_count;
 	if (ql2xloginretrycount)
 		ha->login_retry_count = ql2xloginretrycount;
-
-	ha->binding_type = Bind;
-	if (ha->binding_type != BIND_BY_PORT_NAME &&
-	    ha->binding_type != BIND_BY_PORT_ID) {
-		qla_printk(KERN_WARNING, ha,
-		    "Invalid binding type specified (%d), "
-		    "defaulting to BIND_BY_PORT_NAME!!!\n", ha->binding_type);
-
-		ha->binding_type = BIND_BY_PORT_NAME;
-	}
 
 	icb->lun_enables = __constant_cpu_to_le16(0);
 	icb->command_resource_count = 0;
@@ -1578,7 +1554,6 @@ qla2x00_configure_loop(scsi_qla_host_t *ha)
 	 */
 	clear_bit(LOCAL_LOOP_UPDATE, &ha->dpc_flags);
 	clear_bit(RSCN_UPDATE, &ha->dpc_flags);
-	ha->mem_err = 0 ;
 
 	/* Determine what we need to do */
 	if (ha->current_topology == ISP_CFG_FL &&
@@ -2707,7 +2682,6 @@ qla2x00_loop_resync(scsi_qla_host_t *ha)
 	rval = QLA_SUCCESS;
 
 	atomic_set(&ha->loop_state, LOOP_UPDATE);
-	qla2x00_stats.loop_resync++;
 	clear_bit(ISP_ABORT_RETRY, &ha->dpc_flags);
 	if (ha->flags.online) {
 		if (!(rval = qla2x00_fw_ready(ha))) {
@@ -2786,9 +2760,6 @@ qla2x00_abort_isp(scsi_qla_host_t *ha)
 	if (ha->flags.online) {
 		ha->flags.online = 0;
 		clear_bit(ISP_ABORT_NEEDED, &ha->dpc_flags);
-		qla2x00_stats.ispAbort++;
-		ha->total_isp_aborts++;  /* used by ioctl */
-		ha->sns_retry_cnt = 0;
 
 		qla_printk(KERN_INFO, ha,
 		    "Performing ISP error recovery - ha= %p.\n", ha);
@@ -2810,8 +2781,6 @@ qla2x00_abort_isp(scsi_qla_host_t *ha)
 			sp = ha->outstanding_cmds[cnt];
 			if (sp) {
 				ha->outstanding_cmds[cnt] = NULL;
-				if (ha->actthreads)
-					ha->actthreads--;
 				sp->flags = 0;
 				sp->cmd->result = DID_RESET << 16;
 				sp->cmd->host_scribble = (unsigned char *)NULL;

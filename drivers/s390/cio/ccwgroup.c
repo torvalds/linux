@@ -77,7 +77,7 @@ __ccwgroup_remove_symlinks(struct ccwgroup_device *gdev)
  * longer needed or accidentially created. Saves memory :)
  */
 static ssize_t
-ccwgroup_ungroup_store(struct device *dev, const char *buf, size_t count)
+ccwgroup_ungroup_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct ccwgroup_device *gdev;
 
@@ -310,7 +310,7 @@ ccwgroup_set_offline(struct ccwgroup_device *gdev)
 }
 
 static ssize_t
-ccwgroup_online_store (struct device *dev, const char *buf, size_t count)
+ccwgroup_online_store (struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct ccwgroup_device *gdev;
 	struct ccwgroup_driver *gdrv;
@@ -338,7 +338,7 @@ ccwgroup_online_store (struct device *dev, const char *buf, size_t count)
 }
 
 static ssize_t
-ccwgroup_online_show (struct device *dev, char *buf)
+ccwgroup_online_show (struct device *dev, struct device_attribute *attr, char *buf)
 {
 	int online;
 

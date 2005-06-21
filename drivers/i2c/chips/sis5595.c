@@ -256,28 +256,28 @@ static ssize_t set_in_max(struct device *dev, const char *buf,
 
 #define show_in_offset(offset)					\
 static ssize_t							\
-	show_in##offset (struct device *dev, char *buf)		\
+	show_in##offset (struct device *dev, struct device_attribute *attr, char *buf)		\
 {								\
 	return show_in(dev, buf, offset);			\
 }								\
 static DEVICE_ATTR(in##offset##_input, S_IRUGO, 		\
 		show_in##offset, NULL);				\
 static ssize_t							\
-	show_in##offset##_min (struct device *dev, char *buf)	\
+	show_in##offset##_min (struct device *dev, struct device_attribute *attr, char *buf)	\
 {								\
 	return show_in_min(dev, buf, offset);			\
 }								\
 static ssize_t							\
-	show_in##offset##_max (struct device *dev, char *buf)	\
+	show_in##offset##_max (struct device *dev, struct device_attribute *attr, char *buf)	\
 {								\
 	return show_in_max(dev, buf, offset);			\
 }								\
-static ssize_t set_in##offset##_min (struct device *dev,	\
+static ssize_t set_in##offset##_min (struct device *dev, struct device_attribute *attr,	\
 		const char *buf, size_t count)			\
 {								\
 	return set_in_min(dev, buf, count, offset);		\
 }								\
-static ssize_t set_in##offset##_max (struct device *dev,	\
+static ssize_t set_in##offset##_max (struct device *dev, struct device_attribute *attr,	\
 		const char *buf, size_t count)			\
 {								\
 	return set_in_max(dev, buf, count, offset);		\
@@ -294,19 +294,19 @@ show_in_offset(3);
 show_in_offset(4);
 
 /* Temperature */
-static ssize_t show_temp(struct device *dev, char *buf)
+static ssize_t show_temp(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct sis5595_data *data = sis5595_update_device(dev);
 	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->temp));
 }
 
-static ssize_t show_temp_over(struct device *dev, char *buf)
+static ssize_t show_temp_over(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct sis5595_data *data = sis5595_update_device(dev);
 	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->temp_over));
 }
 
-static ssize_t set_temp_over(struct device *dev, const char *buf, size_t count)
+static ssize_t set_temp_over(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct sis5595_data *data = i2c_get_clientdata(client);
@@ -319,13 +319,13 @@ static ssize_t set_temp_over(struct device *dev, const char *buf, size_t count)
 	return count;
 }
 
-static ssize_t show_temp_hyst(struct device *dev, char *buf)
+static ssize_t show_temp_hyst(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct sis5595_data *data = sis5595_update_device(dev);
 	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->temp_hyst));
 }
 
-static ssize_t set_temp_hyst(struct device *dev, const char *buf, size_t count)
+static ssize_t set_temp_hyst(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct sis5595_data *data = i2c_get_clientdata(client);
@@ -426,19 +426,19 @@ static ssize_t set_fan_div(struct device *dev, const char *buf,
 }
 
 #define show_fan_offset(offset)						\
-static ssize_t show_fan_##offset (struct device *dev, char *buf)	\
+static ssize_t show_fan_##offset (struct device *dev, struct device_attribute *attr, char *buf)	\
 {									\
 	return show_fan(dev, buf, offset - 1);			\
 }									\
-static ssize_t show_fan_##offset##_min (struct device *dev, char *buf)	\
+static ssize_t show_fan_##offset##_min (struct device *dev, struct device_attribute *attr, char *buf)	\
 {									\
 	return show_fan_min(dev, buf, offset - 1);			\
 }									\
-static ssize_t show_fan_##offset##_div (struct device *dev, char *buf)	\
+static ssize_t show_fan_##offset##_div (struct device *dev, struct device_attribute *attr, char *buf)	\
 {									\
 	return show_fan_div(dev, buf, offset - 1);			\
 }									\
-static ssize_t set_fan_##offset##_min (struct device *dev,		\
+static ssize_t set_fan_##offset##_min (struct device *dev, struct device_attribute *attr,		\
 		const char *buf, size_t count)				\
 {									\
 	return set_fan_min(dev, buf, count, offset - 1);		\
@@ -450,13 +450,13 @@ static DEVICE_ATTR(fan##offset##_min, S_IRUGO | S_IWUSR,		\
 show_fan_offset(1);
 show_fan_offset(2);
 
-static ssize_t set_fan_1_div(struct device *dev, const char *buf,
+static ssize_t set_fan_1_div(struct device *dev, struct device_attribute *attr, const char *buf,
 		size_t count)
 {
 	return set_fan_div(dev, buf, count, 0) ;
 }
 
-static ssize_t set_fan_2_div(struct device *dev, const char *buf,
+static ssize_t set_fan_2_div(struct device *dev, struct device_attribute *attr, const char *buf,
 		size_t count)
 {
 	return set_fan_div(dev, buf, count, 1) ;
@@ -467,7 +467,7 @@ static DEVICE_ATTR(fan2_div, S_IRUGO | S_IWUSR,
 		show_fan_2_div, set_fan_2_div);
 
 /* Alarms */
-static ssize_t show_alarms(struct device *dev, char *buf)
+static ssize_t show_alarms(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct sis5595_data *data = sis5595_update_device(dev);
 	return sprintf(buf, "%d\n", data->alarms);

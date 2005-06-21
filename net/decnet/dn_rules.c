@@ -342,14 +342,15 @@ static struct notifier_block dn_fib_rules_notifier = {
 	.notifier_call =	dn_fib_rules_event,
 };
 
-static int dn_fib_fill_rule(struct sk_buff *skb, struct dn_fib_rule *r, struct netlink_callback *cb)
+static int dn_fib_fill_rule(struct sk_buff *skb, struct dn_fib_rule *r,
+			    struct netlink_callback *cb, unsigned int flags)
 {
 	struct rtmsg *rtm;
 	struct nlmsghdr *nlh;
 	unsigned char *b = skb->tail;
 
 
-	nlh = NLMSG_PUT(skb, NETLINK_CREDS(cb->skb)->pid, cb->nlh->nlmsg_seq, RTM_NEWRULE, sizeof(*rtm));
+	nlh = NLMSG_NEW_ANSWER(skb, cb, RTM_NEWRULE, sizeof(*rtm), flags);
 	rtm = NLMSG_DATA(nlh);
 	rtm->rtm_family = AF_DECnet;
 	rtm->rtm_dst_len = r->r_dst_len;
@@ -394,7 +395,7 @@ int dn_fib_dump_rules(struct sk_buff *skb, struct netlink_callback *cb)
 	for(r = dn_fib_rules, idx = 0; r; r = r->r_next, idx++) {
 		if (idx < s_idx)
 			continue;
-		if (dn_fib_fill_rule(skb, r, cb) < 0)
+		if (dn_fib_fill_rule(skb, r, cb, NLM_F_MULTI) < 0)
 			break;
 	}
 	read_unlock(&dn_fib_rules_lock);

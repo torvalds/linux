@@ -1356,8 +1356,9 @@ int tcp_send_synack(struct sock *sk)
  * Prepare a SYN-ACK.
  */
 struct sk_buff * tcp_make_synack(struct sock *sk, struct dst_entry *dst,
-				 struct open_request *req)
+				 struct request_sock *req)
 {
+	struct inet_request_sock *ireq = inet_rsk(req);
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct tcphdr *th;
 	int tcp_header_size;
@@ -1373,47 +1374,47 @@ struct sk_buff * tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 	skb->dst = dst_clone(dst);
 
 	tcp_header_size = (sizeof(struct tcphdr) + TCPOLEN_MSS +
-			   (req->tstamp_ok ? TCPOLEN_TSTAMP_ALIGNED : 0) +
-			   (req->wscale_ok ? TCPOLEN_WSCALE_ALIGNED : 0) +
+			   (ireq->tstamp_ok ? TCPOLEN_TSTAMP_ALIGNED : 0) +
+			   (ireq->wscale_ok ? TCPOLEN_WSCALE_ALIGNED : 0) +
 			   /* SACK_PERM is in the place of NOP NOP of TS */
-			   ((req->sack_ok && !req->tstamp_ok) ? TCPOLEN_SACKPERM_ALIGNED : 0));
+			   ((ireq->sack_ok && !ireq->tstamp_ok) ? TCPOLEN_SACKPERM_ALIGNED : 0));
 	skb->h.th = th = (struct tcphdr *) skb_push(skb, tcp_header_size);
 
 	memset(th, 0, sizeof(struct tcphdr));
 	th->syn = 1;
 	th->ack = 1;
 	if (dst->dev->features&NETIF_F_TSO)
-		req->ecn_ok = 0;
+		ireq->ecn_ok = 0;
 	TCP_ECN_make_synack(req, th);
 	th->source = inet_sk(sk)->sport;
-	th->dest = req->rmt_port;
-	TCP_SKB_CB(skb)->seq = req->snt_isn;
+	th->dest = ireq->rmt_port;
+	TCP_SKB_CB(skb)->seq = tcp_rsk(req)->snt_isn;
 	TCP_SKB_CB(skb)->end_seq = TCP_SKB_CB(skb)->seq + 1;
 	TCP_SKB_CB(skb)->sacked = 0;
 	skb_shinfo(skb)->tso_segs = 1;
 	skb_shinfo(skb)->tso_size = 0;
 	th->seq = htonl(TCP_SKB_CB(skb)->seq);
-	th->ack_seq = htonl(req->rcv_isn + 1);
+	th->ack_seq = htonl(tcp_rsk(req)->rcv_isn + 1);
 	if (req->rcv_wnd == 0) { /* ignored for retransmitted syns */
 		__u8 rcv_wscale; 
 		/* Set this up on the first call only */
 		req->window_clamp = tp->window_clamp ? : dst_metric(dst, RTAX_WINDOW);
 		/* tcp_full_space because it is guaranteed to be the first packet */
 		tcp_select_initial_window(tcp_full_space(sk), 
-			dst_metric(dst, RTAX_ADVMSS) - (req->tstamp_ok ? TCPOLEN_TSTAMP_ALIGNED : 0),
+			dst_metric(dst, RTAX_ADVMSS) - (ireq->tstamp_ok ? TCPOLEN_TSTAMP_ALIGNED : 0),
 			&req->rcv_wnd,
 			&req->window_clamp,
-			req->wscale_ok,
+			ireq->wscale_ok,
 			&rcv_wscale);
-		req->rcv_wscale = rcv_wscale; 
+		ireq->rcv_wscale = rcv_wscale; 
 	}
 
 	/* RFC1323: The window in SYN & SYN/ACK segments is never scaled. */
 	th->window = htons(req->rcv_wnd);
 
 	TCP_SKB_CB(skb)->when = tcp_time_stamp;
-	tcp_syn_build_options((__u32 *)(th + 1), dst_metric(dst, RTAX_ADVMSS), req->tstamp_ok,
-			      req->sack_ok, req->wscale_ok, req->rcv_wscale,
+	tcp_syn_build_options((__u32 *)(th + 1), dst_metric(dst, RTAX_ADVMSS), ireq->tstamp_ok,
+			      ireq->sack_ok, ireq->wscale_ok, ireq->rcv_wscale,
 			      TCP_SKB_CB(skb)->when,
 			      req->ts_recent);
 

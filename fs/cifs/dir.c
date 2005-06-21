@@ -392,7 +392,8 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry, struct name
 		rc = 0;
 		d_add(direntry, NULL);
 	} else {
-		cERROR(1,("Error 0x%x or on cifs_get_inode_info in lookup",rc));
+		cERROR(1,("Error 0x%x on cifs_get_inode_info in lookup of %s",
+			   rc,full_path));
 		/* BB special case check for Access Denied - watch security 
 		exposure of returning dir info implicitly via different rc 
 		if file exists or not but no access BB */

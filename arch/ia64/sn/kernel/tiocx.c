@@ -432,7 +432,7 @@ static int tiocx_reload(struct cx_dev *cx_dev)
 	return cx_device_reload(cx_dev);
 }
 
-static ssize_t show_cxdev_control(struct device *dev, char *buf)
+static ssize_t show_cxdev_control(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cx_dev *cx_dev = to_cx_dev(dev);
 
@@ -442,7 +442,7 @@ static ssize_t show_cxdev_control(struct device *dev, char *buf)
 		       tiocx_btchar_get(cx_dev->cx_id.nasid));
 }
 
-static ssize_t store_cxdev_control(struct device *dev, const char *buf,
+static ssize_t store_cxdev_control(struct device *dev, struct device_attribute *attr, const char *buf,
 				   size_t count)
 {
 	int n;
@@ -518,25 +518,22 @@ static int __init tiocx_init(void)
 	return 0;
 }
 
+static int cx_remove_device(struct device * dev, void * data)
+{
+	struct cx_dev *cx_dev = to_cx_dev(dev);
+	device_remove_file(dev, &dev_attr_cxdev_control);
+	cx_device_unregister(cx_dev);
+	return 0;
+}
+
 static void __exit tiocx_exit(void)
 {
-	struct device *dev;
-	struct device *tdev;
-
 	DBG("tiocx_exit\n");
 
 	/*
 	 * Unregister devices.
 	 */
-	list_for_each_entry_safe(dev, tdev, &tiocx_bus_type.devices.list,
-				 bus_list) {
-		if (dev) {
-			struct cx_dev *cx_dev = to_cx_dev(dev);
-			device_remove_file(dev, &dev_attr_cxdev_control);
-			cx_device_unregister(cx_dev);
-		}
-	}
-
+	bus_for_each_dev(&tiocx_bus_type, NULL, NULL, cx_remove_device);
 	bus_unregister(&tiocx_bus_type);
 }
 

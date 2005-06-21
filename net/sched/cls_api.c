@@ -322,14 +322,13 @@ errout:
 
 static int
 tcf_fill_node(struct sk_buff *skb, struct tcf_proto *tp, unsigned long fh,
-	      u32 pid, u32 seq, unsigned flags, int event)
+	      u32 pid, u32 seq, u16 flags, int event)
 {
 	struct tcmsg *tcm;
 	struct nlmsghdr  *nlh;
 	unsigned char	 *b = skb->tail;
 
-	nlh = NLMSG_PUT(skb, pid, seq, event, sizeof(*tcm));
-	nlh->nlmsg_flags = flags;
+	nlh = NLMSG_NEW(skb, pid, seq, event, sizeof(*tcm), flags);
 	tcm = NLMSG_DATA(nlh);
 	tcm->tcm_family = AF_UNSPEC;
 	tcm->tcm_ifindex = tp->q->dev->ifindex;

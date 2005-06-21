@@ -144,7 +144,7 @@ static struct dsp56k_device {
 	int tx_wsize, rx_wsize;
 } dsp56k;
 
-static struct class_simple *dsp56k_class;
+static struct class *dsp56k_class;
 
 static int dsp56k_reset(void)
 {
@@ -510,12 +510,12 @@ static int __init dsp56k_init_driver(void)
 		printk("DSP56k driver: Unable to register driver\n");
 		return -ENODEV;
 	}
-	dsp56k_class = class_simple_create(THIS_MODULE, "dsp56k");
+	dsp56k_class = class_create(THIS_MODULE, "dsp56k");
 	if (IS_ERR(dsp56k_class)) {
 		err = PTR_ERR(dsp56k_class);
 		goto out_chrdev;
 	}
-	class_simple_device_add(dsp56k_class, MKDEV(DSP56K_MAJOR, 0), NULL, "dsp56k");
+	class_device_create(dsp56k_class, MKDEV(DSP56K_MAJOR, 0), NULL, "dsp56k");
 
 	err = devfs_mk_cdev(MKDEV(DSP56K_MAJOR, 0),
 		      S_IFCHR | S_IRUSR | S_IWUSR, "dsp56k");
@@ -526,8 +526,8 @@ static int __init dsp56k_init_driver(void)
 	goto out;
 
 out_class:
-	class_simple_device_remove(MKDEV(DSP56K_MAJOR, 0));
-	class_simple_destroy(dsp56k_class);
+	class_device_destroy(dsp56k_class, MKDEV(DSP56K_MAJOR, 0));
+	class_destroy(dsp56k_class);
 out_chrdev:
 	unregister_chrdev(DSP56K_MAJOR, "dsp56k");
 out:
@@ -537,8 +537,8 @@ module_init(dsp56k_init_driver);
 
 static void __exit dsp56k_cleanup_driver(void)
 {
-	class_simple_device_remove(MKDEV(DSP56K_MAJOR, 0));
-	class_simple_destroy(dsp56k_class);
+	class_device_destroy(dsp56k_class, MKDEV(DSP56K_MAJOR, 0));
+	class_destroy(dsp56k_class);
 	unregister_chrdev(DSP56K_MAJOR, "dsp56k");
 	devfs_remove("dsp56k");
 }

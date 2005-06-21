@@ -127,7 +127,6 @@ mpc834x_sys_map_io(void)
 {
 	/* we steal the lowest ioremap addr for virt space */
 	io_block_mapping(VIRT_IMMRBAR, immrbar, 1024*1024, _PAGE_IO);
-	io_block_mapping(BCSR_VIRT_ADDR, BCSR_PHYS_ADDR, BCSR_SIZE, _PAGE_IO);
 }
 
 int

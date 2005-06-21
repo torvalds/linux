@@ -300,7 +300,7 @@ static void __devinit vio_dev_release(struct device *dev)
 }
 
 #ifdef CONFIG_PPC_PSERIES
-static ssize_t viodev_show_devspec(struct device *dev, char *buf)
+static ssize_t viodev_show_devspec(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct device_node *of_node = dev->platform_data;
 
@@ -309,7 +309,7 @@ static ssize_t viodev_show_devspec(struct device *dev, char *buf)
 DEVICE_ATTR(devspec, S_IRUSR | S_IRGRP | S_IROTH, viodev_show_devspec, NULL);
 #endif
 
-static ssize_t viodev_show_name(struct device *dev, char *buf)
+static ssize_t viodev_show_name(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%s\n", to_vio_dev(dev)->name);
 }

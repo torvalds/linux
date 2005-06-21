@@ -49,7 +49,7 @@
 #endif /* CONFIG_PPC_OF */
 
 #define DRV_NAME	"sata_svw"
-#define DRV_VERSION	"1.05"
+#define DRV_VERSION	"1.06"
 
 /* Taskfile registers offsets */
 #define K2_SATA_TF_CMD_OFFSET		0x00
@@ -313,6 +313,7 @@ static struct ata_port_operations k2_sata_ops = {
 	.scr_write		= k2_sata_scr_write,
 	.port_start		= ata_port_start,
 	.port_stop		= ata_port_stop,
+	.host_stop		= ata_host_stop,
 };
 
 static void k2_sata_setup_port(struct ata_ioports *port, unsigned long base)
@@ -343,6 +344,7 @@ static int k2_sata_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 	void *mmio_base;
 	int pci_dev_busy = 0;
 	int rc;
+	int i;
 
 	if (!printed_version++)
 		printk(KERN_DEBUG DRV_NAME " version " DRV_VERSION "\n");
@@ -420,11 +422,11 @@ static int k2_sata_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 	probe_ent->mwdma_mask = 0x7;
 	probe_ent->udma_mask = 0x7f;
 
-	/* We have 4 ports per PCI function */
-	k2_sata_setup_port(&probe_ent->port[0], base + 0 * K2_SATA_PORT_OFFSET);
-	k2_sata_setup_port(&probe_ent->port[1], base + 1 * K2_SATA_PORT_OFFSET);
-	k2_sata_setup_port(&probe_ent->port[2], base + 2 * K2_SATA_PORT_OFFSET);
-	k2_sata_setup_port(&probe_ent->port[3], base + 3 * K2_SATA_PORT_OFFSET);
+	/* different controllers have different number of ports - currently 4 or 8 */
+	/* All ports are on the same function. Multi-function device is no
+	 * longer available. This should not be seen in any system. */
+	for (i = 0; i < ent->driver_data; i++)
+		k2_sata_setup_port(&probe_ent->port[i], base + i * K2_SATA_PORT_OFFSET);
 
 	pci_set_master(pdev);
 
@@ -444,11 +446,17 @@ err_out:
 	return rc;
 }
 
-
+/* 0x240 is device ID for Apple K2 device
+ * 0x241 is device ID for Serverworks Frodo4
+ * 0x242 is device ID for Serverworks Frodo8
+ * 0x24a is device ID for BCM5785 (aka HT1000) HT southbridge integrated SATA
+ * controller
+ * */
 static struct pci_device_id k2_sata_pci_tbl[] = {
-	{ 0x1166, 0x0240, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ 0x1166, 0x0241, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ 0x1166, 0x0242, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ 0x1166, 0x0240, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 4 },
+	{ 0x1166, 0x0241, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 4 },
+	{ 0x1166, 0x0242, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 8 },
+	{ 0x1166, 0x024a, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 4 },
 	{ }
 };
 

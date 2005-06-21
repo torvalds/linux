@@ -87,9 +87,9 @@ ENTRY(__raw_writesw)
 		subs	r2, r2, #2
 		orr	ip, ip, r3, push_hbyte1
 		strh	ip, [r0]
-		bpl	2b
+		bpl	1b
 
-3:		tst	r2, #1
-2:		movne	ip, r3, lsr #8
+		tst	r2, #1
+3:		movne	ip, r3, lsr #8
 		strneh	ip, [r0]
 		mov	pc, lr

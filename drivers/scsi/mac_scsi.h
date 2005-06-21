@@ -72,8 +72,6 @@
 #define NCR5380_queue_command macscsi_queue_command
 #define NCR5380_abort macscsi_abort
 #define NCR5380_bus_reset macscsi_bus_reset
-#define NCR5380_device_reset macscsi_device_reset
-#define NCR5380_host_reset macscsi_host_reset
 #define NCR5380_proc_info macscsi_proc_info
 
 #define BOARD_NORMAL	0

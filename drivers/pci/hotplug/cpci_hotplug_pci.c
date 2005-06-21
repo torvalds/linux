@@ -1,7 +1,7 @@
 /*
  * CompactPCI Hot Plug Driver PCI functions
  *
- * Copyright (C) 2002 by SOMA Networks, Inc.
+ * Copyright (C) 2002,2005 by SOMA Networks, Inc.
  *
  * All rights reserved.
  *
@@ -38,10 +38,10 @@ extern int cpci_debug;
 
 #define dbg(format, arg...)					\
 	do {							\
-		if(cpci_debug)					\
+		if (cpci_debug)					\
 			printk (KERN_DEBUG "%s: " format "\n",	\
 				MY_NAME , ## arg); 		\
-	} while(0)
+	} while (0)
 #define err(format, arg...) printk(KERN_ERR "%s: " format "\n", MY_NAME , ## arg)
 #define info(format, arg...) printk(KERN_INFO "%s: " format "\n", MY_NAME , ## arg)
 #define warn(format, arg...) printk(KERN_WARNING "%s: " format "\n", MY_NAME , ## arg)
@@ -57,16 +57,15 @@ u8 cpci_get_attention_status(struct slot* slot)
 	hs_cap = pci_bus_find_capability(slot->bus,
 					 slot->devfn,
 					 PCI_CAP_ID_CHSWP);
-	if(!hs_cap) {
+	if (!hs_cap)
 		return 0;
-	}
 
-	if(pci_bus_read_config_word(slot->bus,
+	if (pci_bus_read_config_word(slot->bus,
 				     slot->devfn,
 				     hs_cap + 2,
-				     &hs_csr)) {
+				     &hs_csr))
 		return 0;
-	}
+
 	return hs_csr & 0x0008 ? 1 : 0;
 }
 
@@ -78,27 +77,22 @@ int cpci_set_attention_status(struct slot* slot, int status)
 	hs_cap = pci_bus_find_capability(slot->bus,
 					 slot->devfn,
 					 PCI_CAP_ID_CHSWP);
-	if(!hs_cap) {
+	if (!hs_cap)
 		return 0;
-	}
-
-	if(pci_bus_read_config_word(slot->bus,
+	if (pci_bus_read_config_word(slot->bus,
 				     slot->devfn,
 				     hs_cap + 2,
-				     &hs_csr)) {
+				     &hs_csr))
 		return 0;
-	}
-	if(status) {
+	if (status)
 		hs_csr |= HS_CSR_LOO;
-	} else {
+	else
 		hs_csr &= ~HS_CSR_LOO;
-	}
-	if(pci_bus_write_config_word(slot->bus,
+	if (pci_bus_write_config_word(slot->bus,
 				      slot->devfn,
 				      hs_cap + 2,
-				      hs_csr)) {
+				      hs_csr))
 		return 0;
-	}
 	return 1;
 }
 
@@ -110,16 +104,13 @@ u16 cpci_get_hs_csr(struct slot* slot)
 	hs_cap = pci_bus_find_capability(slot->bus,
 					 slot->devfn,
 					 PCI_CAP_ID_CHSWP);
-	if(!hs_cap) {
+	if (!hs_cap)
 		return 0xFFFF;
-	}
-
-	if(pci_bus_read_config_word(slot->bus,
+	if (pci_bus_read_config_word(slot->bus,
 				     slot->devfn,
 				     hs_cap + 2,
-				     &hs_csr)) {
+				     &hs_csr))
 		return 0xFFFF;
-	}
 	return hs_csr;
 }
 
@@ -132,24 +123,22 @@ int cpci_check_and_clear_ins(struct slot* slot)
 	hs_cap = pci_bus_find_capability(slot->bus,
 					 slot->devfn,
 					 PCI_CAP_ID_CHSWP);
-	if(!hs_cap) {
+	if (!hs_cap)
 		return 0;
-	}
-	if(pci_bus_read_config_word(slot->bus,
+	if (pci_bus_read_config_word(slot->bus,
 				     slot->devfn,
 				     hs_cap + 2,
-				     &hs_csr)) {
+				     &hs_csr))
 		return 0;
-	}
-	if(hs_csr & HS_CSR_INS) {
+	if (hs_csr & HS_CSR_INS) {
 		/* Clear INS (by setting it) */
-		if(pci_bus_write_config_word(slot->bus,
+		if (pci_bus_write_config_word(slot->bus,
 					      slot->devfn,
 					      hs_cap + 2,
-					      hs_csr)) {
+					      hs_csr))
 			ins = 0;
-		}
-		ins = 1;
+		else
+			ins = 1;
 	}
 	return ins;
 }
@@ -163,18 +152,15 @@ int cpci_check_ext(struct slot* slot)
 	hs_cap = pci_bus_find_capability(slot->bus,
 					 slot->devfn,
 					 PCI_CAP_ID_CHSWP);
-	if(!hs_cap) {
+	if (!hs_cap)
 		return 0;
-	}
-	if(pci_bus_read_config_word(slot->bus,
+	if (pci_bus_read_config_word(slot->bus,
 				     slot->devfn,
 				     hs_cap + 2,
-				     &hs_csr)) {
+				     &hs_csr))
 		return 0;
-	}
-	if(hs_csr & HS_CSR_EXT) {
+	if (hs_csr & HS_CSR_EXT)
 		ext = 1;
-	}
 	return ext;
 }
 
@@ -186,23 +172,20 @@ int cpci_clear_ext(struct slot* slot)
 	hs_cap = pci_bus_find_capability(slot->bus,
 					 slot->devfn,
 					 PCI_CAP_ID_CHSWP);
-	if(!hs_cap) {
+	if (!hs_cap)
 		return -ENODEV;
-	}
-	if(pci_bus_read_config_word(slot->bus,
+	if (pci_bus_read_config_word(slot->bus,
 				     slot->devfn,
 				     hs_cap + 2,
-				     &hs_csr)) {
+				     &hs_csr))
 		return -ENODEV;
-	}
-	if(hs_csr & HS_CSR_EXT) {
+	if (hs_csr & HS_CSR_EXT) {
 		/* Clear EXT (by setting it) */
-		if(pci_bus_write_config_word(slot->bus,
+		if (pci_bus_write_config_word(slot->bus,
 					      slot->devfn,
 					      hs_cap + 2,
-					      hs_csr)) {
+					      hs_csr))
 			return -ENODEV;
-		}
 	}
 	return 0;
 }
@@ -215,18 +198,16 @@ int cpci_led_on(struct slot* slot)
 	hs_cap = pci_bus_find_capability(slot->bus,
 					 slot->devfn,
 					 PCI_CAP_ID_CHSWP);
-	if(!hs_cap) {
+	if (!hs_cap)
 		return -ENODEV;
-	}
-	if(pci_bus_read_config_word(slot->bus,
+	if (pci_bus_read_config_word(slot->bus,
 				     slot->devfn,
 				     hs_cap + 2,
-				     &hs_csr)) {
+				     &hs_csr))
 		return -ENODEV;
-	}
-	if((hs_csr & HS_CSR_LOO) != HS_CSR_LOO) {
+	if ((hs_csr & HS_CSR_LOO) != HS_CSR_LOO) {
 		hs_csr |= HS_CSR_LOO;
-		if(pci_bus_write_config_word(slot->bus,
+		if (pci_bus_write_config_word(slot->bus,
 					      slot->devfn,
 					      hs_cap + 2,
 					      hs_csr)) {
@@ -246,18 +227,16 @@ int cpci_led_off(struct slot* slot)
 	hs_cap = pci_bus_find_capability(slot->bus,
 					 slot->devfn,
 					 PCI_CAP_ID_CHSWP);
-	if(!hs_cap) {
+	if (!hs_cap)
 		return -ENODEV;
-	}
-	if(pci_bus_read_config_word(slot->bus,
+	if (pci_bus_read_config_word(slot->bus,
 				     slot->devfn,
 				     hs_cap + 2,
-				     &hs_csr)) {
+				     &hs_csr))
 		return -ENODEV;
-	}
-	if(hs_csr & HS_CSR_LOO) {
+	if (hs_csr & HS_CSR_LOO) {
 		hs_csr &= ~HS_CSR_LOO;
-		if(pci_bus_write_config_word(slot->bus,
+		if (pci_bus_write_config_word(slot->bus,
 					      slot->devfn,
 					      hs_cap + 2,
 					      hs_csr)) {
@@ -274,19 +253,6 @@ int cpci_led_off(struct slot* slot)
  * Device configuration functions
  */
 
-static void cpci_enable_device(struct pci_dev *dev)
-{
-	struct pci_bus *bus;
-
-	pci_enable_device(dev);
-	if(dev->hdr_type == PCI_HEADER_TYPE_BRIDGE) {
-		bus = dev->subordinate;
-		list_for_each_entry(dev, &bus->devices, bus_list) {
-			cpci_enable_device(dev);
-		}
-	}
-}
-
 int cpci_configure_slot(struct slot* slot)
 {
 	unsigned char busnr;
@@ -294,14 +260,14 @@ int cpci_configure_slot(struct slot* slot)
 
 	dbg("%s - enter", __FUNCTION__);
 
-	if(slot->dev == NULL) {
+	if (slot->dev == NULL) {
 		dbg("pci_dev null, finding %02x:%02x:%x",
 		    slot->bus->number, PCI_SLOT(slot->devfn), PCI_FUNC(slot->devfn));
-		slot->dev = pci_find_slot(slot->bus->number, slot->devfn);
+		slot->dev = pci_get_slot(slot->bus, slot->devfn);
 	}
 
 	/* Still NULL? Well then scan for it! */
-	if(slot->dev == NULL) {
+	if (slot->dev == NULL) {
 		int n;
 		dbg("pci_dev still null");
 
@@ -311,10 +277,10 @@ int cpci_configure_slot(struct slot* slot)
 		 */
 		n = pci_scan_slot(slot->bus, slot->devfn);
 		dbg("%s: pci_scan_slot returned %d", __FUNCTION__, n);
-		if(n > 0)
+		if (n > 0)
 			pci_bus_add_devices(slot->bus);
-		slot->dev = pci_find_slot(slot->bus->number, slot->devfn);
-		if(slot->dev == NULL) {
+		slot->dev = pci_get_slot(slot->bus, slot->devfn);
+		if (slot->dev == NULL) {
 			err("Could not find PCI device for slot %02x", slot->number);
 			return 1;
 		}
@@ -329,8 +295,6 @@ int cpci_configure_slot(struct slot* slot)
 
 	pci_bus_assign_resources(slot->dev->bus);
 
-	cpci_enable_device(slot->dev);
-
 	dbg("%s - exit", __FUNCTION__);
 	return 0;
 }
@@ -341,19 +305,22 @@ int cpci_unconfigure_slot(struct slot* slot)
 	struct pci_dev *dev;
 
 	dbg("%s - enter", __FUNCTION__);
-	if(!slot->dev) {
+	if (!slot->dev) {
 		err("No device for slot %02x\n", slot->number);
 		return -ENODEV;
 	}
 
 	for (i = 0; i < 8; i++) {
-		dev = pci_find_slot(slot->bus->number,
+		dev = pci_get_slot(slot->bus,
 				    PCI_DEVFN(PCI_SLOT(slot->devfn), i));
-		if(dev) {
+		if (dev) {
 			pci_remove_bus_device(dev);
-			slot->dev = NULL;
+			pci_dev_put(dev);
 		}
 	}
+	pci_dev_put(slot->dev);
+	slot->dev = NULL;
+
 	dbg("%s - exit", __FUNCTION__);
 	return 0;
 }

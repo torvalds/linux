@@ -2427,7 +2427,7 @@ sys32_epoll_wait(int epfd, struct epoll_event32 __user * events, int maxevents,
 {
 	struct epoll_event *events64 = NULL;
 	mm_segment_t old_fs = get_fs();
-	int error, numevents, size;
+	int numevents, size;
 	int evt_idx;
 	int do_free_pages = 0;
 

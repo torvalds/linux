@@ -24,7 +24,7 @@
 
 /* Active configuration fields */
 #define usb_actconfig_show(field, multiplier, format_string)		\
-static ssize_t  show_##field (struct device *dev, char *buf)		\
+static ssize_t  show_##field (struct device *dev, struct device_attribute *attr, char *buf)		\
 {									\
 	struct usb_device *udev;					\
 	struct usb_host_config *actconfig;				\
@@ -46,7 +46,7 @@ usb_actconfig_attr (bNumInterfaces, 1, "%2d\n")
 usb_actconfig_attr (bmAttributes, 1, "%2x\n")
 usb_actconfig_attr (bMaxPower, 2, "%3dmA\n")
 
-static ssize_t show_configuration_string(struct device *dev, char *buf)
+static ssize_t show_configuration_string(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct usb_device *udev;
 	struct usb_host_config *actconfig;
@@ -69,7 +69,7 @@ static DEVICE_ATTR(configuration, S_IRUGO, show_configuration_string, NULL);
 usb_actconfig_show(bConfigurationValue, 1, "%u\n");
 
 static ssize_t
-set_bConfigurationValue (struct device *dev, const char *buf, size_t count)
+set_bConfigurationValue (struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct usb_device	*udev = udev = to_usb_device (dev);
 	int			config, value;
@@ -87,7 +87,7 @@ static DEVICE_ATTR(bConfigurationValue, S_IRUGO | S_IWUSR,
 
 /* String fields */
 #define usb_string_attr(name)						\
-static ssize_t  show_##name(struct device *dev, char *buf)		\
+static ssize_t  show_##name(struct device *dev, struct device_attribute *attr, char *buf)		\
 {									\
 	struct usb_device *udev;					\
 	int len;							\
@@ -107,7 +107,7 @@ usb_string_attr(manufacturer);
 usb_string_attr(serial);
 
 static ssize_t
-show_speed (struct device *dev, char *buf)
+show_speed (struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct usb_device *udev;
 	char *speed;
@@ -133,7 +133,7 @@ show_speed (struct device *dev, char *buf)
 static DEVICE_ATTR(speed, S_IRUGO, show_speed, NULL);
 
 static ssize_t
-show_devnum (struct device *dev, char *buf)
+show_devnum (struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct usb_device *udev;
 
@@ -143,7 +143,7 @@ show_devnum (struct device *dev, char *buf)
 static DEVICE_ATTR(devnum, S_IRUGO, show_devnum, NULL);
 
 static ssize_t
-show_version (struct device *dev, char *buf)
+show_version (struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct usb_device *udev;
 	u16 bcdUSB;
@@ -155,7 +155,7 @@ show_version (struct device *dev, char *buf)
 static DEVICE_ATTR(version, S_IRUGO, show_version, NULL);
 
 static ssize_t
-show_maxchild (struct device *dev, char *buf)
+show_maxchild (struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct usb_device *udev;
 
@@ -167,7 +167,7 @@ static DEVICE_ATTR(maxchild, S_IRUGO, show_maxchild, NULL);
 /* Descriptor fields */
 #define usb_descriptor_attr_le16(field, format_string)			\
 static ssize_t								\
-show_##field (struct device *dev, char *buf)				\
+show_##field (struct device *dev, struct device_attribute *attr, char *buf)				\
 {									\
 	struct usb_device *udev;					\
 									\
@@ -183,7 +183,7 @@ usb_descriptor_attr_le16(bcdDevice, "%04x\n")
 
 #define usb_descriptor_attr(field, format_string)			\
 static ssize_t								\
-show_##field (struct device *dev, char *buf)				\
+show_##field (struct device *dev, struct device_attribute *attr, char *buf)				\
 {									\
 	struct usb_device *udev;					\
 									\
@@ -254,7 +254,7 @@ void usb_remove_sysfs_dev_files (struct usb_device *udev)
 /* Interface fields */
 #define usb_intf_attr(field, format_string)				\
 static ssize_t								\
-show_##field (struct device *dev, char *buf)				\
+show_##field (struct device *dev, struct device_attribute *attr, char *buf)				\
 {									\
 	struct usb_interface *intf = to_usb_interface (dev);		\
 									\
@@ -269,7 +269,7 @@ usb_intf_attr (bInterfaceClass, "%02x\n")
 usb_intf_attr (bInterfaceSubClass, "%02x\n")
 usb_intf_attr (bInterfaceProtocol, "%02x\n")
 
-static ssize_t show_interface_string(struct device *dev, char *buf)
+static ssize_t show_interface_string(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct usb_interface *intf;
 	struct usb_device *udev;
@@ -286,36 +286,34 @@ static ssize_t show_interface_string(struct device *dev, char *buf)
 }
 static DEVICE_ATTR(interface, S_IRUGO, show_interface_string, NULL);
 
-static ssize_t show_modalias(struct device *dev, char *buf)
+static ssize_t show_modalias(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct usb_interface *intf;
 	struct usb_device *udev;
+	int len;
 
 	intf = to_usb_interface(dev);
 	udev = interface_to_usbdev(intf);
-	if (udev->descriptor.bDeviceClass == 0) {
-		struct usb_host_interface *alt = intf->cur_altsetting;
 
-		return sprintf(buf, "usb:v%04Xp%04Xd%04Xdc%02Xdsc%02Xdp%02Xic%02Xisc%02Xip%02X\n",
-			       le16_to_cpu(udev->descriptor.idVendor),
-			       le16_to_cpu(udev->descriptor.idProduct),
-			       le16_to_cpu(udev->descriptor.bcdDevice),
-			       udev->descriptor.bDeviceClass,
-			       udev->descriptor.bDeviceSubClass,
-			       udev->descriptor.bDeviceProtocol,
-			       alt->desc.bInterfaceClass,
-			       alt->desc.bInterfaceSubClass,
-			       alt->desc.bInterfaceProtocol);
- 	} else {
-		return sprintf(buf, "usb:v%04Xp%04Xd%04Xdc%02Xdsc%02Xdp%02Xic*isc*ip*\n",
+	len = sprintf(buf, "usb:v%04Xp%04Xd%04Xdc%02Xdsc%02Xdp%02Xic",
 			       le16_to_cpu(udev->descriptor.idVendor),
 			       le16_to_cpu(udev->descriptor.idProduct),
 			       le16_to_cpu(udev->descriptor.bcdDevice),
 			       udev->descriptor.bDeviceClass,
 			       udev->descriptor.bDeviceSubClass,
 			       udev->descriptor.bDeviceProtocol);
-	}
+	buf += len;
 
+	if (udev->descriptor.bDeviceClass == 0) {
+		struct usb_host_interface *alt = intf->cur_altsetting;
+
+		return len + sprintf(buf, "%02Xisc%02Xip%02X\n",
+			       alt->desc.bInterfaceClass,
+			       alt->desc.bInterfaceSubClass,
+			       alt->desc.bInterfaceProtocol);
+ 	} else {
+		return len + sprintf(buf, "*isc*ip*\n");
+	}
 }
 static DEVICE_ATTR(modalias, S_IRUGO, show_modalias, NULL);
 

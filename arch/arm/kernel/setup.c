@@ -92,6 +92,14 @@ struct cpu_user_fns cpu_user;
 struct cpu_cache_fns cpu_cache;
 #endif
 
+struct stack {
+	u32 irq[3];
+	u32 abt[3];
+	u32 und[3];
+} ____cacheline_aligned;
+
+static struct stack stacks[NR_CPUS];
+
 char elf_platform[ELF_PLATFORM_SIZE];
 EXPORT_SYMBOL(elf_platform);
 
@@ -307,13 +315,51 @@ static void __init setup_processor(void)
 	       cpu_name, processor_id, (int)processor_id & 15,
 	       proc_arch[cpu_architecture()]);
 
-	dump_cpu_info(smp_processor_id());
-
 	sprintf(system_utsname.machine, "%s%c", list->arch_name, ENDIANNESS);
 	sprintf(elf_platform, "%s%c", list->elf_name, ENDIANNESS);
 	elf_hwcap = list->elf_hwcap;
 
 	cpu_proc_init();
+}
+
+/*
+ * cpu_init - initialise one CPU.
+ *
+ * cpu_init dumps the cache information, initialises SMP specific
+ * information, and sets up the per-CPU stacks.
+ */
+void cpu_init(void)
+{
+	unsigned int cpu = smp_processor_id();
+	struct stack *stk = &stacks[cpu];
+
+	if (cpu >= NR_CPUS) {
+		printk(KERN_CRIT "CPU%u: bad primary CPU number\n", cpu);
+		BUG();
+	}
+
+	dump_cpu_info(cpu);
+
+	/*
+	 * setup stacks for re-entrant exception handlers
+	 */
+	__asm__ (
+	"msr	cpsr_c, %1\n\t"
+	"add	sp, %0, %2\n\t"
+	"msr	cpsr_c, %3\n\t"
+	"add	sp, %0, %4\n\t"
+	"msr	cpsr_c, %5\n\t"
+	"add	sp, %0, %6\n\t"
+	"msr	cpsr_c, %7"
+	    :
+	    : "r" (stk),
+	      "I" (PSR_F_BIT | PSR_I_BIT | IRQ_MODE),
+	      "I" (offsetof(struct stack, irq[0])),
+	      "I" (PSR_F_BIT | PSR_I_BIT | ABT_MODE),
+	      "I" (offsetof(struct stack, abt[0])),
+	      "I" (PSR_F_BIT | PSR_I_BIT | UND_MODE),
+	      "I" (offsetof(struct stack, und[0])),
+	      "I" (PSR_F_BIT | PSR_I_BIT | SVC_MODE));
 }
 
 static struct machine_desc * __init setup_machine(unsigned int nr)
@@ -714,6 +760,8 @@ void __init setup_arch(char **cmdline_p)
 	parse_cmdline(cmdline_p, from);
 	paging_init(&meminfo, mdesc);
 	request_standard_resources(&meminfo, mdesc);
+
+	cpu_init();
 
 	/*
 	 * Set up various architecture-specific pointers

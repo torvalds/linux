@@ -204,5 +204,11 @@ config UML_RANDOM
 	http://sourceforge.net/projects/gkernel/).  rngd periodically reads
 	/dev/hwrng and injects the entropy into /dev/random.
 
+config MMAPPER
+	tristate "iomem emulation driver"
+	help
+	This driver allows a host file to be used as emulated IO memory inside
+	UML.
+
 endmenu
 

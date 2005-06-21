@@ -118,7 +118,7 @@ struct _cpuid4_info {
 };
 
 #define MAX_CACHE_LEAVES		4
-static unsigned short __devinitdata	num_cache_leaves;
+static unsigned short			num_cache_leaves;
 
 static int __devinit cpuid4_cache_lookup(int index, struct _cpuid4_info *this_leaf)
 {

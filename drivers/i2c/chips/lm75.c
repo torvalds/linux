@@ -75,7 +75,7 @@ static struct i2c_driver lm75_driver = {
 };
 
 #define show(value)	\
-static ssize_t show_##value(struct device *dev, char *buf)		\
+static ssize_t show_##value(struct device *dev, struct device_attribute *attr, char *buf)		\
 {									\
 	struct lm75_data *data = lm75_update_device(dev);		\
 	return sprintf(buf, "%d\n", LM75_TEMP_FROM_REG(data->value));	\
@@ -85,7 +85,7 @@ show(temp_hyst);
 show(temp_input);
 
 #define set(value, reg)	\
-static ssize_t set_##value(struct device *dev, const char *buf, size_t count)	\
+static ssize_t set_##value(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)	\
 {								\
 	struct i2c_client *client = to_i2c_client(dev);		\
 	struct lm75_data *data = i2c_get_clientdata(client);	\

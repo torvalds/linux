@@ -271,7 +271,7 @@ patch, which certifies that you wrote it or otherwise have the right to
 pass it on as a open-source patch.  The rules are pretty simple: if you
 can certify the below:
 
-        Developer's Certificate of Origin 1.0
+        Developer's Certificate of Origin 1.1
 
         By making a contribution to this project, I certify that:
 
@@ -290,6 +290,12 @@ can certify the below:
         (c) The contribution was provided directly to me by some other
             person who certified (a), (b) or (c) and I have not modified
             it.
+
+	(d) I understand and agree that this project and the contribution
+	    are public and that a record of the contribution (including all
+	    personal information I submit with it, including my sign-off) is
+	    maintained indefinitely and may be redistributed consistent with
+	    this project or the open source license(s) involved.
 
 then you just add a line saying
 

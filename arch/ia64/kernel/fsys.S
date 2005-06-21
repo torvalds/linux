@@ -460,9 +460,9 @@ EX(.fail_efault, ld8 r14=[r33])			// r14 <- *set
 	;;
 
 	st8 [r2]=r14				// update current->blocked with new mask
-	cmpxchg4.acq r14=[r9],r18,ar.ccv	// current->thread_info->flags <- r18
+	cmpxchg4.acq r8=[r9],r18,ar.ccv		// current->thread_info->flags <- r18
 	;;
-	cmp.ne p6,p0=r17,r14			// update failed?
+	cmp.ne p6,p0=r17,r8			// update failed?
 (p6)	br.cond.spnt.few 1b			// yes -> retry
 
 #ifdef CONFIG_SMP

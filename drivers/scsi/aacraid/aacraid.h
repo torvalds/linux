@@ -8,12 +8,18 @@
 
 #define MAXIMUM_NUM_CONTAINERS	32
 
-#define AAC_NUM_FIB		(256 + 64)
-#define AAC_NUM_IO_FIB		100
+#define AAC_NUM_MGT_FIB         8
+#define AAC_NUM_IO_FIB		(512 - AAC_NUM_MGT_FIB)
+#define AAC_NUM_FIB		(AAC_NUM_IO_FIB + AAC_NUM_MGT_FIB)
 
 #define AAC_MAX_LUN		(8)
 
 #define AAC_MAX_HOSTPHYSMEMPAGES (0xfffff)
+/*
+ *  max_sectors is an unsigned short, otherwise limit is 0x100000000 / 512
+ * Linux has starvation problems if we permit larger than 4MB I/O ...
+ */
+#define AAC_MAX_32BIT_SGBCOUNT	((unsigned short)8192)
 
 /*
  * These macros convert from physical channels to virtual channels
@@ -89,11 +95,21 @@ struct diskparm
  *	on 64 bit systems not all cards support the 64 bit version
  */
 struct sgentry {
+	__le32	addr;	/* 32-bit address. */
+	__le32	count;	/* Length. */
+};
+
+struct user_sgentry {
 	u32	addr;	/* 32-bit address. */
 	u32	count;	/* Length. */
 };
 
 struct sgentry64 {
+	__le32	addr[2];	/* 64-bit addr. 2 pieces for data alignment */
+	__le32	count;	/* Length. */
+};
+
+struct user_sgentry64 {
 	u32	addr[2];	/* 64-bit addr. 2 pieces for data alignment */
 	u32	count;	/* Length. */
 };
@@ -106,13 +122,23 @@ struct sgentry64 {
  */
 
 struct sgmap {
-	u32		count;
+	__le32		count;
 	struct sgentry	sg[1]; 
 };
 
-struct sgmap64 {
+struct user_sgmap {
 	u32		count;
+	struct user_sgentry	sg[1]; 
+};
+
+struct sgmap64 {
+	__le32		count;
 	struct sgentry64 sg[1];
+};
+
+struct user_sgmap64 {
+	u32		count;
+	struct user_sgentry64 sg[1];
 };
 
 struct creation_info
@@ -123,14 +149,14 @@ struct creation_info
 						 * 	 2 = API
 						 */
 	u8	 	year;		 	/* e.g., 1997 = 97 */
-	u32		date;			/*
+	__le32		date;			/*
 						 * unsigned 	Month		:4;	// 1 - 12
 						 * unsigned 	Day		:6;	// 1 - 32
 						 * unsigned 	Hour		:6;	// 0 - 23
 						 * unsigned 	Minute		:6;	// 0 - 60
 						 * unsigned 	Second		:6;	// 0 - 60
 						 */
-	u32		serial[2];			/* e.g., 0x1DEADB0BFAFAF001 */
+	__le32		serial[2];			/* e.g., 0x1DEADB0BFAFAF001 */
 };
 
 
@@ -175,8 +201,8 @@ struct creation_info
  */
 
 struct aac_entry {
-	u32 size;          /* Size in bytes of Fib which this QE points to */
-	u32 addr; /* Receiver address of the FIB */
+	__le32 size; /* Size in bytes of Fib which this QE points to */
+	__le32 addr; /* Receiver address of the FIB */
 };
 
 /*
@@ -185,9 +211,10 @@ struct aac_entry {
  */
  
 struct aac_qhdr {
-	u64 header_addr;		/* Address to hand the adapter to access to this queue head */
-	u32 *producer;			/* The producer index for this queue (host address) */
-	u32 *consumer;			/* The consumer index for this queue (host address) */
+	__le64 header_addr;/* Address to hand the adapter to access 
+			      to this queue head */
+	__le32 *producer; /* The producer index for this queue (host address) */
+	__le32 *consumer; /* The consumer index for this queue (host address) */
 };
 
 /*
@@ -261,29 +288,30 @@ enum aac_queue_types {
  */
 
 struct aac_fibhdr {
-	u32 XferState;			// Current transfer state for this CCB
-	u16 Command;			// Routing information for the destination
-	u8 StructType;			// Type FIB
-	u8 Flags;			// Flags for FIB
-	u16 Size;			// Size of this FIB in bytes
-	u16 SenderSize;			// Size of the FIB in the sender (for response sizing)
-	u32 SenderFibAddress;		// Host defined data in the FIB
-	u32 ReceiverFibAddress;		// Logical address of this FIB for the adapter
-	u32 SenderData;			// Place holder for the sender to store data
+	__le32 XferState;	/* Current transfer state for this CCB */
+	__le16 Command;		/* Routing information for the destination */
+	u8 StructType;		/* Type FIB */
+	u8 Flags;		/* Flags for FIB */
+	__le16 Size;		/* Size of this FIB in bytes */
+	__le16 SenderSize;	/* Size of the FIB in the sender 
+				   (for response sizing) */
+	__le32 SenderFibAddress;  /* Host defined data in the FIB */
+	__le32 ReceiverFibAddress;/* Logical address of this FIB for 
+				     the adapter */
+	u32 SenderData;		/* Place holder for the sender to store data */
 	union {
 		struct {
-		    u32 _ReceiverTimeStart; 	// Timestamp for receipt of fib
-		    u32 _ReceiverTimeDone;	// Timestamp for completion of fib
+		    __le32 _ReceiverTimeStart; 	/* Timestamp for 
+						   receipt of fib */
+		    __le32 _ReceiverTimeDone;	/* Timestamp for 
+						   completion of fib */
 		} _s;
 	} _u;
 };
 
-#define FIB_DATA_SIZE_IN_BYTES (512 - sizeof(struct aac_fibhdr))
-
-
 struct hw_fib {
 	struct aac_fibhdr header;
-	u8 data[FIB_DATA_SIZE_IN_BYTES];		// Command specific data
+	u8 data[512-sizeof(struct aac_fibhdr)];	// Command specific data
 };
 
 /*
@@ -345,11 +373,12 @@ struct hw_fib {
 #define		RequestAdapterInfo		703
 #define		IsAdapterPaused			704
 #define		SendHostTime			705
-#define		LastMiscCommand			706
+#define		RequestSupplementAdapterInfo	706
+#define		LastMiscCommand			707
 
-//
-// Commands that will target the failover level on the FSA adapter
-//
+/*
+ * Commands that will target the failover level on the FSA adapter
+ */
 
 enum fib_xfer_state {
 	HostOwned 			= (1<<0),
@@ -382,22 +411,32 @@ enum fib_xfer_state {
  */
 
 #define ADAPTER_INIT_STRUCT_REVISION		3
+#define ADAPTER_INIT_STRUCT_REVISION_4		4 // rocket science
 
 struct aac_init
 {
-	u32	InitStructRevision;
-	u32	MiniPortRevision;
-	u32	fsrev;
-	u32	CommHeaderAddress;
-	u32	FastIoCommAreaAddress;
-	u32	AdapterFibsPhysicalAddress;
-	u32	AdapterFibsVirtualAddress;
-	u32	AdapterFibsSize;
-	u32	AdapterFibAlign;
-	u32	printfbuf;
-	u32	printfbufsiz;
-	u32	HostPhysMemPages;		// number of 4k pages of host physical memory
-	u32	HostElapsedSeconds;		// number of seconds since 1970.
+	__le32	InitStructRevision;
+	__le32	MiniPortRevision;
+	__le32	fsrev;
+	__le32	CommHeaderAddress;
+	__le32	FastIoCommAreaAddress;
+	__le32	AdapterFibsPhysicalAddress;
+	__le32	AdapterFibsVirtualAddress;
+	__le32	AdapterFibsSize;
+	__le32	AdapterFibAlign;
+	__le32	printfbuf;
+	__le32	printfbufsiz;
+	__le32	HostPhysMemPages;   /* number of 4k pages of host 
+				       physical memory */
+	__le32	HostElapsedSeconds; /* number of seconds since 1970. */
+	/*
+	 * ADAPTER_INIT_STRUCT_REVISION_4 begins here
+	 */
+	__le32	InitFlags;	/* flags for supported features */
+#define INITFLAGS_NEW_COMM_SUPPORTED	0x00000001
+	__le32	MaxIoCommands;	/* max outstanding commands */
+	__le32	MaxIoSize;	/* largest I/O command */
+	__le32	MaxFibSize;	/* largest FIB to adapter */
 };
 
 enum aac_log_level {
@@ -421,7 +460,7 @@ struct adapter_ops
 {
 	void (*adapter_interrupt)(struct aac_dev *dev);
 	void (*adapter_notify)(struct aac_dev *dev, u32 event);
-	int  (*adapter_sync_cmd)(struct aac_dev *dev, u32 command, u32 p1, u32 *status);
+	int  (*adapter_sync_cmd)(struct aac_dev *dev, u32 command, u32 p1, u32 p2, u32 p3, u32 p4, u32 p5, u32 p6, u32 *status, u32 *r1, u32 *r2, u32 *r3, u32 *r4);
 	int  (*adapter_check_health)(struct aac_dev *dev);
 };
 
@@ -541,6 +580,7 @@ struct sa_drawbridge_CSR {
 #define Mailbox3	SaDbCSR.MAILBOX3
 #define Mailbox4	SaDbCSR.MAILBOX4
 #define Mailbox5	SaDbCSR.MAILBOX5
+#define Mailbox6	SaDbCSR.MAILBOX6
 #define Mailbox7	SaDbCSR.MAILBOX7
 	
 #define DoorbellReg_p SaDbCSR.PRISETIRQ
@@ -763,28 +803,47 @@ struct fib {
  
 struct aac_adapter_info
 {
-	u32	platform;
-	u32	cpu;
-	u32	subcpu;
-	u32	clock;
-	u32	execmem;
-	u32	buffermem;
-	u32	totalmem;
-	u32	kernelrev;
-	u32	kernelbuild;
-	u32	monitorrev;
-	u32	monitorbuild;
-	u32	hwrev;
-	u32	hwbuild;
-	u32	biosrev;
-	u32	biosbuild;
-	u32	cluster;
-	u32	clusterchannelmask; 
-	u32	serial[2];
-	u32	battery;
-	u32	options;
-	u32	OEM;
+	__le32	platform;
+	__le32	cpu;
+	__le32	subcpu;
+	__le32	clock;
+	__le32	execmem;
+	__le32	buffermem;
+	__le32	totalmem;
+	__le32	kernelrev;
+	__le32	kernelbuild;
+	__le32	monitorrev;
+	__le32	monitorbuild;
+	__le32	hwrev;
+	__le32	hwbuild;
+	__le32	biosrev;
+	__le32	biosbuild;
+	__le32	cluster;
+	__le32	clusterchannelmask; 
+	__le32	serial[2];
+	__le32	battery;
+	__le32	options;
+	__le32	OEM;
 };
+
+struct aac_supplement_adapter_info
+{
+	u8	AdapterTypeText[17+1];
+	u8	Pad[2];
+	__le32	FlashMemoryByteSize;
+	__le32	FlashImageId;
+	__le32	MaxNumberPorts;
+	__le32	Version;
+	__le32	FeatureBits;
+	u8	SlotNumber;
+	u8	ReservedPad0[0];
+	u8	BuildDate[12];
+	__le32	CurrentNumberPorts;
+	__le32	ReservedGrowth[24];
+};
+#define AAC_FEATURE_FALCON	0x00000010
+#define AAC_SIS_VERSION_V3	3
+#define AAC_SIS_SLOT_UNKNOWN	0xFF
 
 /*
  * Battery platforms
@@ -830,6 +889,12 @@ struct aac_dev
 	int			id;
 
 	u16			irq_mask;
+	/*
+	 *	negotiated FIB settings
+	 */
+	unsigned		max_fib_size;
+	unsigned		sg_tablesize;
+
 	/*
 	 *	Map for 128 fib objects (64k)
 	 */	
@@ -889,12 +954,14 @@ struct aac_dev
 	u32			aif_thread;
 	struct completion	aif_completion;
 	struct aac_adapter_info adapter_info;
+	struct aac_supplement_adapter_info supplement_adapter_info;
 	/* These are in adapter info but they are in the io flow so
 	 * lets break them out so we don't have to do an AND to check them
 	 */
 	u8			nondasd_support; 
 	u8			dac_support;
 	u8			raid_scsi_mode;
+	u8			printf_enabled;
 };
 
 #define aac_adapter_interrupt(dev) \
@@ -903,6 +970,8 @@ struct aac_dev
 #define aac_adapter_notify(dev, event) \
 	(dev)->a_ops.adapter_notify(dev, event)
 
+#define aac_adapter_sync_cmd(dev, command, p1, p2, p3, p4, p5, p6, status, r1, r2, r3, r4) \
+	(dev)->a_ops.adapter_sync_cmd(dev, command, p1, p2, p3, p4, p5, p6, status, r1, r2, r3, r4)
 
 #define aac_adapter_check_health(dev) \
 	(dev)->a_ops.adapter_check_health(dev)
@@ -1016,82 +1085,101 @@ struct aac_dev
 
 struct aac_read
 {
-	u32	 	command;
-	u32 		cid;
-	u32 		block;
-	u32 		count;
+	__le32	 	command;
+	__le32 		cid;
+	__le32 		block;
+	__le32 		count;
 	struct sgmap	sg;	// Must be last in struct because it is variable
 };
 
 struct aac_read64
 {
-	u32	 	command;
-	u16 		cid;
-	u16 		sector_count;
-	u32 		block;
-	u16		pad;
-	u16		flags;
+	__le32	 	command;
+	__le16 		cid;
+	__le16 		sector_count;
+	__le32 		block;
+	__le16		pad;
+	__le16		flags;
 	struct sgmap64	sg;	// Must be last in struct because it is variable
 };
 
 struct aac_read_reply
 {
-	u32	 	status;
-	u32 		count;
+	__le32	 	status;
+	__le32 		count;
 };
 
 struct aac_write
 {
-	u32		command;
-	u32 		cid;
-	u32 		block;
-	u32 		count;
-	u32	 	stable;	// Not used
+	__le32		command;
+	__le32 		cid;
+	__le32 		block;
+	__le32 		count;
+	__le32	 	stable;	// Not used
 	struct sgmap	sg;	// Must be last in struct because it is variable
 };
 
 struct aac_write64
 {
-	u32	 	command;
-	u16 		cid;
-	u16 		sector_count;
-	u32 		block;
-	u16		pad;
-	u16		flags;
+	__le32	 	command;
+	__le16 		cid;
+	__le16 		sector_count;
+	__le32 		block;
+	__le16		pad;
+	__le16		flags;
 	struct sgmap64	sg;	// Must be last in struct because it is variable
 };
 struct aac_write_reply
 {
-	u32		status;
-	u32 		count;
-	u32		committed;
+	__le32		status;
+	__le32 		count;
+	__le32		committed;
 };
 
 #define CT_FLUSH_CACHE 129
 struct aac_synchronize {
-	u32		command;	/* VM_ContainerConfig */
-	u32		type;		/* CT_FLUSH_CACHE */
-	u32		cid;
-	u32		parm1;
-	u32		parm2;
-	u32		parm3;
-	u32		parm4;
-	u32		count;	/* sizeof(((struct aac_synchronize_reply *)NULL)->data) */
+	__le32		command;	/* VM_ContainerConfig */
+	__le32		type;		/* CT_FLUSH_CACHE */
+	__le32		cid;
+	__le32		parm1;
+	__le32		parm2;
+	__le32		parm3;
+	__le32		parm4;
+	__le32		count;	/* sizeof(((struct aac_synchronize_reply *)NULL)->data) */
 };
 
 struct aac_synchronize_reply {
-	u32		dummy0;
-	u32		dummy1;
-	u32		status;	/* CT_OK */
-	u32		parm1;
-	u32		parm2;
-	u32		parm3;
-	u32		parm4;
-	u32		parm5;
+	__le32		dummy0;
+	__le32		dummy1;
+	__le32		status;	/* CT_OK */
+	__le32		parm1;
+	__le32		parm2;
+	__le32		parm3;
+	__le32		parm4;
+	__le32		parm5;
 	u8		data[16];
 };
 
 struct aac_srb
+{
+	__le32		function;
+	__le32		channel;
+	__le32		id;
+	__le32		lun;
+	__le32		timeout;
+	__le32		flags;
+	__le32		count;		// Data xfer size
+	__le32		retry_limit;
+	__le32		cdb_size;
+	u8		cdb[16];
+	struct	sgmap	sg;
+};
+
+/*
+ * This and assocated data structs are used by the 
+ * ioctl caller and are in cpu order.
+ */
+struct user_aac_srb
 {
 	u32		function;
 	u32		channel;
@@ -1103,20 +1191,18 @@ struct aac_srb
 	u32		retry_limit;
 	u32		cdb_size;
 	u8		cdb[16];
-	struct	sgmap	sg;
+	struct	user_sgmap	sg;
 };
-
-
 
 #define		AAC_SENSE_BUFFERSIZE	 30
 
 struct aac_srb_reply
 {
-	u32		status;
-	u32		srb_status;
-	u32		scsi_status;
-	u32		data_xfer_length;
-	u32		sense_data_size;
+	__le32		status;
+	__le32		srb_status;
+	__le32		scsi_status;
+	__le32		data_xfer_length;
+	__le32		sense_data_size;
 	u8		sense_data[AAC_SENSE_BUFFERSIZE]; // Can this be SCSI_SENSE_BUFFERSIZE
 };
 /*
@@ -1223,14 +1309,14 @@ struct aac_srb_reply
  */
 
 struct aac_fsinfo {
-	u32  fsTotalSize;	/* Consumed by fs, incl. metadata */
-	u32  fsBlockSize;
-	u32  fsFragSize;
-	u32  fsMaxExtendSize;
-	u32  fsSpaceUnits;
-	u32  fsMaxNumFiles;
-	u32  fsNumFreeFiles;
-	u32  fsInodeDensity;
+	__le32  fsTotalSize;	/* Consumed by fs, incl. metadata */
+	__le32  fsBlockSize;
+	__le32  fsFragSize;
+	__le32  fsMaxExtendSize;
+	__le32  fsSpaceUnits;
+	__le32  fsMaxNumFiles;
+	__le32  fsNumFreeFiles;
+	__le32  fsInodeDensity;
 };	/* valid iff ObjType == FT_FILESYS && !(ContentState & FSCS_NOTCLEAN) */
 
 union aac_contentinfo {
@@ -1243,32 +1329,32 @@ union aac_contentinfo {
 
 #define CT_GET_CONFIG_STATUS 147
 struct aac_get_config_status {
-	u32		command;	/* VM_ContainerConfig */
-	u32		type;		/* CT_GET_CONFIG_STATUS */
-	u32		parm1;
-	u32		parm2;
-	u32		parm3;
-	u32		parm4;
-	u32		parm5;
-	u32		count;	/* sizeof(((struct aac_get_config_status_resp *)NULL)->data) */
+	__le32		command;	/* VM_ContainerConfig */
+	__le32		type;		/* CT_GET_CONFIG_STATUS */
+	__le32		parm1;
+	__le32		parm2;
+	__le32		parm3;
+	__le32		parm4;
+	__le32		parm5;
+	__le32		count;	/* sizeof(((struct aac_get_config_status_resp *)NULL)->data) */
 };
 
 #define CFACT_CONTINUE 0
 #define CFACT_PAUSE    1
 #define CFACT_ABORT    2
 struct aac_get_config_status_resp {
-	u32		response; /* ST_OK */
-	u32		dummy0;
-	u32		status;	/* CT_OK */
-	u32		parm1;
-	u32		parm2;
-	u32		parm3;
-	u32		parm4;
-	u32		parm5;
+	__le32		response; /* ST_OK */
+	__le32		dummy0;
+	__le32		status;	/* CT_OK */
+	__le32		parm1;
+	__le32		parm2;
+	__le32		parm3;
+	__le32		parm4;
+	__le32		parm5;
 	struct {
-		u32	action; /* CFACT_CONTINUE, CFACT_PAUSE or CFACT_ABORT */
-		u16	flags;
-		s16	count;
+		__le32	action; /* CFACT_CONTINUE, CFACT_PAUSE or CFACT_ABORT */
+		__le16	flags;
+		__le16	count;
 	}		data;
 };
 
@@ -1279,26 +1365,26 @@ struct aac_get_config_status_resp {
 #define CT_COMMIT_CONFIG 152
 
 struct aac_commit_config {
-	u32		command;	/* VM_ContainerConfig */
-	u32		type;		/* CT_COMMIT_CONFIG */
+	__le32		command;	/* VM_ContainerConfig */
+	__le32		type;		/* CT_COMMIT_CONFIG */
 };
 
 /*
- *	Query for Container Configuration Count
+ *	Query for Container Configuration Status
  */
 
 #define CT_GET_CONTAINER_COUNT 4
 struct aac_get_container_count {
-	u32		command;	/* VM_ContainerConfig */
-	u32		type;		/* CT_GET_CONTAINER_COUNT */
+	__le32		command;	/* VM_ContainerConfig */
+	__le32		type;		/* CT_GET_CONTAINER_COUNT */
 };
 
 struct aac_get_container_count_resp {
-	u32		response; /* ST_OK */
-	u32		dummy0;
-	u32		MaxContainers;
-	u32		ContainerSwitchEntries;
-	u32		MaxPartitions;
+	__le32		response; /* ST_OK */
+	__le32		dummy0;
+	__le32		MaxContainers;
+	__le32		ContainerSwitchEntries;
+	__le32		MaxPartitions;
 };
 
 
@@ -1308,15 +1394,19 @@ struct aac_get_container_count_resp {
  */
 
 struct aac_mntent {
-	u32    			oid;
-	u8			name[16];	// if applicable
-	struct creation_info	create_info;	// if applicable
-	u32			capacity;
-	u32			vol;    	// substrate structure
-	u32			obj;	        // FT_FILESYS, FT_DATABASE, etc.
-	u32			state;		// unready for mounting, readonly, etc.
-	union aac_contentinfo	fileinfo;	// Info specific to content manager (eg, filesystem)
-	u32			altoid;		// != oid <==> snapshot or broken mirror exists
+	__le32    		oid;
+	u8			name[16];	/* if applicable */
+	struct creation_info	create_info;	/* if applicable */
+	__le32			capacity;
+	__le32			vol;    	/* substrate structure */
+	__le32			obj;	        /* FT_FILESYS, 
+						   FT_DATABASE, etc. */
+	__le32			state;		/* unready for mounting, 
+						   readonly, etc. */
+	union aac_contentinfo	fileinfo;	/* Info specific to content 
+						   manager (eg, filesystem) */
+	__le32			altoid;		/* != oid <==> snapshot or 
+						   broken mirror exists */
 };
 
 #define FSCS_NOTCLEAN	0x0001  /* fsck is neccessary before mounting */
@@ -1324,40 +1414,40 @@ struct aac_mntent {
 #define FSCS_HIDDEN	0x0004	/* should be ignored - set during a clear */
 
 struct aac_query_mount {
-	u32		command;
-	u32		type;
-	u32		count;
+	__le32		command;
+	__le32		type;
+	__le32		count;
 };
 
 struct aac_mount {
-	u32		status;
-	u32	   	type;           /* should be same as that requested */
-	u32		count;
+	__le32		status;
+	__le32	   	type;           /* should be same as that requested */
+	__le32		count;
 	struct aac_mntent mnt[1];
 };
 
 #define CT_READ_NAME 130
 struct aac_get_name {
-	u32		command;	/* VM_ContainerConfig */
-	u32		type;		/* CT_READ_NAME */
-	u32		cid;
-	u32		parm1;
-	u32		parm2;
-	u32		parm3;
-	u32		parm4;
-	u32		count;	/* sizeof(((struct aac_get_name_resp *)NULL)->data) */
+	__le32		command;	/* VM_ContainerConfig */
+	__le32		type;		/* CT_READ_NAME */
+	__le32		cid;
+	__le32		parm1;
+	__le32		parm2;
+	__le32		parm3;
+	__le32		parm4;
+	__le32		count;	/* sizeof(((struct aac_get_name_resp *)NULL)->data) */
 };
 
 #define CT_OK        218
 struct aac_get_name_resp {
-	u32		dummy0;
-	u32		dummy1;
-	u32		status;	/* CT_OK */
-	u32		parm1;
-	u32		parm2;
-	u32		parm3;
-	u32		parm4;
-	u32		parm5;
+	__le32		dummy0;
+	__le32		dummy1;
+	__le32		status;	/* CT_OK */
+	__le32		parm1;
+	__le32		parm2;
+	__le32		parm3;
+	__le32		parm4;
+	__le32		parm5;
 	u8		data[16];
 };
 
@@ -1366,8 +1456,8 @@ struct aac_get_name_resp {
  */
 
 struct aac_close {
-	u32	command;
-	u32	cid;
+	__le32	command;
+	__le32	cid;
 };
 
 struct aac_query_disk
@@ -1434,6 +1524,7 @@ struct revision
 #define FSACTL_GET_PCI_INFO               	CTL_CODE(2119, METHOD_BUFFERED)
 #define FSACTL_FORCE_DELETE_DISK		CTL_CODE(2120, METHOD_NEITHER)
 #define FSACTL_GET_CONTAINERS			2131
+#define FSACTL_SEND_LARGE_FIB			CTL_CODE(2138, METHOD_BUFFERED)
 
 
 struct aac_common
@@ -1573,8 +1664,8 @@ extern struct aac_common aac_config;
  */
 
 struct aac_aifcmd {
-	u32 command;		/* Tell host what type of notify this is */
-	u32 seqnum;		/* To allow ordering of reports (if necessary) */
+	__le32 command;		/* Tell host what type of notify this is */
+	__le32 seqnum;		/* To allow ordering of reports (if necessary) */
 	u8 data[1];		/* Undefined length (from kernel viewpoint) */
 };
 
@@ -1597,7 +1688,6 @@ int fib_setup(struct aac_dev *dev);
 void fib_map_free(struct aac_dev *dev);
 void fib_free(struct fib * context);
 void fib_init(struct fib * context);
-void fib_dealloc(struct fib * context);
 void aac_printf(struct aac_dev *dev, u32 val);
 int fib_send(u16 command, struct fib * context, unsigned long size, int priority, int wait, int reply, fib_callback callback, void *ctxt);
 int aac_consumer_get(struct aac_dev * dev, struct aac_queue * q, struct aac_entry **entry);
@@ -1621,3 +1711,5 @@ int fib_adapter_complete(struct fib * fibptr, unsigned short size);
 struct aac_driver_ident* aac_get_driver_ident(int devtype);
 int aac_get_adapter_info(struct aac_dev* dev);
 int aac_send_shutdown(struct aac_dev *dev);
+extern int numacb;
+extern int acbsize;

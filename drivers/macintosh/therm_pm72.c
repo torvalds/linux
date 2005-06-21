@@ -685,7 +685,7 @@ static void fetch_cpu_pumps_minmax(void)
  * the input twice... I accept patches :)
  */
 #define BUILD_SHOW_FUNC_FIX(name, data)				\
-static ssize_t show_##name(struct device *dev, char *buf)	\
+static ssize_t show_##name(struct device *dev, struct device_attribute *attr, char *buf)	\
 {								\
 	ssize_t r;						\
 	down(&driver_lock);					\
@@ -694,7 +694,7 @@ static ssize_t show_##name(struct device *dev, char *buf)	\
 	return r;						\
 }
 #define BUILD_SHOW_FUNC_INT(name, data)				\
-static ssize_t show_##name(struct device *dev, char *buf)	\
+static ssize_t show_##name(struct device *dev, struct device_attribute *attr, char *buf)	\
 {								\
 	return sprintf(buf, "%d", data);			\
 }

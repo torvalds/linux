@@ -41,7 +41,7 @@ struct dma_page {	/* cacheable header for 'allocation' bytes */
 static DECLARE_MUTEX (pools_lock);
 
 static ssize_t
-show_pools (struct device *dev, char *buf)
+show_pools (struct device *dev, struct device_attribute *attr, char *buf)
 {
 	unsigned temp;
 	unsigned size;

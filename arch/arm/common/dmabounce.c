@@ -30,6 +30,8 @@
 #include <linux/dmapool.h>
 #include <linux/list.h>
 
+#include <asm/cacheflush.h>
+
 #undef DEBUG
 
 #undef STATS
@@ -302,12 +304,24 @@ unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 
 		DO_STATS ( device_info->bounce_count++ );
 
-		if ((dir == DMA_FROM_DEVICE) ||
-		    (dir == DMA_BIDIRECTIONAL)) {
+		if (dir == DMA_FROM_DEVICE || dir == DMA_BIDIRECTIONAL) {
+			unsigned long ptr;
+
 			dev_dbg(dev,
 				"%s: copy back safe %p to unsafe %p size %d\n",
 				__func__, buf->safe, buf->ptr, size);
 			memcpy(buf->ptr, buf->safe, size);
+
+			/*
+			 * DMA buffers must have the same cache properties
+			 * as if they were really used for DMA - which means
+			 * data must be written back to RAM.  Note that
+			 * we don't use dmac_flush_range() here for the
+			 * bidirectional case because we know the cache
+			 * lines will be coherent with the data written.
+			 */
+			ptr = (unsigned long)buf->ptr;
+			dmac_clean_range(ptr, ptr + size);
 		}
 		free_safe_buffer(device_info, buf);
 	}

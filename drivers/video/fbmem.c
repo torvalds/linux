@@ -1040,7 +1040,7 @@ static struct file_operations fb_fops = {
 #endif
 };
 
-static struct class_simple *fb_class;
+static struct class *fb_class;
 
 /**
  *	register_framebuffer - registers a frame buffer device
@@ -1066,7 +1066,7 @@ register_framebuffer(struct fb_info *fb_info)
 			break;
 	fb_info->node = i;
 
-	fb_info->class_device = class_simple_device_add(fb_class, MKDEV(FB_MAJOR, i),
+	fb_info->class_device = class_device_create(fb_class, MKDEV(FB_MAJOR, i),
 				    fb_info->device, "fb%d", i);
 	if (IS_ERR(fb_info->class_device)) {
 		/* Not fatal */
@@ -1134,7 +1134,7 @@ unregister_framebuffer(struct fb_info *fb_info)
 	registered_fb[i]=NULL;
 	num_registered_fb--;
 	fb_cleanup_class_device(fb_info);
-	class_simple_device_remove(MKDEV(FB_MAJOR, i));
+	class_device_destroy(fb_class, MKDEV(FB_MAJOR, i));
 	return 0;
 }
 
@@ -1197,7 +1197,7 @@ fbmem_init(void)
 	if (register_chrdev(FB_MAJOR,"fb",&fb_fops))
 		printk("unable to get major %d for fb devs\n", FB_MAJOR);
 
-	fb_class = class_simple_create(THIS_MODULE, "graphics");
+	fb_class = class_create(THIS_MODULE, "graphics");
 	if (IS_ERR(fb_class)) {
 		printk(KERN_WARNING "Unable to create fb class; errno = %ld\n", PTR_ERR(fb_class));
 		fb_class = NULL;
@@ -1210,7 +1210,7 @@ module_init(fbmem_init);
 static void __exit
 fbmem_exit(void)
 {
-	class_simple_destroy(fb_class);
+	class_destroy(fb_class);
 }
 
 module_exit(fbmem_exit);

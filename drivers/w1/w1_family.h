@@ -34,10 +34,10 @@
 
 struct w1_family_ops
 {
-	ssize_t (* rname)(struct device *, char *);
+	ssize_t (* rname)(struct device *, struct device_attribute *, char *);
 	ssize_t (* rbin)(struct kobject *, char *, loff_t, size_t);
 	
-	ssize_t (* rval)(struct device *, char *);
+	ssize_t (* rval)(struct device *, struct device_attribute *, char *);
 	unsigned char rvalname[MAXNAMELEN];
 };
 

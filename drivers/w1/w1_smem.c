@@ -36,8 +36,8 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Evgeniy Polyakov <johnpol@2ka.mipt.ru>");
 MODULE_DESCRIPTION("Driver for 1-wire Dallas network protocol, 64bit memory family.");
 
-static ssize_t w1_smem_read_name(struct device *, char *);
-static ssize_t w1_smem_read_val(struct device *, char *);
+static ssize_t w1_smem_read_name(struct device *, struct device_attribute *attr, char *);
+static ssize_t w1_smem_read_val(struct device *, struct device_attribute *attr, char *);
 static ssize_t w1_smem_read_bin(struct kobject *, char *, loff_t, size_t);
 
 static struct w1_family_ops w1_smem_fops = {
@@ -47,14 +47,14 @@ static struct w1_family_ops w1_smem_fops = {
 	.rvalname = "id",
 };
 
-static ssize_t w1_smem_read_name(struct device *dev, char *buf)
+static ssize_t w1_smem_read_name(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct w1_slave *sl = container_of(dev, struct w1_slave, dev);
 
 	return sprintf(buf, "%s\n", sl->name);
 }
 
-static ssize_t w1_smem_read_val(struct device *dev, char *buf)
+static ssize_t w1_smem_read_val(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct w1_slave *sl = container_of(dev, struct w1_slave, dev);
 	int i;

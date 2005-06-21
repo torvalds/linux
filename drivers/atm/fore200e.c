@@ -383,8 +383,7 @@ fore200e_shutdown(struct fore200e* fore200e)
     switch(fore200e->state) {
 
     case FORE200E_STATE_COMPLETE:
-	if (fore200e->stats)
-	    kfree(fore200e->stats);
+	kfree(fore200e->stats);
 
     case FORE200E_STATE_IRQ:
 	free_irq(fore200e->irq, fore200e->atm_dev);
@@ -963,8 +962,7 @@ fore200e_tx_irq(struct fore200e* fore200e)
 		entry, txq->tail, entry->vc_map, entry->skb);
 
 	/* free copy of misaligned data */
-	if (entry->data)
-	    kfree(entry->data);
+	kfree(entry->data);
 	
 	/* remove DMA mapping */
 	fore200e->bus->dma_unmap(fore200e, entry->tpd->tsd[ 0 ].buffer, entry->tpd->tsd[ 0 ].length,

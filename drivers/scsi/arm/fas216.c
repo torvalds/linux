@@ -2659,6 +2659,8 @@ int fas216_eh_host_reset(Scsi_Cmnd *SCpnt)
 {
 	FAS216_Info *info = (FAS216_Info *)SCpnt->device->host->hostdata;
 
+	spin_lock_irq(info->host->host_lock);
+
 	fas216_checkmagic(info);
 
 	printk("scsi%d.%c: %s: resetting host\n",
@@ -2686,6 +2688,7 @@ int fas216_eh_host_reset(Scsi_Cmnd *SCpnt)
 
 	fas216_init_chip(info);
 
+	spin_unlock_irq(info->host->host_lock);
 	return SUCCESS;
 }
 

@@ -1695,8 +1695,6 @@ static int twa_scsi_eh_reset(struct scsi_cmnd *SCpnt)
 
 	tw_dev = (TW_Device_Extension *)SCpnt->device->host->hostdata;
 
-	spin_unlock_irq(tw_dev->host->host_lock);
-
 	tw_dev->num_resets++;
 
 	printk(KERN_WARNING "3w-9xxx: scsi%d: WARNING: (0x%02X:0x%04X): Unit #%d: Command (0x%x) timed out, resetting card.\n", tw_dev->host->host_no, TW_DRIVER, 0x2c, SCpnt->device->id, SCpnt->cmnd[0]);
@@ -1709,7 +1707,6 @@ static int twa_scsi_eh_reset(struct scsi_cmnd *SCpnt)
 
 	retval = SUCCESS;
 out:
-	spin_lock_irq(tw_dev->host->host_lock);
 	return retval;
 } /* End twa_scsi_eh_reset() */
 

@@ -486,8 +486,11 @@ static int eata_pio_host_reset(struct scsi_cmnd *cmd)
 
 	DBG(DBG_ABNORM, printk(KERN_WARNING "eata_pio_reset called pid:%ld target:" " %x lun: %x reason %x\n", cmd->pid, cmd->device->id, cmd->device->lun, cmd->abort_reason));
 
+	spin_lock_irq(host->host_lock);
+
 	if (HD(cmd)->state == RESET) {
 		printk(KERN_WARNING "eata_pio_reset: exit, already in reset.\n");
+		spin_unlock_irq(host->host_lock);
 		return FAILED;
 	}
 
@@ -535,6 +538,8 @@ static int eata_pio_host_reset(struct scsi_cmnd *cmd)
 	}
 
 	HD(cmd)->state = 0;
+
+	spin_unlock_irq(host->host_lock);
 
 	if (success) {		/* hmmm... */
 		DBG(DBG_ABNORM, printk(KERN_WARNING "eata_pio_reset: exit, success.\n"));

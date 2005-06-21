@@ -233,13 +233,11 @@ static int command_abort(struct scsi_cmnd *srb)
 		set_bit(US_FLIDX_ABORTING, &us->flags);
 		usb_stor_stop_transport(us);
 	}
-	scsi_unlock(us_to_host(us));
 
 	/* Wait for the aborted command to finish */
 	wait_for_completion(&us->notify);
 
 	/* Reacquire the lock and allow USB transfers to resume */
-	scsi_lock(us_to_host(us));
 	clear_bit(US_FLIDX_ABORTING, &us->flags);
 	clear_bit(US_FLIDX_TIMED_OUT, &us->flags);
 	return SUCCESS;
@@ -255,8 +253,6 @@ static int device_reset(struct scsi_cmnd *srb)
 
 	US_DEBUGP("%s called\n", __FUNCTION__);
 
-	scsi_unlock(us_to_host(us));
-
 	/* lock the device pointers and do the reset */
 	down(&(us->dev_semaphore));
 	if (test_bit(US_FLIDX_DISCONNECTING, &us->flags)) {
@@ -266,8 +262,6 @@ static int device_reset(struct scsi_cmnd *srb)
 		result = us->transport_reset(us);
 	up(&(us->dev_semaphore));
 
-	/* lock the host for the return */
-	scsi_lock(us_to_host(us));
 	return result;
 }
 
@@ -281,8 +275,6 @@ static int bus_reset(struct scsi_cmnd *srb)
 	int result, rc;
 
 	US_DEBUGP("%s called\n", __FUNCTION__);
-
-	scsi_unlock(us_to_host(us));
 
 	/* The USB subsystem doesn't handle synchronisation between
 	 * a device's several drivers. Therefore we reset only devices
@@ -310,7 +302,6 @@ static int bus_reset(struct scsi_cmnd *srb)
 	up(&(us->dev_semaphore));
 
 	/* lock the host for the return */
-	scsi_lock(us_to_host(us));
 	return result < 0 ? FAILED : SUCCESS;
 }
 
@@ -407,7 +398,7 @@ US_DO_ALL_FLAGS
  ***********************************************************************/
 
 /* Output routine for the sysfs max_sectors file */
-static ssize_t show_max_sectors(struct device *dev, char *buf)
+static ssize_t show_max_sectors(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct scsi_device *sdev = to_scsi_device(dev);
 
@@ -415,7 +406,7 @@ static ssize_t show_max_sectors(struct device *dev, char *buf)
 }
 
 /* Input routine for the sysfs max_sectors file */
-static ssize_t store_max_sectors(struct device *dev, const char *buf,
+static ssize_t store_max_sectors(struct device *dev, struct device_attribute *attr, const char *buf,
 		size_t count)
 {
 	struct scsi_device *sdev = to_scsi_device(dev);

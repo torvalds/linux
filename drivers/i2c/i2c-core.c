@@ -103,7 +103,7 @@ static struct class i2c_adapter_class = {
 	.release =	&i2c_adapter_class_dev_release,
 };
 
-static ssize_t show_adapter_name(struct device *dev, char *buf)
+static ssize_t show_adapter_name(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct i2c_adapter *adap = dev_to_i2c_adapter(dev);
 	return sprintf(buf, "%s\n", adap->name);
@@ -117,7 +117,7 @@ static void i2c_client_release(struct device *dev)
 	complete(&client->released);
 }
 
-static ssize_t show_client_name(struct device *dev, char *buf)
+static ssize_t show_client_name(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	return sprintf(buf, "%s\n", client->name);

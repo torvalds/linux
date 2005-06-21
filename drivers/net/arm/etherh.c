@@ -68,6 +68,7 @@ struct etherh_priv {
 	void __iomem	*dma_base;
 	unsigned int	id;
 	void __iomem	*ctrl_port;
+	void __iomem	*base;
 	unsigned char	ctrl;
 	u32		supported;
 };
@@ -177,7 +178,7 @@ etherh_setif(struct net_device *dev)
 	switch (etherh_priv(dev)->id) {
 	case PROD_I3_ETHERLAN600:
 	case PROD_I3_ETHERLAN600A:
-		addr = (void *)dev->base_addr + EN0_RCNTHI;
+		addr = etherh_priv(dev)->base + EN0_RCNTHI;
 
 		switch (dev->if_port) {
 		case IF_PORT_10BASE2:
@@ -218,7 +219,7 @@ etherh_getifstat(struct net_device *dev)
 	switch (etherh_priv(dev)->id) {
 	case PROD_I3_ETHERLAN600:
 	case PROD_I3_ETHERLAN600A:
-		addr = (void *)dev->base_addr + EN0_RCNTHI;
+		addr = etherh_priv(dev)->base + EN0_RCNTHI;
 		switch (dev->if_port) {
 		case IF_PORT_10BASE2:
 			stat = 1;
@@ -281,7 +282,7 @@ static void
 etherh_reset(struct net_device *dev)
 {
 	struct ei_device *ei_local = netdev_priv(dev);
-	void __iomem *addr = (void *)dev->base_addr;
+	void __iomem *addr = etherh_priv(dev)->base;
 
 	writeb(E8390_NODMA+E8390_PAGE0+E8390_STOP, addr);
 
@@ -327,7 +328,7 @@ etherh_block_output (struct net_device *dev, int count, const unsigned char *buf
 
 	ei_local->dmaing = 1;
 
-	addr = (void *)dev->base_addr;
+	addr = etherh_priv(dev)->base;
 	dma_base = etherh_priv(dev)->dma_base;
 
 	count = (count + 1) & ~1;
@@ -387,7 +388,7 @@ etherh_block_input (struct net_device *dev, int count, struct sk_buff *skb, int 
 
 	ei_local->dmaing = 1;
 
-	addr = (void *)dev->base_addr;
+	addr = etherh_priv(dev)->base;
 	dma_base = etherh_priv(dev)->dma_base;
 
 	buf = skb->data;
@@ -427,7 +428,7 @@ etherh_get_header (struct net_device *dev, struct e8390_pkt_hdr *hdr, int ring_p
 
 	ei_local->dmaing = 1;
 
-	addr = (void *)dev->base_addr;
+	addr = etherh_priv(dev)->base;
 	dma_base = etherh_priv(dev)->dma_base;
 
 	writeb (E8390_NODMA | E8390_PAGE0 | E8390_START, addr + E8390_CMD);
@@ -696,7 +697,8 @@ etherh_probe(struct expansion_card *ec, const struct ecard_id *id)
 		eh->ctrl_port = eh->ioc_fast;
 	}
 
-	dev->base_addr = (unsigned long)eh->memc + data->ns8390_offset;
+	eh->base = eh->memc + data->ns8390_offset;
+	dev->base_addr = (unsigned long)eh->base;
 	eh->dma_base = eh->memc + data->dataport_offset;
 	eh->ctrl_port += data->ctrlport_offset;
 
