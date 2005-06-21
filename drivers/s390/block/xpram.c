@@ -466,7 +466,6 @@ static int __init xpram_setup_blkdev(void)
 		disk->private_data = &xpram_devices[i];
 		disk->queue = xpram_queue;
 		sprintf(disk->disk_name, "slram%d", i);
-		sprintf(disk->devfs_name, "slram/%d", i);
 		set_capacity(disk, xpram_sizes[i] << 1);
 		add_disk(disk);
 	}

@@ -1695,7 +1695,6 @@ static int __init sjcd_init(void)
 	sjcd_disk->first_minor = 0,
 	sjcd_disk->fops = &sjcd_fops,
 	sprintf(sjcd_disk->disk_name, "sjcd");
-	sprintf(sjcd_disk->devfs_name, "sjcd");
 
 	if (!request_region(sjcd_base, 4,"sjcd")) {
 		printk

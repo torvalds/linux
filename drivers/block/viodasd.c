@@ -523,8 +523,6 @@ retry:
 	else
 		snprintf(g->disk_name, sizeof(g->disk_name),
 				VIOD_GENHD_NAME "%c", 'a' + (dev_no % 26));
-	snprintf(g->devfs_name, sizeof(g->devfs_name),
-			"%s%d", VIOD_GENHD_DEVFS_NAME, dev_no);
 	g->fops = &viodasd_fops;
 	g->queue = q;
 	g->private_data = d;

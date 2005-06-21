@@ -112,8 +112,6 @@ struct gendisk {
 	sector_t capacity;
 
 	int flags;
-	char devfs_name[64];		/* devfs crap */
-	int number;			/* more of the same */
 	struct device *driverfs_dev;
 	struct kobject kobj;
 	struct kobject *holder_dir;

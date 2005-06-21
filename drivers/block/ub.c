@@ -28,7 +28,6 @@
 #include <scsi/scsi.h>
 
 #define DRV_NAME "ub"
-#define DEVFS_NAME DRV_NAME
 
 #define UB_MAJOR 180
 
@@ -2290,7 +2289,6 @@ static int ub_probe_lun(struct ub_dev *sc, int lnum)
 		goto err_diskalloc;
 
 	sprintf(disk->disk_name, DRV_NAME "%c", lun->id + 'a');
-	sprintf(disk->devfs_name, DEVFS_NAME "/%c", lun->id + 'a');
 	disk->major = UB_MAJOR;
 	disk->first_minor = lun->id * UB_PARTS_PER_LUN;
 	disk->fops = &ub_bd_fops;

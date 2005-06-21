@@ -1061,7 +1061,6 @@ int swim3_init(void)
 		disk->queue = swim3_queue;
 		disk->flags |= GENHD_FL_REMOVABLE;
 		sprintf(disk->disk_name, "fd%d", i);
-		sprintf(disk->devfs_name, "floppy/%d", i);
 		set_capacity(disk, 2880);
 		add_disk(disk);
 	}

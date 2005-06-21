@@ -1293,7 +1293,6 @@ static int __init loop_init(void)
 		disk->first_minor = i;
 		disk->fops = &lo_fops;
 		sprintf(disk->disk_name, "loop%d", i);
-		sprintf(disk->devfs_name, "loop/%d", i);
 		disk->private_data = lo;
 		disk->queue = lo->lo_queue;
 	}

@@ -421,7 +421,6 @@ static int __init ps2esdi_geninit(void)
 		disk->major = PS2ESDI_MAJOR;
 		disk->first_minor = i<<6;
 		sprintf(disk->disk_name, "ed%c", 'a'+i);
-		sprintf(disk->devfs_name, "ed/target%d", i);
 		disk->fops = &ps2esdi_fops;
 		ps2esdi_gendisk[i] = disk;
 	}

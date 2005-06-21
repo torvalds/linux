@@ -637,14 +637,10 @@ static int ubd_new_disk(int major, u64 size, int unit,
 	disk->first_minor = unit << UBD_SHIFT;
 	disk->fops = &ubd_blops;
 	set_capacity(disk, size / 512);
-	if(major == MAJOR_NR){
+	if(major == MAJOR_NR)
 		sprintf(disk->disk_name, "ubd%c", 'a' + unit);
-		sprintf(disk->devfs_name, "ubd/disc%d", unit);
-	}
-	else {
+	else
 		sprintf(disk->disk_name, "ubd_fake%d", unit);
-		sprintf(disk->devfs_name, "ubd_fake/disc%d", unit);
-	}
 
 	/* sysfs register (not for ide fake devices) */
 	if (major == MAJOR_NR) {

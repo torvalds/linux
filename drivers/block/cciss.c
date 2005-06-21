@@ -3248,7 +3248,6 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 
 		q->queuedata = hba[i];
 		sprintf(disk->disk_name, "cciss/c%dd%d", i, j);
-		sprintf(disk->devfs_name, "cciss/host%d/target%d", i, j);
 		disk->major = hba[i]->major;
 		disk->first_minor = j << NWD_SHIFT;
 		disk->fops = &cciss_fops;

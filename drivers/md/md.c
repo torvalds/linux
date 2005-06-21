@@ -2910,13 +2910,10 @@ static struct kobject *md_probe(dev_t dev, int *part, void *data)
 	}
 	disk->major = MAJOR(dev);
 	disk->first_minor = unit << shift;
-	if (partitioned) {
+	if (partitioned)
 		sprintf(disk->disk_name, "md_d%d", unit);
-		sprintf(disk->devfs_name, "md/d%d", unit);
-	} else {
+	else
 		sprintf(disk->disk_name, "md%d", unit);
-		sprintf(disk->devfs_name, "md/%d", unit);
-	}
 	disk->fops = &md_fops;
 	disk->private_data = mddev;
 	disk->queue = mddev->queue;

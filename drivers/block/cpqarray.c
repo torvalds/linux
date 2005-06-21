@@ -1805,8 +1805,6 @@ static void getgeometry(int ctlr)
 
 				}
 
-				sprintf(disk->devfs_name, "ida/c%dd%d", ctlr, log_unit);
-
 				info_p->phys_drives =
 				    sense_config_buf->ctlr_phys_drv;
 				info_p->drv_assign_map

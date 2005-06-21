@@ -1589,7 +1589,6 @@ static int __init sony535_init(void)
 	cdu_disk->first_minor = 0;
 	cdu_disk->fops = &cdu_fops;
 	sprintf(cdu_disk->disk_name, "cdu");
-	sprintf(cdu_disk->devfs_name, "cdu535");
 
 	if (!request_region(sony535_cd_base_io, 4, CDU535_HANDLE)) {
 		printk(KERN_WARNING"sonycd535: Unable to request region 0x%x\n",
