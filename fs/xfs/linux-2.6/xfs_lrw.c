@@ -209,30 +209,6 @@ unlock:
 	return (-status);
 }
 
-/*
- * xfs_inval_cached_pages
- * 
- * This routine is responsible for keeping direct I/O and buffered I/O
- * somewhat coherent.  From here we make sure that we're at least
- * temporarily holding the inode I/O lock exclusively and then call
- * the page cache to flush and invalidate any cached pages.  If there
- * are no cached pages this routine will be very quick.
- */
-void
-xfs_inval_cached_pages(
-	vnode_t		*vp,
-	xfs_iocore_t	*io,
-	xfs_off_t	offset,
-	int		write,
-	int		relock)
-{
-	if (VN_CACHED(vp)) {
-		xfs_inval_cached_trace(io, offset, -1, ctooff(offtoct(offset)), -1);
-		VOP_FLUSHINVAL_PAGES(vp, ctooff(offtoct(offset)), -1, FI_REMAPF_LOCKED);
-	}
-
-}
-
 ssize_t			/* bytes read, or (-)  error */
 xfs_read(
 	bhv_desc_t		*bdp,

@@ -4329,6 +4329,7 @@ xfs_free_file_space(
 	xfs_off_t		len,
 	int			attr_flags)
 {
+	vnode_t			*vp;
 	int			committed;
 	int			done;
 	xfs_off_t		end_dmi_offset;
@@ -4349,8 +4350,10 @@ xfs_free_file_space(
 	xfs_trans_t		*tp;
 	int			need_iolock = 1;
 
-	vn_trace_entry(XFS_ITOV(ip), __FUNCTION__, (inst_t *)__return_address);
+	vp = XFS_ITOV(ip);
 	mp = ip->i_mount;
+
+	vn_trace_entry(vp, __FUNCTION__, (inst_t *)__return_address);
 
 	if ((error = XFS_QM_DQATTACH(mp, ip, 0)))
 		return error;
@@ -4368,7 +4371,7 @@ xfs_free_file_space(
 	    DM_EVENT_ENABLED(XFS_MTOVFS(mp), ip, DM_EVENT_WRITE)) {
 		if (end_dmi_offset > ip->i_d.di_size)
 			end_dmi_offset = ip->i_d.di_size;
-		error = XFS_SEND_DATA(mp, DM_EVENT_WRITE, XFS_ITOV(ip),
+		error = XFS_SEND_DATA(mp, DM_EVENT_WRITE, vp,
 				offset, end_dmi_offset - offset,
 				AT_DELAY_FLAG(attr_flags), NULL);
 		if (error)
@@ -4387,7 +4390,14 @@ xfs_free_file_space(
 	ioffset = offset & ~(rounding - 1);
 	if (ilen & (rounding - 1))
 		ilen = (ilen + rounding) & ~(rounding - 1);
-	xfs_inval_cached_pages(XFS_ITOV(ip), &(ip->i_iocore), ioffset, 0, 0);
+
+	if (VN_CACHED(vp) != 0) {
+		xfs_inval_cached_trace(&ip->i_iocore, ioffset, -1,
+				ctooff(offtoct(ioffset)), -1);
+		VOP_FLUSHINVAL_PAGES(vp, ctooff(offtoct(ioffset)),
+				-1, FI_REMAPF_LOCKED);
+	}
+
 	/*
 	 * Need to zero the stuff we're not freeing, on disk.
 	 * If its a realtime file & can't use unwritten extents then we
