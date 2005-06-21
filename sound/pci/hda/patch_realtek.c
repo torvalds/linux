@@ -119,6 +119,7 @@ struct alc_spec {
 	unsigned int num_kctl_alloc, num_kctl_used;
 	snd_kcontrol_new_t *kctl_alloc;
 	struct hda_input_mux private_imux;
+	hda_nid_t private_dac_nids[4];
 };
 
 
@@ -1549,7 +1550,8 @@ static struct hda_board_config alc880_cfg_tbl[] = {
 	{ .pci_subvendor = 0x1019, .pci_subdevice = 0xa880, .config = ALC880_5ST_DIG },
 	{ .pci_subvendor = 0x1019, .pci_subdevice = 0xa884, .config = ALC880_5ST_DIG },
 	{ .pci_subvendor = 0x1695, .pci_subdevice = 0x400d, .config = ALC880_5ST_DIG },
-	{ .pci_subvendor = 0x0000, .pci_subdevice = 0x8086, .config = ALC880_5ST_DIG },
+	/* note subvendor = 0 below */
+	/* { .pci_subvendor = 0x0000, .pci_subdevice = 0x8086, .config = ALC880_5ST_DIG }, */
 
 	{ .modelname = "w810", .config = ALC880_W810 },
 	{ .pci_subvendor = 0x161f, .pci_subdevice = 0x203d, .config = ALC880_W810 },
@@ -1656,7 +1658,8 @@ static struct alc_config_preset alc880_presets[] = {
 	},
 	[ALC880_W810] = {
 		.mixers = { alc880_w810_base_mixer },
-		.init_verbs = { alc880_volume_init_verbs, alc880_pin_w810_init_verbs },
+		.init_verbs = { alc880_volume_init_verbs, alc880_pin_w810_init_verbs,
+				alc880_gpio2_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc880_w810_dac_nids),
 		.dac_nids = alc880_w810_dac_nids,
 		.dig_out_nid = ALC880_DIGOUT_NID,
@@ -1666,8 +1669,7 @@ static struct alc_config_preset alc880_presets[] = {
 	},
 	[ALC880_Z71V] = {
 		.mixers = { alc880_z71v_mixer },
-		.init_verbs = { alc880_volume_init_verbs, alc880_pin_z71v_init_verbs,
-				alc880_gpio2_init_verbs },
+		.init_verbs = { alc880_volume_init_verbs, alc880_pin_z71v_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc880_z71v_dac_nids),
 		.dac_nids = alc880_z71v_dac_nids,
 		.dig_out_nid = ALC880_DIGOUT_NID,
@@ -1809,6 +1811,7 @@ static int alc880_auto_fill_dac_nids(struct alc_spec *spec, const struct auto_pi
 	int i, j;
 
 	memset(assigned, 0, sizeof(assigned));
+	spec->multiout.dac_nids = spec->private_dac_nids;
 
 	/* check the pins hardwired to audio widget */
 	for (i = 0; i < cfg->line_outs; i++) {
