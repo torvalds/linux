@@ -59,7 +59,6 @@ MODULE_LICENSE("GPL");
  * numbers 0-255 we get a maximum of 32 disks.
  */
 #define VIOD_GENHD_NAME		"iseries/vd"
-#define VIOD_GENHD_DEVFS_NAME	"iseries/disc"
 
 #define VIOD_VERS		"1.64"
 

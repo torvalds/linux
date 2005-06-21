@@ -49,7 +49,6 @@
 #include <asm/iseries/vio.h>
 
 #define VIOCD_DEVICE			"iseries/vcd"
-#define VIOCD_DEVICE_DEVFS		"iseries/vcd"
 
 #define VIOCD_VERS "1.06"
 

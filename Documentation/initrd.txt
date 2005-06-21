@@ -67,8 +67,7 @@ initrd adds the following new options:
     as the last process has closed it, all data is freed and /dev/initrd
     can't be opened anymore.
 
-  root=/dev/ram0   (without devfs)
-  root=/dev/rd/0   (with devfs)
+  root=/dev/ram0
 
     initrd is mounted as root, and the normal boot procedure is followed,
     with the RAM disk still mounted as root.
@@ -90,8 +89,7 @@ you're building an install floppy), the root file system creation
 procedure should create the /initrd directory.
 
 If initrd will not be mounted in some cases, its content is still
-accessible if the following device has been created (note that this
-does not work if using devfs):
+accessible if the following device has been created:
 
 # mknod /dev/initrd b 1 250 
 # chmod 400 /dev/initrd
@@ -119,8 +117,7 @@ We'll describe the loopback device method:
     (if space is critical, you may want to use the Minix FS instead of Ext2)
  3) mount the file system, e.g.
     # mount -t ext2 -o loop initrd /mnt
- 4) create the console device (not necessary if using devfs, but it can't
-    hurt to do it anyway):
+ 4) create the console device:
     # mkdir /mnt/dev
     # mknod /mnt/dev/console c 5 1
  5) copy all the files that are needed to properly use the initrd
@@ -152,12 +149,7 @@ have to be given:
 
   root=/dev/ram0 init=/linuxrc rw
 
-if not using devfs, or
-
-  root=/dev/rd/0 init=/linuxrc rw
-
-if using devfs. (rw is only necessary if writing to the initrd file
-system.)
+(rw is only necessary if writing to the initrd file system.)
 
 With LOADLIN, you simply execute
 
@@ -217,9 +209,9 @@ following command:
 # exec chroot . what-follows <dev/console >dev/console 2>&1
 
 Where what-follows is a program under the new root, e.g. /sbin/init
-If the new root file system will be used with devfs and has no valid
-/dev directory, devfs must be mounted before invoking chroot in order to
-provide /dev/console.
+If the new root file system will be used with udev and has no valid
+/dev directory, udev must be initialized before invoking chroot in order
+to provide /dev/console.
 
 Note: implementation details of pivot_root may change with time. In order
 to ensure compatibility, the following points should be observed:
@@ -236,7 +228,7 @@ Now, the initrd can be unmounted and the memory allocated by the RAM
 disk can be freed:
 
 # umount /initrd
-# blockdev --flushbufs /dev/ram0    # /dev/rd/0 if using devfs
+# blockdev --flushbufs /dev/ram0
 
 It is also possible to use initrd with an NFS-mounted root, see the
 pivot_root(8) man page for details.
