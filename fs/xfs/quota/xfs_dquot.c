@@ -911,7 +911,6 @@ xfs_qm_dqget(
 	if ((! XFS_IS_UQUOTA_ON(mp) && type == XFS_DQ_USER) ||
 	    (! XFS_IS_PQUOTA_ON(mp) && type == XFS_DQ_PROJ) ||
 	    (! XFS_IS_GQUOTA_ON(mp) && type == XFS_DQ_GROUP)) {
-printk("XQM: ESRCH1\n");
 		return (ESRCH);
 	}
 	h = XFS_DQ_HASH(mp, id, type);
@@ -989,7 +988,6 @@ printk("XQM: ESRCH1\n");
 				  &dqp))) {
 		if (ip)
 			xfs_ilock(ip, XFS_ILOCK_EXCL);
-if (error == ESRCH) printk("XQM: ESRCH2\n");
 		return (error);
 	}
 
@@ -1015,7 +1013,6 @@ if (error == ESRCH) printk("XQM: ESRCH2\n");
 		if (! XFS_IS_DQTYPE_ON(mp, type)) {
 			/* inode stays locked on return */
 			xfs_qm_dqdestroy(dqp);
-printk("XQM: ESRCH3\n");
 			return XFS_ERROR(ESRCH);
 		}
 		/*
