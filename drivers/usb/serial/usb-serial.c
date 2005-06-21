@@ -507,7 +507,7 @@ static int serial_open (struct tty_struct *tty, struct file * filp)
 		/* lock this module before we call it
 		 * this may fail, which means we must bail out,
 		 * safe because we are called with BKL held */
-		if (!try_module_get(serial->type->owner)) {
+		if (!try_module_get(serial->type->driver.owner)) {
 			retval = -ENODEV;
 			goto bailout_kref_put;
 		}
@@ -522,7 +522,7 @@ static int serial_open (struct tty_struct *tty, struct file * filp)
 	return 0;
 
 bailout_module_put:
-	module_put(serial->type->owner);
+	module_put(serial->type->driver.owner);
 bailout_kref_put:
 	kref_put(&serial->kref, destroy_serial);
 	port->open_count = 0;
@@ -553,7 +553,7 @@ static void serial_close(struct tty_struct *tty, struct file * filp)
 			port->tty = NULL;
 		}
 
-		module_put(port->serial->type->owner);
+		module_put(port->serial->type->driver.owner);
 	}
 
 	kref_put(&port->serial->kref, destroy_serial);
@@ -718,8 +718,8 @@ static int serial_read_proc (char *page, char **start, off_t off, int count, int
 			continue;
 
 		length += sprintf (page+length, "%d:", i);
-		if (serial->type->owner)
-			length += sprintf (page+length, " module:%s", module_name(serial->type->owner));
+		if (serial->type->driver.owner)
+			length += sprintf (page+length, " module:%s", module_name(serial->type->driver.owner));
 		length += sprintf (page+length, " name:\"%s\"", serial->type->name);
 		length += sprintf (page+length, " vendor:%04x product:%04x", 
 				   le16_to_cpu(serial->dev->descriptor.idVendor), 
@@ -900,7 +900,7 @@ int usb_serial_probe(struct usb_interface *interface,
 	if (type->probe) {
 		const struct usb_device_id *id;
 
-		if (!try_module_get(type->owner)) {
+		if (!try_module_get(type->driver.owner)) {
 			dev_err(&interface->dev, "module get failed, exiting\n");
 			kfree (serial);
 			return -EIO;
@@ -908,7 +908,7 @@ int usb_serial_probe(struct usb_interface *interface,
 
 		id = usb_match_id(interface, type->id_table);
 		retval = type->probe(serial, id);
-		module_put(type->owner);
+		module_put(type->driver.owner);
 
 		if (retval) {
 			dbg ("sub driver rejected device");
@@ -1007,13 +1007,13 @@ int usb_serial_probe(struct usb_interface *interface,
 	if (!num_ports) {
 		/* if this device type has a calc_num_ports function, call it */
 		if (type->calc_num_ports) {
-			if (!try_module_get(type->owner)) {
+			if (!try_module_get(type->driver.owner)) {
 				dev_err(&interface->dev, "module get failed, exiting\n");
 				kfree (serial);
 				return -EIO;
 			}
 			num_ports = type->calc_num_ports (serial);
-			module_put(type->owner);
+			module_put(type->driver.owner);
 		}
 		if (!num_ports)
 			num_ports = type->num_ports;
@@ -1158,12 +1158,12 @@ int usb_serial_probe(struct usb_interface *interface,
 	
 	/* if this device type has an attach function, call it */
 	if (type->attach) {
-		if (!try_module_get(type->owner)) {
+		if (!try_module_get(type->driver.owner)) {
 			dev_err(&interface->dev, "module get failed, exiting\n");
 			goto probe_error;
 		}
 		retval = type->attach (serial);
-		module_put(type->owner);
+		module_put(type->driver.owner);
 		if (retval < 0)
 			goto probe_error;
 		if (retval > 0) {

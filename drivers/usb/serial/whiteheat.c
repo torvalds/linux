@@ -157,7 +157,9 @@ static void whiteheat_read_callback	(struct urb *urb, struct pt_regs *regs);
 static void whiteheat_write_callback	(struct urb *urb, struct pt_regs *regs);
 
 static struct usb_serial_driver whiteheat_fake_device = {
-	.owner =		THIS_MODULE,
+	.driver = {
+		.owner =	THIS_MODULE,
+	},
 	.name =			"Connect Tech - WhiteHEAT - (prerenumeration)",
 	.short_name =		"whiteheatnofirm",
 	.id_table =		id_table_prerenumeration,
@@ -170,7 +172,9 @@ static struct usb_serial_driver whiteheat_fake_device = {
 };
 
 static struct usb_serial_driver whiteheat_device = {
-	.owner =		THIS_MODULE,
+	.driver = {
+		.owner =	THIS_MODULE,
+	},
 	.name =			"Connect Tech - WhiteHEAT",
 	.short_name =		"whiteheat",
 	.id_table =		id_table_std,

@@ -37,7 +37,9 @@ static struct usb_device_id generic_device_ids[2]; /* Initially all zeroes. */
 
 /* All of the device info needed for the Generic Serial Converter */
 struct usb_serial_driver usb_serial_generic_device = {
-	.owner =		THIS_MODULE,
+	.driver = {
+		.owner =	THIS_MODULE,
+	},
 	.name =			"Generic",
 	.short_name =		"generic",
 	.id_table =		generic_device_ids,

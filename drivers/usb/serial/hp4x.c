@@ -45,7 +45,9 @@ static struct usb_driver hp49gp_driver = {
 };
 
 static struct usb_serial_driver hp49gp_device = {
-	.owner =		THIS_MODULE,
+	.driver = {
+		.owner =	THIS_MODULE,
+	},
 	.name =			"HP4X",
 	.id_table =		id_table,
 	.num_interrupt_in =	NUM_DONT_CARE,

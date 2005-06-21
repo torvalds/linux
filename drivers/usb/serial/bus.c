@@ -57,13 +57,13 @@ static int usb_serial_device_probe (struct device *dev)
 
 	driver = port->serial->type;
 	if (driver->port_probe) {
-		if (!try_module_get(driver->owner)) {
+		if (!try_module_get(driver->driver.owner)) {
 			dev_err(dev, "module get failed, exiting\n");
 			retval = -EIO;
 			goto exit;
 		}
 		retval = driver->port_probe (port);
-		module_put(driver->owner);
+		module_put(driver->driver.owner);
 		if (retval)
 			goto exit;
 	}
@@ -92,13 +92,13 @@ static int usb_serial_device_remove (struct device *dev)
 
 	driver = port->serial->type;
 	if (driver->port_remove) {
-		if (!try_module_get(driver->owner)) {
+		if (!try_module_get(driver->driver.owner)) {
 			dev_err(dev, "module get failed, exiting\n");
 			retval = -EIO;
 			goto exit;
 		}
 		retval = driver->port_remove (port);
-		module_put(driver->owner);
+		module_put(driver->driver.owner);
 	}
 exit:
 	minor = port->number;
@@ -120,7 +120,6 @@ int usb_serial_bus_register(struct usb_serial_driver *driver)
 	driver->driver.bus = &usb_serial_bus_type;
 	driver->driver.probe = usb_serial_device_probe;
 	driver->driver.remove = usb_serial_device_remove;
-	driver->driver.owner = driver->owner;
 
 	retval = driver_register(&driver->driver);
 

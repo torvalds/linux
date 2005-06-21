@@ -176,7 +176,9 @@ static unsigned int pl2303_buf_get(struct pl2303_buf *pb, char *buf,
 
 /* All of the device info needed for the PL2303 SIO serial converter */
 static struct usb_serial_driver pl2303_device = {
-	.owner =		THIS_MODULE,
+	.driver = {
+		.owner =	THIS_MODULE,
+	},
 	.name =			"PL-2303",
 	.id_table =		id_table,
 	.num_interrupt_in =	NUM_DONT_CARE,

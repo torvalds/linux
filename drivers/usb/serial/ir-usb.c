@@ -134,7 +134,9 @@ static struct usb_driver ir_driver = {
 
 
 static struct usb_serial_driver ir_device = {
-	.owner =		THIS_MODULE,
+	.driver = {
+		.owner =	THIS_MODULE,
+	},
 	.name =			"IR Dongle",
 	.id_table =		id_table,
 	.num_interrupt_in =	1,

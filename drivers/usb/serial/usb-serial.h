@@ -189,7 +189,6 @@ static inline void usb_set_serial_data (struct usb_serial *serial, void *data)
 
 /**
  * usb_serial_driver - describes a usb serial driver
- * @owner: pointer to the module that owns this driver.
  * @name: pointer to a string that describes this driver.  This string used
  *	in the syslog messages when a device is inserted or removed.
  * @short_name: a pointer to a string that describes this driver in
@@ -226,9 +225,11 @@ static inline void usb_set_serial_data (struct usb_serial *serial, void *data)
  * pointers are defined, then the USB serial core code will call them when
  * the corresponding tty port functions are called.  If they are not
  * called, the generic serial function will be used instead.
+ *
+ * The driver.owner field should be set to the module owner of this driver.
+ *
  */
 struct usb_serial_driver {
-	struct module *owner;
 	char	*name;
 	char	*short_name;
 	const struct usb_device_id *id_table;

@@ -548,7 +548,9 @@ static struct usb_driver ipaq_driver = {
 
 /* All of the device info needed for the Compaq iPAQ */
 static struct usb_serial_driver ipaq_device = {
-	.owner =		THIS_MODULE,
+	.driver = {
+		.owner =	THIS_MODULE,
+	},
 	.name =			"PocketPC PDA",
 	.id_table =		ipaq_id_table,
 	.num_interrupt_in =	NUM_DONT_CARE,

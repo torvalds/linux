@@ -31,7 +31,9 @@ static struct usb_driver airprime_driver = {
 };
 
 static struct usb_serial_driver airprime_device = {
-	.owner =		THIS_MODULE,
+	.driver = {
+		.owner =	THIS_MODULE,
+	},
 	.name =			"airprime",
 	.id_table =		id_table,
 	.num_interrupt_in =	NUM_DONT_CARE,

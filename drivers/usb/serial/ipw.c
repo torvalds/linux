@@ -444,7 +444,9 @@ static int ipw_disconnect(struct usb_serial_port *port)
 }
 
 static struct usb_serial_driver ipw_device = {
-	.owner =		THIS_MODULE,
+	.driver = {
+		.owner =	THIS_MODULE,
+	},
 	.name =			"IPWireless converter",
 	.short_name =		"ipw",
 	.id_table =		usb_ipw_ids,

@@ -113,7 +113,9 @@ static struct usb_driver empeg_driver = {
 };
 
 static struct usb_serial_driver empeg_device = {
-	.owner =		THIS_MODULE,
+	.driver = {
+		.owner =	THIS_MODULE,
+	},
 	.name =			"Empeg",
 	.id_table =		id_table,
 	.num_interrupt_in =	0,
