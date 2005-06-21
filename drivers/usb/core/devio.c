@@ -517,6 +517,23 @@ static int check_ctrlrecip(struct dev_state *ps, unsigned int requesttype, unsig
 	return ret;
 }
 
+static struct usb_device *usbdev_lookup_minor(int minor)
+{
+	struct class_device *class_dev;
+	struct usb_device *dev = NULL;
+
+	down(&usb_device_class->sem);
+	list_for_each_entry(class_dev, &usb_device_class->children, node) {
+		if (class_dev->devt == MKDEV(USB_DEVICE_MAJOR, minor)) {
+			dev = class_dev->class_data;
+			break;
+		}
+	}
+	up(&usb_device_class->sem);
+
+	return dev;
+};
+
 /*
  * file operations
  */
@@ -1531,23 +1548,6 @@ struct file_operations usbfs_device_file_operations = {
 	.ioctl =	usbdev_ioctl,
 	.open =		usbdev_open,
 	.release =	usbdev_release,
-};
-
-struct usb_device *usbdev_lookup_minor(int minor)
-{
-	struct class_device *class_dev;
-	struct usb_device *dev = NULL;
-
-	down(&usb_device_class->sem);
-	list_for_each_entry(class_dev, &usb_device_class->children, node) {
-		if (class_dev->devt == MKDEV(USB_DEVICE_MAJOR, minor)) {
-			dev = class_dev->class_data;
-			break;
-		}
-	}
-	up(&usb_device_class->sem);
-
-	return dev;
 };
 
 void usbdev_add(struct usb_device *dev)
