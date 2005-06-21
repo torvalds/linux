@@ -507,8 +507,6 @@ xfs_setattr(
 		 * that the group ID supplied to the chown() function
 		 * shall be equal to either the group ID or one of the
 		 * supplementary group IDs of the calling process.
-		 *
-		 * XXX: How does restricted_chown affect projid?
 		 */
 		if (restricted_chown &&
 		    (iuid != uid || (igid != gid &&
@@ -860,6 +858,8 @@ xfs_setattr(
 				di_flags |= XFS_DIFLAG_NOATIME;
 			if (vap->va_xflags & XFS_XFLAG_NODUMP)
 				di_flags |= XFS_DIFLAG_NODUMP;
+			if (vap->va_xflags & XFS_XFLAG_PROJINHERIT)
+				di_flags |= XFS_DIFLAG_PROJINHERIT;
 			if ((ip->i_d.di_mode & S_IFMT) == S_IFDIR) {
 				if (vap->va_xflags & XFS_XFLAG_RTINHERIT)
 					di_flags |= XFS_DIFLAG_RTINHERIT;
@@ -1915,7 +1915,9 @@ xfs_create(
 	/* Return through std_return after this point. */
 
 	udqp = gdqp = NULL;
-	if (vap->va_mask & XFS_AT_PROJID)
+	if (dp->i_d.di_flags & XFS_DIFLAG_PROJINHERIT)
+		prid = dp->i_d.di_projid;
+	else if (vap->va_mask & XFS_AT_PROJID)
 		prid = (xfs_prid_t)vap->va_projid;
 	else
 		prid = (xfs_prid_t)dfltprid;
@@ -2621,17 +2623,7 @@ xfs_link(
 	if (src_vp->v_type == VDIR)
 		return XFS_ERROR(EPERM);
 
-	/*
-	 * For now, manually find the XFS behavior descriptor for
-	 * the source vnode.  If it doesn't exist then something
-	 * is wrong and we should just return an error.
-	 * Eventually we need to figure out how link is going to
-	 * work in the face of stacked vnodes.
-	 */
 	src_bdp = vn_bhv_lookup_unlocked(VN_BHV_HEAD(src_vp), &xfs_vnodeops);
-	if (src_bdp == NULL) {
-		return XFS_ERROR(EXDEV);
-	}
 	sip = XFS_BHVTOI(src_bdp);
 	tdp = XFS_BHVTOI(target_dir_bdp);
 	mp = tdp->i_mount;
@@ -2695,6 +2687,17 @@ xfs_link(
 	 */
 	if (sip->i_d.di_nlink >= XFS_MAXLINK) {
 		error = XFS_ERROR(EMLINK);
+		goto error_return;
+	}
+
+	/*
+	 * If we are using project inheritance, we only allow hard link
+	 * creation in our tree when the project IDs are the same; else
+	 * the tree quota mechanism could be circumvented.
+	 */
+	if (unlikely((tdp->i_d.di_flags & XFS_DIFLAG_PROJINHERIT) &&
+		     (tdp->i_d.di_projid != sip->i_d.di_projid))) {
+		error = XFS_ERROR(EPERM);
 		goto error_return;
 	}
 
@@ -2820,7 +2823,9 @@ xfs_mkdir(
 
 	mp = dp->i_mount;
 	udqp = gdqp = NULL;
-	if (vap->va_mask & XFS_AT_PROJID)
+	if (dp->i_d.di_flags & XFS_DIFLAG_PROJINHERIT)
+		prid = dp->i_d.di_projid;
+	else if (vap->va_mask & XFS_AT_PROJID)
 		prid = (xfs_prid_t)vap->va_projid;
 	else
 		prid = (xfs_prid_t)dfltprid;
@@ -3374,7 +3379,9 @@ xfs_symlink(
 	/* Return through std_return after this point. */
 
 	udqp = gdqp = NULL;
-	if (vap->va_mask & XFS_AT_PROJID)
+	if (dp->i_d.di_flags & XFS_DIFLAG_PROJINHERIT)
+		prid = dp->i_d.di_projid;
+	else if (vap->va_mask & XFS_AT_PROJID)
 		prid = (xfs_prid_t)vap->va_projid;
 	else
 		prid = (xfs_prid_t)dfltprid;

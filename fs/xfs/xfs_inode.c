@@ -1202,26 +1202,32 @@ xfs_ialloc(
 	case S_IFREG:
 	case S_IFDIR:
 		if (unlikely(pip->i_d.di_flags & XFS_DIFLAG_ANY)) {
-			if (pip->i_d.di_flags & XFS_DIFLAG_RTINHERIT) {
-				if ((mode & S_IFMT) == S_IFDIR) {
-					ip->i_d.di_flags |= XFS_DIFLAG_RTINHERIT;
-				} else {
-					ip->i_d.di_flags |= XFS_DIFLAG_REALTIME;
+			uint	di_flags = 0;
+
+			if ((mode & S_IFMT) == S_IFDIR) {
+				if (pip->i_d.di_flags & XFS_DIFLAG_RTINHERIT)
+					di_flags |= XFS_DIFLAG_RTINHERIT;
+			} else {
+				if (pip->i_d.di_flags & XFS_DIFLAG_RTINHERIT) {
+					di_flags |= XFS_DIFLAG_REALTIME;
 					ip->i_iocore.io_flags |= XFS_IOCORE_RT;
 				}
 			}
 			if ((pip->i_d.di_flags & XFS_DIFLAG_NOATIME) &&
 			    xfs_inherit_noatime)
-				ip->i_d.di_flags |= XFS_DIFLAG_NOATIME;
+				di_flags |= XFS_DIFLAG_NOATIME;
 			if ((pip->i_d.di_flags & XFS_DIFLAG_NODUMP) &&
 			    xfs_inherit_nodump)
-				ip->i_d.di_flags |= XFS_DIFLAG_NODUMP;
+				di_flags |= XFS_DIFLAG_NODUMP;
 			if ((pip->i_d.di_flags & XFS_DIFLAG_SYNC) &&
 			    xfs_inherit_sync)
-				ip->i_d.di_flags |= XFS_DIFLAG_SYNC;
+				di_flags |= XFS_DIFLAG_SYNC;
 			if ((pip->i_d.di_flags & XFS_DIFLAG_NOSYMLINKS) &&
 			    xfs_inherit_nosymlinks)
-				ip->i_d.di_flags |= XFS_DIFLAG_NOSYMLINKS;
+				di_flags |= XFS_DIFLAG_NOSYMLINKS;
+			if (pip->i_d.di_flags & XFS_DIFLAG_PROJINHERIT)
+				di_flags |= XFS_DIFLAG_PROJINHERIT;
+			ip->i_d.di_flags |= di_flags;
 		}
 		/* FALLTHROUGH */
 	case S_IFLNK:
