@@ -227,10 +227,6 @@ int misc_register(struct miscdevice * misc)
 
 	if (misc->minor < DYNAMIC_MINORS)
 		misc_minors[misc->minor >> 3] |= 1 << (misc->minor & 7);
-	if (misc->devfs_name[0] == '\0') {
-		snprintf(misc->devfs_name, sizeof(misc->devfs_name),
-				"misc/%s", misc->name);
-	}
 	dev = MKDEV(MISC_MAJOR, misc->minor);
 
 	misc->class = class_device_create(misc_class, NULL, dev, misc->dev,

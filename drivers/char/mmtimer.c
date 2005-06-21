@@ -693,7 +693,6 @@ static int __init mmtimer_init(void)
 		return -1;
 	}
 
-	strcpy(mmtimer_miscdev.devfs_name, MMTIMER_NAME);
 	if (misc_register(&mmtimer_miscdev)) {
 		printk(KERN_ERR "%s: failed to register device\n",
 		       MMTIMER_NAME);

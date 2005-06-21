@@ -780,7 +780,6 @@ static struct miscdevice tun_miscdev = {
 	.minor = TUN_MINOR,
 	.name = "tun",
 	.fops = &tun_fops,
-	.devfs_name = "net/tun",
 };
 
 /* ethtool interface */

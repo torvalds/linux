@@ -1472,7 +1472,6 @@ static struct file_operations _ctl_fops = {
 static struct miscdevice _dm_misc = {
 	.minor 		= MISC_DYNAMIC_MINOR,
 	.name  		= DM_NAME,
-	.devfs_name 	= "mapper/control",
 	.fops  		= &_ctl_fops
 };
 
