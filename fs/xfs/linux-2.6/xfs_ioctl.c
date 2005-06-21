@@ -777,8 +777,6 @@ xfs_ioctl(
 	case XFS_IOC_GETVERSION:
 	case XFS_IOC_GETXFLAGS:
 	case XFS_IOC_SETXFLAGS:
-	case XFS_IOC_GETPROJID:
-	case XFS_IOC_SETPROJID:
 	case XFS_IOC_FSGETXATTR:
 	case XFS_IOC_FSSETXATTR:
 	case XFS_IOC_FSGETXATTRA:
@@ -1176,7 +1174,8 @@ xfs_ioc_xattr(
 
 	switch (cmd) {
 	case XFS_IOC_FSGETXATTR: {
-		va.va_mask = XFS_AT_XFLAGS|XFS_AT_EXTSIZE|XFS_AT_NEXTENTS;
+		va.va_mask = XFS_AT_XFLAGS | XFS_AT_EXTSIZE | \
+			     XFS_AT_NEXTENTS | XFS_AT_PROJID;
 		VOP_GETATTR(vp, &va, 0, NULL, error);
 		if (error)
 			return -error;
@@ -1184,6 +1183,7 @@ xfs_ioc_xattr(
 		fa.fsx_xflags	= va.va_xflags;
 		fa.fsx_extsize	= va.va_extsize;
 		fa.fsx_nextents = va.va_nextents;
+		fa.fsx_projid	= va.va_projid;
 
 		if (copy_to_user(arg, &fa, sizeof(fa)))
 			return -XFS_ERROR(EFAULT);
@@ -1198,9 +1198,10 @@ xfs_ioc_xattr(
 		if (filp->f_flags & (O_NDELAY|O_NONBLOCK))
 			attr_flags |= ATTR_NONBLOCK;
 
-		va.va_mask = XFS_AT_XFLAGS | XFS_AT_EXTSIZE;
+		va.va_mask = XFS_AT_XFLAGS | XFS_AT_EXTSIZE | XFS_AT_PROJID;
 		va.va_xflags  = fa.fsx_xflags;
 		va.va_extsize = fa.fsx_extsize;
+		va.va_projid  = fa.fsx_projid;
 
 		VOP_SETATTR(vp, &va, attr_flags, NULL, error);
 		if (!error)
@@ -1209,7 +1210,8 @@ xfs_ioc_xattr(
 	}
 
 	case XFS_IOC_FSGETXATTRA: {
-		va.va_mask = XFS_AT_XFLAGS|XFS_AT_EXTSIZE|XFS_AT_ANEXTENTS;
+		va.va_mask = XFS_AT_XFLAGS | XFS_AT_EXTSIZE | \
+			     XFS_AT_ANEXTENTS | XFS_AT_PROJID;
 		VOP_GETATTR(vp, &va, 0, NULL, error);
 		if (error)
 			return -error;
@@ -1217,6 +1219,7 @@ xfs_ioc_xattr(
 		fa.fsx_xflags	= va.va_xflags;
 		fa.fsx_extsize	= va.va_extsize;
 		fa.fsx_nextents = va.va_anextents;
+		fa.fsx_projid	= va.va_projid;
 
 		if (copy_to_user(arg, &fa, sizeof(fa)))
 			return -XFS_ERROR(EFAULT);
@@ -1258,26 +1261,6 @@ xfs_ioc_xattr(
 		if (copy_to_user(arg, &flags, sizeof(flags)))
 			return -XFS_ERROR(EFAULT);
 		return 0;
-	}
-
-	case XFS_IOC_GETPROJID: {
-		va.va_mask = XFS_AT_PROJID;
-		VOP_GETATTR(vp, &va, 0, NULL, error);
-		if (error)
-			return -error;
-		if (copy_to_user(arg, &va.va_projid, sizeof(va.va_projid)))
-			return -XFS_ERROR(EFAULT);
-		return 0;
-	}
-
-	case XFS_IOC_SETPROJID: {
-		if (!capable(CAP_SYS_ADMIN))
-			return -EPERM;
-		va.va_mask = XFS_AT_PROJID;
-		if (copy_from_user(&va.va_projid, arg, sizeof(va.va_projid)))
-			return -XFS_ERROR(EFAULT);
-		VOP_SETATTR(vp, &va, 0, NULL, error);
-		return -error;
 	}
 
 	default:

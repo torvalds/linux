@@ -60,7 +60,8 @@ struct fsxattr {
 	__u32		fsx_xflags;	/* xflags field value (get/set) */
 	__u32		fsx_extsize;	/* extsize field value (get/set)*/
 	__u32		fsx_nextents;	/* nextents field value (get)	*/
-	unsigned char	fsx_pad[16];
+	__u32		fsx_projid;	/* project identifier (get/set) */
+	unsigned char	fsx_pad[12];
 };
 #endif
 
@@ -477,8 +478,6 @@ typedef struct xfs_handle {
 /*	XFS_IOC_SETBIOSIZE ---- deprecated 46	   */
 /*	XFS_IOC_GETBIOSIZE ---- deprecated 47	   */
 #define XFS_IOC_GETBMAPX	_IOWR('X', 56, struct getbmap)
-#define XFS_IOC_SETPROJID	_IOWR('X', 57, __uint32_t)
-#define XFS_IOC_GETPROJID	_IOWR('X', 58, __uint32_t)
 
 /*
  * ioctl commands that replace IRIX syssgi()'s

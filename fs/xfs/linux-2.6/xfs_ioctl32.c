@@ -100,8 +100,6 @@ __linvfs_compat_ioctl(int mode, struct file *f, unsigned cmd, unsigned long arg)
 	case XFS_IOC_GETBMAP:
 	case XFS_IOC_GETBMAPA:
 	case XFS_IOC_GETBMAPX:
-	case XFS_IOC_SETPROJID:
-	case XFS_IOC_GETPROJID:
 /* not handled
 	case XFS_IOC_FD_TO_HANDLE:
 	case XFS_IOC_PATH_TO_HANDLE:
