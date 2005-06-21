@@ -105,8 +105,8 @@ extern int AIX_vpdReadByte() ;
 #endif
 
 
-/* Prototypes of local functions. */
-void smt_stop_watchdog(struct s_smc *smc);
+/* Prototype of a local function. */
+static void smt_stop_watchdog(struct s_smc *smc);
 
 #ifdef MCA
 static int read_card_id() ;
@@ -631,7 +631,7 @@ void plc_clear_irq(struct s_smc *smc, int p)
  *	LED_Y_OFF	just switch yellow LED off
  *	LED_Y_ON	just switch yello LED on
  */
-void led_indication(struct s_smc *smc, int led_event)
+static void led_indication(struct s_smc *smc, int led_event)
 {
 	/* use smc->hw.mac_ring_is_up == TRUE 
 	 * as indication for Ring Operational
@@ -763,122 +763,6 @@ void llc_recover_tx(struct s_smc *smc)
 	SK_UNUSED(smc) ;
 #endif
 }
-
-/*--------------------------- DMA init ----------------------------*/
-#ifdef	ISA
-
-/*
- * init DMA
- */
-void init_dma(struct s_smc *smc, int dma)
-{
-	SK_UNUSED(smc) ;
-
-	/*
-	 * set cascade mode,
-	 * clear mask bit (enable DMA cannal)
-	 */
-	if (dma > 3) {
-		outp(0xd6,(dma & 0x03) | 0xc0) ;
-		outp(0xd4, dma & 0x03) ;
-	}
-	else {
-		outp(0x0b,(dma & 0x03) | 0xc0) ;
-		outp(0x0a,dma & 0x03) ;
-	}
-}
-
-/*
- * disable DMA
- */
-void dis_dma(struct s_smc *smc, int dma)
-{
-	SK_UNUSED(smc) ;
-
-	/*
-	 * set mask bit (disable DMA cannal)
-	 */
-	if (dma > 3) {
-		outp(0xd4,(dma & 0x03) | 0x04) ;
-	}
-	else {
-		outp(0x0a,(dma & 0x03) | 0x04) ;
-	}
-}
-
-#endif	/* ISA */
-
-#ifdef	EISA
-
-/*arrays with io addresses of dma controller length and address registers*/
-static const int cntr[8] = { 0x001,0x003,0x005,0x007,0,0x0c6,0x0ca,0x0ce } ;
-static const int base[8] = { 0x000,0x002,0x004,0x006,0,0x0c4,0x0c8,0x0cc } ;
-static const int page[8] = { 0x087,0x083,0x081,0x082,0,0x08b,0x089,0x08a } ;
-
-void init_dma(struct s_smc *smc, int dma)
-{
-	/*
-	 * extended mode register
-	 * 32 bit IO
-	 * type c
-	 * TC output
-	 * disable stop
-	 */
-
-	/* mode read (write) demand */
-	smc->hw.dma_rmode = (dma & 3) | 0x08 | 0x0 ;
-	smc->hw.dma_wmode = (dma & 3) | 0x04 | 0x0 ;
-
-	/* 32 bit IO's, burst DMA mode (type "C") */
-	smc->hw.dma_emode = (dma & 3) | 0x08 | 0x30 ;
-
-	outp((dma < 4) ? 0x40b : 0x4d6,smc->hw.dma_emode) ;
-
-	/* disable chaining */
-	outp((dma < 4) ? 0x40a : 0x4d4,(dma&3)) ;
-
-	/*load dma controller addresses for fast access during set dma*/
-	smc->hw.dma_base_word_count = cntr[smc->hw.dma];
-	smc->hw.dma_base_address = base[smc->hw.dma];
-	smc->hw.dma_base_address_page = page[smc->hw.dma];
-
-}
-
-void dis_dma(struct s_smc *smc, int dma)
-{
-	SK_UNUSED(smc) ;
-
-	outp((dma < 4) ? 0x0a : 0xd4,(dma&3)|4) ;/* mask bit */
-}
-#endif	/* EISA */
-
-#ifdef	MCA
-void init_dma(struct s_smc *smc, int dma)
-{
-	SK_UNUSED(smc) ;
-	SK_UNUSED(dma) ;
-}
-
-void dis_dma(struct s_smc *smc, int dma)
-{
-	SK_UNUSED(smc) ;
-	SK_UNUSED(dma) ;
-}
-#endif
-
-#ifdef	PCI
-void init_dma(struct s_smc *smc, int dma)
-{
-	SK_UNUSED(smc) ;
-	SK_UNUSED(dma) ;
-}
-
-void dis_dma(struct s_smc *smc, int dma)
-{
-	SK_UNUSED(smc) ;
-	SK_UNUSED(dma) ;
-}
-#endif
 
 #ifdef MULT_OEM
 static int is_equal_num(char comp1[], char comp2[], int num)
@@ -1407,7 +1291,7 @@ void smt_start_watchdog(struct s_smc *smc)
 #endif	/* DEBUG */
 }
 
-void smt_stop_watchdog(struct s_smc *smc)
+static void smt_stop_watchdog(struct s_smc *smc)
 {
 	SK_UNUSED(smc) ;	/* Make LINT happy. */
 #ifndef	DEBUG
@@ -1422,104 +1306,6 @@ void smt_stop_watchdog(struct s_smc *smc)
 }
 
 #ifdef	PCI
-static char get_rom_byte(struct s_smc *smc, u_short addr)
-{
-	GET_PAGE(addr) ;
-	return (READ_PROM(ADDR(B2_FDP))) ;
-}
-
-/*
- * ROM image defines
- */
-#define	ROM_SIG_1	0
-#define ROM_SIG_2	1
-#define PCI_DATA_1	0x18
-#define PCI_DATA_2	0x19
-
-/*
- * PCI data structure defines
- */
-#define	VPD_DATA_1	0x08
-#define	VPD_DATA_2	0x09
-#define IMAGE_LEN_1	0x10
-#define IMAGE_LEN_2	0x11
-#define	CODE_TYPE	0x14
-#define	INDICATOR	0x15
-
-/*
- *	BEGIN_MANUAL_ENTRY(mac_drv_vpd_read)
- *	mac_drv_vpd_read(smc,buf,size,image)
- *
- * function	DOWNCALL	(FDDIWARE)
- *		reads the VPD data of the FPROM and writes it into the
- *		buffer
- *
- * para	buf	points to the buffer for the VPD data
- *	size	size of the VPD data buffer
- *	image	boot image; code type of the boot image
- *		image = 0	Intel x86, PC-AT compatible
- *			1	OPENBOOT standard for PCI
- *			2-FF	reserved
- *
- * returns	len	number of VPD data bytes read form the FPROM
- *		<0	number of read bytes
- *		>0	error: data invalid
- *
- *	END_MANUAL_ENTRY
- */
-int mac_drv_vpd_read(struct s_smc *smc, char *buf, int size, char image)
-{
-	u_short	ibase ;
-	u_short pci_base ;
-	u_short vpd ;
-	int	len ;
-
-	len = 0 ;
-	ibase = 0 ;
-	/*
-	 * as long images defined
-	 */
-	while (get_rom_byte(smc,ibase+ROM_SIG_1) == 0x55 &&
-		(u_char) get_rom_byte(smc,ibase+ROM_SIG_2) == 0xaa) {
-		/*
-		 * get the pointer to the PCI data structure
-		 */
-		pci_base = ibase + get_rom_byte(smc,ibase+PCI_DATA_1) +
-				(get_rom_byte(smc,ibase+PCI_DATA_2) << 8) ;
-
-		if (image == get_rom_byte(smc,pci_base+CODE_TYPE)) {
-			/*
-			 * we have the right image, read the VPD data
-			 */
-			vpd = ibase + get_rom_byte(smc,pci_base+VPD_DATA_1) +
-				(get_rom_byte(smc,pci_base+VPD_DATA_2) << 8) ;
-			if (vpd == ibase) {
-				break ;		/* no VPD data */
-			}
-			for (len = 0; len < size; len++,buf++,vpd++) {
-				*buf = get_rom_byte(smc,vpd) ;
-			}
-			break ;
-		}
-		else {
-			/*
-			 * try the next image
-			 */
-			if (get_rom_byte(smc,pci_base+INDICATOR) & 0x80) {
-				break ;		/* this was the last image */
-			}
-			ibase = ibase + get_rom_byte(smc,ibase+IMAGE_LEN_1) +
-				(get_rom_byte(smc,ibase+IMAGE_LEN_2) << 8) ;
-		}
-	}
-
-	return(len) ;
-}
-
-void mac_drv_pci_fix(struct s_smc *smc, u_long fix_value)
-{
-	smc->hw.pci_fix_value = fix_value ;
-}
 
 void mac_do_pci_fix(struct s_smc *smc)
 {
