@@ -580,14 +580,6 @@ xfs_bmbt_lookup_ge(
 	xfs_filblks_t,
 	int *);
 
-int
-xfs_bmbt_lookup_le(
-	struct xfs_btree_cur *,
-	xfs_fileoff_t,
-	xfs_fsblock_t,
-	xfs_filblks_t,
-	int *);
-
 /*
  * Give the bmap btree a new root block.  Copy the old broot contents
  * down into a real block and make the broot point to it.

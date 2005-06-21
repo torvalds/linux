@@ -371,68 +371,6 @@ xfs_qm_adjust_dqtimers(
 }
 
 /*
- * Increment or reset warnings of a given dquot.
- */
-int
-xfs_qm_dqwarn(
-	xfs_disk_dquot_t	*d,
-	uint			flags)
-{
-	int	warned;
-
-	/*
-	 * root's limits are not real limits.
-	 */
-	if (!d->d_id)
-		return (0);
-
-	warned = 0;
-	if (INT_GET(d->d_blk_softlimit, ARCH_CONVERT) &&
-	    (INT_GET(d->d_bcount, ARCH_CONVERT) >=
-	     INT_GET(d->d_blk_softlimit, ARCH_CONVERT))) {
-		if (flags & XFS_QMOPT_DOWARN) {
-			INT_MOD(d->d_bwarns, ARCH_CONVERT, +1);
-			warned++;
-		}
-	} else {
-		if (!d->d_blk_softlimit ||
-		    (INT_GET(d->d_bcount, ARCH_CONVERT) <
-		     INT_GET(d->d_blk_softlimit, ARCH_CONVERT))) {
-			d->d_bwarns = 0;
-		}
-	}
-
-	if (INT_GET(d->d_ino_softlimit, ARCH_CONVERT) > 0 &&
-	    (INT_GET(d->d_icount, ARCH_CONVERT) >=
-	     INT_GET(d->d_ino_softlimit, ARCH_CONVERT))) {
-		if (flags & XFS_QMOPT_DOWARN) {
-			INT_MOD(d->d_iwarns, ARCH_CONVERT, +1);
-			warned++;
-		}
-	} else {
-		if (!d->d_ino_softlimit ||
-		    (INT_GET(d->d_icount, ARCH_CONVERT) <
-		     INT_GET(d->d_ino_softlimit, ARCH_CONVERT))) {
-			d->d_iwarns = 0;
-		}
-	}
-#ifdef QUOTADEBUG
-	if (INT_GET(d->d_iwarns, ARCH_CONVERT))
-		cmn_err(CE_DEBUG,
-			"--------@@Inode warnings running : %Lu >= %Lu",
-			INT_GET(d->d_icount, ARCH_CONVERT),
-			INT_GET(d->d_ino_softlimit, ARCH_CONVERT));
-	if (INT_GET(d->d_bwarns, ARCH_CONVERT))
-		cmn_err(CE_DEBUG,
-			"--------@@Blks warnings running : %Lu >= %Lu",
-			INT_GET(d->d_bcount, ARCH_CONVERT),
-			INT_GET(d->d_blk_softlimit, ARCH_CONVERT));
-#endif
-	return (warned);
-}
-
-
-/*
  * initialize a buffer full of dquots and log the whole thing
  */
 STATIC void

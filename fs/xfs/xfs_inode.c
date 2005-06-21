@@ -146,51 +146,6 @@ xfs_inobp_check(
 #endif
 
 /*
- * called from bwrite on xfs inode buffers
- */
-void
-xfs_inobp_bwcheck(xfs_buf_t *bp)
-{
-	xfs_mount_t	*mp;
-	int		i;
-	int		j;
-	xfs_dinode_t	*dip;
-
-	ASSERT(XFS_BUF_FSPRIVATE3(bp, void *) != NULL);
-
-	mp = XFS_BUF_FSPRIVATE3(bp, xfs_mount_t *);
-
-
-	j = mp->m_inode_cluster_size >> mp->m_sb.sb_inodelog;
-
-	for (i = 0; i < j; i++)  {
-		dip = (xfs_dinode_t *) xfs_buf_offset(bp,
-						i * mp->m_sb.sb_inodesize);
-		if (INT_GET(dip->di_core.di_magic, ARCH_CONVERT) != XFS_DINODE_MAGIC) {
-			cmn_err(CE_WARN,
-"Bad magic # 0x%x in XFS inode buffer 0x%Lx, starting blockno %Ld, offset 0x%x",
-				INT_GET(dip->di_core.di_magic, ARCH_CONVERT),
-				(__uint64_t)(__psunsigned_t) bp,
-				(__int64_t) XFS_BUF_ADDR(bp),
-				xfs_buf_offset(bp, i * mp->m_sb.sb_inodesize));
-			xfs_fs_cmn_err(CE_WARN, mp,
-				"corrupt, unmount and run xfs_repair");
-		}
-		if (!dip->di_next_unlinked)  {
-			cmn_err(CE_WARN,
-"Bad next_unlinked field (0) in XFS inode buffer 0x%p, starting blockno %Ld, offset 0x%x",
-				(__uint64_t)(__psunsigned_t) bp,
-				(__int64_t) XFS_BUF_ADDR(bp),
-				xfs_buf_offset(bp, i * mp->m_sb.sb_inodesize));
-			xfs_fs_cmn_err(CE_WARN, mp,
-				"corrupt, unmount and run xfs_repair");
-		}
-	}
-
-	return;
-}
-
-/*
  * This routine is called to map an inode number within a file
  * system to the buffer containing the on-disk version of the
  * inode.  It returns a pointer to the buffer containing the
