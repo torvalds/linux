@@ -286,7 +286,9 @@ xfs_qm_adjust_dqlimits(
  * We also return 0 as the values of the timers in Q_GETQUOTA calls, when
  * enforcement's off.
  * In contrast, warnings are a little different in that they don't
- * 'automatically' get started when limits get exceeded.
+ * 'automatically' get started when limits get exceeded.  They do
+ * get reset to zero, however, when we find the count to be under
+ * the soft limit (they are only ever set non-zero via userspace).
  */
 void
 xfs_qm_adjust_dqtimers(
@@ -315,6 +317,8 @@ xfs_qm_adjust_dqtimers(
 				INT_GET(d->d_blk_hardlimit, ARCH_CONVERT)))) {
 			INT_SET(d->d_btimer, ARCH_CONVERT,
 				get_seconds() + XFS_QI_BTIMELIMIT(mp));
+		} else {
+			d->d_bwarns = 0;
 		}
 	} else {
 		if ((!d->d_blk_softlimit ||
@@ -336,6 +340,8 @@ xfs_qm_adjust_dqtimers(
 				INT_GET(d->d_ino_hardlimit, ARCH_CONVERT)))) {
 			INT_SET(d->d_itimer, ARCH_CONVERT,
 				get_seconds() + XFS_QI_ITIMELIMIT(mp));
+		} else {
+			d->d_iwarns = 0;
 		}
 	} else {
 		if ((!d->d_ino_softlimit ||
@@ -357,6 +363,8 @@ xfs_qm_adjust_dqtimers(
 				INT_GET(d->d_rtb_hardlimit, ARCH_CONVERT)))) {
 			INT_SET(d->d_rtbtimer, ARCH_CONVERT,
 				get_seconds() + XFS_QI_RTBTIMELIMIT(mp));
+		} else {
+			d->d_rtbwarns = 0;
 		}
 	} else {
 		if ((!d->d_rtb_softlimit ||

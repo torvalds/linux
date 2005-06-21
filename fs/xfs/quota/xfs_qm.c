@@ -1550,8 +1550,10 @@ xfs_qm_reset_dqcounts(
 		INT_SET(ddq->d_rtbcount, ARCH_CONVERT, 0ULL);
 		INT_SET(ddq->d_btimer, ARCH_CONVERT, (time_t)0);
 		INT_SET(ddq->d_itimer, ARCH_CONVERT, (time_t)0);
+		INT_SET(ddq->d_rtbtimer, ARCH_CONVERT, (time_t)0);
 		INT_SET(ddq->d_bwarns, ARCH_CONVERT, 0UL);
 		INT_SET(ddq->d_iwarns, ARCH_CONVERT, 0UL);
+		INT_SET(ddq->d_rtbwarns, ARCH_CONVERT, 0UL);
 		ddq = (xfs_disk_dquot_t *) ((xfs_dqblk_t *)ddq + 1);
 	}
 

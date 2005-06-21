@@ -617,7 +617,8 @@ xfs_qm_scall_setqlim(
 	if (!capable(CAP_SYS_ADMIN))
 		return XFS_ERROR(EPERM);
 
-	if ((newlim->d_fieldmask & (FS_DQ_LIMIT_MASK|FS_DQ_TIMER_MASK)) == 0)
+	if ((newlim->d_fieldmask &
+	    (FS_DQ_LIMIT_MASK|FS_DQ_TIMER_MASK|FS_DQ_WARNS_MASK)) == 0)
 		return (0);
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_QM_SETQLIM);
@@ -702,12 +703,23 @@ xfs_qm_scall_setqlim(
 		qdprintk("ihard %Ld < isoft %Ld\n", hard, soft);
 	}
 
+	/*
+	 * Update warnings counter(s) if requested
+	 */
+	if (newlim->d_fieldmask & FS_DQ_BWARNS)
+		INT_SET(ddq->d_bwarns, ARCH_CONVERT, newlim->d_bwarns);
+	if (newlim->d_fieldmask & FS_DQ_IWARNS)
+		INT_SET(ddq->d_iwarns, ARCH_CONVERT, newlim->d_iwarns);
+	if (newlim->d_fieldmask & FS_DQ_RTBWARNS)
+		INT_SET(ddq->d_rtbwarns, ARCH_CONVERT, newlim->d_rtbwarns);
+
 	if (id == 0) {
 		/*
 		 * Timelimits for the super user set the relative time
 		 * the other users can be over quota for this file system.
 		 * If it is zero a default is used.  Ditto for the default
-		 * soft and hard limit values (already done, above).
+		 * soft and hard limit values (already done, above), and
+		 * for warnings.
 		 */
 		if (newlim->d_fieldmask & FS_DQ_BTIMER) {
 			mp->m_quotainfo->qi_btimelimit = newlim->d_btimer;
@@ -721,7 +733,13 @@ xfs_qm_scall_setqlim(
 			mp->m_quotainfo->qi_rtbtimelimit = newlim->d_rtbtimer;
 			INT_SET(ddq->d_rtbtimer, ARCH_CONVERT, newlim->d_rtbtimer);
 		}
-	} else /* if (XFS_IS_QUOTA_ENFORCED(mp)) */ {
+		if (newlim->d_fieldmask & FS_DQ_BWARNS)
+			mp->m_quotainfo->qi_bwarnlimit = newlim->d_bwarns;
+		if (newlim->d_fieldmask & FS_DQ_IWARNS)
+			mp->m_quotainfo->qi_iwarnlimit = newlim->d_iwarns;
+		if (newlim->d_fieldmask & FS_DQ_RTBWARNS)
+			mp->m_quotainfo->qi_rtbwarnlimit = newlim->d_rtbwarns;
+	} else {
 		/*
 		 * If the user is now over quota, start the timelimit.
 		 * The user will not be 'warned'.
