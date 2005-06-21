@@ -70,8 +70,7 @@ static struct posix_acl *jfs_get_acl(struct inode *inode, int type)
 		if (!IS_ERR(acl))
 			*p_acl = posix_acl_dup(acl);
 	}
-	if (value)
-		kfree(value);
+	kfree(value);
 	return acl;
 }
 
@@ -112,8 +111,7 @@ static int jfs_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 	}
 	rc = __jfs_setxattr(inode, ea_name, value, size, 0);
 out:
-	if (value)
-		kfree(value);
+	kfree(value);
 
 	if (!rc) {
 		if (*p_acl && (*p_acl != JFS_ACL_NOT_CACHED))
