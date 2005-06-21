@@ -79,7 +79,7 @@ static int xfs_dir2_leaf_lookup_int(xfs_da_args_t *args, xfs_dabuf_t **lbpp,
 				    int *indexp, xfs_dabuf_t **dbpp);
 static void xfs_dir2_leaf_log_bests(struct xfs_trans *tp, struct xfs_dabuf *bp,
 				    int first, int last);
-extern void xfs_dir2_leaf_log_tail(struct xfs_trans *tp, struct xfs_dabuf *bp);
+static void xfs_dir2_leaf_log_tail(struct xfs_trans *tp, struct xfs_dabuf *bp);
 
 
 /*

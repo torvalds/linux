@@ -93,7 +93,7 @@ xfs_btree_maxrecs(
  * Retrieve the block pointer from the cursor at the given level.
  * This may be a bmap btree root or from a buffer.
  */
-xfs_btree_block_t *			/* generic btree block pointer */
+STATIC xfs_btree_block_t *			/* generic btree block pointer */
 xfs_btree_get_block(
 	xfs_btree_cur_t		*cur,	/* btree cursor */
 	int			level,	/* level in btree */
