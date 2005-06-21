@@ -1251,6 +1251,10 @@ xfs_qm_init_quotainfo(
 				INT_GET(ddqp->d_iwarns, ARCH_CONVERT) ?
 				INT_GET(ddqp->d_iwarns, ARCH_CONVERT) :
 				XFS_QM_IWARNLIMIT;
+		qinf->qi_rtbwarnlimit =
+				INT_GET(ddqp->d_rtbwarns, ARCH_CONVERT) ?
+				INT_GET(ddqp->d_rtbwarns, ARCH_CONVERT) :
+				XFS_QM_RTBWARNLIMIT;
 		qinf->qi_bhardlimit =
 				INT_GET(ddqp->d_blk_hardlimit, ARCH_CONVERT);
 		qinf->qi_bsoftlimit =
@@ -1276,6 +1280,7 @@ xfs_qm_init_quotainfo(
 		qinf->qi_rtbtimelimit = XFS_QM_RTBTIMELIMIT;
 		qinf->qi_bwarnlimit = XFS_QM_BWARNLIMIT;
 		qinf->qi_iwarnlimit = XFS_QM_IWARNLIMIT;
+		qinf->qi_rtbwarnlimit = XFS_QM_RTBWARNLIMIT;
 	}
 
 	return (0);
@@ -2624,6 +2629,9 @@ xfs_qm_vop_chown(
 	xfs_dquot_t	*newdq)
 {
 	xfs_dquot_t	*prevdq;
+	uint		bfield = XFS_IS_REALTIME_INODE(ip) ?
+				 XFS_TRANS_DQ_RTBCOUNT : XFS_TRANS_DQ_BCOUNT;
+
 	ASSERT(XFS_ISLOCKED_INODE_EXCL(ip));
 	ASSERT(XFS_IS_QUOTA_RUNNING(ip->i_mount));
 
@@ -2632,20 +2640,12 @@ xfs_qm_vop_chown(
 	ASSERT(prevdq);
 	ASSERT(prevdq != newdq);
 
-	xfs_trans_mod_dquot(tp, prevdq,
-			    XFS_TRANS_DQ_BCOUNT,
-			    -(ip->i_d.di_nblocks));
-	xfs_trans_mod_dquot(tp, prevdq,
-			    XFS_TRANS_DQ_ICOUNT,
-			    -1);
+	xfs_trans_mod_dquot(tp, prevdq, bfield, -(ip->i_d.di_nblocks));
+	xfs_trans_mod_dquot(tp, prevdq, XFS_TRANS_DQ_ICOUNT, -1);
 
 	/* the sparkling new dquot */
-	xfs_trans_mod_dquot(tp, newdq,
-			    XFS_TRANS_DQ_BCOUNT,
-			    ip->i_d.di_nblocks);
-	xfs_trans_mod_dquot(tp, newdq,
-			    XFS_TRANS_DQ_ICOUNT,
-			    1);
+	xfs_trans_mod_dquot(tp, newdq, bfield, ip->i_d.di_nblocks);
+	xfs_trans_mod_dquot(tp, newdq, XFS_TRANS_DQ_ICOUNT, 1);
 
 	/*
 	 * Take an extra reference, because the inode
@@ -2673,7 +2673,7 @@ xfs_qm_vop_chown_reserve(
 {
 	int		error;
 	xfs_mount_t	*mp;
-	uint		delblks;
+	uint		delblks, blkflags;
 	xfs_dquot_t	*unresudq, *unresgdq, *delblksudq, *delblksgdq;
 
 	ASSERT(XFS_ISLOCKED_INODE(ip));
@@ -2682,6 +2682,8 @@ xfs_qm_vop_chown_reserve(
 
 	delblks = ip->i_delayed_blks;
 	delblksudq = delblksgdq = unresudq = unresgdq = NULL;
+	blkflags = XFS_IS_REALTIME_INODE(ip) ?
+			XFS_QMOPT_RES_RTBLKS : XFS_QMOPT_RES_REGBLKS;
 
 	if (XFS_IS_UQUOTA_ON(mp) && udqp &&
 	    ip->i_d.di_uid != (uid_t)INT_GET(udqp->q_core.d_id, ARCH_CONVERT)) {
@@ -2711,7 +2713,7 @@ xfs_qm_vop_chown_reserve(
 
 	if ((error = xfs_trans_reserve_quota_bydquots(tp, ip->i_mount,
 				delblksudq, delblksgdq, ip->i_d.di_nblocks, 1,
-				flags | XFS_QMOPT_RES_REGBLKS)))
+				flags | blkflags)))
 		return (error);
 
 	/*
@@ -2728,11 +2730,11 @@ xfs_qm_vop_chown_reserve(
 		ASSERT(unresudq || unresgdq);
 		if ((error = xfs_trans_reserve_quota_bydquots(NULL, ip->i_mount,
 				delblksudq, delblksgdq, (xfs_qcnt_t)delblks, 0,
-				flags | XFS_QMOPT_RES_REGBLKS)))
+				flags | blkflags)))
 			return (error);
 		xfs_trans_reserve_quota_bydquots(NULL, ip->i_mount,
 				unresudq, unresgdq, -((xfs_qcnt_t)delblks), 0,
-				XFS_QMOPT_RES_REGBLKS);
+				blkflags);
 	}
 
 	return (0);

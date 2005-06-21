@@ -4175,9 +4175,8 @@ retry:
 			break;
 		}
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
-		error = XFS_TRANS_RESERVE_QUOTA_BYDQUOTS(mp, tp,
-				ip->i_udquot, ip->i_gdquot, resblks, 0, rt ?
-				XFS_QMOPT_RES_RTBLKS : XFS_QMOPT_RES_REGBLKS);
+		error = XFS_TRANS_RESERVE_QUOTA(mp, tp,
+				ip->i_udquot, ip->i_gdquot, resblks, 0, 0);
 		if (error)
 			goto error1;
 

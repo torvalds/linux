@@ -4545,18 +4545,17 @@ xfs_bmapi(
 	xfs_extlen_t	alen;		/* allocated extent length */
 	xfs_fileoff_t	aoff;		/* allocated file offset */
 	xfs_bmalloca_t	bma;		/* args for xfs_bmap_alloc */
-	char		contig;		/* allocation must be one extent */
 	xfs_btree_cur_t	*cur;		/* bmap btree cursor */
-	char		delay;		/* this request is for delayed alloc */
 	xfs_fileoff_t	end;		/* end of mapped file region */
 	int		eof;		/* we've hit the end of extent list */
+	char		contig;		/* allocation must be one extent */
+	char		delay;		/* this request is for delayed alloc */
+	char		exact;		/* don't do all of wasdelayed extent */
 	xfs_bmbt_rec_t	*ep;		/* extent list entry pointer */
 	int		error;		/* error return */
-	char		exact;		/* don't do all of wasdelayed extent */
 	xfs_bmbt_irec_t	got;		/* current extent list record */
 	xfs_ifork_t	*ifp;		/* inode fork pointer */
 	xfs_extlen_t	indlen;		/* indirect blocks length */
-	char		inhole;		/* current location is hole in file */
 	xfs_extnum_t	lastx;		/* last useful extent number */
 	int		logflags;	/* flags for transaction logging */
 	xfs_extlen_t	minleft;	/* min blocks left after allocation */
@@ -4567,13 +4566,15 @@ xfs_bmapi(
 	xfs_extnum_t	nextents;	/* number of extents in file */
 	xfs_fileoff_t	obno;		/* old block number (offset) */
 	xfs_bmbt_irec_t	prev;		/* previous extent list record */
-	char		stateless;	/* ignore state flag set */
 	int		tmp_logflags;	/* temp flags holder */
+	int		whichfork;	/* data or attr fork */
+	char		inhole;		/* current location is hole in file */
+	char		stateless;	/* ignore state flag set */
 	char		trim;		/* output trimmed to match range */
 	char		userdata;	/* allocating non-metadata */
 	char		wasdelay;	/* old extent was delayed */
-	int		whichfork;	/* data or attr fork */
 	char		wr;		/* this is a write request */
+	char		rt;		/* this is a realtime file */
 	char		rsvd;		/* OK to allocate reserved blocks */
 #ifdef DEBUG
 	xfs_fileoff_t	orig_bno;	/* original block number value */
@@ -4603,6 +4604,7 @@ xfs_bmapi(
 	}
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return XFS_ERROR(EIO);
+	rt = XFS_IS_REALTIME_INODE(ip);
 	ifp = XFS_IFORK_PTR(ip, whichfork);
 	ASSERT(ifp->if_ext_max ==
 	       XFS_IFORK_SIZE(ip, whichfork) / (uint)sizeof(xfs_bmbt_rec_t));
@@ -4707,9 +4709,16 @@ xfs_bmapi(
 			}
 			minlen = contig ? alen : 1;
 			if (delay) {
-				indlen = (xfs_extlen_t)
-					xfs_bmap_worst_indlen(ip, alen);
-				ASSERT(indlen > 0);
+				xfs_extlen_t	extsz = 0;
+
+				/* Figure out the extent size, adjust alen */
+				if (rt) {
+					if (!(extsz = ip->i_d.di_extsize))
+						extsz = mp->m_sb.sb_rextsize;
+					alen = roundup(alen, extsz);
+					extsz = alen / mp->m_sb.sb_rextsize;
+				}
+
 				/*
 				 * Make a transaction-less quota reservation for
 				 * delayed allocation blocks. This number gets
@@ -4717,8 +4726,10 @@ xfs_bmapi(
 				 * We return EDQUOT if we haven't allocated
 				 * blks already inside this loop;
 				 */
-				if (XFS_TRANS_RESERVE_BLKQUOTA(
-						mp, NULL, ip, (long)alen)) {
+				if (XFS_TRANS_RESERVE_QUOTA_NBLKS(
+						mp, NULL, ip, (long)alen, 0,
+						rt ? XFS_QMOPT_RES_RTBLKS :
+						     XFS_QMOPT_RES_REGBLKS)) {
 					if (n == 0) {
 						*nmap = 0;
 						ASSERT(cur == NULL);
@@ -4731,40 +4742,34 @@ xfs_bmapi(
 				 * Split changing sb for alen and indlen since
 				 * they could be coming from different places.
 				 */
-				if (ip->i_d.di_flags & XFS_DIFLAG_REALTIME) {
-					xfs_extlen_t	extsz;
-					xfs_extlen_t	ralen;
-					if (!(extsz = ip->i_d.di_extsize))
-						extsz = mp->m_sb.sb_rextsize;
-					ralen = roundup(alen, extsz);
-					ralen = ralen / mp->m_sb.sb_rextsize;
-					if (xfs_mod_incore_sb(mp,
-						XFS_SBS_FREXTENTS,
-						-(ralen), rsvd)) {
-						if (XFS_IS_QUOTA_ON(ip->i_mount))
-							XFS_TRANS_UNRESERVE_BLKQUOTA(
-						     		mp, NULL, ip,
-								(long)alen);
-						break;
-					}
-				} else {
-					if (xfs_mod_incore_sb(mp,
-							      XFS_SBS_FDBLOCKS,
-							      -(alen), rsvd)) {
-						if (XFS_IS_QUOTA_ON(ip->i_mount))
-							XFS_TRANS_UNRESERVE_BLKQUOTA(
-								mp, NULL, ip,
-								(long)alen);
-						break;
-					}
-				}
+				indlen = (xfs_extlen_t)
+					xfs_bmap_worst_indlen(ip, alen);
+				ASSERT(indlen > 0);
 
-				if (xfs_mod_incore_sb(mp, XFS_SBS_FDBLOCKS,
-						-(indlen), rsvd)) {
-					XFS_TRANS_UNRESERVE_BLKQUOTA(
-						mp, NULL, ip, (long)alen);
+				if (rt)
+					error = xfs_mod_incore_sb(mp,
+							XFS_SBS_FREXTENTS,
+							-(extsz), rsvd);
+				else
+					error = xfs_mod_incore_sb(mp,
+							XFS_SBS_FDBLOCKS,
+							-(alen), rsvd);
+				if (!error)
+					error = xfs_mod_incore_sb(mp,
+							XFS_SBS_FDBLOCKS,
+							-(indlen), rsvd);
+
+				if (error) {
+					if (XFS_IS_QUOTA_ON(ip->i_mount))
+						/* unreserve the blocks now */
+						XFS_TRANS_UNRESERVE_QUOTA_NBLKS(
+							mp, NULL, ip,
+							(long)alen, 0, rt ?
+							XFS_QMOPT_RES_RTBLKS :
+							XFS_QMOPT_RES_REGBLKS);
 					break;
 				}
+
 				ip->i_delayed_blks += alen;
 				abno = NULLSTARTBLOCK(indlen);
 			} else {
@@ -5389,13 +5394,24 @@ xfs_bunmapi(
 		}
 		if (wasdel) {
 			ASSERT(STARTBLOCKVAL(del.br_startblock) > 0);
-			xfs_mod_incore_sb(mp, XFS_SBS_FDBLOCKS,
-				(int)del.br_blockcount, rsvd);
-			/* Unreserve our quota space */
-			XFS_TRANS_RESERVE_QUOTA_NBLKS(
-				mp, NULL, ip, -((long)del.br_blockcount), 0,
-				isrt ?	XFS_QMOPT_RES_RTBLKS :
+			/* Update realtim/data freespace, unreserve quota */
+			if (isrt) {
+				xfs_filblks_t rtexts;
+
+				rtexts = XFS_FSB_TO_B(mp, del.br_blockcount);
+				do_div(rtexts, mp->m_sb.sb_rextsize);
+				xfs_mod_incore_sb(mp, XFS_SBS_FREXTENTS,
+						(int)rtexts, rsvd);
+				XFS_TRANS_RESERVE_QUOTA_NBLKS(mp, NULL, ip,
+					-((long)del.br_blockcount), 0,
+					XFS_QMOPT_RES_RTBLKS);
+			} else {
+				xfs_mod_incore_sb(mp, XFS_SBS_FDBLOCKS,
+						(int)del.br_blockcount, rsvd);
+				XFS_TRANS_RESERVE_QUOTA_NBLKS(mp, NULL, ip,
+					-((long)del.br_blockcount), 0,
 					XFS_QMOPT_RES_REGBLKS);
+			}
 			ip->i_delayed_blks -= del.br_blockcount;
 			if (cur)
 				cur->bc_private.b.flags |=

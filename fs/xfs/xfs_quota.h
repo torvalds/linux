@@ -352,15 +352,8 @@ typedef struct xfs_dqtrxops {
 #define XFS_TRANS_UNRESERVE_AND_MOD_DQUOTS(mp, tp) \
 	XFS_DQTRXOP_VOID(mp, tp, qo_unreserve_and_mod_dquots)
 
-#define XFS_TRANS_RESERVE_BLKQUOTA(mp, tp, ip, nblks) \
-	XFS_TRANS_RESERVE_QUOTA_NBLKS(mp, tp, ip, nblks, 0, \
-				XFS_QMOPT_RES_REGBLKS)
-#define XFS_TRANS_RESERVE_BLKQUOTA_FORCE(mp, tp, ip, nblks) \
-	XFS_TRANS_RESERVE_QUOTA_NBLKS(mp, tp, ip, nblks, 0, \
-				XFS_QMOPT_RES_REGBLKS | XFS_QMOPT_FORCE_RES)
-#define XFS_TRANS_UNRESERVE_BLKQUOTA(mp, tp, ip, nblks) \
-	XFS_TRANS_RESERVE_QUOTA_NBLKS(mp, tp, ip, -(nblks), 0, \
-				XFS_QMOPT_RES_REGBLKS)
+#define XFS_TRANS_UNRESERVE_QUOTA_NBLKS(mp, tp, ip, nblks, ninos, flags) \
+	XFS_TRANS_RESERVE_QUOTA_NBLKS(mp, tp, ip, -(nblks), -(ninos), flags)
 #define XFS_TRANS_RESERVE_QUOTA(mp, tp, ud, gd, nb, ni, f) \
 	XFS_TRANS_RESERVE_QUOTA_BYDQUOTS(mp, tp, ud, gd, nb, ni, \
 				f | XFS_QMOPT_RES_REGBLKS)

@@ -133,8 +133,9 @@ typedef struct xfs_quotainfo {
 	time_t		 qi_btimelimit;	 /* limit for blks timer */
 	time_t		 qi_itimelimit;	 /* limit for inodes timer */
 	time_t		 qi_rtbtimelimit;/* limit for rt blks timer */
-	xfs_qwarncnt_t	 qi_bwarnlimit;	 /* limit for num warnings */
-	xfs_qwarncnt_t	 qi_iwarnlimit;	 /* limit for num warnings */
+	xfs_qwarncnt_t	 qi_bwarnlimit;	 /* limit for blks warnings */
+	xfs_qwarncnt_t	 qi_iwarnlimit;	 /* limit for inodes warnings */
+	xfs_qwarncnt_t	 qi_rtbwarnlimit;/* limit for rt blks warnings */
 	mutex_t		 qi_quotaofflock;/* to serialize quotaoff */
 	xfs_filblks_t	 qi_dqchunklen;	 /* # BBs in a chunk of dqs */
 	uint		 qi_dqperchunk;	 /* # ondisk dqs in above chunk */
@@ -176,6 +177,7 @@ typedef struct xfs_dquot_acct {
 
 #define XFS_QM_BWARNLIMIT	5
 #define XFS_QM_IWARNLIMIT	5
+#define XFS_QM_RTBWARNLIMIT	5
 
 #define XFS_QM_LOCK(xqm)	(mutex_lock(&xqm##_lock, PINOD))
 #define XFS_QM_UNLOCK(xqm)	(mutex_unlock(&xqm##_lock))

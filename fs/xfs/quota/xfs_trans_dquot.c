@@ -497,7 +497,7 @@ xfs_trans_apply_dquot_deltas(
 			 * Adjust the RT reservation.
 			 */
 			if (qtrx->qt_rtblk_res != 0) {
-				if (qtrx->qt_blk_res != qtrx->qt_blk_res_used) {
+				if (qtrx->qt_rtblk_res != qtrx->qt_rtblk_res_used) {
 					if (qtrx->qt_rtblk_res >
 					    qtrx->qt_rtblk_res_used)
 					       dqp->q_res_rtbcount -= (xfs_qcnt_t)
@@ -530,12 +530,6 @@ xfs_trans_apply_dquot_deltas(
 					    (xfs_qcnt_t)qtrx->qt_icount_delta;
 			}
 
-
-#ifdef QUOTADEBUG
-			if (qtrx->qt_rtblk_res != 0)
-				cmn_err(CE_DEBUG, "RT res %d for 0x%p\n",
-					(int) qtrx->qt_rtblk_res, dqp);
-#endif
 			ASSERT(dqp->q_res_bcount >=
 				INT_GET(dqp->q_core.d_bcount, ARCH_CONVERT));
 			ASSERT(dqp->q_res_icount >=
@@ -636,7 +630,10 @@ xfs_trans_dqresv(
 	int		error;
 	xfs_qcnt_t	hardlimit;
 	xfs_qcnt_t	softlimit;
-	time_t		btimer;
+	time_t		timer;
+	xfs_qwarncnt_t	warns;
+	xfs_qwarncnt_t	warnlimit;
+	xfs_qcnt_t	count;
 	xfs_qcnt_t	*resbcountp;
 	xfs_quotainfo_t	*q = mp->m_quotainfo;
 
@@ -651,7 +648,9 @@ xfs_trans_dqresv(
 		softlimit = INT_GET(dqp->q_core.d_blk_softlimit, ARCH_CONVERT);
 		if (!softlimit)
 			softlimit = q->qi_bsoftlimit;
-		btimer = INT_GET(dqp->q_core.d_btimer, ARCH_CONVERT);
+		timer = INT_GET(dqp->q_core.d_btimer, ARCH_CONVERT);
+		warns = INT_GET(dqp->q_core.d_bwarns, ARCH_CONVERT);
+		warnlimit = XFS_QI_BWARNLIMIT(dqp->q_mount);
 		resbcountp = &dqp->q_res_bcount;
 	} else {
 		ASSERT(flags & XFS_TRANS_DQ_RES_RTBLKS);
@@ -661,7 +660,9 @@ xfs_trans_dqresv(
 		softlimit = INT_GET(dqp->q_core.d_rtb_softlimit, ARCH_CONVERT);
 		if (!softlimit)
 			softlimit = q->qi_rtbsoftlimit;
-		btimer = INT_GET(dqp->q_core.d_rtbtimer, ARCH_CONVERT);
+		timer = INT_GET(dqp->q_core.d_rtbtimer, ARCH_CONVERT);
+		warns = INT_GET(dqp->q_core.d_rtbwarns, ARCH_CONVERT);
+		warnlimit = XFS_QI_RTBWARNLIMIT(dqp->q_mount);
 		resbcountp = &dqp->q_res_rtbcount;
 	}
 	error = 0;
@@ -691,37 +692,36 @@ xfs_trans_dqresv(
 				 * If timer or warnings has expired,
 				 * return EDQUOT
 				 */
-				if ((btimer != 0 && get_seconds() > btimer) ||
-				    (dqp->q_core.d_bwarns &&
-				     INT_GET(dqp->q_core.d_bwarns, ARCH_CONVERT) >=
-				     XFS_QI_BWARNLIMIT(dqp->q_mount))) {
+				if ((timer != 0 && get_seconds() > timer) ||
+				    (warns != 0 && warns >= warnlimit)) {
 					error = EDQUOT;
 					goto error_return;
 				}
 			}
 		}
 		if (ninos > 0) {
-			hardlimit = INT_GET(dqp->q_core.d_ino_hardlimit, ARCH_CONVERT);
+			count = INT_GET(dqp->q_core.d_icount, ARCH_CONVERT);
+			timer = INT_GET(dqp->q_core.d_itimer, ARCH_CONVERT);
+			warns = INT_GET(dqp->q_core.d_iwarns, ARCH_CONVERT);
+			warnlimit = XFS_QI_IWARNLIMIT(dqp->q_mount);
+			hardlimit = INT_GET(dqp->q_core.d_ino_hardlimit,
+						ARCH_CONVERT);
 			if (!hardlimit)
 				hardlimit = q->qi_ihardlimit;
-			softlimit = INT_GET(dqp->q_core.d_ino_softlimit, ARCH_CONVERT);
+			softlimit = INT_GET(dqp->q_core.d_ino_softlimit,
+						ARCH_CONVERT);
 			if (!softlimit)
 				softlimit = q->qi_isoftlimit;
-			if (hardlimit > 0ULL &&
-			    INT_GET(dqp->q_core.d_icount, ARCH_CONVERT) >= hardlimit) {
+			if (hardlimit > 0ULL && count >= hardlimit) {
 				error = EDQUOT;
 				goto error_return;
-			} else if (softlimit > 0ULL &&
-				   INT_GET(dqp->q_core.d_icount, ARCH_CONVERT) >= softlimit) {
+			} else if (softlimit > 0ULL && count >= softlimit) {
 				/*
 				 * If timer or warnings has expired,
 				 * return EDQUOT
 				 */
-				if ((dqp->q_core.d_itimer &&
-				     get_seconds() > INT_GET(dqp->q_core.d_itimer, ARCH_CONVERT)) ||
-				    (dqp->q_core.d_iwarns &&
-				     INT_GET(dqp->q_core.d_iwarns, ARCH_CONVERT) >=
-				     XFS_QI_IWARNLIMIT(dqp->q_mount))) {
+				if ((timer != 0 && get_seconds() > timer) ||
+				     (warns != 0 && warns >= warnlimit)) {
 					error = EDQUOT;
 					goto error_return;
 				}
