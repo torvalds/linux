@@ -147,7 +147,7 @@ struct netlink_callback
 	int		(*dump)(struct sk_buff * skb, struct netlink_callback *cb);
 	int		(*done)(struct netlink_callback *cb);
 	int		family;
-	long		args[4];
+	long		args[5];
 };
 
 struct netlink_notify
