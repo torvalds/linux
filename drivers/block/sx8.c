@@ -1736,7 +1736,6 @@ static void carm_remove_one (struct pci_dev *pdev)
 
 	free_irq(pdev->irq, host);
 	carm_free_disks(host);
-	devfs_remove(DRV_NAME);
 	unregister_blkdev(host->major, host->name);
 	if (host->major == 160)
 		clear_bit(0, &carm_major_alloc);

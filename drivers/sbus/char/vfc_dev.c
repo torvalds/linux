@@ -712,7 +712,6 @@ static void deinit_vfc_device(struct vfc_dev *dev)
 {
 	if(dev == NULL)
 		return;
-	devfs_remove("vfc/%d", dev->instance);
 	sbus_iounmap(dev->regs, sizeof(struct vfc_regs));
 	kfree(dev);
 }
@@ -726,7 +725,6 @@ void cleanup_module(void)
 	for (devp = vfc_dev_lst; *devp; devp++)
 		deinit_vfc_device(*devp);
 
-	devfs_remove("vfc");
 	kfree(vfc_dev_lst);
 	return;
 }

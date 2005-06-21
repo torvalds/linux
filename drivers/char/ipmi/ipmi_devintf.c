@@ -833,7 +833,6 @@ static void ipmi_smi_gone(int if_num)
 	}
 	class_device_destroy(ipmi_class, dev);
 	mutex_unlock(&reg_list_mutex);
-	devfs_remove("ipmidev/%d", if_num);
 }
 
 static struct ipmi_smi_watcher smi_watcher =
@@ -893,7 +892,6 @@ static __exit void cleanup_ipmi(void)
 	mutex_unlock(&reg_list_mutex);
 	class_destroy(ipmi_class);
 	ipmi_smi_watcher_unregister(&smi_watcher);
-	devfs_remove(DEVICE_NAME);
 	unregister_chrdev(ipmi_major, DEVICE_NAME);
 }
 module_exit(cleanup_ipmi);

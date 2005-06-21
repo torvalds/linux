@@ -205,5 +205,4 @@ cleanup_socksys(void)
 {
 	if (unregister_chrdev(30, "socksys"))
 		printk ("Couldn't unregister socksys character device\n");
-	devfs_remove ("socksys");
 }

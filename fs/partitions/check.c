@@ -320,7 +320,6 @@ void delete_partition(struct gendisk *disk, int part)
 	p->nr_sects = 0;
 	p->ios[0] = p->ios[1] = 0;
 	p->sectors[0] = p->sectors[1] = 0;
-	devfs_remove("%s/part%d", disk->devfs_name, part);
 	sysfs_remove_link(&p->kobj, "subsystem");
 	if (p->holder_dir)
 		kobject_unregister(p->holder_dir);

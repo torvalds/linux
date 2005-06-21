@@ -409,12 +409,9 @@ static int __init init_coda(void)
 	}
 	return 0;
 out:
-	for (i = 0; i < MAX_CODADEVS; i++) {
+	for (i = 0; i < MAX_CODADEVS; i++)
 		class_device_destroy(coda_psdev_class, MKDEV(CODA_PSDEV_MAJOR, i));
-		devfs_remove("coda/%d", i);
-	}
 	class_destroy(coda_psdev_class);
-	devfs_remove("coda");
 	unregister_chrdev(CODA_PSDEV_MAJOR, "coda");
 	coda_sysctl_clean();
 out1:
@@ -431,12 +428,9 @@ static void __exit exit_coda(void)
         if ( err != 0 ) {
                 printk("coda: failed to unregister filesystem\n");
         }
-	for (i = 0; i < MAX_CODADEVS; i++) {
+	for (i = 0; i < MAX_CODADEVS; i++)
 		class_device_destroy(coda_psdev_class, MKDEV(CODA_PSDEV_MAJOR, i));
-		devfs_remove("coda/%d", i);
-	}
 	class_destroy(coda_psdev_class);
-	devfs_remove("coda");
 	unregister_chrdev(CODA_PSDEV_MAJOR, "coda");
 	coda_sysctl_clean();
 	coda_destroy_inodecache();

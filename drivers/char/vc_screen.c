@@ -485,8 +485,6 @@ void vcs_make_devfs(struct tty_struct *tty)
 }
 void vcs_remove_devfs(struct tty_struct *tty)
 {
-	devfs_remove("vcc/%u", tty->index + 1);
-	devfs_remove("vcc/a%u", tty->index + 1);
 	class_device_destroy(vc_class, MKDEV(VCS_MAJOR, tty->index + 1));
 	class_device_destroy(vc_class, MKDEV(VCS_MAJOR, tty->index + 129));
 }

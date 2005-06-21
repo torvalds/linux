@@ -970,8 +970,6 @@ static int viotape_remove(struct vio_dev *vdev)
 {
 	int i = vdev->unit_address;
 
-	devfs_remove("iseries/nvt%d", i);
-	devfs_remove("iseries/vt%d", i);
 	class_device_destroy(tape_class, MKDEV(VIOTAPE_MAJOR, i | 0x80));
 	class_device_destroy(tape_class, MKDEV(VIOTAPE_MAJOR, i));
 	return 0;

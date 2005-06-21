@@ -74,7 +74,6 @@ static int dm_hash_init(void)
 static void dm_hash_exit(void)
 {
 	dm_hash_remove_all(0);
-	devfs_remove(DM_DIR);
 }
 
 /*-----------------------------------------------------------------
@@ -171,15 +170,6 @@ static void free_cell(struct hash_cell *hc)
 }
 
 /*
- * devfs stuff.
- */
-static int unregister_with_devfs(struct hash_cell *hc)
-{
-	devfs_remove(DM_DIR"/%s", hc->name);
-	return 0;
-}
-
-/*
  * The kdev_t and uuid of a device can never change once it is
  * initially inserted.
  */
@@ -234,7 +224,6 @@ static void __hash_remove(struct hash_cell *hc)
 	/* remove from the dev hash */
 	list_del(&hc->uuid_list);
 	list_del(&hc->name_list);
-	unregister_with_devfs(hc);
 	dm_set_mdptr(hc->md, NULL);
 
 	table = dm_get_table(hc->md);
@@ -330,8 +319,6 @@ static int dm_hash_rename(const char *old, const char *new)
 	/*
 	 * rename and move the name cell.
 	 */
-	unregister_with_devfs(hc);
-
 	list_del(&hc->name_list);
 	old_name = hc->name;
 	hc->name = new_name;

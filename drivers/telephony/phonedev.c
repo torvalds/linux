@@ -123,7 +123,6 @@ void phone_unregister_device(struct phone_device *pfd)
 	mutex_lock(&phone_lock);
 	if (phone_device[pfd->minor] != pfd)
 		panic("phone: bad unregister");
-	devfs_remove("phone/%d", pfd->minor);
 	phone_device[pfd->minor] = NULL;
 	mutex_unlock(&phone_lock);
 }

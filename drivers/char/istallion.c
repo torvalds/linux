@@ -849,11 +849,8 @@ static void __exit istallion_module_exit(void)
 		return;
 	}
 	put_tty_driver(stli_serial);
-	for (i = 0; i < 4; i++) {
-		devfs_remove("staliomem/%d", i);
+	for (i = 0; i < 4; i++)
 		class_device_destroy(istallion_class, MKDEV(STL_SIOMEMMAJOR, i));
-	}
-	devfs_remove("staliomem");
 	class_destroy(istallion_class);
 	if ((i = unregister_chrdev(STL_SIOMEMMAJOR, "staliomem")))
 		printk("STALLION: failed to un-register serial memory device, "

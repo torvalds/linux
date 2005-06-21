@@ -5904,7 +5904,6 @@ static void sbpcd_exit(void)
 		if (D_S[j].drv_id==-1) continue;
 		del_gendisk(D_S[j].disk);
 		put_disk(D_S[j].disk);
-		devfs_remove("sbp/c0t%d", j);
 		vfree(D_S[j].sbp_buf);
 		if (D_S[j].sbp_audsiz>0)
 			vfree(D_S[j].aud_buf);
@@ -5915,7 +5914,6 @@ static void sbpcd_exit(void)
 		}
 		vfree(D_S[j].sbpcd_infop);
 	}
-	devfs_remove("sbp");
 	msg(DBG_INF, "%s module released.\n", major_name);
 }
 

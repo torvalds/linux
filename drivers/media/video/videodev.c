@@ -1601,7 +1601,6 @@ void video_unregister_device(struct video_device *vfd)
 	if(video_device[vfd->minor]!=vfd)
 		panic("videodev: bad unregister");
 
-	devfs_remove(vfd->devfs_name);
 	video_device[vfd->minor]=NULL;
 	class_device_unregister(&vfd->class_dev);
 	mutex_unlock(&videodev_lock);

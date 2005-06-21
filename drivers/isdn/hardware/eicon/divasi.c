@@ -145,7 +145,6 @@ static struct file_operations divas_idi_fops = {
 
 static void divas_idi_unregister_chrdev(void)
 {
-	devfs_remove(DEVNAME);
 	unregister_chrdev(major, DEVNAME);
 }
 

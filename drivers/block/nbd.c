@@ -685,7 +685,6 @@ static void __exit nbd_cleanup(void)
 			put_disk(disk);
 		}
 	}
-	devfs_remove("nbd");
 	unregister_blkdev(NBD_MAJOR, "nbd");
 	printk(KERN_INFO "nbd: unregistered device at major %d\n", NBD_MAJOR);
 }

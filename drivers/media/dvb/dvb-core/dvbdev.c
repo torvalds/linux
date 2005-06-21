@@ -248,9 +248,6 @@ void dvb_unregister_device(struct dvb_device *dvbdev)
 	if (!dvbdev)
 		return;
 
-	devfs_remove("dvb/adapter%d/%s%d", dvbdev->adapter->num,
-			dnames[dvbdev->type], dvbdev->id);
-
 	class_device_destroy(dvb_class, MKDEV(DVB_MAJOR, nums2minor(dvbdev->adapter->num,
 					dvbdev->type, dvbdev->id)));
 
@@ -314,8 +311,6 @@ EXPORT_SYMBOL(dvb_register_adapter);
 
 int dvb_unregister_adapter(struct dvb_adapter *adap)
 {
-	devfs_remove("dvb/adapter%d", adap->num);
-
 	if (mutex_lock_interruptible(&dvbdev_register_lock))
 		return -ERESTARTSYS;
 	list_del (&adap->list_head);
@@ -421,7 +416,6 @@ error:
 
 static void __exit exit_dvbdev(void)
 {
-	devfs_remove("dvb");
 	class_destroy(dvb_class);
 	cdev_del(&dvb_device_cdev);
 	unregister_chrdev_region(MKDEV(DVB_MAJOR, 0), MAX_DVB_MINORS);

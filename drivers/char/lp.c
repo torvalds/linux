@@ -930,7 +930,6 @@ static int __init lp_init (void)
 out_class:
 	class_destroy(lp_class);
 out_devfs:
-	devfs_remove("printers");
 	unregister_chrdev(LP_MAJOR, "lp");
 	return err;
 }
@@ -978,10 +977,8 @@ static void lp_cleanup_module (void)
 		if (lp_table[offset].dev == NULL)
 			continue;
 		parport_unregister_device(lp_table[offset].dev);
-		devfs_remove("printers/%d", offset);
 		class_device_destroy(lp_class, MKDEV(LP_MAJOR, offset));
 	}
-	devfs_remove("printers");
 	class_destroy(lp_class);
 }
 

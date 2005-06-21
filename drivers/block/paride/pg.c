@@ -695,13 +695,10 @@ static void __exit pg_exit(void)
 
 	for (unit = 0; unit < PG_UNITS; unit++) {
 		struct pg *dev = &devices[unit];
-		if (dev->present) {
+		if (dev->present)
 			class_device_destroy(pg_class, MKDEV(major, unit));
-			devfs_remove("pg/%u", unit);
-		}
 	}
 	class_destroy(pg_class);
-	devfs_remove("pg");
 	unregister_chrdev(major, name);
 
 	for (unit = 0; unit < PG_UNITS; unit++) {

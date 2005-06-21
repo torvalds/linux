@@ -1027,10 +1027,6 @@ int init_module(void)
 
 void cleanup_module(void)
 {
-	int i;
-	for (i = 0; i < MAX_SLM; i++)
-		devfs_remove("slm/%d", i);
-	devfs_remove("slm");
 	if (unregister_chrdev( ACSI_MAJOR, "slm" ) != 0)
 		printk( KERN_ERR "acsi_slm: cleanup_module failed\n");
 	atari_stram_free( SLMBuffer );

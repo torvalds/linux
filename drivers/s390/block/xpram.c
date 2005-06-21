@@ -474,7 +474,6 @@ static int __init xpram_setup_blkdev(void)
 
 	return 0;
 out_unreg:
-	devfs_remove("slram");
 	unregister_blkdev(XPRAM_MAJOR, XPRAM_NAME);
 out:
 	while (i--)
@@ -493,7 +492,6 @@ static void __exit xpram_exit(void)
 		put_disk(xpram_disks[i]);
 	}
 	unregister_blkdev(XPRAM_MAJOR, XPRAM_NAME);
-	devfs_remove("slram");
 	blk_cleanup_queue(xpram_queue);
 	sysdev_unregister(&xpram_sys_device);
 	sysdev_class_unregister(&xpram_sysclass);

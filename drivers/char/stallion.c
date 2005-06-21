@@ -773,11 +773,8 @@ static void __exit stallion_module_exit(void)
 		restore_flags(flags);
 		return;
 	}
-	for (i = 0; i < 4; i++) {
-		devfs_remove("staliomem/%d", i);
+	for (i = 0; i < 4; i++)
 		class_device_destroy(stallion_class, MKDEV(STL_SIOMEMMAJOR, i));
-	}
-	devfs_remove("staliomem");
 	if ((i = unregister_chrdev(STL_SIOMEMMAJOR, "staliomem")))
 		printk("STALLION: failed to un-register serial memory device, "
 			"errno=%d\n", -i);

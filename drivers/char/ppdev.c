@@ -770,7 +770,7 @@ static struct parport_driver pp_driver = {
 
 static int __init ppdev_init (void)
 {
-	int i, err = 0;
+	int err = 0;
 
 	if (register_chrdev (PP_MAJOR, CHRDEV, &pp_fops)) {
 		printk (KERN_WARNING CHRDEV ": unable to get major %d\n",
@@ -791,9 +791,6 @@ static int __init ppdev_init (void)
 	goto out;
 
 out_class:
-	for (i = 0; i < PARPORT_MAX; i++)
-		devfs_remove("parports/%d", i);
-	devfs_remove("parports");
 	class_destroy(ppdev_class);
 out_chrdev:
 	unregister_chrdev(PP_MAJOR, CHRDEV);
@@ -803,12 +800,8 @@ out:
 
 static void __exit ppdev_cleanup (void)
 {
-	int i;
 	/* Clean up all parport stuff */
-	for (i = 0; i < PARPORT_MAX; i++)
-		devfs_remove("parports/%d", i);
 	parport_unregister_driver(&pp_driver);
-	devfs_remove("parports");
 	class_destroy(ppdev_class);
 	unregister_chrdev (PP_MAJOR, CHRDEV);
 }

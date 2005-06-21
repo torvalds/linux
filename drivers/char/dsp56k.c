@@ -533,7 +533,6 @@ static void __exit dsp56k_cleanup_driver(void)
 	class_device_destroy(dsp56k_class, MKDEV(DSP56K_MAJOR, 0));
 	class_destroy(dsp56k_class);
 	unregister_chrdev(DSP56K_MAJOR, "dsp56k");
-	devfs_remove("dsp56k");
 }
 module_exit(dsp56k_cleanup_driver);
 

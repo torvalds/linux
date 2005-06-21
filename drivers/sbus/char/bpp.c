@@ -1039,9 +1039,6 @@ static void __exit bpp_cleanup(void)
 {
 	unsigned idx;
 
-	for (idx = 0; idx < BPP_NO; idx++)
-		devfs_remove("bpp/%d", idx);
-	devfs_remove("bpp");
 	unregister_chrdev(BPP_MAJOR, dev_name);
 
 	for (idx = 0;  idx < BPP_NO; idx++) {

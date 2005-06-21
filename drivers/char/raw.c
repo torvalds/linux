@@ -318,12 +318,6 @@ error:
 
 static void __exit raw_exit(void)
 {
-	int i;
-
-	for (i = 1; i < MAX_RAW_MINORS; i++)
-		devfs_remove("raw/raw%d", i);
-	devfs_remove("raw/rawctl");
-	devfs_remove("raw");
 	class_device_destroy(raw_class, MKDEV(RAW_MAJOR, 0));
 	class_destroy(raw_class);
 	cdev_del(&raw_cdev);

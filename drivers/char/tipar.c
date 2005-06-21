@@ -515,7 +515,6 @@ out_class:
 	class_destroy(tipar_class);
 
 out_chrdev:
-	devfs_remove("ticables/par");
 	unregister_chrdev(TIPAR_MAJOR, "tipar");
 out:
 	return err;	
@@ -536,10 +535,8 @@ tipar_cleanup_module(void)
 			continue;
 		parport_unregister_device(table[i].dev);
 		class_device_destroy(tipar_class, MKDEV(TIPAR_MAJOR, i));
-		devfs_remove("ticables/par/%d", i);
 	}
 	class_destroy(tipar_class);
-	devfs_remove("ticables/par");
 
 	pr_info("tipar: module unloaded\n");
 }

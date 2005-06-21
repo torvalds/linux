@@ -1357,7 +1357,6 @@ unregister_framebuffer(struct fb_info *fb_info)
 	i = fb_info->node;
 	if (!registered_fb[i])
 		return -EINVAL;
-	devfs_remove("fb/%d", i);
 
 	if (fb_info->pixmap.addr &&
 	    (fb_info->pixmap.flags & FB_PIXMAP_DEFAULT))

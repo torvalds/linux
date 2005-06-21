@@ -992,12 +992,9 @@ static void __exit pt_exit(void)
 	for (unit = 0; unit < PT_UNITS; unit++)
 		if (pt[unit].present) {
 			class_device_destroy(pt_class, MKDEV(major, unit));
-			devfs_remove("pt/%d", unit);
 			class_device_destroy(pt_class, MKDEV(major, unit + 128));
-			devfs_remove("pt/%dn", unit);
 		}
 	class_destroy(pt_class);
-	devfs_remove("pt");
 	unregister_chrdev(major, name);
 	for (unit = 0; unit < PT_UNITS; unit++)
 		if (pt[unit].present)

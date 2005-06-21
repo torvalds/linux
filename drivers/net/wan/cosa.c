@@ -418,12 +418,9 @@ static void __exit cosa_exit(void)
 	int i;
 	printk(KERN_INFO "Unloading the cosa module\n");
 
-	for (i=0; i<nr_cards; i++) {
+	for (i=0; i<nr_cards; i++)
 		class_device_destroy(cosa_class, MKDEV(cosa_major, i));
-		devfs_remove("cosa/%d", i);
-	}
 	class_destroy(cosa_class);
-	devfs_remove("cosa");
 	for (cosa=cosa_cards; nr_cards--; cosa++) {
 		/* Clean up the per-channel data */
 		for (i=0; i<cosa->nchannels; i++) {

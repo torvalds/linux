@@ -412,7 +412,6 @@ static void __exit rd_cleanup(void)
 		put_disk(rd_disks[i]);
 		blk_cleanup_queue(rd_queue[i]);
 	}
-	devfs_remove("rd");
 	unregister_blkdev(RAMDISK_MAJOR, "ramdisk");
 }
 

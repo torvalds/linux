@@ -564,7 +564,6 @@ static int __init mmc_blk_init(void)
 static void __exit mmc_blk_exit(void)
 {
 	mmc_unregister_driver(&mmc_driver);
-	devfs_remove("mmc");
 	unregister_blkdev(major, "mmc");
 }
 

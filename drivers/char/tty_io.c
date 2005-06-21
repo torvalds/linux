@@ -2997,7 +2997,6 @@ struct class_device *tty_register_device(struct tty_driver *driver,
  */
 void tty_unregister_device(struct tty_driver *driver, unsigned index)
 {
-	devfs_remove("%s%d", driver->devfs_name, index + driver->name_base);
 	class_device_destroy(tty_class, MKDEV(driver->major, driver->minor_start) + index);
 }
 

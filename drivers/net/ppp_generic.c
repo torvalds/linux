@@ -2674,7 +2674,6 @@ static void __exit ppp_cleanup(void)
 	cardmap_destroy(&all_ppp_units);
 	if (unregister_chrdev(PPP_MAJOR, "ppp") != 0)
 		printk(KERN_ERR "PPP: failed to unregister PPP device\n");
-	devfs_remove("ppp");
 	class_device_destroy(ppp_class, MKDEV(PPP_MAJOR, 0));
 	class_destroy(ppp_class);
 }

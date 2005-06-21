@@ -1308,7 +1308,6 @@ static int __init loop_init(void)
 out_mem4:
 	while (i--)
 		blk_cleanup_queue(loop_dev[i].lo_queue);
-	devfs_remove("loop");
 	i = max_loop;
 out_mem3:
 	while (i--)
@@ -1331,7 +1330,6 @@ static void loop_exit(void)
 		blk_cleanup_queue(loop_dev[i].lo_queue);
 		put_disk(disks[i]);
 	}
-	devfs_remove("loop");
 	if (unregister_blkdev(LOOP_MAJOR, "loop"))
 		printk(KERN_WARNING "loop: cannot unregister blkdev\n");
 

@@ -362,17 +362,11 @@ static void zft_exit(void)
 		TRACE(ft_t_info, "successful");
 	}
         for (i = 0; i < 4; i++) {
-		devfs_remove("qft%i", i);
 		class_device_destroy(zft_class, MKDEV(QIC117_TAPE_MAJOR, i));
-		devfs_remove("nqft%i", i);
 		class_device_destroy(zft_class, MKDEV(QIC117_TAPE_MAJOR, i + 4));
-		devfs_remove("zqft%i", i);
 		class_device_destroy(zft_class, MKDEV(QIC117_TAPE_MAJOR, i + 16));
-		devfs_remove("nzqft%i", i);
 		class_device_destroy(zft_class, MKDEV(QIC117_TAPE_MAJOR, i + 20));
-		devfs_remove("rawqft%i", i);
 		class_device_destroy(zft_class, MKDEV(QIC117_TAPE_MAJOR, i + 32));
-		devfs_remove("nrawqft%i", i);
 		class_device_destroy(zft_class, MKDEV(QIC117_TAPE_MAJOR, i + 36));
 	}
 	class_destroy(zft_class);

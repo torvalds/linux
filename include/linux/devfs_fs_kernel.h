@@ -6,7 +6,4 @@
 #include <linux/types.h>
 #include <asm/semaphore.h>
 
-static inline void devfs_remove(const char *fmt, ...)
-{
-}
 #endif				/*  _LINUX_DEVFS_FS_KERNEL_H  */

@@ -5611,15 +5611,9 @@ static __exit void md_exit(void)
 {
 	mddev_t *mddev;
 	struct list_head *tmp;
-	int i;
+
 	blk_unregister_region(MKDEV(MAJOR_NR,0), MAX_MD_DEVS);
 	blk_unregister_region(MKDEV(mdp_major,0), MAX_MD_DEVS << MdpMinorShift);
-	for (i=0; i < MAX_MD_DEVS; i++)
-		devfs_remove("md/%d", i);
-	for (i=0; i < MAX_MD_DEVS; i++)
-		devfs_remove("md/d%d", i);
-
-	devfs_remove("md");
 
 	unregister_blkdev(MAJOR_NR,"md");
 	unregister_blkdev(mdp_major, "mdp");

@@ -354,7 +354,6 @@ static void __exit dtlk_cleanup (void)
 
 	dtlk_write_tts(DTLK_CLEAR);
 	unregister_chrdev(dtlk_major, "dtlk");
-	devfs_remove("dtlk");
 	release_region(dtlk_port_lpc, DTLK_IO_EXTENT);
 }
 

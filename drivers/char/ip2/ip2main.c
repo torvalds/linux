@@ -414,9 +414,7 @@ cleanup_module(void)
 			/* free io addresses and Tibet */
 			release_region( ip2config.addr[i], 8 );
 			class_device_destroy(ip2_class, MKDEV(IP2_IPL_MAJOR, 4 * i));
-			devfs_remove("ip2/ipl%d", i);
 			class_device_destroy(ip2_class, MKDEV(IP2_IPL_MAJOR, 4 * i + 1));
-			devfs_remove("ip2/stat%d", i);
 		}
 		/* Disable and remove interrupt handler. */
 		if ( (ip2config.irq[i] > 0) && have_requested_irq(ip2config.irq[i]) ) {	
@@ -425,7 +423,6 @@ cleanup_module(void)
 		}
 	}
 	class_destroy(ip2_class);
-	devfs_remove("ip2");
 	if ( ( err = tty_unregister_driver ( ip2_tty_driver ) ) ) {
 		printk(KERN_ERR "IP2: failed to unregister tty driver (%d)\n", err);
 	}

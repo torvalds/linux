@@ -271,7 +271,6 @@ int misc_deregister(struct miscdevice * misc)
 	down(&misc_sem);
 	list_del(&misc->list);
 	class_device_destroy(misc_class, MKDEV(MISC_MAJOR, misc->minor));
-	devfs_remove(misc->devfs_name);
 	if (i < DYNAMIC_MINORS && i>0) {
 		misc_minors[i>>3] &= ~(1 << (misc->minor & 7));
 	}

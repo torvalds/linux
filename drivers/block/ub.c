@@ -2453,7 +2453,6 @@ static int __init ub_init(void)
 	return 0;
 
 err_register:
-	devfs_remove(DEVFS_NAME);
 	unregister_blkdev(UB_MAJOR, DRV_NAME);
 err_regblkdev:
 	return rc;
@@ -2463,7 +2462,6 @@ static void __exit ub_exit(void)
 {
 	usb_deregister(&ub_driver);
 
-	devfs_remove(DEVFS_NAME);
 	unregister_blkdev(UB_MAJOR, DRV_NAME);
 	usb_usual_clear_present(USB_US_TYPE_UB);
 }
