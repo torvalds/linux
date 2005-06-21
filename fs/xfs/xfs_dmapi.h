@@ -209,4 +209,8 @@ void xfs_dm_exit(struct file_system_type *);
 #define XFS_DM_EXIT(fstype)
 #endif
 
+#define HAVE_XFS_DM_MM
+int xfs_dm_mm_get(struct vm_area_struct *vma);
+void xfs_dm_mm_put(struct vm_area_struct *vma);
+
 #endif  /* __XFS_DMAPI_H__ */
