@@ -792,6 +792,7 @@ static int usb_register_bus(struct usb_bus *bus)
 	list_add (&bus->bus_list, &usb_bus_list);
 	up (&usb_bus_list_lock);
 
+	usb_notify_add_bus(bus);
 	usbfs_add_bus (bus);
 	usbmon_notify_bus_add (bus);
 
@@ -820,6 +821,7 @@ static void usb_deregister_bus (struct usb_bus *bus)
 	list_del (&bus->bus_list);
 	up (&usb_bus_list_lock);
 
+	usb_notify_remove_bus(bus);
 	usbmon_notify_bus_remove (bus);
 	usbfs_remove_bus (bus);
 

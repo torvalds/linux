@@ -1128,6 +1128,8 @@ void usb_disconnect(struct usb_device **pdev)
 	 */
 	usb_disable_device(udev, 0);
 
+	usb_notify_remove_device(udev);
+
 	/* Free the device number, remove the /proc/bus/usb entry and
 	 * the sysfs attributes, and delete the parent's children[]
 	 * (or root_hub) pointer.
@@ -1371,6 +1373,7 @@ int usb_new_device(struct usb_device *udev)
 	}
 
 	/* USB device state == configured ... usable */
+	usb_notify_add_device(udev);
 
 	/* add a /proc/bus/usb entry */
 	usbdev_add(udev);

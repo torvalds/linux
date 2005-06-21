@@ -1135,6 +1135,14 @@ usb_maxpacket(struct usb_device *udev, int pipe, int is_out)
 
 /* -------------------------------------------------------------------------- */
 
+/* Events from the usb core */
+#define USB_DEVICE_ADD		0x0001
+#define USB_DEVICE_REMOVE	0x0002
+#define USB_BUS_ADD		0x0003
+#define USB_BUS_REMOVE		0x0004
+extern void usb_register_notify(struct notifier_block *nb);
+extern void usb_unregister_notify(struct notifier_block *nb);
+
 #ifdef DEBUG
 #define dbg(format, arg...) printk(KERN_DEBUG "%s: " format "\n" , __FILE__ , ## arg)
 #else

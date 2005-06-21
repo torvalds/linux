@@ -80,3 +80,9 @@ struct dev_state {
 	unsigned long ifclaimed;
 };
 
+/* internal notify stuff */
+extern void usb_notify_add_device(struct usb_device *udev);
+extern void usb_notify_remove_device(struct usb_device *udev);
+extern void usb_notify_add_bus(struct usb_bus *ubus);
+extern void usb_notify_remove_bus(struct usb_bus *ubus);
+
