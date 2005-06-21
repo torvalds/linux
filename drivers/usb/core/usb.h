@@ -62,8 +62,6 @@ extern void usbfs_conn_disc_event(void);
 
 extern int usbdev_init(void);
 extern void usbdev_cleanup(void);
-extern void usbdev_add(struct usb_device *dev);
-extern void usbdev_remove(struct usb_device *dev);
 
 struct dev_state {
 	struct list_head list;      /* state list */

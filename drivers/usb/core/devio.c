@@ -46,6 +46,7 @@
 #include <linux/usb.h>
 #include <linux/usbdevice_fs.h>
 #include <linux/cdev.h>
+#include <linux/notifier.h>
 #include <asm/uaccess.h>
 #include <asm/byteorder.h>
 #include <linux/moduleparam.h>
@@ -1550,7 +1551,7 @@ struct file_operations usbfs_device_file_operations = {
 	.release =	usbdev_release,
 };
 
-void usbdev_add(struct usb_device *dev)
+static void usbdev_add(struct usb_device *dev)
 {
 	int minor = ((dev->bus->busnum-1) * 128) + (dev->devnum-1);
 
@@ -1561,10 +1562,28 @@ void usbdev_add(struct usb_device *dev)
 	dev->class_dev->class_data = dev;
 }
 
-void usbdev_remove(struct usb_device *dev)
+static void usbdev_remove(struct usb_device *dev)
 {
 	class_device_unregister(dev->class_dev);
 }
+
+static int usbdev_notify(struct notifier_block *self, unsigned long action,
+			 void *dev)
+{
+	switch (action) {
+	case USB_DEVICE_ADD:
+		usbdev_add(dev);
+		break;
+	case USB_DEVICE_REMOVE:
+		usbdev_remove(dev);
+		break;
+	}
+	return NOTIFY_OK;
+}
+
+static struct notifier_block usbdev_nb = {
+	.notifier_call = 	usbdev_notify,
+};
 
 static struct cdev usb_device_cdev = {
 	.kobj   = {.name = "usb_device", },
@@ -1585,24 +1604,32 @@ int __init usbdev_init(void)
 	retval = cdev_add(&usb_device_cdev, USB_DEVICE_DEV, USB_DEVICE_MAX);
 	if (retval) {
 		err("unable to get usb_device major %d", USB_DEVICE_MAJOR);
-		unregister_chrdev_region(USB_DEVICE_DEV, USB_DEVICE_MAX);
-		goto out;
+		goto error_cdev;
 	}
 	usb_device_class = class_create(THIS_MODULE, "usb_device");
 	if (IS_ERR(usb_device_class)) {
 		err("unable to register usb_device class");
 		retval = PTR_ERR(usb_device_class);
-		usb_device_class = NULL;
-		cdev_del(&usb_device_cdev);
-		unregister_chrdev_region(USB_DEVICE_DEV, USB_DEVICE_MAX);
+		goto error_class;
 	}
+
+	usb_register_notify(&usbdev_nb);
 
 out:
 	return retval;
+
+error_class:
+	usb_device_class = NULL;
+	cdev_del(&usb_device_cdev);
+
+error_cdev:
+	unregister_chrdev_region(USB_DEVICE_DEV, USB_DEVICE_MAX);
+	goto out;
 }
 
 void usbdev_cleanup(void)
 {
+	usb_unregister_notify(&usbdev_nb);
 	class_destroy(usb_device_class);
 	cdev_del(&usb_device_cdev);
 	unregister_chrdev_region(USB_DEVICE_DEV, USB_DEVICE_MAX);
