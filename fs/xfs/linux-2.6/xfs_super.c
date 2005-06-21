@@ -590,8 +590,10 @@ linvfs_sync_super(
 	int		error;
 	int		flags = SYNC_FSDATA;
 
-	if (wait)
-		flags |= SYNC_WAIT;
+	if (unlikely(sb->s_frozen == SB_FREEZE_WRITE))
+		flags = SYNC_QUIESCE;
+	else
+		flags = SYNC_FSDATA | (wait ? SYNC_WAIT : 0);
 
 	VFS_SYNC(vfsp, flags, NULL, error);
 	sb->s_dirt = 0;

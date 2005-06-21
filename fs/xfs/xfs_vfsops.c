@@ -612,7 +612,34 @@ out:
 	return XFS_ERROR(error);
 }
 
-#define REMOUNT_READONLY_FLAGS	(SYNC_REMOUNT|SYNC_ATTR|SYNC_WAIT)
+STATIC int
+xfs_quiesce_fs(
+	xfs_mount_t		*mp)
+{
+	int			count = 0, pincount;
+		
+	xfs_refcache_purge_mp(mp);
+	xfs_flush_buftarg(mp->m_ddev_targp, 0);
+	xfs_finish_reclaim_all(mp, 0);
+
+	/* This loop must run at least twice.
+	 * The first instance of the loop will flush
+	 * most meta data but that will generate more
+	 * meta data (typically directory updates).
+	 * Which then must be flushed and logged before
+	 * we can write the unmount record.
+	 */ 
+	do {
+		xfs_syncsub(mp, SYNC_REMOUNT|SYNC_ATTR|SYNC_WAIT, 0, NULL);
+		pincount = xfs_flush_buftarg(mp->m_ddev_targp, 1);
+		if (!pincount) {
+			delay(50);
+			count++;
+		}
+	} while (count < 2);
+
+	return 0;
+}
 
 STATIC int
 xfs_mntupdate(
@@ -622,8 +649,7 @@ xfs_mntupdate(
 {
 	struct vfs	*vfsp = bhvtovfs(bdp);
 	xfs_mount_t	*mp = XFS_BHVTOM(bdp);
-	int		pincount, error;
-	int		count = 0;
+	int		error;
 
 	if (args->flags & XFSMNT_NOATIME)
 		mp->m_flags |= XFS_MOUNT_NOATIME;
@@ -635,25 +661,7 @@ xfs_mntupdate(
 	}
 
 	if (*flags & MS_RDONLY) {
-		xfs_refcache_purge_mp(mp);
-		xfs_flush_buftarg(mp->m_ddev_targp, 0);
-		xfs_finish_reclaim_all(mp, 0);
-
-		/* This loop must run at least twice.
-		 * The first instance of the loop will flush
-		 * most meta data but that will generate more
-		 * meta data (typically directory updates).
-		 * Which then must be flushed and logged before
-		 * we can write the unmount record.
-		 */ 
-		do {
-			VFS_SYNC(vfsp, REMOUNT_READONLY_FLAGS, NULL, error);
-			pincount = xfs_flush_buftarg(mp->m_ddev_targp, 1);
-			if (!pincount) {
-				delay(50);
-				count++;
-			}
-		} while (count < 2);
+		xfs_quiesce_fs(mp);
 
 		/* Ok now write out an unmount record */
 		xfs_log_unmount_write(mp);
@@ -869,10 +877,12 @@ xfs_sync(
 	int		flags,
 	cred_t		*credp)
 {
-	xfs_mount_t	*mp;
+	xfs_mount_t	*mp = XFS_BHVTOM(bdp);
 
-	mp = XFS_BHVTOM(bdp);
-	return (xfs_syncsub(mp, flags, 0, NULL));
+	if (unlikely(flags == SYNC_QUIESCE))
+		return xfs_quiesce_fs(mp);
+	else
+		return xfs_syncsub(mp, flags, 0, NULL);
 }
 
 /*
