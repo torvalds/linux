@@ -462,30 +462,23 @@ static ssize_t show_modalias(struct device *dev, struct device_attribute *attr, 
 {
 	struct usb_interface *intf;
 	struct usb_device *udev;
-	int len;
+	struct usb_host_interface *alt;
 
 	intf = to_usb_interface(dev);
 	udev = interface_to_usbdev(intf);
+	alt = intf->cur_altsetting;
 
-	len = sprintf(buf, "usb:v%04Xp%04Xd%04Xdc%02Xdsc%02Xdp%02Xic",
-			       le16_to_cpu(udev->descriptor.idVendor),
-			       le16_to_cpu(udev->descriptor.idProduct),
-			       le16_to_cpu(udev->descriptor.bcdDevice),
-			       udev->descriptor.bDeviceClass,
-			       udev->descriptor.bDeviceSubClass,
-			       udev->descriptor.bDeviceProtocol);
-	buf += len;
-
-	if (udev->descriptor.bDeviceClass == 0) {
-		struct usb_host_interface *alt = intf->cur_altsetting;
-
-		return len + sprintf(buf, "%02Xisc%02Xip%02X\n",
-			       alt->desc.bInterfaceClass,
-			       alt->desc.bInterfaceSubClass,
-			       alt->desc.bInterfaceProtocol);
- 	} else {
-		return len + sprintf(buf, "*isc*ip*\n");
-	}
+	return sprintf(buf, "usb:v%04Xp%04Xd%04Xdc%02Xdsc%02Xdp%02X"
+			"ic%02Xisc%02Xip%02X\n",
+			le16_to_cpu(udev->descriptor.idVendor),
+			le16_to_cpu(udev->descriptor.idProduct),
+			le16_to_cpu(udev->descriptor.bcdDevice),
+			udev->descriptor.bDeviceClass,
+			udev->descriptor.bDeviceSubClass,
+			udev->descriptor.bDeviceProtocol,
+			alt->desc.bInterfaceClass,
+			alt->desc.bInterfaceSubClass,
+			alt->desc.bInterfaceProtocol);
 }
 static DEVICE_ATTR(modalias, S_IRUGO, show_modalias, NULL);
 
