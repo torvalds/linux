@@ -39,6 +39,7 @@
 #include <linux/audit.h>
 #include <linux/personality.h>
 #include <linux/time.h>
+#include <linux/kthread.h>
 #include <asm/unistd.h>
 
 /* 0 = no checking
@@ -281,24 +282,60 @@ static int audit_copy_rule(struct audit_rule *d, struct audit_rule *s)
 	return 0;
 }
 
+static int audit_list_rules(void *_dest)
+{
+	int pid, seq;
+	int *dest = _dest;
+	struct audit_entry *entry;
+	int i;
+
+	pid = dest[0];
+	seq = dest[1];
+	kfree(dest);
+
+	down(&audit_netlink_sem);
+
+	/* The *_rcu iterators not needed here because we are
+	   always called with audit_netlink_sem held. */
+	for (i=0; i<AUDIT_NR_FILTERS; i++) {
+		list_for_each_entry(entry, &audit_filter_list[i], list)
+			audit_send_reply(pid, seq, AUDIT_LIST, 0, 1,
+					 &entry->rule, sizeof(entry->rule));
+	}
+	audit_send_reply(pid, seq, AUDIT_LIST, 1, 1, NULL, 0);
+	
+	up(&audit_netlink_sem);
+	return 0;
+}
+
 int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
 							uid_t loginuid)
 {
 	struct audit_entry *entry;
+	struct task_struct *tsk;
+	int *dest;
 	int		   err = 0;
-	int i;
 	unsigned listnr;
 
 	switch (type) {
 	case AUDIT_LIST:
-		/* The *_rcu iterators not needed here because we are
-		   always called with audit_netlink_sem held. */
-		for (i=0; i<AUDIT_NR_FILTERS; i++) {
-			list_for_each_entry(entry, &audit_filter_list[i], list)
-				audit_send_reply(pid, seq, AUDIT_LIST, 0, 1,
-						 &entry->rule, sizeof(entry->rule));
+		/* We can't just spew out the rules here because we might fill
+		 * the available socket buffer space and deadlock waiting for
+		 * auditctl to read from it... which isn't ever going to
+		 * happen if we're actually running in the context of auditctl
+		 * trying to _send_ the stuff */
+		 
+		dest = kmalloc(2 * sizeof(int), GFP_KERNEL);
+		if (!dest)
+			return -ENOMEM;
+		dest[0] = pid;
+		dest[1] = seq;
+
+		tsk = kthread_run(audit_list_rules, dest, "audit_list_rules");
+		if (IS_ERR(tsk)) {
+			kfree(dest);
+			err = PTR_ERR(tsk);
 		}
-		audit_send_reply(pid, seq, AUDIT_LIST, 1, 1, NULL, 0);
 		break;
 	case AUDIT_ADD:
 		if (!(entry = kmalloc(sizeof(*entry), GFP_KERNEL)))

@@ -110,7 +110,7 @@ static DECLARE_WAIT_QUEUE_HEAD(kauditd_wait);
 /* The netlink socket is only to be read by 1 CPU, which lets us assume
  * that list additions and deletions never happen simultaneously in
  * auditsc.c */
-static DECLARE_MUTEX(audit_netlink_sem);
+DECLARE_MUTEX(audit_netlink_sem);
 
 /* AUDIT_BUFSIZ is the size of the temporary buffer used for formatting
  * audit records.  Since printk uses a 1024 byte buffer, this buffer

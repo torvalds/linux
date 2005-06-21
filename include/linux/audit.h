@@ -281,6 +281,7 @@ extern void		    audit_send_reply(int pid, int seq, int type,
 					     int done, int multi,
 					     void *payload, int size);
 extern void		    audit_log_lost(const char *message);
+extern struct semaphore audit_netlink_sem;
 #else
 #define audit_log(c,t,f,...) do { ; } while (0)
 #define audit_log_start(c,t) ({ NULL; })
