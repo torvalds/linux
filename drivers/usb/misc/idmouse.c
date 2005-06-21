@@ -105,11 +105,10 @@ static struct file_operations idmouse_fops = {
 	.release = idmouse_release,
 };
 
-/* class driver information for devfs */
+/* class driver information */
 static struct usb_class_driver idmouse_class = {
-	.name = "usb/idmouse%d",
+	.name = "idmouse%d",
 	.fops = &idmouse_fops,
-	.mode = S_IFCHR | S_IRUSR | S_IRGRP | S_IROTH, /* filemode (char, 444) */
 	.minor_base = USB_IDMOUSE_MINOR_BASE,
 };
 

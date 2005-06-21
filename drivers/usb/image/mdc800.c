@@ -425,9 +425,8 @@ static void mdc800_usb_download_notify (struct urb *urb, struct pt_regs *res)
 static struct usb_driver mdc800_usb_driver;
 static struct file_operations mdc800_device_ops;
 static struct usb_class_driver mdc800_class = {
-	.name =		"usb/mdc800%d",
+	.name =		"mdc800%d",
 	.fops =		&mdc800_device_ops,
-	.mode =		S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP,
 	.minor_base =	MDC800_DEVICE_MINOR_BASE,
 };
 

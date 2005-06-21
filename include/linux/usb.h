@@ -576,10 +576,8 @@ extern struct bus_type usb_bus_type;
 
 /**
  * struct usb_class_driver - identifies a USB driver that wants to use the USB major number
- * @name: devfs name for this driver.  Will also be used by the driver
- *	class code to create a usb class device.
+ * @name: the usb class device name for this driver.  Will show up in sysfs.
  * @fops: pointer to the struct file_operations of this driver.
- * @mode: the mode for the devfs file to be created for this driver.
  * @minor_base: the start of the minor range for this driver.
  *
  * This structure is used for the usb_register_dev() and
@@ -589,8 +587,7 @@ extern struct bus_type usb_bus_type;
 struct usb_class_driver {
 	char *name;
 	struct file_operations *fops;
-	mode_t mode;
-	int minor_base;	
+	int minor_base;
 };
 
 /*
