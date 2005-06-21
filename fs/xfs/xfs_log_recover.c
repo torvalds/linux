@@ -2747,7 +2747,6 @@ xlog_recover_do_efd_trans(
 	xfs_efi_log_item_t	*efip = NULL;
 	xfs_log_item_t		*lip;
 	int			gen;
-	int			nexts;
 	__uint64_t		efi_id;
 	SPLDECL(s);
 
@@ -2782,22 +2781,15 @@ xlog_recover_do_efd_trans(
 		}
 		lip = xfs_trans_next_ail(mp, lip, &gen, NULL);
 	}
-	if (lip == NULL) {
-		AIL_UNLOCK(mp, s);
-	}
 
 	/*
 	 * If we found it, then free it up.  If it wasn't there, it
 	 * must have been overwritten in the log.  Oh well.
 	 */
 	if (lip != NULL) {
-		nexts = efip->efi_format.efi_nextents;
-		if (nexts > XFS_EFI_MAX_FAST_EXTENTS) {
-			kmem_free(lip, sizeof(xfs_efi_log_item_t) +
-				  ((nexts - 1) * sizeof(xfs_extent_t)));
-		} else {
-			kmem_zone_free(xfs_efi_zone, efip);
-		}
+		xfs_efi_item_free(efip);
+	} else {
+		AIL_UNLOCK(mp, s);
 	}
 }
 
