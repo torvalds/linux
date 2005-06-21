@@ -177,13 +177,7 @@ for ((dqp) = (qlist)->qh_next; (dqp) != (xfs_dquot_t *)(qlist); \
 	(!((dqp)->q_core.d_id))
 
 #define XFS_PURGE_INODE(ip)		\
-	{				\
-	  vmap_t dqvmap;		\
-	  vnode_t *dqvp;		\
-	  dqvp = XFS_ITOV(ip);		\
-	  VMAP(dqvp, dqvmap);		\
-	  VN_RELE(dqvp);		\
-	}
+	IRELE(ip);
 
 #define DQFLAGTO_TYPESTR(d)	(((d)->dq_flags & XFS_DQ_USER) ? "USR" : \
 				 (((d)->dq_flags & XFS_DQ_GROUP) ? "GRP" : "???"))
