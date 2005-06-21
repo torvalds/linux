@@ -264,7 +264,6 @@ static void __init legacy_pty_init(void)
 	pty_driver->owner = THIS_MODULE;
 	pty_driver->driver_name = "pty_master";
 	pty_driver->name = "pty";
-	pty_driver->devfs_name = "pty/m";
 	pty_driver->major = PTY_MASTER_MAJOR;
 	pty_driver->minor_start = 0;
 	pty_driver->type = TTY_DRIVER_TYPE_PTY;
@@ -282,7 +281,6 @@ static void __init legacy_pty_init(void)
 	pty_slave_driver->owner = THIS_MODULE;
 	pty_slave_driver->driver_name = "pty_slave";
 	pty_slave_driver->name = "ttyp";
-	pty_slave_driver->devfs_name = "pty/s";
 	pty_slave_driver->major = PTY_SLAVE_MAJOR;
 	pty_slave_driver->minor_start = 0;
 	pty_slave_driver->type = TTY_DRIVER_TYPE_PTY;

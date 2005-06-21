@@ -671,7 +671,6 @@ ip2_loadmain(int *iop, int *irqp, unsigned char *firmware, int firmsize)
 
 	ip2_tty_driver->owner		    = THIS_MODULE;
 	ip2_tty_driver->name                 = "ttyF";
-	ip2_tty_driver->devfs_name	    = "tts/F";
 	ip2_tty_driver->driver_name          = pcDriver_name;
 	ip2_tty_driver->major                = IP2_TTY_MAJOR;
 	ip2_tty_driver->minor_start          = 0;

@@ -2662,7 +2662,6 @@ int __init vty_init(void)
 	if (!console_driver)
 		panic("Couldn't allocate console driver\n");
 	console_driver->owner = THIS_MODULE;
-	console_driver->devfs_name = "vc/";
 	console_driver->name = "tty";
 	console_driver->name_base = 1;
 	console_driver->major = TTY_MAJOR;

@@ -588,7 +588,6 @@ static int __init gs_module_init(void)
 	gs_tty_driver->owner = THIS_MODULE;
 	gs_tty_driver->driver_name = GS_SHORT_NAME;
 	gs_tty_driver->name = "ttygs";
-	gs_tty_driver->devfs_name = "usb/ttygs/";
 	gs_tty_driver->major = GS_MAJOR;
 	gs_tty_driver->minor_start = GS_MINOR_START;
 	gs_tty_driver->type = TTY_DRIVER_TYPE_SERIAL;

@@ -2449,7 +2449,6 @@ static int __init espserial_init(void)
 	
 	esp_driver->owner = THIS_MODULE;
 	esp_driver->name = "ttyP";
-	esp_driver->devfs_name = "tts/P";
 	esp_driver->major = ESP_IN_MAJOR;
 	esp_driver->minor_start = 0;
 	esp_driver->type = TTY_DRIVER_TYPE_SERIAL;

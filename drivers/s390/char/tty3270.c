@@ -1785,7 +1785,6 @@ tty3270_init(void)
 	 * proc_entry, set_termios, flush_buffer, set_ldisc, write_proc
 	 */
 	driver->owner = THIS_MODULE;
-	driver->devfs_name = "ttyTUB/";
 	driver->driver_name = "ttyTUB";
 	driver->name = "ttyTUB";
 	driver->major = IBM_TTY3270_MAJOR;

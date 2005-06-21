@@ -3075,7 +3075,6 @@ static int __init stl_init(void)
 	stl_serial->owner = THIS_MODULE;
 	stl_serial->driver_name = stl_drvname;
 	stl_serial->name = "ttyE";
-	stl_serial->devfs_name = "tts/E";
 	stl_serial->major = STL_SERIALMAJOR;
 	stl_serial->minor_start = 0;
 	stl_serial->type = TTY_DRIVER_TYPE_SERIAL;

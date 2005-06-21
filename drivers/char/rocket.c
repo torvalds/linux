@@ -2427,7 +2427,6 @@ static int __init rp_init(void)
 
 	rocket_driver->owner = THIS_MODULE;
 	rocket_driver->flags = TTY_DRIVER_NO_DEVFS;
-	rocket_driver->devfs_name = "tts/R";
 	rocket_driver->name = "ttyR";
 	rocket_driver->driver_name = "Comtrol RocketPort";
 	rocket_driver->major = TTY_ROCKET_MAJOR;

@@ -1890,7 +1890,6 @@ isdn_tty_modem_init(void)
 	if (!m->tty_modem)
 		return -ENOMEM;
 	m->tty_modem->name = "ttyI";
-	m->tty_modem->devfs_name = "isdn/ttyI";
 	m->tty_modem->major = ISDN_TTY_MAJOR;
 	m->tty_modem->minor_start = 0;
 	m->tty_modem->type = TTY_DRIVER_TYPE_SERIAL;

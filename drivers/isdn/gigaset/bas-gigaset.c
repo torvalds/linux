@@ -41,7 +41,6 @@ MODULE_PARM_DESC(cidmode, "Call-ID mode");
 #define GIGASET_MINORS     1
 #define GIGASET_MINOR      16
 #define GIGASET_MODULENAME "bas_gigaset"
-#define GIGASET_DEVFSNAME  "gig/bas/"
 #define GIGASET_DEVNAME    "ttyGB"
 
 /* length limit according to Siemens 3070usb-protokoll.doc ch. 2.1 */
@@ -2349,8 +2348,7 @@ static int __init bas_gigaset_init(void)
 	/* allocate memory for our driver state and intialize it */
 	if ((driver = gigaset_initdriver(GIGASET_MINOR, GIGASET_MINORS,
 				       GIGASET_MODULENAME, GIGASET_DEVNAME,
-				       GIGASET_DEVFSNAME, &gigops,
-				       THIS_MODULE)) == NULL)
+				       &gigops, THIS_MODULE)) == NULL)
 		goto error;
 
 	/* allocate memory for our device state and intialize it */

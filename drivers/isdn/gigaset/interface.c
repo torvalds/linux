@@ -673,10 +673,9 @@ EXPORT_SYMBOL_GPL(gigaset_if_receive);
  *	drv		Driver
  *	procname	Name of the driver (e.g. for /proc/tty/drivers)
  *	devname		Name of the device files (prefix without minor number)
- *	devfsname	Devfs name of the device files without %d
  */
 void gigaset_if_initdriver(struct gigaset_driver *drv, const char *procname,
-			   const char *devname, const char *devfsname)
+			   const char *devname)
 {
 	unsigned minors = drv->minors;
 	int ret;
@@ -700,7 +699,6 @@ void gigaset_if_initdriver(struct gigaset_driver *drv, const char *procname,
 	tty->num =		drv->minors;
 
 	tty->owner =		THIS_MODULE;
-	tty->devfs_name =	devfsname;
 
 	tty->init_termios          = tty_std_termios; //FIXME
 	tty->init_termios.c_cflag  = B9600 | CS8 | CREAD | HUPCL | CLOCAL; //FIXME

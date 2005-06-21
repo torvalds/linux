@@ -1336,7 +1336,6 @@ static int capinc_tty_init(void)
 
 	drv->owner = THIS_MODULE;
 	drv->driver_name = "capi_nc";
-	drv->devfs_name = "capi/";
 	drv->name = "capi";
 	drv->major = capi_ttymajor;
 	drv->minor_start = 0;

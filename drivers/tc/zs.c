@@ -1745,7 +1745,6 @@ int __init zs_init(void)
 	/* Not all of this is exactly right for us. */
 
 	serial_driver->owner = THIS_MODULE;
-	serial_driver->devfs_name = "tts/";
 	serial_driver->name = "ttyS";
 	serial_driver->major = TTY_MAJOR;
 	serial_driver->minor_start = 64;

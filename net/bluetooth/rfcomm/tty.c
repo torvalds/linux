@@ -1025,7 +1025,6 @@ int rfcomm_init_ttys(void)
 
 	rfcomm_tty_driver->owner	= THIS_MODULE;
 	rfcomm_tty_driver->driver_name	= "rfcomm";
-	rfcomm_tty_driver->devfs_name	= "bluetooth/rfcomm/";
 	rfcomm_tty_driver->name		= "rfcomm";
 	rfcomm_tty_driver->major	= RFCOMM_TTY_MAJOR;
 	rfcomm_tty_driver->minor_start	= RFCOMM_TTY_MINOR;

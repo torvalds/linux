@@ -820,7 +820,6 @@ int __init hvc_init(void)
 		return -ENOMEM;
 
 	drv->owner = THIS_MODULE;
-	drv->devfs_name = "hvc/";
 	drv->driver_name = "hvc";
 	drv->name = "hvc";
 	drv->major = HVC_MAJOR;
