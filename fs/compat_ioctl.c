@@ -44,7 +44,6 @@
 #include <linux/loop.h>
 #include <linux/auto_fs.h>
 #include <linux/auto_fs4.h>
-#include <linux/devfs_fs.h>
 #include <linux/tty.h>
 #include <linux/vt_kern.h>
 #include <linux/fb.h>
