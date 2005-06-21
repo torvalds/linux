@@ -570,7 +570,7 @@ static struct usb_device_id keyspan_4port_ids[] = {
 };
 
 /* Structs for the devices, pre and post renumeration. */
-static struct usb_serial_device_type keyspan_pre_device = {
+static struct usb_serial_driver keyspan_pre_device = {
 	.owner			= THIS_MODULE,
 	.name			= "Keyspan - (without firmware)",
 	.short_name		= "keyspan_no_firm",
@@ -582,7 +582,7 @@ static struct usb_serial_device_type keyspan_pre_device = {
 	.attach			= keyspan_fake_startup,
 };
 
-static struct usb_serial_device_type keyspan_1port_device = {
+static struct usb_serial_driver keyspan_1port_device = {
 	.owner			= THIS_MODULE,
 	.name			= "Keyspan 1 port adapter",
 	.short_name		= "keyspan_1",
@@ -607,7 +607,7 @@ static struct usb_serial_device_type keyspan_1port_device = {
 	.shutdown		= keyspan_shutdown,
 };
 
-static struct usb_serial_device_type keyspan_2port_device = {
+static struct usb_serial_driver keyspan_2port_device = {
 	.owner			= THIS_MODULE,
 	.name			= "Keyspan 2 port adapter",
 	.short_name		= "keyspan_2",
@@ -632,7 +632,7 @@ static struct usb_serial_device_type keyspan_2port_device = {
 	.shutdown		= keyspan_shutdown,
 };
 
-static struct usb_serial_device_type keyspan_4port_device = {
+static struct usb_serial_driver keyspan_4port_device = {
 	.owner			= THIS_MODULE,
 	.name			= "Keyspan 4 port adapter",
 	.short_name		= "keyspan_4",

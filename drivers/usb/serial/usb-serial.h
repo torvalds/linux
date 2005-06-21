@@ -143,7 +143,7 @@ static inline void usb_set_serial_port_data (struct usb_serial_port *port, void 
 /**
  * usb_serial - structure used by the usb-serial core for a device
  * @dev: pointer to the struct usb_device for this device
- * @type: pointer to the struct usb_serial_device_type for this device
+ * @type: pointer to the struct usb_serial_driver for this device
  * @interface: pointer to the struct usb_interface for this device
  * @minor: the starting minor number for this device
  * @num_ports: the number of ports this device has
@@ -159,7 +159,7 @@ static inline void usb_set_serial_port_data (struct usb_serial_port *port, void 
  */
 struct usb_serial {
 	struct usb_device *		dev;
-	struct usb_serial_device_type *	type;
+	struct usb_serial_driver *	type;
 	struct usb_interface *		interface;
 	unsigned char			minor;
 	unsigned char			num_ports;
@@ -188,11 +188,11 @@ static inline void usb_set_serial_data (struct usb_serial *serial, void *data)
 }
 
 /**
- * usb_serial_device_type - a structure that defines a usb serial device
- * @owner: pointer to the module that owns this device.
- * @name: pointer to a string that describes this device.  This string used
+ * usb_serial_driver - describes a usb serial driver
+ * @owner: pointer to the module that owns this driver.
+ * @name: pointer to a string that describes this driver.  This string used
  *	in the syslog messages when a device is inserted or removed.
- * @short_name: a pointer to a string that describes this device in
+ * @short_name: a pointer to a string that describes this driver in
  *	KOBJ_NAME_LEN characters or less.  This is used for the sysfs interface
  *	to describe the driver.
  * @id_table: pointer to a list of usb_device_id structures that define all
@@ -221,13 +221,13 @@ static inline void usb_set_serial_data (struct usb_serial *serial, void *data)
  * @shutdown: pointer to the driver's shutdown function.  This will be
  *	called when the device is removed from the system.
  *
- * This structure is defines a USB Serial device.  It provides all of
+ * This structure is defines a USB Serial driver.  It provides all of
  * the information that the USB serial core code needs.  If the function
  * pointers are defined, then the USB serial core code will call them when
  * the corresponding tty port functions are called.  If they are not
  * called, the generic serial function will be used instead.
  */
-struct usb_serial_device_type {
+struct usb_serial_driver {
 	struct module *owner;
 	char	*name;
 	char	*short_name;
@@ -269,10 +269,10 @@ struct usb_serial_device_type {
 	void (*read_bulk_callback)(struct urb *urb, struct pt_regs *regs);
 	void (*write_bulk_callback)(struct urb *urb, struct pt_regs *regs);
 };
-#define to_usb_serial_driver(d) container_of(d, struct usb_serial_device_type, driver)
+#define to_usb_serial_driver(d) container_of(d, struct usb_serial_driver, driver)
 
-extern int  usb_serial_register(struct usb_serial_device_type *new_device);
-extern void usb_serial_deregister(struct usb_serial_device_type *device);
+extern int  usb_serial_register(struct usb_serial_driver *driver);
+extern void usb_serial_deregister(struct usb_serial_driver *driver);
 extern void usb_serial_port_softint(void *private);
 
 extern int usb_serial_probe(struct usb_interface *iface, const struct usb_device_id *id);
@@ -303,10 +303,10 @@ extern void usb_serial_generic_shutdown (struct usb_serial *serial);
 extern int usb_serial_generic_register (int debug);
 extern void usb_serial_generic_deregister (void);
 
-extern int usb_serial_bus_register (struct usb_serial_device_type *device);
-extern void usb_serial_bus_deregister (struct usb_serial_device_type *device);
+extern int usb_serial_bus_register (struct usb_serial_driver *device);
+extern void usb_serial_bus_deregister (struct usb_serial_driver *device);
 
-extern struct usb_serial_device_type usb_serial_generic_device;
+extern struct usb_serial_driver usb_serial_generic_device;
 extern struct bus_type usb_serial_bus_type;
 extern struct tty_driver *usb_serial_tty_driver;
 

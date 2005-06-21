@@ -503,7 +503,7 @@ static struct usb_driver digi_driver = {
 
 /* device info needed for the Digi serial converter */
 
-static struct usb_serial_device_type digi_acceleport_2_device = {
+static struct usb_serial_driver digi_acceleport_2_device = {
 	.owner =			THIS_MODULE,
 	.name =				"Digi 2 port USB adapter",
 	.short_name =			"digi_2",
@@ -530,7 +530,7 @@ static struct usb_serial_device_type digi_acceleport_2_device = {
 	.shutdown =			digi_shutdown,
 };
 
-static struct usb_serial_device_type digi_acceleport_4_device = {
+static struct usb_serial_driver digi_acceleport_4_device = {
 	.owner =			THIS_MODULE,
 	.name =				"Digi 4 port USB adapter",
 	.short_name =			"digi_4",

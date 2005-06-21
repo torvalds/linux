@@ -73,7 +73,7 @@ static struct usb_driver cp2101_driver = {
 	.id_table	= id_table,
 };
 
-static struct usb_serial_device_type cp2101_device = {
+static struct usb_serial_driver cp2101_device = {
 	.owner			= THIS_MODULE,
 	.name			= "CP2101",
 	.id_table		= id_table,

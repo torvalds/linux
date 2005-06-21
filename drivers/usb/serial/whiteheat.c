@@ -156,7 +156,7 @@ static void whiteheat_unthrottle	(struct usb_serial_port *port);
 static void whiteheat_read_callback	(struct urb *urb, struct pt_regs *regs);
 static void whiteheat_write_callback	(struct urb *urb, struct pt_regs *regs);
 
-static struct usb_serial_device_type whiteheat_fake_device = {
+static struct usb_serial_driver whiteheat_fake_device = {
 	.owner =		THIS_MODULE,
 	.name =			"Connect Tech - WhiteHEAT - (prerenumeration)",
 	.short_name =		"whiteheatnofirm",
@@ -169,7 +169,7 @@ static struct usb_serial_device_type whiteheat_fake_device = {
 	.attach =		whiteheat_firmware_attach,
 };
 
-static struct usb_serial_device_type whiteheat_device = {
+static struct usb_serial_driver whiteheat_device = {
 	.owner =		THIS_MODULE,
 	.name =			"Connect Tech - WhiteHEAT",
 	.short_name =		"whiteheat",

@@ -18,7 +18,7 @@
 
 static int usb_serial_device_match (struct device *dev, struct device_driver *drv)
 {
-	struct usb_serial_device_type *driver;
+	struct usb_serial_driver *driver;
 	const struct usb_serial_port *port;
 
 	/*
@@ -44,7 +44,7 @@ struct bus_type usb_serial_bus_type = {
 
 static int usb_serial_device_probe (struct device *dev)
 {
-	struct usb_serial_device_type *driver;
+	struct usb_serial_driver *driver;
 	struct usb_serial_port *port;
 	int retval = 0;
 	int minor;
@@ -80,7 +80,7 @@ exit:
 
 static int usb_serial_device_remove (struct device *dev)
 {
-	struct usb_serial_device_type *driver;
+	struct usb_serial_driver *driver;
 	struct usb_serial_port *port;
 	int retval = 0;
 	int minor;
@@ -109,26 +109,26 @@ exit:
 	return retval;
 }
 
-int usb_serial_bus_register(struct usb_serial_device_type *device)
+int usb_serial_bus_register(struct usb_serial_driver *driver)
 {
 	int retval;
 
-	if (device->short_name)
-		device->driver.name = (char *)device->short_name;
+	if (driver->short_name)
+		driver->driver.name = (char *)driver->short_name;
 	else
-		device->driver.name = (char *)device->name;
-	device->driver.bus = &usb_serial_bus_type;
-	device->driver.probe = usb_serial_device_probe;
-	device->driver.remove = usb_serial_device_remove;
-	device->driver.owner = device->owner;
+		driver->driver.name = (char *)driver->name;
+	driver->driver.bus = &usb_serial_bus_type;
+	driver->driver.probe = usb_serial_device_probe;
+	driver->driver.remove = usb_serial_device_remove;
+	driver->driver.owner = driver->owner;
 
-	retval = driver_register(&device->driver);
+	retval = driver_register(&driver->driver);
 
 	return retval;
 }
 
-void usb_serial_bus_deregister(struct usb_serial_device_type *device)
+void usb_serial_bus_deregister(struct usb_serial_driver *driver)
 {
-	driver_unregister (&device->driver);
+	driver_unregister(&driver->driver);
 }
 

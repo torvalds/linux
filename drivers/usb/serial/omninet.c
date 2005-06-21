@@ -88,7 +88,7 @@ static struct usb_driver omninet_driver = {
 };
 
 
-static struct usb_serial_device_type zyxel_omninet_device = {
+static struct usb_serial_driver zyxel_omninet_device = {
 	.owner =		THIS_MODULE,
 	.name =			"ZyXEL - omni.net lcd plus usb",
 	.short_name =		"omninet",

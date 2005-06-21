@@ -121,7 +121,7 @@ static struct usb_driver belkin_driver = {
 };
 
 /* All of the device info needed for the serial converters */
-static struct usb_serial_device_type belkin_device = {
+static struct usb_serial_driver belkin_device = {
 	.owner =		THIS_MODULE,
 	.name =			"Belkin / Peracom / GoHubs USB Serial Adapter",
 	.short_name =		"belkin",

@@ -44,7 +44,7 @@ static struct usb_driver hp49gp_driver = {
 	.id_table =	id_table,
 };
 
-static struct usb_serial_device_type hp49gp_device = {
+static struct usb_serial_driver hp49gp_device = {
 	.owner =		THIS_MODULE,
 	.name =			"HP4X",
 	.id_table =		id_table,

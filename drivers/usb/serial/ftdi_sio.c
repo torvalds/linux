@@ -562,7 +562,7 @@ static unsigned short int ftdi_232am_baud_to_divisor (int baud);
 static __u32 ftdi_232bm_baud_base_to_divisor (int baud, int base);
 static __u32 ftdi_232bm_baud_to_divisor (int baud);
 
-static struct usb_serial_device_type ftdi_sio_device = {
+static struct usb_serial_driver ftdi_sio_device = {
 	.owner =		THIS_MODULE,
 	.name =			"FTDI USB Serial Device",
 	.short_name =		"ftdi_sio",

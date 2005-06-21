@@ -823,7 +823,7 @@ static void port_release(struct device *dev)
 
 static struct usb_serial * create_serial (struct usb_device *dev, 
 					  struct usb_interface *interface,
-					  struct usb_serial_device_type *type)
+					  struct usb_serial_driver *driver)
 {
 	struct usb_serial *serial;
 
@@ -834,22 +834,22 @@ static struct usb_serial * create_serial (struct usb_device *dev,
 	}
 	memset (serial, 0, sizeof(*serial));
 	serial->dev = usb_get_dev(dev);
-	serial->type = type;
+	serial->type = driver;
 	serial->interface = interface;
 	kref_init(&serial->kref);
 
 	return serial;
 }
 
-static struct usb_serial_device_type *search_serial_device(struct usb_interface *iface)
+static struct usb_serial_driver *search_serial_device(struct usb_interface *iface)
 {
 	struct list_head *p;
 	const struct usb_device_id *id;
-	struct usb_serial_device_type *t;
+	struct usb_serial_driver *t;
 
 	/* List trough know devices and see if the usb id matches */
 	list_for_each(p, &usb_serial_driver_list) {
-		t = list_entry(p, struct usb_serial_device_type, driver_list);
+		t = list_entry(p, struct usb_serial_driver, driver_list);
 		id = usb_match_id(iface, t->id_table);
 		if (id != NULL) {
 			dbg("descriptor matches");
@@ -872,7 +872,7 @@ int usb_serial_probe(struct usb_interface *interface,
 	struct usb_endpoint_descriptor *interrupt_out_endpoint[MAX_NUM_PORTS];
 	struct usb_endpoint_descriptor *bulk_in_endpoint[MAX_NUM_PORTS];
 	struct usb_endpoint_descriptor *bulk_out_endpoint[MAX_NUM_PORTS];
-	struct usb_serial_device_type *type = NULL;
+	struct usb_serial_driver *type = NULL;
 	int retval;
 	int minor;
 	int buffer_size;
@@ -1375,7 +1375,7 @@ module_exit(usb_serial_exit);
 			}						\
 	} while (0)
 
-static void fixup_generic(struct usb_serial_device_type *device)
+static void fixup_generic(struct usb_serial_driver *device)
 {
 	set_to_generic_if_null(device, open);
 	set_to_generic_if_null(device, write);
@@ -1387,28 +1387,28 @@ static void fixup_generic(struct usb_serial_device_type *device)
 	set_to_generic_if_null(device, shutdown);
 }
 
-int usb_serial_register(struct usb_serial_device_type *new_device)
+int usb_serial_register(struct usb_serial_driver *driver)
 {
 	int retval;
 
-	fixup_generic(new_device);
+	fixup_generic(driver);
 
 	/* Add this device to our list of devices */
-	list_add(&new_device->driver_list, &usb_serial_driver_list);
+	list_add(&driver->driver_list, &usb_serial_driver_list);
 
-	retval = usb_serial_bus_register(new_device);
+	retval = usb_serial_bus_register(driver);
 	if (retval) {
-		err("problem %d when registering driver %s", retval, new_device->name);
-		list_del(&new_device->driver_list);
+		err("problem %d when registering driver %s", retval, driver->name);
+		list_del(&driver->driver_list);
 	}
 	else
-		info("USB Serial support registered for %s", new_device->name);
+		info("USB Serial support registered for %s", driver->name);
 
 	return retval;
 }
 
 
-void usb_serial_deregister(struct usb_serial_device_type *device)
+void usb_serial_deregister(struct usb_serial_driver *device)
 {
 	info("USB Serial deregistering driver %s", device->name);
 	list_del(&device->driver_list);

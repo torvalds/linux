@@ -443,7 +443,7 @@ static int ipw_disconnect(struct usb_serial_port *port)
 	return 0;
 }
 
-static struct usb_serial_device_type ipw_device = {
+static struct usb_serial_driver ipw_device = {
 	.owner =		THIS_MODULE,
 	.name =			"IPWireless converter",
 	.short_name =		"ipw",

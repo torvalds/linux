@@ -123,7 +123,7 @@ static struct usb_driver kl5kusb105d_driver = {
 	.id_table =	id_table,
 };
 
-static struct usb_serial_device_type kl5kusb105d_device = {
+static struct usb_serial_driver kl5kusb105d_device = {
 	.owner =             THIS_MODULE,
 	.name =		     "KL5KUSB105D / PalmConnect",
 	.short_name =	     "kl5kusb105d",

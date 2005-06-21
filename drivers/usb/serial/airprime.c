@@ -30,7 +30,7 @@ static struct usb_driver airprime_driver = {
 	.id_table =	id_table,
 };
 
-static struct usb_serial_device_type airprime_device = {
+static struct usb_serial_driver airprime_device = {
 	.owner =		THIS_MODULE,
 	.name =			"airprime",
 	.id_table =		id_table,
