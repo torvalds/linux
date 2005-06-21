@@ -436,9 +436,10 @@ static void hub_power_on(struct usb_hub *hub)
 {
 	int port1;
 	unsigned pgood_delay = hub->descriptor->bPwrOn2PwrGood * 2;
+	u16 wHubCharacteristics = le16_to_cpu(hub->descriptor->wHubCharacteristics);
 
 	/* if hub supports power switching, enable power on each port */
-	if ((hub->descriptor->wHubCharacteristics & HUB_CHAR_LPSM) < 2) {
+	if ((wHubCharacteristics & HUB_CHAR_LPSM) < 2) {
 		dev_dbg(hub->intfdev, "enabling power on all ports\n");
 		for (port1 = 1; port1 <= hub->descriptor->bNbrPorts; port1++)
 			set_port_feature(hub->hdev, port1,
@@ -525,6 +526,7 @@ static int hub_configure(struct usb_hub *hub,
 	struct usb_device *hdev = hub->hdev;
 	struct device *hub_dev = hub->intfdev;
 	u16 hubstatus, hubchange;
+	u16 wHubCharacteristics;
 	unsigned int pipe;
 	int maxp, ret;
 	char *message;
@@ -570,9 +572,9 @@ static int hub_configure(struct usb_hub *hub,
 	dev_info (hub_dev, "%d port%s detected\n", hdev->maxchild,
 		(hdev->maxchild == 1) ? "" : "s");
 
-	le16_to_cpus(&hub->descriptor->wHubCharacteristics);
+	wHubCharacteristics = le16_to_cpu(hub->descriptor->wHubCharacteristics);
 
-	if (hub->descriptor->wHubCharacteristics & HUB_CHAR_COMPOUND) {
+	if (wHubCharacteristics & HUB_CHAR_COMPOUND) {
 		int	i;
 		char	portstr [USB_MAXCHILDREN + 1];
 
@@ -585,7 +587,7 @@ static int hub_configure(struct usb_hub *hub,
 	} else
 		dev_dbg(hub_dev, "standalone hub\n");
 
-	switch (hub->descriptor->wHubCharacteristics & HUB_CHAR_LPSM) {
+	switch (wHubCharacteristics & HUB_CHAR_LPSM) {
 		case 0x00:
 			dev_dbg(hub_dev, "ganged power switching\n");
 			break;
@@ -598,7 +600,7 @@ static int hub_configure(struct usb_hub *hub,
 			break;
 	}
 
-	switch (hub->descriptor->wHubCharacteristics & HUB_CHAR_OCPM) {
+	switch (wHubCharacteristics & HUB_CHAR_OCPM) {
 		case 0x00:
 			dev_dbg(hub_dev, "global over-current protection\n");
 			break;
@@ -638,7 +640,7 @@ static int hub_configure(struct usb_hub *hub,
 	}
 
 	/* Note 8 FS bit times == (8 bits / 12000000 bps) ~= 666ns */
-	switch (hub->descriptor->wHubCharacteristics & HUB_CHAR_TTTT) {
+	switch (wHubCharacteristics & HUB_CHAR_TTTT) {
 		case HUB_TTTT_8_BITS:
 			if (hdev->descriptor.bDeviceProtocol != 0) {
 				hub->tt.think_time = 666;
@@ -668,7 +670,7 @@ static int hub_configure(struct usb_hub *hub,
 	}
 
 	/* probe() zeroes hub->indicator[] */
-	if (hub->descriptor->wHubCharacteristics & HUB_CHAR_PORTIND) {
+	if (wHubCharacteristics & HUB_CHAR_PORTIND) {
 		hub->has_indicators = 1;
 		dev_dbg(hub_dev, "Port indicators are supported\n");
 	}
@@ -713,7 +715,7 @@ static int hub_configure(struct usb_hub *hub,
 			(hubstatus & HUB_STATUS_LOCAL_POWER)
 			? "lost (inactive)" : "good");
 
-	if ((hub->descriptor->wHubCharacteristics & HUB_CHAR_OCPM) == 0)
+	if ((wHubCharacteristics & HUB_CHAR_OCPM) == 0)
 		dev_dbg(hub_dev, "%sover-current condition exists\n",
 			(hubstatus & HUB_STATUS_OVERCURRENT) ? "" : "no ");
 
@@ -2432,6 +2434,7 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 {
 	struct usb_device *hdev = hub->hdev;
 	struct device *hub_dev = hub->intfdev;
+	u16 wHubCharacteristics = le16_to_cpu(hub->descriptor->wHubCharacteristics);
 	int status, i;
  
 	dev_dbg (hub_dev,
@@ -2469,8 +2472,7 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 	if (!(portstatus & USB_PORT_STAT_CONNECTION)) {
 
 		/* maybe switch power back on (e.g. root hub was reset) */
-		if ((hub->descriptor->wHubCharacteristics
-					& HUB_CHAR_LPSM) < 2
+		if ((wHubCharacteristics & HUB_CHAR_LPSM) < 2
 				&& !(portstatus & (1 << USB_PORT_FEAT_POWER)))
 			set_port_feature(hdev, port1, USB_PORT_FEAT_POWER);
  
