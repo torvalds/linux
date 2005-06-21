@@ -184,6 +184,7 @@ int ip_call_ra_chain(struct sk_buff *skb)
 					raw_rcv(last, skb2);
 			}
 			last = sk;
+			nf_reset(skb);
 		}
 	}
 
