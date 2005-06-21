@@ -1956,7 +1956,7 @@ pagebuf_init(void)
 #endif
 
 	error = xfs_buf_daemons_start();
-	if (!error)
+	if (error)
 		goto out_free_buf_zone;
 
 	pagebuf_shake = kmem_shake_register(xfsbufd_wakeup);
