@@ -37,7 +37,6 @@
 /*
  * Version Information
  */
-#define DRIVER_VERSION "v2.0"
 #define DRIVER_AUTHOR "Greg Kroah-Hartman, greg@kroah.com, http://www.kroah.com/linux/"
 #define DRIVER_DESC "USB Serial Driver core"
 
@@ -406,7 +405,7 @@ static int serial_read_proc (char *page, char **start, off_t off, int count, int
 	char tmp[40];
 
 	dbg("%s", __FUNCTION__);
-	length += sprintf (page, "usbserinfo:1.0 driver:%s\n", DRIVER_VERSION);
+	length += sprintf (page, "usbserinfo:1.0 driver:2.0\n");
 	for (i = 0; i < SERIAL_TTY_MINORS && length < PAGE_SIZE; ++i) {
 		serial = usb_serial_get_by_index(i);
 		if (serial == NULL)
@@ -1025,7 +1024,7 @@ static int __init usb_serial_init(void)
 		goto exit_generic;
 	}
 
-	info(DRIVER_DESC " " DRIVER_VERSION);
+	info(DRIVER_DESC);
 
 	return result;
 
@@ -1127,7 +1126,6 @@ EXPORT_SYMBOL_GPL(usb_serial_port_softint);
 /* Module information */
 MODULE_AUTHOR( DRIVER_AUTHOR );
 MODULE_DESCRIPTION( DRIVER_DESC );
-MODULE_VERSION( DRIVER_VERSION );
 MODULE_LICENSE("GPL");
 
 module_param(debug, bool, S_IRUGO | S_IWUSR);

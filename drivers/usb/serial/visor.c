@@ -32,7 +32,6 @@
 /*
  * Version Information
  */
-#define DRIVER_VERSION "v2.1"
 #define DRIVER_AUTHOR "Greg Kroah-Hartman <greg@kroah.com>"
 #define DRIVER_DESC "USB HandSpring Visor / Palm OS driver"
 
@@ -1002,7 +1001,7 @@ static int __init visor_init (void)
 	retval = usb_register(&visor_driver);
 	if (retval) 
 		goto failed_usb_register;
-	info(DRIVER_DESC " " DRIVER_VERSION);
+	info(DRIVER_DESC);
 
 	return 0;
 failed_usb_register:

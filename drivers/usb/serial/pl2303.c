@@ -34,7 +34,6 @@
 /*
  * Version Information
  */
-#define DRIVER_VERSION "v0.12"
 #define DRIVER_DESC "Prolific PL2303 USB to serial adaptor driver"
 
 static int debug;
@@ -1176,7 +1175,7 @@ static int __init pl2303_init (void)
 	retval = usb_register(&pl2303_driver);
 	if (retval)
 		goto failed_usb_register;
-	info(DRIVER_DESC " " DRIVER_VERSION);
+	info(DRIVER_DESC);
 	return 0;
 failed_usb_register:
 	usb_serial_deregister(&pl2303_device);
@@ -1196,7 +1195,6 @@ module_init(pl2303_init);
 module_exit(pl2303_exit);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
 
 module_param(debug, bool, S_IRUGO | S_IWUSR);
