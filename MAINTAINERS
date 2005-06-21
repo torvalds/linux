@@ -2489,14 +2489,6 @@ L:	linux-kernel@vger.kernel.org
 L:	linux-usb-devel@lists.sourceforge.net
 S:	Supported
 
-USB BLUETOOTH TTY CONVERTER DRIVER
-P:	Greg Kroah-Hartman
-M:	greg@kroah.com
-L:	linux-usb-users@lists.sourceforge.net
-L:	linux-usb-devel@lists.sourceforge.net
-S:	Maintained
-W:	http://www.kroah.com/linux-usb/
-
 USB CDC ETHERNET DRIVER
 P:	Greg Kroah-Hartman
 M:	greg@kroah.com
