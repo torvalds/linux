@@ -33,7 +33,7 @@ MODULE_DESCRIPTION("iptables MASQUERADE target module");
 #endif
 
 /* Lock protects masq region inside conntrack */
-static DECLARE_RWLOCK(masq_lock);
+static DEFINE_RWLOCK(masq_lock);
 
 /* FIXME: Multiple targets. --RR */
 static int
@@ -103,9 +103,9 @@ masquerade_target(struct sk_buff **pskb,
 		return NF_DROP;
 	}
 
-	WRITE_LOCK(&masq_lock);
+	write_lock_bh(&masq_lock);
 	ct->nat.masq_index = out->ifindex;
-	WRITE_UNLOCK(&masq_lock);
+	write_unlock_bh(&masq_lock);
 
 	/* Transfer from original range. */
 	newrange = ((struct ip_nat_range)
@@ -122,9 +122,9 @@ device_cmp(struct ip_conntrack *i, void *ifindex)
 {
 	int ret;
 
-	READ_LOCK(&masq_lock);
+	read_lock_bh(&masq_lock);
 	ret = (i->nat.masq_index == (int)(long)ifindex);
-	READ_UNLOCK(&masq_lock);
+	read_unlock_bh(&masq_lock);
 
 	return ret;
 }

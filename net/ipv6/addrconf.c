@@ -695,7 +695,7 @@ static void ipv6_del_addr(struct inet6_ifaddr *ifp)
 
 		if (rt && ((rt->rt6i_flags & (RTF_GATEWAY | RTF_DEFAULT)) == 0)) {
 			if (onlink == 0) {
-				ip6_del_rt(rt, NULL, NULL);
+				ip6_del_rt(rt, NULL, NULL, NULL);
 				rt = NULL;
 			} else if (!(rt->rt6i_flags & RTF_EXPIRES)) {
 				rt->rt6i_expires = expires;
@@ -1340,7 +1340,7 @@ addrconf_prefix_route(struct in6_addr *pfx, int plen, struct net_device *dev,
 	if (dev->type == ARPHRD_SIT && (dev->flags&IFF_POINTOPOINT))
 		rtmsg.rtmsg_flags |= RTF_NONEXTHOP;
 
-	ip6_route_add(&rtmsg, NULL, NULL);
+	ip6_route_add(&rtmsg, NULL, NULL, NULL);
 }
 
 /* Create "default" multicast route to the interface */
@@ -1357,7 +1357,7 @@ static void addrconf_add_mroute(struct net_device *dev)
 	rtmsg.rtmsg_ifindex = dev->ifindex;
 	rtmsg.rtmsg_flags = RTF_UP;
 	rtmsg.rtmsg_type = RTMSG_NEWROUTE;
-	ip6_route_add(&rtmsg, NULL, NULL);
+	ip6_route_add(&rtmsg, NULL, NULL, NULL);
 }
 
 static void sit_route_add(struct net_device *dev)
@@ -1374,7 +1374,7 @@ static void sit_route_add(struct net_device *dev)
 	rtmsg.rtmsg_flags	= RTF_UP|RTF_NONEXTHOP;
 	rtmsg.rtmsg_ifindex	= dev->ifindex;
 
-	ip6_route_add(&rtmsg, NULL, NULL);
+	ip6_route_add(&rtmsg, NULL, NULL, NULL);
 }
 
 static void addrconf_add_lroute(struct net_device *dev)
@@ -1467,7 +1467,7 @@ void addrconf_prefix_rcv(struct net_device *dev, u8 *opt, int len)
 		if (rt && ((rt->rt6i_flags & (RTF_GATEWAY | RTF_DEFAULT)) == 0)) {
 			if (rt->rt6i_flags&RTF_EXPIRES) {
 				if (valid_lft == 0) {
-					ip6_del_rt(rt, NULL, NULL);
+					ip6_del_rt(rt, NULL, NULL, NULL);
 					rt = NULL;
 				} else {
 					rt->rt6i_expires = rt_expires;
@@ -3094,7 +3094,7 @@ static void __ipv6_ifa_notify(int event, struct inet6_ifaddr *ifp)
 	switch (event) {
 	case RTM_NEWADDR:
 		dst_hold(&ifp->rt->u.dst);
-		if (ip6_ins_rt(ifp->rt, NULL, NULL))
+		if (ip6_ins_rt(ifp->rt, NULL, NULL, NULL))
 			dst_release(&ifp->rt->u.dst);
 		if (ifp->idev->cnf.forwarding)
 			addrconf_join_anycast(ifp);
@@ -3104,7 +3104,7 @@ static void __ipv6_ifa_notify(int event, struct inet6_ifaddr *ifp)
 			addrconf_leave_anycast(ifp);
 		addrconf_leave_solict(ifp->idev, &ifp->addr);
 		dst_hold(&ifp->rt->u.dst);
-		if (ip6_del_rt(ifp->rt, NULL, NULL))
+		if (ip6_del_rt(ifp->rt, NULL, NULL, NULL))
 			dst_free(&ifp->rt->u.dst);
 		else
 			dst_release(&ifp->rt->u.dst);
