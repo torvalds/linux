@@ -8,31 +8,10 @@
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
- *	the Free Software Foundation; either version 2 of the License, or
- *	(at your option) any later version.
+ *	the Free Software Foundation; either version 2 of the License.
  *
  * See Documentation/usb/usb-serial.txt for more information on using this driver
  *
- * 2002_Mar_26 gkh
- *	allowed driver to work properly if there is no tty assigned to a port
- *	(this happens for serial console devices.)
- *
- * 2001_Oct_06 gkh
- *	Added RTS and DTR line control.  Thanks to joe@bndlg.de for parts of it.
- *
- * 2001_Sep_19 gkh
- *	Added break support.
- *
- * 2001_Aug_30 gkh
- *	fixed oops in write_bulk_callback.
- *
- * 2001_Aug_28 gkh
- *	reworked buffer logic to be like other usb-serial drivers.  Hopefully
- *	removing some reported problems.
- *
- * 2001_Jun_06 gkh
- *	finished porting to 2.4 format.
- * 
  */
 
 #include <linux/config.h>

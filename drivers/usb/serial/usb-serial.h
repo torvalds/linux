@@ -1,53 +1,13 @@
 /*
  * USB Serial Converter driver
  *
- *	Copyright (C) 1999 - 2004
+ *	Copyright (C) 1999 - 2005
  *	    Greg Kroah-Hartman (greg@kroah.com)
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
- *	the Free Software Foundation; either version 2 of the License, or
- *	(at your option) any later version.
+ *	the Free Software Foundation; either version 2 of the License.
  *
- * See Documentation/usb/usb-serial.txt for more information on using this driver
- *
- * (03/26/2002) gkh
- *	removed the port->tty check from port_paranoia_check() due to serial
- *	consoles not having a tty device assigned to them.
- *
- * (12/03/2001) gkh
- *	removed active from the port structure.
- *	added documentation to the usb_serial_device_type structure
- *
- * (10/10/2001) gkh
- *	added vendor and product to serial structure.  Needed to determine device
- *	owner when the device is disconnected.
- *
- * (05/30/2001) gkh
- *	added sem to port structure and removed port_lock
- *
- * (10/05/2000) gkh
- *	Added interrupt_in_endpointAddress and bulk_in_endpointAddress to help
- *	fix bug with urb->dev not being set properly, now that the usb core
- *	needs it.
- * 
- * (09/11/2000) gkh
- *	Added usb_serial_debug_data function to help get rid of #DEBUG in the
- *	drivers.
- *
- * (08/28/2000) gkh
- *	Added port_lock to port structure.
- *
- * (08/08/2000) gkh
- *	Added open_count to port structure.
- *
- * (07/23/2000) gkh
- *	Added bulk_out_endpointAddress to port structure.
- *
- * (07/19/2000) gkh, pberger, and borchers
- *	Modifications to allow usb-serial drivers to be modules.
- *
- * 
  */
 
 
