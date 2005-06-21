@@ -940,10 +940,6 @@ void ip_ct_refresh_acct(struct ip_conntrack *ct,
 struct sk_buff *
 ip_ct_gather_frags(struct sk_buff *skb, u_int32_t user)
 {
-#ifdef CONFIG_NETFILTER_DEBUG
-	unsigned int olddebug = skb->nf_debug;
-#endif
-
 	skb_orphan(skb);
 
 	local_bh_disable(); 
@@ -953,12 +949,7 @@ ip_ct_gather_frags(struct sk_buff *skb, u_int32_t user)
 	if (skb) {
 		ip_send_check(skb->nh.iph);
 		skb->nfcache |= NFC_ALTERED;
-#ifdef CONFIG_NETFILTER_DEBUG
-		/* Packet path as if nothing had happened. */
-		skb->nf_debug = olddebug;
-#endif
 	}
-
 	return skb;
 }
 

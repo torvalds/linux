@@ -200,10 +200,6 @@ static inline int ip_local_deliver_finish(struct sk_buff *skb)
 {
 	int ihl = skb->nh.iph->ihl*4;
 
-#ifdef CONFIG_NETFILTER_DEBUG
-	nf_debug_ip_local_deliver(skb);
-#endif /*CONFIG_NETFILTER_DEBUG*/
-
 	__skb_pull(skb, ihl);
 
 	/* Free reference early: we don't need it any more, and it may

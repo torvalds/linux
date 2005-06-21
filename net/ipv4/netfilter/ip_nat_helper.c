@@ -142,9 +142,6 @@ static int enlarge_skb(struct sk_buff **pskb, unsigned int extra)
 	/* Transfer socket to new skb. */
 	if ((*pskb)->sk)
 		skb_set_owner_w(nskb, (*pskb)->sk);
-#ifdef CONFIG_NETFILTER_DEBUG
-	nskb->nf_debug = (*pskb)->nf_debug;
-#endif
 	kfree_skb(*pskb);
 	*pskb = nskb;
 	return 1;
