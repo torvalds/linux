@@ -443,12 +443,6 @@ tipar_register(int nr, struct parport *port)
 
 	class_device_create(tipar_class, NULL, MKDEV(TIPAR_MAJOR,
 			TIPAR_MINOR + nr), NULL, "par%d", nr);
-	/* Use devfs, tree: /dev/ticables/par/[0..2] */
-	err = devfs_mk_cdev(MKDEV(TIPAR_MAJOR, TIPAR_MINOR + nr),
-			S_IFCHR | S_IRUGO | S_IWUGO,
-			"ticables/par/%d", nr);
-	if (err)
-		goto out_class;
 
 	/* Display informations */
 	pr_info("tipar%d: using %s (%s)\n", nr, port->name, (port->irq ==
@@ -460,11 +454,7 @@ tipar_register(int nr, struct parport *port)
 		pr_info("tipar%d: link cable not found\n", nr);
 
 	err = 0;
-	goto out;
 
-out_class:
-	class_device_destroy(tipar_class, MKDEV(TIPAR_MAJOR, TIPAR_MINOR + nr));
-	class_destroy(tipar_class);
 out:
 	return err;
 }

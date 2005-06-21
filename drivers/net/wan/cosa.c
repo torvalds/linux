@@ -401,13 +401,6 @@ static int __init cosa_init(void)
 	for (i=0; i<nr_cards; i++) {
 		class_device_create(cosa_class, NULL, MKDEV(cosa_major, i),
 				NULL, "cosa%d", i);
-		err = devfs_mk_cdev(MKDEV(cosa_major, i),
-				S_IFCHR|S_IRUSR|S_IWUSR,
-				"cosa/%d", i);
-		if (err) {
-			class_device_destroy(cosa_class, MKDEV(cosa_major, i));
-			goto out_chrdev;		
-		}
 	}
 	err = 0;
 	goto out;

@@ -3071,14 +3071,10 @@ static int __init stl_init(void)
 		printk("STALLION: failed to register serial board device\n");
 
 	stallion_class = class_create(THIS_MODULE, "staliomem");
-	for (i = 0; i < 4; i++) {
-		devfs_mk_cdev(MKDEV(STL_SIOMEMMAJOR, i),
-				S_IFCHR|S_IRUSR|S_IWUSR,
-				"staliomem/%d", i);
+	for (i = 0; i < 4; i++)
 		class_device_create(stallion_class, NULL,
 				    MKDEV(STL_SIOMEMMAJOR, i), NULL,
 				    "staliomem%d", i);
-	}
 
 	stl_serial->owner = THIS_MODULE;
 	stl_serial->driver_name = stl_drvname;

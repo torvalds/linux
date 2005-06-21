@@ -478,12 +478,6 @@ static struct class *vc_class;
 
 void vcs_make_devfs(struct tty_struct *tty)
 {
-	devfs_mk_cdev(MKDEV(VCS_MAJOR, tty->index + 1),
-			S_IFCHR|S_IRUSR|S_IWUSR,
-			"vcc/%u", tty->index + 1);
-	devfs_mk_cdev(MKDEV(VCS_MAJOR, tty->index + 129),
-			S_IFCHR|S_IRUSR|S_IWUSR,
-			"vcc/a%u", tty->index + 1);
 	class_device_create(vc_class, NULL, MKDEV(VCS_MAJOR, tty->index + 1),
 			NULL, "vcs%u", tty->index + 1);
 	class_device_create(vc_class, NULL, MKDEV(VCS_MAJOR, tty->index + 129),
@@ -503,8 +497,6 @@ int __init vcs_init(void)
 		panic("unable to get major %d for vcs device", VCS_MAJOR);
 	vc_class = class_create(THIS_MODULE, "vc");
 
-	devfs_mk_cdev(MKDEV(VCS_MAJOR, 0), S_IFCHR|S_IRUSR|S_IWUSR, "vcc/0");
-	devfs_mk_cdev(MKDEV(VCS_MAJOR, 128), S_IFCHR|S_IRUSR|S_IWUSR, "vcc/a0");
 	class_device_create(vc_class, NULL, MKDEV(VCS_MAJOR, 0), NULL, "vcs");
 	class_device_create(vc_class, NULL, MKDEV(VCS_MAJOR, 128), NULL, "vcsa");
 	return 0;

@@ -724,26 +724,9 @@ ip2_loadmain(int *iop, int *irqp, unsigned char *firmware, int firmsize)
 				class_device_create(ip2_class, NULL,
 						MKDEV(IP2_IPL_MAJOR, 4 * i),
 						NULL, "ipl%d", i);
-				err = devfs_mk_cdev(MKDEV(IP2_IPL_MAJOR, 4 * i),
-						S_IRUSR | S_IWUSR | S_IRGRP | S_IFCHR,
-						"ip2/ipl%d", i);
-				if (err) {
-					class_device_destroy(ip2_class,
-						MKDEV(IP2_IPL_MAJOR, 4 * i));
-					goto out_class;
-				}
-
 				class_device_create(ip2_class, NULL,
 						MKDEV(IP2_IPL_MAJOR, 4 * i + 1),
 						NULL, "stat%d", i);
-				err = devfs_mk_cdev(MKDEV(IP2_IPL_MAJOR, 4 * i + 1),
-						S_IRUSR | S_IWUSR | S_IRGRP | S_IFCHR,
-						"ip2/stat%d", i);
-				if (err) {
-					class_device_destroy(ip2_class,
-						MKDEV(IP2_IPL_MAJOR, 4 * i + 1));
-					goto out_class;
-				}
 
 			    for ( box = 0; box < ABS_MAX_BOXES; ++box )
 			    {

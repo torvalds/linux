@@ -782,10 +782,6 @@ static int __init ppdev_init (void)
 		err = PTR_ERR(ppdev_class);
 		goto out_chrdev;
 	}
-	for (i = 0; i < PARPORT_MAX; i++) {
-		devfs_mk_cdev(MKDEV(PP_MAJOR, i),
-				S_IFCHR | S_IRUGO | S_IWUGO, "parports/%d", i);
-	}
 	if (parport_register_driver(&pp_driver)) {
 		printk (KERN_WARNING CHRDEV ": unable to register with parport\n");
 		goto out_class;

@@ -1516,8 +1516,6 @@ static int __init capi_init(void)
 	}
 
 	class_device_create(capi_class, NULL, MKDEV(capi_major, 0), NULL, "capi");
-	devfs_mk_cdev(MKDEV(capi_major, 0), S_IFCHR | S_IRUSR | S_IWUSR,
-			"isdn/capi20");
 
 #ifdef CONFIG_ISDN_CAPI_MIDDLEWARE
 	if (capinc_tty_init() < 0) {

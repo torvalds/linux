@@ -975,27 +975,11 @@ static int __init pt_init(void)
 		if (pt[unit].present) {
 			class_device_create(pt_class, NULL, MKDEV(major, unit),
 					NULL, "pt%d", unit);
-			err = devfs_mk_cdev(MKDEV(major, unit),
-				      S_IFCHR | S_IRUSR | S_IWUSR,
-				      "pt/%d", unit);
-			if (err) {
-				class_device_destroy(pt_class, MKDEV(major, unit));
-				goto out_class;
-			}
 			class_device_create(pt_class, NULL, MKDEV(major, unit + 128),
 					NULL, "pt%dn", unit);
-			err = devfs_mk_cdev(MKDEV(major, unit + 128),
-				      S_IFCHR | S_IRUSR | S_IWUSR,
-				      "pt/%dn", unit);
-			if (err) {
-				class_device_destroy(pt_class, MKDEV(major, unit + 128));
-				goto out_class;
-			}
 		}
 	goto out;
 
-out_class:
-	class_destroy(pt_class);
 out_chrdev:
 	unregister_chrdev(major, "pt");
 out:

@@ -5214,14 +5214,10 @@ int __init stli_init(void)
 				"device\n");
 
 	istallion_class = class_create(THIS_MODULE, "staliomem");
-	for (i = 0; i < 4; i++) {
-		devfs_mk_cdev(MKDEV(STL_SIOMEMMAJOR, i),
-			       S_IFCHR | S_IRUSR | S_IWUSR,
-			       "staliomem/%d", i);
+	for (i = 0; i < 4; i++)
 		class_device_create(istallion_class, NULL,
 				MKDEV(STL_SIOMEMMAJOR, i),
 				NULL, "staliomem%d", i);
-	}
 
 /*
  *	Set up the tty driver structure and register us as a driver.

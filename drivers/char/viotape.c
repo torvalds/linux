@@ -958,10 +958,6 @@ static int viotape_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 			"iseries!vt%d", i);
 	class_device_create(tape_class, NULL, MKDEV(VIOTAPE_MAJOR, i | 0x80),
 			NULL, "iseries!nvt%d", i);
-	devfs_mk_cdev(MKDEV(VIOTAPE_MAJOR, i), S_IFCHR | S_IRUSR | S_IWUSR,
-			"iseries/vt%d", i);
-	devfs_mk_cdev(MKDEV(VIOTAPE_MAJOR, i | 0x80),
-			S_IFCHR | S_IRUSR | S_IWUSR, "iseries/nvt%d", i);
 	sprintf(tapename, "iseries/vt%d", i);
 	printk(VIOTAPE_KERN_INFO "tape %s is iSeries "
 			"resource %10.10s type %4.4s, model %3.3s\n",

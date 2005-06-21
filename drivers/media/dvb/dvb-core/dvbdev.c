@@ -231,10 +231,6 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 
 	mutex_unlock(&dvbdev_register_lock);
 
-	devfs_mk_cdev(MKDEV(DVB_MAJOR, nums2minor(adap->num, type, id)),
-			S_IFCHR | S_IRUSR | S_IWUSR,
-			"dvb/adapter%d/%s%d", adap->num, dnames[type], id);
-
 	class_device_create(dvb_class, NULL, MKDEV(DVB_MAJOR, nums2minor(adap->num, type, id)),
 			    adap->device, "dvb%d.%s%d", adap->num, dnames[type], id);
 

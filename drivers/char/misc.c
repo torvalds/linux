@@ -204,7 +204,7 @@ int misc_register(struct miscdevice * misc)
 {
 	struct miscdevice *c;
 	dev_t dev;
-	int err;
+	int err = 0;
 
 	down(&misc_sem);
 	list_for_each_entry(c, &misc_list, list) {
@@ -238,13 +238,6 @@ int misc_register(struct miscdevice * misc)
 					  "%s", misc->name);
 	if (IS_ERR(misc->class)) {
 		err = PTR_ERR(misc->class);
-		goto out;
-	}
-
-	err = devfs_mk_cdev(dev, S_IFCHR|S_IRUSR|S_IWUSR|S_IRGRP, 
-			    misc->devfs_name);
-	if (err) {
-		class_device_destroy(misc_class, dev);
 		goto out;
 	}
 

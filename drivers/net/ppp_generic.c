@@ -863,10 +863,6 @@ static int __init ppp_init(void)
 			goto out_chrdev;
 		}
 		class_device_create(ppp_class, NULL, MKDEV(PPP_MAJOR, 0), NULL, "ppp");
-		err = devfs_mk_cdev(MKDEV(PPP_MAJOR, 0),
-				S_IFCHR|S_IRUSR|S_IWUSR, "ppp");
-		if (err)
-			goto out_class;
 	}
 
 out:
@@ -874,9 +870,6 @@ out:
 		printk(KERN_ERR "failed to register PPP device (%d)\n", err);
 	return err;
 
-out_class:
-	class_device_destroy(ppp_class, MKDEV(PPP_MAJOR,0));
-	class_destroy(ppp_class);
 out_chrdev:
 	unregister_chrdev(PPP_MAJOR, "ppp");
 	goto out;

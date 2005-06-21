@@ -807,8 +807,6 @@ static int lp_register(int nr, struct parport *port)
 
 	class_device_create(lp_class, NULL, MKDEV(LP_MAJOR, nr), NULL,
 				"lp%d", nr);
-	devfs_mk_cdev(MKDEV(LP_MAJOR, nr), S_IFCHR | S_IRUGO | S_IWUGO,
-			"printers/%d", nr);
 
 	printk(KERN_INFO "lp%d: using %s (%s).\n", nr, port->name, 
 	       (port->irq == PARPORT_IRQ_NONE)?"polling":"interrupt-driven");

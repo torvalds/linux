@@ -288,7 +288,6 @@ static struct cdev raw_cdev = {
 
 static int __init raw_init(void)
 {
-	int i;
 	dev_t dev = MKDEV(RAW_MAJOR, 0);
 
 	if (register_chrdev_region(dev, MAX_RAW_MINORS, "raw"))
@@ -310,13 +309,6 @@ static int __init raw_init(void)
 	}
 	class_device_create(raw_class, NULL, MKDEV(RAW_MAJOR, 0), NULL, "rawctl");
 
-	devfs_mk_cdev(MKDEV(RAW_MAJOR, 0),
-		      S_IFCHR | S_IRUGO | S_IWUGO,
-		      "raw/rawctl");
-	for (i = 1; i < MAX_RAW_MINORS; i++)
-		devfs_mk_cdev(MKDEV(RAW_MAJOR, i),
-			      S_IFCHR | S_IRUGO | S_IWUGO,
-			      "raw/raw%d", i);
 	return 0;
 
 error:

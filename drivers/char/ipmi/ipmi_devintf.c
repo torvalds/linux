@@ -804,9 +804,6 @@ static void ipmi_new_smi(int if_num, struct device *device)
 	dev_t dev = MKDEV(ipmi_major, if_num);
 	struct ipmi_reg_list *entry;
 
-	devfs_mk_cdev(dev, S_IFCHR | S_IRUSR | S_IWUSR,
-		      "ipmidev/%d", if_num);
-
 	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry) {
 		printk(KERN_ERR "ipmi_devintf: Unable to create the"

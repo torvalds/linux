@@ -1331,8 +1331,6 @@ register_framebuffer(struct fb_info *fb_info)
 	fb_add_videomode(&mode, &fb_info->modelist);
 	registered_fb[i] = fb_info;
 
-	devfs_mk_cdev(MKDEV(FB_MAJOR, i),
-			S_IFCHR | S_IRUGO | S_IWUGO, "fb/%d", i);
 	event.info = fb_info;
 	blocking_notifier_call_chain(&fb_notifier_list,
 			    FB_EVENT_FB_REGISTERED, &event);

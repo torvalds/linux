@@ -164,10 +164,6 @@ int init_vfc_device(struct sbus_dev *sdev,struct vfc_dev *dev, int instance)
 		return -EINVAL;
 	if (init_vfc_hw(dev))
 		return -EIO;
-
-	devfs_mk_cdev(MKDEV(VFC_MAJOR, instance),
-			S_IFCHR | S_IRUSR | S_IWUSR,
-			"vfc/%d", instance);
 	return 0;
 }
 

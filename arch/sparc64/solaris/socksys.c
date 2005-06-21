@@ -190,8 +190,6 @@ init_socksys(void)
 		return ret;
 	}
 
-	devfs_mk_cdev(MKDEV(30, 0), S_IFCHR|S_IRUSR|S_IWUSR, "socksys");
-
 	file = fcheck(ret);
 	/* N.B. Is this valid? Suppose the f_ops are in a module ... */
 	socksys_file_ops = *file->f_op;

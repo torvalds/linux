@@ -518,17 +518,9 @@ static int __init dsp56k_init_driver(void)
 	}
 	class_device_create(dsp56k_class, NULL, MKDEV(DSP56K_MAJOR, 0), NULL, "dsp56k");
 
-	err = devfs_mk_cdev(MKDEV(DSP56K_MAJOR, 0),
-		      S_IFCHR | S_IRUSR | S_IWUSR, "dsp56k");
-	if(err)
-		goto out_class;
-
 	printk(banner);
 	goto out;
 
-out_class:
-	class_device_destroy(dsp56k_class, MKDEV(DSP56K_MAJOR, 0));
-	class_destroy(dsp56k_class);
 out_chrdev:
 	unregister_chrdev(DSP56K_MAJOR, "dsp56k");
 out:

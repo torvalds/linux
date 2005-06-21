@@ -1005,10 +1005,6 @@ int slm_init( void )
 	BufferP = SLMBuffer;
 	SLMState = IDLE;
 	
-	for (i = 0; i < MAX_SLM; i++) {
-		devfs_mk_cdev(MKDEV(ACSI_MAJOR, i),
-				S_IFCHR|S_IRUSR|S_IWUSR, "slm/%d", i);
-	}
 	return 0;
 }
 
