@@ -28,7 +28,6 @@
 
 #include <linux/kmod.h>
 #include <linux/sem.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/mutex.h>
 
 #define PHONE_NUM_DEVICES	256

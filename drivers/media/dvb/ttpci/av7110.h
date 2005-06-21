@@ -6,10 +6,6 @@
 #include <linux/netdevice.h>
 #include <linux/i2c.h>
 
-#ifdef CONFIG_DEVFS_FS
-#include <linux/devfs_fs_kernel.h>
-#endif
-
 #include <linux/dvb/video.h>
 #include <linux/dvb/audio.h>
 #include <linux/dvb/dmx.h>

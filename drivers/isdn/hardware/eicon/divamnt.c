@@ -17,7 +17,6 @@
 #include <linux/sched.h>
 #include <linux/smp_lock.h>
 #include <linux/poll.h>
-#include <linux/devfs_fs_kernel.h>
 #include <asm/uaccess.h>
 
 #include "platform.h"

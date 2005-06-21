@@ -60,7 +60,6 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/device.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/ioctl.h>
 #include <linux/parport.h>
 #include <linux/ctype.h>

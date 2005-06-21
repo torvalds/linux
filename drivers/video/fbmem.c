@@ -32,7 +32,6 @@
 #ifdef CONFIG_KMOD
 #include <linux/kmod.h>
 #endif
-#include <linux/devfs_fs_kernel.h>
 #include <linux/err.h>
 #include <linux/device.h>
 #include <linux/efi.h>

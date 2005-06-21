@@ -56,7 +56,6 @@
 #include <linux/ioport.h>
 #include <asm/io.h>
 #include <linux/bitops.h>
-#include <linux/devfs_fs_kernel.h>	/* DevFs support */
 #include <linux/parport.h>		/* Our code depend on parport */
 #include <linux/device.h>
 

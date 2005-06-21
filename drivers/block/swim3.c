@@ -25,7 +25,6 @@
 #include <linux/fd.h>
 #include <linux/ioctl.h>
 #include <linux/blkdev.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>

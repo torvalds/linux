@@ -20,7 +20,6 @@
 #include <linux/timer.h>
 #include <linux/ioport.h>
 #include <linux/major.h>
-#include <linux/devfs_fs_kernel.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>

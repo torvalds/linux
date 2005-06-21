@@ -371,7 +371,6 @@
 #include <linux/kernel.h>
 #include <linux/cdrom.h>
 #include <linux/ioport.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/major.h>
 #include <linux/string.h>
 #include <linux/vmalloc.h>

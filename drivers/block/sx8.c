@@ -18,7 +18,6 @@
 #include <linux/spinlock.h>
 #include <linux/blkdev.h>
 #include <linux/sched.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/interrupt.h>
 #include <linux/compiler.h>
 #include <linux/workqueue.h>

@@ -43,7 +43,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/fs.h>
 #include <linux/cdev.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/major.h>
 #include <linux/completion.h>
 #include <linux/proc_fs.h>

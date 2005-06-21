@@ -18,7 +18,6 @@
 #include <linux/fs.h>
 #include <linux/kmod.h>
 #include <linux/ctype.h>
-#include <linux/devfs_fs_kernel.h>
 
 #include "check.h"
 

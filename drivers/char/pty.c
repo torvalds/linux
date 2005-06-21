@@ -24,7 +24,6 @@
 #include <linux/major.h>
 #include <linux/mm.h>
 #include <linux/init.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/sysctl.h>
 
 #include <asm/uaccess.h>

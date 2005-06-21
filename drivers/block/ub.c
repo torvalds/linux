@@ -24,7 +24,6 @@
 #include <linux/usb.h>
 #include <linux/usb_usual.h>
 #include <linux/blkdev.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/timer.h>
 #include <scsi/scsi.h>
 

@@ -65,7 +65,6 @@ not be guaranteed. There are several ways to assure this:
 #include <linux/time.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/smp_lock.h>
 
 #include <asm/pgtable.h>

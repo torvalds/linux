@@ -12,7 +12,6 @@
 
 #include <linux/fs.h>
 #include <linux/init.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/vfs.h>
 #include <linux/mount.h>
 #include <linux/file.h>

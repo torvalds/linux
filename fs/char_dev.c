@@ -14,7 +14,6 @@
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/smp_lock.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/seq_file.h>
 
 #include <linux/kobject.h>

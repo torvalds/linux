@@ -79,7 +79,6 @@
 #include <linux/mm.h>
 #include <linux/console.h>
 #include <linux/init.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/vt_kern.h>
 #include <linux/selection.h>
 #include <linux/tiocl.h>

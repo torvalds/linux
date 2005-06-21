@@ -8,7 +8,6 @@
 #include "linux/list.h"
 #include "linux/kd.h"
 #include "linux/interrupt.h"
-#include "linux/devfs_fs_kernel.h"
 #include "asm/uaccess.h"
 #include "chan_kern.h"
 #include "irq_user.h"

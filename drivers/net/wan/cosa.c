@@ -85,7 +85,6 @@
 #include <linux/slab.h>
 #include <linux/poll.h>
 #include <linux/fs.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/errno.h>

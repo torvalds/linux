@@ -25,7 +25,6 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/mm.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/mmtimer.h>
 #include <linux/miscdevice.h>
 #include <linux/posix-timers.h>

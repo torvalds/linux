@@ -29,8 +29,6 @@
 #include <linux/kernel.h>
 #include <net/sock.h>
 
-#include <linux/devfs_fs_kernel.h>
-
 #include <asm/uaccess.h>
 #include <asm/system.h>
 #include <asm/types.h>

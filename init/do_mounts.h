@@ -1,6 +1,5 @@
 #include <linux/config.h>
 #include <linux/kernel.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/init.h>
 #include <linux/syscalls.h>
 #include <linux/unistd.h>

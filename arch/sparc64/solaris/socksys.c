@@ -26,7 +26,6 @@
 #include <linux/slab.h>
 #include <linux/syscalls.h>
 #include <linux/in.h>
-#include <linux/devfs_fs_kernel.h>
 
 #include <net/sock.h>
 

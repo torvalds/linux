@@ -36,7 +36,6 @@
 #include <linux/spinlock.h>
 #include <linux/completion.h>
 #include <linux/device.h>
-#include <linux/devfs_fs_kernel.h>
 
 #include <asm/uaccess.h>
 #include <asm/semaphore.h>

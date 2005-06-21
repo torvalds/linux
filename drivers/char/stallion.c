@@ -40,7 +40,6 @@
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/smp_lock.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/device.h>
 #include <linux/delay.h>
 

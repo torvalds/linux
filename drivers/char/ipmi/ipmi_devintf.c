@@ -40,7 +40,6 @@
 #include <linux/poll.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/ipmi.h>
 #include <linux/mutex.h>
 #include <linux/init.h>

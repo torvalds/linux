@@ -25,7 +25,6 @@
 #include "linux/blkdev.h"
 #include "linux/hdreg.h"
 #include "linux/init.h"
-#include "linux/devfs_fs_kernel.h"
 #include "linux/cdrom.h"
 #include "linux/proc_fs.h"
 #include "linux/ctype.h"

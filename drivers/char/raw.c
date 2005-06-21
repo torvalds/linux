@@ -10,7 +10,6 @@
 
 #include <linux/init.h>
 #include <linux/fs.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/major.h>
 #include <linux/blkdev.h>
 #include <linux/module.h>

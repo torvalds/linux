@@ -33,7 +33,6 @@
 #endif
 #include <linux/fcntl.h>
 #include <linux/smp_lock.h>
-#include <linux/devfs_fs_kernel.h>
 
 #include <linux/zftape.h>
 #include <linux/init.h>

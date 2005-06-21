@@ -91,7 +91,6 @@
 #include <linux/module.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/timer.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>

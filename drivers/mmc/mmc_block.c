@@ -27,7 +27,6 @@
 #include <linux/hdreg.h>
 #include <linux/kdev_t.h>
 #include <linux/blkdev.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/mutex.h>
 
 #include <linux/mmc/card.h>

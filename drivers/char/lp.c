@@ -120,7 +120,6 @@
 #include <linux/major.h>
 #include <linux/sched.h>
 #include <linux/smp_lock.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/slab.h>
 #include <linux/fcntl.h>
 #include <linux/delay.h>
