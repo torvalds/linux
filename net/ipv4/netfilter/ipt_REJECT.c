@@ -104,10 +104,12 @@ static inline struct rtable *route_reverse(struct sk_buff *skb,
 static void send_reset(struct sk_buff *oldskb, int hook)
 {
 	struct sk_buff *nskb;
+	struct iphdr *iph = oldskb->nh.iph;
 	struct tcphdr _otcph, *oth, *tcph;
 	struct rtable *rt;
 	u_int16_t tmp_port;
 	u_int32_t tmp_addr;
+	unsigned int tcplen;
 	int needs_ack;
 	int hh_len;
 
@@ -124,7 +126,16 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 	if (oth->rst)
 		return;
 
-	/* FIXME: Check checksum --RR */
+	/* Check checksum */
+	tcplen = oldskb->len - iph->ihl * 4;
+	if (((hook != NF_IP_LOCAL_IN && oldskb->ip_summed != CHECKSUM_HW) ||
+	     (hook == NF_IP_LOCAL_IN &&
+	      oldskb->ip_summed != CHECKSUM_UNNECESSARY)) &&
+	    csum_tcpudp_magic(iph->saddr, iph->daddr, tcplen, IPPROTO_TCP,
+	                      oldskb->ip_summed == CHECKSUM_HW ? oldskb->csum :
+	                      skb_checksum(oldskb, iph->ihl * 4, tcplen, 0)))
+		return;
+
 	if ((rt = route_reverse(oldskb, oth, hook)) == NULL)
 		return;
 
