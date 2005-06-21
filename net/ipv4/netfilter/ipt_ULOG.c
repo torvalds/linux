@@ -56,7 +56,6 @@
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4/ip_tables.h>
 #include <linux/netfilter_ipv4/ipt_ULOG.h>
-#include <linux/netfilter_ipv4/lockhelp.h>
 #include <net/sock.h>
 #include <linux/bitops.h>
 
@@ -99,8 +98,8 @@ typedef struct {
 
 static ulog_buff_t ulog_buffers[ULOG_MAXNLGROUPS];	/* array of buffers */
 
-static struct sock *nflognl;	/* our socket */
-static DECLARE_LOCK(ulog_lock);	/* spinlock */
+static struct sock *nflognl;		/* our socket */
+static DEFINE_SPINLOCK(ulog_lock);	/* spinlock */
 
 /* send one ulog_buff_t to userspace */
 static void ulog_send(unsigned int nlgroupnum)
@@ -135,9 +134,9 @@ static void ulog_timer(unsigned long data)
 
 	/* lock to protect against somebody modifying our structure
 	 * from ipt_ulog_target at the same time */
-	LOCK_BH(&ulog_lock);
+	spin_lock_bh(&ulog_lock);
 	ulog_send(data);
-	UNLOCK_BH(&ulog_lock);
+	spin_unlock_bh(&ulog_lock);
 }
 
 static struct sk_buff *ulog_alloc_skb(unsigned int size)
@@ -193,7 +192,7 @@ static void ipt_ulog_packet(unsigned int hooknum,
 
 	ub = &ulog_buffers[groupnum];
 	
-	LOCK_BH(&ulog_lock);
+	spin_lock_bh(&ulog_lock);
 
 	if (!ub->skb) {
 		if (!(ub->skb = ulog_alloc_skb(size)))
@@ -278,7 +277,7 @@ static void ipt_ulog_packet(unsigned int hooknum,
 		ulog_send(groupnum);
 	}
 
-	UNLOCK_BH(&ulog_lock);
+	spin_unlock_bh(&ulog_lock);
 
 	return;
 
@@ -288,7 +287,7 @@ nlmsg_failure:
 alloc_failure:
 	PRINTR("ipt_ULOG: Error building netlink message\n");
 
-	UNLOCK_BH(&ulog_lock);
+	spin_unlock_bh(&ulog_lock);
 }
 
 static unsigned int ipt_ulog_target(struct sk_buff **pskb,
