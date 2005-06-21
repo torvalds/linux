@@ -216,7 +216,7 @@ config IOSAPIC
 
 config IA64_SGI_SN_SIM
 	bool "SGI Medusa Simulator Support"
-	depends on IA64_SGI_SN2
+	depends on IA64_SGI_SN2 || IA64_GENERIC
 	help
 	  If you are compiling a kernel that will run under SGI's IA-64
 	  simulator (Medusa) then say Y, otherwise say N.
