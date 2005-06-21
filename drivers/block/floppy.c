@@ -4261,8 +4261,6 @@ static int __init floppy_init(void)
 		motor_off_timer[dr].function = motor_off_callback;
 	}
 
-	devfs_mk_dir("floppy");
-
 	err = register_blkdev(FLOPPY_MAJOR, "fd");
 	if (err)
 		goto out_devfs_remove;

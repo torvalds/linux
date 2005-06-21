@@ -5808,8 +5808,6 @@ int __init sbpcd_init(void)
 		return -ENOMEM;
 	}
 
-	devfs_mk_dir("sbp");
-
 	for (j=0;j<NR_SBPCD;j++)
 	{
 		struct cdrom_device_info * sbpcd_infop;

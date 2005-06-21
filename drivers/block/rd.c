@@ -442,8 +442,6 @@ static int __init rd_init(void)
 		goto out;
 	}
 
-	devfs_mk_dir("rd");
-
 	for (i = 0; i < CONFIG_BLK_DEV_RAM_COUNT; i++) {
 		struct gendisk *disk = rd_disks[i];
 

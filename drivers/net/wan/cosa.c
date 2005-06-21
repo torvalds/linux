@@ -393,7 +393,6 @@ static int __init cosa_init(void)
 		err = -ENODEV;
 		goto out;
 	}
-	devfs_mk_dir("cosa");
 	cosa_class = class_create(THIS_MODULE, "cosa");
 	if (IS_ERR(cosa_class)) {
 		err = PTR_ERR(cosa_class);

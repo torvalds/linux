@@ -302,7 +302,6 @@ int dvb_register_adapter(struct dvb_adapter *adap, const char *name, struct modu
 
 	printk ("DVB: registering new adapter (%s).\n", name);
 
-	devfs_mk_dir("dvb/adapter%d", num);
 	adap->num = num;
 	adap->name = name;
 	adap->module = module;
@@ -409,8 +408,6 @@ static int __init init_dvbdev(void)
 		printk("dvb-core: unable to get major %d\n", DVB_MAJOR);
 		goto error;
 	}
-
-	devfs_mk_dir("dvb");
 
 	dvb_class = class_create(THIS_MODULE, "dvb");
 	if (IS_ERR(dvb_class)) {

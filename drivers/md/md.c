@@ -5553,7 +5553,6 @@ static int __init md_init(void)
 		unregister_blkdev(MAJOR_NR, "md");
 		return -1;
 	}
-	devfs_mk_dir("md");
 	blk_register_region(MKDEV(MAJOR_NR, 0), MAX_MD_DEVS, THIS_MODULE,
 				md_probe, NULL, NULL);
 	blk_register_region(MKDEV(mdp_major, 0), MAX_MD_DEVS<<MdpMinorShift, THIS_MODULE,

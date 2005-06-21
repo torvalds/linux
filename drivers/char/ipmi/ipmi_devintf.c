@@ -872,8 +872,6 @@ static __init int init_ipmi_devintf(void)
 		ipmi_major = rv;
 	}
 
-	devfs_mk_dir(DEVICE_NAME);
-
 	rv = ipmi_smi_watcher_register(&smi_watcher);
 	if (rv) {
 		unregister_chrdev(ipmi_major, DEVICE_NAME);

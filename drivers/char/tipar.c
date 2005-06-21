@@ -507,9 +507,6 @@ tipar_init_module(void)
 		goto out;
 	}
 
-	/* Use devfs with tree: /dev/ticables/par/[0..2] */
-	devfs_mk_dir("ticables/par");
-
 	tipar_class = class_create(THIS_MODULE, "ticables");
 	if (IS_ERR(tipar_class)) {
 		err = PTR_ERR(tipar_class);

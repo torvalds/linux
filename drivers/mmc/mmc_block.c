@@ -555,7 +555,6 @@ static int __init mmc_blk_init(void)
 	if (major == 0)
 		major = res;
 
-	devfs_mk_dir("mmc");
 	return mmc_register_driver(&mmc_driver);
 
  out:

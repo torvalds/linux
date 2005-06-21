@@ -907,7 +907,6 @@ static int __init lp_init (void)
 		return -EIO;
 	}
 
-	devfs_mk_dir("printers");
 	lp_class = class_create(THIS_MODULE, "printer");
 	if (IS_ERR(lp_class)) {
 		err = PTR_ERR(lp_class);

@@ -674,7 +674,6 @@ static int __init pg_init(void)
 		err = PTR_ERR(pg_class);
 		goto out_chrdev;
 	}
-	devfs_mk_dir("pg");
 	for (unit = 0; unit < PG_UNITS; unit++) {
 		struct pg *dev = &devices[unit];
 		if (dev->present) {

@@ -351,7 +351,6 @@ static int pty_unix98_ioctl(struct tty_struct *tty, struct file *file,
 
 static void __init unix98_pty_init(void)
 {
-	devfs_mk_dir("pts");
 	ptm_driver = alloc_tty_driver(NR_UNIX98_PTY_MAX);
 	if (!ptm_driver)
 		panic("Couldn't allocate Unix98 ptm driver");

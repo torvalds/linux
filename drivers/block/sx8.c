@@ -1672,8 +1672,6 @@ static int carm_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (host->flags & FL_DYN_MAJOR)
 		host->major = rc;
 
-	devfs_mk_dir(DRV_NAME);
-
 	rc = carm_init_disks(host);
 	if (rc)
 		goto err_out_blkdev_disks;

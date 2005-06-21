@@ -971,7 +971,6 @@ static int __init pt_init(void)
 		goto out_chrdev;
 	}
 
-	devfs_mk_dir("pt");
 	for (unit = 0; unit < PT_UNITS; unit++)
 		if (pt[unit].present) {
 			class_device_create(pt_class, NULL, MKDEV(major, unit),

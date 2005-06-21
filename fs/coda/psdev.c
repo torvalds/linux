@@ -365,7 +365,6 @@ static int init_coda_psdev(void)
 		err = PTR_ERR(coda_psdev_class);
 		goto out_chrdev;
 	}		
-	devfs_mk_dir ("coda");
 	for (i = 0; i < MAX_CODADEVS; i++) {
 		class_device_create(coda_psdev_class, NULL,
 				MKDEV(CODA_PSDEV_MAJOR,i), NULL, "cfs%d", i);

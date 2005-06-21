@@ -1019,8 +1019,6 @@ int swim3_init(void)
 	int err = -ENOMEM;
 	int i;
 
-	devfs_mk_dir("floppy");
-
 	swim = find_devices("floppy");
 	while (swim && (floppy_count < MAX_FLOPPIES))
 	{
