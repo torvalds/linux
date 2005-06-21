@@ -6,17 +6,6 @@ be removed from this file.
 
 ---------------------------
 
-What:	devfs
-When:	July 2005
-Files:	fs/devfs/*, include/linux/devfs_fs*.h and assorted devfs
-	function calls throughout the kernel tree
-Why:	It has been unmaintained for a number of years, has unfixable
-	races, contains a naming policy within the kernel that is
-	against the LSB, and can be replaced by using udev.
-Who:	Greg Kroah-Hartman <greg@kroah.com>
-
----------------------------
-
 What:	RAW driver (CONFIG_RAW_DRIVER)
 When:	December 2005
 Why:	declared obsolete since kernel 2.6.3
