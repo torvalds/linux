@@ -114,25 +114,18 @@ typedef struct xfs_dquot {
 #define XFS_DQHOLD(dqp)		((dqp)->q_nrefs++)
 
 /*
- * Quota Accounting flags
+ * Quota Accounting/Enforcement flags
  */
-#define XFS_ALL_QUOTA_ACCT	(XFS_UQUOTA_ACCT | XFS_GQUOTA_ACCT)
-#define XFS_ALL_QUOTA_ENFD	(XFS_UQUOTA_ENFD | XFS_GQUOTA_ENFD)
-#define XFS_ALL_QUOTA_CHKD	(XFS_UQUOTA_CHKD | XFS_GQUOTA_CHKD)
-#define XFS_ALL_QUOTA_ACTV	(XFS_UQUOTA_ACTIVE | XFS_GQUOTA_ACTIVE)
-#define XFS_ALL_QUOTA_ACCT_ENFD (XFS_UQUOTA_ACCT|XFS_UQUOTA_ENFD|\
-				 XFS_GQUOTA_ACCT|XFS_GQUOTA_ENFD)
+#define XFS_ALL_QUOTA_ACCT	\
+		(XFS_UQUOTA_ACCT | XFS_GQUOTA_ACCT | XFS_PQUOTA_ACCT)
+#define XFS_ALL_QUOTA_ENFD	(XFS_UQUOTA_ENFD | XFS_OQUOTA_ENFD)
+#define XFS_ALL_QUOTA_CHKD	(XFS_UQUOTA_CHKD | XFS_OQUOTA_CHKD)
 
-#define XFS_IS_QUOTA_RUNNING(mp)  ((mp)->m_qflags & XFS_ALL_QUOTA_ACCT)
-#define XFS_IS_UQUOTA_RUNNING(mp) ((mp)->m_qflags & XFS_UQUOTA_ACCT)
-#define XFS_IS_GQUOTA_RUNNING(mp) ((mp)->m_qflags & XFS_GQUOTA_ACCT)
-
-/*
- * Quota Limit Enforcement flags
- */
+#define XFS_IS_QUOTA_RUNNING(mp)	((mp)->m_qflags & XFS_ALL_QUOTA_ACCT)
 #define XFS_IS_QUOTA_ENFORCED(mp)	((mp)->m_qflags & XFS_ALL_QUOTA_ENFD)
-#define XFS_IS_UQUOTA_ENFORCED(mp)	((mp)->m_qflags & XFS_UQUOTA_ENFD)
-#define XFS_IS_GQUOTA_ENFORCED(mp)	((mp)->m_qflags & XFS_GQUOTA_ENFD)
+#define XFS_IS_UQUOTA_RUNNING(mp)	((mp)->m_qflags & XFS_UQUOTA_ACCT)
+#define XFS_IS_PQUOTA_RUNNING(mp)	((mp)->m_qflags & XFS_PQUOTA_ACCT)
+#define XFS_IS_GQUOTA_RUNNING(mp)	((mp)->m_qflags & XFS_GQUOTA_ACCT)
 
 #ifdef DEBUG
 static inline int
@@ -167,6 +160,8 @@ XFS_DQ_IS_LOCKED(xfs_dquot_t *dqp)
 #define XFS_DQ_IS_ON_FREELIST(dqp)  ((dqp)->dq_flnext != (dqp))
 #define XFS_DQ_IS_DIRTY(dqp)	((dqp)->dq_flags & XFS_DQ_DIRTY)
 #define XFS_QM_ISUDQ(dqp)	((dqp)->dq_flags & XFS_DQ_USER)
+#define XFS_QM_ISPDQ(dqp)	((dqp)->dq_flags & XFS_DQ_PROJ)
+#define XFS_QM_ISGDQ(dqp)	((dqp)->dq_flags & XFS_DQ_GROUP)
 #define XFS_DQ_TO_QINF(dqp)	((dqp)->q_mount->m_quotainfo)
 #define XFS_DQ_TO_QIP(dqp)	(XFS_QM_ISUDQ(dqp) ? \
 				 XFS_DQ_TO_QINF(dqp)->qi_uquotaip : \
@@ -174,7 +169,7 @@ XFS_DQ_IS_LOCKED(xfs_dquot_t *dqp)
 
 #define XFS_IS_THIS_QUOTA_OFF(d) (! (XFS_QM_ISUDQ(d) ? \
 				     (XFS_IS_UQUOTA_ON((d)->q_mount)) : \
-				     (XFS_IS_GQUOTA_ON((d)->q_mount))))
+				     (XFS_IS_OQUOTA_ON((d)->q_mount))))
 
 #ifdef XFS_DQUOT_TRACE
 /*

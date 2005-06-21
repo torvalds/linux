@@ -399,9 +399,9 @@ xfs_qm_init_dquot_blk(
 	for (i = 0; i < XFS_QM_DQPERBLK(mp); i++, d++, curid++)
 		xfs_qm_dqinit_core(curid, type, d);
 	xfs_trans_dquot_buf(tp, bp,
-			    type & XFS_DQ_USER ?
-			    XFS_BLI_UDQUOT_BUF :
-			    XFS_BLI_GDQUOT_BUF);
+			    (type & XFS_DQ_USER ? XFS_BLI_UDQUOT_BUF :
+			    ((type & XFS_DQ_PROJ) ? XFS_BLI_PDQUOT_BUF :
+			     XFS_BLI_GDQUOT_BUF)));
 	xfs_trans_log_buf(tp, bp, 0, BBTOB(XFS_QI_DQCHUNKLEN(mp)) - 1);
 }
 
@@ -482,8 +482,7 @@ xfs_qm_dqalloc(
 	 * the entire thing.
 	 */
 	xfs_qm_init_dquot_blk(tp, mp, INT_GET(dqp->q_core.d_id, ARCH_CONVERT),
-			      dqp->dq_flags & (XFS_DQ_USER|XFS_DQ_GROUP),
-			      bp);
+			      dqp->dq_flags & XFS_DQ_ALLTYPES, bp);
 
 	if ((error = xfs_bmap_finish(&tp, &flist, firstblock, &committed))) {
 		goto error1;
@@ -613,8 +612,7 @@ xfs_qm_dqtobp(
 	/*
 	 * A simple sanity check in case we got a corrupted dquot...
 	 */
-	if (xfs_qm_dqcheck(ddq, id,
-			   dqp->dq_flags & (XFS_DQ_USER|XFS_DQ_GROUP),
+	if (xfs_qm_dqcheck(ddq, id, dqp->dq_flags & XFS_DQ_ALLTYPES,
 			   flags & (XFS_QMOPT_DQREPAIR|XFS_QMOPT_DOWARN),
 			   "dqtobp")) {
 		if (!(flags & XFS_QMOPT_DQREPAIR)) {
@@ -891,8 +889,8 @@ int
 xfs_qm_dqget(
 	xfs_mount_t	*mp,
 	xfs_inode_t	*ip,	  /* locked inode (optional) */
-	xfs_dqid_t	id,	  /* gid or uid, depending on type */
-	uint		type,	  /* UDQUOT or GDQUOT */
+	xfs_dqid_t	id,	  /* uid/projid/gid depending on type */
+	uint		type,	  /* XFS_DQ_USER/XFS_DQ_PROJ/XFS_DQ_GROUP */
 	uint		flags,	  /* DQALLOC, DQSUSER, DQREPAIR, DOWARN */
 	xfs_dquot_t	**O_dqpp) /* OUT : locked incore dquot */
 {
@@ -903,7 +901,9 @@ xfs_qm_dqget(
 
 	ASSERT(XFS_IS_QUOTA_RUNNING(mp));
 	if ((! XFS_IS_UQUOTA_ON(mp) && type == XFS_DQ_USER) ||
+	    (! XFS_IS_PQUOTA_ON(mp) && type == XFS_DQ_PROJ) ||
 	    (! XFS_IS_GQUOTA_ON(mp) && type == XFS_DQ_GROUP)) {
+printk("XQM: ESRCH1\n");
 		return (ESRCH);
 	}
 	h = XFS_DQ_HASH(mp, id, type);
@@ -921,7 +921,9 @@ xfs_qm_dqget(
  again:
 
 #ifdef DEBUG
-	ASSERT(type == XFS_DQ_USER || type == XFS_DQ_GROUP);
+	ASSERT(type == XFS_DQ_USER ||
+	       type == XFS_DQ_PROJ ||
+	       type == XFS_DQ_GROUP);
 	if (ip) {
 		ASSERT(XFS_ISLOCKED_INODE_EXCL(ip));
 		if (type == XFS_DQ_USER)
@@ -979,6 +981,7 @@ xfs_qm_dqget(
 				  &dqp))) {
 		if (ip)
 			xfs_ilock(ip, XFS_ILOCK_EXCL);
+if (error == ESRCH) printk("XQM: ESRCH2\n");
 		return (error);
 	}
 
@@ -1004,6 +1007,7 @@ xfs_qm_dqget(
 		if (! XFS_IS_DQTYPE_ON(mp, type)) {
 			/* inode stays locked on return */
 			xfs_qm_dqdestroy(dqp);
+printk("XQM: ESRCH3\n");
 			return XFS_ERROR(ESRCH);
 		}
 		/*
@@ -1244,8 +1248,8 @@ xfs_qm_dqflush(
 		return (error);
 	}
 
-	if (xfs_qm_dqcheck(&dqp->q_core, INT_GET(ddqp->d_id, ARCH_CONVERT), 0, XFS_QMOPT_DOWARN,
-			   "dqflush (incore copy)")) {
+	if (xfs_qm_dqcheck(&dqp->q_core, INT_GET(ddqp->d_id, ARCH_CONVERT),
+			   0, XFS_QMOPT_DOWARN, "dqflush (incore copy)")) {
 		xfs_force_shutdown(dqp->q_mount, XFS_CORRUPT_INCORE);
 		return XFS_ERROR(EIO);
 	}
@@ -1397,7 +1401,8 @@ xfs_dqlock2(
 {
 	if (d1 && d2) {
 		ASSERT(d1 != d2);
-		if (INT_GET(d1->q_core.d_id, ARCH_CONVERT) > INT_GET(d2->q_core.d_id, ARCH_CONVERT)) {
+		if (INT_GET(d1->q_core.d_id, ARCH_CONVERT) >
+		    INT_GET(d2->q_core.d_id, ARCH_CONVERT)) {
 			xfs_dqlock(d2);
 			xfs_dqlock(d1);
 		} else {
@@ -1520,8 +1525,7 @@ xfs_qm_dqprint(xfs_dquot_t *dqp)
 	cmn_err(CE_DEBUG, "-----------KERNEL DQUOT----------------");
 	cmn_err(CE_DEBUG, "---- dquotID =  %d",
 		(int)INT_GET(dqp->q_core.d_id, ARCH_CONVERT));
-	cmn_err(CE_DEBUG, "---- type    =  %s",
-		XFS_QM_ISUDQ(dqp) ? "USR" : "GRP");
+	cmn_err(CE_DEBUG, "---- type    =  %s", DQFLAGTO_TYPESTR(dqp));
 	cmn_err(CE_DEBUG, "---- fs      =  0x%p", dqp->q_mount);
 	cmn_err(CE_DEBUG, "---- blkno   =  0x%x", (int) dqp->q_blkno);
 	cmn_err(CE_DEBUG, "---- boffset =  0x%x", (int) dqp->q_bufoffset);

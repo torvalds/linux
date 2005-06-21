@@ -141,7 +141,7 @@ typedef int	(*xfs_dqattach_t)(struct xfs_inode *, uint);
 typedef void	(*xfs_dqdetach_t)(struct xfs_inode *);
 typedef int	(*xfs_dqpurgeall_t)(struct xfs_mount *, uint);
 typedef int	(*xfs_dqvopalloc_t)(struct xfs_mount *,
-			struct xfs_inode *, uid_t, gid_t, uint,
+			struct xfs_inode *, uid_t, gid_t, prid_t, uint,
 			struct xfs_dquot **, struct xfs_dquot **);
 typedef void	(*xfs_dqvopcreate_t)(struct xfs_trans *, struct xfs_inode *,
 			struct xfs_dquot *, struct xfs_dquot *);
@@ -185,8 +185,8 @@ typedef struct xfs_qmops {
 	(*(mp)->m_qm_ops.xfs_dqdetach)(ip)
 #define XFS_QM_DQPURGEALL(mp, fl) \
 	(*(mp)->m_qm_ops.xfs_dqpurgeall)(mp, fl)
-#define XFS_QM_DQVOPALLOC(mp, ip, uid, gid, fl, dq1, dq2) \
-	(*(mp)->m_qm_ops.xfs_dqvopalloc)(mp, ip, uid, gid, fl, dq1, dq2)
+#define XFS_QM_DQVOPALLOC(mp, ip, uid, gid, prid, fl, dq1, dq2) \
+	(*(mp)->m_qm_ops.xfs_dqvopalloc)(mp, ip, uid, gid, prid, fl, dq1, dq2)
 #define XFS_QM_DQVOPCREATE(mp, tp, ip, dq1, dq2) \
 	(*(mp)->m_qm_ops.xfs_dqvopcreate)(tp, ip, dq1, dq2)
 #define XFS_QM_DQVOPRENAME(mp, ip) \

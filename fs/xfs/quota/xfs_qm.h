@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2004 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.  All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -202,7 +202,7 @@ extern void		xfs_qm_dqrele_all_inodes(xfs_mount_t *, uint);
 
 /* vop stuff */
 extern int		xfs_qm_vop_dqalloc(xfs_mount_t *, xfs_inode_t *,
-					uid_t, gid_t, uint,
+					uid_t, gid_t, prid_t, uint,
 					xfs_dquot_t **, xfs_dquot_t **);
 extern void		xfs_qm_vop_dqattach_and_dqmod_newinode(
 					xfs_trans_t *, xfs_inode_t *,

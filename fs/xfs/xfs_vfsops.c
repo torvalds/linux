@@ -368,16 +368,6 @@ xfs_finish_flags(
 	}
 
 	/*
-	 * disallow mount attempts with (IRIX) project quota enabled
-	 */
-	if (XFS_SB_VERSION_HASQUOTA(&mp->m_sb) &&
-	    (mp->m_sb.sb_qflags & XFS_PQUOTA_ACCT)) {
-		cmn_err(CE_WARN,
-	"XFS: cannot mount a filesystem with IRIX project quota enabled");
-		return XFS_ERROR(ENOSYS);
-	}
-
-	/*
 	 * check for shared mount.
 	 */
 	if (ap->flags & XFSMNT_SHARED) {

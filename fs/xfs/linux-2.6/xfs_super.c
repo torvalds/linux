@@ -701,7 +701,8 @@ linvfs_getxquota(
 	struct vfs		*vfsp = LINVFS_GET_VFS(sb);
 	int			error, getmode;
 
-	getmode = (type == GRPQUOTA) ? Q_XGETGQUOTA : Q_XGETQUOTA;
+	getmode = (type == USRQUOTA) ? Q_XGETQUOTA :
+		 ((type == GRPQUOTA) ? Q_XGETGQUOTA : Q_XGETPQUOTA);
 	VFS_QUOTACTL(vfsp, getmode, id, (caddr_t)fdq, error);
 	return -error;
 }
@@ -716,7 +717,8 @@ linvfs_setxquota(
 	struct vfs		*vfsp = LINVFS_GET_VFS(sb);
 	int			error, setmode;
 
-	setmode = (type == GRPQUOTA) ? Q_XSETGQLIM : Q_XSETQLIM;
+	setmode = (type == USRQUOTA) ? Q_XSETQLIM :
+		 ((type == GRPQUOTA) ? Q_XSETGQLIM : Q_XSETPQLIM);
 	VFS_QUOTACTL(vfsp, setmode, id, (caddr_t)fdq, error);
 	return -error;
 }

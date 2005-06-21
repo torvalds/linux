@@ -207,12 +207,10 @@ xfs_trans_mod_dquot_byino(
 	if (tp->t_dqinfo == NULL)
 		xfs_trans_alloc_dqinfo(tp);
 
-	if (XFS_IS_UQUOTA_ON(mp) && ip->i_udquot) {
+	if (XFS_IS_UQUOTA_ON(mp) && ip->i_udquot)
 		(void) xfs_trans_mod_dquot(tp, ip->i_udquot, field, delta);
-	}
-	if (XFS_IS_GQUOTA_ON(mp) && ip->i_gdquot) {
+	if (XFS_IS_OQUOTA_ON(mp) && ip->i_gdquot)
 		(void) xfs_trans_mod_dquot(tp, ip->i_gdquot, field, delta);
-	}
 }
 
 STATIC xfs_dqtrx_t *
