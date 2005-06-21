@@ -1082,7 +1082,7 @@ xfs_unmountfs(xfs_mount_t *mp, struct cred *cr)
 	int64_t		fsid;
 #endif
 
-	xfs_iflush_all(mp, XFS_FLUSH_ALL);
+	xfs_iflush_all(mp);
 
 	XFS_QM_DQPURGEALL(mp,
 		XFS_QMOPT_UQUOTA | XFS_QMOPT_GQUOTA | XFS_QMOPT_UMOUNTING);

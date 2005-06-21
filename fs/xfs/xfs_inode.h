@@ -412,11 +412,6 @@ void xfs_ifork_next_set(xfs_inode_t *ip, int w, int n);
 #define	XFS_IFLUSH_DELWRI		5
 
 /*
- * Flags for xfs_iflush_all.
- */
-#define	XFS_FLUSH_ALL		0x1
-
-/*
  * Flags for xfs_itruncate_start().
  */
 #define	XFS_ITRUNC_DEFINITE	0x1
@@ -520,7 +515,7 @@ void		xfs_ipin(xfs_inode_t *);
 void		xfs_iunpin(xfs_inode_t *);
 int		xfs_iextents_copy(xfs_inode_t *, xfs_bmbt_rec_t *, int);
 int		xfs_iflush(xfs_inode_t *, uint);
-int		xfs_iflush_all(struct xfs_mount *, int);
+void		xfs_iflush_all(struct xfs_mount *);
 int		xfs_iaccess(xfs_inode_t *, mode_t, cred_t *);
 uint		xfs_iroundup(uint);
 void		xfs_ichgtime(xfs_inode_t *, int);
