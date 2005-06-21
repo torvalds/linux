@@ -29,7 +29,6 @@
 #include <sound/info.h>
 #include <sound/version.h>
 #include <linux/proc_fs.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/mutex.h>
 #include <stdarg.h>
 
