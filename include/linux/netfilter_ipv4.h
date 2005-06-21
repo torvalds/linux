@@ -75,12 +75,6 @@ enum nf_ip_hook_priorities {
 #define SO_ORIGINAL_DST 80
 
 #ifdef __KERNEL__
-#ifdef CONFIG_NETFILTER_DEBUG
-void nf_debug_ip_local_deliver(struct sk_buff *skb);
-void nf_debug_ip_loopback_xmit(struct sk_buff *newskb);
-void nf_debug_ip_finish_output2(struct sk_buff *skb);
-#endif /*CONFIG_NETFILTER_DEBUG*/
-
 extern int ip_route_me_harder(struct sk_buff **pskb);
 
 /* Call this before modifying an existing IP packet: ensures it is

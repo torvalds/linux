@@ -118,7 +118,6 @@ retry:
 	xfrm_policy_put_afinfo(afinfo);
 	return type;
 }
-EXPORT_SYMBOL(xfrm_get_type);
 
 int xfrm_dst_lookup(struct xfrm_dst **dst, struct flowi *fl, 
 		    unsigned short family)

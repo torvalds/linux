@@ -1775,7 +1775,7 @@ cfq_attr_show(struct kobject *kobj, struct attribute *attr, char *page)
 	struct cfq_fs_entry *entry = to_cfq(attr);
 
 	if (!entry->show)
-		return 0;
+		return -EIO;
 
 	return entry->show(e->elevator_data, page);
 }
@@ -1788,7 +1788,7 @@ cfq_attr_store(struct kobject *kobj, struct attribute *attr,
 	struct cfq_fs_entry *entry = to_cfq(attr);
 
 	if (!entry->store)
-		return -EINVAL;
+		return -EIO;
 
 	return entry->store(e->elevator_data, page, length);
 }

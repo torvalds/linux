@@ -45,7 +45,7 @@
 #include <asm/uaccess.h>
 #include <asm/system.h>
 
-static struct class_simple *cpuid_class;
+static struct class *cpuid_class;
 
 #ifdef CONFIG_SMP
 
@@ -158,12 +158,12 @@ static struct file_operations cpuid_fops = {
 	.open = cpuid_open,
 };
 
-static int cpuid_class_simple_device_add(int i) 
+static int cpuid_class_device_create(int i)
 {
 	int err = 0;
 	struct class_device *class_err;
 
-	class_err = class_simple_device_add(cpuid_class, MKDEV(CPUID_MAJOR, i), NULL, "cpu%d",i);
+	class_err = class_device_create(cpuid_class, MKDEV(CPUID_MAJOR, i), NULL, "cpu%d",i);
 	if (IS_ERR(class_err))
 		err = PTR_ERR(class_err);
 	return err;
@@ -175,10 +175,10 @@ static int __devinit cpuid_class_cpu_callback(struct notifier_block *nfb, unsign
 
 	switch (action) {
 	case CPU_ONLINE:
-		cpuid_class_simple_device_add(cpu);
+		cpuid_class_device_create(cpu);
 		break;
 	case CPU_DEAD:
-		class_simple_device_remove(MKDEV(CPUID_MAJOR, cpu));
+		class_device_destroy(cpuid_class, MKDEV(CPUID_MAJOR, cpu));
 		break;
 	}
 	return NOTIFY_OK;
@@ -200,13 +200,13 @@ static int __init cpuid_init(void)
 		err = -EBUSY;
 		goto out;
 	}
-	cpuid_class = class_simple_create(THIS_MODULE, "cpuid");
+	cpuid_class = class_create(THIS_MODULE, "cpuid");
 	if (IS_ERR(cpuid_class)) {
 		err = PTR_ERR(cpuid_class);
 		goto out_chrdev;
 	}
 	for_each_online_cpu(i) {
-		err = cpuid_class_simple_device_add(i);
+		err = cpuid_class_device_create(i);
 		if (err != 0) 
 			goto out_class;
 	}
@@ -218,9 +218,9 @@ static int __init cpuid_init(void)
 out_class:
 	i = 0;
 	for_each_online_cpu(i) {
-		class_simple_device_remove(MKDEV(CPUID_MAJOR, i));
+		class_device_destroy(cpuid_class, MKDEV(CPUID_MAJOR, i));
 	}
-	class_simple_destroy(cpuid_class);
+	class_destroy(cpuid_class);
 out_chrdev:
 	unregister_chrdev(CPUID_MAJOR, "cpu/cpuid");	
 out:
@@ -232,8 +232,8 @@ static void __exit cpuid_exit(void)
 	int cpu = 0;
 
 	for_each_online_cpu(cpu)
-		class_simple_device_remove(MKDEV(CPUID_MAJOR, cpu));
-	class_simple_destroy(cpuid_class);
+		class_device_destroy(cpuid_class, MKDEV(CPUID_MAJOR, cpu));
+	class_destroy(cpuid_class);
 	unregister_chrdev(CPUID_MAJOR, "cpu/cpuid");
 	unregister_cpu_notifier(&cpuid_class_cpu_notifier);
 }

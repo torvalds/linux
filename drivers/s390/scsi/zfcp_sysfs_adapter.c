@@ -50,7 +50,7 @@ static const char fc_topologies[5][25] = {
  * Generates attributes for an adapter.
  */
 #define ZFCP_DEFINE_ADAPTER_ATTR(_name, _format, _value)                      \
-static ssize_t zfcp_sysfs_adapter_##_name##_show(struct device *dev,          \
+static ssize_t zfcp_sysfs_adapter_##_name##_show(struct device *dev, struct device_attribute *attr,          \
 						 char *buf)                   \
 {                                                                             \
 	struct zfcp_adapter *adapter;                                         \
@@ -90,7 +90,7 @@ ZFCP_DEFINE_ADAPTER_ATTR(in_recovery, "%d\n", atomic_test_mask
  * Store function of the "port_add" attribute of an adapter.
  */
 static ssize_t
-zfcp_sysfs_port_add_store(struct device *dev, const char *buf, size_t count)
+zfcp_sysfs_port_add_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	wwn_t wwpn;
 	char *endp;
@@ -135,7 +135,7 @@ static DEVICE_ATTR(port_add, S_IWUSR, NULL, zfcp_sysfs_port_add_store);
  * Store function of the "port_remove" attribute of an adapter.
  */
 static ssize_t
-zfcp_sysfs_port_remove_store(struct device *dev, const char *buf, size_t count)
+zfcp_sysfs_port_remove_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct zfcp_adapter *adapter;
 	struct zfcp_port *port;
@@ -196,7 +196,7 @@ static DEVICE_ATTR(port_remove, S_IWUSR, NULL, zfcp_sysfs_port_remove_store);
  * started for the belonging adapter.
  */
 static ssize_t
-zfcp_sysfs_adapter_failed_store(struct device *dev,
+zfcp_sysfs_adapter_failed_store(struct device *dev, struct device_attribute *attr,
 				const char *buf, size_t count)
 {
 	struct zfcp_adapter *adapter;
@@ -236,7 +236,7 @@ zfcp_sysfs_adapter_failed_store(struct device *dev,
  * "0" if adapter is working, otherwise "1".
  */
 static ssize_t
-zfcp_sysfs_adapter_failed_show(struct device *dev, char *buf)
+zfcp_sysfs_adapter_failed_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct zfcp_adapter *adapter;
 

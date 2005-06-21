@@ -45,16 +45,16 @@ static struct block_device_operations dcssblk_devops = {
 	.release = dcssblk_release,
 };
 
-static ssize_t dcssblk_add_store(struct device * dev, const char * buf,
+static ssize_t dcssblk_add_store(struct device * dev, struct device_attribute *attr, const char * buf,
 				  size_t count);
-static ssize_t dcssblk_remove_store(struct device * dev, const char * buf,
+static ssize_t dcssblk_remove_store(struct device * dev, struct device_attribute *attr, const char * buf,
 				  size_t count);
-static ssize_t dcssblk_save_store(struct device * dev, const char * buf,
+static ssize_t dcssblk_save_store(struct device * dev, struct device_attribute *attr, const char * buf,
 				  size_t count);
-static ssize_t dcssblk_save_show(struct device *dev, char *buf);
-static ssize_t dcssblk_shared_store(struct device * dev, const char * buf,
+static ssize_t dcssblk_save_show(struct device *dev, struct device_attribute *attr, char *buf);
+static ssize_t dcssblk_shared_store(struct device * dev, struct device_attribute *attr, const char * buf,
 				  size_t count);
-static ssize_t dcssblk_shared_show(struct device *dev, char *buf);
+static ssize_t dcssblk_shared_show(struct device *dev, struct device_attribute *attr, char *buf);
 
 static DEVICE_ATTR(add, S_IWUSR, NULL, dcssblk_add_store);
 static DEVICE_ATTR(remove, S_IWUSR, NULL, dcssblk_remove_store);
@@ -195,7 +195,7 @@ dcssblk_segment_warn(int rc, char* seg_name)
  * operation (show + store)
  */
 static ssize_t
-dcssblk_shared_show(struct device *dev, char *buf)
+dcssblk_shared_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct dcssblk_dev_info *dev_info;
 
@@ -204,7 +204,7 @@ dcssblk_shared_show(struct device *dev, char *buf)
 }
 
 static ssize_t
-dcssblk_shared_store(struct device *dev, const char *inbuf, size_t count)
+dcssblk_shared_store(struct device *dev, struct device_attribute *attr, const char *inbuf, size_t count)
 {
 	struct dcssblk_dev_info *dev_info;
 	int rc;
@@ -288,7 +288,7 @@ out:
  * (show + store)
  */
 static ssize_t
-dcssblk_save_show(struct device *dev, char *buf)
+dcssblk_save_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct dcssblk_dev_info *dev_info;
 
@@ -297,7 +297,7 @@ dcssblk_save_show(struct device *dev, char *buf)
 }
 
 static ssize_t
-dcssblk_save_store(struct device *dev, const char *inbuf, size_t count)
+dcssblk_save_store(struct device *dev, struct device_attribute *attr, const char *inbuf, size_t count)
 {
 	struct dcssblk_dev_info *dev_info;
 
@@ -343,7 +343,7 @@ dcssblk_save_store(struct device *dev, const char *inbuf, size_t count)
  * device attribute for adding devices
  */
 static ssize_t
-dcssblk_add_store(struct device *dev, const char *buf, size_t count)
+dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	int rc, i;
 	struct dcssblk_dev_info *dev_info;
@@ -517,7 +517,7 @@ out_nobuf:
  * device attribute for removing devices
  */
 static ssize_t
-dcssblk_remove_store(struct device *dev, const char *buf, size_t count)
+dcssblk_remove_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct dcssblk_dev_info *dev_info;
 	int rc, i;

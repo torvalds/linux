@@ -262,18 +262,18 @@ static struct sctp_transport *sctp_addr_id2transport(struct sock *sk,
  *             sockaddr_in6 [RFC 2553]),
  *   addr_len - the size of the address structure.
  */
-SCTP_STATIC int sctp_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
+SCTP_STATIC int sctp_bind(struct sock *sk, struct sockaddr *addr, int addr_len)
 {
 	int retval = 0;
 
 	sctp_lock_sock(sk);
 
-	SCTP_DEBUG_PRINTK("sctp_bind(sk: %p, uaddr: %p, addr_len: %d)\n",
-			  sk, uaddr, addr_len);
+	SCTP_DEBUG_PRINTK("sctp_bind(sk: %p, addr: %p, addr_len: %d)\n",
+			  sk, addr, addr_len);
 
 	/* Disallow binding twice. */
 	if (!sctp_sk(sk)->ep->base.bind_addr.port)
-		retval = sctp_do_bind(sk, (union sctp_addr *)uaddr,
+		retval = sctp_do_bind(sk, (union sctp_addr *)addr,
 				      addr_len);
 	else
 		retval = -EINVAL;
@@ -318,22 +318,26 @@ SCTP_STATIC int sctp_do_bind(struct sock *sk, union sctp_addr *addr, int len)
 	unsigned short snum;
 	int ret = 0;
 
-	SCTP_DEBUG_PRINTK("sctp_do_bind(sk: %p, newaddr: %p, len: %d)\n",
-			  sk, addr, len);
-
 	/* Common sockaddr verification. */
 	af = sctp_sockaddr_af(sp, addr, len);
-	if (!af)
+	if (!af) {
+		SCTP_DEBUG_PRINTK("sctp_do_bind(sk: %p, newaddr: %p, len: %d) EINVAL\n",
+				  sk, addr, len);
 		return -EINVAL;
+	}
+
+	snum = ntohs(addr->v4.sin_port);
+
+	SCTP_DEBUG_PRINTK_IPADDR("sctp_do_bind(sk: %p, new addr: ",
+				 ", port: %d, new port: %d, len: %d)\n",
+				 sk,
+				 addr,
+				 bp->port, snum,
+				 len);
 
 	/* PF specific bind() address verification. */
 	if (!sp->pf->bind_verify(sp, addr))
 		return -EADDRNOTAVAIL;
-
-	snum= ntohs(addr->v4.sin_port);
-
-	SCTP_DEBUG_PRINTK("sctp_do_bind: port: %d, new port: %d\n",
-			  bp->port, snum);
 
 	/* We must either be unbound, or bind to the same port.  */
 	if (bp->port && (snum != bp->port)) {
@@ -816,7 +820,8 @@ out:
  *
  * Basically do nothing but copying the addresses from user to kernel
  * land and invoking either sctp_bindx_add() or sctp_bindx_rem() on the sk.
- * This is used for tunneling the sctp_bindx() request through sctp_setsockopt() * from userspace.
+ * This is used for tunneling the sctp_bindx() request through sctp_setsockopt()
+ * from userspace.
  *
  * We don't use copy_from_user() for optimization: we first do the
  * sanity checks (buffer size -fast- and access check-healthy
@@ -910,6 +915,243 @@ SCTP_STATIC int sctp_setsockopt_bindx(struct sock* sk,
 out:
 	kfree(kaddrs);
 
+	return err;
+}
+
+/* __sctp_connect(struct sock* sk, struct sockaddr *kaddrs, int addrs_size)
+ *
+ * Common routine for handling connect() and sctp_connectx().
+ * Connect will come in with just a single address.
+ */
+static int __sctp_connect(struct sock* sk,
+			  struct sockaddr *kaddrs,
+			  int addrs_size)
+{
+	struct sctp_sock *sp;
+	struct sctp_endpoint *ep;
+	struct sctp_association *asoc = NULL;
+	struct sctp_association *asoc2;
+	struct sctp_transport *transport;
+	union sctp_addr to;
+	struct sctp_af *af;
+	sctp_scope_t scope;
+	long timeo;
+	int err = 0;
+	int addrcnt = 0;
+	int walk_size = 0;
+	struct sockaddr *sa_addr;
+	void *addr_buf;
+
+	sp = sctp_sk(sk);
+	ep = sp->ep;
+
+	/* connect() cannot be done on a socket that is already in ESTABLISHED
+	 * state - UDP-style peeled off socket or a TCP-style socket that
+	 * is already connected.
+	 * It cannot be done even on a TCP-style listening socket.
+	 */
+	if (sctp_sstate(sk, ESTABLISHED) ||
+	    (sctp_style(sk, TCP) && sctp_sstate(sk, LISTENING))) {
+		err = -EISCONN;
+		goto out_free;
+	}
+
+	/* Walk through the addrs buffer and count the number of addresses. */
+	addr_buf = kaddrs;
+	while (walk_size < addrs_size) {
+		sa_addr = (struct sockaddr *)addr_buf;
+		af = sctp_get_af_specific(sa_addr->sa_family);
+
+		/* If the address family is not supported or if this address
+		 * causes the address buffer to overflow return EINVAL.
+		 */
+		if (!af || (walk_size + af->sockaddr_len) > addrs_size) {
+			err = -EINVAL;
+			goto out_free;
+		}
+
+		err = sctp_verify_addr(sk, (union sctp_addr *)sa_addr,
+				       af->sockaddr_len);
+		if (err)
+			goto out_free;
+
+		memcpy(&to, sa_addr, af->sockaddr_len);
+		to.v4.sin_port = ntohs(to.v4.sin_port);
+
+		/* Check if there already is a matching association on the
+		 * endpoint (other than the one created here).
+		 */
+		asoc2 = sctp_endpoint_lookup_assoc(ep, &to, &transport);
+		if (asoc2 && asoc2 != asoc) {
+			if (asoc2->state >= SCTP_STATE_ESTABLISHED)
+				err = -EISCONN;
+			else
+				err = -EALREADY;
+			goto out_free;
+		}
+
+		/* If we could not find a matching association on the endpoint,
+		 * make sure that there is no peeled-off association matching
+		 * the peer address even on another socket.
+		 */
+		if (sctp_endpoint_is_peeled_off(ep, &to)) {
+			err = -EADDRNOTAVAIL;
+			goto out_free;
+		}
+
+		if (!asoc) {
+			/* If a bind() or sctp_bindx() is not called prior to
+			 * an sctp_connectx() call, the system picks an
+			 * ephemeral port and will choose an address set
+			 * equivalent to binding with a wildcard address.
+			 */
+			if (!ep->base.bind_addr.port) {
+				if (sctp_autobind(sk)) {
+					err = -EAGAIN;
+					goto out_free;
+				}
+			}
+
+			scope = sctp_scope(&to);
+			asoc = sctp_association_new(ep, sk, scope, GFP_KERNEL);
+			if (!asoc) {
+				err = -ENOMEM;
+				goto out_free;
+			}
+		}
+
+		/* Prime the peer's transport structures.  */
+		transport = sctp_assoc_add_peer(asoc, &to, GFP_KERNEL,
+						SCTP_UNKNOWN);
+		if (!transport) {
+			err = -ENOMEM;
+			goto out_free;
+		}
+
+		addrcnt++;
+		addr_buf += af->sockaddr_len;
+		walk_size += af->sockaddr_len;
+	}
+
+	err = sctp_assoc_set_bind_addr_from_ep(asoc, GFP_KERNEL);
+	if (err < 0) {
+		goto out_free;
+	}
+
+	err = sctp_primitive_ASSOCIATE(asoc, NULL);
+	if (err < 0) {
+		goto out_free;
+	}
+
+	/* Initialize sk's dport and daddr for getpeername() */
+	inet_sk(sk)->dport = htons(asoc->peer.port);
+	af = sctp_get_af_specific(to.sa.sa_family);
+	af->to_sk_daddr(&to, sk);
+
+	timeo = sock_sndtimeo(sk, sk->sk_socket->file->f_flags & O_NONBLOCK);
+	err = sctp_wait_for_connect(asoc, &timeo);
+
+	/* Don't free association on exit. */
+	asoc = NULL;
+
+out_free:
+
+	SCTP_DEBUG_PRINTK("About to exit __sctp_connect() free asoc: %p"
+		          " kaddrs: %p err: %d\n",
+	                  asoc, kaddrs, err);
+	if (asoc)
+		sctp_association_free(asoc);
+	return err;
+}
+
+/* Helper for tunneling sctp_connectx() requests through sctp_setsockopt()
+ *
+ * API 8.9
+ * int sctp_connectx(int sd, struct sockaddr *addrs, int addrcnt);
+ *
+ * If sd is an IPv4 socket, the addresses passed must be IPv4 addresses.
+ * If the sd is an IPv6 socket, the addresses passed can either be IPv4
+ * or IPv6 addresses.
+ *
+ * A single address may be specified as INADDR_ANY or IN6ADDR_ANY, see
+ * Section 3.1.2 for this usage.
+ *
+ * addrs is a pointer to an array of one or more socket addresses. Each
+ * address is contained in its appropriate structure (i.e. struct
+ * sockaddr_in or struct sockaddr_in6) the family of the address type
+ * must be used to distengish the address length (note that this
+ * representation is termed a "packed array" of addresses). The caller
+ * specifies the number of addresses in the array with addrcnt.
+ *
+ * On success, sctp_connectx() returns 0. On failure, sctp_connectx() returns
+ * -1, and sets errno to the appropriate error code.
+ *
+ * For SCTP, the port given in each socket address must be the same, or
+ * sctp_connectx() will fail, setting errno to EINVAL.
+ *
+ * An application can use sctp_connectx to initiate an association with
+ * an endpoint that is multi-homed.  Much like sctp_bindx() this call
+ * allows a caller to specify multiple addresses at which a peer can be
+ * reached.  The way the SCTP stack uses the list of addresses to set up
+ * the association is implementation dependant.  This function only
+ * specifies that the stack will try to make use of all the addresses in
+ * the list when needed.
+ *
+ * Note that the list of addresses passed in is only used for setting up
+ * the association.  It does not necessarily equal the set of addresses
+ * the peer uses for the resulting association.  If the caller wants to
+ * find out the set of peer addresses, it must use sctp_getpaddrs() to
+ * retrieve them after the association has been set up.
+ *
+ * Basically do nothing but copying the addresses from user to kernel
+ * land and invoking either sctp_connectx(). This is used for tunneling
+ * the sctp_connectx() request through sctp_setsockopt() from userspace.
+ *
+ * We don't use copy_from_user() for optimization: we first do the
+ * sanity checks (buffer size -fast- and access check-healthy
+ * pointer); if all of those succeed, then we can alloc the memory
+ * (expensive operation) needed to copy the data to kernel. Then we do
+ * the copying without checking the user space area
+ * (__copy_from_user()).
+ *
+ * On exit there is no need to do sockfd_put(), sys_setsockopt() does
+ * it.
+ *
+ * sk        The sk of the socket
+ * addrs     The pointer to the addresses in user land
+ * addrssize Size of the addrs buffer
+ *
+ * Returns 0 if ok, <0 errno code on error.
+ */
+SCTP_STATIC int sctp_setsockopt_connectx(struct sock* sk,
+				      struct sockaddr __user *addrs,
+				      int addrs_size)
+{
+	int err = 0;
+	struct sockaddr *kaddrs;
+
+	SCTP_DEBUG_PRINTK("%s - sk %p addrs %p addrs_size %d\n",
+			  __FUNCTION__, sk, addrs, addrs_size);
+
+	if (unlikely(addrs_size <= 0))
+		return -EINVAL;
+
+	/* Check the user passed a healthy pointer.  */
+	if (unlikely(!access_ok(VERIFY_READ, addrs, addrs_size)))
+		return -EFAULT;
+
+	/* Alloc space for the address array in kernel memory.  */
+	kaddrs = (struct sockaddr *)kmalloc(addrs_size, GFP_KERNEL);
+	if (unlikely(!kaddrs))
+		return -ENOMEM;
+
+	if (__copy_from_user(kaddrs, addrs, addrs_size)) {
+		err = -EFAULT;
+	} else {
+		err = __sctp_connect(sk, kaddrs, addrs_size);
+	}
+
+	kfree(kaddrs);
 	return err;
 }
 
@@ -1095,7 +1337,7 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 	sp = sctp_sk(sk);
 	ep = sp->ep;
 
-	SCTP_DEBUG_PRINTK("Using endpoint: %s.\n", ep->debug_name);
+	SCTP_DEBUG_PRINTK("Using endpoint: %p.\n", ep);
 
 	/* We cannot send a message over a TCP-style listening socket. */
 	if (sctp_style(sk, TCP) && sctp_sstate(sk, LISTENING)) {
@@ -1306,7 +1548,7 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 		}
 
 		/* Prime the peer's transport structures.  */
-		transport = sctp_assoc_add_peer(asoc, &to, GFP_KERNEL);
+		transport = sctp_assoc_add_peer(asoc, &to, GFP_KERNEL, SCTP_UNKNOWN);
 		if (!transport) {
 			err = -ENOMEM;
 			goto out_free;
@@ -2208,6 +2450,12 @@ SCTP_STATIC int sctp_setsockopt(struct sock *sk, int level, int optname,
 					       optlen, SCTP_BINDX_REM_ADDR);
 		break;
 
+	case SCTP_SOCKOPT_CONNECTX:
+		/* 'optlen' is the size of the addresses buffer. */
+		retval = sctp_setsockopt_connectx(sk, (struct sockaddr __user *)optval,
+					       optlen);
+		break;
+
 	case SCTP_DISABLE_FRAGMENTS:
 		retval = sctp_setsockopt_disable_fragments(sk, optval, optlen);
 		break;
@@ -2283,112 +2531,29 @@ out_nounlock:
  *
  * len: the size of the address.
  */
-SCTP_STATIC int sctp_connect(struct sock *sk, struct sockaddr *uaddr,
+SCTP_STATIC int sctp_connect(struct sock *sk, struct sockaddr *addr,
 			     int addr_len)
 {
-	struct sctp_sock *sp;
-	struct sctp_endpoint *ep;
-	struct sctp_association *asoc;
-	struct sctp_transport *transport;
-	union sctp_addr to;
-	struct sctp_af *af;
-	sctp_scope_t scope;
-	long timeo;
 	int err = 0;
+	struct sctp_af *af;
 
 	sctp_lock_sock(sk);
 
-	SCTP_DEBUG_PRINTK("%s - sk: %p, sockaddr: %p, addr_len: %d)\n",
-			  __FUNCTION__, sk, uaddr, addr_len);
+	SCTP_DEBUG_PRINTK("%s - sk: %p, sockaddr: %p, addr_len: %d\n",
+			  __FUNCTION__, sk, addr, addr_len);
 
-	sp = sctp_sk(sk);
-	ep = sp->ep;
-
-	/* connect() cannot be done on a socket that is already in ESTABLISHED
-	 * state - UDP-style peeled off socket or a TCP-style socket that
-	 * is already connected.
-	 * It cannot be done even on a TCP-style listening socket.
-	 */
-	if (sctp_sstate(sk, ESTABLISHED) ||
-	    (sctp_style(sk, TCP) && sctp_sstate(sk, LISTENING))) {
-		err = -EISCONN;
-		goto out_unlock;
+	/* Validate addr_len before calling common connect/connectx routine. */
+	af = sctp_get_af_specific(addr->sa_family);
+	if (!af || addr_len < af->sockaddr_len) {
+		err = -EINVAL;
+	} else {
+		/* Pass correct addr len to common routine (so it knows there
+		 * is only one address being passed.
+		 */
+		err = __sctp_connect(sk, addr, af->sockaddr_len);
 	}
 
-	err = sctp_verify_addr(sk, (union sctp_addr *)uaddr, addr_len);
-	if (err)
-		goto out_unlock;
-
-	if (addr_len > sizeof(to))
-		addr_len = sizeof(to);
-	memcpy(&to, uaddr, addr_len);
-	to.v4.sin_port = ntohs(to.v4.sin_port);
-
-	asoc = sctp_endpoint_lookup_assoc(ep, &to, &transport);
-	if (asoc) {
-		if (asoc->state >= SCTP_STATE_ESTABLISHED)
-			err = -EISCONN;
-		else
-			err = -EALREADY;
-		goto out_unlock;
-	}
-
-	/* If we could not find a matching association on the endpoint,
-	 * make sure that there is no peeled-off association matching the
-	 * peer address even on another socket.
-	 */
-	if (sctp_endpoint_is_peeled_off(ep, &to)) {
-		err = -EADDRNOTAVAIL;
-		goto out_unlock;
-	}
-
-	/* If a bind() or sctp_bindx() is not called prior to a connect()
-	 * call, the system picks an ephemeral port and will choose an address
-	 * set equivalent to binding with a wildcard address.
-	 */
-	if (!ep->base.bind_addr.port) {
-		if (sctp_autobind(sk)) {
-			err = -EAGAIN;
-			goto out_unlock;
-		}
-	}
-
-	scope = sctp_scope(&to);
-	asoc = sctp_association_new(ep, sk, scope, GFP_KERNEL);
-	if (!asoc) {
-		err = -ENOMEM;
-		goto out_unlock;
-  	}
-
-	/* Prime the peer's transport structures.  */
-	transport = sctp_assoc_add_peer(asoc, &to, GFP_KERNEL);
-	if (!transport) {
-		sctp_association_free(asoc);
-		goto out_unlock;
-	}
-	err = sctp_assoc_set_bind_addr_from_ep(asoc, GFP_KERNEL);
-	if (err < 0) {
-		sctp_association_free(asoc);
-		goto out_unlock;
-	}
-
-	err = sctp_primitive_ASSOCIATE(asoc, NULL);
-	if (err < 0) {
-		sctp_association_free(asoc);
-		goto out_unlock;
-	}
-
-	/* Initialize sk's dport and daddr for getpeername() */
-	inet_sk(sk)->dport = htons(asoc->peer.port);
-	af = sctp_get_af_specific(to.sa.sa_family);
-	af->to_sk_daddr(&to, sk);
-
-	timeo = sock_sndtimeo(sk, sk->sk_socket->file->f_flags & O_NONBLOCK);
-	err = sctp_wait_for_connect(asoc, &timeo);
-
-out_unlock:
 	sctp_release_sock(sk);
-
 	return err;
 }
 
@@ -2677,11 +2842,14 @@ static int sctp_getsockopt_sctp_status(struct sock *sk, int len,
 	/* Map ipv4 address into v4-mapped-on-v6 address.  */
 	sctp_get_pf_specific(sk->sk_family)->addr_v4map(sctp_sk(sk),
 		(union sctp_addr *)&status.sstat_primary.spinfo_address);
-	status.sstat_primary.spinfo_state = transport->active;
+	status.sstat_primary.spinfo_state = transport->state;
 	status.sstat_primary.spinfo_cwnd = transport->cwnd;
 	status.sstat_primary.spinfo_srtt = transport->srtt;
 	status.sstat_primary.spinfo_rto = jiffies_to_msecs(transport->rto);
 	status.sstat_primary.spinfo_mtu = transport->pmtu;
+
+	if (status.sstat_primary.spinfo_state == SCTP_UNKNOWN)
+		status.sstat_primary.spinfo_state = SCTP_ACTIVE;
 
 	if (put_user(len, optlen)) {
 		retval = -EFAULT;
@@ -2733,11 +2901,14 @@ static int sctp_getsockopt_peer_addr_info(struct sock *sk, int len,
 		return -EINVAL;
 
 	pinfo.spinfo_assoc_id = sctp_assoc2id(transport->asoc);
-	pinfo.spinfo_state = transport->active;
+	pinfo.spinfo_state = transport->state;
 	pinfo.spinfo_cwnd = transport->cwnd;
 	pinfo.spinfo_srtt = transport->srtt;
 	pinfo.spinfo_rto = jiffies_to_msecs(transport->rto);
 	pinfo.spinfo_mtu = transport->pmtu;
+
+	if (pinfo.spinfo_state == SCTP_UNKNOWN)
+		pinfo.spinfo_state = SCTP_ACTIVE;
 
 	if (put_user(len, optlen)) {
 		retval = -EFAULT;
@@ -3591,7 +3762,8 @@ SCTP_STATIC int sctp_getsockopt(struct sock *sk, int level, int optname,
 	int retval = 0;
 	int len;
 
-	SCTP_DEBUG_PRINTK("sctp_getsockopt(sk: %p, ...)\n", sk);
+	SCTP_DEBUG_PRINTK("sctp_getsockopt(sk: %p... optname: %d)\n",
+			  sk, optname);
 
 	/* I can hardly begin to describe how wrong this is.  This is
 	 * so broken as to be worse than useless.  The API draft
@@ -4596,8 +4768,7 @@ out:
 	return err;
 
 do_error:
-	if (asoc->counters[SCTP_COUNTER_INIT_ERROR] + 1 >=
-					 	asoc->max_init_attempts)
+	if (asoc->init_err_counter + 1 >= asoc->max_init_attempts)
 		err = -ETIMEDOUT;
 	else
 		err = -ECONNREFUSED;

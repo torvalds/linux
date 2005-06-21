@@ -177,7 +177,7 @@ struct lm63_data {
  */
 
 #define show_fan(value) \
-static ssize_t show_##value(struct device *dev, char *buf) \
+static ssize_t show_##value(struct device *dev, struct device_attribute *attr, char *buf) \
 { \
 	struct lm63_data *data = lm63_update_device(dev); \
 	return sprintf(buf, "%d\n", FAN_FROM_REG(data->value)); \
@@ -185,7 +185,7 @@ static ssize_t show_##value(struct device *dev, char *buf) \
 show_fan(fan1_input);
 show_fan(fan1_low);
 
-static ssize_t set_fan1_low(struct device *dev, const char *buf,
+static ssize_t set_fan1_low(struct device *dev, struct device_attribute *attr, const char *buf,
 	size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -202,7 +202,7 @@ static ssize_t set_fan1_low(struct device *dev, const char *buf,
 	return count;
 }
 
-static ssize_t show_pwm1(struct device *dev, char *buf)
+static ssize_t show_pwm1(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct lm63_data *data = lm63_update_device(dev);
 	return sprintf(buf, "%d\n", data->pwm1_value >= 2 * data->pwm1_freq ?
@@ -210,7 +210,7 @@ static ssize_t show_pwm1(struct device *dev, char *buf)
 		       (2 * data->pwm1_freq));
 }
 
-static ssize_t set_pwm1(struct device *dev, const char *buf, size_t count)
+static ssize_t set_pwm1(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lm63_data *data = i2c_get_clientdata(client);
@@ -229,20 +229,20 @@ static ssize_t set_pwm1(struct device *dev, const char *buf, size_t count)
 	return count;
 }
 
-static ssize_t show_pwm1_enable(struct device *dev, char *buf)
+static ssize_t show_pwm1_enable(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct lm63_data *data = lm63_update_device(dev);
 	return sprintf(buf, "%d\n", data->config_fan & 0x20 ? 1 : 2);
 }
 
 #define show_temp8(value) \
-static ssize_t show_##value(struct device *dev, char *buf) \
+static ssize_t show_##value(struct device *dev, struct device_attribute *attr, char *buf) \
 { \
 	struct lm63_data *data = lm63_update_device(dev); \
 	return sprintf(buf, "%d\n", TEMP8_FROM_REG(data->value)); \
 }
 #define show_temp11(value) \
-static ssize_t show_##value(struct device *dev, char *buf) \
+static ssize_t show_##value(struct device *dev, struct device_attribute *attr, char *buf) \
 { \
 	struct lm63_data *data = lm63_update_device(dev); \
 	return sprintf(buf, "%d\n", TEMP11_FROM_REG(data->value)); \
@@ -255,7 +255,7 @@ show_temp11(temp2_low);
 show_temp8(temp2_crit);
 
 #define set_temp8(value, reg) \
-static ssize_t set_##value(struct device *dev, const char *buf, \
+static ssize_t set_##value(struct device *dev, struct device_attribute *attr, const char *buf, \
 	size_t count) \
 { \
 	struct i2c_client *client = to_i2c_client(dev); \
@@ -269,7 +269,7 @@ static ssize_t set_##value(struct device *dev, const char *buf, \
 	return count; \
 }
 #define set_temp11(value, reg_msb, reg_lsb) \
-static ssize_t set_##value(struct device *dev, const char *buf, \
+static ssize_t set_##value(struct device *dev, struct device_attribute *attr, const char *buf, \
 	size_t count) \
 { \
 	struct i2c_client *client = to_i2c_client(dev); \
@@ -289,7 +289,7 @@ set_temp11(temp2_low, LM63_REG_REMOTE_LOW_MSB, LM63_REG_REMOTE_LOW_LSB);
 
 /* Hysteresis register holds a relative value, while we want to present
    an absolute to user-space */
-static ssize_t show_temp2_crit_hyst(struct device *dev, char *buf)
+static ssize_t show_temp2_crit_hyst(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct lm63_data *data = lm63_update_device(dev);
 	return sprintf(buf, "%d\n", TEMP8_FROM_REG(data->temp2_crit)
@@ -298,7 +298,7 @@ static ssize_t show_temp2_crit_hyst(struct device *dev, char *buf)
 
 /* And now the other way around, user-space provides an absolute
    hysteresis value and we have to store a relative one */
-static ssize_t set_temp2_crit_hyst(struct device *dev, const char *buf,
+static ssize_t set_temp2_crit_hyst(struct device *dev, struct device_attribute *attr, const char *buf,
 	size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -314,7 +314,7 @@ static ssize_t set_temp2_crit_hyst(struct device *dev, const char *buf,
 	return count;
 }
 
-static ssize_t show_alarms(struct device *dev, char *buf)
+static ssize_t show_alarms(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct lm63_data *data = lm63_update_device(dev);
 	return sprintf(buf, "%u\n", data->alarms);

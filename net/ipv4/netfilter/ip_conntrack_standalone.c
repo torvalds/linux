@@ -28,8 +28,8 @@
 #include <net/checksum.h>
 #include <net/ip.h>
 
-#define ASSERT_READ_LOCK(x) MUST_BE_READ_LOCKED(&ip_conntrack_lock)
-#define ASSERT_WRITE_LOCK(x) MUST_BE_WRITE_LOCKED(&ip_conntrack_lock)
+#define ASSERT_READ_LOCK(x)
+#define ASSERT_WRITE_LOCK(x)
 
 #include <linux/netfilter_ipv4/ip_conntrack.h>
 #include <linux/netfilter_ipv4/ip_conntrack_protocol.h>
@@ -119,7 +119,7 @@ static struct list_head *ct_get_idx(struct seq_file *seq, loff_t pos)
 
 static void *ct_seq_start(struct seq_file *seq, loff_t *pos)
 {
-	READ_LOCK(&ip_conntrack_lock);
+	read_lock_bh(&ip_conntrack_lock);
 	return ct_get_idx(seq, *pos);
 }
 
@@ -131,7 +131,7 @@ static void *ct_seq_next(struct seq_file *s, void *v, loff_t *pos)
   
 static void ct_seq_stop(struct seq_file *s, void *v)
 {
-	READ_UNLOCK(&ip_conntrack_lock);
+	read_unlock_bh(&ip_conntrack_lock);
 }
  
 static int ct_seq_show(struct seq_file *s, void *v)
@@ -140,7 +140,7 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	const struct ip_conntrack *conntrack = tuplehash_to_ctrack(hash);
 	struct ip_conntrack_protocol *proto;
 
-	MUST_BE_READ_LOCKED(&ip_conntrack_lock);
+	ASSERT_READ_LOCK(&ip_conntrack_lock);
 	IP_NF_ASSERT(conntrack);
 
 	/* we only want to print DIR_ORIGINAL */
@@ -239,7 +239,7 @@ static void *exp_seq_start(struct seq_file *s, loff_t *pos)
 
 	/* strange seq_file api calls stop even if we fail,
 	 * thus we need to grab lock since stop unlocks */
-	READ_LOCK(&ip_conntrack_lock);
+	read_lock_bh(&ip_conntrack_lock);
 
 	if (list_empty(e))
 		return NULL;
@@ -267,7 +267,7 @@ static void *exp_seq_next(struct seq_file *s, void *v, loff_t *pos)
 
 static void exp_seq_stop(struct seq_file *s, void *v)
 {
-	READ_UNLOCK(&ip_conntrack_lock);
+	read_unlock_bh(&ip_conntrack_lock);
 }
 
 static int exp_seq_show(struct seq_file *s, void *v)
@@ -921,22 +921,22 @@ int ip_conntrack_protocol_register(struct ip_conntrack_protocol *proto)
 {
 	int ret = 0;
 
-	WRITE_LOCK(&ip_conntrack_lock);
+	write_lock_bh(&ip_conntrack_lock);
 	if (ip_ct_protos[proto->proto] != &ip_conntrack_generic_protocol) {
 		ret = -EBUSY;
 		goto out;
 	}
 	ip_ct_protos[proto->proto] = proto;
  out:
-	WRITE_UNLOCK(&ip_conntrack_lock);
+	write_unlock_bh(&ip_conntrack_lock);
 	return ret;
 }
 
 void ip_conntrack_protocol_unregister(struct ip_conntrack_protocol *proto)
 {
-	WRITE_LOCK(&ip_conntrack_lock);
+	write_lock_bh(&ip_conntrack_lock);
 	ip_ct_protos[proto->proto] = &ip_conntrack_generic_protocol;
-	WRITE_UNLOCK(&ip_conntrack_lock);
+	write_unlock_bh(&ip_conntrack_lock);
 	
 	/* Somebody could be still looking at the proto in bh. */
 	synchronize_net();

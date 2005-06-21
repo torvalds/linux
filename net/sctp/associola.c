@@ -191,10 +191,6 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	asoc->last_cwr_tsn = asoc->ctsn_ack_point;
 	asoc->unack_data = 0;
 
-	SCTP_DEBUG_PRINTK("myctsnap for %s INIT as 0x%x.\n",
-			  asoc->ep->debug_name,
-			  asoc->ctsn_ack_point);
-
 	/* ADDIP Section 4.1 Asconf Chunk Procedures
 	 *
 	 * When an endpoint has an ASCONF signaled change to be sent to the
@@ -211,6 +207,7 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 
 	/* Make an empty list of remote transport addresses.  */
 	INIT_LIST_HEAD(&asoc->peer.transport_addr_list);
+	asoc->peer.transport_count = 0;
 
 	/* RFC 2960 5.1 Normal Establishment of an Association
 	 *
@@ -288,6 +285,7 @@ struct sctp_association *sctp_association_new(const struct sctp_endpoint *ep,
 
 	asoc->base.malloced = 1;
 	SCTP_DBG_OBJCNT_INC(assoc);
+	SCTP_DEBUG_PRINTK("Created asoc %p\n", asoc);
 
 	return asoc;
 
@@ -356,6 +354,8 @@ void sctp_association_free(struct sctp_association *asoc)
 		sctp_transport_free(transport);
 	}
 
+	asoc->peer.transport_count = 0;
+
 	/* Free any cached ASCONF_ACK chunk. */
 	if (asoc->addip_last_asconf_ack)
 		sctp_chunk_free(asoc->addip_last_asconf_ack);
@@ -400,7 +400,7 @@ void sctp_assoc_set_primary(struct sctp_association *asoc,
 	/* If the primary path is changing, assume that the
 	 * user wants to use this new path.
 	 */
-	if (transport->active)
+	if (transport->state != SCTP_INACTIVE)
 		asoc->peer.active_path = transport;
 
 	/*
@@ -428,10 +428,58 @@ void sctp_assoc_set_primary(struct sctp_association *asoc,
 	transport->cacc.next_tsn_at_change = asoc->next_tsn;
 }
 
+/* Remove a transport from an association.  */
+void sctp_assoc_rm_peer(struct sctp_association *asoc,
+			struct sctp_transport *peer)
+{
+	struct list_head	*pos;
+	struct sctp_transport	*transport;
+
+	SCTP_DEBUG_PRINTK_IPADDR("sctp_assoc_rm_peer:association %p addr: ",
+				 " port: %d\n",
+				 asoc,
+				 (&peer->ipaddr),
+				 peer->ipaddr.v4.sin_port);
+
+	/* If we are to remove the current retran_path, update it
+	 * to the next peer before removing this peer from the list.
+	 */
+	if (asoc->peer.retran_path == peer)
+		sctp_assoc_update_retran_path(asoc);
+
+	/* Remove this peer from the list. */
+	list_del(&peer->transports);
+
+	/* Get the first transport of asoc. */
+	pos = asoc->peer.transport_addr_list.next;
+	transport = list_entry(pos, struct sctp_transport, transports);
+
+	/* Update any entries that match the peer to be deleted. */
+	if (asoc->peer.primary_path == peer)
+		sctp_assoc_set_primary(asoc, transport);
+	if (asoc->peer.active_path == peer)
+		asoc->peer.active_path = transport;
+	if (asoc->peer.last_data_from == peer)
+		asoc->peer.last_data_from = transport;
+
+	/* If we remove the transport an INIT was last sent to, set it to
+	 * NULL. Combined with the update of the retran path above, this
+	 * will cause the next INIT to be sent to the next available
+	 * transport, maintaining the cycle.
+	 */
+	if (asoc->init_last_sent_to == peer)
+		asoc->init_last_sent_to = NULL;
+
+	asoc->peer.transport_count--;
+
+	sctp_transport_free(peer);
+}
+
 /* Add a transport address to an association.  */
 struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 					   const union sctp_addr *addr,
-					   int gfp)
+					   const int gfp,
+					   const int peer_state)
 {
 	struct sctp_transport *peer;
 	struct sctp_sock *sp;
@@ -442,14 +490,25 @@ struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 	/* AF_INET and AF_INET6 share common port field. */
 	port = addr->v4.sin_port;
 
+	SCTP_DEBUG_PRINTK_IPADDR("sctp_assoc_add_peer:association %p addr: ",
+				 " port: %d state:%s\n",
+				 asoc,
+				 addr,
+				 addr->v4.sin_port,
+				 peer_state == SCTP_UNKNOWN?"UNKNOWN":"ACTIVE");
+
 	/* Set the port if it has not been set yet.  */
 	if (0 == asoc->peer.port)
 		asoc->peer.port = port;
 
 	/* Check to see if this is a duplicate. */
 	peer = sctp_assoc_lookup_paddr(asoc, addr);
-	if (peer)
+	if (peer) {
+		if (peer_state == SCTP_ACTIVE &&
+		    peer->state == SCTP_UNKNOWN)
+		     peer->state = SCTP_ACTIVE;
 		return peer;
+	}
 
 	peer = sctp_transport_new(addr, gfp);
 	if (!peer)
@@ -516,8 +575,12 @@ struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 	/* Set the transport's RTO.initial value */
 	peer->rto = asoc->rto_initial;
 
+	/* Set the peer's active state. */
+	peer->state = peer_state;
+
 	/* Attach the remote transport to our asoc.  */
 	list_add_tail(&peer->transports, &asoc->peer.transport_addr_list);
+	asoc->peer.transport_count++;
 
 	/* If we do not yet have a primary path, set one.  */
 	if (!asoc->peer.primary_path) {
@@ -525,8 +588,9 @@ struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 		asoc->peer.retran_path = peer;
 	}
 
-	if (asoc->peer.active_path == asoc->peer.retran_path)
+	if (asoc->peer.active_path == asoc->peer.retran_path) {
 		asoc->peer.retran_path = peer;
+	}
 
 	return peer;
 }
@@ -537,37 +601,16 @@ void sctp_assoc_del_peer(struct sctp_association *asoc,
 {
 	struct list_head	*pos;
 	struct list_head	*temp;
-	struct sctp_transport	*peer = NULL;
 	struct sctp_transport	*transport;
 
 	list_for_each_safe(pos, temp, &asoc->peer.transport_addr_list) {
 		transport = list_entry(pos, struct sctp_transport, transports);
 		if (sctp_cmp_addr_exact(addr, &transport->ipaddr)) {
-			peer = transport;
-			list_del(pos);
+			/* Do book keeping for removing the peer and free it. */
+			sctp_assoc_rm_peer(asoc, transport);
 			break;
 		}
 	}
-
-	/* The address we want delete is not in the association. */
-	if (!peer)
-		return;
-
-	/* Get the first transport of asoc. */ 
-	pos = asoc->peer.transport_addr_list.next;
-	transport = list_entry(pos, struct sctp_transport, transports);
-
-	/* Update any entries that match the peer to be deleted. */  
-	if (asoc->peer.primary_path == peer)
-		sctp_assoc_set_primary(asoc, transport);
-	if (asoc->peer.active_path == peer)
-		asoc->peer.active_path = transport;
-	if (asoc->peer.retran_path == peer)
-		asoc->peer.retran_path = transport;
-	if (asoc->peer.last_data_from == peer)
-		asoc->peer.last_data_from = transport;
-
-	sctp_transport_free(peer);
 }
 
 /* Lookup a transport by address. */
@@ -608,12 +651,12 @@ void sctp_assoc_control_transport(struct sctp_association *asoc,
 	/* Record the transition on the transport.  */
 	switch (command) {
 	case SCTP_TRANSPORT_UP:
-		transport->active = SCTP_ACTIVE;
+		transport->state = SCTP_ACTIVE;
 		spc_state = SCTP_ADDR_AVAILABLE;
 		break;
 
 	case SCTP_TRANSPORT_DOWN:
-		transport->active = SCTP_INACTIVE;
+		transport->state = SCTP_INACTIVE;
 		spc_state = SCTP_ADDR_UNREACHABLE;
 		break;
 
@@ -643,7 +686,7 @@ void sctp_assoc_control_transport(struct sctp_association *asoc,
 	list_for_each(pos, &asoc->peer.transport_addr_list) {
 		t = list_entry(pos, struct sctp_transport, transports);
 
-		if (!t->active)
+		if (t->state == SCTP_INACTIVE)
 			continue;
 		if (!first || t->last_time_heard > first->last_time_heard) {
 			second = first;
@@ -663,7 +706,7 @@ void sctp_assoc_control_transport(struct sctp_association *asoc,
 	 * [If the primary is active but not most recent, bump the most
 	 * recently used transport.]
 	 */
-	if (asoc->peer.primary_path->active &&
+	if (asoc->peer.primary_path->state != SCTP_INACTIVE &&
 	    first != asoc->peer.primary_path) {
 		second = first;
 		first = asoc->peer.primary_path;
@@ -958,7 +1001,7 @@ void sctp_assoc_update(struct sctp_association *asoc,
 					   transports);
 			if (!sctp_assoc_lookup_paddr(asoc, &trans->ipaddr))
 				sctp_assoc_add_peer(asoc, &trans->ipaddr,
-						    GFP_ATOMIC);
+						    GFP_ATOMIC, SCTP_ACTIVE);
 		}
 
 		asoc->ctsn_ack_point = asoc->next_tsn - 1;
@@ -998,7 +1041,7 @@ void sctp_assoc_update_retran_path(struct sctp_association *asoc)
 
 		/* Try to find an active transport. */
 
-		if (t->active) {
+		if (t->state != SCTP_INACTIVE) {
 			break;
 		} else {
 			/* Keep track of the next transport in case
@@ -1019,6 +1062,40 @@ void sctp_assoc_update_retran_path(struct sctp_association *asoc)
 	}
 
 	asoc->peer.retran_path = t;
+
+	SCTP_DEBUG_PRINTK_IPADDR("sctp_assoc_update_retran_path:association"
+				 " %p addr: ",
+				 " port: %d\n",
+				 asoc,
+				 (&t->ipaddr),
+				 t->ipaddr.v4.sin_port);
+}
+
+/* Choose the transport for sending a INIT packet.  */
+struct sctp_transport *sctp_assoc_choose_init_transport(
+	struct sctp_association *asoc)
+{
+	struct sctp_transport *t;
+
+	/* Use the retran path. If the last INIT was sent over the
+	 * retran path, update the retran path and use it.
+	 */
+	if (!asoc->init_last_sent_to) {
+		t = asoc->peer.active_path;
+	} else {
+		if (asoc->init_last_sent_to == asoc->peer.retran_path)
+			sctp_assoc_update_retran_path(asoc);
+		t = asoc->peer.retran_path;
+	}
+
+	SCTP_DEBUG_PRINTK_IPADDR("sctp_assoc_update_retran_path:association"
+				 " %p addr: ",
+				 " port: %d\n",
+				 asoc,
+				 (&t->ipaddr),
+				 t->ipaddr.v4.sin_port);
+
+	return t;
 }
 
 /* Choose the transport for sending a SHUTDOWN packet.  */

@@ -43,7 +43,7 @@ static void fill_object_path(struct kobject * kobj, char * buffer, int length)
 	}
 }
 
-static int sysfs_add_link(struct dentry * parent, char * name, struct kobject * target)
+static int sysfs_add_link(struct dentry * parent, const char * name, struct kobject * target)
 {
 	struct sysfs_dirent * parent_sd = parent->d_fsdata;
 	struct sysfs_symlink * sl;
@@ -79,7 +79,7 @@ exit1:
  *	@target:	object we're pointing to.
  *	@name:		name of the symlink.
  */
-int sysfs_create_link(struct kobject * kobj, struct kobject * target, char * name)
+int sysfs_create_link(struct kobject * kobj, struct kobject * target, const char * name)
 {
 	struct dentry * dentry = kobj->dentry;
 	int error = 0;
@@ -99,13 +99,13 @@ int sysfs_create_link(struct kobject * kobj, struct kobject * target, char * nam
  *	@name:	name of the symlink to remove.
  */
 
-void sysfs_remove_link(struct kobject * kobj, char * name)
+void sysfs_remove_link(struct kobject * kobj, const char * name)
 {
 	sysfs_hash_and_remove(kobj->dentry,name);
 }
 
 static int sysfs_get_target_path(struct kobject * kobj, struct kobject * target,
-				   char *path)
+				 char *path)
 {
 	char * s;
 	int depth, size;

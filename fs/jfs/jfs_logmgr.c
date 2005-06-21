@@ -71,6 +71,7 @@
 #include "jfs_incore.h"
 #include "jfs_filsys.h"
 #include "jfs_metapage.h"
+#include "jfs_superblock.h"
 #include "jfs_txnmgr.h"
 #include "jfs_debug.h"
 
@@ -165,14 +166,6 @@ do {						\
 static LIST_HEAD(jfs_external_logs);
 static struct jfs_log *dummy_log = NULL;
 static DECLARE_MUTEX(jfs_log_sem);
-
-/*
- * external references
- */
-extern void txLazyUnlock(struct tblock * tblk);
-extern int jfs_stop_threads;
-extern struct completion jfsIOwait;
-extern int jfs_tlocks_low;
 
 /*
  * forward references
@@ -1624,6 +1617,8 @@ void jfs_flush_journal(struct jfs_log *log, int wait)
 		}
 	}
 	assert(list_empty(&log->cqueue));
+
+#ifdef CONFIG_JFS_DEBUG
 	if (!list_empty(&log->synclist)) {
 		struct logsyncblk *lp;
 
@@ -1638,9 +1633,8 @@ void jfs_flush_journal(struct jfs_log *log, int wait)
 				dump_mem("orphan tblock", lp,
 					 sizeof(struct tblock));
 		}
-//		current->state = TASK_INTERRUPTIBLE;
-//		schedule();
 	}
+#endif
 	//assert(list_empty(&log->synclist));
 	clear_bit(log_FLUSH, &log->flag);
 }

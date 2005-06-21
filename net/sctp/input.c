@@ -353,7 +353,7 @@ void sctp_icmp_proto_unreachable(struct sock *sk,
 
 	sctp_do_sm(SCTP_EVENT_T_OTHER,
 		   SCTP_ST_OTHER(SCTP_EVENT_ICMP_PROTO_UNREACH),
-		   asoc->state, asoc->ep, asoc, NULL,
+		   asoc->state, asoc->ep, asoc, t,
 		   GFP_ATOMIC);
 
 }

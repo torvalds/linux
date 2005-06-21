@@ -2044,7 +2044,7 @@ as_attr_show(struct kobject *kobj, struct attribute *attr, char *page)
 	struct as_fs_entry *entry = to_as(attr);
 
 	if (!entry->show)
-		return 0;
+		return -EIO;
 
 	return entry->show(e->elevator_data, page);
 }
@@ -2057,7 +2057,7 @@ as_attr_store(struct kobject *kobj, struct attribute *attr,
 	struct as_fs_entry *entry = to_as(attr);
 
 	if (!entry->store)
-		return -EINVAL;
+		return -EIO;
 
 	return entry->store(e->elevator_data, page, length);
 }

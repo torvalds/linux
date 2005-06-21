@@ -84,7 +84,7 @@ static int try_wdio = 1;
 static int st_dev_max;
 static int st_nr_dev;
 
-static struct class_simple *st_sysfs_class;
+static struct class *st_sysfs_class;
 
 MODULE_AUTHOR("Kai Makisara");
 MODULE_DESCRIPTION("SCSI Tape Driver");
@@ -4024,8 +4024,9 @@ out_free_tape:
 			if (STm->cdevs[j]) {
 				if (cdev == STm->cdevs[j])
 					cdev = NULL;
-				class_simple_device_remove(MKDEV(SCSI_TAPE_MAJOR,
-								 TAPE_MINOR(i, mode, j)));
+				class_device_destroy(st_sysfs_class,
+						     MKDEV(SCSI_TAPE_MAJOR,
+							   TAPE_MINOR(i, mode, j)));
 				cdev_del(STm->cdevs[j]);
 			}
 		}
@@ -4068,8 +4069,9 @@ static int st_remove(struct device *dev)
 				devfs_remove("%s/mt%s", SDp->devfs_name, st_formats[j]);
 				devfs_remove("%s/mt%sn", SDp->devfs_name, st_formats[j]);
 				for (j=0; j < 2; j++) {
-					class_simple_device_remove(MKDEV(SCSI_TAPE_MAJOR,
-									 TAPE_MINOR(i, mode, j)));
+					class_device_destroy(st_sysfs_class,
+							     MKDEV(SCSI_TAPE_MAJOR,
+								   TAPE_MINOR(i, mode, j)));
 					cdev_del(tpnt->modes[mode].cdevs[j]);
 					tpnt->modes[mode].cdevs[j] = NULL;
 				}
@@ -4134,7 +4136,7 @@ static int __init init_st(void)
 		"st: Version %s, fixed bufsize %d, s/g segs %d\n",
 		verstr, st_fixed_buffer_size, st_max_sg_segs);
 
-	st_sysfs_class = class_simple_create(THIS_MODULE, "scsi_tape");
+	st_sysfs_class = class_create(THIS_MODULE, "scsi_tape");
 	if (IS_ERR(st_sysfs_class)) {
 		st_sysfs_class = NULL;
 		printk(KERN_ERR "Unable create sysfs class for SCSI tapes\n");
@@ -4148,7 +4150,7 @@ static int __init init_st(void)
 			return 0;
 		}
 		if (st_sysfs_class)
-			class_simple_destroy(st_sysfs_class);		
+			class_destroy(st_sysfs_class);
 		unregister_chrdev_region(MKDEV(SCSI_TAPE_MAJOR, 0),
 
 					 ST_MAX_TAPE_ENTRIES);
@@ -4161,7 +4163,7 @@ static int __init init_st(void)
 static void __exit exit_st(void)
 {
 	if (st_sysfs_class)
-		class_simple_destroy(st_sysfs_class);
+		class_destroy(st_sysfs_class);
 	st_sysfs_class = NULL;
 	do_remove_driverfs_files();
 	scsi_unregister_driver(&st_template.gendrv);
@@ -4284,12 +4286,12 @@ static void do_create_class_files(struct scsi_tape *STp, int dev_num, int mode)
 		snprintf(name, 10, "%s%s%s", rew ? "n" : "",
 			 STp->disk->disk_name, st_formats[i]);
 		st_class_member =
-			class_simple_device_add(st_sysfs_class,
-						MKDEV(SCSI_TAPE_MAJOR,
-						      TAPE_MINOR(dev_num, mode, rew)),
-						&STp->device->sdev_gendev, "%s", name);
+			class_device_create(st_sysfs_class,
+					    MKDEV(SCSI_TAPE_MAJOR,
+						  TAPE_MINOR(dev_num, mode, rew)),
+					    &STp->device->sdev_gendev, "%s", name);
 		if (IS_ERR(st_class_member)) {
-			printk(KERN_WARNING "st%d: class_simple_device_add failed\n",
+			printk(KERN_WARNING "st%d: class_device_create failed\n",
 			       dev_num);
 			goto out;
 		}

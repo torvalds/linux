@@ -124,7 +124,7 @@ static irqreturn_t megaraid_isr(int, void *, struct pt_regs *);
 static void megaraid_mbox_dpc(unsigned long);
 
 static ssize_t megaraid_sysfs_show_app_hndl(struct class_device *, char *);
-static ssize_t megaraid_sysfs_show_ldnum(struct device *, char *);
+static ssize_t megaraid_sysfs_show_ldnum(struct device *, struct device_attribute *attr, char *);
 
 static int megaraid_cmm_register(adapter_t *);
 static int megaraid_cmm_unregister(adapter_t *);
@@ -4145,7 +4145,7 @@ megaraid_sysfs_show_app_hndl(struct class_device *cdev, char *buf)
  * @param buf	: buffer to send data to
  */
 static ssize_t
-megaraid_sysfs_show_ldnum(struct device *dev, char *buf)
+megaraid_sysfs_show_ldnum(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct scsi_device *sdev = to_scsi_device(dev);
 	adapter_t	*adapter = (adapter_t *)SCSIHOST2ADAP(sdev->host);

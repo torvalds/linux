@@ -58,8 +58,6 @@ void dump_mem(char *label, void *data, int length)
 
 static struct proc_dir_entry *base;
 #ifdef CONFIG_JFS_DEBUG
-extern read_proc_t jfs_txanchor_read;
-
 static int loglevel_read(char *page, char **start, off_t off,
 			 int count, int *eof, void *data)
 {
@@ -95,14 +93,6 @@ static int loglevel_write(struct file *file, const char __user *buffer,
 	jfsloglevel = c - '0';
 	return count;
 }
-#endif
-
-
-#ifdef CONFIG_JFS_STATISTICS
-extern read_proc_t jfs_lmstats_read;
-extern read_proc_t jfs_txstats_read;
-extern read_proc_t jfs_xtstat_read;
-extern read_proc_t jfs_mpstat_read;
 #endif
 
 static struct {

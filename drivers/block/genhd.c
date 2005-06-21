@@ -322,7 +322,7 @@ static ssize_t disk_attr_show(struct kobject *kobj, struct attribute *attr,
 	struct gendisk *disk = to_disk(kobj);
 	struct disk_attribute *disk_attr =
 		container_of(attr,struct disk_attribute,attr);
-	ssize_t ret = 0;
+	ssize_t ret = -EIO;
 
 	if (disk_attr->show)
 		ret = disk_attr->show(disk,page);

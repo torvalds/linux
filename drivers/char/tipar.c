@@ -90,7 +90,7 @@ static int timeout = TIMAXTIME;	/* timeout in tenth of seconds     */
 static unsigned int tp_count;	/* tipar count */
 static unsigned long opened;	/* opened devices */
 
-static struct class_simple *tipar_class;
+static struct class *tipar_class;
 
 /* --- macros for parport access -------------------------------------- */
 
@@ -436,7 +436,7 @@ tipar_register(int nr, struct parport *port)
 		goto out;
 	}
 
-	class_simple_device_add(tipar_class, MKDEV(TIPAR_MAJOR,
+	class_device_create(tipar_class, MKDEV(TIPAR_MAJOR,
 			TIPAR_MINOR + nr), NULL, "par%d", nr);
 	/* Use devfs, tree: /dev/ticables/par/[0..2] */
 	err = devfs_mk_cdev(MKDEV(TIPAR_MAJOR, TIPAR_MINOR + nr),
@@ -458,8 +458,8 @@ tipar_register(int nr, struct parport *port)
 	goto out;
 
 out_class:
-	class_simple_device_remove(MKDEV(TIPAR_MAJOR, TIPAR_MINOR + nr));
-	class_simple_destroy(tipar_class);
+	class_device_destroy(tipar_class, MKDEV(TIPAR_MAJOR, TIPAR_MINOR + nr));
+	class_destroy(tipar_class);
 out:
 	return err;
 }
@@ -505,7 +505,7 @@ tipar_init_module(void)
 	/* Use devfs with tree: /dev/ticables/par/[0..2] */
 	devfs_mk_dir("ticables/par");
 
-	tipar_class = class_simple_create(THIS_MODULE, "ticables");
+	tipar_class = class_create(THIS_MODULE, "ticables");
 	if (IS_ERR(tipar_class)) {
 		err = PTR_ERR(tipar_class);
 		goto out_chrdev;
@@ -539,10 +539,10 @@ tipar_cleanup_module(void)
 		if (table[i].dev == NULL)
 			continue;
 		parport_unregister_device(table[i].dev);
-		class_simple_device_remove(MKDEV(TIPAR_MAJOR, i));
+		class_device_destroy(tipar_class, MKDEV(TIPAR_MAJOR, i));
 		devfs_remove("ticables/par/%d", i);
 	}
-	class_simple_destroy(tipar_class);
+	class_destroy(tipar_class);
 	devfs_remove("ticables/par");
 
 	pr_info("tipar: module unloaded\n");

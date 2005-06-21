@@ -218,19 +218,19 @@ static inline int lm87_write_value(struct i2c_client *client, u8 reg, u8 value)
 }
 
 #define show_in(offset) \
-static ssize_t show_in##offset##_input(struct device *dev, char *buf) \
+static ssize_t show_in##offset##_input(struct device *dev, struct device_attribute *attr, char *buf) \
 { \
 	struct lm87_data *data = lm87_update_device(dev); \
 	return sprintf(buf, "%u\n", IN_FROM_REG(data->in[offset], \
 		       data->in_scale[offset])); \
 } \
-static ssize_t show_in##offset##_min(struct device *dev, char *buf) \
+static ssize_t show_in##offset##_min(struct device *dev, struct device_attribute *attr, char *buf) \
 { \
 	struct lm87_data *data = lm87_update_device(dev); \
 	return sprintf(buf, "%u\n", IN_FROM_REG(data->in_min[offset], \
 		       data->in_scale[offset])); \
 } \
-static ssize_t show_in##offset##_max(struct device *dev, char *buf) \
+static ssize_t show_in##offset##_max(struct device *dev, struct device_attribute *attr, char *buf) \
 { \
 	struct lm87_data *data = lm87_update_device(dev); \
 	return sprintf(buf, "%u\n", IN_FROM_REG(data->in_max[offset], \
@@ -274,13 +274,13 @@ static void set_in_max(struct device *dev, const char *buf, int nr)
 }
 
 #define set_in(offset) \
-static ssize_t set_in##offset##_min(struct device *dev, \
+static ssize_t set_in##offset##_min(struct device *dev, struct device_attribute *attr, \
 		const char *buf, size_t count) \
 { \
 	set_in_min(dev, buf, offset); \
 	return count; \
 } \
-static ssize_t set_in##offset##_max(struct device *dev, \
+static ssize_t set_in##offset##_max(struct device *dev, struct device_attribute *attr, \
 		const char *buf, size_t count) \
 { \
 	set_in_max(dev, buf, offset); \
@@ -300,17 +300,17 @@ set_in(6);
 set_in(7);
 
 #define show_temp(offset) \
-static ssize_t show_temp##offset##_input(struct device *dev, char *buf) \
+static ssize_t show_temp##offset##_input(struct device *dev, struct device_attribute *attr, char *buf) \
 { \
 	struct lm87_data *data = lm87_update_device(dev); \
 	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->temp[offset-1])); \
 } \
-static ssize_t show_temp##offset##_low(struct device *dev, char *buf) \
+static ssize_t show_temp##offset##_low(struct device *dev, struct device_attribute *attr, char *buf) \
 { \
 	struct lm87_data *data = lm87_update_device(dev); \
 	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->temp_low[offset-1])); \
 } \
-static ssize_t show_temp##offset##_high(struct device *dev, char *buf) \
+static ssize_t show_temp##offset##_high(struct device *dev, struct device_attribute *attr, char *buf) \
 { \
 	struct lm87_data *data = lm87_update_device(dev); \
 	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->temp_high[offset-1])); \
@@ -346,13 +346,13 @@ static void set_temp_high(struct device *dev, const char *buf, int nr)
 }
 
 #define set_temp(offset) \
-static ssize_t set_temp##offset##_low(struct device *dev, \
+static ssize_t set_temp##offset##_low(struct device *dev, struct device_attribute *attr, \
 		const char *buf, size_t count) \
 { \
 	set_temp_low(dev, buf, offset-1); \
 	return count; \
 } \
-static ssize_t set_temp##offset##_high(struct device *dev, \
+static ssize_t set_temp##offset##_high(struct device *dev, struct device_attribute *attr, \
 		const char *buf, size_t count) \
 { \
 	set_temp_high(dev, buf, offset-1); \
@@ -366,13 +366,13 @@ set_temp(1);
 set_temp(2);
 set_temp(3);
 
-static ssize_t show_temp_crit_int(struct device *dev, char *buf)
+static ssize_t show_temp_crit_int(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct lm87_data *data = lm87_update_device(dev);
 	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->temp_crit_int));
 }
 
-static ssize_t show_temp_crit_ext(struct device *dev, char *buf)
+static ssize_t show_temp_crit_ext(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct lm87_data *data = lm87_update_device(dev);
 	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->temp_crit_ext));
@@ -383,19 +383,19 @@ static DEVICE_ATTR(temp2_crit, S_IRUGO, show_temp_crit_ext, NULL);
 static DEVICE_ATTR(temp3_crit, S_IRUGO, show_temp_crit_ext, NULL);
 
 #define show_fan(offset) \
-static ssize_t show_fan##offset##_input(struct device *dev, char *buf) \
+static ssize_t show_fan##offset##_input(struct device *dev, struct device_attribute *attr, char *buf) \
 { \
 	struct lm87_data *data = lm87_update_device(dev); \
 	return sprintf(buf, "%d\n", FAN_FROM_REG(data->fan[offset-1], \
 		       FAN_DIV_FROM_REG(data->fan_div[offset-1]))); \
 } \
-static ssize_t show_fan##offset##_min(struct device *dev, char *buf) \
+static ssize_t show_fan##offset##_min(struct device *dev, struct device_attribute *attr, char *buf) \
 { \
 	struct lm87_data *data = lm87_update_device(dev); \
 	return sprintf(buf, "%d\n", FAN_FROM_REG(data->fan_min[offset-1], \
 		       FAN_DIV_FROM_REG(data->fan_div[offset-1]))); \
 } \
-static ssize_t show_fan##offset##_div(struct device *dev, char *buf) \
+static ssize_t show_fan##offset##_div(struct device *dev, struct device_attribute *attr, char *buf) \
 { \
 	struct lm87_data *data = lm87_update_device(dev); \
 	return sprintf(buf, "%d\n", FAN_DIV_FROM_REG(data->fan_div[offset-1])); \
@@ -465,13 +465,13 @@ static ssize_t set_fan_div(struct device *dev, const char *buf,
 }
 
 #define set_fan(offset) \
-static ssize_t set_fan##offset##_min(struct device *dev, const char *buf, \
+static ssize_t set_fan##offset##_min(struct device *dev, struct device_attribute *attr, const char *buf, \
 		size_t count) \
 { \
 	set_fan_min(dev, buf, offset-1); \
 	return count; \
 } \
-static ssize_t set_fan##offset##_div(struct device *dev, const char *buf, \
+static ssize_t set_fan##offset##_div(struct device *dev, struct device_attribute *attr, const char *buf, \
 		size_t count) \
 { \
 	return set_fan_div(dev, buf, count, offset-1); \
@@ -483,26 +483,26 @@ static DEVICE_ATTR(fan##offset##_div, S_IRUGO | S_IWUSR, \
 set_fan(1);
 set_fan(2);
 
-static ssize_t show_alarms(struct device *dev, char *buf)
+static ssize_t show_alarms(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct lm87_data *data = lm87_update_device(dev);
 	return sprintf(buf, "%d\n", data->alarms);
 }
 static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);
 
-static ssize_t show_vid(struct device *dev, char *buf)
+static ssize_t show_vid(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct lm87_data *data = lm87_update_device(dev);
 	return sprintf(buf, "%d\n", vid_from_reg(data->vid, data->vrm));
 }
 static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid, NULL);
 
-static ssize_t show_vrm(struct device *dev, char *buf)
+static ssize_t show_vrm(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct lm87_data *data = lm87_update_device(dev);
 	return sprintf(buf, "%d\n", data->vrm);
 }
-static ssize_t set_vrm(struct device *dev, const char *buf, size_t count)
+static ssize_t set_vrm(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lm87_data *data = i2c_get_clientdata(client);
@@ -511,12 +511,12 @@ static ssize_t set_vrm(struct device *dev, const char *buf, size_t count)
 }
 static DEVICE_ATTR(vrm, S_IRUGO | S_IWUSR, show_vrm, set_vrm);
 
-static ssize_t show_aout(struct device *dev, char *buf)
+static ssize_t show_aout(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct lm87_data *data = lm87_update_device(dev);
 	return sprintf(buf, "%d\n", AOUT_FROM_REG(data->aout));
 }
-static ssize_t set_aout(struct device *dev, const char *buf, size_t count)
+static ssize_t set_aout(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lm87_data *data = i2c_get_clientdata(client);

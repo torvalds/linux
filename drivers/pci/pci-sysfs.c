@@ -29,7 +29,7 @@ static int sysfs_initialized;	/* = 0 */
 /* show configuration fields */
 #define pci_config_attr(field, format_string)				\
 static ssize_t								\
-field##_show(struct device *dev, char *buf)				\
+field##_show(struct device *dev, struct device_attribute *attr, char *buf)				\
 {									\
 	struct pci_dev *pdev;						\
 									\
@@ -44,7 +44,7 @@ pci_config_attr(subsystem_device, "0x%04x\n");
 pci_config_attr(class, "0x%06x\n");
 pci_config_attr(irq, "%u\n");
 
-static ssize_t local_cpus_show(struct device *dev, char *buf)
+static ssize_t local_cpus_show(struct device *dev, struct device_attribute *attr, char *buf)
 {		
 	cpumask_t mask = pcibus_to_cpumask(to_pci_dev(dev)->bus);
 	int len = cpumask_scnprintf(buf, PAGE_SIZE-2, mask);
@@ -54,7 +54,7 @@ static ssize_t local_cpus_show(struct device *dev, char *buf)
 
 /* show resources */
 static ssize_t
-resource_show(struct device * dev, char * buf)
+resource_show(struct device * dev, struct device_attribute *attr, char * buf)
 {
 	struct pci_dev * pci_dev = to_pci_dev(dev);
 	char * str = buf;
@@ -73,7 +73,7 @@ resource_show(struct device * dev, char * buf)
 	return (str - buf);
 }
 
-static ssize_t modalias_show(struct device *dev, char *buf)
+static ssize_t modalias_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 
@@ -339,16 +339,17 @@ pci_create_resource_files(struct pci_dev *pdev)
 		if (!pci_resource_len(pdev, i))
 			continue;
 
-		res_attr = kmalloc(sizeof(*res_attr) + 10, GFP_ATOMIC);
+		/* allocate attribute structure, piggyback attribute name */
+		res_attr = kcalloc(1, sizeof(*res_attr) + 10, GFP_ATOMIC);
 		if (res_attr) {
-			memset(res_attr, 0, sizeof(*res_attr) + 10);
+			char *res_attr_name = (char *)(res_attr + 1);
+
 			pdev->res_attr[i] = res_attr;
-			/* Allocated above after the res_attr struct */
-			res_attr->attr.name = (char *)(res_attr + 1);
-			sprintf(res_attr->attr.name, "resource%d", i);
-			res_attr->size = pci_resource_len(pdev, i);
+			sprintf(res_attr_name, "resource%d", i);
+			res_attr->attr.name = res_attr_name;
 			res_attr->attr.mode = S_IRUSR | S_IWUSR;
 			res_attr->attr.owner = THIS_MODULE;
+			res_attr->size = pci_resource_len(pdev, i);
 			res_attr->mmap = pci_mmap_resource;
 			res_attr->private = &pdev->resource[i];
 			sysfs_create_bin_file(&pdev->dev.kobj, res_attr);

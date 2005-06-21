@@ -765,8 +765,6 @@ void fcp_release(fc_channel *fcchain, int count)  /* count must > 0 */
 
 static void fcp_scsi_done (Scsi_Cmnd *SCpnt)
 {
-	unsigned long flags;
-
 	if (FCP_CMND(SCpnt)->done)
 		FCP_CMND(SCpnt)->done(SCpnt);
 }
@@ -907,8 +905,6 @@ int fcp_scsi_abort(Scsi_Cmnd *SCpnt)
 	 */
 
 	if (++fc->abort_count < (fc->can_queue >> 1)) {
-		unsigned long flags;
-
 		SCpnt->result = DID_ABORT;
 		fcmd->done(SCpnt);
 		printk("FC: soft abort\n");
@@ -931,6 +927,7 @@ void fcp_scsi_reset_done(Scsi_Cmnd *SCpnt)
 
 int fcp_scsi_dev_reset(Scsi_Cmnd *SCpnt)
 {
+	unsigned long flags;
 	fcp_cmd *cmd;
 	fcp_cmnd *fcmd;
 	fc_channel *fc = FC_SCMND(SCpnt);
@@ -1028,6 +1025,7 @@ static int __fcp_scsi_host_reset(Scsi_Cmnd *SCpnt)
 
 int fcp_scsi_host_reset(Scsi_Cmnd *SCpnt)
 {
+	unsigned long flags;
 	int rc;
 
 	spin_lock_irqsave(SCpnt->device->host->host_lock, flags);

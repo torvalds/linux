@@ -423,11 +423,12 @@ done:
 			psin6 = (struct sockaddr_in6 *)&greqs.gsr_group;
 			retv = ipv6_sock_mc_join(sk, greqs.gsr_interface,
 				&psin6->sin6_addr);
-			if (retv)
+			/* prior join w/ different source is ok */
+			if (retv && retv != -EADDRINUSE)
 				break;
 			omode = MCAST_INCLUDE;
 			add = 1;
-		} else /*IP_DROP_SOURCE_MEMBERSHIP */ {
+		} else /* MCAST_LEAVE_SOURCE_GROUP */ {
 			omode = MCAST_INCLUDE;
 			add = 0;
 		}
