@@ -400,23 +400,13 @@ static inline int hcd_bus_resume (struct usb_bus *bus)
  * these are expected to be called from the USB core/hub thread
  * with the kernel lock held
  */
-extern void usbfs_add_bus(struct usb_bus *bus);
-extern void usbfs_remove_bus(struct usb_bus *bus);
-extern void usbfs_add_device(struct usb_device *dev);
-extern void usbfs_remove_device(struct usb_device *dev);
 extern void usbfs_update_special (void);
-
 extern int usbfs_init(void);
 extern void usbfs_cleanup(void);
 
 #else /* CONFIG_USB_DEVICEFS */
 
-static inline void usbfs_add_bus(struct usb_bus *bus) {}
-static inline void usbfs_remove_bus(struct usb_bus *bus) {}
-static inline void usbfs_add_device(struct usb_device *dev) {}
-static inline void usbfs_remove_device(struct usb_device *dev) {}
 static inline void usbfs_update_special (void) {}
-
 static inline int usbfs_init(void) { return 0; }
 static inline void usbfs_cleanup(void) { }
 
