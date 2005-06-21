@@ -69,12 +69,10 @@ static char *serial_name = "TX39/49 Serial driver";
 #if !defined(CONFIG_SERIAL_TXX9_STDSERIAL)
 /* "ttyS" is used for standard serial driver */
 #define TXX9_TTY_NAME "ttyTX"
-#define TXX9_TTY_DEVFS_NAME "tttx/"
 #define TXX9_TTY_MINOR_START	(64 + 64)	/* ttyTX0(128), ttyTX1(129) */
 #else
 /* acts like standard serial driver */
 #define TXX9_TTY_NAME "ttyS"
-#define TXX9_TTY_DEVFS_NAME "tts/"
 #define TXX9_TTY_MINOR_START	64
 #endif
 #define TXX9_TTY_MAJOR	TTY_MAJOR
@@ -971,7 +969,6 @@ console_initcall(serial_txx9_console_init);
 static struct uart_driver serial_txx9_reg = {
 	.owner			= THIS_MODULE,
 	.driver_name		= "serial_txx9",
-	.devfs_name		= TXX9_TTY_DEVFS_NAME,
 	.dev_name		= TXX9_TTY_NAME,
 	.major			= TXX9_TTY_MAJOR,
 	.minor			= TXX9_TTY_MINOR_START,

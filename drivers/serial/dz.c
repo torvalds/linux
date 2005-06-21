@@ -768,11 +768,7 @@ void __init dz_serial_console_init(void)
 static struct uart_driver dz_reg = {
 	.owner			= THIS_MODULE,
 	.driver_name		= "serial",
-#ifdef CONFIG_DEVFS
-	.dev_name		= "tts/%d",
-#else
 	.dev_name		= "ttyS%d",
-#endif
 	.major			= TTY_MAJOR,
 	.minor			= 64,
 	.nr			= DZ_NB_PORT,

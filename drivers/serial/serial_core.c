@@ -2153,7 +2153,6 @@ int uart_register_driver(struct uart_driver *drv)
 
 	normal->owner		= drv->owner;
 	normal->driver_name	= drv->driver_name;
-	normal->devfs_name	= drv->devfs_name;
 	normal->name		= drv->dev_name;
 	normal->major		= drv->major;
 	normal->minor_start	= drv->minor;
@@ -2312,7 +2311,7 @@ int uart_remove_one_port(struct uart_driver *drv, struct uart_port *port)
 	mutex_unlock(&state->mutex);
 
 	/*
-	 * Remove the devices from devfs
+	 * Remove the devices from the tty layer
 	 */
 	tty_unregister_device(drv->tty_driver, port->line);
 

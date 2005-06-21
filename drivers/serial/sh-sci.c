@@ -1699,9 +1699,6 @@ static char banner[] __initdata =
 static struct uart_driver sci_uart_driver = {
 	.owner		= THIS_MODULE,
 	.driver_name	= "sci",
-#ifdef CONFIG_DEVFS_FS
-	.devfs_name	= "ttsc/",
-#endif
 	.dev_name	= "ttySC",
 	.major		= SCI_MAJOR,
 	.minor		= SCI_MINOR_START,

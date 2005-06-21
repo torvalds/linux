@@ -1131,7 +1131,6 @@ console_initcall(m32r_sio_console_init);
 static struct uart_driver m32r_sio_reg = {
 	.owner			= THIS_MODULE,
 	.driver_name		= "sio",
-	.devfs_name		= "tts/",
 	.dev_name		= "ttyS",
 	.major			= TTY_MAJOR,
 	.minor			= 64,

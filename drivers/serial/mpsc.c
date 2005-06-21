@@ -315,7 +315,6 @@ struct mpsc_port_info *mpsc_device_remove(int index);
 #define MPSC_MAJOR		204
 #define MPSC_MINOR_START	44
 #define	MPSC_DRIVER_NAME	"MPSC"
-#define	MPSC_DEVFS_NAME		"ttymm/"
 #define	MPSC_DEV_NAME		"ttyMM"
 #define	MPSC_VERSION		"1.00"
 
@@ -1863,7 +1862,6 @@ static struct platform_driver mpsc_shared_driver = {
 static struct uart_driver mpsc_reg = {
 	.owner       = THIS_MODULE,
 	.driver_name = MPSC_DRIVER_NAME,
-	.devfs_name  = MPSC_DEVFS_NAME,
 	.dev_name    = MPSC_DEV_NAME,
 	.major       = MPSC_MAJOR,
 	.minor       = MPSC_MINOR_START,
