@@ -14,10 +14,6 @@ static inline int devfs_mk_cdev(dev_t dev, umode_t mode, const char *fmt, ...)
 {
 	return 0;
 }
-static inline int devfs_mk_symlink(const char *name, const char *link)
-{
-	return 0;
-}
 static inline void devfs_remove(const char *fmt, ...)
 {
 }

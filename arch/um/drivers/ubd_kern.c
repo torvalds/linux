@@ -628,7 +628,6 @@ static int ubd_new_disk(int major, u64 size, int unit,
 			
 {
 	struct gendisk *disk;
-	char from[sizeof("ubd/nnnnn\0")], to[sizeof("discnnnnn/disc\0")];
 	int err;
 
 	disk = alloc_disk(1 << UBD_SHIFT);
@@ -642,12 +641,6 @@ static int ubd_new_disk(int major, u64 size, int unit,
 	if(major == MAJOR_NR){
 		sprintf(disk->disk_name, "ubd%c", 'a' + unit);
 		sprintf(disk->devfs_name, "ubd/disc%d", unit);
-		sprintf(from, "ubd/%d", unit);
-		sprintf(to, "disc%d/disc", unit);
-		err = devfs_mk_symlink(from, to);
-		if(err)
-			printk("ubd_new_disk failed to make link from %s to "
-			       "%s, error = %d\n", from, to, err);
 	}
 	else {
 		sprintf(disk->disk_name, "ubd_fake%d", unit);
