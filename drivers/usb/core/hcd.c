@@ -793,7 +793,6 @@ static int usb_register_bus(struct usb_bus *bus)
 	up (&usb_bus_list_lock);
 
 	usb_notify_add_bus(bus);
-	usbmon_notify_bus_add (bus);
 
 	dev_info (bus->controller, "new USB bus registered, assigned bus number %d\n", bus->busnum);
 	return 0;
@@ -821,7 +820,6 @@ static void usb_deregister_bus (struct usb_bus *bus)
 	up (&usb_bus_list_lock);
 
 	usb_notify_remove_bus(bus);
-	usbmon_notify_bus_remove (bus);
 
 	clear_bit (bus->busnum, busmap.busmap);
 

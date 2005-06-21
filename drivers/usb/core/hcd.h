@@ -421,8 +421,6 @@ struct usb_mon_operations {
 	void (*urb_submit_error)(struct usb_bus *bus, struct urb *urb, int err);
 	void (*urb_complete)(struct usb_bus *bus, struct urb *urb);
 	/* void (*urb_unlink)(struct usb_bus *bus, struct urb *urb); */
-	void (*bus_add)(struct usb_bus *bus);
-	void (*bus_remove)(struct usb_bus *bus);
 };
 
 extern struct usb_mon_operations *mon_ops;
@@ -445,18 +443,6 @@ static inline void usbmon_urb_complete(struct usb_bus *bus, struct urb *urb)
 	if (bus->monitored)
 		(*mon_ops->urb_complete)(bus, urb);
 }
- 
-static inline void usbmon_notify_bus_add(struct usb_bus *bus)
-{
-	if (mon_ops)
-		(*mon_ops->bus_add)(bus);
-}
-
-static inline void usbmon_notify_bus_remove(struct usb_bus *bus)
-{
-	if (mon_ops)
-		(*mon_ops->bus_remove)(bus);
-}
 
 int usb_mon_register(struct usb_mon_operations *ops);
 void usb_mon_deregister(void);
@@ -467,8 +453,6 @@ static inline void usbmon_urb_submit(struct usb_bus *bus, struct urb *urb) {}
 static inline void usbmon_urb_submit_error(struct usb_bus *bus, struct urb *urb,
     int error) {}
 static inline void usbmon_urb_complete(struct usb_bus *bus, struct urb *urb) {}
-static inline void usbmon_notify_bus_add(struct usb_bus *bus) {}
-static inline void usbmon_notify_bus_remove(struct usb_bus *bus) {}
 
 #endif /* CONFIG_USB_MON */
 
