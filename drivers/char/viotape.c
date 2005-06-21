@@ -246,7 +246,6 @@ static struct device *tape_device[VIOTAPE_MAX_TAPE];
  */
 static struct {
 	unsigned char	cur_part;
-	int		dev_handle;
 	unsigned char	part_stat_rwi[MAX_PARTITIONS];
 } state[VIOTAPE_MAX_TAPE];
 
@@ -964,7 +963,6 @@ static int viotape_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	devfs_mk_cdev(MKDEV(VIOTAPE_MAJOR, i | 0x80),
 			S_IFCHR | S_IRUSR | S_IWUSR, "iseries/nvt%d", i);
 	sprintf(tapename, "iseries/vt%d", i);
-	state[i].dev_handle = devfs_register_tape(tapename);
 	printk(VIOTAPE_KERN_INFO "tape %s is iSeries "
 			"resource %10.10s type %4.4s, model %3.3s\n",
 			tapename, viotape_unitinfo[i].rsrcname,
@@ -978,7 +976,6 @@ static int viotape_remove(struct vio_dev *vdev)
 
 	devfs_remove("iseries/nvt%d", i);
 	devfs_remove("iseries/vt%d", i);
-	devfs_unregister_tape(state[i].dev_handle);
 	class_device_destroy(tape_class, MKDEV(VIOTAPE_MAJOR, i | 0x80));
 	class_device_destroy(tape_class, MKDEV(VIOTAPE_MAJOR, i));
 	return 0;

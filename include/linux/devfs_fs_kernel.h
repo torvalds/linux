@@ -25,11 +25,4 @@ static inline int devfs_mk_dir(const char *fmt, ...)
 static inline void devfs_remove(const char *fmt, ...)
 {
 }
-static inline int devfs_register_tape(const char *name)
-{
-	return -1;
-}
-static inline void devfs_unregister_tape(int num)
-{
-}
 #endif				/*  _LINUX_DEVFS_FS_KERNEL_H  */
