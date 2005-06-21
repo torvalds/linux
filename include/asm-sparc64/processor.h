@@ -192,6 +192,40 @@ extern unsigned long get_wchan(struct task_struct *task);
 
 #define cpu_relax()	barrier()
 
+/* Prefetch support.  This is tuned for UltraSPARC-III and later.
+ * UltraSPARC-I will treat these as nops, and UltraSPARC-II has
+ * a shallower prefetch queue than later chips.
+ */
+#define ARCH_HAS_PREFETCH
+#define ARCH_HAS_PREFETCHW
+#define ARCH_HAS_SPINLOCK_PREFETCH
+
+static inline void prefetch(const void *x)
+{
+	/* We do not use the read prefetch mnemonic because that
+	 * prefetches into the prefetch-cache which only is accessible
+	 * by floating point operations in UltraSPARC-III and later.
+	 * By contrast, "#one_write" prefetches into the L2 cache
+	 * in shared state.
+	 */
+	__asm__ __volatile__("prefetch [%0], #one_write"
+			     : /* no outputs */
+			     : "r" (x));
+}
+
+static inline void prefetchw(const void *x)
+{
+	/* The most optimal prefetch to use for writes is
+	 * "#n_writes".  This brings the cacheline into the
+	 * L2 cache in "owned" state.
+	 */
+	__asm__ __volatile__("prefetch [%0], #n_writes"
+			     : /* no outputs */
+			     : "r" (x));
+}
+
+#define spin_lock_prefetch(x)	prefetchw(x)
+
 #endif /* !(__ASSEMBLY__) */
 
 #endif /* !(__ASM_SPARC64_PROCESSOR_H) */
