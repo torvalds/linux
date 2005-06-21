@@ -760,15 +760,11 @@ static void ip_conntrack_expect_insert(struct ip_conntrack_expect *exp)
 	exp->master->expecting++;
 	list_add(&exp->list, &ip_conntrack_expect_list);
 
-	if (exp->master->helper->timeout) {
-		init_timer(&exp->timeout);
-		exp->timeout.data = (unsigned long)exp;
-		exp->timeout.function = expectation_timed_out;
-		exp->timeout.expires
-			= jiffies + exp->master->helper->timeout * HZ;
-		add_timer(&exp->timeout);
-	} else
-		exp->timeout.function = NULL;
+	init_timer(&exp->timeout);
+	exp->timeout.data = (unsigned long)exp;
+	exp->timeout.function = expectation_timed_out;
+	exp->timeout.expires = jiffies + exp->master->helper->timeout * HZ;
+	add_timer(&exp->timeout);
 
 	CONNTRACK_STAT_INC(expect_create);
 }
