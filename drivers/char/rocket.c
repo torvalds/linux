@@ -2426,7 +2426,7 @@ static int __init rp_init(void)
 	 */
 
 	rocket_driver->owner = THIS_MODULE;
-	rocket_driver->flags = TTY_DRIVER_NO_DEVFS;
+	rocket_driver->flags = TTY_DRIVER_DYNAMIC_DEV;
 	rocket_driver->name = "ttyR";
 	rocket_driver->driver_name = "Comtrol RocketPort";
 	rocket_driver->major = TTY_ROCKET_MAJOR;
@@ -2437,7 +2437,7 @@ static int __init rp_init(void)
 	rocket_driver->init_termios.c_cflag =
 	    B9600 | CS8 | CREAD | HUPCL | CLOCAL;
 #ifdef ROCKET_SOFT_FLOW
-	rocket_driver->flags |= TTY_DRIVER_REAL_RAW | TTY_DRIVER_NO_DEVFS;
+	rocket_driver->flags |= TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 #endif
 	tty_set_operations(rocket_driver, &rocket_ops);
 

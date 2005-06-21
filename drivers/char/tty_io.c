@@ -2963,8 +2963,8 @@ static struct class *tty_class;
  * Returns a pointer to the class device (or ERR_PTR(-EFOO) on error).
  *
  * This call is required to be made to register an individual tty device if
- * the tty driver's flags have the TTY_DRIVER_NO_DEVFS bit set.  If that
- * bit is not set, this function should not be called.
+ * the tty driver's flags have the TTY_DRIVER_DYNAMIC_DEV bit set.  If that
+ * bit is not set, this function should not be called by a tty driver.
  */
 struct class_device *tty_register_device(struct tty_driver *driver,
 					 unsigned index, struct device *device)
@@ -3117,7 +3117,7 @@ int tty_register_driver(struct tty_driver *driver)
 	
 	list_add(&driver->tty_drivers, &tty_drivers);
 	
-	if ( !(driver->flags & TTY_DRIVER_NO_DEVFS) ) {
+	if ( !(driver->flags & TTY_DRIVER_DYNAMIC_DEV) ) {
 		for(i = 0; i < driver->num; i++)
 		    tty_register_device(driver, i, NULL);
 	}
@@ -3160,7 +3160,7 @@ int tty_unregister_driver(struct tty_driver *driver)
 			driver->termios_locked[i] = NULL;
 			kfree(tp);
 		}
-		if (!(driver->flags & TTY_DRIVER_NO_DEVFS))
+		if (!(driver->flags & TTY_DRIVER_DYNAMIC_DEV))
 			tty_unregister_device(driver, i);
 	}
 	p = driver->ttys;

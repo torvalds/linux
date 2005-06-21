@@ -691,7 +691,7 @@ void gigaset_if_initdriver(struct gigaset_driver *drv, const char *procname,
 	tty->major =		GIG_MAJOR,
 	tty->type =		TTY_DRIVER_TYPE_SERIAL,
 	tty->subtype =		SERIAL_TYPE_NORMAL,
-	tty->flags =		TTY_DRIVER_REAL_RAW | TTY_DRIVER_NO_DEVFS,
+	tty->flags =		TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 
 	tty->driver_name =	procname;
 	tty->name =		devname;

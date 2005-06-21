@@ -241,8 +241,15 @@ void tty_set_operations(struct tty_driver *driver, struct tty_operations *op);
  * 	is also a promise, if the above case is true, not to signal
  * 	overruns, either.)
  *
- * TTY_DRIVER_NO_DEVFS --- if set, do not create devfs entries. This
- *	is only used by tty_register_driver().
+ * TTY_DRIVER_DYNAMIC_DEV --- if set, the individual tty devices need
+ *	to be registered with a call to tty_register_driver() when the
+ *	device is found in the system and unregistered with a call to
+ *	tty_unregister_device() so the devices will be show up
+ *	properly in sysfs.  If not set, driver->num entries will be
+ *	created by the tty core in sysfs when tty_register_driver() is
+ *	called.  This is to be used by drivers that have tty devices
+ *	that can appear and disappear while the main tty driver is
+ *	registered with the tty core.
  *
  * TTY_DRIVER_DEVPTS_MEM -- don't use the standard arrays, instead
  *	use dynamic memory keyed through the devpts filesystem.  This
@@ -251,7 +258,7 @@ void tty_set_operations(struct tty_driver *driver, struct tty_operations *op);
 #define TTY_DRIVER_INSTALLED		0x0001
 #define TTY_DRIVER_RESET_TERMIOS	0x0002
 #define TTY_DRIVER_REAL_RAW		0x0004
-#define TTY_DRIVER_NO_DEVFS		0x0008
+#define TTY_DRIVER_DYNAMIC_DEV		0x0008
 #define TTY_DRIVER_DEVPTS_MEM		0x0010
 
 /* tty driver types */

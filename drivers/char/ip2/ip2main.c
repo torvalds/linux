@@ -678,7 +678,7 @@ ip2_loadmain(int *iop, int *irqp, unsigned char *firmware, int firmsize)
 	ip2_tty_driver->subtype              = SERIAL_TYPE_NORMAL;
 	ip2_tty_driver->init_termios         = tty_std_termios;
 	ip2_tty_driver->init_termios.c_cflag = B9600|CS8|CREAD|HUPCL|CLOCAL;
-	ip2_tty_driver->flags                = TTY_DRIVER_REAL_RAW | TTY_DRIVER_NO_DEVFS;
+	ip2_tty_driver->flags                = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 	tty_set_operations(ip2_tty_driver, &ip2_ops);
 
 	ip2trace (ITRC_NO_PORT, ITRC_INIT, 3, 0 );

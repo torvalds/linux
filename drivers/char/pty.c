@@ -368,7 +368,7 @@ static void __init unix98_pty_init(void)
 	ptm_driver->init_termios.c_cflag = B38400 | CS8 | CREAD;
 	ptm_driver->init_termios.c_lflag = 0;
 	ptm_driver->flags = TTY_DRIVER_RESET_TERMIOS | TTY_DRIVER_REAL_RAW |
-		TTY_DRIVER_NO_DEVFS | TTY_DRIVER_DEVPTS_MEM;
+		TTY_DRIVER_DYNAMIC_DEV | TTY_DRIVER_DEVPTS_MEM;
 	ptm_driver->other = pts_driver;
 	tty_set_operations(ptm_driver, &pty_ops);
 	ptm_driver->ioctl = pty_unix98_ioctl;
@@ -383,7 +383,7 @@ static void __init unix98_pty_init(void)
 	pts_driver->init_termios = tty_std_termios;
 	pts_driver->init_termios.c_cflag = B38400 | CS8 | CREAD;
 	pts_driver->flags = TTY_DRIVER_RESET_TERMIOS | TTY_DRIVER_REAL_RAW |
-		TTY_DRIVER_NO_DEVFS | TTY_DRIVER_DEVPTS_MEM;
+		TTY_DRIVER_DYNAMIC_DEV | TTY_DRIVER_DEVPTS_MEM;
 	pts_driver->other = ptm_driver;
 	tty_set_operations(pts_driver, &pty_ops);
 	
