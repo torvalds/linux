@@ -125,19 +125,18 @@ static void __init md_setup_drive(void)
 		int err = 0;
 		char *devname;
 		mdu_disk_info_t dinfo;
-		char name[16], devfs_name[16];
+		char name[16];
 
 		minor = md_setup_args[ent].minor;
 		partitioned = md_setup_args[ent].partitioned;
 		devname = md_setup_args[ent].device_names;
 
 		sprintf(name, "/dev/md%s%d", partitioned?"_d":"", minor);
-		sprintf(devfs_name, "/dev/md/%s%d", partitioned?"d":"", minor);
 		if (partitioned)
 			dev = MKDEV(mdp_major, minor << MdpMinorShift);
 		else
 			dev = MKDEV(MD_MAJOR, minor);
-		create_dev(name, dev, devfs_name);
+		create_dev(name, dev);
 		for (i = 0; i < MD_SB_DISKS && devname != 0; i++) {
 			char *p;
 			char comp_name[64];
@@ -272,7 +271,7 @@ __setup("md=", md_setup);
 
 void __init md_run_setup(void)
 {
-	create_dev("/dev/md0", MKDEV(MD_MAJOR, 0), "md/0");
+	create_dev("/dev/md0", MKDEV(MD_MAJOR, 0));
 	if (raid_noautodetect)
 		printk(KERN_INFO "md: Skipping autodetection of RAID arrays. (raid=noautodetect)\n");
 	else {

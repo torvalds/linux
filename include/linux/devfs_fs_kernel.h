@@ -32,8 +32,4 @@ static inline int devfs_register_tape(const char *name)
 static inline void devfs_unregister_tape(int num)
 {
 }
-static inline void mount_devfs_fs(void)
-{
-	return;
-}
 #endif				/*  _LINUX_DEVFS_FS_KERNEL_H  */
