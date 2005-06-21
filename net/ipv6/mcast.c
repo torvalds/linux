@@ -188,6 +188,16 @@ int ipv6_sock_mc_join(struct sock *sk, int ifindex, struct in6_addr *addr)
 	if (!ipv6_addr_is_multicast(addr))
 		return -EINVAL;
 
+	read_lock_bh(&ipv6_sk_mc_lock);
+	for (mc_lst=np->ipv6_mc_list; mc_lst; mc_lst=mc_lst->next) {
+		if ((ifindex == 0 || mc_lst->ifindex == ifindex) &&
+		    ipv6_addr_equal(&mc_lst->addr, addr)) {
+			read_unlock_bh(&ipv6_sk_mc_lock);
+			return -EADDRINUSE;
+		}
+	}
+	read_unlock_bh(&ipv6_sk_mc_lock);
+
 	mc_lst = sock_kmalloc(sk, sizeof(struct ipv6_mc_socklist), GFP_KERNEL);
 
 	if (mc_lst == NULL)
@@ -349,6 +359,7 @@ int ip6_mc_source(int add, int omode, struct sock *sk,
 	struct ipv6_pinfo *inet6 = inet6_sk(sk);
 	struct ip6_sf_socklist *psl;
 	int i, j, rv;
+	int leavegroup = 0;
 	int err;
 
 	if (pgsr->gsr_group.ss_family != AF_INET6 ||
@@ -368,6 +379,7 @@ int ip6_mc_source(int add, int omode, struct sock *sk,
 
 	err = -EADDRNOTAVAIL;
 
+	read_lock_bh(&ipv6_sk_mc_lock);
 	for (pmc=inet6->ipv6_mc_list; pmc; pmc=pmc->next) {
 		if (pgsr->gsr_interface && pmc->ifindex != pgsr->gsr_interface)
 			continue;
@@ -400,6 +412,12 @@ int ip6_mc_source(int add, int omode, struct sock *sk,
 		}
 		if (rv)		/* source not found */
 			goto done;
+
+		/* special case - (INCLUDE, empty) == LEAVE_GROUP */
+		if (psl->sl_count == 1 && omode == MCAST_INCLUDE) {
+			leavegroup = 1;
+			goto done;
+		}
 
 		/* update the interface filter */
 		ip6_mc_del_src(idev, group, omode, 1, source, 1);
@@ -453,9 +471,12 @@ int ip6_mc_source(int add, int omode, struct sock *sk,
 	/* update the interface list */
 	ip6_mc_add_src(idev, group, omode, 1, source, 1);
 done:
+	read_unlock_bh(&ipv6_sk_mc_lock);
 	read_unlock_bh(&idev->lock);
 	in6_dev_put(idev);
 	dev_put(dev);
+	if (leavegroup)
+		return ipv6_sock_mc_drop(sk, pgsr->gsr_interface, group);
 	return err;
 }
 
