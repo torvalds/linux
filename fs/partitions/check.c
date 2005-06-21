@@ -342,10 +342,6 @@ void add_partition(struct gendisk *disk, int part, sector_t start, sector_t len)
 	p->nr_sects = len;
 	p->partno = part;
 
-	devfs_mk_bdev(MKDEV(disk->major, disk->first_minor + part),
-			S_IFBLK|S_IRUSR|S_IWUSR,
-			"%s/part%d", disk->devfs_name, part);
-
 	if (isdigit(disk->kobj.name[strlen(disk->kobj.name)-1]))
 		snprintf(p->kobj.name,KOBJ_NAME_LEN,"%sp%d",disk->kobj.name,part);
 	else

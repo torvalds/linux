@@ -173,16 +173,6 @@ static void free_cell(struct hash_cell *hc)
 /*
  * devfs stuff.
  */
-static int register_with_devfs(struct hash_cell *hc)
-{
-	struct gendisk *disk = dm_disk(hc->md);
-
-	devfs_mk_bdev(MKDEV(disk->major, disk->first_minor),
-		      S_IFBLK | S_IRUSR | S_IWUSR | S_IRGRP,
-		      DM_DIR "/%s", hc->name);
-	return 0;
-}
-
 static int unregister_with_devfs(struct hash_cell *hc)
 {
 	devfs_remove(DM_DIR"/%s", hc->name);
@@ -225,7 +215,6 @@ static int dm_hash_insert(const char *name, const char *uuid, struct mapped_devi
 		}
 		list_add(&cell->uuid_list, _uuid_buckets + hash_str(uuid));
 	}
-	register_with_devfs(cell);
 	dm_get(md);
 	dm_set_mdptr(md, cell);
 	up_write(&_hash_lock);
@@ -347,9 +336,6 @@ static int dm_hash_rename(const char *old, const char *new)
 	old_name = hc->name;
 	hc->name = new_name;
 	list_add(&hc->name_list, _name_buckets + hash_str(new_name));
-
-	/* rename the device node in devfs */
-	register_with_devfs(hc);
 
 	/*
 	 * Wake up any dm event waiters.

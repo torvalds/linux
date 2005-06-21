@@ -5538,8 +5538,6 @@ static void md_geninit(void)
 
 static int __init md_init(void)
 {
-	int minor;
-
 	printk(KERN_INFO "md: md driver %d.%d.%d MAX_MD_DEVS=%d,"
 			" MD_SB_DISKS=%d\n",
 			MD_MAJOR_VERSION, MD_MINOR_VERSION,
@@ -5557,17 +5555,6 @@ static int __init md_init(void)
 				md_probe, NULL, NULL);
 	blk_register_region(MKDEV(mdp_major, 0), MAX_MD_DEVS<<MdpMinorShift, THIS_MODULE,
 			    md_probe, NULL, NULL);
-
-	for (minor=0; minor < MAX_MD_DEVS; ++minor)
-		devfs_mk_bdev(MKDEV(MAJOR_NR, minor),
-				S_IFBLK|S_IRUSR|S_IWUSR,
-				"md/%d", minor);
-
-	for (minor=0; minor < MAX_MD_DEVS; ++minor)
-		devfs_mk_bdev(MKDEV(mdp_major, minor<<MdpMinorShift),
-			      S_IFBLK|S_IRUSR|S_IWUSR,
-			      "md/mdp%d", minor);
-
 
 	register_reboot_notifier(&md_notifier);
 	raid_table_header = register_sysctl_table(raid_root_table, 1);
