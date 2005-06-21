@@ -1570,8 +1570,7 @@ int video_register_device(struct video_device *vfd, int type, int nr)
 		vfd->class_dev.dev = vfd->dev;
 	vfd->class_dev.class       = &video_class;
 	vfd->class_dev.devt        = MKDEV(VIDEO_MAJOR, vfd->minor);
-	sprintf(vfd->devfs_name, "%s%d", name_base, i - base);
-	strlcpy(vfd->class_dev.class_id, vfd->devfs_name, BUS_ID_SIZE);
+	sprintf(vfd->class_dev.class_id, "%s%d", name_base, i - base);
 	class_device_register(&vfd->class_dev);
 	class_device_create_file(&vfd->class_dev,
 				&class_device_attr_name);
