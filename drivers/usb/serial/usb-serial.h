@@ -149,11 +149,8 @@ static inline void usb_set_serial_data (struct usb_serial *serial, void *data)
 
 /**
  * usb_serial_driver - describes a usb serial driver
- * @name: pointer to a string that describes this driver.  This string used
+ * @description: pointer to a string that describes this driver.  This string used
  *	in the syslog messages when a device is inserted or removed.
- * @short_name: a pointer to a string that describes this driver in
- *	KOBJ_NAME_LEN characters or less.  This is used for the sysfs interface
- *	to describe the driver.
  * @id_table: pointer to a list of usb_device_id structures that define all
  *	of the devices this structure can support.
  * @num_interrupt_in: the number of interrupt in endpoints this device will
@@ -187,11 +184,12 @@ static inline void usb_set_serial_data (struct usb_serial *serial, void *data)
  * called, the generic serial function will be used instead.
  *
  * The driver.owner field should be set to the module owner of this driver.
- *
+ * The driver.name field should be set to the name of this driver (remember
+ * it will show up in sysfs, so it needs to be short and to the point.
+ * Useing the module name is a good idea.)
  */
 struct usb_serial_driver {
-	char	*name;
-	char	*short_name;
+	const char *description;
 	const struct usb_device_id *id_table;
 	char	num_interrupt_in;
 	char	num_interrupt_out;

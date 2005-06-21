@@ -565,9 +565,9 @@ static __u32 ftdi_232bm_baud_to_divisor (int baud);
 static struct usb_serial_driver ftdi_sio_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
+		.name =		"ftdi_sio",
 	},
-	.name =			"FTDI USB Serial Device",
-	.short_name =		"ftdi_sio",
+	.description =		"FTDI USB Serial Device",
 	.id_table =		id_table_combined,
 	.num_interrupt_in =	0,
 	.num_bulk_in =		1,

@@ -257,9 +257,10 @@ static struct usb_driver ti_usb_driver = {
 
 static struct usb_serial_driver ti_1port_device = {
 	.driver = {
-		.owner =	THIS_MODULE,
+		.owner		= THIS_MODULE,
+		.name		= "ti_usb_3410_5052_1",
 	},
-	.name			= "TI USB 3410 1 port adapter",
+	.description		= "TI USB 3410 1 port adapter",
 	.id_table		= ti_id_table_3410,
 	.num_interrupt_in	= 1,
 	.num_bulk_in		= 1,
@@ -286,9 +287,10 @@ static struct usb_serial_driver ti_1port_device = {
 
 static struct usb_serial_driver ti_2port_device = {
 	.driver = {
-		.owner =	THIS_MODULE,
+		.owner		= THIS_MODULE,
+		.name		= "ti_usb_3410_5052_2",
 	},
-	.name			= "TI USB 5052 2 port adapter",
+	.description		= "TI USB 5052 2 port adapter",
 	.id_table		= ti_id_table_5052,
 	.num_interrupt_in	= 1,
 	.num_bulk_in		= 2,

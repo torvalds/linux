@@ -122,7 +122,7 @@ static void destroy_serial(struct kref *kref)
 
 	serial = to_usb_serial(kref);
 
-	dbg ("%s - %s", __FUNCTION__, serial->type->name);
+	dbg("%s - %s", __FUNCTION__, serial->type->description);
 
 	serial->type->shutdown(serial);
 
@@ -415,7 +415,7 @@ static int serial_read_proc (char *page, char **start, off_t off, int count, int
 		length += sprintf (page+length, "%d:", i);
 		if (serial->type->driver.owner)
 			length += sprintf (page+length, " module:%s", module_name(serial->type->driver.owner));
-		length += sprintf (page+length, " name:\"%s\"", serial->type->name);
+		length += sprintf (page+length, " name:\"%s\"", serial->type->description);
 		length += sprintf (page+length, " vendor:%04x product:%04x", 
 				   le16_to_cpu(serial->dev->descriptor.idVendor), 
 				   le16_to_cpu(serial->dev->descriptor.idProduct));
@@ -687,7 +687,7 @@ int usb_serial_probe(struct usb_interface *interface,
 #endif
 
 	/* found all that we need */
-	dev_info(&interface->dev, "%s converter detected\n", type->name);
+	dev_info(&interface->dev, "%s converter detected\n", type->description);
 
 #ifdef CONFIG_USB_SERIAL_GENERIC
 	if (type == &usb_serial_generic_device) {
@@ -1088,16 +1088,19 @@ int usb_serial_register(struct usb_serial_driver *driver)
 
 	fixup_generic(driver);
 
+	if (!driver->description)
+		driver->description = driver->driver.name;
+
 	/* Add this device to our list of devices */
 	list_add(&driver->driver_list, &usb_serial_driver_list);
 
 	retval = usb_serial_bus_register(driver);
 	if (retval) {
-		err("problem %d when registering driver %s", retval, driver->name);
+		err("problem %d when registering driver %s", retval, driver->description);
 		list_del(&driver->driver_list);
 	}
 	else
-		info("USB Serial support registered for %s", driver->name);
+		info("USB Serial support registered for %s", driver->description);
 
 	return retval;
 }
@@ -1105,7 +1108,7 @@ int usb_serial_register(struct usb_serial_driver *driver)
 
 void usb_serial_deregister(struct usb_serial_driver *device)
 {
-	info("USB Serial deregistering driver %s", device->name);
+	info("USB Serial deregistering driver %s", device->description);
 	list_del(&device->driver_list);
 	usb_serial_bus_deregister(device);
 }

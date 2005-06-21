@@ -179,9 +179,9 @@ static unsigned int	  cypress_buf_get(struct cypress_buf *cb, char *buf, unsigne
 static struct usb_serial_driver cypress_earthmate_device = {
 	.driver = {
 		.owner =		THIS_MODULE,
+		.name =			"earthmate",
 	},
-	.name =				"DeLorme Earthmate USB",
-	.short_name =			"earthmate",
+	.description =			"DeLorme Earthmate USB",
 	.id_table =			id_table_earthmate,
 	.num_interrupt_in = 		1,
 	.num_interrupt_out =		1,
@@ -208,9 +208,9 @@ static struct usb_serial_driver cypress_earthmate_device = {
 static struct usb_serial_driver cypress_hidcom_device = {
 	.driver = {
 		.owner =		THIS_MODULE,
+		.name =			"cyphidcom",
 	},
-	.name =				"HID->COM RS232 Adapter",
-	.short_name =			"cyphidcom",
+	.description =			"HID->COM RS232 Adapter",
 	.id_table =			id_table_cyphidcomrs232,
 	.num_interrupt_in =		1,
 	.num_interrupt_out =		1,

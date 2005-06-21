@@ -157,8 +157,8 @@ static unsigned int pl2303_buf_get(struct pl2303_buf *pb, char *buf,
 static struct usb_serial_driver pl2303_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
+		.name =		"pl2303",
 	},
-	.name =			"PL-2303",
 	.id_table =		id_table,
 	.num_interrupt_in =	NUM_DONT_CARE,
 	.num_bulk_in =		1,

@@ -72,7 +72,7 @@ static int usb_serial_device_probe (struct device *dev)
 	tty_register_device (usb_serial_tty_driver, minor, dev);
 	dev_info(&port->serial->dev->dev, 
 		 "%s converter now attached to ttyUSB%d\n",
-		 driver->name, minor);
+		 driver->description, minor);
 
 exit:
 	return retval;
@@ -104,7 +104,7 @@ exit:
 	minor = port->number;
 	tty_unregister_device (usb_serial_tty_driver, minor);
 	dev_info(dev, "%s converter now disconnected from ttyUSB%d\n",
-		 driver->name, minor);
+		 driver->description, minor);
 
 	return retval;
 }
@@ -113,10 +113,6 @@ int usb_serial_bus_register(struct usb_serial_driver *driver)
 {
 	int retval;
 
-	if (driver->short_name)
-		driver->driver.name = (char *)driver->short_name;
-	else
-		driver->driver.name = (char *)driver->name;
 	driver->driver.bus = &usb_serial_bus_type;
 	driver->driver.probe = usb_serial_device_probe;
 	driver->driver.remove = usb_serial_device_remove;

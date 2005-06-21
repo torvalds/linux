@@ -505,10 +505,10 @@ static struct usb_driver digi_driver = {
 
 static struct usb_serial_driver digi_acceleport_2_device = {
 	.driver = {
-		.owner =	THIS_MODULE,
+		.owner =		THIS_MODULE,
+		.name =			"digi_2",
 	},
-	.name =				"Digi 2 port USB adapter",
-	.short_name =			"digi_2",
+	.description =			"Digi 2 port USB adapter",
 	.id_table =			id_table_2,
 	.num_interrupt_in =		0,
 	.num_bulk_in =			4,
@@ -534,10 +534,10 @@ static struct usb_serial_driver digi_acceleport_2_device = {
 
 static struct usb_serial_driver digi_acceleport_4_device = {
 	.driver = {
-		.owner =	THIS_MODULE,
+		.owner =		THIS_MODULE,
+		.name =			"digi_4",
 	},
-	.name =				"Digi 4 port USB adapter",
-	.short_name =			"digi_4",
+	.description =			"Digi 4 port USB adapter",
 	.id_table =			id_table_4,
 	.num_interrupt_in =		0,
 	.num_bulk_in =			5,

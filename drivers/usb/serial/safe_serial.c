@@ -400,8 +400,8 @@ static int safe_startup (struct usb_serial *serial)
 static struct usb_serial_driver safe_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
+		.name =		"safe_serial",
 	},
-	.name =			"Safe",
 	.id_table =		id_table,
 	.num_interrupt_in =	NUM_DONT_CARE,
 	.num_bulk_in =		NUM_DONT_CARE,

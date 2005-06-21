@@ -185,9 +185,9 @@ static struct usb_driver visor_driver = {
 static struct usb_serial_driver handspring_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
+		.name =		"visor",
 	},
-	.name =			"Handspring Visor / Palm OS",
-	.short_name =		"visor",
+	.description =		"Handspring Visor / Palm OS",
 	.id_table =		id_table,
 	.num_interrupt_in =	NUM_DONT_CARE,
 	.num_bulk_in =		2,
@@ -215,9 +215,9 @@ static struct usb_serial_driver handspring_device = {
 static struct usb_serial_driver clie_5_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
+		.name =		"clie_5",
 	},
-	.name =			"Sony Clie 5.0",
-	.short_name =		"clie_5",
+	.description =		"Sony Clie 5.0",
 	.id_table =		clie_id_5_table,
 	.num_interrupt_in =	NUM_DONT_CARE,
 	.num_bulk_in =		2,
@@ -245,9 +245,9 @@ static struct usb_serial_driver clie_5_device = {
 static struct usb_serial_driver clie_3_5_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
+		.name =		"clie_3.5",
 	},
-	.name =			"Sony Clie 3.5",
-	.short_name =		"clie_3.5",
+	.description =		"Sony Clie 3.5",
 	.id_table =		clie_id_3_5_table,
 	.num_interrupt_in =	0,
 	.num_bulk_in =		1,
@@ -659,7 +659,7 @@ static int palm_os_3_probe (struct usb_serial *serial, const struct usb_device_i
 					break;
 			}
 			dev_info(dev, "%s: port %d, is for %s use\n",
-				serial->type->name,
+				serial->type->description,
 				connection_info->connections[i].port, string);
 		}
 	}
@@ -668,11 +668,11 @@ static int palm_os_3_probe (struct usb_serial *serial, const struct usb_device_i
 	*/
 	if (num_ports == 0 || num_ports > 2) {
 		dev_warn (dev, "%s: No valid connect info available\n",
-			serial->type->name);
+			serial->type->description);
 		num_ports = 2;
 	}
   
-	dev_info(dev, "%s: Number of ports: %d\n", serial->type->name,
+	dev_info(dev, "%s: Number of ports: %d\n", serial->type->description,
 		num_ports);
 
 	/*
