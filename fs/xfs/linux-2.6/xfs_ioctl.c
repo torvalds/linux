@@ -777,6 +777,8 @@ xfs_ioctl(
 	case XFS_IOC_GETVERSION:
 	case XFS_IOC_GETXFLAGS:
 	case XFS_IOC_SETXFLAGS:
+	case XFS_IOC_GETPROJID:
+	case XFS_IOC_SETPROJID:
 	case XFS_IOC_FSGETXATTR:
 	case XFS_IOC_FSSETXATTR:
 	case XFS_IOC_FSGETXATTRA:
@@ -1256,6 +1258,26 @@ xfs_ioc_xattr(
 		if (copy_to_user(arg, &flags, sizeof(flags)))
 			return -XFS_ERROR(EFAULT);
 		return 0;
+	}
+
+	case XFS_IOC_GETPROJID: {
+		va.va_mask = XFS_AT_PROJID;
+		VOP_GETATTR(vp, &va, 0, NULL, error);
+		if (error)
+			return -error;
+		if (copy_to_user(arg, &va.va_projid, sizeof(va.va_projid)))
+			return -XFS_ERROR(EFAULT);
+		return 0;
+	}
+
+	case XFS_IOC_SETPROJID: {
+		if (!capable(CAP_SYS_ADMIN))
+			return -EPERM;
+		va.va_mask = XFS_AT_PROJID;
+		if (copy_from_user(&va.va_projid, arg, sizeof(va.va_projid)))
+			return -XFS_ERROR(EFAULT);
+		VOP_SETATTR(vp, &va, 0, NULL, error);
+		return -error;
 	}
 
 	default:

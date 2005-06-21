@@ -477,6 +477,8 @@ typedef struct xfs_handle {
 /*	XFS_IOC_SETBIOSIZE ---- deprecated 46	   */
 /*	XFS_IOC_GETBIOSIZE ---- deprecated 47	   */
 #define XFS_IOC_GETBMAPX	_IOWR('X', 56, struct getbmap)
+#define XFS_IOC_SETPROJID	_IOWR('X', 57, __uint32_t)
+#define XFS_IOC_GETPROJID	_IOWR('X', 58, __uint32_t)
 
 /*
  * ioctl commands that replace IRIX syssgi()'s
