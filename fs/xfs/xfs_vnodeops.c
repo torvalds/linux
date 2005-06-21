@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2004 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.  All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -4028,7 +4028,7 @@ xfs_finish_reclaim_all(xfs_mount_t *mp, int noblock)
  *      errno on error
  *
  */
-int
+STATIC int
 xfs_alloc_file_space(
 	xfs_inode_t		*ip,
 	xfs_off_t		offset,

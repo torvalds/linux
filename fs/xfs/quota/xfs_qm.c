@@ -81,12 +81,18 @@ struct xfs_qm	*xfs_Gqm;
 
 kmem_zone_t	*qm_dqzone;
 kmem_zone_t	*qm_dqtrxzone;
-kmem_shaker_t	xfs_qm_shaker;
+STATIC kmem_shaker_t	xfs_qm_shaker;
 
 STATIC void	xfs_qm_list_init(xfs_dqlist_t *, char *, int);
 STATIC void	xfs_qm_list_destroy(xfs_dqlist_t *);
 
+STATIC void	xfs_qm_freelist_init(xfs_frlist_t *);
+STATIC void	xfs_qm_freelist_destroy(xfs_frlist_t *);
+STATIC int	xfs_qm_mplist_nowait(xfs_mount_t *);
+STATIC int	xfs_qm_dqhashlock_nowait(xfs_dquot_t *);
+
 STATIC int	xfs_qm_init_quotainos(xfs_mount_t *);
+STATIC int	xfs_qm_init_quotainfo(xfs_mount_t *);
 STATIC int	xfs_qm_shake(int, unsigned int);
 
 #ifdef DEBUG
@@ -184,7 +190,7 @@ xfs_Gqm_init(void)
 /*
  * Destroy the global quota manager when its reference count goes to zero.
  */
-void
+STATIC void
 xfs_qm_destroy(
 	struct xfs_qm	*xqm)
 {
@@ -509,7 +515,7 @@ out:
  * Flush all dquots of the given file system to disk. The dquots are
  * _not_ purged from memory here, just their data written to disk.
  */
-int
+STATIC int
 xfs_qm_dqflush_all(
 	xfs_mount_t	*mp,
 	int		flags)
@@ -1149,7 +1155,7 @@ xfs_qm_sync(
  * This initializes all the quota information that's kept in the
  * mount structure
  */
-int
+STATIC int
 xfs_qm_init_quotainfo(
 	xfs_mount_t	*mp)
 {
@@ -2751,7 +2757,7 @@ xfs_qm_vop_dqattach_and_dqmod_newinode(
 }
 
 /* ------------- list stuff -----------------*/
-void
+STATIC void
 xfs_qm_freelist_init(xfs_frlist_t *ql)
 {
 	ql->qh_next = ql->qh_prev = (xfs_dquot_t *) ql;
@@ -2760,7 +2766,7 @@ xfs_qm_freelist_init(xfs_frlist_t *ql)
 	ql->qh_nelems = 0;
 }
 
-void
+STATIC void
 xfs_qm_freelist_destroy(xfs_frlist_t *ql)
 {
 	xfs_dquot_t	*dqp, *nextdqp;
@@ -2786,7 +2792,7 @@ xfs_qm_freelist_destroy(xfs_frlist_t *ql)
 	ASSERT(ql->qh_nelems == 0);
 }
 
-void
+STATIC void
 xfs_qm_freelist_insert(xfs_frlist_t *ql, xfs_dquot_t *dq)
 {
 	dq->dq_flnext = ql->qh_next;
@@ -2816,7 +2822,7 @@ xfs_qm_freelist_append(xfs_frlist_t *ql, xfs_dquot_t *dq)
 	xfs_qm_freelist_insert((xfs_frlist_t *)ql->qh_prev, dq);
 }
 
-int
+STATIC int
 xfs_qm_dqhashlock_nowait(
 	xfs_dquot_t *dqp)
 {
@@ -2836,7 +2842,7 @@ xfs_qm_freelist_lock_nowait(
 	return (locked);
 }
 
-int
+STATIC int
 xfs_qm_mplist_nowait(
 	xfs_mount_t	*mp)
 {

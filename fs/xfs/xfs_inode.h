@@ -487,8 +487,6 @@ int		xfs_finish_reclaim_all(struct xfs_mount *, int);
 /*
  * xfs_inode.c prototypes.
  */
-int		xfs_inotobp(struct xfs_mount *, struct xfs_trans *, xfs_ino_t,
-			    xfs_dinode_t **, struct xfs_buf **, int *);
 int		xfs_itobp(struct xfs_mount *, struct xfs_trans *,
 			  xfs_inode_t *, xfs_dinode_t **, struct xfs_buf **,
 			  xfs_daddr_t);

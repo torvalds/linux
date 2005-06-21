@@ -158,7 +158,7 @@ xfs_inobp_check(
  * Use xfs_imap() to determine the size and location of the
  * buffer to read from disk.
  */
-int
+STATIC int
 xfs_inotobp(
 	xfs_mount_t	*mp,
 	xfs_trans_t	*tp,
@@ -2111,7 +2111,7 @@ static __inline__ int xfs_inode_clean(xfs_inode_t *ip)
 		(ip->i_update_core == 0));
 }
 
-void
+STATIC void
 xfs_ifree_cluster(
 	xfs_inode_t	*free_ip,
 	xfs_trans_t	*tp,
@@ -2830,7 +2830,7 @@ xfs_iunpin(
  * be subsequently pinned once someone is waiting for it to be
  * unpinned.
  */
-void
+STATIC void
 xfs_iunpin_wait(
 	xfs_inode_t	*ip)
 {

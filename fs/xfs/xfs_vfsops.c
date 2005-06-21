@@ -1681,7 +1681,7 @@ suffix_strtoul(const char *cp, char **endp, unsigned int base)
 	return simple_strtoul(cp, endp, base) << shift_left_factor;
 }
 
-int
+STATIC int
 xfs_parseargs(
 	struct bhv_desc		*bhv,
 	char			*options,
@@ -1867,7 +1867,7 @@ printk("XFS: irixsgid is now a sysctl(2) variable, option is deprecated.\n");
 	return 0;
 }
 
-int
+STATIC int
 xfs_showargs(
 	struct bhv_desc		*bhv,
 	struct seq_file		*m)

@@ -301,6 +301,19 @@ xfs_bmap_search_extents(
 	xfs_bmbt_irec_t	*gotp,		/* out: extent entry found */
 	xfs_bmbt_irec_t	*prevp);	/* out: previous extent entry found */
 
+/*
+ * Check the last inode extent to determine whether this allocation will result
+ * in blocks being allocated at the end of the file. When we allocate new data
+ * blocks at the end of the file which do not start at the previous data block,
+ * we will try to align the new blocks at stripe unit boundaries.
+ */
+STATIC int				/* error */
+xfs_bmap_isaeof(
+	xfs_inode_t	*ip,		/* incore inode pointer */
+	xfs_fileoff_t   off,		/* file offset in fsblocks */
+	int             whichfork,	/* data or attribute fork */
+	char		*aeof);		/* return value */
+
 #ifdef XFS_BMAP_TRACE
 /*
  * Add a bmap trace buffer entry.  Base routine for the others.
@@ -5714,7 +5727,7 @@ unlock_and_return:
  * blocks at the end of the file which do not start at the previous data block,
  * we will try to align the new blocks at stripe unit boundaries.
  */
-int					/* error */
+STATIC int				/* error */
 xfs_bmap_isaeof(
 	xfs_inode_t	*ip,		/* incore inode pointer */
 	xfs_fileoff_t   off,		/* file offset in fsblocks */

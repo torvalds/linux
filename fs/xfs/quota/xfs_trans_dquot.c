@@ -187,7 +187,7 @@ xfs_trans_dup_dqinfo(
 /*
  * Wrap around mod_dquot to account for both user and group quotas.
  */
-void
+STATIC void
 xfs_trans_mod_dquot_byino(
 	xfs_trans_t	*tp,
 	xfs_inode_t	*ip,
@@ -368,7 +368,7 @@ xfs_trans_dqlockedjoin(
  * Unreserve just the reservations done by this transaction.
  * dquot is still left locked at exit.
  */
-void
+STATIC void
 xfs_trans_apply_dquot_deltas(
 	xfs_trans_t		*tp)
 {

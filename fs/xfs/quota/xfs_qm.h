@@ -184,7 +184,6 @@ typedef struct xfs_dquot_acct {
 
 extern void		xfs_mount_reset_sbqflags(xfs_mount_t *);
 
-extern int		xfs_qm_init_quotainfo(xfs_mount_t *);
 extern void		xfs_qm_destroy_quotainfo(xfs_mount_t *);
 extern int		xfs_qm_mount_quotas(xfs_mount_t *, int);
 extern void		xfs_qm_mount_quotainit(xfs_mount_t *, uint);
@@ -215,14 +214,9 @@ extern int		xfs_qm_vop_chown_reserve(xfs_trans_t *, xfs_inode_t *,
 					xfs_dquot_t *, xfs_dquot_t *, uint);
 
 /* list stuff */
-extern void		xfs_qm_freelist_init(xfs_frlist_t *);
-extern void		xfs_qm_freelist_destroy(xfs_frlist_t *);
-extern void		xfs_qm_freelist_insert(xfs_frlist_t *, xfs_dquot_t *);
 extern void		xfs_qm_freelist_append(xfs_frlist_t *, xfs_dquot_t *);
 extern void		xfs_qm_freelist_unlink(xfs_dquot_t *);
 extern int		xfs_qm_freelist_lock_nowait(xfs_qm_t *);
-extern int		xfs_qm_mplist_nowait(xfs_mount_t *);
-extern int		xfs_qm_dqhashlock_nowait(xfs_dquot_t *);
 
 /* system call interface */
 extern int		xfs_qm_quotactl(bhv_desc_t *, int, int, xfs_caddr_t);

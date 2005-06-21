@@ -359,7 +359,7 @@ xfs_qm_dqrele_null(
 }
 
 
-struct xfs_qmops xfs_qmcore_xfs = {
+STATIC struct xfs_qmops xfs_qmcore_xfs = {
 	.xfs_qminit		= xfs_qm_newmount,
 	.xfs_qmdone		= xfs_qm_unmount_quotadestroy,
 	.xfs_qmmount		= xfs_qm_endmount,

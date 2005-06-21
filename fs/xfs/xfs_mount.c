@@ -64,6 +64,7 @@
 STATIC void	xfs_mount_log_sbunit(xfs_mount_t *, __int64_t);
 STATIC int	xfs_uuid_mount(xfs_mount_t *);
 STATIC void	xfs_uuid_unmount(xfs_mount_t *mp);
+STATIC void	xfs_unmountfs_wait(xfs_mount_t *);
 
 static struct {
     short offset;
@@ -555,7 +556,7 @@ xfs_readsb(xfs_mount_t *mp)
  * fields from the superblock associated with the given
  * mount structure
  */
-void
+STATIC void
 xfs_mount_common(xfs_mount_t *mp, xfs_sb_t *sbp)
 {
 	int	i;
@@ -1146,7 +1147,7 @@ xfs_unmountfs_close(xfs_mount_t *mp, struct cred *cr)
 	xfs_free_buftarg(mp->m_ddev_targp, 0);
 }
 
-void
+STATIC void
 xfs_unmountfs_wait(xfs_mount_t *mp)
 {
 	if (mp->m_logdev_targp != mp->m_ddev_targp)

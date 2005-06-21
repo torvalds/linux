@@ -101,7 +101,7 @@ int xfs_dqerror_mod = 33;
  * is the d_id field. The idea is to fill in the entire q_core
  * when we read in the on disk dquot.
  */
-xfs_dquot_t *
+STATIC xfs_dquot_t *
 xfs_qm_dqinit(
 	xfs_mount_t  *mp,
 	xfs_dqid_t   id,

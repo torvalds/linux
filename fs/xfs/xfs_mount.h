@@ -544,7 +544,6 @@ extern void	xfs_mount_free(xfs_mount_t *mp, int remove_bhv);
 extern int	xfs_mountfs(struct vfs *, xfs_mount_t *mp, int);
 
 extern int	xfs_unmountfs(xfs_mount_t *, struct cred *);
-extern void	xfs_unmountfs_wait(xfs_mount_t *);
 extern void	xfs_unmountfs_close(xfs_mount_t *, struct cred *);
 extern int	xfs_unmountfs_writesb(xfs_mount_t *);
 extern int	xfs_unmount_flush(xfs_mount_t *, int);

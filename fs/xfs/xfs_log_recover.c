@@ -148,7 +148,7 @@ xlog_bread(
  * The buffer is kept locked across the write and is returned locked.
  * This can only be used for synchronous log writes.
  */
-int
+STATIC int
 xlog_bwrite(
 	xlog_t		*log,
 	xfs_daddr_t	blk_no,
@@ -179,7 +179,7 @@ xlog_bwrite(
 	return error;
 }
 
-xfs_caddr_t
+STATIC xfs_caddr_t
 xlog_align(
 	xlog_t		*log,
 	xfs_daddr_t	blk_no,
@@ -528,7 +528,7 @@ out:
  *
  * Return: zero if normal, non-zero if error.
  */
-int
+STATIC int
 xlog_find_head(
 	xlog_t 		*log,
 	xfs_daddr_t	*return_head_blk)

@@ -532,7 +532,7 @@ xfs_trans_apply_sb_deltas(
  *
  * This is done efficiently with a single call to xfs_mod_incore_sb_batch().
  */
-void
+STATIC void
 xfs_trans_unreserve_and_mod_sb(
 	xfs_trans_t	*tp)
 {
