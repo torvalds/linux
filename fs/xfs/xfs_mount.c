@@ -1112,15 +1112,6 @@ xfs_unmountfs(xfs_mount_t *mp, struct cred *cr)
 	 */
 	ASSERT(mp->m_inodes == NULL);
 
-	/*
-	 * We may have bufs that are in the process of getting written still.
-	 * We must wait for the I/O completion of those. The sync flag here
-	 * does a two pass iteration thru the bufcache.
-	 */
-	if (XFS_FORCED_SHUTDOWN(mp)) {
-		xfs_incore_relse(mp->m_ddev_targp, 0, 1); /* synchronous */
-	}
-
 	xfs_unmountfs_close(mp, cr);
 	if ((mp->m_flags & XFS_MOUNT_NOUUID) == 0)
 		xfs_uuid_unmount(mp);

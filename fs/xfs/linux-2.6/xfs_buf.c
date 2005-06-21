@@ -1563,16 +1563,6 @@ xfs_free_buftarg(
 	kmem_free(btp, sizeof(*btp));
 }
 
-void
-xfs_incore_relse(
-	xfs_buftarg_t		*btp,
-	int			delwri_only,
-	int			wait)
-{
-	invalidate_bdev(btp->pbr_bdev, 1);
-	truncate_inode_pages(btp->pbr_mapping, 0LL);
-}
-
 STATIC int
 xfs_setsize_buftarg_flags(
 	xfs_buftarg_t		*btp,
