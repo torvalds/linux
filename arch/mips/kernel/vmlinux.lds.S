@@ -96,12 +96,6 @@ SECTIONS
   .init.setup : { *(.init.setup) }
   __setup_end = .;
 
-  .early_initcall.init : {
-  __earlyinitcall_start = .;
-	*(.initcall.early1.init)
-  }
-  __earlyinitcall_end = .;
-
   __initcall_start = .;
   .initcall.init : {
 	*(.initcall1.init)

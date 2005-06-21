@@ -198,7 +198,7 @@ extern void ip27_setup_console(void);
 extern void ip27_time_init(void);
 extern void ip27_reboot_setup(void);
 
-static int __init ip27_setup(void)
+void __init plat_setup(void)
 {
 	hubreg_t p, e, n_mode;
 	nasid_t nid;
@@ -245,8 +245,4 @@ static int __init ip27_setup(void)
 	set_io_port_base(IO_BASE);
 
 	board_time_init = ip27_time_init;
-
-	return 0;
 }
-
-early_initcall(ip27_setup);

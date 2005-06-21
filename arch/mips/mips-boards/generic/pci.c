@@ -109,7 +109,7 @@ static struct pci_controller  msc_controller = {
 	.io_offset	= 0x00000000UL,
 };
 
-static int __init pcibios_init(void)
+void __init mips_pcibios_init(void)
 {
 	struct pci_controller *controller;
 
@@ -150,14 +150,10 @@ static int __init pcibios_init(void)
 		controller = &msc_controller;
 		break;
 	default:
-		return 1;
+		return;
 	}
 
 	ioport_resource.end = controller->io_resource->end;
 
 	register_pci_controller (controller);
-
-	return 0;
 }
-
-early_initcall(pcibios_init);

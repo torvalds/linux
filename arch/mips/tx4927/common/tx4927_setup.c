@@ -76,11 +76,7 @@ static void __init tx4927_setup(void)
 		toshiba_rbtx4927_setup();
 	}
 #endif
-
-	return;
 }
-
-early_initcall(tx4927_setup);
 
 void __init tx4927_time_init(void)
 {

@@ -52,9 +52,11 @@ static int __init lasat_pci_setup(void)
         }
 
 	register_pci_controller(&lasat_pci_controller);
-        return 0;
+
+	return 0;
 }
-early_initcall(lasat_pci_setup);
+
+arch_initcall(lasat_pci_setup);
 
 #define LASATINT_ETH1   0
 #define LASATINT_ETH0   1

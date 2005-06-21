@@ -510,31 +510,7 @@ static inline void resource_init(void)
 #undef MAXMEM
 #undef MAXMEM_PFN
 
-static int __initdata earlyinit_debug;
-
-static int __init earlyinit_debug_setup(char *str)
-{
-	earlyinit_debug = 1;
-	return 1;
-}
-__setup("earlyinit_debug", earlyinit_debug_setup);
-
-extern initcall_t __earlyinitcall_start, __earlyinitcall_end;
-
-static void __init do_earlyinitcalls(void)
-{
-	initcall_t *call, *start, *end;
-
-	start = &__earlyinitcall_start;
-	end = &__earlyinitcall_end;
-
-	for (call = start; call < end; call++) {
-		if (earlyinit_debug)
-			printk("calling earlyinitcall 0x%p\n", *call);
-
-		(*call)();
-	}
-}
+extern void plat_setup(void);
 
 void __init setup_arch(char **cmdline_p)
 {
@@ -551,7 +527,7 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	/* call board setup routine */
-	do_earlyinitcalls();
+	plat_setup();
 
 	strlcpy(command_line, arcs_cmdline, sizeof(command_line));
 	strlcpy(saved_command_line, command_line, COMMAND_LINE_SIZE);

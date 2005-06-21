@@ -57,7 +57,7 @@ extern void au1xxx_time_init(void);
 extern void au1xxx_timer_setup(struct irqaction *irq);
 extern void set_cpuspec(void);
 
-static int __init au1x00_setup(void)
+void __init plat_setup(void)
 {
 	struct	cpu_spec *sp;
 	char *argptr;
@@ -153,11 +153,7 @@ static int __init au1x00_setup(void)
 	au_sync();
 	while (au_readl(SYS_COUNTER_CNTRL) & SYS_CNTRL_T0S);
 	au_writel(0, SYS_TOYTRIM);
-
-	return 0;
 }
-
-early_initcall(au1x00_setup);
 
 #if defined(CONFIG_64BIT_PHYS_ADDR)
 /* This routine should be valid for all Au1x based boards */

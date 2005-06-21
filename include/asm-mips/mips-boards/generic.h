@@ -79,4 +79,10 @@
 
 extern unsigned int mips_revision_corid;
 
+#ifdef CONFIG_PCI
+extern void mips_pcibios_init(void);
+#else
+#define mips_pcibios_init() do { } while (0)
+#endif
+
 #endif  /* __ASM_MIPS_BOARDS_GENERIC_H */

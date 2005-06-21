@@ -193,7 +193,7 @@ static void jmr3927_board_init(void);
 extern struct resource pci_io_resource;
 extern struct resource pci_mem_resource;
 
-static void __init jmr3927_setup(void)
+void __init plat_setup(void)
 {
 	char *argptr;
 
@@ -274,9 +274,6 @@ static void __init jmr3927_setup(void)
 #endif
 }
 
-early_initcall(jmr3927_setup);
-
-
 static void tx3927_setup(void);
 
 #ifdef CONFIG_PCI
@@ -335,7 +332,7 @@ static void __init jmr3927_board_init(void)
 		       jmr3927_io_dipsw());
 }
 
-static void __init tx3927_setup(void)
+void __init plat_setup(void)
 {
 	int i;
 
