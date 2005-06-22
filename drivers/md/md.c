@@ -3635,7 +3635,8 @@ void md_check_recovery(mddev_t *mddev)
 	struct list_head *rtmp;
 
 
-	dprintk(KERN_INFO "md: recovery thread got woken up ...\n");
+	if (mddev->bitmap)
+		bitmap_daemon_work(mddev->bitmap);
 
 	if (mddev->ro)
 		return;
