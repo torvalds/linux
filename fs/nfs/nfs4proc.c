@@ -2732,6 +2732,34 @@ nfs4_proc_lock(struct file *filp, int cmd, struct file_lock *request)
 	return status;
 }
 
+
+int nfs4_setxattr(struct dentry *dentry, const char *key, const void *buf,
+		size_t buflen, int flags)
+{
+	return -EOPNOTSUPP;
+}
+
+/* The getxattr man page suggests returning -ENODATA for unknown attributes,
+ * and that's what we'll do for e.g. user attributes that haven't been set.
+ * But we'll follow ext2/ext3's lead by returning -EOPNOTSUPP for unsupported
+ * attributes in kernel-managed attribute namespaces. */
+ssize_t nfs4_getxattr(struct dentry *dentry, const char *key, void *buf,
+		size_t buflen)
+{
+	return -EOPNOTSUPP;
+}
+
+ssize_t nfs4_listxattr(struct dentry *dentry, char *buf, size_t buflen)
+{
+	ssize_t len = 0;
+
+	if (buf && buflen < len)
+		return -ERANGE;
+	if (buf)
+		memcpy(buf, "", 0);
+	return 0;
+}
+
 struct nfs4_state_recovery_ops nfs4_reboot_recovery_ops = {
 	.recover_open	= nfs4_open_reclaim,
 	.recover_lock	= nfs4_lock_reclaim,
@@ -2742,11 +2770,20 @@ struct nfs4_state_recovery_ops nfs4_network_partition_recovery_ops = {
 	.recover_lock	= nfs4_lock_expired,
 };
 
+static struct inode_operations nfs4_file_inode_operations = {
+	.permission	= nfs_permission,
+	.getattr	= nfs_getattr,
+	.setattr	= nfs_setattr,
+	.getxattr	= nfs4_getxattr,
+	.setxattr	= nfs4_setxattr,
+	.listxattr	= nfs4_listxattr,
+};
+
 struct nfs_rpc_ops	nfs_v4_clientops = {
 	.version	= 4,			/* protocol version */
 	.dentry_ops	= &nfs4_dentry_operations,
 	.dir_inode_ops	= &nfs4_dir_inode_operations,
-	.file_inode_ops	= &nfs_file_inode_operations,
+	.file_inode_ops	= &nfs4_file_inode_operations,
 	.getroot	= nfs4_proc_get_root,
 	.getattr	= nfs4_proc_getattr,
 	.setattr	= nfs4_proc_setattr,
