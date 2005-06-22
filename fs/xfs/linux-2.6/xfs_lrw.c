@@ -280,10 +280,11 @@ xfs_read(
 	if (DM_EVENT_ENABLED(vp->v_vfsp, ip, DM_EVENT_READ) &&
 	    !(ioflags & IO_INVIS)) {
 		vrwlock_t locktype = VRWLOCK_READ;
+		int dmflags = FILP_DELAY_FLAG(file) | DM_SEM_FLAG_RD(ioflags);
 
 		ret = -XFS_SEND_DATA(mp, DM_EVENT_READ,
 					BHV_TO_VNODE(bdp), *offset, size,
-					FILP_DELAY_FLAG(file), &locktype);
+					dmflags, &locktype);
 		if (ret) {
 			xfs_iunlock(ip, XFS_IOLOCK_SHARED);
 			goto unlock_isem;
@@ -843,11 +844,15 @@ retry:
 	    !(ioflags & IO_INVIS)) {
 
 		xfs_rwunlock(bdp, locktype);
+		if (need_isem)
+			up(&inode->i_sem);
 		error = XFS_SEND_NAMESP(xip->i_mount, DM_EVENT_NOSPACE, vp,
 				DM_RIGHT_NULL, vp, DM_RIGHT_NULL, NULL, NULL,
 				0, 0, 0); /* Delay flag intentionally  unused */
 		if (error)
-			goto out_unlock_isem;
+			goto out_nounlocks;
+		if (need_isem)
+			down(&inode->i_sem);
 		xfs_rwlock(bdp, locktype);
 		pos = xip->i_d.di_size;
 		ret = 0;
@@ -962,6 +967,7 @@ retry:
  out_unlock_isem:
 	if (need_isem)
 		up(&inode->i_sem);
+ out_nounlocks:
 	return -error;
 }
 
