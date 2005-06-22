@@ -1915,9 +1915,9 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4, unsigned long
 		prom_send_capabilities();
 
 	/*
-	 * On pSeries, copy the CPU hold code
+	 * On pSeries and BPA, copy the CPU hold code
 	 */
-       	if (RELOC(of_platform) & PLATFORM_PSERIES)
+       	if (RELOC(of_platform) & (PLATFORM_PSERIES | PLATFORM_BPA))
        		copy_and_flush(0, KERNELBASE - offset, 0x100, 0);
 
 	/*
