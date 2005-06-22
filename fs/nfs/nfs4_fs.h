@@ -176,7 +176,6 @@ struct nfs4_state_recovery_ops {
 
 extern struct dentry_operations nfs4_dentry_operations;
 extern struct inode_operations nfs4_dir_inode_operations;
-extern struct inode_operations nfs4_file_inode_operations;
 
 /* inode.c */
 extern ssize_t nfs4_getxattr(struct dentry *, const char *, void *, size_t);
