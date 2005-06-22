@@ -44,8 +44,7 @@ struct iSeries_Device_Node;
 #define ISERIES_SUBBUS(DevPtr)	DevPtr->DsaAddr.Dsa.subBusNumber
 #define ISERIES_DEVICE(DevPtr)	DevPtr->DsaAddr.Dsa.deviceId
 #define ISERIES_DSA(DevPtr)	DevPtr->DsaAddr.DsaAddr
-#define ISERIES_DEVFUN(DevPtr)	DevPtr->DevFn
-#define ISERIES_DEVNODE(PciDev)	((struct iSeries_Device_Node*)PciDev->sysdata)
+#define ISERIES_DEVNODE(PciDev)	((struct iSeries_Device_Node *)PciDev->sysdata)
 
 #define EADsMaxAgents 7
 
@@ -61,17 +60,6 @@ struct iSeries_Device_Node;
 
 #define ISERIES_GET_DEVICE_FROM_SUBBUS(subbus)		((subbus >> 5) & 0x7)
 #define ISERIES_GET_FUNCTION_FROM_SUBBUS(subbus)	((subbus >> 2) & 0x7)
-
-/*
- * N.B. the ISERIES_DECODE_* macros are not used anywhere, and I think
- * the 0x71 (at least) must be wrong - 0x78 maybe?  -- paulus.
- */
-#define ISERIES_DECODE_DEVFN(linuxdevfn)	\
-	(((linuxdevfn & 0x71) << 1) | (linuxdevfn & 0x07))
-#define ISERIES_DECODE_DEVICE(linuxdevfn)	\
-	(((linuxdevfn & 0x38) >> 3) | (((linuxdevfn & 0x40) >> 2) + 0x10))
-#define ISERIES_DECODE_FUNCTION(linuxdevfn)	\
-	(linuxdevfn & 0x07)
 
 /*
  * Converts Virtual Address to Real Address for Hypervisor calls
@@ -90,15 +78,12 @@ struct iSeries_Device_Node {
 					/* deviceId, barNumber */
 	HvAgentId	AgentId;	/* Hypervisor DevFn */
 	int		DevFn;		/* Linux devfn */
-	int		BarOffset;
 	int		Irq;		/* Assigned IRQ */
 	int		IoRetry;	/* Current Retry Count */
 	int		Flags;		/* Possible flags(disable/bist)*/
-	u16		Vendor;		/* Vendor ID */
 	u8		LogicalSlot;	/* Hv Slot Index for Tces */
 	struct iommu_table *iommu_table;/* Device TCE Table */
 	u8		PhbId;		/* Phb Card is on. */
-	u16		Board;		/* Board Number */
 	u8		FrameId;	/* iSeries spcn Frame Id */
 	char		CardLocation[4];/* Char format of planar vpd */
 	char		Location[20];	/* Frame	1, Card C10 */

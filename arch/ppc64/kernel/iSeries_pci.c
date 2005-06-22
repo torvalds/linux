@@ -497,7 +497,6 @@ static int scan_bridge_slot(HvBusNumber Bus,
 
 			++DeviceCount;
 			node = build_device_node(Bus, SubBus, EADsIdSel, Function);
-			node->Vendor = VendorId;
 			node->Irq = Irq;
 			node->LogicalSlot = BridgeInfo->logicalSlotNumber;
 
