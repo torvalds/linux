@@ -61,21 +61,20 @@
 #define PG_active		 6
 #define PG_slab			 7	/* slab debug (Suparna wants this) */
 
-#define PG_highmem		 8
-#define PG_checked		 9	/* kill me in 2.5.<early>. */
-#define PG_arch_1		10
-#define PG_reserved		11
+#define PG_checked		 8	/* kill me in 2.5.<early>. */
+#define PG_arch_1		 9
+#define PG_reserved		10
+#define PG_private		11	/* Has something at ->private */
 
-#define PG_private		12	/* Has something at ->private */
-#define PG_writeback		13	/* Page is under writeback */
-#define PG_nosave		14	/* Used for system suspend/resume */
-#define PG_compound		15	/* Part of a compound page */
+#define PG_writeback		12	/* Page is under writeback */
+#define PG_nosave		13	/* Used for system suspend/resume */
+#define PG_compound		14	/* Part of a compound page */
+#define PG_swapcache		15	/* Swap page: swp_entry_t in private */
 
-#define PG_swapcache		16	/* Swap page: swp_entry_t in private */
-#define PG_mappedtodisk		17	/* Has blocks allocated on-disk */
-#define PG_reclaim		18	/* To be reclaimed asap */
-#define PG_nosave_free		19	/* Free, should not be written */
-#define PG_uncached		20	/* Page has been mapped as uncached */
+#define PG_mappedtodisk		16	/* Has blocks allocated on-disk */
+#define PG_reclaim		17	/* To be reclaimed asap */
+#define PG_nosave_free		18	/* Free, should not be written */
+#define PG_uncached		19	/* Page has been mapped as uncached */
 
 /*
  * Global page accounting.  One instance per CPU.  Only unsigned longs are
@@ -215,7 +214,7 @@ extern void __mod_page_state(unsigned offset, unsigned long delta);
 #define TestSetPageSlab(page)	test_and_set_bit(PG_slab, &(page)->flags)
 
 #ifdef CONFIG_HIGHMEM
-#define PageHighMem(page)	test_bit(PG_highmem, &(page)->flags)
+#define PageHighMem(page)	is_highmem(page_zone(page))
 #else
 #define PageHighMem(page)	0 /* needed to optimize away at compile time */
 #endif

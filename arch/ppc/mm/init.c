@@ -469,7 +469,6 @@ void __init mem_init(void)
 			struct page *page = mem_map + pfn;
 
 			ClearPageReserved(page);
-			set_bit(PG_highmem, &page->flags);
 			set_page_count(page, 1);
 			__free_page(page);
 			totalhigh_pages++;
