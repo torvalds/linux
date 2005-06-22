@@ -165,12 +165,10 @@ int nfs_readdir_filler(nfs_readdir_descriptor_t *desc, struct page *page)
 	NFS_FLAGS(inode) |= NFS_INO_INVALID_ATIME;
 	/* Ensure consistent page alignment of the data.
 	 * Note: assumes we have exclusive access to this mapping either
-	 *	 throught inode->i_sem or some other mechanism.
+	 *	 through inode->i_sem or some other mechanism.
 	 */
-	if (page->index == 0) {
-		invalidate_inode_pages(inode->i_mapping);
-		NFS_I(inode)->readdir_timestamp = timestamp;
-	}
+	if (page->index == 0)
+		invalidate_inode_pages2_range(inode->i_mapping, PAGE_CACHE_SIZE, -1);
 	unlock_page(page);
 	return 0;
  error:

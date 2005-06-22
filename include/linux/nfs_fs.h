@@ -128,7 +128,6 @@ struct nfs_inode {
 	 *
 	 *	mtime != read_cache_mtime
 	 */
-	unsigned long		readdir_timestamp;
 	unsigned long		read_cache_jiffies;
 	unsigned long		attrtimeo;
 	unsigned long		attrtimeo_timestamp;
