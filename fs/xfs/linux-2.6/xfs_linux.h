@@ -145,10 +145,10 @@ static inline void set_buffer_unwritten_io(struct buffer_head *bh)
 #define xfs_inherit_nosymlinks	xfs_params.inherit_nosym.val
 #define xfs_rotorstep		xfs_params.rotorstep.val
 
-#ifndef __smp_processor_id
-#define __smp_processor_id()	smp_processor_id()
+#ifndef raw_smp_processor_id
+#define raw_smp_processor_id()	smp_processor_id()
 #endif
-#define current_cpu()		__smp_processor_id()
+#define current_cpu()		raw_smp_processor_id()
 #define current_pid()		(current->pid)
 #define current_fsuid(cred)	(current->fsuid)
 #define current_fsgid(cred)	(current->fsgid)
