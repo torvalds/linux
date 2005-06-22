@@ -43,6 +43,8 @@ extern int mem_init_done;
 extern PTE *Hash, *Hash_end;
 extern unsigned long Hash_size, Hash_mask;
 
+extern unsigned int num_tlbcam_entries;
+
 /* ...and now those things that may be slightly different between processor
  * architectures.  -- Dan
  */

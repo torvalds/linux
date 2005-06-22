@@ -88,7 +88,7 @@ mpc8540ads_setup_arch(void)
 #ifdef CONFIG_SERIAL_TEXT_DEBUG
 	/* Invalidate the entry we stole earlier the serial ports
 	 * should be properly mapped */
-	invalidate_tlbcam_entry(NUM_TLBCAMS - 1);
+	invalidate_tlbcam_entry(num_tlbcam_entries - 1);
 #endif
 
 	/* setup the board related information for the enet controllers */
@@ -150,7 +150,7 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 		struct uart_port p;
 
 		/* Use the last TLB entry to map CCSRBAR to allow access to DUART regs */
-		settlbcam(NUM_TLBCAMS - 1, binfo->bi_immr_base,
+		settlbcam(num_tlbcam_entries - 1, binfo->bi_immr_base,
 			  binfo->bi_immr_base, MPC85xx_CCSRBAR_SIZE, _PAGE_IO, 0);
 
 		memset(&p, 0, sizeof (p));
