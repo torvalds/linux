@@ -205,7 +205,11 @@ static int autofs4_dir_open(struct inode *inode, struct file *file)
 		struct vfsmount *fp_mnt = mntget(mnt);
 		struct dentry *fp_dentry = dget(dentry);
 
-		while (follow_down(&fp_mnt, &fp_dentry) && d_mountpoint(fp_dentry));
+		if (!autofs4_follow_mount(&fp_mnt, &fp_dentry)) {
+			dput(fp_dentry);
+			mntput(fp_mnt);
+			return -ENOENT;
+		}
 
 		fp = dentry_open(fp_dentry, fp_mnt, file->f_flags);
 		status = PTR_ERR(fp);
