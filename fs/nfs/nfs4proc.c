@@ -2216,6 +2216,29 @@ static ssize_t nfs4_proc_get_acl(struct inode *inode, void *buf, size_t buflen)
 	return ret;
 }
 
+static int nfs4_proc_set_acl(struct inode *inode, const void *buf, size_t buflen)
+{
+	struct nfs_server *server = NFS_SERVER(inode);
+	struct page *pages[NFS4ACL_MAXPAGES];
+	struct nfs_setaclargs arg = {
+		.fh		= NFS_FH(inode),
+		.acl_pages	= pages,
+		.acl_len	= buflen,
+	};
+	struct rpc_message msg = {
+		.rpc_proc	= &nfs4_procedures[NFSPROC4_CLNT_SETACL],
+		.rpc_argp	= &arg,
+		.rpc_resp	= NULL,
+	};
+	int ret;
+
+	if (!nfs4_server_supports_acls(server))
+		return -EOPNOTSUPP;
+	buf_to_pages(buf, buflen, arg.acl_pages, &arg.acl_pgbase);
+	ret = rpc_call_sync(NFS_SERVER(inode)->client, &msg, 0);
+	return ret;
+}
+
 static int
 nfs4_async_handle_error(struct rpc_task *task, struct nfs_server *server)
 {
@@ -2792,7 +2815,16 @@ nfs4_proc_lock(struct file *filp, int cmd, struct file_lock *request)
 int nfs4_setxattr(struct dentry *dentry, const char *key, const void *buf,
 		size_t buflen, int flags)
 {
-	return -EOPNOTSUPP;
+	struct inode *inode = dentry->d_inode;
+
+	if (strcmp(key, XATTR_NAME_NFSV4_ACL) != 0)
+		return -EOPNOTSUPP;
+
+	if (!S_ISREG(inode->i_mode) &&
+	    (!S_ISDIR(inode->i_mode) || inode->i_mode & S_ISVTX))
+		return -EPERM;
+
+	return nfs4_proc_set_acl(inode, buf, buflen);
 }
 
 /* The getxattr man page suggests returning -ENODATA for unknown attributes,
