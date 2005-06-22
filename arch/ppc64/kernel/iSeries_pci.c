@@ -223,9 +223,7 @@ static struct iSeries_Device_Node *build_device_node(HvBusNumber Bus,
 	node->DsaAddr.Dsa.busNumber = Bus;
 	node->DsaAddr.Dsa.subBusNumber = SubBus;
 	node->DsaAddr.Dsa.deviceId = 0x10;
-	node->AgentId = AgentId;
 	node->DevFn = PCI_DEVFN(ISERIES_ENCODE_DEVICE(AgentId), Function);
-	iSeries_Get_Location_Code(node);
 	return node;
 }
 
@@ -299,7 +297,6 @@ void __init iSeries_pci_final_fixup(void)
 {
 	struct pci_dev *pdev = NULL;
 	struct iSeries_Device_Node *node;
-	char Buffer[256];
     	int DeviceCount = 0;
 
 	PPCDBG(PPCDBG_BUSWALK, "iSeries_pcibios_fixup Entry.\n"); 
@@ -321,9 +318,7 @@ void __init iSeries_pci_final_fixup(void)
 					"pdev 0x%p <==> DevNode 0x%p\n",
 					pdev, node);
 			allocate_device_bars(pdev);
-			iSeries_Device_Information(pdev, Buffer,
-					sizeof(Buffer));
-			printk("%d. %s\n", DeviceCount, Buffer);
+			iSeries_Device_Information(pdev, DeviceCount);
 			iommu_devnode_init_iSeries(node);
 		} else
 			printk("PCI: Device Tree not found for 0x%016lX\n",

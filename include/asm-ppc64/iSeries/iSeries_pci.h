@@ -76,19 +76,13 @@ struct iSeries_Device_Node {
 	union HvDsaMap	DsaAddr;	/* Direct Select Address */
 					/* busNumber, subBusNumber, */
 					/* deviceId, barNumber */
-	HvAgentId	AgentId;	/* Hypervisor DevFn */
 	int		DevFn;		/* Linux devfn */
 	int		Irq;		/* Assigned IRQ */
 	int		Flags;		/* Possible flags(disable/bist)*/
 	u8		LogicalSlot;	/* Hv Slot Index for Tces */
 	struct iommu_table *iommu_table;/* Device TCE Table */
-	u8		PhbId;		/* Phb Card is on. */
-	u8		FrameId;	/* iSeries spcn Frame Id */
-	char		CardLocation[4];/* Char format of planar vpd */
-	char		Location[20];	/* Frame	1, Card C10 */
 };
 
-extern int	iSeries_Device_Information(struct pci_dev*, char*, int);
-extern void	iSeries_Get_Location_Code(struct iSeries_Device_Node*);
+extern void	iSeries_Device_Information(struct pci_dev*, int);
 
 #endif /* _ISERIES_64_PCI_H */
