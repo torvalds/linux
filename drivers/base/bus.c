@@ -177,6 +177,39 @@ int bus_for_each_dev(struct bus_type * bus, struct device * start,
 	return error;
 }
 
+/**
+ * bus_find_device - device iterator for locating a particular device.
+ * @bus: bus type
+ * @start: Device to begin with
+ * @data: Data to pass to match function
+ * @match: Callback function to check device
+ *
+ * This is similar to the bus_for_each_dev() function above, but it
+ * returns a reference to a device that is 'found' for later use, as
+ * determined by the @match callback.
+ *
+ * The callback should return 0 if the device doesn't match and non-zero
+ * if it does.  If the callback returns non-zero, this function will
+ * return to the caller and not iterate over any more devices.
+ */
+struct device * bus_find_device(struct bus_type *bus,
+				struct device *start, void *data,
+				int (*match)(struct device *, void *))
+{
+	struct klist_iter i;
+	struct device *dev;
+
+	if (!bus)
+		return NULL;
+
+	klist_iter_init_node(&bus->klist_devices, &i,
+			     (start ? &start->knode_bus : NULL));
+	while ((dev = next_device(&i)))
+		if (match(dev, data) && get_device(dev))
+			break;
+	klist_iter_exit(&i);
+	return dev;
+}
 
 
 static struct device_driver * next_driver(struct klist_iter * i)
@@ -557,6 +590,7 @@ int __init buses_init(void)
 
 
 EXPORT_SYMBOL_GPL(bus_for_each_dev);
+EXPORT_SYMBOL_GPL(bus_find_device);
 EXPORT_SYMBOL_GPL(bus_for_each_drv);
 
 EXPORT_SYMBOL_GPL(bus_add_device);
