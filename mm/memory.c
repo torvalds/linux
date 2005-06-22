@@ -840,22 +840,7 @@ check_user_page_readable(struct mm_struct *mm, unsigned long address)
 {
 	return __follow_page(mm, address, /*read*/1, /*write*/0) != NULL;
 }
-
 EXPORT_SYMBOL(check_user_page_readable);
-
-/* 
- * Given a physical address, is there a useful struct page pointing to
- * it?  This may become more complex in the future if we start dealing
- * with IO-aperture pages for direct-IO.
- */
-
-static inline struct page *get_page_map(struct page *page)
-{
-	if (!pfn_valid(page_to_pfn(page)))
-		return NULL;
-	return page;
-}
-
 
 static inline int
 untouched_anonymous_page(struct mm_struct* mm, struct vm_area_struct *vma,
@@ -886,7 +871,6 @@ untouched_anonymous_page(struct mm_struct* mm, struct vm_area_struct *vma,
 	/* There is a pte slot for 'address' in 'mm'. */
 	return 0;
 }
-
 
 int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 		unsigned long start, int len, int write, int force,
@@ -951,21 +935,21 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 		}
 		spin_lock(&mm->page_table_lock);
 		do {
-			struct page *map;
+			struct page *page;
 			int lookup_write = write;
 
 			cond_resched_lock(&mm->page_table_lock);
-			while (!(map = follow_page(mm, start, lookup_write))) {
+			while (!(page = follow_page(mm, start, lookup_write))) {
 				/*
 				 * Shortcut for anonymous pages. We don't want
 				 * to force the creation of pages tables for
-				 * insanly big anonymously mapped areas that
+				 * insanely big anonymously mapped areas that
 				 * nobody touched so far. This is important
 				 * for doing a core dump for these mappings.
 				 */
 				if (!lookup_write &&
 				    untouched_anonymous_page(mm,vma,start)) {
-					map = ZERO_PAGE(start);
+					page = ZERO_PAGE(start);
 					break;
 				}
 				spin_unlock(&mm->page_table_lock);
@@ -994,30 +978,21 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 				spin_lock(&mm->page_table_lock);
 			}
 			if (pages) {
-				pages[i] = get_page_map(map);
-				if (!pages[i]) {
-					spin_unlock(&mm->page_table_lock);
-					while (i--)
-						page_cache_release(pages[i]);
-					i = -EFAULT;
-					goto out;
-				}
-				flush_dcache_page(pages[i]);
-				if (!PageReserved(pages[i]))
-					page_cache_get(pages[i]);
+				pages[i] = page;
+				flush_dcache_page(page);
+				if (!PageReserved(page))
+					page_cache_get(page);
 			}
 			if (vmas)
 				vmas[i] = vma;
 			i++;
 			start += PAGE_SIZE;
 			len--;
-		} while(len && start < vma->vm_end);
+		} while (len && start < vma->vm_end);
 		spin_unlock(&mm->page_table_lock);
-	} while(len);
-out:
+	} while (len);
 	return i;
 }
-
 EXPORT_SYMBOL(get_user_pages);
 
 static int zeromap_pte_range(struct mm_struct *mm, pmd_t *pmd,
