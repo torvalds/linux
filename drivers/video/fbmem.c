@@ -76,65 +76,21 @@ int fb_get_color_depth(struct fb_var_screeninfo *var)
 EXPORT_SYMBOL(fb_get_color_depth);
 
 /*
- * Drawing helpers.
+ * Data padding functions.
  */
-void fb_iomove_buf_aligned(struct fb_info *info, struct fb_pixmap *buf,
-			   u8 *dst, u32 d_pitch, u8 *src, u32 s_pitch,
-			   u32 height)
-{
-	int i;
-
-	for (i = height; i--; ) {
-		buf->outbuf(info, dst, src, s_pitch);
-		src += s_pitch;
-		dst += d_pitch;
-	}
-}
-
 void fb_sysmove_buf_aligned(struct fb_info *info, struct fb_pixmap *buf,
 			    u8 *dst, u32 d_pitch, u8 *src, u32 s_pitch,
 			    u32 height)
 {
-	int i, j;
+	int i;
 
 	for (i = height; i--; ) {
-		for (j = 0; j < s_pitch; j++)
-			dst[j] = src[j];
+		memcpy(dst, src, s_pitch);
 		src += s_pitch;
 		dst += d_pitch;
 	}
 }
-
-void fb_iomove_buf_unaligned(struct fb_info *info, struct fb_pixmap *buf,
-			     u8 *dst, u32 d_pitch, u8 *src, u32 idx,
-			     u32 height, u32 shift_high, u32 shift_low,
-			     u32 mod)
-{
-	u8 mask = (u8) (0xfff << shift_high), tmp;
-	int i, j;
-
-	for (i = height; i--; ) {
-		for (j = 0; j < idx; j++) {
-			tmp = buf->inbuf(info, dst+j);
-			tmp &= mask;
-			tmp |= *src >> shift_low;
-			buf->outbuf(info, dst+j, &tmp, 1);
-			tmp = *src << shift_high;
-			buf->outbuf(info, dst+j+1, &tmp, 1);
-			src++;
-		}
-		tmp = buf->inbuf(info, dst+idx);
-		tmp &= mask;
-		tmp |= *src >> shift_low;
-		buf->outbuf(info, dst+idx, &tmp, 1);
-		if (shift_high < mod) {
-			tmp = *src << shift_high;
-			buf->outbuf(info, dst+idx+1, &tmp, 1);
-		}	
-		src++;
-		dst += d_pitch;
-	}
-}
+EXPORT_SYMBOL(fb_sysmove_buf_aligned);
 
 void fb_sysmove_buf_unaligned(struct fb_info *info, struct fb_pixmap *buf,
 			      u8 *dst, u32 d_pitch, u8 *src, u32 idx,
@@ -166,6 +122,7 @@ void fb_sysmove_buf_unaligned(struct fb_info *info, struct fb_pixmap *buf,
 		dst += d_pitch;
 	}
 }
+EXPORT_SYMBOL(fb_sysmove_buf_unaligned);
 
 /*
  * we need to lock this section since fb_cursor
@@ -1357,10 +1314,6 @@ EXPORT_SYMBOL(fb_set_var);
 EXPORT_SYMBOL(fb_blank);
 EXPORT_SYMBOL(fb_pan_display);
 EXPORT_SYMBOL(fb_get_buffer_offset);
-EXPORT_SYMBOL(fb_iomove_buf_unaligned);
-EXPORT_SYMBOL(fb_iomove_buf_aligned);
-EXPORT_SYMBOL(fb_sysmove_buf_unaligned);
-EXPORT_SYMBOL(fb_sysmove_buf_aligned);
 EXPORT_SYMBOL(fb_set_suspend);
 EXPORT_SYMBOL(fb_register_client);
 EXPORT_SYMBOL(fb_unregister_client);

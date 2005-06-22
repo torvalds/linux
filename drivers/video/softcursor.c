@@ -58,12 +58,8 @@ int soft_cursor(struct fb_info *info, struct fb_cursor *cursor)
 	} else 
 		memcpy(src, image->data, dsize);
 	
-	if (info->pixmap.outbuf)
-		fb_iomove_buf_aligned(info, &info->pixmap, dst, d_pitch, src,
-				  s_pitch, image->height);
-	else
-		fb_sysmove_buf_aligned(info, &info->pixmap, dst, d_pitch, src,
-				   s_pitch, image->height);
+	fb_sysmove_buf_aligned(info, &info->pixmap, dst, d_pitch, src,
+				s_pitch, image->height);
 
 	image->data = dst;
 	info->fbops->fb_imageblit(info, image);

@@ -524,11 +524,11 @@ struct fb_pixmap {
 	u32 offset;		/* current offset to buffer		*/
 	u32 buf_align;		/* byte alignment of each bitmap	*/
 	u32 scan_align;		/* alignment per scanline		*/
-	u32 access_align;	/* alignment per read/write		*/
+	u32 access_align;	/* alignment per read/write (bits)	*/
 	u32 flags;		/* see FB_PIXMAP_*			*/
 	/* access methods */
-	void (*outbuf)(struct fb_info *info, u8 *addr, u8 *src, unsigned int size);
-	u8   (*inbuf) (struct fb_info *info, u8 *addr);
+	void (*writeio)(struct fb_info *info, void __iomem *dst, void *src, unsigned int size);
+	void (*readio) (struct fb_info *info, void *dst, void __iomem *src, unsigned int size);
 };
 
 
@@ -816,12 +816,6 @@ extern int unregister_framebuffer(struct fb_info *fb_info);
 extern int fb_prepare_logo(struct fb_info *fb_info);
 extern int fb_show_logo(struct fb_info *fb_info);
 extern char* fb_get_buffer_offset(struct fb_info *info, struct fb_pixmap *buf, u32 size);
-extern void fb_iomove_buf_unaligned(struct fb_info *info, struct fb_pixmap *buf,
-				u8 *dst, u32 d_pitch, u8 *src, u32 idx,
-				u32 height, u32 shift_high, u32 shift_low, u32 mod);
-extern void fb_iomove_buf_aligned(struct fb_info *info, struct fb_pixmap *buf,
-				u8 *dst, u32 d_pitch, u8 *src, u32 s_pitch,
-				u32 height);
 extern void fb_sysmove_buf_unaligned(struct fb_info *info, struct fb_pixmap *buf,
 				u8 *dst, u32 d_pitch, u8 *src, u32 idx,
 				u32 height, u32 shift_high, u32 shift_low, u32 mod);

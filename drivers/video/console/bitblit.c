@@ -107,13 +107,6 @@ static void bit_putcs(struct vc_data *vc, struct fb_info *info,
 		      const unsigned short *s, int count, int yy, int xx,
 		      int fg, int bg)
 {
-	void (*move_unaligned)(struct fb_info *info, struct fb_pixmap *buf,
-			       u8 *dst, u32 d_pitch, u8 *src, u32 idx,
-			       u32 height, u32 shift_high, u32 shift_low,
-			       u32 mod);
-	void (*move_aligned)(struct fb_info *info, struct fb_pixmap *buf,
-			     u8 *dst, u32 d_pitch, u8 *src, u32 s_pitch,
-			     u32 height);
 	unsigned short charmask = vc->vc_hi_font_mask ? 0x1ff : 0xff;
 	unsigned int width = (vc->vc_font.width + 7) >> 3;
 	unsigned int cellsize = vc->vc_font.height * width;
@@ -141,13 +134,6 @@ static void bit_putcs(struct vc_data *vc, struct fb_info *info,
 	image.height = vc->vc_font.height;
 	image.depth = 1;
 
-	if (info->pixmap.outbuf && info->pixmap.inbuf) {
-		move_aligned = fb_iomove_buf_aligned;
-		move_unaligned = fb_iomove_buf_unaligned;
-	} else {
-		move_aligned = fb_sysmove_buf_aligned;
-		move_unaligned = fb_sysmove_buf_unaligned;
-	}
 	while (count) {
 		if (count > maxcnt)
 			cnt = k = maxcnt;
@@ -171,7 +157,7 @@ static void bit_putcs(struct vc_data *vc, struct fb_info *info,
 					src = buf;
 				}
 
-				move_unaligned(info, &info->pixmap, dst, pitch,
+				fb_sysmove_buf_unaligned(info, &info->pixmap, dst, pitch,
 					       src, idx, image.height,
 					       shift_high, shift_low, mod);
 				shift_low += mod;
@@ -189,7 +175,7 @@ static void bit_putcs(struct vc_data *vc, struct fb_info *info,
 					src = buf;
 				}
 
-				move_aligned(info, &info->pixmap, dst, pitch,
+				fb_sysmove_buf_aligned(info, &info->pixmap, dst, pitch,
 					     src, idx, image.height);
 				dst += width;
 			}
