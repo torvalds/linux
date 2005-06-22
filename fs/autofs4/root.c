@@ -306,7 +306,14 @@ static int try_to_fill_dentry(struct dentry *dentry,
 		
 		DPRINTK("expire done status=%d", status);
 		
-		return 0;
+		/*
+		 * If the directory still exists the mount request must
+		 * continue otherwise it can't be followed at the right
+		 * time during the walk.
+		 */
+		status = d_invalidate(dentry);
+		if (status != -EBUSY)
+			return 0;
 	}
 
 	DPRINTK("dentry=%p %.*s ino=%p",
