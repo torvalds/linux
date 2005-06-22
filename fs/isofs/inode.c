@@ -144,7 +144,8 @@ struct iso9660_options{
 	char rock;
 	char joliet;
 	char cruft;
-	char unhide;
+	char hide;
+	char showassoc;
 	char nocompress;
 	unsigned char check;
 	unsigned int blocksize;
@@ -309,13 +310,15 @@ enum {
 	Opt_block, Opt_check_r, Opt_check_s, Opt_cruft, Opt_gid, Opt_ignore,
 	Opt_iocharset, Opt_map_a, Opt_map_n, Opt_map_o, Opt_mode, Opt_nojoliet,
 	Opt_norock, Opt_sb, Opt_session, Opt_uid, Opt_unhide, Opt_utf8, Opt_err,
-	Opt_nocompress,
+	Opt_nocompress, Opt_hide, Opt_showassoc,
 };
 
 static match_table_t tokens = {
 	{Opt_norock, "norock"},
 	{Opt_nojoliet, "nojoliet"},
 	{Opt_unhide, "unhide"},
+	{Opt_hide, "hide"},
+	{Opt_showassoc, "showassoc"},
 	{Opt_cruft, "cruft"},
 	{Opt_utf8, "utf8"},
 	{Opt_iocharset, "iocharset=%s"},
@@ -356,7 +359,8 @@ static int parse_options(char *options, struct iso9660_options *popt)
 	popt->rock = 'y';
 	popt->joliet = 'y';
 	popt->cruft = 'n';
-	popt->unhide = 'n';
+	popt->hide = 'n';
+	popt->showassoc = 'n';
 	popt->check = 'u';		/* unset */
 	popt->nocompress = 0;
 	popt->blocksize = 1024;
@@ -389,8 +393,12 @@ static int parse_options(char *options, struct iso9660_options *popt)
 		case Opt_nojoliet:
 			popt->joliet = 'n';
 			break;
+		case Opt_hide:
+			popt->hide = 'y';
+			break;
 		case Opt_unhide:
-			popt->unhide = 'y';
+		case Opt_showassoc:
+			popt->showassoc = 'y';
 			break;
 		case Opt_cruft:
 			popt->cruft = 'y';
@@ -784,7 +792,8 @@ root_found:
 	sbi->s_rock = (opt.rock == 'y' ? 2 : 0);
 	sbi->s_rock_offset = -1; /* initial offset, will guess until SP is found*/
 	sbi->s_cruft = opt.cruft;
-	sbi->s_unhide = opt.unhide;
+	sbi->s_hide = opt.hide;
+	sbi->s_showassoc = opt.showassoc;
 	sbi->s_uid = opt.uid;
 	sbi->s_gid = opt.gid;
 	sbi->s_utf8 = opt.utf8;
