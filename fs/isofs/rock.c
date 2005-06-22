@@ -22,12 +22,21 @@
 
 #define SIG(A,B) ((A) | ((B) << 8))	/* isonum_721() */
 
-/* This is a way of ensuring that we have something in the system
-   use fields that is compatible with Rock Ridge */
-#define CHECK_SP(FAIL)	       			\
-      if(rr->u.SP.magic[0] != 0xbe) FAIL;	\
-      if(rr->u.SP.magic[1] != 0xef) FAIL;       \
-      ISOFS_SB(inode->i_sb)->s_rock_offset=rr->u.SP.skip;
+/*
+ * This is a way of ensuring that we have something in the system
+ *  use fields that is compatible with Rock Ridge.  Return zero on success.
+ */
+
+static int check_sp(struct rock_ridge *rr, struct inode *inode)
+{
+	if (rr->u.SP.magic[0] != 0xbe)
+		return -1;
+	if (rr->u.SP.magic[1] != 0xef)
+		return -1;
+	ISOFS_SB(inode->i_sb)->s_rock_offset = rr->u.SP.skip;
+	return 0;
+}
+
 /* We define a series of macros because each function must do exactly the
    same thing in certain places.  We use the macros to ensure that everything
    is done correctly */
@@ -118,7 +127,8 @@ repeat:
 				goto out;
 			break;
 		case SIG('S', 'P'):
-			CHECK_SP(goto out);
+			if (check_sp(rr, inode))
+				goto out;
 			break;
 		case SIG('C', 'E'):
 			CHECK_CE;
@@ -212,7 +222,8 @@ repeat:
 			break;
 #endif
 		case SIG('S', 'P'):
-			CHECK_SP(goto out);
+			if (check_sp(rr, inode))
+				goto out;
 			break;
 		case SIG('C', 'E'):
 			CHECK_CE;
@@ -570,7 +581,8 @@ repeat:
 				goto out;
 			break;
 		case SIG('S', 'P'):
-			CHECK_SP(goto out);
+			if (check_sp(rr, inode))
+				goto out;
 			break;
 		case SIG('S', 'L'):
 			rpnt = get_symlink_chunk(rpnt, rr,
