@@ -195,8 +195,7 @@ static mddev_t * mddev_find(dev_t unit)
 		if (mddev->unit == unit) {
 			mddev_get(mddev);
 			spin_unlock(&all_mddevs_lock);
-			if (new)
-				kfree(new);
+			kfree(new);
 			return mddev;
 		}
 
@@ -458,11 +457,8 @@ static int sb_equal(mdp_super_t *sb1, mdp_super_t *sb2)
 		ret = 1;
 
 abort:
-	if (tmp1)
-		kfree(tmp1);
-	if (tmp2)
-		kfree(tmp2);
-
+	kfree(tmp1);
+	kfree(tmp2);
 	return ret;
 }
 

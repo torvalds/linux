@@ -1427,10 +1427,8 @@ out_free_conf:
 	if (conf) {
 		if (conf->r1bio_pool)
 			mempool_destroy(conf->r1bio_pool);
-		if (conf->mirrors)
-			kfree(conf->mirrors);
-		if (conf->poolinfo)
-			kfree(conf->poolinfo);
+		kfree(conf->mirrors);
+		kfree(conf->poolinfo);
 		kfree(conf);
 		mddev->private = NULL;
 	}
@@ -1447,10 +1445,8 @@ static int stop(mddev_t *mddev)
 	blk_sync_queue(mddev->queue); /* the unplug fn references 'conf'*/
 	if (conf->r1bio_pool)
 		mempool_destroy(conf->r1bio_pool);
-	if (conf->mirrors)
-		kfree(conf->mirrors);
-	if (conf->poolinfo)
-		kfree(conf->poolinfo);
+	kfree(conf->mirrors);
+	kfree(conf->poolinfo);
 	kfree(conf);
 	mddev->private = NULL;
 	return 0;

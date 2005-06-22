@@ -1737,8 +1737,7 @@ static int run(mddev_t *mddev)
 out_free_conf:
 	if (conf->r10bio_pool)
 		mempool_destroy(conf->r10bio_pool);
-	if (conf->mirrors)
-		kfree(conf->mirrors);
+	kfree(conf->mirrors);
 	kfree(conf);
 	mddev->private = NULL;
 out:
@@ -1754,8 +1753,7 @@ static int stop(mddev_t *mddev)
 	blk_sync_queue(mddev->queue); /* the unplug fn references 'conf'*/
 	if (conf->r10bio_pool)
 		mempool_destroy(conf->r10bio_pool);
-	if (conf->mirrors)
-		kfree(conf->mirrors);
+	kfree(conf->mirrors);
 	kfree(conf);
 	mddev->private = NULL;
 	return 0;
