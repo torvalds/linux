@@ -5,18 +5,18 @@
  * all use SUSP
  */
 
-struct SU_SP {
+struct SU_SP_s {
 	unsigned char magic[2];
 	unsigned char skip;
 } __attribute__ ((packed));
 
-struct SU_CE {
+struct SU_CE_s {
 	char extent[8];
 	char offset[8];
 	char size[8];
 };
 
-struct SU_ER {
+struct SU_ER_s {
 	unsigned char len_id;
 	unsigned char len_des;
 	unsigned char len_src;
@@ -24,18 +24,18 @@ struct SU_ER {
 	char data[0];
 } __attribute__ ((packed));
 
-struct RR_RR {
+struct RR_RR_s {
 	char flags[1];
 } __attribute__ ((packed));
 
-struct RR_PX {
+struct RR_PX_s {
 	char mode[8];
 	char n_links[8];
 	char uid[8];
 	char gid[8];
 };
 
-struct RR_PN {
+struct RR_PN_s {
 	char dev_high[8];
 	char dev_low[8];
 };
@@ -46,21 +46,21 @@ struct SL_component {
 	char text[0];
 } __attribute__ ((packed));
 
-struct RR_SL {
+struct RR_SL_s {
 	unsigned char flags;
 	struct SL_component link;
 } __attribute__ ((packed));
 
-struct RR_NM {
+struct RR_NM_s {
 	unsigned char flags;
 	char name[0];
 } __attribute__ ((packed));
 
-struct RR_CL {
+struct RR_CL_s {
 	char location[8];
 };
 
-struct RR_PL {
+struct RR_PL_s {
 	char location[8];
 };
 
@@ -68,13 +68,13 @@ struct stamp {
 	char time[7];
 } __attribute__ ((packed));
 
-struct RR_TF {
+struct RR_TF_s {
 	char flags;
 	struct stamp times[0];	/* Variable number of these beasts */
 } __attribute__ ((packed));
 
 /* Linux-specific extension for transparent decompression */
-struct RR_ZF {
+struct RR_ZF_s {
 	char algorithm[2];
 	char parms[2];
 	char real_size[8];
@@ -97,18 +97,18 @@ struct rock_ridge {
 	unsigned char len;
 	unsigned char version;
 	union {
-		struct SU_SP SP;
-		struct SU_CE CE;
-		struct SU_ER ER;
-		struct RR_RR RR;
-		struct RR_PX PX;
-		struct RR_PN PN;
-		struct RR_SL SL;
-		struct RR_NM NM;
-		struct RR_CL CL;
-		struct RR_PL PL;
-		struct RR_TF TF;
-		struct RR_ZF ZF;
+		struct SU_SP_s SP;
+		struct SU_CE_s CE;
+		struct SU_ER_s ER;
+		struct RR_RR_s RR;
+		struct RR_PX_s PX;
+		struct RR_PN_s PN;
+		struct RR_SL_s SL;
+		struct RR_NM_s NM;
+		struct RR_CL_s CL;
+		struct RR_PL_s PL;
+		struct RR_TF_s TF;
+		struct RR_ZF_s ZF;
 	} u;
 };
 
