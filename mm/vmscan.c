@@ -180,17 +180,20 @@ EXPORT_SYMBOL(remove_shrinker);
  * `lru_pages' represents the number of on-LRU pages in all the zones which
  * are eligible for the caller's allocation attempt.  It is used for balancing
  * slab reclaim versus page reclaim.
+ *
+ * Returns the number of slab objects which we shrunk.
  */
 static int shrink_slab(unsigned long scanned, unsigned int gfp_mask,
 			unsigned long lru_pages)
 {
 	struct shrinker *shrinker;
+	int ret = 0;
 
 	if (scanned == 0)
 		scanned = SWAP_CLUSTER_MAX;
 
 	if (!down_read_trylock(&shrinker_rwsem))
-		return 0;
+		return 1;	/* Assume we'll be able to shrink next time */
 
 	list_for_each_entry(shrinker, &shrinker_list, list) {
 		unsigned long long delta;
@@ -209,10 +212,14 @@ static int shrink_slab(unsigned long scanned, unsigned int gfp_mask,
 		while (total_scan >= SHRINK_BATCH) {
 			long this_scan = SHRINK_BATCH;
 			int shrink_ret;
+			int nr_before;
 
+			nr_before = (*shrinker->shrinker)(0, gfp_mask);
 			shrink_ret = (*shrinker->shrinker)(this_scan, gfp_mask);
 			if (shrink_ret == -1)
 				break;
+			if (shrink_ret < nr_before)
+				ret += nr_before - shrink_ret;
 			mod_page_state(slabs_scanned, this_scan);
 			total_scan -= this_scan;
 
@@ -222,7 +229,7 @@ static int shrink_slab(unsigned long scanned, unsigned int gfp_mask,
 		shrinker->nr += total_scan;
 	}
 	up_read(&shrinker_rwsem);
-	return 0;
+	return ret;
 }
 
 /* Called without lock on whether page is mapped, so answer is unstable */
@@ -1079,6 +1086,7 @@ scan:
 		 */
 		for (i = 0; i <= end_zone; i++) {
 			struct zone *zone = pgdat->node_zones + i;
+			int nr_slab;
 
 			if (zone->present_pages == 0)
 				continue;
@@ -1100,14 +1108,15 @@ scan:
 			sc.swap_cluster_max = nr_pages? nr_pages : SWAP_CLUSTER_MAX;
 			shrink_zone(zone, &sc);
 			reclaim_state->reclaimed_slab = 0;
-			shrink_slab(sc.nr_scanned, GFP_KERNEL, lru_pages);
+			nr_slab = shrink_slab(sc.nr_scanned, GFP_KERNEL,
+						lru_pages);
 			sc.nr_reclaimed += reclaim_state->reclaimed_slab;
 			total_reclaimed += sc.nr_reclaimed;
 			total_scanned += sc.nr_scanned;
 			if (zone->all_unreclaimable)
 				continue;
-			if (zone->pages_scanned >= (zone->nr_active +
-							zone->nr_inactive) * 4)
+			if (nr_slab == 0 && zone->pages_scanned >=
+				    (zone->nr_active + zone->nr_inactive) * 4)
 				zone->all_unreclaimable = 1;
 			/*
 			 * If we've done a decent amount of scanning and
