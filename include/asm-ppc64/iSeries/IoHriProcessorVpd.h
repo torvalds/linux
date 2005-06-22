@@ -1,17 +1,17 @@
 /*
  * IoHriProcessorVpd.h
  * Copyright (C) 2001  Mike Corrigan IBM Corporation
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
@@ -19,16 +19,12 @@
 #ifndef _IOHRIPROCESSORVPD_H
 #define _IOHRIPROCESSORVPD_H
 
-//===================================================================
-//
-//	This struct maps Processor Vpd that is DMAd to SLIC by CSP 
-//
-
 #include <asm/types.h>
 
-struct IoHriProcessorVpd
-{
-
+/*
+ * This struct maps Processor Vpd that is DMAd to SLIC by CSP
+ */
+struct IoHriProcessorVpd {
 	u8	xFormat;		// VPD format indicator		x00-x00
 	u8	xProcStatus:8;		// Processor State		x01-x01
 	u8	xSecondaryThreadCount;	// Secondary thread cnt		x02-x02
@@ -40,12 +36,12 @@ struct IoHriProcessorVpd
 	u16	xRsvd2;			// Reserved			x06-x07
 	u32	xHwNodeId;		// Hardware node id		x08-x0B
 	u32	xHwProcId;		// Hardware processor id	x0C-x0F
-	
+
 	u32	xTypeNum;		// Card Type/CCIN number	x10-x13
 	u32	xModelNum;		// Model/Feature number		x14-x17
 	u64	xSerialNum;		// Serial number		x18-x1F
-	char xPartNum[12];		// Book Part or FPU number	x20-x2B
-	char xMfgID[4];			// Manufacturing ID		x2C-x2F
+	char	xPartNum[12];		// Book Part or FPU number	x20-x2B
+	char	xMfgID[4];		// Manufacturing ID		x2C-x2F
 
 	u32	xProcFreq;		// Processor Frequency		x30-x33
 	u32	xTimeBaseFreq;		// Time Base Frequency		x34-x37
@@ -71,7 +67,7 @@ struct IoHriProcessorVpd
 	u32	xDataL3CacheSizeKB;	// L3 data cache size in KB	x80-x83
 	u32	xDataL3CacheLineSize;	// L3 data cache block size	x84-x87
 	u64	xRsvd6;			// Reserved			x88-x8F
-   
+
 	u64	xFruLabel;		// Card Location Label		x90-x97
 	u8	xSlotsOnCard;		// Slots on card (0=no slots)	x98-x98
 	u8	xPartLocFlag;		// Location flag (0-pluggable 1-imbedded) x99-x99
@@ -79,10 +75,10 @@ struct IoHriProcessorVpd
 	u8	xSmartCardPortNo;	// Smart card port number	x9C-x9C
 	u8	xRsvd7;			// Reserved			x9D-x9D
 	u16	xFrameIdAndRackUnit;	// Frame ID and rack unit adr	x9E-x9F
-    
+
 	u8	xRsvd8[24];		// Reserved			xA0-xB7
 
-	char xProcSrc[72];		// CSP format SRC		xB8-xFF
+	char	xProcSrc[72];		// CSP format SRC		xB8-xFF
 };
 
 #endif /* _IOHRIPROCESSORVPD_H */
