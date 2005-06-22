@@ -95,12 +95,17 @@ struct command {
 	size_t			buffer_size;
 	int			status;
 	struct kobject		kobj;
+	spinlock_t		*lock;
 };
 #define to_command(c) container_of(c, struct command, kobj)
 
 static inline void command_put(struct command *cmd)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(cmd->lock, flags);
         kobject_put(&cmd->kobj);
+	spin_unlock_irqrestore(cmd->lock, flags);
 }
 
 static inline void command_get(struct command *cmd)
@@ -159,7 +164,7 @@ struct service_processor {
 };
 
 /* command processing */
-extern struct command *ibmasm_new_command(size_t buffer_size);
+extern struct command *ibmasm_new_command(struct service_processor *sp, size_t buffer_size);
 extern void ibmasm_exec_command(struct service_processor *sp, struct command *cmd);
 extern void ibmasm_wait_for_response(struct command *cmd, int timeout);
 extern void ibmasm_receive_command_response(struct service_processor *sp, void *response,  size_t size);

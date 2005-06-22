@@ -321,7 +321,7 @@ static ssize_t command_file_write(struct file *file, const char __user *ubuff, s
 	if (command_data->command)
 		return -EAGAIN;
 
-	cmd = ibmasm_new_command(count);
+	cmd = ibmasm_new_command(command_data->sp, count);
 	if (!cmd)
 		return -ENOMEM;
 
