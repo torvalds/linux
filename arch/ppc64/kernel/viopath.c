@@ -485,7 +485,7 @@ int viopath_open(HvLpIndex remoteLp, int subtype, int numReq)
 	unsigned long flags;
 	int tempNumAllocated;
 
-	if ((remoteLp >= HvMaxArchitectedLps) || (remoteLp == HvLpIndexInvalid))
+	if ((remoteLp >= HVMAXARCHITECTEDLPS) || (remoteLp == HvLpIndexInvalid))
 		return -EINVAL;
 
 	subtype = subtype >> VIOMAJOR_SUBTYPE_SHIFT;
@@ -556,7 +556,7 @@ int viopath_close(HvLpIndex remoteLp, int subtype, int numReq)
 	int numOpen;
 	struct alloc_parms parms;
 
-	if ((remoteLp >= HvMaxArchitectedLps) || (remoteLp == HvLpIndexInvalid))
+	if ((remoteLp >= HVMAXARCHITECTEDLPS) || (remoteLp == HvLpIndexInvalid))
 		return -EINVAL;
 
 	subtype = subtype >> VIOMAJOR_SUBTYPE_SHIFT;

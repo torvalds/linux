@@ -40,14 +40,14 @@ typedef u64	HvIoToken;
 typedef u8	HvLpName[8];
 typedef u32	HvIoId;
 typedef u64	HvRealMemoryIndex;
-typedef u32	HvLpIndexMap;	/* Must hold HvMaxArchitectedLps bits!!! */
+typedef u32	HvLpIndexMap;	/* Must hold HVMAXARCHITECTEDLPS bits!!! */
 typedef u16	HvLpVrmIndex;
 typedef u32	HvXmGenerationId;
 typedef u8	HvLpBusPool;
 typedef u8	HvLpSharedPoolIndex;
 typedef u16	HvLpSharedProcUnitsX100;
 typedef u8	HvLpVirtualLanIndex;
-typedef u16	HvLpVirtualLanIndexMap;	/* Must hold HvMaxArchitectedVirtualLans bits!!! */
+typedef u16	HvLpVirtualLanIndexMap;	/* Must hold HVMAXARCHITECTEDVIRTUALLANS bits!!! */
 typedef u16	HvBusNumber;	/* Hypervisor Bus Number */
 typedef u8	HvSubBusNumber;	/* Hypervisor SubBus Number */
 typedef u8	HvAgentId;	/* Hypervisor DevFn */
@@ -66,15 +66,13 @@ typedef u8	HvAgentId;	/* Hypervisor DevFn */
 #define HVPAGESPERMEG			256
 #define HVPAGESPERCHUNK			64
 
-#define HvMaxArchitectedLps		((HvLpIndex)HVMAXARCHITECTEDLPS)
-#define HvMaxArchitectedVirtualLans	((HvLpVirtualLanIndex)16)
 #define HvLpIndexInvalid		((HvLpIndex)0xff)
 
 /*
  * Enums for the sub-components under PLIC
  * Used in HvCall  and HvPrimaryCall
  */
-enum   HvCallCompIds {
+enum {
 	HvCallCompId = 0,
 	HvCallCpuCtlsCompId = 1,
 	HvCallCfgCompId = 2,

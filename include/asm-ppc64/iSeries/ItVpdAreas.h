@@ -61,12 +61,6 @@
 #define ItVpdAreasMaxSlotLabels			192
 
 
-struct SlicVpdAdrs {
-	u32	pad1;
-	void	*vpdAddr;
-};
-
-
 struct ItVpdAreas {
 	u32	xSlicDesc;		// Descriptor			000-003
 	u16	xSlicSize;		// Size of this control block	004-005
