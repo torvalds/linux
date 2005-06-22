@@ -3203,37 +3203,6 @@ void md_write_end(mddev_t *mddev)
 	}
 }
 
-static inline void md_enter_safemode(mddev_t *mddev)
-{
-	if (!mddev->safemode) return;
-	if (mddev->safemode == 2 &&
-	    (atomic_read(&mddev->writes_pending) || mddev->in_sync ||
-		    mddev->recovery_cp != MaxSector))
-		return; /* avoid the lock */
-	mddev_lock_uninterruptible(mddev);
-	if (mddev->safemode && !atomic_read(&mddev->writes_pending) &&
-	    !mddev->in_sync && mddev->recovery_cp == MaxSector) {
-		mddev->in_sync = 1;
-		md_update_sb(mddev);
-	}
-	mddev_unlock(mddev);
-
-	if (mddev->safemode == 1)
-		mddev->safemode = 0;
-}
-
-void md_handle_safemode(mddev_t *mddev)
-{
-	if (signal_pending(current)) {
-		printk(KERN_INFO "md: %s in immediate safe mode\n",
-			mdname(mddev));
-		mddev->safemode = 2;
-		flush_signals(current);
-	}
-	md_enter_safemode(mddev);
-}
-
-
 static DECLARE_WAIT_QUEUE_HEAD(resync_wait);
 
 #define SYNC_MARKS	10
@@ -3449,7 +3418,6 @@ static void md_do_sync(mddev_t *mddev)
 			mddev->recovery_cp = MaxSector;
 	}
 
-	md_enter_safemode(mddev);
  skip:
 	mddev->curr_resync = 0;
 	wake_up(&resync_wait);
@@ -3490,14 +3458,37 @@ void md_check_recovery(mddev_t *mddev)
 
 	if (mddev->ro)
 		return;
+
+	if (signal_pending(current)) {
+		if (mddev->pers->sync_request) {
+			printk(KERN_INFO "md: %s in immediate safe mode\n",
+			       mdname(mddev));
+			mddev->safemode = 2;
+		}
+		flush_signals(current);
+	}
+
 	if ( ! (
 		mddev->sb_dirty ||
 		test_bit(MD_RECOVERY_NEEDED, &mddev->recovery) ||
-		test_bit(MD_RECOVERY_DONE, &mddev->recovery)
+		test_bit(MD_RECOVERY_DONE, &mddev->recovery) ||
+		(mddev->safemode == 1) ||
+		(mddev->safemode == 2 && ! atomic_read(&mddev->writes_pending)
+		 && !mddev->in_sync && mddev->recovery_cp == MaxSector)
 		))
 		return;
+
 	if (mddev_trylock(mddev)==0) {
 		int spares =0;
+
+		if (mddev->safemode && !atomic_read(&mddev->writes_pending) &&
+		    !mddev->in_sync && mddev->recovery_cp == MaxSector) {
+			mddev->in_sync = 1;
+			mddev->sb_dirty = 1;
+		}
+		if (mddev->safemode == 1)
+			mddev->safemode = 0;
+
 		if (mddev->sb_dirty)
 			md_update_sb(mddev);
 		if (test_bit(MD_RECOVERY_RUNNING, &mddev->recovery) &&
@@ -3741,7 +3732,6 @@ EXPORT_SYMBOL(md_error);
 EXPORT_SYMBOL(md_done_sync);
 EXPORT_SYMBOL(md_write_start);
 EXPORT_SYMBOL(md_write_end);
-EXPORT_SYMBOL(md_handle_safemode);
 EXPORT_SYMBOL(md_register_thread);
 EXPORT_SYMBOL(md_unregister_thread);
 EXPORT_SYMBOL(md_wakeup_thread);

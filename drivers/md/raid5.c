@@ -1546,7 +1546,6 @@ static void raid5d (mddev_t *mddev)
 	PRINTK("+++ raid5d active\n");
 
 	md_check_recovery(mddev);
-	md_handle_safemode(mddev);
 
 	handled = 0;
 	spin_lock_irq(&conf->device_lock);

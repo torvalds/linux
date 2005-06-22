@@ -931,7 +931,6 @@ static void raid1d(mddev_t *mddev)
 	mdk_rdev_t *rdev;
 
 	md_check_recovery(mddev);
-	md_handle_safemode(mddev);
 	
 	for (;;) {
 		char b[BDEVNAME_SIZE];
