@@ -1722,6 +1722,10 @@ static int _nfs4_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
 	};
 	int			status;
 
+	dprintk("%s: dentry = %s/%s, cookie = %Lu\n", __FUNCTION__,
+			dentry->d_parent->d_name.name,
+			dentry->d_name.name,
+			(unsigned long long)cookie);
 	lock_kernel();
 	nfs4_setup_readdir(cookie, NFS_COOKIEVERF(dir), dentry, &args);
 	res.pgbase = args.pgbase;
@@ -1729,6 +1733,7 @@ static int _nfs4_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
 	if (status == 0)
 		memcpy(NFS_COOKIEVERF(dir), res.verifier.data, NFS4_VERIFIER_SIZE);
 	unlock_kernel();
+	dprintk("%s: returns %d\n", __FUNCTION__, status);
 	return status;
 }
 

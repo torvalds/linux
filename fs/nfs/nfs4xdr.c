@@ -1035,6 +1035,13 @@ static int encode_readdir(struct xdr_stream *xdr, const struct nfs4_readdir_arg 
 		attrs[1] &= ~FATTR4_WORD1_MOUNTED_ON_FILEID;
 	WRITE32(attrs[0] & readdir->bitmask[0]);
 	WRITE32(attrs[1] & readdir->bitmask[1]);
+	dprintk("%s: cookie = %Lu, verifier = 0x%x%x, bitmap = 0x%x%x\n",
+			__FUNCTION__,
+			(unsigned long long)readdir->cookie,
+			((u32 *)readdir->verifier.data)[0],
+			((u32 *)readdir->verifier.data)[1],
+			attrs[0] & readdir->bitmask[0],
+			attrs[1] & readdir->bitmask[1]);
 
 	/* set up reply kvec
 	 *    toplevel_status + taglen + rescount + OP_PUTFH + status
@@ -1043,6 +1050,9 @@ static int encode_readdir(struct xdr_stream *xdr, const struct nfs4_readdir_arg 
 	replen = (RPC_REPHDRSIZE + auth->au_rslack + 9) << 2;
 	xdr_inline_pages(&req->rq_rcv_buf, replen, readdir->pages,
 			 readdir->pgbase, readdir->count);
+	dprintk("%s: inlined page args = (%u, %p, %u, %u)\n",
+			__FUNCTION__, replen, readdir->pages,
+			readdir->pgbase, readdir->count);
 
 	return 0;
 }
@@ -3066,6 +3076,11 @@ static int decode_readdir(struct xdr_stream *xdr, struct rpc_rqst *req, struct n
 		return status;
 	READ_BUF(8);
 	COPYMEM(readdir->verifier.data, 8);
+	dprintk("%s: verifier = 0x%x%x\n",
+			__FUNCTION__,
+			((u32 *)readdir->verifier.data)[0],
+			((u32 *)readdir->verifier.data)[1]);
+
 
 	hdrlen = (char *) p - (char *) iov->iov_base;
 	recvd = rcvbuf->len - hdrlen;
@@ -3080,12 +3095,14 @@ static int decode_readdir(struct xdr_stream *xdr, struct rpc_rqst *req, struct n
 	for (nr = 0; *p++; nr++) {
 		if (p + 3 > end)
 			goto short_pkt;
+		dprintk("cookie = %Lu, ", *((unsigned long long *)p));
 		p += 2;			/* cookie */
 		len = ntohl(*p++);	/* filename length */
 		if (len > NFS4_MAXNAMLEN) {
 			printk(KERN_WARNING "NFS: giant filename in readdir (len 0x%x)\n", len);
 			goto err_unmap;
 		}
+		dprintk("filename = %*s\n", len, (char *)p);
 		p += XDR_QUADLEN(len);
 		if (p + 1 > end)
 			goto short_pkt;
@@ -3105,6 +3122,7 @@ out:
 	kunmap_atomic(kaddr, KM_USER0);
 	return 0;
 short_pkt:
+	dprintk("%s: short packet at entry %d\n", __FUNCTION__, nr);
 	entry[0] = entry[1] = 0;
 	/* truncate listing ? */
 	if (!nr) {
