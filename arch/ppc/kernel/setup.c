@@ -61,8 +61,6 @@ extern void power4_idle(void);
 
 extern boot_infos_t *boot_infos;
 struct ide_machdep_calls ppc_ide_md;
-char *sysmap;
-unsigned long sysmap_size;
 
 /* Used with the BI_MEMSIZE bootinfo parameter to store the memory
    size value reported by the boot loader. */
@@ -577,11 +575,6 @@ void parse_bootinfo(struct bi_record *rec)
 		switch (rec->tag) {
 		case BI_CMD_LINE:
 			strlcpy(cmd_line, (void *)data, sizeof(cmd_line));
-			break;
-		case BI_SYSMAP:
-			sysmap = (char *)((data[0] >= (KERNELBASE)) ? data[0] :
-					  (data[0]+KERNELBASE));
-			sysmap_size = data[1];
 			break;
 #ifdef CONFIG_BLK_DEV_INITRD
 		case BI_INITRD:
