@@ -756,11 +756,10 @@ static int _nfs4_do_setattr(struct nfs_server *server, struct nfs_fattr *fattr,
 
         fattr->valid = 0;
 
-	if (state != NULL)
+	if (state != NULL) {
 		msg.rpc_cred = state->owner->so_cred;
-	if (sattr->ia_valid & ATTR_SIZE)
-		nfs4_copy_stateid(&arg.stateid, state, NULL);
-	else
+		nfs4_copy_stateid(&arg.stateid, state, current->files);
+	} else
 		memcpy(&arg.stateid, &zero_stateid, sizeof(arg.stateid));
 
 	return rpc_call_sync(server->client, &msg, 0);
@@ -1124,47 +1123,31 @@ static int
 nfs4_proc_setattr(struct dentry *dentry, struct nfs_fattr *fattr,
 		  struct iattr *sattr)
 {
-	struct inode *		inode = dentry->d_inode;
-	int			size_change = sattr->ia_valid & ATTR_SIZE;
-	struct nfs4_state	*state = NULL;
-	int need_iput = 0;
+	struct rpc_cred *cred;
+	struct inode *inode = dentry->d_inode;
+	struct nfs4_state *state;
 	int status;
 
 	fattr->valid = 0;
 	
-	if (size_change) {
-		struct rpc_cred *cred = rpcauth_lookupcred(NFS_SERVER(inode)->client->cl_auth, 0);
-		if (IS_ERR(cred))
-			return PTR_ERR(cred);
+	cred = rpcauth_lookupcred(NFS_SERVER(inode)->client->cl_auth, 0);
+	if (IS_ERR(cred))
+		return PTR_ERR(cred);
+	/* Search for an existing WRITE delegation first */
+	state = nfs4_open_delegated(inode, FMODE_WRITE, cred);
+	if (!IS_ERR(state)) {
+		/* NB: nfs4_open_delegated() bumps the inode->i_count */
+		iput(inode);
+	} else {
+		/* Search for an existing open(O_WRITE) stateid */
 		state = nfs4_find_state(inode, cred, FMODE_WRITE);
-		if (state == NULL) {
-			state = nfs4_open_delegated(dentry->d_inode,
-					FMODE_WRITE, cred);
-			if (IS_ERR(state))
-				state = nfs4_do_open(dentry->d_parent->d_inode,
-						dentry, FMODE_WRITE,
-						NULL, cred);
-			need_iput = 1;
-		}
-		put_rpccred(cred);
-		if (IS_ERR(state))
-			return PTR_ERR(state);
-
-		if (state->inode != inode) {
-			printk(KERN_WARNING "nfs: raced in setattr (%p != %p), returning -EIO\n", inode, state->inode);
-			status = -EIO;
-			goto out;
-		}
 	}
+
 	status = nfs4_do_setattr(NFS_SERVER(inode), fattr,
 			NFS_FH(inode), sattr, state);
-out:
-	if (state) {
-		inode = state->inode;
+	if (state != NULL)
 		nfs4_close_state(state, FMODE_WRITE);
-		if (need_iput)
-			iput(inode);
-	}
+	put_rpccred(cred);
 	return status;
 }
 
