@@ -423,9 +423,6 @@ chipsfb_pci_init(struct pci_dev *dp, const struct pci_device_id *ent)
 	pmu_register_sleep_notifier(&chips_sleep_notifier);
 #endif /* CONFIG_PMAC_PBOOK */
 
-	/* Clear the entire framebuffer */
-	memset(p->screen_base, 0, 0x100000);
-
 	pci_set_drvdata(dp, p);
 	return 0;
 }
