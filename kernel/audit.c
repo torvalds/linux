@@ -429,25 +429,21 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		break;
 	case AUDIT_USER:
 	case AUDIT_FIRST_USER_MSG...AUDIT_LAST_USER_MSG:
-		read_lock(&tasklist_lock);
-		tsk = find_task_by_pid(pid);
-		if (tsk)
-			get_task_struct(tsk);
-		read_unlock(&tasklist_lock);
-		if (!tsk)
-			return -ESRCH;
+		if (!audit_enabled && msg_type != AUDIT_USER_AVC)
+			return 0;
 
-		if (audit_enabled && audit_filter_user(tsk, msg_type)) {
-			    ab = audit_log_start(NULL, msg_type);
-			    if (ab) {
-				    audit_log_format(ab,
-						     "user pid=%d uid=%u auid=%u msg='%.1024s'",
-						     pid, uid, loginuid, (char *)data);
-				    audit_set_pid(ab, pid);
-				    audit_log_end(ab);
-			    }
+		err = audit_filter_user(pid, msg_type);
+		if (err == 1) {
+			err = 0;
+			ab = audit_log_start(NULL, msg_type);
+			if (ab) {
+				audit_log_format(ab,
+						 "user pid=%d uid=%u auid=%u msg='%.1024s'",
+						 pid, uid, loginuid, (char *)data);
+				audit_set_pid(ab, pid);
+				audit_log_end(ab);
+			}
 		}
-		put_task_struct(tsk);
 		break;
 	case AUDIT_ADD:
 	case AUDIT_DEL:

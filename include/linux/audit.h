@@ -51,7 +51,8 @@
 #define AUDIT_WATCH_LIST	1009	/* List all file/dir watches */
 #define AUDIT_SIGNAL_INFO	1010	/* Get info about sender of signal to auditd */
 
-#define AUDIT_FIRST_USER_MSG	1100	/* Userspace messages uninteresting to kernel */
+#define AUDIT_FIRST_USER_MSG	1100	/* Userspace messages mostly uninteresting to kernel */
+#define AUDIT_USER_AVC		1107	/* We filter this differently */
 #define AUDIT_LAST_USER_MSG	1199
  
 #define AUDIT_DAEMON_START      1200    /* Daemon startup record */
@@ -235,7 +236,7 @@ extern int audit_socketcall(int nargs, unsigned long *args);
 extern int audit_sockaddr(int len, void *addr);
 extern int audit_avc_path(struct dentry *dentry, struct vfsmount *mnt);
 extern void audit_signal_info(int sig, struct task_struct *t);
-extern int audit_filter_user(struct task_struct *tsk, int type);
+extern int audit_filter_user(int pid, int type);
 #else
 #define audit_alloc(t) ({ 0; })
 #define audit_free(t) do { ; } while (0)
@@ -252,7 +253,7 @@ extern int audit_filter_user(struct task_struct *tsk, int type);
 #define audit_sockaddr(len, addr) ({ 0; })
 #define audit_avc_path(dentry, mnt) ({ 0; })
 #define audit_signal_info(s,t) do { ; } while (0)
-#define audit_filter_user(struct ({ 1; })
+#define audit_filter_user(p,t) ({ 1; })
 #endif
 
 #ifdef CONFIG_AUDIT

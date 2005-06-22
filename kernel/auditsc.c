@@ -530,22 +530,33 @@ static enum audit_state audit_filter_syscall(struct task_struct *tsk,
 	return AUDIT_BUILD_CONTEXT;
 }
 
-int audit_filter_user(struct task_struct *tsk, int type)
+int audit_filter_user(int pid, int type)
 {
+	struct task_struct *tsk;
 	struct audit_entry *e;
 	enum audit_state   state;
+	int ret = 1;
 
-	if (audit_pid && tsk->pid == audit_pid)
-		return AUDIT_DISABLED;
+	read_lock(&tasklist_lock);
+	tsk = find_task_by_pid(pid);
+	if (tsk)
+		get_task_struct(tsk);
+	read_unlock(&tasklist_lock);
+
+	if (!tsk)
+		return -ESRCH;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(e, &audit_filter_list[AUDIT_FILTER_USER], list) {
 		if (audit_filter_rules(tsk, &e->rule, NULL, &state)) {
-			rcu_read_unlock();
-			return state != AUDIT_DISABLED;
+			if (state == AUDIT_DISABLED)
+				ret = 0;
+			break;
 		}
 	}
 	rcu_read_unlock();
+	put_task_struct(tsk);
+
 	return 1; /* Audit by default */
 
 }
