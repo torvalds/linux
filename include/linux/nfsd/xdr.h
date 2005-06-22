@@ -169,4 +169,8 @@ int nfssvc_encode_entry(struct readdir_cd *, const char *name,
 
 int nfssvc_release_fhandle(struct svc_rqst *, u32 *, struct nfsd_fhandle *);
 
+/* Helper functions for NFSv2 ACL code */
+u32 *nfs2svc_encode_fattr(struct svc_rqst *rqstp, u32 *p, struct svc_fh *fhp);
+u32 *nfs2svc_decode_fh(u32 *p, struct svc_fh *fhp);
+
 #endif /* LINUX_NFSD_H */
