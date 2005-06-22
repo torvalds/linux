@@ -84,6 +84,9 @@ struct nfs_open_context {
 	int error;
 
 	struct list_head list;
+
+	int dir_pos;		/* Directory cookie cache */
+	__u64 dir_cookie;
 };
 
 /*

@@ -141,7 +141,9 @@ typedef struct {
 	struct page	*page;
 	unsigned long	page_index;
 	u32		*ptr;
-	u64		target;
+	u64		target_cookie;
+	int		target_index;
+	int		current_index;
 	struct nfs_entry *entry;
 	decode_dirent_t	decode;
 	int		plus;
@@ -225,14 +227,14 @@ void dir_page_release(nfs_readdir_descriptor_t *desc)
 
 /*
  * Given a pointer to a buffer that has already been filled by a call
- * to readdir, find the next entry.
+ * to readdir, find the next entry with cookie 'desc->target_cookie'.
  *
  * If the end of the buffer has been reached, return -EAGAIN, if not,
  * return the offset within the buffer of the next entry to be
  * read.
  */
 static inline
-int find_dirent(nfs_readdir_descriptor_t *desc, struct page *page)
+int find_dirent(nfs_readdir_descriptor_t *desc)
 {
 	struct nfs_entry *entry = desc->entry;
 	int		loop_count = 0,
@@ -240,7 +242,7 @@ int find_dirent(nfs_readdir_descriptor_t *desc, struct page *page)
 
 	while((status = dir_decode(desc)) == 0) {
 		dfprintk(VFS, "NFS: found cookie %Lu\n", (long long)entry->cookie);
-		if (entry->prev_cookie == desc->target)
+		if (entry->prev_cookie == desc->target_cookie)
 			break;
 		if (loop_count++ > 200) {
 			loop_count = 0;
@@ -252,8 +254,44 @@ int find_dirent(nfs_readdir_descriptor_t *desc, struct page *page)
 }
 
 /*
- * Find the given page, and call find_dirent() in order to try to
- * return the next entry.
+ * Given a pointer to a buffer that has already been filled by a call
+ * to readdir, find the entry at offset 'desc->target_index'.
+ *
+ * If the end of the buffer has been reached, return -EAGAIN, if not,
+ * return the offset within the buffer of the next entry to be
+ * read.
+ */
+static inline
+int find_dirent_index(nfs_readdir_descriptor_t *desc)
+{
+	struct nfs_entry *entry = desc->entry;
+	int		loop_count = 0,
+			status;
+
+	for(;;) {
+		status = dir_decode(desc);
+		if (status)
+			break;
+
+		dfprintk(VFS, "NFS: found cookie %Lu at index %d\n", (long long)entry->cookie, desc->current_index);
+
+		if (desc->target_index == desc->current_index) {
+			desc->target_cookie = entry->cookie;
+			break;
+		}
+		desc->current_index++;
+		if (loop_count++ > 200) {
+			loop_count = 0;
+			schedule();
+		}
+	}
+	dfprintk(VFS, "NFS: find_dirent_index() returns %d\n", status);
+	return status;
+}
+
+/*
+ * Find the given page, and call find_dirent() or find_dirent_index in
+ * order to try to return the next entry.
  */
 static inline
 int find_dirent_page(nfs_readdir_descriptor_t *desc)
@@ -276,7 +314,10 @@ int find_dirent_page(nfs_readdir_descriptor_t *desc)
 	/* NOTE: Someone else may have changed the READDIRPLUS flag */
 	desc->page = page;
 	desc->ptr = kmap(page);		/* matching kunmap in nfs_do_filldir */
-	status = find_dirent(desc, page);
+	if (desc->target_cookie)
+		status = find_dirent(desc);
+	else
+		status = find_dirent_index(desc);
 	if (status < 0)
 		dir_page_release(desc);
  out:
@@ -291,7 +332,8 @@ int find_dirent_page(nfs_readdir_descriptor_t *desc)
  * Recurse through the page cache pages, and return a
  * filled nfs_entry structure of the next directory entry if possible.
  *
- * The target for the search is 'desc->target'.
+ * The target for the search is 'desc->target_cookie' if non-0,
+ * 'desc->target_index' otherwise
  */
 static inline
 int readdir_search_pagecache(nfs_readdir_descriptor_t *desc)
@@ -299,7 +341,19 @@ int readdir_search_pagecache(nfs_readdir_descriptor_t *desc)
 	int		loop_count = 0;
 	int		res;
 
-	dfprintk(VFS, "NFS: readdir_search_pagecache() searching for cookie %Lu\n", (long long)desc->target);
+	if (desc->target_cookie)
+		dfprintk(VFS, "NFS: readdir_search_pagecache() searching for cookie %Lu\n", (long long)desc->target_cookie);
+	else
+		dfprintk(VFS, "NFS: readdir_search_pagecache() searching for cookie number %d\n", desc->target_index);
+
+	/* Always search-by-index from the beginning of the cache */
+	if (!(desc->target_cookie)) {
+		desc->page_index = 0;
+		desc->entry->cookie = desc->entry->prev_cookie = 0;
+		desc->entry->eof = 0;
+		desc->current_index = 0;
+	}
+
 	for (;;) {
 		res = find_dirent_page(desc);
 		if (res != -EAGAIN)
@@ -332,11 +386,12 @@ int nfs_do_filldir(nfs_readdir_descriptor_t *desc, void *dirent,
 	struct file	*file = desc->file;
 	struct nfs_entry *entry = desc->entry;
 	struct dentry	*dentry = NULL;
+	struct nfs_open_context *ctx = file->private_data;
 	unsigned long	fileid;
 	int		loop_count = 0,
 			res;
 
-	dfprintk(VFS, "NFS: nfs_do_filldir() filling starting @ cookie %Lu\n", (long long)desc->target);
+	dfprintk(VFS, "NFS: nfs_do_filldir() filling starting @ cookie %Lu\n", (long long)entry->cookie);
 
 	for(;;) {
 		unsigned d_type = DT_UNKNOWN;
@@ -356,10 +411,11 @@ int nfs_do_filldir(nfs_readdir_descriptor_t *desc, void *dirent,
 		}
 
 		res = filldir(dirent, entry->name, entry->len, 
-			      entry->prev_cookie, fileid, d_type);
+			      file->f_pos, fileid, d_type);
 		if (res < 0)
 			break;
-		file->f_pos = desc->target = entry->cookie;
+		file->f_pos++;
+		desc->target_cookie = entry->cookie;
 		if (dir_decode(desc) != 0) {
 			desc->page_index ++;
 			break;
@@ -369,10 +425,12 @@ int nfs_do_filldir(nfs_readdir_descriptor_t *desc, void *dirent,
 			schedule();
 		}
 	}
+	ctx->dir_pos        = file->f_pos;
+	ctx->dir_cookie     = desc->target_cookie;
 	dir_page_release(desc);
 	if (dentry != NULL)
 		dput(dentry);
-	dfprintk(VFS, "NFS: nfs_do_filldir() filling ended @ cookie %Lu; returning = %d\n", (long long)desc->target, res);
+	dfprintk(VFS, "NFS: nfs_do_filldir() filling ended @ cookie %Lu; returning = %d\n", (long long)desc->target_cookie, res);
 	return res;
 }
 
@@ -398,14 +456,14 @@ int uncached_readdir(nfs_readdir_descriptor_t *desc, void *dirent,
 	struct page	*page = NULL;
 	int		status;
 
-	dfprintk(VFS, "NFS: uncached_readdir() searching for cookie %Lu\n", (long long)desc->target);
+	dfprintk(VFS, "NFS: uncached_readdir() searching for cookie %Lu\n", (long long)desc->target_cookie);
 
 	page = alloc_page(GFP_HIGHUSER);
 	if (!page) {
 		status = -ENOMEM;
 		goto out;
 	}
-	desc->error = NFS_PROTO(inode)->readdir(file->f_dentry, cred, desc->target,
+	desc->error = NFS_PROTO(inode)->readdir(file->f_dentry, cred, desc->target_cookie,
 						page,
 						NFS_SERVER(inode)->dtsize,
 						desc->plus);
@@ -414,7 +472,7 @@ int uncached_readdir(nfs_readdir_descriptor_t *desc, void *dirent,
 	desc->ptr = kmap(page);		/* matching kunmap in nfs_do_filldir */
 	if (desc->error >= 0) {
 		if ((status = dir_decode(desc)) == 0)
-			desc->entry->prev_cookie = desc->target;
+			desc->entry->prev_cookie = desc->target_cookie;
 	} else
 		status = -EIO;
 	if (status < 0)
@@ -435,13 +493,15 @@ int uncached_readdir(nfs_readdir_descriptor_t *desc, void *dirent,
 	goto out;
 }
 
-/* The file offset position is now represented as a true offset into the
- * page cache as is the case in most of the other filesystems.
+/* The file offset position represents the dirent entry number.  A
+   last cookie cache takes care of the common case of reading the
+   whole directory.
  */
 static int nfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
 	struct dentry	*dentry = filp->f_dentry;
 	struct inode	*inode = dentry->d_inode;
+	struct nfs_open_context *ctx = filp->private_data;
 	nfs_readdir_descriptor_t my_desc,
 			*desc = &my_desc;
 	struct nfs_entry my_entry;
@@ -458,17 +518,22 @@ static int nfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	}
 
 	/*
-	 * filp->f_pos points to the file offset in the page cache.
-	 * but if the cache has meanwhile been zapped, we need to
-	 * read from the last dirent to revalidate f_pos
-	 * itself.
+	 * filp->f_pos points to the dirent entry number.
+	 * ctx->dir_pos has the number of the cached cookie.  We have
+	 * to either find the entry with the appropriate number or
+	 * revalidate the cookie.
 	 */
 	memset(desc, 0, sizeof(*desc));
 
 	desc->file = filp;
-	desc->target = filp->f_pos;
 	desc->decode = NFS_PROTO(inode)->decode_dirent;
 	desc->plus = NFS_USE_READDIRPLUS(inode);
+	desc->target_index = filp->f_pos;
+
+	if (filp->f_pos == ctx->dir_pos)
+		desc->target_cookie = ctx->dir_cookie;
+	else
+		desc->target_cookie = 0;
 
 	my_entry.cookie = my_entry.prev_cookie = 0;
 	my_entry.eof = 0;
@@ -478,9 +543,10 @@ static int nfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 
 	while(!desc->entry->eof) {
 		res = readdir_search_pagecache(desc);
+
 		if (res == -EBADCOOKIE) {
 			/* This means either end of directory */
-			if (desc->entry->cookie != desc->target) {
+			if (desc->target_cookie && desc->entry->cookie != desc->target_cookie) {
 				/* Or that the server has 'lost' a cookie */
 				res = uncached_readdir(desc, dirent, filldir);
 				if (res >= 0)
