@@ -41,7 +41,6 @@
 #include <asm/smp.h>
 #include <asm/elf.h>
 #include <asm/machdep.h>
-#include <asm/iSeries/LparData.h>
 #include <asm/paca.h>
 #include <asm/ppcdebug.h>
 #include <asm/time.h>
@@ -57,6 +56,8 @@
 #include <asm/cache.h>
 #include <asm/page.h>
 #include <asm/mmu.h>
+#include <asm/lmb.h>
+#include <asm/iSeries/ItLpNaca.h>
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)

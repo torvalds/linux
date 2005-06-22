@@ -58,4 +58,6 @@ struct HvReleaseData {
 	char	xRsvd3[20];	/* Reserved			x2C-x3F */
 };
 
+extern struct HvReleaseData	hvReleaseData;
+
 #endif /* _HVRELEASEDATA_H */

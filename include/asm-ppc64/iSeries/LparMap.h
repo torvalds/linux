@@ -64,4 +64,6 @@ struct LparMap {
 	u64	xVPN;		// Virtual Page Number (0x000C000000000000)
 };
 
+extern struct LparMap		xLparMap;
+
 #endif /* _LPARMAP_H */

@@ -27,7 +27,6 @@
 #include <asm/iSeries/HvCallCfg.h>
 #include <asm/iSeries/HvTypes.h>
 #include <asm/iSeries/ItLpNaca.h>
-#include <asm/iSeries/LparData.h>
 
 extern HvLpIndex HvLpConfig_getLpIndex_outline(void);
 

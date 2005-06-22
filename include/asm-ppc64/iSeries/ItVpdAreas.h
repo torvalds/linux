@@ -90,4 +90,6 @@ struct ItVpdAreas {
 	void	*xSlicVpdAdrs[ItVpdMaxEntries];// Array of VPD buffers	130-1EF
 };
 
+extern struct ItVpdAreas	itVpdAreas;
+
 #endif /* _ITVPDAREAS_H */

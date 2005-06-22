@@ -161,4 +161,6 @@ struct IoHriMainStoreSegment5 {
 	u64	reserved3;
 };
 
+extern u64	xMsVpd[];
+
 #endif	/* _IOHRIMAINSTORE_H */

@@ -19,6 +19,8 @@
 #ifndef _ITLPNACA_H
 #define _ITLPNACA_H
 
+#include <linux/types.h>
+
 /*
  *	This control block contains the data that is shared between the
  *	hypervisor (PLIC) and the OS.
@@ -72,5 +74,7 @@ struct ItLpNaca {
 //  handlers
 	u64	xInterruptHdlr[32];	// Interrupt handlers		300-x3FF
 };
+
+extern struct ItLpNaca		itLpNaca;
 
 #endif /* _ITLPNACA_H */

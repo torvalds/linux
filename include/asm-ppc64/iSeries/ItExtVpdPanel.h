@@ -47,4 +47,6 @@ struct ItExtVpdPanel {
 	u8	xRsvd2[48];
 };
 
+extern struct ItExtVpdPanel	xItExtVpdPanel;
+
 #endif /* _ITEXTVPDPANEL_H */

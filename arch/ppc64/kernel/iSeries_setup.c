@@ -47,7 +47,7 @@
 #include <asm/paca.h>
 #include <asm/cache.h>
 #include <asm/sections.h>
-#include <asm/iSeries/LparData.h>
+#include <asm/abs_addr.h>
 #include <asm/iSeries/HvCallHpt.h>
 #include <asm/iSeries/HvLpConfig.h>
 #include <asm/iSeries/HvCallEvent.h>
@@ -58,6 +58,9 @@
 #include <asm/iSeries/mf.h>
 #include <asm/iSeries/HvLpEvent.h>
 #include <asm/iSeries/iSeries_irq.h>
+#include <asm/iSeries/IoHriProcessorVpd.h>
+#include <asm/iSeries/ItVpdAreas.h>
+#include <asm/iSeries/LparMap.h>
 
 extern void hvlog(char *fmt, ...);
 

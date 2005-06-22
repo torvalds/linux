@@ -81,4 +81,6 @@ struct IoHriProcessorVpd {
 	char	xProcSrc[72];		// CSP format SRC		xB8-xFF
 };
 
+extern struct IoHriProcessorVpd	xIoHriProcessorVpd[];
+
 #endif /* _IOHRIPROCESSORVPD_H */

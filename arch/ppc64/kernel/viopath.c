@@ -43,7 +43,7 @@
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/iSeries/HvTypes.h>
-#include <asm/iSeries/LparData.h>
+#include <asm/iSeries/ItExtVpdPanel.h>
 #include <asm/iSeries/HvLpEvent.h>
 #include <asm/iSeries/HvLpConfig.h>
 #include <asm/iSeries/HvCallCfg.h>
