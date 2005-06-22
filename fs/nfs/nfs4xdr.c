@@ -83,12 +83,16 @@ static int nfs_stat_to_errno(int);
 #define encode_getfh_maxsz      (op_encode_hdr_maxsz)
 #define decode_getfh_maxsz      (op_decode_hdr_maxsz + 1 + \
 				((3+NFS4_FHSIZE) >> 2))
-#define encode_getattr_maxsz    (op_encode_hdr_maxsz + 3)
+#define nfs4_fattr_bitmap_maxsz 3
+#define encode_getattr_maxsz    (op_encode_hdr_maxsz + nfs4_fattr_bitmap_maxsz)
 #define nfs4_name_maxsz		(1 + ((3 + NFS4_MAXNAMLEN) >> 2))
 #define nfs4_path_maxsz		(1 + ((3 + NFS4_MAXPATHLEN) >> 2))
-#define nfs4_fattr_bitmap_maxsz (36 + 2 * nfs4_name_maxsz)
-#define decode_getattr_maxsz    (op_decode_hdr_maxsz + 3 + \
-                                nfs4_fattr_bitmap_maxsz)
+/* This is based on getfattr, which uses the most attributes: */
+#define nfs4_fattr_value_maxsz	(1 + (1 + 2 + 2 + 4 + 2 + 1 + 1 + 2 + 2 + \
+				3 + 3 + 3 + 2 * nfs4_name_maxsz))
+#define nfs4_fattr_maxsz	(nfs4_fattr_bitmap_maxsz + \
+				nfs4_fattr_value_maxsz)
+#define decode_getattr_maxsz    (op_decode_hdr_maxsz + nfs4_fattr_maxsz)
 #define encode_savefh_maxsz     (op_encode_hdr_maxsz)
 #define decode_savefh_maxsz     (op_decode_hdr_maxsz)
 #define encode_fsinfo_maxsz	(op_encode_hdr_maxsz + 2)
@@ -123,11 +127,11 @@ static int nfs_stat_to_errno(int);
 #define encode_symlink_maxsz	(op_encode_hdr_maxsz + \
 				1 + nfs4_name_maxsz + \
 				nfs4_path_maxsz + \
-				nfs4_fattr_bitmap_maxsz)
+				nfs4_fattr_maxsz)
 #define decode_symlink_maxsz	(op_decode_hdr_maxsz + 8)
 #define encode_create_maxsz	(op_encode_hdr_maxsz + \
 				2 + nfs4_name_maxsz + \
-				nfs4_fattr_bitmap_maxsz)
+				nfs4_fattr_maxsz)
 #define decode_create_maxsz	(op_decode_hdr_maxsz + 8)
 #define encode_delegreturn_maxsz (op_encode_hdr_maxsz + 4)
 #define decode_delegreturn_maxsz (op_decode_hdr_maxsz)
@@ -206,7 +210,7 @@ static int nfs_stat_to_errno(int);
 #define NFS4_enc_setattr_sz     (compound_encode_hdr_maxsz + \
                                 encode_putfh_maxsz + \
                                 op_encode_hdr_maxsz + 4 + \
-                                nfs4_fattr_bitmap_maxsz + \
+                                nfs4_fattr_maxsz + \
                                 encode_getattr_maxsz)
 #define NFS4_dec_setattr_sz     (compound_decode_hdr_maxsz + \
                                 decode_putfh_maxsz + \
