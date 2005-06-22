@@ -238,12 +238,15 @@ static int noregister   = 0;
 static int probeonly    = 0;
 static int idonly       = 0;
 static int bailearly    = 0;
+static int voffset	= 48;
 static char *mode       = NULL;
 
 module_param(accel, bool, S_IRUGO);
 MODULE_PARM_DESC(accel, "Enable console acceleration");
 module_param(vram, int, S_IRUGO);
 MODULE_PARM_DESC(vram, "System RAM to allocate to framebuffer in MiB");
+module_param(voffset, int, S_IRUGO);
+MODULE_PARM_DESC(voffset, "Offset of framebuffer in MiB");
 module_param(hwcursor, bool, S_IRUGO);
 MODULE_PARM_DESC(hwcursor, "Enable HW cursor");
 module_param(mtrr, bool, S_IRUGO);
@@ -503,6 +506,7 @@ intelfb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct agp_bridge_data *bridge;
  	int aperture_bar = 0;
  	int mmio_bar = 1;
+	int offset;
 
 	DBG_MSG("intelfb_pci_register\n");
 
@@ -659,17 +663,21 @@ intelfb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -ENODEV;
 	}
 
+	if (MB(voffset) < stolen_size)
+		offset = (stolen_size >> 12);
+	else
+		offset = ROUND_UP_TO_PAGE(MB(voffset))/GTT_PAGE_SIZE;
+
 	/* set the mem offsets - set them after the already used pages */
 	if (dinfo->accel) {
-		dinfo->ring.offset = (stolen_size >> 12)
-			+ gtt_info.current_memory;
+		dinfo->ring.offset = offset + gtt_info.current_memory;
 	}
 	if (dinfo->hwcursor) {
-		dinfo->cursor.offset = (stolen_size >> 12) +
+		dinfo->cursor.offset = offset +
 			+ gtt_info.current_memory + (dinfo->ring.size >> 12);
 	}
 	if (dinfo->fbmem_gart) {
-		dinfo->fb.offset = (stolen_size >> 12) +
+		dinfo->fb.offset = offset +
 			+ gtt_info.current_memory + (dinfo->ring.size >> 12)
 			+ (dinfo->cursor.size >> 12);
 	}
