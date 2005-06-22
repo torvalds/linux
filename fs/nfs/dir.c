@@ -32,6 +32,7 @@
 #include <linux/smp_lock.h>
 #include <linux/namei.h>
 
+#include "nfs4_fs.h"
 #include "delegation.h"
 
 #define NFS_PARANOIA 1

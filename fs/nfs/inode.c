@@ -39,6 +39,7 @@
 #include <asm/system.h>
 #include <asm/uaccess.h>
 
+#include "nfs4_fs.h"
 #include "delegation.h"
 
 #define NFSDBG_FACILITY		NFSDBG_VFS

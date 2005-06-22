@@ -53,6 +53,7 @@
 #include <linux/nfs.h>
 #include <linux/nfs4.h>
 #include <linux/nfs_fs.h>
+#include "nfs4_fs.h"
 
 #define NFSDBG_FACILITY	NFSDBG_PROC
 

@@ -51,6 +51,7 @@
 #include <linux/nfs4.h>
 #include <linux/nfs_fs.h>
 #include <linux/nfs_idmap.h>
+#include "nfs4_fs.h"
 
 #define NFSDBG_FACILITY		NFSDBG_XDR
 
@@ -660,8 +661,6 @@ static int encode_getattr_two(struct xdr_stream *xdr, uint32_t bm0, uint32_t bm1
 
 static int encode_getfattr(struct xdr_stream *xdr, const u32* bitmask)
 {
-	extern u32 nfs4_fattr_bitmap[];
-
 	return encode_getattr_two(xdr,
 			bitmask[0] & nfs4_fattr_bitmap[0],
 			bitmask[1] & nfs4_fattr_bitmap[1]);
@@ -669,8 +668,6 @@ static int encode_getfattr(struct xdr_stream *xdr, const u32* bitmask)
 
 static int encode_fsinfo(struct xdr_stream *xdr, const u32* bitmask)
 {
-	extern u32 nfs4_fsinfo_bitmap[];
-
 	return encode_getattr_two(xdr, bitmask[0] & nfs4_fsinfo_bitmap[0],
 			bitmask[1] & nfs4_fsinfo_bitmap[1]);
 }
@@ -969,7 +966,6 @@ static int encode_putrootfh(struct xdr_stream *xdr)
 
 static void encode_stateid(struct xdr_stream *xdr, const struct nfs_open_context *ctx)
 {
-	extern nfs4_stateid zero_stateid;
 	nfs4_stateid stateid;
 	uint32_t *p;
 
@@ -1697,7 +1693,6 @@ static int nfs4_xdr_enc_fsinfo(struct rpc_rqst *req, uint32_t *p, struct nfs4_fs
  */
 static int nfs4_xdr_enc_pathconf(struct rpc_rqst *req, uint32_t *p, const struct nfs4_pathconf_arg *args)
 {
-	extern u32 nfs4_pathconf_bitmap[2];
 	struct xdr_stream xdr;
 	struct compound_hdr hdr = {
 		.nops = 2,
@@ -1718,7 +1713,6 @@ static int nfs4_xdr_enc_pathconf(struct rpc_rqst *req, uint32_t *p, const struct
  */
 static int nfs4_xdr_enc_statfs(struct rpc_rqst *req, uint32_t *p, const struct nfs4_statfs_arg *args)
 {
-	extern u32 nfs4_statfs_bitmap[];
 	struct xdr_stream xdr;
 	struct compound_hdr hdr = {
 		.nops = 2,

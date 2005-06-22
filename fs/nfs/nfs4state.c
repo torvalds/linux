@@ -46,24 +46,18 @@
 #include <linux/workqueue.h>
 #include <linux/bitops.h>
 
+#include "nfs4_fs.h"
 #include "callback.h"
 #include "delegation.h"
 
 #define OPENOWNER_POOL_SIZE	8
 
+const nfs4_stateid zero_stateid;
+
 static DEFINE_SPINLOCK(state_spinlock);
-
-nfs4_stateid zero_stateid;
-
-#if 0
-nfs4_stateid one_stateid =
-	{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
-#endif
-
 static LIST_HEAD(nfs4_clientid_list);
 
 static void nfs4_recover_state(void *);
-extern void nfs4_renew_state(void *);
 
 void
 init_nfsv4_state(struct nfs_server *server)

@@ -10,6 +10,7 @@
 #include <linux/sunrpc/svc.h>
 #include <linux/nfs4.h>
 #include <linux/nfs_fs.h>
+#include "nfs4_fs.h"
 #include "callback.h"
 
 #define CB_OP_TAGLEN_MAXSZ	(512)

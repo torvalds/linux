@@ -48,6 +48,7 @@
 #include <linux/smp_lock.h>
 #include <linux/namei.h>
 
+#include "nfs4_fs.h"
 #include "delegation.h"
 
 #define NFSDBG_FACILITY		NFSDBG_PROC
@@ -61,8 +62,6 @@ static int _nfs4_proc_access(struct inode *inode, struct nfs_access_entry *entry
 static int nfs4_handle_exception(struct nfs_server *server, int errorcode, struct nfs4_exception *exception);
 extern u32 *nfs4_decode_dirent(u32 *p, struct nfs_entry *entry, int plus);
 extern struct rpc_procinfo nfs4_procedures[];
-
-extern nfs4_stateid zero_stateid;
 
 /* Prevent leaks of NFSv4 errors into userland */
 int nfs4_map_errors(int err)
@@ -104,7 +103,7 @@ const u32 nfs4_statfs_bitmap[2] = {
 	| FATTR4_WORD1_SPACE_TOTAL
 };
 
-u32 nfs4_pathconf_bitmap[2] = {
+const u32 nfs4_pathconf_bitmap[2] = {
 	FATTR4_WORD0_MAXLINK
 	| FATTR4_WORD0_MAXNAME,
 	0
