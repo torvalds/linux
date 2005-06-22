@@ -900,7 +900,9 @@ shrink_caches(struct zone **zones, struct scan_control *sc)
 		if (zone->all_unreclaimable && sc->priority != DEF_PRIORITY)
 			continue;	/* Let kswapd poll it */
 
+		atomic_inc(&zone->reclaim_in_progress);
 		shrink_zone(zone, sc);
+		atomic_dec(&zone->reclaim_in_progress);
 	}
 }
  
@@ -1111,7 +1113,9 @@ scan:
 			sc.nr_reclaimed = 0;
 			sc.priority = priority;
 			sc.swap_cluster_max = nr_pages? nr_pages : SWAP_CLUSTER_MAX;
+			atomic_inc(&zone->reclaim_in_progress);
 			shrink_zone(zone, &sc);
+			atomic_dec(&zone->reclaim_in_progress);
 			reclaim_state->reclaimed_slab = 0;
 			nr_slab = shrink_slab(sc.nr_scanned, GFP_KERNEL,
 						lru_pages);
@@ -1354,9 +1358,15 @@ int zone_reclaim(struct zone *zone, unsigned int gfp_mask, unsigned int order)
 	else
 		sc.swap_cluster_max = SWAP_CLUSTER_MAX;
 
+	/* Don't reclaim the zone if there are other reclaimers active */
+	if (!atomic_inc_and_test(&zone->reclaim_in_progress))
+		goto out;
+
 	shrink_zone(zone, &sc);
 	total_reclaimed = sc.nr_reclaimed;
 
+ out:
+	atomic_dec(&zone->reclaim_in_progress);
 	return total_reclaimed;
 }
 

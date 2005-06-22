@@ -149,6 +149,8 @@ struct zone {
 	 * as it fails a watermark_ok() in __alloc_pages?
 	 */
 	int			reclaim_pages;
+	/* A count of how many reclaimers are scanning this zone */
+	atomic_t		reclaim_in_progress;
 
 	/*
 	 * prev_priority holds the scanning priority for this zone.  It is

@@ -1738,6 +1738,7 @@ static void __init free_area_init_core(struct pglist_data *pgdat,
 		zone->nr_scan_inactive = 0;
 		zone->nr_active = 0;
 		zone->nr_inactive = 0;
+		atomic_set(&zone->reclaim_in_progress, -1);
 		if (!size)
 			continue;
 
