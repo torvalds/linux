@@ -107,7 +107,7 @@ void nfs_unlock_request(struct nfs_page *req)
 	smp_mb__before_clear_bit();
 	clear_bit(PG_BUSY, &req->wb_flags);
 	smp_mb__after_clear_bit();
-	wake_up_all(&req->wb_context->waitq);
+	wake_up_bit(&req->wb_flags, PG_BUSY);
 	nfs_release_request(req);
 }
 
@@ -180,6 +180,17 @@ nfs_list_add_request(struct nfs_page *req, struct list_head *head)
 	req->wb_list_head = head;
 }
 
+static int nfs_wait_bit_interruptible(void *word)
+{
+	int ret = 0;
+
+	if (signal_pending(current))
+		ret = -ERESTARTSYS;
+	else
+		schedule();
+	return ret;
+}
+
 /**
  * nfs_wait_on_request - Wait for a request to complete.
  * @req: request to wait upon.
@@ -190,12 +201,22 @@ nfs_list_add_request(struct nfs_page *req, struct list_head *head)
 int
 nfs_wait_on_request(struct nfs_page *req)
 {
-	struct inode	*inode = req->wb_context->dentry->d_inode;
-        struct rpc_clnt	*clnt = NFS_CLIENT(inode);
+        struct rpc_clnt	*clnt = NFS_CLIENT(req->wb_context->dentry->d_inode);
+	sigset_t oldmask;
+	int ret = 0;
 
-	if (!NFS_WBACK_BUSY(req))
-		return 0;
-	return nfs_wait_event(clnt, req->wb_context->waitq, !NFS_WBACK_BUSY(req));
+	if (!test_bit(PG_BUSY, &req->wb_flags))
+		goto out;
+	/*
+	 * Note: the call to rpc_clnt_sigmask() suffices to ensure that we
+	 *	 are not interrupted if intr flag is not set
+	 */
+	rpc_clnt_sigmask(clnt, &oldmask);
+	ret = out_of_line_wait_on_bit(&req->wb_flags, PG_BUSY,
+			nfs_wait_bit_interruptible, TASK_INTERRUPTIBLE);
+	rpc_clnt_sigunmask(clnt, &oldmask);
+out:
+	return ret;
 }
 
 /**

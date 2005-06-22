@@ -848,7 +848,6 @@ struct nfs_open_context *alloc_nfs_open_context(struct dentry *dentry, struct rp
 		ctx->state = NULL;
 		ctx->lockowner = current->files;
 		ctx->error = 0;
-		init_waitqueue_head(&ctx->waitq);
 	}
 	return ctx;
 }
