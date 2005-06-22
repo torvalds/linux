@@ -79,13 +79,13 @@ static void shutdown_mappi3_irq(unsigned int irq)
 
 static struct hw_interrupt_type mappi3_irq_type =
 {
-	"MAPPI3-IRQ",
-	startup_mappi3_irq,
-	shutdown_mappi3_irq,
-	enable_mappi3_irq,
-	disable_mappi3_irq,
-	mask_and_ack_mappi3,
-	end_mappi3_irq
+	.typename = "MAPPI3-IRQ",
+	.startup = startup_mappi3_irq,
+	.shutdown = shutdown_mappi3_irq,
+	.enable = enable_mappi3_irq,
+	.disable = disable_mappi3_irq,
+	.ack = mask_and_ack_mappi3,
+	.end = end_mappi3_irq
 };
 
 void __init init_IRQ(void)
