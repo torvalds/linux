@@ -23,7 +23,6 @@
 #include <linux/serial_core.h>
 #include <linux/serial_8250.h>
 
-#include <asm/prom.h>
 #include <asm/time.h>
 #include <asm/mpc85xx.h>
 #include <asm/immap_85xx.h>
@@ -32,6 +31,8 @@
 #include <asm/kgdb.h>
 
 #include <syslib/ppc85xx_setup.h>
+
+extern void abort(void);
 
 /* Return the amount of memory */
 unsigned long __init

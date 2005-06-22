@@ -23,7 +23,6 @@
 #include <linux/serial_core.h>
 #include <linux/serial_8250.h>
 
-#include <asm/prom.h>
 #include <asm/time.h>
 #include <asm/mpc83xx.h>
 #include <asm/mmu.h>

@@ -42,7 +42,6 @@
 #include <asm/todc.h>
 #include <asm/io.h>
 #include <asm/machdep.h>
-#include <asm/prom.h>
 #include <asm/open_pic.h>
 #include <asm/i8259.h>
 #include <asm/bootinfo.h>

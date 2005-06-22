@@ -41,7 +41,6 @@
 #include <asm/time.h>
 #include <asm/io.h>
 #include <asm/machdep.h>
-#include <asm/prom.h>
 #include <asm/ipic.h>
 #include <asm/bootinfo.h>
 #include <asm/pci-bridge.h>
