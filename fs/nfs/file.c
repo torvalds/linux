@@ -333,9 +333,15 @@ nfs_file_write(struct kiocb *iocb, const char __user *buf, size_t count, loff_t 
 	result = -EBUSY;
 	if (IS_SWAPFILE(inode))
 		goto out_swapfile;
-	result = nfs_revalidate_inode(NFS_SERVER(inode), inode);
-	if (result)
-		goto out;
+	/*
+	 * O_APPEND implies that we must revalidate the file length.
+	 */
+	if (iocb->ki_filp->f_flags & O_APPEND) {
+		result = nfs_revalidate_file_size(inode, iocb->ki_filp);
+		if (result)
+			goto out;
+	} else
+		nfs_revalidate_mapping(inode, iocb->ki_filp->f_mapping);
 
 	result = count;
 	if (!count)

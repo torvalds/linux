@@ -1062,21 +1062,7 @@ __nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
 	if (verifier == nfsi->cache_change_attribute)
 		nfsi->flags &= ~(NFS_INO_INVALID_ATTR|NFS_INO_INVALID_ATIME);
 	/* Do the page cache invalidation */
-	if (flags & NFS_INO_INVALID_DATA) {
-		if (S_ISREG(inode->i_mode)) {
-			if (filemap_fdatawrite(inode->i_mapping) == 0)
-				filemap_fdatawait(inode->i_mapping);
-			nfs_wb_all(inode);
-		}
-		nfsi->flags &= ~NFS_INO_INVALID_DATA;
-		invalidate_inode_pages2(inode->i_mapping);
-		memset(NFS_COOKIEVERF(inode), 0, sizeof(NFS_COOKIEVERF(inode)));
-		dfprintk(PAGECACHE, "NFS: (%s/%Ld) data cache invalidated\n",
-				inode->i_sb->s_id,
-				(long long)NFS_FILEID(inode));
-		/* This ensures we revalidate dentries */
-		nfsi->cache_change_attribute++;
-	}
+	nfs_revalidate_mapping(inode, inode->i_mapping);
 	if (flags & NFS_INO_INVALID_ACL)
 		nfs_zap_acl_cache(inode);
 	dfprintk(PAGECACHE, "NFS: (%s/%Ld) revalidation complete\n",
@@ -1113,6 +1099,34 @@ int nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
 			&& !nfs_attribute_timeout(inode))
 		return NFS_STALE(inode) ? -ESTALE : 0;
 	return __nfs_revalidate_inode(server, inode);
+}
+
+/**
+ * nfs_revalidate_mapping - Revalidate the pagecache
+ * @inode - pointer to host inode
+ * @mapping - pointer to mapping
+ */
+void nfs_revalidate_mapping(struct inode *inode, struct address_space *mapping)
+{
+	struct nfs_inode *nfsi = NFS_I(inode);
+
+	if (nfsi->flags & NFS_INO_INVALID_DATA) {
+		if (S_ISREG(inode->i_mode)) {
+			if (filemap_fdatawrite(mapping) == 0)
+				filemap_fdatawait(mapping);
+			nfs_wb_all(inode);
+		}
+		invalidate_inode_pages2(mapping);
+		nfsi->flags &= ~NFS_INO_INVALID_DATA;
+		if (S_ISDIR(inode->i_mode)) {
+			memset(nfsi->cookieverf, 0, sizeof(nfsi->cookieverf));
+			/* This ensures we revalidate child dentries */
+			nfsi->cache_change_attribute++;
+		}
+		dfprintk(PAGECACHE, "NFS: (%s/%Ld) data cache invalidated\n",
+				inode->i_sb->s_id,
+				(long long)NFS_FILEID(inode));
+	}
 }
 
 /**
