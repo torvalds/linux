@@ -22,6 +22,16 @@
 
 #define SIG(A,B) ((A) | ((B) << 8))	/* isonum_721() */
 
+struct rock_state {
+	void *buffer;
+	unsigned char *chr;
+	int len;
+	int cont_size;
+	int cont_extent;
+	int cont_offset;
+	struct inode *inode;
+};
+
 /*
  * This is a way of ensuring that we have something in the system
  *  use fields that is compatible with Rock Ridge.  Return zero on success.
@@ -38,82 +48,96 @@ static int check_sp(struct rock_ridge *rr, struct inode *inode)
 }
 
 static void setup_rock_ridge(struct iso_directory_record *de,
-			struct inode *inode, unsigned char **chr, int *len)
+			struct inode *inode, struct rock_state *rs)
 {
-	*len = sizeof(struct iso_directory_record) + de->name_len[0];
-	if (*len & 1)
-		(*len)++;
-	*chr = (unsigned char *)de + *len;
-	*len = *((unsigned char *)de) - *len;
-	if (*len < 0)
-		*len = 0;
+	rs->len = sizeof(struct iso_directory_record) + de->name_len[0];
+	if (rs->len & 1)
+		(rs->len)++;
+	rs->chr = (unsigned char *)de + rs->len;
+	rs->len = *((unsigned char *)de) - rs->len;
+	if (rs->len < 0)
+		rs->len = 0;
 
 	if (ISOFS_SB(inode->i_sb)->s_rock_offset != -1) {
-		*len -= ISOFS_SB(inode->i_sb)->s_rock_offset;
-		*chr += ISOFS_SB(inode->i_sb)->s_rock_offset;
-		if (*len < 0)
-			*len = 0;
+		rs->len -= ISOFS_SB(inode->i_sb)->s_rock_offset;
+		rs->chr += ISOFS_SB(inode->i_sb)->s_rock_offset;
+		if (rs->len < 0)
+			rs->len = 0;
 	}
 }
 
-#define MAYBE_CONTINUE(LABEL,DEV) \
-  {if (buffer) { kfree(buffer); buffer = NULL; } \
-  if (cont_extent){ \
-    int block, offset, offset1; \
-    struct buffer_head * pbh; \
-    buffer = kmalloc(cont_size,GFP_KERNEL); \
-    if (!buffer) goto out; \
-    block = cont_extent; \
-    offset = cont_offset; \
-    offset1 = 0; \
-    pbh = sb_bread(DEV->i_sb, block); \
-    if(pbh){       \
-      if (offset > pbh->b_size || offset + cont_size > pbh->b_size){	\
-	brelse(pbh); \
-	goto out; \
-      } \
-      memcpy(buffer + offset1, pbh->b_data + offset, cont_size - offset1); \
-      brelse(pbh); \
-      chr = (unsigned char *) buffer; \
-      len = cont_size; \
-      cont_extent = 0; \
-      cont_size = 0; \
-      cont_offset = 0; \
-      goto LABEL; \
-    }    \
-    printk("Unable to read rock-ridge attributes\n");    \
-  }}
+static void init_rock_state(struct rock_state *rs, struct inode *inode)
+{
+	memset(rs, 0, sizeof(*rs));
+	rs->inode = inode;
+}
+
+/*
+ * Returns 0 if the caller should continue scanning, 1 if the scan must end
+ * and -ve on error.
+ */
+static int rock_continue(struct rock_state *rs)
+{
+	int ret = 1;
+
+	kfree(rs->buffer);
+	rs->buffer = NULL;
+	if (rs->cont_extent) {
+		struct buffer_head *bh;
+
+		rs->buffer = kmalloc(rs->cont_size, GFP_KERNEL);
+		if (!rs->buffer) {
+			ret = -ENOMEM;
+			goto out;
+		}
+		ret = -EIO;
+		bh = sb_bread(rs->inode->i_sb, rs->cont_extent);
+		if (bh) {
+			memcpy(rs->buffer, bh->b_data + rs->cont_offset,
+					rs->cont_size);
+			put_bh(bh);
+			rs->chr = rs->buffer;
+			rs->len = rs->cont_size;
+			rs->cont_extent = 0;
+			rs->cont_size = 0;
+			rs->cont_offset = 0;
+			return 0;
+		}
+		printk("Unable to read rock-ridge attributes\n");
+	}
+out:
+	kfree(rs->buffer);
+	rs->buffer = NULL;
+	return ret;
+}
 
 /* return length of name field; 0: not found, -1: to be ignored */
 int get_rock_ridge_filename(struct iso_directory_record *de,
 			    char *retname, struct inode *inode)
 {
-	int len;
-	unsigned char *chr;
-	int cont_extent = 0;
-	int cont_offset = 0;
-	int cont_size = 0;
-	void *buffer = NULL;
+	struct rock_state rs;
 	struct rock_ridge *rr;
 	int sig;
 	int retnamlen = 0;
 	int truncate = 0;
+	int ret = 0;
 
 	if (!ISOFS_SB(inode->i_sb)->s_rock)
 		return 0;
 	*retname = 0;
 
-	setup_rock_ridge(de, inode, &chr, &len);
+	init_rock_state(&rs, inode);
+	setup_rock_ridge(de, inode, &rs);
 repeat:
 
-	while (len > 2) { /* There may be one byte for padding somewhere */
-		rr = (struct rock_ridge *)chr;
+	while (rs.len > 2) { /* There may be one byte for padding somewhere */
+		rr = (struct rock_ridge *)rs.chr;
 		if (rr->len < 3)
 			goto out;	/* Something got screwed up here */
-		sig = isonum_721(chr);
-		chr += rr->len;
-		len -= rr->len;
-		if (len < 0)
+		sig = isonum_721(rs.chr);
+		rs.chr += rr->len;
+		rs.len -= rr->len;
+		if (rs.len < 0)
 			goto out;	/* corrupted isofs */
 
 		switch (sig) {
@@ -126,9 +150,9 @@ repeat:
 				goto out;
 			break;
 		case SIG('C', 'E'):
-			cont_extent = isonum_733(rr->u.CE.extent);
-			cont_offset = isonum_733(rr->u.CE.offset);
-			cont_size = isonum_733(rr->u.CE.size);
+			rs.cont_extent = isonum_733(rr->u.CE.extent);
+			rs.cont_offset = isonum_733(rr->u.CE.offset);
+			rs.cont_size = isonum_733(rr->u.CE.size);
 			break;
 		case SIG('N', 'M'):
 			if (truncate)
@@ -158,58 +182,55 @@ repeat:
 			retnamlen += rr->len - 5;
 			break;
 		case SIG('R', 'E'):
-			if (buffer)
-				kfree(buffer);
+			kfree(rs.buffer);
 			return -1;
 		default:
 			break;
 		}
 	}
-	MAYBE_CONTINUE(repeat, inode);
-	kfree(buffer);
-	return retnamlen;	/* If 0, this file did not have a NM field */
+	ret = rock_continue(&rs);
+	if (ret == 0)
+		goto repeat;
+	if (ret == 1)
+		return retnamlen; /* If 0, this file did not have a NM field */
 out:
-	if (buffer)
-		kfree(buffer);
-	return 0;
+	kfree(rs.buffer);
+	return ret;
 }
 
 static int
 parse_rock_ridge_inode_internal(struct iso_directory_record *de,
 				struct inode *inode, int regard_xa)
 {
-	int len;
-	unsigned char *chr;
 	int symlink_len = 0;
 	int cnt, sig;
 	struct inode *reloc;
 	struct rock_ridge *rr;
 	int rootflag;
-	int cont_extent = 0;
-	int cont_offset = 0;
-	int cont_size = 0;
-	void *buffer = NULL;
+	struct rock_state rs;
+	int ret = 0;
 
 	if (!ISOFS_SB(inode->i_sb)->s_rock)
 		return 0;
 
-	setup_rock_ridge(de, inode, &chr, &len);
+	init_rock_state(&rs, inode);
+	setup_rock_ridge(de, inode, &rs);
 	if (regard_xa) {
-		chr += 14;
-		len -= 14;
-		if (len < 0)
-			len = 0;
+		rs.chr += 14;
+		rs.len -= 14;
+		if (rs.len < 0)
+			rs.len = 0;
 	}
 
 repeat:
-	while (len > 2) { /* There may be one byte for padding somewhere */
-		rr = (struct rock_ridge *)chr;
+	while (rs.len > 2) { /* There may be one byte for padding somewhere */
+		rr = (struct rock_ridge *)rs.chr;
 		if (rr->len < 3)
 			goto out;	/* Something got screwed up here */
-		sig = isonum_721(chr);
-		chr += rr->len;
-		len -= rr->len;
-		if (len < 0)
+		sig = isonum_721(rs.chr);
+		rs.chr += rr->len;
+		rs.len -= rr->len;
+		if (rs.len < 0)
 			goto out;	/* corrupted isofs */
 
 		switch (sig) {
@@ -225,9 +246,9 @@ repeat:
 				goto out;
 			break;
 		case SIG('C', 'E'):
-			cont_extent = isonum_733(rr->u.CE.extent);
-			cont_offset = isonum_733(rr->u.CE.offset);
-			cont_size = isonum_733(rr->u.CE.size);
+			rs.cont_extent = isonum_733(rr->u.CE.extent);
+			rs.cont_offset = isonum_733(rr->u.CE.offset);
+			rs.cont_size = isonum_733(rr->u.CE.size);
 			break;
 		case SIG('E', 'R'):
 			ISOFS_SB(inode->i_sb)->s_rock = 1;
@@ -433,11 +454,14 @@ repeat:
 			break;
 		}
 	}
-	MAYBE_CONTINUE(repeat, inode);
+	ret = rock_continue(&rs);
+	if (ret == 0)
+		goto repeat;
+	if (ret == 1)
+		ret = 0;
 out:
-	if (buffer)
-		kfree(buffer);
-	return 0;
+	kfree(rs.buffer);
+	return ret;
 }
 
 static char *get_symlink_chunk(char *rpnt, struct rock_ridge *rr, char *plimit)
@@ -533,19 +557,16 @@ static int rock_ridge_symlink_readpage(struct file *file, struct page *page)
 	char *rpnt = link;
 	unsigned char *pnt;
 	struct iso_directory_record *raw_de;
-	int cont_extent = 0;
-	int cont_offset = 0;
-	int cont_size = 0;
-	void *buffer = NULL;
 	unsigned long block, offset;
 	int sig;
-	int len;
-	unsigned char *chr;
 	struct rock_ridge *rr;
+	struct rock_state rs;
+	int ret;
 
 	if (!ISOFS_SB(inode->i_sb)->s_rock)
 		goto error;
 
+	init_rock_state(&rs, inode);
 	block = ei->i_iget5_block;
 	lock_kernel();
 	bh = sb_bread(inode->i_sb, block);
@@ -566,17 +587,17 @@ static int rock_ridge_symlink_readpage(struct file *file, struct page *page)
 	/* Now test for possible Rock Ridge extensions which will override
 	   some of these numbers in the inode structure. */
 
-	setup_rock_ridge(raw_de, inode, &chr, &len);
+	setup_rock_ridge(raw_de, inode, &rs);
 
 repeat:
-	while (len > 2) { /* There may be one byte for padding somewhere */
-		rr = (struct rock_ridge *)chr;
+	while (rs.len > 2) { /* There may be one byte for padding somewhere */
+		rr = (struct rock_ridge *)rs.chr;
 		if (rr->len < 3)
 			goto out;	/* Something got screwed up here */
-		sig = isonum_721(chr);
-		chr += rr->len;
-		len -= rr->len;
-		if (len < 0)
+		sig = isonum_721(rs.chr);
+		rs.chr += rr->len;
+		rs.len -= rr->len;
+		if (rs.len < 0)
 			goto out;	/* corrupted isofs */
 
 		switch (sig) {
@@ -596,15 +617,18 @@ repeat:
 			break;
 		case SIG('C', 'E'):
 			/* This tells is if there is a continuation record */
-			cont_extent = isonum_733(rr->u.CE.extent);
-			cont_offset = isonum_733(rr->u.CE.offset);
-			cont_size = isonum_733(rr->u.CE.size);
+			rs.cont_extent = isonum_733(rr->u.CE.extent);
+			rs.cont_offset = isonum_733(rr->u.CE.offset);
+			rs.cont_size = isonum_733(rr->u.CE.size);
 		default:
 			break;
 		}
 	}
-	MAYBE_CONTINUE(repeat, inode);
-	kfree(buffer);
+	ret = rock_continue(&rs);
+	if (ret == 0)
+		goto repeat;
+	if (ret < 0)
+		goto fail;
 
 	if (rpnt == link)
 		goto fail;
@@ -618,8 +642,7 @@ repeat:
 
 	/* error exit from macro */
 out:
-	if (buffer)
-		kfree(buffer);
+	kfree(rs.buffer);
 	goto fail;
 out_noread:
 	printk("unable to read i-node block");
