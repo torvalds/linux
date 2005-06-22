@@ -84,9 +84,6 @@ extern void generic_find_legacy_serial_ports(u64 *physport,
 
 int fwnmi_active;  /* TRUE if an FWNMI handler is present */
 
-extern unsigned long ppc_proc_freq;
-extern unsigned long ppc_tb_freq;
-
 extern void pSeries_system_reset_exception(struct pt_regs *regs);
 extern int pSeries_machine_check_exception(struct pt_regs *regs);
 
@@ -482,70 +479,6 @@ static void pSeries_progress(char *s, unsigned short hex)
 	spin_unlock(&progress_lock);
 }
 
-extern void setup_default_decr(void);
-
-/* Some sane defaults: 125 MHz timebase, 1GHz processor */
-#define DEFAULT_TB_FREQ		125000000UL
-#define DEFAULT_PROC_FREQ	(DEFAULT_TB_FREQ * 8)
-
-static void __init pSeries_calibrate_decr(void)
-{
-	struct device_node *cpu;
-	struct div_result divres;
-	unsigned int *fp;
-	int node_found;
-
-	/*
-	 * The cpu node should have a timebase-frequency property
-	 * to tell us the rate at which the decrementer counts.
-	 */
-	cpu = of_find_node_by_type(NULL, "cpu");
-
-	ppc_tb_freq = DEFAULT_TB_FREQ;		/* hardcoded default */
-	node_found = 0;
-	if (cpu != 0) {
-		fp = (unsigned int *)get_property(cpu, "timebase-frequency",
-						  NULL);
-		if (fp != 0) {
-			node_found = 1;
-			ppc_tb_freq = *fp;
-		}
-	}
-	if (!node_found)
-		printk(KERN_ERR "WARNING: Estimating decrementer frequency "
-				"(not found)\n");
-
-	ppc_proc_freq = DEFAULT_PROC_FREQ;
-	node_found = 0;
-	if (cpu != 0) {
-		fp = (unsigned int *)get_property(cpu, "clock-frequency",
-						  NULL);
-		if (fp != 0) {
-			node_found = 1;
-			ppc_proc_freq = *fp;
-		}
-	}
-	if (!node_found)
-		printk(KERN_ERR "WARNING: Estimating processor frequency "
-				"(not found)\n");
-
-	of_node_put(cpu);
-
-	printk(KERN_INFO "time_init: decrementer frequency = %lu.%.6lu MHz\n",
-	       ppc_tb_freq/1000000, ppc_tb_freq%1000000);
-	printk(KERN_INFO "time_init: processor frequency   = %lu.%.6lu MHz\n",
-	       ppc_proc_freq/1000000, ppc_proc_freq%1000000);
-
-	tb_ticks_per_jiffy = ppc_tb_freq / HZ;
-	tb_ticks_per_sec = tb_ticks_per_jiffy * HZ;
-	tb_ticks_per_usec = ppc_tb_freq / 1000000;
-	tb_to_us = mulhwu_scale_factor(ppc_tb_freq, 1000000);
-	div128_by_32(1024*1024, 0, tb_ticks_per_sec, &divres);
-	tb_to_xs = divres.result_low;
-
-	setup_default_decr();
-}
-
 static int pSeries_check_legacy_ioport(unsigned int baseport)
 {
 	struct device_node *np;
@@ -604,7 +537,7 @@ struct machdep_calls __initdata pSeries_md = {
 	.get_boot_time		= pSeries_get_boot_time,
 	.get_rtc_time		= pSeries_get_rtc_time,
 	.set_rtc_time		= pSeries_set_rtc_time,
-	.calibrate_decr		= pSeries_calibrate_decr,
+	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= pSeries_progress,
 	.check_legacy_ioport	= pSeries_check_legacy_ioport,
 	.system_reset_exception = pSeries_system_reset_exception,

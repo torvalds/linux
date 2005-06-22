@@ -701,9 +701,6 @@ void machine_halt(void)
 
 EXPORT_SYMBOL(machine_halt);
 
-unsigned long ppc_proc_freq;
-unsigned long ppc_tb_freq;
-
 static int ppc64_panic_event(struct notifier_block *this,
                              unsigned long event, void *ptr)
 {
@@ -1117,7 +1114,7 @@ void ppc64_dump_msg(unsigned int src, const char *msg)
 }
 
 /* This should only be called on processor 0 during calibrate decr */
-void setup_default_decr(void)
+void __init setup_default_decr(void)
 {
 	struct paca_struct *lpaca = get_paca();
 

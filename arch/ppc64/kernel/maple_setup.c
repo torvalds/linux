@@ -235,6 +235,6 @@ struct machdep_calls __initdata maple_md = {
        	.get_boot_time		= maple_get_boot_time,
        	.set_rtc_time		= maple_set_rtc_time,
        	.get_rtc_time		= maple_get_rtc_time,
-      	.calibrate_decr		= maple_calibrate_decr,
+      	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= maple_progress,
 };
