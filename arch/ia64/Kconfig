@@ -227,7 +227,7 @@ config IA64_SGI_SN_SIM
 
 config IA64_SGI_SN_XP
 	tristate "Support communication between SGI SSIs"
-	depends on MSPEC
+	select IA64_UNCACHED_ALLOCATOR
 	help
 	  An SGI machine can be divided into multiple Single System
 	  Images which act independently of each other and have
