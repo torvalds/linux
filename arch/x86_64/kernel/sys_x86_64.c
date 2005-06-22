@@ -68,13 +68,7 @@ out:
 static void find_start_end(unsigned long flags, unsigned long *begin,
 			   unsigned long *end)
 {
-#ifdef CONFIG_IA32_EMULATION
-	if (test_thread_flag(TIF_IA32)) { 
-		*begin = TASK_UNMAPPED_32;
-		*end = IA32_PAGE_OFFSET; 
-	} else 
-#endif
-	if (flags & MAP_32BIT) { 
+	if (!test_thread_flag(TIF_IA32) && (flags & MAP_32BIT)) {
 		/* This is usually used needed to map code in small
 		   model, so it needs to be in the first 31bit. Limit
 		   it to that.  This means we need to move the
@@ -84,10 +78,10 @@ static void find_start_end(unsigned long flags, unsigned long *begin,
 		   of playground for now. -AK */ 
 		*begin = 0x40000000; 
 		*end = 0x80000000;		
-	} else { 
-		*begin = TASK_UNMAPPED_64; 
+	} else {
+		*begin = TASK_UNMAPPED_BASE;
 		*end = TASK_SIZE; 
-		}
+	}
 } 
 
 unsigned long
