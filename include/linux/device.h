@@ -69,7 +69,7 @@ struct bus_type {
 extern int bus_register(struct bus_type * bus);
 extern void bus_unregister(struct bus_type * bus);
 
-extern int bus_rescan_devices(struct bus_type * bus);
+extern void bus_rescan_devices(struct bus_type * bus);
 
 extern struct bus_type * get_bus(struct bus_type * bus);
 extern void put_bus(struct bus_type * bus);

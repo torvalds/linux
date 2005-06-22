@@ -483,31 +483,22 @@ void bus_remove_driver(struct device_driver * drv)
 /* Helper for bus_rescan_devices's iter */
 static int bus_rescan_devices_helper(struct device *dev, void *data)
 {
-	int *count = data;
-
-	if (!dev->driver && (device_attach(dev) > 0))
-		(*count)++;
-
+	if (!dev->driver)
+		device_attach(dev);
 	return 0;
 }
 
-
 /**
- *	bus_rescan_devices - rescan devices on the bus for possible drivers
- *	@bus:	the bus to scan.
+ * bus_rescan_devices - rescan devices on the bus for possible drivers
+ * @bus: the bus to scan.
  *
- *	This function will look for devices on the bus with no driver
- *	attached and rescan it against existing drivers to see if it
- *	matches any. Calls device_attach(). Returns the number of devices
- *	that were sucessfully bound to a driver.
+ * This function will look for devices on the bus with no driver
+ * attached and rescan it against existing drivers to see if it matches
+ * any by calling device_attach() for the unbound devices.
  */
-int bus_rescan_devices(struct bus_type * bus)
+void bus_rescan_devices(struct bus_type * bus)
 {
-	int count = 0;
-
-	bus_for_each_dev(bus, NULL, &count, bus_rescan_devices_helper);
-
-	return count;
+	bus_for_each_dev(bus, NULL, NULL, bus_rescan_devices_helper);
 }
 
 
