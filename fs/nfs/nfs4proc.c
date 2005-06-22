@@ -2191,7 +2191,7 @@ static void buf_to_pages(const void *buf, size_t buflen,
 struct nfs4_cached_acl {
 	int cached;
 	size_t len;
-	char data[];
+	char data[0];
 };
 
 static void nfs4_set_cached_acl(struct inode *inode, struct nfs4_cached_acl *acl)
