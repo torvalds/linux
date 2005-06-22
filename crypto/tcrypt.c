@@ -266,16 +266,16 @@ static void test_cipher(char *algo, int mode, int enc,
 	char *key;
 	struct cipher_testvec *cipher_tv;
 	struct scatterlist sg[8];
-	char e[11], m[4];
+	const char *e, *m;
 
 	if (enc == ENCRYPT)
-	        strncpy(e, "encryption", 11);
+	        e = "encryption";
 	else
-		strncpy(e, "decryption", 11);
+		e = "decryption";
 	if (mode == MODE_ECB)
-		strncpy(m, "ECB", 4);
+		m = "ECB";
 	else
-		strncpy(m, "CBC", 4);
+		m = "CBC";
 
 	printk("\ntesting %s %s %s\n", algo, m, e);
 
