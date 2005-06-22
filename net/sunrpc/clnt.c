@@ -378,38 +378,41 @@ rpc_default_callback(struct rpc_task *task)
 }
 
 /*
- *	Export the signal mask handling for aysnchronous code that
+ *	Export the signal mask handling for synchronous code that
  *	sleeps on RPC calls
  */
+#define RPC_INTR_SIGNALS (sigmask(SIGINT) | sigmask(SIGQUIT) | sigmask(SIGKILL))
  
+static void rpc_save_sigmask(sigset_t *oldset, int intr)
+{
+	unsigned long	sigallow = 0;
+	sigset_t sigmask;
+
+	/* Block all signals except those listed in sigallow */
+	if (intr)
+		sigallow |= RPC_INTR_SIGNALS;
+	siginitsetinv(&sigmask, sigallow);
+	sigprocmask(SIG_BLOCK, &sigmask, oldset);
+}
+
+static inline void rpc_task_sigmask(struct rpc_task *task, sigset_t *oldset)
+{
+	rpc_save_sigmask(oldset, !RPC_TASK_UNINTERRUPTIBLE(task));
+}
+
+static inline void rpc_restore_sigmask(sigset_t *oldset)
+{
+	sigprocmask(SIG_SETMASK, oldset, NULL);
+}
+
 void rpc_clnt_sigmask(struct rpc_clnt *clnt, sigset_t *oldset)
 {
-	unsigned long	sigallow = sigmask(SIGKILL);
-	unsigned long	irqflags;
-	
-	/* Turn off various signals */
-	if (clnt->cl_intr) {
-		struct k_sigaction *action = current->sighand->action;
-		if (action[SIGINT-1].sa.sa_handler == SIG_DFL)
-			sigallow |= sigmask(SIGINT);
-		if (action[SIGQUIT-1].sa.sa_handler == SIG_DFL)
-			sigallow |= sigmask(SIGQUIT);
-	}
-	spin_lock_irqsave(&current->sighand->siglock, irqflags);
-	*oldset = current->blocked;
-	siginitsetinv(&current->blocked, sigallow & ~oldset->sig[0]);
-	recalc_sigpending();
-	spin_unlock_irqrestore(&current->sighand->siglock, irqflags);
+	rpc_save_sigmask(oldset, clnt->cl_intr);
 }
 
 void rpc_clnt_sigunmask(struct rpc_clnt *clnt, sigset_t *oldset)
 {
-	unsigned long	irqflags;
-	
-	spin_lock_irqsave(&current->sighand->siglock, irqflags);
-	current->blocked = *oldset;
-	recalc_sigpending();
-	spin_unlock_irqrestore(&current->sighand->siglock, irqflags);
+	rpc_restore_sigmask(oldset);
 }
 
 /*
@@ -427,26 +430,26 @@ int rpc_call_sync(struct rpc_clnt *clnt, struct rpc_message *msg, int flags)
 
 	BUG_ON(flags & RPC_TASK_ASYNC);
 
-	rpc_clnt_sigmask(clnt, &oldset);		
-
 	status = -ENOMEM;
 	task = rpc_new_task(clnt, NULL, flags);
 	if (task == NULL)
 		goto out;
 
+	/* Mask signals on RPC calls _and_ GSS_AUTH upcalls */
+	rpc_task_sigmask(task, &oldset);
+
 	rpc_call_setup(task, msg, 0);
 
 	/* Set up the call info struct and execute the task */
-	if (task->tk_status == 0)
+	if (task->tk_status == 0) {
 		status = rpc_execute(task);
-	else {
+	} else {
 		status = task->tk_status;
 		rpc_release_task(task);
 	}
 
+	rpc_restore_sigmask(&oldset);
 out:
-	rpc_clnt_sigunmask(clnt, &oldset);		
-
 	return status;
 }
 
@@ -467,8 +470,6 @@ rpc_call_async(struct rpc_clnt *clnt, struct rpc_message *msg, int flags,
 
 	flags |= RPC_TASK_ASYNC;
 
-	rpc_clnt_sigmask(clnt, &oldset);		
-
 	/* Create/initialize a new RPC task */
 	if (!callback)
 		callback = rpc_default_callback;
@@ -476,6 +477,9 @@ rpc_call_async(struct rpc_clnt *clnt, struct rpc_message *msg, int flags,
 	if (!(task = rpc_new_task(clnt, callback, flags)))
 		goto out;
 	task->tk_calldata = data;
+
+	/* Mask signals on GSS_AUTH upcalls */
+	rpc_task_sigmask(task, &oldset);		
 
 	rpc_call_setup(task, msg, 0);
 
@@ -486,9 +490,8 @@ rpc_call_async(struct rpc_clnt *clnt, struct rpc_message *msg, int flags,
 	else
 		rpc_release_task(task);
 
+	rpc_restore_sigmask(&oldset);		
 out:
-	rpc_clnt_sigunmask(clnt, &oldset);		
-
 	return status;
 }
 
@@ -666,7 +669,7 @@ call_allocate(struct rpc_task *task)
 		return;
 	printk(KERN_INFO "RPC: buffer allocation failed for task %p\n", task); 
 
-	if (RPC_IS_ASYNC(task) || !(task->tk_client->cl_intr && signalled())) {
+	if (RPC_IS_ASYNC(task) || !signalled()) {
 		xprt_release(task);
 		task->tk_action = call_reserve;
 		rpc_delay(task, HZ>>4);
