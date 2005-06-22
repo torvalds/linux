@@ -807,7 +807,7 @@ static void* busmaster_malloc(int size) {
                 struct page* page, *last_page;
 
                 page = virt_to_page(buf);
-                last_page = virt_to_page(buf + (1 << pg));
+                last_page = page + (1 << pg);
                 DBG(printk("setting reserved bit\n"));
                 while (page < last_page) {
 			SetPageReserved(page);
