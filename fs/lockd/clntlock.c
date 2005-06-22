@@ -42,23 +42,51 @@ struct nlm_wait {
 static LIST_HEAD(nlm_blocked);
 
 /*
+ * Queue up a lock for blocking so that the GRANTED request can see it
+ */
+int nlmclnt_prepare_block(struct nlm_rqst *req, struct nlm_host *host, struct file_lock *fl)
+{
+	struct nlm_wait *block;
+
+	BUG_ON(req->a_block != NULL);
+	block = kmalloc(sizeof(*block), GFP_KERNEL);
+	if (block == NULL)
+		return -ENOMEM;
+	block->b_host = host;
+	block->b_lock = fl;
+	init_waitqueue_head(&block->b_wait);
+	block->b_status = NLM_LCK_BLOCKED;
+
+	list_add(&block->b_list, &nlm_blocked);
+	req->a_block = block;
+
+	return 0;
+}
+
+void nlmclnt_finish_block(struct nlm_rqst *req)
+{
+	struct nlm_wait *block = req->a_block;
+
+	if (block == NULL)
+		return;
+	req->a_block = NULL;
+	list_del(&block->b_list);
+	kfree(block);
+}
+
+/*
  * Block on a lock
  */
-int
-nlmclnt_block(struct nlm_host *host, struct file_lock *fl, u32 *statp)
+long nlmclnt_block(struct nlm_rqst *req, long timeout)
 {
-	struct nlm_wait	block, **head;
-	int		err;
-	u32		pstate;
+	struct nlm_wait	*block = req->a_block;
+	long ret;
 
-	block.b_host   = host;
-	block.b_lock   = fl;
-	init_waitqueue_head(&block.b_wait);
-	block.b_status = NLM_LCK_BLOCKED;
-	list_add(&block.b_list, &nlm_blocked);
-
-	/* Remember pseudo nsm state */
-	pstate = host->h_state;
+	/* A borken server might ask us to block even if we didn't
+	 * request it. Just say no!
+	 */
+	if (!req->a_args.block)
+		return -EAGAIN;
 
 	/* Go to sleep waiting for GRANT callback. Some servers seem
 	 * to lose callbacks, however, so we're going to poll from
@@ -68,23 +96,16 @@ nlmclnt_block(struct nlm_host *host, struct file_lock *fl, u32 *statp)
 	 * a 1 minute timeout would do. See the comment before
 	 * nlmclnt_lock for an explanation.
 	 */
-	sleep_on_timeout(&block.b_wait, 30*HZ);
+	ret = wait_event_interruptible_timeout(block->b_wait,
+			block->b_status != NLM_LCK_BLOCKED,
+			timeout);
 
-	list_del(&block.b_list);
-
-	if (!signalled()) {
-		*statp = block.b_status;
-		return 0;
+	if (block->b_status != NLM_LCK_BLOCKED) {
+		req->a_res.status = block->b_status;
+		block->b_status = NLM_LCK_BLOCKED;
 	}
 
-	/* Okay, we were interrupted. Cancel the pending request
-	 * unless the server has rebooted.
-	 */
-	if (pstate == host->h_state && (err = nlmclnt_cancel(host, fl)) < 0)
-		printk(KERN_NOTICE
-			"lockd: CANCEL call failed (errno %d)\n", -err);
-
-	return -ERESTARTSYS;
+	return ret;
 }
 
 /*
@@ -94,27 +115,23 @@ u32
 nlmclnt_grant(struct nlm_lock *lock)
 {
 	struct nlm_wait	*block;
+	u32 res = nlm_lck_denied;
 
 	/*
 	 * Look up blocked request based on arguments. 
 	 * Warning: must not use cookie to match it!
 	 */
 	list_for_each_entry(block, &nlm_blocked, b_list) {
-		if (nlm_compare_locks(block->b_lock, &lock->fl))
-			break;
+		if (nlm_compare_locks(block->b_lock, &lock->fl)) {
+			/* Alright, we found a lock. Set the return status
+			 * and wake up the caller
+			 */
+			block->b_status = NLM_LCK_GRANTED;
+			wake_up(&block->b_wait);
+			res = nlm_granted;
+		}
 	}
-
-	/* Ooops, no blocked request found. */
-	if (block == NULL)
-		return nlm_lck_denied;
-
-	/* Alright, we found the lock. Set the return status and
-	 * wake up the caller.
-	 */
-	block->b_status = NLM_LCK_GRANTED;
-	wake_up(&block->b_wait);
-
-	return nlm_granted;
+	return res;
 }
 
 /*
