@@ -294,7 +294,6 @@ extern void nfs_begin_attr_update(struct inode *);
 extern void nfs_end_attr_update(struct inode *);
 extern void nfs_begin_data_update(struct inode *);
 extern void nfs_end_data_update(struct inode *);
-extern void nfs_end_data_update_defer(struct inode *);
 extern struct nfs_open_context *alloc_nfs_open_context(struct dentry *dentry, struct rpc_cred *cred);
 extern struct nfs_open_context *get_nfs_open_context(struct nfs_open_context *ctx);
 extern void put_nfs_open_context(struct nfs_open_context *ctx);

@@ -220,7 +220,7 @@ static int nfs_writepage_sync(struct nfs_open_context *ctx, struct inode *inode,
 		ClearPageError(page);
 
 io_error:
-	nfs_end_data_update_defer(inode);
+	nfs_end_data_update(inode);
 	nfs_writedata_free(wdata);
 	return written ? written : result;
 }
@@ -401,7 +401,7 @@ static void nfs_inode_remove_request(struct nfs_page *req)
 	nfsi->npages--;
 	if (!nfsi->npages) {
 		spin_unlock(&nfsi->req_lock);
-		nfs_end_data_update_defer(inode);
+		nfs_end_data_update(inode);
 		iput(inode);
 	} else
 		spin_unlock(&nfsi->req_lock);

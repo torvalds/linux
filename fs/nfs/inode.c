@@ -1148,27 +1148,6 @@ void nfs_end_data_update(struct inode *inode)
 }
 
 /**
- * nfs_end_data_update_defer
- * @inode - pointer to inode
- * Declare end of the operations that will update file data
- * This will defer marking the inode as needing revalidation
- * unless there are no other pending updates.
- */
-void nfs_end_data_update_defer(struct inode *inode)
-{
-	struct nfs_inode *nfsi = NFS_I(inode);
-
-	if (atomic_dec_and_test(&nfsi->data_updates)) {
-		/* Mark the attribute cache for revalidation */
-		nfsi->flags |= NFS_INO_INVALID_ATTR;
-		/* Directories and symlinks: invalidate page cache too */
-		if (S_ISDIR(inode->i_mode) || S_ISLNK(inode->i_mode))
-			nfsi->flags |= NFS_INO_INVALID_DATA;
-		nfsi->cache_change_attribute ++;
-	}
-}
-
-/**
  * nfs_refresh_inode - verify consistency of the inode attribute cache
  * @inode - pointer to inode
  * @fattr - updated attributes
@@ -1222,8 +1201,8 @@ int nfs_refresh_inode(struct inode *inode, struct nfs_fattr *fattr)
 		if (!timespec_equal(&inode->i_mtime, &fattr->mtime)
 				|| cur_size != new_isize)
 			nfsi->flags |= NFS_INO_INVALID_ATTR;
-	} else if (S_ISREG(inode->i_mode) && new_isize > cur_size)
-			nfsi->flags |= NFS_INO_INVALID_ATTR;
+	} else if (new_isize != cur_size && nfsi->npages == 0)
+		nfsi->flags |= NFS_INO_INVALID_ATTR;
 
 	/* Have any file permissions changed? */
 	if ((inode->i_mode & S_IALLUGO) != (fattr->mode & S_IALLUGO)
@@ -1257,10 +1236,8 @@ int nfs_refresh_inode(struct inode *inode, struct nfs_fattr *fattr)
 static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr, unsigned long verifier)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
-	__u64		new_size;
-	loff_t		new_isize;
+	loff_t cur_isize, new_isize;
 	unsigned int	invalid = 0;
-	loff_t		cur_isize;
 	int data_unstable;
 
 	dfprintk(VFS, "NFS: %s(%s/%ld ct=%d info=0x%x)\n",
@@ -1293,49 +1270,39 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr, unsign
 	/* Are we racing with known updates of the metadata on the server? */
 	data_unstable = ! nfs_verify_change_attribute(inode, verifier);
 
-	/* Check if the file size agrees */
-	new_size = fattr->size;
+	/* Check if our cached file size is stale */
  	new_isize = nfs_size_to_loff_t(fattr->size);
 	cur_isize = i_size_read(inode);
-	if (cur_isize != new_size) {
-#ifdef NFS_DEBUG_VERBOSE
-		printk(KERN_DEBUG "NFS: isize change on %s/%ld\n", inode->i_sb->s_id, inode->i_ino);
-#endif
-		/*
-		 * If we have pending writebacks, things can get
-		 * messy.
-		 */
-		if (S_ISREG(inode->i_mode) && data_unstable) {
-			if (new_isize > cur_isize) {
+	if (new_isize != cur_isize) {
+		/* Do we perhaps have any outstanding writes? */
+		if (nfsi->npages == 0) {
+			/* No, but did we race with nfs_end_data_update()? */
+			if (verifier  ==  nfsi->cache_change_attribute) {
 				inode->i_size = new_isize;
-				invalid |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA;
+				invalid |= NFS_INO_INVALID_DATA;
 			}
-		} else {
+			invalid |= NFS_INO_INVALID_ATTR;
+		} else if (new_isize > cur_isize) {
 			inode->i_size = new_isize;
 			invalid |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA;
 		}
+		dprintk("NFS: isize change on server for file %s/%ld\n",
+				inode->i_sb->s_id, inode->i_ino);
 	}
 
-	/*
-	 * Note: we don't check inode->i_mtime since pipes etc.
-	 *       can change this value in VFS without requiring a
-	 *	 cache revalidation.
-	 */
+	/* Check if the mtime agrees */
 	if (!timespec_equal(&inode->i_mtime, &fattr->mtime)) {
 		memcpy(&inode->i_mtime, &fattr->mtime, sizeof(inode->i_mtime));
-#ifdef NFS_DEBUG_VERBOSE
-		printk(KERN_DEBUG "NFS: mtime change on %s/%ld\n", inode->i_sb->s_id, inode->i_ino);
-#endif
+		dprintk("NFS: mtime change on server for file %s/%ld\n",
+				inode->i_sb->s_id, inode->i_ino);
 		if (!data_unstable)
 			invalid |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA;
 	}
 
 	if ((fattr->valid & NFS_ATTR_FATTR_V4)
 	    && nfsi->change_attr != fattr->change_attr) {
-#ifdef NFS_DEBUG_VERBOSE
-		printk(KERN_DEBUG "NFS: change_attr change on %s/%ld\n",
+		dprintk("NFS: change_attr change on server for file %s/%ld\n",
 		       inode->i_sb->s_id, inode->i_ino);
-#endif
 		nfsi->change_attr = fattr->change_attr;
 		if (!data_unstable)
 			invalid |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA|NFS_INO_INVALID_ACCESS|NFS_INO_INVALID_ACL;
