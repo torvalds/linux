@@ -366,13 +366,15 @@ nfs_create_client(struct nfs_server *server, const struct nfs_mount_data *data)
 	xprt = xprt_create_proto(tcp ? IPPROTO_TCP : IPPROTO_UDP,
 				 &server->addr, &timeparms);
 	if (IS_ERR(xprt)) {
-		printk(KERN_WARNING "NFS: cannot create RPC transport.\n");
+		dprintk("%s: cannot create RPC transport. Error = %ld\n",
+				__FUNCTION__, PTR_ERR(xprt));
 		return (struct rpc_clnt *)xprt;
 	}
 	clnt = rpc_create_client(xprt, server->hostname, &nfs_program,
 				 server->rpc_ops->version, data->pseudoflavor);
 	if (IS_ERR(clnt)) {
-		printk(KERN_WARNING "NFS: cannot create RPC client.\n");
+		dprintk("%s: cannot create RPC client. Error = %ld\n",
+				__FUNCTION__, PTR_ERR(xprt));
 		goto out_fail;
 	}
 
@@ -426,21 +428,16 @@ nfs_fill_super(struct super_block *sb, struct nfs_mount_data *data, int silent)
 
 	/* Check NFS protocol revision and initialize RPC op vector
 	 * and file handle pool. */
-	if (server->flags & NFS_MOUNT_VER3) {
 #ifdef CONFIG_NFS_V3
+	if (server->flags & NFS_MOUNT_VER3) {
 		server->rpc_ops = &nfs_v3_clientops;
 		server->caps |= NFS_CAP_READDIRPLUS;
-		if (data->version < 4) {
-			printk(KERN_NOTICE "NFS: NFSv3 not supported by mount program.\n");
-			return -EIO;
-		}
-#else
-		printk(KERN_NOTICE "NFS: NFSv3 not supported.\n");
-		return -EIO;
-#endif
 	} else {
 		server->rpc_ops = &nfs_v2_clientops;
 	}
+#else
+	server->rpc_ops = &nfs_v2_clientops;
+#endif
 
 	/* Fill in pseudoflavor for mount version < 5 */
 	if (!(data->flags & NFS_MOUNT_SECFLAVOUR))
@@ -1384,74 +1381,94 @@ static struct super_block *nfs_get_sb(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *raw_data)
 {
 	int error;
-	struct nfs_server *server;
+	struct nfs_server *server = NULL;
 	struct super_block *s;
 	struct nfs_fh *root;
 	struct nfs_mount_data *data = raw_data;
 
-	if (!data) {
-		printk("nfs_read_super: missing data argument\n");
-		return ERR_PTR(-EINVAL);
+	s = ERR_PTR(-EINVAL);
+	if (data == NULL) {
+		dprintk("%s: missing data argument\n", __FUNCTION__);
+		goto out_err;
 	}
+	if (data->version <= 0 || data->version > NFS_MOUNT_VERSION) {
+		dprintk("%s: bad mount version\n", __FUNCTION__);
+		goto out_err;
+	}
+	switch (data->version) {
+		case 1:
+			data->namlen = 0;
+		case 2:
+			data->bsize  = 0;
+		case 3:
+			if (data->flags & NFS_MOUNT_VER3) {
+				dprintk("%s: mount structure version %d does not support NFSv3\n",
+						__FUNCTION__,
+						data->version);
+				goto out_err;
+			}
+			data->root.size = NFS2_FHSIZE;
+			memcpy(data->root.data, data->old_root.data, NFS2_FHSIZE);
+		case 4:
+			if (data->flags & NFS_MOUNT_SECFLAVOUR) {
+				dprintk("%s: mount structure version %d does not support strong security\n",
+						__FUNCTION__,
+						data->version);
+				goto out_err;
+			}
+		case 5:
+			memset(data->context, 0, sizeof(data->context));
+	}
+#ifndef CONFIG_NFS_V3
+	/* If NFSv3 is not compiled in, return -EPROTONOSUPPORT */
+	s = ERR_PTR(-EPROTONOSUPPORT);
+	if (data->flags & NFS_MOUNT_VER3) {
+		dprintk("%s: NFSv3 not compiled into kernel\n", __FUNCTION__);
+		goto out_err;
+	}
+#endif /* CONFIG_NFS_V3 */
 
+	s = ERR_PTR(-ENOMEM);
 	server = kmalloc(sizeof(struct nfs_server), GFP_KERNEL);
 	if (!server)
-		return ERR_PTR(-ENOMEM);
+		goto out_err;
 	memset(server, 0, sizeof(struct nfs_server));
 	/* Zero out the NFS state stuff */
 	init_nfsv4_state(server);
-
-	if (data->version != NFS_MOUNT_VERSION) {
-		printk("nfs warning: mount version %s than kernel\n",
-			data->version < NFS_MOUNT_VERSION ? "older" : "newer");
-		if (data->version < 2)
-			data->namlen = 0;
-		if (data->version < 3)
-			data->bsize  = 0;
-		if (data->version < 4) {
-			data->flags &= ~NFS_MOUNT_VER3;
-			data->root.size = NFS2_FHSIZE;
-			memcpy(data->root.data, data->old_root.data, NFS2_FHSIZE);
-		}
-		if (data->version < 5)
-			data->flags &= ~NFS_MOUNT_SECFLAVOUR;
-	}
 
 	root = &server->fh;
 	if (data->flags & NFS_MOUNT_VER3)
 		root->size = data->root.size;
 	else
 		root->size = NFS2_FHSIZE;
+	s = ERR_PTR(-EINVAL);
 	if (root->size > sizeof(root->data)) {
-		printk("nfs_get_sb: invalid root filehandle\n");
-		kfree(server);
-		return ERR_PTR(-EINVAL);
+		dprintk("%s: invalid root filehandle\n", __FUNCTION__);
+		goto out_err;
 	}
 	memcpy(root->data, data->root.data, root->size);
 
 	/* We now require that the mount process passes the remote address */
 	memcpy(&server->addr, &data->addr, sizeof(server->addr));
 	if (server->addr.sin_addr.s_addr == INADDR_ANY) {
-		printk("NFS: mount program didn't pass remote address!\n");
-		kfree(server);
-		return ERR_PTR(-EINVAL);
+		dprintk("%s: mount program didn't pass remote address!\n",
+				__FUNCTION__);
+		goto out_err;
+	}
+
+	/* Fire up rpciod if not yet running */
+	s = ERR_PTR(rpciod_up());
+	if (IS_ERR(s)) {
+		dprintk("%s: couldn't start rpciod! Error = %ld\n",
+				__FUNCTION__, PTR_ERR(s));
+		goto out_err;
 	}
 
 	s = sget(fs_type, nfs_compare_super, nfs_set_super, server);
-
-	if (IS_ERR(s) || s->s_root) {
-		kfree(server);
-		return s;
-	}
+	if (IS_ERR(s) || s->s_root)
+		goto out_rpciod_down;
 
 	s->s_flags = flags;
-
-	/* Fire up rpciod if not yet running */
-	if (rpciod_up() != 0) {
-		printk(KERN_WARNING "NFS: couldn't start rpciod!\n");
-		kfree(server);
-		return ERR_PTR(-EIO);
-	}
 
 	error = nfs_fill_super(s, data, flags & MS_VERBOSE ? 1 : 0);
 	if (error) {
@@ -1460,6 +1477,11 @@ static struct super_block *nfs_get_sb(struct file_system_type *fs_type,
 		return ERR_PTR(error);
 	}
 	s->s_flags |= MS_ACTIVE;
+	return s;
+out_rpciod_down:
+	rpciod_down();
+out_err:
+	kfree(server);
 	return s;
 }
 
@@ -1593,15 +1615,19 @@ static int nfs4_fill_super(struct super_block *sb, struct nfs4_mount_data *data,
 
 	clp = nfs4_get_client(&server->addr.sin_addr);
 	if (!clp) {
-		printk(KERN_WARNING "NFS: failed to create NFS4 client.\n");
+		dprintk("%s: failed to create NFS4 client.\n", __FUNCTION__);
 		return -EIO;
 	}
 
 	/* Now create transport and client */
 	authflavour = RPC_AUTH_UNIX;
 	if (data->auth_flavourlen != 0) {
-		if (data->auth_flavourlen > 1)
-			printk(KERN_INFO "NFS: cannot yet deal with multiple auth flavours.\n");
+		if (data->auth_flavourlen != 1) {
+			dprintk("%s: Invalid number of RPC auth flavours %d.\n",
+					__FUNCTION__, data->auth_flavourlen);
+			err = -EINVAL;
+			goto out_fail;
+		}
 		if (copy_from_user(&authflavour, data->auth_flavours, sizeof(authflavour))) {
 			err = -EFAULT;
 			goto out_fail;
@@ -1613,16 +1639,18 @@ static int nfs4_fill_super(struct super_block *sb, struct nfs4_mount_data *data,
 		xprt = xprt_create_proto(proto, &server->addr, &timeparms);
 		if (IS_ERR(xprt)) {
 			up_write(&clp->cl_sem);
-			printk(KERN_WARNING "NFS: cannot create RPC transport.\n");
 			err = PTR_ERR(xprt);
+			dprintk("%s: cannot create RPC transport. Error = %d\n",
+					__FUNCTION__, err);
 			goto out_fail;
 		}
 		clnt = rpc_create_client(xprt, server->hostname, &nfs_program,
 				server->rpc_ops->version, authflavour);
 		if (IS_ERR(clnt)) {
 			up_write(&clp->cl_sem);
-			printk(KERN_WARNING "NFS: cannot create RPC client.\n");
 			err = PTR_ERR(clnt);
+			dprintk("%s: cannot create RPC client. Error = %d\n",
+					__FUNCTION__, err);
 			goto out_fail;
 		}
 		clnt->cl_intr     = 1;
@@ -1654,20 +1682,22 @@ static int nfs4_fill_super(struct super_block *sb, struct nfs4_mount_data *data,
 	clp = NULL;
 
 	if (IS_ERR(clnt)) {
-		printk(KERN_WARNING "NFS: cannot create RPC client.\n");
-		return PTR_ERR(clnt);
+		err = PTR_ERR(clnt);
+		dprintk("%s: cannot create RPC client. Error = %d\n",
+				__FUNCTION__, err);
+		return err;
 	}
 
 	server->client    = clnt;
 
 	if (server->nfs4_state->cl_idmap == NULL) {
-		printk(KERN_WARNING "NFS: failed to create idmapper.\n");
+		dprintk("%s: failed to create idmapper.\n", __FUNCTION__);
 		return -ENOMEM;
 	}
 
 	if (clnt->cl_auth->au_flavor != authflavour) {
 		if (rpcauth_create(authflavour, clnt) == NULL) {
-			printk(KERN_WARNING "NFS: couldn't create credcache!\n");
+			dprintk("%s: couldn't create credcache!\n", __FUNCTION__);
 			return -ENOMEM;
 		}
 	}
@@ -1728,8 +1758,12 @@ static struct super_block *nfs4_get_sb(struct file_system_type *fs_type,
 	struct nfs4_mount_data *data = raw_data;
 	void *p;
 
-	if (!data) {
-		printk("nfs_read_super: missing data argument\n");
+	if (data == NULL) {
+		dprintk("%s: missing data argument\n", __FUNCTION__);
+		return ERR_PTR(-EINVAL);
+	}
+	if (data->version <= 0 || data->version > NFS4_MOUNT_VERSION) {
+		dprintk("%s: bad mount version\n", __FUNCTION__);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -1739,11 +1773,6 @@ static struct super_block *nfs4_get_sb(struct file_system_type *fs_type,
 	memset(server, 0, sizeof(struct nfs_server));
 	/* Zero out the NFS state stuff */
 	init_nfsv4_state(server);
-
-	if (data->version != NFS4_MOUNT_VERSION) {
-		printk("nfs warning: mount version %s than kernel\n",
-			data->version < NFS4_MOUNT_VERSION ? "older" : "newer");
-	}
 
 	p = nfs_copy_user_string(NULL, &data->hostname, 256);
 	if (IS_ERR(p))
@@ -1771,8 +1800,17 @@ static struct super_block *nfs4_get_sb(struct file_system_type *fs_type,
 	}
 	if (server->addr.sin_family != AF_INET ||
 	    server->addr.sin_addr.s_addr == INADDR_ANY) {
-		printk("NFS: mount program didn't pass remote IP address!\n");
+		dprintk("%s: mount program didn't pass remote IP address!\n",
+				__FUNCTION__);
 		s = ERR_PTR(-EINVAL);
+		goto out_free;
+	}
+
+	/* Fire up rpciod if not yet running */
+	s = ERR_PTR(rpciod_up());
+	if (IS_ERR(s)) {
+		dprintk("%s: couldn't start rpciod! Error = %ld\n",
+				__FUNCTION__, PTR_ERR(s));
 		goto out_free;
 	}
 
@@ -1782,13 +1820,6 @@ static struct super_block *nfs4_get_sb(struct file_system_type *fs_type,
 		goto out_free;
 
 	s->s_flags = flags;
-
-	/* Fire up rpciod if not yet running */
-	if (rpciod_up() != 0) {
-		printk(KERN_WARNING "NFS: couldn't start rpciod!\n");
-		s = ERR_PTR(-EIO);
-		goto out_free;
-	}
 
 	error = nfs4_fill_super(s, data, flags & MS_VERBOSE ? 1 : 0);
 	if (error) {
