@@ -105,11 +105,13 @@ static void bad_page(const char *function, struct page *page)
 	printk(KERN_EMERG "Backtrace:\n");
 	dump_stack();
 	printk(KERN_EMERG "Trying to fix it up, but a reboot is needed\n");
-	page->flags &= ~(1 << PG_private	|
+	page->flags &= ~(1 << PG_lru	|
+			1 << PG_private |
 			1 << PG_locked	|
-			1 << PG_lru	|
 			1 << PG_active	|
 			1 << PG_dirty	|
+			1 << PG_reclaim |
+			1 << PG_slab    |
 			1 << PG_swapcache |
 			1 << PG_writeback);
 	set_page_count(page, 0);
@@ -440,14 +442,17 @@ void set_page_refs(struct page *page, int order)
  */
 static void prep_new_page(struct page *page, int order)
 {
-	if (page->mapping || page_mapcount(page) ||
-	    (page->flags & (
+	if (	page_mapcount(page) ||
+		page->mapping != NULL ||
+		page_count(page) != 0 ||
+		(page->flags & (
+			1 << PG_lru	|
 			1 << PG_private	|
 			1 << PG_locked	|
-			1 << PG_lru	|
 			1 << PG_active	|
 			1 << PG_dirty	|
 			1 << PG_reclaim	|
+			1 << PG_slab    |
 			1 << PG_swapcache |
 			1 << PG_writeback )))
 		bad_page(__FUNCTION__, page);
