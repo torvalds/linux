@@ -81,30 +81,33 @@ module_param(bm_history, uint, 0644);
  *
  * To skip this limit, boot/load with a large max_cstate limit.
  */
-static int no_c2c3(struct dmi_system_id *id)
+static int set_max_cstate(struct dmi_system_id *id)
 {
 	if (max_cstate > ACPI_PROCESSOR_MAX_POWER)
 		return 0;
 
-	printk(KERN_NOTICE PREFIX "%s detected - C2,C3 disabled."
+	printk(KERN_NOTICE PREFIX "%s detected - %s disabled."
 		" Override with \"processor.max_cstate=%d\"\n", id->ident,
+		((int)id->driver_data == 1)? "C2,C3":"C3",
 	       ACPI_PROCESSOR_MAX_POWER + 1);
 
-	max_cstate = 1;
+	max_cstate = (int)id->driver_data;
 
 	return 0;
 }
 
 
-
-
 static struct dmi_system_id __initdata processor_power_dmi_table[] = {
-	{ no_c2c3, "IBM ThinkPad R40e", {
+	{ set_max_cstate, "IBM ThinkPad R40e", {
 	  DMI_MATCH(DMI_BIOS_VENDOR,"IBM"),
-	  DMI_MATCH(DMI_BIOS_VERSION,"1SET60WW") }},
-	{ no_c2c3, "Medion 41700", {
+	  DMI_MATCH(DMI_BIOS_VERSION,"1SET60WW") }, (void*)1},
+	{ set_max_cstate, "Medion 41700", {
 	  DMI_MATCH(DMI_BIOS_VENDOR,"Phoenix Technologies LTD"),
-	  DMI_MATCH(DMI_BIOS_VERSION,"R01-A1J") }},
+	  DMI_MATCH(DMI_BIOS_VERSION,"R01-A1J") }, (void*)1},
+	{ set_max_cstate, "Clevo 5600D", {
+	  DMI_MATCH(DMI_BIOS_VENDOR,"Phoenix Technologies LTD"),
+	  DMI_MATCH(DMI_BIOS_VERSION,"SHE845M0.86C.0013.D.0302131307") },
+	  (void*)2},
 	{},
 };
 
