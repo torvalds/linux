@@ -74,7 +74,7 @@ extern unsigned char __res[];
 #define MPC85xx_GUTS_OFFSET	(0xe0000)
 #define MPC85xx_GUTS_SIZE	(0x01000)
 #define MPC85xx_IIC1_OFFSET	(0x03000)
-#define MPC85xx_IIC1_SIZE	(0x01000)
+#define MPC85xx_IIC1_SIZE	(0x00100)
 #define MPC85xx_OPENPIC_OFFSET	(0x40000)
 #define MPC85xx_OPENPIC_SIZE	(0x40000)
 #define MPC85xx_PCI1_OFFSET	(0x08000)
@@ -127,6 +127,11 @@ enum ppc_sys_devices {
 	MPC85xx_CPM_MCC2,
 	MPC85xx_CPM_SMC1,
 	MPC85xx_CPM_SMC2,
+	MPC85xx_eTSEC1,
+	MPC85xx_eTSEC2,
+	MPC85xx_eTSEC3,
+	MPC85xx_eTSEC4,
+	MPC85xx_IIC2,
 };
 
 #endif /* CONFIG_85xx */
