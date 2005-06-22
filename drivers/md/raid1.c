@@ -1349,17 +1349,26 @@ static int raid1_reshape(mddev_t *mddev, int raid_disks)
 	 * We allocate a new r1bio_pool if we can.
 	 * Then raise a device barrier and wait until all IO stops.
 	 * Then resize conf->mirrors and swap in the new r1bio pool.
+	 *
+	 * At the same time, we "pack" the devices so that all the missing
+	 * devices have the higher raid_disk numbers.
 	 */
 	mempool_t *newpool, *oldpool;
 	struct pool_info *newpoolinfo;
 	mirror_info_t *newmirrors;
 	conf_t *conf = mddev_to_conf(mddev);
+	int cnt;
 
-	int d;
+	int d, d2;
 
-	for (d= raid_disks; d < conf->raid_disks; d++)
-		if (conf->mirrors[d].rdev)
+	if (raid_disks < conf->raid_disks) {
+		cnt=0;
+		for (d= 0; d < conf->raid_disks; d++)
+			if (conf->mirrors[d].rdev)
+				cnt++;
+		if (cnt > raid_disks)
 			return -EBUSY;
+	}
 
 	newpoolinfo = kmalloc(sizeof(*newpoolinfo), GFP_KERNEL);
 	if (!newpoolinfo)
@@ -1390,8 +1399,12 @@ static int raid1_reshape(mddev_t *mddev, int raid_disks)
 	/* ok, everything is stopped */
 	oldpool = conf->r1bio_pool;
 	conf->r1bio_pool = newpool;
-	for (d=0; d < raid_disks && d < conf->raid_disks; d++)
-		newmirrors[d] = conf->mirrors[d];
+
+	for (d=d2=0; d < conf->raid_disks; d++)
+		if (conf->mirrors[d].rdev) {
+			conf->mirrors[d].rdev->raid_disk = d2;
+			newmirrors[d2++].rdev = conf->mirrors[d].rdev;
+		}
 	kfree(conf->mirrors);
 	conf->mirrors = newmirrors;
 	kfree(conf->poolinfo);
@@ -1400,6 +1413,7 @@ static int raid1_reshape(mddev_t *mddev, int raid_disks)
 	mddev->degraded += (raid_disks - conf->raid_disks);
 	conf->raid_disks = mddev->raid_disks = raid_disks;
 
+	conf->last_used = 0; /* just make sure it is in-range */
 	spin_lock_irq(&conf->resync_lock);
 	conf->barrier--;
 	spin_unlock_irq(&conf->resync_lock);
