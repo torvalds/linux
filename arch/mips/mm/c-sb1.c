@@ -492,7 +492,7 @@ static __init void probe_cache_sizes(void)
 }
 
 /*
- * This is called from loadmmu.c.  We have to set up all the
+ * This is called from cache.c.  We have to set up all the
  * memory management function pointers, as well as initialize
  * the caches and tlbs
  */
