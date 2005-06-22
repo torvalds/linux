@@ -290,7 +290,7 @@ static void rpc_make_runnable(struct rpc_task *task)
 			return;
 		}
 	} else
-		wake_up(&task->u.tk_wait.waitq);
+		wake_up_bit(&task->tk_runstate, RPC_TASK_QUEUED);
 }
 
 /*
@@ -578,6 +578,14 @@ static inline int __rpc_do_exit(struct rpc_task *task)
 	return 1;
 }
 
+static int rpc_wait_bit_interruptible(void *word)
+{
+	if (signal_pending(current))
+		return -ERESTARTSYS;
+	schedule();
+	return 0;
+}
+
 /*
  * This is the RPC `scheduler' (or rather, the finite state machine).
  */
@@ -648,22 +656,21 @@ static int __rpc_execute(struct rpc_task *task)
 
 		/* sync task: sleep here */
 		dprintk("RPC: %4d sync task going to sleep\n", task->tk_pid);
-		if (RPC_TASK_UNINTERRUPTIBLE(task)) {
-			__wait_event(task->u.tk_wait.waitq, !RPC_IS_QUEUED(task));
-		} else {
-			__wait_event_interruptible(task->u.tk_wait.waitq, !RPC_IS_QUEUED(task), status);
+		/* Note: Caller should be using rpc_clnt_sigmask() */
+		status = out_of_line_wait_on_bit(&task->tk_runstate,
+				RPC_TASK_QUEUED, rpc_wait_bit_interruptible,
+				TASK_INTERRUPTIBLE);
+		if (status == -ERESTARTSYS) {
 			/*
 			 * When a sync task receives a signal, it exits with
 			 * -ERESTARTSYS. In order to catch any callbacks that
 			 * clean up after sleeping on some queue, we don't
 			 * break the loop here, but go around once more.
 			 */
-			if (status == -ERESTARTSYS) {
-				dprintk("RPC: %4d got signal\n", task->tk_pid);
-				task->tk_flags |= RPC_TASK_KILLED;
-				rpc_exit(task, -ERESTARTSYS);
-				rpc_wake_up_task(task);
-			}
+			dprintk("RPC: %4d got signal\n", task->tk_pid);
+			task->tk_flags |= RPC_TASK_KILLED;
+			rpc_exit(task, -ERESTARTSYS);
+			rpc_wake_up_task(task);
 		}
 		rpc_set_running(task);
 		dprintk("RPC: %4d sync task resuming\n", task->tk_pid);
@@ -766,8 +773,6 @@ void rpc_init_task(struct rpc_task *task, struct rpc_clnt *clnt, rpc_action call
 
 	/* Initialize workqueue for async tasks */
 	task->tk_workqueue = rpciod_workqueue;
-	if (!RPC_IS_ASYNC(task))
-		init_waitqueue_head(&task->u.tk_wait.waitq);
 
 	if (clnt) {
 		atomic_inc(&clnt->cl_users);
