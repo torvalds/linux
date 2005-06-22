@@ -358,6 +358,13 @@ L:	linux-atm-general@lists.sourceforge.net
 W:	http://linux-atm.sourceforge.net
 S:	Maintained
 
+AUDIT SUBSYSTEM
+P:	David Woodhouse
+M:	dwmw2@infradead.org
+L:	linux-audit@redhat.com
+W:	http://people.redhat.com/sgrubb/audit/
+S:	Maintained
+
 ATMEL WIRELESS DRIVER
 P:	Simon Kelley
 M:	simon@thekelleys.org.uk
