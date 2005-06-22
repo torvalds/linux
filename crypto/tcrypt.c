@@ -27,6 +27,8 @@
 #include <linux/highmem.h>
 #include <linux/moduleparam.h>
 #include <linux/jiffies.h>
+#include <linux/timex.h>
+#include <linux/interrupt.h>
 #include "tcrypt.h"
 
 /*
@@ -60,7 +62,7 @@ static unsigned int IDX[8] = { IDX1, IDX2, IDX3, IDX4, IDX5, IDX6, IDX7, IDX8 };
 /*
  * Used by test_cipher_speed()
  */
-static unsigned int sec = 10;
+static unsigned int sec;
 
 static int mode;
 static char *xbuf;
@@ -426,6 +428,88 @@ out:
 	crypto_free_tfm(tfm);
 }
 
+static int test_cipher_jiffies(struct crypto_tfm *tfm, int enc, char *p,
+			       int blen, int sec)
+{
+	struct scatterlist sg[8];
+	unsigned long start, end;
+	int bcount;
+	int ret;
+
+	sg[0].page = virt_to_page(p);
+	sg[0].offset = offset_in_page(p);
+	sg[0].length = blen;
+
+	for (start = jiffies, end = start + sec * HZ, bcount = 0;
+	     time_before(jiffies, end); bcount++) {
+		if (enc)
+			ret = crypto_cipher_encrypt(tfm, sg, sg, blen);
+		else
+			ret = crypto_cipher_decrypt(tfm, sg, sg, blen);
+
+		if (ret)
+			return ret;
+	}
+
+	printk("%d operations in %d seconds (%ld bytes)\n",
+	       bcount, sec, (long)bcount * blen);
+	return 0;
+}
+
+static int test_cipher_cycles(struct crypto_tfm *tfm, int enc, char *p,
+			      int blen)
+{
+	struct scatterlist sg[8];
+	unsigned long cycles = 0;
+	int ret = 0;
+	int i;
+
+	sg[0].page = virt_to_page(p);
+	sg[0].offset = offset_in_page(p);
+	sg[0].length = blen;
+
+	local_bh_disable();
+	local_irq_disable();
+
+	/* Warm-up run. */
+	for (i = 0; i < 4; i++) {
+		if (enc)
+			ret = crypto_cipher_encrypt(tfm, sg, sg, blen);
+		else
+			ret = crypto_cipher_decrypt(tfm, sg, sg, blen);
+
+		if (ret)
+			goto out;
+	}
+
+	/* The real thing. */
+	for (i = 0; i < 8; i++) {
+		cycles_t start, end;
+
+		start = get_cycles();
+		if (enc)
+			ret = crypto_cipher_encrypt(tfm, sg, sg, blen);
+		else
+			ret = crypto_cipher_decrypt(tfm, sg, sg, blen);
+		end = get_cycles();
+
+		if (ret)
+			goto out;
+
+		cycles += end - start;
+	}
+
+out:
+	local_irq_enable();
+	local_bh_enable();
+
+	if (ret == 0)
+		printk("1 operation in %lu cycles (%d bytes)\n",
+		       (cycles + 4) / 8, blen);
+
+	return ret;
+}
+
 static void test_cipher_speed(char *algo, int mode, int enc, unsigned int sec,
 			      struct cipher_testvec *template,
 			      unsigned int tcount, struct cipher_speed *speed)
@@ -433,8 +517,6 @@ static void test_cipher_speed(char *algo, int mode, int enc, unsigned int sec,
 	unsigned int ret, i, j, iv_len;
 	unsigned char *key, *p, iv[128];
 	struct crypto_tfm *tfm;
-	struct scatterlist sg[8];
-	unsigned long start, bcount;
 	const char *e, *m;
 
 	if (enc == ENCRYPT)
@@ -492,25 +574,16 @@ static void test_cipher_speed(char *algo, int mode, int enc, unsigned int sec,
 			crypto_cipher_set_iv(tfm, iv, iv_len);
 		}
 
-		for (start = jiffies, bcount = 0;
-		    ((jiffies - start) / HZ) < sec; bcount++) {
-			sg[0].page = virt_to_page(p);
-			sg[0].offset = offset_in_page(p);
-			sg[0].length = speed[i].blen;
+		if (sec)
+			ret = test_cipher_jiffies(tfm, enc, p, speed[i].blen,
+						  sec);
+		else
+			ret = test_cipher_cycles(tfm, enc, p, speed[i].blen);
 
-			if (enc)
-				ret = crypto_cipher_encrypt(tfm, sg, sg, speed[i].blen);
-			else
-				ret = crypto_cipher_decrypt(tfm, sg, sg, speed[i].blen);
-
-			if (ret) {
-				printk("%s () failed flags=%x\n", e, tfm->crt_flags);
-				goto out;
-			}
+		if (ret) {
+			printk("%s() failed flags=%x\n", e, tfm->crt_flags);
+			break;
 		}
-
-		printk("%lu operations in %u seconds (%lu bytes)\n",
-		       bcount, sec, bcount * speed[i].blen);
 	}
 
 out:
@@ -1063,7 +1136,8 @@ module_exit(fini);
 
 module_param(mode, int, 0);
 module_param(sec, uint, 0);
-MODULE_PARM_DESC(sec, "Length in seconds of speed tests");
+MODULE_PARM_DESC(sec, "Length in seconds of speed tests "
+		      "(defaults to zero which uses CPU cycles instead)");
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Quick & dirty crypto testing module");
