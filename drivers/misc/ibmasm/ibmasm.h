@@ -108,6 +108,7 @@ struct event_buffer {
 };
 
 struct event_reader {
+	int			cancelled;
 	unsigned int		next_serial_number;
 	wait_queue_head_t	wait;
 	struct list_head	node;
@@ -185,6 +186,7 @@ extern void ibmasm_receive_event(struct service_processor *sp, void *data,  unsi
 extern void ibmasm_event_reader_register(struct service_processor *sp, struct event_reader *reader);
 extern void ibmasm_event_reader_unregister(struct service_processor *sp, struct event_reader *reader);
 extern int ibmasm_get_next_event(struct service_processor *sp, struct event_reader *reader);
+extern void ibmasm_cancel_next_event(struct event_reader *reader);
 
 /* heartbeat - from SP to OS */
 extern void ibmasm_register_panic_notifier(void);

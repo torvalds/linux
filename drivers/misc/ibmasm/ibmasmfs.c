@@ -374,6 +374,7 @@ static int event_file_open(struct inode *inode, struct file *file)
 	ibmasm_event_reader_register(sp, &event_data->reader);
 
 	event_data->sp = sp;
+	event_data->active = 0;
 	file->private_data = event_data;
 	return 0;
 }
@@ -391,7 +392,9 @@ static ssize_t event_file_read(struct file *file, char __user *buf, size_t count
 {
 	struct ibmasmfs_event_data *event_data = file->private_data;
 	struct event_reader *reader = &event_data->reader;
+	struct service_processor *sp = event_data->sp;
 	int ret;
+	unsigned long flags;
 
 	if (*offset < 0)
 		return -EINVAL;
@@ -400,17 +403,32 @@ static ssize_t event_file_read(struct file *file, char __user *buf, size_t count
 	if (*offset != 0)
 		return 0;
 
-	ret = ibmasm_get_next_event(event_data->sp, reader);
+	spin_lock_irqsave(&sp->lock, flags);
+	if (event_data->active) {
+		spin_unlock_irqrestore(&sp->lock, flags);
+		return -EBUSY;
+	}
+	event_data->active = 1;
+	spin_unlock_irqrestore(&sp->lock, flags);
+
+	ret = ibmasm_get_next_event(sp, reader);
 	if (ret <= 0)
-		return ret;
+		goto out;
 
-	if (count < reader->data_size)
-		return -EINVAL;
+	if (count < reader->data_size) {
+		ret = -EINVAL;
+		goto out;
+	}
 
-        if (copy_to_user(buf, reader->data, reader->data_size))
-		return -EFAULT;
+        if (copy_to_user(buf, reader->data, reader->data_size)) {
+		ret = -EFAULT;
+		goto out;
+	}
+	ret = reader->data_size;
 
-	return reader->data_size;
+out:
+	event_data->active = 0;
+	return ret;
 }
 
 static ssize_t event_file_write(struct file *file, const char __user *buf, size_t count, loff_t *offset)
@@ -424,7 +442,7 @@ static ssize_t event_file_write(struct file *file, const char __user *buf, size_
 	if (*offset != 0)
 		return 0;
 
-	wake_up_interruptible(&event_data->reader.wait);
+	ibmasm_cancel_next_event(&event_data->reader);
 	return 0;
 }
 
