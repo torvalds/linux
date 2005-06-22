@@ -935,6 +935,7 @@ nopage:
 			" order:%d, mode:0x%x\n",
 			p->comm, order, gfp_mask);
 		dump_stack();
+		show_mem();
 	}
 	return NULL;
 got_pg:
