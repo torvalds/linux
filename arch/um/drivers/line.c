@@ -756,7 +756,6 @@ static void unregister_winch(struct tty_struct *tty)
         if(winch->pid != -1)
                 os_kill_process(winch->pid, 1);
 
-        free_irq_by_irq_and_dev(WINCH_IRQ, winch);
         free_irq(WINCH_IRQ, winch);
         list_del(&winch->list);
         kfree(winch);
