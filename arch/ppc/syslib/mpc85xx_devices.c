@@ -321,7 +321,6 @@ struct platform_device ppc_sys_platform_devices[] = {
 			},
 		},
 	},
-#ifdef CONFIG_CPM2
 	[MPC85xx_CPM_FCC1] = {
 		.name = "fsl-cpm-fcc",
 		.id	= 1,
@@ -575,7 +574,6 @@ struct platform_device ppc_sys_platform_devices[] = {
 			},
 		},
 	},
-#endif /* CONFIG_CPM2 */
 	[MPC85xx_eTSEC1] = {
 		.name = "fsl-gianfar",
 		.id	= 1,
