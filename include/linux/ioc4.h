@@ -11,6 +11,14 @@
 
 #include <linux/interrupt.h>
 
+/***************
+ * Definitions *
+ ***************/
+
+/* Miscellaneous values inherent to hardware */
+
+#define IOC4_EXTINT_COUNT_DIVISOR 520	/* PCI clocks per COUNT tick */
+
 /***********************************
  * Structures needed by subdrivers *
  ***********************************/
@@ -119,19 +127,34 @@ struct ioc4_misc_regs {
 	} gppr[8];		/* Generic PIO pins */
 };
 
-/* One of these per IOC4
- *
- * The idd_serial_data field is present here, even though it's used
- * solely by the serial subdriver, because the main IOC4 module
- * properly owns pci_{get,set}_drvdata functionality.  This field
- * allows that subdriver to stash its own drvdata somewhere.
- */
+/* Masks for GPCR DIR pins */
+#define IOC4_GPCR_DIR_0 0x01	/* External interrupt output */
+#define IOC4_GPCR_DIR_1 0x02	/* External interrupt input */
+#define IOC4_GPCR_DIR_2 0x04
+#define IOC4_GPCR_DIR_3 0x08	/* Keyboard/mouse presence */
+#define IOC4_GPCR_DIR_4 0x10	/* Ser. port 0 xcvr select (0=232, 1=422) */
+#define IOC4_GPCR_DIR_5 0x20	/* Ser. port 1 xcvr select (0=232, 1=422) */
+#define IOC4_GPCR_DIR_6 0x40	/* Ser. port 2 xcvr select (0=232, 1=422) */
+#define IOC4_GPCR_DIR_7 0x80	/* Ser. port 3 xcvr select (0=232, 1=422) */
+
+/* Masks for GPCR EDGE pins */
+#define IOC4_GPCR_EDGE_0 0x01
+#define IOC4_GPCR_EDGE_1 0x02	/* External interrupt input */
+#define IOC4_GPCR_EDGE_2 0x04
+#define IOC4_GPCR_EDGE_3 0x08
+#define IOC4_GPCR_EDGE_4 0x10
+#define IOC4_GPCR_EDGE_5 0x20
+#define IOC4_GPCR_EDGE_6 0x40
+#define IOC4_GPCR_EDGE_7 0x80
+
+/* One of these per IOC4 */
 struct ioc4_driver_data {
 	struct list_head idd_list;
 	unsigned long idd_bar0;
 	struct pci_dev *idd_pdev;
 	const struct pci_device_id *idd_pci_id;
 	struct __iomem ioc4_misc_regs *idd_misc_regs;
+	unsigned long count_period;
 	void *idd_serial_data;
 };
 

@@ -299,7 +299,6 @@ struct ioc4_serial {
 } ioc4_serial;
 
 /* UART clock speed */
-#define IOC4_SER_XIN_CLK        IOC4_SER_XIN_CLK_66
 #define IOC4_SER_XIN_CLK_66     66666667
 #define IOC4_SER_XIN_CLK_33     33333333
 
@@ -1012,21 +1011,20 @@ static irqreturn_t ioc4_intr(int irq, void *arg, struct pt_regs *regs)
  * ioc4_attach_local - Device initialization.
  *			Called at *_attach() time for each
  *			IOC4 with serial ports in the system.
- * @control: ioc4_control ptr
- * @pdev: PCI handle for this device
- * @soft: soft struct for this device
- * @ioc4: ioc4 mem space
+ * @idd: Master module data for this IOC4
  */
-static int inline ioc4_attach_local(struct pci_dev *pdev,
-			struct ioc4_control *control,
-			struct ioc4_soft *soft, void __iomem *ioc4_misc,
-			void __iomem *ioc4_serial)
+static int inline ioc4_attach_local(struct ioc4_driver_data *idd)
 {
 	struct ioc4_port *port;
 	struct ioc4_port *ports[IOC4_NUM_SERIAL_PORTS];
 	int port_number;
 	uint16_t ioc4_revid_min = 62;
 	uint16_t ioc4_revid;
+	struct pci_dev *pdev = idd->idd_pdev;
+	struct ioc4_control* control = idd->idd_serial_data;
+	struct ioc4_soft *soft = control->ic_soft;
+	void __iomem *ioc4_misc = idd->idd_misc_regs;
+	void __iomem *ioc4_serial = soft->is_ioc4_serial_addr;
 
 	/* IOC4 firmware must be at least rev 62 */
 	pci_read_config_word(pdev, PCI_COMMAND_SPECIAL, &ioc4_revid);
@@ -1063,7 +1061,15 @@ static int inline ioc4_attach_local(struct pci_dev *pdev,
 		port->ip_ioc4_soft = soft;
 		port->ip_pdev = pdev;
 		port->ip_ienb = 0;
-		port->ip_pci_bus_speed = IOC4_SER_XIN_CLK;
+		/* Use baud rate calculations based on detected PCI
+		 * bus speed.  Simply test whether the PCI clock is
+		 * running closer to 66MHz or 33MHz.
+		 */
+		if (idd->count_period/IOC4_EXTINT_COUNT_DIVISOR < 20) {
+			port->ip_pci_bus_speed = IOC4_SER_XIN_CLK_66;
+		} else {
+			port->ip_pci_bus_speed = IOC4_SER_XIN_CLK_33;
+		}
 		port->ip_baud = 9600;
 		port->ip_control = control;
 		port->ip_mem = ioc4_misc;
@@ -2733,9 +2739,8 @@ ioc4_serial_attach_one(struct ioc4_driver_data *idd)
 		    "%s : request_irq fails for IRQ 0x%x\n ",
 			__FUNCTION__, idd->idd_pdev->irq);
 	}
-	if ((ret = ioc4_attach_local(idd->idd_pdev, control, soft,
-				soft->is_ioc4_misc_addr,
-				soft->is_ioc4_serial_addr)))
+	ret = ioc4_attach_local(idd);
+	if (ret)
 		goto out4;
 
 	/* register port with the serial core */

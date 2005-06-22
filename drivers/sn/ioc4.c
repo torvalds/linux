@@ -29,7 +29,26 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/ioc4.h>
+#include <linux/mmtimer.h>
+#include <linux/rtc.h>
 #include <linux/rwsem.h>
+#include <asm/sn/addrs.h>
+#include <asm/sn/clksupport.h>
+#include <asm/sn/shub_mmr.h>
+
+/***************
+ * Definitions *
+ ***************/
+
+/* Tweakable values */
+
+/* PCI bus speed detection/calibration */
+#define IOC4_CALIBRATE_COUNT 63	/* Calibration cycle period */
+#define IOC4_CALIBRATE_CYCLES 256	/* Average over this many cycles */
+#define IOC4_CALIBRATE_DISCARD 2	/* Discard first few cycles */
+#define IOC4_CALIBRATE_LOW_MHZ 25	/* Lower bound on bus speed sanity */
+#define IOC4_CALIBRATE_HIGH_MHZ 75	/* Upper bound on bus speed sanity */
+#define IOC4_CALIBRATE_DEFAULT_MHZ 66	/* Assumed if sanity check fails */
 
 /************************
  * Submodule management *
@@ -101,6 +120,112 @@ ioc4_unregister_submodule(struct ioc4_submodule *is)
  * Device management *
  *********************/
 
+#define IOC4_CALIBRATE_LOW_LIMIT \
+	(1000*IOC4_EXTINT_COUNT_DIVISOR/IOC4_CALIBRATE_LOW_MHZ)
+#define IOC4_CALIBRATE_HIGH_LIMIT \
+	(1000*IOC4_EXTINT_COUNT_DIVISOR/IOC4_CALIBRATE_HIGH_MHZ)
+#define IOC4_CALIBRATE_DEFAULT \
+	(1000*IOC4_EXTINT_COUNT_DIVISOR/IOC4_CALIBRATE_DEFAULT_MHZ)
+
+#define IOC4_CALIBRATE_END \
+	(IOC4_CALIBRATE_CYCLES + IOC4_CALIBRATE_DISCARD)
+
+#define IOC4_INT_OUT_MODE_TOGGLE 0x7	/* Toggle INT_OUT every COUNT+1 ticks */
+
+/* Determines external interrupt output clock period of the PCI bus an
+ * IOC4 is attached to.  This value can be used to determine the PCI
+ * bus speed.
+ *
+ * IOC4 has a design feature that various internal timers are derived from
+ * the PCI bus clock.  This causes IOC4 device drivers to need to take the
+ * bus speed into account when setting various register values (e.g. INT_OUT
+ * register COUNT field, UART divisors, etc).  Since this information is
+ * needed by several subdrivers, it is determined by the main IOC4 driver,
+ * even though the following code utilizes external interrupt registers
+ * to perform the speed calculation.
+ */
+static void
+ioc4_clock_calibrate(struct ioc4_driver_data *idd)
+{
+	extern unsigned long sn_rtc_cycles_per_second;
+	union ioc4_int_out int_out;
+	union ioc4_gpcr gpcr;
+	unsigned int state, last_state = 1;
+	uint64_t start = 0, end, period;
+	unsigned int count = 0;
+
+	/* Enable output */
+	gpcr.raw = 0;
+	gpcr.fields.dir = IOC4_GPCR_DIR_0;
+	gpcr.fields.int_out_en = 1;
+	writel(gpcr.raw, &idd->idd_misc_regs->gpcr_s.raw);
+
+	/* Reset to power-on state */
+	writel(0, &idd->idd_misc_regs->int_out.raw);
+	mmiowb();
+
+	printk(KERN_INFO
+	       "%s: Calibrating PCI bus speed "
+	       "for pci_dev %s ... ", __FUNCTION__, pci_name(idd->idd_pdev));
+	/* Set up square wave */
+	int_out.raw = 0;
+	int_out.fields.count = IOC4_CALIBRATE_COUNT;
+	int_out.fields.mode = IOC4_INT_OUT_MODE_TOGGLE;
+	int_out.fields.diag = 0;
+	writel(int_out.raw, &idd->idd_misc_regs->int_out.raw);
+	mmiowb();
+
+	/* Check square wave period averaged over some number of cycles */
+	do {
+		int_out.raw = readl(&idd->idd_misc_regs->int_out.raw);
+		state = int_out.fields.int_out;
+		if (!last_state && state) {
+			count++;
+			if (count == IOC4_CALIBRATE_END) {
+				end = rtc_time();
+				break;
+			} else if (count == IOC4_CALIBRATE_DISCARD)
+				start = rtc_time();
+		}
+		last_state = state;
+	} while (1);
+
+	/* Calculation rearranged to preserve intermediate precision.
+	 * Logically:
+	 * 1. "end - start" gives us number of RTC cycles over all the
+	 *    square wave cycles measured.
+	 * 2. Divide by number of square wave cycles to get number of
+	 *    RTC cycles per square wave cycle.
+	 * 3. Divide by 2*(int_out.fields.count+1), which is the formula
+	 *    by which the IOC4 generates the square wave, to get the
+	 *    number of RTC cycles per IOC4 INT_OUT count.
+	 * 4. Divide by sn_rtc_cycles_per_second to get seconds per
+	 *    count.
+	 * 5. Multiply by 1E9 to get nanoseconds per count.
+	 */
+	period = ((end - start) * 1000000000) /
+	    (IOC4_CALIBRATE_CYCLES * 2 * (IOC4_CALIBRATE_COUNT + 1)
+	     * sn_rtc_cycles_per_second);
+
+	/* Bounds check the result. */
+	if (period > IOC4_CALIBRATE_LOW_LIMIT ||
+	    period < IOC4_CALIBRATE_HIGH_LIMIT) {
+		printk("failed. Assuming PCI clock ticks are %d ns.\n",
+		       IOC4_CALIBRATE_DEFAULT / IOC4_EXTINT_COUNT_DIVISOR);
+		period = IOC4_CALIBRATE_DEFAULT;
+	} else {
+		printk("succeeded. PCI clock ticks are %ld ns.\n",
+		       period / IOC4_EXTINT_COUNT_DIVISOR);
+	}
+
+	/* Remember results.  We store the extint clock period rather
+	 * than the PCI clock period so that greater precision is
+	 * retained.  Divide by IOC4_EXTINT_COUNT_DIVISOR to get
+	 * PCI clock period.
+	 */
+	idd->count_period = period;
+}
+
 /* Adds a new instance of an IOC4 card */
 static int
 ioc4_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
@@ -169,6 +294,9 @@ ioc4_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 	pci_read_config_dword(idd->idd_pdev, PCI_COMMAND, &pcmd);
 	pci_write_config_dword(idd->idd_pdev, PCI_COMMAND,
 			       pcmd | PCI_COMMAND_PARITY | PCI_COMMAND_SERR);
+
+	/* Determine PCI clock */
+	ioc4_clock_calibrate(idd);
 
 	/* Disable/clear all interrupts.  Need to do this here lest
 	 * one submodule request the shared IOC4 IRQ, but interrupt
