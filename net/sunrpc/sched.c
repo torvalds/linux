@@ -555,6 +555,30 @@ __rpc_atrun(struct rpc_task *task)
 }
 
 /*
+ * Helper that calls task->tk_exit if it exists and then returns
+ * true if we should exit __rpc_execute.
+ */
+static inline int __rpc_do_exit(struct rpc_task *task)
+{
+	if (task->tk_exit != NULL) {
+		lock_kernel();
+		task->tk_exit(task);
+		unlock_kernel();
+		/* If tk_action is non-null, we should restart the call */
+		if (task->tk_action != NULL) {
+			if (!RPC_ASSASSINATED(task)) {
+				/* Release RPC slot and buffer memory */
+				xprt_release(task);
+				rpc_free(task);
+				return 0;
+			}
+			printk(KERN_ERR "RPC: dead task tried to walk away.\n");
+		}
+	}
+	return 1;
+}
+
+/*
  * This is the RPC `scheduler' (or rather, the finite state machine).
  */
 static int __rpc_execute(struct rpc_task *task)
@@ -566,8 +590,7 @@ static int __rpc_execute(struct rpc_task *task)
 
 	BUG_ON(RPC_IS_QUEUED(task));
 
- restarted:
-	while (1) {
+	for (;;) {
 		/*
 		 * Garbage collection of pending timers...
 		 */
@@ -600,11 +623,12 @@ static int __rpc_execute(struct rpc_task *task)
 		 * by someone else.
 		 */
 		if (!RPC_IS_QUEUED(task)) {
-			if (!task->tk_action)
+			if (task->tk_action != NULL) {
+				lock_kernel();
+				task->tk_action(task);
+				unlock_kernel();
+			} else if (__rpc_do_exit(task))
 				break;
-			lock_kernel();
-			task->tk_action(task);
-			unlock_kernel();
 		}
 
 		/*
@@ -643,23 +667,6 @@ static int __rpc_execute(struct rpc_task *task)
 		}
 		rpc_set_running(task);
 		dprintk("RPC: %4d sync task resuming\n", task->tk_pid);
-	}
-
-	if (task->tk_exit) {
-		lock_kernel();
-		task->tk_exit(task);
-		unlock_kernel();
-		/* If tk_action is non-null, the user wants us to restart */
-		if (task->tk_action) {
-			if (!RPC_ASSASSINATED(task)) {
-				/* Release RPC slot and buffer memory */
-				if (task->tk_rqstp)
-					xprt_release(task);
-				rpc_free(task);
-				goto restarted;
-			}
-			printk(KERN_ERR "RPC: dead task tries to walk away.\n");
-		}
 	}
 
 	dprintk("RPC: %4d exit() = %d\n", task->tk_pid, task->tk_status);
