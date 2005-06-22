@@ -891,7 +891,6 @@ struct nfs_open_context *alloc_nfs_open_context(struct dentry *dentry, struct rp
 		ctx->state = NULL;
 		ctx->lockowner = current->files;
 		ctx->error = 0;
-		ctx->dir_pos = 0;
 		ctx->dir_cookie = 0;
 	}
 	return ctx;

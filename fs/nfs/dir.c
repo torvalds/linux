@@ -51,8 +51,10 @@ static int nfs_mknod(struct inode *, struct dentry *, int, dev_t);
 static int nfs_rename(struct inode *, struct dentry *,
 		      struct inode *, struct dentry *);
 static int nfs_fsync_dir(struct file *, struct dentry *, int);
+static loff_t nfs_llseek_dir(struct file *, loff_t, int);
 
 struct file_operations nfs_dir_operations = {
+	.llseek		= nfs_llseek_dir,
 	.read		= generic_read_dir,
 	.readdir	= nfs_readdir,
 	.open		= nfs_opendir,
@@ -141,9 +143,8 @@ typedef struct {
 	struct page	*page;
 	unsigned long	page_index;
 	u32		*ptr;
-	u64		target_cookie;
-	int		target_index;
-	int		current_index;
+	u64		*dir_cookie;
+	loff_t		current_index;
 	struct nfs_entry *entry;
 	decode_dirent_t	decode;
 	int		plus;
@@ -227,7 +228,7 @@ void dir_page_release(nfs_readdir_descriptor_t *desc)
 
 /*
  * Given a pointer to a buffer that has already been filled by a call
- * to readdir, find the next entry with cookie 'desc->target_cookie'.
+ * to readdir, find the next entry with cookie '*desc->dir_cookie'.
  *
  * If the end of the buffer has been reached, return -EAGAIN, if not,
  * return the offset within the buffer of the next entry to be
@@ -241,8 +242,8 @@ int find_dirent(nfs_readdir_descriptor_t *desc)
 			status;
 
 	while((status = dir_decode(desc)) == 0) {
-		dfprintk(VFS, "NFS: found cookie %Lu\n", (long long)entry->cookie);
-		if (entry->prev_cookie == desc->target_cookie)
+		dfprintk(VFS, "NFS: found cookie %Lu\n", (unsigned long long)entry->cookie);
+		if (entry->prev_cookie == *desc->dir_cookie)
 			break;
 		if (loop_count++ > 200) {
 			loop_count = 0;
@@ -255,7 +256,7 @@ int find_dirent(nfs_readdir_descriptor_t *desc)
 
 /*
  * Given a pointer to a buffer that has already been filled by a call
- * to readdir, find the entry at offset 'desc->target_index'.
+ * to readdir, find the entry at offset 'desc->file->f_pos'.
  *
  * If the end of the buffer has been reached, return -EAGAIN, if not,
  * return the offset within the buffer of the next entry to be
@@ -273,10 +274,10 @@ int find_dirent_index(nfs_readdir_descriptor_t *desc)
 		if (status)
 			break;
 
-		dfprintk(VFS, "NFS: found cookie %Lu at index %d\n", (long long)entry->cookie, desc->current_index);
+		dfprintk(VFS, "NFS: found cookie %Lu at index %Ld\n", (unsigned long long)entry->cookie, desc->current_index);
 
-		if (desc->target_index == desc->current_index) {
-			desc->target_cookie = entry->cookie;
+		if (desc->file->f_pos == desc->current_index) {
+			*desc->dir_cookie = entry->cookie;
 			break;
 		}
 		desc->current_index++;
@@ -314,7 +315,7 @@ int find_dirent_page(nfs_readdir_descriptor_t *desc)
 	/* NOTE: Someone else may have changed the READDIRPLUS flag */
 	desc->page = page;
 	desc->ptr = kmap(page);		/* matching kunmap in nfs_do_filldir */
-	if (desc->target_cookie)
+	if (*desc->dir_cookie != 0)
 		status = find_dirent(desc);
 	else
 		status = find_dirent_index(desc);
@@ -332,8 +333,8 @@ int find_dirent_page(nfs_readdir_descriptor_t *desc)
  * Recurse through the page cache pages, and return a
  * filled nfs_entry structure of the next directory entry if possible.
  *
- * The target for the search is 'desc->target_cookie' if non-0,
- * 'desc->target_index' otherwise
+ * The target for the search is '*desc->dir_cookie' if non-0,
+ * 'desc->file->f_pos' otherwise
  */
 static inline
 int readdir_search_pagecache(nfs_readdir_descriptor_t *desc)
@@ -341,18 +342,15 @@ int readdir_search_pagecache(nfs_readdir_descriptor_t *desc)
 	int		loop_count = 0;
 	int		res;
 
-	if (desc->target_cookie)
-		dfprintk(VFS, "NFS: readdir_search_pagecache() searching for cookie %Lu\n", (long long)desc->target_cookie);
-	else
-		dfprintk(VFS, "NFS: readdir_search_pagecache() searching for cookie number %d\n", desc->target_index);
-
 	/* Always search-by-index from the beginning of the cache */
-	if (!(desc->target_cookie)) {
+	if (*desc->dir_cookie == 0) {
+		dfprintk(VFS, "NFS: readdir_search_pagecache() searching for offset %Ld\n", (long long)desc->file->f_pos);
 		desc->page_index = 0;
 		desc->entry->cookie = desc->entry->prev_cookie = 0;
 		desc->entry->eof = 0;
 		desc->current_index = 0;
-	}
+	} else
+		dfprintk(VFS, "NFS: readdir_search_pagecache() searching for cookie %Lu\n", (unsigned long long)*desc->dir_cookie);
 
 	for (;;) {
 		res = find_dirent_page(desc);
@@ -386,7 +384,6 @@ int nfs_do_filldir(nfs_readdir_descriptor_t *desc, void *dirent,
 	struct file	*file = desc->file;
 	struct nfs_entry *entry = desc->entry;
 	struct dentry	*dentry = NULL;
-	struct nfs_open_context *ctx = file->private_data;
 	unsigned long	fileid;
 	int		loop_count = 0,
 			res;
@@ -415,7 +412,7 @@ int nfs_do_filldir(nfs_readdir_descriptor_t *desc, void *dirent,
 		if (res < 0)
 			break;
 		file->f_pos++;
-		desc->target_cookie = entry->cookie;
+		*desc->dir_cookie = entry->cookie;
 		if (dir_decode(desc) != 0) {
 			desc->page_index ++;
 			break;
@@ -425,12 +422,10 @@ int nfs_do_filldir(nfs_readdir_descriptor_t *desc, void *dirent,
 			schedule();
 		}
 	}
-	ctx->dir_pos        = file->f_pos;
-	ctx->dir_cookie     = desc->target_cookie;
 	dir_page_release(desc);
 	if (dentry != NULL)
 		dput(dentry);
-	dfprintk(VFS, "NFS: nfs_do_filldir() filling ended @ cookie %Lu; returning = %d\n", (long long)desc->target_cookie, res);
+	dfprintk(VFS, "NFS: nfs_do_filldir() filling ended @ cookie %Lu; returning = %d\n", (unsigned long long)*desc->dir_cookie, res);
 	return res;
 }
 
@@ -456,14 +451,14 @@ int uncached_readdir(nfs_readdir_descriptor_t *desc, void *dirent,
 	struct page	*page = NULL;
 	int		status;
 
-	dfprintk(VFS, "NFS: uncached_readdir() searching for cookie %Lu\n", (long long)desc->target_cookie);
+	dfprintk(VFS, "NFS: uncached_readdir() searching for cookie %Lu\n", (unsigned long long)*desc->dir_cookie);
 
 	page = alloc_page(GFP_HIGHUSER);
 	if (!page) {
 		status = -ENOMEM;
 		goto out;
 	}
-	desc->error = NFS_PROTO(inode)->readdir(file->f_dentry, cred, desc->target_cookie,
+	desc->error = NFS_PROTO(inode)->readdir(file->f_dentry, cred, *desc->dir_cookie,
 						page,
 						NFS_SERVER(inode)->dtsize,
 						desc->plus);
@@ -472,7 +467,7 @@ int uncached_readdir(nfs_readdir_descriptor_t *desc, void *dirent,
 	desc->ptr = kmap(page);		/* matching kunmap in nfs_do_filldir */
 	if (desc->error >= 0) {
 		if ((status = dir_decode(desc)) == 0)
-			desc->entry->prev_cookie = desc->target_cookie;
+			desc->entry->prev_cookie = *desc->dir_cookie;
 	} else
 		status = -EIO;
 	if (status < 0)
@@ -501,7 +496,6 @@ static int nfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
 	struct dentry	*dentry = filp->f_dentry;
 	struct inode	*inode = dentry->d_inode;
-	struct nfs_open_context *ctx = filp->private_data;
 	nfs_readdir_descriptor_t my_desc,
 			*desc = &my_desc;
 	struct nfs_entry my_entry;
@@ -519,21 +513,16 @@ static int nfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 
 	/*
 	 * filp->f_pos points to the dirent entry number.
-	 * ctx->dir_pos has the number of the cached cookie.  We have
+	 * *desc->dir_cookie has the cookie for the next entry. We have
 	 * to either find the entry with the appropriate number or
 	 * revalidate the cookie.
 	 */
 	memset(desc, 0, sizeof(*desc));
 
 	desc->file = filp;
+	desc->dir_cookie = &((struct nfs_open_context *)filp->private_data)->dir_cookie;
 	desc->decode = NFS_PROTO(inode)->decode_dirent;
 	desc->plus = NFS_USE_READDIRPLUS(inode);
-	desc->target_index = filp->f_pos;
-
-	if (filp->f_pos == ctx->dir_pos)
-		desc->target_cookie = ctx->dir_cookie;
-	else
-		desc->target_cookie = 0;
 
 	my_entry.cookie = my_entry.prev_cookie = 0;
 	my_entry.eof = 0;
@@ -546,7 +535,7 @@ static int nfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 
 		if (res == -EBADCOOKIE) {
 			/* This means either end of directory */
-			if (desc->target_cookie && desc->entry->cookie != desc->target_cookie) {
+			if (*desc->dir_cookie && desc->entry->cookie != *desc->dir_cookie) {
 				/* Or that the server has 'lost' a cookie */
 				res = uncached_readdir(desc, dirent, filldir);
 				if (res >= 0)
@@ -577,6 +566,28 @@ static int nfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	if (res < 0)
 		return res;
 	return 0;
+}
+
+loff_t nfs_llseek_dir(struct file *filp, loff_t offset, int origin)
+{
+	down(&filp->f_dentry->d_inode->i_sem);
+	switch (origin) {
+		case 1:
+			offset += filp->f_pos;
+		case 0:
+			if (offset >= 0)
+				break;
+		default:
+			offset = -EINVAL;
+			goto out;
+	}
+	if (offset != filp->f_pos) {
+		filp->f_pos = offset;
+		((struct nfs_open_context *)filp->private_data)->dir_cookie = 0;
+	}
+out:
+	up(&filp->f_dentry->d_inode->i_sem);
+	return offset;
 }
 
 /*
