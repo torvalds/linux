@@ -169,13 +169,13 @@ struct nfs_inode {
 	wait_queue_head_t	nfs_i_wait;
 
 #ifdef CONFIG_NFS_V4
+	struct nfs4_cached_acl	*nfs4_acl;
         /* NFSv4 state */
 	struct list_head	open_states;
 	struct nfs_delegation	*delegation;
 	int			 delegation_state;
 	struct rw_semaphore	rwsem;
 #endif /* CONFIG_NFS_V4*/
-
 	struct inode		vfs_inode;
 };
 

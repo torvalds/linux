@@ -142,10 +142,6 @@ nfs_delete_inode(struct inode * inode)
 	clear_inode(inode);
 }
 
-/*
- * For the moment, the only task for the NFS clear_inode method is to
- * release the mmap credential
- */
 static void
 nfs_clear_inode(struct inode *inode)
 {
@@ -1923,6 +1919,9 @@ static struct inode *nfs_alloc_inode(struct super_block *sb)
 	if (!nfsi)
 		return NULL;
 	nfsi->flags = 0;
+#ifdef CONFIG_NFS_V4
+	nfsi->nfs4_acl = NULL;
+#endif /* CONFIG_NFS_V4 */
 	return &nfsi->vfs_inode;
 }
 

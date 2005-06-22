@@ -2188,9 +2188,75 @@ static void buf_to_pages(const void *buf, size_t buflen,
 	}
 }
 
-static ssize_t nfs4_proc_get_acl(struct inode *inode, void *buf, size_t buflen)
+struct nfs4_cached_acl {
+	int cached;
+	size_t len;
+	char data[];
+};
+
+static void nfs4_set_cached_acl(struct inode *inode, struct nfs4_cached_acl *acl)
 {
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct nfs_inode *nfsi = NFS_I(inode);
+
+	spin_lock(&inode->i_lock);
+	kfree(nfsi->nfs4_acl);
+	nfsi->nfs4_acl = acl;
+	spin_unlock(&inode->i_lock);
+}
+
+static void nfs4_zap_acl_attr(struct inode *inode)
+{
+	nfs4_set_cached_acl(inode, NULL);
+}
+
+static inline ssize_t nfs4_read_cached_acl(struct inode *inode, char *buf, size_t buflen)
+{
+	struct nfs_inode *nfsi = NFS_I(inode);
+	struct nfs4_cached_acl *acl;
+	int ret = -ENOENT;
+
+	spin_lock(&inode->i_lock);
+	acl = nfsi->nfs4_acl;
+	if (acl == NULL)
+		goto out;
+	if (buf == NULL) /* user is just asking for length */
+		goto out_len;
+	if (acl->cached == 0)
+		goto out;
+	ret = -ERANGE; /* see getxattr(2) man page */
+	if (acl->len > buflen)
+		goto out;
+	memcpy(buf, acl->data, acl->len);
+out_len:
+	ret = acl->len;
+out:
+	spin_unlock(&inode->i_lock);
+	return ret;
+}
+
+static void nfs4_write_cached_acl(struct inode *inode, const char *buf, size_t acl_len)
+{
+	struct nfs4_cached_acl *acl;
+
+	if (buf && acl_len <= PAGE_SIZE) {
+		acl = kmalloc(sizeof(*acl) + acl_len, GFP_KERNEL);
+		if (acl == NULL)
+			goto out;
+		acl->cached = 1;
+		memcpy(acl->data, buf, acl_len);
+	} else {
+		acl = kmalloc(sizeof(*acl), GFP_KERNEL);
+		if (acl == NULL)
+			goto out;
+		acl->cached = 0;
+	}
+	acl->len = acl_len;
+out:
+	nfs4_set_cached_acl(inode, acl);
+}
+
+static inline ssize_t nfs4_get_acl_uncached(struct inode *inode, void *buf, size_t buflen)
+{
 	struct page *pages[NFS4ACL_MAXPAGES];
 	struct nfs_getaclargs args = {
 		.fh = NFS_FH(inode),
@@ -2198,22 +2264,64 @@ static ssize_t nfs4_proc_get_acl(struct inode *inode, void *buf, size_t buflen)
 		.acl_len = buflen,
 	};
 	size_t resp_len = buflen;
+	void *resp_buf;
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_GETACL],
 		.rpc_argp = &args,
 		.rpc_resp = &resp_len,
 	};
+	struct page *localpage = NULL;
+	int ret;
+
+	if (buflen < PAGE_SIZE) {
+		/* As long as we're doing a round trip to the server anyway,
+		 * let's be prepared for a page of acl data. */
+		localpage = alloc_page(GFP_KERNEL);
+		resp_buf = page_address(localpage);
+		if (localpage == NULL)
+			return -ENOMEM;
+		args.acl_pages[0] = localpage;
+		args.acl_pgbase = 0;
+		args.acl_len = PAGE_SIZE;
+	} else {
+		resp_buf = buf;
+		buf_to_pages(buf, buflen, args.acl_pages, &args.acl_pgbase);
+	}
+	ret = rpc_call_sync(NFS_CLIENT(inode), &msg, 0);
+	if (ret)
+		goto out_free;
+	if (resp_len > args.acl_len)
+		nfs4_write_cached_acl(inode, NULL, resp_len);
+	else
+		nfs4_write_cached_acl(inode, resp_buf, resp_len);
+	if (buf) {
+		ret = -ERANGE;
+		if (resp_len > buflen)
+			goto out_free;
+		if (localpage)
+			memcpy(buf, resp_buf, resp_len);
+	}
+	ret = resp_len;
+out_free:
+	if (localpage)
+		__free_page(localpage);
+	return ret;
+}
+
+static ssize_t nfs4_proc_get_acl(struct inode *inode, void *buf, size_t buflen)
+{
+	struct nfs_server *server = NFS_SERVER(inode);
 	int ret;
 
 	if (!nfs4_server_supports_acls(server))
 		return -EOPNOTSUPP;
-	buf_to_pages(buf, buflen, args.acl_pages, &args.acl_pgbase);
-	ret = rpc_call_sync(NFS_CLIENT(inode), &msg, 0);
-	if (buflen && resp_len > buflen)
-		return -ERANGE;
-	if (ret == 0)
-		ret = resp_len;
-	return ret;
+	ret = nfs_revalidate_inode(server, inode);
+	if (ret < 0)
+		return ret;
+	ret = nfs4_read_cached_acl(inode, buf, buflen);
+	if (ret != -ENOENT)
+		return ret;
+	return nfs4_get_acl_uncached(inode, buf, buflen);
 }
 
 static int nfs4_proc_set_acl(struct inode *inode, const void *buf, size_t buflen)
@@ -2236,6 +2344,8 @@ static int nfs4_proc_set_acl(struct inode *inode, const void *buf, size_t buflen
 		return -EOPNOTSUPP;
 	buf_to_pages(buf, buflen, arg.acl_pages, &arg.acl_pgbase);
 	ret = rpc_call_sync(NFS_SERVER(inode)->client, &msg, 0);
+	if (ret == 0)
+		nfs4_write_cached_acl(inode, buf, buflen);
 	return ret;
 }
 
@@ -2907,6 +3017,7 @@ struct nfs_rpc_ops	nfs_v4_clientops = {
 	.file_open      = nfs4_proc_file_open,
 	.file_release   = nfs4_proc_file_release,
 	.lock		= nfs4_proc_lock,
+	.clear_acl_cache = nfs4_zap_acl_attr,
 };
 
 /*
