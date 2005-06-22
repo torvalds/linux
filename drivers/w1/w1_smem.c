@@ -37,14 +37,11 @@ MODULE_AUTHOR("Evgeniy Polyakov <johnpol@2ka.mipt.ru>");
 MODULE_DESCRIPTION("Driver for 1-wire Dallas network protocol, 64bit memory family.");
 
 static ssize_t w1_smem_read_name(struct device *, struct device_attribute *attr, char *);
-static ssize_t w1_smem_read_val(struct device *, struct device_attribute *attr, char *);
 static ssize_t w1_smem_read_bin(struct kobject *, char *, loff_t, size_t);
 
 static struct w1_family_ops w1_smem_fops = {
 	.rname = &w1_smem_read_name,
 	.rbin = &w1_smem_read_bin,
-	.rval = &w1_smem_read_val,
-	.rvalname = "id",
 };
 
 static ssize_t w1_smem_read_name(struct device *dev, struct device_attribute *attr, char *buf)
@@ -52,19 +49,6 @@ static ssize_t w1_smem_read_name(struct device *dev, struct device_attribute *at
 	struct w1_slave *sl = container_of(dev, struct w1_slave, dev);
 
 	return sprintf(buf, "%s\n", sl->name);
-}
-
-static ssize_t w1_smem_read_val(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct w1_slave *sl = container_of(dev, struct w1_slave, dev);
-	int i;
-	ssize_t count = 0;
-	
-	for (i = 0; i < 8; ++i)
-		count += sprintf(buf + count, "%02x ", ((u8 *)&sl->reg_num)[i]);
-	count += sprintf(buf + count, "\n");
-
-	return count;
 }
 
 static ssize_t w1_smem_read_bin(struct kobject *kobj, char *buf, loff_t off, size_t count)
