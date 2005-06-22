@@ -20,6 +20,11 @@
 #include <asm/atomic.h>
 
 /*
+ * Valid flags for the radix tree
+ */
+#define NFS_PAGE_TAG_WRITEBACK	1
+
+/*
  * Valid flags for a dirty buffer
  */
 #define PG_BUSY			0
@@ -62,6 +67,9 @@ extern	int nfs_coalesce_requests(struct list_head *, struct list_head *,
 				  unsigned int);
 extern  int nfs_wait_on_request(struct nfs_page *);
 extern	void nfs_unlock_request(struct nfs_page *req);
+extern  int nfs_set_page_writeback_locked(struct nfs_page *req);
+extern  void nfs_clear_page_writeback(struct nfs_page *req);
+
 
 /*
  * Lock the page of an asynchronous request without incrementing the wb_count
@@ -96,10 +104,6 @@ nfs_list_remove_request(struct nfs_page *req)
 {
 	if (list_empty(&req->wb_list))
 		return;
-	if (!NFS_WBACK_BUSY(req)) {
-		printk(KERN_ERR "NFS: unlocked request attempted removed from list!\n");
-		BUG();
-	}
 	list_del_init(&req->wb_list);
 	req->wb_list_head = NULL;
 }

@@ -503,13 +503,12 @@ nfs_wait_on_requests(struct inode *inode, unsigned long idx_start, unsigned int 
 
 	spin_lock(&nfsi->req_lock);
 	next = idx_start;
-	while (radix_tree_gang_lookup(&nfsi->nfs_page_tree, (void **)&req, next, 1)) {
+	while (radix_tree_gang_lookup_tag(&nfsi->nfs_page_tree, (void **)&req, next, 1, NFS_PAGE_TAG_WRITEBACK)) {
 		if (req->wb_index > idx_end)
 			break;
 
 		next = req->wb_index + 1;
-		if (!NFS_WBACK_BUSY(req))
-			continue;
+		BUG_ON(!NFS_WBACK_BUSY(req));
 
 		atomic_inc(&req->wb_count);
 		spin_unlock(&nfsi->req_lock);
@@ -821,7 +820,7 @@ out:
 #else
 	nfs_inode_remove_request(req);
 #endif
-	nfs_unlock_request(req);
+	nfs_clear_page_writeback(req);
 }
 
 static inline int flush_task_priority(int how)
@@ -952,7 +951,7 @@ out_bad:
 		nfs_writedata_free(data);
 	}
 	nfs_mark_request_dirty(req);
-	nfs_unlock_request(req);
+	nfs_clear_page_writeback(req);
 	return -ENOMEM;
 }
 
@@ -1002,7 +1001,7 @@ static int nfs_flush_one(struct list_head *head, struct inode *inode, int how)
 		struct nfs_page *req = nfs_list_entry(head->next);
 		nfs_list_remove_request(req);
 		nfs_mark_request_dirty(req);
-		nfs_unlock_request(req);
+		nfs_clear_page_writeback(req);
 	}
 	return -ENOMEM;
 }
@@ -1029,7 +1028,7 @@ nfs_flush_list(struct list_head *head, int wpages, int how)
 		req = nfs_list_entry(head->next);
 		nfs_list_remove_request(req);
 		nfs_mark_request_dirty(req);
-		nfs_unlock_request(req);
+		nfs_clear_page_writeback(req);
 	}
 	return error;
 }
@@ -1121,7 +1120,7 @@ static void nfs_writeback_done_full(struct nfs_write_data *data, int status)
 		nfs_inode_remove_request(req);
 #endif
 	next:
-		nfs_unlock_request(req);
+		nfs_clear_page_writeback(req);
 	}
 }
 
@@ -1278,7 +1277,7 @@ nfs_commit_list(struct list_head *head, int how)
 		req = nfs_list_entry(head->next);
 		nfs_list_remove_request(req);
 		nfs_mark_request_commit(req);
-		nfs_unlock_request(req);
+		nfs_clear_page_writeback(req);
 	}
 	return -ENOMEM;
 }
@@ -1324,7 +1323,7 @@ nfs_commit_done(struct rpc_task *task)
 		dprintk(" mismatch\n");
 		nfs_mark_request_dirty(req);
 	next:
-		nfs_unlock_request(req);
+		nfs_clear_page_writeback(req);
 		res++;
 	}
 	sub_page_state(nr_unstable,res);

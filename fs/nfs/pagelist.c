@@ -112,6 +112,33 @@ void nfs_unlock_request(struct nfs_page *req)
 }
 
 /**
+ * nfs_set_page_writeback_locked - Lock a request for writeback
+ * @req:
+ */
+int nfs_set_page_writeback_locked(struct nfs_page *req)
+{
+	struct nfs_inode *nfsi = NFS_I(req->wb_context->dentry->d_inode);
+
+	if (!nfs_lock_request(req))
+		return 0;
+	radix_tree_tag_set(&nfsi->nfs_page_tree, req->wb_index, NFS_PAGE_TAG_WRITEBACK);
+	return 1;
+}
+
+/**
+ * nfs_clear_page_writeback - Unlock request and wake up sleepers
+ */
+void nfs_clear_page_writeback(struct nfs_page *req)
+{
+	struct nfs_inode *nfsi = NFS_I(req->wb_context->dentry->d_inode);
+
+	spin_lock(&nfsi->req_lock);
+	radix_tree_tag_clear(&nfsi->nfs_page_tree, req->wb_index, NFS_PAGE_TAG_WRITEBACK);
+	spin_unlock(&nfsi->req_lock);
+	nfs_unlock_request(req);
+}
+
+/**
  * nfs_clear_request - Free up all resources allocated to the request
  * @req:
  *
@@ -301,7 +328,7 @@ nfs_scan_list(struct list_head *head, struct list_head *dst,
 		if (req->wb_index > idx_end)
 			break;
 
-		if (!nfs_lock_request(req))
+		if (!nfs_set_page_writeback_locked(req))
 			continue;
 		nfs_list_remove_request(req);
 		nfs_list_add_request(req, dst);
