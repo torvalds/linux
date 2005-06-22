@@ -195,7 +195,7 @@ void __init htab_initialize(void)
 		memset((void *)table, 0, htab_size_bytes);
 	}
 
-	mode_rw = _PAGE_ACCESSED | _PAGE_COHERENT | PP_RWXX;
+	mode_rw = _PAGE_ACCESSED | _PAGE_DIRTY | _PAGE_COHERENT | PP_RWXX;
 
 	/* On U3 based machines, we need to reserve the DART area and
 	 * _NOT_ map it to avoid cache paradoxes as it's remapped non
