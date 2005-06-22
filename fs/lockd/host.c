@@ -189,6 +189,8 @@ nlm_bind_host(struct nlm_host *host)
 			goto forgetit;
 
 		xprt_set_timeout(&xprt->timeout, 5, nlmsvc_timeout);
+		xprt->nocong = 1;	/* No congestion control for NLM */
+		xprt->resvport = 1;	/* NLM requires a reserved port */
 
 		/* Existing NLM servers accept AUTH_UNIX only */
 		clnt = rpc_create_client(xprt, host->h_name, &nlm_program,
@@ -196,8 +198,6 @@ nlm_bind_host(struct nlm_host *host)
 		if (IS_ERR(clnt))
 			goto forgetit;
 		clnt->cl_autobind = 1;	/* turn on pmap queries */
-		xprt->nocong = 1;	/* No congestion control for NLM */
-		xprt->resvport = 1;	/* NLM requires a reserved port */
 
 		host->h_rpcclnt = clnt;
 	}

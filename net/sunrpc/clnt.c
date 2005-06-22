@@ -97,7 +97,7 @@ rpc_setup_pipedir(struct rpc_clnt *clnt, char *dir_name)
  * made to sleep too long.
  */
 struct rpc_clnt *
-rpc_create_client(struct rpc_xprt *xprt, char *servname,
+rpc_new_client(struct rpc_xprt *xprt, char *servname,
 		  struct rpc_program *program, u32 vers,
 		  rpc_authflavor_t flavor)
 {
@@ -179,6 +179,36 @@ out_no_path:
 	kfree(clnt);
 out_err:
 	xprt_destroy(xprt);
+	return ERR_PTR(err);
+}
+
+/**
+ * Create an RPC client
+ * @xprt - pointer to xprt struct
+ * @servname - name of server
+ * @info - rpc_program
+ * @version - rpc_program version
+ * @authflavor - rpc_auth flavour to use
+ *
+ * Creates an RPC client structure, then pings the server in order to
+ * determine if it is up, and if it supports this program and version.
+ *
+ * This function should never be called by asynchronous tasks such as
+ * the portmapper.
+ */
+struct rpc_clnt *rpc_create_client(struct rpc_xprt *xprt, char *servname,
+		struct rpc_program *info, u32 version, rpc_authflavor_t authflavor)
+{
+	struct rpc_clnt *clnt;
+	int err;
+	
+	clnt = rpc_new_client(xprt, servname, info, version, authflavor);
+	if (IS_ERR(clnt))
+		return clnt;
+	err = rpc_ping(clnt, RPC_TASK_SOFT|RPC_TASK_NOINTR);
+	if (err == 0)
+		return clnt;
+	rpc_shutdown_client(clnt);
 	return ERR_PTR(err);
 }
 
@@ -1085,4 +1115,31 @@ out_err:
 out_overflow:
 	printk(KERN_WARNING "RPC %s: server reply was truncated.\n", __FUNCTION__);
 	goto out_retry;
+}
+
+static int rpcproc_encode_null(void *rqstp, u32 *data, void *obj)
+{
+	return 0;
+}
+
+static int rpcproc_decode_null(void *rqstp, u32 *data, void *obj)
+{
+	return 0;
+}
+
+static struct rpc_procinfo rpcproc_null = {
+	.p_encode = rpcproc_encode_null,
+	.p_decode = rpcproc_decode_null,
+};
+
+int rpc_ping(struct rpc_clnt *clnt, int flags)
+{
+	struct rpc_message msg = {
+		.rpc_proc = &rpcproc_null,
+	};
+	int err;
+	msg.rpc_cred = authnull_ops.lookup_cred(NULL, NULL, 0);
+	err = rpc_call_sync(clnt, &msg, flags);
+	put_rpccred(msg.rpc_cred);
+	return err;
 }

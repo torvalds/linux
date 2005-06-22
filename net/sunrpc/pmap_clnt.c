@@ -207,7 +207,7 @@ pmap_create(char *hostname, struct sockaddr_in *srvaddr, int proto)
 	xprt->addr.sin_port = htons(RPC_PMAP_PORT);
 
 	/* printk("pmap: create clnt\n"); */
-	clnt = rpc_create_client(xprt, hostname,
+	clnt = rpc_new_client(xprt, hostname,
 				&pmap_program, RPC_PMAP_VERSION,
 				RPC_AUTH_UNIX);
 	if (!IS_ERR(clnt)) {
