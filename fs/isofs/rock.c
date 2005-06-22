@@ -37,14 +37,6 @@ static int check_sp(struct rock_ridge *rr, struct inode *inode)
 	return 0;
 }
 
-/* We define a series of macros because each function must do exactly the
-   same thing in certain places.  We use the macros to ensure that everything
-   is done correctly */
-
-#define CONTINUE_DECLS \
-  int cont_extent = 0, cont_offset = 0, cont_size = 0;   \
-  void *buffer = NULL
-
 #define CHECK_CE	       			\
       {cont_extent = isonum_733(rr->u.CE.extent); \
       cont_offset = isonum_733(rr->u.CE.offset); \
@@ -98,7 +90,10 @@ int get_rock_ridge_filename(struct iso_directory_record *de,
 {
 	int len;
 	unsigned char *chr;
-	CONTINUE_DECLS;
+	int cont_extent = 0;
+	int cont_offset = 0;
+	int cont_size = 0;
+	void *buffer = NULL;
 	struct rock_ridge *rr;
 	int sig;
 	int retnamlen = 0;
@@ -188,8 +183,10 @@ parse_rock_ridge_inode_internal(struct iso_directory_record *de,
 	struct inode *reloc;
 	struct rock_ridge *rr;
 	int rootflag;
-
-	CONTINUE_DECLS;
+	int cont_extent = 0;
+	int cont_offset = 0;
+	int cont_size = 0;
+	void *buffer = NULL;
 
 	if (!ISOFS_SB(inode->i_sb)->s_rock)
 		return 0;
@@ -532,7 +529,10 @@ static int rock_ridge_symlink_readpage(struct file *file, struct page *page)
 	char *rpnt = link;
 	unsigned char *pnt;
 	struct iso_directory_record *raw_inode;
-	CONTINUE_DECLS;
+	int cont_extent = 0;
+	int cont_offset = 0;
+	int cont_size = 0;
+	void *buffer = NULL;
 	unsigned long block, offset;
 	int sig;
 	int len;
