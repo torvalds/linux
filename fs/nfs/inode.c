@@ -620,9 +620,9 @@ nfs_zap_caches(struct inode *inode)
 
 	memset(NFS_COOKIEVERF(inode), 0, sizeof(NFS_COOKIEVERF(inode)));
 	if (S_ISREG(mode) || S_ISDIR(mode) || S_ISLNK(mode))
-		nfsi->flags |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA|NFS_INO_INVALID_ACCESS|NFS_INO_INVALID_ACL;
+		nfsi->flags |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA|NFS_INO_INVALID_ACCESS|NFS_INO_INVALID_ACL|NFS_INO_REVAL_PAGECACHE;
 	else
-		nfsi->flags |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_ACCESS|NFS_INO_INVALID_ACL;
+		nfsi->flags |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_ACCESS|NFS_INO_INVALID_ACL|NFS_INO_REVAL_PAGECACHE;
 }
 
 static void nfs_zap_acl_cache(struct inode *inode)
@@ -1055,6 +1055,7 @@ __nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
 		goto out;
 	}
 	flags = nfsi->flags;
+	nfsi->flags &= ~NFS_INO_REVAL_PAGECACHE;
 	/*
 	 * We may need to keep the attributes marked as invalid if
 	 * we raced with nfs_end_attr_update().
@@ -1187,8 +1188,11 @@ int nfs_refresh_inode(struct inode *inode, struct nfs_fattr *fattr)
 		if ((fattr->valid & NFS_ATTR_PRE_CHANGE) != 0
 				&& nfsi->change_attr == fattr->pre_change_attr)
 			nfsi->change_attr = fattr->change_attr;
-		if (!data_unstable && nfsi->change_attr != fattr->change_attr)
+		if (nfsi->change_attr != fattr->change_attr) {
 			nfsi->flags |= NFS_INO_INVALID_ATTR;
+			if (!data_unstable)
+				nfsi->flags |= NFS_INO_REVAL_PAGECACHE;
+		}
 	}
 
 	if ((fattr->valid & NFS_ATTR_FATTR) == 0)
@@ -1211,12 +1215,16 @@ int nfs_refresh_inode(struct inode *inode, struct nfs_fattr *fattr)
 	}
 
 	/* Verify a few of the more important attributes */
-	if (!data_unstable) {
-		if (!timespec_equal(&inode->i_mtime, &fattr->mtime)
-				|| cur_size != new_isize)
-			nfsi->flags |= NFS_INO_INVALID_ATTR;
-	} else if (new_isize != cur_size && nfsi->npages == 0)
+	if (!timespec_equal(&inode->i_mtime, &fattr->mtime)) {
 		nfsi->flags |= NFS_INO_INVALID_ATTR;
+		if (!data_unstable)
+			nfsi->flags |= NFS_INO_REVAL_PAGECACHE;
+	}
+	if (cur_size != new_isize) {
+		nfsi->flags |= NFS_INO_INVALID_ATTR;
+		if (nfsi->npages == 0)
+			nfsi->flags |= NFS_INO_REVAL_PAGECACHE;
+	}
 
 	/* Have any file permissions changed? */
 	if ((inode->i_mode & S_IALLUGO) != (fattr->mode & S_IALLUGO)
