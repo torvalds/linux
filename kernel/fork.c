@@ -250,8 +250,9 @@ static inline int dup_mmap(struct mm_struct * mm, struct mm_struct * oldmm)
 
 		/*
 		 * Link in the new vma and copy the page table entries:
-		 * link in first so that swapoff can see swap entries,
-		 * and try_to_unmap_one's find_vma find the new vma.
+		 * link in first so that swapoff can see swap entries.
+		 * Note that, exceptionally, here the vma is inserted
+		 * without holding mm->mmap_sem.
 		 */
 		spin_lock(&mm->page_table_lock);
 		*pprev = tmp;
