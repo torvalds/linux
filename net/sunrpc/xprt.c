@@ -725,7 +725,8 @@ csum_partial_copy_to_xdr(struct xdr_buf *xdr, struct sk_buff *skb)
 		goto no_checksum;
 
 	desc.csum = csum_partial(skb->data, desc.offset, skb->csum);
-	xdr_partial_copy_from_skb(xdr, 0, &desc, skb_read_and_csum_bits);
+	if (xdr_partial_copy_from_skb(xdr, 0, &desc, skb_read_and_csum_bits) < 0)
+		return -1;
 	if (desc.offset != skb->len) {
 		unsigned int csum2;
 		csum2 = skb_checksum(skb, desc.offset, skb->len - desc.offset, 0);
@@ -737,7 +738,8 @@ csum_partial_copy_to_xdr(struct xdr_buf *xdr, struct sk_buff *skb)
 		return -1;
 	return 0;
 no_checksum:
-	xdr_partial_copy_from_skb(xdr, 0, &desc, skb_read_bits);
+	if (xdr_partial_copy_from_skb(xdr, 0, &desc, skb_read_bits) < 0)
+		return -1;
 	if (desc.count)
 		return -1;
 	return 0;
@@ -907,6 +909,7 @@ tcp_read_request(struct rpc_xprt *xprt, skb_reader_t *desc)
 	struct rpc_rqst *req;
 	struct xdr_buf *rcvbuf;
 	size_t len;
+	int r;
 
 	/* Find and lock the request corresponding to this xid */
 	spin_lock(&xprt->sock_lock);
@@ -927,15 +930,29 @@ tcp_read_request(struct rpc_xprt *xprt, skb_reader_t *desc)
 		len = xprt->tcp_reclen - xprt->tcp_offset;
 		memcpy(&my_desc, desc, sizeof(my_desc));
 		my_desc.count = len;
-		xdr_partial_copy_from_skb(rcvbuf, xprt->tcp_copied,
+		r = xdr_partial_copy_from_skb(rcvbuf, xprt->tcp_copied,
 					  &my_desc, tcp_copy_data);
 		desc->count -= len;
 		desc->offset += len;
 	} else
-		xdr_partial_copy_from_skb(rcvbuf, xprt->tcp_copied,
+		r = xdr_partial_copy_from_skb(rcvbuf, xprt->tcp_copied,
 					  desc, tcp_copy_data);
 	xprt->tcp_copied += len;
 	xprt->tcp_offset += len;
+
+	if (r < 0) {
+		/* Error when copying to the receive buffer,
+		 * usually because we weren't able to allocate
+		 * additional buffer pages. All we can do now
+		 * is turn off XPRT_COPY_DATA, so the request
+		 * will not receive any additional updates,
+		 * and time out.
+		 * Any remaining data from this record will
+		 * be discarded.
+		 */
+		xprt->tcp_flags &= ~XPRT_COPY_DATA;
+		goto out;
+	}
 
 	if (xprt->tcp_copied == req->rq_private_buf.buflen)
 		xprt->tcp_flags &= ~XPRT_COPY_DATA;
@@ -949,6 +966,7 @@ tcp_read_request(struct rpc_xprt *xprt, skb_reader_t *desc)
 				req->rq_task->tk_pid);
 		xprt_complete_rqst(xprt, req, xprt->tcp_copied);
 	}
+out:
 	spin_unlock(&xprt->sock_lock);
 	tcp_check_recm(xprt);
 }

@@ -176,7 +176,7 @@ xdr_inline_pages(struct xdr_buf *xdr, unsigned int offset,
 	xdr->buflen += len;
 }
 
-void
+int
 xdr_partial_copy_from_skb(struct xdr_buf *xdr, unsigned int base,
 			  skb_reader_t *desc,
 			  skb_read_actor_t copy_actor)
@@ -190,7 +190,7 @@ xdr_partial_copy_from_skb(struct xdr_buf *xdr, unsigned int base,
 		len -= base;
 		ret = copy_actor(desc, (char *)xdr->head[0].iov_base + base, len);
 		if (ret != len || !desc->count)
-			return;
+			return 0;
 		base = 0;
 	} else
 		base -= len;
@@ -210,6 +210,14 @@ xdr_partial_copy_from_skb(struct xdr_buf *xdr, unsigned int base,
 	do {
 		char *kaddr;
 
+		/* ACL likes to be lazy in allocating pages - ACLs
+		 * are small by default but can get huge. */
+		if (unlikely(*ppage == NULL)) {
+			*ppage = alloc_page(GFP_ATOMIC);
+			if (unlikely(*ppage == NULL))
+				return -ENOMEM;
+		}
+
 		len = PAGE_CACHE_SIZE;
 		kaddr = kmap_atomic(*ppage, KM_SKB_SUNRPC_DATA);
 		if (base) {
@@ -226,13 +234,15 @@ xdr_partial_copy_from_skb(struct xdr_buf *xdr, unsigned int base,
 		flush_dcache_page(*ppage);
 		kunmap_atomic(kaddr, KM_SKB_SUNRPC_DATA);
 		if (ret != len || !desc->count)
-			return;
+			return 0;
 		ppage++;
 	} while ((pglen -= len) != 0);
 copy_tail:
 	len = xdr->tail[0].iov_len;
 	if (base < len)
 		copy_actor(desc, (char *)xdr->tail[0].iov_base + base, len - base);
+
+	return 0;
 }
 
 
