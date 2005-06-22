@@ -113,7 +113,10 @@ STATIC void xfs_da_node_unbalance(xfs_da_state_t *state,
 STATIC uint	xfs_da_node_lasthash(xfs_dabuf_t *bp, int *count);
 STATIC int	xfs_da_node_order(xfs_dabuf_t *node1_bp, xfs_dabuf_t *node2_bp);
 STATIC xfs_dabuf_t *xfs_da_buf_make(int nbuf, xfs_buf_t **bps, inst_t *ra);
-
+STATIC int	xfs_da_blk_unlink(xfs_da_state_t *state,
+				  xfs_da_state_blk_t *drop_blk,
+				  xfs_da_state_blk_t *save_blk);
+STATIC void	xfs_da_state_kill_altpath(xfs_da_state_t *state);
 
 /*========================================================================
  * Routines used for growing the Btree.
@@ -1424,7 +1427,7 @@ xfs_da_node_lasthash(xfs_dabuf_t *bp, int *count)
 /*
  * Unlink a block from a doubly linked list of blocks.
  */
-int							/* error */
+STATIC int						/* error */
 xfs_da_blk_unlink(xfs_da_state_t *state, xfs_da_state_blk_t *drop_blk,
 				 xfs_da_state_blk_t *save_blk)
 {
@@ -2381,7 +2384,7 @@ xfs_da_state_alloc(void)
 /*
  * Kill the altpath contents of a da-state structure.
  */
-void
+STATIC void
 xfs_da_state_kill_altpath(xfs_da_state_t *state)
 {
 	int	i;

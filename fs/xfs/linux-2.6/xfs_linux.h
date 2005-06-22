@@ -230,8 +230,10 @@ static inline void set_buffer_unwritten_io(struct buffer_head *bh)
  * field (see the QCMD macro in quota.h).  These macros help keep the
  * code portable - they are not visible from the syscall interface.
  */
-#define Q_XSETGQLIM	XQM_CMD(0x8)	/* set groups disk limits */
-#define Q_XGETGQUOTA	XQM_CMD(0x9)	/* get groups disk limits */
+#define Q_XSETGQLIM	XQM_CMD(8)	/* set groups disk limits */
+#define Q_XGETGQUOTA	XQM_CMD(9)	/* get groups disk limits */
+#define Q_XSETPQLIM	XQM_CMD(10)	/* set projects disk limits */
+#define Q_XGETPQUOTA	XQM_CMD(11)	/* get projects disk limits */
 
 /* IRIX uses a dynamic sizing algorithm (ndquot = 200 + numprocs*2) */
 /* we may well need to fine-tune this if it ever becomes an issue.  */

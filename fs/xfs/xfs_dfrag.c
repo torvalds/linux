@@ -180,9 +180,10 @@ xfs_swapext(
 		goto error0;
 	}
 
-	if (VN_CACHED(tvp) != 0)
-		xfs_inval_cached_pages(XFS_ITOV(tip), &(tip->i_iocore),
-						(xfs_off_t)0, 0, 0);
+	if (VN_CACHED(tvp) != 0) {
+		xfs_inval_cached_trace(&tip->i_iocore, 0, -1, 0, -1);
+		VOP_FLUSHINVAL_PAGES(tvp, 0, -1, FI_REMAPF_LOCKED);
+	}
 
 	/* Verify O_DIRECT for ftmp */
 	if (VN_CACHED(tvp) != 0) {
