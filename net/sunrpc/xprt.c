@@ -1101,8 +1101,7 @@ tcp_state_change(struct sock *sk)
 	case TCP_SYN_RECV:
 		break;
 	default:
-		if (xprt_test_and_clear_connected(xprt))
-			rpc_wake_up_status(&xprt->pending, -ENOTCONN);
+		xprt_disconnect(xprt);
 		break;
 	}
  out:
