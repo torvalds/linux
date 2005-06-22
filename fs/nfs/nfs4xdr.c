@@ -372,6 +372,13 @@ static int nfs_stat_to_errno(int);
 				decode_putfh_maxsz + \
 				op_decode_hdr_maxsz + \
 				nfs4_fattr_bitmap_maxsz + 1)
+#define NFS4_enc_setacl_sz	(compound_encode_hdr_maxsz + \
+				encode_putfh_maxsz + \
+				op_encode_hdr_maxsz + 4 + \
+				nfs4_fattr_bitmap_maxsz + 1)
+#define NFS4_dec_setacl_sz	(compound_decode_hdr_maxsz + \
+				decode_putfh_maxsz + \
+				op_decode_hdr_maxsz + nfs4_fattr_bitmap_maxsz)
 
 static struct {
 	unsigned int	mode;
@@ -471,7 +478,7 @@ static int encode_attrs(struct xdr_stream *xdr, const struct iattr *iap, const s
 	 * In the worst-case, this would be
 	 *   12(bitmap) + 4(attrlen) + 8(size) + 4(mode) + 4(atime) + 4(mtime)
 	 *          = 36 bytes, plus any contribution from variable-length fields
-	 *            such as owner/group/acl's.
+	 *            such as owner/group.
 	 */
 	len = 16;
 
@@ -1092,6 +1099,25 @@ static int encode_renew(struct xdr_stream *xdr, const struct nfs4_client *client
 	WRITE32(OP_RENEW);
 	WRITE64(client_stateid->cl_clientid);
 
+	return 0;
+}
+
+static int
+encode_setacl(struct xdr_stream *xdr, struct nfs_setaclargs *arg)
+{
+	uint32_t *p;
+
+	RESERVE_SPACE(4+sizeof(zero_stateid.data));
+	WRITE32(OP_SETATTR);
+	WRITEMEM(zero_stateid.data, sizeof(zero_stateid.data));
+	RESERVE_SPACE(2*4);
+	WRITE32(1);
+	WRITE32(FATTR4_WORD0_ACL);
+	if (arg->acl_len % 4)
+		return -EINVAL;
+	RESERVE_SPACE(4);
+	WRITE32(arg->acl_len);
+	xdr_write_pages(xdr, arg->acl_pages, arg->acl_pgbase, arg->acl_len);
 	return 0;
 }
 
@@ -3492,6 +3518,48 @@ out:
 
 }
 
+/*
+ * Encode an SETACL request
+ */
+static int
+nfs4_xdr_enc_setacl(struct rpc_rqst *req, uint32_t *p, struct nfs_setaclargs *args)
+{
+        struct xdr_stream xdr;
+        struct compound_hdr hdr = {
+                .nops   = 2,
+        };
+        int status;
+
+        xdr_init_encode(&xdr, &req->rq_snd_buf, p);
+        encode_compound_hdr(&xdr, &hdr);
+        status = encode_putfh(&xdr, args->fh);
+        if (status)
+                goto out;
+        status = encode_setacl(&xdr, args);
+out:
+        return status;
+}
+/*
+ * Decode SETACL response
+ */
+static int
+nfs4_xdr_dec_setacl(struct rpc_rqst *rqstp, uint32_t *p, void *res)
+{
+	struct xdr_stream xdr;
+	struct compound_hdr hdr;
+	int status;
+
+	xdr_init_decode(&xdr, &rqstp->rq_rcv_buf, p);
+	status = decode_compound_hdr(&xdr, &hdr);
+	if (status)
+		goto out;
+	status = decode_putfh(&xdr);
+	if (status)
+		goto out;
+	status = decode_setattr(&xdr, res);
+out:
+	return status;
+}
 
 /*
  * Decode GETACL response
@@ -4117,6 +4185,7 @@ struct rpc_procinfo	nfs4_procedures[] = {
   PROC(SERVER_CAPS,	enc_server_caps, dec_server_caps),
   PROC(DELEGRETURN,	enc_delegreturn, dec_delegreturn),
   PROC(GETACL,		enc_getacl,	dec_getacl),
+  PROC(SETACL,		enc_setacl,	dec_setacl),
 };
 
 struct rpc_version		nfs_version4 = {
