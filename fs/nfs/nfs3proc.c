@@ -882,4 +882,5 @@ struct nfs_rpc_ops	nfs_v3_clientops = {
 	.file_open	= nfs_open,
 	.file_release	= nfs_release,
 	.lock		= nfs3_proc_lock,
+	.clear_acl_cache = nfs3_forget_cached_acls,
 };

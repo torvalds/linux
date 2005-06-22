@@ -91,6 +91,8 @@ struct nfs_open_context {
  */
 struct nfs_delegation;
 
+struct posix_acl;
+
 /*
  * nfs fs inode data in memory
  */
@@ -144,6 +146,10 @@ struct nfs_inode {
 	atomic_t		data_updates;
 
 	struct nfs_access_entry	cache_access;
+#ifdef CONFIG_NFS_V3_ACL
+	struct posix_acl	*acl_access;
+	struct posix_acl	*acl_default;
+#endif
 
 	/*
 	 * This is the cookie verifier used for NFSv3 readdir
@@ -480,12 +486,17 @@ extern int nfs3_proc_setacl(struct inode *inode, int type,
 			    struct posix_acl *acl);
 extern int nfs3_proc_set_default_acl(struct inode *dir, struct inode *inode,
 		mode_t mode);
+extern void nfs3_forget_cached_acls(struct inode *inode);
 #else
 static inline int nfs3_proc_set_default_acl(struct inode *dir,
 					    struct inode *inode,
 					    mode_t mode)
 {
 	return 0;
+}
+
+static inline void nfs3_forget_cached_acls(struct inode *inode)
+{
 }
 #endif /* CONFIG_NFS_V3_ACL */
 

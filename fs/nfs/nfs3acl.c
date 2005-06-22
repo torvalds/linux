@@ -113,6 +113,69 @@ int nfs3_removexattr(struct dentry *dentry, const char *name)
 	return nfs3_proc_setacl(inode, type, NULL);
 }
 
+static void __nfs3_forget_cached_acls(struct nfs_inode *nfsi)
+{
+	if (nfsi->acl_access != ERR_PTR(-EAGAIN)) {
+		posix_acl_release(nfsi->acl_access);
+		nfsi->acl_access = ERR_PTR(-EAGAIN);
+	}
+	if (nfsi->acl_default != ERR_PTR(-EAGAIN)) {
+		posix_acl_release(nfsi->acl_default);
+		nfsi->acl_default = ERR_PTR(-EAGAIN);
+	}
+}
+
+void nfs3_forget_cached_acls(struct inode *inode)
+{
+	dprintk("NFS: nfs3_forget_cached_acls(%s/%ld)\n", inode->i_sb->s_id,
+		inode->i_ino);
+	spin_lock(&inode->i_lock);
+	__nfs3_forget_cached_acls(NFS_I(inode));
+	spin_unlock(&inode->i_lock);
+}
+
+static struct posix_acl *nfs3_get_cached_acl(struct inode *inode, int type)
+{
+	struct nfs_inode *nfsi = NFS_I(inode);
+	struct posix_acl *acl = ERR_PTR(-EAGAIN);
+
+	spin_lock(&inode->i_lock);
+	switch(type) {
+		case ACL_TYPE_ACCESS:
+			acl = nfsi->acl_access;
+			break;
+
+		case ACL_TYPE_DEFAULT:
+			acl = nfsi->acl_default;
+			break;
+
+		default:
+			return ERR_PTR(-EINVAL);
+	}
+	if (acl == ERR_PTR(-EAGAIN))
+		acl = ERR_PTR(-EAGAIN);
+	else
+		acl = posix_acl_dup(acl);
+	spin_unlock(&inode->i_lock);
+	dprintk("NFS: nfs3_get_cached_acl(%s/%ld, %d) = %p\n", inode->i_sb->s_id,
+		inode->i_ino, type, acl);
+	return acl;
+}
+
+static void nfs3_cache_acls(struct inode *inode, struct posix_acl *acl,
+		    struct posix_acl *dfacl)
+{
+	struct nfs_inode *nfsi = NFS_I(inode);
+
+	dprintk("nfs3_cache_acls(%s/%ld, %p, %p)\n", inode->i_sb->s_id,
+		inode->i_ino, acl, dfacl);
+	spin_lock(&inode->i_lock);
+	__nfs3_forget_cached_acls(NFS_I(inode));
+	nfsi->acl_access = posix_acl_dup(acl);
+	nfsi->acl_default = posix_acl_dup(dfacl);
+	spin_unlock(&inode->i_lock);
+}
+
 struct posix_acl *nfs3_proc_getacl(struct inode *inode, int type)
 {
 	struct nfs_server *server = NFS_SERVER(inode);
@@ -126,26 +189,32 @@ struct posix_acl *nfs3_proc_getacl(struct inode *inode, int type)
 	struct nfs3_getaclres res = {
 		.fattr =	&fattr,
 	};
-	struct posix_acl *acl = NULL;
+	struct posix_acl *acl;
 	int status, count;
 
 	if (!nfs_server_capable(inode, NFS_CAP_ACLS))
 		return ERR_PTR(-EOPNOTSUPP);
 
-	switch (type) {
-		case ACL_TYPE_ACCESS:
-			args.mask = NFS_ACLCNT|NFS_ACL;
-			break;
+	status = nfs_revalidate_inode(server, inode);
+	if (status < 0)
+		return ERR_PTR(status);
+	acl = nfs3_get_cached_acl(inode, type);
+	if (acl != ERR_PTR(-EAGAIN))
+		return acl;
+	acl = NULL;
 
-		case ACL_TYPE_DEFAULT:
-			if (!S_ISDIR(inode->i_mode))
-				return NULL;
-			args.mask = NFS_DFACLCNT|NFS_DFACL;
-			break;
-
-		default:
-			return ERR_PTR(-EINVAL);
-	}
+	/*
+	 * Only get the access acl when explicitly requested: We don't
+	 * need it for access decisions, and only some applications use
+	 * it. Applications which request the access acl first are not
+	 * penalized from this optimization.
+	 */
+	if (type == ACL_TYPE_ACCESS)
+		args.mask |= NFS_ACLCNT|NFS_ACL;
+	if (S_ISDIR(inode->i_mode))
+		args.mask |= NFS_DFACLCNT|NFS_DFACL;
+	if (args.mask == 0)
+		return NULL;
 
 	dprintk("NFS call getacl\n");
 	status = rpc_call(server->client_acl, ACLPROC3_GETACL,
@@ -180,6 +249,7 @@ struct posix_acl *nfs3_proc_getacl(struct inode *inode, int type)
 			res.acl_access = NULL;
 		}
 	}
+	nfs3_cache_acls(inode, res.acl_access, res.acl_default);
 
 	switch(type) {
 		case ACL_TYPE_ACCESS:
