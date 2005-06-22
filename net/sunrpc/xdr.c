@@ -616,12 +616,24 @@ xdr_shift_buf(struct xdr_buf *buf, size_t len)
 void xdr_init_encode(struct xdr_stream *xdr, struct xdr_buf *buf, uint32_t *p)
 {
 	struct kvec *iov = buf->head;
+	int scratch_len = buf->buflen - buf->page_len - buf->tail[0].iov_len;
 
+	BUG_ON(scratch_len < 0);
 	xdr->buf = buf;
 	xdr->iov = iov;
-	xdr->end = (uint32_t *)((char *)iov->iov_base + iov->iov_len);
-	buf->len = iov->iov_len = (char *)p - (char *)iov->iov_base;
-	xdr->p = p;
+	xdr->p = (uint32_t *)((char *)iov->iov_base + iov->iov_len);
+	xdr->end = (uint32_t *)((char *)iov->iov_base + scratch_len);
+	BUG_ON(iov->iov_len > scratch_len);
+
+	if (p != xdr->p && p != NULL) {
+		size_t len;
+
+		BUG_ON(p < xdr->p || p > xdr->end);
+		len = (char *)p - (char *)xdr->p;
+		xdr->p = p;
+		buf->len += len;
+		iov->iov_len += len;
+	}
 }
 EXPORT_SYMBOL(xdr_init_encode);
 

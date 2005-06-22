@@ -957,7 +957,9 @@ call_header(struct rpc_task *task)
 	*p++ = htonl(clnt->cl_prog);	/* program number */
 	*p++ = htonl(clnt->cl_vers);	/* program version */
 	*p++ = htonl(task->tk_msg.rpc_proc->p_proc);	/* procedure */
-	return rpcauth_marshcred(task, p);
+	p = rpcauth_marshcred(task, p);
+	req->rq_slen = xdr_adjust_iovec(&req->rq_svec[0], p);
+	return p;
 }
 
 /*
