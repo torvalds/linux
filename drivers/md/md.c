@@ -577,6 +577,8 @@ static int super_90_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 	mdp_disk_t *desc;
 	mdp_super_t *sb = (mdp_super_t *)page_address(rdev->sb_page);
 
+	rdev->raid_disk = -1;
+	rdev->in_sync = 0;
 	if (mddev->raid_disks == 0) {
 		mddev->major_version = 0;
 		mddev->minor_version = sb->minor_version;
@@ -607,16 +609,24 @@ static int super_90_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 		memcpy(mddev->uuid+12,&sb->set_uuid3, 4);
 
 		mddev->max_disks = MD_SB_DISKS;
-	} else {
-		__u64 ev1;
-		ev1 = md_event(sb);
+	} else if (mddev->pers == NULL) {
+		/* Insist on good event counter while assembling */
+		__u64 ev1 = md_event(sb);
 		++ev1;
 		if (ev1 < mddev->events) 
 			return -EINVAL;
-	}
+	} else if (mddev->bitmap) {
+		/* if adding to array with a bitmap, then we can accept an
+		 * older device ... but not too old.
+		 */
+		__u64 ev1 = md_event(sb);
+		if (ev1 < mddev->bitmap->events_cleared)
+			return 0;
+	} else /* just a hot-add of a new device, leave raid_disk at -1 */
+		return 0;
+
 	if (mddev->level != LEVEL_MULTIPATH) {
-		rdev->raid_disk = -1;
-		rdev->in_sync = rdev->faulty = 0;
+		rdev->faulty = 0;
 		desc = sb->disks + rdev->desc_nr;
 
 		if (desc->state & (1<<MD_DISK_FAULTY))
@@ -626,7 +636,8 @@ static int super_90_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 			rdev->in_sync = 1;
 			rdev->raid_disk = desc->raid_disk;
 		}
-	}
+	} else /* MULTIPATH are always insync */
+		rdev->in_sync = 1;
 	return 0;
 }
 
@@ -868,6 +879,8 @@ static int super_1_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 {
 	struct mdp_superblock_1 *sb = (struct mdp_superblock_1*)page_address(rdev->sb_page);
 
+	rdev->raid_disk = -1;
+	rdev->in_sync = 0;
 	if (mddev->raid_disks == 0) {
 		mddev->major_version = 1;
 		mddev->patch_version = 0;
@@ -885,13 +898,21 @@ static int super_1_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 		memcpy(mddev->uuid, sb->set_uuid, 16);
 
 		mddev->max_disks =  (4096-256)/2;
-	} else {
-		__u64 ev1;
-		ev1 = le64_to_cpu(sb->events);
+	} else if (mddev->pers == NULL) {
+		/* Insist of good event counter while assembling */
+		__u64 ev1 = le64_to_cpu(sb->events);
 		++ev1;
 		if (ev1 < mddev->events)
 			return -EINVAL;
-	}
+	} else if (mddev->bitmap) {
+		/* If adding to array with a bitmap, then we can accept an
+		 * older device, but not too old.
+		 */
+		__u64 ev1 = le64_to_cpu(sb->events);
+		if (ev1 < mddev->bitmap->events_cleared)
+			return 0;
+	} else /* just a hot-add of a new device, leave raid_disk at -1 */
+		return 0;
 
 	if (mddev->level != LEVEL_MULTIPATH) {
 		int role;
@@ -899,14 +920,10 @@ static int super_1_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 		role = le16_to_cpu(sb->dev_roles[rdev->desc_nr]);
 		switch(role) {
 		case 0xffff: /* spare */
-			rdev->in_sync = 0;
 			rdev->faulty = 0;
-			rdev->raid_disk = -1;
 			break;
 		case 0xfffe: /* faulty */
-			rdev->in_sync = 0;
 			rdev->faulty = 1;
-			rdev->raid_disk = -1;
 			break;
 		default:
 			rdev->in_sync = 1;
@@ -914,7 +931,9 @@ static int super_1_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 			rdev->raid_disk = role;
 			break;
 		}
-	}
+	} else /* MULTIPATH are always insync */
+		rdev->in_sync = 1;
+
 	return 0;
 }
 
@@ -2155,6 +2174,18 @@ static int add_new_disk(mddev_t * mddev, mdu_disk_info_t *info)
 				PTR_ERR(rdev));
 			return PTR_ERR(rdev);
 		}
+		/* set save_raid_disk if appropriate */
+		if (!mddev->persistent) {
+			if (info->state & (1<<MD_DISK_SYNC)  &&
+			    info->raid_disk < mddev->raid_disks)
+				rdev->raid_disk = info->raid_disk;
+			else
+				rdev->raid_disk = -1;
+		} else
+			super_types[mddev->major_version].
+				validate_super(mddev, rdev);
+		rdev->saved_raid_disk = rdev->raid_disk;
+
 		rdev->in_sync = 0; /* just to be sure */
 		rdev->raid_disk = -1;
 		err = bind_rdev_to_array(rdev, mddev);
@@ -3706,6 +3737,14 @@ void md_check_recovery(mddev_t *mddev)
 				mddev->pers->spare_active(mddev);
 			}
 			md_update_sb(mddev);
+
+			/* if array is no-longer degraded, then any saved_raid_disk
+			 * information must be scrapped
+			 */
+			if (!mddev->degraded)
+				ITERATE_RDEV(mddev,rdev,rtmp)
+					rdev->saved_raid_disk = -1;
+
 			mddev->recovery = 0;
 			/* flag recovery needed just to double check */
 			set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
