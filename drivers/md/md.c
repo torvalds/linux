@@ -328,6 +328,40 @@ static void free_disk_sb(mdk_rdev_t * rdev)
 }
 
 
+static int super_written(struct bio *bio, unsigned int bytes_done, int error)
+{
+	mdk_rdev_t *rdev = bio->bi_private;
+	if (bio->bi_size)
+		return 1;
+
+	if (error || !test_bit(BIO_UPTODATE, &bio->bi_flags))
+		md_error(rdev->mddev, rdev);
+
+	if (atomic_dec_and_test(&rdev->mddev->pending_writes))
+		wake_up(&rdev->mddev->sb_wait);
+	return 0;
+}
+
+void md_super_write(mddev_t *mddev, mdk_rdev_t *rdev,
+		   sector_t sector, int size, struct page *page)
+{
+	/* write first size bytes of page to sector of rdev
+	 * Increment mddev->pending_writes before returning
+	 * and decrement it on completion, waking up sb_wait
+	 * if zero is reached.
+	 * If an error occurred, call md_error
+	 */
+	struct bio *bio = bio_alloc(GFP_NOIO, 1);
+
+	bio->bi_bdev = rdev->bdev;
+	bio->bi_sector = sector;
+	bio_add_page(bio, page, size, 0);
+	bio->bi_private = rdev;
+	bio->bi_end_io = super_written;
+	atomic_inc(&mddev->pending_writes);
+	submit_bio((1<<BIO_RW)|(1<<BIO_RW_SYNC), bio);
+}
+
 static int bi_complete(struct bio *bio, unsigned int bytes_done, int error)
 {
 	if (bio->bi_size)
@@ -1268,30 +1302,6 @@ void md_print_devices(void)
 }
 
 
-static int write_disk_sb(mdk_rdev_t * rdev)
-{
-	char b[BDEVNAME_SIZE];
-	if (!rdev->sb_loaded) {
-		MD_BUG();
-		return 1;
-	}
-	if (rdev->faulty) {
-		MD_BUG();
-		return 1;
-	}
-
-	dprintk(KERN_INFO "(write) %s's sb offset: %llu\n",
-		bdevname(rdev->bdev,b),
-	       (unsigned long long)rdev->sb_offset);
-  
-	if (sync_page_io(rdev->bdev, rdev->sb_offset<<1, MD_SB_BYTES, rdev->sb_page, WRITE))
-		return 0;
-
-	printk("md: write_disk_sb failed for device %s\n", 
-		bdevname(rdev->bdev,b));
-	return 1;
-}
-
 static void sync_sbs(mddev_t * mddev)
 {
 	mdk_rdev_t *rdev;
@@ -1306,7 +1316,7 @@ static void sync_sbs(mddev_t * mddev)
 
 static void md_update_sb(mddev_t * mddev)
 {
-	int err, count = 100;
+	int err;
 	struct list_head *tmp;
 	mdk_rdev_t *rdev;
 	int sync_req;
@@ -1326,6 +1336,7 @@ repeat:
 		MD_BUG();
 		mddev->events --;
 	}
+	mddev->sb_dirty = 2;
 	sync_sbs(mddev);
 
 	/*
@@ -1353,24 +1364,24 @@ repeat:
 
 		dprintk("%s ", bdevname(rdev->bdev,b));
 		if (!rdev->faulty) {
-			err += write_disk_sb(rdev);
+			md_super_write(mddev,rdev,
+				       rdev->sb_offset<<1, MD_SB_BYTES,
+				       rdev->sb_page);
+			dprintk(KERN_INFO "(write) %s's sb offset: %llu\n",
+				bdevname(rdev->bdev,b),
+				(unsigned long long)rdev->sb_offset);
+
 		} else
 			dprintk(")\n");
-		if (!err && mddev->level == LEVEL_MULTIPATH)
+		if (mddev->level == LEVEL_MULTIPATH)
 			/* only need to write one superblock... */
 			break;
 	}
-	if (err) {
-		if (--count) {
-			printk(KERN_ERR "md: errors occurred during superblock"
-				" update, repeating\n");
-			goto repeat;
-		}
-		printk(KERN_ERR \
-			"md: excessive errors occurred during superblock update, exiting\n");
-	}
+	wait_event(mddev->sb_wait, atomic_read(&mddev->pending_writes)==0);
+	/* if there was a failure, sb_dirty was set to 1, and we re-write super */
+
 	spin_lock(&mddev->write_lock);
-	if (mddev->in_sync != sync_req) {
+	if (mddev->in_sync != sync_req|| mddev->sb_dirty == 1) {
 		/* have to write it out again */
 		spin_unlock(&mddev->write_lock);
 		goto repeat;
