@@ -107,6 +107,7 @@ obj-$(CONFIG_83xx)		+= ipic.o ppc83xx_setup.o ppc_sys.o \
 ifeq ($(CONFIG_83xx),y)
 obj-$(CONFIG_PCI)		+= indirect_pci.o pci_auto.o
 endif
+obj-$(CONFIG_MPC8548_CDS)	+= todc_time.o
 obj-$(CONFIG_MPC8555_CDS)	+= todc_time.o
 obj-$(CONFIG_PPC_MPC52xx)	+= mpc52xx_setup.o mpc52xx_pic.o \
 					mpc52xx_sys.o mpc52xx_devices.o ppc_sys.o

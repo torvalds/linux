@@ -25,7 +25,7 @@
 #ifdef CONFIG_MPC8540_ADS
 #include <platforms/85xx/mpc8540_ads.h>
 #endif
-#ifdef CONFIG_MPC8555_CDS
+#if defined(CONFIG_MPC8555_CDS) || defined(CONFIG_MPC8548_CDS)
 #include <platforms/85xx/mpc8555_cds.h>
 #endif
 #ifdef CONFIG_MPC8560_ADS
