@@ -42,6 +42,11 @@ static int (*idle_loop)(void);
 static unsigned long maxYieldTime = 0;
 static unsigned long minYieldTime = 0xffffffffffffffffUL;
 
+static inline void process_iSeries_events(void)
+{
+	asm volatile ("li 0,0x5555; sc" : : : "r0", "r3");
+}
+
 static void yield_shared_processor(void)
 {
 	unsigned long tb;

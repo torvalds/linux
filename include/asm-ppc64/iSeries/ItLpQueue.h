@@ -64,9 +64,9 @@ struct ItLpQueue {
 	u8	xPlicStatus;		// 0x01 DedicatedIo or DedicatedLp or NotUsed
 	u16	xSlicLogicalProcIndex;	// 0x02 Logical Proc Index for correlation
 	u8	xPlicRsvd[12];		// 0x04
-	char*	xSlicCurEventPtr;	// 0x10
-	char*	xSlicLastValidEventPtr;	// 0x18
-	char*	xSlicEventStackPtr;	// 0x20
+	char	*xSlicCurEventPtr;	// 0x10
+	char	*xSlicLastValidEventPtr; // 0x18
+	char	*xSlicEventStackPtr;	// 0x20
 	u8	xIndex;			// 0x28 unique sequential index.
 	u8	xSlicRsvd[3];		// 0x29-2b
 	u32	xInUseWord;		// 0x2C
@@ -76,17 +76,9 @@ struct ItLpQueue {
 
 extern struct ItLpQueue xItLpQueue;
 
-extern struct HvLpEvent * ItLpQueue_getNextLpEvent(struct ItLpQueue *);
+extern struct HvLpEvent *ItLpQueue_getNextLpEvent(struct ItLpQueue *);
 extern int ItLpQueue_isLpIntPending(struct ItLpQueue *);
 extern unsigned ItLpQueue_process(struct ItLpQueue *, struct pt_regs *);
 extern void ItLpQueue_clearValid(struct HvLpEvent *);
-
-static __inline__ void process_iSeries_events(void)
-{
-	__asm__ __volatile__ (
-	"	li	0,0x5555	\n\
-		sc"
-	: : : "r0", "r3");
-}
 
 #endif /* _ITLPQUEUE_H */
