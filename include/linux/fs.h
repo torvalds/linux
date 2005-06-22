@@ -674,6 +674,7 @@ struct file_lock {
 	struct lock_manager_operations *fl_lmops;	/* Callbacks for lockmanagers */
 	union {
 		struct nfs_lock_info	nfs_fl;
+		struct nfs4_lock_info	nfs4_fl;
 	} fl_u;
 };
 

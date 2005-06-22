@@ -430,7 +430,7 @@ nfsd4_probe_callback(struct nfs4_client *clp)
 	clnt = rpc_create_client(xprt, hostname, program, 1, RPC_AUTH_UNIX);
 	if (IS_ERR(clnt)) {
 		dprintk("NFSD: couldn't create callback client\n");
-		goto out_xprt;
+		goto out_err;
 	}
 	clnt->cl_intr = 0;
 	clnt->cl_softrtry = 1;
@@ -465,8 +465,6 @@ out_rpciod:
 out_clnt:
 	rpc_shutdown_client(clnt);
 	goto out_err;
-out_xprt:
-	xprt_destroy(xprt);
 out_err:
 	dprintk("NFSD: warning: no callback path to client %.*s\n",
 		(int)clp->cl_name.len, clp->cl_name.data);

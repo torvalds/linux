@@ -66,10 +66,10 @@ rpcauth_create(rpc_authflavor_t pseudoflavor, struct rpc_clnt *clnt)
 	u32			flavor = pseudoflavor_to_flavor(pseudoflavor);
 
 	if (flavor >= RPC_AUTH_MAXFLAVOR || !(ops = auth_flavors[flavor]))
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	auth = ops->create(clnt, pseudoflavor);
-	if (!auth)
-		return NULL;
+	if (IS_ERR(auth))
+		return auth;
 	if (clnt->cl_auth)
 		rpcauth_destroy(clnt->cl_auth);
 	clnt->cl_auth = auth;
