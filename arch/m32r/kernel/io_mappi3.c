@@ -1,7 +1,7 @@
 /*
- *  linux/arch/m32r/kernel/io_mappi2.c
+ *  linux/arch/m32r/kernel/io_mappi3.c
  *
- *  Typical I/O routines for Mappi2 board.
+ *  Typical I/O routines for Mappi3 board.
  *
  *  Copyright (c) 2001-2005  Hiroyuki Kondo, Hirokazu Takata,
  *                           Hitoshi Yamamoto, Mamoru Sakugawa
@@ -45,34 +45,28 @@ static inline void *__port2addr_ata(unsigned long port)
 	static int	dummy_reg;
 
 	switch (port) {
-	case 0x1f0:	return (void *)0xac002000;
-	case 0x1f1:	return (void *)0xac012800;
-	case 0x1f2:	return (void *)0xac012002;
-	case 0x1f3:	return (void *)0xac012802;
-	case 0x1f4:	return (void *)0xac012004;
-	case 0x1f5:	return (void *)0xac012804;
-	case 0x1f6:	return (void *)0xac012006;
-	case 0x1f7:	return (void *)0xac012806;
-	case 0x3f6:	return (void *)0xac01200e;
+	case 0x1f0:	return (void *)0xb4002000;
+	case 0x1f1:	return (void *)0xb4012800;
+	case 0x1f2:	return (void *)0xb4012002;
+	case 0x1f3:	return (void *)0xb4012802;
+	case 0x1f4:	return (void *)0xb4012004;
+	case 0x1f5:	return (void *)0xb4012804;
+	case 0x1f6:	return (void *)0xb4012006;
+	case 0x1f7:	return (void *)0xb4012806;
+	case 0x3f6:	return (void *)0xb401200e;
 	default: 	return (void *)&dummy_reg;
 	}
 }
 #endif
 
-#ifdef CONFIG_CHIP_OPSP
 static inline void *_port2addr_ne(unsigned long port)
 {
 	return (void *)(port + NONCACHE_OFFSET + 0x10000000);
 }
-#else
-static inline void *_port2addr_ne(unsigned long port)
-{
-	return (void *)(port + NONCACHE_OFFSET + 0x04000000);
-}
-#endif
+
 static inline void *_port2addr_usb(unsigned long port)
 {
-	return (void *)(port + NONCACHE_OFFSET + 0x14000000);
+	return (void *)(port + NONCACHE_OFFSET + 0x12000000);
 }
 static inline void delay(void)
 {
@@ -127,7 +121,6 @@ unsigned char _inb(unsigned long port)
 		return b;
 	} else
 #endif
-
 	return *(volatile unsigned char *)PORT2ADDR(port);
 }
 

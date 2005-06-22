@@ -36,6 +36,10 @@
 #include <asm/mappi2/mappi2_pld.h>
 #endif	/* CONFIG_PLAT_MAPPI2 */
 
+#if defined(CONFIG_PLAT_MAPPI3)
+#include <asm/mappi3/mappi3_pld.h>
+#endif	/* CONFIG_PLAT_MAPPI3 */
+
 #if defined(CONFIG_PLAT_USRV)
 #include <asm/m32700ut/m32700ut_pld.h>
 #endif
