@@ -127,6 +127,66 @@ out:
 }
 
 /*
+ * We think there's a record of type `sig' at rs->chr.  Parse the signature
+ * and make sure that there's really room for a record of that type.
+ */
+static int rock_check_overflow(struct rock_state *rs, int sig)
+{
+	int len;
+
+	switch (sig) {
+	case SIG('S', 'P'):
+		len = sizeof(struct SU_SP_s);
+		break;
+	case SIG('C', 'E'):
+		len = sizeof(struct SU_CE_s);
+		break;
+	case SIG('E', 'R'):
+		len = sizeof(struct SU_ER_s);
+		break;
+	case SIG('R', 'R'):
+		len = sizeof(struct RR_RR_s);
+		break;
+	case SIG('P', 'X'):
+		len = sizeof(struct RR_PX_s);
+		break;
+	case SIG('P', 'N'):
+		len = sizeof(struct RR_PN_s);
+		break;
+	case SIG('S', 'L'):
+		len = sizeof(struct RR_SL_s);
+		break;
+	case SIG('N', 'M'):
+		len = sizeof(struct RR_NM_s);
+		break;
+	case SIG('C', 'L'):
+		len = sizeof(struct RR_CL_s);
+		break;
+	case SIG('P', 'L'):
+		len = sizeof(struct RR_PL_s);
+		break;
+	case SIG('T', 'F'):
+		len = sizeof(struct RR_TF_s);
+		break;
+	case SIG('Z', 'F'):
+		len = sizeof(struct RR_ZF_s);
+		break;
+	default:
+		len = 0;
+		break;
+	}
+	len += offsetof(struct rock_ridge, u);
+	if (len > rs->len) {
+		printk(KERN_NOTICE "rock: directory entry would overflow "
+				"storage\n");
+		printk(KERN_NOTICE "rock: sig=0x%02x, size=%d, remaining=%d\n",
+				sig, len, rs->len);
+		return -EIO;
+	}
+	return 0;
+}
+
+/*
  * return length of name field; 0: not found, -1: to be ignored
  */
 int get_rock_ridge_filename(struct iso_directory_record *de,
@@ -152,10 +212,12 @@ repeat:
 		if (rr->len < 3)
 			goto out;	/* Something got screwed up here */
 		sig = isonum_721(rs.chr);
+		if (rock_check_overflow(&rs, sig))
+			goto eio;
 		rs.chr += rr->len;
 		rs.len -= rr->len;
 		if (rs.len < 0)
-			goto out;	/* corrupted isofs */
+			goto eio;	/* corrupted isofs */
 
 		switch (sig) {
 		case SIG('R', 'R'):
@@ -213,6 +275,9 @@ repeat:
 out:
 	kfree(rs.buffer);
 	return ret;
+eio:
+	ret = -EIO;
+	goto out;
 }
 
 static int
@@ -245,10 +310,12 @@ repeat:
 		if (rr->len < 3)
 			goto out;	/* Something got screwed up here */
 		sig = isonum_721(rs.chr);
+		if (rock_check_overflow(&rs, sig))
+			goto eio;
 		rs.chr += rr->len;
 		rs.len -= rr->len;
 		if (rs.len < 0)
-			goto out;	/* corrupted isofs */
+			goto eio;	/* corrupted isofs */
 
 		switch (sig) {
 #ifndef CONFIG_ZISOFS		/* No flag for SF or ZF */
@@ -479,6 +546,9 @@ repeat:
 out:
 	kfree(rs.buffer);
 	return ret;
+eio:
+	ret = -EIO;
+	goto out;
 }
 
 static char *get_symlink_chunk(char *rpnt, struct rock_ridge *rr, char *plimit)
@@ -618,6 +688,8 @@ repeat:
 		if (rr->len < 3)
 			goto out;	/* Something got screwed up here */
 		sig = isonum_721(rs.chr);
+		if (rock_check_overflow(&rs, sig))
+			goto out;
 		rs.chr += rr->len;
 		rs.len -= rr->len;
 		if (rs.len < 0)
