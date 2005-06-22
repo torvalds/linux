@@ -29,7 +29,6 @@
 #include <asm/iSeries/HvCallXm.h>
 #include <asm/iSeries/IoHriMainStore.h>
 #include <asm/iSeries/LparData.h>
-#include <asm/iSeries/iSeries_proc.h>
 
 static int __init iseries_proc_create(void)
 {

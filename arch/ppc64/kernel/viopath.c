@@ -48,7 +48,6 @@
 #include <asm/iSeries/HvLpConfig.h>
 #include <asm/iSeries/HvCallCfg.h>
 #include <asm/iSeries/mf.h>
-#include <asm/iSeries/iSeries_proc.h>
 #include <asm/iSeries/vio.h>
 
 /* Status of the path to each other partition in the system.
