@@ -569,8 +569,11 @@ void xprt_connect(struct rpc_task *task)
 		if (xprt->sock != NULL)
 			schedule_delayed_work(&xprt->sock_connect,
 					RPC_REESTABLISH_TIMEOUT);
-		else
+		else {
 			schedule_work(&xprt->sock_connect);
+			if (!RPC_IS_ASYNC(task))
+				flush_scheduled_work();
+		}
 	}
 	return;
  out_write:
@@ -1685,6 +1688,10 @@ xprt_shutdown(struct rpc_xprt *xprt)
 	rpc_wake_up(&xprt->backlog);
 	wake_up(&xprt->cong_wait);
 	del_timer_sync(&xprt->timer);
+
+	/* synchronously wait for connect worker to finish */
+	cancel_delayed_work(&xprt->sock_connect);
+	flush_scheduled_work();
 }
 
 /*
