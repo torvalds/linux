@@ -63,6 +63,12 @@ struct per_cpu_pageset {
 #endif
 } ____cacheline_aligned_in_smp;
 
+#ifdef CONFIG_NUMA
+#define zone_pcp(__z, __cpu) ((__z)->pageset[(__cpu)])
+#else
+#define zone_pcp(__z, __cpu) (&(__z)->pageset[(__cpu)])
+#endif
+
 #define ZONE_DMA		0
 #define ZONE_NORMAL		1
 #define ZONE_HIGHMEM		2
@@ -122,8 +128,11 @@ struct zone {
 	 */
 	unsigned long		lowmem_reserve[MAX_NR_ZONES];
 
+#ifdef CONFIG_NUMA
+	struct per_cpu_pageset	*pageset[NR_CPUS];
+#else
 	struct per_cpu_pageset	pageset[NR_CPUS];
-
+#endif
 	/*
 	 * free areas of different sizes
 	 */

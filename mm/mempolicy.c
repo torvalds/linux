@@ -721,7 +721,7 @@ static struct page *alloc_page_interleave(unsigned int __nocast gfp, unsigned or
 	zl = NODE_DATA(nid)->node_zonelists + (gfp & GFP_ZONEMASK);
 	page = __alloc_pages(gfp, order, zl);
 	if (page && page_zone(page) == zl->zones[0]) {
-		zl->zones[0]->pageset[get_cpu()].interleave_hit++;
+		zone_pcp(zl->zones[0],get_cpu())->interleave_hit++;
 		put_cpu();
 	}
 	return page;

@@ -71,6 +71,11 @@ EXPORT_SYMBOL(nr_swap_pages);
 struct zone *zone_table[1 << (ZONES_SHIFT + NODES_SHIFT)];
 EXPORT_SYMBOL(zone_table);
 
+#ifdef CONFIG_NUMA
+static struct per_cpu_pageset
+	pageset_table[MAX_NR_ZONES*MAX_NUMNODES*NR_CPUS] __initdata;
+#endif
+
 static char *zone_names[MAX_NR_ZONES] = { "DMA", "Normal", "HighMem" };
 int min_free_kbytes = 1024;
 
@@ -520,7 +525,7 @@ static void __drain_pages(unsigned int cpu)
 	for_each_zone(zone) {
 		struct per_cpu_pageset *pset;
 
-		pset = &zone->pageset[cpu];
+		pset = zone_pcp(zone, cpu);
 		for (i = 0; i < ARRAY_SIZE(pset->pcp); i++) {
 			struct per_cpu_pages *pcp;
 
@@ -583,12 +588,12 @@ static void zone_statistics(struct zonelist *zonelist, struct zone *z)
 
 	local_irq_save(flags);
 	cpu = smp_processor_id();
-	p = &z->pageset[cpu];
+	p = zone_pcp(z,cpu);
 	if (pg == orig) {
-		z->pageset[cpu].numa_hit++;
+		p->numa_hit++;
 	} else {
 		p->numa_miss++;
-		zonelist->zones[0]->pageset[cpu].numa_foreign++;
+		zone_pcp(zonelist->zones[0], cpu)->numa_foreign++;
 	}
 	if (pg == NODE_DATA(numa_node_id()))
 		p->local_node++;
@@ -615,7 +620,7 @@ static void fastcall free_hot_cold_page(struct page *page, int cold)
 	if (PageAnon(page))
 		page->mapping = NULL;
 	free_pages_check(__FUNCTION__, page);
-	pcp = &zone->pageset[get_cpu()].pcp[cold];
+	pcp = &zone_pcp(zone, get_cpu())->pcp[cold];
 	local_irq_save(flags);
 	if (pcp->count >= pcp->high)
 		pcp->count -= free_pages_bulk(zone, pcp->batch, &pcp->list, 0);
@@ -659,7 +664,7 @@ buffered_rmqueue(struct zone *zone, int order, unsigned int __nocast gfp_flags)
 	if (order == 0) {
 		struct per_cpu_pages *pcp;
 
-		pcp = &zone->pageset[get_cpu()].pcp[cold];
+		pcp = &zone_pcp(zone, get_cpu())->pcp[cold];
 		local_irq_save(flags);
 		if (pcp->count <= pcp->low)
 			pcp->count += rmqueue_bulk(zone, 0,
@@ -1262,7 +1267,7 @@ void show_free_areas(void)
 			if (!cpu_possible(cpu))
 				continue;
 
-			pageset = zone->pageset + cpu;
+			pageset = zone_pcp(zone, cpu);
 
 			for (temperature = 0; temperature < 2; temperature++)
 				printk("cpu %d %s: low %d, high %d, batch %d\n",
@@ -1645,6 +1650,157 @@ void zone_init_free_lists(struct pglist_data *pgdat, struct zone *zone,
 	memmap_init_zone((size), (nid), (zone), (start_pfn))
 #endif
 
+static int __devinit zone_batchsize(struct zone *zone)
+{
+	int batch;
+
+	/*
+	 * The per-cpu-pages pools are set to around 1000th of the
+	 * size of the zone.  But no more than 1/4 of a meg - there's
+	 * no point in going beyond the size of L2 cache.
+	 *
+	 * OK, so we don't know how big the cache is.  So guess.
+	 */
+	batch = zone->present_pages / 1024;
+	if (batch * PAGE_SIZE > 256 * 1024)
+		batch = (256 * 1024) / PAGE_SIZE;
+	batch /= 4;		/* We effectively *= 4 below */
+	if (batch < 1)
+		batch = 1;
+
+	/*
+	 * Clamp the batch to a 2^n - 1 value. Having a power
+	 * of 2 value was found to be more likely to have
+	 * suboptimal cache aliasing properties in some cases.
+	 *
+	 * For example if 2 tasks are alternately allocating
+	 * batches of pages, one task can end up with a lot
+	 * of pages of one half of the possible page colors
+	 * and the other with pages of the other colors.
+	 */
+	batch = (1 << fls(batch + batch/2)) - 1;
+	return batch;
+}
+
+#ifdef CONFIG_NUMA
+/*
+ * Dynamicaly allocate memory for the
+ * per cpu pageset array in struct zone.
+ */
+static int __devinit process_zones(int cpu)
+{
+	struct zone *zone, *dzone;
+	int i;
+
+	for_each_zone(zone) {
+		struct per_cpu_pageset *npageset = NULL;
+
+		npageset = kmalloc_node(sizeof(struct per_cpu_pageset),
+					 GFP_KERNEL, cpu_to_node(cpu));
+		if (!npageset) {
+			zone->pageset[cpu] = NULL;
+			goto bad;
+		}
+
+		if (zone->pageset[cpu]) {
+			memcpy(npageset, zone->pageset[cpu],
+					sizeof(struct per_cpu_pageset));
+
+			/* Relocate lists */
+			for (i = 0; i < 2; i++) {
+				INIT_LIST_HEAD(&npageset->pcp[i].list);
+				list_splice(&zone->pageset[cpu]->pcp[i].list,
+					&npageset->pcp[i].list);
+			}
+ 		} else {
+			struct per_cpu_pages *pcp;
+			unsigned long batch;
+
+			batch = zone_batchsize(zone);
+
+			pcp = &npageset->pcp[0];		/* hot */
+			pcp->count = 0;
+			pcp->low = 2 * batch;
+			pcp->high = 6 * batch;
+			pcp->batch = 1 * batch;
+			INIT_LIST_HEAD(&pcp->list);
+
+			pcp = &npageset->pcp[1];		/* cold*/
+			pcp->count = 0;
+			pcp->low = 0;
+			pcp->high = 2 * batch;
+			pcp->batch = 1 * batch;
+			INIT_LIST_HEAD(&pcp->list);
+		}
+		zone->pageset[cpu] = npageset;
+	}
+
+	return 0;
+bad:
+	for_each_zone(dzone) {
+		if (dzone == zone)
+			break;
+		kfree(dzone->pageset[cpu]);
+		dzone->pageset[cpu] = NULL;
+	}
+	return -ENOMEM;
+}
+
+static inline void free_zone_pagesets(int cpu)
+{
+#ifdef CONFIG_NUMA
+	struct zone *zone;
+
+	for_each_zone(zone) {
+		struct per_cpu_pageset *pset = zone_pcp(zone, cpu);
+
+		zone_pcp(zone, cpu) = NULL;
+		kfree(pset);
+	}
+#endif
+}
+
+static int __devinit pageset_cpuup_callback(struct notifier_block *nfb,
+		unsigned long action,
+		void *hcpu)
+{
+	int cpu = (long)hcpu;
+	int ret = NOTIFY_OK;
+
+	switch (action) {
+		case CPU_UP_PREPARE:
+			if (process_zones(cpu))
+				ret = NOTIFY_BAD;
+			break;
+#ifdef CONFIG_HOTPLUG_CPU
+		case CPU_DEAD:
+			free_zone_pagesets(cpu);
+			break;
+#endif
+		default:
+			break;
+	}
+	return ret;
+}
+
+static struct notifier_block pageset_notifier =
+	{ &pageset_cpuup_callback, NULL, 0 };
+
+void __init setup_per_cpu_pageset()
+{
+	int err;
+
+	/* Initialize per_cpu_pageset for cpu 0.
+	 * A cpuup callback will do this for every cpu
+	 * as it comes online
+	 */
+	err = process_zones(smp_processor_id());
+	BUG_ON(err);
+	register_cpu_notifier(&pageset_notifier);
+}
+
+#endif
+
 /*
  * Set up the zone data structures:
  *   - mark all pages reserved
@@ -1687,43 +1843,28 @@ static void __init free_area_init_core(struct pglist_data *pgdat,
 
 		zone->temp_priority = zone->prev_priority = DEF_PRIORITY;
 
-		/*
-		 * The per-cpu-pages pools are set to around 1000th of the
-		 * size of the zone.  But no more than 1/4 of a meg - there's
-		 * no point in going beyond the size of L2 cache.
-		 *
-		 * OK, so we don't know how big the cache is.  So guess.
-		 */
-		batch = zone->present_pages / 1024;
-		if (batch * PAGE_SIZE > 256 * 1024)
-			batch = (256 * 1024) / PAGE_SIZE;
-		batch /= 4;		/* We effectively *= 4 below */
-		if (batch < 1)
-			batch = 1;
-
-		/*
-		 * Clamp the batch to a 2^n - 1 value. Having a power
-		 * of 2 value was found to be more likely to have
-		 * suboptimal cache aliasing properties in some cases.
-		 *
-		 * For example if 2 tasks are alternately allocating
-		 * batches of pages, one task can end up with a lot
-		 * of pages of one half of the possible page colors
-		 * and the other with pages of the other colors.
-		 */
-		batch = (1 << fls(batch + batch/2)) - 1;
+		batch = zone_batchsize(zone);
 
 		for (cpu = 0; cpu < NR_CPUS; cpu++) {
 			struct per_cpu_pages *pcp;
+#ifdef CONFIG_NUMA
+			struct per_cpu_pageset *pgset;
+			pgset = &pageset_table[nid*MAX_NR_ZONES*NR_CPUS +
+					(j * NR_CPUS) + cpu];
 
-			pcp = &zone->pageset[cpu].pcp[0];	/* hot */
+			zone->pageset[cpu] = pgset;
+#else
+			struct per_cpu_pageset *pgset = zone_pcp(zone, cpu);
+#endif
+
+			pcp = &pgset->pcp[0];			/* hot */
 			pcp->count = 0;
 			pcp->low = 2 * batch;
 			pcp->high = 6 * batch;
 			pcp->batch = 1 * batch;
 			INIT_LIST_HEAD(&pcp->list);
 
-			pcp = &zone->pageset[cpu].pcp[1];	/* cold */
+			pcp = &pgset->pcp[1];			/* cold */
 			pcp->count = 0;
 			pcp->low = 0;
 			pcp->high = 2 * batch;
@@ -1929,7 +2070,7 @@ static int zoneinfo_show(struct seq_file *m, void *arg)
 			struct per_cpu_pageset *pageset;
 			int j;
 
-			pageset = &zone->pageset[i];
+			pageset = zone_pcp(zone, i);
 			for (j = 0; j < ARRAY_SIZE(pageset->pcp); j++) {
 				if (pageset->pcp[j].count)
 					break;
