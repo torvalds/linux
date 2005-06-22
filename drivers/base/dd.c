@@ -65,7 +65,7 @@ void device_bind_driver(struct device * dev)
  *
  *	This function must be called with @dev->sem held.
  */
-static int driver_probe_device(struct device_driver * drv, struct device * dev)
+int driver_probe_device(struct device_driver * drv, struct device * dev)
 {
 	int ret = 0;
 

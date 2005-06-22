@@ -160,6 +160,30 @@ static ssize_t driver_unbind(struct device_driver *drv,
 }
 static DRIVER_ATTR(unbind, S_IWUSR, NULL, driver_unbind);
 
+/*
+ * Manually attach a device to a driver.
+ * Note: the driver must want to bind to the device,
+ * it is not possible to override the driver's id table.
+ */
+static ssize_t driver_bind(struct device_driver *drv,
+			   const char *buf, size_t count)
+{
+	struct bus_type *bus = get_bus(drv->bus);
+	struct device *dev;
+	int err = -ENODEV;
+
+	dev = bus_find_device(bus, NULL, (void *)buf, driver_helper);
+	if ((dev) &&
+	    (dev->driver == NULL)) {
+		down(&dev->sem);
+		err = driver_probe_device(drv, dev);
+		up(&dev->sem);
+		put_device(dev);
+	}
+	return err;
+}
+static DRIVER_ATTR(bind, S_IWUSR, NULL, driver_bind);
+
 
 static struct device * next_device(struct klist_iter * i)
 {
@@ -425,6 +449,7 @@ int bus_add_driver(struct device_driver * drv)
 
 		driver_add_attrs(bus, drv);
 		driver_create_file(drv, &driver_attr_unbind);
+		driver_create_file(drv, &driver_attr_bind);
 	}
 	return error;
 }
@@ -442,6 +467,7 @@ int bus_add_driver(struct device_driver * drv)
 void bus_remove_driver(struct device_driver * drv)
 {
 	if (drv->bus) {
+		driver_remove_file(drv, &driver_attr_bind);
 		driver_remove_file(drv, &driver_attr_unbind);
 		driver_remove_attrs(drv->bus, drv);
 		klist_remove(&drv->knode_bus);
