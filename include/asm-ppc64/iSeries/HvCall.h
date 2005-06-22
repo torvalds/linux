@@ -27,48 +27,6 @@
 #include <asm/iSeries/HvTypes.h>
 #include <asm/paca.h>
 
-/*
-enum HvCall_ReturnCode
-{
-	HvCall_Good		= 0,
-	HvCall_Partial		= 1,
-	HvCall_NotOwned		= 2,
-	HvCall_NotFreed		= 3,
-	HvCall_UnspecifiedError	= 4
-};
-
-enum HvCall_TypeOfSIT
-{
-	HvCall_ReduceOnly	= 0,
-	HvCall_Unconditional	= 1
-};
-
-enum HvCall_TypeOfYield
-{
-	HvCall_YieldTimed	= 0,	// Yield until specified time
-	HvCall_YieldToActive	= 1,	// Yield until all active procs have run
-	HvCall_YieldToProc	= 2	// Yield until the specified processor has run
-};
-
-enum HvCall_InterruptMasks
-{
-	HvCall_MaskIPI		= 0x00000001,
-	HvCall_MaskLpEvent	= 0x00000002,
-	HvCall_MaskLpProd	= 0x00000004,
-	HvCall_MaskTimeout	= 0x00000008
-};
-
-enum HvCall_VaryOffChunkRc
-{
-	HvCall_VaryOffSucceeded		= 0,
-	HvCall_VaryOffWithdrawn		= 1,
-	HvCall_ChunkInLoadArea		= 2,
-	HvCall_ChunkInHPT		= 3,
-	HvCall_ChunkNotAccessible	= 4,
-	HvCall_ChunkInUse		= 5
-};
-*/
-
 /* Type of yield for HvCallBaseYieldProcessor */
 #define HvCall_YieldTimed	0	/* Yield until specified time (tb) */
 #define HvCall_YieldToActive	1	/* Yield until all active procs have run */
@@ -139,55 +97,17 @@ static inline void HvCall_setEnabledInterrupts(u64 enabledInterrupts)
 	HvCall1(HvCallBaseSetEnabledInterrupts, enabledInterrupts);
 }
 
-static inline void HvCall_clearLogBuffer(HvLpIndex lpindex)
-{
-	HvCall1(HvCallBaseClearLogBuffer, lpindex);
-}
-
-static inline u32 HvCall_getLogBufferCodePage(HvLpIndex lpindex)
-{
-	u32 retVal = HvCall1(HvCallBaseGetLogBufferCodePage, lpindex);
-	return retVal;
-}
-
-static inline int HvCall_getLogBufferFormat(HvLpIndex lpindex)
-{
-	int retVal = HvCall1(HvCallBaseGetLogBufferFormat, lpindex);
-	return retVal;
-}
-
-static inline u32 HvCall_getLogBufferLength(HvLpIndex lpindex)
-{
-	u32 retVal = HvCall1(HvCallBaseGetLogBufferLength, lpindex);
-	return retVal;
-}
-
-static inline void HvCall_setLogBufferFormatAndCodepage(int format, u32 codePage)
+static inline void HvCall_setLogBufferFormatAndCodepage(int format,
+		u32 codePage)
 {
 	HvCall2(HvCallBaseSetLogBufferFormatAndCodePage, format, codePage);
 }
 
-extern int HvCall_readLogBuffer(HvLpIndex lpindex, void *buffer, u64 bufLen);
 extern void HvCall_writeLogBuffer(const void *buffer, u64 bufLen);
 
 static inline void HvCall_sendIPI(struct paca_struct *targetPaca)
 {
 	HvCall1(HvCallBaseSendIPI, targetPaca->paca_index);
-}
-
-static inline void HvCall_terminateMachineSrc(void)
-{
-	HvCall0(HvCallBaseTerminateMachineSrc);
-}
-
-static inline void HvCall_setDABR(unsigned long val)
-{
-	HvCall1(HvCallCcSetDABR, val);
-}
-
-static inline void HvCall_setDebugBus(unsigned long val)
-{
-	HvCall1(HvCallBaseSetDebugBus, val);
 }
 
 #endif /* _HVCALL_H */

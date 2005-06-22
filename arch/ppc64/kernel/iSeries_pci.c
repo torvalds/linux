@@ -38,7 +38,6 @@
 #include <asm/iommu.h>
 
 #include <asm/iSeries/HvCallPci.h>
-#include <asm/iSeries/HvCallSm.h>
 #include <asm/iSeries/HvCallXm.h>
 #include <asm/iSeries/iSeries_irq.h>
 #include <asm/iSeries/iSeries_pci.h>

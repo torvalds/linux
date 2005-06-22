@@ -20,13 +20,13 @@
 #include	<asm/types.h>
 #include	<asm/lppaca.h>
 #include	<asm/iSeries/ItLpRegSave.h>
+#include	<asm/iSeries/ItLpQueue.h>
 #include	<asm/mmu.h>
 
 register struct paca_struct *local_paca asm("r13");
 #define get_paca()	local_paca
 
 struct task_struct;
-struct ItLpQueue;
 
 /*
  * Defines the layout of the paca.
