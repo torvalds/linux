@@ -1230,6 +1230,7 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 	}
 
 	nr_sectors = 0;
+	sync_blocks = 0;
 	do {
 		struct page *page;
 		int len = PAGE_SIZE;
