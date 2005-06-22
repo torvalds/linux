@@ -1010,7 +1010,7 @@ static int init_resync(conf_t *conf)
  * that can be installed to exclude normal IO requests.
  */
 
-static int sync_request(mddev_t *mddev, sector_t sector_nr, int go_faster)
+static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, int go_faster)
 {
 	conf_t *conf = mddev_to_conf(mddev);
 	mirror_info_t *mirror;
@@ -1023,7 +1023,7 @@ static int sync_request(mddev_t *mddev, sector_t sector_nr, int go_faster)
 
 	if (!conf->r1buf_pool)
 		if (init_resync(conf))
-			return -ENOMEM;
+			return 0;
 
 	max_sector = mddev->size << 1;
 	if (sector_nr >= max_sector) {
@@ -1107,8 +1107,8 @@ static int sync_request(mddev_t *mddev, sector_t sector_nr, int go_faster)
 		/* There is nowhere to write, so all non-sync
 		 * drives must be failed - so we are finished
 		 */
-		int rv = max_sector - sector_nr;
-		md_done_sync(mddev, rv, 1);
+		sector_t rv = max_sector - sector_nr;
+		*skipped = 1;
 		put_buf(r1_bio);
 		rdev_dec_pending(conf->mirrors[disk].rdev, mddev);
 		return rv;

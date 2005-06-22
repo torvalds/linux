@@ -3241,12 +3241,13 @@ static void md_do_sync(mddev_t *mddev)
 	mddev_t *mddev2;
 	unsigned int currspeed = 0,
 		 window;
-	sector_t max_sectors,j;
+	sector_t max_sectors,j, io_sectors;
 	unsigned long mark[SYNC_MARKS];
 	sector_t mark_cnt[SYNC_MARKS];
 	int last_mark,m;
 	struct list_head *tmp;
 	sector_t last_check;
+	int skipped = 0;
 
 	/* just incase thread restarts... */
 	if (test_bit(MD_RECOVERY_DONE, &mddev->recovery))
@@ -3312,7 +3313,7 @@ static void md_do_sync(mddev_t *mddev)
 
 	if (test_bit(MD_RECOVERY_SYNC, &mddev->recovery))
 		/* resync follows the size requested by the personality,
-		 * which default to physical size, but can be virtual size
+		 * which defaults to physical size, but can be virtual size
 		 */
 		max_sectors = mddev->resync_max_sectors;
 	else
@@ -3331,9 +3332,10 @@ static void md_do_sync(mddev_t *mddev)
 		j = mddev->recovery_cp;
 	else
 		j = 0;
+	io_sectors = 0;
 	for (m = 0; m < SYNC_MARKS; m++) {
 		mark[m] = jiffies;
-		mark_cnt[m] = j;
+		mark_cnt[m] = io_sectors;
 	}
 	last_mark = 0;
 	mddev->resync_mark = mark[last_mark];
@@ -3358,21 +3360,29 @@ static void md_do_sync(mddev_t *mddev)
 	}
 
 	while (j < max_sectors) {
-		int sectors;
+		sector_t sectors;
 
-		sectors = mddev->pers->sync_request(mddev, j, currspeed < sysctl_speed_limit_min);
-		if (sectors < 0) {
+		skipped = 0;
+		sectors = mddev->pers->sync_request(mddev, j, &skipped,
+					    currspeed < sysctl_speed_limit_min);
+		if (sectors == 0) {
 			set_bit(MD_RECOVERY_ERR, &mddev->recovery);
 			goto out;
 		}
-		atomic_add(sectors, &mddev->recovery_active);
+
+		if (!skipped) { /* actual IO requested */
+			io_sectors += sectors;
+			atomic_add(sectors, &mddev->recovery_active);
+		}
+
 		j += sectors;
 		if (j>1) mddev->curr_resync = j;
 
-		if (last_check + window > j || j == max_sectors)
+
+		if (last_check + window > io_sectors || j == max_sectors)
 			continue;
 
-		last_check = j;
+		last_check = io_sectors;
 
 		if (test_bit(MD_RECOVERY_INTR, &mddev->recovery) ||
 		    test_bit(MD_RECOVERY_ERR, &mddev->recovery))
@@ -3386,7 +3396,7 @@ static void md_do_sync(mddev_t *mddev)
 			mddev->resync_mark = mark[next];
 			mddev->resync_mark_cnt = mark_cnt[next];
 			mark[next] = jiffies;
-			mark_cnt[next] = j - atomic_read(&mddev->recovery_active);
+			mark_cnt[next] = io_sectors - atomic_read(&mddev->recovery_active);
 			last_mark = next;
 		}
 
@@ -3413,7 +3423,8 @@ static void md_do_sync(mddev_t *mddev)
 		mddev->queue->unplug_fn(mddev->queue);
 		cond_resched();
 
-		currspeed = ((unsigned long)(j-mddev->resync_mark_cnt))/2/((jiffies-mddev->resync_mark)/HZ +1) +1;
+		currspeed = ((unsigned long)(io_sectors-mddev->resync_mark_cnt))/2
+			/((jiffies-mddev->resync_mark)/HZ +1) +1;
 
 		if (currspeed > sysctl_speed_limit_min) {
 			if ((currspeed > sysctl_speed_limit_max) ||
@@ -3433,7 +3444,7 @@ static void md_do_sync(mddev_t *mddev)
 	wait_event(mddev->recovery_wait, !atomic_read(&mddev->recovery_active));
 
 	/* tell personality that we are finished */
-	mddev->pers->sync_request(mddev, max_sectors, 1);
+	mddev->pers->sync_request(mddev, max_sectors, &skipped, 1);
 
 	if (!test_bit(MD_RECOVERY_ERR, &mddev->recovery) &&
 	    mddev->curr_resync > 2 &&

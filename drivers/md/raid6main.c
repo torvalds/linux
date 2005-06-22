@@ -1636,7 +1636,7 @@ static int make_request (request_queue_t *q, struct bio * bi)
 }
 
 /* FIXME go_faster isn't used */
-static int sync_request (mddev_t *mddev, sector_t sector_nr, int go_faster)
+static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, int go_faster)
 {
 	raid6_conf_t *conf = (raid6_conf_t *) mddev->private;
 	struct stripe_head *sh;
@@ -1659,8 +1659,8 @@ static int sync_request (mddev_t *mddev, sector_t sector_nr, int go_faster)
 	 * nothing we can do.
 	 */
 	if (mddev->degraded >= 2 && test_bit(MD_RECOVERY_SYNC, &mddev->recovery)) {
-		int rv = (mddev->size << 1) - sector_nr;
-		md_done_sync(mddev, rv, 1);
+		sector_t rv = (mddev->size << 1) - sector_nr;
+		*skipped = 1;
 		return rv;
 	}
 

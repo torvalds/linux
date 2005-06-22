@@ -1321,7 +1321,7 @@ static int init_resync(conf_t *conf)
  *
  */
 
-static int sync_request(mddev_t *mddev, sector_t sector_nr, int go_faster)
+static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, int go_faster)
 {
 	conf_t *conf = mddev_to_conf(mddev);
 	r10bio_t *r10_bio;
@@ -1335,7 +1335,7 @@ static int sync_request(mddev_t *mddev, sector_t sector_nr, int go_faster)
 
 	if (!conf->r10buf_pool)
 		if (init_resync(conf))
-			return -ENOMEM;
+			return 0;
 
  skipped:
 	max_sector = mddev->size << 1;
@@ -1343,15 +1343,15 @@ static int sync_request(mddev_t *mddev, sector_t sector_nr, int go_faster)
 		max_sector = mddev->resync_max_sectors;
 	if (sector_nr >= max_sector) {
 		close_sync(conf);
+		*skipped = 1;
 		return sectors_skipped;
 	}
 	if (chunks_skipped >= conf->raid_disks) {
 		/* if there has been nothing to do on any drive,
 		 * then there is nothing to do at all..
 		 */
-		sector_t sec = max_sector - sector_nr;
-		md_done_sync(mddev, sec, 1);
-		return sec + sectors_skipped;
+		*skipped = 1;
+		return (max_sector - sector_nr) + sectors_skipped;
 	}
 
 	/* make sure whole request will fit in a chunk - if chunks
@@ -1565,17 +1565,22 @@ static int sync_request(mddev_t *mddev, sector_t sector_nr, int go_faster)
 		}
 	}
 
+	if (sectors_skipped)
+		/* pretend they weren't skipped, it makes
+		 * no important difference in this case
+		 */
+		md_done_sync(mddev, sectors_skipped, 1);
+
 	return sectors_skipped + nr_sectors;
  giveup:
 	/* There is nowhere to write, so all non-sync
 	 * drives must be failed, so try the next chunk...
 	 */
 	{
-	int sec = max_sector - sector_nr;
+	sector_t sec = max_sector - sector_nr;
 	sectors_skipped += sec;
 	chunks_skipped ++;
 	sector_nr = max_sector;
-	md_done_sync(mddev, sec, 1);
 	goto skipped;
 	}
 }
