@@ -747,7 +747,7 @@ int bitmap_unplug(struct bitmap *bitmap)
 }
 
 static void bitmap_set_memory_bits(struct bitmap *bitmap, sector_t offset,
-	unsigned long sectors, int set);
+	unsigned long sectors, int in_sync);
 /* * bitmap_init_from_disk -- called at bitmap_create time to initialize
  * the in-memory bitmap from the on-disk bitmap -- also, sets up the
  * memory mapping of the bitmap file
@@ -756,7 +756,7 @@ static void bitmap_set_memory_bits(struct bitmap *bitmap, sector_t offset,
  *   previously kicked from the array, we mark all the bits as
  *   1's in order to cause a full resync.
  */
-static int bitmap_init_from_disk(struct bitmap *bitmap)
+static int bitmap_init_from_disk(struct bitmap *bitmap, int in_sync)
 {
 	unsigned long i, chunks, index, oldindex, bit;
 	struct page *page = NULL, *oldpage = NULL;
@@ -782,7 +782,7 @@ static int bitmap_init_from_disk(struct bitmap *bitmap)
 
 	bytes = (chunks + 7) / 8;
 
-	num_pages = (bytes + sizeof(bitmap_super_t) + PAGE_SIZE - 1) / PAGE_SIZE + 1;
+	num_pages = (bytes + sizeof(bitmap_super_t) + PAGE_SIZE - 1) / PAGE_SIZE;
 
 	if (i_size_read(file->f_mapping->host) < bytes + sizeof(bitmap_super_t)) {
 		printk(KERN_INFO "%s: bitmap file too short %lu < %lu\n",
@@ -854,14 +854,9 @@ static int bitmap_init_from_disk(struct bitmap *bitmap)
 		if (test_bit(bit, page_address(page))) {
 			/* if the disk bit is set, set the memory bit */
 			bitmap_set_memory_bits(bitmap,
-					i << CHUNK_BLOCK_SHIFT(bitmap), 1, 1);
+					i << CHUNK_BLOCK_SHIFT(bitmap), 1, in_sync);
 			bit_cnt++;
 		}
-#if 0
-		else
-			bitmap_set_memory_bits(bitmap,
-				       i << CHUNK_BLOCK_SHIFT(bitmap), 1, 0);
-#endif
 	}
 
  	/* everything went OK */
@@ -1331,10 +1326,10 @@ void bitmap_close_sync(struct bitmap *bitmap)
 }
 
 static void bitmap_set_memory_bits(struct bitmap *bitmap, sector_t offset,
-				   unsigned long sectors, int set)
+				   unsigned long sectors, int in_sync)
 {
 	/* For each chunk covered by any of these sectors, set the
-	 * resync needed bit, and the counter to 1.  They should all
+	 * counter to 1 and set resync_needed unless in_sync.  They should all
 	 * be 0 at this point
 	 */
 	while (sectors) {
@@ -1346,10 +1341,12 @@ static void bitmap_set_memory_bits(struct bitmap *bitmap, sector_t offset,
 			spin_unlock_irq(&bitmap->lock);
 			return;
 		}
-		if (set && !NEEDED(*bmc)) {
-			BUG_ON(*bmc);
-			*bmc = NEEDED_MASK | 1;
+		if (! *bmc) {
+			struct page *page;
+			*bmc = 1 | (in_sync? 0 : NEEDED_MASK);
 			bitmap_count_page(bitmap, offset, 1);
+			page = filemap_get_page(bitmap, offset >> CHUNK_BLOCK_SHIFT(bitmap));
+			set_page_attr(bitmap, page, BITMAP_PAGE_CLEAN);
 		}
 		spin_unlock_irq(&bitmap->lock);
 		if (sectors > secs)
@@ -1489,7 +1486,7 @@ int bitmap_create(mddev_t *mddev)
 
 	/* now that we have some pages available, initialize the in-memory
 	 * bitmap from the on-disk bitmap */
-	err = bitmap_init_from_disk(bitmap);
+	err = bitmap_init_from_disk(bitmap, mddev->recovery_cp == MaxSector);
 	if (err)
 		return err;
 
