@@ -376,6 +376,7 @@ static struct svc_program	nfsd_acl_program = {
 	.pg_nvers		= NFSD_ACL_NRVERS,
 	.pg_vers		= nfsd_acl_version,
 	.pg_name		= "nfsd",
+	.pg_class		= "nfsd",
 	.pg_stats		= &nfsd_acl_svcstats,
 };
 

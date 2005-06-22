@@ -677,7 +677,7 @@ nfs3_xdr_setaclargs(struct rpc_rqst *req, u32 *p,
 	/* put as much of the acls into head as possible. */
 	len_in_head = min_t(unsigned int, buf->head->iov_len - base, len);
 	len -= len_in_head;
-	req->rq_slen = xdr_adjust_iovec(req->rq_svec, p + len_in_head);
+	req->rq_slen = xdr_adjust_iovec(req->rq_svec, p + (len_in_head >> 2));
 
 	for (count = 0; (count << PAGE_SHIFT) < len; count++) {
 		args->pages[count] = alloc_page(GFP_KERNEL);
