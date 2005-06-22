@@ -24,9 +24,25 @@
  * to determine which resources should be allocated to each partition.
  */
 
-#include <asm/iSeries/HvCallCfg.h>
+#include <asm/iSeries/HvCallSc.h>
 #include <asm/iSeries/HvTypes.h>
 #include <asm/iSeries/ItLpNaca.h>
+
+enum {
+	HvCallCfg_Cur	= 0,
+	HvCallCfg_Init	= 1,
+	HvCallCfg_Max	= 2,
+	HvCallCfg_Min	= 3
+};
+
+#define HvCallCfgGetSystemPhysicalProcessors		HvCallCfg +  6
+#define HvCallCfgGetPhysicalProcessors			HvCallCfg +  7
+#define HvCallCfgGetMsChunks				HvCallCfg +  9
+#define HvCallCfgGetSharedPoolIndex			HvCallCfg + 20
+#define HvCallCfgGetSharedProcUnits			HvCallCfg + 21
+#define HvCallCfgGetNumProcsInSharedPool		HvCallCfg + 22
+#define HvCallCfgGetVirtualLanIndexMap			HvCallCfg + 30
+#define HvCallCfgGetHostingLpIndex			HvCallCfg + 32
 
 extern HvLpIndex HvLpConfig_getLpIndex_outline(void);
 
@@ -42,72 +58,81 @@ static inline HvLpIndex	HvLpConfig_getPrimaryLpIndex(void)
 
 static inline u64 HvLpConfig_getMsChunks(void)
 {
-	return HvCallCfg_getMsChunks(HvLpConfig_getLpIndex(), HvCallCfg_Cur);
+	return HvCall2(HvCallCfgGetMsChunks, HvLpConfig_getLpIndex(),
+			HvCallCfg_Cur);
 }
 
 static inline u64 HvLpConfig_getSystemPhysicalProcessors(void)
 {
-	return HvCallCfg_getSystemPhysicalProcessors();
+	return HvCall0(HvCallCfgGetSystemPhysicalProcessors);
 }
 
 static inline u64 HvLpConfig_getNumProcsInSharedPool(HvLpSharedPoolIndex sPI)
 {
-	return HvCallCfg_getNumProcsInSharedPool(sPI);
+	return (u16)HvCall1(HvCallCfgGetNumProcsInSharedPool, sPI);
 }
 
 static inline u64 HvLpConfig_getPhysicalProcessors(void)
 {
-	return HvCallCfg_getPhysicalProcessors(HvLpConfig_getLpIndex(),
+	return HvCall2(HvCallCfgGetPhysicalProcessors, HvLpConfig_getLpIndex(),
 			HvCallCfg_Cur);
 }
 
 static inline HvLpSharedPoolIndex HvLpConfig_getSharedPoolIndex(void)
 {
-	return HvCallCfg_getSharedPoolIndex(HvLpConfig_getLpIndex());
+	return HvCall1(HvCallCfgGetSharedPoolIndex, HvLpConfig_getLpIndex());
 }
 
 static inline u64 HvLpConfig_getSharedProcUnits(void)
 {
-	return HvCallCfg_getSharedProcUnits(HvLpConfig_getLpIndex(),
+	return HvCall2(HvCallCfgGetSharedProcUnits, HvLpConfig_getLpIndex(),
 			HvCallCfg_Cur);
 }
 
 static inline u64 HvLpConfig_getMaxSharedProcUnits(void)
 {
-	return HvCallCfg_getSharedProcUnits(HvLpConfig_getLpIndex(),
+	return HvCall2(HvCallCfgGetSharedProcUnits, HvLpConfig_getLpIndex(),
 			HvCallCfg_Max);
 }
 
 static inline u64 HvLpConfig_getMaxPhysicalProcessors(void)
 {
-	return HvCallCfg_getPhysicalProcessors(HvLpConfig_getLpIndex(),
+	return HvCall2(HvCallCfgGetPhysicalProcessors, HvLpConfig_getLpIndex(),
 			HvCallCfg_Max);
-}
-
-static inline HvLpVirtualLanIndexMap HvLpConfig_getVirtualLanIndexMap(void)
-{
-	return HvCallCfg_getVirtualLanIndexMap(HvLpConfig_getLpIndex_outline());
 }
 
 static inline HvLpVirtualLanIndexMap HvLpConfig_getVirtualLanIndexMapForLp(
 		HvLpIndex lp)
 {
-	return HvCallCfg_getVirtualLanIndexMap(lp);
+	/*
+	 * This is a new function in V5R1 so calls to this on older
+	 * hypervisors will return -1
+	 */
+	u64 retVal = HvCall1(HvCallCfgGetVirtualLanIndexMap, lp);
+	if (retVal == -1)
+		retVal = 0;
+	return retVal;
+}
+
+static inline HvLpVirtualLanIndexMap HvLpConfig_getVirtualLanIndexMap(void)
+{
+	return HvLpConfig_getVirtualLanIndexMapForLp(
+			HvLpConfig_getLpIndex_outline());
 }
 
 static inline int HvLpConfig_doLpsCommunicateOnVirtualLan(HvLpIndex lp1,
 		HvLpIndex lp2)
 {
 	HvLpVirtualLanIndexMap virtualLanIndexMap1 =
-		HvCallCfg_getVirtualLanIndexMap(lp1);
+		HvLpConfig_getVirtualLanIndexMapForLp(lp1);
 	HvLpVirtualLanIndexMap virtualLanIndexMap2 =
-		HvCallCfg_getVirtualLanIndexMap(lp2);
+		HvLpConfig_getVirtualLanIndexMapForLp(lp2);
 	return ((virtualLanIndexMap1 & virtualLanIndexMap2) != 0);
 }
 
 static inline HvLpIndex HvLpConfig_getHostingLpIndex(HvLpIndex lp)
 {
-	return HvCallCfg_getHostingLpIndex(lp);
+	return HvCall1(HvCallCfgGetHostingLpIndex, lp);
 }
 
 #endif /* _HVLPCONFIG_H */
