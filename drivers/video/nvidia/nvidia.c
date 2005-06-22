@@ -516,9 +516,9 @@ static struct backlight_controller nvidia_backlight_controller = {
 static void nvidiafb_load_cursor_image(struct nvidia_par *par, u8 * data8,
 				       u16 bg, u16 fg, u32 w, u32 h)
 {
+	u32 *data = (u32 *) data8;
 	int i, j, k = 0;
 	u32 b, tmp;
-	u32 *data = (u32 *) data8;
 
 	w = (w + 1) & ~1;
 
@@ -890,11 +890,11 @@ static int nvidiafb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 {
 	struct nvidia_par *par = info->par;
 	u8 data[MAX_CURS * MAX_CURS / 8];
-	u16 fg, bg;
 	int i, set = cursor->set;
+	u16 fg, bg;
 
 	if (cursor->image.width > MAX_CURS || cursor->image.height > MAX_CURS)
-		return soft_cursor(info, cursor);
+		return -ENXIO;
 
 	NVShowHideCursor(par, 0);
 
@@ -931,21 +931,18 @@ static int nvidiafb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 		if (src) {
 			switch (cursor->rop) {
 			case ROP_XOR:
-				for (i = 0; i < s_pitch * cursor->image.height;
-				     i++)
+				for (i = 0; i < s_pitch * cursor->image.height; i++)
 					src[i] = dat[i] ^ msk[i];
 				break;
 			case ROP_COPY:
 			default:
-				for (i = 0; i < s_pitch * cursor->image.height;
-				     i++)
+				for (i = 0; i < s_pitch * cursor->image.height; i++)
 					src[i] = dat[i] & msk[i];
 				break;
 			}
 
-			fb_sysmove_buf_aligned(info, &info->pixmap, data,
-					       d_pitch, src, s_pitch,
-					       cursor->image.height);
+			fb_pad_aligned_buffer(data, d_pitch, src, s_pitch,
+						cursor->image.height);
 
 			bg = ((info->cmap.red[bg_idx] & 0xf8) << 7) |
 			    ((info->cmap.green[bg_idx] & 0xf8) << 2) |

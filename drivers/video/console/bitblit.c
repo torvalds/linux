@@ -157,9 +157,9 @@ static void bit_putcs(struct vc_data *vc, struct fb_info *info,
 					src = buf;
 				}
 
-				fb_sysmove_buf_unaligned(info, &info->pixmap, dst, pitch,
-					       src, idx, image.height,
-					       shift_high, shift_low, mod);
+				fb_pad_unaligned_buffer(dst, pitch, src, idx,
+						image.height, shift_high,
+						shift_low, mod);
 				shift_low += mod;
 				dst += (shift_low >= 8) ? width : width - 1;
 				shift_low &= 7;
@@ -175,8 +175,7 @@ static void bit_putcs(struct vc_data *vc, struct fb_info *info,
 					src = buf;
 				}
 
-				fb_sysmove_buf_aligned(info, &info->pixmap, dst, pitch,
-					     src, idx, image.height);
+				fb_pad_aligned_buffer(dst, pitch, src, idx, image.height);
 				dst += width;
 			}
 		}

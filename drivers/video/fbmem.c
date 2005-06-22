@@ -78,9 +78,7 @@ EXPORT_SYMBOL(fb_get_color_depth);
 /*
  * Data padding functions.
  */
-void fb_sysmove_buf_aligned(struct fb_info *info, struct fb_pixmap *buf,
-			    u8 *dst, u32 d_pitch, u8 *src, u32 s_pitch,
-			    u32 height)
+void fb_pad_aligned_buffer(u8 *dst, u32 d_pitch, u8 *src, u32 s_pitch, u32 height)
 {
 	int i;
 
@@ -90,12 +88,10 @@ void fb_sysmove_buf_aligned(struct fb_info *info, struct fb_pixmap *buf,
 		dst += d_pitch;
 	}
 }
-EXPORT_SYMBOL(fb_sysmove_buf_aligned);
+EXPORT_SYMBOL(fb_pad_aligned_buffer);
 
-void fb_sysmove_buf_unaligned(struct fb_info *info, struct fb_pixmap *buf,
-			      u8 *dst, u32 d_pitch, u8 *src, u32 idx,
-			      u32 height, u32 shift_high, u32 shift_low,
-			      u32 mod)
+void fb_pad_unaligned_buffer(u8 *dst, u32 d_pitch, u8 *src, u32 idx, u32 height,
+				u32 shift_high, u32 shift_low, u32 mod)
 {
 	u8 mask = (u8) (0xfff << shift_high), tmp;
 	int i, j;
@@ -122,7 +118,7 @@ void fb_sysmove_buf_unaligned(struct fb_info *info, struct fb_pixmap *buf,
 		dst += d_pitch;
 	}
 }
-EXPORT_SYMBOL(fb_sysmove_buf_unaligned);
+EXPORT_SYMBOL(fb_pad_unaligned_buffer);
 
 /*
  * we need to lock this section since fb_cursor

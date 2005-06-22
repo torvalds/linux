@@ -1582,12 +1582,11 @@ static int rivafb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 {
 	struct riva_par *par = (struct riva_par *) info->par;
 	u8 data[MAX_CURS * MAX_CURS/8];
-	u16 fg, bg;
 	int i, set = cursor->set;
+	u16 fg, bg;
 
-	if (cursor->image.width > MAX_CURS ||
-	    cursor->image.height > MAX_CURS)
-		return soft_cursor(info, cursor);
+	if (cursor->image.width > MAX_CURS || cursor->image.height > MAX_CURS)
+		return -ENXIO;
 
 	par->riva.ShowHideCursor(&par->riva, 0);
 
@@ -1625,21 +1624,18 @@ static int rivafb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 		if (src) {
 			switch (cursor->rop) {
 			case ROP_XOR:
-				for (i = 0; i < s_pitch * cursor->image.height;
-				     i++)
+				for (i = 0; i < s_pitch * cursor->image.height; i++)
 					src[i] = dat[i] ^ msk[i];
 				break;
 			case ROP_COPY:
 			default:
-				for (i = 0; i < s_pitch * cursor->image.height;
-				     i++)
+				for (i = 0; i < s_pitch * cursor->image.height; i++)
 					src[i] = dat[i] & msk[i];
 				break;
 			}
 
-			fb_sysmove_buf_aligned(info, &info->pixmap, data,
-					       d_pitch, src, s_pitch,
-					       cursor->image.height);
+			fb_pad_aligned_buffer(data, d_pitch, src, s_pitch,
+						cursor->image.height);
 
 			bg = ((info->cmap.red[bg_idx] & 0xf8) << 7) |
 				((info->cmap.green[bg_idx] & 0xf8) << 2) |
