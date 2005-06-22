@@ -1345,6 +1345,7 @@ static int __devinit nvidia_set_fbinfo(struct fb_info *info)
 
 	info->pixmap.scan_align = 4;
 	info->pixmap.buf_align = 4;
+	info->pixmap.access_align = 32;
 	info->pixmap.size = 8 * 1024;
 	info->pixmap.flags = FB_PIXMAP_SYSTEM;
 

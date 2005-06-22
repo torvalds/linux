@@ -1091,6 +1091,7 @@ intelfb_set_fbinfo(struct intelfb_info *dinfo)
 
 	info->pixmap.size = 64*1024;
 	info->pixmap.buf_align = 8;
+	info->pixmap.access_align = 32;
 	info->pixmap.flags = FB_PIXMAP_SYSTEM;
 
 	if (intelfb_init_var(dinfo))

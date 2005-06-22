@@ -1897,7 +1897,7 @@ static int __devinit savage_init_fb_info (struct fb_info *info,
 		info->pixmap.size = 8*1024;
 		info->pixmap.scan_align = 4;
 		info->pixmap.buf_align = 4;
-		info->pixmap.access_align = 4;
+		info->pixmap.access_align = 32;
 
 		fb_alloc_cmap (&info->cmap, NR_PALETTE, 0);
 		info->flags |= FBINFO_HWACCEL_COPYAREA |

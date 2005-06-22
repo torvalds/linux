@@ -1723,6 +1723,7 @@ static int __devinit riva_set_fbinfo(struct fb_info *info)
 
 	info->pixmap.size = 8 * 1024;
 	info->pixmap.buf_align = 4;
+	info->pixmap.access_align = 32;
 	info->pixmap.flags = FB_PIXMAP_SYSTEM;
 	info->var.yres_virtual = -1;
 	NVTRACE_LEAVE();

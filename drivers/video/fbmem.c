@@ -1034,7 +1034,7 @@ register_framebuffer(struct fb_info *fb_info)
 			fb_info->pixmap.size = FBPIXMAPSIZE;
 			fb_info->pixmap.buf_align = 1;
 			fb_info->pixmap.scan_align = 1;
-			fb_info->pixmap.access_align = 4;
+			fb_info->pixmap.access_align = 32;
 			fb_info->pixmap.flags = FB_PIXMAP_DEFAULT;
 		}
 	}	
