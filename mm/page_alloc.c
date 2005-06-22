@@ -1144,7 +1144,7 @@ void get_full_page_state(struct page_state *ret)
 	__get_page_state(ret, sizeof(*ret) / sizeof(unsigned long));
 }
 
-unsigned long __read_page_state(unsigned offset)
+unsigned long __read_page_state(unsigned long offset)
 {
 	unsigned long ret = 0;
 	int cpu;
