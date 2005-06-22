@@ -79,7 +79,6 @@ struct iSeries_Device_Node {
 	HvAgentId	AgentId;	/* Hypervisor DevFn */
 	int		DevFn;		/* Linux devfn */
 	int		Irq;		/* Assigned IRQ */
-	int		IoRetry;	/* Current Retry Count */
 	int		Flags;		/* Possible flags(disable/bist)*/
 	u8		LogicalSlot;	/* Hv Slot Index for Tces */
 	struct iommu_table *iommu_table;/* Device TCE Table */

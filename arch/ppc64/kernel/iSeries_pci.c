@@ -225,7 +225,6 @@ static struct iSeries_Device_Node *build_device_node(HvBusNumber Bus,
 	node->DsaAddr.Dsa.deviceId = 0x10;
 	node->AgentId = AgentId;
 	node->DevFn = PCI_DEVFN(ISERIES_ENCODE_DEVICE(AgentId), Function);
-	node->IoRetry = 0;
 	iSeries_Get_Location_Code(node);
 	return node;
 }
@@ -658,38 +657,34 @@ static struct pci_ops iSeries_pci_ops = {
  * Check Return Code
  * -> On Failure, print and log information.
  *    Increment Retry Count, if exceeds max, panic partition.
- * -> If in retry, print and log success 
  *
  * PCI: Device 23.90 ReadL I/O Error( 0): 0x1234
  * PCI: Device 23.90 ReadL Retry( 1)
  * PCI: Device 23.90 ReadL Retry Successful(1)
  */
 static int CheckReturnCode(char *TextHdr, struct iSeries_Device_Node *DevNode,
-		u64 ret)
+		int *retry, u64 ret)
 {
 	if (ret != 0)  {
 		++Pci_Error_Count;
-		++DevNode->IoRetry;
+		(*retry)++;
 		printk("PCI: %s: Device 0x%04X:%02X  I/O Error(%2d): 0x%04X\n",
 				TextHdr, DevNode->DsaAddr.Dsa.busNumber, DevNode->DevFn,
-				DevNode->IoRetry, (int)ret);
+				*retry, (int)ret);
 		/*
 		 * Bump the retry and check for retry count exceeded.
 		 * If, Exceeded, panic the system.
 		 */
-		if ((DevNode->IoRetry > Pci_Retry_Max) &&
+		if (((*retry) > Pci_Retry_Max) &&
 				(Pci_Error_Flag > 0)) {
 			mf_display_src(0xB6000103);
-			panic_timeout = 0; 
+			panic_timeout = 0;
 			panic("PCI: Hardware I/O Error, SRC B6000103, "
 					"Automatic Reboot Disabled.\n");
 		}
 		return -1;	/* Retry Try */
 	}
-	/* If retry was in progress, log success and rest retry count */
-	if (DevNode->IoRetry > 0)
-		DevNode->IoRetry = 0;
-	return 0; 
+	return 0;
 }
 
 /*
@@ -735,6 +730,7 @@ u8 iSeries_Read_Byte(const volatile void __iomem *IoAddress)
 {
 	u64 BarOffset;
 	u64 dsa;
+	int retry = 0;
 	struct HvCallPci_LoadReturn ret;
 	struct iSeries_Device_Node *DevNode =
 		xlate_iomm_address(IoAddress, &dsa, &BarOffset);
@@ -754,7 +750,7 @@ u8 iSeries_Read_Byte(const volatile void __iomem *IoAddress)
 	do {
 		++Pci_Io_Read_Count;
 		HvCall3Ret16(HvCallPciBarLoad8, &ret, dsa, BarOffset, 0);
-	} while (CheckReturnCode("RDB", DevNode, ret.rc) != 0);
+	} while (CheckReturnCode("RDB", DevNode, &retry, ret.rc) != 0);
 
 	return (u8)ret.value;
 }
@@ -764,6 +760,7 @@ u16 iSeries_Read_Word(const volatile void __iomem *IoAddress)
 {
 	u64 BarOffset;
 	u64 dsa;
+	int retry = 0;
 	struct HvCallPci_LoadReturn ret;
 	struct iSeries_Device_Node *DevNode =
 		xlate_iomm_address(IoAddress, &dsa, &BarOffset);
@@ -784,7 +781,7 @@ u16 iSeries_Read_Word(const volatile void __iomem *IoAddress)
 		++Pci_Io_Read_Count;
 		HvCall3Ret16(HvCallPciBarLoad16, &ret, dsa,
 				BarOffset, 0);
-	} while (CheckReturnCode("RDW", DevNode, ret.rc) != 0);
+	} while (CheckReturnCode("RDW", DevNode, &retry, ret.rc) != 0);
 
 	return swab16((u16)ret.value);
 }
@@ -794,6 +791,7 @@ u32 iSeries_Read_Long(const volatile void __iomem *IoAddress)
 {
 	u64 BarOffset;
 	u64 dsa;
+	int retry = 0;
 	struct HvCallPci_LoadReturn ret;
 	struct iSeries_Device_Node *DevNode =
 		xlate_iomm_address(IoAddress, &dsa, &BarOffset);
@@ -814,7 +812,7 @@ u32 iSeries_Read_Long(const volatile void __iomem *IoAddress)
 		++Pci_Io_Read_Count;
 		HvCall3Ret16(HvCallPciBarLoad32, &ret, dsa,
 				BarOffset, 0);
-	} while (CheckReturnCode("RDL", DevNode, ret.rc) != 0);
+	} while (CheckReturnCode("RDL", DevNode, &retry, ret.rc) != 0);
 
 	return swab32((u32)ret.value);
 }
@@ -831,6 +829,7 @@ void iSeries_Write_Byte(u8 data, volatile void __iomem *IoAddress)
 {
 	u64 BarOffset;
 	u64 dsa;
+	int retry = 0;
 	u64 rc;
 	struct iSeries_Device_Node *DevNode =
 		xlate_iomm_address(IoAddress, &dsa, &BarOffset);
@@ -850,7 +849,7 @@ void iSeries_Write_Byte(u8 data, volatile void __iomem *IoAddress)
 	do {
 		++Pci_Io_Write_Count;
 		rc = HvCall4(HvCallPciBarStore8, dsa, BarOffset, data, 0);
-	} while (CheckReturnCode("WWB", DevNode, rc) != 0);
+	} while (CheckReturnCode("WWB", DevNode, &retry, rc) != 0);
 }
 EXPORT_SYMBOL(iSeries_Write_Byte);
 
@@ -858,6 +857,7 @@ void iSeries_Write_Word(u16 data, volatile void __iomem *IoAddress)
 {
 	u64 BarOffset;
 	u64 dsa;
+	int retry = 0;
 	u64 rc;
 	struct iSeries_Device_Node *DevNode =
 		xlate_iomm_address(IoAddress, &dsa, &BarOffset);
@@ -877,7 +877,7 @@ void iSeries_Write_Word(u16 data, volatile void __iomem *IoAddress)
 	do {
 		++Pci_Io_Write_Count;
 		rc = HvCall4(HvCallPciBarStore16, dsa, BarOffset, swab16(data), 0);
-	} while (CheckReturnCode("WWW", DevNode, rc) != 0);
+	} while (CheckReturnCode("WWW", DevNode, &retry, rc) != 0);
 }
 EXPORT_SYMBOL(iSeries_Write_Word);
 
@@ -885,6 +885,7 @@ void iSeries_Write_Long(u32 data, volatile void __iomem *IoAddress)
 {
 	u64 BarOffset;
 	u64 dsa;
+	int retry = 0;
 	u64 rc;
 	struct iSeries_Device_Node *DevNode =
 		xlate_iomm_address(IoAddress, &dsa, &BarOffset);
@@ -904,6 +905,6 @@ void iSeries_Write_Long(u32 data, volatile void __iomem *IoAddress)
 	do {
 		++Pci_Io_Write_Count;
 		rc = HvCall4(HvCallPciBarStore32, dsa, BarOffset, swab32(data), 0);
-	} while (CheckReturnCode("WWL", DevNode, rc) != 0);
+	} while (CheckReturnCode("WWL", DevNode, &retry, rc) != 0);
 }
 EXPORT_SYMBOL(iSeries_Write_Long);
