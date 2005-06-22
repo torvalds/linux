@@ -729,6 +729,8 @@ should_reclaim_zone(struct zone *z, unsigned int gfp_mask)
 {
 	if (!z->reclaim_pages)
 		return 0;
+	if (gfp_mask & __GFP_NORECLAIM)
+		return 0;
 	return 1;
 }
 
