@@ -261,7 +261,7 @@ struct mddev_s
 	sector_t			recovery_cp;
 
 	spinlock_t			write_lock;
-	struct bio_list			write_list;
+	wait_queue_head_t		sb_wait;	/* for waiting on superblock updates */
 
 	unsigned int			safemode;	/* if set, update "clean" superblock
 							 * when no writes pending.

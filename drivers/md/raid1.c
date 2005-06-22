@@ -561,8 +561,8 @@ static int make_request(request_queue_t *q, struct bio * bio)
 	 * thread has put up a bar for new requests.
 	 * Continue immediately if no resync is active currently.
 	 */
-	if (md_write_start(mddev, bio)==0)
-		return 0;
+	md_write_start(mddev, bio); /* wait on superblock update early */
+
 	spin_lock_irq(&conf->resync_lock);
 	wait_event_lock_irq(conf->wait_resume, !conf->barrier, conf->resync_lock, );
 	conf->nr_pending++;

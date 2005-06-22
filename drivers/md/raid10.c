@@ -700,8 +700,7 @@ static int make_request(request_queue_t *q, struct bio * bio)
 		return 0;
 	}
 
-	if (md_write_start(mddev, bio) == 0)
-		return 0;
+	md_write_start(mddev, bio);
 
 	/*
 	 * Register the new request and wait if the reconstruction

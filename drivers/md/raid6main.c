@@ -1570,8 +1570,7 @@ static int make_request (request_queue_t *q, struct bio * bi)
 	sector_t logical_sector, last_sector;
 	struct stripe_head *sh;
 
-	if (md_write_start(mddev, bi)==0)
-		return 0;
+	md_write_start(mddev, bi);
 
 	if (bio_data_dir(bi)==WRITE) {
 		disk_stat_inc(mddev->gendisk, writes);
