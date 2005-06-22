@@ -128,6 +128,7 @@ struct nfs4_state_owner {
 
 struct nfs4_lock_state {
 	struct list_head	ls_locks;	/* Other lock stateids */
+	struct nfs4_state *	ls_state;	/* Pointer to open state */
 	fl_owner_t		ls_owner;	/* POSIX lock owner */
 #define NFS_LOCK_INITIALIZED 1
 	int			ls_flags;
@@ -153,7 +154,7 @@ struct nfs4_state {
 
 	unsigned long flags;		/* Do we hold any locks? */
 	struct semaphore lock_sema;	/* Serializes file locking operations */
-	rwlock_t state_lock;		/* Protects the lock_states list */
+	spinlock_t state_lock;		/* Protects the lock_states list */
 
 	nfs4_stateid stateid;
 
@@ -225,12 +226,8 @@ extern void nfs4_close_state(struct nfs4_state *, mode_t);
 extern struct nfs4_state *nfs4_find_state(struct inode *, struct rpc_cred *, mode_t mode);
 extern void nfs4_increment_seqid(int status, struct nfs4_state_owner *sp);
 extern void nfs4_schedule_state_recovery(struct nfs4_client *);
-extern struct nfs4_lock_state *nfs4_find_lock_state(struct nfs4_state *state, fl_owner_t);
-extern struct nfs4_lock_state *nfs4_get_lock_state(struct nfs4_state *state, fl_owner_t);
-extern void nfs4_put_lock_state(struct nfs4_lock_state *state);
+extern int nfs4_set_lock_state(struct nfs4_state *state, struct file_lock *fl);
 extern void nfs4_increment_lock_seqid(int status, struct nfs4_lock_state *ls);
-extern void nfs4_notify_setlk(struct nfs4_state *, struct file_lock *, struct nfs4_lock_state *);
-extern void nfs4_notify_unlck(struct nfs4_state *, struct file_lock *, struct nfs4_lock_state *);
 extern void nfs4_copy_stateid(nfs4_stateid *, struct nfs4_state *, fl_owner_t);
 
 extern const nfs4_stateid zero_stateid;
