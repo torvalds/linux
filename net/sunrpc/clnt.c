@@ -178,6 +178,7 @@ out_no_path:
 		kfree(clnt->cl_server);
 	kfree(clnt);
 out_err:
+	xprt_destroy(xprt);
 	return ERR_PTR(err);
 }
 

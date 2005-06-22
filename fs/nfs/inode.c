@@ -383,7 +383,6 @@ nfs_create_client(struct nfs_server *server, const struct nfs_mount_data *data)
 	return clnt;
 
 out_fail:
-	xprt_destroy(xprt);
 	return clnt;
 }
 
@@ -1623,7 +1622,6 @@ static int nfs4_fill_super(struct super_block *sb, struct nfs4_mount_data *data,
 		if (IS_ERR(clnt)) {
 			up_write(&clp->cl_sem);
 			printk(KERN_WARNING "NFS: cannot create RPC client.\n");
-			xprt_destroy(xprt);
 			err = PTR_ERR(clnt);
 			goto out_fail;
 		}

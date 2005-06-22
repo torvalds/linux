@@ -210,9 +210,7 @@ pmap_create(char *hostname, struct sockaddr_in *srvaddr, int proto)
 	clnt = rpc_create_client(xprt, hostname,
 				&pmap_program, RPC_PMAP_VERSION,
 				RPC_AUTH_UNIX);
-	if (IS_ERR(clnt)) {
-		xprt_destroy(xprt);
-	} else {
+	if (!IS_ERR(clnt)) {
 		clnt->cl_softrtry = 1;
 		clnt->cl_chatty   = 1;
 		clnt->cl_oneshot  = 1;
