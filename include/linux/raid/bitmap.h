@@ -217,6 +217,7 @@ struct bitmap {
 	/* bitmap spinlock */
 	spinlock_t lock;
 
+	long offset; /* offset from superblock if file is NULL */
 	struct file *file; /* backing disk file */
 	struct page *sb_page; /* cached copy of the bitmap file superblock */
 	struct page **filemap; /* list of cache pages for the file */
@@ -255,6 +256,7 @@ void bitmap_print_sb(struct bitmap *bitmap);
 int bitmap_update_sb(struct bitmap *bitmap);
 
 int  bitmap_setallbits(struct bitmap *bitmap);
+void bitmap_write_all(struct bitmap *bitmap);
 
 /* these are exported */
 int bitmap_startwrite(struct bitmap *bitmap, sector_t offset, unsigned long sectors);

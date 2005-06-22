@@ -60,7 +60,14 @@
  */
 #define MD_MAJOR_VERSION                0
 #define MD_MINOR_VERSION                90
-#define MD_PATCHLEVEL_VERSION           1
+/*
+ * MD_PATCHLEVEL_VERSION indicates kernel functionality.
+ * >=1 means different superblock formats are selectable using SET_ARRAY_INFO
+ *     and major_version/minor_version accordingly
+ * >=2 means that Internal bitmaps are supported by setting MD_SB_BITMAP_PRESENT
+ *     in the super status byte
+ */
+#define MD_PATCHLEVEL_VERSION           2
 
 extern int register_md_personality (int p_num, mdk_personality_t *p);
 extern int unregister_md_personality (int p_num);
@@ -77,6 +84,12 @@ extern void md_error (mddev_t *mddev, mdk_rdev_t *rdev);
 extern void md_unplug_mddev(mddev_t *mddev);
 
 extern void md_print_devices (void);
+
+extern void md_super_write(mddev_t *mddev, mdk_rdev_t *rdev,
+			   sector_t sector, int size, struct page *page);
+extern int sync_page_io(struct block_device *bdev, sector_t sector, int size,
+			struct page *page, int rw);
+
 
 #define MD_BUG(x...) { printk("md: bug in file %s, line %d\n", __FILE__, __LINE__); md_print_devices(); }
 

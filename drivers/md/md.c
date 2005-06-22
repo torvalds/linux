@@ -337,7 +337,7 @@ static int bi_complete(struct bio *bio, unsigned int bytes_done, int error)
 	return 0;
 }
 
-static int sync_page_io(struct block_device *bdev, sector_t sector, int size,
+int sync_page_io(struct block_device *bdev, sector_t sector, int size,
 		   struct page *page, int rw)
 {
 	struct bio *bio = bio_alloc(GFP_NOIO, 1);
@@ -609,6 +609,17 @@ static int super_90_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 		memcpy(mddev->uuid+12,&sb->set_uuid3, 4);
 
 		mddev->max_disks = MD_SB_DISKS;
+
+		if (sb->state & (1<<MD_SB_BITMAP_PRESENT) &&
+		    mddev->bitmap_file == NULL) {
+			if (mddev->level != 1) {
+				/* FIXME use a better test */
+				printk(KERN_WARNING "md: bitmaps only support for raid1\n");
+				return -EINVAL;
+			}
+			mddev->bitmap_offset = (MD_SB_BYTES >> 9);
+		}
+
 	} else if (mddev->pers == NULL) {
 		/* Insist on good event counter while assembling */
 		__u64 ev1 = md_event(sb);
@@ -701,6 +712,9 @@ static void super_90_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 
 	sb->layout = mddev->layout;
 	sb->chunk_size = mddev->chunk_size;
+
+	if (mddev->bitmap && mddev->bitmap_file == NULL)
+		sb->state |= (1<<MD_SB_BITMAP_PRESENT);
 
 	sb->disks[0].state = (1<<MD_DISK_REMOVED);
 	ITERATE_RDEV(mddev,rdev2,tmp) {
@@ -898,6 +912,15 @@ static int super_1_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 		memcpy(mddev->uuid, sb->set_uuid, 16);
 
 		mddev->max_disks =  (4096-256)/2;
+
+		if ((le32_to_cpu(sb->feature_map) & 1) &&
+		    mddev->bitmap_file == NULL ) {
+			if (mddev->level != 1) {
+				printk(KERN_WARNING "md: bitmaps only supported for raid1\n");
+				return -EINVAL;
+			}
+			mddev->bitmap_offset = (__s32)le32_to_cpu(sb->bitmap_offset);
+		}
 	} else if (mddev->pers == NULL) {
 		/* Insist of good event counter while assembling */
 		__u64 ev1 = le64_to_cpu(sb->events);
@@ -959,6 +982,11 @@ static void super_1_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 		sb->resync_offset = cpu_to_le64(mddev->recovery_cp);
 	else
 		sb->resync_offset = cpu_to_le64(0);
+
+	if (mddev->bitmap && mddev->bitmap_file == NULL) {
+		sb->bitmap_offset = cpu_to_le32((__u32)mddev->bitmap_offset);
+		sb->feature_map = cpu_to_le32(1);
+	}
 
 	max_dev = 0;
 	ITERATE_RDEV(mddev,rdev2,tmp)
@@ -2406,7 +2434,8 @@ static int set_bitmap_file(mddev_t *mddev, int fd)
 			mdname(mddev));
 		fput(mddev->bitmap_file);
 		mddev->bitmap_file = NULL;
-	}
+	} else
+		mddev->bitmap_offset = 0; /* file overrides offset */
 	return err;
 }
 
@@ -3774,6 +3803,13 @@ void md_check_recovery(mddev_t *mddev)
 			set_bit(MD_RECOVERY_RUNNING, &mddev->recovery);
 			if (!spares)
 				set_bit(MD_RECOVERY_SYNC, &mddev->recovery);
+			if (spares && mddev->bitmap && ! mddev->bitmap->file) {
+				/* We are adding a device or devices to an array
+				 * which has the bitmap stored on all devices.
+				 * So make sure all bitmap pages get written
+				 */
+				bitmap_write_all(mddev->bitmap);
+			}
 			mddev->sync_thread = md_register_thread(md_do_sync,
 								mddev,
 								"%s_resync");

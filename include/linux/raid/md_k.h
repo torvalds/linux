@@ -273,6 +273,10 @@ struct mddev_s
 
 	struct bitmap                   *bitmap; /* the bitmap for the device */
 	struct file			*bitmap_file; /* the bitmap file */
+	long				bitmap_offset; /* offset from superblock of
+							* start of bitmap. May be
+							* negative, but not '0'
+							*/
 
 	struct list_head		all_mddevs;
 };
