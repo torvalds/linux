@@ -1112,7 +1112,7 @@ static int bitmap_start_daemon(struct bitmap *bitmap, mdk_thread_t **ptr,
 	md_wakeup_thread(daemon); /* start it running */
 
 	PRINTK("%s: %s daemon (pid %d) started...\n",
-		bmname(bitmap), name, bitmap->daemon->tsk->pid);
+		bmname(bitmap), name, daemon->tsk->pid);
 out_unlock:
 	spin_unlock_irqrestore(&bitmap->lock, flags);
 	return 0;
