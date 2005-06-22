@@ -1961,6 +1961,10 @@ static struct inode *nfs_alloc_inode(struct super_block *sb)
 	if (!nfsi)
 		return NULL;
 	nfsi->flags = 0;
+#ifdef CONFIG_NFS_V3_ACL
+	nfsi->acl_access = ERR_PTR(-EAGAIN);
+	nfsi->acl_default = ERR_PTR(-EAGAIN);
+#endif
 #ifdef CONFIG_NFS_V4
 	nfsi->nfs4_acl = NULL;
 #endif /* CONFIG_NFS_V4 */

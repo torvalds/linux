@@ -115,11 +115,11 @@ int nfs3_removexattr(struct dentry *dentry, const char *name)
 
 static void __nfs3_forget_cached_acls(struct nfs_inode *nfsi)
 {
-	if (nfsi->acl_access != ERR_PTR(-EAGAIN)) {
+	if (!IS_ERR(nfsi->acl_access)) {
 		posix_acl_release(nfsi->acl_access);
 		nfsi->acl_access = ERR_PTR(-EAGAIN);
 	}
-	if (nfsi->acl_default != ERR_PTR(-EAGAIN)) {
+	if (!IS_ERR(nfsi->acl_default)) {
 		posix_acl_release(nfsi->acl_default);
 		nfsi->acl_default = ERR_PTR(-EAGAIN);
 	}
@@ -137,7 +137,7 @@ void nfs3_forget_cached_acls(struct inode *inode)
 static struct posix_acl *nfs3_get_cached_acl(struct inode *inode, int type)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
-	struct posix_acl *acl = ERR_PTR(-EAGAIN);
+	struct posix_acl *acl = ERR_PTR(-EINVAL);
 
 	spin_lock(&inode->i_lock);
 	switch(type) {
@@ -150,12 +150,13 @@ static struct posix_acl *nfs3_get_cached_acl(struct inode *inode, int type)
 			break;
 
 		default:
-			return ERR_PTR(-EINVAL);
+			goto out;
 	}
-	if (acl == ERR_PTR(-EAGAIN))
+	if (IS_ERR(acl))
 		acl = ERR_PTR(-EAGAIN);
 	else
 		acl = posix_acl_dup(acl);
+out:
 	spin_unlock(&inode->i_lock);
 	dprintk("NFS: nfs3_get_cached_acl(%s/%ld, %d) = %p\n", inode->i_sb->s_id,
 		inode->i_ino, type, acl);
