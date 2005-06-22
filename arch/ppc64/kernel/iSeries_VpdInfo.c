@@ -1,31 +1,31 @@
-/************************************************************************/
-/* File iSeries_vpdInfo.c created by Allan Trautman on Fri Feb  2 2001. */
-/************************************************************************/
-/* This code gets the card location of the hardware                     */
-/* Copyright (C) 20yy  <Allan H Trautman> <IBM Corp>                    */
-/*                                                                      */
-/* This program is free software; you can redistribute it and/or modify */
-/* it under the terms of the GNU General Public License as published by */
-/* the Free Software Foundation; either version 2 of the License, or    */
-/* (at your option) any later version.                                  */
-/*                                                                      */
-/* This program is distributed in the hope that it will be useful,      */ 
-/* but WITHOUT ANY WARRANTY; without even the implied warranty of       */
-/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        */
-/* GNU General Public License for more details.                         */
-/*                                                                      */
-/* You should have received a copy of the GNU General Public License    */ 
-/* along with this program; if not, write to the:                       */
-/* Free Software Foundation, Inc.,                                      */ 
-/* 59 Temple Place, Suite 330,                                          */ 
-/* Boston, MA  02111-1307  USA                                          */
-/************************************************************************/
-/* Change Activity:                                                     */
-/*   Created, Feb 2, 2001                                               */
-/*   Ported to ppc64, August 20, 2001                                   */
-/* End Change Activity                                                  */
-/************************************************************************/
-#include <linux/config.h>
+/*
+ * File iSeries_vpdInfo.c created by Allan Trautman on Fri Feb  2 2001.
+ *
+ * This code gets the card location of the hardware
+ * Copyright (C) 2001  <Allan H Trautman> <IBM Corp>
+ * Copyright (C) 2005  Stephen Rothwel, IBM Corp
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the:
+ * Free Software Foundation, Inc.,
+ * 59 Temple Place, Suite 330,
+ * Boston, MA  02111-1307  USA
+ *
+ * Change Activity:
+ *   Created, Feb 2, 2001
+ *   Ported to ppc64, August 20, 2001
+ * End Change Activity
+ */
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -34,14 +34,13 @@
 
 #include <asm/iSeries/HvCallPci.h>
 #include <asm/iSeries/HvTypes.h>
-#include <asm/iSeries/mf.h>
 #include <asm/iSeries/iSeries_pci.h>
-#include "pci.h"
 
 /*
  * Size of Bus VPD data
  */
 #define BUS_VPDSIZE      1024
+
 /*
  * Bus Vpd Tags
  */
@@ -49,6 +48,7 @@
 #define  VpdEndOfAreaTag   0x79
 #define  VpdIdStringTag    0x82
 #define  VpdVendorAreaTag  0x84
+
 /*
  * Mfg Area Tags
  */
@@ -78,7 +78,7 @@ struct SlotMapStruct {
 	char CardLocation[3];
 	char Parms[8];
 	char Reserved[2];
-}; 
+};
 typedef struct SlotMapStruct SlotMap;
 #define SLOT_ENTRY_SIZE   16
 
@@ -111,28 +111,26 @@ int iSeries_Device_Information(struct pci_dev *PciDev, char *buffer,
 			PciDev->vendor);
 	len += sprintf(buffer + len, "Frame%3d, Card %4s  ",
 			DevNode->FrameId, DevNode->CardLocation);
-#ifdef CONFIG_PCI
 	if (pci_class_name(PciDev->class >> 8) == 0)
 		len += sprintf(buffer + len, "0x%04X  ",
 				(int)(PciDev->class >> 8));
 	else
 		len += sprintf(buffer + len, "%s",
 				pci_class_name(PciDev->class >> 8));
-#endif
 	return len;
 }
 
 /*
  * Parse the Slot Area
  */
-void iSeries_Parse_SlotArea(SlotMap *MapPtr, int MapLen,
+static void iSeries_Parse_SlotArea(SlotMap *MapPtr, int MapLen,
 		struct iSeries_Device_Node *DevNode)
 {
 	int SlotMapLen = MapLen;
 	SlotMap *SlotMapPtr = MapPtr;
 
 	/*
-	 * Parse Slot label until we find the one requrested
+	 * Parse Slot label until we find the one requested
 	 */
 	while (SlotMapLen > 0) {
 		if (SlotMapPtr->AgentId == DevNode->AgentId ) {
@@ -182,7 +180,7 @@ static void iSeries_Parse_MfgArea(u8 *AreaData, int AreaLen,
 			if (SlotMapFmt == 0x1004)
 				SlotMapPtr = (SlotMap *)((char *)MfgAreaPtr
 						+ MFG_ENTRY_SIZE + 1);
- 	    		else
+			else
 				SlotMapPtr = (SlotMap *)((char *)MfgAreaPtr
 						+ MFG_ENTRY_SIZE);
 	    		iSeries_Parse_SlotArea(SlotMapPtr, MfgTagLen, DevNode);
@@ -193,8 +191,8 @@ static void iSeries_Parse_MfgArea(u8 *AreaData, int AreaLen,
 		 */
 		MfgAreaPtr = (MfgArea *)((char *)MfgAreaPtr + MfgTagLen
 				+ MFG_ENTRY_SIZE);
-		MfgAreaLen -= (MfgTagLen + MFG_ENTRY_SIZE); 
-	}	
+		MfgAreaLen -= (MfgTagLen + MFG_ENTRY_SIZE);
+	}
 }
 
 /*
@@ -205,7 +203,7 @@ static int iSeries_Parse_PhbId(u8 *AreaPtr, int AreaLength)
 {
 	u8 *PhbPtr = AreaPtr;
 	int DataLen = AreaLength;
-	char PhbId = 0xFF;                   
+	char PhbId = 0xFF;
 
 	while (DataLen > 0) {
 		if ((*PhbPtr == 'B') && (*(PhbPtr + 1) == 'U')
@@ -215,7 +213,7 @@ static int iSeries_Parse_PhbId(u8 *AreaPtr, int AreaLength)
 				++PhbPtr;
 			PhbId = (*PhbPtr & 0x0F);
 			break;
-        	}
+		}
 		++PhbPtr;
 		--DataLen;
 	}
@@ -232,7 +230,7 @@ static void iSeries_Parse_Vpd(u8 *VpdData, int VpdDataLen,
 	int DataLen = VpdDataLen - 3;
 
 	while ((*TagPtr != VpdEndOfAreaTag) && (DataLen > 0)) {
-		int AreaLen = *(TagPtr + 1) + (*(TagPtr + 2) * 256);	
+		int AreaLen = *(TagPtr + 1) + (*(TagPtr + 2) * 256);
 		u8 *AreaData  = TagPtr + 3;
 
 		if (*TagPtr == VpdIdStringTag)
@@ -243,12 +241,12 @@ static void iSeries_Parse_Vpd(u8 *VpdData, int VpdDataLen,
 		TagPtr  = AreaData + AreaLen;
 		DataLen -= AreaLen;
 	}
-}    
+}
 
 void iSeries_Get_Location_Code(struct iSeries_Device_Node *DevNode)
 {
 	int BusVpdLen = 0;
-	u8 *BusVpdPtr = (u8 *)kmalloc(BUS_VPDSIZE, GFP_KERNEL);
+	u8 *BusVpdPtr = kmalloc(BUS_VPDSIZE, GFP_KERNEL);
 
 	if (BusVpdPtr == NULL) {
 		printk("PCI: Bus VPD Buffer allocation failure.\n");

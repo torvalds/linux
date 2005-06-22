@@ -16,13 +16,12 @@ obj-y += vdso32/ vdso64/
 
 obj-$(CONFIG_PPC_OF) +=	of_device.o
 
-pci-obj-$(CONFIG_PPC_ISERIES)	+= iSeries_pci.o
+pci-obj-$(CONFIG_PPC_ISERIES)	+= iSeries_pci.o iSeries_VpdInfo.o
 pci-obj-$(CONFIG_PPC_MULTIPLATFORM)	+= pci_dn.o pci_direct_iommu.o
 
 obj-$(CONFIG_PCI)	+= pci.o pci_iommu.o iomap.o $(pci-obj-y)
 
-obj-$(CONFIG_PPC_ISERIES) += iSeries_irq.o \
-			     iSeries_VpdInfo.o XmPciLpEvent.o \
+obj-$(CONFIG_PPC_ISERIES) += iSeries_irq.o XmPciLpEvent.o \
 			     HvCall.o HvLpConfig.o LparData.o \
 			     iSeries_setup.o ItLpQueue.o hvCall.o \
 			     mf.o HvLpEvent.o iSeries_proc.o iSeries_htab.o \
