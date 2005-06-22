@@ -377,7 +377,8 @@ void bitmap_print_sb(struct bitmap *bitmap)
 	printk(KERN_DEBUG "       state: %08x\n", le32_to_cpu(sb->state));
 	printk(KERN_DEBUG "   chunksize: %d B\n", le32_to_cpu(sb->chunksize));
 	printk(KERN_DEBUG "daemon sleep: %ds\n", le32_to_cpu(sb->daemon_sleep));
-	printk(KERN_DEBUG "   sync size: %llu KB\n", le64_to_cpu(sb->sync_size));
+	printk(KERN_DEBUG "   sync size: %llu KB\n",
+			(unsigned long long)le64_to_cpu(sb->sync_size));
 	kunmap(bitmap->sb_page);
 }
 
