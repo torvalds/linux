@@ -28,11 +28,6 @@
 
 #define BEQUIET
 
-#ifdef LEAK_CHECK
-static int check_malloc;
-static int check_bread;
-#endif
-
 static int isofs_hashi(struct dentry *parent, struct qstr *qstr);
 static int isofs_hash(struct dentry *parent, struct qstr *qstr);
 static int isofs_dentry_cmpi(struct dentry *dentry, struct qstr *a, struct qstr *b);
@@ -55,11 +50,6 @@ static void isofs_put_super(struct super_block *sb)
 	}
 #endif
 
-#ifdef LEAK_CHECK
-	printk("Outstanding mallocs:%d, outstanding buffers: %d\n",
-	       check_malloc, check_bread);
-#endif
-
 	kfree(sbi);
 	sb->s_fs_info = NULL;
 	return;
@@ -73,7 +63,7 @@ static kmem_cache_t *isofs_inode_cachep;
 static struct inode *isofs_alloc_inode(struct super_block *sb)
 {
 	struct iso_inode_info *ei;
-	ei = (struct iso_inode_info *)kmem_cache_alloc(isofs_inode_cachep, SLAB_KERNEL);
+	ei = kmem_cache_alloc(isofs_inode_cachep, SLAB_KERNEL);
 	if (!ei)
 		return NULL;
 	return &ei->vfs_inode;
@@ -84,9 +74,9 @@ static void isofs_destroy_inode(struct inode *inode)
 	kmem_cache_free(isofs_inode_cachep, ISOFS_I(inode));
 }
 
-static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
+static void init_once(void *foo, kmem_cache_t * cachep, unsigned long flags)
 {
-	struct iso_inode_info *ei = (struct iso_inode_info *) foo;
+	struct iso_inode_info *ei = foo;
 
 	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
 	    SLAB_CTOR_CONSTRUCTOR)
@@ -107,7 +97,8 @@ static int init_inodecache(void)
 static void destroy_inodecache(void)
 {
 	if (kmem_cache_destroy(isofs_inode_cachep))
-		printk(KERN_INFO "iso_inode_cache: not all structures were freed\n");
+		printk(KERN_INFO "iso_inode_cache: not all structures were "
+					"freed\n");
 }
 
 static int isofs_remount(struct super_block *sb, int *flags, char *data)
@@ -144,7 +135,7 @@ static struct dentry_operations isofs_dentry_ops[] = {
 	{
 		.d_hash		= isofs_hashi_ms,
 		.d_compare	= isofs_dentry_cmpi_ms,
-	}
+	},
 #endif
 };
 
@@ -219,8 +210,8 @@ isofs_hashi_common(struct dentry *dentry, struct qstr *qstr, int ms)
 /*
  * Case insensitive compare of two isofs names.
  */
-static int
-isofs_dentry_cmpi_common(struct dentry *dentry,struct qstr *a,struct qstr *b,int ms)
+static int isofs_dentry_cmpi_common(struct dentry *dentry, struct qstr *a,
+				struct qstr *b, int ms)
 {
 	int alen, blen;
 
@@ -243,8 +234,8 @@ isofs_dentry_cmpi_common(struct dentry *dentry,struct qstr *a,struct qstr *b,int
 /*
  * Case sensitive compare of two isofs names.
  */
-static int
-isofs_dentry_cmp_common(struct dentry *dentry,struct qstr *a,struct qstr *b,int ms)
+static int isofs_dentry_cmp_common(struct dentry *dentry, struct qstr *a,
+					struct qstr *b, int ms)
 {
 	int alen, blen;
 
@@ -356,7 +347,7 @@ static match_table_t tokens = {
 	{Opt_err, NULL}
 };
 
-static int parse_options(char *options, struct iso9660_options * popt)
+static int parse_options(char *options, struct iso9660_options *popt)
 {
 	char *p;
 	int option;
@@ -493,7 +484,7 @@ static int parse_options(char *options, struct iso9660_options * popt)
  */
 #define WE_OBEY_THE_WRITTEN_STANDARDS 1
 
-static unsigned int isofs_get_last_session(struct super_block *sb,s32 session )
+static unsigned int isofs_get_last_session(struct super_block *sb, s32 session)
 {
 	struct cdrom_multisession ms_info;
 	unsigned int vol_desc_start;
@@ -518,7 +509,8 @@ static unsigned int isofs_get_last_session(struct super_block *sb,s32 session )
 		printk(KERN_ERR "Invalid session number or type of track\n");
 	}
 	i = ioctl_by_bdev(bdev, CDROMMULTISESSION, (unsigned long) &ms_info);
-	if(session > 0) printk(KERN_ERR "Invalid session number\n");
+	if (session > 0)
+		printk(KERN_ERR "Invalid session number\n");
 #if 0
 	printk("isofs.inode: CDROMMULTISESSION: rc=%d\n",i);
 	if (i==0) {
@@ -557,13 +549,13 @@ static int isofs_fill_super(struct super_block *s, void *data, int silent)
 	struct iso9660_options		opt;
 	struct isofs_sb_info	      * sbi;
 
-	sbi = kmalloc(sizeof(struct isofs_sb_info), GFP_KERNEL);
+	sbi = kmalloc(sizeof(*sbi), GFP_KERNEL);
 	if (!sbi)
 		return -ENOMEM;
 	s->s_fs_info = sbi;
-	memset(sbi, 0, sizeof(struct isofs_sb_info));
+	memset(sbi, 0, sizeof(*sbi));
 
-	if (!parse_options((char *) data, &opt))
+	if (!parse_options((char *)data, &opt))
 		goto out_freesbi;
 
 	/*
@@ -1002,7 +994,6 @@ int isofs_get_blocks(struct inode *inode, sector_t iblock_s,
 		rv++;
 	}
 
-
 abort:
 	unlock_kernel();
 	return rv;
@@ -1014,7 +1005,7 @@ abort:
 static int isofs_get_block(struct inode *inode, sector_t iblock,
 		    struct buffer_head *bh_result, int create)
 {
-	if ( create ) {
+	if (create) {
 		printk("isofs_get_block: Kernel tries to allocate a block\n");
 		return -EROFS;
 	}
@@ -1061,19 +1052,17 @@ static struct address_space_operations isofs_aops = {
 
 static inline void test_and_set_uid(uid_t *p, uid_t value)
 {
-	if(value) {
+	if (value)
 		*p = value;
-	}
 }
 
 static inline void test_and_set_gid(gid_t *p, gid_t value)
 {
-        if(value) {
+        if (value)
                 *p = value;
-        }
 }
 
-static int isofs_read_level3_size(struct inode * inode)
+static int isofs_read_level3_size(struct inode *inode)
 {
 	unsigned long bufsize = ISOFS_BUFFER_SIZE(inode);
 	int high_sierra = ISOFS_SB(inode->i_sb)->s_high_sierra;
@@ -1136,7 +1125,7 @@ static int isofs_read_level3_size(struct inode * inode)
 				bh = sb_bread(inode->i_sb, block);
 				if (!bh)
 					goto out_noread;
-				memcpy((void *) tmpde + slop, bh->b_data, offset);
+				memcpy((void *)tmpde+slop, bh->b_data, offset);
 			}
 			de = tmpde;
 		}
@@ -1150,12 +1139,11 @@ static int isofs_read_level3_size(struct inode * inode)
 		more_entries = de->flags[-high_sierra] & 0x80;
 
 		i++;
-		if(i > 100)
+		if (i > 100)
 			goto out_toomany;
-	} while(more_entries);
+	} while (more_entries);
 out:
-	if (tmpde)
-		kfree(tmpde);
+	kfree(tmpde);
 	if (bh)
 		brelse(bh);
 	return 0;
@@ -1179,7 +1167,7 @@ out_toomany:
 	goto out;
 }
 
-static void isofs_read_inode(struct inode * inode)
+static void isofs_read_inode(struct inode *inode)
 {
 	struct super_block *sb = inode->i_sb;
 	struct isofs_sb_info *sbi = ISOFS_SB(sb);
@@ -1249,7 +1237,7 @@ static void isofs_read_inode(struct inode * inode)
 	ei->i_format_parm[2] = 0;
 
 	ei->i_section_size = isonum_733 (de->size);
-	if(de->flags[-high_sierra] & 0x80) {
+	if (de->flags[-high_sierra] & 0x80) {
 		if(isofs_read_level3_size(inode)) goto fail;
 	} else {
 		ei->i_next_section_block = 0;
@@ -1336,16 +1324,16 @@ static void isofs_read_inode(struct inode * inode)
 		/* XXX - parse_rock_ridge_inode() had already set i_rdev. */
 		init_special_inode(inode, inode->i_mode, inode->i_rdev);
 
- out:
+out:
 	if (tmpde)
 		kfree(tmpde);
 	if (bh)
 		brelse(bh);
 	return;
 
- out_badread:
+out_badread:
 	printk(KERN_WARNING "ISOFS: unable to read i-node block\n");
- fail:
+fail:
 	make_bad_inode(inode);
 	goto out;
 }
@@ -1394,11 +1382,8 @@ struct inode *isofs_iget(struct super_block *sb,
 
 	hashval = (block << sb->s_blocksize_bits) | offset;
 
-	inode = iget5_locked(sb,
-			     hashval,
-			     &isofs_iget5_test,
-			     &isofs_iget5_set,
-			     &data);
+	inode = iget5_locked(sb, hashval, &isofs_iget5_test,
+			     &isofs_iget5_set, &data);
 
 	if (inode && (inode->i_state & I_NEW)) {
 		sb->s_op->read_inode(inode);
@@ -1407,36 +1392,6 @@ struct inode *isofs_iget(struct super_block *sb,
 
 	return inode;
 }
-
-#ifdef LEAK_CHECK
-#undef malloc
-#undef free_s
-#undef sb_bread
-#undef brelse
-
-void * leak_check_malloc(unsigned int size){
-  void * tmp;
-  check_malloc++;
-  tmp = kmalloc(size, GFP_KERNEL);
-  return tmp;
-}
-
-void leak_check_free_s(void * obj, int size){
-  check_malloc--;
-  return kfree(obj);
-}
-
-struct buffer_head * leak_check_bread(struct super_block *sb, int block){
-  check_bread++;
-  return sb_bread(sb, block);
-}
-
-void leak_check_brelse(struct buffer_head * bh){
-  check_bread--;
-  return brelse(bh);
-}
-
-#endif
 
 static struct super_block *isofs_get_sb(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data)
