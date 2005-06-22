@@ -2,7 +2,7 @@
 # IP configuration
 #
 choice 
-	prompt "Choose IP: FIB lookup""
+	prompt "Choose IP: FIB lookup"
 	depends on INET
 	default IP_FIB_HASH
 
