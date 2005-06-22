@@ -81,9 +81,22 @@ static void init_rock_state(struct rock_state *rs, struct inode *inode)
 static int rock_continue(struct rock_state *rs)
 {
 	int ret = 1;
+	int blocksize = 1 << rs->inode->i_blkbits;
+	const int min_de_size = offsetof(struct rock_ridge, u);
 
 	kfree(rs->buffer);
 	rs->buffer = NULL;
+
+	if ((unsigned)rs->cont_offset > blocksize - min_de_size ||
+	    (unsigned)rs->cont_size > blocksize ||
+	    (unsigned)(rs->cont_offset + rs->cont_size) > blocksize) {
+		printk(KERN_NOTICE "rock: corrupted directory entry. "
+			"extent=%d, offset=%d, size=%d\n",
+			rs->cont_extent, rs->cont_offset, rs->cont_size);
+		ret = -EIO;
+		goto out;
+	}
+
 	if (rs->cont_extent) {
 		struct buffer_head *bh;
 
