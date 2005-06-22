@@ -73,9 +73,6 @@
 
 extern void pSeries_final_fixup(void);
 
-extern void pSeries_get_boot_time(struct rtc_time *rtc_time);
-extern void pSeries_get_rtc_time(struct rtc_time *rtc_time);
-extern int  pSeries_set_rtc_time(struct rtc_time *rtc_time);
 extern void find_udbg_vterm(void);
 extern void system_reset_fwnmi(void);	/* from head.S */
 extern void machine_check_fwnmi(void);	/* from head.S */
@@ -534,9 +531,9 @@ struct machdep_calls __initdata pSeries_md = {
 	.halt			= rtas_halt,
 	.panic			= rtas_os_term,
 	.cpu_die		= pSeries_mach_cpu_die,
-	.get_boot_time		= pSeries_get_boot_time,
-	.get_rtc_time		= pSeries_get_rtc_time,
-	.set_rtc_time		= pSeries_set_rtc_time,
+	.get_boot_time		= rtas_get_boot_time,
+	.get_rtc_time		= rtas_get_rtc_time,
+	.set_rtc_time		= rtas_set_rtc_time,
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= pSeries_progress,
 	.check_legacy_ioport	= pSeries_check_legacy_ioport,

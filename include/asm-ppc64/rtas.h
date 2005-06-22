@@ -188,6 +188,11 @@ extern int rtas_set_power_level(int powerdomain, int level, int *setlevel);
 extern int rtas_set_indicator(int indicator, int index, int new_value);
 extern void rtas_initialize(void);
 
+struct rtc_time;
+extern void rtas_get_boot_time(struct rtc_time *rtc_time);
+extern void rtas_get_rtc_time(struct rtc_time *rtc_time);
+extern int rtas_set_rtc_time(struct rtc_time *rtc_time);
+
 /* Given an RTAS status code of 9900..9905 compute the hinted delay */
 unsigned int rtas_extended_busy_delay_time(int status);
 static inline int rtas_is_extended_busy(int status)
