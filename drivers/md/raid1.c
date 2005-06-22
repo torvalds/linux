@@ -1237,13 +1237,16 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 			len = (max_sector - sector_nr) << 9;
 		if (len == 0)
 			break;
-		if (!conf->fullsync && sync_blocks == 0)
-			if (!bitmap_start_sync(mddev->bitmap,
-					       sector_nr, &sync_blocks))
-				break;
-		if (sync_blocks < (PAGE_SIZE>>9))
-			BUG();
-		if (len > (sync_blocks<<9)) len = sync_blocks<<9;
+		if (!conf->fullsync) {
+			if (sync_blocks == 0) {
+				if (!bitmap_start_sync(mddev->bitmap,
+						       sector_nr, &sync_blocks))
+					break;
+				if (sync_blocks < (PAGE_SIZE>>9))
+					BUG();
+				if (len > (sync_blocks<<9)) len = sync_blocks<<9;
+			}
+		}
 
 		for (i=0 ; i < conf->raid_disks; i++) {
 			bio = r1_bio->bios[i];
