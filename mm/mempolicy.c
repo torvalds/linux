@@ -238,56 +238,81 @@ static struct mempolicy *mpol_new(int mode, unsigned long *nodes)
 }
 
 /* Ensure all existing pages follow the policy. */
-static int
-verify_pages(struct mm_struct *mm,
-	     unsigned long addr, unsigned long end, unsigned long *nodes)
+static int check_pte_range(struct mm_struct *mm, pmd_t *pmd,
+		unsigned long addr, unsigned long end, unsigned long *nodes)
 {
-	int err = 0;
+	pte_t *orig_pte;
+	pte_t *pte;
 
 	spin_lock(&mm->page_table_lock);
-	while (addr < end) {
-		struct page *p;
-		pte_t *pte;
-		pmd_t *pmd;
-		pud_t *pud;
-		pgd_t *pgd;
-		pgd = pgd_offset(mm, addr);
-		if (pgd_none(*pgd)) {
-			unsigned long next = (addr + PGDIR_SIZE) & PGDIR_MASK;
-			if (next > addr)
-				break;
-			addr = next;
+	orig_pte = pte = pte_offset_map(pmd, addr);
+	do {
+		unsigned long pfn;
+		unsigned int nid;
+
+		if (!pte_present(*pte))
 			continue;
-		}
-		pud = pud_offset(pgd, addr);
-		if (pud_none(*pud)) {
-			addr = (addr + PUD_SIZE) & PUD_MASK;
+		pfn = pte_pfn(*pte);
+		if (!pfn_valid(pfn))
 			continue;
-		}
-		pmd = pmd_offset(pud, addr);
-		if (pmd_none(*pmd)) {
-			addr = (addr + PMD_SIZE) & PMD_MASK;
-			continue;
-		}
-		p = NULL;
-		pte = pte_offset_map(pmd, addr);
-		if (pte_present(*pte)) {
-			unsigned long pfn = pte_pfn(*pte);
-			if (pfn_valid(pfn))
-				p = pfn_to_page(pfn);
-		}
-		pte_unmap(pte);
-		if (p) {
-			unsigned nid = page_to_nid(p);
-			if (!test_bit(nid, nodes)) {
-				err = -EIO;
-				break;
-			}
-		}
-		addr += PAGE_SIZE;
-	}
+		nid = pfn_to_nid(pfn);
+		if (!test_bit(nid, nodes))
+			break;
+	} while (pte++, addr += PAGE_SIZE, addr != end);
+	pte_unmap(orig_pte);
 	spin_unlock(&mm->page_table_lock);
-	return err;
+	return addr != end;
+}
+
+static inline int check_pmd_range(struct mm_struct *mm, pud_t *pud,
+		unsigned long addr, unsigned long end, unsigned long *nodes)
+{
+	pmd_t *pmd;
+	unsigned long next;
+
+	pmd = pmd_offset(pud, addr);
+	do {
+		next = pmd_addr_end(addr, end);
+		if (pmd_none_or_clear_bad(pmd))
+			continue;
+		if (check_pte_range(mm, pmd, addr, next, nodes))
+			return -EIO;
+	} while (pmd++, addr = next, addr != end);
+	return 0;
+}
+
+static inline int check_pud_range(struct mm_struct *mm, pgd_t *pgd,
+		unsigned long addr, unsigned long end, unsigned long *nodes)
+{
+	pud_t *pud;
+	unsigned long next;
+
+	pud = pud_offset(pgd, addr);
+	do {
+		next = pud_addr_end(addr, end);
+		if (pud_none_or_clear_bad(pud))
+			continue;
+		if (check_pmd_range(mm, pud, addr, next, nodes))
+			return -EIO;
+	} while (pud++, addr = next, addr != end);
+	return 0;
+}
+
+static inline int check_pgd_range(struct mm_struct *mm,
+		unsigned long addr, unsigned long end, unsigned long *nodes)
+{
+	pgd_t *pgd;
+	unsigned long next;
+
+	pgd = pgd_offset(mm, addr);
+	do {
+		next = pgd_addr_end(addr, end);
+		if (pgd_none_or_clear_bad(pgd))
+			continue;
+		if (check_pud_range(mm, pgd, addr, next, nodes))
+			return -EIO;
+	} while (pgd++, addr = next, addr != end);
+	return 0;
 }
 
 /* Step 1: check the range */
@@ -308,7 +333,7 @@ check_range(struct mm_struct *mm, unsigned long start, unsigned long end,
 		if (prev && prev->vm_end < vma->vm_start)
 			return ERR_PTR(-EFAULT);
 		if ((flags & MPOL_MF_STRICT) && !is_vm_hugetlb_page(vma)) {
-			err = verify_pages(vma->vm_mm,
+			err = check_pgd_range(vma->vm_mm,
 					   vma->vm_start, vma->vm_end, nodes);
 			if (err) {
 				first = ERR_PTR(err);
