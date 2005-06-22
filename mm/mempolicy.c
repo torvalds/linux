@@ -242,6 +242,9 @@ static int
 verify_pages(struct mm_struct *mm,
 	     unsigned long addr, unsigned long end, unsigned long *nodes)
 {
+	int err = 0;
+
+	spin_lock(&mm->page_table_lock);
 	while (addr < end) {
 		struct page *p;
 		pte_t *pte;
@@ -268,17 +271,23 @@ verify_pages(struct mm_struct *mm,
 		}
 		p = NULL;
 		pte = pte_offset_map(pmd, addr);
-		if (pte_present(*pte))
-			p = pte_page(*pte);
+		if (pte_present(*pte)) {
+			unsigned long pfn = pte_pfn(*pte);
+			if (pfn_valid(pfn))
+				p = pfn_to_page(pfn);
+		}
 		pte_unmap(pte);
 		if (p) {
 			unsigned nid = page_to_nid(p);
-			if (!test_bit(nid, nodes))
-				return -EIO;
+			if (!test_bit(nid, nodes)) {
+				err = -EIO;
+				break;
+			}
 		}
 		addr += PAGE_SIZE;
 	}
-	return 0;
+	spin_unlock(&mm->page_table_lock);
+	return err;
 }
 
 /* Step 1: check the range */
