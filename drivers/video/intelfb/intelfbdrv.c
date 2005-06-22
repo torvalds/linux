@@ -1301,7 +1301,7 @@ intelfb_set_par(struct fb_info *info)
 
 	intelfb_blank(FB_BLANK_POWERDOWN, info);
 
-	if (dinfo->accel)
+	if (ACCEL(dinfo, info))
 		intelfbhw_2d_stop(dinfo);
 
  	memcpy(hw, &dinfo->save_state, sizeof(*hw));
@@ -1317,7 +1317,7 @@ intelfb_set_par(struct fb_info *info)
 
 	update_dinfo(dinfo, &info->var);
 
-	if (dinfo->accel)
+	if (ACCEL(dinfo, info))
 		intelfbhw_2d_start(dinfo);
 
 	intelfb_pan_display(&info->var, info);
