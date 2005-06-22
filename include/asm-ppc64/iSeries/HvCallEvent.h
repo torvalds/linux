@@ -1,32 +1,28 @@
 /*
  * HvCallEvent.h
  * Copyright (C) 2001  Mike Corrigan IBM Corporation
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
-
 /*
- *	This file contains the "hypervisor call" interface which is used to
- *	drive the hypervisor from the OS.
+ * This file contains the "hypervisor call" interface which is used to
+ * drive the hypervisor from the OS.
  */
 #ifndef _HVCALLEVENT_H
 #define _HVCALLEVENT_H
 
-/*
- * Standard Includes
- */
 #include <asm/iSeries/HvCallSc.h>
 #include <asm/iSeries/HvTypes.h>
 #include <asm/abs_addr.h>
@@ -71,7 +67,7 @@ typedef u64 HvLpDma_Rc;
 #define HvCallEventCloseLpEventPath			HvCallEvent +  2
 #define HvCallEventDmaBufList				HvCallEvent +  3
 #define HvCallEventDmaSingle				HvCallEvent +  4
-#define HvCallEventDmaToSp				HvCallEvent +  5 
+#define HvCallEventDmaToSp				HvCallEvent +  5
 #define HvCallEventGetOverflowLpEvents			HvCallEvent +  6
 #define HvCallEventGetSourceLpInstanceId		HvCallEvent +  7
 #define HvCallEventGetTargetLpInstanceId		HvCallEvent +  8
@@ -85,13 +81,13 @@ typedef u64 HvLpDma_Rc;
 
 static inline void HvCallEvent_getOverflowLpEvents(u8 queueIndex)
 {
-	HvCall1(HvCallEventGetOverflowLpEvents,queueIndex);
+	HvCall1(HvCallEventGetOverflowLpEvents, queueIndex);
 	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
 }
 
 static inline void HvCallEvent_setInterLpQueueIndex(u8 queueIndex)
 {
-	HvCall1(HvCallEventSetInterLpQueueIndex,queueIndex);
+	HvCall1(HvCallEventSetInterLpQueueIndex, queueIndex);
 	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
 }
 
@@ -138,7 +134,7 @@ static inline HvLpEvent_Rc HvCallEvent_signalLpEventFast(HvLpIndex targetLp,
 {
 	HvLpEvent_Rc retVal;
 
-	// Pack the misc bits into a single Dword to pass to PLIC
+	/* Pack the misc bits into a single Dword to pass to PLIC */
 	union {
 		struct HvCallEvent_PackedParms	parms;
 		u64		dword;
@@ -225,7 +221,7 @@ static inline HvLpDma_Rc HvCallEvent_dmaBufList(HvLpEvent_Type type,
 		u64 localBufList, u64 remoteBufList, u32 transferLength)
 {
 	HvLpDma_Rc retVal;
-	// Pack the misc bits into a single Dword to pass to PLIC
+	/* Pack the misc bits into a single Dword to pass to PLIC */
 	union {
 		struct HvCallEvent_PackedDmaParms	parms;
 		u64		dword;
@@ -257,7 +253,7 @@ static inline HvLpDma_Rc HvCallEvent_dmaSingle(HvLpEvent_Type type,
 		u64 localAddrOrTce, u64 remoteAddrOrTce, u32 transferLength)
 {
 	HvLpDma_Rc retVal;
-	// Pack the misc bits into a single Dword to pass to PLIC
+	/* Pack the misc bits into a single Dword to pass to PLIC */
 	union {
 		struct HvCallEvent_PackedDmaParms	parms;
 		u64		dword;
@@ -280,7 +276,7 @@ static inline HvLpDma_Rc HvCallEvent_dmaSingle(HvLpEvent_Type type,
 	return retVal;
 }
 
-static inline HvLpDma_Rc HvCallEvent_dmaToSp(void* local, u32 remote,
+static inline HvLpDma_Rc HvCallEvent_dmaToSp(void *local, u32 remote,
 		u32 length, HvLpDma_Direction dir)
 {
 	u64 abs_addr;
@@ -292,6 +288,5 @@ static inline HvLpDma_Rc HvCallEvent_dmaToSp(void* local, u32 remote,
 	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
 	return retVal;
 }
-
 
 #endif /* _HVCALLEVENT_H */
