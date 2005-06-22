@@ -16,7 +16,6 @@
 	|| defined(CONFIG_CHIP_M32700) || defined(CONFIG_CHIP_M32102) \
         || defined(CONFIG_CHIP_OPSP)
 #include <asm/m32102.h>
-#include <asm/m32102peri.h>
 #endif
 
 /* Platform type */
