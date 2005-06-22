@@ -44,10 +44,12 @@
 #define MPC10X_I2C_IRQ (EPIC_IRQ_BASE + NUM_8259_INTERRUPTS)
 #define MPC10X_DMA0_IRQ (EPIC_IRQ_BASE + 1 + NUM_8259_INTERRUPTS)
 #define MPC10X_DMA1_IRQ (EPIC_IRQ_BASE + 2 + NUM_8259_INTERRUPTS)
+#define MPC10X_UART0_IRQ (EPIC_IRQ_BASE + 4 + NUM_8259_INTERRUPTS)
 #else
 #define MPC10X_I2C_IRQ -1
 #define MPC10X_DMA0_IRQ -1
 #define MPC10X_DMA1_IRQ -1
+#define MPC10X_UART0_IRQ -1
 #endif
 
 static struct fsl_i2c_platform_data mpc10x_i2c_pdata = {
@@ -55,6 +57,16 @@ static struct fsl_i2c_platform_data mpc10x_i2c_pdata = {
 };
 
 static struct plat_serial8250_port serial_platform_data[] = {
+	[0] = {
+		.mapbase	= 0x4500,
+		.iotype		= UPIO_MEM,
+		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
+	},
+	[1] = {
+		.mapbase	= 0x4600,
+		.iotype		= UPIO_MEM,
+		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
+	},
 	{ },
 };
 
@@ -399,6 +411,12 @@ mpc10x_bridge_init(struct pci_controller *hose,
 	ppc_sys_platform_devices[MPC10X_DMA1].resource[1].start = MPC10X_DMA1_IRQ;
 	ppc_sys_platform_devices[MPC10X_DMA1].resource[1].end = MPC10X_DMA1_IRQ;
 
+	serial_platform_data[0].mapbase += phys_eumb_base;
+	serial_platform_data[0].irq = MPC10X_UART0_IRQ;
+
+	serial_platform_data[1].mapbase += phys_eumb_base;
+	serial_platform_data[1].irq = MPC10X_UART0_IRQ + 1;
+
 	/*
 	 * 8240 erratum 26, 8241/8245 erratum 29, 107 erratum 23: speculative
 	 * PCI reads may return stale data so turn off.
@@ -597,6 +615,8 @@ void __init mpc10x_set_openpic(void)
 	openpic_set_sources(EPIC_IRQ_BASE, 3, OpenPIC_Addr + 0x11020);
 	/* Skip reserved space and map Message Unit Interrupt (I2O) */
 	openpic_set_sources(EPIC_IRQ_BASE + 3, 1, OpenPIC_Addr + 0x110C0);
+	/* Skip reserved space and map Serial Interupts */
+	openpic_set_sources(EPIC_IRQ_BASE + 4, 2, OpenPIC_Addr + 0x11120);
 
 	openpic_init(NUM_8259_INTERRUPTS);
 }
