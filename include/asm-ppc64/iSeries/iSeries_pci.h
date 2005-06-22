@@ -92,7 +92,6 @@ struct iSeries_Device_Node {
 	int		DevFn;		/* Linux devfn */
 	int		BarOffset;
 	int		Irq;		/* Assigned IRQ */
-	int		ReturnCode;	/* Return Code Holder */
 	int		IoRetry;	/* Current Retry Count */
 	int		Flags;		/* Possible flags(disable/bist)*/
 	u16		Vendor;		/* Vendor ID */
@@ -107,7 +106,5 @@ struct iSeries_Device_Node {
 
 extern int	iSeries_Device_Information(struct pci_dev*, char*, int);
 extern void	iSeries_Get_Location_Code(struct iSeries_Device_Node*);
-extern int	iSeries_Device_ToggleReset(struct pci_dev* PciDev,
-		int AssertTime, int DelayTime);
 
 #endif /* _ISERIES_64_PCI_H */
