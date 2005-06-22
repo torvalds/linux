@@ -15,6 +15,20 @@
 #include <asm/page.h>
 #include <asm/meminit.h>
 
+static inline int pfn_to_nid(unsigned long pfn)
+{
+#ifdef CONFIG_NUMA
+	extern int paddr_to_nid(unsigned long);
+	int nid = paddr_to_nid(pfn << PAGE_SHIFT);
+	if (nid < 0)
+		return 0;
+	else
+		return nid;
+#else
+	return 0;
+#endif
+}
+
 #ifdef CONFIG_DISCONTIGMEM
 
 #ifdef CONFIG_IA64_DIG /* DIG systems are small */
