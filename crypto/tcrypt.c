@@ -12,8 +12,9 @@
  * Software Foundation; either version 2 of the License, or (at your option)
  * any later version.
  *
- * 14 - 09 - 2003 
- *	Rewritten by Kartikey Mahendra Bhatt
+ * 2004-08-09 Added cipher speed tests (Reyk Floeter <reyk@vantronix.net>)
+ * 2003-09-14 Rewritten by Kartikey Mahendra Bhatt
+ *
  */
 
 #include <linux/init.h>
@@ -25,12 +26,13 @@
 #include <linux/crypto.h>
 #include <linux/highmem.h>
 #include <linux/moduleparam.h>
+#include <linux/jiffies.h>
 #include "tcrypt.h"
 
 /*
  * Need to kmalloc() memory for testing kmap().
  */
-#define TVMEMSIZE	4096
+#define TVMEMSIZE	16384
 #define XBUFSIZE	32768
 
 /*
@@ -54,6 +56,11 @@
 #define MODE_CBC 0
 
 static unsigned int IDX[8] = { IDX1, IDX2, IDX3, IDX4, IDX5, IDX6, IDX7, IDX8 };
+
+/*
+ * Used by test_cipher_speed()
+ */
+static unsigned int sec = 10;
 
 static int mode;
 static char *xbuf;
@@ -413,6 +420,90 @@ static void test_cipher(char *algo, int mode, int enc,
 				temp += cipher_tv[i].tap[k];
 			}
 		}
+	}
+
+out:
+	crypto_free_tfm(tfm);
+}
+
+static void test_cipher_speed(char *algo, int mode, int enc, unsigned int sec,
+			      struct cipher_speed *speed)
+{
+	unsigned int ret, i, iv_len;
+	unsigned char *key, *p, iv[128];
+	struct crypto_tfm *tfm;
+	struct scatterlist sg[8];
+	unsigned long start, bcount;
+	const char *e, *m;
+
+	if (enc == ENCRYPT)
+	        e = "encryption";
+	else
+		e = "decryption";
+	if (mode == MODE_ECB)
+		m = "ECB";
+	else
+		m = "CBC";
+
+	printk("\ntesting speed of %s %s %s\n", algo, m, e);
+
+	if (mode)
+		tfm = crypto_alloc_tfm(algo, 0);
+	else
+		tfm = crypto_alloc_tfm(algo, CRYPTO_TFM_MODE_CBC);
+
+	if (tfm == NULL) {
+		printk("failed to load transform for %s %s\n", algo, m);
+		return;
+	}
+
+	for (i = 0; speed[i].klen != 0; i++) {
+		if ((speed[i].blen + speed[i].klen) > TVMEMSIZE) {
+			printk("template (%u) too big for tvmem (%u)\n",
+			       speed[i].blen + speed[i].klen, TVMEMSIZE);
+			goto out;
+		}
+
+		printk("test %u (%d bit key, %d byte blocks): ", i,
+		       speed[i].klen * 8, speed[i].blen);
+
+		memset(tvmem, 0xff, speed[i].klen + speed[i].blen);
+
+		/* set key, plain text and IV */
+		key = (unsigned char *)tvmem;
+		p = (unsigned char *)tvmem + speed[i].klen;
+
+		ret = crypto_cipher_setkey(tfm, key, speed[i].klen);
+		if (ret) {
+			printk("setkey() failed flags=%x\n", tfm->crt_flags);
+			goto out;
+		}
+
+		if (!mode) {
+			iv_len = crypto_tfm_alg_ivsize(tfm);
+			memset(&iv, 0xff, iv_len);
+			crypto_cipher_set_iv(tfm, iv, iv_len);
+		}
+
+		for (start = jiffies, bcount = 0;
+		    ((jiffies - start) / HZ) < sec; bcount++) {
+			sg[0].page = virt_to_page(p);
+			sg[0].offset = offset_in_page(p);
+			sg[0].length = speed[i].blen;
+
+			if (enc)
+				ret = crypto_cipher_encrypt(tfm, sg, sg, speed[i].blen);
+			else
+				ret = crypto_cipher_decrypt(tfm, sg, sg, speed[i].blen);
+
+			if (ret) {
+				printk("%s () failed flags=%x\n", e, tfm->crt_flags);
+				goto out;
+			}
+		}
+
+		printk("%lu operations in %u seconds (%lu bytes)\n",
+		       bcount, sec, bcount * speed[i].blen);
 	}
 
 out:
@@ -861,6 +952,41 @@ static void do_test(void)
 
 #endif
 
+	case 200:
+		test_cipher_speed("aes", MODE_ECB, ENCRYPT, sec, aes_speed_template);
+		test_cipher_speed("aes", MODE_ECB, DECRYPT, sec, aes_speed_template);
+		test_cipher_speed("aes", MODE_CBC, ENCRYPT, sec, aes_speed_template);
+		test_cipher_speed("aes", MODE_CBC, DECRYPT, sec, aes_speed_template);
+		break;
+
+	case 201:
+		test_cipher_speed("des3_ede", MODE_ECB, ENCRYPT, sec, des3_ede_speed_template);
+		test_cipher_speed("des3_ede", MODE_ECB, DECRYPT, sec, des3_ede_speed_template);
+		test_cipher_speed("des3_ede", MODE_CBC, ENCRYPT, sec, des3_ede_speed_template);
+		test_cipher_speed("des3_ede", MODE_CBC, DECRYPT, sec, des3_ede_speed_template);
+		break;
+
+	case 202:
+		test_cipher_speed("twofish", MODE_ECB, ENCRYPT, sec, twofish_speed_template);
+		test_cipher_speed("twofish", MODE_ECB, DECRYPT, sec, twofish_speed_template);
+		test_cipher_speed("twofish", MODE_CBC, ENCRYPT, sec, twofish_speed_template);
+		test_cipher_speed("twofish", MODE_CBC, DECRYPT, sec, twofish_speed_template);
+		break;
+
+	case 203:
+		test_cipher_speed("blowfish", MODE_ECB, ENCRYPT, sec, blowfish_speed_template);
+		test_cipher_speed("blowfish", MODE_ECB, DECRYPT, sec, blowfish_speed_template);
+		test_cipher_speed("blowfish", MODE_CBC, ENCRYPT, sec, blowfish_speed_template);
+		test_cipher_speed("blowfish", MODE_CBC, DECRYPT, sec, blowfish_speed_template);
+		break;
+
+	case 204:
+		test_cipher_speed("des", MODE_ECB, ENCRYPT, sec, des_speed_template);
+		test_cipher_speed("des", MODE_ECB, DECRYPT, sec, des_speed_template);
+		test_cipher_speed("des", MODE_CBC, ENCRYPT, sec, des_speed_template);
+		test_cipher_speed("des", MODE_CBC, DECRYPT, sec, des_speed_template);
+		break;
+
 	case 1000:
 		test_available();
 		break;
@@ -901,6 +1027,8 @@ module_init(init);
 module_exit(fini);
 
 module_param(mode, int, 0);
+module_param(sec, uint, 0);
+MODULE_PARM_DESC(sec, "Length in seconds of speed tests");
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Quick & dirty crypto testing module");

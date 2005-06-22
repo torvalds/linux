@@ -12,7 +12,8 @@
  * Software Foundation; either version 2 of the License, or (at your option)
  * any later version.
  *
- * 14 - 09 - 2003 Changes by Kartikey Mahendra Bhatt
+ * 2004-08-09 Cipher speed tests by Reyk Floeter <reyk@vantronix.net>
+ * 2003-09-14 Changes by Kartikey Mahendra Bhatt
  *
  */
 #ifndef _CRYPTO_TCRYPT_H
@@ -56,6 +57,11 @@ struct cipher_testvec {
 	unsigned char rlen;
 	int np;
 	unsigned char tap[MAX_TAP];
+};
+
+struct cipher_speed {
+	unsigned char klen;
+	unsigned int blen;
 };
 
 /*
@@ -2726,6 +2732,90 @@ static struct hash_testvec michael_mic_tv_template[] = {
 		.psize = 7,
 		.digest = { 0x0a, 0x94, 0x2b, 0x12, 0x4e, 0xca, 0xa5, 0x46 },
 	}
+};
+
+/*
+ * Cipher speed tests
+ */
+static struct cipher_speed aes_speed_template[] = {
+	{ .klen = 16, .blen = 16, },
+	{ .klen = 16, .blen = 64, },
+	{ .klen = 16, .blen = 256, },
+	{ .klen = 16, .blen = 1024, },
+	{ .klen = 16, .blen = 8192, },
+	{ .klen = 24, .blen = 16, },
+	{ .klen = 24, .blen = 64, },
+	{ .klen = 24, .blen = 256, },
+	{ .klen = 24, .blen = 1024, },
+	{ .klen = 24, .blen = 8192, },
+	{ .klen = 32, .blen = 16, },
+	{ .klen = 32, .blen = 64, },
+	{ .klen = 32, .blen = 256, },
+	{ .klen = 32, .blen = 1024, },
+	{ .klen = 32, .blen = 8192, },
+
+	/* End marker */
+	{  .klen = 0, .blen = 0, }
+};
+
+static struct cipher_speed des3_ede_speed_template[] = {
+	{ .klen = 24, .blen = 16, },
+	{ .klen = 24, .blen = 64, },
+	{ .klen = 24, .blen = 256, },
+	{ .klen = 24, .blen = 1024, },
+	{ .klen = 24, .blen = 8192, },
+
+	/* End marker */
+	{  .klen = 0, .blen = 0, }
+};
+
+static struct cipher_speed twofish_speed_template[] = {
+	{ .klen = 16, .blen = 16, },
+	{ .klen = 16, .blen = 64, },
+	{ .klen = 16, .blen = 256, },
+	{ .klen = 16, .blen = 1024, },
+	{ .klen = 16, .blen = 8192, },
+	{ .klen = 24, .blen = 16, },
+	{ .klen = 24, .blen = 64, },
+	{ .klen = 24, .blen = 256, },
+	{ .klen = 24, .blen = 1024, },
+	{ .klen = 24, .blen = 8192, },
+	{ .klen = 32, .blen = 16, },
+	{ .klen = 32, .blen = 64, },
+	{ .klen = 32, .blen = 256, },
+	{ .klen = 32, .blen = 1024, },
+	{ .klen = 32, .blen = 8192, },
+
+	/* End marker */
+	{  .klen = 0, .blen = 0, }
+};
+
+static struct cipher_speed blowfish_speed_template[] = {
+	/* Don't support blowfish keys > 256 bit in this test */
+	{ .klen = 8, .blen = 16, },
+	{ .klen = 8, .blen = 64, },
+	{ .klen = 8, .blen = 256, },
+	{ .klen = 8, .blen = 1024, },
+	{ .klen = 8, .blen = 8192, },
+	{ .klen = 32, .blen = 16, },
+	{ .klen = 32, .blen = 64, },
+	{ .klen = 32, .blen = 256, },
+	{ .klen = 32, .blen = 1024, },
+	{ .klen = 32, .blen = 8192, },
+
+	/* End marker */
+	{  .klen = 0, .blen = 0, }
+};
+
+static struct cipher_speed des_speed_template[] = {
+	{ .klen = 8, .blen = 16, },
+	{ .klen = 8, .blen = 64, },
+	{ .klen = 8, .blen = 256, },
+	{ .klen = 8, .blen = 1024, },
+	{ .klen = 8, .blen = 8192, },
+
+	/* End marker */
+	{  .klen = 0, .blen = 0, }
 };
 
 #endif	/* _CRYPTO_TCRYPT_H */
