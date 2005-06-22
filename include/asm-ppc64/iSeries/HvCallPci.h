@@ -140,8 +140,6 @@ static inline u64 HvCallPci_configLoad8(u16 busNumber, u8 subBusNumber,
 
 	HvCall3Ret16(HvCallPciConfigLoad8, &retVal, *(u64 *)&dsa, offset, 0);
 
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-
 	*value = retVal.value;
 
 	return retVal.rc;
@@ -160,8 +158,6 @@ static inline u64 HvCallPci_configLoad16(u16 busNumber, u8 subBusNumber,
 	dsa.deviceId = deviceId;
 
 	HvCall3Ret16(HvCallPciConfigLoad16, &retVal, *(u64 *)&dsa, offset, 0);
-
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
 
 	*value = retVal.value;
 
@@ -182,8 +178,6 @@ static inline u64 HvCallPci_configLoad32(u16 busNumber, u8 subBusNumber,
 
 	HvCall3Ret16(HvCallPciConfigLoad32, &retVal, *(u64 *)&dsa, offset, 0);
 
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-
 	*value = retVal.value;
 
 	return retVal.rc;
@@ -193,7 +187,6 @@ static inline u64 HvCallPci_configStore8(u16 busNumber, u8 subBusNumber,
 		u8 deviceId, u32 offset, u8 value)
 {
 	struct HvCallPci_DsaAddr dsa;
-	u64 retVal;
 
 	*((u64*)&dsa) = 0;
 
@@ -201,18 +194,13 @@ static inline u64 HvCallPci_configStore8(u16 busNumber, u8 subBusNumber,
 	dsa.subBusNumber = subBusNumber;
 	dsa.deviceId = deviceId;
 
-	retVal = HvCall4(HvCallPciConfigStore8, *(u64 *)&dsa, offset, value, 0);
-
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-
-	return retVal;
+	return HvCall4(HvCallPciConfigStore8, *(u64 *)&dsa, offset, value, 0);
 }
 
 static inline u64 HvCallPci_configStore16(u16 busNumber, u8 subBusNumber,
 		u8 deviceId, u32 offset, u16 value)
 {
 	struct HvCallPci_DsaAddr dsa;
-	u64 retVal;
 
 	*((u64*)&dsa) = 0;
 
@@ -220,18 +208,13 @@ static inline u64 HvCallPci_configStore16(u16 busNumber, u8 subBusNumber,
 	dsa.subBusNumber = subBusNumber;
 	dsa.deviceId = deviceId;
 
-	retVal = HvCall4(HvCallPciConfigStore16, *(u64 *)&dsa, offset, value, 0);
-
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-
-	return retVal;
+	return HvCall4(HvCallPciConfigStore16, *(u64 *)&dsa, offset, value, 0);
 }
 
 static inline u64 HvCallPci_configStore32(u16 busNumber, u8 subBusNumber,
 		u8 deviceId, u32 offset, u32 value)
 {
 	struct HvCallPci_DsaAddr dsa;
-	u64 retVal;
 
 	*((u64*)&dsa) = 0;
 
@@ -239,11 +222,7 @@ static inline u64 HvCallPci_configStore32(u16 busNumber, u8 subBusNumber,
 	dsa.subBusNumber = subBusNumber;
 	dsa.deviceId = deviceId;
 
-	retVal = HvCall4(HvCallPciConfigStore32, *(u64 *)&dsa, offset, value, 0);
-
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-
-	return retVal;
+	return HvCall4(HvCallPciConfigStore32, *(u64 *)&dsa, offset, value, 0);
 }
 
 static inline u64 HvCallPci_barLoad8(u16 busNumberParm, u8 subBusParm,
@@ -261,8 +240,6 @@ static inline u64 HvCallPci_barLoad8(u16 busNumberParm, u8 subBusParm,
 	dsa.barNumber = barNumberParm;
 
 	HvCall3Ret16(HvCallPciBarLoad8, &retVal, *(u64 *)&dsa, offsetParm, 0);
-
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
 
 	*valueParm = retVal.value;
 
@@ -285,8 +262,6 @@ static inline u64 HvCallPci_barLoad16(u16 busNumberParm, u8 subBusParm,
 
 	HvCall3Ret16(HvCallPciBarLoad16, &retVal, *(u64 *)&dsa, offsetParm, 0);
 
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-
 	*valueParm = retVal.value;
 
 	return retVal.rc;
@@ -307,8 +282,6 @@ static inline u64 HvCallPci_barLoad32(u16 busNumberParm, u8 subBusParm,
 	dsa.barNumber = barNumberParm;
 
 	HvCall3Ret16(HvCallPciBarLoad32, &retVal, *(u64 *)&dsa, offsetParm, 0);
-
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
 
 	*valueParm = retVal.value;
 
@@ -331,8 +304,6 @@ static inline u64 HvCallPci_barLoad64(u16 busNumberParm, u8 subBusParm,
 
 	HvCall3Ret16(HvCallPciBarLoad64, &retVal, *(u64 *)&dsa, offsetParm, 0);
 
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-
 	*valueParm = retVal.value;
 
 	return retVal.rc;
@@ -343,7 +314,6 @@ static inline u64 HvCallPci_barStore8(u16 busNumberParm, u8 subBusParm,
 		u8 valueParm)
 {
 	struct HvCallPci_DsaAddr dsa;
-	u64 retVal;
 
 	*((u64*)&dsa) = 0;
 
@@ -352,11 +322,8 @@ static inline u64 HvCallPci_barStore8(u16 busNumberParm, u8 subBusParm,
 	dsa.deviceId = deviceIdParm;
 	dsa.barNumber = barNumberParm;
 
-	retVal = HvCall4(HvCallPciBarStore8, *(u64 *)&dsa, offsetParm, valueParm, 0);
-
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-
-	return retVal;
+	return HvCall4(HvCallPciBarStore8, *(u64 *)&dsa, offsetParm,
+			valueParm, 0);
 }
 
 static inline u64 HvCallPci_barStore16(u16 busNumberParm, u8 subBusParm,
@@ -364,7 +331,6 @@ static inline u64 HvCallPci_barStore16(u16 busNumberParm, u8 subBusParm,
 		u16 valueParm)
 {
 	struct HvCallPci_DsaAddr dsa;
-	u64 retVal;
 
 	*((u64*)&dsa) = 0;
 
@@ -373,11 +339,8 @@ static inline u64 HvCallPci_barStore16(u16 busNumberParm, u8 subBusParm,
 	dsa.deviceId = deviceIdParm;
 	dsa.barNumber = barNumberParm;
 
-	retVal = HvCall4(HvCallPciBarStore16, *(u64 *)&dsa, offsetParm, valueParm, 0);
-
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-
-	return retVal;
+	return HvCall4(HvCallPciBarStore16, *(u64 *)&dsa, offsetParm,
+			valueParm, 0);
 }
 
 static inline u64 HvCallPci_barStore32(u16 busNumberParm, u8 subBusParm,
@@ -385,7 +348,6 @@ static inline u64 HvCallPci_barStore32(u16 busNumberParm, u8 subBusParm,
 		u32 valueParm)
 {
 	struct HvCallPci_DsaAddr dsa;
-	u64 retVal;
 
 	*((u64*)&dsa) = 0;
 
@@ -394,11 +356,8 @@ static inline u64 HvCallPci_barStore32(u16 busNumberParm, u8 subBusParm,
 	dsa.deviceId = deviceIdParm;
 	dsa.barNumber = barNumberParm;
 
-	retVal = HvCall4(HvCallPciBarStore32, *(u64 *)&dsa, offsetParm, valueParm, 0);
-
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-
-	return retVal;
+	return HvCall4(HvCallPciBarStore32, *(u64 *)&dsa, offsetParm,
+			valueParm, 0);
 }
 
 static inline u64 HvCallPci_barStore64(u16 busNumberParm, u8 subBusParm,
@@ -406,7 +365,6 @@ static inline u64 HvCallPci_barStore64(u16 busNumberParm, u8 subBusParm,
 		u64 valueParm)
 {
 	struct HvCallPci_DsaAddr dsa;
-	u64 retVal;
 
 	*((u64*)&dsa) = 0;
 
@@ -415,11 +373,8 @@ static inline u64 HvCallPci_barStore64(u16 busNumberParm, u8 subBusParm,
 	dsa.deviceId = deviceIdParm;
 	dsa.barNumber = barNumberParm;
 
-	retVal = HvCall4(HvCallPciBarStore64, *(u64 *)&dsa, offsetParm, valueParm, 0);
-
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-
-	return retVal;
+	return HvCall4(HvCallPciBarStore64, *(u64 *)&dsa, offsetParm,
+			valueParm, 0);
 }
 
 static inline u64 HvCallPci_eoi(u16 busNumberParm, u8 subBusParm,
@@ -436,8 +391,6 @@ static inline u64 HvCallPci_eoi(u16 busNumberParm, u8 subBusParm,
 
 	HvCall1Ret16(HvCallPciEoi, &retVal, *(u64*)&dsa);
 
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-
 	return retVal.rc;
 }
 
@@ -445,7 +398,6 @@ static inline u64 HvCallPci_getBarParms(u16 busNumberParm, u8 subBusParm,
 		u8 deviceIdParm, u8 barNumberParm, u64 parms, u32 sizeofParms)
 {
 	struct HvCallPci_DsaAddr dsa;
-	u64 retVal;
 
 	*((u64*)&dsa) = 0;
 
@@ -454,18 +406,13 @@ static inline u64 HvCallPci_getBarParms(u16 busNumberParm, u8 subBusParm,
 	dsa.deviceId = deviceIdParm;
 	dsa.barNumber = barNumberParm;
 
-	retVal = HvCall3(HvCallPciGetBarParms, *(u64*)&dsa, parms, sizeofParms);
-
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-
-	return retVal;
+	return HvCall3(HvCallPciGetBarParms, *(u64*)&dsa, parms, sizeofParms);
 }
 
 static inline u64 HvCallPci_maskFisr(u16 busNumberParm, u8 subBusParm,
 		u8 deviceIdParm, u64 fisrMask)
 {
 	struct HvCallPci_DsaAddr dsa;
-	u64 retVal;
 
 	*((u64*)&dsa) = 0;
 
@@ -473,18 +420,13 @@ static inline u64 HvCallPci_maskFisr(u16 busNumberParm, u8 subBusParm,
 	dsa.subBusNumber = subBusParm;
 	dsa.deviceId = deviceIdParm;
 
-	retVal = HvCall2(HvCallPciMaskFisr, *(u64*)&dsa, fisrMask);
-
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-
-	return retVal;
+	return HvCall2(HvCallPciMaskFisr, *(u64*)&dsa, fisrMask);
 }
 
 static inline u64 HvCallPci_unmaskFisr(u16 busNumberParm, u8 subBusParm,
 		u8 deviceIdParm, u64 fisrMask)
 {
 	struct HvCallPci_DsaAddr dsa;
-	u64 retVal;
 
 	*((u64*)&dsa) = 0;
 
@@ -492,18 +434,13 @@ static inline u64 HvCallPci_unmaskFisr(u16 busNumberParm, u8 subBusParm,
 	dsa.subBusNumber = subBusParm;
 	dsa.deviceId = deviceIdParm;
 
-	retVal = HvCall2(HvCallPciUnmaskFisr, *(u64*)&dsa, fisrMask);
-
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-
-	return retVal;
+	return HvCall2(HvCallPciUnmaskFisr, *(u64*)&dsa, fisrMask);
 }
 
 static inline u64 HvCallPci_setSlotReset(u16 busNumberParm, u8 subBusParm,
 		u8 deviceIdParm, u64 onNotOff)
 {
 	struct HvCallPci_DsaAddr dsa;
-	u64 retVal;
 
 	*((u64*)&dsa) = 0;
 
@@ -511,18 +448,13 @@ static inline u64 HvCallPci_setSlotReset(u16 busNumberParm, u8 subBusParm,
 	dsa.subBusNumber = subBusParm;
 	dsa.deviceId = deviceIdParm;
 
-	retVal = HvCall2(HvCallPciSetSlotReset, *(u64*)&dsa, onNotOff);
-
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-
-	return retVal;
+	return HvCall2(HvCallPciSetSlotReset, *(u64*)&dsa, onNotOff);
 }
 
 static inline u64 HvCallPci_getDeviceInfo(u16 busNumberParm, u8 subBusParm,
 		u8 deviceNumberParm, u64 parms, u32 sizeofParms)
 {
 	struct HvCallPci_DsaAddr dsa;
-	u64 retVal;
 
 	*((u64*)&dsa) = 0;
 
@@ -530,18 +462,13 @@ static inline u64 HvCallPci_getDeviceInfo(u16 busNumberParm, u8 subBusParm,
 	dsa.subBusNumber = subBusParm;
 	dsa.deviceId = deviceNumberParm << 4;
 
-	retVal = HvCall3(HvCallPciGetDeviceInfo, *(u64*)&dsa, parms, sizeofParms);
-
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-
-	return retVal;
+	return HvCall3(HvCallPciGetDeviceInfo, *(u64*)&dsa, parms, sizeofParms);
 }
 
 static inline u64 HvCallPci_maskInterrupts(u16 busNumberParm, u8 subBusParm,
 		u8 deviceIdParm, u64 interruptMask)
 {
 	struct HvCallPci_DsaAddr dsa;
-	u64 retVal;
 
 	*((u64*)&dsa) = 0;
 
@@ -549,18 +476,13 @@ static inline u64 HvCallPci_maskInterrupts(u16 busNumberParm, u8 subBusParm,
 	dsa.subBusNumber = subBusParm;
 	dsa.deviceId = deviceIdParm;
 
-	retVal = HvCall2(HvCallPciMaskInterrupts, *(u64*)&dsa, interruptMask);
-
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-
-	return retVal;
+	return HvCall2(HvCallPciMaskInterrupts, *(u64*)&dsa, interruptMask);
 }
 
 static inline u64 HvCallPci_unmaskInterrupts(u16 busNumberParm, u8 subBusParm,
 		u8 deviceIdParm, u64 interruptMask)
 {
 	struct HvCallPci_DsaAddr dsa;
-	u64 retVal;
 
 	*((u64*)&dsa) = 0;
 
@@ -568,18 +490,13 @@ static inline u64 HvCallPci_unmaskInterrupts(u16 busNumberParm, u8 subBusParm,
 	dsa.subBusNumber = subBusParm;
 	dsa.deviceId = deviceIdParm;
 
-	retVal = HvCall2(HvCallPciUnmaskInterrupts, *(u64*)&dsa, interruptMask);
-
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-
-	return retVal;
+	return HvCall2(HvCallPciUnmaskInterrupts, *(u64*)&dsa, interruptMask);
 }
 
 static inline u64 HvCallPci_getBusUnitInfo(u16 busNumberParm, u8 subBusParm,
 		u8 deviceIdParm, u64 parms, u32 sizeofParms)
 {
 	struct HvCallPci_DsaAddr dsa;
-	u64 retVal;
 
 	*((u64*)&dsa) = 0;
 
@@ -587,37 +504,30 @@ static inline u64 HvCallPci_getBusUnitInfo(u16 busNumberParm, u8 subBusParm,
 	dsa.subBusNumber = subBusParm;
 	dsa.deviceId = deviceIdParm;
 
-	retVal = HvCall3(HvCallPciGetBusUnitInfo, *(u64*)&dsa, parms, sizeofParms);
-
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-
-	return retVal;
+	return HvCall3(HvCallPciGetBusUnitInfo, *(u64*)&dsa, parms,
+			sizeofParms);
 }
 
 static inline int HvCallPci_getBusVpd(u16 busNumParm, u64 destParm,
 		u16 sizeParm)
 {
-	int xRetSize;
-	u64 xRc = HvCall4(HvCallPciGetCardVpd, busNumParm, destParm, sizeParm, HvCallPci_BusVpd);
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
+	u64 xRc = HvCall4(HvCallPciGetCardVpd, busNumParm, destParm,
+			sizeParm, HvCallPci_BusVpd);
 	if (xRc == -1)
-		xRetSize = -1;
+		return -1;
 	else
-		xRetSize = xRc & 0xFFFF;
-	return xRetSize;
+		return xRc & 0xFFFF;
 }
 
 static inline int HvCallPci_getBusAdapterVpd(u16 busNumParm, u64 destParm,
 		u16 sizeParm)
 {
-	int xRetSize;
-	u64 xRc = HvCall4(HvCallPciGetCardVpd, busNumParm, destParm, sizeParm, HvCallPci_BusAdapterVpd);
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
+	u64 xRc = HvCall4(HvCallPciGetCardVpd, busNumParm, destParm,
+			sizeParm, HvCallPci_BusAdapterVpd);
 	if (xRc == -1)
-		xRetSize = -1;
+		return -1;
 	else
-		xRetSize = xRc & 0xFFFF;
-	return xRetSize;
+		return xRc & 0xFFFF;
 }
 
 #endif /* _HVCALLPCI_H */

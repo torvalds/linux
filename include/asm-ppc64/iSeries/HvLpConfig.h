@@ -281,8 +281,7 @@ static inline u64 HvLpConfig_getLoadPages(void)
 
 static inline int HvLpConfig_isBusOwnedByThisLp(HvBusNumber busNumber)
 {
-	HvLpIndex busOwner = HvLpConfig_getBusOwner(busNumber);
-	return (busOwner == HvLpConfig_getLpIndex());
+	return (HvLpConfig_getBusOwner(busNumber) == HvLpConfig_getLpIndex());
 }
 
 static inline int HvLpConfig_doLpsCommunicateOnVirtualLan(HvLpIndex lp1,

@@ -58,16 +58,16 @@
  */
 typedef void (vio_event_handler_t) (struct HvLpEvent * event);
 
-int viopath_open(HvLpIndex remoteLp, int subtype, int numReq);
-int viopath_close(HvLpIndex remoteLp, int subtype, int numReq);
-int vio_setHandler(int subtype, vio_event_handler_t * beh);
-int vio_clearHandler(int subtype);
-int viopath_isactive(HvLpIndex lp);
-HvLpInstanceId viopath_sourceinst(HvLpIndex lp);
-HvLpInstanceId viopath_targetinst(HvLpIndex lp);
-void vio_set_hostlp(void);
-void *vio_get_event_buffer(int subtype);
-void vio_free_event_buffer(int subtype, void *buffer);
+extern int viopath_open(HvLpIndex remoteLp, int subtype, int numReq);
+extern int viopath_close(HvLpIndex remoteLp, int subtype, int numReq);
+extern int vio_setHandler(int subtype, vio_event_handler_t * beh);
+extern int vio_clearHandler(int subtype);
+extern int viopath_isactive(HvLpIndex lp);
+extern HvLpInstanceId viopath_sourceinst(HvLpIndex lp);
+extern HvLpInstanceId viopath_targetinst(HvLpIndex lp);
+extern void vio_set_hostlp(void);
+extern void *vio_get_event_buffer(int subtype);
+extern void vio_free_event_buffer(int subtype, void *buffer);
 
 extern HvLpIndex viopath_hostLp;
 extern HvLpIndex viopath_ourLp;

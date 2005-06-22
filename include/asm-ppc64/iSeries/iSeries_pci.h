@@ -55,7 +55,7 @@ struct iSeries_Device_Node;
  */
 
 #define ISERIES_PCI_AGENTID(idsel, func)	\
-	((idsel & 0x0F) << 4) | (func & 0x07)
+	(((idsel & 0x0F) << 4) | (func & 0x07))
 #define ISERIES_ENCODE_DEVICE(agentid)		\
 	((0x10) | ((agentid & 0x20) >> 2) | (agentid & 0x07))
 

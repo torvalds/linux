@@ -69,37 +69,27 @@ enum HvCallCfg_ReqQual {
 
 static inline HvLpIndex	HvCallCfg_getLps(void)
 {
-	HvLpIndex retVal = HvCall0(HvCallCfgGetLps);
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-	return retVal;
+	return HvCall0(HvCallCfgGetLps);
 }
 
 static inline int HvCallCfg_isBusDedicated(u64 busIndex)
 {
-	int retVal = HvCall1(HvCallCfgIsBusDedicated,busIndex);
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-	return retVal;
+	return HvCall1(HvCallCfgIsBusDedicated, busIndex);
 }
 
 static inline HvLpIndex	HvCallCfg_getBusOwner(u64 busIndex)
 {
-	HvLpIndex retVal = HvCall1(HvCallCfgGetBusOwner,busIndex);
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-	return retVal;
+	return HvCall1(HvCallCfgGetBusOwner, busIndex);
 }
 
 static inline HvLpIndexMap HvCallCfg_getBusAllocation(u64 busIndex)
 {
-	HvLpIndexMap retVal = HvCall1(HvCallCfgGetBusAllocation,busIndex);
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-	return retVal;
+	return HvCall1(HvCallCfgGetBusAllocation, busIndex);
 }
 
 static inline HvLpIndexMap HvCallCfg_getActiveLpMap(void)
 {
-	HvLpIndexMap retVal = HvCall0(HvCallCfgGetActiveLpMap);
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-	return retVal;
+	return HvCall0(HvCallCfgGetActiveLpMap);
 }
 
 static inline HvLpVirtualLanIndexMap HvCallCfg_getVirtualLanIndexMap(
@@ -112,23 +102,18 @@ static inline HvLpVirtualLanIndexMap HvCallCfg_getVirtualLanIndexMap(
 	u64 retVal = HvCall1(HvCallCfgGetVirtualLanIndexMap, lp);
 	if (retVal == -1)
 		retVal = 0;
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
 	return retVal;
 }
 
 static inline u64 HvCallCfg_getSystemMsChunks(void)
 {
-	u64 retVal = HvCall0(HvCallCfgGetSystemMsChunks);
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-	return retVal;
+	return HvCall0(HvCallCfgGetSystemMsChunks);
 }
 
 static inline u64 HvCallCfg_getMsChunks(HvLpIndex lp,
 		enum HvCallCfg_ReqQual qual)
 {
-	u64 retVal = HvCall2(HvCallCfgGetMsChunks,lp,qual);
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-	return retVal;
+	return HvCall2(HvCallCfgGetMsChunks, lp, qual);
 }
 
 static inline u64 HvCallCfg_getMinRuntimeMsChunks(HvLpIndex lp)
@@ -142,65 +127,51 @@ static inline u64 HvCallCfg_getMinRuntimeMsChunks(HvLpIndex lp)
 
 static inline u64 HvCallCfg_setMinRuntimeMsChunks(u64 chunks)
 {
-	u64 retVal = HvCall1(HvCallCfgSetMinRuntimeMsChunks,chunks);
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-	return retVal;
+	return HvCall1(HvCallCfgSetMinRuntimeMsChunks, chunks);
 }
 
 static inline u64 HvCallCfg_getSystemPhysicalProcessors(void)
 {
-	u64 retVal = HvCall0(HvCallCfgGetSystemPhysicalProcessors);
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-	return retVal;
+	return HvCall0(HvCallCfgGetSystemPhysicalProcessors);
 }
 
 static inline u64 HvCallCfg_getPhysicalProcessors(HvLpIndex lp,
 		enum HvCallCfg_ReqQual qual)
 {
-	u64 retVal = HvCall2(HvCallCfgGetPhysicalProcessors,lp,qual);
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-	return retVal;
+	return HvCall2(HvCallCfgGetPhysicalProcessors, lp, qual);
 }
 
 static inline u64 HvCallCfg_getConfiguredBusUnitsForInterruptProc(HvLpIndex lp,
 		u16 hvLogicalProcIndex)
 {
-	u64 retVal = HvCall2(HvCallCfgGetConfiguredBusUnitsForIntProc,lp,hvLogicalProcIndex);
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-	return retVal;
+	return HvCall2(HvCallCfgGetConfiguredBusUnitsForIntProc, lp,
+			hvLogicalProcIndex);
 
 }
 
 static inline HvLpSharedPoolIndex HvCallCfg_getSharedPoolIndex(HvLpIndex lp)
 {
-	HvLpSharedPoolIndex retVal =
-		HvCall1(HvCallCfgGetSharedPoolIndex,lp);
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-	return retVal;
+	return HvCall1(HvCallCfgGetSharedPoolIndex, lp);
 
 }
 
 static inline u64 HvCallCfg_getSharedProcUnits(HvLpIndex lp,
 		enum HvCallCfg_ReqQual qual)
 {
-	u64 retVal = HvCall2(HvCallCfgGetSharedProcUnits,lp,qual);
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-	return retVal;
+	return HvCall2(HvCallCfgGetSharedProcUnits, lp, qual);
 
 }
 
 static inline u64 HvCallCfg_getNumProcsInSharedPool(HvLpSharedPoolIndex sPI)
 {
-	u16 retVal = HvCall1(HvCallCfgGetNumProcsInSharedPool,sPI);
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
+	u16 retVal = HvCall1(HvCallCfgGetNumProcsInSharedPool, sPI);
 	return retVal;
 
 }
 
 static inline HvLpIndex	HvCallCfg_getHostingLpIndex(HvLpIndex lp)
 {
-	u64 retVal = HvCall1(HvCallCfgGetHostingLpIndex,lp);
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
+	u64 retVal = HvCall1(HvCallCfgGetHostingLpIndex, lp);
 	return retVal;
 }
 

@@ -32,10 +32,7 @@
 static inline u64 HvCallSm_get64BitsOfAccessMap(HvLpIndex lpIndex,
 		u64 indexIntoBitMap)
 {
-	u64 retval = HvCall2(HvCallSmGet64BitsOfAccessMap, lpIndex,
-			     indexIntoBitMap );
-	// getPaca()->adjustHmtForNoOfSpinLocksHeld();
-	return retval;
+	return HvCall2(HvCallSmGet64BitsOfAccessMap, lpIndex, indexIntoBitMap);
 }
 
 #endif /* _HVCALLSM_H */
