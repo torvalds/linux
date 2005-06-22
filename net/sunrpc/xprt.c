@@ -1240,6 +1240,8 @@ xprt_transmit(struct rpc_task *task)
 			list_add_tail(&req->rq_list, &xprt->recv);
 			spin_unlock_bh(&xprt->sock_lock);
 			xprt_reset_majortimeo(req);
+			/* Turn off autodisconnect */
+			del_singleshot_timer_sync(&xprt->timer);
 		}
 	} else if (!req->rq_bytes_sent)
 		return;
@@ -1370,8 +1372,6 @@ xprt_reserve(struct rpc_task *task)
 		spin_lock(&xprt->xprt_lock);
 		do_xprt_reserve(task);
 		spin_unlock(&xprt->xprt_lock);
-		if (task->tk_rqstp)
-			del_timer_sync(&xprt->timer);
 	}
 }
 
