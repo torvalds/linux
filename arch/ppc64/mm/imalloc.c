@@ -15,6 +15,7 @@
 #include <asm/pgtable.h>
 #include <asm/semaphore.h>
 #include <asm/imalloc.h>
+#include <asm/cacheflush.h>
 
 static DECLARE_MUTEX(imlist_sem);
 struct vm_struct * imlist = NULL;
@@ -285,29 +286,32 @@ struct vm_struct * im_get_area(unsigned long v_addr, unsigned long size,
 	return area;
 }
 
-unsigned long im_free(void * addr)
+void im_free(void * addr)
 {
 	struct vm_struct **p, *tmp;
-	unsigned long ret_size = 0;
   
 	if (!addr)
-		return ret_size;
-	if ((PAGE_SIZE-1) & (unsigned long) addr) {
+		return;
+	if ((unsigned long) addr & ~PAGE_MASK) {
 		printk(KERN_ERR "Trying to %s bad address (%p)\n", __FUNCTION__,			addr);
-		return ret_size;
+		return;
 	}
 	down(&imlist_sem);
 	for (p = &imlist ; (tmp = *p) ; p = &tmp->next) {
 		if (tmp->addr == addr) {
-			ret_size = tmp->size;
 			*p = tmp->next;
+
+			/* XXX: do we need the lock? */
+			spin_lock(&init_mm.page_table_lock);
+			unmap_vm_area(tmp);
+			spin_unlock(&init_mm.page_table_lock);
+
 			kfree(tmp);
 			up(&imlist_sem);
-			return ret_size;
+			return;
 		}
 	}
 	up(&imlist_sem);
 	printk(KERN_ERR "Trying to %s nonexistent area (%p)\n", __FUNCTION__,
 			addr);
-	return ret_size;
 }

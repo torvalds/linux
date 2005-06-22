@@ -59,11 +59,10 @@
 	mov	\rd, \rd, lsl #13
 	.endm
 
-	.macro	alignment_trap, rbase, rtemp, sym
+	.macro	alignment_trap, rtemp
 #ifdef CONFIG_ALIGNMENT_TRAP
-#define OFF_CR_ALIGNMENT(x)	cr_alignment - x
-
-	ldr	\rtemp, [\rbase, #OFF_CR_ALIGNMENT(\sym)]
+	ldr	\rtemp, .LCcralign
+	ldr	\rtemp, [\rtemp]
 	mcr	p15, 0, \rtemp, c1, c0
 #endif
 	.endm

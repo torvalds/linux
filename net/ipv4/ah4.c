@@ -200,7 +200,7 @@ static void ah4_err(struct sk_buff *skb, u32 info)
 	xfrm_state_put(x);
 }
 
-static int ah_init_state(struct xfrm_state *x, void *args)
+static int ah_init_state(struct xfrm_state *x)
 {
 	struct ah_data *ahp = NULL;
 	struct xfrm_algo_desc *aalg_desc;

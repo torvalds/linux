@@ -20,7 +20,7 @@
 #define SIOCATALKDIFADDR       (SIOCPROTOPRIVATE + 0)
 
 struct atalk_addr {
-	__u16	s_net;
+	__be16	s_net;
 	__u8	s_node;
 };
 
@@ -33,8 +33,8 @@ struct sockaddr_at {
 
 struct atalk_netrange {
 	__u8	nr_phase;
-	__u16	nr_firstnet;
-	__u16	nr_lastnet;
+	__be16	nr_firstnet;
+	__be16	nr_lastnet;
 };
 
 #ifdef __KERNEL__
@@ -70,8 +70,8 @@ struct atalk_iface {
 struct atalk_sock {
 	/* struct sock has to be the first member of atalk_sock */
 	struct sock	sk;
-	unsigned short	dest_net;
-	unsigned short	src_net;
+	__be16		dest_net;
+	__be16		src_net;
 	unsigned char	dest_node;
 	unsigned char	src_node;
 	unsigned char	dest_port;
@@ -95,9 +95,9 @@ struct ddpehdr {
 		deh_hops:4,
 		deh_len:10;
 #endif
-	__u16	deh_sum;
-	__u16	deh_dnet;
-	__u16	deh_snet;
+	__be16	deh_sum;
+	__be16	deh_dnet;
+	__be16	deh_snet;
 	__u8	deh_dnode;
 	__u8	deh_snode;
 	__u8	deh_dport;
@@ -142,24 +142,24 @@ struct ddpshdr {
 
 /* AppleTalk AARP headers */
 struct elapaarp {
-	__u16	hw_type;
+	__be16	hw_type;
 #define AARP_HW_TYPE_ETHERNET		1
 #define AARP_HW_TYPE_TOKENRING		2
-	__u16	pa_type;
+	__be16	pa_type;
 	__u8	hw_len;
 	__u8	pa_len;
 #define AARP_PA_ALEN			4
-	__u16	function;
+	__be16	function;
 #define AARP_REQUEST			1
 #define AARP_REPLY			2
 #define AARP_PROBE			3
 	__u8	hw_src[ETH_ALEN]	__attribute__ ((packed));
 	__u8	pa_src_zero		__attribute__ ((packed));
-	__u16	pa_src_net		__attribute__ ((packed));
+	__be16	pa_src_net		__attribute__ ((packed));
 	__u8	pa_src_node		__attribute__ ((packed));
 	__u8	hw_dst[ETH_ALEN]	__attribute__ ((packed));
 	__u8	pa_dst_zero		__attribute__ ((packed));
-	__u16	pa_dst_net		__attribute__ ((packed));
+	__be16	pa_dst_net		__attribute__ ((packed));
 	__u8	pa_dst_node		__attribute__ ((packed));	
 };
 

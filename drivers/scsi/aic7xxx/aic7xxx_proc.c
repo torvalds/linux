@@ -50,7 +50,7 @@ static void	ahc_dump_target_state(struct ahc_softc *ahc,
 				      u_int our_id, char channel,
 				      u_int target_id, u_int target_offset);
 static void	ahc_dump_device_state(struct info_str *info,
-				      struct ahc_linux_device *dev);
+				      struct scsi_device *dev);
 static int	ahc_proc_write_seeprom(struct ahc_softc *ahc,
 				       char *buffer, int length);
 
@@ -142,6 +142,7 @@ ahc_dump_target_state(struct ahc_softc *ahc, struct info_str *info,
 		      u_int target_offset)
 {
 	struct	ahc_linux_target *targ;
+	struct	scsi_target *starget;
 	struct	ahc_initiator_tinfo *tinfo;
 	struct	ahc_tmode_tstate *tstate;
 	int	lun;
@@ -153,7 +154,8 @@ ahc_dump_target_state(struct ahc_softc *ahc, struct info_str *info,
 	copy_info(info, "Target %d Negotiation Settings\n", target_id);
 	copy_info(info, "\tUser: ");
 	ahc_format_transinfo(info, &tinfo->user);
-	targ = ahc->platform_data->targets[target_offset];
+	starget = ahc->platform_data->starget[target_offset];
+	targ = scsi_transport_target_data(starget);
 	if (targ == NULL)
 		return;
 
@@ -163,22 +165,25 @@ ahc_dump_target_state(struct ahc_softc *ahc, struct info_str *info,
 	ahc_format_transinfo(info, &tinfo->curr);
 
 	for (lun = 0; lun < AHC_NUM_LUNS; lun++) {
-		struct ahc_linux_device *dev;
+		struct scsi_device *sdev;
 
-		dev = targ->devices[lun];
+		sdev = targ->sdev[lun];
 
-		if (dev == NULL)
+		if (sdev == NULL)
 			continue;
 
-		ahc_dump_device_state(info, dev);
+		ahc_dump_device_state(info, sdev);
 	}
 }
 
 static void
-ahc_dump_device_state(struct info_str *info, struct ahc_linux_device *dev)
+ahc_dump_device_state(struct info_str *info, struct scsi_device *sdev)
 {
+	struct ahc_linux_device *dev = scsi_transport_device_data(sdev);
+
 	copy_info(info, "\tChannel %c Target %d Lun %d Settings\n",
-		  dev->target->channel + 'A', dev->target->target, dev->lun);
+		  sdev->sdev_target->channel + 'A',
+		  sdev->sdev_target->id, sdev->lun);
 
 	copy_info(info, "\t\tCommands Queued %ld\n", dev->commands_issued);
 	copy_info(info, "\t\tCommands Active %d\n", dev->active);
@@ -289,35 +294,15 @@ done:
  * Return information to handle /proc support for the driver.
  */
 int
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-ahc_linux_proc_info(char *buffer, char **start, off_t offset,
-		    int length, int hostno, int inout)
-#else
 ahc_linux_proc_info(struct Scsi_Host *shost, char *buffer, char **start,
 		    off_t offset, int length, int inout)
-#endif
 {
-	struct	ahc_softc *ahc;
+	struct	ahc_softc *ahc = *(struct ahc_softc **)shost->hostdata;
 	struct	info_str info;
 	char	ahc_info[256];
-	u_long	s;
 	u_int	max_targ;
 	u_int	i;
 	int	retval;
-
-	retval = -EINVAL;
-	ahc_list_lock(&s);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-	TAILQ_FOREACH(ahc, &ahc_tailq, links) {
-		if (ahc->platform_data->host->host_no == hostno)
-			break;
-	}
-#else
-	ahc = ahc_find_softc(*(struct ahc_softc **)shost->hostdata);
-#endif
-
-	if (ahc == NULL)
-		goto done;
 
 	 /* Has data been written to the file? */ 
 	if (inout == TRUE) {
@@ -380,6 +365,5 @@ ahc_linux_proc_info(struct Scsi_Host *shost, char *buffer, char **start,
 	}
 	retval = info.pos > info.offset ? info.pos - info.offset : 0;
 done:
-	ahc_list_unlock(&s);
 	return (retval);
 }

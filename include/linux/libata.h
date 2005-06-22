@@ -416,6 +416,7 @@ extern u8 ata_chk_err(struct ata_port *ap);
 extern void ata_exec_command(struct ata_port *ap, struct ata_taskfile *tf);
 extern int ata_port_start (struct ata_port *ap);
 extern void ata_port_stop (struct ata_port *ap);
+extern void ata_host_stop (struct ata_host_set *host_set);
 extern irqreturn_t ata_interrupt (int irq, void *dev_instance, struct pt_regs *regs);
 extern void ata_qc_prep(struct ata_queued_cmd *qc);
 extern int ata_qc_issue_prot(struct ata_queued_cmd *qc);
@@ -426,6 +427,7 @@ extern void ata_sg_init(struct ata_queued_cmd *qc, struct scatterlist *sg,
 extern unsigned int ata_dev_classify(struct ata_taskfile *tf);
 extern void ata_dev_id_string(u16 *id, unsigned char *s,
 			      unsigned int ofs, unsigned int len);
+extern void ata_dev_config(struct ata_port *ap, unsigned int i);
 extern void ata_bmdma_setup (struct ata_queued_cmd *qc);
 extern void ata_bmdma_start (struct ata_queued_cmd *qc);
 extern void ata_bmdma_stop(struct ata_port *ap);
@@ -472,11 +474,33 @@ static inline u8 ata_chk_status(struct ata_port *ap)
 	return ap->ops->check_status(ap);
 }
 
+
+/**
+ *	ata_pause - Flush writes and pause 400 nanoseconds.
+ *	@ap: Port to wait for.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ */
+
 static inline void ata_pause(struct ata_port *ap)
 {
 	ata_altstatus(ap);
 	ndelay(400);
 }
+
+
+/**
+ *	ata_busy_wait - Wait for a port status register
+ *	@ap: Port to wait for.
+ *
+ *	Waits up to max*10 microseconds for the selected bits in the port's
+ *	status register to be cleared.
+ *	Returns final value of status register.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ */
 
 static inline u8 ata_busy_wait(struct ata_port *ap, unsigned int bits,
 			       unsigned int max)
@@ -491,6 +515,18 @@ static inline u8 ata_busy_wait(struct ata_port *ap, unsigned int bits,
 
 	return status;
 }
+
+
+/**
+ *	ata_wait_idle - Wait for a port to be idle.
+ *	@ap: Port to wait for.
+ *
+ *	Waits up to 10ms for port's BUSY and DRQ signals to clear.
+ *	Returns final value of status register.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ */
 
 static inline u8 ata_wait_idle(struct ata_port *ap)
 {
@@ -530,6 +566,18 @@ static inline void ata_tf_init(struct ata_port *ap, struct ata_taskfile *tf, uns
 		tf->device = ATA_DEVICE_OBS | ATA_DEV1;
 }
 
+
+/**
+ *	ata_irq_on - Enable interrupts on a port.
+ *	@ap: Port on which interrupts are enabled.
+ *
+ *	Enable interrupts on a legacy IDE device using MMIO or PIO,
+ *	wait for idle, clear any pending interrupts.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ */
+
 static inline u8 ata_irq_on(struct ata_port *ap)
 {
 	struct ata_ioports *ioaddr = &ap->ioaddr;
@@ -548,6 +596,18 @@ static inline u8 ata_irq_on(struct ata_port *ap)
 
 	return tmp;
 }
+
+
+/**
+ *	ata_irq_ack - Acknowledge a device interrupt.
+ *	@ap: Port on which interrupts are enabled.
+ *
+ *	Wait up to 10 ms for legacy IDE device to become idle (BUSY
+ *	or BUSY+DRQ clear).  Obtain dma status and port status from
+ *	device.  Clear the interrupt.  Return port status.
+ *
+ *	LOCKING:
+ */
 
 static inline u8 ata_irq_ack(struct ata_port *ap, unsigned int chk_drq)
 {
@@ -588,6 +648,13 @@ static inline u32 scr_read(struct ata_port *ap, unsigned int reg)
 static inline void scr_write(struct ata_port *ap, unsigned int reg, u32 val)
 {
 	ap->ops->scr_write(ap, reg, val);
+}
+
+static inline void scr_write_flush(struct ata_port *ap, unsigned int reg, 
+				   u32 val)
+{
+	ap->ops->scr_write(ap, reg, val);
+	(void) ap->ops->scr_read(ap, reg);
 }
 
 static inline unsigned int sata_dev_present(struct ata_port *ap)

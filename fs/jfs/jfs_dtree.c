@@ -2931,6 +2931,9 @@ static void add_missing_indices(struct inode *inode, s64 bn)
 	ASSERT(p->header.flag & BT_LEAF);
 
 	tlck = txLock(tid, inode, mp, tlckDTREE | tlckENTRY);
+	if (BT_IS_ROOT(mp))
+		tlck->type |= tlckBTROOT;
+
 	dtlck = (struct dt_lock *) &tlck->lock;
 
 	stbl = DT_GETSTBL(p);

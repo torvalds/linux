@@ -118,6 +118,8 @@ xfs_efi_log_item_t	*xfs_efi_init(struct xfs_mount *, uint);
 xfs_efd_log_item_t	*xfs_efd_init(struct xfs_mount *, xfs_efi_log_item_t *,
 				      uint);
 
+void			xfs_efi_item_free(xfs_efi_log_item_t *);
+
 #endif	/* __KERNEL__ */
 
 #endif	/* __XFS_EXTFREE_ITEM_H__ */

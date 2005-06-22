@@ -2,6 +2,8 @@
  *  linux/arch/arm/kernel/head.S
  *
  *  Copyright (C) 1994-2002 Russell King
+ *  Copyright (c) 2003 ARM Limited
+ *  All Rights Reserved
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -164,6 +166,48 @@ __mmap_switched:
 	bic	r4, r0, #CR_A			@ Clear 'A' bit
 	stmia	r6, {r0, r4}			@ Save control register values
 	b	start_kernel
+
+#if defined(CONFIG_SMP)
+	.type   secondary_startup, #function
+ENTRY(secondary_startup)
+	/*
+	 * Common entry point for secondary CPUs.
+	 *
+	 * Ensure that we're in SVC mode, and IRQs are disabled.  Lookup
+	 * the processor type - there is no need to check the machine type
+	 * as it has already been validated by the primary processor.
+	 */
+	msr	cpsr_c, #PSR_F_BIT | PSR_I_BIT | MODE_SVC
+	bl	__lookup_processor_type
+	movs	r10, r5				@ invalid processor?
+	moveq	r0, #'p'			@ yes, error 'p'
+	beq	__error
+
+	/*
+	 * Use the page tables supplied from  __cpu_up.
+	 */
+	adr	r4, __secondary_data
+	ldmia	r4, {r5, r6, r13}		@ address to jump to after
+	sub	r4, r4, r5			@ mmu has been enabled
+	ldr	r4, [r6, r4]			@ get secondary_data.pgdir
+	adr	lr, __enable_mmu		@ return address
+	add	pc, r10, #12			@ initialise processor
+						@ (return control reg)
+
+	/*
+	 * r6  = &secondary_data
+	 */
+ENTRY(__secondary_switched)
+	ldr	sp, [r6, #4]			@ get secondary_data.stack
+	mov	fp, #0
+	b	secondary_start_kernel
+
+	.type	__secondary_data, %object
+__secondary_data:
+	.long	.
+	.long	secondary_data
+	.long	__secondary_switched
+#endif /* defined(CONFIG_SMP) */
 
 
 

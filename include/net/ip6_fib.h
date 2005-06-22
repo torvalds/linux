@@ -167,14 +167,17 @@ extern int			fib6_walk_continue(struct fib6_walker_t *w);
 extern int			fib6_add(struct fib6_node *root,
 					 struct rt6_info *rt,
 					 struct nlmsghdr *nlh,
-					 void *rtattr);
+					 void *rtattr,
+					 struct netlink_skb_parms *req);
 
 extern int			fib6_del(struct rt6_info *rt,
 					 struct nlmsghdr *nlh,
-					 void *rtattr);
+					 void *rtattr,
+					 struct netlink_skb_parms *req);
 
 extern void			inet6_rt_notify(int event, struct rt6_info *rt,
-						struct nlmsghdr *nlh);
+						struct nlmsghdr *nlh,
+						struct netlink_skb_parms *req);
 
 extern void			fib6_run_gc(unsigned long dummy);
 

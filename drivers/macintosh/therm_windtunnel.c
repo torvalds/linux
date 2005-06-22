@@ -107,13 +107,13 @@ print_temp( const char *s, int temp )
 }
 
 static ssize_t
-show_cpu_temperature( struct device *dev, char *buf )
+show_cpu_temperature( struct device *dev, struct device_attribute *attr, char *buf )
 {
 	return sprintf(buf, "%d.%d\n", x.temp>>8, (x.temp & 255)*10/256 );
 }
 
 static ssize_t
-show_case_temperature( struct device *dev, char *buf )
+show_case_temperature( struct device *dev, struct device_attribute *attr, char *buf )
 {
 	return sprintf(buf, "%d.%d\n", x.casetemp>>8, (x.casetemp & 255)*10/256 );
 }

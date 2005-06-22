@@ -67,10 +67,6 @@ config GENERIC_BUST_SPINLOCK
 config GENERIC_ISA_DMA
 	bool
 
-config GENERIC_IOMAP
-	bool
-	default y
-
 config FIQ
 	bool
 
@@ -202,6 +198,11 @@ config ARCH_H720X
 	help
 	  This enables support for systems based on the Hynix HMS720x
 
+config ARCH_AAEC2000
+	bool "Agilent AAEC-2000 based"
+	help
+	  This enables support for systems based on the Agilent AAEC-2000
+
 endchoice
 
 source "arch/arm/mach-clps711x/Kconfig"
@@ -233,6 +234,8 @@ source "arch/arm/mach-imx/Kconfig"
 source "arch/arm/mach-h720x/Kconfig"
 
 source "arch/arm/mach-versatile/Kconfig"
+
+source "arch/arm/mach-aaec2000/Kconfig"
 
 # Definitions to make life easier
 config ARCH_ACORN
@@ -277,7 +280,7 @@ config ISA_DMA_API
 	default y
 
 config PCI
-	bool "PCI support" if ARCH_INTEGRATOR_AP
+	bool "PCI support" if ARCH_INTEGRATOR_AP || ARCH_VERSATILE_PB
 	help
 	  Find out whether you have a PCI motherboard. PCI is the name of a
 	  bus system, i.e. the way the CPU talks to the other stuff inside
@@ -497,7 +500,7 @@ source "drivers/cpufreq/Kconfig"
 
 config CPU_FREQ_SA1100
 	bool
-	depends on CPU_FREQ && (SA1100_LART || SA1100_PLEB)
+	depends on CPU_FREQ && (SA1100_H3100 || SA1100_H3600 || SA1100_H3800 || SA1100_LART || SA1100_PLEB || SA1100_BADGE4 || SA1100_HACKKIT)
 	default y
 
 config CPU_FREQ_SA1110
@@ -689,7 +692,9 @@ source "drivers/block/Kconfig"
 
 source "drivers/acorn/block/Kconfig"
 
-if ARCH_CLPS7500 || ARCH_IOP3XX || ARCH_IXP4XX || ARCH_L7200 || ARCH_LH7A40X || ARCH_PXA || ARCH_RPC || ARCH_S3C2410 || ARCH_SA1100 || ARCH_SHARK || FOOTBRIDGE
+if PCMCIA || ARCH_CLPS7500 || ARCH_IOP3XX || ARCH_IXP4XX \
+	|| ARCH_L7200 || ARCH_LH7A40X || ARCH_PXA || ARCH_RPC \
+	|| ARCH_S3C2410 || ARCH_SA1100 || ARCH_SHARK || FOOTBRIDGE
 source "drivers/ide/Kconfig"
 endif
 

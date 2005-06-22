@@ -450,7 +450,7 @@ show_async (struct class_device *class_dev, char *buf)
 
 	*buf = 0;
 
-	bus = to_usb_bus(class_dev);
+	bus = class_get_devdata(class_dev);
 	hcd = bus->hcpriv;
 	ehci = hcd_to_ehci (hcd);
 	next = buf;
@@ -496,7 +496,7 @@ show_periodic (struct class_device *class_dev, char *buf)
 		return 0;
 	seen_count = 0;
 
-	bus = to_usb_bus(class_dev);
+	bus = class_get_devdata(class_dev);
 	hcd = bus->hcpriv;
 	ehci = hcd_to_ehci (hcd);
 	next = buf;
@@ -633,7 +633,7 @@ show_registers (struct class_device *class_dev, char *buf)
 	static char		fmt [] = "%*s\n";
 	static char		label [] = "";
 
-	bus = to_usb_bus(class_dev);
+	bus = class_get_devdata(class_dev);
 	hcd = bus->hcpriv;
 	ehci = hcd_to_ehci (hcd);
 	next = buf;
@@ -735,7 +735,7 @@ static CLASS_DEVICE_ATTR (registers, S_IRUGO, show_registers, NULL);
 
 static inline void create_debug_files (struct ehci_hcd *ehci)
 {
-	struct class_device *cldev = &ehci_to_hcd(ehci)->self.class_dev;
+	struct class_device *cldev = ehci_to_hcd(ehci)->self.class_dev;
 
 	class_device_create_file(cldev, &class_device_attr_async);
 	class_device_create_file(cldev, &class_device_attr_periodic);
@@ -744,7 +744,7 @@ static inline void create_debug_files (struct ehci_hcd *ehci)
 
 static inline void remove_debug_files (struct ehci_hcd *ehci)
 {
-	struct class_device *cldev = &ehci_to_hcd(ehci)->self.class_dev;
+	struct class_device *cldev = ehci_to_hcd(ehci)->self.class_dev;
 
 	class_device_remove_file(cldev, &class_device_attr_async);
 	class_device_remove_file(cldev, &class_device_attr_periodic);

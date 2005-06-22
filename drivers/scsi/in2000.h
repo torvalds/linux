@@ -401,9 +401,7 @@ static int in2000_abort(Scsi_Cmnd *);
 static void in2000_setup(char *, int *) in2000__INIT;
 static int in2000_biosparam(struct scsi_device *, struct block_device *,
 		sector_t, int *);
-static int in2000_host_reset(Scsi_Cmnd *);
 static int in2000_bus_reset(Scsi_Cmnd *);
-static int in2000_device_reset(Scsi_Cmnd *);
 
 
 #define IN2000_CAN_Q    16

@@ -24,6 +24,7 @@
 #include <linux/ptrace.h>
 #include <linux/posix-timers.h>
 #include <linux/signal.h>
+#include <linux/audit.h>
 #include <asm/param.h>
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -522,7 +523,16 @@ static int __dequeue_signal(struct sigpending *pending, sigset_t *mask,
 {
 	int sig = 0;
 
-	sig = next_signal(pending, mask);
+	/* SIGKILL must have priority, otherwise it is quite easy
+	 * to create an unkillable process, sending sig < SIGKILL
+	 * to self */
+	if (unlikely(sigismember(&pending->signal, SIGKILL))) {
+		if (!sigismember(mask, SIGKILL))
+			sig = SIGKILL;
+	}
+
+	if (likely(!sig))
+		sig = next_signal(pending, mask);
 	if (sig) {
 		if (current->notifier) {
 			if (sigismember(current->notifier_mask, sig)) {
@@ -658,7 +668,11 @@ static int check_kill_permission(int sig, struct siginfo *info,
 	    && (current->uid ^ t->suid) && (current->uid ^ t->uid)
 	    && !capable(CAP_KILL))
 		return error;
-	return security_task_kill(t, info, sig);
+
+	error = security_task_kill(t, info, sig);
+	if (!error)
+		audit_signal_info(sig, t); /* Let audit system see the signal */
+	return error;
 }
 
 /* forward decl */

@@ -91,9 +91,6 @@ qla2100_intr_handler(int irq, void *dev_id, struct pt_regs *regs)
 	}
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
-	ha->last_irq_cpu = _smp_processor_id();
-	ha->total_isr_cnt++;
-
 	if (test_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags) &&
 	    (status & MBX_INTERRUPT) && ha->flags.mbox_int) {
 		spin_lock_irqsave(&ha->mbx_reg_lock, flags);
@@ -199,9 +196,6 @@ qla2300_intr_handler(int irq, void *dev_id, struct pt_regs *regs)
 		RD_REG_WORD_RELAXED(&reg->hccr);
 	}
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
-
-	ha->last_irq_cpu = _smp_processor_id();
-	ha->total_isr_cnt++;
 
 	if (test_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags) &&
 	    (status & MBX_INTERRUPT) && ha->flags.mbox_int) {
@@ -417,7 +411,6 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint32_t mbx)
 		/* Update AEN queue. */
 		qla2x00_enqueue_aen(ha, MBA_LIP_OCCURRED, NULL);
 
-		ha->total_lip_cnt++;
 		break;
 
 	case MBA_LOOP_UP:		/* Loop Up Event */
@@ -485,7 +478,6 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint32_t mbx)
 		/* Update AEN queue. */
 		qla2x00_enqueue_aen(ha, MBA_LIP_RESET, NULL);
 
-		ha->total_lip_cnt++;
 		break;
 
 	case MBA_POINT_TO_POINT:	/* Point-to-Point */
@@ -695,14 +687,11 @@ qla2x00_process_completed_request(struct scsi_qla_host *ha, uint32_t index)
 		/* Free outstanding command slot. */
 		ha->outstanding_cmds[index] = NULL;
 
-		if (ha->actthreads)
-			ha->actthreads--;
 		CMD_COMPL_STATUS(sp->cmd) = 0L;
 		CMD_SCSI_STATUS(sp->cmd) = 0L;
 
 		/* Save ISP completion status */
 		sp->cmd->result = DID_OK << 16;
-		sp->fo_retry_cnt = 0;
 		qla2x00_sp_compl(ha, sp);
 	} else {
 		DEBUG2(printk("scsi(%ld): Invalid ISP SCSI completion handle\n",
@@ -865,9 +854,6 @@ qla2x00_status_entry(scsi_qla_host_t *ha, sts_entry_t *pkt)
 		return;
 	}
 
-	if (ha->actthreads)
-		ha->actthreads--;
-
 	comp_status = le16_to_cpu(pkt->comp_status);
 	/* Mask of reserved bits 12-15, before we examine the scsi status */
 	scsi_status = le16_to_cpu(pkt->scsi_status) & SS_MASK;
@@ -1026,7 +1012,6 @@ qla2x00_status_entry(scsi_qla_host_t *ha, sts_entry_t *pkt)
 				    cp->request_bufflen));
 
 				cp->result = DID_BUS_BUSY << 16;
-				ha->dropped_frame_error_cnt++;
 				break;
 			}
 
@@ -1233,8 +1218,7 @@ qla2x00_error_entry(scsi_qla_host_t *ha, sts_entry_t *pkt)
 	if (sp) {
 		/* Free outstanding command slot. */
 		ha->outstanding_cmds[pkt->handle] = NULL;
-		if (ha->actthreads)
-			ha->actthreads--;
+
 		/* Bad payload or header */
 		if (pkt->entry_status &
 		    (RF_INV_E_ORDER | RF_INV_E_COUNT |

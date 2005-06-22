@@ -770,33 +770,12 @@ static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		err = path_lookup(sunaddr->sun_path, LOOKUP_PARENT, &nd);
 		if (err)
 			goto out_mknod_parent;
-		/*
-		 * Yucky last component or no last component at all?
-		 * (foo/., foo/.., /////)
-		 */
-		err = -EEXIST;
-		if (nd.last_type != LAST_NORM)
-			goto out_mknod;
-		/*
-		 * Lock the directory.
-		 */
-		down(&nd.dentry->d_inode->i_sem);
-		/*
-		 * Do the final lookup.
-		 */
-		dentry = lookup_hash(&nd.last, nd.dentry);
+
+		dentry = lookup_create(&nd, 0);
 		err = PTR_ERR(dentry);
 		if (IS_ERR(dentry))
 			goto out_mknod_unlock;
-		err = -ENOENT;
-		/*
-		 * Special case - lookup gave negative, but... we had foo/bar/
-		 * From the vfs_mknod() POV we just have a negative dentry -
-		 * all is fine. Let's be bastards - you had / on the end, you've
-		 * been asking for (non-existent) directory. -ENOENT for you.
-		 */
-		if (nd.last.name[nd.last.len] && !dentry->d_inode)
-			goto out_mknod_dput;
+
 		/*
 		 * All right, let's create it.
 		 */
@@ -845,7 +824,6 @@ out_mknod_dput:
 	dput(dentry);
 out_mknod_unlock:
 	up(&nd.dentry->d_inode->i_sem);
-out_mknod:
 	path_release(&nd);
 out_mknod_parent:
 	if (err==-EEXIST)

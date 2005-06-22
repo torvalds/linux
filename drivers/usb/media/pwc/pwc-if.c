@@ -68,8 +68,6 @@
 #include "pwc-ioctl.h"
 #include "pwc-kiara.h"
 #include "pwc-timon.h"
-#include "pwc-dec23.h"
-#include "pwc-dec1.h"
 #include "pwc-uncompress.h"
 
 /* Function prototypes and driver templates */
@@ -322,6 +320,7 @@ static int pwc_allocate_buffers(struct pwc_device *pdev)
 	  case 730:
 	  case 740:
 	  case 750:
+#if 0	  
 	    Trace(TRACE_MEMORY,"private_data(%zu)\n",sizeof(struct pwc_dec23_private));
 	    kbuf = kmalloc(sizeof(struct pwc_dec23_private), GFP_KERNEL);	/* Timon & Kiara */
 	    break;
@@ -330,11 +329,9 @@ static int pwc_allocate_buffers(struct pwc_device *pdev)
 	    /* TODO & FIXME */
 	    kbuf = kmalloc(sizeof(struct pwc_dec23_private), GFP_KERNEL);
 	    break;
+#endif	 
+	;
 	 }
-	if (kbuf == NULL) {
-	   Err("Failed to allocate decompress table.\n");
-	   return -ENOMEM;
-	}
 	pdev->decompress_data = kbuf;
 	
 	/* Allocate image buffer; double buffer for mmap() */
@@ -1131,11 +1128,11 @@ static int pwc_video_close(struct inode *inode, struct file *file)
 	  case 730:
 	  case 740:
 	  case 750:
-	    pwc_dec23_exit();	/* Timon & Kiara */
+/*	    pwc_dec23_exit();	*//* Timon & Kiara */
 	    break;
 	  case 645:
 	  case 646:
-	    pwc_dec1_exit();
+/*	    pwc_dec1_exit(); */
 	    break;
 	 }
 

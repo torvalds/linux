@@ -134,7 +134,7 @@ STATIC void	xlog_verify_tail_lsn(xlog_t *log, xlog_in_core_t *iclog,
 #define xlog_verify_tail_lsn(a,b,c)
 #endif
 
-int		xlog_iclogs_empty(xlog_t *log);
+STATIC int	xlog_iclogs_empty(xlog_t *log);
 
 #ifdef DEBUG
 int xlog_do_error = 0;
@@ -1857,7 +1857,7 @@ xlog_write(xfs_mount_t *	mp,
  *
  * State Change: DIRTY -> ACTIVE
  */
-void
+STATIC void
 xlog_state_clean_log(xlog_t *log)
 {
 	xlog_in_core_t	*iclog;
@@ -3542,7 +3542,7 @@ xfs_log_force_umount(
 	return (retval);
 }
 
-int
+STATIC int
 xlog_iclogs_empty(xlog_t *log)
 {
 	xlog_in_core_t	*iclog;

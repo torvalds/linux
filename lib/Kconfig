@@ -40,6 +40,12 @@ config ZLIB_DEFLATE
 	tristate
 
 #
+# Generic allocator support is selected if needed
+#
+config GENERIC_ALLOCATOR
+	boolean
+
+#
 # reed solomon support is select'ed if needed
 #
 config REED_SOLOMON

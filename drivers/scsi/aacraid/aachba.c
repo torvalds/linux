@@ -53,10 +53,6 @@
 #define	INQD_PDT_DMASK	0x1F	/* Peripheral Device Type Mask */
 #define	INQD_PDT_QMASK	0xE0	/* Peripheral Device Qualifer Mask */
 
-#define MAX_FIB_DATA (sizeof(struct hw_fib) - sizeof(FIB_HEADER))
-
-#define MAX_DRIVER_SG_SEGMENT_COUNT 17
-
 /*
  *	Sense codes
  */
@@ -158,6 +154,13 @@ MODULE_PARM_DESC(dacmode, "Control whether dma addressing is using 64 bit DAC. 0
 module_param(commit, int, 0);
 MODULE_PARM_DESC(commit, "Control whether a COMMIT_CONFIG is issued to the adapter for foreign arrays.\nThis is typically needed in systems that do not have a BIOS. 0=off, 1=on");
 
+int numacb = -1;
+module_param(numacb, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(numacb, "Request a limit to the number of adapter control blocks (FIB) allocated. Valid\nvalues are 512 and down. Default is to use suggestion from Firmware.");
+
+int acbsize = -1;
+module_param(acbsize, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(acbsize, "Request a specific adapter control block (FIB) size. Valid values are 512,\n2048, 4096 and 8192. Default is to use suggestion from Firmware.");
 /**
  *	aac_get_config_status	-	check the adapter configuration
  *	@common: adapter to query
@@ -462,7 +465,7 @@ static int probe_container(struct aac_dev *dev, int cid)
 			    1, 1,
 			    NULL, NULL);
 	if (status < 0) {
-		printk(KERN_WARNING "aacraid: probe_containers query failed.\n");
+		printk(KERN_WARNING "aacraid: probe_container query failed.\n");
 		goto error;
 	}
 
@@ -562,10 +565,10 @@ static void setinqstr(int devtype, void *data, int tindex)
 	inqstrcpy ("V1.0", str->prl);
 }
 
-void set_sense(u8 *sense_buf, u8 sense_key, u8 sense_code,
-		    u8 a_sense_code, u8 incorrect_length,
-		    u8 bit_pointer, u16 field_pointer,
-		    u32 residue)
+static void set_sense(u8 *sense_buf, u8 sense_key, u8 sense_code,
+		      u8 a_sense_code, u8 incorrect_length,
+		      u8 bit_pointer, u16 field_pointer,
+		      u32 residue)
 {
 	sense_buf[0] = 0xF0;	/* Sense data valid, err code 70h (current error) */
 	sense_buf[1] = 0;	/* Segment number, always zero */
@@ -605,35 +608,63 @@ void set_sense(u8 *sense_buf, u8 sense_key, u8 sense_code,
 int aac_get_adapter_info(struct aac_dev* dev)
 {
 	struct fib* fibptr;
-	struct aac_adapter_info* info;
 	int rcode;
 	u32 tmp;
+	struct aac_adapter_info * info;
+
 	if (!(fibptr = fib_alloc(dev)))
 		return -ENOMEM;
 
 	fib_init(fibptr);
-	info = (struct aac_adapter_info*) fib_data(fibptr);
-
-	memset(info,0,sizeof(struct aac_adapter_info));
+	info = (struct aac_adapter_info *) fib_data(fibptr);
+	memset(info,0,sizeof(*info));
 
 	rcode = fib_send(RequestAdapterInfo,
-			fibptr, 
-			sizeof(struct aac_adapter_info),
-			FsaNormal, 
-			1, 1, 
-			NULL, 
-			NULL);
+			 fibptr, 
+			 sizeof(*info),
+			 FsaNormal, 
+			 1, 1, 
+			 NULL, 
+			 NULL);
 
-	memcpy(&dev->adapter_info, info, sizeof(struct aac_adapter_info));
+	if (rcode < 0) {
+		fib_complete(fibptr);
+		fib_free(fibptr);
+		return rcode;
+	}
+	memcpy(&dev->adapter_info, info, sizeof(*info));
+
+	if (dev->adapter_info.options & AAC_OPT_SUPPLEMENT_ADAPTER_INFO) {
+		struct aac_supplement_adapter_info * info;
+
+		fib_init(fibptr);
+
+		info = (struct aac_supplement_adapter_info *) fib_data(fibptr);
+
+		memset(info,0,sizeof(*info));
+
+		rcode = fib_send(RequestSupplementAdapterInfo,
+				 fibptr,
+				 sizeof(*info),
+				 FsaNormal,
+				 1, 1,
+				 NULL,
+				 NULL);
+
+		if (rcode >= 0)
+			memcpy(&dev->supplement_adapter_info, info, sizeof(*info));
+	}
 
 	tmp = le32_to_cpu(dev->adapter_info.kernelrev);
-	printk(KERN_INFO "%s%d: kernel %d.%d-%d[%d]\n", 
+	printk(KERN_INFO "%s%d: kernel %d.%d-%d[%d] %.*s\n", 
 			dev->name, 
 			dev->id,
 			tmp>>24,
 			(tmp>>16)&0xff,
 			tmp&0xff,
-			le32_to_cpu(dev->adapter_info.kernelbuild));
+			le32_to_cpu(dev->adapter_info.kernelbuild),
+			(int)sizeof(dev->supplement_adapter_info.BuildDate),
+			dev->supplement_adapter_info.BuildDate);
 	tmp = le32_to_cpu(dev->adapter_info.monitorrev);
 	printk(KERN_INFO "%s%d: monitor %d.%d-%d[%d]\n", 
 			dev->name, dev->id,
@@ -707,6 +738,38 @@ int aac_get_adapter_info(struct aac_dev* dev)
 			rcode = -ENOMEM;
 		}
 	}
+	/* 
+	 * 57 scatter gather elements 
+	 */
+	dev->scsi_host_ptr->sg_tablesize = (dev->max_fib_size -
+		sizeof(struct aac_fibhdr) -
+		sizeof(struct aac_write) + sizeof(struct sgmap)) /
+			sizeof(struct sgmap);
+	if (dev->dac_support) {
+		/* 
+		 * 38 scatter gather elements 
+		 */
+		dev->scsi_host_ptr->sg_tablesize =
+			(dev->max_fib_size -
+			sizeof(struct aac_fibhdr) -
+			sizeof(struct aac_write64) +
+			sizeof(struct sgmap64)) /
+				sizeof(struct sgmap64);
+	}
+	dev->scsi_host_ptr->max_sectors = AAC_MAX_32BIT_SGBCOUNT;
+	if(!(dev->adapter_info.options & AAC_OPT_NEW_COMM)) {
+		/*
+		 * Worst case size that could cause sg overflow when
+		 * we break up SG elements that are larger than 64KB.
+		 * Would be nice if we could tell the SCSI layer what
+		 * the maximum SG element size can be. Worst case is
+		 * (sg_tablesize-1) 4KB elements with one 64KB
+		 * element.
+		 *	32bit -> 468 or 238KB	64bit -> 424 or 212KB
+		 */
+		dev->scsi_host_ptr->max_sectors =
+		  (dev->scsi_host_ptr->sg_tablesize * 8) + 112;
+	}
 
 	fib_complete(fibptr);
 	fib_free(fibptr);
@@ -747,8 +810,10 @@ static void read_callback(void *context, struct fib * fibptr)
 	if (le32_to_cpu(readreply->status) == ST_OK)
 		scsicmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 | SAM_STAT_GOOD;
 	else {
-		printk(KERN_WARNING "read_callback: read failed, status = %d\n",
-				le32_to_cpu(readreply->status));
+#ifdef AAC_DETAILED_STATUS_INFO
+		printk(KERN_WARNING "read_callback: io failed, status = %d\n",
+		  le32_to_cpu(readreply->status));
+#endif
 		scsicmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 | SAM_STAT_CHECK_CONDITION;
 		set_sense((u8 *) &dev->fsa_dev[cid].sense_data,
 				    HARDWARE_ERROR,
@@ -813,7 +878,7 @@ static void write_callback(void *context, struct fib * fibptr)
 	aac_io_done(scsicmd);
 }
 
-int aac_read(struct scsi_cmnd * scsicmd, int cid)
+static int aac_read(struct scsi_cmnd * scsicmd, int cid)
 {
 	u32 lba;
 	u32 count;
@@ -842,7 +907,8 @@ int aac_read(struct scsi_cmnd * scsicmd, int cid)
 		lba = (scsicmd->cmnd[2] << 24) | (scsicmd->cmnd[3] << 16) | (scsicmd->cmnd[4] << 8) | scsicmd->cmnd[5];
 		count = (scsicmd->cmnd[7] << 8) | scsicmd->cmnd[8];
 	}
-	dprintk((KERN_DEBUG "aac_read[cpu %d]: lba = %u, t = %ld.\n", smp_processor_id(), lba, jiffies));
+	dprintk((KERN_DEBUG "aac_read[cpu %d]: lba = %u, t = %ld.\n",
+	  smp_processor_id(), (unsigned long long)lba, jiffies));
 	/*
 	 *	Alocate and initialize a Fib
 	 */
@@ -852,7 +918,7 @@ int aac_read(struct scsi_cmnd * scsicmd, int cid)
 
 	fib_init(cmd_fibcontext);
 
-	if(dev->dac_support == 1) {
+	if (dev->dac_support == 1) {
 		struct aac_read64 *readcmd;
 		readcmd = (struct aac_read64 *) fib_data(cmd_fibcontext);
 		readcmd->command = cpu_to_le32(VM_CtHostRead64);
@@ -886,14 +952,11 @@ int aac_read(struct scsi_cmnd * scsicmd, int cid)
 		readcmd->block = cpu_to_le32(lba);
 		readcmd->count = cpu_to_le32(count * 512);
 
-		if (count * 512 > (64 * 1024))
-			BUG();
-
 		aac_build_sg(scsicmd, &readcmd->sg);
 		fibsize = sizeof(struct aac_read) + 
 			((le32_to_cpu(readcmd->sg.count) - 1) * 
 			 sizeof (struct sgentry));
-		BUG_ON (fibsize > (sizeof(struct hw_fib) - 
+		BUG_ON (fibsize > (dev->max_fib_size -
 					sizeof(struct aac_fibhdr)));
 		/*
 		 *	Now send the Fib to the adapter
@@ -976,7 +1039,7 @@ static int aac_write(struct scsi_cmnd * scsicmd, int cid)
 		fibsize = sizeof(struct aac_write64) + 
 			((le32_to_cpu(writecmd->sg.count) - 1) * 
 			 sizeof (struct sgentry64));
-		BUG_ON (fibsize > (sizeof(struct hw_fib) - 
+		BUG_ON (fibsize > (dev->max_fib_size -
 					sizeof(struct aac_fibhdr)));
 		/*
 		 *	Now send the Fib to the adapter
@@ -998,15 +1061,11 @@ static int aac_write(struct scsi_cmnd * scsicmd, int cid)
 		writecmd->sg.count = cpu_to_le32(1);
 		/* ->stable is not used - it did mean which type of write */
 
-		if (count * 512 > (64 * 1024)) {
-			BUG();
-		}
-
 		aac_build_sg(scsicmd, &writecmd->sg);
 		fibsize = sizeof(struct aac_write) + 
 			((le32_to_cpu(writecmd->sg.count) - 1) * 
 			 sizeof (struct sgentry));
-		BUG_ON (fibsize > (sizeof(struct hw_fib) - 
+		BUG_ON (fibsize > (dev->max_fib_size -
 					sizeof(struct aac_fibhdr)));
 		/*
 		 *	Now send the Fib to the adapter
@@ -1025,7 +1084,6 @@ static int aac_write(struct scsi_cmnd * scsicmd, int cid)
 	 */
 	if (status == -EINPROGRESS)
 	{
-		dprintk("write queued.\n");
 		return 0;
 	}
 
@@ -1111,7 +1169,7 @@ static int aac_synchronize(struct scsi_cmnd *scsicmd, int cid)
 		return SCSI_MLQUEUE_DEVICE_BUSY;
 
 	/*
-	 *	Alocate and initialize a Fib
+	 *	Allocate and initialize a Fib
 	 */
 	if (!(cmd_fibcontext = 
 	    fib_alloc((struct aac_dev *)scsicmd->device->host->hostdata))) 
@@ -1403,7 +1461,7 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 			/*
 			 *	Unhandled commands
 			 */
-			printk(KERN_WARNING "Unhandled SCSI Command: 0x%x.\n", scsicmd->cmnd[0]);
+			dprintk((KERN_WARNING "Unhandled SCSI Command: 0x%x.\n", scsicmd->cmnd[0]));
 			scsicmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 | SAM_STAT_CHECK_CONDITION;
 			set_sense((u8 *) &dev->fsa_dev[cid].sense_data,
 				ILLEGAL_REQUEST, SENCODE_INVALID_COMMAND,
@@ -1818,7 +1876,7 @@ static int aac_send_srb_fib(struct scsi_cmnd* scsicmd)
 		fibsize = sizeof (struct aac_srb) - sizeof (struct sgentry) +
 			((le32_to_cpu(srbcmd->sg.count) & 0xff) * 
 			 sizeof (struct sgentry64));
-		BUG_ON (fibsize > (sizeof(struct hw_fib) - 
+		BUG_ON (fibsize > (dev->max_fib_size -
 					sizeof(struct aac_fibhdr)));
 
 		/*
@@ -1840,7 +1898,7 @@ static int aac_send_srb_fib(struct scsi_cmnd* scsicmd)
 		fibsize = sizeof (struct aac_srb) + 
 			(((le32_to_cpu(srbcmd->sg.count) & 0xff) - 1) * 
 			 sizeof (struct sgentry));
-		BUG_ON (fibsize > (sizeof(struct hw_fib) - 
+		BUG_ON (fibsize > (dev->max_fib_size -
 					sizeof(struct aac_fibhdr)));
 
 		/*
@@ -1893,7 +1951,9 @@ static unsigned long aac_build_sg(struct scsi_cmnd* scsicmd, struct sgmap* psg)
 		}
 		/* hba wants the size to be exact */
 		if(byte_count > scsicmd->request_bufflen){
-			psg->sg[i-1].count -= (byte_count - scsicmd->request_bufflen);
+			u32 temp = le32_to_cpu(psg->sg[i-1].count) - 
+				(byte_count - scsicmd->request_bufflen);
+			psg->sg[i-1].count = cpu_to_le32(temp);
 			byte_count = scsicmd->request_bufflen;
 		}
 		/* Check for command underflow */
@@ -1922,7 +1982,7 @@ static unsigned long aac_build_sg64(struct scsi_cmnd* scsicmd, struct sgmap64* p
 {
 	struct aac_dev *dev;
 	unsigned long byte_count = 0;
-	u64 le_addr;
+	u64 addr;
 
 	dev = (struct aac_dev *)scsicmd->device->host->hostdata;
 	// Get rid of old data
@@ -1943,16 +2003,18 @@ static unsigned long aac_build_sg64(struct scsi_cmnd* scsicmd, struct sgmap64* p
 		byte_count = 0;
 
 		for (i = 0; i < sg_count; i++) {
-			le_addr = cpu_to_le64(sg_dma_address(sg));
-			psg->sg[i].addr[1] = (u32)(le_addr>>32);
-			psg->sg[i].addr[0] = (u32)(le_addr & 0xffffffff);
+			addr = sg_dma_address(sg);
+			psg->sg[i].addr[0] = cpu_to_le32(addr & 0xffffffff);
+			psg->sg[i].addr[1] = cpu_to_le32(addr>>32);
 			psg->sg[i].count = cpu_to_le32(sg_dma_len(sg));
 			byte_count += sg_dma_len(sg);
 			sg++;
 		}
 		/* hba wants the size to be exact */
 		if(byte_count > scsicmd->request_bufflen){
-			psg->sg[i-1].count -= (byte_count - scsicmd->request_bufflen);
+			u32 temp = le32_to_cpu(psg->sg[i-1].count) - 
+				(byte_count - scsicmd->request_bufflen);
+			psg->sg[i-1].count = cpu_to_le32(temp);
 			byte_count = scsicmd->request_bufflen;
 		}
 		/* Check for command underflow */
@@ -1962,15 +2024,14 @@ static unsigned long aac_build_sg64(struct scsi_cmnd* scsicmd, struct sgmap64* p
 		}
 	}
 	else if(scsicmd->request_bufflen) {
-		dma_addr_t addr; 
+		u64 addr; 
 		addr = pci_map_single(dev->pdev,
 				scsicmd->request_buffer,
 				scsicmd->request_bufflen,
 				scsicmd->sc_data_direction);
 		psg->count = cpu_to_le32(1);
-		le_addr = cpu_to_le64(addr);
-		psg->sg[0].addr[1] = (u32)(le_addr>>32);
-		psg->sg[0].addr[0] = (u32)(le_addr & 0xffffffff);
+		psg->sg[0].addr[0] = cpu_to_le32(addr & 0xffffffff);
+		psg->sg[0].addr[1] = cpu_to_le32(addr >> 32);
 		psg->sg[0].count = cpu_to_le32(scsicmd->request_bufflen);  
 		scsicmd->SCp.dma_handle = addr;
 		byte_count = scsicmd->request_bufflen;

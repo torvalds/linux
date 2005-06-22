@@ -79,6 +79,8 @@
 /*
  * Routines used for growing the Btree.
  */
+STATIC int xfs_attr_leaf_create(xfs_da_args_t *args, xfs_dablk_t which_block,
+				    xfs_dabuf_t **bpp);
 STATIC int xfs_attr_leaf_add_work(xfs_dabuf_t *leaf_buffer, xfs_da_args_t *args,
 					      int freemap_index);
 STATIC void xfs_attr_leaf_compact(xfs_trans_t *trans, xfs_dabuf_t *leaf_buffer);
@@ -92,6 +94,16 @@ STATIC int xfs_attr_leaf_figure_balance(xfs_da_state_t *state,
 					   int *number_usedbytes_in_blk1);
 
 /*
+ * Routines used for shrinking the Btree.
+ */
+STATIC int xfs_attr_node_inactive(xfs_trans_t **trans, xfs_inode_t *dp,
+				  xfs_dabuf_t *bp, int level);
+STATIC int xfs_attr_leaf_inactive(xfs_trans_t **trans, xfs_inode_t *dp,
+				  xfs_dabuf_t *bp);
+STATIC int xfs_attr_leaf_freextent(xfs_trans_t **trans, xfs_inode_t *dp,
+				   xfs_dablk_t blkno, int blkcnt);
+
+/*
  * Utility routines.
  */
 STATIC void xfs_attr_leaf_moveents(xfs_attr_leafblock_t *src_leaf,
@@ -99,6 +111,10 @@ STATIC void xfs_attr_leaf_moveents(xfs_attr_leafblock_t *src_leaf,
 					 xfs_attr_leafblock_t *dst_leaf,
 					 int dst_start, int move_count,
 					 xfs_mount_t *mp);
+STATIC int xfs_attr_leaf_entsize(xfs_attr_leafblock_t *leaf, int index);
+STATIC int xfs_attr_put_listent(xfs_attr_list_context_t *context,
+			     attrnames_t *, char *name, int namelen,
+			     int valuelen);
 
 
 /*========================================================================
@@ -774,7 +790,7 @@ out:
  * Create the initial contents of a leaf attribute list
  * or a leaf in a node attribute list.
  */
-int
+STATIC int
 xfs_attr_leaf_create(xfs_da_args_t *args, xfs_dablk_t blkno, xfs_dabuf_t **bpp)
 {
 	xfs_attr_leafblock_t *leaf;
@@ -2209,7 +2225,7 @@ xfs_attr_leaf_lasthash(xfs_dabuf_t *bp, int *count)
  * Calculate the number of bytes used to store the indicated attribute
  * (whether local or remote only calculate bytes in this block).
  */
-int
+STATIC int
 xfs_attr_leaf_entsize(xfs_attr_leafblock_t *leaf, int index)
 {
 	xfs_attr_leaf_name_local_t *name_loc;
@@ -2380,7 +2396,7 @@ xfs_attr_leaf_list_int(xfs_dabuf_t *bp, xfs_attr_list_context_t *context)
  * we may be reading them directly out of a user buffer.
  */
 /*ARGSUSED*/
-int
+STATIC int
 xfs_attr_put_listent(xfs_attr_list_context_t *context,
 		     attrnames_t *namesp, char *name, int namelen, int valuelen)
 {
@@ -2740,7 +2756,7 @@ xfs_attr_root_inactive(xfs_trans_t **trans, xfs_inode_t *dp)
  * Recurse (gasp!) through the attribute nodes until we find leaves.
  * We're doing a depth-first traversal in order to invalidate everything.
  */
-int
+STATIC int
 xfs_attr_node_inactive(xfs_trans_t **trans, xfs_inode_t *dp, xfs_dabuf_t *bp,
 				   int level)
 {
@@ -2849,7 +2865,7 @@ xfs_attr_node_inactive(xfs_trans_t **trans, xfs_inode_t *dp, xfs_dabuf_t *bp,
  * Note that we must release the lock on the buffer so that we are not
  * caught holding something that the logging code wants to flush to disk.
  */
-int
+STATIC int
 xfs_attr_leaf_inactive(xfs_trans_t **trans, xfs_inode_t *dp, xfs_dabuf_t *bp)
 {
 	xfs_attr_leafblock_t *leaf;
@@ -2934,7 +2950,7 @@ xfs_attr_leaf_inactive(xfs_trans_t **trans, xfs_inode_t *dp, xfs_dabuf_t *bp)
  * Look at all the extents for this logical region,
  * invalidate any buffers that are incore/in transactions.
  */
-int
+STATIC int
 xfs_attr_leaf_freextent(xfs_trans_t **trans, xfs_inode_t *dp,
 				    xfs_dablk_t blkno, int blkcnt)
 {

@@ -28,9 +28,9 @@ static inline void set_singlestepping(struct task_struct *child, int on)
         child->thread.singlestep_syscall = 0;
 
 #ifdef SUBARCH_SET_SINGLESTEPPING
-        SUBARCH_SET_SINGLESTEPPING(child, on)
+        SUBARCH_SET_SINGLESTEPPING(child, on);
 #endif
-                }
+}
 
 /*
  * Called by kernel/ptrace.c when detaching..
@@ -83,7 +83,7 @@ long sys_ptrace(long request, long pid, long addr, long data)
 	}
 
 #ifdef SUBACH_PTRACE_SPECIAL
-        SUBARCH_PTRACE_SPECIAL(child,request,addr,data)
+        SUBARCH_PTRACE_SPECIAL(child,request,addr,data);
 #endif
 
 	ret = ptrace_check_attach(child, request == PTRACE_KILL);
@@ -322,11 +322,9 @@ void syscall_trace(union uml_pt_regs *regs, int entryexit)
 					    UPT_SYSCALL_ARG2(regs),
 					    UPT_SYSCALL_ARG3(regs),
 					    UPT_SYSCALL_ARG4(regs));
-		else {
-                        int res = UPT_SYSCALL_RET(regs);
-			audit_syscall_exit(current, AUDITSC_RESULT(res),
-                                           res);
-                }
+		else audit_syscall_exit(current,
+                                        AUDITSC_RESULT(UPT_SYSCALL_RET(regs)),
+                                        UPT_SYSCALL_RET(regs));
 	}
 
 	/* Fake a debug trap */
@@ -356,14 +354,3 @@ void syscall_trace(union uml_pt_regs *regs, int entryexit)
 		current->exit_code = 0;
 	}
 }
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

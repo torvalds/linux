@@ -234,7 +234,7 @@ static inline const char *siu_type_name(struct uart_port *port)
 		return "DSIU";
 	}
 
-	return "unknown";
+	return NULL;
 }
 
 static unsigned int siu_tx_empty(struct uart_port *port)
@@ -412,10 +412,8 @@ static inline void receive_chars(struct uart_port *port, uint8_t *status,
 
 		if (uart_handle_sysrq_char(port, ch, regs))
 			goto ignore_char;
-		if ((lsr & port->ignore_status_mask) == 0)
-			tty_insert_flip_char(tty, ch, flag);
-		if ((lsr & UART_LSR_OE) && (tty->flip.count < TTY_FLIPBUF_SIZE))
-			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+
+		uart_insert_char(port, lsr, UART_LSR_OE, ch, flag);
 
 	ignore_char:
 		lsr = siu_read(port, UART_LSR);
@@ -484,9 +482,6 @@ static irqreturn_t siu_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	struct uart_port *port;
 	uint8_t iir, lsr;
 
-	if (dev_id == NULL)
-		return IRQ_NONE;
-
 	port = (struct uart_port *)dev_id;
 
 	iir = siu_read(port, UART_IIR);
@@ -508,6 +503,9 @@ static irqreturn_t siu_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 static int siu_startup(struct uart_port *port)
 {
 	int retval;
+
+	if (port->membase == NULL)
+		return -ENODEV;
 
 	siu_clear_fifo(port);
 
@@ -546,9 +544,6 @@ static void siu_shutdown(struct uart_port *port)
 {
 	unsigned long flags;
 	uint8_t lcr;
-
-	if (port->membase == NULL)
-		return;
 
 	siu_write(port, UART_IER, 0);
 
@@ -804,53 +799,6 @@ static int siu_init_ports(void)
 
 #ifdef CONFIG_SERIAL_VR41XX_CONSOLE
 
-static void early_set_termios(struct uart_port *port, struct termios *new,
-                              struct termios *old)
-{
-	tcflag_t c_cflag;
-	uint8_t lcr;
-	unsigned int baud, quot;
-
-	c_cflag = new->c_cflag;
-	switch (c_cflag & CSIZE) {
-	case CS5:
-		lcr = UART_LCR_WLEN5;
-		break;
-	case CS6:
-		lcr = UART_LCR_WLEN6;
-		break;
-	case CS7:
-		lcr = UART_LCR_WLEN7;
-		break;
-	default:
-		lcr = UART_LCR_WLEN8;
-		break;
-	}
-
-	if (c_cflag & CSTOPB)
-		lcr |= UART_LCR_STOP;
-	if (c_cflag & PARENB)
-		lcr |= UART_LCR_PARITY;
-	if ((c_cflag & PARODD) != PARODD)
-		lcr |= UART_LCR_EPAR;
-	if (c_cflag & CMSPAR)
-		lcr |= UART_LCR_SPAR;
-
-	baud = uart_get_baud_rate(port, new, old, 0, port->uartclk/16);
-	quot = uart_get_divisor(port, baud);
-
-	siu_write(port, UART_LCR, lcr | UART_LCR_DLAB);
-
-	siu_write(port, UART_DLL, (uint8_t)quot);
-	siu_write(port, UART_DLM, (uint8_t)(quot >> 8));
-
-	siu_write(port, UART_LCR, lcr);
-}
-
-static struct uart_ops early_uart_ops = {
-	.set_termios	= early_set_termios,
-};
-
 #define BOTH_EMPTY	(UART_LSR_TEMT | UART_LSR_THRE)
 
 static void wait_for_xmitr(struct uart_port *port)
@@ -917,7 +865,7 @@ static int siu_console_setup(struct console *con, char *options)
 	if (port->membase == NULL) {
 		if (port->mapbase == 0)
 			return -ENODEV;
-		port->membase = (unsigned char __iomem *)KSEG1ADDR(port->mapbase);
+		port->membase = ioremap(port->mapbase, siu_port_size(port));
 	}
 
 	vr41xx_select_siu_interface(SIU_INTERFACE_RS232C);
@@ -951,7 +899,7 @@ static int __devinit siu_console_init(void)
 
 	for (i = 0; i < num; i++) {
 		port = &siu_uart_ports[i];
-		port->ops = &early_uart_ops;
+		port->ops = &siu_uart_ops;
 	}
 
 	register_console(&siu_console);
@@ -996,8 +944,10 @@ static int siu_probe(struct device *dev)
 		port->dev = dev;
 
 		retval = uart_add_one_port(&siu_uart_driver, port);
-		if (retval)
+		if (retval < 0) {
+			port->dev = NULL;
 			break;
+		}
 	}
 
 	if (i == 0 && retval < 0) {

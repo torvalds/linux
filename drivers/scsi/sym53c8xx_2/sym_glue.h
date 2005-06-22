@@ -142,33 +142,6 @@
 #define scr_to_cpu(dw)	le32_to_cpu(dw)
 
 /*
- *  Remap some status field values.
- */
-#define CAM_REQ_CMP		DID_OK
-#define CAM_SEL_TIMEOUT		DID_NO_CONNECT
-#define CAM_CMD_TIMEOUT		DID_TIME_OUT
-#define CAM_REQ_ABORTED		DID_ABORT
-#define CAM_UNCOR_PARITY	DID_PARITY
-#define CAM_SCSI_BUS_RESET	DID_RESET	
-#define CAM_REQUEUE_REQ		DID_SOFT_ERROR
-#define	CAM_UNEXP_BUSFREE	DID_ERROR
-#define	CAM_SCSI_BUSY		DID_BUS_BUSY
-
-#define	CAM_DEV_NOT_THERE	DID_NO_CONNECT
-#define	CAM_REQ_INVALID		DID_ERROR
-#define	CAM_REQ_TOO_BIG		DID_ERROR
-
-#define	CAM_RESRC_UNAVAIL	DID_ERROR
-
-/*
- *  Remap data direction values.
- */
-#define CAM_DIR_NONE		DMA_NONE
-#define CAM_DIR_IN		DMA_FROM_DEVICE
-#define CAM_DIR_OUT		DMA_TO_DEVICE
-#define CAM_DIR_UNKNOWN		DMA_BIDIRECTIONAL
-
-/*
  *  These ones are used as return code from 
  *  error recovery handlers under Linux.
  */

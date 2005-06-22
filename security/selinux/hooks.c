@@ -1945,6 +1945,7 @@ static int selinux_sb_copy_data(struct file_system_type *type, void *orig, void 
 	} while (*in_end++);
 
 	copy_page(in_save, nosec_save);
+	free_page((unsigned long)nosec_save);
 out:
 	return rc;
 }
@@ -3419,7 +3420,7 @@ static int selinux_nlmsg_perm(struct sock *sk, struct sk_buff *skb)
 	err = selinux_nlmsg_lookup(isec->sclass, nlh->nlmsg_type, &perm);
 	if (err) {
 		if (err == -EINVAL) {
-			audit_log(current->audit_context,
+			audit_log(current->audit_context, AUDIT_SELINUX_ERR,
 				  "SELinux:  unrecognized netlink message"
 				  " type=%hu for sclass=%hu\n",
 				  nlh->nlmsg_type, isec->sclass);

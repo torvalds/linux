@@ -233,11 +233,14 @@ int inet_addr_onlink(struct in_device *in_dev, u32 a, u32 b)
 static void inet_del_ifa(struct in_device *in_dev, struct in_ifaddr **ifap,
 			 int destroy)
 {
+	struct in_ifaddr *promote = NULL;
 	struct in_ifaddr *ifa1 = *ifap;
 
 	ASSERT_RTNL();
 
-	/* 1. Deleting primary ifaddr forces deletion all secondaries */
+	/* 1. Deleting primary ifaddr forces deletion all secondaries 
+	 * unless alias promotion is set
+	 **/
 
 	if (!(ifa1->ifa_flags & IFA_F_SECONDARY)) {
 		struct in_ifaddr *ifa;
@@ -251,11 +254,16 @@ static void inet_del_ifa(struct in_device *in_dev, struct in_ifaddr **ifap,
 				continue;
 			}
 
-			*ifap1 = ifa->ifa_next;
+			if (!IN_DEV_PROMOTE_SECONDARIES(in_dev)) {
+				*ifap1 = ifa->ifa_next;
 
-			rtmsg_ifa(RTM_DELADDR, ifa);
-			notifier_call_chain(&inetaddr_chain, NETDEV_DOWN, ifa);
-			inet_free_ifa(ifa);
+				rtmsg_ifa(RTM_DELADDR, ifa);
+				notifier_call_chain(&inetaddr_chain, NETDEV_DOWN, ifa);
+				inet_free_ifa(ifa);
+			} else {
+				promote = ifa;
+				break;
+			}
 		}
 	}
 
@@ -280,6 +288,13 @@ static void inet_del_ifa(struct in_device *in_dev, struct in_ifaddr **ifap,
 
 		if (!in_dev->ifa_list)
 			inetdev_destroy(in_dev);
+	}
+
+	if (promote && IN_DEV_PROMOTE_SECONDARIES(in_dev)) {
+		/* not sure if we should send a delete notify first? */
+		promote->ifa_flags &= ~IFA_F_SECONDARY;
+		rtmsg_ifa(RTM_NEWADDR, promote);
+		notifier_call_chain(&inetaddr_chain, NETDEV_UP, promote);
 	}
 }
 
@@ -1015,14 +1030,13 @@ static struct notifier_block ip_netdev_notifier = {
 };
 
 static int inet_fill_ifaddr(struct sk_buff *skb, struct in_ifaddr *ifa,
-			    u32 pid, u32 seq, int event)
+			    u32 pid, u32 seq, int event, unsigned int flags)
 {
 	struct ifaddrmsg *ifm;
 	struct nlmsghdr  *nlh;
 	unsigned char	 *b = skb->tail;
 
-	nlh = NLMSG_PUT(skb, pid, seq, event, sizeof(*ifm));
-	if (pid) nlh->nlmsg_flags |= NLM_F_MULTI;
+	nlh = NLMSG_NEW(skb, pid, seq, event, sizeof(*ifm), flags);
 	ifm = NLMSG_DATA(nlh);
 	ifm->ifa_family = AF_INET;
 	ifm->ifa_prefixlen = ifa->ifa_prefixlen;
@@ -1075,7 +1089,7 @@ static int inet_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
 				continue;
 			if (inet_fill_ifaddr(skb, ifa, NETLINK_CB(cb->skb).pid,
 					     cb->nlh->nlmsg_seq,
-					     RTM_NEWADDR) <= 0) {
+					     RTM_NEWADDR, NLM_F_MULTI) <= 0) {
 				rcu_read_unlock();
 				goto done;
 			}
@@ -1098,7 +1112,7 @@ static void rtmsg_ifa(int event, struct in_ifaddr* ifa)
 
 	if (!skb)
 		netlink_set_err(rtnl, 0, RTMGRP_IPV4_IFADDR, ENOBUFS);
-	else if (inet_fill_ifaddr(skb, ifa, 0, 0, event) < 0) {
+	else if (inet_fill_ifaddr(skb, ifa, current->pid, 0, event, 0) < 0) {
 		kfree_skb(skb);
 		netlink_set_err(rtnl, 0, RTMGRP_IPV4_IFADDR, EINVAL);
 	} else {
@@ -1379,6 +1393,15 @@ static struct devinet_sysctl_table {
 			.ctl_name	= NET_IPV4_CONF_FORCE_IGMP_VERSION,
 			.procname	= "force_igmp_version",
 			.data		= &ipv4_devconf.force_igmp_version,
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= &ipv4_doint_and_flush,
+			.strategy	= &ipv4_doint_and_flush_strategy,
+		},
+		{
+			.ctl_name	= NET_IPV4_CONF_PROMOTE_SECONDARIES,
+			.procname	= "promote_secondaries",
+			.data		= &ipv4_devconf.promote_secondaries,
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
 			.proc_handler	= &ipv4_doint_and_flush,

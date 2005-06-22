@@ -285,34 +285,26 @@ struct commit {
 /*
  * external declarations
  */
-extern struct tlock *txLock(tid_t tid, struct inode *ip, struct metapage *mp,
-			    int flag);
+extern int jfs_tlocks_low;
 
-extern struct tlock *txMaplock(tid_t tid, struct inode *ip, int flag);
-
-extern int txCommit(tid_t tid, int nip, struct inode **iplist, int flag);
-
-extern tid_t txBegin(struct super_block *sb, int flag);
-
-extern void txBeginAnon(struct super_block *sb);
-
-extern void txEnd(tid_t tid);
-
-extern void txAbort(tid_t tid, int dirty);
-
-extern struct linelock *txLinelock(struct linelock * tlock);
-
-extern void txFreeMap(struct inode *ip, struct maplock * maplock,
-		      struct tblock * tblk, int maptype);
-
-extern void txEA(tid_t tid, struct inode *ip, dxd_t * oldea, dxd_t * newea);
-
-extern void txFreelock(struct inode *ip);
-
-extern int lmLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
-		 struct tlock * tlck);
-
-extern void txQuiesce(struct super_block *sb);
-
-extern void txResume(struct super_block *sb);
+extern int txInit(void);
+extern void txExit(void);
+extern struct tlock *txLock(tid_t, struct inode *, struct metapage *, int);
+extern struct tlock *txMaplock(tid_t, struct inode *, int);
+extern int txCommit(tid_t, int, struct inode **, int);
+extern tid_t txBegin(struct super_block *, int);
+extern void txBeginAnon(struct super_block *);
+extern void txEnd(tid_t);
+extern void txAbort(tid_t, int);
+extern struct linelock *txLinelock(struct linelock *);
+extern void txFreeMap(struct inode *, struct maplock *, struct tblock *, int);
+extern void txEA(tid_t, struct inode *, dxd_t *, dxd_t *);
+extern void txFreelock(struct inode *);
+extern int lmLog(struct jfs_log *, struct tblock *, struct lrd *,
+		 struct tlock *);
+extern void txQuiesce(struct super_block *);
+extern void txResume(struct super_block *);
+extern void txLazyUnlock(struct tblock *);
+extern int jfs_lazycommit(void *);
+extern int jfs_sync(void *);
 #endif				/* _H_JFS_TXNMGR */

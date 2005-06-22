@@ -232,19 +232,16 @@ static void pcie_device_init(struct pci_dev *parent, struct pcie_device *dev,
 	/* Initialize generic device interface */
 	device = &dev->device;
 	memset(device, 0, sizeof(struct device));
-	INIT_LIST_HEAD(&device->node);
-	INIT_LIST_HEAD(&device->children);
-	INIT_LIST_HEAD(&device->bus_list);
 	device->bus = &pcie_port_bus_type;
 	device->driver = NULL;
-	device->driver_data = NULL; 
+	device->driver_data = NULL;
 	device->release = release_pcie_device;	/* callback to free pcie dev */
-	sprintf(&device->bus_id[0], "pcie%02x", 
+	sprintf(&device->bus_id[0], "pcie%02x",
 		get_descriptor_id(port_type, service_type));
 	device->parent = &parent->dev;
 }
 
-static struct pcie_device* alloc_pcie_device(struct pci_dev *parent, 
+static struct pcie_device* alloc_pcie_device(struct pci_dev *parent,
 	int port_type, int service_type, int irq, int irq_mode)
 {
 	struct pcie_device *device;
@@ -270,9 +267,9 @@ int pcie_port_device_probe(struct pci_dev *dev)
 	pci_read_config_word(dev, pos + PCIE_CAPABILITIES_REG, &reg);
 	type = (reg >> 4) & PORT_TYPE_MASK;
 	if (	type == PCIE_RC_PORT || type == PCIE_SW_UPSTREAM_PORT ||
-		type == PCIE_SW_DOWNSTREAM_PORT )  
+		type == PCIE_SW_DOWNSTREAM_PORT )
 		return 0;
- 
+
 	return -ENODEV;
 }
 
@@ -283,8 +280,8 @@ int pcie_port_device_register(struct pci_dev *dev)
 	u16 reg16;
 
 	/* Get port type */
-	pci_read_config_word(dev, 
-		pci_find_capability(dev, PCI_CAP_ID_EXP) + 
+	pci_read_config_word(dev,
+		pci_find_capability(dev, PCI_CAP_ID_EXP) +
 		PCIE_CAPABILITIES_REG, &reg16);
 	type = (reg16 >> 4) & PORT_TYPE_MASK;
 
@@ -299,11 +296,11 @@ int pcie_port_device_register(struct pci_dev *dev)
 		if (capabilities & (1 << i)) {
 			child = alloc_pcie_device(
 				dev, 		/* parent */
-				type,		/* port type */ 
+				type,		/* port type */
 				i,		/* service type */
 				vectors[i],	/* irq */
 				irq_mode	/* interrupt mode */);
-			if (child) { 
+			if (child) {
 				status = device_register(&child->device);
 				if (status) {
 					kfree(child);
@@ -317,84 +314,78 @@ int pcie_port_device_register(struct pci_dev *dev)
 }
 
 #ifdef CONFIG_PM
-int pcie_port_device_suspend(struct pci_dev *dev, pm_message_t state)
+static int suspend_iter(struct device *dev, void *data)
 {
-	struct list_head 		*head, *tmp;
-	struct device 			*parent, *child;
-	struct device_driver 		*driver;
 	struct pcie_port_service_driver *service_driver;
+	u32 state = (u32)data;
 
-	parent = &dev->dev;
-	head = &parent->children;
-	tmp = head->next;
-	while (head != tmp) {
-		child = container_of(tmp, struct device, node);
-		tmp = tmp->next;
-		if (child->bus != &pcie_port_bus_type)
-			continue;
-		driver = child->driver;
-		if (!driver)
-			continue;
-		service_driver = to_service_driver(driver);
-		if (service_driver->suspend)  
-			service_driver->suspend(to_pcie_device(child), state);
-	}
-	return 0; 
+ 	if ((dev->bus == &pcie_port_bus_type) &&
+ 	    (dev->driver)) {
+ 		service_driver = to_service_driver(dev->driver);
+ 		if (service_driver->suspend)
+ 			service_driver->suspend(to_pcie_device(dev), state);
+  	}
+	return 0;
 }
 
-int pcie_port_device_resume(struct pci_dev *dev) 
-{ 
-	struct list_head 		*head, *tmp;
-	struct device 			*parent, *child;
-	struct device_driver 		*driver;
+int pcie_port_device_suspend(struct pci_dev *dev, u32 state)
+{
+	device_for_each_child(&dev->dev, (void *)state, suspend_iter);
+	return 0;
+}
+
+static int resume_iter(struct device *dev, void *data)
+{
 	struct pcie_port_service_driver *service_driver;
 
-	parent = &dev->dev;
-	head = &parent->children;
-	tmp = head->next;
-	while (head != tmp) {
-		child = container_of(tmp, struct device, node);
-		tmp = tmp->next;
-		if (child->bus != &pcie_port_bus_type)
-			continue;
-		driver = child->driver;
-		if (!driver)
-			continue;
-		service_driver = to_service_driver(driver);
-		if (service_driver->resume)  
-			service_driver->resume(to_pcie_device(child));
+	if ((dev->bus == &pcie_port_bus_type) &&
+	    (dev->driver)) {
+		service_driver = to_service_driver(dev->driver);
+		if (service_driver->resume)
+			service_driver->resume(to_pcie_device(dev));
 	}
-	return 0; 
+	return 0;
+}
 
+int pcie_port_device_resume(struct pci_dev *dev)
+{
+	device_for_each_child(&dev->dev, NULL, resume_iter);
+	return 0;
 }
 #endif
 
+static int remove_iter(struct device *dev, void *data)
+{
+	struct pcie_port_service_driver *service_driver;
+
+	if (dev->bus == &pcie_port_bus_type) {
+		if (dev->driver) {
+			service_driver = to_service_driver(dev->driver);
+			if (service_driver->remove)
+				service_driver->remove(to_pcie_device(dev));
+		}
+		*(unsigned long*)data = (unsigned long)dev;
+		return 1;
+	}
+	return 0;
+}
+
 void pcie_port_device_remove(struct pci_dev *dev)
 {
-	struct list_head 		*head, *tmp;
-	struct device 			*parent, *child;
-	struct device_driver 		*driver;
-	struct pcie_port_service_driver *service_driver;
+	struct device *device;
+	unsigned long device_addr;
 	int interrupt_mode = PCIE_PORT_INTx_MODE;
+	int status;
 
-	parent = &dev->dev;
-	head = &parent->children;
-	tmp = head->next;
-	while (head != tmp) {
-		child = container_of(tmp, struct device, node);
-		tmp = tmp->next;
-		if (child->bus != &pcie_port_bus_type)
-			continue;
-		driver = child->driver;
-		if (driver) { 
-			service_driver = to_service_driver(driver);
-			if (service_driver->remove)  
-				service_driver->remove(to_pcie_device(child));
+	do {
+		status = device_for_each_child(&dev->dev, &device_addr, remove_iter);
+		if (status) {
+			device = (struct device*)device_addr;
+			interrupt_mode = (to_pcie_device(device))->interrupt_mode;
+			put_device(device);
+			device_unregister(device);
 		}
-		interrupt_mode = (to_pcie_device(child))->interrupt_mode;
-		put_device(child);
-		device_unregister(child);
-	}
+	} while (status);
 	/* Switch to INTx by default if MSI enabled */
 	if (interrupt_mode == PCIE_PORT_MSIX_MODE)
 		pci_disable_msix(dev);
@@ -423,7 +414,7 @@ int pcie_port_service_register(struct pcie_port_service_driver *new)
 	new->driver.resume = pcie_port_resume_service;
 
 	return driver_register(&new->driver);
-} 
+}
 
 void pcie_port_service_unregister(struct pcie_port_service_driver *new)
 {

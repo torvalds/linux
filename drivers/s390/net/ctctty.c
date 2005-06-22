@@ -1,5 +1,5 @@
 /*
- * $Id: ctctty.c,v 1.26 2004/08/04 11:06:55 mschwide Exp $
+ * $Id: ctctty.c,v 1.29 2005/04/05 08:50:44 mschwide Exp $
  *
  * CTC / ESCON network driver, tty interface.
  *
@@ -1056,8 +1056,7 @@ ctc_tty_close(struct tty_struct *tty, struct file *filp)
 	info->tty = 0;
 	tty->closing = 0;
 	if (info->blocked_open) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(HZ/2);
+		msleep_interruptible(500);
 		wake_up_interruptible(&info->open_wait);
 	}
 	info->flags &= ~(CTC_ASYNC_NORMAL_ACTIVE | CTC_ASYNC_CLOSING);

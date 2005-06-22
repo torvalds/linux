@@ -4,6 +4,7 @@
 #ifdef CONFIG_HUGETLB_PAGE
 
 #include <linux/mempolicy.h>
+#include <asm/tlbflush.h>
 
 struct ctl_table;
 
@@ -22,18 +23,23 @@ int hugetlb_report_meminfo(char *);
 int hugetlb_report_node_meminfo(int, char *);
 int is_hugepage_mem_enough(size_t);
 unsigned long hugetlb_total_pages(void);
-struct page *follow_huge_addr(struct mm_struct *mm, unsigned long address,
-			      int write);
-struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
-				pmd_t *pmd, int write);
-int is_aligned_hugepage_range(unsigned long addr, unsigned long len);
-int pmd_huge(pmd_t pmd);
 struct page *alloc_huge_page(void);
 void free_huge_page(struct page *);
 
 extern unsigned long max_huge_pages;
 extern const unsigned long hugetlb_zero, hugetlb_infinity;
 extern int sysctl_hugetlb_shm_group;
+
+/* arch callbacks */
+
+pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr);
+pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr);
+struct page *follow_huge_addr(struct mm_struct *mm, unsigned long address,
+			      int write);
+struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
+				pmd_t *pmd, int write);
+int is_aligned_hugepage_range(unsigned long addr, unsigned long len);
+int pmd_huge(pmd_t pmd);
 
 #ifndef ARCH_HAS_HUGEPAGE_ONLY_RANGE
 #define is_hugepage_only_range(mm, addr, len)	0
@@ -46,6 +52,28 @@ extern int sysctl_hugetlb_shm_group;
 	is_aligned_hugepage_range(addr, len)
 #else
 int prepare_hugepage_range(unsigned long addr, unsigned long len);
+#endif
+
+#ifndef ARCH_HAS_SETCLEAR_HUGE_PTE
+#define set_huge_pte_at(mm, addr, ptep, pte)	set_pte_at(mm, addr, ptep, pte)
+#define huge_ptep_get_and_clear(mm, addr, ptep) ptep_get_and_clear(mm, addr, ptep)
+#else
+void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
+		     pte_t *ptep, pte_t pte);
+pte_t huge_ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
+			      pte_t *ptep);
+#endif
+
+#ifndef ARCH_HAS_HUGETLB_PREFAULT_HOOK
+#define hugetlb_prefault_arch_hook(mm)		do { } while (0)
+#else
+void hugetlb_prefault_arch_hook(struct mm_struct *mm);
+#endif
+
+#ifndef ARCH_HAS_HUGETLB_CLEAN_STALE_PGTABLE
+#define hugetlb_clean_stale_pgtable(pte)	BUG()
+#else
+void hugetlb_clean_stale_pgtable(pte_t *pte);
 #endif
 
 #else /* !CONFIG_HUGETLB_PAGE */

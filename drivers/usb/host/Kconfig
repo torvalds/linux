@@ -124,3 +124,14 @@ config USB_SL811_HCD
 	  To compile this driver as a module, choose M here: the
 	  module will be called sl811-hcd.
 
+config USB_SL811_CS
+	tristate "CF/PCMCIA support for SL811HS HCD"
+	depends on USB_SL811_HCD && PCMCIA
+	default N
+	help
+	  Wraps a PCMCIA driver around the SL811HS HCD, supporting the RATOC
+	  REX-CFU1U CF card (often used with PDAs).  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called "sl811_cs".
+

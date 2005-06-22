@@ -77,6 +77,7 @@ cond_syscall(sys_request_key);
 cond_syscall(sys_keyctl);
 cond_syscall(compat_sys_keyctl);
 cond_syscall(compat_sys_socketcall);
+cond_syscall(sys_set_zone_reclaim);
 
 /* arch-specific weak syscall entries */
 cond_syscall(sys_pciconfig_read);

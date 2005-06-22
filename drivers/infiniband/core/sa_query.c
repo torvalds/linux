@@ -587,7 +587,7 @@ int ib_sa_path_rec_get(struct ib_device *device, u8 port_num,
 
 	init_mad(query->sa_query.mad, agent);
 
-	query->sa_query.callback              = ib_sa_path_rec_callback;
+	query->sa_query.callback              = callback ? ib_sa_path_rec_callback : NULL;
 	query->sa_query.release               = ib_sa_path_rec_release;
 	query->sa_query.port                  = port;
 	query->sa_query.mad->mad_hdr.method   = IB_MGMT_METHOD_GET;
@@ -663,7 +663,7 @@ int ib_sa_mcmember_rec_query(struct ib_device *device, u8 port_num,
 
 	init_mad(query->sa_query.mad, agent);
 
-	query->sa_query.callback              = ib_sa_mcmember_rec_callback;
+	query->sa_query.callback              = callback ? ib_sa_mcmember_rec_callback : NULL;
 	query->sa_query.release               = ib_sa_mcmember_rec_release;
 	query->sa_query.port                  = port;
 	query->sa_query.mad->mad_hdr.method   = method;
@@ -698,20 +698,21 @@ static void send_handler(struct ib_mad_agent *agent,
 	if (!query)
 		return;
 
-	switch (mad_send_wc->status) {
-	case IB_WC_SUCCESS:
-		/* No callback -- already got recv */
-		break;
-	case IB_WC_RESP_TIMEOUT_ERR:
-		query->callback(query, -ETIMEDOUT, NULL);
-		break;
-	case IB_WC_WR_FLUSH_ERR:
-		query->callback(query, -EINTR, NULL);
-		break;
-	default:
-		query->callback(query, -EIO, NULL);
-		break;
-	}
+	if (query->callback)
+		switch (mad_send_wc->status) {
+		case IB_WC_SUCCESS:
+			/* No callback -- already got recv */
+			break;
+		case IB_WC_RESP_TIMEOUT_ERR:
+			query->callback(query, -ETIMEDOUT, NULL);
+			break;
+		case IB_WC_WR_FLUSH_ERR:
+			query->callback(query, -EINTR, NULL);
+			break;
+		default:
+			query->callback(query, -EIO, NULL);
+			break;
+		}
 
 	dma_unmap_single(agent->device->dma_device,
 			 pci_unmap_addr(query, mapping),
@@ -736,7 +737,7 @@ static void recv_handler(struct ib_mad_agent *mad_agent,
 	query = idr_find(&query_idr, mad_recv_wc->wc->wr_id);
 	spin_unlock_irqrestore(&idr_lock, flags);
 
-	if (query) {
+	if (query && query->callback) {
 		if (mad_recv_wc->wc->status == IB_WC_SUCCESS)
 			query->callback(query,
 					mad_recv_wc->recv_buf.mad->mad_hdr.status ?

@@ -17,9 +17,6 @@
 #include "base.h"
 #include "power/power.h"
 
-#define to_dev(node) container_of(node, struct device, bus_list)
-#define to_drv(node) container_of(node, struct device_driver, kobj.entry)
-
 #define to_bus_attr(_attr) container_of(_attr, struct bus_attribute, attr)
 #define to_bus(obj) container_of(obj, struct bus_type, subsys.kset.kobj)
 
@@ -36,7 +33,7 @@ drv_attr_show(struct kobject * kobj, struct attribute * attr, char * buf)
 {
 	struct driver_attribute * drv_attr = to_drv_attr(attr);
 	struct device_driver * drv = to_driver(kobj);
-	ssize_t ret = 0;
+	ssize_t ret = -EIO;
 
 	if (drv_attr->show)
 		ret = drv_attr->show(drv, buf);
@@ -49,7 +46,7 @@ drv_attr_store(struct kobject * kobj, struct attribute * attr,
 {
 	struct driver_attribute * drv_attr = to_drv_attr(attr);
 	struct device_driver * drv = to_driver(kobj);
-	ssize_t ret = 0;
+	ssize_t ret = -EIO;
 
 	if (drv_attr->store)
 		ret = drv_attr->store(drv, buf, count);
@@ -135,50 +132,11 @@ static struct kobj_type ktype_bus = {
 
 decl_subsys(bus, &ktype_bus, NULL);
 
-static int __bus_for_each_dev(struct bus_type *bus, struct device *start,
-			      void *data, int (*fn)(struct device *, void *))
+
+static struct device * next_device(struct klist_iter * i)
 {
-	struct list_head *head;
-	struct device *dev;
-	int error = 0;
-
-	if (!(bus = get_bus(bus)))
-		return -EINVAL;
-
-	head = &bus->devices.list;
-	dev = list_prepare_entry(start, head, bus_list);
-	list_for_each_entry_continue(dev, head, bus_list) {
-		get_device(dev);
-		error = fn(dev, data);
-		put_device(dev);
-		if (error)
-			break;
-	}
-	put_bus(bus);
-	return error;
-}
-
-static int __bus_for_each_drv(struct bus_type *bus, struct device_driver *start,
-			      void * data, int (*fn)(struct device_driver *, void *))
-{
-	struct list_head *head;
-	struct device_driver *drv;
-	int error = 0;
-
-	if (!(bus = get_bus(bus)))
-		return -EINVAL;
-
-	head = &bus->drivers.list;
-	drv = list_prepare_entry(start, head, kobj.entry);
-	list_for_each_entry_continue(drv, head, kobj.entry) {
-		get_driver(drv);
-		error = fn(drv, data);
-		put_driver(drv);
-		if (error)
-			break;
-	}
-	put_bus(bus);
-	return error;
+	struct klist_node * n = klist_next(i);
+	return n ? container_of(n, struct device, knode_bus) : NULL;
 }
 
 /**
@@ -204,12 +162,27 @@ static int __bus_for_each_drv(struct bus_type *bus, struct device_driver *start,
 int bus_for_each_dev(struct bus_type * bus, struct device * start,
 		     void * data, int (*fn)(struct device *, void *))
 {
-	int ret;
+	struct klist_iter i;
+	struct device * dev;
+	int error = 0;
 
-	down_read(&bus->subsys.rwsem);
-	ret = __bus_for_each_dev(bus, start, data, fn);
-	up_read(&bus->subsys.rwsem);
-	return ret;
+	if (!bus)
+		return -EINVAL;
+
+	klist_iter_init_node(&bus->klist_devices, &i,
+			     (start ? &start->knode_bus : NULL));
+	while ((dev = next_device(&i)) && !error)
+		error = fn(dev, data);
+	klist_iter_exit(&i);
+	return error;
+}
+
+
+
+static struct device_driver * next_driver(struct klist_iter * i)
+{
+	struct klist_node * n = klist_next(i);
+	return n ? container_of(n, struct device_driver, knode_bus) : NULL;
 }
 
 /**
@@ -235,180 +208,19 @@ int bus_for_each_dev(struct bus_type * bus, struct device * start,
 int bus_for_each_drv(struct bus_type * bus, struct device_driver * start,
 		     void * data, int (*fn)(struct device_driver *, void *))
 {
-	int ret;
+	struct klist_iter i;
+	struct device_driver * drv;
+	int error = 0;
 
-	down_read(&bus->subsys.rwsem);
-	ret = __bus_for_each_drv(bus, start, data, fn);
-	up_read(&bus->subsys.rwsem);
-	return ret;
-}
+	if (!bus)
+		return -EINVAL;
 
-/**
- *	device_bind_driver - bind a driver to one device.
- *	@dev:	device.
- *
- *	Allow manual attachment of a driver to a device.
- *	Caller must have already set @dev->driver.
- *
- *	Note that this does not modify the bus reference count
- *	nor take the bus's rwsem. Please verify those are accounted
- *	for before calling this. (It is ok to call with no other effort
- *	from a driver's probe() method.)
- */
-
-void device_bind_driver(struct device * dev)
-{
-	pr_debug("bound device '%s' to driver '%s'\n",
-		 dev->bus_id, dev->driver->name);
-	list_add_tail(&dev->driver_list, &dev->driver->devices);
-	sysfs_create_link(&dev->driver->kobj, &dev->kobj,
-			  kobject_name(&dev->kobj));
-	sysfs_create_link(&dev->kobj, &dev->driver->kobj, "driver");
-}
-
-
-/**
- *	driver_probe_device - attempt to bind device & driver.
- *	@drv:	driver.
- *	@dev:	device.
- *
- *	First, we call the bus's match function, if one present, which
- *	should compare the device IDs the driver supports with the
- *	device IDs of the device. Note we don't do this ourselves
- *	because we don't know the format of the ID structures, nor what
- *	is to be considered a match and what is not.
- *
- *	If we find a match, we call @drv->probe(@dev) if it exists, and
- *	call device_bind_driver() above.
- */
-int driver_probe_device(struct device_driver * drv, struct device * dev)
-{
-	if (drv->bus->match && !drv->bus->match(dev, drv))
-		return -ENODEV;
-
-	dev->driver = drv;
-	if (drv->probe) {
-		int error = drv->probe(dev);
-		if (error) {
-			dev->driver = NULL;
-			return error;
-		}
-	}
-
-	device_bind_driver(dev);
-	return 0;
-}
-
-
-/**
- *	device_attach - try to attach device to a driver.
- *	@dev:	device.
- *
- *	Walk the list of drivers that the bus has and call
- *	driver_probe_device() for each pair. If a compatible
- *	pair is found, break out and return.
- */
-int device_attach(struct device * dev)
-{
- 	struct bus_type * bus = dev->bus;
-	struct list_head * entry;
-	int error;
-
-	if (dev->driver) {
-		device_bind_driver(dev);
-		return 1;
-	}
-
-	if (bus->match) {
-		list_for_each(entry, &bus->drivers.list) {
-			struct device_driver * drv = to_drv(entry);
-			error = driver_probe_device(drv, dev);
-			if (!error)
-				/* success, driver matched */
-				return 1;
-			if (error != -ENODEV && error != -ENXIO)
-				/* driver matched but the probe failed */
-				printk(KERN_WARNING
-				    "%s: probe of %s failed with error %d\n",
-				    drv->name, dev->bus_id, error);
-		}
-	}
-
-	return 0;
-}
-
-
-/**
- *	driver_attach - try to bind driver to devices.
- *	@drv:	driver.
- *
- *	Walk the list of devices that the bus has on it and try to
- *	match the driver with each one.  If driver_probe_device()
- *	returns 0 and the @dev->driver is set, we've found a
- *	compatible pair.
- *
- *	Note that we ignore the -ENODEV error from driver_probe_device(),
- *	since it's perfectly valid for a driver not to bind to any devices.
- */
-void driver_attach(struct device_driver * drv)
-{
-	struct bus_type * bus = drv->bus;
-	struct list_head * entry;
-	int error;
-
-	if (!bus->match)
-		return;
-
-	list_for_each(entry, &bus->devices.list) {
-		struct device * dev = container_of(entry, struct device, bus_list);
-		if (!dev->driver) {
-			error = driver_probe_device(drv, dev);
-			if (error && (error != -ENODEV))
-				/* driver matched but the probe failed */
-				printk(KERN_WARNING
-				    "%s: probe of %s failed with error %d\n",
-				    drv->name, dev->bus_id, error);
-		}
-	}
-}
-
-
-/**
- *	device_release_driver - manually detach device from driver.
- *	@dev:	device.
- *
- *	Manually detach device from driver.
- *	Note that this is called without incrementing the bus
- *	reference count nor taking the bus's rwsem. Be sure that
- *	those are accounted for before calling this function.
- */
-
-void device_release_driver(struct device * dev)
-{
-	struct device_driver * drv = dev->driver;
-	if (drv) {
-		sysfs_remove_link(&drv->kobj, kobject_name(&dev->kobj));
-		sysfs_remove_link(&dev->kobj, "driver");
-		list_del_init(&dev->driver_list);
-		device_detach_shutdown(dev);
-		if (drv->remove)
-			drv->remove(dev);
-		dev->driver = NULL;
-	}
-}
-
-
-/**
- *	driver_detach - detach driver from all devices it controls.
- *	@drv:	driver.
- */
-
-static void driver_detach(struct device_driver * drv)
-{
-	while (!list_empty(&drv->devices)) {
-		struct device * dev = container_of(drv->devices.next, struct device, driver_list);
-		device_release_driver(dev);
-	}
+	klist_iter_init_node(&bus->klist_drivers, &i,
+			     start ? &start->knode_bus : NULL);
+	while ((drv = next_driver(&i)) && !error)
+		error = fn(drv, data);
+	klist_iter_exit(&i);
+	return error;
 }
 
 static int device_add_attrs(struct bus_type * bus, struct device * dev)
@@ -457,14 +269,15 @@ int bus_add_device(struct device * dev)
 	int error = 0;
 
 	if (bus) {
-		down_write(&dev->bus->subsys.rwsem);
 		pr_debug("bus %s: add device %s\n", bus->name, dev->bus_id);
-		list_add_tail(&dev->bus_list, &dev->bus->devices.list);
-		device_attach(dev);
-		up_write(&dev->bus->subsys.rwsem);
-		device_add_attrs(bus, dev);
-		sysfs_create_link(&bus->devices.kobj, &dev->kobj, dev->bus_id);
-		sysfs_create_link(&dev->kobj, &dev->bus->subsys.kset.kobj, "bus");
+		error = device_attach(dev);
+		klist_add_tail(&bus->klist_devices, &dev->knode_bus);
+		if (error >= 0)
+			error = device_add_attrs(bus, dev);
+		if (!error) {
+			sysfs_create_link(&bus->devices.kobj, &dev->kobj, dev->bus_id);
+			sysfs_create_link(&dev->kobj, &dev->bus->subsys.kset.kobj, "bus");
+		}
 	}
 	return error;
 }
@@ -484,11 +297,9 @@ void bus_remove_device(struct device * dev)
 		sysfs_remove_link(&dev->kobj, "bus");
 		sysfs_remove_link(&dev->bus->devices.kobj, dev->bus_id);
 		device_remove_attrs(dev->bus, dev);
-		down_write(&dev->bus->subsys.rwsem);
+		klist_remove(&dev->knode_bus);
 		pr_debug("bus %s: remove device %s\n", dev->bus->name, dev->bus_id);
 		device_release_driver(dev);
-		list_del_init(&dev->bus_list);
-		up_write(&dev->bus->subsys.rwsem);
 		put_bus(dev->bus);
 	}
 }
@@ -548,9 +359,8 @@ int bus_add_driver(struct device_driver * drv)
 			return error;
 		}
 
-		down_write(&bus->subsys.rwsem);
 		driver_attach(drv);
-		up_write(&bus->subsys.rwsem);
+		klist_add_tail(&bus->klist_drivers, &drv->knode_bus);
 		module_add_driver(drv->owner, drv);
 
 		driver_add_attrs(bus, drv);
@@ -572,10 +382,9 @@ void bus_remove_driver(struct device_driver * drv)
 {
 	if (drv->bus) {
 		driver_remove_attrs(drv->bus, drv);
-		down_write(&drv->bus->subsys.rwsem);
+		klist_remove(&drv->knode_bus);
 		pr_debug("bus %s: remove driver %s\n", drv->bus->name, drv->name);
 		driver_detach(drv);
-		up_write(&drv->bus->subsys.rwsem);
 		module_remove_driver(drv);
 		kobject_unregister(&drv->kobj);
 		put_bus(drv->bus);
@@ -588,7 +397,7 @@ static int bus_rescan_devices_helper(struct device *dev, void *data)
 {
 	int *count = data;
 
-	if (!dev->driver && device_attach(dev))
+	if (!dev->driver && (device_attach(dev) > 0))
 		(*count)++;
 
 	return 0;
@@ -608,9 +417,7 @@ int bus_rescan_devices(struct bus_type * bus)
 {
 	int count = 0;
 
-	down_write(&bus->subsys.rwsem);
-	__bus_for_each_dev(bus, NULL, &count, bus_rescan_devices_helper);
-	up_write(&bus->subsys.rwsem);
+	bus_for_each_dev(bus, NULL, &count, bus_rescan_devices_helper);
 
 	return count;
 }
@@ -711,6 +518,9 @@ int bus_register(struct bus_type * bus)
 	retval = kset_register(&bus->drivers);
 	if (retval)
 		goto bus_drivers_fail;
+
+	klist_init(&bus->klist_devices);
+	klist_init(&bus->klist_drivers);
 	bus_add_attrs(bus);
 
 	pr_debug("bus type '%s' registered\n", bus->name);
@@ -749,12 +559,6 @@ int __init buses_init(void)
 
 EXPORT_SYMBOL_GPL(bus_for_each_dev);
 EXPORT_SYMBOL_GPL(bus_for_each_drv);
-
-EXPORT_SYMBOL_GPL(driver_probe_device);
-EXPORT_SYMBOL_GPL(device_bind_driver);
-EXPORT_SYMBOL_GPL(device_release_driver);
-EXPORT_SYMBOL_GPL(device_attach);
-EXPORT_SYMBOL_GPL(driver_attach);
 
 EXPORT_SYMBOL_GPL(bus_add_device);
 EXPORT_SYMBOL_GPL(bus_remove_device);

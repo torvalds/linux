@@ -78,6 +78,9 @@ config PLAT_OAKS32R
 config PLAT_MAPPI2
        bool "Mappi-II(M3A-ZA36/M3A-ZA52)"
 
+config PLAT_MAPPI3
+       bool "Mappi-III(M3A-2170)"
+
 endchoice
 
 choice
@@ -134,6 +137,7 @@ config BUS_CLOCK
 	int "Bus Clock [Hz] (integer)"
 	default "70000000" if PLAT_MAPPI
 	default "25000000" if PLAT_USRV
+	default "50000000" if PLAT_MAPPI3
 	default "50000000" if PLAT_M32700UT
 	default "50000000" if PLAT_OPSPUT
 	default "33333333" if PLAT_OAKS32R
@@ -149,7 +153,7 @@ config CPU_LITTLE_ENDIAN
 
 config MEMORY_START
 	hex "Physical memory start address (hex)"
-	default "08000000" if PLAT_MAPPI || PLAT_MAPPI2
+	default "08000000" if PLAT_MAPPI || PLAT_MAPPI2 || PLAT_MAPPI3
 	default "08000000" if PLAT_USRV
 	default "08000000" if PLAT_M32700UT
 	default "08000000" if PLAT_OPSPUT
@@ -157,6 +161,7 @@ config MEMORY_START
 
 config MEMORY_SIZE
 	hex "Physical memory size (hex)"
+	default "08000000" if PLAT_MAPPI3
 	default "04000000" if PLAT_MAPPI || PLAT_MAPPI2
 	default "02000000" if PLAT_USRV
 	default "01000000" if PLAT_M32700UT

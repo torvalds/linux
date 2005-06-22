@@ -15,7 +15,5 @@ static int seagate_st0x_queue_command(Scsi_Cmnd *, void (*done)(Scsi_Cmnd *));
 static int seagate_st0x_abort(Scsi_Cmnd *);
 static const char *seagate_st0x_info(struct Scsi_Host *);
 static int seagate_st0x_bus_reset(Scsi_Cmnd *);
-static int seagate_st0x_device_reset(Scsi_Cmnd *);
-static int seagate_st0x_host_reset(Scsi_Cmnd *);
 
 #endif /* _SEAGATE_H */

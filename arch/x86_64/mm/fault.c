@@ -234,6 +234,8 @@ static noinline void pgtable_bad(unsigned long address, struct pt_regs *regs,
 
 /*
  * Handle a fault on the vmalloc or module mapping area
+ *
+ * This assumes no large pages in there.
  */
 static int vmalloc_fault(unsigned long address)
 {
@@ -272,7 +274,10 @@ static int vmalloc_fault(unsigned long address)
 	if (!pte_present(*pte_ref))
 		return -1;
 	pte = pte_offset_kernel(pmd, address);
-	if (!pte_present(*pte) || pte_page(*pte) != pte_page(*pte_ref))
+	/* Don't use pte_page here, because the mappings can point
+	   outside mem_map, and the NUMA hash lookup cannot handle
+	   that. */
+	if (!pte_present(*pte) || pte_pfn(*pte) != pte_pfn(*pte_ref))
 		BUG();
 	__flush_tlb_all();
 	return 0;
@@ -345,8 +350,10 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long error_code)
 	 * (error_code & 4) == 0, and that the fault was not a
 	 * protection error (error_code & 1) == 0.
 	 */
-	if (unlikely(address >= TASK_SIZE)) {
-		if (!(error_code & 5)) {
+	if (unlikely(address >= TASK_SIZE64)) {
+		if (!(error_code & 5) &&
+		      ((address >= VMALLOC_START && address < VMALLOC_END) ||
+		       (address >= MODULES_VADDR && address < MODULES_END))) {
 			if (vmalloc_fault(address) < 0)
 				goto bad_area_nosemaphore;
 			return;

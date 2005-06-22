@@ -8,6 +8,8 @@
 
 #include "uml-config.h"
 #include "user_constants.h"
+#include "sysdep/faultinfo.h"
+#include "choose-mode.h"
 
 #define MAX_REG_NR (UM_FRAME_SIZE / sizeof(unsigned long))
 #define MAX_REG_OFFSET (UM_FRAME_SIZE)
@@ -31,7 +33,6 @@ extern int sysemu_supported;
 #ifdef UML_CONFIG_MODE_SKAS
 
 #include "skas_ptregs.h"
-#include "sysdep/faultinfo.h"
 
 #define REGS_IP(r) ((r)[HOST_IP])
 #define REGS_SP(r) ((r)[HOST_SP])
@@ -58,8 +59,6 @@ extern int sysemu_supported;
 #ifndef PTRACE_SYSEMU_SINGLESTEP
 #define PTRACE_SYSEMU_SINGLESTEP 32
 #endif
-
-#include "choose-mode.h"
 
 union uml_pt_regs {
 #ifdef UML_CONFIG_MODE_TT

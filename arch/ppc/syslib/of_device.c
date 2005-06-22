@@ -161,7 +161,7 @@ void of_unregister_driver(struct of_platform_driver *drv)
 }
 
 
-static ssize_t dev_show_devspec(struct device *dev, char *buf)
+static ssize_t dev_show_devspec(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct of_device *ofdev;
 

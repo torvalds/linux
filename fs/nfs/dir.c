@@ -528,19 +528,39 @@ static inline void nfs_renew_times(struct dentry * dentry)
 	dentry->d_time = jiffies;
 }
 
+/*
+ * Return the intent data that applies to this particular path component
+ *
+ * Note that the current set of intents only apply to the very last
+ * component of the path.
+ * We check for this using LOOKUP_CONTINUE and LOOKUP_PARENT.
+ */
+static inline unsigned int nfs_lookup_check_intent(struct nameidata *nd, unsigned int mask)
+{
+	if (nd->flags & (LOOKUP_CONTINUE|LOOKUP_PARENT))
+		return 0;
+	return nd->flags & mask;
+}
+
+/*
+ * Inode and filehandle revalidation for lookups.
+ *
+ * We force revalidation in the cases where the VFS sets LOOKUP_REVAL,
+ * or if the intent information indicates that we're about to open this
+ * particular file and the "nocto" mount flag is not set.
+ *
+ */
 static inline
 int nfs_lookup_verify_inode(struct inode *inode, struct nameidata *nd)
 {
 	struct nfs_server *server = NFS_SERVER(inode);
 
 	if (nd != NULL) {
-		int ndflags = nd->flags;
 		/* VFS wants an on-the-wire revalidation */
-		if (ndflags & LOOKUP_REVAL)
+		if (nd->flags & LOOKUP_REVAL)
 			goto out_force;
 		/* This is an open(2) */
-		if ((ndflags & LOOKUP_OPEN) &&
-				!(ndflags & LOOKUP_CONTINUE) &&
+		if (nfs_lookup_check_intent(nd, LOOKUP_OPEN) != 0 &&
 				!(server->flags & NFS_MOUNT_NOCTO))
 			goto out_force;
 	}
@@ -560,12 +580,8 @@ static inline
 int nfs_neg_need_reval(struct inode *dir, struct dentry *dentry,
 		       struct nameidata *nd)
 {
-	int ndflags = 0;
-
-	if (nd)
-		ndflags = nd->flags;
 	/* Don't revalidate a negative dentry if we're creating a new file */
-	if ((ndflags & LOOKUP_CREATE) && !(ndflags & LOOKUP_CONTINUE))
+	if (nd != NULL && nfs_lookup_check_intent(nd, LOOKUP_CREATE) != 0)
 		return 0;
 	return !nfs_check_verifier(dir, dentry);
 }
@@ -700,12 +716,16 @@ struct dentry_operations nfs_dentry_operations = {
 	.d_iput		= nfs_dentry_iput,
 };
 
+/*
+ * Use intent information to check whether or not we're going to do
+ * an O_EXCL create using this path component.
+ */
 static inline
 int nfs_is_exclusive_create(struct inode *dir, struct nameidata *nd)
 {
 	if (NFS_PROTO(dir)->version == 2)
 		return 0;
-	if (!nd || (nd->flags & LOOKUP_CONTINUE) || !(nd->flags & LOOKUP_CREATE))
+	if (nd == NULL || nfs_lookup_check_intent(nd, LOOKUP_CREATE) == 0)
 		return 0;
 	return (nd->intent.open.flags & O_EXCL) != 0;
 }
@@ -772,12 +792,13 @@ struct dentry_operations nfs4_dentry_operations = {
 	.d_iput		= nfs_dentry_iput,
 };
 
+/*
+ * Use intent information to determine whether we need to substitute
+ * the NFSv4-style stateful OPEN for the LOOKUP call
+ */
 static int is_atomic_open(struct inode *dir, struct nameidata *nd)
 {
-	if (!nd)
-		return 0;
-	/* Check that we are indeed trying to open this file */
-	if ((nd->flags & LOOKUP_CONTINUE) || !(nd->flags & LOOKUP_OPEN))
+	if (nd == NULL || nfs_lookup_check_intent(nd, LOOKUP_OPEN) == 0)
 		return 0;
 	/* NFS does not (yet) have a stateful open for directories */
 	if (nd->flags & LOOKUP_DIRECTORY)

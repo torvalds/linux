@@ -223,6 +223,22 @@ DECLARE_SNMP_STAT(struct sctp_mib, sctp_statistics);
 extern int sctp_debug_flag;
 #define SCTP_DEBUG_PRINTK(whatever...) \
 	((void) (sctp_debug_flag && printk(KERN_DEBUG whatever)))
+#define SCTP_DEBUG_PRINTK_IPADDR(lead, trail, leadparm, saddr, otherparms...) \
+	if (sctp_debug_flag) { \
+		if (saddr->sa.sa_family == AF_INET6) { \
+			printk(KERN_DEBUG \
+			       lead "%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x" trail, \
+			       leadparm, \
+			       NIP6(saddr->v6.sin6_addr), \
+			       otherparms); \
+		} else { \
+			printk(KERN_DEBUG \
+			       lead "%u.%u.%u.%u" trail, \
+			       leadparm, \
+			       NIPQUAD(saddr->v4.sin_addr.s_addr), \
+			       otherparms); \
+		} \
+	}
 #define SCTP_ENABLE_DEBUG { sctp_debug_flag = 1; }
 #define SCTP_DISABLE_DEBUG { sctp_debug_flag = 0; }
 
@@ -236,6 +252,7 @@ extern int sctp_debug_flag;
 #else	/* SCTP_DEBUG */
 
 #define SCTP_DEBUG_PRINTK(whatever...)
+#define SCTP_DEBUG_PRINTK_IPADDR(whatever...)
 #define SCTP_ENABLE_DEBUG
 #define SCTP_DISABLE_DEBUG
 #define SCTP_ASSERT(expr, str, func)

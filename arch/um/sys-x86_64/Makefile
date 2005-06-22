@@ -14,10 +14,10 @@ obj-$(CONFIG_MODULES) += module.o um_module.o
 
 USER_OBJS := ptrace_user.o sigcontext.o
 
-include arch/um/scripts/Makefile.rules
-
 SYMLINKS = bitops.c csum-copy.S csum-partial.c csum-wrappers.c memcpy.S \
 	semaphore.c thunk.S module.c
+
+include arch/um/scripts/Makefile.rules
 
 bitops.c-dir = lib
 csum-copy.S-dir = lib
@@ -28,6 +28,6 @@ semaphore.c-dir = kernel
 thunk.S-dir = lib
 module.c-dir = kernel
 
-CFLAGS_csum-partial.o := -Dcsum_partial=arch_csum_partial
-
 subdir- := util
+
+include arch/um/scripts/Makefile.unmap

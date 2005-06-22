@@ -406,14 +406,12 @@ void line_disable(struct tty_struct *tty, int current_irq)
 	if(line->driver->read_irq == current_irq)
 		free_irq_later(line->driver->read_irq, tty);
 	else {
-		free_irq_by_irq_and_dev(line->driver->read_irq, tty);
 		free_irq(line->driver->read_irq, tty);
 	}
 
 	if(line->driver->write_irq == current_irq)
 		free_irq_later(line->driver->write_irq, tty);
 	else {
-		free_irq_by_irq_and_dev(line->driver->write_irq, tty);
 		free_irq(line->driver->write_irq, tty);
 	}
 
@@ -758,7 +756,6 @@ static void unregister_winch(struct tty_struct *tty)
         if(winch->pid != -1)
                 os_kill_process(winch->pid, 1);
 
-        free_irq_by_irq_and_dev(WINCH_IRQ, winch);
         free_irq(WINCH_IRQ, winch);
         list_del(&winch->list);
         kfree(winch);

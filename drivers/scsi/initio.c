@@ -3014,7 +3014,11 @@ static int i91u_bus_reset(struct scsi_cmnd * SCpnt)
 	HCS *pHCB;
 
 	pHCB = (HCS *) SCpnt->device->host->base;
+
+	spin_lock_irq(SCpnt->device->host->host_lock);
 	tul_reset_scsi(pHCB, 0);
+	spin_unlock_irq(SCpnt->device->host->host_lock);
+
 	return SUCCESS;
 }
 

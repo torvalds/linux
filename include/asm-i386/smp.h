@@ -51,7 +51,7 @@ extern u8 x86_cpu_to_apicid[];
  * from the initial startup. We map APIC_BASE very early in page_setup(),
  * so this is correct in the x86 case.
  */
-#define __smp_processor_id() (current_thread_info()->cpu)
+#define raw_smp_processor_id() (current_thread_info()->cpu)
 
 extern cpumask_t cpu_callout_map;
 extern cpumask_t cpu_callin_map;

@@ -47,6 +47,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/ide.h>
+#include <linux/devfs_fs_kernel.h>
 #include <linux/spinlock.h>
 #include <linux/kmod.h>
 #include <linux/pci.h>
@@ -696,13 +697,13 @@ static int wait_hwif_ready(ide_hwif_t *hwif)
 	SELECT_DRIVE(&hwif->drives[0]);
 	hwif->OUTB(8, hwif->io_ports[IDE_CONTROL_OFFSET]);
 	mdelay(2);
-	rc = ide_wait_not_busy(hwif, 10000);
+	rc = ide_wait_not_busy(hwif, 35000);
 	if (rc)
 		return rc;
 	SELECT_DRIVE(&hwif->drives[1]);
 	hwif->OUTB(8, hwif->io_ports[IDE_CONTROL_OFFSET]);
 	mdelay(2);
-	rc = ide_wait_not_busy(hwif, 10000);
+	rc = ide_wait_not_busy(hwif, 35000);
 
 	/* Exit function with master reselected (let's be sane) */
 	SELECT_DRIVE(&hwif->drives[0]);
@@ -918,7 +919,7 @@ int probe_hwif_init_with_fixup(ide_hwif_t *hwif, void (*fixup)(ide_hwif_t *hwif)
 			   want them on default or a new "empty" class
 			   for hotplug reprobing ? */
 			if (drive->present) {
-				ata_attach(drive);
+				device_register(&drive->gendev);
 			}
 		}
 	}
@@ -1279,9 +1280,50 @@ void ide_init_disk(struct gendisk *disk, ide_drive_t *drive)
 
 EXPORT_SYMBOL_GPL(ide_init_disk);
 
+static void ide_remove_drive_from_hwgroup(ide_drive_t *drive)
+{
+	ide_hwgroup_t *hwgroup = drive->hwif->hwgroup;
+
+	if (drive == drive->next) {
+		/* special case: last drive from hwgroup. */
+		BUG_ON(hwgroup->drive != drive);
+		hwgroup->drive = NULL;
+	} else {
+		ide_drive_t *walk;
+
+		walk = hwgroup->drive;
+		while (walk->next != drive)
+			walk = walk->next;
+		walk->next = drive->next;
+		if (hwgroup->drive == drive) {
+			hwgroup->drive = drive->next;
+			hwgroup->hwif = hwgroup->drive->hwif;
+		}
+	}
+	BUG_ON(hwgroup->drive == drive);
+}
+
 static void drive_release_dev (struct device *dev)
 {
 	ide_drive_t *drive = container_of(dev, ide_drive_t, gendev);
+
+	spin_lock_irq(&ide_lock);
+	if (drive->devfs_name[0] != '\0') {
+		devfs_remove(drive->devfs_name);
+		drive->devfs_name[0] = '\0';
+	}
+	ide_remove_drive_from_hwgroup(drive);
+	if (drive->id != NULL) {
+		kfree(drive->id);
+		drive->id = NULL;
+	}
+	drive->present = 0;
+	/* Messed up locking ... */
+	spin_unlock_irq(&ide_lock);
+	blk_cleanup_queue(drive->queue);
+	spin_lock_irq(&ide_lock);
+	drive->queue = NULL;
+	spin_unlock_irq(&ide_lock);
 
 	up(&drive->gendev_rel_sem);
 }
@@ -1306,7 +1348,6 @@ static void init_gendisk (ide_hwif_t *hwif)
 		drive->gendev.driver_data = drive;
 		drive->gendev.release = drive_release_dev;
 		if (drive->present) {
-			device_register(&drive->gendev);
 			sprintf(drive->devfs_name, "ide/host%d/bus%d/target%d/lun%d",
 				(hwif->channel && hwif->mate) ?
 				hwif->mate->index : hwif->index,
@@ -1412,7 +1453,7 @@ int ideprobe_init (void)
 				hwif->chipset = ide_generic;
 			for (unit = 0; unit < MAX_DRIVES; ++unit)
 				if (hwif->drives[unit].present)
-					ata_attach(&hwif->drives[unit]);
+					device_register(&hwif->drives[unit].gendev);
 		}
 	}
 	return 0;

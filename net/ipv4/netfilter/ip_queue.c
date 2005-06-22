@@ -3,6 +3,7 @@
  * communicating with userspace via netlink.
  *
  * (C) 2000-2002 James Morris <jmorris@intercode.com.au>
+ * (C) 2003-2005 Netfilter Core Team <coreteam@netfilter.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -17,6 +18,7 @@
  * 2005-01-10: Added /proc counter for dropped packets; fixed so
  *             packets aren't delivered to user space if they're going 
  *             to be dropped. 
+ * 2005-05-26: local_bh_{disable,enable} around nf_reinject (Harald Welte)
  *
  */
 #include <linux/module.h>
@@ -71,7 +73,15 @@ static DECLARE_MUTEX(ipqnl_sem);
 static void
 ipq_issue_verdict(struct ipq_queue_entry *entry, int verdict)
 {
+	/* TCP input path (and probably other bits) assume to be called
+	 * from softirq context, not from syscall, like ipq_issue_verdict is
+	 * called.  TCP input path deadlocks with locks taken from timer
+	 * softirq, e.g.  We therefore emulate this by local_bh_disable() */
+
+	local_bh_disable();
 	nf_reinject(entry->skb, entry->info, verdict);
+	local_bh_enable();
+
 	kfree(entry);
 }
 

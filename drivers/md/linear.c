@@ -217,8 +217,7 @@ static int linear_run (mddev_t *mddev)
 	return 0;
 
 out:
-	if (conf)
-		kfree(conf);
+	kfree(conf);
 	return 1;
 }
 
@@ -269,9 +268,8 @@ static int linear_make_request (request_queue_t *q, struct bio *bio)
 		 * split it.
 		 */
 		struct bio_pair *bp;
-		bp = bio_split(bio, bio_split_pool, 
-			       (bio->bi_sector + (bio->bi_size >> 9) -
-				(tmp_dev->offset + tmp_dev->size))<<1);
+		bp = bio_split(bio, bio_split_pool,
+			       ((tmp_dev->offset + tmp_dev->size)<<1) - bio->bi_sector);
 		if (linear_make_request(q, &bp->bio1))
 			generic_make_request(&bp->bio1);
 		if (linear_make_request(q, &bp->bio2))

@@ -798,7 +798,7 @@ lpfc_queuecommand(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 }
 
 static int
-lpfc_abort_handler(struct scsi_cmnd *cmnd)
+__lpfc_abort_handler(struct scsi_cmnd *cmnd)
 {
 	struct lpfc_hba *phba =
 			(struct lpfc_hba *)cmnd->device->host->hostdata[0];
@@ -918,7 +918,17 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 }
 
 static int
-lpfc_reset_lun_handler(struct scsi_cmnd *cmnd)
+lpfc_abort_handler(struct scsi_cmnd *cmnd)
+{
+	int rc;
+	spin_lock_irq(cmnd->device->host->host_lock);
+	rc = __lpfc_abort_handler(cmnd);
+	spin_unlock_irq(cmnd->device->host->host_lock);
+	return rc;
+}
+
+static int
+__lpfc_reset_lun_handler(struct scsi_cmnd *cmnd)
 {
 	struct Scsi_Host *shost = cmnd->device->host;
 	struct lpfc_hba *phba = (struct lpfc_hba *)shost->hostdata[0];
@@ -1030,11 +1040,21 @@ out:
 	return ret;
 }
 
+static int
+lpfc_reset_lun_handler(struct scsi_cmnd *cmnd)
+{
+	int rc;
+	spin_lock_irq(cmnd->device->host->host_lock);
+	rc = __lpfc_reset_lun_handler(cmnd);
+	spin_unlock_irq(cmnd->device->host->host_lock);
+	return rc;
+}
+
 /*
  * Note: midlayer calls this function with the host_lock held
  */
 static int
-lpfc_reset_bus_handler(struct scsi_cmnd *cmnd)
+__lpfc_reset_bus_handler(struct scsi_cmnd *cmnd)
 {
 	struct Scsi_Host *shost = cmnd->device->host;
 	struct lpfc_hba *phba = (struct lpfc_hba *)shost->hostdata[0];
@@ -1121,6 +1141,16 @@ lpfc_reset_bus_handler(struct scsi_cmnd *cmnd)
 			phba->brd_no, ret);
 out:
 	return ret;
+}
+
+static int
+lpfc_reset_bus_handler(struct scsi_cmnd *cmnd)
+{
+	int rc;
+	spin_lock_irq(cmnd->device->host->host_lock);
+	rc = __lpfc_reset_bus_handler(cmnd);
+	spin_unlock_irq(cmnd->device->host->host_lock);
+	return rc;
 }
 
 static int

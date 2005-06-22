@@ -1004,7 +1004,7 @@ __generic_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
 		if (pos < size) {
 			retval = generic_file_direct_IO(READ, iocb,
 						iov, pos, nr_segs);
-			if (retval >= 0 && !is_sync_kiocb(iocb))
+			if (retval > 0 && !is_sync_kiocb(iocb))
 				retval = -EIOCBQUEUED;
 			if (retval > 0)
 				*ppos = pos + retval;
@@ -1968,6 +1968,7 @@ generic_file_buffered_write(struct kiocb *iocb, const struct iovec *iov,
 	do {
 		unsigned long index;
 		unsigned long offset;
+		unsigned long maxlen;
 		size_t copied;
 
 		offset = (pos & (PAGE_CACHE_SIZE -1)); /* Within page */
@@ -1982,7 +1983,10 @@ generic_file_buffered_write(struct kiocb *iocb, const struct iovec *iov,
 		 * same page as we're writing to, without it being marked
 		 * up-to-date.
 		 */
-		fault_in_pages_readable(buf, bytes);
+		maxlen = cur_iov->iov_len - iov_base;
+		if (maxlen > bytes)
+			maxlen = bytes;
+		fault_in_pages_readable(buf, maxlen);
 
 		page = __grab_cache_page(mapping,index,&cached_page,&lru_pvec);
 		if (!page) {
@@ -2024,6 +2028,8 @@ generic_file_buffered_write(struct kiocb *iocb, const struct iovec *iov,
 					filemap_set_next_iovec(&cur_iov,
 							&iov_base, status);
 					buf = cur_iov->iov_base + iov_base;
+				} else {
+					iov_base += status;
 				}
 			}
 		}

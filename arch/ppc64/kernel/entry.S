@@ -436,15 +436,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	REST_8GPRS(14, r1)
 	REST_10GPRS(22, r1)
 
-#ifdef CONFIG_PPC_ISERIES
-	clrrdi	r7,r1,THREAD_SHIFT	/* get current_thread_info() */
-	ld	r7,TI_FLAGS(r7)		/* Get run light flag */
-	mfspr	r9,CTRLF
-	srdi	r7,r7,TIF_RUN_LIGHT
-	insrdi	r9,r7,1,63		/* Insert run light into CTRL */
-	mtspr	CTRLT,r9
-#endif
-
 	/* convert old thread to its task_struct for return value */
 	addi	r3,r3,-THREAD
 	ld	r7,_NIP(r1)	/* Return to _switch caller in new task */

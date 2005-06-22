@@ -929,6 +929,10 @@ config SCx200_GPIO
 
 	  If compiled as a module, it will be called scx200_gpio.
 
+config GPIO_VR41XX
+	tristate "NEC VR4100 series General-purpose I/O Unit support"
+	depends on CPU_VR41XX
+
 config RAW_DRIVER
 	tristate "RAW driver (/dev/raw/rawN) (OBSOLETE)"
 	help

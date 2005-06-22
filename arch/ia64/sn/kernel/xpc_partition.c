@@ -22,6 +22,7 @@
 #include <linux/cache.h>
 #include <linux/mmzone.h>
 #include <linux/nodemask.h>
+#include <asm/uncached.h>
 #include <asm/sn/bte.h>
 #include <asm/sn/intr.h>
 #include <asm/sn/sn_sal.h>
@@ -183,7 +184,7 @@ xpc_rsvd_page_init(void)
 	 * memory protections are never restricted.
 	 */
 	if ((amos_page = xpc_vars->amos_page) == NULL) {
-		amos_page = (AMO_t *) mspec_kalloc_page(0);
+		amos_page = (AMO_t *) TO_AMO(uncached_alloc_page(0));
 		if (amos_page == NULL) {
 			dev_err(xpc_part, "can't allocate page of AMOs\n");
 			return NULL;
@@ -200,7 +201,8 @@ xpc_rsvd_page_init(void)
 			if (ret != 0) {
 				dev_err(xpc_part, "can't change memory "
 					"protections\n");
-				mspec_kfree_page((unsigned long) amos_page);
+				uncached_free_page(__IA64_UNCACHED_OFFSET |
+						   TO_PHYS((u64) amos_page));
 				return NULL;
 			}
 		}

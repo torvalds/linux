@@ -184,6 +184,7 @@ int ip_call_ra_chain(struct sk_buff *skb)
 					raw_rcv(last, skb2);
 			}
 			last = sk;
+			nf_reset(skb);
 		}
 	}
 
@@ -199,10 +200,6 @@ int ip_call_ra_chain(struct sk_buff *skb)
 static inline int ip_local_deliver_finish(struct sk_buff *skb)
 {
 	int ihl = skb->nh.iph->ihl*4;
-
-#ifdef CONFIG_NETFILTER_DEBUG
-	nf_debug_ip_local_deliver(skb);
-#endif /*CONFIG_NETFILTER_DEBUG*/
 
 	__skb_pull(skb, ihl);
 

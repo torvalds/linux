@@ -184,7 +184,7 @@ static ssize_t get_pwm_en(struct device *dev, char *buf, int nr)
 	return sprintf(buf, "%d\n", PWM_EN_FROM_REG(data->pwm[nr]));
 }
 
-static ssize_t get_alarms(struct device *dev, char *buf)
+static ssize_t get_alarms(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct smsc47m1_data *data = smsc47m1_update_device(dev, 0);
 	return sprintf(buf, "%d\n", data->alarms);
@@ -298,42 +298,42 @@ static ssize_t set_pwm_en(struct device *dev, const char *buf,
 }
 
 #define fan_present(offset)						\
-static ssize_t get_fan##offset (struct device *dev, char *buf)		\
+static ssize_t get_fan##offset (struct device *dev, struct device_attribute *attr, char *buf)		\
 {									\
 	return get_fan(dev, buf, offset - 1);				\
 }									\
-static ssize_t get_fan##offset##_min (struct device *dev, char *buf)	\
+static ssize_t get_fan##offset##_min (struct device *dev, struct device_attribute *attr, char *buf)	\
 {									\
 	return get_fan_min(dev, buf, offset - 1);			\
 }									\
-static ssize_t set_fan##offset##_min (struct device *dev,		\
+static ssize_t set_fan##offset##_min (struct device *dev, struct device_attribute *attr,		\
 		const char *buf, size_t count)				\
 {									\
 	return set_fan_min(dev, buf, count, offset - 1);		\
 }									\
-static ssize_t get_fan##offset##_div (struct device *dev, char *buf)	\
+static ssize_t get_fan##offset##_div (struct device *dev, struct device_attribute *attr, char *buf)	\
 {									\
 	return get_fan_div(dev, buf, offset - 1);			\
 }									\
-static ssize_t set_fan##offset##_div (struct device *dev,		\
+static ssize_t set_fan##offset##_div (struct device *dev, struct device_attribute *attr,		\
 		const char *buf, size_t count)				\
 {									\
 	return set_fan_div(dev, buf, count, offset - 1);		\
 }									\
-static ssize_t get_pwm##offset (struct device *dev, char *buf)		\
+static ssize_t get_pwm##offset (struct device *dev, struct device_attribute *attr, char *buf)		\
 {									\
 	return get_pwm(dev, buf, offset - 1);				\
 }									\
-static ssize_t set_pwm##offset (struct device *dev,			\
+static ssize_t set_pwm##offset (struct device *dev, struct device_attribute *attr,			\
 		const char *buf, size_t count)				\
 {									\
 	return set_pwm(dev, buf, count, offset - 1);			\
 }									\
-static ssize_t get_pwm##offset##_en (struct device *dev, char *buf)	\
+static ssize_t get_pwm##offset##_en (struct device *dev, struct device_attribute *attr, char *buf)	\
 {									\
 	return get_pwm_en(dev, buf, offset - 1);			\
 }									\
-static ssize_t set_pwm##offset##_en (struct device *dev,		\
+static ssize_t set_pwm##offset##_en (struct device *dev, struct device_attribute *attr,		\
 		const char *buf, size_t count)				\
 {									\
 	return set_pwm_en(dev, buf, count, offset - 1);			\

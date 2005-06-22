@@ -20,7 +20,7 @@
 #include <linux/serial_reg.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/ioc4_common.h>
+#include <linux/ioc4.h>
 #include <linux/serial_core.h>
 
 /*
@@ -130,12 +130,19 @@
 				 IOC4_SIO_IR_S3_TX_EXPLICIT)
 
 /* Bitmasks for IOC4_OTHER_IR, IOC4_OTHER_IEC, and IOC4_OTHER_IES  */
-#define IOC4_OTHER_IR_ATA_INT           0x00000001  /* ATAPI intr pass-thru */
-#define IOC4_OTHER_IR_ATA_MEMERR        0x00000002  /* ATAPI DMA PCI error */
-#define IOC4_OTHER_IR_S0_MEMERR         0x00000004  /* Port 0 PCI error */
-#define IOC4_OTHER_IR_S1_MEMERR         0x00000008  /* Port 1 PCI error */
-#define IOC4_OTHER_IR_S2_MEMERR         0x00000010  /* Port 2 PCI error */
-#define IOC4_OTHER_IR_S3_MEMERR         0x00000020  /* Port 3 PCI error */
+#define IOC4_OTHER_IR_ATA_INT		0x00000001  /* ATAPI intr pass-thru */
+#define IOC4_OTHER_IR_ATA_MEMERR	0x00000002  /* ATAPI DMA PCI error */
+#define IOC4_OTHER_IR_S0_MEMERR		0x00000004  /* Port 0 PCI error */
+#define IOC4_OTHER_IR_S1_MEMERR		0x00000008  /* Port 1 PCI error */
+#define IOC4_OTHER_IR_S2_MEMERR		0x00000010  /* Port 2 PCI error */
+#define IOC4_OTHER_IR_S3_MEMERR		0x00000020  /* Port 3 PCI error */
+#define IOC4_OTHER_IR_KBD_INT		0x00000040  /* Keyboard/mouse */
+#define IOC4_OTHER_IR_RESERVED		0x007fff80  /* Reserved */
+#define IOC4_OTHER_IR_RT_INT		0x00800000  /* INT_OUT section output */
+#define IOC4_OTHER_IR_GEN_INT		0xff000000  /* Generic pins */
+
+#define IOC4_OTHER_IR_SER_MEMERR (IOC4_OTHER_IR_S0_MEMERR | IOC4_OTHER_IR_S1_MEMERR | \
+				  IOC4_OTHER_IR_S2_MEMERR | IOC4_OTHER_IR_S3_MEMERR)
 
 /* Bitmasks for IOC4_SIO_CR */
 #define IOC4_SIO_CR_CMD_PULSE_SHIFT              0  /* byte bus strobe shift */
@@ -274,70 +281,24 @@ struct ioc4_uartregs {
 #define i4u_dlm u2.dlm
 #define i4u_fcr u3.fcr
 
-/* PCI memory space register map addressed using pci_bar0 */
-struct ioc4_memregs {
-	struct ioc4_mem {
-		/* Miscellaneous IOC4  registers */
-		uint32_t pci_err_addr_l;
-		uint32_t pci_err_addr_h;
-		uint32_t sio_ir;
-		uint32_t other_ir;
+/* Serial port registers used for DMA serial I/O */
+struct ioc4_serial {
+	uint32_t sbbr01_l;
+	uint32_t sbbr01_h;
+	uint32_t sbbr23_l;
+	uint32_t sbbr23_h;
 
-		/* These registers are read-only for general kernel code.  */
-		uint32_t sio_ies_ro;
-		uint32_t other_ies_ro;
-		uint32_t sio_iec_ro;
-		uint32_t other_iec_ro;
-		uint32_t sio_cr;
-		uint32_t misc_fill1;
-		uint32_t int_out;
-		uint32_t misc_fill2;
-		uint32_t gpcr_s;
-		uint32_t gpcr_c;
-		uint32_t gpdr;
-		uint32_t misc_fill3;
-		uint32_t gppr_0;
-		uint32_t gppr_1;
-		uint32_t gppr_2;
-		uint32_t gppr_3;
-		uint32_t gppr_4;
-		uint32_t gppr_5;
-		uint32_t gppr_6;
-		uint32_t gppr_7;
-	} ioc4_mem;
-
-	char misc_fill4[0x100 - 0x5C - 4];
-
-	/* ATA/ATAP registers */
-	uint32_t ata_notused[9];
-	char ata_fill1[0x140 - 0x120 - 4];
-	uint32_t ata_notused1[8];
-	char ata_fill2[0x200 - 0x15C - 4];
-
-	/* Keyboard and mouse registers */
-	uint32_t km_notused[5];;
-	char km_fill1[0x300 - 0x210 - 4];
-
-	/* Serial port registers used for DMA serial I/O */
-	struct ioc4_serial {
-		uint32_t sbbr01_l;
-		uint32_t sbbr01_h;
-		uint32_t sbbr23_l;
-		uint32_t sbbr23_h;
-
-		struct ioc4_serialregs port_0;
-		struct ioc4_serialregs port_1;
-		struct ioc4_serialregs port_2;
-		struct ioc4_serialregs port_3;
-		struct ioc4_uartregs uart_0;
-		struct ioc4_uartregs uart_1;
-		struct ioc4_uartregs uart_2;
-		struct ioc4_uartregs uart_3;
-	} ioc4_serial;
-};
+	struct ioc4_serialregs port_0;
+	struct ioc4_serialregs port_1;
+	struct ioc4_serialregs port_2;
+	struct ioc4_serialregs port_3;
+	struct ioc4_uartregs uart_0;
+	struct ioc4_uartregs uart_1;
+	struct ioc4_uartregs uart_2;
+	struct ioc4_uartregs uart_3;
+} ioc4_serial;
 
 /* UART clock speed */
-#define IOC4_SER_XIN_CLK        IOC4_SER_XIN_CLK_66
 #define IOC4_SER_XIN_CLK_66     66666667
 #define IOC4_SER_XIN_CLK_33     33333333
 
@@ -412,8 +373,8 @@ enum sio_proto {
 					| UART_LCR_WLEN7 | UART_LCR_WLEN8)
 #define LCR_MASK_STOP_BITS	(UART_LCR_STOP)
 
-#define PENDING(_p)	(readl(&(_p)->ip_mem->sio_ir) & _p->ip_ienb)
-#define READ_SIO_IR(_p) readl(&(_p)->ip_mem->sio_ir)
+#define PENDING(_p)	(readl(&(_p)->ip_mem->sio_ir.raw) & _p->ip_ienb)
+#define READ_SIO_IR(_p) readl(&(_p)->ip_mem->sio_ir.raw)
 
 /* Default to 4k buffers */
 #ifdef IOC4_1K_BUFFERS
@@ -447,7 +408,7 @@ struct ioc4_control {
  */
 #define MAX_IOC4_INTR_ENTS	(8 * sizeof(uint32_t))
 struct ioc4_soft {
-	struct ioc4_mem __iomem *is_ioc4_mem_addr;
+	struct ioc4_misc_regs __iomem *is_ioc4_misc_addr;
 	struct ioc4_serial __iomem *is_ioc4_serial_addr;
 
 	/* Each interrupt type has an entry in the array */
@@ -486,7 +447,7 @@ struct ioc4_port {
 	struct ioc4_soft *ip_ioc4_soft;
 
 	/* pci mem addresses */
-	struct ioc4_mem __iomem *ip_mem;
+	struct ioc4_misc_regs __iomem *ip_mem;
 	struct ioc4_serial __iomem *ip_serial;
 	struct ioc4_serialregs __iomem *ip_serial_regs;
 	struct ioc4_uartregs __iomem *ip_uart_regs;
@@ -553,7 +514,7 @@ struct hooks {
 	uint32_t intr_dma_error;
 	uint32_t intr_clear;
 	uint32_t intr_all;
-	char rs422_select_pin;
+	int rs422_select_pin;
 };
 
 static struct hooks hooks_array[IOC4_NUM_SERIAL_PORTS] = {
@@ -669,7 +630,7 @@ static void handle_intr(void *arg, uint32_t sio_ir);
 static inline void
 write_ireg(struct ioc4_soft *ioc4_soft, uint32_t val, int which, int type)
 {
-	struct ioc4_mem __iomem *mem = ioc4_soft->is_ioc4_mem_addr;
+	struct ioc4_misc_regs __iomem *mem = ioc4_soft->is_ioc4_misc_addr;
 	unsigned long flags;
 
 	spin_lock_irqsave(&ioc4_soft->is_ir_lock, flags);
@@ -678,11 +639,11 @@ write_ireg(struct ioc4_soft *ioc4_soft, uint32_t val, int which, int type)
 	case IOC4_SIO_INTR_TYPE:
 		switch (which) {
 		case IOC4_W_IES:
-			writel(val, &mem->sio_ies_ro);
+			writel(val, &mem->sio_ies.raw);
 			break;
 
 		case IOC4_W_IEC:
-			writel(val, &mem->sio_iec_ro);
+			writel(val, &mem->sio_iec.raw);
 			break;
 		}
 		break;
@@ -690,11 +651,11 @@ write_ireg(struct ioc4_soft *ioc4_soft, uint32_t val, int which, int type)
 	case IOC4_OTHER_INTR_TYPE:
 		switch (which) {
 		case IOC4_W_IES:
-			writel(val, &mem->other_ies_ro);
+			writel(val, &mem->other_ies.raw);
 			break;
 
 		case IOC4_W_IEC:
-			writel(val, &mem->other_iec_ro);
+			writel(val, &mem->other_iec.raw);
 			break;
 		}
 		break;
@@ -747,7 +708,8 @@ static int set_baud(struct ioc4_port *port, int baud)
  */
 static struct ioc4_port *get_ioc4_port(struct uart_port *the_port)
 {
-	struct ioc4_control *control = dev_get_drvdata(the_port->dev);
+	struct ioc4_driver_data *idd = dev_get_drvdata(the_port->dev);
+	struct ioc4_control *control = idd->idd_serial_data;
 	int ii;
 
 	if (control) {
@@ -782,7 +744,7 @@ static struct ioc4_port *get_ioc4_port(struct uart_port *the_port)
 static inline uint32_t
 pending_intrs(struct ioc4_soft *soft, int type)
 {
-	struct ioc4_mem __iomem *mem = soft->is_ioc4_mem_addr;
+	struct ioc4_misc_regs __iomem *mem = soft->is_ioc4_misc_addr;
 	unsigned long flag;
 	uint32_t intrs = 0;
 
@@ -793,11 +755,11 @@ pending_intrs(struct ioc4_soft *soft, int type)
 
 	switch (type) {
 	case IOC4_SIO_INTR_TYPE:
-		intrs = readl(&mem->sio_ir) & readl(&mem->sio_ies_ro);
+		intrs = readl(&mem->sio_ir.raw) & readl(&mem->sio_ies.raw);
 		break;
 
 	case IOC4_OTHER_INTR_TYPE:
-		intrs = readl(&mem->other_ir) & readl(&mem->other_ies_ro);
+		intrs = readl(&mem->other_ir.raw) & readl(&mem->other_ies.raw);
 
 		/* Don't process any ATA interrupte */
 		intrs &= ~(IOC4_OTHER_IR_ATA_INT | IOC4_OTHER_IR_ATA_MEMERR);
@@ -826,7 +788,7 @@ static int inline port_init(struct ioc4_port *port)
 
 	/* Wait until any pending bus activity for this port has ceased */
 	do
-		sio_cr = readl(&port->ip_mem->sio_cr);
+		sio_cr = readl(&port->ip_mem->sio_cr.raw);
 	while (!(sio_cr & IOC4_SIO_CR_SIO_DIAG_IDLE));
 
 	/* Finish reset sequence */
@@ -899,7 +861,7 @@ static int inline port_init(struct ioc4_port *port)
 	write_ireg(port->ip_ioc4_soft, hooks->intr_clear,
 		       IOC4_W_IEC, IOC4_SIO_INTR_TYPE);
 	port->ip_ienb &= ~hooks->intr_clear;
-	writel(hooks->intr_clear, &port->ip_mem->sio_ir);
+	writel(hooks->intr_clear, &port->ip_mem->sio_ir.raw);
 	return 0;
 }
 
@@ -918,23 +880,23 @@ static void handle_dma_error_intr(void *arg, uint32_t other_ir)
 	spin_lock_irqsave(&port->ip_lock, flags);
 
 	/* ACK the interrupt */
-	writel(hooks->intr_dma_error, &port->ip_mem->other_ir);
+	writel(hooks->intr_dma_error, &port->ip_mem->other_ir.raw);
 
-	if (readl(&port->ip_mem->pci_err_addr_l) & IOC4_PCI_ERR_ADDR_VLD) {
+	if (readl(&port->ip_mem->pci_err_addr_l.raw) & IOC4_PCI_ERR_ADDR_VLD) {
 		printk(KERN_ERR
 			"PCI error address is 0x%lx, "
 				"master is serial port %c %s\n",
 		     (((uint64_t)readl(&port->ip_mem->pci_err_addr_h)
 							 << 32)
-				| readl(&port->ip_mem->pci_err_addr_l))
+				| readl(&port->ip_mem->pci_err_addr_l.raw))
 					& IOC4_PCI_ERR_ADDR_ADDR_MSK, '1' +
-		     ((char)(readl(&port->ip_mem-> pci_err_addr_l) &
+		     ((char)(readl(&port->ip_mem->pci_err_addr_l.raw) &
 			     IOC4_PCI_ERR_ADDR_MST_NUM_MSK) >> 1),
-		     (readl(&port->ip_mem->pci_err_addr_l)
+		     (readl(&port->ip_mem->pci_err_addr_l.raw)
 				& IOC4_PCI_ERR_ADDR_MST_TYP_MSK)
 				? "RX" : "TX");
 
-		if (readl(&port->ip_mem->pci_err_addr_l)
+		if (readl(&port->ip_mem->pci_err_addr_l.raw)
 						& IOC4_PCI_ERR_ADDR_MUL_ERR) {
 			printk(KERN_ERR
 				"Multiple errors occurred\n");
@@ -1018,26 +980,26 @@ static irqreturn_t ioc4_intr(int irq, void *arg, struct pt_regs *regs)
 				"other_ies = 0x%x\n",
 			       (intr_type == IOC4_SIO_INTR_TYPE) ? "sio" :
 			       "other", this_ir,
-			       readl(&soft->is_ioc4_mem_addr->sio_ir),
-			       readl(&soft->is_ioc4_mem_addr->sio_ies_ro),
-			       readl(&soft->is_ioc4_mem_addr->other_ir),
-			       readl(&soft->is_ioc4_mem_addr->other_ies_ro));
+			       readl(&soft->is_ioc4_misc_addr->sio_ir.raw),
+			       readl(&soft->is_ioc4_misc_addr->sio_ies.raw),
+			       readl(&soft->is_ioc4_misc_addr->other_ir.raw),
+			       readl(&soft->is_ioc4_misc_addr->other_ies.raw));
 		}
 	}
 #ifdef DEBUG_INTERRUPTS
 	{
-		struct ioc4_mem __iomem *mem = soft->is_ioc4_mem_addr;
+		struct ioc4_misc_regs __iomem *mem = soft->is_ioc4_misc_addr;
 		spinlock_t *lp = &soft->is_ir_lock;
 		unsigned long flag;
 
 		spin_lock_irqsave(&soft->is_ir_lock, flag);
-		printk ("%s : %d : mem 0x%p sio_ir 0x%x sio_ies_ro 0x%x "
-				"other_ir 0x%x other_ies_ro 0x%x mask 0x%x\n",
+		printk ("%s : %d : mem 0x%p sio_ir 0x%x sio_ies 0x%x "
+				"other_ir 0x%x other_ies 0x%x mask 0x%x\n",
 		     __FUNCTION__, __LINE__,
-		     (void *)mem, readl(&mem->sio_ir),
-		     readl(&mem->sio_ies_ro),
-		     readl(&mem->other_ir),
-		     readl(&mem->other_ies_ro),
+		     (void *)mem, readl(&mem->sio_ir.raw),
+		     readl(&mem->sio_ies.raw),
+		     readl(&mem->other_ir.raw),
+		     readl(&mem->other_ies.raw),
 		     IOC4_OTHER_IR_ATA_INT | IOC4_OTHER_IR_ATA_MEMERR);
 		spin_unlock_irqrestore(&soft->is_ir_lock, flag);
 	}
@@ -1049,21 +1011,20 @@ static irqreturn_t ioc4_intr(int irq, void *arg, struct pt_regs *regs)
  * ioc4_attach_local - Device initialization.
  *			Called at *_attach() time for each
  *			IOC4 with serial ports in the system.
- * @control: ioc4_control ptr
- * @pdev: PCI handle for this device
- * @soft: soft struct for this device
- * @ioc4: ioc4 mem space
+ * @idd: Master module data for this IOC4
  */
-static int inline ioc4_attach_local(struct pci_dev *pdev,
-			struct ioc4_control *control,
-			struct ioc4_soft *soft, void __iomem *ioc4_mem,
-			void __iomem *ioc4_serial)
+static int inline ioc4_attach_local(struct ioc4_driver_data *idd)
 {
 	struct ioc4_port *port;
 	struct ioc4_port *ports[IOC4_NUM_SERIAL_PORTS];
 	int port_number;
 	uint16_t ioc4_revid_min = 62;
 	uint16_t ioc4_revid;
+	struct pci_dev *pdev = idd->idd_pdev;
+	struct ioc4_control* control = idd->idd_serial_data;
+	struct ioc4_soft *soft = control->ic_soft;
+	void __iomem *ioc4_misc = idd->idd_misc_regs;
+	void __iomem *ioc4_serial = soft->is_ioc4_serial_addr;
 
 	/* IOC4 firmware must be at least rev 62 */
 	pci_read_config_word(pdev, PCI_COMMAND_SPECIAL, &ioc4_revid);
@@ -1076,7 +1037,7 @@ static int inline ioc4_attach_local(struct pci_dev *pdev,
 				ioc4_revid, ioc4_revid_min);
 		return -EPERM;
 	}
-	BUG_ON(ioc4_mem == NULL);
+	BUG_ON(ioc4_misc == NULL);
 	BUG_ON(ioc4_serial == NULL);
 
 	/* Create port structures for each port */
@@ -1100,10 +1061,18 @@ static int inline ioc4_attach_local(struct pci_dev *pdev,
 		port->ip_ioc4_soft = soft;
 		port->ip_pdev = pdev;
 		port->ip_ienb = 0;
-		port->ip_pci_bus_speed = IOC4_SER_XIN_CLK;
+		/* Use baud rate calculations based on detected PCI
+		 * bus speed.  Simply test whether the PCI clock is
+		 * running closer to 66MHz or 33MHz.
+		 */
+		if (idd->count_period/IOC4_EXTINT_COUNT_DIVISOR < 20) {
+			port->ip_pci_bus_speed = IOC4_SER_XIN_CLK_66;
+		} else {
+			port->ip_pci_bus_speed = IOC4_SER_XIN_CLK_33;
+		}
 		port->ip_baud = 9600;
 		port->ip_control = control;
-		port->ip_mem = ioc4_mem;
+		port->ip_mem = ioc4_misc;
 		port->ip_serial = ioc4_serial;
 
 		/* point to the right hook */
@@ -1604,14 +1573,12 @@ static int ioc4_set_proto(struct ioc4_port *port, enum sio_proto proto)
 	switch (proto) {
 	case PROTO_RS232:
 		/* Clear the appropriate GIO pin */
-		writel(0, (&port->ip_mem->gppr_0 +
-				  hooks->rs422_select_pin));
+		writel(0, (&port->ip_mem->gppr[hooks->rs422_select_pin].raw));
 		break;
 
 	case PROTO_RS422:
 		/* Set the appropriate GIO pin */
-		writel(1, (&port->ip_mem->gppr_0 +
-				  hooks->rs422_select_pin));
+		writel(1, (&port->ip_mem->gppr[hooks->rs422_select_pin].raw));
 		break;
 
 	default:
@@ -1885,7 +1852,7 @@ static void handle_intr(void *arg, uint32_t sio_ir)
 		if (sio_ir & hooks->intr_delta_dcd) {
 			/* ACK the interrupt */
 			writel(hooks->intr_delta_dcd,
-				&port->ip_mem->sio_ir);
+				&port->ip_mem->sio_ir.raw);
 
 			shadow = readl(&port->ip_serial_regs->shadow);
 
@@ -1907,7 +1874,7 @@ static void handle_intr(void *arg, uint32_t sio_ir)
 		if (sio_ir & hooks->intr_delta_cts) {
 			/* ACK the interrupt */
 			writel(hooks->intr_delta_cts,
-					&port->ip_mem->sio_ir);
+					&port->ip_mem->sio_ir.raw);
 
 			shadow = readl(&port->ip_serial_regs->shadow);
 
@@ -1928,7 +1895,7 @@ static void handle_intr(void *arg, uint32_t sio_ir)
 		if (sio_ir & hooks->intr_rx_timer) {
 			/* ACK the interrupt */
 			writel(hooks->intr_rx_timer,
-				&port->ip_mem->sio_ir);
+				&port->ip_mem->sio_ir.raw);
 
 			if ((port->ip_notify & N_DATA_READY)
 					&& (port->ip_port)) {
@@ -1974,7 +1941,7 @@ static void handle_intr(void *arg, uint32_t sio_ir)
 
 			/* ACK the interrupt */
 			writel(hooks->intr_tx_explicit,
-					&port->ip_mem->sio_ir);
+					&port->ip_mem->sio_ir.raw);
 
 			if (port->ip_notify & N_OUTPUT_LOWAT)
 				ioc4_cb_output_lowat(port);
@@ -2634,7 +2601,8 @@ ioc4_serial_core_attach(struct pci_dev *pdev)
 {
 	struct ioc4_port *port;
 	struct uart_port *the_port;
-	struct ioc4_control *control = pci_get_drvdata(pdev);
+	struct ioc4_driver_data *idd = pci_get_drvdata(pdev);
+	struct ioc4_control *control = idd->idd_serial_data;
 	int ii;
 
 	DPRINT_CONFIG(("%s: attach pdev 0x%p - control 0x%p\n",
@@ -2680,55 +2648,29 @@ ioc4_serial_core_attach(struct pci_dev *pdev)
 
 /**
  * ioc4_serial_attach_one - register attach function
- *		called per card found from ioc4_serial_detect as part
- *		of module_init().
- * @pdev: handle for this card
- * @pci_id: pci id for this card
+ *		called per card found from IOC4 master module.
+ * @idd: Master module data for this IOC4
  */
 int
-ioc4_serial_attach_one(struct pci_dev *pdev, const struct pci_device_id *pci_id)
+ioc4_serial_attach_one(struct ioc4_driver_data *idd)
 {
-	struct ioc4_mem __iomem *mem;
-	unsigned long tmp_addr, tmp_addr1;
+	unsigned long tmp_addr1;
 	struct ioc4_serial __iomem *serial;
 	struct ioc4_soft *soft;
 	struct ioc4_control *control;
-	int tmp, ret = 0;
+	int ret = 0;
 
 
-	DPRINT_CONFIG(("%s (0x%p, 0x%p)\n", __FUNCTION__, pdev, pci_id));
-
-	/* Map in the ioc4 memory */
-	tmp_addr = pci_resource_start(pdev, 0);
-	if (!tmp_addr) {
-		printk(KERN_WARNING
-			 "ioc4 (%p) : unable to get PIO mapping for "
-				"MEM space\n", (void *)pdev);
-		return -ENODEV;
-	}
-	if (!request_region(tmp_addr, sizeof(struct ioc4_mem), "sioc4_mem")) {
-		printk(KERN_ALERT
-			"ioc4 (%p): unable to get request region for "
-			"MEM space\n", (void *)pdev);
-		return -ENODEV;
-	}
-	mem = ioremap(tmp_addr, sizeof(struct ioc4_mem));
-	if (!mem) {
-		printk(KERN_WARNING
-			 "ioc4 (%p) : unable to remap ioc4 memory\n",
-				(void *)pdev);
-		ret = -ENODEV;
-		goto out1;
-	}
+	DPRINT_CONFIG(("%s (0x%p, 0x%p)\n", __FUNCTION__, idd->idd_pdev, idd->idd_pci_id));
 
 	/* request serial registers */
-	tmp_addr1 = pci_resource_start(pdev, 0) + IOC4_SERIAL_OFFSET;
+	tmp_addr1 = idd->idd_bar0 + IOC4_SERIAL_OFFSET;
 
 	if (!request_region(tmp_addr1, sizeof(struct ioc4_serial),
 					"sioc4_uart")) {
 		printk(KERN_WARNING
 			"ioc4 (%p): unable to get request region for "
-				"uart space\n", (void *)pdev);
+				"uart space\n", (void *)idd->idd_pdev);
 		ret = -ENODEV;
 		goto out1;
 	}
@@ -2736,12 +2678,12 @@ ioc4_serial_attach_one(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 	if (!serial) {
 		printk(KERN_WARNING
 			 "ioc4 (%p) : unable to remap ioc4 serial register\n",
-				(void *)pdev);
+				(void *)idd->idd_pdev);
 		ret = -ENODEV;
 		goto out2;
 	}
 	DPRINT_CONFIG(("%s : mem 0x%p, serial 0x%p\n",
-				__FUNCTION__, (void *)mem, (void *)serial));
+				__FUNCTION__, (void *)idd->idd_misc_regs, (void *)serial));
 
 	/* Get memory for the new card */
 	control = kmalloc(sizeof(struct ioc4_control) * IOC4_NUM_SERIAL_PORTS,
@@ -2754,59 +2696,56 @@ ioc4_serial_attach_one(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 		goto out2;
 	}
 	memset(control, 0, sizeof(struct ioc4_control));
-	pci_set_drvdata(pdev, control);
+	idd->idd_serial_data = control;
 
 	/* Allocate the soft structure */
 	soft = kmalloc(sizeof(struct ioc4_soft), GFP_KERNEL);
 	if (!soft) {
 		printk(KERN_WARNING
 		       "ioc4 (%p): unable to get memory for the soft struct\n",
-		       (void *)pdev);
+		       (void *)idd->idd_pdev);
 		ret = -ENOMEM;
 		goto out3;
 	}
 	memset(soft, 0, sizeof(struct ioc4_soft));
 
 	spin_lock_init(&soft->is_ir_lock);
-	soft->is_ioc4_mem_addr = mem;
+	soft->is_ioc4_misc_addr = idd->idd_misc_regs;
 	soft->is_ioc4_serial_addr = serial;
 
 	/* Init the IOC4 */
-	pci_read_config_dword(pdev, PCI_COMMAND, &tmp);
-	pci_write_config_dword(pdev, PCI_COMMAND,
-			       tmp | PCI_COMMAND_PARITY | PCI_COMMAND_SERR);
-
-	writel(0xf << IOC4_SIO_CR_CMD_PULSE_SHIFT, &mem->sio_cr);
+	writel(0xf << IOC4_SIO_CR_CMD_PULSE_SHIFT,
+	       &idd->idd_misc_regs->sio_cr.raw);
 
 	/* Enable serial port mode select generic PIO pins as outputs */
 	writel(IOC4_GPCR_UART0_MODESEL | IOC4_GPCR_UART1_MODESEL
 		| IOC4_GPCR_UART2_MODESEL | IOC4_GPCR_UART3_MODESEL,
-		&mem->gpcr_s);
+		&idd->idd_misc_regs->gpcr_s.raw);
 
-	/* Clear and disable all interrupts */
+	/* Clear and disable all serial interrupts */
 	write_ireg(soft, ~0, IOC4_W_IEC, IOC4_SIO_INTR_TYPE);
-	writel(~0, &mem->sio_ir);
-	write_ireg(soft, ~(IOC4_OTHER_IR_ATA_INT | IOC4_OTHER_IR_ATA_MEMERR),
-			IOC4_W_IEC, IOC4_OTHER_INTR_TYPE);
-	writel(~(IOC4_OTHER_IR_ATA_MEMERR | IOC4_OTHER_IR_ATA_MEMERR),
-					&mem->other_ir);
+	writel(~0, &idd->idd_misc_regs->sio_ir.raw);
+	write_ireg(soft, IOC4_OTHER_IR_SER_MEMERR, IOC4_W_IEC,
+		   IOC4_OTHER_INTR_TYPE);
+	writel(IOC4_OTHER_IR_SER_MEMERR, &idd->idd_misc_regs->other_ir.raw);
 	control->ic_soft = soft;
-	if (!request_irq(pdev->irq, ioc4_intr, SA_SHIRQ,
+
+	/* Hook up interrupt handler */
+	if (!request_irq(idd->idd_pdev->irq, ioc4_intr, SA_SHIRQ,
 				"sgi-ioc4serial", (void *)soft)) {
-		control->ic_irq = pdev->irq;
+		control->ic_irq = idd->idd_pdev->irq;
 	} else {
 		printk(KERN_WARNING
 		    "%s : request_irq fails for IRQ 0x%x\n ",
-			__FUNCTION__, pdev->irq);
+			__FUNCTION__, idd->idd_pdev->irq);
 	}
-	if ((ret = ioc4_attach_local(pdev, control, soft,
-				soft->is_ioc4_mem_addr,
-				soft->is_ioc4_serial_addr)))
+	ret = ioc4_attach_local(idd);
+	if (ret)
 		goto out4;
 
 	/* register port with the serial core */
 
-	if ((ret = ioc4_serial_core_attach(pdev)))
+	if ((ret = ioc4_serial_core_attach(idd->idd_pdev)))
 		goto out4;
 
 	return ret;
@@ -2819,7 +2758,6 @@ out3:
 out2:
 	release_region(tmp_addr1, sizeof(struct ioc4_serial));
 out1:
-	release_region(tmp_addr, sizeof(struct ioc4_mem));
 
 	return ret;
 }
@@ -2828,11 +2766,10 @@ out1:
 /**
  * ioc4_serial_remove_one - detach function
  *
- * @pdev: handle for this card
+ * @idd: IOC4 master module data for this IOC4
  */
 
-#if 0
-void ioc4_serial_remove_one(struct pci_dev *pdev)
+int ioc4_serial_remove_one(struct ioc4_driver_data *idd)
 {
 	int ii;
 	struct ioc4_control *control;
@@ -2840,7 +2777,7 @@ void ioc4_serial_remove_one(struct pci_dev *pdev)
 	struct ioc4_port *port;
 	struct ioc4_soft *soft;
 
-	control = pci_get_drvdata(pdev);
+	control = idd->idd_serial_data;
 
 	for (ii = 0; ii < IOC4_NUM_SERIAL_PORTS; ii++) {
 		the_port = &control->ic_port[ii].icp_uart_port;
@@ -2867,10 +2804,17 @@ void ioc4_serial_remove_one(struct pci_dev *pdev)
 		kfree(soft);
 	}
 	kfree(control);
-	pci_set_drvdata(pdev, NULL);
-	uart_unregister_driver(&ioc4_uart);
+	idd->idd_serial_data = NULL;
+
+	return 0;
 }
-#endif
+
+static struct ioc4_submodule ioc4_serial_submodule = {
+	.is_name = "IOC4_serial",
+	.is_owner = THIS_MODULE,
+	.is_probe = ioc4_serial_attach_one,
+	.is_remove = ioc4_serial_remove_one,
+};
 
 /**
  * ioc4_serial_init - module init
@@ -2886,12 +2830,20 @@ int ioc4_serial_init(void)
 			__FUNCTION__);
 		return ret;
 	}
-	return 0;
+
+	/* register with IOC4 main module */
+	return ioc4_register_submodule(&ioc4_serial_submodule);
 }
+
+static void __devexit ioc4_serial_exit(void)
+{
+	ioc4_unregister_submodule(&ioc4_serial_submodule);
+	uart_unregister_driver(&ioc4_uart);
+}
+
+module_init(ioc4_serial_init);
+module_exit(ioc4_serial_exit);
 
 MODULE_AUTHOR("Pat Gefre - Silicon Graphics Inc. (SGI) <pfg@sgi.com>");
 MODULE_DESCRIPTION("Serial PCI driver module for SGI IOC4 Base-IO Card");
 MODULE_LICENSE("GPL");
-
-EXPORT_SYMBOL(ioc4_serial_init);
-EXPORT_SYMBOL(ioc4_serial_attach_one);

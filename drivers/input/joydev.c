@@ -422,7 +422,7 @@ static struct input_handle *joydev_connect(struct input_handler *handler, struct
 			joydev->nkey++;
 		}
 
-	for (i = 0; i < BTN_JOYSTICK - BTN_MISC + 1; i++)
+	for (i = 0; i < BTN_JOYSTICK - BTN_MISC; i++)
 		if (test_bit(i + BTN_MISC, dev->keybit)) {
 			joydev->keymap[i] = joydev->nkey;
 			joydev->keypam[joydev->nkey] = i + BTN_MISC;
@@ -452,9 +452,9 @@ static struct input_handle *joydev_connect(struct input_handler *handler, struct
 
 	devfs_mk_cdev(MKDEV(INPUT_MAJOR, JOYDEV_MINOR_BASE + minor),
 			S_IFCHR|S_IRUGO|S_IWUSR, "input/js%d", minor);
-	class_simple_device_add(input_class,
-				MKDEV(INPUT_MAJOR, JOYDEV_MINOR_BASE + minor),
-				dev->dev, "js%d", minor);
+	class_device_create(input_class,
+			MKDEV(INPUT_MAJOR, JOYDEV_MINOR_BASE + minor),
+			dev->dev, "js%d", minor);
 
 	return &joydev->handle;
 }
@@ -464,7 +464,7 @@ static void joydev_disconnect(struct input_handle *handle)
 	struct joydev *joydev = handle->private;
 	struct joydev_list *list;
 
-	class_simple_device_remove(MKDEV(INPUT_MAJOR, JOYDEV_MINOR_BASE + joydev->minor));
+	class_device_destroy(input_class, MKDEV(INPUT_MAJOR, JOYDEV_MINOR_BASE + joydev->minor));
 	devfs_remove("input/js%d", joydev->minor);
 	joydev->exist = 0;
 

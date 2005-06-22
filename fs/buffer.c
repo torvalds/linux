@@ -528,7 +528,7 @@ static void free_more_memory(void)
 	for_each_pgdat(pgdat) {
 		zones = pgdat->node_zonelists[GFP_NOFS&GFP_ZONEMASK].zones;
 		if (*zones)
-			try_to_free_pages(zones, GFP_NOFS, 0);
+			try_to_free_pages(zones, GFP_NOFS);
 	}
 }
 
@@ -2094,9 +2094,12 @@ int block_read_full_page(struct page *page, get_block_t *get_block)
 			continue;
 
 		if (!buffer_mapped(bh)) {
+			int err = 0;
+
 			fully_mapped = 0;
 			if (iblock < lblock) {
-				if (get_block(inode, iblock, bh, 0))
+				err = get_block(inode, iblock, bh, 0);
+				if (err)
 					SetPageError(page);
 			}
 			if (!buffer_mapped(bh)) {
@@ -2104,7 +2107,8 @@ int block_read_full_page(struct page *page, get_block_t *get_block)
 				memset(kaddr + i * blocksize, 0, blocksize);
 				flush_dcache_page(page);
 				kunmap_atomic(kaddr, KM_USER0);
-				set_buffer_uptodate(bh);
+				if (!err)
+					set_buffer_uptodate(bh);
 				continue;
 			}
 			/*

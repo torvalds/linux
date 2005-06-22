@@ -56,6 +56,7 @@
 #define XFS_QI_RTBTIMELIMIT(mp) ((mp)->m_quotainfo->qi_rtbtimelimit)
 #define XFS_QI_ITIMELIMIT(mp)	((mp)->m_quotainfo->qi_itimelimit)
 #define XFS_QI_BWARNLIMIT(mp)	((mp)->m_quotainfo->qi_bwarnlimit)
+#define XFS_QI_RTBWARNLIMIT(mp)	((mp)->m_quotainfo->qi_rtbwarnlimit)
 #define XFS_QI_IWARNLIMIT(mp)	((mp)->m_quotainfo->qi_iwarnlimit)
 #define XFS_QI_QOFFLOCK(mp)	((mp)->m_quotainfo->qi_quotaofflock)
 
@@ -102,7 +103,8 @@ static inline int XQMISLCKD(struct xfs_dqhash *h)
 				     (xfs_Gqm->qm_grp_dqhtable + \
 				      XFS_DQ_HASHVAL(mp, id)))
 #define XFS_IS_DQTYPE_ON(mp, type)   (type == XFS_DQ_USER ? \
-				      XFS_IS_UQUOTA_ON(mp):XFS_IS_GQUOTA_ON(mp))
+					XFS_IS_UQUOTA_ON(mp) : \
+					XFS_IS_OQUOTA_ON(mp))
 #define XFS_IS_DQUOT_UNINITIALIZED(dqp) ( \
 	!dqp->q_core.d_blk_hardlimit && \
 	!dqp->q_core.d_blk_softlimit && \
@@ -177,16 +179,11 @@ for ((dqp) = (qlist)->qh_next; (dqp) != (xfs_dquot_t *)(qlist); \
 	(!((dqp)->q_core.d_id))
 
 #define XFS_PURGE_INODE(ip)		\
-	{				\
-	  vmap_t dqvmap;		\
-	  vnode_t *dqvp;		\
-	  dqvp = XFS_ITOV(ip);		\
-	  VMAP(dqvp, dqvmap);		\
-	  VN_RELE(dqvp);		\
-	}
+	IRELE(ip);
 
 #define DQFLAGTO_TYPESTR(d)	(((d)->dq_flags & XFS_DQ_USER) ? "USR" : \
-				 (((d)->dq_flags & XFS_DQ_GROUP) ? "GRP" : "???"))
+				 (((d)->dq_flags & XFS_DQ_GROUP) ? "GRP" : \
+				 (((d)->dq_flags & XFS_DQ_PROJ) ? "PRJ":"???")))
 #define DQFLAGTO_DIRTYSTR(d)	(XFS_DQ_IS_DIRTY(d) ? "DIRTY" : "NOTDIRTY")
 
 #endif	/* __XFS_QUOTA_PRIV_H__ */

@@ -16,7 +16,6 @@
 #include <net/checksum.h>
 #include <net/tcp.h>
 
-#include <linux/netfilter_ipv4/lockhelp.h>
 #include <linux/netfilter_ipv4/ip_conntrack_helper.h>
 #include <linux/netfilter_ipv4/ip_conntrack_ftp.h>
 #include <linux/moduleparam.h>
@@ -28,7 +27,7 @@ MODULE_DESCRIPTION("ftp connection tracking helper");
 /* This is slow, but it's simple. --RR */
 static char ftp_buffer[65536];
 
-static DECLARE_LOCK(ip_ftp_lock);
+static DEFINE_SPINLOCK(ip_ftp_lock);
 
 #define MAX_PORTS 8
 static int ports[MAX_PORTS];
@@ -319,7 +318,7 @@ static int help(struct sk_buff **pskb,
 	}
 	datalen = (*pskb)->len - dataoff;
 
-	LOCK_BH(&ip_ftp_lock);
+	spin_lock_bh(&ip_ftp_lock);
 	fb_ptr = skb_header_pointer(*pskb, dataoff,
 				    (*pskb)->len - dataoff, ftp_buffer);
 	BUG_ON(fb_ptr == NULL);
@@ -442,7 +441,7 @@ out_update_nl:
 	if (ends_in_nl)
 		update_nl_seq(seq, ct_ftp_info,dir);
  out:
-	UNLOCK_BH(&ip_ftp_lock);
+	spin_unlock_bh(&ip_ftp_lock);
 	return ret;
 }
 

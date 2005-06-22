@@ -207,27 +207,6 @@ SYSTEM_SHUTDOWN, I do not understand this one too much. probably event
 #READY_AFTER_RESUME
 #
 
-Driver Detach Power Management
-
-The kernel now supports the ability to place a device in a low-power
-state when it is detached from its driver, which happens when its
-module is removed. 
-
-Each device contains a 'detach_state' file in its sysfs directory
-which can be used to control this state. Reading from this file
-displays what the current detach state is set to. This is 0 (On) by
-default. A user may write a positive integer value to this file in the
-range of 1-4 inclusive. 
-
-A value of 1-3 will indicate the device should be placed in that
-low-power state, which will cause ->suspend() to be called for that
-device. A value of 4 indicates that the device should be shutdown, so
-->shutdown() will be called for that device. 
-
-The driver is responsible for reinitializing the device when the
-module is re-inserted during it's ->probe() (or equivalent) method. 
-The driver core will not call any extra functions when binding the
-device to the driver. 
 
 pm_message_t meaning
 
