@@ -46,7 +46,6 @@
 #include <asm/iSeries/ItExtVpdPanel.h>
 #include <asm/iSeries/HvLpEvent.h>
 #include <asm/iSeries/HvLpConfig.h>
-#include <asm/iSeries/HvCallCfg.h>
 #include <asm/iSeries/mf.h>
 #include <asm/iSeries/vio.h>
 
@@ -364,7 +363,7 @@ void vio_set_hostlp(void)
 	 * while we're active
 	 */
 	viopath_ourLp = HvLpConfig_getLpIndex();
-	viopath_hostLp = HvCallCfg_getHostingLpIndex(viopath_ourLp);
+	viopath_hostLp = HvLpConfig_getHostingLpIndex(viopath_ourLp);
 
 	if (viopath_hostLp != HvLpIndexInvalid)
 		vio_setHandler(viomajorsubtype_config, handleConfig);

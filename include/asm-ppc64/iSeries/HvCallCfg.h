@@ -67,29 +67,9 @@ enum HvCallCfg_ReqQual {
 #define HvCallCfgGetLpExecutionMode			HvCallCfg + 31
 #define HvCallCfgGetHostingLpIndex			HvCallCfg + 32
 
-static inline HvLpIndex	HvCallCfg_getLps(void)
-{
-	return HvCall0(HvCallCfgGetLps);
-}
-
-static inline int HvCallCfg_isBusDedicated(u64 busIndex)
-{
-	return HvCall1(HvCallCfgIsBusDedicated, busIndex);
-}
-
 static inline HvLpIndex	HvCallCfg_getBusOwner(u64 busIndex)
 {
 	return HvCall1(HvCallCfgGetBusOwner, busIndex);
-}
-
-static inline HvLpIndexMap HvCallCfg_getBusAllocation(u64 busIndex)
-{
-	return HvCall1(HvCallCfgGetBusAllocation, busIndex);
-}
-
-static inline HvLpIndexMap HvCallCfg_getActiveLpMap(void)
-{
-	return HvCall0(HvCallCfgGetActiveLpMap);
 }
 
 static inline HvLpVirtualLanIndexMap HvCallCfg_getVirtualLanIndexMap(
@@ -105,29 +85,10 @@ static inline HvLpVirtualLanIndexMap HvCallCfg_getVirtualLanIndexMap(
 	return retVal;
 }
 
-static inline u64 HvCallCfg_getSystemMsChunks(void)
-{
-	return HvCall0(HvCallCfgGetSystemMsChunks);
-}
-
 static inline u64 HvCallCfg_getMsChunks(HvLpIndex lp,
 		enum HvCallCfg_ReqQual qual)
 {
 	return HvCall2(HvCallCfgGetMsChunks, lp, qual);
-}
-
-static inline u64 HvCallCfg_getMinRuntimeMsChunks(HvLpIndex lp)
-{
-	/*
-	 * NOTE: This function was added in v5r1 so older hypervisors
-	 * will return a -1 value
-	 */
-	return HvCall1(HvCallCfgGetMinRuntimeMsChunks, lp);
-}
-
-static inline u64 HvCallCfg_setMinRuntimeMsChunks(u64 chunks)
-{
-	return HvCall1(HvCallCfgSetMinRuntimeMsChunks, chunks);
 }
 
 static inline u64 HvCallCfg_getSystemPhysicalProcessors(void)
@@ -139,14 +100,6 @@ static inline u64 HvCallCfg_getPhysicalProcessors(HvLpIndex lp,
 		enum HvCallCfg_ReqQual qual)
 {
 	return HvCall2(HvCallCfgGetPhysicalProcessors, lp, qual);
-}
-
-static inline u64 HvCallCfg_getConfiguredBusUnitsForInterruptProc(HvLpIndex lp,
-		u16 hvLogicalProcIndex)
-{
-	return HvCall2(HvCallCfgGetConfiguredBusUnitsForIntProc, lp,
-			hvLogicalProcIndex);
-
 }
 
 static inline HvLpSharedPoolIndex HvCallCfg_getSharedPoolIndex(HvLpIndex lp)
@@ -164,15 +117,13 @@ static inline u64 HvCallCfg_getSharedProcUnits(HvLpIndex lp,
 
 static inline u64 HvCallCfg_getNumProcsInSharedPool(HvLpSharedPoolIndex sPI)
 {
-	u16 retVal = HvCall1(HvCallCfgGetNumProcsInSharedPool, sPI);
-	return retVal;
+	return (u16)HvCall1(HvCallCfgGetNumProcsInSharedPool, sPI);
 
 }
 
 static inline HvLpIndex	HvCallCfg_getHostingLpIndex(HvLpIndex lp)
 {
-	u64 retVal = HvCall1(HvCallCfgGetHostingLpIndex, lp);
-	return retVal;
+	return HvCall1(HvCallCfgGetHostingLpIndex, lp);
 }
 
 #endif /* _HVCALLCFG_H */
