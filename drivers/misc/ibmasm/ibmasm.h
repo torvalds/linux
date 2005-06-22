@@ -34,16 +34,31 @@
 #include <linux/version.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>
+#include <linux/input.h>
 
 /* Driver identification */
 #define DRIVER_NAME	"ibmasm"
-#define DRIVER_VERSION  "0.4"
-#define DRIVER_AUTHOR   "Max Asbock"
+#define DRIVER_VERSION  "1.0"
+#define DRIVER_AUTHOR   "Max Asbock <masbock@us.ibm.com>, Vernon Mauery <vernux@us.ibm.com>"
 #define DRIVER_DESC     "IBM ASM Service Processor Driver"
 
 #define err(msg) printk(KERN_ERR "%s: " msg "\n", DRIVER_NAME)
 #define info(msg) printk(KERN_INFO "%s: " msg "\n", DRIVER_NAME)
 
+extern int ibmasm_debug;
+#define dbg(STR, ARGS...)					\
+	do {							\
+		if (ibmasm_debug)				\
+			printk(KERN_DEBUG STR , ##ARGS);	\
+	} while (0)
+
+static inline char *get_timestamp(char *buf)
+{
+	struct timeval now;
+	do_gettimeofday(&now);
+	sprintf(buf, "%lu.%lu", now.tv_sec, now.tv_usec);
+	return buf;
+}
 
 #define IBMASM_CMD_PENDING	0	
 #define IBMASM_CMD_COMPLETE	1	
@@ -121,40 +136,10 @@ struct reverse_heartbeat {
 	unsigned int		stopped;
 };
 
-
-/* remote console events */
-struct mouse_event {
-	long		x;
-	long		y;
-	unsigned char	buttons;
-	unsigned char	transitions;
+struct ibmasm_remote {
+	struct input_dev keybd_dev;
+	struct input_dev mouse_dev;
 };
-
-struct keyboard_event {
-	unsigned long	key_code;
-	unsigned char	key_down;
-};
-
-struct remote_event {
-	unsigned long	type;
-	union {
-		struct mouse_event	mouse;
-		struct keyboard_event	keyboard;
-	} data;
-};
-
-#define DRIVER_REMOTE_QUEUE_SIZE 240
-
-struct remote_queue {
-	struct remote_event	*start;
-	struct remote_event	*end;
-	struct remote_event	*reader;
-	struct remote_event	*writer;
-	unsigned int		size;
-	int			open;
-	wait_queue_head_t	wait;
-};
-
 
 struct service_processor {
 	struct list_head	node;
@@ -168,7 +153,7 @@ struct service_processor {
 	char			dirname[IBMASM_NAME_SIZE];
 	char			devname[IBMASM_NAME_SIZE];
 	unsigned int		number;
-	struct remote_queue	remote_queue;
+	struct ibmasm_remote	*remote;
 	int			serial_line;
 	struct device		*dev;
 };
@@ -210,11 +195,9 @@ extern int ibmasm_send_i2o_message(struct service_processor *sp);
 extern irqreturn_t ibmasm_interrupt_handler(int irq, void * dev_id, struct pt_regs *regs);
 
 /* remote console */
-extern void ibmasm_handle_mouse_interrupt(struct service_processor *sp);
-extern int ibmasm_init_remote_queue(struct service_processor *sp);
-extern void ibmasm_free_remote_queue(struct service_processor *sp);
-extern void ibmasm_advance_reader(struct remote_queue *q, unsigned int n);
-extern size_t ibmasm_events_available(struct remote_queue *q);
+extern void ibmasm_handle_mouse_interrupt(struct service_processor *sp, struct pt_regs *regs);
+extern int ibmasm_init_remote_input_dev(struct service_processor *sp);
+extern void ibmasm_free_remote_input_dev(struct service_processor *sp);
 
 /* file system */
 extern int ibmasmfs_register(void);
