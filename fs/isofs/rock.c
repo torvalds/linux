@@ -13,12 +13,14 @@
 #include "isofs.h"
 #include "rock.h"
 
-/* These functions are designed to read the system areas of a directory record
+/*
+ * These functions are designed to read the system areas of a directory record
  * and extract relevant information.  There are different functions provided
  * depending upon what information we need at the time.  One function fills
  * out an inode structure, a second one extracts a filename, a third one
  * returns a symbolic link name, and a fourth one returns the extent number
- * for the file. */
+ * for the file.
+ */
 
 #define SIG(A,B) ((A) | ((B) << 8))	/* isonum_721() */
 
@@ -34,7 +36,7 @@ struct rock_state {
 
 /*
  * This is a way of ensuring that we have something in the system
- *  use fields that is compatible with Rock Ridge.  Return zero on success.
+ * use fields that is compatible with Rock Ridge.  Return zero on success.
  */
 
 static int check_sp(struct rock_ridge *rr, struct inode *inode)
@@ -111,7 +113,9 @@ out:
 	return ret;
 }
 
-/* return length of name field; 0: not found, -1: to be ignored */
+/*
+ * return length of name field; 0: not found, -1: to be ignored
+ */
 int get_rock_ridge_filename(struct iso_directory_record *de,
 			    char *retname, struct inode *inode)
 {
@@ -535,8 +539,11 @@ static char *get_symlink_chunk(char *rpnt, struct rock_ridge *rr, char *plimit)
 int parse_rock_ridge_inode(struct iso_directory_record *de, struct inode *inode)
 {
 	int result = parse_rock_ridge_inode_internal(de, inode, 0);
-	/* if rockridge flag was reset and we didn't look for attributes
-	 * behind eventual XA attributes, have a look there */
+
+	/*
+	 * if rockridge flag was reset and we didn't look for attributes
+	 * behind eventual XA attributes, have a look there
+	 */
 	if ((ISOFS_SB(inode->i_sb)->s_rock_offset == -1)
 	    && (ISOFS_SB(inode->i_sb)->s_rock == 2)) {
 		result = parse_rock_ridge_inode_internal(de, inode, 14);
@@ -544,9 +551,10 @@ int parse_rock_ridge_inode(struct iso_directory_record *de, struct inode *inode)
 	return result;
 }
 
-/* readpage() for symlinks: reads symlink contents into the page and either
-   makes it uptodate and returns 0 or returns error (-EIO) */
-
+/*
+ * readpage() for symlinks: reads symlink contents into the page and either
+ * makes it uptodate and returns 0 or returns error (-EIO)
+ */
 static int rock_ridge_symlink_readpage(struct file *file, struct page *page)
 {
 	struct inode *inode = page->mapping->host;
@@ -584,8 +592,10 @@ static int rock_ridge_symlink_readpage(struct file *file, struct page *page)
 	if (offset + *pnt > bufsize)
 		goto out_bad_span;
 
-	/* Now test for possible Rock Ridge extensions which will override
-	   some of these numbers in the inode structure. */
+	/*
+	 * Now test for possible Rock Ridge extensions which will override
+	 * some of these numbers in the inode structure.
+	 */
 
 	setup_rock_ridge(raw_de, inode, &rs);
 
