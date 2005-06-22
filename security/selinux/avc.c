@@ -242,7 +242,7 @@ void __init avc_init(void)
 	avc_node_cachep = kmem_cache_create("avc_node", sizeof(struct avc_node),
 					     0, SLAB_PANIC, NULL, NULL);
 
-	audit_log(current->audit_context, AUDIT_KERNEL, "AVC INITIALIZED\n");
+	audit_log(current->audit_context, GFP_KERNEL, AUDIT_KERNEL, "AVC INITIALIZED\n");
 }
 
 int avc_get_hash_stats(char *page)
@@ -550,7 +550,7 @@ void avc_audit(u32 ssid, u32 tsid,
 			return;
 	}
 
-	ab = audit_log_start(current->audit_context, AUDIT_AVC);
+	ab = audit_log_start(current->audit_context, GFP_ATOMIC, AUDIT_AVC);
 	if (!ab)
 		return;		/* audit_panic has been called */
 	audit_log_format(ab, "avc:  %s ", denied ? "denied" : "granted");

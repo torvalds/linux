@@ -346,7 +346,7 @@ int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
 		}
 		listnr = entry->rule.flags & ~AUDIT_FILTER_PREPEND;
 		audit_add_rule(entry, &audit_filter_list[listnr]);
-		audit_log(NULL, AUDIT_CONFIG_CHANGE, 
+		audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE, 
 				"auid=%u added an audit rule\n", loginuid);
 		break;
 	case AUDIT_DEL:
@@ -356,7 +356,7 @@ int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
 
 		err = audit_del_rule(data, &audit_filter_list[listnr]);
 		if (!err)
-			audit_log(NULL, AUDIT_CONFIG_CHANGE,
+			audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
 				  "auid=%u removed an audit rule\n", loginuid);
 		break;
 	default:
@@ -756,7 +756,7 @@ static void audit_log_exit(struct audit_context *context)
 	struct audit_buffer *ab;
 	struct audit_aux_data *aux;
 
-	ab = audit_log_start(context, AUDIT_SYSCALL);
+	ab = audit_log_start(context, GFP_KERNEL, AUDIT_SYSCALL);
 	if (!ab)
 		return;		/* audit_panic has been called */
 	audit_log_format(ab, "arch=%x syscall=%d",
@@ -788,7 +788,7 @@ static void audit_log_exit(struct audit_context *context)
 
 	for (aux = context->aux; aux; aux = aux->next) {
 
-		ab = audit_log_start(context, aux->type);
+		ab = audit_log_start(context, GFP_KERNEL, aux->type);
 		if (!ab)
 			continue; /* audit_panic has been called */
 
@@ -825,14 +825,14 @@ static void audit_log_exit(struct audit_context *context)
 	}
 
 	if (context->pwd && context->pwdmnt) {
-		ab = audit_log_start(context, AUDIT_CWD);
+		ab = audit_log_start(context, GFP_KERNEL, AUDIT_CWD);
 		if (ab) {
 			audit_log_d_path(ab, "cwd=", context->pwd, context->pwdmnt);
 			audit_log_end(ab);
 		}
 	}
 	for (i = 0; i < context->name_count; i++) {
-		ab = audit_log_start(context, AUDIT_PATH);
+		ab = audit_log_start(context, GFP_KERNEL, AUDIT_PATH);
 		if (!ab)
 			continue; /* audit_panic has been called */
 
@@ -1118,7 +1118,7 @@ int audit_set_loginuid(struct task_struct *task, uid_t loginuid)
 	if (task->audit_context) {
 		struct audit_buffer *ab;
 
-		ab = audit_log_start(NULL, AUDIT_LOGIN);
+		ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_LOGIN);
 		if (ab) {
 			audit_log_format(ab, "login pid=%d uid=%u "
 				"old auid=%u new auid=%u",

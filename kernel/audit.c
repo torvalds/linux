@@ -106,6 +106,7 @@ static LIST_HEAD(audit_freelist);
 static struct sk_buff_head audit_skb_queue;
 static struct task_struct *kauditd_task;
 static DECLARE_WAIT_QUEUE_HEAD(kauditd_wait);
+static DECLARE_WAIT_QUEUE_HEAD(audit_backlog_wait);
 
 /* The netlink socket is only to be read by 1 CPU, which lets us assume
  * that list additions and deletions never happen simultaneously in
@@ -130,6 +131,7 @@ struct audit_buffer {
 	struct list_head     list;
 	struct sk_buff       *skb;	/* formatted skb ready to send */
 	struct audit_context *ctx;	/* NULL or associated context */
+	int		     gfp_mask;
 };
 
 static void audit_set_pid(struct audit_buffer *ab, pid_t pid)
@@ -226,7 +228,7 @@ static int audit_set_rate_limit(int limit, uid_t loginuid)
 {
 	int old		 = audit_rate_limit;
 	audit_rate_limit = limit;
-	audit_log(NULL, AUDIT_CONFIG_CHANGE, 
+	audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE, 
 			"audit_rate_limit=%d old=%d by auid=%u",
 			audit_rate_limit, old, loginuid);
 	return old;
@@ -236,7 +238,7 @@ static int audit_set_backlog_limit(int limit, uid_t loginuid)
 {
 	int old		 = audit_backlog_limit;
 	audit_backlog_limit = limit;
-	audit_log(NULL, AUDIT_CONFIG_CHANGE,
+	audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
 			"audit_backlog_limit=%d old=%d by auid=%u",
 			audit_backlog_limit, old, loginuid);
 	return old;
@@ -248,7 +250,7 @@ static int audit_set_enabled(int state, uid_t loginuid)
 	if (state != 0 && state != 1)
 		return -EINVAL;
 	audit_enabled = state;
-	audit_log(NULL, AUDIT_CONFIG_CHANGE,
+	audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
 			"audit_enabled=%d old=%d by auid=%u",
 			audit_enabled, old, loginuid);
 	return old;
@@ -262,7 +264,7 @@ static int audit_set_failure(int state, uid_t loginuid)
 	    && state != AUDIT_FAIL_PANIC)
 		return -EINVAL;
 	audit_failure = state;
-	audit_log(NULL, AUDIT_CONFIG_CHANGE,
+	audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
 			"audit_failure=%d old=%d by auid=%u",
 			audit_failure, old, loginuid);
 	return old;
@@ -274,6 +276,7 @@ int kauditd_thread(void *dummy)
 
 	while (1) {
 		skb = skb_dequeue(&audit_skb_queue);
+		wake_up(&audit_backlog_wait);
 		if (skb) {
 			if (audit_pid) {
 				int err = netlink_unicast(audit_sock, skb, audit_pid, 0);
@@ -417,7 +420,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		if (status_get->mask & AUDIT_STATUS_PID) {
 			int old   = audit_pid;
 			audit_pid = status_get->pid;
-			audit_log(NULL, AUDIT_CONFIG_CHANGE,
+			audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
 				"audit_pid=%d old=%d by auid=%u",
 				  audit_pid, old, loginuid);
 		}
@@ -435,7 +438,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		err = audit_filter_user(pid, msg_type);
 		if (err == 1) {
 			err = 0;
-			ab = audit_log_start(NULL, msg_type);
+			ab = audit_log_start(NULL, GFP_KERNEL, msg_type);
 			if (ab) {
 				audit_log_format(ab,
 						 "user pid=%d uid=%u auid=%u msg='%.1024s'",
@@ -522,7 +525,7 @@ static int __init audit_init(void)
 	skb_queue_head_init(&audit_skb_queue);
 	audit_initialized = 1;
 	audit_enabled = audit_default;
-	audit_log(NULL, AUDIT_KERNEL, "initialized");
+	audit_log(NULL, GFP_KERNEL, AUDIT_KERNEL, "initialized");
 	return 0;
 }
 __initcall(audit_init);
@@ -586,6 +589,7 @@ static struct audit_buffer * audit_buffer_alloc(struct audit_context *ctx,
 		goto err;
 
 	ab->ctx = ctx;
+	ab->gfp_mask = gfp_mask;
 	nlh = (struct nlmsghdr *)skb_put(ab->skb, NLMSG_SPACE(0));
 	nlh->nlmsg_type = type;
 	nlh->nlmsg_flags = 0;
@@ -644,17 +648,42 @@ static inline void audit_get_stamp(struct audit_context *ctx,
  * syscall, then the syscall is marked as auditable and an audit record
  * will be written at syscall exit.  If there is no associated task, tsk
  * should be NULL. */
-struct audit_buffer *audit_log_start(struct audit_context *ctx, int type)
+
+struct audit_buffer *audit_log_start(struct audit_context *ctx, int gfp_mask,
+				     int type)
 {
 	struct audit_buffer	*ab	= NULL;
 	struct timespec		t;
 	unsigned int		serial;
+	int reserve;
 
 	if (!audit_initialized)
 		return NULL;
 
-	if (audit_backlog_limit
-	    && skb_queue_len(&audit_skb_queue) > audit_backlog_limit) {
+	if (gfp_mask & __GFP_WAIT)
+		reserve = 0;
+	else
+		reserve = 5; /* Allow atomic callers to go up to five 
+				entries over the normal backlog limit */
+
+	while (audit_backlog_limit
+	       && skb_queue_len(&audit_skb_queue) > audit_backlog_limit + reserve) {
+		if (gfp_mask & __GFP_WAIT) {
+			int ret = 1;
+			/* Wait for auditd to drain the queue a little */
+			DECLARE_WAITQUEUE(wait, current);
+			set_current_state(TASK_INTERRUPTIBLE);
+			add_wait_queue(&audit_backlog_wait, &wait);
+
+			if (audit_backlog_limit &&
+			    skb_queue_len(&audit_skb_queue) > audit_backlog_limit)
+				ret = schedule_timeout(HZ * 60);
+
+			__set_current_state(TASK_RUNNING);
+			remove_wait_queue(&audit_backlog_wait, &wait);
+			if (ret)
+				continue;
+		}
 		if (audit_rate_check())
 			printk(KERN_WARNING
 			       "audit: audit_backlog=%d > "
@@ -665,7 +694,7 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx, int type)
 		return NULL;
 	}
 
-	ab = audit_buffer_alloc(ctx, GFP_ATOMIC, type);
+	ab = audit_buffer_alloc(ctx, gfp_mask, type);
 	if (!ab) {
 		audit_log_lost("out of memory in audit_log_start");
 		return NULL;
@@ -689,7 +718,7 @@ static inline int audit_expand(struct audit_buffer *ab, int extra)
 {
 	struct sk_buff *skb = ab->skb;
 	int ret = pskb_expand_head(skb, skb_headroom(skb), extra,
-				   GFP_ATOMIC);
+				   ab->gfp_mask);
 	if (ret < 0) {
 		audit_log_lost("out of memory in audit_expand");
 		return 0;
@@ -808,7 +837,7 @@ void audit_log_d_path(struct audit_buffer *ab, const char *prefix,
 		audit_log_format(ab, " %s", prefix);
 
 	/* We will allow 11 spaces for ' (deleted)' to be appended */
-	path = kmalloc(PATH_MAX+11, GFP_KERNEL);
+	path = kmalloc(PATH_MAX+11, ab->gfp_mask);
 	if (!path) {
 		audit_log_format(ab, "<no memory>");
 		return;
@@ -849,12 +878,13 @@ void audit_log_end(struct audit_buffer *ab)
 /* Log an audit record.  This is a convenience function that calls
  * audit_log_start, audit_log_vformat, and audit_log_end.  It may be
  * called in any context. */
-void audit_log(struct audit_context *ctx, int type, const char *fmt, ...)
+void audit_log(struct audit_context *ctx, int gfp_mask, int type, 
+	       const char *fmt, ...)
 {
 	struct audit_buffer *ab;
 	va_list args;
 
-	ab = audit_log_start(ctx, type);
+	ab = audit_log_start(ctx, gfp_mask, type);
 	if (ab) {
 		va_start(args, fmt);
 		audit_log_vformat(ab, fmt, args);
