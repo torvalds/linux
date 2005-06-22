@@ -255,6 +255,10 @@ void free_irq(unsigned int irq, void *dev_id)
 
 			/* Found it - now remove it from the list of entries */
 			*pp = action->next;
+
+			if (desc->handler->release)
+				desc->handler->release(irq, dev_id);
+
 			if (!desc->action) {
 				desc->status |= IRQ_DISABLED;
 				if (desc->handler->shutdown)
