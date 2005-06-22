@@ -1158,7 +1158,7 @@ unsigned long __read_page_state(unsigned offset)
 	return ret;
 }
 
-void __mod_page_state(unsigned offset, unsigned long delta)
+void __mod_page_state(unsigned long offset, unsigned long delta)
 {
 	unsigned long flags;
 	void* ptr;
