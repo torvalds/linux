@@ -42,6 +42,7 @@ EXPORT_SYMBOL(rpc_release_task);
 /* RPC client functions */
 EXPORT_SYMBOL(rpc_create_client);
 EXPORT_SYMBOL(rpc_clone_client);
+EXPORT_SYMBOL(rpc_bind_new_program);
 EXPORT_SYMBOL(rpc_destroy_client);
 EXPORT_SYMBOL(rpc_shutdown_client);
 EXPORT_SYMBOL(rpc_release_client);

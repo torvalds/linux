@@ -114,6 +114,8 @@ struct rpc_clnt *rpc_create_client(struct rpc_xprt *xprt, char *servname,
 struct rpc_clnt *rpc_new_client(struct rpc_xprt *xprt, char *servname,
 				struct rpc_program *info,
 				u32 version, rpc_authflavor_t authflavor);
+struct rpc_clnt	*rpc_bind_new_program(struct rpc_clnt *,
+				struct rpc_program *, int);
 struct rpc_clnt *rpc_clone_client(struct rpc_clnt *);
 int		rpc_shutdown_client(struct rpc_clnt *);
 int		rpc_destroy_client(struct rpc_clnt *);

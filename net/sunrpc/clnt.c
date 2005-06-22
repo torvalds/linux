@@ -241,6 +241,8 @@ rpc_clone_client(struct rpc_clnt *clnt)
 	rpc_init_rtt(&new->cl_rtt_default, clnt->cl_xprt->timeout.to_initval);
 	if (new->cl_auth)
 		atomic_inc(&new->cl_auth->au_count);
+	new->cl_pmap		= &new->cl_pmap_default;
+	rpc_init_wait_queue(&new->cl_pmap_default.pm_bindwait, "bindwait");
 	return new;
 out_no_clnt:
 	printk(KERN_INFO "RPC: out of memory in %s\n", __FUNCTION__);
@@ -327,6 +329,44 @@ rpc_release_client(struct rpc_clnt *clnt)
 	wake_up(&destroy_wait);
 	if (clnt->cl_oneshot || clnt->cl_dead)
 		rpc_destroy_client(clnt);
+}
+
+/**
+ * rpc_bind_new_program - bind a new RPC program to an existing client
+ * @old - old rpc_client
+ * @program - rpc program to set
+ * @vers - rpc program version
+ *
+ * Clones the rpc client and sets up a new RPC program. This is mainly
+ * of use for enabling different RPC programs to share the same transport.
+ * The Sun NFSv2/v3 ACL protocol can do this.
+ */
+struct rpc_clnt *rpc_bind_new_program(struct rpc_clnt *old,
+				      struct rpc_program *program,
+				      int vers)
+{
+	struct rpc_clnt *clnt;
+	struct rpc_version *version;
+	int err;
+
+	BUG_ON(vers >= program->nrvers || !program->version[vers]);
+	version = program->version[vers];
+	clnt = rpc_clone_client(old);
+	if (IS_ERR(clnt))
+		goto out;
+	clnt->cl_procinfo = version->procs;
+	clnt->cl_maxproc  = version->nrprocs;
+	clnt->cl_protname = program->name;
+	clnt->cl_prog     = program->number;
+	clnt->cl_vers     = version->number;
+	clnt->cl_stats    = program->stats;
+	err = rpc_ping(clnt, RPC_TASK_SOFT|RPC_TASK_NOINTR);
+	if (err != 0) {
+		rpc_shutdown_client(clnt);
+		clnt = ERR_PTR(err);
+	}
+out:	
+	return clnt;
 }
 
 /*
