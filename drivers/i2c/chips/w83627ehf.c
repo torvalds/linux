@@ -486,7 +486,8 @@ store_fan_min(struct device *dev, const char *buf, size_t count, int nr)
 
 #define sysfs_fan_offset(offset) \
 static ssize_t \
-show_reg_fan_##offset(struct device *dev, char *buf) \
+show_reg_fan_##offset(struct device *dev, struct device_attribute *attr, \
+		      char *buf) \
 { \
 	return show_fan(dev, buf, offset-1); \
 } \
@@ -495,13 +496,14 @@ static DEVICE_ATTR(fan##offset##_input, S_IRUGO, \
 
 #define sysfs_fan_min_offset(offset) \
 static ssize_t \
-show_reg_fan##offset##_min(struct device *dev, char *buf) \
+show_reg_fan##offset##_min(struct device *dev, struct device_attribute *attr, \
+			   char *buf) \
 { \
 	return show_fan_min(dev, buf, offset-1); \
 } \
 static ssize_t \
-store_reg_fan##offset##_min(struct device *dev, const char *buf, \
-			    size_t count) \
+store_reg_fan##offset##_min(struct device *dev, struct device_attribute *attr, \
+			    const char *buf, size_t count) \
 { \
 	return store_fan_min(dev, buf, count, offset-1); \
 } \
@@ -511,7 +513,8 @@ static DEVICE_ATTR(fan##offset##_min, S_IRUGO | S_IWUSR, \
 
 #define sysfs_fan_div_offset(offset) \
 static ssize_t \
-show_reg_fan##offset##_div(struct device *dev, char *buf) \
+show_reg_fan##offset##_div(struct device *dev, struct device_attribute *attr, \
+			   char *buf) \
 { \
 	return show_fan_div(dev, buf, offset - 1); \
 } \
@@ -536,7 +539,8 @@ sysfs_fan_div_offset(5);
 
 #define show_temp1_reg(reg) \
 static ssize_t \
-show_##reg(struct device *dev, char *buf) \
+show_##reg(struct device *dev, struct device_attribute *attr, \
+	   char *buf) \
 { \
 	struct w83627ehf_data *data = w83627ehf_update_device(dev); \
 	return sprintf(buf, "%d\n", temp1_from_reg(data->reg)); \
@@ -547,7 +551,8 @@ show_temp1_reg(temp1_max_hyst);
 
 #define store_temp1_reg(REG, reg) \
 static ssize_t \
-store_temp1_##reg(struct device *dev, const char *buf, size_t count) \
+store_temp1_##reg(struct device *dev, struct device_attribute *attr, \
+		  const char *buf, size_t count) \
 { \
 	struct i2c_client *client = to_i2c_client(dev); \
 	struct w83627ehf_data *data = i2c_get_clientdata(client); \
@@ -601,7 +606,8 @@ store_temp_reg(HYST, temp_max_hyst);
 
 #define sysfs_temp_offset(offset) \
 static ssize_t \
-show_reg_temp##offset (struct device *dev, char *buf) \
+show_reg_temp##offset (struct device *dev, struct device_attribute *attr, \
+		       char *buf) \
 { \
 	return show_temp(dev, buf, offset - 2); \
 } \
@@ -610,13 +616,14 @@ static DEVICE_ATTR(temp##offset##_input, S_IRUGO, \
 
 #define sysfs_temp_reg_offset(reg, offset) \
 static ssize_t \
-show_reg_temp##offset##_##reg(struct device *dev, char *buf) \
+show_reg_temp##offset##_##reg(struct device *dev, struct device_attribute *attr, \
+			      char *buf) \
 { \
 	return show_temp_##reg(dev, buf, offset - 2); \
 } \
 static ssize_t \
-store_reg_temp##offset##_##reg(struct device *dev, const char *buf, \
-			       size_t count) \
+store_reg_temp##offset##_##reg(struct device *dev, struct device_attribute *attr, \
+			       const char *buf, size_t count) \
 { \
 	return store_temp_##reg(dev, buf, count, offset - 2); \
 } \

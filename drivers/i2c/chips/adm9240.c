@@ -185,7 +185,9 @@ static int adm9240_write_value(struct i2c_client *client, u8 reg, u8 value)
 
 /* temperature */
 #define show_temp(value, scale)					\
-static ssize_t show_##value(struct device *dev, char *buf)	\
+static ssize_t show_##value(struct device *dev,			\
+			    struct device_attribute *attr,	\
+			    char *buf)				\
 {								\
 	struct adm9240_data *data = adm9240_update_device(dev);	\
 	return sprintf(buf, "%d\n", data->value * scale);	\
@@ -195,8 +197,9 @@ show_temp(temp_hyst, 1000);
 show_temp(temp, 500); /* 0.5'C per bit */
 
 #define set_temp(value, reg)					\
-static ssize_t set_##value(struct device *dev, const char *buf,	\
-		size_t count)					\
+static ssize_t set_##value(struct device *dev, 			\
+			   struct device_attribute *attr,	\
+			   const char *buf, size_t count)	\
 {								\
 	struct i2c_client *client = to_i2c_client(dev);		\
 	struct adm9240_data *data = adm9240_update_device(dev);	\
@@ -266,26 +269,36 @@ static ssize_t set_in_max(struct device *dev, const char *buf,
 }
 
 #define show_in_offset(offset)						\
-static ssize_t show_in##offset(struct device *dev, char *buf)		\
+static ssize_t show_in##offset(struct device *dev,			\
+			       struct device_attribute *attr,		\
+			       char *buf)				\
 {									\
 	return show_in(dev, buf, offset);				\
 }									\
 static DEVICE_ATTR(in##offset##_input, S_IRUGO, show_in##offset, NULL);	\
-static ssize_t show_in##offset##_min(struct device *dev, char *buf)	\
+static ssize_t show_in##offset##_min(struct device *dev,		\
+				     struct device_attribute *attr,	\
+				     char *buf)				\
 {									\
 	return show_in_min(dev, buf, offset);				\
 }									\
-static ssize_t show_in##offset##_max(struct device *dev, char *buf)	\
+static ssize_t show_in##offset##_max(struct device *dev,		\
+				     struct device_attribute *attr,	\
+				     char *buf)				\
 {									\
 	return show_in_max(dev, buf, offset);				\
 }									\
 static ssize_t								\
-set_in##offset##_min(struct device *dev, const char *buf, size_t count)	\
+set_in##offset##_min(struct device *dev,				\
+		     struct device_attribute *attr, const char *buf,	\
+		     size_t count)					\
 {									\
 	return set_in_min(dev, buf, count, offset);			\
 }									\
 static ssize_t								\
-set_in##offset##_max(struct device *dev, const char *buf, size_t count)	\
+set_in##offset##_max(struct device *dev,				\
+		     struct device_attribute *attr, const char *buf,	\
+		     size_t count)					\
 {									\
 	return set_in_max(dev, buf, count, offset);			\
 }									\
@@ -401,20 +414,27 @@ static ssize_t set_fan_min(struct device *dev, const char *buf,
 }
 
 #define show_fan_offset(offset)						\
-static ssize_t show_fan_##offset (struct device *dev, char *buf)	\
+static ssize_t show_fan_##offset (struct device *dev,			\
+				  struct device_attribute *attr,	\
+				  char *buf)				\
 {									\
 return show_fan(dev, buf, offset - 1);					\
 }									\
-static ssize_t show_fan_##offset##_div (struct device *dev, char *buf)	\
+static ssize_t show_fan_##offset##_div (struct device *dev,		\
+					struct device_attribute *attr,	\
+					char *buf)			\
 {									\
 return show_fan_div(dev, buf, offset - 1);				\
 }									\
-static ssize_t show_fan_##offset##_min (struct device *dev, char *buf)	\
+static ssize_t show_fan_##offset##_min (struct device *dev,		\
+					struct device_attribute *attr,	\
+					char *buf)			\
 {									\
 return show_fan_min(dev, buf, offset - 1);				\
 }									\
 static ssize_t set_fan_##offset##_min (struct device *dev, 		\
-const char *buf, size_t count)						\
+				       struct device_attribute *attr,	\
+				       const char *buf, size_t count)	\
 {									\
 return set_fan_min(dev, buf, count, offset - 1);			\
 }									\
@@ -429,7 +449,7 @@ show_fan_offset(1);
 show_fan_offset(2);
 
 /* alarms */
-static ssize_t show_alarms(struct device *dev, char *buf)
+static ssize_t show_alarms(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct adm9240_data *data = adm9240_update_device(dev);
 	return sprintf(buf, "%u\n", data->alarms);
@@ -437,7 +457,7 @@ static ssize_t show_alarms(struct device *dev, char *buf)
 static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);
 
 /* vid */
-static ssize_t show_vid(struct device *dev, char *buf)
+static ssize_t show_vid(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct adm9240_data *data = adm9240_update_device(dev);
 	return sprintf(buf, "%d\n", vid_from_reg(data->vid, data->vrm));
@@ -445,13 +465,13 @@ static ssize_t show_vid(struct device *dev, char *buf)
 static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid, NULL);
 
 /* analog output */
-static ssize_t show_aout(struct device *dev, char *buf)
+static ssize_t show_aout(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct adm9240_data *data = adm9240_update_device(dev);
 	return sprintf(buf, "%d\n", AOUT_FROM_REG(data->aout));
 }
 
-static ssize_t set_aout(struct device *dev, const char *buf, size_t count)
+static ssize_t set_aout(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct adm9240_data *data = i2c_get_clientdata(client);
@@ -466,7 +486,7 @@ static ssize_t set_aout(struct device *dev, const char *buf, size_t count)
 static DEVICE_ATTR(aout_output, S_IRUGO | S_IWUSR, show_aout, set_aout);
 
 /* chassis_clear */
-static ssize_t chassis_clear(struct device *dev, const char *buf, size_t count)
+static ssize_t chassis_clear(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	unsigned long val = simple_strtol(buf, NULL, 10);
