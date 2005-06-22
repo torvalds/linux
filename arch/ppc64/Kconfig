@@ -110,6 +110,21 @@ config PPC_OF
 	bool
 	default y
 
+config XICS
+	depends on PPC_PSERIES
+	bool
+	default y
+
+config MPIC
+	depends on PPC_PSERIES || PPC_PMAC || PPC_MAPLE
+	bool
+	default y
+
+config BPA_IIC
+	depends on PPC_BPA
+	bool
+	default y
+
 # VMX is pSeries only for now until somebody writes the iSeries
 # exception vectors for it
 config ALTIVEC

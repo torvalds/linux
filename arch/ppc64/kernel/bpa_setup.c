@@ -45,6 +45,7 @@
 #include <asm/cputable.h>
 
 #include "pci.h"
+#include "bpa_iic.h"
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -71,6 +72,9 @@ static void bpa_progress(char *s, unsigned short hex)
 
 static void __init bpa_setup_arch(void)
 {
+	ppc_md.init_IRQ       = iic_init_IRQ;
+	ppc_md.get_irq        = iic_get_irq;
+
 #ifdef CONFIG_SMP
 	smp_init_pSeries();
 #endif
@@ -86,7 +90,7 @@ static void __init bpa_setup_arch(void)
 	/* Find and initialize PCI host bridges */
 	init_pci_config_tokens();
 	find_and_init_phbs();
-
+	spider_init_IRQ();
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;
 #endif

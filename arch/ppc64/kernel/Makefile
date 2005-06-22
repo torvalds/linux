@@ -27,13 +27,13 @@ obj-$(CONFIG_PPC_ISERIES) += HvCall.o HvLpConfig.o LparData.o \
 			     mf.o HvLpEvent.o iSeries_proc.o iSeries_htab.o \
 			     iSeries_iommu.o
 
-obj-$(CONFIG_PPC_MULTIPLATFORM) += nvram.o i8259.o prom_init.o prom.o mpic.o
+obj-$(CONFIG_PPC_MULTIPLATFORM) += nvram.o i8259.o prom_init.o prom.o
 
 obj-$(CONFIG_PPC_PSERIES) += pSeries_pci.o pSeries_lpar.o pSeries_hvCall.o \
 			     pSeries_nvram.o rtasd.o ras.o pSeries_reconfig.o \
-			     xics.o pSeries_setup.o pSeries_iommu.o
+			     pSeries_setup.o pSeries_iommu.o
 
-obj-$(CONFIG_PPC_BPA) += bpa_setup.o bpa_nvram.o
+obj-$(CONFIG_PPC_BPA) += bpa_setup.o bpa_nvram.o bpa_iic.o spider-pic.o
 
 obj-$(CONFIG_EEH)		+= eeh.o
 obj-$(CONFIG_PROC_FS)		+= proc_ppc64.o
@@ -49,6 +49,8 @@ obj-$(CONFIG_HVC_CONSOLE)	+= hvconsole.o
 obj-$(CONFIG_BOOTX_TEXT)	+= btext.o
 obj-$(CONFIG_HVCS)		+= hvcserver.o
 obj-$(CONFIG_IBMVIO)		+= vio.o
+obj-$(CONFIG_XICS)		+= xics.o
+obj-$(CONFIG_MPIC)		+= mpic.o
 
 obj-$(CONFIG_PPC_PMAC)		+= pmac_setup.o pmac_feature.o pmac_pci.o \
 				   pmac_time.o pmac_nvram.o pmac_low_i2c.o
