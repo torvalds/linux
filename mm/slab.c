@@ -2851,6 +2851,7 @@ next:
 	}
 	check_irq_on();
 	up(&cache_chain_sem);
+	drain_remote_pages();
 	/* Setup the next iteration */
 	schedule_delayed_work(&__get_cpu_var(reap_work), REAPTIMEOUT_CPUC + smp_processor_id());
 }

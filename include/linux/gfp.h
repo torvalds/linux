@@ -133,5 +133,10 @@ extern void FASTCALL(free_cold_page(struct page *page));
 #define free_page(addr) free_pages((addr),0)
 
 void page_alloc_init(void);
+#ifdef CONFIG_NUMA
+void drain_remote_pages(void);
+#else
+static inline void drain_remote_pages(void) { };
+#endif
 
 #endif /* __LINUX_GFP_H */
