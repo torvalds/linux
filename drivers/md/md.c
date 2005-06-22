@@ -3213,10 +3213,8 @@ static int md_seq_show(struct seq_file *seq, void *v)
 			seq_printf(seq, "\n       ");
 
 		if ((bitmap = mddev->bitmap)) {
-			char *buf, *path;
 			unsigned long chunk_kb;
 			unsigned long flags;
-			buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
 			spin_lock_irqsave(&bitmap->lock, flags);
 			chunk_kb = bitmap->chunksize >> 10;
 			seq_printf(seq, "bitmap: %lu/%lu pages [%luKB], "
@@ -3227,13 +3225,14 @@ static int md_seq_show(struct seq_file *seq, void *v)
 					<< (PAGE_SHIFT - 10),
 				chunk_kb ? chunk_kb : bitmap->chunksize,
 				chunk_kb ? "KB" : "B");
-			if (bitmap->file && buf) {
-				path = file_path(bitmap->file, buf, PAGE_SIZE);
-				seq_printf(seq, ", file: %s", path ? path : "");
+			if (bitmap->file) {
+				seq_printf(seq, ", file: ");
+				seq_path(seq, bitmap->file->f_vfsmnt,
+					 bitmap->file->f_dentry," \t\n");
 			}
+
 			seq_printf(seq, "\n");
 			spin_unlock_irqrestore(&bitmap->lock, flags);
-			kfree(buf);
 		}
 
 		seq_printf(seq, "\n");

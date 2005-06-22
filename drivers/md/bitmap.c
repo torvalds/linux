@@ -769,13 +769,7 @@ static int bitmap_init_from_disk(struct bitmap *bitmap)
 	chunks = bitmap->chunks;
 	file = bitmap->file;
 
-	if (!file) { /* no file, dirty all the in-memory bits */
-		printk(KERN_INFO "%s: no bitmap file, doing full recovery\n",
-			bmname(bitmap));
-		bitmap_set_memory_bits(bitmap, 0,
-				       chunks << CHUNK_BLOCK_SHIFT(bitmap), 1);
-		return 0;
-	}
+	BUG_ON(!file);
 
 #if INJECT_FAULTS_3
 	outofdate = 1;
