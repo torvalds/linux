@@ -202,7 +202,7 @@ struct mdp_superblock_1 {
 				 * NOTE: signed, so bitmap can be before superblock
 				 * only meaningful of feature_map[0] is set.
 				 */
-	__u8	pad1[128-96];	/* set to 0 when written */
+	__u8	pad1[128-100];	/* set to 0 when written */
 
 	/* constant this-device information - 64 bytes */
 	__u64	data_offset;	/* sector start of data, often 0 */

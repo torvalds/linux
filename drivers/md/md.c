@@ -847,7 +847,7 @@ static int super_1_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version)
 	case 0:
 		sb_offset = rdev->bdev->bd_inode->i_size >> 9;
 		sb_offset -= 8*2;
-		sb_offset &= ~(4*2-1);
+		sb_offset &= ~(sector_t)(4*2-1);
 		/* convert from sectors to K */
 		sb_offset /= 2;
 		break;
