@@ -123,7 +123,7 @@ static void nfs4_setup_readdir(u64 cookie, u32 *verifier, struct dentry *dentry,
 
 	BUG_ON(readdir->count < 80);
 	if (cookie > 2) {
-		readdir->cookie = (cookie > 2) ? cookie : 0;
+		readdir->cookie = cookie;
 		memcpy(&readdir->verifier, verifier, sizeof(readdir->verifier));
 		return;
 	}
