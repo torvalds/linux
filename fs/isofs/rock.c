@@ -37,18 +37,23 @@ static int check_sp(struct rock_ridge *rr, struct inode *inode)
 	return 0;
 }
 
-#define SETUP_ROCK_RIDGE(DE,CHR,LEN)	      		      	\
-  {LEN= sizeof(struct iso_directory_record) + DE->name_len[0];	\
-  if(LEN & 1) LEN++;						\
-  CHR = ((unsigned char *) DE) + LEN;				\
-  LEN = *((unsigned char *) DE) - LEN;                          \
-  if (LEN<0) LEN=0;                                             \
-  if (ISOFS_SB(inode->i_sb)->s_rock_offset!=-1)                \
-  {                                                             \
-     LEN-=ISOFS_SB(inode->i_sb)->s_rock_offset;                \
-     CHR+=ISOFS_SB(inode->i_sb)->s_rock_offset;                \
-     if (LEN<0) LEN=0;                                          \
-  }                                                             \
+static void setup_rock_ridge(struct iso_directory_record *de,
+			struct inode *inode, unsigned char **chr, int *len)
+{
+	*len = sizeof(struct iso_directory_record) + de->name_len[0];
+	if (*len & 1)
+		(*len)++;
+	*chr = (unsigned char *)de + *len;
+	*len = *((unsigned char *)de) - *len;
+	if (*len < 0)
+		*len = 0;
+
+	if (ISOFS_SB(inode->i_sb)->s_rock_offset != -1) {
+		*len -= ISOFS_SB(inode->i_sb)->s_rock_offset;
+		*chr += ISOFS_SB(inode->i_sb)->s_rock_offset;
+		if (*len < 0)
+			*len = 0;
+	}
 }
 
 #define MAYBE_CONTINUE(LABEL,DEV) \
@@ -98,7 +103,7 @@ int get_rock_ridge_filename(struct iso_directory_record *de,
 		return 0;
 	*retname = 0;
 
-	SETUP_ROCK_RIDGE(de, chr, len);
+	setup_rock_ridge(de, inode, &chr, &len);
 repeat:
 
 	while (len > 2) { /* There may be one byte for padding somewhere */
@@ -188,7 +193,7 @@ parse_rock_ridge_inode_internal(struct iso_directory_record *de,
 	if (!ISOFS_SB(inode->i_sb)->s_rock)
 		return 0;
 
-	SETUP_ROCK_RIDGE(de, chr, len);
+	setup_rock_ridge(de, inode, &chr, &len);
 	if (regard_xa) {
 		chr += 14;
 		len -= 14;
@@ -527,7 +532,7 @@ static int rock_ridge_symlink_readpage(struct file *file, struct page *page)
 	struct buffer_head *bh;
 	char *rpnt = link;
 	unsigned char *pnt;
-	struct iso_directory_record *raw_inode;
+	struct iso_directory_record *raw_de;
 	int cont_extent = 0;
 	int cont_offset = 0;
 	int cont_size = 0;
@@ -550,7 +555,7 @@ static int rock_ridge_symlink_readpage(struct file *file, struct page *page)
 	offset = ei->i_iget5_offset;
 	pnt = (unsigned char *)bh->b_data + offset;
 
-	raw_inode = (struct iso_directory_record *)pnt;
+	raw_de = (struct iso_directory_record *)pnt;
 
 	/*
 	 * If we go past the end of the buffer, there is some sort of error.
@@ -561,7 +566,7 @@ static int rock_ridge_symlink_readpage(struct file *file, struct page *page)
 	/* Now test for possible Rock Ridge extensions which will override
 	   some of these numbers in the inode structure. */
 
-	SETUP_ROCK_RIDGE(raw_inode, chr, len);
+	setup_rock_ridge(raw_de, inode, &chr, &len);
 
 repeat:
 	while (len > 2) { /* There may be one byte for padding somewhere */
