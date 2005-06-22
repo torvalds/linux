@@ -1239,7 +1239,7 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct * vma,
 	}
 	old_page = pfn_to_page(pfn);
 
-	if (!TestSetPageLocked(old_page)) {
+	if (PageAnon(old_page) && !TestSetPageLocked(old_page)) {
 		int reuse = can_share_swap_page(old_page);
 		unlock_page(old_page);
 		if (reuse) {
