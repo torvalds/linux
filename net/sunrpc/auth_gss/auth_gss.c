@@ -675,9 +675,8 @@ gss_create(struct rpc_clnt *clnt, rpc_authflavor_t flavor)
 		goto err_free;
 	}
 	gss_auth->service = gss_pseudoflavor_to_service(gss_auth->mech, flavor);
-	/* FIXME: Will go away once privacy support is merged in */
-	if (gss_auth->service == RPC_GSS_SVC_PRIVACY)
-		gss_auth->service = RPC_GSS_SVC_INTEGRITY;
+	if (gss_auth->service == 0)
+		goto err_put_mech;
 	INIT_LIST_HEAD(&gss_auth->upcalls);
 	spin_lock_init(&gss_auth->lock);
 	auth = &gss_auth->rpc_auth;
