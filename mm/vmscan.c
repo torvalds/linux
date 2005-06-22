@@ -919,8 +919,7 @@ shrink_caches(struct zone **zones, struct scan_control *sc)
  * holds filesystem locks which prevent writeout this might not work, and the
  * allocation attempt will fail.
  */
-int try_to_free_pages(struct zone **zones,
-		unsigned int gfp_mask, unsigned int order)
+int try_to_free_pages(struct zone **zones, unsigned int gfp_mask)
 {
 	int priority;
 	int ret = 0;
