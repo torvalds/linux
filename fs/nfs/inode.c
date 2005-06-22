@@ -64,6 +64,7 @@ static void nfs_clear_inode(struct inode *);
 static void nfs_umount_begin(struct super_block *);
 static int  nfs_statfs(struct super_block *, struct kstatfs *);
 static int  nfs_show_options(struct seq_file *, struct vfsmount *);
+static void nfs_zap_acl_cache(struct inode *);
 
 static struct rpc_program	nfs_program;
 
@@ -153,6 +154,7 @@ nfs_clear_inode(struct inode *inode)
 
 	nfs_wb_all(inode);
 	BUG_ON (!list_empty(&nfsi->open_files));
+	nfs_zap_acl_cache(inode);
 	cred = nfsi->cache_access.cred;
 	if (cred)
 		put_rpccred(cred);
@@ -587,9 +589,19 @@ nfs_zap_caches(struct inode *inode)
 
 	memset(NFS_COOKIEVERF(inode), 0, sizeof(NFS_COOKIEVERF(inode)));
 	if (S_ISREG(mode) || S_ISDIR(mode) || S_ISLNK(mode))
-		nfsi->flags |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA|NFS_INO_INVALID_ACCESS;
+		nfsi->flags |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA|NFS_INO_INVALID_ACCESS|NFS_INO_INVALID_ACL;
 	else
-		nfsi->flags |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_ACCESS;
+		nfsi->flags |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_ACCESS|NFS_INO_INVALID_ACL;
+}
+
+static void nfs_zap_acl_cache(struct inode *inode)
+{
+	void (*clear_acl_cache)(struct inode *);
+
+	clear_acl_cache = NFS_PROTO(inode)->clear_acl_cache;
+	if (clear_acl_cache != NULL)
+		clear_acl_cache(inode);
+	NFS_I(inode)->flags &= ~NFS_INO_INVALID_ACL;
 }
 
 /*
@@ -789,7 +801,7 @@ nfs_setattr(struct dentry *dentry, struct iattr *attr)
 		}
 	}
 	if ((attr->ia_valid & (ATTR_MODE|ATTR_UID|ATTR_GID)) != 0)
-		NFS_FLAGS(inode) |= NFS_INO_INVALID_ACCESS;
+		NFS_FLAGS(inode) |= NFS_INO_INVALID_ACCESS|NFS_INO_INVALID_ACL;
 	nfs_end_data_update(inode);
 	unlock_kernel();
 	return error;
@@ -1033,6 +1045,8 @@ __nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
 		/* This ensures we revalidate dentries */
 		nfsi->cache_change_attribute++;
 	}
+	if (flags & NFS_INO_INVALID_ACL)
+		nfs_zap_acl_cache(inode);
 	dfprintk(PAGECACHE, "NFS: (%s/%Ld) revalidation complete\n",
 		inode->i_sb->s_id,
 		(long long)NFS_FILEID(inode));
@@ -1183,7 +1197,7 @@ int nfs_refresh_inode(struct inode *inode, struct nfs_fattr *fattr)
 	if ((inode->i_mode & S_IALLUGO) != (fattr->mode & S_IALLUGO)
 			|| inode->i_uid != fattr->uid
 			|| inode->i_gid != fattr->gid)
-		nfsi->flags |= NFS_INO_INVALID_ATTR | NFS_INO_INVALID_ACCESS;
+		nfsi->flags |= NFS_INO_INVALID_ATTR | NFS_INO_INVALID_ACCESS | NFS_INO_INVALID_ACL;
 
 	/* Has the link count changed? */
 	if (inode->i_nlink != fattr->nlink)
@@ -1292,16 +1306,21 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr, unsign
 #endif
 		nfsi->change_attr = fattr->change_attr;
 		if (!data_unstable)
-			invalid |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA|NFS_INO_INVALID_ACCESS;
+			invalid |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA|NFS_INO_INVALID_ACCESS|NFS_INO_INVALID_ACL;
 	}
 
-	memcpy(&inode->i_ctime, &fattr->ctime, sizeof(inode->i_ctime));
+	/* If ctime has changed we should definitely clear access+acl caches */
+	if (!timespec_equal(&inode->i_ctime, &fattr->ctime)) {
+		if (!data_unstable)
+			invalid |= NFS_INO_INVALID_ACCESS|NFS_INO_INVALID_ACL;
+		memcpy(&inode->i_ctime, &fattr->ctime, sizeof(inode->i_ctime));
+	}
 	memcpy(&inode->i_atime, &fattr->atime, sizeof(inode->i_atime));
 
 	if ((inode->i_mode & S_IALLUGO) != (fattr->mode & S_IALLUGO) ||
 	    inode->i_uid != fattr->uid ||
 	    inode->i_gid != fattr->gid)
-		invalid |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_ACCESS;
+		invalid |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_ACCESS|NFS_INO_INVALID_ACL;
 
 	inode->i_mode = fattr->mode;
 	inode->i_nlink = fattr->nlink;

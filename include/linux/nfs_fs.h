@@ -189,6 +189,7 @@ struct nfs_inode {
 #define NFS_INO_INVALID_DATA	0x0010		/* cached data is invalid */
 #define NFS_INO_INVALID_ATIME	0x0020		/* cached atime is invalid */
 #define NFS_INO_INVALID_ACCESS	0x0040		/* cached access cred invalid */
+#define NFS_INO_INVALID_ACL	0x0080		/* cached acls are invalid */
 
 static inline struct nfs_inode *NFS_I(struct inode *inode)
 {

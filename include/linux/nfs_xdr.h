@@ -714,6 +714,7 @@ struct nfs_rpc_ops {
 	int	(*file_open)   (struct inode *, struct file *);
 	int	(*file_release) (struct inode *, struct file *);
 	int	(*lock)(struct file *, int, struct file_lock *);
+	void	(*clear_acl_cache)(struct inode *);
 };
 
 /*
