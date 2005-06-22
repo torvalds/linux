@@ -517,10 +517,10 @@ startup:basr  %r13,0                     # get base
 	l     %r2, .Lrcp2-.LPG1(%r13)	# try with Read SCP
 	b     .Lservicecall-.LPG1(%r13)
 .Lprocsccb:
-	lh    %r1,.Lscpincr1-PARMAREA(%r4) # use this one if != 0
-	chi   %r1,0x00
-	jne   .Lscnd
-	l     %r1,.Lscpincr2-PARMAREA(%r4) # otherwise use this one
+	lhi   %r1,0
+	icm   %r1,3,.Lscpincr1-PARMAREA(%r4) # use this one if != 0
+	jnz   .Lscnd
+	l     %r1,.Lscpincr2-PARMAREA+4(%r4) # otherwise use this one
 .Lscnd:
 	xr    %r3,%r3			# same logic
 	ic    %r3,.Lscpa1-PARMAREA(%r4)
