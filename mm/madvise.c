@@ -19,6 +19,21 @@ static long madvise_behavior(struct vm_area_struct * vma, unsigned long start,
 {
 	struct mm_struct * mm = vma->vm_mm;
 	int error = 0;
+	int new_flags = vma->vm_flags & ~VM_READHINTMASK;
+
+	switch (behavior) {
+	case MADV_SEQUENTIAL:
+		new_flags |= VM_SEQ_READ;
+		break;
+	case MADV_RANDOM:
+		new_flags |= VM_RAND_READ;
+		break;
+	default:
+		break;
+	}
+
+	if (new_flags == vma->vm_flags)
+		goto out;
 
 	if (start != vma->vm_start) {
 		error = split_vma(mm, vma, start, 1);
@@ -36,17 +51,7 @@ static long madvise_behavior(struct vm_area_struct * vma, unsigned long start,
 	 * vm_flags is protected by the mmap_sem held in write mode.
 	 */
 	VM_ClearReadHint(vma);
-
-	switch (behavior) {
-	case MADV_SEQUENTIAL:
-		vma->vm_flags |= VM_SEQ_READ;
-		break;
-	case MADV_RANDOM:
-		vma->vm_flags |= VM_RAND_READ;
-		break;
-	default:
-		break;
-	}
+	vma->vm_flags = new_flags;
 
 out:
 	if (error == -ENOMEM)
