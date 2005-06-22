@@ -251,7 +251,7 @@ ENTRY(sys_call_table)
 	.long sys_io_submit
 	.long sys_io_cancel
 	.long sys_fadvise64	/* 250 */
-	.long sys_ni_syscall
+	.long sys_set_zone_reclaim
 	.long sys_exit_group
 	.long sys_lookup_dcookie
 	.long sys_epoll_create

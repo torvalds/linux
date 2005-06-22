@@ -1579,7 +1579,7 @@ sys_call_table:
 	data8 sys_keyctl
 	data8 sys_ni_syscall
 	data8 sys_ni_syscall			// 1275
-	data8 sys_ni_syscall
+	data8 sys_set_zone_reclaim
 	data8 sys_ni_syscall
 	data8 sys_ni_syscall
 	data8 sys_ni_syscall

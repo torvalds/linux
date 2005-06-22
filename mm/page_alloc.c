@@ -724,6 +724,14 @@ int zone_watermark_ok(struct zone *z, int order, unsigned long mark,
 	return 1;
 }
 
+static inline int
+should_reclaim_zone(struct zone *z, unsigned int gfp_mask)
+{
+	if (!z->reclaim_pages)
+		return 0;
+	return 1;
+}
+
 /*
  * This is the 'heart' of the zoned buddy allocator.
  */
@@ -760,16 +768,31 @@ __alloc_pages(unsigned int __nocast gfp_mask, unsigned int order,
 
 	classzone_idx = zone_idx(zones[0]);
 
- restart:
+restart:
 	/* Go through the zonelist once, looking for a zone with enough free */
 	for (i = 0; (z = zones[i]) != NULL; i++) {
-
-		if (!zone_watermark_ok(z, order, z->pages_low,
-				       classzone_idx, 0, 0))
-			continue;
+		int do_reclaim = should_reclaim_zone(z, gfp_mask);
 
 		if (!cpuset_zone_allowed(z))
 			continue;
+
+		/*
+		 * If the zone is to attempt early page reclaim then this loop
+		 * will try to reclaim pages and check the watermark a second
+		 * time before giving up and falling back to the next zone.
+		 */
+zone_reclaim_retry:
+		if (!zone_watermark_ok(z, order, z->pages_low,
+				       classzone_idx, 0, 0)) {
+			if (!do_reclaim)
+				continue;
+			else {
+				zone_reclaim(z, gfp_mask, order);
+				/* Only try reclaim once */
+				do_reclaim = 0;
+				goto zone_reclaim_retry;
+			}
+		}
 
 		page = buffered_rmqueue(z, order, gfp_mask);
 		if (page)

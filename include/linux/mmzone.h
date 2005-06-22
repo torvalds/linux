@@ -145,6 +145,12 @@ struct zone {
 	int			all_unreclaimable; /* All pages pinned */
 
 	/*
+	 * Does the allocator try to reclaim pages from the zone as soon
+	 * as it fails a watermark_ok() in __alloc_pages?
+	 */
+	int			reclaim_pages;
+
+	/*
 	 * prev_priority holds the scanning priority for this zone.  It is
 	 * defined as the scanning priority at which we achieved our reclaim
 	 * target at the previous try_to_free_pages() or balance_pgdat()

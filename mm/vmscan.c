@@ -1323,3 +1323,67 @@ static int __init kswapd_init(void)
 }
 
 module_init(kswapd_init)
+
+
+/*
+ * Try to free up some pages from this zone through reclaim.
+ */
+int zone_reclaim(struct zone *zone, unsigned int gfp_mask, unsigned int order)
+{
+	struct scan_control sc;
+	int nr_pages = 1 << order;
+	int total_reclaimed = 0;
+
+	/* The reclaim may sleep, so don't do it if sleep isn't allowed */
+	if (!(gfp_mask & __GFP_WAIT))
+		return 0;
+	if (zone->all_unreclaimable)
+		return 0;
+
+	sc.gfp_mask = gfp_mask;
+	sc.may_writepage = 0;
+	sc.may_swap = 0;
+	sc.nr_mapped = read_page_state(nr_mapped);
+	sc.nr_scanned = 0;
+	sc.nr_reclaimed = 0;
+	/* scan at the highest priority */
+	sc.priority = 0;
+
+	if (nr_pages > SWAP_CLUSTER_MAX)
+		sc.swap_cluster_max = nr_pages;
+	else
+		sc.swap_cluster_max = SWAP_CLUSTER_MAX;
+
+	shrink_zone(zone, &sc);
+	total_reclaimed = sc.nr_reclaimed;
+
+	return total_reclaimed;
+}
+
+asmlinkage long sys_set_zone_reclaim(unsigned int node, unsigned int zone,
+				     unsigned int state)
+{
+	struct zone *z;
+	int i;
+
+	if (node >= MAX_NUMNODES || !node_online(node))
+		return -EINVAL;
+
+	/* This will break if we ever add more zones */
+	if (!(zone & (1<<ZONE_DMA|1<<ZONE_NORMAL|1<<ZONE_HIGHMEM)))
+		return -EINVAL;
+
+	for (i = 0; i < MAX_NR_ZONES; i++) {
+		if (!(zone & 1<<i))
+			continue;
+
+		z = &NODE_DATA(node)->node_zones[i];
+
+		if (state)
+			z->reclaim_pages = 1;
+		else
+			z->reclaim_pages = 0;
+	}
+
+	return 0;
+}
