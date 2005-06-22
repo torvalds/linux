@@ -897,7 +897,7 @@ static bitmap_counter_t *bitmap_get_counter(struct bitmap *bitmap,
 
 int bitmap_daemon_work(struct bitmap *bitmap)
 {
-	unsigned long bit, j;
+	unsigned long j;
 	unsigned long flags;
 	struct page *page = NULL, *lastpage = NULL;
 	int err = 0;
@@ -920,24 +920,23 @@ int bitmap_daemon_work(struct bitmap *bitmap)
 		}
 
 		page = filemap_get_page(bitmap, j);
-		/* skip this page unless it's marked as needing cleaning */
-		if (!((attr=get_page_attr(bitmap, page)) & BITMAP_PAGE_CLEAN)) {
-			if (attr & BITMAP_PAGE_NEEDWRITE) {
-				page_cache_get(page);
-				clear_page_attr(bitmap, page, BITMAP_PAGE_NEEDWRITE);
-			}
-			spin_unlock_irqrestore(&bitmap->lock, flags);
-			if (attr & BITMAP_PAGE_NEEDWRITE) {
-				if (write_page(bitmap, page, 0))
-					bitmap_file_kick(bitmap);
-				page_cache_release(page);
-			}
-			continue;
-		}
-
-		bit = file_page_offset(j);
 
 		if (page != lastpage) {
+			/* skip this page unless it's marked as needing cleaning */
+			if (!((attr=get_page_attr(bitmap, page)) & BITMAP_PAGE_CLEAN)) {
+				if (attr & BITMAP_PAGE_NEEDWRITE) {
+					page_cache_get(page);
+					clear_page_attr(bitmap, page, BITMAP_PAGE_NEEDWRITE);
+				}
+				spin_unlock_irqrestore(&bitmap->lock, flags);
+				if (attr & BITMAP_PAGE_NEEDWRITE) {
+					if (write_page(bitmap, page, 0))
+						bitmap_file_kick(bitmap);
+					page_cache_release(page);
+				}
+				continue;
+			}
+
 			/* grab the new page, sync and release the old */
 			page_cache_get(page);
 			if (lastpage != NULL) {
@@ -979,7 +978,7 @@ int bitmap_daemon_work(struct bitmap *bitmap)
 						  -1);
 
 				/* clear the bit */
-				clear_bit(bit, page_address(page));
+				clear_bit(file_page_offset(j), page_address(page));
 			}
 		}
 		spin_unlock_irqrestore(&bitmap->lock, flags);
