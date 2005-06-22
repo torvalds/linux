@@ -750,7 +750,7 @@ int nfs_updatepage(struct file *file, struct page *page,
 	 * is entirely in cache, it may be more efficient to avoid
 	 * fragmenting write requests.
 	 */
-	if (PageUptodate(page) && inode->i_flock == NULL) {
+	if (PageUptodate(page) && inode->i_flock == NULL && !(file->f_mode & O_SYNC)) {
 		loff_t end_offs = i_size_read(inode) - 1;
 		unsigned long end_index = end_offs >> PAGE_CACHE_SHIFT;
 
@@ -1342,8 +1342,16 @@ static int nfs_flush_inode(struct inode *inode, unsigned long idx_start,
 	spin_lock(&nfsi->req_lock);
 	res = nfs_scan_dirty(inode, &head, idx_start, npages);
 	spin_unlock(&nfsi->req_lock);
-	if (res)
-		error = nfs_flush_list(&head, NFS_SERVER(inode)->wpages, how);
+	if (res) {
+		struct nfs_server *server = NFS_SERVER(inode);
+
+		/* For single writes, FLUSH_STABLE is more efficient */
+		if (res == nfsi->npages && nfsi->npages <= server->wpages) {
+			if (res > 1 || nfs_list_entry(head.next)->wb_bytes <= server->wsize)
+				how |= FLUSH_STABLE;
+		}
+		error = nfs_flush_list(&head, server->wpages, how);
+	}
 	if (error < 0)
 		return error;
 	return res;
