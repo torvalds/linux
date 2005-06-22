@@ -176,21 +176,23 @@ xdr_inline_pages(struct xdr_buf *xdr, unsigned int offset,
 	xdr->buflen += len;
 }
 
-int
+ssize_t
 xdr_partial_copy_from_skb(struct xdr_buf *xdr, unsigned int base,
 			  skb_reader_t *desc,
 			  skb_read_actor_t copy_actor)
 {
 	struct page	**ppage = xdr->pages;
 	unsigned int	len, pglen = xdr->page_len;
+	ssize_t		copied = 0;
 	int		ret;
 
 	len = xdr->head[0].iov_len;
 	if (base < len) {
 		len -= base;
 		ret = copy_actor(desc, (char *)xdr->head[0].iov_base + base, len);
+		copied += ret;
 		if (ret != len || !desc->count)
-			return 0;
+			goto out;
 		base = 0;
 	} else
 		base -= len;
@@ -214,8 +216,11 @@ xdr_partial_copy_from_skb(struct xdr_buf *xdr, unsigned int base,
 		 * are small by default but can get huge. */
 		if (unlikely(*ppage == NULL)) {
 			*ppage = alloc_page(GFP_ATOMIC);
-			if (unlikely(*ppage == NULL))
-				return -ENOMEM;
+			if (unlikely(*ppage == NULL)) {
+				if (copied == 0)
+					copied = -ENOMEM;
+				goto out;
+			}
 		}
 
 		len = PAGE_CACHE_SIZE;
@@ -233,16 +238,17 @@ xdr_partial_copy_from_skb(struct xdr_buf *xdr, unsigned int base,
 		}
 		flush_dcache_page(*ppage);
 		kunmap_atomic(kaddr, KM_SKB_SUNRPC_DATA);
+		copied += ret;
 		if (ret != len || !desc->count)
-			return 0;
+			goto out;
 		ppage++;
 	} while ((pglen -= len) != 0);
 copy_tail:
 	len = xdr->tail[0].iov_len;
 	if (base < len)
-		copy_actor(desc, (char *)xdr->tail[0].iov_base + base, len - base);
-
-	return 0;
+		copied += copy_actor(desc, (char *)xdr->tail[0].iov_base + base, len - base);
+out:
+	return copied;
 }
 
 
