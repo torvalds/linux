@@ -8,7 +8,7 @@
  *
  * Copyright (C) 1995,1996 by Paul M. Antoine, some code and definitions
  * are by courtesy of Chris Fraser.
- * Copyright (C) 2002, 2003  Maciej W. Rozycki
+ * Copyright (C) 2002, 2003, 2005  Maciej W. Rozycki
  */
 #ifndef __ASM_MIPS_DEC_KN01_H
 #define __ASM_MIPS_DEC_KN01_H
@@ -79,5 +79,23 @@
 #define KN01_CSR_VRGTRG		(1<<1)	/* red DAC voltage over green (r/o) */
 #define KN01_CSR_VRGTRB		(1<<0)	/* red DAC voltage over blue (r/o) */
 #define KN01_CSR_LEDS		(0xff<<0) /* ~diagnostic LEDs (w/o) */
+
+
+#ifndef __ASSEMBLY__
+
+#include <linux/interrupt.h>
+#include <linux/spinlock.h>
+#include <linux/types.h>
+
+struct pt_regs;
+
+extern u16 cached_kn01_csr;
+extern spinlock_t kn01_lock;
+
+extern void dec_kn01_be_init(void);
+extern int dec_kn01_be_handler(struct pt_regs *regs, int is_fixup);
+extern irqreturn_t dec_kn01_be_interrupt(int irq, void *dev_id,
+					 struct pt_regs *regs);
+#endif
 
 #endif /* __ASM_MIPS_DEC_KN01_H */

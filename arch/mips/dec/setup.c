@@ -113,7 +113,16 @@ void __init dec_be_init(void)
 {
 	switch (mips_machtype) {
 	case MACH_DS23100:	/* DS2100/DS3100 Pmin/Pmax */
+		board_be_handler = dec_kn01_be_handler;
+		busirq.handler = dec_kn01_be_interrupt;
 		busirq.flags |= SA_SHIRQ;
+		dec_kn01_be_init();
+		break;
+	case MACH_DS5000_1XX:	/* DS5000/1xx 3min */
+	case MACH_DS5000_XX:	/* DS5000/xx Maxine */
+		board_be_handler = dec_kn02xa_be_handler;
+		busirq.handler = dec_kn02xa_be_interrupt;
+		dec_kn02xa_be_init();
 		break;
 	case MACH_DS5000_200:	/* DS5000/200 3max */
 	case MACH_DS5000_2X0:	/* DS5000/240 3max+ */

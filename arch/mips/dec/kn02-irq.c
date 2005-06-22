@@ -4,7 +4,7 @@
  *	DECstation 5000/200 (KN02) Control and Status Register
  *	interrupts.
  *
- *	Copyright (c) 2002, 2003  Maciej W. Rozycki
+ *	Copyright (c) 2002, 2003, 2005  Maciej W. Rozycki
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License
@@ -111,7 +111,7 @@ void __init init_kn02_irqs(int base)
 
 	/* Mask interrupts. */
 	spin_lock_irqsave(&kn02_lock, flags);
-	cached_kn02_csr &= ~KN03_CSR_IOINTEN;
+	cached_kn02_csr &= ~KN02_CSR_IOINTEN;
 	*csr = cached_kn02_csr;
 	iob();
 	spin_unlock_irqrestore(&kn02_lock, flags);

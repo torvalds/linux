@@ -9,7 +9,7 @@
  *
  * Copyright (C) 1995,1996 by Paul M. Antoine, some code and definitions
  * are by courtesy of Chris Fraser.
- * Copyright (C) 2000, 2002, 2003  Maciej W. Rozycki
+ * Copyright (C) 2000, 2002, 2003, 2005  Maciej W. Rozycki
  *
  * These are addresses which have to be known early in the boot process.
  * For other addresses refer to tc.h, ioasic_addrs.h and friends.
@@ -52,8 +52,13 @@
 #define KN02XA_MER_PAGERR	(1<<16)		/* 2k page boundary error */
 #define KN02XA_MER_TRANSERR	(1<<15)		/* transfer length error */
 #define KN02XA_MER_PARDIS	(1<<14)		/* parity error disable */
-#define KN02XA_MER_RES_12	(0x3<<12)	/* unused */
-#define KN02XA_MER_BYTERR	(0xf<<8)	/* byte lane error bitmask */
+#define KN02XA_MER_SIZE		(1<<13)		/* r/o mirror of MSR_SIZE */
+#define KN02XA_MER_RES_12	(1<<12)		/* unused */
+#define KN02XA_MER_BYTERR	(0xf<<8)	/* byte lane error bitmask: */
+#define KN02XA_MER_BYTERR_3	(0x8<<8)	/* byte lane #3 */
+#define KN02XA_MER_BYTERR_2	(0x4<<8)	/* byte lane #2 */
+#define KN02XA_MER_BYTERR_1	(0x2<<8)	/* byte lane #1 */
+#define KN02XA_MER_BYTERR_0	(0x1<<8)	/* byte lane #0 */
 #define KN02XA_MER_RES_0	(0xff<<0)	/* unused */
 
 /*
@@ -71,5 +76,18 @@
 #define KN02XA_EAR_RES_29	(0x7<<29)	/* unused */
 #define KN02XA_EAR_ADDRESS	(0x7ffffff<<2)	/* address involved */
 #define KN02XA_EAR_RES_0	(0x3<<0)	/* unused */
+
+
+#ifndef __ASSEMBLY__
+
+#include <linux/interrupt.h>
+
+struct pt_regs;
+
+extern void dec_kn02xa_be_init(void);
+extern int dec_kn02xa_be_handler(struct pt_regs *regs, int is_fixup);
+extern irqreturn_t dec_kn02xa_be_interrupt(int irq, void *dev_id,
+					   struct pt_regs *regs);
+#endif
 
 #endif /* __ASM_MIPS_DEC_KN02XA_H */
