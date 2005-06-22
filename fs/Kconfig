@@ -1268,6 +1268,7 @@ config NFS_FS
 	depends on INET
 	select LOCKD
 	select SUNRPC
+	select NFS_ACL_SUPPORT if NFS_V3_ACL
 	help
 	  If you are connected to some other (usually local) Unix computer
 	  (using SLIP, PLIP, PPP or Ethernet) and want to mount files residing
@@ -1309,6 +1310,16 @@ config NFS_V3
 	  3 of the NFS protocol.
 
 	  If unsure, say Y.
+
+config NFS_V3_ACL
+	bool "Provide client support for the NFSv3 ACL protocol extension"
+	depends on NFS_V3
+	help
+	  Implement the NFSv3 ACL protocol extension for manipulating POSIX
+	  Access Control Lists.  The server should also be compiled with
+	  the NFSv3 ACL protocol extension; see the CONFIG_NFSD_V3_ACL option.
+
+	  If unsure, say N.
 
 config NFS_V4
 	bool "Provide NFSv4 client support (EXPERIMENTAL)"

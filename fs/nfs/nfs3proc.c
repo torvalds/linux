@@ -17,6 +17,7 @@
 #include <linux/nfs_page.h>
 #include <linux/lockd/bind.h>
 #include <linux/smp_lock.h>
+#include <linux/nfs_mount.h>
 
 #define NFSDBG_FACILITY		NFSDBG_PROC
 
@@ -45,7 +46,7 @@ static inline int
 nfs3_rpc_call_wrapper(struct rpc_clnt *clnt, u32 proc, void *argp, void *resp, int flags)
 {
 	struct rpc_message msg = {
-		.rpc_proc	= &nfs3_procedures[proc],
+		.rpc_proc	= &clnt->cl_procinfo[proc],
 		.rpc_argp	= argp,
 		.rpc_resp	= resp,
 	};
@@ -825,8 +826,8 @@ nfs3_proc_lock(struct file *filp, int cmd, struct file_lock *fl)
 struct nfs_rpc_ops	nfs_v3_clientops = {
 	.version	= 3,			/* protocol version */
 	.dentry_ops	= &nfs_dentry_operations,
-	.dir_inode_ops	= &nfs_dir_inode_operations,
-	.file_inode_ops	= &nfs_file_inode_operations,
+	.dir_inode_ops	= &nfs3_dir_inode_operations,
+	.file_inode_ops	= &nfs3_file_inode_operations,
 	.getroot	= nfs3_proc_get_root,
 	.getattr	= nfs3_proc_getattr,
 	.setattr	= nfs3_proc_setattr,

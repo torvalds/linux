@@ -108,6 +108,21 @@ static struct rpc_program	nfs_program = {
 	.pipe_dir_name		= "/nfs",
 };
 
+#ifdef CONFIG_NFS_V3_ACL
+static struct rpc_stat		nfsacl_rpcstat = { &nfsacl_program };
+static struct rpc_version *	nfsacl_version[] = {
+	[3]			= &nfsacl_version3,
+};
+
+struct rpc_program		nfsacl_program = {
+	.name =			"nfsacl",
+	.number =		NFS_ACL_PROGRAM,
+	.nrvers =		sizeof(nfsacl_version) / sizeof(nfsacl_version[0]),
+	.version =		nfsacl_version,
+	.stats =		&nfsacl_rpcstat,
+};
+#endif  /* CONFIG_NFS_V3_ACL */
+
 static inline unsigned long
 nfs_fattr_to_ino_t(struct nfs_fattr *fattr)
 {
@@ -163,6 +178,9 @@ nfs_umount_begin(struct super_block *sb)
 	struct rpc_clnt	*rpc = NFS_SB(sb)->client;
 
 	/* -EIO all pending I/O */
+	if (!IS_ERR(rpc))
+		rpc_killall_tasks(rpc);
+	rpc = NFS_SB(sb)->client_acl;
 	if (!IS_ERR(rpc))
 		rpc_killall_tasks(rpc);
 }
@@ -461,8 +479,17 @@ nfs_fill_super(struct super_block *sb, struct nfs_mount_data *data, int silent)
 		atomic_inc(&server->client->cl_count);
 		server->client_sys = server->client;
 	}
-
 	if (server->flags & NFS_MOUNT_VER3) {
+#ifdef CONFIG_NFS_V3_ACL
+		if (!(server->flags & NFS_MOUNT_NOACL)) {
+			server->client_acl = rpc_bind_new_program(server->client, &nfsacl_program, 3);
+			/* No errors! Assume that Sun nfsacls are supported */
+			if (!IS_ERR(server->client_acl))
+				server->caps |= NFS_CAP_ACLS;
+		}
+#else
+		server->flags &= ~NFS_MOUNT_NOACL;
+#endif /* CONFIG_NFS_V3_ACL */
 		if (server->namelen == 0 || server->namelen > NFS3_MAXNAMLEN)
 			server->namelen = NFS3_MAXNAMLEN;
 		sb->s_time_gran = 1;
@@ -546,6 +573,7 @@ static int nfs_show_options(struct seq_file *m, struct vfsmount *mnt)
 		{ NFS_MOUNT_NOCTO, ",nocto", "" },
 		{ NFS_MOUNT_NOAC, ",noac", "" },
 		{ NFS_MOUNT_NONLM, ",nolock", ",lock" },
+		{ NFS_MOUNT_NOACL, ",noacl", "" },
 		{ 0, NULL, NULL }
 	};
 	struct proc_nfs_info *nfs_infop;
@@ -1452,7 +1480,7 @@ static struct super_block *nfs_get_sb(struct file_system_type *fs_type,
 	memset(server, 0, sizeof(struct nfs_server));
 	/* Zero out the NFS state stuff */
 	init_nfsv4_state(server);
-	server->client = server->client_sys = ERR_PTR(-EINVAL);
+	server->client = server->client_sys = server->client_acl = ERR_PTR(-EINVAL);
 
 	root = &server->fh;
 	if (data->flags & NFS_MOUNT_VER3)
@@ -1513,6 +1541,8 @@ static void nfs_kill_super(struct super_block *s)
 		rpc_shutdown_client(server->client);
 	if (!IS_ERR(server->client_sys))
 		rpc_shutdown_client(server->client_sys);
+	if (!IS_ERR(server->client_acl))
+		rpc_shutdown_client(server->client_acl);
 
 	if (!(server->flags & NFS_MOUNT_NONLM))
 		lockd_down();	/* release rpc.lockd */
@@ -1794,7 +1824,7 @@ static struct super_block *nfs4_get_sb(struct file_system_type *fs_type,
 	memset(server, 0, sizeof(struct nfs_server));
 	/* Zero out the NFS state stuff */
 	init_nfsv4_state(server);
-	server->client = server->client_sys = ERR_PTR(-EINVAL);
+	server->client = server->client_sys = server->client_acl = ERR_PTR(-EINVAL);
 
 	p = nfs_copy_user_string(NULL, &data->hostname, 256);
 	if (IS_ERR(p))

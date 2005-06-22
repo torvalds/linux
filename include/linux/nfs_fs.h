@@ -301,6 +301,9 @@ extern u32 root_nfs_parse_addr(char *name); /*__init*/
  * linux/fs/nfs/file.c
  */
 extern struct inode_operations nfs_file_inode_operations;
+#ifdef CONFIG_NFS_V3
+extern struct inode_operations nfs3_file_inode_operations;
+#endif /* CONFIG_NFS_V3 */
 extern struct file_operations nfs_file_operations;
 extern struct address_space_operations nfs_file_aops;
 
@@ -316,6 +319,22 @@ static inline struct rpc_cred *nfs_file_cred(struct file *file)
 }
 
 /*
+ * linux/fs/nfs/xattr.c
+ */
+#ifdef CONFIG_NFS_V3_ACL
+extern ssize_t nfs3_listxattr(struct dentry *, char *, size_t);
+extern ssize_t nfs3_getxattr(struct dentry *, const char *, void *, size_t);
+extern int nfs3_setxattr(struct dentry *, const char *,
+			const void *, size_t, int);
+extern int nfs3_removexattr (struct dentry *, const char *name);
+#else
+# define nfs3_listxattr NULL
+# define nfs3_getxattr NULL
+# define nfs3_setxattr NULL
+# define nfs3_removexattr NULL
+#endif
+
+/*
  * linux/fs/nfs/direct.c
  */
 extern ssize_t nfs_direct_IO(int, struct kiocb *, const struct iovec *, loff_t,
@@ -329,6 +348,9 @@ extern ssize_t nfs_file_direct_write(struct kiocb *iocb, const char __user *buf,
  * linux/fs/nfs/dir.c
  */
 extern struct inode_operations nfs_dir_inode_operations;
+#ifdef CONFIG_NFS_V3
+extern struct inode_operations nfs3_dir_inode_operations;
+#endif /* CONFIG_NFS_V3 */
 extern struct file_operations nfs_dir_operations;
 extern struct dentry_operations nfs_dentry_operations;
 
@@ -448,6 +470,15 @@ static inline void nfs_readdata_free(struct nfs_read_data *p)
 }
 
 extern void  nfs_readdata_release(struct rpc_task *task);
+
+/*
+ * linux/fs/nfs3proc.c
+ */
+#ifdef CONFIG_NFS_V3_ACL
+extern struct posix_acl *nfs3_proc_getacl(struct inode *inode, int type);
+extern int nfs3_proc_setacl(struct inode *inode, int type,
+			    struct posix_acl *acl);
+#endif /* CONFIG_NFS_V3_ACL */
 
 /*
  * linux/fs/mount_clnt.c

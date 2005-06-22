@@ -71,6 +71,18 @@ struct inode_operations nfs_file_inode_operations = {
 	.setattr	= nfs_setattr,
 };
 
+#ifdef CONFIG_NFS_V3
+struct inode_operations nfs3_file_inode_operations = {
+	.permission	= nfs_permission,
+	.getattr	= nfs_getattr,
+	.setattr	= nfs_setattr,
+	.listxattr	= nfs3_listxattr,
+	.getxattr	= nfs3_getxattr,
+	.setxattr	= nfs3_setxattr,
+	.removexattr	= nfs3_removexattr,
+};
+#endif  /* CONFIG_NFS_v3 */
+
 /* Hack for future NFS swap support */
 #ifndef IS_SWAPFILE
 # define IS_SWAPFILE(inode)	(0)
