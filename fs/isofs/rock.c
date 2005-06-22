@@ -37,11 +37,6 @@ static int check_sp(struct rock_ridge *rr, struct inode *inode)
 	return 0;
 }
 
-#define CHECK_CE	       			\
-      {cont_extent = isonum_733(rr->u.CE.extent); \
-      cont_offset = isonum_733(rr->u.CE.offset); \
-      cont_size = isonum_733(rr->u.CE.size);}
-
 #define SETUP_ROCK_RIDGE(DE,CHR,LEN)	      		      	\
   {LEN= sizeof(struct iso_directory_record) + DE->name_len[0];	\
   if(LEN & 1) LEN++;						\
@@ -126,7 +121,9 @@ repeat:
 				goto out;
 			break;
 		case SIG('C', 'E'):
-			CHECK_CE;
+			cont_extent = isonum_733(rr->u.CE.extent);
+			cont_offset = isonum_733(rr->u.CE.offset);
+			cont_size = isonum_733(rr->u.CE.size);
 			break;
 		case SIG('N', 'M'):
 			if (truncate)
@@ -223,7 +220,9 @@ repeat:
 				goto out;
 			break;
 		case SIG('C', 'E'):
-			CHECK_CE;
+			cont_extent = isonum_733(rr->u.CE.extent);
+			cont_offset = isonum_733(rr->u.CE.offset);
+			cont_size = isonum_733(rr->u.CE.size);
 			break;
 		case SIG('E', 'R'):
 			ISOFS_SB(inode->i_sb)->s_rock = 1;
@@ -592,7 +591,9 @@ repeat:
 			break;
 		case SIG('C', 'E'):
 			/* This tells is if there is a continuation record */
-			CHECK_CE;
+			cont_extent = isonum_733(rr->u.CE.extent);
+			cont_offset = isonum_733(rr->u.CE.offset);
+			cont_size = isonum_733(rr->u.CE.size);
 		default:
 			break;
 		}
