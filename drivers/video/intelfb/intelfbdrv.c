@@ -214,7 +214,7 @@ static struct fb_ops intel_fb_ops = {
 
 /* PCI driver module table */
 static struct pci_driver intelfb_driver = {
-	.name =		"Intel(R) " SUPPORTED_CHIPSETS " Framebuffer Driver",
+	.name =		"intelfb",
 	.id_table =	intelfb_pci_table,
 	.probe =	intelfb_pci_register,
 	.remove =	__devexit_p(intelfb_pci_unregister)
