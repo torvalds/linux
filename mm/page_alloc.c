@@ -1314,7 +1314,7 @@ void show_free_areas(void)
 	get_page_state(&ps);
 	get_zone_counts(&active, &inactive, &free);
 
-	printk("\nFree pages: %11ukB (%ukB HighMem)\n",
+	printk("Free pages: %11ukB (%ukB HighMem)\n",
 		K(nr_free_pages()),
 		K(nr_free_highpages()));
 
