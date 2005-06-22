@@ -2162,6 +2162,60 @@ nfs4_proc_file_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+static inline int nfs4_server_supports_acls(struct nfs_server *server)
+{
+	return (server->caps & NFS_CAP_ACLS)
+		&& (server->acl_bitmask & ACL4_SUPPORT_ALLOW_ACL)
+		&& (server->acl_bitmask & ACL4_SUPPORT_DENY_ACL);
+}
+
+/* Assuming that XATTR_SIZE_MAX is a multiple of PAGE_CACHE_SIZE, and that
+ * it's OK to put sizeof(void) * (XATTR_SIZE_MAX/PAGE_CACHE_SIZE) bytes on
+ * the stack.
+ */
+#define NFS4ACL_MAXPAGES (XATTR_SIZE_MAX >> PAGE_CACHE_SHIFT)
+
+static void buf_to_pages(const void *buf, size_t buflen,
+		struct page **pages, unsigned int *pgbase)
+{
+	const void *p = buf;
+
+	*pgbase = offset_in_page(buf);
+	p -= *pgbase;
+	while (p < buf + buflen) {
+		*(pages++) = virt_to_page(p);
+		p += PAGE_CACHE_SIZE;
+	}
+}
+
+static ssize_t nfs4_proc_get_acl(struct inode *inode, void *buf, size_t buflen)
+{
+	struct nfs_server *server = NFS_SERVER(inode);
+	struct page *pages[NFS4ACL_MAXPAGES];
+	struct nfs_getaclargs args = {
+		.fh = NFS_FH(inode),
+		.acl_pages = pages,
+		.acl_len = buflen,
+	};
+	size_t resp_len = buflen;
+	struct rpc_message msg = {
+		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_GETACL],
+		.rpc_argp = &args,
+		.rpc_resp = &resp_len,
+	};
+	int ret;
+
+	if (!nfs4_server_supports_acls(server))
+		return -EOPNOTSUPP;
+	buf_to_pages(buf, buflen, args.acl_pages, &args.acl_pgbase);
+	ret = rpc_call_sync(NFS_CLIENT(inode), &msg, 0);
+	if (buflen && resp_len > buflen)
+		return -ERANGE;
+	if (ret == 0)
+		ret = resp_len;
+	return ret;
+}
+
 static int
 nfs4_async_handle_error(struct rpc_task *task, struct nfs_server *server)
 {
@@ -2733,6 +2787,8 @@ nfs4_proc_lock(struct file *filp, int cmd, struct file_lock *request)
 }
 
 
+#define XATTR_NAME_NFSV4_ACL "system.nfs4_acl"
+
 int nfs4_setxattr(struct dentry *dentry, const char *key, const void *buf,
 		size_t buflen, int flags)
 {
@@ -2746,18 +2802,23 @@ int nfs4_setxattr(struct dentry *dentry, const char *key, const void *buf,
 ssize_t nfs4_getxattr(struct dentry *dentry, const char *key, void *buf,
 		size_t buflen)
 {
-	return -EOPNOTSUPP;
+	struct inode *inode = dentry->d_inode;
+
+	if (strcmp(key, XATTR_NAME_NFSV4_ACL) != 0)
+		return -EOPNOTSUPP;
+
+	return nfs4_proc_get_acl(inode, buf, buflen);
 }
 
 ssize_t nfs4_listxattr(struct dentry *dentry, char *buf, size_t buflen)
 {
-	ssize_t len = 0;
+	size_t len = strlen(XATTR_NAME_NFSV4_ACL) + 1;
 
 	if (buf && buflen < len)
 		return -ERANGE;
 	if (buf)
-		memcpy(buf, "", 0);
-	return 0;
+		memcpy(buf, XATTR_NAME_NFSV4_ACL, len);
+	return len;
 }
 
 struct nfs4_state_recovery_ops nfs4_reboot_recovery_ops = {
