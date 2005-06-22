@@ -92,7 +92,7 @@ ifeq ($(CONFIG_SERIAL_MPSC_CONSOLE),y)
 obj-$(CONFIG_SERIAL_TEXT_DEBUG)	+= mv64x60_dbg.o
 endif
 obj-$(CONFIG_BOOTX_TEXT)	+= btext.o
-obj-$(CONFIG_MPC10X_BRIDGE)     += mpc10x_common.o indirect_pci.o
+obj-$(CONFIG_MPC10X_BRIDGE)	+= mpc10x_common.o indirect_pci.o ppc_sys.o
 obj-$(CONFIG_MPC10X_OPENPIC)	+= open_pic.o
 obj-$(CONFIG_40x)		+= dcr.o
 obj-$(CONFIG_BOOKE)		+= dcr.o

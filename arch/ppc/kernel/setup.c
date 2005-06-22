@@ -41,7 +41,7 @@
 #include <asm/xmon.h>
 #include <asm/ocp.h>
 
-#if defined(CONFIG_85xx) || defined(CONFIG_83xx)
+#if defined(CONFIG_85xx) || defined(CONFIG_83xx) || defined(CONFIG_MPC10X_BRIDGE)
 #include <asm/ppc_sys.h>
 #endif
 
@@ -249,7 +249,7 @@ int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, "bogomips\t: %lu.%02lu\n",
 		   lpj / (500000/HZ), (lpj / (5000/HZ)) % 100);
 
-#if defined(CONFIG_85xx) || defined(CONFIG_83xx)
+#if defined(CONFIG_85xx) || defined(CONFIG_83xx) || defined(CONFIG_MPC10X_BRIDGE)
 	if (cur_ppc_sys_spec->ppc_sys_name)
 		seq_printf(m, "chipset\t\t: %s\n",
 			cur_ppc_sys_spec->ppc_sys_name);

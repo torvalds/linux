@@ -27,6 +27,8 @@
 #include <asm/mpc85xx.h>
 #elif defined(CONFIG_PPC_MPC52xx)
 #include <asm/mpc52xx.h>
+#elif defined(CONFIG_MPC10X_BRIDGE)
+#include <asm/mpc10x.h>
 #else
 #error "need definition of ppc_sys_devices"
 #endif
