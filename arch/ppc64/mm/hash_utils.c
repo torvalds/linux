@@ -310,10 +310,6 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 
 		vsid = get_vsid(mm->context.id, ea);
 		break;
-	case IO_REGION_ID:
-		mm = &ioremap_mm;
-		vsid = get_kernel_vsid(ea);
-		break;
 	case VMALLOC_REGION_ID:
 		mm = &init_mm;
 		vsid = get_kernel_vsid(ea);
