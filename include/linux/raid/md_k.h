@@ -267,6 +267,9 @@ struct mddev_s
 	atomic_t			writes_pending; 
 	request_queue_t			*queue;	/* for plugging ... */
 
+	struct bitmap                   *bitmap; /* the bitmap for the device */
+	struct file			*bitmap_file; /* the bitmap file */
+
 	struct list_head		all_mddevs;
 };
 
@@ -341,6 +344,7 @@ typedef struct mdk_thread_s {
 	unsigned long           flags;
 	struct completion	*event;
 	struct task_struct	*tsk;
+	unsigned long		timeout;
 	const char		*name;
 } mdk_thread_t;
 
