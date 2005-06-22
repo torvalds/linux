@@ -42,6 +42,7 @@
 #include <linux/i2c-sensor.h>
 #include <linux/i2c-vid.h>
 #include <linux/init.h>
+#include <linux/jiffies.h>
 #include "lm75.h"
 
 /*
@@ -167,8 +168,6 @@ static int ASB100_PWM_FROM_REG(u8 reg)
 {
 	return reg * 16;
 }
-
-#define ALARMS_FROM_REG(val) (val)
 
 #define DIV_FROM_REG(val) (1 << (val))
 
@@ -556,7 +555,7 @@ device_create_file(&client->dev, &dev_attr_vrm);
 static ssize_t show_alarms(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct asb100_data *data = asb100_update_device(dev);
-	return sprintf(buf, "%d\n", ALARMS_FROM_REG(data->alarms));
+	return sprintf(buf, "%u\n", data->alarms);
 }
 
 static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);

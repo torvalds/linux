@@ -1,0 +1,47 @@
+Kernel driver pca9539
+=====================
+
+Supported chips:
+  * Philips PCA9539
+    Prefix: 'pca9539'
+    Addresses scanned: 0x74 - 0x77
+    Datasheet:
+        http://www.semiconductors.philips.com/acrobat/datasheets/PCA9539_2.pdf
+
+Author: Ben Gardner <bgardner@wabtec.com>
+
+
+Description
+-----------
+
+The Philips PCA9539 is a 16 bit low power I/O device.
+All 16 lines can be individually configured as an input or output.
+The input sense can also be inverted.
+The 16 lines are split between two bytes.
+
+
+Sysfs entries
+-------------
+
+Each is a byte that maps to the 8 I/O bits.
+A '0' suffix is for bits 0-7, while '1' is for bits 8-15.
+
+input[01]     - read the current value
+output[01]    - sets the output value
+direction[01] - direction of each bit: 1=input, 0=output
+invert[01]    - toggle the input bit sense
+
+input reads the actual state of the line and is always available.
+The direction defaults to input for all channels.
+
+
+General Remarks
+---------------
+
+Note that each output, direction, and invert entry controls 8 lines.
+You should use the read, modify, write sequence.
+For example. to set output bit 0 of 1.
+  val=$(cat output0)
+  val=$(( $val | 1 ))
+  echo $val > output0
+

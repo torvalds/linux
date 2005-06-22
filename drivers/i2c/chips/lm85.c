@@ -23,7 +23,6 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -285,8 +284,6 @@ static int ZONE_TO_REG( int zone )
 /* i2c-vid.h defines vid_from_reg() */
 #define VID_FROM_REG(val,vrm) (vid_from_reg((val),(vrm)))
 
-#define ALARMS_FROM_REG(val) (val)
-
 /* Unlike some other drivers we DO NOT set initial limits.  Use
  * the config file to set limits.  Some users have reported
  * motherboards shutting down when we set limits in a previous
@@ -481,7 +478,7 @@ static DEVICE_ATTR(vrm, S_IRUGO | S_IWUSR, show_vrm_reg, store_vrm_reg);
 static ssize_t show_alarms_reg(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct lm85_data *data = lm85_update_device(dev);
-	return sprintf(buf, "%ld\n", (long) ALARMS_FROM_REG(data->alarms));
+	return sprintf(buf, "%u\n", data->alarms);
 }
 
 static DEVICE_ATTR(alarms, S_IRUGO, show_alarms_reg, NULL);

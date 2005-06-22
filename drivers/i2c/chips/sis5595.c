@@ -57,6 +57,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-sensor.h>
 #include <linux/init.h>
+#include <linux/jiffies.h>
 #include <asm/io.h>
 
 

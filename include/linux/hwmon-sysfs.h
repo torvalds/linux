@@ -1,5 +1,5 @@
 /*
- *  i2c-sysfs.h - i2c chip driver sysfs defines
+ *  hwmon-sysfs.h - hardware monitoring chip driver sysfs defines
  *
  *  Copyright (C) 2005 Yani Ioannou <yani.ioannou@gmail.com>
  *
@@ -17,8 +17,8 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
-#ifndef _LINUX_I2C_SYSFS_H
-#define _LINUX_I2C_SYSFS_H
+#ifndef _LINUX_HWMON_SYSFS_H
+#define _LINUX_HWMON_SYSFS_H
 
 struct sensor_device_attribute{
 	struct device_attribute dev_attr;
@@ -33,4 +33,4 @@ struct sensor_device_attribute sensor_dev_attr_##_name = {	\
 	.index =	_index,					\
 }
 
-#endif /* _LINUX_I2C_SYSFS_H */
+#endif /* _LINUX_HWMON_SYSFS_H */

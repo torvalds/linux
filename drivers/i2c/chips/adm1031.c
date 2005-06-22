@@ -440,7 +440,7 @@ pwm_reg(2);
 
 /*
  * That function checks the cases where the fan reading is not
- * relevent.  It is used to provide 0 as fan reading when the fan is
+ * relevant.  It is used to provide 0 as fan reading when the fan is
  * not supposed to run
  */
 static int trust_fan_readings(struct adm1031_data *data, int chan)

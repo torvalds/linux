@@ -19,7 +19,6 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -103,8 +102,6 @@ struct adm1021_data {
 	u8	remote_temp_hyst;
 	u8	remote_temp_input;
 	u8	alarms;
-	/* special values for ADM1021 only */
-	u8	die_code;
         /* Special values for ADM1023 only */
 	u8	remote_temp_prec;
 	u8	remote_temp_os_prec;
@@ -156,7 +153,6 @@ static ssize_t show_##value(struct device *dev, struct device_attribute *attr, c
 	return sprintf(buf, "%d\n", data->value);			\
 }
 show2(alarms);
-show2(die_code);
 
 #define set(value, reg)	\
 static ssize_t set_##value(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)	\
@@ -183,7 +179,6 @@ static DEVICE_ATTR(temp2_max, S_IWUSR | S_IRUGO, show_remote_temp_max, set_remot
 static DEVICE_ATTR(temp2_min, S_IWUSR | S_IRUGO, show_remote_temp_hyst, set_remote_temp_hyst);
 static DEVICE_ATTR(temp2_input, S_IRUGO, show_remote_temp_input, NULL);
 static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);
-static DEVICE_ATTR(die_code, S_IRUGO, show_die_code, NULL);
 
 
 static int adm1021_attach_adapter(struct i2c_adapter *adapter)
@@ -307,8 +302,6 @@ static int adm1021_detect(struct i2c_adapter *adapter, int address, int kind)
 	device_create_file(&new_client->dev, &dev_attr_temp2_min);
 	device_create_file(&new_client->dev, &dev_attr_temp2_input);
 	device_create_file(&new_client->dev, &dev_attr_alarms);
-	if (data->type == adm1021)
-		device_create_file(&new_client->dev, &dev_attr_die_code);
 
 	return 0;
 
@@ -371,8 +364,6 @@ static struct adm1021_data *adm1021_update_device(struct device *dev)
 		data->remote_temp_max = adm1021_read_value(client, ADM1021_REG_REMOTE_TOS_R);
 		data->remote_temp_hyst = adm1021_read_value(client, ADM1021_REG_REMOTE_THYST_R);
 		data->alarms = adm1021_read_value(client, ADM1021_REG_STATUS) & 0x7c;
-		if (data->type == adm1021)
-			data->die_code = adm1021_read_value(client, ADM1021_REG_DIE_CODE);
 		if (data->type == adm1023) {
 			data->remote_temp_prec = adm1021_read_value(client, ADM1021_REG_REM_TEMP_PREC);
 			data->remote_temp_os_prec = adm1021_read_value(client, ADM1021_REG_REM_TOS_PREC);
