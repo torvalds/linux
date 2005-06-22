@@ -233,21 +233,12 @@ struct bitmap {
 	unsigned long daemon_sleep; /* how many seconds between updates? */
 
 	/*
-	 * bitmap write daemon - this daemon performs writes to the bitmap file
-	 * this thread is only needed because of a limitation in ext3 (jbd)
-	 * that does not allow a task to have two journal transactions ongoing
-	 * simultaneously (even if the transactions are for two different
-	 * filesystems) -- in the case of bitmap, that would be the filesystem
-	 * that the bitmap file resides on and the filesystem that is mounted
-	 * on the md device -- see current->journal_info in jbd/transaction.c
+	 * bitmap_writeback_daemon waits for file-pages that have been written,
+	 * as there is no way to get a call-back when a page write completes.
 	 */
 	mdk_thread_t *writeback_daemon;
 	spinlock_t write_lock;
-	struct semaphore write_ready;
-	struct semaphore write_done;
-	unsigned long writes_pending;
 	wait_queue_head_t write_wait;
-	struct list_head write_pages;
 	struct list_head complete_pages;
 	mempool_t *write_pool;
 };
