@@ -71,11 +71,6 @@ EXPORT_SYMBOL(nr_swap_pages);
 struct zone *zone_table[1 << (ZONES_SHIFT + NODES_SHIFT)];
 EXPORT_SYMBOL(zone_table);
 
-#ifdef CONFIG_NUMA
-static struct per_cpu_pageset
-	pageset_table[MAX_NR_ZONES*MAX_NUMNODES*NR_CPUS] __initdata;
-#endif
-
 static char *zone_names[MAX_NR_ZONES] = { "DMA", "Normal", "HighMem" };
 int min_free_kbytes = 1024;
 
@@ -652,10 +647,10 @@ static void fastcall free_hot_cold_page(struct page *page, int cold)
 	free_pages_check(__FUNCTION__, page);
 	pcp = &zone_pcp(zone, get_cpu())->pcp[cold];
 	local_irq_save(flags);
-	if (pcp->count >= pcp->high)
-		pcp->count -= free_pages_bulk(zone, pcp->batch, &pcp->list, 0);
 	list_add(&page->lru, &pcp->list);
 	pcp->count++;
+	if (pcp->count >= pcp->high)
+		pcp->count -= free_pages_bulk(zone, pcp->batch, &pcp->list, 0);
 	local_irq_restore(flags);
 	put_cpu();
 }
@@ -1714,57 +1709,55 @@ static int __devinit zone_batchsize(struct zone *zone)
 	return batch;
 }
 
+inline void setup_pageset(struct per_cpu_pageset *p, unsigned long batch)
+{
+	struct per_cpu_pages *pcp;
+
+	pcp = &p->pcp[0];		/* hot */
+	pcp->count = 0;
+	pcp->low = 2 * batch;
+	pcp->high = 6 * batch;
+	pcp->batch = max(1UL, 1 * batch);
+	INIT_LIST_HEAD(&pcp->list);
+
+	pcp = &p->pcp[1];		/* cold*/
+	pcp->count = 0;
+	pcp->low = 0;
+	pcp->high = 2 * batch;
+	pcp->batch = max(1UL, 1 * batch);
+	INIT_LIST_HEAD(&pcp->list);
+}
+
 #ifdef CONFIG_NUMA
 /*
- * Dynamicaly allocate memory for the
+ * Boot pageset table. One per cpu which is going to be used for all
+ * zones and all nodes. The parameters will be set in such a way
+ * that an item put on a list will immediately be handed over to
+ * the buddy list. This is safe since pageset manipulation is done
+ * with interrupts disabled.
+ *
+ * Some NUMA counter updates may also be caught by the boot pagesets.
+ * These will be discarded when bootup is complete.
+ */
+static struct per_cpu_pageset
+	boot_pageset[NR_CPUS] __initdata;
+
+/*
+ * Dynamically allocate memory for the
  * per cpu pageset array in struct zone.
  */
 static int __devinit process_zones(int cpu)
 {
 	struct zone *zone, *dzone;
-	int i;
 
 	for_each_zone(zone) {
-		struct per_cpu_pageset *npageset = NULL;
 
-		npageset = kmalloc_node(sizeof(struct per_cpu_pageset),
+		zone->pageset[cpu] = kmalloc_node(sizeof(struct per_cpu_pageset),
 					 GFP_KERNEL, cpu_to_node(cpu));
-		if (!npageset) {
-			zone->pageset[cpu] = NULL;
+		if (!zone->pageset[cpu])
 			goto bad;
-		}
 
-		if (zone->pageset[cpu]) {
-			memcpy(npageset, zone->pageset[cpu],
-					sizeof(struct per_cpu_pageset));
-
-			/* Relocate lists */
-			for (i = 0; i < 2; i++) {
-				INIT_LIST_HEAD(&npageset->pcp[i].list);
-				list_splice(&zone->pageset[cpu]->pcp[i].list,
-					&npageset->pcp[i].list);
-			}
- 		} else {
-			struct per_cpu_pages *pcp;
-			unsigned long batch;
-
-			batch = zone_batchsize(zone);
-
-			pcp = &npageset->pcp[0];		/* hot */
-			pcp->count = 0;
-			pcp->low = 2 * batch;
-			pcp->high = 6 * batch;
-			pcp->batch = 1 * batch;
-			INIT_LIST_HEAD(&pcp->list);
-
-			pcp = &npageset->pcp[1];		/* cold*/
-			pcp->count = 0;
-			pcp->low = 0;
-			pcp->high = 2 * batch;
-			pcp->batch = 1 * batch;
-			INIT_LIST_HEAD(&pcp->list);
-		}
-		zone->pageset[cpu] = npageset;
+		setup_pageset(zone->pageset[cpu], zone_batchsize(zone));
 	}
 
 	return 0;
@@ -1878,30 +1871,13 @@ static void __init free_area_init_core(struct pglist_data *pgdat,
 		batch = zone_batchsize(zone);
 
 		for (cpu = 0; cpu < NR_CPUS; cpu++) {
-			struct per_cpu_pages *pcp;
 #ifdef CONFIG_NUMA
-			struct per_cpu_pageset *pgset;
-			pgset = &pageset_table[nid*MAX_NR_ZONES*NR_CPUS +
-					(j * NR_CPUS) + cpu];
-
-			zone->pageset[cpu] = pgset;
+			/* Early boot. Slab allocator not functional yet */
+			zone->pageset[cpu] = &boot_pageset[cpu];
+			setup_pageset(&boot_pageset[cpu],0);
 #else
-			struct per_cpu_pageset *pgset = zone_pcp(zone, cpu);
+			setup_pageset(zone_pcp(zone,cpu), batch);
 #endif
-
-			pcp = &pgset->pcp[0];			/* hot */
-			pcp->count = 0;
-			pcp->low = 2 * batch;
-			pcp->high = 6 * batch;
-			pcp->batch = 1 * batch;
-			INIT_LIST_HEAD(&pcp->list);
-
-			pcp = &pgset->pcp[1];			/* cold */
-			pcp->count = 0;
-			pcp->low = 0;
-			pcp->high = 2 * batch;
-			pcp->batch = 1 * batch;
-			INIT_LIST_HEAD(&pcp->list);
 		}
 		printk(KERN_DEBUG "  %s zone: %lu pages, LIFO batch:%lu\n",
 				zone_names[j], realsize, batch);
