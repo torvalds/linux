@@ -137,8 +137,12 @@ extern void iommu_init_early_pSeries(void);
 extern void iommu_init_early_iSeries(void);
 extern void iommu_init_early_u3(void);
 
+#ifdef CONFIG_PCI
 extern void pci_iommu_init(void);
 extern void pci_direct_iommu_init(void);
+#else
+static inline void pci_iommu_init(void) { }
+#endif
 
 extern void alloc_u3_dart_table(void);
 

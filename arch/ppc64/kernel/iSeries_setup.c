@@ -76,7 +76,11 @@ extern void ppcdbg_initialize(void);
 static void build_iSeries_Memory_Map(void);
 static void setup_iSeries_cache_sizes(void);
 static void iSeries_bolt_kernel(unsigned long saddr, unsigned long eaddr);
+#ifdef CONFIG_PCI
 extern void iSeries_pci_final_fixup(void);
+#else
+static void iSeries_pci_final_fixup(void) { }
+#endif
 
 /* Global Variables */
 static unsigned long procFreqHz;
@@ -875,6 +879,10 @@ static int set_spread_lpevents(char *str)
 	return 1;
 }
 __setup("spread_lpevents=", set_spread_lpevents);
+
+#ifndef CONFIG_PCI
+void __init iSeries_init_IRQ(void) { }
+#endif
 
 void __init iSeries_early_setup(void)
 {
