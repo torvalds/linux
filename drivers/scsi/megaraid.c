@@ -1975,7 +1975,7 @@ __megaraid_reset(Scsi_Cmnd *cmd)
 static int
 megaraid_reset(Scsi_Cmnd *cmd)
 {
-	adapter = (adapter_t *)cmd->device->host->hostdata;
+	adapter_t *adapter = (adapter_t *)cmd->device->host->hostdata;
 	int rc;
 
 	spin_lock_irq(&adapter->lock);
