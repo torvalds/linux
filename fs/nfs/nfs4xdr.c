@@ -1014,6 +1014,10 @@ static int encode_read(struct xdr_stream *xdr, const struct nfs_readargs *args)
 static int encode_readdir(struct xdr_stream *xdr, const struct nfs4_readdir_arg *readdir, struct rpc_rqst *req)
 {
 	struct rpc_auth *auth = req->rq_task->tk_auth;
+	uint32_t attrs[2] = {
+		FATTR4_WORD0_RDATTR_ERROR|FATTR4_WORD0_FILEID,
+		FATTR4_WORD1_MOUNTED_ON_FILEID,
+	};
 	int replen;
 	uint32_t *p;
 
@@ -1024,13 +1028,13 @@ static int encode_readdir(struct xdr_stream *xdr, const struct nfs4_readdir_arg 
 	WRITE32(readdir->count >> 1);  /* We're not doing readdirplus */
 	WRITE32(readdir->count);
 	WRITE32(2);
-	if (readdir->bitmask[1] & FATTR4_WORD1_MOUNTED_ON_FILEID) {
-		WRITE32(0);
-		WRITE32(FATTR4_WORD1_MOUNTED_ON_FILEID);
-	} else {
-		WRITE32(FATTR4_WORD0_FILEID);
-		WRITE32(0);
-	}
+	/* Switch to mounted_on_fileid if the server supports it */
+	if (readdir->bitmask[1] & FATTR4_WORD1_MOUNTED_ON_FILEID)
+		attrs[0] &= ~FATTR4_WORD0_FILEID;
+	else
+		attrs[1] &= ~FATTR4_WORD1_MOUNTED_ON_FILEID;
+	WRITE32(attrs[0] & readdir->bitmask[0]);
+	WRITE32(attrs[1] & readdir->bitmask[1]);
 
 	/* set up reply kvec
 	 *    toplevel_status + taglen + rescount + OP_PUTFH + status
@@ -4060,6 +4064,12 @@ uint32_t *nfs4_decode_dirent(uint32_t *p, struct nfs_entry *entry, int plus)
 	}
 	len = XDR_QUADLEN(ntohl(*p++));	/* attribute buffer length */
 	if (len > 0) {
+		if (bitmap[0] & FATTR4_WORD0_RDATTR_ERROR) {
+			bitmap[0] &= ~FATTR4_WORD0_RDATTR_ERROR;
+			/* Ignore the return value of rdattr_error for now */
+			p++;
+			len--;
+		}
 		if (bitmap[0] == 0 && bitmap[1] == FATTR4_WORD1_MOUNTED_ON_FILEID)
 			xdr_decode_hyper(p, &entry->ino);
 		else if (bitmap[0] == FATTR4_WORD0_FILEID)
