@@ -1686,10 +1686,6 @@ static int do_swap_page(struct mm_struct * mm,
 	}
 
 	/* The page isn't present yet, go ahead with the fault. */
-		
-	swap_free(entry);
-	if (vm_swap_full())
-		remove_exclusive_swap_page(page);
 
 	inc_mm_counter(mm, rss);
 	pte = mk_pte(page, vma->vm_page_prot);
@@ -1697,11 +1693,15 @@ static int do_swap_page(struct mm_struct * mm,
 		pte = maybe_mkwrite(pte_mkdirty(pte), vma);
 		write_access = 0;
 	}
-	unlock_page(page);
 
 	flush_icache_page(vma, page);
 	set_pte_at(mm, address, page_table, pte);
 	page_add_anon_rmap(page, vma, address);
+
+	swap_free(entry);
+	if (vm_swap_full())
+		remove_exclusive_swap_page(page);
+	unlock_page(page);
 
 	if (write_access) {
 		if (do_wp_page(mm, vma, address,
