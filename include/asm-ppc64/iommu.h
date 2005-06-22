@@ -82,24 +82,6 @@ struct iommu_table {
 	unsigned long *it_map;       /* A simple allocation bitmap for now */
 };
 
-#ifdef CONFIG_PPC_ISERIES
-struct iommu_table_cb {
-	unsigned long	itc_busno;	/* Bus number for this tce table */
-	unsigned long	itc_start;	/* Will be NULL for secondary */
-	unsigned long	itc_totalsize;	/* Size (in pages) of whole table */
-	unsigned long	itc_offset;	/* Index into real tce table of the
-					   start of our section */
-	unsigned long	itc_size;	/* Size (in pages) of our section */
-	unsigned long	itc_index;	/* Index of this tce table */
-	unsigned short	itc_maxtables;	/* Max num of tables for partition */
-	unsigned char	itc_virtbus;	/* Flag to indicate virtual bus */
- 	unsigned char	itc_slotno;	/* IOA Tce Slot Index */
- 	unsigned char	itc_rsvd[4];
-};
-
-extern struct iommu_table vio_tce_table;      /* Tce table for virtual bus */
-#endif /* CONFIG_PPC_ISERIES */
-
 struct scatterlist;
 
 #ifdef CONFIG_PPC_MULTIPLATFORM
@@ -121,9 +103,6 @@ extern void iommu_devnode_init_pSeries(struct device_node *dn);
 #endif /* CONFIG_PPC_PSERIES */
 
 #ifdef CONFIG_PPC_ISERIES
-
-/* Walks all buses and creates iommu tables */
-extern void iommu_setup_iSeries(void);
 
 /* Initializes tables for bio buses */
 extern void __init iommu_vio_init(void);
