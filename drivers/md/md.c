@@ -2083,6 +2083,8 @@ static int add_new_disk(mddev_t * mddev, mdu_disk_info_t *info)
 		err = bind_rdev_to_array(rdev, mddev);
 		if (err)
 			export_rdev(rdev);
+
+		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 		if (mddev->thread)
 			md_wakeup_thread(mddev->thread);
 		return err;
