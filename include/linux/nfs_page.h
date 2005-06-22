@@ -22,6 +22,7 @@
 /*
  * Valid flags for the radix tree
  */
+#define NFS_PAGE_TAG_DIRTY	0
 #define NFS_PAGE_TAG_WRITEBACK	1
 
 /*
@@ -31,6 +32,7 @@
 #define PG_NEED_COMMIT		1
 #define PG_NEED_RESCHED		2
 
+struct nfs_inode;
 struct nfs_page {
 	struct list_head	wb_list,	/* Defines state of page: */
 				*wb_list_head;	/*      read/write/commit */
@@ -59,8 +61,8 @@ extern	void nfs_clear_request(struct nfs_page *req);
 extern	void nfs_release_request(struct nfs_page *req);
 
 
-extern	void nfs_list_add_request(struct nfs_page *, struct list_head *);
-
+extern  int nfs_scan_lock_dirty(struct nfs_inode *nfsi, struct list_head *dst,
+				unsigned long idx_start, unsigned int npages);
 extern	int nfs_scan_list(struct list_head *, struct list_head *,
 			  unsigned long, unsigned int);
 extern	int nfs_coalesce_requests(struct list_head *, struct list_head *,
@@ -92,6 +94,18 @@ nfs_lock_request(struct nfs_page *req)
 		return 0;
 	atomic_inc(&req->wb_count);
 	return 1;
+}
+
+/**
+ * nfs_list_add_request - Insert a request into a list
+ * @req: request
+ * @head: head of list into which to insert the request.
+ */
+static inline void
+nfs_list_add_request(struct nfs_page *req, struct list_head *head)
+{
+	list_add_tail(&req->wb_list, head);
+	req->wb_list_head = head;
 }
 
 

@@ -177,36 +177,6 @@ nfs_release_request(struct nfs_page *req)
 	nfs_page_free(req);
 }
 
-/**
- * nfs_list_add_request - Insert a request into a sorted list
- * @req: request
- * @head: head of list into which to insert the request.
- *
- * Note that the wb_list is sorted by page index in order to facilitate
- * coalescing of requests.
- * We use an insertion sort that is optimized for the case of appended
- * writes.
- */
-void
-nfs_list_add_request(struct nfs_page *req, struct list_head *head)
-{
-	struct list_head *pos;
-
-#ifdef NFS_PARANOIA
-	if (!list_empty(&req->wb_list)) {
-		printk(KERN_ERR "NFS: Add to list failed!\n");
-		BUG();
-	}
-#endif
-	list_for_each_prev(pos, head) {
-		struct nfs_page	*p = nfs_list_entry(pos);
-		if (p->wb_index < req->wb_index)
-			break;
-	}
-	list_add(&req->wb_list, pos);
-	req->wb_list_head = head;
-}
-
 static int nfs_wait_bit_interruptible(void *word)
 {
 	int ret = 0;
@@ -289,6 +259,62 @@ nfs_coalesce_requests(struct list_head *head, struct list_head *dst,
 			break;
 	}
 	return npages;
+}
+
+#define NFS_SCAN_MAXENTRIES 16
+/**
+ * nfs_scan_lock_dirty - Scan the radix tree for dirty requests
+ * @nfsi: NFS inode
+ * @dst: Destination list
+ * @idx_start: lower bound of page->index to scan
+ * @npages: idx_start + npages sets the upper bound to scan.
+ *
+ * Moves elements from one of the inode request lists.
+ * If the number of requests is set to 0, the entire address_space
+ * starting at index idx_start, is scanned.
+ * The requests are *not* checked to ensure that they form a contiguous set.
+ * You must be holding the inode's req_lock when calling this function
+ */
+int
+nfs_scan_lock_dirty(struct nfs_inode *nfsi, struct list_head *dst,
+	      unsigned long idx_start, unsigned int npages)
+{
+	struct nfs_page *pgvec[NFS_SCAN_MAXENTRIES];
+	struct nfs_page *req;
+	unsigned long idx_end;
+	int found, i;
+	int res;
+
+	res = 0;
+	if (npages == 0)
+		idx_end = ~0;
+	else
+		idx_end = idx_start + npages - 1;
+
+	for (;;) {
+		found = radix_tree_gang_lookup_tag(&nfsi->nfs_page_tree,
+				(void **)&pgvec[0], idx_start, NFS_SCAN_MAXENTRIES,
+				NFS_PAGE_TAG_DIRTY);
+		if (found <= 0)
+			break;
+		for (i = 0; i < found; i++) {
+			req = pgvec[i];
+			if (req->wb_index > idx_end)
+				goto out;
+
+			idx_start = req->wb_index + 1;
+
+			if (nfs_set_page_writeback_locked(req)) {
+				radix_tree_tag_clear(&nfsi->nfs_page_tree,
+						req->wb_index, NFS_PAGE_TAG_DIRTY);
+				nfs_list_remove_request(req);
+				nfs_list_add_request(req, dst);
+				res++;
+			}
+		}
+	}
+out:
+	return res;
 }
 
 /**

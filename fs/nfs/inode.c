@@ -135,7 +135,7 @@ nfs_write_inode(struct inode *inode, int sync)
 	int flags = sync ? FLUSH_WAIT : 0;
 	int ret;
 
-	ret = nfs_commit_inode(inode, 0, 0, flags);
+	ret = nfs_commit_inode(inode, flags);
 	if (ret < 0)
 		return ret;
 	return 0;

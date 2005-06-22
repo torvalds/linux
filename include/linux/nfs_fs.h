@@ -395,10 +395,10 @@ extern void nfs_commit_done(struct rpc_task *);
  */
 extern int  nfs_sync_inode(struct inode *, unsigned long, unsigned int, int);
 #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
-extern int  nfs_commit_inode(struct inode *, unsigned long, unsigned int, int);
+extern int  nfs_commit_inode(struct inode *, int);
 #else
 static inline int
-nfs_commit_inode(struct inode *inode, unsigned long idx_start, unsigned int npages, int how)
+nfs_commit_inode(struct inode *inode, int how)
 {
 	return 0;
 }
