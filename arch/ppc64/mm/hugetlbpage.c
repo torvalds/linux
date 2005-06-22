@@ -292,7 +292,12 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 		    && !is_hugepage_only_range(mm, addr,len))
 			return addr;
 	}
-	start_addr = addr = mm->free_area_cache;
+	if (len > mm->cached_hole_size) {
+	        start_addr = addr = mm->free_area_cache;
+	} else {
+	        start_addr = addr = TASK_UNMAPPED_BASE;
+	        mm->cached_hole_size = 0;
+	}
 
 full_search:
 	vma = find_vma(mm, addr);
@@ -316,6 +321,8 @@ full_search:
 			mm->free_area_cache = addr + len;
 			return addr;
 		}
+		if (addr + mm->cached_hole_size < vma->vm_start)
+		        mm->cached_hole_size = vma->vm_start - addr;
 		addr = vma->vm_end;
 		vma = vma->vm_next;
 	}
@@ -323,6 +330,7 @@ full_search:
 	/* Make sure we didn't miss any holes */
 	if (start_addr != TASK_UNMAPPED_BASE) {
 		start_addr = addr = TASK_UNMAPPED_BASE;
+		mm->cached_hole_size = 0;
 		goto full_search;
 	}
 	return -ENOMEM;
@@ -344,6 +352,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 	struct vm_area_struct *vma, *prev_vma;
 	struct mm_struct *mm = current->mm;
 	unsigned long base = mm->mmap_base, addr = addr0;
+	unsigned long largest_hole = mm->cached_hole_size;
 	int first_time = 1;
 
 	/* requested length too big for entire address space */
@@ -364,6 +373,10 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 			return addr;
 	}
 
+	if (len <= largest_hole) {
+	        largest_hole = 0;
+		mm->free_area_cache = base;
+	}
 try_again:
 	/* make sure it can fit in the remaining address space */
 	if (mm->free_area_cache < len)
@@ -392,13 +405,21 @@ hugepage_recheck:
 		 * vma->vm_start, use it:
 		 */
 		if (addr+len <= vma->vm_start &&
-				(!prev_vma || (addr >= prev_vma->vm_end)))
+		          (!prev_vma || (addr >= prev_vma->vm_end))) {
 			/* remember the address as a hint for next time */
-			return (mm->free_area_cache = addr);
-		else
+		        mm->cached_hole_size = largest_hole;
+		        return (mm->free_area_cache = addr);
+		} else {
 			/* pull free_area_cache down to the first hole */
-			if (mm->free_area_cache == vma->vm_end)
+		        if (mm->free_area_cache == vma->vm_end) {
 				mm->free_area_cache = vma->vm_start;
+				mm->cached_hole_size = largest_hole;
+			}
+		}
+
+		/* remember the largest hole we saw so far */
+		if (addr + largest_hole < vma->vm_start)
+		        largest_hole = vma->vm_start - addr;
 
 		/* try just below the current vma->vm_start */
 		addr = vma->vm_start-len;
@@ -411,6 +432,7 @@ fail:
 	 */
 	if (first_time) {
 		mm->free_area_cache = base;
+		largest_hole = 0;
 		first_time = 0;
 		goto try_again;
 	}
@@ -421,11 +443,13 @@ fail:
 	 * allocations.
 	 */
 	mm->free_area_cache = TASK_UNMAPPED_BASE;
+	mm->cached_hole_size = ~0UL;
 	addr = arch_get_unmapped_area(filp, addr0, len, pgoff, flags);
 	/*
 	 * Restore the topdown base:
 	 */
 	mm->free_area_cache = base;
+	mm->cached_hole_size = ~0UL;
 
 	return addr;
 }

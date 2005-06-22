@@ -105,6 +105,11 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
 		    (!vma || addr + len <= vma->vm_start))
 			return addr;
 	}
+	if (((flags & MAP_32BIT) || test_thread_flag(TIF_IA32))
+	    && len <= mm->cached_hole_size) {
+	        mm->cached_hole_size = 0;
+		mm->free_area_cache = begin;
+	}
 	addr = mm->free_area_cache;
 	if (addr < begin) 
 		addr = begin; 
@@ -120,6 +125,7 @@ full_search:
 			 */
 			if (start_addr != begin) {
 				start_addr = addr = begin;
+				mm->cached_hole_size = 0;
 				goto full_search;
 			}
 			return -ENOMEM;
@@ -131,6 +137,9 @@ full_search:
 			mm->free_area_cache = addr + len;
 			return addr;
 		}
+		if (addr + mm->cached_hole_size < vma->vm_start)
+		        mm->cached_hole_size = vma->vm_start - addr;
+
 		addr = vma->vm_end;
 	}
 }
