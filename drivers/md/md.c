@@ -218,6 +218,8 @@ static mddev_t * mddev_find(dev_t unit)
 	INIT_LIST_HEAD(&new->all_mddevs);
 	init_timer(&new->safemode_timer);
 	atomic_set(&new->active, 1);
+	bio_list_init(&new->write_list);
+	spin_lock_init(&new->write_lock);
 
 	new->queue = blk_alloc_queue(GFP_KERNEL);
 	if (!new->queue) {
@@ -1251,9 +1253,11 @@ static void md_update_sb(mddev_t * mddev)
 	int err, count = 100;
 	struct list_head *tmp;
 	mdk_rdev_t *rdev;
+	int sync_req;
 
-	mddev->sb_dirty = 0;
 repeat:
+	spin_lock(&mddev->write_lock);
+	sync_req = mddev->in_sync;
 	mddev->utime = get_seconds();
 	mddev->events ++;
 
@@ -1272,8 +1276,12 @@ repeat:
 	 * do not write anything to disk if using
 	 * nonpersistent superblocks
 	 */
-	if (!mddev->persistent)
+	if (!mddev->persistent) {
+		mddev->sb_dirty = 0;
+		spin_unlock(&mddev->write_lock);
 		return;
+	}
+	spin_unlock(&mddev->write_lock);
 
 	dprintk(KERN_INFO 
 		"md: updating %s RAID superblock on device (in sync %d)\n",
@@ -1304,6 +1312,15 @@ repeat:
 		printk(KERN_ERR \
 			"md: excessive errors occurred during superblock update, exiting\n");
 	}
+	spin_lock(&mddev->write_lock);
+	if (mddev->in_sync != sync_req) {
+		/* have to write it out again */
+		spin_unlock(&mddev->write_lock);
+		goto repeat;
+	}
+	mddev->sb_dirty = 0;
+	spin_unlock(&mddev->write_lock);
+
 }
 
 /*
@@ -3178,19 +3195,31 @@ void md_done_sync(mddev_t *mddev, int blocks, int ok)
 }
 
 
-void md_write_start(mddev_t *mddev)
+/* md_write_start(mddev, bi)
+ * If we need to update some array metadata (e.g. 'active' flag
+ * in superblock) before writing, queue bi for later writing
+ * and return 0, else return 1 and it will be written now
+ */
+int md_write_start(mddev_t *mddev, struct bio *bi)
 {
-	if (!atomic_read(&mddev->writes_pending)) {
-		mddev_lock_uninterruptible(mddev);
-		if (mddev->in_sync) {
-			mddev->in_sync = 0;
- 			del_timer(&mddev->safemode_timer);
-			md_update_sb(mddev);
-		}
-		atomic_inc(&mddev->writes_pending);
-		mddev_unlock(mddev);
-	} else
-		atomic_inc(&mddev->writes_pending);
+	if (bio_data_dir(bi) != WRITE)
+		return 1;
+
+	atomic_inc(&mddev->writes_pending);
+	spin_lock(&mddev->write_lock);
+	if (mddev->in_sync == 0 && mddev->sb_dirty == 0) {
+		spin_unlock(&mddev->write_lock);
+		return 1;
+	}
+	bio_list_add(&mddev->write_list, bi);
+
+	if (mddev->in_sync) {
+		mddev->in_sync = 0;
+		mddev->sb_dirty = 1;
+	}
+	spin_unlock(&mddev->write_lock);
+	md_wakeup_thread(mddev->thread);
+	return 0;
 }
 
 void md_write_end(mddev_t *mddev)
@@ -3472,6 +3501,7 @@ void md_check_recovery(mddev_t *mddev)
 		mddev->sb_dirty ||
 		test_bit(MD_RECOVERY_NEEDED, &mddev->recovery) ||
 		test_bit(MD_RECOVERY_DONE, &mddev->recovery) ||
+		mddev->write_list.head ||
 		(mddev->safemode == 1) ||
 		(mddev->safemode == 2 && ! atomic_read(&mddev->writes_pending)
 		 && !mddev->in_sync && mddev->recovery_cp == MaxSector)
@@ -3480,7 +3510,9 @@ void md_check_recovery(mddev_t *mddev)
 
 	if (mddev_trylock(mddev)==0) {
 		int spares =0;
+		struct bio *blist;
 
+		spin_lock(&mddev->write_lock);
 		if (mddev->safemode && !atomic_read(&mddev->writes_pending) &&
 		    !mddev->in_sync && mddev->recovery_cp == MaxSector) {
 			mddev->in_sync = 1;
@@ -3488,9 +3520,22 @@ void md_check_recovery(mddev_t *mddev)
 		}
 		if (mddev->safemode == 1)
 			mddev->safemode = 0;
+		blist = bio_list_get(&mddev->write_list);
+		spin_unlock(&mddev->write_lock);
 
 		if (mddev->sb_dirty)
 			md_update_sb(mddev);
+
+		while (blist) {
+			struct bio *b = blist;
+			blist = blist->bi_next;
+			b->bi_next = NULL;
+			generic_make_request(b);
+			/* we already counted this, so need to un-count */
+			md_write_end(mddev);
+		}
+
+
 		if (test_bit(MD_RECOVERY_RUNNING, &mddev->recovery) &&
 		    !test_bit(MD_RECOVERY_DONE, &mddev->recovery)) {
 			/* resync/recovery still happening */

@@ -15,6 +15,9 @@
 #ifndef _MD_K_H
 #define _MD_K_H
 
+/* and dm-bio-list.h is not under include/linux because.... ??? */
+#include "../../../drivers/md/dm-bio-list.h"
+
 #define MD_RESERVED       0UL
 #define LINEAR            1UL
 #define RAID0             2UL
@@ -252,6 +255,10 @@ struct mddev_s
 	atomic_t			recovery_active; /* blocks scheduled, but not written */
 	wait_queue_head_t		recovery_wait;
 	sector_t			recovery_cp;
+
+	spinlock_t			write_lock;
+	struct bio_list			write_list;
+
 	unsigned int			safemode;	/* if set, update "clean" superblock
 							 * when no writes pending.
 							 */ 

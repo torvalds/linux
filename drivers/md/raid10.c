@@ -700,6 +700,9 @@ static int make_request(request_queue_t *q, struct bio * bio)
 		return 0;
 	}
 
+	if (md_write_start(mddev, bio) == 0)
+		return 0;
+
 	/*
 	 * Register the new request and wait if the reconstruction
 	 * thread has put up a bar for new requests.
@@ -774,7 +777,7 @@ static int make_request(request_queue_t *q, struct bio * bio)
 	rcu_read_unlock();
 
 	atomic_set(&r10_bio->remaining, 1);
-	md_write_start(mddev);
+
 	for (i = 0; i < conf->copies; i++) {
 		struct bio *mbio;
 		int d = r10_bio->devs[i].devnum;

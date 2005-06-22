@@ -1570,6 +1570,9 @@ static int make_request (request_queue_t *q, struct bio * bi)
 	sector_t logical_sector, last_sector;
 	struct stripe_head *sh;
 
+	if (md_write_start(mddev, bi)==0)
+		return 0;
+
 	if (bio_data_dir(bi)==WRITE) {
 		disk_stat_inc(mddev->gendisk, writes);
 		disk_stat_add(mddev->gendisk, write_sectors, bio_sectors(bi));
@@ -1583,8 +1586,7 @@ static int make_request (request_queue_t *q, struct bio * bi)
 
 	bi->bi_next = NULL;
 	bi->bi_phys_segments = 1;	/* over-loaded to count active stripes */
-	if ( bio_data_dir(bi) == WRITE )
-		md_write_start(mddev);
+
 	for (;logical_sector < last_sector; logical_sector += STRIPE_SECTORS) {
 		DEFINE_WAIT(w);
 

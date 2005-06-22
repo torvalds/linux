@@ -530,6 +530,8 @@ static int make_request(request_queue_t *q, struct bio * bio)
 	 * thread has put up a bar for new requests.
 	 * Continue immediately if no resync is active currently.
 	 */
+	if (md_write_start(mddev, bio)==0)
+		return 0;
 	spin_lock_irq(&conf->resync_lock);
 	wait_event_lock_irq(conf->wait_resume, !conf->barrier, conf->resync_lock, );
 	conf->nr_pending++;
@@ -611,7 +613,7 @@ static int make_request(request_queue_t *q, struct bio * bio)
 	rcu_read_unlock();
 
 	atomic_set(&r1_bio->remaining, 1);
-	md_write_start(mddev);
+
 	for (i = 0; i < disks; i++) {
 		struct bio *mbio;
 		if (!r1_bio->bios[i])
