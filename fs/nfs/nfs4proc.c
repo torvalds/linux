@@ -269,14 +269,9 @@ static int nfs4_open_reclaim(struct nfs4_state_owner *sp, struct nfs4_state *sta
 	int err;
 	do {
 		err = _nfs4_open_reclaim(sp, state);
-		switch (err) {
-			case 0:
-			case -NFS4ERR_STALE_CLIENTID:
-			case -NFS4ERR_STALE_STATEID:
-			case -NFS4ERR_EXPIRED:
-				return err;
-		}
-		err = nfs4_handle_exception(server, err, &exception);
+		if (err != -NFS4ERR_DELAY)
+			break;
+		nfs4_handle_exception(server, err, &exception);
 	} while (exception.retry);
 	return err;
 }
@@ -508,6 +503,20 @@ out_stale:
 	goto out_nodeleg;
 }
 
+static inline int nfs4_do_open_expired(struct nfs4_state_owner *sp, struct nfs4_state *state, struct dentry *dentry)
+{
+	struct nfs_server *server = NFS_SERVER(dentry->d_inode);
+	struct nfs4_exception exception = { };
+	int err;
+
+	do {
+		err = _nfs4_open_expired(sp, state, dentry);
+		if (err == -NFS4ERR_DELAY)
+			nfs4_handle_exception(server, err, &exception);
+	} while (exception.retry);
+	return err;
+}
+
 static int nfs4_open_expired(struct nfs4_state_owner *sp, struct nfs4_state *state)
 {
 	struct nfs_inode *nfsi = NFS_I(state->inode);
@@ -520,7 +529,7 @@ static int nfs4_open_expired(struct nfs4_state_owner *sp, struct nfs4_state *sta
 			continue;
 		get_nfs_open_context(ctx);
 		spin_unlock(&state->inode->i_lock);
-		status = _nfs4_open_expired(sp, state, ctx->dentry);
+		status = nfs4_do_open_expired(sp, state, ctx->dentry);
 		put_nfs_open_context(ctx);
 		return status;
 	}
@@ -2842,12 +2851,32 @@ static int _nfs4_do_setlk(struct nfs4_state *state, int cmd, struct file_lock *r
 
 static int nfs4_lock_reclaim(struct nfs4_state *state, struct file_lock *request)
 {
-	return _nfs4_do_setlk(state, F_SETLK, request, 1);
+	struct nfs_server *server = NFS_SERVER(state->inode);
+	struct nfs4_exception exception = { };
+	int err;
+
+	do {
+		err = _nfs4_do_setlk(state, F_SETLK, request, 1);
+		if (err != -NFS4ERR_DELAY)
+			break;
+		nfs4_handle_exception(server, err, &exception);
+	} while (exception.retry);
+	return err;
 }
 
 static int nfs4_lock_expired(struct nfs4_state *state, struct file_lock *request)
 {
-	return _nfs4_do_setlk(state, F_SETLK, request, 0);
+	struct nfs_server *server = NFS_SERVER(state->inode);
+	struct nfs4_exception exception = { };
+	int err;
+
+	do {
+		err = _nfs4_do_setlk(state, F_SETLK, request, 0);
+		if (err != -NFS4ERR_DELAY)
+			break;
+		nfs4_handle_exception(server, err, &exception);
+	} while (exception.retry);
+	return err;
 }
 
 static int _nfs4_proc_setlk(struct nfs4_state *state, int cmd, struct file_lock *request)
