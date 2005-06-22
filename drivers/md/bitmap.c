@@ -781,7 +781,9 @@ static int bitmap_init_from_disk(struct bitmap *bitmap)
 			"recovery\n", bmname(bitmap));
 
 	bytes = (chunks + 7) / 8;
-	num_pages = (bytes + PAGE_SIZE - 1) / PAGE_SIZE;
+
+	num_pages = (bytes + sizeof(bitmap_super_t) + PAGE_SIZE - 1) / PAGE_SIZE + 1;
+
 	if (i_size_read(file->f_mapping->host) < bytes + sizeof(bitmap_super_t)) {
 		printk(KERN_INFO "%s: bitmap file too short %lu < %lu\n",
 			bmname(bitmap),
@@ -789,18 +791,16 @@ static int bitmap_init_from_disk(struct bitmap *bitmap)
 			bytes + sizeof(bitmap_super_t));
 		goto out;
 	}
-	num_pages++;
+
+	ret = -ENOMEM;
+
 	bitmap->filemap = kmalloc(sizeof(struct page *) * num_pages, GFP_KERNEL);
-	if (!bitmap->filemap) {
-		ret = -ENOMEM;
+	if (!bitmap->filemap)
 		goto out;
-	}
 
 	bitmap->filemap_attr = kmalloc(sizeof(long) * num_pages, GFP_KERNEL);
-	if (!bitmap->filemap_attr) {
-		ret = -ENOMEM;
+	if (!bitmap->filemap_attr)
 		goto out;
-	}
 
 	memset(bitmap->filemap_attr, 0, sizeof(long) * num_pages);
 
