@@ -33,7 +33,8 @@ obj-$(CONFIG_PPC_PSERIES) += pSeries_pci.o pSeries_lpar.o pSeries_hvCall.o \
 			     pSeries_nvram.o rtasd.o ras.o pSeries_reconfig.o \
 			     pSeries_setup.o pSeries_iommu.o
 
-obj-$(CONFIG_PPC_BPA) += bpa_setup.o bpa_nvram.o bpa_iic.o spider-pic.o
+obj-$(CONFIG_PPC_BPA) += bpa_setup.o bpa_iommu.o bpa_nvram.o \
+			 bpa_iic.o spider-pic.o
 
 obj-$(CONFIG_EEH)		+= eeh.o
 obj-$(CONFIG_PROC_FS)		+= proc_ppc64.o

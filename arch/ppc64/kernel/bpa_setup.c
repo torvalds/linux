@@ -46,6 +46,7 @@
 
 #include "pci.h"
 #include "bpa_iic.h"
+#include "bpa_iommu.h"
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -107,7 +108,7 @@ static void __init bpa_init_early(void)
 
 	hpte_init_native();
 
-	pci_direct_iommu_init();
+	bpa_init_iommu();
 
 	ppc64_interrupt_controller = IC_BPA_IIC;
 
