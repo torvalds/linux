@@ -283,6 +283,7 @@ ia64_phys_addr_valid (unsigned long addr)
 #define pte_mkyoung(pte)	(__pte(pte_val(pte) | _PAGE_A))
 #define pte_mkclean(pte)	(__pte(pte_val(pte) & ~_PAGE_D))
 #define pte_mkdirty(pte)	(__pte(pte_val(pte) | _PAGE_D))
+#define pte_mkhuge(pte)		(__pte(pte_val(pte) | _PAGE_P))
 
 /*
  * Macro to a page protection value as "uncacheable".  Note that "protection" is really a

@@ -430,16 +430,6 @@ struct thread_struct {
 }
 
 /*
- * Note: the vm_start and vm_end fields here should *not*
- * be in kernel space.  (Could vm_end == vm_start perhaps?)
- */
-#define IOREMAP_MMAP { &ioremap_mm, 0, 0x1000, NULL, \
-		    PAGE_SHARED, VM_READ | VM_WRITE | VM_EXEC, \
-		    1, NULL, NULL }
-
-extern struct mm_struct ioremap_mm;
-
-/*
  * Return saved PC of a blocked thread. For now, this is the "user" PC
  */
 #define thread_saved_pc(tsk)    \

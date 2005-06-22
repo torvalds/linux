@@ -641,7 +641,7 @@ int ipmi_create_user(unsigned int          if_num,
 		return -ENOMEM;
 
 	down_read(&interfaces_sem);
-	if ((if_num > MAX_IPMI_INTERFACES) || ipmi_interfaces[if_num] == NULL)
+	if ((if_num >= MAX_IPMI_INTERFACES) || ipmi_interfaces[if_num] == NULL)
 	{
 		rv = -EINVAL;
 		goto out_unlock;

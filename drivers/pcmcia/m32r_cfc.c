@@ -24,9 +24,9 @@
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>
+#include <linux/bitops.h>
 #include <asm/irq.h>
 #include <asm/io.h>
-#include <asm/bitops.h>
 #include <asm/system.h>
 
 #include <pcmcia/version.h>
@@ -444,7 +444,7 @@ static int _pcc_get_status(u_short sock, u_int *value)
 		debug(3, "m32r_cfc: _pcc_get_status: "
 			 "power off (CPCR=0x%08x)\n", status);
 	}
-#elif defined(CONFIG_PLAT_MAPPI2)
+#elif defined(CONFIG_PLAT_MAPPI2) || defined(CONFIG_PLAT_MAPPI3)
 	if ( status ) {
 		status = pcc_get(sock, (unsigned int)PLD_CPCR);
 		if (status == 0) { /* power off */
@@ -452,18 +452,23 @@ static int _pcc_get_status(u_short sock, u_int *value)
 			pcc_set(sock, (unsigned int)PLD_CFBUFCR,0); /* force buffer off for ZA-36 */
 			udelay(50);
 		}
-		status = pcc_get(sock, (unsigned int)PLD_CFBUFCR);
-		if (status != 0) { /* buffer off */
-			pcc_set(sock, (unsigned int)PLD_CFBUFCR,0);
-			udelay(50);
-			pcc_set(sock, (unsigned int)PLD_CFRSTCR, 0x0101);
-			udelay(25); /* for IDE reset */
-			pcc_set(sock, (unsigned int)PLD_CFRSTCR, 0x0100);
-			mdelay(2);  /* for IDE reset */
-		} else {
-			*value |= SS_POWERON;
-			*value |= SS_READY;
-		}
+		*value |= SS_POWERON;
+
+		pcc_set(sock, (unsigned int)PLD_CFBUFCR,0);
+		udelay(50);
+		pcc_set(sock, (unsigned int)PLD_CFRSTCR, 0x0101);
+		udelay(25); /* for IDE reset */
+		pcc_set(sock, (unsigned int)PLD_CFRSTCR, 0x0100);
+		mdelay(2);  /* for IDE reset */
+
+		*value |= SS_READY;
+		*value |= SS_3VCARD;
+	} else {
+		/* disable CF power */
+	        pcc_set(sock, (unsigned int)PLD_CPCR, 0);
+		udelay(100);
+		debug(3, "m32r_cfc: _pcc_get_status: "
+			 "power off (CPCR=0x%08x)\n", status);
 	}
 #else
 #error no platform configuration
@@ -479,14 +484,13 @@ static int _pcc_get_socket(u_short sock, socket_state_t *state)
 {
 //	pcc_socket_t *t = &socket[sock];
 
-#if defined(CONFIG_PLAT_M32700UT) || defined(CONFIG_PLAT_USRV) || defined(CONFIG_PLAT_OPSPUT)
 	state->flags = 0;
 	state->csc_mask = SS_DETECT;
 	state->csc_mask |= SS_READY;
 	state->io_irq = 0;
 	state->Vcc = 33;	/* 3.3V fixed */
 	state->Vpp = 33;
-#endif
+
 	debug(3, "m32r_cfc: GetSocket(%d) = flags %#3.3x, Vcc %d, Vpp %d, "
 		  "io_irq %d, csc_mask %#2.2x\n", sock, state->flags,
 		  state->Vcc, state->Vpp, state->io_irq, state->csc_mask);
@@ -497,32 +501,17 @@ static int _pcc_get_socket(u_short sock, socket_state_t *state)
 
 static int _pcc_set_socket(u_short sock, socket_state_t *state)
 {
-#if defined(CONFIG_PLAT_MAPPI2)
-	u_long reg = 0;
-#endif
 	debug(3, "m32r_cfc: SetSocket(%d, flags %#3.3x, Vcc %d, Vpp %d, "
 		  "io_irq %d, csc_mask %#2.2x)\n", sock, state->flags,
 		  state->Vcc, state->Vpp, state->io_irq, state->csc_mask);
 
-#if defined(CONFIG_PLAT_M32700UT) || defined(CONFIG_PLAT_USRV) || defined(CONFIG_PLAT_OPSPUT)
+#if defined(CONFIG_PLAT_M32700UT) || defined(CONFIG_PLAT_USRV) || defined(CONFIG_PLAT_OPSPUT) || defined(CONFIG_PLAT_MAPPI2) || defined(CONFIG_PLAT_MAPPI3)
 	if (state->Vcc) {
 		if ((state->Vcc != 50) && (state->Vcc != 33))
 			return -EINVAL;
 		/* accept 5V and 3.3V */
 	}
-#elif defined(CONFIG_PLAT_MAPPI2)
-	if (state->Vcc) {
-		/*
-		 * 5V only
-		 */
-		if (state->Vcc == 50) {
-			reg |= PCCSIGCR_VEN;
-		} else {
-			return -EINVAL;
-		}
-	}
 #endif
-
 	if (state->flags & SS_RESET) {
 		debug(3, ":RESET\n");
 		pcc_set(sock,(unsigned int)PLD_CFRSTCR,0x101);
@@ -788,7 +777,7 @@ static int __init init_m32r_pcc(void)
 		return ret;
 	}
 
-#if defined(CONFIG_PLAT_MAPPI2)
+#if defined(CONFIG_PLAT_MAPPI2) || defined(CONFIG_PLAT_MAPPI3)
 	pcc_set(0, (unsigned int)PLD_CFCR0, 0x0f0f);
 	pcc_set(0, (unsigned int)PLD_CFCR1, 0x0200);
 #endif
@@ -825,7 +814,7 @@ static int __init init_m32r_pcc(void)
 	for (i = 0 ; i < pcc_sockets ; i++) {
 		socket[i].socket.dev.dev = &pcc_device.dev;
 		socket[i].socket.ops = &pcc_operations;
-		socket[i].socket.resource_ops = &pccard_static_ops;
+		socket[i].socket.resource_ops = &pccard_nonstatic_ops;
 		socket[i].socket.owner = THIS_MODULE;
 		socket[i].number = i;
 		ret = pcmcia_register_socket(&socket[i].socket);

@@ -48,11 +48,11 @@ void disable_nonboot_cpus(void)
 {
 	oldmask = current->cpus_allowed;
 	set_cpus_allowed(current, cpumask_of_cpu(0));
-	printk("Freezing CPUs (at %d)", _smp_processor_id());
+	printk("Freezing CPUs (at %d)", raw_smp_processor_id());
 	current->state = TASK_INTERRUPTIBLE;
 	schedule_timeout(HZ);
 	printk("...");
-	BUG_ON(_smp_processor_id() != 0);
+	BUG_ON(raw_smp_processor_id() != 0);
 
 	/* FIXME: for this to work, all the CPUs must be running
 	 * "idle" thread (or we deadlock). Is that guaranteed? */

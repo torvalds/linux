@@ -79,6 +79,10 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 		    (!vma || addr + len <= vma->vm_start))
 			return addr;
 	}
+	if (len <= mm->cached_hole_size) {
+	        mm->cached_hole_size = 0;
+		mm->free_area_cache = TASK_UNMAPPED_BASE;
+	}
 	if (flags & MAP_PRIVATE)
 		addr = PAGE_ALIGN(mm->free_area_cache);
 	else
@@ -95,6 +99,7 @@ full_search:
 			 */
 			if (start_addr != TASK_UNMAPPED_BASE) {
 				start_addr = addr = TASK_UNMAPPED_BASE;
+				mm->cached_hole_size = 0;
 				goto full_search;
 			}
 			return -ENOMEM;
@@ -106,6 +111,9 @@ full_search:
 			mm->free_area_cache = addr + len;
 			return addr;
 		}
+		if (addr + mm->cached_hole_size < vma->vm_start)
+		        mm->cached_hole_size = vma->vm_start - addr;
+
 		addr = vma->vm_end;
 		if (!(flags & MAP_PRIVATE))
 			addr = COLOUR_ALIGN(addr);

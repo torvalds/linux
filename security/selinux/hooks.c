@@ -1945,6 +1945,7 @@ static int selinux_sb_copy_data(struct file_system_type *type, void *orig, void 
 	} while (*in_end++);
 
 	copy_page(in_save, nosec_save);
+	free_page((unsigned long)nosec_save);
 out:
 	return rc;
 }

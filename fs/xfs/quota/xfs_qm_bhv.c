@@ -71,10 +71,13 @@
 #define MNTOPT_NOQUOTA	"noquota"	/* no quotas */
 #define MNTOPT_USRQUOTA	"usrquota"	/* user quota enabled */
 #define MNTOPT_GRPQUOTA	"grpquota"	/* group quota enabled */
+#define MNTOPT_PRJQUOTA	"prjquota"	/* project quota enabled */
 #define MNTOPT_UQUOTA	"uquota"	/* user quota (IRIX variant) */
 #define MNTOPT_GQUOTA	"gquota"	/* group quota (IRIX variant) */
+#define MNTOPT_PQUOTA	"pquota"	/* project quota (IRIX variant) */
 #define MNTOPT_UQUOTANOENF "uqnoenforce"/* user quota limit enforcement */
 #define MNTOPT_GQUOTANOENF "gqnoenforce"/* group quota limit enforcement */
+#define MNTOPT_PQUOTANOENF "pqnoenforce"/* project quota limit enforcement */
 #define MNTOPT_QUOTANOENF  "qnoenforce"	/* same as uqnoenforce */
 
 STATIC int
@@ -109,6 +112,14 @@ xfs_qm_parseargs(
 			args->flags |= XFSMNT_UQUOTA;
 			args->flags &= ~XFSMNT_UQUOTAENF;
 			referenced = 1;
+		} else if (!strcmp(this_char, MNTOPT_PQUOTA) ||
+			   !strcmp(this_char, MNTOPT_PRJQUOTA)) {
+			args->flags |= XFSMNT_PQUOTA | XFSMNT_PQUOTAENF;
+			referenced = 1;
+		} else if (!strcmp(this_char, MNTOPT_PQUOTANOENF)) {
+			args->flags |= XFSMNT_PQUOTA;
+			args->flags &= ~XFSMNT_PQUOTAENF;
+			referenced = 1;
 		} else if (!strcmp(this_char, MNTOPT_GQUOTA) ||
 			   !strcmp(this_char, MNTOPT_GRPQUOTA)) {
 			args->flags |= XFSMNT_GQUOTA | XFSMNT_GQUOTAENF;
@@ -125,6 +136,12 @@ xfs_qm_parseargs(
 
 		while (length--)
 			*this_char++ = ',';
+	}
+
+	if ((args->flags & XFSMNT_GQUOTA) && (args->flags & XFSMNT_PQUOTA)) {
+		cmn_err(CE_WARN,
+			"XFS: cannot mount with both project and group quota");
+		return XFS_ERROR(EINVAL);
 	}
 
 	PVFS_PARSEARGS(BHV_NEXT(bhv), options, args, update, error);
@@ -148,13 +165,19 @@ xfs_qm_showargs(
 			seq_puts(m, "," MNTOPT_UQUOTANOENF);
 	}
 
+	if (mp->m_qflags & XFS_PQUOTA_ACCT) {
+		(mp->m_qflags & XFS_OQUOTA_ENFD) ?
+			seq_puts(m, "," MNTOPT_PRJQUOTA) :
+			seq_puts(m, "," MNTOPT_PQUOTANOENF);
+	}
+
 	if (mp->m_qflags & XFS_GQUOTA_ACCT) {
-		(mp->m_qflags & XFS_GQUOTA_ENFD) ?
+		(mp->m_qflags & XFS_OQUOTA_ENFD) ?
 			seq_puts(m, "," MNTOPT_GRPQUOTA) :
 			seq_puts(m, "," MNTOPT_GQUOTANOENF);
 	}
 
-	if (!(mp->m_qflags & (XFS_UQUOTA_ACCT|XFS_GQUOTA_ACCT)))
+	if (!(mp->m_qflags & XFS_ALL_QUOTA_ACCT))
 		seq_puts(m, "," MNTOPT_NOQUOTA);
 
 	PVFS_SHOWARGS(BHV_NEXT(bhv), m, error);
@@ -171,7 +194,7 @@ xfs_qm_mount(
 	struct xfs_mount	*mp = XFS_VFSTOM(vfsp);
 	int			error;
 
-	if (args->flags & (XFSMNT_UQUOTA | XFSMNT_GQUOTA))
+	if (args->flags & (XFSMNT_UQUOTA | XFSMNT_GQUOTA | XFSMNT_PQUOTA))
 		xfs_qm_mount_quotainit(mp, args->flags);
 	PVFS_MOUNT(BHV_NEXT(bhv), args, cr, error);
 	return error;
@@ -255,16 +278,17 @@ xfs_qm_newmount(
 	uint		*quotaflags)
 {
 	uint		quotaondisk;
-	uint		uquotaondisk = 0, gquotaondisk = 0;
+	uint		uquotaondisk = 0, gquotaondisk = 0, pquotaondisk = 0;
 
 	*quotaflags = 0;
 	*needquotamount = B_FALSE;
 
 	quotaondisk = XFS_SB_VERSION_HASQUOTA(&mp->m_sb) &&
-		mp->m_sb.sb_qflags & (XFS_UQUOTA_ACCT|XFS_GQUOTA_ACCT);
+				(mp->m_sb.sb_qflags & XFS_ALL_QUOTA_ACCT);
 
 	if (quotaondisk) {
 		uquotaondisk = mp->m_sb.sb_qflags & XFS_UQUOTA_ACCT;
+		pquotaondisk = mp->m_sb.sb_qflags & XFS_PQUOTA_ACCT;
 		gquotaondisk = mp->m_sb.sb_qflags & XFS_GQUOTA_ACCT;
 	}
 
@@ -277,13 +301,16 @@ xfs_qm_newmount(
 
 	if (((uquotaondisk && !XFS_IS_UQUOTA_ON(mp)) ||
 	    (!uquotaondisk &&  XFS_IS_UQUOTA_ON(mp)) ||
+	     (pquotaondisk && !XFS_IS_PQUOTA_ON(mp)) ||
+	    (!pquotaondisk &&  XFS_IS_PQUOTA_ON(mp)) ||
 	     (gquotaondisk && !XFS_IS_GQUOTA_ON(mp)) ||
-	    (!gquotaondisk &&  XFS_IS_GQUOTA_ON(mp)))  &&
+	    (!gquotaondisk &&  XFS_IS_OQUOTA_ON(mp)))  &&
 	    xfs_dev_is_read_only(mp, "changing quota state")) {
 		cmn_err(CE_WARN,
-			"XFS: please mount with%s%s%s.",
+			"XFS: please mount with%s%s%s%s.",
 			(!quotaondisk ? "out quota" : ""),
 			(uquotaondisk ? " usrquota" : ""),
+			(pquotaondisk ? " prjquota" : ""),
 			(gquotaondisk ? " grpquota" : ""));
 		return XFS_ERROR(EPERM);
 	}
@@ -359,7 +386,7 @@ xfs_qm_dqrele_null(
 }
 
 
-struct xfs_qmops xfs_qmcore_xfs = {
+STATIC struct xfs_qmops xfs_qmcore_xfs = {
 	.xfs_qminit		= xfs_qm_newmount,
 	.xfs_qmdone		= xfs_qm_unmount_quotadestroy,
 	.xfs_qmmount		= xfs_qm_endmount,

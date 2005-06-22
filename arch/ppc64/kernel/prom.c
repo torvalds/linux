@@ -884,6 +884,7 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 {
 	char *type = get_flat_dt_prop(node, "device_type", NULL);
 	u32 *prop;
+	unsigned long size;
 
 	/* We are scanning "cpu" nodes only */
 	if (type == NULL || strcmp(type, "cpu") != 0)
@@ -928,6 +929,17 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 		cur_cpu_spec->cpu_features |= CPU_FTR_ALTIVEC;
 		cur_cpu_spec->cpu_user_features |= PPC_FEATURE_HAS_ALTIVEC;
 	}
+
+	/*
+	 * Check for an SMT capable CPU and set the CPU feature. We do
+	 * this by looking at the size of the ibm,ppc-interrupt-server#s
+	 * property
+	 */
+	prop = (u32 *)get_flat_dt_prop(node, "ibm,ppc-interrupt-server#s",
+				       &size);
+	cur_cpu_spec->cpu_features &= ~CPU_FTR_SMT;
+	if (prop && ((size / sizeof(u32)) > 1))
+		cur_cpu_spec->cpu_features |= CPU_FTR_SMT;
 
 	return 0;
 }

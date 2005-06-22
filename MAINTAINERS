@@ -265,6 +265,11 @@ P:	Arnaldo Carvalho de Melo
 M:	acme@conectiva.com.br
 S:	Maintained
 
+ARC FRAMEBUFFER DRIVER
+P:	Jaya Kumar
+M:	jayalk@intworks.biz
+S:	Maintained
+
 ARM26 ARCHITECTURE
 P:	Ian Molton
 M:	spyro@f2s.com

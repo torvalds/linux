@@ -535,7 +535,6 @@ typedef struct log {
 
 /* common routines */
 extern xfs_lsn_t xlog_assign_tail_lsn(struct xfs_mount *mp);
-extern int	 xlog_find_head(xlog_t *log, xfs_daddr_t *head_blk);
 extern int	 xlog_find_tail(xlog_t	*log,
 				xfs_daddr_t *head_blk,
 				xfs_daddr_t *tail_blk,
@@ -548,7 +547,6 @@ extern void	 xlog_recover_process_iunlinks(xlog_t *log);
 extern struct xfs_buf *xlog_get_bp(xlog_t *, int);
 extern void	 xlog_put_bp(struct xfs_buf *);
 extern int	 xlog_bread(xlog_t *, xfs_daddr_t, int, struct xfs_buf *);
-extern xfs_caddr_t xlog_align(xlog_t *, xfs_daddr_t, int, struct xfs_buf *);
 
 /* iclog tracing */
 #define XLOG_TRACE_GRAB_FLUSH  1

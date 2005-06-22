@@ -64,6 +64,8 @@ extern unsigned long total_lowmem;
 extern unsigned long __max_low_memory;
 #define MAX_LOW_MEM	CONFIG_LOWMEM_SIZE
 
+#define NUM_TLBCAMS	(16)
+
 struct tlbcam {
    	u32	MAS0;
 	u32	MAS1;

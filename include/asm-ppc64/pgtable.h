@@ -53,7 +53,8 @@
  * Define the address range of the vmalloc VM area.
  */
 #define VMALLOC_START (0xD000000000000000ul)
-#define VMALLOC_END   (VMALLOC_START + EADDR_MASK)
+#define VMALLOC_SIZE  (0x10000000000UL)
+#define VMALLOC_END   (VMALLOC_START + VMALLOC_SIZE)
 
 /*
  * Bits in a linux-style PTE.  These match the bits in the
@@ -238,9 +239,6 @@ static inline pte_t pfn_pte(unsigned long pfn, pgprot_t pgprot)
 /* to find an entry in a kernel page-table-directory */
 /* This now only contains the vmalloc pages */
 #define pgd_offset_k(address) pgd_offset(&init_mm, address)
-
-/* to find an entry in the ioremap page-table-directory */
-#define pgd_offset_i(address) (ioremap_pgd + pgd_index(address))
 
 /*
  * The following only work if pte_present() is true.
@@ -459,15 +457,12 @@ extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long addr,
 #define __HAVE_ARCH_PTE_SAME
 #define pte_same(A,B)	(((pte_val(A) ^ pte_val(B)) & ~_PAGE_HPTEFLAGS) == 0)
 
-extern unsigned long ioremap_bot, ioremap_base;
-
 #define pmd_ERROR(e) \
 	printk("%s:%d: bad pmd %08x.\n", __FILE__, __LINE__, pmd_val(e))
 #define pgd_ERROR(e) \
 	printk("%s:%d: bad pgd %08x.\n", __FILE__, __LINE__, pgd_val(e))
 
 extern pgd_t swapper_pg_dir[];
-extern pgd_t ioremap_dir[];
 
 extern void paging_init(void);
 
