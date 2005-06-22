@@ -427,9 +427,10 @@ out:
 }
 
 static void test_cipher_speed(char *algo, int mode, int enc, unsigned int sec,
-			      struct cipher_speed *speed)
+			      struct cipher_testvec *template,
+			      unsigned int tcount, struct cipher_speed *speed)
 {
-	unsigned int ret, i, iv_len;
+	unsigned int ret, i, j, iv_len;
 	unsigned char *key, *p, iv[128];
 	struct crypto_tfm *tfm;
 	struct scatterlist sg[8];
@@ -471,6 +472,12 @@ static void test_cipher_speed(char *algo, int mode, int enc, unsigned int sec,
 
 		/* set key, plain text and IV */
 		key = (unsigned char *)tvmem;
+		for (j = 0; j < tcount; j++) {
+			if (template[j].klen == speed[i].klen) {
+				key = template[j].key;
+				break;
+			}
+		}
 		p = (unsigned char *)tvmem + speed[i].klen;
 
 		ret = crypto_cipher_setkey(tfm, key, speed[i].klen);
@@ -953,38 +960,66 @@ static void do_test(void)
 #endif
 
 	case 200:
-		test_cipher_speed("aes", MODE_ECB, ENCRYPT, sec, aes_speed_template);
-		test_cipher_speed("aes", MODE_ECB, DECRYPT, sec, aes_speed_template);
-		test_cipher_speed("aes", MODE_CBC, ENCRYPT, sec, aes_speed_template);
-		test_cipher_speed("aes", MODE_CBC, DECRYPT, sec, aes_speed_template);
+		test_cipher_speed("aes", MODE_ECB, ENCRYPT, sec, NULL, 0,
+				  aes_speed_template);
+		test_cipher_speed("aes", MODE_ECB, DECRYPT, sec, NULL, 0,
+				  aes_speed_template);
+		test_cipher_speed("aes", MODE_CBC, ENCRYPT, sec, NULL, 0,
+				  aes_speed_template);
+		test_cipher_speed("aes", MODE_CBC, DECRYPT, sec, NULL, 0,
+				  aes_speed_template);
 		break;
 
 	case 201:
-		test_cipher_speed("des3_ede", MODE_ECB, ENCRYPT, sec, des3_ede_speed_template);
-		test_cipher_speed("des3_ede", MODE_ECB, DECRYPT, sec, des3_ede_speed_template);
-		test_cipher_speed("des3_ede", MODE_CBC, ENCRYPT, sec, des3_ede_speed_template);
-		test_cipher_speed("des3_ede", MODE_CBC, DECRYPT, sec, des3_ede_speed_template);
+		test_cipher_speed("des3_ede", MODE_ECB, ENCRYPT, sec,
+				  des3_ede_enc_tv_template,
+				  DES3_EDE_ENC_TEST_VECTORS,
+				  des3_ede_speed_template);
+		test_cipher_speed("des3_ede", MODE_ECB, DECRYPT, sec,
+				  des3_ede_dec_tv_template,
+				  DES3_EDE_DEC_TEST_VECTORS,
+				  des3_ede_speed_template);
+		test_cipher_speed("des3_ede", MODE_CBC, ENCRYPT, sec,
+				  des3_ede_enc_tv_template,
+				  DES3_EDE_ENC_TEST_VECTORS,
+				  des3_ede_speed_template);
+		test_cipher_speed("des3_ede", MODE_CBC, DECRYPT, sec,
+				  des3_ede_dec_tv_template,
+				  DES3_EDE_DEC_TEST_VECTORS,
+				  des3_ede_speed_template);
 		break;
 
 	case 202:
-		test_cipher_speed("twofish", MODE_ECB, ENCRYPT, sec, twofish_speed_template);
-		test_cipher_speed("twofish", MODE_ECB, DECRYPT, sec, twofish_speed_template);
-		test_cipher_speed("twofish", MODE_CBC, ENCRYPT, sec, twofish_speed_template);
-		test_cipher_speed("twofish", MODE_CBC, DECRYPT, sec, twofish_speed_template);
+		test_cipher_speed("twofish", MODE_ECB, ENCRYPT, sec, NULL, 0,
+				  twofish_speed_template);
+		test_cipher_speed("twofish", MODE_ECB, DECRYPT, sec, NULL, 0,
+				  twofish_speed_template);
+		test_cipher_speed("twofish", MODE_CBC, ENCRYPT, sec, NULL, 0,
+				  twofish_speed_template);
+		test_cipher_speed("twofish", MODE_CBC, DECRYPT, sec, NULL, 0,
+				  twofish_speed_template);
 		break;
 
 	case 203:
-		test_cipher_speed("blowfish", MODE_ECB, ENCRYPT, sec, blowfish_speed_template);
-		test_cipher_speed("blowfish", MODE_ECB, DECRYPT, sec, blowfish_speed_template);
-		test_cipher_speed("blowfish", MODE_CBC, ENCRYPT, sec, blowfish_speed_template);
-		test_cipher_speed("blowfish", MODE_CBC, DECRYPT, sec, blowfish_speed_template);
+		test_cipher_speed("blowfish", MODE_ECB, ENCRYPT, sec, NULL, 0,
+				  blowfish_speed_template);
+		test_cipher_speed("blowfish", MODE_ECB, DECRYPT, sec, NULL, 0,
+				  blowfish_speed_template);
+		test_cipher_speed("blowfish", MODE_CBC, ENCRYPT, sec, NULL, 0,
+				  blowfish_speed_template);
+		test_cipher_speed("blowfish", MODE_CBC, DECRYPT, sec, NULL, 0,
+				  blowfish_speed_template);
 		break;
 
 	case 204:
-		test_cipher_speed("des", MODE_ECB, ENCRYPT, sec, des_speed_template);
-		test_cipher_speed("des", MODE_ECB, DECRYPT, sec, des_speed_template);
-		test_cipher_speed("des", MODE_CBC, ENCRYPT, sec, des_speed_template);
-		test_cipher_speed("des", MODE_CBC, DECRYPT, sec, des_speed_template);
+		test_cipher_speed("des", MODE_ECB, ENCRYPT, sec, NULL, 0,
+				  des_speed_template);
+		test_cipher_speed("des", MODE_ECB, DECRYPT, sec, NULL, 0,
+				  des_speed_template);
+		test_cipher_speed("des", MODE_CBC, ENCRYPT, sec, NULL, 0,
+				  des_speed_template);
+		test_cipher_speed("des", MODE_CBC, DECRYPT, sec, NULL, 0,
+				  des_speed_template);
 		break;
 
 	case 1000:
