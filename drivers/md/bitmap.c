@@ -350,8 +350,7 @@ int bitmap_update_sb(struct bitmap *bitmap)
 	if (!bitmap->mddev->degraded)
 		sb->events_cleared = cpu_to_le64(bitmap->mddev->events);
 	kunmap(bitmap->sb_page);
-	write_page(bitmap->sb_page, 0);
-	return 0;
+	return write_page(bitmap->sb_page, 0);
 }
 
 /* print out the bitmap file superblock */
@@ -735,7 +734,8 @@ int bitmap_unplug(struct bitmap *bitmap)
 		spin_unlock_irqrestore(&bitmap->lock, flags);
 
 		if (attr & (BITMAP_PAGE_DIRTY | BITMAP_PAGE_NEEDWRITE))
-			write_page(page, 0);
+			if (write_page(page, 0))
+				return 1;
 	}
 	if (wait) { /* if any writes were performed, we need to wait on them */
 		spin_lock_irq(&bitmap->write_lock);
@@ -950,7 +950,7 @@ int bitmap_daemon_work(struct bitmap *bitmap)
 				if (get_page_attr(bitmap, lastpage) & BITMAP_PAGE_NEEDWRITE) {
 					clear_page_attr(bitmap, lastpage, BITMAP_PAGE_NEEDWRITE);
 					spin_unlock_irqrestore(&bitmap->lock, flags);
-					write_page(lastpage, 0);
+					err = write_page(lastpage, 0);
 				} else {
 					set_page_attr(bitmap, lastpage, BITMAP_PAGE_NEEDWRITE);
 					spin_unlock_irqrestore(&bitmap->lock, flags);
@@ -998,7 +998,7 @@ int bitmap_daemon_work(struct bitmap *bitmap)
 		if (get_page_attr(bitmap, lastpage) &BITMAP_PAGE_NEEDWRITE) {
 			clear_page_attr(bitmap, lastpage, BITMAP_PAGE_NEEDWRITE);
 			spin_unlock_irqrestore(&bitmap->lock, flags);
-			write_page(lastpage, 0);
+			err = write_page(lastpage, 0);
 		} else {
 			set_page_attr(bitmap, lastpage, BITMAP_PAGE_NEEDWRITE);
 			spin_unlock_irqrestore(&bitmap->lock, flags);
@@ -1375,7 +1375,8 @@ int bitmap_setallbits(struct bitmap *bitmap)
 		spin_unlock_irqrestore(&bitmap->lock, flags);
 		memset(kmap(page), 0xff, PAGE_SIZE);
 		kunmap(page);
-		write_page(page, 0);
+		if (write_page(page, 0))
+			return 1;
 	}
 
 	return 0;
