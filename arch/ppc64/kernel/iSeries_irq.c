@@ -105,9 +105,6 @@ static void intReceived(struct XmPciLpEvent *eventParm,
 	int irq;
 
 	++Pci_Interrupt_Count;
-#if 0
-	PPCDBG(PPCDBG_BUSWALK, "PCI: XmPciLpEvent.c: intReceived\n");
-#endif
 
 	switch (eventParm->hvLpEvent.xSubtype) {
 	case XmPciLpEvent_SlotInterrupt:
@@ -120,37 +117,37 @@ static void intReceived(struct XmPciLpEvent *eventParm,
 		break;
 		/* Ignore error recovery events for now */
 	case XmPciLpEvent_BusCreated:
-		printk(KERN_INFO "XmPciLpEvent.c: system bus %d created\n",
+		printk(KERN_INFO "intReceived: system bus %d created\n",
 			eventParm->eventData.busCreated.busNumber);
 		break;
 	case XmPciLpEvent_BusError:
 	case XmPciLpEvent_BusFailed:
-		printk(KERN_INFO "XmPciLpEvent.c: system bus %d failed\n",
+		printk(KERN_INFO "intReceived: system bus %d failed\n",
 			eventParm->eventData.busFailed.busNumber);
 		break;
 	case XmPciLpEvent_BusRecovered:
 	case XmPciLpEvent_UnQuiesceBus:
-		printk(KERN_INFO "XmPciLpEvent.c: system bus %d recovered\n",
+		printk(KERN_INFO "intReceived: system bus %d recovered\n",
 			eventParm->eventData.busRecovered.busNumber);
 		break;
 	case XmPciLpEvent_NodeFailed:
 	case XmPciLpEvent_BridgeError:
 		printk(KERN_INFO
-			"XmPciLpEvent.c: multi-adapter bridge %d/%d/%d failed\n",
+			"intReceived: multi-adapter bridge %d/%d/%d failed\n",
 			eventParm->eventData.nodeFailed.busNumber,
 			eventParm->eventData.nodeFailed.subBusNumber,
 			eventParm->eventData.nodeFailed.deviceId);
 		break;
 	case XmPciLpEvent_NodeRecovered:
 		printk(KERN_INFO
-			"XmPciLpEvent.c: multi-adapter bridge %d/%d/%d recovered\n",
+			"intReceived: multi-adapter bridge %d/%d/%d recovered\n",
 			eventParm->eventData.nodeRecovered.busNumber,
 			eventParm->eventData.nodeRecovered.subBusNumber,
 			eventParm->eventData.nodeRecovered.deviceId);
 		break;
 	default:
 		printk(KERN_ERR
-			"XmPciLpEvent.c: unrecognized event subtype 0x%x\n",
+			"intReceived: unrecognized event subtype 0x%x\n",
 			eventParm->hvLpEvent.xSubtype);
 		break;
 	}
@@ -160,10 +157,6 @@ static void XmPciLpEvent_handler(struct HvLpEvent *eventParm,
 		struct pt_regs *regsParm)
 {
 #ifdef CONFIG_PCI
-#if 0
-	PPCDBG(PPCDBG_BUSWALK, "XmPciLpEvent_handler, type 0x%x\n",
-			eventParm->xType);
-#endif
 	++Pci_Event_Count;
 
 	if (eventParm && (eventParm->xType == HvLpEvent_Type_PciIo)) {
@@ -173,50 +166,42 @@ static void XmPciLpEvent_handler(struct HvLpEvent *eventParm,
 			break;
 		case HvLpEvent_Function_Ack:
 			printk(KERN_ERR
-				"XmPciLpEvent.c: unexpected ack received\n");
+				"XmPciLpEvent_handler: unexpected ack received\n");
 			break;
 		default:
 			printk(KERN_ERR
-				"XmPciLpEvent.c: unexpected event function %d\n",
+				"XmPciLpEvent_handler: unexpected event function %d\n",
 				(int)eventParm->xFlags.xFunction);
 			break;
 		}
 	} else if (eventParm)
 		printk(KERN_ERR
-			"XmPciLpEvent.c: Unrecognized PCI event type 0x%x\n",
+			"XmPciLpEvent_handler: Unrecognized PCI event type 0x%x\n",
 			(int)eventParm->xType);
 	else
-		printk(KERN_ERR "XmPciLpEvent.c: NULL event received\n");
+		printk(KERN_ERR "XmPciLpEvent_handler: NULL event received\n");
 #endif
 }
 
-/* This should be called sometime prior to buswalk (init_IRQ would be good) */
-int XmPciLpEvent_init()
+/*
+ * This is called by init_IRQ.  set in ppc_md.init_IRQ by iSeries_setup.c
+ * It must be called before the bus walk.
+ */
+void __init iSeries_init_IRQ(void)
 {
+	/* Register PCI event handler and open an event path */
 	int xRc;
-
-	PPCDBG(PPCDBG_BUSWALK,
-			"XmPciLpEvent_init, Register Event type 0x%04X\n",
-			HvLpEvent_Type_PciIo);
 
 	xRc = HvLpEvent_registerHandler(HvLpEvent_Type_PciIo,
 			&XmPciLpEvent_handler);
 	if (xRc == 0) {
 		xRc = HvLpEvent_openPath(HvLpEvent_Type_PciIo, 0);
 		if (xRc != 0)
-			printk(KERN_ERR "XmPciLpEvent.c: open event path "
+			printk(KERN_ERR "iSeries_init_IRQ: open event path "
 					"failed with rc 0x%x\n", xRc);
 	} else
-		printk(KERN_ERR "XmPciLpEvent.c: register handler "
+		printk(KERN_ERR "iSeries_init_IRQ: register handler "
 				"failed with rc 0x%x\n", xRc);
-	return xRc;
-}
-
-/* This is called by init_IRQ.  set in ppc_md.init_IRQ by iSeries_setup.c */
-void __init iSeries_init_IRQ(void)
-{
-	/* Register PCI event handler and open an event path */
-	XmPciLpEvent_init();
 }
 
 #define REAL_IRQ_TO_BUS(irq)	((((irq) >> 6) & 0xff) + 1)
