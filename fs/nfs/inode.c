@@ -160,11 +160,10 @@ nfs_clear_inode(struct inode *inode)
 void
 nfs_umount_begin(struct super_block *sb)
 {
-	struct nfs_server *server = NFS_SB(sb);
-	struct rpc_clnt	*rpc;
+	struct rpc_clnt	*rpc = NFS_SB(sb)->client;
 
 	/* -EIO all pending I/O */
-	if ((rpc = server->client) != NULL)
+	if (!IS_ERR(rpc))
 		rpc_killall_tasks(rpc);
 }
 
@@ -450,11 +449,14 @@ nfs_fill_super(struct super_block *sb, struct nfs_mount_data *data, int silent)
 		return PTR_ERR(server->client);
 	/* RFC 2623, sec 2.3.2 */
 	if (authflavor != RPC_AUTH_UNIX) {
+		struct rpc_auth *auth;
+
 		server->client_sys = rpc_clone_client(server->client);
 		if (IS_ERR(server->client_sys))
 			return PTR_ERR(server->client_sys);
-		if (!rpcauth_create(RPC_AUTH_UNIX, server->client_sys))
-			return -ENOMEM;
+		auth = rpcauth_create(RPC_AUTH_UNIX, server->client_sys);
+		if (IS_ERR(auth))
+			return PTR_ERR(auth);
 	} else {
 		atomic_inc(&server->client->cl_count);
 		server->client_sys = server->client;
@@ -1450,6 +1452,7 @@ static struct super_block *nfs_get_sb(struct file_system_type *fs_type,
 	memset(server, 0, sizeof(struct nfs_server));
 	/* Zero out the NFS state stuff */
 	init_nfsv4_state(server);
+	server->client = server->client_sys = ERR_PTR(-EINVAL);
 
 	root = &server->fh;
 	if (data->flags & NFS_MOUNT_VER3)
@@ -1506,9 +1509,9 @@ static void nfs_kill_super(struct super_block *s)
 
 	kill_anon_super(s);
 
-	if (server->client != NULL && !IS_ERR(server->client))
+	if (!IS_ERR(server->client))
 		rpc_shutdown_client(server->client);
-	if (server->client_sys != NULL && !IS_ERR(server->client_sys))
+	if (!IS_ERR(server->client_sys))
 		rpc_shutdown_client(server->client_sys);
 
 	if (!(server->flags & NFS_MOUNT_NONLM))
@@ -1650,7 +1653,7 @@ static int nfs4_fill_super(struct super_block *sb, struct nfs4_mount_data *data,
 	}
 
 	down_write(&clp->cl_sem);
-	if (clp->cl_rpcclient == NULL) {
+	if (IS_ERR(clp->cl_rpcclient)) {
 		xprt = xprt_create_proto(proto, &server->addr, &timeparms);
 		if (IS_ERR(xprt)) {
 			up_write(&clp->cl_sem);
@@ -1711,9 +1714,12 @@ static int nfs4_fill_super(struct super_block *sb, struct nfs4_mount_data *data,
 	}
 
 	if (clnt->cl_auth->au_flavor != authflavour) {
-		if (rpcauth_create(authflavour, clnt) == NULL) {
+		struct rpc_auth *auth;
+
+		auth = rpcauth_create(authflavour, clnt);
+		if (IS_ERR(auth)) {
 			dprintk("%s: couldn't create credcache!\n", __FUNCTION__);
-			return -ENOMEM;
+			return PTR_ERR(auth);
 		}
 	}
 
@@ -1788,6 +1794,7 @@ static struct super_block *nfs4_get_sb(struct file_system_type *fs_type,
 	memset(server, 0, sizeof(struct nfs_server));
 	/* Zero out the NFS state stuff */
 	init_nfsv4_state(server);
+	server->client = server->client_sys = ERR_PTR(-EINVAL);
 
 	p = nfs_copy_user_string(NULL, &data->hostname, 256);
 	if (IS_ERR(p))

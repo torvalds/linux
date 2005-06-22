@@ -103,6 +103,7 @@ rpc_new_client(struct rpc_xprt *xprt, char *servname,
 {
 	struct rpc_version	*version;
 	struct rpc_clnt		*clnt = NULL;
+	struct rpc_auth		*auth;
 	int err;
 	int len;
 
@@ -157,10 +158,11 @@ rpc_new_client(struct rpc_xprt *xprt, char *servname,
 	if (err < 0)
 		goto out_no_path;
 
-	err = -ENOMEM;
-	if (!rpcauth_create(flavor, clnt)) {
+	auth = rpcauth_create(flavor, clnt);
+	if (IS_ERR(auth)) {
 		printk(KERN_INFO "RPC: Couldn't create auth handle (flavor %u)\n",
 				flavor);
+		err = PTR_ERR(auth);
 		goto out_no_auth;
 	}
 

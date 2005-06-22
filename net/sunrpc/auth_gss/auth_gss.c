@@ -660,14 +660,16 @@ gss_create(struct rpc_clnt *clnt, rpc_authflavor_t flavor)
 {
 	struct gss_auth *gss_auth;
 	struct rpc_auth * auth;
+	int err = -ENOMEM; /* XXX? */
 
 	dprintk("RPC:      creating GSS authenticator for client %p\n",clnt);
 
 	if (!try_module_get(THIS_MODULE))
-		return NULL;
+		return ERR_PTR(err);
 	if (!(gss_auth = kmalloc(sizeof(*gss_auth), GFP_KERNEL)))
 		goto out_dec;
 	gss_auth->client = clnt;
+	err = -EINVAL;
 	gss_auth->mech = gss_mech_get_by_pseudoflavor(flavor);
 	if (!gss_auth->mech) {
 		printk(KERN_WARNING "%s: Pseudoflavor %d not found!",
@@ -686,15 +688,18 @@ gss_create(struct rpc_clnt *clnt, rpc_authflavor_t flavor)
 	auth->au_flavor = flavor;
 	atomic_set(&auth->au_count, 1);
 
-	if (rpcauth_init_credcache(auth, GSS_CRED_EXPIRE) < 0)
+	err = rpcauth_init_credcache(auth, GSS_CRED_EXPIRE);
+	if (err)
 		goto err_put_mech;
 
 	snprintf(gss_auth->path, sizeof(gss_auth->path), "%s/%s",
 			clnt->cl_pathname,
 			gss_auth->mech->gm_name);
 	gss_auth->dentry = rpc_mkpipe(gss_auth->path, clnt, &gss_upcall_ops, RPC_PIPE_WAIT_FOR_OPEN);
-	if (IS_ERR(gss_auth->dentry))
+	if (IS_ERR(gss_auth->dentry)) {
+		err = PTR_ERR(gss_auth->dentry);
 		goto err_put_mech;
+	}
 
 	return auth;
 err_put_mech:
@@ -703,7 +708,7 @@ err_free:
 	kfree(gss_auth);
 out_dec:
 	module_put(THIS_MODULE);
-	return NULL;
+	return ERR_PTR(err);
 }
 
 static void

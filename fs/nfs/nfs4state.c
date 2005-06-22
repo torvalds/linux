@@ -110,6 +110,7 @@ nfs4_alloc_client(struct in_addr *addr)
 	INIT_LIST_HEAD(&clp->cl_superblocks);
 	init_waitqueue_head(&clp->cl_waitq);
 	rpc_init_wait_queue(&clp->cl_rpcwaitq, "NFS4 client");
+	clp->cl_rpcclient = ERR_PTR(-EINVAL);
 	clp->cl_boot_time = CURRENT_TIME;
 	clp->cl_state = 1 << NFS4CLNT_OK;
 	return clp;
@@ -131,7 +132,7 @@ nfs4_free_client(struct nfs4_client *clp)
 	if (clp->cl_cred)
 		put_rpccred(clp->cl_cred);
 	nfs_idmap_delete(clp);
-	if (clp->cl_rpcclient)
+	if (!IS_ERR(clp->cl_rpcclient))
 		rpc_shutdown_client(clp->cl_rpcclient);
 	kfree(clp);
 	nfs_callback_down();
