@@ -47,7 +47,10 @@ struct hw_interrupt_type {
 	void (*ack)(unsigned int irq);
 	void (*end)(unsigned int irq);
 	void (*set_affinity)(unsigned int irq, cpumask_t dest);
+	/* Currently used only by UML, might disappear one day.*/
+#ifdef CONFIG_IRQ_RELEASE_METHOD
 	void (*release)(unsigned int irq, void *dev_id);
+#endif
 };
 
 typedef struct hw_interrupt_type  hw_irq_controller;
