@@ -326,6 +326,13 @@ struct nfs_setattrargs {
 	const u32 *			bitmask;
 };
 
+struct nfs_getaclargs {
+	struct nfs_fh *			fh;
+	size_t				acl_len;
+	unsigned int			acl_pgbase;
+	struct page **			acl_pages;
+};
+
 struct nfs_setattrres {
 	struct nfs_fattr *              fattr;
 	const struct nfs_server *	server;

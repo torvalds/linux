@@ -365,6 +365,13 @@ static int nfs_stat_to_errno(int);
 				encode_delegreturn_maxsz)
 #define NFS4_dec_delegreturn_sz (compound_decode_hdr_maxsz + \
 				decode_delegreturn_maxsz)
+#define NFS4_enc_getacl_sz	(compound_encode_hdr_maxsz + \
+				encode_putfh_maxsz + \
+				encode_getattr_maxsz)
+#define NFS4_dec_getacl_sz	(compound_decode_hdr_maxsz + \
+				decode_putfh_maxsz + \
+				op_decode_hdr_maxsz + \
+				nfs4_fattr_bitmap_maxsz + 1)
 
 static struct {
 	unsigned int	mode;
@@ -1629,6 +1636,34 @@ static int nfs4_xdr_enc_setattr(struct rpc_rqst *req, uint32_t *p, struct nfs_se
 	status = encode_getfattr(&xdr, args->bitmask);
 out:
         return status;
+}
+
+/*
+ * Encode a GETACL request
+ */
+static int
+nfs4_xdr_enc_getacl(struct rpc_rqst *req, uint32_t *p,
+		struct nfs_getaclargs *args)
+{
+	struct xdr_stream xdr;
+	struct rpc_auth *auth = req->rq_task->tk_auth;
+	struct compound_hdr hdr = {
+		.nops   = 2,
+	};
+	int replen, status;
+
+	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
+	encode_compound_hdr(&xdr, &hdr);
+	status = encode_putfh(&xdr, args->fh);
+	if (status)
+		goto out;
+	status = encode_getattr_two(&xdr, FATTR4_WORD0_ACL, 0);
+	/* set up reply buffer: */
+	replen = (RPC_REPHDRSIZE + auth->au_rslack + NFS4_dec_getacl_sz) << 2;
+	xdr_inline_pages(&req->rq_rcv_buf, replen,
+		args->acl_pages, args->acl_pgbase, args->acl_len);
+out:
+	return status;
 }
 
 /*
@@ -3125,6 +3160,47 @@ static int decode_renew(struct xdr_stream *xdr)
 	return decode_op_hdr(xdr, OP_RENEW);
 }
 
+static int decode_getacl(struct xdr_stream *xdr, struct rpc_rqst *req,
+		size_t *acl_len)
+{
+	uint32_t *savep;
+	uint32_t attrlen,
+		 bitmap[2] = {0};
+	struct kvec *iov = req->rq_rcv_buf.head;
+	int status;
+
+	*acl_len = 0;
+	if ((status = decode_op_hdr(xdr, OP_GETATTR)) != 0)
+		goto out;
+	if ((status = decode_attr_bitmap(xdr, bitmap)) != 0)
+		goto out;
+	if ((status = decode_attr_length(xdr, &attrlen, &savep)) != 0)
+		goto out;
+
+	if (unlikely(bitmap[0] & (FATTR4_WORD0_ACL - 1U)))
+		return -EIO;
+	if (likely(bitmap[0] & FATTR4_WORD0_ACL)) {
+		int hdrlen, recvd;
+
+		/* We ignore &savep and don't do consistency checks on
+		 * the attr length.  Let userspace figure it out.... */
+		hdrlen = (u8 *)xdr->p - (u8 *)iov->iov_base;
+		recvd = req->rq_rcv_buf.len - hdrlen;
+		if (attrlen > recvd) {
+			printk(KERN_WARNING "NFS: server cheating in getattr"
+					" acl reply: attrlen %u > recvd %u\n",
+					attrlen, recvd);
+			return -EINVAL;
+		}
+		if (attrlen <= *acl_len)
+			xdr_read_pages(xdr, attrlen);
+		*acl_len = attrlen;
+	}
+
+out:
+	return status;
+}
+
 static int
 decode_savefh(struct xdr_stream *xdr)
 {
@@ -3416,6 +3492,29 @@ out:
 
 }
 
+
+/*
+ * Decode GETACL response
+ */
+static int
+nfs4_xdr_dec_getacl(struct rpc_rqst *rqstp, uint32_t *p, size_t *acl_len)
+{
+	struct xdr_stream xdr;
+	struct compound_hdr hdr;
+	int status;
+
+	xdr_init_decode(&xdr, &rqstp->rq_rcv_buf, p);
+	status = decode_compound_hdr(&xdr, &hdr);
+	if (status)
+		goto out;
+	status = decode_putfh(&xdr);
+	if (status)
+		goto out;
+	status = decode_getacl(&xdr, rqstp, acl_len);
+
+out:
+	return status;
+}
 
 /*
  * Decode CLOSE response
@@ -4017,6 +4116,7 @@ struct rpc_procinfo	nfs4_procedures[] = {
   PROC(READDIR,		enc_readdir,	dec_readdir),
   PROC(SERVER_CAPS,	enc_server_caps, dec_server_caps),
   PROC(DELEGRETURN,	enc_delegreturn, dec_delegreturn),
+  PROC(GETACL,		enc_getacl,	dec_getacl),
 };
 
 struct rpc_version		nfs_version4 = {
