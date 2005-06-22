@@ -301,3 +301,32 @@ int nfs3_proc_setacl(struct inode *inode, int type, struct posix_acl *acl)
 fail:
 	return PTR_ERR(alloc);
 }
+
+int nfs3_proc_set_default_acl(struct inode *dir, struct inode *inode,
+		mode_t mode)
+{
+	struct posix_acl *dfacl, *acl;
+	int error = 0;
+
+	dfacl = nfs3_proc_getacl(dir, ACL_TYPE_DEFAULT);
+	if (IS_ERR(dfacl)) {
+		error = PTR_ERR(dfacl);
+		return (error == -EOPNOTSUPP) ? 0 : error;
+	}
+	if (!dfacl)
+		return 0;
+	acl = posix_acl_clone(dfacl, GFP_KERNEL);
+	error = -ENOMEM;
+	if (!acl)
+		goto out_release_dfacl;
+	error = posix_acl_create_masq(acl, &mode);
+	if (error < 0)
+		goto out_release_acl;
+	error = nfs3_proc_setacls(inode, acl, S_ISDIR(inode->i_mode) ?
+						      dfacl : NULL);
+out_release_acl:
+	posix_acl_release(acl);
+out_release_dfacl:
+	posix_acl_release(dfacl);
+	return error;
+}

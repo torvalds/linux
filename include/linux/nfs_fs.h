@@ -478,6 +478,15 @@ extern void  nfs_readdata_release(struct rpc_task *task);
 extern struct posix_acl *nfs3_proc_getacl(struct inode *inode, int type);
 extern int nfs3_proc_setacl(struct inode *inode, int type,
 			    struct posix_acl *acl);
+extern int nfs3_proc_set_default_acl(struct inode *dir, struct inode *inode,
+		mode_t mode);
+#else
+static inline int nfs3_proc_set_default_acl(struct inode *dir,
+					    struct inode *inode,
+					    mode_t mode)
+{
+	return 0;
+}
 #endif /* CONFIG_NFS_V3_ACL */
 
 /*

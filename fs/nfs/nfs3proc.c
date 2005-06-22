@@ -314,7 +314,8 @@ nfs3_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 		.fh		= &fhandle,
 		.fattr		= &fattr
 	};
-	int			status;
+	mode_t mode = sattr->ia_mode;
+	int status;
 
 	dprintk("NFS call  create %s\n", dentry->d_name.name);
 	arg.createmode = NFS3_CREATE_UNCHECKED;
@@ -323,6 +324,8 @@ nfs3_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 		arg.verifier[0] = jiffies;
 		arg.verifier[1] = current->pid;
 	}
+
+	sattr->ia_mode &= ~current->fs->umask;
 
 again:
 	dir_attr.valid = 0;
@@ -370,6 +373,9 @@ again:
 		nfs_refresh_inode(dentry->d_inode, &fattr);
 		dprintk("NFS reply setattr (post-create): %d\n", status);
 	}
+	if (status != 0)
+		goto out;
+	status = nfs3_proc_set_default_acl(dir, dentry->d_inode, mode);
 out:
 	dprintk("NFS reply create: %d\n", status);
 	return status;
@@ -539,15 +545,24 @@ nfs3_proc_mkdir(struct inode *dir, struct dentry *dentry, struct iattr *sattr)
 		.fh		= &fhandle,
 		.fattr		= &fattr
 	};
-	int			status;
+	int mode = sattr->ia_mode;
+	int status;
 
 	dprintk("NFS call  mkdir %s\n", dentry->d_name.name);
 	dir_attr.valid = 0;
 	fattr.valid = 0;
+
+	sattr->ia_mode &= ~current->fs->umask;
+
 	status = rpc_call(NFS_CLIENT(dir), NFS3PROC_MKDIR, &arg, &res, 0);
 	nfs_refresh_inode(dir, &dir_attr);
-	if (status == 0)
-		status = nfs_instantiate(dentry, &fhandle, &fattr);
+	if (status != 0)
+		goto out;
+	status = nfs_instantiate(dentry, &fhandle, &fattr);
+	if (status != 0)
+		goto out;
+	status = nfs3_proc_set_default_acl(dir, dentry->d_inode, mode);
+out:
 	dprintk("NFS reply mkdir: %d\n", status);
 	return status;
 }
@@ -642,6 +657,7 @@ nfs3_proc_mknod(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 		.fh		= &fh,
 		.fattr		= &fattr
 	};
+	mode_t mode = sattr->ia_mode;
 	int status;
 
 	switch (sattr->ia_mode & S_IFMT) {
@@ -654,12 +670,20 @@ nfs3_proc_mknod(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 
 	dprintk("NFS call  mknod %s %u:%u\n", dentry->d_name.name,
 			MAJOR(rdev), MINOR(rdev));
+
+	sattr->ia_mode &= ~current->fs->umask;
+
 	dir_attr.valid = 0;
 	fattr.valid = 0;
 	status = rpc_call(NFS_CLIENT(dir), NFS3PROC_MKNOD, &arg, &res, 0);
 	nfs_refresh_inode(dir, &dir_attr);
-	if (status == 0)
-		status = nfs_instantiate(dentry, &fh, &fattr);
+	if (status != 0)
+		goto out;
+	status = nfs_instantiate(dentry, &fh, &fattr);
+	if (status != 0)
+		goto out;
+	status = nfs3_proc_set_default_acl(dir, dentry->d_inode, mode);
+out:
 	dprintk("NFS reply mknod: %d\n", status);
 	return status;
 }

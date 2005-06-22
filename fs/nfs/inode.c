@@ -490,6 +490,11 @@ nfs_fill_super(struct super_block *sb, struct nfs_mount_data *data, int silent)
 #else
 		server->flags &= ~NFS_MOUNT_NOACL;
 #endif /* CONFIG_NFS_V3_ACL */
+		/*
+		 * The VFS shouldn't apply the umask to mode bits. We will
+		 * do so ourselves when necessary.
+		 */
+		sb->s_flags |= MS_POSIXACL;
 		if (server->namelen == 0 || server->namelen > NFS3_MAXNAMLEN)
 			server->namelen = NFS3_MAXNAMLEN;
 		sb->s_time_gran = 1;
