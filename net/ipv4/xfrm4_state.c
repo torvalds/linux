@@ -7,11 +7,19 @@
  *
  */
 
+#include <net/ip.h>
 #include <net/xfrm.h>
 #include <linux/pfkeyv2.h>
 #include <linux/ipsec.h>
 
 static struct xfrm_state_afinfo xfrm4_state_afinfo;
+
+static int xfrm4_init_flags(struct xfrm_state *x)
+{
+	if (ipv4_config.no_pmtu_disc)
+		x->props.flags |= XFRM_STATE_NOPMTUDISC;
+	return 0;
+}
 
 static void
 __xfrm4_init_tempsel(struct xfrm_state *x, struct flowi *fl,
@@ -109,6 +117,7 @@ __xfrm4_find_acq(u8 mode, u32 reqid, u8 proto,
 static struct xfrm_state_afinfo xfrm4_state_afinfo = {
 	.family			= AF_INET,
 	.lock			= RW_LOCK_UNLOCKED,
+	.init_flags		= xfrm4_init_flags,
 	.init_tempsel		= __xfrm4_init_tempsel,
 	.state_lookup		= __xfrm4_state_lookup,
 	.find_acq		= __xfrm4_find_acq,

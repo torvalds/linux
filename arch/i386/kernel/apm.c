@@ -1222,6 +1222,7 @@ static int suspend(int vetoable)
 
 	save_processor_state();
 	err = set_system_power_state(APM_STATE_SUSPEND);
+	ignore_normal_resume = 1;
 	restore_processor_state();
 
 	local_irq_disable();
@@ -1229,7 +1230,6 @@ static int suspend(int vetoable)
 	spin_lock(&i8253_lock);
 	reinit_timer();
 	set_time();
-	ignore_normal_resume = 1;
 
 	spin_unlock(&i8253_lock);
 	write_sequnlock(&xtime_lock);

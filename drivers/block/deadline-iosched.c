@@ -886,7 +886,7 @@ deadline_attr_show(struct kobject *kobj, struct attribute *attr, char *page)
 	struct deadline_fs_entry *entry = to_deadline(attr);
 
 	if (!entry->show)
-		return 0;
+		return -EIO;
 
 	return entry->show(e->elevator_data, page);
 }
@@ -899,7 +899,7 @@ deadline_attr_store(struct kobject *kobj, struct attribute *attr,
 	struct deadline_fs_entry *entry = to_deadline(attr);
 
 	if (!entry->store)
-		return -EINVAL;
+		return -EIO;
 
 	return entry->store(e->elevator_data, page, length);
 }

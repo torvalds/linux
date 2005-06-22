@@ -207,7 +207,7 @@ do_exception(struct pt_regs *regs, unsigned long error_code, int is_protection)
 	 * we are not in an interrupt and that there is a 
 	 * user context.
 	 */
-        if (user_address == 0 || in_interrupt() || !mm)
+        if (user_address == 0 || in_atomic() || !mm)
                 goto no_context;
 
 	/*

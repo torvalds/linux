@@ -63,6 +63,12 @@ struct per_cpu_pageset {
 #endif
 } ____cacheline_aligned_in_smp;
 
+#ifdef CONFIG_NUMA
+#define zone_pcp(__z, __cpu) ((__z)->pageset[(__cpu)])
+#else
+#define zone_pcp(__z, __cpu) (&(__z)->pageset[(__cpu)])
+#endif
+
 #define ZONE_DMA		0
 #define ZONE_NORMAL		1
 #define ZONE_HIGHMEM		2
@@ -122,8 +128,11 @@ struct zone {
 	 */
 	unsigned long		lowmem_reserve[MAX_NR_ZONES];
 
+#ifdef CONFIG_NUMA
+	struct per_cpu_pageset	*pageset[NR_CPUS];
+#else
 	struct per_cpu_pageset	pageset[NR_CPUS];
-
+#endif
 	/*
 	 * free areas of different sizes
 	 */
@@ -143,6 +152,14 @@ struct zone {
 	unsigned long		nr_inactive;
 	unsigned long		pages_scanned;	   /* since last reclaim */
 	int			all_unreclaimable; /* All pages pinned */
+
+	/*
+	 * Does the allocator try to reclaim pages from the zone as soon
+	 * as it fails a watermark_ok() in __alloc_pages?
+	 */
+	int			reclaim_pages;
+	/* A count of how many reclaimers are scanning this zone */
+	atomic_t		reclaim_in_progress;
 
 	/*
 	 * prev_priority holds the scanning priority for this zone.  It is
@@ -381,7 +398,7 @@ int lowmem_reserve_ratio_sysctl_handler(struct ctl_table *, int, struct file *,
 
 #include <linux/topology.h>
 /* Returns the number of the current Node. */
-#define numa_node_id()		(cpu_to_node(_smp_processor_id()))
+#define numa_node_id()		(cpu_to_node(raw_smp_processor_id()))
 
 #ifndef CONFIG_DISCONTIGMEM
 

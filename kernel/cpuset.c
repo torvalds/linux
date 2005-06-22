@@ -166,9 +166,8 @@ static struct super_block *cpuset_sb = NULL;
  * The hooks from fork and exit, cpuset_fork() and cpuset_exit(), don't
  * (usually) grab cpuset_sem.  These are the two most performance
  * critical pieces of code here.  The exception occurs on exit(),
- * if the last task using a cpuset exits, and the cpuset was marked
- * notify_on_release.  In that case, the cpuset_sem is taken, the
- * path to the released cpuset calculated, and a usermode call made
+ * when a task in a notify_on_release cpuset exits.  Then cpuset_sem
+ * is taken, and if the cpuset count is zero, a usermode call made
  * to /sbin/cpuset_release_agent with the name of the cpuset (path
  * relative to the root of cpuset file system) as the argument.
  *
@@ -1404,6 +1403,18 @@ void cpuset_fork(struct task_struct *tsk)
  *
  * Description: Detach cpuset from @tsk and release it.
  *
+ * Note that cpusets marked notify_on_release force every task
+ * in them to take the global cpuset_sem semaphore when exiting.
+ * This could impact scaling on very large systems.  Be reluctant
+ * to use notify_on_release cpusets where very high task exit
+ * scaling is required on large systems.
+ *
+ * Don't even think about derefencing 'cs' after the cpuset use
+ * count goes to zero, except inside a critical section guarded
+ * by the cpuset_sem semaphore.  If you don't hold cpuset_sem,
+ * then a zero cpuset use count is a license to any other task to
+ * nuke the cpuset immediately.
+ *
  **/
 
 void cpuset_exit(struct task_struct *tsk)
@@ -1415,10 +1426,13 @@ void cpuset_exit(struct task_struct *tsk)
 	tsk->cpuset = NULL;
 	task_unlock(tsk);
 
-	if (atomic_dec_and_test(&cs->count)) {
+	if (notify_on_release(cs)) {
 		down(&cpuset_sem);
-		check_for_release(cs);
+		if (atomic_dec_and_test(&cs->count))
+			check_for_release(cs);
 		up(&cpuset_sem);
+	} else {
+		atomic_dec(&cs->count);
 	}
 }
 

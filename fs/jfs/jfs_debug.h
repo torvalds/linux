@@ -1,6 +1,6 @@
 /*
- *   Copyright (c) International Business Machines Corp., 2000-2002
- *   Portions Copyright (c) Christoph Hellwig, 2001-2002
+ *   Copyright (C) International Business Machines Corp., 2000-2002
+ *   Portions Copyright (C) Christoph Hellwig, 2001-2002
  *
  *   This program is free software;  you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -31,7 +31,9 @@
  * CONFIG_JFS_DEBUG or CONFIG_JFS_STATISTICS is defined
  */
 #if defined(CONFIG_PROC_FS) && (defined(CONFIG_JFS_DEBUG) || defined(CONFIG_JFS_STATISTICS))
-	#define PROC_FS_JFS
+#define PROC_FS_JFS
+extern void jfs_proc_init(void);
+extern void jfs_proc_clean(void);
 #endif
 
 /*
@@ -65,8 +67,8 @@
 
 extern int jfsloglevel;
 
-/* dump memory contents */
 extern void dump_mem(char *label, void *data, int length);
+extern int jfs_txanchor_read(char *, char **, off_t, int, int *, void *);
 
 /* information message: e.g., configuration, major event */
 #define jfs_info(fmt, arg...) do {			\
@@ -110,6 +112,11 @@ extern void dump_mem(char *label, void *data, int length);
  *	----------
  */
 #ifdef	CONFIG_JFS_STATISTICS
+extern int jfs_lmstats_read(char *, char **, off_t, int, int *, void *);
+extern int jfs_txstats_read(char *, char **, off_t, int, int *, void *);
+extern int jfs_mpstat_read(char *, char **, off_t, int, int *, void *);
+extern int jfs_xtstat_read(char *, char **, off_t, int, int *, void *);
+
 #define	INCREMENT(x)		((x)++)
 #define	DECREMENT(x)		((x)--)
 #define	HIGHWATERMARK(x,y)	((x) = max((x), (y)))

@@ -26,7 +26,6 @@
 #include "asm/setup.h"
 #include "ubd_user.h"
 #include "asm/current.h"
-#include "asm/setup.h"
 #include "user_util.h"
 #include "kern_util.h"
 #include "kern.h"
@@ -110,12 +109,6 @@ struct seq_operations cpuinfo_op = {
 	.stop	= c_stop,
 	.show	= show_cpuinfo,
 };
-
-pte_t * __bad_pagetable(void)
-{
-	panic("Someone should implement __bad_pagetable");
-	return(NULL);
-}
 
 /* Set in linux_main */
 unsigned long host_task_size;

@@ -101,7 +101,7 @@ int xfs_dqerror_mod = 33;
  * is the d_id field. The idea is to fill in the entire q_core
  * when we read in the on disk dquot.
  */
-xfs_dquot_t *
+STATIC xfs_dquot_t *
 xfs_qm_dqinit(
 	xfs_mount_t  *mp,
 	xfs_dqid_t   id,
@@ -286,7 +286,9 @@ xfs_qm_adjust_dqlimits(
  * We also return 0 as the values of the timers in Q_GETQUOTA calls, when
  * enforcement's off.
  * In contrast, warnings are a little different in that they don't
- * 'automatically' get started when limits get exceeded.
+ * 'automatically' get started when limits get exceeded.  They do
+ * get reset to zero, however, when we find the count to be under
+ * the soft limit (they are only ever set non-zero via userspace).
  */
 void
 xfs_qm_adjust_dqtimers(
@@ -315,6 +317,8 @@ xfs_qm_adjust_dqtimers(
 				INT_GET(d->d_blk_hardlimit, ARCH_CONVERT)))) {
 			INT_SET(d->d_btimer, ARCH_CONVERT,
 				get_seconds() + XFS_QI_BTIMELIMIT(mp));
+		} else {
+			d->d_bwarns = 0;
 		}
 	} else {
 		if ((!d->d_blk_softlimit ||
@@ -336,6 +340,8 @@ xfs_qm_adjust_dqtimers(
 				INT_GET(d->d_ino_hardlimit, ARCH_CONVERT)))) {
 			INT_SET(d->d_itimer, ARCH_CONVERT,
 				get_seconds() + XFS_QI_ITIMELIMIT(mp));
+		} else {
+			d->d_iwarns = 0;
 		}
 	} else {
 		if ((!d->d_ino_softlimit ||
@@ -357,6 +363,8 @@ xfs_qm_adjust_dqtimers(
 				INT_GET(d->d_rtb_hardlimit, ARCH_CONVERT)))) {
 			INT_SET(d->d_rtbtimer, ARCH_CONVERT,
 				get_seconds() + XFS_QI_RTBTIMELIMIT(mp));
+		} else {
+			d->d_rtbwarns = 0;
 		}
 	} else {
 		if ((!d->d_rtb_softlimit ||
@@ -369,68 +377,6 @@ xfs_qm_adjust_dqtimers(
 		}
 	}
 }
-
-/*
- * Increment or reset warnings of a given dquot.
- */
-int
-xfs_qm_dqwarn(
-	xfs_disk_dquot_t	*d,
-	uint			flags)
-{
-	int	warned;
-
-	/*
-	 * root's limits are not real limits.
-	 */
-	if (!d->d_id)
-		return (0);
-
-	warned = 0;
-	if (INT_GET(d->d_blk_softlimit, ARCH_CONVERT) &&
-	    (INT_GET(d->d_bcount, ARCH_CONVERT) >=
-	     INT_GET(d->d_blk_softlimit, ARCH_CONVERT))) {
-		if (flags & XFS_QMOPT_DOWARN) {
-			INT_MOD(d->d_bwarns, ARCH_CONVERT, +1);
-			warned++;
-		}
-	} else {
-		if (!d->d_blk_softlimit ||
-		    (INT_GET(d->d_bcount, ARCH_CONVERT) <
-		     INT_GET(d->d_blk_softlimit, ARCH_CONVERT))) {
-			d->d_bwarns = 0;
-		}
-	}
-
-	if (INT_GET(d->d_ino_softlimit, ARCH_CONVERT) > 0 &&
-	    (INT_GET(d->d_icount, ARCH_CONVERT) >=
-	     INT_GET(d->d_ino_softlimit, ARCH_CONVERT))) {
-		if (flags & XFS_QMOPT_DOWARN) {
-			INT_MOD(d->d_iwarns, ARCH_CONVERT, +1);
-			warned++;
-		}
-	} else {
-		if (!d->d_ino_softlimit ||
-		    (INT_GET(d->d_icount, ARCH_CONVERT) <
-		     INT_GET(d->d_ino_softlimit, ARCH_CONVERT))) {
-			d->d_iwarns = 0;
-		}
-	}
-#ifdef QUOTADEBUG
-	if (INT_GET(d->d_iwarns, ARCH_CONVERT))
-		cmn_err(CE_DEBUG,
-			"--------@@Inode warnings running : %Lu >= %Lu",
-			INT_GET(d->d_icount, ARCH_CONVERT),
-			INT_GET(d->d_ino_softlimit, ARCH_CONVERT));
-	if (INT_GET(d->d_bwarns, ARCH_CONVERT))
-		cmn_err(CE_DEBUG,
-			"--------@@Blks warnings running : %Lu >= %Lu",
-			INT_GET(d->d_bcount, ARCH_CONVERT),
-			INT_GET(d->d_blk_softlimit, ARCH_CONVERT));
-#endif
-	return (warned);
-}
-
 
 /*
  * initialize a buffer full of dquots and log the whole thing
@@ -461,9 +407,9 @@ xfs_qm_init_dquot_blk(
 	for (i = 0; i < XFS_QM_DQPERBLK(mp); i++, d++, curid++)
 		xfs_qm_dqinit_core(curid, type, d);
 	xfs_trans_dquot_buf(tp, bp,
-			    type & XFS_DQ_USER ?
-			    XFS_BLI_UDQUOT_BUF :
-			    XFS_BLI_GDQUOT_BUF);
+			    (type & XFS_DQ_USER ? XFS_BLI_UDQUOT_BUF :
+			    ((type & XFS_DQ_PROJ) ? XFS_BLI_PDQUOT_BUF :
+			     XFS_BLI_GDQUOT_BUF)));
 	xfs_trans_log_buf(tp, bp, 0, BBTOB(XFS_QI_DQCHUNKLEN(mp)) - 1);
 }
 
@@ -544,8 +490,7 @@ xfs_qm_dqalloc(
 	 * the entire thing.
 	 */
 	xfs_qm_init_dquot_blk(tp, mp, INT_GET(dqp->q_core.d_id, ARCH_CONVERT),
-			      dqp->dq_flags & (XFS_DQ_USER|XFS_DQ_GROUP),
-			      bp);
+			      dqp->dq_flags & XFS_DQ_ALLTYPES, bp);
 
 	if ((error = xfs_bmap_finish(&tp, &flist, firstblock, &committed))) {
 		goto error1;
@@ -675,8 +620,7 @@ xfs_qm_dqtobp(
 	/*
 	 * A simple sanity check in case we got a corrupted dquot...
 	 */
-	if (xfs_qm_dqcheck(ddq, id,
-			   dqp->dq_flags & (XFS_DQ_USER|XFS_DQ_GROUP),
+	if (xfs_qm_dqcheck(ddq, id, dqp->dq_flags & XFS_DQ_ALLTYPES,
 			   flags & (XFS_QMOPT_DQREPAIR|XFS_QMOPT_DOWARN),
 			   "dqtobp")) {
 		if (!(flags & XFS_QMOPT_DQREPAIR)) {
@@ -953,8 +897,8 @@ int
 xfs_qm_dqget(
 	xfs_mount_t	*mp,
 	xfs_inode_t	*ip,	  /* locked inode (optional) */
-	xfs_dqid_t	id,	  /* gid or uid, depending on type */
-	uint		type,	  /* UDQUOT or GDQUOT */
+	xfs_dqid_t	id,	  /* uid/projid/gid depending on type */
+	uint		type,	  /* XFS_DQ_USER/XFS_DQ_PROJ/XFS_DQ_GROUP */
 	uint		flags,	  /* DQALLOC, DQSUSER, DQREPAIR, DOWARN */
 	xfs_dquot_t	**O_dqpp) /* OUT : locked incore dquot */
 {
@@ -965,6 +909,7 @@ xfs_qm_dqget(
 
 	ASSERT(XFS_IS_QUOTA_RUNNING(mp));
 	if ((! XFS_IS_UQUOTA_ON(mp) && type == XFS_DQ_USER) ||
+	    (! XFS_IS_PQUOTA_ON(mp) && type == XFS_DQ_PROJ) ||
 	    (! XFS_IS_GQUOTA_ON(mp) && type == XFS_DQ_GROUP)) {
 		return (ESRCH);
 	}
@@ -983,7 +928,9 @@ xfs_qm_dqget(
  again:
 
 #ifdef DEBUG
-	ASSERT(type == XFS_DQ_USER || type == XFS_DQ_GROUP);
+	ASSERT(type == XFS_DQ_USER ||
+	       type == XFS_DQ_PROJ ||
+	       type == XFS_DQ_GROUP);
 	if (ip) {
 		ASSERT(XFS_ISLOCKED_INODE_EXCL(ip));
 		if (type == XFS_DQ_USER)
@@ -1306,8 +1253,8 @@ xfs_qm_dqflush(
 		return (error);
 	}
 
-	if (xfs_qm_dqcheck(&dqp->q_core, INT_GET(ddqp->d_id, ARCH_CONVERT), 0, XFS_QMOPT_DOWARN,
-			   "dqflush (incore copy)")) {
+	if (xfs_qm_dqcheck(&dqp->q_core, INT_GET(ddqp->d_id, ARCH_CONVERT),
+			   0, XFS_QMOPT_DOWARN, "dqflush (incore copy)")) {
 		xfs_force_shutdown(dqp->q_mount, XFS_CORRUPT_INCORE);
 		return XFS_ERROR(EIO);
 	}
@@ -1459,7 +1406,8 @@ xfs_dqlock2(
 {
 	if (d1 && d2) {
 		ASSERT(d1 != d2);
-		if (INT_GET(d1->q_core.d_id, ARCH_CONVERT) > INT_GET(d2->q_core.d_id, ARCH_CONVERT)) {
+		if (INT_GET(d1->q_core.d_id, ARCH_CONVERT) >
+		    INT_GET(d2->q_core.d_id, ARCH_CONVERT)) {
 			xfs_dqlock(d2);
 			xfs_dqlock(d1);
 		} else {
@@ -1582,8 +1530,7 @@ xfs_qm_dqprint(xfs_dquot_t *dqp)
 	cmn_err(CE_DEBUG, "-----------KERNEL DQUOT----------------");
 	cmn_err(CE_DEBUG, "---- dquotID =  %d",
 		(int)INT_GET(dqp->q_core.d_id, ARCH_CONVERT));
-	cmn_err(CE_DEBUG, "---- type    =  %s",
-		XFS_QM_ISUDQ(dqp) ? "USR" : "GRP");
+	cmn_err(CE_DEBUG, "---- type    =  %s", DQFLAGTO_TYPESTR(dqp));
 	cmn_err(CE_DEBUG, "---- fs      =  0x%p", dqp->q_mount);
 	cmn_err(CE_DEBUG, "---- blkno   =  0x%x", (int) dqp->q_blkno);
 	cmn_err(CE_DEBUG, "---- boffset =  0x%x", (int) dqp->q_bufoffset);

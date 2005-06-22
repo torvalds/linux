@@ -812,26 +812,23 @@ static int sctp_inet6_bind_verify(struct sctp_sock *opt, union sctp_addr *addr)
 	if (addr->sa.sa_family != AF_INET6)
 		af = sctp_get_af_specific(addr->sa.sa_family);
 	else {
-		struct sock *sk;
 		int type = ipv6_addr_type(&addr->v6.sin6_addr);
-		sk = sctp_opt2sk(opt);
-		if (type & IPV6_ADDR_LINKLOCAL) {
-			/* Note: Behavior similar to af_inet6.c:
-			 *  1) Overrides previous bound_dev_if
-			 *  2) Destructive even if bind isn't successful.
-			 */
+		struct net_device *dev;
 
-			if (addr->v6.sin6_scope_id)
-				sk->sk_bound_dev_if = addr->v6.sin6_scope_id;
-			if (!sk->sk_bound_dev_if)
+		if (type & IPV6_ADDR_LINKLOCAL) {
+			if (!addr->v6.sin6_scope_id)
 				return 0;
+			dev = dev_get_by_index(addr->v6.sin6_scope_id);
+			if (!dev)
+				return 0;
+			dev_put(dev);
 		}
 		af = opt->pf->af;
 	}
 	return af->available(addr, opt);
 }
 
-/* Verify that the provided sockaddr looks bindable.   Common verification,
+/* Verify that the provided sockaddr looks sendable.   Common verification,
  * has already been taken care of.
  */
 static int sctp_inet6_send_verify(struct sctp_sock *opt, union sctp_addr *addr)
@@ -842,19 +839,16 @@ static int sctp_inet6_send_verify(struct sctp_sock *opt, union sctp_addr *addr)
 	if (addr->sa.sa_family != AF_INET6)
 		af = sctp_get_af_specific(addr->sa.sa_family);
 	else {
-		struct sock *sk;
 		int type = ipv6_addr_type(&addr->v6.sin6_addr);
-		sk = sctp_opt2sk(opt);
-		if (type & IPV6_ADDR_LINKLOCAL) {
-			/* Note: Behavior similar to af_inet6.c:
-			 *  1) Overrides previous bound_dev_if
-			 *  2) Destructive even if bind isn't successful.
-			 */
+		struct net_device *dev;
 
-			if (addr->v6.sin6_scope_id)
-				sk->sk_bound_dev_if = addr->v6.sin6_scope_id;
-			if (!sk->sk_bound_dev_if)
+		if (type & IPV6_ADDR_LINKLOCAL) {
+			if (!addr->v6.sin6_scope_id)
 				return 0;
+			dev = dev_get_by_index(addr->v6.sin6_scope_id);
+			if (!dev)
+				return 0;
+			dev_put(dev);
 		}
 		af = opt->pf->af;
 	}

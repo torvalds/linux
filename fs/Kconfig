@@ -741,56 +741,6 @@ config SYSFS
 
 	Designers of embedded systems may wish to say N here to conserve space.
 
-config DEVFS_FS
-	bool "/dev file system support (OBSOLETE)"
-	depends on EXPERIMENTAL
-	help
-	  This is support for devfs, a virtual file system (like /proc) which
-	  provides the file system interface to device drivers, normally found
-	  in /dev. Devfs does not depend on major and minor number
-	  allocations. Device drivers register entries in /dev which then
-	  appear automatically, which means that the system administrator does
-	  not have to create character and block special device files in the
-	  /dev directory using the mknod command (or MAKEDEV script) anymore.
-
-	  This is work in progress. If you want to use this, you *must* read
-	  the material in <file:Documentation/filesystems/devfs/>, especially
-	  the file README there.
-
-	  Note that devfs no longer manages /dev/pts!  If you are using UNIX98
-	  ptys, you will also need to mount the /dev/pts filesystem (devpts).
-
-	  Note that devfs has been obsoleted by udev,
-	  <http://www.kernel.org/pub/linux/utils/kernel/hotplug/>.
-	  It has been stripped down to a bare minimum and is only provided for
-	  legacy installations that use its naming scheme which is
-	  unfortunately different from the names normal Linux installations
-	  use.
-
-	  If unsure, say N.
-
-config DEVFS_MOUNT
-	bool "Automatically mount at boot"
-	depends on DEVFS_FS
-	help
-	  This option appears if you have CONFIG_DEVFS_FS enabled. Setting
-	  this to 'Y' will make the kernel automatically mount devfs onto /dev
-	  when the system is booted, before the init thread is started.
-	  You can override this with the "devfs=nomount" boot option.
-
-	  If unsure, say N.
-
-config DEVFS_DEBUG
-	bool "Debug devfs"
-	depends on DEVFS_FS
-	help
-	  If you say Y here, then the /dev file system code will generate
-	  debugging messages. See the file
-	  <file:Documentation/filesystems/devfs/boot-options> for more
-	  details.
-
-	  If unsure, say N.
-
 config DEVPTS_FS_XATTR
 	bool "/dev/pts Extended Attributes"
 	depends on UNIX98_PTYS

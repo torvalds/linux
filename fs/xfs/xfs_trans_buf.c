@@ -976,6 +976,7 @@ xfs_trans_dquot_buf(
 	ASSERT(XFS_BUF_FSPRIVATE2(bp, xfs_trans_t *) == tp);
 	ASSERT(XFS_BUF_FSPRIVATE(bp, void *) != NULL);
 	ASSERT(type == XFS_BLI_UDQUOT_BUF ||
+	       type == XFS_BLI_PDQUOT_BUF ||
 	       type == XFS_BLI_GDQUOT_BUF);
 
 	bip = XFS_BUF_FSPRIVATE(bp, xfs_buf_log_item_t *);

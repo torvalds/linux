@@ -350,7 +350,7 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long error_code)
 	 * (error_code & 4) == 0, and that the fault was not a
 	 * protection error (error_code & 1) == 0.
 	 */
-	if (unlikely(address >= TASK_SIZE)) {
+	if (unlikely(address >= TASK_SIZE64)) {
 		if (!(error_code & 5) &&
 		      ((address >= VMALLOC_START && address < VMALLOC_END) ||
 		       (address >= MODULES_VADDR && address < MODULES_END))) {

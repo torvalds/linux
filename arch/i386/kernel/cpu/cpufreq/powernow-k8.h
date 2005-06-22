@@ -174,3 +174,18 @@ static int core_voltage_post_transition(struct powernow_k8_data *data, u32 reqvi
 static int core_frequency_transition(struct powernow_k8_data *data, u32 reqfid);
 
 static void powernow_k8_acpi_pst_values(struct powernow_k8_data *data, unsigned int index);
+
+#ifndef for_each_cpu_mask
+#define for_each_cpu_mask(i,mask) for (i=0;i<1;i++)
+#endif
+                                                                                
+#ifdef CONFIG_SMP
+static inline void define_siblings(int cpu, cpumask_t cpu_sharedcore_mask[])
+{
+}
+#else
+static inline void define_siblings(int cpu, cpumask_t cpu_sharedcore_mask[])
+{
+	cpu_set(0, cpu_sharedcore_mask[0]);
+}
+#endif

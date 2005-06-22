@@ -629,7 +629,7 @@ static ssize_t module_attr_show(struct kobject *kobj,
 	mk = to_module_kobject(kobj);
 
 	if (!attribute->show)
-		return -EPERM;
+		return -EIO;
 
 	if (!try_module_get(mk->mod))
 		return -ENODEV;
@@ -653,7 +653,7 @@ static ssize_t module_attr_store(struct kobject *kobj,
 	mk = to_module_kobject(kobj);
 
 	if (!attribute->store)
-		return -EPERM;
+		return -EIO;
 
 	if (!try_module_get(mk->mod))
 		return -ENODEV;

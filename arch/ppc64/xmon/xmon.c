@@ -2247,7 +2247,14 @@ scanhex(unsigned long *vp)
 			tmpstr[i] = c;
 		}
 		tmpstr[i++] = 0;
-		*vp = kallsyms_lookup_name(tmpstr);
+		*vp = 0;
+		if (setjmp(bus_error_jmp) == 0) {
+			catch_memory_errors = 1;
+			sync();
+			*vp = kallsyms_lookup_name(tmpstr);
+			sync();
+		}
+		catch_memory_errors = 0;
 		if (!(*vp)) {
 			printf("unknown symbol '%s'\n", tmpstr);
 			return 0;

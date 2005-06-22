@@ -137,7 +137,7 @@ static void ds1621_init_client(struct i2c_client *client)
 }
 
 #define show(value)							\
-static ssize_t show_##value(struct device *dev, char *buf)		\
+static ssize_t show_##value(struct device *dev, struct device_attribute *attr, char *buf)		\
 {									\
 	struct ds1621_data *data = ds1621_update_client(dev);		\
 	return sprintf(buf, "%d\n", LM75_TEMP_FROM_REG(data->value));	\
@@ -148,7 +148,7 @@ show(temp_min);
 show(temp_max);
 
 #define set_temp(suffix, value, reg)					\
-static ssize_t set_temp_##suffix(struct device *dev, const char *buf,	\
+static ssize_t set_temp_##suffix(struct device *dev, struct device_attribute *attr, const char *buf,	\
 				 size_t count)				\
 {									\
 	struct i2c_client *client = to_i2c_client(dev);			\
@@ -165,7 +165,7 @@ static ssize_t set_temp_##suffix(struct device *dev, const char *buf,	\
 set_temp(min, temp_min, DS1621_REG_TEMP_MIN);
 set_temp(max, temp_max, DS1621_REG_TEMP_MAX);
 
-static ssize_t show_alarms(struct device *dev, char *buf)
+static ssize_t show_alarms(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct ds1621_data *data = ds1621_update_client(dev);
 	return sprintf(buf, "%d\n", ALARMS_FROM_REG(data->conf));

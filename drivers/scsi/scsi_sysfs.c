@@ -230,7 +230,7 @@ void scsi_sysfs_unregister(void)
  */
 #define sdev_show_function(field, format_string)				\
 static ssize_t								\
-sdev_show_##field (struct device *dev, char *buf)				\
+sdev_show_##field (struct device *dev, struct device_attribute *attr, char *buf)				\
 {									\
 	struct scsi_device *sdev;					\
 	sdev = to_scsi_device(dev);					\
@@ -254,7 +254,7 @@ static DEVICE_ATTR(field, S_IRUGO, sdev_show_##field, NULL);
 	sdev_show_function(field, format_string)				\
 									\
 static ssize_t								\
-sdev_store_##field (struct device *dev, const char *buf, size_t count)	\
+sdev_store_##field (struct device *dev, struct device_attribute *attr, const char *buf, size_t count)	\
 {									\
 	struct scsi_device *sdev;					\
 	sdev = to_scsi_device(dev);					\
@@ -274,7 +274,7 @@ static DEVICE_ATTR(field, S_IRUGO | S_IWUSR, sdev_show_##field, sdev_store_##fie
 	sdev_show_function(field, "%d\n")					\
 									\
 static ssize_t								\
-sdev_store_##field (struct device *dev, const char *buf, size_t count)	\
+sdev_store_##field (struct device *dev, struct device_attribute *attr, const char *buf, size_t count)	\
 {									\
 	int ret;							\
 	struct scsi_device *sdev;					\
@@ -317,7 +317,7 @@ sdev_rd_attr (model, "%.16s\n");
 sdev_rd_attr (rev, "%.4s\n");
 
 static ssize_t
-sdev_show_timeout (struct device *dev, char *buf)
+sdev_show_timeout (struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct scsi_device *sdev;
 	sdev = to_scsi_device(dev);
@@ -325,7 +325,7 @@ sdev_show_timeout (struct device *dev, char *buf)
 }
 
 static ssize_t
-sdev_store_timeout (struct device *dev, const char *buf, size_t count)
+sdev_store_timeout (struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct scsi_device *sdev;
 	int timeout;
@@ -337,14 +337,14 @@ sdev_store_timeout (struct device *dev, const char *buf, size_t count)
 static DEVICE_ATTR(timeout, S_IRUGO | S_IWUSR, sdev_show_timeout, sdev_store_timeout);
 
 static ssize_t
-store_rescan_field (struct device *dev, const char *buf, size_t count) 
+store_rescan_field (struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	scsi_rescan_device(dev);
 	return count;
 }
 static DEVICE_ATTR(rescan, S_IWUSR, NULL, store_rescan_field);
 
-static ssize_t sdev_store_delete(struct device *dev, const char *buf,
+static ssize_t sdev_store_delete(struct device *dev, struct device_attribute *attr, const char *buf,
 				 size_t count)
 {
 	scsi_remove_device(to_scsi_device(dev));
@@ -353,7 +353,7 @@ static ssize_t sdev_store_delete(struct device *dev, const char *buf,
 static DEVICE_ATTR(delete, S_IWUSR, NULL, sdev_store_delete);
 
 static ssize_t
-store_state_field(struct device *dev, const char *buf, size_t count)
+store_state_field(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	int i;
 	struct scsi_device *sdev = to_scsi_device(dev);
@@ -376,7 +376,7 @@ store_state_field(struct device *dev, const char *buf, size_t count)
 }
 
 static ssize_t
-show_state_field(struct device *dev, char *buf)
+show_state_field(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct scsi_device *sdev = to_scsi_device(dev);
 	const char *name = scsi_device_state_name(sdev->sdev_state);
@@ -390,7 +390,7 @@ show_state_field(struct device *dev, char *buf)
 static DEVICE_ATTR(state, S_IRUGO | S_IWUSR, show_state_field, store_state_field);
 
 static ssize_t
-show_queue_type_field(struct device *dev, char *buf)
+show_queue_type_field(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct scsi_device *sdev = to_scsi_device(dev);
 	const char *name = "none";
@@ -406,7 +406,7 @@ show_queue_type_field(struct device *dev, char *buf)
 static DEVICE_ATTR(queue_type, S_IRUGO, show_queue_type_field, NULL);
 
 static ssize_t
-show_iostat_counterbits(struct device *dev, char *buf)
+show_iostat_counterbits(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	return snprintf(buf, 20, "%d\n", (int)sizeof(atomic_t) * 8);
 }
@@ -415,7 +415,7 @@ static DEVICE_ATTR(iocounterbits, S_IRUGO, show_iostat_counterbits, NULL);
 
 #define show_sdev_iostat(field)						\
 static ssize_t								\
-show_iostat_##field(struct device *dev, char *buf)			\
+show_iostat_##field(struct device *dev, struct device_attribute *attr, char *buf)			\
 {									\
 	struct scsi_device *sdev = to_scsi_device(dev);			\
 	unsigned long long count = atomic_read(&sdev->field);		\
@@ -449,7 +449,7 @@ static struct device_attribute *scsi_sysfs_sdev_attrs[] = {
 	NULL
 };
 
-static ssize_t sdev_store_queue_depth_rw(struct device *dev, const char *buf,
+static ssize_t sdev_store_queue_depth_rw(struct device *dev, struct device_attribute *attr, const char *buf,
 					 size_t count)
 {
 	int depth, retval;
@@ -475,7 +475,7 @@ static struct device_attribute sdev_attr_queue_depth_rw =
 	__ATTR(queue_depth, S_IRUGO | S_IWUSR, sdev_show_queue_depth,
 	       sdev_store_queue_depth_rw);
 
-static ssize_t sdev_store_queue_type_rw(struct device *dev, const char *buf,
+static ssize_t sdev_store_queue_type_rw(struct device *dev, struct device_attribute *attr, const char *buf,
 					size_t count)
 {
 	struct scsi_device *sdev = to_scsi_device(dev);
@@ -669,6 +669,13 @@ void __scsi_remove_target(struct scsi_target *starget)
 	scsi_target_reap(starget);
 }
 
+static int __remove_child (struct device * dev, void * data)
+{
+	if (scsi_is_target_device(dev))
+		__scsi_remove_target(to_scsi_target(dev));
+	return 0;
+}
+
 /**
  * scsi_remove_target - try to remove a target and all its devices
  * @dev: generic starget or parent of generic stargets to be removed
@@ -679,7 +686,7 @@ void __scsi_remove_target(struct scsi_target *starget)
  */
 void scsi_remove_target(struct device *dev)
 {
-	struct device *rdev, *idev, *next;
+	struct device *rdev;
 
 	if (scsi_is_target_device(dev)) {
 		__scsi_remove_target(to_scsi_target(dev));
@@ -687,10 +694,7 @@ void scsi_remove_target(struct device *dev)
 	}
 
 	rdev = get_device(dev);
-	list_for_each_entry_safe(idev, next, &dev->children, node) {
-		if (scsi_is_target_device(idev))
-			__scsi_remove_target(to_scsi_target(idev));
-	}
+	device_for_each_child(dev, NULL, __remove_child);
 	put_device(rdev);
 }
 EXPORT_SYMBOL(scsi_remove_target);

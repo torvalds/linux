@@ -649,6 +649,7 @@ static inline int de_thread(struct task_struct *tsk)
 	}
 	sig->group_exit_task = NULL;
 	sig->notify_count = 0;
+	sig->real_timer.data = (unsigned long)current;
 	spin_unlock_irq(lock);
 
 	/*
@@ -675,10 +676,8 @@ static inline int de_thread(struct task_struct *tsk)
 		proc_dentry2 = proc_pid_unhash(leader);
 		write_lock_irq(&tasklist_lock);
 
-		if (leader->tgid != current->tgid)
-			BUG();
-		if (current->pid == current->tgid)
-			BUG();
+		BUG_ON(leader->tgid != current->tgid);
+		BUG_ON(current->pid == current->tgid);
 		/*
 		 * An exec() starts a new thread group with the
 		 * TGID of the previous thread group. Rehash the
@@ -726,8 +725,7 @@ static inline int de_thread(struct task_struct *tsk)
 		proc_pid_flush(proc_dentry1);
 		proc_pid_flush(proc_dentry2);
 
-		if (exit_state != EXIT_ZOMBIE)
-			BUG();
+		BUG_ON(exit_state != EXIT_ZOMBIE);
 		release_task(leader);
         }
 
@@ -772,10 +770,8 @@ no_thread_group:
 			kmem_cache_free(sighand_cachep, oldsighand);
 	}
 
-	if (!thread_group_empty(current))
-		BUG();
-	if (!thread_group_leader(current))
-		BUG();
+	BUG_ON(!thread_group_empty(current));
+	BUG_ON(!thread_group_leader(current));
 	return 0;
 }
 	

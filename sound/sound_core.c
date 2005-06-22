@@ -65,7 +65,7 @@ extern int msnd_classic_init(void);
 extern int msnd_pinnacle_init(void);
 #endif
 
-struct class_simple *sound_class;
+struct class *sound_class;
 EXPORT_SYMBOL(sound_class);
 
 /*
@@ -174,7 +174,7 @@ static int sound_insert_unit(struct sound_unit **list, struct file_operations *f
 
 	devfs_mk_cdev(MKDEV(SOUND_MAJOR, s->unit_minor),
 			S_IFCHR | mode, s->name);
-	class_simple_device_add(sound_class, MKDEV(SOUND_MAJOR, s->unit_minor),
+	class_device_create(sound_class, MKDEV(SOUND_MAJOR, s->unit_minor),
 				NULL, s->name+6);
 	return r;
 
@@ -198,7 +198,7 @@ static void sound_remove_unit(struct sound_unit **list, int unit)
 	spin_unlock(&sound_loader_lock);
 	if (p) {
 		devfs_remove(p->name);
-		class_simple_device_remove(MKDEV(SOUND_MAJOR, p->unit_minor));
+		class_device_destroy(sound_class, MKDEV(SOUND_MAJOR, p->unit_minor));
 		kfree(p);
 	}
 }
@@ -562,7 +562,7 @@ static void __exit cleanup_soundcore(void)
 	   empty */
 	unregister_chrdev(SOUND_MAJOR, "sound");
 	devfs_remove("sound");
-	class_simple_destroy(sound_class);
+	class_destroy(sound_class);
 }
 
 static int __init init_soundcore(void)
@@ -572,7 +572,7 @@ static int __init init_soundcore(void)
 		return -EBUSY;
 	}
 	devfs_mk_dir ("sound");
-	sound_class = class_simple_create(THIS_MODULE, "sound");
+	sound_class = class_create(THIS_MODULE, "sound");
 	if (IS_ERR(sound_class))
 		return PTR_ERR(sound_class);
 

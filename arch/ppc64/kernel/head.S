@@ -626,10 +626,10 @@ system_reset_iSeries:
 	lhz	r24,PACAPACAINDEX(r13)	/* Get processor # */
 	cmpwi	0,r24,0			/* Are we processor 0? */
 	beq	.__start_initialization_iSeries	/* Start up the first processor */
-	mfspr	r4,CTRLF
-	li	r5,RUNLATCH		/* Turn off the run light */
+	mfspr	r4,SPRN_CTRLF
+	li	r5,CTRL_RUNLATCH	/* Turn off the run light */
 	andc	r4,r4,r5
-	mtspr	CTRLT,r4
+	mtspr	SPRN_CTRLT,r4
 
 1:
 	HMT_LOW
@@ -2082,9 +2082,9 @@ _GLOBAL(hmt_start_secondary)
 	mfspr	r4, HID0
 	ori	r4, r4, 0x1
 	mtspr	HID0, r4
-	mfspr	r4, CTRLF
+	mfspr	r4, SPRN_CTRLF
 	oris	r4, r4, 0x40
-	mtspr	CTRLT, r4
+	mtspr	SPRN_CTRLT, r4
 	blr
 #endif
 
@@ -2119,10 +2119,6 @@ empty_zero_page:
 
 	.globl	swapper_pg_dir
 swapper_pg_dir:
-	.space	4096
-
-	.globl	ioremap_dir
-ioremap_dir:
 	.space	4096
 
 #ifdef CONFIG_SMP

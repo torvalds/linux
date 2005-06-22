@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2004 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.  All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -133,8 +133,9 @@ typedef struct xfs_quotainfo {
 	time_t		 qi_btimelimit;	 /* limit for blks timer */
 	time_t		 qi_itimelimit;	 /* limit for inodes timer */
 	time_t		 qi_rtbtimelimit;/* limit for rt blks timer */
-	xfs_qwarncnt_t	 qi_bwarnlimit;	 /* limit for num warnings */
-	xfs_qwarncnt_t	 qi_iwarnlimit;	 /* limit for num warnings */
+	xfs_qwarncnt_t	 qi_bwarnlimit;	 /* limit for blks warnings */
+	xfs_qwarncnt_t	 qi_iwarnlimit;	 /* limit for inodes warnings */
+	xfs_qwarncnt_t	 qi_rtbwarnlimit;/* limit for rt blks warnings */
 	mutex_t		 qi_quotaofflock;/* to serialize quotaoff */
 	xfs_filblks_t	 qi_dqchunklen;	 /* # BBs in a chunk of dqs */
 	uint		 qi_dqperchunk;	 /* # ondisk dqs in above chunk */
@@ -176,6 +177,7 @@ typedef struct xfs_dquot_acct {
 
 #define XFS_QM_BWARNLIMIT	5
 #define XFS_QM_IWARNLIMIT	5
+#define XFS_QM_RTBWARNLIMIT	5
 
 #define XFS_QM_LOCK(xqm)	(mutex_lock(&xqm##_lock, PINOD))
 #define XFS_QM_UNLOCK(xqm)	(mutex_unlock(&xqm##_lock))
@@ -184,7 +186,6 @@ typedef struct xfs_dquot_acct {
 
 extern void		xfs_mount_reset_sbqflags(xfs_mount_t *);
 
-extern int		xfs_qm_init_quotainfo(xfs_mount_t *);
 extern void		xfs_qm_destroy_quotainfo(xfs_mount_t *);
 extern int		xfs_qm_mount_quotas(xfs_mount_t *, int);
 extern void		xfs_qm_mount_quotainit(xfs_mount_t *, uint);
@@ -203,7 +204,7 @@ extern void		xfs_qm_dqrele_all_inodes(xfs_mount_t *, uint);
 
 /* vop stuff */
 extern int		xfs_qm_vop_dqalloc(xfs_mount_t *, xfs_inode_t *,
-					uid_t, gid_t, uint,
+					uid_t, gid_t, prid_t, uint,
 					xfs_dquot_t **, xfs_dquot_t **);
 extern void		xfs_qm_vop_dqattach_and_dqmod_newinode(
 					xfs_trans_t *, xfs_inode_t *,
@@ -215,14 +216,9 @@ extern int		xfs_qm_vop_chown_reserve(xfs_trans_t *, xfs_inode_t *,
 					xfs_dquot_t *, xfs_dquot_t *, uint);
 
 /* list stuff */
-extern void		xfs_qm_freelist_init(xfs_frlist_t *);
-extern void		xfs_qm_freelist_destroy(xfs_frlist_t *);
-extern void		xfs_qm_freelist_insert(xfs_frlist_t *, xfs_dquot_t *);
 extern void		xfs_qm_freelist_append(xfs_frlist_t *, xfs_dquot_t *);
 extern void		xfs_qm_freelist_unlink(xfs_dquot_t *);
 extern int		xfs_qm_freelist_lock_nowait(xfs_qm_t *);
-extern int		xfs_qm_mplist_nowait(xfs_mount_t *);
-extern int		xfs_qm_dqhashlock_nowait(xfs_dquot_t *);
 
 /* system call interface */
 extern int		xfs_qm_quotactl(bhv_desc_t *, int, int, xfs_caddr_t);

@@ -372,7 +372,7 @@ static int i460_alloc_large_page (struct lp_desc *lp)
 	}
 	memset(lp->alloced_map, 0, map_size);
 
-	lp->paddr = virt_to_phys(lpage);
+	lp->paddr = virt_to_gart(lpage);
 	lp->refcount = 0;
 	atomic_add(I460_KPAGES_PER_IOPAGE, &agp_bridge->current_memory_agp);
 	return 0;
@@ -383,7 +383,7 @@ static void i460_free_large_page (struct lp_desc *lp)
 	kfree(lp->alloced_map);
 	lp->alloced_map = NULL;
 
-	free_pages((unsigned long) phys_to_virt(lp->paddr), I460_IO_PAGE_SHIFT - PAGE_SHIFT);
+	free_pages((unsigned long) gart_to_virt(lp->paddr), I460_IO_PAGE_SHIFT - PAGE_SHIFT);
 	atomic_sub(I460_KPAGES_PER_IOPAGE, &agp_bridge->current_memory_agp);
 }
 

@@ -41,13 +41,16 @@ extern int			ipv6_route_ioctl(unsigned int cmd, void __user *arg);
 
 extern int			ip6_route_add(struct in6_rtmsg *rtmsg,
 					      struct nlmsghdr *,
-					      void *rtattr);
+					      void *rtattr,
+					      struct netlink_skb_parms *req);
 extern int			ip6_ins_rt(struct rt6_info *,
 					   struct nlmsghdr *,
-					   void *rtattr);
+					   void *rtattr,
+					   struct netlink_skb_parms *req);
 extern int			ip6_del_rt(struct rt6_info *,
 					   struct nlmsghdr *,
-					   void *rtattr);
+					   void *rtattr,
+					   struct netlink_skb_parms *req);
 
 extern int			ip6_rt_addr_add(struct in6_addr *addr,
 						struct net_device *dev,

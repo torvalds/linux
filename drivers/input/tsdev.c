@@ -414,9 +414,9 @@ static struct input_handle *tsdev_connect(struct input_handler *handler,
 			S_IFCHR|S_IRUGO|S_IWUSR, "input/ts%d", minor);
 	devfs_mk_cdev(MKDEV(INPUT_MAJOR, TSDEV_MINOR_BASE + minor + TSDEV_MINORS/2),
 			S_IFCHR|S_IRUGO|S_IWUSR, "input/tsraw%d", minor);
-	class_simple_device_add(input_class,
-				MKDEV(INPUT_MAJOR, TSDEV_MINOR_BASE + minor),
-				dev->dev, "ts%d", minor);
+	class_device_create(input_class,
+			MKDEV(INPUT_MAJOR, TSDEV_MINOR_BASE + minor),
+			dev->dev, "ts%d", minor);
 
 	return &tsdev->handle;
 }
@@ -426,7 +426,8 @@ static void tsdev_disconnect(struct input_handle *handle)
 	struct tsdev *tsdev = handle->private;
 	struct tsdev_list *list;
 
-	class_simple_device_remove(MKDEV(INPUT_MAJOR, TSDEV_MINOR_BASE + tsdev->minor));
+	class_device_destroy(input_class,
+			MKDEV(INPUT_MAJOR, TSDEV_MINOR_BASE + tsdev->minor));
 	devfs_remove("input/ts%d", tsdev->minor);
 	devfs_remove("input/tsraw%d", tsdev->minor);
 	tsdev->exist = 0;

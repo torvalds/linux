@@ -433,11 +433,8 @@ qla2x00_start_scsi(srb_t *sp)
 	} else
 		ha->request_ring_ptr++;
 
-	ha->actthreads++;
-	ha->total_ios++;
 	sp->flags |= SRB_DMA_VALID;
 	sp->state = SRB_ACTIVE_STATE;
-	sp->u_start = jiffies;
 
 	/* Set chip new ring index. */
 	WRT_REG_WORD(ISP_REQ_Q_IN(ha, reg), ha->req_ring_index);

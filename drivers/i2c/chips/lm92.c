@@ -140,7 +140,7 @@ static struct lm92_data *lm92_update_device(struct device *dev)
 }
 
 #define show_temp(value) \
-static ssize_t show_##value(struct device *dev, char *buf) \
+static ssize_t show_##value(struct device *dev, struct device_attribute *attr, char *buf) \
 { \
 	struct lm92_data *data = lm92_update_device(dev); \
 	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->value)); \
@@ -151,7 +151,7 @@ show_temp(temp1_min);
 show_temp(temp1_max);
 
 #define set_temp(value, reg) \
-static ssize_t set_##value(struct device *dev, const char *buf, \
+static ssize_t set_##value(struct device *dev, struct device_attribute *attr, const char *buf, \
 	size_t count) \
 { \
 	struct i2c_client *client = to_i2c_client(dev); \
@@ -168,26 +168,26 @@ set_temp(temp1_crit, LM92_REG_TEMP_CRIT);
 set_temp(temp1_min, LM92_REG_TEMP_LOW);
 set_temp(temp1_max, LM92_REG_TEMP_HIGH);
 
-static ssize_t show_temp1_crit_hyst(struct device *dev, char *buf)
+static ssize_t show_temp1_crit_hyst(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct lm92_data *data = lm92_update_device(dev);
 	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->temp1_crit)
 		       - TEMP_FROM_REG(data->temp1_hyst));
 }
-static ssize_t show_temp1_max_hyst(struct device *dev, char *buf)
+static ssize_t show_temp1_max_hyst(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct lm92_data *data = lm92_update_device(dev);
 	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->temp1_max)
 		       - TEMP_FROM_REG(data->temp1_hyst));
 }
-static ssize_t show_temp1_min_hyst(struct device *dev, char *buf)
+static ssize_t show_temp1_min_hyst(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct lm92_data *data = lm92_update_device(dev);
 	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->temp1_min)
 		       + TEMP_FROM_REG(data->temp1_hyst));
 }
 
-static ssize_t set_temp1_crit_hyst(struct device *dev, const char *buf,
+static ssize_t set_temp1_crit_hyst(struct device *dev, struct device_attribute *attr, const char *buf,
 	size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -202,7 +202,7 @@ static ssize_t set_temp1_crit_hyst(struct device *dev, const char *buf,
 	return count;
 }
 
-static ssize_t show_alarms(struct device *dev, char *buf)
+static ssize_t show_alarms(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct lm92_data *data = lm92_update_device(dev);
 	return sprintf(buf, "%d\n", ALARMS_FROM_REG(data->temp1_input));

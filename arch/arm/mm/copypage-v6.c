@@ -30,8 +30,6 @@
 
 static DEFINE_SPINLOCK(v6_lock);
 
-#define DCACHE_COLOUR(vaddr) ((vaddr & (SHMLBA - 1)) >> PAGE_SHIFT)
-
 /*
  * Copy the user page.  No aliasing to deal with so we can just
  * attack the kernel's existing mapping of these pages.
@@ -55,7 +53,7 @@ void v6_clear_user_page_nonaliasing(void *kaddr, unsigned long vaddr)
  */
 void v6_copy_user_page_aliasing(void *kto, const void *kfrom, unsigned long vaddr)
 {
-	unsigned int offset = DCACHE_COLOUR(vaddr);
+	unsigned int offset = CACHE_COLOUR(vaddr);
 	unsigned long from, to;
 
 	/*
@@ -95,7 +93,7 @@ void v6_copy_user_page_aliasing(void *kto, const void *kfrom, unsigned long vadd
  */
 void v6_clear_user_page_aliasing(void *kaddr, unsigned long vaddr)
 {
-	unsigned int offset = DCACHE_COLOUR(vaddr);
+	unsigned int offset = CACHE_COLOUR(vaddr);
 	unsigned long to = to_address + (offset << PAGE_SHIFT);
 
 	/*

@@ -533,6 +533,9 @@ sctp_disposition_t sctp_sf_do_5_1C_ack(const struct sctp_endpoint *ep,
 	sctp_add_cmd_sf(commands, SCTP_CMD_PEER_INIT,
 			SCTP_PEER_INIT(initchunk));
 
+	/* Reset init error count upon receipt of INIT-ACK.  */
+	sctp_add_cmd_sf(commands, SCTP_CMD_INIT_COUNTER_RESET, SCTP_NULL());
+
 	/* 5.1 C) "A" shall stop the T1-init timer and leave
 	 * COOKIE-WAIT state.  "A" shall then ... start the T1-cookie
 	 * timer, and enter the COOKIE-ECHOED state.
@@ -775,8 +778,7 @@ sctp_disposition_t sctp_sf_do_5_1E_ca(const struct sctp_endpoint *ep,
 	 * from the COOKIE-ECHOED state to the COOKIE-WAIT
 	 * state is performed.
 	 */
-	sctp_add_cmd_sf(commands, SCTP_CMD_COUNTER_RESET,
-	                SCTP_COUNTER(SCTP_COUNTER_INIT_ERROR));
+	sctp_add_cmd_sf(commands, SCTP_CMD_INIT_COUNTER_RESET, SCTP_NULL());
 
 	/* RFC 2960 5.1 Normal Establishment of an Association
 	 *
@@ -1019,10 +1021,22 @@ sctp_disposition_t sctp_sf_backbeat_8_3(const struct sctp_endpoint *ep,
 	link = sctp_assoc_lookup_paddr(asoc, &from_addr);
 
 	/* This should never happen, but lets log it if so.  */
-	if (!link) {
-		printk(KERN_WARNING
-		       "%s: Could not find address %d.%d.%d.%d\n",
-		       __FUNCTION__, NIPQUAD(from_addr.v4.sin_addr));
+	if (unlikely(!link)) {
+		if (from_addr.sa.sa_family == AF_INET6) {
+			printk(KERN_WARNING
+			       "%s association %p could not find address "
+			       "%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x\n",
+			       __FUNCTION__,
+			       asoc,
+			       NIP6(from_addr.v6.sin6_addr));
+		} else {
+			printk(KERN_WARNING
+			       "%s association %p could not find address "
+			       "%u.%u.%u.%u\n",
+			       __FUNCTION__,
+			       asoc,
+			       NIPQUAD(from_addr.v4.sin_addr.s_addr));
+		}
 		return SCTP_DISPOSITION_DISCARD;
 	}
 
@@ -2095,9 +2109,7 @@ static sctp_disposition_t sctp_sf_do_5_2_6_stale(const struct sctp_endpoint *ep,
 	sctp_errhdr_t *err;
 	struct sctp_chunk *reply;
 	struct sctp_bind_addr *bp;
-	int attempts;
-
-	attempts = asoc->counters[SCTP_COUNTER_INIT_ERROR] + 1;
+	int attempts = asoc->init_err_counter + 1;
 
 	if (attempts >= asoc->max_init_attempts) {
 		sctp_add_cmd_sf(commands, SCTP_CMD_INIT_FAILED,
@@ -2157,8 +2169,7 @@ static sctp_disposition_t sctp_sf_do_5_2_6_stale(const struct sctp_endpoint *ep,
 	/* Cast away the const modifier, as we want to just
 	 * rerun it through as a sideffect.
 	 */
-	sctp_add_cmd_sf(commands, SCTP_CMD_COUNTER_INC,
-			SCTP_COUNTER(SCTP_COUNTER_INIT_ERROR));
+	sctp_add_cmd_sf(commands, SCTP_CMD_INIT_COUNTER_INC, SCTP_NULL());
 
 	sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_STOP,
 			SCTP_TO(SCTP_EVENT_TIMEOUT_T1_COOKIE));
@@ -2281,8 +2292,7 @@ sctp_disposition_t sctp_sf_cookie_wait_abort(const struct sctp_endpoint *ep,
 	if (len >= sizeof(struct sctp_chunkhdr) + sizeof(struct sctp_errhdr))
 		error = ((sctp_errhdr_t *)chunk->skb->data)->cause;
 
- 	sctp_stop_t1_and_abort(commands, error);
-	return SCTP_DISPOSITION_ABORT;
+	return sctp_stop_t1_and_abort(commands, error, asoc, chunk->transport);
 }
 
 /*
@@ -2294,8 +2304,8 @@ sctp_disposition_t sctp_sf_cookie_wait_icmp_abort(const struct sctp_endpoint *ep
 					void *arg,
 					sctp_cmd_seq_t *commands)
 {
-	sctp_stop_t1_and_abort(commands, SCTP_ERROR_NO_ERROR);
- 	return SCTP_DISPOSITION_ABORT;
+	return sctp_stop_t1_and_abort(commands, SCTP_ERROR_NO_ERROR, asoc,
+				      (struct sctp_transport *)arg);
 }
 
 /*
@@ -2318,8 +2328,12 @@ sctp_disposition_t sctp_sf_cookie_echoed_abort(const struct sctp_endpoint *ep,
  *
  * This is common code called by several sctp_sf_*_abort() functions above.
  */
-void sctp_stop_t1_and_abort(sctp_cmd_seq_t *commands, __u16 error)
+sctp_disposition_t  sctp_stop_t1_and_abort(sctp_cmd_seq_t *commands,
+					   __u16 error,
+					   const struct sctp_association *asoc,
+					   struct sctp_transport *transport)
 {
+	SCTP_DEBUG_PRINTK("ABORT received (INIT).\n");
 	sctp_add_cmd_sf(commands, SCTP_CMD_NEW_STATE,
 			SCTP_STATE(SCTP_STATE_CLOSED));
 	SCTP_INC_STATS(SCTP_MIB_ABORTEDS);
@@ -2328,6 +2342,7 @@ void sctp_stop_t1_and_abort(sctp_cmd_seq_t *commands, __u16 error)
 	/* CMD_INIT_FAILED will DELETE_TCB. */
 	sctp_add_cmd_sf(commands, SCTP_CMD_INIT_FAILED,
 			SCTP_U32(error));
+	return SCTP_DISPOSITION_ABORT;
 }
 
 /*
@@ -3805,6 +3820,10 @@ sctp_disposition_t sctp_sf_do_prm_asoc(const struct sctp_endpoint *ep,
 	sctp_add_cmd_sf(commands, SCTP_CMD_NEW_ASOC,
 			SCTP_ASOC((struct sctp_association *) asoc));
 
+	/* Choose transport for INIT. */
+	sctp_add_cmd_sf(commands, SCTP_CMD_INIT_CHOOSE_TRANSPORT,
+			SCTP_CHUNK(repl));
+
 	/* After sending the INIT, "A" starts the T1-init timer and
 	 * enters the COOKIE-WAIT state.
 	 */
@@ -4589,7 +4608,7 @@ sctp_disposition_t sctp_sf_do_6_2_sack(const struct sctp_endpoint *ep,
 }
 
 /*
- * sctp_sf_t1_timer_expire
+ * sctp_sf_t1_init_timer_expire
  *
  * Section: 4 Note: 2
  * Verification Tag:
@@ -4603,7 +4622,59 @@ sctp_disposition_t sctp_sf_do_6_2_sack(const struct sctp_endpoint *ep,
  *     endpoint MUST abort the initialization process and report the
  *     error to SCTP user.
  *
- *   3) If the T1-cookie timer expires, the endpoint MUST retransmit
+ * Outputs
+ * (timers, events)
+ *
+ */
+sctp_disposition_t sctp_sf_t1_init_timer_expire(const struct sctp_endpoint *ep,
+					   const struct sctp_association *asoc,
+					   const sctp_subtype_t type,
+					   void *arg,
+					   sctp_cmd_seq_t *commands)
+{
+	struct sctp_chunk *repl = NULL;
+	struct sctp_bind_addr *bp;
+	int attempts = asoc->init_err_counter + 1;
+
+	SCTP_DEBUG_PRINTK("Timer T1 expired (INIT).\n");
+
+	if (attempts < asoc->max_init_attempts) {
+		bp = (struct sctp_bind_addr *) &asoc->base.bind_addr;
+		repl = sctp_make_init(asoc, bp, GFP_ATOMIC, 0);
+		if (!repl)
+			return SCTP_DISPOSITION_NOMEM;
+
+		/* Choose transport for INIT. */
+		sctp_add_cmd_sf(commands, SCTP_CMD_INIT_CHOOSE_TRANSPORT,
+				SCTP_CHUNK(repl));
+
+		/* Issue a sideeffect to do the needed accounting. */
+		sctp_add_cmd_sf(commands, SCTP_CMD_INIT_RESTART,
+				SCTP_TO(SCTP_EVENT_TIMEOUT_T1_INIT));
+
+		sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(repl));
+	} else {
+		SCTP_DEBUG_PRINTK("Giving up on INIT, attempts: %d"
+				  " max_init_attempts: %d\n",
+				  attempts, asoc->max_init_attempts);
+		sctp_add_cmd_sf(commands, SCTP_CMD_INIT_FAILED,
+				SCTP_U32(SCTP_ERROR_NO_ERROR));
+		return SCTP_DISPOSITION_DELETE_TCB;
+	}
+
+	return SCTP_DISPOSITION_CONSUME;
+}
+
+/*
+ * sctp_sf_t1_cookie_timer_expire
+ *
+ * Section: 4 Note: 2
+ * Verification Tag:
+ * Inputs
+ * (endpoint, asoc)
+ *
+ *  RFC 2960 Section 4 Notes
+ *  3) If the T1-cookie timer expires, the endpoint MUST retransmit
  *     COOKIE ECHO and re-start the T1-cookie timer without changing
  *     state.  This MUST be repeated up to 'Max.Init.Retransmits' times.
  *     After that, the endpoint MUST abort the initialization process and
@@ -4613,46 +4684,26 @@ sctp_disposition_t sctp_sf_do_6_2_sack(const struct sctp_endpoint *ep,
  * (timers, events)
  *
  */
-sctp_disposition_t sctp_sf_t1_timer_expire(const struct sctp_endpoint *ep,
+sctp_disposition_t sctp_sf_t1_cookie_timer_expire(const struct sctp_endpoint *ep,
 					   const struct sctp_association *asoc,
 					   const sctp_subtype_t type,
 					   void *arg,
 					   sctp_cmd_seq_t *commands)
 {
-	struct sctp_chunk *repl;
-	struct sctp_bind_addr *bp;
-	sctp_event_timeout_t timer = (sctp_event_timeout_t) arg;
-	int timeout;
-	int attempts;
+	struct sctp_chunk *repl = NULL;
+	int attempts = asoc->init_err_counter + 1;
 
-	timeout = asoc->timeouts[timer];
-	attempts = asoc->counters[SCTP_COUNTER_INIT_ERROR] + 1;
-	repl = NULL;
-
-	SCTP_DEBUG_PRINTK("Timer T1 expired.\n");
+	SCTP_DEBUG_PRINTK("Timer T1 expired (COOKIE-ECHO).\n");
 
 	if (attempts < asoc->max_init_attempts) {
-		switch (timer) {
-		case SCTP_EVENT_TIMEOUT_T1_INIT:
-			bp = (struct sctp_bind_addr *) &asoc->base.bind_addr;
-			repl = sctp_make_init(asoc, bp, GFP_ATOMIC, 0);
-			break;
-
-		case SCTP_EVENT_TIMEOUT_T1_COOKIE:
-			repl = sctp_make_cookie_echo(asoc, NULL);
-			break;
-
-		default:
-			BUG();
-			break;
-		};
-
+		repl = sctp_make_cookie_echo(asoc, NULL);
 		if (!repl)
-			goto nomem;
+			return SCTP_DISPOSITION_NOMEM;
 
 		/* Issue a sideeffect to do the needed accounting. */
-		sctp_add_cmd_sf(commands, SCTP_CMD_INIT_RESTART,
-				SCTP_TO(timer));
+		sctp_add_cmd_sf(commands, SCTP_CMD_COOKIEECHO_RESTART,
+				SCTP_TO(SCTP_EVENT_TIMEOUT_T1_COOKIE));
+
 		sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(repl));
 	} else {
 		sctp_add_cmd_sf(commands, SCTP_CMD_INIT_FAILED,
@@ -4661,9 +4712,6 @@ sctp_disposition_t sctp_sf_t1_timer_expire(const struct sctp_endpoint *ep,
 	}
 
 	return SCTP_DISPOSITION_CONSUME;
-
-nomem:
-	return SCTP_DISPOSITION_NOMEM;
 }
 
 /* RFC2960 9.2 If the timer expires, the endpoint must re-send the SHUTDOWN

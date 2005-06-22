@@ -36,14 +36,5 @@ void __show_regs(struct pt_regs * regs)
 void show_regs(struct pt_regs *regs)
 {
 	__show_regs(regs);
-	show_trace((unsigned long *) &regs);
+	show_trace(current, (unsigned long *) &regs);
 }
-
-/* Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

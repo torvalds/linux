@@ -835,6 +835,7 @@ do_kern_mount(const char *fstype, int flags, const char *name, void *data)
 	mnt->mnt_parent = mnt;
 	mnt->mnt_namespace = current->namespace;
 	up_write(&sb->s_umount);
+	free_secdata(secdata);
 	put_filesystem(type);
 	return mnt;
 out_sb:

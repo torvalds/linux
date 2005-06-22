@@ -23,6 +23,7 @@
  */
 
 #include "ibmasm.h"
+#include "lowlevel.h"
 
 /*
  * ASM service processor event handling routines.
@@ -33,7 +34,6 @@
  * The driver does not interpret the events, it simply stores them in a
  * circular buffer.
  */
-
 
 static void wake_up_event_readers(struct service_processor *sp)
 {
@@ -63,7 +63,7 @@ void ibmasm_receive_event(struct service_processor *sp, void *data, unsigned int
 	spin_lock_irqsave(&sp->lock, flags);
 	/* copy the event into the next slot in the circular buffer */
 	event = &buffer->events[buffer->next_index];
-	memcpy(event->data, data, data_size);
+	memcpy_fromio(event->data, data, data_size);
 	event->data_size = data_size;
 	event->serial_number = buffer->next_serial_number;
 
@@ -93,7 +93,10 @@ int ibmasm_get_next_event(struct service_processor *sp, struct event_reader *rea
 	unsigned int index;
 	unsigned long flags;
 
-	if (wait_event_interruptible(reader->wait, event_available(buffer, reader)))
+	reader->cancelled = 0;
+
+	if (wait_event_interruptible(reader->wait,
+			event_available(buffer, reader) || reader->cancelled))
 		return -ERESTARTSYS;
 
 	if (!event_available(buffer, reader))
@@ -116,6 +119,12 @@ int ibmasm_get_next_event(struct service_processor *sp, struct event_reader *rea
 	return event->data_size;
 }
 
+void ibmasm_cancel_next_event(struct event_reader *reader)
+{
+        reader->cancelled = 1;
+        wake_up_interruptible(&reader->wait);
+}
+
 void ibmasm_event_reader_register(struct service_processor *sp, struct event_reader *reader)
 {
 	unsigned long flags;
@@ -130,8 +139,6 @@ void ibmasm_event_reader_register(struct service_processor *sp, struct event_rea
 void ibmasm_event_reader_unregister(struct service_processor *sp, struct event_reader *reader)
 {
 	unsigned long flags;
-
-	wake_up_interruptible(&reader->wait);
 
 	spin_lock_irqsave(&sp->lock, flags);
 	list_del(&reader->node);
@@ -164,6 +171,5 @@ int ibmasm_event_buffer_init(struct service_processor *sp)
 
 void ibmasm_event_buffer_exit(struct service_processor *sp)
 {
-	wake_up_event_readers(sp);
 	kfree(sp->event_buffer);
 }

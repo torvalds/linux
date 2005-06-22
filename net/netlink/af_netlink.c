@@ -1095,8 +1095,7 @@ static int netlink_dump(struct sock *sk)
 		return 0;
 	}
 
-	nlh = __nlmsg_put(skb, NETLINK_CB(cb->skb).pid, cb->nlh->nlmsg_seq, NLMSG_DONE, sizeof(int));
-	nlh->nlmsg_flags |= NLM_F_MULTI;
+	nlh = NLMSG_NEW_ANSWER(skb, cb, NLMSG_DONE, sizeof(len), NLM_F_MULTI);
 	memcpy(NLMSG_DATA(nlh), &len, sizeof(len));
 	skb_queue_tail(&sk->sk_receive_queue, skb);
 	sk->sk_data_ready(sk, skb->len);
@@ -1107,6 +1106,9 @@ static int netlink_dump(struct sock *sk)
 
 	netlink_destroy_callback(cb);
 	return 0;
+
+nlmsg_failure:
+	return -ENOBUFS;
 }
 
 int netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
@@ -1178,7 +1180,7 @@ void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err)
 	}
 
 	rep = __nlmsg_put(skb, NETLINK_CB(in_skb).pid, nlh->nlmsg_seq,
-			  NLMSG_ERROR, sizeof(struct nlmsgerr));
+			  NLMSG_ERROR, sizeof(struct nlmsgerr), 0);
 	errmsg = NLMSG_DATA(rep);
 	errmsg->error = err;
 	memcpy(&errmsg->msg, nlh, err ? nlh->nlmsg_len : sizeof(struct nlmsghdr));

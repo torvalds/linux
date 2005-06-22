@@ -335,13 +335,14 @@ pci_driver_attr_show(struct kobject * kobj, struct attribute *attr, char *buf)
 {
 	struct device_driver *driver = kobj_to_pci_driver(kobj);
 	struct driver_attribute *dattr = attr_to_driver_attribute(attr);
-	ssize_t ret = 0;
+	ssize_t ret;
 
-	if (get_driver(driver)) {
-		if (dattr->show)
-			ret = dattr->show(driver, buf);
-		put_driver(driver);
-	}
+	if (!get_driver(driver))
+		return -ENODEV;
+
+	ret = dattr->show ? dattr->show(driver, buf) : -EIO;
+
+	put_driver(driver);
 	return ret;
 }
 
@@ -351,13 +352,14 @@ pci_driver_attr_store(struct kobject * kobj, struct attribute *attr,
 {
 	struct device_driver *driver = kobj_to_pci_driver(kobj);
 	struct driver_attribute *dattr = attr_to_driver_attribute(attr);
-	ssize_t ret = 0;
+	ssize_t ret;
 
-	if (get_driver(driver)) {
-		if (dattr->store)
-			ret = dattr->store(driver, buf, count);
-		put_driver(driver);
-	}
+	if (!get_driver(driver))
+		return -ENODEV;
+
+	ret = dattr->store ? dattr->store(driver, buf, count) : -EIO;
+
+	put_driver(driver);
 	return ret;
 }
 
@@ -393,7 +395,10 @@ int pci_register_driver(struct pci_driver *drv)
 	drv->driver.bus = &pci_bus_type;
 	drv->driver.probe = pci_device_probe;
 	drv->driver.remove = pci_device_remove;
-	drv->driver.shutdown = pci_device_shutdown,
+	/* FIXME, once all of the existing PCI drivers have been fixed to set
+	 * the pci shutdown function, this test can go away. */
+	if (!drv->driver.shutdown)
+		drv->driver.shutdown = pci_device_shutdown;
 	drv->driver.owner = drv->owner;
 	drv->driver.kobj.ktype = &pci_driver_kobj_type;
 	pci_init_dynids(&drv->dynids);

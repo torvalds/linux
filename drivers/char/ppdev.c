@@ -737,7 +737,7 @@ static unsigned int pp_poll (struct file * file, poll_table * wait)
 	return mask;
 }
 
-static struct class_simple *ppdev_class;
+static struct class *ppdev_class;
 
 static struct file_operations pp_fops = {
 	.owner		= THIS_MODULE,
@@ -752,13 +752,13 @@ static struct file_operations pp_fops = {
 
 static void pp_attach(struct parport *port)
 {
-	class_simple_device_add(ppdev_class, MKDEV(PP_MAJOR, port->number),
+	class_device_create(ppdev_class, MKDEV(PP_MAJOR, port->number),
 			NULL, "parport%d", port->number);
 }
 
 static void pp_detach(struct parport *port)
 {
-	class_simple_device_remove(MKDEV(PP_MAJOR, port->number));
+	class_device_destroy(ppdev_class, MKDEV(PP_MAJOR, port->number));
 }
 
 static struct parport_driver pp_driver = {
@@ -776,7 +776,7 @@ static int __init ppdev_init (void)
 			PP_MAJOR);
 		return -EIO;
 	}
-	ppdev_class = class_simple_create(THIS_MODULE, CHRDEV);
+	ppdev_class = class_create(THIS_MODULE, CHRDEV);
 	if (IS_ERR(ppdev_class)) {
 		err = PTR_ERR(ppdev_class);
 		goto out_chrdev;
@@ -798,7 +798,7 @@ out_class:
 	for (i = 0; i < PARPORT_MAX; i++)
 		devfs_remove("parports/%d", i);
 	devfs_remove("parports");
-	class_simple_destroy(ppdev_class);
+	class_destroy(ppdev_class);
 out_chrdev:
 	unregister_chrdev(PP_MAJOR, CHRDEV);
 out:
@@ -813,7 +813,7 @@ static void __exit ppdev_cleanup (void)
 		devfs_remove("parports/%d", i);
 	parport_unregister_driver(&pp_driver);
 	devfs_remove("parports");
-	class_simple_destroy(ppdev_class);
+	class_destroy(ppdev_class);
 	unregister_chrdev (PP_MAJOR, CHRDEV);
 }
 

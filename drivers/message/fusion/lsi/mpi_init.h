@@ -1,12 +1,12 @@
 /*
- *  Copyright (c) 2000-2003 LSI Logic Corporation.
+ *  Copyright (c) 2000-2005 LSI Logic Corporation.
  *
  *
  *           Name:  mpi_init.h
  *          Title:  MPI initiator mode messages and structures
  *  Creation Date:  June 8, 2000
  *
- *    mpi_init.h Version:  01.05.xx
+ *    mpi_init.h Version:  01.05.04
  *
  *  Version History
  *  ---------------
@@ -33,6 +33,21 @@
  *                      for SCSI IO requests.
  *  11-15-02  01.02.06  Added special extended SCSI Status defines for FCP.
  *  06-26-03  01.02.07  Added MPI_SCSI_STATUS_FCPEXT_UNASSIGNED define.
+ *  05-11-04  01.03.01  Original release for MPI v1.3.
+ *  08-19-04  01.05.01  Added MsgFlags defines for EEDP to SCSI IO request.
+ *                      Added new word to MSG_SCSI_IO_REPLY to add TaskTag field
+ *                      and a reserved U16.
+ *                      Added new MSG_SCSI_IO32_REQUEST structure.
+ *                      Added a TaskType of Clear Task Set to SCSI
+ *                      Task Management request.
+ *  12-07-04  01.05.02  Added support for Task Management Query Task.
+ *  01-15-05  01.05.03  Modified SCSI Enclosure Processor Request to support
+ *                      WWID addressing.
+ *  03-11-05  01.05.04  Removed EEDP flags from SCSI IO Request.
+ *                      Removed SCSI IO 32 Request.
+ *                      Modified SCSI Enclosure Processor Request and Reply to
+ *                      support Enclosure/Slot addressing rather than WWID
+ *                      addressing.
  *  --------------------------------------------------------------------------
  */
 
@@ -76,20 +91,12 @@ typedef struct _MSG_SCSI_IO_REQUEST
 #define MPI_SCSIIO_MSGFLGS_SENSE_WIDTH              (0x01)
 #define MPI_SCSIIO_MSGFLGS_SENSE_WIDTH_32           (0x00)
 #define MPI_SCSIIO_MSGFLGS_SENSE_WIDTH_64           (0x01)
+
 #define MPI_SCSIIO_MSGFLGS_SENSE_LOCATION           (0x02)
 #define MPI_SCSIIO_MSGFLGS_SENSE_LOC_HOST           (0x00)
 #define MPI_SCSIIO_MSGFLGS_SENSE_LOC_IOC            (0x02)
-#define MPI_SCSIIO_MSGFLGS_CMD_DETERMINES_DATA_DIR  (0x04)
-#define MPI_SCSIIO_MSGFLGS_EEDP_TYPE_MASK           (0xE0)
-#define MPI_SCSIIO_MSGFLGS_EEDP_NONE                (0x00)
-#define MPI_SCSIIO_MSGFLGS_EEDP_RDPROTECT_T10       (0x20)
-#define MPI_SCSIIO_MSGFLGS_EEDP_VRPROTECT_T10       (0x40)
-#define MPI_SCSIIO_MSGFLGS_EEDP_WRPROTECT_T10       (0x60)
-#define MPI_SCSIIO_MSGFLGS_EEDP_520_READ_MODE1      (0x20)
-#define MPI_SCSIIO_MSGFLGS_EEDP_520_WRITE_MODE1     (0x40)
-#define MPI_SCSIIO_MSGFLGS_EEDP_8_9_READ_MODE1      (0x60)
-#define MPI_SCSIIO_MSGFLGS_EEDP_8_9_WRITE_MODE1     (0x80)
 
+#define MPI_SCSIIO_MSGFLGS_CMD_DETERMINES_DATA_DIR  (0x04)
 
 /* SCSI IO LUN fields */
 
@@ -148,6 +155,8 @@ typedef struct _MSG_SCSI_IO_REPLY
     U32                     TransferCount;      /* 14h */
     U32                     SenseCount;         /* 18h */
     U32                     ResponseInfo;       /* 1Ch */
+    U16                     TaskTag;            /* 20h */
+    U16                     Reserved1;          /* 22h */
 } MSG_SCSI_IO_REPLY, MPI_POINTER PTR_MSG_SCSI_IO_REPLY,
   SCSIIOReply_t, MPI_POINTER pSCSIIOReply_t;
 
@@ -190,32 +199,7 @@ typedef struct _MSG_SCSI_IO_REPLY
 #define MPI_SCSI_RSP_INFO_TASK_MGMT_FAILED      (0x05000000)
 #define MPI_SCSI_RSP_INFO_SPI_LQ_INVALID_TYPE   (0x06000000)
 
-
-/****************************************************************************/
-/*  SCSI IO 32 Request message structure                                    */
-/****************************************************************************/
-
-typedef struct _MSG_SCSI_IO32_REQUEST
-{
-    U8                      TargetID;           /* 00h */
-    U8                      Bus;                /* 01h */
-    U8                      ChainOffset;        /* 02h */
-    U8                      Function;           /* 03h */
-    U8                      CDBLength;          /* 04h */
-    U8                      SenseBufferLength;  /* 05h */
-    U8                      Reserved;           /* 06h */
-    U8                      MsgFlags;           /* 07h */
-    U32                     MsgContext;         /* 08h */
-    U8                      LUN[8];             /* 0Ch */
-    U32                     Control;            /* 14h */
-    U8                      CDB[32];            /* 18h */
-    U32                     DataLength;         /* 38h */
-    U32                     SenseBufferLowAddr; /* 3Ch */
-    SGE_IO_UNION            SGL;                /* 40h */
-} MSG_SCSI_IO32_REQUEST, MPI_POINTER PTR_MSG_SCSI_IO32_REQUEST,
-  SCSIIO32Request_t, MPI_POINTER pSCSIIO32Request_t;
-
-/* SCSI IO 32 uses the same defines as above for SCSI IO */
+#define MPI_SCSI_TASKTAG_UNKNOWN                (0xFFFF)
 
 
 /****************************************************************************/
@@ -247,6 +231,7 @@ typedef struct _MSG_SCSI_TASK_MGMT
 #define MPI_SCSITASKMGMT_TASKTYPE_RESET_BUS             (0x04)
 #define MPI_SCSITASKMGMT_TASKTYPE_LOGICAL_UNIT_RESET    (0x05)
 #define MPI_SCSITASKMGMT_TASKTYPE_CLEAR_TASK_SET        (0x06)
+#define MPI_SCSITASKMGMT_TASKTYPE_QUERY_TASK            (0x07)
 
 /* MsgFlags bits */
 #define MPI_SCSITASKMGMT_MSGFLAGS_TARGET_RESET_OPTION   (0x00)
@@ -260,7 +245,7 @@ typedef struct _MSG_SCSI_TASK_MGMT_REPLY
     U8                      Bus;                /* 01h */
     U8                      MsgLength;          /* 02h */
     U8                      Function;           /* 03h */
-    U8                      Reserved;           /* 04h */
+    U8                      ResponseCode;       /* 04h */
     U8                      TaskType;           /* 05h */
     U8                      Reserved1;          /* 06h */
     U8                      MsgFlags;           /* 07h */
@@ -271,6 +256,15 @@ typedef struct _MSG_SCSI_TASK_MGMT_REPLY
     U32                     TerminationCount;   /* 14h */
 } MSG_SCSI_TASK_MGMT_REPLY, MPI_POINTER PTR_MSG_SCSI_TASK_MGMT_REPLY,
   SCSITaskMgmtReply_t, MPI_POINTER pSCSITaskMgmtReply_t;
+
+/* ResponseCode values */
+#define MPI_SCSITASKMGMT_RSP_TM_COMPLETE                (0x00)
+#define MPI_SCSITASKMGMT_RSP_INVALID_FRAME              (0x02)
+#define MPI_SCSITASKMGMT_RSP_TM_NOT_SUPPORTED           (0x04)
+#define MPI_SCSITASKMGMT_RSP_TM_FAILED                  (0x05)
+#define MPI_SCSITASKMGMT_RSP_TM_SUCCEEDED               (0x08)
+#define MPI_SCSITASKMGMT_RSP_TM_INVALID_LUN             (0x09)
+#define MPI_SCSITASKMGMT_RSP_IO_QUEUED_ON_IOC           (0x80)
 
 
 /****************************************************************************/
@@ -284,17 +278,26 @@ typedef struct _MSG_SEP_REQUEST
     U8                      ChainOffset;        /* 02h */
     U8                      Function;           /* 03h */
     U8                      Action;             /* 04h */
-    U8                      Reserved1;          /* 05h */
-    U8                      Reserved2;          /* 06h */
+    U8                      Flags;              /* 05h */
+    U8                      Reserved1;          /* 06h */
     U8                      MsgFlags;           /* 07h */
     U32                     MsgContext;         /* 08h */
     U32                     SlotStatus;         /* 0Ch */
+    U32                     Reserved2;          /* 10h */
+    U32                     Reserved3;          /* 14h */
+    U32                     Reserved4;          /* 18h */
+    U16                     Slot;               /* 1Ch */
+    U16                     EnclosureHandle;    /* 1Eh */
 } MSG_SEP_REQUEST, MPI_POINTER PTR_MSG_SEP_REQUEST,
   SEPRequest_t, MPI_POINTER pSEPRequest_t;
 
 /* Action defines */
 #define MPI_SEP_REQ_ACTION_WRITE_STATUS                 (0x00)
 #define MPI_SEP_REQ_ACTION_READ_STATUS                  (0x01)
+
+/* Flags defines */
+#define MPI_SEP_REQ_FLAGS_ENCLOSURE_SLOT_ADDRESS        (0x01)
+#define MPI_SEP_REQ_FLAGS_BUS_TARGETID_ADDRESS          (0x00)
 
 /* SlotStatus bits for MSG_SEP_REQUEST */
 #define MPI_SEP_REQ_SLOTSTATUS_NO_ERROR                 (0x00000001)
@@ -332,6 +335,9 @@ typedef struct _MSG_SEP_REPLY
     U16                     IOCStatus;          /* 0Eh */
     U32                     IOCLogInfo;         /* 10h */
     U32                     SlotStatus;         /* 14h */
+    U32                     Reserved4;          /* 18h */
+    U16                     Slot;               /* 1Ch */
+    U16                     EnclosureHandle;    /* 1Eh */
 } MSG_SEP_REPLY, MPI_POINTER PTR_MSG_SEP_REPLY,
   SEPReply_t, MPI_POINTER pSEPReply_t;
 

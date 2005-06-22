@@ -36,10 +36,10 @@ dev_attr_show(struct kobject * kobj, struct attribute * attr, char * buf)
 {
 	struct device_attribute * dev_attr = to_dev_attr(attr);
 	struct device * dev = to_dev(kobj);
-	ssize_t ret = 0;
+	ssize_t ret = -EIO;
 
 	if (dev_attr->show)
-		ret = dev_attr->show(dev, buf);
+		ret = dev_attr->show(dev, dev_attr, buf);
 	return ret;
 }
 
@@ -49,10 +49,10 @@ dev_attr_store(struct kobject * kobj, struct attribute * attr,
 {
 	struct device_attribute * dev_attr = to_dev_attr(attr);
 	struct device * dev = to_dev(kobj);
-	ssize_t ret = 0;
+	ssize_t ret = -EIO;
 
 	if (dev_attr->store)
-		ret = dev_attr->store(dev, buf, count);
+		ret = dev_attr->store(dev, dev_attr, buf, count);
 	return ret;
 }
 
@@ -102,7 +102,7 @@ static int dev_hotplug_filter(struct kset *kset, struct kobject *kobj)
 	return 0;
 }
 
-static char *dev_hotplug_name(struct kset *kset, struct kobject *kobj)
+static const char *dev_hotplug_name(struct kset *kset, struct kobject *kobj)
 {
 	struct device *dev = to_dev(kobj);
 
@@ -207,11 +207,9 @@ void device_initialize(struct device *dev)
 {
 	kobj_set_kset_s(dev, devices_subsys);
 	kobject_init(&dev->kobj);
-	INIT_LIST_HEAD(&dev->node);
-	INIT_LIST_HEAD(&dev->children);
-	INIT_LIST_HEAD(&dev->driver_list);
-	INIT_LIST_HEAD(&dev->bus_list);
+	klist_init(&dev->klist_children);
 	INIT_LIST_HEAD(&dev->dma_pools);
+	init_MUTEX(&dev->sem);
 }
 
 /**
@@ -250,10 +248,8 @@ int device_add(struct device *dev)
 		goto PMError;
 	if ((error = bus_add_device(dev)))
 		goto BusError;
-	down_write(&devices_subsys.rwsem);
 	if (parent)
-		list_add_tail(&dev->node, &parent->children);
-	up_write(&devices_subsys.rwsem);
+		klist_add_tail(&parent->klist_children, &dev->knode_parent);
 
 	/* notify platform of device entry */
 	if (platform_notify)
@@ -336,10 +332,8 @@ void device_del(struct device * dev)
 {
 	struct device * parent = dev->parent;
 
-	down_write(&devices_subsys.rwsem);
 	if (parent)
-		list_del_init(&dev->node);
-	up_write(&devices_subsys.rwsem);
+		klist_remove(&dev->knode_parent);
 
 	/* Notify the platform of the removal, in case they
 	 * need to do anything...
@@ -373,6 +367,12 @@ void device_unregister(struct device * dev)
 }
 
 
+static struct device * next_device(struct klist_iter * i)
+{
+	struct klist_node * n = klist_next(i);
+	return n ? container_of(n, struct device, knode_parent) : NULL;
+}
+
 /**
  *	device_for_each_child - device child iterator.
  *	@dev:	parent struct device.
@@ -385,37 +385,18 @@ void device_unregister(struct device * dev)
  *	We check the return of @fn each time. If it returns anything
  *	other than 0, we break out and return that value.
  */
-int device_for_each_child(struct device * dev, void * data,
+int device_for_each_child(struct device * parent, void * data,
 		     int (*fn)(struct device *, void *))
 {
+	struct klist_iter i;
 	struct device * child;
 	int error = 0;
 
-	down_read(&devices_subsys.rwsem);
-	list_for_each_entry(child, &dev->children, node) {
-		if((error = fn(child, data)))
-			break;
-	}
-	up_read(&devices_subsys.rwsem);
+	klist_iter_init(&parent->klist_children, &i);
+	while ((child = next_device(&i)) && !error)
+		error = fn(child, data);
+	klist_iter_exit(&i);
 	return error;
-}
-
-/**
- *	device_find - locate device on a bus by name.
- *	@name:	name of the device.
- *	@bus:	bus to scan for the device.
- *
- *	Call kset_find_obj() to iterate over list of devices on
- *	a bus to find device by name. Return device if found.
- *
- *	Note that kset_find_obj increments device's reference count.
- */
-struct device *device_find(const char *name, struct bus_type *bus)
-{
-	struct kobject *k = kset_find_obj(&bus->devices, name);
-	if (k)
-		return to_dev(k);
-	return NULL;
 }
 
 int __init devices_init(void)
@@ -433,7 +414,6 @@ EXPORT_SYMBOL_GPL(device_del);
 EXPORT_SYMBOL_GPL(device_unregister);
 EXPORT_SYMBOL_GPL(get_device);
 EXPORT_SYMBOL_GPL(put_device);
-EXPORT_SYMBOL_GPL(device_find);
 
 EXPORT_SYMBOL_GPL(device_create_file);
 EXPORT_SYMBOL_GPL(device_remove_file);

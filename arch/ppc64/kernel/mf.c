@@ -40,7 +40,6 @@
 #include <asm/iSeries/vio.h>
 #include <asm/iSeries/mf.h>
 #include <asm/iSeries/HvLpConfig.h>
-#include <asm/iSeries/ItSpCommArea.h>
 #include <asm/iSeries/ItLpQueue.h>
 
 /*

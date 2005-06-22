@@ -172,4 +172,126 @@ tcf_destroy(struct tcf_proto *tp)
 	kfree(tp);
 }
 
+static inline int __qdisc_enqueue_tail(struct sk_buff *skb, struct Qdisc *sch,
+				       struct sk_buff_head *list)
+{
+	__skb_queue_tail(list, skb);
+	sch->qstats.backlog += skb->len;
+	sch->bstats.bytes += skb->len;
+	sch->bstats.packets++;
+
+	return NET_XMIT_SUCCESS;
+}
+
+static inline int qdisc_enqueue_tail(struct sk_buff *skb, struct Qdisc *sch)
+{
+	return __qdisc_enqueue_tail(skb, sch, &sch->q);
+}
+
+static inline struct sk_buff *__qdisc_dequeue_head(struct Qdisc *sch,
+						   struct sk_buff_head *list)
+{
+	struct sk_buff *skb = __skb_dequeue(list);
+
+	if (likely(skb != NULL))
+		sch->qstats.backlog -= skb->len;
+
+	return skb;
+}
+
+static inline struct sk_buff *qdisc_dequeue_head(struct Qdisc *sch)
+{
+	return __qdisc_dequeue_head(sch, &sch->q);
+}
+
+static inline struct sk_buff *__qdisc_dequeue_tail(struct Qdisc *sch,
+						   struct sk_buff_head *list)
+{
+	struct sk_buff *skb = __skb_dequeue_tail(list);
+
+	if (likely(skb != NULL))
+		sch->qstats.backlog -= skb->len;
+
+	return skb;
+}
+
+static inline struct sk_buff *qdisc_dequeue_tail(struct Qdisc *sch)
+{
+	return __qdisc_dequeue_tail(sch, &sch->q);
+}
+
+static inline int __qdisc_requeue(struct sk_buff *skb, struct Qdisc *sch,
+				  struct sk_buff_head *list)
+{
+	__skb_queue_head(list, skb);
+	sch->qstats.backlog += skb->len;
+	sch->qstats.requeues++;
+
+	return NET_XMIT_SUCCESS;
+}
+
+static inline int qdisc_requeue(struct sk_buff *skb, struct Qdisc *sch)
+{
+	return __qdisc_requeue(skb, sch, &sch->q);
+}
+
+static inline void __qdisc_reset_queue(struct Qdisc *sch,
+				       struct sk_buff_head *list)
+{
+	/*
+	 * We do not know the backlog in bytes of this list, it
+	 * is up to the caller to correct it
+	 */
+	skb_queue_purge(list);
+}
+
+static inline void qdisc_reset_queue(struct Qdisc *sch)
+{
+	__qdisc_reset_queue(sch, &sch->q);
+	sch->qstats.backlog = 0;
+}
+
+static inline unsigned int __qdisc_queue_drop(struct Qdisc *sch,
+					      struct sk_buff_head *list)
+{
+	struct sk_buff *skb = __qdisc_dequeue_tail(sch, list);
+
+	if (likely(skb != NULL)) {
+		unsigned int len = skb->len;
+		kfree_skb(skb);
+		return len;
+	}
+
+	return 0;
+}
+
+static inline unsigned int qdisc_queue_drop(struct Qdisc *sch)
+{
+	return __qdisc_queue_drop(sch, &sch->q);
+}
+
+static inline int qdisc_drop(struct sk_buff *skb, struct Qdisc *sch)
+{
+	kfree_skb(skb);
+	sch->qstats.drops++;
+
+	return NET_XMIT_DROP;
+}
+
+static inline int qdisc_reshape_fail(struct sk_buff *skb, struct Qdisc *sch)
+{
+	sch->qstats.drops++;
+
+#ifdef CONFIG_NET_CLS_POLICE
+	if (sch->reshape_fail == NULL || sch->reshape_fail(skb, sch))
+		goto drop;
+
+	return NET_XMIT_SUCCESS;
+
+drop:
+#endif
+	kfree_skb(skb);
+	return NET_XMIT_DROP;
+}
+
 #endif

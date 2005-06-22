@@ -137,7 +137,7 @@ static struct i2c_driver adm1021_driver = {
 };
 
 #define show(value)	\
-static ssize_t show_##value(struct device *dev, char *buf)		\
+static ssize_t show_##value(struct device *dev, struct device_attribute *attr, char *buf)		\
 {									\
 	struct adm1021_data *data = adm1021_update_device(dev);		\
 	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->value));	\
@@ -150,7 +150,7 @@ show(remote_temp_hyst);
 show(remote_temp_input);
 
 #define show2(value)	\
-static ssize_t show_##value(struct device *dev, char *buf)		\
+static ssize_t show_##value(struct device *dev, struct device_attribute *attr, char *buf)		\
 {									\
 	struct adm1021_data *data = adm1021_update_device(dev);		\
 	return sprintf(buf, "%d\n", data->value);			\
@@ -159,7 +159,7 @@ show2(alarms);
 show2(die_code);
 
 #define set(value, reg)	\
-static ssize_t set_##value(struct device *dev, const char *buf, size_t count)	\
+static ssize_t set_##value(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)	\
 {								\
 	struct i2c_client *client = to_i2c_client(dev);		\
 	struct adm1021_data *data = i2c_get_clientdata(client);	\

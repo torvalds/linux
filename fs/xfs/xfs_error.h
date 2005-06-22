@@ -73,9 +73,6 @@ xfs_corruption_error(
 	int		linenum,
 	inst_t		*ra);
 
-extern void
-xfs_hex_dump(void *p, int length);
-
 #define	XFS_ERROR_REPORT(e, lvl, mp)	\
 	xfs_error_report(e, lvl, mp, __FILE__, __LINE__, __return_address)
 #define	XFS_CORRUPTION_ERROR(e, lvl, mp, mem)	\

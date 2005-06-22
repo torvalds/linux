@@ -464,11 +464,11 @@ out_unlock:
 static void tcp_synack_timer(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct tcp_listen_opt *lopt = tp->listen_opt;
+	struct listen_sock *lopt = tp->accept_queue.listen_opt;
 	int max_retries = tp->syn_retries ? : sysctl_tcp_synack_retries;
 	int thresh = max_retries;
 	unsigned long now = jiffies;
-	struct open_request **reqp, *req;
+	struct request_sock **reqp, *req;
 	int i, budget;
 
 	if (lopt == NULL || lopt->qlen == 0)
@@ -513,8 +513,8 @@ static void tcp_synack_timer(struct sock *sk)
 		while ((req = *reqp) != NULL) {
 			if (time_after_eq(now, req->expires)) {
 				if ((req->retrans < thresh ||
-				     (req->acked && req->retrans < max_retries))
-				    && !req->class->rtx_syn_ack(sk, req, NULL)) {
+				     (inet_rsk(req)->acked && req->retrans < max_retries))
+				    && !req->rsk_ops->rtx_syn_ack(sk, req, NULL)) {
 					unsigned long timeo;
 
 					if (req->retrans++ == 0)
@@ -527,13 +527,9 @@ static void tcp_synack_timer(struct sock *sk)
 				}
 
 				/* Drop this request */
-				write_lock(&tp->syn_wait_lock);
-				*reqp = req->dl_next;
-				write_unlock(&tp->syn_wait_lock);
-				lopt->qlen--;
-				if (req->retrans == 0)
-					lopt->qlen_young--;
-				tcp_openreq_free(req);
+				tcp_synq_unlink(tp, req, reqp);
+				reqsk_queue_removed(&tp->accept_queue, req);
+				reqsk_free(req);
 				continue;
 			}
 			reqp = &req->dl_next;

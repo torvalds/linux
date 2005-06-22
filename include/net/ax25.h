@@ -220,7 +220,7 @@ static __inline__ void ax25_cb_put(ax25_cb *ax25)
 	}
 }
 
-static inline unsigned short ax25_type_trans(struct sk_buff *skb, struct net_device *dev)
+static inline __be16 ax25_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	skb->dev      = dev;
 	skb->pkt_type = PACKET_HOST;

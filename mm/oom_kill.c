@@ -258,6 +258,10 @@ void out_of_memory(unsigned int __nocast gfp_mask)
 	struct mm_struct *mm = NULL;
 	task_t * p;
 
+	printk("oom-killer: gfp_mask=0x%x\n", gfp_mask);
+	/* print memory stats */
+	show_mem();
+
 	read_lock(&tasklist_lock);
 retry:
 	p = select_bad_process();
@@ -268,12 +272,9 @@ retry:
 	/* Found nothing?!?! Either we hang forever, or we panic. */
 	if (!p) {
 		read_unlock(&tasklist_lock);
-		show_free_areas();
 		panic("Out of memory and no killable processes...\n");
 	}
 
-	printk("oom-killer: gfp_mask=0x%x\n", gfp_mask);
-	show_free_areas();
 	mm = oom_kill_process(p);
 	if (!mm)
 		goto retry;

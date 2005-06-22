@@ -1182,7 +1182,7 @@ ENTRY(notify_resume_user)
 	;;
 (pNonSys) mov out2=0				// out2==0 => not a syscall
 	.fframe 16
-	.spillpsp ar.unat, 16			// (note that offset is relative to psp+0x10!)
+	.spillsp ar.unat, 16
 	st8 [sp]=r9,-16				// allocate space for ar.unat and save it
 	st8 [out1]=loc1,-8			// save ar.pfs, out1=&sigscratch
 	.body
@@ -1208,7 +1208,7 @@ GLOBAL_ENTRY(sys_rt_sigsuspend)
 	adds out2=8,sp				// out2=&sigscratch->ar_pfs
 	;;
 	.fframe 16
-	.spillpsp ar.unat, 16			// (note that offset is relative to psp+0x10!)
+	.spillsp ar.unat, 16
 	st8 [sp]=r9,-16				// allocate space for ar.unat and save it
 	st8 [out2]=loc1,-8			// save ar.pfs, out2=&sigscratch
 	.body
@@ -1579,7 +1579,7 @@ sys_call_table:
 	data8 sys_keyctl
 	data8 sys_ni_syscall
 	data8 sys_ni_syscall			// 1275
-	data8 sys_ni_syscall
+	data8 sys_set_zone_reclaim
 	data8 sys_ni_syscall
 	data8 sys_ni_syscall
 	data8 sys_ni_syscall

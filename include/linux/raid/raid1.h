@@ -36,12 +36,21 @@ struct r1_private_data_s {
 	spinlock_t		device_lock;
 
 	struct list_head	retry_list;
+	/* queue pending writes and submit them on unplug */
+	struct bio_list		pending_bio_list;
+	/* queue of writes that have been unplugged */
+	struct bio_list		flushing_bio_list;
+
 	/* for use when syncing mirrors: */
 
 	spinlock_t		resync_lock;
-	int nr_pending;
-	int barrier;
+	int			nr_pending;
+	int			barrier;
 	sector_t		next_resync;
+	int			fullsync;  /* set to 1 if a full sync is needed,
+					    * (fresh device added).
+					    * Cleared when a sync completes.
+					    */
 
 	wait_queue_head_t	wait_idle;
 	wait_queue_head_t	wait_resume;
@@ -85,14 +94,17 @@ struct r1bio_s {
 	int			read_disk;
 
 	struct list_head	retry_list;
+	struct bitmap_update	*bitmap_update;
 	/*
 	 * if the IO is in WRITE direction, then multiple bios are used.
 	 * We choose the number when they are allocated.
 	 */
 	struct bio		*bios[0];
+	/* DO NOT PUT ANY NEW FIELDS HERE - bios array is contiguously alloced*/
 };
 
 /* bits for r1bio.state */
 #define	R1BIO_Uptodate	0
 #define	R1BIO_IsSync	1
+#define	R1BIO_Degraded	2
 #endif

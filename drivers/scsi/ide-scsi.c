@@ -46,6 +46,7 @@
 #include <linux/slab.h>
 #include <linux/ide.h>
 #include <linux/scatterlist.h>
+#include <linux/delay.h>
 
 #include <asm/io.h>
 #include <asm/bitops.h>
@@ -179,8 +180,18 @@ static void idescsi_input_buffers (ide_drive_t *drive, idescsi_pc_t *pc, unsigne
 			return;
 		}
 		count = min(pc->sg->length - pc->b_count, bcount);
-		buf = page_address(pc->sg->page) + pc->sg->offset;
-		drive->hwif->atapi_input_bytes(drive, buf + pc->b_count, count);
+		if (PageHighMem(pc->sg->page)) {
+			unsigned long flags;
+
+			local_irq_save(flags);
+			buf = kmap_atomic(pc->sg->page, KM_IRQ0) + pc->sg->offset;
+			drive->hwif->atapi_input_bytes(drive, buf + pc->b_count, count);
+			kunmap_atomic(buf - pc->sg->offset, KM_IRQ0);
+			local_irq_restore(flags);
+		} else {
+			buf = page_address(pc->sg->page) + pc->sg->offset;
+			drive->hwif->atapi_input_bytes(drive, buf + pc->b_count, count);
+		}
 		bcount -= count; pc->b_count += count;
 		if (pc->b_count == pc->sg->length) {
 			pc->sg++;
@@ -201,8 +212,18 @@ static void idescsi_output_buffers (ide_drive_t *drive, idescsi_pc_t *pc, unsign
 			return;
 		}
 		count = min(pc->sg->length - pc->b_count, bcount);
-		buf = page_address(pc->sg->page) + pc->sg->offset;
-		drive->hwif->atapi_output_bytes(drive, buf + pc->b_count, count);
+		if (PageHighMem(pc->sg->page)) {
+			unsigned long flags;
+
+			local_irq_save(flags);
+			buf = kmap_atomic(pc->sg->page, KM_IRQ0) + pc->sg->offset;
+			drive->hwif->atapi_output_bytes(drive, buf + pc->b_count, count);
+			kunmap_atomic(buf - pc->sg->offset, KM_IRQ0);
+			local_irq_restore(flags);
+		} else {
+			buf = page_address(pc->sg->page) + pc->sg->offset;
+			drive->hwif->atapi_output_bytes(drive, buf + pc->b_count, count);
+		}
 		bcount -= count; pc->b_count += count;
 		if (pc->b_count == pc->sg->length) {
 			pc->sg++;
@@ -713,7 +734,6 @@ static void idescsi_add_settings(ide_drive_t *drive)
  */
 static void idescsi_setup (ide_drive_t *drive, idescsi_scsi_t *scsi)
 {
-	DRIVER(drive)->busy++;
 	if (drive->id && (drive->id->config & 0x0060) == 0x20)
 		set_bit (IDESCSI_DRQ_INTERRUPT, &scsi->flags);
 	set_bit(IDESCSI_TRANSFORM, &scsi->transform);
@@ -722,17 +742,16 @@ static void idescsi_setup (ide_drive_t *drive, idescsi_scsi_t *scsi)
 	set_bit(IDESCSI_LOG_CMD, &scsi->log);
 #endif /* IDESCSI_DEBUG_LOG */
 	idescsi_add_settings(drive);
-	DRIVER(drive)->busy--;
 }
 
-static int idescsi_cleanup (ide_drive_t *drive)
+static int ide_scsi_remove(struct device *dev)
 {
+	ide_drive_t *drive = to_ide_device(dev);
 	struct Scsi_Host *scsihost = drive->driver_data;
 	struct ide_scsi_obj *scsi = scsihost_to_idescsi(scsihost);
 	struct gendisk *g = scsi->disk;
 
-	if (ide_unregister_subdriver(drive))
-		return 1;
+	ide_unregister_subdriver(drive, scsi->driver);
 
 	ide_unregister_region(g);
 
@@ -746,7 +765,7 @@ static int idescsi_cleanup (ide_drive_t *drive)
 	return 0;
 }
 
-static int idescsi_attach(ide_drive_t *drive);
+static int ide_scsi_probe(struct device *);
 
 #ifdef CONFIG_PROC_FS
 static ide_proc_entry_t idescsi_proc[] = {
@@ -757,24 +776,22 @@ static ide_proc_entry_t idescsi_proc[] = {
 # define idescsi_proc	NULL
 #endif
 
-/*
- *	IDE subdriver functions, registered with ide.c
- */
 static ide_driver_t idescsi_driver = {
 	.owner			= THIS_MODULE,
-	.name			= "ide-scsi",
+	.gen_driver = {
+		.name		= "ide-scsi",
+		.bus		= &ide_bus_type,
+		.probe		= ide_scsi_probe,
+		.remove		= ide_scsi_remove,
+	},
 	.version		= IDESCSI_VERSION,
 	.media			= ide_scsi,
-	.busy			= 0,
 	.supports_dsc_overlap	= 0,
 	.proc			= idescsi_proc,
-	.attach			= idescsi_attach,
-	.cleanup		= idescsi_cleanup,
 	.do_request		= idescsi_do_request,
 	.end_request		= idescsi_end_request,
 	.error                  = idescsi_atapi_error,
 	.abort                  = idescsi_atapi_abort,
-	.drives			= LIST_HEAD_INIT(idescsi_driver.drives),
 };
 
 static int idescsi_ide_open(struct inode *inode, struct file *filp)
@@ -820,8 +837,6 @@ static struct block_device_operations idescsi_ops = {
 	.release	= idescsi_ide_release,
 	.ioctl		= idescsi_ide_ioctl,
 };
-
-static int idescsi_attach(ide_drive_t *drive);
 
 static int idescsi_slave_configure(struct scsi_device * sdp)
 {
@@ -1012,11 +1027,13 @@ static int idescsi_eh_reset (struct scsi_cmnd *cmd)
 		return FAILED;
 	}
 
-	spin_lock_irq(&ide_lock);
+	spin_lock_irq(cmd->device->host->host_lock);
+	spin_lock(&ide_lock);
 
 	if (!scsi->pc || (req = scsi->pc->rq) != HWGROUP(drive)->rq || !HWGROUP(drive)->handler) {
 		printk (KERN_WARNING "ide-scsi: No active request in idescsi_eh_reset\n");
 		spin_unlock(&ide_lock);
+		spin_unlock_irq(cmd->device->host->host_lock);
 		return FAILED;
 	}
 
@@ -1038,16 +1055,15 @@ static int idescsi_eh_reset (struct scsi_cmnd *cmd)
 	HWGROUP(drive)->rq = NULL;
 	HWGROUP(drive)->handler = NULL;
 	HWGROUP(drive)->busy = 1;		/* will set this to zero when ide reset finished */
-	spin_unlock_irq(&ide_lock);
+	spin_unlock(&ide_lock);
 
 	ide_do_reset(drive);
 
 	/* ide_do_reset starts a polling handler which restarts itself every 50ms until the reset finishes */
 
 	do {
-		set_current_state(TASK_UNINTERRUPTIBLE);
 		spin_unlock_irq(cmd->device->host->host_lock);
-		schedule_timeout(HZ/20);
+		msleep(50);
 		spin_lock_irq(cmd->device->host->host_lock);
 	} while ( HWGROUP(drive)->handler );
 
@@ -1058,6 +1074,7 @@ static int idescsi_eh_reset (struct scsi_cmnd *cmd)
 		ret = FAILED;
 	}
 
+	spin_unlock_irq(cmd->device->host->host_lock);
 	return ret;
 }
 
@@ -1095,8 +1112,9 @@ static struct scsi_host_template idescsi_template = {
 	.proc_name		= "ide-scsi",
 };
 
-static int idescsi_attach(ide_drive_t *drive)
+static int ide_scsi_probe(struct device *dev)
 {
+	ide_drive_t *drive = to_ide_device(dev);
 	idescsi_scsi_t *idescsi;
 	struct Scsi_Host *host;
 	struct gendisk *g;
@@ -1112,7 +1130,7 @@ static int idescsi_attach(ide_drive_t *drive)
 	    !drive->present ||
 	    drive->media == ide_disk ||
 	    !(host = scsi_host_alloc(&idescsi_template,sizeof(idescsi_scsi_t))))
-		return 1;
+		return -ENODEV;
 
 	g = alloc_disk(1 << PARTN_BITS);
 	if (!g)
@@ -1138,20 +1156,19 @@ static int idescsi_attach(ide_drive_t *drive)
 	idescsi->host = host;
 	idescsi->disk = g;
 	g->private_data = &idescsi->driver;
-	err = ide_register_subdriver(drive, &idescsi_driver);
+	ide_register_subdriver(drive, &idescsi_driver);
+	err = 0;
+	idescsi_setup(drive, idescsi);
+	g->fops = &idescsi_ops;
+	ide_register_region(g);
+	err = scsi_add_host(host, &drive->gendev);
 	if (!err) {
-		idescsi_setup (drive, idescsi);
-		g->fops = &idescsi_ops;
-		ide_register_region(g);
-		err = scsi_add_host(host, &drive->gendev);
-		if (!err) {
-			scsi_scan_host(host);
-			return 0;
-		}
-		/* fall through on error */
-		ide_unregister_region(g);
-		ide_unregister_subdriver(drive);
+		scsi_scan_host(host);
+		return 0;
 	}
+	/* fall through on error */
+	ide_unregister_region(g);
+	ide_unregister_subdriver(drive, &idescsi_driver);
 
 	put_disk(g);
 out_host_put:
@@ -1161,12 +1178,12 @@ out_host_put:
 
 static int __init init_idescsi_module(void)
 {
-	return ide_register_driver(&idescsi_driver);
+	return driver_register(&idescsi_driver.gen_driver);
 }
 
 static void __exit exit_idescsi_module(void)
 {
-	ide_unregister_driver(&idescsi_driver);
+	driver_unregister(&idescsi_driver.gen_driver);
 }
 
 module_init(init_idescsi_module);

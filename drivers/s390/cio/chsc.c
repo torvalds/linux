@@ -852,7 +852,7 @@ out:
  * Files for the channel path entries.
  */
 static ssize_t
-chp_status_show(struct device *dev, char *buf)
+chp_status_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct channel_path *chp = container_of(dev, struct channel_path, dev);
 
@@ -863,7 +863,7 @@ chp_status_show(struct device *dev, char *buf)
 }
 
 static ssize_t
-chp_status_write(struct device *dev, const char *buf, size_t count)
+chp_status_write(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct channel_path *cp = container_of(dev, struct channel_path, dev);
 	char cmd[10];
@@ -888,7 +888,7 @@ chp_status_write(struct device *dev, const char *buf, size_t count)
 static DEVICE_ATTR(status, 0644, chp_status_show, chp_status_write);
 
 static ssize_t
-chp_type_show(struct device *dev, char *buf)
+chp_type_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct channel_path *chp = container_of(dev, struct channel_path, dev);
 

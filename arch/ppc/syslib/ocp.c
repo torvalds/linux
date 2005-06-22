@@ -68,7 +68,7 @@ static int ocp_inited;
 /* Sysfs support */
 #define OCP_DEF_ATTR(field, format_string)				\
 static ssize_t								\
-show_##field(struct device *dev, char *buf)				\
+show_##field(struct device *dev, struct device_attribute *attr, char *buf)				\
 {									\
 	struct ocp_device *odev = to_ocp_dev(dev);			\
 									\

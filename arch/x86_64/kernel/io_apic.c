@@ -37,6 +37,7 @@
 #include <asm/desc.h>
 #include <asm/proto.h>
 #include <asm/mach_apic.h>
+#include <asm/acpi.h>
 
 #define __apicdebuginit  __init
 

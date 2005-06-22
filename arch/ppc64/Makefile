@@ -35,9 +35,9 @@ CROSS32AS	:= $(AS) -a32
 CROSS32LD	:= $(LD) -m elf32ppc
 CROSS32OBJCOPY	:= $(OBJCOPY)
 endif
-AS              := $(AS) -a64
-LD              := $(LD) -m elf64ppc
-CC		:= $(CC) -m64
+override AS	+= -a64
+override LD	+= -m elf64ppc
+override CC	+= -m64
 endif
 
 export CROSS32CC CROSS32AS CROSS32LD CROSS32OBJCOPY

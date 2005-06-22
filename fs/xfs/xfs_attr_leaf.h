@@ -261,8 +261,6 @@ int	xfs_attr_leaf_flipflags(xfs_da_args_t *args);
 /*
  * Routines used for growing the Btree.
  */
-int	xfs_attr_leaf_create(struct xfs_da_args *args, xfs_dablk_t which_block,
-				    struct xfs_dabuf **bpp);
 int	xfs_attr_leaf_split(struct xfs_da_state *state,
 				   struct xfs_da_state_blk *oldblk,
 				   struct xfs_da_state_blk *newblk);
@@ -284,12 +282,6 @@ void	xfs_attr_leaf_unbalance(struct xfs_da_state *state,
 				       struct xfs_da_state_blk *drop_blk,
 				       struct xfs_da_state_blk *save_blk);
 int	xfs_attr_root_inactive(struct xfs_trans **trans, struct xfs_inode *dp);
-int	xfs_attr_node_inactive(struct xfs_trans **trans, struct xfs_inode *dp,
-				      struct xfs_dabuf *bp, int level);
-int	xfs_attr_leaf_inactive(struct xfs_trans **trans, struct xfs_inode *dp,
-				      struct xfs_dabuf *bp);
-int	xfs_attr_leaf_freextent(struct xfs_trans **trans, struct xfs_inode *dp,
-				       xfs_dablk_t blkno, int blkcnt);
 
 /*
  * Utility routines.
@@ -299,10 +291,6 @@ int	xfs_attr_leaf_order(struct xfs_dabuf *leaf1_bp,
 				   struct xfs_dabuf *leaf2_bp);
 int	xfs_attr_leaf_newentsize(struct xfs_da_args *args, int blocksize,
 					int *local);
-int	xfs_attr_leaf_entsize(struct xfs_attr_leafblock *leaf, int index);
-int	xfs_attr_put_listent(struct xfs_attr_list_context *context,
-			     struct attrnames *, char *name, int namelen,
-			     int valuelen);
 int	xfs_attr_rolltrans(struct xfs_trans **transp, struct xfs_inode *dp);
 
 #endif	/* __XFS_ATTR_LEAF_H__ */

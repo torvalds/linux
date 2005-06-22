@@ -3,7 +3,7 @@
  *
  *  Typical I/O routines for OAKS32R board.
  *
- *  Copyright (c) 2001-2004  Hiroyuki Kondo, Hirokazu Takata,
+ *  Copyright (c) 2001-2005  Hiroyuki Kondo, Hirokazu Takata,
  *                           Hitoshi Yamamoto, Mamoru Sakugawa
  */
 
@@ -90,35 +90,21 @@ unsigned long _inl(unsigned long port)
 
 unsigned char _inb_p(unsigned long port)
 {
-	unsigned char  v;
-
-	if (port >= 0x300 && port < 0x320)
-		v = _ne_inb(PORT2ADDR_NE(port));
-	else
-		v = *(volatile unsigned char *)PORT2ADDR(port);
-
+	unsigned char v = _inb(port);
 	delay();
 	return (v);
 }
 
 unsigned short _inw_p(unsigned long port)
 {
-	unsigned short  v;
-
-	if (port >= 0x300 && port < 0x320)
-		v = _ne_inw(PORT2ADDR_NE(port));
-	else
-		v = *(volatile unsigned short *)PORT2ADDR(port);
-
+	unsigned short v = _inw(port);
 	delay();
 	return (v);
 }
 
 unsigned long _inl_p(unsigned long port)
 {
-	unsigned long  v;
-
-	v = *(volatile unsigned long *)PORT2ADDR(port);
+	unsigned long v = _inl(port);
 	delay();
 	return (v);
 }
@@ -146,27 +132,19 @@ void _outl(unsigned long l, unsigned long port)
 
 void _outb_p(unsigned char b, unsigned long port)
 {
-	if (port >= 0x300 && port < 0x320)
-		_ne_outb(b, PORT2ADDR_NE(port));
-	else
-		*(volatile unsigned char *)PORT2ADDR(port) = b;
-
+	_outb(b, port);
 	delay();
 }
 
 void _outw_p(unsigned short w, unsigned long port)
 {
-	if (port >= 0x300 && port < 0x320)
-		_ne_outw(w, PORT2ADDR_NE(port));
-	else
-		*(volatile unsigned short *)PORT2ADDR(port) = w;
-
+	_outw(w, port);
 	delay();
 }
 
 void _outl_p(unsigned long l, unsigned long port)
 {
-	*(volatile unsigned long *)PORT2ADDR(port) = l;
+	_outl(l, port);
 	delay();
 }
 

@@ -410,6 +410,38 @@ efi_memmap_walk (efi_freemem_callback_t callback, void *arg)
 }
 
 /*
+ * Walk the EFI memory map to pull out leftover pages in the lower
+ * memory regions which do not end up in the regular memory map and
+ * stick them into the uncached allocator
+ *
+ * The regular walk function is significantly more complex than the
+ * uncached walk which means it really doesn't make sense to try and
+ * marge the two.
+ */
+void __init
+efi_memmap_walk_uc (efi_freemem_callback_t callback)
+{
+	void *efi_map_start, *efi_map_end, *p;
+	efi_memory_desc_t *md;
+	u64 efi_desc_size, start, end;
+
+	efi_map_start = __va(ia64_boot_param->efi_memmap);
+	efi_map_end = efi_map_start + ia64_boot_param->efi_memmap_size;
+	efi_desc_size = ia64_boot_param->efi_memdesc_size;
+
+	for (p = efi_map_start; p < efi_map_end; p += efi_desc_size) {
+		md = p;
+		if (md->attribute == EFI_MEMORY_UC) {
+			start = PAGE_ALIGN(md->phys_addr);
+			end = PAGE_ALIGN((md->phys_addr+(md->num_pages << EFI_PAGE_SHIFT)) & PAGE_MASK);
+			if ((*callback)(start, end, NULL) < 0)
+				return;
+		}
+	}
+}
+
+
+/*
  * Look for the PAL_CODE region reported by EFI and maps it using an
  * ITR to enable safe PAL calls in virtual mode.  See IA-64 Processor
  * Abstraction Layer chapter 11 in ADAG
