@@ -126,7 +126,6 @@ extern void vr41xx_mask_clock(vr41xx_clock_t clock);
 #define GIU_IRQ_BASE		40
 #define GIU_IRQ(x)		(GIU_IRQ_BASE + (x))	/* IRQ 40-71 */
 #define GIU_IRQ_LAST		GIU_IRQ(31)
-#define GIU_IRQ_TO_PIN(x)	((x) - GIU_IRQ_BASE)	/* Pin 0-31 */
 
 extern int vr41xx_set_intassign(unsigned int irq, unsigned char intassign);
 extern int vr41xx_cascade_irq(unsigned int irq, int (*get_irq_number)(int irq));
@@ -196,39 +195,5 @@ extern void vr41xx_disable_csiint(uint16_t mask);
 
 extern void vr41xx_enable_bcuint(void);
 extern void vr41xx_disable_bcuint(void);
-
-/*
- * General-Purpose I/O Unit
- */
-enum {
-	TRIGGER_LEVEL,
-	TRIGGER_EDGE,
-	TRIGGER_EDGE_FALLING,
-	TRIGGER_EDGE_RISING
-};
-
-enum {
-	SIGNAL_THROUGH,
-	SIGNAL_HOLD
-};
-
-extern void vr41xx_set_irq_trigger(int pin, int trigger, int hold);
-
-enum {
-	LEVEL_LOW,
-	LEVEL_HIGH
-};
-
-extern void vr41xx_set_irq_level(int pin, int level);
-
-enum {
-	PIO_INPUT,
-	PIO_OUTPUT
-};
-
-enum {
-	DATA_LOW,
-	DATA_HIGH
-};
 
 #endif /* __NEC_VR41XX_H */
