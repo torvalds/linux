@@ -480,7 +480,7 @@ static void speedtch_check_status(struct speedtch_instance_data *instance)
 			atm_dev->signal = ATM_PHY_SIG_FOUND;
 
 			atm_info(usbatm,
-				 "ADSL line is up (%d Kib/s down | %d Kib/s up)\n",
+				 "ADSL line is up (%d kb/s down | %d kb/s up)\n",
 				 down_speed, up_speed);
 		}
 		break;
