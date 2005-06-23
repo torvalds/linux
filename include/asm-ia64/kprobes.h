@@ -59,6 +59,11 @@ struct arch_specific_insn {
 	kprobe_opcode_t insn;
 };
 
+/* ia64 does not need this */
+static inline void jprobe_return(void)
+{
+}
+
 #ifdef CONFIG_KPROBES
 extern int kprobe_exceptions_notify(struct notifier_block *self,
 				    unsigned long val, void *data);

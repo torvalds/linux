@@ -35,12 +35,15 @@
 #include <asm/pgtable.h>
 #include <asm/kdebug.h>
 
+extern void jprobe_inst_return(void);
+
 /* kprobe_status settings */
 #define KPROBE_HIT_ACTIVE	0x00000001
 #define KPROBE_HIT_SS		0x00000002
 
 static struct kprobe *current_kprobe;
 static unsigned long kprobe_status;
+static struct pt_regs jprobe_saved_regs;
 
 enum instruction_type {A, I, M, F, B, L, X, u};
 static enum instruction_type bundle_encoding[32][3] = {
@@ -318,15 +321,28 @@ int kprobe_exceptions_notify(struct notifier_block *self, unsigned long val,
 
 int setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 {
-	printk(KERN_WARNING "Jprobes is not supported\n");
-	return 0;
-}
+	struct jprobe *jp = container_of(p, struct jprobe, kp);
+	unsigned long addr = ((struct fnptr *)(jp->entry))->ip;
 
-void jprobe_return(void)
-{
+	/* save architectural state */
+	jprobe_saved_regs = *regs;
+
+	/* after rfi, execute the jprobe instrumented function */
+	regs->cr_iip = addr & ~0xFULL;
+	ia64_psr(regs)->ri = addr & 0xf;
+	regs->r1 = ((struct fnptr *)(jp->entry))->gp;
+
+	/*
+	 * fix the return address to our jprobe_inst_return() function
+	 * in the jprobes.S file
+	 */
+ 	regs->b0 = ((struct fnptr *)(jprobe_inst_return))->ip;
+
+	return 1;
 }
 
 int longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 {
-	return 0;
+	*regs = jprobe_saved_regs;
+	return 1;
 }
