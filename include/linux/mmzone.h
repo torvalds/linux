@@ -435,6 +435,10 @@ extern struct pglist_data contig_page_data;
 
 #endif
 
+#ifndef CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID
+#define early_pfn_to_nid(nid)  (0UL)
+#endif
+
 #endif /* !__ASSEMBLY__ */
 #endif /* __KERNEL__ */
 #endif /* _LINUX_MMZONE_H */

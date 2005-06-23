@@ -143,4 +143,7 @@ static inline void get_memcfg_numa(void)
 }
 
 #endif /* CONFIG_DISCONTIGMEM */
+
+extern int early_pfn_to_nid(unsigned long pfn);
+
 #endif /* _ASM_MMZONE_H_ */
