@@ -1,8 +1,8 @@
 /*****************************************************************************
  *                                                                           *
  * File: pm3393.c                                                            *
- * $Revision: 1.9 $                                                          *
- * $Date: 2005/03/23 07:41:27 $                                              *
+ * $Revision: 1.16 $                                                         *
+ * $Date: 2005/05/14 00:59:32 $                                              *
  * Description:                                                              *
  *  PMC/SIERRA (pm3393) MAC-PHY functionality.                               *
  *  part of the Chelsio 10Gb Ethernet Driver.                                *
@@ -45,15 +45,19 @@
 
 /* 802.3ae 10Gb/s MDIO Manageable Device(MMD)
  */
-#define MMD_RESERVED        0
-#define MMD_PMAPMD          1
-#define MMD_WIS             2
-#define MMD_PCS             3
-#define MMD_PHY_XGXS        4	/* XGMII Extender Sublayer */
-#define MMD_DTE_XGXS        5
+enum {
+    MMD_RESERVED,
+    MMD_PMAPMD,
+    MMD_WIS,
+    MMD_PCS,
+    MMD_PHY_XGXS,	/* XGMII Extender Sublayer */
+    MMD_DTE_XGXS,
+};
 
-#define PHY_XGXS_CTRL_1     0
-#define PHY_XGXS_STATUS_1   1
+enum {
+    PHY_XGXS_CTRL_1,
+    PHY_XGXS_STATUS_1
+};
 
 #define OFFSET(REG_ADDR)    (REG_ADDR << 2)
 
@@ -160,9 +164,9 @@ static int pm3393_interrupt_enable(struct cmac *cmac)
 		0 /*SUNI1x10GEXP_BITMSK_TOP_INTE */ );
 
 	/* TERMINATOR - PL_INTERUPTS_EXT */
-	pl_intr = t1_read_reg_4(cmac->adapter, A_PL_ENABLE);
+	pl_intr = readl(cmac->adapter->regs + A_PL_ENABLE);
 	pl_intr |= F_PL_INTR_EXT;
-	t1_write_reg_4(cmac->adapter, A_PL_ENABLE, pl_intr);
+	writel(pl_intr, cmac->adapter->regs + A_PL_ENABLE);
 	return 0;
 }
 
@@ -242,9 +246,9 @@ static int pm3393_interrupt_clear(struct cmac *cmac)
 
 	/* TERMINATOR - PL_INTERUPTS_EXT
 	 */
-	pl_intr = t1_read_reg_4(cmac->adapter, A_PL_CAUSE);
+	pl_intr = readl(cmac->adapter->regs + A_PL_CAUSE);
 	pl_intr |= F_PL_INTR_EXT;
-	t1_write_reg_4(cmac->adapter, A_PL_CAUSE, pl_intr);
+	writel(pl_intr, cmac->adapter->regs + A_PL_CAUSE);
 
 	return 0;
 }
@@ -261,8 +265,6 @@ static int pm3393_interrupt_handler(struct cmac *cmac)
 	/* Read the master interrupt status register. */
 	pmread(cmac, SUNI1x10GEXP_REG_MASTER_INTERRUPT_STATUS,
 	       &master_intr_status);
-	CH_DBG(cmac->adapter, INTR, "PM3393 intr cause 0x%x\n",
-	       master_intr_status);
 
 	/* TBD XXX Lets just clear everything for now */
 	pm3393_interrupt_clear(cmac);
@@ -703,10 +705,9 @@ static struct cmac *pm3393_mac_create(adapter_t *adapter, int index)
 
 	t1_tpi_write(adapter, OFFSET(0x3040), 0x0c32);	/* # TXXG Config */
 	/* For T1 use timer based Mac flow control. */
-	if (t1_is_T1B(adapter))
-		t1_tpi_write(adapter, OFFSET(0x304d), 0x8000);
+	t1_tpi_write(adapter, OFFSET(0x304d), 0x8000);
 	t1_tpi_write(adapter, OFFSET(0x2040), 0x059c);	/* # RXXG Config */
-	t1_tpi_write(adapter, OFFSET(0x2049), 0x0000);	/* # RXXG Cut Through */
+	t1_tpi_write(adapter, OFFSET(0x2049), 0x0001);	/* # RXXG Cut Through */
 	t1_tpi_write(adapter, OFFSET(0x2070), 0x0000);	/* # Disable promiscuous mode */
 
 	/* Setup Exact Match Filter 0 to allow broadcast packets.
@@ -814,12 +815,6 @@ static int pm3393_mac_reset(adapter_t * adapter)
 
 		successful_reset = (is_pl4_reset_finished && !is_pl4_outof_lock
 				    && is_xaui_mabc_pll_locked);
-
-		CH_DBG(adapter, HW,
-		       "PM3393 HW reset %d: pl4_reset 0x%x, val 0x%x, "
-		       "is_pl4_outof_lock 0x%x, xaui_locked 0x%x\n",
-		       i, is_pl4_reset_finished, val, is_pl4_outof_lock,
-		       is_xaui_mabc_pll_locked);
 	}
 	return successful_reset ? 0 : 1;
 }

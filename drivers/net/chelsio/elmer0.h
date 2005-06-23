@@ -1,8 +1,8 @@
 /*****************************************************************************
  *                                                                           *
  * File: elmer0.h                                                            *
- * $Revision: 1.3 $                                                          *
- * $Date: 2005/03/23 07:15:58 $                                              *
+ * $Revision: 1.6 $                                                          *
+ * $Date: 2005/06/21 22:49:43 $                                              *
  * Description:                                                              *
  *  part of the Chelsio 10Gb Ethernet Driver.                                *
  *                                                                           *
@@ -36,14 +36,8 @@
  *                                                                           *
  ****************************************************************************/
 
-#ifndef CHELSIO_ELMER0_H
-#define CHELSIO_ELMER0_H
-
-/* ELMER0 flavors */
-enum {
-	ELMER0_XC2S300E_6FT256_C,
-	ELMER0_XC2S100E_6TQ144_C
-};
+#ifndef _CXGB_ELMER0_H_
+#define _CXGB_ELMER0_H_
 
 /* ELMER0 registers */
 #define A_ELMER0_VERSION 0x100000
@@ -154,4 +148,4 @@ enum {
 #define MI1_OP_INDIRECT_READ_INC 2
 #define MI1_OP_INDIRECT_READ     3
 
-#endif
+#endif /* _CXGB_ELMER0_H_ */

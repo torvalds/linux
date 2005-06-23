@@ -1,8 +1,8 @@
 /*****************************************************************************
  *                                                                           *
  * File: subr.c                                                              *
- * $Revision: 1.12 $                                                         *
- * $Date: 2005/03/23 07:41:27 $                                              *
+ * $Revision: 1.27 $                                                         *
+ * $Date: 2005/06/22 01:08:36 $                                              *
  * Description:                                                              *
  *  Various subroutines (intr,pio,etc.) used by Chelsio 10G Ethernet driver. *
  *  part of the Chelsio 10Gb Ethernet Driver.                                *
@@ -40,11 +40,9 @@
 #include "common.h"
 #include "elmer0.h"
 #include "regs.h"
-
 #include "gmac.h"
 #include "cphy.h"
 #include "sge.h"
-#include "tp.h"
 #include "espi.h"
 
 /**
@@ -64,7 +62,7 @@ static int t1_wait_op_done(adapter_t *adapter, int reg, u32 mask, int polarity,
 		    int attempts, int delay)
 {
 	while (1) {
-		u32 val = t1_read_reg_4(adapter, reg) & mask;
+		u32 val = readl(adapter->regs + reg) & mask;
 
 		if (!!val == polarity)
 			return 0;
@@ -84,9 +82,9 @@ static int __t1_tpi_write(adapter_t *adapter, u32 addr, u32 value)
 {
 	int tpi_busy;
 
-	t1_write_reg_4(adapter, A_TPI_ADDR, addr);
-	t1_write_reg_4(adapter, A_TPI_WR_DATA, value);
-	t1_write_reg_4(adapter, A_TPI_CSR, F_TPIWR);
+	writel(addr, adapter->regs + A_TPI_ADDR);
+	writel(value, adapter->regs + A_TPI_WR_DATA);
+	writel(F_TPIWR, adapter->regs + A_TPI_CSR);
 
 	tpi_busy = t1_wait_op_done(adapter, A_TPI_CSR, F_TPIRDY, 1,
 				   TPI_ATTEMPTS, 3);
@@ -100,9 +98,9 @@ int t1_tpi_write(adapter_t *adapter, u32 addr, u32 value)
 {
 	int ret;
 
-	TPI_LOCK(adapter);
+	spin_lock(&(adapter)->tpi_lock);
 	ret = __t1_tpi_write(adapter, addr, value);
-	TPI_UNLOCK(adapter);
+	spin_unlock(&(adapter)->tpi_lock);
 	return ret;
 }
 
@@ -113,8 +111,8 @@ static int __t1_tpi_read(adapter_t *adapter, u32 addr, u32 *valp)
 {
 	int tpi_busy;
 
-	t1_write_reg_4(adapter, A_TPI_ADDR, addr);
-	t1_write_reg_4(adapter, A_TPI_CSR, 0);
+	writel(addr, adapter->regs + A_TPI_ADDR);
+	writel(0, adapter->regs + A_TPI_CSR);
 
 	tpi_busy = t1_wait_op_done(adapter, A_TPI_CSR, F_TPIRDY, 1,
 				   TPI_ATTEMPTS, 3);
@@ -122,7 +120,7 @@ static int __t1_tpi_read(adapter_t *adapter, u32 addr, u32 *valp)
 		CH_ALERT("%s: TPI read from 0x%x failed\n",
 			 adapter->name, addr);
 	else
-		*valp = t1_read_reg_4(adapter, A_TPI_RD_DATA);
+		*valp = readl(adapter->regs + A_TPI_RD_DATA);
 	return tpi_busy;
 }
 
@@ -130,18 +128,10 @@ int t1_tpi_read(adapter_t *adapter, u32 addr, u32 *valp)
 {
 	int ret;
 
-	TPI_LOCK(adapter);
+	spin_lock(&(adapter)->tpi_lock);
 	ret = __t1_tpi_read(adapter, addr, valp);
-	TPI_UNLOCK(adapter);
+	spin_unlock(&(adapter)->tpi_lock);
 	return ret;
-}
-
-/*
- * Set a TPI parameter.
- */
-static void t1_tpi_par(adapter_t *adapter, u32 value)
-{
-	t1_write_reg_4(adapter, A_TPI_PAR, V_TPIPAR(value));
 }
 
 /*
@@ -227,7 +217,7 @@ static int mi1_mdio_ext_read(adapter_t *adapter, int phy_addr, int mmd_addr,
 {
 	u32 addr = V_MI1_REG_ADDR(mmd_addr) | V_MI1_PHY_ADDR(phy_addr);
 
-	TPI_LOCK(adapter);
+	spin_lock(&(adapter)->tpi_lock);
 
 	/* Write the address we want. */
 	__t1_tpi_write(adapter, A_ELMER0_PORT0_MI1_ADDR, addr);
@@ -242,7 +232,7 @@ static int mi1_mdio_ext_read(adapter_t *adapter, int phy_addr, int mmd_addr,
 
 	/* Read the data. */
 	__t1_tpi_read(adapter, A_ELMER0_PORT0_MI1_DATA, valp);
-	TPI_UNLOCK(adapter);
+	spin_unlock(&(adapter)->tpi_lock);
 	return 0;
 }
 
@@ -251,7 +241,7 @@ static int mi1_mdio_ext_write(adapter_t *adapter, int phy_addr, int mmd_addr,
 {
 	u32 addr = V_MI1_REG_ADDR(mmd_addr) | V_MI1_PHY_ADDR(phy_addr);
 
-	TPI_LOCK(adapter);
+	spin_lock(&(adapter)->tpi_lock);
 
 	/* Write the address we want. */
 	__t1_tpi_write(adapter, A_ELMER0_PORT0_MI1_ADDR, addr);
@@ -264,7 +254,7 @@ static int mi1_mdio_ext_write(adapter_t *adapter, int phy_addr, int mmd_addr,
 	__t1_tpi_write(adapter, A_ELMER0_PORT0_MI1_DATA, val);
 	__t1_tpi_write(adapter, A_ELMER0_PORT0_MI1_OP, MI1_OP_INDIRECT_WRITE);
 	mi1_wait_until_ready(adapter, A_ELMER0_PORT0_MI1_OP);
-	TPI_UNLOCK(adapter);
+	spin_unlock(&(adapter)->tpi_lock);
 	return 0;
 }
 
@@ -277,7 +267,6 @@ static struct mdio_ops mi1_mdio_ext_ops = {
 enum {
 	CH_BRD_N110_1F,
 	CH_BRD_N210_1F,
-	CH_BRD_T210_1F,
 };
 
 static struct board_info t1_board[] = {
@@ -308,13 +297,15 @@ struct pci_device_id t1_pci_tbl[] = {
 	{ 0, }
 };
 
+MODULE_DEVICE_TABLE(pci, t1_pci_tbl);
+
 /*
  * Return the board_info structure with a given index.  Out-of-range indices
  * return NULL.
  */
 const struct board_info *t1_get_board_info(unsigned int board_id)
 {
-	return board_id < DIMOF(t1_board) ? &t1_board[board_id] : NULL;
+	return board_id < ARRAY_SIZE(t1_board) ? &t1_board[board_id] : NULL;
 }
 
 struct chelsio_vpd_t {
@@ -436,7 +427,6 @@ int elmer0_ext_intr_handler(adapter_t *adapter)
 	t1_tpi_read(adapter, A_ELMER0_INT_CAUSE, &cause);
 
 	switch (board_info(adapter)->board) {
-	case CHBT_BOARD_CHT210:
 	case CHBT_BOARD_N210:
 	case CHBT_BOARD_N110:
 		if (cause & ELMER0_GP_BIT6) { /* Marvell 88x2010 interrupt */
@@ -445,23 +435,6 @@ int elmer0_ext_intr_handler(adapter_t *adapter)
 			if (phy_cause & cphy_cause_link_change)
 				link_changed(adapter, 0);
 		}
-		break;
-	case CHBT_BOARD_8000:
-	case CHBT_BOARD_CHT110:
-    		CH_DBG(adapter, INTR, "External interrupt cause 0x%x\n",
-		       cause);
-		if (cause & ELMER0_GP_BIT1) {        /* PMC3393 INTB */
-			struct cmac *mac = adapter->port[0].mac;
-
-			mac->ops->interrupt_handler(mac);
-		}
-		if (cause & ELMER0_GP_BIT5) {        /* XPAK MOD_DETECT */
-			u32 mod_detect;
-
-			t1_tpi_read(adapter, A_ELMER0_GPI_STAT, &mod_detect);
-	    		CH_MSG(adapter, INFO, LINK, "XPAK %s\n",
-			       mod_detect ? "removed" : "inserted");
-    		}
 		break;
 	}
 	t1_tpi_write(adapter, A_ELMER0_INT_CAUSE, cause);
@@ -472,11 +445,11 @@ int elmer0_ext_intr_handler(adapter_t *adapter)
 void t1_interrupts_enable(adapter_t *adapter)
 {
 	unsigned int i;
+	u32 pl_intr;
 
-	adapter->slow_intr_mask = F_PL_INTR_SGE_ERR | F_PL_INTR_TP;
+	adapter->slow_intr_mask = F_PL_INTR_SGE_ERR;
 
 	t1_sge_intr_enable(adapter->sge);
-	t1_tp_intr_enable(adapter->tp);
 	if (adapter->espi) {
 		adapter->slow_intr_mask |= F_PL_INTR_ESPI;
 		t1_espi_intr_enable(adapter->espi);
@@ -489,17 +462,15 @@ void t1_interrupts_enable(adapter_t *adapter)
 	}
 
 	/* Enable PCIX & external chip interrupts on ASIC boards. */
-	if (t1_is_asic(adapter)) {
-		u32 pl_intr = t1_read_reg_4(adapter, A_PL_ENABLE);
+	pl_intr = readl(adapter->regs + A_PL_ENABLE);
 
-		/* PCI-X interrupts */
-		pci_write_config_dword(adapter->pdev, A_PCICFG_INTR_ENABLE,
-					 0xffffffff);
+	/* PCI-X interrupts */
+	pci_write_config_dword(adapter->pdev, A_PCICFG_INTR_ENABLE,
+			       0xffffffff);
 
-		adapter->slow_intr_mask |= F_PL_INTR_EXT | F_PL_INTR_PCIX;
-		pl_intr |= F_PL_INTR_EXT | F_PL_INTR_PCIX;
-	    	t1_write_reg_4(adapter, A_PL_ENABLE, pl_intr);
-	}
+	adapter->slow_intr_mask |= F_PL_INTR_EXT | F_PL_INTR_PCIX;
+	pl_intr |= F_PL_INTR_EXT | F_PL_INTR_PCIX;
+	writel(pl_intr, adapter->regs + A_PL_ENABLE);
 }
 
 /* Disables all interrupts. */
@@ -508,7 +479,6 @@ void t1_interrupts_disable(adapter_t* adapter)
 	unsigned int i;
 
 	t1_sge_intr_disable(adapter->sge);
-	t1_tp_intr_disable(adapter->tp);
 	if (adapter->espi)
 		t1_espi_intr_disable(adapter->espi);
 
@@ -519,8 +489,7 @@ void t1_interrupts_disable(adapter_t* adapter)
 	}
 
 	/* Disable PCIX & external chip interrupts. */
-	if (t1_is_asic(adapter))
-	    	t1_write_reg_4(adapter, A_PL_ENABLE, 0);
+	writel(0, adapter->regs + A_PL_ENABLE);
 
 	/* PCI-X interrupts */
 	pci_write_config_dword(adapter->pdev, A_PCICFG_INTR_ENABLE, 0);
@@ -532,9 +501,10 @@ void t1_interrupts_disable(adapter_t* adapter)
 void t1_interrupts_clear(adapter_t* adapter)
 {
 	unsigned int i;
+	u32 pl_intr;
+
 
 	t1_sge_intr_clear(adapter->sge);
-	t1_tp_intr_clear(adapter->tp);
 	if (adapter->espi)
 		t1_espi_intr_clear(adapter->espi);
 
@@ -545,12 +515,10 @@ void t1_interrupts_clear(adapter_t* adapter)
 	}
 
 	/* Enable interrupts for external devices. */
-	if (t1_is_asic(adapter)) {
-	    	u32 pl_intr = t1_read_reg_4(adapter, A_PL_CAUSE);
+    	pl_intr = readl(adapter->regs + A_PL_CAUSE);
 
-	    	t1_write_reg_4(adapter, A_PL_CAUSE,
-			       pl_intr | F_PL_INTR_EXT | F_PL_INTR_PCIX);
-	}
+	writel(pl_intr | F_PL_INTR_EXT | F_PL_INTR_PCIX,
+	       adapter->regs + A_PL_CAUSE);
 
 	/* PCI-X interrupts */
 	pci_write_config_dword(adapter->pdev, A_PCICFG_INTR_CAUSE, 0xffffffff);
@@ -559,17 +527,15 @@ void t1_interrupts_clear(adapter_t* adapter)
 /*
  * Slow path interrupt handler for ASICs.
  */
-static int asic_slow_intr(adapter_t *adapter)
+int t1_slow_intr_handler(adapter_t *adapter)
 {
-	u32 cause = t1_read_reg_4(adapter, A_PL_CAUSE);
+	u32 cause = readl(adapter->regs + A_PL_CAUSE);
 
 	cause &= adapter->slow_intr_mask;
 	if (!cause)
 		return 0;
 	if (cause & F_PL_INTR_SGE_ERR)
 		t1_sge_intr_error_handler(adapter->sge);
-	if (cause & F_PL_INTR_TP)
-		t1_tp_intr_handler(adapter->tp);
 	if (cause & F_PL_INTR_ESPI)
 		t1_espi_intr_handler(adapter->espi);
 	if (cause & F_PL_INTR_PCIX)
@@ -578,41 +544,82 @@ static int asic_slow_intr(adapter_t *adapter)
 		t1_elmer0_ext_intr(adapter);
 
 	/* Clear the interrupts just processed. */
-	t1_write_reg_4(adapter, A_PL_CAUSE, cause);
-	(void)t1_read_reg_4(adapter, A_PL_CAUSE); /* flush writes */
+	writel(cause, adapter->regs + A_PL_CAUSE);
+	(void)readl(adapter->regs + A_PL_CAUSE); /* flush writes */
 	return 1;
 }
 
-int t1_slow_intr_handler(adapter_t *adapter)
+/* Pause deadlock avoidance parameters */
+#define DROP_MSEC 16
+#define DROP_PKTS_CNT  1
+
+static void set_csum_offload(adapter_t *adapter, u32 csum_bit, int enable)
 {
-	return asic_slow_intr(adapter);
+	u32 val = readl(adapter->regs + A_TP_GLOBAL_CONFIG);
+
+	if (enable)
+		val |= csum_bit;
+	else
+		val &= ~csum_bit;
+	writel(val, adapter->regs + A_TP_GLOBAL_CONFIG);
 }
 
-/* Power sequencing is a work-around for Intel's XPAKs. */
-static void power_sequence_xpak(adapter_t* adapter)
+void t1_tp_set_ip_checksum_offload(adapter_t *adapter, int enable)
 {
-    	u32 mod_detect;
-    	u32 gpo;
+	set_csum_offload(adapter, F_IP_CSUM, enable);
+}
 
-    	/* Check for XPAK */
-    	t1_tpi_read(adapter, A_ELMER0_GPI_STAT, &mod_detect);
-	if (!(ELMER0_GP_BIT5 & mod_detect)) {
-		/* XPAK is present */
-		t1_tpi_read(adapter, A_ELMER0_GPO, &gpo);
-		gpo |= ELMER0_GP_BIT18;
-		t1_tpi_write(adapter, A_ELMER0_GPO, gpo);
+void t1_tp_set_udp_checksum_offload(adapter_t *adapter, int enable)
+{
+	set_csum_offload(adapter, F_UDP_CSUM, enable);
+}
+
+void t1_tp_set_tcp_checksum_offload(adapter_t *adapter, int enable)
+{
+	set_csum_offload(adapter, F_TCP_CSUM, enable);
+}
+
+static void t1_tp_reset(adapter_t *adapter, unsigned int tp_clk)
+{
+	u32 val;
+
+	val = F_TP_IN_CSPI_CPL | F_TP_IN_CSPI_CHECK_IP_CSUM |
+	      F_TP_IN_CSPI_CHECK_TCP_CSUM | F_TP_IN_ESPI_ETHERNET;
+	val |= F_TP_IN_ESPI_CHECK_IP_CSUM |
+	       F_TP_IN_ESPI_CHECK_TCP_CSUM;
+	writel(val, adapter->regs + A_TP_IN_CONFIG);
+	writel(F_TP_OUT_CSPI_CPL |
+	       F_TP_OUT_ESPI_ETHERNET |
+	       F_TP_OUT_ESPI_GENERATE_IP_CSUM |
+	       F_TP_OUT_ESPI_GENERATE_TCP_CSUM,
+	       adapter->regs + A_TP_OUT_CONFIG);
+
+	val = readl(adapter->regs + A_TP_GLOBAL_CONFIG);
+	val &= ~(F_IP_CSUM | F_UDP_CSUM | F_TCP_CSUM);
+	writel(val, adapter->regs + A_TP_GLOBAL_CONFIG);
+
+	/*
+	 * Enable pause frame deadlock prevention.
+	 */
+	if (is_T2(adapter)) {
+		u32 drop_ticks = DROP_MSEC * (tp_clk / 1000);
+
+		writel(F_ENABLE_TX_DROP | F_ENABLE_TX_ERROR |
+		       V_DROP_TICKS_CNT(drop_ticks) |
+		       V_NUM_PKTS_DROPPED(DROP_PKTS_CNT),
+		       adapter->regs + A_TP_TX_DROP_CONFIG);
 	}
+
+	writel(F_TP_RESET, adapter->regs + A_TP_RESET);
 }
 
 int __devinit t1_get_board_rev(adapter_t *adapter, const struct board_info *bi,
 			       struct adapter_params *p)
 {
 	p->chip_version = bi->chip_term;
-	p->is_asic = (p->chip_version != CHBT_TERM_FPGA);
 	if (p->chip_version == CHBT_TERM_T1 ||
-	    p->chip_version == CHBT_TERM_T2 ||
-	    p->chip_version == CHBT_TERM_FPGA) {
-		u32 val = t1_read_reg_4(adapter, A_TP_PC_CONFIG);
+	    p->chip_version == CHBT_TERM_T2) {
+		u32 val = readl(adapter->regs + A_TP_PC_CONFIG);
 
 		val = G_TP_PC_REV(val);
 		if (val == 2)
@@ -633,22 +640,10 @@ int __devinit t1_get_board_rev(adapter_t *adapter, const struct board_info *bi,
 static int board_init(adapter_t *adapter, const struct board_info *bi)
 {
 	switch (bi->board) {
-	case CHBT_BOARD_8000:
 	case CHBT_BOARD_N110:
 	case CHBT_BOARD_N210:
-	case CHBT_BOARD_CHT210:
-	case CHBT_BOARD_COUGAR:
-    		t1_tpi_par(adapter, 0xf);
+		writel(V_TPIPAR(0xf), adapter->regs + A_TPI_PAR);
     		t1_tpi_write(adapter, A_ELMER0_GPO, 0x800);
-		break;
-	case CHBT_BOARD_CHT110:
-    		t1_tpi_par(adapter, 0xf);
-    		t1_tpi_write(adapter, A_ELMER0_GPO, 0x1800);
-
-    		/* TBD XXX Might not need.  This fixes a problem
-     		 *         described in the Intel SR XPAK errata.
-     		 */
-    		power_sequence_xpak(adapter);
 		break;
 	}
 	return 0;
@@ -663,20 +658,19 @@ int t1_init_hw_modules(adapter_t *adapter)
 	int err = -EIO;
 	const struct board_info *bi = board_info(adapter);
 
-	if (!adapter->mc4) {
-		u32 val = t1_read_reg_4(adapter, A_MC4_CFG);
+	if (!bi->clock_mc4) {
+		u32 val = readl(adapter->regs + A_MC4_CFG);
 
-		t1_write_reg_4(adapter, A_MC4_CFG, val | F_READY | F_MC4_SLOW);
-		t1_write_reg_4(adapter, A_MC5_CONFIG,
-			       F_M_BUS_ENABLE | F_TCAM_RESET);
+		writel(val | F_READY | F_MC4_SLOW, adapter->regs + A_MC4_CFG);
+		writel(F_M_BUS_ENABLE | F_TCAM_RESET,
+		       adapter->regs + A_MC5_CONFIG);
 	}
 
 	if (adapter->espi && t1_espi_init(adapter->espi, bi->chip_mac,
 					  bi->espi_nports))
 		goto out_err;
 
-	if (t1_tp_reset(adapter->tp, &adapter->params.tp, bi->clock_core))
-		goto out_err;
+	t1_tp_reset(adapter, bi->clock_core);
 
 	err = t1_sge_configure(adapter->sge, &adapter->params.sge);
 	if (err)
@@ -690,7 +684,7 @@ int t1_init_hw_modules(adapter_t *adapter)
 /*
  * Determine a card's PCI mode.
  */
-static void __devinit get_pci_mode(adapter_t *adapter, struct pci_params *p)
+static void __devinit get_pci_mode(adapter_t *adapter, struct chelsio_pci_params *p)
 {
 	static unsigned short speed_map[] = { 33, 66, 100, 133 };
 	u32 pci_mode;
@@ -720,8 +714,6 @@ void t1_free_sw_modules(adapter_t *adapter)
 
 	if (adapter->sge)
 		t1_sge_destroy(adapter->sge);
-	if (adapter->tp)
-		t1_tp_destroy(adapter->tp);
 	if (adapter->espi)
 		t1_espi_destroy(adapter->espi);
 }
@@ -764,17 +756,8 @@ int __devinit t1_init_sw_modules(adapter_t *adapter,
 		goto error;
 	}
 
-
-
 	if (bi->espi_nports && !(adapter->espi = t1_espi_create(adapter))) {
 		CH_ERR("%s: ESPI initialization failed\n",
-		       adapter->name);
-		goto error;
-	}
-
-	adapter->tp = t1_tp_create(adapter, &adapter->params.tp);
-	if (!adapter->tp) {
-		CH_ERR("%s: TP initialization failed\n",
 		       adapter->name);
 		goto error;
 	}
@@ -810,14 +793,12 @@ int __devinit t1_init_sw_modules(adapter_t *adapter,
 		 * Get the port's MAC addresses either from the EEPROM if one
 		 * exists or the one hardcoded in the MAC.
 		 */
-		if (!t1_is_asic(adapter) || bi->chip_mac == CHBT_MAC_DUMMY)
-			mac->ops->macaddress_get(mac, hw_addr);
-		else if (vpd_macaddress_get(adapter, i, hw_addr)) {
+		if (vpd_macaddress_get(adapter, i, hw_addr)) {
 			CH_ERR("%s: could not read MAC address from VPD ROM\n",
-			       port_name(adapter, i));
+			       adapter->port[i].dev->name);
 			goto error;
 		}
-		t1_set_hw_addr(adapter, i, hw_addr);
+		memcpy(adapter->port[i].dev->dev_addr, hw_addr, ETH_ALEN);
 		init_link_config(&adapter->port[i].link_config, bi);
 	}
 

@@ -1,8 +1,8 @@
 /*****************************************************************************
  *                                                                           *
  * File: espi.h                                                              *
- * $Revision: 1.4 $                                                          *
- * $Date: 2005/03/23 07:15:58 $                                              *
+ * $Revision: 1.7 $                                                          *
+ * $Date: 2005/06/21 18:29:47 $                                              *
  * Description:                                                              *
  *  part of the Chelsio 10Gb Ethernet Driver.                                *
  *                                                                           *
@@ -36,8 +36,8 @@
  *                                                                           *
  ****************************************************************************/
 
-#ifndef CHELSIO_ESPI_H
-#define CHELSIO_ESPI_H
+#ifndef _CXGB_ESPI_H_
+#define _CXGB_ESPI_H_
 
 #include "common.h"
 
@@ -60,8 +60,9 @@ void t1_espi_intr_enable(struct peespi *);
 void t1_espi_intr_clear(struct peespi *);
 void t1_espi_intr_disable(struct peespi *);
 int t1_espi_intr_handler(struct peespi *);
+const struct espi_intr_counts *t1_espi_get_intr_counts(struct peespi *espi);
 
 void t1_espi_set_misc_ctrl(adapter_t *adapter, u32 val);
 u32 t1_espi_get_mon(adapter_t *adapter, u32 addr, u8 wait);
 
-#endif
+#endif /* _CXGB_ESPI_H_ */

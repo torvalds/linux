@@ -1,8 +1,8 @@
 /*****************************************************************************
  *                                                                           *
  * File: suni1x10gexp_regs.h                                                 *
- * $Revision: 1.4 $                                                          *
- * $Date: 2005/03/23 07:15:59 $                                              *
+ * $Revision: 1.9 $                                                          *
+ * $Date: 2005/06/22 00:17:04 $                                              *
  * Description:                                                              *
  *  PMC/SIERRA (pm3393) MAC-PHY functionality.                               *
  *  part of the Chelsio 10Gb Ethernet Driver.                                *
@@ -21,24 +21,16 @@
  *                                                                           *
  * http://www.chelsio.com                                                    *
  *                                                                           *
- * Copyright (c) 2003 - 2005 Chelsio Communications, Inc.                    *
- * All rights reserved.                                                      *
- *                                                                           *
  * Maintainers: maintainers@chelsio.com                                      *
  *                                                                           *
- * Authors: Dimitrios Michailidis   <dm@chelsio.com>                         *
- *          Tina Yang               <tainay@chelsio.com>                     *
- *          Felix Marti             <felix@chelsio.com>                      *
- *          Scott Bardone           <sbardone@chelsio.com>                   *
- *          Kurt Ottaway            <kottaway@chelsio.com>                   *
- *          Frank DiMambro          <frank@chelsio.com>                      *
+ * Authors: PMC/SIERRA                                                       *
  *                                                                           *
  * History:                                                                  *
  *                                                                           *
  ****************************************************************************/
 
-#ifndef _SUNI1x10GEXP_REGS_H
-#define _SUNI1x10GEXP_REGS_H
+#ifndef _CXGB_SUNI1x10GEXP_REGS_H_
+#define _CXGB_SUNI1x10GEXP_REGS_H_
 
 /******************************************************************************/
 /** S/UNI-1x10GE-XP REGISTER ADDRESS MAP                                     **/
@@ -217,5 +209,5 @@
 #define SUNI1x10GEXP_BITMSK_TXXG_FCRX         0x0004
 #define SUNI1x10GEXP_BITMSK_TXXG_PADEN        0x0002
 
-#endif /* _SUNI1x10GEXP_REGS_H */
+#endif /* _CXGB_SUNI1x10GEXP_REGS_H_ */
 

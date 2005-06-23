@@ -1,8 +1,8 @@
 /*****************************************************************************
  *                                                                           *
  * File: cphy.h                                                              *
- * $Revision: 1.4 $                                                          *
- * $Date: 2005/03/23 07:41:27 $                                              *
+ * $Revision: 1.7 $                                                          *
+ * $Date: 2005/06/21 18:29:47 $                                              *
  * Description:                                                              *
  *  part of the Chelsio 10Gb Ethernet Driver.                                *
  *                                                                           *
@@ -36,8 +36,8 @@
  *                                                                           *
  ****************************************************************************/
 
-#ifndef CHELSIO_CPHY_H
-#define CHELSIO_CPHY_H
+#ifndef _CXGB_CPHY_H_
+#define _CXGB_CPHY_H_
 
 #include "common.h"
 
@@ -142,9 +142,7 @@ struct gphy {
 	int (*reset)(adapter_t *adapter);
 };
 
-extern struct gphy t1_my3126_ops;
-extern struct gphy t1_mv88e1xxx_ops;
-extern struct gphy t1_xpak_ops;
 extern struct gphy t1_mv88x201x_ops;
 extern struct gphy t1_dummy_phy_ops;
-#endif
+
+#endif /* _CXGB_CPHY_H_ */

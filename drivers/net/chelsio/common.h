@@ -1,8 +1,8 @@
 /*****************************************************************************
  *                                                                           *
  * File: common.h                                                            *
- * $Revision: 1.5 $                                                          *
- * $Date: 2005/03/23 07:41:27 $                                              *
+ * $Revision: 1.21 $                                                         *
+ * $Date: 2005/06/22 00:43:25 $                                              *
  * Description:                                                              *
  *  part of the Chelsio 10Gb Ethernet Driver.                                *
  *                                                                           *
@@ -36,74 +36,101 @@
  *                                                                           *
  ****************************************************************************/
 
-#ifndef CHELSIO_COMMON_H
-#define CHELSIO_COMMON_H
+#ifndef _CXGB_COMMON_H_
+#define _CXGB_COMMON_H_
 
-#define DIMOF(x) (sizeof(x)/sizeof(x[0]))
+#include <linux/config.h>
+#include <linux/module.h>
+#include <linux/netdevice.h>
+#include <linux/types.h>
+#include <linux/delay.h>
+#include <linux/pci.h>
+#include <linux/ethtool.h>
+#include <linux/mii.h>
+#include <linux/crc32.h>
+#include <linux/init.h>
+#include <asm/io.h>
+#include <linux/pci_ids.h>
 
-#define NMTUS      8
-#define MAX_NPORTS 4
-#define TCB_SIZE   128
+#define DRV_DESCRIPTION "Chelsio 10Gb Ethernet Driver"
+#define DRV_NAME "cxgb"
+#define DRV_VERSION "2.1.1"
+#define PFX      DRV_NAME ": "
+
+#define CH_ERR(fmt, ...)   printk(KERN_ERR PFX fmt, ## __VA_ARGS__)
+#define CH_WARN(fmt, ...)  printk(KERN_WARNING PFX fmt, ## __VA_ARGS__)
+#define CH_ALERT(fmt, ...) printk(KERN_ALERT PFX fmt, ## __VA_ARGS__)
+
+#define CH_DEVICE(devid, ssid, idx) \
+	{ PCI_VENDOR_ID_CHELSIO, devid, PCI_ANY_ID, ssid, 0, 0, idx }
+
+#define SUPPORTED_PAUSE       (1 << 13)
+#define SUPPORTED_LOOPBACK    (1 << 15)
+
+#define ADVERTISED_PAUSE      (1 << 13)
+#define ADVERTISED_ASYM_PAUSE (1 << 14)
+
+typedef struct adapter adapter_t;
+
+void t1_elmer0_ext_intr(adapter_t *adapter);
+void t1_link_changed(adapter_t *adapter, int port_id, int link_status,
+			int speed, int duplex, int fc);
+
+struct t1_rx_mode {
+	struct net_device *dev;
+	u32 idx;
+	struct dev_mc_list *list;
+};
+
+#define t1_rx_mode_promisc(rm)	(rm->dev->flags & IFF_PROMISC)
+#define t1_rx_mode_allmulti(rm)	(rm->dev->flags & IFF_ALLMULTI)
+#define t1_rx_mode_mc_cnt(rm)	(rm->dev->mc_count)
+
+static inline u8 *t1_get_next_mcaddr(struct t1_rx_mode *rm)
+{
+	u8 *addr = 0;
+
+	if (rm->idx++ < rm->dev->mc_count) {
+		addr = rm->list->dmi_addr;
+		rm->list = rm->list->next;
+	}
+	return addr;
+}
+
+#define	MAX_NPORTS 4
+
+#define SPEED_INVALID 0xffff
+#define DUPLEX_INVALID 0xff
 
 enum {
-	CHBT_BOARD_7500,
-	CHBT_BOARD_8000,
-	CHBT_BOARD_CHT101,
-	CHBT_BOARD_CHT110,
-	CHBT_BOARD_CHT210,
-	CHBT_BOARD_CHT204,
 	CHBT_BOARD_N110,
-	CHBT_BOARD_N210,
-	CHBT_BOARD_COUGAR,
-	CHBT_BOARD_6800,
-	CHBT_BOARD_SIMUL
+	CHBT_BOARD_N210
 };
 
 enum {
-	CHBT_TERM_FPGA,
 	CHBT_TERM_T1,
-	CHBT_TERM_T2,
-	CHBT_TERM_T3
+	CHBT_TERM_T2
 };
 
 enum {
-	CHBT_MAC_CHELSIO_A,
-	CHBT_MAC_IXF1010,
 	CHBT_MAC_PM3393,
-	CHBT_MAC_VSC7321,
-	CHBT_MAC_DUMMY
 };
 
 enum {
-	CHBT_PHY_88E1041,
-	CHBT_PHY_88E1111,
 	CHBT_PHY_88X2010,
-	CHBT_PHY_XPAK,
-	CHBT_PHY_MY3126,
-	CHBT_PHY_DUMMY
 };
 
 enum {
-	PAUSE_RX = 1,
-	PAUSE_TX = 2,
-	PAUSE_AUTONEG = 4
+	PAUSE_RX      = 1 << 0,
+	PAUSE_TX      = 1 << 1,
+	PAUSE_AUTONEG = 1 << 2
 };
 
 /* Revisions of T1 chip */
-#define TERM_T1A     0
-#define TERM_T1B     1
-#define TERM_T2      3
-
-struct tp_params {
-	unsigned int pm_size;
-	unsigned int cm_size;
-	unsigned int pm_rx_base;
-	unsigned int pm_tx_base;
-	unsigned int pm_rx_pg_size;
-	unsigned int pm_tx_pg_size;
-	unsigned int pm_rx_num_pgs;
-	unsigned int pm_tx_num_pgs;
-	unsigned int use_5tuple_mode;
+enum {
+	TERM_T1A   = 0,
+	TERM_T1B   = 1,
+	TERM_T2    = 3
 };
 
 struct sge_params {
@@ -118,17 +145,7 @@ struct sge_params {
 	unsigned int polling;
 };
 
-struct mc5_params {
-	unsigned int mode;	/* selects MC5 width */
-	unsigned int nservers;	/* size of server region */
-	unsigned int nroutes;	/* size of routing region */
-};
-
-/* Default MC5 region sizes */
-#define DEFAULT_SERVER_REGION_LEN 256
-#define DEFAULT_RT_REGION_LEN 1024
-
-struct pci_params {
+struct chelsio_pci_params {
 	unsigned short speed;
 	unsigned char  width;
 	unsigned char  is_pcix;
@@ -136,31 +153,14 @@ struct pci_params {
 
 struct adapter_params {
 	struct sge_params sge;
-	struct mc5_params mc5;
-	struct tp_params  tp;
-	struct pci_params pci;
+	struct chelsio_pci_params pci;
 
 	const struct board_info *brd_info;
 
-	unsigned short mtus[NMTUS];
-	unsigned int   nports;         /* # of ethernet ports */
+	unsigned int   nports;          /* # of ethernet ports */
 	unsigned int   stats_update_period;
 	unsigned short chip_revision;
 	unsigned char  chip_version;
-	unsigned char  is_asic;
-};
-
-struct pci_err_cnt {
-	unsigned int master_parity_err;
-	unsigned int sig_target_abort;
-	unsigned int rcv_target_abort;
-	unsigned int rcv_master_abort;
-	unsigned int sig_sys_err;
-	unsigned int det_parity_err;
-	unsigned int pio_parity_err;
-	unsigned int wf_parity_err;
-	unsigned int rf_parity_err;
-	unsigned int cf_parity_err;
 };
 
 struct link_config {
@@ -175,8 +175,60 @@ struct link_config {
 	unsigned char  autoneg;          /* autonegotiating? */
 };
 
-#define SPEED_INVALID   0xffff
-#define DUPLEX_INVALID  0xff
+struct cmac;
+struct cphy;
+
+struct port_info {
+	struct net_device *dev;
+	struct cmac *mac;
+	struct cphy *phy;
+	struct link_config link_config;
+	struct net_device_stats netstats;
+};
+
+struct sge;
+struct peespi;
+
+struct adapter {
+	u8 *regs;
+	struct pci_dev *pdev;
+	unsigned long registered_device_map;
+	unsigned long open_device_map;
+	unsigned long flags;
+
+	const char *name;
+	int msg_enable;
+	u32 mmio_len;
+
+	struct work_struct ext_intr_handler_task;
+	struct adapter_params params;
+
+	struct vlan_group *vlan_grp;
+
+	/* Terminator modules. */
+	struct sge    *sge;
+	struct peespi *espi;
+
+	struct port_info port[MAX_NPORTS];
+	struct work_struct stats_update_task;
+	struct timer_list stats_update_timer;
+
+	struct semaphore mib_mutex;
+	spinlock_t tpi_lock;
+	spinlock_t work_lock;
+	/* guards async operations */
+	spinlock_t async_lock ____cacheline_aligned;
+	u32 slow_intr_mask;
+};
+
+enum {                                           /* adapter flags */
+	FULL_INIT_DONE        = 1 << 0,
+	TSO_CAPABLE           = 1 << 2,
+	TCP_CSUM_CAPABLE      = 1 << 3,
+	UDP_CSUM_CAPABLE      = 1 << 4,
+	VLAN_ACCEL_CAPABLE    = 1 << 5,
+	RX_CSUM_ENABLED       = 1 << 6,
+};
 
 struct mdio_ops;
 struct gmac;
@@ -205,18 +257,7 @@ struct board_info {
 	const char             *desc;
 };
 
-#include "osdep.h"
-
-#ifndef PCI_VENDOR_ID_CHELSIO
-#define PCI_VENDOR_ID_CHELSIO 0x1425
-#endif
-
 extern struct pci_device_id t1_pci_tbl[];
-
-static inline int t1_is_asic(const adapter_t *adapter)
-{
-	return adapter->params.is_asic;
-}
 
 static inline int adapter_matches_type(const adapter_t *adapter,
 				       int version, int revision)
@@ -245,25 +286,29 @@ static inline unsigned int core_ticks_per_usec(const adapter_t *adap)
 	return board_info(adap)->clock_core / 1000000;
 }
 
-int t1_tpi_write(adapter_t *adapter, u32 addr, u32 value);
-int t1_tpi_read(adapter_t *adapter, u32 addr, u32 *value);
+extern int t1_tpi_write(adapter_t *adapter, u32 addr, u32 value);
+extern int t1_tpi_read(adapter_t *adapter, u32 addr, u32 *value);
 
-void t1_interrupts_enable(adapter_t *adapter);
-void t1_interrupts_disable(adapter_t *adapter);
-void t1_interrupts_clear(adapter_t *adapter);
-int elmer0_ext_intr_handler(adapter_t *adapter);
-int t1_slow_intr_handler(adapter_t *adapter);
+extern void t1_interrupts_enable(adapter_t *adapter);
+extern void t1_interrupts_disable(adapter_t *adapter);
+extern void t1_interrupts_clear(adapter_t *adapter);
+extern int elmer0_ext_intr_handler(adapter_t *adapter);
+extern int t1_slow_intr_handler(adapter_t *adapter);
 
-int t1_link_start(struct cphy *phy, struct cmac *mac, struct link_config *lc);
-const struct board_info *t1_get_board_info(unsigned int board_id);
-const struct board_info *t1_get_board_info_from_ids(unsigned int devid,
+extern int t1_link_start(struct cphy *phy, struct cmac *mac, struct link_config *lc);
+extern const struct board_info *t1_get_board_info(unsigned int board_id);
+extern const struct board_info *t1_get_board_info_from_ids(unsigned int devid,
 						    unsigned short ssid);
-int t1_seeprom_read(adapter_t *adapter, u32 addr, u32 *data);
-int t1_get_board_rev(adapter_t *adapter, const struct board_info *bi,
+extern int t1_seeprom_read(adapter_t *adapter, u32 addr, u32 *data);
+extern int t1_get_board_rev(adapter_t *adapter, const struct board_info *bi,
 		     struct adapter_params *p);
-int t1_init_hw_modules(adapter_t *adapter);
-int t1_init_sw_modules(adapter_t *adapter, const struct board_info *bi);
-void t1_free_sw_modules(adapter_t *adapter);
-void t1_fatal_err(adapter_t *adapter);
-#endif
+extern int t1_init_hw_modules(adapter_t *adapter);
+extern int t1_init_sw_modules(adapter_t *adapter, const struct board_info *bi);
+extern void t1_free_sw_modules(adapter_t *adapter);
+extern void t1_fatal_err(adapter_t *adapter);
 
+extern void t1_tp_set_udp_checksum_offload(adapter_t *adapter, int enable);
+extern void t1_tp_set_tcp_checksum_offload(adapter_t *adapter, int enable);
+extern void t1_tp_set_ip_checksum_offload(adapter_t *adapter, int enable);
+
+#endif /* _CXGB_COMMON_H_ */

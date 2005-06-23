@@ -2,9 +2,9 @@
 
                          Driver Release Notes for Linux
 
-                                 Version 2.1.0
+                                 Version 2.1.1
 
-                                 March 8, 2005
+                                 June 20, 2005
 
 CONTENTS
 ========
@@ -21,8 +21,7 @@ INTRODUCTION
 
  This document describes the Linux driver for Chelsio 10Gb Ethernet Network
  Controller. This driver supports the Chelsio N210 NIC and is backward
- compatible with the Chelsio N110 model 10Gb NICs. This driver supports AMD64
- and EM64T, and x86 systems.
+ compatible with the Chelsio N110 model 10Gb NICs.
 
 
 FEATURES
@@ -121,23 +120,17 @@ PERFORMANCE
   Disabling SACK:
       sysctl -w net.ipv4.tcp_sack=0
 
-  Setting TCP read buffers (min/default/max):
-      sysctl -w net.ipv4.tcp_rmem="10000000 10000000 10000000"
-
-  Setting TCP write buffers (min/pressure/max):
-      sysctl -w net.ipv4.tcp_wmem="10000000 10000000 10000000"
-
-  Setting TCP buffer space (min/pressure/max):
-      sysctl -w net.ipv4.tcp_mem="10000000 10000000 10000000"
-
-  Setting large number of incoming connection requests (2.6.x only):
+  Setting large number of incoming connection requests:
       sysctl -w net.ipv4.tcp_max_syn_backlog=3000
 
   Setting maximum receive socket buffer size:
-      sysctl -w net.core.rmem_max=524287
+      sysctl -w net.core.rmem_max=1024000
 
   Setting maximum send socket buffer size:
-      sysctl -w net.core.wmem_max=524287
+      sysctl -w net.core.wmem_max=1024000
+
+  Set smp_affinity (on a multiprocessor system) to a single CPU:
+      echo 1 > /proc/irq/<interrupt_number>/smp_affinity
 
   Setting default receive socket buffer size:
       sysctl -w net.core.rmem_default=524287
@@ -151,8 +144,14 @@ PERFORMANCE
   Setting maximum backlog (# of unprocessed packets before kernel drops):
       sysctl -w net.core.netdev_max_backlog=300000
 
-  Set smp_affinity (on a multiprocessor system) to a single CPU:
-      echo 00000001 > /proc/irq/<interrupt_number>/smp_affinity
+  Setting TCP read buffers (min/default/max):
+      sysctl -w net.ipv4.tcp_rmem="10000000 10000000 10000000"
+
+  Setting TCP write buffers (min/pressure/max):
+      sysctl -w net.ipv4.tcp_wmem="10000000 10000000 10000000"
+
+  Setting TCP buffer space (min/pressure/max):
+      sysctl -w net.ipv4.tcp_mem="10000000 10000000 10000000"
 
   TCP window size for single connections:
    The receive buffer (RX_WINDOW) size must be at least as large as the
@@ -186,7 +185,7 @@ DRIVER MESSAGES
  may be found in /var/log/messages.
 
   Driver up:
-     Chelsio Network Driver - version 2.1.0
+     Chelsio Network Driver - version 2.1.1
 
   NIC detected:
      eth#: Chelsio N210 1x10GBaseX NIC (rev #), PCIX 133MHz/64-bit
@@ -282,12 +281,43 @@ KNOWN ISSUES
         the number of outstanding transactions, via BIOS configuration
         programming of the PCI-X card, to the following:
 
-           Data Length (bytes): 2k
-           Total allowed outstanding transactions: 1
+           Data Length (bytes): 1k
+           Total allowed outstanding transactions: 2
 
       Please refer to AMD 8131-HT/PCI-X Errata 26310 Rev 3.08 August 2004,
       section 56, "133-MHz Mode Split Completion Data Corruption" for more
       details with this bug and workarounds suggested by AMD.
+
+      It may be possible to work outside AMD's recommended PCI-X settings, try
+      increasing the Data Length to 2k bytes for increased performance. If you
+      have issues with these settings, please revert to the "safe" settings
+      and duplicate the problem before submitting a bug or asking for support.
+
+      NOTE: The default setting on most systems is 8 outstanding transactions
+            and 2k bytes data length.
+
+  4. On multiprocessor systems, it has been noted that an application which
+     is handling 10Gb networking can switch between CPUs causing degraded
+     and/or unstable performance.
+
+      If running on an SMP system and taking performance measurements, it
+      is suggested you either run the latest netperf-2.4.0+ or use a binding
+      tool such as Tim Hockin's procstate utilities (runon)
+      <http://www.hockin.org/~thockin/procstate/>.
+
+      Binding netserver and netperf (or other applications) to particular
+      CPUs will have a significant difference in performance measurements.
+      You may need to experiment which CPU to bind the application to in
+      order to achieve the best performance for your system.
+
+      If you are developing an application designed for 10Gb networking,
+      please keep in mind you may want to look at kernel functions
+      sched_setaffinity & sched_getaffinity to bind your application.
+
+      If you are just running user-space applications such as ftp, telnet,
+      etc., you may want to try the runon tool provided by Tim Hockin's
+      procstate utility. You could also try binding the interface to a
+      particular CPU: runon 0 ifup eth0
 
 
 SUPPORT

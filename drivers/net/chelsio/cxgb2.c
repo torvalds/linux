@@ -1,8 +1,8 @@
 /*****************************************************************************
  *                                                                           *
  * File: cxgb2.c                                                             *
- * $Revision: 1.11 $                                                          *
- * $Date: 2005/03/23 07:41:27 $                                              *
+ * $Revision: 1.25 $                                                         *
+ * $Date: 2005/06/22 00:43:25 $                                              *
  * Description:                                                              *
  *  Chelsio 10Gb Ethernet Driver.                                            *
  *                                                                           *
@@ -37,7 +37,6 @@
  ****************************************************************************/
 
 #include "common.h"
-
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -48,18 +47,45 @@
 #include <linux/mii.h>
 #include <linux/sockios.h>
 #include <linux/proc_fs.h>
-#include <linux/version.h>
-#include <linux/workqueue.h>
+#include <linux/dma-mapping.h>
 #include <asm/uaccess.h>
 
-#include "ch_ethtool.h"
 #include "cpl5_cmd.h"
 #include "regs.h"
 #include "gmac.h"
 #include "cphy.h"
 #include "sge.h"
-#include "tp.h"
 #include "espi.h"
+
+#ifdef work_struct
+#include <linux/tqueue.h>
+#define INIT_WORK INIT_TQUEUE
+#define schedule_work schedule_task
+#define flush_scheduled_work flush_scheduled_tasks
+
+static inline void schedule_mac_stats_update(struct adapter *ap, int secs)
+{
+	mod_timer(&ap->stats_update_timer, jiffies + secs * HZ);
+}
+
+static inline void cancel_mac_stats_update(struct adapter *ap)
+{
+	del_timer_sync(&ap->stats_update_timer);
+	flush_scheduled_tasks();
+}
+
+/*
+ * Stats update timer for 2.4.  It schedules a task to do the actual update as
+ * we need to access MAC statistics in process context.
+ */
+static void mac_stats_timer(unsigned long data)
+{
+	struct adapter *ap = (struct adapter *)data;
+
+	schedule_task(&ap->stats_update_task);
+}
+#else
+#include <linux/workqueue.h>
 
 static inline void schedule_mac_stats_update(struct adapter *ap, int secs)
 {
@@ -70,22 +96,7 @@ static inline void cancel_mac_stats_update(struct adapter *ap)
 {
 	cancel_delayed_work(&ap->stats_update_task);
 }
-
-#if BITS_PER_LONG == 64 && !defined(CONFIG_X86_64)
-# define FMT64 "l"
-#else
-# define FMT64 "ll"
 #endif
-
-# define DRV_TYPE ""
-# define MODULE_DESC "Chelsio Network Driver"
-
-static char driver_name[]    = DRV_NAME;
-static char driver_string[]  = "Chelsio " DRV_TYPE "Network Driver";
-static char driver_version[] = "2.1.0";
-
-#define PCI_DMA_64BIT ~0ULL
-#define PCI_DMA_32BIT 0xffffffffULL
 
 #define MAX_CMDQ_ENTRIES 16384
 #define MAX_CMDQ1_ENTRIES 1024
@@ -107,10 +118,9 @@ static char driver_version[] = "2.1.0";
  */
 #define EEPROM_SIZE 32
 
-MODULE_DESCRIPTION(MODULE_DESC);
+MODULE_DESCRIPTION(DRV_DESCRIPTION);
 MODULE_AUTHOR("Chelsio Communications");
 MODULE_LICENSE("GPL");
-MODULE_DEVICE_TABLE(pci, t1_pci_tbl);
 
 static int dflt_msg_enable = DFLT_MSG_ENABLE;
 
@@ -140,17 +150,17 @@ static void t1_set_rxmode(struct net_device *dev)
 static void link_report(struct port_info *p)
 {
 	if (!netif_carrier_ok(p->dev))
-		printk(KERN_INFO "%s: link is down\n", p->dev->name);
+        	printk(KERN_INFO "%s: link down\n", p->dev->name);
 	else {
-		const char *s = "10 Mbps";
+		const char *s = "10Mbps";
 
 		switch (p->link_config.speed) {
-			case SPEED_10000: s = "10 Gbps"; break;
-			case SPEED_1000:  s = "1000 Mbps"; break;
-			case SPEED_100:   s = "100 Mbps"; break;
+			case SPEED_10000: s = "10Gbps"; break;
+			case SPEED_1000:  s = "1000Mbps"; break;
+			case SPEED_100:   s = "100Mbps"; break;
 		}
 
-		printk(KERN_INFO "%s: link is up at %s, %s duplex\n",
+        printk(KERN_INFO "%s: link up, %s, %s-duplex\n",
 		       p->dev->name, s,
 		       p->link_config.duplex == DUPLEX_FULL ? "full" : "half");
 	}
@@ -186,10 +196,8 @@ static void link_start(struct port_info *p)
 static void enable_hw_csum(struct adapter *adapter)
 {
 	if (adapter->flags & TSO_CAPABLE)
-		t1_tp_set_ip_checksum_offload(adapter->tp, 1); /* for TSO only */
-	if (adapter->flags & UDP_CSUM_CAPABLE)
-		t1_tp_set_udp_checksum_offload(adapter->tp, 1);
-	t1_tp_set_tcp_checksum_offload(adapter->tp, 1);
+		t1_tp_set_ip_checksum_offload(adapter, 1); /* for TSO only */
+	t1_tp_set_tcp_checksum_offload(adapter, 1);
 }
 
 /*
@@ -210,15 +218,13 @@ static int cxgb_up(struct adapter *adapter)
 	}
 
 	t1_interrupts_clear(adapter);
-
-	if ((err = request_irq(adapter->pdev->irq, &t1_interrupt, SA_SHIRQ,
-			       adapter->name, adapter)))
+	if ((err = request_irq(adapter->pdev->irq,
+			       t1_select_intr_handler(adapter), SA_SHIRQ,
+			       adapter->name, adapter))) {
 		goto out_err;
-
+	}
 	t1_sge_start(adapter->sge);
 	t1_interrupts_enable(adapter);
-
-	err = 0;
  out_err:
 	return err;
 }
@@ -339,47 +345,80 @@ static void set_msglevel(struct net_device *dev, u32 val)
 }
 
 static char stats_strings[][ETH_GSTRING_LEN] = {
-	"TxOctetsOK",
-	"TxOctetsBad",
-	"TxUnicastFramesOK",
-	"TxMulticastFramesOK",
-	"TxBroadcastFramesOK",
-	"TxPauseFrames",
-	"TxFramesWithDeferredXmissions",
-	"TxLateCollisions",
-	"TxTotalCollisions",
-	"TxFramesAbortedDueToXSCollisions",
-	"TxUnderrun",
-	"TxLengthErrors",
-	"TxInternalMACXmitError",
-	"TxFramesWithExcessiveDeferral",
-	"TxFCSErrors",
+        "TxOctetsOK",
+        "TxOctetsBad",
+        "TxUnicastFramesOK",
+        "TxMulticastFramesOK",
+        "TxBroadcastFramesOK",
+        "TxPauseFrames",
+        "TxFramesWithDeferredXmissions",
+        "TxLateCollisions",
+        "TxTotalCollisions",
+        "TxFramesAbortedDueToXSCollisions",
+        "TxUnderrun",
+        "TxLengthErrors",
+        "TxInternalMACXmitError",
+        "TxFramesWithExcessiveDeferral",
+        "TxFCSErrors",
 
-	"RxOctetsOK",
-	"RxOctetsBad",
-	"RxUnicastFramesOK",
-	"RxMulticastFramesOK",
-	"RxBroadcastFramesOK",
-	"RxPauseFrames",
-	"RxFCSErrors",
-	"RxAlignErrors",
-	"RxSymbolErrors",
-	"RxDataErrors",
-	"RxSequenceErrors",
-	"RxRuntErrors",
-	"RxJabberErrors",
-	"RxInternalMACRcvError",
-	"RxInRangeLengthErrors",
-	"RxOutOfRangeLengthField",
-	"RxFrameTooLongErrors"
+        "RxOctetsOK",
+        "RxOctetsBad",
+        "RxUnicastFramesOK",
+        "RxMulticastFramesOK",
+        "RxBroadcastFramesOK",
+        "RxPauseFrames",
+        "RxFCSErrors",
+        "RxAlignErrors",
+        "RxSymbolErrors",
+        "RxDataErrors",
+        "RxSequenceErrors",
+        "RxRuntErrors",
+        "RxJabberErrors",
+        "RxInternalMACRcvError",
+        "RxInRangeLengthErrors",
+        "RxOutOfRangeLengthField",
+        "RxFrameTooLongErrors",
+
+	"TSO",
+	"VLANextractions",
+	"VLANinsertions",
+	"RxCsumGood",
+	"TxCsumOffload",
+	"RxDrops"
+
+	"respQ_empty",
+	"respQ_overflow",
+	"freelistQ_empty",
+	"pkt_too_big",
+	"pkt_mismatch",
+	"cmdQ_full0",
+	"cmdQ_full1",
+	"tx_ipfrags",
+	"tx_reg_pkts",
+	"tx_lso_pkts",
+	"tx_do_cksum",
+	
+	"espi_DIP2ParityErr",
+	"espi_DIP4Err",
+	"espi_RxDrops",
+	"espi_TxDrops",
+	"espi_RxOvfl",
+	"espi_ParityErr"
 };
+ 
+#define T2_REGMAP_SIZE (3 * 1024)
+
+static int get_regs_len(struct net_device *dev)
+{
+	return T2_REGMAP_SIZE;
+}
 
 static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	struct adapter *adapter = dev->priv;
 
-	strcpy(info->driver, driver_name);
-	strcpy(info->version, driver_version);
+	strcpy(info->driver, DRV_NAME);
+	strcpy(info->version, DRV_VERSION);
 	strcpy(info->fw_version, "N/A");
 	strcpy(info->bus_info, pci_name(adapter->pdev));
 }
@@ -401,42 +440,88 @@ static void get_stats(struct net_device *dev, struct ethtool_stats *stats,
 	struct adapter *adapter = dev->priv;
 	struct cmac *mac = adapter->port[dev->if_port].mac;
 	const struct cmac_statistics *s;
+	const struct sge_port_stats *ss;
+	const struct sge_intr_counts *t;
 
 	s = mac->ops->statistics_update(mac, MAC_STATS_UPDATE_FULL);
+	ss = t1_sge_get_port_stats(adapter->sge, dev->if_port);
+	t = t1_sge_get_intr_counts(adapter->sge);
 
-	*data++ = s->TxOctetsOK;
-	*data++ = s->TxOctetsBad;
-	*data++ = s->TxUnicastFramesOK;
-	*data++ = s->TxMulticastFramesOK;
-	*data++ = s->TxBroadcastFramesOK;
-	*data++ = s->TxPauseFrames;
-	*data++ = s->TxFramesWithDeferredXmissions;
-	*data++ = s->TxLateCollisions;
-	*data++ = s->TxTotalCollisions;
-	*data++ = s->TxFramesAbortedDueToXSCollisions;
-	*data++ = s->TxUnderrun;
-	*data++ = s->TxLengthErrors;
-	*data++ = s->TxInternalMACXmitError;
-	*data++ = s->TxFramesWithExcessiveDeferral;
-	*data++ = s->TxFCSErrors;
+        *data++ = s->TxOctetsOK;
+        *data++ = s->TxOctetsBad;
+        *data++ = s->TxUnicastFramesOK;
+        *data++ = s->TxMulticastFramesOK;
+        *data++ = s->TxBroadcastFramesOK;
+        *data++ = s->TxPauseFrames;
+        *data++ = s->TxFramesWithDeferredXmissions;
+        *data++ = s->TxLateCollisions;
+        *data++ = s->TxTotalCollisions;
+        *data++ = s->TxFramesAbortedDueToXSCollisions;
+        *data++ = s->TxUnderrun;
+        *data++ = s->TxLengthErrors;
+        *data++ = s->TxInternalMACXmitError;
+        *data++ = s->TxFramesWithExcessiveDeferral;
+        *data++ = s->TxFCSErrors;
 
-	*data++ = s->RxOctetsOK;
-	*data++ = s->RxOctetsBad;
-	*data++ = s->RxUnicastFramesOK;
-	*data++ = s->RxMulticastFramesOK;
-	*data++ = s->RxBroadcastFramesOK;
-	*data++ = s->RxPauseFrames;
-	*data++ = s->RxFCSErrors;
-	*data++ = s->RxAlignErrors;
-	*data++ = s->RxSymbolErrors;
-	*data++ = s->RxDataErrors;
-	*data++ = s->RxSequenceErrors;
-	*data++ = s->RxRuntErrors;
-	*data++ = s->RxJabberErrors;
-	*data++ = s->RxInternalMACRcvError;
-	*data++ = s->RxInRangeLengthErrors;
-	*data++ = s->RxOutOfRangeLengthField;
-	*data++ = s->RxFrameTooLongErrors;
+        *data++ = s->RxOctetsOK;
+        *data++ = s->RxOctetsBad;
+        *data++ = s->RxUnicastFramesOK;
+        *data++ = s->RxMulticastFramesOK;
+        *data++ = s->RxBroadcastFramesOK;
+        *data++ = s->RxPauseFrames;
+        *data++ = s->RxFCSErrors;
+        *data++ = s->RxAlignErrors;
+        *data++ = s->RxSymbolErrors;
+        *data++ = s->RxDataErrors;
+        *data++ = s->RxSequenceErrors;
+        *data++ = s->RxRuntErrors;
+        *data++ = s->RxJabberErrors;
+        *data++ = s->RxInternalMACRcvError;
+        *data++ = s->RxInRangeLengthErrors;
+        *data++ = s->RxOutOfRangeLengthField;
+        *data++ = s->RxFrameTooLongErrors;
+
+	*data++ = ss->tso;
+	*data++ = ss->vlan_xtract;
+	*data++ = ss->vlan_insert;
+	*data++ = ss->rx_cso_good;
+	*data++ = ss->tx_cso;
+	*data++ = ss->rx_drops;
+
+	*data++ = (u64)t->respQ_empty;
+	*data++ = (u64)t->respQ_overflow;
+	*data++ = (u64)t->freelistQ_empty;
+	*data++ = (u64)t->pkt_too_big;
+	*data++ = (u64)t->pkt_mismatch;
+	*data++ = (u64)t->cmdQ_full[0];
+	*data++ = (u64)t->cmdQ_full[1];
+	*data++ = (u64)t->tx_ipfrags;
+	*data++ = (u64)t->tx_reg_pkts;
+	*data++ = (u64)t->tx_lso_pkts;
+	*data++ = (u64)t->tx_do_cksum;
+}
+
+static inline void reg_block_dump(struct adapter *ap, void *buf,
+				  unsigned int start, unsigned int end)
+{
+	u32 *p = buf + start;
+
+	for ( ; start <= end; start += sizeof(u32))
+		*p++ = readl(ap->regs + start);
+}
+
+static void get_regs(struct net_device *dev, struct ethtool_regs *regs,
+		     void *buf)
+{
+	struct adapter *ap = dev->priv;
+
+	/*
+	 * Version scheme: bits 0..9: chip version, bits 10..15: chip revision
+	 */
+	regs->version = 2;
+
+	memset(buf, 0, T2_REGMAP_SIZE);
+	reg_block_dump(ap, buf, 0, A_SG_RESPACCUTIMER);
 }
 
 static int get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
@@ -455,12 +540,12 @@ static int get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		cmd->duplex = -1;
 	}
 
-	cmd->port = (cmd->supported & SUPPORTED_TP) ? PORT_TP : PORT_FIBRE;
-	cmd->phy_address = p->phy->addr;
-	cmd->transceiver = XCVR_EXTERNAL;
-	cmd->autoneg = p->link_config.autoneg;
-	cmd->maxtxpkt = 0;
-	cmd->maxrxpkt = 0;
+        cmd->port = (cmd->supported & SUPPORTED_TP) ? PORT_TP : PORT_FIBRE;
+        cmd->phy_address = p->phy->addr;
+        cmd->transceiver = XCVR_EXTERNAL;
+        cmd->autoneg = p->link_config.autoneg;
+        cmd->maxtxpkt = 0;
+        cmd->maxrxpkt = 0;
 	return 0;
 }
 
@@ -506,7 +591,7 @@ static int set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	struct link_config *lc = &p->link_config;
 
 	if (!(lc->supported & SUPPORTED_Autoneg))
-		return -EOPNOTSUPP;		/* can't change speed/duplex */
+		return -EOPNOTSUPP;             /* can't change speed/duplex */
 
 	if (cmd->autoneg == AUTONEG_DISABLE) {
 		int cap = speed_duplex_to_caps(cmd->speed, cmd->duplex);
@@ -631,7 +716,7 @@ static int set_sge_param(struct net_device *dev, struct ethtool_ringparam *e)
 		return -EINVAL;
 
 	if (adapter->flags & FULL_INIT_DONE)
-		return -EBUSY;
+        return -EBUSY;
 
 	adapter->params.sge.freelQ_size[!jumbo_fl] = e->rx_pending;
 	adapter->params.sge.freelQ_size[jumbo_fl] = e->rx_jumbo_pending;
@@ -645,22 +730,20 @@ static int set_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
 {
 	struct adapter *adapter = dev->priv;
 
-	unsigned int sge_coalesce_usecs = 0;
+	/*
+	 * If RX coalescing is requested we use NAPI, otherwise interrupts.
+	 * This choice can be made only when all ports and the TOE are off.
+	 */
+	if (adapter->open_device_map == 0)
+		adapter->params.sge.polling = c->use_adaptive_rx_coalesce;
 
-	sge_coalesce_usecs = adapter->params.sge.last_rx_coalesce_raw;
-	sge_coalesce_usecs /= board_info(adapter)->clock_core / 1000000;
-	if ( (adapter->params.sge.coalesce_enable && !c->use_adaptive_rx_coalesce) &&
-	     (c->rx_coalesce_usecs == sge_coalesce_usecs) ) {
-		adapter->params.sge.rx_coalesce_usecs =
-			adapter->params.sge.default_rx_coalesce_usecs;
+	if (adapter->params.sge.polling) {
+		adapter->params.sge.rx_coalesce_usecs = 0;
 	} else {
 		adapter->params.sge.rx_coalesce_usecs = c->rx_coalesce_usecs;
 	}
-
-	adapter->params.sge.last_rx_coalesce_raw = adapter->params.sge.rx_coalesce_usecs;
-	adapter->params.sge.last_rx_coalesce_raw *= (board_info(adapter)->clock_core / 1000000);
+ 	adapter->params.sge.coalesce_enable = c->use_adaptive_rx_coalesce;
 	adapter->params.sge.sample_interval_usecs = c->rate_sample_interval;
-	adapter->params.sge.coalesce_enable = c->use_adaptive_rx_coalesce;
 	t1_sge_set_coalesce_params(adapter->sge, &adapter->params.sge);
 	return 0;
 }
@@ -669,12 +752,7 @@ static int get_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
 {
 	struct adapter *adapter = dev->priv;
 
-	if (adapter->params.sge.coalesce_enable) { /* Adaptive algorithm on */
-		c->rx_coalesce_usecs = adapter->params.sge.last_rx_coalesce_raw;
-		c->rx_coalesce_usecs /= board_info(adapter)->clock_core / 1000000;
-	} else {
-		c->rx_coalesce_usecs = adapter->params.sge.rx_coalesce_usecs;
-	}
+	c->rx_coalesce_usecs = adapter->params.sge.rx_coalesce_usecs;
 	c->rate_sample_interval = adapter->params.sge.sample_interval_usecs;
 	c->use_adaptive_rx_coalesce = adapter->params.sge.coalesce_enable;
 	return 0;
@@ -682,9 +760,7 @@ static int get_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
 
 static int get_eeprom_len(struct net_device *dev)
 {
-	struct adapter *adapter = dev->priv;
-
-	return t1_is_asic(adapter) ? EEPROM_SIZE : 0;
+    return EEPROM_SIZE;
 }
 
 #define EEPROM_MAGIC(ap) \
@@ -728,118 +804,55 @@ static struct ethtool_ops t1_ethtool_ops = {
 	.get_strings       = get_strings,
 	.get_stats_count   = get_stats_count,
 	.get_ethtool_stats = get_stats,
+	.get_regs_len      = get_regs_len,
+	.get_regs          = get_regs,
 	.get_tso           = ethtool_op_get_tso,
 	.set_tso           = set_tso,
 };
 
-static int ethtool_ioctl(struct net_device *dev, void *useraddr)
+static void cxgb_proc_cleanup(struct adapter *adapter,
+					struct proc_dir_entry *dir)
 {
-	u32 cmd;
-	struct adapter *adapter = dev->priv;
-
-	if (copy_from_user(&cmd, useraddr, sizeof(cmd)))
-		return -EFAULT;
-
-	switch (cmd) {
-	case ETHTOOL_SETREG: {
-		struct ethtool_reg edata;
-
-		if (!capable(CAP_NET_ADMIN))
-			return -EPERM;
-		if (copy_from_user(&edata, useraddr, sizeof(edata)))
-			return -EFAULT;
-		if ((edata.addr & 3) != 0 || edata.addr >= adapter->mmio_len)
-			return -EINVAL;
-		if (edata.addr == A_ESPI_MISC_CONTROL)
-			t1_espi_set_misc_ctrl(adapter, edata.val);
-		else {
-			if (edata.addr == 0x950)
-				t1_sge_set_ptimeout(adapter, edata.val);
-			else
-				writel(edata.val, adapter->regs + edata.addr);
-		}
-		break;
-	}
-	case ETHTOOL_GETREG: {
-		struct ethtool_reg edata;
-
-		if (copy_from_user(&edata, useraddr, sizeof(edata)))
-			return -EFAULT;
-		if ((edata.addr & 3) != 0 || edata.addr >= adapter->mmio_len)
-			return -EINVAL;
-		if (edata.addr >= 0x900 && edata.addr <= 0x93c)
-			edata.val = t1_espi_get_mon(adapter, edata.addr, 1);
-		else {
-			if (edata.addr == 0x950)
-				edata.val = t1_sge_get_ptimeout(adapter);
-			else
-				edata.val = readl(adapter->regs + edata.addr);
-		}
-		if (copy_to_user(useraddr, &edata, sizeof(edata)))
-			return -EFAULT;
-		break;
-	}
-	case ETHTOOL_SETTPI: {
-		struct ethtool_reg edata;
-
-		if (!capable(CAP_NET_ADMIN))
-			return -EPERM;
-		if (copy_from_user(&edata, useraddr, sizeof(edata)))
-			return -EFAULT;
-		if ((edata.addr & 3) != 0)
-			return -EINVAL;
-		t1_tpi_write(adapter, edata.addr, edata.val);
-		break;
-	}
-	case ETHTOOL_GETTPI: {
-		struct ethtool_reg edata;
-
-		if (copy_from_user(&edata, useraddr, sizeof(edata)))
-			return -EFAULT;
-		if ((edata.addr & 3) != 0)
-			return -EINVAL;
-		t1_tpi_read(adapter, edata.addr, &edata.val);
-		if (copy_to_user(useraddr, &edata, sizeof(edata)))
-			return -EFAULT;
-		break;
-	}
-	default:
-		return -EOPNOTSUPP;
-	}
-	return 0;
+	const char *name;
+	name = adapter->name;
+	remove_proc_entry(name, dir);
 }
+//#define chtoe_setup_toedev(adapter) NULL
+#define update_mtu_tab(adapter)
+#define write_smt_entry(adapter, idx)
 
 static int t1_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 {
-	struct adapter *adapter = dev->priv;
-	struct mii_ioctl_data *data = (struct mii_ioctl_data *)&req->ifr_data;
+        struct adapter *adapter = dev->priv;
+        struct mii_ioctl_data *data = (struct mii_ioctl_data *)&req->ifr_data;
 
 	switch (cmd) {
-	case SIOCGMIIPHY:
-		data->phy_id = adapter->port[dev->if_port].phy->addr;
-		/* FALLTHRU */
-	case SIOCGMIIREG: {
+        case SIOCGMIIPHY:
+                data->phy_id = adapter->port[dev->if_port].phy->addr;
+                /* FALLTHRU */
+        case SIOCGMIIREG: {
 		struct cphy *phy = adapter->port[dev->if_port].phy;
 		u32 val;
 
-		if (!phy->mdio_read) return -EOPNOTSUPP;
+		if (!phy->mdio_read)
+            return -EOPNOTSUPP;
 		phy->mdio_read(adapter, data->phy_id, 0, data->reg_num & 0x1f,
 			       &val);
-		data->val_out = val;
-		break;
+                data->val_out = val;
+                break;
 	}
-	case SIOCSMIIREG: {
+        case SIOCSMIIREG: {
 		struct cphy *phy = adapter->port[dev->if_port].phy;
 
-		if (!capable(CAP_NET_ADMIN)) return -EPERM;
-		if (!phy->mdio_write) return -EOPNOTSUPP;
+                if (!capable(CAP_NET_ADMIN))
+                    return -EPERM;
+		if (!phy->mdio_write)
+            return -EOPNOTSUPP;
 		phy->mdio_write(adapter, data->phy_id, 0, data->reg_num & 0x1f,
-				data->val_in);
-		break;
+			        data->val_in);
+                break;
 	}
 
-	case SIOCCHETHTOOL:
-		return ethtool_ioctl(dev, (void *)req->ifr_data);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -853,9 +866,9 @@ static int t1_change_mtu(struct net_device *dev, int new_mtu)
 	struct cmac *mac = adapter->port[dev->if_port].mac;
 
 	if (!mac->ops->set_mtu)
-		return -EOPNOTSUPP;
+        return -EOPNOTSUPP;
 	if (new_mtu < 68)
-		return -EINVAL;
+        return -EINVAL;
 	if ((ret = mac->ops->set_mtu(mac, new_mtu)))
 		return ret;
 	dev->mtu = new_mtu;
@@ -902,9 +915,12 @@ static void vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void t1_netpoll(struct net_device *dev)
 {
+	unsigned long flags;
 	struct adapter *adapter = dev->priv;
 
-	t1_interrupt(adapter->pdev->irq, adapter, NULL);
+	local_irq_save(flags);
+        t1_select_intr_handler(adapter)(adapter->pdev->irq, adapter, NULL);
+	local_irq_restore(flags);
 }
 #endif
 
@@ -938,16 +954,17 @@ static void mac_stats_task(void *data)
  */
 static void ext_intr_task(void *data)
 {
-	u32 enable;
 	struct adapter *adapter = data;
 
 	elmer0_ext_intr_handler(adapter);
 
 	/* Now reenable external interrupts */
-	t1_write_reg_4(adapter, A_PL_CAUSE, F_PL_INTR_EXT);
-	enable = t1_read_reg_4(adapter, A_PL_ENABLE);
-	t1_write_reg_4(adapter, A_PL_ENABLE, enable | F_PL_INTR_EXT);
+	spin_lock_irq(&adapter->async_lock);
 	adapter->slow_intr_mask |= F_PL_INTR_EXT;
+	writel(F_PL_INTR_EXT, adapter->regs + A_PL_CAUSE);
+	writel(adapter->slow_intr_mask | F_PL_INTR_SGE_DATA,
+                   adapter->regs + A_PL_ENABLE);
+	spin_unlock_irq(&adapter->async_lock);
 }
 
 /*
@@ -955,15 +972,14 @@ static void ext_intr_task(void *data)
  */
 void t1_elmer0_ext_intr(struct adapter *adapter)
 {
-	u32 enable = t1_read_reg_4(adapter, A_PL_ENABLE);
-
 	/*
 	 * Schedule a task to handle external interrupts as we require
 	 * a process context.  We disable EXT interrupts in the interim
 	 * and let the task reenable them when it's done.
 	 */
 	adapter->slow_intr_mask &= ~F_PL_INTR_EXT;
-	t1_write_reg_4(adapter, A_PL_ENABLE, enable & ~F_PL_INTR_EXT);
+	writel(adapter->slow_intr_mask | F_PL_INTR_SGE_DATA,
+                   adapter->regs + A_PL_ENABLE);
 	schedule_work(&adapter->ext_intr_handler_task);
 }
 
@@ -977,7 +993,6 @@ void t1_fatal_err(struct adapter *adapter)
 		 adapter->name);
 }
 
-
 static int __devinit init_one(struct pci_dev *pdev,
 			      const struct pci_device_id *ent)
 {
@@ -990,14 +1005,14 @@ static int __devinit init_one(struct pci_dev *pdev,
 	struct port_info *pi;
 
 	if (!version_printed) {
-		printk(KERN_INFO "%s - version %s\n", driver_string,
-		       driver_version);
+		printk(KERN_INFO "%s - version %s\n", DRV_DESCRIPTION,
+		       DRV_VERSION);
 		++version_printed;
 	}
 
 	err = pci_enable_device(pdev);
 	if (err)
-		return err;
+        return err;
 
 	if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM)) {
 		CH_ERR("%s: cannot find PCI device memory base address\n",
@@ -1006,20 +1021,22 @@ static int __devinit init_one(struct pci_dev *pdev,
 		goto out_disable_pdev;
 	}
 
-	if (!pci_set_dma_mask(pdev, PCI_DMA_64BIT)) {
+	if (!pci_set_dma_mask(pdev, DMA_64BIT_MASK)) {
 		pci_using_dac = 1;
-		if (pci_set_consistent_dma_mask(pdev, PCI_DMA_64BIT)) {
+
+		if (pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK)) {
 			CH_ERR("%s: unable to obtain 64-bit DMA for"
 			       "consistent allocations\n", pci_name(pdev));
 			err = -ENODEV;
 			goto out_disable_pdev;
 		}
-	} else if ((err = pci_set_dma_mask(pdev, PCI_DMA_32BIT)) != 0) {
+
+	} else if ((err = pci_set_dma_mask(pdev, DMA_32BIT_MASK)) != 0) {
 		CH_ERR("%s: no usable DMA configuration\n", pci_name(pdev));
 		goto out_disable_pdev;
 	}
 
-	err = pci_request_regions(pdev, driver_name);
+	err = pci_request_regions(pdev, DRV_NAME);
 	if (err) {
 		CH_ERR("%s: cannot obtain PCI resources\n", pci_name(pdev));
 		goto out_disable_pdev;
@@ -1027,7 +1044,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
-	mmio_start = pci_resource_start(pdev, 0);
+    mmio_start = pci_resource_start(pdev, 0);
 	mmio_len = pci_resource_len(pdev, 0);
 	bi = t1_get_board_info(ent->driver_data);
 
@@ -1074,9 +1091,14 @@ static int __devinit init_one(struct pci_dev *pdev,
 				  ext_intr_task, adapter);
 			INIT_WORK(&adapter->stats_update_task, mac_stats_task,
 				  adapter);
+#ifdef work_struct
+			init_timer(&adapter->stats_update_timer);
+			adapter->stats_update_timer.function = mac_stats_timer;
+			adapter->stats_update_timer.data =
+				(unsigned long)adapter;
+#endif
 
 			pci_set_drvdata(pdev, netdev);
-
 		}
 
 		pi = &adapter->port[i];
@@ -1088,11 +1110,12 @@ static int __devinit init_one(struct pci_dev *pdev,
 		netdev->mem_end = mmio_start + mmio_len - 1;
 		netdev->priv = adapter;
 		netdev->features |= NETIF_F_SG | NETIF_F_IP_CSUM;
+		netdev->features |= NETIF_F_LLTX;
+
 		adapter->flags |= RX_CSUM_ENABLED | TCP_CSUM_CAPABLE;
 		if (pci_using_dac)
 			netdev->features |= NETIF_F_HIGHDMA;
 		if (vlan_tso_capable(adapter)) {
-			adapter->flags |= UDP_CSUM_CAPABLE;
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
 			adapter->flags |= VLAN_ACCEL_CAPABLE;
 			netdev->features |=
@@ -1120,7 +1143,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 #endif
 		netdev->weight = 64;
 
-		SET_ETHTOOL_OPS(netdev, &t1_ethtool_ops);
+        SET_ETHTOOL_OPS(netdev, &t1_ethtool_ops);
 	}
 
 	if (t1_init_sw_modules(adapter, bi) < 0) {
@@ -1147,7 +1170,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 			if (!adapter->registered_device_map)
 				adapter->name = adapter->port[i].dev->name;
 
-			__set_bit(i, &adapter->registered_device_map);
+                __set_bit(i, &adapter->registered_device_map);
 		}
 	}
 	if (!adapter->registered_device_map) {
@@ -1166,11 +1189,12 @@ static int __devinit init_one(struct pci_dev *pdev,
 	t1_free_sw_modules(adapter);
  out_free_dev:
 	if (adapter) {
-		if (adapter->regs)
-			iounmap(adapter->regs);
+		if (adapter->regs) iounmap(adapter->regs);
 		for (i = bi->port_number - 1; i >= 0; --i)
-			if (adapter->port[i].dev)
-				free_netdev(adapter->port[i].dev);
+			if (adapter->port[i].dev) {
+				cxgb_proc_cleanup(adapter, proc_root_driver);
+				kfree(adapter->port[i].dev);
+			}
 	}
 	pci_release_regions(pdev);
  out_disable_pdev:
@@ -1200,8 +1224,10 @@ static void __devexit remove_one(struct pci_dev *pdev)
 		t1_free_sw_modules(adapter);
 		iounmap(adapter->regs);
 		while (--i >= 0)
-			if (adapter->port[i].dev)
-				free_netdev(adapter->port[i].dev);
+			if (adapter->port[i].dev) {
+				cxgb_proc_cleanup(adapter, proc_root_driver);
+				kfree(adapter->port[i].dev);
+			}
 		pci_release_regions(pdev);
 		pci_disable_device(pdev);
 		pci_set_drvdata(pdev, NULL);
@@ -1210,7 +1236,7 @@ static void __devexit remove_one(struct pci_dev *pdev)
 }
 
 static struct pci_driver driver = {
-	.name     = driver_name,
+	.name     = DRV_NAME,
 	.id_table = t1_pci_tbl,
 	.probe    = init_one,
 	.remove   = __devexit_p(remove_one),
@@ -1228,4 +1254,3 @@ static void __exit t1_cleanup_module(void)
 
 module_init(t1_init_module);
 module_exit(t1_cleanup_module);
-

@@ -1,8 +1,8 @@
 /*****************************************************************************
  *                                                                           *
  * File: mv88x201x.c                                                         *
- * $Revision: 1.7 $                                                          *
- * $Date: 2005/03/23 07:15:59 $                                              *
+ * $Revision: 1.12 $                                                         *
+ * $Date: 2005/04/15 19:27:14 $                                              *
  * Description:                                                              *
  *  Marvell PHY (mv88x201x) functionality.                                   *
  *  part of the Chelsio 10Gb Ethernet Driver.                                *
@@ -85,33 +85,29 @@ static int mv88x201x_reset(struct cphy *cphy, int wait)
 
 static int mv88x201x_interrupt_enable(struct cphy *cphy)
 {
+	u32 elmer;
+
 	/* Enable PHY LASI interrupts. */
 	mdio_write(cphy, 0x1, 0x9002, 0x1);
 
 	/* Enable Marvell interrupts through Elmer0. */
-	if (t1_is_asic(cphy->adapter)) {
-		u32 elmer;
-
-		t1_tpi_read(cphy->adapter, A_ELMER0_INT_ENABLE, &elmer);
-		elmer |= ELMER0_GP_BIT6;
-		t1_tpi_write(cphy->adapter, A_ELMER0_INT_ENABLE, elmer);
-	}
+	t1_tpi_read(cphy->adapter, A_ELMER0_INT_ENABLE, &elmer);
+	elmer |= ELMER0_GP_BIT6;
+	t1_tpi_write(cphy->adapter, A_ELMER0_INT_ENABLE, elmer);
 	return 0;
 }
 
 static int mv88x201x_interrupt_disable(struct cphy *cphy)
 {
+	u32 elmer;
+
 	/* Disable PHY LASI interrupts. */
 	mdio_write(cphy, 0x1, 0x9002, 0x0);
 
 	/* Disable Marvell interrupts through Elmer0. */
-	if (t1_is_asic(cphy->adapter)) {
-		u32 elmer;
-
-		t1_tpi_read(cphy->adapter, A_ELMER0_INT_ENABLE, &elmer);
-		elmer &= ~ELMER0_GP_BIT6;
-		t1_tpi_write(cphy->adapter, A_ELMER0_INT_ENABLE, elmer);
-	}
+	t1_tpi_read(cphy->adapter, A_ELMER0_INT_ENABLE, &elmer);
+	elmer &= ~ELMER0_GP_BIT6;
+	t1_tpi_write(cphy->adapter, A_ELMER0_INT_ENABLE, elmer);
 	return 0;
 }
 
@@ -144,11 +140,9 @@ static int mv88x201x_interrupt_clear(struct cphy *cphy)
 #endif
 
 	/* Clear Marvell interrupts through Elmer0. */
-	if (t1_is_asic(cphy->adapter)) {
-		t1_tpi_read(cphy->adapter, A_ELMER0_INT_CAUSE, &elmer);
-		elmer |= ELMER0_GP_BIT6;
-		t1_tpi_write(cphy->adapter, A_ELMER0_INT_CAUSE, elmer);
-	}
+	t1_tpi_read(cphy->adapter, A_ELMER0_INT_CAUSE, &elmer);
+	elmer |= ELMER0_GP_BIT6;
+	t1_tpi_write(cphy->adapter, A_ELMER0_INT_CAUSE, elmer);
 	return 0;
 }
 

@@ -1,8 +1,8 @@
 /*****************************************************************************
  *                                                                           *
  * File: gmac.h                                                              *
- * $Revision: 1.3 $                                                          *
- * $Date: 2005/03/23 07:15:58 $                                              *
+ * $Revision: 1.6 $                                                          *
+ * $Date: 2005/06/21 18:29:47 $                                              *
  * Description:                                                              *
  *  Generic MAC functionality.                                               *
  *  part of the Chelsio 10Gb Ethernet Driver.                                *
@@ -37,8 +37,8 @@
  *                                                                           *
  ****************************************************************************/
 
-#ifndef CHELSIO_GMAC_H
-#define CHELSIO_GMAC_H
+#ifndef _CXGB_GMAC_H_
+#define _CXGB_GMAC_H_
 
 #include "common.h"
 
@@ -130,4 +130,5 @@ extern struct gmac t1_chelsio_mac_ops;
 extern struct gmac t1_vsc7321_ops;
 extern struct gmac t1_ixf1010_ops;
 extern struct gmac t1_dummy_mac_ops;
-#endif
+
+#endif /* _CXGB_GMAC_H_ */

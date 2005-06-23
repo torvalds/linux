@@ -1,8 +1,8 @@
 /*****************************************************************************
  *                                                                           *
  * File: cpl5_cmd.h                                                          *
- * $Revision: 1.4 $                                                          *
- * $Date: 2005/03/23 07:15:58 $                                              *
+ * $Revision: 1.6 $                                                          *
+ * $Date: 2005/06/21 18:29:47 $                                              *
  * Description:                                                              *
  *  part of the Chelsio 10Gb Ethernet Driver.                                *
  *                                                                           *
@@ -36,8 +36,8 @@
  *                                                                           *
  ****************************************************************************/
 
-#ifndef _CPL5_CMD_H
-#define _CPL5_CMD_H
+#ifndef _CXGB_CPL5_CMD_H_
+#define _CXGB_CPL5_CMD_H_
 
 #include <asm/byteorder.h>
 
@@ -59,12 +59,12 @@ enum {                /* TX_PKT_LSO ethernet types */
 };
 
 struct cpl_rx_data {
-	__u32 rsvd0;
-	__u32 len;
-	__u32 seq;
-	__u16 urg;
-	__u8  rsvd1;
-	__u8  status;
+	u32 rsvd0;
+	u32 len;
+	u32 seq;
+	u16 urg;
+	u8  rsvd1;
+	u8  status;
 };
 
 /*
@@ -73,73 +73,73 @@ struct cpl_rx_data {
  * used so we break it into 2 16-bit parts to easily meet our alignment needs.
  */
 struct cpl_tx_pkt {
-	__u8 opcode;
+	u8 opcode;
 #if defined(__LITTLE_ENDIAN_BITFIELD)
-	__u8 iff:4;
-	__u8 ip_csum_dis:1;
-	__u8 l4_csum_dis:1;
-	__u8 vlan_valid:1;
-	__u8 rsvd:1;
+	u8 iff:4;
+	u8 ip_csum_dis:1;
+	u8 l4_csum_dis:1;
+	u8 vlan_valid:1;
+	u8 rsvd:1;
 #else
-	__u8 rsvd:1;
-	__u8 vlan_valid:1;
-	__u8 l4_csum_dis:1;
-	__u8 ip_csum_dis:1;
-	__u8 iff:4;
+	u8 rsvd:1;
+	u8 vlan_valid:1;
+	u8 l4_csum_dis:1;
+	u8 ip_csum_dis:1;
+	u8 iff:4;
 #endif
-	__u16 vlan;
-	__u16 len_hi;
-	__u16 len_lo;
+	u16 vlan;
+	u16 len_hi;
+	u16 len_lo;
 };
 
 struct cpl_tx_pkt_lso {
-	__u8 opcode;
+	u8 opcode;
 #if defined(__LITTLE_ENDIAN_BITFIELD)
-	__u8 iff:4;
-	__u8 ip_csum_dis:1;
-	__u8 l4_csum_dis:1;
-	__u8 vlan_valid:1;
-	__u8 rsvd:1;
+	u8 iff:4;
+	u8 ip_csum_dis:1;
+	u8 l4_csum_dis:1;
+	u8 vlan_valid:1;
+	u8 rsvd:1;
 #else
-	__u8 rsvd:1;
-	__u8 vlan_valid:1;
-	__u8 l4_csum_dis:1;
-	__u8 ip_csum_dis:1;
-	__u8 iff:4;
+	u8 rsvd:1;
+	u8 vlan_valid:1;
+	u8 l4_csum_dis:1;
+	u8 ip_csum_dis:1;
+	u8 iff:4;
 #endif
-	__u16 vlan;
-	__u32 len;
+	u16 vlan;
+	u32 len;
 
-	__u32 rsvd2;
-	__u8 rsvd3;
+	u32 rsvd2;
+	u8 rsvd3;
 #if defined(__LITTLE_ENDIAN_BITFIELD)
-	__u8 tcp_hdr_words:4;
-	__u8 ip_hdr_words:4;
+	u8 tcp_hdr_words:4;
+	u8 ip_hdr_words:4;
 #else
-	__u8 ip_hdr_words:4;
-	__u8 tcp_hdr_words:4;
+	u8 ip_hdr_words:4;
+	u8 tcp_hdr_words:4;
 #endif
-	__u16 eth_type_mss;
+	u16 eth_type_mss;
 };
 
 struct cpl_rx_pkt {
-	__u8 opcode;
+	u8 opcode;
 #if defined(__LITTLE_ENDIAN_BITFIELD)
-	__u8 iff:4;
-	__u8 csum_valid:1;
-	__u8 bad_pkt:1;
-	__u8 vlan_valid:1;
-	__u8 rsvd:1;
+	u8 iff:4;
+	u8 csum_valid:1;
+	u8 bad_pkt:1;
+	u8 vlan_valid:1;
+	u8 rsvd:1;
 #else
-	__u8 rsvd:1;
-	__u8 vlan_valid:1;
-	__u8 bad_pkt:1;
-	__u8 csum_valid:1;
-	__u8 iff:4;
+	u8 rsvd:1;
+	u8 vlan_valid:1;
+	u8 bad_pkt:1;
+	u8 csum_valid:1;
+	u8 iff:4;
 #endif
-	__u16 csum;
-	__u16 vlan;
-	__u16 len;
+	u16 csum;
+	u16 vlan;
+	u16 len;
 };
 
-#endif
+#endif /* _CXGB_CPL5_CMD_H_ */
