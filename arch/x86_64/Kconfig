@@ -274,7 +274,26 @@ config NUMA
        bool
        default n
 
+config ARCH_DISCONTIGMEM_ENABLE
+	def_bool y
+	depends on NUMA
+
+config ARCH_DISCONTIGMEM_DEFAULT
+	def_bool y
+	depends on NUMA
+
+config ARCH_SPARSEMEM_ENABLE
+	def_bool y
+	depends on NUMA
+
+config ARCH_FLATMEM_ENABLE
+	def_bool y
+	depends on !NUMA
+
 source "mm/Kconfig"
+
+config HAVE_ARCH_EARLY_PFN_TO_NID
+	def_bool y
 
 config HAVE_DEC_LOCK
 	bool
