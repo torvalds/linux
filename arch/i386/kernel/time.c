@@ -77,7 +77,7 @@ u64 jiffies_64 = INITIAL_JIFFIES;
 
 EXPORT_SYMBOL(jiffies_64);
 
-unsigned long cpu_khz;	/* Detected as we calibrate the TSC */
+unsigned int cpu_khz;	/* Detected as we calibrate the TSC */
 EXPORT_SYMBOL(cpu_khz);
 
 extern unsigned long wall_jiffies;

@@ -205,7 +205,7 @@ static void __init synchronize_tsc_bp (void)
 	unsigned long long t0;
 	unsigned long long sum, avg;
 	long long delta;
-	unsigned long one_usec;
+	unsigned int one_usec;
 	int buggy = 0;
 
 	printk(KERN_INFO "checking TSC synchronization across %u CPUs: ", num_booting_cpus());

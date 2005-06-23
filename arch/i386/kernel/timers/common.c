@@ -163,7 +163,8 @@ void init_cpu_khz(void)
 		       		:"=a" (cpu_khz), "=d" (edx)
         	       		:"r" (tsc_quotient),
 	                	"0" (eax), "1" (edx));
-				printk("Detected %lu.%03lu MHz processor.\n", cpu_khz / 1000, cpu_khz % 1000);
+				printk("Detected %u.%03u MHz processor.\n",
+					cpu_khz / 1000, cpu_khz % 1000);
 			}
 		}
 	}

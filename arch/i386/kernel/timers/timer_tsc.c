@@ -256,7 +256,7 @@ static unsigned long loops_per_jiffy_ref = 0;
 
 #ifndef CONFIG_SMP
 static unsigned long fast_gettimeoffset_ref = 0;
-static unsigned long cpu_khz_ref = 0;
+static unsigned int cpu_khz_ref = 0;
 #endif
 
 static int
@@ -323,7 +323,7 @@ static inline void cpufreq_delayed_get(void) { return; }
 int recalibrate_cpu_khz(void)
 {
 #ifndef CONFIG_SMP
-	unsigned long cpu_khz_old = cpu_khz;
+	unsigned int cpu_khz_old = cpu_khz;
 
 	if (cpu_has_tsc) {
 		init_cpu_khz();
@@ -534,7 +534,8 @@ static int __init init_tsc(char* override)
 		       		:"=a" (cpu_khz), "=d" (edx)
         	       		:"r" (tsc_quotient),
 	                	"0" (eax), "1" (edx));
-				printk("Detected %lu.%03lu MHz processor.\n", cpu_khz / 1000, cpu_khz % 1000);
+				printk("Detected %u.%03u MHz processor.\n",
+					cpu_khz / 1000, cpu_khz % 1000);
 			}
 			set_cyc2ns_scale(cpu_khz/1000);
 			return 0;

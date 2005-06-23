@@ -158,7 +158,7 @@ static int __init init_hpet(char* override)
 			{	unsigned long eax=0, edx=1000;
 				ASM_DIV64_REG(cpu_khz, edx, tsc_quotient,
 						eax, edx);
-				printk("Detected %lu.%03lu MHz processor.\n",
+				printk("Detected %u.%03u MHz processor.\n",
 					cpu_khz / 1000, cpu_khz % 1000);
 			}
 			set_cyc2ns_scale(cpu_khz/1000);
