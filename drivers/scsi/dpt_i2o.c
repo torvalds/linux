@@ -1126,11 +1126,11 @@ static int adpt_i2o_post_wait(adpt_hba* pHba, u32* msg, int len, int timeout)
 	struct adpt_i2o_post_wait_data *p1, *p2;
 	struct adpt_i2o_post_wait_data *wait_data =
 		kmalloc(sizeof(struct adpt_i2o_post_wait_data),GFP_KERNEL);
-	adpt_wait_queue_t wait;
+	DECLARE_WAITQUEUE(wait, current);
 
-	if(!wait_data){
+	if (!wait_data)
 		return -ENOMEM;
-	}
+
 	/*
 	 * The spin locking is needed to keep anyone from playing
 	 * with the queue pointers and id while we do the same
@@ -1148,12 +1148,7 @@ static int adpt_i2o_post_wait(adpt_hba* pHba, u32* msg, int len, int timeout)
 	wait_data->wq = &adpt_wq_i2o_post;
 	wait_data->status = -ETIMEDOUT;
 
-	// this code is taken from kernel/sched.c:interruptible_sleep_on_timeout
-	wait.task = current;
-	init_waitqueue_entry(&wait, current);
-	spin_lock_irqsave(&adpt_wq_i2o_post.lock, flags);
-	__add_wait_queue(&adpt_wq_i2o_post, &wait);
-	spin_unlock(&adpt_wq_i2o_post.lock);
+	add_wait_queue(&adpt_wq_i2o_post, &wait);
 
 	msg[2] |= 0x80000000 | ((u32)wait_data->id);
 	timeout *= HZ;
@@ -1175,9 +1170,7 @@ static int adpt_i2o_post_wait(adpt_hba* pHba, u32* msg, int len, int timeout)
 		if(pHba->host)
 			spin_lock_irq(pHba->host->host_lock);
 	}
-	spin_lock_irq(&adpt_wq_i2o_post.lock);
-	__remove_wait_queue(&adpt_wq_i2o_post, &wait);
-	spin_unlock_irqrestore(&adpt_wq_i2o_post.lock, flags);
+	remove_wait_queue(&adpt_wq_i2o_post, &wait);
 
 	if(status == -ETIMEDOUT){
 		printk(KERN_INFO"dpti%d: POST WAIT TIMEOUT\n",pHba->unit);
