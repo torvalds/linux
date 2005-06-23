@@ -1522,11 +1522,10 @@ out_path:
 int vfs_quota_on_mount(struct super_block *sb, char *qf_name,
 		int format_id, int type)
 {
-	struct qstr name = {.name = qf_name, .len = 0, .len = strlen(qf_name)};
 	struct dentry *dentry;
 	int error;
 
-	dentry = lookup_hash(&name, sb->s_root);
+	dentry = lookup_one_len(qf_name, sb->s_root, strlen(qf_name));
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 
@@ -1534,12 +1533,6 @@ int vfs_quota_on_mount(struct super_block *sb, char *qf_name,
 	if (!error)
 		error = vfs_quota_on_inode(dentry->d_inode, type, format_id);
 
-	/*
-	 * Now invalidate and put the dentry - quota got its own reference
-	 * to inode and dentry has at least wrong hash so we had better
-	 * throw it away.
-	 */
-	d_invalidate(dentry);
 	dput(dentry);
 	return error;
 }
