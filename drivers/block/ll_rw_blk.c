@@ -789,7 +789,7 @@ init_tag_map(request_queue_t *q, struct blk_queue_tag *tags, int depth)
 	if (!tag_index)
 		goto fail;
 
-	nr_ulongs = ALIGN(depth, BLK_TAGS_PER_LONG) / BLK_TAGS_PER_LONG;
+	nr_ulongs = ALIGN(depth, BITS_PER_LONG) / BITS_PER_LONG;
 	tag_map = kmalloc(nr_ulongs * sizeof(unsigned long), GFP_ATOMIC);
 	if (!tag_map)
 		goto fail;
@@ -880,7 +880,7 @@ int blk_queue_resize_tags(request_queue_t *q, int new_depth)
 		return -ENOMEM;
 
 	memcpy(bqt->tag_index, tag_index, max_depth * sizeof(struct request *));
-	nr_ulongs = ALIGN(max_depth, BLK_TAGS_PER_LONG) / BLK_TAGS_PER_LONG;
+	nr_ulongs = ALIGN(max_depth, BITS_PER_LONG) / BITS_PER_LONG;
 	memcpy(bqt->tag_map, tag_map, nr_ulongs * sizeof(unsigned long));
 
 	kfree(tag_index);

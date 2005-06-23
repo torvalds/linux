@@ -285,9 +285,6 @@ enum blk_queue_state {
 	Queue_up,
 };
 
-#define BLK_TAGS_PER_LONG	(sizeof(unsigned long) * 8)
-#define BLK_TAGS_MASK		(BLK_TAGS_PER_LONG - 1)
-
 struct blk_queue_tag {
 	struct request **tag_index;	/* map of busy tags */
 	unsigned long *tag_map;		/* bit map of free/busy tags */
