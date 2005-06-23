@@ -94,6 +94,16 @@ Who:	Jody McIntyre <scjody@steamballoon.com>
 
 ---------------------------
 
+What:	register_serial/unregister_serial
+When:	December 2005
+Why:	This interface does not allow serial ports to be registered against
+	a struct device, and as such does not allow correct power management
+	of such ports.  8250-based ports should use serial8250_register_port
+	and serial8250_unregister_port instead.
+Who:	Russell King <rmk@arm.linux.org.uk>
+
+---------------------------
+
 What:	i2c sysfs name change: in1_ref, vid deprecated in favour of cpu0_vid
 When:	November 2005
 Files:	drivers/i2c/chips/adm1025.c, drivers/i2c/chips/adm1026.c
