@@ -968,8 +968,7 @@ EXPORT_SYMBOL(blk_queue_end_tag);
 int blk_queue_start_tag(request_queue_t *q, struct request *rq)
 {
 	struct blk_queue_tag *bqt = q->queue_tags;
-	unsigned long *map = bqt->tag_map;
-	int tag = 0;
+	int tag;
 
 	if (unlikely((rq->flags & REQ_QUEUED))) {
 		printk(KERN_ERR 
@@ -978,14 +977,10 @@ int blk_queue_start_tag(request_queue_t *q, struct request *rq)
 		BUG();
 	}
 
-	for (map = bqt->tag_map; *map == -1UL; map++) {
-		tag += BLK_TAGS_PER_LONG;
+	tag = find_first_zero_bit(bqt->tag_map, bqt->max_depth);
+	if (tag >= bqt->max_depth)
+		return 1;
 
-		if (tag >= bqt->max_depth)
-			return 1;
-	}
-
-	tag += ffz(*map);
 	__set_bit(tag, bqt->tag_map);
 
 	rq->flags |= REQ_QUEUED;
