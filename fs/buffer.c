@@ -1926,7 +1926,6 @@ static int __block_prepare_write(struct inode *inode, struct page *page,
 			if (err)
 				break;
 			if (buffer_new(bh)) {
-				clear_buffer_new(bh);
 				unmap_underlying_metadata(bh->b_bdev,
 							bh->b_blocknr);
 				if (PageUptodate(page)) {
@@ -1968,9 +1967,14 @@ static int __block_prepare_write(struct inode *inode, struct page *page,
 		if (!buffer_uptodate(*wait_bh))
 			err = -EIO;
 	}
-	if (!err)
-		return err;
-
+	if (!err) {
+		bh = head;
+		do {
+			if (buffer_new(bh))
+				clear_buffer_new(bh);
+		} while ((bh = bh->b_this_page) != head);
+		return 0;
+	}
 	/* Error case: */
 	/*
 	 * Zero out any newly allocated blocks to avoid exposing stale
