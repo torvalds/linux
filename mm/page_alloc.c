@@ -1650,8 +1650,8 @@ void __init memmap_init_zone(unsigned long size, int nid, unsigned long zone,
 		unsigned long start_pfn)
 {
 	struct page *page;
-	int end_pfn = start_pfn + size;
-	int pfn;
+	unsigned long end_pfn = start_pfn + size;
+	unsigned long pfn;
 
 	for (pfn = start_pfn; pfn < end_pfn; pfn++, page++) {
 		if (!early_pfn_valid(pfn))

@@ -476,10 +476,55 @@ extern struct pglist_data contig_page_data;
 
 struct page;
 struct mem_section {
-	struct page *section_mem_map;
+	/*
+	 * This is, logically, a pointer to an array of struct
+	 * pages.  However, it is stored with some other magic.
+	 * (see sparse.c::sparse_init_one_section())
+	 *
+	 * Making it a UL at least makes someone do a cast
+	 * before using it wrong.
+	 */
+	unsigned long section_mem_map;
 };
 
 extern struct mem_section mem_section[NR_MEM_SECTIONS];
+
+static inline struct mem_section *__nr_to_section(unsigned long nr)
+{
+	return &mem_section[nr];
+}
+
+/*
+ * We use the lower bits of the mem_map pointer to store
+ * a little bit of information.  There should be at least
+ * 3 bits here due to 32-bit alignment.
+ */
+#define	SECTION_MARKED_PRESENT	(1UL<<0)
+#define SECTION_HAS_MEM_MAP	(1UL<<1)
+#define SECTION_MAP_LAST_BIT	(1UL<<2)
+#define SECTION_MAP_MASK	(~(SECTION_MAP_LAST_BIT-1))
+
+static inline struct page *__section_mem_map_addr(struct mem_section *section)
+{
+	unsigned long map = section->section_mem_map;
+	map &= SECTION_MAP_MASK;
+	return (struct page *)map;
+}
+
+static inline int valid_section(struct mem_section *section)
+{
+	return (section->section_mem_map & SECTION_MARKED_PRESENT);
+}
+
+static inline int section_has_mem_map(struct mem_section *section)
+{
+	return (section->section_mem_map & SECTION_HAS_MEM_MAP);
+}
+
+static inline int valid_section_nr(unsigned long nr)
+{
+	return valid_section(__nr_to_section(nr));
+}
 
 /*
  * Given a kernel address, find the home node of the underlying memory.
@@ -488,24 +533,25 @@ extern struct mem_section mem_section[NR_MEM_SECTIONS];
 
 static inline struct mem_section *__pfn_to_section(unsigned long pfn)
 {
-	return &mem_section[pfn_to_section_nr(pfn)];
+	return __nr_to_section(pfn_to_section_nr(pfn));
 }
 
 #define pfn_to_page(pfn) 						\
 ({ 									\
 	unsigned long __pfn = (pfn);					\
-	__pfn_to_section(__pfn)->section_mem_map + __pfn;		\
+	__section_mem_map_addr(__pfn_to_section(__pfn)) + __pfn;	\
 })
 #define page_to_pfn(page)						\
 ({									\
-	page - mem_section[page_to_section(page)].section_mem_map;	\
+	page - __section_mem_map_addr(__nr_to_section(			\
+		page_to_section(page)));				\
 })
 
 static inline int pfn_valid(unsigned long pfn)
 {
 	if (pfn_to_section_nr(pfn) >= NR_MEM_SECTIONS)
 		return 0;
-	return mem_section[pfn_to_section_nr(pfn)].section_mem_map != 0;
+	return valid_section(__nr_to_section(pfn_to_section_nr(pfn)));
 }
 
 /*
