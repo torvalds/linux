@@ -354,21 +354,3 @@ void x25_check_rbuf(struct sock *sk)
 	}
 }
 
-/*
- * Compare 2 calluserdata structures, used to find correct listening sockets
- * when call user data is used.
- */
-int x25_check_calluserdata(struct x25_calluserdata *ours, struct x25_calluserdata *theirs)
-{
-	int i;
-	if (ours->cudlength != theirs->cudlength)
-		return 0;
-
-	for (i=0;i<ours->cudlength;i++) {
-		if (ours->cuddata[i] != theirs->cuddata[i]) {
-			return 0;
-		}
-	}
-	return 1;
-}
-

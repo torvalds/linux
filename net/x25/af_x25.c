@@ -29,6 +29,8 @@
  *	2000-11-14	Henner Eisen    Closing datalink from NETDEV_GOING_DOWN
  *	2002-10-06	Arnaldo C. Melo Get rid of cli/sti, move proc stuff to
  *					x25_proc.c, using seq_file
+ *	2005-04-02	Shaun Pereira	Selective sub address matching
+ *					with call user data
  */
 
 #include <linux/config.h>
@@ -219,7 +221,8 @@ static void x25_insert_socket(struct sock *sk)
  *	Note: if a listening socket has cud set it must only get calls
  *	with matching cud.
  */
-static struct sock *x25_find_listener(struct x25_address *addr, struct x25_calluserdata *calluserdata)
+static struct sock *x25_find_listener(struct x25_address *addr,
+					struct sk_buff *skb)
 {
 	struct sock *s;
 	struct sock *next_best;
@@ -230,22 +233,23 @@ static struct sock *x25_find_listener(struct x25_address *addr, struct x25_callu
 
 	sk_for_each(s, node, &x25_list)
 		if ((!strcmp(addr->x25_addr,
-			     x25_sk(s)->source_addr.x25_addr) ||
-		     !strcmp(addr->x25_addr,
-			     null_x25_address.x25_addr)) &&
-		     s->sk_state == TCP_LISTEN) {
-
+			x25_sk(s)->source_addr.x25_addr) ||
+				!strcmp(addr->x25_addr,
+					null_x25_address.x25_addr)) &&
+					s->sk_state == TCP_LISTEN) {
 			/*
 			 * Found a listening socket, now check the incoming
 			 * call user data vs this sockets call user data
 			 */
-			if (x25_check_calluserdata(&x25_sk(s)->calluserdata, calluserdata)) {
-				sock_hold(s);
-				goto found;
-			}
-			if (x25_sk(s)->calluserdata.cudlength == 0) {
+			if(skb->len > 0 && x25_sk(s)->cudmatchlength > 0) {
+			 	if((memcmp(x25_sk(s)->calluserdata.cuddata,
+			 		skb->data,
+					x25_sk(s)->cudmatchlength)) == 0) {
+					sock_hold(s);
+					goto found;
+				 }
+			} else
 				next_best = s;
-			}
 		}
 	if (next_best) {
 		s = next_best;
@@ -497,6 +501,7 @@ static int x25_create(struct socket *sock, int protocol)
 	x25->t23   = sysctl_x25_clear_request_timeout;
 	x25->t2    = sysctl_x25_ack_holdback_timeout;
 	x25->state = X25_STATE_0;
+	x25->cudmatchlength = 0;
 
 	x25->facilities.winsize_in  = X25_DEFAULT_WINDOW_SIZE;
 	x25->facilities.winsize_out = X25_DEFAULT_WINDOW_SIZE;
@@ -545,6 +550,7 @@ static struct sock *x25_make_new(struct sock *osk)
 	x25->t2         = ox25->t2;
 	x25->facilities = ox25->facilities;
 	x25->qbitincl   = ox25->qbitincl;
+	x25->cudmatchlength = ox25->cudmatchlength;
 
 	x25_init_timers(sk);
 out:
@@ -822,7 +828,6 @@ int x25_rx_call_request(struct sk_buff *skb, struct x25_neigh *nb,
 	struct x25_sock *makex25;
 	struct x25_address source_addr, dest_addr;
 	struct x25_facilities facilities;
-	struct x25_calluserdata calluserdata;
 	int len, rc;
 
 	/*
@@ -845,19 +850,10 @@ int x25_rx_call_request(struct sk_buff *skb, struct x25_neigh *nb,
 	skb_pull(skb,len);
 
 	/*
-	 *	Incoming Call User Data.
-	 */
-	if (skb->len >= 0) {
-		memcpy(calluserdata.cuddata, skb->data, skb->len);
-		calluserdata.cudlength = skb->len;
-	}
-
-	skb_push(skb,len);
-
-	/*
 	 *	Find a listener for the particular address/cud pair.
 	 */
-	sk = x25_find_listener(&source_addr,&calluserdata);
+	sk = x25_find_listener(&source_addr,skb);
+	skb_push(skb,len);
 
 	/*
 	 *	We can't accept the Call Request.
@@ -900,11 +896,21 @@ int x25_rx_call_request(struct sk_buff *skb, struct x25_neigh *nb,
 	makex25->neighbour     = nb;
 	makex25->facilities    = facilities;
 	makex25->vc_facil_mask = x25_sk(sk)->vc_facil_mask;
-	makex25->calluserdata  = calluserdata;
+	/* ensure no reverse facil on accept */
+	makex25->vc_facil_mask &= ~X25_MASK_REVERSE;
+	makex25->cudmatchlength = x25_sk(sk)->cudmatchlength;
 
 	x25_write_internal(make, X25_CALL_ACCEPTED);
 
 	makex25->state = X25_STATE_3;
+
+	/*
+	 *	Incoming Call User Data.
+	 */
+	if (skb->len >= 0) {
+		memcpy(makex25->calluserdata.cuddata, skb->data, skb->len);
+		makex25->calluserdata.cudlength = skb->len;
+	}
 
 	sk->sk_ack_backlog++;
 
@@ -1322,6 +1328,23 @@ static int x25_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 			causediag = x25->causediag;
 			rc = copy_to_user(argp, &causediag,
 					  sizeof(causediag)) ? -EFAULT : 0;
+			break;
+		}
+
+		case SIOCX25SCUDMATCHLEN: {
+			struct x25_subaddr sub_addr;
+			rc = -EINVAL;
+			if(sk->sk_state != TCP_CLOSE)
+				break;
+			rc = -EFAULT;
+			if (copy_from_user(&sub_addr, argp,
+					sizeof(sub_addr)))
+				break;
+		 	rc = -EINVAL;
+			if(sub_addr.cudmatchlength > X25_MAX_CUD_LEN)
+				break;
+			x25->cudmatchlength = sub_addr.cudmatchlength;
+			rc = 0;
 			break;
 		}
 

@@ -134,7 +134,7 @@ struct x25_sock {
 	struct sock		sk;
 	struct x25_address	source_addr, dest_addr;
 	struct x25_neigh	*neighbour;
-	unsigned int		lci;
+	unsigned int		lci, cudmatchlength;
 	unsigned char		state, condition, qbitincl, intflag;
 	unsigned short		vs, vr, va, vl;
 	unsigned long		t2, t21, t22, t23;
@@ -242,7 +242,6 @@ extern int  x25_validate_nr(struct sock *, unsigned short);
 extern void x25_write_internal(struct sock *, int);
 extern int  x25_decode(struct sock *, struct sk_buff *, int *, int *, int *, int *, int *);
 extern void x25_disconnect(struct sock *, int, unsigned char, unsigned char);
-extern int x25_check_calluserdata(struct x25_calluserdata *,struct x25_calluserdata *);
 
 /* x25_timer.c */
 extern void x25_start_heartbeat(struct sock *);
