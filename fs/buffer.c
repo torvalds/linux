@@ -331,7 +331,7 @@ int file_fsync(struct file *filp, struct dentry *dentry, int datasync)
 	return ret;
 }
 
-asmlinkage long sys_fsync(unsigned int fd)
+static long do_fsync(unsigned int fd, int datasync)
 {
 	struct file * file;
 	struct address_space *mapping;
@@ -342,13 +342,13 @@ asmlinkage long sys_fsync(unsigned int fd)
 	if (!file)
 		goto out;
 
-	mapping = file->f_mapping;
-
 	ret = -EINVAL;
 	if (!file->f_op || !file->f_op->fsync) {
 		/* Why?  We can still call filemap_fdatawrite */
 		goto out_putf;
 	}
+
+	mapping = file->f_mapping;
 
 	current->flags |= PF_SYNCWRITE;
 	ret = filemap_fdatawrite(mapping);
@@ -358,7 +358,7 @@ asmlinkage long sys_fsync(unsigned int fd)
 	 * which could cause livelocks in fsync_buffers_list
 	 */
 	down(&mapping->host->i_sem);
-	err = file->f_op->fsync(file, file->f_dentry, 0);
+	err = file->f_op->fsync(file, file->f_dentry, datasync);
 	if (!ret)
 		ret = err;
 	up(&mapping->host->i_sem);
@@ -373,39 +373,14 @@ out:
 	return ret;
 }
 
+asmlinkage long sys_fsync(unsigned int fd)
+{
+	return do_fsync(fd, 0);
+}
+
 asmlinkage long sys_fdatasync(unsigned int fd)
 {
-	struct file * file;
-	struct address_space *mapping;
-	int ret, err;
-
-	ret = -EBADF;
-	file = fget(fd);
-	if (!file)
-		goto out;
-
-	ret = -EINVAL;
-	if (!file->f_op || !file->f_op->fsync)
-		goto out_putf;
-
-	mapping = file->f_mapping;
-
-	current->flags |= PF_SYNCWRITE;
-	ret = filemap_fdatawrite(mapping);
-	down(&mapping->host->i_sem);
-	err = file->f_op->fsync(file, file->f_dentry, 1);
-	if (!ret)
-		ret = err;
-	up(&mapping->host->i_sem);
-	err = filemap_fdatawait(mapping);
-	if (!ret)
-		ret = err;
-	current->flags &= ~PF_SYNCWRITE;
-
-out_putf:
-	fput(file);
-out:
-	return ret;
+	return do_fsync(fd, 1);
 }
 
 /*
