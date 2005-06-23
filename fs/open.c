@@ -21,6 +21,7 @@
 #include <linux/vfs.h>
 #include <asm/uaccess.h>
 #include <linux/fs.h>
+#include <linux/personality.h>
 #include <linux/pagemap.h>
 #include <linux/syscalls.h>
 
@@ -935,9 +936,9 @@ asmlinkage long sys_open(const char __user * filename, int flags, int mode)
 	char * tmp;
 	int fd, error;
 
-#if BITS_PER_LONG != 32
-	flags |= O_LARGEFILE;
-#endif
+	if (force_o_largefile())
+		flags |= O_LARGEFILE;
+
 	tmp = getname(filename);
 	fd = PTR_ERR(tmp);
 	if (!IS_ERR(tmp)) {
