@@ -1129,7 +1129,7 @@ int __usb_get_extra_descriptor(char *buffer, unsigned size,
 void *usb_buffer_alloc (
 	struct usb_device *dev,
 	size_t size,
-	int mem_flags,
+	unsigned mem_flags,
 	dma_addr_t *dma
 )
 {
