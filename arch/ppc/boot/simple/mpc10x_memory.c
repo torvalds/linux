@@ -33,7 +33,7 @@
 
 #define MPC10X_PCI_OP(rw, size, type, op, mask)			 	\
 static void								\
-mpc10x_##rw##_config_##size(unsigned int *cfg_addr, 			\
+mpc10x_##rw##_config_##size(unsigned int __iomem *cfg_addr, 			\
 		unsigned int *cfg_data, int devfn, int offset,		\
 		type val)						\
 {									\

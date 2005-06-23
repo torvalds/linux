@@ -52,4 +52,7 @@ posix_acl_xattr_count(size_t size)
 	return size / sizeof(posix_acl_xattr_entry);
 }
 
+struct posix_acl *posix_acl_from_xattr(const void *value, size_t size);
+int posix_acl_to_xattr(const struct posix_acl *acl, void *buffer, size_t size);
+
 #endif	/* _POSIX_ACL_XATTR_H */
