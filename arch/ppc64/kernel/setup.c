@@ -1080,11 +1080,11 @@ void __init setup_arch(char **cmdline_p)
 static void ppc64_do_msg(unsigned int src, const char *msg)
 {
 	if (ppc_md.progress) {
-		char buf[32];
+		char buf[128];
 
-		sprintf(buf, "%08x        \n", src);
+		sprintf(buf, "%08X\n", src);
 		ppc_md.progress(buf, 0);
-		sprintf(buf, "%-16s", msg);
+		snprintf(buf, 128, "%s", msg);
 		ppc_md.progress(buf, 0);
 	}
 }

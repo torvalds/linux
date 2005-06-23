@@ -98,21 +98,29 @@ rtas_progress(char *s, unsigned short hex)
 	int width, *p;
 	char *os;
 	static int display_character, set_indicator;
-	static int max_width;
+	static int display_width, display_lines, *row_width, form_feed;
 	static DEFINE_SPINLOCK(progress_lock);
+	static int current_line;
 	static int pending_newline = 0;  /* did last write end with unprinted newline? */
 
 	if (!rtas.base)
 		return;
 
-	if (max_width == 0) {
-		if ((root = find_path_device("/rtas")) &&
-		     (p = (unsigned int *)get_property(root,
-						       "ibm,display-line-length",
-						       NULL)))
-			max_width = *p;
-		else
-			max_width = 0x10;
+	if (display_width == 0) {
+		display_width = 0x10;
+		if ((root = find_path_device("/rtas"))) {
+			if ((p = (unsigned int *)get_property(root,
+					"ibm,display-line-length", NULL)))
+				display_width = *p;
+			if ((p = (unsigned int *)get_property(root,
+					"ibm,form-feed", NULL)))
+				form_feed = *p;
+			if ((p = (unsigned int *)get_property(root,
+					"ibm,display-number-of-lines", NULL)))
+				display_lines = *p;
+			row_width = (unsigned int *)get_property(root,
+					"ibm,display-truncation-length", NULL);
+		}
 		display_character = rtas_token("display-character");
 		set_indicator = rtas_token("set-indicator");
 	}
@@ -131,31 +139,39 @@ rtas_progress(char *s, unsigned short hex)
 	 * it would just clear the bottom line of output. Print it now
 	 * instead.
 	 *
-	 * If no newline is pending, print a CR to start output at the
-	 * beginning of the line.
+	 * If no newline is pending and form feed is supported, clear the
+	 * display with a form feed; otherwise, print a CR to start output
+	 * at the beginning of the line.
 	 */
 	if (pending_newline) {
 		rtas_call(display_character, 1, 1, NULL, '\r');
 		rtas_call(display_character, 1, 1, NULL, '\n');
 		pending_newline = 0;
 	} else {
-		rtas_call(display_character, 1, 1, NULL, '\r');
+		current_line = 0;
+		if (form_feed)
+			rtas_call(display_character, 1, 1, NULL,
+				  (char)form_feed);
+		else
+			rtas_call(display_character, 1, 1, NULL, '\r');
 	}
  
-	width = max_width;
+	if (row_width)
+		width = row_width[current_line];
+	else
+		width = display_width;
 	os = s;
 	while (*os) {
 		if (*os == '\n' || *os == '\r') {
-			/* Blank to end of line. */
-			while (width-- > 0)
-				rtas_call(display_character, 1, 1, NULL, ' ');
- 
 			/* If newline is the last character, save it
 			 * until next call to avoid bumping up the
 			 * display output.
 			 */
 			if (*os == '\n' && !os[1]) {
 				pending_newline = 1;
+				current_line++;
+				if (current_line > display_lines-1)
+					current_line = display_lines-1;
 				spin_unlock(&progress_lock);
 				return;
 			}
@@ -172,7 +188,10 @@ rtas_progress(char *s, unsigned short hex)
 				rtas_call(display_character, 1, 1, NULL, *os);
 			}
  
-			width = max_width;
+			if (row_width)
+				width = row_width[current_line];
+			else
+				width = display_width;
 		} else {
 			width--;
 			rtas_call(display_character, 1, 1, NULL, *os);
@@ -186,10 +205,6 @@ rtas_progress(char *s, unsigned short hex)
 				os++;
 	}
  
-	/* Blank to end of line. */
-	while (width-- > 0)
-		rtas_call(display_character, 1, 1, NULL, ' ');
-
 	spin_unlock(&progress_lock);
 }
 
