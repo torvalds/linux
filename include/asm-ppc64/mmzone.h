@@ -90,4 +90,9 @@ static inline int pa_to_nid(unsigned long pa)
 #define discontigmem_pfn_valid(pfn)		((pfn) < num_physpages)
 
 #endif /* CONFIG_DISCONTIGMEM */
+
+#ifdef CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID
+#define early_pfn_to_nid(pfn)  pa_to_nid(((unsigned long)pfn) << PAGE_SHIFT)
+#endif
+
 #endif /* _ASM_MMZONE_H_ */
