@@ -912,10 +912,15 @@ void blk_queue_end_tag(request_queue_t *q, struct request *rq)
 	BUG_ON(tag == -1);
 
 	if (unlikely(tag >= bqt->max_depth))
+		/*
+		 * This can happen after tag depth has been reduced.
+		 * FIXME: how about a warning or info message here?
+		 */
 		return;
 
 	if (unlikely(!__test_and_clear_bit(tag, bqt->tag_map))) {
-		printk("attempt to clear non-busy tag (%d)\n", tag);
+		printk(KERN_ERR "%s: attempt to clear non-busy tag (%d)\n",
+		       __FUNCTION__, tag);
 		return;
 	}
 
@@ -924,7 +929,8 @@ void blk_queue_end_tag(request_queue_t *q, struct request *rq)
 	rq->tag = -1;
 
 	if (unlikely(bqt->tag_index[tag] == NULL))
-		printk("tag %d is missing\n", tag);
+		printk(KERN_ERR "%s: tag %d is missing\n",
+		       __FUNCTION__, tag);
 
 	bqt->tag_index[tag] = NULL;
 	bqt->busy--;
@@ -957,8 +963,9 @@ int blk_queue_start_tag(request_queue_t *q, struct request *rq)
 
 	if (unlikely((rq->flags & REQ_QUEUED))) {
 		printk(KERN_ERR 
-		       "request %p for device [%s] already tagged %d",
-		       rq, rq->rq_disk ? rq->rq_disk->disk_name : "?", rq->tag);
+		       "%s: request %p for device [%s] already tagged %d",
+		       __FUNCTION__, rq,
+		       rq->rq_disk ? rq->rq_disk->disk_name : "?", rq->tag);
 		BUG();
 	}
 
@@ -1001,7 +1008,8 @@ void blk_queue_invalidate_tags(request_queue_t *q)
 		rq = list_entry_rq(tmp);
 
 		if (rq->tag == -1) {
-			printk("bad tag found on list\n");
+			printk(KERN_ERR
+			       "%s: bad tag found on list\n", __FUNCTION__);
 			list_del_init(&rq->queuelist);
 			rq->flags &= ~REQ_QUEUED;
 		} else
