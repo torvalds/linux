@@ -906,11 +906,20 @@ void __init mp_config_acpi_legacy_irqs (void)
 	return;
 }
 
+#define MAX_GSI_NUM	4096
+
 int mp_register_gsi(u32 gsi, int edge_level, int active_high_low)
 {
 	int			ioapic = -1;
 	int			ioapic_pin = 0;
 	int			idx, bit = 0;
+	static int		pci_irq = 16;
+	/*
+	 * Mapping between Global System Interrupts, which
+	 * represent all possible interrupts, to the IRQs
+	 * assigned to actual devices.
+	 */
+	static int		gsi_to_irq[MAX_GSI_NUM];
 
 	if (acpi_irq_model != ACPI_IRQ_MODEL_IOAPIC)
 		return gsi;
@@ -945,10 +954,20 @@ int mp_register_gsi(u32 gsi, int edge_level, int active_high_low)
 	if ((1<<bit) & mp_ioapic_routing[ioapic].pin_programmed[idx]) {
 		Dprintk(KERN_DEBUG "Pin %d-%d already programmed\n",
 			mp_ioapic_routing[ioapic].apic_id, ioapic_pin);
-		return gsi;
+		return gsi_to_irq[gsi];
 	}
 
 	mp_ioapic_routing[ioapic].pin_programmed[idx] |= (1<<bit);
+
+	if (edge_level) {
+		/*
+		 * For PCI devices assign IRQs in order, avoiding gaps
+		 * due to unused I/O APIC pins.
+		 */
+		int irq = gsi;
+		gsi = pci_irq++;
+		gsi_to_irq[irq] = gsi;
+	}
 
 	io_apic_set_pci_routing(ioapic, ioapic_pin, gsi,
 		edge_level == ACPI_EDGE_SENSITIVE ? 0 : 1,
