@@ -120,25 +120,75 @@ void arch_arm_kprobe(struct kprobe *p)
 	unsigned long arm_addr = addr & ~0xFULL;
 	unsigned long slot = addr & 0xf;
 	unsigned long template;
+    	unsigned long major_opcode = 0;
+    	unsigned long lx_type_inst = 0;
+    	unsigned long kprobe_inst = 0;
 	bundle_t bundle;
 
-	memcpy(&bundle, &p->ainsn.insn.bundle, sizeof(bundle_t));
+   	p->ainsn.inst_flag = 0;
+   	p->ainsn.target_br_reg = 0;
 
-	template = bundle.quad0.template;
-	if (slot == 1 && bundle_encoding[template][1] == L)
-		slot = 2;
+	memcpy(&bundle, &p->ainsn.insn.bundle, sizeof(bundle_t));
+    	template = bundle.quad0.template;
+    	if (slot == 1 && bundle_encoding[template][1] == L) {
+    		lx_type_inst = 1;
+     		slot = 2;
+    	}
+
+
 	switch (slot) {
 	case 0:
+   		major_opcode = (bundle.quad0.slot0 >> SLOT0_OPCODE_SHIFT);
+    		kprobe_inst = bundle.quad0.slot0;
 		bundle.quad0.slot0 = BREAK_INST;
 		break;
 	case 1:
+    		major_opcode = (bundle.quad1.slot1_p1 >> SLOT1_p1_OPCODE_SHIFT);
+    		kprobe_inst = (bundle.quad0.slot1_p0 |
+    				(bundle.quad1.slot1_p1 << (64-46)));
 		bundle.quad0.slot1_p0 = BREAK_INST;
 		bundle.quad1.slot1_p1 = (BREAK_INST >> (64-46));
 		break;
 	case 2:
+    		major_opcode = (bundle.quad1.slot2 >> SLOT2_OPCODE_SHIFT);
+    		kprobe_inst = bundle.quad1.slot2;
 		bundle.quad1.slot2 = BREAK_INST;
 		break;
 	}
+    	/*
+    	 * Look for IP relative Branches, IP relative call or
+    	 * IP relative predicate instructions
+    	 */
+    	if (bundle_encoding[template][slot] == B) {
+    		switch (major_opcode) {
+    			case INDIRECT_CALL_OPCODE:
+    				p->ainsn.inst_flag |= INST_FLAG_FIX_BRANCH_REG;
+    				p->ainsn.target_br_reg = ((kprobe_inst >> 6) & 0x7);
+    				break;
+    			case IP_RELATIVE_PREDICT_OPCODE:
+    			case IP_RELATIVE_BRANCH_OPCODE:
+    				p->ainsn.inst_flag |= INST_FLAG_FIX_RELATIVE_IP_ADDR;
+    				break;
+    			case IP_RELATIVE_CALL_OPCODE:
+    				p->ainsn.inst_flag |= INST_FLAG_FIX_RELATIVE_IP_ADDR;
+    				p->ainsn.inst_flag |= INST_FLAG_FIX_BRANCH_REG;
+    				p->ainsn.target_br_reg = ((kprobe_inst >> 6) & 0x7);
+    				break;
+    			default:
+    				/* Do nothing */
+    				break;
+    		}
+    	} else if (lx_type_inst) {
+    		switch (major_opcode) {
+    			case LONG_CALL_OPCODE:
+    				p->ainsn.inst_flag |= INST_FLAG_FIX_BRANCH_REG;
+    				p->ainsn.target_br_reg = ((kprobe_inst >> 6) & 0x7);
+   				break;
+    			default:
+    				/* Do nothing */
+    				break;
+    		}
+    	}
 
  	/* Flush icache for the instruction at the emulated address */
 	flush_icache_range((unsigned long)&p->ainsn.insn.bundle,
@@ -170,24 +220,75 @@ void arch_remove_kprobe(struct kprobe *p)
  * We are resuming execution after a single step fault, so the pt_regs
  * structure reflects the register state after we executed the instruction
  * located in the kprobe (p->ainsn.insn.bundle).  We still need to adjust
- * the ip to point back to the original stack address, and if we see that
- * the slot has incremented back to zero, then we need to point to the next
- * slot location.
+ * the ip to point back to the original stack address. To set the IP address
+ * to original stack address, handle the case where we need to fixup the
+ * relative IP address and/or fixup branch register.
  */
 static void resume_execution(struct kprobe *p, struct pt_regs *regs)
 {
-	unsigned long bundle = (unsigned long)p->addr & ~0xFULL;
+  	unsigned long bundle_addr = ((unsigned long) (&p->ainsn.insn.bundle)) & ~0xFULL;
+  	unsigned long resume_addr = (unsigned long)p->addr & ~0xFULL;
+ 	unsigned long template;
+ 	int slot = ((unsigned long)p->addr & 0xf);
 
-	/*
-	 * TODO: Handle cases where kprobe was inserted on a branch instruction
-	 */
+	template = p->opcode.bundle.quad0.template;
 
-	if (!ia64_psr(regs)->ri)
-		regs->cr_iip = bundle + 0x10;
-	else
-		regs->cr_iip = bundle;
+ 	if (slot == 1 && bundle_encoding[template][1] == L)
+ 		slot = 2;
 
-	ia64_psr(regs)->ss = 0;
+	if (p->ainsn.inst_flag) {
+
+		if (p->ainsn.inst_flag & INST_FLAG_FIX_RELATIVE_IP_ADDR) {
+			/* Fix relative IP address */
+ 			regs->cr_iip = (regs->cr_iip - bundle_addr) + resume_addr;
+		}
+
+		if (p->ainsn.inst_flag & INST_FLAG_FIX_BRANCH_REG) {
+		/*
+		 * Fix target branch register, software convention is
+		 * to use either b0 or b6 or b7, so just checking
+		 * only those registers
+		 */
+			switch (p->ainsn.target_br_reg) {
+			case 0:
+				if ((regs->b0 == bundle_addr) ||
+					(regs->b0 == bundle_addr + 0x10)) {
+					regs->b0 = (regs->b0 - bundle_addr) +
+						resume_addr;
+				}
+				break;
+			case 6:
+				if ((regs->b6 == bundle_addr) ||
+					(regs->b6 == bundle_addr + 0x10)) {
+					regs->b6 = (regs->b6 - bundle_addr) +
+						resume_addr;
+				}
+				break;
+			case 7:
+				if ((regs->b7 == bundle_addr) ||
+					(regs->b7 == bundle_addr + 0x10)) {
+					regs->b7 = (regs->b7 - bundle_addr) +
+						resume_addr;
+				}
+				break;
+			} /* end switch */
+		}
+		goto turn_ss_off;
+	}
+
+	if (slot == 2) {
+ 		if (regs->cr_iip == bundle_addr + 0x10) {
+ 			regs->cr_iip = resume_addr + 0x10;
+ 		}
+ 	} else {
+ 		if (regs->cr_iip == bundle_addr) {
+ 			regs->cr_iip = resume_addr;
+ 		}
+ 	}
+
+turn_ss_off:
+  	/* Turn off Single Step bit */
+  	ia64_psr(regs)->ss = 0;
 }
 
 static void prepare_ss(struct kprobe *p, struct pt_regs *regs)

@@ -44,6 +44,17 @@ typedef struct _bundle {
 
 #define JPROBE_ENTRY(pentry)	(kprobe_opcode_t *)pentry
 
+#define SLOT0_OPCODE_SHIFT	(37)
+#define SLOT1_p1_OPCODE_SHIFT	(37 - (64-46))
+#define SLOT2_OPCODE_SHIFT 	(37)
+
+#define INDIRECT_CALL_OPCODE		(1)
+#define IP_RELATIVE_CALL_OPCODE		(5)
+#define IP_RELATIVE_BRANCH_OPCODE	(4)
+#define IP_RELATIVE_PREDICT_OPCODE	(7)
+#define LONG_BRANCH_OPCODE		(0xC)
+#define LONG_CALL_OPCODE		(0xD)
+
 typedef struct kprobe_opcode {
 	bundle_t bundle;
 } kprobe_opcode_t;
@@ -55,8 +66,12 @@ struct fnptr {
 
 /* Architecture specific copy of original instruction*/
 struct arch_specific_insn {
-	/* copy of the original instruction */
+	/* copy of the instruction to be emulated */
 	kprobe_opcode_t insn;
+ #define INST_FLAG_FIX_RELATIVE_IP_ADDR		1
+ #define INST_FLAG_FIX_BRANCH_REG		2
+ 	unsigned long inst_flag;
+ 	unsigned short target_br_reg;
 };
 
 /* ia64 does not need this */
