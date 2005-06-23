@@ -478,6 +478,16 @@ config TCP_CONG_HSTCP
 	increase the congestion window by when an ACK is received.
  	For more detail	see http://www.icir.org/floyd/hstcp.html
 
+config TCP_CONG_HYBLA
+	tristate "TCP-Hybla congestion control algorithm"
+	depends on INET && EXPERIMENTAL
+	default n
+	---help---
+	TCP-Hybla is a sender-side only change that eliminates penalization of
+	long-RTT, large-bandwidth connections, like when satellite legs are
+	involved, expecially when sharing a common bottleneck with normal
+	terrestrial connections.
+
 endmenu
 
 source "net/ipv4/ipvs/Kconfig"
