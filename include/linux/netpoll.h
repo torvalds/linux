@@ -53,8 +53,8 @@ static inline void netpoll_poll_lock(struct net_device *dev)
 static inline void netpoll_poll_unlock(struct net_device *dev)
 {
 	if (dev->np) {
-		spin_unlock(&dev->np->poll_lock);
 		dev->np->poll_owner = -1;
+		spin_unlock(&dev->np->poll_lock);
 	}
 }
 
