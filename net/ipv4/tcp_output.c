@@ -111,8 +111,7 @@ static void tcp_cwnd_restart(struct tcp_sock *tp, struct dst_entry *dst)
 	u32 restart_cwnd = tcp_init_cwnd(tp, dst);
 	u32 cwnd = tp->snd_cwnd;
 
-	if (tcp_is_vegas(tp)) 
-		tcp_vegas_enable(tp);
+	tcp_ca_event(tp, CA_EVENT_CWND_RESTART);
 
 	tp->snd_ssthresh = tcp_current_ssthresh(tp);
 	restart_cwnd = min(restart_cwnd, cwnd);
@@ -280,6 +279,10 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 #define SYSCTL_FLAG_WSCALE	0x2
 #define SYSCTL_FLAG_SACK	0x4
 
+		/* If congestion control is doing timestamping */
+		if (tp->ca_ops->rtt_sample)
+			do_gettimeofday(&skb->stamp);
+
 		sysctl_flags = 0;
 		if (tcb->flags & TCPCB_FLAG_SYN) {
 			tcp_header_size = sizeof(struct tcphdr) + TCPOLEN_MSS;
@@ -304,17 +307,8 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 					    (tp->rx_opt.eff_sacks * TCPOLEN_SACK_PERBLOCK));
 		}
 		
-		/*
-		 * If the connection is idle and we are restarting,
-		 * then we don't want to do any Vegas calculations
-		 * until we get fresh RTT samples.  So when we
-		 * restart, we reset our Vegas state to a clean
-		 * slate. After we get acks for this flight of
-		 * packets, _then_ we can make Vegas calculations
-		 * again.
-		 */
-		if (tcp_is_vegas(tp) && tcp_packets_in_flight(tp) == 0)
-			tcp_vegas_enable(tp);
+		if (tcp_packets_in_flight(tp) == 0)
+			tcp_ca_event(tp, CA_EVENT_TX_START);
 
 		th = (struct tcphdr *) skb_push(skb, tcp_header_size);
 		skb->h.th = th;
@@ -521,6 +515,7 @@ static int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len)
 	 * skbs, which it never sent before. --ANK
 	 */
 	TCP_SKB_CB(buff)->when = TCP_SKB_CB(skb)->when;
+	buff->stamp = skb->stamp;
 
 	if (TCP_SKB_CB(skb)->sacked & TCPCB_LOST) {
 		tp->lost_out -= tcp_skb_pcount(skb);
@@ -1449,7 +1444,6 @@ static inline void tcp_connect_init(struct sock *sk)
 		tp->window_clamp = dst_metric(dst, RTAX_WINDOW);
 	tp->advmss = dst_metric(dst, RTAX_ADVMSS);
 	tcp_initialize_rcv_mss(sk);
-	tcp_ca_init(tp);
 
 	tcp_select_initial_window(tcp_full_space(sk),
 				  tp->advmss - (tp->rx_opt.ts_recent_stamp ? tp->tcp_header_len - sizeof(struct tcphdr) : 0),
@@ -1503,7 +1497,6 @@ int tcp_connect(struct sock *sk)
 	TCP_SKB_CB(buff)->end_seq = tp->write_seq;
 	tp->snd_nxt = tp->write_seq;
 	tp->pushed_seq = tp->write_seq;
-	tcp_ca_init(tp);
 
 	/* Send it off. */
 	TCP_SKB_CB(buff)->when = tcp_time_stamp;
