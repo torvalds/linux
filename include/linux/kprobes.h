@@ -25,21 +25,31 @@
  *		Rusty Russell).
  * 2004-July	Suparna Bhattacharya <suparna@in.ibm.com> added jumper probes
  *		interface to access function arguments.
+ * 2005-May	Hien Nguyen <hien@us.ibm.com> and Jim Keniston
+ *		<jkenisto@us.ibm.com>  and Prasanna S Panchamukhi
+ *		<prasanna@in.ibm.com> added function-return probes.
  */
 #include <linux/config.h>
 #include <linux/list.h>
 #include <linux/notifier.h>
 #include <linux/smp.h>
+#include <linux/spinlock.h>
+
 #include <asm/kprobes.h>
 
 struct kprobe;
 struct pt_regs;
+struct kretprobe;
+struct kretprobe_instance;
 typedef int (*kprobe_pre_handler_t) (struct kprobe *, struct pt_regs *);
 typedef int (*kprobe_break_handler_t) (struct kprobe *, struct pt_regs *);
 typedef void (*kprobe_post_handler_t) (struct kprobe *, struct pt_regs *,
 				       unsigned long flags);
 typedef int (*kprobe_fault_handler_t) (struct kprobe *, struct pt_regs *,
 				       int trapnr);
+typedef int (*kretprobe_handler_t) (struct kretprobe_instance *,
+				    struct pt_regs *);
+
 struct kprobe {
 	struct hlist_node hlist;
 
@@ -85,6 +95,62 @@ struct jprobe {
 	kprobe_opcode_t *entry;	/* probe handling code to jump to */
 };
 
+#ifdef ARCH_SUPPORTS_KRETPROBES
+extern int trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs);
+extern void trampoline_post_handler(struct kprobe *p, struct pt_regs *regs,
+							unsigned long flags);
+extern struct task_struct *arch_get_kprobe_task(void *ptr);
+extern void arch_prepare_kretprobe(struct kretprobe *rp, struct pt_regs *regs);
+extern void arch_kprobe_flush_task(struct task_struct *tk, spinlock_t *kp_lock);
+#else /* ARCH_SUPPORTS_KRETPROBES */
+static inline void kretprobe_trampoline(void)
+{
+}
+static inline int trampoline_probe_handler(struct kprobe *p,
+						struct pt_regs *regs)
+{
+	return 0;
+}
+static inline void trampoline_post_handler(struct kprobe *p,
+				struct pt_regs *regs, unsigned long flags)
+{
+}
+static inline void arch_prepare_kretprobe(struct kretprobe *rp,
+					struct pt_regs *regs)
+{
+}
+static inline void arch_kprobe_flush_task(struct task_struct *tk)
+{
+}
+#define arch_get_kprobe_task(ptr) ((struct task_struct *)NULL)
+#endif /* ARCH_SUPPORTS_KRETPROBES */
+/*
+ * Function-return probe -
+ * Note:
+ * User needs to provide a handler function, and initialize maxactive.
+ * maxactive - The maximum number of instances of the probed function that
+ * can be active concurrently.
+ * nmissed - tracks the number of times the probed function's return was
+ * ignored, due to maxactive being too low.
+ *
+ */
+struct kretprobe {
+	struct kprobe kp;
+	kretprobe_handler_t handler;
+	int maxactive;
+	int nmissed;
+	struct hlist_head free_instances;
+	struct hlist_head used_instances;
+};
+
+struct kretprobe_instance {
+	struct hlist_node uflist; /* either on free list or used list */
+	struct hlist_node hlist;
+	struct kretprobe *rp;
+	void *ret_addr;
+	void *stack_addr;
+};
+
 #ifdef CONFIG_KPROBES
 /* Locks kprobe: irq must be disabled */
 void lock_kprobes(void);
@@ -104,6 +170,7 @@ extern void show_registers(struct pt_regs *regs);
 
 /* Get the kprobe at this addr (if any).  Must have called lock_kprobes */
 struct kprobe *get_kprobe(void *addr);
+struct hlist_head * kretprobe_inst_table_head(struct task_struct *tsk);
 
 int register_kprobe(struct kprobe *p);
 void unregister_kprobe(struct kprobe *p);
@@ -113,7 +180,16 @@ int register_jprobe(struct jprobe *p);
 void unregister_jprobe(struct jprobe *p);
 void jprobe_return(void);
 
-#else
+int register_kretprobe(struct kretprobe *rp);
+void unregister_kretprobe(struct kretprobe *rp);
+
+struct kretprobe_instance *get_free_rp_inst(struct kretprobe *rp);
+struct kretprobe_instance *get_rp_inst(void *sara);
+struct kretprobe_instance *get_rp_inst_tsk(struct task_struct *tk);
+void add_rp_inst(struct kretprobe_instance *ri);
+void kprobe_flush_task(struct task_struct *tk);
+void recycle_rp_inst(struct kretprobe_instance *ri);
+#else /* CONFIG_KPROBES */
 static inline int kprobe_running(void)
 {
 	return 0;
@@ -135,5 +211,15 @@ static inline void unregister_jprobe(struct jprobe *p)
 static inline void jprobe_return(void)
 {
 }
-#endif
+static inline int register_kretprobe(struct kretprobe *rp)
+{
+	return -ENOSYS;
+}
+static inline void unregister_kretprobe(struct kretprobe *rp)
+{
+}
+static inline void kprobe_flush_task(struct task_struct *tk)
+{
+}
+#endif				/* CONFIG_KPROBES */
 #endif				/* _LINUX_KPROBES_H */

@@ -23,6 +23,9 @@
  *		Rusty Russell).
  * 2004-July	Suparna Bhattacharya <suparna@in.ibm.com> added jumper probes
  *		interface to access function arguments.
+ * 2005-May	Hien Nguyen <hien@us.ibm.com>, Jim Keniston
+ *		<jkenisto@us.ibm.com> and Prasanna S Panchamukhi
+ *		<prasanna@in.ibm.com> added function-return probes.
  */
 
 #include <linux/config.h>
@@ -89,6 +92,53 @@ static inline void prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
 		regs->eip = (unsigned long)p->addr;
 	else
 		regs->eip = (unsigned long)&p->ainsn.insn;
+}
+
+struct task_struct  *arch_get_kprobe_task(void *ptr)
+{
+	return ((struct thread_info *) (((unsigned long) ptr) &
+					(~(THREAD_SIZE -1))))->task;
+}
+
+void arch_prepare_kretprobe(struct kretprobe *rp, struct pt_regs *regs)
+{
+	unsigned long *sara = (unsigned long *)&regs->esp;
+	struct kretprobe_instance *ri;
+	static void *orig_ret_addr;
+
+	/*
+	 * Save the return address when the return probe hits
+	 * the first time, and use it to populate the (krprobe
+	 * instance)->ret_addr for subsequent return probes at
+	 * the same addrress since stack address would have
+	 * the kretprobe_trampoline by then.
+	 */
+	if (((void*) *sara) != kretprobe_trampoline)
+		orig_ret_addr = (void*) *sara;
+
+	if ((ri = get_free_rp_inst(rp)) != NULL) {
+		ri->rp = rp;
+		ri->stack_addr = sara;
+		ri->ret_addr = orig_ret_addr;
+		add_rp_inst(ri);
+		/* Replace the return addr with trampoline addr */
+		*sara = (unsigned long) &kretprobe_trampoline;
+	} else {
+		rp->nmissed++;
+	}
+}
+
+void arch_kprobe_flush_task(struct task_struct *tk, spinlock_t *kp_lock)
+{
+	unsigned long flags = 0;
+	struct kretprobe_instance *ri;
+	spin_lock_irqsave(kp_lock, flags);
+	while ((ri = get_rp_inst_tsk(tk)) != NULL) {
+		*((unsigned long *)(ri->stack_addr)) =
+					(unsigned long) ri->ret_addr;
+		recycle_rp_inst(ri);
+	}
+	spin_unlock_irqrestore(kp_lock, flags);
 }
 
 /*
@@ -184,6 +234,55 @@ no_kprobe:
 }
 
 /*
+ * For function-return probes, init_kprobes() establishes a probepoint
+ * here. When a retprobed function returns, this probe is hit and
+ * trampoline_probe_handler() runs, calling the kretprobe's handler.
+ */
+ void kretprobe_trampoline_holder(void)
+ {
+ 	asm volatile (  ".global kretprobe_trampoline\n"
+ 			"kretprobe_trampoline: \n"
+ 			"nop\n");
+ }
+
+/*
+ * Called when we hit the probe point at kretprobe_trampoline
+ */
+int trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
+{
+	struct task_struct *tsk;
+	struct kretprobe_instance *ri;
+	struct hlist_head *head;
+	struct hlist_node *node;
+	unsigned long *sara = ((unsigned long *) &regs->esp) - 1;
+
+	tsk = arch_get_kprobe_task(sara);
+	head = kretprobe_inst_table_head(tsk);
+
+	hlist_for_each_entry(ri, node, head, hlist) {
+		if (ri->stack_addr == sara && ri->rp) {
+			if (ri->rp->handler)
+				ri->rp->handler(ri, regs);
+		}
+	}
+	return 0;
+}
+
+void trampoline_post_handler(struct kprobe *p, struct pt_regs *regs,
+						unsigned long flags)
+{
+	struct kretprobe_instance *ri;
+	/* RA already popped */
+	unsigned long *sara = ((unsigned long *)&regs->esp) - 1;
+
+	while ((ri = get_rp_inst(sara))) {
+		regs->eip = (unsigned long)ri->ret_addr;
+		recycle_rp_inst(ri);
+	}
+	regs->eflags &= ~TF_MASK;
+}
+
+/*
  * Called after single-stepping.  p->addr is the address of the
  * instruction whose first byte has been replaced by the "int 3"
  * instruction.  To avoid the SMP problems that can occur when we
@@ -266,7 +365,8 @@ static inline int post_kprobe_handler(struct pt_regs *regs)
 	if (current_kprobe->post_handler)
 		current_kprobe->post_handler(current_kprobe, regs, 0);
 
-	resume_execution(current_kprobe, regs);
+	if (current_kprobe->post_handler != trampoline_post_handler)
+		resume_execution(current_kprobe, regs);
 	regs->eflags |= kprobe_saved_eflags;
 
 	unlock_kprobes();

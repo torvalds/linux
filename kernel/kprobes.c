@@ -27,6 +27,9 @@
  *		interface to access function arguments.
  * 2004-Sep	Prasanna S Panchamukhi <prasanna@in.ibm.com> Changed Kprobes
  *		exceptions notifier to be first on the priority list.
+ * 2005-May	Hien Nguyen <hien@us.ibm.com>, Jim Keniston
+ *		<jkenisto@us.ibm.com> and Prasanna S Panchamukhi
+ *		<prasanna@in.ibm.com> added function-return probes.
  */
 #include <linux/kprobes.h>
 #include <linux/spinlock.h>
@@ -41,6 +44,7 @@
 #define KPROBE_TABLE_SIZE (1 << KPROBE_HASH_BITS)
 
 static struct hlist_head kprobe_table[KPROBE_TABLE_SIZE];
+static struct hlist_head kretprobe_inst_table[KPROBE_TABLE_SIZE];
 
 unsigned int kprobe_cpu = NR_CPUS;
 static DEFINE_SPINLOCK(kprobe_lock);
@@ -78,7 +82,7 @@ struct kprobe *get_kprobe(void *addr)
  * Aggregate handlers for multiple kprobes support - these handlers
  * take care of invoking the individual kprobe handlers on p->list
  */
-int aggr_pre_handler(struct kprobe *p, struct pt_regs *regs)
+static int aggr_pre_handler(struct kprobe *p, struct pt_regs *regs)
 {
 	struct kprobe *kp;
 
@@ -92,8 +96,8 @@ int aggr_pre_handler(struct kprobe *p, struct pt_regs *regs)
 	return 0;
 }
 
-void aggr_post_handler(struct kprobe *p, struct pt_regs *regs,
-		unsigned long flags)
+static void aggr_post_handler(struct kprobe *p, struct pt_regs *regs,
+			      unsigned long flags)
 {
 	struct kprobe *kp;
 
@@ -107,7 +111,8 @@ void aggr_post_handler(struct kprobe *p, struct pt_regs *regs,
 	return;
 }
 
-int aggr_fault_handler(struct kprobe *p, struct pt_regs *regs, int trapnr)
+static int aggr_fault_handler(struct kprobe *p, struct pt_regs *regs,
+			      int trapnr)
 {
 	/*
 	 * if we faulted "during" the execution of a user specified
@@ -118,6 +123,135 @@ int aggr_fault_handler(struct kprobe *p, struct pt_regs *regs, int trapnr)
 			return 1;
 	}
 	return 0;
+}
+
+struct kprobe trampoline_p = {
+		.addr = (kprobe_opcode_t *) &kretprobe_trampoline,
+		.pre_handler = trampoline_probe_handler,
+		.post_handler = trampoline_post_handler
+};
+
+struct kretprobe_instance *get_free_rp_inst(struct kretprobe *rp)
+{
+	struct hlist_node *node;
+	struct kretprobe_instance *ri;
+	hlist_for_each_entry(ri, node, &rp->free_instances, uflist)
+		return ri;
+	return NULL;
+}
+
+static struct kretprobe_instance *get_used_rp_inst(struct kretprobe *rp)
+{
+	struct hlist_node *node;
+	struct kretprobe_instance *ri;
+	hlist_for_each_entry(ri, node, &rp->used_instances, uflist)
+		return ri;
+	return NULL;
+}
+
+struct kretprobe_instance *get_rp_inst(void *sara)
+{
+	struct hlist_head *head;
+	struct hlist_node *node;
+	struct task_struct *tsk;
+	struct kretprobe_instance *ri;
+
+	tsk = arch_get_kprobe_task(sara);
+	head = &kretprobe_inst_table[hash_ptr(tsk, KPROBE_HASH_BITS)];
+	hlist_for_each_entry(ri, node, head, hlist) {
+		if (ri->stack_addr == sara)
+			return ri;
+	}
+	return NULL;
+}
+
+void add_rp_inst(struct kretprobe_instance *ri)
+{
+	struct task_struct *tsk;
+	/*
+	 * Remove rp inst off the free list -
+	 * Add it back when probed function returns
+	 */
+	hlist_del(&ri->uflist);
+	tsk = arch_get_kprobe_task(ri->stack_addr);
+	/* Add rp inst onto table */
+	INIT_HLIST_NODE(&ri->hlist);
+	hlist_add_head(&ri->hlist,
+			&kretprobe_inst_table[hash_ptr(tsk, KPROBE_HASH_BITS)]);
+
+	/* Also add this rp inst to the used list. */
+	INIT_HLIST_NODE(&ri->uflist);
+	hlist_add_head(&ri->uflist, &ri->rp->used_instances);
+}
+
+void recycle_rp_inst(struct kretprobe_instance *ri)
+{
+	/* remove rp inst off the rprobe_inst_table */
+	hlist_del(&ri->hlist);
+	if (ri->rp) {
+		/* remove rp inst off the used list */
+		hlist_del(&ri->uflist);
+		/* put rp inst back onto the free list */
+		INIT_HLIST_NODE(&ri->uflist);
+		hlist_add_head(&ri->uflist, &ri->rp->free_instances);
+	} else
+		/* Unregistering */
+		kfree(ri);
+}
+
+struct hlist_head * kretprobe_inst_table_head(struct task_struct *tsk)
+{
+	return &kretprobe_inst_table[hash_ptr(tsk, KPROBE_HASH_BITS)];
+}
+
+struct kretprobe_instance *get_rp_inst_tsk(struct task_struct *tk)
+{
+	struct task_struct *tsk;
+	struct hlist_head *head;
+	struct hlist_node *node;
+	struct kretprobe_instance *ri;
+
+	head = &kretprobe_inst_table[hash_ptr(tk, KPROBE_HASH_BITS)];
+
+	hlist_for_each_entry(ri, node, head, hlist) {
+		tsk = arch_get_kprobe_task(ri->stack_addr);
+		if (tsk == tk)
+			return ri;
+	}
+	return NULL;
+}
+
+/*
+ * This function is called from do_exit or do_execv when task tk's stack is
+ * about to be recycled. Recycle any function-return probe instances
+ * associated with this task. These represent probed functions that have
+ * been called but may never return.
+ */
+void kprobe_flush_task(struct task_struct *tk)
+{
+	arch_kprobe_flush_task(tk, &kprobe_lock);
+}
+
+/*
+ * This kprobe pre_handler is registered with every kretprobe. When probe
+ * hits it will set up the return probe.
+ */
+static int pre_handler_kretprobe(struct kprobe *p, struct pt_regs *regs)
+{
+	struct kretprobe *rp = container_of(p, struct kretprobe, kp);
+
+	/*TODO: consider to only swap the RA after the last pre_handler fired */
+	arch_prepare_kretprobe(rp, regs);
+	return 0;
+}
+
+static inline void free_rp_inst(struct kretprobe *rp)
+{
+	struct kretprobe_instance *ri;
+	while ((ri = get_free_rp_inst(rp)) != NULL) {
+		hlist_del(&ri->uflist);
+		kfree(ri);
+	}
 }
 
 /*
@@ -257,16 +391,82 @@ void unregister_jprobe(struct jprobe *jp)
 	unregister_kprobe(&jp->kp);
 }
 
+#ifdef ARCH_SUPPORTS_KRETPROBES
+
+int register_kretprobe(struct kretprobe *rp)
+{
+	int ret = 0;
+	struct kretprobe_instance *inst;
+	int i;
+
+	rp->kp.pre_handler = pre_handler_kretprobe;
+
+	/* Pre-allocate memory for max kretprobe instances */
+	if (rp->maxactive <= 0) {
+#ifdef CONFIG_PREEMPT
+		rp->maxactive = max(10, 2 * NR_CPUS);
+#else
+		rp->maxactive = NR_CPUS;
+#endif
+	}
+	INIT_HLIST_HEAD(&rp->used_instances);
+	INIT_HLIST_HEAD(&rp->free_instances);
+	for (i = 0; i < rp->maxactive; i++) {
+		inst = kmalloc(sizeof(struct kretprobe_instance), GFP_KERNEL);
+		if (inst == NULL) {
+			free_rp_inst(rp);
+			return -ENOMEM;
+		}
+		INIT_HLIST_NODE(&inst->uflist);
+		hlist_add_head(&inst->uflist, &rp->free_instances);
+	}
+
+	rp->nmissed = 0;
+	/* Establish function entry probe point */
+	if ((ret = register_kprobe(&rp->kp)) != 0)
+		free_rp_inst(rp);
+	return ret;
+}
+
+#else /* ARCH_SUPPORTS_KRETPROBES */
+
+int register_kretprobe(struct kretprobe *rp)
+{
+	return -ENOSYS;
+}
+
+#endif /* ARCH_SUPPORTS_KRETPROBES */
+
+void unregister_kretprobe(struct kretprobe *rp)
+{
+	unsigned long flags;
+	struct kretprobe_instance *ri;
+
+	unregister_kprobe(&rp->kp);
+	/* No race here */
+	spin_lock_irqsave(&kprobe_lock, flags);
+	free_rp_inst(rp);
+	while ((ri = get_used_rp_inst(rp)) != NULL) {
+		ri->rp = NULL;
+		hlist_del(&ri->uflist);
+	}
+	spin_unlock_irqrestore(&kprobe_lock, flags);
+}
+
 static int __init init_kprobes(void)
 {
 	int i, err = 0;
 
 	/* FIXME allocate the probe table, currently defined statically */
 	/* initialize all list heads */
-	for (i = 0; i < KPROBE_TABLE_SIZE; i++)
+	for (i = 0; i < KPROBE_TABLE_SIZE; i++) {
 		INIT_HLIST_HEAD(&kprobe_table[i]);
+		INIT_HLIST_HEAD(&kretprobe_inst_table[i]);
+	}
 
 	err = register_die_notifier(&kprobe_exceptions_nb);
+	/* Register the trampoline probe for return probe */
+	register_kprobe(&trampoline_p);
 	return err;
 }
 
@@ -277,3 +477,6 @@ EXPORT_SYMBOL_GPL(unregister_kprobe);
 EXPORT_SYMBOL_GPL(register_jprobe);
 EXPORT_SYMBOL_GPL(unregister_jprobe);
 EXPORT_SYMBOL_GPL(jprobe_return);
+EXPORT_SYMBOL_GPL(register_kretprobe);
+EXPORT_SYMBOL_GPL(unregister_kretprobe);
+
