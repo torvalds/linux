@@ -251,7 +251,7 @@ static void tty_set_termios_ldisc(struct tty_struct *tty, int num)
  
 static DEFINE_SPINLOCK(tty_ldisc_lock);
 static DECLARE_WAIT_QUEUE_HEAD(tty_ldisc_wait);
-static struct tty_ldisc tty_ldiscs[NR_LDISCS];	/* line disc dispatch table	*/
+static struct tty_ldisc tty_ldiscs[NR_LDISCS];	/* line disc dispatch table */
 
 int tty_register_ldisc(int disc, struct tty_ldisc *new_ldisc)
 {
@@ -262,23 +262,34 @@ int tty_register_ldisc(int disc, struct tty_ldisc *new_ldisc)
 		return -EINVAL;
 	
 	spin_lock_irqsave(&tty_ldisc_lock, flags);
-	if (new_ldisc) {
-		tty_ldiscs[disc] = *new_ldisc;
-		tty_ldiscs[disc].num = disc;
-		tty_ldiscs[disc].flags |= LDISC_FLAG_DEFINED;
-		tty_ldiscs[disc].refcount = 0;
-	} else {
-		if(tty_ldiscs[disc].refcount)
-			ret = -EBUSY;
-		else
-			tty_ldiscs[disc].flags &= ~LDISC_FLAG_DEFINED;
-	}
+	tty_ldiscs[disc] = *new_ldisc;
+	tty_ldiscs[disc].num = disc;
+	tty_ldiscs[disc].flags |= LDISC_FLAG_DEFINED;
+	tty_ldiscs[disc].refcount = 0;
 	spin_unlock_irqrestore(&tty_ldisc_lock, flags);
 	
 	return ret;
 }
-
 EXPORT_SYMBOL(tty_register_ldisc);
+
+int tty_unregister_ldisc(int disc)
+{
+	unsigned long flags;
+	int ret = 0;
+
+	if (disc < N_TTY || disc >= NR_LDISCS)
+		return -EINVAL;
+
+	spin_lock_irqsave(&tty_ldisc_lock, flags);
+	if (tty_ldiscs[disc].refcount)
+		ret = -EBUSY;
+	else
+		tty_ldiscs[disc].flags &= ~LDISC_FLAG_DEFINED;
+	spin_unlock_irqrestore(&tty_ldisc_lock, flags);
+
+	return ret;
+}
+EXPORT_SYMBOL(tty_unregister_ldisc);
 
 struct tty_ldisc *tty_ldisc_get(int disc)
 {
