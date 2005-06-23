@@ -208,7 +208,7 @@ static int test_bus(struct i2c_algo_iic_data *adap, char *name) {
 		goto bailout;
 	}
 	sdalo(adap);
-	printk("test_bus:1 scl: %d  sda: %d \n",getscl(adap),
+	printk("test_bus:1 scl: %d  sda: %d\n", getscl(adap),
 	       getsda(adap));
 	if ( 0 != getsda(adap) ) {
 		printk("test_bus: %s SDA stuck high!\n",name);
@@ -221,7 +221,7 @@ static int test_bus(struct i2c_algo_iic_data *adap, char *name) {
 		goto bailout;
 	}		
 	sdahi(adap);
-	printk("test_bus:2 scl: %d  sda: %d \n",getscl(adap),
+	printk("test_bus:2 scl: %d  sda: %d\n", getscl(adap),
 	       getsda(adap));
 	if ( 0 == getsda(adap) ) {
 		printk("test_bus: %s SDA stuck low!\n",name);
@@ -234,7 +234,7 @@ static int test_bus(struct i2c_algo_iic_data *adap, char *name) {
 	goto bailout;
 	}
 	scllo(adap);
-	printk("test_bus:3 scl: %d  sda: %d \n",getscl(adap),
+	printk("test_bus:3 scl: %d  sda: %d\n", getscl(adap),
 	       getsda(adap));
 	if ( 0 != getscl(adap) ) {
 
@@ -247,7 +247,7 @@ static int test_bus(struct i2c_algo_iic_data *adap, char *name) {
 		goto bailout;
 	}
 	sclhi(adap);
-	printk("test_bus:4 scl: %d  sda: %d \n",getscl(adap),
+	printk("test_bus:4 scl: %d  sda: %d\n", getscl(adap),
 	       getsda(adap));
 	if ( 0 == getscl(adap) ) {
 		printk("test_bus: %s SCL stuck low!\n",name);
