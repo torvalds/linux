@@ -1,9 +1,14 @@
+config SELECT_MEMORY_MODEL
+	def_bool y
+	depends on EXPERIMENTAL || ARCH_SELECT_MEMORY_MODEL
+
 choice
 	prompt "Memory model"
-	default DISCONTIGMEM if ARCH_DISCONTIGMEM_DEFAULT
-	default FLATMEM
+	depends on SELECT_MEMORY_MODEL
+	default DISCONTIGMEM_MANUAL if ARCH_DISCONTIGMEM_DEFAULT
+	default FLATMEM_MANUAL
 
-config FLATMEM
+config FLATMEM_MANUAL
 	bool "Flat Memory"
 	depends on !ARCH_DISCONTIGMEM_ENABLE || ARCH_FLATMEM_ENABLE
 	help
@@ -14,13 +19,21 @@ config FLATMEM
 
 	  If unsure, choose this option over any other.
 
-config DISCONTIGMEM
+config DISCONTIGMEM_MANUAL
 	bool "Discontigious Memory"
 	depends on ARCH_DISCONTIGMEM_ENABLE
 	help
 	  If unsure, choose "Flat Memory" over this option.
 
 endchoice
+
+config DISCONTIGMEM
+	def_bool y
+	depends on (!SELECT_MEMORY_MODEL && ARCH_DISCONTIGMEM_ENABLE) || DISCONTIGMEM_MANUAL
+
+config FLATMEM
+	def_bool y
+	depends on !DISCONTIGMEM || FLATMEM_MANUAL
 
 #
 # Both the NUMA code and DISCONTIGMEM use arrays of pg_data_t's
