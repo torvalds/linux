@@ -43,13 +43,7 @@ struct tcpdiag_entry
 static struct sock *tcpnl;
 
 #define TCPDIAG_PUT(skb, attrtype, attrlen) \
-({ int rtalen = RTA_LENGTH(attrlen);        \
-   struct rtattr *rta;                      \
-   if (skb_tailroom(skb) < RTA_ALIGN(rtalen)) goto nlmsg_failure; \
-   rta = (void*)__skb_put(skb, RTA_ALIGN(rtalen)); \
-   rta->rta_type = attrtype;                \
-   rta->rta_len = rtalen;                   \
-   RTA_DATA(rta); })
+	RTA_DATA(__RTA_PUT(skb, attrtype, attrlen))
 
 static int tcpdiag_fill(struct sk_buff *skb, struct sock *sk,
 			int ext, u32 pid, u32 seq, u16 nlmsg_flags)
@@ -167,6 +161,7 @@ static int tcpdiag_fill(struct sk_buff *skb, struct sock *sk,
 	nlh->nlmsg_len = skb->tail - b;
 	return skb->len;
 
+rtattr_failure:
 nlmsg_failure:
 	skb_trim(skb, b - skb->data);
 	return -1;
