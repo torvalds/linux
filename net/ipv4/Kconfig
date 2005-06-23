@@ -467,6 +467,18 @@ config TCP_CONG_WESTWOOD
 	TCP Westwood+ significantly increases fairness wrt TCP Reno in
 	wired networks and throughput over wireless links.
 
+config TCP_CONG_HTCP
+        tristate "H-TCP"
+	depends on INET
+        default m
+	---help---
+	H-TCP is a send-side only modifications of the TCP Reno
+	protocol stack that optimizes the performance of TCP
+	congestion control for high speed network links. It uses a
+	modeswitch to change the alpha and beta parameters of TCP Reno
+	based on network conditions and in a way so as to be fair with
+	other Reno and H-TCP flows.
+
 config TCP_CONG_HSTCP
 	tristate "High Speed TCP"
 	depends on INET && EXPERIMENTAL
@@ -498,6 +510,7 @@ config TCP_CONG_VEGAS
 	adjusts the sending rate by modifying the congestion
 	window. TCP Vegas should provide less packet loss, but it is
 	not as aggressive as TCP Reno.
+
 
 endmenu
 
