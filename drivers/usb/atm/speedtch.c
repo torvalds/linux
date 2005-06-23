@@ -100,6 +100,8 @@ struct speedtch_instance_data {
 
 	struct work_struct status_checker;
 
+	unsigned char last_status;
+
 	int poll_delay; /* milliseconds */
 
 	struct timer_list resubmit_timer;
@@ -423,7 +425,8 @@ static void speedtch_check_status(struct speedtch_instance_data *instance)
 	struct usbatm_data *usbatm = instance->usbatm;
 	struct atm_dev *atm_dev = usbatm->atm_dev;
 	unsigned char *buf = instance->scratch_buffer;
-	int ret;
+	int down_speed, up_speed, ret;
+	unsigned char status;
 
 	atm_dbg(usbatm, "%s entered\n", __func__);
 
@@ -436,37 +439,34 @@ static void speedtch_check_status(struct speedtch_instance_data *instance)
 
 	instance->poll_delay = max(instance->poll_delay / 2, MIN_POLL_DELAY);
 
-	atm_dbg(usbatm, "%s: line state %02x\n", __func__, buf[OFFSET_7]);
+	status = buf[OFFSET_7];
 
-	switch (buf[OFFSET_7]) {
-	case 0:
-		if (atm_dev->signal != ATM_PHY_SIG_LOST) {
+	atm_dbg(usbatm, "%s: line state %02x\n", __func__, status);
+
+	if ((status != instance->last_status) || !status) {
+		switch (status) {
+		case 0:
 			atm_dev->signal = ATM_PHY_SIG_LOST;
-			atm_info(usbatm, "ADSL line is down\n");
-			/* It'll never resync again unless we ask it to... */
+			if (instance->last_status)
+				atm_info(usbatm, "ADSL line is down\n");
+			/* It may never resync again unless we ask it to... */
 			ret = speedtch_start_synchro(instance);
-		}
-		break;
+			break;
 
-	case 0x08:
-		if (atm_dev->signal != ATM_PHY_SIG_UNKNOWN) {
+		case 0x08:
 			atm_dev->signal = ATM_PHY_SIG_UNKNOWN;
 			atm_info(usbatm, "ADSL line is blocked?\n");
-		}
-		break;
+			break;
 
-	case 0x10:
-		if (atm_dev->signal != ATM_PHY_SIG_LOST) {
+		case 0x10:
 			atm_dev->signal = ATM_PHY_SIG_LOST;
 			atm_info(usbatm, "ADSL line is synchronising\n");
-		}
-		break;
+			break;
 
-	case 0x20:
-		if (atm_dev->signal != ATM_PHY_SIG_FOUND) {
-			int down_speed = buf[OFFSET_b] | (buf[OFFSET_b + 1] << 8)
+		case 0x20:
+			down_speed = buf[OFFSET_b] | (buf[OFFSET_b + 1] << 8)
 				| (buf[OFFSET_b + 2] << 16) | (buf[OFFSET_b + 3] << 24);
-			int up_speed = buf[OFFSET_b + 4] | (buf[OFFSET_b + 5] << 8)
+			up_speed = buf[OFFSET_b + 4] | (buf[OFFSET_b + 5] << 8)
 				| (buf[OFFSET_b + 6] << 16) | (buf[OFFSET_b + 7] << 24);
 
 			if (!(down_speed & 0x0000ffff) && !(up_speed & 0x0000ffff)) {
@@ -480,15 +480,15 @@ static void speedtch_check_status(struct speedtch_instance_data *instance)
 			atm_info(usbatm,
 				 "ADSL line is up (%d kb/s down | %d kb/s up)\n",
 				 down_speed, up_speed);
-		}
-		break;
+			break;
 
-	default:
-		if (atm_dev->signal != ATM_PHY_SIG_UNKNOWN) {
+		default:
 			atm_dev->signal = ATM_PHY_SIG_UNKNOWN;
-			atm_info(usbatm, "Unknown line state %02x\n", buf[OFFSET_7]);
+			atm_info(usbatm, "Unknown line state %02x\n", status);
+			break;
 		}
-		break;
+
+		instance->last_status = status;
 	}
 }
 
@@ -728,6 +728,7 @@ static int speedtch_bind(struct usbatm_data *usbatm,
 
 	instance->status_checker.timer.function = speedtch_status_poll;
 	instance->status_checker.timer.data = (unsigned long)instance;
+	instance->last_status = 0xff;
 	instance->poll_delay = MIN_POLL_DELAY;
 
 	init_timer(&instance->resubmit_timer);
