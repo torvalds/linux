@@ -23,6 +23,16 @@ config DISCONTIGMEM_MANUAL
 	bool "Discontigious Memory"
 	depends on ARCH_DISCONTIGMEM_ENABLE
 	help
+	  This option provides enhanced support for discontiguous
+	  memory systems, over FLATMEM.  These systems have holes
+	  in their physical address spaces, and this option provides
+	  more efficient handling of these holes.  However, the vast
+	  majority of hardware has quite flat address spaces, and
+	  can have degraded performance from extra overhead that
+	  this option imposes.
+
+	  Many NUMA configurations will have this as the only option.
+
 	  If unsure, choose "Flat Memory" over this option.
 
 endchoice
