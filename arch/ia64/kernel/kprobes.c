@@ -84,121 +84,97 @@ static enum instruction_type bundle_encoding[32][3] = {
 int arch_prepare_kprobe(struct kprobe *p)
 {
 	unsigned long addr = (unsigned long) p->addr;
-	unsigned long bundle_addr = addr & ~0xFULL;
+	unsigned long *bundle_addr = (unsigned long *)(addr & ~0xFULL);
 	unsigned long slot = addr & 0xf;
-	bundle_t bundle;
 	unsigned long template;
+ 	unsigned long major_opcode = 0;
+ 	unsigned long lx_type_inst = 0;
+ 	unsigned long kprobe_inst = 0;
+	bundle_t *bundle = &p->ainsn.insn.bundle;
 
-	/*
-	 * TODO: Verify that a probe is not being inserted
-	 *       in sensitive regions of code
-	 * TODO: Verify that the memory holding the probe is rwx
-	 * TODO: verify this is a kernel address
-	 */
-	memcpy(&bundle, (unsigned long *)bundle_addr, sizeof(bundle_t));
-	template = bundle.quad0.template;
+	memcpy(&p->opcode.bundle, bundle_addr, sizeof(bundle_t));
+	memcpy(&p->ainsn.insn.bundle, bundle_addr, sizeof(bundle_t));
+
+	p->ainsn.inst_flag = 0;
+	p->ainsn.target_br_reg = 0;
+
+ 	template = bundle->quad0.template;
+
 	if (((bundle_encoding[template][1] == L) && slot > 1) || (slot > 2)) {
-		printk(KERN_WARNING "Attempting to insert unaligned kprobe at 0x%lx\n", addr);
+		printk(KERN_WARNING "Attempting to insert unaligned kprobe at 0x%lx\n",
+				addr);
 		return -EINVAL;
 	}
+
+ 	if (slot == 1 && bundle_encoding[template][1] == L) {
+ 		lx_type_inst = 1;
+  		slot = 2;
+ 	}
+
+	switch (slot) {
+	case 0:
+ 		major_opcode = (bundle->quad0.slot0 >> SLOT0_OPCODE_SHIFT);
+ 		kprobe_inst = bundle->quad0.slot0;
+		bundle->quad0.slot0 = BREAK_INST;
+		break;
+	case 1:
+ 		major_opcode = (bundle->quad1.slot1_p1 >> SLOT1_p1_OPCODE_SHIFT);
+ 		kprobe_inst = (bundle->quad0.slot1_p0 |
+ 				(bundle->quad1.slot1_p1 << (64-46)));
+		bundle->quad0.slot1_p0 = BREAK_INST;
+		bundle->quad1.slot1_p1 = (BREAK_INST >> (64-46));
+		break;
+	case 2:
+ 		major_opcode = (bundle->quad1.slot2 >> SLOT2_OPCODE_SHIFT);
+ 		kprobe_inst = bundle->quad1.slot2;
+		bundle->quad1.slot2 = BREAK_INST;
+		break;
+	}
+
+ 	/*
+ 	 * Look for IP relative Branches, IP relative call or
+ 	 * IP relative predicate instructions
+ 	 */
+ 	if (bundle_encoding[template][slot] == B) {
+ 		switch (major_opcode) {
+ 			case INDIRECT_CALL_OPCODE:
+ 				p->ainsn.inst_flag |= INST_FLAG_FIX_BRANCH_REG;
+ 				p->ainsn.target_br_reg = ((kprobe_inst >> 6) & 0x7);
+ 				break;
+ 			case IP_RELATIVE_PREDICT_OPCODE:
+ 			case IP_RELATIVE_BRANCH_OPCODE:
+ 				p->ainsn.inst_flag |= INST_FLAG_FIX_RELATIVE_IP_ADDR;
+ 				break;
+ 			case IP_RELATIVE_CALL_OPCODE:
+ 				p->ainsn.inst_flag |= INST_FLAG_FIX_RELATIVE_IP_ADDR;
+ 				p->ainsn.inst_flag |= INST_FLAG_FIX_BRANCH_REG;
+ 				p->ainsn.target_br_reg = ((kprobe_inst >> 6) & 0x7);
+ 				break;
+ 			default:
+ 				/* Do nothing */
+ 				break;
+ 		}
+ 	} else if (lx_type_inst) {
+ 		switch (major_opcode) {
+ 			case LONG_CALL_OPCODE:
+ 				p->ainsn.inst_flag |= INST_FLAG_FIX_BRANCH_REG;
+ 				p->ainsn.target_br_reg = ((kprobe_inst >> 6) & 0x7);
+				break;
+ 			default:
+ 				/* Do nothing */
+ 				break;
+ 		}
+	}
+
 	return 0;
-}
-
-void arch_copy_kprobe(struct kprobe *p)
-{
-	unsigned long addr = (unsigned long)p->addr;
-	unsigned long bundle_addr = addr & ~0xFULL;
-
-	memcpy(&p->ainsn.insn.bundle, (unsigned long *)bundle_addr,
-				sizeof(bundle_t));
-	memcpy(&p->opcode.bundle, &p->ainsn.insn.bundle, sizeof(bundle_t));
 }
 
 void arch_arm_kprobe(struct kprobe *p)
 {
 	unsigned long addr = (unsigned long)p->addr;
 	unsigned long arm_addr = addr & ~0xFULL;
-	unsigned long slot = addr & 0xf;
-	unsigned long template;
-    	unsigned long major_opcode = 0;
-    	unsigned long lx_type_inst = 0;
-    	unsigned long kprobe_inst = 0;
-	bundle_t bundle;
 
-   	p->ainsn.inst_flag = 0;
-   	p->ainsn.target_br_reg = 0;
-
-	memcpy(&bundle, &p->ainsn.insn.bundle, sizeof(bundle_t));
-    	template = bundle.quad0.template;
-    	if (slot == 1 && bundle_encoding[template][1] == L) {
-    		lx_type_inst = 1;
-     		slot = 2;
-    	}
-
-
-	switch (slot) {
-	case 0:
-   		major_opcode = (bundle.quad0.slot0 >> SLOT0_OPCODE_SHIFT);
-    		kprobe_inst = bundle.quad0.slot0;
-		bundle.quad0.slot0 = BREAK_INST;
-		break;
-	case 1:
-    		major_opcode = (bundle.quad1.slot1_p1 >> SLOT1_p1_OPCODE_SHIFT);
-    		kprobe_inst = (bundle.quad0.slot1_p0 |
-    				(bundle.quad1.slot1_p1 << (64-46)));
-		bundle.quad0.slot1_p0 = BREAK_INST;
-		bundle.quad1.slot1_p1 = (BREAK_INST >> (64-46));
-		break;
-	case 2:
-    		major_opcode = (bundle.quad1.slot2 >> SLOT2_OPCODE_SHIFT);
-    		kprobe_inst = bundle.quad1.slot2;
-		bundle.quad1.slot2 = BREAK_INST;
-		break;
-	}
-    	/*
-    	 * Look for IP relative Branches, IP relative call or
-    	 * IP relative predicate instructions
-    	 */
-    	if (bundle_encoding[template][slot] == B) {
-    		switch (major_opcode) {
-    			case INDIRECT_CALL_OPCODE:
-    				p->ainsn.inst_flag |= INST_FLAG_FIX_BRANCH_REG;
-    				p->ainsn.target_br_reg = ((kprobe_inst >> 6) & 0x7);
-    				break;
-    			case IP_RELATIVE_PREDICT_OPCODE:
-    			case IP_RELATIVE_BRANCH_OPCODE:
-    				p->ainsn.inst_flag |= INST_FLAG_FIX_RELATIVE_IP_ADDR;
-    				break;
-    			case IP_RELATIVE_CALL_OPCODE:
-    				p->ainsn.inst_flag |= INST_FLAG_FIX_RELATIVE_IP_ADDR;
-    				p->ainsn.inst_flag |= INST_FLAG_FIX_BRANCH_REG;
-    				p->ainsn.target_br_reg = ((kprobe_inst >> 6) & 0x7);
-    				break;
-    			default:
-    				/* Do nothing */
-    				break;
-    		}
-    	} else if (lx_type_inst) {
-    		switch (major_opcode) {
-    			case LONG_CALL_OPCODE:
-    				p->ainsn.inst_flag |= INST_FLAG_FIX_BRANCH_REG;
-    				p->ainsn.target_br_reg = ((kprobe_inst >> 6) & 0x7);
-   				break;
-    			default:
-    				/* Do nothing */
-    				break;
-    		}
-    	}
-
- 	/* Flush icache for the instruction at the emulated address */
-	flush_icache_range((unsigned long)&p->ainsn.insn.bundle,
-			(unsigned long)&p->ainsn.insn.bundle +
-			sizeof(bundle_t));
-	/*
-	 * Patch the original instruction with the probe instruction
-	 * and flush the instruction cache
-	 */
-	memcpy((char *) arm_addr, (char *) &bundle, sizeof(bundle_t));
+	memcpy((char *)arm_addr, &p->ainsn.insn.bundle, sizeof(bundle_t));
 	flush_icache_range(arm_addr, arm_addr + sizeof(bundle_t));
 }
 
@@ -226,7 +202,7 @@ void arch_remove_kprobe(struct kprobe *p)
  */
 static void resume_execution(struct kprobe *p, struct pt_regs *regs)
 {
-  	unsigned long bundle_addr = ((unsigned long) (&p->ainsn.insn.bundle)) & ~0xFULL;
+  	unsigned long bundle_addr = ((unsigned long) (&p->opcode.bundle)) & ~0xFULL;
   	unsigned long resume_addr = (unsigned long)p->addr & ~0xFULL;
  	unsigned long template;
  	int slot = ((unsigned long)p->addr & 0xf);
@@ -293,7 +269,7 @@ turn_ss_off:
 
 static void prepare_ss(struct kprobe *p, struct pt_regs *regs)
 {
-	unsigned long bundle_addr = (unsigned long) &p->ainsn.insn.bundle;
+	unsigned long bundle_addr = (unsigned long) &p->opcode.bundle;
 	unsigned long slot = (unsigned long)p->addr & 0xf;
 
 	/* Update instruction pointer (IIP) and slot number (IPSR.ri) */

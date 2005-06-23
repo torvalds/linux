@@ -30,6 +30,8 @@
 
 #define BREAK_INST	(long)(__IA64_BREAK_KPROBE << 6)
 
+struct kprobe;
+
 typedef struct _bundle {
 	struct {
 		unsigned long long template : 5;
@@ -76,6 +78,11 @@ struct arch_specific_insn {
 
 /* ia64 does not need this */
 static inline void jprobe_return(void)
+{
+}
+
+/* ia64 does not need this */
+static inline void arch_copy_kprobe(struct kprobe *p)
 {
 }
 
