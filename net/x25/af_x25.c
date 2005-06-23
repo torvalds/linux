@@ -31,6 +31,8 @@
  *					x25_proc.c, using seq_file
  *	2005-04-02	Shaun Pereira	Selective sub address matching
  *					with call user data
+ *	2005-04-15	Shaun Pereira	Fast select with no restriction on
+ *					response
  */
 
 #include <linux/config.h>
@@ -502,6 +504,8 @@ static int x25_create(struct socket *sock, int protocol)
 	x25->t2    = sysctl_x25_ack_holdback_timeout;
 	x25->state = X25_STATE_0;
 	x25->cudmatchlength = 0;
+	x25->accptapprv = X25_DENY_ACCPT_APPRV;		/* normally no cud  */
+							/* on call accept   */
 
 	x25->facilities.winsize_in  = X25_DEFAULT_WINDOW_SIZE;
 	x25->facilities.winsize_out = X25_DEFAULT_WINDOW_SIZE;
@@ -551,6 +555,7 @@ static struct sock *x25_make_new(struct sock *osk)
 	x25->facilities = ox25->facilities;
 	x25->qbitincl   = ox25->qbitincl;
 	x25->cudmatchlength = ox25->cudmatchlength;
+	x25->accptapprv = ox25->accptapprv;
 
 	x25_init_timers(sk);
 out:
@@ -900,9 +905,11 @@ int x25_rx_call_request(struct sk_buff *skb, struct x25_neigh *nb,
 	makex25->vc_facil_mask &= ~X25_MASK_REVERSE;
 	makex25->cudmatchlength = x25_sk(sk)->cudmatchlength;
 
-	x25_write_internal(make, X25_CALL_ACCEPTED);
-
-	makex25->state = X25_STATE_3;
+	/* Normally all calls are accepted immediatly */
+	if(makex25->accptapprv & X25_DENY_ACCPT_APPRV) {
+		x25_write_internal(make, X25_CALL_ACCEPTED);
+		makex25->state = X25_STATE_3;
+	}
 
 	/*
 	 *	Incoming Call User Data.
@@ -1294,7 +1301,8 @@ static int x25_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 			if (facilities.throughput < 0x03 ||
 			    facilities.throughput > 0xDD)
 				break;
-			if (facilities.reverse && facilities.reverse != 1)
+			if (facilities.reverse &&
+				(facilities.reverse | 0x81)!= 0x81)
 				break;
 			x25->facilities = facilities;
 			rc = 0;
@@ -1344,6 +1352,27 @@ static int x25_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 			if(sub_addr.cudmatchlength > X25_MAX_CUD_LEN)
 				break;
 			x25->cudmatchlength = sub_addr.cudmatchlength;
+			rc = 0;
+			break;
+		}
+
+		case SIOCX25CALLACCPTAPPRV: {
+			rc = -EINVAL;
+			if (sk->sk_state != TCP_CLOSE)
+				break;
+			x25->accptapprv = X25_ALLOW_ACCPT_APPRV;
+			rc = 0;
+			break;
+		}
+
+		case SIOCX25SENDCALLACCPT:  {
+			rc = -EINVAL;
+			if (sk->sk_state != TCP_ESTABLISHED)
+				break;
+			if (x25->accptapprv)	/* must call accptapprv above */
+				break;
+			x25_write_internal(sk, X25_CALL_ACCEPTED);
+			x25->state = X25_STATE_3;
 			rc = 0;
 			break;
 		}

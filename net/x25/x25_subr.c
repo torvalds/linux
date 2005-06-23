@@ -19,6 +19,8 @@
  *	mar/20/00	Daniela Squassoni Disabling/enabling of facilities
  *					  negotiation.
  *	jun/24/01	Arnaldo C. Melo	  use skb_queue_purge, cleanups
+ *	apr/04/15	Shaun Pereira		Fast select with no
+ *						restriction on response.
  */
 
 #include <linux/kernel.h>
@@ -127,8 +129,12 @@ void x25_write_internal(struct sock *sk, int frametype)
 			len += 1 + X25_ADDR_LEN + X25_MAX_FAC_LEN +
 			       X25_MAX_CUD_LEN;
 			break;
-		case X25_CALL_ACCEPTED:
-			len += 1 + X25_MAX_FAC_LEN + X25_MAX_CUD_LEN;
+		case X25_CALL_ACCEPTED: /* fast sel with no restr on resp */
+			if(x25->facilities.reverse & 0x80) {
+				len += 1 + X25_MAX_FAC_LEN + X25_MAX_CUD_LEN;
+			} else {
+				len += 1 + X25_MAX_FAC_LEN;
+			}
 			break;
 		case X25_CLEAR_REQUEST:
 		case X25_RESET_REQUEST:
@@ -203,9 +209,16 @@ void x25_write_internal(struct sock *sk, int frametype)
 							x25->vc_facil_mask);
 			dptr    = skb_put(skb, len);
 			memcpy(dptr, facilities, len);
-			dptr = skb_put(skb, x25->calluserdata.cudlength);
-			memcpy(dptr, x25->calluserdata.cuddata,
-			       x25->calluserdata.cudlength);
+
+			/* fast select with no restriction on response
+				allows call user data. Userland must
+				ensure it is ours and not theirs */
+			if(x25->facilities.reverse & 0x80) {
+				dptr = skb_put(skb,
+					x25->calluserdata.cudlength);
+				memcpy(dptr, x25->calluserdata.cuddata,
+				       x25->calluserdata.cudlength);
+			}
 			x25->calluserdata.cudlength = 0;
 			break;
 
