@@ -572,6 +572,7 @@ static void sn_transmit_chars(struct sn_cons_port *port, int raw)
 
 	if (uart_circ_empty(xmit) || uart_tx_stopped(&port->sc_port)) {
 		/* Nothing to do. */
+		ia64_sn_console_intr_disable(SAL_CONSOLE_INTR_XMIT);
 		return;
 	}
 
