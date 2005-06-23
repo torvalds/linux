@@ -317,8 +317,10 @@ asmlinkage int solaris_sendmsg(int fd, struct sol_nmsghdr __user *user_msg, unsi
 		unsigned long *kcmsg;
 		compat_size_t cmlen;
 
-		if(kern_msg.msg_controllen > sizeof(ctl) &&
-		   kern_msg.msg_controllen <= 256) {
+		if (kern_msg.msg_controllen <= sizeof(compat_size_t))
+			return -EINVAL;
+
+		if(kern_msg.msg_controllen > sizeof(ctl)) {
 			err = -ENOBUFS;
 			ctl_buf = kmalloc(kern_msg.msg_controllen, GFP_KERNEL);
 			if(!ctl_buf)

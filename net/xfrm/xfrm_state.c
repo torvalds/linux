@@ -1055,6 +1055,43 @@ int xfrm_state_mtu(struct xfrm_state *x, int mtu)
 }
 
 EXPORT_SYMBOL(xfrm_state_mtu);
+
+int xfrm_init_state(struct xfrm_state *x)
+{
+	struct xfrm_state_afinfo *afinfo;
+	int family = x->props.family;
+	int err;
+
+	err = -EAFNOSUPPORT;
+	afinfo = xfrm_state_get_afinfo(family);
+	if (!afinfo)
+		goto error;
+
+	err = 0;
+	if (afinfo->init_flags)
+		err = afinfo->init_flags(x);
+
+	xfrm_state_put_afinfo(afinfo);
+
+	if (err)
+		goto error;
+
+	err = -EPROTONOSUPPORT;
+	x->type = xfrm_get_type(x->id.proto, family);
+	if (x->type == NULL)
+		goto error;
+
+	err = x->type->init_state(x);
+	if (err)
+		goto error;
+
+	x->km.state = XFRM_STATE_VALID;
+
+error:
+	return err;
+}
+
+EXPORT_SYMBOL(xfrm_init_state);
  
 void __init xfrm_state_init(void)
 {

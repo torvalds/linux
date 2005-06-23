@@ -2202,9 +2202,8 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (vortex_debug > 6) {
 		printk(KERN_DEBUG "boomerang_start_xmit()\n");
-		if (vortex_debug > 3)
-			printk(KERN_DEBUG "%s: Trying to send a packet, Tx index %d.\n",
-				   dev->name, vp->cur_tx);
+		printk(KERN_DEBUG "%s: Trying to send a packet, Tx index %d.\n",
+			   dev->name, vp->cur_tx);
 	}
 
 	if (vp->cur_tx - vp->dirty_tx >= TX_RING_SIZE) {

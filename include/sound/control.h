@@ -106,7 +106,7 @@ typedef int (*snd_kctl_ioctl_func_t) (snd_card_t * card,
 void snd_ctl_notify(snd_card_t * card, unsigned int mask, snd_ctl_elem_id_t * id);
 
 snd_kcontrol_t *snd_ctl_new(snd_kcontrol_t * kcontrol, unsigned int access);
-snd_kcontrol_t *snd_ctl_new1(snd_kcontrol_new_t * kcontrolnew, void * private_data);
+snd_kcontrol_t *snd_ctl_new1(const snd_kcontrol_new_t * kcontrolnew, void * private_data);
 void snd_ctl_free_one(snd_kcontrol_t * kcontrol);
 int snd_ctl_add(snd_card_t * card, snd_kcontrol_t * kcontrol);
 int snd_ctl_remove(snd_card_t * card, snd_kcontrol_t * kcontrol);

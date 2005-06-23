@@ -1,0 +1,54 @@
+Kernel driver max6875
+=====================
+
+Supported chips:
+  * Maxim max6874, max6875
+    Prefixes: 'max6875'
+    Addresses scanned: 0x50, 0x52
+    Datasheets:
+        http://pdfserv.maxim-ic.com/en/ds/MAX6874-MAX6875.pdf
+
+Author: Ben Gardner <bgardner@wabtec.com>
+
+
+Module Parameters
+-----------------
+
+* allow_write int
+  Set to non-zero to enable write permission:
+  *0: Read only
+   1: Read and write
+
+
+Description
+-----------
+
+The MAXIM max6875 is a EEPROM-programmable power-supply sequencer/supervisor.
+It provides timed outputs that can be used as a watchdog, if properly wired.
+It also provides 512 bytes of user EEPROM.
+
+At reset, the max6875 reads the configuration eeprom into its configuration
+registers.  The chip then begins to operate according to the values in the
+registers.
+
+See the datasheet for details on how to program the EEPROM.
+
+
+Sysfs entries
+-------------
+
+eeprom_user   - 512 bytes of user-defined EEPROM space. Only writable if
+                allow_write was set and register 0x43 is 0.
+
+eeprom_config - 70 bytes of config EEPROM. Note that changes will not get
+                loaded into register space until a power cycle or device reset.
+
+reg_config    - 70 bytes of register space. Any changes take affect immediately.
+
+
+General Remarks
+---------------
+
+A typical application will require that the EEPROMs be programmed once and
+never altered afterwards.
+

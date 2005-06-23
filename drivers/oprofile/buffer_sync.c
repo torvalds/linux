@@ -62,7 +62,7 @@ static int task_exit_notify(struct notifier_block * self, unsigned long val, voi
 	/* To avoid latency problems, we only process the current CPU,
 	 * hoping that most samples for the task are on this CPU
 	 */
-	sync_buffer(_smp_processor_id());
+	sync_buffer(raw_smp_processor_id());
   	return 0;
 }
 
@@ -86,7 +86,7 @@ static int munmap_notify(struct notifier_block * self, unsigned long val, void *
 		/* To avoid latency problems, we only process the current CPU,
 		 * hoping that most samples for the task are on this CPU
 		 */
-		sync_buffer(_smp_processor_id());
+		sync_buffer(raw_smp_processor_id());
 		return 0;
 	}
 

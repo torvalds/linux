@@ -1067,7 +1067,7 @@ unsigned long arch_get_unmapped_area(struct file *file, unsigned long addr,
 	return -ENOMEM;
 }
 
-void arch_unmap_area(struct vm_area_struct *area)
+void arch_unmap_area(struct mm_struct *mm, unsigned long addr)
 {
 }
 

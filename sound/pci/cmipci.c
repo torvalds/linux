@@ -519,40 +519,50 @@ inline static unsigned char snd_cmipci_read_b(cmipci_t *cm, unsigned int cmd)
 }
 
 /* bit operations for dword register */
-static void snd_cmipci_set_bit(cmipci_t *cm, unsigned int cmd, unsigned int flag)
+static int snd_cmipci_set_bit(cmipci_t *cm, unsigned int cmd, unsigned int flag)
 {
-	unsigned int val;
-	val = inl(cm->iobase + cmd);
+	unsigned int val, oval;
+	val = oval = inl(cm->iobase + cmd);
 	val |= flag;
+	if (val == oval)
+		return 0;
 	outl(val, cm->iobase + cmd);
+	return 1;
 }
 
-static void snd_cmipci_clear_bit(cmipci_t *cm, unsigned int cmd, unsigned int flag)
+static int snd_cmipci_clear_bit(cmipci_t *cm, unsigned int cmd, unsigned int flag)
 {
-	unsigned int val;
-	val = inl(cm->iobase + cmd);
+	unsigned int val, oval;
+	val = oval = inl(cm->iobase + cmd);
 	val &= ~flag;
+	if (val == oval)
+		return 0;
 	outl(val, cm->iobase + cmd);
+	return 1;
 }
 
-#if 0 // not used
 /* bit operations for byte register */
-static void snd_cmipci_set_bit_b(cmipci_t *cm, unsigned int cmd, unsigned char flag)
+static int snd_cmipci_set_bit_b(cmipci_t *cm, unsigned int cmd, unsigned char flag)
 {
-	unsigned char val;
-	val = inb(cm->iobase + cmd);
+	unsigned char val, oval;
+	val = oval = inb(cm->iobase + cmd);
 	val |= flag;
+	if (val == oval)
+		return 0;
 	outb(val, cm->iobase + cmd);
+	return 1;
 }
 
-static void snd_cmipci_clear_bit_b(cmipci_t *cm, unsigned int cmd, unsigned char flag)
+static int snd_cmipci_clear_bit_b(cmipci_t *cm, unsigned int cmd, unsigned char flag)
 {
-	unsigned char val;
-	val = inb(cm->iobase + cmd);
+	unsigned char val, oval;
+	val = oval = inb(cm->iobase + cmd);
 	val &= ~flag;
+	if (val == oval)
+		return 0;
 	outb(val, cm->iobase + cmd);
+	return 1;
 }
-#endif
 
 
 /*
@@ -2250,8 +2260,8 @@ DEFINE_SWITCH_ARG(exchange_dac, CM_REG_MISC_CTRL, CM_XCHGDAC, 0, 0, 0); /* rever
 DEFINE_SWITCH_ARG(exchange_dac, CM_REG_MISC_CTRL, CM_XCHGDAC, CM_XCHGDAC, 0, 0);
 #endif
 DEFINE_BIT_SWITCH_ARG(fourch, CM_REG_MISC_CTRL, CM_N4SPK3D, 0, 0);
-DEFINE_BIT_SWITCH_ARG(line_rear, CM_REG_MIXER1, CM_SPK4, 1, 0);
-DEFINE_BIT_SWITCH_ARG(line_bass, CM_REG_LEGACY_CTRL, CM_LINE_AS_BASS, 0, 0);
+// DEFINE_BIT_SWITCH_ARG(line_rear, CM_REG_MIXER1, CM_SPK4, 1, 0);
+// DEFINE_BIT_SWITCH_ARG(line_bass, CM_REG_LEGACY_CTRL, CM_LINE_AS_BASS, 0, 0);
 // DEFINE_BIT_SWITCH_ARG(joystick, CM_REG_FUNCTRL1, CM_JYSTK_EN, 0, 0); /* now module option */
 DEFINE_SWITCH_ARG(modem, CM_REG_MISC_CTRL, CM_FLINKON|CM_FLINKOFF, CM_FLINKON, 0, 0);
 
@@ -2300,10 +2310,114 @@ static int snd_cmipci_spdout_enable_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_v
 }
 
 
+static int snd_cmipci_line_in_mode_info(snd_kcontrol_t *kcontrol,
+					snd_ctl_elem_info_t *uinfo)
+{
+	cmipci_t *cm = snd_kcontrol_chip(kcontrol);
+	static char *texts[3] = { "Line-In", "Rear Output", "Bass Output" };
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	uinfo->count = 1;
+	uinfo->value.enumerated.items = cm->chip_version >= 39 ? 3 : 2;
+	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
+		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
+	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
+	return 0;
+}
+
+static inline unsigned int get_line_in_mode(cmipci_t *cm)
+{
+	unsigned int val;
+	if (cm->chip_version >= 39) {
+		val = snd_cmipci_read(cm, CM_REG_LEGACY_CTRL);
+		if (val & CM_LINE_AS_BASS)
+			return 2;
+	}
+	val = snd_cmipci_read_b(cm, CM_REG_MIXER1);
+	if (val & CM_SPK4)
+		return 1;
+	return 0;
+}
+
+static int snd_cmipci_line_in_mode_get(snd_kcontrol_t *kcontrol,
+				       snd_ctl_elem_value_t *ucontrol)
+{
+	cmipci_t *cm = snd_kcontrol_chip(kcontrol);
+
+	spin_lock_irq(&cm->reg_lock);
+	ucontrol->value.enumerated.item[0] = get_line_in_mode(cm);
+	spin_unlock_irq(&cm->reg_lock);
+	return 0;
+}
+
+static int snd_cmipci_line_in_mode_put(snd_kcontrol_t *kcontrol,
+				       snd_ctl_elem_value_t *ucontrol)
+{
+	cmipci_t *cm = snd_kcontrol_chip(kcontrol);
+	int change;
+
+	spin_lock_irq(&cm->reg_lock);
+	if (ucontrol->value.enumerated.item[0] == 2)
+		change = snd_cmipci_set_bit(cm, CM_REG_LEGACY_CTRL, CM_LINE_AS_BASS);
+	else
+		change = snd_cmipci_clear_bit(cm, CM_REG_LEGACY_CTRL, CM_LINE_AS_BASS);
+	if (ucontrol->value.enumerated.item[0] == 1)
+		change |= snd_cmipci_set_bit_b(cm, CM_REG_MIXER1, CM_SPK4);
+	else
+		change |= snd_cmipci_clear_bit_b(cm, CM_REG_MIXER1, CM_SPK4);
+	spin_unlock_irq(&cm->reg_lock);
+	return change;
+}
+
+static int snd_cmipci_mic_in_mode_info(snd_kcontrol_t *kcontrol,
+				       snd_ctl_elem_info_t *uinfo)
+{
+	static char *texts[2] = { "Mic-In", "Center/LFE Output" };
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	uinfo->count = 1;
+	uinfo->value.enumerated.items = 2;
+	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
+		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
+	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
+	return 0;
+}
+
+static int snd_cmipci_mic_in_mode_get(snd_kcontrol_t *kcontrol,
+				      snd_ctl_elem_value_t *ucontrol)
+{
+	cmipci_t *cm = snd_kcontrol_chip(kcontrol);
+	/* same bit as spdi_phase */
+	spin_lock_irq(&cm->reg_lock);
+	ucontrol->value.enumerated.item[0] = 
+		(snd_cmipci_read_b(cm, CM_REG_MISC) & CM_SPDIF_INVERSE) ? 1 : 0;
+	spin_unlock_irq(&cm->reg_lock);
+	return 0;
+}
+
+static int snd_cmipci_mic_in_mode_put(snd_kcontrol_t *kcontrol,
+				      snd_ctl_elem_value_t *ucontrol)
+{
+	cmipci_t *cm = snd_kcontrol_chip(kcontrol);
+	int change;
+
+	spin_lock_irq(&cm->reg_lock);
+	if (ucontrol->value.enumerated.item[0])
+		change = snd_cmipci_set_bit_b(cm, CM_REG_MISC, CM_SPDIF_INVERSE);
+	else
+		change = snd_cmipci_clear_bit_b(cm, CM_REG_MISC, CM_SPDIF_INVERSE);
+	spin_unlock_irq(&cm->reg_lock);
+	return change;
+}
+
 /* both for CM8338/8738 */
 static snd_kcontrol_new_t snd_cmipci_mixer_switches[] __devinitdata = {
 	DEFINE_MIXER_SWITCH("Four Channel Mode", fourch),
-	DEFINE_MIXER_SWITCH("Line-In As Rear", line_rear),
+	{
+		.name = "Line-In Mode",
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.info = snd_cmipci_line_in_mode_info,
+		.get = snd_cmipci_line_in_mode_get,
+		.put = snd_cmipci_line_in_mode_put,
+	},
 };
 
 /* for non-multichannel chips */
@@ -2341,10 +2455,15 @@ static snd_kcontrol_new_t snd_cmipci_old_mixer_switches[] __devinitdata = {
 
 /* only for model 039 or later */
 static snd_kcontrol_new_t snd_cmipci_extra_mixer_switches[] __devinitdata = {
-	DEFINE_MIXER_SWITCH("Line-In As Bass", line_bass),
 	DEFINE_MIXER_SWITCH("IEC958 In Select", spdif_in_sel2),
 	DEFINE_MIXER_SWITCH("IEC958 In Phase Inverse", spdi_phase2),
-	DEFINE_MIXER_SWITCH("Mic As Center/LFE", spdi_phase), /* same bit as spdi_phase */
+	{
+		.name = "Mic-In Mode",
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.info = snd_cmipci_mic_in_mode_info,
+		.get = snd_cmipci_mic_in_mode_get,
+		.put = snd_cmipci_mic_in_mode_put,
+	}
 };
 
 /* card control switches */
@@ -2944,7 +3063,7 @@ static struct pci_driver driver = {
 	
 static int __init alsa_card_cmipci_init(void)
 {
-	return pci_module_init(&driver);
+	return pci_register_driver(&driver);
 }
 
 static void __exit alsa_card_cmipci_exit(void)

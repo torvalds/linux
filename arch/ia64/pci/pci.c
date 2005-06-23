@@ -33,8 +33,6 @@
 #include <asm/hw_irq.h>
 
 
-static int pci_routeirq;
-
 /*
  * Low-level SAL-based PCI configuration access functions. Note that SAL
  * calls are already serialized (via sal_lock), so we don't need another
@@ -139,23 +137,7 @@ static void acpi_map_iosapics(void)
 static int __init
 pci_acpi_init (void)
 {
-	struct pci_dev *dev = NULL;
-
-	printk(KERN_INFO "PCI: Using ACPI for IRQ routing\n");
-
 	acpi_map_iosapics();
-
-	if (pci_routeirq) {
-		/*
-		 * PCI IRQ routing is set up by pci_enable_device(), but we
-		 * also do it here in case there are still broken drivers that
-		 * don't use pci_enable_device().
-		 */
-		printk(KERN_INFO "PCI: Routing interrupts for all devices because \"pci=routeirq\" specified\n");
-		for_each_pci_dev(dev)
-			acpi_pci_irq_enable(dev);
-	} else
-		printk(KERN_INFO "PCI: If a device doesn't work, try \"pci=routeirq\".  If it helps, post a report\n");
 
 	return 0;
 }
@@ -500,8 +482,6 @@ pcibios_align_resource (void *data, struct resource *res,
 char * __init
 pcibios_setup (char *str)
 {
-	if (!strcmp(str, "routeirq"))
-		pci_routeirq = 1;
 	return NULL;
 }
 

@@ -36,6 +36,10 @@ static struct font_desc *fonts[] = {
 #undef NO_FONTS
     &font_vga_6x11,
 #endif
+#ifdef CONFIG_FONT_7x14
+#undef NO_FONTS
+    &font_7x14,
+#endif
 #ifdef CONFIG_FONT_SUN8x16
 #undef NO_FONTS
     &font_sun_8x16,
@@ -43,6 +47,10 @@ static struct font_desc *fonts[] = {
 #ifdef CONFIG_FONT_SUN12x22
 #undef NO_FONTS
     &font_sun_12x22,
+#endif
+#ifdef CONFIG_FONT_10x18
+#undef NO_FONTS
+    &font_10x18,
 #endif
 #ifdef CONFIG_FONT_ACORN_8x8
 #undef NO_FONTS

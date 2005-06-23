@@ -2031,7 +2031,7 @@ static struct pci_driver driver = {
 
 static int __init alsa_card_rme32_init(void)
 {
-	return pci_module_init(&driver);
+	return pci_register_driver(&driver);
 }
 
 static void __exit alsa_card_rme32_exit(void)

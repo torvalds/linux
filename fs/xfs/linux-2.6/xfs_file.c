@@ -57,7 +57,9 @@
 #include <linux/smp_lock.h>
 
 static struct vm_operations_struct linvfs_file_vm_ops;
-
+#ifdef CONFIG_XFS_DMAPI
+static struct vm_operations_struct linvfs_dmapi_file_vm_ops;
+#endif
 
 STATIC inline ssize_t
 __linvfs_read(
@@ -388,6 +390,14 @@ done:
 	return -error;
 }
 
+#ifdef CONFIG_XFS_DMAPI
+STATIC void
+linvfs_mmap_close(
+	struct vm_area_struct	*vma)
+{
+	xfs_dm_mm_put(vma);
+}
+#endif /* CONFIG_XFS_DMAPI */
 
 STATIC int
 linvfs_file_mmap(
@@ -399,15 +409,18 @@ linvfs_file_mmap(
 	vattr_t		va = { .va_mask = XFS_AT_UPDATIME };
 	int		error;
 
+	vma->vm_ops = &linvfs_file_vm_ops;
+
 	if (vp->v_vfsp->vfs_flag & VFS_DMI) {
 		xfs_mount_t	*mp = XFS_VFSTOM(vp->v_vfsp);
 
 		error = -XFS_SEND_MMAP(mp, vma, 0);
 		if (error)
 			return error;
+#ifdef CONFIG_XFS_DMAPI
+		vma->vm_ops = &linvfs_dmapi_file_vm_ops;
+#endif
 	}
-
-	vma->vm_ops = &linvfs_file_vm_ops;
 
 	VOP_SETATTR(vp, &va, XFS_AT_UPDATIME, NULL, error);
 	if (!error)
@@ -609,7 +622,15 @@ struct file_operations linvfs_dir_operations = {
 static struct vm_operations_struct linvfs_file_vm_ops = {
 	.nopage		= filemap_nopage,
 	.populate	= filemap_populate,
+};
+
+#ifdef CONFIG_XFS_DMAPI
+static struct vm_operations_struct linvfs_dmapi_file_vm_ops = {
+	.close		= linvfs_mmap_close,
+	.nopage		= filemap_nopage,
+	.populate	= filemap_populate,
 #ifdef HAVE_VMOP_MPROTECT
 	.mprotect	= linvfs_mprotect,
 #endif
 };
+#endif /* CONFIG_XFS_DMAPI */

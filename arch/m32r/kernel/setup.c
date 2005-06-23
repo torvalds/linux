@@ -330,6 +330,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, "Machine\t\t: Mappi Evaluation board\n");
 #elif CONFIG_PLAT_MAPPI2
 	seq_printf(m, "Machine\t\t: Mappi-II Evaluation board\n");
+#elif CONFIG_PLAT_MAPPI3
+	seq_printf(m, "Machine\t\t: Mappi-III Evaluation board\n");
 #elif  CONFIG_PLAT_M32700UT
 	seq_printf(m, "Machine\t\t: M32700UT Evaluation board\n");
 #elif  CONFIG_PLAT_OPSPUT

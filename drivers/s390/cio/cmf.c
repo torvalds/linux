@@ -796,7 +796,7 @@ cmb_show_attr(struct device *dev, char *buf, enum cmb_index idx)
 }
 
 static ssize_t
-cmb_show_avg_sample_interval(struct device *dev, char *buf)
+cmb_show_avg_sample_interval(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct ccw_device *cdev;
 	long interval;
@@ -813,7 +813,7 @@ cmb_show_avg_sample_interval(struct device *dev, char *buf)
 }
 
 static ssize_t
-cmb_show_avg_utilization(struct device *dev, char *buf)
+cmb_show_avg_utilization(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct cmbdata data;
 	u64 utilization;
@@ -842,12 +842,12 @@ cmb_show_avg_utilization(struct device *dev, char *buf)
 }
 
 #define cmf_attr(name) \
-static ssize_t show_ ## name (struct device * dev, char * buf) \
+static ssize_t show_ ## name (struct device * dev, struct device_attribute *attr, char * buf) \
 { return cmb_show_attr((dev), buf, cmb_ ## name); } \
 static DEVICE_ATTR(name, 0444, show_ ## name, NULL);
 
 #define cmf_attr_avg(name) \
-static ssize_t show_avg_ ## name (struct device * dev, char * buf) \
+static ssize_t show_avg_ ## name (struct device * dev, struct device_attribute *attr, char * buf) \
 { return cmb_show_attr((dev), buf, cmb_ ## name); } \
 static DEVICE_ATTR(avg_ ## name, 0444, show_avg_ ## name, NULL);
 
@@ -902,12 +902,12 @@ static struct attribute_group cmf_attr_group_ext = {
 	.attrs = cmf_attributes_ext,
 };
 
-static ssize_t cmb_enable_show(struct device *dev, char *buf)
+static ssize_t cmb_enable_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", to_ccwdev(dev)->private->cmb ? 1 : 0);
 }
 
-static ssize_t cmb_enable_store(struct device *dev, const char *buf, size_t c)
+static ssize_t cmb_enable_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t c)
 {
 	struct ccw_device *cdev;
 	int ret;

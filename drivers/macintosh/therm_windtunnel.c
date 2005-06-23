@@ -51,8 +51,10 @@
 static int 			do_probe( struct i2c_adapter *adapter, int addr, int kind);
 
 /* scan 0x48-0x4f (DS1775) and 0x2c-2x2f (ADM1030) */
-static unsigned short		normal_i2c[] = { 0x49, 0x2c, I2C_CLIENT_END };
-static unsigned short		normal_i2c_range[] = { 0x48, 0x4f, 0x2c, 0x2f, I2C_CLIENT_END };
+static unsigned short		normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b,
+						 0x4c, 0x4d, 0x4e, 0x4f,
+						 0x2c, 0x2d, 0x2e, 0x2f,
+						 I2C_CLIENT_END };
 
 I2C_CLIENT_INSMOD;
 
@@ -107,13 +109,13 @@ print_temp( const char *s, int temp )
 }
 
 static ssize_t
-show_cpu_temperature( struct device *dev, char *buf )
+show_cpu_temperature( struct device *dev, struct device_attribute *attr, char *buf )
 {
 	return sprintf(buf, "%d.%d\n", x.temp>>8, (x.temp & 255)*10/256 );
 }
 
 static ssize_t
-show_case_temperature( struct device *dev, char *buf )
+show_case_temperature( struct device *dev, struct device_attribute *attr, char *buf )
 {
 	return sprintf(buf, "%d.%d\n", x.casetemp>>8, (x.casetemp & 255)*10/256 );
 }

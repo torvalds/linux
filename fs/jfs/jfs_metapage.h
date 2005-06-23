@@ -1,6 +1,6 @@
 /*
- *   Copyright (c) International Business Machines Corp., 2000-2002
- *   Portions Copyright (c) Christoph Hellwig, 2001-2002
+ *   Copyright (C) International Business Machines Corp., 2000-2002
+ *   Portions Copyright (C) Christoph Hellwig, 2001-2002
  *
  *   This program is free software;  you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -58,6 +58,8 @@ struct metapage {
 #define mark_metapage_dirty(mp) set_bit(META_dirty, &(mp)->flag)
 
 /* function prototypes */
+extern int metapage_init(void);
+extern void metapage_exit(void);
 extern struct metapage *__get_metapage(struct inode *inode,
 				  unsigned long lblock, unsigned int size,
 				  int absolute, unsigned long new);

@@ -21,7 +21,6 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -156,7 +155,7 @@ static struct i2c_driver lm80_driver = {
  */
 
 #define show_in(suffix, value) \
-static ssize_t show_in_##suffix(struct device *dev, char *buf) \
+static ssize_t show_in_##suffix(struct device *dev, struct device_attribute *attr, char *buf) \
 { \
 	struct lm80_data *data = lm80_update_device(dev); \
 	return sprintf(buf, "%d\n", IN_FROM_REG(data->value)); \
@@ -184,7 +183,7 @@ show_in(input5, in[5]);
 show_in(input6, in[6]);
 
 #define set_in(suffix, value, reg) \
-static ssize_t set_in_##suffix(struct device *dev, const char *buf, \
+static ssize_t set_in_##suffix(struct device *dev, struct device_attribute *attr, const char *buf, \
 	size_t count) \
 { \
 	struct i2c_client *client = to_i2c_client(dev); \
@@ -213,7 +212,7 @@ set_in(max5, in_max[5], LM80_REG_IN_MAX(5));
 set_in(max6, in_max[6], LM80_REG_IN_MAX(6));
 
 #define show_fan(suffix, value, div) \
-static ssize_t show_fan_##suffix(struct device *dev, char *buf) \
+static ssize_t show_fan_##suffix(struct device *dev, struct device_attribute *attr, char *buf) \
 { \
 	struct lm80_data *data = lm80_update_device(dev); \
 	return sprintf(buf, "%d\n", FAN_FROM_REG(data->value, \
@@ -225,7 +224,7 @@ show_fan(input1, fan[0], fan_div[0]);
 show_fan(input2, fan[1], fan_div[1]);
 
 #define show_fan_div(suffix, value) \
-static ssize_t show_fan_div##suffix(struct device *dev, char *buf) \
+static ssize_t show_fan_div##suffix(struct device *dev, struct device_attribute *attr, char *buf) \
 { \
 	struct lm80_data *data = lm80_update_device(dev); \
 	return sprintf(buf, "%d\n", DIV_FROM_REG(data->value)); \
@@ -234,7 +233,7 @@ show_fan_div(1, fan_div[0]);
 show_fan_div(2, fan_div[1]);
 
 #define set_fan(suffix, value, reg, div) \
-static ssize_t set_fan_##suffix(struct device *dev, const char *buf, \
+static ssize_t set_fan_##suffix(struct device *dev, struct device_attribute *attr, const char *buf, \
 	size_t count) \
 { \
 	struct i2c_client *client = to_i2c_client(dev); \
@@ -292,7 +291,7 @@ static ssize_t set_fan_div(struct device *dev, const char *buf,
 }
 
 #define set_fan_div(number) \
-static ssize_t set_fan_div##number(struct device *dev, const char *buf, \
+static ssize_t set_fan_div##number(struct device *dev, struct device_attribute *attr, const char *buf, \
 	size_t count) \
 { \
 	return set_fan_div(dev, buf, count, number - 1); \
@@ -300,14 +299,14 @@ static ssize_t set_fan_div##number(struct device *dev, const char *buf, \
 set_fan_div(1);
 set_fan_div(2);
 
-static ssize_t show_temp_input1(struct device *dev, char *buf)
+static ssize_t show_temp_input1(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct lm80_data *data = lm80_update_device(dev);
 	return sprintf(buf, "%ld\n", TEMP_FROM_REG(data->temp));
 }
 
 #define show_temp(suffix, value) \
-static ssize_t show_temp_##suffix(struct device *dev, char *buf) \
+static ssize_t show_temp_##suffix(struct device *dev, struct device_attribute *attr, char *buf) \
 { \
 	struct lm80_data *data = lm80_update_device(dev); \
 	return sprintf(buf, "%d\n", TEMP_LIMIT_FROM_REG(data->value)); \
@@ -318,7 +317,7 @@ show_temp(os_max, temp_os_max);
 show_temp(os_hyst, temp_os_hyst);
 
 #define set_temp(suffix, value, reg) \
-static ssize_t set_temp_##suffix(struct device *dev, const char *buf, \
+static ssize_t set_temp_##suffix(struct device *dev, struct device_attribute *attr, const char *buf, \
 	size_t count) \
 { \
 	struct i2c_client *client = to_i2c_client(dev); \
@@ -336,7 +335,7 @@ set_temp(hot_hyst, temp_hot_hyst, LM80_REG_TEMP_HOT_HYST);
 set_temp(os_max, temp_os_max, LM80_REG_TEMP_OS_MAX);
 set_temp(os_hyst, temp_os_hyst, LM80_REG_TEMP_OS_HYST);
 
-static ssize_t show_alarms(struct device *dev, char *buf)
+static ssize_t show_alarms(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct lm80_data *data = lm80_update_device(dev);
 	return sprintf(buf, "%u\n", data->alarms);

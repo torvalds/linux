@@ -339,7 +339,7 @@ static void ah6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	xfrm_state_put(x);
 }
 
-static int ah6_init_state(struct xfrm_state *x, void *args)
+static int ah6_init_state(struct xfrm_state *x)
 {
 	struct ah_data *ahp = NULL;
 	struct xfrm_algo_desc *aalg_desc;

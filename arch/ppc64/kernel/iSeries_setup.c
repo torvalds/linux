@@ -47,7 +47,7 @@
 #include <asm/paca.h>
 #include <asm/cache.h>
 #include <asm/sections.h>
-#include <asm/iSeries/LparData.h>
+#include <asm/abs_addr.h>
 #include <asm/iSeries/HvCallHpt.h>
 #include <asm/iSeries/HvLpConfig.h>
 #include <asm/iSeries/HvCallEvent.h>
@@ -55,10 +55,12 @@
 #include <asm/iSeries/HvCallXm.h>
 #include <asm/iSeries/ItLpQueue.h>
 #include <asm/iSeries/IoHriMainStore.h>
-#include <asm/iSeries/iSeries_proc.h>
 #include <asm/iSeries/mf.h>
 #include <asm/iSeries/HvLpEvent.h>
 #include <asm/iSeries/iSeries_irq.h>
+#include <asm/iSeries/IoHriProcessorVpd.h>
+#include <asm/iSeries/ItVpdAreas.h>
+#include <asm/iSeries/LparMap.h>
 
 extern void hvlog(char *fmt, ...);
 
@@ -74,7 +76,11 @@ extern void ppcdbg_initialize(void);
 static void build_iSeries_Memory_Map(void);
 static void setup_iSeries_cache_sizes(void);
 static void iSeries_bolt_kernel(unsigned long saddr, unsigned long eaddr);
+#ifdef CONFIG_PCI
 extern void iSeries_pci_final_fixup(void);
+#else
+static void iSeries_pci_final_fixup(void) { }
+#endif
 
 /* Global Variables */
 static unsigned long procFreqHz;
@@ -873,6 +879,10 @@ static int set_spread_lpevents(char *str)
 	return 1;
 }
 __setup("spread_lpevents=", set_spread_lpevents);
+
+#ifndef CONFIG_PCI
+void __init iSeries_init_IRQ(void) { }
+#endif
 
 void __init iSeries_early_setup(void)
 {

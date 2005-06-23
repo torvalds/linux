@@ -26,18 +26,18 @@
 
 #define __BITS4 (SI_TYPE_SIZE / 4)
 #define __ll_B (1L << (SI_TYPE_SIZE / 2))
-#define __ll_lowpart(t) ((USItype) (t) % __ll_B)
-#define __ll_highpart(t) ((USItype) (t) / __ll_B)
+#define __ll_lowpart(t) ((u32) (t) % __ll_B)
+#define __ll_highpart(t) ((u32) (t) / __ll_B)
 
 /* Define auxiliary asm macros.
 
    1) umul_ppmm(high_prod, low_prod, multipler, multiplicand)
-   multiplies two USItype integers MULTIPLER and MULTIPLICAND,
-   and generates a two-part USItype product in HIGH_PROD and
+   multiplies two u32 integers MULTIPLER and MULTIPLICAND,
+   and generates a two-part u32 product in HIGH_PROD and
    LOW_PROD.
 
-   2) __umulsidi3(a,b) multiplies two USItype integers A and B,
-   and returns a UDItype product.  This is just a variant of umul_ppmm.
+   2) __umulsidi3(a,b) multiplies two u32 integers A and B,
+   and returns a u64 product.  This is just a variant of umul_ppmm.
 
    3) udiv_qrnnd(quotient, remainder, high_numerator, low_numerator,
    denominator) divides a two-word unsigned integer, composed by the
@@ -77,23 +77,23 @@
 #define add_ssaaaa(sh, sl, ah, al, bh, bl) \
   __asm__ ("adds	%1, %4, %5					\n\
 	adc	%0, %2, %3"						\
-	   : "=r" ((USItype) (sh)),					\
-	     "=&r" ((USItype) (sl))					\
-	   : "%r" ((USItype) (ah)),					\
-	     "rI" ((USItype) (bh)),					\
-	     "%r" ((USItype) (al)),					\
-	     "rI" ((USItype) (bl)))
+	   : "=r" ((u32) (sh)),					\
+	     "=&r" ((u32) (sl))					\
+	   : "%r" ((u32) (ah)),					\
+	     "rI" ((u32) (bh)),					\
+	     "%r" ((u32) (al)),					\
+	     "rI" ((u32) (bl)))
 #define sub_ddmmss(sh, sl, ah, al, bh, bl) \
   __asm__ ("subs	%1, %4, %5					\n\
 	sbc	%0, %2, %3"						\
-	   : "=r" ((USItype) (sh)),					\
-	     "=&r" ((USItype) (sl))					\
-	   : "r" ((USItype) (ah)),					\
-	     "rI" ((USItype) (bh)),					\
-	     "r" ((USItype) (al)),					\
-	     "rI" ((USItype) (bl)))
+	   : "=r" ((u32) (sh)),					\
+	     "=&r" ((u32) (sl))					\
+	   : "r" ((u32) (ah)),					\
+	     "rI" ((u32) (bh)),					\
+	     "r" ((u32) (al)),					\
+	     "rI" ((u32) (bl)))
 #define umul_ppmm(xh, xl, a, b) \
-{register USItype __t0, __t1, __t2;					\
+{register u32 __t0, __t1, __t2;					\
   __asm__ ("%@ Inlined umul_ppmm					\n\
 	mov	%2, %5, lsr #16						\n\
 	mov	%0, %6, lsr #16						\n\
@@ -107,14 +107,14 @@
 	addcs	%0, %0, #65536						\n\
 	adds	%1, %1, %3, lsl #16					\n\
 	adc	%0, %0, %3, lsr #16"					\
-	   : "=&r" ((USItype) (xh)),					\
-	     "=r" ((USItype) (xl)),					\
+	   : "=&r" ((u32) (xh)),					\
+	     "=r" ((u32) (xl)),					\
 	     "=&r" (__t0), "=&r" (__t1), "=r" (__t2)			\
-	   : "r" ((USItype) (a)),					\
-	     "r" ((USItype) (b)));}
+	   : "r" ((u32) (a)),					\
+	     "r" ((u32) (b)));}
 #define UMUL_TIME 20
 #define UDIV_TIME 100
-#endif /* __arm__ */
+#endif				/* __arm__ */
 
 #define __umulsidi3(u, v) \
   ({DIunion __w;							\
@@ -123,14 +123,14 @@
 
 #define __udiv_qrnnd_c(q, r, n1, n0, d) \
   do {									\
-    USItype __d1, __d0, __q1, __q0;					\
-    USItype __r1, __r0, __m;						\
+    u32 __d1, __d0, __q1, __q0;					\
+    u32 __r1, __r0, __m;						\
     __d1 = __ll_highpart (d);						\
     __d0 = __ll_lowpart (d);						\
 									\
     __r1 = (n1) % __d1;							\
     __q1 = (n1) / __d1;							\
-    __m = (USItype) __q1 * __d0;					\
+    __m = (u32) __q1 * __d0;					\
     __r1 = __r1 * __ll_B | __ll_highpart (n0);				\
     if (__r1 < __m)							\
       {									\
@@ -143,7 +143,7 @@
 									\
     __r0 = __r1 % __d1;							\
     __q0 = __r1 / __d1;							\
-    __m = (USItype) __q0 * __d0;					\
+    __m = (u32) __q0 * __d0;					\
     __r0 = __r0 * __ll_B | __ll_lowpart (n0);				\
     if (__r0 < __m)							\
       {									\
@@ -154,7 +154,7 @@
       }									\
     __r0 -= __m;							\
 									\
-    (q) = (USItype) __q1 * __ll_B | __q0;				\
+    (q) = (u32) __q1 * __ll_B | __q0;				\
     (r) = __r0;								\
   } while (0)
 
@@ -163,14 +163,14 @@
 
 #define count_leading_zeros(count, x) \
   do {									\
-    USItype __xr = (x);							\
-    USItype __a;							\
+    u32 __xr = (x);							\
+    u32 __a;							\
 									\
     if (SI_TYPE_SIZE <= 32)						\
       {									\
-	__a = __xr < ((USItype)1<<2*__BITS4)				\
-	  ? (__xr < ((USItype)1<<__BITS4) ? 0 : __BITS4)		\
-	  : (__xr < ((USItype)1<<3*__BITS4) ?  2*__BITS4 : 3*__BITS4);	\
+	__a = __xr < ((u32)1<<2*__BITS4)				\
+	  ? (__xr < ((u32)1<<__BITS4) ? 0 : __BITS4)		\
+	  : (__xr < ((u32)1<<3*__BITS4) ?  2*__BITS4 : 3*__BITS4);	\
       }									\
     else								\
       {									\

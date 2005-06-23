@@ -615,9 +615,11 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
   Module snd-hda-intel
   --------------------
 
-    Module for Intel HD Audio (ICH6, ICH6M, ICH7)
+    Module for Intel HD Audio (ICH6, ICH6M, ICH7), ATI SB450,
+	       VIA VT8251/VT8237A
 
     model	- force the model name
+    position_fix - Fix DMA pointer (0 = FIFO size, 1 = none, 2 = POSBUF)
 
     Module supports up to 8 cards.
 
@@ -635,6 +637,10 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  5stack	5-jack in back, 2-jack in front
 	  5stack-digout	5-jack in back, 2-jack in front, a SPDIF out
 	  w810		3-jack
+	  z71v		3-jack (HP shared SPDIF)
+	  asus		3-jack
+	  uniwill	3-jack
+	  F1734		2-jack
 
 	CMI9880
 	  minimal	3-jack in back
@@ -642,6 +648,15 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  full		6-jack in back, 2-jack in front
 	  full_dig	6-jack in back, 2-jack in front, SPDIF I/O
 	  allout	5-jack in back, 2-jack in front, SPDIF out
+	  auto		auto-config reading BIOS (default)
+
+    Note 2: If you get click noises on output, try the module option
+	    position_fix=1 or 2.  position_fix=1 will use the SD_LPIB
+	    register value without FIFO size correction as the current
+	    DMA pointer.  position_fix=2 will make the driver to use
+	    the position buffer instead of reading SD_LPIB register.
+	    (Usually SD_LPLIB register is more accurate than the
+	    position buffer.)
 
   Module snd-hdsp
   ---------------
@@ -660,7 +675,19 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
           module did formerly.  It will allocate the buffers in advance
           when any HDSP cards are found.  To make the buffer
           allocation sure, load snd-page-alloc module in the early
-          stage of boot sequence.
+          stage of boot sequence.  See "Early Buffer Allocation"
+	  section.
+
+  Module snd-hdspm
+  ----------------
+
+    Module for RME HDSP MADI board.
+
+    precise_ptr		- Enable precise pointer, or disable.
+    line_outs_monitor	- Send playback streams to analog outs by default.
+    enable_monitor	- Enable Analog Out on Channel 63/64 by default.
+
+    See hdspm.txt for details.
 
   Module snd-ice1712
   ------------------
@@ -677,15 +704,19 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
                         * TerraTec EWS 88D
                         * TerraTec EWX 24/96
                         * TerraTec DMX 6Fire
+			* TerraTec Phase 88
                         * Hoontech SoundTrack DSP 24
                         * Hoontech SoundTrack DSP 24 Value
                         * Hoontech SoundTrack DSP 24 Media 7.1
+			* Event Electronics, EZ8
                         * Digigram VX442
+			* Lionstracs, Mediastaton
 
     model       - Use the given board model, one of the following:
 		  delta1010, dio2496, delta66, delta44, audiophile, delta410,
 		  delta1010lt, vx442, ewx2496, ews88mt, ews88mt_new, ews88d,
-		  dmx6fire, dsp24, dsp24_value, dsp24_71, ez8
+		  dmx6fire, dsp24, dsp24_value, dsp24_71, ez8,
+		  phase88, mediastation
     omni	- Omni I/O support for MidiMan M-Audio Delta44/66
     cs8427_timeout - reset timeout for the CS8427 chip (S/PDIF transciever)
                      in msec resolution, default value is 500 (0.5 sec)
@@ -694,19 +725,45 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     is not used with all Envy24 based cards (for example in the MidiMan Delta
     serie).
 
+    Note: The supported board is detected by reading EEPROM or PCI
+	  SSID (if EEPROM isn't available).  You can override the
+	  model by passing "model" module option in case that the
+	  driver isn't configured properly or you want to try another
+	  type for testing.
+
   Module snd-ice1724
   ------------------
 
-    Module for Envy24HT (VT/ICE1724) based PCI sound cards.
+    Module for Envy24HT (VT/ICE1724), Envy24PT (VT1720) based PCI sound cards.
 			* MidiMan M Audio Revolution 7.1
 			* AMP Ltd AUDIO2000
-			* TerraTec Aureon Sky-5.1, Space-7.1
+			* TerraTec Aureon 5.1 Sky
+			* TerraTec Aureon 7.1 Space
+			* TerraTec Aureon 7.1 Universe
+			* TerraTec Phase 22
+			* TerraTec Phase 28
+			* AudioTrak Prodigy 7.1
+			* AudioTrak Prodigy 192
+			* Pontis MS300
+			* Albatron K8X800 Pro II 
+			* Chaintech ZNF3-150
+			* Chaintech ZNF3-250
+			* Chaintech 9CJS
+			* Chaintech AV-710
+			* Shuttle SN25P
 
     model       - Use the given board model, one of the following:
-		  revo71, amp2000, prodigy71, aureon51, aureon71,
-		  k8x800
+		  revo71, amp2000, prodigy71, prodigy192, aureon51,
+		  aureon71, universe, k8x800, phase22, phase28, ms300,
+		  av710
 
     Module supports up to 8 cards and autoprobe.
+
+    Note: The supported board is detected by reading EEPROM or PCI
+	  SSID (if EEPROM isn't available).  You can override the
+	  model by passing "model" module option in case that the
+	  driver isn't configured properly or you want to try another
+	  type for testing.
 
   Module snd-intel8x0
   -------------------
@@ -1026,7 +1083,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
           module did formerly.  It will allocate the buffers in advance
           when any RME9652 cards are found.  To make the buffer
           allocation sure, load snd-page-alloc module in the early
-          stage of boot sequence.
+          stage of boot sequence.  See "Early Buffer Allocation"
+	  section.
 
   Module snd-sa11xx-uda1341 (on arm only)
   ---------------------------------------
@@ -1211,16 +1269,18 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
   ------------------
 
     Module for AC'97 motherboards based on VIA 82C686A/686B, 8233,
-    8233A, 8233C, 8235 (south) bridge.
+    8233A, 8233C, 8235, 8237 (south) bridge.
 
     mpu_port	- 0x300,0x310,0x320,0x330, otherwise obtain BIOS setup
 		  [VIA686A/686B only]
     joystick	- Enable joystick (default off) [VIA686A/686B only]
     ac97_clock	- AC'97 codec clock base (default 48000Hz)
     dxs_support	- support DXS channels,
-		  0 = auto (defalut), 1 = enable, 2 = disable,
-		  3 = 48k only, 4 = no VRA
-		  [VIA8233/C,8235 only]
+		  0 = auto (default), 1 = enable, 2 = disable,
+		  3 = 48k only, 4 = no VRA, 5 = enable any sample
+		  rate and different sample rates on different
+		  channels
+		  [VIA8233/C, 8235, 8237 only]
     ac97_quirk  - AC'97 workaround for strange hardware
                   See the description of intel8x0 module for details.
 
@@ -1232,18 +1292,23 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
           default value 1.4.  Then the interrupt number will be
           assigned under 15. You might also upgrade your BIOS.
     
-    Note: VIA8233/5 (not VIA8233A) can support DXS (direct sound)
+    Note: VIA8233/5/7 (not VIA8233A) can support DXS (direct sound)
 	  channels as the first PCM.  On these channels, up to 4
-	  streams can be played at the same time.
+	  streams can be played at the same time, and the controller
+	  can perform sample rate conversion with separate rates for
+	  each channel.
 	  As default (dxs_support = 0), 48k fixed rate is chosen
 	  except for the known devices since the output is often
 	  noisy except for 48k on some mother boards due to the
 	  bug of BIOS.
-	  Please try once dxs_support=1 and if it works on other
+	  Please try once dxs_support=5 and if it works on other
 	  sample rates (e.g. 44.1kHz of mp3 playback), please let us
 	  know the PCI subsystem vendor/device id's (output of
 	  "lspci -nv").
-	  If it doesn't work, try dxs_support=4.  If it still doesn't
+	  If dxs_support=5 does not work, try dxs_support=4; if it
+	  doesn't work too, try dxs_support=1.  (dxs_support=1 is
+	  usually for old motherboards.  The correct implementated
+	  board should work with 4 or 5.)  If it still doesn't
 	  work and the default setting is ok, dxs_support=3 is the
 	  right choice.  If the default setting doesn't work at all,
 	  try dxs_support=2 to disable the DXS channels.
@@ -1495,6 +1560,36 @@ Proc interfaces (/proc/asound)
   Example: echo "x11amp 128 16384" > /proc/asound/card0/pcm0p/oss
            echo "squake 0 0 disable" > /proc/asound/card0/pcm0c/oss
 	   echo "rvplayer 0 0 block" > /proc/asound/card0/pcm0p/oss
+
+
+Early Buffer Allocation
+=======================
+
+Some drivers (e.g. hdsp) require the large contiguous buffers, and
+sometimes it's too late to find such spaces when the driver module is
+actually loaded due to memory fragmentation.  You can pre-allocate the
+PCM buffers by loading snd-page-alloc module and write commands to its
+proc file in prior, for example, in the early boot stage like
+/etc/init.d/*.local scripts.
+
+Reading the proc file /proc/drivers/snd-page-alloc shows the current
+usage of page allocation.  In writing, you can send the following
+commands to the snd-page-alloc driver:
+
+  - add VENDOR DEVICE MASK SIZE BUFFERS
+
+    VENDOR and DEVICE are PCI vendor and device IDs.  They take
+    integer numbers (0x prefix is needed for the hex).
+    MASK is the PCI DMA mask.  Pass 0 if not restricted.
+    SIZE is the size of each buffer to allocate.  You can pass
+    k and m suffix for KB and MB.  The max number is 16MB.
+    BUFFERS is the number of buffers to allocate.  It must be greater
+    than 0.  The max number is 4.
+
+  - erase
+
+    This will erase the all pre-allocated buffers which are not in
+    use.
 
 
 Links

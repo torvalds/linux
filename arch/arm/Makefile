@@ -97,6 +97,7 @@ textaddr-$(CONFIG_ARCH_FORTUNET)   := 0xc0008000
  machine-$(CONFIG_ARCH_VERSATILE)  := versatile
  machine-$(CONFIG_ARCH_IMX)	   := imx
  machine-$(CONFIG_ARCH_H720X)	   := h720x
+ machine-$(CONFIG_ARCH_AAEC2000)   := aaec2000
 
 ifeq ($(CONFIG_ARCH_EBSA110),y)
 # This is what happens if you forget the IOCS16 line.

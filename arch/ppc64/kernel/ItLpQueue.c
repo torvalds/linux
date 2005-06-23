@@ -16,7 +16,6 @@
 #include <asm/iSeries/ItLpQueue.h>
 #include <asm/iSeries/HvLpEvent.h>
 #include <asm/iSeries/HvCallEvent.h>
-#include <asm/iSeries/LparData.h>
 
 static __inline__ int set_inUse( struct ItLpQueue * lpQueue )
 {

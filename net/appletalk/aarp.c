@@ -565,7 +565,7 @@ int aarp_send_ddp(struct net_device *dev, struct sk_buff *skb,
 			 *	numbers	we just happen to need. Now put the
 			 *	length in the lower two.
 			 */
-			*((__u16 *)skb->data) = htons(skb->len);
+			*((__be16 *)skb->data) = htons(skb->len);
 			ft = 1;
 		}
 		/*

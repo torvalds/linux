@@ -66,7 +66,7 @@ extern volatile int cpu_2_physid[NR_CPUS];
 #define physid_to_cpu(physid)	physid_2_cpu[physid]
 #define cpu_to_physid(cpu_id)	cpu_2_physid[cpu_id]
 
-#define smp_processor_id()	(current_thread_info()->cpu)
+#define raw_smp_processor_id()	(current_thread_info()->cpu)
 
 extern cpumask_t cpu_callout_map;
 #define cpu_possible_map cpu_callout_map

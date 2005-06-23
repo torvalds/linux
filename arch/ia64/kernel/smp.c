@@ -269,7 +269,7 @@ smp_call_function_single (int cpuid, void (*func) (void *info), void *info, int 
 	int me = get_cpu(); /* prevent preemption and reschedule on another processor */
 
 	if (cpuid == me) {
-		printk("%s: trying to call self\n", __FUNCTION__);
+		printk(KERN_INFO "%s: trying to call self\n", __FUNCTION__);
 		put_cpu();
 		return -EBUSY;
 	}

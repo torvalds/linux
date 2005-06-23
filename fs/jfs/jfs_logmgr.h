@@ -507,6 +507,8 @@ extern int lmLogClose(struct super_block *sb);
 extern int lmLogShutdown(struct jfs_log * log);
 extern int lmLogInit(struct jfs_log * log);
 extern int lmLogFormat(struct jfs_log *log, s64 logAddress, int logSize);
+extern int lmGroupCommit(struct jfs_log *, struct tblock *);
+extern int jfsIOWait(void *);
 extern void jfs_flush_journal(struct jfs_log * log, int wait);
 extern void jfs_syncpt(struct jfs_log *log);
 

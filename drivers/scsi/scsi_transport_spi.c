@@ -348,17 +348,21 @@ spi_transport_rd_attr(rd_strm, "%d\n");
 spi_transport_rd_attr(rti, "%d\n");
 spi_transport_rd_attr(pcomp_en, "%d\n");
 
+/* we only care about the first child device so we return 1 */
+static int child_iter(struct device *dev, void *data)
+{
+	struct scsi_device *sdev = to_scsi_device(dev);
+
+	spi_dv_device(sdev);
+	return 1;
+}
+
 static ssize_t
 store_spi_revalidate(struct class_device *cdev, const char *buf, size_t count)
 {
 	struct scsi_target *starget = transport_class_to_starget(cdev);
 
-	/* FIXME: we're relying on an awful lot of device internals
-	 * here.  We really need a function to get the first available
-	 * child */
-	struct device *dev = container_of(starget->dev.children.next, struct device, node);
-	struct scsi_device *sdev = to_scsi_device(dev);
-	spi_dv_device(sdev);
+	device_for_each_child(&starget->dev, NULL, child_iter);
 	return count;
 }
 static CLASS_DEVICE_ATTR(revalidate, S_IWUSR, NULL, store_spi_revalidate);

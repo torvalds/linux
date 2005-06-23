@@ -1469,7 +1469,7 @@ static const struct usb_gadget_ops net2280_ops = {
 
 /* "function" sysfs attribute */
 static ssize_t
-show_function (struct device *_dev, char *buf)
+show_function (struct device *_dev, struct device_attribute *attr, char *buf)
 {
 	struct net2280	*dev = dev_get_drvdata (_dev);
 
@@ -1482,7 +1482,7 @@ show_function (struct device *_dev, char *buf)
 static DEVICE_ATTR (function, S_IRUGO, show_function, NULL);
 
 static ssize_t
-show_registers (struct device *_dev, char *buf)
+show_registers (struct device *_dev, struct device_attribute *attr, char *buf)
 {
 	struct net2280		*dev;
 	char			*next;
@@ -1637,7 +1637,7 @@ show_registers (struct device *_dev, char *buf)
 static DEVICE_ATTR (registers, S_IRUGO, show_registers, NULL);
 
 static ssize_t
-show_queues (struct device *_dev, char *buf)
+show_queues (struct device *_dev, struct device_attribute *attr, char *buf)
 {
 	struct net2280		*dev;
 	char			*next;

@@ -783,7 +783,8 @@ static const sctp_sm_table_entry_t other_event_table[SCTP_NUM_OTHER_TYPES][SCTP_
 	/* SCTP_STATE_COOKIE_WAIT */ \
 	{.fn = sctp_sf_bug, .name = "sctp_sf_bug"}, \
 	/* SCTP_STATE_COOKIE_ECHOED */ \
-	{.fn = sctp_sf_t1_timer_expire, .name = "sctp_sf_t1_timer_expire"}, \
+	{.fn = sctp_sf_t1_cookie_timer_expire, \
+	 .name = "sctp_sf_t1_cookie_timer_expire"}, \
 	/* SCTP_STATE_ESTABLISHED */ \
 	{.fn = sctp_sf_timer_ignore, .name = "sctp_sf_timer_ignore"}, \
 	/* SCTP_STATE_SHUTDOWN_PENDING */ \
@@ -802,7 +803,8 @@ static const sctp_sm_table_entry_t other_event_table[SCTP_NUM_OTHER_TYPES][SCTP_
 	/* SCTP_STATE_CLOSED */ \
 	{.fn = sctp_sf_timer_ignore, .name = "sctp_sf_timer_ignore"}, \
 	/* SCTP_STATE_COOKIE_WAIT */ \
-	{.fn = sctp_sf_t1_timer_expire, .name = "sctp_sf_t1_timer_expire"}, \
+	{.fn = sctp_sf_t1_init_timer_expire, \
+	 .name = "sctp_sf_t1_init_timer_expire"}, \
 	/* SCTP_STATE_COOKIE_ECHOED */ \
 	{.fn = sctp_sf_timer_ignore, .name = "sctp_sf_timer_ignore"}, \
 	/* SCTP_STATE_ESTABLISHED */ \

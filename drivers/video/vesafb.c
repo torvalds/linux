@@ -271,7 +271,7 @@ static int __init vesafb_probe(struct device *device)
 
 	if (!request_mem_region(vesafb_fix.smem_start, size_total, "vesafb")) {
 		printk(KERN_WARNING
-		       "vesafb: abort, cannot reserve video memory at 0x%lx\n",
+		       "vesafb: cannot reserve video memory at 0x%lx\n",
 			vesafb_fix.smem_start);
 		/* We cannot make this fatal. Sometimes this comes from magic
 		   spaces our resource handlers simply don't know about */
@@ -279,13 +279,13 @@ static int __init vesafb_probe(struct device *device)
 
 	info = framebuffer_alloc(sizeof(u32) * 256, &dev->dev);
 	if (!info) {
-		release_mem_region(vesafb_fix.smem_start, vesafb_fix.smem_len);
+		release_mem_region(vesafb_fix.smem_start, size_total);
 		return -ENOMEM;
 	}
 	info->pseudo_palette = info->par;
 	info->par = NULL;
 
-        info->screen_base = ioremap(vesafb_fix.smem_start, vesafb_fix.smem_len);
+	info->screen_base = ioremap(vesafb_fix.smem_start, vesafb_fix.smem_len);
 	if (!info->screen_base) {
 		printk(KERN_ERR
 		       "vesafb: abort, cannot ioremap video memory 0x%x @ 0x%lx\n",
@@ -386,7 +386,7 @@ static int __init vesafb_probe(struct device *device)
 	request_region(0x3c0, 32, "vesafb");
 
 	if (mtrr) {
-		int temp_size = size_total;
+		unsigned int temp_size = size_total;
 		/* Find the largest power-of-two */
 		while (temp_size & (temp_size - 1))
                 	temp_size &= (temp_size - 1);

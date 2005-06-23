@@ -325,16 +325,6 @@ xfs_btree_firstrec(
 	int			level);	/* level to change */
 
 /*
- * Retrieve the block pointer from the cursor at the given level.
- * This may be a bmap btree root or from a buffer.
- */
-xfs_btree_block_t *			/* generic btree block pointer */
-xfs_btree_get_block(
-	xfs_btree_cur_t		*cur,	/* btree cursor */
-	int			level,	/* level in btree */
-	struct xfs_buf		**bpp);	/* buffer containing the block */
-
-/*
  * Get a buffer for the block, return it with no data read.
  * Long-form addressing.
  */

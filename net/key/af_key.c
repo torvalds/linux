@@ -690,6 +690,8 @@ static struct sk_buff * pfkey_xfrm_state2msg(struct xfrm_state *x, int add_keys,
 		sa->sadb_sa_flags |= SADB_SAFLAGS_NOECN;
 	if (x->props.flags & XFRM_STATE_DECAP_DSCP)
 		sa->sadb_sa_flags |= SADB_SAFLAGS_DECAP_DSCP;
+	if (x->props.flags & XFRM_STATE_NOPMTUDISC)
+		sa->sadb_sa_flags |= SADB_SAFLAGS_NOPMTUDISC;
 
 	/* hard time */
 	if (hsc & 2) {
@@ -974,6 +976,8 @@ static struct xfrm_state * pfkey_msg2xfrm_state(struct sadb_msg *hdr,
 		x->props.flags |= XFRM_STATE_NOECN;
 	if (sa->sadb_sa_flags & SADB_SAFLAGS_DECAP_DSCP)
 		x->props.flags |= XFRM_STATE_DECAP_DSCP;
+	if (sa->sadb_sa_flags & SADB_SAFLAGS_NOPMTUDISC)
+		x->props.flags |= XFRM_STATE_NOPMTUDISC;
 
 	lifetime = (struct sadb_lifetime*) ext_hdrs[SADB_EXT_LIFETIME_HARD-1];
 	if (lifetime != NULL) {
@@ -1096,17 +1100,11 @@ static struct xfrm_state * pfkey_msg2xfrm_state(struct sadb_msg *hdr,
 		}
 	}
 
-	x->type = xfrm_get_type(proto, x->props.family);
-	if (x->type == NULL) {
-		err = -ENOPROTOOPT;
+	err = xfrm_init_state(x);
+	if (err)
 		goto out;
-	}
-	if (x->type->init_state(x, NULL)) {
-		err = -EINVAL;
-		goto out;
-	}
+
 	x->km.seq = hdr->sadb_msg_seq;
-	x->km.state = XFRM_STATE_VALID;
 	return x;
 
 out:

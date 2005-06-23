@@ -21,6 +21,9 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
+#include <linux/serial_8250.h>
+#include <linux/fsl_devices.h>
+#include <linux/device.h>
 
 #include <asm/byteorder.h>
 #include <asm/io.h>
@@ -30,16 +33,7 @@
 #include <asm/pci-bridge.h>
 #include <asm/open_pic.h>
 #include <asm/mpc10x.h>
-#include <asm/ocp.h>
-
-/* The OCP structure is fixed by code below, before OCP initialises.
-   paddr depends on where the board places the EUMB.
-    - fixed in mpc10x_bridge_init().
-   irq depends on two things:
-    > does the board use the EPIC at all? (PCORE does not).
-    > is the EPIC in serial or parallel mode?
-    - fixed in mpc10x_set_openpic().
-*/
+#include <asm/ppc_sys.h>
 
 #ifdef CONFIG_MPC10X_OPENPIC
 #ifdef CONFIG_EPIC_SERIAL_MODE
@@ -50,35 +44,140 @@
 #define MPC10X_I2C_IRQ (EPIC_IRQ_BASE + NUM_8259_INTERRUPTS)
 #define MPC10X_DMA0_IRQ (EPIC_IRQ_BASE + 1 + NUM_8259_INTERRUPTS)
 #define MPC10X_DMA1_IRQ (EPIC_IRQ_BASE + 2 + NUM_8259_INTERRUPTS)
+#define MPC10X_UART0_IRQ (EPIC_IRQ_BASE + 4 + NUM_8259_INTERRUPTS)
 #else
-#define MPC10X_I2C_IRQ OCP_IRQ_NA
-#define MPC10X_DMA0_IRQ OCP_IRQ_NA
-#define MPC10X_DMA1_IRQ OCP_IRQ_NA
+#define MPC10X_I2C_IRQ -1
+#define MPC10X_DMA0_IRQ -1
+#define MPC10X_DMA1_IRQ -1
+#define MPC10X_UART0_IRQ -1
 #endif
 
-
-struct ocp_def core_ocp[] = {
-	{ .vendor	= OCP_VENDOR_INVALID
-	}
+static struct fsl_i2c_platform_data mpc10x_i2c_pdata = {
+	.device_flags		= 0,
 };
 
-static struct ocp_fs_i2c_data mpc10x_i2c_data = {
-	.flags		= 0
-};
-static struct ocp_def mpc10x_i2c_ocp = {
-	.vendor		= OCP_VENDOR_MOTOROLA,
-	.function	= OCP_FUNC_IIC,
-	.index		= 0,
-	.additions	= &mpc10x_i2c_data
+static struct plat_serial8250_port serial_platform_data[] = {
+	[0] = {
+		.mapbase	= 0x4500,
+		.iotype		= UPIO_MEM,
+		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
+	},
+	[1] = {
+		.mapbase	= 0x4600,
+		.iotype		= UPIO_MEM,
+		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
+	},
+	{ },
 };
 
-static struct ocp_def mpc10x_dma_ocp[2] = {
-{	.vendor		= OCP_VENDOR_MOTOROLA,
-	.function	= OCP_FUNC_DMA,
-	.index		= 0 },
-{	.vendor		= OCP_VENDOR_MOTOROLA,
-	.function	= OCP_FUNC_DMA,
-	.index		= 1 }
+struct platform_device ppc_sys_platform_devices[] = {
+	[MPC10X_IIC1] = {
+		.name 	= "fsl-i2c",
+		.id	= 1,
+		.dev.platform_data = &mpc10x_i2c_pdata,
+		.num_resources = 2,
+		.resource = (struct resource[]) {
+			{
+				.start 	= MPC10X_EUMB_I2C_OFFSET,
+				.end	= MPC10X_EUMB_I2C_OFFSET +
+		                            MPC10X_EUMB_I2C_SIZE - 1,
+				.flags	= IORESOURCE_MEM,
+			},
+			{
+				.flags 	= IORESOURCE_IRQ
+			},
+		},
+	},
+	[MPC10X_DMA0] = {
+		.name	= "fsl-dma",
+		.id	= 0,
+		.num_resources = 2,
+		.resource = (struct resource[]) {
+			{
+				.start 	= MPC10X_EUMB_DMA_OFFSET + 0x10,
+				.end	= MPC10X_EUMB_DMA_OFFSET + 0x1f,
+				.flags	= IORESOURCE_MEM,
+			},
+			{
+				.flags	= IORESOURCE_IRQ,
+			},
+		},
+	},
+	[MPC10X_DMA1] = {
+		.name	= "fsl-dma",
+		.id	= 1,
+		.num_resources = 2,
+		.resource = (struct resource[]) {
+			{
+				.start	= MPC10X_EUMB_DMA_OFFSET + 0x20,
+				.end	= MPC10X_EUMB_DMA_OFFSET + 0x2f,
+				.flags	= IORESOURCE_MEM,
+			},
+			{
+				.flags	= IORESOURCE_IRQ,
+			},
+		},
+	},
+	[MPC10X_DMA1] = {
+		.name	= "fsl-dma",
+		.id	= 1,
+		.num_resources = 2,
+		.resource = (struct resource[]) {
+			{
+				.start	= MPC10X_EUMB_DMA_OFFSET + 0x20,
+				.end	= MPC10X_EUMB_DMA_OFFSET + 0x2f,
+				.flags	= IORESOURCE_MEM,
+			},
+			{
+				.flags	= IORESOURCE_IRQ,
+			},
+		},
+	},
+	[MPC10X_DUART] = {
+		.name = "serial8250",
+		.id	= 0,
+		.dev.platform_data = serial_platform_data,
+	},
+};
+
+/* We use the PCI ID to match on */
+struct ppc_sys_spec *cur_ppc_sys_spec;
+struct ppc_sys_spec ppc_sys_specs[] = {
+	{
+		.ppc_sys_name 	= "8245",
+		.mask		= 0xFFFFFFFF,
+		.value		= MPC10X_BRIDGE_8245,
+		.num_devices	= 4,
+		.device_list	= (enum ppc_sys_devices[])
+		{
+			MPC10X_IIC1, MPC10X_DMA0, MPC10X_DMA1, MPC10X_DUART,
+		},
+	},
+	{
+		.ppc_sys_name 	= "8240",
+		.mask		= 0xFFFFFFFF,
+		.value		= MPC10X_BRIDGE_8240,
+		.num_devices	= 3,
+		.device_list	= (enum ppc_sys_devices[])
+		{
+			MPC10X_IIC1, MPC10X_DMA0, MPC10X_DMA1,
+		},
+	},
+	{
+		.ppc_sys_name	= "107",
+		.mask		= 0xFFFFFFFF,
+		.value		= MPC10X_BRIDGE_107,
+		.num_devices	= 3,
+		.device_list	= (enum ppc_sys_devices[])
+		{
+			MPC10X_IIC1, MPC10X_DMA0, MPC10X_DMA1,
+		},
+	},
+	{       /* default match */
+		.ppc_sys_name   = "",
+		.mask           = 0x00000000,
+		.value          = 0x00000000,
+	},
 };
 
 /* Set resources to match bridge memory map */
@@ -132,7 +231,7 @@ mpc10x_bridge_init(struct pci_controller *hose,
 		   uint new_map,
 		   uint phys_eumb_base)
 {
-	int	host_bridge, picr1, picr1_bit;
+	int	host_bridge, picr1, picr1_bit, i;
 	ulong	pci_config_addr, pci_config_data;
 	u_char	pir, byte;
 
@@ -273,7 +372,7 @@ mpc10x_bridge_init(struct pci_controller *hose,
 			printk("Host bridge in Agent mode\n");
 			/* Read or Set LMBAR & PCSRBAR? */
 		}
-		
+
 		/* Set base addr of the 8240/107 EUMB.  */
 		early_write_config_dword(hose,
 					 0,
@@ -287,17 +386,6 @@ mpc10x_bridge_init(struct pci_controller *hose,
 			ioremap(phys_eumb_base + MPC10X_EUMB_EPIC_OFFSET,
 				MPC10X_EUMB_EPIC_SIZE);
 #endif
-		mpc10x_i2c_ocp.paddr = phys_eumb_base + MPC10X_EUMB_I2C_OFFSET;
-		mpc10x_i2c_ocp.irq = MPC10X_I2C_IRQ;
-		ocp_add_one_device(&mpc10x_i2c_ocp);
-		mpc10x_dma_ocp[0].paddr = phys_eumb_base +
-					MPC10X_EUMB_DMA_OFFSET + 0x100;
-		mpc10x_dma_ocp[0].irq = MPC10X_DMA0_IRQ;
-		ocp_add_one_device(&mpc10x_dma_ocp[0]);
-		mpc10x_dma_ocp[1].paddr = phys_eumb_base +
-					MPC10X_EUMB_DMA_OFFSET + 0x200;
-		mpc10x_dma_ocp[1].irq = MPC10X_DMA1_IRQ;
-		ocp_add_one_device(&mpc10x_dma_ocp[1]);
 	}
 
 #ifdef CONFIG_MPC10X_STORE_GATHERING
@@ -305,6 +393,29 @@ mpc10x_bridge_init(struct pci_controller *hose,
 #else
 	mpc10x_disable_store_gathering(hose);
 #endif
+
+	/* setup platform devices for MPC10x bridges */
+	identify_ppc_sys_by_id (host_bridge);
+
+	for (i = 0; i < cur_ppc_sys_spec->num_devices; i++) {
+		unsigned int dev_id = cur_ppc_sys_spec->device_list[i];
+		ppc_sys_fixup_mem_resource(&ppc_sys_platform_devices[dev_id],
+			phys_eumb_base);
+	}
+
+	/* IRQ's are determined at runtime */
+	ppc_sys_platform_devices[MPC10X_IIC1].resource[1].start = MPC10X_I2C_IRQ;
+	ppc_sys_platform_devices[MPC10X_IIC1].resource[1].end = MPC10X_I2C_IRQ;
+	ppc_sys_platform_devices[MPC10X_DMA0].resource[1].start = MPC10X_DMA0_IRQ;
+	ppc_sys_platform_devices[MPC10X_DMA0].resource[1].end = MPC10X_DMA0_IRQ;
+	ppc_sys_platform_devices[MPC10X_DMA1].resource[1].start = MPC10X_DMA1_IRQ;
+	ppc_sys_platform_devices[MPC10X_DMA1].resource[1].end = MPC10X_DMA1_IRQ;
+
+	serial_platform_data[0].mapbase += phys_eumb_base;
+	serial_platform_data[0].irq = MPC10X_UART0_IRQ;
+
+	serial_platform_data[1].mapbase += phys_eumb_base;
+	serial_platform_data[1].irq = MPC10X_UART0_IRQ + 1;
 
 	/*
 	 * 8240 erratum 26, 8241/8245 erratum 29, 107 erratum 23: speculative
@@ -330,7 +441,7 @@ mpc10x_bridge_init(struct pci_controller *hose,
 	 * 8245 (Rev 2., dated 10/2003) says PICR2[0] is reserverd.
 	 */
 	if (host_bridge == MPC10X_BRIDGE_8245) {
-		ulong	picr2;
+		u32	picr2;
 
 		early_read_config_dword(hose, 0, PCI_DEVFN(0,0),
 			MPC10X_CFG_PICR2_REG, &picr2);
@@ -504,6 +615,8 @@ void __init mpc10x_set_openpic(void)
 	openpic_set_sources(EPIC_IRQ_BASE, 3, OpenPIC_Addr + 0x11020);
 	/* Skip reserved space and map Message Unit Interrupt (I2O) */
 	openpic_set_sources(EPIC_IRQ_BASE + 3, 1, OpenPIC_Addr + 0x110C0);
+	/* Skip reserved space and map Serial Interupts */
+	openpic_set_sources(EPIC_IRQ_BASE + 4, 2, OpenPIC_Addr + 0x11120);
 
 	openpic_init(NUM_8259_INTERRUPTS);
 }

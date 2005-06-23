@@ -26,7 +26,11 @@ Mount options unique to the isofs filesystem.
   mode=xxx      Sets the permissions on files to xxx
   nojoliet      Ignore Joliet extensions if they are present.
   norock        Ignore Rock Ridge extensions if they are present.
-  unhide        Show hidden files.
+  hide		Completely strip hidden files from the file system.
+  showassoc	Show files marked with the 'associated' bit
+  unhide	Deprecated; showing hidden files is now default;
+		If given, it is a synonym for 'showassoc' which will
+		recreate previous unhide behavior
   session=x     Select number of session on multisession CD
   sbsector=xxx  Session begins from sector xxx
 

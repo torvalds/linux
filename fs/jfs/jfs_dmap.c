@@ -272,7 +272,6 @@ int dbMount(struct inode *ipbmap)
 int dbUnmount(struct inode *ipbmap, int mounterror)
 {
 	struct bmap *bmp = JFS_SBI(ipbmap->i_sb)->bmap;
-	int i;
 
 	if (!(mounterror || isReadOnly(ipbmap)))
 		dbSync(ipbmap);
@@ -281,14 +280,6 @@ int dbUnmount(struct inode *ipbmap, int mounterror)
 	 * Invalidate the page cache buffers
 	 */
 	truncate_inode_pages(ipbmap->i_mapping, 0);
-
-	/*
-	 * Sanity Check
-	 */
-	for (i = 0; i < bmp->db_numag; i++)
-		if (atomic_read(&bmp->db_active[i]))
-			printk(KERN_ERR "dbUnmount: db_active[%d] = %d\n",
-			       i, atomic_read(&bmp->db_active[i]));
 
 	/* free the memory for the in-memory bmap. */
 	kfree(bmp);

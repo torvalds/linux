@@ -2121,10 +2121,6 @@ empty_zero_page:
 swapper_pg_dir:
 	.space	4096
 
-	.globl	ioremap_dir
-ioremap_dir:
-	.space	4096
-
 #ifdef CONFIG_SMP
 /* 1 page segment table per cpu (max 48, cpu0 allocated at STAB0_PHYS_ADDR) */
 	.globl	stab_array

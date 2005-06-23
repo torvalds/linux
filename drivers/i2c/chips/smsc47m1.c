@@ -184,7 +184,7 @@ static ssize_t get_pwm_en(struct device *dev, char *buf, int nr)
 	return sprintf(buf, "%d\n", PWM_EN_FROM_REG(data->pwm[nr]));
 }
 
-static ssize_t get_alarms(struct device *dev, char *buf)
+static ssize_t get_alarms(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct smsc47m1_data *data = smsc47m1_update_device(dev, 0);
 	return sprintf(buf, "%d\n", data->alarms);
@@ -298,42 +298,42 @@ static ssize_t set_pwm_en(struct device *dev, const char *buf,
 }
 
 #define fan_present(offset)						\
-static ssize_t get_fan##offset (struct device *dev, char *buf)		\
+static ssize_t get_fan##offset (struct device *dev, struct device_attribute *attr, char *buf)		\
 {									\
 	return get_fan(dev, buf, offset - 1);				\
 }									\
-static ssize_t get_fan##offset##_min (struct device *dev, char *buf)	\
+static ssize_t get_fan##offset##_min (struct device *dev, struct device_attribute *attr, char *buf)	\
 {									\
 	return get_fan_min(dev, buf, offset - 1);			\
 }									\
-static ssize_t set_fan##offset##_min (struct device *dev,		\
+static ssize_t set_fan##offset##_min (struct device *dev, struct device_attribute *attr,		\
 		const char *buf, size_t count)				\
 {									\
 	return set_fan_min(dev, buf, count, offset - 1);		\
 }									\
-static ssize_t get_fan##offset##_div (struct device *dev, char *buf)	\
+static ssize_t get_fan##offset##_div (struct device *dev, struct device_attribute *attr, char *buf)	\
 {									\
 	return get_fan_div(dev, buf, offset - 1);			\
 }									\
-static ssize_t set_fan##offset##_div (struct device *dev,		\
+static ssize_t set_fan##offset##_div (struct device *dev, struct device_attribute *attr,		\
 		const char *buf, size_t count)				\
 {									\
 	return set_fan_div(dev, buf, count, offset - 1);		\
 }									\
-static ssize_t get_pwm##offset (struct device *dev, char *buf)		\
+static ssize_t get_pwm##offset (struct device *dev, struct device_attribute *attr, char *buf)		\
 {									\
 	return get_pwm(dev, buf, offset - 1);				\
 }									\
-static ssize_t set_pwm##offset (struct device *dev,			\
+static ssize_t set_pwm##offset (struct device *dev, struct device_attribute *attr,			\
 		const char *buf, size_t count)				\
 {									\
 	return set_pwm(dev, buf, count, offset - 1);			\
 }									\
-static ssize_t get_pwm##offset##_en (struct device *dev, char *buf)	\
+static ssize_t get_pwm##offset##_en (struct device *dev, struct device_attribute *attr, char *buf)	\
 {									\
 	return get_pwm_en(dev, buf, offset - 1);			\
 }									\
-static ssize_t set_pwm##offset##_en (struct device *dev,		\
+static ssize_t set_pwm##offset##_en (struct device *dev, struct device_attribute *attr,		\
 		const char *buf, size_t count)				\
 {									\
 	return set_pwm_en(dev, buf, count, offset - 1);			\
@@ -372,14 +372,16 @@ static int smsc47m1_find(int *address)
 	 * SMSC LPC47M10x/LPC47M13x (device id 0x59), LPC47M14x (device id
 	 * 0x5F) and LPC47B27x (device id 0x51) have fan control.
 	 * The LPC47M15x and LPC47M192 chips "with hardware monitoring block"
-	 * can do much more besides (device id 0x60, unsupported).
+	 * can do much more besides (device id 0x60).
 	 */
 	if (val == 0x51)
-		printk(KERN_INFO "smsc47m1: Found SMSC47B27x\n");
+		printk(KERN_INFO "smsc47m1: Found SMSC LPC47B27x\n");
 	else if (val == 0x59)
-		printk(KERN_INFO "smsc47m1: Found SMSC47M10x/SMSC47M13x\n");
+		printk(KERN_INFO "smsc47m1: Found SMSC LPC47M10x/LPC47M13x\n");
 	else if (val == 0x5F)
-		printk(KERN_INFO "smsc47m1: Found SMSC47M14x\n");
+		printk(KERN_INFO "smsc47m1: Found SMSC LPC47M14x\n");
+	else if (val == 0x60)
+		printk(KERN_INFO "smsc47m1: Found SMSC LPC47M15x/LPC47M192\n");
 	else {
 		superio_exit();
 		return -ENODEV;

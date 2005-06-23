@@ -47,6 +47,8 @@ struct isofs_sb_info {
 	unsigned char s_nosuid;
 	unsigned char s_nodev;
 	unsigned char s_nocompress;
+	unsigned char s_hide;
+	unsigned char s_showassoc;
 
 	mode_t s_mode;
 	gid_t s_gid;

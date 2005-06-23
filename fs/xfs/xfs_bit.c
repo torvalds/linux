@@ -45,7 +45,7 @@
 /*
  * Index of high bit number in byte, -1 for none set, 0..7 otherwise.
  */
-const char xfs_highbit[256] = {
+STATIC const char xfs_highbit[256] = {
        -1, 0, 1, 1, 2, 2, 2, 2,			/* 00 .. 07 */
 	3, 3, 3, 3, 3, 3, 3, 3,			/* 08 .. 0f */
 	4, 4, 4, 4, 4, 4, 4, 4,			/* 10 .. 17 */

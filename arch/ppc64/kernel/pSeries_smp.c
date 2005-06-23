@@ -375,7 +375,7 @@ static int smp_pSeries_cpu_bootable(unsigned int nr)
 	 * cpus are assumed to be secondary threads.
 	 */
 	if (system_state < SYSTEM_RUNNING &&
-	    cur_cpu_spec->cpu_features & CPU_FTR_SMT &&
+	    cpu_has_feature(CPU_FTR_SMT) &&
 	    !smt_enabled_at_boot && nr % 2 != 0)
 		return 0;
 
@@ -419,8 +419,8 @@ void __init smp_init_pSeries(void)
 #endif
 
 	/* Mark threads which are still spinning in hold loops. */
-	if (cur_cpu_spec->cpu_features & CPU_FTR_SMT)
-		for_each_present_cpu(i) {
+	if (cpu_has_feature(CPU_FTR_SMT)) {
+		for_each_present_cpu(i) { 
 			if (i % 2 == 0)
 				/*
 				 * Even-numbered logical cpus correspond to
@@ -428,8 +428,9 @@ void __init smp_init_pSeries(void)
 				 */
 				cpu_set(i, of_spin_map);
 		}
-	else
+	} else {
 		of_spin_map = cpu_present_map;
+	}
 
 	cpu_clear(boot_cpuid, of_spin_map);
 

@@ -21,7 +21,6 @@
 #include <asm/signal.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/prom.h>
 #include <asm/sections.h>
 #include <asm/open_pic.h>
 #include <asm/i8259.h>

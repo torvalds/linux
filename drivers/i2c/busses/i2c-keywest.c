@@ -46,7 +46,6 @@
     sound driver to be happy
 */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/ioport.h>

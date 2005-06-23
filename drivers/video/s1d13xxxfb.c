@@ -493,7 +493,7 @@ s1d13xxxfb_fetch_hw_state(struct fb_info *info)
 }
 
 
-static int __devexit
+static int
 s1d13xxxfb_remove(struct device *dev)
 {
 	struct fb_info *info = dev_get_drvdata(dev);

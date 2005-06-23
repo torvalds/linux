@@ -60,7 +60,8 @@ struct fsxattr {
 	__u32		fsx_xflags;	/* xflags field value (get/set) */
 	__u32		fsx_extsize;	/* extsize field value (get/set)*/
 	__u32		fsx_nextents;	/* nextents field value (get)	*/
-	unsigned char	fsx_pad[16];
+	__u32		fsx_projid;	/* project identifier (get/set) */
+	unsigned char	fsx_pad[12];
 };
 #endif
 

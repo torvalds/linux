@@ -1,8 +1,8 @@
 /*
- * 	matrox_w1.c
+ *	matrox_w1.c
  *
  * Copyright (c) 2004 Evgeniy Polyakov <johnpol@2ka.mipt.ru>
- * 
+ *
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -59,7 +59,7 @@ static struct pci_driver matrox_w1_pci_driver = {
 	.remove = __devexit_p(matrox_w1_remove),
 };
 
-/* 
+/*
  * Matrox G400 DDC registers.
  */
 
@@ -177,8 +177,8 @@ static int __devinit matrox_w1_probe(struct pci_dev *pdev, const struct pci_devi
 
 	dev->bus_master = (struct w1_bus_master *)(dev + 1);
 
-	/* 
-	 * True for G400, for some other we need resource 0, see drivers/video/matrox/matroxfb_base.c 
+	/*
+	 * True for G400, for some other we need resource 0, see drivers/video/matrox/matroxfb_base.c
 	 */
 
 	dev->phys_addr = pci_resource_start(pdev, 1);

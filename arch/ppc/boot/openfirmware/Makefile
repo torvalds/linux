@@ -54,13 +54,10 @@ $(images)/ramdisk.image.gz:
 	@echo '          RAM disk image must be provided separately'
 	@/bin/false
 
-objcpxmon-$(CONFIG_XMON) := --add-section=.sysmap=System.map \
-	--set-section-flags=.sysmap=contents,alloc,load,readonly,data
 quiet_cmd_genimage = GEN     $@
       cmd_genimage = $(OBJCOPY) -R .comment       \
 	--add-section=.image=$(images)/vmlinux.gz \
-	--set-section-flags=.image=contents,alloc,load,readonly,data \
-	$(objcpxmon-y) $< $@
+	--set-section-flags=.image=contents,alloc,load,readonly,data $< $@
 
 targets += image.o
 $(obj)/image.o: $(obj)/dummy.o $(images)/vmlinux.gz FORCE

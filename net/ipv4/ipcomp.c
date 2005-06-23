@@ -236,15 +236,10 @@ static struct xfrm_state *ipcomp_tunnel_create(struct xfrm_state *x)
 	t->props.mode = 1;
 	t->props.saddr.a4 = x->props.saddr.a4;
 	t->props.flags = x->props.flags;
-	
-	t->type = xfrm_get_type(IPPROTO_IPIP, t->props.family);
-	if (t->type == NULL)
-		goto error;
-		
-	if (t->type->init_state(t, NULL))
+
+	if (xfrm_init_state(t))
 		goto error;
 
-	t->km.state = XFRM_STATE_VALID;
 	atomic_set(&t->tunnel_users, 1);
 out:
 	return t;
@@ -422,7 +417,7 @@ static void ipcomp_destroy(struct xfrm_state *x)
 	kfree(ipcd);
 }
 
-static int ipcomp_init_state(struct xfrm_state *x, void *args)
+static int ipcomp_init_state(struct xfrm_state *x)
 {
 	int err;
 	struct ipcomp_data *ipcd;

@@ -204,7 +204,7 @@ module_exit(cleanup_ccw_bus_type);
  * TODO: Split chpids and pimpampom up? Where is "in use" in the tree?
  */
 static ssize_t
-chpids_show (struct device * dev, char * buf)
+chpids_show (struct device * dev, struct device_attribute *attr, char * buf)
 {
 	struct subchannel *sch = to_subchannel(dev);
 	struct ssd_info *ssd = &sch->ssd_info;
@@ -219,7 +219,7 @@ chpids_show (struct device * dev, char * buf)
 }
 
 static ssize_t
-pimpampom_show (struct device * dev, char * buf)
+pimpampom_show (struct device * dev, struct device_attribute *attr, char * buf)
 {
 	struct subchannel *sch = to_subchannel(dev);
 	struct pmcw *pmcw = &sch->schib.pmcw;
@@ -229,7 +229,7 @@ pimpampom_show (struct device * dev, char * buf)
 }
 
 static ssize_t
-devtype_show (struct device *dev, char *buf)
+devtype_show (struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct ccw_device *cdev = to_ccwdev(dev);
 	struct ccw_device_id *id = &(cdev->id);
@@ -242,7 +242,7 @@ devtype_show (struct device *dev, char *buf)
 }
 
 static ssize_t
-cutype_show (struct device *dev, char *buf)
+cutype_show (struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct ccw_device *cdev = to_ccwdev(dev);
 	struct ccw_device_id *id = &(cdev->id);
@@ -252,7 +252,7 @@ cutype_show (struct device *dev, char *buf)
 }
 
 static ssize_t
-online_show (struct device *dev, char *buf)
+online_show (struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct ccw_device *cdev = to_ccwdev(dev);
 
@@ -350,7 +350,7 @@ ccw_device_set_online(struct ccw_device *cdev)
 }
 
 static ssize_t
-online_store (struct device *dev, const char *buf, size_t count)
+online_store (struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct ccw_device *cdev = to_ccwdev(dev);
 	int i, force, ret;
@@ -422,7 +422,7 @@ online_store (struct device *dev, const char *buf, size_t count)
 }
 
 static ssize_t
-available_show (struct device *dev, char *buf)
+available_show (struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct ccw_device *cdev = to_ccwdev(dev);
 	struct subchannel *sch;

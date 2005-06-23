@@ -910,7 +910,7 @@ xfs_inode_item_committing(
 /*
  * This is the ops vector shared by all buf log items.
  */
-struct xfs_item_ops xfs_inode_item_ops = {
+STATIC struct xfs_item_ops xfs_inode_item_ops = {
 	.iop_size	= (uint(*)(xfs_log_item_t*))xfs_inode_item_size,
 	.iop_format	= (void(*)(xfs_log_item_t*, xfs_log_iovec_t*))
 					xfs_inode_item_format,

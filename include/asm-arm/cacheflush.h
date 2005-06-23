@@ -16,6 +16,9 @@
 
 #include <asm/mman.h>
 #include <asm/glue.h>
+#include <asm/shmparam.h>
+
+#define CACHE_COLOUR(vaddr)	((vaddr & (SHMLBA - 1)) >> PAGE_SHIFT)
 
 /*
  *	Cache Model

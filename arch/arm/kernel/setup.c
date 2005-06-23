@@ -395,6 +395,20 @@ static void __init early_initrd(char **p)
 }
 __early_param("initrd=", early_initrd);
 
+static void __init add_memory(unsigned long start, unsigned long size)
+{
+	/*
+	 * Ensure that start/size are aligned to a page boundary.
+	 * Size is appropriately rounded down, start is rounded up.
+	 */
+	size -= start & ~PAGE_MASK;
+
+	meminfo.bank[meminfo.nr_banks].start = PAGE_ALIGN(start);
+	meminfo.bank[meminfo.nr_banks].size  = size & PAGE_MASK;
+	meminfo.bank[meminfo.nr_banks].node  = PHYS_TO_NID(start);
+	meminfo.nr_banks += 1;
+}
+
 /*
  * Pick out the memory size.  We look for mem=size@start,
  * where start and size are "size[KkMm]"
@@ -419,10 +433,7 @@ static void __init early_mem(char **p)
 	if (**p == '@')
 		start = memparse(*p + 1, p);
 
-	meminfo.bank[meminfo.nr_banks].start = start;
-	meminfo.bank[meminfo.nr_banks].size  = size;
-	meminfo.bank[meminfo.nr_banks].node  = PHYS_TO_NID(start);
-	meminfo.nr_banks += 1;
+	add_memory(start, size);
 }
 __early_param("mem=", early_mem);
 
@@ -564,11 +575,7 @@ static int __init parse_tag_mem32(const struct tag *tag)
 			tag->u.mem.start, tag->u.mem.size / 1024);
 		return -EINVAL;
 	}
-	meminfo.bank[meminfo.nr_banks].start = tag->u.mem.start;
-	meminfo.bank[meminfo.nr_banks].size  = tag->u.mem.size;
-	meminfo.bank[meminfo.nr_banks].node  = PHYS_TO_NID(tag->u.mem.start);
-	meminfo.nr_banks += 1;
-
+	add_memory(tag->u.mem.start, tag->u.mem.size);
 	return 0;
 }
 

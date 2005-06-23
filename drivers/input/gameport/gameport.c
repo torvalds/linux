@@ -134,7 +134,7 @@ static int gameport_measure_speed(struct gameport *gameport)
 	}
 
 	gameport_close(gameport);
-	return (cpu_data[_smp_processor_id()].loops_per_jiffy * (unsigned long)HZ / (1000 / 50)) / (tx < 1 ? 1 : tx);
+	return (cpu_data[raw_smp_processor_id()].loops_per_jiffy * (unsigned long)HZ / (1000 / 50)) / (tx < 1 ? 1 : tx);
 
 #else
 
@@ -453,13 +453,13 @@ static int gameport_thread(void *nothing)
  * Gameport port operations
  */
 
-static ssize_t gameport_show_description(struct device *dev, char *buf)
+static ssize_t gameport_show_description(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct gameport *gameport = to_gameport_port(dev);
 	return sprintf(buf, "%s\n", gameport->name);
 }
 
-static ssize_t gameport_rebind_driver(struct device *dev, const char *buf, size_t count)
+static ssize_t gameport_rebind_driver(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct gameport *gameport = to_gameport_port(dev);
 	struct device_driver *drv;

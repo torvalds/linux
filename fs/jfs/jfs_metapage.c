@@ -198,7 +198,7 @@ static void init_once(void *foo, kmem_cache_t *cachep, unsigned long flags)
 	}
 }
 
-static inline struct metapage *alloc_metapage(int gfp_mask)
+static inline struct metapage *alloc_metapage(unsigned int gfp_mask)
 {
 	return mempool_alloc(metapage_mempool, gfp_mask);
 }
@@ -726,12 +726,12 @@ void force_metapage(struct metapage *mp)
 	page_cache_release(page);
 }
 
-extern void hold_metapage(struct metapage *mp)
+void hold_metapage(struct metapage *mp)
 {
 	lock_page(mp->page);
 }
 
-extern void put_metapage(struct metapage *mp)
+void put_metapage(struct metapage *mp)
 {
 	if (mp->count || mp->nohomeok) {
 		/* Someone else will release this */

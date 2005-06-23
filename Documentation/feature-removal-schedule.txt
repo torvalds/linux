@@ -83,3 +83,13 @@ Why:	Deprecated in favour of the new ioctl-based rawiso interface, which is
 	more efficient.  You should really be using libraw1394 for raw1394
 	access anyway.
 Who:	Jody McIntyre <scjody@steamballoon.com>
+
+---------------------------
+
+What:	i2c sysfs name change: in1_ref, vid deprecated in favour of cpu0_vid
+When:	November 2005
+Files:	drivers/i2c/chips/adm1025.c, drivers/i2c/chips/adm1026.c
+Why:	Match the other drivers' name for the same function, duplicate names
+	will be available until removal of old names.
+Who:	Grant Coady <gcoady@gmail.com>
+

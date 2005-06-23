@@ -308,7 +308,7 @@ do {									\
 ({					\
 	unsigned long flags;		\
 	local_save_flags(flags);	\
-	flags & PSR_I_BIT;		\
+	(int)(flags & PSR_I_BIT);	\
 })
 
 #ifdef CONFIG_SMP

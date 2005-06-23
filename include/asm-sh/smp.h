@@ -25,7 +25,7 @@ extern cpumask_t cpu_possible_map;
 
 #define cpu_online(cpu)		cpu_isset(cpu, cpu_online_map)
 
-#define smp_processor_id()	(current_thread_info()->cpu)
+#define raw_smp_processor_id()	(current_thread_info()->cpu)
 
 /* I've no idea what the real meaning of this is */
 #define PROC_CHANGE_PENALTY	20
