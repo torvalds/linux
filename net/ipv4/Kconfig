@@ -488,6 +488,17 @@ config TCP_CONG_HYBLA
 	involved, expecially when sharing a common bottleneck with normal
 	terrestrial connections.
 
+config TCP_CONG_VEGAS
+	tristate "TCP Vegas"
+	depends on INET && EXPERIMENTAL
+	default n
+	---help---
+	TCP Vegas is a sender-side only change to TCP that anticipates
+	the onset of congestion by estimating the bandwidth. TCP Vegas
+	adjusts the sending rate by modifying the congestion
+	window. TCP Vegas should provide less packet loss, but it is
+	not as aggressive as TCP Reno.
+
 endmenu
 
 source "net/ipv4/ipvs/Kconfig"
