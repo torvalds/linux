@@ -6,7 +6,6 @@
 #include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/kprobes.h>
-
 #include <asm/kdebug.h>
 #include <asm/signal.h>
 
@@ -47,6 +46,19 @@ void arch_copy_kprobe(struct kprobe *p)
 {
 	p->ainsn.insn[0] = *p->addr;
 	p->ainsn.insn[1] = BREAKPOINT_INSTRUCTION_2;
+	p->opcode = *p->addr;
+}
+
+void arch_arm_kprobe(struct kprobe *p)
+{
+	*p->addr = BREAKPOINT_INSTRUCTION;
+	flushi(p->addr);
+}
+
+void arch_disarm_kprobe(struct kprobe *p)
+{
+	*p->addr = p->opcode;
+	flushi(p->addr);
 }
 
 void arch_remove_kprobe(struct kprobe *p)
@@ -78,17 +90,6 @@ static inline void prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
 	}
 }
 
-static inline void disarm_kprobe(struct kprobe *p, struct pt_regs *regs)
-{
-	*p->addr = p->opcode;
-	flushi(p->addr);
-
-	regs->tpc = (unsigned long) p->addr;
-	regs->tnpc = current_kprobe_orig_tnpc;
-	regs->tstate = ((regs->tstate & ~TSTATE_PIL) |
-			current_kprobe_orig_tstate_pil);
-}
-
 static int kprobe_handler(struct pt_regs *regs)
 {
 	struct kprobe *p;
@@ -109,7 +110,11 @@ static int kprobe_handler(struct pt_regs *regs)
 				unlock_kprobes();
 				goto no_kprobe;
 			}
-			disarm_kprobe(p, regs);
+			arch_disarm_kprobe(p);
+			regs->tpc = (unsigned long) p->addr;
+			regs->tnpc = current_kprobe_orig_tnpc;
+			regs->tstate = ((regs->tstate & ~TSTATE_PIL) |
+					current_kprobe_orig_tstate_pil);
 			ret = 1;
 		} else {
 			p = current_kprobe;

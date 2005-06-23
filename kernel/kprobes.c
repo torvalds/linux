@@ -261,7 +261,7 @@ static inline void free_rp_inst(struct kretprobe *rp)
 static inline void add_aggr_kprobe(struct kprobe *ap, struct kprobe *p)
 {
 	ap->addr = p->addr;
-	ap->opcode = p->opcode;
+	memcpy(&ap->opcode, &p->opcode, sizeof(kprobe_opcode_t));
 	memcpy(&ap->ainsn, &p->ainsn, sizeof(struct arch_specific_insn));
 
 	ap->pre_handler = aggr_pre_handler;
@@ -304,10 +304,8 @@ static int register_aggr_kprobe(struct kprobe *old_p, struct kprobe *p)
 /* kprobe removal house-keeping routines */
 static inline void cleanup_kprobe(struct kprobe *p, unsigned long flags)
 {
-	*p->addr = p->opcode;
+	arch_disarm_kprobe(p);
 	hlist_del(&p->hlist);
-	flush_icache_range((unsigned long) p->addr,
-		   (unsigned long) p->addr + sizeof(kprobe_opcode_t));
 	spin_unlock_irqrestore(&kprobe_lock, flags);
 	arch_remove_kprobe(p);
 }
@@ -344,10 +342,8 @@ int register_kprobe(struct kprobe *p)
 	hlist_add_head(&p->hlist,
 		       &kprobe_table[hash_ptr(p->addr, KPROBE_HASH_BITS)]);
 
-	p->opcode = *p->addr;
-	*p->addr = BREAKPOINT_INSTRUCTION;
-	flush_icache_range((unsigned long) p->addr,
-			   (unsigned long) p->addr + sizeof(kprobe_opcode_t));
+  	arch_arm_kprobe(p);
+
 out:
 	spin_unlock_irqrestore(&kprobe_lock, flags);
 rm_kprobe:

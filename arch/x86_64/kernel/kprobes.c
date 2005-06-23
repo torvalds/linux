@@ -39,7 +39,7 @@
 #include <linux/slab.h>
 #include <linux/preempt.h>
 #include <linux/moduleloader.h>
-
+#include <asm/cacheflush.h>
 #include <asm/pgtable.h>
 #include <asm/kdebug.h>
 
@@ -216,6 +216,21 @@ void arch_copy_kprobe(struct kprobe *p)
 		BUG_ON((s64) (s32) disp != disp); /* Sanity check.  */
 		*ripdisp = disp;
 	}
+	p->opcode = *p->addr;
+}
+
+void arch_arm_kprobe(struct kprobe *p)
+{
+	*p->addr = BREAKPOINT_INSTRUCTION;
+	flush_icache_range((unsigned long) p->addr,
+			   (unsigned long) p->addr + sizeof(kprobe_opcode_t));
+}
+
+void arch_disarm_kprobe(struct kprobe *p)
+{
+	*p->addr = p->opcode;
+	flush_icache_range((unsigned long) p->addr,
+			   (unsigned long) p->addr + sizeof(kprobe_opcode_t));
 }
 
 void arch_remove_kprobe(struct kprobe *p)
@@ -223,12 +238,6 @@ void arch_remove_kprobe(struct kprobe *p)
 	up(&kprobe_mutex);
 	free_insn_slot(p->ainsn.insn);
 	down(&kprobe_mutex);
-}
-
-static inline void disarm_kprobe(struct kprobe *p, struct pt_regs *regs)
-{
-	*p->addr = p->opcode;
-	regs->rip = (unsigned long)p->addr;
 }
 
 static void prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
@@ -311,7 +320,8 @@ int kprobe_handler(struct pt_regs *regs)
 				unlock_kprobes();
 				goto no_kprobe;
 			}
-			disarm_kprobe(p, regs);
+			arch_disarm_kprobe(p);
+			regs->rip = (unsigned long)p->addr;
 			ret = 1;
 		} else {
 			p = current_kprobe;

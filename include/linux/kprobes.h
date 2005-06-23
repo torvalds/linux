@@ -165,6 +165,8 @@ static inline int kprobe_running(void)
 
 extern int arch_prepare_kprobe(struct kprobe *p);
 extern void arch_copy_kprobe(struct kprobe *p);
+extern void arch_arm_kprobe(struct kprobe *p);
+extern void arch_disarm_kprobe(struct kprobe *p);
 extern void arch_remove_kprobe(struct kprobe *p);
 extern void show_registers(struct pt_regs *regs);
 
