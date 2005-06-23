@@ -121,7 +121,7 @@ static pte_t *hugepte_alloc(struct mm_struct *mm, pud_t *dir, unsigned long addr
 	return hugepte_offset(dir, addr);
 }
 
-static pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
+pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
 {
 	pud_t *pud;
 
@@ -134,7 +134,7 @@ static pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
 	return hugepte_offset(pud, addr);
 }
 
-static pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr)
+pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr)
 {
 	pud_t *pud;
 
@@ -145,25 +145,6 @@ static pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr)
 		return NULL;
 
 	return hugepte_alloc(mm, pud, addr);
-}
-
-static void set_huge_pte(struct mm_struct *mm, struct vm_area_struct *vma,
-			 unsigned long addr, struct page *page,
-			 pte_t *ptep, int write_access)
-{
-	pte_t entry;
-
-	add_mm_counter(mm, rss, HPAGE_SIZE / PAGE_SIZE);
-	if (write_access) {
-		entry =
-		    pte_mkwrite(pte_mkdirty(mk_pte(page, vma->vm_page_prot)));
-	} else {
-		entry = pte_wrprotect(mk_pte(page, vma->vm_page_prot));
-	}
-	entry = pte_mkyoung(entry);
-	entry = pte_mkhuge(entry);
-
-	set_pte_at(mm, addr, ptep, entry);
 }
 
 /*
@@ -259,80 +240,6 @@ int prepare_hugepage_range(unsigned long addr, unsigned long len)
 	return -EINVAL;
 }
 
-int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
-			struct vm_area_struct *vma)
-{
-	pte_t *src_pte, *dst_pte, entry;
-	struct page *ptepage;
-	unsigned long addr = vma->vm_start;
-	unsigned long end = vma->vm_end;
-	int err = -ENOMEM;
-
-	while (addr < end) {
-		dst_pte = huge_pte_alloc(dst, addr);
-		if (!dst_pte)
-			goto out;
-
-		src_pte = huge_pte_offset(src, addr);
-		entry = *src_pte;
-		
-		ptepage = pte_page(entry);
-		get_page(ptepage);
-		add_mm_counter(dst, rss, HPAGE_SIZE / PAGE_SIZE);
-		set_pte_at(dst, addr, dst_pte, entry);
-
-		addr += HPAGE_SIZE;
-	}
-
-	err = 0;
- out:
-	return err;
-}
-
-int
-follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
-		    struct page **pages, struct vm_area_struct **vmas,
-		    unsigned long *position, int *length, int i)
-{
-	unsigned long vpfn, vaddr = *position;
-	int remainder = *length;
-
-	WARN_ON(!is_vm_hugetlb_page(vma));
-
-	vpfn = vaddr/PAGE_SIZE;
-	while (vaddr < vma->vm_end && remainder) {
-		if (pages) {
-			pte_t *pte;
-			struct page *page;
-
-			pte = huge_pte_offset(mm, vaddr);
-
-			/* hugetlb should be locked, and hence, prefaulted */
-			WARN_ON(!pte || pte_none(*pte));
-
-			page = &pte_page(*pte)[vpfn % (HPAGE_SIZE/PAGE_SIZE)];
-
-			WARN_ON(!PageCompound(page));
-
-			get_page(page);
-			pages[i] = page;
-		}
-
-		if (vmas)
-			vmas[i] = vma;
-
-		vaddr += PAGE_SIZE;
-		++vpfn;
-		--remainder;
-		++i;
-	}
-
-	*length = remainder;
-	*position = vaddr;
-
-	return i;
-}
-
 struct page *
 follow_huge_addr(struct mm_struct *mm, unsigned long address, int write)
 {
@@ -363,89 +270,6 @@ follow_huge_pmd(struct mm_struct *mm, unsigned long address,
 	return NULL;
 }
 
-void unmap_hugepage_range(struct vm_area_struct *vma,
-			  unsigned long start, unsigned long end)
-{
-	struct mm_struct *mm = vma->vm_mm;
-	unsigned long addr;
-	pte_t *ptep;
-	struct page *page;
-
-	WARN_ON(!is_vm_hugetlb_page(vma));
-	BUG_ON((start % HPAGE_SIZE) != 0);
-	BUG_ON((end % HPAGE_SIZE) != 0);
-
-	for (addr = start; addr < end; addr += HPAGE_SIZE) {
-		pte_t pte;
-
-		ptep = huge_pte_offset(mm, addr);
-		if (!ptep || pte_none(*ptep))
-			continue;
-
-		pte = *ptep;
-		page = pte_page(pte);
-		pte_clear(mm, addr, ptep);
-
-		put_page(page);
-	}
-	add_mm_counter(mm, rss, -((end - start) >> PAGE_SHIFT));
-	flush_tlb_pending();
-}
-
-int hugetlb_prefault(struct address_space *mapping, struct vm_area_struct *vma)
-{
-	struct mm_struct *mm = current->mm;
-	unsigned long addr;
-	int ret = 0;
-
-	WARN_ON(!is_vm_hugetlb_page(vma));
-	BUG_ON((vma->vm_start % HPAGE_SIZE) != 0);
-	BUG_ON((vma->vm_end % HPAGE_SIZE) != 0);
-
-	spin_lock(&mm->page_table_lock);
-	for (addr = vma->vm_start; addr < vma->vm_end; addr += HPAGE_SIZE) {
-		unsigned long idx;
-		pte_t *pte = huge_pte_alloc(mm, addr);
-		struct page *page;
-
-		if (!pte) {
-			ret = -ENOMEM;
-			goto out;
-		}
-		if (! pte_none(*pte))
-			continue;
-
-		idx = ((addr - vma->vm_start) >> HPAGE_SHIFT)
-			+ (vma->vm_pgoff >> (HPAGE_SHIFT - PAGE_SHIFT));
-		page = find_get_page(mapping, idx);
-		if (!page) {
-			/* charge the fs quota first */
-			if (hugetlb_get_quota(mapping)) {
-				ret = -ENOMEM;
-				goto out;
-			}
-			page = alloc_huge_page();
-			if (!page) {
-				hugetlb_put_quota(mapping);
-				ret = -ENOMEM;
-				goto out;
-			}
-			ret = add_to_page_cache(page, mapping, idx, GFP_ATOMIC);
-			if (! ret) {
-				unlock_page(page);
-			} else {
-				hugetlb_put_quota(mapping);
-				free_huge_page(page);
-				goto out;
-			}
-		}
-		set_huge_pte(mm, vma, addr, page, pte, vma->vm_flags & VM_WRITE);
-	}
-out:
-	spin_unlock(&mm->page_table_lock);
-	return ret;
-}
-
 /* Because we have an exclusive hugepage region which lies within the
  * normal user address space, we have to take special measures to make
  * non-huge mmap()s evade the hugepage reserved regions. */
@@ -468,7 +292,12 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 		    && !is_hugepage_only_range(mm, addr,len))
 			return addr;
 	}
-	start_addr = addr = mm->free_area_cache;
+	if (len > mm->cached_hole_size) {
+	        start_addr = addr = mm->free_area_cache;
+	} else {
+	        start_addr = addr = TASK_UNMAPPED_BASE;
+	        mm->cached_hole_size = 0;
+	}
 
 full_search:
 	vma = find_vma(mm, addr);
@@ -492,6 +321,8 @@ full_search:
 			mm->free_area_cache = addr + len;
 			return addr;
 		}
+		if (addr + mm->cached_hole_size < vma->vm_start)
+		        mm->cached_hole_size = vma->vm_start - addr;
 		addr = vma->vm_end;
 		vma = vma->vm_next;
 	}
@@ -499,6 +330,7 @@ full_search:
 	/* Make sure we didn't miss any holes */
 	if (start_addr != TASK_UNMAPPED_BASE) {
 		start_addr = addr = TASK_UNMAPPED_BASE;
+		mm->cached_hole_size = 0;
 		goto full_search;
 	}
 	return -ENOMEM;
@@ -520,6 +352,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 	struct vm_area_struct *vma, *prev_vma;
 	struct mm_struct *mm = current->mm;
 	unsigned long base = mm->mmap_base, addr = addr0;
+	unsigned long largest_hole = mm->cached_hole_size;
 	int first_time = 1;
 
 	/* requested length too big for entire address space */
@@ -540,6 +373,10 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 			return addr;
 	}
 
+	if (len <= largest_hole) {
+	        largest_hole = 0;
+		mm->free_area_cache = base;
+	}
 try_again:
 	/* make sure it can fit in the remaining address space */
 	if (mm->free_area_cache < len)
@@ -568,13 +405,21 @@ hugepage_recheck:
 		 * vma->vm_start, use it:
 		 */
 		if (addr+len <= vma->vm_start &&
-				(!prev_vma || (addr >= prev_vma->vm_end)))
+		          (!prev_vma || (addr >= prev_vma->vm_end))) {
 			/* remember the address as a hint for next time */
-			return (mm->free_area_cache = addr);
-		else
+		        mm->cached_hole_size = largest_hole;
+		        return (mm->free_area_cache = addr);
+		} else {
 			/* pull free_area_cache down to the first hole */
-			if (mm->free_area_cache == vma->vm_end)
+		        if (mm->free_area_cache == vma->vm_end) {
 				mm->free_area_cache = vma->vm_start;
+				mm->cached_hole_size = largest_hole;
+			}
+		}
+
+		/* remember the largest hole we saw so far */
+		if (addr + largest_hole < vma->vm_start)
+		        largest_hole = vma->vm_start - addr;
 
 		/* try just below the current vma->vm_start */
 		addr = vma->vm_start-len;
@@ -587,6 +432,7 @@ fail:
 	 */
 	if (first_time) {
 		mm->free_area_cache = base;
+		largest_hole = 0;
 		first_time = 0;
 		goto try_again;
 	}
@@ -597,11 +443,13 @@ fail:
 	 * allocations.
 	 */
 	mm->free_area_cache = TASK_UNMAPPED_BASE;
+	mm->cached_hole_size = ~0UL;
 	addr = arch_get_unmapped_area(filp, addr0, len, pgoff, flags);
 	/*
 	 * Restore the topdown base:
 	 */
 	mm->free_area_cache = base;
+	mm->cached_hole_size = ~0UL;
 
 	return addr;
 }

@@ -569,8 +569,11 @@ void xprt_connect(struct rpc_task *task)
 		if (xprt->sock != NULL)
 			schedule_delayed_work(&xprt->sock_connect,
 					RPC_REESTABLISH_TIMEOUT);
-		else
+		else {
 			schedule_work(&xprt->sock_connect);
+			if (!RPC_IS_ASYNC(task))
+				flush_scheduled_work();
+		}
 	}
 	return;
  out_write:
@@ -725,7 +728,8 @@ csum_partial_copy_to_xdr(struct xdr_buf *xdr, struct sk_buff *skb)
 		goto no_checksum;
 
 	desc.csum = csum_partial(skb->data, desc.offset, skb->csum);
-	xdr_partial_copy_from_skb(xdr, 0, &desc, skb_read_and_csum_bits);
+	if (xdr_partial_copy_from_skb(xdr, 0, &desc, skb_read_and_csum_bits) < 0)
+		return -1;
 	if (desc.offset != skb->len) {
 		unsigned int csum2;
 		csum2 = skb_checksum(skb, desc.offset, skb->len - desc.offset, 0);
@@ -737,7 +741,8 @@ csum_partial_copy_to_xdr(struct xdr_buf *xdr, struct sk_buff *skb)
 		return -1;
 	return 0;
 no_checksum:
-	xdr_partial_copy_from_skb(xdr, 0, &desc, skb_read_bits);
+	if (xdr_partial_copy_from_skb(xdr, 0, &desc, skb_read_bits) < 0)
+		return -1;
 	if (desc.count)
 		return -1;
 	return 0;
@@ -821,10 +826,15 @@ tcp_copy_data(skb_reader_t *desc, void *p, size_t len)
 {
 	if (len > desc->count)
 		len = desc->count;
-	if (skb_copy_bits(desc->skb, desc->offset, p, len))
+	if (skb_copy_bits(desc->skb, desc->offset, p, len)) {
+		dprintk("RPC:      failed to copy %zu bytes from skb. %zu bytes remain\n",
+				len, desc->count);
 		return 0;
+	}
 	desc->offset += len;
 	desc->count -= len;
+	dprintk("RPC:      copied %zu bytes from skb. %zu bytes remain\n",
+			len, desc->count);
 	return len;
 }
 
@@ -863,6 +873,8 @@ tcp_read_fraghdr(struct rpc_xprt *xprt, skb_reader_t *desc)
 static void
 tcp_check_recm(struct rpc_xprt *xprt)
 {
+	dprintk("RPC:      xprt = %p, tcp_copied = %lu, tcp_offset = %u, tcp_reclen = %u, tcp_flags = %lx\n",
+			xprt, xprt->tcp_copied, xprt->tcp_offset, xprt->tcp_reclen, xprt->tcp_flags);
 	if (xprt->tcp_offset == xprt->tcp_reclen) {
 		xprt->tcp_flags |= XPRT_COPY_RECM;
 		xprt->tcp_offset = 0;
@@ -907,6 +919,7 @@ tcp_read_request(struct rpc_xprt *xprt, skb_reader_t *desc)
 	struct rpc_rqst *req;
 	struct xdr_buf *rcvbuf;
 	size_t len;
+	ssize_t r;
 
 	/* Find and lock the request corresponding to this xid */
 	spin_lock(&xprt->sock_lock);
@@ -927,15 +940,40 @@ tcp_read_request(struct rpc_xprt *xprt, skb_reader_t *desc)
 		len = xprt->tcp_reclen - xprt->tcp_offset;
 		memcpy(&my_desc, desc, sizeof(my_desc));
 		my_desc.count = len;
-		xdr_partial_copy_from_skb(rcvbuf, xprt->tcp_copied,
+		r = xdr_partial_copy_from_skb(rcvbuf, xprt->tcp_copied,
 					  &my_desc, tcp_copy_data);
-		desc->count -= len;
-		desc->offset += len;
+		desc->count -= r;
+		desc->offset += r;
 	} else
-		xdr_partial_copy_from_skb(rcvbuf, xprt->tcp_copied,
+		r = xdr_partial_copy_from_skb(rcvbuf, xprt->tcp_copied,
 					  desc, tcp_copy_data);
-	xprt->tcp_copied += len;
-	xprt->tcp_offset += len;
+
+	if (r > 0) {
+		xprt->tcp_copied += r;
+		xprt->tcp_offset += r;
+	}
+	if (r != len) {
+		/* Error when copying to the receive buffer,
+		 * usually because we weren't able to allocate
+		 * additional buffer pages. All we can do now
+		 * is turn off XPRT_COPY_DATA, so the request
+		 * will not receive any additional updates,
+		 * and time out.
+		 * Any remaining data from this record will
+		 * be discarded.
+		 */
+		xprt->tcp_flags &= ~XPRT_COPY_DATA;
+		dprintk("RPC:      XID %08x truncated request\n",
+				ntohl(xprt->tcp_xid));
+		dprintk("RPC:      xprt = %p, tcp_copied = %lu, tcp_offset = %u, tcp_reclen = %u\n",
+				xprt, xprt->tcp_copied, xprt->tcp_offset, xprt->tcp_reclen);
+		goto out;
+	}
+
+	dprintk("RPC:      XID %08x read %u bytes\n",
+			ntohl(xprt->tcp_xid), r);
+	dprintk("RPC:      xprt = %p, tcp_copied = %lu, tcp_offset = %u, tcp_reclen = %u\n",
+			xprt, xprt->tcp_copied, xprt->tcp_offset, xprt->tcp_reclen);
 
 	if (xprt->tcp_copied == req->rq_private_buf.buflen)
 		xprt->tcp_flags &= ~XPRT_COPY_DATA;
@@ -944,6 +982,7 @@ tcp_read_request(struct rpc_xprt *xprt, skb_reader_t *desc)
 			xprt->tcp_flags &= ~XPRT_COPY_DATA;
 	}
 
+out:
 	if (!(xprt->tcp_flags & XPRT_COPY_DATA)) {
 		dprintk("RPC: %4d received reply complete\n",
 				req->rq_task->tk_pid);
@@ -967,6 +1006,7 @@ tcp_read_discard(struct rpc_xprt *xprt, skb_reader_t *desc)
 	desc->count -= len;
 	desc->offset += len;
 	xprt->tcp_offset += len;
+	dprintk("RPC:      discarded %u bytes\n", len);
 	tcp_check_recm(xprt);
 }
 
@@ -1064,8 +1104,7 @@ tcp_state_change(struct sock *sk)
 	case TCP_SYN_RECV:
 		break;
 	default:
-		if (xprt_test_and_clear_connected(xprt))
-			rpc_wake_up_status(&xprt->pending, -ENOTCONN);
+		xprt_disconnect(xprt);
 		break;
 	}
  out:
@@ -1203,6 +1242,8 @@ xprt_transmit(struct rpc_task *task)
 			list_add_tail(&req->rq_list, &xprt->recv);
 			spin_unlock_bh(&xprt->sock_lock);
 			xprt_reset_majortimeo(req);
+			/* Turn off autodisconnect */
+			del_singleshot_timer_sync(&xprt->timer);
 		}
 	} else if (!req->rq_bytes_sent)
 		return;
@@ -1333,8 +1374,6 @@ xprt_reserve(struct rpc_task *task)
 		spin_lock(&xprt->xprt_lock);
 		do_xprt_reserve(task);
 		spin_unlock(&xprt->xprt_lock);
-		if (task->tk_rqstp)
-			del_timer_sync(&xprt->timer);
 	}
 }
 
@@ -1649,6 +1688,10 @@ xprt_shutdown(struct rpc_xprt *xprt)
 	rpc_wake_up(&xprt->backlog);
 	wake_up(&xprt->cong_wait);
 	del_timer_sync(&xprt->timer);
+
+	/* synchronously wait for connect worker to finish */
+	cancel_delayed_work(&xprt->sock_connect);
+	flush_scheduled_work();
 }
 
 /*

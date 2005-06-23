@@ -306,7 +306,7 @@ void die(const char * str, struct pt_regs * regs, long err)
 	};
 	static int die_counter;
 
-	if (die.lock_owner != _smp_processor_id()) {
+	if (die.lock_owner != raw_smp_processor_id()) {
 		console_verbose();
 		spin_lock_irq(&die.lock);
 		die.lock_owner = smp_processor_id();

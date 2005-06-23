@@ -573,6 +573,7 @@ static int i2o_block_reply(struct i2o_controller *c, u32 m,
 static void i2o_block_event(struct i2o_event *evt)
 {
 	osm_info("block-osm: event received\n");
+	kfree(evt);
 };
 
 /*

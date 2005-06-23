@@ -266,10 +266,6 @@ struct sbp2_status_block {
 #define SBP2_MAX_UDS_PER_NODE		16	/* Maximum scsi devices per node */
 #define SBP2_MAX_SECTORS		255	/* Max sectors supported */
 
-#ifndef TYPE_SDAD
-#define TYPE_SDAD			0x0e	/* simplified direct access device */
-#endif
-
 /*
  * SCSI direction table...
  * (now used as a back-up in case the direction passed down from above is "unknown")

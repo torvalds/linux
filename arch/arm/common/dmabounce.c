@@ -30,6 +30,8 @@
 #include <linux/dmapool.h>
 #include <linux/list.h>
 
+#include <asm/cacheflush.h>
+
 #undef DEBUG
 
 #undef STATS
@@ -91,15 +93,12 @@ static void print_alloc_stats(struct dmabounce_device_info *device_info)
 static inline struct dmabounce_device_info *
 find_dmabounce_dev(struct device *dev)
 {
-	struct list_head *entry;
+	struct dmabounce_device_info *d;
 
-	list_for_each(entry, &dmabounce_devs) {
-		struct dmabounce_device_info *d =
-			list_entry(entry, struct dmabounce_device_info, node);
-
+	list_for_each_entry(d, &dmabounce_devs, node)
 		if (d->dev == dev)
 			return d;
-	}
+
 	return NULL;
 }
 
@@ -170,15 +169,11 @@ alloc_safe_buffer(struct dmabounce_device_info *device_info, void *ptr,
 static inline struct safe_buffer *
 find_safe_buffer(struct dmabounce_device_info *device_info, dma_addr_t safe_dma_addr)
 {
-	struct list_head *entry;
+	struct safe_buffer *b;
 
-	list_for_each(entry, &device_info->safe_buffers) {
-		struct safe_buffer *b =
-			list_entry(entry, struct safe_buffer, node);
-
+	list_for_each_entry(b, &device_info->safe_buffers, node)
 		if (b->safe_dma_addr == safe_dma_addr)
 			return b;
-	}
 
 	return NULL;
 }
@@ -299,15 +294,26 @@ unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 			__func__, buf->ptr, (void *) virt_to_dma(dev, buf->ptr),
 			buf->safe, (void *) buf->safe_dma_addr);
 
-
 		DO_STATS ( device_info->bounce_count++ );
 
-		if ((dir == DMA_FROM_DEVICE) ||
-		    (dir == DMA_BIDIRECTIONAL)) {
+		if (dir == DMA_FROM_DEVICE || dir == DMA_BIDIRECTIONAL) {
+			unsigned long ptr;
+
 			dev_dbg(dev,
 				"%s: copy back safe %p to unsafe %p size %d\n",
 				__func__, buf->safe, buf->ptr, size);
 			memcpy(buf->ptr, buf->safe, size);
+
+			/*
+			 * DMA buffers must have the same cache properties
+			 * as if they were really used for DMA - which means
+			 * data must be written back to RAM.  Note that
+			 * we don't use dmac_flush_range() here for the
+			 * bidirectional case because we know the cache
+			 * lines will be coherent with the data written.
+			 */
+			ptr = (unsigned long)buf->ptr;
+			dmac_clean_range(ptr, ptr + size);
 		}
 		free_safe_buffer(device_info, buf);
 	}

@@ -41,9 +41,7 @@ struct snd_midi_event_t {
 };
 
 int snd_midi_event_new(int bufsize, snd_midi_event_t **rdev);
-int snd_midi_event_resize_buffer(snd_midi_event_t *dev, int bufsize);
 void snd_midi_event_free(snd_midi_event_t *dev);
-void snd_midi_event_init(snd_midi_event_t *dev);
 void snd_midi_event_reset_encode(snd_midi_event_t *dev);
 void snd_midi_event_reset_decode(snd_midi_event_t *dev);
 void snd_midi_event_no_status(snd_midi_event_t *dev, int on);

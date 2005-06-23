@@ -45,7 +45,7 @@ void generic_cpu_die(unsigned int cpu);
 void generic_mach_cpu_die(void);
 #endif
 
-#define __smp_processor_id() (get_paca()->paca_index)
+#define raw_smp_processor_id()	(get_paca()->paca_index)
 #define hard_smp_processor_id() (get_paca()->hw_cpu_id)
 
 extern cpumask_t cpu_sibling_map[NR_CPUS];

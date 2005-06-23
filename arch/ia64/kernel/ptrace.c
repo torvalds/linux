@@ -635,11 +635,17 @@ ia64_flush_fph (struct task_struct *task)
 {
 	struct ia64_psr *psr = ia64_psr(ia64_task_regs(task));
 
+	/*
+	 * Prevent migrating this task while
+	 * we're fiddling with the FPU state
+	 */
+	preempt_disable();
 	if (ia64_is_local_fpu_owner(task) && psr->mfh) {
 		psr->mfh = 0;
 		task->thread.flags |= IA64_THREAD_FPH_VALID;
 		ia64_save_fpu(&task->thread.fph[0]);
 	}
+	preempt_enable();
 }
 
 /*
@@ -939,6 +945,13 @@ access_uarea (struct task_struct *child, unsigned long addr,
 				*data = (pt->cr_ipsr & IPSR_MASK);
 			return 0;
 
+		      case PT_AR_RSC:
+			if (write_access)
+				pt->ar_rsc = *data | (3 << 2); /* force PL3 */
+			else
+				*data = pt->ar_rsc;
+			return 0;
+
 		      case PT_AR_RNAT:
 			urbs_end = ia64_get_user_rbs_end(child, pt, NULL);
 			rnat_addr = (long) ia64_rse_rnat_addr((long *)
@@ -989,9 +1002,6 @@ access_uarea (struct task_struct *child, unsigned long addr,
 			break;
 		      case PT_AR_BSPSTORE:
 			ptr = pt_reg_addr(pt, ar_bspstore);
-			break;
-		      case PT_AR_RSC:
-			ptr = pt_reg_addr(pt, ar_rsc);
 			break;
 		      case PT_AR_UNAT:
 			ptr = pt_reg_addr(pt, ar_unat);
@@ -1228,7 +1238,7 @@ ptrace_getregs (struct task_struct *child, struct pt_all_user_regs __user *ppr)
 static long
 ptrace_setregs (struct task_struct *child, struct pt_all_user_regs __user *ppr)
 {
-	unsigned long psr, ec, lc, rnat, bsp, cfm, nat_bits, val = 0;
+	unsigned long psr, rsc, ec, lc, rnat, bsp, cfm, nat_bits, val = 0;
 	struct unw_frame_info info;
 	struct switch_stack *sw;
 	struct ia64_fpreg fpval;
@@ -1261,7 +1271,7 @@ ptrace_setregs (struct task_struct *child, struct pt_all_user_regs __user *ppr)
 	/* app regs */
 
 	retval |= __get_user(pt->ar_pfs, &ppr->ar[PT_AUR_PFS]);
-	retval |= __get_user(pt->ar_rsc, &ppr->ar[PT_AUR_RSC]);
+	retval |= __get_user(rsc, &ppr->ar[PT_AUR_RSC]);
 	retval |= __get_user(pt->ar_bspstore, &ppr->ar[PT_AUR_BSPSTORE]);
 	retval |= __get_user(pt->ar_unat, &ppr->ar[PT_AUR_UNAT]);
 	retval |= __get_user(pt->ar_ccv, &ppr->ar[PT_AUR_CCV]);
@@ -1359,6 +1369,7 @@ ptrace_setregs (struct task_struct *child, struct pt_all_user_regs __user *ppr)
 	retval |= __get_user(nat_bits, &ppr->nat);
 
 	retval |= access_uarea(child, PT_CR_IPSR, &psr, 1);
+	retval |= access_uarea(child, PT_AR_RSC, &rsc, 1);
 	retval |= access_uarea(child, PT_AR_EC, &ec, 1);
 	retval |= access_uarea(child, PT_AR_LC, &lc, 1);
 	retval |= access_uarea(child, PT_AR_RNAT, &rnat, 1);

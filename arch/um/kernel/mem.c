@@ -53,7 +53,6 @@ static void setup_highmem(unsigned long highmem_start,
 	for(i = 0; i < highmem_len >> PAGE_SHIFT; i++){
 		page = &mem_map[highmem_pfn + i];
 		ClearPageReserved(page);
-		set_bit(PG_highmem, &page->flags);
 		set_page_count(page, 1);
 		__free_page(page);
 	}

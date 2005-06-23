@@ -115,20 +115,19 @@ nsm_create(void)
 	xprt = xprt_create_proto(IPPROTO_UDP, &sin, NULL);
 	if (IS_ERR(xprt))
 		return (struct rpc_clnt *)xprt;
+	xprt->resvport = 1;	/* NSM requires a reserved port */
 
 	clnt = rpc_create_client(xprt, "localhost",
 				&nsm_program, SM_VERSION,
 				RPC_AUTH_NULL);
 	if (IS_ERR(clnt))
-		goto out_destroy;
+		goto out_err;
 	clnt->cl_softrtry = 1;
 	clnt->cl_chatty   = 1;
 	clnt->cl_oneshot  = 1;
-	xprt->resvport = 1;	/* NSM requires a reserved port */
 	return clnt;
 
-out_destroy:
-	xprt_destroy(xprt);
+out_err:
 	return clnt;
 }
 

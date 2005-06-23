@@ -559,18 +559,22 @@ static int snd_hammerfall_get_buffer(struct pci_dev *pci, struct snd_dma_buffer 
 {
 	dmab->dev.type = SNDRV_DMA_TYPE_DEV;
 	dmab->dev.dev = snd_dma_pci_data(pci);
-	if (! snd_dma_get_reserved_buf(dmab, snd_dma_pci_buf_id(pci))) {
-		if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
-					size, dmab) < 0)
-			return -ENOMEM;
+	if (snd_dma_get_reserved_buf(dmab, snd_dma_pci_buf_id(pci))) {
+		if (dmab->bytes >= size)
+			return 0;
 	}
+	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
+				size, dmab) < 0)
+		return -ENOMEM;
 	return 0;
 }
 
 static void snd_hammerfall_free_buffer(struct snd_dma_buffer *dmab, struct pci_dev *pci)
 {
-	if (dmab->area)
+	if (dmab->area) {
+		dmab->dev.dev = NULL; /* make it anonymous */
 		snd_dma_reserve_buf(dmab, snd_dma_pci_buf_id(pci));
+	}
 }
 
 
@@ -4912,19 +4916,9 @@ static int __devinit hdsp_request_fw_loader(hdsp_t *hdsp)
 		release_firmware(fw);
 		return -EINVAL;
 	}
-#ifdef SNDRV_BIG_ENDIAN
-	{
-		int i;
-		u32 *src = (u32*)fw->data;
-		for (i = 0; i < ARRAY_SIZE(hdsp->firmware_cache); i++, src++)
-			hdsp->firmware_cache[i] = ((*src & 0x000000ff) << 16) |
-				((*src & 0x0000ff00) << 8)  |
-				((*src & 0x00ff0000) >> 8)  |
-				((*src & 0xff000000) >> 16);
-	}
-#else
+
 	memcpy(hdsp->firmware_cache, fw->data, sizeof(hdsp->firmware_cache));
-#endif
+
 	release_firmware(fw);
 		
 	hdsp->state |= HDSP_FirmwareCached;
@@ -5194,7 +5188,7 @@ static struct pci_driver driver = {
 
 static int __init alsa_card_hdsp_init(void)
 {
-	return pci_module_init(&driver);
+	return pci_register_driver(&driver);
 }
 
 static void __exit alsa_card_hdsp_exit(void)

@@ -703,7 +703,8 @@ fn_hash_dump_bucket(struct sk_buff *skb, struct netlink_callback *cb,
 					  &f->fn_key,
 					  fz->fz_order,
 					  fa->fa_tos,
-					  fa->fa_info) < 0) {
+					  fa->fa_info,
+					  NLM_F_MULTI) < 0) {
 				cb->args[3] = i;
 				return -1;
 			}

@@ -33,7 +33,13 @@ void ibmasm_receive_message(struct service_processor *sp, void *message, int mes
 	u32 size;
 	struct dot_command_header *header = (struct dot_command_header *)message;
 
+	if (message_size == 0)
+		return;
+
 	size = get_dot_command_size(message);
+	if (size == 0)
+		return;
+
 	if (size > message_size)
 		size = message_size;
 
@@ -67,7 +73,7 @@ int ibmasm_send_driver_vpd(struct service_processor *sp)
 	u8 *vpd_data;
 	int result = 0;
 
-	command = ibmasm_new_command(INIT_BUFFER_SIZE);
+	command = ibmasm_new_command(sp, INIT_BUFFER_SIZE);
 	if (command == NULL)
 		return -ENOMEM;
 
@@ -121,7 +127,7 @@ int ibmasm_send_os_state(struct service_processor *sp, int os_state)
 	struct os_state_command *os_state_cmd;
 	int result = 0;
 
-	cmd = ibmasm_new_command(sizeof(struct os_state_command));
+	cmd = ibmasm_new_command(sp, sizeof(struct os_state_command));
 	if (cmd == NULL)
 		return -ENOMEM;
 

@@ -222,7 +222,7 @@ void __init early_sn_setup(void)
 
 extern int platform_intr_list[];
 extern nasid_t master_nasid;
-static int shub_1_1_found __initdata;
+static int __initdata shub_1_1_found = 0;
 
 /*
  * sn_check_for_wars
@@ -251,7 +251,7 @@ static void __init sn_check_for_wars(void)
 	} else {
 		for_each_online_node(cnode) {
 			if (is_shub_1_1(cnodeid_to_nasid(cnode)))
-				sn_hub_info->shub_1_1_found = 1;
+				shub_1_1_found = 1;
 		}
 	}
 }

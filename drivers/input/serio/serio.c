@@ -358,31 +358,31 @@ static int serio_thread(void *nothing)
  * Serio port operations
  */
 
-static ssize_t serio_show_description(struct device *dev, char *buf)
+static ssize_t serio_show_description(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct serio *serio = to_serio_port(dev);
 	return sprintf(buf, "%s\n", serio->name);
 }
 
-static ssize_t serio_show_id_type(struct device *dev, char *buf)
+static ssize_t serio_show_id_type(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct serio *serio = to_serio_port(dev);
 	return sprintf(buf, "%02x\n", serio->id.type);
 }
 
-static ssize_t serio_show_id_proto(struct device *dev, char *buf)
+static ssize_t serio_show_id_proto(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct serio *serio = to_serio_port(dev);
 	return sprintf(buf, "%02x\n", serio->id.proto);
 }
 
-static ssize_t serio_show_id_id(struct device *dev, char *buf)
+static ssize_t serio_show_id_id(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct serio *serio = to_serio_port(dev);
 	return sprintf(buf, "%02x\n", serio->id.id);
 }
 
-static ssize_t serio_show_id_extra(struct device *dev, char *buf)
+static ssize_t serio_show_id_extra(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct serio *serio = to_serio_port(dev);
 	return sprintf(buf, "%02x\n", serio->id.extra);
@@ -406,7 +406,7 @@ static struct attribute_group serio_id_attr_group = {
 	.attrs	= serio_device_id_attrs,
 };
 
-static ssize_t serio_rebind_driver(struct device *dev, const char *buf, size_t count)
+static ssize_t serio_rebind_driver(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct serio *serio = to_serio_port(dev);
 	struct device_driver *drv;
@@ -437,13 +437,13 @@ static ssize_t serio_rebind_driver(struct device *dev, const char *buf, size_t c
 	return retval;
 }
 
-static ssize_t serio_show_bind_mode(struct device *dev, char *buf)
+static ssize_t serio_show_bind_mode(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct serio *serio = to_serio_port(dev);
 	return sprintf(buf, "%s\n", serio->manual_bind ? "manual" : "auto");
 }
 
-static ssize_t serio_set_bind_mode(struct device *dev, const char *buf, size_t count)
+static ssize_t serio_set_bind_mode(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct serio *serio = to_serio_port(dev);
 	int retval;

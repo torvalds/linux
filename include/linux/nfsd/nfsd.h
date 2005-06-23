@@ -15,6 +15,7 @@
 #include <linux/unistd.h>
 #include <linux/dirent.h>
 #include <linux/fs.h>
+#include <linux/posix_acl.h>
 #include <linux/mount.h>
 
 #include <linux/nfsd/debug.h>
@@ -123,6 +124,21 @@ int		nfsd_statfs(struct svc_rqst *, struct svc_fh *,
 
 int		nfsd_notify_change(struct inode *, struct iattr *);
 int		nfsd_permission(struct svc_export *, struct dentry *, int);
+
+#if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
+#ifdef CONFIG_NFSD_V2_ACL
+extern struct svc_version nfsd_acl_version2;
+#else
+#define nfsd_acl_version2 NULL
+#endif
+#ifdef CONFIG_NFSD_V3_ACL
+extern struct svc_version nfsd_acl_version3;
+#else
+#define nfsd_acl_version3 NULL
+#endif
+struct posix_acl *nfsd_get_posix_acl(struct svc_fh *, int);
+int nfsd_set_posix_acl(struct svc_fh *, int, struct posix_acl *);
+#endif
 
 
 /* 

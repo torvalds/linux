@@ -2746,9 +2746,15 @@ static int BusLogic_host_reset(struct scsi_cmnd * SCpnt)
 
 	unsigned int id = SCpnt->device->id;
 	struct BusLogic_TargetStatistics *stats = &HostAdapter->TargetStatistics[id];
+	int rc;
+
+	spin_lock_irq(SCpnt->device->host->host_lock);
+
 	BusLogic_IncrementErrorCounter(&stats->HostAdapterResetsRequested);
 
-	return BusLogic_ResetHostAdapter(HostAdapter, false);
+	rc = BusLogic_ResetHostAdapter(HostAdapter, false);
+	spin_unlock_irq(SCpnt->device->host->host_lock);
+	return rc;
 }
 
 /*

@@ -1197,6 +1197,7 @@ void exit_itimers(struct signal_struct *sig)
 		tmr = list_entry(sig->posix_timers.next, struct k_itimer, list);
 		itimer_delete(tmr);
 	}
+	del_timer_sync(&sig->real_timer);
 }
 
 /*

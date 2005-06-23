@@ -51,7 +51,7 @@
  * This many LUNs per USB device.
  * Every one of them takes a host, see UB_MAX_HOSTS.
  */
-#define UB_MAX_LUNS   4
+#define UB_MAX_LUNS   9
 
 /*
  */
@@ -430,7 +430,7 @@ static void ub_cmdtr_sense(struct ub_dev *sc, struct ub_scsi_cmd *cmd,
 	}
 }
 
-static ssize_t ub_diag_show(struct device *dev, char *page)
+static ssize_t ub_diag_show(struct device *dev, struct device_attribute *attr, char *page)
 {
 	struct usb_interface *intf;
 	struct ub_dev *sc;
@@ -2100,7 +2100,7 @@ static int ub_probe(struct usb_interface *intf,
 			nluns = rc;
 			break;
 		}
-		mdelay(100);
+		msleep(100);
 	}
 
 	for (i = 0; i < nluns; i++) {

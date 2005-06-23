@@ -2593,6 +2593,9 @@ powerbook_sleep_Core99(void)
 	/* Restore VIA */
 	restore_via_state();
 
+	/* tweak LPJ before cpufreq is there */
+	loops_per_jiffy *= 2;
+
 	/* Restore video */
 	pmac_call_early_video_resume();
 
@@ -2612,6 +2615,9 @@ powerbook_sleep_Core99(void)
 	pmu_wait_complete(&req);
 	pmu_request(&req, NULL, 2, PMU_SET_INTR_MASK, pmu_intr_mask);
 	pmu_wait_complete(&req);
+
+	/* Restore LPJ, cpufreq will adjust the cpu frequency */
+	loops_per_jiffy /= 2;
 
 	pmac_wakeup_devices();
 

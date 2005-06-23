@@ -1767,7 +1767,7 @@ static inline int ip_mkroute_input_def(struct sk_buff *skb,
 				       struct in_device *in_dev,
 				       u32 daddr, u32 saddr, u32 tos)
 {
-	struct rtable* rth;
+	struct rtable* rth = NULL;
 	int err;
 	unsigned hash;
 
@@ -1794,7 +1794,7 @@ static inline int ip_mkroute_input(struct sk_buff *skb,
 				   u32 daddr, u32 saddr, u32 tos)
 {
 #ifdef CONFIG_IP_ROUTE_MULTIPATH_CACHED
-	struct rtable* rth;
+	struct rtable* rth = NULL;
 	unsigned char hop, hopcount, lasthop;
 	int err = -EINVAL;
 	unsigned int hash;
@@ -2239,7 +2239,7 @@ static inline int ip_mkroute_output_def(struct rtable **rp,
 					struct net_device *dev_out,
 					unsigned flags)
 {
-	struct rtable *rth;
+	struct rtable *rth = NULL;
 	int err = __mkroute_output(&rth, res, fl, oldflp, dev_out, flags);
 	unsigned hash;
 	if (err == 0) {
@@ -2267,7 +2267,7 @@ static inline int ip_mkroute_output(struct rtable** rp,
 	unsigned char hop;
 	unsigned hash;
 	int err = -EINVAL;
-	struct rtable *rth;
+	struct rtable *rth = NULL;
 
 	if (res->fi && res->fi->fib_nhs > 1) {
 		unsigned char hopcount = res->fi->fib_nhs;
@@ -2581,7 +2581,7 @@ int ip_route_output_key(struct rtable **rp, struct flowi *flp)
 }
 
 static int rt_fill_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
-			int nowait)
+			int nowait, unsigned int flags)
 {
 	struct rtable *rt = (struct rtable*)skb->dst;
 	struct rtmsg *r;
@@ -2591,9 +2591,8 @@ static int rt_fill_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
 #ifdef CONFIG_IP_MROUTE
 	struct rtattr *eptr;
 #endif
-	nlh = NLMSG_PUT(skb, pid, seq, event, sizeof(*r));
+	nlh = NLMSG_NEW(skb, pid, seq, event, sizeof(*r), flags);
 	r = NLMSG_DATA(nlh);
-	nlh->nlmsg_flags = (nowait && pid) ? NLM_F_MULTI : 0;
 	r->rtm_family	 = AF_INET;
 	r->rtm_dst_len	= 32;
 	r->rtm_src_len	= 0;
@@ -2744,7 +2743,7 @@ int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void *arg)
 	NETLINK_CB(skb).dst_pid = NETLINK_CB(in_skb).pid;
 
 	err = rt_fill_info(skb, NETLINK_CB(in_skb).pid, nlh->nlmsg_seq,
-				RTM_NEWROUTE, 0);
+				RTM_NEWROUTE, 0, 0);
 	if (!err)
 		goto out_free;
 	if (err < 0) {
@@ -2781,8 +2780,8 @@ int ip_rt_dump(struct sk_buff *skb,  struct netlink_callback *cb)
 				continue;
 			skb->dst = dst_clone(&rt->u.dst);
 			if (rt_fill_info(skb, NETLINK_CB(cb->skb).pid,
-					 cb->nlh->nlmsg_seq,
-					 RTM_NEWROUTE, 1) <= 0) {
+					 cb->nlh->nlmsg_seq, RTM_NEWROUTE, 
+					 1, NLM_F_MULTI) <= 0) {
 				dst_release(xchg(&skb->dst, NULL));
 				rcu_read_unlock_bh();
 				goto done;

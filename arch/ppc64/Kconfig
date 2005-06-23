@@ -323,7 +323,7 @@ config EISA
 	bool
 
 config PCI
-	bool
+	bool "support for PCI devices" if (EMBEDDED && PPC_ISERIES)
 	default y
 	help
 	  Find out whether your system includes a PCI bus. PCI is the name of

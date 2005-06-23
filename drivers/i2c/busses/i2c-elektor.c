@@ -25,7 +25,6 @@
 /* Partialy rewriten by Oleg I. Vdovikin for mmapped support of 
    for Alpha Processor Inc. UP-2000(+) boards */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/ioport.h>
 #include <linux/module.h>

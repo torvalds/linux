@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/device.h>
+#include <linux/sysdev.h>
 #include <linux/major.h>
 #include <linux/fb.h>
 #include <linux/interrupt.h>
@@ -105,6 +106,35 @@ static void __init lubbock_init_irq(void)
 	set_irq_chained_handler(IRQ_GPIO(0), lubbock_irq_handler);
 	set_irq_type(IRQ_GPIO(0), IRQT_FALLING);
 }
+
+#ifdef CONFIG_PM
+
+static int lubbock_irq_resume(struct sys_device *dev)
+{
+	LUB_IRQ_MASK_EN = lubbock_irq_enabled;
+	return 0;
+}
+
+static struct sysdev_class lubbock_irq_sysclass = {
+	set_kset_name("cpld_irq"),
+	.resume = lubbock_irq_resume,
+};
+
+static struct sys_device lubbock_irq_device = {
+	.cls = &lubbock_irq_sysclass,
+};
+
+static int __init lubbock_irq_device_init(void)
+{
+	int ret = sysdev_class_register(&lubbock_irq_sysclass);
+	if (ret == 0)
+		ret = sysdev_register(&lubbock_irq_device);
+	return ret;
+}
+
+device_initcall(lubbock_irq_device_init);
+
+#endif
 
 static int lubbock_udc_is_connected(void)
 {

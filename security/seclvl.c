@@ -155,7 +155,7 @@ seclvl_attr_store(struct kobject *kobj,
 	struct seclvl_obj *obj = container_of(kobj, struct seclvl_obj, kobj);
 	struct seclvl_attribute *attribute =
 	    container_of(attr, struct seclvl_attribute, attr);
-	return (attribute->store ? attribute->store(obj, buf, len) : 0);
+	return attribute->store ? attribute->store(obj, buf, len) : -EIO;
 }
 
 static ssize_t
@@ -164,7 +164,7 @@ seclvl_attr_show(struct kobject *kobj, struct attribute *attr, char *buf)
 	struct seclvl_obj *obj = container_of(kobj, struct seclvl_obj, kobj);
 	struct seclvl_attribute *attribute =
 	    container_of(attr, struct seclvl_attribute, attr);
-	return (attribute->show ? attribute->show(obj, buf) : 0);
+	return attribute->show ? attribute->show(obj, buf) : -EIO;
 }
 
 /**

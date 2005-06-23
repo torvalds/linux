@@ -61,12 +61,13 @@
  * File wide globals
  */
 
-STATIC kmem_cache_t *pagebuf_cache;
+STATIC kmem_cache_t *pagebuf_zone;
 STATIC kmem_shaker_t pagebuf_shake;
-STATIC int pagebuf_daemon_wakeup(int, unsigned int);
+STATIC int xfsbufd_wakeup(int, unsigned int);
 STATIC void pagebuf_delwri_queue(xfs_buf_t *, int);
-STATIC struct workqueue_struct *pagebuf_logio_workqueue;
-STATIC struct workqueue_struct *pagebuf_dataio_workqueue;
+
+STATIC struct workqueue_struct *xfslogd_workqueue;
+STATIC struct workqueue_struct *xfsdatad_workqueue;
 
 /*
  * Pagebuf debugging
@@ -123,9 +124,9 @@ ktrace_t *pagebuf_trace_buf;
 
 
 #define pagebuf_allocate(flags) \
-	kmem_zone_alloc(pagebuf_cache, pb_to_km(flags))
+	kmem_zone_alloc(pagebuf_zone, pb_to_km(flags))
 #define pagebuf_deallocate(pb) \
-	kmem_zone_free(pagebuf_cache, (pb));
+	kmem_zone_free(pagebuf_zone, (pb));
 
 /*
  * Page Region interfaces.
@@ -425,7 +426,7 @@ _pagebuf_lookup_pages(
 					__FUNCTION__, gfp_mask);
 
 			XFS_STATS_INC(pb_page_retries);
-			pagebuf_daemon_wakeup(0, gfp_mask);
+			xfsbufd_wakeup(0, gfp_mask);
 			blk_congestion_wait(WRITE, HZ/50);
 			goto retry;
 		}
@@ -1136,8 +1137,8 @@ pagebuf_iodone(
 	if ((pb->pb_iodone) || (pb->pb_flags & PBF_ASYNC)) {
 		if (schedule) {
 			INIT_WORK(&pb->pb_iodone_work, pagebuf_iodone_work, pb);
-			queue_work(dataio ? pagebuf_dataio_workqueue :
-				pagebuf_logio_workqueue, &pb->pb_iodone_work);
+			queue_work(dataio ? xfsdatad_workqueue :
+				xfslogd_workqueue, &pb->pb_iodone_work);
 		} else {
 			pagebuf_iodone_work(pb);
 		}
@@ -1562,16 +1563,6 @@ xfs_free_buftarg(
 	kmem_free(btp, sizeof(*btp));
 }
 
-void
-xfs_incore_relse(
-	xfs_buftarg_t		*btp,
-	int			delwri_only,
-	int			wait)
-{
-	invalidate_bdev(btp->pbr_bdev, 1);
-	truncate_inode_pages(btp->pbr_mapping, 0LL);
-}
-
 STATIC int
 xfs_setsize_buftarg_flags(
 	xfs_buftarg_t		*btp,
@@ -1742,27 +1733,27 @@ pagebuf_runall_queues(
 }
 
 /* Defines for pagebuf daemon */
-STATIC DECLARE_COMPLETION(pagebuf_daemon_done);
-STATIC struct task_struct *pagebuf_daemon_task;
-STATIC int pagebuf_daemon_active;
-STATIC int force_flush;
-STATIC int force_sleep;
+STATIC DECLARE_COMPLETION(xfsbufd_done);
+STATIC struct task_struct *xfsbufd_task;
+STATIC int xfsbufd_active;
+STATIC int xfsbufd_force_flush;
+STATIC int xfsbufd_force_sleep;
 
 STATIC int
-pagebuf_daemon_wakeup(
+xfsbufd_wakeup(
 	int			priority,
 	unsigned int		mask)
 {
-	if (force_sleep)
+	if (xfsbufd_force_sleep)
 		return 0;
-	force_flush = 1;
+	xfsbufd_force_flush = 1;
 	barrier();
-	wake_up_process(pagebuf_daemon_task);
+	wake_up_process(xfsbufd_task);
 	return 0;
 }
 
 STATIC int
-pagebuf_daemon(
+xfsbufd(
 	void			*data)
 {
 	struct list_head	tmp;
@@ -1774,17 +1765,17 @@ pagebuf_daemon(
 	daemonize("xfsbufd");
 	current->flags |= PF_MEMALLOC;
 
-	pagebuf_daemon_task = current;
-	pagebuf_daemon_active = 1;
+	xfsbufd_task = current;
+	xfsbufd_active = 1;
 	barrier();
 
 	INIT_LIST_HEAD(&tmp);
 	do {
 		if (unlikely(current->flags & PF_FREEZE)) {
-			force_sleep = 1;
+			xfsbufd_force_sleep = 1;
 			refrigerator(PF_FREEZE);
 		} else {
-			force_sleep = 0;
+			xfsbufd_force_sleep = 0;
 		}
 
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -1797,7 +1788,7 @@ pagebuf_daemon(
 			ASSERT(pb->pb_flags & PBF_DELWRI);
 
 			if (!pagebuf_ispin(pb) && !pagebuf_cond_lock(pb)) {
-				if (!force_flush &&
+				if (!xfsbufd_force_flush &&
 				    time_before(jiffies,
 						pb->pb_queuetime + age)) {
 					pagebuf_unlock(pb);
@@ -1824,10 +1815,10 @@ pagebuf_daemon(
 		if (as_list_len > 0)
 			purge_addresses();
 
-		force_flush = 0;
-	} while (pagebuf_daemon_active);
+		xfsbufd_force_flush = 0;
+	} while (xfsbufd_active);
 
-	complete_and_exit(&pagebuf_daemon_done, 0);
+	complete_and_exit(&xfsbufd_done, 0);
 }
 
 /*
@@ -1844,8 +1835,8 @@ xfs_flush_buftarg(
 	xfs_buf_t		*pb, *n;
 	int			pincount = 0;
 
-	pagebuf_runall_queues(pagebuf_dataio_workqueue);
-	pagebuf_runall_queues(pagebuf_logio_workqueue);
+	pagebuf_runall_queues(xfsdatad_workqueue);
+	pagebuf_runall_queues(xfslogd_workqueue);
 
 	INIT_LIST_HEAD(&tmp);
 	spin_lock(&pbd_delwrite_lock);
@@ -1898,43 +1889,43 @@ xfs_flush_buftarg(
 }
 
 STATIC int
-pagebuf_daemon_start(void)
+xfs_buf_daemons_start(void)
 {
-	int		rval;
+	int		error = -ENOMEM;
 
-	pagebuf_logio_workqueue = create_workqueue("xfslogd");
-	if (!pagebuf_logio_workqueue)
-		return -ENOMEM;
+	xfslogd_workqueue = create_workqueue("xfslogd");
+	if (!xfslogd_workqueue)
+		goto out;
 
-	pagebuf_dataio_workqueue = create_workqueue("xfsdatad");
-	if (!pagebuf_dataio_workqueue) {
-		destroy_workqueue(pagebuf_logio_workqueue);
-		return -ENOMEM;
-	}
+	xfsdatad_workqueue = create_workqueue("xfsdatad");
+	if (!xfsdatad_workqueue)
+		goto out_destroy_xfslogd_workqueue;
 
-	rval = kernel_thread(pagebuf_daemon, NULL, CLONE_FS|CLONE_FILES);
-	if (rval < 0) {
-		destroy_workqueue(pagebuf_logio_workqueue);
-		destroy_workqueue(pagebuf_dataio_workqueue);
-	}
+	error = kernel_thread(xfsbufd, NULL, CLONE_FS|CLONE_FILES);
+	if (error < 0)
+		goto out_destroy_xfsdatad_workqueue;
+	return 0;
 
-	return rval;
+ out_destroy_xfsdatad_workqueue:
+	destroy_workqueue(xfsdatad_workqueue);
+ out_destroy_xfslogd_workqueue:
+	destroy_workqueue(xfslogd_workqueue);
+ out:
+	return error;
 }
 
 /*
- * pagebuf_daemon_stop
- *
  * Note: do not mark as __exit, it is called from pagebuf_terminate.
  */
 STATIC void
-pagebuf_daemon_stop(void)
+xfs_buf_daemons_stop(void)
 {
-	pagebuf_daemon_active = 0;
+	xfsbufd_active = 0;
 	barrier();
-	wait_for_completion(&pagebuf_daemon_done);
+	wait_for_completion(&xfsbufd_done);
 
-	destroy_workqueue(pagebuf_logio_workqueue);
-	destroy_workqueue(pagebuf_dataio_workqueue);
+	destroy_workqueue(xfslogd_workqueue);
+	destroy_workqueue(xfsdatad_workqueue);
 }
 
 /*
@@ -1944,27 +1935,37 @@ pagebuf_daemon_stop(void)
 int __init
 pagebuf_init(void)
 {
-	pagebuf_cache = kmem_cache_create("xfs_buf_t", sizeof(xfs_buf_t), 0,
-			SLAB_HWCACHE_ALIGN, NULL, NULL);
-	if (pagebuf_cache == NULL) {
-		printk("XFS: couldn't init xfs_buf_t cache\n");
-		pagebuf_terminate();
-		return -ENOMEM;
-	}
+	int		error = -ENOMEM;
+
+	pagebuf_zone = kmem_zone_init(sizeof(xfs_buf_t), "xfs_buf");
+	if (!pagebuf_zone)
+		goto out;
 
 #ifdef PAGEBUF_TRACE
 	pagebuf_trace_buf = ktrace_alloc(PAGEBUF_TRACE_SIZE, KM_SLEEP);
 #endif
 
-	pagebuf_daemon_start();
+	error = xfs_buf_daemons_start();
+	if (error)
+		goto out_free_buf_zone;
 
-	pagebuf_shake = kmem_shake_register(pagebuf_daemon_wakeup);
-	if (pagebuf_shake == NULL) {
-		pagebuf_terminate();
-		return -ENOMEM;
+	pagebuf_shake = kmem_shake_register(xfsbufd_wakeup);
+	if (!pagebuf_shake) {
+		error = -ENOMEM;
+		goto out_stop_daemons;
 	}
 
 	return 0;
+
+ out_stop_daemons:
+	xfs_buf_daemons_stop();
+ out_free_buf_zone:
+#ifdef PAGEBUF_TRACE
+	ktrace_free(pagebuf_trace_buf);
+#endif
+	kmem_zone_destroy(pagebuf_zone);
+ out:
+	return error;
 }
 
 
@@ -1976,12 +1977,12 @@ pagebuf_init(void)
 void
 pagebuf_terminate(void)
 {
-	pagebuf_daemon_stop();
+	xfs_buf_daemons_stop();
 
 #ifdef PAGEBUF_TRACE
 	ktrace_free(pagebuf_trace_buf);
 #endif
 
-	kmem_zone_destroy(pagebuf_cache);
+	kmem_zone_destroy(pagebuf_zone);
 	kmem_shake_deregister(pagebuf_shake);
 }

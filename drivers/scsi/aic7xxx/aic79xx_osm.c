@@ -1511,17 +1511,17 @@ ahd_linux_dev_reset(Scsi_Cmnd *cmd)
 		       ahd_name(ahd), cmd->device->channel, cmd->device->id,
 		       cmd->device->lun, cmd);
 #endif
-	ahd_midlayer_entrypoint_lock(ahd, &s);
+	ahd_lock(ahd, &s);
 
 	dev = ahd_linux_get_device(ahd, cmd->device->channel, cmd->device->id,
 				   cmd->device->lun, /*alloc*/FALSE);
 	if (dev == NULL) {
-		ahd_midlayer_entrypoint_unlock(ahd, &s);
+		ahd_unlock(ahd, &s);
 		kfree(recovery_cmd);
 		return (FAILED);
 	}
 	if ((scb = ahd_get_scb(ahd, AHD_NEVER_COL_IDX)) == NULL) {
-		ahd_midlayer_entrypoint_unlock(ahd, &s);
+		ahd_unlock(ahd, &s);
 		kfree(recovery_cmd);
 		return (FAILED);
 	}
@@ -1570,7 +1570,7 @@ ahd_linux_dev_reset(Scsi_Cmnd *cmd)
 	spin_lock_irq(&ahd->platform_data->spin_lock);
 	ahd_schedule_runq(ahd);
 	ahd_linux_run_complete_queue(ahd);
-	ahd_midlayer_entrypoint_unlock(ahd, &s);
+	ahd_unlock(ahd, &s);
 	printf("%s: Device reset returning 0x%x\n", ahd_name(ahd), retval);
 	return (retval);
 }
@@ -1591,11 +1591,11 @@ ahd_linux_bus_reset(Scsi_Cmnd *cmd)
 		printf("%s: Bus reset called for cmd %p\n",
 		       ahd_name(ahd), cmd);
 #endif
-	ahd_midlayer_entrypoint_lock(ahd, &s);
+	ahd_lock(ahd, &s);
 	found = ahd_reset_channel(ahd, cmd->device->channel + 'A',
 				  /*initiate reset*/TRUE);
 	ahd_linux_run_complete_queue(ahd);
-	ahd_midlayer_entrypoint_unlock(ahd, &s);
+	ahd_unlock(ahd, &s);
 
 	if (bootverbose)
 		printf("%s: SCSI bus reset delivered. "

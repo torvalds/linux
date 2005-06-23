@@ -444,7 +444,7 @@ struct sym_tcb {
 	 */
 	u_char	usrflags;
 	u_short	usrtags;
-	struct scsi_device *sdev;
+	struct scsi_target *starget;
 };
 
 /*
@@ -754,10 +754,8 @@ struct sym_ccb {
 	int	segments;	/* Number of SG segments	*/
 
 	u8	order;		/* Tag type (if tagged command)	*/
+	unsigned char odd_byte_adjustment;	/* odd-sized req on wide bus */
 
-	/*
-	 *  Miscellaneous status'.
-	 */
 	u_char	nego_status;	/* Negotiation status		*/
 	u_char	xerr_status;	/* Extended error flags		*/
 	u32	extra_bytes;	/* Extraneous bytes transferred	*/
@@ -809,7 +807,7 @@ struct sym_ccb {
 #endif
 };
 
-#define CCB_BA(cp,lbl)	(cp->ccb_ba + offsetof(struct sym_ccb, lbl))
+#define CCB_BA(cp,lbl)	cpu_to_scr(cp->ccb_ba + offsetof(struct sym_ccb, lbl))
 
 #ifdef	SYM_OPT_HANDLE_DIR_UNKNOWN
 #define	sym_goalp(cp) ((cp->host_flags & HF_DATA_IN) ? cp->goalp : cp->wgoalp)
@@ -1138,33 +1136,33 @@ static inline void sym_setup_data_pointers(struct sym_hcb *np,
 	 *  No segments means no data.
 	 */
 	if (!cp->segments)
-		dir = CAM_DIR_NONE;
+		dir = DMA_NONE;
 
 	/*
 	 *  Set the data pointer.
 	 */
 	switch(dir) {
 #ifdef	SYM_OPT_HANDLE_DIR_UNKNOWN
-	case CAM_DIR_UNKNOWN:
+	case DMA_BIDIRECTIONAL:
 #endif
-	case CAM_DIR_OUT:
+	case DMA_TO_DEVICE:
 		goalp = SCRIPTA_BA(np, data_out2) + 8;
 		lastp = goalp - 8 - (cp->segments * (2*4));
 #ifdef	SYM_OPT_HANDLE_DIR_UNKNOWN
 		cp->wgoalp = cpu_to_scr(goalp);
-		if (dir != CAM_DIR_UNKNOWN)
+		if (dir != DMA_BIDIRECTIONAL)
 			break;
 		cp->phys.head.wlastp = cpu_to_scr(lastp);
 		/* fall through */
 #else
 		break;
 #endif
-	case CAM_DIR_IN:
+	case DMA_FROM_DEVICE:
 		cp->host_flags |= HF_DATA_IN;
 		goalp = SCRIPTA_BA(np, data_in2) + 8;
 		lastp = goalp - 8 - (cp->segments * (2*4));
 		break;
-	case CAM_DIR_NONE:
+	case DMA_NONE:
 	default:
 #ifdef	SYM_OPT_HANDLE_DIR_UNKNOWN
 		cp->host_flags |= HF_DATA_IN;
@@ -1185,7 +1183,7 @@ static inline void sym_setup_data_pointers(struct sym_hcb *np,
 	/*
 	 *  If direction is unknown, start at data_io.
 	 */
-	if (dir == CAM_DIR_UNKNOWN)
+	if (dir == DMA_BIDIRECTIONAL)
 		cp->phys.head.savep = cpu_to_scr(SCRIPTB_BA(np, data_io));
 #endif
 }

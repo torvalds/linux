@@ -28,6 +28,7 @@ static struct sysfs_dirent sysfs_root = {
 	.s_children	= LIST_HEAD_INIT(sysfs_root.s_children),
 	.s_element	= NULL,
 	.s_type		= SYSFS_ROOT,
+	.s_iattr	= NULL,
 };
 
 static int sysfs_fill_super(struct super_block *sb, void *data, int silent)
@@ -42,7 +43,8 @@ static int sysfs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_time_gran = 1;
 	sysfs_sb = sb;
 
-	inode = sysfs_new_inode(S_IFDIR | S_IRWXU | S_IRUGO | S_IXUGO);
+	inode = sysfs_new_inode(S_IFDIR | S_IRWXU | S_IRUGO | S_IXUGO,
+				 &sysfs_root);
 	if (inode) {
 		inode->i_op = &sysfs_dir_inode_operations;
 		inode->i_fop = &sysfs_dir_operations;

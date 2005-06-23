@@ -526,9 +526,6 @@ extern void snd_gf1_adlib_write(snd_gus_card_t * gus, unsigned char reg, unsigne
 extern void snd_gf1_dram_addr(snd_gus_card_t * gus, unsigned int addr);
 extern void snd_gf1_poke(snd_gus_card_t * gus, unsigned int addr, unsigned char data);
 extern unsigned char snd_gf1_peek(snd_gus_card_t * gus, unsigned int addr);
-extern void snd_gf1_pokew(snd_gus_card_t * gus, unsigned int addr, unsigned short data);
-extern unsigned short snd_gf1_peekw(snd_gus_card_t * gus, unsigned int addr);
-extern void snd_gf1_dram_setmem(snd_gus_card_t * gus, unsigned int addr, unsigned short value, unsigned int count);
 extern void snd_gf1_write_addr(snd_gus_card_t * gus, unsigned char reg, unsigned int addr, short w_16bit);
 extern unsigned int snd_gf1_read_addr(snd_gus_card_t * gus, unsigned char reg, short w_16bit);
 extern void snd_gf1_i_ctrl_stop(snd_gus_card_t * gus, unsigned char reg);
@@ -544,9 +541,6 @@ extern inline unsigned short snd_gf1_i_read16(snd_gus_card_t * gus, unsigned cha
 {
 	return snd_gf1_i_look16(gus, reg | 0x80);
 }
-extern void snd_gf1_i_adlib_write(snd_gus_card_t * gus, unsigned char reg, unsigned char data);
-extern void snd_gf1_i_write_addr(snd_gus_card_t * gus, unsigned char reg, unsigned int addr, short w_16bit);
-extern unsigned int snd_gf1_i_read_addr(snd_gus_card_t * gus, unsigned char reg, short w_16bit);
 
 extern void snd_gf1_select_active_voices(snd_gus_card_t * gus);
 
@@ -580,10 +574,6 @@ extern void snd_gf1_lfo_command(snd_gus_card_t * gus, int voice, unsigned char *
 
 void snd_gf1_mem_lock(snd_gf1_mem_t * alloc, int xup);
 int snd_gf1_mem_xfree(snd_gf1_mem_t * alloc, snd_gf1_mem_block_t * block);
-snd_gf1_mem_block_t *snd_gf1_mem_look(snd_gf1_mem_t * alloc,
-				      unsigned int address);
-snd_gf1_mem_block_t *snd_gf1_mem_share(snd_gf1_mem_t * alloc,
-				       unsigned int *share_id);
 snd_gf1_mem_block_t *snd_gf1_mem_alloc(snd_gf1_mem_t * alloc, int owner,
 				       char *name, int size, int w_16,
 				       int align, unsigned int *share_id);
@@ -608,23 +598,13 @@ int snd_gf1_dma_transfer_block(snd_gus_card_t * gus,
 /* gus_volume.c */
 
 unsigned short snd_gf1_lvol_to_gvol_raw(unsigned int vol);
-unsigned int snd_gf1_gvol_to_lvol_raw(unsigned short gf1_vol);
-unsigned int snd_gf1_calc_ramp_rate(snd_gus_card_t * gus,
-				    unsigned short start,
-				    unsigned short end,
-				    unsigned int us);
 unsigned short snd_gf1_translate_freq(snd_gus_card_t * gus, unsigned int freq2);
-unsigned short snd_gf1_compute_pitchbend(unsigned short pitchbend, unsigned short sens);
-unsigned short snd_gf1_compute_freq(unsigned int freq,
-				    unsigned int rate,
-				    unsigned short mix_rate);
 
 /* gus_reset.c */
 
 void snd_gf1_set_default_handlers(snd_gus_card_t * gus, unsigned int what);
 void snd_gf1_smart_stop_voice(snd_gus_card_t * gus, unsigned short voice);
 void snd_gf1_stop_voice(snd_gus_card_t * gus, unsigned short voice);
-void snd_gf1_clear_voices(snd_gus_card_t * gus, unsigned short v_min, unsigned short v_max);
 void snd_gf1_stop_voices(snd_gus_card_t * gus, unsigned short v_min, unsigned short v_max);
 snd_gus_voice_t *snd_gf1_alloc_voice(snd_gus_card_t * gus, int type, int client, int port);
 void snd_gf1_free_voice(snd_gus_card_t * gus, snd_gus_voice_t *voice);
@@ -641,9 +621,6 @@ int snd_gf1_pcm_new(snd_gus_card_t * gus, int pcm_dev, int control_index, snd_pc
 
 #ifdef CONFIG_SND_DEBUG
 extern void snd_gf1_print_voice_registers(snd_gus_card_t * gus);
-extern void snd_gf1_print_global_registers(snd_gus_card_t * gus);
-extern void snd_gf1_print_setup_registers(snd_gus_card_t * gus);
-extern void snd_gf1_peek_print_block(snd_gus_card_t * gus, unsigned int addr, int count, int w_16bit);
 #endif
 
 /* gus.c */

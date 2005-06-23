@@ -1744,6 +1744,7 @@ static int process_backlog(struct net_device *backlog_dev, int *budget)
 	struct softnet_data *queue = &__get_cpu_var(softnet_data);
 	unsigned long start_time = jiffies;
 
+	backlog_dev->weight = weight_p;
 	for (;;) {
 		struct sk_buff *skb;
 		struct net_device *dev;

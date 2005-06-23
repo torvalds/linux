@@ -146,7 +146,6 @@ static int uml_net_close(struct net_device *dev)
 	netif_stop_queue(dev);
 	spin_lock(&lp->lock);
 
-	free_irq_by_irq_and_dev(dev->irq, dev);
 	free_irq(dev->irq, dev);
 	if(lp->close != NULL)
 		(*lp->close)(lp->fd, &lp->user);

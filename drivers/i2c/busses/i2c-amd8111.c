@@ -8,7 +8,6 @@
  * the Free Software Foundation version 2.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>

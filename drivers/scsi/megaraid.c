@@ -1938,7 +1938,7 @@ megaraid_abort(Scsi_Cmnd *cmd)
 
 
 static int
-megaraid_reset(Scsi_Cmnd *cmd)
+__megaraid_reset(Scsi_Cmnd *cmd)
 {
 	adapter_t	*adapter;
 	megacmd_t	mc;
@@ -1972,6 +1972,18 @@ megaraid_reset(Scsi_Cmnd *cmd)
 	return rval;
 }
 
+static int
+megaraid_reset(Scsi_Cmnd *cmd)
+{
+	adapter_t *adapter = (adapter_t *)cmd->device->host->hostdata;
+	int rc;
+
+	spin_lock_irq(&adapter->lock);
+	rc = __megaraid_reset(cmd);
+	spin_unlock_irq(&adapter->lock);
+
+	return rc;
+}
 
 
 /**

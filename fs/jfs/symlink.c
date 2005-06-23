@@ -1,5 +1,5 @@
 /*
- *   Copyright (c) Christoph Hellwig, 2001-2002
+ *   Copyright (C) Christoph Hellwig, 2001-2002
  *
  *   This program is free software;  you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 #include <linux/fs.h>
 #include <linux/namei.h>
 #include "jfs_incore.h"
+#include "jfs_inode.h"
 #include "jfs_xattr.h"
 
 static int jfs_follow_link(struct dentry *dentry, struct nameidata *nd)

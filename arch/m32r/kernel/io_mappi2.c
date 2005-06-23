@@ -3,7 +3,7 @@
  *
  *  Typical I/O routines for Mappi2 board.
  *
- *  Copyright (c) 2001-2003  Hiroyuki Kondo, Hirokazu Takata,
+ *  Copyright (c) 2001-2005  Hiroyuki Kondo, Hirokazu Takata,
  *                           Hitoshi Yamamoto, Mamoru Sakugawa
  */
 
@@ -25,7 +25,7 @@ extern void pcc_ioread_byte(int, unsigned long, void *, size_t, size_t, int);
 extern void pcc_ioread_word(int, unsigned long, void *, size_t, size_t, int);
 extern void pcc_iowrite_byte(int, unsigned long, void *, size_t, size_t, int);
 extern void pcc_iowrite_word(int, unsigned long, void *, size_t, size_t, int);
-#endif /* CONFIG_PCMCIA && CONFIG_MAPPI2_CFC */
+#endif /* CONFIG_PCMCIA && CONFIG_M32R_CFC */
 
 #define PORT2ADDR(port)      _port2addr(port)
 #define PORT2ADDR_NE(port)   _port2addr_ne(port)
@@ -169,64 +169,21 @@ unsigned long _inl(unsigned long port)
 
 unsigned char _inb_p(unsigned long port)
 {
-	unsigned char  v;
-
-	if (port >= LAN_IOSTART && port < LAN_IOEND)
-		v = _ne_inb(PORT2ADDR_NE(port));
-	else
-#if defined(CONFIG_IDE) && !defined(CONFIG_M32R_CFC)
-	if ((port >= 0x1f0 && port <=0x1f7) || port == 0x3f6) {
-		return *(volatile unsigned char *)__port2addr_ata(port);
-	} else
-#endif
-#if defined(CONFIG_PCMCIA) && defined(CONFIG_M32R_CFC)
-	if (port >= M32R_PCC_IOSTART0 && port <= M32R_PCC_IOEND0) {
-		unsigned char b;
-		pcc_ioread_byte(0, port, &b, sizeof(b), 1, 0);
-		return b;
-	} else
-#endif
-		v = *(volatile unsigned char *)PORT2ADDR(port);
-
+	unsigned char v = _inb(port);
 	delay();
 	return (v);
 }
 
 unsigned short _inw_p(unsigned long port)
 {
-	unsigned short  v;
-
-	if (port >= LAN_IOSTART && port < LAN_IOEND)
-		v = _ne_inw(PORT2ADDR_NE(port));
-	else
-#if defined(CONFIG_IDE) && !defined(CONFIG_M32R_CFC)
-	if ((port >= 0x1f0 && port <=0x1f7) || port == 0x3f6) {
-		return *(volatile unsigned short *)__port2addr_ata(port);
-	} else
-#endif
-#if defined(CONFIG_USB)
-	if (port >= 0x340 && port < 0x3a0)
-		v = *(volatile unsigned short *)PORT2ADDR_USB(port);
-	else
-#endif
-#if defined(CONFIG_PCMCIA) && defined(CONFIG_M32R_CFC)
-	if (port >= M32R_PCC_IOSTART0 && port <= M32R_PCC_IOEND0) {
-		unsigned short w;
-		pcc_ioread_word(0, port, &w, sizeof(w), 1, 0);
-		return w;
-	} else
-#endif
-		v = *(volatile unsigned short *)PORT2ADDR(port);
-
+	unsigned short v = _inw(port);
 	delay();
 	return (v);
 }
 
 unsigned long _inl_p(unsigned long port)
 {
-	unsigned long  v;
-
-	v = *(volatile unsigned long *)PORT2ADDR(port);
+	unsigned long v = _inl(port);
 	delay();
 	return (v);
 }
@@ -284,52 +241,19 @@ void _outl(unsigned long l, unsigned long port)
 
 void _outb_p(unsigned char b, unsigned long port)
 {
-	if (port >= LAN_IOSTART && port < LAN_IOEND)
-		_ne_outb(b, PORT2ADDR_NE(port));
-	else
-#if defined(CONFIG_IDE) && !defined(CONFIG_M32R_CFC)
-	if ((port >= 0x1f0 && port <=0x1f7) || port == 0x3f6) {
-		*(volatile unsigned char *)__port2addr_ata(port) = b;
-	} else
-#endif
-#if defined(CONFIG_PCMCIA) && defined(CONFIG_M32R_CFC)
-	if (port >= M32R_PCC_IOSTART0 && port <= M32R_PCC_IOEND0) {
-		pcc_iowrite_byte(0, port, &b, sizeof(b), 1, 0);
-	} else
-#endif
-		*(volatile unsigned char *)PORT2ADDR(port) = b;
-
+	_outb(b, port);
 	delay();
 }
 
 void _outw_p(unsigned short w, unsigned long port)
 {
-	if (port >= LAN_IOSTART && port < LAN_IOEND)
-		_ne_outw(w, PORT2ADDR_NE(port));
-	else
-#if defined(CONFIG_IDE) && !defined(CONFIG_M32R_CFC)
-	if ((port >= 0x1f0 && port <=0x1f7) || port == 0x3f6) {
-		*(volatile unsigned short *)__port2addr_ata(port) = w;
-	} else
-#endif
-#if defined(CONFIG_USB)
-	  if (port >= 0x340 && port < 0x3a0)
-		*(volatile unsigned short *)PORT2ADDR_USB(port) = w;
-	else
-#endif
-#if defined(CONFIG_PCMCIA) && defined(CONFIG_M32R_CFC)
-	if (port >= M32R_PCC_IOSTART0 && port <= M32R_PCC_IOEND0) {
-		pcc_iowrite_word(0, port, &w, sizeof(w), 1, 0);
-	} else
-#endif
-		*(volatile unsigned short *)PORT2ADDR(port) = w;
-
+	_outw(w, port);
 	delay();
 }
 
 void _outl_p(unsigned long l, unsigned long port)
 {
-	*(volatile unsigned long *)PORT2ADDR(port) = l;
+	_outl(l, port);
 	delay();
 }
 
