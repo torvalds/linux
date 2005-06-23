@@ -36,6 +36,12 @@
 
 #include <asm/kprobes.h>
 
+/* kprobe_status settings */
+#define KPROBE_HIT_ACTIVE	0x00000001
+#define KPROBE_HIT_SS		0x00000002
+#define KPROBE_REENTER		0x00000004
+#define KPROBE_HIT_SSDONE	0x00000008
+
 struct kprobe;
 struct pt_regs;
 struct kretprobe;
@@ -54,6 +60,9 @@ struct kprobe {
 
 	/* list of kprobes for multi-handler support */
 	struct list_head list;
+
+	/*count the number of times this probe was temporarily disarmed */
+	unsigned long nmissed;
 
 	/* location of the probe point */
 	kprobe_opcode_t *addr;

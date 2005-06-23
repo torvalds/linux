@@ -335,6 +335,7 @@ int register_kprobe(struct kprobe *p)
 	}
 	spin_lock_irqsave(&kprobe_lock, flags);
 	old_p = get_kprobe(p->addr);
+	p->nmissed = 0;
 	if (old_p) {
 		ret = register_aggr_kprobe(old_p, p);
 		goto out;
