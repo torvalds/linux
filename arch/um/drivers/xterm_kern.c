@@ -69,7 +69,6 @@ int xterm_fd(int socket, int *pid_out)
 	 * isn't set) this will hang... */
 	wait_for_completion(&data->ready);
 
-	free_irq_by_irq_and_dev(XTERM_IRQ, data);
 	free_irq(XTERM_IRQ, data);
 
 	ret = data->new_fd;

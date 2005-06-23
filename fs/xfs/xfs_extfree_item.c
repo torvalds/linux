@@ -59,6 +59,18 @@ STATIC void	xfs_efi_item_abort(xfs_efi_log_item_t *);
 STATIC void	xfs_efd_item_abort(xfs_efd_log_item_t *);
 
 
+void
+xfs_efi_item_free(xfs_efi_log_item_t *efip)
+{
+	int nexts = efip->efi_format.efi_nextents;
+
+	if (nexts > XFS_EFI_MAX_FAST_EXTENTS) {
+		kmem_free(efip, sizeof(xfs_efi_log_item_t) +
+				(nexts - 1) * sizeof(xfs_extent_t));
+	} else {
+		kmem_zone_free(xfs_efi_zone, efip);
+	}
+}
 
 /*
  * This returns the number of iovecs needed to log the given efi item.
@@ -120,8 +132,6 @@ xfs_efi_item_pin(xfs_efi_log_item_t *efip)
 STATIC void
 xfs_efi_item_unpin(xfs_efi_log_item_t *efip, int stale)
 {
-	int		nexts;
-	int		size;
 	xfs_mount_t	*mp;
 	SPLDECL(s);
 
@@ -132,21 +142,11 @@ xfs_efi_item_unpin(xfs_efi_log_item_t *efip, int stale)
 		 * xfs_trans_delete_ail() drops the AIL lock.
 		 */
 		xfs_trans_delete_ail(mp, (xfs_log_item_t *)efip, s);
-
-		nexts = efip->efi_format.efi_nextents;
-		if (nexts > XFS_EFI_MAX_FAST_EXTENTS) {
-			size = sizeof(xfs_efi_log_item_t);
-			size += (nexts - 1) * sizeof(xfs_extent_t);
-			kmem_free(efip, size);
-		} else {
-			kmem_zone_free(xfs_efi_zone, efip);
-		}
+		xfs_efi_item_free(efip);
 	} else {
 		efip->efi_flags |= XFS_EFI_COMMITTED;
 		AIL_UNLOCK(mp, s);
 	}
-
-	return;
 }
 
 /*
@@ -159,8 +159,6 @@ xfs_efi_item_unpin(xfs_efi_log_item_t *efip, int stale)
 STATIC void
 xfs_efi_item_unpin_remove(xfs_efi_log_item_t *efip, xfs_trans_t *tp)
 {
-	int		nexts;
-	int		size;
 	xfs_mount_t	*mp;
 	xfs_log_item_desc_t	*lidp;
 	SPLDECL(s);
@@ -178,23 +176,11 @@ xfs_efi_item_unpin_remove(xfs_efi_log_item_t *efip, xfs_trans_t *tp)
 		 * xfs_trans_delete_ail() drops the AIL lock.
 		 */
 		xfs_trans_delete_ail(mp, (xfs_log_item_t *)efip, s);
-		/*
-		 * now free the item itself
-		 */
-		nexts = efip->efi_format.efi_nextents;
-		if (nexts > XFS_EFI_MAX_FAST_EXTENTS) {
-			size = sizeof(xfs_efi_log_item_t);
-			size += (nexts - 1) * sizeof(xfs_extent_t);
-			kmem_free(efip, size);
-		} else {
-			kmem_zone_free(xfs_efi_zone, efip);
-		}
+		xfs_efi_item_free(efip);
 	} else {
 		efip->efi_flags |= XFS_EFI_COMMITTED;
 		AIL_UNLOCK(mp, s);
 	}
-
-	return;
 }
 
 /*
@@ -245,18 +231,7 @@ xfs_efi_item_committed(xfs_efi_log_item_t *efip, xfs_lsn_t lsn)
 STATIC void
 xfs_efi_item_abort(xfs_efi_log_item_t *efip)
 {
-	int	nexts;
-	int	size;
-
-	nexts = efip->efi_format.efi_nextents;
-	if (nexts > XFS_EFI_MAX_FAST_EXTENTS) {
-		size = sizeof(xfs_efi_log_item_t);
-		size += (nexts - 1) * sizeof(xfs_extent_t);
-		kmem_free(efip, size);
-	} else {
-		kmem_zone_free(xfs_efi_zone, efip);
-	}
-	return;
+	xfs_efi_item_free(efip);
 }
 
 /*
@@ -288,7 +263,7 @@ xfs_efi_item_committing(xfs_efi_log_item_t *efip, xfs_lsn_t lsn)
 /*
  * This is the ops vector shared by all efi log items.
  */
-struct xfs_item_ops xfs_efi_item_ops = {
+STATIC struct xfs_item_ops xfs_efi_item_ops = {
 	.iop_size	= (uint(*)(xfs_log_item_t*))xfs_efi_item_size,
 	.iop_format	= (void(*)(xfs_log_item_t*, xfs_log_iovec_t*))
 					xfs_efi_item_format,
@@ -355,8 +330,6 @@ xfs_efi_release(xfs_efi_log_item_t	*efip,
 {
 	xfs_mount_t	*mp;
 	int		extents_left;
-	uint		size;
-	int		nexts;
 	SPLDECL(s);
 
 	mp = efip->efi_item.li_mountp;
@@ -372,19 +345,9 @@ xfs_efi_release(xfs_efi_log_item_t	*efip,
 		 * xfs_trans_delete_ail() drops the AIL lock.
 		 */
 		xfs_trans_delete_ail(mp, (xfs_log_item_t *)efip, s);
+		xfs_efi_item_free(efip);
 	} else {
 		AIL_UNLOCK(mp, s);
-	}
-
-	if (extents_left == 0) {
-		nexts = efip->efi_format.efi_nextents;
-		if (nexts > XFS_EFI_MAX_FAST_EXTENTS) {
-			size = sizeof(xfs_efi_log_item_t);
-			size += (nexts - 1) * sizeof(xfs_extent_t);
-			kmem_free(efip, size);
-		} else {
-			kmem_zone_free(xfs_efi_zone, efip);
-		}
 	}
 }
 
@@ -398,8 +361,6 @@ STATIC void
 xfs_efi_cancel(
 	xfs_efi_log_item_t	*efip)
 {
-	int		nexts;
-	int		size;
 	xfs_mount_t	*mp;
 	SPLDECL(s);
 
@@ -410,26 +371,25 @@ xfs_efi_cancel(
 		 * xfs_trans_delete_ail() drops the AIL lock.
 		 */
 		xfs_trans_delete_ail(mp, (xfs_log_item_t *)efip, s);
-
-		nexts = efip->efi_format.efi_nextents;
-		if (nexts > XFS_EFI_MAX_FAST_EXTENTS) {
-			size = sizeof(xfs_efi_log_item_t);
-			size += (nexts - 1) * sizeof(xfs_extent_t);
-			kmem_free(efip, size);
-		} else {
-			kmem_zone_free(xfs_efi_zone, efip);
-		}
+		xfs_efi_item_free(efip);
 	} else {
 		efip->efi_flags |= XFS_EFI_CANCELED;
 		AIL_UNLOCK(mp, s);
 	}
-
-	return;
 }
 
+STATIC void
+xfs_efd_item_free(xfs_efd_log_item_t *efdp)
+{
+	int nexts = efdp->efd_format.efd_nextents;
 
-
-
+	if (nexts > XFS_EFD_MAX_FAST_EXTENTS) {
+		kmem_free(efdp, sizeof(xfs_efd_log_item_t) +
+				(nexts - 1) * sizeof(xfs_extent_t));
+	} else {
+		kmem_zone_free(xfs_efd_zone, efdp);
+	}
+}
 
 /*
  * This returns the number of iovecs needed to log the given efd item.
@@ -533,9 +493,6 @@ xfs_efd_item_unlock(xfs_efd_log_item_t *efdp)
 STATIC xfs_lsn_t
 xfs_efd_item_committed(xfs_efd_log_item_t *efdp, xfs_lsn_t lsn)
 {
-	uint	size;
-	int	nexts;
-
 	/*
 	 * If we got a log I/O error, it's always the case that the LR with the
 	 * EFI got unpinned and freed before the EFD got aborted.
@@ -543,15 +500,7 @@ xfs_efd_item_committed(xfs_efd_log_item_t *efdp, xfs_lsn_t lsn)
 	if ((efdp->efd_item.li_flags & XFS_LI_ABORTED) == 0)
 		xfs_efi_release(efdp->efd_efip, efdp->efd_format.efd_nextents);
 
-	nexts = efdp->efd_format.efd_nextents;
-	if (nexts > XFS_EFD_MAX_FAST_EXTENTS) {
-		size = sizeof(xfs_efd_log_item_t);
-		size += (nexts - 1) * sizeof(xfs_extent_t);
-		kmem_free(efdp, size);
-	} else {
-		kmem_zone_free(xfs_efd_zone, efdp);
-	}
-
+	xfs_efd_item_free(efdp);
 	return (xfs_lsn_t)-1;
 }
 
@@ -565,9 +514,6 @@ xfs_efd_item_committed(xfs_efd_log_item_t *efdp, xfs_lsn_t lsn)
 STATIC void
 xfs_efd_item_abort(xfs_efd_log_item_t *efdp)
 {
-	int	nexts;
-	int	size;
-
 	/*
 	 * If we got a log I/O error, it's always the case that the LR with the
 	 * EFI got unpinned and freed before the EFD got aborted. So don't
@@ -576,15 +522,7 @@ xfs_efd_item_abort(xfs_efd_log_item_t *efdp)
 	if ((efdp->efd_item.li_flags & XFS_LI_ABORTED) == 0)
 		xfs_efi_cancel(efdp->efd_efip);
 
-	nexts = efdp->efd_format.efd_nextents;
-	if (nexts > XFS_EFD_MAX_FAST_EXTENTS) {
-		size = sizeof(xfs_efd_log_item_t);
-		size += (nexts - 1) * sizeof(xfs_extent_t);
-		kmem_free(efdp, size);
-	} else {
-		kmem_zone_free(xfs_efd_zone, efdp);
-	}
-	return;
+	xfs_efd_item_free(efdp);
 }
 
 /*
@@ -615,7 +553,7 @@ xfs_efd_item_committing(xfs_efd_log_item_t *efip, xfs_lsn_t lsn)
 /*
  * This is the ops vector shared by all efd log items.
  */
-struct xfs_item_ops xfs_efd_item_ops = {
+STATIC struct xfs_item_ops xfs_efd_item_ops = {
 	.iop_size	= (uint(*)(xfs_log_item_t*))xfs_efd_item_size,
 	.iop_format	= (void(*)(xfs_log_item_t*, xfs_log_iovec_t*))
 					xfs_efd_item_format,

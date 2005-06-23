@@ -43,7 +43,7 @@ renew_parental_timestamps(struct dentry *direntry)
 
 /* Note: caller must free return buffer */
 char *
-build_path_from_dentry(struct dentry *direntry)
+build_path_from_dentry(struct dentry *direntry, const struct cifs_sb_info *cifs_sb)
 {
 	struct dentry *temp;
 	int namelen = 0;
@@ -74,7 +74,7 @@ cifs_bp_rename_retry:
 		if (namelen < 0) {
 			break;
 		} else {
-			full_path[namelen] = '\\';
+			full_path[namelen] = CIFS_DIR_SEP(cifs_sb);
 			strncpy(full_path + namelen + 1, temp->d_name.name,
 				temp->d_name.len);
 			cFYI(0, (" name: %s ", full_path + namelen));
@@ -138,7 +138,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 	pTcon = cifs_sb->tcon;
 
 	down(&direntry->d_sb->s_vfs_rename_sem);
-	full_path = build_path_from_dentry(direntry);
+	full_path = build_path_from_dentry(direntry, cifs_sb);
 	up(&direntry->d_sb->s_vfs_rename_sem);
 	if(full_path == NULL) {
 		FreeXid(xid);
@@ -299,7 +299,7 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode, dev_t dev
 	pTcon = cifs_sb->tcon;
 
 	down(&direntry->d_sb->s_vfs_rename_sem);
-	full_path = build_path_from_dentry(direntry);
+	full_path = build_path_from_dentry(direntry, cifs_sb);
 	up(&direntry->d_sb->s_vfs_rename_sem);
 	if(full_path == NULL)
 		rc = -ENOMEM;
@@ -360,7 +360,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry, struct name
 	/* can not grab the rename sem here since it would
 	deadlock in the cases (beginning of sys_rename itself)
 	in which we already have the sb rename sem */
-	full_path = build_path_from_dentry(direntry);
+	full_path = build_path_from_dentry(direntry, cifs_sb);
 	if(full_path == NULL) {
 		FreeXid(xid);
 		return ERR_PTR(-ENOMEM);

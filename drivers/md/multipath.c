@@ -533,8 +533,7 @@ static int multipath_run (mddev_t *mddev)
 out_free_conf:
 	if (conf->pool)
 		mempool_destroy(conf->pool);
-	if (conf->multipaths)
-		kfree(conf->multipaths);
+	kfree(conf->multipaths);
 	kfree(conf);
 	mddev->private = NULL;
 out:

@@ -225,9 +225,9 @@ void ei_tx_timeout(struct net_device *dev)
 	unsigned long icucr;
 
 	local_irq_save(flags);
-	icucr = inl(ICUCR1);
+	icucr = inl(M32R_ICU_CR1_PORTL);
 	icucr |= M32R_ICUCR_ISMOD11;
-	outl(icucr, ICUCR1);
+	outl(icucr, M32R_ICU_CR1_PORTL);
 	local_irq_restore(flags);
 #endif
 	ei_local->stat.tx_errors++;

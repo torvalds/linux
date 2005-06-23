@@ -366,8 +366,6 @@ ip6t_log_packet(unsigned int hooknum,
 		const char *level_string,
 		const char *prefix)
 {
-	struct ipv6hdr *ipv6h = skb->nh.ipv6h;
-
 	spin_lock_bh(&log_lock);
 	printk(level_string);
 	printk("%sIN=%s OUT=%s ",
@@ -377,39 +375,25 @@ ip6t_log_packet(unsigned int hooknum,
 	if (in && !out) {
 		/* MAC logging for input chain only. */
 		printk("MAC=");
-		if (skb->dev && skb->dev->hard_header_len && skb->mac.raw != (void*)ipv6h) {
-			if (skb->dev->type != ARPHRD_SIT){
-			  int i;
-			  unsigned char *p = skb->mac.raw;
-			  for (i = 0; i < skb->dev->hard_header_len; i++,p++)
-				printk("%02x%c", *p,
-			       		i==skb->dev->hard_header_len - 1
-			       		? ' ':':');
-			} else {
-			  int i;
-			  unsigned char *p = skb->mac.raw;
-			  if ( p - (ETH_ALEN*2+2) > skb->head ){
-			    p -= (ETH_ALEN+2);
-			    for (i = 0; i < (ETH_ALEN); i++,p++)
-				printk("%02x%s", *p,
-					i == ETH_ALEN-1 ? "->" : ":");
-			    p -= (ETH_ALEN*2);
-			    for (i = 0; i < (ETH_ALEN); i++,p++)
-				printk("%02x%c", *p,
-					i == ETH_ALEN-1 ? ' ' : ':');
-			  }
-			  
-			  if ((skb->dev->addr_len == 4) &&
-			      skb->dev->hard_header_len > 20){
-			    printk("TUNNEL=");
-			    p = skb->mac.raw + 12;
-			    for (i = 0; i < 4; i++,p++)
-				printk("%3d%s", *p,
-					i == 3 ? "->" : ".");
-			    for (i = 0; i < 4; i++,p++)
-				printk("%3d%c", *p,
-					i == 3 ? ' ' : '.');
-			  }
+		if (skb->dev && skb->dev->hard_header_len &&
+		    skb->mac.raw != skb->nh.raw) {
+			unsigned char *p = skb->mac.raw;
+			int i;
+
+			if (skb->dev->type == ARPHRD_SIT &&
+			    (p -= ETH_HLEN) < skb->head)
+				p = NULL;
+
+			if (p != NULL)
+				for (i = 0; i < skb->dev->hard_header_len; i++)
+					printk("%02x", p[i]);
+			printk(" ");
+
+			if (skb->dev->type == ARPHRD_SIT) {
+				struct iphdr *iph = (struct iphdr *)skb->mac.raw;
+				printk("TUNNEL=%u.%u.%u.%u->%u.%u.%u.%u ",
+				       NIPQUAD(iph->saddr),
+				       NIPQUAD(iph->daddr));
 			}
 		} else
 			printk(" ");

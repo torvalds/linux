@@ -41,20 +41,25 @@ static const struct vio_device_id *vio_match_device(
 static struct iommu_table *vio_build_iommu_table(struct vio_dev *);
 static int vio_num_address_cells;
 #endif
-static struct vio_dev *vio_bus_device; /* fake "parent" device */
+#ifdef CONFIG_PPC_ISERIES
+static struct iommu_table veth_iommu_table;
+static struct iommu_table vio_iommu_table;
+#endif
+static struct vio_dev vio_bus_device  = { /* fake "parent" device */
+	.name = vio_bus_device.dev.bus_id,
+	.type = "",
+#ifdef CONFIG_PPC_ISERIES
+	.iommu_table = &vio_iommu_table,
+#endif
+	.dev.bus_id = "vio",
+	.dev.bus = &vio_bus_type,
+};
 
 #ifdef CONFIG_PPC_ISERIES
 static struct vio_dev *__init vio_register_device_iseries(char *type,
 		uint32_t unit_num);
 
-static struct iommu_table veth_iommu_table;
-static struct iommu_table vio_iommu_table;
-
-static struct vio_dev _vio_dev  = {
-	.iommu_table = &vio_iommu_table,
-	.dev.bus = &vio_bus_type
-};
-struct device *iSeries_vio_dev = &_vio_dev.dev;
+struct device *iSeries_vio_dev = &vio_bus_device.dev;
 EXPORT_SYMBOL(iSeries_vio_dev);
 
 #define device_is_compatible(a, b)	1
@@ -260,18 +265,10 @@ static int __init vio_bus_init(void)
 	}
 
 	/* the fake parent of all vio devices, just to give us a nice directory */
-	vio_bus_device = kmalloc(sizeof(struct vio_dev), GFP_KERNEL);
-	if (!vio_bus_device) {
-		return 1;
-	}
-	memset(vio_bus_device, 0, sizeof(struct vio_dev));
-	strcpy(vio_bus_device->dev.bus_id, "vio");
-
-	err = device_register(&vio_bus_device->dev);
+	err = device_register(&vio_bus_device.dev);
 	if (err) {
 		printk(KERN_WARNING "%s: device_register returned %i\n", __FUNCTION__,
 			err);
-		kfree(vio_bus_device);
 		return err;
 	}
 
@@ -300,7 +297,7 @@ static void __devinit vio_dev_release(struct device *dev)
 }
 
 #ifdef CONFIG_PPC_PSERIES
-static ssize_t viodev_show_devspec(struct device *dev, char *buf)
+static ssize_t viodev_show_devspec(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct device_node *of_node = dev->platform_data;
 
@@ -309,7 +306,7 @@ static ssize_t viodev_show_devspec(struct device *dev, char *buf)
 DEVICE_ATTR(devspec, S_IRUSR | S_IRGRP | S_IROTH, viodev_show_devspec, NULL);
 #endif
 
-static ssize_t viodev_show_name(struct device *dev, char *buf)
+static ssize_t viodev_show_name(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%s\n", to_vio_dev(dev)->name);
 }
@@ -326,7 +323,7 @@ static struct vio_dev * __devinit vio_register_device_common(
 	viodev->unit_address = unit_address;
 	viodev->iommu_table = iommu_table;
 	/* init generic 'struct device' fields: */
-	viodev->dev.parent = &vio_bus_device->dev;
+	viodev->dev.parent = &vio_bus_device.dev;
 	viodev->dev.bus = &vio_bus_type;
 	viodev->dev.release = vio_dev_release;
 
@@ -636,5 +633,3 @@ struct bus_type vio_bus_type = {
 	.name = "vio",
 	.match = vio_bus_match,
 };
-
-EXPORT_SYMBOL(vio_bus_type);

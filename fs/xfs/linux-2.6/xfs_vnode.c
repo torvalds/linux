@@ -411,13 +411,13 @@ vn_remove(
 /*  0 */		(void *)(__psint_t)(vk),		\
 /*  1 */		(void *)(s),				\
 /*  2 */		(void *)(__psint_t) line,		\
-/*  3 */		(void *)(vn_count(vp)), \
+/*  3 */		(void *)(__psint_t)(vn_count(vp)),	\
 /*  4 */		(void *)(ra),				\
 /*  5 */		(void *)(__psunsigned_t)(vp)->v_flag,	\
 /*  6 */		(void *)(__psint_t)current_cpu(),	\
 /*  7 */		(void *)(__psint_t)current_pid(),	\
 /*  8 */		(void *)__return_address,		\
-/*  9 */		0, 0, 0, 0, 0, 0, 0)
+/*  9 */		NULL, NULL, NULL, NULL, NULL, NULL, NULL)
 
 /*
  * Vnode tracing code.

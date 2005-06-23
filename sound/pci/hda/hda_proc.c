@@ -68,21 +68,27 @@ static void print_amp_caps(snd_info_buffer_t *buffer,
 
 static void print_amp_vals(snd_info_buffer_t *buffer,
 			   struct hda_codec *codec, hda_nid_t nid,
-			   int dir, int stereo)
+			   int dir, int stereo, int indices)
 {
 	unsigned int val;
-	if (stereo) {
+	int i;
+
+	if (dir == HDA_OUTPUT)
+		dir = AC_AMP_GET_OUTPUT;
+	else
+		dir = AC_AMP_GET_INPUT;
+	for (i = 0; i < indices; i++) {
+		snd_iprintf(buffer, " [");
+		if (stereo) {
+			val = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_AMP_GAIN_MUTE,
+						 AC_AMP_GET_LEFT | dir | i);
+			snd_iprintf(buffer, "0x%02x ", val);
+		}
 		val = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_AMP_GAIN_MUTE,
-					  AC_AMP_GET_LEFT |
-					 (dir == HDA_OUTPUT ? AC_AMP_GET_OUTPUT :
-					  AC_AMP_GET_INPUT));
-		snd_iprintf(buffer, "0x%02x ", val);
+					 AC_AMP_GET_RIGHT | dir | i);
+		snd_iprintf(buffer, "0x%02x]", val);
 	}
-	val = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_AMP_GAIN_MUTE,
-				 AC_AMP_GET_RIGHT |
-				 (dir == HDA_OUTPUT ? AC_AMP_GET_OUTPUT :
-				  AC_AMP_GET_INPUT));
-	snd_iprintf(buffer, "0x%02x\n", val);
+	snd_iprintf(buffer, "\n");
 }
 
 static void print_pcm_caps(snd_info_buffer_t *buffer,
@@ -157,6 +163,7 @@ static const char *get_jack_color(u32 cfg)
 static void print_pin_caps(snd_info_buffer_t *buffer,
 			   struct hda_codec *codec, hda_nid_t nid)
 {
+	static char *jack_conns[4] = { "Jack", "N/A", "Fixed", "Both" };
 	static char *jack_types[16] = {
 		"Line Out", "Speaker", "HP Out", "CD",
 		"SPDIF Out", "Digital Out", "Modem Line", "Modem Hand",
@@ -176,7 +183,8 @@ static void print_pin_caps(snd_info_buffer_t *buffer,
 		snd_iprintf(buffer, " HP");
 	snd_iprintf(buffer, "\n");
 	caps = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_CONFIG_DEFAULT, 0);
-	snd_iprintf(buffer, "  Pin Default 0x%08x: %s at %s %s\n", caps,
+	snd_iprintf(buffer, "  Pin Default 0x%08x: [%s] %s at %s %s\n", caps,
+		    jack_conns[(caps & AC_DEFCFG_PORT_CONN) >> AC_DEFCFG_PORT_CONN_SHIFT],
 		    jack_types[(caps & AC_DEFCFG_DEVICE) >> AC_DEFCFG_DEVICE_SHIFT],
 		    jack_locations[(caps >> (AC_DEFCFG_LOCATION_SHIFT + 4)) & 3],
 		    get_jack_location(caps));
@@ -215,6 +223,9 @@ static void print_codec_info(snd_info_entry_t *entry, snd_info_buffer_t *buffer)
 		unsigned int wid_caps = snd_hda_param_read(codec, nid,
 							   AC_PAR_AUDIO_WIDGET_CAP);
 		unsigned int wid_type = (wid_caps & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
+		int conn_len = 0; 
+		hda_nid_t conn[HDA_MAX_CONNECTIONS];
+
 		snd_iprintf(buffer, "Node 0x%02x [%s] wcaps 0x%x:", nid,
 			    get_wid_type_name(wid_type), wid_caps);
 		if (wid_caps & AC_WCAP_STEREO)
@@ -229,19 +240,23 @@ static void print_codec_info(snd_info_entry_t *entry, snd_info_buffer_t *buffer)
 			snd_iprintf(buffer, " Amp-Out");
 		snd_iprintf(buffer, "\n");
 
+		if (wid_caps & AC_WCAP_CONN_LIST)
+			conn_len = snd_hda_get_connections(codec, nid, conn,
+							   HDA_MAX_CONNECTIONS);
+
 		if (wid_caps & AC_WCAP_IN_AMP) {
 			snd_iprintf(buffer, "  Amp-In caps: ");
 			print_amp_caps(buffer, codec, nid, HDA_INPUT);
 			snd_iprintf(buffer, "  Amp-In vals: ");
 			print_amp_vals(buffer, codec, nid, HDA_INPUT,
-				       wid_caps & AC_WCAP_STEREO);
+				       wid_caps & AC_WCAP_STEREO, conn_len);
 		}
 		if (wid_caps & AC_WCAP_OUT_AMP) {
 			snd_iprintf(buffer, "  Amp-Out caps: ");
 			print_amp_caps(buffer, codec, nid, HDA_OUTPUT);
 			snd_iprintf(buffer, "  Amp-Out vals: ");
 			print_amp_vals(buffer, codec, nid, HDA_OUTPUT,
-				       wid_caps & AC_WCAP_STEREO);
+				       wid_caps & AC_WCAP_STEREO, 1);
 		}
 
 		if (wid_type == AC_WID_PIN) {
@@ -265,14 +280,17 @@ static void print_codec_info(snd_info_entry_t *entry, snd_info_buffer_t *buffer)
 		}
 
 		if (wid_caps & AC_WCAP_CONN_LIST) {
-			hda_nid_t conn[HDA_MAX_CONNECTIONS];
-			int c, conn_len;
-			conn_len = snd_hda_get_connections(codec, nid, conn,
-							   HDA_MAX_CONNECTIONS);
+			int c, curr = -1;
+			if (conn_len > 1 && wid_type != AC_WID_AUD_MIX)
+				curr = snd_hda_codec_read(codec, nid, 0,
+					AC_VERB_GET_CONNECT_SEL, 0);
 			snd_iprintf(buffer, "  Connection: %d\n", conn_len);
 			snd_iprintf(buffer, "    ");
-			for (c = 0; c < conn_len; c++)
+			for (c = 0; c < conn_len; c++) {
 				snd_iprintf(buffer, " 0x%02x", conn[c]);
+				if (c == curr)
+					snd_iprintf(buffer, "*");
+			}
 			snd_iprintf(buffer, "\n");
 		}
 	}

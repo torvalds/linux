@@ -384,12 +384,13 @@ struct rt6_info *rt6_lookup(struct in6_addr *daddr, struct in6_addr *saddr,
    be destroyed.
  */
 
-int ip6_ins_rt(struct rt6_info *rt, struct nlmsghdr *nlh, void *_rtattr)
+int ip6_ins_rt(struct rt6_info *rt, struct nlmsghdr *nlh,
+		void *_rtattr, struct netlink_skb_parms *req)
 {
 	int err;
 
 	write_lock_bh(&rt6_lock);
-	err = fib6_add(&ip6_routing_table, rt, nlh, _rtattr);
+	err = fib6_add(&ip6_routing_table, rt, nlh, _rtattr, req);
 	write_unlock_bh(&rt6_lock);
 
 	return err;
@@ -400,7 +401,7 @@ int ip6_ins_rt(struct rt6_info *rt, struct nlmsghdr *nlh, void *_rtattr)
  */
 
 static struct rt6_info *rt6_cow(struct rt6_info *ort, struct in6_addr *daddr,
-				struct in6_addr *saddr)
+				struct in6_addr *saddr, struct netlink_skb_parms *req)
 {
 	int err;
 	struct rt6_info *rt;
@@ -432,7 +433,7 @@ static struct rt6_info *rt6_cow(struct rt6_info *ort, struct in6_addr *daddr,
 
 		dst_hold(&rt->u.dst);
 
-		err = ip6_ins_rt(rt, NULL, NULL);
+		err = ip6_ins_rt(rt, NULL, NULL, req);
 		if (err == 0)
 			return rt;
 
@@ -491,7 +492,8 @@ restart:
 		read_unlock_bh(&rt6_lock);
 
 		nrt = rt6_cow(rt, &skb->nh.ipv6h->daddr,
-			      &skb->nh.ipv6h->saddr);
+			      &skb->nh.ipv6h->saddr,
+			      &NETLINK_CB(skb));
 
 		dst_release(&rt->u.dst);
 		rt = nrt;
@@ -551,7 +553,7 @@ restart:
 		dst_hold(&rt->u.dst);
 		read_unlock_bh(&rt6_lock);
 
-		nrt = rt6_cow(rt, &fl->fl6_dst, &fl->fl6_src);
+		nrt = rt6_cow(rt, &fl->fl6_dst, &fl->fl6_src, NULL);
 
 		dst_release(&rt->u.dst);
 		rt = nrt;
@@ -598,7 +600,7 @@ static struct dst_entry *ip6_negative_advice(struct dst_entry *dst)
 
 	if (rt) {
 		if (rt->rt6i_flags & RTF_CACHE)
-			ip6_del_rt(rt, NULL, NULL);
+			ip6_del_rt(rt, NULL, NULL, NULL);
 		else
 			dst_release(dst);
 	}
@@ -787,7 +789,8 @@ int ipv6_get_hoplimit(struct net_device *dev)
  *
  */
 
-int ip6_route_add(struct in6_rtmsg *rtmsg, struct nlmsghdr *nlh, void *_rtattr)
+int ip6_route_add(struct in6_rtmsg *rtmsg, struct nlmsghdr *nlh, 
+		void *_rtattr, struct netlink_skb_parms *req)
 {
 	int err;
 	struct rtmsg *r;
@@ -974,7 +977,7 @@ install_route:
 		rt->u.dst.metrics[RTAX_ADVMSS-1] = ipv6_advmss(dst_mtu(&rt->u.dst));
 	rt->u.dst.dev = dev;
 	rt->rt6i_idev = idev;
-	return ip6_ins_rt(rt, nlh, _rtattr);
+	return ip6_ins_rt(rt, nlh, _rtattr, req);
 
 out:
 	if (dev)
@@ -986,7 +989,7 @@ out:
 	return err;
 }
 
-int ip6_del_rt(struct rt6_info *rt, struct nlmsghdr *nlh, void *_rtattr)
+int ip6_del_rt(struct rt6_info *rt, struct nlmsghdr *nlh, void *_rtattr, struct netlink_skb_parms *req)
 {
 	int err;
 
@@ -994,7 +997,7 @@ int ip6_del_rt(struct rt6_info *rt, struct nlmsghdr *nlh, void *_rtattr)
 
 	rt6_reset_dflt_pointer(NULL);
 
-	err = fib6_del(rt, nlh, _rtattr);
+	err = fib6_del(rt, nlh, _rtattr, req);
 	dst_release(&rt->u.dst);
 
 	write_unlock_bh(&rt6_lock);
@@ -1002,7 +1005,7 @@ int ip6_del_rt(struct rt6_info *rt, struct nlmsghdr *nlh, void *_rtattr)
 	return err;
 }
 
-static int ip6_route_del(struct in6_rtmsg *rtmsg, struct nlmsghdr *nlh, void *_rtattr)
+static int ip6_route_del(struct in6_rtmsg *rtmsg, struct nlmsghdr *nlh, void *_rtattr, struct netlink_skb_parms *req)
 {
 	struct fib6_node *fn;
 	struct rt6_info *rt;
@@ -1029,7 +1032,7 @@ static int ip6_route_del(struct in6_rtmsg *rtmsg, struct nlmsghdr *nlh, void *_r
 			dst_hold(&rt->u.dst);
 			read_unlock_bh(&rt6_lock);
 
-			return ip6_del_rt(rt, nlh, _rtattr);
+			return ip6_del_rt(rt, nlh, _rtattr, req);
 		}
 	}
 	read_unlock_bh(&rt6_lock);
@@ -1136,11 +1139,11 @@ source_ok:
 	nrt->u.dst.metrics[RTAX_MTU-1] = ipv6_get_mtu(neigh->dev);
 	nrt->u.dst.metrics[RTAX_ADVMSS-1] = ipv6_advmss(dst_mtu(&nrt->u.dst));
 
-	if (ip6_ins_rt(nrt, NULL, NULL))
+	if (ip6_ins_rt(nrt, NULL, NULL, NULL))
 		goto out;
 
 	if (rt->rt6i_flags&RTF_CACHE) {
-		ip6_del_rt(rt, NULL, NULL);
+		ip6_del_rt(rt, NULL, NULL, NULL);
 		return;
 	}
 
@@ -1204,7 +1207,7 @@ void rt6_pmtu_discovery(struct in6_addr *daddr, struct in6_addr *saddr,
 	   2. It is gatewayed route or NONEXTHOP route. Action: clone it.
 	 */
 	if (!rt->rt6i_nexthop && !(rt->rt6i_flags & RTF_NONEXTHOP)) {
-		nrt = rt6_cow(rt, daddr, saddr);
+		nrt = rt6_cow(rt, daddr, saddr, NULL);
 		if (!nrt->u.dst.error) {
 			nrt->u.dst.metrics[RTAX_MTU-1] = pmtu;
 			if (allfrag)
@@ -1232,7 +1235,7 @@ void rt6_pmtu_discovery(struct in6_addr *daddr, struct in6_addr *saddr,
 		nrt->u.dst.metrics[RTAX_MTU-1] = pmtu;
 		if (allfrag)
 			nrt->u.dst.metrics[RTAX_FEATURES-1] |= RTAX_FEATURE_ALLFRAG;
-		ip6_ins_rt(nrt, NULL, NULL);
+		ip6_ins_rt(nrt, NULL, NULL, NULL);
 	}
 
 out:
@@ -1305,7 +1308,7 @@ struct rt6_info *rt6_add_dflt_router(struct in6_addr *gwaddr,
 
 	rtmsg.rtmsg_ifindex = dev->ifindex;
 
-	ip6_route_add(&rtmsg, NULL, NULL);
+	ip6_route_add(&rtmsg, NULL, NULL, NULL);
 	return rt6_get_dflt_router(gwaddr, dev);
 }
 
@@ -1323,7 +1326,7 @@ restart:
 
 			read_unlock_bh(&rt6_lock);
 
-			ip6_del_rt(rt, NULL, NULL);
+			ip6_del_rt(rt, NULL, NULL, NULL);
 
 			goto restart;
 		}
@@ -1349,10 +1352,10 @@ int ipv6_route_ioctl(unsigned int cmd, void __user *arg)
 		rtnl_lock();
 		switch (cmd) {
 		case SIOCADDRT:
-			err = ip6_route_add(&rtmsg, NULL, NULL);
+			err = ip6_route_add(&rtmsg, NULL, NULL, NULL);
 			break;
 		case SIOCDELRT:
-			err = ip6_route_del(&rtmsg, NULL, NULL);
+			err = ip6_route_del(&rtmsg, NULL, NULL, NULL);
 			break;
 		default:
 			err = -EINVAL;
@@ -1546,7 +1549,7 @@ int inet6_rtm_delroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 
 	if (inet6_rtm_to_rtmsg(r, arg, &rtmsg))
 		return -EINVAL;
-	return ip6_route_del(&rtmsg, nlh, arg);
+	return ip6_route_del(&rtmsg, nlh, arg, &NETLINK_CB(skb));
 }
 
 int inet6_rtm_newroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
@@ -1556,7 +1559,7 @@ int inet6_rtm_newroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 
 	if (inet6_rtm_to_rtmsg(r, arg, &rtmsg))
 		return -EINVAL;
-	return ip6_route_add(&rtmsg, nlh, arg);
+	return ip6_route_add(&rtmsg, nlh, arg, &NETLINK_CB(skb));
 }
 
 struct rt6_rtnl_dump_arg
@@ -1566,12 +1569,9 @@ struct rt6_rtnl_dump_arg
 };
 
 static int rt6_fill_node(struct sk_buff *skb, struct rt6_info *rt,
-			 struct in6_addr *dst,
-			 struct in6_addr *src,
-			 int iif,
-			 int type, u32 pid, u32 seq,
-			 struct nlmsghdr *in_nlh, int prefix,
-			 unsigned int flags)
+			 struct in6_addr *dst, struct in6_addr *src,
+			 int iif, int type, u32 pid, u32 seq,
+			 int prefix, unsigned int flags)
 {
 	struct rtmsg *rtm;
 	struct nlmsghdr  *nlh;
@@ -1583,10 +1583,6 @@ static int rt6_fill_node(struct sk_buff *skb, struct rt6_info *rt,
 			/* success since this is not a prefix route */
 			return 1;
 		}
-	}
-
-	if (!pid && in_nlh) {
-		pid = in_nlh->nlmsg_pid;
 	}
 
 	nlh = NLMSG_NEW(skb, pid, seq, type, sizeof(*rtm), flags);
@@ -1675,7 +1671,7 @@ static int rt6_dump_route(struct rt6_info *rt, void *p_arg)
 
 	return rt6_fill_node(arg->skb, rt, NULL, NULL, 0, RTM_NEWROUTE,
 		     NETLINK_CB(arg->cb->skb).pid, arg->cb->nlh->nlmsg_seq,
-		     NULL, prefix, NLM_F_MULTI);
+		     prefix, NLM_F_MULTI);
 }
 
 static int fib6_dump_node(struct fib6_walker_t *w)
@@ -1823,7 +1819,7 @@ int inet6_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void *arg)
 			    &fl.fl6_dst, &fl.fl6_src,
 			    iif,
 			    RTM_NEWROUTE, NETLINK_CB(in_skb).pid,
-			    nlh->nlmsg_seq, nlh, 0, 0);
+			    nlh->nlmsg_seq, 0, 0);
 	if (err < 0) {
 		err = -EMSGSIZE;
 		goto out_free;
@@ -1839,17 +1835,25 @@ out_free:
 	goto out;	
 }
 
-void inet6_rt_notify(int event, struct rt6_info *rt, struct nlmsghdr *nlh)
+void inet6_rt_notify(int event, struct rt6_info *rt, struct nlmsghdr *nlh, 
+			struct netlink_skb_parms *req)
 {
 	struct sk_buff *skb;
 	int size = NLMSG_SPACE(sizeof(struct rtmsg)+256);
+	u32 pid = current->pid;
+	u32 seq = 0;
 
+	if (req)
+		pid = req->pid;
+	if (nlh)
+		seq = nlh->nlmsg_seq;
+	
 	skb = alloc_skb(size, gfp_any());
 	if (!skb) {
 		netlink_set_err(rtnl, 0, RTMGRP_IPV6_ROUTE, ENOBUFS);
 		return;
 	}
-	if (rt6_fill_node(skb, rt, NULL, NULL, 0, event, 0, 0, nlh, 0, 0) < 0) {
+	if (rt6_fill_node(skb, rt, NULL, NULL, 0, event, pid, seq, 0, 0) < 0) {
 		kfree_skb(skb);
 		netlink_set_err(rtnl, 0, RTMGRP_IPV6_ROUTE, EINVAL);
 		return;

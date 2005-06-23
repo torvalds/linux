@@ -64,7 +64,7 @@ static __inline__ int hard_smp_processor_id(void)
 	}
 }
 
-#define smp_processor_id() (current_thread_info()->cpu)
+#define raw_smp_processor_id() (current_thread_info()->cpu)
 
 #endif /* !(__ASSEMBLY__) */
 

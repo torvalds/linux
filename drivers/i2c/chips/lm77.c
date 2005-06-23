@@ -25,7 +25,6 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -103,7 +102,7 @@ static inline int LM77_TEMP_FROM_REG(u16 reg)
 
 /* read routines for temperature limits */
 #define show(value)	\
-static ssize_t show_##value(struct device *dev, char *buf)	\
+static ssize_t show_##value(struct device *dev, struct device_attribute *attr, char *buf)	\
 {								\
 	struct lm77_data *data = lm77_update_device(dev);	\
 	return sprintf(buf, "%d\n", data->value);		\
@@ -116,17 +115,17 @@ show(temp_max);
 show(alarms);
 
 /* read routines for hysteresis values */
-static ssize_t show_temp_crit_hyst(struct device *dev, char *buf)
+static ssize_t show_temp_crit_hyst(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct lm77_data *data = lm77_update_device(dev);
 	return sprintf(buf, "%d\n", data->temp_crit - data->temp_hyst);
 }
-static ssize_t show_temp_min_hyst(struct device *dev, char *buf)
+static ssize_t show_temp_min_hyst(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct lm77_data *data = lm77_update_device(dev);
 	return sprintf(buf, "%d\n", data->temp_min + data->temp_hyst);
 }
-static ssize_t show_temp_max_hyst(struct device *dev, char *buf)
+static ssize_t show_temp_max_hyst(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct lm77_data *data = lm77_update_device(dev);
 	return sprintf(buf, "%d\n", data->temp_max - data->temp_hyst);
@@ -134,7 +133,7 @@ static ssize_t show_temp_max_hyst(struct device *dev, char *buf)
 
 /* write routines */
 #define set(value, reg)	\
-static ssize_t set_##value(struct device *dev, const char *buf, size_t count)	\
+static ssize_t set_##value(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)	\
 {										\
 	struct i2c_client *client = to_i2c_client(dev);				\
 	struct lm77_data *data = i2c_get_clientdata(client);			\
@@ -152,7 +151,7 @@ set(temp_max, LM77_REG_TEMP_MAX);
 
 /* hysteresis is stored as a relative value on the chip, so it has to be
    converted first */
-static ssize_t set_temp_crit_hyst(struct device *dev, const char *buf, size_t count)
+static ssize_t set_temp_crit_hyst(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lm77_data *data = i2c_get_clientdata(client);
@@ -167,7 +166,7 @@ static ssize_t set_temp_crit_hyst(struct device *dev, const char *buf, size_t co
 }
 
 /* preserve hysteresis when setting T_crit */
-static ssize_t set_temp_crit(struct device *dev, const char *buf, size_t count)
+static ssize_t set_temp_crit(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lm77_data *data = i2c_get_clientdata(client);

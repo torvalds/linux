@@ -21,7 +21,7 @@
 # error "<asm-arm/smp.h> included in non-SMP build"
 #endif
 
-#define smp_processor_id()	(current_thread_info()->cpu)
+#define raw_smp_processor_id() (current_thread_info()->cpu)
 
 extern cpumask_t cpu_present_mask;
 #define cpu_possible_map cpu_present_mask

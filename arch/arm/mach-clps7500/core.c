@@ -26,6 +26,8 @@
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
+unsigned int vram_size;
+
 static void cl7500_ack_irq_a(unsigned int irq)
 {
 	unsigned int val, mask;

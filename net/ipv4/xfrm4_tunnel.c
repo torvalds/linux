@@ -84,7 +84,7 @@ static void ipip_err(struct sk_buff *skb, u32 info)
 		handler->err_handler(skb, &arg);
 }
 
-static int ipip_init_state(struct xfrm_state *x, void *args)
+static int ipip_init_state(struct xfrm_state *x)
 {
 	if (!x->props.mode)
 		return -EINVAL;

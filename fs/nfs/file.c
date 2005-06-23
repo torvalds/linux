@@ -71,6 +71,18 @@ struct inode_operations nfs_file_inode_operations = {
 	.setattr	= nfs_setattr,
 };
 
+#ifdef CONFIG_NFS_V3
+struct inode_operations nfs3_file_inode_operations = {
+	.permission	= nfs_permission,
+	.getattr	= nfs_getattr,
+	.setattr	= nfs_setattr,
+	.listxattr	= nfs3_listxattr,
+	.getxattr	= nfs3_getxattr,
+	.setxattr	= nfs3_setxattr,
+	.removexattr	= nfs3_removexattr,
+};
+#endif  /* CONFIG_NFS_v3 */
+
 /* Hack for future NFS swap support */
 #ifndef IS_SWAPFILE
 # define IS_SWAPFILE(inode)	(0)
@@ -116,6 +128,21 @@ nfs_file_release(struct inode *inode, struct file *filp)
 }
 
 /**
+ * nfs_revalidate_file - Revalidate the page cache & related metadata
+ * @inode - pointer to inode struct
+ * @file - pointer to file
+ */
+static int nfs_revalidate_file(struct inode *inode, struct file *filp)
+{
+	int retval = 0;
+
+	if ((NFS_FLAGS(inode) & NFS_INO_REVAL_PAGECACHE) || nfs_attribute_timeout(inode))
+		retval = __nfs_revalidate_inode(NFS_SERVER(inode), inode);
+	nfs_revalidate_mapping(inode, filp->f_mapping);
+	return 0;
+}
+
+/**
  * nfs_revalidate_size - Revalidate the file size
  * @inode - pointer to inode struct
  * @file - pointer to struct file
@@ -137,7 +164,8 @@ static int nfs_revalidate_file_size(struct inode *inode, struct file *filp)
 		goto force_reval;
 	if (nfsi->npages != 0)
 		return 0;
-	return nfs_revalidate_inode(server, inode);
+	if (!(NFS_FLAGS(inode) & NFS_INO_REVAL_PAGECACHE) && !nfs_attribute_timeout(inode))
+		return 0;
 force_reval:
 	return __nfs_revalidate_inode(server, inode);
 }
@@ -198,7 +226,7 @@ nfs_file_read(struct kiocb *iocb, char __user * buf, size_t count, loff_t pos)
 		dentry->d_parent->d_name.name, dentry->d_name.name,
 		(unsigned long) count, (unsigned long) pos);
 
-	result = nfs_revalidate_inode(NFS_SERVER(inode), inode);
+	result = nfs_revalidate_file(inode, iocb->ki_filp);
 	if (!result)
 		result = generic_file_aio_read(iocb, buf, count, pos);
 	return result;
@@ -216,7 +244,7 @@ nfs_file_sendfile(struct file *filp, loff_t *ppos, size_t count,
 		dentry->d_parent->d_name.name, dentry->d_name.name,
 		(unsigned long) count, (unsigned long long) *ppos);
 
-	res = nfs_revalidate_inode(NFS_SERVER(inode), inode);
+	res = nfs_revalidate_file(inode, filp);
 	if (!res)
 		res = generic_file_sendfile(filp, ppos, count, actor, target);
 	return res;
@@ -232,7 +260,7 @@ nfs_file_mmap(struct file * file, struct vm_area_struct * vma)
 	dfprintk(VFS, "nfs: mmap(%s/%s)\n",
 		dentry->d_parent->d_name.name, dentry->d_name.name);
 
-	status = nfs_revalidate_inode(NFS_SERVER(inode), inode);
+	status = nfs_revalidate_file(inode, file);
 	if (!status)
 		status = generic_file_mmap(file, vma);
 	return status;
@@ -321,9 +349,15 @@ nfs_file_write(struct kiocb *iocb, const char __user *buf, size_t count, loff_t 
 	result = -EBUSY;
 	if (IS_SWAPFILE(inode))
 		goto out_swapfile;
-	result = nfs_revalidate_inode(NFS_SERVER(inode), inode);
-	if (result)
-		goto out;
+	/*
+	 * O_APPEND implies that we must revalidate the file length.
+	 */
+	if (iocb->ki_filp->f_flags & O_APPEND) {
+		result = nfs_revalidate_file_size(inode, iocb->ki_filp);
+		if (result)
+			goto out;
+	}
+	nfs_revalidate_mapping(inode, iocb->ki_filp->f_mapping);
 
 	result = count;
 	if (!count)

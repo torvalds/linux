@@ -249,17 +249,10 @@ static struct xfrm_state *xfrm_state_construct(struct xfrm_usersa_info *p,
 	if ((err = attach_encap_tmpl(&x->encap, xfrma[XFRMA_ENCAP-1])))
 		goto error;
 
-	err = -ENOENT;
-	x->type = xfrm_get_type(x->id.proto, x->props.family);
-	if (x->type == NULL)
-		goto error;
-
-	err = x->type->init_state(x, NULL);
+	err = xfrm_init_state(x);
 	if (err)
 		goto error;
 
-	x->curlft.add_time = (unsigned long) xtime.tv_sec;
-	x->km.state = XFRM_STATE_VALID;
 	x->km.seq = p->seq;
 
 	return x;

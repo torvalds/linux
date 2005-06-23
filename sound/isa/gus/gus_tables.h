@@ -23,6 +23,8 @@
 
 #ifdef __GUS_TABLES_ALLOC__
 
+#if 0
+
 unsigned int snd_gf1_scale_table[SNDRV_GF1_SCALE_TABLE_SIZE] =
 {
       8372,      8870,      9397,      9956,     10548,     11175,
@@ -48,6 +50,8 @@ unsigned int snd_gf1_scale_table[SNDRV_GF1_SCALE_TABLE_SIZE] =
    8572947,   9082720,   9622807,  10195009,  10801236,  11443511,
   12123977,  12844906
 };
+
+#endif  /*  0  */
 
 unsigned short snd_gf1_atten_table[SNDRV_GF1_ATTEN_TABLE_SIZE] = {
   4095 /* 0   */,1789 /* 1   */,1533 /* 2   */,1383 /* 3   */,1277 /* 4   */,

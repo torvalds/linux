@@ -195,7 +195,7 @@ void __init htab_initialize(void)
 		memset((void *)table, 0, htab_size_bytes);
 	}
 
-	mode_rw = _PAGE_ACCESSED | _PAGE_COHERENT | PP_RWXX;
+	mode_rw = _PAGE_ACCESSED | _PAGE_DIRTY | _PAGE_COHERENT | PP_RWXX;
 
 	/* On U3 based machines, we need to reserve the DART area and
 	 * _NOT_ map it to avoid cache paradoxes as it's remapped non
@@ -309,10 +309,6 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 			return 1;
 
 		vsid = get_vsid(mm->context.id, ea);
-		break;
-	case IO_REGION_ID:
-		mm = &ioremap_mm;
-		vsid = get_kernel_vsid(ea);
 		break;
 	case VMALLOC_REGION_ID:
 		mm = &init_mm;

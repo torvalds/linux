@@ -1830,7 +1830,7 @@ int sctp_process_init(struct sctp_association *asoc, sctp_cid_t cid,
 	 * be a a better choice than any of the embedded addresses.
 	 */
 	if (peer_addr)
-		if(!sctp_assoc_add_peer(asoc, peer_addr, gfp))
+		if(!sctp_assoc_add_peer(asoc, peer_addr, gfp, SCTP_ACTIVE))
 			goto nomem;
 
 	/* Process the initialization parameters.  */
@@ -1839,6 +1839,14 @@ int sctp_process_init(struct sctp_association *asoc, sctp_cid_t cid,
 
 		if (!sctp_process_param(asoc, param, peer_addr, gfp))
                         goto clean_up;
+	}
+
+	/* Walk list of transports, removing transports in the UNKNOWN state. */
+	list_for_each_safe(pos, temp, &asoc->peer.transport_addr_list) {
+		transport = list_entry(pos, struct sctp_transport, transports);
+		if (transport->state == SCTP_UNKNOWN) {
+			sctp_assoc_rm_peer(asoc, transport);
+		}
 	}
 
 	/* The fixed INIT headers are always in network byte
@@ -1906,7 +1914,8 @@ int sctp_process_init(struct sctp_association *asoc, sctp_cid_t cid,
 	 * stream sequence number shall be set to 0.
 	 */
 
-	/* Allocate storage for the negotiated streams if it is not a temporary 	 * association.
+	/* Allocate storage for the negotiated streams if it is not a temporary
+ 	 * association.
 	 */
 	if (!asoc->temp) {
 		int assoc_id;
@@ -1952,6 +1961,9 @@ clean_up:
 		list_del_init(pos);
 		sctp_transport_free(transport);
 	}
+
+	asoc->peer.transport_count = 0;
+
 nomem:
 	return 0;
 }
@@ -1995,7 +2007,7 @@ static int sctp_process_param(struct sctp_association *asoc,
 		af->from_addr_param(&addr, param.addr, asoc->peer.port, 0);
 		scope = sctp_scope(peer_addr);
 		if (sctp_in_scope(&addr, scope))
-			if (!sctp_assoc_add_peer(asoc, &addr, gfp))
+			if (!sctp_assoc_add_peer(asoc, &addr, gfp, SCTP_ACTIVE))
 				return 0;
 		break;
 
@@ -2396,7 +2408,7 @@ static __u16 sctp_process_asconf_param(struct sctp_association *asoc,
 	 	 * Due to Resource Shortage'.
 	 	 */
 
-		peer = sctp_assoc_add_peer(asoc, &addr, GFP_ATOMIC);
+		peer = sctp_assoc_add_peer(asoc, &addr, GFP_ATOMIC, SCTP_ACTIVE);
 		if (!peer)
 			return SCTP_ERROR_RSRC_LOW;
 

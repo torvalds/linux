@@ -108,6 +108,7 @@
 #define I2C_DRIVERID_TDA7313	62	/* TDA7313 audio processor	*/
 #define I2C_DRIVERID_MAX6900	63	/* MAX6900 real-time clock	*/
 #define I2C_DRIVERID_SAA7114H	64	/* video decoder		*/
+#define I2C_DRIVERID_DS1374	65	/* DS1374 real time clock	*/
 
 
 #define I2C_DRIVERID_EXP0	0xF0	/* experimental use id's	*/

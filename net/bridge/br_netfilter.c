@@ -102,10 +102,6 @@ static int br_nf_pre_routing_finish_ipv6(struct sk_buff *skb)
 {
 	struct nf_bridge_info *nf_bridge = skb->nf_bridge;
 
-#ifdef CONFIG_NETFILTER_DEBUG
-	skb->nf_debug ^= (1 << NF_BR_PRE_ROUTING);
-#endif
-
 	if (nf_bridge->mask & BRNF_PKT_TYPE) {
 		skb->pkt_type = PACKET_OTHERHOST;
 		nf_bridge->mask ^= BRNF_PKT_TYPE;
@@ -182,10 +178,6 @@ static void __br_dnat_complain(void)
  * --Bart, 20021007 (updated) */
 static int br_nf_pre_routing_finish_bridge(struct sk_buff *skb)
 {
-#ifdef CONFIG_NETFILTER_DEBUG
-	skb->nf_debug |= (1 << NF_BR_PRE_ROUTING) | (1 << NF_BR_FORWARD);
-#endif
-
 	if (skb->pkt_type == PACKET_OTHERHOST) {
 		skb->pkt_type = PACKET_HOST;
 		skb->nf_bridge->mask |= BRNF_PKT_TYPE;
@@ -206,10 +198,6 @@ static int br_nf_pre_routing_finish(struct sk_buff *skb)
 	struct net_device *dev = skb->dev;
 	struct iphdr *iph = skb->nh.iph;
 	struct nf_bridge_info *nf_bridge = skb->nf_bridge;
-
-#ifdef CONFIG_NETFILTER_DEBUG
-	skb->nf_debug ^= (1 << NF_BR_PRE_ROUTING);
-#endif
 
 	if (nf_bridge->mask & BRNF_PKT_TYPE) {
 		skb->pkt_type = PACKET_OTHERHOST;
@@ -382,9 +370,6 @@ static unsigned int br_nf_pre_routing_ipv6(unsigned int hook,
 	if (hdr->nexthdr == NEXTHDR_HOP && check_hbh_len(skb))
 			goto inhdr_error;
 
-#ifdef CONFIG_NETFILTER_DEBUG
-	skb->nf_debug ^= (1 << NF_IP6_PRE_ROUTING);
-#endif
 	if ((nf_bridge = nf_bridge_alloc(skb)) == NULL)
 		return NF_DROP;
 	setup_pre_routing(skb);
@@ -468,9 +453,6 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff **pskb,
 			skb->ip_summed = CHECKSUM_NONE;
 	}
 
-#ifdef CONFIG_NETFILTER_DEBUG
-	skb->nf_debug ^= (1 << NF_IP_PRE_ROUTING);
-#endif
 	if ((nf_bridge = nf_bridge_alloc(skb)) == NULL)
 		return NF_DROP;
 	setup_pre_routing(skb);
@@ -517,10 +499,6 @@ static int br_nf_forward_finish(struct sk_buff *skb)
 	struct net_device *in;
 	struct vlan_ethhdr *hdr = vlan_eth_hdr(skb);
 
-#ifdef CONFIG_NETFILTER_DEBUG
-	skb->nf_debug ^= (1 << NF_BR_FORWARD);
-#endif
-
 	if (skb->protocol != __constant_htons(ETH_P_ARP) && !IS_VLAN_ARP) {
 		in = nf_bridge->physindev;
 		if (nf_bridge->mask & BRNF_PKT_TYPE) {
@@ -566,9 +544,6 @@ static unsigned int br_nf_forward_ip(unsigned int hook, struct sk_buff **pskb,
 		(*pskb)->nh.raw += VLAN_HLEN;
 	}
 
-#ifdef CONFIG_NETFILTER_DEBUG
-	skb->nf_debug ^= (1 << NF_BR_FORWARD);
-#endif
 	nf_bridge = skb->nf_bridge;
 	if (skb->pkt_type == PACKET_OTHERHOST) {
 		skb->pkt_type = PACKET_HOST;
@@ -605,10 +580,6 @@ static unsigned int br_nf_forward_arp(unsigned int hook, struct sk_buff **pskb,
 		(*pskb)->nh.raw += VLAN_HLEN;
 	}
 
-#ifdef CONFIG_NETFILTER_DEBUG
-	skb->nf_debug ^= (1 << NF_BR_FORWARD);
-#endif
-
 	if (skb->nh.arph->ar_pln != 4) {
 		if (IS_VLAN_ARP) {
 			skb_push(*pskb, VLAN_HLEN);
@@ -627,9 +598,6 @@ static unsigned int br_nf_forward_arp(unsigned int hook, struct sk_buff **pskb,
 /* PF_BRIDGE/LOCAL_OUT ***********************************************/
 static int br_nf_local_out_finish(struct sk_buff *skb)
 {
-#ifdef CONFIG_NETFILTER_DEBUG
-	skb->nf_debug &= ~(1 << NF_BR_LOCAL_OUT);
-#endif
 	if (skb->protocol == __constant_htons(ETH_P_8021Q)) {
 		skb_push(skb, VLAN_HLEN);
 		skb->nh.raw -= VLAN_HLEN;
@@ -731,10 +699,6 @@ static unsigned int br_nf_local_out(unsigned int hook, struct sk_buff **pskb,
 			       realoutdev, br_nf_local_out_finish,
 			       NF_IP_PRI_BRIDGE_SABOTAGE_FORWARD + 1);
 	} else {
-#ifdef CONFIG_NETFILTER_DEBUG
-		skb->nf_debug ^= (1 << NF_IP_LOCAL_OUT);
-#endif
-
 		NF_HOOK_THRESH(pf, NF_IP_LOCAL_OUT, skb, realindev,
 			       realoutdev, br_nf_local_out_finish,
 			       NF_IP_PRI_BRIDGE_SABOTAGE_LOCAL_OUT + 1);
@@ -779,8 +743,6 @@ static unsigned int br_nf_post_routing(unsigned int hook, struct sk_buff **pskb,
 		printk(KERN_CRIT "br_netfilter: skb->dst == NULL.");
 		goto print_error;
 	}
-
-	skb->nf_debug ^= (1 << NF_IP_POST_ROUTING);
 #endif
 
 	/* We assume any code from br_dev_queue_push_xmit onwards doesn't care

@@ -414,6 +414,8 @@ snd_seq_midisynth_register_port(snd_seq_device_t *dev)
 	if (newclient)
 		synths[card->number] = client;
 	up(&register_mutex);
+	kfree(info);
+	kfree(port);
 	return 0;	/* success */
 
       __nomem:

@@ -16,6 +16,7 @@
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/kdev_t.h>
+#include <linux/err.h>
 #include "base.h"
 
 #define to_class_attr(_attr) container_of(_attr, struct class_attribute, attr)
@@ -26,7 +27,7 @@ class_attr_show(struct kobject * kobj, struct attribute * attr, char * buf)
 {
 	struct class_attribute * class_attr = to_class_attr(attr);
 	struct class * dc = to_class(kobj);
-	ssize_t ret = 0;
+	ssize_t ret = -EIO;
 
 	if (class_attr->show)
 		ret = class_attr->show(dc, buf);
@@ -39,7 +40,7 @@ class_attr_store(struct kobject * kobj, struct attribute * attr,
 {
 	struct class_attribute * class_attr = to_class_attr(attr);
 	struct class * dc = to_class(kobj);
-	ssize_t ret = 0;
+	ssize_t ret = -EIO;
 
 	if (class_attr->store)
 		ret = class_attr->store(dc, buf, count);
@@ -162,6 +163,69 @@ void class_unregister(struct class * cls)
 	subsystem_unregister(&cls->subsys);
 }
 
+static void class_create_release(struct class *cls)
+{
+	kfree(cls);
+}
+
+static void class_device_create_release(struct class_device *class_dev)
+{
+	kfree(class_dev);
+}
+
+/**
+ * class_create - create a struct class structure
+ * @owner: pointer to the module that is to "own" this struct class
+ * @name: pointer to a string for the name of this class.
+ *
+ * This is used to create a struct class pointer that can then be used
+ * in calls to class_device_create().
+ *
+ * Note, the pointer created here is to be destroyed when finished by
+ * making a call to class_destroy().
+ */
+struct class *class_create(struct module *owner, char *name)
+{
+	struct class *cls;
+	int retval;
+
+	cls = kmalloc(sizeof(struct class), GFP_KERNEL);
+	if (!cls) {
+		retval = -ENOMEM;
+		goto error;
+	}
+	memset(cls, 0x00, sizeof(struct class));
+
+	cls->name = name;
+	cls->owner = owner;
+	cls->class_release = class_create_release;
+	cls->release = class_device_create_release;
+
+	retval = class_register(cls);
+	if (retval)
+		goto error;
+
+	return cls;
+
+error:
+	kfree(cls);
+	return ERR_PTR(retval);
+}
+
+/**
+ * class_destroy - destroys a struct class structure
+ * @cs: pointer to the struct class that is to be destroyed
+ *
+ * Note, the pointer to be destroyed must have been created with a call
+ * to class_create().
+ */
+void class_destroy(struct class *cls)
+{
+	if ((cls == NULL) || (IS_ERR(cls)))
+		return;
+
+	class_unregister(cls);
+}
 
 /* Class Device Stuff */
 
@@ -262,7 +326,7 @@ static int class_hotplug_filter(struct kset *kset, struct kobject *kobj)
 	return 0;
 }
 
-static char *class_hotplug_name(struct kset *kset, struct kobject *kobj)
+static const char *class_hotplug_name(struct kset *kset, struct kobject *kobj)
 {
 	struct class_device *class_dev = to_class_dev(kobj);
 
@@ -375,7 +439,6 @@ static ssize_t show_dev(struct class_device *class_dev, char *buf)
 {
 	return print_dev_t(buf, class_dev->devt);
 }
-static CLASS_DEVICE_ATTR(dev, S_IRUGO, show_dev, NULL);
 
 void class_device_initialize(struct class_device *class_dev)
 {
@@ -412,7 +475,31 @@ int class_device_add(struct class_device *class_dev)
 	if ((error = kobject_add(&class_dev->kobj)))
 		goto register_done;
 
-	/* now take care of our own registration */
+	/* add the needed attributes to this device */
+	if (MAJOR(class_dev->devt)) {
+		struct class_device_attribute *attr;
+		attr = kmalloc(sizeof(*attr), GFP_KERNEL);
+		if (!attr) {
+			error = -ENOMEM;
+			kobject_del(&class_dev->kobj);
+			goto register_done;
+		}
+		memset(attr, sizeof(*attr), 0x00);
+		attr->attr.name = "dev";
+		attr->attr.mode = S_IRUGO;
+		attr->attr.owner = parent->owner;
+		attr->show = show_dev;
+		attr->store = NULL;
+		class_device_create_file(class_dev, attr);
+		class_dev->devt_attr = attr;
+	}
+
+	class_device_add_attrs(class_dev);
+	if (class_dev->dev)
+		sysfs_create_link(&class_dev->kobj,
+				  &class_dev->dev->kobj, "device");
+
+	/* notify any interfaces this device is now here */
 	if (parent) {
 		down(&parent->sem);
 		list_add_tail(&class_dev->node, &parent->children);
@@ -421,16 +508,8 @@ int class_device_add(struct class_device *class_dev)
 				class_intf->add(class_dev);
 		up(&parent->sem);
 	}
-
-	if (MAJOR(class_dev->devt))
-		class_device_create_file(class_dev, &class_device_attr_dev);
-
-	class_device_add_attrs(class_dev);
-	if (class_dev->dev)
-		sysfs_create_link(&class_dev->kobj,
-				  &class_dev->dev->kobj, "device");
-
 	kobject_hotplug(&class_dev->kobj, KOBJ_ADD);
+
  register_done:
 	if (error && parent)
 		class_put(parent);
@@ -442,6 +521,58 @@ int class_device_register(struct class_device *class_dev)
 {
 	class_device_initialize(class_dev);
 	return class_device_add(class_dev);
+}
+
+/**
+ * class_device_create - creates a class device and registers it with sysfs
+ * @cs: pointer to the struct class that this device should be registered to.
+ * @dev: the dev_t for the char device to be added.
+ * @device: a pointer to a struct device that is assiociated with this class device.
+ * @fmt: string for the class device's name
+ *
+ * This function can be used by char device classes.  A struct
+ * class_device will be created in sysfs, registered to the specified
+ * class.  A "dev" file will be created, showing the dev_t for the
+ * device.  The pointer to the struct class_device will be returned from
+ * the call.  Any further sysfs files that might be required can be
+ * created using this pointer.
+ *
+ * Note: the struct class passed to this function must have previously
+ * been created with a call to class_create().
+ */
+struct class_device *class_device_create(struct class *cls, dev_t devt,
+					 struct device *device, char *fmt, ...)
+{
+	va_list args;
+	struct class_device *class_dev = NULL;
+	int retval = -ENODEV;
+
+	if (cls == NULL || IS_ERR(cls))
+		goto error;
+
+	class_dev = kmalloc(sizeof(struct class_device), GFP_KERNEL);
+	if (!class_dev) {
+		retval = -ENOMEM;
+		goto error;
+	}
+	memset(class_dev, 0x00, sizeof(struct class_device));
+
+	class_dev->devt = devt;
+	class_dev->dev = device;
+	class_dev->class = cls;
+
+	va_start(args, fmt);
+	vsnprintf(class_dev->class_id, BUS_ID_SIZE, fmt, args);
+	va_end(args);
+	retval = class_device_register(class_dev);
+	if (retval)
+		goto error;
+
+	return class_dev;
+
+error:
+	kfree(class_dev);
+	return ERR_PTR(retval);
 }
 
 void class_device_del(struct class_device *class_dev)
@@ -460,6 +591,11 @@ void class_device_del(struct class_device *class_dev)
 
 	if (class_dev->dev)
 		sysfs_remove_link(&class_dev->kobj, "device");
+	if (class_dev->devt_attr) {
+		class_device_remove_file(class_dev, class_dev->devt_attr);
+		kfree(class_dev->devt_attr);
+		class_dev->devt_attr = NULL;
+	}
 	class_device_remove_attrs(class_dev);
 
 	kobject_hotplug(&class_dev->kobj, KOBJ_REMOVE);
@@ -475,6 +611,32 @@ void class_device_unregister(struct class_device *class_dev)
 		 class_dev->class_id);
 	class_device_del(class_dev);
 	class_device_put(class_dev);
+}
+
+/**
+ * class_device_destroy - removes a class device that was created with class_device_create()
+ * @cls: the pointer to the struct class that this device was registered * with.
+ * @dev: the dev_t of the device that was previously registered.
+ *
+ * This call unregisters and cleans up a class device that was created with a
+ * call to class_device_create()
+ */
+void class_device_destroy(struct class *cls, dev_t devt)
+{
+	struct class_device *class_dev = NULL;
+	struct class_device *class_dev_tmp;
+
+	down(&cls->sem);
+	list_for_each_entry(class_dev_tmp, &cls->children, node) {
+		if (class_dev_tmp->devt == devt) {
+			class_dev = class_dev_tmp;
+			break;
+		}
+	}
+	up(&cls->sem);
+
+	if (class_dev)
+		class_device_unregister(class_dev);
 }
 
 int class_device_rename(struct class_device *class_dev, char *new_name)
@@ -576,6 +738,8 @@ EXPORT_SYMBOL_GPL(class_register);
 EXPORT_SYMBOL_GPL(class_unregister);
 EXPORT_SYMBOL_GPL(class_get);
 EXPORT_SYMBOL_GPL(class_put);
+EXPORT_SYMBOL_GPL(class_create);
+EXPORT_SYMBOL_GPL(class_destroy);
 
 EXPORT_SYMBOL_GPL(class_device_register);
 EXPORT_SYMBOL_GPL(class_device_unregister);
@@ -584,6 +748,8 @@ EXPORT_SYMBOL_GPL(class_device_add);
 EXPORT_SYMBOL_GPL(class_device_del);
 EXPORT_SYMBOL_GPL(class_device_get);
 EXPORT_SYMBOL_GPL(class_device_put);
+EXPORT_SYMBOL_GPL(class_device_create);
+EXPORT_SYMBOL_GPL(class_device_destroy);
 EXPORT_SYMBOL_GPL(class_device_create_file);
 EXPORT_SYMBOL_GPL(class_device_remove_file);
 EXPORT_SYMBOL_GPL(class_device_create_bin_file);

@@ -42,10 +42,8 @@
 #include <asm/time.h>
 #include <asm/rtas.h>
 
-#include <asm/iSeries/LparData.h>
 #include <asm/iSeries/mf.h>
 #include <asm/machdep.h>
-#include <asm/iSeries/ItSpCommArea.h>
 
 extern int piranha_simulator;
 

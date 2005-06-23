@@ -46,26 +46,23 @@
 
 #ifdef CONFIG_BOOKE
 #include "head_booke.h"
+#define TRANSFER_TO_HANDLER_EXC_LEVEL(exc_level)	\
+	mtspr	exc_level##_SPRG,r8;			\
+	BOOKE_LOAD_EXC_LEVEL_STACK(exc_level);		\
+	lwz	r0,GPR10-INT_FRAME_SIZE(r8);		\
+	stw	r0,GPR10(r11);				\
+	lwz	r0,GPR11-INT_FRAME_SIZE(r8);		\
+	stw	r0,GPR11(r11);				\
+	mfspr	r8,exc_level##_SPRG
+
 	.globl	mcheck_transfer_to_handler
 mcheck_transfer_to_handler:
-	mtspr	MCHECK_SPRG,r8
-	BOOKE_LOAD_MCHECK_STACK
-	lwz	r0,GPR10-INT_FRAME_SIZE(r8)
-	stw	r0,GPR10(r11)
-	lwz	r0,GPR11-INT_FRAME_SIZE(r8)
-	stw	r0,GPR11(r11)
-	mfspr	r8,MCHECK_SPRG
+	TRANSFER_TO_HANDLER_EXC_LEVEL(MCHECK)
 	b	transfer_to_handler_full
 
 	.globl	crit_transfer_to_handler
 crit_transfer_to_handler:
-	mtspr	CRIT_SPRG,r8
-	BOOKE_LOAD_CRIT_STACK
-	lwz	r0,GPR10-INT_FRAME_SIZE(r8)
-	stw	r0,GPR10(r11)
-	lwz	r0,GPR11-INT_FRAME_SIZE(r8)
-	stw	r0,GPR11(r11)
-	mfspr	r8,CRIT_SPRG
+	TRANSFER_TO_HANDLER_EXC_LEVEL(CRIT)
 	/* fall through */
 #endif
 
@@ -783,99 +780,64 @@ exc_exit_restart_end:
  * time of the critical interrupt.
  *
  */
+#ifdef CONFIG_40x
+#define PPC_40x_TURN_OFF_MSR_DR						    \
+	/* avoid any possible TLB misses here by turning off MSR.DR, we	    \
+	 * assume the instructions here are mapped by a pinned TLB entry */ \
+	li	r10,MSR_IR;						    \
+	mtmsr	r10;							    \
+	isync;								    \
+	tophys(r1, r1);
+#else
+#define PPC_40x_TURN_OFF_MSR_DR
+#endif
+
+#define RET_FROM_EXC_LEVEL(exc_lvl_srr0, exc_lvl_srr1, exc_lvl_rfi)	\
+	REST_NVGPRS(r1);						\
+	lwz	r3,_MSR(r1);						\
+	andi.	r3,r3,MSR_PR;						\
+	LOAD_MSR_KERNEL(r10,MSR_KERNEL);				\
+	bne	user_exc_return;					\
+	lwz	r0,GPR0(r1);						\
+	lwz	r2,GPR2(r1);						\
+	REST_4GPRS(3, r1);						\
+	REST_2GPRS(7, r1);						\
+	lwz	r10,_XER(r1);						\
+	lwz	r11,_CTR(r1);						\
+	mtspr	SPRN_XER,r10;						\
+	mtctr	r11;							\
+	PPC405_ERR77(0,r1);						\
+	stwcx.	r0,0,r1;		/* to clear the reservation */	\
+	lwz	r11,_LINK(r1);						\
+	mtlr	r11;							\
+	lwz	r10,_CCR(r1);						\
+	mtcrf	0xff,r10;						\
+	PPC_40x_TURN_OFF_MSR_DR;					\
+	lwz	r9,_DEAR(r1);						\
+	lwz	r10,_ESR(r1);						\
+	mtspr	SPRN_DEAR,r9;						\
+	mtspr	SPRN_ESR,r10;						\
+	lwz	r11,_NIP(r1);						\
+	lwz	r12,_MSR(r1);						\
+	mtspr	exc_lvl_srr0,r11;					\
+	mtspr	exc_lvl_srr1,r12;					\
+	lwz	r9,GPR9(r1);						\
+	lwz	r12,GPR12(r1);						\
+	lwz	r10,GPR10(r1);						\
+	lwz	r11,GPR11(r1);						\
+	lwz	r1,GPR1(r1);						\
+	PPC405_ERR77_SYNC;						\
+	exc_lvl_rfi;							\
+	b	.;		/* prevent prefetch past exc_lvl_rfi */
+
 	.globl	ret_from_crit_exc
 ret_from_crit_exc:
-	REST_NVGPRS(r1)
-	lwz	r3,_MSR(r1)
-	andi.	r3,r3,MSR_PR
-	LOAD_MSR_KERNEL(r10,MSR_KERNEL)
-	bne	user_exc_return
-
-	lwz	r0,GPR0(r1)
-	lwz	r2,GPR2(r1)
-	REST_4GPRS(3, r1)
-	REST_2GPRS(7, r1)
-
-	lwz	r10,_XER(r1)
-	lwz	r11,_CTR(r1)
-	mtspr	SPRN_XER,r10
-	mtctr	r11
-
-	PPC405_ERR77(0,r1)
-	stwcx.	r0,0,r1			/* to clear the reservation */
-
-	lwz	r11,_LINK(r1)
-	mtlr	r11
-	lwz	r10,_CCR(r1)
-	mtcrf	0xff,r10
-#ifdef CONFIG_40x
-	/* avoid any possible TLB misses here by turning off MSR.DR, we
-	 * assume the instructions here are mapped by a pinned TLB entry */
-	li	r10,MSR_IR
-	mtmsr	r10
-	isync
-	tophys(r1, r1)
-#endif
-	lwz	r9,_DEAR(r1)
-	lwz	r10,_ESR(r1)
-	mtspr	SPRN_DEAR,r9
-	mtspr	SPRN_ESR,r10
-	lwz	r11,_NIP(r1)
-	lwz	r12,_MSR(r1)
-	mtspr	SPRN_CSRR0,r11
-	mtspr	SPRN_CSRR1,r12
-	lwz	r9,GPR9(r1)
-	lwz	r12,GPR12(r1)
-	lwz	r10,GPR10(r1)
-	lwz	r11,GPR11(r1)
-	lwz	r1,GPR1(r1)
-	PPC405_ERR77_SYNC
-	rfci
-	b	.		/* prevent prefetch past rfci */
+	RET_FROM_EXC_LEVEL(SPRN_CSRR0, SPRN_CSRR1, RFCI)
 
 #ifdef CONFIG_BOOKE
-/*
- * Return from a machine check interrupt, similar to a critical
- * interrupt.
- */
 	.globl	ret_from_mcheck_exc
 ret_from_mcheck_exc:
-	REST_NVGPRS(r1)
-	lwz	r3,_MSR(r1)
-	andi.	r3,r3,MSR_PR
-	LOAD_MSR_KERNEL(r10,MSR_KERNEL)
-	bne	user_exc_return
-
-	lwz	r0,GPR0(r1)
-	lwz	r2,GPR2(r1)
-	REST_4GPRS(3, r1)
-	REST_2GPRS(7, r1)
-
-	lwz	r10,_XER(r1)
-	lwz	r11,_CTR(r1)
-	mtspr	SPRN_XER,r10
-	mtctr	r11
-
-	stwcx.	r0,0,r1			/* to clear the reservation */
-
-	lwz	r11,_LINK(r1)
-	mtlr	r11
-	lwz	r10,_CCR(r1)
-	mtcrf	0xff,r10
-	lwz	r9,_DEAR(r1)
-	lwz	r10,_ESR(r1)
-	mtspr	SPRN_DEAR,r9
-	mtspr	SPRN_ESR,r10
-	lwz	r11,_NIP(r1)
-	lwz	r12,_MSR(r1)
-	mtspr	SPRN_MCSRR0,r11
-	mtspr	SPRN_MCSRR1,r12
-	lwz	r9,GPR9(r1)
-	lwz	r12,GPR12(r1)
-	lwz	r10,GPR10(r1)
-	lwz	r11,GPR11(r1)
-	lwz	r1,GPR1(r1)
-	RFMCI
+	RET_FROM_EXC_LEVEL(SPRN_MCSRR0, SPRN_MCSRR1, RFMCI)
 #endif /* CONFIG_BOOKE */
 
 /*

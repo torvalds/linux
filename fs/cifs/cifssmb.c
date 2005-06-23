@@ -2411,7 +2411,9 @@ findUniqueRetry:
 	if (rc) {
 		cFYI(1, ("Send error in FindFileDirInfo = %d", rc));
 	} else {		/* decode response */
-
+#ifdef CONFIG_CIFS_STATS
+		atomic_inc(&tcon->num_ffirst);
+#endif
 		/* BB fill in */
 	}
 
@@ -2429,7 +2431,7 @@ CIFSFindFirst(const int xid, struct cifsTconInfo *tcon,
 	      const char *searchName, 
 	      const struct nls_table *nls_codepage,
 	      __u16 *	pnetfid,
-	      struct cifs_search_info * psrch_inf, int remap)
+	      struct cifs_search_info * psrch_inf, int remap, const char dirsep)
 {
 /* level 257 SMB_ */
 	TRANSACTION2_FFIRST_REQ *pSMB = NULL;
@@ -2456,7 +2458,7 @@ findFirstRetry:
 		it got remapped to 0xF03A as if it were part of the
 		directory name instead of a wildcard */
 		name_len *= 2;
-		pSMB->FileName[name_len] = '\\';
+		pSMB->FileName[name_len] = dirsep;
 		pSMB->FileName[name_len+1] = 0;
 		pSMB->FileName[name_len+2] = '*';
 		pSMB->FileName[name_len+3] = 0;
@@ -2470,7 +2472,7 @@ findFirstRetry:
 		if(name_len > buffersize-header)
 			free buffer exit; BB */
 		strncpy(pSMB->FileName, searchName, name_len);
-		pSMB->FileName[name_len] = '\\';
+		pSMB->FileName[name_len] = dirsep;
 		pSMB->FileName[name_len+1] = '*';
 		pSMB->FileName[name_len+2] = 0;
 		name_len += 3;
@@ -2524,6 +2526,9 @@ findFirstRetry:
 		if (rc == -EAGAIN)
 			goto findFirstRetry;
 	} else { /* decode response */
+#ifdef CONFIG_CIFS_STATS
+		atomic_inc(&tcon->num_ffirst);
+#endif
 		/* BB remember to free buffer if error BB */
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 		if(rc == 0) {
@@ -2637,6 +2642,9 @@ int CIFSFindNext(const int xid, struct cifsTconInfo *tcon,
 		} else
 			cFYI(1, ("FindNext returned = %d", rc));
 	} else {                /* decode response */
+#ifdef CONFIG_CIFS_STATS
+		atomic_inc(&tcon->num_fnext);
+#endif
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 		
 		if(rc == 0) {
@@ -2706,6 +2714,9 @@ CIFSFindClose(const int xid, struct cifsTconInfo *tcon, const __u16 searchHandle
 	if (rc) {
 		cERROR(1, ("Send error in FindClose = %d", rc));
 	}
+#ifdef CONFIG_CIFS_STATS
+	atomic_inc(&tcon->num_fclose);
+#endif
 	cifs_small_buf_release(pSMB);
 
 	/* Since session is dead, search handle closed on server already */
@@ -3268,6 +3279,77 @@ QFSUnixRetry:
 
 	return rc;
 }
+
+int
+CIFSSMBSETFSUnixInfo(const int xid, struct cifsTconInfo *tcon, __u64 cap)
+{
+/* level 0x200  SMB_SET_CIFS_UNIX_INFO */
+	TRANSACTION2_SETFSI_REQ *pSMB = NULL;
+	TRANSACTION2_SETFSI_RSP *pSMBr = NULL;
+	int rc = 0;
+	int bytes_returned = 0;
+	__u16 params, param_offset, offset, byte_count;
+
+	cFYI(1, ("In SETFSUnixInfo"));
+SETFSUnixRetry:
+	rc = smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB,
+		      (void **) &pSMBr);
+	if (rc)
+		return rc;
+
+	params = 4;	/* 2 bytes zero followed by info level. */
+	pSMB->MaxSetupCount = 0;
+	pSMB->Reserved = 0;
+	pSMB->Flags = 0;
+	pSMB->Timeout = 0;
+	pSMB->Reserved2 = 0;
+	param_offset = offsetof(struct smb_com_transaction2_setfsi_req, FileNum) - 4;
+	offset = param_offset + params;
+
+	pSMB->MaxParameterCount = cpu_to_le16(4);
+	pSMB->MaxDataCount = cpu_to_le16(100);	/* BB find exact max SMB PDU from sess structure BB */
+	pSMB->SetupCount = 1;
+	pSMB->Reserved3 = 0;
+	pSMB->SubCommand = cpu_to_le16(TRANS2_SET_FS_INFORMATION);
+	byte_count = 1 /* pad */ + params + 12;
+
+	pSMB->DataCount = cpu_to_le16(12);
+	pSMB->ParameterCount = cpu_to_le16(params);
+	pSMB->TotalDataCount = pSMB->DataCount;
+	pSMB->TotalParameterCount = pSMB->ParameterCount;
+	pSMB->ParameterOffset = cpu_to_le16(param_offset);
+	pSMB->DataOffset = cpu_to_le16(offset);
+
+	/* Params. */
+	pSMB->FileNum = 0;
+	pSMB->InformationLevel = cpu_to_le16(SMB_SET_CIFS_UNIX_INFO);
+
+	/* Data. */
+	pSMB->ClientUnixMajor = cpu_to_le16(CIFS_UNIX_MAJOR_VERSION);
+	pSMB->ClientUnixMinor = cpu_to_le16(CIFS_UNIX_MINOR_VERSION);
+	pSMB->ClientUnixCap = cpu_to_le64(cap);
+
+	pSMB->hdr.smb_buf_length += byte_count;
+	pSMB->ByteCount = cpu_to_le16(byte_count);
+
+	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
+			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
+	if (rc) {
+		cERROR(1, ("Send error in SETFSUnixInfo = %d", rc));
+	} else {		/* decode response */
+		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
+		if (rc) {
+			rc = -EIO;	/* bad smb */
+		}
+	}
+	cifs_buf_release(pSMB);
+
+	if (rc == -EAGAIN)
+		goto SETFSUnixRetry;
+
+	return rc;
+}
+
 
 
 int

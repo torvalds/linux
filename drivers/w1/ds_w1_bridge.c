@@ -83,11 +83,11 @@ static u8 ds9490r_read_byte(unsigned long data)
 	return byte;
 }
 
-static void ds9490r_write_block(unsigned long data, u8 *buf, int len)
+static void ds9490r_write_block(unsigned long data, const u8 *buf, int len)
 {
 	struct ds_device *dev = (struct ds_device *)data;
 
-	ds_write_block(dev, buf, len);
+	ds_write_block(dev, (u8 *)buf, len);
 }
 
 static u8 ds9490r_read_block(unsigned long data, u8 *buf, int len)

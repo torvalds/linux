@@ -50,6 +50,10 @@ config SCHED_NO_NO_OMIT_FRAME_POINTER
 	bool
 	default y
 
+config IA64_UNCACHED_ALLOCATOR
+	bool
+	select GENERIC_ALLOCATOR
+
 choice
 	prompt "System type"
 	default IA64_GENERIC
@@ -216,14 +220,14 @@ config IOSAPIC
 
 config IA64_SGI_SN_SIM
 	bool "SGI Medusa Simulator Support"
-	depends on IA64_SGI_SN2
+	depends on IA64_SGI_SN2 || IA64_GENERIC
 	help
 	  If you are compiling a kernel that will run under SGI's IA-64
 	  simulator (Medusa) then say Y, otherwise say N.
 
 config IA64_SGI_SN_XP
 	tristate "Support communication between SGI SSIs"
-	depends on MSPEC
+	select IA64_UNCACHED_ALLOCATOR
 	help
 	  An SGI machine can be divided into multiple Single System
 	  Images which act independently of each other and have

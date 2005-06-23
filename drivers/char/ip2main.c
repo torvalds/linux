@@ -302,7 +302,7 @@ static char rirqs[IP2_MAX_BOARDS];
 static int Valid_Irqs[] = { 3, 4, 5, 7, 10, 11, 12, 15, 0};
 
 /* for sysfs class support */
-static struct class_simple *ip2_class;
+static struct class *ip2_class;
 
 // Some functions to keep track of what irq's we have
 
@@ -414,9 +414,9 @@ cleanup_module(void)
 			iiResetDelay( i2BoardPtrTable[i] );
 			/* free io addresses and Tibet */
 			release_region( ip2config.addr[i], 8 );
-			class_simple_device_remove(MKDEV(IP2_IPL_MAJOR, 4 * i)); 
+			class_device_destroy(ip2_class, MKDEV(IP2_IPL_MAJOR, 4 * i));
 			devfs_remove("ip2/ipl%d", i);
-			class_simple_device_remove(MKDEV(IP2_IPL_MAJOR, 4 * i + 1));
+			class_device_destroy(ip2_class, MKDEV(IP2_IPL_MAJOR, 4 * i + 1));
 			devfs_remove("ip2/stat%d", i);
 		}
 		/* Disable and remove interrupt handler. */
@@ -425,7 +425,7 @@ cleanup_module(void)
 			clear_requested_irq( ip2config.irq[i]);
 		}
 	}
-	class_simple_destroy(ip2_class);
+	class_destroy(ip2_class);
 	devfs_remove("ip2");
 	if ( ( err = tty_unregister_driver ( ip2_tty_driver ) ) ) {
 		printk(KERN_ERR "IP2: failed to unregister tty driver (%d)\n", err);
@@ -700,7 +700,7 @@ ip2_loadmain(int *iop, int *irqp, unsigned char *firmware, int firmsize)
 		printk(KERN_ERR "IP2: failed to register IPL device (%d)\n", err );
 	} else {
 		/* create the sysfs class */
-		ip2_class = class_simple_create(THIS_MODULE, "ip2");
+		ip2_class = class_create(THIS_MODULE, "ip2");
 		if (IS_ERR(ip2_class)) {
 			err = PTR_ERR(ip2_class);
 			goto out_chrdev;	
@@ -722,25 +722,25 @@ ip2_loadmain(int *iop, int *irqp, unsigned char *firmware, int firmsize)
 			}
 
 			if ( NULL != ( pB = i2BoardPtrTable[i] ) ) {
-				class_simple_device_add(ip2_class, MKDEV(IP2_IPL_MAJOR, 
+				class_device_create(ip2_class, MKDEV(IP2_IPL_MAJOR,
 						4 * i), NULL, "ipl%d", i);
 				err = devfs_mk_cdev(MKDEV(IP2_IPL_MAJOR, 4 * i),
 						S_IRUSR | S_IWUSR | S_IRGRP | S_IFCHR,
 						"ip2/ipl%d", i);
 				if (err) {
-					class_simple_device_remove(MKDEV(IP2_IPL_MAJOR, 
-						4 * i));
+					class_device_destroy(ip2_class,
+						MKDEV(IP2_IPL_MAJOR, 4 * i));
 					goto out_class;
 				}
 
-				class_simple_device_add(ip2_class, MKDEV(IP2_IPL_MAJOR, 
+				class_device_create(ip2_class, MKDEV(IP2_IPL_MAJOR,
 						4 * i + 1), NULL, "stat%d", i);
 				err = devfs_mk_cdev(MKDEV(IP2_IPL_MAJOR, 4 * i + 1),
 						S_IRUSR | S_IWUSR | S_IRGRP | S_IFCHR,
 						"ip2/stat%d", i);
 				if (err) {
-					class_simple_device_remove(MKDEV(IP2_IPL_MAJOR, 
-						4 * i + 1));
+					class_device_destroy(ip2_class,
+						MKDEV(IP2_IPL_MAJOR, 4 * i + 1));
 					goto out_class;
 				}
 
@@ -798,7 +798,7 @@ retry:
 	goto out;
 
 out_class:
-	class_simple_destroy(ip2_class);
+	class_destroy(ip2_class);
 out_chrdev:
 	unregister_chrdev(IP2_IPL_MAJOR, "ip2");
 out:

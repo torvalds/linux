@@ -83,7 +83,7 @@ int cifs_dir_notify(struct file * file, unsigned long arg)
 	pTcon = cifs_sb->tcon;
 
 	down(&file->f_dentry->d_sb->s_vfs_rename_sem);
-	full_path = build_path_from_dentry(file->f_dentry);
+	full_path = build_path_from_dentry(file->f_dentry, cifs_sb);
 	up(&file->f_dentry->d_sb->s_vfs_rename_sem);
 
 	if(full_path == NULL) {

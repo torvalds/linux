@@ -375,7 +375,7 @@ static struct pci_driver driver = {
 // initialization of the module
 static int __init alsa_card_vortex_init(void)
 {
-	return pci_module_init(&driver);
+	return pci_register_driver(&driver);
 }
 
 // clean up the module

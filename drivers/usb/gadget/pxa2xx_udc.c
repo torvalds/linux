@@ -1429,7 +1429,7 @@ done:
 
 /* "function" sysfs attribute */
 static ssize_t
-show_function (struct device *_dev, char *buf)
+show_function (struct device *_dev, struct device_attribute *attr, char *buf)
 {
 	struct pxa2xx_udc	*dev = dev_get_drvdata (_dev);
 

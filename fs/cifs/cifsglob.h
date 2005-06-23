@@ -219,6 +219,9 @@ struct cifsTconInfo {
 	atomic_t num_rmdirs;
 	atomic_t num_renames;
 	atomic_t num_t2renames;
+	atomic_t num_ffirst;
+	atomic_t num_fnext;
+	atomic_t num_fclose;
 	__u64    bytes_read;
 	__u64    bytes_written;
 	spinlock_t stat_lock;
@@ -306,6 +309,13 @@ CIFS_SB(struct super_block *sb)
 	return sb->s_fs_info;
 }
 
+static inline const char CIFS_DIR_SEP(const struct cifs_sb_info *cifs_sb)
+{
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS)
+		return '/';
+	else
+		return '\\';
+}
 
 /* one of these for every pending CIFS request to the server */
 struct mid_q_entry {

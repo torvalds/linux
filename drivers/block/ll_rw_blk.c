@@ -3574,7 +3574,7 @@ queue_attr_show(struct kobject *kobj, struct attribute *attr, char *page)
 
 	q = container_of(kobj, struct request_queue, kobj);
 	if (!entry->show)
-		return 0;
+		return -EIO;
 
 	return entry->show(q, page);
 }
@@ -3588,7 +3588,7 @@ queue_attr_store(struct kobject *kobj, struct attribute *attr,
 
 	q = container_of(kobj, struct request_queue, kobj);
 	if (!entry->store)
-		return -EINVAL;
+		return -EIO;
 
 	return entry->store(q, page, length);
 }
