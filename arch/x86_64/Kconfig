@@ -402,6 +402,8 @@ config SECCOMP
 
 	  If unsure, say Y. Only embedded should say N here.
 
+source kernel/Kconfig.hz
+
 endmenu
 
 #
