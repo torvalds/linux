@@ -40,7 +40,7 @@ static inline int major_to_index(int major)
 
 #ifdef CONFIG_PROC_FS
 /* get block device names in somewhat random order */
-int get_blkdev_list(char *p)
+int get_blkdev_list(char *p, int used)
 {
 	struct blk_major_name *n;
 	int i, len;
@@ -49,10 +49,18 @@ int get_blkdev_list(char *p)
 
 	down(&block_subsys_sem);
 	for (i = 0; i < ARRAY_SIZE(major_names); i++) {
-		for (n = major_names[i]; n; n = n->next)
+		for (n = major_names[i]; n; n = n->next) {
+			/*
+			 * If the curent string plus the 5 extra characters
+			 * in the line would run us off the page, then we're done
+			 */
+			if ((len + used + strlen(n->name) + 5) >= PAGE_SIZE)
+				goto page_full;
 			len += sprintf(p+len, "%3d %s\n",
 				       n->major, n->name);
+		}
 	}
+page_full:
 	up(&block_subsys_sem);
 
 	return len;
