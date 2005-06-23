@@ -433,5 +433,26 @@ config IP_TCPDIAG
 config IP_TCPDIAG_IPV6
 	def_bool (IP_TCPDIAG=y && IPV6=y) || (IP_TCPDIAG=m && IPV6)
 
+# TCP Reno is builtin (required as fallback)
+menu "TCP congestion control"
+	depends on INET
+
+config TCP_CONG_BIC
+	tristate "Binary Increase Congestion (BIC) control"
+	depends on INET
+	default y
+	---help---
+	BIC-TCP is a sender-side only change that ensures a linear RTT
+	fairness under large windows while offering both scalability and
+	bounded TCP-friendliness. The protocol combines two schemes
+	called additive increase and binary search increase. When the
+	congestion window is large, additive increase with a large
+	increment ensures linear RTT fairness as well as good
+	scalability. Under small congestion windows, binary search
+	increase provides TCP friendliness.
+	See http://www.csc.ncsu.edu/faculty/rhee/export/bitcp/
+
+endmenu
+
 source "net/ipv4/ipvs/Kconfig"
 
