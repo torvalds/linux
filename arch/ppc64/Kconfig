@@ -199,8 +199,15 @@ config HMT
 	  pSeries systems p620 and p660 have such a cpu type.
 
 config ARCH_DISCONTIGMEM_ENABLE
-	bool "Discontiguous Memory Support"
+	def_bool y
 	depends on SMP && PPC_PSERIES
+
+config ARCH_DISCONTIGMEM_DEFAULT
+	def_bool y
+	depends on ARCH_DISCONTIGMEM_ENABLE
+
+config ARCH_FLATMEM_ENABLE
+	def_bool y
 
 source "mm/Kconfig"
 
