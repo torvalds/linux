@@ -386,7 +386,7 @@ static void __init contig_initmem_init(void)
         if (bootmap == -1L) 
                 panic("Cannot find bootmem map of size %ld\n",bootmap_size);
         bootmap_size = init_bootmem(bootmap >> PAGE_SHIFT, end_pfn);
-        e820_bootmem_free(&contig_page_data, 0, end_pfn << PAGE_SHIFT); 
+        e820_bootmem_free(NODE_DATA(0), 0, end_pfn << PAGE_SHIFT);
         reserve_bootmem(bootmap, bootmap_size);
 } 
 #endif
