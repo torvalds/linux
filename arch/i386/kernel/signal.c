@@ -605,7 +605,7 @@ int fastcall do_signal(struct pt_regs *regs, sigset_t *oldset)
 	 * kernel mode. Just return without doing anything
 	 * if so.
 	 */
-	if ((regs->xcs & 3) != 3)
+	if (!user_mode(regs))
 		return 1;
 
 	if (current->flags & PF_FREEZE) {
