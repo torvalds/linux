@@ -204,7 +204,7 @@ void * mempool_alloc(mempool_t *pool, unsigned int __nocast gfp_mask)
 {
 	void *element;
 	unsigned long flags;
-	DEFINE_WAIT(wait);
+	wait_queue_t wait;
 	int gfp_temp;
 
 	might_sleep_if(gfp_mask & __GFP_WAIT);
@@ -235,6 +235,7 @@ repeat_alloc:
 
 	/* Now start performing page reclaim */
 	gfp_temp = gfp_mask;
+	init_wait(&wait);
 	prepare_to_wait(&pool->wait, &wait, TASK_UNINTERRUPTIBLE);
 	smp_mb();
 	if (!pool->curr_nr)
