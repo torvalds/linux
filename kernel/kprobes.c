@@ -89,9 +89,10 @@ static int aggr_pre_handler(struct kprobe *p, struct pt_regs *regs)
 	list_for_each_entry(kp, &p->list, list) {
 		if (kp->pre_handler) {
 			curr_kprobe = kp;
-			kp->pre_handler(kp, regs);
-			curr_kprobe = NULL;
+			if (kp->pre_handler(kp, regs))
+				return 1;
 		}
+		curr_kprobe = NULL;
 	}
 	return 0;
 }
@@ -122,6 +123,19 @@ static int aggr_fault_handler(struct kprobe *p, struct pt_regs *regs,
 		if (curr_kprobe->fault_handler(curr_kprobe, regs, trapnr))
 			return 1;
 	}
+	return 0;
+}
+
+static int aggr_break_handler(struct kprobe *p, struct pt_regs *regs)
+{
+	struct kprobe *kp = curr_kprobe;
+	if (curr_kprobe && kp->break_handler) {
+		if (kp->break_handler(kp, regs)) {
+			curr_kprobe = NULL;
+			return 1;
+		}
+	}
+	curr_kprobe = NULL;
 	return 0;
 }
 
@@ -258,18 +272,45 @@ static inline void free_rp_inst(struct kretprobe *rp)
 }
 
 /*
+ * Keep all fields in the kprobe consistent
+ */
+static inline void copy_kprobe(struct kprobe *old_p, struct kprobe *p)
+{
+	memcpy(&p->opcode, &old_p->opcode, sizeof(kprobe_opcode_t));
+	memcpy(&p->ainsn, &old_p->ainsn, sizeof(struct arch_specific_insn));
+}
+
+/*
+* Add the new probe to old_p->list. Fail if this is the
+* second jprobe at the address - two jprobes can't coexist
+*/
+static int add_new_kprobe(struct kprobe *old_p, struct kprobe *p)
+{
+        struct kprobe *kp;
+
+	if (p->break_handler) {
+		list_for_each_entry(kp, &old_p->list, list) {
+			if (kp->break_handler)
+				return -EEXIST;
+		}
+		list_add_tail(&p->list, &old_p->list);
+	} else
+		list_add(&p->list, &old_p->list);
+	return 0;
+}
+
+/*
  * Fill in the required fields of the "manager kprobe". Replace the
  * earlier kprobe in the hlist with the manager kprobe
  */
 static inline void add_aggr_kprobe(struct kprobe *ap, struct kprobe *p)
 {
+	copy_kprobe(p, ap);
 	ap->addr = p->addr;
-	memcpy(&ap->opcode, &p->opcode, sizeof(kprobe_opcode_t));
-	memcpy(&ap->ainsn, &p->ainsn, sizeof(struct arch_specific_insn));
-
 	ap->pre_handler = aggr_pre_handler;
 	ap->post_handler = aggr_post_handler;
 	ap->fault_handler = aggr_fault_handler;
+	ap->break_handler = aggr_break_handler;
 
 	INIT_LIST_HEAD(&ap->list);
 	list_add(&p->list, &ap->list);
@@ -290,16 +331,16 @@ static int register_aggr_kprobe(struct kprobe *old_p, struct kprobe *p)
 	int ret = 0;
 	struct kprobe *ap;
 
-	if (old_p->break_handler || p->break_handler) {
-		ret = -EEXIST;	/* kprobe and jprobe can't (yet) coexist */
-	} else if (old_p->pre_handler == aggr_pre_handler) {
-		list_add(&p->list, &old_p->list);
+	if (old_p->pre_handler == aggr_pre_handler) {
+		copy_kprobe(old_p, p);
+		ret = add_new_kprobe(old_p, p);
 	} else {
 		ap = kcalloc(1, sizeof(struct kprobe), GFP_ATOMIC);
 		if (!ap)
 			return -ENOMEM;
 		add_aggr_kprobe(ap, old_p);
-		list_add(&p->list, &ap->list);
+		copy_kprobe(ap, p);
+		ret = add_new_kprobe(ap, p);
 	}
 	return ret;
 }
