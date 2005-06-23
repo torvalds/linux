@@ -3281,7 +3281,7 @@ QFSUnixRetry:
 }
 
 int
-CIFSSMBSETFSUnixInfo(const int xid, struct cifsTconInfo *tcon, __u64 cap)
+CIFSSMBSetFSUnixInfo(const int xid, struct cifsTconInfo *tcon, __u64 cap)
 {
 /* level 0x200  SMB_SET_CIFS_UNIX_INFO */
 	TRANSACTION2_SETFSI_REQ *pSMB = NULL;

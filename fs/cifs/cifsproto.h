@@ -129,7 +129,7 @@ extern int get_dfs_path(int xid, struct cifsSesInfo *pSesInfo,
 			int remap);
 extern int CIFSSMBQFSInfo(const int xid, struct cifsTconInfo *tcon,
 			struct kstatfs *FSData);
-extern int CIFSSMBSETFSUnixInfo(const int xid, struct cifsTconInfo *tcon,
+extern int CIFSSMBSetFSUnixInfo(const int xid, struct cifsTconInfo *tcon,
 			__u64 cap);
 
 extern int CIFSSMBQFSAttributeInfo(const int xid,

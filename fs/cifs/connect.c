@@ -1794,7 +1794,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 				/* Try and negotiate POSIX pathnames if we can. */
 				if (volume_info.posix_paths && (CIFS_UNIX_POSIX_PATHNAMES_CAP &
 				    le64_to_cpu(tcon->fsUnixInfo.Capability))) {
-					if (!CIFSSMBSETFSUnixInfo(xid, tcon, CIFS_UNIX_POSIX_PATHNAMES_CAP, 0))  {
+					if (!CIFSSMBSetFSUnixInfo(xid, tcon, CIFS_UNIX_POSIX_PATHNAMES_CAP))  {
 						cFYI(1,("negotiated posix pathnames support"));
 						cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_POSIX_PATHS;
 					} else {
