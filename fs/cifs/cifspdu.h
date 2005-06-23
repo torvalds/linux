@@ -59,6 +59,7 @@
 #define TRANS2_FIND_FIRST             0x01
 #define TRANS2_FIND_NEXT              0x02
 #define TRANS2_QUERY_FS_INFORMATION   0x03
+#define TRANS2_SET_FS_INFORMATION     0x04
 #define TRANS2_QUERY_PATH_INFORMATION 0x05
 #define TRANS2_SET_PATH_INFORMATION   0x06
 #define TRANS2_QUERY_FILE_INFORMATION 0x07
@@ -1411,6 +1412,43 @@ typedef struct smb_com_transaction_qfsi_rsp {
 	__u8 Pad;		/* may be three bytes *//* followed by data area */
 } TRANSACTION2_QFSI_RSP;
 
+
+/* SETFSInfo Levels */
+#define SMB_SET_CIFS_UNIX_INFO    0x200
+typedef struct smb_com_transaction2_setfsi_req {
+	struct smb_hdr hdr;	/* wct = 15 */
+	__le16 TotalParameterCount;
+	__le16 TotalDataCount;
+	__le16 MaxParameterCount;
+	__le16 MaxDataCount;
+	__u8 MaxSetupCount;
+	__u8 Reserved;
+	__le16 Flags;
+	__le32 Timeout;
+	__u16 Reserved2;
+	__le16 ParameterCount;	/* 4 */
+	__le16 ParameterOffset;
+	__le16 DataCount;	/* 12 */
+	__le16 DataOffset;
+	__u8 SetupCount;	/* one */
+	__u8 Reserved3;
+	__le16 SubCommand;	/* TRANS2_SET_FS_INFORMATION */
+	__le16 ByteCount;
+	__u8 Pad;
+	__u16 FileNum;		/* Parameters start. */
+	__le16 InformationLevel;/* Parameters end. */
+	__le16 ClientUnixMajor; /* Data start. */
+	__le16 ClientUnixMinor;
+	__le64 ClientUnixCap;   /* Data end */
+} TRANSACTION2_SETFSI_REQ;
+
+typedef struct smb_com_transaction2_setfsi_rsp {
+	struct smb_hdr hdr;	/* wct = 10 */
+	struct trans2_resp t2;
+	__u16 ByteCount;
+} TRANSACTION2_SETFSI_RSP;
+
+
 typedef struct smb_com_transaction2_get_dfs_refer_req {
 	struct smb_hdr hdr;	/* wct = 15 */
 	__le16 TotalParameterCount;
@@ -1551,12 +1589,20 @@ typedef struct {
 	__le16 MinorVersionNumber;
 	__le64 Capability;
 } FILE_SYSTEM_UNIX_INFO;	/* Unix extensions info, level 0x200 */
+
+/* Version numbers for CIFS UNIX major and minor. */
+#define CIFS_UNIX_MAJOR_VERSION 1
+#define CIFS_UNIX_MINOR_VERSION 0
+
 /* Linux/Unix extensions capability flags */
 #define CIFS_UNIX_FCNTL_CAP             0x00000001 /* support for fcntl locks */
 #define CIFS_UNIX_POSIX_ACL_CAP         0x00000002 /* support getfacl/setfacl */
 #define CIFS_UNIX_XATTR_CAP             0x00000004 /* support new namespace   */
 #define CIFS_UNIX_EXTATTR_CAP           0x00000008 /* support chattr/chflag   */
+#define CIFS_UNIX_POSIX_PATHNAMES_CAP   0x00000010 /* Use POSIX pathnames on the wire. */
+
 #define CIFS_POSIX_EXTENSIONS           0x00000010 /* support for new QFSInfo */
+
 typedef struct {
 	/* For undefined recommended transfer size return -1 in that field */
 	__le32 OptimalTransferSize;  /* bsize on some os, iosize on other os */

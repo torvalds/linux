@@ -49,8 +49,8 @@ cifs_hardlink(struct dentry *old_file, struct inode *inode,
    BB note DFS case in future though (when we may have to check) */
 
 	down(&inode->i_sb->s_vfs_rename_sem);
-	fromName = build_path_from_dentry(old_file);
-	toName = build_path_from_dentry(direntry);
+	fromName = build_path_from_dentry(old_file, cifs_sb_target);
+	toName = build_path_from_dentry(direntry, cifs_sb_target);
 	up(&inode->i_sb->s_vfs_rename_sem);
 	if((fromName == NULL) || (toName == NULL)) {
 		rc = -ENOMEM;
@@ -105,16 +105,17 @@ cifs_follow_link(struct dentry *direntry, struct nameidata *nd)
 
 	xid = GetXid();
 
+	cifs_sb = CIFS_SB(inode->i_sb);
+	pTcon = cifs_sb->tcon;
+
 	down(&direntry->d_sb->s_vfs_rename_sem);
-	full_path = build_path_from_dentry(direntry);
+	full_path = build_path_from_dentry(direntry, cifs_sb);
 	up(&direntry->d_sb->s_vfs_rename_sem);
 
 	if (!full_path)
 		goto out_no_free;
 
 	cFYI(1, ("Full path: %s inode = 0x%p", full_path, inode));
-	cifs_sb = CIFS_SB(inode->i_sb);
-	pTcon = cifs_sb->tcon;
 	target_path = kmalloc(PATH_MAX, GFP_KERNEL);
 	if (!target_path) {
 		target_path = ERR_PTR(-ENOMEM);
@@ -167,7 +168,7 @@ cifs_symlink(struct inode *inode, struct dentry *direntry, const char *symname)
 	pTcon = cifs_sb->tcon;
 
 	down(&inode->i_sb->s_vfs_rename_sem);
-	full_path = build_path_from_dentry(direntry);
+	full_path = build_path_from_dentry(direntry, cifs_sb);
 	up(&inode->i_sb->s_vfs_rename_sem);
 
 	if(full_path == NULL) {
@@ -233,7 +234,7 @@ cifs_readlink(struct dentry *direntry, char __user *pBuffer, int buflen)
 /* BB would it be safe against deadlock to grab this sem 
       even though rename itself grabs the sem and calls lookup? */
 /*       down(&inode->i_sb->s_vfs_rename_sem);*/
-	full_path = build_path_from_dentry(direntry);
+	full_path = build_path_from_dentry(direntry, cifs_sb);
 /*       up(&inode->i_sb->s_vfs_rename_sem);*/
 
 	if(full_path == NULL) {

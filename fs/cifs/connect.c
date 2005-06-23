@@ -74,6 +74,7 @@ struct smb_vol {
 	unsigned server_ino:1; /* use inode numbers from server ie UniqueId */
 	unsigned direct_io:1;
 	unsigned remap:1;   /* set to remap seven reserved chars in filenames */
+	unsigned posix_paths:1;   /* unset to not ask for posix pathnames. */
 	unsigned int rsize;
 	unsigned int wsize;
 	unsigned int sockopt;
@@ -745,6 +746,9 @@ cifs_parse_mount_options(char *options, const char *devname,struct smb_vol *vol)
 	/* vol->retry default is 0 (i.e. "soft" limited retry not hard retry) */
 	vol->rw = TRUE;
 
+	/* default is always to request posix paths. */
+	vol->posix_paths = 1;
+
 	if (!options)
 		return 1;
 
@@ -1023,6 +1027,10 @@ cifs_parse_mount_options(char *options, const char *devname,struct smb_vol *vol)
 			vol->remap = 1;
 		} else if (strnicmp(data, "nomapchars", 10) == 0) {
 			vol->remap = 0;
+		} else if (strnicmp(data, "posixpaths", 10) == 0) {
+			vol->posix_paths = 1;
+		} else if (strnicmp(data, "noposixpaths", 12) == 0) {
+			vol->posix_paths = 0;
 		} else if (strnicmp(data, "setuids", 7) == 0) {
 			vol->setuids = 1;
 		} else if (strnicmp(data, "nosetuids", 9) == 0) {
@@ -1679,6 +1687,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_MAP_SPECIAL_CHR;
 		if(volume_info.no_xattr)
 			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_XATTR;
+
 		if(volume_info.direct_io) {
 			cERROR(1,("mounting share using direct i/o"));
 			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_DIRECT_IO;
@@ -1780,6 +1789,17 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 					   le64_to_cpu(tcon->fsUnixInfo.Capability))
 						cFYI(1,("server negotiated posix acl support"));
 						sb->s_flags |= MS_POSIXACL;
+				}
+
+				/* Try and negotiate POSIX pathnames if we can. */
+				if (volume_info.posix_paths && (CIFS_UNIX_POSIX_PATHNAMES_CAP &
+				    le64_to_cpu(tcon->fsUnixInfo.Capability))) {
+					if (!CIFSSMBSETFSUnixInfo(xid, tcon, CIFS_UNIX_POSIX_PATHNAMES_CAP, 0))  {
+						cFYI(1,("negotiated posix pathnames support"));
+						cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_POSIX_PATHS;
+					} else {
+						cFYI(1,("posix pathnames support requested but not supported"));
+					}
 				}
 			}
 		}

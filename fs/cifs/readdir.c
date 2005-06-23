@@ -354,7 +354,7 @@ static int initiate_cifs_search(const int xid, struct file *file)
 		return -EINVAL;
 
 	down(&file->f_dentry->d_sb->s_vfs_rename_sem);
-	full_path = build_path_from_dentry(file->f_dentry);
+	full_path = build_path_from_dentry(file->f_dentry, cifs_sb);
 	up(&file->f_dentry->d_sb->s_vfs_rename_sem);
 
 	if(full_path == NULL) {
@@ -375,7 +375,7 @@ ffirst_retry:
 
 	rc = CIFSFindFirst(xid, pTcon,full_path,cifs_sb->local_nls,
 		&cifsFile->netfid, &cifsFile->srch_inf,
-		cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+		cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR, CIFS_DIR_SEP(cifs_sb));
 	if(rc == 0)
 		cifsFile->invalidHandle = FALSE;
 	if((rc == -EOPNOTSUPP) && 
