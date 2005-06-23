@@ -24,7 +24,7 @@ struct thread_info {
 	struct task_struct *task;		/* main task structure */
 	struct exec_domain *exec_domain;	/* execution domain */
 	int		cpu;			/* cpu we're on */
-	int		preempt_count;
+	int		preempt_count;		/* 0 => preemptable, <0 => BUG */
 	struct restart_block restart_block;
 	/* set by force_successful_syscall_return */
 	unsigned char	syscall_noerror;
