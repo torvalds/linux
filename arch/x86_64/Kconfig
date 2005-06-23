@@ -265,7 +265,7 @@ config NUMA_EMU
 	  into virtual nodes when booted with "numa=fake=N", where N is the
 	  number of nodes. This is only useful for debugging.
 
-config DISCONTIGMEM
+config ARCH_DISCONTIGMEM_ENABLE
        bool
        depends on NUMA
        default y
@@ -273,6 +273,8 @@ config DISCONTIGMEM
 config NUMA
        bool
        default n
+
+source "mm/Kconfig"
 
 config HAVE_DEC_LOCK
 	bool

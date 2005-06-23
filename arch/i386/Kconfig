@@ -783,7 +783,7 @@ comment "NUMA (NUMA-Q) requires SMP, 64GB highmem support"
 comment "NUMA (Summit) requires SMP, 64GB highmem support, ACPI"
 	depends on X86_SUMMIT && (!HIGHMEM64G || !ACPI)
 
-config DISCONTIGMEM
+config ARCH_DISCONTIGMEM_ENABLE
 	bool
 	depends on NUMA
 	default y
@@ -807,6 +807,8 @@ config HAVE_ARCH_ALLOC_REMAP
 	bool
 	depends on NUMA
 	default y
+
+source "mm/Kconfig"
 
 config HIGHPTE
 	bool "Allocate 3rd-level pagetables from highmem"

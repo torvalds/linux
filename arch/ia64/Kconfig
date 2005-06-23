@@ -197,7 +197,7 @@ config HOLES_IN_ZONE
 	bool
 	default y if VIRTUAL_MEM_MAP
 
-config DISCONTIGMEM
+config ARCH_DISCONTIGMEM_ENABLE
 	bool "Discontiguous memory support"
 	depends on (IA64_DIG || IA64_SGI_SN2 || IA64_GENERIC || IA64_HP_ZX1 || IA64_HP_ZX1_SWIOTLB) && NUMA && VIRTUAL_MEM_MAP
 	default y if (IA64_SGI_SN2 || IA64_GENERIC) && NUMA
@@ -299,6 +299,8 @@ config PREEMPT
 
           Say Y here if you are building a kernel for a desktop, embedded
           or real-time system.  Say N if you are unsure.
+
+source "mm/Kconfig"
 
 config HAVE_DEC_LOCK
 	bool

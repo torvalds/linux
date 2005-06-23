@@ -226,6 +226,8 @@ config WARN_STACK_SIZE
 	  This allows you to specify the maximum frame size a function may
 	  have without the compiler complaining about it.
 
+source "mm/Kconfig"
+
 comment "I/O subsystem configuration"
 
 config MACHCHK_WARNING

@@ -198,9 +198,11 @@ config HMT
 	  This option enables hardware multithreading on RS64 cpus.
 	  pSeries systems p620 and p660 have such a cpu type.
 
-config DISCONTIGMEM
+config ARCH_DISCONTIGMEM_ENABLE
 	bool "Discontiguous Memory Support"
 	depends on SMP && PPC_PSERIES
+
+source "mm/Kconfig"
 
 config NUMA
 	bool "NUMA support"

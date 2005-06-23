@@ -486,7 +486,7 @@ config CPU_SUBTYPE_ST40
        depends on CPU_SUBTYPE_ST40STB1 || CPU_SUBTYPE_ST40GX1
        default y
 
-config DISCONTIGMEM
+config ARCH_DISCONTIGMEM_ENABLE
 	bool
 	depends on SH_HP690
 	default y
@@ -495,6 +495,12 @@ config DISCONTIGMEM
 	  for architectures which are either NUMA (Non-Uniform Memory Access)
 	  or have huge holes in the physical address space for other reasons.
 	  See <file:Documentation/vm/numa> for more.
+
+config ARCH_FLATMEM_DISABLE
+	def_bool y
+	depends on ARCH_DISCONTIGMEM_ENABLE
+
+source "mm/Kconfig"
 
 config ZERO_PAGE_OFFSET
 	hex "Zero page offset"

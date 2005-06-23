@@ -291,6 +291,8 @@ config PRINTER
 	  If you have more than 8 printers, you need to increase the LP_NO
 	  macro in lp.c and the PARPORT_MAX macro in parport.h.
 
+source "mm/Kconfig"
+
 endmenu
 
 source "drivers/base/Kconfig"
