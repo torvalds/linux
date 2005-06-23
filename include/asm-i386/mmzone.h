@@ -8,7 +8,9 @@
 
 #include <asm/smp.h>
 
-#ifdef CONFIG_DISCONTIGMEM
+#if CONFIG_NUMA
+extern struct pglist_data *node_data[];
+#define NODE_DATA(nid)	(node_data[nid])
 
 #ifdef CONFIG_NUMA
 	#ifdef CONFIG_X86_NUMAQ
@@ -21,8 +23,28 @@
 	#define get_zholes_size(n) (0)
 #endif /* CONFIG_NUMA */
 
-extern struct pglist_data *node_data[];
-#define NODE_DATA(nid)		(node_data[nid])
+extern int get_memcfg_numa_flat(void );
+/*
+ * This allows any one NUMA architecture to be compiled
+ * for, and still fall back to the flat function if it
+ * fails.
+ */
+static inline void get_memcfg_numa(void)
+{
+#ifdef CONFIG_X86_NUMAQ
+	if (get_memcfg_numaq())
+		return;
+#elif CONFIG_ACPI_SRAT
+	if (get_memcfg_from_srat())
+		return;
+#endif
+
+	get_memcfg_numa_flat();
+}
+
+#endif /* CONFIG_NUMA */
+
+#ifdef CONFIG_DISCONTIGMEM
 
 /*
  * generic node memory support, the following assumptions apply:
@@ -47,26 +69,6 @@ static inline int pfn_to_nid(unsigned long pfn)
 	return 0;
 #endif
 }
-
-/*
- * Following are macros that are specific to this numa platform.
- */
-#define reserve_bootmem(addr, size) \
-	reserve_bootmem_node(NODE_DATA(0), (addr), (size))
-#define alloc_bootmem(x) \
-	__alloc_bootmem_node(NODE_DATA(0), (x), SMP_CACHE_BYTES, __pa(MAX_DMA_ADDRESS))
-#define alloc_bootmem_low(x) \
-	__alloc_bootmem_node(NODE_DATA(0), (x), SMP_CACHE_BYTES, 0)
-#define alloc_bootmem_pages(x) \
-	__alloc_bootmem_node(NODE_DATA(0), (x), PAGE_SIZE, __pa(MAX_DMA_ADDRESS))
-#define alloc_bootmem_low_pages(x) \
-	__alloc_bootmem_node(NODE_DATA(0), (x), PAGE_SIZE, 0)
-#define alloc_bootmem_node(ignore, x) \
-	__alloc_bootmem_node(NODE_DATA(0), (x), SMP_CACHE_BYTES, __pa(MAX_DMA_ADDRESS))
-#define alloc_bootmem_pages_node(ignore, x) \
-	__alloc_bootmem_node(NODE_DATA(0), (x), PAGE_SIZE, __pa(MAX_DMA_ADDRESS))
-#define alloc_bootmem_low_pages_node(ignore, x) \
-	__alloc_bootmem_node(NODE_DATA(0), (x), PAGE_SIZE, 0)
 
 #define node_localnr(pfn, nid)		((pfn) - node_data[nid]->node_start_pfn)
 
@@ -121,28 +123,33 @@ static inline int pfn_valid(int pfn)
 		return (pfn < node_end_pfn(nid));
 	return 0;
 }
-#endif
-
-extern int get_memcfg_numa_flat(void );
-/*
- * This allows any one NUMA architecture to be compiled
- * for, and still fall back to the flat function if it
- * fails.
- */
-static inline void get_memcfg_numa(void)
-{
-#ifdef CONFIG_X86_NUMAQ
-	if (get_memcfg_numaq())
-		return;
-#elif CONFIG_ACPI_SRAT
-	if (get_memcfg_from_srat())
-		return;
-#endif
-
-	get_memcfg_numa_flat();
-}
+#endif /* CONFIG_X86_NUMAQ */
 
 #endif /* CONFIG_DISCONTIGMEM */
+
+#ifdef CONFIG_NEED_MULTIPLE_NODES
+
+/*
+ * Following are macros that are specific to this numa platform.
+ */
+#define reserve_bootmem(addr, size) \
+	reserve_bootmem_node(NODE_DATA(0), (addr), (size))
+#define alloc_bootmem(x) \
+	__alloc_bootmem_node(NODE_DATA(0), (x), SMP_CACHE_BYTES, __pa(MAX_DMA_ADDRESS))
+#define alloc_bootmem_low(x) \
+	__alloc_bootmem_node(NODE_DATA(0), (x), SMP_CACHE_BYTES, 0)
+#define alloc_bootmem_pages(x) \
+	__alloc_bootmem_node(NODE_DATA(0), (x), PAGE_SIZE, __pa(MAX_DMA_ADDRESS))
+#define alloc_bootmem_low_pages(x) \
+	__alloc_bootmem_node(NODE_DATA(0), (x), PAGE_SIZE, 0)
+#define alloc_bootmem_node(ignore, x) \
+	__alloc_bootmem_node(NODE_DATA(0), (x), SMP_CACHE_BYTES, __pa(MAX_DMA_ADDRESS))
+#define alloc_bootmem_pages_node(ignore, x) \
+	__alloc_bootmem_node(NODE_DATA(0), (x), PAGE_SIZE, __pa(MAX_DMA_ADDRESS))
+#define alloc_bootmem_low_pages_node(ignore, x) \
+	__alloc_bootmem_node(NODE_DATA(0), (x), PAGE_SIZE, 0)
+
+#endif /* CONFIG_NEED_MULTIPLE_NODES */
 
 extern int early_pfn_to_nid(unsigned long pfn);
 
