@@ -161,6 +161,8 @@ config IA64_PAGE_SIZE_64KB
 
 endchoice
 
+source kernel/Kconfig.hz
+
 config IA64_BRL_EMU
 	bool
 	depends on ITANIUM
