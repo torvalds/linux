@@ -793,6 +793,17 @@ fastcall NORET_TYPE void do_exit(long code)
 		ptrace_notify((PTRACE_EVENT_EXIT << 8) | SIGTRAP);
 	}
 
+	/*
+	 * We're taking recursive faults here in do_exit. Safest is to just
+	 * leave this task alone and wait for reboot.
+	 */
+	if (unlikely(tsk->flags & PF_EXITING)) {
+		printk(KERN_ALERT
+			"Fixing recursive fault but reboot is needed!\n");
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule();
+	}
+
 	tsk->flags |= PF_EXITING;
 
 	/*
