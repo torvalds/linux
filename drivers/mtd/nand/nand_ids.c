@@ -2,8 +2,8 @@
  *  drivers/mtd/nandids.c
  *
  *  Copyright (C) 2002 Thomas Gleixner (tglx@linutronix.de)
-  *
- * $Id: nand_ids.c,v 1.12 2005/02/16 09:33:27 gleixner Exp $
+ *
+ * $Id: nand_ids.c,v 1.14 2005/06/23 09:38:50 gleixner Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -56,15 +56,24 @@ struct nand_flash_dev nand_flash_ids[] = {
 	{"NAND 64MiB 3,3V 16-bit", 	0x56, 512, 64, 0x4000, NAND_BUSWIDTH_16},
 	
 	{"NAND 128MiB 1,8V 8-bit", 	0x78, 512, 128, 0x4000, 0},
+	{"NAND 128MiB 1,8V 8-bit", 	0x39, 512, 128, 0x4000, 0},
 	{"NAND 128MiB 3,3V 8-bit", 	0x79, 512, 128, 0x4000, 0},
 	{"NAND 128MiB 1,8V 16-bit", 	0x72, 512, 128, 0x4000, NAND_BUSWIDTH_16},
+	{"NAND 128MiB 1,8V 16-bit", 	0x49, 512, 128, 0x4000, NAND_BUSWIDTH_16},
 	{"NAND 128MiB 3,3V 16-bit", 	0x74, 512, 128, 0x4000, NAND_BUSWIDTH_16},
+	{"NAND 128MiB 3,3V 16-bit", 	0x59, 512, 128, 0x4000, NAND_BUSWIDTH_16},
 	
 	{"NAND 256MiB 3,3V 8-bit", 	0x71, 512, 256, 0x4000, 0},
 
 	/* These are the new chips with large page size. The pagesize
 	* and the erasesize is determined from the extended id bytes
 	*/
+	/*512 Megabit */
+	{"NAND 64MiB 1,8V 8-bit", 	0xA2, 0,  64, 0, NAND_SAMSUNG_LP_OPTIONS | NAND_NO_AUTOINCR},
+	{"NAND 64MiB 3,3V 8-bit", 	0xF2, 0,  64, 0, NAND_SAMSUNG_LP_OPTIONS | NAND_NO_AUTOINCR},
+	{"NAND 64MiB 1,8V 16-bit", 	0xB2, 0,  64, 0, NAND_SAMSUNG_LP_OPTIONS | NAND_BUSWIDTH_16 | NAND_NO_AUTOINCR},
+	{"NAND 64MiB 3,3V 16-bit", 	0xC2, 0,  64, 0, NAND_SAMSUNG_LP_OPTIONS | NAND_BUSWIDTH_16 | NAND_NO_AUTOINCR},
+	
 	/* 1 Gigabit */
 	{"NAND 128MiB 1,8V 8-bit", 	0xA1, 0, 128, 0, NAND_SAMSUNG_LP_OPTIONS | NAND_NO_AUTOINCR},
 	{"NAND 128MiB 3,3V 8-bit", 	0xF1, 0, 128, 0, NAND_SAMSUNG_LP_OPTIONS | NAND_NO_AUTOINCR},
