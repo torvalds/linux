@@ -66,6 +66,14 @@ Who:	Paul E. McKenney <paulmck@us.ibm.com>
 
 ---------------------------
 
+What:	remove verify_area()
+When:	July 2006
+Files:	Various uaccess.h headers.
+Why:	Deprecated and redundant. access_ok() should be used instead.
+Who:	Jesper Juhl <juhl-lkml@dif.dk>
+
+---------------------------
+
 What:	IEEE1394 Audio and Music Data Transmission Protocol driver,
 	Connection Management Procedures driver
 When:	November 2005
