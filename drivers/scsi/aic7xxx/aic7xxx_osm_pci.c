@@ -140,27 +140,17 @@ struct pci_driver aic7xxx_pci_driver = {
 static void
 ahc_linux_pci_dev_remove(struct pci_dev *pdev)
 {
-	struct ahc_softc *ahc;
-	u_long l;
+	struct ahc_softc *ahc = pci_get_drvdata(pdev);
+	u_long s;
 
-	/*
-	 * We should be able to just perform
-	 * the free directly, but check our
-	 * list for extra sanity.
-	 */
-	ahc_list_lock(&l);
-	ahc = ahc_find_softc((struct ahc_softc *)pci_get_drvdata(pdev));
-	if (ahc != NULL) {
-		u_long s;
+	ahc_list_lock(&s);
+	TAILQ_REMOVE(&ahc_tailq, ahc, links);
+	ahc_list_unlock(&s);
 
-		TAILQ_REMOVE(&ahc_tailq, ahc, links);
-		ahc_list_unlock(&l);
-		ahc_lock(ahc, &s);
-		ahc_intr_enable(ahc, FALSE);
-		ahc_unlock(ahc, &s);
-		ahc_free(ahc);
-	} else
-		ahc_list_unlock(&l);
+	ahc_lock(ahc, &s);
+	ahc_intr_enable(ahc, FALSE);
+	ahc_unlock(ahc, &s);
+	ahc_free(ahc);
 }
 
 static int
@@ -173,22 +163,6 @@ ahc_linux_pci_dev_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct		 ahc_pci_identity *entry;
 	char		*name;
 	int		 error;
-
-	/*
-	 * Some BIOSen report the same device multiple times.
-	 */
-	TAILQ_FOREACH(ahc, &ahc_tailq, links) {
-		struct pci_dev *probed_pdev;
-
-		probed_pdev = ahc->dev_softc;
-		if (probed_pdev->bus->number == pdev->bus->number
-		 && probed_pdev->devfn == pdev->devfn)
-			break;
-	}
-	if (ahc != NULL) {
-		/* Skip duplicate. */
-		return (-ENODEV);
-	}
 
 	pci = pdev;
 	entry = ahc_find_pci_device(pci);
@@ -221,13 +195,11 @@ ahc_linux_pci_dev_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 && ahc_linux_get_memsize() > 0x80000000
 	 && pci_set_dma_mask(pdev, mask_39bit) == 0) {
 		ahc->flags |= AHC_39BIT_ADDRESSING;
-		ahc->platform_data->hw_dma_mask = mask_39bit;
 	} else {
 		if (pci_set_dma_mask(pdev, DMA_32BIT_MASK)) {
 			printk(KERN_WARNING "aic7xxx: No suitable DMA available.\n");
                 	return (-ENODEV);
 		}
-		ahc->platform_data->hw_dma_mask = DMA_32BIT_MASK;
 	}
 	ahc->dev_softc = pci;
 	error = ahc_pci_config(ahc, entry);
@@ -236,15 +208,8 @@ ahc_linux_pci_dev_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return (-error);
 	}
 	pci_set_drvdata(pdev, ahc);
-	if (aic7xxx_detect_complete) {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
+	if (aic7xxx_detect_complete)
 		ahc_linux_register_host(ahc, &aic7xxx_driver_template);
-#else
-		printf("aic7xxx: ignoring PCI device found after "
-		       "initialization\n");
-		return (-ENODEV);
-#endif
-	}
 	return (0);
 }
 

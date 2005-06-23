@@ -279,7 +279,7 @@ EXPORT_SYMBOL(kobject_set_name);
  *	@new_name: object's new name
  */
 
-int kobject_rename(struct kobject * kobj, char *new_name)
+int kobject_rename(struct kobject * kobj, const char *new_name)
 {
 	int error = 0;
 

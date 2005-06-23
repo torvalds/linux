@@ -104,6 +104,7 @@ extern void show_pte(struct mm_struct *mm, unsigned long addr);
 extern void __show_regs(struct pt_regs *);
 
 extern int cpu_architecture(void);
+extern void cpu_init(void);
 
 #define set_cr(x)					\
 	__asm__ __volatile__(				\
@@ -307,7 +308,7 @@ do {									\
 ({					\
 	unsigned long flags;		\
 	local_save_flags(flags);	\
-	flags & PSR_I_BIT;		\
+	(int)(flags & PSR_I_BIT);	\
 })
 
 #ifdef CONFIG_SMP

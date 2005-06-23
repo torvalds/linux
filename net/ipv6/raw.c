@@ -434,12 +434,12 @@ csum_copy_err:
 	/* Clear queue. */
 	if (flags&MSG_PEEK) {
 		int clear = 0;
-		spin_lock_irq(&sk->sk_receive_queue.lock);
+		spin_lock_bh(&sk->sk_receive_queue.lock);
 		if (skb == skb_peek(&sk->sk_receive_queue)) {
 			__skb_unlink(skb, &sk->sk_receive_queue);
 			clear = 1;
 		}
-		spin_unlock_irq(&sk->sk_receive_queue.lock);
+		spin_unlock_bh(&sk->sk_receive_queue.lock);
 		if (clear)
 			kfree_skb(skb);
 	}
@@ -971,11 +971,11 @@ static int rawv6_ioctl(struct sock *sk, int cmd, unsigned long arg)
 			struct sk_buff *skb;
 			int amount = 0;
 
-			spin_lock_irq(&sk->sk_receive_queue.lock);
+			spin_lock_bh(&sk->sk_receive_queue.lock);
 			skb = skb_peek(&sk->sk_receive_queue);
 			if (skb != NULL)
 				amount = skb->tail - skb->h.raw;
-			spin_unlock_irq(&sk->sk_receive_queue.lock);
+			spin_unlock_bh(&sk->sk_receive_queue.lock);
 			return put_user(amount, (int __user *)arg);
 		}
 

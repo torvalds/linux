@@ -193,7 +193,6 @@ struct skb_shared_info {
  *	@nfcache: Cache info
  *	@nfct: Associated connection, if any
  *	@nfctinfo: Relationship of this skb to the connection
- *	@nf_debug: Netfilter debugging
  *	@nf_bridge: Saved data about a bridged frame - see br_netfilter.c
  *      @private: Data which is private to the HIPPI implementation
  *	@tc_index: Traffic control index
@@ -264,9 +263,6 @@ struct sk_buff {
 	__u32			nfcache;
 	__u32			nfctinfo;
 	struct nf_conntrack	*nfct;
-#ifdef CONFIG_NETFILTER_DEBUG
-        unsigned int		nf_debug;
-#endif
 #ifdef CONFIG_BRIDGE_NETFILTER
 	struct nf_bridge_info	*nf_bridge;
 #endif
@@ -1219,15 +1215,6 @@ static inline void nf_reset(struct sk_buff *skb)
 {
 	nf_conntrack_put(skb->nfct);
 	skb->nfct = NULL;
-#ifdef CONFIG_NETFILTER_DEBUG
-	skb->nf_debug = 0;
-#endif
-}
-static inline void nf_reset_debug(struct sk_buff *skb)
-{
-#ifdef CONFIG_NETFILTER_DEBUG
-	skb->nf_debug = 0;
-#endif
 }
 
 #ifdef CONFIG_BRIDGE_NETFILTER

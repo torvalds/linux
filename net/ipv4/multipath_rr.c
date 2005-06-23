@@ -31,6 +31,7 @@
 #include <linux/igmp.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/module.h>
 #include <linux/mroute.h>
 #include <linux/init.h>
 #include <net/ip.h>
@@ -47,28 +48,11 @@
 #include <net/checksum.h>
 #include <net/ip_mp_alg.h>
 
-#define MULTIPATH_MAX_CANDIDATES 40
-
-static struct rtable* last_used = NULL;
-
-static void rr_remove(struct rtable *rt)
-{
-	if (last_used == rt)
-		last_used = NULL;
-}
-
 static void rr_select_route(const struct flowi *flp,
 			    struct rtable *first, struct rtable **rp)
 {
 	struct rtable *nh, *result, *min_use_cand = NULL;
 	int min_use = -1;
-
-	/* if necessary and possible utilize the old alternative */
-	if ((flp->flags & FLOWI_FLAG_MULTIPATHOLDROUTE) != 0 &&
-	    last_used != NULL) {
-		result = last_used;
-		goto out;
-	}
 
 	/* 1. make sure all alt. nexthops have the same GC related data
 	 * 2. determine the new candidate to be returned
@@ -90,15 +74,12 @@ static void rr_select_route(const struct flowi *flp,
 	if (!result)
 		result = first;
 
-out:
-	last_used = result;
 	result->u.dst.__use++;
 	*rp = result;
 }
 
 static struct ip_mp_alg_ops rr_ops = {
 	.mp_alg_select_route	=	rr_select_route,
-	.mp_alg_remove		=	rr_remove,
 };
 
 static int __init rr_init(void)
@@ -113,3 +94,4 @@ static void __exit rr_exit(void)
 
 module_init(rr_init);
 module_exit(rr_exit);
+MODULE_LICENSE("GPL");

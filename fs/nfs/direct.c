@@ -517,7 +517,7 @@ retry:
 	result = tot_bytes;
 
 out:
-	nfs_end_data_update_defer(inode);
+	nfs_end_data_update(inode);
 	nfs_writedata_free(wdata);
 	return result;
 

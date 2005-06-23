@@ -26,10 +26,7 @@ static int sym53c416_detect(Scsi_Host_Template *);
 static const char *sym53c416_info(struct Scsi_Host *);
 static int sym53c416_release(struct Scsi_Host *);
 static int sym53c416_queuecommand(Scsi_Cmnd *, void (*done)(Scsi_Cmnd *));
-static int sym53c416_abort(Scsi_Cmnd *);
 static int sym53c416_host_reset(Scsi_Cmnd *);
-static int sym53c416_bus_reset(Scsi_Cmnd *);
-static int sym53c416_device_reset(Scsi_Cmnd *);
 static int sym53c416_bios_param(struct scsi_device *, struct block_device *,
 		sector_t, int *);
 static void sym53c416_setup(char *str, int *ints);

@@ -248,7 +248,7 @@ static int sp8870_wake_up(struct sp8870_state* state)
 static int sp8870_set_frontend_parameters (struct dvb_frontend* fe,
 					   struct dvb_frontend_parameters *p)
 {
-	struct sp8870_state* state = (struct sp8870_state*) fe->demodulator_priv;
+	struct sp8870_state* state = fe->demodulator_priv;
 	int  err;
 	u16 reg0xc05;
 
@@ -302,7 +302,7 @@ static int sp8870_set_frontend_parameters (struct dvb_frontend* fe,
 
 static int sp8870_init (struct dvb_frontend* fe)
 {
-	struct sp8870_state* state = (struct sp8870_state*) fe->demodulator_priv;
+	struct sp8870_state* state = fe->demodulator_priv;
         const struct firmware *fw = NULL;
 
 	sp8870_wake_up(state);
@@ -358,7 +358,7 @@ static int sp8870_init (struct dvb_frontend* fe)
 
 static int sp8870_read_status (struct dvb_frontend* fe, fe_status_t * fe_status)
 {
-	struct sp8870_state* state = (struct sp8870_state*) fe->demodulator_priv;
+	struct sp8870_state* state = fe->demodulator_priv;
 	int status;
 	int signal;
 
@@ -384,7 +384,7 @@ static int sp8870_read_status (struct dvb_frontend* fe, fe_status_t * fe_status)
 
 static int sp8870_read_ber (struct dvb_frontend* fe, u32 * ber)
 {
-	struct sp8870_state* state = (struct sp8870_state*) fe->demodulator_priv;
+	struct sp8870_state* state = fe->demodulator_priv;
 	int ret;
 	u32 tmp;
 
@@ -412,7 +412,7 @@ static int sp8870_read_ber (struct dvb_frontend* fe, u32 * ber)
 
 static int sp8870_read_signal_strength(struct dvb_frontend* fe,  u16 * signal)
 {
-	struct sp8870_state* state = (struct sp8870_state*) fe->demodulator_priv;
+	struct sp8870_state* state = fe->demodulator_priv;
 	int ret;
 	u16 tmp;
 
@@ -438,7 +438,7 @@ static int sp8870_read_signal_strength(struct dvb_frontend* fe,  u16 * signal)
 
 static int sp8870_read_uncorrected_blocks (struct dvb_frontend* fe, u32* ublocks)
 {
-	struct sp8870_state* state = (struct sp8870_state*) fe->demodulator_priv;
+	struct sp8870_state* state = fe->demodulator_priv;
 	int ret;
 
 	*ublocks = 0;
@@ -467,7 +467,7 @@ static int switches = 0;
 
 static int sp8870_set_frontend (struct dvb_frontend* fe, struct dvb_frontend_parameters *p)
 {
-	struct sp8870_state* state = (struct sp8870_state*) fe->demodulator_priv;
+	struct sp8870_state* state = fe->demodulator_priv;
 
 	/*
 	    The firmware of the sp8870 sometimes locks up after setting frontend parameters.
@@ -524,7 +524,7 @@ static int sp8870_set_frontend (struct dvb_frontend* fe, struct dvb_frontend_par
 
 static int sp8870_sleep(struct dvb_frontend* fe)
 {
-	struct sp8870_state* state = (struct sp8870_state*) fe->demodulator_priv;
+	struct sp8870_state* state = fe->demodulator_priv;
 
 	// tristate TS output and disable interface pins
 	return sp8870_writereg(state, 0xC18, 0x000);
@@ -540,7 +540,7 @@ static int sp8870_get_tune_settings(struct dvb_frontend* fe, struct dvb_frontend
 
 static void sp8870_release(struct dvb_frontend* fe)
 {
-	struct sp8870_state* state = (struct sp8870_state*) fe->demodulator_priv;
+	struct sp8870_state* state = fe->demodulator_priv;
 	kfree(state);
 }
 
@@ -552,7 +552,7 @@ struct dvb_frontend* sp8870_attach(const struct sp8870_config* config,
 	struct sp8870_state* state = NULL;
 
 	/* allocate memory for the internal state */
-	state = (struct sp8870_state*) kmalloc(sizeof(struct sp8870_state), GFP_KERNEL);
+	state = kmalloc(sizeof(struct sp8870_state), GFP_KERNEL);
 	if (state == NULL) goto error;
 
 	/* setup the state */

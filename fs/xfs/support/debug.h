@@ -50,16 +50,11 @@ extern void cmn_err(int, char *, ...);
 #endif
 
 #ifdef DEBUG
-# ifdef lint
-#  define ASSERT(EX)	((void)0) /* avoid "constant in conditional" babble */
-# else
-#  define ASSERT(EX) ((!doass||(EX))?((void)0):assfail(#EX, __FILE__, __LINE__))
-# endif	/* lint */
+# define ASSERT(EX)	((EX) ? ((void)0) : assfail(#EX, __FILE__, __LINE__))
 #else
 # define ASSERT(x)	((void)0)
 #endif
 
-extern int doass;		/* dynamically turn off asserts */
 extern void assfail(char *, char *, int);
 #ifdef DEBUG
 extern unsigned long random(void);

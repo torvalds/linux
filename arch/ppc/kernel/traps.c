@@ -81,8 +81,10 @@ void die(const char * str, struct pt_regs * fp, long err)
 	console_verbose();
 	spin_lock_irq(&die_lock);
 #ifdef CONFIG_PMAC_BACKLIGHT
-	set_backlight_enable(1);
-	set_backlight_level(BACKLIGHT_MAX);
+	if (_machine == _MACH_Pmac) {
+		set_backlight_enable(1);
+		set_backlight_level(BACKLIGHT_MAX);
+	}
 #endif
 	printk("Oops: %s, sig: %ld [#%d]\n", str, err, ++die_counter);
 #ifdef CONFIG_PREEMPT
@@ -408,12 +410,7 @@ static int emulate_string_inst(struct pt_regs *regs, u32 instword)
 
 	/* Early out if we are an invalid form of lswx */
 	if ((instword & INST_STRING_MASK) == INST_LSWX)
-		if ((rA >= rT) || (NB_RB >= rT) || (rT == rA) || (rT == NB_RB))
-			return -EINVAL;
-
-	/* Early out if we are an invalid form of lswi */
-	if ((instword & INST_STRING_MASK) == INST_LSWI)
-		if ((rA >= rT) || (rT == rA))
+		if ((rT == rA) || (rT == NB_RB))
 			return -EINVAL;
 
 	EA = (rA == 0) ? 0 : regs->gpr[rA];

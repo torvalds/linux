@@ -361,10 +361,7 @@ static void snd_emu10k1x_gpio_write(emu10k1x_t *emu, unsigned int value)
 
 static void snd_emu10k1x_pcm_free_substream(snd_pcm_runtime_t *runtime)
 {
-	emu10k1x_pcm_t *epcm = runtime->private_data;
-  
-	if (epcm)
-		kfree(epcm);
+	kfree(runtime->private_data);
 }
 
 static void snd_emu10k1x_pcm_interrupt(emu10k1x_t *emu, emu10k1x_voice_t *voice)
@@ -1075,6 +1072,7 @@ static int __devinit snd_emu10k1x_proc_init(emu10k1x_t * emu)
 		snd_info_set_text_ops(entry, emu, 1024, snd_emu10k1x_proc_reg_read);
 		entry->c.text.write_size = 64;
 		entry->c.text.write = snd_emu10k1x_proc_reg_write;
+		entry->mode |= S_IWUSR;
 		entry->private_data = emu;
 	}
 	
@@ -1627,7 +1625,7 @@ static int __init alsa_card_emu10k1x_init(void)
 {
 	int err;
 
-	if ((err = pci_module_init(&driver)) > 0)
+	if ((err = pci_register_driver(&driver)) > 0)
 		return err;
 
 	return 0;

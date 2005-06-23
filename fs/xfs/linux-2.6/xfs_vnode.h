@@ -426,7 +426,7 @@ typedef struct vattr {
 	u_long		va_extsize;	/* file extent size */
 	u_long		va_nextents;	/* number of extents in file */
 	u_long		va_anextents;	/* number of attr extents in file */
-	int		va_projid;	/* project id */
+	prid_t		va_projid;	/* project id */
 } vattr_t;
 
 /*

@@ -411,7 +411,7 @@ ixgb_write_eeprom(struct ixgb_hw *hw, uint16_t offset, uint16_t data)
 	ixgb_cleanup_eeprom(hw);
 
 	/* clear the init_ctrl_reg_1 to signify that the cache is invalidated */
-	ee_map->init_ctrl_reg_1 = EEPROM_ICW1_SIGNATURE_CLEAR;
+	ee_map->init_ctrl_reg_1 = le16_to_cpu(EEPROM_ICW1_SIGNATURE_CLEAR);
 
 	return;
 }
@@ -483,7 +483,7 @@ ixgb_get_eeprom_data(struct ixgb_hw *hw)
 		DEBUGOUT("ixgb_ee: Checksum invalid.\n");
 		/* clear the init_ctrl_reg_1 to signify that the cache is
 		 * invalidated */
-		ee_map->init_ctrl_reg_1 = EEPROM_ICW1_SIGNATURE_CLEAR;
+		ee_map->init_ctrl_reg_1 = le16_to_cpu(EEPROM_ICW1_SIGNATURE_CLEAR);
 		return (FALSE);
 	}
 
@@ -579,7 +579,7 @@ ixgb_get_ee_compatibility(struct ixgb_hw *hw)
 	struct ixgb_ee_map_type *ee_map = (struct ixgb_ee_map_type *)hw->eeprom;
 
 	if(ixgb_check_and_get_eeprom_data(hw) == TRUE)
-		return(ee_map->compatibility);
+		return (le16_to_cpu(ee_map->compatibility));
 
 	return(0);
 }
@@ -616,7 +616,7 @@ ixgb_get_ee_init_ctrl_reg_1(struct ixgb_hw *hw)
 	struct ixgb_ee_map_type *ee_map = (struct ixgb_ee_map_type *)hw->eeprom;
 
 	if(ixgb_check_and_get_eeprom_data(hw) == TRUE)
-		return(ee_map->init_ctrl_reg_1);
+		return (le16_to_cpu(ee_map->init_ctrl_reg_1));
 
 	return(0);
 }
@@ -635,7 +635,7 @@ ixgb_get_ee_init_ctrl_reg_2(struct ixgb_hw *hw)
 	struct ixgb_ee_map_type *ee_map = (struct ixgb_ee_map_type *)hw->eeprom;
 
 	if(ixgb_check_and_get_eeprom_data(hw) == TRUE)
-		return(ee_map->init_ctrl_reg_2);
+		return (le16_to_cpu(ee_map->init_ctrl_reg_2));
 
 	return(0);
 }
@@ -654,7 +654,7 @@ ixgb_get_ee_subsystem_id(struct ixgb_hw *hw)
 	struct ixgb_ee_map_type *ee_map = (struct ixgb_ee_map_type *)hw->eeprom;
 
 	if(ixgb_check_and_get_eeprom_data(hw) == TRUE)
-	   return(ee_map->subsystem_id);
+		return (le16_to_cpu(ee_map->subsystem_id));
 
 	return(0);
 }
@@ -673,7 +673,7 @@ ixgb_get_ee_subvendor_id(struct ixgb_hw *hw)
 	struct ixgb_ee_map_type *ee_map = (struct ixgb_ee_map_type *)hw->eeprom;
 
 	if(ixgb_check_and_get_eeprom_data(hw) == TRUE)
-		return(ee_map->subvendor_id);
+		return (le16_to_cpu(ee_map->subvendor_id));
 
 	return(0);
 }
@@ -692,7 +692,7 @@ ixgb_get_ee_device_id(struct ixgb_hw *hw)
 	struct ixgb_ee_map_type *ee_map = (struct ixgb_ee_map_type *)hw->eeprom;
 
 	if(ixgb_check_and_get_eeprom_data(hw) == TRUE)
-		return(ee_map->device_id);
+		return (le16_to_cpu(ee_map->device_id));
 
 	return(0);
 }
@@ -711,7 +711,7 @@ ixgb_get_ee_vendor_id(struct ixgb_hw *hw)
 	struct ixgb_ee_map_type *ee_map = (struct ixgb_ee_map_type *)hw->eeprom;
 
 	if(ixgb_check_and_get_eeprom_data(hw) == TRUE)
-		return(ee_map->vendor_id);
+		return (le16_to_cpu(ee_map->vendor_id));
 
 	return(0);
 }
@@ -730,7 +730,7 @@ ixgb_get_ee_swdpins_reg(struct ixgb_hw *hw)
 	struct ixgb_ee_map_type *ee_map = (struct ixgb_ee_map_type *)hw->eeprom;
 
 	if(ixgb_check_and_get_eeprom_data(hw) == TRUE)
-		return(ee_map->swdpins_reg);
+		return (le16_to_cpu(ee_map->swdpins_reg));
 
 	return(0);
 }
@@ -749,7 +749,7 @@ ixgb_get_ee_d3_power(struct ixgb_hw *hw)
 	struct ixgb_ee_map_type *ee_map = (struct ixgb_ee_map_type *)hw->eeprom;
 
 	if(ixgb_check_and_get_eeprom_data(hw) == TRUE)
-		return(ee_map->d3_power);
+		return (le16_to_cpu(ee_map->d3_power));
 
 	return(0);
 }
@@ -768,7 +768,7 @@ ixgb_get_ee_d0_power(struct ixgb_hw *hw)
 	struct ixgb_ee_map_type *ee_map = (struct ixgb_ee_map_type *)hw->eeprom;
 
 	if(ixgb_check_and_get_eeprom_data(hw) == TRUE)
-		return(ee_map->d0_power);
+		return (le16_to_cpu(ee_map->d0_power));
 
 	return(0);
 }

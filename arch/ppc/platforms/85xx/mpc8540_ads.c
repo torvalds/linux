@@ -41,7 +41,6 @@
 #include <asm/time.h>
 #include <asm/io.h>
 #include <asm/machdep.h>
-#include <asm/prom.h>
 #include <asm/open_pic.h>
 #include <asm/bootinfo.h>
 #include <asm/pci-bridge.h>
@@ -88,7 +87,7 @@ mpc8540ads_setup_arch(void)
 #ifdef CONFIG_SERIAL_TEXT_DEBUG
 	/* Invalidate the entry we stole earlier the serial ports
 	 * should be properly mapped */
-	invalidate_tlbcam_entry(NUM_TLBCAMS - 1);
+	invalidate_tlbcam_entry(num_tlbcam_entries - 1);
 #endif
 
 	/* setup the board related information for the enet controllers */
@@ -150,7 +149,7 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 		struct uart_port p;
 
 		/* Use the last TLB entry to map CCSRBAR to allow access to DUART regs */
-		settlbcam(NUM_TLBCAMS - 1, binfo->bi_immr_base,
+		settlbcam(num_tlbcam_entries - 1, binfo->bi_immr_base,
 			  binfo->bi_immr_base, MPC85xx_CCSRBAR_SIZE, _PAGE_IO, 0);
 
 		memset(&p, 0, sizeof (p));
@@ -210,6 +209,9 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 #if defined(CONFIG_SERIAL_8250) && defined(CONFIG_SERIAL_TEXT_DEBUG)
 	ppc_md.progress = gen550_progress;
 #endif	/* CONFIG_SERIAL_8250 && CONFIG_SERIAL_TEXT_DEBUG */
+#if defined(CONFIG_SERIAL_8250) && defined(CONFIG_KGDB)
+	ppc_md.early_serial_map = mpc85xx_early_serial_map;
+#endif	/* CONFIG_SERIAL_8250 && CONFIG_KGDB */
 
 	if (ppc_md.progress)
 		ppc_md.progress("mpc8540ads_init(): exit", 0);

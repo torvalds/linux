@@ -67,46 +67,36 @@
 #define CRIT_STACK_TOP		(exception_stack_top)
 
 #ifdef CONFIG_SMP
-#define BOOKE_LOAD_CRIT_STACK				\
+#define BOOKE_LOAD_EXC_LEVEL_STACK(level)		\
 	mfspr	r8,SPRN_PIR;				\
 	mulli	r8,r8,BOOKE_EXCEPTION_STACK_SIZE;	\
 	neg	r8,r8;					\
-	addis	r8,r8,CRIT_STACK_TOP@ha;		\
-	addi	r8,r8,CRIT_STACK_TOP@l
-#define BOOKE_LOAD_MCHECK_STACK				\
-	mfspr	r8,SPRN_PIR;				\
-	mulli	r8,r8,BOOKE_EXCEPTION_STACK_SIZE;	\
-	neg	r8,r8;					\
-	addis	r8,r8,MCHECK_STACK_TOP@ha;		\
-	addi	r8,r8,MCHECK_STACK_TOP@l
+	addis	r8,r8,level##_STACK_TOP@ha;		\
+	addi	r8,r8,level##_STACK_TOP@l
 #else
-#define BOOKE_LOAD_CRIT_STACK				\
-	lis	r8,CRIT_STACK_TOP@h;			\
-	ori	r8,r8,CRIT_STACK_TOP@l
-#define BOOKE_LOAD_MCHECK_STACK				\
-	lis	r8,MCHECK_STACK_TOP@h;			\
-	ori	r8,r8,MCHECK_STACK_TOP@l
+#define BOOKE_LOAD_EXC_LEVEL_STACK(level)		\
+	lis	r8,level##_STACK_TOP@h;			\
+	ori	r8,r8,level##_STACK_TOP@l
 #endif
 
 /*
- * Exception prolog for critical exceptions.  This is a little different
- * from the normal exception prolog above since a critical exception
- * can potentially occur at any point during normal exception processing.
- * Thus we cannot use the same SPRG registers as the normal prolog above.
- * Instead we use a portion of the critical exception stack at low physical
- * addresses.
+ * Exception prolog for critical/machine check exceptions.  This is a
+ * little different from the normal exception prolog above since a
+ * critical/machine check exception can potentially occur at any point
+ * during normal exception processing. Thus we cannot use the same SPRG
+ * registers as the normal prolog above. Instead we use a portion of the
+ * critical/machine check exception stack at low physical addresses.
  */
-
-#define CRITICAL_EXCEPTION_PROLOG					     \
-	mtspr	CRIT_SPRG,r8;						     \
-	BOOKE_LOAD_CRIT_STACK;		/* r8 points to the crit stack */    \
+#define EXC_LEVEL_EXCEPTION_PROLOG(exc_level, exc_level_srr0, exc_level_srr1) \
+	mtspr	exc_level##_SPRG,r8;					     \
+	BOOKE_LOAD_EXC_LEVEL_STACK(exc_level);/* r8 points to the exc_level stack*/ \
 	stw	r10,GPR10-INT_FRAME_SIZE(r8);				     \
 	stw	r11,GPR11-INT_FRAME_SIZE(r8);				     \
 	mfcr	r10;			/* save CR in r10 for now	   */\
-	mfspr	r11,SPRN_CSRR1;		/* check whether user or kernel    */\
+	mfspr	r11,exc_level_srr1;	/* check whether user or kernel    */\
 	andi.	r11,r11,MSR_PR;						     \
 	mr	r11,r8;							     \
-	mfspr	r8,CRIT_SPRG;						     \
+	mfspr	r8,exc_level##_SPRG;					     \
 	beq	1f;							     \
 	/* COMING FROM USER MODE */					     \
 	mfspr	r11,SPRN_SPRG3;		/* if from user, start at top of   */\
@@ -122,9 +112,9 @@
 	stw	r12,_DEAR(r11);		/* since they may have had stuff   */\
 	mfspr	r9,SPRN_ESR;		/* in them at the point where the  */\
 	stw	r9,_ESR(r11);		/* exception was taken		   */\
-	mfspr	r12,SPRN_CSRR0;						     \
+	mfspr	r12,exc_level_srr0;					     \
 	stw	r1,GPR1(r11);						     \
-	mfspr	r9,SPRN_CSRR1;						     \
+	mfspr	r9,exc_level_srr1;					     \
 	stw	r1,0(r11);						     \
 	mr	r1,r11;							     \
 	rlwinm	r9,r9,0,14,12;		/* clear MSR_WE (necessary?)	   */\
@@ -132,45 +122,10 @@
 	SAVE_4GPRS(3, r11);						     \
 	SAVE_2GPRS(7, r11)
 
-/*
- * Exception prolog for machine check exceptions.  This is similar to
- * the critical exception prolog, except that machine check exceptions
- * have their stack.
- */
-#define MCHECK_EXCEPTION_PROLOG					     \
-	mtspr	MCHECK_SPRG,r8;						     \
-	BOOKE_LOAD_MCHECK_STACK;	/* r8 points to the mcheck stack   */\
-	stw	r10,GPR10-INT_FRAME_SIZE(r8);				     \
-	stw	r11,GPR11-INT_FRAME_SIZE(r8);				     \
-	mfcr	r10;			/* save CR in r10 for now	   */\
-	mfspr	r11,SPRN_MCSRR1;	/* check whether user or kernel    */\
-	andi.	r11,r11,MSR_PR;						     \
-	mr	r11,r8;							     \
-	mfspr	r8,MCHECK_SPRG;						     \
-	beq	1f;							     \
-	/* COMING FROM USER MODE */					     \
-	mfspr	r11,SPRN_SPRG3;		/* if from user, start at top of   */\
-	lwz	r11,THREAD_INFO-THREAD(r11); /* this thread's kernel stack */\
-	addi	r11,r11,THREAD_SIZE;					     \
-1:	subi	r11,r11,INT_FRAME_SIZE;	/* Allocate an exception frame     */\
-	stw	r10,_CCR(r11);          /* save various registers	   */\
-	stw	r12,GPR12(r11);						     \
-	stw	r9,GPR9(r11);						     \
-	mflr	r10;							     \
-	stw	r10,_LINK(r11);						     \
-	mfspr	r12,SPRN_DEAR;		/* save DEAR and ESR in the frame  */\
-	stw	r12,_DEAR(r11);		/* since they may have had stuff   */\
-	mfspr	r9,SPRN_ESR;		/* in them at the point where the  */\
-	stw	r9,_ESR(r11);		/* exception was taken		   */\
-	mfspr	r12,SPRN_MCSRR0;					     \
-	stw	r1,GPR1(r11);						     \
-	mfspr	r9,SPRN_MCSRR1;						     \
-	stw	r1,0(r11);						     \
-	mr	r1,r11;							     \
-	rlwinm	r9,r9,0,14,12;		/* clear MSR_WE (necessary?)	   */\
-	stw	r0,GPR0(r11);						     \
-	SAVE_4GPRS(3, r11);						     \
-	SAVE_2GPRS(7, r11)
+#define CRITICAL_EXCEPTION_PROLOG \
+		EXC_LEVEL_EXCEPTION_PROLOG(CRIT, SPRN_CSRR0, SPRN_CSRR1)
+#define MCHECK_EXCEPTION_PROLOG \
+		EXC_LEVEL_EXCEPTION_PROLOG(MCHECK, SPRN_MCSRR0, SPRN_MCSRR1)
 
 /*
  * Exception vectors.
@@ -237,7 +192,6 @@ label:
 	EXC_XFER_TEMPLATE(hdlr, n+1, MSR_KERNEL, COPY_EE, transfer_to_handler, \
 			  ret_from_except)
 
-
 /* Check for a single step debug exception while in an exception
  * handler before state has been saved.  This is to catch the case
  * where an instruction that we are trying to single step causes
@@ -291,7 +245,7 @@ label:
 	lwz	r9,GPR9(r11);						      \
 	lwz	r12,GPR12(r11);						      \
 	mtspr	CRIT_SPRG,r8;						      \
-	BOOKE_LOAD_CRIT_STACK;		/* r8 points to the crit stack */     \
+	BOOKE_LOAD_EXC_LEVEL_STACK(CRIT); /* r8 points to the debug stack */  \
 	lwz	r10,GPR10-INT_FRAME_SIZE(r8);				      \
 	lwz	r11,GPR11-INT_FRAME_SIZE(r8);				      \
 	mfspr	r8,CRIT_SPRG;						      \

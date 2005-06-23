@@ -824,6 +824,18 @@ config SMC9194
 	  <file:Documentation/networking/net-modules.txt>. The module
 	  will be called smc9194.
 
+config DM9000
+	tristate "DM9000 support"
+	depends on ARM && NET_ETHERNET
+	select CRC32
+	select MII
+	---help---
+	  Support for DM9000 chipset.
+
+	  To compile this driver as a module, choose M here and read
+	  <file:Documentation/networking/net-modules.txt>.  The module will be
+	  called dm9000.
+
 config NET_VENDOR_RACAL
 	bool "Racal-Interlan (Micom) NI cards"
 	depends on NET_ETHERNET && ISA
@@ -989,21 +1001,6 @@ config EEXPRESS_PRO
 	  <file:Documentation/networking/net-modules.txt>. The module
 	  will be called eepro.
 
-config FMV18X
-	tristate "FMV-181/182/183/184 support (OBSOLETE)"
-	depends on NET_ISA && OBSOLETE
-	---help---
-	  If you have a Fujitsu FMV-181/182/183/184 network (Ethernet) card,
-	  say Y and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  If you use an FMV-183 or FMV-184 and it is not working, you may need
-	  to disable Plug & Play mode of the card.
-
-	  To compile this driver as a module, choose M here and read
-	  <file:Documentation/networking/net-modules.txt>. The module
-	  will be called fmv18x.
-
 config HPLAN_PLUS
 	tristate "HP PCLAN+ (27247B and 27252A) support"
 	depends on NET_ISA
@@ -1091,14 +1088,6 @@ config SEEQ8005
 	  To compile this driver as a module, choose M here and read
 	  <file:Documentation/networking/net-modules.txt>. The module
 	  will be called seeq8005.
-
-config SK_G16
-	tristate "SK_G16 support (OBSOLETE)"
-	depends on NET_ISA && OBSOLETE
-	help
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
 
 config SKMC
 	tristate "SKnet MCA support"
@@ -1555,6 +1544,7 @@ config SIS900
 	tristate "SiS 900/7016 PCI Fast Ethernet Adapter support"
 	depends on NET_PCI && PCI
 	select CRC32
+	select MII
 	---help---
 	  This is a driver for the Fast Ethernet PCI network cards based on
 	  the SiS 900 and SiS 7016 chips. The SiS 900 core is also embedded in
@@ -1931,6 +1921,18 @@ config R8169_VLAN
 	  
 	  If in doubt, say Y.
 
+config SKGE
+	tristate "New SysKonnect GigaEthernet support (EXPERIMENTAL)"
+	depends on PCI && EXPERIMENTAL
+	select CRC32
+	---help---
+	  This driver support the Marvell Yukon or SysKonnect SK-98xx/SK-95xx
+	  and related Gigabit Ethernet adapters. It is a new smaller driver
+	  driver with better performance and more complete ethtool support.
+
+	  It does not support the link failover and network management 
+	  features that "portable" vendor supplied sk98lin driver does.
+	
 config SK98LIN
 	tristate "Marvell Yukon Chipset / SysKonnect SK-98xx Support"
 	depends on PCI
@@ -2030,6 +2032,15 @@ config TIGON3
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called tg3.  This is recommended.
+
+config BNX2
+	tristate "Broadcom NetXtremeII support"
+	depends on PCI
+	help
+	  This driver supports Broadcom NetXtremeII gigabit Ethernet cards.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called bnx2.  This is recommended.
 
 config GIANFAR
 	tristate "Gianfar Ethernet"

@@ -93,14 +93,7 @@ struct node_info {
 };
 
 #define O_PFN_DOWN(x)	((x) >> PAGE_SHIFT)
-#define V_PFN_DOWN(x)	O_PFN_DOWN(__pa(x))
-
 #define O_PFN_UP(x)	(PAGE_ALIGN(x) >> PAGE_SHIFT)
-#define V_PFN_UP(x)	O_PFN_UP(__pa(x))
-
-#define PFN_SIZE(x)	((x) >> PAGE_SHIFT)
-#define PFN_RANGE(s,e)	PFN_SIZE(PAGE_ALIGN((unsigned long)(e)) - \
-				(((unsigned long)(s)) & PAGE_MASK))
 
 /*
  * FIXME: We really want to avoid allocating the bootmap bitmap
@@ -113,7 +106,7 @@ find_bootmap_pfn(int node, struct meminfo *mi, unsigned int bootmap_pages)
 {
 	unsigned int start_pfn, bank, bootmap_pfn;
 
-	start_pfn   = V_PFN_UP(&_end);
+	start_pfn   = O_PFN_UP(__pa(&_end));
 	bootmap_pfn = 0;
 
 	for (bank = 0; bank < mi->nr_banks; bank ++) {
@@ -122,9 +115,9 @@ find_bootmap_pfn(int node, struct meminfo *mi, unsigned int bootmap_pages)
 		if (mi->bank[bank].node != node)
 			continue;
 
-		start = O_PFN_UP(mi->bank[bank].start);
-		end   = O_PFN_DOWN(mi->bank[bank].size +
-				   mi->bank[bank].start);
+		start = mi->bank[bank].start >> PAGE_SHIFT;
+		end   = (mi->bank[bank].size +
+			 mi->bank[bank].start) >> PAGE_SHIFT;
 
 		if (end < start_pfn)
 			continue;
@@ -191,8 +184,8 @@ find_memend_and_nodes(struct meminfo *mi, struct node_info *np)
 		/*
 		 * Get the start and end pfns for this bank
 		 */
-		start = O_PFN_UP(mi->bank[i].start);
-		end   = O_PFN_DOWN(mi->bank[i].start + mi->bank[i].size);
+		start = mi->bank[i].start >> PAGE_SHIFT;
+		end   = (mi->bank[i].start + mi->bank[i].size) >> PAGE_SHIFT;
 
 		if (np[node].start > start)
 			np[node].start = start;

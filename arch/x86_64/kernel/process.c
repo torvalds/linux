@@ -656,7 +656,7 @@ long do_arch_prctl(struct task_struct *task, int code, unsigned long addr)
 
 	switch (code) { 
 	case ARCH_SET_GS:
-		if (addr >= TASK_SIZE) 
+		if (addr >= TASK_SIZE_OF(task))
 			return -EPERM; 
 		cpu = get_cpu();
 		/* handle small bases via the GDT because that's faster to 
@@ -682,7 +682,7 @@ long do_arch_prctl(struct task_struct *task, int code, unsigned long addr)
 	case ARCH_SET_FS:
 		/* Not strictly needed for fs, but do it for symmetry
 		   with gs */
-		if (addr >= TASK_SIZE)
+		if (addr >= TASK_SIZE_OF(task))
 			return -EPERM; 
 		cpu = get_cpu();
 		/* handle small bases via the GDT because that's faster to 

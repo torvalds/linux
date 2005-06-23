@@ -9,7 +9,7 @@
  *
  * Author:	Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *		Donald Becker, <becker@super.org>
- *    Peter De Schrijver, <stud11@cc4.kuleuven.ac.be>
+ *		Peter De Schrijver, <stud11@cc4.kuleuven.ac.be>
  *
  *		This program is free software; you can redistribute it and/or
  *		modify it under the terms of the GNU General Public License
@@ -19,24 +19,18 @@
 #ifndef _LINUX_IF_TR_H
 #define _LINUX_IF_TR_H
 
+#include <asm/byteorder.h>	/* For __be16 */
 
 /* IEEE 802.5 Token-Ring magic constants.  The frame sizes omit the preamble
    and FCS/CRC (frame check sequence). */
-#define TR_ALEN	6		/* Octets in one ethernet addr	 */
-#define TR_HLEN   (sizeof(struct trh_hdr)+sizeof(struct trllc))
-#define AC			0x10
-#define LLC_FRAME 0x40
-#if 0
-#define ETH_HLEN	14		/* Total octets in header.	 */
-#define ETH_ZLEN	60		/* Min. octets in frame sans FCS */
-#define ETH_DATA_LEN	1500		/* Max. octets in payload	 */
-#define ETH_FRAME_LEN	1514		/* Max. octets in frame sans FCS */
-#endif
-
+#define TR_ALEN		6		/* Octets in one token-ring addr */
+#define TR_HLEN 	(sizeof(struct trh_hdr)+sizeof(struct trllc))
+#define AC		0x10
+#define LLC_FRAME 	0x40
 
 /* LLC and SNAP constants */
-#define EXTENDED_SAP 0xAA
-#define UI_CMD       0x03
+#define EXTENDED_SAP 	0xAA
+#define UI_CMD       	0x03
 
 /* This is an Token-Ring frame header. */
 struct trh_hdr {
@@ -44,8 +38,8 @@ struct trh_hdr {
 	__u8  fc;			/* frame control field */
 	__u8  daddr[TR_ALEN];		/* destination address */
 	__u8  saddr[TR_ALEN];		/* source address */
-	__u16 rcf;			/* route control field */
-	__u16 rseg[8];			/* routing registers */
+	__be16 rcf;			/* route control field */
+	__be16 rseg[8];			/* routing registers */
 };
 
 #ifdef __KERNEL__
@@ -63,7 +57,7 @@ struct trllc {
 	__u8  ssap;			/* source SAP */
 	__u8  llc;			/* LLC control field */
 	__u8  protid[3];		/* protocol id */
-	__u16 ethertype;		/* ether type field */
+	__be16 ethertype;		/* ether type field */
 };
 
 /* Token-Ring statistics collection data. */
@@ -96,14 +90,13 @@ struct tr_statistics {
 };
 
 /* source routing stuff */
-
-#define TR_RII 0x80
-#define TR_RCF_DIR_BIT 0x80
-#define TR_RCF_LEN_MASK 0x1f00
-#define TR_RCF_BROADCAST 0x8000         /* all-routes broadcast */
-#define TR_RCF_LIMITED_BROADCAST 0xC000 /* single-route broadcast */
-#define TR_RCF_FRAME2K 0x20
-#define TR_RCF_BROADCAST_MASK 0xC000
-#define TR_MAXRIFLEN 18
+#define TR_RII 			0x80
+#define TR_RCF_DIR_BIT 		0x80
+#define TR_RCF_LEN_MASK 	0x1f00
+#define TR_RCF_BROADCAST 	0x8000	/* all-routes broadcast */
+#define TR_RCF_LIMITED_BROADCAST 0xC000	/* single-route broadcast */
+#define TR_RCF_FRAME2K 		0x20
+#define TR_RCF_BROADCAST_MASK 	0xC000
+#define TR_MAXRIFLEN 		18
 
 #endif	/* _LINUX_IF_TR_H */

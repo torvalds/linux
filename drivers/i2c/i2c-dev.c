@@ -29,7 +29,6 @@
 /* The devfs code is contributed by Philipp Matthias Hahn 
    <pmhahn@titan.lahn.de> */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/fs.h>
@@ -214,7 +213,7 @@ static int i2cdev_ioctl(struct inode *inode, struct file *file,
 				   sizeof(rdwr_arg)))
 			return -EFAULT;
 
-		/* Put an arbritrary limit on the number of messages that can
+		/* Put an arbitrary limit on the number of messages that can
 		 * be sent at once */
 		if (rdwr_arg.nmsgs > I2C_RDRW_IOCTL_MAX_MSGS)
 			return -EINVAL;

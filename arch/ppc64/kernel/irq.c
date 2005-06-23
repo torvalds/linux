@@ -52,7 +52,7 @@
 #include <asm/cache.h>
 #include <asm/prom.h>
 #include <asm/ptrace.h>
-#include <asm/iSeries/LparData.h>
+#include <asm/iSeries/ItLpQueue.h>
 #include <asm/machdep.h>
 #include <asm/paca.h>
 

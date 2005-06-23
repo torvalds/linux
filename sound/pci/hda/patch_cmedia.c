@@ -29,6 +29,7 @@
 #include <sound/core.h>
 #include "hda_codec.h"
 #include "hda_local.h"
+#define NUM_PINS	11
 
 
 /* board config type */
@@ -38,6 +39,7 @@ enum {
 	CMI_FULL,	/* back 6-jack + front-panel 2-jack */
 	CMI_FULL_DIG,	/* back 6-jack + front-panel 2-jack + digital I/O */
 	CMI_ALLOUT,	/* back 5-jack + front-panel 2-jack + digital out */
+	CMI_AUTO,	/* let driver guess it */
 };
 
 struct cmi_spec {
@@ -48,6 +50,8 @@ struct cmi_spec {
 
 	/* playback */
 	struct hda_multi_out multiout;
+	hda_nid_t dac_nids[4];		/* NID for each DAC */
+	int num_dacs;
 
 	/* capture */
 	hda_nid_t *adc_nids;
@@ -63,7 +67,29 @@ struct cmi_spec {
 	const struct cmi_channel_mode *channel_modes;
 
 	struct hda_pcm pcm_rec[2];	/* PCM information */
+
+	/* pin deafault configuration */
+	hda_nid_t pin_nid[NUM_PINS];
+	unsigned int def_conf[NUM_PINS];
+	unsigned int pin_def_confs;
+
+	/* multichannel pins */
+	hda_nid_t multich_pin[4];	/* max 8-channel */
+	struct hda_verb multi_init[9];	/* 2 verbs for each pin + terminator */
 };
+
+/* amp values */
+#define AMP_IN_MUTE(idx)	(0x7080 | ((idx)<<8))
+#define AMP_IN_UNMUTE(idx)	(0x7000 | ((idx)<<8))
+#define AMP_OUT_MUTE	0xb080
+#define AMP_OUT_UNMUTE	0xb000
+#define AMP_OUT_ZERO	0xb000
+/* pinctl values */
+#define PIN_IN		0x20
+#define PIN_VREF80	0x24
+#define PIN_VREF50	0x21
+#define PIN_OUT		0x40
+#define PIN_HP		0xc0
 
 /*
  * input MUX
@@ -102,9 +128,9 @@ static int cmi_mux_enum_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucon
 /* 3-stack / 2 channel */
 static struct hda_verb cmi9880_ch2_init[] = {
 	/* set line-in PIN for input */
-	{ 0x0c, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20 },
+	{ 0x0c, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN },
 	/* set mic PIN for input, also enable vref */
-	{ 0x0d, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24 },
+	{ 0x0d, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80 },
 	/* route front PCM (DAC1) to HP */
 	{ 0x0f, AC_VERB_SET_CONNECT_SEL, 0x00 },
 	{}
@@ -113,9 +139,9 @@ static struct hda_verb cmi9880_ch2_init[] = {
 /* 3-stack / 6 channel */
 static struct hda_verb cmi9880_ch6_init[] = {
 	/* set line-in PIN for output */
-	{ 0x0c, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40 },
+	{ 0x0c, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
 	/* set mic PIN for output */
-	{ 0x0d, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40 },
+	{ 0x0d, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
 	/* route front PCM (DAC1) to HP */
 	{ 0x0f, AC_VERB_SET_CONNECT_SEL, 0x00 },
 	{}
@@ -124,9 +150,9 @@ static struct hda_verb cmi9880_ch6_init[] = {
 /* 3-stack+front / 8 channel */
 static struct hda_verb cmi9880_ch8_init[] = {
 	/* set line-in PIN for output */
-	{ 0x0c, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40 },
+	{ 0x0c, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
 	/* set mic PIN for output */
-	{ 0x0d, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40 },
+	{ 0x0d, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
 	/* route rear-surround PCM (DAC4) to HP */
 	{ 0x0f, AC_VERB_SET_CONNECT_SEL, 0x03 },
 	{}
@@ -269,25 +295,27 @@ static hda_nid_t cmi9880_adc_nids[2] = {
  */
 static struct hda_verb cmi9880_basic_init[] = {
 	/* port-D for line out (rear panel) */
-	{ 0x0b, AC_VERB_SET_PIN_WIDGET_CONTROL, 0xc0 },
+	{ 0x0b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP },
 	/* port-E for HP out (front panel) */
-	{ 0x0f, AC_VERB_SET_PIN_WIDGET_CONTROL, 0xc0 },
+	{ 0x0f, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP },
 	/* route front PCM to HP */
 	{ 0x0f, AC_VERB_SET_CONNECT_SEL, 0x00 },
 	/* port-A for surround (rear panel) */
-	{ 0x0e, AC_VERB_SET_PIN_WIDGET_CONTROL, 0xc0 },
+	{ 0x0e, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP },
 	/* port-G for CLFE (rear panel) */
-	{ 0x1f, AC_VERB_SET_PIN_WIDGET_CONTROL, 0xc0 },
+	{ 0x1f, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP },
+	{ 0x1f, AC_VERB_SET_CONNECT_SEL, 0x02 },
 	/* port-H for side (rear panel) */
-	{ 0x20, AC_VERB_SET_PIN_WIDGET_CONTROL, 0xc0 },
+	{ 0x20, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP },
+	{ 0x20, AC_VERB_SET_CONNECT_SEL, 0x01 },
 	/* port-C for line-in (rear panel) */
-	{ 0x0c, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20 },
+	{ 0x0c, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN },
 	/* port-B for mic-in (rear panel) with vref */
-	{ 0x0d, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24 },
+	{ 0x0d, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80 },
 	/* port-F for mic-in (front panel) with vref */
-	{ 0x10, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24 },
+	{ 0x10, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80 },
 	/* CD-in */
-	{ 0x11, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20 },
+	{ 0x11, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN },
 	/* route front mic to ADC1/2 */
 	{ 0x08, AC_VERB_SET_CONNECT_SEL, 0x05 },
 	{ 0x09, AC_VERB_SET_CONNECT_SEL, 0x05 },
@@ -296,23 +324,27 @@ static struct hda_verb cmi9880_basic_init[] = {
 
 static struct hda_verb cmi9880_allout_init[] = {
 	/* port-D for line out (rear panel) */
-	{ 0x0b, AC_VERB_SET_PIN_WIDGET_CONTROL, 0xc0 },
+	{ 0x0b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP },
 	/* port-E for HP out (front panel) */
-	{ 0x0f, AC_VERB_SET_PIN_WIDGET_CONTROL, 0xc0 },
+	{ 0x0f, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP },
 	/* route front PCM to HP */
 	{ 0x0f, AC_VERB_SET_CONNECT_SEL, 0x00 },
 	/* port-A for side (rear panel) */
-	{ 0x0e, AC_VERB_SET_PIN_WIDGET_CONTROL, 0xc0 },
+	{ 0x0e, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP },
 	/* port-G for CLFE (rear panel) */
-	{ 0x1f, AC_VERB_SET_PIN_WIDGET_CONTROL, 0xc0 },
+	{ 0x1f, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP },
+	{ 0x1f, AC_VERB_SET_CONNECT_SEL, 0x02 },
+	/* port-H for side (rear panel) */
+	{ 0x20, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP },
+	{ 0x20, AC_VERB_SET_CONNECT_SEL, 0x01 },
 	/* port-C for surround (rear panel) */
-	{ 0x0c, AC_VERB_SET_PIN_WIDGET_CONTROL, 0xc0 },
+	{ 0x0c, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP },
 	/* port-B for mic-in (rear panel) with vref */
-	{ 0x0d, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24 },
+	{ 0x0d, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80 },
 	/* port-F for mic-in (front panel) with vref */
-	{ 0x10, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24 },
+	{ 0x10, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80 },
 	/* CD-in */
-	{ 0x11, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20 },
+	{ 0x11, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN },
 	/* route front mic to ADC1/2 */
 	{ 0x08, AC_VERB_SET_CONNECT_SEL, 0x05 },
 	{ 0x09, AC_VERB_SET_CONNECT_SEL, 0x05 },
@@ -347,6 +379,81 @@ static int cmi9880_build_controls(struct hda_codec *codec)
 	return 0;
 }
 
+/* fill in the multi_dac_nids table, which will decide
+   which audio widget to use for each channel */
+static int cmi9880_fill_multi_dac_nids(struct hda_codec *codec, const struct auto_pin_cfg *cfg)
+{
+	struct cmi_spec *spec = codec->spec;
+	hda_nid_t nid;
+	int assigned[4];
+	int i, j;
+
+	/* clear the table, only one c-media dac assumed here */
+	memset(spec->dac_nids, 0, sizeof(spec->dac_nids));
+	memset(assigned, 0, sizeof(assigned));
+	/* check the pins we found */
+	for (i = 0; i < cfg->line_outs; i++) {
+		nid = cfg->line_out_pins[i];
+		/* nid 0x0b~0x0e is hardwired to audio widget 0x3~0x6 */
+		if (nid >= 0x0b && nid <= 0x0e) {
+			spec->dac_nids[i] = (nid - 0x0b) + 0x03;
+			assigned[nid - 0x0b] = 1;
+		}
+	}
+	/* left pin can be connect to any audio widget */
+	for (i = 0; i < cfg->line_outs; i++) {
+		nid = cfg->line_out_pins[i];
+		if (nid <= 0x0e)
+			continue;
+		/* search for an empty channel */
+		for (j = 0; j < cfg->line_outs; j++) {
+			if (! assigned[j]) {
+				spec->dac_nids[i] = i + 0x03;
+				assigned[j] = 1;
+				break;
+			}
+		}
+	}
+	spec->num_dacs = cfg->line_outs;
+	return 0;
+}
+
+/* create multi_init table, which is used for multichannel initialization */
+static int cmi9880_fill_multi_init(struct hda_codec *codec, const struct auto_pin_cfg *cfg)
+{
+	struct cmi_spec *spec = codec->spec;
+	hda_nid_t nid;
+	int i, j, k, len;
+
+	/* clear the table, only one c-media dac assumed here */
+	memset(spec->multi_init, 0, sizeof(spec->multi_init));
+	for (j = 0, i = 0; i < cfg->line_outs; i++) {
+		hda_nid_t conn[4];
+		nid = cfg->line_out_pins[i];
+		/* set as output */
+		spec->multi_init[j].nid = nid;
+		spec->multi_init[j].verb = AC_VERB_SET_PIN_WIDGET_CONTROL;
+		spec->multi_init[j].param = PIN_OUT;
+		j++;
+		if (nid > 0x0e) {
+			/* set connection */
+			spec->multi_init[j].nid = nid;
+			spec->multi_init[j].verb = AC_VERB_SET_CONNECT_SEL;
+			spec->multi_init[j].param = 0;
+			/* find the index in connect list */
+			len = snd_hda_get_connections(codec, nid, conn, 4);
+			for (k = 0; k < len; k++)
+				if (conn[k] == spec->dac_nids[i]) {
+					spec->multi_init[j].param = j;
+					break;
+				}
+			j++;
+			break;
+		}
+	}
+	return 0;
+}
+
 static int cmi9880_init(struct hda_codec *codec)
 {
 	struct cmi_spec *spec = codec->spec;
@@ -354,6 +461,8 @@ static int cmi9880_init(struct hda_codec *codec)
 		snd_hda_sequence_write(codec, cmi9880_allout_init);
 	else
 		snd_hda_sequence_write(codec, cmi9880_basic_init);
+	if (spec->board_config == CMI_AUTO)
+		snd_hda_sequence_write(codec, spec->multi_init);
 	return 0;
 }
 
@@ -540,6 +649,7 @@ static struct hda_board_config cmi9880_cfg_tbl[] = {
 	{ .modelname = "full", .config = CMI_FULL },
 	{ .modelname = "full_dig", .config = CMI_FULL_DIG },
 	{ .modelname = "allout", .config = CMI_ALLOUT },
+	{ .modelname = "auto", .config = CMI_AUTO },
 	{} /* terminator */
 };
 
@@ -564,9 +674,13 @@ static int patch_cmi9880(struct hda_codec *codec)
 	codec->spec = spec;
 	spec->board_config = snd_hda_check_board_config(codec, cmi9880_cfg_tbl);
 	if (spec->board_config < 0) {
-		snd_printd(KERN_INFO "hda_codec: Unknown model for CMI9880\n");
-		spec->board_config = CMI_FULL_DIG; /* try everything */
+		snd_printdd(KERN_INFO "hda_codec: Unknown model for CMI9880\n");
+		spec->board_config = CMI_AUTO; /* try everything */
 	}
+
+	/* copy default DAC NIDs */
+	memcpy(spec->dac_nids, cmi9880_dac_nids, sizeof(spec->dac_nids));
+	spec->num_dacs = 4;
 
 	switch (spec->board_config) {
 	case CMI_MINIMAL:
@@ -599,10 +713,58 @@ static int patch_cmi9880(struct hda_codec *codec)
 		spec->input_mux = &cmi9880_no_line_mux;
 		spec->multiout.dig_out_nid = CMI_DIG_OUT_NID;
 		break;
+	case CMI_AUTO:
+		{
+		unsigned int port_e, port_f, port_g, port_h;
+		unsigned int port_spdifi, port_spdifo;
+		struct auto_pin_cfg cfg;
+
+		/* collect pin default configuration */
+		port_e = snd_hda_codec_read(codec, 0x0f, 0, AC_VERB_GET_CONFIG_DEFAULT, 0);
+		port_f = snd_hda_codec_read(codec, 0x10, 0, AC_VERB_GET_CONFIG_DEFAULT, 0);
+		spec->front_panel = 1;
+		if (get_defcfg_connect(port_e) == AC_JACK_PORT_NONE ||
+		    get_defcfg_connect(port_f) == AC_JACK_PORT_NONE) {
+			port_g = snd_hda_codec_read(codec, 0x1f, 0, AC_VERB_GET_CONFIG_DEFAULT, 0);
+			port_h = snd_hda_codec_read(codec, 0x20, 0, AC_VERB_GET_CONFIG_DEFAULT, 0);
+			spec->surr_switch = 1;
+			/* no front panel */
+			if (get_defcfg_connect(port_g) == AC_JACK_PORT_NONE ||
+			    get_defcfg_connect(port_h) == AC_JACK_PORT_NONE) {
+				/* no optional rear panel */
+				spec->board_config = CMI_MINIMAL;
+				spec->front_panel = 0;
+				spec->num_ch_modes = 2;
+			} else {
+				spec->board_config = CMI_MIN_FP;
+				spec->num_ch_modes = 3;
+			}
+			spec->channel_modes = cmi9880_channel_modes;
+			spec->input_mux = &cmi9880_basic_mux;
+			spec->multiout.max_channels = cmi9880_channel_modes[0].channels;
+		} else {
+			spec->input_mux = &cmi9880_basic_mux;
+			port_spdifi = snd_hda_codec_read(codec, 0x13, 0, AC_VERB_GET_CONFIG_DEFAULT, 0);
+			port_spdifo = snd_hda_codec_read(codec, 0x12, 0, AC_VERB_GET_CONFIG_DEFAULT, 0);
+			if (get_defcfg_connect(port_spdifo) != AC_JACK_PORT_NONE)
+				spec->multiout.dig_out_nid = CMI_DIG_OUT_NID;
+			if (get_defcfg_connect(port_spdifi) != AC_JACK_PORT_NONE)
+				spec->dig_in_nid = CMI_DIG_IN_NID;
+			spec->multiout.max_channels = 8;
+		}
+		snd_hda_parse_pin_def_config(codec, &cfg);
+		if (cfg.line_outs) {
+			spec->multiout.max_channels = cfg.line_outs * 2;
+			cmi9880_fill_multi_dac_nids(codec, &cfg);
+			cmi9880_fill_multi_init(codec, &cfg);
+		} else
+			snd_printd("patch_cmedia: cannot detect association in defcfg\n");
+		break;
+		}
 	}
 
-	spec->multiout.num_dacs = 4;
-	spec->multiout.dac_nids = cmi9880_dac_nids;
+	spec->multiout.num_dacs = spec->num_dacs;
+	spec->multiout.dac_nids = spec->dac_nids;
 
 	spec->adc_nids = cmi9880_adc_nids;
 

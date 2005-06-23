@@ -110,6 +110,111 @@ struct ppc_sys_spec ppc_sys_specs[] = {
 			MPC85xx_CPM_USB,
 		},
 	},
+	/* SVRs on 8548 rev1.0 matches for 8548/8547/8545 */
+	{
+		.ppc_sys_name	= "8548E",
+		.mask 		= 0xFFFF00F0,
+		.value 		= 0x80390010,
+		.num_devices	= 13,
+		.device_list	= (enum ppc_sys_devices[])
+		{
+			MPC85xx_eTSEC1, MPC85xx_eTSEC2, MPC85xx_eTSEC3,
+			MPC85xx_eTSEC4, MPC85xx_IIC1, MPC85xx_IIC2,
+			MPC85xx_DMA0, MPC85xx_DMA1, MPC85xx_DMA2, MPC85xx_DMA3,
+			MPC85xx_PERFMON, MPC85xx_DUART, MPC85xx_SEC2,
+		},
+	},
+	{
+		.ppc_sys_name	= "8548",
+		.mask 		= 0xFFFF00F0,
+		.value 		= 0x80310010,
+		.num_devices	= 12,
+		.device_list	= (enum ppc_sys_devices[])
+		{
+			MPC85xx_eTSEC1, MPC85xx_eTSEC2, MPC85xx_eTSEC3,
+			MPC85xx_eTSEC4, MPC85xx_IIC1, MPC85xx_IIC2,
+			MPC85xx_DMA0, MPC85xx_DMA1, MPC85xx_DMA2, MPC85xx_DMA3,
+			MPC85xx_PERFMON, MPC85xx_DUART,
+		},
+	},
+	{
+		.ppc_sys_name	= "8547E",
+		.mask 		= 0xFFFF00F0,
+		.value 		= 0x80390010,
+		.num_devices	= 13,
+		.device_list	= (enum ppc_sys_devices[])
+		{
+			MPC85xx_eTSEC1, MPC85xx_eTSEC2, MPC85xx_eTSEC3,
+			MPC85xx_eTSEC4, MPC85xx_IIC1, MPC85xx_IIC2,
+			MPC85xx_DMA0, MPC85xx_DMA1, MPC85xx_DMA2, MPC85xx_DMA3,
+			MPC85xx_PERFMON, MPC85xx_DUART, MPC85xx_SEC2,
+		},
+	},
+	{
+		.ppc_sys_name	= "8547",
+		.mask 		= 0xFFFF00F0,
+		.value 		= 0x80310010,
+		.num_devices	= 12,
+		.device_list	= (enum ppc_sys_devices[])
+		{
+			MPC85xx_eTSEC1, MPC85xx_eTSEC2, MPC85xx_eTSEC3,
+			MPC85xx_eTSEC4, MPC85xx_IIC1, MPC85xx_IIC2,
+			MPC85xx_DMA0, MPC85xx_DMA1, MPC85xx_DMA2, MPC85xx_DMA3,
+			MPC85xx_PERFMON, MPC85xx_DUART,
+		},
+	},
+	{
+		.ppc_sys_name	= "8545E",
+		.mask 		= 0xFFFF00F0,
+		.value 		= 0x80390010,
+		.num_devices	= 11,
+		.device_list	= (enum ppc_sys_devices[])
+		{
+			MPC85xx_eTSEC1, MPC85xx_eTSEC2,
+			MPC85xx_IIC1, MPC85xx_IIC2,
+			MPC85xx_DMA0, MPC85xx_DMA1, MPC85xx_DMA2, MPC85xx_DMA3,
+			MPC85xx_PERFMON, MPC85xx_DUART, MPC85xx_SEC2,
+		},
+	},
+	{
+		.ppc_sys_name	= "8545",
+		.mask 		= 0xFFFF00F0,
+		.value 		= 0x80310010,
+		.num_devices	= 10,
+		.device_list	= (enum ppc_sys_devices[])
+		{
+			MPC85xx_eTSEC1, MPC85xx_eTSEC2,
+			MPC85xx_IIC1, MPC85xx_IIC2,
+			MPC85xx_DMA0, MPC85xx_DMA1, MPC85xx_DMA2, MPC85xx_DMA3,
+			MPC85xx_PERFMON, MPC85xx_DUART,
+		},
+	},
+	{
+		.ppc_sys_name	= "8543E",
+		.mask 		= 0xFFFF00F0,
+		.value 		= 0x803A0010,
+		.num_devices	= 11,
+		.device_list	= (enum ppc_sys_devices[])
+		{
+			MPC85xx_eTSEC1, MPC85xx_eTSEC2,
+			MPC85xx_IIC1, MPC85xx_IIC2,
+			MPC85xx_DMA0, MPC85xx_DMA1, MPC85xx_DMA2, MPC85xx_DMA3,
+			MPC85xx_PERFMON, MPC85xx_DUART, MPC85xx_SEC2,
+		},
+	},
+	{
+		.ppc_sys_name	= "8543",
+		.mask 		= 0xFFFF00F0,
+		.value 		= 0x80320010,
+		.num_devices	= 10,
+		.device_list	= (enum ppc_sys_devices[])
+		{
+			MPC85xx_eTSEC1, MPC85xx_eTSEC2,
+			MPC85xx_IIC1, MPC85xx_IIC2,
+			MPC85xx_DMA0, MPC85xx_DMA1, MPC85xx_DMA2, MPC85xx_DMA3,
+			MPC85xx_PERFMON, MPC85xx_DUART,
+		},
+	},
 	{	/* default match */
 		.ppc_sys_name	= "",
 		.mask 		= 0x00000000,

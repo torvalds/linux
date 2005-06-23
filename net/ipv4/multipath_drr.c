@@ -31,6 +31,7 @@
 #include <linux/igmp.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/module.h>
 #include <linux/mroute.h>
 #include <linux/init.h>
 #include <net/ip.h>
@@ -57,7 +58,6 @@ struct multipath_device {
 
 static struct multipath_device state[MULTIPATH_MAX_DEVICECANDIDATES];
 static DEFINE_SPINLOCK(state_lock);
-static struct rtable *last_selection = NULL;
 
 static int inline __multipath_findslot(void)
 {
@@ -111,11 +111,6 @@ struct notifier_block drr_dev_notifier = {
 	.notifier_call	= drr_dev_event,
 };
 
-static void drr_remove(struct rtable *rt)
-{
-	if (last_selection == rt)
-		last_selection = NULL;
-}
 
 static void drr_safe_inc(atomic_t *usecount)
 {
@@ -143,14 +138,6 @@ static void drr_select_route(const struct flowi *flp,
 	int min_usecount = -1; 
 	int devidx = -1;
 	int cur_min_devidx = -1;
-
-       	/* if necessary and possible utilize the old alternative */
-	if ((flp->flags & FLOWI_FLAG_MULTIPATHOLDROUTE) != 0 &&
-	    last_selection != NULL) {
-		result = last_selection;
-		*rp = result;
-		return;
-	}
 
 	/* 1. make sure all alt. nexthops have the same GC related data */
 	/* 2. determine the new candidate to be returned */
@@ -229,12 +216,10 @@ static void drr_select_route(const struct flowi *flp,
 	}
 
 	*rp = result;
-	last_selection = result;
 }
 
 static struct ip_mp_alg_ops drr_ops = {
 	.mp_alg_select_route	=	drr_select_route,
-	.mp_alg_remove		=	drr_remove,
 };
 
 static int __init drr_init(void)
@@ -244,7 +229,7 @@ static int __init drr_init(void)
 	if (err)
 		return err;
 
-	err = multipath_alg_register(&drr_ops, IP_MP_ALG_RR);
+	err = multipath_alg_register(&drr_ops, IP_MP_ALG_DRR);
 	if (err)
 		goto fail;
 
@@ -263,3 +248,4 @@ static void __exit drr_exit(void)
 
 module_init(drr_init);
 module_exit(drr_exit);
+MODULE_LICENSE("GPL");

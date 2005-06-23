@@ -145,7 +145,6 @@ static inline void notresponding(struct isp1301 *isp)
 static unsigned short normal_i2c[] = {
 	ISP_BASE, ISP_BASE + 1,
 	I2C_CLIENT_END };
-static unsigned short normal_i2c_range[] = { I2C_CLIENT_END };
 
 I2C_CLIENT_INSMOD;
 

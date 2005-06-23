@@ -792,7 +792,7 @@ static int	stli_timeron;
 
 /*****************************************************************************/
 
-static struct class_simple *istallion_class;
+static struct class *istallion_class;
 
 #ifdef MODULE
 
@@ -854,10 +854,10 @@ static void __exit istallion_module_exit(void)
 	put_tty_driver(stli_serial);
 	for (i = 0; i < 4; i++) {
 		devfs_remove("staliomem/%d", i);
-		class_simple_device_remove(MKDEV(STL_SIOMEMMAJOR, i));
+		class_device_destroy(istallion_class, MKDEV(STL_SIOMEMMAJOR, i));
 	}
 	devfs_remove("staliomem");
-	class_simple_destroy(istallion_class);
+	class_destroy(istallion_class);
 	if ((i = unregister_chrdev(STL_SIOMEMMAJOR, "staliomem")))
 		printk("STALLION: failed to un-register serial memory device, "
 			"errno=%d\n", -i);
@@ -5242,12 +5242,12 @@ int __init stli_init(void)
 				"device\n");
 
 	devfs_mk_dir("staliomem");
-	istallion_class = class_simple_create(THIS_MODULE, "staliomem");
+	istallion_class = class_create(THIS_MODULE, "staliomem");
 	for (i = 0; i < 4; i++) {
 		devfs_mk_cdev(MKDEV(STL_SIOMEMMAJOR, i),
 			       S_IFCHR | S_IRUSR | S_IWUSR,
 			       "staliomem/%d", i);
-		class_simple_device_add(istallion_class, MKDEV(STL_SIOMEMMAJOR, i), 
+		class_device_create(istallion_class, MKDEV(STL_SIOMEMMAJOR, i),
 				NULL, "staliomem%d", i);
 	}
 

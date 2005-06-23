@@ -53,7 +53,7 @@ match(const struct sk_buff *skb,
 		return ret;
 	}
 
-	READ_LOCK(&ip_conntrack_lock);
+	read_lock_bh(&ip_conntrack_lock);
 	if (!ct->master->helper) {
 		DEBUGP("ipt_helper: master ct %p has no helper\n", 
 			exp->expectant);
@@ -69,7 +69,7 @@ match(const struct sk_buff *skb,
 		ret ^= !strncmp(ct->master->helper->name, info->name, 
 		                strlen(ct->master->helper->name));
 out_unlock:
-	READ_UNLOCK(&ip_conntrack_lock);
+	read_unlock_bh(&ip_conntrack_lock);
 	return ret;
 }
 

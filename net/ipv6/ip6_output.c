@@ -484,9 +484,6 @@ static void ip6_copy_metadata(struct sk_buff *to, struct sk_buff *from)
 	to->nf_bridge = from->nf_bridge;
 	nf_bridge_get(to->nf_bridge);
 #endif
-#ifdef CONFIG_NETFILTER_DEBUG
-	to->nf_debug = from->nf_debug;
-#endif
 #endif
 }
 
@@ -552,13 +549,17 @@ static int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 			    skb_headroom(frag) < hlen)
 			    goto slow_path;
 
-			/* Correct socket ownership. */
-			if (frag->sk == NULL)
-				goto slow_path;
-
 			/* Partially cloned skb? */
 			if (skb_shared(frag))
 				goto slow_path;
+
+			BUG_ON(frag->sk);
+			if (skb->sk) {
+				sock_hold(skb->sk);
+				frag->sk = skb->sk;
+				frag->destructor = sock_wfree;
+				skb->truesize -= frag->truesize;
+			}
 		}
 
 		err = 0;
@@ -1116,12 +1117,10 @@ int ip6_push_pending_frames(struct sock *sk)
 		tail_skb = &(tmp_skb->next);
 		skb->len += tmp_skb->len;
 		skb->data_len += tmp_skb->len;
-#if 0 /* Logically correct, but useless work, ip_fragment() will have to undo */
 		skb->truesize += tmp_skb->truesize;
 		__sock_put(tmp_skb->sk);
 		tmp_skb->destructor = NULL;
 		tmp_skb->sk = NULL;
-#endif
 	}
 
 	ipv6_addr_copy(final_dst, &fl->fl6_dst);

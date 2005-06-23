@@ -47,7 +47,7 @@
 #include <asm/paca.h>
 #include <asm/cache.h>
 #include <asm/sections.h>
-#include <asm/iSeries/LparData.h>
+#include <asm/abs_addr.h>
 #include <asm/iSeries/HvCallHpt.h>
 #include <asm/iSeries/HvLpConfig.h>
 #include <asm/iSeries/HvCallEvent.h>
@@ -55,10 +55,12 @@
 #include <asm/iSeries/HvCallXm.h>
 #include <asm/iSeries/ItLpQueue.h>
 #include <asm/iSeries/IoHriMainStore.h>
-#include <asm/iSeries/iSeries_proc.h>
 #include <asm/iSeries/mf.h>
 #include <asm/iSeries/HvLpEvent.h>
 #include <asm/iSeries/iSeries_irq.h>
+#include <asm/iSeries/IoHriProcessorVpd.h>
+#include <asm/iSeries/ItVpdAreas.h>
+#include <asm/iSeries/LparMap.h>
 
 extern void hvlog(char *fmt, ...);
 
@@ -74,7 +76,11 @@ extern void ppcdbg_initialize(void);
 static void build_iSeries_Memory_Map(void);
 static void setup_iSeries_cache_sizes(void);
 static void iSeries_bolt_kernel(unsigned long saddr, unsigned long eaddr);
+#ifdef CONFIG_PCI
 extern void iSeries_pci_final_fixup(void);
+#else
+static void iSeries_pci_final_fixup(void) { }
+#endif
 
 /* Global Variables */
 static unsigned long procFreqHz;
@@ -851,6 +857,32 @@ static int __init iSeries_src_init(void)
 }
 
 late_initcall(iSeries_src_init);
+
+static int set_spread_lpevents(char *str)
+{
+	unsigned long i;
+	unsigned long val = simple_strtoul(str, NULL, 0);
+
+	/*
+	 * The parameter is the number of processors to share in processing
+	 * lp events.
+	 */
+	if (( val > 0) && (val <= NR_CPUS)) {
+		for (i = 1; i < val; ++i)
+			paca[i].lpqueue_ptr = paca[0].lpqueue_ptr;
+
+		printk("lpevent processing spread over %ld processors\n", val);
+	} else {
+		printk("invalid spread_lpevents %ld\n", val);
+	}
+
+	return 1;
+}
+__setup("spread_lpevents=", set_spread_lpevents);
+
+#ifndef CONFIG_PCI
+void __init iSeries_init_IRQ(void) { }
+#endif
 
 void __init iSeries_early_setup(void)
 {

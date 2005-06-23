@@ -35,7 +35,7 @@
 
 #define SPI_PRINTK(x, l, f, a...)	dev_printk(l, &(x)->dev, f , ##a)
 
-#define SPI_NUM_ATTRS 10	/* increase this if you add attributes */
+#define SPI_NUM_ATTRS 13	/* increase this if you add attributes */
 #define SPI_OTHER_ATTRS 1	/* Increase this if you add "always
 				 * on" attributes */
 #define SPI_HOST_ATTRS	1
@@ -219,8 +219,11 @@ static int spi_setup_transport_attrs(struct device *dev)
 	struct scsi_target *starget = to_scsi_target(dev);
 
 	spi_period(starget) = -1;	/* illegal value */
+	spi_min_period(starget) = 0;
 	spi_offset(starget) = 0;	/* async */
+	spi_max_offset(starget) = 255;
 	spi_width(starget) = 0;	/* narrow */
+	spi_max_width(starget) = 1;
 	spi_iu(starget) = 0;	/* no IU */
 	spi_dt(starget) = 0;	/* ST */
 	spi_qas(starget) = 0;
@@ -233,6 +236,34 @@ static int spi_setup_transport_attrs(struct device *dev)
 	init_MUTEX(&spi_dv_sem(starget));
 
 	return 0;
+}
+
+#define spi_transport_show_simple(field, format_string)			\
+									\
+static ssize_t								\
+show_spi_transport_##field(struct class_device *cdev, char *buf)	\
+{									\
+	struct scsi_target *starget = transport_class_to_starget(cdev);	\
+	struct spi_transport_attrs *tp;					\
+									\
+	tp = (struct spi_transport_attrs *)&starget->starget_data;	\
+	return snprintf(buf, 20, format_string, tp->field);		\
+}
+
+#define spi_transport_store_simple(field, format_string)		\
+									\
+static ssize_t								\
+store_spi_transport_##field(struct class_device *cdev, const char *buf, \
+			    size_t count)				\
+{									\
+	int val;							\
+	struct scsi_target *starget = transport_class_to_starget(cdev);	\
+	struct spi_transport_attrs *tp;					\
+									\
+	tp = (struct spi_transport_attrs *)&starget->starget_data;	\
+	val = simple_strtoul(buf, NULL, 0);				\
+	tp->field = val;						\
+	return count;							\
 }
 
 #define spi_transport_show_function(field, format_string)		\
@@ -261,6 +292,25 @@ store_spi_transport_##field(struct class_device *cdev, const char *buf, \
 	struct spi_internal *i = to_spi_internal(shost->transportt);	\
 									\
 	val = simple_strtoul(buf, NULL, 0);				\
+	i->f->set_##field(starget, val);			\
+	return count;							\
+}
+
+#define spi_transport_store_max(field, format_string)			\
+static ssize_t								\
+store_spi_transport_##field(struct class_device *cdev, const char *buf, \
+			    size_t count)				\
+{									\
+	int val;							\
+	struct scsi_target *starget = transport_class_to_starget(cdev);	\
+	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);	\
+	struct spi_internal *i = to_spi_internal(shost->transportt);	\
+	struct spi_transport_attrs *tp					\
+		= (struct spi_transport_attrs *)&starget->starget_data;	\
+									\
+	val = simple_strtoul(buf, NULL, 0);				\
+	if (val > tp->max_##field)					\
+		val = tp->max_##field;					\
 	i->f->set_##field(starget, val);				\
 	return count;							\
 }
@@ -272,9 +322,24 @@ static CLASS_DEVICE_ATTR(field, S_IRUGO | S_IWUSR,			\
 			 show_spi_transport_##field,			\
 			 store_spi_transport_##field);
 
+#define spi_transport_simple_attr(field, format_string)			\
+	spi_transport_show_simple(field, format_string)			\
+	spi_transport_store_simple(field, format_string)		\
+static CLASS_DEVICE_ATTR(field, S_IRUGO | S_IWUSR,			\
+			 show_spi_transport_##field,			\
+			 store_spi_transport_##field);
+
+#define spi_transport_max_attr(field, format_string)			\
+	spi_transport_show_function(field, format_string)		\
+	spi_transport_store_max(field, format_string)			\
+	spi_transport_simple_attr(max_##field, format_string)		\
+static CLASS_DEVICE_ATTR(field, S_IRUGO | S_IWUSR,			\
+			 show_spi_transport_##field,			\
+			 store_spi_transport_##field);
+
 /* The Parallel SCSI Tranport Attributes: */
-spi_transport_rd_attr(offset, "%d\n");
-spi_transport_rd_attr(width, "%d\n");
+spi_transport_max_attr(offset, "%d\n");
+spi_transport_max_attr(width, "%d\n");
 spi_transport_rd_attr(iu, "%d\n");
 spi_transport_rd_attr(dt, "%d\n");
 spi_transport_rd_attr(qas, "%d\n");
@@ -283,43 +348,39 @@ spi_transport_rd_attr(rd_strm, "%d\n");
 spi_transport_rd_attr(rti, "%d\n");
 spi_transport_rd_attr(pcomp_en, "%d\n");
 
+/* we only care about the first child device so we return 1 */
+static int child_iter(struct device *dev, void *data)
+{
+	struct scsi_device *sdev = to_scsi_device(dev);
+
+	spi_dv_device(sdev);
+	return 1;
+}
+
 static ssize_t
 store_spi_revalidate(struct class_device *cdev, const char *buf, size_t count)
 {
 	struct scsi_target *starget = transport_class_to_starget(cdev);
 
-	/* FIXME: we're relying on an awful lot of device internals
-	 * here.  We really need a function to get the first available
-	 * child */
-	struct device *dev = container_of(starget->dev.children.next, struct device, node);
-	struct scsi_device *sdev = to_scsi_device(dev);
-	spi_dv_device(sdev);
+	device_for_each_child(&starget->dev, NULL, child_iter);
 	return count;
 }
 static CLASS_DEVICE_ATTR(revalidate, S_IWUSR, NULL, store_spi_revalidate);
 
 /* Translate the period into ns according to the current spec
  * for SDTR/PPR messages */
-static ssize_t show_spi_transport_period(struct class_device *cdev, char *buf)
-
+static ssize_t
+show_spi_transport_period_helper(struct class_device *cdev, char *buf,
+				 int period)
 {
-	struct scsi_target *starget = transport_class_to_starget(cdev);
-	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
-	struct spi_transport_attrs *tp;
 	int len, picosec;
-	struct spi_internal *i = to_spi_internal(shost->transportt);
 
-	tp = (struct spi_transport_attrs *)&starget->starget_data;
-
-	if (i->f->get_period)
-		i->f->get_period(starget);
-
-	if (tp->period < 0 || tp->period > 0xff) {
+	if (period < 0 || period > 0xff) {
 		picosec = -1;
-	} else if (tp->period <= SPI_STATIC_PPR) {
-		picosec = ppr_to_ps[tp->period];
+	} else if (period <= SPI_STATIC_PPR) {
+		picosec = ppr_to_ps[period];
 	} else {
-		picosec = tp->period * 4000;
+		picosec = period * 4000;
 	}
 
 	if (picosec == -1) {
@@ -334,12 +395,9 @@ static ssize_t show_spi_transport_period(struct class_device *cdev, char *buf)
 }
 
 static ssize_t
-store_spi_transport_period(struct class_device *cdev, const char *buf,
-			    size_t count)
+store_spi_transport_period_helper(struct class_device *cdev, const char *buf,
+				  size_t count, int *periodp)
 {
-	struct scsi_target *starget = transport_class_to_starget(cdev);
-	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
-	struct spi_internal *i = to_spi_internal(shost->transportt);
 	int j, picosec, period = -1;
 	char *endp;
 
@@ -368,14 +426,78 @@ store_spi_transport_period(struct class_device *cdev, const char *buf,
 	if (period > 0xff)
 		period = 0xff;
 
-	i->f->set_period(starget, period);
+	*periodp = period;
 
 	return count;
+}
+
+static ssize_t
+show_spi_transport_period(struct class_device *cdev, char *buf)
+{
+	struct scsi_target *starget = transport_class_to_starget(cdev);
+	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
+	struct spi_internal *i = to_spi_internal(shost->transportt);
+	struct spi_transport_attrs *tp =
+		(struct spi_transport_attrs *)&starget->starget_data;
+
+	if (i->f->get_period)
+		i->f->get_period(starget);
+
+	return show_spi_transport_period_helper(cdev, buf, tp->period);
+}
+
+static ssize_t
+store_spi_transport_period(struct class_device *cdev, const char *buf,
+			    size_t count)
+{
+	struct scsi_target *starget = transport_class_to_starget(cdev);
+	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
+	struct spi_internal *i = to_spi_internal(shost->transportt);
+	struct spi_transport_attrs *tp =
+		(struct spi_transport_attrs *)&starget->starget_data;
+	int period, retval;
+
+	retval = store_spi_transport_period_helper(cdev, buf, count, &period);
+
+	if (period < tp->min_period)
+		period = tp->min_period;
+
+	i->f->set_period(starget, period);
+
+	return retval;
 }
 
 static CLASS_DEVICE_ATTR(period, S_IRUGO | S_IWUSR, 
 			 show_spi_transport_period,
 			 store_spi_transport_period);
+
+static ssize_t
+show_spi_transport_min_period(struct class_device *cdev, char *buf)
+{
+	struct scsi_target *starget = transport_class_to_starget(cdev);
+	struct spi_transport_attrs *tp =
+		(struct spi_transport_attrs *)&starget->starget_data;
+
+	return show_spi_transport_period_helper(cdev, buf, tp->min_period);
+}
+
+static ssize_t
+store_spi_transport_min_period(struct class_device *cdev, const char *buf,
+			    size_t count)
+{
+	struct scsi_target *starget = transport_class_to_starget(cdev);
+	struct spi_transport_attrs *tp =
+		(struct spi_transport_attrs *)&starget->starget_data;
+
+	return store_spi_transport_period_helper(cdev, buf, count,
+						 &tp->min_period);
+}
+
+
+static CLASS_DEVICE_ATTR(min_period, S_IRUGO | S_IWUSR, 
+			 show_spi_transport_min_period,
+			 store_spi_transport_min_period);
+
 
 static ssize_t show_spi_host_signalling(struct class_device *cdev, char *buf)
 {
@@ -551,6 +673,7 @@ spi_dv_retrain(struct scsi_request *sreq, u8 *buffer, u8 *ptr,
 {
 	struct spi_internal *i = to_spi_internal(sreq->sr_host->transportt);
 	struct scsi_device *sdev = sreq->sr_device;
+	struct scsi_target *starget = sdev->sdev_target;
 	int period = 0, prevperiod = 0; 
 	enum spi_compare_returns retval;
 
@@ -564,24 +687,40 @@ spi_dv_retrain(struct scsi_request *sreq, u8 *buffer, u8 *ptr,
 			break;
 
 		/* OK, retrain, fallback */
+		if (i->f->get_iu)
+			i->f->get_iu(starget);
+		if (i->f->get_qas)
+			i->f->get_qas(starget);
 		if (i->f->get_period)
 			i->f->get_period(sdev->sdev_target);
-		newperiod = spi_period(sdev->sdev_target);
-		period = newperiod > period ? newperiod : period;
-		if (period < 0x0d)
-			period++;
-		else
-			period += period >> 1;
 
-		if (unlikely(period > 0xff || period == prevperiod)) {
-			/* Total failure; set to async and return */
-			SPI_PRINTK(sdev->sdev_target, KERN_ERR, "Domain Validation Failure, dropping back to Asynchronous\n");
-			DV_SET(offset, 0);
-			return SPI_COMPARE_FAILURE;
+		/* Here's the fallback sequence; first try turning off
+		 * IU, then QAS (if we can control them), then finally
+		 * fall down the periods */
+		if (i->f->set_iu && spi_iu(starget)) {
+			SPI_PRINTK(starget, KERN_ERR, "Domain Validation Disabing Information Units\n");
+			DV_SET(iu, 0);
+		} else if (i->f->set_qas && spi_qas(starget)) {
+			SPI_PRINTK(starget, KERN_ERR, "Domain Validation Disabing Quick Arbitration and Selection\n");
+			DV_SET(qas, 0);
+		} else {
+			newperiod = spi_period(starget);
+			period = newperiod > period ? newperiod : period;
+			if (period < 0x0d)
+				period++;
+			else
+				period += period >> 1;
+
+			if (unlikely(period > 0xff || period == prevperiod)) {
+				/* Total failure; set to async and return */
+				SPI_PRINTK(starget, KERN_ERR, "Domain Validation Failure, dropping back to Asynchronous\n");
+				DV_SET(offset, 0);
+				return SPI_COMPARE_FAILURE;
+			}
+			SPI_PRINTK(starget, KERN_ERR, "Domain Validation detected failure, dropping back\n");
+			DV_SET(period, period);
+			prevperiod = period;
 		}
-		SPI_PRINTK(sdev->sdev_target, KERN_ERR, "Domain Validation detected failure, dropping back\n");
-		DV_SET(period, period);
-		prevperiod = period;
 	}
 	return retval;
 }
@@ -642,6 +781,7 @@ spi_dv_device_internal(struct scsi_request *sreq, u8 *buffer)
 {
 	struct spi_internal *i = to_spi_internal(sreq->sr_host->transportt);
 	struct scsi_device *sdev = sreq->sr_device;
+	struct scsi_target *starget = sdev->sdev_target;
 	int len = sdev->inquiry_len;
 	/* first set us up for narrow async */
 	DV_SET(offset, 0);
@@ -649,21 +789,21 @@ spi_dv_device_internal(struct scsi_request *sreq, u8 *buffer)
 	
 	if (spi_dv_device_compare_inquiry(sreq, buffer, buffer, DV_LOOPS)
 	    != SPI_COMPARE_SUCCESS) {
-		SPI_PRINTK(sdev->sdev_target, KERN_ERR, "Domain Validation Initial Inquiry Failed\n");
+		SPI_PRINTK(starget, KERN_ERR, "Domain Validation Initial Inquiry Failed\n");
 		/* FIXME: should probably offline the device here? */
 		return;
 	}
 
 	/* test width */
-	if (i->f->set_width && sdev->wdtr) {
-		i->f->set_width(sdev->sdev_target, 1);
+	if (i->f->set_width && spi_max_width(starget) && sdev->wdtr) {
+		i->f->set_width(starget, 1);
 
 		if (spi_dv_device_compare_inquiry(sreq, buffer,
 						   buffer + len,
 						   DV_LOOPS)
 		    != SPI_COMPARE_SUCCESS) {
-			SPI_PRINTK(sdev->sdev_target, KERN_ERR, "Wide Transfers Fail\n");
-			i->f->set_width(sdev->sdev_target, 0);
+			SPI_PRINTK(starget, KERN_ERR, "Wide Transfers Fail\n");
+			i->f->set_width(starget, 0);
 		}
 	}
 
@@ -671,7 +811,7 @@ spi_dv_device_internal(struct scsi_request *sreq, u8 *buffer)
 		return;
 
 	/* device can't handle synchronous */
-	if(!sdev->ppr && !sdev->sdtr)
+	if (!sdev->ppr && !sdev->sdtr)
 		return;
 
 	/* see if the device has an echo buffer.  If it does we can
@@ -684,18 +824,32 @@ spi_dv_device_internal(struct scsi_request *sreq, u8 *buffer)
  retry:
 
 	/* now set up to the maximum */
-	DV_SET(offset, 255);
-	DV_SET(period, 1);
+	DV_SET(offset, spi_max_offset(starget));
+	DV_SET(period, spi_min_period(starget));
+	/* try QAS requests; this should be harmless to set if the
+	 * target supports it */
+	DV_SET(qas, 1);
+	/* Also try IU transfers */
+	DV_SET(iu, 1);
+	if (spi_min_period(starget) < 9) {
+		/* This u320 (or u640). Ignore the coupled parameters
+		 * like DT and IU, but set the optional ones */
+		DV_SET(rd_strm, 1);
+		DV_SET(wr_flow, 1);
+		DV_SET(rti, 1);
+		if (spi_min_period(starget) == 8)
+			DV_SET(pcomp_en, 1);
+	}
 
 	if (len == 0) {
-		SPI_PRINTK(sdev->sdev_target, KERN_INFO, "Domain Validation skipping write tests\n");
+		SPI_PRINTK(starget, KERN_INFO, "Domain Validation skipping write tests\n");
 		spi_dv_retrain(sreq, buffer, buffer + len,
 			       spi_dv_device_compare_inquiry);
 		return;
 	}
 
 	if (len > SPI_MAX_ECHO_BUFFER_SIZE) {
-		SPI_PRINTK(sdev->sdev_target, KERN_WARNING, "Echo buffer size %d is too big, trimming to %d\n", len, SPI_MAX_ECHO_BUFFER_SIZE);
+		SPI_PRINTK(starget, KERN_WARNING, "Echo buffer size %d is too big, trimming to %d\n", len, SPI_MAX_ECHO_BUFFER_SIZE);
 		len = SPI_MAX_ECHO_BUFFER_SIZE;
 	}
 
@@ -892,6 +1046,16 @@ EXPORT_SYMBOL(spi_display_xfer_agreement);
 	if (i->f->show_##field)						\
 		count++
 
+#define SETUP_RELATED_ATTRIBUTE(field, rel_field)			\
+	i->private_attrs[count] = class_device_attr_##field;		\
+	if (!i->f->set_##rel_field) {					\
+		i->private_attrs[count].attr.mode = S_IRUGO;		\
+		i->private_attrs[count].store = NULL;			\
+	}								\
+	i->attrs[count] = &i->private_attrs[count];			\
+	if (i->f->show_##rel_field)					\
+		count++
+
 #define SETUP_HOST_ATTRIBUTE(field)					\
 	i->private_host_attrs[count] = class_device_attr_##field;	\
 	if (!i->f->set_##field) {					\
@@ -975,8 +1139,11 @@ spi_attach_transport(struct spi_function_template *ft)
 	i->f = ft;
 
 	SETUP_ATTRIBUTE(period);
+	SETUP_RELATED_ATTRIBUTE(min_period, period);
 	SETUP_ATTRIBUTE(offset);
+	SETUP_RELATED_ATTRIBUTE(max_offset, offset);
 	SETUP_ATTRIBUTE(width);
+	SETUP_RELATED_ATTRIBUTE(max_width, width);
 	SETUP_ATTRIBUTE(iu);
 	SETUP_ATTRIBUTE(dt);
 	SETUP_ATTRIBUTE(qas);

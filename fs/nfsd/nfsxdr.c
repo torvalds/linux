@@ -49,6 +49,12 @@ decode_fh(u32 *p, struct svc_fh *fhp)
 	return p + (NFS_FHSIZE >> 2);
 }
 
+/* Helper function for NFSv2 ACL code */
+u32 *nfs2svc_decode_fh(u32 *p, struct svc_fh *fhp)
+{
+	return decode_fh(p, fhp);
+}
+
 static inline u32 *
 encode_fh(u32 *p, struct svc_fh *fhp)
 {
@@ -190,6 +196,11 @@ encode_fattr(struct svc_rqst *rqstp, u32 *p, struct svc_fh *fhp)
 	return p;
 }
 
+/* Helper function for NFSv2 ACL code */
+u32 *nfs2svc_encode_fattr(struct svc_rqst *rqstp, u32 *p, struct svc_fh *fhp)
+{
+	return encode_fattr(rqstp, p, fhp);
+}
 
 /*
  * XDR decode functions

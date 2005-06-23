@@ -21,10 +21,7 @@
 
 static struct net_device_stats *br_dev_get_stats(struct net_device *dev)
 {
-	struct net_bridge *br;
-
-	br = dev->priv;
-
+	struct net_bridge *br = netdev_priv(dev);
 	return &br->statistics;
 }
 
@@ -54,9 +51,11 @@ int br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static int br_dev_open(struct net_device *dev)
 {
-	netif_start_queue(dev);
+	struct net_bridge *br = netdev_priv(dev);
 
-	br_stp_enable_bridge(dev->priv);
+	br_features_recompute(br);
+	netif_start_queue(dev);
+	br_stp_enable_bridge(br);
 
 	return 0;
 }
@@ -67,7 +66,7 @@ static void br_dev_set_multicast_list(struct net_device *dev)
 
 static int br_dev_stop(struct net_device *dev)
 {
-	br_stp_disable_bridge(dev->priv);
+	br_stp_disable_bridge(netdev_priv(dev));
 
 	netif_stop_queue(dev);
 
@@ -76,7 +75,7 @@ static int br_dev_stop(struct net_device *dev)
 
 static int br_change_mtu(struct net_device *dev, int new_mtu)
 {
-	if ((new_mtu < 68) || new_mtu > br_min_mtu(dev->priv))
+	if (new_mtu < 68 || new_mtu > br_min_mtu(netdev_priv(dev)))
 		return -EINVAL;
 
 	dev->mtu = new_mtu;

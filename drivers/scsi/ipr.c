@@ -1053,7 +1053,7 @@ static void ipr_log_array_error(struct ipr_ioa_cfg *ioa_cfg,
 				array_entry->dev_res_addr.lun);
 		}
 
-		if (array_entry->dev_res_addr.bus >= IPR_MAX_NUM_BUSES) {
+		if (array_entry->expected_dev_res_addr.bus >= IPR_MAX_NUM_BUSES) {
 			ipr_err("Expected Location: unknown\n");
 		} else {
 			ipr_err("Expected Location: %d:%d:%d:%d\n",
@@ -2716,7 +2716,7 @@ static int ipr_change_queue_type(struct scsi_device *sdev, int tag_type)
  * Return value:
  * 	number of bytes printed to buffer
  **/
-static ssize_t ipr_show_adapter_handle(struct device *dev, char *buf)
+static ssize_t ipr_show_adapter_handle(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct scsi_device *sdev = to_scsi_device(dev);
 	struct ipr_ioa_cfg *ioa_cfg = (struct ipr_ioa_cfg *)sdev->host->hostdata;
@@ -2885,7 +2885,7 @@ static int ipr_slave_alloc(struct scsi_device *sdev)
  * Return value:
  * 	SUCCESS / FAILED
  **/
-static int ipr_eh_host_reset(struct scsi_cmnd * scsi_cmd)
+static int __ipr_eh_host_reset(struct scsi_cmnd * scsi_cmd)
 {
 	struct ipr_ioa_cfg *ioa_cfg;
 	int rc;
@@ -2905,6 +2905,17 @@ static int ipr_eh_host_reset(struct scsi_cmnd * scsi_cmd)
 	return rc;
 }
 
+static int ipr_eh_host_reset(struct scsi_cmnd * cmd)
+{
+	int rc;
+
+	spin_lock_irq(cmd->device->host->host_lock);
+	rc = __ipr_eh_host_reset(cmd);
+	spin_unlock_irq(cmd->device->host->host_lock);
+
+	return rc;
+}
+
 /**
  * ipr_eh_dev_reset - Reset the device
  * @scsi_cmd:	scsi command struct
@@ -2916,7 +2927,7 @@ static int ipr_eh_host_reset(struct scsi_cmnd * scsi_cmd)
  * Return value:
  *	SUCCESS / FAILED
  **/
-static int ipr_eh_dev_reset(struct scsi_cmnd * scsi_cmd)
+static int __ipr_eh_dev_reset(struct scsi_cmnd * scsi_cmd)
 {
 	struct ipr_cmnd *ipr_cmd;
 	struct ipr_ioa_cfg *ioa_cfg;
@@ -2968,6 +2979,17 @@ static int ipr_eh_dev_reset(struct scsi_cmnd * scsi_cmd)
 
 	LEAVE;
 	return (IPR_IOASC_SENSE_KEY(ioasc) ? FAILED : SUCCESS);
+}
+
+static int ipr_eh_dev_reset(struct scsi_cmnd * cmd)
+{
+	int rc;
+
+	spin_lock_irq(cmd->device->host->host_lock);
+	rc = __ipr_eh_dev_reset(cmd);
+	spin_unlock_irq(cmd->device->host->host_lock);
+
+	return rc;
 }
 
 /**
@@ -3068,6 +3090,12 @@ static int ipr_cancel_op(struct scsi_cmnd * scsi_cmd)
 	ioa_cfg = (struct ipr_ioa_cfg *)scsi_cmd->device->host->hostdata;
 	res = scsi_cmd->device->hostdata;
 
+	/* If we are currently going through reset/reload, return failed.
+	 * This will force the mid-layer to call ipr_eh_host_reset,
+	 * which will then go to sleep and wait for the reset to complete
+	 */
+	if (ioa_cfg->in_reset_reload || ioa_cfg->ioa_is_dead)
+		return FAILED;
 	if (!res || (!ipr_is_gscsi(res) && !ipr_is_vset_device(res)))
 		return FAILED;
 
@@ -3118,23 +3146,17 @@ static int ipr_cancel_op(struct scsi_cmnd * scsi_cmd)
  **/
 static int ipr_eh_abort(struct scsi_cmnd * scsi_cmd)
 {
-	struct ipr_ioa_cfg *ioa_cfg;
+	unsigned long flags;
+	int rc;
 
 	ENTER;
-	ioa_cfg = (struct ipr_ioa_cfg *) scsi_cmd->device->host->hostdata;
 
-	/* If we are currently going through reset/reload, return failed. This will force the
-	   mid-layer to call ipr_eh_host_reset, which will then go to sleep and wait for the
-	   reset to complete */
-	if (ioa_cfg->in_reset_reload)
-		return FAILED;
-	if (ioa_cfg->ioa_is_dead)
-		return FAILED;
-	if (!scsi_cmd->device->hostdata)
-		return FAILED;
+	spin_lock_irqsave(scsi_cmd->device->host->host_lock, flags);
+	rc = ipr_cancel_op(scsi_cmd);
+	spin_unlock_irqrestore(scsi_cmd->device->host->host_lock, flags);
 
 	LEAVE;
-	return ipr_cancel_op(scsi_cmd);
+	return rc;
 }
 
 /**
@@ -5886,6 +5908,7 @@ static void __ipr_remove(struct pci_dev *pdev)
 
 	spin_unlock_irqrestore(ioa_cfg->host->host_lock, host_lock_flags);
 	wait_event(ioa_cfg->reset_wait_q, !ioa_cfg->in_reset_reload);
+	flush_scheduled_work();
 	spin_lock_irqsave(ioa_cfg->host->host_lock, host_lock_flags);
 
 	spin_lock(&ipr_driver_lock);
@@ -5916,8 +5939,6 @@ static void ipr_remove(struct pci_dev *pdev)
 
 	ENTER;
 
-	ioa_cfg->allow_cmds = 0;
-	flush_scheduled_work();
 	ipr_remove_trace_file(&ioa_cfg->host->shost_classdev.kobj,
 			      &ipr_trace_attr);
 	ipr_remove_dump_file(&ioa_cfg->host->shost_classdev.kobj,

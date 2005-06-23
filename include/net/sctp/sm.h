@@ -116,7 +116,8 @@ sctp_state_fn_t sctp_sf_eat_data_fast_4_4;
 sctp_state_fn_t sctp_sf_eat_sack_6_2;
 sctp_state_fn_t sctp_sf_tabort_8_4_8;
 sctp_state_fn_t sctp_sf_operr_notify;
-sctp_state_fn_t sctp_sf_t1_timer_expire;
+sctp_state_fn_t sctp_sf_t1_init_timer_expire;
+sctp_state_fn_t sctp_sf_t1_cookie_timer_expire;
 sctp_state_fn_t sctp_sf_t2_timer_expire;
 sctp_state_fn_t sctp_sf_t4_timer_expire;
 sctp_state_fn_t sctp_sf_t5_timer_expire;
@@ -258,7 +259,10 @@ struct sctp_chunk *sctp_make_fwdtsn(const struct sctp_association *asoc,
 void sctp_chunk_assign_tsn(struct sctp_chunk *);
 void sctp_chunk_assign_ssn(struct sctp_chunk *);
 
-void sctp_stop_t1_and_abort(sctp_cmd_seq_t *commands, __u16 error);
+sctp_disposition_t  sctp_stop_t1_and_abort(sctp_cmd_seq_t *commands,
+					   __u16 error,
+					   const struct sctp_association *asoc,
+					   struct sctp_transport *transport);
 
 /* Prototypes for statetable processing. */
 

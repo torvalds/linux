@@ -269,7 +269,7 @@ int powertecscsi_proc_info(struct Scsi_Host *host, char *buffer, char **start, o
 	return pos;
 }
 
-static ssize_t powertecscsi_show_term(struct device *dev, char *buf)
+static ssize_t powertecscsi_show_term(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct expansion_card *ec = ECARD_DEV(dev);
 	struct Scsi_Host *host = ecard_get_drvdata(ec);
@@ -279,7 +279,7 @@ static ssize_t powertecscsi_show_term(struct device *dev, char *buf)
 }
 
 static ssize_t
-powertecscsi_store_term(struct device *dev, const char *buf, size_t len)
+powertecscsi_store_term(struct device *dev, struct device_attribute *attr, const char *buf, size_t len)
 {
 	struct expansion_card *ec = ECARD_DEV(dev);
 	struct Scsi_Host *host = ecard_get_drvdata(ec);

@@ -172,7 +172,7 @@ static ssize_t show_temp(struct device *dev, char *buf, int nr)
 }
 
 #define sysfs_temp(num) \
-static ssize_t show_temp##num(struct device *dev, char *buf) \
+static ssize_t show_temp##num(struct device *dev, struct device_attribute *attr, char *buf) \
 { \
 	return show_temp(dev, buf, num-1); \
 } \
@@ -201,7 +201,7 @@ static ssize_t show_fan(struct device *dev, char *buf, int nr)
 }
 
 #define sysfs_fan(num) \
-static ssize_t show_fan##num(struct device *dev, char *buf) \
+static ssize_t show_fan##num(struct device *dev, struct device_attribute *attr, char *buf) \
 { \
 	return show_fan(dev, buf, num-1); \
 } \

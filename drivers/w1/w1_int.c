@@ -1,8 +1,8 @@
 /*
- * 	w1_int.c
+ *	w1_int.c
  *
  * Copyright (c) 2004 Evgeniy Polyakov <johnpol@2ka.mipt.ru>
- * 
+ *
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,8 +39,9 @@ extern spinlock_t w1_mlock;
 
 extern int w1_process(void *);
 
-struct w1_master * w1_alloc_dev(u32 id, int slave_count, int slave_ttl,
-	      struct device_driver *driver, struct device *device)
+static struct w1_master * w1_alloc_dev(u32 id, int slave_count, int slave_ttl,
+				       struct device_driver *driver,
+				       struct device *device)
 {
 	struct w1_master *dev;
 	int err;
@@ -60,14 +61,15 @@ struct w1_master * w1_alloc_dev(u32 id, int slave_count, int slave_ttl,
 
 	dev->bus_master = (struct w1_bus_master *)(dev + 1);
 
-	dev->owner 		= THIS_MODULE;
-	dev->max_slave_count 	= slave_count;
-	dev->slave_count 	= 0;
-	dev->attempts 		= 0;
-	dev->kpid 		= -1;
-	dev->initialized 	= 0;
-	dev->id 		= id;
+	dev->owner		= THIS_MODULE;
+	dev->max_slave_count	= slave_count;
+	dev->slave_count	= 0;
+	dev->attempts		= 0;
+	dev->kpid		= -1;
+	dev->initialized	= 0;
+	dev->id			= id;
 	dev->slave_ttl		= slave_ttl;
+        dev->search_count	= -1; /* continual scan */
 
 	atomic_set(&dev->refcnt, 2);
 
@@ -105,7 +107,7 @@ struct w1_master * w1_alloc_dev(u32 id, int slave_count, int slave_ttl,
 	return dev;
 }
 
-void w1_free_dev(struct w1_master *dev)
+static void w1_free_dev(struct w1_master *dev)
 {
 	device_unregister(&dev->dev);
 	if (dev->nls && dev->nls->sk_socket)
@@ -119,6 +121,13 @@ int w1_add_master_device(struct w1_bus_master *master)
 	struct w1_master *dev;
 	int retval = 0;
 	struct w1_netlink_msg msg;
+
+        /* validate minimum functionality */
+        if (!(master->touch_bit && master->reset_bus) &&
+            !(master->write_bit && master->read_bit)) {
+		printk(KERN_ERR "w1_add_master_device: invalid function set\n");
+		return(-EINVAL);
+        }
 
 	dev = w1_alloc_dev(w1_ids++, w1_max_slave_count, w1_max_slave_ttl, &w1_driver, &w1_device);
 	if (!dev)
@@ -153,7 +162,7 @@ int w1_add_master_device(struct w1_bus_master *master)
 	return 0;
 
 err_out_kill_thread:
-	dev->need_exit = 1;
+	set_bit(W1_MASTER_NEED_EXIT, &dev->flags);
 	if (kill_proc(dev->kpid, SIGTERM, 1))
 		dev_err(&dev->dev,
 			 "Failed to send signal to w1 kernel thread %d.\n",
@@ -171,7 +180,7 @@ void __w1_remove_master_device(struct w1_master *dev)
 	int err;
 	struct w1_netlink_msg msg;
 
-	dev->need_exit = 1;
+	set_bit(W1_MASTER_NEED_EXIT, &dev->flags);
 	err = kill_proc(dev->kpid, SIGTERM, 1);
 	if (err)
 		dev_err(&dev->dev,
@@ -197,10 +206,8 @@ void __w1_remove_master_device(struct w1_master *dev)
 void w1_remove_master_device(struct w1_bus_master *bm)
 {
 	struct w1_master *dev = NULL;
-	struct list_head *ent, *n;
 
-	list_for_each_safe(ent, n, &w1_masters) {
-		dev = list_entry(ent, struct w1_master, w1_master_entry);
+	list_for_each_entry(dev, &w1_masters, w1_master_entry) {
 		if (!dev->initialized)
 			continue;
 

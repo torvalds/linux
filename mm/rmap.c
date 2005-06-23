@@ -539,27 +539,6 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma)
 		goto out_unmap;
 	}
 
-	/*
-	 * Don't pull an anonymous page out from under get_user_pages.
-	 * GUP carefully breaks COW and raises page count (while holding
-	 * page_table_lock, as we have here) to make sure that the page
-	 * cannot be freed.  If we unmap that page here, a user write
-	 * access to the virtual address will bring back the page, but
-	 * its raised count will (ironically) be taken to mean it's not
-	 * an exclusive swap page, do_wp_page will replace it by a copy
-	 * page, and the user never get to see the data GUP was holding
-	 * the original page for.
-	 *
-	 * This test is also useful for when swapoff (unuse_process) has
-	 * to drop page lock: its reference to the page stops existing
-	 * ptes from being unmapped, so swapoff can make progress.
-	 */
-	if (PageSwapCache(page) &&
-	    page_count(page) != page_mapcount(page) + 2) {
-		ret = SWAP_FAIL;
-		goto out_unmap;
-	}
-
 	/* Nuke the page table entry. */
 	flush_cache_page(vma, address, page_to_pfn(page));
 	pteval = ptep_clear_flush(vma, address, pte);
@@ -586,7 +565,7 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma)
 		dec_mm_counter(mm, anon_rss);
 	}
 
-	inc_mm_counter(mm, rss);
+	dec_mm_counter(mm, rss);
 	page_remove_rmap(page);
 	page_cache_release(page);
 
@@ -626,7 +605,7 @@ static void try_to_unmap_cluster(unsigned long cursor,
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
-	pte_t *pte;
+	pte_t *pte, *original_pte;
 	pte_t pteval;
 	struct page *page;
 	unsigned long address;
@@ -658,7 +637,7 @@ static void try_to_unmap_cluster(unsigned long cursor,
 	if (!pmd_present(*pmd))
 		goto out_unlock;
 
-	for (pte = pte_offset_map(pmd, address);
+	for (original_pte = pte = pte_offset_map(pmd, address);
 			address < end; pte++, address += PAGE_SIZE) {
 
 		if (!pte_present(*pte))
@@ -694,7 +673,7 @@ static void try_to_unmap_cluster(unsigned long cursor,
 		(*mapcount)--;
 	}
 
-	pte_unmap(pte);
+	pte_unmap(original_pte);
 out_unlock:
 	spin_unlock(&mm->page_table_lock);
 }

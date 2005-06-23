@@ -2,7 +2,8 @@
 # Makefile for the Linux networking core.
 #
 
-obj-y := sock.o skbuff.o iovec.o datagram.o stream.o scm.o gen_stats.o gen_estimator.o
+obj-y := sock.o request_sock.o skbuff.o iovec.o datagram.o stream.o scm.o \
+	 gen_stats.o gen_estimator.o
 
 obj-$(CONFIG_SYSCTL) += sysctl_net_core.o
 

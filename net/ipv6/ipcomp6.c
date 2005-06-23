@@ -234,14 +234,9 @@ static struct xfrm_state *ipcomp6_tunnel_create(struct xfrm_state *x)
 	t->props.mode = 1;
 	memcpy(t->props.saddr.a6, x->props.saddr.a6, sizeof(struct in6_addr));
 
-	t->type = xfrm_get_type(IPPROTO_IPV6, t->props.family);
-	if (t->type == NULL)
+	if (xfrm_init_state(t))
 		goto error;
 
-	if (t->type->init_state(t, NULL))
-		goto error;
-
-	t->km.state = XFRM_STATE_VALID;
 	atomic_set(&t->tunnel_users, 1);
 
 out:
@@ -420,7 +415,7 @@ static void ipcomp6_destroy(struct xfrm_state *x)
 	xfrm6_tunnel_free_spi((xfrm_address_t *)&x->props.saddr);
 }
 
-static int ipcomp6_init_state(struct xfrm_state *x, void *args)
+static int ipcomp6_init_state(struct xfrm_state *x)
 {
 	int err;
 	struct ipcomp_data *ipcd;

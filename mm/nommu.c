@@ -150,7 +150,8 @@ void vfree(void *addr)
 	kfree(addr);
 }
 
-void *__vmalloc(unsigned long size, int gfp_mask, pgprot_t prot)
+void *__vmalloc(unsigned long size, unsigned int __nocast gfp_mask,
+			pgprot_t prot)
 {
 	/*
 	 * kmalloc doesn't like __GFP_HIGHMEM for some reason
@@ -1066,7 +1067,7 @@ unsigned long arch_get_unmapped_area(struct file *file, unsigned long addr,
 	return -ENOMEM;
 }
 
-void arch_unmap_area(struct vm_area_struct *area)
+void arch_unmap_area(struct mm_struct *mm, unsigned long addr)
 {
 }
 

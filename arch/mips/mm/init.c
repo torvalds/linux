@@ -232,7 +232,6 @@ void __init mem_init(void)
 #ifdef CONFIG_LIMITED_DMA
 		set_page_address(page, lowmem_page_address(page));
 #endif
-		set_bit(PG_highmem, &page->flags);
 		set_page_count(page, 1);
 		__free_page(page);
 		totalhigh_pages++;

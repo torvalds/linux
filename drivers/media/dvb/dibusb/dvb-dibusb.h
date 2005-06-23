@@ -181,7 +181,7 @@ struct usb_dibusb {
 	struct semaphore i2c_sem;
 
 	/* dvb */
-	struct dvb_adapter *adapter;
+	struct dvb_adapter adapter;
 	struct dmxdev dmxdev;
 	struct dvb_demux demux;
 	struct dvb_net dvb_net;
