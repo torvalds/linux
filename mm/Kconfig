@@ -1,8 +1,7 @@
 choice
 	prompt "Memory model"
-	default FLATMEM
-	default SPARSEMEM if ARCH_SPARSEMEM_DEFAULT
 	default DISCONTIGMEM if ARCH_DISCONTIGMEM_DEFAULT
+	default FLATMEM
 
 config FLATMEM
 	bool "Flat Memory"
