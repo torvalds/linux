@@ -496,10 +496,6 @@ config ARCH_DISCONTIGMEM_ENABLE
 	  or have huge holes in the physical address space for other reasons.
 	  See <file:Documentation/vm/numa> for more.
 
-config ARCH_FLATMEM_DISABLE
-	def_bool y
-	depends on ARCH_DISCONTIGMEM_ENABLE
-
 source "mm/Kconfig"
 
 config ZERO_PAGE_OFFSET
