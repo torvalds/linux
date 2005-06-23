@@ -211,6 +211,18 @@ config ARCH_FLATMEM_ENABLE
 
 source "mm/Kconfig"
 
+# Some NUMA nodes have memory ranges that span
+# other nodes.  Even though a pfn is valid and
+# between a node's start and end pfns, it may not
+# reside on that node.
+#
+# This is a relatively temporary hack that should
+# be able to go away when sparsemem is fully in
+# place
+config NODES_SPAN_OTHER_NODES
+	def_bool y
+	depends on NEED_MULTIPLE_NODES
+
 config NUMA
 	bool "NUMA support"
 	depends on DISCONTIGMEM
