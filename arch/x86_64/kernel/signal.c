@@ -439,7 +439,7 @@ int do_signal(struct pt_regs *regs, sigset_t *oldset)
 		 * inside the kernel.
 		 */
 		if (current->thread.debugreg7)
-			asm volatile("movq %0,%%db7"	: : "r" (current->thread.debugreg7));
+			set_debugreg(current->thread.debugreg7, 7);
 
 		/* Whee!  Actually deliver the signal.  */
 		return handle_signal(signr, &info, &ka, oldset, regs);

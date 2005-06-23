@@ -669,7 +669,7 @@ asmlinkage void do_debug(struct pt_regs * regs, unsigned long error_code)
        }
 #endif
 
-	asm("movq %%db6,%0" : "=r" (condition));
+	get_debugreg(condition, 6);
 
 	if (notify_die(DIE_DEBUG, "debug", regs, condition, error_code,
 						SIGTRAP) == NOTIFY_STOP)
@@ -721,7 +721,7 @@ asmlinkage void do_debug(struct pt_regs * regs, unsigned long error_code)
 	info.si_addr = (void __user *)regs->rip;
 	force_sig_info(SIGTRAP, &info, tsk);	
 clear_dr7:
-	asm volatile("movq %0,%%db7"::"r"(0UL));
+	set_debugreg(0UL, 7);
 	return;
 
 clear_TF_reenable:
