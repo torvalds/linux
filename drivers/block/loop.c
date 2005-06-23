@@ -472,17 +472,11 @@ static int do_bio_filebacked(struct loop_device *lo, struct bio *bio)
  */
 static void loop_add_bio(struct loop_device *lo, struct bio *bio)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&lo->lo_lock, flags);
 	if (lo->lo_biotail) {
 		lo->lo_biotail->bi_next = bio;
 		lo->lo_biotail = bio;
 	} else
 		lo->lo_bio = lo->lo_biotail = bio;
-	spin_unlock_irqrestore(&lo->lo_lock, flags);
-
-	up(&lo->lo_bh_mutex);
 }
 
 /*
@@ -492,14 +486,12 @@ static struct bio *loop_get_bio(struct loop_device *lo)
 {
 	struct bio *bio;
 
-	spin_lock_irq(&lo->lo_lock);
 	if ((bio = lo->lo_bio)) {
 		if (bio == lo->lo_biotail)
 			lo->lo_biotail = NULL;
 		lo->lo_bio = bio->bi_next;
 		bio->bi_next = NULL;
 	}
-	spin_unlock_irq(&lo->lo_lock);
 
 	return bio;
 }
@@ -509,35 +501,28 @@ static int loop_make_request(request_queue_t *q, struct bio *old_bio)
 	struct loop_device *lo = q->queuedata;
 	int rw = bio_rw(old_bio);
 
-	if (!lo)
-		goto out;
+	if (rw == READA)
+		rw = READ;
+
+	BUG_ON(!lo || (rw != READ && rw != WRITE));
 
 	spin_lock_irq(&lo->lo_lock);
 	if (lo->lo_state != Lo_bound)
-		goto inactive;
-	atomic_inc(&lo->lo_pending);
-	spin_unlock_irq(&lo->lo_lock);
-
-	if (rw == WRITE) {
-		if (lo->lo_flags & LO_FLAGS_READ_ONLY)
-			goto err;
-	} else if (rw == READA) {
-		rw = READ;
-	} else if (rw != READ) {
-		printk(KERN_ERR "loop: unknown command (%x)\n", rw);
-		goto err;
-	}
+		goto out;
+	if (unlikely(rw == WRITE && (lo->lo_flags & LO_FLAGS_READ_ONLY)))
+		goto out;
+	lo->lo_pending++;
 	loop_add_bio(lo, old_bio);
+	spin_unlock_irq(&lo->lo_lock);
+	up(&lo->lo_bh_mutex);
 	return 0;
-err:
-	if (atomic_dec_and_test(&lo->lo_pending))
-		up(&lo->lo_bh_mutex);
+
 out:
+	if (lo->lo_pending == 0)
+		up(&lo->lo_bh_mutex);
+	spin_unlock_irq(&lo->lo_lock);
 	bio_io_error(old_bio, old_bio->bi_size);
 	return 0;
-inactive:
-	spin_unlock_irq(&lo->lo_lock);
-	goto out;
 }
 
 /*
@@ -560,13 +545,11 @@ static void do_loop_switch(struct loop_device *, struct switch_request *);
 
 static inline void loop_handle_bio(struct loop_device *lo, struct bio *bio)
 {
-	int ret;
-
 	if (unlikely(!bio->bi_bdev)) {
 		do_loop_switch(lo, bio->bi_private);
 		bio_put(bio);
 	} else {
-		ret = do_bio_filebacked(lo, bio);
+		int ret = do_bio_filebacked(lo, bio);
 		bio_endio(bio, bio->bi_size, ret);
 	}
 }
@@ -594,7 +577,7 @@ static int loop_thread(void *data)
 	set_user_nice(current, -20);
 
 	lo->lo_state = Lo_bound;
-	atomic_inc(&lo->lo_pending);
+	lo->lo_pending = 1;
 
 	/*
 	 * up sem, we are running
@@ -602,26 +585,37 @@ static int loop_thread(void *data)
 	up(&lo->lo_sem);
 
 	for (;;) {
-		down_interruptible(&lo->lo_bh_mutex);
+		int pending;
+
 		/*
-		 * could be upped because of tear-down, not because of
-		 * pending work
+		 * interruptible just to not contribute to load avg
 		 */
-		if (!atomic_read(&lo->lo_pending))
+		if (down_interruptible(&lo->lo_bh_mutex))
+			continue;
+
+		spin_lock_irq(&lo->lo_lock);
+
+		/*
+		 * could be upped because of tear-down, not pending work
+		 */
+		if (unlikely(!lo->lo_pending)) {
+			spin_unlock_irq(&lo->lo_lock);
 			break;
+		}
 
 		bio = loop_get_bio(lo);
-		if (!bio) {
-			printk("loop: missing bio\n");
-			continue;
-		}
+		lo->lo_pending--;
+		pending = lo->lo_pending;
+		spin_unlock_irq(&lo->lo_lock);
+
+		BUG_ON(!bio);
 		loop_handle_bio(lo, bio);
 
 		/*
 		 * upped both for pending work and tear-down, lo_pending
 		 * will hit zero then
 		 */
-		if (atomic_dec_and_test(&lo->lo_pending))
+		if (unlikely(!pending))
 			break;
 	}
 
@@ -900,7 +894,8 @@ static int loop_clr_fd(struct loop_device *lo, struct block_device *bdev)
 
 	spin_lock_irq(&lo->lo_lock);
 	lo->lo_state = Lo_rundown;
-	if (atomic_dec_and_test(&lo->lo_pending))
+	lo->lo_pending--;
+	if (!lo->lo_pending)
 		up(&lo->lo_bh_mutex);
 	spin_unlock_irq(&lo->lo_lock);
 
