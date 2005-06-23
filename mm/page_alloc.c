@@ -1936,6 +1936,7 @@ static void __init free_area_init_core(struct pglist_data *pgdat,
 static void __init alloc_node_mem_map(struct pglist_data *pgdat)
 {
 	unsigned long size;
+	struct page *map;
 
 	/* Skip empty nodes */
 	if (!pgdat->node_spanned_pages)
@@ -1944,7 +1945,10 @@ static void __init alloc_node_mem_map(struct pglist_data *pgdat)
 	/* ia64 gets its own node_mem_map, before this, without bootmem */
 	if (!pgdat->node_mem_map) {
 		size = (pgdat->node_spanned_pages + 1) * sizeof(struct page);
-		pgdat->node_mem_map = alloc_bootmem_node(pgdat, size);
+		map = alloc_remap(pgdat->node_id, size);
+		if (!map)
+			map = alloc_bootmem_node(pgdat, size);
+		pgdat->node_mem_map = map;
 	}
 #ifndef CONFIG_DISCONTIGMEM
 	/*

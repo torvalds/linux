@@ -67,6 +67,15 @@ extern void * __init __alloc_bootmem_node (pg_data_t *pgdat, unsigned long size,
 	__alloc_bootmem_node((pgdat), (x), PAGE_SIZE, 0)
 #endif /* !CONFIG_HAVE_ARCH_BOOTMEM_NODE */
 
+#ifdef CONFIG_HAVE_ARCH_ALLOC_REMAP
+extern void *alloc_remap(int nid, unsigned long size);
+#else
+static inline void *alloc_remap(int nid, unsigned long size)
+{
+	return NULL;
+}
+#endif
+
 extern unsigned long __initdata nr_kernel_pages;
 extern unsigned long __initdata nr_all_pages;
 

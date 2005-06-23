@@ -803,6 +803,11 @@ config NEED_NODE_MEMMAP_SIZE
 	depends on DISCONTIGMEM
 	default y
 
+config HAVE_ARCH_ALLOC_REMAP
+	bool
+	depends on NUMA
+	default y
+
 config HIGHPTE
 	bool "Allocate 3rd-level pagetables from highmem"
 	depends on HIGHMEM4G || HIGHMEM64G
