@@ -52,6 +52,7 @@ struct serial8250_config {
 #define UART_CAP_UUE	(1 << 12)	/* UART needs IER bit 6 set (Xscale) */
 
 #define UART_BUG_QUOT	(1 << 0)	/* UART has buggy quot LSB */
+#define UART_BUG_TXEN	(1 << 1)	/* UART has buggy TX IIR status */
 
 #if defined(__i386__) && (defined(CONFIG_M386) || defined(CONFIG_M486))
 #define _INLINE_ inline

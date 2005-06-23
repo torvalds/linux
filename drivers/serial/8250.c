@@ -1027,6 +1027,8 @@ static void serial8250_stop_tx(struct uart_port *port, unsigned int tty_stop)
 	}
 }
 
+static void transmit_chars(struct uart_8250_port *up);
+
 static void serial8250_start_tx(struct uart_port *port, unsigned int tty_start)
 {
 	struct uart_8250_port *up = (struct uart_8250_port *)port;
@@ -1034,6 +1036,14 @@ static void serial8250_start_tx(struct uart_port *port, unsigned int tty_start)
 	if (!(up->ier & UART_IER_THRI)) {
 		up->ier |= UART_IER_THRI;
 		serial_out(up, UART_IER, up->ier);
+
+		if (up->capabilities & UART_BUG_TXEN) {
+			unsigned char lsr, iir;
+			lsr = serial_in(up, UART_LSR);
+			iir = serial_in(up, UART_IIR);
+			if (lsr & UART_LSR_TEMT && iir & UART_IIR_NO_INT)
+				transmit_chars(up);
+		}
 	}
 	/*
 	 * We only do this from uart_start
@@ -1439,6 +1449,7 @@ static int serial8250_startup(struct uart_port *port)
 {
 	struct uart_8250_port *up = (struct uart_8250_port *)port;
 	unsigned long flags;
+	unsigned char lsr, iir;
 	int retval;
 
 	up->capabilities = uart_config[up->port.type].flags;
@@ -1542,6 +1553,26 @@ static int serial8250_startup(struct uart_port *port)
 			up->port.mctrl |= TIOCM_OUT2;
 
 	serial8250_set_mctrl(&up->port, up->port.mctrl);
+
+	/*
+	 * Do a quick test to see if we receive an
+	 * interrupt when we enable the TX irq.
+	 */
+	serial_outp(up, UART_IER, UART_IER_THRI);
+	lsr = serial_in(up, UART_LSR);
+	iir = serial_in(up, UART_IIR);
+	serial_outp(up, UART_IER, 0);
+
+	if (lsr & UART_LSR_TEMT && iir & UART_IIR_NO_INT) {
+		if (!(up->capabilities & UART_BUG_TXEN)) {
+			up->capabilities |= UART_BUG_TXEN;
+			pr_debug("ttyS%d - enabling bad tx status workarounds\n",
+				 port->line);
+		}
+	} else {
+		up->capabilities &= ~UART_BUG_TXEN;
+	}
+
 	spin_unlock_irqrestore(&up->port.lock, flags);
 
 	/*
