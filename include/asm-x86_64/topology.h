@@ -3,7 +3,7 @@
 
 #include <linux/config.h>
 
-#ifdef CONFIG_DISCONTIGMEM
+#ifdef CONFIG_NUMA
 
 #include <asm/mpspec.h>
 #include <asm/bitops.h>
@@ -37,7 +37,6 @@ static inline cpumask_t __pcibus_to_cpumask(int bus)
 }
 #define pcibus_to_cpumask(bus) __pcibus_to_cpumask(bus->number)
 
-#ifdef CONFIG_NUMA
 /* sched_domains SD_NODE_INIT for x86_64 machines */
 #define SD_NODE_INIT (struct sched_domain) {		\
 	.span			= CPU_MASK_NONE,	\
@@ -59,7 +58,6 @@ static inline cpumask_t __pcibus_to_cpumask(int bus)
 	.balance_interval	= 1,			\
 	.nr_balance_failed	= 0,			\
 }
-#endif
 
 #endif
 

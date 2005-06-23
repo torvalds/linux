@@ -6,7 +6,7 @@
 
 #include <linux/config.h>
 
-#ifdef CONFIG_DISCONTIGMEM
+#ifdef CONFIG_NUMA
 
 #define VIRTUAL_BUG_ON(x) 
 
@@ -30,17 +30,16 @@ static inline __attribute__((pure)) int phys_to_nid(unsigned long addr)
 	return nid; 
 } 
 
-#define pfn_to_nid(pfn) phys_to_nid((unsigned long)(pfn) << PAGE_SHIFT)
-
-#define kvaddr_to_nid(kaddr)	phys_to_nid(__pa(kaddr))
 #define NODE_DATA(nid)		(node_data[nid])
 
 #define node_start_pfn(nid)	(NODE_DATA(nid)->node_start_pfn)
 #define node_end_pfn(nid)       (NODE_DATA(nid)->node_start_pfn + \
 				 NODE_DATA(nid)->node_spanned_pages)
 
-#define local_mapnr(kvaddr) \
-	( (__pa(kvaddr) >> PAGE_SHIFT) - node_start_pfn(kvaddr_to_nid(kvaddr)) )
+#ifdef CONFIG_DISCONTIGMEM
+
+#define pfn_to_nid(pfn) phys_to_nid((unsigned long)(pfn) << PAGE_SHIFT)
+#define kvaddr_to_nid(kaddr)	phys_to_nid(__pa(kaddr))
 
 /* AK: this currently doesn't deal with invalid addresses. We'll see 
    if the 2.5 kernel doesn't pass them
@@ -56,5 +55,9 @@ static inline __attribute__((pure)) int phys_to_nid(unsigned long addr)
 #define pfn_valid(pfn) ((pfn) >= num_physpages ? 0 : \
 			({ u8 nid__ = pfn_to_nid(pfn); \
 			   nid__ != 0xff && (pfn) >= node_start_pfn(nid__) && (pfn) <= node_end_pfn(nid__); }))
+#endif
+
+#define local_mapnr(kvaddr) \
+	( (__pa(kvaddr) >> PAGE_SHIFT) - node_start_pfn(kvaddr_to_nid(kvaddr)) )
 #endif
 #endif

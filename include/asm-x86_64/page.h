@@ -119,7 +119,9 @@ extern __inline__ int get_order(unsigned long size)
 	  __pa(v); })
 
 #define __va(x)			((void *)((unsigned long)(x)+PAGE_OFFSET))
-#ifndef CONFIG_DISCONTIGMEM
+#define __boot_va(x)		__va(x)
+#define __boot_pa(x)		__pa(x)
+#ifdef CONFIG_FLATMEM
 #define pfn_to_page(pfn)	(mem_map + (pfn))
 #define page_to_pfn(page)	((unsigned long)((page) - mem_map))
 #define pfn_valid(pfn)		((pfn) < max_mapnr)

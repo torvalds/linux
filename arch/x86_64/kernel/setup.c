@@ -348,7 +348,7 @@ static __init void parse_cmdline_early (char ** cmdline_p)
 		if (!memcmp(from, "mem=", 4))
 			parse_memopt(from+4, &from); 
 
-#ifdef CONFIG_DISCONTIGMEM
+#ifdef CONFIG_NUMA
 		if (!memcmp(from, "numa=", 5))
 			numa_setup(from+5); 
 #endif
@@ -377,7 +377,7 @@ static __init void parse_cmdline_early (char ** cmdline_p)
 	*cmdline_p = command_line;
 }
 
-#ifndef CONFIG_DISCONTIGMEM
+#ifndef CONFIG_NUMA
 static void __init contig_initmem_init(void)
 {
         unsigned long bootmap_size, bootmap; 
@@ -554,7 +554,7 @@ void __init setup_arch(char **cmdline_p)
 	acpi_numa_init();
 #endif
 
-#ifdef CONFIG_DISCONTIGMEM
+#ifdef CONFIG_NUMA
 	numa_initmem_init(0, end_pfn); 
 #else
 	contig_initmem_init(); 
