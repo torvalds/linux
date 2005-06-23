@@ -430,13 +430,11 @@ static void speedtch_check_status(struct speedtch_instance_data *instance)
 	ret = speedtch_read_status(instance);
 	if (ret < 0) {
 		atm_warn(usbatm, "error %d fetching device status\n", ret);
-		if (instance->poll_delay < MAX_POLL_DELAY)
-			instance->poll_delay *= 2;
+		instance->poll_delay = min(2 * instance->poll_delay, MAX_POLL_DELAY);
 		return;
 	}
 
-	if (instance->poll_delay > MIN_POLL_DELAY)
-		instance->poll_delay /= 2;
+	instance->poll_delay = max(instance->poll_delay / 2, MIN_POLL_DELAY);
 
 	atm_dbg(usbatm, "%s: line state %02x\n", __func__, buf[OFFSET_7]);
 
