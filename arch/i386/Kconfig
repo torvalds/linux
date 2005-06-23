@@ -793,7 +793,7 @@ config HAVE_ARCH_BOOTMEM_NODE
 	depends on NUMA
 	default y
 
-config HAVE_MEMORY_PRESENT
+config ARCH_HAVE_MEMORY_PRESENT
 	bool
 	depends on DISCONTIGMEM
 	default y
