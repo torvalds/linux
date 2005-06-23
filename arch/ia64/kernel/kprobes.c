@@ -115,19 +115,19 @@ int arch_prepare_kprobe(struct kprobe *p)
 	case 0:
  		major_opcode = (bundle->quad0.slot0 >> SLOT0_OPCODE_SHIFT);
  		kprobe_inst = bundle->quad0.slot0;
-		bundle->quad0.slot0 = BREAK_INST;
+		bundle->quad0.slot0 = BREAK_INST | (0x3f & kprobe_inst);
 		break;
 	case 1:
  		major_opcode = (bundle->quad1.slot1_p1 >> SLOT1_p1_OPCODE_SHIFT);
  		kprobe_inst = (bundle->quad0.slot1_p0 |
  				(bundle->quad1.slot1_p1 << (64-46)));
-		bundle->quad0.slot1_p0 = BREAK_INST;
+		bundle->quad0.slot1_p0 = BREAK_INST | (0x3f & kprobe_inst);
 		bundle->quad1.slot1_p1 = (BREAK_INST >> (64-46));
 		break;
 	case 2:
  		major_opcode = (bundle->quad1.slot2 >> SLOT2_OPCODE_SHIFT);
  		kprobe_inst = bundle->quad1.slot2;
-		bundle->quad1.slot2 = BREAK_INST;
+		bundle->quad1.slot2 = BREAK_INST | (0x3f & kprobe_inst);
 		break;
 	}
 
