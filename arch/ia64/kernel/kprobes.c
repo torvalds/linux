@@ -419,10 +419,11 @@ static void prepare_ss(struct kprobe *p, struct pt_regs *regs)
 	ia64_psr(regs)->ss = 1;
 }
 
-static int pre_kprobes_handler(struct pt_regs *regs)
+static int pre_kprobes_handler(struct die_args *args)
 {
 	struct kprobe *p;
 	int ret = 0;
+	struct pt_regs *regs = args->regs;
 	kprobe_opcode_t *addr = (kprobe_opcode_t *)instruction_pointer(regs);
 
 	preempt_disable();
@@ -437,7 +438,7 @@ static int pre_kprobes_handler(struct pt_regs *regs)
 			}
 			arch_disarm_kprobe(p);
 			ret = 1;
-		} else {
+		} else if (args->err == __IA64_BREAK_JPROBE) {
 			/*
 			 * jprobe instrumented function just completed
 			 */
@@ -445,6 +446,9 @@ static int pre_kprobes_handler(struct pt_regs *regs)
 			if (p->break_handler && p->break_handler(p, regs)) {
 				goto ss_probe;
 			}
+		} else {
+			/* Not our break */
+			goto no_kprobe;
 		}
 	}
 
@@ -515,7 +519,7 @@ int kprobe_exceptions_notify(struct notifier_block *self, unsigned long val,
 	struct die_args *args = (struct die_args *)data;
 	switch(val) {
 	case DIE_BREAK:
-		if (pre_kprobes_handler(args->regs))
+		if (pre_kprobes_handler(args))
 			return NOTIFY_STOP;
 		break;
 	case DIE_SS:
