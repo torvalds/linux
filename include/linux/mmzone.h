@@ -414,30 +414,25 @@ extern struct pglist_data contig_page_data;
 
 #include <asm/mmzone.h>
 
+#endif /* !CONFIG_DISCONTIGMEM */
+
 #if BITS_PER_LONG == 32 || defined(ARCH_HAS_ATOMIC_UNSIGNED)
 /*
  * with 32 bit page->flags field, we reserve 8 bits for node/zone info.
  * there are 3 zones (2 bits) and this leaves 8-2=6 bits for nodes.
  */
-#define MAX_NODES_SHIFT		6
+#define FLAGS_RESERVED		8
+
 #elif BITS_PER_LONG == 64
 /*
  * with 64 bit flags field, there's plenty of room.
  */
-#define MAX_NODES_SHIFT		10
-#endif
+#define FLAGS_RESERVED		32
 
-#endif /* !CONFIG_DISCONTIGMEM */
+#else
 
-#if NODES_SHIFT > MAX_NODES_SHIFT
-#error NODES_SHIFT > MAX_NODES_SHIFT
-#endif
+#error BITS_PER_LONG not defined
 
-/* There are currently 3 zones: DMA, Normal & Highmem, thus we need 2 bits */
-#define MAX_ZONES_SHIFT		2
-
-#if ZONES_SHIFT > MAX_ZONES_SHIFT
-#error ZONES_SHIFT > MAX_ZONES_SHIFT
 #endif
 
 #endif /* !__ASSEMBLY__ */

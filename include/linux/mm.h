@@ -395,19 +395,41 @@ static inline void put_page(struct page *page)
 /*
  * The zone field is never updated after free_area_init_core()
  * sets it, so none of the operations on it need to be atomic.
- * We'll have up to (MAX_NUMNODES * MAX_NR_ZONES) zones total,
- * so we use (MAX_NODES_SHIFT + MAX_ZONES_SHIFT) here to get enough bits.
  */
-#define NODEZONE_SHIFT (sizeof(page_flags_t)*8 - MAX_NODES_SHIFT - MAX_ZONES_SHIFT)
+
+/* Page flags: | NODE | ZONE | ... | FLAGS | */
+#define NODES_PGOFF		((sizeof(page_flags_t)*8) - NODES_SHIFT)
+#define ZONES_PGOFF		(NODES_PGOFF - ZONES_SHIFT)
+
+/*
+ * Define the bit shifts to access each section.  For non-existant
+ * sections we define the shift as 0; that plus a 0 mask ensures
+ * the compiler will optimise away reference to them.
+ */
+#define NODES_PGSHIFT		(NODES_PGOFF * (NODES_SHIFT != 0))
+#define ZONES_PGSHIFT		(ZONES_PGOFF * (ZONES_SHIFT != 0))
+
+/* NODE:ZONE is used to lookup the zone from a page. */
+#define ZONETABLE_SHIFT		(NODES_SHIFT + ZONES_SHIFT)
+#define ZONETABLE_PGSHIFT	ZONES_PGSHIFT
+
+#if NODES_SHIFT+ZONES_SHIFT > FLAGS_RESERVED
+#error NODES_SHIFT+ZONES_SHIFT > FLAGS_RESERVED
+#endif
+
 #define NODEZONE(node, zone)	((node << ZONES_SHIFT) | zone)
+
+#define ZONES_MASK		((1UL << ZONES_SHIFT) - 1)
+#define NODES_MASK		((1UL << NODES_SHIFT) - 1)
+#define ZONETABLE_MASK		((1UL << ZONETABLE_SHIFT) - 1)
 
 static inline unsigned long page_zonenum(struct page *page)
 {
-	return (page->flags >> NODEZONE_SHIFT) & (~(~0UL << ZONES_SHIFT));
+	return (page->flags >> ZONES_PGSHIFT) & ZONES_MASK;
 }
 static inline unsigned long page_to_nid(struct page *page)
 {
-	return (page->flags >> (NODEZONE_SHIFT + ZONES_SHIFT));
+	return (page->flags >> NODES_PGSHIFT) & NODES_MASK;
 }
 
 struct zone;
@@ -415,13 +437,26 @@ extern struct zone *zone_table[];
 
 static inline struct zone *page_zone(struct page *page)
 {
-	return zone_table[page->flags >> NODEZONE_SHIFT];
+	return zone_table[(page->flags >> ZONETABLE_PGSHIFT) &
+			ZONETABLE_MASK];
 }
 
-static inline void set_page_zone(struct page *page, unsigned long nodezone_num)
+static inline void set_page_zone(struct page *page, unsigned long zone)
 {
-	page->flags &= ~(~0UL << NODEZONE_SHIFT);
-	page->flags |= nodezone_num << NODEZONE_SHIFT;
+	page->flags &= ~(ZONES_MASK << ZONES_PGSHIFT);
+	page->flags |= (zone & ZONES_MASK) << ZONES_PGSHIFT;
+}
+static inline void set_page_node(struct page *page, unsigned long node)
+{
+	page->flags &= ~(NODES_MASK << NODES_PGSHIFT);
+	page->flags |= (node & NODES_MASK) << NODES_PGSHIFT;
+}
+
+static inline void set_page_links(struct page *page, unsigned long zone,
+	unsigned long node)
+{
+	set_page_zone(page, zone);
+	set_page_node(page, node);
 }
 
 #ifndef CONFIG_DISCONTIGMEM

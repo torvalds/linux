@@ -1653,7 +1653,7 @@ void __init memmap_init_zone(unsigned long size, int nid, unsigned long zone,
 	struct page *page;
 
 	for (page = start; page < (start + size); page++) {
-		set_page_zone(page, NODEZONE(nid, zone));
+		set_page_links(page, zone, nid);
 		set_page_count(page, 0);
 		reset_page_mapcount(page);
 		SetPageReserved(page);
