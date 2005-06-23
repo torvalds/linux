@@ -228,13 +228,7 @@ static struct dentry_operations cpuset_dops = {
 
 static struct dentry *cpuset_get_dentry(struct dentry *parent, const char *name)
 {
-	struct qstr qstr;
-	struct dentry *d;
-
-	qstr.name = name;
-	qstr.len = strlen(name);
-	qstr.hash = full_name_hash(name, qstr.len);
-	d = lookup_hash(&qstr, parent);
+	struct dentry *d = lookup_one_len(name, parent, strlen(name));
 	if (!IS_ERR(d))
 		d->d_op = &cpuset_dops;
 	return d;
