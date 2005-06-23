@@ -59,10 +59,8 @@ static inline int node_to_first_cpu(int node)
 	.nr_balance_failed	= 0,			\
 }
 
-#else /* !CONFIG_NUMA */
+#endif /* CONFIG_NUMA */
 
 #include <asm-generic/topology.h>
-
-#endif /* CONFIG_NUMA */
 
 #endif /* _ASM_PPC64_TOPOLOGY_H */
