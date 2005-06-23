@@ -1215,7 +1215,8 @@ static int ide_disk_probe(struct device *dev)
 	if (!idkp)
 		goto failed;
 
-	g = alloc_disk(1 << PARTN_BITS);
+	g = alloc_disk_node(1 << PARTN_BITS,
+			pcibus_to_node(drive->hwif->pci_dev->bus));
 	if (!g)
 		goto out_free_idkp;
 

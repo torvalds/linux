@@ -582,10 +582,16 @@ struct seq_operations diskstats_op = {
 	.show	= diskstats_show
 };
 
-
 struct gendisk *alloc_disk(int minors)
 {
-	struct gendisk *disk = kmalloc(sizeof(struct gendisk), GFP_KERNEL);
+	return alloc_disk_node(minors, -1);
+}
+
+struct gendisk *alloc_disk_node(int minors, int node_id)
+{
+	struct gendisk *disk;
+
+	disk = kmalloc_node(sizeof(struct gendisk), GFP_KERNEL, node_id);
 	if (disk) {
 		memset(disk, 0, sizeof(struct gendisk));
 		if (!init_disk_stats(disk)) {
@@ -594,7 +600,7 @@ struct gendisk *alloc_disk(int minors)
 		}
 		if (minors > 1) {
 			int size = (minors - 1) * sizeof(struct hd_struct *);
-			disk->part = kmalloc(size, GFP_KERNEL);
+			disk->part = kmalloc_node(size, GFP_KERNEL, node_id);
 			if (!disk->part) {
 				kfree(disk);
 				return NULL;
@@ -610,6 +616,7 @@ struct gendisk *alloc_disk(int minors)
 }
 
 EXPORT_SYMBOL(alloc_disk);
+EXPORT_SYMBOL(alloc_disk_node);
 
 struct kobject *get_disk(struct gendisk *disk)
 {

@@ -1871,20 +1871,22 @@ static int as_init_queue(request_queue_t *q, elevator_t *e)
 	if (!arq_pool)
 		return -ENOMEM;
 
-	ad = kmalloc(sizeof(*ad), GFP_KERNEL);
+	ad = kmalloc_node(sizeof(*ad), GFP_KERNEL, q->node);
 	if (!ad)
 		return -ENOMEM;
 	memset(ad, 0, sizeof(*ad));
 
 	ad->q = q; /* Identify what queue the data belongs to */
 
-	ad->hash = kmalloc(sizeof(struct list_head)*AS_HASH_ENTRIES,GFP_KERNEL);
+	ad->hash = kmalloc_node(sizeof(struct list_head)*AS_HASH_ENTRIES,
+				GFP_KERNEL, q->node);
 	if (!ad->hash) {
 		kfree(ad);
 		return -ENOMEM;
 	}
 
-	ad->arq_pool = mempool_create(BLKDEV_MIN_RQ, mempool_alloc_slab, mempool_free_slab, arq_pool);
+	ad->arq_pool = mempool_create_node(BLKDEV_MIN_RQ, mempool_alloc_slab,
+				mempool_free_slab, arq_pool, q->node);
 	if (!ad->arq_pool) {
 		kfree(ad->hash);
 		kfree(ad);

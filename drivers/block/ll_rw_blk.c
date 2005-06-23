@@ -28,6 +28,7 @@
 #include <linux/slab.h>
 #include <linux/swap.h>
 #include <linux/writeback.h>
+#include <linux/blkdev.h>
 
 /*
  * for max sense size
@@ -1645,7 +1646,8 @@ static int blk_init_free_list(request_queue_t *q)
 	init_waitqueue_head(&rl->wait[WRITE]);
 	init_waitqueue_head(&rl->drain);
 
-	rl->rq_pool = mempool_create(BLKDEV_MIN_RQ, mempool_alloc_slab, mempool_free_slab, request_cachep);
+	rl->rq_pool = mempool_create_node(BLKDEV_MIN_RQ, mempool_alloc_slab,
+				mempool_free_slab, request_cachep, q->node);
 
 	if (!rl->rq_pool)
 		return -ENOMEM;
@@ -1657,8 +1659,15 @@ static int __make_request(request_queue_t *, struct bio *);
 
 request_queue_t *blk_alloc_queue(int gfp_mask)
 {
-	request_queue_t *q = kmem_cache_alloc(requestq_cachep, gfp_mask);
+	return blk_alloc_queue_node(gfp_mask, -1);
+}
+EXPORT_SYMBOL(blk_alloc_queue);
 
+request_queue_t *blk_alloc_queue_node(int gfp_mask, int node_id)
+{
+	request_queue_t *q;
+
+	q = kmem_cache_alloc_node(requestq_cachep, gfp_mask, node_id);
 	if (!q)
 		return NULL;
 
@@ -1671,8 +1680,7 @@ request_queue_t *blk_alloc_queue(int gfp_mask)
 
 	return q;
 }
-
-EXPORT_SYMBOL(blk_alloc_queue);
+EXPORT_SYMBOL(blk_alloc_queue_node);
 
 /**
  * blk_init_queue  - prepare a request queue for use with a block device
@@ -1705,13 +1713,22 @@ EXPORT_SYMBOL(blk_alloc_queue);
  *    blk_init_queue() must be paired with a blk_cleanup_queue() call
  *    when the block device is deactivated (such as at module unload).
  **/
+
 request_queue_t *blk_init_queue(request_fn_proc *rfn, spinlock_t *lock)
 {
-	request_queue_t *q = blk_alloc_queue(GFP_KERNEL);
+	return blk_init_queue_node(rfn, lock, -1);
+}
+EXPORT_SYMBOL(blk_init_queue);
+
+request_queue_t *
+blk_init_queue_node(request_fn_proc *rfn, spinlock_t *lock, int node_id)
+{
+	request_queue_t *q = blk_alloc_queue_node(GFP_KERNEL, node_id);
 
 	if (!q)
 		return NULL;
 
+	q->node = node_id;
 	if (blk_init_free_list(q))
 		goto out_init;
 
@@ -1754,8 +1771,7 @@ out_init:
 	kmem_cache_free(requestq_cachep, q);
 	return NULL;
 }
-
-EXPORT_SYMBOL(blk_init_queue);
+EXPORT_SYMBOL(blk_init_queue_node);
 
 int blk_get_queue(request_queue_t *q)
 {
