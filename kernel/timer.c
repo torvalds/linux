@@ -489,10 +489,14 @@ static inline void __run_timers(tvec_base_t *base)
 			detach_timer(timer, 1);
 			spin_unlock_irq(&base->t_base.lock);
 			{
-				u32 preempt_count = preempt_count();
+				int preempt_count = preempt_count();
 				fn(data);
 				if (preempt_count != preempt_count()) {
-					printk("huh, entered %p with %08x, exited with %08x?\n", fn, preempt_count, preempt_count());
+					printk(KERN_WARNING "huh, entered %p "
+					       "with preempt_count %08x, exited"
+					       " with %08x?\n",
+					       fn, preempt_count,
+					       preempt_count());
 					BUG();
 				}
 			}

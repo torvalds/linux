@@ -2576,7 +2576,7 @@ void fastcall add_preempt_count(int val)
 	/*
 	 * Underflow?
 	 */
-	BUG_ON(((int)preempt_count() < 0));
+	BUG_ON((preempt_count() < 0));
 	preempt_count() += val;
 	/*
 	 * Spinlock count overflowing soon?
