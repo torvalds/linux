@@ -78,17 +78,77 @@ extern int maple_pci_get_legacy_ide_irq(struct pci_dev *dev, int channel);
 extern void generic_find_legacy_serial_ports(u64 *physport,
 		unsigned int *default_speed);
 
-
 static void maple_restart(char *cmd)
 {
+	unsigned int maple_nvram_base;
+	unsigned int maple_nvram_offset;
+	unsigned int maple_nvram_command;
+	struct device_node *rtcs;
+
+	/* find NVRAM device */
+	rtcs = find_compatible_devices("nvram", "AMD8111");
+	if (rtcs && rtcs->addrs) {
+		maple_nvram_base = rtcs->addrs[0].address;
+	} else {
+		printk(KERN_EMERG "Maple: Unable to find NVRAM\n");
+		printk(KERN_EMERG "Maple: Manual Restart Required\n");
+		return;
+	}
+
+	/* find service processor device */
+	rtcs = find_devices("service-processor");
+	if (!rtcs) {
+		printk(KERN_EMERG "Maple: Unable to find Service Processor\n");
+		printk(KERN_EMERG "Maple: Manual Restart Required\n");
+		return;
+	}
+	maple_nvram_offset = *(unsigned int*) get_property(rtcs,
+			"restart-addr", NULL);
+	maple_nvram_command = *(unsigned int*) get_property(rtcs,
+			"restart-value", NULL);
+
+	/* send command */
+	outb_p(maple_nvram_command, maple_nvram_base + maple_nvram_offset);
+	for (;;) ;
 }
 
 static void maple_power_off(void)
 {
+	unsigned int maple_nvram_base;
+	unsigned int maple_nvram_offset;
+	unsigned int maple_nvram_command;
+	struct device_node *rtcs;
+
+	/* find NVRAM device */
+	rtcs = find_compatible_devices("nvram", "AMD8111");
+	if (rtcs && rtcs->addrs) {
+		maple_nvram_base = rtcs->addrs[0].address;
+	} else {
+		printk(KERN_EMERG "Maple: Unable to find NVRAM\n");
+		printk(KERN_EMERG "Maple: Manual Power-Down Required\n");
+		return;
+	}
+
+	/* find service processor device */
+	rtcs = find_devices("service-processor");
+	if (!rtcs) {
+		printk(KERN_EMERG "Maple: Unable to find Service Processor\n");
+		printk(KERN_EMERG "Maple: Manual Power-Down Required\n");
+		return;
+	}
+	maple_nvram_offset = *(unsigned int*) get_property(rtcs,
+			"power-off-addr", NULL);
+	maple_nvram_command = *(unsigned int*) get_property(rtcs,
+			"power-off-value", NULL);
+
+	/* send command */
+	outb_p(maple_nvram_command, maple_nvram_base + maple_nvram_offset);
+	for (;;) ;
 }
 
 static void maple_halt(void)
 {
+	maple_power_off();
 }
 
 #ifdef CONFIG_SMP

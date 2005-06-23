@@ -683,6 +683,12 @@ void machine_restart(char *cmd)
 	if (ppc_md.nvram_sync)
 		ppc_md.nvram_sync();
 	ppc_md.restart(cmd);
+#ifdef CONFIG_SMP
+	smp_send_stop();
+#endif
+	printk(KERN_EMERG "System Halted, OK to turn off power\n");
+	local_irq_disable();
+	while (1) ;
 }
 
 EXPORT_SYMBOL(machine_restart);
@@ -692,6 +698,12 @@ void machine_power_off(void)
 	if (ppc_md.nvram_sync)
 		ppc_md.nvram_sync();
 	ppc_md.power_off();
+#ifdef CONFIG_SMP
+	smp_send_stop();
+#endif
+	printk(KERN_EMERG "System Halted, OK to turn off power\n");
+	local_irq_disable();
+	while (1) ;
 }
 
 EXPORT_SYMBOL(machine_power_off);
@@ -701,6 +713,12 @@ void machine_halt(void)
 	if (ppc_md.nvram_sync)
 		ppc_md.nvram_sync();
 	ppc_md.halt();
+#ifdef CONFIG_SMP
+	smp_send_stop();
+#endif
+	printk(KERN_EMERG "System Halted, OK to turn off power\n");
+	local_irq_disable();
+	while (1) ;
 }
 
 EXPORT_SYMBOL(machine_halt);
