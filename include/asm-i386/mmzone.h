@@ -79,7 +79,6 @@ static inline int pfn_to_nid(unsigned long pfn)
  */
 #define kvaddr_to_nid(kaddr)	pfn_to_nid(__pa(kaddr) >> PAGE_SHIFT)
 
-#define node_mem_map(nid)	(NODE_DATA(nid)->node_mem_map)
 #define node_start_pfn(nid)	(NODE_DATA(nid)->node_start_pfn)
 #define node_end_pfn(nid)						\
 ({									\
@@ -100,7 +99,7 @@ static inline int pfn_to_nid(unsigned long pfn)
 ({									\
 	unsigned long __pfn = pfn;					\
 	int __node  = pfn_to_nid(__pfn);				\
-	&node_mem_map(__node)[node_localnr(__pfn,__node)];		\
+	&NODE_DATA(__node)->node_mem_map[node_localnr(__pfn,__node)];	\
 })
 
 #define page_to_pfn(pg)							\

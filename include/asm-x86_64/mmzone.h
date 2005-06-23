@@ -35,9 +35,6 @@ static inline __attribute__((pure)) int phys_to_nid(unsigned long addr)
 #define kvaddr_to_nid(kaddr)	phys_to_nid(__pa(kaddr))
 #define NODE_DATA(nid)		(node_data[nid])
 
-#define node_mem_map(nid)	(NODE_DATA(nid)->node_mem_map)
-
-#define node_mem_map(nid)	(NODE_DATA(nid)->node_mem_map)
 #define node_start_pfn(nid)	(NODE_DATA(nid)->node_start_pfn)
 #define node_end_pfn(nid)       (NODE_DATA(nid)->node_start_pfn + \
 				 NODE_DATA(nid)->node_spanned_pages)
@@ -50,7 +47,7 @@ static inline __attribute__((pure)) int phys_to_nid(unsigned long addr)
    (2.4 used to). */
 #define pfn_to_page(pfn) ({ \
 	int nid = phys_to_nid(((unsigned long)(pfn)) << PAGE_SHIFT); 	\
-	((pfn) - node_start_pfn(nid)) + node_mem_map(nid);		\
+	((pfn) - node_start_pfn(nid)) + NODE_DATA(nid)->node_mem_map;	\
 })
 
 #define page_to_pfn(page) \

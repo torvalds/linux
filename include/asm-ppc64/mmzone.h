@@ -65,7 +65,6 @@ static inline int pa_to_nid(unsigned long pa)
  */
 #define kvaddr_to_nid(kaddr)	pa_to_nid(__pa(kaddr))
 
-#define node_mem_map(nid)	(NODE_DATA(nid)->node_mem_map)
 #define node_start_pfn(nid)	(NODE_DATA(nid)->node_start_pfn)
 #define node_end_pfn(nid)	(NODE_DATA(nid)->node_end_pfn)
 
@@ -76,7 +75,7 @@ static inline int pa_to_nid(unsigned long pa)
 #define discontigmem_pfn_to_page(pfn) \
 ({ \
 	unsigned long __tmp = pfn; \
-	(node_mem_map(pfn_to_nid(__tmp)) + \
+	(NODE_DATA(pfn_to_nid(__tmp))->node_mem_map + \
 	 node_localnr(__tmp, pfn_to_nid(__tmp))); \
 })
 
