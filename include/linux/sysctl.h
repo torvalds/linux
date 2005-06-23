@@ -136,6 +136,7 @@ enum
 	KERN_UNKNOWN_NMI_PANIC=66, /* int: unknown nmi panic flag */
 	KERN_BOOTLOADER_TYPE=67, /* int: boot loader type */
 	KERN_RANDOMIZE=68, /* int: randomize virtual address space */
+	KERN_SETUID_DUMPABLE=69, /* int: behaviour of dumps for setuid core */
 };
 
 
