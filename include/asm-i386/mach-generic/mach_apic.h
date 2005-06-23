@@ -5,7 +5,6 @@
 
 #define esr_disable (genapic->ESR_DISABLE)
 #define NO_BALANCE_IRQ (genapic->no_balance_irq)
-#define NO_IOAPIC_CHECK	(genapic->no_ioapic_check)
 #define INT_DELIVERY_MODE (genapic->int_delivery_mode)
 #define INT_DEST_MODE (genapic->int_dest_mode)
 #undef APIC_DEST_LOGICAL

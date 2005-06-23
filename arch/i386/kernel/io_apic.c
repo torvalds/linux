@@ -1659,6 +1659,12 @@ static void __init setup_ioapic_ids_from_mpc(void)
 	unsigned long flags;
 
 	/*
+	 * Don't check I/O APIC IDs for xAPIC systems.  They have
+	 * no meaning without the serial APIC bus.
+	 */
+	if (!(boot_cpu_data.x86_vendor == X86_VENDOR_INTEL && boot_cpu_data.x86 < 15))
+		return;
+	/*
 	 * This is broken; anything with a real cpu count has to
 	 * circumvent this idiocy regardless.
 	 */
@@ -1684,10 +1690,6 @@ static void __init setup_ioapic_ids_from_mpc(void)
 			mp_ioapics[apic].mpc_apicid = reg_00.bits.ID;
 		}
 
-		/* Don't check I/O APIC IDs for some xAPIC systems.  They have
-		 * no meaning without the serial APIC bus. */
-		if (NO_IOAPIC_CHECK)
-			continue;
 		/*
 		 * Sanity check, is the ID really free? Every APIC in a
 		 * system must have a unique ID or we get lots of nice
