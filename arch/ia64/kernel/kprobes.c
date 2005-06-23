@@ -121,6 +121,48 @@ static void update_kprobe_inst_flag(uint template, uint  slot, uint major_opcode
 
 /*
  * In this function we check to see if the instruction
+ * on which we are inserting kprobe is supported.
+ * Returns 0 if supported
+ * Returns -EINVAL if unsupported
+ */
+static int unsupported_inst(uint template, uint  slot, uint major_opcode,
+	unsigned long kprobe_inst, struct kprobe *p)
+{
+	unsigned long addr = (unsigned long)p->addr;
+
+	if (bundle_encoding[template][slot] == I) {
+		switch (major_opcode) {
+			case 0x0: //I_UNIT_MISC_OPCODE:
+			/*
+			 * Check for Integer speculation instruction
+			 * - Bit 33-35 to be equal to 0x1
+			 */
+			if (((kprobe_inst >> 33) & 0x7) == 1) {
+				printk(KERN_WARNING
+					"Kprobes on speculation inst at <0x%lx> not supported\n",
+					addr);
+				return -EINVAL;
+			}
+
+			/*
+			 * IP relative mov instruction
+			 *  - Bit 27-35 to be equal to 0x30
+			 */
+			if (((kprobe_inst >> 27) & 0x1FF) == 0x30) {
+				printk(KERN_WARNING
+					"Kprobes on \"mov r1=ip\" at <0x%lx> not supported\n",
+					addr);
+				return -EINVAL;
+
+			}
+		}
+	}
+	return 0;
+}
+
+
+/*
+ * In this function we check to see if the instruction
  * (qp) cmpx.crel.ctype p1,p2=r2,r3
  * on which we are inserting kprobe is cmp instruction
  * with ctype as unc.
@@ -253,6 +295,9 @@ int arch_prepare_kprobe(struct kprobe *p)
 
 	/* Get kprobe_inst and major_opcode from the bundle */
 	get_kprobe_inst(bundle, slot, &kprobe_inst, &major_opcode);
+
+	if (unsupported_inst(template, slot, major_opcode, kprobe_inst, p))
+			return -EINVAL;
 
 	prepare_break_inst(template, slot, major_opcode, kprobe_inst, p);
 
