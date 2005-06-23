@@ -511,6 +511,15 @@ config TCP_CONG_VEGAS
 	window. TCP Vegas should provide less packet loss, but it is
 	not as aggressive as TCP Reno.
 
+config TCP_CONG_SCALABLE
+	tristate "Scalable TCP"
+	depends on INET && EXPERIMENTAL
+	default n
+	---help---
+	Scalable TCP is a sender-side only change to TCP which uses a
+	MIMD congestion control algorithm which has some nice scaling
+	properties, though is known to have fairness issues.
+	See http://www-lce.eng.cam.ac.uk/~ctk21/scalable/
 
 endmenu
 
