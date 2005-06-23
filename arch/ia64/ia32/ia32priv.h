@@ -241,7 +241,7 @@ typedef struct compat_siginfo {
 
 		/* POSIX.1b timers */
 		struct {
-			timer_t _tid;		/* timer id */
+			compat_timer_t _tid;		/* timer id */
 			int _overrun;		/* overrun count */
 			char _pad[sizeof(unsigned int) - sizeof(int)];
 			compat_sigval_t _sigval;	/* same as below */
