@@ -65,6 +65,11 @@ static int tcpdiag_fill(struct sk_buff *skb, struct sock *sk,
 		if (ext & (1<<(TCPDIAG_INFO-1)))
 			info = TCPDIAG_PUT(skb, TCPDIAG_INFO, sizeof(*info));
 		
+		if (ext & (1<<(TCPDIAG_CONG-1))) {
+			size_t len = strlen(tp->ca_ops->name);
+			strcpy(TCPDIAG_PUT(skb, TCPDIAG_CONG, len+1),
+			       tp->ca_ops->name);
+		}
 	}
 	r->tcpdiag_family = sk->sk_family;
 	r->tcpdiag_state = sk->sk_state;
