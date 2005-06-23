@@ -30,6 +30,23 @@
 
 #define BREAK_INST	(long)(__IA64_BREAK_KPROBE << 6)
 
+typedef union cmp_inst {
+	struct {
+	unsigned long long qp : 6;
+	unsigned long long p1 : 6;
+	unsigned long long c  : 1;
+	unsigned long long r2 : 7;
+	unsigned long long r3 : 7;
+	unsigned long long p2 : 6;
+	unsigned long long ta : 1;
+	unsigned long long x2 : 2;
+	unsigned long long tb : 1;
+	unsigned long long opcode : 4;
+	unsigned long long reserved : 23;
+	}f;
+	unsigned long long l;
+} cmp_inst_t;
+
 struct kprobe;
 
 typedef struct _bundle {

@@ -120,6 +120,41 @@ static void update_kprobe_inst_flag(uint template, uint  slot, uint major_opcode
 }
 
 /*
+ * In this function we check to see if the instruction
+ * (qp) cmpx.crel.ctype p1,p2=r2,r3
+ * on which we are inserting kprobe is cmp instruction
+ * with ctype as unc.
+ */
+static uint is_cmp_ctype_unc_inst(uint template, uint slot, uint major_opcode,
+unsigned long kprobe_inst)
+{
+	cmp_inst_t cmp_inst;
+	uint ctype_unc = 0;
+
+	if (!((bundle_encoding[template][slot] == I) ||
+		(bundle_encoding[template][slot] == M)))
+		goto out;
+
+	if (!((major_opcode == 0xC) || (major_opcode == 0xD) ||
+		(major_opcode == 0xE)))
+		goto out;
+
+	cmp_inst.l = kprobe_inst;
+	if ((cmp_inst.f.x2 == 0) || (cmp_inst.f.x2 == 1)) {
+		/* Integere compare - Register Register (A6 type)*/
+		if ((cmp_inst.f.tb == 0) && (cmp_inst.f.ta == 0)
+				&&(cmp_inst.f.c == 1))
+			ctype_unc = 1;
+	} else if ((cmp_inst.f.x2 == 2)||(cmp_inst.f.x2 == 3)) {
+		/* Integere compare - Immediate Register (A8 type)*/
+		if ((cmp_inst.f.ta == 0) &&(cmp_inst.f.c == 1))
+			ctype_unc = 1;
+	}
+out:
+	return ctype_unc;
+}
+
+/*
  * In this function we override the bundle with
  * the break instruction at the given slot.
  */
@@ -131,9 +166,13 @@ static void prepare_break_inst(uint template, uint  slot, uint major_opcode,
 
 	/*
 	 * Copy the original kprobe_inst qualifying predicate(qp)
-	 * to the break instruction
+	 * to the break instruction iff !is_cmp_ctype_unc_inst
+	 * because for cmp instruction with ctype equal to unc,
+	 * which is a special instruction always needs to be
+	 * executed regradless of qp
 	 */
-	break_inst |= (0x3f & kprobe_inst);
+	if (!is_cmp_ctype_unc_inst(template, slot, major_opcode, kprobe_inst))
+		break_inst |= (0x3f & kprobe_inst);
 
 	switch (slot) {
 	  case 0:
