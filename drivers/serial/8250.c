@@ -1037,7 +1037,7 @@ static void serial8250_start_tx(struct uart_port *port, unsigned int tty_start)
 		up->ier |= UART_IER_THRI;
 		serial_out(up, UART_IER, up->ier);
 
-		if (up->capabilities & UART_BUG_TXEN) {
+		if (up->bugs & UART_BUG_TXEN) {
 			unsigned char lsr, iir;
 			lsr = serial_in(up, UART_LSR);
 			iir = serial_in(up, UART_IIR);
@@ -1564,13 +1564,13 @@ static int serial8250_startup(struct uart_port *port)
 	serial_outp(up, UART_IER, 0);
 
 	if (lsr & UART_LSR_TEMT && iir & UART_IIR_NO_INT) {
-		if (!(up->capabilities & UART_BUG_TXEN)) {
-			up->capabilities |= UART_BUG_TXEN;
+		if (!(up->bugs & UART_BUG_TXEN)) {
+			up->bugs |= UART_BUG_TXEN;
 			pr_debug("ttyS%d - enabling bad tx status workarounds\n",
 				 port->line);
 		}
 	} else {
-		up->capabilities &= ~UART_BUG_TXEN;
+		up->bugs &= ~UART_BUG_TXEN;
 	}
 
 	spin_unlock_irqrestore(&up->port.lock, flags);
