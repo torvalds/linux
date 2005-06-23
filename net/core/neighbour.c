@@ -32,6 +32,7 @@
 #include <net/sock.h>
 #include <linux/rtnetlink.h>
 #include <linux/random.h>
+#include <linux/string.h>
 
 #define NEIGH_DEBUG 1
 
@@ -2592,7 +2593,7 @@ int neigh_sysctl_register(struct net_device *dev, struct neigh_parms *p,
 		t->neigh_vars[17].extra1 = dev;
 	}
 
-	dev_name = net_sysctl_strdup(dev_name_source);
+	dev_name = kstrdup(dev_name_source, GFP_KERNEL);
 	if (!dev_name) {
 		err = -ENOBUFS;
 		goto free;

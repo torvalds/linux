@@ -57,6 +57,7 @@
 #endif
 #include <linux/delay.h>
 #include <linux/notifier.h>
+#include <linux/string.h>
 
 #include <net/sock.h>
 #include <net/snmp.h>
@@ -3437,7 +3438,7 @@ static void addrconf_sysctl_register(struct inet6_dev *idev, struct ipv6_devconf
 	 * by sysctl and we wouldn't want anyone to change it under our feet
 	 * (see SIOCSIFNAME).
 	 */	
-	dev_name = net_sysctl_strdup(dev_name);
+	dev_name = kstrdup(dev_name, GFP_KERNEL);
 	if (!dev_name)
 	    goto free;
 

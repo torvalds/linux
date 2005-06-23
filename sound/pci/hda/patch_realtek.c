@@ -1781,7 +1781,7 @@ static int add_control(struct alc_spec *spec, int type, const char *name, unsign
 
 	knew = &spec->kctl_alloc[spec->num_kctl_used];
 	*knew = alc880_control_templates[type];
-	knew->name = snd_kmalloc_strdup(name, GFP_KERNEL);
+	knew->name = kstrdup(name, GFP_KERNEL);
 	if (! knew->name)
 		return -ENOMEM;
 	knew->private_value = val;

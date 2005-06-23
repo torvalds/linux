@@ -925,10 +925,6 @@ extern int skb_checksum_help(struct sk_buff *skb, int inward);
 extern void		net_enable_timestamp(void);
 extern void		net_disable_timestamp(void);
 
-#ifdef CONFIG_SYSCTL
-extern char *net_sysctl_strdup(const char *s);
-#endif
-
 #endif /* __KERNEL__ */
 
 #endif	/* _LINUX_DEV_H */
