@@ -635,7 +635,7 @@ void __init cpu_init (void)
 
 	/* Clear all 6 debug registers: */
 
-#define CD(register) __asm__("movl %0,%%db" #register ::"r"(0) );
+#define CD(register) set_debugreg(0, register)
 
 	CD(0); CD(1); CD(2); CD(3); /* no db4 and db5 */; CD(6); CD(7);
 

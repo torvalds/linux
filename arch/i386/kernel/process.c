@@ -633,13 +633,13 @@ struct task_struct fastcall * __switch_to(struct task_struct *prev_p, struct tas
 	 * Now maybe reload the debug registers
 	 */
 	if (unlikely(next->debugreg[7])) {
-		loaddebug(next, 0);
-		loaddebug(next, 1);
-		loaddebug(next, 2);
-		loaddebug(next, 3);
+		set_debugreg(current->thread.debugreg[0], 0);
+		set_debugreg(current->thread.debugreg[1], 1);
+		set_debugreg(current->thread.debugreg[2], 2);
+		set_debugreg(current->thread.debugreg[3], 3);
 		/* no 4 and 5 */
-		loaddebug(next, 6);
-		loaddebug(next, 7);
+		set_debugreg(current->thread.debugreg[6], 6);
+		set_debugreg(current->thread.debugreg[7], 7);
 	}
 
 	if (unlikely(prev->io_bitmap_ptr || next->io_bitmap_ptr))

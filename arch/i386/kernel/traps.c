@@ -685,7 +685,7 @@ fastcall void do_debug(struct pt_regs * regs, long error_code)
 	unsigned int condition;
 	struct task_struct *tsk = current;
 
-	__asm__ __volatile__("movl %%db6,%0" : "=r" (condition));
+	get_debugreg(condition, 6);
 
 	if (notify_die(DIE_DEBUG, "debug", regs, condition, error_code,
 					SIGTRAP) == NOTIFY_STOP)
@@ -727,9 +727,7 @@ fastcall void do_debug(struct pt_regs * regs, long error_code)
 	 * the signal is delivered.
 	 */
 clear_dr7:
-	__asm__("movl %0,%%db7"
-		: /* no output */
-		: "r" (0));
+	set_debugreg(0, 7);
 	return;
 
 debug_vm86:

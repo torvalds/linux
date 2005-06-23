@@ -624,7 +624,7 @@ int fastcall do_signal(struct pt_regs *regs, sigset_t *oldset)
 		 * inside the kernel.
 		 */
 		if (unlikely(current->thread.debugreg[7])) {
-			loaddebug(&current->thread, 7);
+			set_debugreg(current->thread.debugreg[7], 7);
 		}
 
 		/* Whee!  Actually deliver the signal.  */
