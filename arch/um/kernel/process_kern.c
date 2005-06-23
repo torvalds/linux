@@ -8,6 +8,7 @@
 #include "linux/kernel.h"
 #include "linux/sched.h"
 #include "linux/interrupt.h"
+#include "linux/string.h"
 #include "linux/mm.h"
 #include "linux/slab.h"
 #include "linux/utsname.h"
@@ -322,12 +323,7 @@ void do_uml_exitcalls(void)
 
 char *uml_strdup(char *string)
 {
-	char *new;
-
-	new = kmalloc(strlen(string) + 1, GFP_KERNEL);
-	if(new == NULL) return(NULL);
-	strcpy(new, string);
-	return(new);
+	return kstrdup(string, GFP_KERNEL);
 }
 
 int copy_to_user_proc(void __user *to, void *from, int size)
