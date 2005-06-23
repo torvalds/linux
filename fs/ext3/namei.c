@@ -932,8 +932,16 @@ static struct buffer_head * ext3_dx_find_entry(struct dentry *dentry,
 	struct inode *dir = dentry->d_parent->d_inode;
 
 	sb = dir->i_sb;
-	if (!(frame = dx_probe(dentry, NULL, &hinfo, frames, err)))
-		return NULL;
+	/* NFS may look up ".." - look at dx_root directory block */
+	if (namelen > 2 || name[0] != '.'||(name[1] != '.' && name[1] != '\0')){
+		if (!(frame = dx_probe(dentry, NULL, &hinfo, frames, err)))
+			return NULL;
+	} else {
+		frame = frames;
+		frame->bh = NULL;			/* for dx_release() */
+		frame->at = (struct dx_entry *)frames;	/* hack for zero entry*/
+		dx_set_block(frame->at, 0);		/* dx_root block is 0 */
+	}
 	hash = hinfo.hash;
 	do {
 		block = dx_get_block(frame->at);
