@@ -190,8 +190,9 @@ static void fill_in_inode(struct inode *tmp_inode,
 		tmp_inode->i_data.a_ops = &cifs_addr_ops;
 
 		if(isNewInode)
-			return; /* No sense invalidating pages for new inode since we
-					   have not started caching readahead file data yet */
+			return; /* No sense invalidating pages for new inode
+				   since have not started caching readahead file
+				   data yet */
 
 		if (timespec_equal(&tmp_inode->i_mtime, &local_mtime) &&
 			(local_size == tmp_inode->i_size)) {
@@ -536,7 +537,8 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 	while((index_to_find >= cifsFile->srch_inf.index_of_last_entry) && 
 	      (rc == 0) && (cifsFile->srch_inf.endOfSearch == FALSE)){
 	 	cFYI(1,("calling findnext2"));
-		rc = CIFSFindNext(xid,pTcon,cifsFile->netfid, &cifsFile->srch_inf);
+		rc = CIFSFindNext(xid,pTcon,cifsFile->netfid, 
+				  &cifsFile->srch_inf);
 		if(rc)
 			return -ENOENT;
 	}
@@ -555,7 +557,7 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 		cFYI(1,("found entry - pos_in_buf %d",pos_in_buf)); 
 		current_entry = cifsFile->srch_inf.srch_entries_start;
 		for(i=0;(i<(pos_in_buf)) && (current_entry != NULL);i++) {
-			/* go entry to next entry figuring out which we need to start with */
+			/* go entry by entry figuring out which is first */
 			/* if( . or ..)
 				skip */
 			rc = cifs_entry_is_dot(current_entry,cifsFile);
@@ -721,7 +723,8 @@ static int cifs_filldir(char *pfindEntry, struct file *file,
 			      (FILE_DIRECTORY_INFO *)pfindEntry,&obj_type, rc);
 	}
 	
-	rc = filldir(direntry,qstring.name,qstring.len,file->f_pos,tmp_inode->i_ino,obj_type);
+	rc = filldir(direntry,qstring.name,qstring.len,file->f_pos,
+		     tmp_inode->i_ino,obj_type);
 	if(rc) {
 		cFYI(1,("filldir rc = %d",rc));
 	}
@@ -906,7 +909,8 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 				cifs_save_resume_key(current_entry,cifsFile);
 				break;
 			} else 
-				current_entry = nxt_dir_entry(current_entry,end_of_smb);
+				current_entry = nxt_dir_entry(current_entry,
+							      end_of_smb);
 		}
 		kfree(tmp_buf);
 		break;

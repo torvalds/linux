@@ -2396,7 +2396,9 @@ findUniqueRetry:
 	if (rc) {
 		cFYI(1, ("Send error in FindFileDirInfo = %d", rc));
 	} else {		/* decode response */
-
+#ifdef CONFIG_CIFS_STATS
+		atomic_inc(&tcon->num_ffirst);
+#endif
 		/* BB fill in */
 	}
 
@@ -2509,6 +2511,9 @@ findFirstRetry:
 		if (rc == -EAGAIN)
 			goto findFirstRetry;
 	} else { /* decode response */
+#ifdef CONFIG_CIFS_STATS
+		atomic_inc(&tcon->num_ffirst);
+#endif
 		/* BB remember to free buffer if error BB */
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 		if(rc == 0) {
@@ -2622,6 +2627,9 @@ int CIFSFindNext(const int xid, struct cifsTconInfo *tcon,
 		} else
 			cFYI(1, ("FindNext returned = %d", rc));
 	} else {                /* decode response */
+#ifdef CONFIG_CIFS_STATS
+		atomic_inc(&tcon->num_fnext);
+#endif
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 		
 		if(rc == 0) {
@@ -2691,6 +2699,9 @@ CIFSFindClose(const int xid, struct cifsTconInfo *tcon, const __u16 searchHandle
 	if (rc) {
 		cERROR(1, ("Send error in FindClose = %d", rc));
 	}
+#ifdef CONFIG_CIFS_STATS
+	atomic_inc(&tcon->num_fclose);
+#endif
 	cifs_small_buf_release(pSMB);
 
 	/* Since session is dead, search handle closed on server already */
