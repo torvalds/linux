@@ -981,23 +981,15 @@ asmlinkage long sys_creat(const char __user * pathname, int mode)
  */
 int filp_close(struct file *filp, fl_owner_t id)
 {
-	int retval;
-
-	/* Report and clear outstanding errors */
-	retval = filp->f_error;
-	if (retval)
-		filp->f_error = 0;
+	int retval = 0;
 
 	if (!file_count(filp)) {
 		printk(KERN_ERR "VFS: Close: file count is 0\n");
-		return retval;
+		return 0;
 	}
 
-	if (filp->f_op && filp->f_op->flush) {
-		int err = filp->f_op->flush(filp);
-		if (!retval)
-			retval = err;
-	}
+	if (filp->f_op && filp->f_op->flush)
+		retval = filp->f_op->flush(filp);
 
 	dnotify_flush(filp, id);
 	locks_remove_posix(filp, id);

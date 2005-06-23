@@ -1827,12 +1827,6 @@ inline int generic_write_checks(struct file *file, loff_t *pos, size_t *count, i
         if (unlikely(*pos < 0))
                 return -EINVAL;
 
-        if (unlikely(file->f_error)) {
-                int err = file->f_error;
-                file->f_error = 0;
-                return err;
-        }
-
 	if (!isblk) {
 		/* FIXME: this is for backwards compatibility with 2.4 */
 		if (file->f_flags & O_APPEND)
