@@ -71,8 +71,6 @@
 #define DBG(fmt...)
 #endif
 
-extern void pSeries_final_fixup(void);
-
 extern void find_udbg_vterm(void);
 extern void system_reset_fwnmi(void);	/* from head.S */
 extern void machine_check_fwnmi(void);	/* from head.S */
@@ -425,6 +423,7 @@ struct machdep_calls __initdata pSeries_md = {
 	.get_cpuinfo		= pSeries_get_cpuinfo,
 	.log_error		= pSeries_log_error,
 	.pcibios_fixup		= pSeries_final_fixup,
+	.irq_bus_setup		= pSeries_irq_bus_setup,
 	.restart		= rtas_restart,
 	.power_off		= rtas_power_off,
 	.halt			= rtas_halt,
