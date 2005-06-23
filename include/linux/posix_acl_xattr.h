@@ -23,13 +23,13 @@
 #define ACL_UNDEFINED_ID	(-1)
 
 typedef struct {
-	__u16			e_tag;
-	__u16			e_perm;
-	__u32			e_id;
+	__le16			e_tag;
+	__le16			e_perm;
+	__le32			e_id;
 } posix_acl_xattr_entry;
 
 typedef struct {
-	__u32			a_version;
+	__le32			a_version;
 	posix_acl_xattr_entry	a_entries[0];
 } posix_acl_xattr_header;
 
