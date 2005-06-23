@@ -13,6 +13,7 @@
 #include <linux/config.h>
 #include <linux/sched.h>
 #include <linux/delay.h>
+#include <linux/module.h>
 #include <asm/processor.h>
 #include <asm/delay.h>
 #include <asm/timer.h>
@@ -47,3 +48,8 @@ void __ndelay(unsigned long nsecs)
 {
 	__const_udelay(nsecs * 0x00005);  /* 2**32 / 1000000000 (rounded up) */
 }
+
+EXPORT_SYMBOL(__delay);
+EXPORT_SYMBOL(__const_udelay);
+EXPORT_SYMBOL(__udelay);
+EXPORT_SYMBOL(__ndelay);

@@ -2,6 +2,7 @@
  *  linux/arch/i386/kernel/reboot.c
  */
 
+#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -19,6 +20,7 @@
  * Power off function, if any
  */
 void (*pm_power_off)(void);
+EXPORT_SYMBOL(pm_power_off);
 
 static int reboot_mode;
 static int reboot_thru_bios;
@@ -295,6 +297,9 @@ void machine_real_restart(unsigned char *code, int length)
 				:
 				: "i" ((void *) (0x1000 - sizeof (real_mode_switch) - 100)));
 }
+#ifdef CONFIG_APM_MODULE
+EXPORT_SYMBOL(machine_real_restart);
+#endif
 
 void machine_restart(char * __unused)
 {

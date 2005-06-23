@@ -104,6 +104,7 @@ int register_die_notifier(struct notifier_block *nb)
 	spin_unlock_irqrestore(&die_notifier_lock, flags);
 	return err;
 }
+EXPORT_SYMBOL(register_die_notifier);
 
 static inline int valid_stack_ptr(struct thread_info *tinfo, void *p)
 {
@@ -636,11 +637,13 @@ void set_nmi_callback(nmi_callback_t callback)
 {
 	nmi_callback = callback;
 }
+EXPORT_SYMBOL_GPL(set_nmi_callback);
 
 void unset_nmi_callback(void)
 {
 	nmi_callback = dummy_nmi_callback;
 }
+EXPORT_SYMBOL_GPL(unset_nmi_callback);
 
 #ifdef CONFIG_KPROBES
 fastcall void do_int3(struct pt_regs *regs, long error_code)

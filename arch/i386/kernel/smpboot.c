@@ -60,6 +60,9 @@ static int __initdata smp_b_stepping;
 
 /* Number of siblings per CPU package */
 int smp_num_siblings = 1;
+#ifdef CONFIG_X86_HT
+EXPORT_SYMBOL(smp_num_siblings);
+#endif
 int phys_proc_id[NR_CPUS]; /* Package ID of each logical CPU */
 EXPORT_SYMBOL(phys_proc_id);
 int cpu_core_id[NR_CPUS]; /* Core ID of each logical CPU */
@@ -67,13 +70,16 @@ EXPORT_SYMBOL(cpu_core_id);
 
 /* bitmap of online cpus */
 cpumask_t cpu_online_map;
+EXPORT_SYMBOL(cpu_online_map);
 
 cpumask_t cpu_callin_map;
 cpumask_t cpu_callout_map;
+EXPORT_SYMBOL(cpu_callout_map);
 static cpumask_t smp_commenced_mask;
 
 /* Per CPU bogomips and other parameters */
 struct cpuinfo_x86 cpu_data[NR_CPUS] __cacheline_aligned;
+EXPORT_SYMBOL(cpu_data);
 
 u8 x86_cpu_to_apicid[NR_CPUS] =
 			{ [0 ... NR_CPUS-1] = 0xff };
@@ -885,8 +891,14 @@ static void smp_tune_scheduling (void)
 static int boot_cpu_logical_apicid;
 /* Where the IO area was mapped on multiquad, always 0 otherwise */
 void *xquad_portio;
+#ifdef CONFIG_X86_NUMAQ
+EXPORT_SYMBOL(xquad_portio);
+#endif
 
 cpumask_t cpu_sibling_map[NR_CPUS] __cacheline_aligned;
+#ifdef CONFIG_X86_HT
+EXPORT_SYMBOL(cpu_sibling_map);
+#endif
 cpumask_t cpu_core_map[NR_CPUS] __cacheline_aligned;
 EXPORT_SYMBOL(cpu_core_map);
 

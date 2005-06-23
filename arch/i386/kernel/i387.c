@@ -10,6 +10,7 @@
 
 #include <linux/config.h>
 #include <linux/sched.h>
+#include <linux/module.h>
 #include <asm/processor.h>
 #include <asm/i387.h>
 #include <asm/math_emu.h>
@@ -79,6 +80,7 @@ void kernel_fpu_begin(void)
 	}
 	clts();
 }
+EXPORT_SYMBOL_GPL(kernel_fpu_begin);
 
 void restore_fpu( struct task_struct *tsk )
 {
@@ -526,6 +528,7 @@ int dump_fpu( struct pt_regs *regs, struct user_i387_struct *fpu )
 
 	return fpvalid;
 }
+EXPORT_SYMBOL(dump_fpu);
 
 int dump_task_fpu(struct task_struct *tsk, struct user_i387_struct *fpu)
 {
