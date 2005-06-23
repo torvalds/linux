@@ -27,7 +27,8 @@ struct netpoll_info {
 	spinlock_t poll_lock;
 	int poll_owner;
 	int rx_flags;
-	struct netpoll *np;
+	spinlock_t rx_lock;
+	struct netpoll *rx_np; /* netpoll that registered an rx_hook */
 };
 
 void netpoll_poll(struct netpoll *np);
@@ -44,11 +45,19 @@ void netpoll_queue(struct sk_buff *skb);
 static inline int netpoll_rx(struct sk_buff *skb)
 {
 	struct netpoll_info *npinfo = skb->dev->npinfo;
+	unsigned long flags;
+	int ret = 0;
 
-	if (!npinfo || !npinfo->rx_flags)
+	if (!npinfo || (!npinfo->rx_np && !npinfo->rx_flags))
 		return 0;
 
-	return npinfo->np && __netpoll_rx(skb);
+	spin_lock_irqsave(&npinfo->rx_lock, flags);
+	/* check rx_flags again with the lock held */
+	if (npinfo->rx_flags && __netpoll_rx(skb))
+		ret = 1;
+	spin_unlock_irqrestore(&npinfo->rx_lock, flags);
+
+	return ret;
 }
 
 static inline void netpoll_poll_lock(struct net_device *dev)

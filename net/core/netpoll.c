@@ -349,11 +349,15 @@ static void arp_reply(struct sk_buff *skb)
 	unsigned char *arp_ptr;
 	int size, type = ARPOP_REPLY, ptype = ETH_P_ARP;
 	u32 sip, tip;
+	unsigned long flags;
 	struct sk_buff *send_skb;
 	struct netpoll *np = NULL;
 
-	if (npinfo)
-		np = npinfo->np;
+	spin_lock_irqsave(&npinfo->rx_lock, flags);
+	if (npinfo->rx_np && npinfo->rx_np->dev == skb->dev)
+		np = npinfo->rx_np;
+	spin_unlock_irqrestore(&npinfo->rx_lock, flags);
+
 	if (!np)
 		return;
 
@@ -436,9 +440,9 @@ int __netpoll_rx(struct sk_buff *skb)
 	int proto, len, ulen;
 	struct iphdr *iph;
 	struct udphdr *uh;
-	struct netpoll *np = skb->dev->npinfo->np;
+	struct netpoll *np = skb->dev->npinfo->rx_np;
 
-	if (!np->rx_hook)
+	if (!np)
 		goto out;
 	if (skb->dev->type != ARPHRD_ETHER)
 		goto out;
@@ -619,6 +623,7 @@ int netpoll_setup(struct netpoll *np)
 	struct net_device *ndev = NULL;
 	struct in_device *in_dev;
 	struct netpoll_info *npinfo;
+	unsigned long flags;
 
 	if (np->dev_name)
 		ndev = dev_get_by_name(np->dev_name);
@@ -634,9 +639,10 @@ int netpoll_setup(struct netpoll *np)
 		if (!npinfo)
 			goto release;
 
-		npinfo->np = NULL;
+		npinfo->rx_np = NULL;
 		npinfo->poll_lock = SPIN_LOCK_UNLOCKED;
 		npinfo->poll_owner = -1;
+		npinfo->rx_lock = SPIN_LOCK_UNLOCKED;
 	} else
 		npinfo = ndev->npinfo;
 
@@ -706,9 +712,13 @@ int netpoll_setup(struct netpoll *np)
 		       np->name, HIPQUAD(np->local_ip));
 	}
 
-	if(np->rx_hook)
-		npinfo->rx_flags = NETPOLL_RX_ENABLED;
-	npinfo->np = np;
+	if (np->rx_hook) {
+		spin_lock_irqsave(&npinfo->rx_lock, flags);
+		npinfo->rx_flags |= NETPOLL_RX_ENABLED;
+		npinfo->rx_np = np;
+		spin_unlock_irqrestore(&npinfo->rx_lock, flags);
+	}
+	/* last thing to do is link it to the net device structure */
 	ndev->npinfo = npinfo;
 
 	return 0;
@@ -723,11 +733,20 @@ int netpoll_setup(struct netpoll *np)
 
 void netpoll_cleanup(struct netpoll *np)
 {
+	struct netpoll_info *npinfo;
+	unsigned long flags;
+
 	if (np->dev) {
-		if (np->dev->npinfo)
-			np->dev->npinfo->np = NULL;
+		npinfo = np->dev->npinfo;
+		if (npinfo && npinfo->rx_np == np) {
+			spin_lock_irqsave(&npinfo->rx_lock, flags);
+			npinfo->rx_np = NULL;
+			npinfo->rx_flags &= ~NETPOLL_RX_ENABLED;
+			spin_unlock_irqrestore(&npinfo->rx_lock, flags);
+		}
 		dev_put(np->dev);
 	}
+
 	np->dev = NULL;
 }
 
