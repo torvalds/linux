@@ -1439,7 +1439,7 @@ EXPORT_SYMBOL(blk_remove_plug);
  */
 void __generic_unplug_device(request_queue_t *q)
 {
-	if (test_bit(QUEUE_FLAG_STOPPED, &q->queue_flags))
+	if (unlikely(test_bit(QUEUE_FLAG_STOPPED, &q->queue_flags)))
 		return;
 
 	if (!blk_remove_plug(q))
@@ -1763,7 +1763,7 @@ EXPORT_SYMBOL(blk_init_queue_node);
 
 int blk_get_queue(request_queue_t *q)
 {
-	if (!test_bit(QUEUE_FLAG_DEAD, &q->queue_flags)) {
+	if (likely(!test_bit(QUEUE_FLAG_DEAD, &q->queue_flags))) {
 		atomic_inc(&q->refcnt);
 		return 0;
 	}
@@ -2584,7 +2584,7 @@ static int __make_request(request_queue_t *q, struct bio *bio)
 	spin_lock_prefetch(q->queue_lock);
 
 	barrier = bio_barrier(bio);
-	if (barrier && (q->ordered == QUEUE_ORDERED_NONE)) {
+	if (unlikely(barrier) && (q->ordered == QUEUE_ORDERED_NONE)) {
 		err = -EOPNOTSUPP;
 		goto end_io;
 	}
@@ -2685,7 +2685,7 @@ get_rq:
 	/*
 	 * REQ_BARRIER implies no merging, but lets make it explicit
 	 */
-	if (barrier)
+	if (unlikely(barrier))
 		req->flags |= (REQ_HARDBARRIER | REQ_NOMERGE);
 
 	req->errors = 0;
@@ -2809,7 +2809,7 @@ static inline void block_wait_queue_running(request_queue_t *q)
 {
 	DEFINE_WAIT(wait);
 
-	while (test_bit(QUEUE_FLAG_DRAIN, &q->queue_flags)) {
+	while (unlikely(test_bit(QUEUE_FLAG_DRAIN, &q->queue_flags))) {
 		struct request_list *rl = &q->rq;
 
 		prepare_to_wait_exclusive(&rl->drain, &wait,
@@ -2918,7 +2918,7 @@ end_io:
 			goto end_io;
 		}
 
-		if (test_bit(QUEUE_FLAG_DEAD, &q->queue_flags))
+		if (unlikely(test_bit(QUEUE_FLAG_DEAD, &q->queue_flags)))
 			goto end_io;
 
 		block_wait_queue_running(q);
