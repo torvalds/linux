@@ -1969,7 +1969,6 @@ static struct request *get_request_wait(request_queue_t *q, int rw)
 	DEFINE_WAIT(wait);
 	struct request *rq;
 
-	generic_unplug_device(q);
 	do {
 		struct request_list *rl = &q->rq;
 
@@ -1981,6 +1980,7 @@ static struct request *get_request_wait(request_queue_t *q, int rw)
 		if (!rq) {
 			struct io_context *ioc;
 
+			generic_unplug_device(q);
 			io_schedule();
 
 			/*
