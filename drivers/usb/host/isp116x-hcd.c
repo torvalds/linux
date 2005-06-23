@@ -17,7 +17,7 @@
  * The driver basically works. A number of people have used it with a range
  * of devices.
  *
- *The driver passes all usbtests 1-14.
+ * The driver passes all usbtests 1-14.
  *
  * Suspending/resuming of root hub via sysfs works. Remote wakeup works too.
  * And suspending/resuming of platform device works too. Suspend/resume
@@ -229,7 +229,7 @@ static void preproc_atl_queue(struct isp116x *isp116x)
 	struct isp116x_ep *ep;
 	struct urb *urb;
 	struct ptd *ptd;
-	u16 toggle, dir, len;
+	u16 toggle = 0, dir = PTD_DIR_SETUP, len;
 
 	for (ep = isp116x->atl_active; ep; ep = ep->active) {
 		BUG_ON(list_empty(&ep->hep->urb_list));
@@ -251,8 +251,6 @@ static void preproc_atl_queue(struct isp116x *isp116x)
 			dir = PTD_DIR_OUT;
 			break;
 		case USB_PID_SETUP:
-			toggle = 0;
-			dir = PTD_DIR_SETUP;
 			len = sizeof(struct usb_ctrlrequest);
 			ep->data = urb->setup_packet;
 			break;
@@ -264,11 +262,9 @@ static void preproc_atl_queue(struct isp116x *isp116x)
 			    ? PTD_DIR_OUT : PTD_DIR_IN;
 			break;
 		default:
-			/* To please gcc */
-			toggle = dir = 0;
 			ERR("%s %d: ep->nextpid %d\n", __func__, __LINE__,
 			    ep->nextpid);
-			BUG_ON(1);
+			BUG();
 		}
 
 		ptd->count = PTD_CC_MSK | PTD_ACTIVE_MSK | PTD_TOGGLE(toggle);
@@ -1054,7 +1050,7 @@ static int isp116x_hub_control(struct usb_hcd *hcd,
 		break;
 	case GetHubStatus:
 		DBG("GetHubStatus\n");
-		*(__le32 *) buf = cpu_to_le32(0);
+		*(__le32 *) buf = 0;
 		break;
 	case GetPortStatus:
 		DBG("GetPortStatus\n");
@@ -1810,9 +1806,9 @@ static int isp116x_suspend(struct device *dev, pm_message_t state, u32 phase)
 	ret = usb_suspend_device(hcd->self.root_hub, state);
 	if (!ret) {
 		dev->power.power_state = state;
-		INFO("%s suspended\n", (char *)hcd_name);
+		INFO("%s suspended\n", hcd_name);
 	} else
-		ERR("%s suspend failed\n", (char *)hcd_name);
+		ERR("%s suspend failed\n", hcd_name);
 
 	return ret;
 }
