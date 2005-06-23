@@ -28,8 +28,7 @@
 #include <linux/sysctl.h>
 
 #include <asm/smp.h>
-#include <asm/mtrr.h>
-#include <asm/mpspec.h>
+#include <asm/div64.h>
 #include <asm/nmi.h>
 
 #include "mach_traps.h"
@@ -324,6 +323,16 @@ static void clear_msr_range(unsigned int base, unsigned int n)
 		wrmsr(base+i, 0, 0);
 }
 
+static inline void write_watchdog_counter(const char *descr)
+{
+	u64 count = (u64)cpu_khz * 1000;
+
+	do_div(count, nmi_hz);
+	if(descr)
+		Dprintk("setting %s to -0x%08Lx\n", descr, count);
+	wrmsrl(nmi_perfctr_msr, 0 - count);
+}
+
 static void setup_k7_watchdog(void)
 {
 	unsigned int evntsel;
@@ -339,8 +348,7 @@ static void setup_k7_watchdog(void)
 		| K7_NMI_EVENT;
 
 	wrmsr(MSR_K7_EVNTSEL0, evntsel, 0);
-	Dprintk("setting K7_PERFCTR0 to %08lx\n", -(cpu_khz/nmi_hz*1000));
-	wrmsr(MSR_K7_PERFCTR0, -(cpu_khz/nmi_hz*1000), -1);
+	write_watchdog_counter("K7_PERFCTR0");
 	apic_write(APIC_LVTPC, APIC_DM_NMI);
 	evntsel |= K7_EVNTSEL_ENABLE;
 	wrmsr(MSR_K7_EVNTSEL0, evntsel, 0);
@@ -361,8 +369,7 @@ static void setup_p6_watchdog(void)
 		| P6_NMI_EVENT;
 
 	wrmsr(MSR_P6_EVNTSEL0, evntsel, 0);
-	Dprintk("setting P6_PERFCTR0 to %08lx\n", -(cpu_khz/nmi_hz*1000));
-	wrmsr(MSR_P6_PERFCTR0, -(cpu_khz/nmi_hz*1000), 0);
+	write_watchdog_counter("P6_PERFCTR0");
 	apic_write(APIC_LVTPC, APIC_DM_NMI);
 	evntsel |= P6_EVNTSEL0_ENABLE;
 	wrmsr(MSR_P6_EVNTSEL0, evntsel, 0);
@@ -402,8 +409,7 @@ static int setup_p4_watchdog(void)
 
 	wrmsr(MSR_P4_CRU_ESCR0, P4_NMI_CRU_ESCR0, 0);
 	wrmsr(MSR_P4_IQ_CCCR0, P4_NMI_IQ_CCCR0 & ~P4_CCCR_ENABLE, 0);
-	Dprintk("setting P4_IQ_COUNTER0 to 0x%08lx\n", -(cpu_khz/nmi_hz*1000));
-	wrmsr(MSR_P4_IQ_COUNTER0, -(cpu_khz/nmi_hz*1000), -1);
+	write_watchdog_counter("P4_IQ_COUNTER0");
 	apic_write(APIC_LVTPC, APIC_DM_NMI);
 	wrmsr(MSR_P4_IQ_CCCR0, nmi_p4_cccr_val, 0);
 	return 1;
@@ -518,7 +524,7 @@ void nmi_watchdog_tick (struct pt_regs * regs)
 			 * other P6 variant */
 			apic_write(APIC_LVTPC, APIC_DM_NMI);
 		}
-		wrmsr(nmi_perfctr_msr, -(cpu_khz/nmi_hz*1000), -1);
+		write_watchdog_counter(NULL);
 	}
 }
 
