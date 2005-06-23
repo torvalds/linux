@@ -269,7 +269,9 @@ typedef struct pglist_data {
 	struct zone node_zones[MAX_NR_ZONES];
 	struct zonelist node_zonelists[GFP_ZONETYPES];
 	int nr_zones;
+#ifdef CONFIG_FLAT_NODE_MEM_MAP
 	struct page *node_mem_map;
+#endif
 	struct bootmem_data *bdata;
 	unsigned long node_start_pfn;
 	unsigned long node_present_pages; /* total number of physical pages */
@@ -284,7 +286,11 @@ typedef struct pglist_data {
 
 #define node_present_pages(nid)	(NODE_DATA(nid)->node_present_pages)
 #define node_spanned_pages(nid)	(NODE_DATA(nid)->node_spanned_pages)
+#ifdef CONFIG_FLAT_NODE_MEM_MAP
 #define pgdat_page_nr(pgdat, pagenr)	((pgdat)->node_mem_map + (pagenr))
+#else
+#define pgdat_page_nr(pgdat, pagenr)	pfn_to_page((pgdat)->node_start_pfn + (pagenr))
+#endif
 #define nid_page_nr(nid, pagenr) 	pgdat_page_nr(NODE_DATA(nid),(pagenr))
 
 extern struct pglist_data *pgdat_list;
@@ -416,6 +422,10 @@ extern struct pglist_data contig_page_data;
 
 #endif /* !CONFIG_NEED_MULTIPLE_NODES */
 
+#ifdef CONFIG_SPARSEMEM
+#include <asm/sparsemem.h>
+#endif
+
 #if BITS_PER_LONG == 32 || defined(ARCH_HAS_ATOMIC_UNSIGNED)
 /*
  * with 32 bit page->flags field, we reserve 8 bits for node/zone info.
@@ -438,6 +448,92 @@ extern struct pglist_data contig_page_data;
 #ifndef CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID
 #define early_pfn_to_nid(nid)  (0UL)
 #endif
+
+#define pfn_to_section_nr(pfn) ((pfn) >> PFN_SECTION_SHIFT)
+#define section_nr_to_pfn(sec) ((sec) << PFN_SECTION_SHIFT)
+
+#ifdef CONFIG_SPARSEMEM
+
+/*
+ * SECTION_SHIFT    		#bits space required to store a section #
+ *
+ * PA_SECTION_SHIFT		physical address to/from section number
+ * PFN_SECTION_SHIFT		pfn to/from section number
+ */
+#define SECTIONS_SHIFT		(MAX_PHYSMEM_BITS - SECTION_SIZE_BITS)
+
+#define PA_SECTION_SHIFT	(SECTION_SIZE_BITS)
+#define PFN_SECTION_SHIFT	(SECTION_SIZE_BITS - PAGE_SHIFT)
+
+#define NR_MEM_SECTIONS		(1UL << SECTIONS_SHIFT)
+
+#define PAGES_PER_SECTION       (1UL << PFN_SECTION_SHIFT)
+#define PAGE_SECTION_MASK	(~(PAGES_PER_SECTION-1))
+
+#if (MAX_ORDER - 1 + PAGE_SHIFT) > SECTION_SIZE_BITS
+#error Allocator MAX_ORDER exceeds SECTION_SIZE
+#endif
+
+struct page;
+struct mem_section {
+	struct page *section_mem_map;
+};
+
+extern struct mem_section mem_section[NR_MEM_SECTIONS];
+
+/*
+ * Given a kernel address, find the home node of the underlying memory.
+ */
+#define kvaddr_to_nid(kaddr)	pfn_to_nid(__pa(kaddr) >> PAGE_SHIFT)
+
+static inline struct mem_section *__pfn_to_section(unsigned long pfn)
+{
+	return &mem_section[pfn_to_section_nr(pfn)];
+}
+
+#define pfn_to_page(pfn) 						\
+({ 									\
+	unsigned long __pfn = (pfn);					\
+	__pfn_to_section(__pfn)->section_mem_map + __pfn;		\
+})
+#define page_to_pfn(page)						\
+({									\
+	page - mem_section[page_to_section(page)].section_mem_map;	\
+})
+
+static inline int pfn_valid(unsigned long pfn)
+{
+	if (pfn_to_section_nr(pfn) >= NR_MEM_SECTIONS)
+		return 0;
+	return mem_section[pfn_to_section_nr(pfn)].section_mem_map != 0;
+}
+
+/*
+ * These are _only_ used during initialisation, therefore they
+ * can use __initdata ...  They could have names to indicate
+ * this restriction.
+ */
+#ifdef CONFIG_NUMA
+#define pfn_to_nid		early_pfn_to_nid
+#endif
+
+#define pfn_to_pgdat(pfn)						\
+({									\
+	NODE_DATA(pfn_to_nid(pfn));					\
+})
+
+#define early_pfn_valid(pfn)	pfn_valid(pfn)
+void sparse_init(void);
+#else
+#define sparse_init()	do {} while (0)
+#endif /* CONFIG_SPARSEMEM */
+
+#ifndef early_pfn_valid
+#define early_pfn_valid(pfn)	(1)
+#endif
+
+void memory_present(int nid, unsigned long start, unsigned long end);
+unsigned long __init node_memmap_size_bytes(int, unsigned long, unsigned long);
 
 #endif /* !__ASSEMBLY__ */
 #endif /* __KERNEL__ */

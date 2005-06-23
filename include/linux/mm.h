@@ -397,39 +397,79 @@ static inline void put_page(struct page *page)
  * sets it, so none of the operations on it need to be atomic.
  */
 
-/* Page flags: | NODE | ZONE | ... | FLAGS | */
-#define NODES_PGOFF		((sizeof(page_flags_t)*8) - NODES_SHIFT)
-#define ZONES_PGOFF		(NODES_PGOFF - ZONES_SHIFT)
+
+/*
+ * page->flags layout:
+ *
+ * There are three possibilities for how page->flags get
+ * laid out.  The first is for the normal case, without
+ * sparsemem.  The second is for sparsemem when there is
+ * plenty of space for node and section.  The last is when
+ * we have run out of space and have to fall back to an
+ * alternate (slower) way of determining the node.
+ *
+ *        No sparsemem: |       NODE     | ZONE | ... | FLAGS |
+ * with space for node: | SECTION | NODE | ZONE | ... | FLAGS |
+ *   no space for node: | SECTION |     ZONE    | ... | FLAGS |
+ */
+#ifdef CONFIG_SPARSEMEM
+#define SECTIONS_WIDTH		SECTIONS_SHIFT
+#else
+#define SECTIONS_WIDTH		0
+#endif
+
+#define ZONES_WIDTH		ZONES_SHIFT
+
+#if SECTIONS_WIDTH+ZONES_WIDTH+NODES_SHIFT <= FLAGS_RESERVED
+#define NODES_WIDTH		NODES_SHIFT
+#else
+#define NODES_WIDTH		0
+#endif
+
+/* Page flags: | [SECTION] | [NODE] | ZONE | ... | FLAGS | */
+#define SECTIONS_PGOFF		((sizeof(page_flags_t)*8) - SECTIONS_WIDTH)
+#define NODES_PGOFF		(SECTIONS_PGOFF - NODES_WIDTH)
+#define ZONES_PGOFF		(NODES_PGOFF - ZONES_WIDTH)
+
+/*
+ * We are going to use the flags for the page to node mapping if its in
+ * there.  This includes the case where there is no node, so it is implicit.
+ */
+#define FLAGS_HAS_NODE		(NODES_WIDTH > 0 || NODES_SHIFT == 0)
+
+#ifndef PFN_SECTION_SHIFT
+#define PFN_SECTION_SHIFT 0
+#endif
 
 /*
  * Define the bit shifts to access each section.  For non-existant
  * sections we define the shift as 0; that plus a 0 mask ensures
  * the compiler will optimise away reference to them.
  */
-#define NODES_PGSHIFT		(NODES_PGOFF * (NODES_SHIFT != 0))
-#define ZONES_PGSHIFT		(ZONES_PGOFF * (ZONES_SHIFT != 0))
+#define SECTIONS_PGSHIFT	(SECTIONS_PGOFF * (SECTIONS_WIDTH != 0))
+#define NODES_PGSHIFT		(NODES_PGOFF * (NODES_WIDTH != 0))
+#define ZONES_PGSHIFT		(ZONES_PGOFF * (ZONES_WIDTH != 0))
 
-/* NODE:ZONE is used to lookup the zone from a page. */
+/* NODE:ZONE or SECTION:ZONE is used to lookup the zone from a page. */
+#if FLAGS_HAS_NODE
 #define ZONETABLE_SHIFT		(NODES_SHIFT + ZONES_SHIFT)
+#else
+#define ZONETABLE_SHIFT		(SECTIONS_SHIFT + ZONES_SHIFT)
+#endif
 #define ZONETABLE_PGSHIFT	ZONES_PGSHIFT
 
-#if NODES_SHIFT+ZONES_SHIFT > FLAGS_RESERVED
-#error NODES_SHIFT+ZONES_SHIFT > FLAGS_RESERVED
+#if SECTIONS_WIDTH+NODES_WIDTH+ZONES_WIDTH > FLAGS_RESERVED
+#error SECTIONS_WIDTH+NODES_WIDTH+ZONES_WIDTH > FLAGS_RESERVED
 #endif
 
-#define NODEZONE(node, zone)	((node << ZONES_SHIFT) | zone)
-
-#define ZONES_MASK		((1UL << ZONES_SHIFT) - 1)
-#define NODES_MASK		((1UL << NODES_SHIFT) - 1)
+#define ZONES_MASK		((1UL << ZONES_WIDTH) - 1)
+#define NODES_MASK		((1UL << NODES_WIDTH) - 1)
+#define SECTIONS_MASK		((1UL << SECTIONS_WIDTH) - 1)
 #define ZONETABLE_MASK		((1UL << ZONETABLE_SHIFT) - 1)
 
 static inline unsigned long page_zonenum(struct page *page)
 {
 	return (page->flags >> ZONES_PGSHIFT) & ZONES_MASK;
-}
-static inline unsigned long page_to_nid(struct page *page)
-{
-	return (page->flags >> NODES_PGSHIFT) & NODES_MASK;
 }
 
 struct zone;
@@ -439,6 +479,18 @@ static inline struct zone *page_zone(struct page *page)
 {
 	return zone_table[(page->flags >> ZONETABLE_PGSHIFT) &
 			ZONETABLE_MASK];
+}
+
+static inline unsigned long page_to_nid(struct page *page)
+{
+	if (FLAGS_HAS_NODE)
+		return (page->flags >> NODES_PGSHIFT) & NODES_MASK;
+	else
+		return page_zone(page)->zone_pgdat->node_id;
+}
+static inline unsigned long page_to_section(struct page *page)
+{
+	return (page->flags >> SECTIONS_PGSHIFT) & SECTIONS_MASK;
 }
 
 static inline void set_page_zone(struct page *page, unsigned long zone)
@@ -451,12 +503,18 @@ static inline void set_page_node(struct page *page, unsigned long node)
 	page->flags &= ~(NODES_MASK << NODES_PGSHIFT);
 	page->flags |= (node & NODES_MASK) << NODES_PGSHIFT;
 }
+static inline void set_page_section(struct page *page, unsigned long section)
+{
+	page->flags &= ~(SECTIONS_MASK << SECTIONS_PGSHIFT);
+	page->flags |= (section & SECTIONS_MASK) << SECTIONS_PGSHIFT;
+}
 
 static inline void set_page_links(struct page *page, unsigned long zone,
-	unsigned long node)
+	unsigned long node, unsigned long pfn)
 {
 	set_page_zone(page, zone);
 	set_page_node(page, node);
+	set_page_section(page, pfn_to_section_nr(pfn));
 }
 
 #ifndef CONFIG_DISCONTIGMEM
