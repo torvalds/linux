@@ -531,7 +531,7 @@ EXPORT_SYMBOL(page_is_ram);
  * Initialize the bootmem system and give it all the memory we
  * have available.
  */
-#ifndef CONFIG_DISCONTIGMEM
+#ifndef CONFIG_NEED_MULTIPLE_NODES
 void __init do_init_bootmem(void)
 {
 	unsigned long i;
@@ -553,12 +553,20 @@ void __init do_init_bootmem(void)
 
 	max_pfn = max_low_pfn;
 
-	/* add all physical memory to the bootmem map. Also find the first */
+	/* Add all physical memory to the bootmem map, mark each area
+	 * present.
+	 */
 	for (i=0; i < lmb.memory.cnt; i++) {
 		unsigned long physbase, size;
+		unsigned long start_pfn, end_pfn;
 
 		physbase = lmb.memory.region[i].physbase;
 		size = lmb.memory.region[i].size;
+
+		start_pfn = physbase >> PAGE_SHIFT;
+		end_pfn = start_pfn + (size >> PAGE_SHIFT);
+		memory_present(0, start_pfn, end_pfn);
+
 		free_bootmem(physbase, size);
 	}
 
@@ -597,7 +605,7 @@ void __init paging_init(void)
 	free_area_init_node(0, NODE_DATA(0), zones_size,
 			    __pa(PAGE_OFFSET) >> PAGE_SHIFT, zholes_size);
 }
-#endif /* CONFIG_DISCONTIGMEM */
+#endif /* ! CONFIG_NEED_MULTIPLE_NODES */
 
 static struct kcore_list kcore_vmem;
 
@@ -628,7 +636,7 @@ module_init(setup_kcore);
 
 void __init mem_init(void)
 {
-#ifdef CONFIG_DISCONTIGMEM
+#ifdef CONFIG_NEED_MULTIPLE_NODES
 	int nid;
 #endif
 	pg_data_t *pgdat;
@@ -639,7 +647,7 @@ void __init mem_init(void)
 	num_physpages = max_low_pfn;	/* RAM is assumed contiguous */
 	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE);
 
-#ifdef CONFIG_DISCONTIGMEM
+#ifdef CONFIG_NEED_MULTIPLE_NODES
         for_each_online_node(nid) {
 		if (NODE_DATA(nid)->node_spanned_pages != 0) {
 			printk("freeing bootmem node %x\n", nid);

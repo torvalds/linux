@@ -1055,6 +1055,7 @@ void __init setup_arch(char **cmdline_p)
 
 	/* set up the bootmem stuff with available memory */
 	do_init_bootmem();
+	sparse_init();
 
 	/* initialize the syscall map in systemcfg */
 	setup_syscall_map();

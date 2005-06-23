@@ -198,6 +198,13 @@ config HMT
 	  This option enables hardware multithreading on RS64 cpus.
 	  pSeries systems p620 and p660 have such a cpu type.
 
+config ARCH_SELECT_MEMORY_MODEL
+	def_bool y
+
+config ARCH_FLATMEM_ENABLE
+       def_bool y
+       depends on !NUMA
+
 config ARCH_DISCONTIGMEM_ENABLE
 	def_bool y
 	depends on SMP && PPC_PSERIES
@@ -208,6 +215,10 @@ config ARCH_DISCONTIGMEM_DEFAULT
 
 config ARCH_FLATMEM_ENABLE
 	def_bool y
+
+config ARCH_SPARSEMEM_ENABLE
+	def_bool y
+	depends on ARCH_DISCONTIGMEM_ENABLE
 
 source "mm/Kconfig"
 
@@ -229,7 +240,7 @@ config NODES_SPAN_OTHER_NODES
 
 config NUMA
 	bool "NUMA support"
-	depends on DISCONTIGMEM
+	default y if DISCONTIGMEM || SPARSEMEM
 
 config SCHED_SMT
 	bool "SMT (Hyperthreading) scheduler support"
