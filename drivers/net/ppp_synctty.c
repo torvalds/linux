@@ -793,7 +793,7 @@ err:
 static void __exit
 ppp_sync_cleanup(void)
 {
-	if (tty_register_ldisc(N_SYNC_PPP, NULL) != 0)
+	if (tty_unregister_ldisc(N_SYNC_PPP) != 0)
 		printk(KERN_ERR "failed to unregister Sync PPP line discipline\n");
 }
 
