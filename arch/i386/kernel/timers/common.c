@@ -139,6 +139,15 @@ bad_calibration:
 }
 #endif
 
+
+unsigned long read_timer_tsc(void)
+{
+	unsigned long retval;
+	rdtscl(retval);
+	return retval;
+}
+
+
 /* calculate cpu_khz */
 void init_cpu_khz(void)
 {

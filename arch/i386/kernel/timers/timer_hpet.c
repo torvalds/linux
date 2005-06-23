@@ -186,6 +186,7 @@ static struct timer_opts timer_hpet = {
 	.get_offset =		get_offset_hpet,
 	.monotonic_clock =	monotonic_clock_hpet,
 	.delay = 		delay_hpet,
+	.read_timer = 		read_timer_tsc,
 };
 
 struct init_timer_opts __initdata timer_hpet_init = {

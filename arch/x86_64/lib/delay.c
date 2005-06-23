@@ -12,12 +12,19 @@
 #include <linux/sched.h>
 #include <linux/delay.h>
 #include <asm/delay.h>
+#include <asm/msr.h>
 
 #ifdef CONFIG_SMP
 #include <asm/smp.h>
 #endif
 
 int x86_udelay_tsc = 0;		/* Delay via TSC */
+
+int read_current_timer(unsigned long *timer_value)
+{
+	rdtscll(*timer_value);
+	return 0;
+}
 
 void __delay(unsigned long loops)
 {
