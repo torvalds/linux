@@ -138,17 +138,14 @@ void arch_prepare_kretprobe(struct kretprobe *rp, struct pt_regs *regs)
 	}
 }
 
-void arch_kprobe_flush_task(struct task_struct *tk, spinlock_t *kp_lock)
+void arch_kprobe_flush_task(struct task_struct *tk)
 {
-	unsigned long flags = 0;
 	struct kretprobe_instance *ri;
-	spin_lock_irqsave(kp_lock, flags);
 	while ((ri = get_rp_inst_tsk(tk)) != NULL) {
 		*((unsigned long *)(ri->stack_addr)) =
 					(unsigned long) ri->ret_addr;
 		recycle_rp_inst(ri);
 	}
-	spin_unlock_irqrestore(kp_lock, flags);
 }
 
 /*

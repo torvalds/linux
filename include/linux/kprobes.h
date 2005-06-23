@@ -33,7 +33,6 @@
 #include <linux/list.h>
 #include <linux/notifier.h>
 #include <linux/smp.h>
-#include <linux/spinlock.h>
 
 #include <asm/kprobes.h>
 
@@ -101,7 +100,7 @@ extern void trampoline_post_handler(struct kprobe *p, struct pt_regs *regs,
 							unsigned long flags);
 extern struct task_struct *arch_get_kprobe_task(void *ptr);
 extern void arch_prepare_kretprobe(struct kretprobe *rp, struct pt_regs *regs);
-extern void arch_kprobe_flush_task(struct task_struct *tk, spinlock_t *kp_lock);
+extern void arch_kprobe_flush_task(struct task_struct *tk);
 #else /* ARCH_SUPPORTS_KRETPROBES */
 static inline void kretprobe_trampoline(void)
 {

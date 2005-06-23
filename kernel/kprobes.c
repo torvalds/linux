@@ -229,7 +229,10 @@ struct kretprobe_instance *get_rp_inst_tsk(struct task_struct *tk)
  */
 void kprobe_flush_task(struct task_struct *tk)
 {
-	arch_kprobe_flush_task(tk, &kprobe_lock);
+	unsigned long flags = 0;
+	spin_lock_irqsave(&kprobe_lock, flags);
+	arch_kprobe_flush_task(tk);
+	spin_unlock_irqrestore(&kprobe_lock, flags);
 }
 
 /*
