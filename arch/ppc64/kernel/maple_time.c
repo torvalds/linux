@@ -42,11 +42,8 @@
 #define DBG(x...)
 #endif
 
-extern void setup_default_decr(void);
 extern void GregorianDay(struct rtc_time * tm);
 
-extern unsigned long ppc_tb_freq;
-extern unsigned long ppc_proc_freq;
 static int maple_rtc_addr;
 
 static int maple_clock_read(int addr)
@@ -176,51 +173,3 @@ void __init maple_get_boot_time(struct rtc_time *tm)
 	maple_get_rtc_time(tm);
 }
 
-/* XXX FIXME: Some sane defaults: 125 MHz timebase, 1GHz processor */
-#define DEFAULT_TB_FREQ		125000000UL
-#define DEFAULT_PROC_FREQ	(DEFAULT_TB_FREQ * 8)
-
-void __init maple_calibrate_decr(void)
-{
-	struct device_node *cpu;
-	struct div_result divres;
-	unsigned int *fp = NULL;
-
-	/*
-	 * The cpu node should have a timebase-frequency property
-	 * to tell us the rate at which the decrementer counts.
-	 */
-	cpu = of_find_node_by_type(NULL, "cpu");
-
-	ppc_tb_freq = DEFAULT_TB_FREQ;
-	if (cpu != 0)
-		fp = (unsigned int *)get_property(cpu, "timebase-frequency", NULL);
-	if (fp != NULL)
-		ppc_tb_freq = *fp;
-	else
-		printk(KERN_ERR "WARNING: Estimating decrementer frequency (not found)\n");
-	fp = NULL;
-	ppc_proc_freq = DEFAULT_PROC_FREQ;
-	if (cpu != 0)
-		fp = (unsigned int *)get_property(cpu, "clock-frequency", NULL);
-	if (fp != NULL)
-		ppc_proc_freq = *fp;
-	else
-		printk(KERN_ERR "WARNING: Estimating processor frequency (not found)\n");
-
-	of_node_put(cpu);
-
-	printk(KERN_INFO "time_init: decrementer frequency = %lu.%.6lu MHz\n",
-	       ppc_tb_freq/1000000, ppc_tb_freq%1000000);
-	printk(KERN_INFO "time_init: processor frequency   = %lu.%.6lu MHz\n",
-	       ppc_proc_freq/1000000, ppc_proc_freq%1000000);
-
-	tb_ticks_per_jiffy = ppc_tb_freq / HZ;
-	tb_ticks_per_sec = tb_ticks_per_jiffy * HZ;
-	tb_ticks_per_usec = ppc_tb_freq / 1000000;
-	tb_to_us = mulhwu_scale_factor(ppc_tb_freq, 1000000);
-	div128_by_32(1024*1024, 0, tb_ticks_per_sec, &divres);
-	tb_to_xs = divres.result_low;
-
-	setup_default_decr();
-}

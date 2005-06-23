@@ -77,6 +77,10 @@ config PPC_PSERIES
 	bool "  IBM pSeries & new iSeries"
 	default y
 
+config PPC_BPA
+	bool "  Broadband Processor Architecture"
+	depends on PPC_MULTIPLATFORM
+
 config PPC_PMAC
 	depends on PPC_MULTIPLATFORM
 	bool "  Apple G5 based machines"
@@ -103,6 +107,21 @@ config PPC64
 
 config PPC_OF
 	depends on PPC_MULTIPLATFORM
+	bool
+	default y
+
+config XICS
+	depends on PPC_PSERIES
+	bool
+	default y
+
+config MPIC
+	depends on PPC_PSERIES || PPC_PMAC || PPC_MAPLE
+	bool
+	default y
+
+config BPA_IIC
+	depends on PPC_BPA
 	bool
 	default y
 
@@ -292,7 +311,7 @@ config MSCHUNKS
 
 config PPC_RTAS
 	bool
-	depends on PPC_PSERIES
+	depends on PPC_PSERIES || PPC_BPA
 	default y
 
 config RTAS_PROC

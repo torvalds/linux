@@ -1,5 +1,5 @@
 /*
- * SMP support for pSeries machines.
+ * SMP support for pSeries and BPA machines.
  *
  * Dave Engebretsen, Peter Bergner, and
  * Mike Corrigan {engebret|bergner|mikec}@us.ibm.com
@@ -47,6 +47,7 @@
 #include <asm/pSeries_reconfig.h>
 
 #include "mpic.h"
+#include "bpa_iic.h"
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -286,6 +287,7 @@ static inline int __devinit smp_startup_cpu(unsigned int lcpu)
 	return 1;
 }
 
+#ifdef CONFIG_XICS
 static inline void smp_xics_do_message(int cpu, int msg)
 {
 	set_bit(msg, &xics_ipi_message[cpu].value);
@@ -327,6 +329,37 @@ static void __devinit smp_xics_setup_cpu(int cpu)
 	cpu_clear(cpu, of_spin_map);
 
 }
+#endif /* CONFIG_XICS */
+#ifdef CONFIG_BPA_IIC
+static void smp_iic_message_pass(int target, int msg)
+{
+	unsigned int i;
+
+	if (target < NR_CPUS) {
+		iic_cause_IPI(target, msg);
+	} else {
+		for_each_online_cpu(i) {
+			if (target == MSG_ALL_BUT_SELF
+			    && i == smp_processor_id())
+				continue;
+			iic_cause_IPI(i, msg);
+		}
+	}
+}
+
+static int __init smp_iic_probe(void)
+{
+	iic_request_IPIs();
+
+	return cpus_weight(cpu_possible_map);
+}
+
+static void __devinit smp_iic_setup_cpu(int cpu)
+{
+	if (cpu != boot_cpuid)
+		iic_setup_cpu();
+}
+#endif /* CONFIG_BPA_IIC */
 
 static DEFINE_SPINLOCK(timebase_lock);
 static unsigned long timebase = 0;
@@ -381,14 +414,15 @@ static int smp_pSeries_cpu_bootable(unsigned int nr)
 
 	return 1;
 }
-
+#ifdef CONFIG_MPIC
 static struct smp_ops_t pSeries_mpic_smp_ops = {
 	.message_pass	= smp_mpic_message_pass,
 	.probe		= smp_mpic_probe,
 	.kick_cpu	= smp_pSeries_kick_cpu,
 	.setup_cpu	= smp_mpic_setup_cpu,
 };
-
+#endif
+#ifdef CONFIG_XICS
 static struct smp_ops_t pSeries_xics_smp_ops = {
 	.message_pass	= smp_xics_message_pass,
 	.probe		= smp_xics_probe,
@@ -396,6 +430,16 @@ static struct smp_ops_t pSeries_xics_smp_ops = {
 	.setup_cpu	= smp_xics_setup_cpu,
 	.cpu_bootable	= smp_pSeries_cpu_bootable,
 };
+#endif
+#ifdef CONFIG_BPA_IIC
+static struct smp_ops_t bpa_iic_smp_ops = {
+	.message_pass	= smp_iic_message_pass,
+	.probe		= smp_iic_probe,
+	.kick_cpu	= smp_pSeries_kick_cpu,
+	.setup_cpu	= smp_iic_setup_cpu,
+	.cpu_bootable	= smp_pSeries_cpu_bootable,
+};
+#endif
 
 /* This is called very early */
 void __init smp_init_pSeries(void)
@@ -404,10 +448,25 @@ void __init smp_init_pSeries(void)
 
 	DBG(" -> smp_init_pSeries()\n");
 
-	if (ppc64_interrupt_controller == IC_OPEN_PIC)
+	switch (ppc64_interrupt_controller) {
+#ifdef CONFIG_MPIC
+	case IC_OPEN_PIC:
 		smp_ops = &pSeries_mpic_smp_ops;
-	else
+		break;
+#endif
+#ifdef CONFIG_XICS
+	case IC_PPC_XIC:
 		smp_ops = &pSeries_xics_smp_ops;
+		break;
+#endif
+#ifdef CONFIG_BPA_IIC
+	case IC_BPA_IIC:
+		smp_ops = &bpa_iic_smp_ops;
+		break;
+#endif
+	default:
+		panic("Invalid interrupt controller");
+	}
 
 #ifdef CONFIG_HOTPLUG_CPU
 	smp_ops->cpu_disable = pSeries_cpu_disable;

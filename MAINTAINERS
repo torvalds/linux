@@ -504,6 +504,13 @@ L:   bonding-devel@lists.sourceforge.net
 W:   http://sourceforge.net/projects/bonding/
 S:   Supported
 
+BROADBAND PROCESSOR ARCHITECTURE
+P:	Arnd Bergmann
+M:	arnd@arndb.de
+L:	linuxppc64-dev@ozlabs.org
+W:	http://linuxppc64.org
+S:	Supported
+
 BTTV VIDEO4LINUX DRIVER
 P:	Gerd Knorr
 M:	kraxel@bytesex.org

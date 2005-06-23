@@ -301,7 +301,7 @@ void iSeries_get_boot_time(struct rtc_time *tm)
 #ifdef CONFIG_PPC_RTAS
 #define MAX_RTC_WAIT 5000	/* 5 sec */
 #define RTAS_CLOCK_BUSY (-2)
-void pSeries_get_boot_time(struct rtc_time *rtc_tm)
+void rtas_get_boot_time(struct rtc_time *rtc_tm)
 {
 	int ret[8];
 	int error, wait_time;
@@ -336,7 +336,7 @@ void pSeries_get_boot_time(struct rtc_time *rtc_tm)
  * and if a delay is needed to read the clock.  In this case we just
  * silently return without updating rtc_tm.
  */
-void pSeries_get_rtc_time(struct rtc_time *rtc_tm)
+void rtas_get_rtc_time(struct rtc_time *rtc_tm)
 {
         int ret[8];
 	int error, wait_time;
@@ -371,7 +371,7 @@ void pSeries_get_rtc_time(struct rtc_time *rtc_tm)
 	rtc_tm->tm_year = ret[0] - 1900;
 }
 
-int pSeries_set_rtc_time(struct rtc_time *tm)
+int rtas_set_rtc_time(struct rtc_time *tm)
 {
 	int error, wait_time;
 	unsigned long max_wait_tb;
