@@ -1742,10 +1742,17 @@ inline void setup_pageset(struct per_cpu_pageset *p, unsigned long batch)
  * with interrupts disabled.
  *
  * Some NUMA counter updates may also be caught by the boot pagesets.
- * These will be discarded when bootup is complete.
+ *
+ * The boot_pagesets must be kept even after bootup is complete for
+ * unused processors and/or zones. They do play a role for bootstrapping
+ * hotplugged processors.
+ *
+ * zoneinfo_show() and maybe other functions do
+ * not check if the processor is online before following the pageset pointer.
+ * Other parts of the kernel may not check if the zone is available.
  */
 static struct per_cpu_pageset
-	boot_pageset[NR_CPUS] __initdata;
+	boot_pageset[NR_CPUS];
 
 /*
  * Dynamically allocate memory for the
