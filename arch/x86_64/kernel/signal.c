@@ -422,7 +422,7 @@ int do_signal(struct pt_regs *regs, sigset_t *oldset)
 	 * kernel mode. Just return without doing anything
 	 * if so.
 	 */
-	if ((regs->cs & 3) != 3)
+	if (!user_mode(regs))
 		return 1;
 
 	if (try_to_freeze(0))
