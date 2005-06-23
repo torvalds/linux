@@ -339,7 +339,7 @@ target(struct sk_buff **pskb,
 	 * error messages (RELATED) and information requests (see below) */
 	if ((*pskb)->nh.iph->protocol == IPPROTO_ICMP
 	    && (ctinfo == IP_CT_RELATED 
-		|| ctinfo == IP_CT_IS_REPLY+IP_CT_IS_REPLY))
+		|| ctinfo == IP_CT_RELATED+IP_CT_IS_REPLY))
 		return IPT_CONTINUE;
 
 	/* ip_conntrack_icmp guarantees us that we only have ICMP_ECHO, 
