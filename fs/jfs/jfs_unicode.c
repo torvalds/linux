@@ -51,8 +51,9 @@ int jfs_strfromUCS_le(char *to, const __le16 * from,
 		}
 	} else {
 		for (i = 0; (i < len) && from[i]; i++) {
-			if (le16_to_cpu(from[i]) & 0xff00) {
-				if (warn) {
+			if (unlikely(le16_to_cpu(from[i]) & 0xff00)) {
+				to[i] = '?';
+				if (unlikely(warn)) {
 					warn--;
 					warn_again--;
 					printk(KERN_ERR
@@ -61,7 +62,7 @@ int jfs_strfromUCS_le(char *to, const __le16 * from,
 					printk(KERN_ERR
 				"mount with iocharset=utf8 to access\n");
 				}
-				to[i] = '?';
+
 			}
 			else
 				to[i] = (char) (le16_to_cpu(from[i]));
