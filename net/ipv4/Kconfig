@@ -467,6 +467,17 @@ config TCP_CONG_WESTWOOD
 	TCP Westwood+ significantly increases fairness wrt TCP Reno in
 	wired networks and throughput over wireless links.
 
+config TCP_CONG_HSTCP
+	tristate "High Speed TCP"
+	depends on INET && EXPERIMENTAL
+	default n
+	---help---
+	Sally Floyd's High Speed TCP (RFC 3649) congestion control.
+	A modification to TCP's congestion control mechanism for use
+	with large congestion windows. A table indicates how much to
+	increase the congestion window by when an ACK is received.
+ 	For more detail	see http://www.icir.org/floyd/hstcp.html
+
 endmenu
 
 source "net/ipv4/ipvs/Kconfig"
