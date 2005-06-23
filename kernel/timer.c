@@ -365,6 +365,34 @@ int del_timer(struct timer_list *timer)
 EXPORT_SYMBOL(del_timer);
 
 #ifdef CONFIG_SMP
+/*
+ * This function tries to deactivate a timer. Upon successful (ret >= 0)
+ * exit the timer is not queued and the handler is not running on any CPU.
+ *
+ * It must not be called from interrupt contexts.
+ */
+int try_to_del_timer_sync(struct timer_list *timer)
+{
+	timer_base_t *base;
+	unsigned long flags;
+	int ret = -1;
+
+	base = lock_timer_base(timer, &flags);
+
+	if (base->running_timer == timer)
+		goto out;
+
+	ret = 0;
+	if (timer_pending(timer)) {
+		detach_timer(timer, 1);
+		ret = 1;
+	}
+out:
+	spin_unlock_irqrestore(&base->lock, flags);
+
+	return ret;
+}
+
 /***
  * del_timer_sync - deactivate a timer and wait for the handler to finish.
  * @timer: the timer to be deactivated
@@ -384,28 +412,13 @@ EXPORT_SYMBOL(del_timer);
  */
 int del_timer_sync(struct timer_list *timer)
 {
-	timer_base_t *base;
-	unsigned long flags;
-	int ret = -1;
-
 	check_timer(timer);
 
-	do {
-		base = lock_timer_base(timer, &flags);
-
-		if (base->running_timer == timer)
-			goto unlock;
-
-		ret = 0;
-		if (timer_pending(timer)) {
-			detach_timer(timer, 1);
-			ret = 1;
-		}
-unlock:
-		spin_unlock_irqrestore(&base->lock, flags);
-	} while (ret < 0);
-
-	return ret;
+	for (;;) {
+		int ret = try_to_del_timer_sync(timer);
+		if (ret >= 0)
+			return ret;
+	}
 }
 
 EXPORT_SYMBOL(del_timer_sync);
