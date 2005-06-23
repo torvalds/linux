@@ -290,7 +290,7 @@ struct usb_bus {
 	struct class_device *class_dev;	/* class device for this bus */
 	struct kref kref;		/* handles reference counting this bus */
 	void (*release)(struct usb_bus *bus);	/* function to destroy this bus's memory */
-#if defined(CONFIG_USB_MON) || defined(CONFIG_USB_MON_MODULE)
+#if defined(CONFIG_USB_MON)
 	struct mon_bus *mon_bus;	/* non-null when associated */
 	int monitored;			/* non-zero when monitored */
 #endif
