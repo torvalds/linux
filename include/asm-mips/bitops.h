@@ -20,14 +20,12 @@
 #define SZLONG_MASK 31UL
 #define __LL		"ll	"
 #define __SC		"sc	"
-#define __SET_MIPS	".set	mips2	"
 #define cpu_to_lelongp(x) cpu_to_le32p((__u32 *) (x))
 #elif (_MIPS_SZLONG == 64)
 #define SZLONG_LOG 6
 #define SZLONG_MASK 63UL
 #define __LL		"lld	"
 #define __SC		"scd	"
-#define __SET_MIPS	".set	mips3	"
 #define cpu_to_lelongp(x) cpu_to_le64p((__u64 *) (x))
 #endif
 
@@ -74,7 +72,7 @@ static inline void set_bit(unsigned long nr, volatile unsigned long *addr)
 
 	if (cpu_has_llsc && R10000_LLSC_WAR) {
 		__asm__ __volatile__(
-		"	" __SET_MIPS "					\n"
+		"	.set	mips3					\n"
 		"1:	" __LL "%0, %1			# set_bit	\n"
 		"	or	%0, %2					\n"
 		"	" __SC	"%0, %1					\n"
@@ -84,7 +82,7 @@ static inline void set_bit(unsigned long nr, volatile unsigned long *addr)
 		: "ir" (1UL << (nr & SZLONG_MASK)), "m" (*m));
 	} else if (cpu_has_llsc) {
 		__asm__ __volatile__(
-		"	" __SET_MIPS "					\n"
+		"	.set	mips3					\n"
 		"1:	" __LL "%0, %1			# set_bit	\n"
 		"	or	%0, %2					\n"
 		"	" __SC	"%0, %1					\n"
@@ -138,7 +136,7 @@ static inline void clear_bit(unsigned long nr, volatile unsigned long *addr)
 
 	if (cpu_has_llsc && R10000_LLSC_WAR) {
 		__asm__ __volatile__(
-		"	" __SET_MIPS "					\n"
+		"	.set	mips3					\n"
 		"1:	" __LL "%0, %1			# clear_bit	\n"
 		"	and	%0, %2					\n"
 		"	" __SC "%0, %1					\n"
@@ -148,7 +146,7 @@ static inline void clear_bit(unsigned long nr, volatile unsigned long *addr)
 		: "ir" (~(1UL << (nr & SZLONG_MASK))), "m" (*m));
 	} else if (cpu_has_llsc) {
 		__asm__ __volatile__(
-		"	" __SET_MIPS "					\n"
+		"	.set	mips3					\n"
 		"1:	" __LL "%0, %1			# clear_bit	\n"
 		"	and	%0, %2					\n"
 		"	" __SC "%0, %1					\n"
@@ -201,7 +199,7 @@ static inline void change_bit(unsigned long nr, volatile unsigned long *addr)
 		unsigned long temp;
 
 		__asm__ __volatile__(
-		"	" __SET_MIPS "				\n"
+		"	.set	mips3				\n"
 		"1:	" __LL "%0, %1		# change_bit	\n"
 		"	xor	%0, %2				\n"
 		"	" __SC	"%0, %1				\n"
@@ -214,7 +212,7 @@ static inline void change_bit(unsigned long nr, volatile unsigned long *addr)
 		unsigned long temp;
 
 		__asm__ __volatile__(
-		"	" __SET_MIPS "				\n"
+		"	.set	mips3				\n"
 		"1:	" __LL "%0, %1		# change_bit	\n"
 		"	xor	%0, %2				\n"
 		"	" __SC	"%0, %1				\n"
@@ -267,7 +265,7 @@ static inline int test_and_set_bit(unsigned long nr,
 		unsigned long temp, res;
 
 		__asm__ __volatile__(
-		"	" __SET_MIPS "					\n"
+		"	.set	mips3					\n"
 		"1:	" __LL "%0, %1		# test_and_set_bit	\n"
 		"	or	%2, %0, %3				\n"
 		"	" __SC	"%2, %1					\n"
@@ -289,7 +287,7 @@ static inline int test_and_set_bit(unsigned long nr,
 		__asm__ __volatile__(
 		"	.set	push					\n"
 		"	.set	noreorder				\n"
-		"	" __SET_MIPS "					\n"
+		"	.set	mips3					\n"
 		"1:	" __LL "%0, %1		# test_and_set_bit	\n"
 		"	or	%2, %0, %3				\n"
 		"	" __SC	"%2, %1					\n"
@@ -361,7 +359,7 @@ static inline int test_and_clear_bit(unsigned long nr,
 		unsigned long temp, res;
 
 		__asm__ __volatile__(
-		"	" __SET_MIPS "					\n"
+		"	.set	mips3					\n"
 		"1:	" __LL	"%0, %1		# test_and_clear_bit	\n"
 		"	or	%2, %0, %3				\n"
 		"	xor	%2, %3					\n"
@@ -384,7 +382,7 @@ static inline int test_and_clear_bit(unsigned long nr,
 		__asm__ __volatile__(
 		"	.set	push					\n"
 		"	.set	noreorder				\n"
-		"	" __SET_MIPS "					\n"
+		"	.set	mips3					\n"
 		"1:	" __LL	"%0, %1		# test_and_clear_bit	\n"
 		"	or	%2, %0, %3				\n"
 		"	xor	%2, %3					\n"
@@ -457,7 +455,7 @@ static inline int test_and_change_bit(unsigned long nr,
 		unsigned long temp, res;
 
 		__asm__ __volatile__(
-		"	" __SET_MIPS "					\n"
+		"	.set	mips3					\n"
 		"1:	" __LL	"%0, %1		# test_and_change_bit	\n"
 		"	xor	%2, %0, %3				\n"
 		"	" __SC	"%2, %1					\n"
@@ -479,7 +477,7 @@ static inline int test_and_change_bit(unsigned long nr,
 		__asm__ __volatile__(
 		"	.set	push					\n"
 		"	.set	noreorder				\n"
-		"	" __SET_MIPS "					\n"
+		"	.set	mips3					\n"
 		"1:	" __LL	"%0, %1		# test_and_change_bit	\n"
 		"	xor	%2, %0, %3				\n"
 		"	" __SC	"\t%2, %1				\n"

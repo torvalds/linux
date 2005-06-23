@@ -42,7 +42,7 @@ static inline int __sem_update_count(struct semaphore *sem, int incr)
 
 	if (cpu_has_llsc && R10000_LLSC_WAR) {
 		__asm__ __volatile__(
-		"	.set	mips2					\n"
+		"	.set	mips3					\n"
 		"1:	ll	%0, %2		# __sem_update_count	\n"
 		"	sra	%1, %0, 31				\n"
 		"	not	%1					\n"
@@ -55,7 +55,7 @@ static inline int __sem_update_count(struct semaphore *sem, int incr)
 		: "r" (incr), "m" (sem->count));
 	} else if (cpu_has_llsc) {
 		__asm__ __volatile__(
-		"	.set	mips2					\n"
+		"	.set	mips3					\n"
 		"1:	ll	%0, %2		# __sem_update_count	\n"
 		"	sra	%1, %0, 31				\n"
 		"	not	%1					\n"
