@@ -558,8 +558,6 @@ static inline int unregister_gifconf(unsigned int family)
 struct softnet_data
 {
 	int			throttle;
-	int			cng_level;
-	int			avg_blog;
 	struct sk_buff_head	input_pkt_queue;
 	struct list_head	poll_list;
 	struct net_device	*output_queue;

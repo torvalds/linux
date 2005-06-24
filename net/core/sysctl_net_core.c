@@ -14,10 +14,6 @@
 
 extern int netdev_max_backlog;
 extern int weight_p;
-extern int no_cong_thresh;
-extern int no_cong;
-extern int lo_cong;
-extern int mod_cong;
 extern int net_msg_cost;
 extern int net_msg_burst;
 
@@ -80,38 +76,6 @@ ctl_table core_table[] = {
 		.ctl_name	= NET_CORE_MAX_BACKLOG,
 		.procname	= "netdev_max_backlog",
 		.data		= &netdev_max_backlog,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
-	},
-	{
-		.ctl_name	= NET_CORE_NO_CONG_THRESH,
-		.procname	= "no_cong_thresh",
-		.data		= &no_cong_thresh,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
-	},
-	{
-		.ctl_name	= NET_CORE_NO_CONG,
-		.procname	= "no_cong",
-		.data		= &no_cong,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
-	},
-	{
-		.ctl_name	= NET_CORE_LO_CONG,
-		.procname	= "lo_cong",
-		.data		= &lo_cong,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
-	},
-	{
-		.ctl_name	= NET_CORE_MOD_CONG,
-		.procname	= "mod_cong",
-		.data		= &mod_cong,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec
