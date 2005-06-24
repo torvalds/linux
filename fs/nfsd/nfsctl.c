@@ -398,9 +398,7 @@ static int __init init_nfsd(void)
 	nfsd_export_init();	/* Exports table */
 	nfsd_lockd_init();	/* lockd->nfsd callbacks */
 	nfs4_state_init();	/* NFSv4 locking state */
-#ifdef CONFIG_NFSD_V4
 	nfsd_idmap_init();      /* Name to ID mapping */
-#endif /* CONFIG_NFSD_V4 */
 	if (proc_mkdir("fs/nfs", NULL)) {
 		struct proc_dir_entry *entry;
 		entry = create_proc_entry("fs/nfs/exports", 0, NULL);
@@ -427,9 +425,7 @@ static void __exit exit_nfsd(void)
 	remove_proc_entry("fs/nfs", NULL);
 	nfsd_stat_shutdown();
 	nfsd_lockd_shutdown();
-#ifdef CONFIG_NFSD_V4
 	nfsd_idmap_shutdown();
-#endif /* CONFIG_NFSD_V4 */
 	unregister_filesystem(&nfsd_fs_type);
 }
 
