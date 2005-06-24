@@ -101,6 +101,8 @@
 #define TUNER_YMEC_TVF_8531MF 58
 #define TUNER_YMEC_TVF_5533MF 59	/* Pixelview Pro Ultra NTSC */
 
+#define TUNER_THOMSON_DTT7611    60
+
 #define NOTUNER 0
 #define PAL     1	/* PAL_BG */
 #define PAL_I   2

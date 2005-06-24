@@ -431,7 +431,7 @@ struct cx88_board cx88_boards[] = {
 	},
         [CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_T] = {
                 .name           = "DViCO - FusionHDTV 3 Gold-T",
-                .tuner_type     = 52, /* Thomson DDT 7611 ATSC/NTSC */
+                .tuner_type     = 60, /* Thomson DDT 7611 ATSC/NTSC */
                /*  See DViCO FusionHDTV 3 Gold for GPIO documentation.  */
                 .input          = {{
                         .type   = CX88_VMUX_TELEVISION,

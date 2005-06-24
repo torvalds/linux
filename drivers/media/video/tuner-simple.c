@@ -217,6 +217,9 @@ static struct tunertype tuners[] = {
 	  16*160.00,16*454.00,0xa0,0x90,0x30,0x8e,732},
 	{ "Ymec TVision TVF-5533MF", Philips, NTSC,
 	  16*160.00,16*454.00,0x01,0x02,0x04,0x8e,732},
+
+	{ "Thomson DDT 7611 (ATSC/NTSC)", THOMSON, ATSC,
+	  16*157.25,16*454.00,0x39,0x3a,0x3c,0x8e,732},
 };
 unsigned const int tuner_count = ARRAY_SIZE(tuners);
 
