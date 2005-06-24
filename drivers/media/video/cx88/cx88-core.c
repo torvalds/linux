@@ -736,6 +736,10 @@ static unsigned int inline norm_fsc8(struct cx88_tvnorm *norm)
 {
 	static const unsigned int ntsc = 28636360;
 	static const unsigned int pal  = 35468950;
+	static const unsigned int palm  = 28604892;
+
+	if (norm->id & V4L2_STD_PAL_M)
+		return palm;
 
 	return (norm->id & V4L2_STD_625_50) ? pal : ntsc;
 }
@@ -749,6 +753,11 @@ static unsigned int inline norm_notchfilter(struct cx88_tvnorm *norm)
 
 static unsigned int inline norm_htotal(struct cx88_tvnorm *norm)
 {
+	/* Should always be Line Draw Time / (4*FSC) */
+
+	if (norm->id & V4L2_STD_PAL_M)
+		return 909;
+
 	return (norm->id & V4L2_STD_625_50) ? 1135 : 910;
 }
 
