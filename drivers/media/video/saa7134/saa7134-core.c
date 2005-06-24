@@ -316,7 +316,7 @@ unsigned long saa7134_buffer_base(struct saa7134_buf *buf)
 
 int saa7134_pgtable_alloc(struct pci_dev *pci, struct saa7134_pgtable *pt)
 {
-        u32          *cpu;
+        __le32       *cpu;
         dma_addr_t   dma_addr;
 
 	cpu = pci_alloc_consistent(pci, SAA7134_PGTABLE_SIZE, &dma_addr);
@@ -332,7 +332,7 @@ int saa7134_pgtable_build(struct pci_dev *pci, struct saa7134_pgtable *pt,
 			  struct scatterlist *list, unsigned int length,
 			  unsigned int startpage)
 {
-	u32           *ptr;
+	__le32        *ptr;
 	unsigned int  i,p;
 
 	BUG_ON(NULL == pt || NULL == pt->cpu);

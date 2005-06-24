@@ -241,7 +241,7 @@ struct saa7134_dma;
 /* saa7134 page table */
 struct saa7134_pgtable {
 	unsigned int               size;
-	u32                        *cpu;
+	__le32                     *cpu;
 	dma_addr_t                 dma;
 };
 
