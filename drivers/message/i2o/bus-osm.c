@@ -59,7 +59,7 @@ static int i2o_bus_scan(struct i2o_device *dev)
  *
  *	Returns count.
  */
-static ssize_t i2o_bus_store_scan(struct device *d, const char *buf,
+static ssize_t i2o_bus_store_scan(struct device *d, struct device_attribute *attr, const char *buf,
 				  size_t count)
 {
 	struct i2o_device *i2o_dev = to_i2o_device(d);

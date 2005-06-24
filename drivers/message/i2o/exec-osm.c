@@ -261,7 +261,7 @@ static int i2o_msg_post_wait_complete(struct i2o_controller *c, u32 m,
  *
  *	Returns number of bytes printed into buffer.
  */
-static ssize_t i2o_exec_show_vendor_id(struct device *d, char *buf)
+static ssize_t i2o_exec_show_vendor_id(struct device *d, struct device_attribute *attr, char *buf)
 {
 	struct i2o_device *dev = to_i2o_device(d);
 	u16 id;
@@ -281,7 +281,7 @@ static ssize_t i2o_exec_show_vendor_id(struct device *d, char *buf)
  *
  *	Returns number of bytes printed into buffer.
  */
-static ssize_t i2o_exec_show_product_id(struct device *d, char *buf)
+static ssize_t i2o_exec_show_product_id(struct device *d, struct device_attribute *attr, char *buf)
 {
 	struct i2o_device *dev = to_i2o_device(d);
 	u16 id;
