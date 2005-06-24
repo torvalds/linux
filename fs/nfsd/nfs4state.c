@@ -72,8 +72,6 @@ u32 add_perclient = 0;
 u32 del_perclient = 0;
 u32 vfsopen = 0;
 u32 vfsclose = 0;
-u32 alloc_delegation= 0;
-u32 free_delegation= 0;
 
 /* forward declarations */
 struct nfs4_stateid * find_stateid(stateid_t *stid, int flags);
@@ -91,6 +89,7 @@ static DECLARE_MUTEX(client_sema);
 kmem_cache_t *stateowner_slab = NULL;
 kmem_cache_t *file_slab = NULL;
 kmem_cache_t *stateid_slab = NULL;
+kmem_cache_t *deleg_slab = NULL;
 
 void
 nfs4_lock_state(void)
@@ -138,8 +137,8 @@ alloc_init_deleg(struct nfs4_client *clp, struct nfs4_stateid *stp, struct svc_f
 	struct nfs4_callback *cb = &stp->st_stateowner->so_client->cl_callback;
 
 	dprintk("NFSD alloc_init_deleg\n");
-	if ((dp = kmalloc(sizeof(struct nfs4_delegation),
-		GFP_KERNEL)) == NULL)
+	dp = kmem_cache_alloc(deleg_slab, GFP_KERNEL);
+	if (dp == NULL)
 		return dp;
 	INIT_LIST_HEAD(&dp->dl_del_perfile);
 	INIT_LIST_HEAD(&dp->dl_del_perclnt);
@@ -164,7 +163,6 @@ alloc_init_deleg(struct nfs4_client *clp, struct nfs4_stateid *stp, struct svc_f
 	atomic_set(&dp->dl_count, 1);
 	list_add(&dp->dl_del_perfile, &fp->fi_del_perfile);
 	list_add(&dp->dl_del_perclnt, &clp->cl_del_perclnt);
-	alloc_delegation++;
 	return dp;
 }
 
@@ -173,8 +171,7 @@ nfs4_put_delegation(struct nfs4_delegation *dp)
 {
 	if (atomic_dec_and_test(&dp->dl_count)) {
 		dprintk("NFSD: freeing dp %p\n",dp);
-		kfree(dp);
-		free_delegation++;
+		kmem_cache_free(deleg_slab, dp);
 	}
 }
 
@@ -1012,6 +1009,7 @@ nfsd4_free_slabs(void)
 	nfsd4_free_slab(&stateowner_slab);
 	nfsd4_free_slab(&file_slab);
 	nfsd4_free_slab(&stateid_slab);
+	nfsd4_free_slab(&deleg_slab);
 }
 
 static int
@@ -1028,6 +1026,10 @@ nfsd4_init_slabs(void)
 	stateid_slab = kmem_cache_create("nfsd4_stateids",
 			sizeof(struct nfs4_stateid), 0, 0, NULL, NULL);
 	if (stateid_slab == NULL)
+		goto out_nomem;
+	deleg_slab = kmem_cache_create("nfsd4_delegations",
+			sizeof(struct nfs4_delegation), 0, 0, NULL, NULL);
+	if (deleg_slab == NULL)
 		goto out_nomem;
 	return 0;
 out_nomem:
@@ -3312,9 +3314,6 @@ __nfs4_state_shutdown(void)
 			add_perclient, del_perclient);
 	dprintk("NFSD: vfsopen %d vfsclose %d\n",
 			vfsopen, vfsclose);
-	dprintk("NFSD: alloc_delegation %d free_delegation %d\n",
-			alloc_delegation, free_delegation);
-
 }
 
 void
