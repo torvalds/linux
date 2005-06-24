@@ -1,6 +1,6 @@
 /* key.c: basic authentication token and access key management
  *
- * Copyright (C) 2004 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2004-5 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -391,7 +391,8 @@ EXPORT_SYMBOL(key_payload_reserve);
 static int __key_instantiate_and_link(struct key *key,
 				      const void *data,
 				      size_t datalen,
-				      struct key *keyring)
+				      struct key *keyring,
+				      struct key *instkey)
 {
 	int ret, awaken;
 
@@ -419,6 +420,10 @@ static int __key_instantiate_and_link(struct key *key,
 			/* and link it into the destination keyring */
 			if (keyring)
 				ret = __key_link(keyring, key);
+
+			/* disable the authorisation key */
+			if (instkey)
+				key_revoke(instkey);
 		}
 	}
 
@@ -439,19 +444,21 @@ static int __key_instantiate_and_link(struct key *key,
 int key_instantiate_and_link(struct key *key,
 			     const void *data,
 			     size_t datalen,
-			     struct key *keyring)
+			     struct key *keyring,
+			     struct key *instkey)
 {
 	int ret;
 
 	if (keyring)
 		down_write(&keyring->sem);
 
-	ret = __key_instantiate_and_link(key, data, datalen, keyring);
+	ret = __key_instantiate_and_link(key, data, datalen, keyring, instkey);
 
 	if (keyring)
 		up_write(&keyring->sem);
 
 	return ret;
+
 } /* end key_instantiate_and_link() */
 
 EXPORT_SYMBOL(key_instantiate_and_link);
@@ -462,7 +469,8 @@ EXPORT_SYMBOL(key_instantiate_and_link);
  */
 int key_negate_and_link(struct key *key,
 			unsigned timeout,
-			struct key *keyring)
+			struct key *keyring,
+			struct key *instkey)
 {
 	struct timespec now;
 	int ret, awaken;
@@ -495,6 +503,10 @@ int key_negate_and_link(struct key *key,
 		/* and link it into the destination keyring */
 		if (keyring)
 			ret = __key_link(keyring, key);
+
+		/* disable the authorisation key */
+		if (instkey)
+			key_revoke(instkey);
 	}
 
 	up_write(&key_construction_sem);
@@ -781,7 +793,7 @@ struct key *key_create_or_update(struct key *keyring,
 	}
 
 	/* instantiate it and link it into the target keyring */
-	ret = __key_instantiate_and_link(key, payload, plen, keyring);
+	ret = __key_instantiate_and_link(key, payload, plen, keyring, NULL);
 	if (ret < 0) {
 		key_put(key);
 		key = ERR_PTR(ret);

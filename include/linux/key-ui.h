@@ -1,4 +1,4 @@
-/* key-ui.h: key userspace interface stuff for use by keyfs
+/* key-ui.h: key userspace interface stuff
  *
  * Copyright (C) 2004 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -84,8 +84,45 @@ static inline int key_any_permission(const struct key *key, key_perm_t perm)
 	return kperm != 0;
 }
 
+static inline int key_task_groups_search(struct task_struct *tsk, gid_t gid)
+{
+	int ret;
 
-extern struct key *lookup_user_key(key_serial_t id, int create, int part,
+	task_lock(tsk);
+	ret = groups_search(tsk->group_info, gid);
+	task_unlock(tsk);
+	return ret;
+}
+
+static inline int key_task_permission(const struct key *key,
+				      struct task_struct *context,
+				      key_perm_t perm)
+{
+	key_perm_t kperm;
+
+	if (key->uid == context->fsuid) {
+		kperm = key->perm >> 16;
+	}
+	else if (key->gid != -1 &&
+		 key->perm & KEY_GRP_ALL && (
+			 key->gid == context->fsgid ||
+			 key_task_groups_search(context, key->gid)
+			 )
+		 ) {
+		kperm = key->perm >> 8;
+	}
+	else {
+		kperm = key->perm;
+	}
+
+	kperm = kperm & perm & KEY_ALL;
+
+	return kperm == perm;
+
+}
+
+extern struct key *lookup_user_key(struct task_struct *context,
+				   key_serial_t id, int create, int partial,
 				   key_perm_t perm);
 
 extern long join_session_keyring(const char *name);

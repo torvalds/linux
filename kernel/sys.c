@@ -1259,7 +1259,7 @@ static void groups_sort(struct group_info *group_info)
 }
 
 /* a simple bsearch */
-static int groups_search(struct group_info *group_info, gid_t grp)
+int groups_search(struct group_info *group_info, gid_t grp)
 {
 	int left, right;
 

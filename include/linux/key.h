@@ -199,10 +199,12 @@ extern int key_payload_reserve(struct key *key, size_t datalen);
 extern int key_instantiate_and_link(struct key *key,
 				    const void *data,
 				    size_t datalen,
-				    struct key *keyring);
+				    struct key *keyring,
+				    struct key *instkey);
 extern int key_negate_and_link(struct key *key,
 			       unsigned timeout,
-			       struct key *keyring);
+			       struct key *keyring,
+			       struct key *instkey);
 extern void key_revoke(struct key *key);
 extern void key_put(struct key *key);
 
@@ -244,9 +246,6 @@ extern int keyring_clear(struct key *keyring);
 extern struct key *keyring_search(struct key *keyring,
 				  struct key_type *type,
 				  const char *description);
-
-extern struct key *search_process_keyrings(struct key_type *type,
-					   const char *description);
 
 extern int keyring_add_key(struct key *keyring,
 			   struct key *key);

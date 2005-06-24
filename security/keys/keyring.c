@@ -1,6 +1,6 @@
 /* keyring.c: keyring handling
  *
- * Copyright (C) 2004 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2004-5 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -308,7 +308,7 @@ struct key *keyring_alloc(const char *description, uid_t uid, gid_t gid,
 			    uid, gid, KEY_USR_ALL, not_in_quota);
 
 	if (!IS_ERR(keyring)) {
-		ret = key_instantiate_and_link(keyring, NULL, 0, dest);
+		ret = key_instantiate_and_link(keyring, NULL, 0, dest, NULL);
 		if (ret < 0) {
 			key_put(keyring);
 			keyring = ERR_PTR(ret);
@@ -326,11 +326,12 @@ struct key *keyring_alloc(const char *description, uid_t uid, gid_t gid,
  * - we only find keys on which we have search permission
  * - we use the supplied match function to see if the description (or other
  *   feature of interest) matches
- * - we readlock the keyrings as we search down the tree
+ * - we rely on RCU to prevent the keyring lists from disappearing on us
  * - we return -EAGAIN if we didn't find any matching key
  * - we return -ENOKEY if we only found negative matching keys
  */
 struct key *keyring_search_aux(struct key *keyring,
+			       struct task_struct *context,
 			       struct key_type *type,
 			       const void *description,
 			       key_match_func_t match)
@@ -352,7 +353,7 @@ struct key *keyring_search_aux(struct key *keyring,
 
 	/* top keyring must have search permission to begin the search */
 	key = ERR_PTR(-EACCES);
-	if (!key_permission(keyring, KEY_SEARCH))
+	if (!key_task_permission(keyring, context, KEY_SEARCH))
 		goto error;
 
 	key = ERR_PTR(-ENOTDIR);
@@ -392,7 +393,7 @@ struct key *keyring_search_aux(struct key *keyring,
 			continue;
 
 		/* key must have search permissions */
-		if (!key_permission(key, KEY_SEARCH))
+		if (!key_task_permission(key, context, KEY_SEARCH))
 			continue;
 
 		/* we set a different error code if we find a negative key */
@@ -418,7 +419,7 @@ struct key *keyring_search_aux(struct key *keyring,
 		if (sp >= KEYRING_SEARCH_MAX_DEPTH)
 			continue;
 
-		if (!key_permission(key, KEY_SEARCH))
+		if (!key_task_permission(key, context, KEY_SEARCH))
 			continue;
 
 		/* stack the current position */
@@ -468,7 +469,11 @@ struct key *keyring_search(struct key *keyring,
 			   struct key_type *type,
 			   const char *description)
 {
-	return keyring_search_aux(keyring, type, description, type->match);
+	if (!type->match)
+		return ERR_PTR(-ENOKEY);
+
+	return keyring_search_aux(keyring, current,
+				  type, description, type->match);
 
 } /* end keyring_search() */
 
@@ -496,7 +501,8 @@ struct key *__keyring_search_one(struct key *keyring,
 			key = klist->keys[loop];
 
 			if (key->type == ktype &&
-			    key->type->match(key, description) &&
+			    (!key->type->match ||
+			     key->type->match(key, description)) &&
 			    key_permission(key, perm) &&
 			    !test_bit(KEY_FLAG_REVOKED, &key->flags)
 			    )
@@ -514,6 +520,51 @@ struct key *__keyring_search_one(struct key *keyring,
 	return key;
 
 } /* end __keyring_search_one() */
+
+/*****************************************************************************/
+/*
+ * search for an instantiation authorisation key matching a target key
+ * - the RCU read lock must be held by the caller
+ * - a target_id of zero specifies any valid token
+ */
+struct key *keyring_search_instkey(struct key *keyring,
+				   key_serial_t target_id)
+{
+	struct request_key_auth *rka;
+	struct keyring_list *klist;
+	struct key *instkey;
+	int loop;
+
+	klist = rcu_dereference(keyring->payload.subscriptions);
+	if (klist) {
+		for (loop = 0; loop < klist->nkeys; loop++) {
+			instkey = klist->keys[loop];
+
+			if (instkey->type != &key_type_request_key_auth)
+				continue;
+
+			rka = instkey->payload.data;
+			if (target_id && rka->target_key->serial != target_id)
+				continue;
+
+			/* the auth key is revoked during instantiation */
+			if (!test_bit(KEY_FLAG_REVOKED, &instkey->flags))
+				goto found;
+
+			instkey = ERR_PTR(-EKEYREVOKED);
+			goto error;
+		}
+	}
+
+	instkey = ERR_PTR(-EACCES);
+	goto error;
+
+found:
+	atomic_inc(&instkey->usage);
+error:
+	return instkey;
+
+} /* end keyring_search_instkey() */
 
 /*****************************************************************************/
 /*

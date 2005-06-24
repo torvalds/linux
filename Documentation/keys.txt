@@ -591,6 +591,37 @@ The keyctl syscall functions are:
      this case too.
 
 
+ (*) Set the default request-key destination keyring.
+
+	long keyctl(KEYCTL_SET_REQKEY_KEYRING, int reqkey_defl);
+
+     This sets the default keyring to which implicitly requested keys will be
+     attached for this thread. reqkey_defl should be one of these constants:
+
+	CONSTANT				VALUE	NEW DEFAULT KEYRING
+	======================================	======	=======================
+	KEY_REQKEY_DEFL_NO_CHANGE		-1	No change
+	KEY_REQKEY_DEFL_DEFAULT			0	Default[1]
+	KEY_REQKEY_DEFL_THREAD_KEYRING		1	Thread keyring
+	KEY_REQKEY_DEFL_PROCESS_KEYRING		2	Process keyring
+	KEY_REQKEY_DEFL_SESSION_KEYRING		3	Session keyring
+	KEY_REQKEY_DEFL_USER_KEYRING		4	User keyring
+	KEY_REQKEY_DEFL_USER_SESSION_KEYRING	5	User session keyring
+	KEY_REQKEY_DEFL_GROUP_KEYRING		6	Group keyring
+
+     The old default will be returned if successful and error EINVAL will be
+     returned if reqkey_defl is not one of the above values.
+
+     The default keyring can be overridden by the keyring indicated to the
+     request_key() system call.
+
+     Note that this setting is inherited across fork/exec.
+
+     [1] The default default is: the thread keyring if there is one, otherwise
+     the process keyring if there is one, otherwise the session keyring if
+     there is one, otherwise the user default session keyring.
+
+
 ===============
 KERNEL SERVICES
 ===============
@@ -625,6 +656,9 @@ payload contents" for more information.
 
     Should the function fail error ENOKEY, EKEYEXPIRED or EKEYREVOKED will be
     returned.
+
+    If successful, the key will have been attached to the default keyring for
+    implicitly obtained request-key keys, as set by KEYCTL_SET_REQKEY_KEYRING.
 
 
 (*) When it is no longer required, the key should be released using:
