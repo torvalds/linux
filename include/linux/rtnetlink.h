@@ -892,10 +892,13 @@ extern void __rta_fill(struct sk_buff *skb, int attrtype, int attrlen, const voi
 		 goto rtattr_failure; \
    	__rta_fill(skb, attrtype, attrlen, data); }) 
 
-#define RTA_PUT_NOHDR(skb, attrlen, data) \
+#define RTA_APPEND(skb, attrlen, data) \
 ({	if (unlikely(skb_tailroom(skb) < (int)(attrlen))) \
 		goto rtattr_failure; \
-	memcpy(skb_put(skb, RTA_ALIGN(attrlen)), data, attrlen); })
+	memcpy(skb_put(skb, attrlen), data, attrlen); })
+
+#define RTA_PUT_NOHDR(skb, attrlen, data) \
+	RTA_APPEND(skb, RTA_ALIGN(attrlen), data)
 
 #define RTA_PUT_U8(skb, attrtype, value) \
 ({	u8 _tmp = (value); \

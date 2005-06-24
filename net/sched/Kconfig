@@ -449,6 +449,17 @@ config NET_EMATCH_META
 	  To compile this code as a module, choose M here: the
 	  module will be called em_meta.
 
+config NET_EMATCH_TEXT
+	tristate "Textsearch"
+	depends on NET_EMATCH
+	---help---
+	  Say Y here if you want to be ablt to classify packets based on
+	  textsearch comparisons. Please select the appropriate textsearch
+	  algorithms in the Library section.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called em_text.
+
 config NET_CLS_ACT
 	bool "Packet ACTION"
 	depends on EXPERIMENTAL && NET_CLS && NET_QOS
