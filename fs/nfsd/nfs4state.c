@@ -65,14 +65,6 @@ static u32 nfs4_init;
 stateid_t zerostateid;             /* bits all 0 */
 stateid_t onestateid;              /* bits all 1 */
 
-/* debug counters */
-u32 list_add_perfile = 0; 
-u32 list_del_perfile = 0;
-u32 add_perclient = 0;
-u32 del_perclient = 0;
-u32 vfsopen = 0;
-u32 vfsclose = 0;
-
 /* forward declarations */
 struct nfs4_stateid * find_stateid(stateid_t *stid, int flags);
 static struct nfs4_delegation * find_delegation_stateid(struct inode *ino, stateid_t *stid);
@@ -192,7 +184,6 @@ nfs4_close_delegation(struct nfs4_delegation *dp)
 	if (dp->dl_flock)
 		setlease(filp, F_UNLCK, &dp->dl_flock);
 	nfsd_close(filp);
-	vfsclose++;
 }
 
 /* Called under the state lock. */
@@ -1083,7 +1074,6 @@ alloc_init_open_stateowner(unsigned int strhashval, struct nfs4_client *clp, str
 	list_add(&sop->so_idhash, &ownerid_hashtbl[idhashval]);
 	list_add(&sop->so_strhash, &ownerstr_hashtbl[strhashval]);
 	list_add(&sop->so_perclient, &clp->cl_perclient);
-	add_perclient++;
 	sop->so_is_open_owner = 1;
 	sop->so_id = current_ownerid++;
 	sop->so_client = clp;
@@ -1117,10 +1107,8 @@ unhash_stateowner(struct nfs4_stateowner *sop)
 
 	list_del(&sop->so_idhash);
 	list_del(&sop->so_strhash);
-	if (sop->so_is_open_owner) {
+	if (sop->so_is_open_owner)
 		list_del(&sop->so_perclient);
-		del_perclient++;
-	}
 	list_del(&sop->so_perlockowner);
 	while (!list_empty(&sop->so_perfilestate)) {
 		stp = list_entry(sop->so_perfilestate.next, 
@@ -1151,7 +1139,6 @@ init_stateid(struct nfs4_stateid *stp, struct nfs4_file *fp, struct nfsd4_open *
 	INIT_LIST_HEAD(&stp->st_perfile);
 	list_add(&stp->st_hash, &stateid_hashtbl[hashval]);
 	list_add(&stp->st_perfilestate, &sop->so_perfilestate);
-	list_add_perfile++;
 	list_add(&stp->st_perfile, &fp->fi_perfile);
 	stp->st_stateowner = sop;
 	stp->st_file = fp;
@@ -1171,14 +1158,12 @@ release_stateid(struct nfs4_stateid *stp, int flags)
 	struct file *filp = stp->st_vfs_file;
 
 	list_del(&stp->st_hash);
-	list_del_perfile++;
 	list_del(&stp->st_perfile);
 	list_del(&stp->st_perfilestate);
 	if (flags & OPEN_STATE) {
 		release_stateid_lockowners(stp);
 		stp->st_vfs_file = NULL;
 		nfsd_close(filp);
-		vfsclose++;
 	} else if (flags & LOCK_STATE)
 		locks_remove_posix(filp, (fl_owner_t) stp->st_stateowner);
 	kmem_cache_free(stateid_slab, stp);
@@ -1645,7 +1630,6 @@ nfs4_new_open(struct svc_rqst *rqstp, struct nfs4_stateid **stpp,
 			return status;
 		}
 	}
-	vfsopen++;
 	*stpp = stp;
 	return 0;
 }
@@ -2650,7 +2634,6 @@ alloc_init_lock_stateid(struct nfs4_stateowner *sop, struct nfs4_file *fp, struc
 	INIT_LIST_HEAD(&stp->st_perlockowner); /* not used */
 	list_add(&stp->st_hash, &lockstateid_hashtbl[hashval]);
 	list_add(&stp->st_perfile, &fp->fi_perfile);
-	list_add_perfile++;
 	list_add(&stp->st_perfilestate, &sop->so_perfilestate);
 	stp->st_stateowner = sop;
 	stp->st_file = fp;
@@ -3308,12 +3291,6 @@ __nfs4_state_shutdown(void)
 	cancel_delayed_work(&laundromat_work);
 	flush_scheduled_work();
 	nfs4_init = 0;
-	dprintk("NFSD: list_add_perfile %d list_del_perfile %d\n",
-			list_add_perfile, list_del_perfile);
-	dprintk("NFSD: add_perclient %d del_perclient %d\n",
-			add_perclient, del_perclient);
-	dprintk("NFSD: vfsopen %d vfsclose %d\n",
-			vfsopen, vfsclose);
 }
 
 void
