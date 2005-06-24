@@ -88,7 +88,7 @@ static int call_request_key(struct key *key,
 	argv[i] = NULL;
 
 	/* do it */
-	return call_usermodehelper(argv[0], argv, envp, 1);
+	return call_usermodehelper_keys(argv[0], argv, envp, NULL, 1);
 
 } /* end call_request_key() */
 

@@ -273,14 +273,22 @@ extern void key_fsuid_changed(struct task_struct *tsk);
 extern void key_fsgid_changed(struct task_struct *tsk);
 extern void key_init(void);
 
+#define __install_session_keyring(tsk, keyring)			\
+({								\
+	struct key *old_session = tsk->signal->session_keyring;	\
+	tsk->signal->session_keyring = keyring;			\
+	old_session;						\
+})
+
 #else /* CONFIG_KEYS */
 
 #define key_validate(k)			0
 #define key_serial(k)			0
-#define key_get(k) 			NULL
+#define key_get(k) 			({ NULL; })
 #define key_put(k)			do { } while(0)
 #define alloc_uid_keyring(u)		0
 #define switch_uid_keyring(u)		do { } while(0)
+#define __install_session_keyring(t, k)	({ NULL; })
 #define copy_keys(f,t)			0
 #define copy_thread_group_keys(t)	0
 #define exit_keys(t)			do { } while(0)
