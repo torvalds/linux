@@ -27,8 +27,8 @@
  * since that isn't available on the A? revisions we just keep doing
  * things manually.
  */
-#define alignb(addr)		(void __iomem *)((unsigned long)addr ^ 3)
-#define alignw(addr)		(void __iomem *)((unsigned long)addr ^ 2)
+#define alignb(addr)		(void __iomem *)((unsigned long)(addr) ^ 3)
+#define alignw(addr)		(void __iomem *)((unsigned long)(addr) ^ 2)
 
 #define outb(v,p)		__raw_writeb((v),alignb(___io(p)))
 #define outw(v,p)		__raw_writew((v),alignw(___io(p)))
