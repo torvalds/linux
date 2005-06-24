@@ -397,6 +397,7 @@ static int __init init_nfsd(void)
 	nfsd_cache_init();	/* RPC reply cache */
 	nfsd_export_init();	/* Exports table */
 	nfsd_lockd_init();	/* lockd->nfsd callbacks */
+	nfs4_state_init();	/* NFSv4 locking state */
 #ifdef CONFIG_NFSD_V4
 	nfsd_idmap_init();      /* Name to ID mapping */
 #endif /* CONFIG_NFSD_V4 */

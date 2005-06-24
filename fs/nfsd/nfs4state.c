@@ -117,7 +117,7 @@ static void release_stateid(struct nfs4_stateid *stp, int flags);
  */
 
 /* recall_lock protects the del_recall_lru */
-spinlock_t recall_lock;
+spinlock_t recall_lock = SPIN_LOCK_UNLOCKED;
 static struct list_head del_recall_lru;
 
 static void
@@ -3179,23 +3179,13 @@ nfs4_check_open_reclaim(clientid_t *clid)
 	return nfs4_find_reclaim_client(clid) ? nfs_ok : nfserr_reclaim_bad;
 }
 
+/* initialization to perform at module load time: */
 
-/* 
- * Start and stop routines
- */
-
-static void
-__nfs4_state_start(void)
+void
+nfs4_state_init(void)
 {
 	int i;
-	time_t grace_time;
 
-	if (!nfs4_reclaim_init) {
-		for (i = 0; i < CLIENT_HASH_SIZE; i++)
-			INIT_LIST_HEAD(&reclaim_str_hashtbl[i]);
-		reclaim_str_hashtbl_size = 0;
-		nfs4_reclaim_init = 1;
-	}
 	for (i = 0; i < CLIENT_HASH_SIZE; i++) {
 		INIT_LIST_HEAD(&conf_id_hashtbl[i]);
 		INIT_LIST_HEAD(&conf_str_hashtbl[i]);
@@ -3217,19 +3207,28 @@ __nfs4_state_start(void)
 		INIT_LIST_HEAD(&lock_ownerid_hashtbl[i]);
 		INIT_LIST_HEAD(&lock_ownerstr_hashtbl[i]);
 	}
-	memset(&zerostateid, 0, sizeof(stateid_t));
 	memset(&onestateid, ~0, sizeof(stateid_t));
-
 	INIT_LIST_HEAD(&close_lru);
 	INIT_LIST_HEAD(&client_lru);
 	INIT_LIST_HEAD(&del_recall_lru);
-	spin_lock_init(&recall_lock);
+	for (i = 0; i < CLIENT_HASH_SIZE; i++)
+		INIT_LIST_HEAD(&reclaim_str_hashtbl[i]);
+	reclaim_str_hashtbl_size = 0;
+	nfs4_reclaim_init = 1;
+}
+
+/* initialization to perform when the nfsd service is started: */
+
+static void
+__nfs4_state_start(void)
+{
+	time_t grace_time;
+
 	boot_time = get_seconds();
 	grace_time = max(user_lease_time, lease_time);
 	lease_time = user_lease_time;
 	printk("NFSD: starting %ld-second grace period\n", grace_time);
 	grace_end = boot_time + grace_time;
-	INIT_WORK(&laundromat_work,laundromat_main, NULL);
 	laundry_wq = create_singlethread_workqueue("nfsd4");
 	queue_delayed_work(laundry_wq, &laundromat_work, NFSD_LEASE_TIME*HZ);
 }
