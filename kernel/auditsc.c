@@ -40,6 +40,7 @@
 #include <linux/personality.h>
 #include <linux/time.h>
 #include <linux/kthread.h>
+#include <linux/netlink.h>
 #include <asm/unistd.h>
 
 /* 0 = no checking
@@ -530,35 +531,62 @@ static enum audit_state audit_filter_syscall(struct task_struct *tsk,
 	return AUDIT_BUILD_CONTEXT;
 }
 
-int audit_filter_user(int pid, int type)
+static int audit_filter_user_rules(struct netlink_skb_parms *cb,
+			      struct audit_rule *rule,
+			      enum audit_state *state)
 {
-	struct task_struct *tsk;
+	int i;
+
+	for (i = 0; i < rule->field_count; i++) {
+		u32 field  = rule->fields[i] & ~AUDIT_NEGATE;
+		u32 value  = rule->values[i];
+		int result = 0;
+
+		switch (field) {
+		case AUDIT_PID:
+			result = (cb->creds.pid == value);
+			break;
+		case AUDIT_UID:
+			result = (cb->creds.uid == value);
+			break;
+		case AUDIT_GID:
+			result = (cb->creds.gid == value);
+			break;
+		case AUDIT_LOGINUID:
+			result = (cb->loginuid == value);
+			break;
+		}
+
+		if (rule->fields[i] & AUDIT_NEGATE)
+			result = !result;
+		if (!result)
+			return 0;
+	}
+	switch (rule->action) {
+	case AUDIT_NEVER:    *state = AUDIT_DISABLED;	    break;
+	case AUDIT_POSSIBLE: *state = AUDIT_BUILD_CONTEXT;  break;
+	case AUDIT_ALWAYS:   *state = AUDIT_RECORD_CONTEXT; break;
+	}
+	return 1;
+}
+
+int audit_filter_user(struct netlink_skb_parms *cb, int type)
+{
 	struct audit_entry *e;
 	enum audit_state   state;
 	int ret = 1;
 
-	read_lock(&tasklist_lock);
-	tsk = find_task_by_pid(pid);
-	if (tsk)
-		get_task_struct(tsk);
-	read_unlock(&tasklist_lock);
-
-	if (!tsk)
-		return -ESRCH;
-
 	rcu_read_lock();
 	list_for_each_entry_rcu(e, &audit_filter_list[AUDIT_FILTER_USER], list) {
-		if (audit_filter_rules(tsk, &e->rule, NULL, &state)) {
+		if (audit_filter_user_rules(cb, &e->rule, &state)) {
 			if (state == AUDIT_DISABLED)
 				ret = 0;
 			break;
 		}
 	}
 	rcu_read_unlock();
-	put_task_struct(tsk);
 
 	return ret; /* Audit by default */
-
 }
 
 /* This should be called with task_lock() held. */

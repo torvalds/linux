@@ -434,7 +434,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		if (!audit_enabled && msg_type != AUDIT_USER_AVC)
 			return 0;
 
-		err = audit_filter_user(pid, msg_type);
+		err = audit_filter_user(&NETLINK_CB(skb), msg_type);
 		if (err == 1) {
 			err = 0;
 			ab = audit_log_start(NULL, GFP_KERNEL, msg_type);
