@@ -891,14 +891,13 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp, struct nfsd4_setclientid_confi
 			status = nfs_ok;
 
 		}
-		goto out;
 	} 
 	/* CASE 2:
 	 * conf record that matches input clientid.
 	 * if unconf record that matches input clientid, then unconf->cl_name
 	 * or unconf->cl_verifier don't match the conf record.
 	 */
-	if ((conf && !unconf) || 
+	else if ((conf && !unconf) ||
 	    ((conf && unconf) && 
 	     (!cmp_verf(&conf->cl_verifier, &unconf->cl_verifier) ||
 	      !same_name(conf->cl_recdir, unconf->cl_recdir)))) {
@@ -908,14 +907,13 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp, struct nfsd4_setclientid_confi
 			clp = conf;
 			status = nfs_ok;
 		}
-		goto out;
 	}
 	/* CASE 3:
 	 * conf record not found.
 	 * unconf record found. 
 	 * unconf->cl_confirm matches input confirm
 	 */ 
-	if (!conf && unconf && cmp_verf(&unconf->cl_confirm, &confirm)) {
+	else if (!conf && unconf && cmp_verf(&unconf->cl_confirm, &confirm)) {
 		if (!cmp_creds(&unconf->cl_cred, &rqstp->rq_cred)) {
 			status = nfserr_clid_inuse;
 		} else {
@@ -930,7 +928,6 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp, struct nfsd4_setclientid_confi
 			move_to_confirmed(unconf);
 			status = nfs_ok;
 		}
-		goto out;
 	}
 	/* CASE 4:
 	 * conf record not found, or if conf, then conf->cl_confirm does not
@@ -938,14 +935,14 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp, struct nfsd4_setclientid_confi
 	 * unconf record not found, or if unconf, then unconf->cl_confirm 
 	 * does not match input confirm.
 	 */
-	if ((!conf || (conf && !cmp_verf(&conf->cl_confirm, &confirm))) &&
+	else if ((!conf || (conf && !cmp_verf(&conf->cl_confirm, &confirm))) &&
 	    (!unconf || (unconf && !cmp_verf(&unconf->cl_confirm, &confirm)))) {
 		status = nfserr_stale_clientid;
-		goto out;
 	}
-	/* check that we have hit one of the cases...*/
-	status = nfserr_clid_inuse;
-	goto out;
+	else {
+		/* check that we have hit one of the cases...*/
+		status = nfserr_clid_inuse;
+	}
 out:
 	if (!status)
 		nfsd4_probe_callback(clp);
