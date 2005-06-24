@@ -24,6 +24,24 @@ config I2O
 
 	  If unsure, say N.
 
+config I2O_EXT_ADAPTEC
+	bool "Enable Adaptec extensions"
+	depends on I2O
+	default y
+	---help---
+	  Say Y for support of raidutils for Adaptec I2O controllers. You also
+	  have to say Y to "I2O Configuration support", "I2O SCSI OSM" below
+	  and to "SCSI generic support" under "SCSI device configuration".
+
+config I2O_EXT_ADAPTEC_DMA64
+	bool "Enable 64-bit DMA"
+	depends on I2O_EXT_ADAPTEC && ( 64BIT || HIGHMEM64G )
+	default y
+	---help---
+	  Say Y for support of 64-bit DMA transfer mode on Adaptec I2O
+	  controllers.
+	  Note: You need at least firmware version 3709.
+
 config I2O_CONFIG
 	tristate "I2O Configuration support"
 	depends on PCI && I2O

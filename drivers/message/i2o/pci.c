@@ -362,11 +362,33 @@ static int __devinit i2o_pci_probe(struct pci_dev *pdev,
 		c->promise = 1;
 	}
 
+	if (pdev->subsystem_vendor == PCI_VENDOR_ID_DPT)
+		c->adaptec = 1;
+
 	/* Cards that go bananas if you quiesce them before you reset them. */
 	if (pdev->vendor == PCI_VENDOR_ID_DPT) {
 		c->no_quiesce = 1;
 		if (pdev->device == 0xa511)
 			c->raptor = 1;
+
+		if (pdev->subsystem_device == 0xc05a) {
+			c->limit_sectors = 1;
+			printk(KERN_INFO
+			       "%s: limit sectors per request to %d\n", c->name,
+			       I2O_MAX_SECTORS_LIMITED);
+		}
+#ifdef CONFIG_I2O_EXT_ADAPTEC_DMA64
+		if (sizeof(dma_addr_t) > 4) {
+			if (pci_set_dma_mask(pdev, DMA_64BIT_MASK))
+				printk(KERN_INFO "%s: 64-bit DMA unavailable\n",
+				       c->name);
+			else {
+				c->pae_support = 1;
+				printk(KERN_INFO "%s: using 64-bit DMA\n",
+				       c->name);
+			}
+		}
+#endif
 	}
 
 	if ((rc = i2o_pci_alloc(c))) {

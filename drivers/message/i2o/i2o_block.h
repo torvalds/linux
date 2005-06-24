@@ -56,6 +56,12 @@
 #define I2O_BLOCK_RETRY_TIME HZ/4
 #define I2O_BLOCK_MAX_OPEN_REQUESTS 50
 
+/* request queue sizes */
+#define I2O_BLOCK_REQ_MEMPOOL_SIZE		32
+
+#define KERNEL_SECTOR_SHIFT 9
+#define KERNEL_SECTOR_SIZE (1 << KERNEL_SECTOR_SHIFT)
+
 /* I2O Block OSM mempool struct */
 struct i2o_block_mempool {
 	kmem_cache_t	*slab;

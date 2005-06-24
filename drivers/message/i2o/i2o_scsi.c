@@ -55,6 +55,7 @@
 #include <linux/pci.h>
 #include <linux/blkdev.h>
 #include <linux/i2o.h>
+#include <linux/scatterlist.h>
 
 #include <asm/dma.h>
 #include <asm/system.h>
@@ -65,19 +66,23 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_cmnd.h>
+#include <scsi/scsi_request.h>
+#include <scsi/sg.h>
+#include <scsi/sg_request.h>
 
 #define OSM_NAME	"scsi-osm"
-#define OSM_VERSION	"$Rev$"
+#define OSM_VERSION	"1.282"
 #define OSM_DESCRIPTION	"I2O SCSI Peripheral OSM"
 
 static struct i2o_driver i2o_scsi_driver;
 
-static int i2o_scsi_max_id = 16;
-static int i2o_scsi_max_lun = 8;
+static unsigned int i2o_scsi_max_id = 16;
+static unsigned int i2o_scsi_max_lun = 255;
 
 struct i2o_scsi_host {
 	struct Scsi_Host *scsi_host;	/* pointer to the SCSI host */
 	struct i2o_controller *iop;	/* pointer to the I2O controller */
+	unsigned int lun;	/* lun's used for block devices */
 	struct i2o_device *channel[0];	/* channel->i2o_dev mapping table */
 };
 
@@ -100,12 +105,17 @@ static struct i2o_scsi_host *i2o_scsi_host_alloc(struct i2o_controller *c)
 	u8 type;
 	int i;
 	size_t size;
-	i2o_status_block *sb;
+	u16 body_size = 6;
+
+#ifdef CONFIG_I2O_EXT_ADAPTEC
+	if (c->adaptec)
+		body_size = 8;
+#endif
 
 	list_for_each_entry(i2o_dev, &c->devices, list)
 	    if (i2o_dev->lct_data.class_id == I2O_CLASS_BUS_ADAPTER) {
 		if (i2o_parm_field_get(i2o_dev, 0x0000, 0, &type, 1)
-		   && (type == 0x01))	/* SCSI bus */
+		    && (type == 0x01))	/* SCSI bus */
 			max_channel++;
 	}
 
@@ -127,20 +137,18 @@ static struct i2o_scsi_host *i2o_scsi_host_alloc(struct i2o_controller *c)
 	scsi_host->max_id = i2o_scsi_max_id;
 	scsi_host->max_lun = i2o_scsi_max_lun;
 	scsi_host->this_id = c->unit;
-
-	sb = c->status_block.virt;
-
-	scsi_host->sg_tablesize = (sb->inbound_frame_size -
-				   sizeof(struct i2o_message) / 4 - 6) / 2;
+	scsi_host->sg_tablesize = i2o_sg_tablesize(c, body_size);
 
 	i2o_shost = (struct i2o_scsi_host *)scsi_host->hostdata;
 	i2o_shost->scsi_host = scsi_host;
 	i2o_shost->iop = c;
+	i2o_shost->lun = 1;
 
 	i = 0;
 	list_for_each_entry(i2o_dev, &c->devices, list)
 	    if (i2o_dev->lct_data.class_id == I2O_CLASS_BUS_ADAPTER) {
-		if (i2o_parm_field_get(i2o_dev, 0x0000, 0, &type, 1) || (type == 1))	/* only SCSI bus */
+		if (i2o_parm_field_get(i2o_dev, 0x0000, 0, &type, 1)
+		    && (type == 0x01))	/* only SCSI bus */
 			i2o_shost->channel[i++] = i2o_dev;
 
 		if (i >= max_channel)
@@ -212,8 +220,8 @@ static int i2o_scsi_probe(struct device *dev)
 	struct Scsi_Host *scsi_host;
 	struct i2o_device *parent;
 	struct scsi_device *scsi_dev;
-	u32 id;
-	u64 lun;
+	u32 id = -1;
+	u64 lun = -1;
 	int channel = -1;
 	int i;
 
@@ -223,8 +231,56 @@ static int i2o_scsi_probe(struct device *dev)
 
 	scsi_host = i2o_shost->scsi_host;
 
-	if (i2o_parm_field_get(i2o_dev, 0, 3, &id, 4) < 0)
+	switch (i2o_dev->lct_data.class_id) {
+	case I2O_CLASS_RANDOM_BLOCK_STORAGE:
+	case I2O_CLASS_EXECUTIVE:
+#ifdef CONFIG_I2O_EXT_ADAPTEC
+		if (c->adaptec) {
+			u8 type;
+			struct i2o_device *d = i2o_shost->channel[0];
+
+			if (i2o_parm_field_get(d, 0x0000, 0, &type, 1)
+			    && (type == 0x01))	/* SCSI bus */
+				if (i2o_parm_field_get(d, 0x0200, 4, &id, 4)) {
+					channel = 0;
+					if (i2o_dev->lct_data.class_id ==
+					    I2O_CLASS_RANDOM_BLOCK_STORAGE)
+						lun = i2o_shost->lun++;
+					else
+						lun = 0;
+				}
+		}
+#endif
+		break;
+
+	case I2O_CLASS_SCSI_PERIPHERAL:
+		if (i2o_parm_field_get(i2o_dev, 0x0000, 3, &id, 4) < 0)
+			return -EFAULT;
+
+		if (i2o_parm_field_get(i2o_dev, 0x0000, 4, &lun, 8) < 0)
+			return -EFAULT;
+
+		parent = i2o_iop_find_device(c, i2o_dev->lct_data.parent_tid);
+		if (!parent) {
+			osm_warn("can not find parent of device %03x\n",
+				 i2o_dev->lct_data.tid);
+			return -EFAULT;
+		}
+
+		for (i = 0; i <= i2o_shost->scsi_host->max_channel; i++)
+			if (i2o_shost->channel[i] == parent)
+				channel = i;
+		break;
+
+	default:
 		return -EFAULT;
+	}
+
+	if (channel == -1) {
+		osm_warn("can not find channel of device %03x\n",
+			 i2o_dev->lct_data.tid);
+		return -EFAULT;
+	}
 
 	if (id >= scsi_host->max_id) {
 		osm_warn("SCSI device id (%d) >= max_id of I2O host (%d)", id,
@@ -232,28 +288,9 @@ static int i2o_scsi_probe(struct device *dev)
 		return -EFAULT;
 	}
 
-	if (i2o_parm_field_get(i2o_dev, 0, 4, &lun, 8) < 0)
-		return -EFAULT;
 	if (lun >= scsi_host->max_lun) {
 		osm_warn("SCSI device id (%d) >= max_lun of I2O host (%d)",
 			 (unsigned int)lun, scsi_host->max_lun);
-		return -EFAULT;
-	}
-
-	parent = i2o_iop_find_device(c, i2o_dev->lct_data.parent_tid);
-	if (!parent) {
-		osm_warn("can not find parent of device %03x\n",
-			 i2o_dev->lct_data.tid);
-		return -EFAULT;
-	}
-
-	for (i = 0; i <= i2o_shost->scsi_host->max_channel; i++)
-		if (i2o_shost->channel[i] == parent)
-			channel = i;
-
-	if (channel == -1) {
-		osm_warn("can not find channel of device %03x\n",
-			 i2o_dev->lct_data.tid);
 		return -EFAULT;
 	}
 
@@ -266,7 +303,8 @@ static int i2o_scsi_probe(struct device *dev)
 		return PTR_ERR(scsi_dev);
 	}
 
-	sysfs_create_link(&i2o_dev->device.kobj, &scsi_dev->sdev_gendev.kobj, "scsi");
+	sysfs_create_link(&i2o_dev->device.kobj, &scsi_dev->sdev_gendev.kobj,
+			  "scsi");
 
 	osm_info("device added (TID: %03x) channel: %d, id: %d, lun: %d\n",
 		 i2o_dev->lct_data.tid, channel, id, (unsigned int)lun);
@@ -542,9 +580,7 @@ static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
 				 void (*done) (struct scsi_cmnd *))
 {
 	struct i2o_controller *c;
-	struct Scsi_Host *host;
 	struct i2o_device *i2o_dev;
-	struct device *dev;
 	int tid;
 	struct i2o_message __iomem *msg;
 	u32 m;
@@ -554,20 +590,16 @@ static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
 	 * RETURN_SENSE_DATA_IN_REPLY_MESSAGE_FRAME
 	 */
 	u32 scsi_flags = 0x20a00000;
-	u32 sg_flags;
+	u32 sgl_offset;
 	u32 __iomem *mptr;
-	u32 __iomem *lenptr;
-	u32 len;
-	int i;
+	u32 cmd = I2O_CMD_SCSI_EXEC << 24;
+	int rc = 0;
 
 	/*
 	 *      Do the incoming paperwork
 	 */
-
 	i2o_dev = SCpnt->device->hostdata;
-	host = SCpnt->device->host;
 	c = i2o_dev->iop;
-	dev = &c->pdev->dev;
 
 	SCpnt->scsi_done = done;
 
@@ -575,7 +607,7 @@ static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
 		osm_warn("no I2O device in request\n");
 		SCpnt->result = DID_NO_CONNECT << 16;
 		done(SCpnt);
-		return 0;
+		goto exit;
 	}
 
 	tid = i2o_dev->lct_data.tid;
@@ -584,46 +616,85 @@ static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
 	osm_debug("Real scsi messages.\n");
 
 	/*
-	 *      Obtain an I2O message. If there are none free then
-	 *      throw it back to the scsi layer
-	 */
-
-	m = i2o_msg_get_wait(c, &msg, I2O_TIMEOUT_MESSAGE_GET);
-	if (m == I2O_QUEUE_EMPTY)
-		return SCSI_MLQUEUE_HOST_BUSY;
-
-	mptr = &msg->body[0];
-
-	/*
 	 *      Put together a scsi execscb message
 	 */
-
 	switch (SCpnt->sc_data_direction) {
 	case PCI_DMA_NONE:
 		/* DATA NO XFER */
-		sg_flags = 0x00000000;
+		sgl_offset = SGL_OFFSET_0;
 		break;
 
 	case PCI_DMA_TODEVICE:
 		/* DATA OUT (iop-->dev) */
 		scsi_flags |= 0x80000000;
-		sg_flags = 0x14000000;
+		sgl_offset = SGL_OFFSET_10;
 		break;
 
 	case PCI_DMA_FROMDEVICE:
 		/* DATA IN  (iop<--dev) */
 		scsi_flags |= 0x40000000;
-		sg_flags = 0x10000000;
+		sgl_offset = SGL_OFFSET_10;
 		break;
 
 	default:
 		/* Unknown - kill the command */
 		SCpnt->result = DID_NO_CONNECT << 16;
 		done(SCpnt);
-		return 0;
+		goto exit;
 	}
 
-	writel(I2O_CMD_SCSI_EXEC << 24 | HOST_TID << 12 | tid, &msg->u.head[1]);
+	/*
+	 *      Obtain an I2O message. If there are none free then
+	 *      throw it back to the scsi layer
+	 */
+
+	m = i2o_msg_get_wait(c, &msg, I2O_TIMEOUT_MESSAGE_GET);
+	if (m == I2O_QUEUE_EMPTY) {
+		rc = SCSI_MLQUEUE_HOST_BUSY;
+		goto exit;
+	}
+
+	mptr = &msg->body[0];
+
+#ifdef CONFIG_I2O_EXT_ADAPTEC
+	if (c->adaptec) {
+		u32 adpt_flags = 0;
+
+		if (SCpnt->sc_request && SCpnt->sc_request->upper_private_data) {
+			i2o_sg_io_hdr_t __user *usr_ptr =
+			    ((Sg_request *) (SCpnt->sc_request->
+					     upper_private_data))->header.
+			    usr_ptr;
+
+			if (usr_ptr)
+				get_user(adpt_flags, &usr_ptr->flags);
+		}
+
+		switch (i2o_dev->lct_data.class_id) {
+		case I2O_CLASS_EXECUTIVE:
+		case I2O_CLASS_RANDOM_BLOCK_STORAGE:
+			/* interpret flag has to be set for executive */
+			adpt_flags ^= I2O_DPT_SG_FLAG_INTERPRET;
+			break;
+
+		default:
+			break;
+		}
+
+		/*
+		 * for Adaptec controllers we use the PRIVATE command, because
+		 * the normal SCSI EXEC doesn't support all SCSI commands on
+		 * all controllers (for example READ CAPACITY).
+		 */
+		if (sgl_offset == SGL_OFFSET_10)
+			sgl_offset = SGL_OFFSET_12;
+		cmd = I2O_CMD_PRIVATE << 24;
+		writel(I2O_VENDOR_DPT << 16 | I2O_CMD_SCSI_EXEC, mptr++);
+		writel(adpt_flags | tid, mptr++);
+	}
+#endif
+
+	writel(cmd | HOST_TID << 12 | tid, &msg->u.head[1]);
 	writel(i2o_scsi_driver.context, &msg->u.s.icntxt);
 
 	/* We want the SCSI control block back */
@@ -655,55 +726,30 @@ static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
 	/* Write SCSI command into the message - always 16 byte block */
 	memcpy_toio(mptr, SCpnt->cmnd, 16);
 	mptr += 4;
-	lenptr = mptr++;	/* Remember me - fill in when we know */
 
-	/* Now fill in the SGList and command */
-	if (SCpnt->use_sg) {
-		struct scatterlist *sg;
-		int sg_count;
+	if (sgl_offset != SGL_OFFSET_0) {
+		/* write size of data addressed by SGL */
+		writel(SCpnt->request_bufflen, mptr++);
 
-		sg = SCpnt->request_buffer;
-		len = 0;
-
-		sg_count = dma_map_sg(dev, sg, SCpnt->use_sg,
-				      SCpnt->sc_data_direction);
-
-		if (unlikely(sg_count <= 0))
-			return -ENOMEM;
-
-		for (i = SCpnt->use_sg; i > 0; i--) {
-			if (i == 1)
-				sg_flags |= 0xC0000000;
-			writel(sg_flags | sg_dma_len(sg), mptr++);
-			writel(sg_dma_address(sg), mptr++);
-			len += sg_dma_len(sg);
-			sg++;
-		}
-
-		writel(len, lenptr);
-	} else {
-		len = SCpnt->request_bufflen;
-
-		writel(len, lenptr);
-
-		if (len > 0) {
-			dma_addr_t dma_addr;
-
-			dma_addr = dma_map_single(dev, SCpnt->request_buffer,
-						  SCpnt->request_bufflen,
-						  SCpnt->sc_data_direction);
-			if (!dma_addr)
-				return -ENOMEM;
-
-			SCpnt->SCp.ptr = (void *)(unsigned long)dma_addr;
-			sg_flags |= 0xC0000000;
-			writel(sg_flags | SCpnt->request_bufflen, mptr++);
-			writel(dma_addr, mptr++);
+		/* Now fill in the SGList and command */
+		if (SCpnt->use_sg) {
+			if (!i2o_dma_map_sg(c, SCpnt->request_buffer,
+					    SCpnt->use_sg,
+					    SCpnt->sc_data_direction, &mptr))
+				goto nomem;
+		} else {
+			SCpnt->SCp.dma_handle =
+			    i2o_dma_map_single(c, SCpnt->request_buffer,
+					       SCpnt->request_bufflen,
+					       SCpnt->sc_data_direction, &mptr);
+			if (dma_mapping_error(SCpnt->SCp.dma_handle))
+				goto nomem;
 		}
 	}
 
 	/* Stick the headers on */
-	writel((mptr - &msg->u.head[0]) << 16 | SGL_OFFSET_10, &msg->u.head[0]);
+	writel(I2O_MESSAGE_SIZE(mptr - &msg->u.head[0]) | sgl_offset,
+	       &msg->u.head[0]);
 
 	/* Queue the message */
 	i2o_msg_post(c, m);
@@ -711,6 +757,13 @@ static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
 	osm_debug("Issued %ld\n", SCpnt->serial_number);
 
 	return 0;
+
+      nomem:
+	rc = -ENOMEM;
+	i2o_msg_nop(c, m);
+
+      exit:
+	return rc;
 };
 
 /**

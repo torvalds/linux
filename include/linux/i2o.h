@@ -147,10 +147,13 @@ struct i2o_controller {
 
 	struct pci_dev *pdev;	/* PCI device */
 
-	unsigned int short_req:1;	/* use small block sizes */
-	unsigned int no_quiesce:1;	/* dont quiesce before reset */
-	unsigned int raptor:1;		/* split bar */
 	unsigned int promise:1;		/* Promise controller */
+	unsigned int adaptec:1;		/* DPT / Adaptec controller */
+	unsigned int raptor:1;	/* split bar */
+	unsigned int no_quiesce:1;	/* dont quiesce before reset */
+	unsigned int short_req:1;	/* use small block sizes */
+	unsigned int limit_sectors:1;	/* limit number of sectors / request */
+	unsigned int pae_support:1;	/* controller has 64-bit SGL support */
 
 	struct list_head devices;	/* list of I2O devices */
 	struct list_head list;	/* Controller list */
@@ -746,7 +749,21 @@ static inline struct i2o_message __iomem *i2o_msg_in_to_virt(struct i2o_controll
 static inline int i2o_dma_alloc(struct device *dev, struct i2o_dma *addr,
 				size_t len, unsigned int gfp_mask)
 {
+	struct pci_dev *pdev = to_pci_dev(dev);
+	int dma_64 = 0;
+
+	if ((sizeof(dma_addr_t) > 4) && (pdev->dma_mask == DMA_64BIT_MASK)) {
+			dma_64 = 1;
+			if(pci_set_dma_mask(pdev, DMA_32BIT_MASK))
+				return -ENOMEM;
+	}
+
 	addr->virt = dma_alloc_coherent(dev, len, &addr->phys, gfp_mask);
+
+	if ((sizeof(dma_addr_t) > 4) && dma_64)
+		if(pci_set_dma_mask(pdev, DMA_64BIT_MASK))
+			printk(KERN_WARNING "i2o: unable to set 64-bit DMA");
+
 	if (!addr->virt)
 		return -ENOMEM;
 
@@ -946,7 +963,7 @@ extern void i2o_debug_state(struct i2o_controller *c);
 #define I2O_CMD_BLOCK_MEJECT		0x43
 #define I2O_CMD_BLOCK_POWER		0x70
 
-#define I2O_PRIVATE_MSG			0xFF
+#define I2O_CMD_PRIVATE			0xFF
 
 /* Command status values  */
 
@@ -1095,9 +1112,9 @@ extern void i2o_debug_state(struct i2o_controller *c);
 #define SGL_OFFSET_8    (0x0080 | I2OVERSION)
 #define SGL_OFFSET_9    (0x0090 | I2OVERSION)
 #define SGL_OFFSET_10   (0x00A0 | I2OVERSION)
-
-#define TRL_OFFSET_5    (0x0050 | I2OVERSION)
-#define TRL_OFFSET_6    (0x0060 | I2OVERSION)
+#define SGL_OFFSET_11   (0x00B0 | I2OVERSION)
+#define SGL_OFFSET_12   (0x00C0 | I2OVERSION)
+#define SGL_OFFSET(x)   (((x)<<4) | I2OVERSION)
 
 /* Transaction Reply Lists (TRL) Control Word structure */
 #define TRL_SINGLE_FIXED_LENGTH		0x00
@@ -1130,7 +1147,6 @@ extern void i2o_debug_state(struct i2o_controller *c);
 #define HOST_TID		1
 
 #define MSG_FRAME_SIZE		128	/* i2o_scsi assumes >= 32 */
-#define REPLY_FRAME_SIZE	17
 #define SG_TABLESIZE		30
 #define NMBR_MSG_FRAMES		128
 
@@ -1155,11 +1171,10 @@ extern void i2o_debug_state(struct i2o_controller *c);
 #define I2O_HRT_GET_TRIES		3
 #define I2O_LCT_GET_TRIES		3
 
-/* request queue sizes */
+/* defines for max_sectors and max_phys_segments */
 #define I2O_MAX_SECTORS			1024
+#define I2O_MAX_SECTORS_LIMITED		256
 #define I2O_MAX_PHYS_SEGMENTS		MAX_PHYS_SEGMENTS
-
-#define I2O_REQ_MEMPOOL_SIZE		32
 
 #endif				/* __KERNEL__ */
 #endif				/* _I2O_H */

@@ -515,6 +515,7 @@ static int i2o_cfg_evt_get(unsigned long arg, struct file *fp)
 	return 0;
 }
 
+#ifdef CONFIG_I2O_EXT_ADAPTEC
 #ifdef CONFIG_COMPAT
 static int i2o_cfg_passthru32(struct file *file, unsigned cmnd, unsigned long arg)
 {
@@ -964,6 +965,7 @@ static int i2o_cfg_passthru(unsigned long arg)
 	kfree(reply);
 	return rcode;
 }
+#endif
 
 /*
  * IOCTL Handler
@@ -1018,9 +1020,11 @@ static int i2o_cfg_ioctl(struct inode *inode, struct file *fp, unsigned int cmd,
 		ret = i2o_cfg_evt_get(arg, fp);
 		break;
 
+#ifdef CONFIG_I2O_EXT_ADAPTEC
 	case I2OPASSTHRU:
 		ret = i2o_cfg_passthru(arg);
 		break;
+#endif
 
 	default:
 		osm_debug("unknown ioctl called!\n");

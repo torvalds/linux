@@ -33,6 +33,13 @@ typedef unsigned int u32;
 #endif				/* __KERNEL__ */
 
 /*
+ *	Software module types
+ */
+#define I2O_SOFTWARE_MODULE_IRTOS		0x11
+#define I2O_SOFTWARE_MODULE_IOP_PRIVATE		0x22
+#define I2O_SOFTWARE_MODULE_IOP_CONFIG		0x23
+
+/*
  *	Vendors
  */
 #define I2O_VENDOR_DPT				0x001b
@@ -124,6 +131,10 @@ struct i2o_evt_get {
 	int pending;
 	int lost;
 };
+
+typedef struct i2o_sg_io_hdr {
+	unsigned int flags;	/* see I2O_DPT_SG_IO_FLAGS */
+} i2o_sg_io_hdr_t;
 
 /**************************************************************************
  * HRT related constants and structures
@@ -402,5 +413,16 @@ typedef struct _i2o_status_block {
 #define ADAPTER_STATE_OPERATIONAL		0x08
 #define ADAPTER_STATE_FAILED			0x10
 #define ADAPTER_STATE_FAULTED			0x11
+
+
+/*
+ * DPT / Adaptec specific values for i2o_sg_io_hdr flags.
+ */
+#define I2O_DPT_SG_FLAG_INTERPRET		0x00010000
+#define I2O_DPT_SG_FLAG_PHYSICAL		0x00020000
+
+#define I2O_DPT_FLASH_FRAG_SIZE			0x10000
+#define I2O_DPT_FLASH_READ			0x0101
+#define I2O_DPT_FLASH_WRITE			0x0102
 
 #endif				/* _I2O_DEV_H */
