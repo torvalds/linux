@@ -1526,6 +1526,15 @@ out:
 	return status;
 }
 
+static inline int
+nfs4_check_delegmode(struct nfs4_delegation *dp, int flags)
+{
+	if ((flags & WR_STATE) && (dp->dl_type == NFS4_OPEN_DELEGATE_READ))
+		return nfserr_openmode;
+	else
+		return nfs_ok;
+}
+
 static struct nfs4_delegation *
 find_delegation_file(struct nfs4_file *fp, stateid_t *stid)
 {
@@ -1958,15 +1967,6 @@ int nfs4_check_openmode(struct nfs4_stateid *stp, int flags)
 	status = nfs_ok;
 out:
 	return status;
-}
-
-static inline int
-nfs4_check_delegmode(struct nfs4_delegation *dp, int flags)
-{
-	if ((flags & WR_STATE) && (dp->dl_type == NFS4_OPEN_DELEGATE_READ))
-		return nfserr_openmode;
-	else
-		return nfs_ok;
 }
 
 static inline int
