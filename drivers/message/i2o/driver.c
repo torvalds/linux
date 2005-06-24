@@ -117,9 +117,8 @@ int i2o_driver_register(struct i2o_driver *drv)
 
 		i2o_driver_notify_controller_add(drv, c);
 		list_for_each_entry(i2o_dev, &c->devices, list)
-			i2o_driver_notify_device_add(drv, i2o_dev);
+		    i2o_driver_notify_device_add(drv, i2o_dev);
 	}
-
 
 	rc = driver_register(&drv->driver);
 	if (rc)

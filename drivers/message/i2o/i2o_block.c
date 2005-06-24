@@ -940,7 +940,6 @@ static void i2o_block_request_fn(struct request_queue *q)
 			INIT_WORK(&dreq->work, i2o_block_delayed_request_fn,
 				  dreq);
 
-			osm_info("transfer error\n");
 			if (!queue_delayed_work(i2o_block_driver.event_queue,
 						&dreq->work,
 						I2O_BLOCK_RETRY_TIME))
@@ -1042,8 +1041,8 @@ static struct i2o_block_device *i2o_block_device_alloc(void)
 static int i2o_block_probe(struct device *dev)
 {
 	struct i2o_device *i2o_dev = to_i2o_device(dev);
-	struct i2o_block_device *i2o_blk_dev;
 	struct i2o_controller *c = i2o_dev->iop;
+	struct i2o_block_device *i2o_blk_dev;
 	struct gendisk *gd;
 	struct request_queue *queue;
 	static int unit = 0;

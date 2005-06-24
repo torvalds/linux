@@ -443,7 +443,6 @@ static struct class_interface i2o_device_class_interface = {
  *	Note that the minimum sized reslist is 8 bytes and contains
  *	ResultCount, ErrorInfoSize, BlockStatus and BlockSize.
  */
-
 static int i2o_parm_issue(struct i2o_device *i2o_dev, int cmd, void *oplist,
 			  int oplen, void *reslist, int reslen)
 {

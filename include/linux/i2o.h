@@ -156,8 +156,8 @@ struct i2o_controller {
 
 	struct pci_dev *pdev;	/* PCI device */
 
-	unsigned int promise:1;		/* Promise controller */
-	unsigned int adaptec:1;		/* DPT / Adaptec controller */
+	unsigned int promise:1;	/* Promise controller */
+	unsigned int adaptec:1;	/* DPT / Adaptec controller */
 	unsigned int raptor:1;	/* split bar */
 	unsigned int no_quiesce:1;	/* dont quiesce before reset */
 	unsigned int short_req:1;	/* use small block sizes */
@@ -174,7 +174,7 @@ struct i2o_controller {
 
 	/* Dynamic LCT related data */
 
-	struct i2o_dma status;	/* status of IOP */
+	struct i2o_dma status;	/* IOP status block */
 
 	struct i2o_dma hrt;	/* HW Resource Table */
 	i2o_lct *lct;		/* Logical Config Table */
@@ -186,7 +186,7 @@ struct i2o_controller {
 	struct i2o_io in_queue;	/* inbound message queue Host->IOP */
 	struct i2o_dma out_queue;	/* outbound message queue IOP->Host */
 
-	unsigned int battery:1;		/* Has a battery backup */
+	unsigned int battery:1;	/* Has a battery backup */
 	unsigned int io_alloc:1;	/* An I/O resource was allocated */
 	unsigned int mem_alloc:1;	/* A memory resource was allocated */
 

@@ -368,9 +368,9 @@ static int i2o_cfg_swul(unsigned long arg)
 
 	i2o_dma_free(&c->pdev->dev, &buffer);
 
-return_ret:
+      return_ret:
 	return ret;
-return_fault:
+      return_fault:
 	ret = -EFAULT;
 	goto return_ret;
 };
@@ -519,7 +519,8 @@ static int i2o_cfg_evt_get(unsigned long arg, struct file *fp)
 
 #ifdef CONFIG_I2O_EXT_ADAPTEC
 #ifdef CONFIG_COMPAT
-static int i2o_cfg_passthru32(struct file *file, unsigned cmnd, unsigned long arg)
+static int i2o_cfg_passthru32(struct file *file, unsigned cmnd,
+			      unsigned long arg)
 {
 	struct i2o_cmd_passthru32 __user *cmd;
 	struct i2o_controller *c;
@@ -646,8 +647,9 @@ static int i2o_cfg_passthru32(struct file *file, unsigned cmnd, unsigned long ar
 			    flag_count & 0x04000000 /*I2O_SGL_FLAGS_DIR */ ) {
 				// TODO 64bit fix
 				if (copy_from_user
-				    (p->virt, (void __user *)(unsigned long)sg[i].addr_bus,
-				     sg_size)) {
+				    (p->virt,
+				     (void __user *)(unsigned long)sg[i].
+				     addr_bus, sg_size)) {
 					printk(KERN_DEBUG
 					       "%s: Could not copy SG buf %d FROM user\n",
 					       c->name, i);
@@ -738,11 +740,12 @@ static int i2o_cfg_passthru32(struct file *file, unsigned cmnd, unsigned long ar
 	return rcode;
 }
 
-static long i2o_cfg_compat_ioctl(struct file *file, unsigned cmd, unsigned long arg)
+static long i2o_cfg_compat_ioctl(struct file *file, unsigned cmd,
+				 unsigned long arg)
 {
 	int ret;
-	lock_kernel();		
-	switch (cmd) { 
+	lock_kernel();
+	switch (cmd) {
 	case I2OGETIOPS:
 		ret = i2o_cfg_ioctl(NULL, file, cmd, arg);
 		break;
@@ -1136,6 +1139,7 @@ static int __init i2o_config_old_init(void)
 		osm_err("can't register device.\n");
 		return -EBUSY;
 	}
+
 	return 0;
 }
 

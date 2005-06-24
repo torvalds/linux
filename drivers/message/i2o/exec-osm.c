@@ -152,7 +152,7 @@ int i2o_msg_post_wait_mem(struct i2o_controller *c, u32 m, unsigned long
 		list_add(&wait->list, &i2o_exec_wait_list);
 
 		wait_event_interruptible_timeout(wq, wait->complete,
-			timeout * HZ);
+						 timeout * HZ);
 
 		wait->wq = NULL;
 	}

@@ -117,13 +117,13 @@ u32 i2o_cntxt_list_add(struct i2o_controller * c, void *ptr)
 	unsigned long flags;
 
 	if (!ptr)
-		printk(KERN_ERR "%s: couldn't add NULL pointer to context list!"
-		       "\n", c->name);
+		osm_err("%s: couldn't add NULL pointer to context list!\n",
+			c->name);
 
 	entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
 	if (!entry) {
-		printk(KERN_ERR "%s: Could not allocate memory for context "
-		       "list element\n", c->name);
+		osm_err("%s: Could not allocate memory for context list element"
+			"\n", c->name);
 		return 0;
 	}
 
@@ -142,7 +142,7 @@ u32 i2o_cntxt_list_add(struct i2o_controller * c, void *ptr)
 
 	spin_unlock_irqrestore(&c->context_list_lock, flags);
 
-	pr_debug("%s: Add context to list %p -> %d\n", c->name, ptr, context);
+	osm_debug("%s: Add context to list %p -> %d\n", c->name, ptr, context);
 
 	return entry->context;
 };
@@ -174,11 +174,11 @@ u32 i2o_cntxt_list_remove(struct i2o_controller * c, void *ptr)
 	spin_unlock_irqrestore(&c->context_list_lock, flags);
 
 	if (!context)
-		printk(KERN_WARNING "%s: Could not remove nonexistent ptr "
-		       "%p\n", c->name, ptr);
+		osm_warn("%s: Could not remove nonexistent ptr %p\n", c->name,
+			 ptr);
 
-	pr_debug("%s: remove ptr from context list %d -> %p\n", c->name,
-		 context, ptr);
+	osm_debug("%s: remove ptr from context list %d -> %p\n", c->name,
+		  context, ptr);
 
 	return context;
 };
@@ -208,11 +208,10 @@ void *i2o_cntxt_list_get(struct i2o_controller *c, u32 context)
 	spin_unlock_irqrestore(&c->context_list_lock, flags);
 
 	if (!ptr)
-		printk(KERN_WARNING "%s: context id %d not found\n", c->name,
-		       context);
+		osm_warn("%s: context id %d not found\n", c->name, context);
 
-	pr_debug("%s: get ptr from context list %d -> %p\n", c->name, context,
-		 ptr);
+	osm_debug("%s: get ptr from context list %d -> %p\n", c->name, context,
+		  ptr);
 
 	return ptr;
 };
@@ -240,11 +239,11 @@ u32 i2o_cntxt_list_get_ptr(struct i2o_controller * c, void *ptr)
 	spin_unlock_irqrestore(&c->context_list_lock, flags);
 
 	if (!context)
-		printk(KERN_WARNING "%s: Could not find nonexistent ptr "
-		       "%p\n", c->name, ptr);
+		osm_warn("%s: Could not find nonexistent ptr %p\n", c->name,
+			 ptr);
 
-	pr_debug("%s: get context id from context list %p -> %d\n", c->name,
-		 ptr, context);
+	osm_debug("%s: get context id from context list %p -> %d\n", c->name,
+		  ptr, context);
 
 	return context;
 };
@@ -324,10 +323,9 @@ static int i2o_iop_quiesce(struct i2o_controller *c)
 
 	/* Long timeout needed for quiesce if lots of devices */
 	if ((rc = i2o_msg_post_wait(c, m, 240)))
-		printk(KERN_INFO "%s: Unable to quiesce (status=%#x).\n",
-		       c->name, -rc);
+		osm_info("%s: Unable to quiesce (status=%#x).\n", c->name, -rc);
 	else
-		pr_debug("%s: Quiesced.\n", c->name);
+		osm_debug("%s: Quiesced.\n", c->name);
 
 	i2o_status_get(c);	// Entered READY state
 
@@ -365,10 +363,9 @@ static int i2o_iop_enable(struct i2o_controller *c)
 
 	/* How long of a timeout do we need? */
 	if ((rc = i2o_msg_post_wait(c, m, 240)))
-		printk(KERN_ERR "%s: Could not enable (status=%#x).\n",
-		       c->name, -rc);
+		osm_err("%s: Could not enable (status=%#x).\n", c->name, -rc);
 	else
-		pr_debug("%s: Enabled.\n", c->name);
+		osm_debug("%s: Enabled.\n", c->name);
 
 	i2o_status_get(c);	// entered OPERATIONAL state
 
@@ -432,10 +429,9 @@ static int i2o_iop_clear(struct i2o_controller *c)
 	       &msg->u.head[1]);
 
 	if ((rc = i2o_msg_post_wait(c, m, 30)))
-		printk(KERN_INFO "%s: Unable to clear (status=%#x).\n",
-		       c->name, -rc);
+		osm_info("%s: Unable to clear (status=%#x).\n", c->name, -rc);
 	else
-		pr_debug("%s: Cleared.\n", c->name);
+		osm_debug("%s: Cleared.\n", c->name);
 
 	/* Enable all IOPs */
 	i2o_iop_enable_all();
@@ -570,14 +566,13 @@ static int i2o_iop_reset(struct i2o_controller *c)
 		 * can't read one in the given ammount of time, we assume the
 		 * IOP could not reboot properly.
 		 */
-		pr_debug("%s: Reset in progress, waiting for reboot...\n",
-			 c->name);
+		osm_debug("%s: Reset in progress, waiting for reboot...\n",
+			  c->name);
 
 		m = i2o_msg_get_wait(c, &msg, I2O_TIMEOUT_RESET);
 		while (m == I2O_QUEUE_EMPTY) {
 			if (time_after(jiffies, timeout)) {
-				printk(KERN_ERR "%s: IOP reset timeout.\n",
-				       c->name);
+				osm_err("%s: IOP reset timeout.\n", c->name);
 				rc = -ETIMEDOUT;
 				goto exit;
 			}
@@ -635,29 +630,29 @@ static int i2o_iop_activate(struct i2o_controller *c)
 
 	rc = i2o_status_get(c);
 	if (rc) {
-		printk(KERN_INFO "%s: Unable to obtain status, "
-		       "attempting a reset.\n", c->name);
+		osm_info("%s: Unable to obtain status, attempting a reset.\n",
+			 c->name);
 		rc = i2o_iop_reset(c);
 		if (rc)
 			return rc;
 	}
 
 	if (sb->i2o_version > I2OVER15) {
-		printk(KERN_ERR "%s: Not running version 1.5 of the I2O "
-		       "Specification.\n", c->name);
+		osm_err("%s: Not running version 1.5 of the I2O Specification."
+			"\n", c->name);
 		return -ENODEV;
 	}
 
 	switch (sb->iop_state) {
 	case ADAPTER_STATE_FAULTED:
-		printk(KERN_CRIT "%s: hardware fault\n", c->name);
+		osm_err("%s: hardware fault\n", c->name);
 		return -EFAULT;
 
 	case ADAPTER_STATE_READY:
 	case ADAPTER_STATE_OPERATIONAL:
 	case ADAPTER_STATE_HOLD:
 	case ADAPTER_STATE_FAILED:
-		pr_debug("%s: already running, trying to reset...\n", c->name);
+		osm_debug("%s: already running, trying to reset...\n", c->name);
 		rc = i2o_iop_reset(c);
 		if (rc)
 			return rc;
@@ -707,20 +702,18 @@ static int i2o_iop_systab_set(struct i2o_controller *c)
 		res->flags = IORESOURCE_MEM;
 		res->start = 0;
 		res->end = 0;
-		printk(KERN_INFO "%s: requires private memory resources.\n",
-		       c->name);
+		osm_info("%s: requires private memory resources.\n", c->name);
 		root = pci_find_parent_resource(c->pdev, res);
 		if (root == NULL)
-			printk(KERN_WARNING "%s: Can't find parent resource!\n",
-			       c->name);
+			osm_warn("%s: Can't find parent resource!\n", c->name);
 		if (root && allocate_resource(root, res, sb->desired_mem_size, sb->desired_mem_size, sb->desired_mem_size, 1 << 20,	/* Unspecified, so use 1Mb and play safe */
 					      NULL, NULL) >= 0) {
 			c->mem_alloc = 1;
 			sb->current_mem_size = 1 + res->end - res->start;
 			sb->current_mem_base = res->start;
-			printk(KERN_INFO "%s: allocated %ld bytes of PCI memory"
-			       " at 0x%08lX.\n", c->name,
-			       1 + res->end - res->start, res->start);
+			osm_info("%s: allocated %ld bytes of PCI memory at "
+				 "0x%08lX.\n", c->name,
+				 1 + res->end - res->start, res->start);
 		}
 	}
 
@@ -730,20 +723,18 @@ static int i2o_iop_systab_set(struct i2o_controller *c)
 		res->flags = IORESOURCE_IO;
 		res->start = 0;
 		res->end = 0;
-		printk(KERN_INFO "%s: requires private memory resources.\n",
-		       c->name);
+		osm_info("%s: requires private memory resources.\n", c->name);
 		root = pci_find_parent_resource(c->pdev, res);
 		if (root == NULL)
-			printk(KERN_WARNING "%s: Can't find parent resource!\n",
-			       c->name);
+			osm_warn("%s: Can't find parent resource!\n", c->name);
 		if (root && allocate_resource(root, res, sb->desired_io_size, sb->desired_io_size, sb->desired_io_size, 1 << 20,	/* Unspecified, so use 1Mb and play safe */
 					      NULL, NULL) >= 0) {
 			c->io_alloc = 1;
 			sb->current_io_size = 1 + res->end - res->start;
 			sb->current_mem_base = res->start;
-			printk(KERN_INFO "%s: allocated %ld bytes of PCI I/O at"
-			       " 0x%08lX.\n", c->name,
-			       1 + res->end - res->start, res->start);
+			osm_info("%s: allocated %ld bytes of PCI I/O at 0x%08lX"
+				 ".\n", c->name, 1 + res->end - res->start,
+				 res->start);
 		}
 	}
 
@@ -787,10 +778,10 @@ static int i2o_iop_systab_set(struct i2o_controller *c)
 			 PCI_DMA_TODEVICE);
 
 	if (rc < 0)
-		printk(KERN_ERR "%s: Unable to set SysTab (status=%#x).\n",
-		       c->name, -rc);
+		osm_err("%s: Unable to set SysTab (status=%#x).\n", c->name,
+			-rc);
 	else
-		pr_debug("%s: SysTab set.\n", c->name);
+		osm_debug("%s: SysTab set.\n", c->name);
 
 	i2o_status_get(c);	// Entered READY state
 
@@ -814,7 +805,7 @@ static int i2o_iop_online(struct i2o_controller *c)
 		return rc;
 
 	/* In READY state */
-	pr_debug("%s: Attempting to enable...\n", c->name);
+	osm_debug("%s: Attempting to enable...\n", c->name);
 	rc = i2o_iop_enable(c);
 	if (rc)
 		return rc;
@@ -833,7 +824,7 @@ void i2o_iop_remove(struct i2o_controller *c)
 {
 	struct i2o_device *dev, *tmp;
 
-	pr_debug("%s: deleting controller\n", c->name);
+	osm_debug("%s: deleting controller\n", c->name);
 
 	i2o_driver_notify_controller_remove_all(c);
 
@@ -882,8 +873,7 @@ static int i2o_systab_build(void)
 
 	systab = i2o_systab.virt = kmalloc(i2o_systab.len, GFP_KERNEL);
 	if (!systab) {
-		printk(KERN_ERR "i2o: unable to allocate memory for System "
-		       "Table\n");
+		osm_err("unable to allocate memory for System Table\n");
 		return -ENOMEM;
 	}
 	memset(systab, 0, i2o_systab.len);
@@ -895,8 +885,8 @@ static int i2o_systab_build(void)
 		i2o_status_block *sb;
 
 		if (count >= num_controllers) {
-			printk(KERN_ERR "i2o: controller added while building "
-			       "system table\n");
+			osm_err("controller added while building system table"
+				"\n");
 			break;
 		}
 
@@ -910,9 +900,8 @@ static int i2o_systab_build(void)
 		 * it is techninically not part of the I2O subsystem...
 		 */
 		if (unlikely(i2o_status_get(c))) {
-			printk(KERN_ERR "%s: Deleting b/c could not get status"
-			       " while attempting to build system table\n",
-			       c->name);
+			osm_err("%s: Deleting b/c could not get status while "
+				"attempting to build system table\n", c->name);
 			i2o_iop_remove(c);
 			continue;	// try the next one
 		}
@@ -994,7 +983,7 @@ int i2o_status_get(struct i2o_controller *c)
 	timeout = jiffies + I2O_TIMEOUT_STATUS_GET * HZ;
 	while (status_block[87] != 0xFF) {
 		if (time_after(jiffies, timeout)) {
-			printk(KERN_ERR "%s: Get status timeout.\n", c->name);
+			osm_err("%s: Get status timeout.\n", c->name);
 			return -ETIMEDOUT;
 		}
 
@@ -1043,8 +1032,8 @@ static int i2o_hrt_get(struct i2o_controller *c)
 		rc = i2o_msg_post_wait_mem(c, m, 20, &c->hrt);
 
 		if (rc < 0) {
-			printk(KERN_ERR "%s: Unable to get HRT (status=%#x)\n",
-			       c->name, -rc);
+			osm_err("%s: Unable to get HRT (status=%#x)\n", c->name,
+				-rc);
 			return rc;
 		}
 
@@ -1058,8 +1047,8 @@ static int i2o_hrt_get(struct i2o_controller *c)
 			return i2o_parse_hrt(c);
 	}
 
-	printk(KERN_ERR "%s: Unable to get HRT after %d tries, giving up\n",
-	       c->name, I2O_HRT_GET_TRIES);
+	osm_err("%s: Unable to get HRT after %d tries, giving up\n", c->name,
+		I2O_HRT_GET_TRIES);
 
 	return -EBUSY;
 }
@@ -1072,7 +1061,6 @@ void i2o_iop_free(struct i2o_controller *c)
 {
 	kfree(c);
 };
-
 
 /**
  *	i2o_iop_release - release the memory for a I2O controller
@@ -1109,8 +1097,8 @@ struct i2o_controller *i2o_iop_alloc(void)
 
 	c = kmalloc(sizeof(*c), GFP_KERNEL);
 	if (!c) {
-		printk(KERN_ERR "i2o: Insufficient memory to allocate a I2O "
-		       "controller.\n");
+		osm_err("i2o: Insufficient memory to allocate a I2O controller."
+			"\n");
 		return ERR_PTR(-ENOMEM);
 	}
 	memset(c, 0, sizeof(*c));

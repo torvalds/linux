@@ -179,7 +179,10 @@ static int __devinit i2o_pci_alloc(struct i2o_controller *c)
 		return -ENOMEM;
 	}
 
-	if (i2o_dma_alloc(dev, &c->out_queue, MSG_POOL_SIZE, GFP_KERNEL)) {
+	if (i2o_dma_alloc
+	    (dev, &c->out_queue,
+	     I2O_MAX_OUTBOUND_MSG_FRAMES * I2O_OUTBOUND_MSG_FRAME_SIZE *
+	     sizeof(u32), GFP_KERNEL)) {
 		i2o_pci_free(c);
 		return -ENOMEM;
 	}
