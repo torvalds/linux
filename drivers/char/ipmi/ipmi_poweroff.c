@@ -31,12 +31,13 @@
  *  with this program; if not, write to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
-#include <asm/semaphore.h>
-#include <linux/kdev_t.h>
+#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/proc_fs.h>
 #include <linux/string.h>
+#include <linux/completion.h>
+#include <linux/kdev_t.h>
 #include <linux/ipmi.h>
 #include <linux/ipmi_smi.h>
 
@@ -89,10 +90,10 @@ static struct ipmi_recv_msg halt_recv_msg =
 
 static void receive_handler(struct ipmi_recv_msg *recv_msg, void *handler_data)
 {
-	struct semaphore *sem = recv_msg->user_msg_data;
+	struct completion *comp = recv_msg->user_msg_data;
 
-	if (sem)
-		up(sem);
+	if (comp)
+		complete(comp);
 }
 
 static struct ipmi_user_hndl ipmi_poweroff_handler =
@@ -105,27 +106,27 @@ static int ipmi_request_wait_for_response(ipmi_user_t            user,
 					  struct ipmi_addr       *addr,
 					  struct kernel_ipmi_msg *send_msg)
 {
-	int              rv;
-	struct semaphore sem;
+	int               rv;
+	struct completion comp;
 
-	sema_init (&sem, 0);
+	init_completion(&comp);
 
-	rv = ipmi_request_supply_msgs(user, addr, 0, send_msg, &sem,
+	rv = ipmi_request_supply_msgs(user, addr, 0, send_msg, &comp,
 				      &halt_smi_msg, &halt_recv_msg, 0);
 	if (rv)
 		return rv;
 
-	down (&sem);
+	wait_for_completion(&comp);
 
 	return halt_recv_msg.msg.data[0];
 }
 
-/* We are in run-to-completion mode, no semaphore is desired. */
+/* We are in run-to-completion mode, no completion is desired. */
 static int ipmi_request_in_rc_mode(ipmi_user_t            user,
 				   struct ipmi_addr       *addr,
 				   struct kernel_ipmi_msg *send_msg)
 {
-	int              rv;
+	int rv;
 
 	rv = ipmi_request_supply_msgs(user, addr, 0, send_msg, NULL,
 				      &halt_smi_msg, &halt_recv_msg, 0);
