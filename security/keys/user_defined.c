@@ -48,6 +48,8 @@ struct user_key_payload {
 	char		data[0];	/* actual data */
 };
 
+EXPORT_SYMBOL_GPL(key_type_user);
+
 /*****************************************************************************/
 /*
  * instantiate a user defined key
