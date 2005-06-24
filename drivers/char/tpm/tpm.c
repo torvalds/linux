@@ -146,8 +146,12 @@ ssize_t tpm_show_pcrs(struct device *dev, struct device_attribute *attr,
 
 	memcpy(data, cap_pcr, sizeof(cap_pcr));
 	if ((len = tpm_transmit(chip, data, sizeof(data)))
-	    < CAP_PCR_RESULT_SIZE)
-		return len;
+	    < CAP_PCR_RESULT_SIZE) {
+		dev_err(&chip->pci_dev->dev, "A TPM error (%d) occurred "
+				"attempting to determine the number of PCRS\n",
+			be32_to_cpu(*((__be32 *) (data + 6))));
+		return 0;
+	}
 
 	num_pcrs = be32_to_cpu(*((__be32 *) (data + 14)));
 
@@ -156,16 +160,20 @@ ssize_t tpm_show_pcrs(struct device *dev, struct device_attribute *attr,
 		index = cpu_to_be32(i);
 		memcpy(data + 10, &index, 4);
 		if ((len = tpm_transmit(chip, data, sizeof(data)))
-		    < READ_PCR_RESULT_SIZE)
-			return len;
+		    < READ_PCR_RESULT_SIZE){
+			dev_err(&chip->pci_dev->dev, "A TPM error (%d) occurred"
+				" attempting to read PCR %d of %d\n",
+				be32_to_cpu(*((__be32 *) (data + 6))), i, num_pcrs);
+			goto out;
+		}
 		str += sprintf(str, "PCR-%02d: ", i);
 		for (j = 0; j < TPM_DIGEST_SIZE; j++)
 			str += sprintf(str, "%02X ", *(data + 10 + j));
 		str += sprintf(str, "\n");
 	}
+out:
 	return str - buf;
 }
-
 EXPORT_SYMBOL_GPL(tpm_show_pcrs);
 
 #define  READ_PUBEK_RESULT_SIZE 314
@@ -197,8 +205,10 @@ ssize_t tpm_show_pubek(struct device *dev, struct device_attribute *attr,
 
 	if ((len = tpm_transmit(chip, data, READ_PUBEK_RESULT_SIZE)) <
 	    READ_PUBEK_RESULT_SIZE) {
-		rc = len;
-		goto out;
+		dev_err(&chip->pci_dev->dev, "A TPM error (%d) occurred "
+				"attempting to read the PUBEK\n",
+			    be32_to_cpu(*((__be32 *) (data + 6))));
+		return 0;
 	}
 
 	/* 
@@ -230,7 +240,6 @@ ssize_t tpm_show_pubek(struct device *dev, struct device_attribute *attr,
 			str += sprintf(str, "\n");
 	}
 	rc = str - buf;
-out:
 	kfree(data);
 	return rc;
 }
