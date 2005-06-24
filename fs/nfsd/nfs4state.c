@@ -1709,14 +1709,30 @@ nfs4_open_delegation(struct svc_fh *fh, struct nfsd4_open *open, struct nfs4_sta
 	int status, flag = 0;
 
 	flag = NFS4_OPEN_DELEGATE_NONE;
-	if (open->op_claim_type != NFS4_OPEN_CLAIM_NULL
-	     || !atomic_read(&cb->cb_set) || !sop->so_confirmed)
-		goto out;
-
-	if (open->op_share_access & NFS4_SHARE_ACCESS_WRITE)
-		flag = NFS4_OPEN_DELEGATE_WRITE;
-	else
-		flag = NFS4_OPEN_DELEGATE_READ;
+	open->op_recall = 0;
+	switch (open->op_claim_type) {
+		case NFS4_OPEN_CLAIM_PREVIOUS:
+			if (!atomic_read(&cb->cb_set))
+				open->op_recall = 1;
+			flag = open->op_delegate_type;
+			if (flag == NFS4_OPEN_DELEGATE_NONE)
+				goto out;
+			break;
+		case NFS4_OPEN_CLAIM_NULL:
+			/* Let's not give out any delegations till everyone's
+			 * had the chance to reclaim theirs.... */
+			if (nfs4_in_grace())
+				goto out;
+			if (!atomic_read(&cb->cb_set) || !sop->so_confirmed)
+				goto out;
+			if (open->op_share_access & NFS4_SHARE_ACCESS_WRITE)
+				flag = NFS4_OPEN_DELEGATE_WRITE;
+			else
+				flag = NFS4_OPEN_DELEGATE_READ;
+			break;
+		default:
+			goto out;
+	}
 
 	dp = alloc_init_deleg(sop->so_client, stp, fh, flag);
 	if (dp == NULL) {
@@ -1750,6 +1766,10 @@ nfs4_open_delegation(struct svc_fh *fh, struct nfsd4_open *open, struct nfs4_sta
 	             dp->dl_stateid.si_fileid,
 	             dp->dl_stateid.si_generation);
 out:
+	if (open->op_claim_type == NFS4_OPEN_CLAIM_PREVIOUS
+			&& flag == NFS4_OPEN_DELEGATE_NONE
+			&& open->op_delegate_type != NFS4_OPEN_DELEGATE_NONE)
+		printk("NFSD: WARNING: refusing delegation reclaim\n");
 	open->op_delegate_type = flag;
 }
 

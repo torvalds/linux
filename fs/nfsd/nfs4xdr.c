@@ -1972,7 +1972,7 @@ nfsd4_encode_open(struct nfsd4_compoundres *resp, int nfserr, struct nfsd4_open 
 	case NFS4_OPEN_DELEGATE_READ:
 		RESERVE_SPACE(20 + sizeof(stateid_t));
 		WRITEMEM(&open->op_delegate_stateid, sizeof(stateid_t));
-		WRITE32(0);
+		WRITE32(open->op_recall);
 
 		/*
 		 * TODO: ACE's in delegations
