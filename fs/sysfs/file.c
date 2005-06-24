@@ -14,7 +14,7 @@
 #define to_subsys(k) container_of(k,struct subsystem,kset.kobj)
 #define to_sattr(a) container_of(a,struct subsys_attribute,attr)
 
-/**
+/*
  * Subsystem file operations.
  * These operations allow subsystems to have files that can be 
  * read/written. 
@@ -192,8 +192,9 @@ fill_write_buffer(struct sysfs_buffer * buffer, const char __user * buf, size_t 
 
 /**
  *	flush_write_buffer - push buffer to kobject.
- *	@file:		file pointer.
+ *	@dentry:	dentry to the attribute
  *	@buffer:	data buffer for file.
+ *	@count:		number of bytes
  *
  *	Get the correct pointers for the kobject and the attribute we're
  *	dealing with, then call the store() method for the attribute, 
