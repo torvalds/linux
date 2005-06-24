@@ -3155,11 +3155,7 @@ nfs4_find_reclaim_client(clientid_t *clid)
 int
 nfs4_check_open_reclaim(clientid_t *clid)
 {
-	struct nfs4_client_reclaim *crp;
-
-	if ((crp = nfs4_find_reclaim_client(clid)) == NULL)
-		return nfserr_reclaim_bad;
-	return nfs_ok;
+	return nfs4_find_reclaim_client(clid) ? nfs_ok : nfserr_reclaim_bad;
 }
 
 
