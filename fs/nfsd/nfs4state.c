@@ -674,23 +674,13 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_setclientid *setclid)
 		 * or different ip_address
 		 */
 		status = nfserr_clid_inuse;
-		if (!cmp_creds(&clp->cl_cred,&rqstp->rq_cred)) {
+		if (!cmp_creds(&clp->cl_cred,&rqstp->rq_cred)
+				|| clp->cl_addr != ip_addr) {
 			printk("NFSD: setclientid: string in use by client"
 			"(clientid %08x/%08x)\n",
 			clp->cl_clientid.cl_boot, clp->cl_clientid.cl_id);
 			goto out;
 		}
-		if (clp->cl_addr != ip_addr) { 
-			printk("NFSD: setclientid: string in use by client"
-			"(clientid %08x/%08x)\n",
-			clp->cl_clientid.cl_boot, clp->cl_clientid.cl_id);
-			goto out;
-		}
-
-		/* 
-	 	 * cl_name match from a previous SETCLIENTID operation
-	 	 * XXX check for additional matches?
-		 */
 		conf = clp;
 		break;
 	}
