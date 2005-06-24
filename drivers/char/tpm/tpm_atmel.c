@@ -147,6 +147,7 @@ static struct tpm_vendor_specific tpm_atmel = {
 	.cancel = tpm_atml_cancel,
 	.req_complete_mask = ATML_STATUS_BUSY | ATML_STATUS_DATA_AVAIL,
 	.req_complete_val = ATML_STATUS_DATA_AVAIL,
+	.req_canceled = ATML_STATUS_READY,
 	.base = TPM_ATML_BASE,
 	.attr_group = &atmel_attr_grp,
 	.miscdev = { .fops = &atmel_ops, },

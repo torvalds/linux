@@ -245,6 +245,7 @@ static struct tpm_vendor_specific tpm_nsc = {
 	.cancel = tpm_nsc_cancel,
 	.req_complete_mask = NSC_STATUS_OBF,
 	.req_complete_val = NSC_STATUS_OBF,
+	.req_canceled = NSC_STATUS_RDY,
 	.base = TPM_NSC_BASE,
 	.attr_group = &nsc_attr_grp,
 	.miscdev = { .fops = &nsc_ops, },

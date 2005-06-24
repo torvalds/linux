@@ -141,7 +141,7 @@ EXPORT_SYMBOL_GPL(tpm_lpc_bus_init);
 static ssize_t tpm_transmit(struct tpm_chip *chip, const char *buf,
 			    size_t bufsiz)
 {
-	ssize_t len;
+	ssize_t rc;
 	u32 count;
 	unsigned long stop;
 
@@ -157,10 +157,10 @@ static ssize_t tpm_transmit(struct tpm_chip *chip, const char *buf,
 
 	down(&chip->tpm_mutex);
 
-	if ((len = chip->vendor->send(chip, (u8 *) buf, count)) < 0) {
+	if ((rc = chip->vendor->send(chip, (u8 *) buf, count)) < 0) {
 		dev_err(&chip->pci_dev->dev,
-			"tpm_transmit: tpm_send: error %zd\n", len);
-		return len;
+			"tpm_transmit: tpm_send: error %zd\n", rc);
+		goto out;
 	}
 
 	stop = jiffies + 2 * 60 * HZ;
@@ -170,23 +170,31 @@ static ssize_t tpm_transmit(struct tpm_chip *chip, const char *buf,
 		    chip->vendor->req_complete_val) {
 			goto out_recv;
 		}
-		msleep(TPM_TIMEOUT); /* CHECK */
+
+		if ((status == chip->vendor->req_canceled)) {
+			dev_err(&chip->pci_dev->dev, "Operation Canceled\n");
+			rc = -ECANCELED;
+			goto out;
+		}
+
+		msleep(TPM_TIMEOUT);	/* CHECK */
 		rmb();
 	} while (time_before(jiffies, stop));
 
 
 	chip->vendor->cancel(chip);
-	dev_err(&chip->pci_dev->dev, "Time expired\n");
-	up(&chip->tpm_mutex);
-	return -EIO;
+	dev_err(&chip->pci_dev->dev, "Operation Timed out\n");
+	rc = -ETIME;
+	goto out;
 
 out_recv:
-	len = chip->vendor->recv(chip, (u8 *) buf, bufsiz);
-	if (len < 0)
+	rc = chip->vendor->recv(chip, (u8 *) buf, bufsiz);
+	if (rc < 0)
 		dev_err(&chip->pci_dev->dev,
-			"tpm_transmit: tpm_recv: error %zd\n", len);
+			"tpm_transmit: tpm_recv: error %zd\n", rc);
+out:
 	up(&chip->tpm_mutex);
-	return len;
+	return rc;
 }
 
 #define TPM_DIGEST_SIZE 20
