@@ -2747,16 +2747,13 @@ static struct timer_list ipmi_timer;
    the queue and this silliness can go away. */
 #define IPMI_REQUEST_EV_TIME	(1000 / (IPMI_TIMEOUT_TIME))
 
-static volatile int stop_operation = 0;
-static volatile int timer_stopped = 0;
+static atomic_t stop_operation;
 static unsigned int ticks_to_req_ev = IPMI_REQUEST_EV_TIME;
 
 static void ipmi_timeout(unsigned long data)
 {
-	if (stop_operation) {
-		timer_stopped = 1;
+	if (atomic_read(&stop_operation))
 		return;
-	}
 
 	ticks_to_req_ev--;
 	if (ticks_to_req_ev == 0) {
@@ -2766,8 +2763,7 @@ static void ipmi_timeout(unsigned long data)
 
 	ipmi_timeout_handler(IPMI_TIMEOUT_TIME);
 
-	ipmi_timer.expires += IPMI_TIMEOUT_JIFFIES;
-	add_timer(&ipmi_timer);
+	mod_timer(&ipmi_timer, jiffies + IPMI_TIMEOUT_JIFFIES);
 }
 
 
@@ -3130,11 +3126,8 @@ static __exit void cleanup_ipmi(void)
 
 	/* Tell the timer to stop, then wait for it to stop.  This avoids
 	   problems with race conditions removing the timer here. */
-	stop_operation = 1;
-	while (!timer_stopped) {
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
-	}
+	atomic_inc(&stop_operation);
+	del_timer_sync(&ipmi_timer);
 
 	remove_proc_entry(proc_ipmi_root->name, &proc_root);
 
