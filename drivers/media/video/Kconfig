@@ -343,6 +343,7 @@ config VIDEO_CX88_DVB
 	select VIDEO_BUF_DVB
 	select DVB_MT352
 	select DVB_OR51132
+	select DVB_CX22702
 	---help---
 	  This adds support for DVB/ATSC cards based on the
 	  Connexant 2388x chip.
