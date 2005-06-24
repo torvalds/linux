@@ -54,7 +54,6 @@
 /* Globals */
 static time_t lease_time = 90;     /* default lease time */
 static time_t user_lease_time = 90;
-static u32 nfs4_reclaim_init = 0;
 time_t boot_time;
 static time_t grace_end = 0;
 static u32 current_clientid = 1;
@@ -3128,7 +3127,6 @@ nfs4_release_reclaim(void)
 	struct nfs4_client_reclaim *crp = NULL;
 	int i;
 
-	BUG_ON(!nfs4_reclaim_init);
 	for (i = 0; i < CLIENT_HASH_SIZE; i++) {
 		while (!list_empty(&reclaim_str_hashtbl[i])) {
 			crp = list_entry(reclaim_str_hashtbl[i].next,
@@ -3214,7 +3212,6 @@ nfs4_state_init(void)
 	for (i = 0; i < CLIENT_HASH_SIZE; i++)
 		INIT_LIST_HEAD(&reclaim_str_hashtbl[i]);
 	reclaim_str_hashtbl_size = 0;
-	nfs4_reclaim_init = 1;
 }
 
 /* initialization to perform when the nfsd service is started: */
