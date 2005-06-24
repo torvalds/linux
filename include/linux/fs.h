@@ -1513,6 +1513,11 @@ extern ssize_t xip_file_aio_write(struct kiocb *iocb, const char __user *buf,
 extern ssize_t xip_file_writev(struct file *file, const struct iovec *iov,
 			       unsigned long nr_segs, loff_t *ppos);
 extern int xip_truncate_page(struct address_space *mapping, loff_t from);
+#else
+static inline int xip_truncate_page(struct address_space *mapping, loff_t from)
+{
+	return 0;
+}
 #endif
 
 static inline void do_generic_file_read(struct file * filp, loff_t *ppos,
