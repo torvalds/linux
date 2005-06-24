@@ -50,7 +50,7 @@ struct thread_info {
 	struct exec_domain	*exec_domain;	/* execution domain */
 	unsigned long		flags;		/* low level flags */
 	unsigned int		cpu;		/* current CPU */
-	unsigned int		preempt_count; /* 0 => preemptable */
+	int			preempt_count;	/* 0 => preemptable, <0 => BUG */
 	struct restart_block	restart_block;
 };
 

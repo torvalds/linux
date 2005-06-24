@@ -38,8 +38,6 @@ static inline cpumask_t target_cpus(void)
 #define WAKE_SECONDARY_VIA_INIT
 #endif
 
-#define NO_IOAPIC_CHECK (1)
-
 static inline unsigned long check_apicid_used(physid_mask_t bitmap, int apicid)
 { 
 	return 0;

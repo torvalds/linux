@@ -27,6 +27,7 @@
  *     10-Feb-2005 BJD  Added power-off capability
  *     10-Mar-2005 LCVR Changed S3C2410_VA to S3C24XX_VA
  *     14-Mar-2006 BJD  void __iomem fixes
+ *     22-Jun-2006 BJD  Added DM9000 platform information
 */
 
 #include <linux/kernel.h>
@@ -35,6 +36,7 @@
 #include <linux/list.h>
 #include <linux/timer.h>
 #include <linux/init.h>
+#include <linux/dm9000.h>
 
 #include <linux/serial.h>
 #include <linux/tty.h>
@@ -98,28 +100,24 @@ static struct map_desc vr1000_iodesc[] __initdata = {
    * are only 8bit */
 
   /* slow, byte */
-  { VA_C2(VR1000_VA_DM9000),  PA_CS2(VR1000_PA_DM9000),	  SZ_1M,  MT_DEVICE },
   { VA_C2(VR1000_VA_IDEPRI),  PA_CS3(VR1000_PA_IDEPRI),	  SZ_1M,  MT_DEVICE },
   { VA_C2(VR1000_VA_IDESEC),  PA_CS3(VR1000_PA_IDESEC),	  SZ_1M,  MT_DEVICE },
   { VA_C2(VR1000_VA_IDEPRIAUX), PA_CS3(VR1000_PA_IDEPRIAUX), SZ_1M, MT_DEVICE },
   { VA_C2(VR1000_VA_IDESECAUX), PA_CS3(VR1000_PA_IDESECAUX), SZ_1M, MT_DEVICE },
 
   /* slow, word */
-  { VA_C3(VR1000_VA_DM9000),  PA_CS3(VR1000_PA_DM9000),	  SZ_1M,  MT_DEVICE },
   { VA_C3(VR1000_VA_IDEPRI),  PA_CS3(VR1000_PA_IDEPRI),	  SZ_1M,  MT_DEVICE },
   { VA_C3(VR1000_VA_IDESEC),  PA_CS3(VR1000_PA_IDESEC),	  SZ_1M,  MT_DEVICE },
   { VA_C3(VR1000_VA_IDEPRIAUX), PA_CS3(VR1000_PA_IDEPRIAUX), SZ_1M, MT_DEVICE },
   { VA_C3(VR1000_VA_IDESECAUX), PA_CS3(VR1000_PA_IDESECAUX), SZ_1M, MT_DEVICE },
 
   /* fast, byte */
-  { VA_C4(VR1000_VA_DM9000),  PA_CS4(VR1000_PA_DM9000),	  SZ_1M,  MT_DEVICE },
   { VA_C4(VR1000_VA_IDEPRI),  PA_CS5(VR1000_PA_IDEPRI),	  SZ_1M,  MT_DEVICE },
   { VA_C4(VR1000_VA_IDESEC),  PA_CS5(VR1000_PA_IDESEC),	  SZ_1M,  MT_DEVICE },
   { VA_C4(VR1000_VA_IDEPRIAUX), PA_CS5(VR1000_PA_IDEPRIAUX), SZ_1M, MT_DEVICE },
   { VA_C4(VR1000_VA_IDESECAUX), PA_CS5(VR1000_PA_IDESECAUX), SZ_1M, MT_DEVICE },
 
   /* fast, word */
-  { VA_C5(VR1000_VA_DM9000),  PA_CS5(VR1000_PA_DM9000),	  SZ_1M,  MT_DEVICE },
   { VA_C5(VR1000_VA_IDEPRI),  PA_CS5(VR1000_PA_IDEPRI),	  SZ_1M,  MT_DEVICE },
   { VA_C5(VR1000_VA_IDESEC),  PA_CS5(VR1000_PA_IDESEC),	  SZ_1M,  MT_DEVICE },
   { VA_C5(VR1000_VA_IDEPRIAUX), PA_CS5(VR1000_PA_IDEPRIAUX), SZ_1M, MT_DEVICE },
@@ -246,6 +244,74 @@ static struct platform_device vr1000_nor = {
 	.resource	= vr1000_nor_resource,
 };
 
+/* DM9000 ethernet devices */
+
+static struct resource vr1000_dm9k0_resource[] = {
+	[0] = {
+		.start = S3C2410_CS5 + VR1000_PA_DM9000,
+		.end   = S3C2410_CS5 + VR1000_PA_DM9000 + 3,
+		.flags = IORESOURCE_MEM
+	},
+	[1] = {
+		.start = S3C2410_CS5 + VR1000_PA_DM9000 + 0x40,
+		.end   = S3C2410_CS5 + VR1000_PA_DM9000 + 0x7f,
+		.flags = IORESOURCE_MEM
+	},
+	[2] = {
+		.start = IRQ_VR1000_DM9000A,
+		.end   = IRQ_VR1000_DM9000A,
+		.flags = IORESOURCE_IRQ
+	}
+
+};
+
+static struct resource vr1000_dm9k1_resource[] = {
+	[0] = {
+		.start = S3C2410_CS5 + VR1000_PA_DM9000 + 0x80,
+		.end   = S3C2410_CS5 + VR1000_PA_DM9000 + 0x83,
+		.flags = IORESOURCE_MEM
+	},
+	[1] = {
+		.start = S3C2410_CS5 + VR1000_PA_DM9000 + 0xC0,
+		.end   = S3C2410_CS5 + VR1000_PA_DM9000 + 0xFF,
+		.flags = IORESOURCE_MEM
+	},
+	[2] = {
+		.start = IRQ_VR1000_DM9000N,
+		.end   = IRQ_VR1000_DM9000N,
+		.flags = IORESOURCE_IRQ
+	}
+};
+
+/* for the moment we limit ourselves to 16bit IO until some
+ * better IO routines can be written and tested
+*/
+
+struct dm9000_plat_data vr1000_dm9k_platdata = {
+	.flags		= DM9000_PLATF_16BITONLY,
+};
+
+static struct platform_device vr1000_dm9k0 = {
+	.name		= "dm9000",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(vr1000_dm9k0_resource),
+	.resource	= vr1000_dm9k0_resource,
+	.dev		= {
+		.platform_data = &vr1000_dm9k_platdata,
+	}
+};
+
+static struct platform_device vr1000_dm9k1 = {
+	.name		= "dm9000",
+	.id		= 1,
+	.num_resources	= ARRAY_SIZE(vr1000_dm9k1_resource),
+	.resource	= vr1000_dm9k1_resource,
+	.dev		= {
+		.platform_data = &vr1000_dm9k_platdata,
+	}
+};
+
+/* devices for this board */
 
 static struct platform_device *vr1000_devices[] __initdata = {
 	&s3c_device_usb,
@@ -253,8 +319,11 @@ static struct platform_device *vr1000_devices[] __initdata = {
 	&s3c_device_wdt,
 	&s3c_device_i2c,
 	&s3c_device_iis,
+	&s3c_device_adc,
 	&serial_device,
 	&vr1000_nor,
+	&vr1000_dm9k0,
+	&vr1000_dm9k1
 };
 
 static struct clk *vr1000_clocks[] = {

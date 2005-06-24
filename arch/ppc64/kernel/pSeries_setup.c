@@ -71,11 +71,6 @@
 #define DBG(fmt...)
 #endif
 
-extern void pSeries_final_fixup(void);
-
-extern void pSeries_get_boot_time(struct rtc_time *rtc_time);
-extern void pSeries_get_rtc_time(struct rtc_time *rtc_time);
-extern int  pSeries_set_rtc_time(struct rtc_time *rtc_time);
 extern void find_udbg_vterm(void);
 extern void system_reset_fwnmi(void);	/* from head.S */
 extern void machine_check_fwnmi(void);	/* from head.S */
@@ -83,9 +78,6 @@ extern void generic_find_legacy_serial_ports(u64 *physport,
 		unsigned int *default_speed);
 
 int fwnmi_active;  /* TRUE if an FWNMI handler is present */
-
-extern unsigned long ppc_proc_freq;
-extern unsigned long ppc_tb_freq;
 
 extern void pSeries_system_reset_exception(struct pt_regs *regs);
 extern int pSeries_machine_check_exception(struct pt_regs *regs);
@@ -381,171 +373,6 @@ static void __init pSeries_init_early(void)
 }
 
 
-static void pSeries_progress(char *s, unsigned short hex)
-{
-	struct device_node *root;
-	int width, *p;
-	char *os;
-	static int display_character, set_indicator;
-	static int max_width;
-	static DEFINE_SPINLOCK(progress_lock);
-	static int pending_newline = 0;  /* did last write end with unprinted newline? */
-
-	if (!rtas.base)
-		return;
-
-	if (max_width == 0) {
-		if ((root = find_path_device("/rtas")) &&
-		     (p = (unsigned int *)get_property(root,
-						       "ibm,display-line-length",
-						       NULL)))
-			max_width = *p;
-		else
-			max_width = 0x10;
-		display_character = rtas_token("display-character");
-		set_indicator = rtas_token("set-indicator");
-	}
-
-	if (display_character == RTAS_UNKNOWN_SERVICE) {
-		/* use hex display if available */
-		if (set_indicator != RTAS_UNKNOWN_SERVICE)
-			rtas_call(set_indicator, 3, 1, NULL, 6, 0, hex);
-		return;
-	}
-
-	spin_lock(&progress_lock);
-
-	/*
-	 * Last write ended with newline, but we didn't print it since
-	 * it would just clear the bottom line of output. Print it now
-	 * instead.
-	 *
-	 * If no newline is pending, print a CR to start output at the
-	 * beginning of the line.
-	 */
-	if (pending_newline) {
-		rtas_call(display_character, 1, 1, NULL, '\r');
-		rtas_call(display_character, 1, 1, NULL, '\n');
-		pending_newline = 0;
-	} else {
-		rtas_call(display_character, 1, 1, NULL, '\r');
-	}
- 
-	width = max_width;
-	os = s;
-	while (*os) {
-		if (*os == '\n' || *os == '\r') {
-			/* Blank to end of line. */
-			while (width-- > 0)
-				rtas_call(display_character, 1, 1, NULL, ' ');
- 
-			/* If newline is the last character, save it
-			 * until next call to avoid bumping up the
-			 * display output.
-			 */
-			if (*os == '\n' && !os[1]) {
-				pending_newline = 1;
-				spin_unlock(&progress_lock);
-				return;
-			}
- 
-			/* RTAS wants CR-LF, not just LF */
- 
-			if (*os == '\n') {
-				rtas_call(display_character, 1, 1, NULL, '\r');
-				rtas_call(display_character, 1, 1, NULL, '\n');
-			} else {
-				/* CR might be used to re-draw a line, so we'll
-				 * leave it alone and not add LF.
-				 */
-				rtas_call(display_character, 1, 1, NULL, *os);
-			}
- 
-			width = max_width;
-		} else {
-			width--;
-			rtas_call(display_character, 1, 1, NULL, *os);
-		}
- 
-		os++;
- 
-		/* if we overwrite the screen length */
-		if (width <= 0)
-			while ((*os != 0) && (*os != '\n') && (*os != '\r'))
-				os++;
-	}
- 
-	/* Blank to end of line. */
-	while (width-- > 0)
-		rtas_call(display_character, 1, 1, NULL, ' ');
-
-	spin_unlock(&progress_lock);
-}
-
-extern void setup_default_decr(void);
-
-/* Some sane defaults: 125 MHz timebase, 1GHz processor */
-#define DEFAULT_TB_FREQ		125000000UL
-#define DEFAULT_PROC_FREQ	(DEFAULT_TB_FREQ * 8)
-
-static void __init pSeries_calibrate_decr(void)
-{
-	struct device_node *cpu;
-	struct div_result divres;
-	unsigned int *fp;
-	int node_found;
-
-	/*
-	 * The cpu node should have a timebase-frequency property
-	 * to tell us the rate at which the decrementer counts.
-	 */
-	cpu = of_find_node_by_type(NULL, "cpu");
-
-	ppc_tb_freq = DEFAULT_TB_FREQ;		/* hardcoded default */
-	node_found = 0;
-	if (cpu != 0) {
-		fp = (unsigned int *)get_property(cpu, "timebase-frequency",
-						  NULL);
-		if (fp != 0) {
-			node_found = 1;
-			ppc_tb_freq = *fp;
-		}
-	}
-	if (!node_found)
-		printk(KERN_ERR "WARNING: Estimating decrementer frequency "
-				"(not found)\n");
-
-	ppc_proc_freq = DEFAULT_PROC_FREQ;
-	node_found = 0;
-	if (cpu != 0) {
-		fp = (unsigned int *)get_property(cpu, "clock-frequency",
-						  NULL);
-		if (fp != 0) {
-			node_found = 1;
-			ppc_proc_freq = *fp;
-		}
-	}
-	if (!node_found)
-		printk(KERN_ERR "WARNING: Estimating processor frequency "
-				"(not found)\n");
-
-	of_node_put(cpu);
-
-	printk(KERN_INFO "time_init: decrementer frequency = %lu.%.6lu MHz\n",
-	       ppc_tb_freq/1000000, ppc_tb_freq%1000000);
-	printk(KERN_INFO "time_init: processor frequency   = %lu.%.6lu MHz\n",
-	       ppc_proc_freq/1000000, ppc_proc_freq%1000000);
-
-	tb_ticks_per_jiffy = ppc_tb_freq / HZ;
-	tb_ticks_per_sec = tb_ticks_per_jiffy * HZ;
-	tb_ticks_per_usec = ppc_tb_freq / 1000000;
-	tb_to_us = mulhwu_scale_factor(ppc_tb_freq, 1000000);
-	div128_by_32(1024*1024, 0, tb_ticks_per_sec, &divres);
-	tb_to_xs = divres.result_low;
-
-	setup_default_decr();
-}
-
 static int pSeries_check_legacy_ioport(unsigned int baseport)
 {
 	struct device_node *np;
@@ -596,16 +423,17 @@ struct machdep_calls __initdata pSeries_md = {
 	.get_cpuinfo		= pSeries_get_cpuinfo,
 	.log_error		= pSeries_log_error,
 	.pcibios_fixup		= pSeries_final_fixup,
+	.irq_bus_setup		= pSeries_irq_bus_setup,
 	.restart		= rtas_restart,
 	.power_off		= rtas_power_off,
 	.halt			= rtas_halt,
 	.panic			= rtas_os_term,
 	.cpu_die		= pSeries_mach_cpu_die,
-	.get_boot_time		= pSeries_get_boot_time,
-	.get_rtc_time		= pSeries_get_rtc_time,
-	.set_rtc_time		= pSeries_set_rtc_time,
-	.calibrate_decr		= pSeries_calibrate_decr,
-	.progress		= pSeries_progress,
+	.get_boot_time		= rtas_get_boot_time,
+	.get_rtc_time		= rtas_get_rtc_time,
+	.set_rtc_time		= rtas_set_rtc_time,
+	.calibrate_decr		= generic_calibrate_decr,
+	.progress		= rtas_progress,
 	.check_legacy_ioport	= pSeries_check_legacy_ioport,
 	.system_reset_exception = pSeries_system_reset_exception,
 	.machine_check_exception = pSeries_machine_check_exception,

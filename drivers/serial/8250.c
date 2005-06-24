@@ -132,9 +132,9 @@ struct uart_8250_port {
 	struct uart_port	port;
 	struct timer_list	timer;		/* "no irq" timer */
 	struct list_head	list;		/* ports on this IRQ */
-	unsigned int		capabilities;	/* port capabilities */
+	unsigned short		capabilities;	/* port capabilities */
+	unsigned short		bugs;		/* port bugs */
 	unsigned int		tx_loadsz;	/* transmit fifo load size */
-	unsigned short		rev;
 	unsigned char		acr;
 	unsigned char		ier;
 	unsigned char		lcr;
@@ -560,7 +560,14 @@ static void autoconfig_has_efr(struct uart_8250_port *up)
 	if (id1 == 0x16 && id2 == 0xC9 &&
 	    (id3 == 0x50 || id3 == 0x52 || id3 == 0x54)) {
 		up->port.type = PORT_16C950;
-		up->rev = rev | (id3 << 8);
+
+		/*
+		 * Enable work around for the Oxford Semiconductor 952 rev B
+		 * chip which causes it to seriously miscalculate baud rates
+		 * when DLL is 0.
+		 */
+		if (id3 == 0x52 && rev == 0x01)
+			up->bugs |= UART_BUG_QUOT;
 		return;
 	}
 	
@@ -577,8 +584,6 @@ static void autoconfig_has_efr(struct uart_8250_port *up)
 
 	id2 = id1 >> 8;
 	if (id2 == 0x10 || id2 == 0x12 || id2 == 0x14) {
-		if (id2 == 0x10)
-			up->rev = id1 & 255;
 		up->port.type = PORT_16850;
 		return;
 	}
@@ -809,6 +814,7 @@ static void autoconfig(struct uart_8250_port *up, unsigned int probeflags)
 //	save_flags(flags); cli();
 
 	up->capabilities = 0;
+	up->bugs = 0;
 
 	if (!(up->port.flags & UPF_BUGGY_UART)) {
 		/*
@@ -1021,6 +1027,8 @@ static void serial8250_stop_tx(struct uart_port *port, unsigned int tty_stop)
 	}
 }
 
+static void transmit_chars(struct uart_8250_port *up);
+
 static void serial8250_start_tx(struct uart_port *port, unsigned int tty_start)
 {
 	struct uart_8250_port *up = (struct uart_8250_port *)port;
@@ -1028,6 +1036,14 @@ static void serial8250_start_tx(struct uart_port *port, unsigned int tty_start)
 	if (!(up->ier & UART_IER_THRI)) {
 		up->ier |= UART_IER_THRI;
 		serial_out(up, UART_IER, up->ier);
+
+		if (up->bugs & UART_BUG_TXEN) {
+			unsigned char lsr, iir;
+			lsr = serial_in(up, UART_LSR);
+			iir = serial_in(up, UART_IIR);
+			if (lsr & UART_LSR_TEMT && iir & UART_IIR_NO_INT)
+				transmit_chars(up);
+		}
 	}
 	/*
 	 * We only do this from uart_start
@@ -1433,6 +1449,7 @@ static int serial8250_startup(struct uart_port *port)
 {
 	struct uart_8250_port *up = (struct uart_8250_port *)port;
 	unsigned long flags;
+	unsigned char lsr, iir;
 	int retval;
 
 	up->capabilities = uart_config[up->port.type].flags;
@@ -1536,6 +1553,26 @@ static int serial8250_startup(struct uart_port *port)
 			up->port.mctrl |= TIOCM_OUT2;
 
 	serial8250_set_mctrl(&up->port, up->port.mctrl);
+
+	/*
+	 * Do a quick test to see if we receive an
+	 * interrupt when we enable the TX irq.
+	 */
+	serial_outp(up, UART_IER, UART_IER_THRI);
+	lsr = serial_in(up, UART_LSR);
+	iir = serial_in(up, UART_IIR);
+	serial_outp(up, UART_IER, 0);
+
+	if (lsr & UART_LSR_TEMT && iir & UART_IIR_NO_INT) {
+		if (!(up->bugs & UART_BUG_TXEN)) {
+			up->bugs |= UART_BUG_TXEN;
+			pr_debug("ttyS%d - enabling bad tx status workarounds\n",
+				 port->line);
+		}
+	} else {
+		up->bugs &= ~UART_BUG_TXEN;
+	}
+
 	spin_unlock_irqrestore(&up->port.lock, flags);
 
 	/*
@@ -1677,12 +1714,9 @@ serial8250_set_termios(struct uart_port *port, struct termios *termios,
 	quot = serial8250_get_divisor(port, baud);
 
 	/*
-	 * Work around a bug in the Oxford Semiconductor 952 rev B
-	 * chip which causes it to seriously miscalculate baud rates
-	 * when DLL is 0.
+	 * Oxford Semi 952 rev B workaround
 	 */
-	if ((quot & 0xff) == 0 && up->port.type == PORT_16C950 &&
-	    up->rev == 0x5201)
+	if (up->bugs & UART_BUG_QUOT && (quot & 0xff) == 0)
 		quot ++;
 
 	if (up->capabilities & UART_CAP_FIFO && up->port.fifosize > 1) {

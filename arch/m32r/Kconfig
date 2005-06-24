@@ -172,10 +172,12 @@ config NOHIGHMEM
 	bool
 	default y
 
-config DISCONTIGMEM
+config ARCH_DISCONTIGMEM_ENABLE
 	bool "Internal RAM Support"
 	depends on CHIP_M32700 || CHIP_M32102 || CHIP_VDEC2 || CHIP_OPSP
 	default y
+
+source "mm/Kconfig"
 
 config IRAM_START
 	hex "Internal memory start address (hex)"

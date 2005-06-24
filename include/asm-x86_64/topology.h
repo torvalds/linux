@@ -3,7 +3,7 @@
 
 #include <linux/config.h>
 
-#ifdef CONFIG_DISCONTIGMEM
+#ifdef CONFIG_NUMA
 
 #include <asm/mpspec.h>
 #include <asm/bitops.h>
@@ -13,8 +13,8 @@
 extern cpumask_t cpu_online_map;
 
 extern unsigned char cpu_to_node[];
+extern unsigned char pci_bus_to_node[];
 extern cpumask_t     node_to_cpumask[];
-extern cpumask_t pci_bus_to_cpumask[];
 
 #ifdef CONFIG_ACPI_NUMA
 extern int __node_distance(int, int);
@@ -26,18 +26,9 @@ extern int __node_distance(int, int);
 #define parent_node(node)		(node)
 #define node_to_first_cpu(node) 	(__ffs(node_to_cpumask[node]))
 #define node_to_cpumask(node)		(node_to_cpumask[node])
+#define pcibus_to_node(bus)		pci_bus_to_node[(bus)->number]
+#define pcibus_to_cpumask(bus)		node_to_cpumask(pcibus_to_node(bus));
 
-static inline cpumask_t __pcibus_to_cpumask(int bus)
-{
-	cpumask_t busmask = pci_bus_to_cpumask[bus];
-	cpumask_t online = cpu_online_map;
-	cpumask_t res;
-	cpus_and(res, busmask, online);
-	return res;
-}
-#define pcibus_to_cpumask(bus) __pcibus_to_cpumask(bus->number)
-
-#ifdef CONFIG_NUMA
 /* sched_domains SD_NODE_INIT for x86_64 machines */
 #define SD_NODE_INIT (struct sched_domain) {		\
 	.span			= CPU_MASK_NONE,	\
@@ -59,7 +50,6 @@ static inline cpumask_t __pcibus_to_cpumask(int bus)
 	.balance_interval	= 1,			\
 	.nr_balance_failed	= 0,			\
 }
-#endif
 
 #endif
 

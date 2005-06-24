@@ -30,9 +30,9 @@ struct thread_info {
 	struct task_struct	*task;		/* main task structure */
 	struct exec_domain	*exec_domain;	/* execution domain */
 	unsigned long		flags;		/* low level flags */
-
 	int			cpu;		/* cpu we're on */
-	int			preempt_count;
+	int			preempt_count;	/* 0 => preemptable,
+						   <0 => BUG */
 	int			softirq_count;
 	int			hardirq_count;
 

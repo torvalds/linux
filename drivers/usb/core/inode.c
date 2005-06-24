@@ -453,17 +453,6 @@ static int usbfs_fill_super(struct super_block *sb, void *data, int silent)
 	return 0;
 }
 
-static struct dentry * get_dentry(struct dentry *parent, const char *name)
-{               
-	struct qstr qstr;
-
-	qstr.name = name;
-	qstr.len = strlen(name);
-	qstr.hash = full_name_hash(name,qstr.len);
-	return lookup_hash(&qstr,parent);
-}               
-
-
 /*
  * fs_create_by_name - create a file, given a name
  * @name:	name of file
@@ -496,7 +485,7 @@ static int fs_create_by_name (const char *name, mode_t mode,
 
 	*dentry = NULL;
 	down(&parent->d_inode->i_sem);
-	*dentry = get_dentry (parent, name);
+	*dentry = lookup_one_len(name, parent, strlen(name));
 	if (!IS_ERR(dentry)) {
 		if ((mode & S_IFMT) == S_IFDIR)
 			error = usbfs_mkdir (parent->d_inode, *dentry, mode);

@@ -64,6 +64,7 @@ static int notsc __initdata = 0;
 unsigned int cpu_khz;					/* TSC clocks / usec, not used here */
 static unsigned long hpet_period;			/* fsecs / HPET clock */
 unsigned long hpet_tick;				/* HPET clocks / interrupt */
+static int hpet_use_timer;
 unsigned long vxtime_hz = PIT_TICK_RATE;
 int report_lost_ticks;				/* command line option */
 unsigned long long monotonic_base;
@@ -105,7 +106,9 @@ static inline unsigned int do_gettimeoffset_tsc(void)
 
 static inline unsigned int do_gettimeoffset_hpet(void)
 {
-	return ((hpet_readl(HPET_COUNTER) - vxtime.last) * vxtime.quot) >> 32;
+	/* cap counter read to one tick to avoid inconsistencies */
+	unsigned long counter = hpet_readl(HPET_COUNTER) - vxtime.last;
+	return (min(counter,hpet_tick) * vxtime.quot) >> 32;
 }
 
 unsigned int (*do_gettimeoffset)(void) = do_gettimeoffset_tsc;
@@ -301,7 +304,7 @@ unsigned long long monotonic_clock(void)
 
 			last_offset = vxtime.last;
 			base = monotonic_base;
-			this_offset = hpet_readl(HPET_T0_CMP) - hpet_tick;
+			this_offset = hpet_readl(HPET_COUNTER);
 
 		} while (read_seqretry(&xtime_lock, seq));
 		offset = (this_offset - last_offset);
@@ -377,7 +380,14 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 	write_seqlock(&xtime_lock);
 
-	if (vxtime.hpet_address) {
+	if (vxtime.hpet_address)
+		offset = hpet_readl(HPET_COUNTER);
+
+	if (hpet_use_timer) {
+		/* if we're using the hpet timer functionality,
+		 * we can more accurately know the counter value
+		 * when the timer interrupt occured.
+		 */
 		offset = hpet_readl(HPET_T0_CMP) - hpet_tick;
 		delay = hpet_readl(HPET_COUNTER) - offset;
 	} else {
@@ -803,17 +813,18 @@ static int hpet_timer_stop_set_go(unsigned long tick)
  * Set up timer 0, as periodic with first interrupt to happen at hpet_tick,
  * and period also hpet_tick.
  */
-
-	hpet_writel(HPET_TN_ENABLE | HPET_TN_PERIODIC | HPET_TN_SETVAL |
+	if (hpet_use_timer) {
+		hpet_writel(HPET_TN_ENABLE | HPET_TN_PERIODIC | HPET_TN_SETVAL |
 		    HPET_TN_32BIT, HPET_T0_CFG);
-	hpet_writel(hpet_tick, HPET_T0_CMP);
-	hpet_writel(hpet_tick, HPET_T0_CMP); /* AK: why twice? */
-
+		hpet_writel(hpet_tick, HPET_T0_CMP);
+		hpet_writel(hpet_tick, HPET_T0_CMP); /* AK: why twice? */
+		cfg |= HPET_CFG_LEGACY;
+	}
 /*
  * Go!
  */
 
-	cfg |= HPET_CFG_ENABLE | HPET_CFG_LEGACY;
+	cfg |= HPET_CFG_ENABLE;
 	hpet_writel(cfg, HPET_CFG);
 
 	return 0;
@@ -834,8 +845,7 @@ static int hpet_init(void)
 
 	id = hpet_readl(HPET_ID);
 
-	if (!(id & HPET_ID_VENDOR) || !(id & HPET_ID_NUMBER) ||
-	    !(id & HPET_ID_LEGSUP))
+	if (!(id & HPET_ID_VENDOR) || !(id & HPET_ID_NUMBER))
 		return -1;
 
 	hpet_period = hpet_readl(HPET_PERIOD);
@@ -844,6 +854,8 @@ static int hpet_init(void)
 
 	hpet_tick = (1000000000L * (USEC_PER_SEC / HZ) + hpet_period / 2) /
 		hpet_period;
+
+	hpet_use_timer = (id & HPET_ID_LEGSUP);
 
 	return hpet_timer_stop_set_go(hpet_tick);
 }
@@ -901,9 +913,11 @@ void __init time_init(void)
 	set_normalized_timespec(&wall_to_monotonic,
 	                        -xtime.tv_sec, -xtime.tv_nsec);
 
-	if (!hpet_init()) {
+	if (!hpet_init())
                 vxtime_hz = (1000000000000000L + hpet_period / 2) /
 			hpet_period;
+
+	if (hpet_use_timer) {
 		cpu_khz = hpet_calibrate_tsc();
 		timename = "HPET";
 #ifdef CONFIG_X86_PM_TIMER
@@ -968,7 +982,7 @@ void __init time_init_gtod(void)
 	if (unsynchronized_tsc())
 		notsc = 1;
 	if (vxtime.hpet_address && notsc) {
-		timetype = "HPET";
+		timetype = hpet_use_timer ? "HPET" : "PIT/HPET";
 		vxtime.last = hpet_readl(HPET_T0_CMP) - hpet_tick;
 		vxtime.mode = VXTIME_HPET;
 		do_gettimeoffset = do_gettimeoffset_hpet;
@@ -983,7 +997,7 @@ void __init time_init_gtod(void)
 		printk(KERN_INFO "Disabling vsyscall due to use of PM timer\n");
 #endif
 	} else {
-		timetype = vxtime.hpet_address ? "HPET/TSC" : "PIT/TSC";
+		timetype = hpet_use_timer ? "HPET/TSC" : "PIT/TSC";
 		vxtime.mode = VXTIME_TSC;
 	}
 

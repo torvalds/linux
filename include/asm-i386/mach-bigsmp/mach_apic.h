@@ -14,8 +14,6 @@
 #define NO_BALANCE_IRQ (1)
 #define esr_disable (1)
 
-#define NO_IOAPIC_CHECK (0)
-
 static inline int apic_id_registered(void)
 {
 	return (1);

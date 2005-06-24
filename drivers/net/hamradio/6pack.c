@@ -848,7 +848,7 @@ static void __exit sixpack_exit_driver(void)
 {
 	int ret;
 
-	if ((ret = tty_register_ldisc(N_6PACK, NULL)))
+	if ((ret = tty_unregister_ldisc(N_6PACK)))
 		printk(msg_unregfail, ret);
 }
 

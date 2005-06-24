@@ -274,7 +274,7 @@ EXPORT_SYMBOL(dump_stack);
 void show_registers(struct pt_regs *regs)
 {
 	int i;
-	int in_kernel = (regs->cs & 3) == 0;
+	int in_kernel = !user_mode(regs);
 	unsigned long rsp;
 	const int cpu = safe_smp_processor_id(); 
 	struct task_struct *cur = cpu_pda[cpu].pcurrent; 
@@ -318,7 +318,7 @@ void handle_BUG(struct pt_regs *regs)
 	struct bug_frame f;
 	char tmp;
 
-	if (regs->cs & 3)
+	if (user_mode(regs))
 		return; 
 	if (__copy_from_user(&f, (struct bug_frame *) regs->rip, 
 			     sizeof(struct bug_frame)))
@@ -437,7 +437,7 @@ static void do_trap(int trapnr, int signr, char *str,
        }
 #endif
 
-	if ((regs->cs & 3)  != 0) { 
+	if (user_mode(regs)) {
 		struct task_struct *tsk = current;
 
 		if (exception_trace && unhandled_signal(tsk, signr))
@@ -522,7 +522,7 @@ asmlinkage void do_general_protection(struct pt_regs * regs, long error_code)
        }
 #endif
 
-	if ((regs->cs & 3)!=0) { 
+	if (user_mode(regs)) {
 		struct task_struct *tsk = current;
 
 		if (exception_trace && unhandled_signal(tsk, SIGSEGV))
@@ -638,7 +638,7 @@ asmlinkage struct pt_regs *sync_regs(struct pt_regs *eregs)
 	if (eregs == (struct pt_regs *)eregs->rsp)
 		;
 	/* Exception from user space */
-	else if (eregs->cs & 3)
+	else if (user_mode(eregs))
 		regs = ((struct pt_regs *)current->thread.rsp0) - 1;
 	/* Exception from kernel and interrupts are enabled. Move to
  	   kernel process stack. */
@@ -669,7 +669,7 @@ asmlinkage void do_debug(struct pt_regs * regs, unsigned long error_code)
        }
 #endif
 
-	asm("movq %%db6,%0" : "=r" (condition));
+	get_debugreg(condition, 6);
 
 	if (notify_die(DIE_DEBUG, "debug", regs, condition, error_code,
 						SIGTRAP) == NOTIFY_STOP)
@@ -697,7 +697,7 @@ asmlinkage void do_debug(struct pt_regs * regs, unsigned long error_code)
 		 * allowing programs to debug themselves without the ptrace()
 		 * interface.
 		 */
-                if ((regs->cs & 3) == 0)
+                if (!user_mode(regs))
                        goto clear_TF_reenable;
 		/*
 		 * Was the TF flag set by a debugger? If so, clear it now,
@@ -715,13 +715,13 @@ asmlinkage void do_debug(struct pt_regs * regs, unsigned long error_code)
 	info.si_signo = SIGTRAP;
 	info.si_errno = 0;
 	info.si_code = TRAP_BRKPT;
-	if ((regs->cs & 3) == 0) 
+	if (!user_mode(regs))
 		goto clear_dr7; 
 
 	info.si_addr = (void __user *)regs->rip;
 	force_sig_info(SIGTRAP, &info, tsk);	
 clear_dr7:
-	asm volatile("movq %0,%%db7"::"r"(0UL));
+	set_debugreg(0UL, 7);
 	return;
 
 clear_TF_reenable:
@@ -756,7 +756,7 @@ asmlinkage void do_coprocessor_error(struct pt_regs *regs)
 	unsigned short cwd, swd;
 
 	conditional_sti(regs);
-	if ((regs->cs & 3) == 0 &&
+	if (!user_mode(regs) &&
 	    kernel_math_error(regs, "kernel x87 math error"))
 		return;
 
@@ -822,7 +822,7 @@ asmlinkage void do_simd_coprocessor_error(struct pt_regs *regs)
 	unsigned short mxcsr;
 
 	conditional_sti(regs);
-	if ((regs->cs & 3) == 0 &&
+	if (!user_mode(regs) &&
         	kernel_math_error(regs, "kernel simd math error"))
 		return;
 

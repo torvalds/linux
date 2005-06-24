@@ -24,6 +24,7 @@
 #include <linux/completion.h>
 #include <linux/vfs.h>
 #include <linux/moduleparam.h>
+#include <linux/posix_acl.h>
 #include <asm/uaccess.h>
 
 #include "jfs_incore.h"

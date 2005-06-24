@@ -26,6 +26,9 @@ static inline cycles_t get_cycles (void)
 
 extern unsigned int cpu_khz;
 
+extern int read_current_timer(unsigned long *timer_value);
+#define ARCH_HAS_READ_CURRENT_TIMER	1
+
 extern struct vxtime_data vxtime;
 
 #endif

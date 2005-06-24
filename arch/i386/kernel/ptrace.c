@@ -668,7 +668,7 @@ void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs, int error_code)
 	info.si_code = TRAP_BRKPT;
 
 	/* User-mode eip? */
-	info.si_addr = user_mode(regs) ? (void __user *) regs->eip : NULL;
+	info.si_addr = user_mode_vm(regs) ? (void __user *) regs->eip : NULL;
 
 	/* Send us the fakey SIGTRAP */
 	force_sig_info(SIGTRAP, &info, tsk);

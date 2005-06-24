@@ -41,7 +41,7 @@
 struct divert_blk;
 struct vlan_group;
 struct ethtool_ops;
-struct netpoll;
+struct netpoll_info;
 					/* source back-compat hooks */
 #define SET_ETHTOOL_OPS(netdev,ops) \
 	( (netdev)->ethtool_ops = (ops) )
@@ -468,7 +468,7 @@ struct net_device
 						     unsigned char *haddr);
 	int			(*neigh_setup)(struct net_device *dev, struct neigh_parms *);
 #ifdef CONFIG_NETPOLL
-	struct netpoll		*np;
+	struct netpoll_info	*npinfo;
 #endif
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	void                    (*poll_controller)(struct net_device *dev);
@@ -924,10 +924,6 @@ extern int skb_checksum_help(struct sk_buff *skb, int inward);
 /* rx skb timestamps */
 extern void		net_enable_timestamp(void);
 extern void		net_disable_timestamp(void);
-
-#ifdef CONFIG_SYSCTL
-extern char *net_sysctl_strdup(const char *s);
-#endif
 
 #endif /* __KERNEL__ */
 

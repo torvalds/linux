@@ -20,9 +20,14 @@ typedef struct mempool_s {
 	mempool_free_t *free;
 	wait_queue_head_t wait;
 } mempool_t;
-extern mempool_t * mempool_create(int min_nr, mempool_alloc_t *alloc_fn,
-				 mempool_free_t *free_fn, void *pool_data);
-extern int mempool_resize(mempool_t *pool, int new_min_nr, unsigned int __nocast gfp_mask);
+
+extern mempool_t *mempool_create(int min_nr, mempool_alloc_t *alloc_fn,
+			mempool_free_t *free_fn, void *pool_data);
+extern mempool_t *mempool_create_node(int min_nr, mempool_alloc_t *alloc_fn,
+			mempool_free_t *free_fn, void *pool_data, int nid);
+
+extern int mempool_resize(mempool_t *pool, int new_min_nr,
+			unsigned int __nocast gfp_mask);
 extern void mempool_destroy(mempool_t *pool);
 extern void * mempool_alloc(mempool_t *pool, unsigned int __nocast gfp_mask);
 extern void mempool_free(void *element, mempool_t *pool);

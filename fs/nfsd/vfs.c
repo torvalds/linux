@@ -50,7 +50,6 @@
 #include <linux/posix_acl.h>
 #ifdef CONFIG_NFSD_V4
 #include <linux/posix_acl_xattr.h>
-#include <linux/xattr_acl.h>
 #include <linux/xattr.h>
 #include <linux/nfs4.h>
 #include <linux/nfs4_acl.h>
@@ -425,13 +424,13 @@ nfsd4_set_nfs4_acl(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		goto out_nfserr;
 
 	if (pacl) {
-		error = set_nfsv4_acl_one(dentry, pacl, XATTR_NAME_ACL_ACCESS);
+		error = set_nfsv4_acl_one(dentry, pacl, POSIX_ACL_XATTR_ACCESS);
 		if (error < 0)
 			goto out_nfserr;
 	}
 
 	if (dpacl) {
-		error = set_nfsv4_acl_one(dentry, dpacl, XATTR_NAME_ACL_DEFAULT);
+		error = set_nfsv4_acl_one(dentry, dpacl, POSIX_ACL_XATTR_DEFAULT);
 		if (error < 0)
 			goto out_nfserr;
 	}
@@ -498,7 +497,7 @@ nfsd4_get_nfs4_acl(struct svc_rqst *rqstp, struct dentry *dentry, struct nfs4_ac
 	struct posix_acl *pacl = NULL, *dpacl = NULL;
 	unsigned int flags = 0;
 
-	pacl = _get_posix_acl(dentry, XATTR_NAME_ACL_ACCESS);
+	pacl = _get_posix_acl(dentry, POSIX_ACL_XATTR_ACCESS);
 	if (IS_ERR(pacl) && PTR_ERR(pacl) == -ENODATA)
 		pacl = posix_acl_from_mode(inode->i_mode, GFP_KERNEL);
 	if (IS_ERR(pacl)) {
@@ -508,7 +507,7 @@ nfsd4_get_nfs4_acl(struct svc_rqst *rqstp, struct dentry *dentry, struct nfs4_ac
 	}
 
 	if (S_ISDIR(inode->i_mode)) {
-		dpacl = _get_posix_acl(dentry, XATTR_NAME_ACL_DEFAULT);
+		dpacl = _get_posix_acl(dentry, POSIX_ACL_XATTR_DEFAULT);
 		if (IS_ERR(dpacl) && PTR_ERR(dpacl) == -ENODATA)
 			dpacl = NULL;
 		else if (IS_ERR(dpacl)) {

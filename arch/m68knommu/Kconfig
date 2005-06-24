@@ -532,6 +532,8 @@ config ROMKERNEL
 
 endchoice
 
+source "mm/Kconfig"
+
 endmenu
 
 config ISA_DMA_API

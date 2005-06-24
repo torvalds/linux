@@ -21,6 +21,7 @@
 
 #include <sound/driver.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 #include <sound/core.h>
 #include <sound/gus.h>
 #include <sound/info.h>
@@ -213,7 +214,7 @@ snd_gf1_mem_block_t *snd_gf1_mem_alloc(snd_gf1_mem_t * alloc, int owner,
 	if (share_id != NULL)
 		memcpy(&block.share_id, share_id, sizeof(block.share_id));
 	block.owner = owner;
-	block.name = snd_kmalloc_strdup(name, GFP_KERNEL);
+	block.name = kstrdup(name, GFP_KERNEL);
 	nblock = snd_gf1_mem_xalloc(alloc, &block);
 	snd_gf1_mem_lock(alloc, 1);
 	return nblock;
@@ -253,13 +254,13 @@ int snd_gf1_mem_init(snd_gus_card_t * gus)
 	if (gus->gf1.enh_mode) {
 		block.ptr = 0;
 		block.size = 1024;
-		block.name = snd_kmalloc_strdup("InterWave LFOs", GFP_KERNEL);
+		block.name = kstrdup("InterWave LFOs", GFP_KERNEL);
 		if (snd_gf1_mem_xalloc(alloc, &block) == NULL)
 			return -ENOMEM;
 	}
 	block.ptr = gus->gf1.default_voice_address;
 	block.size = 4;
-	block.name = snd_kmalloc_strdup("Voice default (NULL's)", GFP_KERNEL);
+	block.name = kstrdup("Voice default (NULL's)", GFP_KERNEL);
 	if (snd_gf1_mem_xalloc(alloc, &block) == NULL)
 		return -ENOMEM;
 #ifdef CONFIG_SND_DEBUG

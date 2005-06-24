@@ -22,6 +22,7 @@
 #include <sound/driver.h>
 #include <linux/slab.h>
 #include <linux/time.h>
+#include <linux/string.h>
 #include <sound/core.h>
 #include <sound/minors.h>
 #include <sound/info.h>
@@ -51,7 +52,7 @@ int snd_oss_info_register(int dev, int num, char *string)
 			x = NULL;
 		}
 	} else {
-		x = snd_kmalloc_strdup(string, GFP_KERNEL);
+		x = kstrdup(string, GFP_KERNEL);
 		if (x == NULL) {
 			up(&strings);
 			return -ENOMEM;

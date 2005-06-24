@@ -28,6 +28,7 @@
 #include <linux/slab.h>
 #include <linux/swap.h>
 #include <linux/writeback.h>
+#include <linux/blkdev.h>
 
 /*
  * for max sense size
@@ -716,7 +717,7 @@ struct request *blk_queue_find_tag(request_queue_t *q, int tag)
 {
 	struct blk_queue_tag *bqt = q->queue_tags;
 
-	if (unlikely(bqt == NULL || tag >= bqt->real_max_depth))
+	if (unlikely(bqt == NULL || tag >= bqt->max_depth))
 		return NULL;
 
 	return bqt->tag_index[tag];
@@ -774,9 +775,9 @@ EXPORT_SYMBOL(blk_queue_free_tags);
 static int
 init_tag_map(request_queue_t *q, struct blk_queue_tag *tags, int depth)
 {
-	int bits, i;
 	struct request **tag_index;
 	unsigned long *tag_map;
+	int nr_ulongs;
 
 	if (depth > q->nr_requests * 2) {
 		depth = q->nr_requests * 2;
@@ -788,23 +789,16 @@ init_tag_map(request_queue_t *q, struct blk_queue_tag *tags, int depth)
 	if (!tag_index)
 		goto fail;
 
-	bits = (depth / BLK_TAGS_PER_LONG) + 1;
-	tag_map = kmalloc(bits * sizeof(unsigned long), GFP_ATOMIC);
+	nr_ulongs = ALIGN(depth, BITS_PER_LONG) / BITS_PER_LONG;
+	tag_map = kmalloc(nr_ulongs * sizeof(unsigned long), GFP_ATOMIC);
 	if (!tag_map)
 		goto fail;
 
 	memset(tag_index, 0, depth * sizeof(struct request *));
-	memset(tag_map, 0, bits * sizeof(unsigned long));
+	memset(tag_map, 0, nr_ulongs * sizeof(unsigned long));
 	tags->max_depth = depth;
-	tags->real_max_depth = bits * BITS_PER_LONG;
 	tags->tag_index = tag_index;
 	tags->tag_map = tag_map;
-
-	/*
-	 * set the upper bits if the depth isn't a multiple of the word size
-	 */
-	for (i = depth; i < bits * BLK_TAGS_PER_LONG; i++)
-		__set_bit(i, tag_map);
 
 	return 0;
 fail:
@@ -870,32 +864,24 @@ int blk_queue_resize_tags(request_queue_t *q, int new_depth)
 	struct blk_queue_tag *bqt = q->queue_tags;
 	struct request **tag_index;
 	unsigned long *tag_map;
-	int bits, max_depth;
+	int max_depth, nr_ulongs;
 
 	if (!bqt)
 		return -ENXIO;
-
-	/*
-	 * don't bother sizing down
-	 */
-	if (new_depth <= bqt->real_max_depth) {
-		bqt->max_depth = new_depth;
-		return 0;
-	}
 
 	/*
 	 * save the old state info, so we can copy it back
 	 */
 	tag_index = bqt->tag_index;
 	tag_map = bqt->tag_map;
-	max_depth = bqt->real_max_depth;
+	max_depth = bqt->max_depth;
 
 	if (init_tag_map(q, bqt, new_depth))
 		return -ENOMEM;
 
 	memcpy(bqt->tag_index, tag_index, max_depth * sizeof(struct request *));
-	bits = max_depth / BLK_TAGS_PER_LONG;
-	memcpy(bqt->tag_map, tag_map, bits * sizeof(unsigned long));
+	nr_ulongs = ALIGN(max_depth, BITS_PER_LONG) / BITS_PER_LONG;
+	memcpy(bqt->tag_map, tag_map, nr_ulongs * sizeof(unsigned long));
 
 	kfree(tag_index);
 	kfree(tag_map);
@@ -925,11 +911,16 @@ void blk_queue_end_tag(request_queue_t *q, struct request *rq)
 
 	BUG_ON(tag == -1);
 
-	if (unlikely(tag >= bqt->real_max_depth))
+	if (unlikely(tag >= bqt->max_depth))
+		/*
+		 * This can happen after tag depth has been reduced.
+		 * FIXME: how about a warning or info message here?
+		 */
 		return;
 
 	if (unlikely(!__test_and_clear_bit(tag, bqt->tag_map))) {
-		printk("attempt to clear non-busy tag (%d)\n", tag);
+		printk(KERN_ERR "%s: attempt to clear non-busy tag (%d)\n",
+		       __FUNCTION__, tag);
 		return;
 	}
 
@@ -938,7 +929,8 @@ void blk_queue_end_tag(request_queue_t *q, struct request *rq)
 	rq->tag = -1;
 
 	if (unlikely(bqt->tag_index[tag] == NULL))
-		printk("tag %d is missing\n", tag);
+		printk(KERN_ERR "%s: tag %d is missing\n",
+		       __FUNCTION__, tag);
 
 	bqt->tag_index[tag] = NULL;
 	bqt->busy--;
@@ -967,24 +959,20 @@ EXPORT_SYMBOL(blk_queue_end_tag);
 int blk_queue_start_tag(request_queue_t *q, struct request *rq)
 {
 	struct blk_queue_tag *bqt = q->queue_tags;
-	unsigned long *map = bqt->tag_map;
-	int tag = 0;
+	int tag;
 
 	if (unlikely((rq->flags & REQ_QUEUED))) {
 		printk(KERN_ERR 
-		       "request %p for device [%s] already tagged %d",
-		       rq, rq->rq_disk ? rq->rq_disk->disk_name : "?", rq->tag);
+		       "%s: request %p for device [%s] already tagged %d",
+		       __FUNCTION__, rq,
+		       rq->rq_disk ? rq->rq_disk->disk_name : "?", rq->tag);
 		BUG();
 	}
 
-	for (map = bqt->tag_map; *map == -1UL; map++) {
-		tag += BLK_TAGS_PER_LONG;
+	tag = find_first_zero_bit(bqt->tag_map, bqt->max_depth);
+	if (tag >= bqt->max_depth)
+		return 1;
 
-		if (tag >= bqt->max_depth)
-			return 1;
-	}
-
-	tag += ffz(*map);
 	__set_bit(tag, bqt->tag_map);
 
 	rq->flags |= REQ_QUEUED;
@@ -1020,7 +1008,8 @@ void blk_queue_invalidate_tags(request_queue_t *q)
 		rq = list_entry_rq(tmp);
 
 		if (rq->tag == -1) {
-			printk("bad tag found on list\n");
+			printk(KERN_ERR
+			       "%s: bad tag found on list\n", __FUNCTION__);
 			list_del_init(&rq->queuelist);
 			rq->flags &= ~REQ_QUEUED;
 		} else
@@ -1450,7 +1439,7 @@ EXPORT_SYMBOL(blk_remove_plug);
  */
 void __generic_unplug_device(request_queue_t *q)
 {
-	if (test_bit(QUEUE_FLAG_STOPPED, &q->queue_flags))
+	if (unlikely(test_bit(QUEUE_FLAG_STOPPED, &q->queue_flags)))
 		return;
 
 	if (!blk_remove_plug(q))
@@ -1645,7 +1634,8 @@ static int blk_init_free_list(request_queue_t *q)
 	init_waitqueue_head(&rl->wait[WRITE]);
 	init_waitqueue_head(&rl->drain);
 
-	rl->rq_pool = mempool_create(BLKDEV_MIN_RQ, mempool_alloc_slab, mempool_free_slab, request_cachep);
+	rl->rq_pool = mempool_create_node(BLKDEV_MIN_RQ, mempool_alloc_slab,
+				mempool_free_slab, request_cachep, q->node);
 
 	if (!rl->rq_pool)
 		return -ENOMEM;
@@ -1657,8 +1647,15 @@ static int __make_request(request_queue_t *, struct bio *);
 
 request_queue_t *blk_alloc_queue(int gfp_mask)
 {
-	request_queue_t *q = kmem_cache_alloc(requestq_cachep, gfp_mask);
+	return blk_alloc_queue_node(gfp_mask, -1);
+}
+EXPORT_SYMBOL(blk_alloc_queue);
 
+request_queue_t *blk_alloc_queue_node(int gfp_mask, int node_id)
+{
+	request_queue_t *q;
+
+	q = kmem_cache_alloc_node(requestq_cachep, gfp_mask, node_id);
 	if (!q)
 		return NULL;
 
@@ -1671,8 +1668,7 @@ request_queue_t *blk_alloc_queue(int gfp_mask)
 
 	return q;
 }
-
-EXPORT_SYMBOL(blk_alloc_queue);
+EXPORT_SYMBOL(blk_alloc_queue_node);
 
 /**
  * blk_init_queue  - prepare a request queue for use with a block device
@@ -1705,13 +1701,22 @@ EXPORT_SYMBOL(blk_alloc_queue);
  *    blk_init_queue() must be paired with a blk_cleanup_queue() call
  *    when the block device is deactivated (such as at module unload).
  **/
+
 request_queue_t *blk_init_queue(request_fn_proc *rfn, spinlock_t *lock)
 {
-	request_queue_t *q = blk_alloc_queue(GFP_KERNEL);
+	return blk_init_queue_node(rfn, lock, -1);
+}
+EXPORT_SYMBOL(blk_init_queue);
+
+request_queue_t *
+blk_init_queue_node(request_fn_proc *rfn, spinlock_t *lock, int node_id)
+{
+	request_queue_t *q = blk_alloc_queue_node(GFP_KERNEL, node_id);
 
 	if (!q)
 		return NULL;
 
+	q->node = node_id;
 	if (blk_init_free_list(q))
 		goto out_init;
 
@@ -1754,12 +1759,11 @@ out_init:
 	kmem_cache_free(requestq_cachep, q);
 	return NULL;
 }
-
-EXPORT_SYMBOL(blk_init_queue);
+EXPORT_SYMBOL(blk_init_queue_node);
 
 int blk_get_queue(request_queue_t *q)
 {
-	if (!test_bit(QUEUE_FLAG_DEAD, &q->queue_flags)) {
+	if (likely(!test_bit(QUEUE_FLAG_DEAD, &q->queue_flags))) {
 		atomic_inc(&q->refcnt);
 		return 0;
 	}
@@ -1838,7 +1842,6 @@ static void __freed_request(request_queue_t *q, int rw)
 		clear_queue_congested(q, rw);
 
 	if (rl->count[rw] + 1 <= q->nr_requests) {
-		smp_mb();
 		if (waitqueue_active(&rl->wait[rw]))
 			wake_up(&rl->wait[rw]);
 
@@ -1966,7 +1969,6 @@ static struct request *get_request_wait(request_queue_t *q, int rw)
 	DEFINE_WAIT(wait);
 	struct request *rq;
 
-	generic_unplug_device(q);
 	do {
 		struct request_list *rl = &q->rq;
 
@@ -1978,6 +1980,7 @@ static struct request *get_request_wait(request_queue_t *q, int rw)
 		if (!rq) {
 			struct io_context *ioc;
 
+			generic_unplug_device(q);
 			io_schedule();
 
 			/*
@@ -2581,7 +2584,7 @@ static int __make_request(request_queue_t *q, struct bio *bio)
 	spin_lock_prefetch(q->queue_lock);
 
 	barrier = bio_barrier(bio);
-	if (barrier && (q->ordered == QUEUE_ORDERED_NONE)) {
+	if (unlikely(barrier) && (q->ordered == QUEUE_ORDERED_NONE)) {
 		err = -EOPNOTSUPP;
 		goto end_io;
 	}
@@ -2682,7 +2685,7 @@ get_rq:
 	/*
 	 * REQ_BARRIER implies no merging, but lets make it explicit
 	 */
-	if (barrier)
+	if (unlikely(barrier))
 		req->flags |= (REQ_HARDBARRIER | REQ_NOMERGE);
 
 	req->errors = 0;
@@ -2806,7 +2809,7 @@ static inline void block_wait_queue_running(request_queue_t *q)
 {
 	DEFINE_WAIT(wait);
 
-	while (test_bit(QUEUE_FLAG_DRAIN, &q->queue_flags)) {
+	while (unlikely(test_bit(QUEUE_FLAG_DRAIN, &q->queue_flags))) {
 		struct request_list *rl = &q->rq;
 
 		prepare_to_wait_exclusive(&rl->drain, &wait,
@@ -2915,7 +2918,7 @@ end_io:
 			goto end_io;
 		}
 
-		if (test_bit(QUEUE_FLAG_DEAD, &q->queue_flags))
+		if (unlikely(test_bit(QUEUE_FLAG_DEAD, &q->queue_flags)))
 			goto end_io;
 
 		block_wait_queue_running(q);

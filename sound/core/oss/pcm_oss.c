@@ -33,6 +33,7 @@
 #include <linux/time.h>
 #include <linux/vmalloc.h>
 #include <linux/moduleparam.h>
+#include <linux/string.h>
 #include <sound/core.h>
 #include <sound/minors.h>
 #include <sound/pcm.h>
@@ -2360,7 +2361,7 @@ static void snd_pcm_oss_proc_write(snd_info_entry_t *entry,
 					for (setup1 = pstr->oss.setup_list; setup1->next; setup1 = setup1->next);
 					setup1->next = setup;
 				}
-				template.task_name = snd_kmalloc_strdup(task_name, GFP_KERNEL);
+				template.task_name = kstrdup(task_name, GFP_KERNEL);
 			} else {
 				buffer->error = -ENOMEM;
 			}

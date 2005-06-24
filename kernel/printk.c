@@ -876,8 +876,10 @@ void register_console(struct console * console)
 			break;
 		console->flags |= CON_ENABLED;
 		console->index = console_cmdline[i].index;
-		if (i == preferred_console)
+		if (i == selected_console) {
 			console->flags |= CON_CONSDEV;
+			preferred_console = selected_console;
+		}
 		break;
 	}
 
@@ -897,6 +899,8 @@ void register_console(struct console * console)
 	if ((console->flags & CON_CONSDEV) || console_drivers == NULL) {
 		console->next = console_drivers;
 		console_drivers = console;
+		if (console->next)
+			console->next->flags &= ~CON_CONSDEV;
 	} else {
 		console->next = console_drivers->next;
 		console_drivers->next = console;
@@ -937,10 +941,14 @@ int unregister_console(struct console * console)
 	/* If last console is removed, we re-enable picking the first
 	 * one that gets registered. Without that, pmac early boot console
 	 * would prevent fbcon from taking over.
+	 *
+	 * If this isn't the last console and it has CON_CONSDEV set, we
+	 * need to set it on the next preferred console.
 	 */
 	if (console_drivers == NULL)
 		preferred_console = selected_console;
-		
+	else if (console->flags & CON_CONSDEV)
+		console_drivers->flags |= CON_CONSDEV;
 
 	release_console_sem();
 	return res;

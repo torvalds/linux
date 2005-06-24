@@ -1932,27 +1932,12 @@ static int reiserfs_write_info(struct super_block *sb, int type)
 }
 
 /*
- * Turn on quotas during mount time - we need to find
- * the quota file and such...
+ * Turn on quotas during mount time - we need to find the quota file and such...
  */
 static int reiserfs_quota_on_mount(struct super_block *sb, int type)
 {
-    int err;
-    struct dentry *dentry;
-    struct qstr name = { .name = REISERFS_SB(sb)->s_qf_names[type],
-                         .hash = 0,
-                         .len = strlen(REISERFS_SB(sb)->s_qf_names[type])};
-
-    dentry = lookup_hash(&name, sb->s_root);
-    if (IS_ERR(dentry))
-            return PTR_ERR(dentry);
-    err = vfs_quota_on_mount(type, REISERFS_SB(sb)->s_jquota_fmt, dentry);
-    /* Now invalidate and put the dentry - quota got its own reference
-     * to inode and dentry has at least wrong hash so we had better
-     * throw it away */
-    d_invalidate(dentry);
-    dput(dentry);
-    return err;
+	return vfs_quota_on_mount(sb, REISERFS_SB(sb)->s_qf_names[type],
+			REISERFS_SB(sb)->s_jquota_fmt, type);
 }
 
 /*

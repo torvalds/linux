@@ -344,6 +344,7 @@ static void __init setup_cpu_maps(void)
 extern struct machdep_calls pSeries_md;
 extern struct machdep_calls pmac_md;
 extern struct machdep_calls maple_md;
+extern struct machdep_calls bpa_md;
 
 /* Ultimately, stuff them in an elf section like initcalls... */
 static struct machdep_calls __initdata *machines[] = {
@@ -356,6 +357,9 @@ static struct machdep_calls __initdata *machines[] = {
 #ifdef CONFIG_PPC_MAPLE
 	&maple_md,
 #endif /* CONFIG_PPC_MAPLE */
+#ifdef CONFIG_PPC_BPA
+	&bpa_md,
+#endif
 	NULL
 };
 
@@ -679,6 +683,12 @@ void machine_restart(char *cmd)
 	if (ppc_md.nvram_sync)
 		ppc_md.nvram_sync();
 	ppc_md.restart(cmd);
+#ifdef CONFIG_SMP
+	smp_send_stop();
+#endif
+	printk(KERN_EMERG "System Halted, OK to turn off power\n");
+	local_irq_disable();
+	while (1) ;
 }
 
 EXPORT_SYMBOL(machine_restart);
@@ -688,6 +698,12 @@ void machine_power_off(void)
 	if (ppc_md.nvram_sync)
 		ppc_md.nvram_sync();
 	ppc_md.power_off();
+#ifdef CONFIG_SMP
+	smp_send_stop();
+#endif
+	printk(KERN_EMERG "System Halted, OK to turn off power\n");
+	local_irq_disable();
+	while (1) ;
 }
 
 EXPORT_SYMBOL(machine_power_off);
@@ -697,12 +713,15 @@ void machine_halt(void)
 	if (ppc_md.nvram_sync)
 		ppc_md.nvram_sync();
 	ppc_md.halt();
+#ifdef CONFIG_SMP
+	smp_send_stop();
+#endif
+	printk(KERN_EMERG "System Halted, OK to turn off power\n");
+	local_irq_disable();
+	while (1) ;
 }
 
 EXPORT_SYMBOL(machine_halt);
-
-unsigned long ppc_proc_freq;
-unsigned long ppc_tb_freq;
 
 static int ppc64_panic_event(struct notifier_block *this,
                              unsigned long event, void *ptr)
@@ -1055,6 +1074,7 @@ void __init setup_arch(char **cmdline_p)
 
 	/* set up the bootmem stuff with available memory */
 	do_init_bootmem();
+	sparse_init();
 
 	/* initialize the syscall map in systemcfg */
 	setup_syscall_map();
@@ -1079,11 +1099,11 @@ void __init setup_arch(char **cmdline_p)
 static void ppc64_do_msg(unsigned int src, const char *msg)
 {
 	if (ppc_md.progress) {
-		char buf[32];
+		char buf[128];
 
-		sprintf(buf, "%08x        \n", src);
+		sprintf(buf, "%08X\n", src);
 		ppc_md.progress(buf, 0);
-		sprintf(buf, "%-16s", msg);
+		snprintf(buf, 128, "%s", msg);
 		ppc_md.progress(buf, 0);
 	}
 }
@@ -1117,7 +1137,7 @@ void ppc64_dump_msg(unsigned int src, const char *msg)
 }
 
 /* This should only be called on processor 0 during calibrate decr */
-void setup_default_decr(void)
+void __init setup_default_decr(void)
 {
 	struct paca_struct *lpaca = get_paca();
 

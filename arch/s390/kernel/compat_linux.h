@@ -45,7 +45,7 @@ typedef struct compat_siginfo {
 
 		/* POSIX.1b timers */
 		struct {
-			timer_t _tid;		/* timer id */
+			compat_timer_t _tid;		/* timer id */
 			int _overrun;		/* overrun count */
 			compat_sigval_t _sigval;	/* same as below */
 			int _sys_private;       /* not to be passed to user */

@@ -42,15 +42,8 @@ struct tcpdiag_entry
 
 static struct sock *tcpnl;
 
-
 #define TCPDIAG_PUT(skb, attrtype, attrlen) \
-({ int rtalen = RTA_LENGTH(attrlen);        \
-   struct rtattr *rta;                      \
-   if (skb_tailroom(skb) < RTA_ALIGN(rtalen)) goto nlmsg_failure; \
-   rta = (void*)__skb_put(skb, RTA_ALIGN(rtalen)); \
-   rta->rta_type = attrtype;                \
-   rta->rta_len = rtalen;                   \
-   RTA_DATA(rta); })
+	RTA_DATA(__RTA_PUT(skb, attrtype, attrlen))
 
 static int tcpdiag_fill(struct sk_buff *skb, struct sock *sk,
 			int ext, u32 pid, u32 seq, u16 nlmsg_flags)
@@ -61,7 +54,6 @@ static int tcpdiag_fill(struct sk_buff *skb, struct sock *sk,
 	struct nlmsghdr  *nlh;
 	struct tcp_info  *info = NULL;
 	struct tcpdiag_meminfo  *minfo = NULL;
-	struct tcpvegas_info *vinfo = NULL;
 	unsigned char	 *b = skb->tail;
 
 	nlh = NLMSG_PUT(skb, pid, seq, TCPDIAG_GETSOCK, sizeof(*r));
@@ -73,9 +65,11 @@ static int tcpdiag_fill(struct sk_buff *skb, struct sock *sk,
 		if (ext & (1<<(TCPDIAG_INFO-1)))
 			info = TCPDIAG_PUT(skb, TCPDIAG_INFO, sizeof(*info));
 		
-		if ((tcp_is_westwood(tp) || tcp_is_vegas(tp))
-		    && (ext & (1<<(TCPDIAG_VEGASINFO-1))))
-			vinfo = TCPDIAG_PUT(skb, TCPDIAG_VEGASINFO, sizeof(*vinfo));
+		if (ext & (1<<(TCPDIAG_CONG-1))) {
+			size_t len = strlen(tp->ca_ops->name);
+			strcpy(TCPDIAG_PUT(skb, TCPDIAG_CONG, len+1),
+			       tp->ca_ops->name);
+		}
 	}
 	r->tcpdiag_family = sk->sk_family;
 	r->tcpdiag_state = sk->sk_state;
@@ -166,23 +160,13 @@ static int tcpdiag_fill(struct sk_buff *skb, struct sock *sk,
 	if (info) 
 		tcp_get_info(sk, info);
 
-	if (vinfo) {
-		if (tcp_is_vegas(tp)) {
-			vinfo->tcpv_enabled = tp->vegas.doing_vegas_now;
-			vinfo->tcpv_rttcnt = tp->vegas.cntRTT;
-			vinfo->tcpv_rtt = jiffies_to_usecs(tp->vegas.baseRTT);
-			vinfo->tcpv_minrtt = jiffies_to_usecs(tp->vegas.minRTT);
-		} else {
-			vinfo->tcpv_enabled = 0;
-			vinfo->tcpv_rttcnt = 0;
-			vinfo->tcpv_rtt = jiffies_to_usecs(tp->westwood.rtt);
-			vinfo->tcpv_minrtt = jiffies_to_usecs(tp->westwood.rtt_min);
-		}
-	}
+	if (sk->sk_state < TCP_TIME_WAIT && tp->ca_ops->get_info)
+		tp->ca_ops->get_info(tp, ext, skb);
 
 	nlh->nlmsg_len = skb->tail - b;
 	return skb->len;
 
+rtattr_failure:
 nlmsg_failure:
 	skb_trim(skb, b - skb->data);
 	return -1;

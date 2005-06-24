@@ -217,7 +217,8 @@ extern u64 ppc64_pft_size;		/* Log 2 of page table size */
 #define page_to_pfn(page)	discontigmem_page_to_pfn(page)
 #define pfn_to_page(pfn)	discontigmem_pfn_to_page(pfn)
 #define pfn_valid(pfn)		discontigmem_pfn_valid(pfn)
-#else
+#endif
+#ifdef CONFIG_FLATMEM
 #define pfn_to_page(pfn)	(mem_map + (pfn))
 #define page_to_pfn(page)	((unsigned long)((page) - mem_map))
 #define pfn_valid(pfn)		((pfn) < max_mapnr)

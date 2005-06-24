@@ -270,10 +270,9 @@ int bus_add_device(struct device * dev)
 
 	if (bus) {
 		pr_debug("bus %s: add device %s\n", bus->name, dev->bus_id);
-		error = device_attach(dev);
+		device_attach(dev);
 		klist_add_tail(&bus->klist_devices, &dev->knode_bus);
-		if (error >= 0)
-			error = device_add_attrs(bus, dev);
+		error = device_add_attrs(bus, dev);
 		if (!error) {
 			sysfs_create_link(&bus->devices.kobj, &dev->kobj, dev->bus_id);
 			sysfs_create_link(&dev->kobj, &dev->bus->subsys.kset.kobj, "bus");

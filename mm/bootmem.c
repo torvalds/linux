@@ -256,6 +256,7 @@ found:
 static unsigned long __init free_all_bootmem_core(pg_data_t *pgdat)
 {
 	struct page *page;
+	unsigned long pfn;
 	bootmem_data_t *bdata = pgdat->bdata;
 	unsigned long i, count, total = 0;
 	unsigned long idx;
@@ -266,7 +267,7 @@ static unsigned long __init free_all_bootmem_core(pg_data_t *pgdat)
 
 	count = 0;
 	/* first extant page of the node */
-	page = virt_to_page(phys_to_virt(bdata->node_boot_start));
+	pfn = bdata->node_boot_start >> PAGE_SHIFT;
 	idx = bdata->node_low_pfn - (bdata->node_boot_start >> PAGE_SHIFT);
 	map = bdata->node_bootmem_map;
 	/* Check physaddr is O(LOG2(BITS_PER_LONG)) page aligned */
@@ -275,9 +276,11 @@ static unsigned long __init free_all_bootmem_core(pg_data_t *pgdat)
 		gofast = 1;
 	for (i = 0; i < idx; ) {
 		unsigned long v = ~map[i / BITS_PER_LONG];
+
 		if (gofast && v == ~0UL) {
 			int j, order;
 
+			page = pfn_to_page(pfn);
 			count += BITS_PER_LONG;
 			__ClearPageReserved(page);
 			order = ffs(BITS_PER_LONG) - 1;
@@ -292,6 +295,8 @@ static unsigned long __init free_all_bootmem_core(pg_data_t *pgdat)
 			page += BITS_PER_LONG;
 		} else if (v) {
 			unsigned long m;
+
+			page = pfn_to_page(pfn);
 			for (m = 1; m && i < idx; m<<=1, page++, i++) {
 				if (v & m) {
 					count++;
@@ -302,8 +307,8 @@ static unsigned long __init free_all_bootmem_core(pg_data_t *pgdat)
 			}
 		} else {
 			i+=BITS_PER_LONG;
-			page += BITS_PER_LONG;
 		}
+		pfn += BITS_PER_LONG;
 	}
 	total += count;
 

@@ -104,6 +104,7 @@ int register_die_notifier(struct notifier_block *nb)
 	spin_unlock_irqrestore(&die_notifier_lock, flags);
 	return err;
 }
+EXPORT_SYMBOL(register_die_notifier);
 
 static inline int valid_stack_ptr(struct thread_info *tinfo, void *p)
 {
@@ -209,7 +210,7 @@ void show_registers(struct pt_regs *regs)
 
 	esp = (unsigned long) (&regs->esp);
 	ss = __KERNEL_DS;
-	if (regs->xcs & 3) {
+	if (user_mode(regs)) {
 		in_kernel = 0;
 		esp = regs->esp;
 		ss = regs->xss & 0xffff;
@@ -265,7 +266,7 @@ static void handle_BUG(struct pt_regs *regs)
 	char c;
 	unsigned long eip;
 
-	if (regs->xcs & 3)
+	if (user_mode(regs))
 		goto no_bug;		/* Not in kernel */
 
 	eip = regs->eip;
@@ -353,7 +354,7 @@ void die(const char * str, struct pt_regs * regs, long err)
 
 static inline void die_if_kernel(const char * str, struct pt_regs * regs, long err)
 {
-	if (!(regs->eflags & VM_MASK) && !(3 & regs->xcs))
+	if (!user_mode_vm(regs))
 		die(str, regs, err);
 }
 
@@ -366,7 +367,7 @@ static void do_trap(int trapnr, int signr, char *str, int vm86,
 		goto trap_signal;
 	}
 
-	if (!(regs->xcs & 3))
+	if (!user_mode(regs))
 		goto kernel_trap;
 
 	trap_signal: {
@@ -488,7 +489,7 @@ fastcall void do_general_protection(struct pt_regs * regs, long error_code)
 	if (regs->eflags & VM_MASK)
 		goto gp_in_vm86;
 
-	if (!(regs->xcs & 3))
+	if (!user_mode(regs))
 		goto gp_in_kernel;
 
 	current->thread.error_code = error_code;
@@ -636,11 +637,13 @@ void set_nmi_callback(nmi_callback_t callback)
 {
 	nmi_callback = callback;
 }
+EXPORT_SYMBOL_GPL(set_nmi_callback);
 
 void unset_nmi_callback(void)
 {
 	nmi_callback = dummy_nmi_callback;
 }
+EXPORT_SYMBOL_GPL(unset_nmi_callback);
 
 #ifdef CONFIG_KPROBES
 fastcall void do_int3(struct pt_regs *regs, long error_code)
@@ -682,7 +685,7 @@ fastcall void do_debug(struct pt_regs * regs, long error_code)
 	unsigned int condition;
 	struct task_struct *tsk = current;
 
-	__asm__ __volatile__("movl %%db6,%0" : "=r" (condition));
+	get_debugreg(condition, 6);
 
 	if (notify_die(DIE_DEBUG, "debug", regs, condition, error_code,
 					SIGTRAP) == NOTIFY_STOP)
@@ -713,7 +716,7 @@ fastcall void do_debug(struct pt_regs * regs, long error_code)
 		 * check for kernel mode by just checking the CPL
 		 * of CS.
 		 */
-		if ((regs->xcs & 3) == 0)
+		if (!user_mode(regs))
 			goto clear_TF_reenable;
 	}
 
@@ -724,9 +727,7 @@ fastcall void do_debug(struct pt_regs * regs, long error_code)
 	 * the signal is delivered.
 	 */
 clear_dr7:
-	__asm__("movl %0,%%db7"
-		: /* no output */
-		: "r" (0));
+	set_debugreg(0, 7);
 	return;
 
 debug_vm86:

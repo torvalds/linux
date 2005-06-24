@@ -26,6 +26,7 @@
  *     03-Mar-2005 BJD  Ensured that bast-cpld.h is included
  *     10-Mar-2005 LCVR Changed S3C2410_VA to S3C24XX_VA
  *     14-Mar-2006 BJD  Updated for __iomem changes
+ *     22-Jun-2006 BJD  Added DM9000 platform information
 */
 
 #include <linux/kernel.h>
@@ -35,6 +36,7 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/device.h>
+#include <linux/dm9000.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -53,6 +55,7 @@
 #include <asm/arch/regs-serial.h>
 #include <asm/arch/regs-gpio.h>
 #include <asm/arch/regs-mem.h>
+#include <asm/arch/regs-lcd.h>
 #include <asm/arch/nand.h>
 
 #include <linux/mtd/mtd.h>
@@ -112,7 +115,6 @@ static struct map_desc bast_iodesc[] __initdata = {
   { VA_C2(BAST_VA_ISAMEM),  PA_CS2(BAST_PA_ISAMEM),   SZ_16M, MT_DEVICE },
   { VA_C2(BAST_VA_ASIXNET), PA_CS3(BAST_PA_ASIXNET),  SZ_1M,  MT_DEVICE },
   { VA_C2(BAST_VA_SUPERIO), PA_CS2(BAST_PA_SUPERIO),  SZ_1M,  MT_DEVICE },
-  { VA_C2(BAST_VA_DM9000),  PA_CS2(BAST_PA_DM9000),   SZ_1M,  MT_DEVICE },
   { VA_C2(BAST_VA_IDEPRI),  PA_CS3(BAST_PA_IDEPRI),   SZ_1M,  MT_DEVICE },
   { VA_C2(BAST_VA_IDESEC),  PA_CS3(BAST_PA_IDESEC),   SZ_1M,  MT_DEVICE },
   { VA_C2(BAST_VA_IDEPRIAUX), PA_CS3(BAST_PA_IDEPRIAUX), SZ_1M, MT_DEVICE },
@@ -123,7 +125,6 @@ static struct map_desc bast_iodesc[] __initdata = {
   { VA_C3(BAST_VA_ISAMEM),  PA_CS3(BAST_PA_ISAMEM),   SZ_16M, MT_DEVICE },
   { VA_C3(BAST_VA_ASIXNET), PA_CS3(BAST_PA_ASIXNET),  SZ_1M,  MT_DEVICE },
   { VA_C3(BAST_VA_SUPERIO), PA_CS3(BAST_PA_SUPERIO),  SZ_1M,  MT_DEVICE },
-  { VA_C3(BAST_VA_DM9000),  PA_CS3(BAST_PA_DM9000),   SZ_1M,  MT_DEVICE },
   { VA_C3(BAST_VA_IDEPRI),  PA_CS3(BAST_PA_IDEPRI),   SZ_1M,  MT_DEVICE },
   { VA_C3(BAST_VA_IDESEC),  PA_CS3(BAST_PA_IDESEC),   SZ_1M,  MT_DEVICE },
   { VA_C3(BAST_VA_IDEPRIAUX), PA_CS3(BAST_PA_IDEPRIAUX), SZ_1M, MT_DEVICE },
@@ -134,7 +135,6 @@ static struct map_desc bast_iodesc[] __initdata = {
   { VA_C4(BAST_VA_ISAMEM),  PA_CS4(BAST_PA_ISAMEM),   SZ_16M, MT_DEVICE },
   { VA_C4(BAST_VA_ASIXNET), PA_CS5(BAST_PA_ASIXNET),  SZ_1M,  MT_DEVICE },
   { VA_C4(BAST_VA_SUPERIO), PA_CS4(BAST_PA_SUPERIO),  SZ_1M,  MT_DEVICE },
-  { VA_C4(BAST_VA_DM9000),  PA_CS4(BAST_PA_DM9000),   SZ_1M,  MT_DEVICE },
   { VA_C4(BAST_VA_IDEPRI),  PA_CS5(BAST_PA_IDEPRI),   SZ_1M,  MT_DEVICE },
   { VA_C4(BAST_VA_IDESEC),  PA_CS5(BAST_PA_IDESEC),   SZ_1M,  MT_DEVICE },
   { VA_C4(BAST_VA_IDEPRIAUX), PA_CS5(BAST_PA_IDEPRIAUX), SZ_1M, MT_DEVICE },
@@ -145,7 +145,6 @@ static struct map_desc bast_iodesc[] __initdata = {
   { VA_C5(BAST_VA_ISAMEM),  PA_CS5(BAST_PA_ISAMEM),   SZ_16M, MT_DEVICE },
   { VA_C5(BAST_VA_ASIXNET), PA_CS5(BAST_PA_ASIXNET),  SZ_1M,  MT_DEVICE },
   { VA_C5(BAST_VA_SUPERIO), PA_CS5(BAST_PA_SUPERIO),  SZ_1M,  MT_DEVICE },
-  { VA_C5(BAST_VA_DM9000),  PA_CS5(BAST_PA_DM9000),   SZ_1M,  MT_DEVICE },
   { VA_C5(BAST_VA_IDEPRI),  PA_CS5(BAST_PA_IDEPRI),   SZ_1M,  MT_DEVICE },
   { VA_C5(BAST_VA_IDESEC),  PA_CS5(BAST_PA_IDESEC),   SZ_1M,  MT_DEVICE },
   { VA_C5(BAST_VA_IDEPRIAUX), PA_CS5(BAST_PA_IDEPRIAUX), SZ_1M, MT_DEVICE },
@@ -313,6 +312,45 @@ static struct s3c2410_platform_nand bast_nand_info = {
 	.select_chip	= bast_nand_select,
 };
 
+/* DM9000 */
+
+static struct resource bast_dm9k_resource[] = {
+	[0] = {
+		.start = S3C2410_CS5 + BAST_PA_DM9000,
+		.end   = S3C2410_CS5 + BAST_PA_DM9000 + 3,
+		.flags = IORESOURCE_MEM
+	},
+	[1] = {
+		.start = S3C2410_CS5 + BAST_PA_DM9000 + 0x40,
+		.end   = S3C2410_CS5 + BAST_PA_DM9000 + 0x40 + 0x3f,
+		.flags = IORESOURCE_MEM
+	},
+	[2] = {
+		.start = IRQ_DM9000,
+		.end   = IRQ_DM9000,
+		.flags = IORESOURCE_IRQ
+	}
+
+};
+
+/* for the moment we limit ourselves to 16bit IO until some
+ * better IO routines can be written and tested
+*/
+
+struct dm9000_plat_data bast_dm9k_platdata = {
+	.flags		= DM9000_PLATF_16BITONLY
+};
+
+static struct platform_device bast_device_dm9k = {
+	.name		= "dm9000",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(bast_dm9k_resource),
+	.resource	= bast_dm9k_resource,
+	.dev		= {
+		.platform_data = &bast_dm9k_platdata,
+	}
+};
+
 
 /* Standard BAST devices */
 
@@ -324,7 +362,8 @@ static struct platform_device *bast_devices[] __initdata = {
 	&s3c_device_iis,
  	&s3c_device_rtc,
 	&s3c_device_nand,
-	&bast_device_nor
+	&bast_device_nor,
+	&bast_device_dm9k,
 };
 
 static struct clk *bast_clocks[] = {

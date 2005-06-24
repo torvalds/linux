@@ -32,15 +32,14 @@
 #include <linux/ptrace.h>
 #include <linux/spinlock.h>
 #include <linux/preempt.h>
+#include <asm/cacheflush.h>
 #include <asm/kdebug.h>
 #include <asm/sstep.h>
 
-/* kprobe_status settings */
-#define KPROBE_HIT_ACTIVE	0x00000001
-#define KPROBE_HIT_SS		0x00000002
-
 static struct kprobe *current_kprobe;
 static unsigned long kprobe_status, kprobe_saved_msr;
+static struct kprobe *kprobe_prev;
+static unsigned long kprobe_status_prev, kprobe_saved_msr_prev;
 static struct pt_regs jprobe_saved_regs;
 
 int arch_prepare_kprobe(struct kprobe *p)
@@ -61,16 +60,25 @@ int arch_prepare_kprobe(struct kprobe *p)
 void arch_copy_kprobe(struct kprobe *p)
 {
 	memcpy(p->ainsn.insn, p->addr, MAX_INSN_SIZE * sizeof(kprobe_opcode_t));
+	p->opcode = *p->addr;
+}
+
+void arch_arm_kprobe(struct kprobe *p)
+{
+	*p->addr = BREAKPOINT_INSTRUCTION;
+	flush_icache_range((unsigned long) p->addr,
+			   (unsigned long) p->addr + sizeof(kprobe_opcode_t));
+}
+
+void arch_disarm_kprobe(struct kprobe *p)
+{
+	*p->addr = p->opcode;
+	flush_icache_range((unsigned long) p->addr,
+			   (unsigned long) p->addr + sizeof(kprobe_opcode_t));
 }
 
 void arch_remove_kprobe(struct kprobe *p)
 {
-}
-
-static inline void disarm_kprobe(struct kprobe *p, struct pt_regs *regs)
-{
-	*p->addr = p->opcode;
-	regs->nip = (unsigned long)p->addr;
 }
 
 static inline void prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
@@ -81,6 +89,20 @@ static inline void prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
 		regs->nip = (unsigned long)p->addr;
 	else
 		regs->nip = (unsigned long)&p->ainsn.insn;
+}
+
+static inline void save_previous_kprobe(void)
+{
+	kprobe_prev = current_kprobe;
+	kprobe_status_prev = kprobe_status;
+	kprobe_saved_msr_prev = kprobe_saved_msr;
+}
+
+static inline void restore_previous_kprobe(void)
+{
+	current_kprobe = kprobe_prev;
+	kprobe_status = kprobe_status_prev;
+	kprobe_saved_msr = kprobe_saved_msr_prev;
 }
 
 static inline int kprobe_handler(struct pt_regs *regs)
@@ -101,8 +123,19 @@ static inline int kprobe_handler(struct pt_regs *regs)
 				unlock_kprobes();
 				goto no_kprobe;
 			}
-			disarm_kprobe(p, regs);
-			ret = 1;
+			/* We have reentered the kprobe_handler(), since
+			 * another probe was hit while within the handler.
+			 * We here save the original kprobes variables and
+			 * just single step on the instruction of the new probe
+			 * without calling any user handlers.
+			 */
+			save_previous_kprobe();
+			current_kprobe = p;
+			kprobe_saved_msr = regs->msr;
+			p->nmissed++;
+			prepare_singlestep(p, regs);
+			kprobe_status = KPROBE_REENTER;
+			return 1;
 		} else {
 			p = current_kprobe;
 			if (p->break_handler && p->break_handler(p, regs)) {
@@ -184,13 +217,21 @@ static inline int post_kprobe_handler(struct pt_regs *regs)
 	if (!kprobe_running())
 		return 0;
 
-	if (current_kprobe->post_handler)
+	if ((kprobe_status != KPROBE_REENTER) && current_kprobe->post_handler) {
+		kprobe_status = KPROBE_HIT_SSDONE;
 		current_kprobe->post_handler(current_kprobe, regs, 0);
+	}
 
 	resume_execution(current_kprobe, regs);
 	regs->msr |= kprobe_saved_msr;
 
+	/*Restore back the original saved kprobes variables and continue. */
+	if (kprobe_status == KPROBE_REENTER) {
+		restore_previous_kprobe();
+		goto out;
+	}
 	unlock_kprobes();
+out:
 	preempt_enable_no_resched();
 
 	/*

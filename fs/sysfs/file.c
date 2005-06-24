@@ -5,6 +5,7 @@
 #include <linux/module.h>
 #include <linux/dnotify.h>
 #include <linux/kobject.h>
+#include <linux/namei.h>
 #include <asm/uaccess.h>
 #include <asm/semaphore.h>
 
@@ -400,7 +401,7 @@ int sysfs_update_file(struct kobject * kobj, const struct attribute * attr)
 	int res = -ENOENT;
 
 	down(&dir->d_inode->i_sem);
-	victim = sysfs_get_dentry(dir, attr->name);
+	victim = lookup_one_len(attr->name, dir, strlen(attr->name));
 	if (!IS_ERR(victim)) {
 		/* make sure dentry is really there */
 		if (victim->d_inode && 
@@ -443,7 +444,7 @@ int sysfs_chmod_file(struct kobject *kobj, struct attribute *attr, mode_t mode)
 	int res = -ENOENT;
 
 	down(&dir->d_inode->i_sem);
-	victim = sysfs_get_dentry(dir, attr->name);
+	victim = lookup_one_len(attr->name, dir, strlen(attr->name));
 	if (!IS_ERR(victim)) {
 		if (victim->d_inode &&
 		    (victim->d_parent->d_inode == dir->d_inode)) {

@@ -77,6 +77,11 @@ extern socket_state_t dead_socket;
 /* Use this just for bridge windows */
 #define MAP_IOSPACE	0x20
 
+/* power hook operations */
+#define HOOK_POWER_PRE	0x01
+#define HOOK_POWER_POST	0x02
+
+
 typedef struct pccard_io_map {
     u_char	map;
     u_char	flags;
@@ -222,6 +227,9 @@ struct pcmcia_socket {
 	/* Zoom video behaviour is so chip specific its not worth adding
 	   this to _ops */
 	void 				(*zoom_video)(struct pcmcia_socket *, int);
+
+	/* so is power hook */
+	int (*power_hook)(struct pcmcia_socket *sock, int operation);
                            
 	/* state thread */
 	struct semaphore		skt_sem;	/* protects socket h/w state */

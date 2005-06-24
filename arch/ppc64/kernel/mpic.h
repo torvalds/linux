@@ -265,3 +265,6 @@ extern void mpic_send_ipi(unsigned int ipi_no, unsigned int cpu_mask);
 extern int mpic_get_one_irq(struct mpic *mpic, struct pt_regs *regs);
 /* This one gets to the primary mpic */
 extern int mpic_get_irq(struct pt_regs *regs);
+
+/* global mpic for pSeries */
+extern struct mpic *pSeries_mpic;

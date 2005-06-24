@@ -905,6 +905,8 @@ config PREEMPT
 config HIGHMEM
 	bool "High memory support"
 
+source "mm/Kconfig"
+
 source "fs/Kconfig.binfmt"
 
 config PROC_DEVICETREE

@@ -7,7 +7,6 @@ extern int sysfs_create(struct dentry *, int mode, int (*init)(struct inode *));
 
 extern int sysfs_make_dirent(struct sysfs_dirent *, struct dentry *, void *,
 				umode_t, int);
-extern struct dentry * sysfs_get_dentry(struct dentry *, const char *);
 
 extern int sysfs_add_file(struct dentry *, const struct attribute *, int);
 extern void sysfs_hash_and_remove(struct dentry * dir, const char * name);

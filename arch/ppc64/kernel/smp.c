@@ -71,7 +71,7 @@ void smp_call_function_interrupt(void);
 
 int smt_enabled_at_boot = 1;
 
-#ifdef CONFIG_PPC_MULTIPLATFORM
+#ifdef CONFIG_MPIC
 void smp_mpic_message_pass(int target, int msg)
 {
 	/* make sure we're sending something that translates to an IPI */
@@ -128,7 +128,7 @@ void __devinit smp_generic_kick_cpu(int nr)
 	smp_mb();
 }
 
-#endif /* CONFIG_PPC_MULTIPLATFORM */
+#endif /* CONFIG_MPIC */
 
 static void __init smp_space_timers(unsigned int max_cpus)
 {

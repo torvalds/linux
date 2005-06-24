@@ -84,6 +84,7 @@ __strncpy_from_user(char *dst, const char __user *src, long count)
 	__do_strncpy_from_user(dst, src, count, res);
 	return res;
 }
+EXPORT_SYMBOL(__strncpy_from_user);
 
 /**
  * strncpy_from_user: - Copy a NUL terminated string from userspace.
@@ -111,7 +112,7 @@ strncpy_from_user(char *dst, const char __user *src, long count)
 		__do_strncpy_from_user(dst, src, count, res);
 	return res;
 }
-
+EXPORT_SYMBOL(strncpy_from_user);
 
 /*
  * Zero Userspace
@@ -157,6 +158,7 @@ clear_user(void __user *to, unsigned long n)
 		__do_clear_user(to, n);
 	return n;
 }
+EXPORT_SYMBOL(clear_user);
 
 /**
  * __clear_user: - Zero a block of memory in user space, with less checking.
@@ -175,6 +177,7 @@ __clear_user(void __user *to, unsigned long n)
 	__do_clear_user(to, n);
 	return n;
 }
+EXPORT_SYMBOL(__clear_user);
 
 /**
  * strlen_user: - Get the size of a string in user space.
@@ -218,6 +221,7 @@ long strnlen_user(const char __user *s, long n)
 		:"cc");
 	return res & mask;
 }
+EXPORT_SYMBOL(strnlen_user);
 
 #ifdef CONFIG_X86_INTEL_USERCOPY
 static unsigned long
@@ -570,6 +574,7 @@ survive:
 		n = __copy_user_intel(to, from, n);
 	return n;
 }
+EXPORT_SYMBOL(__copy_to_user_ll);
 
 unsigned long
 __copy_from_user_ll(void *to, const void __user *from, unsigned long n)
@@ -581,6 +586,7 @@ __copy_from_user_ll(void *to, const void __user *from, unsigned long n)
 		n = __copy_user_zeroing_intel(to, from, n);
 	return n;
 }
+EXPORT_SYMBOL(__copy_from_user_ll);
 
 /**
  * copy_to_user: - Copy a block of data into user space.

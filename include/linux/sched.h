@@ -246,7 +246,7 @@ struct mm_struct {
 
 	unsigned long saved_auxv[42]; /* for /proc/PID/auxv */
 
-	unsigned dumpable:1;
+	unsigned dumpable:2;
 	cpumask_t cpu_vm_mask;
 
 	/* Architecture-specific MM context */

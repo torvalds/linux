@@ -2576,7 +2576,7 @@ void fastcall add_preempt_count(int val)
 	/*
 	 * Underflow?
 	 */
-	BUG_ON(((int)preempt_count() < 0));
+	BUG_ON((preempt_count() < 0));
 	preempt_count() += val;
 	/*
 	 * Spinlock count overflowing soon?
@@ -2869,7 +2869,7 @@ need_resched:
 
 int default_wake_function(wait_queue_t *curr, unsigned mode, int sync, void *key)
 {
-	task_t *p = curr->task;
+	task_t *p = curr->private;
 	return try_to_wake_up(p, mode, sync);
 }
 

@@ -508,6 +508,10 @@ static int socket_setup(struct pcmcia_socket *skt, int initial_delay)
 		cs_err(skt, "unsupported voltage key.\n");
 		return CS_BAD_TYPE;
 	}
+
+	if (skt->power_hook)
+		skt->power_hook(skt, HOOK_POWER_PRE);
+
 	skt->socket.flags = 0;
 	skt->ops->set_socket(skt, &skt->socket);
 
@@ -522,7 +526,12 @@ static int socket_setup(struct pcmcia_socket *skt, int initial_delay)
 		return CS_BAD_TYPE;
 	}
 
-	return socket_reset(skt);
+	status = socket_reset(skt);
+
+	if (skt->power_hook)
+		skt->power_hook(skt, HOOK_POWER_POST);
+
+	return status;
 }
 
 /*

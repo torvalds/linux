@@ -65,7 +65,6 @@ static long madvise_behavior(struct vm_area_struct * vma,
 	/*
 	 * vm_flags is protected by the mmap_sem held in write mode.
 	 */
-	VM_ClearReadHint(vma);
 	vma->vm_flags = new_flags;
 
 out:

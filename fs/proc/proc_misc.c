@@ -451,7 +451,7 @@ static int devices_read_proc(char *page, char **start, off_t off,
 				 int count, int *eof, void *data)
 {
 	int len = get_chrdev_list(page);
-	len += get_blkdev_list(page+len);
+	len += get_blkdev_list(page+len, len);
 	return proc_calc_metrics(page, start, off, count, eof, len);
 }
 

@@ -1767,7 +1767,7 @@ static inline int ip_mkroute_input_def(struct sk_buff *skb,
 				       struct in_device *in_dev,
 				       u32 daddr, u32 saddr, u32 tos)
 {
-	struct rtable* rth;
+	struct rtable* rth = NULL;
 	int err;
 	unsigned hash;
 
@@ -1794,7 +1794,7 @@ static inline int ip_mkroute_input(struct sk_buff *skb,
 				   u32 daddr, u32 saddr, u32 tos)
 {
 #ifdef CONFIG_IP_ROUTE_MULTIPATH_CACHED
-	struct rtable* rth;
+	struct rtable* rth = NULL;
 	unsigned char hop, hopcount, lasthop;
 	int err = -EINVAL;
 	unsigned int hash;
@@ -2239,7 +2239,7 @@ static inline int ip_mkroute_output_def(struct rtable **rp,
 					struct net_device *dev_out,
 					unsigned flags)
 {
-	struct rtable *rth;
+	struct rtable *rth = NULL;
 	int err = __mkroute_output(&rth, res, fl, oldflp, dev_out, flags);
 	unsigned hash;
 	if (err == 0) {
@@ -2267,7 +2267,7 @@ static inline int ip_mkroute_output(struct rtable** rp,
 	unsigned char hop;
 	unsigned hash;
 	int err = -EINVAL;
-	struct rtable *rth;
+	struct rtable *rth = NULL;
 
 	if (res->fi && res->fi->fib_nhs > 1) {
 		unsigned char hopcount = res->fi->fib_nhs;

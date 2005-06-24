@@ -72,6 +72,11 @@ repeat:
 	BUG_ON(!list_empty(&p->ptrace_list) || !list_empty(&p->ptrace_children));
 	__exit_signal(p);
 	__exit_sighand(p);
+	/*
+	 * Note that the fastpath in sys_times depends on __exit_signal having
+	 * updated the counters before a task is removed from the tasklist of
+	 * the process by __unhash_process.
+	 */
 	__unhash_process(p);
 
 	/*
@@ -791,6 +796,17 @@ fastcall NORET_TYPE void do_exit(long code)
 	if (unlikely(current->ptrace & PT_TRACE_EXIT)) {
 		current->ptrace_message = code;
 		ptrace_notify((PTRACE_EVENT_EXIT << 8) | SIGTRAP);
+	}
+
+	/*
+	 * We're taking recursive faults here in do_exit. Safest is to just
+	 * leave this task alone and wait for reboot.
+	 */
+	if (unlikely(tsk->flags & PF_EXITING)) {
+		printk(KERN_ALERT
+			"Fixing recursive fault but reboot is needed!\n");
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule();
 	}
 
 	tsk->flags |= PF_EXITING;

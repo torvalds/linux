@@ -25,6 +25,10 @@
 
 #ifdef __KERNEL__
 
+#ifndef force_o_largefile
+#define force_o_largefile() (BITS_PER_LONG != 32)
+#endif
+
 #if BITS_PER_LONG == 32
 #define IS_GETLK32(cmd)		((cmd) == F_GETLK)
 #define IS_SETLK32(cmd)		((cmd) == F_SETLK)
