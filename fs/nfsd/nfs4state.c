@@ -509,6 +509,30 @@ find_unconfirmed_client(clientid_t *clid)
 	return NULL;
 }
 
+static struct nfs4_client *
+find_confirmed_client_by_str(const char *dname, unsigned int hashval)
+{
+	struct nfs4_client *clp;
+
+	list_for_each_entry(clp, &conf_str_hashtbl[hashval], cl_strhash) {
+		if (same_name(clp->cl_recdir, dname))
+			return clp;
+	}
+	return NULL;
+}
+
+static struct nfs4_client *
+find_unconfirmed_client_by_str(const char *dname, unsigned int hashval)
+{
+	struct nfs4_client *clp;
+
+	list_for_each_entry(clp, &unconf_str_hashtbl[hashval], cl_strhash) {
+		if (same_name(clp->cl_recdir, dname))
+			return clp;
+	}
+	return NULL;
+}
+
 /* a helper function for parse_callback */
 static int
 parse_octet(unsigned int *lenp, char **addrp)
@@ -647,7 +671,7 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_setclientid *setclid)
 	};
 	nfs4_verifier		clverifier = setclid->se_verf;
 	unsigned int 		strhashval;
-	struct nfs4_client *	conf, * unconf, * new, * clp;
+	struct nfs4_client	*conf, *unconf, *new;
 	int 			status;
 	char                    dname[HEXDIR_LEN];
 	
@@ -666,35 +690,24 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_setclientid *setclid)
 
 	strhashval = clientstr_hashval(dname);
 
-	conf = NULL;
 	nfs4_lock_state();
-	list_for_each_entry(clp, &conf_str_hashtbl[strhashval], cl_strhash) {
-		if (!same_name(clp->cl_recdir, dname))
-			continue;
+	conf = find_confirmed_client_by_str(dname, strhashval);
+	if (conf) {
 		/* 
 		 * CASE 0:
 		 * clname match, confirmed, different principal
 		 * or different ip_address
 		 */
 		status = nfserr_clid_inuse;
-		if (!cmp_creds(&clp->cl_cred,&rqstp->rq_cred)
-				|| clp->cl_addr != ip_addr) {
+		if (!cmp_creds(&conf->cl_cred, &rqstp->rq_cred)
+				|| conf->cl_addr != ip_addr) {
 			printk("NFSD: setclientid: string in use by client"
 			"(clientid %08x/%08x)\n",
-			clp->cl_clientid.cl_boot, clp->cl_clientid.cl_id);
+			conf->cl_clientid.cl_boot, conf->cl_clientid.cl_id);
 			goto out;
 		}
-		conf = clp;
-		break;
 	}
-	unconf = NULL;
-	list_for_each_entry(clp, &unconf_str_hashtbl[strhashval], cl_strhash) {
-		if (!same_name(clp->cl_recdir, dname))
-			continue;
-		/* cl_name match from a previous SETCLIENTID operation */
-		unconf = clp;
-		break;
-	}
+	unconf = find_unconfirmed_client_by_str(dname, strhashval);
 	status = nfserr_resource;
 	if (!conf) {
 		/* 
