@@ -340,7 +340,7 @@ int saa7134_pgtable_build(struct pci_dev *pci, struct saa7134_pgtable *pt,
 	ptr = pt->cpu + startpage;
 	for (i = 0; i < length; i++, list++)
 		for (p = 0; p * 4096 < list->length; p++, ptr++)
-			*ptr = sg_dma_address(list) - list->offset;
+			*ptr = cpu_to_le32(sg_dma_address(list) - list->offset);
 	return 0;
 }
 
