@@ -1844,6 +1844,7 @@ out:
 	return status;
 }
 
+static struct workqueue_struct *laundry_wq;
 static struct work_struct laundromat_work;
 static void laundromat_main(void *);
 static DECLARE_WORK(laundromat_work, laundromat_main, NULL);
@@ -1951,7 +1952,7 @@ laundromat_main(void *not_used)
 
 	t = nfs4_laundromat();
 	dprintk("NFSD: laundromat_main - sleeping for %ld seconds\n", t);
-	schedule_delayed_work(&laundromat_work, t*HZ);
+	queue_delayed_work(laundry_wq, &laundromat_work, t*HZ);
 }
 
 /* search ownerid_hashtbl[] and close_lru for stateid owner
@@ -3211,7 +3212,8 @@ __nfs4_state_init(void)
 		printk("NFSD: starting %ld-second grace period\n", grace_time);
 	grace_end = boot_time + grace_time;
 	INIT_WORK(&laundromat_work,laundromat_main, NULL);
-	schedule_delayed_work(&laundromat_work, NFSD_LEASE_TIME*HZ);
+	laundry_wq = create_singlethread_workqueue("nfsd4");
+	queue_delayed_work(laundry_wq, &laundromat_work, NFSD_LEASE_TIME*HZ);
 }
 
 int
@@ -3287,7 +3289,8 @@ __nfs4_state_shutdown(void)
 	}
 
 	cancel_delayed_work(&laundromat_work);
-	flush_scheduled_work();
+	flush_workqueue(laundry_wq);
+	destroy_workqueue(laundry_wq);
 	nfs4_init = 0;
 }
 
