@@ -90,6 +90,7 @@ static DECLARE_MUTEX(client_sema);
 
 kmem_cache_t *stateowner_slab = NULL;
 kmem_cache_t *file_slab = NULL;
+kmem_cache_t *stateid_slab = NULL;
 
 void
 nfs4_lock_state(void)
@@ -1010,6 +1011,7 @@ nfsd4_free_slabs(void)
 {
 	nfsd4_free_slab(&stateowner_slab);
 	nfsd4_free_slab(&file_slab);
+	nfsd4_free_slab(&stateid_slab);
 }
 
 static int
@@ -1022,6 +1024,10 @@ nfsd4_init_slabs(void)
 	file_slab = kmem_cache_create("nfsd4_files",
 			sizeof(struct nfs4_file), 0, 0, NULL, NULL);
 	if (file_slab == NULL)
+		goto out_nomem;
+	stateid_slab = kmem_cache_create("nfsd4_stateids",
+			sizeof(struct nfs4_stateid), 0, 0, NULL, NULL);
+	if (stateid_slab == NULL)
 		goto out_nomem;
 	return 0;
 out_nomem:
@@ -1173,7 +1179,7 @@ release_stateid(struct nfs4_stateid *stp, int flags)
 		vfsclose++;
 	} else if (flags & LOCK_STATE)
 		locks_remove_posix(filp, (fl_owner_t) stp->st_stateowner);
-	kfree(stp);
+	kmem_cache_free(stateid_slab, stp);
 	stp = NULL;
 }
 
@@ -1606,6 +1612,12 @@ out:
 	return status;
 }
 
+static inline struct nfs4_stateid *
+nfs4_alloc_stateid(void)
+{
+	return kmem_cache_alloc(stateid_slab, GFP_KERNEL);
+}
+
 static int
 nfs4_new_open(struct svc_rqst *rqstp, struct nfs4_stateid **stpp,
 		struct nfs4_delegation *dp,
@@ -1613,7 +1625,7 @@ nfs4_new_open(struct svc_rqst *rqstp, struct nfs4_stateid **stpp,
 {
 	struct nfs4_stateid *stp;
 
-	stp = kmalloc(sizeof(struct nfs4_stateid), GFP_KERNEL);
+	stp = nfs4_alloc_stateid();
 	if (stp == NULL)
 		return nfserr_resource;
 
@@ -1627,7 +1639,7 @@ nfs4_new_open(struct svc_rqst *rqstp, struct nfs4_stateid **stpp,
 		if (status) {
 			if (status == nfserr_dropit)
 				status = nfserr_jukebox;
-			kfree(stp);
+			kmem_cache_free(stateid_slab, stp);
 			return status;
 		}
 	}
@@ -2627,8 +2639,8 @@ alloc_init_lock_stateid(struct nfs4_stateowner *sop, struct nfs4_file *fp, struc
 	struct nfs4_stateid *stp;
 	unsigned int hashval = stateid_hashval(sop->so_id, fp->fi_id);
 
-	if ((stp = kmalloc(sizeof(struct nfs4_stateid), 
-					GFP_KERNEL)) == NULL)
+	stp = nfs4_alloc_stateid();
+	if (stp == NULL)
 		goto out;
 	INIT_LIST_HEAD(&stp->st_hash);
 	INIT_LIST_HEAD(&stp->st_perfile);
