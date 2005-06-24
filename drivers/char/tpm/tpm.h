@@ -25,11 +25,16 @@
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
 
-#define TPM_TIMEOUT	5	/* msecs */
+enum tpm_timeout {
+	TPM_TIMEOUT = 5,	/* msecs */
+};
 
 /* TPM addresses */
-#define	TPM_ADDR			0x4E
-#define	TPM_DATA			0x4F
+enum tpm_addr {
+	TPM_ADDR = 0x4E,
+	TPM_DATA = 0x4F
+};
+
 
 struct tpm_chip;
 

@@ -28,19 +28,35 @@
 #include <linux/spinlock.h>
 #include "tpm.h"
 
-#define	TPM_MINOR			224	/* officially assigned */
+enum tpm_const {
+	TPM_MINOR = 224,	/* officially assigned */
+	TPM_BUFSIZE = 2048,
+	TPM_NUM_DEVICES = 256,
+	TPM_NUM_MASK_ENTRIES = TPM_NUM_DEVICES / (8 * sizeof(int))
+};
 
-#define	TPM_BUFSIZE			2048
+  /* PCI configuration addresses */
+enum tpm_pci_config_addr {
+	PCI_GEN_PMCON_1 = 0xA0,
+	PCI_GEN1_DEC = 0xE4,
+	PCI_LPC_EN = 0xE6,
+	PCI_GEN2_DEC = 0xEC
+};
 
-/* PCI configuration addresses */
-#define	PCI_GEN_PMCON_1			0xA0
-#define	PCI_GEN1_DEC			0xE4
-#define	PCI_LPC_EN			0xE6
-#define	PCI_GEN2_DEC			0xEC
+enum tpm_config {
+	TPM_LOCK_REG = 0x0D,
+	TPM_INTERUPT_REG = 0x0A,
+	TPM_BASE_ADDR_LO = 0x08,
+	TPM_BASE_ADDR_HI = 0x09,
+	TPM_UNLOCK_VALUE = 0x55,
+	TPM_LOCK_VALUE = 0xAA,
+	TPM_DISABLE_INTERUPT_VALUE = 0x00
+};
+
 
 static LIST_HEAD(tpm_chip_list);
 static DEFINE_SPINLOCK(driver_lock);
-static int dev_mask[32];
+static int dev_mask[TPM_NUM_MASK_ENTRIES];
 
 static void user_reader_timeout(unsigned long ptr)
 {
@@ -102,16 +118,17 @@ int tpm_lpc_bus_init(struct pci_dev *pci_dev, u16 base)
 			pci_write_config_dword(pci_dev, PCI_GEN_PMCON_1,
 					       tmp);
 		}
-		tpm_write_index(0x0D, 0x55);	/* unlock 4F */
-		tpm_write_index(0x0A, 0x00);	/* int disable */
-		tpm_write_index(0x08, base);	/* base addr lo */
-		tpm_write_index(0x09, (base & 0xFF00) >> 8);	/* base addr hi */
-		tpm_write_index(0x0D, 0xAA);	/* lock 4F */
 		break;
 	case PCI_VENDOR_ID_AMD:
 		/* nothing yet */
 		break;
 	}
+
+	tpm_write_index(TPM_LOCK_REG, TPM_UNLOCK_VALUE);
+	tpm_write_index(TPM_INTERUPT_REG, TPM_DISABLE_INTERUPT_VALUE);
+	tpm_write_index(TPM_BASE_ADDR_LO, base);
+	tpm_write_index(TPM_BASE_ADDR_HI, (base & 0xFF00) >> 8);
+	tpm_write_index(TPM_LOCK_REG, TPM_LOCK_VALUE);
 
 	return 0;
 }
@@ -527,7 +544,7 @@ void __devexit tpm_remove(struct pci_dev *pci_dev)
 
 	pci_disable_device(pci_dev);
 
-	dev_mask[chip->dev_num / 32] &= !(1 << (chip->dev_num % 32));
+	dev_mask[chip->dev_num / TPM_NUM_MASK_ENTRIES ] &= !(1 << (chip->dev_num % TPM_NUM_MASK_ENTRIES));
 
 	kfree(chip);
 
@@ -608,10 +625,11 @@ int tpm_register_hardware(struct pci_dev *pci_dev,
 
 	chip->dev_num = -1;
 
-	for (i = 0; i < 32; i++)
-		for (j = 0; j < 8; j++)
+	for (i = 0; i < TPM_NUM_MASK_ENTRIES; i++)
+		for (j = 0; j < 8 * sizeof(int); j++)
 			if ((dev_mask[i] & (1 << j)) == 0) {
-				chip->dev_num = i * 32 + j;
+				chip->dev_num =
+				    i * TPM_NUM_MASK_ENTRIES + j;
 				dev_mask[i] |= 1 << j;
 				goto dev_num_search_complete;
 			}
