@@ -103,7 +103,8 @@ static struct i2o_scsi_host *i2o_scsi_host_alloc(struct i2o_controller *c)
 
 	list_for_each_entry(i2o_dev, &c->devices, list)
 	    if (i2o_dev->lct_data.class_id == I2O_CLASS_BUS_ADAPTER_PORT) {
-		if (i2o_parm_field_get(i2o_dev, 0x0000, 0, &type, 1) || (type == 1))	/* SCSI bus */
+		if (i2o_parm_field_get(i2o_dev, 0x0000, 0, &type, 1)
+		   && (type == 0x01))	/* SCSI bus */
 			max_channel++;
 	}
 

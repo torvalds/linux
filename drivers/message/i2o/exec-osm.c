@@ -204,11 +204,9 @@ static int i2o_msg_post_wait_complete(struct i2o_controller *c, u32 m,
 				      struct i2o_message __iomem *msg)
 {
 	struct i2o_exec_wait *wait, *tmp;
-	static spinlock_t lock;
+	static spinlock_t lock = SPIN_LOCK_UNLOCKED;
 	int rc = 1;
 	u32 context;
-
-	spin_lock_init(&lock);
 
 	context = readl(&msg->u.s.tcntxt);
 
@@ -381,8 +379,9 @@ static int i2o_exec_reply(struct i2o_controller *c, u32 m,
  */
 static void i2o_exec_event(struct i2o_event *evt)
 {
-	osm_info("Event received from device: %d\n",
-		 evt->i2o_dev->lct_data.tid);
+	if(likely(evt->i2o_dev))
+		osm_info("Event received from device: %d\n",
+			 evt->i2o_dev->lct_data.tid);
 	kfree(evt);
 };
 

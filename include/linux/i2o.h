@@ -152,11 +152,6 @@ struct i2o_controller {
 	unsigned int raptor:1;		/* split bar */
 	unsigned int promise:1;		/* Promise controller */
 
-#ifdef CONFIG_MTRR
-	int mtrr_reg0;
-	int mtrr_reg1;
-#endif
-
 	struct list_head devices;	/* list of I2O devices */
 
 	struct notifier_block *event_notifer;	/* Events */

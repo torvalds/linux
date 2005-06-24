@@ -555,6 +555,7 @@ static int i2o_cfg_passthru32(struct file *file, unsigned cmnd, unsigned long ar
 	u32 sg_offset = 0;
 	u32 sg_count = 0;
 	u32 i = 0;
+	u32 sg_index = 0;
 	i2o_status_block *sb;
 	struct i2o_message *msg;
 	u32 m;
@@ -634,8 +635,8 @@ static int i2o_cfg_passthru32(struct file *file, unsigned cmnd, unsigned long ar
 		if (sg_count > SG_TABLESIZE) {
 			printk(KERN_DEBUG "%s:IOCTL SG List too large (%u)\n",
 			       c->name, sg_count);
-			kfree(reply);
-			return -EINVAL;
+			rcode = -EINVAL;
+			goto cleanup;
 		}
 
 		for (i = 0; i < sg_count; i++) {
@@ -651,7 +652,7 @@ static int i2o_cfg_passthru32(struct file *file, unsigned cmnd, unsigned long ar
 				goto cleanup;
 			}
 			sg_size = sg[i].flag_count & 0xffffff;
-			p = &(sg_list[i]);
+			p = &(sg_list[sg_index++]);
 			/* Allocate memory for the transfer */
 			if (i2o_dma_alloc
 			    (&c->pdev->dev, p, sg_size,
@@ -660,7 +661,7 @@ static int i2o_cfg_passthru32(struct file *file, unsigned cmnd, unsigned long ar
 				       "%s: Could not allocate SG buffer - size = %d buffer number %d of %d\n",
 				       c->name, sg_size, i, sg_count);
 				rcode = -ENOMEM;
-				goto cleanup;
+				goto sg_list_cleanup;
 			}
 			/* Copy in the user's SG buffer if necessary */
 			if (sg[i].
@@ -673,7 +674,7 @@ static int i2o_cfg_passthru32(struct file *file, unsigned cmnd, unsigned long ar
 					       "%s: Could not copy SG buf %d FROM user\n",
 					       c->name, i);
 					rcode = -EFAULT;
-					goto cleanup;
+					goto sg_list_cleanup;
 				}
 			}
 			//TODO 64bit fix
@@ -683,10 +684,10 @@ static int i2o_cfg_passthru32(struct file *file, unsigned cmnd, unsigned long ar
 
 	rcode = i2o_msg_post_wait(c, m, 60);
 	if (rcode)
-		goto cleanup;
+		goto sg_list_cleanup;
 
 	if (sg_offset) {
-		u32 msg[128];
+		u32 msg[MSG_FRAME_SIZE];
 		/* Copy back the Scatter Gather buffers back to user space */
 		u32 j;
 		// TODO 64bit fix
@@ -698,14 +699,14 @@ static int i2o_cfg_passthru32(struct file *file, unsigned cmnd, unsigned long ar
 		// get user msg size in u32s
 		if (get_user(size, &user_msg[0])) {
 			rcode = -EFAULT;
-			goto cleanup;
+			goto sg_list_cleanup;
 		}
 		size = size >> 16;
 		size *= 4;
 		/* Copy in the user's I2O command */
 		if (copy_from_user(msg, user_msg, size)) {
 			rcode = -EFAULT;
-			goto cleanup;
+			goto sg_list_cleanup;
 		}
 		sg_count =
 		    (size - sg_offset * 4) / sizeof(struct sg_simple_element);
@@ -727,7 +728,7 @@ static int i2o_cfg_passthru32(struct file *file, unsigned cmnd, unsigned long ar
 					       c->name, sg_list[j].virt,
 					       sg[j].addr_bus);
 					rcode = -EFAULT;
-					goto cleanup;
+					goto sg_list_cleanup;
 				}
 			}
 		}
@@ -741,6 +742,7 @@ static int i2o_cfg_passthru32(struct file *file, unsigned cmnd, unsigned long ar
 			       "%s: Could not copy message context FROM user\n",
 			       c->name);
 			rcode = -EFAULT;
+			goto sg_list_cleanup;
 		}
 		if (copy_to_user(user_reply, reply, reply_size)) {
 			printk(KERN_WARNING
@@ -748,6 +750,10 @@ static int i2o_cfg_passthru32(struct file *file, unsigned cmnd, unsigned long ar
 			rcode = -EFAULT;
 		}
 	}
+
+      sg_list_cleanup:
+	for (i = 0; i < sg_index; i++)
+		i2o_dma_free(&c->pdev->dev, &sg_list[i]);
 
       cleanup:
 	kfree(reply);
@@ -862,8 +868,8 @@ static int i2o_cfg_passthru(unsigned long arg)
 		if (sg_count > SG_TABLESIZE) {
 			printk(KERN_DEBUG "%s:IOCTL SG List too large (%u)\n",
 			       c->name, sg_count);
-			kfree(reply);
-			return -EINVAL;
+			rcode = -EINVAL;
+			goto cleanup;
 		}
 
 		for (i = 0; i < sg_count; i++) {
@@ -875,7 +881,7 @@ static int i2o_cfg_passthru(unsigned long arg)
 				       "%s:Bad SG element %d - not simple (%x)\n",
 				       c->name, i, sg[i].flag_count);
 				rcode = -EINVAL;
-				goto cleanup;
+				goto sg_list_cleanup;
 			}
 			sg_size = sg[i].flag_count & 0xffffff;
 			/* Allocate memory for the transfer */
@@ -885,7 +891,7 @@ static int i2o_cfg_passthru(unsigned long arg)
 				       "%s: Could not allocate SG buffer - size = %d buffer number %d of %d\n",
 				       c->name, sg_size, i, sg_count);
 				rcode = -ENOMEM;
-				goto cleanup;
+				goto sg_list_cleanup;
 			}
 			sg_list[sg_index++] = p;	// sglist indexed with input frame, not our internal frame.
 			/* Copy in the user's SG buffer if necessary */
@@ -899,7 +905,7 @@ static int i2o_cfg_passthru(unsigned long arg)
 					       "%s: Could not copy SG buf %d FROM user\n",
 					       c->name, i);
 					rcode = -EFAULT;
-					goto cleanup;
+					goto sg_list_cleanup;
 				}
 			}
 			//TODO 64bit fix
@@ -909,7 +915,7 @@ static int i2o_cfg_passthru(unsigned long arg)
 
 	rcode = i2o_msg_post_wait(c, m, 60);
 	if (rcode)
-		goto cleanup;
+		goto sg_list_cleanup;
 
 	if (sg_offset) {
 		u32 msg[128];
@@ -924,14 +930,14 @@ static int i2o_cfg_passthru(unsigned long arg)
 		// get user msg size in u32s
 		if (get_user(size, &user_msg[0])) {
 			rcode = -EFAULT;
-			goto cleanup;
+			goto sg_list_cleanup;
 		}
 		size = size >> 16;
 		size *= 4;
 		/* Copy in the user's I2O command */
 		if (copy_from_user(msg, user_msg, size)) {
 			rcode = -EFAULT;
-			goto cleanup;
+			goto sg_list_cleanup;
 		}
 		sg_count =
 		    (size - sg_offset * 4) / sizeof(struct sg_simple_element);
@@ -953,7 +959,7 @@ static int i2o_cfg_passthru(unsigned long arg)
 					       c->name, sg_list[j],
 					       sg[j].addr_bus);
 					rcode = -EFAULT;
-					goto cleanup;
+					goto sg_list_cleanup;
 				}
 			}
 		}
@@ -974,6 +980,10 @@ static int i2o_cfg_passthru(unsigned long arg)
 			rcode = -EFAULT;
 		}
 	}
+
+      sg_list_cleanup:
+	for (i = 0; i < sg_index; i++)
+		kfree(sg_list[i]);
 
       cleanup:
 	kfree(reply);
