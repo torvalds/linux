@@ -28,7 +28,7 @@ static int reiserfs_prepare_write(struct file *f, struct page *page,
 void reiserfs_delete_inode (struct inode * inode)
 {
     /* We need blocks for transaction + (user+group) quota update (possibly delete) */
-    int jbegin_count = JOURNAL_PER_BALANCE_CNT * 2 + 2 * REISERFS_QUOTA_INIT_BLOCKS;
+    int jbegin_count = JOURNAL_PER_BALANCE_CNT * 2 + 2 * REISERFS_QUOTA_INIT_BLOCKS(inode->i_sb);
     struct reiserfs_transaction_handle th ;
   
     reiserfs_write_lock(inode->i_sb);
@@ -591,7 +591,7 @@ int reiserfs_get_block (struct inode * inode, sector_t block,
        XXX in practically impossible worst case direct2indirect()
        can incur (much) more than 3 balancings.
        quota update for user, group */
-    int jbegin_count = JOURNAL_PER_BALANCE_CNT * 3 + 1 + 2 * REISERFS_QUOTA_TRANS_BLOCKS;
+    int jbegin_count = JOURNAL_PER_BALANCE_CNT * 3 + 1 + 2 * REISERFS_QUOTA_TRANS_BLOCKS(inode->i_sb);
     int version;
     int dangle = 1;
     loff_t new_offset = (((loff_t)block) << inode->i_sb->s_blocksize_bits) + 1 ;
@@ -2796,14 +2796,15 @@ int reiserfs_setattr(struct dentry *dentry, struct iattr *attr) {
 
                 if (!error) {
 		    struct reiserfs_transaction_handle th;
+		    int jbegin_count = 2*(REISERFS_QUOTA_INIT_BLOCKS(inode->i_sb)+REISERFS_QUOTA_DEL_BLOCKS(inode->i_sb))+2;
 
 		    /* (user+group)*(old+new) structure - we count quota info and , inode write (sb, inode) */
-		    error = journal_begin(&th, inode->i_sb, 4*REISERFS_QUOTA_INIT_BLOCKS+2);
+		    error = journal_begin(&th, inode->i_sb, jbegin_count);
  		    if (error)
  			goto out;
                     error = DQUOT_TRANSFER(inode, attr) ? -EDQUOT : 0;
 		    if (error) {
-			journal_end(&th, inode->i_sb, 4*REISERFS_QUOTA_INIT_BLOCKS+2);
+			journal_end(&th, inode->i_sb, jbegin_count);
 			goto out;
 		    }
 		    /* Update corresponding info in inode so that everything is in
@@ -2813,7 +2814,7 @@ int reiserfs_setattr(struct dentry *dentry, struct iattr *attr) {
 		    if (attr->ia_valid & ATTR_GID)
 			inode->i_gid = attr->ia_gid;
 		    mark_inode_dirty(inode);
-		    error = journal_end(&th, inode->i_sb, 4*REISERFS_QUOTA_INIT_BLOCKS+2);
+		    error = journal_end(&th, inode->i_sb, jbegin_count);
 		}
         }
         if (!error)
