@@ -58,4 +58,4 @@ tuner=56 - Philips PAL/SECAM multi (FQ1216AME MK4)
 tuner=57 - Philips FQ1236A MK4
 tuner=58 - Ymec TVision TVF-8531MF
 tuner=59 - Ymec TVision TVF-5533MF
-tuner=60 - Thomson DDT 7611
+tuner=60 - Thomson DDT 7611 (ATSC/NTSC)

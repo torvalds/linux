@@ -428,16 +428,11 @@ struct cx88_board cx88_boards[] = {
 			.vmux   = 2,
 			.gpio0	= 0x0f00,
 		}},
-#if 0
-		.ts             = {
-			 .type   = CX88_TS,
-			 .gpio0  = 0x00000f01,   /* Hooked to tuner reset bit */
-		 }
-#endif
 	},
-        [CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_Q] = {
-                .name           = "DViCO - FusionHDTV 3 Gold-Q",
-                .tuner_type     = 52, /* Thomson DDT 7610 ATSC/NTSC - Its actually a 7611 chip, but this works */
+        [CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_T] = {
+                .name           = "DViCO - FusionHDTV 3 Gold-T",
+                .tuner_type     = 52, /* Thomson DDT 7611 ATSC/NTSC */
+               /*  See DViCO FusionHDTV 3 Gold for GPIO documentation.  */
                 .input          = {{
                         .type   = CX88_VMUX_TELEVISION,
                         .vmux   = 0,
@@ -455,12 +450,6 @@ struct cx88_board cx88_boards[] = {
                         .vmux   = 2,
                         .gpio0  = 0x0f00,
                 }},
-#if 0
-                .ts             = {
-                         .type   = CX88_TS,
-                         .gpio0  = 0x00000f01,   /* Hooked to tuner reset bit */
-                 }
-#endif
         },
         [CX88_BOARD_HAUPPAUGE_DVB_T1] = {
                 .name           = "Hauppauge Nova-T DVB-T",
@@ -723,7 +712,7 @@ struct cx88_subid cx88_subids[] = {
 	},{
 		.subvendor = 0x18ac,
 		.subdevice = 0xd820,
-		.card      = CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_Q,
+		.card      = CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_T,
 	},{
 		.subvendor = 0x18AC,
 		.subdevice = 0xDB00,
