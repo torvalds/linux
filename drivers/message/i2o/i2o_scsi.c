@@ -40,6 +40,7 @@
  *	Fix the resource management problems.
  */
 
+#define DEBUG 1
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -179,6 +180,8 @@ static int i2o_scsi_remove(struct device *dev)
 	struct i2o_scsi_host *i2o_shost;
 	struct scsi_device *scsi_dev;
 
+	osm_info("device removed (TID: %03x)\n", i2o_dev->lct_data.tid);
+
 	i2o_shost = i2o_scsi_get_host(c);
 
 	shost_for_each_device(scsi_dev, i2o_shost->scsi_host)
@@ -262,8 +265,8 @@ static int i2o_scsi_probe(struct device *dev)
 		return -EFAULT;
 	}
 
-	osm_debug("added new SCSI device %03x (cannel: %d, id: %d, lun: %d)\n",
-		  i2o_dev->lct_data.tid, channel, id, (unsigned int)lun);
+	osm_info("device added (TID: %03x) channel: %d, id: %d, lun: %d\n",
+		 i2o_dev->lct_data.tid, channel, id, (unsigned int)lun);
 
 	return 0;
 };
@@ -439,8 +442,6 @@ static int i2o_scsi_reply(struct i2o_controller *c, u32 m,
 
 	cmd->result = DID_OK << 16 | ds;
 
-	cmd->scsi_done(cmd);
-
 	dev = &c->pdev->dev;
 	if (cmd->use_sg)
 		dma_unmap_sg(dev, (struct scatterlist *)cmd->buffer,
@@ -448,6 +449,8 @@ static int i2o_scsi_reply(struct i2o_controller *c, u32 m,
 	else if (cmd->request_bufflen)
 		dma_unmap_single(dev, (dma_addr_t) ((long)cmd->SCp.ptr),
 				 cmd->request_bufflen, cmd->sc_data_direction);
+
+	cmd->scsi_done(cmd);
 
 	return 1;
 };
@@ -502,7 +505,7 @@ static void i2o_scsi_notify_controller_remove(struct i2o_controller *c)
 
 	scsi_remove_host(i2o_shost->scsi_host);
 	scsi_host_put(i2o_shost->scsi_host);
-	pr_info("I2O SCSI host removed\n");
+	osm_debug("I2O SCSI host removed\n");
 };
 
 /* SCSI OSM driver struct */
@@ -545,7 +548,7 @@ static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
 	u32 scsi_flags, sg_flags;
 	u32 __iomem *mptr;
 	u32 __iomem *lenptr;
-	u32 len, reqlen;
+	u32 len;
 	int i;
 
 	/*
@@ -580,11 +583,11 @@ static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
 	if (m == I2O_QUEUE_EMPTY)
 		return SCSI_MLQUEUE_HOST_BUSY;
 
+	mptr = &msg->body[0];
+
 	/*
 	 *      Put together a scsi execscb message
 	 */
-
-	len = SCpnt->request_bufflen;
 
 	switch (SCpnt->sc_data_direction) {
 	case PCI_DMA_NONE:
@@ -637,16 +640,12 @@ static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
 	 */
 
 	/* Direction, disconnect ok, tag, CDBLen */
-	writel(scsi_flags | 0x20200000 | SCpnt->cmd_len, &msg->body[0]);
-
-	mptr = &msg->body[1];
+	writel(scsi_flags | 0x20200000 | SCpnt->cmd_len, mptr ++);
 
 	/* Write SCSI command into the message - always 16 byte block */
 	memcpy_toio(mptr, SCpnt->cmnd, 16);
 	mptr += 4;
 	lenptr = mptr++;	/* Remember me - fill in when we know */
-
-	reqlen = 12;		// SINGLE SGE
 
 	/* Now fill in the SGList and command */
 	if (SCpnt->use_sg) {
@@ -671,7 +670,6 @@ static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
 			sg++;
 		}
 
-		reqlen = mptr - &msg->u.head[0];
 		writel(len, lenptr);
 	} else {
 		len = SCpnt->request_bufflen;
@@ -691,12 +689,11 @@ static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
 			sg_flags |= 0xC0000000;
 			writel(sg_flags | SCpnt->request_bufflen, mptr++);
 			writel(dma_addr, mptr++);
-		} else
-			reqlen = 9;
+		}
 	}
 
 	/* Stick the headers on */
-	writel(reqlen << 16 | SGL_OFFSET_10, &msg->u.head[0]);
+	writel((mptr - &msg->u.head[0]) << 16 | SGL_OFFSET_10, &msg->u.head[0]);
 
 	/* Queue the message */
 	i2o_msg_post(c, m);

@@ -80,13 +80,123 @@ struct i2o_cfg_info {
 static struct i2o_cfg_info *open_files = NULL;
 static ulong i2o_cfg_info_id = 0;
 
-/*
- *	Each of these describes an i2o message handler. They are
- *	multiplexed by the i2o_core code
+/**
+ *	i2o_config_read_hrt - Returns the HRT of the controller
+ *	@kob: kernel object handle
+ *	@buf: buffer into which the HRT should be copied
+ *	@off: file offset
+ *	@count: number of bytes to read
+ *
+ *	Put @count bytes starting at @off into @buf from the HRT of the I2O
+ *	controller corresponding to @kobj.
+ *
+ *	Returns number of bytes copied into buffer.
  */
+static ssize_t i2o_config_read_hrt(struct kobject *kobj, char *buf,
+				   loff_t offset, size_t count)
+{
+	struct i2o_controller *c = to_i2o_controller(container_of(kobj,
+								  struct device,
+								  kobj));
+	i2o_hrt *hrt = c->hrt.virt;
 
+	u32 size = (hrt->num_entries * hrt->entry_len + 2) * 4;
+
+	if(offset > size)
+		return 0;
+
+	if(offset + count > size)
+		count = size - offset;
+
+	memcpy(buf, (u8 *) hrt + offset, count);
+
+	return count;
+};
+
+/**
+ *	i2o_config_read_lct - Returns the LCT of the controller
+ *	@kob: kernel object handle
+ *	@buf: buffer into which the LCT should be copied
+ *	@off: file offset
+ *	@count: number of bytes to read
+ *
+ *	Put @count bytes starting at @off into @buf from the LCT of the I2O
+ *	controller corresponding to @kobj.
+ *
+ *	Returns number of bytes copied into buffer.
+ */
+static ssize_t i2o_config_read_lct(struct kobject *kobj, char *buf,
+				   loff_t offset, size_t count)
+{
+	struct i2o_controller *c = to_i2o_controller(container_of(kobj,
+								  struct device,
+								  kobj));
+	u32 size = c->lct->table_size * 4;
+
+	if(offset > size)
+		return 0;
+
+	if(offset + count > size)
+		count = size - offset;
+
+	memcpy(buf, (u8 *) c->lct + offset, count);
+
+	return count;
+};
+
+/* attribute for HRT in sysfs */
+static struct bin_attribute i2o_config_hrt_attr = {
+	.attr = {
+		.name = "hrt",
+		.mode = S_IRUGO,
+		.owner = THIS_MODULE
+	},
+	.size = 0,
+	.read = i2o_config_read_hrt
+};
+
+/* attribute for LCT in sysfs */
+static struct bin_attribute i2o_config_lct_attr = {
+	.attr = {
+		.name = "lct",
+		.mode = S_IRUGO,
+		.owner = THIS_MODULE
+	},
+	.size = 0,
+	.read = i2o_config_read_lct
+};
+
+/**
+ *	i2o_config_notify_controller_add - Notify of added controller
+ *	@c: the controller which was added
+ *
+ *	If a I2O controller is added, we catch the notification to add sysfs
+ *	entries.
+ */
+static void i2o_config_notify_controller_add(struct i2o_controller *c)
+{
+	sysfs_create_bin_file(&(c->device.kobj), &i2o_config_hrt_attr);
+	sysfs_create_bin_file(&(c->device.kobj), &i2o_config_lct_attr);
+};
+
+/**
+ *	i2o_config_notify_controller_remove - Notify of removed controller
+ *	@c: the controller which was removed
+ *
+ *	If a I2O controller is removed, we catch the notification to remove the
+ *	sysfs entries.
+ */
+static void i2o_config_notify_controller_remove(struct i2o_controller *c)
+{
+	sysfs_remove_bin_file(&c->device.kobj, &i2o_config_lct_attr);
+	sysfs_remove_bin_file(&c->device.kobj, &i2o_config_hrt_attr);
+};
+
+/* Config OSM driver struct */
 static struct i2o_driver i2o_config_driver = {
-	.name = OSM_NAME
+	.name = OSM_NAME,
+	.notify_controller_add = i2o_config_notify_controller_add,
+	.notify_controller_remove = i2o_config_notify_controller_remove
 };
 
 static int i2o_cfg_getiops(unsigned long arg)

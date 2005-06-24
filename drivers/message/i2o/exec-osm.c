@@ -108,7 +108,8 @@ static void i2o_exec_wait_free(struct i2o_exec_wait *wait)
  *	buffer must not be freed. Instead the event completion will free them
  *	for you. In all other cases the buffer are your problem.
  *
- *	Returns 0 on success or negative error code on failure.
+ *	Returns 0 on success, negative error code on timeout or positive error
+ *	code from reply.
  */
 int i2o_msg_post_wait_mem(struct i2o_controller *c, u32 m, unsigned long
 			  timeout, struct i2o_dma *dma)
@@ -116,7 +117,7 @@ int i2o_msg_post_wait_mem(struct i2o_controller *c, u32 m, unsigned long
 	DECLARE_WAIT_QUEUE_HEAD(wq);
 	struct i2o_exec_wait *wait;
 	static u32 tcntxt = 0x80000000;
-	struct i2o_message __iomem *msg = c->in_queue.virt + m;
+	struct i2o_message __iomem *msg = i2o_msg_in_to_virt(c, m);
 	int rc = 0;
 
 	wait = i2o_exec_wait_alloc();
@@ -161,8 +162,7 @@ int i2o_msg_post_wait_mem(struct i2o_controller *c, u32 m, unsigned long
 	barrier();
 
 	if (wait->complete) {
-		if (readl(&wait->msg->body[0]) >> 24)
-			rc = readl(&wait->msg->body[0]) & 0xff;
+		rc = readl(&wait->msg->body[0]) >> 24;
 		i2o_flush_reply(c, wait->m);
 		i2o_exec_wait_free(wait);
 	} else {
@@ -187,6 +187,7 @@ int i2o_msg_post_wait_mem(struct i2o_controller *c, u32 m, unsigned long
  *	@c: I2O controller which answers
  *	@m: message id
  *	@msg: pointer to the I2O reply message
+ *	@context: transaction context of request
  *
  *	This function is called in interrupt context only. If the reply reached
  *	before the timeout, the i2o_exec_wait struct is filled with the message
@@ -201,14 +202,12 @@ int i2o_msg_post_wait_mem(struct i2o_controller *c, u32 m, unsigned long
  *	message must also be given back to the controller.
  */
 static int i2o_msg_post_wait_complete(struct i2o_controller *c, u32 m,
-				      struct i2o_message __iomem *msg)
+				      struct i2o_message __iomem *msg,
+				      u32 context)
 {
 	struct i2o_exec_wait *wait, *tmp;
 	static spinlock_t lock = SPIN_LOCK_UNLOCKED;
 	int rc = 1;
-	u32 context;
-
-	context = readl(&msg->u.s.tcntxt);
 
 	/*
 	 * We need to search through the i2o_exec_wait_list to see if the given
@@ -251,7 +250,7 @@ static int i2o_msg_post_wait_complete(struct i2o_controller *c, u32 m,
 
 	spin_unlock(&lock);
 
-	pr_debug("%s: Bogus reply in POST WAIT (tr-context: %08x)!\n", c->name,
+	osm_warn("%s: Bogus reply in POST WAIT (tr-context: %08x)!\n", c->name,
 		 context);
 
 	return -1;
@@ -321,29 +320,35 @@ static void i2o_exec_lct_modified(struct i2o_controller *c)
  *	code on failure and if the reply should be flushed.
  */
 static int i2o_exec_reply(struct i2o_controller *c, u32 m,
-			  struct i2o_message *msg)
+			  struct i2o_message __iomem *msg)
 {
-	if (le32_to_cpu(msg->u.head[0]) & MSG_FAIL) {	// Fail bit is set
-		struct i2o_message __iomem *pmsg;	/* preserved message */
+	u32 context;
+
+	if (readl(&msg->u.head[0]) & MSG_FAIL) {
+		/*
+		 * If Fail bit is set we must take the transaction context of
+		 * the preserved message to find the right request again.
+		 */
+		struct i2o_message __iomem *pmsg;
 		u32 pm;
 
-		pm = le32_to_cpu(msg->body[3]);
+		pm = readl(&msg->body[3]);
 
 		pmsg = i2o_msg_in_to_virt(c, pm);
 
 		i2o_report_status(KERN_INFO, "i2o_core", msg);
 
-		/* Release the preserved msg by resubmitting it as a NOP */
+		context = readl(&pmsg->u.s.tcntxt);
+
+		/* Release the preserved msg */
 		i2o_msg_nop(c, pm);
+	} else
+		context = readl(&msg->u.s.tcntxt);
 
-		/* If reply to i2o_post_wait failed, return causes a timeout */
-		return -1;
-	}
+	if (context & 0x80000000)
+		return i2o_msg_post_wait_complete(c, m, msg, context);
 
-	if (le32_to_cpu(msg->u.s.tcntxt) & 0x80000000)
-		return i2o_msg_post_wait_complete(c, m, msg);
-
-	if ((le32_to_cpu(msg->u.head[1]) >> 24) == I2O_CMD_LCT_NOTIFY) {
+	if ((readl(&msg->u.head[1]) >> 24) == I2O_CMD_LCT_NOTIFY) {
 		struct work_struct *work;
 
 		pr_debug("%s: LCT notify received\n", c->name);

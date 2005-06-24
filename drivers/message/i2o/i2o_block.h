@@ -74,7 +74,7 @@ struct i2o_block_device {
 	int rcache;			/* read cache flags */
 	int wcache;			/* write cache flags */
 	int flags;
-	int power;			/* power state */
+	u16 power;			/* power state */
 	int media_change_flag;		/* media changed flag */
 };
 

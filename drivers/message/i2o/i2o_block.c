@@ -104,7 +104,8 @@ static int i2o_block_remove(struct device *dev)
 	struct i2o_device *i2o_dev = to_i2o_device(dev);
 	struct i2o_block_device *i2o_blk_dev = dev_get_drvdata(dev);
 
-	osm_info("Device removed %s\n", i2o_blk_dev->gd->disk_name);
+	osm_info("device removed (TID: %03x): %s\n", i2o_dev->lct_data.tid,
+		 i2o_blk_dev->gd->disk_name);
 
 	i2o_event_register(i2o_dev, &i2o_block_driver, 0, 0);
 
@@ -400,6 +401,49 @@ static void i2o_block_delayed_request_fn(void *delayed_request)
 };
 
 /**
+ *	i2o_block_end_request - Post-processing of completed commands
+ *	@req: request which should be completed
+ *	@uptodate: 1 for success, 0 for I/O error, < 0 for specific error
+ *	@nr_bytes: number of bytes to complete
+ *
+ *	Mark the request as complete. The lock must not be held when entering.
+ *
+ */
+static void i2o_block_end_request(struct request *req, int uptodate,
+				  int nr_bytes)
+{
+	struct i2o_block_request *ireq = req->special;
+	struct i2o_block_device *dev = ireq->i2o_blk_dev;
+	request_queue_t *q = dev->gd->queue;
+	unsigned long flags;
+
+	if (end_that_request_chunk(req, uptodate, nr_bytes)) {
+		int leftover = (req->hard_nr_sectors << 9);
+
+		if (blk_pc_request(req))
+			leftover = req->data_len;
+
+		if (end_io_error(uptodate))
+			end_that_request_chunk(req, 0, leftover);
+	}
+
+	add_disk_randomness(req->rq_disk);
+
+	spin_lock_irqsave(q->queue_lock, flags);
+
+	end_that_request_last(req);
+	dev->open_queue_depth--;
+	list_del(&ireq->queue);
+
+	blk_start_queue(q);
+
+	spin_unlock_irqrestore(q->queue_lock, flags);
+
+	i2o_block_sglist_free(ireq);
+	i2o_block_request_free(ireq);
+};
+
+/**
  *	i2o_block_reply - Block OSM reply handler.
  *	@c: I2O controller from which the message arrives
  *	@m: message id of reply
@@ -411,91 +455,12 @@ static void i2o_block_delayed_request_fn(void *delayed_request)
 static int i2o_block_reply(struct i2o_controller *c, u32 m,
 			   struct i2o_message *msg)
 {
-	struct i2o_block_request *ireq;
 	struct request *req;
-	struct i2o_block_device *dev;
-	struct request_queue *q;
-	u8 st;
-	unsigned long flags;
-
-	/* FAILed message */
-	if (unlikely(le32_to_cpu(msg->u.head[0]) & (1 << 13))) {
-		struct i2o_message *pmsg;
-		u32 pm;
-
-		/*
-		 * FAILed message from controller
-		 * We increment the error count and abort it
-		 *
-		 * In theory this will never happen.  The I2O block class
-		 * specification states that block devices never return
-		 * FAILs but instead use the REQ status field...but
-		 * better be on the safe side since no one really follows
-		 * the spec to the book :)
-		 */
-		pm = le32_to_cpu(msg->body[3]);
-		pmsg = i2o_msg_in_to_virt(c, pm);
-
-		req = i2o_cntxt_list_get(c, le32_to_cpu(pmsg->u.s.tcntxt));
-		if (unlikely(!req)) {
-			osm_err("NULL reply received!\n");
-			return -1;
-		}
-
-		ireq = req->special;
-		dev = ireq->i2o_blk_dev;
-		q = dev->gd->queue;
-
-		req->errors++;
-
-		spin_lock_irqsave(q->queue_lock, flags);
-
-		while (end_that_request_chunk(req, !req->errors,
-					      le32_to_cpu(pmsg->body[1]))) ;
-		end_that_request_last(req);
-
-		dev->open_queue_depth--;
-		list_del(&ireq->queue);
-		blk_start_queue(q);
-
-		spin_unlock_irqrestore(q->queue_lock, flags);
-
-		/* Now flush the message by making it a NOP */
-		i2o_msg_nop(c, pm);
-
-		return -1;
-	}
+	int uptodate = 1;
 
 	req = i2o_cntxt_list_get(c, le32_to_cpu(msg->u.s.tcntxt));
 	if (unlikely(!req)) {
 		osm_err("NULL reply received!\n");
-		return -1;
-	}
-
-	ireq = req->special;
-	dev = ireq->i2o_blk_dev;
-	q = dev->gd->queue;
-
-	if (unlikely(!dev->i2o_dev)) {
-		/*
-		 * This is HACK, but Intel Integrated RAID allows user
-		 * to delete a volume that is claimed, locked, and in use
-		 * by the OS. We have to check for a reply from a
-		 * non-existent device and flag it as an error or the system
-		 * goes kaput...
-		 */
-		req->errors++;
-		osm_warn("Data transfer to deleted device!\n");
-		spin_lock_irqsave(q->queue_lock, flags);
-		while (end_that_request_chunk
-		       (req, !req->errors, le32_to_cpu(msg->body[1]))) ;
-		end_that_request_last(req);
-
-		dev->open_queue_depth--;
-		list_del(&ireq->queue);
-		blk_start_queue(q);
-
-		spin_unlock_irqrestore(q->queue_lock, flags);
 		return -1;
 	}
 
@@ -504,29 +469,8 @@ static int i2o_block_reply(struct i2o_controller *c, u32 m,
 	 *      request in the context.
 	 */
 
-	st = le32_to_cpu(msg->body[0]) >> 24;
-
-	if (st != 0) {
-		int err;
-		char *bsa_errors[] = {
-			"Success",
-			"Media Error",
-			"Failure communicating to device",
-			"Device Failure",
-			"Device is not ready",
-			"Media not present",
-			"Media is locked by another user",
-			"Media has failed",
-			"Failure communicating to device",
-			"Device bus failure",
-			"Device is locked by another user",
-			"Device is write protected",
-			"Device has reset",
-			"Volume has changed, waiting for acknowledgement"
-		};
-
-		err = le32_to_cpu(msg->body[0]) & 0xffff;
-
+	if ((le32_to_cpu(msg->body[0]) >> 24) != 0) {
+		u32 status = le32_to_cpu(msg->body[0]);
 		/*
 		 *      Device not ready means two things. One is that the
 		 *      the thing went offline (but not a removal media)
@@ -539,40 +483,23 @@ static int i2o_block_reply(struct i2o_controller *c, u32 m,
 		 *      Don't stick a supertrak100 into cache aggressive modes
 		 */
 
-		osm_err("block-osm: /dev/%s error: %s", dev->gd->disk_name,
-			bsa_errors[le32_to_cpu(msg->body[0]) & 0xffff]);
-		if (le32_to_cpu(msg->body[0]) & 0x00ff0000)
-			printk(KERN_ERR " - DDM attempted %d retries",
-			       (le32_to_cpu(msg->body[0]) >> 16) & 0x00ff);
-		printk(KERN_ERR ".\n");
+		osm_err("%03x error status: %02x, detailed status: %04x\n",
+			(le32_to_cpu(msg->u.head[1]) >> 12 & 0xfff),
+			status >> 24, status & 0xffff);
+
 		req->errors++;
-	} else
-		req->errors = 0;
 
-	if (!end_that_request_chunk
-	    (req, !req->errors, le32_to_cpu(msg->body[1]))) {
-		add_disk_randomness(req->rq_disk);
-		spin_lock_irqsave(q->queue_lock, flags);
+		uptodate = 0;
+	}
 
-		end_that_request_last(req);
-
-		dev->open_queue_depth--;
-		list_del(&ireq->queue);
-		blk_start_queue(q);
-
-		spin_unlock_irqrestore(q->queue_lock, flags);
-
-		i2o_block_sglist_free(ireq);
-		i2o_block_request_free(ireq);
-	} else
-		osm_err("still remaining chunks\n");
+	i2o_block_end_request(req, uptodate, le32_to_cpu(msg->body[1]));
 
 	return 1;
 };
 
 static void i2o_block_event(struct i2o_event *evt)
 {
-	osm_info("block-osm: event received\n");
+	osm_info("event received\n");
 	kfree(evt);
 };
 
@@ -875,9 +802,7 @@ static int i2o_block_transfer(struct request *req)
 		sg++;
 	}
 
-	writel(I2O_MESSAGE_SIZE
-	       (((unsigned long)mptr -
-		 (unsigned long)&msg->u.head[0]) >> 2) | SGL_OFFSET_8,
+	writel(I2O_MESSAGE_SIZE(mptr - &msg->u.head[0]) | SGL_OFFSET_8,
 	       &msg->u.head[0]);
 
 	list_add_tail(&ireq->queue, &dev->open_queue);
@@ -1048,7 +973,6 @@ static int i2o_block_probe(struct device *dev)
 	int rc;
 	u64 size;
 	u32 blocksize;
-	u16 power;
 	u32 flags, status;
 	int segments;
 
@@ -1057,8 +981,6 @@ static int i2o_block_probe(struct device *dev)
 		osm_debug("skipping used device %03x\n", i2o_dev->lct_data.tid);
 		return -ENODEV;
 	}
-
-	osm_info("New device detected (TID: %03x)\n", i2o_dev->lct_data.tid);
 
 	if (i2o_device_claim(i2o_dev)) {
 		osm_warn("Unable to claim device. Installation aborted\n");
@@ -1111,15 +1033,21 @@ static int i2o_block_probe(struct device *dev)
 	 *      Ask for the current media data. If that isn't supported
 	 *      then we ask for the device capacity data
 	 */
-	if (i2o_parm_field_get(i2o_dev, 0x0004, 1, &blocksize, 4) != 0
-	    || i2o_parm_field_get(i2o_dev, 0x0004, 0, &size, 8) != 0) {
-		i2o_parm_field_get(i2o_dev, 0x0000, 3, &blocksize, 4);
-		i2o_parm_field_get(i2o_dev, 0x0000, 4, &size, 8);
-	}
-	osm_debug("blocksize = %d\n", blocksize);
+	if (!i2o_parm_field_get(i2o_dev, 0x0004, 0, &size, 8))
+		if (!i2o_parm_field_get(i2o_dev, 0x0000, 4, &size, 8)) {
+			osm_warn("could not get size of %s\n", gd->disk_name);
+			size = 0;
+		}
 
-	if (i2o_parm_field_get(i2o_dev, 0x0000, 2, &power, 2))
-		power = 0;
+	if (!i2o_parm_field_get(i2o_dev, 0x0004, 1, &blocksize, 4))
+		if (!i2o_parm_field_get(i2o_dev, 0x0000, 3, &blocksize, 4)) {
+			osm_warn("unable to get blocksize of %s\n",
+				 gd->disk_name);
+			blocksize = 0;
+		}
+
+	if (!i2o_parm_field_get(i2o_dev, 0x0000, 2, &i2o_blk_dev->power, 2))
+		i2o_blk_dev->power = 0;
 	i2o_parm_field_get(i2o_dev, 0x0000, 5, &flags, 4);
 	i2o_parm_field_get(i2o_dev, 0x0000, 6, &status, 4);
 
@@ -1130,6 +1058,9 @@ static int i2o_block_probe(struct device *dev)
 	add_disk(gd);
 
 	unit++;
+
+	osm_info("device added (TID: %03x): %s\n", i2o_dev->lct_data.tid,
+		 i2o_blk_dev->gd->disk_name);
 
 	return 0;
 

@@ -282,8 +282,7 @@ int i2o_device_parse_lct(struct i2o_controller *c)
 
 	down(&c->lct_lock);
 
-	if (c->lct)
-		kfree(c->lct);
+	kfree(c->lct);
 
 	lct = c->dlct.virt;
 
@@ -447,8 +446,8 @@ static struct class_interface i2o_device_class_interface = {
  *	ResultCount, ErrorInfoSize, BlockStatus and BlockSize.
  */
 
-int i2o_parm_issue(struct i2o_device *i2o_dev, int cmd, void *oplist,
-		   int oplen, void *reslist, int reslen)
+static int i2o_parm_issue(struct i2o_device *i2o_dev, int cmd, void *oplist,
+			  int oplen, void *reslist, int reslen)
 {
 	struct i2o_message __iomem *msg;
 	u32 m;
@@ -540,7 +539,7 @@ int i2o_parm_field_get(struct i2o_device *i2o_dev, int group, int field,
 		opblk[4] = -1;
 
 	size = i2o_parm_issue(i2o_dev, I2O_CMD_UTIL_PARAMS_GET, opblk,
-			      sizeof(opblk), resblk, sizeof(resblk));
+			      sizeof(opblk), resblk, buflen + 8);
 
 	memcpy(buf, resblk + 8, buflen);	/* cut off header */
 

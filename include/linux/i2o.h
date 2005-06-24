@@ -153,12 +153,10 @@ struct i2o_controller {
 	unsigned int promise:1;		/* Promise controller */
 
 	struct list_head devices;	/* list of I2O devices */
-
-	struct notifier_block *event_notifer;	/* Events */
-	atomic_t users;
 	struct list_head list;	/* Controller list */
-	void __iomem *post_port;	/* Inbout port address */
-	void __iomem *reply_port;	/* Outbound port address */
+
+	void __iomem *in_port;	/* Inbout port address */
+	void __iomem *out_port;	/* Outbound port address */
 	void __iomem *irq_mask;		/* Interrupt register address */
 
 	/* Dynamic LCT related data */
@@ -182,9 +180,6 @@ struct i2o_controller {
 	struct resource io_resource;	/* I/O resource allocated to the IOP */
 	struct resource mem_resource;	/* Mem resource allocated to the IOP */
 
-	struct proc_dir_entry *proc_entry;	/* /proc dir */
-
-	struct list_head bus_list;	/* list of busses on IOP */
 	struct device device;
 	struct i2o_device *exec;	/* Executive */
 #if BITS_PER_LONG == 64
@@ -380,49 +375,10 @@ extern int i2o_device_claim_release(struct i2o_device *);
 /* Exec OSM functions */
 extern int i2o_exec_lct_get(struct i2o_controller *);
 
-/* device to i2o_device and driver to i2o_driver convertion functions */
+/* device / driver conversion functions */
 #define to_i2o_driver(drv) container_of(drv,struct i2o_driver, driver)
 #define to_i2o_device(dev) container_of(dev, struct i2o_device, device)
-
-/*
- *	Messenger inlines
- */
-static inline u32 I2O_POST_READ32(struct i2o_controller *c)
-{
-	rmb();
-	return readl(c->post_port);
-};
-
-static inline void I2O_POST_WRITE32(struct i2o_controller *c, u32 val)
-{
-	wmb();
-	writel(val, c->post_port);
-};
-
-static inline u32 I2O_REPLY_READ32(struct i2o_controller *c)
-{
-	rmb();
-	return readl(c->reply_port);
-};
-
-static inline void I2O_REPLY_WRITE32(struct i2o_controller *c, u32 val)
-{
-	wmb();
-	writel(val, c->reply_port);
-};
-
-static inline u32 I2O_IRQ_READ32(struct i2o_controller *c)
-{
-	rmb();
-	return readl(c->irq_mask);
-};
-
-static inline void I2O_IRQ_WRITE32(struct i2o_controller *c, u32 val)
-{
-	wmb();
-	writel(val, c->irq_mask);
-	wmb();
-};
+#define to_i2o_controller(dev) container_of(dev, struct i2o_controller, device)
 
 /**
  *	i2o_msg_get - obtain an I2O message from the IOP
@@ -440,10 +396,12 @@ static inline void I2O_IRQ_WRITE32(struct i2o_controller *c, u32 val)
 static inline u32 i2o_msg_get(struct i2o_controller *c,
 			      struct i2o_message __iomem **msg)
 {
-	u32 m;
+	u32 m = readl(c->in_port);
 
-	if ((m = I2O_POST_READ32(c)) != I2O_QUEUE_EMPTY)
+	if (m != I2O_QUEUE_EMPTY) {
 		*msg = c->in_queue.virt + m;
+		rmb();
+	}
 
 	return m;
 };
@@ -457,7 +415,8 @@ static inline u32 i2o_msg_get(struct i2o_controller *c,
  */
 static inline void i2o_msg_post(struct i2o_controller *c, u32 m)
 {
-	I2O_POST_WRITE32(c, m);
+	wmb();
+	writel(m, c->in_port);
 };
 
 /**
@@ -486,12 +445,10 @@ static inline int i2o_msg_post_wait(struct i2o_controller *c, u32 m,
  *	The I2O controller must be informed that the reply message is not needed
  *	anymore. If you forget to flush the reply, the message frame can't be
  *	used by the controller anymore and is therefore lost.
- *
- *	FIXME: is there a timeout after which the controller reuse the message?
  */
 static inline void i2o_flush_reply(struct i2o_controller *c, u32 m)
 {
-	I2O_REPLY_WRITE32(c, m);
+	writel(m, c->out_port);
 };
 
 /**
@@ -505,8 +462,9 @@ static inline void i2o_flush_reply(struct i2o_controller *c, u32 m)
  *	work for sender side messages as they are ioremap objects
  *	provided by the I2O controller.
  */
-static inline struct i2o_message *i2o_msg_out_to_virt(struct i2o_controller *c,
-						      u32 m)
+static inline struct i2o_message __iomem *i2o_msg_out_to_virt(struct
+							      i2o_controller *c,
+							      u32 m)
 {
 	BUG_ON(m < c->out_queue.phys
 	       || m >= c->out_queue.phys + c->out_queue.len);
@@ -917,7 +875,7 @@ extern void i2o_debug_state(struct i2o_controller *c);
 #define I2OVER15	0x0001
 #define I2OVER20	0x0002
 
-/* Default is 1.5, FIXME: Need support for both 1.5 and 2.0 */
+/* Default is 1.5 */
 #define I2OVERSION	I2OVER15
 
 #define SGL_OFFSET_0    I2OVERSION

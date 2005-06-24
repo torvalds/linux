@@ -38,8 +38,7 @@ extern void i2o_iop_free(struct i2o_controller *);
 extern int i2o_iop_add(struct i2o_controller *);
 extern void i2o_iop_remove(struct i2o_controller *);
 
-extern int i2o_driver_dispatch(struct i2o_controller *, u32,
-			       struct i2o_message *);
+extern int i2o_driver_dispatch(struct i2o_controller *, u32);
 
 /* PCI device id table for all I2O controllers */
 static struct pci_device_id __devinitdata i2o_pci_ids[] = {
@@ -89,8 +88,7 @@ static void i2o_pci_free(struct i2o_controller *c)
 
 	i2o_dma_free(dev, &c->out_queue);
 	i2o_dma_free(dev, &c->status_block);
-	if (c->lct)
-		kfree(c->lct);
+	kfree(c->lct);
 	i2o_dma_free(dev, &c->dlct);
 	i2o_dma_free(dev, &c->hrt);
 	i2o_dma_free(dev, &c->status);
@@ -187,9 +185,9 @@ static int __devinit i2o_pci_alloc(struct i2o_controller *c)
 	} else
 		c->in_queue = c->base;
 
-	c->irq_mask = c->base.virt + 0x34;
-	c->post_port = c->base.virt + 0x40;
-	c->reply_port = c->base.virt + 0x44;
+	c->irq_mask = c->base.virt + I2O_IRQ_MASK;
+	c->in_port = c->base.virt + I2O_IN_PORT;
+	c->out_port = c->base.virt + I2O_OUT_PORT;
 
 	if (i2o_dma_alloc(dev, &c->status, 8, GFP_KERNEL)) {
 		i2o_pci_free(c);
@@ -235,49 +233,34 @@ static irqreturn_t i2o_pci_interrupt(int irq, void *dev_id, struct pt_regs *r)
 {
 	struct i2o_controller *c = dev_id;
 	struct device *dev = &c->pdev->dev;
-	struct i2o_message *m;
-	u32 mv;
+	u32 mv = readl(c->out_port);
 
 	/*
 	 * Old 960 steppings had a bug in the I2O unit that caused
 	 * the queue to appear empty when it wasn't.
 	 */
-	mv = I2O_REPLY_READ32(c);
 	if (mv == I2O_QUEUE_EMPTY) {
-		mv = I2O_REPLY_READ32(c);
-		if (unlikely(mv == I2O_QUEUE_EMPTY)) {
+		mv = readl(c->out_port);
+		if (unlikely(mv == I2O_QUEUE_EMPTY))
 			return IRQ_NONE;
-		} else
+		else
 			pr_debug("%s: 960 bug detected\n", c->name);
 	}
 
 	while (mv != I2O_QUEUE_EMPTY) {
-		/*
-		 * Map the message from the page frame map to kernel virtual.
-		 * Because bus_to_virt is deprecated, we have calculate the
-		 * location by ourself!
-		 */
-		m = i2o_msg_out_to_virt(c, mv);
-
-		/*
-		 *      Ensure this message is seen coherently but cachably by
-		 *      the processor
-		 */
-		dma_sync_single_for_cpu(dev, mv, MSG_FRAME_SIZE * 4,
-					PCI_DMA_FROMDEVICE);
-
 		/* dispatch it */
-		if (i2o_driver_dispatch(c, mv, m))
+		if (i2o_driver_dispatch(c, mv))
 			/* flush it if result != 0 */
 			i2o_flush_reply(c, mv);
 
 		/*
 		 * That 960 bug again...
 		 */
-		mv = I2O_REPLY_READ32(c);
+		mv = readl(c->out_port);
 		if (mv == I2O_QUEUE_EMPTY)
-			mv = I2O_REPLY_READ32(c);
+			mv = readl(c->out_port);
 	}
+
 	return IRQ_HANDLED;
 }
 
@@ -294,7 +277,9 @@ static int i2o_pci_irq_enable(struct i2o_controller *c)
 	struct pci_dev *pdev = c->pdev;
 	int rc;
 
-	I2O_IRQ_WRITE32(c, 0xffffffff);
+	wmb();
+	writel(0xffffffff, c->irq_mask);
+	wmb();
 
 	if (pdev->irq) {
 		rc = request_irq(pdev->irq, i2o_pci_interrupt, SA_SHIRQ,
@@ -306,7 +291,8 @@ static int i2o_pci_irq_enable(struct i2o_controller *c)
 		}
 	}
 
-	I2O_IRQ_WRITE32(c, 0x00000000);
+	writel(0x00000000, c->irq_mask);
+	wmb();
 
 	printk(KERN_INFO "%s: Installed at IRQ %d\n", c->name, pdev->irq);
 
@@ -321,7 +307,9 @@ static int i2o_pci_irq_enable(struct i2o_controller *c)
  */
 static void i2o_pci_irq_disable(struct i2o_controller *c)
 {
-	I2O_IRQ_WRITE32(c, 0xffffffff);
+	wmb();
+	writel(0xffffffff, c->irq_mask);
+	wmb();
 
 	if (c->pdev->irq > 0)
 		free_irq(c->pdev->irq, c);
@@ -379,7 +367,7 @@ static int __devinit i2o_pci_probe(struct pci_dev *pdev,
 		       pci_name(pdev));
 
 	c->pdev = pdev;
-	c->device = pdev->dev;
+	c->device.parent = get_device(&pdev->dev);
 
 	/* Cards that fall apart if you hit them with large I/O loads... */
 	if (pdev->vendor == PCI_VENDOR_ID_NCR && pdev->device == 0x0630) {
@@ -428,6 +416,8 @@ static int __devinit i2o_pci_probe(struct pci_dev *pdev,
 	if (i960)
 		pci_write_config_word(i960, 0x42, 0x03ff);
 
+	get_device(&c->device);
+
 	return 0;
 
       uninstall:
@@ -438,6 +428,7 @@ static int __devinit i2o_pci_probe(struct pci_dev *pdev,
 
       free_controller:
 	i2o_iop_free(c);
+	put_device(c->device.parent);
 
       disable:
 	pci_disable_device(pdev);
@@ -461,15 +452,17 @@ static void __devexit i2o_pci_remove(struct pci_dev *pdev)
 	i2o_pci_irq_disable(c);
 	i2o_pci_free(c);
 
+	pci_disable_device(pdev);
+
 	printk(KERN_INFO "%s: Controller removed.\n", c->name);
 
-	i2o_iop_free(c);
-	pci_disable_device(pdev);
+	put_device(c->device.parent);
+	put_device(&c->device);
 };
 
 /* PCI driver for I2O controller */
 static struct pci_driver i2o_pci_driver = {
-	.name = "I2O controller",
+	.name = "PCI_I2O",
 	.id_table = i2o_pci_ids,
 	.probe = i2o_pci_probe,
 	.remove = __devexit_p(i2o_pci_remove),

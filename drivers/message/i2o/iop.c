@@ -68,7 +68,7 @@ extern void i2o_device_exit(void);
  */
 void i2o_msg_nop(struct i2o_controller *c, u32 m)
 {
-	struct i2o_message __iomem *msg = c->in_queue.virt + m;
+	struct i2o_message __iomem *msg = i2o_msg_in_to_virt(c, m);
 
 	writel(THREE_WORD_MSG_SIZE | SGL_OFFSET_0, &msg->u.head[0]);
 	writel(I2O_CMD_UTIL_NOP << 24 | HOST_TID << 12 | ADAPTER_TID,
@@ -452,8 +452,6 @@ static int i2o_iop_clear(struct i2o_controller *c)
 	/* Enable all IOPs */
 	i2o_iop_enable_all();
 
-	i2o_status_get(c);
-
 	return rc;
 }
 
@@ -591,12 +589,11 @@ static int i2o_iop_init_outbound_queue(struct i2o_controller *c)
 	if (m == I2O_QUEUE_EMPTY)
 		return -ETIMEDOUT;
 
-	writel(EIGHT_WORD_MSG_SIZE | TRL_OFFSET_6, &msg->u.head[0]);
+	writel(EIGHT_WORD_MSG_SIZE | SGL_OFFSET_6, &msg->u.head[0]);
 	writel(I2O_CMD_OUTBOUND_INIT << 24 | HOST_TID << 12 | ADAPTER_TID,
 	       &msg->u.head[1]);
 	writel(i2o_exec_driver.context, &msg->u.s.icntxt);
-	writel(0x0106, &msg->u.s.tcntxt);	/* FIXME: why 0x0106, maybe in
-						   Spec? */
+	writel(0x00000000, &msg->u.s.tcntxt);
 	writel(PAGE_SIZE, &msg->body[0]);
 	writel(MSG_FRAME_SIZE << 16 | 0x80, &msg->body[1]);	/* Outbound msg frame
 								   size in words and Initcode */
@@ -891,8 +888,12 @@ void i2o_iop_remove(struct i2o_controller *c)
 	list_for_each_entry_safe(dev, tmp, &c->devices, list)
 	    i2o_device_remove(dev);
 
+	device_del(&c->device);
+
 	/* Ask the IOP to switch to RESET state */
 	i2o_iop_reset(c);
+
+	put_device(&c->device);
 }
 
 /**
@@ -971,8 +972,10 @@ static int i2o_systab_build(void)
 		systab->iops[count].frame_size = sb->inbound_frame_size;
 		systab->iops[count].last_changed = change_ind;
 		systab->iops[count].iop_capabilities = sb->iop_capabilities;
-		systab->iops[count].inbound_low = i2o_ptr_low(c->post_port);
-		systab->iops[count].inbound_high = i2o_ptr_high(c->post_port);
+		systab->iops[count].inbound_low =
+		    i2o_dma_low(c->base.phys + I2O_IN_PORT);
+		systab->iops[count].inbound_high =
+		    i2o_dma_high(c->base.phys + I2O_IN_PORT);
 
 		count++;
 	}
@@ -1110,6 +1113,30 @@ static int i2o_hrt_get(struct i2o_controller *c)
 }
 
 /**
+ *	i2o_iop_free - Free the i2o_controller struct
+ *	@c: I2O controller to free
+ */
+void i2o_iop_free(struct i2o_controller *c)
+{
+	kfree(c);
+};
+
+
+/**
+ *	i2o_iop_release - release the memory for a I2O controller
+ *	@dev: I2O controller which should be released
+ *
+ *	Release the allocated memory. This function is called if refcount of
+ *	device reaches 0 automatically.
+ */
+static void i2o_iop_release(struct device *dev)
+{
+	struct i2o_controller *c = to_i2o_controller(dev);
+
+	i2o_iop_free(c);
+};
+
+/**
  *	i2o_iop_alloc - Allocate and initialize a i2o_controller struct
  *
  *	Allocate the necessary memory for a i2o_controller struct and
@@ -1137,6 +1164,10 @@ struct i2o_controller *i2o_iop_alloc(void)
 	c->unit = unit++;
 	sprintf(c->name, "iop%d", c->unit);
 
+	device_initialize(&c->device);
+	c->device.release = &i2o_iop_release;
+	snprintf(c->device.bus_id, BUS_ID_SIZE, "iop%d", c->unit);
+
 #if BITS_PER_LONG == 64
 	spin_lock_init(&c->context_list_lock);
 	atomic_set(&c->context_list_counter, 0);
@@ -1144,15 +1175,6 @@ struct i2o_controller *i2o_iop_alloc(void)
 #endif
 
 	return c;
-};
-
-/**
- *	i2o_iop_free - Free the i2o_controller struct
- *	@c: I2O controller to free
- */
-void i2o_iop_free(struct i2o_controller *c)
-{
-	kfree(c);
 };
 
 /**
@@ -1168,6 +1190,11 @@ int i2o_iop_add(struct i2o_controller *c)
 {
 	int rc;
 
+	if((rc = device_add(&c->device))) {
+		printk(KERN_ERR "%s: could not register controller\n", c->name);
+		goto iop_reset;
+	}
+
 	printk(KERN_INFO "%s: Activating I2O controller...\n", c->name);
 	printk(KERN_INFO "%s: This may take a few minutes if there are many "
 	       "devices\n", c->name);
@@ -1175,30 +1202,23 @@ int i2o_iop_add(struct i2o_controller *c)
 	if ((rc = i2o_iop_activate(c))) {
 		printk(KERN_ERR "%s: could not activate controller\n",
 		       c->name);
-		i2o_iop_reset(c);
-		return rc;
+		goto iop_reset;
 	}
 
 	pr_debug("%s: building sys table...\n", c->name);
 
-	if ((rc = i2o_systab_build())) {
-		i2o_iop_reset(c);
-		return rc;
-	}
+	if ((rc = i2o_systab_build()))
+		goto iop_reset;
 
 	pr_debug("%s: online controller...\n", c->name);
 
-	if ((rc = i2o_iop_online(c))) {
-		i2o_iop_reset(c);
-		return rc;
-	}
+	if ((rc = i2o_iop_online(c)))
+		goto iop_reset;
 
 	pr_debug("%s: getting LCT...\n", c->name);
 
-	if ((rc = i2o_exec_lct_get(c))) {
-		i2o_iop_reset(c);
-		return rc;
-	}
+	if ((rc = i2o_exec_lct_get(c)))
+		goto iop_reset;
 
 	list_add(&c->list, &i2o_controllers);
 
@@ -1207,6 +1227,11 @@ int i2o_iop_add(struct i2o_controller *c)
 	printk(KERN_INFO "%s: Controller added\n", c->name);
 
 	return 0;
+
+iop_reset:
+	i2o_iop_reset(c);
+
+	return rc;
 };
 
 /**
