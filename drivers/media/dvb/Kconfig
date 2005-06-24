@@ -29,7 +29,6 @@ comment "Supported USB Adapters"
 	depends on DVB_CORE && USB
 source "drivers/media/dvb/ttusb-budget/Kconfig"
 source "drivers/media/dvb/ttusb-dec/Kconfig"
-source "drivers/media/dvb/dibusb/Kconfig"
 source "drivers/media/dvb/cinergyT2/Kconfig"
 
 comment "Supported FlexCopII (B2C2) Adapters"
