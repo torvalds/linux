@@ -330,6 +330,8 @@ struct address_space_operations {
 	int (*releasepage) (struct page *, int);
 	ssize_t (*direct_IO)(int, struct kiocb *, const struct iovec *iov,
 			loff_t offset, unsigned long nr_segs);
+	struct page* (*get_xip_page)(struct address_space *, sector_t,
+			int);
 };
 
 struct backing_dev_info;
@@ -1496,6 +1498,22 @@ extern loff_t generic_file_llseek(struct file *file, loff_t offset, int origin);
 extern loff_t remote_llseek(struct file *file, loff_t offset, int origin);
 extern int generic_file_open(struct inode * inode, struct file * filp);
 extern int nonseekable_open(struct inode * inode, struct file * filp);
+
+#ifdef CONFIG_FS_XIP
+extern ssize_t xip_file_aio_read(struct kiocb *iocb, char __user *buf,
+				 size_t count, loff_t pos);
+extern ssize_t xip_file_readv(struct file *filp, const struct iovec *iov,
+			      unsigned long nr_segs, loff_t *ppos);
+extern ssize_t xip_file_sendfile(struct file *in_file, loff_t *ppos,
+				 size_t count, read_actor_t actor,
+				 void *target);
+extern int xip_file_mmap(struct file * file, struct vm_area_struct * vma);
+extern ssize_t xip_file_aio_write(struct kiocb *iocb, const char __user *buf,
+				  size_t count, loff_t pos);
+extern ssize_t xip_file_writev(struct file *file, const struct iovec *iov,
+			       unsigned long nr_segs, loff_t *ppos);
+extern int xip_truncate_page(struct address_space *mapping, loff_t from);
+#endif
 
 static inline void do_generic_file_read(struct file * filp, loff_t *ppos,
 					read_descriptor_t * desc,
