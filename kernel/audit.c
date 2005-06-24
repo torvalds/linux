@@ -286,7 +286,7 @@ int kauditd_thread(void *dummy)
 					audit_pid = 0;
 				}
 			} else {
-				printk(KERN_ERR "%s\n", skb->data + NLMSG_SPACE(0));
+				printk(KERN_NOTICE "%s\n", skb->data + NLMSG_SPACE(0));
 				kfree_skb(skb);
 			}
 		} else {
@@ -868,7 +868,7 @@ void audit_log_end(struct audit_buffer *ab)
 			ab->skb = NULL;
 			wake_up_interruptible(&kauditd_wait);
 		} else {
-			printk("%s\n", ab->skb->data + NLMSG_SPACE(0));
+			printk(KERN_NOTICE "%s\n", ab->skb->data + NLMSG_SPACE(0));
 		}
 	}
 	audit_buffer_free(ab);
