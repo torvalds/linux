@@ -34,6 +34,8 @@
 #include <asm/semaphore.h>
 #include <linux/kdev_t.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>
+#include <linux/proc_fs.h>
 #include <linux/string.h>
 #include <linux/ipmi.h>
 #include <linux/ipmi_smi.h>
@@ -43,6 +45,18 @@
 
 /* Where to we insert our poweroff function? */
 extern void (*pm_power_off)(void);
+
+/* Definitions for controlling power off (if the system supports it).  It
+ * conveniently matches the IPMI chassis control values. */
+#define IPMI_CHASSIS_POWER_DOWN		0	/* power down, the default. */
+#define IPMI_CHASSIS_POWER_CYCLE	0x02	/* power cycle */
+
+/* the IPMI data command */
+static int poweroff_control = IPMI_CHASSIS_POWER_DOWN;
+
+/* parameter definition to allow user to flag power cycle */
+module_param(poweroff_control, int, IPMI_CHASSIS_POWER_DOWN);
+MODULE_PARM_DESC(poweroff_control, " Set to 2 to enable power cycle instead of power down. Power cycle is contingent on hardware support, otherwise it defaults back to power down.");
 
 /* Stuff from the get device id command. */
 static unsigned int mfg_id;
@@ -349,26 +363,38 @@ static void ipmi_poweroff_chassis (ipmi_user_t user)
         smi_addr.channel = IPMI_BMC_CHANNEL;
         smi_addr.lun = 0;
 
-	printk(KERN_INFO PFX "Powering down via IPMI chassis control command\n");
+ powercyclefailed:
+	printk(KERN_INFO PFX "Powering %s via IPMI chassis control command\n",
+		((poweroff_control != IPMI_CHASSIS_POWER_CYCLE) ? "down" : "cycle"));
 
 	/*
 	 * Power down
 	 */
 	send_msg.netfn = IPMI_NETFN_CHASSIS_REQUEST;
 	send_msg.cmd = IPMI_CHASSIS_CONTROL_CMD;
-	data[0] = 0; /* Power down */
+	data[0] = poweroff_control;
 	send_msg.data = data;
 	send_msg.data_len = sizeof(data);
 	rv = ipmi_request_in_rc_mode(user,
 				     (struct ipmi_addr *) &smi_addr,
 				     &send_msg);
 	if (rv) {
-		printk(KERN_ERR PFX "Unable to send chassis powerdown message,"
-		       " IPMI error 0x%x\n", rv);
-		goto out;
+		switch (poweroff_control) {
+			case IPMI_CHASSIS_POWER_CYCLE:
+				/* power cycle failed, default to power down */
+				printk(KERN_ERR PFX "Unable to send chassis power " \
+					"cycle message, IPMI error 0x%x\n", rv);
+				poweroff_control = IPMI_CHASSIS_POWER_DOWN;
+				goto powercyclefailed;
+
+			case IPMI_CHASSIS_POWER_DOWN:
+			default:
+				printk(KERN_ERR PFX "Unable to send chassis power " \
+					"down message, IPMI error 0x%x\n", rv);
+				break;
+		}
 	}
 
- out:
 	return;
 }
 
@@ -430,7 +456,8 @@ static void ipmi_po_new_smi(int if_num)
 	if (ready)
 		return;
 
-	rv = ipmi_create_user(if_num, &ipmi_poweroff_handler, NULL, &ipmi_user);
+	rv = ipmi_create_user(if_num, &ipmi_poweroff_handler, NULL,
+			      &ipmi_user);
 	if (rv) {
 		printk(KERN_ERR PFX "could not create IPMI user, error %d\n",
 		       rv);
@@ -509,21 +536,84 @@ static struct ipmi_smi_watcher smi_watcher =
 };
 
 
+#ifdef CONFIG_PROC_FS
+/* displays properties to proc */
+static int proc_read_chassctrl(char *page, char **start, off_t off, int count,
+			       int *eof, void *data)
+{
+	return sprintf(page, "%d\t[ 0=powerdown 2=powercycle ]\n",
+			poweroff_control);
+}
+
+/* process property writes from proc */
+static int proc_write_chassctrl(struct file *file, const char *buffer,
+			        unsigned long count, void *data)
+{
+	int          rv = count;
+	unsigned int newval = 0;
+
+	sscanf(buffer, "%d", &newval);
+	switch (newval) {
+		case IPMI_CHASSIS_POWER_CYCLE:
+			printk(KERN_INFO PFX "power cycle is now enabled\n");
+			poweroff_control = newval;
+			break;
+
+		case IPMI_CHASSIS_POWER_DOWN:
+			poweroff_control = IPMI_CHASSIS_POWER_DOWN;
+			break;
+
+		default:
+			rv = -EINVAL;
+			break;
+	}
+
+	return rv;
+}
+#endif /* CONFIG_PROC_FS */
+
 /*
  * Startup and shutdown functions.
  */
 static int ipmi_poweroff_init (void)
 {
-	int rv;
+	int                   rv;
+	struct proc_dir_entry *file;
 
 	printk ("Copyright (C) 2004 MontaVista Software -"
 		" IPMI Powerdown via sys_reboot version "
 		IPMI_POWEROFF_VERSION ".\n");
 
-	rv = ipmi_smi_watcher_register(&smi_watcher);
-	if (rv)
-		printk(KERN_ERR PFX "Unable to register SMI watcher: %d\n", rv);
+	switch (poweroff_control) {
+		case IPMI_CHASSIS_POWER_CYCLE:
+			printk(KERN_INFO PFX "Power cycle is enabled.\n");
+			break;
 
+		case IPMI_CHASSIS_POWER_DOWN:
+		default:
+			poweroff_control = IPMI_CHASSIS_POWER_DOWN;
+			break;
+	}
+
+	rv = ipmi_smi_watcher_register(&smi_watcher);
+	if (rv) {
+		printk(KERN_ERR PFX "Unable to register SMI watcher: %d\n", rv);
+		goto out_err;
+	}
+
+#ifdef CONFIG_PROC_FS
+	file = create_proc_entry("poweroff_control", 0, proc_ipmi_root);
+	if (!file) {
+		printk(KERN_ERR PFX "Unable to create proc power control\n");
+	} else {
+		file->nlink = 1;
+		file->read_proc = proc_read_chassctrl;
+		file->write_proc = proc_write_chassctrl;
+		file->owner = THIS_MODULE;
+	}
+#endif
+
+ out_err:
 	return rv;
 }
 
@@ -531,6 +621,10 @@ static int ipmi_poweroff_init (void)
 static __exit void ipmi_poweroff_cleanup(void)
 {
 	int rv;
+
+#ifdef CONFIG_PROC_FS
+	remove_proc_entry("poweroff_control", proc_ipmi_root);
+#endif
 
 	ipmi_smi_watcher_unregister(&smi_watcher);
 
