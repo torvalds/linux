@@ -218,8 +218,8 @@ struct nfs4_stateowner {
 */
 struct nfs4_file {
 	struct list_head        fi_hash;    /* hash by "struct inode *" */
-	struct list_head        fi_perfile; /* list: nfs4_stateid */
-	struct list_head	fi_del_perfile; /* list: nfs4_delegation */
+	struct list_head        fi_stateids;
+	struct list_head	fi_delegations;
 	struct inode		*fi_inode;
 	u32                     fi_id;      /* used with stateowner->so_id 
 					     * for stateid_hashtbl hash */

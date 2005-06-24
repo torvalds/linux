@@ -153,7 +153,7 @@ alloc_init_deleg(struct nfs4_client *clp, struct nfs4_stateid *stp, struct svc_f
 		        current_fh->fh_handle.fh_size);
 	dp->dl_time = 0;
 	atomic_set(&dp->dl_count, 1);
-	list_add(&dp->dl_del_perfile, &fp->fi_del_perfile);
+	list_add(&dp->dl_del_perfile, &fp->fi_delegations);
 	list_add(&dp->dl_del_perclnt, &clp->cl_del_perclnt);
 	return dp;
 }
@@ -954,8 +954,8 @@ alloc_init_file(struct inode *ino)
 	fp = kmem_cache_alloc(file_slab, GFP_KERNEL);
 	if (fp) {
 		INIT_LIST_HEAD(&fp->fi_hash);
-		INIT_LIST_HEAD(&fp->fi_perfile);
-		INIT_LIST_HEAD(&fp->fi_del_perfile);
+		INIT_LIST_HEAD(&fp->fi_stateids);
+		INIT_LIST_HEAD(&fp->fi_delegations);
 		list_add(&fp->fi_hash, &file_hashtbl[hashval]);
 		fp->fi_inode = igrab(ino);
 		fp->fi_id = current_fileid++;
@@ -974,7 +974,7 @@ release_all_files(void)
 		while (!list_empty(&file_hashtbl[i])) {
 			fp = list_entry(file_hashtbl[i].next, struct nfs4_file, fi_hash);
 			/* this should never be more than once... */
-			if (!list_empty(&fp->fi_perfile) || !list_empty(&fp->fi_del_perfile)) {
+			if (!list_empty(&fp->fi_stateids) || !list_empty(&fp->fi_delegations)) {
 				printk("ERROR: release_all_files: file %p is open, creating dangling state !!!\n",fp);
 			}
 			release_file(fp);
@@ -1139,7 +1139,7 @@ init_stateid(struct nfs4_stateid *stp, struct nfs4_file *fp, struct nfsd4_open *
 	INIT_LIST_HEAD(&stp->st_perfile);
 	list_add(&stp->st_hash, &stateid_hashtbl[hashval]);
 	list_add(&stp->st_perfilestate, &sop->so_perfilestate);
-	list_add(&stp->st_perfile, &fp->fi_perfile);
+	list_add(&stp->st_perfile, &fp->fi_stateids);
 	stp->st_stateowner = sop;
 	stp->st_file = fp;
 	stp->st_stateid.si_boot = boot_time;
@@ -1204,7 +1204,7 @@ release_state_owner(struct nfs4_stateid *stp, int flag)
 	if (sop->so_confirmed && list_empty(&sop->so_perfilestate))
 		move_to_close_lru(sop);
 	/* unused nfs4_file's are releseed. XXX slab cache? */
-	if (list_empty(&fp->fi_perfile) && list_empty(&fp->fi_del_perfile)) {
+	if (list_empty(&fp->fi_stateids) && list_empty(&fp->fi_delegations)) {
 		release_file(fp);
 	}
 }
@@ -1294,7 +1294,7 @@ nfs4_share_conflict(struct svc_fh *current_fh, unsigned int deny_type)
 	fp = find_file(ino);
 	if (fp) {
 	/* Search for conflicting share reservations */
-		list_for_each_entry(stp, &fp->fi_perfile, st_perfile) {
+		list_for_each_entry(stp, &fp->fi_stateids, st_perfile) {
 			if (test_bit(deny_type, &stp->st_deny_bmap) ||
 			    test_bit(NFS4_SHARE_DENY_BOTH, &stp->st_deny_bmap))
 				return nfserr_share_denied;
@@ -1545,7 +1545,7 @@ find_delegation_file(struct nfs4_file *fp, stateid_t *stid)
 {
 	struct nfs4_delegation *dp;
 
-	list_for_each_entry(dp, &fp->fi_del_perfile, dl_del_perfile) {
+	list_for_each_entry(dp, &fp->fi_delegations, dl_del_perfile) {
 		if (dp->dl_stateid.si_stateownerid == stid->si_stateownerid)
 			return dp;
 	}
@@ -1583,7 +1583,7 @@ nfs4_check_open(struct nfs4_file *fp, struct nfsd4_open *open, struct nfs4_state
 	int status = nfserr_share_denied;
 	struct nfs4_stateowner *sop = open->op_stateowner;
 
-	list_for_each_entry(local, &fp->fi_perfile, st_perfile) {
+	list_for_each_entry(local, &fp->fi_stateids, st_perfile) {
 		/* ignore lock owners */
 		if (local->st_stateowner->so_is_open_owner == 0)
 			continue;
@@ -1830,7 +1830,7 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 	            stp->st_stateid.si_fileid, stp->st_stateid.si_generation);
 out:
 	/* take the opportunity to clean up unused state */
-	if (fp && list_empty(&fp->fi_perfile) && list_empty(&fp->fi_del_perfile))
+	if (fp && list_empty(&fp->fi_stateids) && list_empty(&fp->fi_delegations))
 		release_file(fp);
 
 	/* CLAIM_PREVIOUS has different error returns */
@@ -2633,7 +2633,7 @@ alloc_init_lock_stateid(struct nfs4_stateowner *sop, struct nfs4_file *fp, struc
 	INIT_LIST_HEAD(&stp->st_perfilestate);
 	INIT_LIST_HEAD(&stp->st_perlockowner); /* not used */
 	list_add(&stp->st_hash, &lockstateid_hashtbl[hashval]);
-	list_add(&stp->st_perfile, &fp->fi_perfile);
+	list_add(&stp->st_perfile, &fp->fi_stateids);
 	list_add(&stp->st_perfilestate, &sop->so_perfilestate);
 	stp->st_stateowner = sop;
 	stp->st_file = fp;
