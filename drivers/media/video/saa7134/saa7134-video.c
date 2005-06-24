@@ -158,18 +158,20 @@ static struct saa7134_format formats[] = {
 		.h_stop        = 719,	\
 		.video_v_start = 24,	\
 		.video_v_stop  = 311,	\
-		.vbi_v_start   = 7,	\
-		.vbi_v_stop    = 22,	\
+		.vbi_v_start_0 = 7,	\
+		.vbi_v_stop_0  = 22,	\
+		.vbi_v_start_1 = 319,   \
 		.src_timing    = 4
 
 #define NORM_525_60			\
 		.h_start       = 0,	\
 		.h_stop        = 703,	\
-		.video_v_start = 22,	\
-		.video_v_stop  = 22+239, \
-		.vbi_v_start   = 10, /* FIXME */ \
-		.vbi_v_stop    = 21, /* FIXME */ \
-		.src_timing    = 1
+		.video_v_start = 23,	\
+		.video_v_stop  = 262,	\
+		.vbi_v_start_0 = 10,	\
+		.vbi_v_stop_0  = 21,	\
+		.vbi_v_start_1 = 273,	\
+		.src_timing    = 7
 
 static struct saa7134_tvnorm tvnorms[] = {
 	{
@@ -274,11 +276,12 @@ static struct saa7134_tvnorm tvnorms[] = {
 
 		.h_start       = 0,
 		.h_stop        = 719,
-		.video_v_start = 22,
-		.video_v_stop  = 22+239,
-		.vbi_v_start   = 10, /* FIXME */
-		.vbi_v_stop    = 21, /* FIXME */
-		.src_timing    = 1,
+ 		.video_v_start = 23,
+ 		.video_v_stop  = 262,
+ 		.vbi_v_start_0 = 10,
+ 		.vbi_v_stop_0  = 21,
+ 		.vbi_v_start_1 = 273,
+ 		.src_timing    = 7,
 
 		.sync_control  = 0x18,
 		.luma_control  = 0x40,
@@ -335,8 +338,8 @@ static const struct v4l2_queryctrl video_ctrls[] = {
 		.default_value = 0,
 		.type          = V4L2_CTRL_TYPE_INTEGER,
 	},{
-		.id            = V4L2_CID_VFLIP,
-		.name          = "vertical flip",
+		.id            = V4L2_CID_HFLIP,
+		.name          = "Mirror",
 		.minimum       = 0,
 		.maximum       = 1,
 		.type          = V4L2_CTRL_TYPE_BOOLEAN,
@@ -482,7 +485,7 @@ static void set_tvnorm(struct saa7134_dev *dev, struct saa7134_tvnorm *norm)
 	dev->crop_bounds.width   = norm->h_stop - norm->h_start +1;
 	dev->crop_defrect.width  = norm->h_stop - norm->h_start +1;
 
-	dev->crop_bounds.top     = (norm->vbi_v_stop+1)*2;
+	dev->crop_bounds.top     = (norm->vbi_v_stop_0+1)*2;
 	dev->crop_defrect.top    = norm->video_v_start*2;
 	dev->crop_bounds.height  = ((norm->id & V4L2_STD_525_60) ? 524 : 624)
 		- dev->crop_bounds.top;
@@ -1064,7 +1067,7 @@ static int get_control(struct saa7134_dev *dev, struct v4l2_control *c)
 	case V4L2_CID_PRIVATE_INVERT:
 		c->value = dev->ctl_invert;
 		break;
-	case V4L2_CID_VFLIP:
+	case V4L2_CID_HFLIP:
 		c->value = dev->ctl_mirror;
 		break;
 	case V4L2_CID_PRIVATE_Y_EVEN:
@@ -1139,7 +1142,7 @@ static int set_control(struct saa7134_dev *dev, struct saa7134_fh *fh,
 		saa_writeb(SAA7134_DEC_CHROMA_SATURATION,
 			   dev->ctl_invert ? -dev->ctl_saturation : dev->ctl_saturation);
 		break;
-	case V4L2_CID_VFLIP:
+	case V4L2_CID_HFLIP:
 		dev->ctl_mirror = c->value;
 		restart_overlay = 1;
 		break;
@@ -1407,9 +1410,9 @@ static void saa7134_vbi_fmt(struct saa7134_dev *dev, struct v4l2_format *f)
 	f->fmt.vbi.samples_per_line = 2048 /* VBI_LINE_LENGTH */;
 	f->fmt.vbi.sample_format = V4L2_PIX_FMT_GREY;
 	f->fmt.vbi.offset = 64 * 4;
-	f->fmt.vbi.start[0] = norm->vbi_v_start;
-	f->fmt.vbi.count[0] = norm->vbi_v_stop - norm->vbi_v_start +1;
-	f->fmt.vbi.start[1] = norm->video_v_stop + norm->vbi_v_start +1;
+	f->fmt.vbi.start[0] = norm->vbi_v_start_0;
+	f->fmt.vbi.count[0] = norm->vbi_v_stop_0 - norm->vbi_v_start_0 +1;
+	f->fmt.vbi.start[1] = norm->vbi_v_start_1;
 	f->fmt.vbi.count[1] = f->fmt.vbi.count[0];
 	f->fmt.vbi.flags = 0; /* VBI_UNSYNC VBI_INTERLACED */
 

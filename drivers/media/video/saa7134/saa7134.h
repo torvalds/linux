@@ -21,7 +21,7 @@
  */
 
 #include <linux/version.h>
-#define SAA7134_VERSION_CODE KERNEL_VERSION(0,2,12)
+#define SAA7134_VERSION_CODE KERNEL_VERSION(0,2,13)
 
 #include <linux/pci.h>
 #include <linux/i2c.h>
@@ -91,9 +91,10 @@ struct saa7134_tvnorm {
 	unsigned int  h_stop;
 	unsigned int  video_v_start;
 	unsigned int  video_v_stop;
-	unsigned int  vbi_v_start;
-	unsigned int  vbi_v_stop;
+	unsigned int  vbi_v_start_0;
+	unsigned int  vbi_v_stop_0;
 	unsigned int  src_timing;
+	unsigned int  vbi_v_start_1;
 };
 
 struct saa7134_tvaudio {
