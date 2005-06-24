@@ -2584,22 +2584,6 @@ nfs4_set_lock_denied(struct file_lock *fl, struct nfsd4_lock_denied *deny)
 }
 
 static struct nfs4_stateowner *
-find_lockstateowner(struct xdr_netobj *owner, clientid_t *clid)
-{
-	struct nfs4_stateowner *local = NULL;
-	int i;
-
-	for (i = 0; i < LOCK_HASH_SIZE; i++) {
-		list_for_each_entry(local, &lock_ownerid_hashtbl[i], so_idhash) {
-			if (!cmp_owner_str(local, owner, clid))
-				continue;
-			return local;
-		}
-	}
-	return NULL;
-}
-
-static struct nfs4_stateowner *
 find_lockstateowner_str(struct inode *inode, clientid_t *clid,
 		struct xdr_netobj *owner)
 {
@@ -2697,7 +2681,7 @@ check_lock_length(u64 offset, u64 length)
 int
 nfsd4_lock(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock *lock)
 {
-	struct nfs4_stateowner *lock_sop = NULL, *open_sop = NULL;
+	struct nfs4_stateowner *open_sop = NULL;
 	struct nfs4_stateid *lock_stp;
 	struct file *filp;
 	struct file_lock file_lock;
@@ -2756,16 +2740,9 @@ nfsd4_lock(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock 
 		strhashval = lock_ownerstr_hashval(fp->fi_inode, 
 				open_sop->so_client->cl_clientid.cl_id, 
 				&lock->v.new.owner);
-		/* 
-		 * If we already have this lock owner, the client is in 
-		 * error (or our bookeeping is wrong!) 
-		 * for asking for a 'new lock'.
-		 */
-		status = nfserr_bad_stateid;
-		lock_sop = find_lockstateowner(&lock->v.new.owner,
-						&lock->v.new.clientid);
-		if (lock_sop)
-			goto out;
+		/* XXX: Do we need to check for duplicate stateowners on
+		 * the same file, or should they just be allowed (and
+		 * create new stateids)? */
 		status = nfserr_resource;
 		if (!(lock->lk_stateowner = alloc_init_lock_stateowner(strhashval, open_sop->so_client, open_stp, lock)))
 			goto out;
@@ -3056,8 +3033,11 @@ int
 nfsd4_release_lockowner(struct svc_rqst *rqstp, struct nfsd4_release_lockowner *rlockowner)
 {
 	clientid_t *clid = &rlockowner->rl_clientid;
-	struct nfs4_stateowner *local = NULL;
+	struct nfs4_stateowner *sop;
+	struct nfs4_stateid *stp;
 	struct xdr_netobj *owner = &rlockowner->rl_owner;
+	struct list_head matches;
+	int i;
 	int status;
 
 	dprintk("nfsd4_release_lockowner clientid: (%08x/%08x):\n",
@@ -3073,22 +3053,32 @@ nfsd4_release_lockowner(struct svc_rqst *rqstp, struct nfsd4_release_lockowner *
 
 	nfs4_lock_state();
 
-	status = nfs_ok;
-	local = find_lockstateowner(owner, clid);
-	if (local) {
-		struct nfs4_stateid *stp;
-
-		/* check for any locks held by any stateid
-		 * associated with the (lock) stateowner */
-		status = nfserr_locks_held;
-		list_for_each_entry(stp, &local->so_stateids,
-				st_perstateowner) {
-			if (check_for_locks(stp->st_vfs_file, local))
-				goto out;
+	status = nfserr_locks_held;
+	/* XXX: we're doing a linear search through all the lockowners.
+	 * Yipes!  For now we'll just hope clients aren't really using
+	 * release_lockowner much, but eventually we have to fix these
+	 * data structures. */
+	INIT_LIST_HEAD(&matches);
+	for (i = 0; i < LOCK_HASH_SIZE; i++) {
+		list_for_each_entry(sop, &lock_ownerid_hashtbl[i], so_idhash) {
+			if (!cmp_owner_str(sop, owner, clid))
+				continue;
+			list_for_each_entry(stp, &sop->so_stateids,
+					st_perstateowner) {
+				if (check_for_locks(stp->st_vfs_file, sop))
+					goto out;
+				/* Note: so_perclient unused for lockowners,
+				 * so it's OK to fool with here. */
+				list_add(&sop->so_perclient, &matches);
+			}
 		}
-		/* no locks held by (lock) stateowner */
-		status = nfs_ok;
-		release_stateowner(local);
+	}
+	/* Clients probably won't expect us to return with some (but not all)
+	 * of the lockowner state released; so don't release any until all
+	 * have been checked. */
+	status = nfs_ok;
+	list_for_each_entry(sop, &matches, so_perclient) {
+		release_stateowner(sop);
 	}
 out:
 	nfs4_unlock_state();
