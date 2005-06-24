@@ -83,19 +83,6 @@ static int	mptfcDoneCtx = -1;
 static int	mptfcTaskCtx = -1;
 static int	mptfcInternalCtx = -1; /* Used only for internal commands */
 
-static struct device_attribute mptfc_queue_depth_attr = {
-	.attr = {
-		.name = 	"queue_depth",
-		.mode =		S_IWUSR,
-	},
-	.store = mptscsih_store_queue_depth,
-};
-
-static struct device_attribute *mptfc_dev_attrs[] = {
-	&mptfc_queue_depth_attr,
-	NULL,
-};
-
 static struct scsi_host_template mptfc_driver_template = {
 	.proc_name			= "mptfc",
 	.proc_info			= mptscsih_proc_info,
@@ -105,6 +92,7 @@ static struct scsi_host_template mptfc_driver_template = {
 	.slave_alloc			= mptscsih_slave_alloc,
 	.slave_configure		= mptscsih_slave_configure,
 	.slave_destroy			= mptscsih_slave_destroy,
+	.change_queue_depth 		= mptscsih_change_queue_depth,
 	.eh_abort_handler		= mptscsih_abort,
 	.eh_device_reset_handler	= mptscsih_dev_reset,
 	.eh_bus_reset_handler		= mptscsih_bus_reset,
@@ -116,7 +104,6 @@ static struct scsi_host_template mptfc_driver_template = {
 	.max_sectors			= 8192,
 	.cmd_per_lun			= 7,
 	.use_clustering			= ENABLE_CLUSTERING,
-	.sdev_attrs			= mptfc_dev_attrs,
 };
 
 /****************************************************************************

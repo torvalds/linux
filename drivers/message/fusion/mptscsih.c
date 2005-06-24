@@ -2234,12 +2234,26 @@ mptscsih_slave_destroy(struct scsi_device *device)
 	}
 }
 
-static void
-mptscsih_set_queue_depth(struct scsi_device *device, MPT_SCSI_HOST *hd,
-	VirtDevice *pTarget, int qdepth)
+/*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
+/*
+ *	mptscsih_change_queue_depth - This function will set a devices queue depth
+ *	@sdev: per scsi_device pointer
+ *	@qdepth: requested queue depth
+ *
+ *	Adding support for new 'change_queue_depth' api.
+*/
+int
+mptscsih_change_queue_depth(struct scsi_device *sdev, int qdepth)
 {
+	MPT_SCSI_HOST	*hd = (MPT_SCSI_HOST *)sdev->host->hostdata;
+	VirtDevice *pTarget;
 	int	max_depth;
 	int	tagged;
+
+	if (hd == NULL)
+		return 0;
+	if (!(pTarget = hd->Targets[sdev->id]))
+		return 0;
 
 	if (hd->ioc->bus_type == SCSI) {
 		if (pTarget->tflags & MPT_TARGET_FLAGS_VALID_INQUIRY) {
@@ -2264,9 +2278,9 @@ mptscsih_set_queue_depth(struct scsi_device *device, MPT_SCSI_HOST *hd,
 	else
 		tagged = MSG_SIMPLE_TAG;
 
-	scsi_adjust_queue_depth(device, tagged, qdepth);
+	scsi_adjust_queue_depth(sdev, tagged, qdepth);
+	return sdev->queue_depth;
 }
-
 
 /*
  *	OS entry point to adjust the queue_depths on a per-device basis.
@@ -2317,7 +2331,7 @@ mptscsih_slave_configure(struct scsi_device *device)
 
 	mptscsih_initTarget(hd, device->channel, device->id, device->lun,
 		device->inquiry, device->inquiry_len );
-	mptscsih_set_queue_depth(device, hd, pTarget, MPT_SCSI_CMD_PER_DEV_HIGH);
+	mptscsih_change_queue_depth(device, MPT_SCSI_CMD_PER_DEV_HIGH);
 
 	dsprintk((MYIOC_s_INFO_FMT
 		"Queue depth=%d, tflags=%x\n",
@@ -2335,25 +2349,6 @@ slave_configure_exit:
 		device->ordered_tags));
 
 	return 0;
-}
-
-ssize_t
-mptscsih_store_queue_depth(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
-{
-	int			 depth;
-	struct scsi_device	*sdev = to_scsi_device(dev);
-	MPT_SCSI_HOST		*hd = (MPT_SCSI_HOST *) sdev->host->hostdata;
-	VirtDevice		*pTarget;
-
-	depth = simple_strtoul(buf, NULL, 0);
-	if (depth == 0)
-		return -EINVAL;
-	pTarget = hd->Targets[sdev->id];
-	if (pTarget == NULL)
-		return -EINVAL;
-	mptscsih_set_queue_depth(sdev, (MPT_SCSI_HOST *) sdev->host->hostdata,
-		pTarget, depth);
-	return count;
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -5586,7 +5581,7 @@ EXPORT_SYMBOL(mptscsih_taskmgmt_complete);
 EXPORT_SYMBOL(mptscsih_scandv_complete);
 EXPORT_SYMBOL(mptscsih_event_process);
 EXPORT_SYMBOL(mptscsih_ioc_reset);
-EXPORT_SYMBOL(mptscsih_store_queue_depth);
+EXPORT_SYMBOL(mptscsih_change_queue_depth);
 EXPORT_SYMBOL(mptscsih_timer_expired);
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
