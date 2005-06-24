@@ -91,8 +91,6 @@ static inline void tpm_write_index(int index, int value)
 	outb(value & 0xFF, TPM_DATA);
 }
 
-extern int tpm_lpc_bus_init(struct pci_dev *, u16);
-
 extern int tpm_register_hardware(struct pci_dev *,
 				 struct tpm_vendor_specific *);
 extern int tpm_open(struct inode *, struct file *);

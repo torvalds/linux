@@ -22,9 +22,13 @@
 #include "tpm.h"
 
 /* National definitions */
-enum tpm_nsc_addr {
+enum tpm_nsc_addr{
 	TPM_NSC_BASE = 0x360,
-	TPM_NSC_IRQ = 0x07
+	TPM_NSC_IRQ = 0x07,
+	TPM_NSC_BASE0_HI = 0x60,
+	TPM_NSC_BASE0_LO = 0x61,
+	TPM_NSC_BASE1_HI = 0x62,
+	TPM_NSC_BASE1_LO = 0x63
 };
 
 enum tpm_nsc_index {
@@ -44,7 +48,7 @@ enum tpm_nsc_status_loc {
 };
 
 /* status bits */
-enum tpm_nsc_status{
+enum tpm_nsc_status {
 	NSC_STATUS_OBF = 0x01,	/* output buffer full */
 	NSC_STATUS_IBF = 0x02,	/* input buffer full */
 	NSC_STATUS_F0 = 0x04,	/* F0 */
@@ -246,7 +250,6 @@ static struct tpm_vendor_specific tpm_nsc = {
 	.req_complete_mask = NSC_STATUS_OBF,
 	.req_complete_val = NSC_STATUS_OBF,
 	.req_canceled = NSC_STATUS_RDY,
-	.base = TPM_NSC_BASE,
 	.attr_group = &nsc_attr_grp,
 	.miscdev = { .fops = &nsc_ops, },
 };
@@ -255,14 +258,15 @@ static int __devinit tpm_nsc_init(struct pci_dev *pci_dev,
 				  const struct pci_device_id *pci_id)
 {
 	int rc = 0;
+	int lo, hi;
+
+	hi = tpm_read_index(TPM_NSC_BASE0_HI);
+	lo = tpm_read_index(TPM_NSC_BASE0_LO);
+
+	tpm_nsc.base = (hi<<8) | lo;
 
 	if (pci_enable_device(pci_dev))
 		return -EIO;
-
-	if (tpm_lpc_bus_init(pci_dev, TPM_NSC_BASE)) {
-		rc = -ENODEV;
-		goto out_err;
-	}
 
 	/* verify that it is a National part (SID) */
 	if (tpm_read_index(NSC_SID_INDEX) != 0xEF) {

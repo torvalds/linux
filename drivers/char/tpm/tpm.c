@@ -35,25 +35,6 @@ enum tpm_const {
 	TPM_NUM_MASK_ENTRIES = TPM_NUM_DEVICES / (8 * sizeof(int))
 };
 
-  /* PCI configuration addresses */
-enum tpm_pci_config_addr {
-	PCI_GEN_PMCON_1 = 0xA0,
-	PCI_GEN1_DEC = 0xE4,
-	PCI_LPC_EN = 0xE6,
-	PCI_GEN2_DEC = 0xEC
-};
-
-enum tpm_config {
-	TPM_LOCK_REG = 0x0D,
-	TPM_INTERUPT_REG = 0x0A,
-	TPM_BASE_ADDR_LO = 0x08,
-	TPM_BASE_ADDR_HI = 0x09,
-	TPM_UNLOCK_VALUE = 0x55,
-	TPM_LOCK_VALUE = 0xAA,
-	TPM_DISABLE_INTERUPT_VALUE = 0x00
-};
-
-
 static LIST_HEAD(tpm_chip_list);
 static DEFINE_SPINLOCK(driver_lock);
 static int dev_mask[TPM_NUM_MASK_ENTRIES];
@@ -67,73 +48,6 @@ static void user_reader_timeout(unsigned long ptr)
 	memset(chip->data_buffer, 0, TPM_BUFSIZE);
 	up(&chip->buffer_mutex);
 }
-
-/*
- * Initialize the LPC bus and enable the TPM ports
- */
-int tpm_lpc_bus_init(struct pci_dev *pci_dev, u16 base)
-{
-	u32 lpcenable, tmp;
-	int is_lpcm = 0;
-
-	switch (pci_dev->vendor) {
-	case PCI_VENDOR_ID_INTEL:
-		switch (pci_dev->device) {
-		case PCI_DEVICE_ID_INTEL_82801CA_12:
-		case PCI_DEVICE_ID_INTEL_82801DB_12:
-			is_lpcm = 1;
-			break;
-		}
-		/* init ICH (enable LPC) */
-		pci_read_config_dword(pci_dev, PCI_GEN1_DEC, &lpcenable);
-		lpcenable |= 0x20000000;
-		pci_write_config_dword(pci_dev, PCI_GEN1_DEC, lpcenable);
-
-		if (is_lpcm) {
-			pci_read_config_dword(pci_dev, PCI_GEN1_DEC,
-					      &lpcenable);
-			if ((lpcenable & 0x20000000) == 0) {
-				dev_err(&pci_dev->dev,
-					"cannot enable LPC\n");
-				return -ENODEV;
-			}
-		}
-
-		/* initialize TPM registers */
-		pci_read_config_dword(pci_dev, PCI_GEN2_DEC, &tmp);
-
-		if (!is_lpcm)
-			tmp = (tmp & 0xFFFF0000) | (base & 0xFFF0);
-		else
-			tmp =
-			    (tmp & 0xFFFF0000) | (base & 0xFFF0) |
-			    0x00000001;
-
-		pci_write_config_dword(pci_dev, PCI_GEN2_DEC, tmp);
-
-		if (is_lpcm) {
-			pci_read_config_dword(pci_dev, PCI_GEN_PMCON_1,
-					      &tmp);
-			tmp |= 0x00000004;	/* enable CLKRUN */
-			pci_write_config_dword(pci_dev, PCI_GEN_PMCON_1,
-					       tmp);
-		}
-		break;
-	case PCI_VENDOR_ID_AMD:
-		/* nothing yet */
-		break;
-	}
-
-	tpm_write_index(TPM_LOCK_REG, TPM_UNLOCK_VALUE);
-	tpm_write_index(TPM_INTERUPT_REG, TPM_DISABLE_INTERUPT_VALUE);
-	tpm_write_index(TPM_BASE_ADDR_LO, base);
-	tpm_write_index(TPM_BASE_ADDR_HI, (base & 0xFF00) >> 8);
-	tpm_write_index(TPM_LOCK_REG, TPM_LOCK_VALUE);
-
-	return 0;
-}
-
-EXPORT_SYMBOL_GPL(tpm_lpc_bus_init);
 
 /*
  * Internal kernel interface to transmit TPM commands
@@ -585,10 +499,6 @@ int tpm_pm_resume(struct pci_dev *pci_dev)
 
 	if (chip == NULL)
 		return -ENODEV;
-
-	spin_lock(&driver_lock);
-	tpm_lpc_bus_init(pci_dev, chip->vendor->base);
-	spin_unlock(&driver_lock);
 
 	return 0;
 }
