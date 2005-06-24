@@ -51,6 +51,7 @@ enum {
 	NFSD_Fh,
 	NFSD_Threads,
 	NFSD_Leasetime,
+	NFSD_RecoveryDir,
 };
 
 /*
@@ -66,6 +67,7 @@ static ssize_t write_getfs(struct file *file, char *buf, size_t size);
 static ssize_t write_filehandle(struct file *file, char *buf, size_t size);
 static ssize_t write_threads(struct file *file, char *buf, size_t size);
 static ssize_t write_leasetime(struct file *file, char *buf, size_t size);
+static ssize_t write_recoverydir(struct file *file, char *buf, size_t size);
 
 static ssize_t (*write_op[])(struct file *, char *, size_t) = {
 	[NFSD_Svc] = write_svc,
@@ -78,6 +80,7 @@ static ssize_t (*write_op[])(struct file *, char *, size_t) = {
 	[NFSD_Fh] = write_filehandle,
 	[NFSD_Threads] = write_threads,
 	[NFSD_Leasetime] = write_leasetime,
+	[NFSD_RecoveryDir] = write_recoverydir,
 };
 
 static ssize_t nfsctl_transaction_write(struct file *file, const char __user *buf, size_t size, loff_t *pos)
@@ -349,6 +352,25 @@ static ssize_t write_leasetime(struct file *file, char *buf, size_t size)
 	return strlen(buf);
 }
 
+static ssize_t write_recoverydir(struct file *file, char *buf, size_t size)
+{
+	char *mesg = buf;
+	char *recdir;
+	int len, status;
+
+	if (size > PATH_MAX || buf[size-1] != '\n')
+		return -EINVAL;
+	buf[size-1] = 0;
+
+	recdir = mesg;
+	len = qword_get(&mesg, recdir, size);
+	if (len <= 0)
+		return -EINVAL;
+
+	status = nfs4_reset_recoverydir(recdir);
+	return strlen(buf);
+}
+
 /*----------------------------------------------------------------------------*/
 /*
  *	populating the filesystem.
@@ -369,6 +391,7 @@ static int nfsd_fill_super(struct super_block * sb, void * data, int silent)
 		[NFSD_Threads] = {"threads", &transaction_ops, S_IWUSR|S_IRUSR},
 #ifdef CONFIG_NFSD_V4
 		[NFSD_Leasetime] = {"nfsv4leasetime", &transaction_ops, S_IWUSR|S_IRUSR},
+		[NFSD_RecoveryDir] = {"nfsv4recoverydir", &transaction_ops, S_IWUSR|S_IRUSR},
 #endif
 		/* last one */ {""}
 	};

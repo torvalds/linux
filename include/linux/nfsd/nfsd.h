@@ -150,12 +150,14 @@ int nfs4_state_start(void);
 void nfs4_state_shutdown(void);
 time_t nfs4_lease_time(void);
 void nfs4_reset_lease(time_t leasetime);
+int nfs4_reset_recoverydir(char *recdir);
 #else
 static inline void nfs4_state_init(void){};
 static inline int nfs4_state_start(void){return 0;}
 static inline void nfs4_state_shutdown(void){}
 static inline time_t nfs4_lease_time(void){return 0;}
 static inline void nfs4_reset_lease(time_t leasetime){}
+static inline int nfs4_reset_recoverydir(char *recdir) {return 0;}
 #endif
 
 /*

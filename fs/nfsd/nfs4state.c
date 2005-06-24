@@ -48,6 +48,7 @@
 #include <linux/nfs4.h>
 #include <linux/nfsd/state.h>
 #include <linux/nfsd/xdr4.h>
+#include <linux/namei.h>
 
 #define NFSDDBG_FACILITY                NFSDDBG_PROC
 
@@ -71,7 +72,8 @@ static stateid_t onestateid;              /* bits all 1 */
 static struct nfs4_stateid * find_stateid(stateid_t *stid, int flags);
 static struct nfs4_delegation * find_delegation_stateid(struct inode *ino, stateid_t *stid);
 static void release_stateid_lockowners(struct nfs4_stateid *open_stp);
-extern char recovery_dirname[];
+static char user_recovery_dirname[PATH_MAX] = "/var/lib/nfs/v4recovery";
+static void nfs4_set_recdir(char *recdir);
 
 /* Locking:
  *
@@ -3224,8 +3226,10 @@ nfsd4_load_reboot_recovery_data(void)
 {
 	int status;
 
-	nfsd4_init_recdir(recovery_dirname);
+	nfs4_lock_state();
+	nfsd4_init_recdir(user_recovery_dirname);
 	status = nfsd4_recdir_load();
+	nfs4_unlock_state();
 	if (status)
 		printk("NFSD: Failure reading reboot recovery data\n");
 }
@@ -3327,6 +3331,35 @@ nfs4_state_shutdown(void)
 	__nfs4_state_shutdown();
 	nfsd4_free_slabs();
 	nfs4_unlock_state();
+}
+
+static void
+nfs4_set_recdir(char *recdir)
+{
+	nfs4_lock_state();
+	strcpy(user_recovery_dirname, recdir);
+	nfs4_unlock_state();
+}
+
+/*
+ * Change the NFSv4 recovery directory to recdir.
+ */
+int
+nfs4_reset_recoverydir(char *recdir)
+{
+	int status;
+	struct nameidata nd;
+
+	status = path_lookup(recdir, LOOKUP_FOLLOW, &nd);
+	if (status)
+		return status;
+	status = -ENOTDIR;
+	if (S_ISDIR(nd.dentry->d_inode->i_mode)) {
+		nfs4_set_recdir(recdir);
+		status = 0;
+	}
+	path_release(&nd);
+	return status;
 }
 
 /*

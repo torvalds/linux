@@ -50,7 +50,6 @@
 #define NFSDDBG_FACILITY                NFSDDBG_PROC
 
 /* Globals */
-char recovery_dirname[PATH_MAX] = "/var/lib/nfs/v4recovery";
 static struct nameidata rec_dir;
 static int rec_dir_init = 0;
 
