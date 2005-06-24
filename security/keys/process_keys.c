@@ -1,6 +1,6 @@
 /* process_keys.c: management of a process's keyrings
  *
- * Copyright (C) 2004 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2004-5 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -181,7 +181,7 @@ static int install_process_keyring(struct task_struct *tsk)
 			goto error;
 		}
 
-		/* attach or swap keyrings */
+		/* attach keyring */
 		spin_lock_irqsave(&tsk->sighand->siglock, flags);
 		if (!tsk->signal->process_keyring) {
 			tsk->signal->process_keyring = keyring;
@@ -227,12 +227,14 @@ static int install_session_keyring(struct task_struct *tsk,
 
 	/* install the keyring */
 	spin_lock_irqsave(&tsk->sighand->siglock, flags);
-	old = tsk->signal->session_keyring;
-	tsk->signal->session_keyring = keyring;
+	old = rcu_dereference(tsk->signal->session_keyring);
+	rcu_assign_pointer(tsk->signal->session_keyring, keyring);
 	spin_unlock_irqrestore(&tsk->sighand->siglock, flags);
 
 	ret = 0;
 
+	/* we're using RCU on the pointer */
+	synchronize_kernel();
 	key_put(old);
  error:
 	return ret;
@@ -245,8 +247,6 @@ static int install_session_keyring(struct task_struct *tsk,
  */
 int copy_thread_group_keys(struct task_struct *tsk)
 {
-	unsigned long flags;
-
 	key_check(current->thread_group->session_keyring);
 	key_check(current->thread_group->process_keyring);
 
@@ -254,10 +254,10 @@ int copy_thread_group_keys(struct task_struct *tsk)
 	tsk->signal->process_keyring = NULL;
 
 	/* same session keyring */
-	spin_lock_irqsave(&current->sighand->siglock, flags);
+	rcu_read_lock();
 	tsk->signal->session_keyring =
-		key_get(current->signal->session_keyring);
-	spin_unlock_irqrestore(&current->sighand->siglock, flags);
+		key_get(rcu_dereference(current->signal->session_keyring));
+	rcu_read_unlock();
 
 	return 0;
 
@@ -381,8 +381,7 @@ struct key *search_process_keyrings_aux(struct key_type *type,
 					key_match_func_t match)
 {
 	struct task_struct *tsk = current;
-	unsigned long flags;
-	struct key *key, *ret, *err, *tmp;
+	struct key *key, *ret, *err;
 
 	/* we want to return -EAGAIN or -ENOKEY if any of the keyrings were
 	 * searchable, but we failed to find a key or we found a negative key;
@@ -436,17 +435,18 @@ struct key *search_process_keyrings_aux(struct key_type *type,
 	}
 
 	/* search the session keyring last */
-	spin_lock_irqsave(&tsk->sighand->siglock, flags);
+	if (tsk->signal->session_keyring) {
+		rcu_read_lock();
+		key = keyring_search_aux(
+			rcu_dereference(tsk->signal->session_keyring),
+			type, description, match);
+		rcu_read_unlock();
+	}
+	else {
+		key = keyring_search_aux(tsk->user->session_keyring,
+					 type, description, match);
+	}
 
-	tmp = tsk->signal->session_keyring;
-	if (!tmp)
-		tmp = tsk->user->session_keyring;
-	atomic_inc(&tmp->usage);
-
-	spin_unlock_irqrestore(&tsk->sighand->siglock, flags);
-
-	key = keyring_search_aux(tmp, type, description, match);
-	key_put(tmp);
 	if (!IS_ERR(key))
 		goto found;
 

@@ -175,13 +175,12 @@ static struct key *__request_key_construction(struct key_type *type,
 	key->expiry = now.tv_sec + key_negative_timeout;
 
 	if (current->signal->session_keyring) {
-		unsigned long flags;
 		struct key *keyring;
 
-		spin_lock_irqsave(&current->sighand->siglock, flags);
-		keyring = current->signal->session_keyring;
+		rcu_read_lock();
+		keyring = rcu_dereference(current->signal->session_keyring);
 		atomic_inc(&keyring->usage);
-		spin_unlock_irqrestore(&current->sighand->siglock, flags);
+		rcu_read_unlock();
 
 		key_link(keyring, key);
 		key_put(keyring);
