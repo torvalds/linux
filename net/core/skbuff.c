@@ -1500,6 +1500,120 @@ void skb_split(struct sk_buff *skb, struct sk_buff *skb1, const u32 len)
 		skb_split_no_header(skb, skb1, len, pos);
 }
 
+/**
+ * skb_prepare_seq_read - Prepare a sequential read of skb data
+ * @skb: the buffer to read
+ * @from: lower offset of data to be read
+ * @to: upper offset of data to be read
+ * @st: state variable
+ *
+ * Initializes the specified state variable. Must be called before
+ * invoking skb_seq_read() for the first time.
+ */
+void skb_prepare_seq_read(struct sk_buff *skb, unsigned int from,
+			  unsigned int to, struct skb_seq_state *st)
+{
+	st->lower_offset = from;
+	st->upper_offset = to;
+	st->root_skb = st->cur_skb = skb;
+	st->frag_idx = st->stepped_offset = 0;
+	st->frag_data = NULL;
+}
+
+/**
+ * skb_seq_read - Sequentially read skb data
+ * @consumed: number of bytes consumed by the caller so far
+ * @data: destination pointer for data to be returned
+ * @st: state variable
+ *
+ * Reads a block of skb data at &consumed relative to the
+ * lower offset specified to skb_prepare_seq_read(). Assigns
+ * the head of the data block to &data and returns the length
+ * of the block or 0 if the end of the skb data or the upper
+ * offset has been reached.
+ *
+ * The caller is not required to consume all of the data
+ * returned, i.e. &consumed is typically set to the number
+ * of bytes already consumed and the next call to
+ * skb_seq_read() will return the remaining part of the block.
+ *
+ * Note: The size of each block of data returned can be arbitary,
+ *       this limitation is the cost for zerocopy seqeuental
+ *       reads of potentially non linear data.
+ *
+ * Note: Fragment lists within fragments are not implemented
+ *       at the moment, state->root_skb could be replaced with
+ *       a stack for this purpose.
+ */
+unsigned int skb_seq_read(unsigned int consumed, const u8 **data,
+			  struct skb_seq_state *st)
+{
+	unsigned int block_limit, abs_offset = consumed + st->lower_offset;
+	skb_frag_t *frag;
+
+	if (unlikely(abs_offset >= st->upper_offset))
+		return 0;
+
+next_skb:
+	block_limit = skb_headlen(st->cur_skb);
+
+	if (abs_offset < block_limit) {
+		*data = st->cur_skb->data + abs_offset;
+		return block_limit - abs_offset;
+	}
+
+	if (st->frag_idx == 0 && !st->frag_data)
+		st->stepped_offset += skb_headlen(st->cur_skb);
+
+	while (st->frag_idx < skb_shinfo(st->cur_skb)->nr_frags) {
+		frag = &skb_shinfo(st->cur_skb)->frags[st->frag_idx];
+		block_limit = frag->size + st->stepped_offset;
+
+		if (abs_offset < block_limit) {
+			if (!st->frag_data)
+				st->frag_data = kmap_skb_frag(frag);
+
+			*data = (u8 *) st->frag_data + frag->page_offset +
+				(abs_offset - st->stepped_offset);
+
+			return block_limit - abs_offset;
+		}
+
+		if (st->frag_data) {
+			kunmap_skb_frag(st->frag_data);
+			st->frag_data = NULL;
+		}
+
+		st->frag_idx++;
+		st->stepped_offset += frag->size;
+	}
+
+	if (st->cur_skb->next) {
+		st->cur_skb = st->cur_skb->next;
+		st->frag_idx = 0;
+		goto next_skb;
+	} else if (st->root_skb == st->cur_skb &&
+		   skb_shinfo(st->root_skb)->frag_list) {
+		st->cur_skb = skb_shinfo(st->root_skb)->frag_list;
+		goto next_skb;
+	}
+
+	return 0;
+}
+
+/**
+ * skb_abort_seq_read - Abort a sequential read of skb data
+ * @st: state variable
+ *
+ * Must be called if skb_seq_read() was not called until it
+ * returned 0.
+ */
+void skb_abort_seq_read(struct skb_seq_state *st)
+{
+	if (st->frag_data)
+		kunmap_skb_frag(st->frag_data);
+}
+
 void __init skb_init(void)
 {
 	skbuff_head_cache = kmem_cache_create("skbuff_head_cache",
@@ -1538,3 +1652,6 @@ EXPORT_SYMBOL(skb_queue_tail);
 EXPORT_SYMBOL(skb_unlink);
 EXPORT_SYMBOL(skb_append);
 EXPORT_SYMBOL(skb_split);
+EXPORT_SYMBOL(skb_prepare_seq_read);
+EXPORT_SYMBOL(skb_seq_read);
+EXPORT_SYMBOL(skb_abort_seq_read);

@@ -321,6 +321,24 @@ extern void	      skb_over_panic(struct sk_buff *skb, int len,
 extern void	      skb_under_panic(struct sk_buff *skb, int len,
 				      void *here);
 
+struct skb_seq_state
+{
+	__u32		lower_offset;
+	__u32		upper_offset;
+	__u32		frag_idx;
+	__u32		stepped_offset;
+	struct sk_buff	*root_skb;
+	struct sk_buff	*cur_skb;
+	__u8		*frag_data;
+};
+
+extern void	      skb_prepare_seq_read(struct sk_buff *skb,
+					   unsigned int from, unsigned int to,
+					   struct skb_seq_state *st);
+extern unsigned int   skb_seq_read(unsigned int consumed, const u8 **data,
+				   struct skb_seq_state *st);
+extern void	      skb_abort_seq_read(struct skb_seq_state *st);
+
 /* Internal */
 #define skb_shinfo(SKB)		((struct skb_shared_info *)((SKB)->end))
 
