@@ -164,7 +164,6 @@ struct netif_rx_stats
 	unsigned total;
 	unsigned dropped;
 	unsigned time_squeeze;
-	unsigned throttled;
 	unsigned cpu_collision;
 };
 
@@ -557,10 +556,9 @@ static inline int unregister_gifconf(unsigned int family)
 
 struct softnet_data
 {
-	int			throttle;
+	struct net_device	*output_queue;
 	struct sk_buff_head	input_pkt_queue;
 	struct list_head	poll_list;
-	struct net_device	*output_queue;
 	struct sk_buff		*completion_queue;
 
 	struct net_device	backlog_dev;	/* Sorry. 8) */
