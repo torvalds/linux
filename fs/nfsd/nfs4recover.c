@@ -39,12 +39,36 @@
 #include <linux/nfs4.h>
 #include <linux/nfsd/state.h>
 #include <linux/nfsd/xdr4.h>
+#include <linux/param.h>
+#include <linux/file.h>
+#include <linux/namei.h>
 #include <asm/uaccess.h>
 #include <asm/scatterlist.h>
 #include <linux/crypto.h>
 
 
 #define NFSDDBG_FACILITY                NFSDDBG_PROC
+
+/* Globals */
+char recovery_dirname[PATH_MAX] = "/var/lib/nfs/v4recovery";
+static struct nameidata rec_dir;
+static int rec_dir_init = 0;
+
+static void
+nfs4_save_user(uid_t *saveuid, gid_t *savegid)
+{
+	*saveuid = current->fsuid;
+	*savegid = current->fsgid;
+	current->fsuid = 0;
+	current->fsgid = 0;
+}
+
+static void
+nfs4_reset_user(uid_t saveuid, gid_t savegid)
+{
+	current->fsuid = saveuid;
+	current->fsgid = savegid;
+}
 
 static void
 md5_to_hex(char *out, char *md5)
@@ -94,4 +118,146 @@ out:
 	if (tfm)
 		crypto_free_tfm(tfm);
 	return status;
+}
+
+typedef int (recdir_func)(struct dentry *, struct dentry *);
+
+struct dentry_list {
+	struct dentry *dentry;
+	struct list_head list;
+};
+
+struct dentry_list_arg {
+	struct list_head dentries;
+	struct dentry *parent;
+};
+
+static int
+nfsd4_build_dentrylist(void *arg, const char *name, int namlen,
+		loff_t offset, ino_t ino, unsigned int d_type)
+{
+	struct dentry_list_arg *dla = arg;
+	struct list_head *dentries = &dla->dentries;
+	struct dentry *parent = dla->parent;
+	struct dentry *dentry;
+	struct dentry_list *child;
+
+	if (name && isdotent(name, namlen))
+		return nfs_ok;
+	dentry = lookup_one_len(name, parent, namlen);
+	if (IS_ERR(dentry))
+		return PTR_ERR(dentry);
+	child = kmalloc(sizeof(*child), GFP_KERNEL);
+	if (child == NULL)
+		return -ENOMEM;
+	child->dentry = dentry;
+	list_add(&child->list, dentries);
+	return 0;
+}
+
+static int
+nfsd4_list_rec_dir(struct dentry *dir, recdir_func *f)
+{
+	struct file *filp;
+	struct dentry_list_arg dla = {
+		.parent = dir,
+	};
+	struct list_head *dentries = &dla.dentries;
+	struct dentry_list *child;
+	uid_t uid;
+	gid_t gid;
+	int status;
+
+	if (!rec_dir_init)
+		return 0;
+
+	nfs4_save_user(&uid, &gid);
+
+	filp = dentry_open(dget(dir), mntget(rec_dir.mnt),
+			O_RDWR);
+	status = PTR_ERR(filp);
+	if (IS_ERR(filp))
+		goto out;
+	INIT_LIST_HEAD(dentries);
+	status = vfs_readdir(filp, nfsd4_build_dentrylist, &dla);
+	fput(filp);
+	while (!list_empty(dentries)) {
+		child = list_entry(dentries->next, struct dentry_list, list);
+		status = f(dir, child->dentry);
+		if (status)
+			goto out;
+		list_del(&child->list);
+		dput(child->dentry);
+		kfree(child);
+	}
+out:
+	while (!list_empty(dentries)) {
+		child = list_entry(dentries->next, struct dentry_list, list);
+		list_del(&child->list);
+		dput(child->dentry);
+		kfree(child);
+	}
+	nfs4_reset_user(uid, gid);
+	return status;
+}
+
+static int
+load_recdir(struct dentry *parent, struct dentry *child)
+{
+	if (child->d_name.len != HEXDIR_LEN - 1) {
+		printk("nfsd4: illegal name %s in recovery directory\n",
+				child->d_name.name);
+		/* Keep trying; maybe the others are OK: */
+		return nfs_ok;
+	}
+	nfs4_client_to_reclaim(child->d_name.name);
+	return nfs_ok;
+}
+
+int
+nfsd4_recdir_load(void) {
+	int status;
+
+	status = nfsd4_list_rec_dir(rec_dir.dentry, load_recdir);
+	if (status)
+		printk("nfsd4: failed loading clients from recovery"
+			" directory %s\n", rec_dir.dentry->d_name.name);
+	return status;
+}
+
+/*
+ * Hold reference to the recovery directory.
+ */
+
+void
+nfsd4_init_recdir(char *rec_dirname)
+{
+	uid_t			uid = 0;
+	gid_t			gid = 0;
+	int 			status;
+
+	printk("NFSD: Using %s as the NFSv4 state recovery directory\n",
+			rec_dirname);
+
+	BUG_ON(rec_dir_init);
+
+	nfs4_save_user(&uid, &gid);
+
+	status = path_lookup(rec_dirname, LOOKUP_FOLLOW, &rec_dir);
+	if (status == -ENOENT)
+		printk("NFSD: recovery directory %s doesn't exist\n",
+				rec_dirname);
+
+	if (!status)
+		rec_dir_init = 1;
+	nfs4_reset_user(uid, gid);
+}
+
+void
+nfsd4_shutdown_recdir(void)
+{
+	if (!rec_dir_init)
+		return;
+	rec_dir_init = 0;
+	path_release(&rec_dir);
 }

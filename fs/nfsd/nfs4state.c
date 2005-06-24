@@ -71,6 +71,7 @@ static stateid_t onestateid;              /* bits all 1 */
 static struct nfs4_stateid * find_stateid(stateid_t *stid, int flags);
 static struct nfs4_delegation * find_delegation_stateid(struct inode *ino, stateid_t *stid);
 static void release_stateid_lockowners(struct nfs4_stateid *open_stp);
+extern char recovery_dirname[];
 
 /* Locking:
  *
@@ -3091,8 +3092,8 @@ alloc_reclaim(void)
 /*
  * failure => all reset bets are off, nfserr_no_grace...
  */
-static int
-nfs4_client_to_reclaim(char *name)
+int
+nfs4_client_to_reclaim(const char *name)
 {
 	unsigned int strhashval;
 	struct nfs4_client_reclaim *crp = NULL;
@@ -3202,6 +3203,17 @@ nfs4_state_init(void)
 	reclaim_str_hashtbl_size = 0;
 }
 
+static void
+nfsd4_load_reboot_recovery_data(void)
+{
+	int status;
+
+	nfsd4_init_recdir(recovery_dirname);
+	status = nfsd4_recdir_load();
+	if (status)
+		printk("NFSD: Failure reading reboot recovery data\n");
+}
+
 /* initialization to perform when the nfsd service is started: */
 
 static void
@@ -3228,6 +3240,7 @@ nfs4_state_start(void)
 	status = nfsd4_init_slabs();
 	if (status)
 		return status;
+	nfsd4_load_reboot_recovery_data();
 	__nfs4_state_start();
 	nfs4_init = 1;
 	return 0;
@@ -3286,6 +3299,7 @@ __nfs4_state_shutdown(void)
 	cancel_delayed_work(&laundromat_work);
 	flush_workqueue(laundry_wq);
 	destroy_workqueue(laundry_wq);
+	nfsd4_shutdown_recdir();
 	nfs4_init = 0;
 }
 
