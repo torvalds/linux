@@ -98,6 +98,9 @@
 #define TUNER_PHILIPS_FQ1216AME_MK4 56 /* Hauppauge PVR-150 PAL */
 #define TUNER_PHILIPS_FQ1236A_MK4 57   /* Hauppauge PVR-500MCE NTSC */
 
+#define TUNER_YMEC_TVF_8531MF 58
+#define TUNER_YMEC_TVF_5533MF 59	/* Pixelview Pro Ultra NTSC */
+
 #define NOTUNER 0
 #define PAL     1	/* PAL_BG */
 #define PAL_I   2
@@ -121,8 +124,10 @@
 
 #define TUNER_SET_TYPE               _IOW('t',1,int)    /* set tuner type */
 #define TUNER_SET_TVFREQ             _IOW('t',2,int)    /* set tv freq */
+#define TUNER_SET_ADDR               _IOW('T',3,int)	/* Chooses tuner I2C address */
 
 #define  TDA9887_SET_CONFIG          _IOW('t',5,int)
+
 /* tv card specific */
 # define TDA9887_PRESENT             (1<<0)
 # define TDA9887_PORT1_INACTIVE      (1<<1)
@@ -142,6 +147,11 @@
 
 #define I2C_ADDR_TDA8290        0x4b
 #define I2C_ADDR_TDA8275        0x61
+
+struct tuner_addr {
+	enum v4l2_tuner_type type;
+	unsigned short addr;
+};
 
 struct tuner {
 	/* device */

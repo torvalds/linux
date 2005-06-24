@@ -1,5 +1,5 @@
 /*
- * $Id: tuner-core.c,v 1.5 2005/02/15 15:59:35 kraxel Exp $
+ * $Id: tuner-core.c,v 1.7 2005/05/30 02:02:47 mchehab Exp $
  *
  * i2c tv tuner chip device driver
  * core core, i.e. kernel interfaces, registering and so on
@@ -22,6 +22,11 @@
 
 #include <media/tuner.h>
 #include <media/audiochip.h>
+
+/*
+ * comment line bellow to return to old behavor, where only one I2C device is supported
+ */
+/* #define CONFIG_TUNER_MULTI_I2C */
 
 #define UNSET (-1U)
 
@@ -53,6 +58,9 @@ MODULE_AUTHOR("Ralph Metzler, Gerd Knorr, Gunther Mayer");
 MODULE_LICENSE("GPL");
 
 static int this_adap;
+#ifdef CONFIG_TUNER_MULTI_I2C
+static unsigned short tv_tuner, radio_tuner;
+#endif
 
 static struct i2c_driver driver;
 static struct i2c_client client_template;
@@ -124,6 +132,28 @@ static void set_freq(struct i2c_client *c, unsigned long freq)
 	}
 	t->freq = freq;
 }
+
+#ifdef CONFIG_TUNER_MULTI_I2C
+static void set_addr(struct i2c_client *c, struct tuner_addr *tun_addr)
+{
+	struct tuner *t = i2c_get_clientdata(c);
+
+	switch (tun_addr->type) {
+	case V4L2_TUNER_RADIO:
+ 		radio_tuner=tun_addr->addr;
+		tuner_dbg("radio tuner set to I2C address 0x%02x\n",radio_tuner<<1);
+
+		break;
+	default:
+		tv_tuner=tun_addr->addr;
+		tuner_dbg("TV tuner set to I2C address 0x%02x\n",tv_tuner<<1);
+		break;
+	}
+}
+#else
+#define set_addr(c,tun_addr) \
+		tuner_warn("It is recommended to enable CONFIG_TUNER_MULTI_I2C for this card.\n");
+#endif
 
 static void set_type(struct i2c_client *c, unsigned int type)
 {
@@ -197,8 +227,16 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 {
 	struct tuner *t;
 
+#ifndef CONFIG_TUNER_MULTI_I2C
 	if (this_adap > 0)
 		return -1;
+#else
+	/* by default, first I2C card is both tv and radio tuner */
+	if (this_adap == 0) {
+		tv_tuner = addr;
+		radio_tuner = addr;
+	}
+#endif
 	this_adap++;
 
         client_template.adapter = adap;
@@ -228,6 +266,11 @@ static int tuner_probe(struct i2c_adapter *adap)
 	}
 	this_adap = 0;
 
+#ifdef CONFIG_TUNER_MULTI_I2C
+	tv_tuner = 0;
+	radio_tuner = 0;
+#endif
+
 	if (adap->class & I2C_CLASS_TV_ANALOG)
 		return i2c_probe(adap, &addr_data, tuner_attach);
 	return 0;
@@ -236,8 +279,14 @@ static int tuner_probe(struct i2c_adapter *adap)
 static int tuner_detach(struct i2c_client *client)
 {
 	struct tuner *t = i2c_get_clientdata(client);
+	int err;
 
-	i2c_detach_client(&t->i2c);
+	err=i2c_detach_client(&t->i2c);
+	if (err) {
+		tuner_warn ("Client deregistration failed, client not detached.\n");
+		return err;
+	}
+
 	kfree(t);
 	return 0;
 }
@@ -249,6 +298,17 @@ static int tuner_detach(struct i2c_client *client)
 			  tuner_info("ignore v4l1 call\n"); \
 		          return 0; }
 
+#ifdef CONFIG_TUNER_MULTI_I2C
+#define CHECK_ADDR(tp,cmd)	if (client->addr!=tp) { \
+			  tuner_info ("Cmd %s to addr 0x%02x rejected.\n",cmd,client->addr<<1); \
+			  return 0; }
+#define CHECK_MODE(cmd)	if (t->mode == V4L2_TUNER_RADIO) { \
+			  CHECK_ADDR(radio_tuner,cmd) } else { CHECK_ADDR(tv_tuner,cmd); }
+#else
+#define CHECK_ADDR(tp,cmd)
+#define CHECK_MODE(cmd)
+#endif
+
 static int
 tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 {
@@ -256,18 +316,23 @@ tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
         unsigned int *iarg = (int*)arg;
 
         switch (cmd) {
-
 	/* --- configuration --- */
 	case TUNER_SET_TYPE:
 		set_type(client,*iarg);
 		break;
+	case TUNER_SET_ADDR:
+		set_addr(client,(struct tuner_addr *)arg);
+		break;
 	case AUDC_SET_RADIO:
+		CHECK_ADDR(radio_tuner,"AUDC_SET_RADIO");
+
 		if (V4L2_TUNER_RADIO != t->mode) {
 			set_tv_freq(client,400 * 16);
 			t->mode = V4L2_TUNER_RADIO;
 		}
 		break;
 	case AUDC_CONFIG_PINNACLE:
+		CHECK_ADDR(tv_tuner,"AUDC_CONFIG_PINNACLE");
 		switch (*iarg) {
 		case 2:
 			tuner_dbg("pinnacle pal\n");
@@ -295,6 +360,7 @@ tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		};
 		struct video_channel *vc = arg;
 
+		CHECK_ADDR(tv_tuner,"VIDIOCSCHAN");
 		CHECK_V4L2;
 		t->mode = V4L2_TUNER_ANALOG_TV;
 		if (vc->norm < ARRAY_SIZE(map))
@@ -308,6 +374,7 @@ tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	{
 		unsigned long *v = arg;
 
+		CHECK_MODE("VIDIOCSFREQ");
 		CHECK_V4L2;
 		set_freq(client,*v);
 		return 0;
@@ -316,6 +383,7 @@ tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	{
 		struct video_tuner *vt = arg;
 
+		CHECK_ADDR(radio_tuner,"VIDIOCGTUNER:");
 		CHECK_V4L2;
 		if (V4L2_TUNER_RADIO == t->mode  &&  t->has_signal)
 			vt->signal = t->has_signal(client);
@@ -325,6 +393,7 @@ tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	{
 		struct video_audio *va = arg;
 
+		CHECK_ADDR(radio_tuner,"VIDIOCGAUDIO");
 		CHECK_V4L2;
 		if (V4L2_TUNER_RADIO == t->mode  &&  t->is_stereo)
 			va->mode = t->is_stereo(client)
@@ -337,6 +406,7 @@ tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	{
 		v4l2_std_id *id = arg;
 
+		CHECK_ADDR(tv_tuner,"VIDIOC_S_STD");
 		SWITCH_V4L2;
 		t->mode = V4L2_TUNER_ANALOG_TV;
 		t->std = *id;
@@ -349,6 +419,7 @@ tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	{
 		struct v4l2_frequency *f = arg;
 
+		CHECK_MODE("VIDIOC_S_FREQUENCY");
 		SWITCH_V4L2;
 		if (V4L2_TUNER_RADIO == f->type &&
 		    V4L2_TUNER_RADIO != t->mode)
@@ -361,6 +432,7 @@ tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	{
 		struct v4l2_frequency *f = arg;
 
+		CHECK_MODE("VIDIOC_G_FREQUENCY");
 		SWITCH_V4L2;
 		f->type = t->mode;
 		f->frequency = t->freq;
@@ -370,6 +442,7 @@ tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	{
 		struct v4l2_tuner *tuner = arg;
 
+		CHECK_MODE("VIDIOC_G_TUNER");
 		SWITCH_V4L2;
 		if (V4L2_TUNER_RADIO == t->mode  &&  t->has_signal)
 			tuner->signal = t->has_signal(client);
