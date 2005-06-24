@@ -53,7 +53,7 @@
 
 /* Globals */
 static time_t lease_time = 90;     /* default lease time */
-static time_t old_lease_time = 90; /* past incarnation lease time */
+static time_t user_lease_time = 90;
 static u32 nfs4_reclaim_init = 0;
 time_t boot_time;
 static time_t grace_end = 0;
@@ -3205,11 +3205,9 @@ __nfs4_state_init(void)
 	INIT_LIST_HEAD(&del_recall_lru);
 	spin_lock_init(&recall_lock);
 	boot_time = get_seconds();
-	grace_time = max(old_lease_time, lease_time);
-	if (reclaim_str_hashtbl_size == 0)
-		grace_time = 0;
-	if (grace_time)
-		printk("NFSD: starting %ld-second grace period\n", grace_time);
+	grace_time = max(user_lease_time, lease_time);
+	lease_time = user_lease_time;
+	printk("NFSD: starting %ld-second grace period\n", grace_time);
 	grace_end = boot_time + grace_time;
 	INIT_WORK(&laundromat_work,laundromat_main, NULL);
 	laundry_wq = create_singlethread_workqueue("nfsd4");
@@ -3307,53 +3305,16 @@ nfs4_state_shutdown(void)
 /*
  * Called when leasetime is changed.
  *
- * if nfsd is not started, simply set the global lease.
- *
- * if nfsd(s) are running, lease change requires nfsv4 state to be reset.
- * e.g: boot_time is reset, existing nfs4_client structs are
- * used to fill reclaim_str_hashtbl, then all state (except for the
- * reclaim_str_hashtbl) is re-initialized.
- *
- * if the old lease time is greater than the new lease time, the grace
- * period needs to be set to the old lease time to allow clients to reclaim
- * their state. XXX - we may want to set the grace period == lease time
- * after an initial grace period == old lease time
- *
- * if an error occurs in this process, the new lease is set, but the server
- * will not honor OPEN or LOCK reclaims, and will return nfserr_no_grace
- * which means OPEN/LOCK/READ/WRITE will fail during grace period.
- *
- * clients will attempt to reset all state with SETCLIENTID/CONFIRM, and
- * OPEN and LOCK reclaims.
+ * The only way the protocol gives us to handle on-the-fly lease changes is to
+ * simulate a reboot.  Instead of doing that, we just wait till the next time
+ * we start to register any changes in lease time.  If the administrator
+ * really wants to change the lease time *now*, they can go ahead and bring
+ * nfsd down and then back up again after changing the lease time.
  */
 void
 nfs4_reset_lease(time_t leasetime)
 {
-	struct nfs4_client *clp;
-	int i;
-
-	printk("NFSD: New leasetime %ld\n",leasetime);
-	if (!nfs4_init)
-		return;
-	nfs4_lock_state();
-	old_lease_time = lease_time;
-	lease_time = leasetime;
-
-	nfs4_release_reclaim();
-
-	/* populate reclaim_str_hashtbl with current confirmed nfs4_clientid */
-	for (i = 0; i < CLIENT_HASH_SIZE; i++) {
-		list_for_each_entry(clp, &conf_id_hashtbl[i], cl_idhash) {
-			if (!nfs4_client_to_reclaim(clp->cl_name.data,
-						clp->cl_name.len)) {
-				nfs4_release_reclaim();
-				goto init_state;
-			}
-		}
-	}
-init_state:
-	__nfs4_state_shutdown();
-	__nfs4_state_init();
-	nfs4_unlock_state();
+	lock_kernel();
+	user_lease_time = leasetime;
+	unlock_kernel();
 }
-
