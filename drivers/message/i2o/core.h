@@ -46,6 +46,9 @@ extern void i2o_iop_free(struct i2o_controller *);
 extern int i2o_iop_add(struct i2o_controller *);
 extern void i2o_iop_remove(struct i2o_controller *);
 
+/* config */
+extern int i2o_parm_issue(struct i2o_device *, int, void *, int, void *, int);
+
 /* control registers relative to c->base */
 #define I2O_IRQ_STATUS	0x30
 #define I2O_IRQ_MASK	0x34
