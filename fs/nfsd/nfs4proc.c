@@ -536,6 +536,8 @@ nfsd4_remove(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_rem
 {
 	int status;
 
+	if (nfs4_in_grace())
+		return nfserr_grace;
 	status = nfsd_unlink(rqstp, current_fh, 0, remove->rm_name, remove->rm_namelen);
 	if (status == nfserr_symlink)
 		return nfserr_notdir;
@@ -554,6 +556,9 @@ nfsd4_rename(struct svc_rqst *rqstp, struct svc_fh *current_fh,
 
 	if (!save_fh->fh_dentry)
 		return status;
+	if (nfs4_in_grace() && !(save_fh->fh_export->ex_flags
+					& NFSEXP_NOSUBTREECHECK))
+		return nfserr_grace;
 	status = nfsd_rename(rqstp, save_fh, rename->rn_sname,
 			     rename->rn_snamelen, current_fh,
 			     rename->rn_tname, rename->rn_tnamelen);
