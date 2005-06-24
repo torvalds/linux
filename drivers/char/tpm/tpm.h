@@ -35,6 +35,14 @@ enum tpm_addr {
 	TPM_DATA = 0x4F
 };
 
+extern ssize_t tpm_show_pubek(struct device *, struct device_attribute *attr,
+				char *);
+extern ssize_t tpm_show_pcrs(struct device *, struct device_attribute *attr,
+				char *);
+extern ssize_t tpm_show_caps(struct device *, struct device_attribute *attr,
+				char *);
+extern ssize_t tpm_store_cancel(struct device *, struct device_attribute *attr,
+				const char *, size_t);
 
 struct tpm_chip;
 
@@ -47,6 +55,7 @@ struct tpm_vendor_specific {
 	int (*send) (struct tpm_chip *, u8 *, size_t);
 	void (*cancel) (struct tpm_chip *);
 	struct miscdevice miscdev;
+	struct attribute_group *attr_group;
 };
 
 struct tpm_chip {

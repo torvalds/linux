@@ -208,7 +208,8 @@ static const u8 pcrread[] = {
 	0, 0, 0, 0		/* PCR index */
 };
 
-static ssize_t show_pcrs(struct device *dev, struct device_attribute *attr, char *buf)
+ssize_t tpm_show_pcrs(struct device *dev, struct device_attribute *attr,
+		      char *buf)
 {
 	u8 data[READ_PCR_RESULT_SIZE];
 	ssize_t len;
@@ -243,7 +244,7 @@ static ssize_t show_pcrs(struct device *dev, struct device_attribute *attr, char
 	return str - buf;
 }
 
-static DEVICE_ATTR(pcrs, S_IRUGO, show_pcrs, NULL);
+EXPORT_SYMBOL_GPL(tpm_show_pcrs);
 
 #define  READ_PUBEK_RESULT_SIZE 314
 static const u8 readpubek[] = {
@@ -252,7 +253,8 @@ static const u8 readpubek[] = {
 	0, 0, 0, 124,		/* TPM_ORD_ReadPubek */
 };
 
-static ssize_t show_pubek(struct device *dev, struct device_attribute *attr, char *buf)
+ssize_t tpm_show_pubek(struct device *dev, struct device_attribute *attr,
+		       char *buf)
 {
 	u8 *data;
 	ssize_t len;
@@ -311,7 +313,7 @@ out:
 	return rc;
 }
 
-static DEVICE_ATTR(pubek, S_IRUGO, show_pubek, NULL);
+EXPORT_SYMBOL_GPL(tpm_show_pubek);
 
 #define CAP_VER_RESULT_SIZE 18
 static const u8 cap_version[] = {
@@ -332,7 +334,8 @@ static const u8 cap_manufacturer[] = {
 	0, 0, 1, 3
 };
 
-static ssize_t show_caps(struct device *dev, struct device_attribute *attr, char *buf)
+ssize_t tpm_show_caps(struct device *dev, struct device_attribute *attr,
+		      char *buf)
 {
 	u8 data[sizeof(cap_manufacturer)];
 	ssize_t len;
@@ -365,8 +368,20 @@ static ssize_t show_caps(struct device *dev, struct device_attribute *attr, char
 
 	return str - buf;
 }
+EXPORT_SYMBOL_GPL(tpm_show_caps);
 
-static DEVICE_ATTR(caps, S_IRUGO, show_caps, NULL);
+ssize_t tpm_store_cancel(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct tpm_chip *chip = dev_get_drvdata(dev);
+	if (chip == NULL)
+		return 0;
+
+	chip->vendor->cancel(chip);
+	return count;
+}
+EXPORT_SYMBOL_GPL(tpm_store_cancel);
+
 
 /*
  * Device file system interface to the TPM
@@ -517,9 +532,7 @@ void __devexit tpm_remove(struct pci_dev *pci_dev)
 	pci_set_drvdata(pci_dev, NULL);
 	misc_deregister(&chip->vendor->miscdev);
 
-	device_remove_file(&pci_dev->dev, &dev_attr_pubek);
-	device_remove_file(&pci_dev->dev, &dev_attr_pcrs);
-	device_remove_file(&pci_dev->dev, &dev_attr_caps);
+	sysfs_remove_group(&pci_dev->dev.kobj, chip->vendor->attr_group);
 
 	pci_disable_device(pci_dev);
 
@@ -648,9 +661,7 @@ dev_num_search_complete:
 
 	list_add(&chip->list, &tpm_chip_list);
 
-	device_create_file(&pci_dev->dev, &dev_attr_pubek);
-	device_create_file(&pci_dev->dev, &dev_attr_pcrs);
-	device_create_file(&pci_dev->dev, &dev_attr_caps);
+	sysfs_create_group(&pci_dev->dev.kobj, chip->vendor->attr_group);
 
 	return 0;
 }
