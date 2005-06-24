@@ -21,7 +21,7 @@ static struct tcp_congestion_ops *tcp_ca_find(const char *name)
 {
 	struct tcp_congestion_ops *e;
 
-	list_for_each_entry(e, &tcp_cong_list, list) {
+	list_for_each_entry_rcu(e, &tcp_cong_list, list) {
 		if (strcmp(e->name, name) == 0)
 			return e;
 	}
@@ -76,6 +76,9 @@ EXPORT_SYMBOL_GPL(tcp_unregister_congestion_control);
 void tcp_init_congestion_control(struct tcp_sock *tp)
 {
 	struct tcp_congestion_ops *ca;
+
+	if (tp->ca_ops != &tcp_init_congestion_ops)
+		return;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(ca, &tcp_cong_list, list) {
@@ -139,6 +142,34 @@ void tcp_get_default_congestion_control(char *name)
 	rcu_read_unlock();
 }
 
+/* Change congestion control for socket */
+int tcp_set_congestion_control(struct tcp_sock *tp, const char *name)
+{
+	struct tcp_congestion_ops *ca;
+	int err = 0;
+
+	rcu_read_lock();
+	ca = tcp_ca_find(name);
+	if (ca == tp->ca_ops)
+		goto out;
+
+	if (!ca)
+		err = -ENOENT;
+
+	else if (!try_module_get(ca->owner))
+		err = -EBUSY;
+
+	else {
+		tcp_cleanup_congestion_control(tp);
+		tp->ca_ops = ca;
+		if (tp->ca_ops->init)
+			tp->ca_ops->init(tp);
+	}
+ out:
+	rcu_read_unlock();
+	return err;
+}
+
 /*
  * TCP Reno congestion control
  * This is special case used for fallback as well.
@@ -192,4 +223,15 @@ struct tcp_congestion_ops tcp_reno = {
 	.min_cwnd	= tcp_reno_min_cwnd,
 };
 
-EXPORT_SYMBOL_GPL(tcp_reno);
+/* Initial congestion control used (until SYN)
+ * really reno under another name so we can tell difference
+ * during tcp_set_default_congestion_control
+ */
+struct tcp_congestion_ops tcp_init_congestion_ops  = {
+	.name		= "",
+	.owner		= THIS_MODULE,
+	.ssthresh	= tcp_reno_ssthresh,
+	.cong_avoid	= tcp_reno_cong_avoid,
+	.min_cwnd	= tcp_reno_min_cwnd,
+};
+EXPORT_SYMBOL_GPL(tcp_init_congestion_ops);

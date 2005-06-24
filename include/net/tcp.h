@@ -1162,8 +1162,9 @@ extern void tcp_init_congestion_control(struct tcp_sock *tp);
 extern void tcp_cleanup_congestion_control(struct tcp_sock *tp);
 extern int tcp_set_default_congestion_control(const char *name);
 extern void tcp_get_default_congestion_control(char *name);
+extern int tcp_set_congestion_control(struct tcp_sock *tp, const char *name);
 
-extern struct tcp_congestion_ops tcp_reno;
+extern struct tcp_congestion_ops tcp_init_congestion_ops;
 extern u32 tcp_reno_ssthresh(struct tcp_sock *tp);
 extern void tcp_reno_cong_avoid(struct tcp_sock *tp, u32 ack,
 				u32 rtt, u32 in_flight, int flag);

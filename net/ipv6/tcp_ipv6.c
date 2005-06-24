@@ -2025,7 +2025,7 @@ static int tcp_v6_init_sock(struct sock *sk)
 	sk->sk_state = TCP_CLOSE;
 
 	tp->af_specific = &ipv6_specific;
-	tp->ca_ops = &tcp_reno;
+	tp->ca_ops = &tcp_init_congestion_ops;
 	sk->sk_write_space = sk_stream_write_space;
 	sock_set_flag(sk, SOCK_USE_WRITE_QUEUE);
 
