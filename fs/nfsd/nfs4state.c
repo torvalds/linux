@@ -849,12 +849,7 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp, struct nfsd4_setclientid_confi
 	nfs4_lock_state();
 	clp = find_confirmed_client(clid);
 	if (clp) {
-		status = nfserr_inval;
-		/* 
-		 * Found a record for this clientid. If the IP addresses
-		 * don't match, return ERR_INVAL just as if the record had
-		 * not been found.
-		 */
+		status = nfserr_clid_inuse;
 		if (clp->cl_addr != ip_addr) { 
 			printk("NFSD: setclientid: string in use by client"
 			"(clientid %08x/%08x)\n",
@@ -865,7 +860,7 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp, struct nfsd4_setclientid_confi
 	}
 	clp = find_unconfirmed_client(clid);
 	if (clp) {
-		status = nfserr_inval;
+		status = nfserr_clid_inuse;
 		if (clp->cl_addr != ip_addr) { 
 			printk("NFSD: setclientid: string in use by client"
 			"(clientid %08x/%08x)\n",
@@ -949,7 +944,7 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp, struct nfsd4_setclientid_confi
 		goto out;
 	}
 	/* check that we have hit one of the cases...*/
-	status = nfserr_inval;
+	status = nfserr_clid_inuse;
 	goto out;
 out:
 	if (!status)
