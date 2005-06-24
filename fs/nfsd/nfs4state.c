@@ -55,7 +55,7 @@
 static time_t lease_time = 90;     /* default lease time */
 static time_t user_lease_time = 90;
 time_t boot_time;
-static time_t grace_end = 0;
+static int in_grace = 1;
 static u32 current_clientid = 1;
 static u32 current_ownerid = 1;
 static u32 current_fileid = 1;
@@ -1908,6 +1908,13 @@ out:
 	return status;
 }
 
+static void
+end_grace(void)
+{
+	dprintk("NFSD: end of grace period\n");
+	in_grace = 0;
+}
+
 time_t
 nfs4_laundromat(void)
 {
@@ -1922,6 +1929,8 @@ nfs4_laundromat(void)
 	nfs4_lock_state();
 
 	dprintk("NFSD: laundromat service - starting\n");
+	if (in_grace)
+		end_grace();
 	list_for_each_safe(pos, next, &client_lru) {
 		clp = list_entry(pos, struct nfs4_client, cl_lru);
 		if (time_after((unsigned long)clp->cl_time, (unsigned long)cutoff)) {
@@ -3223,10 +3232,10 @@ __nfs4_state_start(void)
 	boot_time = get_seconds();
 	grace_time = max(user_lease_time, lease_time);
 	lease_time = user_lease_time;
+	in_grace = 1;
 	printk("NFSD: starting %ld-second grace period\n", grace_time);
-	grace_end = boot_time + grace_time;
 	laundry_wq = create_singlethread_workqueue("nfsd4");
-	queue_delayed_work(laundry_wq, &laundromat_work, NFSD_LEASE_TIME*HZ);
+	queue_delayed_work(laundry_wq, &laundromat_work, grace_time*HZ);
 }
 
 int
@@ -3247,14 +3256,7 @@ nfs4_state_start(void)
 int
 nfs4_in_grace(void)
 {
-	return get_seconds() < grace_end;
-}
-
-void
-set_no_grace(void)
-{
-	printk("NFSD: ERROR in reboot recovery.  State reclaims will fail.\n");
-	grace_end = get_seconds();
+	return in_grace;
 }
 
 time_t
