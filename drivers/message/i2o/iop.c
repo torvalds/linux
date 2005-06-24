@@ -456,6 +456,70 @@ static int i2o_iop_clear(struct i2o_controller *c)
 }
 
 /**
+ *	i2o_iop_init_outbound_queue - setup the outbound message queue
+ *	@c: I2O controller
+ *
+ *	Clear and (re)initialize IOP's outbound queue and post the message
+ *	frames to the IOP.
+ *
+ *	Returns 0 on success or a negative errno code on failure.
+ */
+static int i2o_iop_init_outbound_queue(struct i2o_controller *c)
+{
+	u8 *status = c->status.virt;
+	u32 m;
+	struct i2o_message __iomem *msg;
+	ulong timeout;
+	int i;
+
+	osm_debug("%s: Initializing Outbound Queue...\n", c->name);
+
+	memset(status, 0, 4);
+
+	m = i2o_msg_get_wait(c, &msg, I2O_TIMEOUT_MESSAGE_GET);
+	if (m == I2O_QUEUE_EMPTY)
+		return -ETIMEDOUT;
+
+	writel(EIGHT_WORD_MSG_SIZE | TRL_OFFSET_6, &msg->u.head[0]);
+	writel(I2O_CMD_OUTBOUND_INIT << 24 | HOST_TID << 12 | ADAPTER_TID,
+	       &msg->u.head[1]);
+	writel(i2o_exec_driver.context, &msg->u.s.icntxt);
+	writel(0x0106, &msg->u.s.tcntxt);	/* FIXME: why 0x0106, maybe in
+						   Spec? */
+	writel(PAGE_SIZE, &msg->body[0]);
+	/* Outbound msg frame size in words and Initcode */
+	writel(MSG_FRAME_SIZE << 16 | 0x80, &msg->body[1]);
+	writel(0xd0000004, &msg->body[2]);
+	writel(i2o_dma_low(c->status.phys), &msg->body[3]);
+	writel(i2o_dma_high(c->status.phys), &msg->body[4]);
+
+	i2o_msg_post(c, m);
+
+	timeout = jiffies + I2O_TIMEOUT_INIT_OUTBOUND_QUEUE * HZ;
+	while (*status <= I2O_CMD_IN_PROGRESS) {
+		if (time_after(jiffies, timeout)) {
+			osm_warn("%s: Timeout Initializing\n", c->name);
+			return -ETIMEDOUT;
+		}
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_timeout(1);
+
+		rmb();
+	}
+
+	m = c->out_queue.phys;
+
+	/* Post frames */
+	for (i = 0; i < NMBR_MSG_FRAMES; i++) {
+		i2o_flush_reply(c, m);
+		udelay(1);	/* Promise */
+		m += MSG_FRAME_SIZE * 4;
+	}
+
+	return 0;
+}
+
+/**
  *	i2o_iop_reset - reset an I2O controller
  *	@c: controller to reset
  *
@@ -491,25 +555,16 @@ static int i2o_iop_reset(struct i2o_controller *c)
 	writel(0, &msg->u.s.tcntxt);	//FIXME: use reasonable transaction context
 	writel(0, &msg->body[0]);
 	writel(0, &msg->body[1]);
-	writel(i2o_ptr_low((void *)c->status.phys), &msg->body[2]);
-	writel(i2o_ptr_high((void *)c->status.phys), &msg->body[3]);
+	writel(i2o_dma_low(c->status.phys), &msg->body[2]);
+	writel(i2o_dma_high(c->status.phys), &msg->body[3]);
 
 	i2o_msg_post(c, m);
 
 	/* Wait for a reply */
 	timeout = jiffies + I2O_TIMEOUT_RESET * HZ;
 	while (!*status) {
-		if (time_after(jiffies, timeout)) {
-			printk(KERN_ERR "%s: IOP reset timeout.\n", c->name);
-			rc = -ETIMEDOUT;
-			goto exit;
-		}
-
-		/* Promise bug */
-		if (status[1] || status[4]) {
-			*status = 0;
+		if (time_after(jiffies, timeout))
 			break;
-		}
 
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule_timeout(1);
@@ -517,14 +572,20 @@ static int i2o_iop_reset(struct i2o_controller *c)
 		rmb();
 	}
 
-	if (*status == I2O_CMD_IN_PROGRESS) {
+	switch (*status) {
+	case I2O_CMD_REJECTED:
+		osm_warn("%s: IOP reset rejected\n", c->name);
+		rc = -EPERM;
+		break;
+
+	case I2O_CMD_IN_PROGRESS:
 		/*
 		 * Once the reset is sent, the IOP goes into the INIT state
-		 * which is indeterminate.  We need to wait until the IOP
-		 * has rebooted before we can let the system talk to
-		 * it. We read the inbound Free_List until a message is
-		 * available. If we can't read one in the given ammount of
-		 * time, we assume the IOP could not reboot properly.
+		 * which is indeterminate. We need to wait until the IOP has
+		 * rebooted before we can let the system talk to it. We read
+		 * the inbound Free_List until a message is available. If we
+		 * can't read one in the given ammount of time, we assume the
+		 * IOP could not reboot properly.
 		 */
 		pr_debug("%s: Reset in progress, waiting for reboot...\n",
 			 c->name);
@@ -543,19 +604,26 @@ static int i2o_iop_reset(struct i2o_controller *c)
 			m = i2o_msg_get_wait(c, &msg, I2O_TIMEOUT_RESET);
 		}
 		i2o_msg_nop(c, m);
+
+		/* from here all quiesce commands are safe */
+		c->no_quiesce = 0;
+
+		/* verify if controller is in state RESET */
+		i2o_status_get(c);
+
+		if (!c->promise && (sb->iop_state != ADAPTER_STATE_RESET))
+			osm_warn("%s: reset completed, but adapter not in RESET"
+				 " state.\n", c->name);
+		else
+			osm_debug("%s: reset completed.\n", c->name);
+
+		break;
+
+	default:
+		osm_err("%s: IOP reset timeout.\n", c->name);
+		rc = -ETIMEDOUT;
+		break;
 	}
-
-	/* from here all quiesce commands are safe */
-	c->no_quiesce = 0;
-
-	/* If IopReset was rejected or didn't perform reset, try IopClear */
-	i2o_status_get(c);
-	if (*status == I2O_CMD_REJECTED || sb->iop_state != ADAPTER_STATE_RESET) {
-		printk(KERN_WARNING "%s: Reset rejected, trying to clear\n",
-		       c->name);
-		i2o_iop_clear(c);
-	} else
-		pr_debug("%s: Reset completed.\n", c->name);
 
       exit:
 	/* Enable all IOPs */
@@ -563,87 +631,6 @@ static int i2o_iop_reset(struct i2o_controller *c)
 
 	return rc;
 };
-
-/**
- *	i2o_iop_init_outbound_queue - setup the outbound message queue
- *	@c: I2O controller
- *
- *	Clear and (re)initialize IOP's outbound queue and post the message
- *	frames to the IOP.
- *
- *	Returns 0 on success or a negative errno code on failure.
- */
-static int i2o_iop_init_outbound_queue(struct i2o_controller *c)
-{
-	u8 *status = c->status.virt;
-	u32 m;
-	struct i2o_message __iomem *msg;
-	ulong timeout;
-	int i;
-
-	pr_debug("%s: Initializing Outbound Queue...\n", c->name);
-
-	memset(status, 0, 4);
-
-	m = i2o_msg_get_wait(c, &msg, I2O_TIMEOUT_MESSAGE_GET);
-	if (m == I2O_QUEUE_EMPTY)
-		return -ETIMEDOUT;
-
-	writel(EIGHT_WORD_MSG_SIZE | SGL_OFFSET_6, &msg->u.head[0]);
-	writel(I2O_CMD_OUTBOUND_INIT << 24 | HOST_TID << 12 | ADAPTER_TID,
-	       &msg->u.head[1]);
-	writel(i2o_exec_driver.context, &msg->u.s.icntxt);
-	writel(0x00000000, &msg->u.s.tcntxt);
-	writel(PAGE_SIZE, &msg->body[0]);
-	writel(MSG_FRAME_SIZE << 16 | 0x80, &msg->body[1]);	/* Outbound msg frame
-								   size in words and Initcode */
-	writel(0xd0000004, &msg->body[2]);
-	writel(i2o_ptr_low((void *)c->status.phys), &msg->body[3]);
-	writel(i2o_ptr_high((void *)c->status.phys), &msg->body[4]);
-
-	i2o_msg_post(c, m);
-
-	timeout = jiffies + I2O_TIMEOUT_INIT_OUTBOUND_QUEUE * HZ;
-	while (*status <= I2O_CMD_IN_PROGRESS) {
-		if (time_after(jiffies, timeout)) {
-			printk(KERN_WARNING "%s: Timeout Initializing\n",
-			       c->name);
-			return -ETIMEDOUT;
-		}
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
-
-		rmb();
-	}
-
-	m = c->out_queue.phys;
-
-	/* Post frames */
-	for (i = 0; i < NMBR_MSG_FRAMES; i++) {
-		i2o_flush_reply(c, m);
-		udelay(1);	/* Promise */
-		m += MSG_FRAME_SIZE * 4;
-	}
-
-	return 0;
-}
-
-/**
- *	i2o_iop_send_nop - send a core NOP message
- *	@c: controller
- *
- *	Send a no-operation message with a reply set to cause no
- *	action either. Needed for bringing up promise controllers.
- */
-static int i2o_iop_send_nop(struct i2o_controller *c)
-{
-	struct i2o_message __iomem *msg;
-	u32 m = i2o_msg_get_wait(c, &msg, HZ);
-	if (m == I2O_QUEUE_EMPTY)
-		return -ETIMEDOUT;
-	i2o_msg_nop(c, m);
-	return 0;
-}
 
 /**
  *	i2o_iop_activate - Bring controller up to HOLD
@@ -656,26 +643,9 @@ static int i2o_iop_send_nop(struct i2o_controller *c)
  */
 static int i2o_iop_activate(struct i2o_controller *c)
 {
-	struct pci_dev *i960 = NULL;
 	i2o_status_block *sb = c->status_block.virt;
 	int rc;
-
-	if (c->promise) {
-		/* Beat up the hardware first of all */
-		i960 =
-		    pci_find_slot(c->pdev->bus->number,
-				  PCI_DEVFN(PCI_SLOT(c->pdev->devfn), 0));
-		if (i960)
-			pci_write_config_word(i960, 0x42, 0);
-
-		/* Follow this sequence precisely or the controller
-		   ceases to perform useful functions until reboot */
-		if ((rc = i2o_iop_send_nop(c)))
-			return rc;
-
-		if ((rc = i2o_iop_reset(c)))
-			return rc;
-	}
+	int state;
 
 	/* In INIT state, Wait Inbound Q to initialize (in i2o_status_get) */
 	/* In READY state, Get status */
@@ -684,7 +654,8 @@ static int i2o_iop_activate(struct i2o_controller *c)
 	if (rc) {
 		printk(KERN_INFO "%s: Unable to obtain status, "
 		       "attempting a reset.\n", c->name);
-		if (i2o_iop_reset(c))
+		rc = i2o_iop_reset(c);
+		if (rc)
 			return rc;
 	}
 
@@ -697,37 +668,37 @@ static int i2o_iop_activate(struct i2o_controller *c)
 	switch (sb->iop_state) {
 	case ADAPTER_STATE_FAULTED:
 		printk(KERN_CRIT "%s: hardware fault\n", c->name);
-		return -ENODEV;
+		return -EFAULT;
 
 	case ADAPTER_STATE_READY:
 	case ADAPTER_STATE_OPERATIONAL:
 	case ADAPTER_STATE_HOLD:
 	case ADAPTER_STATE_FAILED:
 		pr_debug("%s: already running, trying to reset...\n", c->name);
-		if (i2o_iop_reset(c))
-			return -ENODEV;
+		rc = i2o_iop_reset(c);
+		if (rc)
+			return rc;
 	}
+
+	/* preserve state */
+	state = sb->iop_state;
 
 	rc = i2o_iop_init_outbound_queue(c);
 	if (rc)
 		return rc;
 
-	if (c->promise) {
-		if ((rc = i2o_iop_send_nop(c)))
-			return rc;
+	/* if adapter was not in RESET state clear now */
+	if (state != ADAPTER_STATE_RESET)
+		i2o_iop_clear(c);
 
-		if ((rc = i2o_status_get(c)))
-			return rc;
+	i2o_status_get(c);
 
-		if (i960)
-			pci_write_config_word(i960, 0x42, 0x3FF);
+	if (sb->iop_state != ADAPTER_STATE_HOLD) {
+		osm_err("%s: failed to bring IOP into HOLD state\n", c->name);
+		return -EIO;
 	}
 
-	/* In HOLD state */
-
-	rc = i2o_hrt_get(c);
-
-	return rc;
+	return i2o_hrt_get(c);
 };
 
 /**
@@ -1030,8 +1001,8 @@ int i2o_status_get(struct i2o_controller *c)
 	writel(0, &msg->u.s.tcntxt);	// FIXME: use resonable transaction context
 	writel(0, &msg->body[0]);
 	writel(0, &msg->body[1]);
-	writel(i2o_ptr_low((void *)c->status_block.phys), &msg->body[2]);
-	writel(i2o_ptr_high((void *)c->status_block.phys), &msg->body[3]);
+	writel(i2o_dma_low(c->status_block.phys), &msg->body[2]);
+	writel(i2o_dma_high(c->status_block.phys), &msg->body[3]);
 	writel(sizeof(i2o_status_block), &msg->body[4]);	/* always 88 bytes */
 
 	i2o_msg_post(c, m);

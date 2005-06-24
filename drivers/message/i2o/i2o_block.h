@@ -84,9 +84,9 @@ struct i2o_block_request
 	struct list_head queue;
 	struct request *req;		/* corresponding request */
 	struct i2o_block_device *i2o_blk_dev;	/* I2O block device */
-	int sg_dma_direction;		/* direction of DMA buffer read/write */
+	struct device *dev;		/* device used for DMA */
 	int sg_nents;			/* number of SG elements */
-	struct scatterlist sg_table[I2O_MAX_SEGMENTS]; /* SG table */
+	struct scatterlist sg_table[I2O_MAX_PHYS_SEGMENTS]; /* SG table */
 };
 
 /* I2O Block device delayed request */

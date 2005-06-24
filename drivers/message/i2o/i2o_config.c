@@ -30,27 +30,11 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/pci.h>
-#include <linux/i2o.h>
-#include <linux/errno.h>
-#include <linux/init.h>
-#include <linux/slab.h>
 #include <linux/miscdevice.h>
-#include <linux/mm.h>
-#include <linux/spinlock.h>
 #include <linux/smp_lock.h>
-#include <linux/ioctl32.h>
 #include <linux/compat.h>
-#include <linux/syscalls.h>
 
 #include <asm/uaccess.h>
-#include <asm/io.h>
-
-#define OSM_NAME	"config-osm"
-#define OSM_VERSION	"$Rev$"
-#define OSM_DESCRIPTION	"I2O Configuration OSM"
 
 extern int i2o_parm_issue(struct i2o_device *, int, void *, int, void *, int);
 
@@ -79,125 +63,6 @@ struct i2o_cfg_info {
 };
 static struct i2o_cfg_info *open_files = NULL;
 static ulong i2o_cfg_info_id = 0;
-
-/**
- *	i2o_config_read_hrt - Returns the HRT of the controller
- *	@kob: kernel object handle
- *	@buf: buffer into which the HRT should be copied
- *	@off: file offset
- *	@count: number of bytes to read
- *
- *	Put @count bytes starting at @off into @buf from the HRT of the I2O
- *	controller corresponding to @kobj.
- *
- *	Returns number of bytes copied into buffer.
- */
-static ssize_t i2o_config_read_hrt(struct kobject *kobj, char *buf,
-				   loff_t offset, size_t count)
-{
-	struct i2o_controller *c = to_i2o_controller(container_of(kobj,
-								  struct device,
-								  kobj));
-	i2o_hrt *hrt = c->hrt.virt;
-
-	u32 size = (hrt->num_entries * hrt->entry_len + 2) * 4;
-
-	if(offset > size)
-		return 0;
-
-	if(offset + count > size)
-		count = size - offset;
-
-	memcpy(buf, (u8 *) hrt + offset, count);
-
-	return count;
-};
-
-/**
- *	i2o_config_read_lct - Returns the LCT of the controller
- *	@kob: kernel object handle
- *	@buf: buffer into which the LCT should be copied
- *	@off: file offset
- *	@count: number of bytes to read
- *
- *	Put @count bytes starting at @off into @buf from the LCT of the I2O
- *	controller corresponding to @kobj.
- *
- *	Returns number of bytes copied into buffer.
- */
-static ssize_t i2o_config_read_lct(struct kobject *kobj, char *buf,
-				   loff_t offset, size_t count)
-{
-	struct i2o_controller *c = to_i2o_controller(container_of(kobj,
-								  struct device,
-								  kobj));
-	u32 size = c->lct->table_size * 4;
-
-	if(offset > size)
-		return 0;
-
-	if(offset + count > size)
-		count = size - offset;
-
-	memcpy(buf, (u8 *) c->lct + offset, count);
-
-	return count;
-};
-
-/* attribute for HRT in sysfs */
-static struct bin_attribute i2o_config_hrt_attr = {
-	.attr = {
-		.name = "hrt",
-		.mode = S_IRUGO,
-		.owner = THIS_MODULE
-	},
-	.size = 0,
-	.read = i2o_config_read_hrt
-};
-
-/* attribute for LCT in sysfs */
-static struct bin_attribute i2o_config_lct_attr = {
-	.attr = {
-		.name = "lct",
-		.mode = S_IRUGO,
-		.owner = THIS_MODULE
-	},
-	.size = 0,
-	.read = i2o_config_read_lct
-};
-
-/**
- *	i2o_config_notify_controller_add - Notify of added controller
- *	@c: the controller which was added
- *
- *	If a I2O controller is added, we catch the notification to add sysfs
- *	entries.
- */
-static void i2o_config_notify_controller_add(struct i2o_controller *c)
-{
-	sysfs_create_bin_file(&(c->device.kobj), &i2o_config_hrt_attr);
-	sysfs_create_bin_file(&(c->device.kobj), &i2o_config_lct_attr);
-};
-
-/**
- *	i2o_config_notify_controller_remove - Notify of removed controller
- *	@c: the controller which was removed
- *
- *	If a I2O controller is removed, we catch the notification to remove the
- *	sysfs entries.
- */
-static void i2o_config_notify_controller_remove(struct i2o_controller *c)
-{
-	sysfs_remove_bin_file(&c->device.kobj, &i2o_config_lct_attr);
-	sysfs_remove_bin_file(&c->device.kobj, &i2o_config_hrt_attr);
-};
-
-/* Config OSM driver struct */
-static struct i2o_driver i2o_config_driver = {
-	.name = OSM_NAME,
-	.notify_controller_add = i2o_config_notify_controller_add,
-	.notify_controller_remove = i2o_config_notify_controller_remove
-};
 
 static int i2o_cfg_getiops(unsigned long arg)
 {
@@ -1257,37 +1122,20 @@ static struct miscdevice i2o_miscdev = {
 	&config_fops
 };
 
-static int __init i2o_config_init(void)
+static int __init i2o_config_old_init(void)
 {
-	printk(KERN_INFO OSM_DESCRIPTION " v" OSM_VERSION "\n");
-
 	spin_lock_init(&i2o_config_lock);
 
 	if (misc_register(&i2o_miscdev) < 0) {
 		osm_err("can't register device.\n");
 		return -EBUSY;
 	}
-	/*
-	 *      Install our handler
-	 */
-	if (i2o_driver_register(&i2o_config_driver)) {
-		osm_err("handler register failed.\n");
-		misc_deregister(&i2o_miscdev);
-		return -EBUSY;
-	}
 	return 0;
 }
 
-static void i2o_config_exit(void)
+static void i2o_config_old_exit(void)
 {
 	misc_deregister(&i2o_miscdev);
-	i2o_driver_unregister(&i2o_config_driver);
 }
 
 MODULE_AUTHOR("Red Hat Software");
-MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION(OSM_DESCRIPTION);
-MODULE_VERSION(OSM_VERSION);
-
-module_init(i2o_config_init);
-module_exit(i2o_config_exit);

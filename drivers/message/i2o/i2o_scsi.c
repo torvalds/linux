@@ -103,7 +103,7 @@ static struct i2o_scsi_host *i2o_scsi_host_alloc(struct i2o_controller *c)
 	i2o_status_block *sb;
 
 	list_for_each_entry(i2o_dev, &c->devices, list)
-	    if (i2o_dev->lct_data.class_id == I2O_CLASS_BUS_ADAPTER_PORT) {
+	    if (i2o_dev->lct_data.class_id == I2O_CLASS_BUS_ADAPTER) {
 		if (i2o_parm_field_get(i2o_dev, 0x0000, 0, &type, 1)
 		   && (type == 0x01))	/* SCSI bus */
 			max_channel++;
@@ -139,7 +139,7 @@ static struct i2o_scsi_host *i2o_scsi_host_alloc(struct i2o_controller *c)
 
 	i = 0;
 	list_for_each_entry(i2o_dev, &c->devices, list)
-	    if (i2o_dev->lct_data.class_id == I2O_CLASS_BUS_ADAPTER_PORT) {
+	    if (i2o_dev->lct_data.class_id == I2O_CLASS_BUS_ADAPTER) {
 		if (i2o_parm_field_get(i2o_dev, 0x0000, 0, &type, 1) || (type == 1))	/* only SCSI bus */
 			i2o_shost->channel[i++] = i2o_dev;
 
@@ -186,6 +186,7 @@ static int i2o_scsi_remove(struct device *dev)
 
 	shost_for_each_device(scsi_dev, i2o_shost->scsi_host)
 	    if (scsi_dev->hostdata == i2o_dev) {
+		sysfs_remove_link(&i2o_dev->device.kobj, "scsi");
 		scsi_remove_device(scsi_dev);
 		scsi_device_put(scsi_dev);
 		break;
@@ -259,11 +260,13 @@ static int i2o_scsi_probe(struct device *dev)
 	scsi_dev =
 	    __scsi_add_device(i2o_shost->scsi_host, channel, id, lun, i2o_dev);
 
-	if (!scsi_dev) {
+	if (IS_ERR(scsi_dev)) {
 		osm_warn("can not add SCSI device %03x\n",
 			 i2o_dev->lct_data.tid);
-		return -EFAULT;
+		return PTR_ERR(scsi_dev);
 	}
+
+	sysfs_create_link(&i2o_dev->device.kobj, &scsi_dev->sdev_gendev.kobj, "scsi");
 
 	osm_info("device added (TID: %03x) channel: %d, id: %d, lun: %d\n",
 		 i2o_dev->lct_data.tid, channel, id, (unsigned int)lun);
@@ -545,7 +548,13 @@ static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
 	int tid;
 	struct i2o_message __iomem *msg;
 	u32 m;
-	u32 scsi_flags, sg_flags;
+	/*
+	 * ENABLE_DISCONNECT
+	 * SIMPLE_TAG
+	 * RETURN_SENSE_DATA_IN_REPLY_MESSAGE_FRAME
+	 */
+	u32 scsi_flags = 0x20a00000;
+	u32 sg_flags;
 	u32 __iomem *mptr;
 	u32 __iomem *lenptr;
 	u32 len;
@@ -591,17 +600,19 @@ static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
 
 	switch (SCpnt->sc_data_direction) {
 	case PCI_DMA_NONE:
-		scsi_flags = 0x00000000;	// DATA NO XFER
+		/* DATA NO XFER */
 		sg_flags = 0x00000000;
 		break;
 
 	case PCI_DMA_TODEVICE:
-		scsi_flags = 0x80000000;	// DATA OUT (iop-->dev)
+		/* DATA OUT (iop-->dev) */
+		scsi_flags |= 0x80000000;
 		sg_flags = 0x14000000;
 		break;
 
 	case PCI_DMA_FROMDEVICE:
-		scsi_flags = 0x40000000;	// DATA IN  (iop<--dev)
+		/* DATA IN  (iop<--dev) */
+		scsi_flags |= 0x40000000;
 		sg_flags = 0x10000000;
 		break;
 
@@ -639,8 +650,7 @@ static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
 	   }
 	 */
 
-	/* Direction, disconnect ok, tag, CDBLen */
-	writel(scsi_flags | 0x20200000 | SCpnt->cmd_len, mptr ++);
+	writel(scsi_flags | SCpnt->cmd_len, mptr++);
 
 	/* Write SCSI command into the message - always 16 byte block */
 	memcpy_toio(mptr, SCpnt->cmnd, 16);

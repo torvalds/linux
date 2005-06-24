@@ -50,30 +50,6 @@ static struct pci_device_id __devinitdata i2o_pci_ids[] = {
 };
 
 /**
- *	i2o_dma_realloc - Realloc DMA memory
- *	@dev: struct device pointer to the PCI device of the I2O controller
- *	@addr: pointer to a i2o_dma struct DMA buffer
- *	@len: new length of memory
- *	@gfp_mask: GFP mask
- *
- *	If there was something allocated in the addr, free it first. If len > 0
- *	than try to allocate it and write the addresses back to the addr
- *	structure. If len == 0 set the virtual address to NULL.
- *
- *	Returns the 0 on success or negative error code on failure.
- */
-int i2o_dma_realloc(struct device *dev, struct i2o_dma *addr, size_t len,
-		    unsigned int gfp_mask)
-{
-	i2o_dma_free(dev, addr);
-
-	if (len)
-		return i2o_dma_alloc(dev, addr, len, gfp_mask);
-
-	return 0;
-};
-
-/**
  *	i2o_pci_free - Frees the DMA memory for the I2O controller
  *	@c: I2O controller to free
  *
@@ -185,6 +161,7 @@ static int __devinit i2o_pci_alloc(struct i2o_controller *c)
 	} else
 		c->in_queue = c->base;
 
+	c->irq_status = c->base.virt + I2O_IRQ_STATUS;
 	c->irq_mask = c->base.virt + I2O_IRQ_MASK;
 	c->in_port = c->base.virt + I2O_IN_PORT;
 	c->out_port = c->base.virt + I2O_OUT_PORT;
@@ -232,36 +209,30 @@ static int __devinit i2o_pci_alloc(struct i2o_controller *c)
 static irqreturn_t i2o_pci_interrupt(int irq, void *dev_id, struct pt_regs *r)
 {
 	struct i2o_controller *c = dev_id;
-	struct device *dev = &c->pdev->dev;
-	u32 mv = readl(c->out_port);
+	u32 m;
+	irqreturn_t rc = IRQ_NONE;
 
-	/*
-	 * Old 960 steppings had a bug in the I2O unit that caused
-	 * the queue to appear empty when it wasn't.
-	 */
-	if (mv == I2O_QUEUE_EMPTY) {
-		mv = readl(c->out_port);
-		if (unlikely(mv == I2O_QUEUE_EMPTY))
-			return IRQ_NONE;
-		else
-			pr_debug("%s: 960 bug detected\n", c->name);
-	}
+	while (readl(c->irq_status) & I2O_IRQ_OUTBOUND_POST) {
+		m = readl(c->out_port);
+		if (m == I2O_QUEUE_EMPTY) {
+			/*
+			 * Old 960 steppings had a bug in the I2O unit that
+			 * caused the queue to appear empty when it wasn't.
+			 */
+			m = readl(c->out_port);
+			if (unlikely(m == I2O_QUEUE_EMPTY))
+				break;
+		}
 
-	while (mv != I2O_QUEUE_EMPTY) {
 		/* dispatch it */
-		if (i2o_driver_dispatch(c, mv))
+		if (i2o_driver_dispatch(c, m))
 			/* flush it if result != 0 */
-			i2o_flush_reply(c, mv);
+			i2o_flush_reply(c, m);
 
-		/*
-		 * That 960 bug again...
-		 */
-		mv = readl(c->out_port);
-		if (mv == I2O_QUEUE_EMPTY)
-			mv = readl(c->out_port);
+		rc = IRQ_HANDLED;
 	}
 
-	return IRQ_HANDLED;
+	return rc;
 }
 
 /**

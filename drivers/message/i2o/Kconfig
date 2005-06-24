@@ -35,6 +35,24 @@ config I2O_CONFIG
 	  To compile this support as a module, choose M here: the
 	  module will be called i2o_config.
 
+config I2O_CONFIG_OLD_IOCTL
+	bool "Enable ioctls (OBSOLETE)"
+	depends on I2O_CONFIG
+	default y
+	---help---
+	  Enables old ioctls.
+
+config I2O_BUS
+	tristate "I2O Bus Adapter OSM"
+	depends on I2O
+	---help---
+	  Include support for the I2O Bus Adapter OSM. The Bus Adapter OSM
+	  provides access to the busses on the I2O controller. The main purpose
+	  is to rescan the bus to find new devices.
+
+	  To compile this support as a module, choose M here: the
+	  module will be called i2o_bus.
+
 config I2O_BLOCK
 	tristate "I2O Block OSM"
 	depends on I2O

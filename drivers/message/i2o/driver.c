@@ -180,7 +180,13 @@ int i2o_driver_dispatch(struct i2o_controller *c, u32 m)
 {
 	struct i2o_driver *drv;
 	struct i2o_message __iomem *msg = i2o_msg_out_to_virt(c, m);
-	u32 context = readl(&msg->u.s.icntxt);
+	u32 context;
+	unsigned long flags;
+
+	if(unlikely(!msg))
+		return -EIO;
+
+	context = readl(&msg->u.s.icntxt);
 
 	if (unlikely(context >= i2o_max_drivers)) {
 		osm_warn("%s: Spurious reply to unknown driver %d\n", c->name,
@@ -188,9 +194,9 @@ int i2o_driver_dispatch(struct i2o_controller *c, u32 m)
 		return -EIO;
 	}
 
-	spin_lock(&i2o_drivers_lock);
+	spin_lock_irqsave(&i2o_drivers_lock, flags);
 	drv = i2o_drivers[context];
-	spin_unlock(&i2o_drivers_lock);
+	spin_unlock_irqrestore(&i2o_drivers_lock, flags);
 
 	if (unlikely(!drv)) {
 		osm_warn("%s: Spurious reply to unknown driver %d\n", c->name,

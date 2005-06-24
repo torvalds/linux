@@ -206,6 +206,7 @@ static int i2o_msg_post_wait_complete(struct i2o_controller *c, u32 m,
 				      u32 context)
 {
 	struct i2o_exec_wait *wait, *tmp;
+	unsigned long flags;
 	static spinlock_t lock = SPIN_LOCK_UNLOCKED;
 	int rc = 1;
 
@@ -216,10 +217,12 @@ static int i2o_msg_post_wait_complete(struct i2o_controller *c, u32 m,
 	 * already expired. Not much we can do about that except log it for
 	 * debug purposes, increase timeout, and recompile.
 	 */
-	spin_lock(&lock);
+	spin_lock_irqsave(&lock, flags);
 	list_for_each_entry_safe(wait, tmp, &i2o_exec_wait_list, list) {
 		if (wait->tcntxt == context) {
 			list_del(&wait->list);
+
+			spin_unlock_irqrestore(&lock, flags);
 
 			wait->m = m;
 			wait->msg = msg;
@@ -242,19 +245,61 @@ static int i2o_msg_post_wait_complete(struct i2o_controller *c, u32 m,
 				rc = -1;
 			}
 
-			spin_unlock(&lock);
-
 			return rc;
 		}
 	}
 
-	spin_unlock(&lock);
+	spin_unlock_irqrestore(&lock, flags);
 
 	osm_warn("%s: Bogus reply in POST WAIT (tr-context: %08x)!\n", c->name,
 		 context);
 
 	return -1;
 };
+
+/**
+ *	i2o_exec_show_vendor_id - Displays Vendor ID of controller
+ *	@d: device of which the Vendor ID should be displayed
+ *	@buf: buffer into which the Vendor ID should be printed
+ *
+ *	Returns number of bytes printed into buffer.
+ */
+static ssize_t i2o_exec_show_vendor_id(struct device *d, char *buf)
+{
+	struct i2o_device *dev = to_i2o_device(d);
+	u16 id;
+
+	if (i2o_parm_field_get(dev, 0x0000, 0, &id, 2)) {
+		sprintf(buf, "0x%04x", id);
+		return strlen(buf) + 1;
+	}
+
+	return 0;
+};
+
+/**
+ *	i2o_exec_show_product_id - Displays Product ID of controller
+ *	@d: device of which the Product ID should be displayed
+ *	@buf: buffer into which the Product ID should be printed
+ *
+ *	Returns number of bytes printed into buffer.
+ */
+static ssize_t i2o_exec_show_product_id(struct device *d, char *buf)
+{
+	struct i2o_device *dev = to_i2o_device(d);
+	u16 id;
+
+	if (i2o_parm_field_get(dev, 0x0000, 1, &id, 2)) {
+		sprintf(buf, "0x%04x", id);
+		return strlen(buf) + 1;
+	}
+
+	return 0;
+};
+
+/* Exec-OSM device attributes */
+static DEVICE_ATTR(vendor_id, S_IRUGO, i2o_exec_show_vendor_id, NULL);
+static DEVICE_ATTR(product_id, S_IRUGO, i2o_exec_show_product_id, NULL);
 
 /**
  *	i2o_exec_probe - Called if a new I2O device (executive class) appears
@@ -268,10 +313,16 @@ static int i2o_msg_post_wait_complete(struct i2o_controller *c, u32 m,
 static int i2o_exec_probe(struct device *dev)
 {
 	struct i2o_device *i2o_dev = to_i2o_device(dev);
+	struct i2o_controller *c = i2o_dev->iop;
 
 	i2o_event_register(i2o_dev, &i2o_exec_driver, 0, 0xffffffff);
 
-	i2o_dev->iop->exec = i2o_dev;
+	c->exec = i2o_dev;
+
+	i2o_exec_lct_notify(c, c->lct->change_ind + 1);
+
+	device_create_file(dev, &dev_attr_vendor_id);
+	device_create_file(dev, &dev_attr_product_id);
 
 	return 0;
 };
@@ -286,6 +337,9 @@ static int i2o_exec_probe(struct device *dev)
  */
 static int i2o_exec_remove(struct device *dev)
 {
+	device_remove_file(dev, &dev_attr_product_id);
+	device_remove_file(dev, &dev_attr_vendor_id);
+
 	i2o_event_register(to_i2o_device(dev), &i2o_exec_driver, 0, 0);
 
 	return 0;
@@ -297,12 +351,16 @@ static int i2o_exec_remove(struct device *dev)
  *
  *	This function handles asynchronus LCT NOTIFY replies. It parses the
  *	new LCT and if the buffer for the LCT was to small sends a LCT NOTIFY
- *	again.
+ *	again, otherwise send LCT NOTIFY to get informed on next LCT change.
  */
 static void i2o_exec_lct_modified(struct i2o_controller *c)
 {
-	if (i2o_device_parse_lct(c) == -EAGAIN)
-		i2o_exec_lct_notify(c, 0);
+	u32 change_ind = 0;
+
+	if (i2o_device_parse_lct(c) != -EAGAIN)
+		change_ind = c->lct->change_ind + 1;
+
+	i2o_exec_lct_notify(c, change_ind);
 };
 
 /**

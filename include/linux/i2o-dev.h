@@ -32,6 +32,10 @@ typedef unsigned int u32;
 
 #endif				/* __KERNEL__ */
 
+/*
+ *	Vendors
+ */
+#define I2O_VENDOR_DPT				0x001b
 
 /*
  * I2O Control IOCTLs and structures
@@ -333,7 +337,7 @@ typedef struct _i2o_status_block {
 #define I2O_CLASS_ATE_PERIPHERAL		0x061
 #define I2O_CLASS_FLOPPY_CONTROLLER		0x070
 #define I2O_CLASS_FLOPPY_DEVICE 		0x071
-#define I2O_CLASS_BUS_ADAPTER_PORT		0x080
+#define I2O_CLASS_BUS_ADAPTER			0x080
 #define I2O_CLASS_PEER_TRANSPORT_AGENT		0x090
 #define I2O_CLASS_PEER_TRANSPORT		0x091
 #define	I2O_CLASS_END				0xfff
