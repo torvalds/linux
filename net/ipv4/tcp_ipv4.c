@@ -2048,7 +2048,7 @@ static int tcp_v4_init_sock(struct sock *sk)
 	tp->mss_cache_std = tp->mss_cache = 536;
 
 	tp->reordering = sysctl_tcp_reordering;
-	tp->ca_ops = &tcp_reno;
+	tp->ca_ops = &tcp_init_congestion_ops;
 
 	sk->sk_state = TCP_CLOSE;
 

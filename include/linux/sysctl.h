@@ -243,6 +243,7 @@ enum
 	NET_CORE_MOD_CONG=16,
 	NET_CORE_DEV_WEIGHT=17,
 	NET_CORE_SOMAXCONN=18,
+	NET_CORE_BUDGET=19,
 };
 
 /* /proc/sys/net/ethernet */
