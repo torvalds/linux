@@ -2631,6 +2631,8 @@ static int do_journal_begin_r(struct reiserfs_transaction_handle *th, struct sup
   int retval;
 
   reiserfs_check_lock_depth(p_s_sb, "journal_begin") ;
+  if (nblocks > journal->j_trans_max)
+	BUG();
 
   PROC_INFO_INC( p_s_sb, journal.journal_being );
   /* set here for journal_join */
