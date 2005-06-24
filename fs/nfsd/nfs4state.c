@@ -887,10 +887,14 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp, struct nfsd4_setclientid_confi
 		if (!cmp_creds(&conf->cl_cred, &unconf->cl_cred)) 
 			status = nfserr_clid_inuse;
 		else {
-			expire_client(conf);
-			clp = unconf;
-			move_to_confirmed(unconf);
+			/* XXX: We just turn off callbacks until we can handle
+			  * change request correctly. */
+			clp = conf;
+			clp->cl_callback.cb_parsed = 0;
+			gen_confirm(clp);
+			expire_client(unconf);
 			status = nfs_ok;
+
 		}
 		goto out;
 	} 
@@ -920,9 +924,16 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp, struct nfsd4_setclientid_confi
 		if (!cmp_creds(&unconf->cl_cred, &rqstp->rq_cred)) {
 			status = nfserr_clid_inuse;
 		} else {
-			status = nfs_ok;
+			unsigned int hash =
+				clientstr_hashval(unconf->cl_recdir);
+			conf = find_confirmed_client_by_str(unconf->cl_recdir,
+									hash);
+			if (conf) {
+				expire_client(conf);
+			}
 			clp = unconf;
 			move_to_confirmed(unconf);
+			status = nfs_ok;
 		}
 		goto out;
 	}
