@@ -55,10 +55,7 @@
  */
 static int wait_for_stat(struct tpm_chip *chip, u8 mask, u8 val, u8 * data)
 {
-	int expired = 0;
-	struct timer_list status_timer =
-	    TIMER_INITIALIZER(tpm_time_expired, jiffies + 10 * HZ,
-			      (unsigned long) &expired);
+	unsigned long stop;
 
 	/* status immediately available check */
 	*data = inb(chip->vendor->base + NSC_STATUS);
@@ -66,17 +63,14 @@ static int wait_for_stat(struct tpm_chip *chip, u8 mask, u8 val, u8 * data)
 		return 0;
 
 	/* wait for status */
-	add_timer(&status_timer);
+	stop = jiffies + 10 * HZ;
 	do {
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(TPM_TIMEOUT);
+		msleep(TPM_TIMEOUT);
 		*data = inb(chip->vendor->base + 1);
-		if ((*data & mask) == val) {
-			del_singleshot_timer_sync(&status_timer);
+		if ((*data & mask) == val)
 			return 0;
-		}
 	}
-	while (!expired);
+	while (time_before(jiffies, stop));
 
 	return -EBUSY;
 }
@@ -84,10 +78,7 @@ static int wait_for_stat(struct tpm_chip *chip, u8 mask, u8 val, u8 * data)
 static int nsc_wait_for_ready(struct tpm_chip *chip)
 {
 	int status;
-	int expired = 0;
-	struct timer_list status_timer =
-	    TIMER_INITIALIZER(tpm_time_expired, jiffies + 100,
-			      (unsigned long) &expired);
+	unsigned long stop;
 
 	/* status immediately available check */
 	status = inb(chip->vendor->base + NSC_STATUS);
@@ -97,19 +88,16 @@ static int nsc_wait_for_ready(struct tpm_chip *chip)
 		return 0;
 
 	/* wait for status */
-	add_timer(&status_timer);
+	stop = jiffies + 100;
 	do {
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(TPM_TIMEOUT);
+		msleep(TPM_TIMEOUT);
 		status = inb(chip->vendor->base + NSC_STATUS);
 		if (status & NSC_STATUS_OBF)
 			status = inb(chip->vendor->base + NSC_DATA);
-		if (status & NSC_STATUS_RDY) {
-			del_singleshot_timer_sync(&status_timer);
+		if (status & NSC_STATUS_RDY)
 			return 0;
-		}
 	}
-	while (!expired);
+	while (time_before(jiffies, stop));
 
 	dev_info(&chip->pci_dev->dev, "wait for ready failed\n");
 	return -EBUSY;

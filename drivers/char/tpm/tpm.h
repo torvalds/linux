@@ -25,7 +25,7 @@
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
 
-#define TPM_TIMEOUT msecs_to_jiffies(5)
+#define TPM_TIMEOUT	5	/* msecs */
 
 /* TPM addresses */
 #define	TPM_ADDR			0x4E
@@ -78,7 +78,6 @@ static inline void tpm_write_index(int index, int value)
 	outb(value & 0xFF, TPM_DATA);
 }
 
-extern void tpm_time_expired(unsigned long);
 extern int tpm_lpc_bus_init(struct pci_dev *, u16);
 
 extern int tpm_register_hardware(struct pci_dev *,

@@ -19,7 +19,7 @@
  * 
  * Note, the TPM chip is not interrupt driven (only polling)
  * and can have very long timeouts (minutes!). Hence the unusual
- * calls to schedule_timeout.
+ * calls to msleep.
  *
  */
 
@@ -51,14 +51,6 @@ static void user_reader_timeout(unsigned long ptr)
 	memset(chip->data_buffer, 0, TPM_BUFSIZE);
 	up(&chip->buffer_mutex);
 }
-
-void tpm_time_expired(unsigned long ptr)
-{
-	int *exp = (int *) ptr;
-	*exp = 1;
-}
-
-EXPORT_SYMBOL_GPL(tpm_time_expired);
 
 /*
  * Initialize the LPC bus and enable the TPM ports
@@ -135,6 +127,7 @@ static ssize_t tpm_transmit(struct tpm_chip *chip, const char *buf,
 	ssize_t len;
 	u32 count;
 	__be32 *native_size;
+	unsigned long stop;
 
 	native_size = (__force __be32 *) (buf + 2);
 	count = be32_to_cpu(*native_size);
@@ -155,28 +148,16 @@ static ssize_t tpm_transmit(struct tpm_chip *chip, const char *buf,
 		return len;
 	}
 
-	down(&chip->timer_manipulation_mutex);
-	chip->time_expired = 0;
-	init_timer(&chip->device_timer);
-	chip->device_timer.function = tpm_time_expired;
-	chip->device_timer.expires = jiffies + 2 * 60 * HZ;
-	chip->device_timer.data = (unsigned long) &chip->time_expired;
-	add_timer(&chip->device_timer);
-	up(&chip->timer_manipulation_mutex);
-
+	stop = jiffies + 2 * 60 * HZ;
 	do {
 		u8 status = inb(chip->vendor->base + 1);
 		if ((status & chip->vendor->req_complete_mask) ==
 		    chip->vendor->req_complete_val) {
-			down(&chip->timer_manipulation_mutex);
-			del_singleshot_timer_sync(&chip->device_timer);
-			up(&chip->timer_manipulation_mutex);
 			goto out_recv;
 		}
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(TPM_TIMEOUT);
+		msleep(TPM_TIMEOUT); /* CHECK */
 		rmb();
-	} while (!chip->time_expired);
+	} while (time_before(jiffies, stop));
 
 
 	chip->vendor->cancel(chip);
@@ -453,10 +434,8 @@ ssize_t tpm_write(struct file * file, const char __user * buf,
 
 	/* cannot perform a write until the read has cleared
 	   either via tpm_read or a user_read_timer timeout */
-	while (atomic_read(&chip->data_pending) != 0) {
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(TPM_TIMEOUT);
-	}
+	while (atomic_read(&chip->data_pending) != 0)
+		msleep(TPM_TIMEOUT);
 
 	down(&chip->buffer_mutex);
 
