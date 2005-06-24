@@ -231,8 +231,8 @@ unhash_delegation(struct nfs4_delegation *dp)
 
 #define clientid_hashval(id) \
 	((id) & CLIENT_HASH_MASK)
-#define clientstr_hashval(name, namelen) \
-	(opaque_hashval((name), (namelen)) & CLIENT_HASH_MASK)
+#define clientstr_hashval(name) \
+	(opaque_hashval((name), 8) & CLIENT_HASH_MASK)
 /*
  * reclaim_str_hashtbl[] holds known client info from previous reset/reboot
  * used in reboot/reset lease grace period processing
@@ -366,11 +366,12 @@ expire_client(struct nfs4_client *clp)
 }
 
 static struct nfs4_client *
-create_client(struct xdr_netobj name) {
+create_client(struct xdr_netobj name, char *recdir) {
 	struct nfs4_client *clp;
 
 	if (!(clp = alloc_client(name)))
 		goto out;
+	memcpy(clp->cl_recdir, recdir, HEXDIR_LEN);
 	atomic_set(&clp->cl_count, 1);
 	atomic_set(&clp->cl_callback.cb_set, 0);
 	clp->cl_callback.cb_parsed = 0;
@@ -403,11 +404,9 @@ copy_cred(struct svc_cred *target, struct svc_cred *source) {
 	get_group_info(target->cr_group_info);
 }
 
-static int
-cmp_name(struct xdr_netobj *n1, struct xdr_netobj *n2) {
-	if (!n1 || !n2)
-		return 0;
-	return((n1->len == n2->len) && !memcmp(n1->data, n2->data, n2->len));
+static inline int
+same_name(const char *n1, const char *n2) {
+	return 0 == memcmp(n1, n2, HEXDIR_LEN);
 }
 
 static int
@@ -479,8 +478,7 @@ move_to_confirmed(struct nfs4_client *clp)
 	list_del_init(&clp->cl_strhash);
 	list_del_init(&clp->cl_idhash);
 	list_add(&clp->cl_idhash, &conf_id_hashtbl[idhashval]);
-	strhashval = clientstr_hashval(clp->cl_name.data, 
-			clp->cl_name.len);
+	strhashval = clientstr_hashval(clp->cl_recdir);
 	list_add(&clp->cl_strhash, &conf_str_hashtbl[strhashval]);
 	renew_client(clp);
 }
@@ -651,9 +649,14 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_setclientid *setclid)
 	unsigned int 		strhashval;
 	struct nfs4_client *	conf, * unconf, * new, * clp;
 	int 			status;
+	char                    dname[HEXDIR_LEN];
 	
 	status = nfserr_inval;
 	if (!check_name(clname))
+		goto out;
+
+	status = nfs4_make_rec_clidname(dname, &clname);
+	if (status)
 		goto out;
 
 	/* 
@@ -661,12 +664,12 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_setclientid *setclid)
 	 * We get here on a DRC miss.
 	 */
 
-	strhashval = clientstr_hashval(clname.data, clname.len);
+	strhashval = clientstr_hashval(dname);
 
 	conf = NULL;
 	nfs4_lock_state();
 	list_for_each_entry(clp, &conf_str_hashtbl[strhashval], cl_strhash) {
-		if (!cmp_name(&clp->cl_name, &clname))
+		if (!same_name(clp->cl_recdir, dname))
 			continue;
 		/* 
 		 * CASE 0:
@@ -686,7 +689,7 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_setclientid *setclid)
 	}
 	unconf = NULL;
 	list_for_each_entry(clp, &unconf_str_hashtbl[strhashval], cl_strhash) {
-		if (!cmp_name(&clp->cl_name, &clname))
+		if (!same_name(clp->cl_recdir, dname))
 			continue;
 		/* cl_name match from a previous SETCLIENTID operation */
 		unconf = clp;
@@ -700,7 +703,8 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_setclientid *setclid)
 		 */
 		if (unconf)
 			expire_client(unconf);
-		if (!(new = create_client(clname)))
+		new = create_client(clname, dname);
+		if (new == NULL)
 			goto out;
 		copy_verf(new, &clverifier);
 		new->cl_addr = ip_addr;
@@ -728,7 +732,8 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_setclientid *setclid)
 		     cmp_clid(&unconf->cl_clientid, &conf->cl_clientid)) {
 				expire_client(unconf);
 		}
-		if (!(new = create_client(clname)))
+		new = create_client(clname, dname);
+		if (new == NULL)
 			goto out;
 		copy_verf(new,&conf->cl_verifier);
 		new->cl_addr = ip_addr;
@@ -746,7 +751,8 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_setclientid *setclid)
 		 * using input clverifier, clname, and callback info
 		 * and generate a new cl_clientid and cl_confirm.
 		 */
-		if (!(new = create_client(clname)))
+		new = create_client(clname, dname);
+		if (new == NULL)
 			goto out;
 		copy_verf(new,&clverifier);
 		new->cl_addr = ip_addr;
@@ -772,7 +778,8 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_setclientid *setclid)
 		 * new cl_verifier and a new cl_confirm
 		 */
 		expire_client(unconf);
-		if (!(new = create_client(clname)))
+		new = create_client(clname, dname);
+		if (new == NULL)
 			goto out;
 		copy_verf(new,&clverifier);
 		new->cl_addr = ip_addr;
@@ -856,7 +863,7 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp, struct nfsd4_setclientid_confi
 	if ((conf && unconf) && 
 	    (cmp_verf(&unconf->cl_confirm, &confirm)) &&
 	    (cmp_verf(&conf->cl_verifier, &unconf->cl_verifier)) &&
-	    (cmp_name(&conf->cl_name,&unconf->cl_name))  &&
+	    (same_name(conf->cl_recdir,unconf->cl_recdir))  &&
 	    (!cmp_verf(&conf->cl_confirm, &unconf->cl_confirm))) {
 		if (!cmp_creds(&conf->cl_cred, &unconf->cl_cred)) 
 			status = nfserr_clid_inuse;
@@ -876,7 +883,7 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp, struct nfsd4_setclientid_confi
 	if ((conf && !unconf) || 
 	    ((conf && unconf) && 
 	     (!cmp_verf(&conf->cl_verifier, &unconf->cl_verifier) ||
-	      !cmp_name(&conf->cl_name, &unconf->cl_name)))) {
+	      !same_name(conf->cl_recdir, unconf->cl_recdir)))) {
 		if (!cmp_creds(&conf->cl_cred,&rqstp->rq_cred)) {
 			status = nfserr_clid_inuse;
 		} else {
@@ -3074,39 +3081,28 @@ out:
 }
 
 static inline struct nfs4_client_reclaim *
-alloc_reclaim(int namelen)
+alloc_reclaim(void)
 {
-	struct nfs4_client_reclaim *crp = NULL;
-
-	crp = kmalloc(sizeof(struct nfs4_client_reclaim), GFP_KERNEL);
-	if (!crp)
-		return NULL;
-	crp->cr_name.data = kmalloc(namelen, GFP_KERNEL);
-	if (!crp->cr_name.data) {
-		kfree(crp);
-		return NULL;
-	}
-	return crp;
+	return kmalloc(sizeof(struct nfs4_client_reclaim), GFP_KERNEL);
 }
 
 /*
  * failure => all reset bets are off, nfserr_no_grace...
  */
 static int
-nfs4_client_to_reclaim(char *name, int namlen)
+nfs4_client_to_reclaim(char *name)
 {
 	unsigned int strhashval;
 	struct nfs4_client_reclaim *crp = NULL;
 
-	dprintk("NFSD nfs4_client_to_reclaim NAME: %.*s\n", namlen, name);
-	crp = alloc_reclaim(namlen);
+	dprintk("NFSD nfs4_client_to_reclaim NAME: %.*s\n", HEXDIR_LEN, name);
+	crp = alloc_reclaim();
 	if (!crp)
 		return 0;
-	strhashval = clientstr_hashval(name, namlen);
+	strhashval = clientstr_hashval(name);
 	INIT_LIST_HEAD(&crp->cr_strhash);
 	list_add(&crp->cr_strhash, &reclaim_str_hashtbl[strhashval]);
-	memcpy(crp->cr_name.data, name, namlen);
-	crp->cr_name.len = namlen;
+	memcpy(crp->cr_recdir, name, HEXDIR_LEN);
 	reclaim_str_hashtbl_size++;
 	return 1;
 }
@@ -3122,7 +3118,6 @@ nfs4_release_reclaim(void)
 			crp = list_entry(reclaim_str_hashtbl[i].next,
 			                struct nfs4_client_reclaim, cr_strhash);
 			list_del(&crp->cr_strhash);
-			kfree(crp->cr_name.data);
 			kfree(crp);
 			reclaim_str_hashtbl_size--;
 		}
@@ -3145,13 +3140,14 @@ nfs4_find_reclaim_client(clientid_t *clid)
 	if (clp == NULL)
 		return NULL;
 
-	dprintk("NFSD: nfs4_find_reclaim_client for %.*s\n",
-		            clp->cl_name.len, clp->cl_name.data);
+	dprintk("NFSD: nfs4_find_reclaim_client for %.*s with recdir %s\n",
+		            clp->cl_name.len, clp->cl_name.data,
+			    clp->cl_recdir);
 
 	/* find clp->cl_name in reclaim_str_hashtbl */
-	strhashval = clientstr_hashval(clp->cl_name.data, clp->cl_name.len);
+	strhashval = clientstr_hashval(clp->cl_recdir);
 	list_for_each_entry(crp, &reclaim_str_hashtbl[strhashval], cr_strhash) {
-		if (cmp_name(&crp->cr_name, &clp->cl_name)) {
+		if (same_name(crp->cr_recdir, clp->cl_recdir)) {
 			return crp;
 		}
 	}
