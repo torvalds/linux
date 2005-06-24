@@ -120,6 +120,70 @@ out:
 	return status;
 }
 
+static int
+nfsd4_rec_fsync(struct dentry *dentry)
+{
+	struct file *filp;
+	int status = nfs_ok;
+
+	dprintk("NFSD: nfs4_fsync_rec_dir\n");
+	filp = dentry_open(dget(dentry), mntget(rec_dir.mnt), O_RDWR);
+	if (IS_ERR(filp)) {
+		status = PTR_ERR(filp);
+		goto out;
+	}
+	if (filp->f_op && filp->f_op->fsync)
+		status = filp->f_op->fsync(filp, filp->f_dentry, 0);
+	fput(filp);
+out:
+	if (status)
+		printk("nfsd4: unable to sync recovery directory\n");
+	return status;
+}
+
+int
+nfsd4_create_clid_dir(struct nfs4_client *clp)
+{
+	char *dname = clp->cl_recdir;
+	struct dentry *dentry;
+	uid_t uid;
+	gid_t gid;
+	int status;
+
+	dprintk("NFSD: nfsd4_create_clid_dir for \"%s\"\n", dname);
+
+	if (!rec_dir_init || clp->cl_firststate)
+		return 0;
+
+	nfs4_save_user(&uid, &gid);
+
+	/* lock the parent */
+	down(&rec_dir.dentry->d_inode->i_sem);
+
+	dentry = lookup_one_len(dname, rec_dir.dentry, HEXDIR_LEN-1);
+	if (IS_ERR(dentry)) {
+		status = PTR_ERR(dentry);
+		goto out_unlock;
+	}
+	status = -EEXIST;
+	if (dentry->d_inode) {
+		dprintk("NFSD: nfsd4_create_clid_dir: DIRECTORY EXISTS\n");
+		goto out_put;
+	}
+	status = vfs_mkdir(rec_dir.dentry->d_inode, dentry, S_IRWXU);
+out_put:
+	dput(dentry);
+out_unlock:
+	up(&rec_dir.dentry->d_inode->i_sem);
+	if (status == 0) {
+		clp->cl_firststate = 1;
+		status = nfsd4_rec_fsync(rec_dir.dentry);
+	}
+	nfs4_reset_user(uid, gid);
+	dprintk("NFSD: nfsd4_create_clid_dir returns %d\n", status);
+	return status;
+}
+
 typedef int (recdir_func)(struct dentry *, struct dentry *);
 
 struct dentry_list {
@@ -199,6 +263,111 @@ out:
 	}
 	nfs4_reset_user(uid, gid);
 	return status;
+}
+
+static int
+nfsd4_remove_clid_file(struct dentry *dir, struct dentry *dentry)
+{
+	int status;
+
+	if (!S_ISREG(dir->d_inode->i_mode)) {
+		printk("nfsd4: non-file found in client recovery directory\n");
+		return -EINVAL;
+	}
+	down(&dir->d_inode->i_sem);
+	status = vfs_unlink(dir->d_inode, dentry);
+	up(&dir->d_inode->i_sem);
+	return status;
+}
+
+static int
+nfsd4_clear_clid_dir(struct dentry *dir, struct dentry *dentry)
+{
+	int status;
+
+	/* For now this directory should already be empty, but we empty it of
+	 * any regular files anyway, just in case the directory was created by
+	 * a kernel from the future.... */
+	nfsd4_list_rec_dir(dentry, nfsd4_remove_clid_file);
+	down(&dir->d_inode->i_sem);
+	status = vfs_rmdir(dir->d_inode, dentry);
+	up(&dir->d_inode->i_sem);
+	return status;
+}
+
+static int
+nfsd4_unlink_clid_dir(char *name, int namlen)
+{
+	struct dentry *dentry;
+	int status;
+
+	dprintk("NFSD: nfsd4_unlink_clid_dir. name %.*s\n", namlen, name);
+
+	dentry = lookup_one_len(name, rec_dir.dentry, namlen);
+	if (IS_ERR(dentry)) {
+		status = PTR_ERR(dentry);
+		return status;
+	}
+	status = -ENOENT;
+	if (!dentry->d_inode)
+		goto out;
+
+	status = nfsd4_clear_clid_dir(rec_dir.dentry, dentry);
+out:
+	dput(dentry);
+	return status;
+}
+
+void
+nfsd4_remove_clid_dir(struct nfs4_client *clp)
+{
+	uid_t uid;
+	gid_t gid;
+	int status;
+
+	if (!rec_dir_init || !clp->cl_firststate)
+		return;
+
+	nfs4_save_user(&uid, &gid);
+	status = nfsd4_unlink_clid_dir(clp->cl_recdir, HEXDIR_LEN-1);
+	nfs4_reset_user(uid, gid);
+	if (status == 0)
+		status = nfsd4_rec_fsync(rec_dir.dentry);
+	if (status)
+		printk("NFSD: Failed to remove expired client state directory"
+				" %.*s\n", HEXDIR_LEN, clp->cl_recdir);
+	return;
+}
+
+static int
+purge_old(struct dentry *parent, struct dentry *child)
+{
+	int status;
+
+	if (nfs4_has_reclaimed_state(child->d_name.name))
+		return nfs_ok;
+
+	status = nfsd4_clear_clid_dir(parent, child);
+	if (status)
+		printk("failed to remove client recovery directory %s\n",
+				child->d_name.name);
+	/* Keep trying, success or failure: */
+	return nfs_ok;
+}
+
+void
+nfsd4_recdir_purge_old(void) {
+	int status;
+
+	if (!rec_dir_init)
+		return;
+	status = nfsd4_list_rec_dir(rec_dir.dentry, purge_old);
+	if (status == 0)
+		status = nfsd4_rec_fsync(rec_dir.dentry);
+	if (status)
+		printk("nfsd4: failed to purge old clients from recovery"
+			" directory %s\n", rec_dir.dentry->d_name.name);
+	return;
 }
 
 static int

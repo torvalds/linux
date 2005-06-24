@@ -905,6 +905,7 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp, struct nfsd4_setclientid_confi
 			conf = find_confirmed_client_by_str(unconf->cl_recdir,
 									hash);
 			if (conf) {
+				nfsd4_remove_clid_dir(conf);
 				expire_client(conf);
 			}
 			move_to_confirmed(unconf);
@@ -1691,6 +1692,7 @@ nfs4_set_claim_prev(struct nfsd4_open *open, int *status)
 			*status = nfserr_reclaim_bad;
 		else {
 			open->op_stateowner->so_confirmed = 1;
+			open->op_stateowner->so_client->cl_firststate = 1;
 			open->op_stateowner->so_seqid--;
 		}
 	}
@@ -1903,6 +1905,7 @@ static void
 end_grace(void)
 {
 	dprintk("NFSD: end of grace period\n");
+	nfsd4_recdir_purge_old();
 	in_grace = 0;
 }
 
@@ -1932,6 +1935,7 @@ nfs4_laundromat(void)
 		}
 		dprintk("NFSD: purging unused client (clientid %08x)\n",
 			clp->cl_clientid.cl_id);
+		nfsd4_remove_clid_dir(clp);
 		expire_client(clp);
 	}
 	INIT_LIST_HEAD(&reaplist);
@@ -2320,6 +2324,8 @@ nfsd4_open_confirm(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfs
 		         stp->st_stateid.si_stateownerid,
 		         stp->st_stateid.si_fileid,
 		         stp->st_stateid.si_generation);
+
+	nfsd4_create_clid_dir(sop->so_client);
 out:
 	if (oc->oc_stateowner)
 		nfs4_get_stateowner(oc->oc_stateowner);
@@ -3087,6 +3093,16 @@ static inline struct nfs4_client_reclaim *
 alloc_reclaim(void)
 {
 	return kmalloc(sizeof(struct nfs4_client_reclaim), GFP_KERNEL);
+}
+
+int
+nfs4_has_reclaimed_state(const char *name)
+{
+	unsigned int strhashval = clientstr_hashval(name);
+	struct nfs4_client *clp;
+
+	clp = find_confirmed_client_by_str(name, strhashval);
+	return clp ? 1 : 0;
 }
 
 /*
