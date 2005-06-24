@@ -143,11 +143,9 @@ static ssize_t tpm_transmit(struct tpm_chip *chip, const char *buf,
 {
 	ssize_t len;
 	u32 count;
-	__be32 *native_size;
 	unsigned long stop;
 
-	native_size = (__force __be32 *) (buf + 2);
-	count = be32_to_cpu(*native_size);
+	count = be32_to_cpu(*((__be32 *) (buf + 2)));
 
 	if (count == 0)
 		return -ENODATA;
@@ -214,7 +212,8 @@ static ssize_t show_pcrs(struct device *dev, struct device_attribute *attr, char
 {
 	u8 data[READ_PCR_RESULT_SIZE];
 	ssize_t len;
-	int i, j, index, num_pcrs;
+	int i, j, num_pcrs;
+	__be32 index;
 	char *str = buf;
 
 	struct tpm_chip *chip =
@@ -227,7 +226,7 @@ static ssize_t show_pcrs(struct device *dev, struct device_attribute *attr, char
 	    < CAP_PCR_RESULT_SIZE)
 		return len;
 
-	num_pcrs = be32_to_cpu(*((__force __be32 *) (data + 14)));
+	num_pcrs = be32_to_cpu(*((__be32 *) (data + 14)));
 
 	for (i = 0; i < num_pcrs; i++) {
 		memcpy(data, pcrread, sizeof(pcrread));
@@ -257,8 +256,7 @@ static ssize_t show_pubek(struct device *dev, struct device_attribute *attr, cha
 {
 	u8 *data;
 	ssize_t len;
-	__be32 *native_val;
-	int i;
+	int i, rc;
 	char *str = buf;
 
 	struct tpm_chip *chip =
@@ -290,8 +288,6 @@ static ssize_t show_pubek(struct device *dev, struct device_attribute *attr, cha
 	   ignore checksum 20 bytes
 	 */
 
-	native_val = (__force __be32 *) (data + 34);
-
 	str +=
 	    sprintf(str,
 		    "Algorithm: %02X %02X %02X %02X\nEncscheme: %02X %02X\n"
@@ -302,8 +298,7 @@ static ssize_t show_pubek(struct device *dev, struct device_attribute *attr, cha
 		    data[15], data[16], data[17], data[22], data[23],
 		    data[24], data[25], data[26], data[27], data[28],
 		    data[29], data[30], data[31], data[32], data[33],
-		    be32_to_cpu(*native_val)
-	    );
+		    be32_to_cpu(*((__be32 *) (data + 32))));
 
 	for (i = 0; i < 256; i++) {
 		str += sprintf(str, "%02X ", data[i + 39]);
@@ -355,7 +350,7 @@ static ssize_t show_caps(struct device *dev, struct device_attribute *attr, char
 		return len;
 
 	str += sprintf(str, "Manufacturer: 0x%x\n",
-		       be32_to_cpu(*(data + 14)));
+		       be32_to_cpu(*((__be32 *) (data + 14))));
 
 	memcpy(data, cap_version, sizeof(cap_version));
 
