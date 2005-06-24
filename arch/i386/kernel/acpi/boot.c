@@ -159,9 +159,15 @@ char *__acpi_map_table(unsigned long phys, unsigned long size)
 #endif
 
 #ifdef CONFIG_PCI_MMCONFIG
-static int __init acpi_parse_mcfg(unsigned long phys_addr, unsigned long size)
+/* The physical address of the MMCONFIG aperture.  Set from ACPI tables. */
+struct acpi_table_mcfg_config *pci_mmcfg_config;
+int pci_mmcfg_config_num;
+
+int __init acpi_parse_mcfg(unsigned long phys_addr, unsigned long size)
 {
 	struct acpi_table_mcfg *mcfg;
+	unsigned long i;
+	int config_size;
 
 	if (!phys_addr || !size)
 		return -EINVAL;
@@ -172,18 +178,38 @@ static int __init acpi_parse_mcfg(unsigned long phys_addr, unsigned long size)
 		return -ENODEV;
 	}
 
-	if (mcfg->base_reserved) {
-		printk(KERN_ERR PREFIX "MMCONFIG not in low 4GB of memory\n");
+	/* how many config structures do we have */
+	pci_mmcfg_config_num = 0;
+	i = size - sizeof(struct acpi_table_mcfg);
+	while (i >= sizeof(struct acpi_table_mcfg_config)) {
+		++pci_mmcfg_config_num;
+		i -= sizeof(struct acpi_table_mcfg_config);
+	};
+	if (pci_mmcfg_config_num == 0) {
+		printk(KERN_ERR PREFIX "MMCONFIG has no entries\n");
 		return -ENODEV;
 	}
 
-	pci_mmcfg_base_addr = mcfg->base_address;
+	config_size = pci_mmcfg_config_num * sizeof(*pci_mmcfg_config);
+	pci_mmcfg_config = kmalloc(config_size, GFP_KERNEL);
+	if (!pci_mmcfg_config) {
+		printk(KERN_WARNING PREFIX
+		       "No memory for MCFG config tables\n");
+		return -ENOMEM;
+	}
+
+	memcpy(pci_mmcfg_config, &mcfg->config, config_size);
+	for (i = 0; i < pci_mmcfg_config_num; ++i) {
+		if (mcfg->config[i].base_reserved) {
+			printk(KERN_ERR PREFIX
+			       "MMCONFIG not in low 4GB of memory\n");
+			return -ENODEV;
+		}
+	}
 
 	return 0;
 }
-#else
-#define	acpi_parse_mcfg NULL
-#endif /* !CONFIG_PCI_MMCONFIG */
+#endif /* CONFIG_PCI_MMCONFIG */
 
 #ifdef CONFIG_X86_LOCAL_APIC
 static int __init
@@ -1139,7 +1165,6 @@ int __init acpi_boot_init(void)
 	acpi_process_madt();
 
 	acpi_table_parse(ACPI_HPET, acpi_parse_hpet);
-	acpi_table_parse(ACPI_MCFG, acpi_parse_mcfg);
 
 	return 0;
 }

@@ -7,15 +7,13 @@
 
 #include <linux/pci.h>
 #include <linux/init.h>
+#include <linux/acpi.h>
 #include "pci.h"
 
 #define MMCONFIG_APER_SIZE (256*1024*1024)
 
-/* The physical address of the MMCONFIG aperture.  Set from ACPI tables. */
-u32 pci_mmcfg_base_addr;
-
 /* Static virtual mapping of the MMCONFIG aperture */
-char *pci_mmcfg_virt;
+static char *pci_mmcfg_virt;
 
 static inline char *pci_dev_base(unsigned int bus, unsigned int devfn)
 {
@@ -77,7 +75,11 @@ static int __init pci_mmcfg_init(void)
 {
 	if ((pci_probe & PCI_PROBE_MMCONF) == 0)
 		return 0;
-	if (!pci_mmcfg_base_addr)
+
+	acpi_table_parse(ACPI_MCFG, acpi_parse_mcfg);
+	if ((pci_mmcfg_config_num == 0) ||
+	    (pci_mmcfg_config == NULL) ||
+	    (pci_mmcfg_config[0].base_address == 0))
 		return 0;
 
 	/* Kludge for now. Don't use mmconfig on AMD systems because
@@ -88,13 +90,13 @@ static int __init pci_mmcfg_init(void)
 		return 0; 
 
 	/* RED-PEN i386 doesn't do _nocache right now */
-	pci_mmcfg_virt = ioremap_nocache(pci_mmcfg_base_addr, MMCONFIG_APER_SIZE);
+	pci_mmcfg_virt = ioremap_nocache(pci_mmcfg_config[0].base_address, MMCONFIG_APER_SIZE);
 	if (!pci_mmcfg_virt) { 
 		printk("PCI: Cannot map mmconfig aperture\n");
 		return 0;
 	}	
 
-	printk(KERN_INFO "PCI: Using MMCONFIG at %x\n", pci_mmcfg_base_addr);
+	printk(KERN_INFO "PCI: Using MMCONFIG at %x\n", pci_mmcfg_config[0].base_address);
 	raw_pci_ops = &pci_mmcfg;
 	pci_probe = (pci_probe & ~PCI_PROBE_MASK) | PCI_PROBE_MMCONF;
 

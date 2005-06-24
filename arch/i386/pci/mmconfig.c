@@ -11,10 +11,8 @@
 
 #include <linux/pci.h>
 #include <linux/init.h>
+#include <linux/acpi.h>
 #include "pci.h"
-
-/* The physical address of the MMCONFIG aperture.  Set from ACPI tables. */
-u32 pci_mmcfg_base_addr;
 
 #define mmcfg_virt_addr ((void __iomem *) fix_to_virt(FIX_PCIE_MCFG))
 
@@ -27,7 +25,7 @@ static u32 mmcfg_last_accessed_device;
 
 static inline void pci_exp_set_dev_base(int bus, int devfn)
 {
-	u32 dev_base = pci_mmcfg_base_addr | (bus << 20) | (devfn << 12);
+	u32 dev_base = pci_mmcfg_config[0].base_address | (bus << 20) | (devfn << 12);
 	if (dev_base != mmcfg_last_accessed_device) {
 		mmcfg_last_accessed_device = dev_base;
 		set_fixmap_nocache(FIX_PCIE_MCFG, dev_base);
@@ -101,7 +99,11 @@ static int __init pci_mmcfg_init(void)
 {
 	if ((pci_probe & PCI_PROBE_MMCONF) == 0)
 		goto out;
-	if (!pci_mmcfg_base_addr)
+
+	acpi_table_parse(ACPI_MCFG, acpi_parse_mcfg);
+	if ((pci_mmcfg_config_num == 0) ||
+	    (pci_mmcfg_config == NULL) ||
+	    (pci_mmcfg_config[0].base_address == 0))
 		goto out;
 
 	/* Kludge for now. Don't use mmconfig on AMD systems because
