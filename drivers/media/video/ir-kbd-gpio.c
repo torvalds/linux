@@ -114,38 +114,6 @@ static IR_KEYTAB_TYPE ir_codes_avermedia_dvbt[IR_KEYTAB_SIZE] = {
 	[ 0x3e ] = KEY_VOLUMEUP,    // 'volume +'
 };
 
-static IR_KEYTAB_TYPE ir_codes_pixelview[IR_KEYTAB_SIZE] = {
-	[  2 ] = KEY_KP0,
-	[  1 ] = KEY_KP1,
-	[ 11 ] = KEY_KP2,
-	[ 27 ] = KEY_KP3,
-	[  5 ] = KEY_KP4,
-	[  9 ] = KEY_KP5,
-	[ 21 ] = KEY_KP6,
-	[  6 ] = KEY_KP7,
-	[ 10 ] = KEY_KP8,
-	[ 18 ] = KEY_KP9,
-
-	[  3 ] = KEY_TUNER,       // TV/FM
-	[  7 ] = KEY_SEARCH,      // scan
-	[ 28 ] = KEY_ZOOM,        // full screen
-	[ 30 ] = KEY_POWER,
-	[ 23 ] = KEY_VOLUMEDOWN,
-	[ 31 ] = KEY_VOLUMEUP,
-	[ 20 ] = KEY_CHANNELDOWN,
-	[ 22 ] = KEY_CHANNELUP,
-	[ 24 ] = KEY_MUTE,
-
-	[  0 ] = KEY_LIST,        // source
-	[ 19 ] = KEY_INFO,        // loop
-	[ 16 ] = KEY_LAST,        // +100
-	[ 13 ] = KEY_CLEAR,       // reset
-	[ 12 ] = BTN_RIGHT,       // fun++
-	[  4 ] = BTN_LEFT,        // fun--
-	[ 14 ] = KEY_GOTO,        // function
-	[ 15 ] = KEY_STOP,         // freeze
-};
-
 /* Attila Kondoros <attila.kondoros@chello.hu> */
 static IR_KEYTAB_TYPE ir_codes_apac_viewcomp[IR_KEYTAB_SIZE] = {
 

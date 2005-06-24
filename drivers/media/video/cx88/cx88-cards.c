@@ -628,6 +628,27 @@ struct cx88_board cx88_boards[] = {
 			.gpio1  = 0x0000e07f,
 		}}
 	},
+	[CX88_BOARD_PIXELVIEW_PLAYTV_ULTRA_PRO] = {
+		.name           = "PixelView PlayTV Ultra Pro (Stereo)",
+		.tuner_type     = 38,
+		.input          = {{
+			.type   = CX88_VMUX_TELEVISION,
+			.vmux   = 0,
+			.gpio0  = 0xbf61,  // internal decoder
+		},{
+			.type   = CX88_VMUX_COMPOSITE1,
+			.vmux   = 1,
+			.gpio0  = 0xbf63,
+		},{
+			.type   = CX88_VMUX_SVIDEO,
+			.vmux   = 2,
+			.gpio0  = 0xbf63,
+		}},
+		.radio = {
+			.type  = CX88_RADIO,
+			.gpio0 = 0xbf60,
+		},
+	},
 };
 const unsigned int cx88_bcount = ARRAY_SIZE(cx88_boards);
 
