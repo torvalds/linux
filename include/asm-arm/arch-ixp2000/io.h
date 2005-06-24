@@ -48,6 +48,78 @@
 #define insw(p,d,l)		__raw_readsw(alignw(___io(p)),d,l)
 #define insl(p,d,l)		__raw_readsl(___io(p),d,l)
 
+#define __is_io_address(p)	((((unsigned long)(p)) & ~(IXP2000_PCI_IO_SIZE - 1)) == IXP2000_PCI_IO_VIRT_BASE)
+
+#define ioread8(p)						\
+	({							\
+		unsigned int __v;				\
+								\
+		if (__is_io_address(p)) {			\
+			__v = __raw_readb(alignb(p));		\
+		} else {					\
+			__v = __raw_readb(p);			\
+		}						\
+								\
+		__v;						\
+	})							\
+
+#define ioread16(p)						\
+	({							\
+		unsigned int __v;				\
+								\
+		if (__is_io_address(p)) {			\
+			__v = __raw_readw(alignw(p));		\
+		} else {					\
+			__v = le16_to_cpu(__raw_readw(p));	\
+		}						\
+								\
+		__v;						\
+	})
+
+#define ioread32(p)						\
+	({							\
+		unsigned int __v;				\
+								\
+		if (__is_io_address(p)) {			\
+			__v = __raw_readl(p);			\
+		} else {					\
+			__v = le32_to_cpu(__raw_readl(p));	\
+		}						\
+								\
+		 __v;						\
+	})
+
+#define iowrite8(v,p)						\
+	({							\
+		if (__is_io_address(p)) {			\
+			__raw_writeb((v), alignb(p));		\
+		} else {					\
+			__raw_writeb((v), p);			\
+		}						\
+	})
+
+#define iowrite16(v,p)						\
+	({							\
+		if (__is_io_address(p)) {			\
+			__raw_writew((v), alignw(p));		\
+		} else {					\
+			__raw_writew(cpu_to_le16(v), p);	\
+		}						\
+	})
+
+#define iowrite32(v,p)						\
+	({							\
+		if (__is_io_address(p)) {			\
+			__raw_writel((v), p);			\
+		} else {					\
+			__raw_writel(cpu_to_le32(v), p);	\
+		}						\
+	})
+
+#define ioport_map(port, nr)	___io(port)
+
+#define ioport_unmap(addr)
+
 
 #ifdef CONFIG_ARCH_IXDP2X01
 /*
