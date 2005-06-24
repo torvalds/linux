@@ -136,7 +136,7 @@ xdr_error:					\
 	}					\
 } while (0)
 
-u32 *read_buf(struct nfsd4_compoundargs *argp, int nbytes)
+static u32 *read_buf(struct nfsd4_compoundargs *argp, int nbytes)
 {
 	/* We want more bytes than seem to be available.
 	 * Maybe we need a new page, maybe we have just run out
@@ -190,7 +190,7 @@ defer_free(struct nfsd4_compoundargs *argp,
 	return 0;
 }
 
-char *savemem(struct nfsd4_compoundargs *argp, u32 *p, int nbytes)
+static char *savemem(struct nfsd4_compoundargs *argp, u32 *p, int nbytes)
 {
 	void *new = NULL;
 	if (p == argp->tmp) {

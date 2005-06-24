@@ -125,7 +125,7 @@ static short ace2type(struct nfs4_ace *);
 static int _posix_to_nfsv4_one(struct posix_acl *, struct nfs4_acl *, unsigned int);
 static struct posix_acl *_nfsv4_to_posix_one(struct nfs4_acl *, unsigned int);
 int nfs4_acl_add_ace(struct nfs4_acl *, u32, u32, u32, int, uid_t);
-int nfs4_acl_split(struct nfs4_acl *, struct nfs4_acl *);
+static int nfs4_acl_split(struct nfs4_acl *, struct nfs4_acl *);
 
 struct nfs4_acl *
 nfs4_acl_posix_to_nfsv4(struct posix_acl *pacl, struct posix_acl *dpacl,
@@ -775,7 +775,7 @@ out_err:
 	return pacl;
 }
 
-int
+static int
 nfs4_acl_split(struct nfs4_acl *acl, struct nfs4_acl *dacl)
 {
 	struct list_head *h, *n;

@@ -54,7 +54,6 @@
 
 /* declarations */
 static void nfs4_cb_null(struct rpc_task *task);
-extern spinlock_t recall_lock;
 
 /* Index of predefined Linux callback client operations */
 
@@ -329,12 +328,12 @@ out:
         .p_bufsiz = MAX(NFS4_##argtype##_sz,NFS4_##restype##_sz) << 2,  \
 }
 
-struct rpc_procinfo     nfs4_cb_procedures[] = {
+static struct rpc_procinfo     nfs4_cb_procedures[] = {
     PROC(CB_NULL,      NULL,     enc_cb_null,     dec_cb_null),
     PROC(CB_RECALL,    COMPOUND,   enc_cb_recall,      dec_cb_recall),
 };
 
-struct rpc_version              nfs_cb_version4 = {
+static struct rpc_version       nfs_cb_version4 = {
         .number                 = 1,
         .nrprocs                = sizeof(nfs4_cb_procedures)/sizeof(nfs4_cb_procedures[0]),
         .procs                  = nfs4_cb_procedures
@@ -348,7 +347,7 @@ static struct rpc_version *	nfs_cb_version[] = {
 /*
  * Use the SETCLIENTID credential
  */
-struct rpc_cred *
+static struct rpc_cred *
 nfsd4_lookupcred(struct nfs4_client *clp, int taskflags)
 {
         struct auth_cred acred;

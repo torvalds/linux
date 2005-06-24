@@ -54,18 +54,21 @@
 /* Globals */
 static time_t lease_time = 90;     /* default lease time */
 static time_t user_lease_time = 90;
-time_t boot_time;
+static time_t boot_time;
 static int in_grace = 1;
 static u32 current_clientid = 1;
 static u32 current_ownerid = 1;
 static u32 current_fileid = 1;
 static u32 current_delegid = 1;
 static u32 nfs4_init;
-stateid_t zerostateid;             /* bits all 0 */
-stateid_t onestateid;              /* bits all 1 */
+static stateid_t zerostateid;             /* bits all 0 */
+static stateid_t onestateid;              /* bits all 1 */
+
+#define ZERO_STATEID(stateid) (!memcmp((stateid), &zerostateid, sizeof(stateid_t)))
+#define ONE_STATEID(stateid)  (!memcmp((stateid), &onestateid, sizeof(stateid_t)))
 
 /* forward declarations */
-struct nfs4_stateid * find_stateid(stateid_t *stid, int flags);
+static struct nfs4_stateid * find_stateid(stateid_t *stid, int flags);
 static struct nfs4_delegation * find_delegation_stateid(struct inode *ino, stateid_t *stid);
 static void release_stateid_lockowners(struct nfs4_stateid *open_stp);
 
@@ -77,10 +80,10 @@ static void release_stateid_lockowners(struct nfs4_stateid *open_stp);
  */
 static DECLARE_MUTEX(client_sema);
 
-kmem_cache_t *stateowner_slab = NULL;
-kmem_cache_t *file_slab = NULL;
-kmem_cache_t *stateid_slab = NULL;
-kmem_cache_t *deleg_slab = NULL;
+static kmem_cache_t *stateowner_slab = NULL;
+static kmem_cache_t *file_slab = NULL;
+static kmem_cache_t *stateid_slab = NULL;
+static kmem_cache_t *deleg_slab = NULL;
 
 void
 nfs4_lock_state(void)
@@ -116,7 +119,7 @@ static void release_stateid(struct nfs4_stateid *stp, int flags);
  */
 
 /* recall_lock protects the del_recall_lru */
-spinlock_t recall_lock = SPIN_LOCK_UNLOCKED;
+static spinlock_t recall_lock = SPIN_LOCK_UNLOCKED;
 static struct list_head del_recall_lru;
 
 static void
@@ -456,7 +459,7 @@ check_name(struct xdr_netobj name) {
 	return 1;
 }
 
-void
+static void
 add_to_unconfirmed(struct nfs4_client *clp, unsigned int strhashval)
 {
 	unsigned int idhashval;
@@ -468,7 +471,7 @@ add_to_unconfirmed(struct nfs4_client *clp, unsigned int strhashval)
 	clp->cl_time = get_seconds();
 }
 
-void
+static void
 move_to_confirmed(struct nfs4_client *clp)
 {
 	unsigned int idhashval = clientid_hashval(clp->cl_clientid.cl_id);
@@ -567,7 +570,7 @@ parse_octet(unsigned int *lenp, char **addrp)
 }
 
 /* parse and set the setclientid ipv4 callback address */
-int
+static int
 parse_ipv4(unsigned int addr_len, char *addr_val, unsigned int *cbaddrp, unsigned short *cbportp)
 {
 	int temp = 0;
@@ -603,7 +606,7 @@ parse_ipv4(unsigned int addr_len, char *addr_val, unsigned int *cbaddrp, unsigne
 	return 1;
 }
 
-void
+static void
 gen_callback(struct nfs4_client *clp, struct nfsd4_setclientid *se)
 {
 	struct nfs4_callback *cb = &clp->cl_callback;
@@ -1186,7 +1189,7 @@ release_stateid(struct nfs4_stateid *stp, int flags)
 	stp = NULL;
 }
 
-void
+static void
 move_to_close_lru(struct nfs4_stateowner *sop)
 {
 	dprintk("NFSD: move_to_close_lru nfs4_stateowner %p\n", sop);
@@ -1196,7 +1199,7 @@ move_to_close_lru(struct nfs4_stateowner *sop)
 	sop->so_time = get_seconds();
 }
 
-void
+static void
 release_state_owner(struct nfs4_stateid *stp, int flag)
 {
 	struct nfs4_stateowner *sop = stp->st_stateowner;
@@ -1250,7 +1253,7 @@ find_file(struct inode *ino)
 #define TEST_ACCESS(x) ((x > 0 || x < 4)?1:0)
 #define TEST_DENY(x) ((x >= 0 || x < 5)?1:0)
 
-void
+static void
 set_access(unsigned int *access, unsigned long bmap) {
 	int i;
 
@@ -1261,7 +1264,7 @@ set_access(unsigned int *access, unsigned long bmap) {
 	}
 }
 
-void
+static void
 set_deny(unsigned int *deny, unsigned long bmap) {
 	int i;
 
@@ -1287,7 +1290,7 @@ test_share(struct nfs4_stateid *stp, struct nfsd4_open *open) {
  * Called to check deny when READ with all zero stateid or
  * WRITE with all zero or all one stateid
  */
-int
+static int
 nfs4_share_conflict(struct svc_fh *current_fh, unsigned int deny_type)
 {
 	struct inode *ino = current_fh->fh_dentry->d_inode;
@@ -1442,7 +1445,7 @@ int nfsd_change_deleg_cb(struct file_lock **onlist, int arg)
 		return -EAGAIN;
 }
 
-struct lock_manager_operations nfsd_lease_mng_ops = {
+static struct lock_manager_operations nfsd_lease_mng_ops = {
 	.fl_break = nfsd_break_deleg_cb,
 	.fl_release_private = nfsd_release_deleg_cb,
 	.fl_copy_lock = nfsd_copy_lock_deleg_cb,
@@ -1915,7 +1918,7 @@ end_grace(void)
 	in_grace = 0;
 }
 
-time_t
+static time_t
 nfs4_laundromat(void)
 {
 	struct nfs4_client *clp;
@@ -1996,7 +1999,7 @@ laundromat_main(void *not_used)
 /* search ownerid_hashtbl[] and close_lru for stateid owner
  * (stateid->si_stateownerid)
  */
-struct nfs4_stateowner *
+static struct nfs4_stateowner *
 find_openstateowner_id(u32 st_id, int flags) {
 	struct nfs4_stateowner *local = NULL;
 
@@ -2170,7 +2173,7 @@ out:
 /* 
  * Checks for sequence id mutating operations. 
  */
-int
+static int
 nfs4_preprocess_seqid_op(struct svc_fh *current_fh, u32 seqid, stateid_t *stateid, int flags, struct nfs4_stateowner **sopp, struct nfs4_stateid **stpp, clientid_t *lockclid)
 {
 	int status;
@@ -2486,7 +2489,7 @@ static struct list_head lock_ownerid_hashtbl[LOCK_HASH_SIZE];
 static struct list_head	lock_ownerstr_hashtbl[LOCK_HASH_SIZE];
 static struct list_head lockstateid_hashtbl[STATEID_HASH_SIZE];
 
-struct nfs4_stateid *
+static struct nfs4_stateid *
 find_stateid(stateid_t *stid, int flags)
 {
 	struct nfs4_stateid *local = NULL;
@@ -2550,7 +2553,7 @@ nfs4_transform_lock_offset(struct file_lock *lock)
 		lock->fl_end = OFFSET_MAX;
 }
 
-int
+static int
 nfs4_verify_lock_stateowner(struct nfs4_stateowner *sop, unsigned int hashval)
 {
 	struct nfs4_stateowner *local = NULL;
@@ -2660,7 +2663,7 @@ alloc_init_lock_stateowner(unsigned int strhashval, struct nfs4_client *clp, str
 	return sop;
 }
 
-struct nfs4_stateid *
+static struct nfs4_stateid *
 alloc_init_lock_stateid(struct nfs4_stateowner *sop, struct nfs4_file *fp, struct nfs4_stateid *open_stp)
 {
 	struct nfs4_stateid *stp;
@@ -2691,7 +2694,7 @@ out:
 	return stp;
 }
 
-int
+static int
 check_lock_length(u64 offset, u64 length)
 {
 	return ((length == 0)  || ((length != ~(u64)0) &&
@@ -3149,7 +3152,7 @@ nfs4_release_reclaim(void)
 
 /*
  * called from OPEN, CLAIM_PREVIOUS with a new clientid. */
-struct nfs4_client_reclaim *
+static struct nfs4_client_reclaim *
 nfs4_find_reclaim_client(clientid_t *clid)
 {
 	unsigned int strhashval;

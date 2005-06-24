@@ -61,11 +61,6 @@ typedef struct {
 #define si_stateownerid   si_opaque.so_stateownerid
 #define si_fileid         si_opaque.so_fileid
 
-extern stateid_t zerostateid;
-extern stateid_t onestateid;
-
-#define ZERO_STATEID(stateid)       (!memcmp((stateid), &zerostateid, sizeof(stateid_t)))
-#define ONE_STATEID(stateid)        (!memcmp((stateid), &onestateid, sizeof(stateid_t)))
 
 struct nfs4_cb_recall {
 	u32			cbr_ident;
@@ -271,12 +266,9 @@ struct nfs4_stateid {
 	((err) != nfserr_stale_stateid) &&      \
 	((err) != nfserr_bad_stateid))
 
-extern time_t nfs4_laundromat(void);
 extern int nfsd4_renew(clientid_t *clid);
 extern int nfs4_preprocess_stateid_op(struct svc_fh *current_fh, 
 		stateid_t *stateid, int flags, struct file **filp);
-extern int nfs4_share_conflict(struct svc_fh *current_fh, 
-		unsigned int deny_type);
 extern void nfs4_lock_state(void);
 extern void nfs4_unlock_state(void);
 extern int nfs4_in_grace(void);
