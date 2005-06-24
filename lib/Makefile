@@ -38,6 +38,7 @@ obj-$(CONFIG_REED_SOLOMON) += reed_solomon/
 
 lib-$(CONFIG_TEXTSEARCH) += textsearch.o
 obj-$(CONFIG_TEXTSEARCH_KMP) += ts_kmp.o
+obj-$(CONFIG_TEXTSEARCH_FSM) += ts_fsm.o
 
 hostprogs-y	:= gen_crc32table
 clean-files	:= crc32table.h
