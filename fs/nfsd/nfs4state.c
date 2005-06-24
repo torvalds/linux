@@ -70,8 +70,6 @@ u32 list_add_perfile = 0;
 u32 list_del_perfile = 0;
 u32 add_perclient = 0;
 u32 del_perclient = 0;
-u32 alloc_file = 0;
-u32 free_file = 0;
 u32 vfsopen = 0;
 u32 vfsclose = 0;
 u32 alloc_delegation= 0;
@@ -89,6 +87,9 @@ static void release_stateid_lockowners(struct nfs4_stateid *open_stp);
  * 	unconfstr_hashtbl[], uncofid_hashtbl[].
  */
 static DECLARE_MUTEX(client_sema);
+
+kmem_cache_t *stateowner_slab = NULL;
+kmem_cache_t *file_slab = NULL;
 
 void
 nfs4_lock_state(void)
@@ -961,14 +962,14 @@ alloc_init_file(struct inode *ino)
 	struct nfs4_file *fp;
 	unsigned int hashval = file_hashval(ino);
 
-	if ((fp = kmalloc(sizeof(struct nfs4_file),GFP_KERNEL))) {
+	fp = kmem_cache_alloc(file_slab, GFP_KERNEL);
+	if (fp) {
 		INIT_LIST_HEAD(&fp->fi_hash);
 		INIT_LIST_HEAD(&fp->fi_perfile);
 		INIT_LIST_HEAD(&fp->fi_del_perfile);
 		list_add(&fp->fi_hash, &file_hashtbl[hashval]);
 		fp->fi_inode = igrab(ino);
 		fp->fi_id = current_fileid++;
-		alloc_file++;
 		return fp;
 	}
 	return NULL;
@@ -992,29 +993,41 @@ release_all_files(void)
 	}
 }
 
-kmem_cache_t *stateowner_slab = NULL;
+static void
+nfsd4_free_slab(kmem_cache_t **slab)
+{
+	int status;
+
+	if (*slab == NULL)
+		return;
+	status = kmem_cache_destroy(*slab);
+	*slab = NULL;
+	WARN_ON(status);
+}
+
+static void
+nfsd4_free_slabs(void)
+{
+	nfsd4_free_slab(&stateowner_slab);
+	nfsd4_free_slab(&file_slab);
+}
 
 static int
 nfsd4_init_slabs(void)
 {
 	stateowner_slab = kmem_cache_create("nfsd4_stateowners",
 			sizeof(struct nfs4_stateowner), 0, 0, NULL, NULL);
-	if (stateowner_slab == NULL) {
-		dprintk("nfsd4: out of memory while initializing nfsv4\n");
-		return -ENOMEM;
-	}
+	if (stateowner_slab == NULL)
+		goto out_nomem;
+	file_slab = kmem_cache_create("nfsd4_files",
+			sizeof(struct nfs4_file), 0, 0, NULL, NULL);
+	if (file_slab == NULL)
+		goto out_nomem;
 	return 0;
-}
-
-static void
-nfsd4_free_slabs(void)
-{
-	int status = 0;
-
-	if (stateowner_slab)
-		status = kmem_cache_destroy(stateowner_slab);
-	stateowner_slab = NULL;
-	BUG_ON(status);
+out_nomem:
+	nfsd4_free_slabs();
+	dprintk("nfsd4: out of memory while initializing nfsv4\n");
+	return -ENOMEM;
 }
 
 void
@@ -1167,10 +1180,9 @@ release_stateid(struct nfs4_stateid *stp, int flags)
 static void
 release_file(struct nfs4_file *fp)
 {
-	free_file++;
 	list_del(&fp->fi_hash);
 	iput(fp->fi_inode);
-	kfree(fp);
+	kmem_cache_free(file_slab, fp);
 }	
 
 void
@@ -3286,8 +3298,6 @@ __nfs4_state_shutdown(void)
 			list_add_perfile, list_del_perfile);
 	dprintk("NFSD: add_perclient %d del_perclient %d\n",
 			add_perclient, del_perclient);
-	dprintk("NFSD: alloc_file %d free_file %d\n",
-			alloc_file, free_file);
 	dprintk("NFSD: vfsopen %d vfsclose %d\n",
 			vfsopen, vfsclose);
 	dprintk("NFSD: alloc_delegation %d free_delegation %d\n",
