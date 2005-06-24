@@ -1,5 +1,5 @@
 /*
- * $Id: saa7134-video.c,v 1.28 2005/02/15 15:59:35 kraxel Exp $
+ * $Id: saa7134-video.c,v 1.30 2005/06/07 19:00:38 nsh Exp $
  *
  * device driver for philips saa7134 based TV cards
  * video4linux video interface
@@ -30,8 +30,6 @@
 
 #include "saa7134-reg.h"
 #include "saa7134.h"
-
-#define V4L2_I2C_CLIENTS 1
 
 /* ------------------------------------------------------------------ */
 
@@ -276,12 +274,12 @@ static struct saa7134_tvnorm tvnorms[] = {
 
 		.h_start       = 0,
 		.h_stop        = 719,
- 		.video_v_start = 23,
- 		.video_v_stop  = 262,
- 		.vbi_v_start_0 = 10,
- 		.vbi_v_stop_0  = 21,
- 		.vbi_v_start_1 = 273,
- 		.src_timing    = 7,
+		.video_v_start = 23,
+  		.video_v_stop  = 262,
+  		.vbi_v_start_0 = 10,
+  		.vbi_v_stop_0  = 21,
+  		.vbi_v_start_1 = 273,
+  		.src_timing    = 7,
 
 		.sync_control  = 0x18,
 		.luma_control  = 0x40,
@@ -524,22 +522,7 @@ static void set_tvnorm(struct saa7134_dev *dev, struct saa7134_tvnorm *norm)
 	saa_writeb(SAA7134_RAW_DATA_GAIN,         0x40);
 	saa_writeb(SAA7134_RAW_DATA_OFFSET,       0x80);
 
-#ifdef V4L2_I2C_CLIENTS
 	saa7134_i2c_call_clients(dev,VIDIOC_S_STD,&norm->id);
-#else
-	{
-		/* pass down info to the i2c chips (v4l1) */
-		struct video_channel c;
-		memset(&c,0,sizeof(c));
-		c.channel = dev->ctl_input;
-		c.norm = VIDEO_MODE_PAL;
-		if (norm->id & V4L2_STD_NTSC)
-			c.norm = VIDEO_MODE_NTSC;
-		if (norm->id & V4L2_STD_SECAM)
-			c.norm = VIDEO_MODE_SECAM;
-		saa7134_i2c_call_clients(dev,VIDIOCSCHAN,&c);
-	}
-#endif
 }
 
 static void video_mux(struct saa7134_dev *dev, int input)
@@ -1883,11 +1866,9 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 			return -EINVAL;
 		down(&dev->lock);
 		dev->ctl_freq = f->frequency;
-#ifdef V4L2_I2C_CLIENTS
+
 		saa7134_i2c_call_clients(dev,VIDIOC_S_FREQUENCY,f);
-#else
-		saa7134_i2c_call_clients(dev,VIDIOCSFREQ,&dev->ctl_freq);
-#endif
+
 		saa7134_tvaudio_do_scan(dev);
 		up(&dev->lock);
 		return 0;
@@ -2142,16 +2123,19 @@ static int radio_do_ioctl(struct inode *inode, struct file *file,
                 t->rangelow  = (int)(65*16);
                 t->rangehigh = (int)(108*16);
 
-#ifdef V4L2_I2C_CLIENTS
-		saa7134_i2c_call_clients(dev,VIDIOC_G_TUNER,t);
-#else
-		{
-			struct video_tuner vt;
-			memset(&vt,0,sizeof(vt));
-			saa7134_i2c_call_clients(dev,VIDIOCGTUNER,&vt);
-			t->signal = vt.signal;
-		}
-#endif
+		saa7134_i2c_call_clients(dev, VIDIOC_G_TUNER, t);
+
+		return 0;
+	}
+	case VIDIOC_S_TUNER:
+	{
+		struct v4l2_tuner *t = arg;
+
+		if (0 != t->index)
+			return -EINVAL;
+
+		saa7134_i2c_call_clients(dev,VIDIOC_S_TUNER,t);
+
 		return 0;
 	}
 	case VIDIOC_ENUMINPUT:
@@ -2185,7 +2169,6 @@ static int radio_do_ioctl(struct inode *inode, struct file *file,
 		return 0;
 	}
 	case VIDIOC_S_AUDIO:
-	case VIDIOC_S_TUNER:
 	case VIDIOC_S_INPUT:
 	case VIDIOC_S_STD:
 		return 0;

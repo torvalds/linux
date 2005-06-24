@@ -1,5 +1,5 @@
 /*
- * $Id: saa7134-core.c,v 1.28 2005/02/22 09:56:29 kraxel Exp $
+ * $Id: saa7134-core.c,v 1.30 2005/05/22 19:23:39 nsh Exp $
  *
  * device driver for philips saa7134 based TV cards
  * driver core

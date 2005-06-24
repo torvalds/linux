@@ -1,5 +1,5 @@
 /*
- * $Id: saa7134-vbi.c,v 1.6 2004/12/10 12:33:39 kraxel Exp $
+ * $Id: saa7134-vbi.c,v 1.7 2005/05/24 23:13:06 nsh Exp $
  *
  * device driver for philips saa7134 based TV cards
  * video4linux video interface

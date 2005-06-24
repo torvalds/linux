@@ -75,7 +75,7 @@ hauppauge_tuner_fmt[] =
 	{ 0x00000007, "PAL(B/G)" },
 	{ 0x00001000, "NTSC(M)" },
 	{ 0x00000010, "PAL(I)" },
-	{ 0x00400000, "SECAM(L/Lï¿½)" },
+	{ 0x00400000, "SECAM(L/L´)" },
 	{ 0x00000e00, "PAL(D/K)" },
 	{ 0x03000000, "ATSC Digital" },
 };
@@ -482,6 +482,7 @@ static unsigned short normal_i2c[] = {
 	0xa0 >> 1,
 	I2C_CLIENT_END,
 };
+static unsigned short normal_i2c_range[] = { I2C_CLIENT_END };
 I2C_CLIENT_INSMOD;
 
 struct i2c_driver i2c_driver_tveeprom;
