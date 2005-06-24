@@ -1614,6 +1614,45 @@ void skb_abort_seq_read(struct skb_seq_state *st)
 		kunmap_skb_frag(st->frag_data);
 }
 
+#define TS_SKB_CB(state)	((struct skb_seq_state *) &((state)->cb))
+
+static unsigned int skb_ts_get_next_block(unsigned int offset, const u8 **text,
+					  struct ts_config *conf,
+					  struct ts_state *state)
+{
+	return skb_seq_read(offset, text, TS_SKB_CB(state));
+}
+
+static void skb_ts_finish(struct ts_config *conf, struct ts_state *state)
+{
+	skb_abort_seq_read(TS_SKB_CB(state));
+}
+
+/**
+ * skb_find_text - Find a text pattern in skb data
+ * @skb: the buffer to look in
+ * @from: search offset
+ * @to: search limit
+ * @config: textsearch configuration
+ * @state: uninitialized textsearch state variable
+ *
+ * Finds a pattern in the skb data according to the specified
+ * textsearch configuration. Use textsearch_next() to retrieve
+ * subsequent occurrences of the pattern. Returns the offset
+ * to the first occurrence or UINT_MAX if no match was found.
+ */
+unsigned int skb_find_text(struct sk_buff *skb, unsigned int from,
+			   unsigned int to, struct ts_config *config,
+			   struct ts_state *state)
+{
+	config->get_next_block = skb_ts_get_next_block;
+	config->finish = skb_ts_finish;
+
+	skb_prepare_seq_read(skb, from, to, TS_SKB_CB(state));
+
+	return textsearch_find(config, state);
+}
+
 void __init skb_init(void)
 {
 	skbuff_head_cache = kmem_cache_create("skbuff_head_cache",
@@ -1655,3 +1694,4 @@ EXPORT_SYMBOL(skb_split);
 EXPORT_SYMBOL(skb_prepare_seq_read);
 EXPORT_SYMBOL(skb_seq_read);
 EXPORT_SYMBOL(skb_abort_seq_read);
+EXPORT_SYMBOL(skb_find_text);

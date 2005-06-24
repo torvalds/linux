@@ -27,6 +27,7 @@
 #include <linux/highmem.h>
 #include <linux/poll.h>
 #include <linux/net.h>
+#include <linux/textsearch.h>
 #include <net/checksum.h>
 
 #define HAVE_ALLOC_SKB		/* For the drivers to know */
@@ -338,6 +339,10 @@ extern void	      skb_prepare_seq_read(struct sk_buff *skb,
 extern unsigned int   skb_seq_read(unsigned int consumed, const u8 **data,
 				   struct skb_seq_state *st);
 extern void	      skb_abort_seq_read(struct skb_seq_state *st);
+
+extern unsigned int   skb_find_text(struct sk_buff *skb, unsigned int from,
+				    unsigned int to, struct ts_config *config,
+				    struct ts_state *state);
 
 /* Internal */
 #define skb_shinfo(SKB)		((struct skb_shared_info *)((SKB)->end))
