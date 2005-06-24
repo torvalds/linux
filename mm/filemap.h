@@ -15,7 +15,7 @@
 #include <linux/config.h>
 #include <asm/uaccess.h>
 
-extern size_t
+size_t
 __filemap_copy_from_user_iovec(char *vaddr,
 			       const struct iovec *iov,
 			       size_t base,
