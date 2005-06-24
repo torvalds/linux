@@ -198,7 +198,7 @@ static inline struct s3c24xx_uart_port *to_ourport(struct uart_port *port)
 
 /* translate a port to the device name */
 
-static inline char *s3c24xx_serial_portname(struct uart_port *port)
+static inline const char *s3c24xx_serial_portname(struct uart_port *port)
 {
 	return to_platform_device(port->dev)->name;
 }
@@ -903,7 +903,7 @@ static void s3c24xx_serial_release_port(struct uart_port *port)
 
 static int s3c24xx_serial_request_port(struct uart_port *port)
 {
-	char *name = s3c24xx_serial_portname(port);
+	const char *name = s3c24xx_serial_portname(port);
 	return request_mem_region(port->mapbase, MAP_SIZE, name) ? 0 : -EBUSY;
 }
 
