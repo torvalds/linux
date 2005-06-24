@@ -1841,13 +1841,18 @@ static int reiserfs_statfs (struct super_block * s, struct kstatfs * buf)
 static int reiserfs_dquot_initialize(struct inode *inode, int type)
 {
     struct reiserfs_transaction_handle th;
-    int ret;
+    int ret, err;
 
     /* We may create quota structure so we need to reserve enough blocks */
     reiserfs_write_lock(inode->i_sb);
-    journal_begin(&th, inode->i_sb, 2*REISERFS_QUOTA_INIT_BLOCKS);
+    ret = journal_begin(&th, inode->i_sb, 2*REISERFS_QUOTA_INIT_BLOCKS);
+    if (ret)
+	goto out;
     ret = dquot_initialize(inode, type);
-    journal_end(&th, inode->i_sb, 2*REISERFS_QUOTA_INIT_BLOCKS);
+    err = journal_end(&th, inode->i_sb, 2*REISERFS_QUOTA_INIT_BLOCKS);
+    if (!ret && err)
+	ret = err;
+out:
     reiserfs_write_unlock(inode->i_sb);
     return ret;
 }
@@ -1855,13 +1860,18 @@ static int reiserfs_dquot_initialize(struct inode *inode, int type)
 static int reiserfs_dquot_drop(struct inode *inode)
 {
     struct reiserfs_transaction_handle th;
-    int ret;
+    int ret, err;
 
     /* We may delete quota structure so we need to reserve enough blocks */
     reiserfs_write_lock(inode->i_sb);
-    journal_begin(&th, inode->i_sb, 2*REISERFS_QUOTA_INIT_BLOCKS);
+    ret = journal_begin(&th, inode->i_sb, 2*REISERFS_QUOTA_INIT_BLOCKS);
+    if (ret)
+ 	goto out;
     ret = dquot_drop(inode);
-    journal_end(&th, inode->i_sb, 2*REISERFS_QUOTA_INIT_BLOCKS);
+    err = journal_end(&th, inode->i_sb, 2*REISERFS_QUOTA_INIT_BLOCKS);
+    if (!ret && err)
+	ret = err;
+out:
     reiserfs_write_unlock(inode->i_sb);
     return ret;
 }
@@ -1869,12 +1879,17 @@ static int reiserfs_dquot_drop(struct inode *inode)
 static int reiserfs_write_dquot(struct dquot *dquot)
 {
     struct reiserfs_transaction_handle th;
-    int ret;
+    int ret, err;
 
     reiserfs_write_lock(dquot->dq_sb);
-    journal_begin(&th, dquot->dq_sb, REISERFS_QUOTA_TRANS_BLOCKS);
+    ret = journal_begin(&th, dquot->dq_sb, REISERFS_QUOTA_TRANS_BLOCKS);
+    if (ret)
+	goto out;
     ret = dquot_commit(dquot);
-    journal_end(&th, dquot->dq_sb, REISERFS_QUOTA_TRANS_BLOCKS);
+    err = journal_end(&th, dquot->dq_sb, REISERFS_QUOTA_TRANS_BLOCKS);
+    if (!ret && err)
+	ret = err;
+out:
     reiserfs_write_unlock(dquot->dq_sb);
     return ret;
 }
@@ -1882,12 +1897,17 @@ static int reiserfs_write_dquot(struct dquot *dquot)
 static int reiserfs_acquire_dquot(struct dquot *dquot)
 {
     struct reiserfs_transaction_handle th;
-    int ret;
+    int ret, err;
 
     reiserfs_write_lock(dquot->dq_sb);
-    journal_begin(&th, dquot->dq_sb, REISERFS_QUOTA_INIT_BLOCKS);
+    ret = journal_begin(&th, dquot->dq_sb, REISERFS_QUOTA_INIT_BLOCKS);
+    if (ret)
+	goto out;
     ret = dquot_acquire(dquot);
-    journal_end(&th, dquot->dq_sb, REISERFS_QUOTA_INIT_BLOCKS);
+    err = journal_end(&th, dquot->dq_sb, REISERFS_QUOTA_INIT_BLOCKS);
+    if (!ret && err)
+	ret = err;
+out:
     reiserfs_write_unlock(dquot->dq_sb);
     return ret;
 }
@@ -1895,12 +1915,17 @@ static int reiserfs_acquire_dquot(struct dquot *dquot)
 static int reiserfs_release_dquot(struct dquot *dquot)
 {
     struct reiserfs_transaction_handle th;
-    int ret;
+    int ret, err;
 
     reiserfs_write_lock(dquot->dq_sb);
-    journal_begin(&th, dquot->dq_sb, REISERFS_QUOTA_INIT_BLOCKS);
+    ret = journal_begin(&th, dquot->dq_sb, REISERFS_QUOTA_INIT_BLOCKS);
+    if (ret)
+ 	goto out;
     ret = dquot_release(dquot);
-    journal_end(&th, dquot->dq_sb, REISERFS_QUOTA_INIT_BLOCKS);
+    err = journal_end(&th, dquot->dq_sb, REISERFS_QUOTA_INIT_BLOCKS);
+    if (!ret && err)
+	ret = err;
+out:
     reiserfs_write_unlock(dquot->dq_sb);
     return ret;
 }
@@ -1920,13 +1945,18 @@ static int reiserfs_mark_dquot_dirty(struct dquot *dquot)
 static int reiserfs_write_info(struct super_block *sb, int type)
 {
     struct reiserfs_transaction_handle th;
-    int ret;
+    int ret, err;
 
     /* Data block + inode block */
     reiserfs_write_lock(sb);
-    journal_begin(&th, sb, 2);
+    ret = journal_begin(&th, sb, 2);
+    if (ret)
+	goto out;
     ret = dquot_commit_info(sb, type);
-    journal_end(&th, sb, 2);
+    err = journal_end(&th, sb, 2);
+    if (!ret && err)
+	ret = err;
+out:
     reiserfs_write_unlock(sb);
     return ret;
 }
