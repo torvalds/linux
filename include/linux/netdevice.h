@@ -165,11 +165,6 @@ struct netif_rx_stats
 	unsigned dropped;
 	unsigned time_squeeze;
 	unsigned throttled;
-	unsigned fastroute_hit;
-	unsigned fastroute_success;
-	unsigned fastroute_defer;
-	unsigned fastroute_deferred_out;
-	unsigned fastroute_latency_reduction;
 	unsigned cpu_collision;
 };
 

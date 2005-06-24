@@ -2056,14 +2056,8 @@ static int softnet_seq_show(struct seq_file *seq, void *v)
 
 	seq_printf(seq, "%08x %08x %08x %08x %08x %08x %08x %08x %08x\n",
 		   s->total, s->dropped, s->time_squeeze, s->throttled,
-		   s->fastroute_hit, s->fastroute_success, s->fastroute_defer,
-		   s->fastroute_deferred_out,
-#if 0
-		   s->fastroute_latency_reduction
-#else
-		   s->cpu_collision
-#endif
-		  );
+		   0, 0, 0, 0, /* was fastroute */
+		   s->cpu_collision );
 	return 0;
 }
 

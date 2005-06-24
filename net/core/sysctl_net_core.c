@@ -18,7 +18,6 @@ extern int no_cong_thresh;
 extern int no_cong;
 extern int lo_cong;
 extern int mod_cong;
-extern int netdev_fastroute;
 extern int net_msg_cost;
 extern int net_msg_burst;
 
