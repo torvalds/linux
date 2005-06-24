@@ -63,5 +63,11 @@ config REED_SOLOMON_ENC16
 config REED_SOLOMON_DEC16
 	boolean
 
-endmenu
+config TEXTSEARCH
+	boolean "Textsearch infrastructure"
+	default y
+	help
+	  Say Y here if you want to provide a textsearch infrastructure
+	  to other subsystems.
 
+endmenu
