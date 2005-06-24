@@ -337,7 +337,7 @@ int may_umount(struct vfsmount *mnt)
 
 EXPORT_SYMBOL(may_umount);
 
-void umount_tree(struct vfsmount *mnt)
+static void umount_tree(struct vfsmount *mnt)
 {
 	struct vfsmount *p;
 	LIST_HEAD(kill);

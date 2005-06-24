@@ -131,7 +131,6 @@ sctp_state_fn_t sctp_sf_do_ecne;
 sctp_state_fn_t sctp_sf_ootb;
 sctp_state_fn_t sctp_sf_pdiscard;
 sctp_state_fn_t sctp_sf_violation;
-sctp_state_fn_t sctp_sf_violation_chunklen;
 sctp_state_fn_t sctp_sf_discard_chunk;
 sctp_state_fn_t sctp_sf_do_5_2_1_siminit;
 sctp_state_fn_t sctp_sf_do_5_2_2_dupinit;
@@ -258,11 +257,6 @@ struct sctp_chunk *sctp_make_fwdtsn(const struct sctp_association *asoc,
 
 void sctp_chunk_assign_tsn(struct sctp_chunk *);
 void sctp_chunk_assign_ssn(struct sctp_chunk *);
-
-sctp_disposition_t  sctp_stop_t1_and_abort(sctp_cmd_seq_t *commands,
-					   __u16 error,
-					   const struct sctp_association *asoc,
-					   struct sctp_transport *transport);
 
 /* Prototypes for statetable processing. */
 

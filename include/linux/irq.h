@@ -88,7 +88,6 @@ extern fastcall int handle_IRQ_event(unsigned int irq, struct pt_regs *regs,
 				       struct irqaction *action);
 extern fastcall unsigned int __do_IRQ(unsigned int irq, struct pt_regs *regs);
 extern void note_interrupt(unsigned int irq, irq_desc_t *desc, int action_ret);
-extern void report_bad_irq(unsigned int irq, irq_desc_t *desc, int action_ret);
 extern int can_request_irq(unsigned int irq, unsigned long irqflags);
 
 extern void init_irq_proc(void);

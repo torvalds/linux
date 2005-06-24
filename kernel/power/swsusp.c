@@ -81,7 +81,7 @@ static int nr_copy_pages_check;
 extern char resume_file[];
 
 /* Local variables that should not be affected by save */
-unsigned int nr_copy_pages __nosavedata = 0;
+static unsigned int nr_copy_pages __nosavedata = 0;
 
 /* Suspend pagedir is allocated before final copy, therefore it
    must be freed after resume 

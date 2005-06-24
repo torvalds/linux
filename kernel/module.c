@@ -730,7 +730,7 @@ static int obsparm_copy_string(const char *val, struct kernel_param *kp)
 	return 0;
 }
 
-int set_obsolete(const char *val, struct kernel_param *kp)
+static int set_obsolete(const char *val, struct kernel_param *kp)
 {
 	unsigned int min, max;
 	unsigned int size, maxsize;
