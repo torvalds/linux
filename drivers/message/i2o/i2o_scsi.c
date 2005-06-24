@@ -40,7 +40,6 @@
  *	Fix the resource management problems.
  */
 
-#define DEBUG 1
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -338,162 +337,89 @@ static int i2o_scsi_reply(struct i2o_controller *c, u32 m,
 			  struct i2o_message *msg)
 {
 	struct scsi_cmnd *cmd;
+	u32 error;
 	struct device *dev;
-	u8 as, ds, st;
 
 	cmd = i2o_cntxt_list_get(c, le32_to_cpu(msg->u.s.tcntxt));
-
-	if (msg->u.head[0] & (1 << 13)) {
-		struct i2o_message __iomem *pmsg;	/* preserved message */
-		u32 pm;
-		int err = DID_ERROR;
-
-		pm = le32_to_cpu(msg->body[3]);
-
-		pmsg = i2o_msg_in_to_virt(c, pm);
-
-		osm_err("IOP fail.\n");
-		osm_err("From %d To %d Cmd %d.\n",
-			(msg->u.head[1] >> 12) & 0xFFF,
-			msg->u.head[1] & 0xFFF, msg->u.head[1] >> 24);
-		osm_err("Failure Code %d.\n", msg->body[0] >> 24);
-		if (msg->body[0] & (1 << 16))
-			osm_err("Format error.\n");
-		if (msg->body[0] & (1 << 17))
-			osm_err("Path error.\n");
-		if (msg->body[0] & (1 << 18))
-			osm_err("Path State.\n");
-		if (msg->body[0] & (1 << 18))
-		{
-			osm_err("Congestion.\n");
-			err = DID_BUS_BUSY;
-		}
-
-		osm_debug("Failing message is %p.\n", pmsg);
-
-		cmd = i2o_cntxt_list_get(c, readl(&pmsg->u.s.tcntxt));
-		if (!cmd)
-			return 1;
-
-		cmd->result = err << 16;
-		cmd->scsi_done(cmd);
-
-		/* Now flush the message by making it a NOP */
-		i2o_msg_nop(c, pm);
-
-		return 1;
+	if (unlikely(!cmd)) {
+		osm_err("NULL reply received!\n");
+		return -1;
 	}
 
 	/*
 	 *      Low byte is device status, next is adapter status,
 	 *      (then one byte reserved), then request status.
 	 */
-	ds = (u8) le32_to_cpu(msg->body[0]);
-	as = (u8) (le32_to_cpu(msg->body[0]) >> 8);
-	st = (u8) (le32_to_cpu(msg->body[0]) >> 24);
-
-	/*
-	 *      Is this a control request coming back - eg an abort ?
-	 */
-
-	if (!cmd) {
-		if (st)
-			osm_warn("SCSI abort: %08X", le32_to_cpu(msg->body[0]));
-		osm_info("SCSI abort completed.\n");
-		return -EFAULT;
-	}
+	error = le32_to_cpu(msg->body[0]);
 
 	osm_debug("Completed %ld\n", cmd->serial_number);
 
-	if (st) {
-		u32 count, error;
-		/* An error has occurred */
+	cmd->result = error & 0xff;
+	/*
+	 * if DeviceStatus is not SCSI_SUCCESS copy over the sense data and let
+	 * the SCSI layer handle the error
+	 */
+	if (cmd->result)
+		memcpy(cmd->sense_buffer, &msg->body[3],
+		       min(sizeof(cmd->sense_buffer), (size_t) 40));
 
-		switch (st) {
-		case 0x06:
-			count = le32_to_cpu(msg->body[1]);
-			if (count < cmd->underflow) {
-				int i;
-
-				osm_err("SCSI underflow 0x%08X 0x%08X\n", count,
-					cmd->underflow);
-				osm_debug("Cmd: ");
-				for (i = 0; i < 15; i++)
-					pr_debug("%02X ", cmd->cmnd[i]);
-				pr_debug(".\n");
-				cmd->result = (DID_ERROR << 16);
-			}
-			break;
-
-		default:
-			error = le32_to_cpu(msg->body[0]);
-
-			osm_err("SCSI error %08x\n", error);
-
-			if ((error & 0xff) == 0x02 /*CHECK_CONDITION */ ) {
-				int i;
-				u32 len = sizeof(cmd->sense_buffer);
-				len = (len > 40) ? 40 : len;
-				// Copy over the sense data
-				memcpy(cmd->sense_buffer, (void *)&msg->body[3],
-				       len);
-				for (i = 0; i <= len; i++)
-					osm_info("%02x\n",
-						 cmd->sense_buffer[i]);
-				if (cmd->sense_buffer[0] == 0x70
-				    && cmd->sense_buffer[2] == DATA_PROTECT) {
-					/* This is to handle an array failed */
-					cmd->result = (DID_TIME_OUT << 16);
-					printk(KERN_WARNING "%s: SCSI Data "
-					       "Protect-Device (%d,%d,%d) "
-					       "hba_status=0x%x, dev_status="
-					       "0x%x, cmd=0x%x\n", c->name,
-					       (u32) cmd->device->channel,
-					       (u32) cmd->device->id,
-					       (u32) cmd->device->lun,
-					       (error >> 8) & 0xff,
-					       error & 0xff, cmd->cmnd[0]);
-				} else
-					cmd->result = (DID_ERROR << 16);
-
-				break;
-			}
-
-			switch (as) {
-			case 0x0E:
-				/* SCSI Reset */
-				cmd->result = DID_RESET << 16;
-				break;
-
-			case 0x0F:
-				cmd->result = DID_PARITY << 16;
-				break;
-
-			default:
-				cmd->result = DID_ERROR << 16;
-				break;
-			}
-
-			break;
-		}
-
-		cmd->scsi_done(cmd);
-		return 1;
-	}
-
-	cmd->result = DID_OK << 16 | ds;
+	/* only output error code if AdapterStatus is not HBA_SUCCESS */
+	if ((error >> 8) & 0xff)
+		osm_err("SCSI error %08x\n", error);
 
 	dev = &c->pdev->dev;
 	if (cmd->use_sg)
-		dma_unmap_sg(dev, (struct scatterlist *)cmd->buffer,
-			     cmd->use_sg, cmd->sc_data_direction);
-	else if (cmd->request_bufflen)
-		dma_unmap_single(dev, (dma_addr_t) ((long)cmd->SCp.ptr),
-				 cmd->request_bufflen, cmd->sc_data_direction);
+		dma_unmap_sg(dev, cmd->request_buffer, cmd->use_sg,
+			     cmd->sc_data_direction);
+	else if (cmd->SCp.dma_handle)
+		dma_unmap_single(dev, cmd->SCp.dma_handle, cmd->request_bufflen,
+				 cmd->sc_data_direction);
 
 	cmd->scsi_done(cmd);
 
 	return 1;
+};
+
+/**
+ *	i2o_scsi_notify_device_add - Retrieve notifications of added devices
+ *	@i2o_dev: the I2O device which was added
+ *
+ *	If a I2O device is added we catch the notification, because I2O classes
+ *	other then SCSI peripheral will not be received through
+ *	i2o_scsi_probe().
+ */
+static void i2o_scsi_notify_device_add(struct i2o_device *i2o_dev)
+{
+	switch (i2o_dev->lct_data.class_id) {
+	case I2O_CLASS_EXECUTIVE:
+	case I2O_CLASS_RANDOM_BLOCK_STORAGE:
+		i2o_scsi_probe(&i2o_dev->device);
+		break;
+
+	default:
+		break;
+	}
+};
+
+/**
+ *	i2o_scsi_notify_device_remove - Retrieve notifications of removed
+ *				        devices
+ *	@i2o_dev: the I2O device which was removed
+ *
+ *	If a I2O device is removed, we catch the notification to remove the
+ *	corresponding SCSI device.
+ */
+static void i2o_scsi_notify_device_remove(struct i2o_device *i2o_dev)
+{
+	switch (i2o_dev->lct_data.class_id) {
+	case I2O_CLASS_EXECUTIVE:
+	case I2O_CLASS_RANDOM_BLOCK_STORAGE:
+		i2o_scsi_remove(&i2o_dev->device);
+		break;
+
+	default:
+		break;
+	}
 };
 
 /**
@@ -554,6 +480,8 @@ static struct i2o_driver i2o_scsi_driver = {
 	.name = OSM_NAME,
 	.reply = i2o_scsi_reply,
 	.classes = i2o_scsi_class_id,
+	.notify_device_add = i2o_scsi_notify_device_add,
+	.notify_device_remove = i2o_scsi_notify_device_remove,
 	.notify_controller_add = i2o_scsi_notify_controller_add,
 	.notify_controller_remove = i2o_scsi_notify_controller_remove,
 	.driver = {
@@ -712,7 +640,7 @@ static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
 	 */
 
 	/* Attach tags to the devices */
-	/*
+	/* FIXME: implement
 	   if(SCpnt->device->tagged_supported) {
 	   if(SCpnt->tag == HEAD_OF_QUEUE_TAG)
 	   scsi_flags |= 0x01000000;

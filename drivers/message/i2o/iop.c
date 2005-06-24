@@ -28,8 +28,10 @@
 #include <linux/module.h>
 #include <linux/i2o.h>
 #include <linux/delay.h>
+#include "core.h"
 
-#define OSM_VERSION	"$Rev$"
+#define OSM_NAME	"i2o"
+#define OSM_VERSION	"1.288"
 #define OSM_DESCRIPTION	"I2O subsystem"
 
 /* global I2O controller list */
@@ -42,20 +44,6 @@ LIST_HEAD(i2o_controllers);
 static struct i2o_dma i2o_systab;
 
 static int i2o_hrt_get(struct i2o_controller *c);
-
-/* Module internal functions from other sources */
-extern struct i2o_driver i2o_exec_driver;
-extern int i2o_exec_lct_get(struct i2o_controller *);
-extern void i2o_device_remove(struct i2o_device *);
-
-extern int __init i2o_driver_init(void);
-extern void __exit i2o_driver_exit(void);
-extern int __init i2o_exec_init(void);
-extern void __exit i2o_exec_exit(void);
-extern int __init i2o_pci_init(void);
-extern void __exit i2o_pci_exit(void);
-extern int i2o_device_init(void);
-extern void i2o_device_exit(void);
 
 /**
  *	i2o_msg_nop - Returns a message which is not used
@@ -92,16 +80,16 @@ void i2o_msg_nop(struct i2o_controller *c, u32 m)
  *	address from the read port (see the i2o spec). If no message is
  *	available returns I2O_QUEUE_EMPTY and msg is leaved untouched.
  */
-u32 i2o_msg_get_wait(struct i2o_controller *c, struct i2o_message __iomem **msg,
-		     int wait)
+u32 i2o_msg_get_wait(struct i2o_controller *c,
+		     struct i2o_message __iomem ** msg, int wait)
 {
 	unsigned long timeout = jiffies + wait * HZ;
 	u32 m;
 
 	while ((m = i2o_msg_get(c, msg)) == I2O_QUEUE_EMPTY) {
 		if (time_after(jiffies, timeout)) {
-			pr_debug("%s: Timeout waiting for message frame.\n",
-				 c->name);
+			osm_debug("%s: Timeout waiting for message frame.\n",
+				  c->name);
 			return I2O_QUEUE_EMPTY;
 		}
 		set_current_state(TASK_UNINTERRUPTIBLE);
@@ -466,7 +454,7 @@ static int i2o_iop_clear(struct i2o_controller *c)
  */
 static int i2o_iop_init_outbound_queue(struct i2o_controller *c)
 {
-	u8 *status = c->status.virt;
+	volatile u8 *status = c->status.virt;
 	u32 m;
 	struct i2o_message __iomem *msg;
 	ulong timeout;
@@ -474,21 +462,20 @@ static int i2o_iop_init_outbound_queue(struct i2o_controller *c)
 
 	osm_debug("%s: Initializing Outbound Queue...\n", c->name);
 
-	memset(status, 0, 4);
+	memset(c->status.virt, 0, 4);
 
 	m = i2o_msg_get_wait(c, &msg, I2O_TIMEOUT_MESSAGE_GET);
 	if (m == I2O_QUEUE_EMPTY)
 		return -ETIMEDOUT;
 
-	writel(EIGHT_WORD_MSG_SIZE | TRL_OFFSET_6, &msg->u.head[0]);
+	writel(EIGHT_WORD_MSG_SIZE | SGL_OFFSET_6, &msg->u.head[0]);
 	writel(I2O_CMD_OUTBOUND_INIT << 24 | HOST_TID << 12 | ADAPTER_TID,
 	       &msg->u.head[1]);
 	writel(i2o_exec_driver.context, &msg->u.s.icntxt);
-	writel(0x0106, &msg->u.s.tcntxt);	/* FIXME: why 0x0106, maybe in
-						   Spec? */
+	writel(0x00000000, &msg->u.s.tcntxt);
 	writel(PAGE_SIZE, &msg->body[0]);
 	/* Outbound msg frame size in words and Initcode */
-	writel(MSG_FRAME_SIZE << 16 | 0x80, &msg->body[1]);
+	writel(I2O_OUTBOUND_MSG_FRAME_SIZE << 16 | 0x80, &msg->body[1]);
 	writel(0xd0000004, &msg->body[2]);
 	writel(i2o_dma_low(c->status.phys), &msg->body[3]);
 	writel(i2o_dma_high(c->status.phys), &msg->body[4]);
@@ -503,17 +490,15 @@ static int i2o_iop_init_outbound_queue(struct i2o_controller *c)
 		}
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule_timeout(1);
-
-		rmb();
 	}
 
 	m = c->out_queue.phys;
 
 	/* Post frames */
-	for (i = 0; i < NMBR_MSG_FRAMES; i++) {
+	for (i = 0; i < I2O_MAX_OUTBOUND_MSG_FRAMES; i++) {
 		i2o_flush_reply(c, m);
 		udelay(1);	/* Promise */
-		m += MSG_FRAME_SIZE * 4;
+		m += I2O_OUTBOUND_MSG_FRAME_SIZE * sizeof(u32);
 	}
 
 	return 0;
@@ -530,20 +515,20 @@ static int i2o_iop_init_outbound_queue(struct i2o_controller *c)
  */
 static int i2o_iop_reset(struct i2o_controller *c)
 {
-	u8 *status = c->status.virt;
+	volatile u8 *status = c->status.virt;
 	struct i2o_message __iomem *msg;
 	u32 m;
 	unsigned long timeout;
 	i2o_status_block *sb = c->status_block.virt;
 	int rc = 0;
 
-	pr_debug("%s: Resetting controller\n", c->name);
+	osm_debug("%s: Resetting controller\n", c->name);
 
 	m = i2o_msg_get_wait(c, &msg, I2O_TIMEOUT_MESSAGE_GET);
 	if (m == I2O_QUEUE_EMPTY)
 		return -ETIMEDOUT;
 
-	memset(status, 0, 8);
+	memset(c->status_block.virt, 0, 8);
 
 	/* Quiesce all IOPs first */
 	i2o_iop_quiesce_all();
@@ -568,8 +553,6 @@ static int i2o_iop_reset(struct i2o_controller *c)
 
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule_timeout(1);
-
-		rmb();
 	}
 
 	switch (*status) {
@@ -984,11 +967,11 @@ int i2o_status_get(struct i2o_controller *c)
 {
 	struct i2o_message __iomem *msg;
 	u32 m;
-	u8 *status_block;
+	volatile u8 *status_block;
 	unsigned long timeout;
 
 	status_block = (u8 *) c->status_block.virt;
-	memset(status_block, 0, sizeof(i2o_status_block));
+	memset(c->status_block.virt, 0, sizeof(i2o_status_block));
 
 	m = i2o_msg_get_wait(c, &msg, I2O_TIMEOUT_MESSAGE_GET);
 	if (m == I2O_QUEUE_EMPTY)
@@ -1017,8 +1000,6 @@ int i2o_status_get(struct i2o_controller *c)
 
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule_timeout(1);
-
-		rmb();
 	}
 
 #ifdef DEBUG
@@ -1107,6 +1088,11 @@ static void i2o_iop_release(struct device *dev)
 	i2o_iop_free(c);
 };
 
+/* I2O controller class */
+static struct class i2o_controller_class = {
+	.name = "i2o_controller",
+};
+
 /**
  *	i2o_iop_alloc - Allocate and initialize a i2o_controller struct
  *
@@ -1136,8 +1122,14 @@ struct i2o_controller *i2o_iop_alloc(void)
 	sprintf(c->name, "iop%d", c->unit);
 
 	device_initialize(&c->device);
+	class_device_initialize(&c->classdev);
+
 	c->device.release = &i2o_iop_release;
+	c->classdev.class = &i2o_controller_class;
+	c->classdev.dev = &c->device;
+
 	snprintf(c->device.bus_id, BUS_ID_SIZE, "iop%d", c->unit);
+	snprintf(c->classdev.class_id, BUS_ID_SIZE, "iop%d", c->unit);
 
 #if BITS_PER_LONG == 64
 	spin_lock_init(&c->context_list_lock);
@@ -1161,45 +1153,55 @@ int i2o_iop_add(struct i2o_controller *c)
 {
 	int rc;
 
-	if((rc = device_add(&c->device))) {
-		printk(KERN_ERR "%s: could not register controller\n", c->name);
+	if ((rc = device_add(&c->device))) {
+		osm_err("%s: could not add controller\n", c->name);
 		goto iop_reset;
 	}
 
-	printk(KERN_INFO "%s: Activating I2O controller...\n", c->name);
-	printk(KERN_INFO "%s: This may take a few minutes if there are many "
-	       "devices\n", c->name);
+	if ((rc = class_device_add(&c->classdev))) {
+		osm_err("%s: could not add controller class\n", c->name);
+		goto device_del;
+	}
+
+	osm_info("%s: Activating I2O controller...\n", c->name);
+	osm_info("%s: This may take a few minutes if there are many devices\n",
+		 c->name);
 
 	if ((rc = i2o_iop_activate(c))) {
-		printk(KERN_ERR "%s: could not activate controller\n",
-		       c->name);
-		goto iop_reset;
+		osm_err("%s: could not activate controller\n", c->name);
+		goto class_del;
 	}
 
-	pr_debug("%s: building sys table...\n", c->name);
+	osm_debug("%s: building sys table...\n", c->name);
 
 	if ((rc = i2o_systab_build()))
-		goto iop_reset;
+		goto class_del;
 
-	pr_debug("%s: online controller...\n", c->name);
+	osm_debug("%s: online controller...\n", c->name);
 
 	if ((rc = i2o_iop_online(c)))
-		goto iop_reset;
+		goto class_del;
 
-	pr_debug("%s: getting LCT...\n", c->name);
+	osm_debug("%s: getting LCT...\n", c->name);
 
 	if ((rc = i2o_exec_lct_get(c)))
-		goto iop_reset;
+		goto class_del;
 
 	list_add(&c->list, &i2o_controllers);
 
 	i2o_driver_notify_controller_add_all(c);
 
-	printk(KERN_INFO "%s: Controller added\n", c->name);
+	osm_info("%s: Controller added\n", c->name);
 
 	return 0;
 
-iop_reset:
+      class_del:
+	class_device_del(&c->classdev);
+
+      device_del:
+	device_del(&c->device);
+
+      iop_reset:
 	i2o_iop_reset(c);
 
 	return rc;
@@ -1260,16 +1262,18 @@ static int __init i2o_iop_init(void)
 	if (rc)
 		goto exit;
 
-	rc = i2o_driver_init();
-	if (rc)
+	if ((rc = class_register(&i2o_controller_class))) {
+		osm_err("can't register class i2o_controller\n");
 		goto device_exit;
+	}
 
-	rc = i2o_exec_init();
-	if (rc)
+	if ((rc = i2o_driver_init()))
+		goto class_exit;
+
+	if ((rc = i2o_exec_init()))
 		goto driver_exit;
 
-	rc = i2o_pci_init();
-	if (rc < 0)
+	if ((rc = i2o_pci_init()))
 		goto exec_exit;
 
 	return 0;
@@ -1279,6 +1283,9 @@ static int __init i2o_iop_init(void)
 
       driver_exit:
 	i2o_driver_exit();
+
+      class_exit:
+	class_unregister(&i2o_controller_class);
 
       device_exit:
 	i2o_device_exit();
@@ -1297,6 +1304,7 @@ static void __exit i2o_iop_exit(void)
 	i2o_pci_exit();
 	i2o_exec_exit();
 	i2o_driver_exit();
+	class_unregister(&i2o_controller_class);
 	i2o_device_exit();
 };
 

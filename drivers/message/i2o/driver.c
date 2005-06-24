@@ -17,11 +17,12 @@
 #include <linux/module.h>
 #include <linux/rwsem.h>
 #include <linux/i2o.h>
+#include "core.h"
 
 #define OSM_NAME	"i2o"
 
 /* max_drivers - Maximum I2O drivers (OSMs) which could be registered */
-unsigned int i2o_max_drivers = I2O_MAX_DRIVERS;
+static unsigned int i2o_max_drivers = I2O_MAX_DRIVERS;
 module_param_named(max_drivers, i2o_max_drivers, uint, 0);
 MODULE_PARM_DESC(max_drivers, "maximum number of OSM's to support");
 
@@ -179,14 +180,9 @@ void i2o_driver_unregister(struct i2o_driver *drv)
 int i2o_driver_dispatch(struct i2o_controller *c, u32 m)
 {
 	struct i2o_driver *drv;
-	struct i2o_message __iomem *msg = i2o_msg_out_to_virt(c, m);
-	u32 context;
+	struct i2o_message *msg = i2o_msg_out_to_virt(c, m);
+	u32 context = le32_to_cpu(msg->u.s.icntxt);
 	unsigned long flags;
-
-	if(unlikely(!msg))
-		return -EIO;
-
-	context = readl(&msg->u.s.icntxt);
 
 	if (unlikely(context >= i2o_max_drivers)) {
 		osm_warn("%s: Spurious reply to unknown driver %d\n", c->name,
@@ -204,11 +200,11 @@ int i2o_driver_dispatch(struct i2o_controller *c, u32 m)
 		return -EIO;
 	}
 
-	if ((readl(&msg->u.head[1]) >> 24) == I2O_CMD_UTIL_EVT_REGISTER) {
+	if ((le32_to_cpu(msg->u.head[1]) >> 24) == I2O_CMD_UTIL_EVT_REGISTER) {
 		struct i2o_device *dev, *tmp;
 		struct i2o_event *evt;
 		u16 size;
-		u16 tid = readl(&msg->u.head[1]) & 0xfff;
+		u16 tid = le32_to_cpu(msg->u.head[1]) & 0xfff;
 
 		osm_debug("event received from device %d\n", tid);
 
@@ -216,16 +212,16 @@ int i2o_driver_dispatch(struct i2o_controller *c, u32 m)
 			return -EIO;
 
 		/* cut of header from message size (in 32-bit words) */
-		size = (readl(&msg->u.head[0]) >> 16) - 5;
+		size = (le32_to_cpu(msg->u.head[0]) >> 16) - 5;
 
 		evt = kmalloc(size * 4 + sizeof(*evt), GFP_ATOMIC | __GFP_ZERO);
 		if (!evt)
 			return -ENOMEM;
 
 		evt->size = size;
-		evt->tcntxt = readl(&msg->u.s.tcntxt);
-		evt->event_indicator = readl(&msg->body[0]);
-		memcpy_fromio(&evt->tcntxt, &msg->u.s.tcntxt, size * 4);
+		evt->tcntxt = le32_to_cpu(msg->u.s.tcntxt);
+		evt->event_indicator = le32_to_cpu(msg->body[0]);
+		memcpy(&evt->tcntxt, &msg->u.s.tcntxt, size * 4);
 
 		list_for_each_entry_safe(dev, tmp, &c->devices, list)
 		    if (dev->lct_data.tid == tid) {

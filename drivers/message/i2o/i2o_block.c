@@ -62,7 +62,7 @@
 #include "i2o_block.h"
 
 #define OSM_NAME	"block-osm"
-#define OSM_VERSION	"$Rev$"
+#define OSM_VERSION	"1.287"
 #define OSM_DESCRIPTION	"I2O Block Device OSM"
 
 static struct i2o_driver i2o_block_driver;
@@ -537,7 +537,7 @@ static int i2o_block_reply(struct i2o_controller *c, u32 m,
 
 static void i2o_block_event(struct i2o_event *evt)
 {
-	osm_info("event received\n");
+	osm_debug("event received\n");
 	kfree(evt);
 };
 

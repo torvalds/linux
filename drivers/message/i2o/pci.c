@@ -30,15 +30,7 @@
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/i2o.h>
-
-/* Module internal functions from other sources */
-extern struct i2o_controller *i2o_iop_alloc(void);
-extern void i2o_iop_free(struct i2o_controller *);
-
-extern int i2o_iop_add(struct i2o_controller *);
-extern void i2o_iop_remove(struct i2o_controller *);
-
-extern int i2o_driver_dispatch(struct i2o_controller *, u32);
+#include "core.h"
 
 /* PCI device id table for all I2O controllers */
 static struct pci_device_id __devinitdata i2o_pci_ids[] = {
@@ -248,9 +240,7 @@ static int i2o_pci_irq_enable(struct i2o_controller *c)
 	struct pci_dev *pdev = c->pdev;
 	int rc;
 
-	wmb();
 	writel(0xffffffff, c->irq_mask);
-	wmb();
 
 	if (pdev->irq) {
 		rc = request_irq(pdev->irq, i2o_pci_interrupt, SA_SHIRQ,
@@ -263,7 +253,6 @@ static int i2o_pci_irq_enable(struct i2o_controller *c)
 	}
 
 	writel(0x00000000, c->irq_mask);
-	wmb();
 
 	printk(KERN_INFO "%s: Installed at IRQ %d\n", c->name, pdev->irq);
 
@@ -278,9 +267,7 @@ static int i2o_pci_irq_enable(struct i2o_controller *c)
  */
 static void i2o_pci_irq_disable(struct i2o_controller *c)
 {
-	wmb();
 	writel(0xffffffff, c->irq_mask);
-	wmb();
 
 	if (c->pdev->irq > 0)
 		free_irq(c->pdev->irq, c);
@@ -406,10 +393,10 @@ static int __devinit i2o_pci_probe(struct pci_dev *pdev,
 	if ((rc = i2o_iop_add(c)))
 		goto uninstall;
 
+	get_device(&c->device);
+
 	if (i960)
 		pci_write_config_word(i960, 0x42, 0x03ff);
-
-	get_device(&c->device);
 
 	return 0;
 
@@ -478,6 +465,4 @@ void __exit i2o_pci_exit(void)
 {
 	pci_unregister_driver(&i2o_pci_driver);
 };
-
-EXPORT_SYMBOL(i2o_dma_realloc);
 MODULE_DEVICE_TABLE(pci, i2o_pci_ids);

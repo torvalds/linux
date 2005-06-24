@@ -16,9 +16,7 @@
 #include <linux/module.h>
 #include <linux/i2o.h>
 #include <linux/delay.h>
-
-/* Exec OSM functions */
-extern struct bus_type i2o_bus_type;
+#include "core.h"
 
 /**
  *	i2o_device_issue_claim - claim or release a device
@@ -293,12 +291,12 @@ int i2o_device_parse_lct(struct i2o_controller *c)
 	}
 
 	if (lct->table_size * 4 > c->dlct.len) {
-		memcpy_fromio(c->lct, c->dlct.virt, c->dlct.len);
+		memcpy(c->lct, c->dlct.virt, c->dlct.len);
 		up(&c->lct_lock);
 		return -EAGAIN;
 	}
 
-	memcpy_fromio(c->lct, c->dlct.virt, lct->table_size * 4);
+	memcpy(c->lct, c->dlct.virt, lct->table_size * 4);
 
 	lct = c->lct;
 
@@ -353,7 +351,7 @@ static ssize_t i2o_device_class_show_class_id(struct class_device *cd,
 {
 	struct i2o_device *dev = to_i2o_device(cd->dev);
 
-	sprintf(buf, "%03x\n", dev->lct_data.class_id);
+	sprintf(buf, "0x%03x\n", dev->lct_data.class_id);
 	return strlen(buf) + 1;
 };
 
@@ -368,7 +366,7 @@ static ssize_t i2o_device_class_show_tid(struct class_device *cd, char *buf)
 {
 	struct i2o_device *dev = to_i2o_device(cd->dev);
 
-	sprintf(buf, "%03x\n", dev->lct_data.tid);
+	sprintf(buf, "0x%03x\n", dev->lct_data.tid);
 	return strlen(buf) + 1;
 };
 
@@ -490,7 +488,7 @@ static int i2o_parm_issue(struct i2o_device *i2o_dev, int cmd, void *oplist,
 	if (rc == -ETIMEDOUT)
 		return rc;
 
-	memcpy_fromio(reslist, res.virt, res.len);
+	memcpy(reslist, res.virt, res.len);
 	i2o_dma_free(dev, &res);
 
 	/* Query failed */
@@ -532,16 +530,22 @@ int i2o_parm_field_get(struct i2o_device *i2o_dev, int group, int field,
 		       void *buf, int buflen)
 {
 	u16 opblk[] = { 1, 0, I2O_PARAMS_FIELD_GET, group, 1, field };
-	u8 resblk[8 + buflen];	/* 8 bytes for header */
+	u8 *resblk;		/* 8 bytes for header */
 	int size;
 
 	if (field == -1)	/* whole group */
 		opblk[4] = -1;
 
+	resblk = kmalloc(buflen + 8, GFP_KERNEL | GFP_ATOMIC);
+	if (!resblk)
+		return -ENOMEM;
+
 	size = i2o_parm_issue(i2o_dev, I2O_CMD_UTIL_PARAMS_GET, opblk,
 			      sizeof(opblk), resblk, buflen + 8);
 
 	memcpy(buf, resblk + 8, buflen);	/* cut off header */
+
+	kfree(resblk);
 
 	if (size > buflen)
 		return buflen;

@@ -36,6 +36,8 @@
 
 #include <asm/uaccess.h>
 
+#define SG_TABLESIZE		30
+
 extern int i2o_parm_issue(struct i2o_device *, int, void *, int, void *, int);
 
 static int i2o_cfg_ioctl(struct inode *inode, struct file *fp, unsigned int cmd,
@@ -663,7 +665,7 @@ static int i2o_cfg_passthru32(struct file *file, unsigned cmnd, unsigned long ar
 		goto sg_list_cleanup;
 
 	if (sg_offset) {
-		u32 msg[MSG_FRAME_SIZE];
+		u32 msg[I2O_OUTBOUND_MSG_FRAME_SIZE];
 		/* Copy back the Scatter Gather buffers back to user space */
 		u32 j;
 		// TODO 64bit fix
@@ -671,7 +673,7 @@ static int i2o_cfg_passthru32(struct file *file, unsigned cmnd, unsigned long ar
 		int sg_size;
 
 		// re-acquire the original message to handle correctly the sg copy operation
-		memset(&msg, 0, MSG_FRAME_SIZE * 4);
+		memset(&msg, 0, I2O_OUTBOUND_MSG_FRAME_SIZE * 4);
 		// get user msg size in u32s
 		if (get_user(size, &user_msg[0])) {
 			rcode = -EFAULT;
@@ -902,7 +904,7 @@ static int i2o_cfg_passthru(unsigned long arg)
 		int sg_size;
 
 		// re-acquire the original message to handle correctly the sg copy operation
-		memset(&msg, 0, MSG_FRAME_SIZE * 4);
+		memset(&msg, 0, I2O_OUTBOUND_MSG_FRAME_SIZE * 4);
 		// get user msg size in u32s
 		if (get_user(size, &user_msg[0])) {
 			rcode = -EFAULT;

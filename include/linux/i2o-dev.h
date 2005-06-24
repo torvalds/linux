@@ -33,18 +33,6 @@ typedef unsigned int u32;
 #endif				/* __KERNEL__ */
 
 /*
- *	Software module types
- */
-#define I2O_SOFTWARE_MODULE_IRTOS		0x11
-#define I2O_SOFTWARE_MODULE_IOP_PRIVATE		0x22
-#define I2O_SOFTWARE_MODULE_IOP_CONFIG		0x23
-
-/*
- *	Vendors
- */
-#define I2O_VENDOR_DPT				0x001b
-
-/*
  * I2O Control IOCTLs and structures
  */
 #define I2O_MAGIC_NUMBER	'i'
@@ -414,6 +402,17 @@ typedef struct _i2o_status_block {
 #define ADAPTER_STATE_FAILED			0x10
 #define ADAPTER_STATE_FAULTED			0x11
 
+/*
+ *	Software module types
+ */
+#define I2O_SOFTWARE_MODULE_IRTOS		0x11
+#define I2O_SOFTWARE_MODULE_IOP_PRIVATE		0x22
+#define I2O_SOFTWARE_MODULE_IOP_CONFIG		0x23
+
+/*
+ *	Vendors
+ */
+#define I2O_VENDOR_DPT				0x001b
 
 /*
  * DPT / Adaptec specific values for i2o_sg_io_hdr flags.
