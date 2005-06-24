@@ -557,7 +557,7 @@ int audit_filter_user(int pid, int type)
 	rcu_read_unlock();
 	put_task_struct(tsk);
 
-	return 1; /* Audit by default */
+	return ret; /* Audit by default */
 
 }
 
