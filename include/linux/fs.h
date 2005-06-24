@@ -220,6 +220,7 @@ extern int dir_notify_enable;
 
 struct iovec;
 struct nameidata;
+struct kiocb;
 struct pipe_inode_info;
 struct poll_table_struct;
 struct kstatfs;
@@ -240,7 +241,7 @@ typedef int (get_block_t)(struct inode *inode, sector_t iblock,
 typedef int (get_blocks_t)(struct inode *inode, sector_t iblock,
 			unsigned long max_blocks,
 			struct buffer_head *bh_result, int create);
-typedef void (dio_iodone_t)(struct inode *inode, loff_t offset,
+typedef void (dio_iodone_t)(struct kiocb *iocb, loff_t offset,
 			ssize_t bytes, void *private);
 
 /*
@@ -302,7 +303,6 @@ struct iattr {
 struct page;
 struct address_space;
 struct writeback_control;
-struct kiocb;
 
 struct address_space_operations {
 	int (*writepage)(struct page *page, struct writeback_control *wbc);
