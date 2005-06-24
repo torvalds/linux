@@ -377,7 +377,6 @@ create_client(struct xdr_netobj name, char *recdir) {
 	memcpy(clp->cl_recdir, recdir, HEXDIR_LEN);
 	atomic_set(&clp->cl_count, 1);
 	atomic_set(&clp->cl_callback.cb_set, 0);
-	clp->cl_callback.cb_parsed = 0;
 	INIT_LIST_HEAD(&clp->cl_idhash);
 	INIT_LIST_HEAD(&clp->cl_strhash);
 	INIT_LIST_HEAD(&clp->cl_openowners);
@@ -620,14 +619,12 @@ gen_callback(struct nfs4_client *clp, struct nfsd4_setclientid *se)
 		goto out_err;
 	cb->cb_prog = se->se_callback_prog;
 	cb->cb_ident = se->se_callback_ident;
-	cb->cb_parsed = 1;
 	return;
 out_err:
 	printk(KERN_INFO "NFSD: this client (clientid %08x/%08x) "
 		"will not receive delegations\n",
 		clp->cl_clientid.cl_boot, clp->cl_clientid.cl_id);
 
-	cb->cb_parsed = 0;
 	return;
 }
 
@@ -872,7 +869,7 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp, struct nfsd4_setclientid_confi
 		else {
 			/* XXX: We just turn off callbacks until we can handle
 			  * change request correctly. */
-			conf->cl_callback.cb_parsed = 0;
+			atomic_set(&conf->cl_callback.cb_set, 0);
 			gen_confirm(conf);
 			expire_client(unconf);
 			status = nfs_ok;

@@ -92,7 +92,6 @@ struct nfs4_delegation {
 /* client delegation callback info */
 struct nfs4_callback {
 	/* SETCLIENTID info */
-	u32			cb_parsed;  /* addr parsed */
 	u32                     cb_addr;
 	unsigned short          cb_port;
 	u32                     cb_prog;

@@ -386,9 +386,7 @@ nfsd4_probe_callback(struct nfs4_client *clp)
 	char                    hostname[32];
 	int status;
 
-	dprintk("NFSD: probe_callback. cb_parsed %d cb_set %d\n",
-			cb->cb_parsed, atomic_read(&cb->cb_set));
-	if (!cb->cb_parsed || atomic_read(&cb->cb_set))
+	if (atomic_read(&cb->cb_set))
 		return;
 
 	/* Initialize address */
