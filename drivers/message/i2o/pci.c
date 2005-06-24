@@ -350,6 +350,7 @@ static int __devinit i2o_pci_probe(struct pci_dev *pdev,
 			pci_write_config_word(i960, 0x42, 0);
 
 		c->promise = 1;
+		c->limit_sectors = 1;
 	}
 
 	if (pdev->subsystem_vendor == PCI_VENDOR_ID_DPT)
