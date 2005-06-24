@@ -374,7 +374,7 @@ acpi_hw_enable_wakeup_gpe_block (
  *
  * FUNCTION:    acpi_hw_disable_all_gpes
  *
- * PARAMETERS:  Flags           - ACPI_NOT_ISR or ACPI_ISR
+ * PARAMETERS:  None
  *
  * RETURN:      Status
  *
@@ -384,7 +384,7 @@ acpi_hw_enable_wakeup_gpe_block (
 
 acpi_status
 acpi_hw_disable_all_gpes (
-	u32                             flags)
+	void)
 {
 	acpi_status                     status;
 
@@ -392,8 +392,8 @@ acpi_hw_disable_all_gpes (
 	ACPI_FUNCTION_TRACE ("hw_disable_all_gpes");
 
 
-	status = acpi_ev_walk_gpe_list (acpi_hw_disable_gpe_block, flags);
-	status = acpi_ev_walk_gpe_list (acpi_hw_clear_gpe_block, flags);
+	status = acpi_ev_walk_gpe_list (acpi_hw_disable_gpe_block);
+	status = acpi_ev_walk_gpe_list (acpi_hw_clear_gpe_block);
 	return_ACPI_STATUS (status);
 }
 
@@ -402,7 +402,7 @@ acpi_hw_disable_all_gpes (
  *
  * FUNCTION:    acpi_hw_enable_all_runtime_gpes
  *
- * PARAMETERS:  Flags           - ACPI_NOT_ISR or ACPI_ISR
+ * PARAMETERS:  None
  *
  * RETURN:      Status
  *
@@ -412,7 +412,7 @@ acpi_hw_disable_all_gpes (
 
 acpi_status
 acpi_hw_enable_all_runtime_gpes (
-	u32                             flags)
+	void)
 {
 	acpi_status                     status;
 
@@ -420,7 +420,7 @@ acpi_hw_enable_all_runtime_gpes (
 	ACPI_FUNCTION_TRACE ("hw_enable_all_runtime_gpes");
 
 
-	status = acpi_ev_walk_gpe_list (acpi_hw_enable_runtime_gpe_block, flags);
+	status = acpi_ev_walk_gpe_list (acpi_hw_enable_runtime_gpe_block);
 	return_ACPI_STATUS (status);
 }
 
@@ -429,7 +429,7 @@ acpi_hw_enable_all_runtime_gpes (
  *
  * FUNCTION:    acpi_hw_enable_all_wakeup_gpes
  *
- * PARAMETERS:  Flags           - ACPI_NOT_ISR or ACPI_ISR
+ * PARAMETERS:  None
  *
  * RETURN:      Status
  *
@@ -439,7 +439,7 @@ acpi_hw_enable_all_runtime_gpes (
 
 acpi_status
 acpi_hw_enable_all_wakeup_gpes (
-	u32                             flags)
+	void)
 {
 	acpi_status                     status;
 
@@ -447,7 +447,7 @@ acpi_hw_enable_all_wakeup_gpes (
 	ACPI_FUNCTION_TRACE ("hw_enable_all_wakeup_gpes");
 
 
-	status = acpi_ev_walk_gpe_list (acpi_hw_enable_wakeup_gpe_block, flags);
+	status = acpi_ev_walk_gpe_list (acpi_hw_enable_wakeup_gpe_block);
 	return_ACPI_STATUS (status);
 }
 

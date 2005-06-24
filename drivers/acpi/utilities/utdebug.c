@@ -549,7 +549,7 @@ acpi_ut_dump_buffer (
 				/* Dump fill spaces */
 
 				acpi_os_printf ("%*s", ((display * 2) + 1), " ");
-				j += display;
+				j += (acpi_native_uint) display;
 				continue;
 			}
 
@@ -584,7 +584,7 @@ acpi_ut_dump_buffer (
 				break;
 			}
 
-			j += display;
+			j += (acpi_native_uint) display;
 		}
 
 		/*

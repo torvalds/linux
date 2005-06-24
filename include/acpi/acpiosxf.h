@@ -139,15 +139,14 @@ void
 acpi_os_delete_lock (
 	acpi_handle                     handle);
 
-void
+unsigned long
 acpi_os_acquire_lock (
-	acpi_handle                     handle,
-	u32                             flags);
+	acpi_handle                     handle);
 
 void
 acpi_os_release_lock (
 	acpi_handle                     handle,
-	u32                             flags);
+	unsigned long                   flags);
 
 
 /*
@@ -179,6 +178,34 @@ acpi_os_get_physical_address (
 	acpi_physical_address           *physical_address);
 #endif
 
+
+
+/*
+ * Memory/Object Cache
+ */
+acpi_status
+acpi_os_create_cache (
+	char                            *cache_name,
+	u16                             object_size,
+	u16                             max_depth,
+	acpi_cache_t                    **return_cache);
+
+acpi_status
+acpi_os_delete_cache (
+	acpi_cache_t                    *cache);
+
+acpi_status
+acpi_os_purge_cache (
+	acpi_cache_t                    *cache);
+
+void *
+acpi_os_acquire_object (
+	acpi_cache_t                    *cache);
+
+acpi_status
+acpi_os_release_object (
+	acpi_cache_t                    *cache,
+	void                            *object);
 
 /*
  * Interrupt handlers

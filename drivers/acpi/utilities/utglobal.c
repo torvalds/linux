@@ -820,42 +820,20 @@ void
 acpi_ut_init_globals (
 	void)
 {
+	acpi_status                     status;
 	u32                             i;
 
 
 	ACPI_FUNCTION_TRACE ("ut_init_globals");
 
 
-	/* Memory allocation and cache lists */
+	/* Create all memory caches */
 
-	ACPI_MEMSET (acpi_gbl_memory_lists, 0, sizeof (struct acpi_memory_list) * ACPI_NUM_MEM_LISTS);
-
-	acpi_gbl_memory_lists[ACPI_MEM_LIST_STATE].link_offset      = (u16) ACPI_PTR_DIFF (&(((union acpi_generic_state *) NULL)->common.next), NULL);
-	acpi_gbl_memory_lists[ACPI_MEM_LIST_PSNODE].link_offset     = (u16) ACPI_PTR_DIFF (&(((union acpi_parse_object *) NULL)->common.next), NULL);
-	acpi_gbl_memory_lists[ACPI_MEM_LIST_PSNODE_EXT].link_offset = (u16) ACPI_PTR_DIFF (&(((union acpi_parse_object *) NULL)->common.next), NULL);
-	acpi_gbl_memory_lists[ACPI_MEM_LIST_OPERAND].link_offset    = (u16) ACPI_PTR_DIFF (&(((union acpi_operand_object *) NULL)->cache.next), NULL);
-	acpi_gbl_memory_lists[ACPI_MEM_LIST_WALK].link_offset       = (u16) ACPI_PTR_DIFF (&(((struct acpi_walk_state *) NULL)->next), NULL);
-
-	acpi_gbl_memory_lists[ACPI_MEM_LIST_NSNODE].object_size     = sizeof (struct acpi_namespace_node);
-	acpi_gbl_memory_lists[ACPI_MEM_LIST_STATE].object_size      = sizeof (union acpi_generic_state);
-	acpi_gbl_memory_lists[ACPI_MEM_LIST_PSNODE].object_size     = sizeof (struct acpi_parse_obj_common);
-	acpi_gbl_memory_lists[ACPI_MEM_LIST_PSNODE_EXT].object_size = sizeof (struct acpi_parse_obj_named);
-	acpi_gbl_memory_lists[ACPI_MEM_LIST_OPERAND].object_size    = sizeof (union acpi_operand_object);
-	acpi_gbl_memory_lists[ACPI_MEM_LIST_WALK].object_size       = sizeof (struct acpi_walk_state);
-
-	acpi_gbl_memory_lists[ACPI_MEM_LIST_STATE].max_cache_depth  = ACPI_MAX_STATE_CACHE_DEPTH;
-	acpi_gbl_memory_lists[ACPI_MEM_LIST_PSNODE].max_cache_depth = ACPI_MAX_PARSE_CACHE_DEPTH;
-	acpi_gbl_memory_lists[ACPI_MEM_LIST_PSNODE_EXT].max_cache_depth = ACPI_MAX_EXTPARSE_CACHE_DEPTH;
-	acpi_gbl_memory_lists[ACPI_MEM_LIST_OPERAND].max_cache_depth = ACPI_MAX_OBJECT_CACHE_DEPTH;
-	acpi_gbl_memory_lists[ACPI_MEM_LIST_WALK].max_cache_depth   = ACPI_MAX_WALK_CACHE_DEPTH;
-
-	ACPI_MEM_TRACKING (acpi_gbl_memory_lists[ACPI_MEM_LIST_GLOBAL].list_name    = "Global Memory Allocation");
-	ACPI_MEM_TRACKING (acpi_gbl_memory_lists[ACPI_MEM_LIST_NSNODE].list_name    = "Namespace Nodes");
-	ACPI_MEM_TRACKING (acpi_gbl_memory_lists[ACPI_MEM_LIST_STATE].list_name     = "State Object Cache");
-	ACPI_MEM_TRACKING (acpi_gbl_memory_lists[ACPI_MEM_LIST_PSNODE].list_name    = "Parse Node Cache");
-	ACPI_MEM_TRACKING (acpi_gbl_memory_lists[ACPI_MEM_LIST_PSNODE_EXT].list_name = "Extended Parse Node Cache");
-	ACPI_MEM_TRACKING (acpi_gbl_memory_lists[ACPI_MEM_LIST_OPERAND].list_name   = "Operand Object Cache");
-	ACPI_MEM_TRACKING (acpi_gbl_memory_lists[ACPI_MEM_LIST_WALK].list_name      = "Tree Walk Node Cache");
+	status = acpi_ut_create_caches ();
+	if (ACPI_FAILURE (status))
+	{
+		return;
+	}
 
 	/* ACPI table structure */
 

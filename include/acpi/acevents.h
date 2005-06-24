@@ -122,8 +122,7 @@ acpi_ev_valid_gpe_event (
 
 acpi_status
 acpi_ev_walk_gpe_list (
-	ACPI_GPE_CALLBACK       gpe_walk_callback,
-	u32                             flags);
+	ACPI_GPE_CALLBACK       gpe_walk_callback);
 
 acpi_status
 acpi_ev_delete_gpe_handlers (

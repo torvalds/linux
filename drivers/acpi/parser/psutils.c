@@ -154,12 +154,14 @@ acpi_ps_alloc_op (
 	if (flags == ACPI_PARSEOP_GENERIC) {
 		/* The generic op (default) is by far the most common (16 to 1) */
 
-		op = acpi_ut_acquire_from_cache (ACPI_MEM_LIST_PSNODE);
+		op = acpi_os_acquire_object (acpi_gbl_ps_node_cache);
+		memset(op, 0, sizeof(struct acpi_parse_obj_common));
 	}
 	else {
 		/* Extended parseop */
 
-		op = acpi_ut_acquire_from_cache (ACPI_MEM_LIST_PSNODE_EXT);
+		op = acpi_os_acquire_object (acpi_gbl_ps_node_ext_cache);
+		memset(op, 0, sizeof(struct acpi_parse_obj_named));
 	}
 
 	/* Initialize the Op */
@@ -198,39 +200,12 @@ acpi_ps_free_op (
 	}
 
 	if (op->common.flags & ACPI_PARSEOP_GENERIC) {
-		acpi_ut_release_to_cache (ACPI_MEM_LIST_PSNODE, op);
+		acpi_os_release_object (acpi_gbl_ps_node_cache, op);
 	}
 	else {
-		acpi_ut_release_to_cache (ACPI_MEM_LIST_PSNODE_EXT, op);
+		acpi_os_release_object (acpi_gbl_ps_node_ext_cache, op);
 	}
 }
-
-
-#ifdef ACPI_ENABLE_OBJECT_CACHE
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ps_delete_parse_cache
- *
- * PARAMETERS:  None
- *
- * RETURN:      None
- *
- * DESCRIPTION: Free all objects that are on the parse cache list.
- *
- ******************************************************************************/
-
-void
-acpi_ps_delete_parse_cache (
-	void)
-{
-	ACPI_FUNCTION_TRACE ("ps_delete_parse_cache");
-
-
-	acpi_ut_delete_generic_cache (ACPI_MEM_LIST_PSNODE);
-	acpi_ut_delete_generic_cache (ACPI_MEM_LIST_PSNODE_EXT);
-	return_VOID;
-}
-#endif
 
 
 /*******************************************************************************

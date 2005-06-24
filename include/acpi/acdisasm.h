@@ -90,6 +90,7 @@ struct acpi_op_walk_info
 {
 	u32                             level;
 	u32                             bit_offset;
+	struct acpi_walk_state          *walk_state;
 };
 
 typedef

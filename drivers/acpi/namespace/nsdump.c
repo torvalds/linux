@@ -208,33 +208,37 @@ acpi_ns_dump_one_object (
 		return (AE_OK);
 	}
 
-	/* Indent the object according to the level */
+	if (!(info->display_type & ACPI_DISPLAY_SHORT)) {
+		/* Indent the object according to the level */
 
-	acpi_os_printf ("%2d%*s", (u32) level - 1, (int) level * 2, " ");
+		acpi_os_printf ("%2d%*s", (u32) level - 1, (int) level * 2, " ");
 
-	/* Check the node type and name */
+		/* Check the node type and name */
 
-	if (type > ACPI_TYPE_LOCAL_MAX) {
-		ACPI_REPORT_WARNING (("Invalid ACPI Type %08X\n", type));
-	}
+		if (type > ACPI_TYPE_LOCAL_MAX) {
+			ACPI_REPORT_WARNING (("Invalid ACPI Type %08X\n", type));
+		}
 
-	if (!acpi_ut_valid_acpi_name (this_node->name.integer)) {
-		ACPI_REPORT_WARNING (("Invalid ACPI Name %08X\n",
-			this_node->name.integer));
+		if (!acpi_ut_valid_acpi_name (this_node->name.integer)) {
+			ACPI_REPORT_WARNING (("Invalid ACPI Name %08X\n",
+				this_node->name.integer));
+		}
+
+		acpi_os_printf ("%4.4s", acpi_ut_get_node_name (this_node));
 	}
 
 	/*
 	 * Now we can print out the pertinent information
 	 */
-	acpi_os_printf ("%4.4s %-12s %p ",
-			acpi_ut_get_node_name (this_node), acpi_ut_get_type_name (type), this_node);
+	acpi_os_printf (" %-12s %p ",
+			acpi_ut_get_type_name (type), this_node);
 
 	dbg_level = acpi_dbg_level;
 	acpi_dbg_level = 0;
 	obj_desc = acpi_ns_get_attached_object (this_node);
 	acpi_dbg_level = dbg_level;
 
-	switch (info->display_type) {
+	switch (info->display_type & ACPI_DISPLAY_MASK) {
 	case ACPI_DISPLAY_SUMMARY:
 
 		if (!obj_desc) {
@@ -646,7 +650,7 @@ acpi_ns_dump_entry (
 }
 
 
-#ifdef _ACPI_ASL_COMPILER
+#ifdef ACPI_ASL_COMPILER
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ns_dump_tables

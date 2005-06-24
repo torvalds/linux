@@ -113,8 +113,9 @@ acpi_ex_opcode_0A_0T_1R (
 			status = AE_NO_MEMORY;
 			goto cleanup;
 		}
-
+#if ACPI_MACHINE_WIDTH != 16
 		return_desc->integer.value = acpi_os_get_timer ();
+#endif
 		break;
 
 	default:                /*  Unknown opcode  */

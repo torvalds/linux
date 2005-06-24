@@ -589,7 +589,7 @@ acpi_ev_terminate (
 
 		/* Disable all GPEs in all GPE blocks */
 
-		status = acpi_ev_walk_gpe_list (acpi_hw_disable_gpe_block, ACPI_NOT_ISR);
+		status = acpi_ev_walk_gpe_list (acpi_hw_disable_gpe_block);
 
 		/* Remove SCI handler */
 
@@ -602,7 +602,7 @@ acpi_ev_terminate (
 
 	/* Deallocate all handler objects installed within GPE info structs */
 
-	status = acpi_ev_walk_gpe_list (acpi_ev_delete_gpe_handlers, ACPI_NOT_ISR);
+	status = acpi_ev_walk_gpe_list (acpi_ev_delete_gpe_handlers);
 
 	/* Return to original mode if necessary */
 

@@ -50,7 +50,7 @@
 #include <acpi/acnamesp.h>
 #include <acpi/acevents.h>
 
-#ifdef _ACPI_ASL_COMPILER
+#ifdef ACPI_ASL_COMPILER
 #include <acpi/acdisasm.h>
 #endif
 
@@ -176,7 +176,7 @@ acpi_ds_load1_begin_op (
 		 */
 		status = acpi_ns_lookup (walk_state->scope_info, path, object_type,
 				  ACPI_IMODE_EXECUTE, ACPI_NS_SEARCH_PARENT, walk_state, &(node));
-#ifdef _ACPI_ASL_COMPILER
+#ifdef ACPI_ASL_COMPILER
 		if (status == AE_NOT_FOUND) {
 			/*
 			 * Table disassembly:
@@ -569,7 +569,7 @@ acpi_ds_load2_begin_op (
 				  ACPI_IMODE_EXECUTE, ACPI_NS_SEARCH_PARENT,
 				  walk_state, &(node));
 		if (ACPI_FAILURE (status)) {
-#ifdef _ACPI_ASL_COMPILER
+#ifdef ACPI_ASL_COMPILER
 			if (status == AE_NOT_FOUND) {
 				status = AE_OK;
 			}

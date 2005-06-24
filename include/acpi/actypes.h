@@ -243,6 +243,11 @@ struct acpi_pointer
 #define ACPI_LOGMODE_PHYSPTR            ACPI_LOGICAL_ADDRESSING  | ACPI_PHYSICAL_POINTER
 #define ACPI_LOGMODE_LOGPTR             ACPI_LOGICAL_ADDRESSING  | ACPI_LOGICAL_POINTER
 
+/* Types for the OS interface layer (OSL) */
+
+#ifdef ACPI_USE_LOCAL_CACHE
+#define acpi_cache_t                struct acpi_memory_list
+#endif
 
 /*
  * Useful defines

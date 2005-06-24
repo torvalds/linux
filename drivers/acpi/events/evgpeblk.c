@@ -138,7 +138,6 @@ acpi_ev_valid_gpe_event (
  * FUNCTION:    acpi_ev_walk_gpe_list
  *
  * PARAMETERS:  gpe_walk_callback   - Routine called for each GPE block
- *              Flags               - ACPI_NOT_ISR or ACPI_ISR
  *
  * RETURN:      Status
  *
@@ -148,18 +147,18 @@ acpi_ev_valid_gpe_event (
 
 acpi_status
 acpi_ev_walk_gpe_list (
-	ACPI_GPE_CALLBACK       gpe_walk_callback,
-	u32                             flags)
+	ACPI_GPE_CALLBACK       gpe_walk_callback)
 {
 	struct acpi_gpe_block_info      *gpe_block;
 	struct acpi_gpe_xrupt_info      *gpe_xrupt_info;
 	acpi_status                     status = AE_OK;
+	u32                             flags;
 
 
 	ACPI_FUNCTION_TRACE ("ev_walk_gpe_list");
 
 
-	acpi_os_acquire_lock (acpi_gbl_gpe_lock, flags);
+	flags = acpi_os_acquire_lock (acpi_gbl_gpe_lock);
 
 	/* Walk the interrupt level descriptor list */
 
@@ -500,6 +499,7 @@ acpi_ev_get_gpe_xrupt_block (
 	struct acpi_gpe_xrupt_info      *next_gpe_xrupt;
 	struct acpi_gpe_xrupt_info      *gpe_xrupt;
 	acpi_status                     status;
+	u32                             flags;
 
 
 	ACPI_FUNCTION_TRACE ("ev_get_gpe_xrupt_block");
@@ -527,7 +527,7 @@ acpi_ev_get_gpe_xrupt_block (
 
 	/* Install new interrupt descriptor with spin lock */
 
-	acpi_os_acquire_lock (acpi_gbl_gpe_lock, ACPI_NOT_ISR);
+	flags = acpi_os_acquire_lock (acpi_gbl_gpe_lock);
 	if (acpi_gbl_gpe_xrupt_list_head) {
 		next_gpe_xrupt = acpi_gbl_gpe_xrupt_list_head;
 		while (next_gpe_xrupt->next) {
@@ -540,7 +540,7 @@ acpi_ev_get_gpe_xrupt_block (
 	else {
 		acpi_gbl_gpe_xrupt_list_head = gpe_xrupt;
 	}
-	acpi_os_release_lock (acpi_gbl_gpe_lock, ACPI_NOT_ISR);
+	acpi_os_release_lock (acpi_gbl_gpe_lock, flags);
 
 	/* Install new interrupt handler if not SCI_INT */
 
@@ -577,6 +577,7 @@ acpi_ev_delete_gpe_xrupt (
 	struct acpi_gpe_xrupt_info      *gpe_xrupt)
 {
 	acpi_status                     status;
+	u32                             flags;
 
 
 	ACPI_FUNCTION_TRACE ("ev_delete_gpe_xrupt");
@@ -599,7 +600,7 @@ acpi_ev_delete_gpe_xrupt (
 
 	/* Unlink the interrupt block with lock */
 
-	acpi_os_acquire_lock (acpi_gbl_gpe_lock, ACPI_NOT_ISR);
+	flags = acpi_os_acquire_lock (acpi_gbl_gpe_lock);
 	if (gpe_xrupt->previous) {
 		gpe_xrupt->previous->next = gpe_xrupt->next;
 	}
@@ -607,7 +608,7 @@ acpi_ev_delete_gpe_xrupt (
 	if (gpe_xrupt->next) {
 		gpe_xrupt->next->previous = gpe_xrupt->previous;
 	}
-	acpi_os_release_lock (acpi_gbl_gpe_lock, ACPI_NOT_ISR);
+	acpi_os_release_lock (acpi_gbl_gpe_lock, flags);
 
 	/* Free the block */
 
@@ -637,6 +638,7 @@ acpi_ev_install_gpe_block (
 	struct acpi_gpe_block_info      *next_gpe_block;
 	struct acpi_gpe_xrupt_info      *gpe_xrupt_block;
 	acpi_status                     status;
+	u32                             flags;
 
 
 	ACPI_FUNCTION_TRACE ("ev_install_gpe_block");
@@ -655,7 +657,7 @@ acpi_ev_install_gpe_block (
 
 	/* Install the new block at the end of the list with lock */
 
-	acpi_os_acquire_lock (acpi_gbl_gpe_lock, ACPI_NOT_ISR);
+	flags = acpi_os_acquire_lock (acpi_gbl_gpe_lock);
 	if (gpe_xrupt_block->gpe_block_list_head) {
 		next_gpe_block = gpe_xrupt_block->gpe_block_list_head;
 		while (next_gpe_block->next) {
@@ -670,7 +672,7 @@ acpi_ev_install_gpe_block (
 	}
 
 	gpe_block->xrupt_block = gpe_xrupt_block;
-	acpi_os_release_lock (acpi_gbl_gpe_lock, ACPI_NOT_ISR);
+	acpi_os_release_lock (acpi_gbl_gpe_lock, flags);
 
 unlock_and_exit:
 	status = acpi_ut_release_mutex (ACPI_MTX_EVENTS);
@@ -695,6 +697,7 @@ acpi_ev_delete_gpe_block (
 	struct acpi_gpe_block_info      *gpe_block)
 {
 	acpi_status                     status;
+	u32                             flags;
 
 
 	ACPI_FUNCTION_TRACE ("ev_install_gpe_block");
@@ -720,7 +723,7 @@ acpi_ev_delete_gpe_block (
 	else {
 		/* Remove the block on this interrupt with lock */
 
-		acpi_os_acquire_lock (acpi_gbl_gpe_lock, ACPI_NOT_ISR);
+		flags = acpi_os_acquire_lock (acpi_gbl_gpe_lock);
 		if (gpe_block->previous) {
 			gpe_block->previous->next = gpe_block->next;
 		}
@@ -731,7 +734,7 @@ acpi_ev_delete_gpe_block (
 		if (gpe_block->next) {
 			gpe_block->next->previous = gpe_block->previous;
 		}
-		acpi_os_release_lock (acpi_gbl_gpe_lock, ACPI_NOT_ISR);
+		acpi_os_release_lock (acpi_gbl_gpe_lock, flags);
 	}
 
 	/* Free the gpe_block */

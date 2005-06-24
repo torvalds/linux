@@ -147,7 +147,7 @@ acpi_ex_do_debug_object (
 
 	case ACPI_TYPE_BUFFER:
 
-		ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DEBUG_OBJECT, "[0x%.2X]",
+		ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DEBUG_OBJECT, "[0x%.2X]\n",
 			(u32) source_desc->buffer.length));
 		ACPI_DUMP_BUFFER (source_desc->buffer.pointer,
 			(source_desc->buffer.length < 32) ? source_desc->buffer.length : 32);

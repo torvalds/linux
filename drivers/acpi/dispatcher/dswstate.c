@@ -681,7 +681,7 @@ acpi_ds_create_walk_state (
 	ACPI_FUNCTION_TRACE ("ds_create_walk_state");
 
 
-	walk_state = acpi_ut_acquire_from_cache (ACPI_MEM_LIST_WALK);
+	walk_state = ACPI_MEM_CALLOCATE (sizeof (struct acpi_walk_state));
 	if (!walk_state) {
 		return_PTR (NULL);
 	}
@@ -704,7 +704,7 @@ acpi_ds_create_walk_state (
 
 	status = acpi_ds_result_stack_push (walk_state);
 	if (ACPI_FAILURE (status)) {
-		acpi_ut_release_to_cache (ACPI_MEM_LIST_WALK, walk_state);
+		ACPI_MEM_FREE (walk_state);
 		return_PTR (NULL);
 	}
 
@@ -900,36 +900,9 @@ acpi_ds_delete_walk_state (
 		acpi_ut_delete_generic_state (state);
 	}
 
-	acpi_ut_release_to_cache (ACPI_MEM_LIST_WALK, walk_state);
+	ACPI_MEM_FREE (walk_state);
 	return_VOID;
 }
-
-
-#ifdef ACPI_ENABLE_OBJECT_CACHE
-/******************************************************************************
- *
- * FUNCTION:    acpi_ds_delete_walk_state_cache
- *
- * PARAMETERS:  None
- *
- * RETURN:      None
- *
- * DESCRIPTION: Purge the global state object cache.  Used during subsystem
- *              termination.
- *
- ******************************************************************************/
-
-void
-acpi_ds_delete_walk_state_cache (
-	void)
-{
-	ACPI_FUNCTION_TRACE ("ds_delete_walk_state_cache");
-
-
-	acpi_ut_delete_generic_cache (ACPI_MEM_LIST_WALK);
-	return_VOID;
-}
-#endif
 
 
 #ifdef ACPI_OBSOLETE_FUNCTIONS

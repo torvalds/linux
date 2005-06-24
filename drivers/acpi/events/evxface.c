@@ -591,6 +591,7 @@ acpi_install_gpe_handler (
 	struct acpi_gpe_event_info      *gpe_event_info;
 	struct acpi_handler_info        *handler;
 	acpi_status                     status;
+	u32                             flags;
 
 
 	ACPI_FUNCTION_TRACE ("acpi_install_gpe_handler");
@@ -643,7 +644,7 @@ acpi_install_gpe_handler (
 
 	/* Install the handler */
 
-	acpi_os_acquire_lock (acpi_gbl_gpe_lock, ACPI_NOT_ISR);
+	flags = acpi_os_acquire_lock (acpi_gbl_gpe_lock);
 	gpe_event_info->dispatch.handler = handler;
 
 	/* Setup up dispatch flags to indicate handler (vs. method) */
@@ -651,7 +652,7 @@ acpi_install_gpe_handler (
 	gpe_event_info->flags &= ~(ACPI_GPE_XRUPT_TYPE_MASK | ACPI_GPE_DISPATCH_MASK); /* Clear bits */
 	gpe_event_info->flags |= (u8) (type | ACPI_GPE_DISPATCH_HANDLER);
 
-	acpi_os_release_lock (acpi_gbl_gpe_lock, ACPI_NOT_ISR);
+	acpi_os_release_lock (acpi_gbl_gpe_lock, flags);
 
 
 unlock_and_exit:
@@ -685,6 +686,7 @@ acpi_remove_gpe_handler (
 	struct acpi_gpe_event_info      *gpe_event_info;
 	struct acpi_handler_info        *handler;
 	acpi_status                     status;
+	u32                             flags;
 
 
 	ACPI_FUNCTION_TRACE ("acpi_remove_gpe_handler");
@@ -741,7 +743,7 @@ acpi_remove_gpe_handler (
 
 	/* Remove the handler */
 
-	acpi_os_acquire_lock (acpi_gbl_gpe_lock, ACPI_NOT_ISR);
+	flags = acpi_os_acquire_lock (acpi_gbl_gpe_lock);
 	handler = gpe_event_info->dispatch.handler;
 
 	/* Restore Method node (if any), set dispatch flags */
@@ -751,7 +753,7 @@ acpi_remove_gpe_handler (
 	if (handler->method_node) {
 		gpe_event_info->flags |= ACPI_GPE_DISPATCH_METHOD;
 	}
-	acpi_os_release_lock (acpi_gbl_gpe_lock, ACPI_NOT_ISR);
+	acpi_os_release_lock (acpi_gbl_gpe_lock, flags);
 
 	/* Now we can free the handler object */
 

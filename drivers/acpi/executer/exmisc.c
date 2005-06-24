@@ -302,7 +302,7 @@ acpi_ex_do_concatenate (
 		/* Result of two Integers is a Buffer */
 		/* Need enough buffer space for two integers */
 
-		return_desc = acpi_ut_create_buffer_object (
+		return_desc = acpi_ut_create_buffer_object ((acpi_size)
 				   ACPI_MUL_2 (acpi_gbl_integer_byte_width));
 		if (!return_desc) {
 			status = AE_NO_MEMORY;

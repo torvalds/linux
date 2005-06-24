@@ -428,33 +428,23 @@ acpi_ps_get_opcode_info (
 	/*
 	 * Detect normal 8-bit opcode or extended 16-bit opcode
 	 */
-	switch ((u8) (opcode >> 8)) {
-	case 0:
-
+	if (!(opcode & 0xFF00)) {
 		/* Simple (8-bit) opcode: 0-255, can't index beyond table  */
 
 		return (&acpi_gbl_aml_op_info [acpi_gbl_short_op_index [(u8) opcode]]);
-
-	case AML_EXTOP:
-
-		/* Extended (16-bit, prefix+opcode) opcode */
-
-		if (((u8) opcode) <= MAX_EXTENDED_OPCODE) {
-			return (&acpi_gbl_aml_op_info [acpi_gbl_long_op_index [(u8) opcode]]);
-		}
-
-		/* Else fall through to error case below */
-		/*lint -fallthrough */
-
-	default:
-
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-			"Unknown AML opcode [%4.4X]\n", opcode));
-		break;
 	}
 
+	if (((opcode & 0xFF00) == AML_EXTENDED_OPCODE) &&
+		(((u8) opcode) <= MAX_EXTENDED_OPCODE)) {
+		/* Valid extended (16-bit) opcode */
 
-	/* Default is "unknown opcode" */
+		return (&acpi_gbl_aml_op_info [acpi_gbl_long_op_index [(u8) opcode]]);
+	}
+
+	/* Unknown AML opcode */
+
+	ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+		"Unknown AML opcode [%4.4X]\n", opcode));
 
 	return (&acpi_gbl_aml_op_info [_UNK]);
 }

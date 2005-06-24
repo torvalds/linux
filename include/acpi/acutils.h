@@ -557,16 +557,6 @@ void
 acpi_ut_delete_generic_state (
 	union acpi_generic_state        *state);
 
-#ifdef ACPI_ENABLE_OBJECT_CACHE
-void
-acpi_ut_delete_generic_state_cache (
-	void);
-
-void
-acpi_ut_delete_object_cache (
-	void);
-#endif
-
 
 /*
  * utmath
@@ -622,22 +612,6 @@ acpi_ut_strtoul64 (
 
 #define ACPI_ANY_BASE        0
 
-acpi_status
-acpi_ut_mutex_initialize (
-	void);
-
-void
-acpi_ut_mutex_terminate (
-	void);
-
-acpi_status
-acpi_ut_acquire_mutex (
-	acpi_mutex_handle               mutex_id);
-
-acpi_status
-acpi_ut_release_mutex (
-	acpi_mutex_handle               mutex_id);
-
 u8 *
 acpi_ut_get_resource_end_tag (
 	union acpi_operand_object       *obj_desc);
@@ -666,22 +640,35 @@ acpi_ut_display_init_pathname (
 
 
 /*
+ * utmutex - mutex support
+ */
+acpi_status
+acpi_ut_mutex_initialize (
+	void);
+
+void
+acpi_ut_mutex_terminate (
+	void);
+
+acpi_status
+acpi_ut_acquire_mutex (
+	acpi_mutex_handle               mutex_id);
+
+acpi_status
+acpi_ut_release_mutex (
+	acpi_mutex_handle               mutex_id);
+
+
+/*
  * utalloc - memory allocation and object caching
  */
-void *
-acpi_ut_acquire_from_cache (
-	u32                             list_id);
+acpi_status
+acpi_ut_create_caches (
+	void);
 
-void
-acpi_ut_release_to_cache (
-	u32                             list_id,
-	void                            *object);
-
-#ifdef ACPI_ENABLE_OBJECT_CACHE
-void
-acpi_ut_delete_generic_cache (
-	u32                             list_id);
-#endif
+acpi_status
+acpi_ut_delete_caches (
+	void);
 
 acpi_status
 acpi_ut_validate_buffer (

@@ -953,24 +953,18 @@ struct acpi_debug_mem_block
 
 #define ACPI_MEM_LIST_GLOBAL            0
 #define ACPI_MEM_LIST_NSNODE            1
-
-#define ACPI_MEM_LIST_FIRST_CACHE_LIST  2
-#define ACPI_MEM_LIST_STATE             2
-#define ACPI_MEM_LIST_PSNODE            3
-#define ACPI_MEM_LIST_PSNODE_EXT        4
-#define ACPI_MEM_LIST_OPERAND           5
-#define ACPI_MEM_LIST_WALK              6
-#define ACPI_MEM_LIST_MAX               6
-#define ACPI_NUM_MEM_LISTS              7
+#define ACPI_MEM_LIST_MAX               1
+#define ACPI_NUM_MEM_LISTS              2
 
 
 struct acpi_memory_list
 {
+	char                                *list_name;
 	void                                *list_head;
-	u16                                 link_offset;
-	u16                                 max_cache_depth;
-	u16                                 cache_depth;
 	u16                                 object_size;
+	u16                                 max_depth;
+	u16                                 current_depth;
+	u16                                 link_offset;
 
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
 
@@ -979,11 +973,9 @@ struct acpi_memory_list
 	u32                                 total_allocated;
 	u32                                 total_freed;
 	u32                                 current_total_size;
-	u32                                 cache_requests;
-	u32                                 cache_hits;
-	char                                *list_name;
+	u32                                 requests;
+	u32                                 hits;
 #endif
 };
-
 
 #endif /* __ACLOCAL_H__ */

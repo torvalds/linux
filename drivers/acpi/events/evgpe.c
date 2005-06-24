@@ -396,6 +396,7 @@ acpi_ev_gpe_detect (
 	struct acpi_gpe_register_info   *gpe_register_info;
 	u32                             status_reg;
 	u32                             enable_reg;
+	u32                             flags;
 	acpi_status                     status;
 	struct acpi_gpe_block_info      *gpe_block;
 	acpi_native_uint                i;
@@ -412,7 +413,7 @@ acpi_ev_gpe_detect (
 
 	/* Examine all GPE blocks attached to this interrupt level */
 
-	acpi_os_acquire_lock (acpi_gbl_gpe_lock, ACPI_ISR);
+	flags = acpi_os_acquire_lock (acpi_gbl_gpe_lock);
 	gpe_block = gpe_xrupt_list->gpe_block_list_head;
 	while (gpe_block) {
 		/*
@@ -476,7 +477,7 @@ acpi_ev_gpe_detect (
 
 unlock_and_exit:
 
-	acpi_os_release_lock (acpi_gbl_gpe_lock, ACPI_ISR);
+	acpi_os_release_lock (acpi_gbl_gpe_lock, flags);
 	return (int_status);
 }
 

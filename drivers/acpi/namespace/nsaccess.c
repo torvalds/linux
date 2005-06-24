@@ -159,7 +159,7 @@ acpi_ns_root_initialize (
 				obj_desc->method.param_count = (u8) ACPI_TO_INTEGER (val);
 				obj_desc->common.flags |= AOPOBJ_DATA_VALID;
 
-#if defined (_ACPI_ASL_COMPILER) || defined (_ACPI_DUMP_App)
+#if defined (ACPI_ASL_COMPILER) || defined (ACPI_DUMP_App)
 
 				/*
 				 * i_aSL Compiler cheats by putting parameter count

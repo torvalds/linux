@@ -450,10 +450,4 @@ acpi_ds_result_pop_from_bottom (
 	union acpi_operand_object       **object,
 	struct acpi_walk_state          *walk_state);
 
-#ifdef ACPI_ENABLE_OBJECT_CACHE
-void
-acpi_ds_delete_walk_state_cache (
-	void);
-#endif
-
 #endif /* _ACDISPAT_H_ */

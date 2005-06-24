@@ -287,9 +287,11 @@ acpi_get_firmware_table (
 	 * requested table
 	 */
 	for (i = 0, j = 0; i < table_count; i++) {
-		/* Get the next table pointer, handle RSDT vs. XSDT */
-
-		if (acpi_gbl_RSDP->revision < 2) {
+		/*
+		 * Get the next table pointer, handle RSDT vs. XSDT
+		 * RSDT pointers are 32 bits, XSDT pointers are 64 bits
+		 */
+		if (acpi_gbl_root_table_type == ACPI_TABLE_TYPE_RSDT) {
 			address.pointer.value = (ACPI_CAST_PTR (
 				RSDT_DESCRIPTOR, rsdt_info->pointer))->table_offset_entry[i];
 		}

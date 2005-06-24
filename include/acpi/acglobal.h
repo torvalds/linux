@@ -151,6 +151,13 @@ ACPI_EXTERN struct acpi_common_facs             acpi_gbl_common_fACS;
  */
 
 
+/* The root table can be either an RSDT or an XSDT */
+
+ACPI_EXTERN u8                                  acpi_gbl_root_table_type;
+#define     ACPI_TABLE_TYPE_RSDT        'R'
+#define     ACPI_TABLE_TYPE_XSDT        'X'
+
+
 /*
  * Handle both ACPI 1.0 and ACPI 2.0 Integer widths:
  * If we are executing a method that exists in a 32-bit ACPI table,
@@ -180,14 +187,31 @@ ACPI_EXTERN struct acpi_mutex_info              acpi_gbl_mutex_info[NUM_MUTEX];
  *
  ****************************************************************************/
 
+#ifdef ACPI_DBG_TRACK_ALLOCATIONS
 
-ACPI_EXTERN struct acpi_memory_list             acpi_gbl_memory_lists[ACPI_NUM_MEM_LISTS];
+/* Lists for tracking memory allocations */
+
+ACPI_EXTERN struct acpi_memory_list            *acpi_gbl_global_list;
+ACPI_EXTERN struct acpi_memory_list            *acpi_gbl_ns_node_list;
+#endif
+
+/* Object caches */
+
+ACPI_EXTERN acpi_cache_t                       *acpi_gbl_state_cache;
+ACPI_EXTERN acpi_cache_t                       *acpi_gbl_ps_node_cache;
+ACPI_EXTERN acpi_cache_t                       *acpi_gbl_ps_node_ext_cache;
+ACPI_EXTERN acpi_cache_t                       *acpi_gbl_operand_cache;
+
+/* Global handlers */
+
 ACPI_EXTERN struct acpi_object_notify_handler   acpi_gbl_device_notify;
 ACPI_EXTERN struct acpi_object_notify_handler   acpi_gbl_system_notify;
 ACPI_EXTERN acpi_exception_handler              acpi_gbl_exception_handler;
 ACPI_EXTERN acpi_init_handler                   acpi_gbl_init_handler;
 ACPI_EXTERN struct acpi_walk_state             *acpi_gbl_breakpoint_walk;
 ACPI_EXTERN acpi_handle                         acpi_gbl_global_lock_semaphore;
+
+/* Misc */
 
 ACPI_EXTERN u32                                 acpi_gbl_global_lock_thread_count;
 ACPI_EXTERN u32                                 acpi_gbl_original_mode;

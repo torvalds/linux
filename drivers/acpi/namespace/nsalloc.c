@@ -83,7 +83,7 @@ acpi_ns_create_node (
 		return_PTR (NULL);
 	}
 
-	ACPI_MEM_TRACKING (acpi_gbl_memory_lists[ACPI_MEM_LIST_NSNODE].total_allocated++);
+	ACPI_MEM_TRACKING (acpi_gbl_ns_node_list->total_allocated++);
 
 	node->name.integer   = name;
 	node->reference_count = 1;
@@ -151,7 +151,7 @@ acpi_ns_delete_node (
 		}
 	}
 
-	ACPI_MEM_TRACKING (acpi_gbl_memory_lists[ACPI_MEM_LIST_NSNODE].total_freed++);
+	ACPI_MEM_TRACKING (acpi_gbl_ns_node_list->total_freed++);
 
 	/*
 	 * Detach an object if there is one then delete the node
@@ -362,7 +362,7 @@ acpi_ns_delete_children (
 
 		/* Now we can free this child object */
 
-		ACPI_MEM_TRACKING (acpi_gbl_memory_lists[ACPI_MEM_LIST_NSNODE].total_freed++);
+		ACPI_MEM_TRACKING (acpi_gbl_ns_node_list->total_freed++);
 
 		ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS, "Object %p, Remaining %X\n",
 			child_node, acpi_gbl_current_node_count));

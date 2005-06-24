@@ -369,7 +369,7 @@ acpi_ex_eisa_id_to_string (
  *
  * RETURN:      None, string
  *
- * DESCRIPTOIN: Convert a number to string representation. Assumes string
+ * DESCRIPTION: Convert a number to string representation. Assumes string
  *              buffer is large enough to hold the string.
  *
  ******************************************************************************/

@@ -80,6 +80,16 @@ acpi_ex_out_address (
 	acpi_physical_address           value);
 #endif	/* ACPI_FUTURE_USAGE */
 
+static void
+acpi_ex_dump_reference (
+	union acpi_operand_object       *obj_desc);
+
+static void
+acpi_ex_dump_package (
+	union acpi_operand_object       *obj_desc,
+	u32                             level,
+	u32                             index);
+
 
 /*******************************************************************************
  *
@@ -508,7 +518,7 @@ acpi_ex_out_integer (
 	char                            *title,
 	u32                             value)
 {
-	acpi_os_printf ("%20s : %X\n", title, value);
+	acpi_os_printf ("%20s : %.2X\n", title, value);
 }
 
 static void
@@ -565,9 +575,144 @@ acpi_ex_dump_node (
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_ex_dump_reference
+ *
+ * PARAMETERS:  Object              - Descriptor to dump
+ *
+ * DESCRIPTION: Dumps a reference object
+ *
+ ******************************************************************************/
+
+static void
+acpi_ex_dump_reference (
+	union acpi_operand_object       *obj_desc)
+{
+	struct acpi_buffer              ret_buf;
+	acpi_status                     status;
+
+
+	if (obj_desc->reference.opcode == AML_INT_NAMEPATH_OP) {
+		acpi_os_printf ("Named Object %p ", obj_desc->reference.node);
+		ret_buf.length = ACPI_ALLOCATE_LOCAL_BUFFER;
+		status = acpi_ns_handle_to_pathname (obj_desc->reference.node, &ret_buf);
+		if (ACPI_FAILURE (status)) {
+			acpi_os_printf ("Could not convert name to pathname\n");
+		}
+		else {
+		   acpi_os_printf ("%s\n", ret_buf.pointer);
+		   ACPI_MEM_FREE (ret_buf.pointer);
+		}
+	}
+	else if (obj_desc->reference.object) {
+		acpi_os_printf ("\nReferenced Object: %p\n", obj_desc->reference.object);
+	}
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ex_dump_package
+ *
+ * PARAMETERS:  Object              - Descriptor to dump
+ *              Level               - Indentation Level
+ *              Index               - Package index for this object
+ *
+ * DESCRIPTION: Dumps the elements of the package
+ *
+ ******************************************************************************/
+
+static void
+acpi_ex_dump_package (
+	union acpi_operand_object       *obj_desc,
+	u32                             level,
+	u32                             index)
+{
+	u32                             i;
+
+
+	/* Indentation and index output */
+
+	if (level > 0) {
+		for (i = 0; i < level; i++) {
+			acpi_os_printf (" ");
+		}
+
+		acpi_os_printf ("[%.2d] ", index);
+	}
+
+	acpi_os_printf ("%p ", obj_desc);
+
+	/* Null package elements are allowed */
+
+	if (!obj_desc) {
+		acpi_os_printf ("[Null Object]\n");
+		return;
+	}
+
+	/* Packages may only contain a few object types */
+
+	switch (ACPI_GET_OBJECT_TYPE (obj_desc)) {
+	case ACPI_TYPE_INTEGER:
+
+		acpi_os_printf ("[Integer] = %8.8X%8.8X\n",
+				 ACPI_FORMAT_UINT64 (obj_desc->integer.value));
+		break;
+
+
+	case ACPI_TYPE_STRING:
+
+		acpi_os_printf ("[String] Value: ");
+		for (i = 0; i < obj_desc->string.length; i++) {
+			acpi_os_printf ("%c", obj_desc->string.pointer[i]);
+		}
+		acpi_os_printf ("\n");
+		break;
+
+
+	case ACPI_TYPE_BUFFER:
+
+		acpi_os_printf ("[Buffer] Length %.2X = ", obj_desc->buffer.length);
+		if (obj_desc->buffer.length) {
+			acpi_ut_dump_buffer ((u8 *) obj_desc->buffer.pointer,
+					obj_desc->buffer.length, DB_DWORD_DISPLAY, _COMPONENT);
+		}
+		else {
+			acpi_os_printf ("\n");
+		}
+		break;
+
+
+	case ACPI_TYPE_PACKAGE:
+
+		acpi_os_printf ("[Package] Contains %d Elements: \n",
+				obj_desc->package.count);
+
+		for (i = 0; i < obj_desc->package.count; i++) {
+			acpi_ex_dump_package (obj_desc->package.elements[i], level+1, i);
+		}
+		break;
+
+
+	case ACPI_TYPE_LOCAL_REFERENCE:
+
+		acpi_os_printf ("[Object Reference] ");
+		acpi_ex_dump_reference (obj_desc);
+		break;
+
+
+	default:
+
+		acpi_os_printf ("[Unknown Type] %X\n", ACPI_GET_OBJECT_TYPE (obj_desc));
+		break;
+	}
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_ex_dump_object_descriptor
  *
- * PARAMETERS:  *Object             - Descriptor to dump
+ * PARAMETERS:  Object              - Descriptor to dump
  *              Flags               - Force display if TRUE
  *
  * DESCRIPTION: Dumps the members of the object descriptor given.
@@ -579,9 +724,6 @@ acpi_ex_dump_object_descriptor (
 	union acpi_operand_object       *obj_desc,
 	u32                             flags)
 {
-	u32                             i;
-
-
 	ACPI_FUNCTION_TRACE ("ex_dump_object_descriptor");
 
 
@@ -648,22 +790,13 @@ acpi_ex_dump_object_descriptor (
 	case ACPI_TYPE_PACKAGE:
 
 		acpi_ex_out_integer ("Flags",       obj_desc->package.flags);
-		acpi_ex_out_integer ("Count",       obj_desc->package.count);
-		acpi_ex_out_pointer ("Elements",    obj_desc->package.elements);
+		acpi_ex_out_integer ("Elements",    obj_desc->package.count);
+		acpi_ex_out_pointer ("Element List", obj_desc->package.elements);
 
 		/* Dump the package contents */
 
-		if (obj_desc->package.count > 0) {
-			acpi_os_printf ("\nPackage Contents:\n");
-			for (i = 0; i < obj_desc->package.count; i++) {
-				acpi_os_printf ("[%.3d] %p", i, obj_desc->package.elements[i]);
-				if (obj_desc->package.elements[i]) {
-					acpi_os_printf (" %s",
-						acpi_ut_get_object_type_name (obj_desc->package.elements[i]));
-				}
-				acpi_os_printf ("\n");
-			}
-		}
+		acpi_os_printf ("\nPackage Contents:\n");
+		acpi_ex_dump_package (obj_desc, 0, 0);
 		break;
 
 
@@ -790,10 +923,7 @@ acpi_ex_dump_object_descriptor (
 		acpi_ex_out_pointer ("Node",        obj_desc->reference.node);
 		acpi_ex_out_pointer ("Where",       obj_desc->reference.where);
 
-		if (obj_desc->reference.object) {
-			acpi_os_printf ("\nReferenced Object:\n");
-			acpi_ex_dump_object_descriptor (obj_desc->reference.object, flags);
-		}
+		acpi_ex_dump_reference (obj_desc);
 		break;
 
 
