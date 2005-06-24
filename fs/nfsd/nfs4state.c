@@ -1526,6 +1526,18 @@ out:
 	return status;
 }
 
+static struct nfs4_delegation *
+find_delegation_file(struct nfs4_file *fp, stateid_t *stid)
+{
+	struct nfs4_delegation *dp;
+
+	list_for_each_entry(dp, &fp->fi_del_perfile, dl_del_perfile) {
+		if (dp->dl_stateid.si_stateownerid == stid->si_stateownerid)
+			return dp;
+	}
+	return NULL;
+}
+
 static int
 nfs4_check_open(struct nfs4_file *fp, struct nfsd4_open *open, struct nfs4_stateid **stpp)
 {
@@ -2419,24 +2431,15 @@ find_stateid(stateid_t *stid, int flags)
 static struct nfs4_delegation *
 find_delegation_stateid(struct inode *ino, stateid_t *stid)
 {
-	struct nfs4_delegation *dp = NULL;
 	struct nfs4_file *fp = NULL;
-	u32 st_id;
 
 	dprintk("NFSD:find_delegation_stateid stateid=(%08x/%08x/%08x/%08x)\n",
                     stid->si_boot, stid->si_stateownerid,
                     stid->si_fileid, stid->si_generation);
 
-	st_id = stid->si_stateownerid;
 	fp = find_file(ino);
-	if (fp) {
-		list_for_each_entry(dp, &fp->fi_del_perfile, dl_del_perfile) {
-			if(dp->dl_stateid.si_stateownerid == st_id) {
-				dprintk("NFSD: find_delegation dp %p\n",dp);
-				return dp;
-			}
-		}
-	}
+	if (fp)
+		return find_delegation_file(fp, stid);
 	return NULL;
 }
 
