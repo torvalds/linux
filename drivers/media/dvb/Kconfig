@@ -27,6 +27,7 @@ source "drivers/media/dvb/ttpci/Kconfig"
 
 comment "Supported USB Adapters"
 	depends on DVB_CORE && USB
+source "drivers/media/dvb/dvb-usb/Kconfig"
 source "drivers/media/dvb/ttusb-budget/Kconfig"
 source "drivers/media/dvb/ttusb-dec/Kconfig"
 source "drivers/media/dvb/cinergyT2/Kconfig"
