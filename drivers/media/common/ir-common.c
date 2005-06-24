@@ -1,5 +1,5 @@
 /*
- * $Id: ir-common.c,v 1.8 2005/02/22 12:28:40 kraxel Exp $
+ * $Id: ir-common.c,v 1.10 2005/05/22 19:23:39 nsh Exp $
  *
  * some common structs and functions to handle infrared remotes via
  * input layer ...
@@ -131,10 +131,10 @@ IR_KEYTAB_TYPE ir_codes_winfast[IR_KEYTAB_SIZE] = {
 	[ 18 ] = KEY_KP0,
 
 	[  0 ] = KEY_POWER,
-	[ 27 ] = KEY_LANGUAGE,  //MTS button
+//      [ 27 ] = MTS button
 	[  2 ] = KEY_TUNER,     // TV/FM
 	[ 30 ] = KEY_VIDEO,
-	[ 22 ] = KEY_INFO,      //display button
+//      [ 22 ] = display button
 	[  4 ] = KEY_VOLUMEUP,
 	[  8 ] = KEY_VOLUMEDOWN,
 	[ 12 ] = KEY_CHANNELUP,
@@ -142,7 +142,7 @@ IR_KEYTAB_TYPE ir_codes_winfast[IR_KEYTAB_SIZE] = {
 	[  3 ] = KEY_ZOOM,      // fullscreen
 	[ 31 ] = KEY_SUBTITLE,  // closed caption/teletext
 	[ 32 ] = KEY_SLEEP,
-	[ 41 ] = KEY_SEARCH,    //boss key
+//      [ 41 ] = boss key
 	[ 20 ] = KEY_MUTE,
 	[ 43 ] = KEY_RED,
 	[ 44 ] = KEY_GREEN,
@@ -150,17 +150,17 @@ IR_KEYTAB_TYPE ir_codes_winfast[IR_KEYTAB_SIZE] = {
 	[ 46 ] = KEY_BLUE,
 	[ 24 ] = KEY_KPPLUS,    //fine tune +
 	[ 25 ] = KEY_KPMINUS,   //fine tune -
-	[ 42 ] = KEY_ANGLE,     //picture in picture
-	[ 33 ] = KEY_KPDOT,
+//      [ 42 ] = picture in picture
+        [ 33 ] = KEY_KPDOT,
 	[ 19 ] = KEY_KPENTER,
-	[ 17 ] = KEY_AGAIN,     //recall
+//      [ 17 ] = recall
 	[ 34 ] = KEY_BACK,
 	[ 35 ] = KEY_PLAYPAUSE,
 	[ 36 ] = KEY_NEXT,
-	[ 37 ] = KEY_T,         //time shifting
+//      [ 37 ] = time shifting
 	[ 38 ] = KEY_STOP,
-	[ 39 ] = KEY_RECORD,
-	[ 40 ] = KEY_SHUFFLE    //snapshot
+	[ 39 ] = KEY_RECORD
+//      [ 40 ] = snapshot
 };
 EXPORT_SYMBOL_GPL(ir_codes_winfast);
 
@@ -184,18 +184,30 @@ IR_KEYTAB_TYPE ir_codes_hauppauge_new[IR_KEYTAB_SIZE] = {
 	[ 0x07 ] = KEY_KP7,             // 7
 	[ 0x08 ] = KEY_KP8,             // 8
 	[ 0x09 ] = KEY_KP9,             // 9
+	[ 0x0a ] = KEY_TEXT,      	// keypad asterisk as well
 	[ 0x0b ] = KEY_RED,             // red button
-	[ 0x0c ] = KEY_OPTION,          // black key without text
+	[ 0x0c ] = KEY_RADIO,           // radio
 	[ 0x0d ] = KEY_MENU,            // menu
+	[ 0x0e ] = KEY_SUBTITLE,	// also the # key
 	[ 0x0f ] = KEY_MUTE,            // mute
 	[ 0x10 ] = KEY_VOLUMEUP,        // volume +
 	[ 0x11 ] = KEY_VOLUMEDOWN,      // volume -
-	[ 0x1e ] = KEY_NEXT,            // skip >|
+	[ 0x12 ] = KEY_PREVIOUS,        // previous channel
+	[ 0x14 ] = KEY_UP,              // up
+	[ 0x15 ] = KEY_DOWN,		// down
+	[ 0x16 ] = KEY_LEFT,		// left
+	[ 0x17 ] = KEY_RIGHT,		// right
+	[ 0x18 ] = KEY_VIDEO,		// Videos
+	[ 0x19 ] = KEY_AUDIO,		// Music
+	[ 0x1a ] = KEY_MHP,		// Pictures - presume this means "Multimedia Home Platform"- no "PICTURES" key in input.h
+	[ 0x1b ] = KEY_EPG,		// Guide
+	[ 0x1c ] = KEY_TV,		// TV
+	[ 0x1e ] = KEY_NEXTSONG,        // skip >|
 	[ 0x1f ] = KEY_EXIT,            // back/exit
 	[ 0x20 ] = KEY_CHANNELUP,       // channel / program +
 	[ 0x21 ] = KEY_CHANNELDOWN,     // channel / program -
 	[ 0x22 ] = KEY_CHANNEL,         // source (old black remote)
-	[ 0x24 ] = KEY_PREVIOUS,        // replay |<
+	[ 0x24 ] = KEY_PREVIOUSSONG,    // replay |<
 	[ 0x25 ] = KEY_ENTER,           // OK
 	[ 0x26 ] = KEY_SLEEP,           // minimize (old black remote)
 	[ 0x29 ] = KEY_BLUE,            // blue key
@@ -412,3 +424,4 @@ EXPORT_SYMBOL_GPL(ir_decode_biphase);
  * c-basic-offset: 8
  * End:
  */
+

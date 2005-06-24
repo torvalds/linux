@@ -1,5 +1,5 @@
 /*
- * $Id: tuner-simple.c,v 1.14 2005/05/30 02:02:47 mchehab Exp $
+ * $Id: tuner-simple.c,v 1.21 2005/06/10 19:53:26 nsh Exp $
  *
  * i2c tv tuner chip device driver
  * controls all those simple 4-control-bytes style tuners.
@@ -220,7 +220,17 @@ static struct tunertype tuners[] = {
 
 	{ "Thomson DDT 7611 (ATSC/NTSC)", THOMSON, ATSC,
 	  16*157.25,16*454.00,0x39,0x3a,0x3c,0x8e,732},
+	{ "Tena TNF9533-D/IF", LGINNOTEK, PAL,
+	  16*160.25, 16*464.25, 0x01,0x02,0x08,0x8e,623},
+
+	/*
+	 * This entry is for TEA5767 FM radio only chip used on several boards
+	 * w/TV tuner
+	 */
+	{ TEA5767_TUNER_NAME, Philips, RADIO,
+	  -1, -1, 0, 0, 0, TEA5767_LOW_LO_32768,0},
 };
+
 unsigned const int tuner_count = ARRAY_SIZE(tuners);
 
 /* ---------------------------------------------------------------------- */
@@ -231,6 +241,7 @@ static int tuner_getstatus(struct i2c_client *c)
 
 	if (1 != i2c_master_recv(c,&byte,1))
 		return 0;
+
 	return byte;
 }
 
@@ -239,17 +250,33 @@ static int tuner_getstatus(struct i2c_client *c)
 #define TUNER_MODE      0x38
 #define TUNER_AFC       0x07
 
-#define TUNER_STEREO    0x10 /* radio mode */
-#define TUNER_SIGNAL    0x07 /* radio mode */
+#define TUNER_STEREO       0x10 /* radio mode */
+#define TUNER_STEREO_MK3   0x04 /* radio mode */
+#define TUNER_SIGNAL       0x07 /* radio mode */
 
 static int tuner_signal(struct i2c_client *c)
 {
-	return (tuner_getstatus(c) & TUNER_SIGNAL)<<13;
+	return (tuner_getstatus(c) & TUNER_SIGNAL) << 13;
 }
 
 static int tuner_stereo(struct i2c_client *c)
 {
-	return (tuner_getstatus (c) & TUNER_STEREO);
+	int stereo, status;
+	struct tuner *t = i2c_get_clientdata(c);
+
+	status = tuner_getstatus (c);
+
+	switch (t->type) {
+        	case TUNER_PHILIPS_FM1216ME_MK3:
+    		case TUNER_PHILIPS_FM1236_MK3:
+		case TUNER_PHILIPS_FM1256_IH3:
+			stereo = ((status & TUNER_SIGNAL) == TUNER_STEREO_MK3);
+			break;
+		default:
+			stereo = status & TUNER_STEREO;
+	}
+
+	return stereo;
 }
 
 #if 0 /* unused */
@@ -432,6 +459,7 @@ static void default_set_radio_freq(struct i2c_client *c, unsigned int freq)
 	buffer[2] = tun->config;
 
 	switch (t->type) {
+	case TUNER_TENA_9533_DI:
 	case TUNER_YMEC_TVF_5533MF:
 
 		/*These values are empirically determinated */
@@ -472,20 +500,6 @@ int default_tuner_init(struct i2c_client *c)
 	tuner_info("type set to %d (%s)\n",
 		   t->type, tuners[t->type].name);
 	strlcpy(c->name, tuners[t->type].name, sizeof(c->name));
-
-	switch (t->type) {
-	case TUNER_YMEC_TVF_5533MF:
-		{
-			struct tuner_addr tun_addr = { V4L2_TUNER_ANALOG_TV, 0xc2>>1 };
-
-			if (c->driver->command) {
-				c->driver->command(c, TUNER_SET_ADDR, &tun_addr);
-			} else {
-				tuner_warn("Couldn't set TV tuner I2C address to 0x%02x\n",tun_addr.addr<<1);
-			}
-			break;
-		}
-	}
 
 	t->tv_freq    = default_set_tv_freq;
 	t->radio_freq = default_set_radio_freq;

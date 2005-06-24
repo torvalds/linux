@@ -33,6 +33,7 @@ static unsigned short normal_i2c[] = {
 	0x96 >>1,
 	I2C_CLIENT_END,
 };
+static unsigned short normal_i2c_range[] = {I2C_CLIENT_END,I2C_CLIENT_END};
 I2C_CLIENT_INSMOD;
 
 /* insmod options */
@@ -53,6 +54,7 @@ struct tda9887 {
 	unsigned int       config;
 	unsigned int       pinnacle_id;
 	unsigned int       using_v4l2;
+	unsigned int 	   radio_mode;
 };
 
 struct tvnorm {
@@ -212,12 +214,22 @@ static struct tvnorm tvnorms[] = {
 	}
 };
 
-static struct tvnorm radio = {
-	.name = "radio",
+static struct tvnorm radio_stereo = {
+	.name = "Radio Stereo",
+	.b    = ( cFmRadio       |
+		  cQSS           ),
+	.c    = ( cDeemphasisOFF |
+		  cAudioGain6 ),
+	.e    = ( cAudioIF_5_5   |
+		  cRadioIF_38_90 ),
+};
+
+static struct tvnorm radio_mono = {
+	.name = "Radio Mono",
 	.b    = ( cFmRadio       |
 		  cQSS           ),
 	.c    = ( cDeemphasisON  |
-		  cDeemphasis50  ),
+		  cDeemphasis50),
 	.e    = ( cAudioIF_5_5   |
 		  cRadioIF_38_90 ),
 };
@@ -354,7 +366,10 @@ static int tda9887_set_tvnorm(struct tda9887 *t, char *buf)
 	int i;
 
 	if (t->radio) {
-		norm = &radio;
+		if (t->radio_mode == V4L2_TUNER_MODE_MONO)
+			norm = &radio_mono;
+		else
+		        norm = &radio_stereo;
 	} else {
 		for (i = 0; i < ARRAY_SIZE(tvnorms); i++) {
 			if (tvnorms[i].std & t->std) {
@@ -545,11 +560,14 @@ static int tda9887_configure(struct tda9887 *t)
 
 	memset(buf,0,sizeof(buf));
 	tda9887_set_tvnorm(t,buf);
+
 	buf[1] |= cOutputPort1Inactive;
 	buf[1] |= cOutputPort2Inactive;
+
 	if (UNSET != t->pinnacle_id) {
 		tda9887_set_pinnacle(t,buf);
 	}
+
 	tda9887_set_config(t,buf);
 	tda9887_set_insmod(t,buf);
 
@@ -592,9 +610,12 @@ static int tda9887_attach(struct i2c_adapter *adap, int addr, int kind)
         if (NULL == (t = kmalloc(sizeof(*t), GFP_KERNEL)))
                 return -ENOMEM;
 	memset(t,0,sizeof(*t));
+
 	t->client      = client_template;
 	t->std         = 0;
 	t->pinnacle_id = UNSET;
+	t->radio_mode = V4L2_TUNER_MODE_STEREO;
+
         i2c_set_clientdata(&t->client, t);
         i2c_attach_client(&t->client);
 
@@ -733,6 +754,16 @@ tda9887_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		}
 		break;
 	}
+	case VIDIOC_S_TUNER:
+	{
+		struct v4l2_tuner* tuner = arg;
+
+		if (t->radio) {
+			t->radio_mode = tuner->audmode;
+			tda9887_configure (t);
+		}
+		break;
+	}
 	default:
 		/* nothing */
 		break;
@@ -740,7 +771,7 @@ tda9887_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	return 0;
 }
 
-static int tda9887_suspend(struct device * dev, pm_message_t state, u32 level)
+static int tda9887_suspend(struct device * dev, u32 state, u32 level)
 {
 	dprintk("tda9887: suspend\n");
 	return 0;
