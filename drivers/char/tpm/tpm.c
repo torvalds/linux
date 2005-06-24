@@ -218,7 +218,7 @@ static ssize_t show_pcrs(struct device *dev, struct device_attribute *attr, char
 	char *str = buf;
 
 	struct tpm_chip *chip =
-	    pci_get_drvdata(container_of(dev, struct pci_dev, dev));
+	    pci_get_drvdata(to_pci_dev(dev));
 	if (chip == NULL)
 		return -ENODEV;
 
@@ -262,7 +262,7 @@ static ssize_t show_pubek(struct device *dev, struct device_attribute *attr, cha
 	char *str = buf;
 
 	struct tpm_chip *chip =
-	    pci_get_drvdata(container_of(dev, struct pci_dev, dev));
+	    pci_get_drvdata(to_pci_dev(dev));
 	if (chip == NULL)
 		return -ENODEV;
 
@@ -344,7 +344,7 @@ static ssize_t show_caps(struct device *dev, struct device_attribute *attr, char
 	char *str = buf;
 
 	struct tpm_chip *chip =
-	    pci_get_drvdata(container_of(dev, struct pci_dev, dev));
+	    pci_get_drvdata(to_pci_dev(dev));
 	if (chip == NULL)
 		return -ENODEV;
 
