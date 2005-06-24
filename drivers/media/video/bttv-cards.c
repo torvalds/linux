@@ -1,5 +1,5 @@
 /*
-    $Id: bttv-cards.c,v 1.47 2005/02/22 14:06:32 kraxel Exp $
+    $Id: bttv-cards.c,v 1.49 2005/06/10 17:20:24 mchehab Exp $
 
     bttv-cards.c
 
@@ -2254,17 +2254,18 @@ struct tvcard bttv_tvcards[] = {
 	.muxsel_hook	= kodicom4400r_muxsel,
 },
 {
-	/* ---- card 0x86---------------------------------- */
-	/* Michael Henson <mhenson@clarityvi.com> */
-	/* Adlink RTV24 with special unlock codes */
-	.name           = "Adlink RTV24",
-	.video_inputs   = 4,
-	.audio_inputs   = 1,
-	.tuner          = 0,
-	.svhs           = 2,
-	.muxsel         = { 2, 3, 1, 0},
-	.tuner_type     = -1,
-	.pll            = PLL_28,
+        /* ---- card 0x85---------------------------------- */
+        /* Michael Henson <mhenson@clarityvi.com> */
+        /* Adlink RTV24 with special unlock codes */
+        .name           = "Adlink RTV24",
+        .video_inputs   = 4,
+        .audio_inputs   = 1,
+        .tuner          = 0,
+        .svhs           = 2,
+        .muxsel         = { 2, 3, 1, 0},
+        .tuner_type     = -1,
+        .pll            = PLL_28,
+
 }};
 
 static const unsigned int bttv_num_tvcards = ARRAY_SIZE(bttv_tvcards);
@@ -2650,6 +2651,10 @@ void __devinit bttv_init_card1(struct bttv *btv)
 	case BTTV_AVDVBT_771:
 		btv->use_i2c_hw = 1;
 		break;
+        case BTTV_ADLINK_RTV24:
+                init_RTV24( btv );
+                break;
+
 	}
 	if (!bttv_tvcards[btv->c.type].has_dvb)
 		bttv_reset_audio(btv);
@@ -2762,9 +2767,6 @@ void __devinit bttv_init_card2(struct bttv *btv)
 	case BTTV_KODICOM_4400R:
 		kodicom4400r_init(btv);
 		break;
-        case BTTV_ADLINK_RTV24:
-                init_RTV24(btv);
-                break;
 	}
 
 	/* pll configuration */
@@ -2800,6 +2802,8 @@ void __devinit bttv_init_card2(struct bttv *btv)
                 }
         }
 	btv->pll.pll_current = -1;
+
+	bttv_reset_audio(btv);
 
 	/* tuner configuration (from card list / autodetect / insmod option) */
  	if (UNSET != bttv_tvcards[btv->c.type].tuner_type)
@@ -3320,6 +3324,8 @@ static void __devinit init_PXC200(struct bttv *btv)
 	printk(KERN_INFO "PXC200 Initialised.\n");
 }
 
+
+
 /* ----------------------------------------------------------------------- */
 /*
  *  The Adlink RTV-24 (aka Angelo) has some special initialisation to unlock
@@ -3348,48 +3354,53 @@ static void __devinit init_PXC200(struct bttv *btv)
  *                error. ERROR_CPLD_Check_Failed.
  */
 /* ----------------------------------------------------------------------- */
-void init_RTV24(struct bttv *btv)
+void
+init_RTV24 (struct bttv *btv)
 {
-	u32 dataread;
-	const long watchdog_value = 0x0E;
+	uint32_t dataRead = 0;
+	long watchdog_value = 0x0E;
 
-	printk(KERN_INFO "bttv%d: Adlink RTV-24 initialisation in progress\n",
+	printk (KERN_INFO
+		"bttv%d: Adlink RTV-24 initialisation in progress ...\n",
 		btv->c.nr);
 
-	btwrite(0x00c3feff, BT848_GPIO_OUT_EN);
+	btwrite (0x00c3feff, BT848_GPIO_OUT_EN);
 
-	btwrite(0 + watchdog_value, BT848_GPIO_DATA);
-	msleep(1);
-	btwrite(0x10 + watchdog_value, BT848_GPIO_DATA);
-	msleep( 10 );
-	btwrite(0 + watchdog_value, BT848_GPIO_DATA);
+	btwrite (0 + watchdog_value, BT848_GPIO_DATA);
+	msleep (1);
+	btwrite (0x10 + watchdog_value, BT848_GPIO_DATA);
+	msleep (10);
+	btwrite (0 + watchdog_value, BT848_GPIO_DATA);
 
-	dataread = btread(BT848_GPIO_DATA);
+	dataRead = btread (BT848_GPIO_DATA);
 
-	if (((dataread >> 18) & 0x01) != 0 || ((dataread >> 19) & 0x01) != 1) {
-		printk(KERN_INFO "bttv%d: Adlink RTV-24 initialisation(1) "
-				"ERROR_CPLD_Check_Failed (read %d)\n",
-				btv->c.nr, dataread);
+	if ((((dataRead >> 18) & 0x01) != 0) || (((dataRead >> 19) & 0x01) != 1)) {
+		printk (KERN_INFO
+			"bttv%d: Adlink RTV-24 initialisation(1) ERROR_CPLD_Check_Failed (read %d)\n",
+			btv->c.nr, dataRead);
 	}
 
-	btwrite(0x4400 + watchdog_value, BT848_GPIO_DATA);
-	msleep(10);
-	btwrite(0x4410 + watchdog_value, BT848_GPIO_DATA);
-	msleep(1);
-	btwrite(watchdog_value, BT848_GPIO_DATA);
-	msleep(1);
-	dataread = btread(BT848_GPIO_DATA);
+	btwrite (0x4400 + watchdog_value, BT848_GPIO_DATA);
+	msleep (10);
+	btwrite (0x4410 + watchdog_value, BT848_GPIO_DATA);
+	msleep (1);
+	btwrite (watchdog_value, BT848_GPIO_DATA);
+	msleep (1);
+	dataRead = btread (BT848_GPIO_DATA);
 
-	if (((dataread >> 18) & 0x01) != 0 || ((dataread >> 19) & 0x01) != 0) {
-		printk(KERN_INFO "bttv%d: Adlink RTV-24 initialisation(2) "
-				"ERROR_CPLD_Check_Failed (read %d)\n",
-				btv->c.nr, dataread);
+	if ((((dataRead >> 18) & 0x01) != 0) || (((dataRead >> 19) & 0x01) != 0)) {
+		printk (KERN_INFO
+			"bttv%d: Adlink RTV-24 initialisation(2) ERROR_CPLD_Check_Failed (read %d)\n",
+			btv->c.nr, dataRead);
+
 		return;
 	}
 
-	printk(KERN_INFO "bttv%d: Adlink RTV-24 initialisation complete.\n",
-			btv->c.nr);
+	printk (KERN_INFO
+		"bttv%d: Adlink RTV-24 initialisation complete.\n", btv->c.nr);
 }
+
+
 
 /* ----------------------------------------------------------------------- */
 /* Miro Pro radio stuff -- the tea5757 is connected to some GPIO ports     */
