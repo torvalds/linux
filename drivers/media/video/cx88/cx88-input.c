@@ -1,5 +1,5 @@
 /*
- * $Id: cx88-input.c,v 1.9 2005/03/04 09:12:23 kraxel Exp $
+ * $Id: cx88-input.c,v 1.11 2005/05/22 20:57:56 nsh Exp $
  *
  * Device driver for GPIO attached remote control interfaces
  * on Conexant 2388x based TV/DVB cards.
@@ -235,6 +235,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	/* detect & configure */
 	switch (core->board) {
 	case CX88_BOARD_DNTV_LIVE_DVB_T:
+	case CX88_BOARD_KWORLD_DVB_T:
 		ir_codes         = ir_codes_dntv_live_dvb_t;
 		ir->gpio_addr    = MO_GP1_IO;
 		ir->mask_keycode = 0x1f;
@@ -269,6 +270,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		ir->polling      = 1; // ms
 		break;
 	}
+
 	if (NULL == ir_codes) {
 		kfree(ir);
 		return -ENODEV;

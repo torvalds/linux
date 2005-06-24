@@ -1,5 +1,5 @@
 /*
- * $Id: cx88-core.c,v 1.24 2005/01/19 12:01:55 kraxel Exp $
+ * $Id: cx88-core.c,v 1.28 2005/06/12 04:19:19 mchehab Exp $
  *
  * device driver for Conexant 2388x based TV cards
  * driver core
@@ -51,12 +51,15 @@ module_param(latency,int,0444);
 MODULE_PARM_DESC(latency,"pci latency timer");
 
 static unsigned int tuner[] = {[0 ... (CX88_MAXBOARDS - 1)] = UNSET };
+static unsigned int radio[] = {[0 ... (CX88_MAXBOARDS - 1)] = UNSET };
 static unsigned int card[]  = {[0 ... (CX88_MAXBOARDS - 1)] = UNSET };
 
 module_param_array(tuner, int, NULL, 0444);
+module_param_array(radio, int, NULL, 0444);
 module_param_array(card,  int, NULL, 0444);
 
 MODULE_PARM_DESC(tuner,"tuner type");
+MODULE_PARM_DESC(radio,"radio tuner type");
 MODULE_PARM_DESC(card,"card type");
 
 static unsigned int nicam = 0;
@@ -429,7 +432,7 @@ int cx88_sram_channel_setup(struct cx88_core *core,
 /* ------------------------------------------------------------------ */
 /* debug helper code                                                  */
 
-static int cx88_risc_decode(u32 risc)
+int cx88_risc_decode(u32 risc)
 {
 	static char *instr[16] = {
 		[ RISC_SYNC    >> 28 ] = "sync",
@@ -1173,8 +1176,20 @@ struct cx88_core* cx88_core_get(struct pci_dev *pci)
 	       "insmod option" : "autodetected");
 
 	core->tuner_type = tuner[core->nr];
+	core->radio_type = radio[core->nr];
 	if (UNSET == core->tuner_type)
 		core->tuner_type = cx88_boards[core->board].tuner_type;
+	if (UNSET == core->radio_type)
+		core->radio_type = cx88_boards[core->board].radio_type;
+	if (!core->tuner_addr)
+		core->tuner_addr = cx88_boards[core->board].tuner_addr;
+	if (!core->radio_addr)
+		core->radio_addr = cx88_boards[core->board].radio_addr;
+
+        printk(KERN_INFO "TV tuner %d at 0x%02x, Radio tuner %d at 0x%02x\n",
+		core->tuner_type, core->tuner_addr<<1,
+		core->radio_type, core->radio_addr<<1);
+
 	core->tda9887_conf = cx88_boards[core->board].tda9887_conf;
 
 	/* init hardware */
