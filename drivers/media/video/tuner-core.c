@@ -33,10 +33,8 @@
 /* standard i2c insmod options */
 static unsigned short normal_i2c[] = {
 	0x4b, /* tda8290 */
-	I2C_CLIENT_END
-};
-static unsigned short normal_i2c_range[] = {
-	0x60, 0x6f,
+	0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67,
+	0x68, 0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x6f,
 	I2C_CLIENT_END
 };
 I2C_CLIENT_INSMOD;
@@ -322,9 +320,8 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 static int tuner_probe(struct i2c_adapter *adap)
 {
 	if (0 != addr) {
-		normal_i2c[0]       = addr;
-		normal_i2c_range[0] = addr;
-		normal_i2c_range[1] = addr;
+		normal_i2c[0] = addr;
+		normal_i2c[1] = I2C_CLIENT_END;
 	}
 	this_adap = 0;
 
