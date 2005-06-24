@@ -255,7 +255,7 @@ static const u8 readpubek[] = {
 
 static ssize_t show_pubek(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	u8 data[READ_PUBEK_RESULT_SIZE];
+	u8 *data;
 	ssize_t len;
 	__be32 *native_val;
 	int i;
@@ -266,12 +266,18 @@ static ssize_t show_pubek(struct device *dev, struct device_attribute *attr, cha
 	if (chip == NULL)
 		return -ENODEV;
 
+	data = kmalloc(READ_PUBEK_RESULT_SIZE, GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
 	memcpy(data, readpubek, sizeof(readpubek));
 	memset(data + sizeof(readpubek), 0, 20);	/* zero nonce */
 
-	if ((len = tpm_transmit(chip, data, sizeof(data))) <
-	    READ_PUBEK_RESULT_SIZE)
-		return len;
+	if ((len = tpm_transmit(chip, data, READ_PUBEK_RESULT_SIZE)) <
+	    READ_PUBEK_RESULT_SIZE) {
+		rc = len;
+		goto out;
+	}
 
 	/* 
 	   ignore header 10 bytes
@@ -304,7 +310,10 @@ static ssize_t show_pubek(struct device *dev, struct device_attribute *attr, cha
 		if ((i + 1) % 16 == 0)
 			str += sprintf(str, "\n");
 	}
-	return str - buf;
+	rc = str - buf;
+out:
+	kfree(data);
+	return rc;
 }
 
 static DEVICE_ATTR(pubek, S_IRUGO, show_pubek, NULL);
@@ -330,7 +339,7 @@ static const u8 cap_manufacturer[] = {
 
 static ssize_t show_caps(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	u8 data[READ_PUBEK_RESULT_SIZE];
+	u8 data[sizeof(cap_manufacturer)];
 	ssize_t len;
 	char *str = buf;
 
