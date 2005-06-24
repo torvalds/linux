@@ -275,6 +275,7 @@ extern void __iounmap(void __iomem *addr);
 /*
  * io{read,write}{8,16,32} macros
  */
+#ifndef ioread8
 #define ioread8(p)	({ unsigned int __v = __raw_readb(p); __v; })
 #define ioread16(p)	({ unsigned int __v = le16_to_cpu(__raw_readw(p)); __v; })
 #define ioread32(p)	({ unsigned int __v = le32_to_cpu(__raw_readl(p)); __v; })
@@ -293,6 +294,7 @@ extern void __iounmap(void __iomem *addr);
 
 extern void __iomem *ioport_map(unsigned long port, unsigned int nr);
 extern void ioport_unmap(void __iomem *addr);
+#endif
 
 struct pci_dev;
 
