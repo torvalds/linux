@@ -505,25 +505,6 @@ static __inline__ int tcp_sk_listen_hashfn(struct sock *sk)
 #else
 # define TCP_TW_RECYCLE_TICK (12+2-TCP_TW_RECYCLE_SLOTS_LOG)
 #endif
-
-#define BICTCP_BETA_SCALE    1024	/* Scale factor beta calculation
-					 * max_cwnd = snd_cwnd * beta
-					 */
-#define BICTCP_MAX_INCREMENT 32		/*
-					 * Limit on the amount of
-					 * increment allowed during
-					 * binary search.
-					 */
-#define BICTCP_FUNC_OF_MIN_INCR 11	/*
-					 * log(B/Smin)/log(B/(B-1))+1,
-					 * Smin:min increment
-					 * B:log factor
-					 */
-#define BICTCP_B		4	 /*
-					  * In binary search,
-					  * go to point (max+min)/N
-					  */
-
 /*
  *	TCP option
  */
@@ -596,16 +577,7 @@ extern int sysctl_tcp_adv_win_scale;
 extern int sysctl_tcp_tw_reuse;
 extern int sysctl_tcp_frto;
 extern int sysctl_tcp_low_latency;
-extern int sysctl_tcp_westwood;
-extern int sysctl_tcp_vegas_cong_avoid;
-extern int sysctl_tcp_vegas_alpha;
-extern int sysctl_tcp_vegas_beta;
-extern int sysctl_tcp_vegas_gamma;
 extern int sysctl_tcp_nometrics_save;
-extern int sysctl_tcp_bic;
-extern int sysctl_tcp_bic_fast_convergence;
-extern int sysctl_tcp_bic_low_window;
-extern int sysctl_tcp_bic_beta;
 extern int sysctl_tcp_moderate_rcvbuf;
 extern int sysctl_tcp_tso_win_divisor;
 
@@ -1136,6 +1108,80 @@ static inline void tcp_packets_out_dec(struct tcp_sock *tp,
 	tp->packets_out -= tcp_skb_pcount(skb);
 }
 
+/* Events passed to congestion control interface */
+enum tcp_ca_event {
+	CA_EVENT_TX_START,	/* first transmit when no packets in flight */
+	CA_EVENT_CWND_RESTART,	/* congestion window restart */
+	CA_EVENT_COMPLETE_CWR,	/* end of congestion recovery */
+	CA_EVENT_FRTO,		/* fast recovery timeout */
+	CA_EVENT_LOSS,		/* loss timeout */
+	CA_EVENT_FAST_ACK,	/* in sequence ack */
+	CA_EVENT_SLOW_ACK,	/* other ack */
+};
+
+/*
+ * Interface for adding new TCP congestion control handlers
+ */
+#define TCP_CA_NAME_MAX	16
+struct tcp_congestion_ops {
+	struct list_head	list;
+
+	/* initialize private data (optional) */
+	void (*init)(struct tcp_sock *tp);
+	/* cleanup private data  (optional) */
+	void (*release)(struct tcp_sock *tp);
+
+	/* return slow start threshold (required) */
+	u32 (*ssthresh)(struct tcp_sock *tp);
+	/* lower bound for congestion window (optional) */
+	u32 (*min_cwnd)(struct tcp_sock *tp);
+	/* do new cwnd calculation (required) */
+	void (*cong_avoid)(struct tcp_sock *tp, u32 ack,
+			   u32 rtt, u32 in_flight, int good_ack);
+	/* round trip time sample per acked packet (optional) */
+	void (*rtt_sample)(struct tcp_sock *tp, u32 usrtt);
+	/* call before changing ca_state (optional) */
+	void (*set_state)(struct tcp_sock *tp, u8 new_state);
+	/* call when cwnd event occurs (optional) */
+	void (*cwnd_event)(struct tcp_sock *tp, enum tcp_ca_event ev);
+	/* new value of cwnd after loss (optional) */
+	u32  (*undo_cwnd)(struct tcp_sock *tp);
+	/* hook for packet ack accounting (optional) */
+	void (*pkts_acked)(struct tcp_sock *tp, u32 num_acked);
+	/* get info for tcp_diag (optional) */
+	void (*get_info)(struct tcp_sock *tp, u32 ext, struct sk_buff *skb);
+
+	char 		name[TCP_CA_NAME_MAX];
+	struct module 	*owner;
+};
+
+extern int tcp_register_congestion_control(struct tcp_congestion_ops *type);
+extern void tcp_unregister_congestion_control(struct tcp_congestion_ops *type);
+
+extern void tcp_init_congestion_control(struct tcp_sock *tp);
+extern void tcp_cleanup_congestion_control(struct tcp_sock *tp);
+extern int tcp_set_default_congestion_control(const char *name);
+extern void tcp_get_default_congestion_control(char *name);
+
+extern struct tcp_congestion_ops tcp_reno;
+extern u32 tcp_reno_ssthresh(struct tcp_sock *tp);
+extern void tcp_reno_cong_avoid(struct tcp_sock *tp, u32 ack,
+				u32 rtt, u32 in_flight, int flag);
+extern u32 tcp_reno_min_cwnd(struct tcp_sock *tp);
+
+static inline void tcp_set_ca_state(struct tcp_sock *tp, u8 ca_state)
+{
+	if (tp->ca_ops->set_state)
+		tp->ca_ops->set_state(tp, ca_state);
+	tp->ca_state = ca_state;
+}
+
+static inline void tcp_ca_event(struct tcp_sock *tp, enum tcp_ca_event event)
+{
+	if (tp->ca_ops->cwnd_event)
+		tp->ca_ops->cwnd_event(tp, event);
+}
+
 /* This determines how many packets are "in the network" to the best
  * of our knowledge.  In many cases it is conservative, but where
  * detailed information is available from the receiver (via SACK
@@ -1153,91 +1199,6 @@ static inline void tcp_packets_out_dec(struct tcp_sock *tp,
 static __inline__ unsigned int tcp_packets_in_flight(const struct tcp_sock *tp)
 {
 	return (tp->packets_out - tp->left_out + tp->retrans_out);
-}
-
-/*
- * Which congestion algorithim is in use on the connection.
- */
-#define tcp_is_vegas(__tp)	((__tp)->adv_cong == TCP_VEGAS)
-#define tcp_is_westwood(__tp)	((__tp)->adv_cong == TCP_WESTWOOD)
-#define tcp_is_bic(__tp)	((__tp)->adv_cong == TCP_BIC)
-
-/* Recalculate snd_ssthresh, we want to set it to:
- *
- * Reno:
- * 	one half the current congestion window, but no
- *	less than two segments
- *
- * BIC:
- *	behave like Reno until low_window is reached,
- *	then increase congestion window slowly
- */
-static inline __u32 tcp_recalc_ssthresh(struct tcp_sock *tp)
-{
-	if (tcp_is_bic(tp)) {
-		if (sysctl_tcp_bic_fast_convergence &&
-		    tp->snd_cwnd < tp->bictcp.last_max_cwnd)
-			tp->bictcp.last_max_cwnd = (tp->snd_cwnd * 
-						    (BICTCP_BETA_SCALE
-						     + sysctl_tcp_bic_beta))
-				/ (2 * BICTCP_BETA_SCALE);
-		else
-			tp->bictcp.last_max_cwnd = tp->snd_cwnd;
-
-		if (tp->snd_cwnd > sysctl_tcp_bic_low_window)
-			return max((tp->snd_cwnd * sysctl_tcp_bic_beta)
-				   / BICTCP_BETA_SCALE, 2U);
-	}
-
-	return max(tp->snd_cwnd >> 1U, 2U);
-}
-
-/* Stop taking Vegas samples for now. */
-#define tcp_vegas_disable(__tp)	((__tp)->vegas.doing_vegas_now = 0)
-    
-static inline void tcp_vegas_enable(struct tcp_sock *tp)
-{
-	/* There are several situations when we must "re-start" Vegas:
-	 *
-	 *  o when a connection is established
-	 *  o after an RTO
-	 *  o after fast recovery
-	 *  o when we send a packet and there is no outstanding
-	 *    unacknowledged data (restarting an idle connection)
-	 *
-	 * In these circumstances we cannot do a Vegas calculation at the
-	 * end of the first RTT, because any calculation we do is using
-	 * stale info -- both the saved cwnd and congestion feedback are
-	 * stale.
-	 *
-	 * Instead we must wait until the completion of an RTT during
-	 * which we actually receive ACKs.
-	 */
-    
-	/* Begin taking Vegas samples next time we send something. */
-	tp->vegas.doing_vegas_now = 1;
-     
-	/* Set the beginning of the next send window. */
-	tp->vegas.beg_snd_nxt = tp->snd_nxt;
-
-	tp->vegas.cntRTT = 0;
-	tp->vegas.minRTT = 0x7fffffff;
-}
-
-/* Should we be taking Vegas samples right now? */
-#define tcp_vegas_enabled(__tp)	((__tp)->vegas.doing_vegas_now)
-
-extern void tcp_ca_init(struct tcp_sock *tp);
-
-static inline void tcp_set_ca_state(struct tcp_sock *tp, u8 ca_state)
-{
-	if (tcp_is_vegas(tp)) {
-		if (ca_state == TCP_CA_Open) 
-			tcp_vegas_enable(tp);
-		else
-			tcp_vegas_disable(tp);
-	}
-	tp->ca_state = ca_state;
 }
 
 /* If cwnd > ssthresh, we may raise ssthresh to be half-way to cwnd.
@@ -1288,7 +1249,7 @@ static inline void tcp_cwnd_validate(struct sock *sk, struct tcp_sock *tp)
 static inline void __tcp_enter_cwr(struct tcp_sock *tp)
 {
 	tp->undo_marker = 0;
-	tp->snd_ssthresh = tcp_recalc_ssthresh(tp);
+	tp->snd_ssthresh = tp->ca_ops->ssthresh(tp);
 	tp->snd_cwnd = min(tp->snd_cwnd,
 			   tcp_packets_in_flight(tp) + 1U);
 	tp->snd_cwnd_cnt = 0;
@@ -1876,52 +1837,4 @@ struct tcp_iter_state {
 extern int tcp_proc_register(struct tcp_seq_afinfo *afinfo);
 extern void tcp_proc_unregister(struct tcp_seq_afinfo *afinfo);
 
-/* TCP Westwood functions and constants */
-
-#define TCP_WESTWOOD_INIT_RTT  (20*HZ)           /* maybe too conservative?! */
-#define TCP_WESTWOOD_RTT_MIN   (HZ/20)           /* 50ms */
-
-static inline void tcp_westwood_update_rtt(struct tcp_sock *tp, __u32 rtt_seq)
-{
-        if (tcp_is_westwood(tp))
-                tp->westwood.rtt = rtt_seq;
-}
-
-static inline __u32 __tcp_westwood_bw_rttmin(const struct tcp_sock *tp)
-{
-        return max((tp->westwood.bw_est) * (tp->westwood.rtt_min) /
-		   (__u32) (tp->mss_cache_std),
-		   2U);
-}
-
-static inline __u32 tcp_westwood_bw_rttmin(const struct tcp_sock *tp)
-{
-	return tcp_is_westwood(tp) ? __tcp_westwood_bw_rttmin(tp) : 0;
-}
-
-static inline int tcp_westwood_ssthresh(struct tcp_sock *tp)
-{
-	__u32 ssthresh = 0;
-
-	if (tcp_is_westwood(tp)) {
-		ssthresh = __tcp_westwood_bw_rttmin(tp);
-		if (ssthresh)
-			tp->snd_ssthresh = ssthresh;  
-	}
-
-	return (ssthresh != 0);
-}
-
-static inline int tcp_westwood_cwnd(struct tcp_sock *tp)
-{
-	__u32 cwnd = 0;
-
-	if (tcp_is_westwood(tp)) {
-		cwnd = __tcp_westwood_bw_rttmin(tp);
-		if (cwnd)
-			tp->snd_cwnd = cwnd;
-	}
-
-	return (cwnd != 0);
-}
 #endif	/* _TCP_H */
