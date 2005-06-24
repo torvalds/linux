@@ -1547,22 +1547,28 @@ find_delegation_file(struct nfs4_file *fp, stateid_t *stid)
 	return NULL;
 }
 
-static void
+static int
 nfs4_check_deleg(struct nfs4_file *fp, struct nfsd4_open *open,
 		struct nfs4_delegation **dp)
 {
 	int flags;
-	int status;
+	int status = nfserr_bad_stateid;
 
 	*dp = find_delegation_file(fp, &open->op_delegate_stateid);
 	if (*dp == NULL)
-		return;
+		goto out;
 	flags = open->op_share_access == NFS4_SHARE_ACCESS_READ ?
 						RD_STATE : WR_STATE;
 	status = nfs4_check_delegmode(*dp, flags);
 	if (status)
 		*dp = NULL;
-	return;
+out:
+	if (open->op_claim_type != NFS4_OPEN_CLAIM_DELEGATE_CUR)
+		return nfs_ok;
+	if (status)
+		return status;
+	open->op_stateowner->so_confirmed = 1;
+	return nfs_ok;
 }
 
 static int
@@ -1760,8 +1766,13 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 	if (fp) {
 		if ((status = nfs4_check_open(fp, open, &stp)))
 			goto out;
-		nfs4_check_deleg(fp, open, &dp);
+		status = nfs4_check_deleg(fp, open, &dp);
+		if (status)
+			goto out;
 	} else {
+		status = nfserr_bad_stateid;
+		if (open->op_claim_type == NFS4_OPEN_CLAIM_DELEGATE_CUR)
+			goto out;
 		status = nfserr_resource;
 		fp = alloc_init_file(ino);
 		if (fp == NULL)
