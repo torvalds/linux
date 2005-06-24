@@ -1169,6 +1169,7 @@ extern u32 tcp_reno_ssthresh(struct tcp_sock *tp);
 extern void tcp_reno_cong_avoid(struct tcp_sock *tp, u32 ack,
 				u32 rtt, u32 in_flight, int flag);
 extern u32 tcp_reno_min_cwnd(struct tcp_sock *tp);
+extern struct tcp_congestion_ops tcp_reno;
 
 static inline void tcp_set_ca_state(struct tcp_sock *tp, u8 ca_state)
 {
