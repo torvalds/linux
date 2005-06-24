@@ -13,6 +13,7 @@
 #ifdef CONFIG_SYSCTL
 
 extern int netdev_max_backlog;
+extern int netdev_budget;
 extern int weight_p;
 extern int net_msg_cost;
 extern int net_msg_burst;
@@ -120,6 +121,14 @@ ctl_table core_table[] = {
 		.ctl_name	= NET_CORE_SOMAXCONN,
 		.procname	= "somaxconn",
 		.data		= &sysctl_somaxconn,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec
+	},
+	{
+		.ctl_name	= NET_CORE_BUDGET,
+		.procname	= "netdev_budget",
+		.data		= &netdev_budget,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec

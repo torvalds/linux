@@ -1346,7 +1346,8 @@ out:
 			Receiver routines
   =======================================================================*/
 
-int netdev_max_backlog = 300;
+int netdev_max_backlog = 1000;
+int netdev_budget = 300;
 int weight_p = 64;            /* old backlog weight */
 
 DEFINE_PER_CPU(struct netif_rx_stats, netdev_rx_stat) = { 0, };
@@ -1695,8 +1696,7 @@ static void net_rx_action(struct softirq_action *h)
 {
 	struct softnet_data *queue = &__get_cpu_var(softnet_data);
 	unsigned long start_time = jiffies;
-	int budget = netdev_max_backlog;
-
+	int budget = netdev_budget;
 	
 	local_irq_disable();
 
