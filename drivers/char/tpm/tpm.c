@@ -447,15 +447,15 @@ EXPORT_SYMBOL_GPL(tpm_open);
 int tpm_release(struct inode *inode, struct file *file)
 {
 	struct tpm_chip *chip = file->private_data;
-	
-	file->private_data = NULL;
 
 	spin_lock(&driver_lock);
+	file->private_data = NULL;
 	chip->num_opens--;
 	del_singleshot_timer_sync(&chip->user_read_timer);
 	atomic_set(&chip->data_pending, 0);
-
 	pci_dev_put(chip->pci_dev);
+	kfree(chip->data_buffer);
+	spin_unlock(&driver_lock);
 	return 0;
 }
 
@@ -665,9 +665,13 @@ dev_num_search_complete:
 		return -ENODEV;
 	}
 
+	spin_lock(&driver_lock);
+
 	pci_set_drvdata(pci_dev, chip);
 
 	list_add(&chip->list, &tpm_chip_list);
+
+	spin_unlock(&driver_lock);
 
 	sysfs_create_group(&pci_dev->dev.kobj, chip->vendor->attr_group);
 
