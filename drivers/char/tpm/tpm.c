@@ -675,19 +675,6 @@ dev_num_search_complete:
 
 EXPORT_SYMBOL_GPL(tpm_register_hardware);
 
-static int __init init_tpm(void)
-{
-	return 0;
-}
-
-static void __exit cleanup_tpm(void)
-{
-
-}
-
-module_init(init_tpm);
-module_exit(cleanup_tpm);
-
 MODULE_AUTHOR("Leendert van Doorn (leendert@watson.ibm.com)");
 MODULE_DESCRIPTION("TPM Driver");
 MODULE_VERSION("2.0");
