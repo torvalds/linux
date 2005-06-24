@@ -145,12 +145,12 @@ int nfsd_set_posix_acl(struct svc_fh *, int, struct posix_acl *);
  * NFSv4 State
  */
 #ifdef CONFIG_NFSD_V4
-int nfs4_state_init(void);
+int nfs4_state_start(void);
 void nfs4_state_shutdown(void);
 time_t nfs4_lease_time(void);
 void nfs4_reset_lease(time_t leasetime);
 #else
-static inline int nfs4_state_init(void){return 0;}
+static inline int nfs4_state_start(void){return 0;}
 static inline void nfs4_state_shutdown(void){}
 static inline time_t nfs4_lease_time(void){return 0;}
 static inline void nfs4_reset_lease(time_t leasetime){}

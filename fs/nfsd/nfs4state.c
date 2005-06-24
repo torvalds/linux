@@ -3185,7 +3185,7 @@ nfs4_check_open_reclaim(clientid_t *clid)
  */
 
 static void
-__nfs4_state_init(void)
+__nfs4_state_start(void)
 {
 	int i;
 	time_t grace_time;
@@ -3235,7 +3235,7 @@ __nfs4_state_init(void)
 }
 
 int
-nfs4_state_init(void)
+nfs4_state_start(void)
 {
 	int status;
 
@@ -3244,7 +3244,7 @@ nfs4_state_init(void)
 	status = nfsd4_init_slabs();
 	if (status)
 		return status;
-	__nfs4_state_init();
+	__nfs4_state_start();
 	nfs4_init = 1;
 	return 0;
 }
