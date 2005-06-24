@@ -728,7 +728,6 @@ long keyctl_chown_key(key_serial_t id, uid_t uid, gid_t gid)
 	/* make the changes with the locks held to prevent chown/chown races */
 	ret = -EACCES;
 	down_write(&key->sem);
-	write_lock(&key->lock);
 
 	if (!capable(CAP_SYS_ADMIN)) {
 		/* only the sysadmin can chown a key to some other UID */
@@ -755,7 +754,6 @@ long keyctl_chown_key(key_serial_t id, uid_t uid, gid_t gid)
 	ret = 0;
 
  no_access:
-	write_unlock(&key->lock);
 	up_write(&key->sem);
 	key_put(key);
  error:
@@ -784,26 +782,19 @@ long keyctl_setperm_key(key_serial_t id, key_perm_t perm)
 		goto error;
 	}
 
-	/* make the changes with the locks held to prevent chown/chmod
-	 * races */
+	/* make the changes with the locks held to prevent chown/chmod races */
 	ret = -EACCES;
 	down_write(&key->sem);
-	write_lock(&key->lock);
 
-	/* if we're not the sysadmin, we can only chmod a key that we
-	 * own */
-	if (!capable(CAP_SYS_ADMIN) && key->uid != current->fsuid)
-		goto no_access;
+	/* if we're not the sysadmin, we can only change a key that we own */
+	if (capable(CAP_SYS_ADMIN) || key->uid == current->fsuid) {
+		key->perm = perm;
+		ret = 0;
+	}
 
-	/* changing the permissions mask */
-	key->perm = perm;
-	ret = 0;
-
- no_access:
-	write_unlock(&key->lock);
 	up_write(&key->sem);
 	key_put(key);
- error:
+error:
 	return ret;
 
 } /* end keyctl_setperm_key() */

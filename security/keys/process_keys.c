@@ -38,10 +38,9 @@ struct key root_user_keyring = {
 	.serial		= 2,
 	.type		= &key_type_keyring,
 	.user		= &root_key_user,
-	.lock		= RW_LOCK_UNLOCKED,
 	.sem		= __RWSEM_INITIALIZER(root_user_keyring.sem),
 	.perm		= KEY_USR_ALL,
-	.flags		= KEY_FLAG_INSTANTIATED,
+	.flags		= 1 << KEY_FLAG_INSTANTIATED,
 	.description	= "_uid.0",
 #ifdef KEY_DEBUGGING
 	.magic		= KEY_DEBUG_MAGIC,
@@ -54,10 +53,9 @@ struct key root_session_keyring = {
 	.serial		= 1,
 	.type		= &key_type_keyring,
 	.user		= &root_key_user,
-	.lock		= RW_LOCK_UNLOCKED,
 	.sem		= __RWSEM_INITIALIZER(root_session_keyring.sem),
 	.perm		= KEY_USR_ALL,
-	.flags		= KEY_FLAG_INSTANTIATED,
+	.flags		= 1 << KEY_FLAG_INSTANTIATED,
 	.description	= "_uid_ses.0",
 #ifdef KEY_DEBUGGING
 	.magic		= KEY_DEBUG_MAGIC,
@@ -349,9 +347,7 @@ void key_fsuid_changed(struct task_struct *tsk)
 	/* update the ownership of the thread keyring */
 	if (tsk->thread_keyring) {
 		down_write(&tsk->thread_keyring->sem);
-		write_lock(&tsk->thread_keyring->lock);
 		tsk->thread_keyring->uid = tsk->fsuid;
-		write_unlock(&tsk->thread_keyring->lock);
 		up_write(&tsk->thread_keyring->sem);
 	}
 
@@ -366,9 +362,7 @@ void key_fsgid_changed(struct task_struct *tsk)
 	/* update the ownership of the thread keyring */
 	if (tsk->thread_keyring) {
 		down_write(&tsk->thread_keyring->sem);
-		write_lock(&tsk->thread_keyring->lock);
 		tsk->thread_keyring->gid = tsk->fsgid;
-		write_unlock(&tsk->thread_keyring->lock);
 		up_write(&tsk->thread_keyring->sem);
 	}
 
@@ -588,7 +582,7 @@ struct key *lookup_user_key(key_serial_t id, int create, int partial,
 	}
 
 	ret = -EIO;
-	if (!partial && !(key->flags & KEY_FLAG_INSTANTIATED))
+	if (!partial && !test_bit(KEY_FLAG_INSTANTIATED, &key->flags))
 		goto invalid_key;
 
 	ret = -EACCES;

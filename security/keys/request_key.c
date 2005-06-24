@@ -105,7 +105,7 @@ static struct key *__request_key_construction(struct key_type *type,
 	struct key_construction cons;
 	struct timespec now;
 	struct key *key;
-	int ret, negative;
+	int ret, negated;
 
 	/* create a key and add it to the queue */
 	key = key_alloc(type, description,
@@ -113,9 +113,7 @@ static struct key *__request_key_construction(struct key_type *type,
 	if (IS_ERR(key))
 		goto alloc_failed;
 
-	write_lock(&key->lock);
-	key->flags |= KEY_FLAG_USER_CONSTRUCT;
-	write_unlock(&key->lock);
+	set_bit(KEY_FLAG_USER_CONSTRUCT, &key->flags);
 
 	cons.key = key;
 	list_add_tail(&cons.link, &key->user->consq);
@@ -130,7 +128,7 @@ static struct key *__request_key_construction(struct key_type *type,
 
 	/* if the key wasn't instantiated, then we want to give an error */
 	ret = -ENOKEY;
-	if (!(key->flags & KEY_FLAG_INSTANTIATED))
+	if (!test_bit(KEY_FLAG_INSTANTIATED, &key->flags))
 		goto request_failed;
 
 	down_write(&key_construction_sem);
@@ -139,7 +137,7 @@ static struct key *__request_key_construction(struct key_type *type,
 
 	/* also give an error if the key was negatively instantiated */
  check_not_negative:
-	if (key->flags & KEY_FLAG_NEGATIVE) {
+	if (test_bit(KEY_FLAG_NEGATIVE, &key->flags)) {
 		key_put(key);
 		key = ERR_PTR(-ENOKEY);
 	}
@@ -152,24 +150,23 @@ static struct key *__request_key_construction(struct key_type *type,
 	 * - remove from construction queue
 	 * - mark the key as dead
 	 */
-	negative = 0;
+	negated = 0;
 	down_write(&key_construction_sem);
 
 	list_del(&cons.link);
 
-	write_lock(&key->lock);
-	key->flags &= ~KEY_FLAG_USER_CONSTRUCT;
-
 	/* check it didn't get instantiated between the check and the down */
-	if (!(key->flags & KEY_FLAG_INSTANTIATED)) {
-		key->flags |= KEY_FLAG_INSTANTIATED | KEY_FLAG_NEGATIVE;
-		negative = 1;
+	if (!test_bit(KEY_FLAG_INSTANTIATED, &key->flags)) {
+		set_bit(KEY_FLAG_NEGATIVE, &key->flags);
+		set_bit(KEY_FLAG_INSTANTIATED, &key->flags);
+		negated = 1;
 	}
 
-	write_unlock(&key->lock);
+	clear_bit(KEY_FLAG_USER_CONSTRUCT, &key->flags);
+
 	up_write(&key_construction_sem);
 
-	if (!negative)
+	if (!negated)
 		goto check_not_negative; /* surprisingly, the key got
 					  * instantiated */
 
@@ -250,7 +247,7 @@ static struct key *request_key_construction(struct key_type *type,
 
 	for (;;) {
 		set_current_state(TASK_UNINTERRUPTIBLE);
-		if (!(ckey->flags & KEY_FLAG_USER_CONSTRUCT))
+		if (!test_bit(KEY_FLAG_USER_CONSTRUCT, &ckey->flags))
 			break;
 		schedule();
 	}
@@ -339,7 +336,8 @@ int key_validate(struct key *key)
 	if (key) {
 		/* check it's still accessible */
 		ret = -EKEYREVOKED;
-		if (key->flags & (KEY_FLAG_REVOKED | KEY_FLAG_DEAD))
+		if (test_bit(KEY_FLAG_REVOKED, &key->flags) ||
+		    test_bit(KEY_FLAG_DEAD, &key->flags))
 			goto error;
 
 		/* check it hasn't expired */
