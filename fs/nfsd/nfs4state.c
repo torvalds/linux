@@ -743,10 +743,13 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_setclientid *setclid)
 		 * nfs4_client,  but with the new callback info and a 
 		 * new cl_confirm
 		 */
-		if ((unconf) && 
-		    cmp_verf(&unconf->cl_verifier, &conf->cl_verifier) &&
-		     cmp_clid(&unconf->cl_clientid, &conf->cl_clientid)) {
-				expire_client(unconf);
+		if (unconf) {
+			/* Note this is removing unconfirmed {*x***},
+			 * which is stronger than RFC recommended {vxc**}.
+			 * This has the advantage that there is at most
+			 * one {*x***} in either list at any time.
+			 */
+			expire_client(unconf);
 		}
 		new = create_client(clname, dname);
 		if (new == NULL)
