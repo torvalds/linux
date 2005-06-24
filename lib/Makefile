@@ -37,6 +37,7 @@ obj-$(CONFIG_ZLIB_DEFLATE) += zlib_deflate/
 obj-$(CONFIG_REED_SOLOMON) += reed_solomon/
 
 lib-$(CONFIG_TEXTSEARCH) += textsearch.o
+obj-$(CONFIG_TEXTSEARCH_KMP) += ts_kmp.o
 
 hostprogs-y	:= gen_crc32table
 clean-files	:= crc32table.h

@@ -70,4 +70,14 @@ config TEXTSEARCH
 	  Say Y here if you want to provide a textsearch infrastructure
 	  to other subsystems.
 
+config TEXTSEARCH_KMP
+	depends on TEXTSEARCH
+	tristate "Knuth-Morris-Pratt"
+	help
+	  Say Y here if you want to be able to search text using the
+	  Knuth-Morris-Pratt textsearch algorithm.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called ts_kmp.
+
 endmenu
