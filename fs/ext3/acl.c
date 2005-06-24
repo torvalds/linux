@@ -393,7 +393,8 @@ ext3_acl_chmod(struct inode *inode)
 		int retries = 0;
 
 	retry:
-		handle = ext3_journal_start(inode, EXT3_DATA_TRANS_BLOCKS);
+		handle = ext3_journal_start(inode,
+				EXT3_DATA_TRANS_BLOCKS(inode->i_sb));
 		if (IS_ERR(handle)) {
 			error = PTR_ERR(handle);
 			ext3_std_error(inode->i_sb, error);
@@ -503,7 +504,7 @@ ext3_xattr_set_acl(struct inode *inode, int type, const void *value,
 		acl = NULL;
 
 retry:
-	handle = ext3_journal_start(inode, EXT3_DATA_TRANS_BLOCKS);
+	handle = ext3_journal_start(inode, EXT3_DATA_TRANS_BLOCKS(inode->i_sb));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 	error = ext3_set_acl(handle, inode, type, acl);

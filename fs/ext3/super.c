@@ -589,7 +589,7 @@ enum {
 	Opt_commit, Opt_journal_update, Opt_journal_inum,
 	Opt_abort, Opt_data_journal, Opt_data_ordered, Opt_data_writeback,
 	Opt_usrjquota, Opt_grpjquota, Opt_offusrjquota, Opt_offgrpjquota,
-	Opt_jqfmt_vfsold, Opt_jqfmt_vfsv0,
+	Opt_jqfmt_vfsold, Opt_jqfmt_vfsv0, Opt_quota, Opt_noquota,
 	Opt_ignore, Opt_barrier, Opt_err, Opt_resize,
 };
 
@@ -634,10 +634,10 @@ static match_table_t tokens = {
 	{Opt_grpjquota, "grpjquota=%s"},
 	{Opt_jqfmt_vfsold, "jqfmt=vfsold"},
 	{Opt_jqfmt_vfsv0, "jqfmt=vfsv0"},
-	{Opt_ignore, "grpquota"},
-	{Opt_ignore, "noquota"},
-	{Opt_ignore, "quota"},
-	{Opt_ignore, "usrquota"},
+	{Opt_quota, "grpquota"},
+	{Opt_noquota, "noquota"},
+	{Opt_quota, "quota"},
+	{Opt_quota, "usrquota"},
 	{Opt_barrier, "barrier=%u"},
 	{Opt_err, NULL},
 	{Opt_resize, "resize"},
@@ -876,6 +876,7 @@ set_qf_name:
 				sbi->s_qf_names[qtype] = NULL;
 				return 0;
 			}
+			set_opt(sbi->s_mount_opt, QUOTA);
 			break;
 		case Opt_offusrjquota:
 			qtype = USRQUOTA;
@@ -898,6 +899,17 @@ clear_qf_name:
 		case Opt_jqfmt_vfsv0:
 			sbi->s_jquota_fmt = QFMT_VFS_V0;
 			break;
+		case Opt_quota:
+			set_opt(sbi->s_mount_opt, QUOTA);
+			break;
+		case Opt_noquota:
+			if (sb_any_quota_enabled(sb)) {
+				printk(KERN_ERR "EXT3-fs: Cannot change quota "
+					"options when quota turned on.\n");
+				return 0;
+			}
+			clear_opt(sbi->s_mount_opt, QUOTA);
+			break;
 #else
 		case Opt_usrjquota:
 		case Opt_grpjquota:
@@ -908,6 +920,9 @@ clear_qf_name:
 			printk(KERN_ERR
 				"EXT3-fs: journalled quota options not "
 				"supported.\n");
+			break;
+		case Opt_quota:
+		case Opt_noquota:
 			break;
 #endif
 		case Opt_abort:
@@ -2238,7 +2253,7 @@ static int ext3_dquot_initialize(struct inode *inode, int type)
 	int ret, err;
 
 	/* We may create quota structure so we need to reserve enough blocks */
-	handle = ext3_journal_start(inode, 2*EXT3_QUOTA_INIT_BLOCKS);
+	handle = ext3_journal_start(inode, 2*EXT3_QUOTA_INIT_BLOCKS(inode->i_sb));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 	ret = dquot_initialize(inode, type);
@@ -2254,7 +2269,7 @@ static int ext3_dquot_drop(struct inode *inode)
 	int ret, err;
 
 	/* We may delete quota structure so we need to reserve enough blocks */
-	handle = ext3_journal_start(inode, 2*EXT3_QUOTA_INIT_BLOCKS);
+	handle = ext3_journal_start(inode, 2*EXT3_QUOTA_DEL_BLOCKS(inode->i_sb));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 	ret = dquot_drop(inode);
@@ -2272,7 +2287,7 @@ static int ext3_write_dquot(struct dquot *dquot)
 
 	inode = dquot_to_inode(dquot);
 	handle = ext3_journal_start(inode,
-					EXT3_QUOTA_TRANS_BLOCKS);
+					EXT3_QUOTA_TRANS_BLOCKS(dquot->dq_sb));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 	ret = dquot_commit(dquot);
@@ -2288,7 +2303,7 @@ static int ext3_acquire_dquot(struct dquot *dquot)
 	handle_t *handle;
 
 	handle = ext3_journal_start(dquot_to_inode(dquot),
-					EXT3_QUOTA_INIT_BLOCKS);
+					EXT3_QUOTA_INIT_BLOCKS(dquot->dq_sb));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 	ret = dquot_acquire(dquot);
@@ -2304,7 +2319,7 @@ static int ext3_release_dquot(struct dquot *dquot)
 	handle_t *handle;
 
 	handle = ext3_journal_start(dquot_to_inode(dquot),
-					EXT3_QUOTA_INIT_BLOCKS);
+					EXT3_QUOTA_DEL_BLOCKS(dquot->dq_sb));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 	ret = dquot_release(dquot);
@@ -2361,6 +2376,8 @@ static int ext3_quota_on(struct super_block *sb, int type, int format_id,
 	int err;
 	struct nameidata nd;
 
+	if (!test_opt(sb, QUOTA))
+		return -EINVAL;
 	/* Not journalling quota? */
 	if (!EXT3_SB(sb)->s_qf_names[USRQUOTA] &&
 	    !EXT3_SB(sb)->s_qf_names[GRPQUOTA])
