@@ -283,6 +283,12 @@ cifs_stats_read(char *buf, char **beginBuffer, off_t offset,
 			atomic_read(&tcon->num_t2renames));
 		buf += item_length;
 		length += item_length;
+		item_length = sprintf(buf,"\nFindFirst: %d FNext %d FClose %d",
+			atomic_read(&tcon->num_ffirst),
+			atomic_read(&tcon->num_fnext),
+			atomic_read(&tcon->num_fclose));
+		buf += item_length;
+		length += item_length;
 	}
 	read_unlock(&GlobalSMBSeslock);
 
@@ -360,7 +366,7 @@ cifs_proc_init(void)
 	if (pde)
 		pde->write_proc = oplockEnabled_write;
 
-	pde = create_proc_read_entry("ReenableOldCifsReaddirCode", 0, proc_fs_cifs,
+	pde = create_proc_read_entry("Experimental", 0, proc_fs_cifs,
 				quotaEnabled_read, NULL);
 	if (pde)
 		pde->write_proc = quotaEnabled_write;
@@ -419,7 +425,7 @@ cifs_proc_clean(void)
 	remove_proc_entry("ExtendedSecurity",proc_fs_cifs);
 	remove_proc_entry("PacketSigningEnabled",proc_fs_cifs);
 	remove_proc_entry("LinuxExtensionsEnabled",proc_fs_cifs);
-	remove_proc_entry("ReenableOldCifsReaddirCode",proc_fs_cifs);
+	remove_proc_entry("Experimental",proc_fs_cifs);
 	remove_proc_entry("LookupCacheEnabled",proc_fs_cifs);
 	remove_proc_entry("cifs", proc_root_fs);
 }

@@ -197,7 +197,7 @@ smb_send2(struct socket *ssocket, struct smb_hdr *smb_buffer,
 	iov[0].iov_base = smb_buffer;
 	iov[0].iov_len = len;
 	iov[1].iov_base = data;
-	iov[2].iov_len = datalen;
+	iov[1].iov_len = datalen;
 	smb_msg.msg_name = sin;
 	smb_msg.msg_namelen = sizeof (struct sockaddr);
 	smb_msg.msg_control = NULL;
@@ -210,7 +210,8 @@ smb_send2(struct socket *ssocket, struct smb_hdr *smb_buffer,
 	   Flags2 is converted in SendReceive */
 
 	smb_buffer->smb_buf_length = cpu_to_be32(smb_buffer->smb_buf_length);
-	cFYI(1, ("Sending smb of length %d ", len + datalen));
+	cFYI(1, ("Sending smb:  hdrlen %d datalen %d",
+		 smb_hdr_length,datalen));
 	dump_smb(smb_buffer, len);
 
 	while (len + datalen > 0) {
@@ -233,6 +234,7 @@ smb_send2(struct socket *ssocket, struct smb_hdr *smb_buffer,
 			if(rc >= len) {
 				iov[0].iov_len = 0;
 				rc -= len;
+				len = 0;
 			} else {  /* some of hdr was not sent */
 				len -= rc;
 				iov[0].iov_len -= rc;

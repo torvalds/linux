@@ -964,7 +964,7 @@ CIFSSMBWrite2(const int xid, struct cifsTconInfo *tcon,
 	__u32 bytes_sent;
 	__u16 byte_count;
 
-	cERROR(1,("write2 at %lld %d bytes",offset,count)); /* BB removeme BB */
+	cFYI(1,("write2 at %lld %d bytes",offset,count)); /* BB removeme BB */
 	rc = small_smb_init(SMB_COM_WRITE_ANDX, 14, tcon, (void **) &pSMB);
 	if (rc)
 		return rc;
