@@ -41,7 +41,7 @@ static int __init do_linuxrc(void * shell)
 static void __init handle_initrd(void)
 {
 	int error;
-	int i, pid;
+	int pid;
 
 	real_root_dev = new_encode_dev(ROOT_DEV);
 	create_dev("/dev/root.old", Root_RAM0, NULL);
@@ -58,7 +58,7 @@ static void __init handle_initrd(void)
 
 	pid = kernel_thread(do_linuxrc, "/linuxrc", SIGCHLD);
 	if (pid > 0) {
-		while (pid != sys_wait4(-1, &i, 0, NULL))
+		while (pid != sys_wait4(-1, NULL, 0, NULL))
 			yield();
 	}
 
