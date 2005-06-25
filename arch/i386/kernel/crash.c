@@ -28,6 +28,8 @@
 
 
 note_buf_t crash_notes[NR_CPUS];
+/* This keeps a track of which one is crashing cpu. */
+static int crashing_cpu;
 
 static u32 *append_elf_note(u32 *buf,
 	char *name, unsigned type, void *data, size_t data_len)
@@ -113,6 +115,13 @@ static atomic_t waiting_for_crash_ipi;
 static int crash_nmi_callback(struct pt_regs *regs, int cpu)
 {
 	struct pt_regs fixed_regs;
+
+	/* Don't do anything if this handler is invoked on crashing cpu.
+	 * Otherwise, system will completely hang. Crashing cpu can get
+	 * an NMI if system was initially booted with nmi_watchdog parameter.
+	 */
+	if (cpu == crashing_cpu)
+		return 1;
 	local_irq_disable();
 
 	/* CPU does not save ss and esp on stack if execution is already
@@ -187,6 +196,9 @@ void machine_crash_shutdown(void)
 	 */
 	/* The kernel is broken so disable interrupts */
 	local_irq_disable();
+
+	/* Make a note of crashing cpu. Will be used in NMI callback.*/
+	crashing_cpu = smp_processor_id();
 	nmi_shootdown_cpus();
 	lapic_shutdown();
 #if defined(CONFIG_X86_IO_APIC)
