@@ -368,6 +368,11 @@ struct signal_struct {
 #endif
 };
 
+/* Context switch must be unlocked if interrupts are to be enabled */
+#ifdef __ARCH_WANT_INTERRUPTS_ON_CTXSW
+# define __ARCH_WANT_UNLOCKED_CTXSW
+#endif
+
 /*
  * Bits in flags field of signal_struct.
  */
@@ -594,6 +599,9 @@ struct task_struct {
 
 	int lock_depth;		/* BKL lock depth */
 
+#if defined(CONFIG_SMP) && defined(__ARCH_WANT_UNLOCKED_CTXSW)
+	int oncpu;
+#endif
 	int prio, static_prio;
 	struct list_head run_list;
 	prio_array_t *array;
@@ -716,8 +724,6 @@ struct task_struct {
 	spinlock_t alloc_lock;
 /* Protection of proc_dentry: nesting proc_lock, dcache_lock, write_lock_irq(&tasklist_lock); */
 	spinlock_t proc_lock;
-/* context-switch lock */
-	spinlock_t switch_lock;
 
 /* journalling filesystem info */
 	void *journal_info;

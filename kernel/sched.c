@@ -268,14 +268,71 @@ static DEFINE_PER_CPU(struct runqueue, runqueues);
 #define task_rq(p)		cpu_rq(task_cpu(p))
 #define cpu_curr(cpu)		(cpu_rq(cpu)->curr)
 
-/*
- * Default context-switch locking:
- */
 #ifndef prepare_arch_switch
-# define prepare_arch_switch(rq, next)	do { } while (0)
-# define finish_arch_switch(rq, next)	spin_unlock_irq(&(rq)->lock)
-# define task_running(rq, p)		((rq)->curr == (p))
+# define prepare_arch_switch(next)	do { } while (0)
 #endif
+#ifndef finish_arch_switch
+# define finish_arch_switch(prev)	do { } while (0)
+#endif
+
+#ifndef __ARCH_WANT_UNLOCKED_CTXSW
+static inline int task_running(runqueue_t *rq, task_t *p)
+{
+	return rq->curr == p;
+}
+
+static inline void prepare_lock_switch(runqueue_t *rq, task_t *next)
+{
+}
+
+static inline void finish_lock_switch(runqueue_t *rq, task_t *prev)
+{
+	spin_unlock_irq(&rq->lock);
+}
+
+#else /* __ARCH_WANT_UNLOCKED_CTXSW */
+static inline int task_running(runqueue_t *rq, task_t *p)
+{
+#ifdef CONFIG_SMP
+	return p->oncpu;
+#else
+	return rq->curr == p;
+#endif
+}
+
+static inline void prepare_lock_switch(runqueue_t *rq, task_t *next)
+{
+#ifdef CONFIG_SMP
+	/*
+	 * We can optimise this out completely for !SMP, because the
+	 * SMP rebalancing from interrupt is the only thing that cares
+	 * here.
+	 */
+	next->oncpu = 1;
+#endif
+#ifdef __ARCH_WANT_INTERRUPTS_ON_CTXSW
+	spin_unlock_irq(&rq->lock);
+#else
+	spin_unlock(&rq->lock);
+#endif
+}
+
+static inline void finish_lock_switch(runqueue_t *rq, task_t *prev)
+{
+#ifdef CONFIG_SMP
+	/*
+	 * After ->oncpu is cleared, the task can be moved to a different CPU.
+	 * We must ensure this doesn't happen until the switch is completely
+	 * finished.
+	 */
+	smp_wmb();
+	prev->oncpu = 0;
+#endif
+#ifndef __ARCH_WANT_INTERRUPTS_ON_CTXSW
+	local_irq_enable();
+#endif
+}
+#endif /* __ARCH_WANT_UNLOCKED_CTXSW */
 
 /*
  * task_rq_lock - lock the runqueue a given task resides on and disable
@@ -1196,17 +1253,14 @@ void fastcall sched_fork(task_t *p)
 	p->state = TASK_RUNNING;
 	INIT_LIST_HEAD(&p->run_list);
 	p->array = NULL;
-	spin_lock_init(&p->switch_lock);
 #ifdef CONFIG_SCHEDSTATS
 	memset(&p->sched_info, 0, sizeof(p->sched_info));
 #endif
+#if defined(CONFIG_SMP) && defined(__ARCH_WANT_UNLOCKED_CTXSW)
+	p->oncpu = 0;
+#endif
 #ifdef CONFIG_PREEMPT
-	/*
-	 * During context-switch we hold precisely one spinlock, which
-	 * schedule_tail drops. (in the common case it's this_rq()->lock,
-	 * but it also can be p->switch_lock.) So we compensate with a count
-	 * of 1. Also, we want to start with kernel preemption disabled.
-	 */
+	/* Want to start with kernel preemption disabled. */
 	p->thread_info->preempt_count = 1;
 #endif
 	/*
@@ -1388,22 +1442,40 @@ void fastcall sched_exit(task_t * p)
 }
 
 /**
+ * prepare_task_switch - prepare to switch tasks
+ * @rq: the runqueue preparing to switch
+ * @next: the task we are going to switch to.
+ *
+ * This is called with the rq lock held and interrupts off. It must
+ * be paired with a subsequent finish_task_switch after the context
+ * switch.
+ *
+ * prepare_task_switch sets up locking and calls architecture specific
+ * hooks.
+ */
+static inline void prepare_task_switch(runqueue_t *rq, task_t *next)
+{
+	prepare_lock_switch(rq, next);
+	prepare_arch_switch(next);
+}
+
+/**
  * finish_task_switch - clean up after a task-switch
  * @prev: the thread we just switched away from.
  *
- * We enter this with the runqueue still locked, and finish_arch_switch()
- * will unlock it along with doing any other architecture-specific cleanup
- * actions.
+ * finish_task_switch must be called after the context switch, paired
+ * with a prepare_task_switch call before the context switch.
+ * finish_task_switch will reconcile locking set up by prepare_task_switch,
+ * and do any other architecture-specific cleanup actions.
  *
  * Note that we may have delayed dropping an mm in context_switch(). If
  * so, we finish that here outside of the runqueue lock.  (Doing it
  * with the lock held can cause deadlocks; see schedule() for
  * details.)
  */
-static inline void finish_task_switch(task_t *prev)
+static inline void finish_task_switch(runqueue_t *rq, task_t *prev)
 	__releases(rq->lock)
 {
-	runqueue_t *rq = this_rq();
 	struct mm_struct *mm = rq->prev_mm;
 	unsigned long prev_task_flags;
 
@@ -1421,7 +1493,8 @@ static inline void finish_task_switch(task_t *prev)
 	 *		Manfred Spraul <manfred@colorfullife.com>
 	 */
 	prev_task_flags = prev->flags;
-	finish_arch_switch(rq, prev);
+	finish_arch_switch(prev);
+	finish_lock_switch(rq, prev);
 	if (mm)
 		mmdrop(mm);
 	if (unlikely(prev_task_flags & PF_DEAD))
@@ -1435,8 +1508,12 @@ static inline void finish_task_switch(task_t *prev)
 asmlinkage void schedule_tail(task_t *prev)
 	__releases(rq->lock)
 {
-	finish_task_switch(prev);
-
+	runqueue_t *rq = this_rq();
+	finish_task_switch(rq, prev);
+#ifdef __ARCH_WANT_UNLOCKED_CTXSW
+	/* In this case, finish_task_switch does not reenable preemption */
+	preempt_enable();
+#endif
 	if (current->set_child_tid)
 		put_user(current->pid, current->set_child_tid);
 }
@@ -2816,11 +2893,15 @@ switch_tasks:
 		rq->curr = next;
 		++*switch_count;
 
-		prepare_arch_switch(rq, next);
+		prepare_task_switch(rq, next);
 		prev = context_switch(rq, prev, next);
 		barrier();
-
-		finish_task_switch(prev);
+		/*
+		 * this_rq must be evaluated again because prev may have moved
+		 * CPUs since it called schedule(), thus the 'rq' on its stack
+		 * frame will be invalid.
+		 */
+		finish_task_switch(this_rq(), prev);
 	} else
 		spin_unlock_irq(&rq->lock);
 
@@ -4085,6 +4166,9 @@ void __devinit init_idle(task_t *idle, int cpu)
 
 	spin_lock_irqsave(&rq->lock, flags);
 	rq->curr = rq->idle = idle;
+#if defined(CONFIG_SMP) && defined(__ARCH_WANT_UNLOCKED_CTXSW)
+	idle->oncpu = 1;
+#endif
 	set_tsk_need_resched(idle);
 	spin_unlock_irqrestore(&rq->lock, flags);
 

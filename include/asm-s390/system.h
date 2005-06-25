@@ -104,28 +104,17 @@ static inline void restore_access_regs(unsigned int *acrs)
 	prev = __switch_to(prev,next);					     \
 } while (0)
 
-#define prepare_arch_switch(rq, next)	do { } while(0)
-#define task_running(rq, p)		((rq)->curr == (p))
-
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
 extern void account_user_vtime(struct task_struct *);
 extern void account_system_vtime(struct task_struct *);
-
-#define finish_arch_switch(rq, prev) do {				     \
-	set_fs(current->thread.mm_segment);				     \
-	spin_unlock(&(rq)->lock);					     \
-	account_system_vtime(prev);					     \
-	local_irq_enable();						     \
-} while (0)
-
 #else
+#define account_system_vtime(prev) do { } while (0)
+#endif
 
 #define finish_arch_switch(rq, prev) do {				     \
 	set_fs(current->thread.mm_segment);				     \
-	spin_unlock_irq(&(rq)->lock);					     \
+	account_system_vtime(prev);					     \
 } while (0)
-
-#endif
 
 #define nop() __asm__ __volatile__ ("nop")
 
