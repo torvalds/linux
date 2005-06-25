@@ -3,7 +3,7 @@
 
 #include <asm/page.h>
 
-#define VERSION_CIO_QDIO_H "$Revision: 1.32 $"
+#define VERSION_CIO_QDIO_H "$Revision: 1.33 $"
 
 #ifdef CONFIG_QDIO_DEBUG
 #define QDIO_VERBOSE_LEVEL 9
@@ -132,7 +132,7 @@ enum qdio_irq_states {
 
 #define QDIO_DBF_SETUP_NAME "qdio_setup"
 #define QDIO_DBF_SETUP_LEN 8
-#define QDIO_DBF_SETUP_INDEX 2
+#define QDIO_DBF_SETUP_PAGES 4
 #define QDIO_DBF_SETUP_NR_AREAS 1
 #ifdef CONFIG_QDIO_DEBUG
 #define QDIO_DBF_SETUP_LEVEL 6
@@ -142,7 +142,7 @@ enum qdio_irq_states {
 
 #define QDIO_DBF_SBAL_NAME "qdio_labs" /* sbal */
 #define QDIO_DBF_SBAL_LEN 256
-#define QDIO_DBF_SBAL_INDEX 2
+#define QDIO_DBF_SBAL_PAGES 4
 #define QDIO_DBF_SBAL_NR_AREAS 2
 #ifdef CONFIG_QDIO_DEBUG
 #define QDIO_DBF_SBAL_LEVEL 6
@@ -154,16 +154,16 @@ enum qdio_irq_states {
 #define QDIO_DBF_TRACE_LEN 8
 #define QDIO_DBF_TRACE_NR_AREAS 2
 #ifdef CONFIG_QDIO_DEBUG
-#define QDIO_DBF_TRACE_INDEX 4
+#define QDIO_DBF_TRACE_PAGES 16
 #define QDIO_DBF_TRACE_LEVEL 4 /* -------- could be even more verbose here */
 #else /* CONFIG_QDIO_DEBUG */
-#define QDIO_DBF_TRACE_INDEX 2
+#define QDIO_DBF_TRACE_PAGES 4
 #define QDIO_DBF_TRACE_LEVEL 2
 #endif /* CONFIG_QDIO_DEBUG */
 
 #define QDIO_DBF_SENSE_NAME "qdio_sense"
 #define QDIO_DBF_SENSE_LEN 64
-#define QDIO_DBF_SENSE_INDEX 1
+#define QDIO_DBF_SENSE_PAGES 2
 #define QDIO_DBF_SENSE_NR_AREAS 1
 #ifdef CONFIG_QDIO_DEBUG
 #define QDIO_DBF_SENSE_LEVEL 6
@@ -176,13 +176,13 @@ enum qdio_irq_states {
 
 #define QDIO_DBF_SLSB_OUT_NAME "qdio_slsb_out"
 #define QDIO_DBF_SLSB_OUT_LEN QDIO_MAX_BUFFERS_PER_Q
-#define QDIO_DBF_SLSB_OUT_INDEX 8
+#define QDIO_DBF_SLSB_OUT_PAGES 256
 #define QDIO_DBF_SLSB_OUT_NR_AREAS 1
 #define QDIO_DBF_SLSB_OUT_LEVEL 6
 
 #define QDIO_DBF_SLSB_IN_NAME "qdio_slsb_in"
 #define QDIO_DBF_SLSB_IN_LEN QDIO_MAX_BUFFERS_PER_Q
-#define QDIO_DBF_SLSB_IN_INDEX 8
+#define QDIO_DBF_SLSB_IN_PAGES 256
 #define QDIO_DBF_SLSB_IN_NR_AREAS 1
 #define QDIO_DBF_SLSB_IN_LEVEL 6
 #endif /* CONFIG_QDIO_DEBUG */

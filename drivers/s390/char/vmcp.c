@@ -203,7 +203,7 @@ static int __init vmcp_init(void)
 	else
 		printk(KERN_WARNING
 		       "z/VM CP interface not loaded. Could not register misc device.\n");
-	vmcp_debug = debug_register("vmcp", 0, 1, 240);
+	vmcp_debug = debug_register("vmcp", 1, 1, 240);
 	debug_register_view(vmcp_debug, &debug_hex_ascii_view);
 	return ret;
 }

@@ -11,7 +11,7 @@
  *			  Frank Pavlic (pavlic@de.ibm.com) and
  *		 	  Martin Schwidefsky <schwidefsky@de.ibm.com>
  *
- *    $Revision: 1.98 $	 $Date: 2005/04/18 13:41:29 $
+ *    $Revision: 1.99 $	 $Date: 2005/05/11 08:10:17 $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -59,7 +59,7 @@
 /**
  * initialization string for output
  */
-#define VERSION_LCS_C  "$Revision: 1.98 $"
+#define VERSION_LCS_C  "$Revision: 1.99 $"
 
 static char version[] __initdata = "LCS driver ("VERSION_LCS_C "/" VERSION_LCS_H ")";
 static char debug_buffer[255];
@@ -93,8 +93,8 @@ lcs_unregister_debug_facility(void)
 static int
 lcs_register_debug_facility(void)
 {
-	lcs_dbf_setup = debug_register("lcs_setup", 1, 1, 8);
-	lcs_dbf_trace = debug_register("lcs_trace", 1, 2, 8);
+	lcs_dbf_setup = debug_register("lcs_setup", 2, 1, 8);
+	lcs_dbf_trace = debug_register("lcs_trace", 2, 2, 8);
 	if (lcs_dbf_setup == NULL || lcs_dbf_trace == NULL) {
 		PRINT_ERR("Not enough memory for debug facility.\n");
 		lcs_unregister_debug_facility();

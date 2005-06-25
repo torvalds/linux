@@ -176,7 +176,7 @@ dasd_state_known_to_basic(struct dasd_device * device)
 		return rc;
 
 	/* register 'device' debug area, used for all DBF_DEV_XXX calls */
-	device->debug_area = debug_register(device->cdev->dev.bus_id, 0, 2,
+	device->debug_area = debug_register(device->cdev->dev.bus_id, 1, 2,
 					    8 * sizeof (long));
 	debug_register_view(device->debug_area, &debug_sprintf_view);
 	debug_set_level(device->debug_area, DBF_EMERG);
@@ -1981,7 +1981,7 @@ dasd_init(void)
 	init_waitqueue_head(&dasd_init_waitq);
 
 	/* register 'common' DASD debug area, used for all DBF_XXX calls */
-	dasd_debug_area = debug_register("dasd", 0, 2, 8 * sizeof (long));
+	dasd_debug_area = debug_register("dasd", 1, 2, 8 * sizeof (long));
 	if (dasd_debug_area == NULL) {
 		rc = -ENOMEM;
 		goto failed;

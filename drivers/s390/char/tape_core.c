@@ -1186,7 +1186,7 @@ tape_mtop(struct tape_device *device, int mt_op, int mt_count)
 static int
 tape_init (void)
 {
-	TAPE_DBF_AREA = debug_register ( "tape", 1, 2, 4*sizeof(long));
+	TAPE_DBF_AREA = debug_register ( "tape", 2, 2, 4*sizeof(long));
 	debug_register_view(TAPE_DBF_AREA, &debug_sprintf_view);
 #ifdef DBF_LIKE_HELL
 	debug_set_level(TAPE_DBF_AREA, 6);
