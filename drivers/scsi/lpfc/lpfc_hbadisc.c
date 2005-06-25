@@ -61,14 +61,7 @@ static void lpfc_disc_timeout_handler(struct lpfc_hba *);
 static void
 lpfc_process_nodev_timeout(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 {
-	if (!(ndlp->nlp_type & NLP_FABRIC)) {
-		/* Nodev timeout on NPort <nlp_DID> */
-		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
-			"%d:0203 Nodev timeout on NPort x%x "
-			"Data: x%x x%x x%x\n",
-			phba->brd_no, ndlp->nlp_DID, ndlp->nlp_flag,
-			ndlp->nlp_state, ndlp->nlp_rpi);
-	}
+	int warn_on = 0;
 
 	spin_lock_irq(phba->host->host_lock);
 	if (!(ndlp->nlp_flag & NLP_NODEV_TMO)) {
@@ -79,11 +72,26 @@ lpfc_process_nodev_timeout(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 	ndlp->nlp_flag &= ~NLP_NODEV_TMO;
 
 	if (ndlp->nlp_sid != NLP_NO_SID) {
+		warn_on = 1;
 		/* flush the target */
 		lpfc_sli_abort_iocb(phba, &phba->sli.ring[phba->sli.fcp_ring],
 			ndlp->nlp_sid, 0, 0, LPFC_CTX_TGT);
 	}
 	spin_unlock_irq(phba->host->host_lock);
+
+	if (warn_on) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
+				"%d:0203 Nodev timeout on NPort x%x "
+				"Data: x%x x%x x%x\n",
+				phba->brd_no, ndlp->nlp_DID, ndlp->nlp_flag,
+				ndlp->nlp_state, ndlp->nlp_rpi);
+	} else {
+		lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
+				"%d:0204 Nodev timeout on NPort x%x "
+				"Data: x%x x%x x%x\n",
+				phba->brd_no, ndlp->nlp_DID, ndlp->nlp_flag,
+				ndlp->nlp_state, ndlp->nlp_rpi);
+	}
 
 	lpfc_disc_state_machine(phba, ndlp, NULL, NLP_EVT_DEVICE_RM);
 	return;
