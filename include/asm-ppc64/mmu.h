@@ -181,6 +181,28 @@ static inline void tlbiel(unsigned long va)
 	asm volatile("ptesync": : :"memory");
 }
 
+static inline unsigned long slot2va(unsigned long avpn, unsigned long large,
+		unsigned long secondary, unsigned long slot)
+{
+	unsigned long va;
+
+	va = avpn << 23;
+
+	if (!large) {
+		unsigned long vpi, pteg;
+
+		pteg = slot / HPTES_PER_GROUP;
+		if (secondary)
+			pteg = ~pteg;
+
+		vpi = ((va >> 28) ^ pteg) & htab_hash_mask;
+
+		va |= vpi << PAGE_SHIFT;
+	}
+
+	return va;
+}
+
 /*
  * Handle a fault by adding an HPTE. If the address can't be determined
  * to be valid via Linux page tables, return 1. If handled return 0
