@@ -32,29 +32,31 @@
 #define L2_ATTR (_PAGE_PRESENT | _PAGE_RW | _PAGE_ACCESSED | _PAGE_DIRTY)
 #define L3_ATTR (_PAGE_PRESENT | _PAGE_RW | _PAGE_ACCESSED | _PAGE_DIRTY)
 
-static void init_level2_page(
-	u64 *level2p, unsigned long addr)
+static void init_level2_page(u64 *level2p, unsigned long addr)
 {
 	unsigned long end_addr;
+
 	addr &= PAGE_MASK;
 	end_addr = addr + LEVEL2_SIZE;
-	while(addr < end_addr) {
+	while (addr < end_addr) {
 		*(level2p++) = addr | L1_ATTR;
 		addr += LEVEL1_SIZE;
 	}
 }
 
-static int init_level3_page(struct kimage *image,
-	u64 *level3p, unsigned long addr, unsigned long last_addr)
+static int init_level3_page(struct kimage *image, u64 *level3p,
+				unsigned long addr, unsigned long last_addr)
 {
 	unsigned long end_addr;
 	int result;
+
 	result = 0;
 	addr &= PAGE_MASK;
 	end_addr = addr + LEVEL3_SIZE;
-	while((addr < last_addr) && (addr < end_addr)) {
+	while ((addr < last_addr) && (addr < end_addr)) {
 		struct page *page;
 		u64 *level2p;
+
 		page = kimage_alloc_control_pages(image, 0);
 		if (!page) {
 			result = -ENOMEM;
@@ -66,7 +68,7 @@ static int init_level3_page(struct kimage *image,
 		addr += LEVEL2_SIZE;
 	}
 	/* clear the unused entries */
-	while(addr < end_addr) {
+	while (addr < end_addr) {
 		*(level3p++) = 0;
 		addr += LEVEL2_SIZE;
 	}
@@ -75,17 +77,19 @@ out:
 }
 
 
-static int init_level4_page(struct kimage *image,
-	u64 *level4p, unsigned long addr, unsigned long last_addr)
+static int init_level4_page(struct kimage *image, u64 *level4p,
+				unsigned long addr, unsigned long last_addr)
 {
 	unsigned long end_addr;
 	int result;
+
 	result = 0;
 	addr &= PAGE_MASK;
 	end_addr = addr + LEVEL4_SIZE;
-	while((addr < last_addr) && (addr < end_addr)) {
+	while ((addr < last_addr) && (addr < end_addr)) {
 		struct page *page;
 		u64 *level3p;
+
 		page = kimage_alloc_control_pages(image, 0);
 		if (!page) {
 			result = -ENOMEM;
@@ -100,11 +104,11 @@ static int init_level4_page(struct kimage *image,
 		addr += LEVEL3_SIZE;
 	}
 	/* clear the unused entries */
-	while(addr < end_addr) {
+	while (addr < end_addr) {
 		*(level4p++) = 0;
 		addr += LEVEL3_SIZE;
 	}
- out:
+out:
 	return result;
 }
 
@@ -113,7 +117,7 @@ static int init_pgtable(struct kimage *image, unsigned long start_pgtable)
 {
 	u64 *level4p;
 	level4p = (u64 *)__va(start_pgtable);
-	return init_level4_page(image, level4p, 0, end_pfn << PAGE_SHIFT);
+ 	return init_level4_page(image, level4p, 0, end_pfn << PAGE_SHIFT);
 }
 
 static void set_idt(void *newidt, u16 limit)
@@ -159,9 +163,10 @@ static void load_segments(void)
 #undef __STR
 }
 
-typedef NORET_TYPE void (*relocate_new_kernel_t)(
-	unsigned long indirection_page, unsigned long control_code_buffer,
-	unsigned long start_address, unsigned long pgtable) ATTRIB_NORET;
+typedef NORET_TYPE void (*relocate_new_kernel_t)(unsigned long indirection_page,
+					unsigned long control_code_buffer,
+					unsigned long start_address,
+					unsigned long pgtable) ATTRIB_NORET;
 
 const extern unsigned char relocate_new_kernel[];
 const extern unsigned long relocate_new_kernel_size;
@@ -172,17 +177,17 @@ int machine_kexec_prepare(struct kimage *image)
 	int result;
 
 	/* Calculate the offsets */
-	start_pgtable       = page_to_pfn(image->control_code_page) << PAGE_SHIFT;
+	start_pgtable = page_to_pfn(image->control_code_page) << PAGE_SHIFT;
 	control_code_buffer = start_pgtable + 4096UL;
 
 	/* Setup the identity mapped 64bit page table */
 	result = init_pgtable(image, start_pgtable);
-	if (result) {
+	if (result)
 		return result;
-	}
 
 	/* Place the code in the reboot code buffer */
-	memcpy(__va(control_code_buffer), relocate_new_kernel, relocate_new_kernel_size);
+	memcpy(__va(control_code_buffer), relocate_new_kernel,
+						relocate_new_kernel_size);
 
 	return 0;
 }
@@ -207,8 +212,8 @@ NORET_TYPE void machine_kexec(struct kimage *image)
 	local_irq_disable();
 
 	/* Calculate the offsets */
-	page_list           = image->head;
-	start_pgtable       = page_to_pfn(image->control_code_page) << PAGE_SHIFT;
+	page_list = image->head;
+	start_pgtable = page_to_pfn(image->control_code_page) << PAGE_SHIFT;
 	control_code_buffer = start_pgtable + 4096UL;
 
 	/* Set the low half of the page table to my identity mapped

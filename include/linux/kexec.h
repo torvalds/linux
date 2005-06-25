@@ -91,14 +91,17 @@ extern NORET_TYPE void machine_kexec(struct kimage *image) ATTRIB_NORET;
 extern int machine_kexec_prepare(struct kimage *image);
 extern void machine_kexec_cleanup(struct kimage *image);
 extern asmlinkage long sys_kexec_load(unsigned long entry,
-	unsigned long nr_segments, struct kexec_segment __user *segments,
-	unsigned long flags);
+					unsigned long nr_segments,
+					struct kexec_segment __user *segments,
+					unsigned long flags);
 #ifdef CONFIG_COMPAT
 extern asmlinkage long compat_sys_kexec_load(unsigned long entry,
-	unsigned long nr_segments, struct compat_kexec_segment __user *segments,
-	unsigned long flags);
+				unsigned long nr_segments,
+				struct compat_kexec_segment __user *segments,
+				unsigned long flags);
 #endif
-extern struct page *kimage_alloc_control_pages(struct kimage *image, unsigned int order);
+extern struct page *kimage_alloc_control_pages(struct kimage *image,
+						unsigned int order);
 extern void crash_kexec(struct pt_regs *);
 int kexec_should_crash(struct task_struct *);
 extern struct kimage *kexec_image;

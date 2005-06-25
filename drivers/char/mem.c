@@ -287,7 +287,7 @@ static ssize_t read_oldmem(struct file *file, char __user *buf,
 	size_t read = 0, csize;
 	int rc = 0;
 
-	while(count) {
+	while (count) {
 		pfn = *ppos / PAGE_SIZE;
 		if (pfn > saved_max_pfn)
 			return read;

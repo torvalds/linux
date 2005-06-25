@@ -21,24 +21,23 @@
 #include <asm/machdep.h>
 
 typedef NORET_TYPE void (*relocate_new_kernel_t)(
-	unsigned long indirection_page, unsigned long reboot_code_buffer,
-	unsigned long start_address) ATTRIB_NORET;
+				unsigned long indirection_page,
+				unsigned long reboot_code_buffer,
+				unsigned long start_address) ATTRIB_NORET;
 
 const extern unsigned char relocate_new_kernel[];
 const extern unsigned int relocate_new_kernel_size;
 
 void machine_shutdown(void)
 {
-	if (ppc_md.machine_shutdown) {
+	if (ppc_md.machine_shutdown)
 		ppc_md.machine_shutdown();
-	}
 }
 
 void machine_crash_shutdown(struct pt_regs *regs)
 {
-	if (ppc_md.machine_crash_shutdown) {
+	if (ppc_md.machine_crash_shutdown)
 		ppc_md.machine_crash_shutdown();
-	}
 }
 
 /*
@@ -48,9 +47,8 @@ void machine_crash_shutdown(struct pt_regs *regs)
  */
 int machine_kexec_prepare(struct kimage *image)
 {
-	if (ppc_md.machine_kexec_prepare) {
+	if (ppc_md.machine_kexec_prepare)
 		return ppc_md.machine_kexec_prepare(image);
-	}
 	/*
 	 * Fail if platform doesn't provide its own machine_kexec_prepare
 	 * implementation.
@@ -60,9 +58,8 @@ int machine_kexec_prepare(struct kimage *image)
 
 void machine_kexec_cleanup(struct kimage *image)
 {
-	if (ppc_md.machine_kexec_cleanup) {
+	if (ppc_md.machine_kexec_cleanup)
 		ppc_md.machine_kexec_cleanup(image);
-	}
 }
 
 /*
@@ -71,9 +68,9 @@ void machine_kexec_cleanup(struct kimage *image)
  */
 NORET_TYPE void machine_kexec(struct kimage *image)
 {
-	if (ppc_md.machine_kexec) {
+	if (ppc_md.machine_kexec)
 		ppc_md.machine_kexec(image);
-	} else {
+	else {
 		/*
 		 * Fall back to normal restart if platform doesn't provide
 		 * its own kexec function, and user insist to kexec...
@@ -82,7 +79,6 @@ NORET_TYPE void machine_kexec(struct kimage *image)
 	}
 	for(;;);
 }
-
 
 /*
  * This is a generic machine_kexec function suitable at least for
@@ -104,15 +100,15 @@ void machine_kexec_simple(struct kimage *image)
 
 	/* we need both effective and real address here */
 	reboot_code_buffer =
-		(unsigned long)page_address(image->control_code_page);
+			(unsigned long)page_address(image->control_code_page);
 	reboot_code_buffer_phys = virt_to_phys((void *)reboot_code_buffer);
 
 	/* copy our kernel relocation code to the control code page */
-	memcpy((void *)reboot_code_buffer,
-		relocate_new_kernel, relocate_new_kernel_size);
+	memcpy((void *)reboot_code_buffer, relocate_new_kernel,
+						relocate_new_kernel_size);
 
 	flush_icache_range(reboot_code_buffer,
-		reboot_code_buffer + KEXEC_CONTROL_CODE_SIZE);
+				reboot_code_buffer + KEXEC_CONTROL_CODE_SIZE);
 	printk(KERN_INFO "Bye!\n");
 
 	/* now call it */

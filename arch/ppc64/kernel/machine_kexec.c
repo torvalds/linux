@@ -58,7 +58,7 @@ int machine_kexec_prepare(struct kimage *image)
 	 * handle the virtual mode, we must make sure no destination
 	 * overlaps kernel static data or bss.
 	 */
-	for(i = 0; i < image->nr_segments; i++)
+	for (i = 0; i < image->nr_segments; i++)
 		if (image->segment[i].mem < __pa(_end))
 			return -ETXTBSY;
 
@@ -76,7 +76,7 @@ int machine_kexec_prepare(struct kimage *image)
 		low = __pa(htab_address);
 		high = low + (htab_hash_mask + 1) * HASH_GROUP_SIZE;
 
-		for(i = 0; i < image->nr_segments; i++) {
+		for (i = 0; i < image->nr_segments; i++) {
 			begin = image->segment[i].mem;
 			end = begin + image->segment[i].memsz;
 
@@ -98,7 +98,7 @@ int machine_kexec_prepare(struct kimage *image)
 		low = *basep;
 		high = low + (*sizep);
 
-		for(i = 0; i < image->nr_segments; i++) {
+		for (i = 0; i < image->nr_segments; i++) {
 			begin = image->segment[i].mem;
 			end = begin + image->segment[i].memsz;
 
@@ -274,7 +274,8 @@ union thread_union kexec_stack
 
 /* Our assembly helper, in kexec_stub.S */
 extern NORET_TYPE void kexec_sequence(void *newstack, unsigned long start,
-	void *image, void *control, void (*clear_all)(void)) ATTRIB_NORET;
+					void *image, void *control,
+					void (*clear_all)(void)) ATTRIB_NORET;
 
 /* too late to fail here */
 void machine_kexec(struct kimage *image)

@@ -67,7 +67,7 @@ machine_kexec(struct kimage *image)
 	ctl_clear_bit(0,28);
 
 	on_each_cpu(kexec_halt_all_cpus, image, 0, 0);
-	for(;;);
+	for (;;);
 }
 
 static void
@@ -85,7 +85,7 @@ kexec_halt_all_cpus(void *kernel_image)
 	for_each_online_cpu(cpu) {
 		if (cpu == smp_processor_id())
 			continue;
-		while(!smp_cpu_not_running(cpu))
+		while (!smp_cpu_not_running(cpu))
 			cpu_relax();
 	}
 

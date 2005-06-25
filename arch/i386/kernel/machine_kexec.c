@@ -80,7 +80,8 @@ static void identity_map_page(unsigned long address)
 	/* Identity map the page table entry */
 	pgtable_level1[level1_index] = address | L0_ATTR;
 	pgtable_level2[level2_index] = __pa(pgtable_level1) | L1_ATTR;
-	set_64bit(&pgtable_level3[level3_index], __pa(pgtable_level2) | L2_ATTR);
+	set_64bit(&pgtable_level3[level3_index],
+					       __pa(pgtable_level2) | L2_ATTR);
 
 	/* Flush the tlb so the new mapping takes effect.
 	 * Global tlb entries are not flushed but that is not an issue.
@@ -139,8 +140,10 @@ static void load_segments(void)
 }
 
 typedef asmlinkage NORET_TYPE void (*relocate_new_kernel_t)(
-	unsigned long indirection_page, unsigned long reboot_code_buffer,
-	unsigned long start_address, unsigned int has_pae) ATTRIB_NORET;
+					unsigned long indirection_page,
+					unsigned long reboot_code_buffer,
+					unsigned long start_address,
+					unsigned int has_pae) ATTRIB_NORET;
 
 const extern unsigned char relocate_new_kernel[];
 extern void relocate_new_kernel_end(void);
@@ -180,20 +183,23 @@ NORET_TYPE void machine_kexec(struct kimage *image)
 {
 	unsigned long page_list;
 	unsigned long reboot_code_buffer;
+
 	relocate_new_kernel_t rnk;
 
 	/* Interrupts aren't acceptable while we reboot */
 	local_irq_disable();
 
 	/* Compute some offsets */
-	reboot_code_buffer = page_to_pfn(image->control_code_page) << PAGE_SHIFT;
+	reboot_code_buffer = page_to_pfn(image->control_code_page)
+								<< PAGE_SHIFT;
 	page_list = image->head;
 
 	/* Set up an identity mapping for the reboot_code_buffer */
 	identity_map_page(reboot_code_buffer);
 
 	/* copy it out */
-	memcpy((void *)reboot_code_buffer, relocate_new_kernel, relocate_new_kernel_size);
+	memcpy((void *)reboot_code_buffer, relocate_new_kernel,
+						relocate_new_kernel_size);
 
 	/* The segment registers are funny things, they are
 	 * automatically loaded from a table, in memory wherever you
