@@ -929,21 +929,6 @@ int swsusp_resume(void)
 	return error;
 }
 
-/* More restore stuff */
-
-/*
- * Returns true if given address/order collides with any orig_address 
- */
-static int does_collide_order(unsigned long addr, int order)
-{
-	int i;
-	
-	for (i=0; i < (1<<order); i++)
-		if (!PageNosaveFree(virt_to_page(addr + i * PAGE_SIZE)))
-			return 1;
-	return 0;
-}
-
 /**
  *	On resume, for storing the PBE list and the image,
  *	we can only use memory pages that do not conflict with the pages
@@ -973,7 +958,7 @@ static unsigned long get_usable_page(unsigned gfp_mask)
 	unsigned long m;
 
 	m = get_zeroed_page(gfp_mask);
-	while (does_collide_order(m, 0)) {
+	while (!PageNosaveFree(virt_to_page(m))) {
 		eat_page((void *)m);
 		m = get_zeroed_page(gfp_mask);
 		if (!m)
@@ -1061,7 +1046,7 @@ static struct pbe * swsusp_pagedir_relocate(struct pbe *pblist)
 	/* Relocate colliding pages */
 
 	for_each_pb_page (pbpage, pblist) {
-		if (does_collide_order((unsigned long)pbpage, 0)) {
+		if (!PageNosaveFree(virt_to_page((unsigned long)pbpage))) {
 			m = (void *)get_usable_page(GFP_ATOMIC | __GFP_COLD);
 			if (!m) {
 				error = -ENOMEM;
