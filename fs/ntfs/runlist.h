@@ -84,11 +84,12 @@ extern runlist_element *ntfs_rl_find_vcn_nolock(runlist_element *rl,
 		const VCN vcn);
 
 extern int ntfs_get_size_for_mapping_pairs(const ntfs_volume *vol,
-		const runlist_element *rl, const VCN start_vcn);
+		const runlist_element *rl, const VCN first_vcn,
+		const VCN last_vcn);
 
 extern int ntfs_mapping_pairs_build(const ntfs_volume *vol, s8 *dst,
 		const int dst_len, const runlist_element *rl,
-		const VCN start_vcn, VCN *const stop_vcn);
+		const VCN first_vcn, const VCN last_vcn, VCN *const stop_vcn);
 
 extern int ntfs_rl_truncate_nolock(const ntfs_volume *vol,
 		runlist *const runlist, const s64 new_length);

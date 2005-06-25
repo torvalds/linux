@@ -135,6 +135,10 @@ ToDo/Notes:
 	- Change the runlist terminator of the newly allocated cluster(s) to
 	  LCN_ENOENT in ntfs_attr_make_non_resident().  Otherwise the runlist
 	  code gets confused.
+	- Add an extra parameter @last_vcn to ntfs_get_size_for_mapping_pairs()
+	  and ntfs_mapping_pairs_build() to allow the runlist encoding to be
+	  partial which is desirable when filling holes in sparse attributes.
+	  Update all callers.
 
 2.1.22 - Many bug and race fixes and error handling improvements.
 

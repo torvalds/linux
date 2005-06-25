@@ -1317,7 +1317,7 @@ int ntfs_attr_make_non_resident(ntfs_inode *ni)
 		page = NULL;
 	}
 	/* Determine the size of the mapping pairs array. */
-	mp_size = ntfs_get_size_for_mapping_pairs(vol, rl, 0);
+	mp_size = ntfs_get_size_for_mapping_pairs(vol, rl, 0, -1);
 	if (unlikely(mp_size < 0)) {
 		err = mp_size;
 		ntfs_debug("Failed to get size for mapping pairs array, error "
@@ -1416,7 +1416,7 @@ int ntfs_attr_make_non_resident(ntfs_inode *ni)
 			cpu_to_sle64(attr_size);
 	/* Generate the mapping pairs array into the attribute record. */
 	err = ntfs_mapping_pairs_build(vol, (u8*)a + mp_ofs,
-			arec_size - mp_ofs, rl, 0, NULL);
+			arec_size - mp_ofs, rl, 0, -1, NULL);
 	if (unlikely(err)) {
 		ntfs_debug("Failed to build mapping pairs, error code %i.",
 				err);

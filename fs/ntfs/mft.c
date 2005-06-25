@@ -1407,7 +1407,7 @@ static int ntfs_mft_bitmap_extend_allocation_nolock(ntfs_volume *vol)
 	BUG_ON(ll < rl2->vcn);
 	BUG_ON(ll >= rl2->vcn + rl2->length);
 	/* Get the size for the new mapping pairs array for this extent. */
-	mp_size = ntfs_get_size_for_mapping_pairs(vol, rl2, ll);
+	mp_size = ntfs_get_size_for_mapping_pairs(vol, rl2, ll, -1);
 	if (unlikely(mp_size <= 0)) {
 		ntfs_error(vol->sb, "Get size for mapping pairs failed for "
 				"mft bitmap attribute extent.");
@@ -1441,7 +1441,7 @@ static int ntfs_mft_bitmap_extend_allocation_nolock(ntfs_volume *vol)
 	/* Generate the mapping pairs array directly into the attr record. */
 	ret = ntfs_mapping_pairs_build(vol, (u8*)a +
 			le16_to_cpu(a->data.non_resident.mapping_pairs_offset),
-			mp_size, rl2, ll, NULL);
+			mp_size, rl2, ll, -1, NULL);
 	if (unlikely(ret)) {
 		ntfs_error(vol->sb, "Failed to build mapping pairs array for "
 				"mft bitmap attribute.");
@@ -1529,7 +1529,7 @@ undo_alloc:
 				a->data.non_resident.mapping_pairs_offset),
 				old_alen - le16_to_cpu(
 				a->data.non_resident.mapping_pairs_offset),
-				rl2, ll, NULL)) {
+				rl2, ll, -1, NULL)) {
 			ntfs_error(vol->sb, "Failed to restore mapping pairs "
 					"array.%s", es);
 			NVolSetErrors(vol);
@@ -1838,7 +1838,7 @@ static int ntfs_mft_data_extend_allocation_nolock(ntfs_volume *vol)
 	BUG_ON(ll < rl2->vcn);
 	BUG_ON(ll >= rl2->vcn + rl2->length);
 	/* Get the size for the new mapping pairs array for this extent. */
-	mp_size = ntfs_get_size_for_mapping_pairs(vol, rl2, ll);
+	mp_size = ntfs_get_size_for_mapping_pairs(vol, rl2, ll, -1);
 	if (unlikely(mp_size <= 0)) {
 		ntfs_error(vol->sb, "Get size for mapping pairs failed for "
 				"mft data attribute extent.");
@@ -1877,7 +1877,7 @@ static int ntfs_mft_data_extend_allocation_nolock(ntfs_volume *vol)
 	/* Generate the mapping pairs array directly into the attr record. */
 	ret = ntfs_mapping_pairs_build(vol, (u8*)a +
 			le16_to_cpu(a->data.non_resident.mapping_pairs_offset),
-			mp_size, rl2, ll, NULL);
+			mp_size, rl2, ll, -1, NULL);
 	if (unlikely(ret)) {
 		ntfs_error(vol->sb, "Failed to build mapping pairs array of "
 				"mft data attribute.");
@@ -1959,7 +1959,7 @@ undo_alloc:
 				a->data.non_resident.mapping_pairs_offset),
 				old_alen - le16_to_cpu(
 				a->data.non_resident.mapping_pairs_offset),
-				rl2, ll, NULL)) {
+				rl2, ll, -1, NULL)) {
 			ntfs_error(vol->sb, "Failed to restore mapping pairs "
 					"array.%s", es);
 			NVolSetErrors(vol);
