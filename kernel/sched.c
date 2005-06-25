@@ -260,8 +260,15 @@ struct runqueue {
 
 static DEFINE_PER_CPU(struct runqueue, runqueues);
 
+/*
+ * The domain tree (rq->sd) is protected by RCU's quiescent state transition.
+ * See update_sched_domains: synchronize_kernel for details.
+ *
+ * The domain tree of any CPU may only be accessed from within
+ * preempt-disabled sections.
+ */
 #define for_each_domain(cpu, domain) \
-	for (domain = cpu_rq(cpu)->sd; domain; domain = domain->parent)
+for (domain = rcu_dereference(cpu_rq(cpu)->sd); domain; domain = domain->parent)
 
 #define cpu_rq(cpu)		(&per_cpu(runqueues, (cpu)))
 #define this_rq()		(&__get_cpu_var(runqueues))
@@ -395,6 +402,7 @@ static int show_schedstat(struct seq_file *seq, void *v)
 
 #ifdef CONFIG_SMP
 		/* domain-specific stats */
+		preempt_disable();
 		for_each_domain(cpu, sd) {
 			enum idle_type itype;
 			char mask_str[NR_CPUS];
@@ -419,6 +427,7 @@ static int show_schedstat(struct seq_file *seq, void *v)
 			    sd->sbf_cnt, sd->sbf_balanced, sd->sbf_pushed,
 			    sd->ttwu_wake_remote, sd->ttwu_move_affine, sd->ttwu_move_balance);
 		}
+		preempt_enable();
 #endif
 	}
 	return 0;
@@ -824,21 +833,11 @@ inline int task_curr(const task_t *p)
 }
 
 #ifdef CONFIG_SMP
-enum request_type {
-	REQ_MOVE_TASK,
-	REQ_SET_DOMAIN,
-};
-
 typedef struct {
 	struct list_head list;
-	enum request_type type;
 
-	/* For REQ_MOVE_TASK */
 	task_t *task;
 	int dest_cpu;
-
-	/* For REQ_SET_DOMAIN */
-	struct sched_domain *sd;
 
 	struct completion done;
 } migration_req_t;
@@ -861,7 +860,6 @@ static int migrate_task(task_t *p, int dest_cpu, migration_req_t *req)
 	}
 
 	init_completion(&req->done);
-	req->type = REQ_MOVE_TASK;
 	req->task = p;
 	req->dest_cpu = dest_cpu;
 	list_add(&req->list, &rq->migration_queue);
@@ -4378,17 +4376,9 @@ static int migration_thread(void * data)
 		req = list_entry(head->next, migration_req_t, list);
 		list_del_init(head->next);
 
-		if (req->type == REQ_MOVE_TASK) {
-			spin_unlock(&rq->lock);
-			__migrate_task(req->task, cpu, req->dest_cpu);
-			local_irq_enable();
-		} else if (req->type == REQ_SET_DOMAIN) {
-			rq->sd = req->sd;
-			spin_unlock_irq(&rq->lock);
-		} else {
-			spin_unlock_irq(&rq->lock);
-			WARN_ON(1);
-		}
+		spin_unlock(&rq->lock);
+		__migrate_task(req->task, cpu, req->dest_cpu);
+		local_irq_enable();
 
 		complete(&req->done);
 	}
@@ -4619,7 +4609,6 @@ static int migration_call(struct notifier_block *nfb, unsigned long action,
 			migration_req_t *req;
 			req = list_entry(rq->migration_queue.next,
 					 migration_req_t, list);
-			BUG_ON(req->type != REQ_MOVE_TASK);
 			list_del_init(&req->list);
 			complete(&req->done);
 		}
@@ -4800,10 +4789,7 @@ static int __devinit sd_parent_degenerate(struct sched_domain *sd,
  */
 void __devinit cpu_attach_domain(struct sched_domain *sd, int cpu)
 {
-	migration_req_t req;
-	unsigned long flags;
 	runqueue_t *rq = cpu_rq(cpu);
-	int local = 1;
 	struct sched_domain *tmp;
 
 	/* Remove the sched domains which do not contribute to scheduling. */
@@ -4820,24 +4806,7 @@ void __devinit cpu_attach_domain(struct sched_domain *sd, int cpu)
 
 	sched_domain_debug(sd, cpu);
 
-	spin_lock_irqsave(&rq->lock, flags);
-
-	if (cpu == smp_processor_id() || !cpu_online(cpu)) {
-		rq->sd = sd;
-	} else {
-		init_completion(&req.done);
-		req.type = REQ_SET_DOMAIN;
-		req.sd = sd;
-		list_add(&req.list, &rq->migration_queue);
-		local = 0;
-	}
-
-	spin_unlock_irqrestore(&rq->lock, flags);
-
-	if (!local) {
-		wake_up_process(rq->migration_thread);
-		wait_for_completion(&req.done);
-	}
+	rcu_assign_pointer(rq->sd, sd);
 }
 
 /* cpus with isolated domains */
@@ -5112,6 +5081,7 @@ static int update_sched_domains(struct notifier_block *nfb,
 	case CPU_DOWN_PREPARE:
 		for_each_online_cpu(i)
 			cpu_attach_domain(NULL, i);
+		synchronize_kernel();
 		arch_destroy_sched_domains();
 		return NOTIFY_OK;
 
