@@ -2021,6 +2021,7 @@ out_balanced:
 
 	schedstat_inc(sd, lb_balanced[idle]);
 
+	sd->nr_balance_failed = 0;
 	/* tune up the balancing interval */
 	if (sd->balance_interval < sd->max_interval)
 		sd->balance_interval *= 2;
@@ -2046,16 +2047,14 @@ static int load_balance_newidle(int this_cpu, runqueue_t *this_rq,
 	schedstat_inc(sd, lb_cnt[NEWLY_IDLE]);
 	group = find_busiest_group(sd, this_cpu, &imbalance, NEWLY_IDLE);
 	if (!group) {
-		schedstat_inc(sd, lb_balanced[NEWLY_IDLE]);
 		schedstat_inc(sd, lb_nobusyg[NEWLY_IDLE]);
-		goto out;
+		goto out_balanced;
 	}
 
 	busiest = find_busiest_queue(group);
 	if (!busiest || busiest == this_rq) {
-		schedstat_inc(sd, lb_balanced[NEWLY_IDLE]);
 		schedstat_inc(sd, lb_nobusyq[NEWLY_IDLE]);
-		goto out;
+		goto out_balanced;
 	}
 
 	/* Attempt to move tasks */
@@ -2066,11 +2065,16 @@ static int load_balance_newidle(int this_cpu, runqueue_t *this_rq,
 					imbalance, sd, NEWLY_IDLE, NULL);
 	if (!nr_moved)
 		schedstat_inc(sd, lb_failed[NEWLY_IDLE]);
+	else
+		sd->nr_balance_failed = 0;
 
 	spin_unlock(&busiest->lock);
-
-out:
 	return nr_moved;
+
+out_balanced:
+	schedstat_inc(sd, lb_balanced[NEWLY_IDLE]);
+	sd->nr_balance_failed = 0;
+	return 0;
 }
 
 /*
