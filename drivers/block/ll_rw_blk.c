@@ -1344,8 +1344,8 @@ static int ll_front_merge_fn(request_queue_t *q, struct request *req,
 static int ll_merge_requests_fn(request_queue_t *q, struct request *req,
 				struct request *next)
 {
-	int total_phys_segments = req->nr_phys_segments +next->nr_phys_segments;
-	int total_hw_segments = req->nr_hw_segments + next->nr_hw_segments;
+	int total_phys_segments;
+	int total_hw_segments;
 
 	/*
 	 * First check if the either of the requests are re-queued
@@ -1355,7 +1355,7 @@ static int ll_merge_requests_fn(request_queue_t *q, struct request *req,
 		return 0;
 
 	/*
-	 * Will it become to large?
+	 * Will it become too large?
 	 */
 	if ((req->nr_sectors + next->nr_sectors) > q->max_sectors)
 		return 0;
