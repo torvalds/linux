@@ -66,12 +66,18 @@ SETUP
 	CONFIG_PHYSICAL_START=0x1000000
    c) Enable "/proc/vmcore support" (Optional, in Pseudo filesystems).
 	CONFIG_PROC_VMCORE=y
+   d) Disable SMP support and build a UP kernel (Until it is fixed).
+   	CONFIG_SMP=n
+   e) Enable "Local APIC support on uniprocessors".
+   	CONFIG_X86_UP_APIC=y
+   f) Enable "IO-APIC support on uniprocessors"
+   	CONFIG_X86_UP_IOAPIC=y
 
-  Note: Options a) and b) depend upon "Configure standard kernel features
-	(for small systems)" (under General setup).
-	Option a) also depends on CONFIG_HIGHMEM (under Processor
+  Note:   i) Options a) and b) depend upon "Configure standard kernel features
+	     (for small systems)" (under General setup).
+	 ii) Option a) also depends on CONFIG_HIGHMEM (under Processor
 		type and features).
-	Both option a) and b) are under "Processor type and features".
+	iii) Both option a) and b) are under "Processor type and features".
 
 3) Boot into the first kernel. You are now ready to try out kexec-based crash
    dumps.
@@ -79,7 +85,7 @@ SETUP
 4) Load the second kernel to be booted using:
 
    kexec -p <second-kernel> --crash-dump --args-linux --append="root=<root-dev>
-   maxcpus=1 init 1"
+   init 1 irqpoll"
 
    Note: i) <second-kernel> has to be a vmlinux image. bzImage will not work,
 	    as of now.
@@ -87,12 +93,12 @@ SETUP
 	    is sufficient to represent the physical memory up to 4GB. To store
 	    headers in ELF64 format, specifiy "--elf64-core-headers" on the
 	    kexec command line additionally.
-       iii) For now (or until it is fixed), it's best to build the
-	    second-kernel without multi-processor support, i.e., make it
-	    a uniprocessor kernel.
+       iii) Specify "irqpoll" as command line parameter. This reduces driver
+            initialization failures in second kernel due to shared interrupts.
 
 5) System reboots into the second kernel when a panic occurs. A module can be
-   written to force the panic, for testing purposes.
+   written to force the panic or "ALT-SysRq-c" can be used initiate a crash
+   dump for testing purposes.
 
 6) Write out the dump file using
 
@@ -131,5 +137,5 @@ TODO
 CONTACT
 =======
 
-Hariprasad Nellitheertha - hari at in dot ibm dot com
 Vivek Goyal (vgoyal@in.ibm.com)
+Maneesh Soni (maneesh@in.ibm.com)
