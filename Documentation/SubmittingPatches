@@ -299,7 +299,7 @@ can certify the below:
 
 then you just add a line saying
 
-	Signed-off-by: Random J Developer <random@developer.org>
+	Signed-off-by: Random J Developer <random@developer.example.org>
 
 Some people also put extra tags at the end.  They'll just be ignored for
 now, but you can do this to mark internal company procedures or just
