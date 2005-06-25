@@ -327,7 +327,7 @@ static void mce_init(void *dummy)
 }
 
 /* Add per CPU specific workarounds here */
-static void __init mce_cpu_quirks(struct cpuinfo_x86 *c) 
+static void __cpuinit mce_cpu_quirks(struct cpuinfo_x86 *c)
 { 
 	/* This should be disabled by the BIOS, but isn't always */
 	if (c->x86_vendor == X86_VENDOR_AMD && c->x86 == 15) {
@@ -337,7 +337,7 @@ static void __init mce_cpu_quirks(struct cpuinfo_x86 *c)
 	}
 }			
 
-static void __init mce_cpu_features(struct cpuinfo_x86 *c)
+static void __cpuinit mce_cpu_features(struct cpuinfo_x86 *c)
 {
 	switch (c->x86_vendor) {
 	case X86_VENDOR_INTEL:
@@ -352,7 +352,7 @@ static void __init mce_cpu_features(struct cpuinfo_x86 *c)
  * Called for each booted CPU to set up machine checks.
  * Must be called with preempt off. 
  */
-void __init mcheck_init(struct cpuinfo_x86 *c)
+void __cpuinit mcheck_init(struct cpuinfo_x86 *c)
 {
 	static cpumask_t mce_cpus __initdata = CPU_MASK_NONE;
 
@@ -542,7 +542,7 @@ ACCESSOR(bank4ctl,bank[4],mce_restart())
 ACCESSOR(tolerant,tolerant,)
 ACCESSOR(check_interval,check_interval,mce_restart())
 
-static __init int mce_init_device(void)
+static __cpuinit int mce_init_device(void)
 {
 	int err;
 	if (!mce_available(&boot_cpu_data))

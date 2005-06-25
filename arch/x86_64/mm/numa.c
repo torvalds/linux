@@ -251,7 +251,7 @@ void __init numa_initmem_init(unsigned long start_pfn, unsigned long end_pfn)
 	setup_node_bootmem(0, start_pfn << PAGE_SHIFT, end_pfn << PAGE_SHIFT);
 }
 
-__init void numa_add_cpu(int cpu)
+__cpuinit void numa_add_cpu(int cpu)
 {
 	/* BP is initialized elsewhere */
 	if (cpu) 

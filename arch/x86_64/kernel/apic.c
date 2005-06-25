@@ -285,7 +285,7 @@ void __init init_bsp_APIC(void)
 	apic_write_around(APIC_LVT1, value);
 }
 
-void __init setup_local_APIC (void)
+void __cpuinit setup_local_APIC (void)
 {
 	unsigned int value, ver, maxlvt;
 
@@ -534,7 +534,7 @@ static struct sys_device device_lapic = {
 	.cls		= &lapic_sysclass,
 };
 
-static void __init apic_pm_activate(void)
+static void __cpuinit apic_pm_activate(void)
 {
 	apic_pm_state.active = 1;
 }
@@ -774,14 +774,14 @@ void __init setup_boot_APIC_clock (void)
 	local_irq_enable();
 }
 
-void __init setup_secondary_APIC_clock(void)
+void __cpuinit setup_secondary_APIC_clock(void)
 {
 	local_irq_disable(); /* FIXME: Do we need this? --RR */
 	setup_APIC_timer(calibration_result);
 	local_irq_enable();
 }
 
-void __init disable_APIC_timer(void)
+void __cpuinit disable_APIC_timer(void)
 {
 	if (using_apic_timer) {
 		unsigned long v;

@@ -676,7 +676,7 @@ void __init setup_arch(char **cmdline_p)
 #endif
 }
 
-static int __init get_model_name(struct cpuinfo_x86 *c)
+static int __cpuinit get_model_name(struct cpuinfo_x86 *c)
 {
 	unsigned int *v;
 
@@ -692,7 +692,7 @@ static int __init get_model_name(struct cpuinfo_x86 *c)
 }
 
 
-static void __init display_cacheinfo(struct cpuinfo_x86 *c)
+static void __cpuinit display_cacheinfo(struct cpuinfo_x86 *c)
 {
 	unsigned int n, dummy, eax, ebx, ecx, edx;
 
@@ -803,7 +803,7 @@ static int __init init_amd(struct cpuinfo_x86 *c)
 	return r;
 }
 
-static void __init detect_ht(struct cpuinfo_x86 *c)
+static void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_SMP
 	u32 	eax, ebx, ecx, edx;
@@ -864,7 +864,7 @@ static void __init detect_ht(struct cpuinfo_x86 *c)
 /*
  * find out the number of processor cores on the die
  */
-static int __init intel_num_cpu_cores(struct cpuinfo_x86 *c)
+static int __cpuinit intel_num_cpu_cores(struct cpuinfo_x86 *c)
 {
 	unsigned int eax;
 
@@ -882,7 +882,7 @@ static int __init intel_num_cpu_cores(struct cpuinfo_x86 *c)
 		return 1;
 }
 
-static void __init init_intel(struct cpuinfo_x86 *c)
+static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 {
 	/* Cache sizes */
 	unsigned n;
@@ -902,7 +902,7 @@ static void __init init_intel(struct cpuinfo_x86 *c)
  	c->x86_num_cores = intel_num_cpu_cores(c);
 }
 
-void __init get_cpu_vendor(struct cpuinfo_x86 *c)
+void __cpuinit get_cpu_vendor(struct cpuinfo_x86 *c)
 {
 	char *v = c->x86_vendor_id;
 
@@ -923,7 +923,7 @@ struct cpu_model_info {
 /* Do some early cpuid on the boot CPU to get some parameter that are
    needed before check_bugs. Everything advanced is in identify_cpu
    below. */
-void __init early_identify_cpu(struct cpuinfo_x86 *c)
+void __cpuinit early_identify_cpu(struct cpuinfo_x86 *c)
 {
 	u32 tfms;
 
@@ -977,7 +977,7 @@ void __init early_identify_cpu(struct cpuinfo_x86 *c)
 /*
  * This does the hard work of actually picking apart the CPU stuff...
  */
-void __init identify_cpu(struct cpuinfo_x86 *c)
+void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 {
 	int i;
 	u32 xlvl;
@@ -1054,7 +1054,7 @@ void __init identify_cpu(struct cpuinfo_x86 *c)
 }
  
 
-void __init print_cpu_info(struct cpuinfo_x86 *c)
+void __cpuinit print_cpu_info(struct cpuinfo_x86 *c)
 {
 	if (c->x86_model_id[0])
 		printk("%s", c->x86_model_id);

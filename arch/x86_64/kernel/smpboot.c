@@ -58,11 +58,6 @@
 #include <asm/proto.h>
 #include <asm/nmi.h>
 
-/* Change for real CPU hotplug. Note other files need to be fixed
-   first too. */
-#define __cpuinit __init
-#define __cpuinitdata __initdata
-
 /* Number of siblings per CPU package */
 int smp_num_siblings = 1;
 /* Package ID of each logical CPU */
@@ -823,7 +818,7 @@ static __cpuinit void smp_cleanup_boot(void)
  *
  * RED-PEN audit/test this more. I bet there is more state messed up here.
  */
-static __cpuinit void disable_smp(void)
+static __init void disable_smp(void)
 {
 	cpu_present_map = cpumask_of_cpu(0);
 	cpu_possible_map = cpumask_of_cpu(0);
@@ -838,7 +833,7 @@ static __cpuinit void disable_smp(void)
 /*
  * Handle user cpus=... parameter.
  */
-static __cpuinit void enforce_max_cpus(unsigned max_cpus)
+static __init void enforce_max_cpus(unsigned max_cpus)
 {
 	int i, k;
 	k = 0;
@@ -855,7 +850,7 @@ static __cpuinit void enforce_max_cpus(unsigned max_cpus)
 /*
  * Various sanity checks.
  */
-static int __cpuinit smp_sanity_check(unsigned max_cpus)
+static int __init smp_sanity_check(unsigned max_cpus)
 {
 	if (!physid_isset(hard_smp_processor_id(), phys_cpu_present_map)) {
 		printk("weird, boot CPU (#%d) not listed by the BIOS.\n",
@@ -913,7 +908,7 @@ static int __cpuinit smp_sanity_check(unsigned max_cpus)
  * Prepare for SMP bootup.  The MP table or ACPI has been read
  * earlier.  Just do some sanity checking here and enable APIC mode.
  */
-void __cpuinit smp_prepare_cpus(unsigned int max_cpus)
+void __init smp_prepare_cpus(unsigned int max_cpus)
 {
 	int i;
 
@@ -1019,7 +1014,7 @@ int __cpuinit __cpu_up(unsigned int cpu)
 /*
  * Finish the SMP boot.
  */
-void __cpuinit smp_cpus_done(unsigned int max_cpus)
+void __init smp_cpus_done(unsigned int max_cpus)
 {
 	zap_low_mappings();
 	smp_cleanup_boot();
