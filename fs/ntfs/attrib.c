@@ -1324,7 +1324,7 @@ int ntfs_attr_make_non_resident(ntfs_inode *ni)
 		if (IS_ERR(rl)) {
 			err = PTR_ERR(rl);
 			ntfs_debug("Failed to allocate cluster%s, error code "
-					"%i.\n", (new_size >>
+					"%i.", (new_size >>
 					vol->cluster_size_bits) > 1 ? "s" : "",
 					err);
 			goto page_err_out;

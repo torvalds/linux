@@ -22,35 +22,22 @@ ToDo/Notes:
 	- Enable the code for setting the NT4 compatibility flag when we start
 	  making NTFS 1.2 specific modifications.
 
-2.1.23-WIP
+2.1.23 - Implement extension of resident files and make writing safe as well as
+	 many bug fixes, cleanups, and enhancements...
 
 	- Add printk rate limiting for ntfs_warning() and ntfs_error() when
 	  compiled without debug.  This avoids a possible denial of service
 	  attack.  Thanks to Carl-Daniel Hailfinger from SuSE for pointing this
 	  out.
 	- Fix compilation warnings on ia64.  (Randy Dunlap)
-	- Use i_size_read() in fs/ntfs/attrib.c::ntfs_attr_set().
-	- Use i_size_read() in fs/ntfs/logfile.c::ntfs_{check,empty}_logfile().
-	- Use i_size_read() once and then use the cached value in
-	  fs/ntfs/lcnalloc.c::ntfs_cluster_alloc().
-	- Use i_size_read() in fs/ntfs/file.c::ntfs_file_open().
+	- Use i_size_{read,write}() instead of reading i_size by hand and cache
+	  the value where apropriate.
 	- Add size_lock to the ntfs_inode structure.  This is an rw spinlock
 	  and it locks against access to the inode sizes.  Note, ->size_lock
 	  is also accessed from irq context so you must use the _irqsave and
-	  _irqrestore lock and unlock functions, respectively.
-	- Use i_size_read() in fs/ntfs/compress.c at the start of the read and
-	  use the cached value afterwards.  Cache the initialized_size in the
-	  same way and protect access to the two sizes using the size_lock.
-	- Use i_size_read() in fs/ntfs/dir.c once and then use the cached
-	  value afterwards.
-	- Use i_size_read() in fs/ntfs/super.c once and then use the cached
-	  value afterwards.  Cache the initialized_size in the same way and
-	  protect access to the two sizes using the size_lock.
+	  _irqrestore lock and unlock functions, respectively.  Protect all
+	  accesses to allocated_size, initialized_size, and compressed_size.
 	- Minor optimization to fs/ntfs/super.c::ntfs_statfs() and its helpers.
-	- Use i_size_read() in fs/ntfs/inode.c once and then use the cached
-	  value afterwards when reading the size of the bitmap inode.
-	- Use i_size_{read,write}() in fs/ntfs/{aops.c,mft.c} and protect
-	  access to the i_size and other size fields using the size_lock.
 	- Implement extension of resident files in the regular file write code
 	  paths (fs/ntfs/aops.c::ntfs_{prepare,commit}_write()).  At present
 	  this only works until the data attribute becomes too big for the mft

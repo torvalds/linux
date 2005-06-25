@@ -439,6 +439,21 @@ ChangeLog
 
 Note, a technical ChangeLog aimed at kernel hackers is in fs/ntfs/ChangeLog.
 
+2.1.23:
+	- Stamp the user space journal, aka transaction log, aka $UsnJrnl, if
+	  it is present and active thus telling Windows and applications using
+	  the transaction log that changes can have happened on the volume
+	  which are not recorded in $UsnJrnl.
+	- Detect the case when Windows has been hibernated (suspended to disk)
+	  and if this is the case do not allow (re)mounting read-write to
+	  prevent data corruption when you boot back into the suspended
+	  Windows session.
+	- Implement extension of resident files using the normal file write
+	  code paths, i.e. most very small files can be extended to be a little
+	  bit bigger but not by much.
+	- Improve handling of ntfs volumes with errors and strange boot sectors
+	  in particular.
+	- Fix various bugs.
 2.1.22:
 	- Improve handling of ntfs volumes with errors.
 	- Fix various bugs and race conditions.
