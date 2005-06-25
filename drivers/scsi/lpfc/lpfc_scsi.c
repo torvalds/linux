@@ -1273,4 +1273,5 @@ struct scsi_host_template lpfc_template = {
 	.cmd_per_lun		= LPFC_CMD_PER_LUN,
 	.use_clustering		= ENABLE_CLUSTERING,
 	.shost_attrs		= lpfc_host_attrs,
+	.max_sectors		= 0xFFFF,
 };
