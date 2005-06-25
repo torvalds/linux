@@ -225,8 +225,7 @@ lpfc_sli_ringtx_get(struct lpfc_hba * phba, struct lpfc_sli_ring * pring)
 static IOCB_t *
 lpfc_sli_next_iocb_slot (struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 {
-	MAILBOX_t *mbox = (MAILBOX_t *)phba->sli.MBhostaddr;
-	PGP *pgp = (PGP *)&mbox->us.s2.port[pring->ringno];
+	struct lpfc_pgp *pgp = &phba->slim2p->mbx.us.s2.port[pring->ringno];
 	uint32_t  max_cmd_idx = pring->numCiocb;
 	IOCB_t *iocb = NULL;
 
@@ -411,9 +410,7 @@ lpfc_sli_resume_iocb(struct lpfc_hba * phba, struct lpfc_sli_ring * pring)
 static void
 lpfc_sli_turn_on_ring(struct lpfc_hba * phba, int ringno)
 {
-	PGP *pgp =
-		((PGP *) &
-		 (((MAILBOX_t *)phba->sli.MBhostaddr)->us.s2.port[ringno]));
+	struct lpfc_pgp *pgp = &phba->slim2p->mbx.us.s2.port[ringno];
 
 	/* If the ring is active, flag it */
 	if (phba->sli.ring[ringno].cmdringaddr) {
@@ -537,7 +534,7 @@ lpfc_sli_handle_mb_event(struct lpfc_hba * phba)
 	/* Get a Mailbox buffer to setup mailbox commands for callback */
 	if ((pmb = phba->sli.mbox_active)) {
 		pmbox = &pmb->mb;
-		mbox = (MAILBOX_t *) phba->sli.MBhostaddr;
+		mbox = &phba->slim2p->mbx;
 
 		/* First check out the status word */
 		lpfc_sli_pcimem_bcopy(mbox, pmbox, sizeof (uint32_t));
@@ -905,10 +902,10 @@ static int
 lpfc_sli_handle_fast_ring_event(struct lpfc_hba * phba,
 				struct lpfc_sli_ring * pring, uint32_t mask)
 {
+ 	struct lpfc_pgp *pgp = &phba->slim2p->mbx.us.s2.port[pring->ringno];
 	IOCB_t *irsp = NULL;
 	struct lpfc_iocbq *cmdiocbq = NULL;
 	struct lpfc_iocbq rspiocbq;
-	PGP *pgp;
 	uint32_t status;
 	uint32_t portRspPut, portRspMax;
 	int rc = 1;
@@ -919,10 +916,6 @@ lpfc_sli_handle_fast_ring_event(struct lpfc_hba * phba,
 
 	spin_lock_irqsave(phba->host->host_lock, iflag);
 	pring->stats.iocb_event++;
-
-	/* The driver assumes SLI-2 mode */
-	pgp = (PGP *) &((MAILBOX_t *) phba->sli.MBhostaddr)
-		->us.s2.port[pring->ringno];
 
 	/*
 	 * The next available response entry should never exceed the maximum
@@ -1075,9 +1068,7 @@ lpfc_sli_handle_slow_ring_event(struct lpfc_hba * phba,
 	struct lpfc_iocbq *cmdiocbp;
 	struct lpfc_iocbq *saveq;
 	struct list_head *lpfc_iocb_list = &phba->lpfc_iocb_list;
-	HGP *hgp;
-	PGP *pgp;
-	MAILBOX_t *mbox;
+	struct lpfc_pgp *pgp = &phba->slim2p->mbx.us.s2.port[pring->ringno];
 	uint8_t iocb_cmd_type;
 	lpfc_iocb_type type;
 	uint32_t status, free_saveq;
@@ -1088,11 +1079,6 @@ lpfc_sli_handle_slow_ring_event(struct lpfc_hba * phba,
 
 	spin_lock_irqsave(phba->host->host_lock, iflag);
 	pring->stats.iocb_event++;
-
-	/* The driver assumes SLI-2 mode */
-	mbox = (MAILBOX_t *) phba->sli.MBhostaddr;
-	pgp = (PGP *) & mbox->us.s2.port[pring->ringno];
-	hgp = (HGP *) & mbox->us.s2.host[pring->ringno];
 
 	/*
 	 * The next available response entry should never exceed the maximum
@@ -1771,7 +1757,6 @@ lpfc_mbox_timeout_handler(struct lpfc_hba *phba)
 int
 lpfc_sli_issue_mbox(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmbox, uint32_t flag)
 {
-	MAILBOX_t *mbox;
 	MAILBOX_t *mb;
 	struct lpfc_sli *psli;
 	uint32_t status, evtctr;
@@ -1901,15 +1886,13 @@ lpfc_sli_issue_mbox(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmbox, uint32_t flag)
 	mb->mbxOwner = OWN_CHIP;
 
 	if (psli->sli_flag & LPFC_SLI2_ACTIVE) {
-
 		/* First copy command data to host SLIM area */
-		mbox = (MAILBOX_t *) psli->MBhostaddr;
-		lpfc_sli_pcimem_bcopy(mb, mbox, MAILBOX_CMD_SIZE);
+		lpfc_sli_pcimem_bcopy(mb, &phba->slim2p->mbx, MAILBOX_CMD_SIZE);
 	} else {
 		if (mb->mbxCommand == MBX_CONFIG_PORT) {
 			/* copy command data into host mbox for cmpl */
-			mbox = (MAILBOX_t *) psli->MBhostaddr;
-			lpfc_sli_pcimem_bcopy(mb, mbox, MAILBOX_CMD_SIZE);
+			lpfc_sli_pcimem_bcopy(mb, &phba->slim2p->mbx,
+					MAILBOX_CMD_SIZE);
 		}
 
 		/* First copy mbox command data to HBA SLIM, skip past first
@@ -1946,8 +1929,7 @@ lpfc_sli_issue_mbox(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmbox, uint32_t flag)
 		psli->mbox_active = NULL;
 		if (psli->sli_flag & LPFC_SLI2_ACTIVE) {
 			/* First read mbox status word */
-			mbox = (MAILBOX_t *) psli->MBhostaddr;
-			word0 = *((volatile uint32_t *)mbox);
+			word0 = *((volatile uint32_t *)&phba->slim2p->mbx);
 			word0 = le32_to_cpu(word0);
 		} else {
 			/* First read mbox status word */
@@ -1984,8 +1966,8 @@ lpfc_sli_issue_mbox(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmbox, uint32_t flag)
 
 			if (psli->sli_flag & LPFC_SLI2_ACTIVE) {
 				/* First copy command data */
-				mbox = (MAILBOX_t *) psli->MBhostaddr;
-				word0 = *((volatile uint32_t *)mbox);
+				word0 = *((volatile uint32_t *)
+						&phba->slim2p->mbx);
 				word0 = le32_to_cpu(word0);
 				if (mb->mbxCommand == MBX_CONFIG_PORT) {
 					MAILBOX_t *slimmb;
@@ -2009,10 +1991,9 @@ lpfc_sli_issue_mbox(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmbox, uint32_t flag)
 		}
 
 		if (psli->sli_flag & LPFC_SLI2_ACTIVE) {
-			/* First copy command data */
-			mbox = (MAILBOX_t *) psli->MBhostaddr;
 			/* copy results back to user */
-			lpfc_sli_pcimem_bcopy(mbox, mb, MAILBOX_CMD_SIZE);
+			lpfc_sli_pcimem_bcopy(&phba->slim2p->mbx, mb,
+					MAILBOX_CMD_SIZE);
 		} else {
 			/* First copy command data */
 			lpfc_memcpy_from_slim(mb, phba->MBslimaddr,

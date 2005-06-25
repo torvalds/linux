@@ -422,7 +422,6 @@ lpfc_config_pcb_setup(struct lpfc_hba * phba)
 	uint32_t iocbCnt;
 	int i;
 
-	psli->MBhostaddr = (uint32_t *)&phba->slim2p->mbx;
 	pcbp->maxRing = (psli->num_rings - 1);
 
 	iocbCnt = 0;
@@ -528,7 +527,7 @@ lpfc_config_port(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 	dma_addr_t pdma_addr;
 	uint32_t bar_low, bar_high;
 	size_t offset;
-	HGP hgp;
+	struct lpfc_hgp hgp;
 	void __iomem *to_slim;
 
 	memset(pmb, 0, sizeof(LPFC_MBOXQ_t));
@@ -584,9 +583,9 @@ lpfc_config_port(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 	else
 		phba->slim2p->pcb.hgpAddrHigh = 0;
 	/* write HGP data to SLIM at the required longword offset */
-	memset(&hgp, 0, sizeof(HGP));
+	memset(&hgp, 0, sizeof(struct lpfc_hgp));
 	to_slim = phba->MBslimaddr + (SLIMOFF*sizeof (uint32_t));
-	lpfc_memcpy_to_slim(to_slim, &hgp, sizeof (HGP));
+	lpfc_memcpy_to_slim(to_slim, &hgp, sizeof(struct lpfc_hgp));
 
 	/* Setup Port Group ring pointer */
 	offset = (uint8_t *)&phba->slim2p->mbx.us.s2.port -

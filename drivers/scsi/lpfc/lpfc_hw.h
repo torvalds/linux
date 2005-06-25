@@ -2214,20 +2214,20 @@ typedef union {
  * SLI-2 specific structures
  */
 
-typedef struct {
-	uint32_t cmdPutInx;
-	uint32_t rspGetInx;
-} HGP;
+struct lpfc_hgp {
+	__le32 cmdPutInx;
+	__le32 rspGetInx;
+};
 
-typedef struct {
-	uint32_t cmdGetInx;
-	uint32_t rspPutInx;
-} PGP;
+struct lpfc_pgp {
+	__le32 cmdGetInx;
+	__le32 rspPutInx;
+};
 
 typedef struct _SLI2_DESC {
-	HGP host[MAX_RINGS];
+	struct lpfc_hgp host[MAX_RINGS];
 	uint32_t unused1[16];
-	PGP port[MAX_RINGS];
+	struct lpfc_pgp port[MAX_RINGS];
 } SLI2_DESC;
 
 typedef union {
