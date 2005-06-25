@@ -44,7 +44,6 @@ void __save_processor_state(struct saved_context *ctxt)
 	 */
 	asm volatile ("sgdt %0" : "=m" (ctxt->gdt_limit));
 	asm volatile ("sidt %0" : "=m" (ctxt->idt_limit));
-	asm volatile ("sldt %0" : "=m" (ctxt->ldt));
 	asm volatile ("str %0"  : "=m" (ctxt->tr));
 
 	/*
@@ -107,7 +106,6 @@ static void fix_processor_context(void)
 
 void __restore_processor_state(struct saved_context *ctxt)
 {
-
 	/*
 	 * control registers
 	 */
@@ -117,20 +115,19 @@ void __restore_processor_state(struct saved_context *ctxt)
 	asm volatile ("movl %0, %%cr0" :: "r" (ctxt->cr0));
 
 	/*
+	 * now restore the descriptor tables to their proper values
+	 * ltr is done i fix_processor_context().
+	 */
+	asm volatile ("lgdt %0" :: "m" (ctxt->gdt_limit));
+	asm volatile ("lidt %0" :: "m" (ctxt->idt_limit));
+
+	/*
 	 * segment registers
 	 */
 	asm volatile ("movw %0, %%es" :: "r" (ctxt->es));
 	asm volatile ("movw %0, %%fs" :: "r" (ctxt->fs));
 	asm volatile ("movw %0, %%gs" :: "r" (ctxt->gs));
 	asm volatile ("movw %0, %%ss" :: "r" (ctxt->ss));
-
-	/*
-	 * now restore the descriptor tables to their proper values
-	 * ltr is done i fix_processor_context().
-	 */
-	asm volatile ("lgdt %0" :: "m" (ctxt->gdt_limit));
-	asm volatile ("lidt %0" :: "m" (ctxt->idt_limit));
-	asm volatile ("lldt %0" :: "m" (ctxt->ldt));
 
 	/*
 	 * sysenter MSRs
