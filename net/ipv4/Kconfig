@@ -445,9 +445,22 @@ config IP_TCPDIAG
 config IP_TCPDIAG_IPV6
 	def_bool (IP_TCPDIAG=y && IPV6=y) || (IP_TCPDIAG=m && IPV6)
 
+config TCP_CONG_ADVANCED
+	bool "TCP: advanced congestion control"
+	depends on INET
+	default y
+	---help---
+	  Support for selection of various TCP congestion control
+	  modules.
+
+	  Nearly all users can safely say no here, and a safe default
+	  selection will be made (BIC-TCP with new Reno as a fallback).
+
+	  If unsure, say N.
+
 # TCP Reno is builtin (required as fallback)
 menu "TCP congestion control"
-	depends on INET
+	depends on TCP_CONG_ADVANCED
 
 config TCP_CONG_BIC
 	tristate "Binary Increase Congestion (BIC) control"
@@ -534,6 +547,11 @@ config TCP_CONG_SCALABLE
 	See http://www-lce.eng.cam.ac.uk/~ctk21/scalable/
 
 endmenu
+
+config TCP_CONG_BIC
+	boolean
+	depends on !TCP_CONG_ADVANCED
+	default y
 
 source "net/ipv4/ipvs/Kconfig"
 
