@@ -430,12 +430,14 @@ static inline void tg3_cond_int(struct tg3 *tp)
 
 static void tg3_enable_ints(struct tg3 *tp)
 {
+	tp->irq_sync = 0;
+	wmb();
+
 	tw32(TG3PCI_MISC_HOST_CTRL,
 	     (tp->misc_host_ctrl & ~MISC_HOST_CTRL_MASK_PCI_INT));
 	tw32_mailbox(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
 		     (tp->last_tag << 24));
 	tr32(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW);
-	tp->irq_sync = 0;
 	tg3_cond_int(tp);
 }
 
@@ -484,6 +486,7 @@ static void tg3_restart_ints(struct tg3 *tp)
 
 static inline void tg3_netif_stop(struct tg3 *tp)
 {
+	tp->dev->trans_start = jiffies;	/* prevent tx timeout */
 	netif_poll_disable(tp->dev);
 	netif_tx_disable(tp->dev);
 }
@@ -5724,9 +5727,6 @@ static int tg3_reset_hw(struct tg3 *tp)
 
 	tg3_write_sig_post_reset(tp, RESET_KIND_INIT);
 
-	if (tp->tg3_flags & TG3_FLAG_INIT_COMPLETE)
-		tg3_enable_ints(tp);
-
 	return 0;
 }
 
@@ -7076,16 +7076,19 @@ static void tg3_get_ringparam(struct net_device *dev, struct ethtool_ringparam *
 static int tg3_set_ringparam(struct net_device *dev, struct ethtool_ringparam *ering)
 {
 	struct tg3 *tp = netdev_priv(dev);
+	int irq_sync = 0;
   
 	if ((ering->rx_pending > TG3_RX_RING_SIZE - 1) ||
 	    (ering->rx_jumbo_pending > TG3_RX_JUMBO_RING_SIZE - 1) ||
 	    (ering->tx_pending > TG3_TX_RING_SIZE - 1))
 		return -EINVAL;
   
-	if (netif_running(dev))
+	if (netif_running(dev)) {
 		tg3_netif_stop(tp);
+		irq_sync = 1;
+	}
 
-	tg3_full_lock(tp, 0);
+	tg3_full_lock(tp, irq_sync);
   
 	tp->rx_pending = ering->rx_pending;
 
@@ -7118,11 +7121,14 @@ static void tg3_get_pauseparam(struct net_device *dev, struct ethtool_pauseparam
 static int tg3_set_pauseparam(struct net_device *dev, struct ethtool_pauseparam *epause)
 {
 	struct tg3 *tp = netdev_priv(dev);
+	int irq_sync = 0;
   
-	if (netif_running(dev))
+	if (netif_running(dev)) {
 		tg3_netif_stop(tp);
+		irq_sync = 1;
+	}
 
-	tg3_full_lock(tp, 1);
+	tg3_full_lock(tp, irq_sync);
 
 	if (epause->autoneg)
 		tp->tg3_flags |= TG3_FLAG_PAUSE_AUTONEG;
@@ -7578,8 +7584,6 @@ static int tg3_test_loopback(struct tg3 *tp)
 
 	tg3_abort_hw(tp, 1);
 
-	/* Clearing this flag to keep interrupts disabled */
-	tp->tg3_flags &= ~TG3_FLAG_INIT_COMPLETE;
 	tg3_reset_hw(tp);
 
 	mac_mode = (tp->mac_mode & ~MAC_MODE_PORT_MODE_MASK) |
@@ -7688,10 +7692,14 @@ static void tg3_self_test(struct net_device *dev, struct ethtool_test *etest,
 		data[1] = 1;
 	}
 	if (etest->flags & ETH_TEST_FL_OFFLINE) {
-		if (netif_running(dev))
-			tg3_netif_stop(tp);
+		int irq_sync = 0;
 
-		tg3_full_lock(tp, 1);
+		if (netif_running(dev)) {
+			tg3_netif_stop(tp);
+			irq_sync = 1;
+		}
+
+		tg3_full_lock(tp, irq_sync);
 
 		tg3_halt(tp, RESET_KIND_SUSPEND, 1);
 		tg3_nvram_lock(tp);
@@ -10183,8 +10191,6 @@ static int tg3_resume(struct pci_dev *pdev)
 
 	tp->timer.expires = jiffies + tp->timer_offset;
 	add_timer(&tp->timer);
-
-	tg3_enable_ints(tp);
 
 	tg3_netif_start(tp);
 
