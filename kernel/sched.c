@@ -1632,7 +1632,7 @@ void pull_task(runqueue_t *src_rq, prio_array_t *src_array, task_t *p,
  */
 static inline
 int can_migrate_task(task_t *p, runqueue_t *rq, int this_cpu,
-		     struct sched_domain *sd, enum idle_type idle)
+	     struct sched_domain *sd, enum idle_type idle, int *all_pinned)
 {
 	/*
 	 * We do not migrate tasks that are:
@@ -1640,9 +1640,11 @@ int can_migrate_task(task_t *p, runqueue_t *rq, int this_cpu,
 	 * 2) cannot be migrated to this CPU due to cpus_allowed, or
 	 * 3) are cache-hot on their current CPU.
 	 */
-	if (task_running(rq, p))
-		return 0;
 	if (!cpu_isset(this_cpu, p->cpus_allowed))
+		return 0;
+	*all_pinned = 0;
+
+	if (task_running(rq, p))
 		return 0;
 
 	/*
@@ -1656,7 +1658,7 @@ int can_migrate_task(task_t *p, runqueue_t *rq, int this_cpu,
 		return 1;
 
 	if (task_hot(p, rq->timestamp_last_tick, sd))
-			return 0;
+		return 0;
 	return 1;
 }
 
@@ -1669,15 +1671,17 @@ int can_migrate_task(task_t *p, runqueue_t *rq, int this_cpu,
  */
 static int move_tasks(runqueue_t *this_rq, int this_cpu, runqueue_t *busiest,
 		      unsigned long max_nr_move, struct sched_domain *sd,
-		      enum idle_type idle)
+		      enum idle_type idle, int *all_pinned)
 {
 	prio_array_t *array, *dst_array;
 	struct list_head *head, *curr;
-	int idx, pulled = 0;
+	int idx, pulled = 0, pinned = 0;
 	task_t *tmp;
 
-	if (max_nr_move <= 0 || busiest->nr_running <= 1)
+	if (max_nr_move == 0)
 		goto out;
+
+	pinned = 1;
 
 	/*
 	 * We first consider expired tasks. Those will likely not be
@@ -1717,7 +1721,7 @@ skip_queue:
 
 	curr = curr->prev;
 
-	if (!can_migrate_task(tmp, busiest, this_cpu, sd, idle)) {
+	if (!can_migrate_task(tmp, busiest, this_cpu, sd, idle, &pinned)) {
 		if (curr != head)
 			goto skip_queue;
 		idx++;
@@ -1746,6 +1750,9 @@ out:
 	 * inside pull_task().
 	 */
 	schedstat_add(sd, lb_gained[idle], pulled);
+
+	if (all_pinned)
+		*all_pinned = pinned;
 	return pulled;
 }
 
@@ -1917,7 +1924,8 @@ static int load_balance(int this_cpu, runqueue_t *this_rq,
 	struct sched_group *group;
 	runqueue_t *busiest;
 	unsigned long imbalance;
-	int nr_moved;
+	int nr_moved, all_pinned;
+	int active_balance = 0;
 
 	spin_lock(&this_rq->lock);
 	schedstat_inc(sd, lb_cnt[idle]);
@@ -1956,9 +1964,15 @@ static int load_balance(int this_cpu, runqueue_t *this_rq,
 		 */
 		double_lock_balance(this_rq, busiest);
 		nr_moved = move_tasks(this_rq, this_cpu, busiest,
-						imbalance, sd, idle);
+						imbalance, sd, idle,
+						&all_pinned);
 		spin_unlock(&busiest->lock);
+
+		/* All tasks on this runqueue were pinned by CPU affinity */
+		if (unlikely(all_pinned))
+			goto out_balanced;
 	}
+
 	spin_unlock(&this_rq->lock);
 
 	if (!nr_moved) {
@@ -1966,16 +1980,15 @@ static int load_balance(int this_cpu, runqueue_t *this_rq,
 		sd->nr_balance_failed++;
 
 		if (unlikely(sd->nr_balance_failed > sd->cache_nice_tries+2)) {
-			int wake = 0;
 
 			spin_lock(&busiest->lock);
 			if (!busiest->active_balance) {
 				busiest->active_balance = 1;
 				busiest->push_cpu = this_cpu;
-				wake = 1;
+				active_balance = 1;
 			}
 			spin_unlock(&busiest->lock);
-			if (wake)
+			if (active_balance)
 				wake_up_process(busiest->migration_thread);
 
 			/*
@@ -1984,18 +1997,21 @@ static int load_balance(int this_cpu, runqueue_t *this_rq,
 			 */
 			sd->nr_balance_failed = sd->cache_nice_tries;
 		}
-
-		/*
-		 * We were unbalanced, but unsuccessful in move_tasks(),
-		 * so bump the balance_interval to lessen the lock contention.
-		 */
-		if (sd->balance_interval < sd->max_interval)
-			sd->balance_interval++;
-	} else {
+	} else
 		sd->nr_balance_failed = 0;
 
+	if (likely(!active_balance)) {
 		/* We were unbalanced, so reset the balancing interval */
 		sd->balance_interval = sd->min_interval;
+	} else {
+		/*
+		 * If we've begun active balancing, start to back off. This
+		 * case may not be covered by the all_pinned logic if there
+		 * is only 1 task on the busy runqueue (because we don't call
+		 * move_tasks).
+		 */
+		if (sd->balance_interval < sd->max_interval)
+			sd->balance_interval *= 2;
 	}
 
 	return nr_moved;
@@ -2047,7 +2063,7 @@ static int load_balance_newidle(int this_cpu, runqueue_t *this_rq,
 
 	schedstat_add(sd, lb_imbalance[NEWLY_IDLE], imbalance);
 	nr_moved = move_tasks(this_rq, this_cpu, busiest,
-					imbalance, sd, NEWLY_IDLE);
+					imbalance, sd, NEWLY_IDLE, NULL);
 	if (!nr_moved)
 		schedstat_inc(sd, lb_failed[NEWLY_IDLE]);
 
@@ -2126,7 +2142,7 @@ static void active_load_balance(runqueue_t *busiest_rq, int busiest_cpu)
 				/* move a task from busiest_rq to target_rq */
 				double_lock_balance(busiest_rq, target_rq);
 				if (move_tasks(target_rq, cpu, busiest_rq,
-						1, sd, SCHED_IDLE)) {
+						1, sd, SCHED_IDLE, NULL)) {
 					schedstat_inc(sd, alb_pushed);
 				} else {
 					schedstat_inc(sd, alb_failed);
