@@ -780,6 +780,9 @@ lpfc_get_hba_model_desc(struct lpfc_hba * phba, uint8_t * mdp, uint8_t * descp)
 	pci_read_config_dword(phba->pcidev, PCI_VENDOR_ID, &id);
 
 	switch ((id >> 16) & 0xffff) {
+	case PCI_DEVICE_ID_FIREFLY:
+		strcpy(str, "LP6000 1");
+		break;
 	case PCI_DEVICE_ID_SUPERFLY:
 		if (vp->rev.biuRev >= 1 && vp->rev.biuRev <= 3)
 			strcpy(str, "LP7000 1");
@@ -836,6 +839,9 @@ lpfc_get_hba_model_desc(struct lpfc_hba * phba, uint8_t * mdp, uint8_t * descp)
 		break;
 	case PCI_DEVICE_ID_LP10000S:
 		strcpy(str, "LP10000-S 2");
+		break;
+	default:
+		memset(str, 0, 16);
 		break;
 	}
 	if (mdp)
@@ -1661,6 +1667,8 @@ lpfc_pci_remove_one(struct pci_dev *pdev)
 
 static struct pci_device_id lpfc_id_table[] = {
 	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_VIPER,
+		PCI_ANY_ID, PCI_ANY_ID, },
+	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_FIREFLY,
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_THOR,
 		PCI_ANY_ID, PCI_ANY_ID, },
