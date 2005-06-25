@@ -673,7 +673,7 @@ static inline void __activate_idle_task(task_t *p, runqueue_t *rq)
 	rq->nr_running++;
 }
 
-static void recalc_task_prio(task_t *p, unsigned long long now)
+static int recalc_task_prio(task_t *p, unsigned long long now)
 {
 	/* Caller must always ensure 'now >= p->timestamp' */
 	unsigned long long __sleep_time = now - p->timestamp;
@@ -732,7 +732,7 @@ static void recalc_task_prio(task_t *p, unsigned long long now)
 		}
 	}
 
-	p->prio = effective_prio(p);
+	return effective_prio(p);
 }
 
 /*
@@ -755,7 +755,7 @@ static void activate_task(task_t *p, runqueue_t *rq, int local)
 	}
 #endif
 
-	recalc_task_prio(p, now);
+	p->prio = recalc_task_prio(p, now);
 
 	/*
 	 * This checks to make sure it's not an uninterruptible task
@@ -2751,7 +2751,7 @@ asmlinkage void __sched schedule(void)
 	struct list_head *queue;
 	unsigned long long now;
 	unsigned long run_time;
-	int cpu, idx;
+	int cpu, idx, new_prio;
 
 	/*
 	 * Test if we are atomic.  Since do_exit() needs to call into
@@ -2873,9 +2873,14 @@ go_idle:
 			delta = delta * (ON_RUNQUEUE_WEIGHT * 128 / 100) / 128;
 
 		array = next->array;
-		dequeue_task(next, array);
-		recalc_task_prio(next, next->timestamp + delta);
-		enqueue_task(next, array);
+		new_prio = recalc_task_prio(next, next->timestamp + delta);
+
+		if (unlikely(next->prio != new_prio)) {
+			dequeue_task(next, array);
+			next->prio = new_prio;
+			enqueue_task(next, array);
+		} else
+			requeue_task(next, array);
 	}
 	next->activated = 0;
 switch_tasks:
