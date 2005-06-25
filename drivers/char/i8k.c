@@ -35,7 +35,8 @@
 #define I8K_SMM_GET_FAN		0x00a3
 #define I8K_SMM_GET_SPEED	0x02a3
 #define I8K_SMM_GET_TEMP	0x10a3
-#define I8K_SMM_GET_DELL_SIG	0xffa3
+#define I8K_SMM_GET_DELL_SIG1	0xfea3
+#define I8K_SMM_GET_DELL_SIG2	0xffa3
 #define I8K_SMM_BIOS_VERSION	0x00a6
 
 #define I8K_FAN_MULT		30
@@ -226,7 +227,7 @@ static int i8k_set_fan(int fan, int speed)
 /*
  * Read the cpu temperature.
  */
-static int i8k_get_cpu_temp(void)
+static int i8k_get_temp(int sensor)
 {
 	struct smm_regs regs = { .eax = I8K_SMM_GET_TEMP, };
 	int rc;
@@ -235,7 +236,7 @@ static int i8k_get_cpu_temp(void)
 #ifdef I8K_TEMPERATURE_BUG
 	static int prev;
 #endif
-
+	regs.ebx = sensor & 0xff;
 	if ((rc = i8k_smm(&regs)) < 0)
 		return rc;
 
@@ -260,9 +261,9 @@ static int i8k_get_cpu_temp(void)
 	return temp;
 }
 
-static int i8k_get_dell_signature(void)
+static int i8k_get_dell_signature(int req_fn)
 {
-	struct smm_regs regs = { .eax = I8K_SMM_GET_DELL_SIG, };
+	struct smm_regs regs = { .eax = req_fn, };
 	int rc;
 
 	if ((rc = i8k_smm(&regs)) < 0)
@@ -301,7 +302,7 @@ static int i8k_ioctl(struct inode *ip, struct file *fp, unsigned int cmd,
 		break;
 
 	case I8K_GET_TEMP:
-		val = i8k_get_cpu_temp();
+		val = i8k_get_temp(0);
 		break;
 
 	case I8K_GET_SPEED:
@@ -367,7 +368,7 @@ static int i8k_proc_show(struct seq_file *seq, void *offset)
 	int fn_key, cpu_temp, ac_power;
 	int left_fan, right_fan, left_speed, right_speed;
 
-	cpu_temp	= i8k_get_cpu_temp();			/* 11100 탎 */
+	cpu_temp	= i8k_get_temp(0);			/* 11100 탎 */
 	left_fan	= i8k_get_fan_status(I8K_FAN_LEFT);	/*   580 탎 */
 	right_fan	= i8k_get_fan_status(I8K_FAN_RIGHT);	/*   580 탎 */
 	left_speed	= i8k_get_fan_speed(I8K_FAN_LEFT);	/*   580 탎 */
@@ -421,6 +422,20 @@ static struct dmi_system_id __initdata i8k_dmi_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Latitude"),
 		},
 	},
+	{
+		.ident = "Dell Inspiron 2",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron"),
+		},
+	},
+	{
+		.ident = "Dell Latitude 2",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Latitude"),
+		},
+	},
 	{ }
 };
 
@@ -451,7 +466,8 @@ static int __init i8k_probe(void)
 	/*
 	 * Get SMM Dell signature
 	 */
-	if (i8k_get_dell_signature() != 0) {
+	if (i8k_get_dell_signature(I8K_SMM_GET_DELL_SIG1) &&
+	    i8k_get_dell_signature(I8K_SMM_GET_DELL_SIG2)) {
 		printk(KERN_ERR "i8k: unable to get SMM Dell signature\n");
 		if (!force)
 			return -ENODEV;
