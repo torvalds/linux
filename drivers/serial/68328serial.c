@@ -992,18 +992,17 @@ static int get_lsr_info(struct m68k_serial * info, unsigned int *value)
 /*
  * This routine sends a break character out the serial port.
  */
-static void send_break(	struct m68k_serial * info, int duration)
+static void send_break(struct m68k_serial * info, unsigned int duration)
 {
 	m68328_uart *uart = &uart_addr[info->line];
         unsigned long flags;
         if (!info->port)
                 return;
-        set_current_state(TASK_INTERRUPTIBLE);
         save_flags(flags);
         cli();
 #ifdef USE_INTS	
 	uart->utx.w |= UTX_SEND_BREAK;
-        schedule_timeout(duration);
+	msleep_interruptible(duration);
 	uart->utx.w &= ~UTX_SEND_BREAK;
 #endif		
         restore_flags(flags);
@@ -1033,14 +1032,14 @@ static int rs_ioctl(struct tty_struct *tty, struct file * file,
 				return retval;
 			tty_wait_until_sent(tty, 0);
 			if (!arg)
-				send_break(info, HZ/4);	/* 1/4 second */
+				send_break(info, 250);	/* 1/4 second */
 			return 0;
 		case TCSBRKP:	/* support for POSIX tcsendbreak() */
 			retval = tty_check_change(tty);
 			if (retval)
 				return retval;
 			tty_wait_until_sent(tty, 0);
-			send_break(info, arg ? arg*(HZ/10) : HZ/4);
+			send_break(info, arg ? arg*(100) : 250);
 			return 0;
 		case TIOCGSOFTCAR:
 			error = put_user(C_CLOCAL(tty) ? 1 : 0,
