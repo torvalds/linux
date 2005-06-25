@@ -254,6 +254,7 @@ static int _get_block_create_0 (struct inode * inode, long block,
     char * p = NULL;
     int chars;
     int ret ;
+    int result ;
     int done = 0 ;
     unsigned long offset ;
 
@@ -262,10 +263,13 @@ static int _get_block_create_0 (struct inode * inode, long block,
 		  (loff_t)block * inode->i_sb->s_blocksize + 1, TYPE_ANY, 3);
 
 research:
-    if (search_for_position_by_key (inode->i_sb, &key, &path) != POSITION_FOUND) {
+    result = search_for_position_by_key (inode->i_sb, &key, &path) ;
+    if (result != POSITION_FOUND) {
 	pathrelse (&path);
         if (p)
             kunmap(bh_result->b_page) ;
+	if (result == IO_ERROR)
+	    return -EIO;
 	// We do not return -ENOENT if there is a hole but page is uptodate, because it means
 	// That there is some MMAPED data associated with it that is yet to be written to disk.
 	if ((args & GET_BLOCK_NO_HOLE) && !PageUptodate(bh_result->b_page) ) {
@@ -382,8 +386,9 @@ research:
 
 	// update key to look for the next piece
 	set_cpu_key_k_offset (&key, cpu_key_k_offset (&key) + chars);
-	if (search_for_position_by_key (inode->i_sb, &key, &path) != POSITION_FOUND)
-	    // we read something from tail, even if now we got IO_ERROR
+	result = search_for_position_by_key (inode->i_sb, &key, &path);
+	if (result != POSITION_FOUND)
+	    // i/o error most likely
 	    break;
 	bh = get_last_bh (&path);
 	ih = get_ih (&path);
@@ -394,6 +399,10 @@ research:
 
 finished:
     pathrelse (&path);
+
+    if (result == IO_ERROR)
+	return -EIO;
+
     /* this buffer has valid data, but isn't valid for io.  mapping it to
      * block #0 tells the rest of reiserfs it just has a tail in it
      */
