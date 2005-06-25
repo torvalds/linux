@@ -7,6 +7,7 @@
  *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com),
  *               Hartmut Penner (hp@de.ibm.com),
  *               Denis Joseph Barrow (djbarrow@de.ibm.com,barrow_dj@yahoo.com),
+ *		 Heiko Carstens <heiko.carstens@de.ibm.com>
  */
 
 #include <linux/sys.h>
@@ -49,9 +50,9 @@ SP_ILC       =  STACK_FRAME_OVERHEAD + __PT_ILC
 SP_TRAP      =  STACK_FRAME_OVERHEAD + __PT_TRAP
 SP_SIZE      =  STACK_FRAME_OVERHEAD + __PT_SIZE
 
-_TIF_WORK_SVC = (_TIF_SIGPENDING | _TIF_NEED_RESCHED | \
+_TIF_WORK_SVC = (_TIF_SIGPENDING | _TIF_NEED_RESCHED | _TIF_MCCK_PENDING | \
 		 _TIF_RESTART_SVC | _TIF_SINGLE_STEP )
-_TIF_WORK_INT = (_TIF_SIGPENDING | _TIF_NEED_RESCHED)
+_TIF_WORK_INT = (_TIF_SIGPENDING | _TIF_NEED_RESCHED | _TIF_MCCK_PENDING)
 
 STACK_SHIFT = PAGE_SHIFT + THREAD_ORDER
 STACK_SIZE  = 1 << STACK_SHIFT
@@ -121,7 +122,11 @@ STACK_SIZE  = 1 << STACK_SHIFT
 	bz	BASED(stack_overflow)
 3:
 #endif
-2:	s	%r15,BASED(.Lc_spsize)	# make room for registers & psw
+2:
+	.endm
+
+	.macro  CREATE_STACK_FRAME psworg,savearea
+	s	%r15,BASED(.Lc_spsize)	# make room for registers & psw
 	mvc	SP_PSW(8,%r15),0(%r12)	# move user PSW to stack
 	la	%r12,\psworg
 	st	%r2,SP_ORIG_R2(%r15)	# store original content of gpr 2
@@ -161,6 +166,13 @@ __switch_to_base:
         be      __switch_to_noper-__switch_to_base(%r1)	# we got away w/o bashing TLB's
         lctl    %c9,%c11,__THREAD_per(%r3)	# Nope we didn't
 __switch_to_noper:
+	l	%r4,__THREAD_info(%r2)		# get thread_info of prev
+	tm	__TI_flags+3(%r4),_TIF_MCCK_PENDING # machine check pending?
+	bz	__switch_to_no_mcck-__switch_to_base(%r1)
+	ni	__TI_flags+3(%r4),255-_TIF_MCCK_PENDING # clear flag in prev
+	l	%r4,__THREAD_info(%r3)		# get thread_info of next
+	oi	__TI_flags+3(%r4),_TIF_MCCK_PENDING # set it in next
+__switch_to_no_mcck:
         stm     %r6,%r15,__SF_GPRS(%r15)# store __switch_to registers of prev task
 	st	%r15,__THREAD_ksp(%r2)	# store kernel stack to prev->tss.ksp
 	l	%r15,__THREAD_ksp(%r3)	# load kernel stack from next->tss.ksp
@@ -185,6 +197,7 @@ system_call:
 sysc_saveall:
 	SAVE_ALL_BASE __LC_SAVE_AREA
         SAVE_ALL __LC_SVC_OLD_PSW,__LC_SAVE_AREA,1
+	CREATE_STACK_FRAME __LC_SVC_OLD_PSW,__LC_SAVE_AREA
 	lh	%r7,0x8a	  # get svc number from lowcore
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
 sysc_vtime:
@@ -234,6 +247,8 @@ sysc_work_loop:
 # One of the work bits is on. Find out which one.
 #
 sysc_work:
+	tm	__TI_flags+3(%r9),_TIF_MCCK_PENDING
+	bo	BASED(sysc_mcck_pending)
 	tm	__TI_flags+3(%r9),_TIF_NEED_RESCHED
 	bo	BASED(sysc_reschedule)
 	tm	__TI_flags+3(%r9),_TIF_SIGPENDING
@@ -251,6 +266,14 @@ sysc_reschedule:
         l       %r1,BASED(.Lschedule)
 	la      %r14,BASED(sysc_work_loop)
 	br      %r1		       # call scheduler
+
+#
+# _TIF_MCCK_PENDING is set, call handler
+#
+sysc_mcck_pending:
+	l	%r1,BASED(.Ls390_handle_mcck)
+	la	%r14,BASED(sysc_work_loop)
+	br	%r1			# TIF bit will be cleared by handler
 
 #
 # _TIF_SIGPENDING is set, call do_signal
@@ -430,6 +453,7 @@ pgm_check_handler:
         tm      __LC_PGM_INT_CODE+1,0x80 # check whether we got a per exception
         bnz     BASED(pgm_per)           # got per exception -> special case
 	SAVE_ALL __LC_PGM_OLD_PSW,__LC_SAVE_AREA,1
+	CREATE_STACK_FRAME __LC_PGM_OLD_PSW,__LC_SAVE_AREA
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
 	tm	SP_PSW+1(%r15),0x01	# interrupting from user ?
 	bz	BASED(pgm_no_vtime)
@@ -468,6 +492,7 @@ pgm_per:
 #
 pgm_per_std:
 	SAVE_ALL __LC_PGM_OLD_PSW,__LC_SAVE_AREA,1
+	CREATE_STACK_FRAME __LC_PGM_OLD_PSW,__LC_SAVE_AREA
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
 	tm	SP_PSW+1(%r15),0x01	# interrupting from user ?
 	bz	BASED(pgm_no_vtime2)
@@ -493,6 +518,7 @@ pgm_no_vtime2:
 #
 pgm_svcper:
 	SAVE_ALL __LC_SVC_OLD_PSW,__LC_SAVE_AREA,1
+	CREATE_STACK_FRAME __LC_SVC_OLD_PSW,__LC_SAVE_AREA
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
 	tm	SP_PSW+1(%r15),0x01	# interrupting from user ?
 	bz	BASED(pgm_no_vtime3)
@@ -521,6 +547,7 @@ io_int_handler:
 	stck	__LC_INT_CLOCK
 	SAVE_ALL_BASE __LC_SAVE_AREA+16
         SAVE_ALL __LC_IO_OLD_PSW,__LC_SAVE_AREA+16,0
+	CREATE_STACK_FRAME __LC_IO_OLD_PSW,__LC_SAVE_AREA+16
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
 	tm	SP_PSW+1(%r15),0x01	# interrupting from user ?
 	bz	BASED(io_no_vtime)
@@ -578,14 +605,24 @@ io_work:
 	lr	%r15,%r1
 #
 # One of the work bits is on. Find out which one.
-# Checked are: _TIF_SIGPENDING and _TIF_NEED_RESCHED
+# Checked are: _TIF_SIGPENDING, _TIF_NEED_RESCHED and _TIF_MCCK_PENDING
 #
 io_work_loop:
+	tm	__TI_flags+3(%r9),_TIF_MCCK_PENDING
+	bo      BASED(io_mcck_pending)
 	tm	__TI_flags+3(%r9),_TIF_NEED_RESCHED
 	bo	BASED(io_reschedule)
 	tm	__TI_flags+3(%r9),_TIF_SIGPENDING
 	bo	BASED(io_sigpending)
 	b	BASED(io_leave)
+
+#
+# _TIF_MCCK_PENDING is set, call handler
+#
+io_mcck_pending:
+	l	%r1,BASED(.Ls390_handle_mcck)
+	l	%r14,BASED(io_work_loop)
+	br	%r1		       # TIF bit will be cleared by handler
 
 #
 # _TIF_NEED_RESCHED is set, call schedule
@@ -621,6 +658,7 @@ ext_int_handler:
 	stck	__LC_INT_CLOCK
 	SAVE_ALL_BASE __LC_SAVE_AREA+16
         SAVE_ALL __LC_EXT_OLD_PSW,__LC_SAVE_AREA+16,0
+	CREATE_STACK_FRAME __LC_EXT_OLD_PSW,__LC_SAVE_AREA+16
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
 	tm	SP_PSW+1(%r15),0x01	# interrupting from user ?
 	bz	BASED(ext_no_vtime)
@@ -642,19 +680,62 @@ ext_no_vtime:
 
         .globl mcck_int_handler
 mcck_int_handler:
-	STORE_TIMER __LC_ASYNC_ENTER_TIMER
+	spt	__LC_CPU_TIMER_SAVE_AREA	# revalidate cpu timer
+	lm	%r0,%r15,__LC_GPREGS_SAVE_AREA	# revalidate gprs
 	SAVE_ALL_BASE __LC_SAVE_AREA+32
-        SAVE_ALL __LC_MCK_OLD_PSW,__LC_SAVE_AREA+32,0
+	la	%r12,__LC_MCK_OLD_PSW
+	tm	__LC_MCCK_CODE,0x80     # system damage?
+	bo	BASED(mcck_int_main)	# yes -> rest of mcck code invalid
+	tm	__LC_MCCK_CODE+5,0x02   # stored cpu timer value valid?
+	bo	BASED(0f)
+	spt	__LC_LAST_UPDATE_TIMER	# revalidate cpu timer
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
-	tm	SP_PSW+1(%r15),0x01	# interrupting from user ?
+	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_ASYNC_ENTER_TIMER
+	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_SYNC_ENTER_TIMER
+	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_EXIT_TIMER
+0:	tm	__LC_MCCK_CODE+2,0x08   # mwp of old psw valid?
+	bno	BASED(mcck_no_vtime)	# no -> skip cleanup critical
+	tm	__LC_MCK_OLD_PSW+1,0x01 # interrupting from user ?
 	bz	BASED(mcck_no_vtime)
 	UPDATE_VTIME __LC_EXIT_TIMER,__LC_ASYNC_ENTER_TIMER,__LC_USER_TIMER
 	UPDATE_VTIME __LC_LAST_UPDATE_TIMER,__LC_EXIT_TIMER,__LC_SYSTEM_TIMER
 	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_ASYNC_ENTER_TIMER
 mcck_no_vtime:
 #endif
+0:
+	tm	__LC_MCCK_CODE+2,0x09   # mwp + ia of old psw valid?
+	bno	BASED(mcck_int_main)	# no -> skip cleanup critical
+	tm	__LC_MCK_OLD_PSW+1,0x01	# test problem state bit
+	bnz	BASED(mcck_int_main)	# from user -> load async stack
+	clc	__LC_MCK_OLD_PSW+4(4),BASED(.Lcritical_end)
+	bhe	BASED(mcck_int_main)
+	clc	__LC_MCK_OLD_PSW+4(4),BASED(.Lcritical_start)
+	bl	BASED(mcck_int_main)
+	l	%r14,BASED(.Lcleanup_critical)
+	basr	%r14,%r14
+mcck_int_main:
+	l	%r14,__LC_PANIC_STACK	# are we already on the panic stack?
+	slr	%r14,%r15
+	sra	%r14,PAGE_SHIFT
+	be	BASED(0f)
+	l	%r15,__LC_PANIC_STACK	# load panic stack
+0:	CREATE_STACK_FRAME __LC_MCK_OLD_PSW,__LC_SAVE_AREA+32
+	l	%r9,__LC_THREAD_INFO	# load pointer to thread_info struct
+	la	%r2,SP_PTREGS(%r15)	# load pt_regs
 	l       %r1,BASED(.Ls390_mcck)
-	basr    %r14,%r1	  # call machine check handler
+	basr    %r14,%r1		# call machine check handler
+	tm      SP_PSW+1(%r15),0x01	# returning to user ?
+	bno	BASED(mcck_return)
+	l	%r1,__LC_KERNEL_STACK   # switch to kernel stack
+	s	%r1,BASED(.Lc_spsize)
+	mvc	SP_PTREGS(__PT_SIZE,%r1),SP_PTREGS(%r15)
+	xc      __SF_BACKCHAIN(4,%r1),__SF_BACKCHAIN(%r1) # clear back chain
+	lr	%r15,%r1
+	stosm	__SF_EMPTY(%r15),0x04	# turn dat on
+	tm	__TI_flags+3(%r9),_TIF_MCCK_PENDING
+	bno	BASED(mcck_return)
+	l	%r1,BASED(.Ls390_handle_mcck)
+	basr	%r14,%r1		# call machine check handler
 mcck_return:
         RESTORE_ALL 0
 
@@ -742,7 +823,7 @@ cleanup_critical:
 	clc	4(4,%r12),BASED(cleanup_table_sysc_work_loop)
 	bl	BASED(0f)
 	clc	4(4,%r12),BASED(cleanup_table_sysc_work_loop+4)
-	bl	BASED(cleanup_sysc_leave)
+	bl	BASED(cleanup_sysc_return)
 0:
 	br	%r14
 
@@ -760,6 +841,7 @@ cleanup_system_call:
 	mvc	__LC_SAVE_AREA(16),__LC_SAVE_AREA+16
 0:	st	%r13,__LC_SAVE_AREA+20
 	SAVE_ALL __LC_SVC_OLD_PSW,__LC_SAVE_AREA,1
+	CREATE_STACK_FRAME __LC_SVC_OLD_PSW,__LC_SAVE_AREA
 	st	%r15,__LC_SAVE_AREA+28
 	lh	%r7,0x8a
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
@@ -834,6 +916,8 @@ cleanup_sysc_leave_insn:
  * Symbol constants
  */
 .Ls390_mcck:   .long  s390_do_machine_check
+.Ls390_handle_mcck:
+	       .long  s390_handle_mcck
 .Ldo_IRQ:      .long  do_IRQ
 .Ldo_extint:   .long  do_extint
 .Ldo_signal:   .long  do_signal

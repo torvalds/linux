@@ -773,13 +773,24 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 
 		*(lowcore_ptr[i]) = S390_lowcore;
 		lowcore_ptr[i]->async_stack = stack + (ASYNC_SIZE);
-#ifdef CONFIG_CHECK_STACK
 		stack = __get_free_pages(GFP_KERNEL,0);
 		if (stack == 0ULL)
 			panic("smp_boot_cpus failed to allocate memory\n");
 		lowcore_ptr[i]->panic_stack = stack + (PAGE_SIZE);
+#ifndef __s390x__
+		if (MACHINE_HAS_IEEE) {
+			lowcore_ptr[i]->extended_save_area_addr =
+				(__u32) __get_free_pages(GFP_KERNEL,0);
+			if (lowcore_ptr[i]->extended_save_area_addr == 0)
+				panic("smp_boot_cpus failed to "
+				      "allocate memory\n");
+		}
 #endif
 	}
+#ifndef __s390x__
+	if (MACHINE_HAS_IEEE)
+		ctl_set_bit(14, 29); /* enable extended save area */
+#endif
 	set_prefix((u32)(unsigned long) lowcore_ptr[smp_processor_id()]);
 
 	for_each_cpu(cpu)
