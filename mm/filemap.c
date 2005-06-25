@@ -1954,7 +1954,9 @@ generic_file_buffered_write(struct kiocb *iocb, const struct iovec *iov,
 				if (unlikely(nr_segs > 1)) {
 					filemap_set_next_iovec(&cur_iov,
 							&iov_base, status);
-					buf = cur_iov->iov_base + iov_base;
+					if (count)
+						buf = cur_iov->iov_base +
+							iov_base;
 				} else {
 					iov_base += status;
 				}
