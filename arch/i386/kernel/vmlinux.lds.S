@@ -14,7 +14,7 @@ ENTRY(phys_startup_32)
 jiffies = jiffies_64;
 SECTIONS
 {
-  . = LOAD_OFFSET + 0x100000;
+  . = __KERNEL_START;
   phys_startup_32 = startup_32 - LOAD_OFFSET;
   /* read-only */
   _text = .;			/* Text and read-only data */

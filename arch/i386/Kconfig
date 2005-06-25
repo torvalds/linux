@@ -942,6 +942,17 @@ config SECCOMP
 
 source kernel/Kconfig.hz
 
+config PHYSICAL_START
+	hex "Physical address where the kernel is loaded" if EMBEDDED
+	default "0x100000"
+	help
+	  This gives the physical address where the kernel is loaded.
+	  Primarily used in the case of kexec on panic where the
+	  fail safe kernel needs to run at a different address than
+	  the panic-ed kernel.
+
+	  Don't change this unless you know what you are doing.
+
 endmenu
 
 
