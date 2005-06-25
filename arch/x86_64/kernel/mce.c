@@ -411,7 +411,7 @@ static ssize_t mce_read(struct file *filp, char __user *ubuf, size_t usize, loff
 	memset(mcelog.entry, 0, next * sizeof(struct mce));
 	mcelog.next = 0;
 
-	synchronize_kernel();	
+	synchronize_sched();
 
 	/* Collect entries that were still getting written before the synchronize. */
 

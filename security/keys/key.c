@@ -980,7 +980,7 @@ void unregister_key_type(struct key_type *ktype)
 	spin_unlock(&key_serial_lock);
 
 	/* make sure everyone revalidates their keys */
-	synchronize_kernel();
+	synchronize_rcu();
 
 	/* we should now be able to destroy the payloads of all the keys of
 	 * this type with impunity */

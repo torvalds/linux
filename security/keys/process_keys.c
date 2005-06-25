@@ -234,7 +234,7 @@ static int install_session_keyring(struct task_struct *tsk,
 	ret = 0;
 
 	/* we're using RCU on the pointer */
-	synchronize_kernel();
+	synchronize_rcu();
 	key_put(old);
  error:
 	return ret;
