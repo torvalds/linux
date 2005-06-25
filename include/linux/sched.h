@@ -488,6 +488,10 @@ struct sched_domain {
 	unsigned long long cache_hot_time; /* Task considered cache hot (ns) */
 	unsigned int cache_nice_tries;	/* Leave cache hot tasks for # tries */
 	unsigned int per_cpu_gain;	/* CPU % gained by adding domain cpus */
+	unsigned int busy_idx;
+	unsigned int idle_idx;
+	unsigned int newidle_idx;
+	unsigned int wake_idx;
 	int flags;			/* See SD_* */
 
 	/* Runtime fields. */

@@ -206,7 +206,7 @@ struct runqueue {
 	 */
 	unsigned long nr_running;
 #ifdef CONFIG_SMP
-	unsigned long cpu_load;
+	unsigned long cpu_load[3];
 #endif
 	unsigned long long nr_switches;
 
@@ -886,23 +886,27 @@ void kick_process(task_t *p)
  * We want to under-estimate the load of migration sources, to
  * balance conservatively.
  */
-static inline unsigned long source_load(int cpu)
+static inline unsigned long source_load(int cpu, int type)
 {
 	runqueue_t *rq = cpu_rq(cpu);
 	unsigned long load_now = rq->nr_running * SCHED_LOAD_SCALE;
+	if (type == 0)
+		return load_now;
 
-	return min(rq->cpu_load, load_now);
+	return min(rq->cpu_load[type-1], load_now);
 }
 
 /*
  * Return a high guess at the load of a migration-target cpu
  */
-static inline unsigned long target_load(int cpu)
+static inline unsigned long target_load(int cpu, int type)
 {
 	runqueue_t *rq = cpu_rq(cpu);
 	unsigned long load_now = rq->nr_running * SCHED_LOAD_SCALE;
+	if (type == 0)
+		return load_now;
 
-	return max(rq->cpu_load, load_now);
+	return max(rq->cpu_load[type-1], load_now);
 }
 
 #endif
@@ -967,7 +971,7 @@ static int try_to_wake_up(task_t * p, unsigned int state, int sync)
 	runqueue_t *rq;
 #ifdef CONFIG_SMP
 	unsigned long load, this_load;
-	struct sched_domain *sd;
+	struct sched_domain *sd, *this_sd = NULL;
 	int new_cpu;
 #endif
 
@@ -986,72 +990,64 @@ static int try_to_wake_up(task_t * p, unsigned int state, int sync)
 	if (unlikely(task_running(rq, p)))
 		goto out_activate;
 
-#ifdef CONFIG_SCHEDSTATS
+	new_cpu = cpu;
+
 	schedstat_inc(rq, ttwu_cnt);
 	if (cpu == this_cpu) {
 		schedstat_inc(rq, ttwu_local);
-	} else {
-		for_each_domain(this_cpu, sd) {
-			if (cpu_isset(cpu, sd->span)) {
-				schedstat_inc(sd, ttwu_wake_remote);
-				break;
-			}
+		goto out_set_cpu;
+	}
+
+	for_each_domain(this_cpu, sd) {
+		if (cpu_isset(cpu, sd->span)) {
+			schedstat_inc(sd, ttwu_wake_remote);
+			this_sd = sd;
+			break;
 		}
 	}
-#endif
 
-	new_cpu = cpu;
-	if (cpu == this_cpu || unlikely(!cpu_isset(this_cpu, p->cpus_allowed)))
+	if (unlikely(!cpu_isset(this_cpu, p->cpus_allowed)))
 		goto out_set_cpu;
 
-	load = source_load(cpu);
-	this_load = target_load(this_cpu);
-
 	/*
-	 * If sync wakeup then subtract the (maximum possible) effect of
-	 * the currently running task from the load of the current CPU:
+	 * Check for affine wakeup and passive balancing possibilities.
 	 */
-	if (sync)
-		this_load -= SCHED_LOAD_SCALE;
-
-	/* Don't pull the task off an idle CPU to a busy one */
-	if (load < SCHED_LOAD_SCALE/2 && this_load > SCHED_LOAD_SCALE/2)
-		goto out_set_cpu;
-
-	new_cpu = this_cpu; /* Wake to this CPU if we can */
-
-	/*
-	 * Scan domains for affine wakeup and passive balancing
-	 * possibilities.
-	 */
-	for_each_domain(this_cpu, sd) {
+	if (this_sd) {
+		int idx = this_sd->wake_idx;
 		unsigned int imbalance;
-		/*
-		 * Start passive balancing when half the imbalance_pct
-		 * limit is reached.
-		 */
-		imbalance = sd->imbalance_pct + (sd->imbalance_pct - 100) / 2;
 
-		if ((sd->flags & SD_WAKE_AFFINE) &&
-				!task_hot(p, rq->timestamp_last_tick, sd)) {
+		load = source_load(cpu, idx);
+		this_load = target_load(this_cpu, idx);
+
+		/*
+		 * If sync wakeup then subtract the (maximum possible) effect of
+		 * the currently running task from the load of the current CPU:
+		 */
+		if (sync)
+			this_load -= SCHED_LOAD_SCALE;
+
+		 /* Don't pull the task off an idle CPU to a busy one */
+		if (load < SCHED_LOAD_SCALE/2 && this_load > SCHED_LOAD_SCALE/2)
+			goto out_set_cpu;
+
+		new_cpu = this_cpu; /* Wake to this CPU if we can */
+
+		if ((this_sd->flags & SD_WAKE_AFFINE) &&
+			!task_hot(p, rq->timestamp_last_tick, this_sd)) {
 			/*
 			 * This domain has SD_WAKE_AFFINE and p is cache cold
 			 * in this domain.
 			 */
-			if (cpu_isset(cpu, sd->span)) {
-				schedstat_inc(sd, ttwu_move_affine);
-				goto out_set_cpu;
-			}
-		} else if ((sd->flags & SD_WAKE_BALANCE) &&
+			schedstat_inc(this_sd, ttwu_move_affine);
+			goto out_set_cpu;
+		} else if ((this_sd->flags & SD_WAKE_BALANCE) &&
 				imbalance*this_load <= 100*load) {
 			/*
 			 * This domain has SD_WAKE_BALANCE and there is
 			 * an imbalance.
 			 */
-			if (cpu_isset(cpu, sd->span)) {
-				schedstat_inc(sd, ttwu_move_balance);
-				goto out_set_cpu;
-			}
+			schedstat_inc(this_sd, ttwu_move_balance);
+			goto out_set_cpu;
 		}
 	}
 
@@ -1509,7 +1505,7 @@ static int find_idlest_cpu(struct task_struct *p, int this_cpu,
 	cpus_and(mask, sd->span, p->cpus_allowed);
 
 	for_each_cpu_mask(i, mask) {
-		load = target_load(i);
+		load = target_load(i, sd->wake_idx);
 
 		if (load < min_load) {
 			min_cpu = i;
@@ -1522,7 +1518,7 @@ static int find_idlest_cpu(struct task_struct *p, int this_cpu,
 	}
 
 	/* add +1 to account for the new task */
-	this_load = source_load(this_cpu) + SCHED_LOAD_SCALE;
+	this_load = source_load(this_cpu, sd->wake_idx) + SCHED_LOAD_SCALE;
 
 	/*
 	 * Would with the addition of the new task to the
@@ -1767,8 +1763,15 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 {
 	struct sched_group *busiest = NULL, *this = NULL, *group = sd->groups;
 	unsigned long max_load, avg_load, total_load, this_load, total_pwr;
+	int load_idx;
 
 	max_load = this_load = total_load = total_pwr = 0;
+	if (idle == NOT_IDLE)
+		load_idx = sd->busy_idx;
+	else if (idle == NEWLY_IDLE)
+		load_idx = sd->newidle_idx;
+	else
+		load_idx = sd->idle_idx;
 
 	do {
 		unsigned long load;
@@ -1783,9 +1786,9 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 		for_each_cpu_mask(i, group->cpumask) {
 			/* Bias balancing toward cpus of our domain */
 			if (local_group)
-				load = target_load(i);
+				load = target_load(i, load_idx);
 			else
-				load = source_load(i);
+				load = source_load(i, load_idx);
 
 			avg_load += load;
 		}
@@ -1895,7 +1898,7 @@ static runqueue_t *find_busiest_queue(struct sched_group *group)
 	int i;
 
 	for_each_cpu_mask(i, group->cpumask) {
-		load = source_load(i);
+		load = source_load(i, 0);
 
 		if (load > max_load) {
 			max_load = load;
@@ -2150,18 +2153,23 @@ static void rebalance_tick(int this_cpu, runqueue_t *this_rq,
 	unsigned long old_load, this_load;
 	unsigned long j = jiffies + CPU_OFFSET(this_cpu);
 	struct sched_domain *sd;
+	int i;
 
-	/* Update our load */
-	old_load = this_rq->cpu_load;
 	this_load = this_rq->nr_running * SCHED_LOAD_SCALE;
-	/*
-	 * Round up the averaging division if load is increasing. This
-	 * prevents us from getting stuck on 9 if the load is 10, for
-	 * example.
-	 */
-	if (this_load > old_load)
-		old_load++;
-	this_rq->cpu_load = (old_load + this_load) / 2;
+	/* Update our load */
+	for (i = 0; i < 3; i++) {
+		unsigned long new_load = this_load;
+		int scale = 1 << i;
+		old_load = this_rq->cpu_load[i];
+		/*
+		 * Round up the averaging division if load is increasing. This
+		 * prevents us from getting stuck on 9 if the load is 10, for
+		 * example.
+		 */
+		if (new_load > old_load)
+			new_load += scale-1;
+		this_rq->cpu_load[i] = (old_load*(scale-1) + new_load) / scale;
+	}
 
 	for_each_domain(this_cpu, sd) {
 		unsigned long interval;
@@ -4921,13 +4929,15 @@ void __init sched_init(void)
 
 		rq = cpu_rq(i);
 		spin_lock_init(&rq->lock);
+		rq->nr_running = 0;
 		rq->active = rq->arrays;
 		rq->expired = rq->arrays + 1;
 		rq->best_expired_prio = MAX_PRIO;
 
 #ifdef CONFIG_SMP
 		rq->sd = &sched_domain_dummy;
-		rq->cpu_load = 0;
+		for (j = 1; j < 3; j++)
+			rq->cpu_load[j] = 0;
 		rq->active_balance = 0;
 		rq->push_cpu = 0;
 		rq->migration_thread = NULL;

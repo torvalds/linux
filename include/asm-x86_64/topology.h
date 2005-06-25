@@ -39,7 +39,11 @@ extern int __node_distance(int, int);
 	.busy_factor		= 32,			\
 	.imbalance_pct		= 125,			\
 	.cache_hot_time		= (10*1000000),		\
-	.cache_nice_tries	= 1,			\
+	.cache_nice_tries	= 2,			\
+	.busy_idx		= 3,			\
+	.idle_idx		= 2,			\
+	.newidle_idx		= 1, 			\
+	.wake_idx		= 1,			\
 	.per_cpu_gain		= 100,			\
 	.flags			= SD_LOAD_BALANCE	\
 				| SD_BALANCE_NEWIDLE	\
