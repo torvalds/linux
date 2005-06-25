@@ -64,6 +64,7 @@ struct sn9c102_sensor;
 */
 extern int sn9c102_probe_hv7131d(struct sn9c102_device* cam);
 extern int sn9c102_probe_mi0343(struct sn9c102_device* cam);
+extern int sn9c102_probe_ov7630(struct sn9c102_device* cam);
 extern int sn9c102_probe_pas106b(struct sn9c102_device* cam);
 extern int sn9c102_probe_pas202bcb(struct sn9c102_device* cam);
 extern int sn9c102_probe_tas5110c1b(struct sn9c102_device* cam);
@@ -80,6 +81,7 @@ static int (*sn9c102_sensor_table[])(struct sn9c102_device*) = {              \
 	&sn9c102_probe_pas106b, /* strong detection based on SENSOR ids */    \
 	&sn9c102_probe_pas202bcb, /* strong detection based on SENSOR ids */  \
 	&sn9c102_probe_hv7131d, /* strong detection based on SENSOR ids */    \
+	&sn9c102_probe_ov7630, /* detection mostly based on USB pid/vid */    \
 	&sn9c102_probe_tas5110c1b, /* detection based on USB pid/vid */       \
 	&sn9c102_probe_tas5130d1b, /* detection based on USB pid/vid */       \
 	NULL,                                                                 \
@@ -103,7 +105,8 @@ static const struct usb_device_id sn9c102_id_table[] = {                      \
 	{ USB_DEVICE(0x0c45, 0x6029), }, /* PAS106B */                        \
 	{ USB_DEVICE(0x0c45, 0x602a), }, /* HV7131D */                        \
 	{ USB_DEVICE(0x0c45, 0x602b), }, /* MI-0343 */                        \
-	{ USB_DEVICE(0x0c45, 0x602c), }, /* OV7620 */                         \
+	{ USB_DEVICE(0x0c45, 0x602c), }, /* OV7630 */                         \
+	{ USB_DEVICE(0x0c45, 0x602d), },                                      \
 	{ USB_DEVICE(0x0c45, 0x6030), }, /* MI03x */                          \
 	{ USB_DEVICE(0x0c45, 0x6080), },                                      \
 	{ USB_DEVICE(0x0c45, 0x6082), }, /* MI0343 and MI0360 */              \
@@ -145,6 +148,8 @@ static const struct usb_device_id sn9c102_id_table[] = {                      \
 */
 
 /* The "try" I2C I/O versions are used when probing the sensor */
+extern int sn9c102_i2c_try_write(struct sn9c102_device*,struct sn9c102_sensor*,
+                                 u8 address, u8 value);
 extern int sn9c102_i2c_try_read(struct sn9c102_device*,struct sn9c102_sensor*,
                                 u8 address);
 
@@ -201,6 +206,8 @@ enum sn9c102_i2c_interface {
 	SN9C102_I2C_3WIRES,
 };
 
+#define SN9C102_MAX_CTRLS V4L2_CID_LASTP1-V4L2_CID_BASE+10
+
 struct sn9c102_sensor {
 	char name[32], /* sensor name */
 	     maintainer[64]; /* name of the mantainer <email> */
@@ -243,7 +250,7 @@ struct sn9c102_sensor {
 	   sensor according to the default configuration structures below.
 	*/
 
-	struct v4l2_queryctrl qctrl[V4L2_CID_LASTP1-V4L2_CID_BASE];
+	struct v4l2_queryctrl qctrl[SN9C102_MAX_CTRLS];
 	/*
 	   Optional list of default controls, defined as indicated in the 
 	   V4L2 API. Menu type controls are not handled by this interface.
@@ -356,7 +363,7 @@ struct sn9c102_sensor {
 	   core module to store successfully updated values of the above
 	   settings, for rollbacks..etc..in case of errors during atomic I/O
 	*/
-	struct v4l2_queryctrl _qctrl[V4L2_CID_LASTP1-V4L2_CID_BASE];
+	struct v4l2_queryctrl _qctrl[SN9C102_MAX_CTRLS];
 	struct v4l2_rect _rect;
 };
 
@@ -367,5 +374,8 @@ struct sn9c102_sensor {
 #define SN9C102_V4L2_CID_GREEN_BALANCE V4L2_CID_PRIVATE_BASE + 1
 #define SN9C102_V4L2_CID_RESET_LEVEL V4L2_CID_PRIVATE_BASE + 2
 #define SN9C102_V4L2_CID_PIXEL_BIAS_VOLTAGE V4L2_CID_PRIVATE_BASE + 3
+#define SN9C102_V4L2_CID_GAMMA V4L2_CID_PRIVATE_BASE + 4
+#define SN9C102_V4L2_CID_BAND_FILTER V4L2_CID_PRIVATE_BASE + 5
+#define SN9C102_V4L2_CID_BRIGHT_LEVEL V4L2_CID_PRIVATE_BASE + 6
 
 #endif /* _SN9C102_SENSOR_H_ */
