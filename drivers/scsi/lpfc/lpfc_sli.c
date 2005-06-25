@@ -2077,8 +2077,6 @@ lpfc_sli_issue_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		switch (piocb->iocb.ulpCommand) {
 		case CMD_QUE_RING_BUF_CN:
 		case CMD_QUE_RING_BUF64_CN:
-		case CMD_CLOSE_XRI_CN:
-		case CMD_ABORT_XRI_CN:
 			/*
 			 * For IOCBs, like QUE_RING_BUF, that have no rsp ring
 			 * completion, iocb_cmpl MUST be 0.
@@ -2561,6 +2559,16 @@ lpfc_sli_sum_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	return sum;
 }
 
+void
+lpfc_sli_abort_fcp_cmpl(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
+			   struct lpfc_iocbq * rspiocb)
+{
+	spin_lock_irq(phba->host->host_lock);
+	list_add_tail(&cmdiocb->list, &phba->lpfc_iocb_list);
+	spin_unlock_irq(phba->host->host_lock);
+	return;
+}
+
 int
 lpfc_sli_abort_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		    uint16_t tgt_id, uint64_t lun_id, uint32_t ctx,
@@ -2610,6 +2618,8 @@ lpfc_sli_abort_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		else
 			abtsiocb->iocb.ulpCommand = CMD_CLOSE_XRI_CN;
 
+		/* Setup callback routine and issue the command. */
+		abtsiocb->iocb_cmpl = lpfc_sli_abort_fcp_cmpl;
 		ret_val = lpfc_sli_issue_iocb(phba, pring, abtsiocb, 0);
 		if (ret_val == IOCB_ERROR) {
 			list_add_tail(&abtsiocb->list, lpfc_iocb_list);

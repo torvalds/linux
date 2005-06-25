@@ -195,6 +195,9 @@ int lpfc_sli_issue_iocb_wait_high_priority(struct lpfc_hba * phba,
 void lpfc_sli_wake_iocb_high_priority(struct lpfc_hba * phba,
 				      struct lpfc_iocbq * queue1,
 				      struct lpfc_iocbq * queue2);
+void lpfc_sli_abort_fcp_cmpl(struct lpfc_hba * phba,
+			     struct lpfc_iocbq * cmdiocb,
+			     struct lpfc_iocbq * rspiocb);
 
 void *lpfc_mbuf_alloc(struct lpfc_hba *, int, dma_addr_t *);
 void lpfc_mbuf_free(struct lpfc_hba *, void *, dma_addr_t);

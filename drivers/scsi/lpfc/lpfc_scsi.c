@@ -874,6 +874,7 @@ __lpfc_abort_handler(struct scsi_cmnd *cmnd)
 		else
 			icmd->ulpCommand = CMD_CLOSE_XRI_CN;
 
+		abtsiocb->iocb_cmpl = lpfc_sli_abort_fcp_cmpl;
 		if (lpfc_sli_issue_iocb(phba, pring, abtsiocb, 0) ==
 								IOCB_ERROR) {
 			list_add_tail(&abtsiocb->list, lpfc_iocb_list);
