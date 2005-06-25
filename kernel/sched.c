@@ -1877,15 +1877,9 @@ nextgroup:
 
 	/* Get rid of the scaling factor, rounding down as we divide */
 	*imbalance = *imbalance / SCHED_LOAD_SCALE;
-
 	return busiest;
 
 out_balanced:
-	if (busiest && (idle == NEWLY_IDLE ||
-			(idle == SCHED_IDLE && max_load > SCHED_LOAD_SCALE)) ) {
-		*imbalance = 1;
-		return busiest;
-	}
 
 	*imbalance = 0;
 	return NULL;
