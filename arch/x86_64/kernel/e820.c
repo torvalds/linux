@@ -16,6 +16,7 @@
 #include <linux/bootmem.h>
 #include <linux/ioport.h>
 #include <linux/string.h>
+#include <linux/kexec.h>
 #include <asm/page.h>
 #include <asm/e820.h>
 #include <asm/proto.h>
@@ -210,6 +211,9 @@ void __init e820_reserve_resources(void)
 			 */
 			request_resource(res, &code_resource);
 			request_resource(res, &data_resource);
+#ifdef CONFIG_KEXEC
+			request_resource(res, &crashk_res);
+#endif
 		}
 	}
 }

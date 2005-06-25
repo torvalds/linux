@@ -41,6 +41,7 @@
 #include <linux/kallsyms.h>
 #include <linux/edd.h>
 #include <linux/mmzone.h>
+#include <linux/kexec.h>
 
 #include <asm/mtrr.h>
 #include <asm/uaccess.h>
@@ -367,6 +368,27 @@ static __init void parse_cmdline_early (char ** cmdline_p)
 		if (!memcmp(from, "noexec=", 7))
 			nonx_setup(from + 7);
 
+#ifdef CONFIG_KEXEC
+		/* crashkernel=size@addr specifies the location to reserve for
+		 * a crash kernel.  By reserving this memory we guarantee
+		 * that linux never set's it up as a DMA target.
+		 * Useful for holding code to do something appropriate
+		 * after a kernel panic.
+		 */
+		else if (!memcmp(from, "crashkernel=", 12)) {
+			unsigned long size, base;
+			size = memparse(from+12, &from);
+			if (*from == '@') {
+				base = memparse(from+1, &from);
+				/* FIXME: Do I want a sanity check
+				 * to validate the memory range?
+				 */
+				crashk_res.start = base;
+				crashk_res.end   = base + size - 1;
+			}
+		}
+#endif
+
 	next_char:
 		c = *(from++);
 		if (!c)
@@ -625,6 +647,13 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	sparse_init();
+
+#ifdef CONFIG_KEXEC
+	if (crashk_res.start != crashk_res.end) {
+		reserve_bootmem(crashk_res.start,
+			crashk_res.end - crashk_res.start + 1);
+	}
+#endif
 	paging_init();
 
 	check_ioapic();
