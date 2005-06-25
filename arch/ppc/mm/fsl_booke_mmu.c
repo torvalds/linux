@@ -41,7 +41,6 @@
 #include <linux/vmalloc.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/bootmem.h>
 #include <linux/highmem.h>
 
 #include <asm/pgalloc.h>
