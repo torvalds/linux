@@ -152,21 +152,19 @@ static void poll_idle (void)
 /* We don't actually take CPU down, just spin without interrupts. */
 static inline void play_dead(void)
 {
+	/* This must be done before dead CPU ack */
+	cpu_exit_clear();
+	wbinvd();
+	mb();
 	/* Ack it */
 	__get_cpu_var(cpu_state) = CPU_DEAD;
 
-	/* We shouldn't have to disable interrupts while dead, but
-	 * some interrupts just don't seem to go away, and this makes
-	 * it "work" for testing purposes. */
-	/* Death loop */
-	while (__get_cpu_var(cpu_state) != CPU_UP_PREPARE)
-		cpu_relax();
-
+	/*
+	 * With physical CPU hotplug, we should halt the cpu
+	 */
 	local_irq_disable();
-	__flush_tlb_all();
-	cpu_set(smp_processor_id(), cpu_online_map);
-	enable_APIC_timer();
-	local_irq_enable();
+	while (1)
+		__asm__ __volatile__("hlt":::"memory");
 }
 #else
 static inline void play_dead(void)

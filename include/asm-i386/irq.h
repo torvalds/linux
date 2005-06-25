@@ -29,9 +29,11 @@ extern void release_vm86_irqs(struct task_struct *);
 
 #ifdef CONFIG_4KSTACKS
   extern void irq_ctx_init(int cpu);
+  extern void irq_ctx_exit(int cpu);
 # define __ARCH_HAS_DO_SOFTIRQ
 #else
 # define irq_ctx_init(cpu) do { } while (0)
+# define irq_ctx_exit(cpu) do { } while (0)
 #endif
 
 #ifdef CONFIG_IRQBALANCE
