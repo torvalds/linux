@@ -539,6 +539,8 @@ struct sched_domain {
 #endif
 };
 
+extern void partition_sched_domains(cpumask_t *partition1,
+				    cpumask_t *partition2);
 #ifdef ARCH_HAS_SCHED_DOMAIN
 /* Useful helpers that arch setup code may use. Defined in kernel/sched.c */
 extern cpumask_t cpu_isolated_map;

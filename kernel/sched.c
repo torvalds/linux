@@ -262,7 +262,7 @@ static DEFINE_PER_CPU(struct runqueue, runqueues);
 
 /*
  * The domain tree (rq->sd) is protected by RCU's quiescent state transition.
- * See update_sched_domains: synchronize_kernel for details.
+ * See detach_destroy_domains: synchronize_sched for details.
  *
  * The domain tree of any CPU may only be accessed from within
  * preempt-disabled sections.
@@ -4624,7 +4624,7 @@ int __init migration_init(void)
 #endif
 
 #ifdef CONFIG_SMP
-#define SCHED_DOMAIN_DEBUG
+#undef SCHED_DOMAIN_DEBUG
 #ifdef SCHED_DOMAIN_DEBUG
 static void sched_domain_debug(struct sched_domain *sd, int cpu)
 {
@@ -4717,7 +4717,7 @@ static void sched_domain_debug(struct sched_domain *sd, int cpu)
 #define sched_domain_debug(sd, cpu) {}
 #endif
 
-static int __devinit sd_degenerate(struct sched_domain *sd)
+static int sd_degenerate(struct sched_domain *sd)
 {
 	if (cpus_weight(sd->span) == 1)
 		return 1;
@@ -4740,7 +4740,7 @@ static int __devinit sd_degenerate(struct sched_domain *sd)
 	return 1;
 }
 
-static int __devinit sd_parent_degenerate(struct sched_domain *sd,
+static int sd_parent_degenerate(struct sched_domain *sd,
 						struct sched_domain *parent)
 {
 	unsigned long cflags = sd->flags, pflags = parent->flags;
@@ -4772,7 +4772,7 @@ static int __devinit sd_parent_degenerate(struct sched_domain *sd,
  * Attach the domain 'sd' to 'cpu' as its base domain.  Callers must
  * hold the hotplug lock.
  */
-void __devinit cpu_attach_domain(struct sched_domain *sd, int cpu)
+void cpu_attach_domain(struct sched_domain *sd, int cpu)
 {
 	runqueue_t *rq = cpu_rq(cpu);
 	struct sched_domain *tmp;
@@ -4823,7 +4823,7 @@ __setup ("isolcpus=", isolated_cpu_setup);
  * covered by the given span, and will set each group's ->cpumask correctly,
  * and ->cpu_power to 0.
  */
-void __devinit init_sched_build_groups(struct sched_group groups[],
+void init_sched_build_groups(struct sched_group groups[],
 			cpumask_t span, int (*group_fn)(int cpu))
 {
 	struct sched_group *first = NULL, *last = NULL;
@@ -4859,13 +4859,14 @@ void __devinit init_sched_build_groups(struct sched_group groups[],
 
 
 #ifdef ARCH_HAS_SCHED_DOMAIN
-extern void __devinit arch_init_sched_domains(void);
-extern void __devinit arch_destroy_sched_domains(void);
+extern void build_sched_domains(const cpumask_t *cpu_map);
+extern void arch_init_sched_domains(const cpumask_t *cpu_map);
+extern void arch_destroy_sched_domains(const cpumask_t *cpu_map);
 #else
 #ifdef CONFIG_SCHED_SMT
 static DEFINE_PER_CPU(struct sched_domain, cpu_domains);
 static struct sched_group sched_group_cpus[NR_CPUS];
-static int __devinit cpu_to_cpu_group(int cpu)
+static int cpu_to_cpu_group(int cpu)
 {
 	return cpu;
 }
@@ -4873,7 +4874,7 @@ static int __devinit cpu_to_cpu_group(int cpu)
 
 static DEFINE_PER_CPU(struct sched_domain, phys_domains);
 static struct sched_group sched_group_phys[NR_CPUS];
-static int __devinit cpu_to_phys_group(int cpu)
+static int cpu_to_phys_group(int cpu)
 {
 #ifdef CONFIG_SCHED_SMT
 	return first_cpu(cpu_sibling_map[cpu]);
@@ -4886,7 +4887,7 @@ static int __devinit cpu_to_phys_group(int cpu)
 
 static DEFINE_PER_CPU(struct sched_domain, node_domains);
 static struct sched_group sched_group_nodes[MAX_NUMNODES];
-static int __devinit cpu_to_node_group(int cpu)
+static int cpu_to_node_group(int cpu)
 {
 	return cpu_to_node(cpu);
 }
@@ -4917,39 +4918,28 @@ static void check_sibling_maps(void)
 #endif
 
 /*
- * Set up scheduler domains and groups.  Callers must hold the hotplug lock.
+ * Build sched domains for a given set of cpus and attach the sched domains
+ * to the individual cpus
  */
-static void __devinit arch_init_sched_domains(void)
+static void build_sched_domains(const cpumask_t *cpu_map)
 {
 	int i;
-	cpumask_t cpu_default_map;
-
-#if defined(CONFIG_SCHED_SMT) && defined(CONFIG_NUMA)
-	check_sibling_maps();
-#endif
-	/*
-	 * Setup mask for cpus without special case scheduling requirements.
-	 * For now this just excludes isolated cpus, but could be used to
-	 * exclude other special cases in the future.
-	 */
-	cpus_complement(cpu_default_map, cpu_isolated_map);
-	cpus_and(cpu_default_map, cpu_default_map, cpu_online_map);
 
 	/*
-	 * Set up domains. Isolated domains just stay on the NULL domain.
+	 * Set up domains for cpus specified by the cpu_map.
 	 */
-	for_each_cpu_mask(i, cpu_default_map) {
+	for_each_cpu_mask(i, *cpu_map) {
 		int group;
 		struct sched_domain *sd = NULL, *p;
 		cpumask_t nodemask = node_to_cpumask(cpu_to_node(i));
 
-		cpus_and(nodemask, nodemask, cpu_default_map);
+		cpus_and(nodemask, nodemask, *cpu_map);
 
 #ifdef CONFIG_NUMA
 		sd = &per_cpu(node_domains, i);
 		group = cpu_to_node_group(i);
 		*sd = SD_NODE_INIT;
-		sd->span = cpu_default_map;
+		sd->span = *cpu_map;
 		sd->groups = &sched_group_nodes[group];
 #endif
 
@@ -4967,7 +4957,7 @@ static void __devinit arch_init_sched_domains(void)
 		group = cpu_to_cpu_group(i);
 		*sd = SD_SIBLING_INIT;
 		sd->span = cpu_sibling_map[i];
-		cpus_and(sd->span, sd->span, cpu_default_map);
+		cpus_and(sd->span, sd->span, *cpu_map);
 		sd->parent = p;
 		sd->groups = &sched_group_cpus[group];
 #endif
@@ -4977,7 +4967,7 @@ static void __devinit arch_init_sched_domains(void)
 	/* Set up CPU (sibling) groups */
 	for_each_online_cpu(i) {
 		cpumask_t this_sibling_map = cpu_sibling_map[i];
-		cpus_and(this_sibling_map, this_sibling_map, cpu_default_map);
+		cpus_and(this_sibling_map, this_sibling_map, *cpu_map);
 		if (i != first_cpu(this_sibling_map))
 			continue;
 
@@ -4990,7 +4980,7 @@ static void __devinit arch_init_sched_domains(void)
 	for (i = 0; i < MAX_NUMNODES; i++) {
 		cpumask_t nodemask = node_to_cpumask(i);
 
-		cpus_and(nodemask, nodemask, cpu_default_map);
+		cpus_and(nodemask, nodemask, *cpu_map);
 		if (cpus_empty(nodemask))
 			continue;
 
@@ -5000,12 +4990,12 @@ static void __devinit arch_init_sched_domains(void)
 
 #ifdef CONFIG_NUMA
 	/* Set up node groups */
-	init_sched_build_groups(sched_group_nodes, cpu_default_map,
+	init_sched_build_groups(sched_group_nodes, *cpu_map,
 					&cpu_to_node_group);
 #endif
 
 	/* Calculate CPU power for physical packages and nodes */
-	for_each_cpu_mask(i, cpu_default_map) {
+	for_each_cpu_mask(i, *cpu_map) {
 		int power;
 		struct sched_domain *sd;
 #ifdef CONFIG_SCHED_SMT
@@ -5029,7 +5019,7 @@ static void __devinit arch_init_sched_domains(void)
 	}
 
 	/* Attach the domains */
-	for_each_online_cpu(i) {
+	for_each_cpu_mask(i, *cpu_map) {
 		struct sched_domain *sd;
 #ifdef CONFIG_SCHED_SMT
 		sd = &per_cpu(cpu_domains, i);
@@ -5039,15 +5029,70 @@ static void __devinit arch_init_sched_domains(void)
 		cpu_attach_domain(sd, i);
 	}
 }
+/*
+ * Set up scheduler domains and groups.  Callers must hold the hotplug lock.
+ */
+static void arch_init_sched_domains(cpumask_t *cpu_map)
+{
+	cpumask_t cpu_default_map;
 
-#ifdef CONFIG_HOTPLUG_CPU
-static void __devinit arch_destroy_sched_domains(void)
+#if defined(CONFIG_SCHED_SMT) && defined(CONFIG_NUMA)
+	check_sibling_maps();
+#endif
+	/*
+	 * Setup mask for cpus without special case scheduling requirements.
+	 * For now this just excludes isolated cpus, but could be used to
+	 * exclude other special cases in the future.
+	 */
+	cpus_andnot(cpu_default_map, *cpu_map, cpu_isolated_map);
+
+	build_sched_domains(&cpu_default_map);
+}
+
+static void arch_destroy_sched_domains(const cpumask_t *cpu_map)
 {
 	/* Do nothing: everything is statically allocated. */
 }
-#endif
 
 #endif /* ARCH_HAS_SCHED_DOMAIN */
+
+/*
+ * Detach sched domains from a group of cpus specified in cpu_map
+ * These cpus will now be attached to the NULL domain
+ */
+static inline void detach_destroy_domains(const cpumask_t *cpu_map)
+{
+	int i;
+
+	for_each_cpu_mask(i, *cpu_map)
+		cpu_attach_domain(NULL, i);
+	synchronize_sched();
+	arch_destroy_sched_domains(cpu_map);
+}
+
+/*
+ * Partition sched domains as specified by the cpumasks below.
+ * This attaches all cpus from the cpumasks to the NULL domain,
+ * waits for a RCU quiescent period, recalculates sched
+ * domain information and then attaches them back to the
+ * correct sched domains
+ * Call with hotplug lock held
+ */
+void partition_sched_domains(cpumask_t *partition1, cpumask_t *partition2)
+{
+	cpumask_t change_map;
+
+	cpus_and(*partition1, *partition1, cpu_online_map);
+	cpus_and(*partition2, *partition2, cpu_online_map);
+	cpus_or(change_map, *partition1, *partition2);
+
+	/* Detach sched domains from all of the affected cpus */
+	detach_destroy_domains(&change_map);
+	if (!cpus_empty(*partition1))
+		build_sched_domains(partition1);
+	if (!cpus_empty(*partition2))
+		build_sched_domains(partition2);
+}
 
 #ifdef CONFIG_HOTPLUG_CPU
 /*
@@ -5059,15 +5104,10 @@ static void __devinit arch_destroy_sched_domains(void)
 static int update_sched_domains(struct notifier_block *nfb,
 				unsigned long action, void *hcpu)
 {
-	int i;
-
 	switch (action) {
 	case CPU_UP_PREPARE:
 	case CPU_DOWN_PREPARE:
-		for_each_online_cpu(i)
-			cpu_attach_domain(NULL, i);
-		synchronize_kernel();
-		arch_destroy_sched_domains();
+		detach_destroy_domains(&cpu_online_map);
 		return NOTIFY_OK;
 
 	case CPU_UP_CANCELED:
@@ -5083,7 +5123,7 @@ static int update_sched_domains(struct notifier_block *nfb,
 	}
 
 	/* The hotplug lock is already held by cpu_up/cpu_down */
-	arch_init_sched_domains();
+	arch_init_sched_domains(&cpu_online_map);
 
 	return NOTIFY_OK;
 }
@@ -5092,7 +5132,7 @@ static int update_sched_domains(struct notifier_block *nfb,
 void __init sched_init_smp(void)
 {
 	lock_cpu_hotplug();
-	arch_init_sched_domains();
+	arch_init_sched_domains(&cpu_online_map);
 	unlock_cpu_hotplug();
 	/* XXX: Theoretical race here - CPU may be hotplugged now */
 	hotcpu_notifier(update_sched_domains, 0);
