@@ -4174,8 +4174,7 @@ static int migration_thread(void * data)
 		struct list_head *head;
 		migration_req_t *req;
 
-		if (current->flags & PF_FREEZE)
-			refrigerator(PF_FREEZE);
+		try_to_freeze();
 
 		spin_lock_irq(&rq->lock);
 

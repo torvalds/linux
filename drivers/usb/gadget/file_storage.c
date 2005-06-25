@@ -1554,8 +1554,7 @@ static int sleep_thread(struct fsg_dev *fsg)
 	rc = wait_event_interruptible(fsg->thread_wqh,
 			fsg->thread_wakeup_needed);
 	fsg->thread_wakeup_needed = 0;
-	if (current->flags & PF_FREEZE)
-		refrigerator(PF_FREEZE);
+	try_to_freeze();
 	return (rc ? -EINTR : 0);
 }
 

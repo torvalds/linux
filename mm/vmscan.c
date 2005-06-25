@@ -1216,8 +1216,8 @@ static int kswapd(void *p)
 	order = 0;
 	for ( ; ; ) {
 		unsigned long new_order;
-		if (current->flags & PF_FREEZE)
-			refrigerator(PF_FREEZE);
+
+		try_to_freeze();
 
 		prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
 		new_order = pgdat->kswapd_max_order;
