@@ -59,7 +59,7 @@
 #include <smpboot_hooks.h>
 
 /* Set if we find a B stepping CPU */
-static int __initdata smp_b_stepping;
+static int __devinitdata smp_b_stepping;
 
 /* Number of siblings per CPU package */
 int smp_num_siblings = 1;
@@ -118,7 +118,7 @@ DEFINE_PER_CPU(int, cpu_state) = { 0 };
  * has made sure it's suitably aligned.
  */
 
-static unsigned long __init setup_trampoline(void)
+static unsigned long __devinit setup_trampoline(void)
 {
 	memcpy(trampoline_base, trampoline_data, trampoline_end - trampoline_data);
 	return virt_to_phys(trampoline_base);
@@ -148,7 +148,7 @@ void __init smp_alloc_memory(void)
  * a given CPU
  */
 
-static void __init smp_store_cpu_info(int id)
+static void __devinit smp_store_cpu_info(int id)
 {
 	struct cpuinfo_x86 *c = cpu_data + id;
 
@@ -342,7 +342,7 @@ extern void calibrate_delay(void);
 
 static atomic_t init_deasserted;
 
-static void __init smp_callin(void)
+static void __devinit smp_callin(void)
 {
 	int cpuid, phys_id;
 	unsigned long timeout;
@@ -468,7 +468,7 @@ set_cpu_sibling_map(int cpu)
 /*
  * Activate a secondary processor.
  */
-static void __init start_secondary(void *unused)
+static void __devinit start_secondary(void *unused)
 {
 	/*
 	 * Dont put anything before smp_callin(), SMP
@@ -521,7 +521,7 @@ static void __init start_secondary(void *unused)
  * from the task structure
  * This function must not return.
  */
-void __init initialize_secondary(void)
+void __devinit initialize_secondary(void)
 {
 	/*
 	 * We don't actually need to load the full TSS,
@@ -635,7 +635,7 @@ static inline void __inquire_remote_apic(int apicid)
  * INIT, INIT, STARTUP sequence will reset the chip hard for us, and this
  * won't ... remember to clear down the APIC, etc later.
  */
-static int __init
+static int __devinit
 wakeup_secondary_cpu(int logical_apicid, unsigned long start_eip)
 {
 	unsigned long send_status = 0, accept_status = 0;
@@ -681,7 +681,7 @@ wakeup_secondary_cpu(int logical_apicid, unsigned long start_eip)
 #endif	/* WAKE_SECONDARY_VIA_NMI */
 
 #ifdef WAKE_SECONDARY_VIA_INIT
-static int __init
+static int __devinit
 wakeup_secondary_cpu(int phys_apicid, unsigned long start_eip)
 {
 	unsigned long send_status = 0, accept_status = 0;
@@ -817,7 +817,7 @@ wakeup_secondary_cpu(int phys_apicid, unsigned long start_eip)
 
 extern cpumask_t cpu_initialized;
 
-static int __init do_boot_cpu(int apicid)
+static int __devinit do_boot_cpu(int apicid)
 /*
  * NOTE - on most systems this is a PHYSICAL apic ID, but on multiquad
  * (ie clustered apic addressing mode), this is a LOGICAL apic ID.

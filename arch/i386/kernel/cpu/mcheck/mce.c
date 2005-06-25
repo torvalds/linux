@@ -31,7 +31,7 @@ static fastcall void unexpected_machine_check(struct pt_regs * regs, long error_
 void fastcall (*machine_check_vector)(struct pt_regs *, long error_code) = unexpected_machine_check;
 
 /* This has to be run for each processor */
-void __init mcheck_init(struct cpuinfo_x86 *c)
+void __devinit mcheck_init(struct cpuinfo_x86 *c)
 {
 	if (mce_disabled==1)
 		return;

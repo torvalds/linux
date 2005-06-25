@@ -364,7 +364,7 @@ void __init init_bsp_APIC(void)
 	apic_write_around(APIC_LVT1, value);
 }
 
-void __init setup_local_APIC (void)
+void __devinit setup_local_APIC(void)
 {
 	unsigned long oldvalue, value, ver, maxlvt;
 
@@ -635,7 +635,7 @@ static struct sys_device device_lapic = {
 	.cls	= &lapic_sysclass,
 };
 
-static void __init apic_pm_activate(void)
+static void __devinit apic_pm_activate(void)
 {
 	apic_pm_state.active = 1;
 }
@@ -856,7 +856,7 @@ fake_ioapic_page:
  * but we do not accept timer interrupts yet. We only allow the BP
  * to calibrate.
  */
-static unsigned int __init get_8254_timer_count(void)
+static unsigned int __devinit get_8254_timer_count(void)
 {
 	extern spinlock_t i8253_lock;
 	unsigned long flags;
@@ -875,7 +875,7 @@ static unsigned int __init get_8254_timer_count(void)
 }
 
 /* next tick in 8254 can be caught by catching timer wraparound */
-static void __init wait_8254_wraparound(void)
+static void __devinit wait_8254_wraparound(void)
 {
 	unsigned int curr_count, prev_count;
 
@@ -895,7 +895,7 @@ static void __init wait_8254_wraparound(void)
  * Default initialization for 8254 timers. If we use other timers like HPET,
  * we override this later
  */
-void (*wait_timer_tick)(void) __initdata = wait_8254_wraparound;
+void (*wait_timer_tick)(void) __devinitdata = wait_8254_wraparound;
 
 /*
  * This function sets up the local APIC timer, with a timeout of
@@ -931,7 +931,7 @@ static void __setup_APIC_LVTT(unsigned int clocks)
 	apic_write_around(APIC_TMICT, clocks/APIC_DIVISOR);
 }
 
-static void __init setup_APIC_timer(unsigned int clocks)
+static void __devinit setup_APIC_timer(unsigned int clocks)
 {
 	unsigned long flags;
 
@@ -1044,7 +1044,7 @@ void __init setup_boot_APIC_clock(void)
 	local_irq_enable();
 }
 
-void __init setup_secondary_APIC_clock(void)
+void __devinit setup_secondary_APIC_clock(void)
 {
 	setup_APIC_timer(calibration_result);
 }
