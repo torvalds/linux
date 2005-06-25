@@ -67,7 +67,6 @@ unsigned long mp_lapic_addr;
 
 /* Processor that is doing the boot up */
 unsigned int boot_cpu_physical_apicid = -1U;
-unsigned int boot_cpu_logical_apicid = -1U;
 /* Internal processor count */
 static unsigned int __initdata num_processors;
 
@@ -180,7 +179,6 @@ static void __init MP_processor_info (struct mpc_config_processor *m)
 	if (m->mpc_cpuflag & CPU_BOOTPROCESSOR) {
 		Dprintk("    Bootup CPU\n");
 		boot_cpu_physical_apicid = m->mpc_apicid;
-		boot_cpu_logical_apicid = apicid;
 	}
 
 	if (num_processors >= NR_CPUS) {
