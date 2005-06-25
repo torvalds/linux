@@ -55,6 +55,13 @@ static int suspend_prepare(suspend_state_t state)
 
 	pm_prepare_console();
 
+	disable_nonboot_cpus();
+
+	if (num_online_cpus() != 1) {
+		error = -EPERM;
+		goto Enable_cpu;
+	}
+
 	if (freeze_processes()) {
 		error = -EAGAIN;
 		goto Thaw;
@@ -75,6 +82,8 @@ static int suspend_prepare(suspend_state_t state)
 		pm_ops->finish(state);
  Thaw:
 	thaw_processes();
+ Enable_cpu:
+	enable_nonboot_cpus();
 	pm_restore_console();
 	return error;
 }
@@ -113,6 +122,7 @@ static void suspend_finish(suspend_state_t state)
 	if (pm_ops && pm_ops->finish)
 		pm_ops->finish(state);
 	thaw_processes();
+	enable_nonboot_cpus();
 	pm_restore_console();
 }
 
@@ -147,12 +157,6 @@ static int enter_state(suspend_state_t state)
 
 	if (state == PM_SUSPEND_DISK) {
 		error = pm_suspend_disk();
-		goto Unlock;
-	}
-
-	/* Suspend is hard to get right on SMP. */
-	if (num_online_cpus() != 1) {
-		error = -EPERM;
 		goto Unlock;
 	}
 

@@ -16,7 +16,7 @@
 
 #include "mce.h"
 
-int mce_disabled __initdata = 0;
+int mce_disabled __devinitdata = 0;
 int nr_mce_banks;
 
 EXPORT_SYMBOL_GPL(nr_mce_banks);	/* non-fatal.o */

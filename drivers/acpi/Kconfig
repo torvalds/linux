@@ -55,7 +55,7 @@ if ACPI_INTERPRETER
 
 config ACPI_SLEEP
 	bool "Sleep States (EXPERIMENTAL)"
-	depends on X86
+	depends on X86 && (!SMP || SUSPEND_SMP)
 	depends on EXPERIMENTAL && PM
 	default y
 	---help---
