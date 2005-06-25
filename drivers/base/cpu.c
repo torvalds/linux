@@ -16,9 +16,10 @@ struct sysdev_class cpu_sysdev_class = {
 EXPORT_SYMBOL(cpu_sysdev_class);
 
 #ifdef CONFIG_HOTPLUG_CPU
-#ifndef __HAVE_ARCH_SMP_PREPARE_CPU
-#define smp_prepare_cpu(cpu) (0)
-#endif
+int __attribute__((weak)) smp_prepare_cpu (int cpu)
+{
+	return 0;
+}
 
 static ssize_t show_online(struct sys_device *dev, char *buf)
 {
@@ -41,7 +42,7 @@ static ssize_t store_online(struct sys_device *dev, const char *buf,
 		break;
 	case '1':
 		ret = smp_prepare_cpu(cpu->sysdev.id);
-		if (ret == 0)
+		if (!ret)
 			ret = cpu_up(cpu->sysdev.id);
 		break;
 	default:

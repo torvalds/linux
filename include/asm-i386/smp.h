@@ -51,9 +51,6 @@ extern u8 x86_cpu_to_apicid[];
 #ifdef CONFIG_HOTPLUG_CPU
 extern void cpu_exit_clear(void);
 extern void cpu_uninit(void);
-
-#define __HAVE_ARCH_SMP_PREPARE_CPU
-extern int smp_prepare_cpu(int cpu);
 #endif
 
 /*
