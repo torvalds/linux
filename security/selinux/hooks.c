@@ -1658,9 +1658,8 @@ static int selinux_bprm_secureexec (struct linux_binprm *bprm)
 
 static void selinux_bprm_free_security(struct linux_binprm *bprm)
 {
-	struct bprm_security_struct *bsec = bprm->security;
+	kfree(bprm->security);
 	bprm->security = NULL;
-	kfree(bsec);
 }
 
 extern struct vfsmount *selinuxfs_mount;
