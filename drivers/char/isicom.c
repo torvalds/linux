@@ -1756,7 +1756,7 @@ static void isicom_flush_buffer(struct tty_struct * tty)
 }
 
 
-static int __init register_ioregion(void)
+static int __devinit register_ioregion(void)
 {
 	int count, done=0;
 	for (count=0; count < BOARD_COUNT; count++ ) {
@@ -1771,7 +1771,7 @@ static int __init register_ioregion(void)
 	return done;
 }
 
-static void __exit unregister_ioregion(void)
+static void unregister_ioregion(void)
 {
 	int count;
 	for (count=0; count < BOARD_COUNT; count++ ) 
@@ -1803,7 +1803,7 @@ static struct tty_operations isicom_ops = {
 	.tiocmset	= isicom_tiocmset,
 };
 
-static int __init register_drivers(void)
+static int __devinit register_drivers(void)
 {
 	int error;
 
@@ -1834,7 +1834,7 @@ static int __init register_drivers(void)
 	return 0;
 }
 
-static void __exit unregister_drivers(void)
+static void unregister_drivers(void)
 {
 	int error = tty_unregister_driver(isicom_normal);
 	if (error)
@@ -1842,7 +1842,7 @@ static void __exit unregister_drivers(void)
 	put_tty_driver(isicom_normal);
 }
 
-static int __init register_isr(void)
+static int __devinit register_isr(void)
 {
 	int count, done=0;
 	unsigned long irqflags;
@@ -1883,7 +1883,7 @@ static void __exit unregister_isr(void)
 	}
 }
 
-static int __init isicom_init(void)
+static int __devinit isicom_init(void)
 {
 	int card, channel, base;
 	struct isi_port * port;
