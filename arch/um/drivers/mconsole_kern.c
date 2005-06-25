@@ -419,8 +419,9 @@ void mconsole_config(struct mc_request *req)
 void mconsole_remove(struct mc_request *req)
 {
 	struct mc_device *dev;	
-	char *ptr = req->request.data;
-	int err;
+	char *ptr = req->request.data, *err_msg = "";
+        char error[256];
+	int err, start, end, n;
 
 	ptr += strlen("remove");
 	while(isspace(*ptr)) ptr++;
@@ -429,8 +430,35 @@ void mconsole_remove(struct mc_request *req)
 		mconsole_reply(req, "Bad remove option", 1, 0);
 		return;
 	}
-	err = (*dev->remove)(&ptr[strlen(dev->name)]);
-	mconsole_reply(req, "", err, 0);
+
+        ptr = &ptr[strlen(dev->name)];
+
+        err = 1;
+        n = (*dev->id)(&ptr, &start, &end);
+        if(n < 0){
+                err_msg = "Couldn't parse device number";
+                goto out;
+        }
+        else if((n < start) || (n > end)){
+                sprintf(error, "Invalid device number - must be between "
+                        "%d and %d", start, end);
+                err_msg = error;
+                goto out;
+        }
+
+	err = (*dev->remove)(n);
+        switch(err){
+        case -ENODEV:
+                err_msg = "Device doesn't exist";
+                break;
+        case -EBUSY:
+                err_msg = "Device is currently open";
+                break;
+        default:
+                break;
+        }
+ out:
+	mconsole_reply(req, err_msg, err, 0);
 }
 
 #ifdef CONFIG_MAGIC_SYSRQ
