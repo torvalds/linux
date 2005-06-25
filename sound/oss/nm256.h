@@ -128,9 +128,6 @@ struct nm256_info
     struct nm256_info *next_card;
 };
 
-/* Debug flag--bigger numbers mean more output. */
-extern int nm256_debug;
-
 /* The BIOS signature. */
 #define NM_SIGNATURE 0x4e4d0000
 /* Signature mask. */

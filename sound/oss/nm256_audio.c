@@ -28,11 +28,12 @@
 #include <linux/delay.h>
 #include <linux/spinlock.h>
 #include "sound_config.h"
-#include "nm256.h"
-#include "nm256_coeff.h"
 
 static int nm256_debug;
 static int force_load;
+
+#include "nm256.h"
+#include "nm256_coeff.h"
 
 /* 
  * The size of the playback reserve.  When the playback buffer has less
