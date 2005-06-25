@@ -44,6 +44,8 @@ static ssize_t store_online(struct sys_device *dev, const char *buf,
 		ret = smp_prepare_cpu(cpu->sysdev.id);
 		if (!ret)
 			ret = cpu_up(cpu->sysdev.id);
+		if (!ret)
+			kobject_hotplug(&dev->kobj, KOBJ_ONLINE);
 		break;
 	default:
 		ret = -EINVAL;
