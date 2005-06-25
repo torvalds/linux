@@ -354,7 +354,6 @@ static void close_output_buffer_if_we_run_high(struct moveparams *mv)
 	}
 }
 
-
 asmlinkage int decompress_kernel(struct moveparams *mv, void *rmode)
 {
 	real_mode = rmode;

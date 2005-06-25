@@ -97,7 +97,7 @@ void* memset(void* s, int c, unsigned n);
 void* memcpy(void* dest, const void* src, unsigned n);
 
 static void putstr(const char *);
-  
+
 extern int end;
 static long free_mem_ptr = (long)&end;
 static long free_mem_end_ptr;

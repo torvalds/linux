@@ -2,8 +2,6 @@
  *  linux/boot/head.S
  *
  *  Copyright (C) 1991, 1992, 1993  Linus Torvalds
- *
- *  $Id: head.S,v 1.3 2001/04/20 00:59:28 ak Exp $	 		
  */
 
 /*
@@ -21,7 +19,7 @@
  */
 
 /*
- * High loaded stuff by Hans Lermen & Werner Almesberger, Feb. 1996	
+ * High loaded stuff by Hans Lermen & Werner Almesberger, Feb. 1996
  */
 .code32
 .text
