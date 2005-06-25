@@ -88,6 +88,9 @@ config 8xx
 	depends on BROKEN
 	bool "8xx"
 
+config E200
+	bool "e200"
+
 config E500
 	bool "e500"
 
@@ -98,12 +101,12 @@ config PPC_FPU
 
 config BOOKE
 	bool
-	depends on E500
+	depends on E200 || E500
 	default y
 
 config FSL_BOOKE
 	bool
-	depends on E500
+	depends on E200 || E500
 	default y
 
 config PTE_64BIT
@@ -141,16 +144,16 @@ config ALTIVEC
 
 config SPE
 	bool "SPE Support"
-	depends on E500
+	depends on E200 || E500
 	---help---
 	  This option enables kernel support for the Signal Processing
 	  Extensions (SPE) to the PowerPC processor. The kernel currently
 	  supports saving and restoring SPE registers, and turning on the
 	  'spe enable' bit so user processes can execute SPE instructions.
 
-	  This option is only usefully if you have a processor that supports
+	  This option is only useful if you have a processor that supports
 	  SPE (e500, otherwise known as 85xx series), but does not have any
-	  affect on a non-spe cpu (it does, however add code to the kernel).
+	  effect on a non-spe cpu (it does, however add code to the kernel).
 
 	  If in doubt, say Y here.
 
@@ -200,7 +203,7 @@ config TAU_AVERAGE
 
 config MATH_EMULATION
 	bool "Math emulation"
-	depends on 4xx || 8xx || E500
+	depends on 4xx || 8xx || E200 || E500
 	---help---
 	  Some PowerPC chips designed for embedded applications do not have
 	  a floating-point unit and therefore do not implement the
@@ -254,7 +257,7 @@ config PPC_STD_MMU
 
 config NOT_COHERENT_CACHE
 	bool
-	depends on 4xx || 8xx
+	depends on 4xx || 8xx || E200
 	default y
 
 endmenu

@@ -405,7 +405,7 @@ typedef struct _P601_BAT {
 
 #define MAS0_TLBSEL(x)	((x << 28) & 0x30000000)
 #define MAS0_ESEL(x)	((x << 16) & 0x0FFF0000)
-#define MAS0_NV		0x00000FFF
+#define MAS0_NV(x)	((x) & 0x00000FFF)
 
 #define MAS1_VALID 	0x80000000
 #define MAS1_IPROT	0x40000000

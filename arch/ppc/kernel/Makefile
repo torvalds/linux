@@ -26,7 +26,9 @@ obj-$(CONFIG_KGDB)		+= ppc-stub.o
 obj-$(CONFIG_SMP)		+= smp.o smp-tbsync.o
 obj-$(CONFIG_TAU)		+= temp.o
 obj-$(CONFIG_ALTIVEC)		+= vecemu.o vector.o
+ifndef CONFIG_E200
 obj-$(CONFIG_FSL_BOOKE)		+= perfmon_fsl_booke.o
+endif
 
 ifndef CONFIG_MATH_EMULATION
 obj-$(CONFIG_8xx)		+= softemu8xx.o
