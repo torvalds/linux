@@ -177,16 +177,6 @@ static __init int broken_toshiba_keyboard(struct dmi_blacklist *d)
 }
 
 
-#ifdef CONFIG_ACPI_SLEEP
-static __init int reset_videomode_after_s3(struct dmi_blacklist *d)
-{
-	/* See acpi_wakeup.S */
-	extern long acpi_video_flags;
-	acpi_video_flags |= 2;
-	return 0;
-}
-#endif
-
 
 /*
  *	Process the DMI blacklists
@@ -204,12 +194,6 @@ static __initdata struct dmi_blacklist dmi_blacklist[]={
 			MATCH(DMI_PRODUCT_NAME, "S4030CDT/4.3"),
 			NO_MATCH, NO_MATCH, NO_MATCH
 			} },
-#ifdef CONFIG_ACPI_SLEEP
-	{ reset_videomode_after_s3, "Toshiba Satellite 4030cdt", { /* Reset video mode after returning from ACPI S3 sleep */
-			MATCH(DMI_PRODUCT_NAME, "S4030CDT/4.3"),
-			NO_MATCH, NO_MATCH, NO_MATCH
-			} },
-#endif
 
 	{ NULL, }
 };

@@ -1024,6 +1024,7 @@ static struct dmi_system_id __initdata acpi_dmi_table[] = {
 		},
 	},
 #endif
+	{ }
 };
 
 #endif	/* __i386__ */
