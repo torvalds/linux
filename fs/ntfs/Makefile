@@ -15,5 +15,5 @@ endif
 ifeq ($(CONFIG_NTFS_RW),y)
 EXTRA_CFLAGS += -DNTFS_RW
 
-ntfs-objs += bitmap.o lcnalloc.o logfile.o quota.o
+ntfs-objs += bitmap.o lcnalloc.o logfile.o quota.o usnjrnl.o
 endif

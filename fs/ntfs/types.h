@@ -2,7 +2,7 @@
  * types.h - Defines for NTFS Linux kernel driver specific types.
  *	     Part of the Linux-NTFS project.
  *
- * Copyright (c) 2001-2004 Anton Altaparmakov
+ * Copyright (c) 2001-2005 Anton Altaparmakov
  *
  * This program/include file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as published
@@ -52,6 +52,14 @@ typedef sle64 leLCN;
  */
 typedef s64 LSN;
 typedef sle64 leLSN;
+
+/*
+ * The NTFS transaction log $UsnJrnl uses usn which are signed 64-bit values.
+ * We define our own type USN, to allow for type checking and better code
+ * readability.
+ */
+typedef s64 USN;
+typedef sle64 leUSN;
 
 typedef enum {
 	FALSE = 0,

@@ -936,20 +936,12 @@ typedef struct {
 		/* 56*/	le64 quota_charged;	/* Byte size of the charge to
 				the quota for all streams of the file. Note: Is
 				zero if quotas are disabled. */
-		/* 64*/	le64 usn;		/* Last update sequence number
-				of the file. This is a direct index into the
-				change (aka usn) journal file. It is zero if
-				the usn journal is disabled.
-				NOTE: To disable the journal need to delete
-				the journal file itself and to then walk the
-				whole mft and set all Usn entries in all mft
-				records to zero! (This can take a while!)
-				The journal is FILE_Extend/$UsnJrnl. Win2k
-				will recreate the journal and initiate
-				logging if necessary when mounting the
-				partition. This, in contrast to disabling the
-				journal is a very fast process, so the user
-				won't even notice it. */
+		/* 64*/	USN usn;		/* Last update sequence number
+				of the file.  This is a direct index into the
+				transaction log file ($UsnJrnl).  It is zero if
+				the usn journal is disabled or this file has
+				not been subject to logging yet.  See usnjrnl.h
+				for details. */
 		} __attribute__ ((__packed__)) v3;
 	/* sizeof() = 72 bytes (NTFS 3.x) */
 	} __attribute__ ((__packed__)) ver;
@@ -1912,7 +1904,7 @@ enum {
 	VOLUME_FLAGS_MASK		= const_cpu_to_le16(0x803f),
 
 	/* To make our life easier when checking if we must mount read-only. */
-	VOLUME_MUST_MOUNT_RO_MASK	= const_cpu_to_le16(0x8037),
+	VOLUME_MUST_MOUNT_RO_MASK	= const_cpu_to_le16(0x8027),
 } __attribute__ ((__packed__));
 
 typedef le16 VOLUME_FLAGS;

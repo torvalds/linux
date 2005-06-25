@@ -1,6 +1,5 @@
 ToDo/Notes:
 	- Find and fix bugs.
-	- Checkpoint or disable the user space journal ($UsnJrnl).
 	- In between ntfs_prepare/commit_write, need exclusion between
 	  simultaneous file extensions.  This is given to us by holding i_sem
 	  on the inode.  The only places in the kernel when a file is resized
@@ -119,6 +118,9 @@ ToDo/Notes:
 	- Use C99 style structure initialization after memory allocation where
 	  possible (fs/ntfs/{attrib.c,index.c,super.c}).  Thanks to Al Viro and
 	  Pekka Enberg.
+	- Stamp the transaction log ($UsnJrnl), aka user space journal, if it
+	  is active on the volume and we are mounting read-write or remounting
+	  from read-only to read-write.
 
 2.1.22 - Many bug and race fixes and error handling improvements.
 

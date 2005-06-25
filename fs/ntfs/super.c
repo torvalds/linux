@@ -34,6 +34,7 @@
 #include "sysctl.h"
 #include "logfile.h"
 #include "quota.h"
+#include "usnjrnl.h"
 #include "dir.h"
 #include "debug.h"
 #include "index.h"
@@ -494,6 +495,12 @@ static int ntfs_remount(struct super_block *sb, int *flags, char *opt)
 		if (!ntfs_mark_quotas_out_of_date(vol)) {
 			ntfs_error(sb, "Failed to mark quotas out of date%s",
 					es);
+			NVolSetErrors(vol);
+			return -EROFS;
+		}
+		if (!ntfs_stamp_usnjrnl(vol)) {
+			ntfs_error(sb, "Failed to stamp transation log "
+					"($UsnJrnl)%s", es);
 			NVolSetErrors(vol);
 			return -EROFS;
 		}
@@ -1219,6 +1226,167 @@ static BOOL load_and_init_quota(ntfs_volume *vol)
 }
 
 /**
+ * load_and_init_usnjrnl - load and setup the transaction log if present
+ * @vol:	ntfs super block describing device whose usnjrnl file to load
+ *
+ * Return TRUE on success or FALSE on error.
+ *
+ * If $UsnJrnl is not present or in the process of being disabled, we set
+ * NVolUsnJrnlStamped() and return success.
+ *
+ * If the $UsnJrnl $DATA/$J attribute has a size equal to the lowest valid usn,
+ * i.e. transaction logging has only just been enabled or the journal has been
+ * stamped and nothing has been logged since, we also set NVolUsnJrnlStamped()
+ * and return success.
+ */
+static BOOL load_and_init_usnjrnl(ntfs_volume *vol)
+{
+	MFT_REF mref;
+	struct inode *tmp_ino;
+	ntfs_inode *tmp_ni;
+	struct page *page;
+	ntfs_name *name = NULL;
+	USN_HEADER *uh;
+	static const ntfschar UsnJrnl[9] = { const_cpu_to_le16('$'),
+			const_cpu_to_le16('U'), const_cpu_to_le16('s'),
+			const_cpu_to_le16('n'), const_cpu_to_le16('J'),
+			const_cpu_to_le16('r'), const_cpu_to_le16('n'),
+			const_cpu_to_le16('l'), 0 };
+	static ntfschar Max[5] = { const_cpu_to_le16('$'),
+			const_cpu_to_le16('M'), const_cpu_to_le16('a'),
+			const_cpu_to_le16('x'), 0 };
+	static ntfschar J[3] = { const_cpu_to_le16('$'),
+			const_cpu_to_le16('J'), 0 };
+
+	ntfs_debug("Entering.");
+	/*
+	 * Find the inode number for the transaction log file by looking up the
+	 * filename $UsnJrnl in the extended system files directory $Extend.
+	 */
+	down(&vol->extend_ino->i_sem);
+	mref = ntfs_lookup_inode_by_name(NTFS_I(vol->extend_ino), UsnJrnl, 8,
+			&name);
+	up(&vol->extend_ino->i_sem);
+	if (IS_ERR_MREF(mref)) {
+		/*
+		 * If the file does not exist, transaction logging is disabled,
+		 * just return success.
+		 */
+		if (MREF_ERR(mref) == -ENOENT) {
+			ntfs_debug("$UsnJrnl not present.  Volume does not "
+					"have transaction logging enabled.");
+not_enabled:
+			/*
+			 * No need to try to stamp the transaction log if
+			 * transaction logging is not enabled.
+			 */
+			NVolSetUsnJrnlStamped(vol);
+			return TRUE;
+		}
+		/* A real error occured. */
+		ntfs_error(vol->sb, "Failed to find inode number for "
+				"$UsnJrnl.");
+		return FALSE;
+	}
+	/* We do not care for the type of match that was found. */
+	kfree(name);
+	/* Get the inode. */
+	tmp_ino = ntfs_iget(vol->sb, MREF(mref));
+	if (unlikely(IS_ERR(tmp_ino) || is_bad_inode(tmp_ino))) {
+		if (!IS_ERR(tmp_ino))
+			iput(tmp_ino);
+		ntfs_error(vol->sb, "Failed to load $UsnJrnl.");
+		return FALSE;
+	}
+	vol->usnjrnl_ino = tmp_ino;
+	/*
+	 * If the transaction log is in the process of being deleted, we can
+	 * ignore it.
+	 */
+	if (unlikely(vol->vol_flags & VOLUME_DELETE_USN_UNDERWAY)) {
+		ntfs_debug("$UsnJrnl in the process of being disabled.  "
+				"Volume does not have transaction logging "
+				"enabled.");
+		goto not_enabled;
+	}
+	/* Get the $DATA/$Max attribute. */
+	tmp_ino = ntfs_attr_iget(vol->usnjrnl_ino, AT_DATA, Max, 4);
+	if (IS_ERR(tmp_ino)) {
+		ntfs_error(vol->sb, "Failed to load $UsnJrnl/$DATA/$Max "
+				"attribute.");
+		return FALSE;
+	}
+	vol->usnjrnl_max_ino = tmp_ino;
+	if (unlikely(i_size_read(tmp_ino) < sizeof(USN_HEADER))) {
+		ntfs_error(vol->sb, "Found corrupt $UsnJrnl/$DATA/$Max "
+				"attribute (size is 0x%llx but should be at "
+				"least 0x%x bytes).", i_size_read(tmp_ino),
+				sizeof(USN_HEADER));
+		return FALSE;
+	}
+	/* Get the $DATA/$J attribute. */
+	tmp_ino = ntfs_attr_iget(vol->usnjrnl_ino, AT_DATA, J, 2);
+	if (IS_ERR(tmp_ino)) {
+		ntfs_error(vol->sb, "Failed to load $UsnJrnl/$DATA/$J "
+				"attribute.");
+		return FALSE;
+	}
+	vol->usnjrnl_j_ino = tmp_ino;
+	/* Verify $J is non-resident and sparse. */
+	tmp_ni = NTFS_I(vol->usnjrnl_j_ino);
+	if (unlikely(!NInoNonResident(tmp_ni) || !NInoSparse(tmp_ni))) {
+		ntfs_error(vol->sb, "$UsnJrnl/$DATA/$J attribute is resident "
+				"and/or not sparse.");
+		return FALSE;
+	}
+	/* Read the USN_HEADER from $DATA/$Max. */
+	page = ntfs_map_page(vol->usnjrnl_max_ino->i_mapping, 0);
+	if (IS_ERR(page)) {
+		ntfs_error(vol->sb, "Failed to read from $UsnJrnl/$DATA/$Max "
+				"attribute.");
+		return FALSE;
+	}
+	uh = (USN_HEADER*)page_address(page);
+	/* Sanity check the $Max. */
+	if (unlikely(sle64_to_cpu(uh->allocation_delta) >
+			sle64_to_cpu(uh->maximum_size))) {
+		ntfs_error(vol->sb, "Allocation delta (0x%llx) exceeds "
+				"maximum size (0x%llx).  $UsnJrnl is corrupt.",
+				(long long)sle64_to_cpu(uh->allocation_delta),
+				(long long)sle64_to_cpu(uh->maximum_size));
+		ntfs_unmap_page(page);
+		return FALSE;
+	}
+	/*
+	 * If the transaction log has been stamped and nothing has been written
+	 * to it since, we do not need to stamp it.
+	 */
+	if (unlikely(sle64_to_cpu(uh->lowest_valid_usn) >=
+			i_size_read(vol->usnjrnl_j_ino))) {
+		if (likely(sle64_to_cpu(uh->lowest_valid_usn) ==
+				i_size_read(vol->usnjrnl_j_ino))) {
+			ntfs_unmap_page(page);
+			ntfs_debug("$UsnJrnl is enabled but nothing has been "
+					"logged since it was last stamped.  "
+					"Treating this as if the volume does "
+					"not have transaction logging "
+					"enabled.");
+			goto not_enabled;
+		}
+		ntfs_error(vol->sb, "$UsnJrnl has lowest valid usn (0x%llx) "
+				"which is out of bounds (0x%llx).  $UsnJrnl "
+				"is corrupt.",
+				(long long)sle64_to_cpu(uh->lowest_valid_usn),
+				i_size_read(vol->usnjrnl_j_ino));
+		ntfs_unmap_page(page);
+		return FALSE;
+	}
+	ntfs_unmap_page(page);
+	ntfs_debug("Done.");
+	return TRUE;
+}
+
+/**
  * load_and_init_attrdef - load the attribute definitions table for a volume
  * @vol:	ntfs super block describing device whose attrdef to load
  *
@@ -1653,7 +1821,7 @@ get_ctx_vol_failed:
 		goto iput_logfile_err_out;
 	}
 	/* If on NTFS versions before 3.0, we are done. */
-	if (vol->major_ver < 3)
+	if (unlikely(vol->major_ver < 3))
 		return TRUE;
 	/* NTFS 3.0+ specific initialization. */
 	/* Get the security descriptors inode. */
@@ -1664,7 +1832,7 @@ get_ctx_vol_failed:
 		ntfs_error(sb, "Failed to load $Secure.");
 		goto iput_root_err_out;
 	}
-	// FIXME: Initialize security.
+	// TODO: Initialize security.
 	/* Get the extended system files' directory inode. */
 	vol->extend_ino = ntfs_iget(sb, FILE_Extend);
 	if (IS_ERR(vol->extend_ino) || is_bad_inode(vol->extend_ino)) {
@@ -1715,10 +1883,60 @@ get_ctx_vol_failed:
 		sb->s_flags |= MS_RDONLY | MS_NOATIME | MS_NODIRATIME;
 		NVolSetErrors(vol);
 	}
-	// TODO: Delete or checkpoint the $UsnJrnl if it exists.
+	/*
+	 * Find the transaction log file ($UsnJrnl), load it if present, check
+	 * it, and set it up.
+	 */
+	if (!load_and_init_usnjrnl(vol)) {
+		static const char *es1 = "Failed to load $UsnJrnl";
+		static const char *es2 = ".  Run chkdsk.";
+
+		/* If a read-write mount, convert it to a read-only mount. */
+		if (!(sb->s_flags & MS_RDONLY)) {
+			if (!(vol->on_errors & (ON_ERRORS_REMOUNT_RO |
+					ON_ERRORS_CONTINUE))) {
+				ntfs_error(sb, "%s and neither on_errors="
+						"continue nor on_errors="
+						"remount-ro was specified%s",
+						es1, es2);
+				goto iput_usnjrnl_err_out;
+			}
+			sb->s_flags |= MS_RDONLY | MS_NOATIME | MS_NODIRATIME;
+			ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
+		} else
+			ntfs_warning(sb, "%s.  Will not be able to remount "
+					"read-write%s", es1, es2);
+		/* This will prevent a read-write remount. */
+		NVolSetErrors(vol);
+	}
+	/* If (still) a read-write mount, stamp the transaction log. */
+	if (!(sb->s_flags & MS_RDONLY) && !ntfs_stamp_usnjrnl(vol)) {
+		static const char *es1 = "Failed to stamp transaction log "
+				"($UsnJrnl)";
+		static const char *es2 = ".  Run chkdsk.";
+
+		/* Convert to a read-only mount. */
+		if (!(vol->on_errors & (ON_ERRORS_REMOUNT_RO |
+				ON_ERRORS_CONTINUE))) {
+			ntfs_error(sb, "%s and neither on_errors=continue nor "
+					"on_errors=remount-ro was specified%s",
+					es1, es2);
+			goto iput_usnjrnl_err_out;
+		}
+		ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
+		sb->s_flags |= MS_RDONLY | MS_NOATIME | MS_NODIRATIME;
+		NVolSetErrors(vol);
+	}
 #endif /* NTFS_RW */
 	return TRUE;
 #ifdef NTFS_RW
+iput_usnjrnl_err_out:
+	if (vol->usnjrnl_j_ino)
+		iput(vol->usnjrnl_j_ino);
+	if (vol->usnjrnl_max_ino)
+		iput(vol->usnjrnl_max_ino);
+	if (vol->usnjrnl_ino)
+		iput(vol->usnjrnl_ino);
 iput_quota_err_out:
 	if (vol->quota_q_ino)
 		iput(vol->quota_q_ino);
@@ -1792,6 +2010,12 @@ static void ntfs_put_super(struct super_block *sb)
 
 	/* NTFS 3.0+ specific. */
 	if (vol->major_ver >= 3) {
+		if (vol->usnjrnl_j_ino)
+			ntfs_commit_inode(vol->usnjrnl_j_ino);
+		if (vol->usnjrnl_max_ino)
+			ntfs_commit_inode(vol->usnjrnl_max_ino);
+		if (vol->usnjrnl_ino)
+			ntfs_commit_inode(vol->usnjrnl_ino);
 		if (vol->quota_q_ino)
 			ntfs_commit_inode(vol->quota_q_ino);
 		if (vol->quota_ino)
@@ -1847,6 +2071,18 @@ static void ntfs_put_super(struct super_block *sb)
 	/* NTFS 3.0+ specific clean up. */
 	if (vol->major_ver >= 3) {
 #ifdef NTFS_RW
+		if (vol->usnjrnl_j_ino) {
+			iput(vol->usnjrnl_j_ino);
+			vol->usnjrnl_j_ino = NULL;
+		}
+		if (vol->usnjrnl_max_ino) {
+			iput(vol->usnjrnl_max_ino);
+			vol->usnjrnl_max_ino = NULL;
+		}
+		if (vol->usnjrnl_ino) {
+			iput(vol->usnjrnl_ino);
+			vol->usnjrnl_ino = NULL;
+		}
 		if (vol->quota_q_ino) {
 			iput(vol->quota_q_ino);
 			vol->quota_q_ino = NULL;
@@ -2463,6 +2699,18 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 	/* NTFS 3.0+ specific clean up. */
 	if (vol->major_ver >= 3) {
 #ifdef NTFS_RW
+		if (vol->usnjrnl_j_ino) {
+			iput(vol->usnjrnl_j_ino);
+			vol->usnjrnl_j_ino = NULL;
+		}
+		if (vol->usnjrnl_max_ino) {
+			iput(vol->usnjrnl_max_ino);
+			vol->usnjrnl_max_ino = NULL;
+		}
+		if (vol->usnjrnl_ino) {
+			iput(vol->usnjrnl_ino);
+			vol->usnjrnl_ino = NULL;
+		}
 		if (vol->quota_q_ino) {
 			iput(vol->quota_q_ino);
 			vol->quota_q_ino = NULL;
