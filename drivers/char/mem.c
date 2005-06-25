@@ -26,6 +26,7 @@
 #include <linux/highmem.h>
 #include <linux/crash_dump.h>
 #include <linux/backing-dev.h>
+#include <linux/bootmem.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -278,55 +279,33 @@ static int mmap_kmem(struct file * file, struct vm_area_struct * vma)
 #ifdef CONFIG_CRASH_DUMP
 /*
  * Read memory corresponding to the old kernel.
- * If we are reading from the reserved section, which is
- * actually used by the current kernel, we just return zeroes.
- * Or if we are reading from the first 640k, we return from the
- * backed up area.
  */
-static ssize_t read_oldmem(struct file * file, char * buf,
+static ssize_t read_oldmem(struct file *file, char __user *buf,
 				size_t count, loff_t *ppos)
 {
-	unsigned long pfn;
-	unsigned backup_start, backup_end, relocate_start;
-	size_t read=0, csize;
-
-	backup_start = CRASH_BACKUP_BASE / PAGE_SIZE;
-	backup_end = backup_start + (CRASH_BACKUP_SIZE / PAGE_SIZE);
-	relocate_start = (CRASH_BACKUP_BASE + CRASH_BACKUP_SIZE) / PAGE_SIZE;
+	unsigned long pfn, offset;
+	size_t read = 0, csize;
+	int rc = 0;
 
 	while(count) {
 		pfn = *ppos / PAGE_SIZE;
+		if (pfn > saved_max_pfn)
+			return read;
 
-		csize = (count > PAGE_SIZE) ? PAGE_SIZE : count;
+		offset = (unsigned long)(*ppos % PAGE_SIZE);
+		if (count > PAGE_SIZE - offset)
+			csize = PAGE_SIZE - offset;
+		else
+			csize = count;
 
-		/* Perform translation (see comment above) */
-		if ((pfn >= backup_start) && (pfn < backup_end)) {
-			if (clear_user(buf, csize)) {
-				read = -EFAULT;
-				goto done;
-			}
-
-			goto copy_done;
-		} else if (pfn < (CRASH_RELOCATE_SIZE / PAGE_SIZE))
-			pfn += relocate_start;
-
-		if (pfn > saved_max_pfn) {
-			read = 0;
-			goto done;
-		}
-
-		if (copy_oldmem_page(pfn, buf, csize, 1)) {
-			read = -EFAULT;
-			goto done;
-		}
-
-copy_done:
+		rc = copy_oldmem_page(pfn, buf, csize, offset, 1);
+		if (rc < 0)
+			return rc;
 		buf += csize;
 		*ppos += csize;
 		read += csize;
 		count -= csize;
 	}
-done:
 	return read;
 }
 #endif
