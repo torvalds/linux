@@ -20,9 +20,6 @@
 #include <asm/nmi.h>
 #include <asm/hw_irq.h>
 
-#define MAX_NOTE_BYTES 1024
-typedef u32 note_buf_t[MAX_NOTE_BYTES/4];
-
 note_buf_t crash_notes[NR_CPUS];
 
 void machine_crash_shutdown(void)

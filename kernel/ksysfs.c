@@ -30,12 +30,25 @@ static ssize_t hotplug_seqnum_show(struct subsystem *subsys, char *page)
 KERNEL_ATTR_RO(hotplug_seqnum);
 #endif
 
+#ifdef CONFIG_KEXEC
+#include <asm/kexec.h>
+
+static ssize_t crash_notes_show(struct subsystem *subsys, char *page)
+{
+	return sprintf(page, "%p\n", (void *)crash_notes);
+}
+KERNEL_ATTR_RO(crash_notes);
+#endif
+
 decl_subsys(kernel, NULL, NULL);
 EXPORT_SYMBOL_GPL(kernel_subsys);
 
 static struct attribute * kernel_attrs[] = {
 #ifdef CONFIG_HOTPLUG
 	&hotplug_seqnum_attr.attr,
+#endif
+#ifdef CONFIG_KEXEC
+	&crash_notes_attr.attr,
 #endif
 	NULL
 };
