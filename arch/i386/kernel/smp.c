@@ -495,6 +495,16 @@ struct call_data_struct {
 	int wait;
 };
 
+void lock_ipi_call_lock(void)
+{
+	spin_lock_irq(&call_lock);
+}
+
+void unlock_ipi_call_lock(void)
+{
+	spin_unlock_irq(&call_lock);
+}
+
 static struct call_data_struct * call_data;
 
 /*

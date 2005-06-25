@@ -432,6 +432,9 @@ void __init identify_cpu(struct cpuinfo_x86 *c)
 #ifdef CONFIG_X86_MCE
 	mcheck_init(c);
 #endif
+	if (c == &boot_cpu_data)
+		sysenter_setup();
+	enable_sep_cpu();
 }
 
 #ifdef CONFIG_X86_HT

@@ -449,7 +449,18 @@ static void __init start_secondary(void *unused)
 	 * the local TLBs too.
 	 */
 	local_flush_tlb();
+
+	/*
+	 * We need to hold call_lock, so there is no inconsistency
+	 * between the time smp_call_function() determines number of
+	 * IPI receipients, and the time when the determination is made
+	 * for which cpus receive the IPI. Holding this
+	 * lock helps us to not include this cpu in a currently in progress
+	 * smp_call_function().
+	 */
+	lock_ipi_call_lock();
 	cpu_set(smp_processor_id(), cpu_online_map);
+	unlock_ipi_call_lock();
 
 	/* We can take interrupts now: we're officially "up". */
 	local_irq_enable();

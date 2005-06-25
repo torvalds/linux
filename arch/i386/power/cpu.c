@@ -22,9 +22,11 @@
 #include <linux/device.h>
 #include <linux/suspend.h>
 #include <linux/acpi.h>
+
 #include <asm/uaccess.h>
 #include <asm/acpi.h>
 #include <asm/tlbflush.h>
+#include <asm/processor.h>
 
 static struct saved_context saved_context;
 
@@ -32,8 +34,6 @@ unsigned long saved_context_ebx;
 unsigned long saved_context_esp, saved_context_ebp;
 unsigned long saved_context_esi, saved_context_edi;
 unsigned long saved_context_eflags;
-
-extern void enable_sep_cpu(void *);
 
 void __save_processor_state(struct saved_context *ctxt)
 {
@@ -136,7 +136,7 @@ void __restore_processor_state(struct saved_context *ctxt)
 	 * sysenter MSRs
 	 */
 	if (boot_cpu_has(X86_FEATURE_SEP))
-		enable_sep_cpu(NULL);
+		enable_sep_cpu();
 
 	fix_processor_context();
 	do_fpu_end();
