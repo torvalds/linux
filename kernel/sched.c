@@ -2031,6 +2031,12 @@ static runqueue_t *find_busiest_queue(struct sched_group *group)
 }
 
 /*
+ * Max backoff if we encounter pinned tasks. Pretty arbitrary value, but
+ * so long as it is large enough.
+ */
+#define MAX_PINNED_INTERVAL	512
+
+/*
  * Check this_cpu to ensure it is balanced within domain. Attempt to move
  * tasks if there is an imbalance.
  *
@@ -2042,7 +2048,7 @@ static int load_balance(int this_cpu, runqueue_t *this_rq,
 	struct sched_group *group;
 	runqueue_t *busiest;
 	unsigned long imbalance;
-	int nr_moved, all_pinned;
+	int nr_moved, all_pinned = 0;
 	int active_balance = 0;
 
 	spin_lock(&this_rq->lock);
@@ -2133,7 +2139,8 @@ out_balanced:
 
 	sd->nr_balance_failed = 0;
 	/* tune up the balancing interval */
-	if (sd->balance_interval < sd->max_interval)
+	if ((all_pinned && sd->balance_interval < MAX_PINNED_INTERVAL) ||
+			(sd->balance_interval < sd->max_interval))
 		sd->balance_interval *= 2;
 
 	return 0;
