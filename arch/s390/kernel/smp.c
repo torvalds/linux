@@ -284,7 +284,7 @@ static void do_machine_restart(void * __unused)
 	 * locks are always held disabled).
 	 */
 	if (MACHINE_IS_VM)
-		cpcmd ("IPL", NULL, 0);
+		cpcmd ("IPL", NULL, 0, NULL);
 	else
 		reipl (0x10000 | S390_lowcore.ipl_device);
 }
@@ -313,7 +313,7 @@ static void do_machine_halt(void * __unused)
 	if (atomic_compare_and_swap(-1, smp_processor_id(), &cpuid) == 0) {
 		smp_send_stop();
 		if (MACHINE_IS_VM && strlen(vmhalt_cmd) > 0)
-			cpcmd(vmhalt_cmd, NULL, 0);
+			cpcmd(vmhalt_cmd, NULL, 0, NULL);
 		signal_processor(smp_processor_id(),
 				 sigp_stop_and_store_status);
 	}
@@ -332,7 +332,7 @@ static void do_machine_power_off(void * __unused)
 	if (atomic_compare_and_swap(-1, smp_processor_id(), &cpuid) == 0) {
 		smp_send_stop();
 		if (MACHINE_IS_VM && strlen(vmpoff_cmd) > 0)
-			cpcmd(vmpoff_cmd, NULL, 0);
+			cpcmd(vmpoff_cmd, NULL, 0, NULL);
 		signal_processor(smp_processor_id(),
 				 sigp_stop_and_store_status);
 	}
