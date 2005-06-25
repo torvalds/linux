@@ -3531,13 +3531,24 @@ recheck:
 	if ((policy == SCHED_NORMAL) != (param->sched_priority == 0))
 		return -EINVAL;
 
-	if ((policy == SCHED_FIFO || policy == SCHED_RR) &&
-	    param->sched_priority > p->signal->rlim[RLIMIT_RTPRIO].rlim_cur &&
-	    !capable(CAP_SYS_NICE))
-		return -EPERM;
-	if ((current->euid != p->euid) && (current->euid != p->uid) &&
-	    !capable(CAP_SYS_NICE))
-		return -EPERM;
+	/*
+	 * Allow unprivileged RT tasks to decrease priority:
+	 */
+	if (!capable(CAP_SYS_NICE)) {
+		/* can't change policy */
+		if (policy != p->policy)
+			return -EPERM;
+		/* can't increase priority */
+		if (policy != SCHED_NORMAL &&
+		    param->sched_priority > p->rt_priority &&
+		    param->sched_priority >
+				p->signal->rlim[RLIMIT_RTPRIO].rlim_cur)
+			return -EPERM;
+		/* can't change other user's priorities */
+		if ((current->euid != p->euid) &&
+		    (current->euid != p->uid))
+			return -EPERM;
+	}
 
 	retval = security_task_setscheduler(p, policy, param);
 	if (retval)
