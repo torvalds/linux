@@ -308,7 +308,7 @@ read_fifo(struct IsdnCardState *cs, u_char fifo, int trans_max)
 /******************************************/
 /* free hardware resources used by driver */
 /******************************************/
-void
+static void
 release_io_hfcsx(struct IsdnCardState *cs)
 {
 	cs->hw.hfcsx.int_m2 = 0;	/* interrupt output off ! */
@@ -472,7 +472,7 @@ receive_dmsg(struct IsdnCardState *cs)
 /**********************************/
 /* B-channel main receive routine */
 /**********************************/
-void
+static void
 main_rec_hfcsx(struct BCState *bcs)
 {
 	struct IsdnCardState *cs = bcs->cs;
@@ -1003,7 +1003,7 @@ HFCSX_l1hw(struct PStack *st, int pr, void *arg)
 /***********************************************/
 /* called during init setting l1 stack pointer */
 /***********************************************/
-void
+static void
 setstack_hfcsx(struct PStack *st, struct IsdnCardState *cs)
 {
 	st->l1.l1hw = HFCSX_l1hw;
@@ -1027,7 +1027,7 @@ hfcsx_send_data(struct BCState *bcs)
 /***************************************************************/
 /* activate/deactivate hardware for selected channels and mode */
 /***************************************************************/
-void
+static void
 mode_hfcsx(struct BCState *bcs, int mode, int bc)
 {
 	struct IsdnCardState *cs = bcs->cs;
@@ -1328,7 +1328,7 @@ hfcsx_bh(struct IsdnCardState *cs)
 /********************************/
 /* called for card init message */
 /********************************/
-void __devinit
+static void __devinit
 inithfcsx(struct IsdnCardState *cs)
 {
 	cs->setstack_d = setstack_hfcsx;

@@ -26,7 +26,7 @@
 #include <linux/config.h>
 
 extern char *HiSax_getrev(const char *revision);
-const char *dss1_revision = "$Revision: 2.32.2.3 $";
+static const char *dss1_revision = "$Revision: 2.32.2.3 $";
 
 #define EXT_BEARER_CAPS 1
 

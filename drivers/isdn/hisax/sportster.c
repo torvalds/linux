@@ -19,7 +19,7 @@
 #include "isdnl1.h"
 
 extern const char *CardType[];
-const char *sportster_revision = "$Revision: 1.16.2.4 $";
+static const char *sportster_revision = "$Revision: 1.16.2.4 $";
 
 #define byteout(addr,val) outb(val,addr)
 #define bytein(addr) inb(addr)
@@ -132,7 +132,7 @@ sportster_interrupt(int intno, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-void
+static void
 release_io_sportster(struct IsdnCardState *cs)
 {
 	int i, adr;
@@ -144,7 +144,7 @@ release_io_sportster(struct IsdnCardState *cs)
 	}
 }
 
-void
+static void
 reset_sportster(struct IsdnCardState *cs)
 {
 	cs->hw.spt.res_irq |= SPORTSTER_RESET; /* Reset On */
