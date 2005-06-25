@@ -20,6 +20,7 @@
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
+#include <locale.h>
 
 #define LKC_DIRECT_LINK
 #include "lkc.h"
