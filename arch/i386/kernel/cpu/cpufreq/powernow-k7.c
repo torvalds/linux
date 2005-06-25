@@ -648,9 +648,7 @@ static int powernow_cpu_exit (struct cpufreq_policy *policy) {
 	}
 #endif
 
-	if (powernow_table)
-		kfree(powernow_table);
-
+	kfree(powernow_table);
 	return 0;
 }
 

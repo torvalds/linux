@@ -632,10 +632,8 @@ static int __init balanced_irq_init(void)
 		printk(KERN_ERR "balanced_irq_init: failed to spawn balanced_irq");
 failed:
 	for (i = 0; i < NR_CPUS; i++) {
-		if(irq_cpu_data[i].irq_delta)
-			kfree(irq_cpu_data[i].irq_delta);
-		if(irq_cpu_data[i].last_irq)
-			kfree(irq_cpu_data[i].last_irq);
+		kfree(irq_cpu_data[i].irq_delta);
+		kfree(irq_cpu_data[i].last_irq);
 	}
 	return 0;
 }
