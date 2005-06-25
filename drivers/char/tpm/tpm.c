@@ -233,10 +233,10 @@ ssize_t tpm_show_pubek(struct device *dev, struct device_attribute *attr,
 		    data[15], data[16], data[17], data[22], data[23],
 		    data[24], data[25], data[26], data[27], data[28],
 		    data[29], data[30], data[31], data[32], data[33],
-		    be32_to_cpu(*((__be32 *) (data + 32))));
+		    be32_to_cpu(*((__be32 *) (data + 34))));
 
 	for (i = 0; i < 256; i++) {
-		str += sprintf(str, "%02X ", data[i + 39]);
+		str += sprintf(str, "%02X ", data[i + 38]);
 		if ((i + 1) % 16 == 0)
 			str += sprintf(str, "\n");
 	}
