@@ -3139,7 +3139,7 @@ lpfc_els_unsol_event(struct lpfc_hba * phba,
 	case ELS_CMD_PLOGI:
 		phba->fc_stat.elsRcvPLOGI++;
 		if (phba->hba_state < LPFC_DISC_AUTH) {
-			rjt_err = LSEXP_NOTHING_MORE;
+			rjt_err = 1;
 			break;
 		}
 		lpfc_disc_state_machine(phba, ndlp, elsiocb, NLP_EVT_RCV_PLOGI);
@@ -3154,7 +3154,7 @@ lpfc_els_unsol_event(struct lpfc_hba * phba,
 	case ELS_CMD_LOGO:
 		phba->fc_stat.elsRcvLOGO++;
 		if (phba->hba_state < LPFC_DISC_AUTH) {
-			rjt_err = LSEXP_NOTHING_MORE;
+			rjt_err = 1;
 			break;
 		}
 		lpfc_disc_state_machine(phba, ndlp, elsiocb, NLP_EVT_RCV_LOGO);
@@ -3162,7 +3162,7 @@ lpfc_els_unsol_event(struct lpfc_hba * phba,
 	case ELS_CMD_PRLO:
 		phba->fc_stat.elsRcvPRLO++;
 		if (phba->hba_state < LPFC_DISC_AUTH) {
-			rjt_err = LSEXP_NOTHING_MORE;
+			rjt_err = 1;
 			break;
 		}
 		lpfc_disc_state_machine(phba, ndlp, elsiocb, NLP_EVT_RCV_PRLO);
@@ -3177,7 +3177,7 @@ lpfc_els_unsol_event(struct lpfc_hba * phba,
 	case ELS_CMD_ADISC:
 		phba->fc_stat.elsRcvADISC++;
 		if (phba->hba_state < LPFC_DISC_AUTH) {
-			rjt_err = LSEXP_NOTHING_MORE;
+			rjt_err = 1;
 			break;
 		}
 		lpfc_disc_state_machine(phba, ndlp, elsiocb, NLP_EVT_RCV_ADISC);
@@ -3185,7 +3185,7 @@ lpfc_els_unsol_event(struct lpfc_hba * phba,
 	case ELS_CMD_PDISC:
 		phba->fc_stat.elsRcvPDISC++;
 		if (phba->hba_state < LPFC_DISC_AUTH) {
-			rjt_err = LSEXP_NOTHING_MORE;
+			rjt_err = 1;
 			break;
 		}
 		lpfc_disc_state_machine(phba, ndlp, elsiocb, NLP_EVT_RCV_PDISC);
@@ -3209,7 +3209,7 @@ lpfc_els_unsol_event(struct lpfc_hba * phba,
 	case ELS_CMD_PRLI:
 		phba->fc_stat.elsRcvPRLI++;
 		if (phba->hba_state < LPFC_DISC_AUTH) {
-			rjt_err = LSEXP_NOTHING_MORE;
+			rjt_err = 1;
 			break;
 		}
 		lpfc_disc_state_machine(phba, ndlp, elsiocb, NLP_EVT_RCV_PRLI);
@@ -3220,7 +3220,7 @@ lpfc_els_unsol_event(struct lpfc_hba * phba,
 		break;
 	default:
 		/* Unsupported ELS command, reject */
-		rjt_err = LSEXP_NOTHING_MORE;
+		rjt_err = 1;
 
 		/* Unknown ELS command <elsCmd> received from NPORT <did> */
 		lpfc_printf_log(phba, KERN_ERR, LOG_ELS,
@@ -3236,7 +3236,7 @@ lpfc_els_unsol_event(struct lpfc_hba * phba,
 	if (rjt_err) {
 		stat.un.b.lsRjtRsvd0 = 0;
 		stat.un.b.lsRjtRsnCode = LSRJT_UNABLE_TPC;
-		stat.un.b.lsRjtRsnCodeExp = rjt_err;
+		stat.un.b.lsRjtRsnCodeExp = LSEXP_NOTHING_MORE;
 		stat.un.b.vendorUnique = 0;
 		lpfc_els_rsp_reject(phba, stat.un.lsRjtError, elsiocb, ndlp);
 	}
