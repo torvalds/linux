@@ -93,6 +93,9 @@ static unsigned long output_ptr = 0;
 static void *malloc(int size);
 static void free(void *where);
  
+void* memset(void* s, int c, unsigned n);
+void* memcpy(void* dest, const void* src, unsigned n);
+
 static void putstr(const char *);
   
 extern int end;
