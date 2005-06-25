@@ -1016,38 +1016,45 @@ static int try_to_wake_up(task_t * p, unsigned int state, int sync)
 		int idx = this_sd->wake_idx;
 		unsigned int imbalance;
 
+		imbalance = 100 + (this_sd->imbalance_pct - 100) / 2;
+
 		load = source_load(cpu, idx);
 		this_load = target_load(this_cpu, idx);
 
-		/*
-		 * If sync wakeup then subtract the (maximum possible) effect of
-		 * the currently running task from the load of the current CPU:
-		 */
-		if (sync)
-			this_load -= SCHED_LOAD_SCALE;
-
-		 /* Don't pull the task off an idle CPU to a busy one */
-		if (load < SCHED_LOAD_SCALE/2 && this_load > SCHED_LOAD_SCALE/2)
-			goto out_set_cpu;
-
 		new_cpu = this_cpu; /* Wake to this CPU if we can */
 
-		if ((this_sd->flags & SD_WAKE_AFFINE) &&
-			!task_hot(p, rq->timestamp_last_tick, this_sd)) {
+		if (this_sd->flags & SD_WAKE_AFFINE) {
+			unsigned long tl = this_load;
 			/*
-			 * This domain has SD_WAKE_AFFINE and p is cache cold
-			 * in this domain.
+			 * If sync wakeup then subtract the (maximum possible)
+			 * effect of the currently running task from the load
+			 * of the current CPU:
 			 */
-			schedstat_inc(this_sd, ttwu_move_affine);
-			goto out_set_cpu;
-		} else if ((this_sd->flags & SD_WAKE_BALANCE) &&
-				imbalance*this_load <= 100*load) {
-			/*
-			 * This domain has SD_WAKE_BALANCE and there is
-			 * an imbalance.
-			 */
-			schedstat_inc(this_sd, ttwu_move_balance);
-			goto out_set_cpu;
+			if (sync)
+				tl -= SCHED_LOAD_SCALE;
+
+			if ((tl <= load &&
+				tl + target_load(cpu, idx) <= SCHED_LOAD_SCALE) ||
+				100*(tl + SCHED_LOAD_SCALE) <= imbalance*load) {
+				/*
+				 * This domain has SD_WAKE_AFFINE and
+				 * p is cache cold in this domain, and
+				 * there is no bad imbalance.
+				 */
+				schedstat_inc(this_sd, ttwu_move_affine);
+				goto out_set_cpu;
+			}
+		}
+
+		/*
+		 * Start passive balancing when half the imbalance_pct
+		 * limit is reached.
+		 */
+		if (this_sd->flags & SD_WAKE_BALANCE) {
+			if (imbalance*this_load <= 100*load) {
+				schedstat_inc(this_sd, ttwu_move_balance);
+				goto out_set_cpu;
+			}
 		}
 	}
 
