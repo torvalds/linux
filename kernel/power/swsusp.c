@@ -781,17 +781,17 @@ static int swsusp_alloc(void)
 {
 	int error;
 
+	pagedir_nosave = NULL;
+	nr_copy_pages = calc_nr(nr_copy_pages);
+
 	pr_debug("suspend: (pages needed: %d + %d free: %d)\n",
 		 nr_copy_pages, PAGES_FOR_IO, nr_free_pages());
 
-	pagedir_nosave = NULL;
 	if (!enough_free_mem())
 		return -ENOMEM;
 
 	if (!enough_swap())
 		return -ENOSPC;
-
-	nr_copy_pages = calc_nr(nr_copy_pages);
 
 	if (!(pagedir_save = alloc_pagedir(nr_copy_pages))) {
 		printk(KERN_ERR "suspend: Allocating pagedir failed.\n");
