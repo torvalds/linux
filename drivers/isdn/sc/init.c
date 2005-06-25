@@ -20,9 +20,9 @@ board *sc_adapter[MAX_CARDS];
 int cinst;
 
 static char devname[] = "scX";
-const char version[] = "2.0b1";
+static const char version[] = "2.0b1";
 
-const char *boardname[] = { "DataCommute/BRI", "DataCommute/PRI", "TeleCommute/BRI" };
+static const char *boardname[] = { "DataCommute/BRI", "DataCommute/PRI", "TeleCommute/BRI" };
 
 /* insmod set parameters */
 static unsigned int io[] = {0,0,0,0};
@@ -35,26 +35,13 @@ module_param_array(irq, int, NULL, 0);
 module_param_array(ram, int, NULL, 0);
 module_param(do_reset, bool, 0);
 
-static int sup_irq[] = { 11, 10, 9, 5, 12, 14, 7, 3, 4, 6 };
-#define MAX_IRQS	10
-
 extern irqreturn_t interrupt_handler(int, void *, struct pt_regs *);
 extern int sndpkt(int, int, int, struct sk_buff *);
 extern int command(isdn_ctrl *);
 extern int indicate_status(int, int, ulong, char*);
 extern int reset(int);
 
-int identify_board(unsigned long, unsigned int);
-
-int irq_supported(int irq_x)
-{
-	int i;
-	for(i=0 ; i < MAX_IRQS ; i++) {
-		if(sup_irq[i] == irq_x)
-			return 1;
-	}
-	return 0;
-}
+static int identify_board(unsigned long, unsigned int);
 
 static int __init sc_init(void)
 {
@@ -454,7 +441,7 @@ static void __exit sc_exit(void)
 	pr_info("SpellCaster ISA ISDN Adapter Driver Unloaded.\n");
 }
 
-int identify_board(unsigned long rambase, unsigned int iobase) 
+static int identify_board(unsigned long rambase, unsigned int iobase)
 {
 	unsigned int pgport;
 	unsigned long sig;
