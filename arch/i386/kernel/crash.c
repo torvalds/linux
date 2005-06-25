@@ -23,6 +23,7 @@
 #include <asm/hardirq.h>
 #include <asm/nmi.h>
 #include <asm/hw_irq.h>
+#include <asm/apic.h>
 #include <mach_ipi.h>
 
 #define MAX_NOTE_BYTES 1024
@@ -115,6 +116,7 @@ static int crash_nmi_callback(struct pt_regs *regs, int cpu)
 {
 	local_irq_disable();
 	crash_save_this_cpu(regs, cpu);
+	disable_local_APIC();
 	atomic_dec(&waiting_for_crash_ipi);
 	/* Assume hlt works */
 	__asm__("hlt");
@@ -153,6 +155,7 @@ static void nmi_shootdown_cpus(void)
 	}
 
 	/* Leave the nmi callback set */
+	disable_local_APIC();
 }
 #else
 static void nmi_shootdown_cpus(void)
@@ -174,5 +177,9 @@ void machine_crash_shutdown(void)
 	/* The kernel is broken so disable interrupts */
 	local_irq_disable();
 	nmi_shootdown_cpus();
+	lapic_shutdown();
+#if defined(CONFIG_X86_IO_APIC)
+	disable_IO_APIC();
+#endif
 	crash_save_self();
 }
