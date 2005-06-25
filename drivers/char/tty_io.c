@@ -94,6 +94,7 @@
 #include <linux/idr.h>
 #include <linux/wait.h>
 #include <linux/bitops.h>
+#include <linux/delay.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -2180,12 +2181,11 @@ static int tiocsetd(struct tty_struct *tty, int __user *p)
 	return tty_set_ldisc(tty, ldisc);
 }
 
-static int send_break(struct tty_struct *tty, int duration)
+static int send_break(struct tty_struct *tty, unsigned int duration)
 {
 	tty->driver->break_ctl(tty, -1);
 	if (!signal_pending(current)) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(duration);
+		msleep_interruptible(duration);
 	}
 	tty->driver->break_ctl(tty, 0);
 	if (signal_pending(current))
@@ -2366,10 +2366,10 @@ int tty_ioctl(struct inode * inode, struct file * file,
 			 * all by anyone?
 			 */
 			if (!arg)
-				return send_break(tty, HZ/4);
+				return send_break(tty, 250);
 			return 0;
 		case TCSBRKP:	/* support for POSIX tcsendbreak() */	
-			return send_break(tty, arg ? arg*(HZ/10) : HZ/4);
+			return send_break(tty, arg ? arg*100 : 250);
 
 		case TIOCMGET:
 			return tty_tiocmget(tty, file, p);
