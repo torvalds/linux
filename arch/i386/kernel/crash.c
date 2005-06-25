@@ -30,12 +30,91 @@ typedef u32 note_buf_t[MAX_NOTE_BYTES/4];
 
 note_buf_t crash_notes[NR_CPUS];
 
+static u32 *append_elf_note(u32 *buf,
+	char *name, unsigned type, void *data, size_t data_len)
+{
+	struct elf_note note;
+	note.n_namesz = strlen(name) + 1;
+	note.n_descsz = data_len;
+	note.n_type   = type;
+	memcpy(buf, &note, sizeof(note));
+	buf += (sizeof(note) +3)/4;
+	memcpy(buf, name, note.n_namesz);
+	buf += (note.n_namesz + 3)/4;
+	memcpy(buf, data, note.n_descsz);
+	buf += (note.n_descsz + 3)/4;
+	return buf;
+}
+
+static void final_note(u32 *buf)
+{
+	struct elf_note note;
+	note.n_namesz = 0;
+	note.n_descsz = 0;
+	note.n_type   = 0;
+	memcpy(buf, &note, sizeof(note));
+}
+
+
+static void crash_save_this_cpu(struct pt_regs *regs, int cpu)
+{
+	struct elf_prstatus prstatus;
+	u32 *buf;
+	if ((cpu < 0) || (cpu >= NR_CPUS)) {
+		return;
+	}
+	/* Using ELF notes here is opportunistic.
+	 * I need a well defined structure format
+	 * for the data I pass, and I need tags
+	 * on the data to indicate what information I have
+	 * squirrelled away.  ELF notes happen to provide
+	 * all of that that no need to invent something new.
+	 */
+	buf = &crash_notes[cpu][0];
+	memset(&prstatus, 0, sizeof(prstatus));
+	prstatus.pr_pid = current->pid;
+	elf_core_copy_regs(&prstatus.pr_reg, regs);
+	buf = append_elf_note(buf, "CORE", NT_PRSTATUS,
+		&prstatus, sizeof(prstatus));
+
+	final_note(buf);
+}
+
+static void crash_get_current_regs(struct pt_regs *regs)
+{
+	__asm__ __volatile__("movl %%ebx,%0" : "=m"(regs->ebx));
+	__asm__ __volatile__("movl %%ecx,%0" : "=m"(regs->ecx));
+	__asm__ __volatile__("movl %%edx,%0" : "=m"(regs->edx));
+	__asm__ __volatile__("movl %%esi,%0" : "=m"(regs->esi));
+	__asm__ __volatile__("movl %%edi,%0" : "=m"(regs->edi));
+	__asm__ __volatile__("movl %%ebp,%0" : "=m"(regs->ebp));
+	__asm__ __volatile__("movl %%eax,%0" : "=m"(regs->eax));
+	__asm__ __volatile__("movl %%esp,%0" : "=m"(regs->esp));
+	__asm__ __volatile__("movw %%ss, %%ax;" :"=a"(regs->xss));
+	__asm__ __volatile__("movw %%cs, %%ax;" :"=a"(regs->xcs));
+	__asm__ __volatile__("movw %%ds, %%ax;" :"=a"(regs->xds));
+	__asm__ __volatile__("movw %%es, %%ax;" :"=a"(regs->xes));
+	__asm__ __volatile__("pushfl; popl %0" :"=m"(regs->eflags));
+
+	regs->eip = (unsigned long)current_text_addr();
+}
+
+static void crash_save_self(void)
+{
+	struct pt_regs regs;
+	int cpu;
+	cpu = smp_processor_id();
+	crash_get_current_regs(&regs);
+	crash_save_this_cpu(&regs, cpu);
+}
+
 #ifdef CONFIG_SMP
 static atomic_t waiting_for_crash_ipi;
 
 static int crash_nmi_callback(struct pt_regs *regs, int cpu)
 {
 	local_irq_disable();
+	crash_save_this_cpu(regs, cpu);
 	atomic_dec(&waiting_for_crash_ipi);
 	/* Assume hlt works */
 	__asm__("hlt");
@@ -95,4 +174,5 @@ void machine_crash_shutdown(void)
 	/* The kernel is broken so disable interrupts */
 	local_irq_disable();
 	nmi_shootdown_cpus();
+	crash_save_self();
 }
