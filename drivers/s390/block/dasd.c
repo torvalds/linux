@@ -1952,26 +1952,24 @@ dasd_generic_notify(struct ccw_device *cdev, int event)
  * Automatically online either all dasd devices (dasd_autodetect) or
  * all devices specified with dasd= parameters.
  */
+static int
+__dasd_auto_online(struct device *dev, void *data)
+{
+	struct ccw_device *cdev;
+
+	cdev = to_ccwdev(dev);
+	if (dasd_autodetect || dasd_busid_known(cdev->dev.bus_id) == 0)
+		ccw_device_set_online(cdev);
+	return 0;
+}
+
 void
 dasd_generic_auto_online (struct ccw_driver *dasd_discipline_driver)
 {
 	struct device_driver *drv;
-	struct device *d, *dev;
-	struct ccw_device *cdev;
 
 	drv = get_driver(&dasd_discipline_driver->driver);
-	down_read(&drv->bus->subsys.rwsem);
-	dev = NULL;
-	list_for_each_entry(d, &drv->devices, driver_list) {
-		dev = get_device(d);
-		if (!dev)
-			continue;
-		cdev = to_ccwdev(dev);
-		if (dasd_autodetect || dasd_busid_known(cdev->dev.bus_id) == 0)
-			ccw_device_set_online(cdev);
-		put_device(dev);
-	}
-	up_read(&drv->bus->subsys.rwsem);
+	driver_for_each_device(drv, NULL, NULL, __dasd_auto_online);
 	put_driver(drv);
 }
 
