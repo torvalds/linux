@@ -39,15 +39,19 @@
  *
  * Map the part of a runlist containing the @vcn of the ntfs inode @ni.
  *
- * Return 0 on success and -errno on error.
+ * Return 0 on success and -errno on error.  There is one special error code
+ * which is not an error as such.  This is -ENOENT.  It means that @vcn is out
+ * of bounds of the runlist.
  *
  * Locking: - The runlist must be locked for writing.
  *	    - This function modifies the runlist.
  */
 int ntfs_map_runlist_nolock(ntfs_inode *ni, VCN vcn)
 {
+	VCN end_vcn;
 	ntfs_inode *base_ni;
-	MFT_RECORD *mrec;
+	MFT_RECORD *m;
+	ATTR_RECORD *a;
 	ntfs_attr_search_ctx *ctx;
 	runlist_element *rl;
 	int err = 0;
@@ -58,26 +62,43 @@ int ntfs_map_runlist_nolock(ntfs_inode *ni, VCN vcn)
 		base_ni = ni;
 	else
 		base_ni = ni->ext.base_ntfs_ino;
-	mrec = map_mft_record(base_ni);
-	if (IS_ERR(mrec))
-		return PTR_ERR(mrec);
-	ctx = ntfs_attr_get_search_ctx(base_ni, mrec);
+	m = map_mft_record(base_ni);
+	if (IS_ERR(m))
+		return PTR_ERR(m);
+	ctx = ntfs_attr_get_search_ctx(base_ni, m);
 	if (unlikely(!ctx)) {
 		err = -ENOMEM;
 		goto err_out;
 	}
 	err = ntfs_attr_lookup(ni->type, ni->name, ni->name_len,
 			CASE_SENSITIVE, vcn, NULL, 0, ctx);
-	if (likely(!err)) {
-		rl = ntfs_mapping_pairs_decompress(ni->vol, ctx->attr,
-				ni->runlist.rl);
-		if (IS_ERR(rl))
-			err = PTR_ERR(rl);
-		else
-			ni->runlist.rl = rl;
+	if (unlikely(err)) {
+		if (err == -ENOENT)
+			err = -EIO;
+		goto err_out;
 	}
-	ntfs_attr_put_search_ctx(ctx);
+	a = ctx->attr;
+	/*
+	 * Only decompress the mapping pairs if @vcn is inside it.  Otherwise
+	 * we get into problems when we try to map an out of bounds vcn because
+	 * we then try to map the already mapped runlist fragment and
+	 * ntfs_mapping_pairs_decompress() fails.
+	 */
+	end_vcn = sle64_to_cpu(a->data.non_resident.highest_vcn) + 1;
+	if (unlikely(!a->data.non_resident.lowest_vcn && end_vcn <= 1))
+		end_vcn = ni->allocated_size >> ni->vol->cluster_size_bits;
+	if (unlikely(vcn >= end_vcn)) {
+		err = -ENOENT;
+		goto err_out;
+	}
+	rl = ntfs_mapping_pairs_decompress(ni->vol, a, ni->runlist.rl);
+	if (IS_ERR(rl))
+		err = PTR_ERR(rl);
+	else
+		ni->runlist.rl = rl;
 err_out:
+	if (likely(ctx))
+		ntfs_attr_put_search_ctx(ctx);
 	unmap_mft_record(base_ni);
 	return err;
 }
@@ -89,7 +110,9 @@ err_out:
  *
  * Map the part of a runlist containing the @vcn of the ntfs inode @ni.
  *
- * Return 0 on success and -errno on error.
+ * Return 0 on success and -errno on error.  There is one special error code
+ * which is not an error as such.  This is -ENOENT.  It means that @vcn is out
+ * of bounds of the runlist.
  *
  * Locking: - The runlist must be unlocked on entry and is unlocked on return.
  *	    - This function takes the runlist lock for writing and modifies the
@@ -287,11 +310,11 @@ retry_remap:
 			goto retry_remap;
 		}
 		/*
-		 * -EINVAL and -ENOENT coming from a failed mapping attempt are
-		 * equivalent to i/o errors for us as they should not happen in
-		 * our code paths.
+		 * -EINVAL coming from a failed mapping attempt is equivalent
+		 * to i/o error for us as it should not happen in our code
+		 * paths.
 		 */
-		if (err == -EINVAL || err == -ENOENT)
+		if (err == -EINVAL)
 			err = -EIO;
 	} else if (!err)
 		err = -EIO;

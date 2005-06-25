@@ -139,6 +139,12 @@ ToDo/Notes:
 	  and ntfs_mapping_pairs_build() to allow the runlist encoding to be
 	  partial which is desirable when filling holes in sparse attributes.
 	  Update all callers.
+	- Change ntfs_map_runlist_nolock() to only decompress the mapping pairs
+	  if the requested vcn is inside it.  Otherwise we get into problems
+	  when we try to map an out of bounds vcn because we then try to map
+	  the already mapped runlist fragment which causes
+	  ntfs_mapping_pairs_decompress() to fail and return error.  Update
+	  ntfs_attr_find_vcn_nolock() accordingly.
 
 2.1.22 - Many bug and race fixes and error handling improvements.
 
