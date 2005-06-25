@@ -927,14 +927,14 @@ static int wake_idle(int cpu, task_t *p)
 
 	for_each_domain(cpu, sd) {
 		if (sd->flags & SD_WAKE_IDLE) {
-			cpus_and(tmp, sd->span, cpu_online_map);
-			cpus_and(tmp, tmp, p->cpus_allowed);
+			cpus_and(tmp, sd->span, p->cpus_allowed);
 			for_each_cpu_mask(i, tmp) {
 				if (idle_cpu(i))
 					return i;
 			}
 		}
-		else break;
+		else
+			break;
 	}
 	return cpu;
 }
