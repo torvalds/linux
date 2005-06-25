@@ -1519,14 +1519,22 @@ out_path:
  * This function is used when filesystem needs to initialize quotas
  * during mount time.
  */
-int vfs_quota_on_mount(int type, int format_id, struct dentry *dentry)
+int vfs_quota_on_mount(struct super_block *sb, char *qf_name,
+		int format_id, int type)
 {
+	struct dentry *dentry;
 	int error;
 
+	dentry = lookup_one_len(qf_name, sb->s_root, strlen(qf_name));
+	if (IS_ERR(dentry))
+		return PTR_ERR(dentry);
+
 	error = security_quota_on(dentry);
-	if (error)
-		return error;
-	return vfs_quota_on_inode(dentry->d_inode, type, format_id);
+	if (!error)
+		error = vfs_quota_on_inode(dentry->d_inode, type, format_id);
+
+	dput(dentry);
+	return error;
 }
 
 /* Generic routine for getting common part of quota structure */

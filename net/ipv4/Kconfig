@@ -433,5 +433,95 @@ config IP_TCPDIAG
 config IP_TCPDIAG_IPV6
 	def_bool (IP_TCPDIAG=y && IPV6=y) || (IP_TCPDIAG=m && IPV6)
 
+# TCP Reno is builtin (required as fallback)
+menu "TCP congestion control"
+	depends on INET
+
+config TCP_CONG_BIC
+	tristate "Binary Increase Congestion (BIC) control"
+	depends on INET
+	default y
+	---help---
+	BIC-TCP is a sender-side only change that ensures a linear RTT
+	fairness under large windows while offering both scalability and
+	bounded TCP-friendliness. The protocol combines two schemes
+	called additive increase and binary search increase. When the
+	congestion window is large, additive increase with a large
+	increment ensures linear RTT fairness as well as good
+	scalability. Under small congestion windows, binary search
+	increase provides TCP friendliness.
+	See http://www.csc.ncsu.edu/faculty/rhee/export/bitcp/
+
+config TCP_CONG_WESTWOOD
+	tristate "TCP Westwood+"
+	depends on INET
+	default m
+	---help---
+	TCP Westwood+ is a sender-side only modification of the TCP Reno
+	protocol stack that optimizes the performance of TCP congestion
+	control. It is based on end-to-end bandwidth estimation to set
+	congestion window and slow start threshold after a congestion
+	episode. Using this estimation, TCP Westwood+ adaptively sets a
+	slow start threshold and a congestion window which takes into
+	account the bandwidth used  at the time congestion is experienced.
+	TCP Westwood+ significantly increases fairness wrt TCP Reno in
+	wired networks and throughput over wireless links.
+
+config TCP_CONG_HTCP
+        tristate "H-TCP"
+	depends on INET
+        default m
+	---help---
+	H-TCP is a send-side only modifications of the TCP Reno
+	protocol stack that optimizes the performance of TCP
+	congestion control for high speed network links. It uses a
+	modeswitch to change the alpha and beta parameters of TCP Reno
+	based on network conditions and in a way so as to be fair with
+	other Reno and H-TCP flows.
+
+config TCP_CONG_HSTCP
+	tristate "High Speed TCP"
+	depends on INET && EXPERIMENTAL
+	default n
+	---help---
+	Sally Floyd's High Speed TCP (RFC 3649) congestion control.
+	A modification to TCP's congestion control mechanism for use
+	with large congestion windows. A table indicates how much to
+	increase the congestion window by when an ACK is received.
+ 	For more detail	see http://www.icir.org/floyd/hstcp.html
+
+config TCP_CONG_HYBLA
+	tristate "TCP-Hybla congestion control algorithm"
+	depends on INET && EXPERIMENTAL
+	default n
+	---help---
+	TCP-Hybla is a sender-side only change that eliminates penalization of
+	long-RTT, large-bandwidth connections, like when satellite legs are
+	involved, expecially when sharing a common bottleneck with normal
+	terrestrial connections.
+
+config TCP_CONG_VEGAS
+	tristate "TCP Vegas"
+	depends on INET && EXPERIMENTAL
+	default n
+	---help---
+	TCP Vegas is a sender-side only change to TCP that anticipates
+	the onset of congestion by estimating the bandwidth. TCP Vegas
+	adjusts the sending rate by modifying the congestion
+	window. TCP Vegas should provide less packet loss, but it is
+	not as aggressive as TCP Reno.
+
+config TCP_CONG_SCALABLE
+	tristate "Scalable TCP"
+	depends on INET && EXPERIMENTAL
+	default n
+	---help---
+	Scalable TCP is a sender-side only change to TCP which uses a
+	MIMD congestion control algorithm which has some nice scaling
+	properties, though is known to have fairness issues.
+	See http://www-lce.eng.cam.ac.uk/~ctk21/scalable/
+
+endmenu
+
 source "net/ipv4/ipvs/Kconfig"
 

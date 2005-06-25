@@ -1,5 +1,5 @@
 /*
- * $Id: cx88-video.c,v 1.58 2005/03/07 15:58:05 kraxel Exp $
+ * $Id: cx88-video.c,v 1.63 2005/06/12 04:19:19 mchehab Exp $
  *
  * device driver for Conexant 2388x based TV cards
  * video4linux video interface
@@ -1187,9 +1187,24 @@ static void init_controls(struct cx8800_dev *dev)
 		.id    = V4L2_CID_AUDIO_VOLUME,
 		.value = 0x3f,
 	};
+	static struct v4l2_control hue = {
+		.id    = V4L2_CID_HUE,
+		.value = 0x80,
+	};
+	static struct v4l2_control contrast = {
+		.id    = V4L2_CID_CONTRAST,
+		.value = 0x80,
+	};
+	static struct v4l2_control brightness = {
+		.id    = V4L2_CID_BRIGHTNESS,
+		.value = 0x80,
+	};
 
 	set_control(dev,&mute);
 	set_control(dev,&volume);
+	set_control(dev,&hue);
+	set_control(dev,&contrast);
+	set_control(dev,&brightness);
 }
 
 /* ------------------------------------------------------------------ */
@@ -1335,6 +1350,9 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 			V4L2_CAP_READWRITE     |
 			V4L2_CAP_STREAMING     |
 			V4L2_CAP_VBI_CAPTURE   |
+#if 0
+			V4L2_TUNER_CAP_LOW     |
+#endif
 #if 0
 			V4L2_CAP_VIDEO_OVERLAY |
 #endif
@@ -1696,7 +1714,11 @@ static int radio_do_ioctl(struct inode *inode, struct file *file,
 			sizeof(cap->card));
 		sprintf(cap->bus_info,"PCI:%s", pci_name(dev->pci));
 		cap->version = CX88_VERSION_CODE;
-		cap->capabilities = V4L2_CAP_TUNER;
+		cap->capabilities = V4L2_CAP_TUNER
+#if 0
+				    | V4L2_TUNER_CAP_LOW
+#endif
+				    ;
 		return 0;
 	}
 	case VIDIOC_G_TUNER:
@@ -1992,6 +2014,7 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 {
 	struct cx8800_dev *dev;
 	struct cx88_core *core;
+	struct tuner_addr tun_addr;
 	int err;
 
 	dev = kmalloc(sizeof(*dev),GFP_KERNEL);
@@ -2065,8 +2088,19 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 		request_module("tuner");
 	if (core->tda9887_conf)
 		request_module("tda9887");
-	if (core->tuner_type != UNSET)
-		cx88_call_i2c_clients(dev->core,TUNER_SET_TYPE,&core->tuner_type);
+	if (core->radio_type != UNSET) {
+	        tun_addr.v4l2_tuner = V4L2_TUNER_RADIO;
+		tun_addr.type = core->radio_type;
+		tun_addr.addr = core->radio_addr;
+		cx88_call_i2c_clients(dev->core,TUNER_SET_TYPE_ADDR, &tun_addr);
+	}
+	if (core->tuner_type != UNSET) {
+	        tun_addr.v4l2_tuner = V4L2_TUNER_ANALOG_TV;
+		tun_addr.type = core->tuner_type;
+		tun_addr.addr = core->tuner_addr;
+		cx88_call_i2c_clients(dev->core,TUNER_SET_TYPE_ADDR, &tun_addr);
+	}
+
 	if (core->tda9887_conf)
 		cx88_call_i2c_clients(dev->core,TDA9887_SET_CONFIG,&core->tda9887_conf);
 
@@ -2162,7 +2196,7 @@ static void __devexit cx8800_finidev(struct pci_dev *pci_dev)
 
 static int cx8800_suspend(struct pci_dev *pci_dev, pm_message_t state)
 {
-        struct cx8800_dev *dev = pci_get_drvdata(pci_dev);
+	struct cx8800_dev *dev = pci_get_drvdata(pci_dev);
 	struct cx88_core *core = dev->core;
 
 	/* stop video+vbi capture */
@@ -2194,7 +2228,7 @@ static int cx8800_suspend(struct pci_dev *pci_dev, pm_message_t state)
 
 static int cx8800_resume(struct pci_dev *pci_dev)
 {
-        struct cx8800_dev *dev = pci_get_drvdata(pci_dev);
+	struct cx8800_dev *dev = pci_get_drvdata(pci_dev);
 	struct cx88_core *core = dev->core;
 
 	if (dev->state.disabled) {
@@ -2230,8 +2264,8 @@ static struct pci_device_id cx8800_pci_tbl[] = {
 	{
 		.vendor       = 0x14f1,
 		.device       = 0x8800,
-                .subvendor    = PCI_ANY_ID,
-                .subdevice    = PCI_ANY_ID,
+		.subvendor    = PCI_ANY_ID,
+		.subdevice    = PCI_ANY_ID,
 	},{
 		/* --- end of list --- */
 	}
@@ -2239,10 +2273,10 @@ static struct pci_device_id cx8800_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, cx8800_pci_tbl);
 
 static struct pci_driver cx8800_pci_driver = {
-        .name     = "cx8800",
-        .id_table = cx8800_pci_tbl,
-        .probe    = cx8800_initdev,
-        .remove   = __devexit_p(cx8800_finidev),
+	.name     = "cx8800",
+	.id_table = cx8800_pci_tbl,
+	.probe    = cx8800_initdev,
+	.remove   = __devexit_p(cx8800_finidev),
 
 	.suspend  = cx8800_suspend,
 	.resume   = cx8800_resume,
@@ -2274,4 +2308,5 @@ module_exit(cx8800_fini);
  * Local variables:
  * c-basic-offset: 8
  * End:
+ * kate: eol "unix"; indent-width 3; remove-trailing-space on; replace-trailing-space-save on; tab-width 8; replace-tabs off; space-indent off; mixed-indent off
  */

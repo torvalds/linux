@@ -55,6 +55,20 @@ struct file_operations ext2_file_operations = {
 	.sendfile	= generic_file_sendfile,
 };
 
+#ifdef CONFIG_EXT2_FS_XIP
+struct file_operations ext2_xip_file_operations = {
+	.llseek		= generic_file_llseek,
+	.read		= xip_file_read,
+	.write		= xip_file_write,
+	.ioctl		= ext2_ioctl,
+	.mmap		= xip_file_mmap,
+	.open		= generic_file_open,
+	.release	= ext2_release_file,
+	.fsync		= ext2_sync_file,
+	.sendfile	= xip_file_sendfile,
+};
+#endif
+
 struct inode_operations ext2_file_inode_operations = {
 	.truncate	= ext2_truncate,
 #ifdef CONFIG_EXT2_FS_XATTR

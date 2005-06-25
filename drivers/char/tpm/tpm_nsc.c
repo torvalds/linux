@@ -22,43 +22,52 @@
 #include "tpm.h"
 
 /* National definitions */
-#define	TPM_NSC_BASE			0x360
-#define	TPM_NSC_IRQ			0x07
+enum tpm_nsc_addr{
+	TPM_NSC_BASE = 0x360,
+	TPM_NSC_IRQ = 0x07,
+	TPM_NSC_BASE0_HI = 0x60,
+	TPM_NSC_BASE0_LO = 0x61,
+	TPM_NSC_BASE1_HI = 0x62,
+	TPM_NSC_BASE1_LO = 0x63
+};
 
-#define	NSC_LDN_INDEX			0x07
-#define	NSC_SID_INDEX			0x20
-#define	NSC_LDC_INDEX			0x30
-#define	NSC_DIO_INDEX			0x60
-#define	NSC_CIO_INDEX			0x62
-#define	NSC_IRQ_INDEX			0x70
-#define	NSC_ITS_INDEX			0x71
+enum tpm_nsc_index {
+	NSC_LDN_INDEX = 0x07,
+	NSC_SID_INDEX = 0x20,
+	NSC_LDC_INDEX = 0x30,
+	NSC_DIO_INDEX = 0x60,
+	NSC_CIO_INDEX = 0x62,
+	NSC_IRQ_INDEX = 0x70,
+	NSC_ITS_INDEX = 0x71
+};
 
-#define	NSC_STATUS			0x01
-#define	NSC_COMMAND			0x01
-#define	NSC_DATA			0x00
+enum tpm_nsc_status_loc {
+	NSC_STATUS = 0x01,
+	NSC_COMMAND = 0x01,
+	NSC_DATA = 0x00
+};
 
 /* status bits */
-#define	NSC_STATUS_OBF			0x01	/* output buffer full */
-#define	NSC_STATUS_IBF			0x02	/* input buffer full */
-#define	NSC_STATUS_F0			0x04	/* F0 */
-#define	NSC_STATUS_A2			0x08	/* A2 */
-#define	NSC_STATUS_RDY			0x10	/* ready to receive command */
-#define	NSC_STATUS_IBR			0x20	/* ready to receive data */
-
+enum tpm_nsc_status {
+	NSC_STATUS_OBF = 0x01,	/* output buffer full */
+	NSC_STATUS_IBF = 0x02,	/* input buffer full */
+	NSC_STATUS_F0 = 0x04,	/* F0 */
+	NSC_STATUS_A2 = 0x08,	/* A2 */
+	NSC_STATUS_RDY = 0x10,	/* ready to receive command */
+	NSC_STATUS_IBR = 0x20	/* ready to receive data */
+};
 /* command bits */
-#define	NSC_COMMAND_NORMAL		0x01	/* normal mode */
-#define	NSC_COMMAND_EOC			0x03
-#define	NSC_COMMAND_CANCEL		0x22
-
+enum tpm_nsc_cmd_mode {
+	NSC_COMMAND_NORMAL = 0x01,	/* normal mode */
+	NSC_COMMAND_EOC = 0x03,
+	NSC_COMMAND_CANCEL = 0x22
+};
 /*
  * Wait for a certain status to appear
  */
 static int wait_for_stat(struct tpm_chip *chip, u8 mask, u8 val, u8 * data)
 {
-	int expired = 0;
-	struct timer_list status_timer =
-	    TIMER_INITIALIZER(tpm_time_expired, jiffies + 10 * HZ,
-			      (unsigned long) &expired);
+	unsigned long stop;
 
 	/* status immediately available check */
 	*data = inb(chip->vendor->base + NSC_STATUS);
@@ -66,17 +75,14 @@ static int wait_for_stat(struct tpm_chip *chip, u8 mask, u8 val, u8 * data)
 		return 0;
 
 	/* wait for status */
-	add_timer(&status_timer);
+	stop = jiffies + 10 * HZ;
 	do {
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(TPM_TIMEOUT);
+		msleep(TPM_TIMEOUT);
 		*data = inb(chip->vendor->base + 1);
-		if ((*data & mask) == val) {
-			del_singleshot_timer_sync(&status_timer);
+		if ((*data & mask) == val)
 			return 0;
-		}
 	}
-	while (!expired);
+	while (time_before(jiffies, stop));
 
 	return -EBUSY;
 }
@@ -84,10 +90,7 @@ static int wait_for_stat(struct tpm_chip *chip, u8 mask, u8 val, u8 * data)
 static int nsc_wait_for_ready(struct tpm_chip *chip)
 {
 	int status;
-	int expired = 0;
-	struct timer_list status_timer =
-	    TIMER_INITIALIZER(tpm_time_expired, jiffies + 100,
-			      (unsigned long) &expired);
+	unsigned long stop;
 
 	/* status immediately available check */
 	status = inb(chip->vendor->base + NSC_STATUS);
@@ -97,19 +100,16 @@ static int nsc_wait_for_ready(struct tpm_chip *chip)
 		return 0;
 
 	/* wait for status */
-	add_timer(&status_timer);
+	stop = jiffies + 100;
 	do {
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(TPM_TIMEOUT);
+		msleep(TPM_TIMEOUT);
 		status = inb(chip->vendor->base + NSC_STATUS);
 		if (status & NSC_STATUS_OBF)
 			status = inb(chip->vendor->base + NSC_DATA);
-		if (status & NSC_STATUS_RDY) {
-			del_singleshot_timer_sync(&status_timer);
+		if (status & NSC_STATUS_RDY)
 			return 0;
-		}
 	}
-	while (!expired);
+	while (time_before(jiffies, stop));
 
 	dev_info(&chip->pci_dev->dev, "wait for ready failed\n");
 	return -EBUSY;
@@ -228,29 +228,45 @@ static struct file_operations nsc_ops = {
 	.release = tpm_release,
 };
 
+static DEVICE_ATTR(pubek, S_IRUGO, tpm_show_pubek, NULL);
+static DEVICE_ATTR(pcrs, S_IRUGO, tpm_show_pcrs, NULL);
+static DEVICE_ATTR(caps, S_IRUGO, tpm_show_caps, NULL);
+static DEVICE_ATTR(cancel, S_IWUSR|S_IWGRP, NULL, tpm_store_cancel);
+
+static struct attribute * nsc_attrs[] = {
+	&dev_attr_pubek.attr,
+	&dev_attr_pcrs.attr,
+	&dev_attr_caps.attr,
+	&dev_attr_cancel.attr,
+	0,
+};
+
+static struct attribute_group nsc_attr_grp = { .attrs = nsc_attrs };
+
 static struct tpm_vendor_specific tpm_nsc = {
 	.recv = tpm_nsc_recv,
 	.send = tpm_nsc_send,
 	.cancel = tpm_nsc_cancel,
 	.req_complete_mask = NSC_STATUS_OBF,
 	.req_complete_val = NSC_STATUS_OBF,
-	.base = TPM_NSC_BASE,
+	.req_canceled = NSC_STATUS_RDY,
+	.attr_group = &nsc_attr_grp,
 	.miscdev = { .fops = &nsc_ops, },
-	
 };
 
 static int __devinit tpm_nsc_init(struct pci_dev *pci_dev,
 				  const struct pci_device_id *pci_id)
 {
 	int rc = 0;
+	int lo, hi;
+
+	hi = tpm_read_index(TPM_NSC_BASE0_HI);
+	lo = tpm_read_index(TPM_NSC_BASE0_LO);
+
+	tpm_nsc.base = (hi<<8) | lo;
 
 	if (pci_enable_device(pci_dev))
 		return -EIO;
-
-	if (tpm_lpc_bus_init(pci_dev, TPM_NSC_BASE)) {
-		rc = -ENODEV;
-		goto out_err;
-	}
 
 	/* verify that it is a National part (SID) */
 	if (tpm_read_index(NSC_SID_INDEX) != 0xEF) {

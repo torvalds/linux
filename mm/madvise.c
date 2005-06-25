@@ -65,7 +65,6 @@ static long madvise_behavior(struct vm_area_struct * vma,
 	/*
 	 * vm_flags is protected by the mmap_sem held in write mode.
 	 */
-	VM_ClearReadHint(vma);
 	vma->vm_flags = new_flags;
 
 out:
@@ -86,6 +85,11 @@ static long madvise_willneed(struct vm_area_struct * vma,
 
 	if (!file)
 		return -EBADF;
+
+	if (file->f_mapping->a_ops->get_xip_page) {
+		/* no bad return value, but ignore advice */
+		return 0;
+	}
 
 	*prev = vma;
 	start = ((start - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;

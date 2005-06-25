@@ -220,6 +220,7 @@ extern int dir_notify_enable;
 
 struct iovec;
 struct nameidata;
+struct kiocb;
 struct pipe_inode_info;
 struct poll_table_struct;
 struct kstatfs;
@@ -240,7 +241,7 @@ typedef int (get_block_t)(struct inode *inode, sector_t iblock,
 typedef int (get_blocks_t)(struct inode *inode, sector_t iblock,
 			unsigned long max_blocks,
 			struct buffer_head *bh_result, int create);
-typedef void (dio_iodone_t)(struct inode *inode, loff_t offset,
+typedef void (dio_iodone_t)(struct kiocb *iocb, loff_t offset,
 			ssize_t bytes, void *private);
 
 /*
@@ -302,7 +303,6 @@ struct iattr {
 struct page;
 struct address_space;
 struct writeback_control;
-struct kiocb;
 
 struct address_space_operations {
 	int (*writepage)(struct page *page, struct writeback_control *wbc);
@@ -330,6 +330,8 @@ struct address_space_operations {
 	int (*releasepage) (struct page *, int);
 	ssize_t (*direct_IO)(int, struct kiocb *, const struct iovec *iov,
 			loff_t offset, unsigned long nr_segs);
+	struct page* (*get_xip_page)(struct address_space *, sector_t,
+			int);
 };
 
 struct backing_dev_info;
@@ -581,7 +583,6 @@ struct file {
 	atomic_t		f_count;
 	unsigned int 		f_flags;
 	mode_t			f_mode;
-	int			f_error;
 	loff_t			f_pos;
 	struct fown_struct	f_owner;
 	unsigned int		f_uid, f_gid;
@@ -884,7 +885,9 @@ struct block_device_operations {
 	int (*open) (struct inode *, struct file *);
 	int (*release) (struct inode *, struct file *);
 	int (*ioctl) (struct inode *, struct file *, unsigned, unsigned long);
+	long (*unlocked_ioctl) (struct file *, unsigned, unsigned long);
 	long (*compat_ioctl) (struct file *, unsigned, unsigned long);
+	int (*direct_access) (struct block_device *, sector_t, unsigned long *);
 	int (*media_changed) (struct gendisk *);
 	int (*revalidate_disk) (struct gendisk *);
 	struct module *owner;
@@ -1025,6 +1028,7 @@ struct super_operations {
 #define I_FREEING		16
 #define I_CLEAR			32
 #define I_NEW			64
+#define I_WILL_FREE		128
 
 #define I_DIRTY (I_DIRTY_SYNC | I_DIRTY_DATASYNC | I_DIRTY_PAGES)
 
@@ -1494,6 +1498,23 @@ extern loff_t generic_file_llseek(struct file *file, loff_t offset, int origin);
 extern loff_t remote_llseek(struct file *file, loff_t offset, int origin);
 extern int generic_file_open(struct inode * inode, struct file * filp);
 extern int nonseekable_open(struct inode * inode, struct file * filp);
+
+#ifdef CONFIG_FS_XIP
+extern ssize_t xip_file_read(struct file *filp, char __user *buf, size_t len,
+			     loff_t *ppos);
+extern ssize_t xip_file_sendfile(struct file *in_file, loff_t *ppos,
+				 size_t count, read_actor_t actor,
+				 void *target);
+extern int xip_file_mmap(struct file * file, struct vm_area_struct * vma);
+extern ssize_t xip_file_write(struct file *filp, const char __user *buf,
+			      size_t len, loff_t *ppos);
+extern int xip_truncate_page(struct address_space *mapping, loff_t from);
+#else
+static inline int xip_truncate_page(struct address_space *mapping, loff_t from)
+{
+	return 0;
+}
+#endif
 
 static inline void do_generic_file_read(struct file * filp, loff_t *ppos,
 					read_descriptor_t * desc,

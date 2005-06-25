@@ -58,7 +58,7 @@
 #include <linux/swapops.h>
 #include <linux/elf.h>
 
-#ifndef CONFIG_DISCONTIGMEM
+#ifndef CONFIG_NEED_MULTIPLE_NODES
 /* use the per-pgdat data instead for discontigmem - mbligh */
 unsigned long max_mapnr;
 struct page *mem_map;
@@ -1458,7 +1458,7 @@ restart:
  * unmap_mapping_range - unmap the portion of all mmaps
  * in the specified address_space corresponding to the specified
  * page range in the underlying file.
- * @address_space: the address space containing mmaps to be unmapped.
+ * @mapping: the address space containing mmaps to be unmapped.
  * @holebegin: byte in first page to unmap, relative to the start of
  * the underlying file.  This will be rounded down to a PAGE_SIZE
  * boundary.  Note that this is different from vmtruncate(), which

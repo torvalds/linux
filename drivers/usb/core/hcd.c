@@ -1794,7 +1794,7 @@ EXPORT_SYMBOL (usb_remove_hcd);
 
 /*-------------------------------------------------------------------------*/
 
-#if defined(CONFIG_USB_MON) || defined(CONFIG_USB_MON_MODULE)
+#if defined(CONFIG_USB_MON)
 
 struct usb_mon_operations *mon_ops;
 

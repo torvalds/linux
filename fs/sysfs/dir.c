@@ -8,6 +8,7 @@
 #include <linux/mount.h>
 #include <linux/module.h>
 #include <linux/kobject.h>
+#include <linux/namei.h>
 #include "sysfs.h"
 
 DECLARE_RWSEM(sysfs_rename_sem);
@@ -99,7 +100,7 @@ static int create_dir(struct kobject * k, struct dentry * p,
 	umode_t mode = S_IFDIR| S_IRWXU | S_IRUGO | S_IXUGO;
 
 	down(&p->d_inode->i_sem);
-	*d = sysfs_get_dentry(p,n);
+	*d = lookup_one_len(n, p, strlen(n));
 	if (!IS_ERR(*d)) {
 		error = sysfs_make_dirent(p->d_fsdata, *d, k, mode, SYSFS_DIR);
 		if (!error) {
@@ -315,7 +316,7 @@ int sysfs_rename_dir(struct kobject * kobj, const char *new_name)
 
 	down(&parent->d_inode->i_sem);
 
-	new_dentry = sysfs_get_dentry(parent, new_name);
+	new_dentry = lookup_one_len(new_name, parent, strlen(new_name));
 	if (!IS_ERR(new_dentry)) {
   		if (!new_dentry->d_inode) {
 			error = kobject_set_name(kobj, "%s", new_name);

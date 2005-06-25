@@ -977,8 +977,9 @@ static int ide_init_queue(ide_drive_t *drive)
 	 *	limits and LBA48 we could raise it but as yet
 	 *	do not.
 	 */
-	 
-	q = blk_init_queue(do_ide_request, &ide_lock);
+
+	q = blk_init_queue_node(do_ide_request, &ide_lock,
+				pcibus_to_node(drive->hwif->pci_dev->bus));
 	if (!q)
 		return 1;
 
@@ -1095,7 +1096,8 @@ static int init_irq (ide_hwif_t *hwif)
 		hwgroup->hwif->next = hwif;
 		spin_unlock_irq(&ide_lock);
 	} else {
-		hwgroup = kmalloc(sizeof(ide_hwgroup_t),GFP_KERNEL);
+		hwgroup = kmalloc_node(sizeof(ide_hwgroup_t), GFP_KERNEL,
+			pcibus_to_node(hwif->drives[0].hwif->pci_dev->bus));
 		if (!hwgroup)
 	       		goto out_up;
 

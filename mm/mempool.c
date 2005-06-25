@@ -51,16 +51,23 @@ static void free_pool(mempool_t *pool)
  * functions might sleep - as long as the mempool_alloc function is not called
  * from IRQ contexts.
  */
-mempool_t * mempool_create(int min_nr, mempool_alloc_t *alloc_fn,
+mempool_t *mempool_create(int min_nr, mempool_alloc_t *alloc_fn,
 				mempool_free_t *free_fn, void *pool_data)
 {
-	mempool_t *pool;
+	return  mempool_create_node(min_nr,alloc_fn,free_fn, pool_data,-1);
+}
+EXPORT_SYMBOL(mempool_create);
 
-	pool = kmalloc(sizeof(*pool), GFP_KERNEL);
+mempool_t *mempool_create_node(int min_nr, mempool_alloc_t *alloc_fn,
+			mempool_free_t *free_fn, void *pool_data, int node_id)
+{
+	mempool_t *pool;
+	pool = kmalloc_node(sizeof(*pool), GFP_KERNEL, node_id);
 	if (!pool)
 		return NULL;
 	memset(pool, 0, sizeof(*pool));
-	pool->elements = kmalloc(min_nr * sizeof(void *), GFP_KERNEL);
+	pool->elements = kmalloc_node(min_nr * sizeof(void *),
+					GFP_KERNEL, node_id);
 	if (!pool->elements) {
 		kfree(pool);
 		return NULL;
@@ -87,7 +94,7 @@ mempool_t * mempool_create(int min_nr, mempool_alloc_t *alloc_fn,
 	}
 	return pool;
 }
-EXPORT_SYMBOL(mempool_create);
+EXPORT_SYMBOL(mempool_create_node);
 
 /**
  * mempool_resize - resize an existing memory pool
@@ -197,7 +204,7 @@ void * mempool_alloc(mempool_t *pool, unsigned int __nocast gfp_mask)
 {
 	void *element;
 	unsigned long flags;
-	DEFINE_WAIT(wait);
+	wait_queue_t wait;
 	int gfp_temp;
 
 	might_sleep_if(gfp_mask & __GFP_WAIT);
@@ -228,6 +235,7 @@ repeat_alloc:
 
 	/* Now start performing page reclaim */
 	gfp_temp = gfp_mask;
+	init_wait(&wait);
 	prepare_to_wait(&pool->wait, &wait, TASK_UNINTERRUPTIBLE);
 	smp_mb();
 	if (!pool->curr_nr)

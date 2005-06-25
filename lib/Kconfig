@@ -63,5 +63,32 @@ config REED_SOLOMON_ENC16
 config REED_SOLOMON_DEC16
 	boolean
 
-endmenu
+config TEXTSEARCH
+	boolean "Textsearch infrastructure"
+	default y
+	help
+	  Say Y here if you want to provide a textsearch infrastructure
+	  to other subsystems.
 
+config TEXTSEARCH_KMP
+	depends on TEXTSEARCH
+	tristate "Knuth-Morris-Pratt"
+	help
+	  Say Y here if you want to be able to search text using the
+	  Knuth-Morris-Pratt textsearch algorithm.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called ts_kmp.
+
+config TEXTSEARCH_FSM
+	depends on TEXTSEARCH
+	tristate "Finite state machine"
+	help
+	  Say Y here if you want to be able to search text using a
+	  naive finite state machine approach implementing a subset
+	  of regular expressions.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called ts_fsm.
+
+endmenu

@@ -66,6 +66,13 @@ int __init compute_hash_shift(struct node *nodes, int numnodes)
 	return -1; 
 }
 
+#ifdef CONFIG_SPARSEMEM
+int early_pfn_to_nid(unsigned long pfn)
+{
+	return phys_to_nid(pfn << PAGE_SHIFT);
+}
+#endif
+
 /* Initialize bootmem allocator for a node */
 void __init setup_node_bootmem(int nodeid, unsigned long start, unsigned long end)
 { 
@@ -80,6 +87,7 @@ void __init setup_node_bootmem(int nodeid, unsigned long start, unsigned long en
 	start_pfn = start >> PAGE_SHIFT;
 	end_pfn = end >> PAGE_SHIFT;
 
+	memory_present(nodeid, start_pfn, end_pfn);
 	nodedata_phys = find_e820_area(start, end, pgdat_size); 
 	if (nodedata_phys == -1L) 
 		panic("Cannot find memory pgdat in node %d\n", nodeid);

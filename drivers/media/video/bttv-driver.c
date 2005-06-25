@@ -1,5 +1,5 @@
 /*
-    $Id: bttv-driver.c,v 1.37 2005/02/21 13:57:59 kraxel Exp $
+    $Id: bttv-driver.c,v 1.38 2005/06/10 17:20:24 mchehab Exp $
 
     bttv - Bt848 frame grabber driver
 

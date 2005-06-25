@@ -68,7 +68,7 @@ EXPORT_SYMBOL(nr_swap_pages);
  * Used by page_zone() to look up the address of the struct zone whose
  * id is encoded in the upper bits of page->flags
  */
-struct zone *zone_table[1 << (ZONES_SHIFT + NODES_SHIFT)];
+struct zone *zone_table[1 << ZONETABLE_SHIFT];
 EXPORT_SYMBOL(zone_table);
 
 static char *zone_names[MAX_NR_ZONES] = { "DMA", "Normal", "HighMem" };
@@ -1649,11 +1649,17 @@ static void __init calculate_zone_totalpages(struct pglist_data *pgdat,
 void __init memmap_init_zone(unsigned long size, int nid, unsigned long zone,
 		unsigned long start_pfn)
 {
-	struct page *start = pfn_to_page(start_pfn);
 	struct page *page;
+	unsigned long end_pfn = start_pfn + size;
+	unsigned long pfn;
 
-	for (page = start; page < (start + size); page++) {
-		set_page_zone(page, NODEZONE(nid, zone));
+	for (pfn = start_pfn; pfn < end_pfn; pfn++, page++) {
+		if (!early_pfn_valid(pfn))
+			continue;
+		if (!early_pfn_in_nid(pfn, nid))
+			continue;
+		page = pfn_to_page(pfn);
+		set_page_links(page, zone, nid, pfn);
 		set_page_count(page, 0);
 		reset_page_mapcount(page);
 		SetPageReserved(page);
@@ -1675,6 +1681,20 @@ void zone_init_free_lists(struct pglist_data *pgdat, struct zone *zone,
 		INIT_LIST_HEAD(&zone->free_area[order].free_list);
 		zone->free_area[order].nr_free = 0;
 	}
+}
+
+#define ZONETABLE_INDEX(x, zone_nr)	((x << ZONES_SHIFT) | zone_nr)
+void zonetable_add(struct zone *zone, int nid, int zid, unsigned long pfn,
+		unsigned long size)
+{
+	unsigned long snum = pfn_to_section_nr(pfn);
+	unsigned long end = pfn_to_section_nr(pfn + size);
+
+	if (FLAGS_HAS_NODE)
+		zone_table[ZONETABLE_INDEX(nid, zid)] = zone;
+	else
+		for (; snum <= end; snum++)
+			zone_table[ZONETABLE_INDEX(snum, zid)] = zone;
 }
 
 #ifndef __HAVE_ARCH_MEMMAP_INIT
@@ -1861,7 +1881,6 @@ static void __init free_area_init_core(struct pglist_data *pgdat,
 		unsigned long size, realsize;
 		unsigned long batch;
 
-		zone_table[NODEZONE(nid, j)] = zone;
 		realsize = size = zones_size[j];
 		if (zholes_size)
 			realsize -= zholes_size[j];
@@ -1927,6 +1946,8 @@ static void __init free_area_init_core(struct pglist_data *pgdat,
 
 		memmap_init(size, nid, j, zone_start_pfn);
 
+		zonetable_add(zone, nid, j, zone_start_pfn, size);
+
 		zone_start_pfn += size;
 
 		zone_init_free_lists(pgdat, zone, zone->spanned_pages);
@@ -1935,24 +1956,30 @@ static void __init free_area_init_core(struct pglist_data *pgdat,
 
 static void __init alloc_node_mem_map(struct pglist_data *pgdat)
 {
-	unsigned long size;
-
 	/* Skip empty nodes */
 	if (!pgdat->node_spanned_pages)
 		return;
 
+#ifdef CONFIG_FLAT_NODE_MEM_MAP
 	/* ia64 gets its own node_mem_map, before this, without bootmem */
 	if (!pgdat->node_mem_map) {
+		unsigned long size;
+		struct page *map;
+
 		size = (pgdat->node_spanned_pages + 1) * sizeof(struct page);
-		pgdat->node_mem_map = alloc_bootmem_node(pgdat, size);
+		map = alloc_remap(pgdat->node_id, size);
+		if (!map)
+			map = alloc_bootmem_node(pgdat, size);
+		pgdat->node_mem_map = map;
 	}
-#ifndef CONFIG_DISCONTIGMEM
+#ifdef CONFIG_FLATMEM
 	/*
 	 * With no DISCONTIG, the global mem_map is just set as node 0's
 	 */
 	if (pgdat == NODE_DATA(0))
 		mem_map = NODE_DATA(0)->node_mem_map;
 #endif
+#endif /* CONFIG_FLAT_NODE_MEM_MAP */
 }
 
 void __init free_area_init_node(int nid, struct pglist_data *pgdat,
@@ -1968,18 +1995,18 @@ void __init free_area_init_node(int nid, struct pglist_data *pgdat,
 	free_area_init_core(pgdat, zones_size, zholes_size);
 }
 
-#ifndef CONFIG_DISCONTIGMEM
+#ifndef CONFIG_NEED_MULTIPLE_NODES
 static bootmem_data_t contig_bootmem_data;
 struct pglist_data contig_page_data = { .bdata = &contig_bootmem_data };
 
 EXPORT_SYMBOL(contig_page_data);
+#endif
 
 void __init free_area_init(unsigned long *zones_size)
 {
-	free_area_init_node(0, &contig_page_data, zones_size,
+	free_area_init_node(0, NODE_DATA(0), zones_size,
 			__pa(PAGE_OFFSET) >> PAGE_SHIFT, NULL);
 }
-#endif
 
 #ifdef CONFIG_PROC_FS
 

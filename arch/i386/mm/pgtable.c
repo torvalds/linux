@@ -30,13 +30,14 @@ void show_mem(void)
 	struct page *page;
 	pg_data_t *pgdat;
 	unsigned long i;
+	struct page_state ps;
 
 	printk("Mem-info:\n");
 	show_free_areas();
 	printk("Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
 	for_each_pgdat(pgdat) {
 		for (i = 0; i < pgdat->node_spanned_pages; ++i) {
-			page = pgdat->node_mem_map + i;
+			page = pgdat_page_nr(pgdat, i);
 			total++;
 			if (PageHighMem(page))
 				highmem++;
@@ -53,6 +54,13 @@ void show_mem(void)
 	printk("%d reserved pages\n",reserved);
 	printk("%d pages shared\n",shared);
 	printk("%d pages swap cached\n",cached);
+
+	get_page_state(&ps);
+	printk("%lu pages dirty\n", ps.nr_dirty);
+	printk("%lu pages writeback\n", ps.nr_writeback);
+	printk("%lu pages mapped\n", ps.nr_mapped);
+	printk("%lu pages slab\n", ps.nr_slab);
+	printk("%lu pages pagetables\n", ps.nr_page_table_pages);
 }
 
 /*

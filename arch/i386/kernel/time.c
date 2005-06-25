@@ -77,11 +77,13 @@ u64 jiffies_64 = INITIAL_JIFFIES;
 
 EXPORT_SYMBOL(jiffies_64);
 
-unsigned long cpu_khz;	/* Detected as we calibrate the TSC */
+unsigned int cpu_khz;	/* Detected as we calibrate the TSC */
+EXPORT_SYMBOL(cpu_khz);
 
 extern unsigned long wall_jiffies;
 
 DEFINE_SPINLOCK(rtc_lock);
+EXPORT_SYMBOL(rtc_lock);
 
 DEFINE_SPINLOCK(i8253_lock);
 EXPORT_SYMBOL(i8253_lock);
@@ -324,6 +326,8 @@ unsigned long get_cmos_time(void)
 
 	return retval;
 }
+EXPORT_SYMBOL(get_cmos_time);
+
 static void sync_cmos_clock(unsigned long dummy);
 
 static struct timer_list sync_cmos_timer =

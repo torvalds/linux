@@ -829,7 +829,7 @@ static void __exit exit_x25_asy(void)
 	}
 
 	kfree(x25_asy_devs);
-	tty_register_ldisc(N_X25, NULL);
+	tty_unregister_ldisc(N_X25);
 }
 
 module_init(init_x25_asy);

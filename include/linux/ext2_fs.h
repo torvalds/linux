@@ -300,18 +300,19 @@ struct ext2_inode {
 /*
  * Mount flags
  */
-#define EXT2_MOUNT_CHECK		0x0001	/* Do mount-time checks */
-#define EXT2_MOUNT_OLDALLOC		0x0002  /* Don't use the new Orlov allocator */
-#define EXT2_MOUNT_GRPID		0x0004	/* Create files with directory's group */
-#define EXT2_MOUNT_DEBUG		0x0008	/* Some debugging messages */
-#define EXT2_MOUNT_ERRORS_CONT		0x0010	/* Continue on errors */
-#define EXT2_MOUNT_ERRORS_RO		0x0020	/* Remount fs ro on errors */
-#define EXT2_MOUNT_ERRORS_PANIC		0x0040	/* Panic on errors */
-#define EXT2_MOUNT_MINIX_DF		0x0080	/* Mimics the Minix statfs */
-#define EXT2_MOUNT_NOBH			0x0100	/* No buffer_heads */
-#define EXT2_MOUNT_NO_UID32		0x0200  /* Disable 32-bit UIDs */
-#define EXT2_MOUNT_XATTR_USER		0x4000	/* Extended user attributes */
-#define EXT2_MOUNT_POSIX_ACL		0x8000	/* POSIX Access Control Lists */
+#define EXT2_MOUNT_CHECK		0x000001  /* Do mount-time checks */
+#define EXT2_MOUNT_OLDALLOC		0x000002  /* Don't use the new Orlov allocator */
+#define EXT2_MOUNT_GRPID		0x000004  /* Create files with directory's group */
+#define EXT2_MOUNT_DEBUG		0x000008  /* Some debugging messages */
+#define EXT2_MOUNT_ERRORS_CONT		0x000010  /* Continue on errors */
+#define EXT2_MOUNT_ERRORS_RO		0x000020  /* Remount fs ro on errors */
+#define EXT2_MOUNT_ERRORS_PANIC		0x000040  /* Panic on errors */
+#define EXT2_MOUNT_MINIX_DF		0x000080  /* Mimics the Minix statfs */
+#define EXT2_MOUNT_NOBH			0x000100  /* No buffer_heads */
+#define EXT2_MOUNT_NO_UID32		0x000200  /* Disable 32-bit UIDs */
+#define EXT2_MOUNT_XATTR_USER		0x004000  /* Extended user attributes */
+#define EXT2_MOUNT_POSIX_ACL		0x008000  /* POSIX Access Control Lists */
+#define EXT2_MOUNT_XIP			0x010000  /* Execute in place */
 
 #define clear_opt(o, opt)		o &= ~EXT2_MOUNT_##opt
 #define set_opt(o, opt)			o |= EXT2_MOUNT_##opt

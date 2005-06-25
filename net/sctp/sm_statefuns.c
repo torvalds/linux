@@ -92,6 +92,17 @@ static sctp_disposition_t sctp_sf_shut_8_4_5(const struct sctp_endpoint *ep,
 					     sctp_cmd_seq_t *commands);
 static struct sctp_sackhdr *sctp_sm_pull_sack(struct sctp_chunk *chunk);
 
+static sctp_disposition_t sctp_stop_t1_and_abort(sctp_cmd_seq_t *commands,
+					   __u16 error,
+					   const struct sctp_association *asoc,
+					   struct sctp_transport *transport);
+
+static sctp_disposition_t sctp_sf_violation_chunklen(
+				     const struct sctp_endpoint *ep,
+				     const struct sctp_association *asoc,
+				     const sctp_subtype_t type,
+				     void *arg,
+				     sctp_cmd_seq_t *commands);
 
 /* Small helper function that checks if the chunk length
  * is of the appropriate length.  The 'required_length' argument
@@ -2328,7 +2339,7 @@ sctp_disposition_t sctp_sf_cookie_echoed_abort(const struct sctp_endpoint *ep,
  *
  * This is common code called by several sctp_sf_*_abort() functions above.
  */
-sctp_disposition_t  sctp_stop_t1_and_abort(sctp_cmd_seq_t *commands,
+static sctp_disposition_t sctp_stop_t1_and_abort(sctp_cmd_seq_t *commands,
 					   __u16 error,
 					   const struct sctp_association *asoc,
 					   struct sctp_transport *transport)
@@ -3687,7 +3698,8 @@ sctp_disposition_t sctp_sf_violation(const struct sctp_endpoint *ep,
  *
  * Generate an  ABORT chunk and terminate the association.
  */
-sctp_disposition_t sctp_sf_violation_chunklen(const struct sctp_endpoint *ep,
+static sctp_disposition_t sctp_sf_violation_chunklen(
+				     const struct sctp_endpoint *ep,
 				     const struct sctp_association *asoc,
 				     const sctp_subtype_t type,
 				     void *arg,

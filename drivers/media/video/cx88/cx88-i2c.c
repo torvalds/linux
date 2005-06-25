@@ -1,5 +1,5 @@
 /*
-    $Id: cx88-i2c.c,v 1.20 2005/02/15 15:59:35 kraxel Exp $
+    $Id: cx88-i2c.c,v 1.23 2005/06/12 04:19:19 mchehab Exp $
 
     cx88-i2c.c  --  all the i2c code is here
 
@@ -91,6 +91,7 @@ static int cx8800_bit_getsda(void *data)
 
 static int attach_inform(struct i2c_client *client)
 {
+        struct tuner_addr tun_addr;
 	struct cx88_core *core = i2c_get_adapdata(client->adapter);
 
 	dprintk(1, "i2c attach [addr=0x%x,client=%s]\n",
@@ -98,8 +99,19 @@ static int attach_inform(struct i2c_client *client)
 	if (!client->driver->command)
 		return 0;
 
-	if (core->tuner_type != UNSET)
-		client->driver->command(client, TUNER_SET_TYPE, &core->tuner_type);
+        if (core->radio_type != UNSET) {
+                tun_addr.v4l2_tuner = V4L2_TUNER_RADIO;
+                tun_addr.type = core->radio_type;
+                tun_addr.addr = core->radio_addr;
+                client->driver->command(client,TUNER_SET_TYPE_ADDR, &tun_addr);
+        }
+        if (core->tuner_type != UNSET) {
+                tun_addr.v4l2_tuner = V4L2_TUNER_ANALOG_TV;
+                tun_addr.type = core->tuner_type;
+                tun_addr.addr = core->tuner_addr;
+                client->driver->command(client,TUNER_SET_TYPE_ADDR, &tun_addr);
+        }
+
 	if (core->tda9887_conf)
 		client->driver->command(client, TDA9887_SET_CONFIG, &core->tda9887_conf);
 	return 0;

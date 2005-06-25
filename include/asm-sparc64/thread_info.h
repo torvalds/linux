@@ -46,7 +46,7 @@ struct thread_info {
 	unsigned long		fault_address;
 	struct pt_regs		*kregs;
 	struct exec_domain	*exec_domain;
-	int			preempt_count;
+	int			preempt_count;	/* 0 => preemptable, <0 => BUG */
 	int			__pad;
 
 	unsigned long		*utraps;

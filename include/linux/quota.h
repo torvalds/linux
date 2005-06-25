@@ -138,8 +138,11 @@ struct if_dqinfo {
 #include <linux/dqblk_v2.h>
 
 /* Maximal numbers of writes for quota operation (insert/delete/update)
- * (over all formats) - info block, 4 pointer blocks, data block */
-#define DQUOT_MAX_WRITES	6
+ * (over VFS all formats) */
+#define DQUOT_INIT_ALLOC max(V1_INIT_ALLOC, V2_INIT_ALLOC)
+#define DQUOT_INIT_REWRITE max(V1_INIT_REWRITE, V2_INIT_REWRITE)
+#define DQUOT_DEL_ALLOC max(V1_DEL_ALLOC, V2_DEL_ALLOC)
+#define DQUOT_DEL_REWRITE max(V1_DEL_REWRITE, V2_DEL_REWRITE)
 
 /*
  * Data for one user/group kept in memory

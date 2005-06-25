@@ -191,7 +191,9 @@ lockd(struct svc_rqst *rqstp)
 		printk(KERN_DEBUG
 			"lockd: new process, skipping host shutdown\n");
 	wake_up(&lockd_exit);
-		
+
+	flush_signals(current);
+
 	/* Exit the RPC thread */
 	svc_exit_thread(rqstp);
 

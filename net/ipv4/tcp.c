@@ -1927,6 +1927,25 @@ int tcp_setsockopt(struct sock *sk, int level, int optname, char __user *optval,
 		return tp->af_specific->setsockopt(sk, level, optname,
 						   optval, optlen);
 
+	/* This is a string value all the others are int's */
+	if (optname == TCP_CONGESTION) {
+		char name[TCP_CA_NAME_MAX];
+
+		if (optlen < 1)
+			return -EINVAL;
+
+		val = strncpy_from_user(name, optval,
+					min(TCP_CA_NAME_MAX-1, optlen));
+		if (val < 0)
+			return -EFAULT;
+		name[val] = 0;
+
+		lock_sock(sk);
+		err = tcp_set_congestion_control(tp, name);
+		release_sock(sk);
+		return err;
+	}
+
 	if (optlen < sizeof(int))
 		return -EINVAL;
 
@@ -2211,6 +2230,16 @@ int tcp_getsockopt(struct sock *sk, int level, int optname, char __user *optval,
 	case TCP_QUICKACK:
 		val = !tp->ack.pingpong;
 		break;
+
+	case TCP_CONGESTION:
+		if (get_user(len, optlen))
+			return -EFAULT;
+		len = min_t(unsigned int, len, TCP_CA_NAME_MAX);
+		if (put_user(len, optlen))
+			return -EFAULT;
+		if (copy_to_user(optval, tp->ca_ops->name, len))
+			return -EFAULT;
+		return 0;
 	default:
 		return -ENOPROTOOPT;
 	};
@@ -2224,7 +2253,7 @@ int tcp_getsockopt(struct sock *sk, int level, int optname, char __user *optval,
 
 
 extern void __skb_cb_too_small_for_tcp(int, int);
-extern void tcpdiag_init(void);
+extern struct tcp_congestion_ops tcp_reno;
 
 static __initdata unsigned long thash_entries;
 static int __init set_thash_entries(char *str)
@@ -2333,6 +2362,8 @@ void __init tcp_init(void)
 	printk(KERN_INFO "TCP: Hash tables configured "
 	       "(established %d bind %d)\n",
 	       tcp_ehash_size << 1, tcp_bhash_size);
+
+	tcp_register_congestion_control(&tcp_reno);
 }
 
 EXPORT_SYMBOL(tcp_accept);

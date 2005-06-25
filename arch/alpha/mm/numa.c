@@ -327,8 +327,6 @@ void __init mem_init(void)
 	extern char _text, _etext, _data, _edata;
 	extern char __init_begin, __init_end;
 	unsigned long nid, i;
-	struct page * lmem_map;
-
 	high_memory = (void *) __va(max_low_pfn << PAGE_SHIFT);
 
 	reservedpages = 0;
@@ -338,10 +336,10 @@ void __init mem_init(void)
 		 */
 		totalram_pages += free_all_bootmem_node(NODE_DATA(nid));
 
-		lmem_map = node_mem_map(nid);
 		pfn = NODE_DATA(nid)->node_start_pfn;
 		for (i = 0; i < node_spanned_pages(nid); i++, pfn++)
-			if (page_is_ram(pfn) && PageReserved(lmem_map+i))
+			if (page_is_ram(pfn) &&
+			    PageReserved(nid_page_nr(nid, i)))
 				reservedpages++;
 	}
 
@@ -373,18 +371,18 @@ show_mem(void)
 	show_free_areas();
 	printk("Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
 	for_each_online_node(nid) {
-		struct page * lmem_map = node_mem_map(nid);
 		i = node_spanned_pages(nid);
 		while (i-- > 0) {
+			struct page *page = nid_page_nr(nid, i);
 			total++;
-			if (PageReserved(lmem_map+i))
+			if (PageReserved(page))
 				reserved++;
-			else if (PageSwapCache(lmem_map+i))
+			else if (PageSwapCache(page))
 				cached++;
-			else if (!page_count(lmem_map+i))
+			else if (!page_count(page))
 				free++;
 			else
-				shared += page_count(lmem_map + i) - 1;
+				shared += page_count(page) - 1;
 		}
 	}
 	printk("%ld pages of RAM\n",total);

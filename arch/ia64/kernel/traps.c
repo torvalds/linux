@@ -21,11 +21,25 @@
 #include <asm/intrinsics.h>
 #include <asm/processor.h>
 #include <asm/uaccess.h>
+#include <asm/kdebug.h>
 
 extern spinlock_t timerlist_lock;
 
 fpswa_interface_t *fpswa_interface;
 EXPORT_SYMBOL(fpswa_interface);
+
+struct notifier_block *ia64die_chain;
+static DEFINE_SPINLOCK(die_notifier_lock);
+
+int register_die_notifier(struct notifier_block *nb)
+{
+	int err = 0;
+	unsigned long flags;
+	spin_lock_irqsave(&die_notifier_lock, flags);
+	err = notifier_chain_register(&ia64die_chain, nb);
+	spin_unlock_irqrestore(&die_notifier_lock, flags);
+	return err;
+}
 
 void __init
 trap_init (void)
@@ -137,6 +151,10 @@ ia64_bad_break (unsigned long break_num, struct pt_regs *regs)
 
 	switch (break_num) {
 	      case 0: /* unknown error (used by GCC for __builtin_abort()) */
+		if (notify_die(DIE_BREAK, "break 0", regs, break_num, TRAP_BRKPT, SIGTRAP)
+			       	== NOTIFY_STOP) {
+			return;
+		}
 		die_if_kernel("bugcheck!", regs, break_num);
 		sig = SIGILL; code = ILL_ILLOPC;
 		break;
@@ -187,6 +205,15 @@ ia64_bad_break (unsigned long break_num, struct pt_regs *regs)
 
 	      case 0x3f000 ... 0x3ffff:	/* bundle-update in progress */
 		sig = SIGILL; code = __ILL_BNDMOD;
+		break;
+
+	      case 0x80200:
+	      case 0x80300:
+		if (notify_die(DIE_BREAK, "kprobe", regs, break_num, TRAP_BRKPT, SIGTRAP)
+			       	== NOTIFY_STOP) {
+			return;
+		}
+		sig = SIGTRAP; code = TRAP_BRKPT;
 		break;
 
 	      default:
@@ -548,7 +575,11 @@ ia64_fault (unsigned long vector, unsigned long isr, unsigned long ifa,
 #endif
 			break;
 		      case 35: siginfo.si_code = TRAP_BRANCH; ifa = 0; break;
-		      case 36: siginfo.si_code = TRAP_TRACE; ifa = 0; break;
+		      case 36:
+			      if (notify_die(DIE_SS, "ss", &regs, vector,
+					     vector, SIGTRAP) == NOTIFY_STOP)
+				      return;
+			      siginfo.si_code = TRAP_TRACE; ifa = 0; break;
 		}
 		siginfo.si_signo = SIGTRAP;
 		siginfo.si_errno = 0;

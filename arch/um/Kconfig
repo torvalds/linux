@@ -74,6 +74,7 @@ config MODE_SKAS
 	option will shrink the UML binary slightly.
 
 source "arch/um/Kconfig_arch"
+source "mm/Kconfig"
 
 config LD_SCRIPT_STATIC
 	bool

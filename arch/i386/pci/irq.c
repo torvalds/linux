@@ -227,6 +227,24 @@ static int pirq_via_set(struct pci_dev *router, struct pci_dev *dev, int pirq, i
 }
 
 /*
+ * The VIA pirq rules are nibble-based, like ALI,
+ * but without the ugly irq number munging.
+ * However, for 82C586, nibble map is different .
+ */
+static int pirq_via586_get(struct pci_dev *router, struct pci_dev *dev, int pirq)
+{
+	static unsigned int pirqmap[4] = { 3, 2, 5, 1 };
+	return read_config_nybble(router, 0x55, pirqmap[pirq-1]);
+}
+
+static int pirq_via586_set(struct pci_dev *router, struct pci_dev *dev, int pirq, int irq)
+{
+	static unsigned int pirqmap[4] = { 3, 2, 5, 1 };
+	write_config_nybble(router, 0x55, pirqmap[pirq-1], irq);
+	return 1;
+}
+
+/*
  * ITE 8330G pirq rules are nibble-based
  * FIXME: pirqmap may be { 1, 0, 3, 2 },
  * 	  2+3 are both mapped to irq 9 on my system
@@ -512,6 +530,10 @@ static __init int via_router_probe(struct irq_router *r, struct pci_dev *router,
 	switch(device)
 	{
 		case PCI_DEVICE_ID_VIA_82C586_0:
+			r->name = "VIA";
+			r->get = pirq_via586_get;
+			r->set = pirq_via586_set;
+			return 1;
 		case PCI_DEVICE_ID_VIA_82C596:
 		case PCI_DEVICE_ID_VIA_82C686:
 		case PCI_DEVICE_ID_VIA_8231:

@@ -671,9 +671,6 @@ static void __init iSeries_bolt_kernel(unsigned long saddr, unsigned long eaddr)
 	}
 }
 
-extern unsigned long ppc_proc_freq;
-extern unsigned long ppc_tb_freq;
-
 /*
  * Document me.
  */
@@ -771,8 +768,6 @@ static void iSeries_halt(void)
 {
 	mf_power_off();
 }
-
-extern void setup_default_decr(void);
 
 /*
  * void __init iSeries_calibrate_decr()

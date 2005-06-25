@@ -549,9 +549,8 @@ void __init mem_init(void)
 		 */
 		numslots = node_getlastslot(node);
 		for (slot = 1; slot <= numslots; slot++) {
-			p = NODE_DATA(node)->node_mem_map +
-				(slot_getbasepfn(node, slot) -
-				 slot_getbasepfn(node, 0));
+			p = nid_page_nr(node, slot_getbasepfn(node, slot) -
+					      slot_getbasepfn(node, 0));
 
 			/*
 			 * Free valid memory in current slot.

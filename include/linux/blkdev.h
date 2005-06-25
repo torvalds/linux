@@ -285,16 +285,12 @@ enum blk_queue_state {
 	Queue_up,
 };
 
-#define BLK_TAGS_PER_LONG	(sizeof(unsigned long) * 8)
-#define BLK_TAGS_MASK		(BLK_TAGS_PER_LONG - 1)
-
 struct blk_queue_tag {
 	struct request **tag_index;	/* map of busy tags */
 	unsigned long *tag_map;		/* bit map of free/busy tags */
 	struct list_head busy_list;	/* fifo list of busy tags */
 	int busy;			/* current depth */
 	int max_depth;			/* what we will send to device */
-	int real_max_depth;		/* what the array can hold */
 	atomic_t refcnt;		/* map can be shared */
 };
 
@@ -396,6 +392,7 @@ struct request_queue
 	 */
 	unsigned int		sg_timeout;
 	unsigned int		sg_reserved_size;
+	int			node;
 
 	struct list_head	drain_list;
 
@@ -615,6 +612,8 @@ static inline void blkdev_dequeue_request(struct request *req)
 /*
  * Access functions for manipulating queue properties
  */
+extern request_queue_t *blk_init_queue_node(request_fn_proc *rfn,
+					spinlock_t *lock, int node_id);
 extern request_queue_t *blk_init_queue(request_fn_proc *, spinlock_t *);
 extern void blk_cleanup_queue(request_queue_t *);
 extern void blk_queue_make_request(request_queue_t *, make_request_fn *);
@@ -646,7 +645,8 @@ extern void blk_wait_queue_drained(request_queue_t *, int);
 extern void blk_finish_queue_drain(request_queue_t *);
 
 int blk_get_queue(request_queue_t *);
-request_queue_t *blk_alloc_queue(int);
+request_queue_t *blk_alloc_queue(int gfp_mask);
+request_queue_t *blk_alloc_queue_node(int,int);
 #define blk_put_queue(q) blk_cleanup_queue((q))
 
 /*

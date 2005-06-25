@@ -399,8 +399,8 @@ EXPORT_SYMBOL(snd_hidden_kcalloc);
 EXPORT_SYMBOL(snd_hidden_kfree);
 EXPORT_SYMBOL(snd_hidden_vmalloc);
 EXPORT_SYMBOL(snd_hidden_vfree);
+EXPORT_SYMBOL(snd_hidden_kstrdup);
 #endif
-EXPORT_SYMBOL(snd_kmalloc_strdup);
 EXPORT_SYMBOL(copy_to_user_fromio);
 EXPORT_SYMBOL(copy_from_user_toio);
   /* init.c */

@@ -2657,16 +2657,63 @@ int ide_cdrom_lock_door (struct cdrom_device_info *cdi, int lock)
 }
 
 static
+int ide_cdrom_get_capabilities(ide_drive_t *drive, struct atapi_capabilities_page *cap)
+{
+	struct cdrom_info *info = drive->driver_data;
+	struct cdrom_device_info *cdi = &info->devinfo;
+	struct packet_command cgc;
+	int stat, attempts = 3, size = sizeof(*cap);
+
+	/*
+	 * ACER50 (and others?) require the full spec length mode sense
+	 * page capabilities size, but older drives break.
+	 */
+	if (!(!strcmp(drive->id->model, "ATAPI CD ROM DRIVE 50X MAX") ||
+	    !strcmp(drive->id->model, "WPI CDS-32X")))
+		size -= sizeof(cap->pad);
+
+	init_cdrom_command(&cgc, cap, size, CGC_DATA_UNKNOWN);
+	do { /* we seem to get stat=0x01,err=0x00 the first time (??) */
+		stat = cdrom_mode_sense(cdi, &cgc, GPMODE_CAPABILITIES_PAGE, 0);
+		if (!stat)
+			break;
+	} while (--attempts);
+	return stat;
+}
+
+static
+void ide_cdrom_update_speed (ide_drive_t *drive, struct atapi_capabilities_page *cap)
+{
+	/* The ACER/AOpen 24X cdrom has the speed fields byte-swapped */
+	if (!drive->id->model[0] &&
+	    !strncmp(drive->id->fw_rev, "241N", 4)) {
+		CDROM_STATE_FLAGS(drive)->current_speed  =
+			(((unsigned int)cap->curspeed) + (176/2)) / 176;
+		CDROM_CONFIG_FLAGS(drive)->max_speed =
+			(((unsigned int)cap->maxspeed) + (176/2)) / 176;
+	} else {
+		CDROM_STATE_FLAGS(drive)->current_speed  =
+			(ntohs(cap->curspeed) + (176/2)) / 176;
+		CDROM_CONFIG_FLAGS(drive)->max_speed =
+			(ntohs(cap->maxspeed) + (176/2)) / 176;
+	}
+}
+
+static
 int ide_cdrom_select_speed (struct cdrom_device_info *cdi, int speed)
 {
 	ide_drive_t *drive = (ide_drive_t*) cdi->handle;
 	struct request_sense sense;
+	struct atapi_capabilities_page cap;
 	int stat;
 
 	if ((stat = cdrom_select_speed(drive, speed, &sense)) < 0)
 		return stat;
 
-        cdi->speed = CDROM_STATE_FLAGS(drive)->current_speed;
+	if (!ide_cdrom_get_capabilities(drive, &cap)) {
+		ide_cdrom_update_speed(drive, &cap);
+		cdi->speed = CDROM_STATE_FLAGS(drive)->current_speed;
+	}
         return 0;
 }
 
@@ -2869,31 +2916,6 @@ static int ide_cdrom_register (ide_drive_t *drive, int nslots)
 }
 
 static
-int ide_cdrom_get_capabilities(ide_drive_t *drive, struct atapi_capabilities_page *cap)
-{
-	struct cdrom_info *info = drive->driver_data;
-	struct cdrom_device_info *cdi = &info->devinfo;
-	struct packet_command cgc;
-	int stat, attempts = 3, size = sizeof(*cap);
-
-	/*
-	 * ACER50 (and others?) require the full spec length mode sense
-	 * page capabilities size, but older drives break.
-	 */
-	if (!(!strcmp(drive->id->model, "ATAPI CD ROM DRIVE 50X MAX") ||
-	    !strcmp(drive->id->model, "WPI CDS-32X")))
-		size -= sizeof(cap->pad);
-
-	init_cdrom_command(&cgc, cap, size, CGC_DATA_UNKNOWN);
-	do { /* we seem to get stat=0x01,err=0x00 the first time (??) */
-		stat = cdrom_mode_sense(cdi, &cgc, GPMODE_CAPABILITIES_PAGE, 0);
-		if (!stat)
-			break;
-	} while (--attempts);
-	return stat;
-}
-
-static
 int ide_cdrom_probe_capabilities (ide_drive_t *drive)
 {
 	struct cdrom_info *info = drive->driver_data;
@@ -2978,20 +3000,7 @@ int ide_cdrom_probe_capabilities (ide_drive_t *drive)
 		}
 	}
 
-	/* The ACER/AOpen 24X cdrom has the speed fields byte-swapped */
-	if (!drive->id->model[0] &&
-	    !strncmp(drive->id->fw_rev, "241N", 4)) {
-		CDROM_STATE_FLAGS(drive)->current_speed  = 
-			(((unsigned int)cap.curspeed) + (176/2)) / 176;
-		CDROM_CONFIG_FLAGS(drive)->max_speed = 
-			(((unsigned int)cap.maxspeed) + (176/2)) / 176;
-	} else {
-		CDROM_STATE_FLAGS(drive)->current_speed  = 
-			(ntohs(cap.curspeed) + (176/2)) / 176;
-		CDROM_CONFIG_FLAGS(drive)->max_speed = 
-			(ntohs(cap.maxspeed) + (176/2)) / 176;
-	}
-
+	ide_cdrom_update_speed(drive, &cap);
 	/* don't print speed if the drive reported 0.
 	 */
 	printk(KERN_INFO "%s: ATAPI", drive->name);

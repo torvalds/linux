@@ -49,6 +49,7 @@ show up in /proc/sys/kernel:
 - shmmax                      [ sysv ipc ]
 - shmmni
 - stop-a                      [ SPARC only ]
+- suid_dumpable
 - sysrq                       ==> Documentation/sysrq.txt
 - tainted
 - threads-max
@@ -297,6 +298,25 @@ This value can be used to query and set the run time limit
 on the maximum shared memory segment size that can be created.
 Shared memory segments up to 1Gb are now supported in the 
 kernel.  This value defaults to SHMMAX.
+
+==============================================================
+
+suid_dumpable:
+
+This value can be used to query and set the core dump mode for setuid
+or otherwise protected/tainted binaries. The modes are
+
+0 - (default) - traditional behaviour. Any process which has changed
+	privilege levels or is execute only will not be dumped
+1 - (debug) - all processes dump core when possible. The core dump is
+	owned by the current user and no security is applied. This is
+	intended for system debugging situations only. Ptrace is unchecked.
+2 - (suidsafe) - any binary which normally would not be dumped is dumped
+	readable by root only. This allows the end user to remove
+	such a dump but not access it directly. For security reasons
+	core dumps in this mode will not overwrite one another or
+	other files. This mode is appropriate when adminstrators are
+	attempting to debug problems in a normal environment.
 
 ==============================================================
 

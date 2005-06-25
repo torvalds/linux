@@ -25,9 +25,10 @@ subject and I can't cover it all here!
 Configuration
 -------------
 
-The LinuxIPMI driver is modular, which means you have to pick several
+The Linux IPMI driver is modular, which means you have to pick several
 things to have it work right depending on your hardware.  Most of
-these are available in the 'Character Devices' menu.
+these are available in the 'Character Devices' menu then the IPMI
+menu.
 
 No matter what, you must pick 'IPMI top-level message handler' to use
 IPMI.  What you do beyond that depends on your needs and hardware.
@@ -35,33 +36,30 @@ IPMI.  What you do beyond that depends on your needs and hardware.
 The message handler does not provide any user-level interfaces.
 Kernel code (like the watchdog) can still use it.  If you need access
 from userland, you need to select 'Device interface for IPMI' if you
-want access through a device driver.  Another interface is also
-available, you may select 'IPMI sockets' in the 'Networking Support'
-main menu.  This provides a socket interface to IPMI.  You may select
-both of these at the same time, they will both work together.
+want access through a device driver.
 
-The driver interface depends on your hardware.  If you have a board
-with a standard interface (These will generally be either "KCS",
-"SMIC", or "BT", consult your hardware manual), choose the 'IPMI SI
-handler' option.  A driver also exists for direct I2C access to the
-IPMI management controller.  Some boards support this, but it is
-unknown if it will work on every board.  For this, choose 'IPMI SMBus
-handler', but be ready to try to do some figuring to see if it will
-work.
-
-There is also a KCS-only driver interface supplied, but it is
-depracated in favor of the SI interface.
+The driver interface depends on your hardware.  If your system
+properly provides the SMBIOS info for IPMI, the driver will detect it
+and just work.  If you have a board with a standard interface (These
+will generally be either "KCS", "SMIC", or "BT", consult your hardware
+manual), choose the 'IPMI SI handler' option.  A driver also exists
+for direct I2C access to the IPMI management controller.  Some boards
+support this, but it is unknown if it will work on every board.  For
+this, choose 'IPMI SMBus handler', but be ready to try to do some
+figuring to see if it will work on your system if the SMBIOS/APCI
+information is wrong or not present.  It is fairly safe to have both
+these enabled and let the drivers auto-detect what is present.
 
 You should generally enable ACPI on your system, as systems with IPMI
-should have ACPI tables describing them.
+can have ACPI tables describing them.
 
 If you have a standard interface and the board manufacturer has done
 their job correctly, the IPMI controller should be automatically
-detect (via ACPI or SMBIOS tables) and should just work.  Sadly, many
-boards do not have this information.  The driver attempts standard
-defaults, but they may not work.  If you fall into this situation, you
-need to read the section below named 'The SI Driver' on how to
-hand-configure your system.
+detected (via ACPI or SMBIOS tables) and should just work.  Sadly,
+many boards do not have this information.  The driver attempts
+standard defaults, but they may not work.  If you fall into this
+situation, you need to read the section below named 'The SI Driver' or
+"The SMBus Driver" on how to hand-configure your system.
 
 IPMI defines a standard watchdog timer.  You can enable this with the
 'IPMI Watchdog Timer' config option.  If you compile the driver into
@@ -73,6 +71,18 @@ closed (by default it is disabled on close).  Go into the 'Watchdog
 Cards' menu, enable 'Watchdog Timer Support', and enable the option
 'Disable watchdog shutdown on close'.
 
+IPMI systems can often be powered off using IPMI commands.  Select
+'IPMI Poweroff' to do this.  The driver will auto-detect if the system
+can be powered off by IPMI.  It is safe to enable this even if your
+system doesn't support this option.  This works on ATCA systems, the
+Radisys CPI1 card, and any IPMI system that supports standard chassis
+management commands.
+
+If you want the driver to put an event into the event log on a panic,
+enable the 'Generate a panic event to all BMCs on a panic' option.  If
+you want the whole panic string put into the event log using OEM
+events, enable the 'Generate OEM events containing the panic string'
+option.
 
 Basic Design
 ------------
@@ -80,7 +90,7 @@ Basic Design
 The Linux IPMI driver is designed to be very modular and flexible, you
 only need to take the pieces you need and you can use it in many
 different ways.  Because of that, it's broken into many chunks of
-code.  These chunks are:
+code.  These chunks (by module name) are:
 
 ipmi_msghandler - This is the central piece of software for the IPMI
 system.  It handles all messages, message timing, and responses.  The
@@ -93,18 +103,26 @@ ipmi_devintf - This provides a userland IOCTL interface for the IPMI
 driver, each open file for this device ties in to the message handler
 as an IPMI user.
 
-ipmi_si - A driver for various system interfaces.  This supports
-KCS, SMIC, and may support BT in the future.  Unless you have your own
-custom interface, you probably need to use this.
+ipmi_si - A driver for various system interfaces.  This supports KCS,
+SMIC, and BT interfaces.  Unless you have an SMBus interface or your
+own custom interface, you probably need to use this.
 
 ipmi_smb - A driver for accessing BMCs on the SMBus. It uses the
 I2C kernel driver's SMBus interfaces to send and receive IPMI messages
 over the SMBus.
 
-af_ipmi - A network socket interface to IPMI.  This doesn't take up
-a character device in your system.
+ipmi_watchdog - IPMI requires systems to have a very capable watchdog
+timer.  This driver implements the standard Linux watchdog timer
+interface on top of the IPMI message handler.
 
-Note that the KCS-only interface ahs been removed.
+ipmi_poweroff - Some systems support the ability to be turned off via
+IPMI commands.
+
+These are all individually selectable via configuration options.
+
+Note that the KCS-only interface has been removed.  The af_ipmi driver
+is no longer supported and has been removed because it was impossible
+to do 32 bit emulation on 64-bit kernels with it.
 
 Much documentation for the interface is in the include files.  The
 IPMI include files are:
@@ -424,7 +442,7 @@ at module load time (for a module) with:
   modprobe ipmi_smb.o
 	addr=<adapter1>,<i2caddr1>[,<adapter2>,<i2caddr2>[,...]]
 	dbg=<flags1>,<flags2>...
-	[defaultprobe=0] [dbg_probe=1]
+	[defaultprobe=1] [dbg_probe=1]
 
 The addresses are specified in pairs, the first is the adapter ID and the
 second is the I2C address on that adapter.
@@ -532,3 +550,67 @@ Once you open the watchdog timer, you must write a 'V' character to the
 device to close it, or the timer will not stop.  This is a new semantic
 for the driver, but makes it consistent with the rest of the watchdog
 drivers in Linux.
+
+
+Panic Timeouts
+--------------
+
+The OpenIPMI driver supports the ability to put semi-custom and custom
+events in the system event log if a panic occurs.  if you enable the
+'Generate a panic event to all BMCs on a panic' option, you will get
+one event on a panic in a standard IPMI event format.  If you enable
+the 'Generate OEM events containing the panic string' option, you will
+also get a bunch of OEM events holding the panic string.
+
+
+The field settings of the events are:
+* Generator ID: 0x21 (kernel)
+* EvM Rev: 0x03 (this event is formatting in IPMI 1.0 format)
+* Sensor Type: 0x20 (OS critical stop sensor)
+* Sensor #: The first byte of the panic string (0 if no panic string)
+* Event Dir | Event Type: 0x6f (Assertion, sensor-specific event info)
+* Event Data 1: 0xa1 (Runtime stop in OEM bytes 2 and 3)
+* Event data 2: second byte of panic string
+* Event data 3: third byte of panic string
+See the IPMI spec for the details of the event layout.  This event is
+always sent to the local management controller.  It will handle routing
+the message to the right place
+
+Other OEM events have the following format:
+Record ID (bytes 0-1): Set by the SEL.
+Record type (byte 2): 0xf0 (OEM non-timestamped)
+byte 3: The slave address of the card saving the panic
+byte 4: A sequence number (starting at zero)
+The rest of the bytes (11 bytes) are the panic string.  If the panic string
+is longer than 11 bytes, multiple messages will be sent with increasing
+sequence numbers.
+
+Because you cannot send OEM events using the standard interface, this
+function will attempt to find an SEL and add the events there.  It
+will first query the capabilities of the local management controller.
+If it has an SEL, then they will be stored in the SEL of the local
+management controller.  If not, and the local management controller is
+an event generator, the event receiver from the local management
+controller will be queried and the events sent to the SEL on that
+device.  Otherwise, the events go nowhere since there is nowhere to
+send them.
+
+
+Poweroff
+--------
+
+If the poweroff capability is selected, the IPMI driver will install
+a shutdown function into the standard poweroff function pointer.  This
+is in the ipmi_poweroff module.  When the system requests a powerdown,
+it will send the proper IPMI commands to do this.  This is supported on
+several platforms.
+
+There is a module parameter named "poweroff_control" that may either be zero
+(do a power down) or 2 (do a power cycle, power the system off, then power
+it on in a few seconds).  Setting ipmi_poweroff.poweroff_control=x will do
+the same thing on the kernel command line.  The parameter is also available
+via the proc filesystem in /proc/ipmi/poweroff_control.  Note that if the
+system does not support power cycling, it will always to the power off.
+
+Note that if you have ACPI enabled, the system will prefer using ACPI to
+power off.

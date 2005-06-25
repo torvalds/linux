@@ -66,6 +66,14 @@ Who:	Paul E. McKenney <paulmck@us.ibm.com>
 
 ---------------------------
 
+What:	remove verify_area()
+When:	July 2006
+Files:	Various uaccess.h headers.
+Why:	Deprecated and redundant. access_ok() should be used instead.
+Who:	Jesper Juhl <juhl-lkml@dif.dk>
+
+---------------------------
+
 What:	IEEE1394 Audio and Music Data Transmission Protocol driver,
 	Connection Management Procedures driver
 When:	November 2005
@@ -83,6 +91,16 @@ Why:	Deprecated in favour of the new ioctl-based rawiso interface, which is
 	more efficient.  You should really be using libraw1394 for raw1394
 	access anyway.
 Who:	Jody McIntyre <scjody@steamballoon.com>
+
+---------------------------
+
+What:	register_serial/unregister_serial
+When:	December 2005
+Why:	This interface does not allow serial ports to be registered against
+	a struct device, and as such does not allow correct power management
+	of such ports.  8250-based ports should use serial8250_register_port
+	and serial8250_unregister_port instead.
+Who:	Russell King <rmk@arm.linux.org.uk>
 
 ---------------------------
 

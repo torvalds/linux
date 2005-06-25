@@ -178,7 +178,7 @@ void __iomem * __ioremap(unsigned long phys_addr, unsigned long size, unsigned l
 	if (phys_addr >= ISA_START_ADDRESS && last_addr < ISA_END_ADDRESS)
 		return (__force void __iomem *)phys_to_virt(phys_addr);
 
-#ifndef CONFIG_DISCONTIGMEM
+#ifdef CONFIG_FLATMEM
 	/*
 	 * Don't allow anybody to remap normal RAM that we're using..
 	 */

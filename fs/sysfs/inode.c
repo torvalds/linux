@@ -166,16 +166,6 @@ int sysfs_create(struct dentry * dentry, int mode, int (*init)(struct inode *))
 	return error;
 }
 
-struct dentry * sysfs_get_dentry(struct dentry * parent, const char * name)
-{
-	struct qstr qstr;
-
-	qstr.name = name;
-	qstr.len = strlen(name);
-	qstr.hash = full_name_hash(name,qstr.len);
-	return lookup_hash(&qstr,parent);
-}
-
 /*
  * Get the name for corresponding element represented by the given sysfs_dirent
  */

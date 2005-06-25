@@ -246,7 +246,7 @@ struct mm_struct {
 
 	unsigned long saved_auxv[42]; /* for /proc/PID/auxv */
 
-	unsigned dumpable:1;
+	unsigned dumpable:2;
 	cpumask_t cpu_vm_mask;
 
 	/* Architecture-specific MM context */
@@ -561,9 +561,10 @@ struct group_info {
 		groups_free(group_info); \
 } while (0)
 
-struct group_info *groups_alloc(int gidsetsize);
-void groups_free(struct group_info *group_info);
-int set_current_groups(struct group_info *group_info);
+extern struct group_info *groups_alloc(int gidsetsize);
+extern void groups_free(struct group_info *group_info);
+extern int set_current_groups(struct group_info *group_info);
+extern int groups_search(struct group_info *group_info, gid_t grp);
 /* access the groups "array" with this macro */
 #define GROUP_AT(gi, i) \
     ((gi)->blocks[(i)/NGROUPS_PER_BLOCK][(i)%NGROUPS_PER_BLOCK])
@@ -660,6 +661,7 @@ struct task_struct {
 	struct user_struct *user;
 #ifdef CONFIG_KEYS
 	struct key *thread_keyring;	/* keyring private to this thread */
+	unsigned char jit_keyring;	/* default keyring to attach requested keys to */
 #endif
 	int oomkilladj; /* OOM kill score adjustment (bit shift). */
 	char comm[TASK_COMM_LEN]; /* executable name excluding path

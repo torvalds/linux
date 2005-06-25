@@ -492,7 +492,7 @@ config SGI_SN0_N_MODE
 	  which allows for more memory.  Your system is most probably
 	  running in M-Mode, so you should say N here.
 
-config DISCONTIGMEM
+config ARCH_DISCONTIGMEM_ENABLE
 	bool
 	default y if SGI_IP27
 	help

@@ -314,7 +314,7 @@ static int may_ptrace_attach(struct task_struct *task)
 	     (current->gid != task->gid)) && !capable(CAP_SYS_PTRACE))
 		goto out;
 	rmb();
-	if (!task->mm->dumpable && !capable(CAP_SYS_PTRACE))
+	if (task->mm->dumpable != 1 && !capable(CAP_SYS_PTRACE))
 		goto out;
 	if (security_ptrace(current, task))
 		goto out;
@@ -1113,7 +1113,9 @@ static int task_dumpable(struct task_struct *task)
 	if (mm)
 		dumpable = mm->dumpable;
 	task_unlock(task);
-	return dumpable;
+	if(dumpable == 1)
+		return 1;
+	return 0;
 }
 
 

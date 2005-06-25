@@ -68,7 +68,6 @@ config X86_VOYAGER
 
 config X86_NUMAQ
 	bool "NUMAQ (IBM/Sequent)"
-	select DISCONTIGMEM
 	select NUMA
 	help
 	  This option is used for getting Linux to run on a (IBM/Sequent) NUMA
@@ -783,25 +782,48 @@ comment "NUMA (NUMA-Q) requires SMP, 64GB highmem support"
 comment "NUMA (Summit) requires SMP, 64GB highmem support, ACPI"
 	depends on X86_SUMMIT && (!HIGHMEM64G || !ACPI)
 
-config DISCONTIGMEM
-	bool
-	depends on NUMA
-	default y
-
 config HAVE_ARCH_BOOTMEM_NODE
 	bool
 	depends on NUMA
 	default y
 
-config HAVE_MEMORY_PRESENT
+config ARCH_HAVE_MEMORY_PRESENT
 	bool
 	depends on DISCONTIGMEM
 	default y
 
 config NEED_NODE_MEMMAP_SIZE
 	bool
-	depends on DISCONTIGMEM
+	depends on DISCONTIGMEM || SPARSEMEM
 	default y
+
+config HAVE_ARCH_ALLOC_REMAP
+	bool
+	depends on NUMA
+	default y
+
+config ARCH_DISCONTIGMEM_ENABLE
+	def_bool y
+	depends on NUMA
+
+config ARCH_DISCONTIGMEM_DEFAULT
+	def_bool y
+	depends on NUMA
+
+config ARCH_SPARSEMEM_ENABLE
+	def_bool y
+	depends on NUMA
+
+config ARCH_SELECT_MEMORY_MODEL
+	def_bool y
+	depends on ARCH_SPARSEMEM_ENABLE
+
+source "mm/Kconfig"
+
+config HAVE_ARCH_EARLY_PFN_TO_NID
+	bool
+	default y
+	depends on NUMA
 
 config HIGHPTE
 	bool "Allocate 3rd-level pagetables from highmem"
@@ -938,6 +960,8 @@ config SECCOMP
 	  defined by each seccomp mode.
 
 	  If unsure, say Y. Only embedded should say N here.
+
+source kernel/Kconfig.hz
 
 endmenu
 

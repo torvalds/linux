@@ -40,6 +40,8 @@
 #include <linux/acpi.h>
 #include <linux/kallsyms.h>
 #include <linux/edd.h>
+#include <linux/mmzone.h>
+
 #include <asm/mtrr.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -348,7 +350,7 @@ static __init void parse_cmdline_early (char ** cmdline_p)
 		if (!memcmp(from, "mem=", 4))
 			parse_memopt(from+4, &from); 
 
-#ifdef CONFIG_DISCONTIGMEM
+#ifdef CONFIG_NUMA
 		if (!memcmp(from, "numa=", 5))
 			numa_setup(from+5); 
 #endif
@@ -377,17 +379,20 @@ static __init void parse_cmdline_early (char ** cmdline_p)
 	*cmdline_p = command_line;
 }
 
-#ifndef CONFIG_DISCONTIGMEM
-static void __init contig_initmem_init(void)
+#ifndef CONFIG_NUMA
+static void __init
+contig_initmem_init(unsigned long start_pfn, unsigned long end_pfn)
 {
-        unsigned long bootmap_size, bootmap; 
-        bootmap_size = bootmem_bootmap_pages(end_pfn)<<PAGE_SHIFT;
-        bootmap = find_e820_area(0, end_pfn<<PAGE_SHIFT, bootmap_size);
-        if (bootmap == -1L) 
-                panic("Cannot find bootmem map of size %ld\n",bootmap_size);
-        bootmap_size = init_bootmem(bootmap >> PAGE_SHIFT, end_pfn);
-        e820_bootmem_free(&contig_page_data, 0, end_pfn << PAGE_SHIFT); 
-        reserve_bootmem(bootmap, bootmap_size);
+	unsigned long bootmap_size, bootmap;
+
+	memory_present(0, start_pfn, end_pfn);
+	bootmap_size = bootmem_bootmap_pages(end_pfn)<<PAGE_SHIFT;
+	bootmap = find_e820_area(0, end_pfn<<PAGE_SHIFT, bootmap_size);
+	if (bootmap == -1L)
+		panic("Cannot find bootmem map of size %ld\n",bootmap_size);
+	bootmap_size = init_bootmem(bootmap >> PAGE_SHIFT, end_pfn);
+	e820_bootmem_free(NODE_DATA(0), 0, end_pfn << PAGE_SHIFT);
+	reserve_bootmem(bootmap, bootmap_size);
 } 
 #endif
 
@@ -554,10 +559,10 @@ void __init setup_arch(char **cmdline_p)
 	acpi_numa_init();
 #endif
 
-#ifdef CONFIG_DISCONTIGMEM
+#ifdef CONFIG_NUMA
 	numa_initmem_init(0, end_pfn); 
 #else
-	contig_initmem_init(); 
+	contig_initmem_init(0, end_pfn);
 #endif
 
 	/* Reserve direct mapping */
@@ -618,6 +623,8 @@ void __init setup_arch(char **cmdline_p)
 		}
 	}
 #endif
+
+	sparse_init();
 	paging_init();
 
 	check_ioapic();

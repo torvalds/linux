@@ -78,7 +78,6 @@ struct genapic {
 	.int_delivery_mode = INT_DELIVERY_MODE, \
 	.int_dest_mode = INT_DEST_MODE, \
 	.no_balance_irq = NO_BALANCE_IRQ, \
-	.no_ioapic_check = NO_IOAPIC_CHECK, \
 	.ESR_DISABLE = esr_disable, \
 	.apic_destination_logical = APIC_DEST_LOGICAL, \
 	APICFUNC(apic_id_registered), \

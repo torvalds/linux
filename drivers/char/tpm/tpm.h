@@ -25,23 +25,38 @@
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
 
-#define TPM_TIMEOUT msecs_to_jiffies(5)
+enum tpm_timeout {
+	TPM_TIMEOUT = 5,	/* msecs */
+};
 
 /* TPM addresses */
-#define	TPM_ADDR			0x4E
-#define	TPM_DATA			0x4F
+enum tpm_addr {
+	TPM_ADDR = 0x4E,
+	TPM_DATA = 0x4F
+};
+
+extern ssize_t tpm_show_pubek(struct device *, struct device_attribute *attr,
+				char *);
+extern ssize_t tpm_show_pcrs(struct device *, struct device_attribute *attr,
+				char *);
+extern ssize_t tpm_show_caps(struct device *, struct device_attribute *attr,
+				char *);
+extern ssize_t tpm_store_cancel(struct device *, struct device_attribute *attr,
+				const char *, size_t);
 
 struct tpm_chip;
 
 struct tpm_vendor_specific {
 	u8 req_complete_mask;
 	u8 req_complete_val;
+	u8 req_canceled;
 	u16 base;		/* TPM base address */
 
 	int (*recv) (struct tpm_chip *, u8 *, size_t);
 	int (*send) (struct tpm_chip *, u8 *, size_t);
 	void (*cancel) (struct tpm_chip *);
 	struct miscdevice miscdev;
+	struct attribute_group *attr_group;
 };
 
 struct tpm_chip {
@@ -58,8 +73,6 @@ struct tpm_chip {
 
 	struct timer_list user_read_timer;	/* user needs to claim result */
 	struct semaphore tpm_mutex;	/* tpm is processing */
-	struct timer_list device_timer;	/* tpm is processing */
-	struct semaphore timer_manipulation_mutex;
 
 	struct tpm_vendor_specific *vendor;
 
@@ -77,9 +90,6 @@ static inline void tpm_write_index(int index, int value)
 	outb(index, TPM_ADDR);
 	outb(value & 0xFF, TPM_DATA);
 }
-
-extern void tpm_time_expired(unsigned long);
-extern int tpm_lpc_bus_init(struct pci_dev *, u16);
 
 extern int tpm_register_hardware(struct pci_dev *,
 				 struct tpm_vendor_specific *);

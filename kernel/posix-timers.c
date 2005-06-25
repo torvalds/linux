@@ -89,23 +89,6 @@ static struct idr posix_timers_id;
 static DEFINE_SPINLOCK(idr_lock);
 
 /*
- * Just because the timer is not in the timer list does NOT mean it is
- * inactive.  It could be in the "fire" routine getting a new expire time.
- */
-#define TIMER_INACTIVE 1
-
-#ifdef CONFIG_SMP
-# define timer_active(tmr) \
-		((tmr)->it.real.timer.entry.prev != (void *)TIMER_INACTIVE)
-# define set_timer_inactive(tmr) \
-		do { \
-			(tmr)->it.real.timer.entry.prev = (void *)TIMER_INACTIVE; \
-		} while (0)
-#else
-# define timer_active(tmr) BARFY	// error to use outside of SMP
-# define set_timer_inactive(tmr) do { } while (0)
-#endif
-/*
  * we assume that the new SIGEV_THREAD_ID shares no bits with the other
  * SIGEV values.  Here we put out an error if this assumption fails.
  */
@@ -226,7 +209,6 @@ static inline int common_timer_create(struct k_itimer *new_timer)
 	init_timer(&new_timer->it.real.timer);
 	new_timer->it.real.timer.data = (unsigned long) new_timer;
 	new_timer->it.real.timer.function = posix_timer_fn;
-	set_timer_inactive(new_timer);
 	return 0;
 }
 
@@ -480,7 +462,6 @@ static void posix_timer_fn(unsigned long __data)
 	int do_notify = 1;
 
 	spin_lock_irqsave(&timr->it_lock, flags);
- 	set_timer_inactive(timr);
 	if (!list_empty(&timr->it.real.abs_timer_entry)) {
 		spin_lock(&abs_list.lock);
 		do {
@@ -983,8 +964,8 @@ common_timer_set(struct k_itimer *timr, int flags,
 	 * careful here.  If smp we could be in the "fire" routine which will
 	 * be spinning as we hold the lock.  But this is ONLY an SMP issue.
 	 */
+	if (try_to_del_timer_sync(&timr->it.real.timer) < 0) {
 #ifdef CONFIG_SMP
-	if (timer_active(timr) && !del_timer(&timr->it.real.timer))
 		/*
 		 * It can only be active if on an other cpu.  Since
 		 * we have cleared the interval stuff above, it should
@@ -994,11 +975,9 @@ common_timer_set(struct k_itimer *timr, int flags,
 		 * a "retry" exit status.
 		 */
 		return TIMER_RETRY;
-
-	set_timer_inactive(timr);
-#else
-	del_timer(&timr->it.real.timer);
 #endif
+	}
+
 	remove_from_abslist(timr);
 
 	timr->it_requeue_pending = (timr->it_requeue_pending + 2) & 
@@ -1083,8 +1062,9 @@ retry:
 static inline int common_timer_del(struct k_itimer *timer)
 {
 	timer->it.real.incr = 0;
+
+	if (try_to_del_timer_sync(&timer->it.real.timer) < 0) {
 #ifdef CONFIG_SMP
-	if (timer_active(timer) && !del_timer(&timer->it.real.timer))
 		/*
 		 * It can only be active if on an other cpu.  Since
 		 * we have cleared the interval stuff above, it should
@@ -1094,9 +1074,9 @@ static inline int common_timer_del(struct k_itimer *timer)
 		 * a "retry" exit status.
 		 */
 		return TIMER_RETRY;
-#else
-	del_timer(&timer->it.real.timer);
 #endif
+	}
+
 	remove_from_abslist(timer);
 
 	return 0;
