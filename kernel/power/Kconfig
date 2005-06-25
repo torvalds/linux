@@ -27,8 +27,8 @@ config PM_DEBUG
 	like suspend support.
 
 config SOFTWARE_SUSPEND
-	bool "Software Suspend (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && PM && SWAP && (SUSPEND_SMP || !SMP)
+	bool "Software Suspend"
+	depends on EXPERIMENTAL && PM && SWAP && ((X86 && SMP) || ((FVR || PPC32 || X86) && !SMP))
 	---help---
 	  Enable the possibility of suspending the machine.
 	  It doesn't need APM.
