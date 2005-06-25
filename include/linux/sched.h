@@ -517,9 +517,15 @@ struct sched_domain {
 	unsigned long alb_failed;
 	unsigned long alb_pushed;
 
-	/* sched_balance_exec() stats */
-	unsigned long sbe_attempts;
+	/* SD_BALANCE_EXEC stats */
+	unsigned long sbe_cnt;
+	unsigned long sbe_balanced;
 	unsigned long sbe_pushed;
+
+	/* SD_BALANCE_FORK stats */
+	unsigned long sbf_cnt;
+	unsigned long sbf_balanced;
+	unsigned long sbf_pushed;
 
 	/* try_to_wake_up() stats */
 	unsigned long ttwu_wake_remote;

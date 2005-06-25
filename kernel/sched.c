@@ -309,7 +309,7 @@ static inline void task_rq_unlock(runqueue_t *rq, unsigned long *flags)
  * bump this up when changing the output format or the meaning of an existing
  * format, so that tools can adapt (or abort)
  */
-#define SCHEDSTAT_VERSION 11
+#define SCHEDSTAT_VERSION 12
 
 static int show_schedstat(struct seq_file *seq, void *v)
 {
@@ -356,9 +356,10 @@ static int show_schedstat(struct seq_file *seq, void *v)
 				    sd->lb_nobusyq[itype],
 				    sd->lb_nobusyg[itype]);
 			}
-			seq_printf(seq, " %lu %lu %lu %lu %lu %lu %lu %lu\n",
+			seq_printf(seq, " %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu\n",
 			    sd->alb_cnt, sd->alb_failed, sd->alb_pushed,
-			    sd->sbe_pushed, sd->sbe_attempts,
+			    sd->sbe_cnt, sd->sbe_balanced, sd->sbe_pushed,
+			    sd->sbf_cnt, sd->sbf_balanced, sd->sbf_pushed,
 			    sd->ttwu_wake_remote, sd->ttwu_move_affine, sd->ttwu_move_balance);
 		}
 #endif
@@ -1264,24 +1265,34 @@ void fastcall wake_up_new_task(task_t * p, unsigned long clone_flags)
 			sd = tmp;
 
 	if (sd) {
+		int new_cpu;
 		struct sched_group *group;
 
+		schedstat_inc(sd, sbf_cnt);
 		cpu = task_cpu(p);
 		group = find_idlest_group(sd, p, cpu);
-		if (group) {
-			int new_cpu;
-			new_cpu = find_idlest_cpu(group, cpu);
-			if (new_cpu != -1 && new_cpu != cpu &&
-					cpu_isset(new_cpu, p->cpus_allowed)) {
-				set_task_cpu(p, new_cpu);
-				task_rq_unlock(rq, &flags);
-				rq = task_rq_lock(p, &flags);
-				cpu = task_cpu(p);
-			}
+		if (!group) {
+			schedstat_inc(sd, sbf_balanced);
+			goto no_forkbalance;
+		}
+
+		new_cpu = find_idlest_cpu(group, cpu);
+		if (new_cpu == -1 || new_cpu == cpu) {
+			schedstat_inc(sd, sbf_balanced);
+			goto no_forkbalance;
+		}
+
+		if (cpu_isset(new_cpu, p->cpus_allowed)) {
+			schedstat_inc(sd, sbf_pushed);
+			set_task_cpu(p, new_cpu);
+			task_rq_unlock(rq, &flags);
+			rq = task_rq_lock(p, &flags);
+			cpu = task_cpu(p);
 		}
 	}
-#endif
 
+no_forkbalance:
+#endif
 	/*
 	 * We decrease the sleep average of forking parents
 	 * and children as well, to keep max-interactive tasks
@@ -1618,30 +1629,28 @@ void sched_exec(void)
 	struct sched_domain *tmp, *sd = NULL;
 	int new_cpu, this_cpu = get_cpu();
 
-	/* Prefer the current CPU if there's only this task running */
-	if (this_rq()->nr_running <= 1)
-		goto out;
-
 	for_each_domain(this_cpu, tmp)
 		if (tmp->flags & SD_BALANCE_EXEC)
 			sd = tmp;
 
 	if (sd) {
 		struct sched_group *group;
-		schedstat_inc(sd, sbe_attempts);
+		schedstat_inc(sd, sbe_cnt);
 		group = find_idlest_group(sd, current, this_cpu);
-		if (!group)
+		if (!group) {
+			schedstat_inc(sd, sbe_balanced);
 			goto out;
-		new_cpu = find_idlest_cpu(group, this_cpu);
-		if (new_cpu == -1)
-			goto out;
-
-		if (new_cpu != this_cpu) {
-			schedstat_inc(sd, sbe_pushed);
-			put_cpu();
-			sched_migrate_task(current, new_cpu);
-			return;
 		}
+		new_cpu = find_idlest_cpu(group, this_cpu);
+		if (new_cpu == -1 || new_cpu == this_cpu) {
+			schedstat_inc(sd, sbe_balanced);
+			goto out;
+		}
+
+		schedstat_inc(sd, sbe_pushed);
+		put_cpu();
+		sched_migrate_task(current, new_cpu);
+		return;
 	}
 out:
 	put_cpu();
