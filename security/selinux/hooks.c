@@ -2488,6 +2488,16 @@ static int selinux_file_mprotect(struct vm_area_struct *vma,
 		if (rc)
 			return rc;
 	}
+	if (!vma->vm_file && (prot & PROT_EXEC) &&
+		vma->vm_start <= vma->vm_mm->start_stack &&
+		vma->vm_end >= vma->vm_mm->start_stack) {
+		/* Attempt to make the process stack executable.
+		 * This has an additional execstack check.
+		 */
+		rc = task_has_perm(current, current, PROCESS__EXECSTACK);
+		if (rc)
+			return rc;
+	}
 #endif
 
 	return file_map_prot_check(vma->vm_file, prot, vma->vm_flags&VM_SHARED);
