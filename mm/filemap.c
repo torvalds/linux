@@ -1851,8 +1851,11 @@ generic_file_direct_write(struct kiocb *iocb, const struct iovec *iov,
 	 * i_sem is held, which protects generic_osync_inode() from
 	 * livelocking.
 	 */
-	if (written >= 0 && file->f_flags & O_SYNC)
-		generic_osync_inode(inode, mapping, OSYNC_METADATA);
+	if (written >= 0 && ((file->f_flags & O_SYNC) || IS_SYNC(inode))) {
+		int err = generic_osync_inode(inode, mapping, OSYNC_METADATA);
+		if (err < 0)
+			written = err;
+	}
 	if (written == count && !is_sync_kiocb(iocb))
 		written = -EIOCBQUEUED;
 	return written;
