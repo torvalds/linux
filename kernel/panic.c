@@ -83,7 +83,7 @@ NORET_TYPE void panic(const char * fmt, ...)
 	 * everything else.
 	 * Do we want to call this before we try to display a message?
 	 */
-	crash_kexec();
+	crash_kexec(NULL);
 
 #ifdef CONFIG_SMP
 	/*

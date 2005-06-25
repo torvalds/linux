@@ -100,7 +100,7 @@ static struct sysrq_key_op sysrq_unraw_op = {
 static void sysrq_handle_crashdump(int key, struct pt_regs *pt_regs,
 				struct tty_struct *tty)
 {
-	crash_kexec();
+	crash_kexec(pt_regs);
 }
 static struct sysrq_key_op sysrq_crashdump_op = {
 	.handler	= sysrq_handle_crashdump,

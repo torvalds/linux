@@ -52,7 +52,8 @@ extern void machine_halt(void);
 extern void machine_power_off(void);
 
 extern void machine_shutdown(void);
-extern void machine_crash_shutdown(void);
+struct pt_regs;
+extern void machine_crash_shutdown(struct pt_regs *);
 
 #endif
 

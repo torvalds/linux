@@ -34,7 +34,7 @@ void machine_shutdown(void)
 	}
 }
 
-void machine_crash_shutdown(void)
+void machine_crash_shutdown(struct pt_regs *regs)
 {
 	if (ppc_md.machine_crash_shutdown) {
 		ppc_md.machine_crash_shutdown();

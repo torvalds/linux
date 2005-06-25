@@ -34,7 +34,7 @@ note_buf_t crash_notes[NR_CPUS];
  * and if what it will achieve. Letting it be now to compile the code
  * in generic kexec environment
  */
-void machine_crash_shutdown(void)
+void machine_crash_shutdown(struct pt_regs *regs)
 {
 	/* do nothing right now */
 	/* smp_relase_cpus() if we want smp on panic kernel */

@@ -99,7 +99,8 @@ extern asmlinkage long compat_sys_kexec_load(unsigned long entry,
 	unsigned long flags);
 #endif
 extern struct page *kimage_alloc_control_pages(struct kimage *image, unsigned int order);
-extern void crash_kexec(void);
+extern void crash_kexec(struct pt_regs *);
+int kexec_should_crash(struct task_struct *);
 extern struct kimage *kexec_image;
 
 #define KEXEC_ON_CRASH  0x00000001
@@ -123,6 +124,9 @@ extern struct kimage *kexec_image;
 extern struct resource crashk_res;
 
 #else /* !CONFIG_KEXEC */
-static inline void crash_kexec(void) { }
+struct pt_regs;
+struct task_struct;
+static inline void crash_kexec(struct pt_regs *regs) { }
+static inline int kexec_should_crash(struct task_struct *p) { return 0; }
 #endif /* CONFIG_KEXEC */
 #endif /* LINUX_KEXEC_H */

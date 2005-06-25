@@ -100,12 +100,31 @@ static void crash_get_current_regs(struct pt_regs *regs)
 	regs->eip = (unsigned long)current_text_addr();
 }
 
-static void crash_save_self(void)
+/* CPU does not save ss and esp on stack if execution is already
+ * running in kernel mode at the time of NMI occurrence. This code
+ * fixes it.
+ */
+static void crash_setup_regs(struct pt_regs *newregs, struct pt_regs *oldregs)
+{
+	memcpy(newregs, oldregs, sizeof(*newregs));
+	newregs->esp = (unsigned long)&(oldregs->esp);
+	__asm__ __volatile__("xorl %eax, %eax;");
+	__asm__ __volatile__ ("movw %%ss, %%ax;" :"=a"(newregs->xss));
+}
+
+/* We may have saved_regs from where the error came from
+ * or it is NULL if via a direct panic().
+ */
+static void crash_save_self(struct pt_regs *saved_regs)
 {
 	struct pt_regs regs;
 	int cpu;
 	cpu = smp_processor_id();
-	crash_get_current_regs(&regs);
+
+	if (saved_regs)
+		crash_setup_regs(&regs, saved_regs);
+	else
+		crash_get_current_regs(&regs);
 	crash_save_this_cpu(&regs, cpu);
 }
 
@@ -124,15 +143,8 @@ static int crash_nmi_callback(struct pt_regs *regs, int cpu)
 		return 1;
 	local_irq_disable();
 
-	/* CPU does not save ss and esp on stack if execution is already
-	 * running in kernel mode at the time of NMI occurrence. This code
-	 * fixes it.
-	 */
 	if (!user_mode(regs)) {
-		memcpy(&fixed_regs, regs, sizeof(*regs));
-		fixed_regs.esp = (unsigned long)&(regs->esp);
-		__asm__ __volatile__("xorl %eax, %eax;");
-		__asm__ __volatile__ ("movw %%ss, %%ax;" :"=a"(fixed_regs.xss));
+		crash_setup_regs(&fixed_regs, regs);
 		regs = &fixed_regs;
 	}
 	crash_save_this_cpu(regs, cpu);
@@ -184,7 +196,7 @@ static void nmi_shootdown_cpus(void)
 }
 #endif
 
-void machine_crash_shutdown(void)
+void machine_crash_shutdown(struct pt_regs *regs)
 {
 	/* This function is only called after the system
 	 * has paniced or is otherwise in a critical state.
@@ -204,5 +216,5 @@ void machine_crash_shutdown(void)
 #if defined(CONFIG_X86_IO_APIC)
 	disable_IO_APIC();
 #endif
-	crash_save_self();
+	crash_save_self(regs);
 }

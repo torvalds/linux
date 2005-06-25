@@ -27,6 +27,7 @@
 #include <linux/ptrace.h>
 #include <linux/utsname.h>
 #include <linux/kprobes.h>
+#include <linux/kexec.h>
 
 #ifdef CONFIG_EISA
 #include <linux/ioport.h>
@@ -294,6 +295,9 @@ bug:
 	printk("Kernel BUG\n");
 }
 
+/* This is gone through when something in the kernel
+ * has done something bad and is about to be terminated.
+*/
 void die(const char * str, struct pt_regs * regs, long err)
 {
 	static struct {
@@ -341,6 +345,10 @@ void die(const char * str, struct pt_regs * regs, long err)
 	bust_spinlocks(0);
 	die.lock_owner = -1;
 	spin_unlock_irq(&die.lock);
+
+	if (kexec_should_crash(current))
+		crash_kexec(regs);
+
 	if (in_interrupt())
 		panic("Fatal exception in interrupt");
 
@@ -570,6 +578,15 @@ void die_nmi (struct pt_regs *regs, const char *msg)
 	console_silent();
 	spin_unlock(&nmi_print_lock);
 	bust_spinlocks(0);
+
+	/* If we are in kernel we are probably nested up pretty bad
+	 * and might aswell get out now while we still can.
+	*/
+	if (!user_mode(regs)) {
+		current->thread.trap_no = 2;
+		crash_kexec(regs);
+	}
+
 	do_exit(SIGSEGV);
 }
 

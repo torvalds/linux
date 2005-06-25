@@ -18,6 +18,8 @@
 #include <linux/reboot.h>
 #include <linux/syscalls.h>
 #include <linux/ioport.h>
+#include <linux/hardirq.h>
+
 #include <asm/page.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -31,6 +33,13 @@ struct resource crashk_res = {
 	.end   = 0,
 	.flags = IORESOURCE_BUSY | IORESOURCE_MEM
 };
+
+int kexec_should_crash(struct task_struct *p)
+{
+	if (in_interrupt() || !p->pid || p->pid == 1 || panic_on_oops)
+		return 1;
+	return 0;
+}
 
 /*
  * When kexec transitions to the new kernel there is a one-to-one
@@ -1010,7 +1019,7 @@ asmlinkage long compat_sys_kexec_load(unsigned long entry,
 }
 #endif
 
-void crash_kexec(void)
+void crash_kexec(struct pt_regs *regs)
 {
 	struct kimage *image;
 	int locked;
@@ -1028,7 +1037,7 @@ void crash_kexec(void)
 	if (!locked) {
 		image = xchg(&kexec_crash_image, NULL);
 		if (image) {
-			machine_crash_shutdown();
+			machine_crash_shutdown(regs);
 			machine_kexec(image);
 		}
 		xchg(&kexec_lock, 0);

@@ -22,7 +22,7 @@
 
 note_buf_t crash_notes[NR_CPUS];
 
-void machine_crash_shutdown(void)
+void machine_crash_shutdown(struct pt_regs *regs)
 {
 	/* This function is only called after the system
 	 * has paniced or is otherwise in a critical state.
