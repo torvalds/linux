@@ -44,6 +44,7 @@
 #include <linux/edd.h>
 #include <linux/nodemask.h>
 #include <linux/kexec.h>
+#include <linux/crash_dump.h>
 
 #include <video/edid.h>
 
@@ -880,6 +881,13 @@ static void __init parse_cmdline_early (char ** cmdline_p)
 				crashk_res.end   = base + size - 1;
 			}
 		}
+#endif
+#ifdef CONFIG_CRASH_DUMP
+		/* elfcorehdr= specifies the location of elf core header
+		 * stored by the crashed kernel.
+		 */
+		else if (!memcmp(from, "elfcorehdr=", 11))
+			elfcorehdr_addr = memparse(from+11, &from);
 #endif
 
 		/*

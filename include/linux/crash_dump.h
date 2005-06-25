@@ -7,6 +7,7 @@
 #include <linux/device.h>
 #include <linux/proc_fs.h>
 
+extern unsigned long long elfcorehdr_addr;
 extern ssize_t copy_oldmem_page(unsigned long, char *, size_t,
 						unsigned long, int);
 #endif /* CONFIG_CRASH_DUMP */

@@ -451,6 +451,10 @@ running once the system is up.
 			Format: {"as"|"cfq"|"deadline"|"noop"}
 			See Documentation/block/as-iosched.txt
 			and Documentation/block/deadline-iosched.txt for details.
+	elfcorehdr=	[IA-32]
+			Specifies physical address of start of kernel core image
+			elf header.
+			See Documentation/kdump.txt for details.
 
 	enforcing	[SELINUX] Set initial enforcing status.
 			Format: {"0" | "1"}
