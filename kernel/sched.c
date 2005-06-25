@@ -1995,7 +1995,7 @@ static int load_balance(int this_cpu, runqueue_t *this_rq,
 			 * We've kicked active balancing, reset the failure
 			 * counter.
 			 */
-			sd->nr_balance_failed = sd->cache_nice_tries;
+			sd->nr_balance_failed = sd->cache_nice_tries+1;
 		}
 	} else
 		sd->nr_balance_failed = 0;
@@ -2106,56 +2106,42 @@ static inline void idle_balance(int this_cpu, runqueue_t *this_rq)
 static void active_load_balance(runqueue_t *busiest_rq, int busiest_cpu)
 {
 	struct sched_domain *sd;
-	struct sched_group *cpu_group;
 	runqueue_t *target_rq;
-	cpumask_t visited_cpus;
-	int cpu;
+	int target_cpu = busiest_rq->push_cpu;
+
+	if (busiest_rq->nr_running <= 1)
+		/* no task to move */
+		return;
+
+	target_rq = cpu_rq(target_cpu);
 
 	/*
-	 * Search for suitable CPUs to push tasks to in successively higher
-	 * domains with SD_LOAD_BALANCE set.
+	 * This condition is "impossible", if it occurs
+	 * we need to fix it.  Originally reported by
+	 * Bjorn Helgaas on a 128-cpu setup.
 	 */
-	visited_cpus = CPU_MASK_NONE;
-	for_each_domain(busiest_cpu, sd) {
-		if (!(sd->flags & SD_LOAD_BALANCE))
-			/* no more domains to search */
-			break;
+	BUG_ON(busiest_rq == target_rq);
 
-		schedstat_inc(sd, alb_cnt);
+	/* move a task from busiest_rq to target_rq */
+	double_lock_balance(busiest_rq, target_rq);
 
-		cpu_group = sd->groups;
-		do {
-			for_each_cpu_mask(cpu, cpu_group->cpumask) {
-				if (busiest_rq->nr_running <= 1)
-					/* no more tasks left to move */
-					return;
-				if (cpu_isset(cpu, visited_cpus))
-					continue;
-				cpu_set(cpu, visited_cpus);
-				if (!cpu_and_siblings_are_idle(cpu) || cpu == busiest_cpu)
-					continue;
+	/* Search for an sd spanning us and the target CPU. */
+	for_each_domain(target_cpu, sd)
+		if ((sd->flags & SD_LOAD_BALANCE) &&
+			cpu_isset(busiest_cpu, sd->span))
+				break;
 
-				target_rq = cpu_rq(cpu);
-				/*
-				 * This condition is "impossible", if it occurs
-				 * we need to fix it.  Originally reported by
-				 * Bjorn Helgaas on a 128-cpu setup.
-				 */
-				BUG_ON(busiest_rq == target_rq);
+	if (unlikely(sd == NULL))
+		goto out;
 
-				/* move a task from busiest_rq to target_rq */
-				double_lock_balance(busiest_rq, target_rq);
-				if (move_tasks(target_rq, cpu, busiest_rq,
-						1, sd, SCHED_IDLE, NULL)) {
-					schedstat_inc(sd, alb_pushed);
-				} else {
-					schedstat_inc(sd, alb_failed);
-				}
-				spin_unlock(&target_rq->lock);
-			}
-			cpu_group = cpu_group->next;
-		} while (cpu_group != sd->groups);
-	}
+	schedstat_inc(sd, alb_cnt);
+
+	if (move_tasks(target_rq, target_cpu, busiest_rq, 1, sd, SCHED_IDLE, NULL))
+		schedstat_inc(sd, alb_pushed);
+	else
+		schedstat_inc(sd, alb_failed);
+out:
+	spin_unlock(&target_rq->lock);
 }
 
 /*
