@@ -235,22 +235,22 @@ void show_registers(struct pt_regs *regs)
 	 * time of the fault..
 	 */
 	if (in_kernel) {
-		u8 *eip;
+		u8 __user *eip;
 
 		printk("\nStack: ");
 		show_stack(NULL, (unsigned long*)esp);
 
 		printk("Code: ");
 
-		eip = (u8 *)regs->eip - 43;
+		eip = (u8 __user *)regs->eip - 43;
 		for (i = 0; i < 64; i++, eip++) {
 			unsigned char c;
 
-			if (eip < (u8 *)PAGE_OFFSET || __get_user(c, eip)) {
+			if (eip < (u8 __user *)PAGE_OFFSET || __get_user(c, eip)) {
 				printk(" Bad EIP value.");
 				break;
 			}
-			if (eip == (u8 *)regs->eip)
+			if (eip == (u8 __user *)regs->eip)
 				printk("<%02x> ", c);
 			else
 				printk("%02x ", c);
@@ -274,13 +274,13 @@ static void handle_BUG(struct pt_regs *regs)
 
 	if (eip < PAGE_OFFSET)
 		goto no_bug;
-	if (__get_user(ud2, (unsigned short *)eip))
+	if (__get_user(ud2, (unsigned short __user *)eip))
 		goto no_bug;
 	if (ud2 != 0x0b0f)
 		goto no_bug;
-	if (__get_user(line, (unsigned short *)(eip + 2)))
+	if (__get_user(line, (unsigned short __user *)(eip + 2)))
 		goto bug;
-	if (__get_user(file, (char **)(eip + 4)) ||
+	if (__get_user(file, (char * __user *)(eip + 4)) ||
 		(unsigned long)file < PAGE_OFFSET || __get_user(c, file))
 		file = "<bad filename>";
 
