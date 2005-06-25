@@ -414,6 +414,7 @@ static void __init dmi_decode(struct dmi_header *dm)
 			dmi_save_ident(dm, DMI_PRODUCT_VERSION, 6);
 			dmi_printk(("Serial Number: %s\n",
 				dmi_string(dm, data[7])));
+			dmi_save_ident(dm, DMI_PRODUCT_SERIAL, 7);
 			break;
 		case 2:
 			dmi_printk(("Board Vendor: %s\n",
@@ -470,7 +471,6 @@ fail:		d++;
 
 	return count;
 }
-
 EXPORT_SYMBOL(dmi_check_system);
 
 /**
@@ -480,8 +480,8 @@ EXPORT_SYMBOL(dmi_check_system);
  *	Returns one DMI data value, can be used to perform
  *	complex DMI data checks.
  */
-char * dmi_get_system_info(int field)
+char *dmi_get_system_info(int field)
 {
 	return dmi_ident[field];
 }
-
+EXPORT_SYMBOL(dmi_get_system_info);
