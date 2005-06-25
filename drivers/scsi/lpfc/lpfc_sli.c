@@ -904,6 +904,7 @@ lpfc_sli_handle_fast_ring_event(struct lpfc_hba * phba,
 {
  	struct lpfc_pgp *pgp = &phba->slim2p->mbx.us.s2.port[pring->ringno];
 	IOCB_t *irsp = NULL;
+	IOCB_t *entry = NULL;
 	struct lpfc_iocbq *cmdiocbq = NULL;
 	struct lpfc_iocbq rspiocbq;
 	uint32_t status;
@@ -948,7 +949,17 @@ lpfc_sli_handle_fast_ring_event(struct lpfc_hba * phba,
 
 	rmb();
 	while (pring->rspidx != portRspPut) {
-		irsp = (IOCB_t *) IOCB_ENTRY(pring->rspringaddr, pring->rspidx);
+		/*
+		 * Fetch an entry off the ring and copy it into a local data
+		 * structure.  The copy involves a byte-swap since the
+		 * network byte order and pci byte orders are different.
+		 */
+		entry = (IOCB_t *) IOCB_ENTRY(pring->rspringaddr, pring->rspidx);
+		lpfc_sli_pcimem_bcopy((uint32_t *) entry,
+				      (uint32_t *) &rspiocbq.iocb,
+				      sizeof (IOCB_t));
+		irsp = &rspiocbq.iocb;
+
 		type = lpfc_sli_iocb_cmd_type(irsp->ulpCommand & CMD_IOCB_MASK);
 		pring->stats.iocb_rsp++;
 		rsp_cmpl++;
@@ -980,10 +991,6 @@ lpfc_sli_handle_fast_ring_event(struct lpfc_hba * phba,
 				break;
 			}
 
-			rspiocbq.iocb.un.ulpWord[4] = irsp->un.ulpWord[4];
-			rspiocbq.iocb.ulpStatus = irsp->ulpStatus;
-			rspiocbq.iocb.ulpContext = irsp->ulpContext;
-			rspiocbq.iocb.ulpIoTag = irsp->ulpIoTag;
 			cmdiocbq = lpfc_sli_txcmpl_ring_iotag_lookup(phba,
 								pring,
 								&rspiocbq);
