@@ -893,6 +893,79 @@ static inline unsigned long target_load(int cpu, int type)
 	return max(rq->cpu_load[type-1], load_now);
 }
 
+/*
+ * find_idlest_group finds and returns the least busy CPU group within the
+ * domain.
+ */
+static struct sched_group *
+find_idlest_group(struct sched_domain *sd, struct task_struct *p, int this_cpu)
+{
+	struct sched_group *idlest = NULL, *this = NULL, *group = sd->groups;
+	unsigned long min_load = ULONG_MAX, this_load = 0;
+	int load_idx = sd->forkexec_idx;
+	int imbalance = 100 + (sd->imbalance_pct-100)/2;
+
+	do {
+		unsigned long load, avg_load;
+		int local_group;
+		int i;
+
+		local_group = cpu_isset(this_cpu, group->cpumask);
+		/* XXX: put a cpus allowed check */
+
+		/* Tally up the load of all CPUs in the group */
+		avg_load = 0;
+
+		for_each_cpu_mask(i, group->cpumask) {
+			/* Bias balancing toward cpus of our domain */
+			if (local_group)
+				load = source_load(i, load_idx);
+			else
+				load = target_load(i, load_idx);
+
+			avg_load += load;
+		}
+
+		/* Adjust by relative CPU power of the group */
+		avg_load = (avg_load * SCHED_LOAD_SCALE) / group->cpu_power;
+
+		if (local_group) {
+			this_load = avg_load;
+			this = group;
+		} else if (avg_load < min_load) {
+			min_load = avg_load;
+			idlest = group;
+		}
+		group = group->next;
+	} while (group != sd->groups);
+
+	if (!idlest || 100*this_load < imbalance*min_load)
+		return NULL;
+	return idlest;
+}
+
+/*
+ * find_idlest_queue - find the idlest runqueue among the cpus in group.
+ */
+static int find_idlest_cpu(struct sched_group *group, int this_cpu)
+{
+	unsigned long load, min_load = ULONG_MAX;
+	int idlest = -1;
+	int i;
+
+	for_each_cpu_mask(i, group->cpumask) {
+		load = source_load(i, 0);
+
+		if (load < min_load || (load == min_load && i == this_cpu)) {
+			min_load = load;
+			idlest = i;
+		}
+	}
+
+	return idlest;
+}
+
+
 #endif
 
 /*
@@ -1107,11 +1180,6 @@ int fastcall wake_up_state(task_t *p, unsigned int state)
 	return try_to_wake_up(p, state, 0);
 }
 
-#ifdef CONFIG_SMP
-static int find_idlest_cpu(struct task_struct *p, int this_cpu,
-			   struct sched_domain *sd);
-#endif
-
 /*
  * Perform scheduler related setup for a newly forked process p.
  * p is forked by current.
@@ -1181,12 +1249,38 @@ void fastcall wake_up_new_task(task_t * p, unsigned long clone_flags)
 	unsigned long flags;
 	int this_cpu, cpu;
 	runqueue_t *rq, *this_rq;
+#ifdef CONFIG_SMP
+	struct sched_domain *tmp, *sd = NULL;
+#endif
 
 	rq = task_rq_lock(p, &flags);
-	cpu = task_cpu(p);
-	this_cpu = smp_processor_id();
-
 	BUG_ON(p->state != TASK_RUNNING);
+	this_cpu = smp_processor_id();
+	cpu = task_cpu(p);
+
+#ifdef CONFIG_SMP
+	for_each_domain(cpu, tmp)
+		if (tmp->flags & SD_BALANCE_FORK)
+			sd = tmp;
+
+	if (sd) {
+		struct sched_group *group;
+
+		cpu = task_cpu(p);
+		group = find_idlest_group(sd, p, cpu);
+		if (group) {
+			int new_cpu;
+			new_cpu = find_idlest_cpu(group, cpu);
+			if (new_cpu != -1 && new_cpu != cpu &&
+					cpu_isset(new_cpu, p->cpus_allowed)) {
+				set_task_cpu(p, new_cpu);
+				task_rq_unlock(rq, &flags);
+				rq = task_rq_lock(p, &flags);
+				cpu = task_cpu(p);
+			}
+		}
+	}
+#endif
 
 	/*
 	 * We decrease the sleep average of forking parents
@@ -1481,51 +1575,6 @@ static void double_lock_balance(runqueue_t *this_rq, runqueue_t *busiest)
 }
 
 /*
- * find_idlest_cpu - find the least busy runqueue.
- */
-static int find_idlest_cpu(struct task_struct *p, int this_cpu,
-			   struct sched_domain *sd)
-{
-	unsigned long load, min_load, this_load;
-	int i, min_cpu;
-	cpumask_t mask;
-
-	min_cpu = UINT_MAX;
-	min_load = ULONG_MAX;
-
-	cpus_and(mask, sd->span, p->cpus_allowed);
-
-	for_each_cpu_mask(i, mask) {
-		load = target_load(i, sd->wake_idx);
-
-		if (load < min_load) {
-			min_cpu = i;
-			min_load = load;
-
-			/* break out early on an idle CPU: */
-			if (!min_load)
-				break;
-		}
-	}
-
-	/* add +1 to account for the new task */
-	this_load = source_load(this_cpu, sd->wake_idx) + SCHED_LOAD_SCALE;
-
-	/*
-	 * Would with the addition of the new task to the
-	 * current CPU there be an imbalance between this
-	 * CPU and the idlest CPU?
-	 *
-	 * Use half of the balancing threshold - new-context is
-	 * a good opportunity to balance.
-	 */
-	if (min_load*(100 + (sd->imbalance_pct-100)/2) < this_load*100)
-		return min_cpu;
-
-	return this_cpu;
-}
-
-/*
  * If dest_cpu is allowed for this process, migrate the task to it.
  * This is accomplished by forcing the cpu_allowed mask to only
  * allow dest_cpu, which will force the cpu onto dest_cpu.  Then
@@ -1578,8 +1627,15 @@ void sched_exec(void)
 			sd = tmp;
 
 	if (sd) {
+		struct sched_group *group;
 		schedstat_inc(sd, sbe_attempts);
-		new_cpu = find_idlest_cpu(current, this_cpu, sd);
+		group = find_idlest_group(sd, current, this_cpu);
+		if (!group)
+			goto out;
+		new_cpu = find_idlest_cpu(group, this_cpu);
+		if (new_cpu == -1)
+			goto out;
+
 		if (new_cpu != this_cpu) {
 			schedstat_inc(sd, sbe_pushed);
 			put_cpu();
@@ -1792,12 +1848,10 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 		if (local_group) {
 			this_load = avg_load;
 			this = group;
-			goto nextgroup;
 		} else if (avg_load > max_load) {
 			max_load = avg_load;
 			busiest = group;
 		}
-nextgroup:
 		group = group->next;
 	} while (group != sd->groups);
 

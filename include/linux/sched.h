@@ -460,10 +460,11 @@ enum idle_type
 #define SD_LOAD_BALANCE		1	/* Do load balancing on this domain. */
 #define SD_BALANCE_NEWIDLE	2	/* Balance when about to become idle */
 #define SD_BALANCE_EXEC		4	/* Balance on exec */
-#define SD_WAKE_IDLE		8	/* Wake to idle CPU on task wakeup */
-#define SD_WAKE_AFFINE		16	/* Wake task to waking CPU */
-#define SD_WAKE_BALANCE		32	/* Perform balancing at task wakeup */
-#define SD_SHARE_CPUPOWER	64	/* Domain members share cpu power */
+#define SD_BALANCE_FORK		8	/* Balance on fork, clone */
+#define SD_WAKE_IDLE		16	/* Wake to idle CPU on task wakeup */
+#define SD_WAKE_AFFINE		32	/* Wake task to waking CPU */
+#define SD_WAKE_BALANCE		64	/* Perform balancing at task wakeup */
+#define SD_SHARE_CPUPOWER	128	/* Domain members share cpu power */
 
 struct sched_group {
 	struct sched_group *next;	/* Must be a circular list */
@@ -492,6 +493,7 @@ struct sched_domain {
 	unsigned int idle_idx;
 	unsigned int newidle_idx;
 	unsigned int wake_idx;
+	unsigned int forkexec_idx;
 	int flags;			/* See SD_* */
 
 	/* Runtime fields. */
