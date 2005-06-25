@@ -59,6 +59,9 @@
 #include "setup_arch_pre.h"
 #include <bios_ebda.h>
 
+/* Forward Declaration. */
+void __init find_max_pfn(void);
+
 /* This value is set up by the early boot code to point to the value
    immediately after the boot time page tables.  It contains a *physical*
    address, and must not be in the .bss segment! */
@@ -736,6 +739,15 @@ static void __init parse_cmdline_early (char ** cmdline_p)
 			if (to != command_line)
 				to--;
 			if (!memcmp(from+7, "exactmap", 8)) {
+#ifdef CONFIG_CRASH_DUMP
+				/* If we are doing a crash dump, we
+				 * still need to know the real mem
+				 * size before original memory map is
+				 * reset.
+				 */
+				find_max_pfn();
+				saved_max_pfn = max_pfn;
+#endif
 				from += 8+7;
 				e820.nr_map = 0;
 				userdef = 1;

@@ -22,6 +22,10 @@ extern unsigned long min_low_pfn;
  */
 extern unsigned long max_pfn;
 
+#ifdef CONFIG_CRASH_DUMP
+extern unsigned long saved_max_pfn;
+#endif
+
 /*
  * node_bootmem_map is a map pointer - the bits represent all physical 
  * memory pages (including holes) on the node.
