@@ -264,7 +264,7 @@ static int kimage_crash_alloc(struct kimage **rimage, unsigned long entry,
 	for (i = 0; i < nr_segments; i++) {
 		unsigned long mstart, mend;
 		mstart = image->segment[i].mem;
-		mend = mstart + image->segment[i].memsz;
+		mend = mstart + image->segment[i].memsz - 1;
 		/* Ensure we are within the crash kernel limits */
 		if ((mstart < crashk_res.start) || (mend > crashk_res.end))
 			goto out;
