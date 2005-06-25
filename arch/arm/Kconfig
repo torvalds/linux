@@ -157,7 +157,7 @@ config ARCH_RPC
 config ARCH_SA1100
 	bool "SA1100-based"
 	select ISA
-	select DISCONTIGMEM
+	select ARCH_DISCONTIGMEM_ENABLE
 
 config ARCH_S3C2410
 	bool "Samsung S3C2410"
