@@ -936,7 +936,7 @@ typedef struct {
 		/* 56*/	le64 quota_charged;	/* Byte size of the charge to
 				the quota for all streams of the file. Note: Is
 				zero if quotas are disabled. */
-		/* 64*/	USN usn;		/* Last update sequence number
+		/* 64*/	leUSN usn;		/* Last update sequence number
 				of the file.  This is a direct index into the
 				transaction log file ($UsnJrnl).  It is zero if
 				the usn journal is disabled or this file has

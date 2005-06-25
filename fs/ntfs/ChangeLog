@@ -121,6 +121,10 @@ ToDo/Notes:
 	- Stamp the transaction log ($UsnJrnl), aka user space journal, if it
 	  is active on the volume and we are mounting read-write or remounting
 	  from read-only to read-write.
+	- Fix a bug in address space operations error recovery code paths where
+	  if the runlist was not mapped at all and a mapping error occured we
+	  would leave the runlist locked on exit to the function so that the
+	  next access to the same file would try to take the lock and deadlock.
 
 2.1.22 - Many bug and race fixes and error handling improvements.
 

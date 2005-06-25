@@ -264,7 +264,8 @@ lock_retry_remap:
 					goto lock_retry_remap;
 				rl = NULL;
 				lcn = err;
-			}
+			} else if (!rl)
+				up_read(&ni->runlist.lock);
 			/* Hard error, zero out region. */
 			bh->b_blocknr = -1;
 			SetPageError(page);
@@ -690,7 +691,8 @@ lock_retry_remap:
 				goto lock_retry_remap;
 			rl = NULL;
 			lcn = err;
-		}
+		} else if (!rl)
+			up_read(&ni->runlist.lock);
 		/* Failed to map the buffer, even after retrying. */
 		bh->b_blocknr = -1;
 		ntfs_error(vol->sb, "Failed to write to inode 0x%lx, "
@@ -965,8 +967,11 @@ lock_retry_remap:
 					if (err2 == -ENOMEM)
 						page_is_dirty = TRUE;
 					lcn = err2;
-				} else
+				} else {
 					err2 = -EIO;
+					if (!rl)
+						up_read(&ni->runlist.lock);
+				}
 				/* Hard error.  Abort writing this record. */
 				if (!err || err == -ENOMEM)
 					err = err2;
@@ -1660,6 +1665,8 @@ lock_retry_remap:
 							"not supported yet. "
 							"Sorry.");
 					err = -EOPNOTSUPP;
+					if (!rl)
+						up_read(&ni->runlist.lock);
 					goto err_out;
 				} else if (!is_retry &&
 						lcn == LCN_RL_NOT_MAPPED) {
@@ -1674,7 +1681,8 @@ lock_retry_remap:
 						goto lock_retry_remap;
 					rl = NULL;
 					lcn = err;
-				}
+				} else if (!rl)
+					up_read(&ni->runlist.lock);
 				/*
 				 * Failed to map the buffer, even after
 				 * retrying.
