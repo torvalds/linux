@@ -66,10 +66,20 @@ int smp_num_siblings = 1;
 #ifdef CONFIG_X86_HT
 EXPORT_SYMBOL(smp_num_siblings);
 #endif
-int phys_proc_id[NR_CPUS]; /* Package ID of each logical CPU */
+
+/* Package ID of each logical CPU */
+int phys_proc_id[NR_CPUS] = {[0 ... NR_CPUS-1] = BAD_APICID};
 EXPORT_SYMBOL(phys_proc_id);
-int cpu_core_id[NR_CPUS]; /* Core ID of each logical CPU */
+
+/* Core ID of each logical CPU */
+int cpu_core_id[NR_CPUS] = {[0 ... NR_CPUS-1] = BAD_APICID};
 EXPORT_SYMBOL(cpu_core_id);
+
+cpumask_t cpu_sibling_map[NR_CPUS];
+EXPORT_SYMBOL(cpu_sibling_map);
+
+cpumask_t cpu_core_map[NR_CPUS];
+EXPORT_SYMBOL(cpu_core_map);
 
 /* bitmap of online cpus */
 cpumask_t cpu_online_map;
@@ -423,6 +433,38 @@ static void __init smp_callin(void)
 
 static int cpucount;
 
+static inline void
+set_cpu_sibling_map(int cpu)
+{
+	int i;
+
+	if (smp_num_siblings > 1) {
+		for (i = 0; i < NR_CPUS; i++) {
+			if (!cpu_isset(i, cpu_callout_map))
+				continue;
+			if (cpu_core_id[cpu] == cpu_core_id[i]) {
+				cpu_set(i, cpu_sibling_map[cpu]);
+				cpu_set(cpu, cpu_sibling_map[i]);
+			}
+		}
+	} else {
+		cpu_set(cpu, cpu_sibling_map[cpu]);
+	}
+
+	if (current_cpu_data.x86_num_cores > 1) {
+		for (i = 0; i < NR_CPUS; i++) {
+			if (!cpu_isset(i, cpu_callout_map))
+				continue;
+			if (phys_proc_id[cpu] == phys_proc_id[i]) {
+				cpu_set(i, cpu_core_map[cpu]);
+				cpu_set(cpu, cpu_core_map[i]);
+			}
+		}
+	} else {
+		cpu_core_map[cpu] = cpu_sibling_map[cpu];
+	}
+}
+
 /*
  * Activate a secondary processor.
  */
@@ -449,6 +491,10 @@ static void __init start_secondary(void *unused)
 	 * the local TLBs too.
 	 */
 	local_flush_tlb();
+
+	/* This must be done before setting cpu_online_map */
+	set_cpu_sibling_map(raw_smp_processor_id());
+	wmb();
 
 	/*
 	 * We need to hold call_lock, so there is no inconsistency
@@ -912,13 +958,6 @@ void *xquad_portio;
 EXPORT_SYMBOL(xquad_portio);
 #endif
 
-cpumask_t cpu_sibling_map[NR_CPUS] __cacheline_aligned;
-#ifdef CONFIG_X86_HT
-EXPORT_SYMBOL(cpu_sibling_map);
-#endif
-cpumask_t cpu_core_map[NR_CPUS] __cacheline_aligned;
-EXPORT_SYMBOL(cpu_core_map);
-
 static void __init smp_boot_cpus(unsigned int max_cpus)
 {
 	int apicid, cpu, bit, kicked;
@@ -1082,44 +1121,8 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 		cpus_clear(cpu_core_map[cpu]);
 	}
 
-	for (cpu = 0; cpu < NR_CPUS; cpu++) {
-		struct cpuinfo_x86 *c = cpu_data + cpu;
-		int siblings = 0;
-		int i;
-		if (!cpu_isset(cpu, cpu_callout_map))
-			continue;
-
-		if (smp_num_siblings > 1) {
-			for (i = 0; i < NR_CPUS; i++) {
-				if (!cpu_isset(i, cpu_callout_map))
-					continue;
-				if (cpu_core_id[cpu] == cpu_core_id[i]) {
-					siblings++;
-					cpu_set(i, cpu_sibling_map[cpu]);
-				}
-			}
-		} else {
-			siblings++;
-			cpu_set(cpu, cpu_sibling_map[cpu]);
-		}
-
-		if (siblings != smp_num_siblings) {
-			printk(KERN_WARNING "WARNING: %d siblings found for CPU%d, should be %d\n", siblings, cpu, smp_num_siblings);
-			smp_num_siblings = siblings;
-		}
-
-		if (c->x86_num_cores > 1) {
-			for (i = 0; i < NR_CPUS; i++) {
-				if (!cpu_isset(i, cpu_callout_map))
-					continue;
-				if (phys_proc_id[cpu] == phys_proc_id[i]) {
-					cpu_set(i, cpu_core_map[cpu]);
-				}
-			}
-		} else {
-			cpu_core_map[cpu] = cpu_sibling_map[cpu];
-		}
-	}
+	cpu_set(0, cpu_sibling_map[0]);
+	cpu_set(0, cpu_core_map[0]);
 
 	smpboot_setup_io_apic();
 
