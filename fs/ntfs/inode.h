@@ -110,7 +110,7 @@ struct _ntfs_inode {
 			u8 block_size_bits; 	/* Log2 of the above. */
 			u8 vcn_size_bits;	/* Log2 of the above. */
 		} index;
-		struct { /* It is a compressed file or an attribute inode. */
+		struct { /* It is a compressed/sparse file/attribute inode. */
 			s64 size;		/* Copy of compressed_size from
 						   $DATA. */
 			u32 block_size;		/* Size of a compression block

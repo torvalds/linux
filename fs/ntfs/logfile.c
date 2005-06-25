@@ -1,7 +1,7 @@
 /*
  * logfile.c - NTFS kernel journal handling. Part of the Linux-NTFS project.
  *
- * Copyright (c) 2002-2004 Anton Altaparmakov
+ * Copyright (c) 2002-2005 Anton Altaparmakov
  *
  * This program/include file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as published
@@ -410,7 +410,7 @@ err_out:
 }
 
 /**
- * ntfs_ckeck_logfile - check in the journal if the volume is consistent
+ * ntfs_check_logfile - check the journal for consistency
  * @log_vi:	struct inode of loaded journal $LogFile to check
  *
  * Check the $LogFile journal for consistency and return TRUE if it is
@@ -464,7 +464,7 @@ BOOL ntfs_check_logfile(struct inode *log_vi)
 	 * optimize log_page_size and log_page_bits into constants.
 	 */
 	log_page_bits = generic_ffs(log_page_size) - 1;
-	size &= ~(log_page_size - 1);
+	size &= ~(s64)(log_page_size - 1);
 	/*
 	 * Ensure the log file is big enough to store at least the two restart
 	 * pages and the minimum number of log record pages.

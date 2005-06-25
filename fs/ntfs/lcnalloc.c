@@ -293,7 +293,7 @@ runlist_element *ntfs_cluster_alloc(ntfs_volume *vol, const VCN start_vcn,
 			buf_size = i_size - last_read_pos;
 		buf_size <<= 3;
 		lcn = bmp_pos & 7;
-		bmp_pos &= ~7;
+		bmp_pos &= ~(LCN)7;
 		ntfs_debug("Before inner while loop: buf_size %i, lcn 0x%llx, "
 				"bmp_pos 0x%llx, need_writeback %i.", buf_size,
 				(unsigned long long)lcn,
@@ -311,7 +311,7 @@ runlist_element *ntfs_cluster_alloc(ntfs_volume *vol, const VCN start_vcn,
 					(unsigned int)*byte);
 			/* Skip full bytes. */
 			if (*byte == 0xff) {
-				lcn = (lcn + 8) & ~7;
+				lcn = (lcn + 8) & ~(LCN)7;
 				ntfs_debug("Continuing while loop 1.");
 				continue;
 			}
