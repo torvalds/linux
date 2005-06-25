@@ -44,6 +44,7 @@
 #include <linux/edd.h>
 #include <linux/nodemask.h>
 #include <video/edid.h>
+#include <asm/apic.h>
 #include <asm/e820.h>
 #include <asm/mpspec.h>
 #include <asm/setup.h>
@@ -834,6 +835,16 @@ static void __init parse_cmdline_early (char ** cmdline_p)
 			disable_ioapic_setup();
 #endif /* CONFIG_X86_LOCAL_APIC */
 #endif /* CONFIG_ACPI_BOOT */
+
+#ifdef CONFIG_X86_LOCAL_APIC
+		/* enable local APIC */
+		else if (!memcmp(from, "lapic", 5))
+			lapic_enable();
+
+		/* disable local APIC */
+		else if (!memcmp(from, "nolapic", 6))
+			lapic_disable();
+#endif /* CONFIG_X86_LOCAL_APIC */
 
 		/*
 		 * highmem=size forces highmem to be exactly 'size' bytes.

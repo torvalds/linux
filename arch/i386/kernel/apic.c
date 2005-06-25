@@ -41,6 +41,11 @@
 #include "io_ports.h"
 
 /*
+ * Knob to control our willingness to enable the local APIC.
+ */
+int enable_local_apic __initdata = 0; /* -1=force-disable, +1=force-enable */
+
+/*
  * Debug level
  */
 int apic_verbosity;
@@ -665,26 +670,6 @@ static void apic_pm_activate(void) { }
  * Detect and enable local APICs on non-SMP boards.
  * Original code written by Keir Fraser.
  */
-
-/*
- * Knob to control our willingness to enable the local APIC.
- */
-int enable_local_apic __initdata = 0; /* -1=force-disable, +1=force-enable */
-
-static int __init lapic_disable(char *str)
-{
-	enable_local_apic = -1;
-	clear_bit(X86_FEATURE_APIC, boot_cpu_data.x86_capability);
-	return 0;
-}
-__setup("nolapic", lapic_disable);
-
-static int __init lapic_enable(char *str)
-{
-	enable_local_apic = 1;
-	return 0;
-}
-__setup("lapic", lapic_enable);
 
 static int __init apic_set_verbosity(char *str)
 {
