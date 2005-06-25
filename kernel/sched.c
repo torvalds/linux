@@ -4712,6 +4712,57 @@ static void sched_domain_debug(struct sched_domain *sd, int cpu)
 #define sched_domain_debug(sd, cpu) {}
 #endif
 
+static int __devinit sd_degenerate(struct sched_domain *sd)
+{
+	if (cpus_weight(sd->span) == 1)
+		return 1;
+
+	/* Following flags need at least 2 groups */
+	if (sd->flags & (SD_LOAD_BALANCE |
+			 SD_BALANCE_NEWIDLE |
+			 SD_BALANCE_FORK |
+			 SD_BALANCE_EXEC)) {
+		if (sd->groups != sd->groups->next)
+			return 0;
+	}
+
+	/* Following flags don't use groups */
+	if (sd->flags & (SD_WAKE_IDLE |
+			 SD_WAKE_AFFINE |
+			 SD_WAKE_BALANCE))
+		return 0;
+
+	return 1;
+}
+
+static int __devinit sd_parent_degenerate(struct sched_domain *sd,
+						struct sched_domain *parent)
+{
+	unsigned long cflags = sd->flags, pflags = parent->flags;
+
+	if (sd_degenerate(parent))
+		return 1;
+
+	if (!cpus_equal(sd->span, parent->span))
+		return 0;
+
+	/* Does parent contain flags not in child? */
+	/* WAKE_BALANCE is a subset of WAKE_AFFINE */
+	if (cflags & SD_WAKE_AFFINE)
+		pflags &= ~SD_WAKE_BALANCE;
+	/* Flags needing groups don't count if only 1 group in parent */
+	if (parent->groups == parent->groups->next) {
+		pflags &= ~(SD_LOAD_BALANCE |
+				SD_BALANCE_NEWIDLE |
+				SD_BALANCE_FORK |
+				SD_BALANCE_EXEC);
+	}
+	if (~cflags & pflags)
+		return 0;
+
+	return 1;
+}
+
 /*
  * Attach the domain 'sd' to 'cpu' as its base domain.  Callers must
  * hold the hotplug lock.
@@ -4722,6 +4773,19 @@ void __devinit cpu_attach_domain(struct sched_domain *sd, int cpu)
 	unsigned long flags;
 	runqueue_t *rq = cpu_rq(cpu);
 	int local = 1;
+	struct sched_domain *tmp;
+
+	/* Remove the sched domains which do not contribute to scheduling. */
+	for (tmp = sd; tmp; tmp = tmp->parent) {
+		struct sched_domain *parent = tmp->parent;
+		if (!parent)
+			break;
+		if (sd_parent_degenerate(tmp, parent))
+			tmp->parent = parent->parent;
+	}
+
+	if (sd && sd_degenerate(sd))
+		sd = sd->parent;
 
 	sched_domain_debug(sd, cpu);
 
