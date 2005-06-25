@@ -677,11 +677,16 @@ void __init setup_system(void)
 	DBG(" <- setup_system()\n");
 }
 
-
-void machine_restart(char *cmd)
+/* also used by kexec */
+void machine_shutdown(void)
 {
 	if (ppc_md.nvram_sync)
 		ppc_md.nvram_sync();
+}
+
+void machine_restart(char *cmd)
+{
+	machine_shutdown();
 	ppc_md.restart(cmd);
 #ifdef CONFIG_SMP
 	smp_send_stop();
@@ -690,13 +695,11 @@ void machine_restart(char *cmd)
 	local_irq_disable();
 	while (1) ;
 }
-
 EXPORT_SYMBOL(machine_restart);
-  
+
 void machine_power_off(void)
 {
-	if (ppc_md.nvram_sync)
-		ppc_md.nvram_sync();
+	machine_shutdown();
 	ppc_md.power_off();
 #ifdef CONFIG_SMP
 	smp_send_stop();
@@ -705,13 +708,11 @@ void machine_power_off(void)
 	local_irq_disable();
 	while (1) ;
 }
-
 EXPORT_SYMBOL(machine_power_off);
-  
+
 void machine_halt(void)
 {
-	if (ppc_md.nvram_sync)
-		ppc_md.nvram_sync();
+	machine_shutdown();
 	ppc_md.halt();
 #ifdef CONFIG_SMP
 	smp_send_stop();
@@ -720,7 +721,6 @@ void machine_halt(void)
 	local_irq_disable();
 	while (1) ;
 }
-
 EXPORT_SYMBOL(machine_halt);
 
 static int ppc64_panic_event(struct notifier_block *this,

@@ -187,14 +187,16 @@ static void __init pSeries_setup_arch(void)
 {
 	/* Fixup ppc_md depending on the type of interrupt controller */
 	if (ppc64_interrupt_controller == IC_OPEN_PIC) {
-		ppc_md.init_IRQ       = pSeries_init_mpic; 
+		ppc_md.init_IRQ       = pSeries_init_mpic;
 		ppc_md.get_irq        = mpic_get_irq;
+	 	ppc_md.cpu_irq_down   = mpic_teardown_this_cpu;
 		/* Allocate the mpic now, so that find_and_init_phbs() can
 		 * fill the ISUs */
 		pSeries_setup_mpic();
 	} else {
 		ppc_md.init_IRQ       = xics_init_IRQ;
 		ppc_md.get_irq        = xics_get_irq;
+		ppc_md.cpu_irq_down   = xics_teardown_cpu;
 	}
 
 #ifdef CONFIG_SMP

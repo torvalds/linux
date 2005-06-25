@@ -1194,7 +1194,7 @@ _GLOBAL(pSeries_secondary_smp_init)
 	bl	.__restore_cpu_setup
 
 	/* Set up a paca value for this processor. Since we have the
-	 * physical cpu id in r3, we need to search the pacas to find
+	 * physical cpu id in r24, we need to search the pacas to find
 	 * which logical id maps to our physical one.
 	 */
 	LOADADDR(r13, paca) 		/* Get base vaddr of paca array	 */
@@ -1207,8 +1207,8 @@ _GLOBAL(pSeries_secondary_smp_init)
 	cmpwi	r5,NR_CPUS
 	blt	1b
 
-99:	HMT_LOW				/* Couldn't find our CPU id      */
-	b	99b
+	mr	r3,r24			/* not found, copy phys to r3	 */
+	b	.kexec_wait		/* next kernel might do better	 */
 
 2:	mtspr	SPRG3,r13		/* Save vaddr of paca in SPRG3	 */
 	/* From now on, r24 is expected to be logica cpuid */
