@@ -2579,11 +2579,15 @@ out:
 #ifdef CONFIG_SCHED_SMT
 static inline void wake_sleeping_dependent(int this_cpu, runqueue_t *this_rq)
 {
-	struct sched_domain *sd = this_rq->sd;
+	struct sched_domain *tmp, *sd = NULL;
 	cpumask_t sibling_map;
 	int i;
 
-	if (!(sd->flags & SD_SHARE_CPUPOWER))
+	for_each_domain(this_cpu, tmp)
+		if (tmp->flags & SD_SHARE_CPUPOWER)
+			sd = tmp;
+
+	if (!sd)
 		return;
 
 	/*
@@ -2624,13 +2628,17 @@ static inline void wake_sleeping_dependent(int this_cpu, runqueue_t *this_rq)
 
 static inline int dependent_sleeper(int this_cpu, runqueue_t *this_rq)
 {
-	struct sched_domain *sd = this_rq->sd;
+	struct sched_domain *tmp, *sd = NULL;
 	cpumask_t sibling_map;
 	prio_array_t *array;
 	int ret = 0, i;
 	task_t *p;
 
-	if (!(sd->flags & SD_SHARE_CPUPOWER))
+	for_each_domain(this_cpu, tmp)
+		if (tmp->flags & SD_SHARE_CPUPOWER)
+			sd = tmp;
+
+	if (!sd)
 		return 0;
 
 	/*
@@ -4617,6 +4625,11 @@ static void sched_domain_debug(struct sched_domain *sd, int cpu)
 {
 	int level = 0;
 
+	if (!sd) {
+		printk(KERN_DEBUG "CPU%d attaching NULL sched-domain.\n", cpu);
+		return;
+	}
+
 	printk(KERN_DEBUG "CPU%d attaching sched-domain:\n", cpu);
 
 	do {
@@ -4874,7 +4887,7 @@ static void __devinit arch_init_sched_domains(void)
 	cpus_and(cpu_default_map, cpu_default_map, cpu_online_map);
 
 	/*
-	 * Set up domains. Isolated domains just stay on the dummy domain.
+	 * Set up domains. Isolated domains just stay on the NULL domain.
 	 */
 	for_each_cpu_mask(i, cpu_default_map) {
 		int group;
@@ -4987,18 +5000,11 @@ static void __devinit arch_destroy_sched_domains(void)
 
 #endif /* ARCH_HAS_SCHED_DOMAIN */
 
-/*
- * Initial dummy domain for early boot and for hotplug cpu. Being static,
- * it is initialized to zero, so all balancing flags are cleared which is
- * what we want.
- */
-static struct sched_domain sched_domain_dummy;
-
 #ifdef CONFIG_HOTPLUG_CPU
 /*
  * Force a reinitialization of the sched domains hierarchy.  The domains
  * and groups cannot be updated in place without racing with the balancing
- * code, so we temporarily attach all running cpus to a "dummy" domain
+ * code, so we temporarily attach all running cpus to the NULL domain
  * which will prevent rebalancing while the sched domains are recalculated.
  */
 static int update_sched_domains(struct notifier_block *nfb,
@@ -5010,7 +5016,7 @@ static int update_sched_domains(struct notifier_block *nfb,
 	case CPU_UP_PREPARE:
 	case CPU_DOWN_PREPARE:
 		for_each_online_cpu(i)
-			cpu_attach_domain(&sched_domain_dummy, i);
+			cpu_attach_domain(NULL, i);
 		arch_destroy_sched_domains();
 		return NOTIFY_OK;
 
@@ -5072,7 +5078,7 @@ void __init sched_init(void)
 		rq->best_expired_prio = MAX_PRIO;
 
 #ifdef CONFIG_SMP
-		rq->sd = &sched_domain_dummy;
+		rq->sd = NULL;
 		for (j = 1; j < 3; j++)
 			rq->cpu_load[j] = 0;
 		rq->active_balance = 0;
