@@ -1319,21 +1319,24 @@ void fastcall wake_up_new_task(task_t * p, unsigned long clone_flags)
 			sd = tmp;
 
 	if (sd) {
+		cpumask_t span;
 		int new_cpu;
 		struct sched_group *group;
 
+again:
 		schedstat_inc(sd, sbf_cnt);
+		span = sd->span;
 		cpu = task_cpu(p);
 		group = find_idlest_group(sd, p, cpu);
 		if (!group) {
 			schedstat_inc(sd, sbf_balanced);
-			goto no_forkbalance;
+			goto nextlevel;
 		}
 
 		new_cpu = find_idlest_cpu(group, cpu);
 		if (new_cpu == -1 || new_cpu == cpu) {
 			schedstat_inc(sd, sbf_balanced);
-			goto no_forkbalance;
+			goto nextlevel;
 		}
 
 		if (cpu_isset(new_cpu, p->cpus_allowed)) {
@@ -1343,9 +1346,21 @@ void fastcall wake_up_new_task(task_t * p, unsigned long clone_flags)
 			rq = task_rq_lock(p, &flags);
 			cpu = task_cpu(p);
 		}
+
+		/* Now try balancing at a lower domain level */
+nextlevel:
+		sd = NULL;
+		for_each_domain(cpu, tmp) {
+			if (cpus_subset(span, tmp->span))
+				break;
+			if (tmp->flags & SD_BALANCE_FORK)
+				sd = tmp;
+		}
+
+		if (sd)
+			goto again;
 	}
 
-no_forkbalance:
 #endif
 	/*
 	 * We decrease the sleep average of forking parents
@@ -1711,25 +1726,41 @@ void sched_exec(void)
 			sd = tmp;
 
 	if (sd) {
+		cpumask_t span;
 		struct sched_group *group;
+again:
 		schedstat_inc(sd, sbe_cnt);
+		span = sd->span;
 		group = find_idlest_group(sd, current, this_cpu);
 		if (!group) {
 			schedstat_inc(sd, sbe_balanced);
-			goto out;
+			goto nextlevel;
 		}
 		new_cpu = find_idlest_cpu(group, this_cpu);
 		if (new_cpu == -1 || new_cpu == this_cpu) {
 			schedstat_inc(sd, sbe_balanced);
-			goto out;
+			goto nextlevel;
 		}
 
 		schedstat_inc(sd, sbe_pushed);
 		put_cpu();
 		sched_migrate_task(current, new_cpu);
-		return;
+
+		/* Now try balancing at a lower domain level */
+		this_cpu = get_cpu();
+nextlevel:
+		sd = NULL;
+		for_each_domain(this_cpu, tmp) {
+			if (cpus_subset(span, tmp->span))
+				break;
+			if (tmp->flags & SD_BALANCE_EXEC)
+				sd = tmp;
+		}
+
+		if (sd)
+			goto again;
 	}
-out:
+
 	put_cpu();
 }
 
