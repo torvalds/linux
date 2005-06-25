@@ -950,8 +950,13 @@ lpfc_cmpl_adisc_adisc_issue(struct lpfc_hba * phba,
 		lpfc_unreg_rpi(phba, ndlp);
 		return (ndlp->nlp_state);
 	}
-	ndlp->nlp_state = NLP_STE_MAPPED_NODE;
-	lpfc_nlp_list(phba, ndlp, NLP_MAPPED_LIST);
+	if (ndlp->nlp_type & NLP_FCP_TARGET) {
+		ndlp->nlp_state = NLP_STE_MAPPED_NODE;
+		lpfc_nlp_list(phba, ndlp, NLP_MAPPED_LIST);
+	} else {
+		ndlp->nlp_state = NLP_STE_UNMAPPED_NODE;
+		lpfc_nlp_list(phba, ndlp, NLP_UNMAPPED_LIST);
+	}
 	return (ndlp->nlp_state);
 }
 
