@@ -463,6 +463,9 @@ no_context:
 		printk(KERN_ALERT "*pte = %08lx\n", page);
 	}
 #endif
+	tsk->thread.cr2 = address;
+	tsk->thread.trap_no = 14;
+	tsk->thread.error_code = error_code;
 	die("Oops", regs, error_code);
 	bust_spinlocks(0);
 	do_exit(SIGKILL);

@@ -369,6 +369,10 @@ static inline void die_if_kernel(const char * str, struct pt_regs * regs, long e
 static void do_trap(int trapnr, int signr, char *str, int vm86,
 			   struct pt_regs * regs, long error_code, siginfo_t *info)
 {
+	struct task_struct *tsk = current;
+	tsk->thread.error_code = error_code;
+	tsk->thread.trap_no = trapnr;
+
 	if (regs->eflags & VM_MASK) {
 		if (vm86)
 			goto vm86_trap;
@@ -379,9 +383,6 @@ static void do_trap(int trapnr, int signr, char *str, int vm86,
 		goto kernel_trap;
 
 	trap_signal: {
-		struct task_struct *tsk = current;
-		tsk->thread.error_code = error_code;
-		tsk->thread.trap_no = trapnr;
 		if (info)
 			force_sig_info(signr, info, tsk);
 		else
@@ -493,6 +494,9 @@ fastcall void do_general_protection(struct pt_regs * regs, long error_code)
 		return;
 	}
 	put_cpu();
+
+	current->thread.error_code = error_code;
+	current->thread.trap_no = 13;
 
 	if (regs->eflags & VM_MASK)
 		goto gp_in_vm86;
@@ -897,9 +901,9 @@ fastcall void do_simd_coprocessor_error(struct pt_regs * regs,
 					  error_code);
 			return;
 		}
-		die_if_kernel("cache flush denied", regs, error_code);
 		current->thread.trap_no = 19;
 		current->thread.error_code = error_code;
+		die_if_kernel("cache flush denied", regs, error_code);
 		force_sig(SIGSEGV, current);
 	}
 }
