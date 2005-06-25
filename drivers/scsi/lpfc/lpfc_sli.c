@@ -1724,6 +1724,8 @@ lpfc_mbox_timeout_handler(struct lpfc_hba *phba)
 		return;
 	}
 
+	phba->work_hba_events &= ~WORKER_MBOX_TMO;
+
 	pmbox = phba->sli.mbox_active;
 	mb = &pmbox->mb;
 
@@ -1738,16 +1740,14 @@ lpfc_mbox_timeout_handler(struct lpfc_hba *phba)
 		phba->sli.sli_flag,
 		phba->sli.mbox_active);
 
-	if (phba->sli.mbox_active == pmbox) {
-		phba->sli.mbox_active = NULL;
-		if (pmbox->mbox_cmpl) {
-			mb->mbxStatus = MBX_NOT_FINISHED;
-			spin_unlock_irq(phba->host->host_lock);
-			(pmbox->mbox_cmpl) (phba, pmbox);
-			spin_lock_irq(phba->host->host_lock);
-		}
-		phba->sli.sli_flag &= ~LPFC_SLI_MBOX_ACTIVE;
+	phba->sli.mbox_active = NULL;
+	if (pmbox->mbox_cmpl) {
+		mb->mbxStatus = MBX_NOT_FINISHED;
+		spin_unlock_irq(phba->host->host_lock);
+		(pmbox->mbox_cmpl) (phba, pmbox);
+		spin_lock_irq(phba->host->host_lock);
 	}
+	phba->sli.sli_flag &= ~LPFC_SLI_MBOX_ACTIVE;
 
 	spin_unlock_irq(phba->host->host_lock);
 	lpfc_mbox_abort(phba);
