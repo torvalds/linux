@@ -148,7 +148,7 @@ isdn_tty_fax_modem_result(int code, modem_info * info)
 	}
 }
 
-int
+static int
 isdn_tty_fax_command1(modem_info * info, isdn_ctrl * c)
 {
 	static char *msg[] =
@@ -316,7 +316,7 @@ isdn_tty_fax_bitorder(modem_info * info, struct sk_buff *skb)
  * Parse AT+F.. FAX class 1 commands
  */
 
-int
+static int
 isdn_tty_cmd_FCLASS1(char **p, modem_info * info)
 {
 	static char *cmd[] =
@@ -408,7 +408,7 @@ isdn_tty_cmd_FCLASS1(char **p, modem_info * info)
  * Parse AT+F.. FAX class 2 commands
  */
 
-int
+static int
 isdn_tty_cmd_FCLASS2(char **p, modem_info * info)
 {
 	atemu *m = &info->emu;
