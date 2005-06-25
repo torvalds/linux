@@ -26,6 +26,7 @@
 #include <linux/mc146818rtc.h>
 #include <linux/kernel_stat.h>
 #include <linux/sysdev.h>
+#include <linux/cpu.h>
 
 #include <asm/atomic.h>
 #include <asm/smp.h>
@@ -1048,7 +1049,7 @@ void __init setup_secondary_APIC_clock(void)
 	setup_APIC_timer(calibration_result);
 }
 
-void __init disable_APIC_timer(void)
+void __devinit disable_APIC_timer(void)
 {
 	if (using_apic_timer) {
 		unsigned long v;

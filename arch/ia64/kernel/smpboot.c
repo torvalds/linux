@@ -688,6 +688,7 @@ int __cpu_disable(void)
 		return -EBUSY;
 
 	remove_siblinginfo(cpu);
+	cpu_clear(cpu, cpu_online_map);
 	fixup_irqs();
 	local_flush_tlb_all();
 	cpu_clear(cpu, cpu_callin_map);

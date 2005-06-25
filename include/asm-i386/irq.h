@@ -38,4 +38,8 @@ extern void release_vm86_irqs(struct task_struct *);
 extern int irqbalance_disable(char *str);
 #endif
 
+#ifdef CONFIG_HOTPLUG_CPU
+extern void fixup_irqs(cpumask_t map);
+#endif
+
 #endif /* _ASM_IRQ_H */

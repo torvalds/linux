@@ -576,9 +576,11 @@ static int balanced_irq(void *unused)
 		try_to_freeze(PF_FREEZE);
 		if (time_after(jiffies,
 				prev_balance_time+balanced_irq_interval)) {
+			preempt_disable();
 			do_irq_balance();
 			prev_balance_time = jiffies;
 			time_remaining = balanced_irq_interval;
+			preempt_enable();
 		}
 	}
 	return 0;

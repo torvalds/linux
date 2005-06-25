@@ -93,10 +93,13 @@ static int query_cpu_stopped(unsigned int pcpu)
 
 int pSeries_cpu_disable(void)
 {
+	int cpu = smp_processor_id();
+
+	cpu_clear(cpu, cpu_online_map);
 	systemcfg->processorCount--;
 
 	/*fix boot_cpuid here*/
-	if (smp_processor_id() == boot_cpuid)
+	if (cpu == boot_cpuid)
 		boot_cpuid = any_online_cpu(cpu_online_map);
 
 	/* FIXME: abstract this to not be platform specific later on */

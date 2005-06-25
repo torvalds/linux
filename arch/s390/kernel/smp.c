@@ -679,12 +679,14 @@ __cpu_disable(void)
 {
 	unsigned long flags;
 	ec_creg_mask_parms cr_parms;
+	int cpu = smp_processor_id();
 
 	spin_lock_irqsave(&smp_reserve_lock, flags);
-	if (smp_cpu_reserved[smp_processor_id()] != 0) {
+	if (smp_cpu_reserved[cpu] != 0) {
 		spin_unlock_irqrestore(&smp_reserve_lock, flags);
 		return -EBUSY;
 	}
+	cpu_clear(cpu, cpu_online_map);
 
 #ifdef CONFIG_PFAULT
 	/* Disable pfault pseudo page faults on this cpu. */

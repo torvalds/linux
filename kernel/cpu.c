@@ -63,19 +63,15 @@ static int take_cpu_down(void *unused)
 {
 	int err;
 
-	/* Take offline: makes arch_cpu_down somewhat easier. */
-	cpu_clear(smp_processor_id(), cpu_online_map);
-
 	/* Ensure this CPU doesn't handle any more interrupts. */
 	err = __cpu_disable();
 	if (err < 0)
-		cpu_set(smp_processor_id(), cpu_online_map);
-	else
-		/* Force idle task to run as soon as we yield: it should
-		   immediately notice cpu is offline and die quickly. */
-		sched_idle_next();
+		return err;
 
-	return err;
+	/* Force idle task to run as soon as we yield: it should
+	   immediately notice cpu is offline and die quickly. */
+	sched_idle_next();
+	return 0;
 }
 
 int cpu_down(unsigned int cpu)
