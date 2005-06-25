@@ -464,6 +464,7 @@ void __devexit tpm_remove(struct pci_dev *pci_dev)
 
 	pci_set_drvdata(pci_dev, NULL);
 	misc_deregister(&chip->vendor->miscdev);
+	kfree(&chip->vendor->miscdev.name);
 
 	sysfs_remove_group(&pci_dev->dev.kobj, chip->vendor->attr_group);
 
@@ -526,7 +527,9 @@ EXPORT_SYMBOL_GPL(tpm_pm_resume);
 int tpm_register_hardware(struct pci_dev *pci_dev,
 			  struct tpm_vendor_specific *entry)
 {
-	char devname[7];
+#define DEVNAME_SIZE 7
+
+	char *devname;
 	struct tpm_chip *chip;
 	int i, j;
 
@@ -569,7 +572,8 @@ dev_num_search_complete:
 	else
 		chip->vendor->miscdev.minor = MISC_DYNAMIC_MINOR;
 
-	snprintf(devname, sizeof(devname), "%s%d", "tpm", chip->dev_num);
+	devname = kmalloc(DEVNAME_SIZE, GFP_KERNEL);
+	scnprintf(devname, DEVNAME_SIZE, "%s%d", "tpm", chip->dev_num);
 	chip->vendor->miscdev.name = devname;
 
 	chip->vendor->miscdev.dev = &(pci_dev->dev);
