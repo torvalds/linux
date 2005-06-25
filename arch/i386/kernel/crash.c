@@ -112,7 +112,20 @@ static atomic_t waiting_for_crash_ipi;
 
 static int crash_nmi_callback(struct pt_regs *regs, int cpu)
 {
+	struct pt_regs fixed_regs;
 	local_irq_disable();
+
+	/* CPU does not save ss and esp on stack if execution is already
+	 * running in kernel mode at the time of NMI occurrence. This code
+	 * fixes it.
+	 */
+	if (!user_mode(regs)) {
+		memcpy(&fixed_regs, regs, sizeof(*regs));
+		fixed_regs.esp = (unsigned long)&(regs->esp);
+		__asm__ __volatile__("xorl %eax, %eax;");
+		__asm__ __volatile__ ("movw %%ss, %%ax;" :"=a"(fixed_regs.xss));
+		regs = &fixed_regs;
+	}
 	crash_save_this_cpu(regs, cpu);
 	disable_local_APIC();
 	atomic_dec(&waiting_for_crash_ipi);
