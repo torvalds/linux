@@ -523,10 +523,8 @@ void emu10k1_seq_midi_close(int dev)
 	card = midi_devs[dev]->devc;
 	emu10k1_mpuout_close(card);
 
-	if (card->seq_mididev) {
-		kfree(card->seq_mididev);
-		card->seq_mididev = NULL;
-	}
+	kfree(card->seq_mididev);
+	card->seq_mididev = NULL;
 }
 
 int emu10k1_seq_midi_out(int dev, unsigned char midi_byte)
