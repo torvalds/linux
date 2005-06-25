@@ -65,7 +65,7 @@ static unsigned long __init init_bootmem_core (pg_data_t *pgdat,
 	pgdat->pgdat_next = pgdat_list;
 	pgdat_list = pgdat;
 
-	mapsize = (mapsize + (sizeof(long) - 1UL)) & ~(sizeof(long) - 1UL);
+	mapsize = ALIGN(mapsize, sizeof(long));
 	bdata->node_bootmem_map = phys_to_virt(mapstart << PAGE_SHIFT);
 	bdata->node_boot_start = (start << PAGE_SHIFT);
 	bdata->node_low_pfn = end;
@@ -186,7 +186,7 @@ __alloc_bootmem_core(struct bootmem_data *bdata, unsigned long size,
 	} else
 		preferred = 0;
 
-	preferred = ((preferred + align - 1) & ~(align - 1)) >> PAGE_SHIFT;
+	preferred = ALIGN(preferred, align) >> PAGE_SHIFT;
 	preferred += offset;
 	areasize = (size+PAGE_SIZE-1)/PAGE_SIZE;
 	incr = align >> PAGE_SHIFT ? : 1;
@@ -227,7 +227,7 @@ found:
 	 */
 	if (align < PAGE_SIZE &&
 	    bdata->last_offset && bdata->last_pos+1 == start) {
-		offset = (bdata->last_offset+align-1) & ~(align-1);
+		offset = ALIGN(bdata->last_offset, align);
 		BUG_ON(offset > PAGE_SIZE);
 		remaining_size = PAGE_SIZE-offset;
 		if (size < remaining_size) {
