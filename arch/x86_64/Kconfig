@@ -207,33 +207,6 @@ config SMP
 
 	  If you don't know what to do here, say N.
 
-config PREEMPT
-	bool "Preemptible Kernel"
-	---help---
-	  This option reduces the latency of the kernel when reacting to
-	  real-time or interactive events by allowing a low priority process to
-	  be preempted even if it is in kernel mode executing a system call.
-	  This allows applications to run more reliably even when the system is
-	  under load. On contrary it may also break your drivers and add
-	  priority inheritance problems to your system. Don't select it if
-	  you rely on a stable system or have slightly obscure hardware.
-	  It's also not very well tested on x86-64 currently.
-	  You have been warned.
-
-	  Say Y here if you are feeling brave and building a kernel for a
-	  desktop, embedded or real-time system.  Say N if you are unsure.
-
-config PREEMPT_BKL
-	bool "Preempt The Big Kernel Lock"
-	depends on PREEMPT
-	default y
-	help
-	  This option reduces the latency of the kernel by making the
-	  big kernel lock preemptible.
-
-	  Say Y here if you are building a kernel for a desktop system.
-	  Say N if you are unsure.
-
 config SCHED_SMT
 	bool "SMT (Hyperthreading) scheduler support"
 	depends on SMP
@@ -243,6 +216,8 @@ config SCHED_SMT
 	  when dealing with Intel Pentium 4 chips with HyperThreading at a
 	  cost of slightly increased overhead in some places. If unsure say
 	  N here.
+
+source "kernel/Kconfig.preempt"
 
 config K8_NUMA
        bool "K8 NUMA support"
