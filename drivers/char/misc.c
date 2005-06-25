@@ -66,7 +66,6 @@ static unsigned char misc_minors[DYNAMIC_MINORS / 8];
 extern int rtc_DP8570A_init(void);
 extern int rtc_MK48T08_init(void);
 extern int pmu_device_init(void);
-extern int i8k_init(void);
 
 #ifdef CONFIG_PROC_FS
 static void *misc_seq_start(struct seq_file *seq, loff_t *pos)
@@ -312,9 +311,6 @@ static int __init misc_init(void)
 #endif
 #ifdef CONFIG_PMAC_PBOOK
 	pmu_device_init();
-#endif
-#ifdef CONFIG_I8K
-	i8k_init();
 #endif
 	if (register_chrdev(MISC_MAJOR,"misc",&misc_fops)) {
 		printk("unable to get major %d for misc devices\n",
