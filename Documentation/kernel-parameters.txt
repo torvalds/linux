@@ -358,6 +358,10 @@ running once the system is up.
 	cpia_pp=	[HW,PPT]
 			Format: { parport<nr> | auto | none }
 
+	crashkernel=nn[KMG]@ss[KMG]
+			[KNL] Reserve a chunk of physical memory to
+			hold a kernel to switch to with kexec on panic.
+
 	cs4232=		[HW,OSS]
 			Format: <io>,<irq>,<dma>,<dma2>,<mpuio>,<mpuirq>
 

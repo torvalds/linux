@@ -1330,6 +1330,16 @@ M:	rml@novell.com
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
+KEXEC
+P:	Eric Biederman
+P:	Randy Dunlap
+M:	ebiederm@xmission.com
+M:	rddunlap@osdl.org
+W:	http://www.xmission.com/~ebiederm/files/kexec/
+L:	linux-kernel@vger.kernel.org
+L:	fastboot@osdl.org
+S:	Maintained
+
 LANMEDIA WAN CARD DRIVER
 P:	Andrew Stanley-Jones
 M:	asj@lanmedia.com
