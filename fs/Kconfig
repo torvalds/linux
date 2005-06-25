@@ -734,6 +734,12 @@ config PROC_KCORE
 	bool "/proc/kcore support" if !ARM
 	depends on PROC_FS && MMU
 
+config PROC_VMCORE
+        bool "/proc/vmcore support (EXPERIMENTAL)"
+        depends on PROC_FS && EMBEDDED && EXPERIMENTAL && CRASH_DUMP
+        help
+        Exports the dump image of crashed kernel in ELF format.
+
 config SYSFS
 	bool "sysfs file system support" if EMBEDDED
 	default y

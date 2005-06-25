@@ -16,7 +16,7 @@
 #include <asm/uaccess.h>
 
 /* Stores the physical address of elf header of crash image. */
-unsigned long long elfcorehdr_addr;
+unsigned long long elfcorehdr_addr = ELFCORE_ADDR_MAX;
 
 /*
  * Copy a page from "oldmem". For this page, there is no pte mapped
