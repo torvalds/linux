@@ -1942,15 +1942,7 @@ static int load_balance(int this_cpu, runqueue_t *this_rq,
 		goto out_balanced;
 	}
 
-	/*
-	 * This should be "impossible", but since load
-	 * balancing is inherently racy and statistical,
-	 * it could happen in theory.
-	 */
-	if (unlikely(busiest == this_rq)) {
-		WARN_ON(1);
-		goto out_balanced;
-	}
+	BUG_ON(busiest == this_rq);
 
 	schedstat_add(sd, lb_imbalance[idle], imbalance);
 
@@ -2052,10 +2044,12 @@ static int load_balance_newidle(int this_cpu, runqueue_t *this_rq,
 	}
 
 	busiest = find_busiest_queue(group);
-	if (!busiest || busiest == this_rq) {
+	if (!busiest) {
 		schedstat_inc(sd, lb_nobusyq[NEWLY_IDLE]);
 		goto out_balanced;
 	}
+
+	BUG_ON(busiest == this_rq);
 
 	/* Attempt to move tasks */
 	double_lock_balance(this_rq, busiest);
