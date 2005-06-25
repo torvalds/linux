@@ -166,7 +166,7 @@
 #define SCALE_PRIO(x, prio) \
 	max(x * (MAX_PRIO - prio) / (MAX_USER_PRIO/2), MIN_TIMESLICE)
 
-static inline unsigned int task_timeslice(task_t *p)
+static unsigned int task_timeslice(task_t *p)
 {
 	if (p->static_prio < NICE_TO_PRIO(0))
 		return SCALE_PRIO(DEF_TIMESLICE*4, p->static_prio);
