@@ -369,6 +369,17 @@ config X86_MCE_INTEL
 	   Additional support for intel specific MCE features such as
 	   the thermal monitor.
 
+config PHYSICAL_START
+	hex "Physical address where the kernel is loaded" if EMBEDDED
+	default "0x100000"
+	help
+	  This gives the physical address where the kernel is loaded.
+	  Primarily used in the case of kexec on panic where the
+	  fail safe kernel needs to run at a different address than
+	  the panic-ed kernel.
+
+	  Don't change this unless you know what you are doing.
+
 config SECCOMP
 	bool "Enable seccomp to safely compute untrusted bytecode"
 	depends on PROC_FS
