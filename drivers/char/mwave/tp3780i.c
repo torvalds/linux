@@ -242,20 +242,14 @@ int tp3780I_ClaimResources(THINKPAD_BD_DATA * pBDData)
 {
 	int retval = 0;
 	DSP_3780I_CONFIG_SETTINGS *pSettings = &pBDData->rDspSettings;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0)
 	struct resource *pres;
-#endif
 
 	PRINTK_2(TRACE_TP3780I,
 		"tp3780i::tp3780I_ClaimResources entry pBDData %p\n", pBDData);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0)
 	pres = request_region(pSettings->usDspBaseIO, 16, "mwave_3780i");
 	if ( pres == NULL ) retval = -EIO;
-#else
-	retval = check_region(pSettings->usDspBaseIO, 16);
-	if (!retval) request_region(pSettings->usDspBaseIO, 16, "mwave_3780i");
-#endif
+
 	if (retval) {
 		PRINTK_ERROR(KERN_ERR_MWAVE "tp3780i::tp3780I_ClaimResources: Error: Could not claim I/O region starting at %x\n", pSettings->usDspBaseIO);
 		retval = -EIO;
