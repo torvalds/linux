@@ -18,10 +18,6 @@
  * can be found in the file COPYING included with this package.    *
  *******************************************************************/
 
-/*
- * $Id: lpfc_init.c 1.233 2005/04/13 11:59:09EDT sf_support Exp  $
- */
-
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>

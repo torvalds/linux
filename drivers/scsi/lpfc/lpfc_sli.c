@@ -18,10 +18,6 @@
  * can be found in the file COPYING included with this package.    *
  *******************************************************************/
 
-/*
- * $Id: lpfc_sli.c 1.232 2005/04/13 11:59:16EDT sf_support Exp  $
- */
-
 #include <linux/blkdev.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>

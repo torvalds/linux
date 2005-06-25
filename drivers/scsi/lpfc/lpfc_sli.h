@@ -18,10 +18,6 @@
  * can be found in the file COPYING included with this package.    *
  *******************************************************************/
 
-/*
- * $Id: lpfc_sli.h 1.42 2005/03/21 02:01:28EST sf_support Exp  $
- */
-
 /* forward declaration for LPFC_IOCB_t's use */
 struct lpfc_hba;
 

@@ -18,10 +18,6 @@
  * can be found in the file COPYING included with this package.    *
  *******************************************************************/
 
-/*
- * $Id: lpfc_version.h 1.49 2005/04/13 15:07:19EDT sf_support Exp  $
- */
-
 #define LPFC_DRIVER_VERSION "8.0.28"
 
 #define LPFC_DRIVER_NAME "lpfc"

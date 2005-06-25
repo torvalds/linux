@@ -18,10 +18,6 @@
  * can be found in the file COPYING included with this package.    *
  *******************************************************************/
 
-/*
- * $Id: lpfc_attr.c 1.24 2005/04/13 11:58:55EDT sf_support Exp  $
- */
-
 #include <linux/ctype.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>

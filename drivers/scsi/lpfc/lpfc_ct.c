@@ -19,8 +19,6 @@
  *******************************************************************/
 
 /*
- * $Id: lpfc_ct.c 1.161 2005/04/13 11:59:01EDT sf_support Exp  $
- *
  * Fibre Channel SCSI LAN Device Driver CT support
  */
 

@@ -19,8 +19,6 @@
  *******************************************************************/
 
 /*
- * $Id: lpfc_compat.h 1.32 2005/01/25 17:51:45EST sf_support Exp  $
- *
  * This file provides macros to aid compilation in the Linux 2.4 kernel
  * over various platform architectures.
  */

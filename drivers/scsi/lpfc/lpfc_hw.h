@@ -18,10 +18,6 @@
  * can be found in the file COPYING included with this package.    *
  *******************************************************************/
 
-/*
- * $Id: lpfc_hw.h 1.37 2005/03/29 19:51:45EST sf_support Exp  $
- */
-
 #define FDMI_DID        0xfffffaU
 #define NameServer_DID  0xfffffcU
 #define SCR_DID         0xfffffdU

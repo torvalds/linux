@@ -18,10 +18,6 @@
  * can be found in the file COPYING included with this package.    *
  *******************************************************************/
 
-/*
- * $Id: lpfc_mbox.c 1.85 2005/04/13 11:59:11EDT sf_support Exp  $
- */
-
 #include <linux/blkdev.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>

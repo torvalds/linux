@@ -18,10 +18,6 @@
  * can be found in the file COPYING included with this package.    *
  *******************************************************************/
 
-/*
- * $Id: lpfc_disc.h 1.61 2005/04/07 08:46:52EDT sf_support Exp  $
- */
-
 #define FC_MAX_HOLD_RSCN     32	      /* max number of deferred RSCNs */
 #define FC_MAX_NS_RSP        65536    /* max size NameServer rsp */
 #define FC_MAXLOOP           126      /* max devices supported on a fc loop */

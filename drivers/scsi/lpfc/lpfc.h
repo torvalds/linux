@@ -18,10 +18,6 @@
  * can be found in the file COPYING included with this package.    *
  *******************************************************************/
 
-/*
- * $Id: lpfc.h 1.167 2005/04/07 08:47:05EDT sf_support Exp  $
- */
-
 struct lpfc_sli2_slim;
 
 #define LPFC_MAX_TARGET         256	/* max targets supported */

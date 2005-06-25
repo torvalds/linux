@@ -18,10 +18,6 @@
  * can be found in the file COPYING included with this package.    *
  *******************************************************************/
 
-/*
- * $Id: lpfc_mem.c 1.79 2005/04/13 14:25:50EDT sf_support Exp  $
- */
-
 #include <linux/mempool.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>

@@ -18,10 +18,6 @@
  * can be found in the file COPYING included with this package.    *
  *******************************************************************/
 
-/*
- * $Id: lpfc_scsi.h 1.83 2005/04/07 08:47:43EDT sf_support Exp  $
- */
-
 struct lpfc_hba;
 
 #define list_remove_head(list, entry, type, member)		\

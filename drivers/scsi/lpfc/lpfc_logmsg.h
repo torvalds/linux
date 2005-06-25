@@ -18,10 +18,6 @@
  * can be found in the file COPYING included with this package.    *
  *******************************************************************/
 
-/*
- * $Id: lpfc_logmsg.h 1.32 2005/01/25 17:52:01EST sf_support Exp  $
- */
-
 #define LOG_ELS                       0x1	/* ELS events */
 #define LOG_DISCOVERY                 0x2	/* Link discovery events */
 #define LOG_MBOX                      0x4	/* Mailbox events */
