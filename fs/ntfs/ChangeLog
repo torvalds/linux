@@ -125,6 +125,9 @@ ToDo/Notes:
 	  if the runlist was not mapped at all and a mapping error occured we
 	  would leave the runlist locked on exit to the function so that the
 	  next access to the same file would try to take the lock and deadlock.
+	- Detect the case when Windows has been suspended to disk on the volume
+	  to be mounted and if this is the case do not allow (re)mounting
+	  read-write.  This is done by parsing hiberfil.sys if present.
 
 2.1.22 - Many bug and race fixes and error handling improvements.
 

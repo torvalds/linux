@@ -1156,6 +1156,124 @@ static BOOL load_and_check_logfile(ntfs_volume *vol)
 	return TRUE;
 }
 
+#define NTFS_HIBERFIL_HEADER_SIZE	4096
+
+/**
+ * check_windows_hibernation_status - check if Windows is suspended on a volume
+ * @vol:	ntfs super block of device to check
+ *
+ * Check if Windows is hibernated on the ntfs volume @vol.  This is done by
+ * looking for the file hiberfil.sys in the root directory of the volume.  If
+ * the file is not present Windows is definitely not suspended.
+ *
+ * If hiberfil.sys exists and is less than 4kiB in size it means Windows is
+ * definitely suspended (this volume is not the system volume).  Caveat:  on a
+ * system with many volumes it is possible that the < 4kiB check is bogus but
+ * for now this should do fine.
+ *
+ * If hiberfil.sys exists and is larger than 4kiB in size, we need to read the
+ * hiberfil header (which is the first 4kiB).  If this begins with "hibr",
+ * Windows is definitely suspended.  If it is completely full of zeroes,
+ * Windows is definitely not hibernated.  Any other case is treated as if
+ * Windows is suspended.  This caters for the above mentioned caveat of a
+ * system with many volumes where no "hibr" magic would be present and there is
+ * no zero header.
+ *
+ * Return 0 if Windows is not hibernated on the volume, >0 if Windows is
+ * hibernated on the volume, and -errno on error.
+ */
+static int check_windows_hibernation_status(ntfs_volume *vol)
+{
+	MFT_REF mref;
+	struct inode *vi;
+	ntfs_inode *ni;
+	struct page *page;
+	u32 *kaddr, *kend;
+	ntfs_name *name = NULL;
+	int ret = 1;
+	static const ntfschar hiberfil[13] = { const_cpu_to_le16('h'),
+			const_cpu_to_le16('i'), const_cpu_to_le16('b'),
+			const_cpu_to_le16('e'), const_cpu_to_le16('r'),
+			const_cpu_to_le16('f'), const_cpu_to_le16('i'),
+			const_cpu_to_le16('l'), const_cpu_to_le16('.'),
+			const_cpu_to_le16('s'), const_cpu_to_le16('y'),
+			const_cpu_to_le16('s'), 0 };
+
+	ntfs_debug("Entering.");
+	/*
+	 * Find the inode number for the hibernation file by looking up the
+	 * filename hiberfil.sys in the root directory.
+	 */
+	down(&vol->root_ino->i_sem);
+	mref = ntfs_lookup_inode_by_name(NTFS_I(vol->root_ino), hiberfil, 12,
+			&name);
+	up(&vol->root_ino->i_sem);
+	if (IS_ERR_MREF(mref)) {
+		ret = MREF_ERR(mref);
+		/* If the file does not exist, Windows is not hibernated. */
+		if (ret == -ENOENT) {
+			ntfs_debug("hiberfil.sys not present.  Windows is not "
+					"hibernated on the volume.");
+			return 0;
+		}
+		/* A real error occured. */
+		ntfs_error(vol->sb, "Failed to find inode number for "
+				"hiberfil.sys.");
+		return ret;
+	}
+	/* We do not care for the type of match that was found. */
+	kfree(name);
+	/* Get the inode. */
+	vi = ntfs_iget(vol->sb, MREF(mref));
+	if (IS_ERR(vi) || is_bad_inode(vi)) {
+		if (!IS_ERR(vi))
+			iput(vi);
+		ntfs_error(vol->sb, "Failed to load hiberfil.sys.");
+		return IS_ERR(vi) ? PTR_ERR(vi) : -EIO;
+	}
+	if (unlikely(i_size_read(vi) < NTFS_HIBERFIL_HEADER_SIZE)) {
+		ntfs_debug("hiberfil.sys is smaller than 4kiB (0x%llx).  "
+				"Windows is hibernated on the volume.  This "
+				"is not the system volume.", i_size_read(vi));
+		goto iput_out;
+	}
+	ni = NTFS_I(vi);
+	page = ntfs_map_page(vi->i_mapping, 0);
+	if (IS_ERR(page)) {
+		ntfs_error(vol->sb, "Failed to read from hiberfil.sys.");
+		ret = PTR_ERR(page);
+		goto iput_out;
+	}
+	kaddr = (u32*)page_address(page);
+	if (*(le32*)kaddr == const_cpu_to_le32(0x72626968)/*'hibr'*/) {
+		ntfs_debug("Magic \"hibr\" found in hiberfil.sys.  Windows is "
+				"hibernated on the volume.  This is the "
+				"system volume.");
+		goto unm_iput_out;
+	}
+	kend = kaddr + NTFS_HIBERFIL_HEADER_SIZE/sizeof(*kaddr);
+	do {
+		if (unlikely(*kaddr)) {
+			ntfs_debug("hiberfil.sys is larger than 4kiB "
+					"(0x%llx), does not contain the "
+					"\"hibr\" magic, and does not have a "
+					"zero header.  Windows is hibernated "
+					"on the volume.  This is not the "
+					"system volume.", i_size_read(vi));
+			goto unm_iput_out;
+		}
+	} while (++kaddr < kend);
+	ntfs_debug("hiberfil.sys contains a zero header.  Windows is not "
+			"hibernated on the volume.  This is the system "
+			"volume.");
+	ret = 0;
+unm_iput_out:
+	ntfs_unmap_page(page);
+iput_out:
+	iput(vi);
+	return ret;
+}
+
 /**
  * load_and_init_quota - load and setup the quota file for a volume if present
  * @vol:	ntfs super block describing device whose quota file to load
@@ -1570,6 +1688,9 @@ static BOOL load_system_files(ntfs_volume *vol)
 	MFT_RECORD *m;
 	VOLUME_INFORMATION *vi;
 	ntfs_attr_search_ctx *ctx;
+#ifdef NTFS_RW
+	int err;
+#endif /* NTFS_RW */
 
 	ntfs_debug("Entering.");
 #ifdef NTFS_RW
@@ -1746,6 +1867,50 @@ get_ctx_vol_failed:
 		/* This will prevent a read-write remount. */
 		NVolSetErrors(vol);
 	}
+#endif /* NTFS_RW */
+	/* Get the root directory inode so we can do path lookups. */
+	vol->root_ino = ntfs_iget(sb, FILE_root);
+	if (IS_ERR(vol->root_ino) || is_bad_inode(vol->root_ino)) {
+		if (!IS_ERR(vol->root_ino))
+			iput(vol->root_ino);
+		ntfs_error(sb, "Failed to load root directory.");
+		goto iput_logfile_err_out;
+	}
+#ifdef NTFS_RW
+	/*
+	 * Check if Windows is suspended to disk on the target volume.  If it
+	 * is hibernated, we must not write *anything* to the disk so set
+	 * NVolErrors() without setting the dirty volume flag and mount
+	 * read-only.  This will prevent read-write remounting and it will also
+	 * prevent all writes.
+	 */
+	err = check_windows_hibernation_status(vol);
+	if (unlikely(err)) {
+		static const char *es1a = "Failed to determine if Windows is "
+				"hibernated";
+		static const char *es1b = "Windows is hibernated";
+		static const char *es2 = ".  Run chkdsk.";
+		const char *es1;
+
+		es1 = err < 0 ? es1a : es1b;
+		/* If a read-write mount, convert it to a read-only mount. */
+		if (!(sb->s_flags & MS_RDONLY)) {
+			if (!(vol->on_errors & (ON_ERRORS_REMOUNT_RO |
+					ON_ERRORS_CONTINUE))) {
+				ntfs_error(sb, "%s and neither on_errors="
+						"continue nor on_errors="
+						"remount-ro was specified%s",
+						es1, es2);
+				goto iput_root_err_out;
+			}
+			sb->s_flags |= MS_RDONLY | MS_NOATIME | MS_NODIRATIME;
+			ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
+		} else
+			ntfs_warning(sb, "%s.  Will not be able to remount "
+					"read-write%s", es1, es2);
+		/* This will prevent a read-write remount. */
+		NVolSetErrors(vol);
+	}
 	/* If (still) a read-write mount, mark the volume dirty. */
 	if (!(sb->s_flags & MS_RDONLY) &&
 			ntfs_set_volume_flags(vol, VOLUME_IS_DIRTY)) {
@@ -1759,7 +1924,7 @@ get_ctx_vol_failed:
 			ntfs_error(sb, "%s and neither on_errors=continue nor "
 					"on_errors=remount-ro was specified%s",
 					es1, es2);
-			goto iput_logfile_err_out;
+			goto iput_root_err_out;
 		}
 		ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
 		sb->s_flags |= MS_RDONLY | MS_NOATIME | MS_NODIRATIME;
@@ -1786,7 +1951,7 @@ get_ctx_vol_failed:
 			ntfs_error(sb, "%s and neither on_errors=continue nor "
 					"on_errors=remount-ro was specified%s",
 					es1, es2);
-			goto iput_logfile_err_out;
+			goto iput_root_err_out;
 		}
 		ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
 		sb->s_flags |= MS_RDONLY | MS_NOATIME | MS_NODIRATIME;
@@ -1805,21 +1970,13 @@ get_ctx_vol_failed:
 			ntfs_error(sb, "%s and neither on_errors=continue nor "
 					"on_errors=remount-ro was specified%s",
 					es1, es2);
-			goto iput_logfile_err_out;
+			goto iput_root_err_out;
 		}
 		ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
 		sb->s_flags |= MS_RDONLY | MS_NOATIME | MS_NODIRATIME;
 		NVolSetErrors(vol);
 	}
 #endif /* NTFS_RW */
-	/* Get the root directory inode. */
-	vol->root_ino = ntfs_iget(sb, FILE_root);
-	if (IS_ERR(vol->root_ino) || is_bad_inode(vol->root_ino)) {
-		if (!IS_ERR(vol->root_ino))
-			iput(vol->root_ino);
-		ntfs_error(sb, "Failed to load root directory.");
-		goto iput_logfile_err_out;
-	}
 	/* If on NTFS versions before 3.0, we are done. */
 	if (unlikely(vol->major_ver < 3))
 		return TRUE;
