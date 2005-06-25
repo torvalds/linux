@@ -20,13 +20,14 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 #include <linux/dmi.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
 #include <linux/i8k.h>
 
-#define I8K_VERSION		"1.13 14/05/2002"
+#define I8K_VERSION		"1.14 21/02/2005"
 
 #define I8K_SMM_FN_STATUS	0x0025
 #define I8K_SMM_POWER_STATUS	0x0069
@@ -74,13 +75,16 @@ static int power_status;
 module_param(power_status, bool, 0600);
 MODULE_PARM_DESC(power_status, "Report power status in /proc/i8k");
 
-static ssize_t i8k_read(struct file *, char __user *, size_t, loff_t *);
+static int i8k_open_fs(struct inode *inode, struct file *file);
 static int i8k_ioctl(struct inode *, struct file *, unsigned int,
 		     unsigned long);
 
 static struct file_operations i8k_fops = {
-	.read = i8k_read,
-	.ioctl = i8k_ioctl,
+	.open		= i8k_open_fs,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+	.ioctl		= i8k_ioctl,
 };
 
 typedef struct {
@@ -400,9 +404,9 @@ static int i8k_ioctl(struct inode *ip, struct file *fp, unsigned int cmd,
 /*
  * Print the information for /proc/i8k.
  */
-static int i8k_get_info(char *buffer, char **start, off_t fpos, int length)
+static int i8k_proc_show(struct seq_file *seq, void *offset)
 {
-	int n, fn_key, cpu_temp, ac_power;
+	int fn_key, cpu_temp, ac_power;
 	int left_fan, right_fan, left_speed, right_speed;
 
 	cpu_temp	= i8k_get_cpu_temp();			/* 11100 µs */
@@ -431,42 +435,18 @@ static int i8k_get_info(char *buffer, char **start, off_t fpos, int length)
 	 * 9)  AC power
 	 * 10) Fn Key status
 	 */
-	n = sprintf(buffer, "%s %s %s %d %d %d %d %d %d %d\n",
-		    I8K_PROC_FMT,
-		    bios_version,
-		    dmi_get_system_info(DMI_PRODUCT_SERIAL) ? : "N/A",
-		    cpu_temp,
-		    left_fan, right_fan, left_speed, right_speed,
-		    ac_power, fn_key);
-
-	return n;
+	return seq_printf(seq, "%s %s %s %d %d %d %d %d %d %d\n",
+			  I8K_PROC_FMT,
+			  bios_version,
+			  dmi_get_system_info(DMI_PRODUCT_SERIAL) ? : "N/A",
+			  cpu_temp,
+			  left_fan, right_fan, left_speed, right_speed,
+			  ac_power, fn_key);
 }
 
-static ssize_t i8k_read(struct file *f, char __user * buffer, size_t len,
-			loff_t * fpos)
+static int i8k_open_fs(struct inode *inode, struct file *file)
 {
-	int n;
-	char info[128];
-
-	n = i8k_get_info(info, NULL, 0, 128);
-	if (n <= 0) {
-		return n;
-	}
-
-	if (*fpos >= n) {
-		return 0;
-	}
-
-	if ((*fpos + len) >= n) {
-		len = n - *fpos;
-	}
-
-	if (copy_to_user(buffer, info, len) != 0) {
-		return -EFAULT;
-	}
-
-	*fpos += len;
-	return len;
+	return single_open(file, i8k_proc_show, NULL);
 }
 
 static struct dmi_system_id __initdata i8k_dmi_table[] = {
@@ -560,10 +540,10 @@ int __init i8k_init(void)
 		return -ENODEV;
 
 	/* Register the proc entry */
-	proc_i8k = create_proc_info_entry("i8k", 0, NULL, i8k_get_info);
-	if (!proc_i8k) {
+	proc_i8k = create_proc_entry("i8k", 0, NULL);
+	if (!proc_i8k)
 		return -ENOENT;
-	}
+
 	proc_i8k->proc_fops = &i8k_fops;
 	proc_i8k->owner = THIS_MODULE;
 
