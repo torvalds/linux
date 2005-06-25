@@ -7,6 +7,8 @@
  * Hacked for x86-64 by James Cleverdon from i386 architecture code by
  * Martin Bligh, Andi Kleen, James Bottomley, John Stultz, and
  * James Cleverdon.
+ * Ashok Raj <ashok.raj@intel.com>
+ * 	Removed IPI broadcast shortcut to support CPU hotplug
  */
 #include <linux/config.h>
 #include <linux/threads.h>
@@ -45,22 +47,6 @@ static void flat_init_apic_ldr(void)
 	apic_write_around(APIC_LDR, val);
 }
 
-static void flat_send_IPI_allbutself(int vector)
-{
-	/*
-	 * if there are no other CPUs in the system then
-	 * we get an APIC send error if we try to broadcast.
-	 * thus we have to avoid sending IPIs in this case.
-	 */
-	if (num_online_cpus() > 1)
-		__send_IPI_shortcut(APIC_DEST_ALLBUT, vector, APIC_DEST_LOGICAL);
-}
-
-static void flat_send_IPI_all(int vector)
-{
-	__send_IPI_shortcut(APIC_DEST_ALLINC, vector, APIC_DEST_LOGICAL);
-}
-
 static void flat_send_IPI_mask(cpumask_t cpumask, int vector)
 {
 	unsigned long mask = cpus_addr(cpumask)[0];
@@ -91,6 +77,30 @@ static void flat_send_IPI_mask(cpumask_t cpumask, int vector)
 	 */
 	apic_write_around(APIC_ICR, cfg);
 	local_irq_restore(flags);
+}
+
+static void flat_send_IPI_allbutself(int vector)
+{
+	cpumask_t mask;
+	/*
+	 * if there are no other CPUs in the system then
+	 * we get an APIC send error if we try to broadcast.
+	 * thus we have to avoid sending IPIs in this case.
+	 */
+	int this_cpu = get_cpu();
+
+	mask = cpu_online_map;
+	cpu_clear(this_cpu, mask);
+
+	if (cpus_weight(mask) >= 1)
+		flat_send_IPI_mask(mask, vector);
+
+	put_cpu();
+}
+
+static void flat_send_IPI_all(int vector)
+{
+	flat_send_IPI_mask(cpu_online_map, vector);
 }
 
 static int flat_apic_id_registered(void)

@@ -43,6 +43,8 @@ extern cpumask_t cpu_callout_map;
 extern void smp_alloc_memory(void);
 extern volatile unsigned long smp_invalidate_needed;
 extern int pic_mode;
+extern void lock_ipi_call_lock(void);
+extern void unlock_ipi_call_lock(void);
 extern int smp_num_siblings;
 extern void smp_flush_tlb(void);
 extern void smp_message_irq(int cpl, void *dev_id, struct pt_regs *regs);

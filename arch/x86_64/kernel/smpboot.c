@@ -508,9 +508,22 @@ void __cpuinit start_secondary(void)
 	set_cpu_sibling_map(smp_processor_id());
 
 	/*
+	 * We need to hold call_lock, so there is no inconsistency
+	 * between the time smp_call_function() determines number of
+	 * IPI receipients, and the time when the determination is made
+	 * for which cpus receive the IPI in genapic_flat.c. Holding this
+	 * lock helps us to not include this cpu in a currently in progress
+	 * smp_call_function().
+	 */
+	lock_ipi_call_lock();
+
+	/*
 	 * Allow the master to continue.
 	 */
 	cpu_set(smp_processor_id(), cpu_online_map);
+	per_cpu(cpu_state, smp_processor_id()) = CPU_ONLINE;
+	unlock_ipi_call_lock();
+
 	mb();
 
 	/* Wait for TSC sync to not schedule things before.
@@ -1038,6 +1051,7 @@ void __init smp_prepare_boot_cpu(void)
 	cpu_set(me, cpu_callout_map);
 	cpu_set(0, cpu_sibling_map[0]);
 	cpu_set(0, cpu_core_map[0]);
+	per_cpu(cpu_state, me) = CPU_ONLINE;
 }
 
 /*
@@ -1066,6 +1080,7 @@ int __cpuinit __cpu_up(unsigned int cpu)
  		return -ENOSYS;
 	}
 
+	per_cpu(cpu_state, cpu) = CPU_UP_PREPARE;
 	/* Boot it! */
 	err = do_boot_cpu(cpu, apicid);
 	if (err < 0) {
@@ -1170,8 +1185,10 @@ void __cpu_die(unsigned int cpu)
 
 	for (i = 0; i < 10; i++) {
 		/* They ack this in play_dead by setting CPU_DEAD */
-		if (per_cpu(cpu_state, cpu) == CPU_DEAD)
+		if (per_cpu(cpu_state, cpu) == CPU_DEAD) {
+			printk ("CPU %d is now offline\n", cpu);
 			return;
+		}
 		current->state = TASK_UNINTERRUPTIBLE;
 		schedule_timeout(HZ/10);
 	}
