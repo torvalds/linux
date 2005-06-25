@@ -169,7 +169,7 @@ int current_pid(void)
 
 void default_idle(void)
 {
-	uml_idle_timer();
+	CHOOSE_MODE(uml_idle_timer(), (void) 0);
 
 	atomic_inc(&init_mm.mm_count);
 	current->mm = &init_mm;

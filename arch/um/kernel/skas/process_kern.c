@@ -180,7 +180,6 @@ int start_uml_skas(void)
 	start_userspace(0);
 
 	init_new_thread_signals(1);
-	uml_idle_timer();
 
 	init_task.thread.request.u.thread.proc = start_kernel_proc;
 	init_task.thread.request.u.thread.arg = NULL;
