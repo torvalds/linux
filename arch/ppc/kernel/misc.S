@@ -1444,7 +1444,7 @@ _GLOBAL(sys_call_table)
 	.long sys_mq_timedreceive	/* 265 */
 	.long sys_mq_notify
 	.long sys_mq_getsetattr
-	.long sys_ni_syscall		/* 268 reserved for sys_kexec_load */
+	.long sys_kexec_load
 	.long sys_add_key
 	.long sys_request_key		/* 270 */
 	.long sys_keyctl

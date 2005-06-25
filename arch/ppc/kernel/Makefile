@@ -29,6 +29,7 @@ obj-$(CONFIG_ALTIVEC)		+= vecemu.o vector.o
 ifndef CONFIG_E200
 obj-$(CONFIG_FSL_BOOKE)		+= perfmon_fsl_booke.o
 endif
+obj-$(CONFIG_KEXEC)		+= machine_kexec.o relocate_kernel.o
 
 ifndef CONFIG_MATH_EMULATION
 obj-$(CONFIG_8xx)		+= softemu8xx.o
