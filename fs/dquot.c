@@ -409,13 +409,10 @@ out_dqlock:
  * for this sb+type at all. */
 static void invalidate_dquots(struct super_block *sb, int type)
 {
-	struct dquot *dquot;
-	struct list_head *head;
+	struct dquot *dquot, *tmp;
 
 	spin_lock(&dq_list_lock);
-	for (head = inuse_list.next; head != &inuse_list;) {
-		dquot = list_entry(head, struct dquot, dq_inuse);
-		head = head->next;
+	list_for_each_entry_safe(dquot, tmp, &inuse_list, dq_inuse) {
 		if (dquot->dq_sb != sb)
 			continue;
 		if (dquot->dq_type != type)
