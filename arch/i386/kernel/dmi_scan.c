@@ -160,50 +160,10 @@ static void __init dmi_save_ident(struct dmi_header *dm, int slot, int string)
 }
 
 /*
- * Ugly compatibility crap.
- */
-#define dmi_blacklist	dmi_system_id
-#define NO_MATCH	{ DMI_NONE, NULL}
-#define MATCH		DMI_MATCH
-
-/*
- * Toshiba keyboard likes to repeat keys when they are not repeated.
- */
-
-static __init int broken_toshiba_keyboard(struct dmi_blacklist *d)
-{
-	printk(KERN_WARNING "Toshiba with broken keyboard detected. If your keyboard sometimes generates 3 keypresses instead of one, see http://davyd.ucc.asn.au/projects/toshiba/README\n");
-	return 0;
-}
-
-
-
-/*
- *	Process the DMI blacklists
- */
- 
-
-/*
- *	This will be expanded over time to force things like the APM 
- *	interrupt mask settings according to the laptop
- */
- 
-static __initdata struct dmi_blacklist dmi_blacklist[]={
-
-	{ broken_toshiba_keyboard, "Toshiba Satellite 4030cdt", { /* Keyboard generates spurious repeats */
-			MATCH(DMI_PRODUCT_NAME, "S4030CDT/4.3"),
-			NO_MATCH, NO_MATCH, NO_MATCH
-			} },
-
-	{ NULL, }
-};
-
-/*
  *	Process a DMI table entry. Right now all we care about are the BIOS
  *	and machine entries. For 2.5 we should pull the smbus controller info
  *	out of here.
  */
-
 static void __init dmi_decode(struct dmi_header *dm)
 {
 #ifdef DMI_DEBUG
@@ -253,10 +213,7 @@ static void __init dmi_decode(struct dmi_header *dm)
 
 void __init dmi_scan_machine(void)
 {
-	int err = dmi_iterate(dmi_decode);
-	if(err == 0)
- 		dmi_check_system(dmi_blacklist);
-	else
+	if (dmi_iterate(dmi_decode))
 		printk(KERN_INFO "DMI not present.\n");
 }
 
