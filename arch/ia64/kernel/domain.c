@@ -14,7 +14,7 @@
 #include <linux/topology.h>
 #include <linux/nodemask.h>
 
-#define SD_NODES_PER_DOMAIN 6
+#define SD_NODES_PER_DOMAIN 16
 
 #ifdef CONFIG_NUMA
 /**

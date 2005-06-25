@@ -42,12 +42,11 @@ extern int __node_distance(int, int);
 	.cache_nice_tries	= 2,			\
 	.busy_idx		= 3,			\
 	.idle_idx		= 2,			\
-	.newidle_idx		= 1, 			\
+	.newidle_idx		= 0, 			\
 	.wake_idx		= 1,			\
 	.forkexec_idx		= 1,			\
 	.per_cpu_gain		= 100,			\
 	.flags			= SD_LOAD_BALANCE	\
-				| SD_BALANCE_NEWIDLE	\
 				| SD_BALANCE_FORK	\
 				| SD_BALANCE_EXEC	\
 				| SD_WAKE_BALANCE,	\
