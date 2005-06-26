@@ -391,8 +391,7 @@ static int dvb_frontend_thread(void *data)
 			break;
 		}
 
-		if (current->flags & PF_FREEZE)
-			refrigerator(PF_FREEZE);
+		try_to_freeze();
 
 		if (down_interruptible(&fepriv->sem))
 			break;

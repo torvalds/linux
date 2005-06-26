@@ -718,7 +718,7 @@ static int pccardd(void *__skt)
 		}
 
 		schedule();
-		try_to_freeze(PF_FREEZE);
+		try_to_freeze();
 
 		if (!skt->thread)
 			break;

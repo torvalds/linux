@@ -2918,7 +2918,7 @@ static int airo_thread(void *data) {
 			flush_signals(current);
 
 		/* make swsusp happy with our thread */
-		try_to_freeze(PF_FREEZE);
+		try_to_freeze();
 
 		if (test_bit(JOB_DIE, &ai->flags))
 			break;

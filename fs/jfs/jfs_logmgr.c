@@ -2359,9 +2359,9 @@ int jfsIOWait(void *arg)
 			lbmStartIO(bp);
 			spin_lock_irq(&log_redrive_lock);
 		}
-		if (current->flags & PF_FREEZE) {
+		if (freezing(current)) {
 			spin_unlock_irq(&log_redrive_lock);
-			refrigerator(PF_FREEZE);
+			refrigerator();
 		} else {
 			add_wait_queue(&jfs_IO_thread_wait, &wq);
 			set_current_state(TASK_INTERRUPTIBLE);

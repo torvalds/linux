@@ -182,7 +182,7 @@ static int pnp_dock_thread(void * unused)
 		msleep_interruptible(2000);
 
 		if(signal_pending(current)) {
-			if (try_to_freeze(PF_FREEZE))
+			if (try_to_freeze())
 				continue;
 			break;
 		}

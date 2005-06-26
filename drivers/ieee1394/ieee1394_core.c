@@ -1041,10 +1041,8 @@ static int hpsbpkt_thread(void *__hi)
 
 	while (1) {
 		if (down_interruptible(&khpsbpkt_sig)) {
-			if (current->flags & PF_FREEZE) {
-				refrigerator(0);
+			if (try_to_freeze())
 				continue;
-			}
 			printk("khpsbpkt: received unexpected signal?!\n" );
 			break;
 		}

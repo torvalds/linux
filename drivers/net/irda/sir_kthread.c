@@ -135,8 +135,7 @@ static int irda_thread(void *startup)
 		remove_wait_queue(&irda_rq_queue.kick, &wait);
 
 		/* make swsusp happy with our thread */
-		if (current->flags & PF_FREEZE)
-			refrigerator(PF_FREEZE);
+		try_to_freeze();
 
 		run_irda_queue();
 	}

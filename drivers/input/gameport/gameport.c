@@ -439,7 +439,7 @@ static int gameport_thread(void *nothing)
 	do {
 		gameport_handle_events();
 		wait_event_interruptible(gameport_wait, !list_empty(&gameport_event_list));
-		try_to_freeze(PF_FREEZE);
+		try_to_freeze();
 	} while (!signal_pending(current));
 
 	printk(KERN_DEBUG "gameport: kgameportd exiting\n");

@@ -90,7 +90,7 @@ static int krxtimod(void *arg)
 			complete_and_exit(&krxtimod_dead, 0);
 		}
 
-		try_to_freeze(PF_FREEZE);
+		try_to_freeze();
 
 		/* discard pending signals */
 		rxrpc_discard_my_signals();
