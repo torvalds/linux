@@ -132,21 +132,6 @@ which require discussion or do not have a clear advantage should
 usually be sent first to linux-kernel.  Only after the patch is
 discussed should the patch then be submitted to Linus.
 
-For small patches you may want to CC the Trivial Patch Monkey
-trivial@rustcorp.com.au set up by Rusty Russell; which collects "trivial"
-patches. Trivial patches must qualify for one of the following rules:
- Spelling fixes in documentation
- Spelling fixes which could break grep(1).
- Warning fixes (cluttering with useless warnings is bad)
- Compilation fixes (only if they are actually correct)
- Runtime fixes (only if they actually fix things)
- Removing use of deprecated functions/macros (eg. check_region).
- Contact detail and documentation fixes
- Non-portable code replaced by portable code (even in arch-specific,
- since people copy, as long as it's trivial)
- Any fix by the author/maintainer of the file. (ie. patch monkey
- in re-transmission mode)
-
 
 
 5) Select your CC (e-mail carbon copy) list.
