@@ -1516,22 +1516,22 @@ static void cp_get_ethtool_stats (struct net_device *dev,
 				  struct ethtool_stats *estats, u64 *tmp_stats)
 {
 	struct cp_private *cp = netdev_priv(dev);
-	unsigned int work = 100;
 	int i;
+
+	memset(cp->nic_stats, 0, sizeof(struct cp_dma_stats));
 
 	/* begin NIC statistics dump */
 	cpw32(StatsAddr + 4, (cp->nic_stats_dma >> 16) >> 16);
 	cpw32(StatsAddr, (cp->nic_stats_dma & 0xffffffff) | DumpStats);
 	cpr32(StatsAddr);
 
-	while (work-- > 0) {
+	for (i = 0; i < 1000; i++) {
 		if ((cpr32(StatsAddr) & DumpStats) == 0)
 			break;
-		cpu_relax();
+		udelay(10);
 	}
-
-	if (cpr32(StatsAddr) & DumpStats)
-		return /* -EIO */;
+	cpw32(StatsAddr, 0);
+	cpw32(StatsAddr + 4, 0);
 
 	i = 0;
 	tmp_stats[i++] = le64_to_cpu(cp->nic_stats->tx_ok);
