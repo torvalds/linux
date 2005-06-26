@@ -296,8 +296,6 @@ int	xfs_da_path_shift(xfs_da_state_t *state, xfs_da_state_path_t *path,
 /*
  * Utility routines.
  */
-int	xfs_da_blk_unlink(xfs_da_state_t *state, xfs_da_state_blk_t *drop_blk,
-					 xfs_da_state_blk_t *save_blk);
 int	xfs_da_blk_link(xfs_da_state_t *state, xfs_da_state_blk_t *old_blk,
 				       xfs_da_state_blk_t *new_blk);
 
@@ -320,7 +318,6 @@ uint xfs_da_hashname(uchar_t *name_string, int name_length);
 uint xfs_da_log2_roundup(uint i);
 xfs_da_state_t *xfs_da_state_alloc(void);
 void xfs_da_state_free(xfs_da_state_t *state);
-void xfs_da_state_kill_altpath(xfs_da_state_t *state);
 
 void xfs_da_buf_done(xfs_dabuf_t *dabuf);
 void xfs_da_log_buf(struct xfs_trans *tp, xfs_dabuf_t *dabuf, uint first,

@@ -227,6 +227,24 @@ static int pirq_via_set(struct pci_dev *router, struct pci_dev *dev, int pirq, i
 }
 
 /*
+ * The VIA pirq rules are nibble-based, like ALI,
+ * but without the ugly irq number munging.
+ * However, for 82C586, nibble map is different .
+ */
+static int pirq_via586_get(struct pci_dev *router, struct pci_dev *dev, int pirq)
+{
+	static unsigned int pirqmap[4] = { 3, 2, 5, 1 };
+	return read_config_nybble(router, 0x55, pirqmap[pirq-1]);
+}
+
+static int pirq_via586_set(struct pci_dev *router, struct pci_dev *dev, int pirq, int irq)
+{
+	static unsigned int pirqmap[4] = { 3, 2, 5, 1 };
+	write_config_nybble(router, 0x55, pirqmap[pirq-1], irq);
+	return 1;
+}
+
+/*
  * ITE 8330G pirq rules are nibble-based
  * FIXME: pirqmap may be { 1, 0, 3, 2 },
  * 	  2+3 are both mapped to irq 9 on my system
@@ -512,6 +530,10 @@ static __init int via_router_probe(struct irq_router *r, struct pci_dev *router,
 	switch(device)
 	{
 		case PCI_DEVICE_ID_VIA_82C586_0:
+			r->name = "VIA";
+			r->get = pirq_via586_get;
+			r->set = pirq_via586_set;
+			return 1;
 		case PCI_DEVICE_ID_VIA_82C596:
 		case PCI_DEVICE_ID_VIA_82C686:
 		case PCI_DEVICE_ID_VIA_8231:
@@ -1029,7 +1051,6 @@ void pcibios_penalize_isa_irq(int irq)
 static int pirq_enable_irq(struct pci_dev *dev)
 {
 	u8 pin;
-	extern int via_interrupt_line_quirk;
 	struct pci_dev *temp_dev;
 
 	pci_read_config_byte(dev, PCI_INTERRUPT_PIN, &pin);
@@ -1084,10 +1105,6 @@ static int pirq_enable_irq(struct pci_dev *dev)
 		printk(KERN_WARNING "PCI: No IRQ known for interrupt pin %c of device %s.%s\n",
 		       'A' + pin, pci_name(dev), msg);
 	}
-	/* VIA bridges use interrupt line for apic/pci steering across
-	   the V-Link */
-	else if (via_interrupt_line_quirk)
-		pci_write_config_byte(dev, PCI_INTERRUPT_LINE, dev->irq & 15);
 	return 0;
 }
 

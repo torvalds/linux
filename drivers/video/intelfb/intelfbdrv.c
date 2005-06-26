@@ -214,7 +214,7 @@ static struct fb_ops intel_fb_ops = {
 
 /* PCI driver module table */
 static struct pci_driver intelfb_driver = {
-	.name =		"Intel(R) " SUPPORTED_CHIPSETS " Framebuffer Driver",
+	.name =		"intelfb",
 	.id_table =	intelfb_pci_table,
 	.probe =	intelfb_pci_register,
 	.remove =	__devexit_p(intelfb_pci_unregister)
@@ -228,22 +228,25 @@ MODULE_DESCRIPTION(
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DEVICE_TABLE(pci, intelfb_pci_table);
 
-static int accel        __initdata = 1;
-static int vram         __initdata = 4;
-static int hwcursor     __initdata = 1;
-static int mtrr         __initdata = 1;
-static int fixed        __initdata = 0;
-static int noinit       __initdata = 0;
-static int noregister   __initdata = 0;
-static int probeonly    __initdata = 0;
-static int idonly       __initdata = 0;
-static int bailearly    __initdata = 0;
-static char *mode       __initdata = NULL;
+static int accel        = 1;
+static int vram         = 4;
+static int hwcursor     = 1;
+static int mtrr         = 1;
+static int fixed        = 0;
+static int noinit       = 0;
+static int noregister   = 0;
+static int probeonly    = 0;
+static int idonly       = 0;
+static int bailearly    = 0;
+static int voffset	= 48;
+static char *mode       = NULL;
 
 module_param(accel, bool, S_IRUGO);
 MODULE_PARM_DESC(accel, "Enable console acceleration");
 module_param(vram, int, S_IRUGO);
 MODULE_PARM_DESC(vram, "System RAM to allocate to framebuffer in MiB");
+module_param(voffset, int, S_IRUGO);
+MODULE_PARM_DESC(voffset, "Offset of framebuffer in MiB");
 module_param(hwcursor, bool, S_IRUGO);
 MODULE_PARM_DESC(hwcursor, "Enable HW cursor");
 module_param(mtrr, bool, S_IRUGO);
@@ -503,6 +506,7 @@ intelfb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct agp_bridge_data *bridge;
  	int aperture_bar = 0;
  	int mmio_bar = 1;
+	int offset;
 
 	DBG_MSG("intelfb_pci_register\n");
 
@@ -659,17 +663,21 @@ intelfb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -ENODEV;
 	}
 
+	if (MB(voffset) < stolen_size)
+		offset = (stolen_size >> 12);
+	else
+		offset = ROUND_UP_TO_PAGE(MB(voffset))/GTT_PAGE_SIZE;
+
 	/* set the mem offsets - set them after the already used pages */
 	if (dinfo->accel) {
-		dinfo->ring.offset = (stolen_size >> 12)
-			+ gtt_info.current_memory;
+		dinfo->ring.offset = offset + gtt_info.current_memory;
 	}
 	if (dinfo->hwcursor) {
-		dinfo->cursor.offset = (stolen_size >> 12) +
+		dinfo->cursor.offset = offset +
 			+ gtt_info.current_memory + (dinfo->ring.size >> 12);
 	}
 	if (dinfo->fbmem_gart) {
-		dinfo->fb.offset = (stolen_size >> 12) +
+		dinfo->fb.offset = offset +
 			+ gtt_info.current_memory + (dinfo->ring.size >> 12)
 			+ (dinfo->cursor.size >> 12);
 	}
@@ -1083,6 +1091,7 @@ intelfb_set_fbinfo(struct intelfb_info *dinfo)
 
 	info->pixmap.size = 64*1024;
 	info->pixmap.buf_align = 8;
+	info->pixmap.access_align = 32;
 	info->pixmap.flags = FB_PIXMAP_SYSTEM;
 
 	if (intelfb_init_var(dinfo))
@@ -1293,7 +1302,7 @@ intelfb_set_par(struct fb_info *info)
 
 	intelfb_blank(FB_BLANK_POWERDOWN, info);
 
-	if (dinfo->accel)
+	if (ACCEL(dinfo, info))
 		intelfbhw_2d_stop(dinfo);
 
  	memcpy(hw, &dinfo->save_state, sizeof(*hw));
@@ -1309,7 +1318,7 @@ intelfb_set_par(struct fb_info *info)
 
 	update_dinfo(dinfo, &info->var);
 
-	if (dinfo->accel)
+	if (ACCEL(dinfo, info))
 		intelfbhw_2d_start(dinfo);
 
 	intelfb_pan_display(&info->var, info);

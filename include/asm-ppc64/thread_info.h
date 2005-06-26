@@ -24,7 +24,7 @@ struct thread_info {
 	struct task_struct *task;		/* main task structure */
 	struct exec_domain *exec_domain;	/* execution domain */
 	int		cpu;			/* cpu we're on */
-	int		preempt_count;
+	int		preempt_count;		/* 0 => preemptable, <0 => BUG */
 	struct restart_block restart_block;
 	/* set by force_successful_syscall_return */
 	unsigned char	syscall_noerror;
@@ -96,7 +96,7 @@ static inline struct thread_info *current_thread_info(void)
 #define TIF_POLLING_NRFLAG	4	/* true if poll_idle() is polling
 					   TIF_NEED_RESCHED */
 #define TIF_32BIT		5	/* 32 bit binary */
-#define TIF_RUN_LIGHT		6	/* iSeries run light */
+/* #define SPARE		6 */
 #define TIF_ABI_PENDING		7	/* 32/64 bit switch needed */
 #define TIF_SYSCALL_AUDIT	8	/* syscall auditing active */
 #define TIF_SINGLESTEP		9	/* singlestepping active */
@@ -110,7 +110,7 @@ static inline struct thread_info *current_thread_info(void)
 #define _TIF_NEED_RESCHED	(1<<TIF_NEED_RESCHED)
 #define _TIF_POLLING_NRFLAG	(1<<TIF_POLLING_NRFLAG)
 #define _TIF_32BIT		(1<<TIF_32BIT)
-#define _TIF_RUN_LIGHT		(1<<TIF_RUN_LIGHT)
+/* #define _SPARE		(1<<SPARE) */
 #define _TIF_ABI_PENDING	(1<<TIF_ABI_PENDING)
 #define _TIF_SYSCALL_AUDIT	(1<<TIF_SYSCALL_AUDIT)
 #define _TIF_SINGLESTEP		(1<<TIF_SINGLESTEP)

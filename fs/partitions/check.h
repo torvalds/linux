@@ -30,7 +30,3 @@ put_partition(struct parsed_partitions *p, int n, sector_t from, sector_t size)
 
 extern int warn_no_part;
 
-extern void parse_bsd(struct parsed_partitions *state,
-			struct block_device *bdev, u32 offset, u32 size,
-			int origin, char *flavour, int max_partitions);
-

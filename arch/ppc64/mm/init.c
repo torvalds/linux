@@ -73,9 +73,6 @@ static unsigned long phbs_io_bot = PHBS_IO_BASE;
 extern pgd_t swapper_pg_dir[];
 extern struct task_struct *current_set[NR_CPUS];
 
-extern pgd_t ioremap_dir[];
-pgd_t * ioremap_pgd = (pgd_t *)&ioremap_dir;
-
 unsigned long klimit = (unsigned long)_end;
 
 unsigned long _SDR1=0;
@@ -101,7 +98,7 @@ void show_mem(void)
 	printk("Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
 	for_each_pgdat(pgdat) {
 		for (i = 0; i < pgdat->node_spanned_pages; i++) {
-			page = pgdat->node_mem_map + i;
+			page = pgdat_page_nr(pgdat, i);
 			total++;
 			if (PageReserved(page))
 				reserved++;
@@ -137,69 +134,6 @@ void iounmap(volatile void __iomem *addr)
 
 #else
 
-static void unmap_im_area_pte(pmd_t *pmd, unsigned long addr,
-				  unsigned long end)
-{
-	pte_t *pte;
-
-	pte = pte_offset_kernel(pmd, addr);
-	do {
-		pte_t ptent = ptep_get_and_clear(&ioremap_mm, addr, pte);
-		WARN_ON(!pte_none(ptent) && !pte_present(ptent));
-	} while (pte++, addr += PAGE_SIZE, addr != end);
-}
-
-static inline void unmap_im_area_pmd(pud_t *pud, unsigned long addr,
-				     unsigned long end)
-{
-	pmd_t *pmd;
-	unsigned long next;
-
-	pmd = pmd_offset(pud, addr);
-	do {
-		next = pmd_addr_end(addr, end);
-		if (pmd_none_or_clear_bad(pmd))
-			continue;
-		unmap_im_area_pte(pmd, addr, next);
-	} while (pmd++, addr = next, addr != end);
-}
-
-static inline void unmap_im_area_pud(pgd_t *pgd, unsigned long addr,
-				     unsigned long end)
-{
-	pud_t *pud;
-	unsigned long next;
-
-	pud = pud_offset(pgd, addr);
-	do {
-		next = pud_addr_end(addr, end);
-		if (pud_none_or_clear_bad(pud))
-			continue;
-		unmap_im_area_pmd(pud, addr, next);
-	} while (pud++, addr = next, addr != end);
-}
-
-static void unmap_im_area(unsigned long addr, unsigned long end)
-{
-	struct mm_struct *mm = &ioremap_mm;
-	unsigned long next;
-	pgd_t *pgd;
-
-	spin_lock(&mm->page_table_lock);
-
-	pgd = pgd_offset_i(addr);
-	flush_cache_vunmap(addr, end);
-	do {
-		next = pgd_addr_end(addr, end);
-		if (pgd_none_or_clear_bad(pgd))
-			continue;
-		unmap_im_area_pud(pgd, addr, next);
-	} while (pgd++, addr = next, addr != end);
-	flush_tlb_kernel_range(start, end);
-
-	spin_unlock(&mm->page_table_lock);
-}
-
 /*
  * map_io_page currently only called by __ioremap
  * map_io_page adds an entry to the ioremap page table
@@ -214,21 +148,21 @@ static int map_io_page(unsigned long ea, unsigned long pa, int flags)
 	unsigned long vsid;
 
 	if (mem_init_done) {
-		spin_lock(&ioremap_mm.page_table_lock);
-		pgdp = pgd_offset_i(ea);
-		pudp = pud_alloc(&ioremap_mm, pgdp, ea);
+		spin_lock(&init_mm.page_table_lock);
+		pgdp = pgd_offset_k(ea);
+		pudp = pud_alloc(&init_mm, pgdp, ea);
 		if (!pudp)
 			return -ENOMEM;
-		pmdp = pmd_alloc(&ioremap_mm, pudp, ea);
+		pmdp = pmd_alloc(&init_mm, pudp, ea);
 		if (!pmdp)
 			return -ENOMEM;
-		ptep = pte_alloc_kernel(&ioremap_mm, pmdp, ea);
+		ptep = pte_alloc_kernel(&init_mm, pmdp, ea);
 		if (!ptep)
 			return -ENOMEM;
 		pa = abs_to_phys(pa);
-		set_pte_at(&ioremap_mm, ea, ptep, pfn_pte(pa >> PAGE_SHIFT,
+		set_pte_at(&init_mm, ea, ptep, pfn_pte(pa >> PAGE_SHIFT,
 							  __pgprot(flags)));
-		spin_unlock(&ioremap_mm.page_table_lock);
+		spin_unlock(&init_mm.page_table_lock);
 	} else {
 		unsigned long va, vpn, hash, hpteg;
 
@@ -267,13 +201,9 @@ static void __iomem * __ioremap_com(unsigned long addr, unsigned long pa,
 
 	for (i = 0; i < size; i += PAGE_SIZE)
 		if (map_io_page(ea+i, pa+i, flags))
-			goto failure;
+			return NULL;
 
 	return (void __iomem *) (ea + (addr & ~PAGE_MASK));
- failure:
-	if (mem_init_done)
-		unmap_im_area(ea, ea + size);
-	return NULL;
 }
 
 
@@ -381,19 +311,14 @@ int __ioremap_explicit(unsigned long pa, unsigned long ea,
  */
 void iounmap(volatile void __iomem *token)
 {
-	unsigned long address, size;
 	void *addr;
 
 	if (!mem_init_done)
 		return;
 	
 	addr = (void *) ((unsigned long __force) token & PAGE_MASK);
-	
-	if ((size = im_free(addr)) == 0)
-		return;
 
-	address = (unsigned long)addr; 
-	unmap_im_area(address, address + size);
+	im_free(addr);
 }
 
 static int iounmap_subset_regions(unsigned long addr, unsigned long size)
@@ -606,7 +531,7 @@ EXPORT_SYMBOL(page_is_ram);
  * Initialize the bootmem system and give it all the memory we
  * have available.
  */
-#ifndef CONFIG_DISCONTIGMEM
+#ifndef CONFIG_NEED_MULTIPLE_NODES
 void __init do_init_bootmem(void)
 {
 	unsigned long i;
@@ -628,12 +553,20 @@ void __init do_init_bootmem(void)
 
 	max_pfn = max_low_pfn;
 
-	/* add all physical memory to the bootmem map. Also find the first */
+	/* Add all physical memory to the bootmem map, mark each area
+	 * present.
+	 */
 	for (i=0; i < lmb.memory.cnt; i++) {
 		unsigned long physbase, size;
+		unsigned long start_pfn, end_pfn;
 
 		physbase = lmb.memory.region[i].physbase;
 		size = lmb.memory.region[i].size;
+
+		start_pfn = physbase >> PAGE_SHIFT;
+		end_pfn = start_pfn + (size >> PAGE_SHIFT);
+		memory_present(0, start_pfn, end_pfn);
+
 		free_bootmem(physbase, size);
 	}
 
@@ -672,7 +605,7 @@ void __init paging_init(void)
 	free_area_init_node(0, NODE_DATA(0), zones_size,
 			    __pa(PAGE_OFFSET) >> PAGE_SHIFT, zholes_size);
 }
-#endif /* CONFIG_DISCONTIGMEM */
+#endif /* ! CONFIG_NEED_MULTIPLE_NODES */
 
 static struct kcore_list kcore_vmem;
 
@@ -703,7 +636,7 @@ module_init(setup_kcore);
 
 void __init mem_init(void)
 {
-#ifdef CONFIG_DISCONTIGMEM
+#ifdef CONFIG_NEED_MULTIPLE_NODES
 	int nid;
 #endif
 	pg_data_t *pgdat;
@@ -714,7 +647,7 @@ void __init mem_init(void)
 	num_physpages = max_low_pfn;	/* RAM is assumed contiguous */
 	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE);
 
-#ifdef CONFIG_DISCONTIGMEM
+#ifdef CONFIG_NEED_MULTIPLE_NODES
         for_each_online_node(nid) {
 		if (NODE_DATA(nid)->node_spanned_pages != 0) {
 			printk("freeing bootmem node %x\n", nid);
@@ -729,7 +662,7 @@ void __init mem_init(void)
 
 	for_each_pgdat(pgdat) {
 		for (i = 0; i < pgdat->node_spanned_pages; i++) {
-			page = pgdat->node_mem_map + i;
+			page = pgdat_page_nr(pgdat, i);
 			if (PageReserved(page))
 				reservedpages++;
 		}

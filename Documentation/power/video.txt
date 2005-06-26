@@ -83,8 +83,10 @@ Compaq Armada E500 - P3-700     none (1) (S1 also works OK)
 Compaq Evo N620c		vga=normal, s3_bios (2)
 Dell 600m, ATI R250 Lf		none (1), but needs xorg-x11-6.8.1.902-1
 Dell D600, ATI RV250            vga=normal and X, or try vbestate (6)
+Dell D610			vga=normal and X (possibly vbestate (6) too, but not tested)
 Dell Inspiron 4000		??? (*)
 Dell Inspiron 500m		??? (*)
+Dell Inspiron 510m		???
 Dell Inspiron 600m		??? (*)
 Dell Inspiron 8200		??? (*)
 Dell Inspiron 8500		??? (*)
@@ -123,6 +125,7 @@ Toshiba Satellite 4030CDT	s3_mode (3)
 Toshiba Satellite 4080XCDT      s3_mode (3)
 Toshiba Satellite 4090XCDT      ??? (*)
 Toshiba Satellite P10-554       s3_bios,s3_mode (4)(****)
+Toshiba M30                     (2) xor X with nvidia driver using internal AGP
 Uniwill 244IIO			??? (*)
 
 

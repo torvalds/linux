@@ -220,13 +220,18 @@ sysret_careful:
 	jmp sysret_check
 
 	/* Handle a signal */ 
-	/* edx:	work flags (arg3) */
 sysret_signal:
 	sti
+	testl $(_TIF_SIGPENDING|_TIF_NOTIFY_RESUME|_TIF_SINGLESTEP),%edx
+	jz    1f
+
+	/* Really a signal */
+	/* edx:	work flags (arg3) */
 	leaq do_notify_resume(%rip),%rax
 	leaq -ARGOFFSET(%rsp),%rdi # &pt_regs -> arg1
 	xorl %esi,%esi # oldset -> arg2
 	call ptregscall_common
+1:	movl $_TIF_NEED_RESCHED,%edi
 	jmp sysret_check
 	
 	/* Do syscall tracing */
@@ -484,6 +489,8 @@ retint_careful:
 	jmp retint_check
 	
 retint_signal:
+	testl $(_TIF_SIGPENDING|_TIF_NOTIFY_RESUME|_TIF_SINGLESTEP),%edx
+	jz    retint_swapgs
 	sti
 	SAVE_REST
 	movq $-1,ORIG_RAX(%rsp) 			
@@ -492,8 +499,8 @@ retint_signal:
 	call do_notify_resume
 	RESTORE_REST
 	cli
+	movl $_TIF_NEED_RESCHED,%edi
 	GET_THREAD_INFO(%rcx)
-	movl $_TIF_WORK_MASK,%edi
 	jmp retint_check
 
 #ifdef CONFIG_PREEMPT

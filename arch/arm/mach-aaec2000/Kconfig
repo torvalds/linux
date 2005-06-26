@@ -1,0 +1,11 @@
+if ARCH_AAEC2000
+
+menu "Agilent AAEC-2000 Implementations"
+
+config MACH_AAED2000
+	bool "Agilent AAED-2000 Development Platform"
+	select CPU_ARM920T
+
+endmenu
+
+endif

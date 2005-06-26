@@ -43,8 +43,13 @@
 /* XXX from linux/nfs_idmap.h */
 #define IDMAP_NAMESZ 128
 
+#ifdef CONFIG_NFSD_V4
 void nfsd_idmap_init(void);
 void nfsd_idmap_shutdown(void);
+#else
+static inline void nfsd_idmap_init(void) {};
+static inline void nfsd_idmap_shutdown(void) {};
+#endif
 
 int nfsd_map_name_to_uid(struct svc_rqst *, const char *, size_t, __u32 *);
 int nfsd_map_name_to_gid(struct svc_rqst *, const char *, size_t, __u32 *);

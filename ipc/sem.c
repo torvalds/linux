@@ -1054,7 +1054,7 @@ asmlinkage long sys_semtimedop(int semid, struct sembuf __user *tsops,
 	struct sembuf fast_sops[SEMOPM_FAST];
 	struct sembuf* sops = fast_sops, *sop;
 	struct sem_undo *un;
-	int undos = 0, decrease = 0, alter = 0, max;
+	int undos = 0, alter = 0, max;
 	struct sem_queue queue;
 	unsigned long jiffies_left = 0;
 
@@ -1089,13 +1089,10 @@ asmlinkage long sys_semtimedop(int semid, struct sembuf __user *tsops,
 		if (sop->sem_num >= max)
 			max = sop->sem_num;
 		if (sop->sem_flg & SEM_UNDO)
-			undos++;
-		if (sop->sem_op < 0)
-			decrease = 1;
-		if (sop->sem_op > 0)
+			undos = 1;
+		if (sop->sem_op != 0)
 			alter = 1;
 	}
-	alter |= decrease;
 
 retry_undos:
 	if (undos) {

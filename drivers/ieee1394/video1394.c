@@ -35,6 +35,11 @@
  *
  */
 
+/* Markus Tavenrath <speedygoo@speedygoo.de> :
+   - fixed checks for valid buffer-numbers in video1394_icotl
+   - changed the ways the dma prg's are used, now it's possible to use
+     even a single dma buffer
+*/
 #include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -112,6 +117,7 @@ struct dma_iso_ctx {
 	struct it_dma_prg **it_prg;
 
 	unsigned int *buffer_status;
+	unsigned int *buffer_prg_assignment;
         struct timeval *buffer_time; /* time when the buffer was received */
 	unsigned int *last_used_cmd; /* For ISO Transmit with
 					variable sized packets only ! */
@@ -180,23 +186,14 @@ static int free_dma_iso_ctx(struct dma_iso_ctx *d)
 		kfree(d->prg_reg);
 	}
 
-	if (d->ir_prg)
-		kfree(d->ir_prg);
-
-	if (d->it_prg)
-		kfree(d->it_prg);
-
-	if (d->buffer_status)
-		kfree(d->buffer_status);
-	if (d->buffer_time)
-		kfree(d->buffer_time);
-	if (d->last_used_cmd)
-		kfree(d->last_used_cmd);
-	if (d->next_buffer)
-		kfree(d->next_buffer);
-
+	kfree(d->ir_prg);
+	kfree(d->it_prg);
+	kfree(d->buffer_status);
+	kfree(d->buffer_prg_assignment);
+	kfree(d->buffer_time);
+	kfree(d->last_used_cmd);
+	kfree(d->next_buffer);
 	list_del(&d->link);
-
 	kfree(d);
 
 	return 0;
@@ -230,7 +227,7 @@ alloc_dma_iso_ctx(struct ti_ohci *ohci, int type, int num_desc,
 	/* Init the regions for easy cleanup */
 	dma_region_init(&d->dma);
 
-	if (dma_region_alloc(&d->dma, d->num_desc * d->buf_size, ohci->dev,
+	if (dma_region_alloc(&d->dma, (d->num_desc - 1) * d->buf_size, ohci->dev,
 			     PCI_DMA_BIDIRECTIONAL)) {
 		PRINT(KERN_ERR, ohci->host->id, "Failed to allocate dma buffer");
 		free_dma_iso_ctx(d);
@@ -342,6 +339,8 @@ alloc_dma_iso_ctx(struct ti_ohci *ohci, int type, int num_desc,
 
 	d->buffer_status = kmalloc(d->num_desc * sizeof(unsigned int),
 				   GFP_KERNEL);
+	d->buffer_prg_assignment = kmalloc(d->num_desc * sizeof(unsigned int),
+				   GFP_KERNEL);
 	d->buffer_time = kmalloc(d->num_desc * sizeof(struct timeval),
 				   GFP_KERNEL);
 	d->last_used_cmd = kmalloc(d->num_desc * sizeof(unsigned int),
@@ -351,6 +350,11 @@ alloc_dma_iso_ctx(struct ti_ohci *ohci, int type, int num_desc,
 
 	if (d->buffer_status == NULL) {
 		PRINT(KERN_ERR, ohci->host->id, "Failed to allocate buffer_status");
+		free_dma_iso_ctx(d);
+		return NULL;
+	}
+	if (d->buffer_prg_assignment == NULL) {
+		PRINT(KERN_ERR, ohci->host->id, "Failed to allocate buffer_prg_assignment");
 		free_dma_iso_ctx(d);
 		return NULL;
 	}
@@ -370,6 +374,7 @@ alloc_dma_iso_ctx(struct ti_ohci *ohci, int type, int num_desc,
 		return NULL;
 	}
 	memset(d->buffer_status, 0, d->num_desc * sizeof(unsigned int));
+	memset(d->buffer_prg_assignment, 0, d->num_desc * sizeof(unsigned int));
 	memset(d->buffer_time, 0, d->num_desc * sizeof(struct timeval));
 	memset(d->last_used_cmd, 0, d->num_desc * sizeof(unsigned int));
 	memset(d->next_buffer, -1, d->num_desc * sizeof(int));
@@ -379,7 +384,7 @@ alloc_dma_iso_ctx(struct ti_ohci *ohci, int type, int num_desc,
 	PRINT(KERN_INFO, ohci->host->id, "Iso %s DMA: %d buffers "
 	      "of size %d allocated for a frame size %d, each with %d prgs",
 	      (type == OHCI_ISO_RECEIVE) ? "receive" : "transmit",
-	      d->num_desc, d->buf_size, d->frame_size, d->nb_cmd);
+	      d->num_desc - 1, d->buf_size, d->frame_size, d->nb_cmd);
 
 	return d;
 }
@@ -394,11 +399,36 @@ static void reset_ir_status(struct dma_iso_ctx *d, int n)
 	d->ir_prg[n][i].status = cpu_to_le32(d->left_size);
 }
 
+static void reprogram_dma_ir_prg(struct dma_iso_ctx *d, int n, int buffer, int flags)
+{
+	struct dma_cmd *ir_prg = d->ir_prg[n];
+	unsigned long buf = (unsigned long)d->dma.kvirt + buffer * d->buf_size;
+	int i;
+
+	d->buffer_prg_assignment[n] = buffer;
+
+	ir_prg[0].address = cpu_to_le32(dma_region_offset_to_bus(&d->dma, buf -
+  	                        (unsigned long)d->dma.kvirt));
+	ir_prg[1].address = cpu_to_le32(dma_region_offset_to_bus(&d->dma,
+				(buf + 4) - (unsigned long)d->dma.kvirt));
+
+	for (i=2;i<d->nb_cmd-1;i++) {
+		ir_prg[i].address = cpu_to_le32(dma_region_offset_to_bus(&d->dma,
+						(buf+(i-1)*PAGE_SIZE) -
+						(unsigned long)d->dma.kvirt));
+	}
+
+	ir_prg[i].control = cpu_to_le32(DMA_CTL_INPUT_MORE | DMA_CTL_UPDATE |
+				  DMA_CTL_IRQ | DMA_CTL_BRANCH | d->left_size);
+	ir_prg[i].address = cpu_to_le32(dma_region_offset_to_bus(&d->dma,
+				  (buf+(i-1)*PAGE_SIZE) - (unsigned long)d->dma.kvirt));
+}
+
 static void initialize_dma_ir_prg(struct dma_iso_ctx *d, int n, int flags)
 {
 	struct dma_cmd *ir_prg = d->ir_prg[n];
 	struct dma_prog_region *ir_reg = &d->prg_reg[n];
-	unsigned long buf = (unsigned long)d->dma.kvirt + n * d->buf_size;
+	unsigned long buf = (unsigned long)d->dma.kvirt;
 	int i;
 
 	/* the first descriptor will read only 4 bytes */
@@ -508,7 +538,7 @@ static void wakeup_dma_ir_ctx(unsigned long l)
 	for (i = 0; i < d->num_desc; i++) {
 		if (d->ir_prg[i][d->nb_cmd-1].status & cpu_to_le32(0xFFFF0000)) {
 			reset_ir_status(d, i);
-			d->buffer_status[i] = VIDEO1394_BUFFER_READY;
+			d->buffer_status[d->buffer_prg_assignment[i]] = VIDEO1394_BUFFER_READY;
 			do_gettimeofday(&d->buffer_time[i]);
 		}
 	}
@@ -585,7 +615,7 @@ static void wakeup_dma_it_ctx(unsigned long l)
 			int next = d->next_buffer[i];
 			put_timestamp(ohci, d, next);
 			d->it_prg[i][d->last_used_cmd[i]].end.status = 0;
-			d->buffer_status[i] = VIDEO1394_BUFFER_READY;
+			d->buffer_status[d->buffer_prg_assignment[i]] = VIDEO1394_BUFFER_READY;
 		}
 	}
 
@@ -595,11 +625,25 @@ static void wakeup_dma_it_ctx(unsigned long l)
 		wake_up_interruptible(&d->waitq);
 }
 
+static void reprogram_dma_it_prg(struct dma_iso_ctx  *d, int n, int buffer)
+{
+	struct it_dma_prg *it_prg = d->it_prg[n];
+	unsigned long buf = (unsigned long)d->dma.kvirt + buffer * d->buf_size;
+	int i;
+
+	d->buffer_prg_assignment[n] = buffer;
+	for (i=0;i<d->nb_cmd;i++) {
+	  it_prg[i].end.address =
+		cpu_to_le32(dma_region_offset_to_bus(&d->dma,
+			(buf+i*d->packet_size) - (unsigned long)d->dma.kvirt));
+	}
+}
+
 static void initialize_dma_it_prg(struct dma_iso_ctx *d, int n, int sync_tag)
 {
 	struct it_dma_prg *it_prg = d->it_prg[n];
 	struct dma_prog_region *it_reg = &d->prg_reg[n];
-	unsigned long buf = (unsigned long)d->dma.kvirt + n * d->buf_size;
+	unsigned long buf = (unsigned long)d->dma.kvirt;
 	int i;
 	d->last_used_cmd[n] = d->nb_cmd - 1;
 	for (i=0;i<d->nb_cmd;i++) {
@@ -796,7 +840,7 @@ static int __video1394_ioctl(struct file *file,
 
 		if (cmd == VIDEO1394_IOC_LISTEN_CHANNEL) {
 			d = alloc_dma_iso_ctx(ohci, OHCI_ISO_RECEIVE,
-					      v.nb_buffers, v.buf_size,
+					      v.nb_buffers + 1, v.buf_size,
 					      v.channel, 0);
 
 			if (d == NULL) {
@@ -817,7 +861,7 @@ static int __video1394_ioctl(struct file *file,
 		}
 		else {
 			d = alloc_dma_iso_ctx(ohci, OHCI_ISO_TRANSMIT,
-					      v.nb_buffers, v.buf_size,
+					      v.nb_buffers + 1, v.buf_size,
 					      v.channel, v.packet_size);
 
 			if (d == NULL) {
@@ -889,6 +933,7 @@ static int __video1394_ioctl(struct file *file,
 	{
 		struct video1394_wait v;
 		struct dma_iso_ctx *d;
+		int next_prg;
 
 		if (copy_from_user(&v, argp, sizeof(v)))
 			return -EFAULT;
@@ -896,7 +941,7 @@ static int __video1394_ioctl(struct file *file,
 		d = find_ctx(&ctx->context_list, OHCI_ISO_RECEIVE, v.channel);
 		if (d == NULL) return -EFAULT;
 
-		if ((v.buffer<0) || (v.buffer>d->num_desc)) {
+		if ((v.buffer<0) || (v.buffer>=d->num_desc - 1)) {
 			PRINT(KERN_ERR, ohci->host->id,
 			      "Buffer %d out of range",v.buffer);
 			return -EINVAL;
@@ -913,12 +958,14 @@ static int __video1394_ioctl(struct file *file,
 
 		d->buffer_status[v.buffer]=VIDEO1394_BUFFER_QUEUED;
 
+		next_prg = (d->last_buffer + 1) % d->num_desc;
 		if (d->last_buffer>=0)
 			d->ir_prg[d->last_buffer][d->nb_cmd-1].branchAddress =
-				cpu_to_le32((dma_prog_region_offset_to_bus(&d->prg_reg[v.buffer], 0)
+				cpu_to_le32((dma_prog_region_offset_to_bus(&d->prg_reg[next_prg], 0)
 					& 0xfffffff0) | 0x1);
 
-		d->last_buffer = v.buffer;
+		d->last_buffer = next_prg;
+		reprogram_dma_ir_prg(d, d->last_buffer, v.buffer, d->flags);
 
 		d->ir_prg[d->last_buffer][d->nb_cmd-1].branchAddress = 0;
 
@@ -930,7 +977,7 @@ static int __video1394_ioctl(struct file *file,
 
 			/* Tell the controller where the first program is */
 			reg_write(ohci, d->cmdPtr,
-				dma_prog_region_offset_to_bus(&d->prg_reg[v.buffer], 0) | 0x1);
+				  dma_prog_region_offset_to_bus(&d->prg_reg[d->last_buffer], 0) | 0x1);
 
 			/* Run IR context */
 			reg_write(ohci, d->ctrlSet, 0x8000);
@@ -951,7 +998,7 @@ static int __video1394_ioctl(struct file *file,
 	{
 		struct video1394_wait v;
 		struct dma_iso_ctx *d;
-		int i;
+		int i = 0;
 
 		if (copy_from_user(&v, argp, sizeof(v)))
 			return -EFAULT;
@@ -959,7 +1006,7 @@ static int __video1394_ioctl(struct file *file,
 		d = find_ctx(&ctx->context_list, OHCI_ISO_RECEIVE, v.channel);
 		if (d == NULL) return -EFAULT;
 
-		if ((v.buffer<0) || (v.buffer>d->num_desc)) {
+		if ((v.buffer<0) || (v.buffer>d->num_desc - 1)) {
 			PRINT(KERN_ERR, ohci->host->id,
 			      "Buffer %d out of range",v.buffer);
 			return -EINVAL;
@@ -1005,9 +1052,9 @@ static int __video1394_ioctl(struct file *file,
 		 * Look ahead to see how many more buffers have been received
 		 */
 		i=0;
-		while (d->buffer_status[(v.buffer+1)%d->num_desc]==
+		while (d->buffer_status[(v.buffer+1)%(d->num_desc - 1)]==
 		       VIDEO1394_BUFFER_READY) {
-			v.buffer=(v.buffer+1)%d->num_desc;
+			v.buffer=(v.buffer+1)%(d->num_desc - 1);
 			i++;
 		}
 		spin_unlock_irqrestore(&d->lock, flags);
@@ -1023,6 +1070,7 @@ static int __video1394_ioctl(struct file *file,
 		struct video1394_wait v;
 		unsigned int *psizes = NULL;
 		struct dma_iso_ctx *d;
+		int next_prg;
 
 		if (copy_from_user(&v, argp, sizeof(v)))
 			return -EFAULT;
@@ -1030,7 +1078,7 @@ static int __video1394_ioctl(struct file *file,
 		d = find_ctx(&ctx->context_list, OHCI_ISO_TRANSMIT, v.channel);
 		if (d == NULL) return -EFAULT;
 
-		if ((v.buffer<0) || (v.buffer>d->num_desc)) {
+		if ((v.buffer<0) || (v.buffer>=d->num_desc - 1)) {
 			PRINT(KERN_ERR, ohci->host->id,
 			      "Buffer %d out of range",v.buffer);
 			return -EINVAL;
@@ -1056,19 +1104,19 @@ static int __video1394_ioctl(struct file *file,
 
 		spin_lock_irqsave(&d->lock,flags);
 
+		// last_buffer is last_prg
+		next_prg = (d->last_buffer + 1) % d->num_desc;
 		if (d->buffer_status[v.buffer]!=VIDEO1394_BUFFER_FREE) {
 			PRINT(KERN_ERR, ohci->host->id,
 			      "Buffer %d is already used",v.buffer);
 			spin_unlock_irqrestore(&d->lock,flags);
-			if (psizes)
-				kfree(psizes);
+			kfree(psizes);
 			return -EBUSY;
 		}
 
 		if (d->flags & VIDEO1394_VARIABLE_PACKET_SIZE) {
 			initialize_dma_it_prg_var_packet_queue(
-				d, v.buffer, psizes,
-				ohci);
+				d, next_prg, psizes, ohci);
 		}
 
 		d->buffer_status[v.buffer]=VIDEO1394_BUFFER_QUEUED;
@@ -1076,16 +1124,17 @@ static int __video1394_ioctl(struct file *file,
 		if (d->last_buffer >= 0) {
 			d->it_prg[d->last_buffer]
 				[ d->last_used_cmd[d->last_buffer] ].end.branchAddress =
-					cpu_to_le32((dma_prog_region_offset_to_bus(&d->prg_reg[v.buffer],
+					cpu_to_le32((dma_prog_region_offset_to_bus(&d->prg_reg[next_prg],
 						0) & 0xfffffff0) | 0x3);
 
 			d->it_prg[d->last_buffer]
 				[ d->last_used_cmd[d->last_buffer] ].begin.branchAddress =
-					cpu_to_le32((dma_prog_region_offset_to_bus(&d->prg_reg[v.buffer],
+					cpu_to_le32((dma_prog_region_offset_to_bus(&d->prg_reg[next_prg],
 						0) & 0xfffffff0) | 0x3);
-			d->next_buffer[d->last_buffer] = v.buffer;
+			d->next_buffer[d->last_buffer] = (v.buffer + 1) % (d->num_desc - 1);
 		}
-		d->last_buffer = v.buffer;
+		d->last_buffer = next_prg;
+		reprogram_dma_it_prg(d, d->last_buffer, v.buffer);
 		d->next_buffer[d->last_buffer] = -1;
 
 		d->it_prg[d->last_buffer][d->last_used_cmd[d->last_buffer]].end.branchAddress = 0;
@@ -1100,7 +1149,7 @@ static int __video1394_ioctl(struct file *file,
 
 			/* Tell the controller where the first program is */
 			reg_write(ohci, d->cmdPtr,
-				dma_prog_region_offset_to_bus(&d->prg_reg[v.buffer], 0) | 0x3);
+				dma_prog_region_offset_to_bus(&d->prg_reg[next_prg], 0) | 0x3);
 
 			/* Run IT context */
 			reg_write(ohci, d->ctrlSet, 0x8000);
@@ -1116,9 +1165,7 @@ static int __video1394_ioctl(struct file *file,
 			}
 		}
 
-		if (psizes)
-			kfree(psizes);
-
+		kfree(psizes);
 		return 0;
 
 	}
@@ -1133,7 +1180,7 @@ static int __video1394_ioctl(struct file *file,
 		d = find_ctx(&ctx->context_list, OHCI_ISO_TRANSMIT, v.channel);
 		if (d == NULL) return -EFAULT;
 
-		if ((v.buffer<0) || (v.buffer>d->num_desc)) {
+		if ((v.buffer<0) || (v.buffer>=d->num_desc-1)) {
 			PRINT(KERN_ERR, ohci->host->id,
 			      "Buffer %d out of range",v.buffer);
 			return -EINVAL;
@@ -1323,7 +1370,7 @@ static void video1394_add_host (struct hpsb_host *host)
 	hpsb_set_hostinfo_key(&video1394_highlevel, host, ohci->host->id);
 
 	minor = IEEE1394_MINOR_BLOCK_VIDEO1394 * 16 + ohci->host->id;
-	class_simple_device_add(hpsb_protocol_class, MKDEV(
+	class_device_create(hpsb_protocol_class, MKDEV(
 		IEEE1394_MAJOR,	minor), 
 		NULL, "%s-%d", VIDEO1394_DRIVER_NAME, ohci->host->id);
 	devfs_mk_cdev(MKDEV(IEEE1394_MAJOR, minor),
@@ -1337,7 +1384,7 @@ static void video1394_remove_host (struct hpsb_host *host)
 	struct ti_ohci *ohci = hpsb_get_hostinfo(&video1394_highlevel, host);
 
 	if (ohci) {
-		class_simple_device_remove(MKDEV(IEEE1394_MAJOR, 
+		class_device_destroy(hpsb_protocol_class, MKDEV(IEEE1394_MAJOR,
 			IEEE1394_MINOR_BLOCK_VIDEO1394 * 16 + ohci->host->id));
 		devfs_remove("%s/%d", VIDEO1394_DRIVER_NAME, ohci->host->id);
 	}

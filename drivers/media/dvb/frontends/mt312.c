@@ -226,7 +226,7 @@ static int mt312_get_code_rate(struct mt312_state* state, fe_code_rate_t *cr)
 
 static int mt312_initfe(struct dvb_frontend* fe)
 {
-	struct mt312_state *state = (struct mt312_state*) fe->demodulator_priv;
+	struct mt312_state *state = fe->demodulator_priv;
 	int ret;
 	u8 buf[2];
 
@@ -287,7 +287,7 @@ static int mt312_initfe(struct dvb_frontend* fe)
 static int mt312_send_master_cmd(struct dvb_frontend* fe,
 				 struct dvb_diseqc_master_cmd *c)
 {
-	struct mt312_state *state = (struct mt312_state*) fe->demodulator_priv;
+	struct mt312_state *state = fe->demodulator_priv;
 	int ret;
 	u8 diseqc_mode;
 
@@ -318,7 +318,7 @@ static int mt312_send_master_cmd(struct dvb_frontend* fe,
 
 static int mt312_send_burst(struct dvb_frontend* fe, const fe_sec_mini_cmd_t c)
 {
-	struct mt312_state *state = (struct mt312_state*) fe->demodulator_priv;
+	struct mt312_state *state = fe->demodulator_priv;
 	const u8 mini_tab[2] = { 0x02, 0x03 };
 
 	int ret;
@@ -340,7 +340,7 @@ static int mt312_send_burst(struct dvb_frontend* fe, const fe_sec_mini_cmd_t c)
 
 static int mt312_set_tone(struct dvb_frontend* fe, const fe_sec_tone_mode_t t)
 {
-	struct mt312_state *state = (struct mt312_state*) fe->demodulator_priv;
+	struct mt312_state *state = fe->demodulator_priv;
 	const u8 tone_tab[2] = { 0x01, 0x00 };
 
 	int ret;
@@ -362,7 +362,7 @@ static int mt312_set_tone(struct dvb_frontend* fe, const fe_sec_tone_mode_t t)
 
 static int mt312_set_voltage(struct dvb_frontend* fe, const fe_sec_voltage_t v)
 {
-	struct mt312_state *state = (struct mt312_state*) fe->demodulator_priv;
+	struct mt312_state *state = fe->demodulator_priv;
 	const u8 volt_tab[3] = { 0x00, 0x40, 0x00 };
 
 	if (v > SEC_VOLTAGE_OFF)
@@ -373,7 +373,7 @@ static int mt312_set_voltage(struct dvb_frontend* fe, const fe_sec_voltage_t v)
 
 static int mt312_read_status(struct dvb_frontend* fe, fe_status_t *s)
 {
-	struct mt312_state *state = (struct mt312_state*) fe->demodulator_priv;
+	struct mt312_state *state = fe->demodulator_priv;
 	int ret;
 	u8 status[3];
 
@@ -400,7 +400,7 @@ static int mt312_read_status(struct dvb_frontend* fe, fe_status_t *s)
 
 static int mt312_read_ber(struct dvb_frontend* fe, u32 *ber)
 {
-	struct mt312_state *state = (struct mt312_state*) fe->demodulator_priv;
+	struct mt312_state *state = fe->demodulator_priv;
 	int ret;
 	u8 buf[3];
 
@@ -414,7 +414,7 @@ static int mt312_read_ber(struct dvb_frontend* fe, u32 *ber)
 
 static int mt312_read_signal_strength(struct dvb_frontend* fe, u16 *signal_strength)
 {
-	struct mt312_state *state = (struct mt312_state*) fe->demodulator_priv;
+	struct mt312_state *state = fe->demodulator_priv;
 	int ret;
 	u8 buf[3];
 	u16 agc;
@@ -435,7 +435,7 @@ static int mt312_read_signal_strength(struct dvb_frontend* fe, u16 *signal_stren
 
 static int mt312_read_snr(struct dvb_frontend* fe, u16 *snr)
 {
-	struct mt312_state *state = (struct mt312_state*) fe->demodulator_priv;
+	struct mt312_state *state = fe->demodulator_priv;
 	int ret;
 	u8 buf[2];
 
@@ -449,7 +449,7 @@ static int mt312_read_snr(struct dvb_frontend* fe, u16 *snr)
 
 static int mt312_read_ucblocks(struct dvb_frontend* fe, u32 *ubc)
 {
-	struct mt312_state *state = (struct mt312_state*) fe->demodulator_priv;
+	struct mt312_state *state = fe->demodulator_priv;
 	int ret;
 	u8 buf[2];
 
@@ -464,7 +464,7 @@ static int mt312_read_ucblocks(struct dvb_frontend* fe, u32 *ubc)
 static int mt312_set_frontend(struct dvb_frontend* fe,
 			      struct dvb_frontend_parameters *p)
 {
-	struct mt312_state *state = (struct mt312_state*) fe->demodulator_priv;
+	struct mt312_state *state = fe->demodulator_priv;
 	int ret;
 	u8 buf[5], config_val;
 	u16 sr;
@@ -560,7 +560,7 @@ static int mt312_set_frontend(struct dvb_frontend* fe,
 static int mt312_get_frontend(struct dvb_frontend* fe,
 			      struct dvb_frontend_parameters *p)
 {
-	struct mt312_state *state = (struct mt312_state*) fe->demodulator_priv;
+	struct mt312_state *state = fe->demodulator_priv;
 	int ret;
 
 	if ((ret = mt312_get_inversion(state, &p->inversion)) < 0)
@@ -577,7 +577,7 @@ static int mt312_get_frontend(struct dvb_frontend* fe,
 
 static int mt312_sleep(struct dvb_frontend* fe)
 {
-	struct mt312_state *state = (struct mt312_state*) fe->demodulator_priv;
+	struct mt312_state *state = fe->demodulator_priv;
 	int ret;
 	u8 config;
 
@@ -605,7 +605,7 @@ static int mt312_get_tune_settings(struct dvb_frontend* fe, struct dvb_frontend_
 
 static void mt312_release(struct dvb_frontend* fe)
 {
-	struct mt312_state* state = (struct mt312_state*) fe->demodulator_priv;
+	struct mt312_state* state = fe->demodulator_priv;
 	kfree(state);
 }
 
@@ -617,7 +617,7 @@ struct dvb_frontend* vp310_attach(const struct mt312_config* config,
 	struct mt312_state* state = NULL;
 
 	/* allocate memory for the internal state */
-	state = (struct mt312_state*) kmalloc(sizeof(struct mt312_state), GFP_KERNEL);
+	state = kmalloc(sizeof(struct mt312_state), GFP_KERNEL);
 	if (state == NULL)
 		goto error;
 
@@ -651,7 +651,7 @@ struct dvb_frontend* mt312_attach(const struct mt312_config* config,
 	struct mt312_state* state = NULL;
 
 	/* allocate memory for the internal state */
-	state = (struct mt312_state*) kmalloc(sizeof(struct mt312_state), GFP_KERNEL);
+	state = kmalloc(sizeof(struct mt312_state), GFP_KERNEL);
 	if (state == NULL)
 		goto error;
 

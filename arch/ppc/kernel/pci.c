@@ -1003,7 +1003,7 @@ pci_create_OF_bus_map(void)
 	}
 }
 
-static ssize_t pci_show_devspec(struct device *dev, char *buf)
+static ssize_t pci_show_devspec(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct pci_dev *pdev;
 	struct device_node *np;

@@ -158,7 +158,7 @@ static int __init init_hpet(char* override)
 			{	unsigned long eax=0, edx=1000;
 				ASM_DIV64_REG(cpu_khz, edx, tsc_quotient,
 						eax, edx);
-				printk("Detected %lu.%03lu MHz processor.\n",
+				printk("Detected %u.%03u MHz processor.\n",
 					cpu_khz / 1000, cpu_khz % 1000);
 			}
 			set_cyc2ns_scale(cpu_khz/1000);
@@ -186,6 +186,7 @@ static struct timer_opts timer_hpet = {
 	.get_offset =		get_offset_hpet,
 	.monotonic_clock =	monotonic_clock_hpet,
 	.delay = 		delay_hpet,
+	.read_timer = 		read_timer_tsc,
 };
 
 struct init_timer_opts __initdata timer_hpet_init = {

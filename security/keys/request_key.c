@@ -1,6 +1,6 @@
 /* request_key.c: request a key from userspace
  *
- * Copyright (C) 2004 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2004-5 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -13,6 +13,7 @@
 #include <linux/sched.h>
 #include <linux/kmod.h>
 #include <linux/err.h>
+#include <linux/keyctl.h>
 #include "internal.h"
 
 struct key_construction {
@@ -27,18 +28,26 @@ DECLARE_WAIT_QUEUE_HEAD(request_key_conswq);
 /*
  * request userspace finish the construction of a key
  * - execute "/sbin/request-key <op> <key> <uid> <gid> <keyring> <keyring> <keyring> <info>"
- * - if callout_info is an empty string, it'll be rendered as a "-" instead
  */
 static int call_request_key(struct key *key,
 			    const char *op,
 			    const char *callout_info)
 {
 	struct task_struct *tsk = current;
-	unsigned long flags;
 	key_serial_t prkey, sskey;
+	struct key *session_keyring, *rkakey;
 	char *argv[10], *envp[3], uid_str[12], gid_str[12];
 	char key_str[12], keyring_str[3][12];
-	int i;
+	int ret, i;
+
+	kenter("{%d},%s,%s", key->serial, op, callout_info);
+
+	/* generate a new session keyring with an auth key in it */
+	session_keyring = request_key_auth_new(key, &rkakey);
+	if (IS_ERR(session_keyring)) {
+		ret = PTR_ERR(session_keyring);
+		goto error;
+	}
 
 	/* record the UID and GID */
 	sprintf(uid_str, "%d", current->fsuid);
@@ -55,17 +64,17 @@ static int call_request_key(struct key *key,
 	if (tsk->signal->process_keyring)
 		prkey = tsk->signal->process_keyring->serial;
 
-	sskey = 0;
-	spin_lock_irqsave(&tsk->sighand->siglock, flags);
-	if (tsk->signal->session_keyring)
-		sskey = tsk->signal->session_keyring->serial;
-	spin_unlock_irqrestore(&tsk->sighand->siglock, flags);
-
-
-	if (!sskey)
-		sskey = tsk->user->session_keyring->serial;
-
 	sprintf(keyring_str[1], "%d", prkey);
+
+	if (tsk->signal->session_keyring) {
+		rcu_read_lock();
+		sskey = rcu_dereference(tsk->signal->session_keyring)->serial;
+		rcu_read_unlock();
+	}
+	else {
+		sskey = tsk->user->session_keyring->serial;
+	}
+
 	sprintf(keyring_str[2], "%d", sskey);
 
 	/* set up a minimal environment */
@@ -84,11 +93,20 @@ static int call_request_key(struct key *key,
 	argv[i++] = keyring_str[0];
 	argv[i++] = keyring_str[1];
 	argv[i++] = keyring_str[2];
-	argv[i++] = callout_info[0] ? (char *) callout_info : "-";
+	argv[i++] = (char *) callout_info;
 	argv[i] = NULL;
 
 	/* do it */
-	return call_usermodehelper(argv[0], argv, envp, 1);
+	ret = call_usermodehelper_keys(argv[0], argv, envp, session_keyring, 1);
+
+	/* dispose of the special keys */
+	key_revoke(rkakey);
+	key_put(rkakey);
+	key_put(session_keyring);
+
+ error:
+	kleave(" = %d", ret);
+	return ret;
 
 } /* end call_request_key() */
 
@@ -105,7 +123,9 @@ static struct key *__request_key_construction(struct key_type *type,
 	struct key_construction cons;
 	struct timespec now;
 	struct key *key;
-	int ret, negative;
+	int ret, negated;
+
+	kenter("%s,%s,%s", type->name, description, callout_info);
 
 	/* create a key and add it to the queue */
 	key = key_alloc(type, description,
@@ -113,9 +133,7 @@ static struct key *__request_key_construction(struct key_type *type,
 	if (IS_ERR(key))
 		goto alloc_failed;
 
-	write_lock(&key->lock);
-	key->flags |= KEY_FLAG_USER_CONSTRUCT;
-	write_unlock(&key->lock);
+	set_bit(KEY_FLAG_USER_CONSTRUCT, &key->flags);
 
 	cons.key = key;
 	list_add_tail(&cons.link, &key->user->consq);
@@ -130,7 +148,7 @@ static struct key *__request_key_construction(struct key_type *type,
 
 	/* if the key wasn't instantiated, then we want to give an error */
 	ret = -ENOKEY;
-	if (!(key->flags & KEY_FLAG_INSTANTIATED))
+	if (!test_bit(KEY_FLAG_INSTANTIATED, &key->flags))
 		goto request_failed;
 
 	down_write(&key_construction_sem);
@@ -139,12 +157,13 @@ static struct key *__request_key_construction(struct key_type *type,
 
 	/* also give an error if the key was negatively instantiated */
  check_not_negative:
-	if (key->flags & KEY_FLAG_NEGATIVE) {
+	if (test_bit(KEY_FLAG_NEGATIVE, &key->flags)) {
 		key_put(key);
 		key = ERR_PTR(-ENOKEY);
 	}
 
  out:
+	kleave(" = %p", key);
 	return key;
 
  request_failed:
@@ -152,24 +171,23 @@ static struct key *__request_key_construction(struct key_type *type,
 	 * - remove from construction queue
 	 * - mark the key as dead
 	 */
-	negative = 0;
+	negated = 0;
 	down_write(&key_construction_sem);
 
 	list_del(&cons.link);
 
-	write_lock(&key->lock);
-	key->flags &= ~KEY_FLAG_USER_CONSTRUCT;
-
 	/* check it didn't get instantiated between the check and the down */
-	if (!(key->flags & KEY_FLAG_INSTANTIATED)) {
-		key->flags |= KEY_FLAG_INSTANTIATED | KEY_FLAG_NEGATIVE;
-		negative = 1;
+	if (!test_bit(KEY_FLAG_INSTANTIATED, &key->flags)) {
+		set_bit(KEY_FLAG_NEGATIVE, &key->flags);
+		set_bit(KEY_FLAG_INSTANTIATED, &key->flags);
+		negated = 1;
 	}
 
-	write_unlock(&key->lock);
+	clear_bit(KEY_FLAG_USER_CONSTRUCT, &key->flags);
+
 	up_write(&key_construction_sem);
 
-	if (!negative)
+	if (!negated)
 		goto check_not_negative; /* surprisingly, the key got
 					  * instantiated */
 
@@ -178,13 +196,12 @@ static struct key *__request_key_construction(struct key_type *type,
 	key->expiry = now.tv_sec + key_negative_timeout;
 
 	if (current->signal->session_keyring) {
-		unsigned long flags;
 		struct key *keyring;
 
-		spin_lock_irqsave(&current->sighand->siglock, flags);
-		keyring = current->signal->session_keyring;
+		rcu_read_lock();
+		keyring = rcu_dereference(current->signal->session_keyring);
 		atomic_inc(&keyring->usage);
-		spin_unlock_irqrestore(&current->sighand->siglock, flags);
+		rcu_read_unlock();
 
 		key_link(keyring, key);
 		key_put(keyring);
@@ -220,6 +237,9 @@ static struct key *request_key_construction(struct key_type *type,
 
 	DECLARE_WAITQUEUE(myself, current);
 
+	kenter("%s,%s,{%d},%s",
+	       type->name, description, user->uid, callout_info);
+
 	/* see if there's such a key under construction already */
 	down_write(&key_construction_sem);
 
@@ -236,6 +256,7 @@ static struct key *request_key_construction(struct key_type *type,
 	/* see about getting userspace to construct the key */
 	key = __request_key_construction(type, description, callout_info);
  error:
+	kleave(" = %p", key);
 	return key;
 
 	/* someone else has the same key under construction
@@ -249,8 +270,10 @@ static struct key *request_key_construction(struct key_type *type,
 	add_wait_queue(&request_key_conswq, &myself);
 
 	for (;;) {
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		if (!(ckey->flags & KEY_FLAG_USER_CONSTRUCT))
+		set_current_state(TASK_INTERRUPTIBLE);
+		if (!test_bit(KEY_FLAG_USER_CONSTRUCT, &ckey->flags))
+			break;
+		if (signal_pending(current))
 			break;
 		schedule();
 	}
@@ -271,21 +294,83 @@ static struct key *request_key_construction(struct key_type *type,
 
 /*****************************************************************************/
 /*
+ * link a freshly minted key to an appropriate destination keyring
+ */
+static void request_key_link(struct key *key, struct key *dest_keyring)
+{
+	struct task_struct *tsk = current;
+	struct key *drop = NULL;
+
+	kenter("{%d},%p", key->serial, dest_keyring);
+
+	/* find the appropriate keyring */
+	if (!dest_keyring) {
+		switch (tsk->jit_keyring) {
+		case KEY_REQKEY_DEFL_DEFAULT:
+		case KEY_REQKEY_DEFL_THREAD_KEYRING:
+			dest_keyring = tsk->thread_keyring;
+			if (dest_keyring)
+				break;
+
+		case KEY_REQKEY_DEFL_PROCESS_KEYRING:
+			dest_keyring = tsk->signal->process_keyring;
+			if (dest_keyring)
+				break;
+
+		case KEY_REQKEY_DEFL_SESSION_KEYRING:
+			rcu_read_lock();
+			dest_keyring = key_get(
+				rcu_dereference(tsk->signal->session_keyring));
+			rcu_read_unlock();
+			drop = dest_keyring;
+
+			if (dest_keyring)
+				break;
+
+		case KEY_REQKEY_DEFL_USER_SESSION_KEYRING:
+			dest_keyring = current->user->session_keyring;
+			break;
+
+		case KEY_REQKEY_DEFL_USER_KEYRING:
+			dest_keyring = current->user->uid_keyring;
+			break;
+
+		case KEY_REQKEY_DEFL_GROUP_KEYRING:
+		default:
+			BUG();
+		}
+	}
+
+	/* and attach the key to it */
+	key_link(dest_keyring, key);
+
+	key_put(drop);
+
+	kleave("");
+
+} /* end request_key_link() */
+
+/*****************************************************************************/
+/*
  * request a key
  * - search the process's keyrings
  * - check the list of keys being created or updated
- * - call out to userspace for a key if requested (supplementary info can be
- *   passed)
+ * - call out to userspace for a key if supplementary info was provided
+ * - cache the key in an appropriate keyring
  */
-struct key *request_key(struct key_type *type,
-			const char *description,
-			const char *callout_info)
+struct key *request_key_and_link(struct key_type *type,
+				 const char *description,
+				 const char *callout_info,
+				 struct key *dest_keyring)
 {
 	struct key_user *user;
 	struct key *key;
 
+	kenter("%s,%s,%s,%p",
+	       type->name, description, callout_info, dest_keyring);
+
 	/* search all the process keyrings for a key */
-	key = search_process_keyrings_aux(type, description, type->match);
+	key = search_process_keyrings(type, description, type->match, current);
 
 	if (PTR_ERR(key) == -EAGAIN) {
 		/* the search failed, but the keyrings were searchable, so we
@@ -296,12 +381,13 @@ struct key *request_key(struct key_type *type,
 
 		/* - get hold of the user's construction queue */
 		user = key_user_lookup(current->fsuid);
-		if (!user) {
-			key = ERR_PTR(-ENOMEM);
-			goto error;
-		}
+		if (!user)
+			goto nomem;
 
-		for (;;) {
+		do {
+			if (signal_pending(current))
+				goto interrupted;
+
 			/* ask userspace (returns NULL if it waited on a key
 			 * being constructed) */
 			key = request_key_construction(type, description,
@@ -311,17 +397,45 @@ struct key *request_key(struct key_type *type,
 
 			/* someone else made the key we want, so we need to
 			 * search again as it might now be available to us */
-			key = search_process_keyrings_aux(type, description,
-							  type->match);
-			if (PTR_ERR(key) != -EAGAIN)
-				break;
-		}
+			key = search_process_keyrings(type, description,
+						      type->match, current);
+
+		} while (PTR_ERR(key) == -EAGAIN);
 
 		key_user_put(user);
+
+		/* link the new key into the appropriate keyring */
+		if (!PTR_ERR(key))
+			request_key_link(key, dest_keyring);
 	}
 
- error:
+error:
+	kleave(" = %p", key);
 	return key;
+
+nomem:
+	key = ERR_PTR(-ENOMEM);
+	goto error;
+
+interrupted:
+	key_user_put(user);
+	key = ERR_PTR(-EINTR);
+	goto error;
+
+} /* end request_key_and_link() */
+
+/*****************************************************************************/
+/*
+ * request a key
+ * - search the process's keyrings
+ * - check the list of keys being created or updated
+ * - call out to userspace for a key if supplementary info was provided
+ */
+struct key *request_key(struct key_type *type,
+			const char *description,
+			const char *callout_info)
+{
+	return request_key_and_link(type, description, callout_info, NULL);
 
 } /* end request_key() */
 
@@ -339,7 +453,8 @@ int key_validate(struct key *key)
 	if (key) {
 		/* check it's still accessible */
 		ret = -EKEYREVOKED;
-		if (key->flags & (KEY_FLAG_REVOKED | KEY_FLAG_DEAD))
+		if (test_bit(KEY_FLAG_REVOKED, &key->flags) ||
+		    test_bit(KEY_FLAG_DEAD, &key->flags))
 			goto error;
 
 		/* check it hasn't expired */

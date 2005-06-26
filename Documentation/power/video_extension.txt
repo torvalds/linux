@@ -1,13 +1,16 @@
-This driver implement the ACPI Extensions For Display Adapters
-for integrated graphics devices on motherboard, as specified in
-ACPI 2.0 Specification, Appendix B, allowing to perform some basic
-control like defining the video POST device, retrieving EDID information
-or to setup a video output, etc.  Note that this is an ref. implementation only.
-It may or may not work for your integrated video device.
+ACPI video extensions
+~~~~~~~~~~~~~~~~~~~~~
+
+This driver implement the ACPI Extensions For Display Adapters for
+integrated graphics devices on motherboard, as specified in ACPI 2.0
+Specification, Appendix B, allowing to perform some basic control like
+defining the video POST device, retrieving EDID information or to
+setup a video output, etc.  Note that this is an ref. implementation
+only.  It may or may not work for your integrated video device.
 
 Interfaces exposed to userland through /proc/acpi/video:
 
-VGA/info : display the supported video bus device capability like ,Video ROM, CRT/LCD/TV.
+VGA/info : display the supported video bus device capability like Video ROM, CRT/LCD/TV.
 VGA/ROM :  Used to get a copy of the display devices' ROM data (up to 4k).
 VGA/POST_info : Used to determine what options are implemented.
 VGA/POST : Used to get/set POST device.
@@ -15,7 +18,7 @@ VGA/DOS : Used to get/set ownership of output switching:
 	Please refer ACPI spec B.4.1 _DOS
 VGA/CRT : CRT output
 VGA/LCD : LCD output
-VGA/TV : TV output 
+VGA/TVO : TV output
 VGA/*/brightness : Used to get/set brightness of output device
 
 Notify event through /proc/acpi/event:

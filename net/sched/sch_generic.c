@@ -243,31 +243,27 @@ static void dev_watchdog_down(struct net_device *dev)
    cheaper.
  */
 
-static int
-noop_enqueue(struct sk_buff *skb, struct Qdisc * qdisc)
+static int noop_enqueue(struct sk_buff *skb, struct Qdisc * qdisc)
 {
 	kfree_skb(skb);
 	return NET_XMIT_CN;
 }
 
-static struct sk_buff *
-noop_dequeue(struct Qdisc * qdisc)
+static struct sk_buff *noop_dequeue(struct Qdisc * qdisc)
 {
 	return NULL;
 }
 
-static int
-noop_requeue(struct sk_buff *skb, struct Qdisc* qdisc)
+static int noop_requeue(struct sk_buff *skb, struct Qdisc* qdisc)
 {
 	if (net_ratelimit())
-		printk(KERN_DEBUG "%s deferred output. It is buggy.\n", skb->dev->name);
+		printk(KERN_DEBUG "%s deferred output. It is buggy.\n",
+		       skb->dev->name);
 	kfree_skb(skb);
 	return NET_XMIT_CN;
 }
 
 struct Qdisc_ops noop_qdisc_ops = {
-	.next		=	NULL,
-	.cl_ops		=	NULL,
 	.id		=	"noop",
 	.priv_size	=	0,
 	.enqueue	=	noop_enqueue,
@@ -285,8 +281,6 @@ struct Qdisc noop_qdisc = {
 };
 
 static struct Qdisc_ops noqueue_qdisc_ops = {
-	.next		=	NULL,
-	.cl_ops		=	NULL,
 	.id		=	"noqueue",
 	.priv_size	=	0,
 	.enqueue	=	noop_enqueue,
@@ -311,97 +305,87 @@ static const u8 prio2band[TC_PRIO_MAX+1] =
    generic prio+fifo combination.
  */
 
-static int
-pfifo_fast_enqueue(struct sk_buff *skb, struct Qdisc* qdisc)
+#define PFIFO_FAST_BANDS 3
+
+static inline struct sk_buff_head *prio2list(struct sk_buff *skb,
+					     struct Qdisc *qdisc)
 {
 	struct sk_buff_head *list = qdisc_priv(qdisc);
-
-	list += prio2band[skb->priority&TC_PRIO_MAX];
-
-	if (list->qlen < qdisc->dev->tx_queue_len) {
-		__skb_queue_tail(list, skb);
-		qdisc->q.qlen++;
-		qdisc->bstats.bytes += skb->len;
-		qdisc->bstats.packets++;
-		return 0;
-	}
-	qdisc->qstats.drops++;
-	kfree_skb(skb);
-	return NET_XMIT_DROP;
+	return list + prio2band[skb->priority & TC_PRIO_MAX];
 }
 
-static struct sk_buff *
-pfifo_fast_dequeue(struct Qdisc* qdisc)
+static int pfifo_fast_enqueue(struct sk_buff *skb, struct Qdisc* qdisc)
+{
+	struct sk_buff_head *list = prio2list(skb, qdisc);
+
+	if (skb_queue_len(list) < qdisc->dev->tx_queue_len) {
+		qdisc->q.qlen++;
+		return __qdisc_enqueue_tail(skb, qdisc, list);
+	}
+
+	return qdisc_drop(skb, qdisc);
+}
+
+static struct sk_buff *pfifo_fast_dequeue(struct Qdisc* qdisc)
 {
 	int prio;
 	struct sk_buff_head *list = qdisc_priv(qdisc);
-	struct sk_buff *skb;
 
-	for (prio = 0; prio < 3; prio++, list++) {
-		skb = __skb_dequeue(list);
+	for (prio = 0; prio < PFIFO_FAST_BANDS; prio++, list++) {
+		struct sk_buff *skb = __qdisc_dequeue_head(qdisc, list);
 		if (skb) {
 			qdisc->q.qlen--;
 			return skb;
 		}
 	}
+
 	return NULL;
 }
 
-static int
-pfifo_fast_requeue(struct sk_buff *skb, struct Qdisc* qdisc)
+static int pfifo_fast_requeue(struct sk_buff *skb, struct Qdisc* qdisc)
 {
-	struct sk_buff_head *list = qdisc_priv(qdisc);
-
-	list += prio2band[skb->priority&TC_PRIO_MAX];
-
-	__skb_queue_head(list, skb);
 	qdisc->q.qlen++;
-	qdisc->qstats.requeues++;
-	return 0;
+	return __qdisc_requeue(skb, qdisc, prio2list(skb, qdisc));
 }
 
-static void
-pfifo_fast_reset(struct Qdisc* qdisc)
+static void pfifo_fast_reset(struct Qdisc* qdisc)
 {
 	int prio;
 	struct sk_buff_head *list = qdisc_priv(qdisc);
 
-	for (prio=0; prio < 3; prio++)
-		skb_queue_purge(list+prio);
+	for (prio = 0; prio < PFIFO_FAST_BANDS; prio++)
+		__qdisc_reset_queue(qdisc, list + prio);
+
+	qdisc->qstats.backlog = 0;
 	qdisc->q.qlen = 0;
 }
 
 static int pfifo_fast_dump(struct Qdisc *qdisc, struct sk_buff *skb)
 {
-	unsigned char	 *b = skb->tail;
-	struct tc_prio_qopt opt;
+	struct tc_prio_qopt opt = { .bands = PFIFO_FAST_BANDS };
 
-	opt.bands = 3; 
 	memcpy(&opt.priomap, prio2band, TC_PRIO_MAX+1);
 	RTA_PUT(skb, TCA_OPTIONS, sizeof(opt), &opt);
 	return skb->len;
 
 rtattr_failure:
-	skb_trim(skb, b - skb->data);
 	return -1;
 }
 
 static int pfifo_fast_init(struct Qdisc *qdisc, struct rtattr *opt)
 {
-	int i;
+	int prio;
 	struct sk_buff_head *list = qdisc_priv(qdisc);
 
-	for (i=0; i<3; i++)
-		skb_queue_head_init(list+i);
+	for (prio = 0; prio < PFIFO_FAST_BANDS; prio++)
+		skb_queue_head_init(list + prio);
 
 	return 0;
 }
 
 static struct Qdisc_ops pfifo_fast_ops = {
-	.next		=	NULL,
-	.cl_ops		=	NULL,
 	.id		=	"pfifo_fast",
-	.priv_size	=	3 * sizeof(struct sk_buff_head),
+	.priv_size	=	PFIFO_FAST_BANDS * sizeof(struct sk_buff_head),
 	.enqueue	=	pfifo_fast_enqueue,
 	.dequeue	=	pfifo_fast_dequeue,
 	.requeue	=	pfifo_fast_requeue,

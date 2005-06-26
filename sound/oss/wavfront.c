@@ -151,11 +151,11 @@ static int (*midi_load_patch) (int devno, int format, const char __user *addr,
 
 /*** Module-accessible parameters ***************************************/
 
-int wf_raw;     /* we normally check for "raw state" to firmware
-		   loading. if set, then during driver loading, the
-		   state of the board is ignored, and we reset the
-		   board and load the firmware anyway.
-		*/
+static int wf_raw;     /* we normally check for "raw state" to firmware
+			   loading. if set, then during driver loading, the
+			   state of the board is ignored, and we reset the
+			   board and load the firmware anyway.
+			*/
 		   
 static int fx_raw = 1; /* if this is zero, we'll leave the FX processor in
 		          whatever state it is when the driver is loaded.
@@ -2911,7 +2911,7 @@ int __init detect_wffx (void)
 	return 0;
 }	
 
-void
+static void
 wffx_mute (int onoff)
     
 {

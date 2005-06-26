@@ -68,8 +68,7 @@ static int snd_vxpocket_free(vx_core_t *chip)
 	if (hw)
 		hw->card_list[vxp->index] = NULL;
 	chip->card = NULL;
-	if (chip->dev)
-		kfree(chip->dev);
+	kfree(chip->dev);
 
 	snd_vx_free_firmware(chip);
 	kfree(chip);

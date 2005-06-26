@@ -1,0 +1,221 @@
+Kernel driver lm85
+==================
+
+Supported chips:
+  * National Semiconductor LM85 (B and C versions)
+    Prefix: 'lm85'
+    Addresses scanned: I2C 0x2c, 0x2d, 0x2e
+    Datasheet: http://www.national.com/pf/LM/LM85.html
+  * Analog Devices ADM1027
+    Prefix: 'adm1027'
+    Addresses scanned: I2C 0x2c, 0x2d, 0x2e
+    Datasheet: http://www.analog.com/en/prod/0,,766_825_ADM1027,00.html
+  * Analog Devices ADT7463
+    Prefix: 'adt7463'
+    Addresses scanned: I2C 0x2c, 0x2d, 0x2e
+    Datasheet: http://www.analog.com/en/prod/0,,766_825_ADT7463,00.html
+  * SMSC EMC6D100, SMSC EMC6D101
+    Prefix: 'emc6d100'
+    Addresses scanned: I2C 0x2c, 0x2d, 0x2e
+    Datasheet: http://www.smsc.com/main/tools/discontinued/6d100.pdf
+  * SMSC EMC6D102
+    Prefix: 'emc6d102'
+    Addresses scanned: I2C 0x2c, 0x2d, 0x2e
+    Datasheet: http://www.smsc.com/main/catalog/emc6d102.html
+
+Authors:
+        Philip Pokorny <ppokorny@penguincomputing.com>,
+        Frodo Looijaard <frodol@dds.nl>,
+        Richard Barrington <rich_b_nz@clear.net.nz>,
+        Margit Schubert-While <margitsw@t-online.de>,
+        Justin Thiessen <jthiessen@penguincomputing.com>
+
+Description
+-----------
+
+This driver implements support for the National Semiconductor LM85 and
+compatible chips including the Analog Devices ADM1027, ADT7463 and
+SMSC EMC6D10x chips family.
+
+The LM85 uses the 2-wire interface compatible with the SMBUS 2.0
+specification. Using an analog to digital converter it measures three (3)
+temperatures and five (5) voltages. It has four (4) 16-bit counters for
+measuring fan speed. Five (5) digital inputs are provided for sampling the
+VID signals from the processor to the VRM. Lastly, there are three (3) PWM
+outputs that can be used to control fan speed.
+
+The voltage inputs have internal scaling resistors so that the following
+voltage can be measured without external resistors:
+
+  2.5V, 3.3V, 5V, 12V, and CPU core voltage (2.25V)
+
+The temperatures measured are one internal diode, and two remote diodes.
+Remote 1 is generally the CPU temperature. These inputs are designed to
+measure a thermal diode like the one in a Pentium 4 processor in a socket
+423 or socket 478 package. They can also measure temperature using a
+transistor like the 2N3904.
+
+A sophisticated control system for the PWM outputs is designed into the
+LM85 that allows fan speed to be adjusted automatically based on any of the
+three temperature sensors. Each PWM output is individually adjustable and
+programmable. Once configured, the LM85 will adjust the PWM outputs in
+response to the measured temperatures without further host intervention.
+This feature can also be disabled for manual control of the PWM's.
+
+Each of the measured inputs (voltage, temperature, fan speed) has
+corresponding high/low limit values. The LM85 will signal an ALARM if any
+measured value exceeds either limit.
+
+The LM85 samples all inputs continuously. The lm85 driver will not read
+the registers more often than once a second. Further, configuration data is
+only read once each 5 minutes. There is twice as much config data as
+measurements, so this would seem to be a worthwhile optimization.
+
+Special Features
+----------------
+
+The LM85 has four fan speed monitoring modes. The ADM1027 has only two.
+Both have special circuitry to compensate for PWM interactions with the
+TACH signal from the fans. The ADM1027 can be configured to measure the
+speed of a two wire fan, but the input conditioning circuitry is different
+for 3-wire and 2-wire mode. For this reason, the 2-wire fan modes are not
+exposed to user control. The BIOS should initialize them to the correct
+mode. If you've designed your own ADM1027, you'll have to modify the
+init_client function and add an insmod parameter to set this up.
+
+To smooth the response of fans to changes in temperature, the LM85 has an
+optional filter for smoothing temperatures. The ADM1027 has the same
+config option but uses it to rate limit the changes to fan speed instead.
+
+The ADM1027 and ADT7463 have a 10-bit ADC and can therefore measure
+temperatures with 0.25 degC resolution. They also provide an offset to the
+temperature readings that is automatically applied during measurement.
+This offset can be used to zero out any errors due to traces and placement.
+The documentation says that the offset is in 0.25 degC steps, but in
+initial testing of the ADM1027 it was 1.00 degC steps. Analog Devices has
+confirmed this "bug". The ADT7463 is reported to work as described in the
+documentation. The current lm85 driver does not show the offset register.
+
+The ADT7463 has a THERM asserted counter. This counter has a 22.76ms
+resolution and a range of 5.8 seconds. The driver implements a 32-bit
+accumulator of the counter value to extend the range to over a year. The
+counter will stay at it's max value until read.
+
+See the vendor datasheets for more information. There is application note
+from National (AN-1260) with some additional information about the LM85.
+The Analog Devices datasheet is very detailed and describes a procedure for
+determining an optimal configuration for the automatic PWM control.
+
+The SMSC EMC6D100 & EMC6D101 monitor external voltages, temperatures, and
+fan speeds. They use this monitoring capability to alert the system to out
+of limit conditions and can automatically control the speeds of multiple
+fans in a PC or embedded system. The EMC6D101, available in a 24-pin SSOP
+package, and the EMC6D100, available in a 28-pin SSOP package, are designed
+to be register compatible. The EMC6D100 offers all the features of the
+EMC6D101 plus additional voltage monitoring and system control features.
+Unfortunately it is not possible to distinguish between the package
+versions on register level so these additional voltage inputs may read
+zero. The EMC6D102 features addtional ADC bits thus extending precision
+of voltage and temperature channels.
+
+
+Hardware Configurations
+-----------------------
+
+The LM85 can be jumpered for 3 different SMBus addresses. There are
+no other hardware configuration options for the LM85.
+
+The lm85 driver detects both LM85B and LM85C revisions of the chip. See the
+datasheet for a complete description of the differences. Other than
+identifying the chip, the driver behaves no differently with regard to
+these two chips. The LM85B is recommended for new designs.
+
+The ADM1027 and ADT7463 chips have an optional SMBALERT output that can be
+used to signal the chipset in case a limit is exceeded or the temperature
+sensors fail. Individual sensor interrupts can be masked so they won't
+trigger SMBALERT. The SMBALERT output if configured replaces one of the other
+functions (PWM2 or IN0). This functionality is not implemented in current
+driver.
+
+The ADT7463 also has an optional THERM output/input which can be connected
+to the processor PROC_HOT output. If available, the autofan control
+dynamic Tmin feature can be enabled to keep the system temperature within
+spec (just?!) with the least possible fan noise.
+
+Configuration Notes
+-------------------
+
+Besides standard interfaces driver adds following:
+
+* Temperatures and Zones
+
+Each temperature sensor is associated with a Zone. There are three
+sensors and therefore three zones (# 1, 2 and 3). Each zone has the following
+temperature configuration points:
+
+* temp#_auto_temp_off - temperature below which fans should be off or spinning very low.
+* temp#_auto_temp_min - temperature over which fans start to spin.
+* temp#_auto_temp_max - temperature when fans spin at full speed.
+* temp#_auto_temp_crit - temperature when all fans will run full speed.
+
+* PWM Control
+
+There are three PWM outputs. The LM85 datasheet suggests that the
+pwm3 output control both fan3 and fan4. Each PWM can be individually
+configured and assigned to a zone for it's control value. Each PWM can be
+configured individually according to the following options.
+
+* pwm#_auto_pwm_min - this specifies the PWM value for temp#_auto_temp_off
+                      temperature. (PWM value from 0 to 255)
+
+* pwm#_auto_pwm_freq - select base frequency of PWM output. You can select
+                       in range of 10.0 to 94.0 Hz in .1 Hz units.
+		       (Values 100 to 940).
+
+The pwm#_auto_pwm_freq can be set to one of the following 8 values. Setting the
+frequency to a value not on this list, will result in the next higher frequency
+being selected. The actual device frequency may vary slightly from this
+specification as designed by the manufacturer. Consult the datasheet for more
+details. (PWM Frequency values:  100, 150, 230, 300, 380, 470, 620, 940)
+
+* pwm#_auto_pwm_minctl - this flags selects for temp#_auto_temp_off temperature
+                         the bahaviour of fans. Write 1 to let fans spinning at
+			 pwm#_auto_pwm_min or write 0 to let them off.
+
+NOTE: It has been reported that there is a bug in the LM85 that causes the flag
+to be associated with the zones not the PWMs. This contradicts all the
+published documentation. Setting pwm#_min_ctl in this case actually affects all
+PWMs controlled by zone '#'.
+
+* PWM Controlling Zone selection
+
+* pwm#_auto_channels - controls zone that is associated with PWM
+
+Configuration choices:
+
+   Value     Meaning
+  ------  ------------------------------------------------
+      1    Controlled by Zone 1
+      2    Controlled by Zone 2
+      3    Controlled by Zone 3
+     23    Controlled by higher temp of Zone 2 or 3
+    123    Controlled by highest temp of Zone 1, 2 or 3
+      0    PWM always 0%  (off)
+     -1    PWM always 100%  (full on)
+     -2    Manual control (write to 'pwm#' to set)
+
+The National LM85's have two vendor specific configuration
+features. Tach. mode and Spinup Control. For more details on these,
+see the LM85 datasheet or Application Note AN-1260.
+
+The Analog Devices ADM1027 has several vendor specific enhancements.
+The number of pulses-per-rev of the fans can be set, Tach monitoring
+can be optimized for PWM operation, and an offset can be applied to
+the temperatures to compensate for systemic errors in the
+measurements.
+
+In addition to the ADM1027 features, the ADT7463 also has Tmin control
+and THERM asserted counts. Automatic Tmin control acts to adjust the
+Tmin value to maintain the measured temperature sensor at a specified
+temperature. There isn't much documentation on this feature in the
+ADT7463 data sheet. This is not supported by current driver.

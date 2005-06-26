@@ -210,9 +210,6 @@ static struct devprobe2 isa_probes[] __initdata = {
 #ifdef CONFIG_AT1700
 	{at1700_probe, 0},
 #endif
-#ifdef CONFIG_FMV18X		/* Fujitsu FMV-181/182 */
-	{fmv18x_probe, 0},
-#endif
 #ifdef CONFIG_ETH16I
 	{eth16i_probe, 0},	/* ICL EtherTeam 16i/32 */
 #endif
@@ -242,9 +239,6 @@ static struct devprobe2 isa_probes[] __initdata = {
 #endif
 #ifdef CONFIG_ELPLUS		/* 3c505 */
 	{elplus_probe, 0},
-#endif
-#ifdef CONFIG_SK_G16
-	{SK_init, 0},
 #endif
 #ifdef CONFIG_NI5010
 	{ni5010_probe, 0},

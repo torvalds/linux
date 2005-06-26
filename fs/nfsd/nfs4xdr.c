@@ -136,7 +136,7 @@ xdr_error:					\
 	}					\
 } while (0)
 
-u32 *read_buf(struct nfsd4_compoundargs *argp, int nbytes)
+static u32 *read_buf(struct nfsd4_compoundargs *argp, int nbytes)
 {
 	/* We want more bytes than seem to be available.
 	 * Maybe we need a new page, maybe we have just run out
@@ -190,7 +190,7 @@ defer_free(struct nfsd4_compoundargs *argp,
 	return 0;
 }
 
-char *savemem(struct nfsd4_compoundargs *argp, u32 *p, int nbytes)
+static char *savemem(struct nfsd4_compoundargs *argp, u32 *p, int nbytes)
 {
 	void *new = NULL;
 	if (p == argp->tmp) {
@@ -1366,7 +1366,10 @@ nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
 	if (bmval0 & FATTR4_WORD0_FH_EXPIRE_TYPE) {
 		if ((buflen -= 4) < 0)
 			goto out_resource;
-		WRITE32( NFS4_FH_NOEXPIRE_WITH_OPEN | NFS4_FH_VOL_RENAME );
+		if (exp->ex_flags & NFSEXP_NOSUBTREECHECK)
+			WRITE32(NFS4_FH_VOLATILE_ANY);
+		else
+			WRITE32(NFS4_FH_VOLATILE_ANY|NFS4_FH_VOL_RENAME);
 	}
 	if (bmval0 & FATTR4_WORD0_CHANGE) {
 		/*
@@ -1969,7 +1972,7 @@ nfsd4_encode_open(struct nfsd4_compoundres *resp, int nfserr, struct nfsd4_open 
 	case NFS4_OPEN_DELEGATE_READ:
 		RESERVE_SPACE(20 + sizeof(stateid_t));
 		WRITEMEM(&open->op_delegate_stateid, sizeof(stateid_t));
-		WRITE32(0);
+		WRITE32(open->op_recall);
 
 		/*
 		 * TODO: ACE's in delegations

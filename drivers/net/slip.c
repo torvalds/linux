@@ -198,18 +198,12 @@ err_exit:
 static void
 sl_free_bufs(struct slip *sl)
 {
-	void * tmp;
-
 	/* Free all SLIP frame buffers. */
-	tmp = xchg(&sl->rbuff, NULL);
-	kfree(tmp);
-	tmp = xchg(&sl->xbuff, NULL);
-	kfree(tmp);
+	kfree(xchg(&sl->rbuff, NULL));
+	kfree(xchg(&sl->xbuff, NULL));
 #ifdef SL_INCLUDE_CSLIP
-	tmp = xchg(&sl->cbuff, NULL);
-	kfree(tmp);
-	if ((tmp = xchg(&sl->slcomp, NULL)) != NULL)
-		slhc_free(tmp);
+	kfree(xchg(&sl->cbuff, NULL));
+	slhc_free(xchg(&sl->slcomp, NULL));
 #endif
 }
 
@@ -1430,7 +1424,7 @@ static void __exit slip_exit(void)
 	kfree(slip_devs);
 	slip_devs = NULL;
 
-	if ((i = tty_register_ldisc(N_SLIP, NULL)))
+	if ((i = tty_unregister_ldisc(N_SLIP)))
 	{
 		printk(KERN_ERR "SLIP: can't unregister line discipline (err = %d)\n", i);
 	}

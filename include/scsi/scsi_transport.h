@@ -21,6 +21,7 @@
 #define SCSI_TRANSPORT_H
 
 #include <linux/transport_class.h>
+#include <scsi/scsi_host.h>
 
 struct scsi_transport_template {
 	/* the attribute containers */
@@ -32,8 +33,11 @@ struct scsi_transport_template {
 	 * space of this size will be left at the end of the
 	 * scsi_* structure */
 	int	device_size;
+	int	device_private_offset;
 	int	target_size;
+	int	target_private_offset;
 	int	host_size;
+	/* no private offset for the host; there's an alternative mechanism */
 
 	/*
 	 * True if the transport wants to use a host-based work-queue
@@ -44,5 +48,39 @@ struct scsi_transport_template {
 #define transport_class_to_shost(tc) \
 	dev_to_shost((tc)->dev)
 
+
+/* Private area maintenance. The driver requested allocations come
+ * directly after the transport class allocations (if any).  The idea
+ * is that you *must* call these only once.  The code assumes that the
+ * initial values are the ones the transport specific code requires */
+static inline void
+scsi_transport_reserve_target(struct scsi_transport_template * t, int space)
+{
+	BUG_ON(t->target_private_offset != 0);
+	t->target_private_offset = ALIGN(t->target_size, sizeof(void *));
+	t->target_size = t->target_private_offset + space;
+}
+static inline void
+scsi_transport_reserve_device(struct scsi_transport_template * t, int space)
+{
+	BUG_ON(t->device_private_offset != 0);
+	t->device_private_offset = ALIGN(t->device_size, sizeof(void *));
+	t->device_size = t->device_private_offset + space;
+}
+static inline void *
+scsi_transport_target_data(struct scsi_target *starget)
+{
+	struct Scsi_Host *shost = dev_to_shost(&starget->dev);
+	return (u8 *)starget->starget_data
+		+ shost->transportt->target_private_offset;
+
+}
+static inline void *
+scsi_transport_device_data(struct scsi_device *sdev)
+{
+	struct Scsi_Host *shost = sdev->host;
+	return (u8 *)sdev->sdev_data
+		+ shost->transportt->device_private_offset;
+}
 
 #endif /* SCSI_TRANSPORT_H */

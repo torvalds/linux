@@ -34,6 +34,7 @@ EXPORT_SYMBOL(cur_cpu_spec);
 extern void __setup_cpu_power3(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_power4(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_ppc970(unsigned long offset, struct cpu_spec* spec);
+extern void __setup_cpu_be(unsigned long offset, struct cpu_spec* spec);
 
 
 /* We only set the altivec features if the kernel was compiled with altivec
@@ -160,6 +161,16 @@ struct cpu_spec	cpu_specs[] = {
 	    COMMON_USER_PPC64,
 	    128, 128,
 	    __setup_cpu_power4,
+	    COMMON_PPC64_FW
+    },
+    {	/* BE DD1.x  */
+	    0xffff0000, 0x00700000, "Broadband Engine",
+	    CPU_FTR_SPLIT_ID_CACHE | CPU_FTR_USE_TB | CPU_FTR_HPTE_TABLE |
+		    CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_ALTIVEC_COMP |
+		    CPU_FTR_SMT,
+	    COMMON_USER_PPC64 | PPC_FEATURE_HAS_ALTIVEC_COMP,
+	    128, 128,
+	    __setup_cpu_be,
 	    COMMON_PPC64_FW
     },
     {	/* default match */

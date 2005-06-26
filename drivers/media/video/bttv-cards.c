@@ -1,5 +1,5 @@
 /*
-    $Id: bttv-cards.c,v 1.47 2005/02/22 14:06:32 kraxel Exp $
+    $Id: bttv-cards.c,v 1.49 2005/06/10 17:20:24 mchehab Exp $
 
     bttv-cards.c
 
@@ -51,6 +51,7 @@ static void avermedia_eeprom(struct bttv *btv);
 static void osprey_eeprom(struct bttv *btv);
 static void modtec_eeprom(struct bttv *btv);
 static void init_PXC200(struct bttv *btv);
+static void init_RTV24(struct bttv *btv);
 
 static void winview_audio(struct bttv *btv, struct video_audio *v, int set);
 static void lt9415_audio(struct bttv *btv, struct video_audio *v, int set);
@@ -1946,7 +1947,6 @@ struct tvcard bttv_tvcards[] = {
         .no_tda9875     = 1,
         .no_tda7432     = 1,
         .tuner_type     = TUNER_ABSENT,
-        .no_video       = 1,
 	.pll            = PLL_28,
 },{
 	.name           = "Teppro TEV-560/InterVision IV-560",
@@ -2252,6 +2252,20 @@ struct tvcard bttv_tvcards[] = {
 	.no_tda7432	= 1,
 	.no_tda9875	= 1,
 	.muxsel_hook	= kodicom4400r_muxsel,
+},
+{
+        /* ---- card 0x85---------------------------------- */
+        /* Michael Henson <mhenson@clarityvi.com> */
+        /* Adlink RTV24 with special unlock codes */
+        .name           = "Adlink RTV24",
+        .video_inputs   = 4,
+        .audio_inputs   = 1,
+        .tuner          = 0,
+        .svhs           = 2,
+        .muxsel         = { 2, 3, 1, 0},
+        .tuner_type     = -1,
+        .pll            = PLL_28,
+
 }};
 
 static const unsigned int bttv_num_tvcards = ARRAY_SIZE(bttv_tvcards);
@@ -2637,6 +2651,10 @@ void __devinit bttv_init_card1(struct bttv *btv)
 	case BTTV_AVDVBT_771:
 		btv->use_i2c_hw = 1;
 		break;
+        case BTTV_ADLINK_RTV24:
+                init_RTV24( btv );
+                break;
+
 	}
 	if (!bttv_tvcards[btv->c.type].has_dvb)
 		bttv_reset_audio(btv);
@@ -2784,6 +2802,8 @@ void __devinit bttv_init_card2(struct bttv *btv)
                 }
         }
 	btv->pll.pll_current = -1;
+
+	bttv_reset_audio(btv);
 
 	/* tuner configuration (from card list / autodetect / insmod option) */
  	if (UNSET != bttv_tvcards[btv->c.type].tuner_type)
@@ -3303,6 +3323,83 @@ static void __devinit init_PXC200(struct bttv *btv)
 
 	printk(KERN_INFO "PXC200 Initialised.\n");
 }
+
+
+
+/* ----------------------------------------------------------------------- */
+/*
+ *  The Adlink RTV-24 (aka Angelo) has some special initialisation to unlock
+ *  it. This apparently involves the following procedure for each 878 chip:
+ *
+ *  1) write 0x00C3FEFF to the GPIO_OUT_EN register
+ *
+ *  2)  write to GPIO_DATA
+ *      - 0x0E
+ *      - sleep 1ms
+ *      - 0x10 + 0x0E
+ *      - sleep 10ms
+ *      - 0x0E
+ *     read from GPIO_DATA into buf (uint_32)
+ *      - if ( data>>18 & 0x01 != 0) || ( buf>>19 & 0x01 != 1 )
+ *                 error. ERROR_CPLD_Check_Failed stop.
+ *
+ *  3) write to GPIO_DATA
+ *      - write 0x4400 + 0x0E
+ *      - sleep 10ms
+ *      - write 0x4410 + 0x0E
+ *      - sleep 1ms
+ *      - write 0x0E
+ *     read from GPIO_DATA into buf (uint_32)
+ *      - if ( buf>>18 & 0x01 ) || ( buf>>19 && 0x01 != 0 )
+ *                error. ERROR_CPLD_Check_Failed.
+ */
+/* ----------------------------------------------------------------------- */
+void
+init_RTV24 (struct bttv *btv)
+{
+	uint32_t dataRead = 0;
+	long watchdog_value = 0x0E;
+
+	printk (KERN_INFO
+		"bttv%d: Adlink RTV-24 initialisation in progress ...\n",
+		btv->c.nr);
+
+	btwrite (0x00c3feff, BT848_GPIO_OUT_EN);
+
+	btwrite (0 + watchdog_value, BT848_GPIO_DATA);
+	msleep (1);
+	btwrite (0x10 + watchdog_value, BT848_GPIO_DATA);
+	msleep (10);
+	btwrite (0 + watchdog_value, BT848_GPIO_DATA);
+
+	dataRead = btread (BT848_GPIO_DATA);
+
+	if ((((dataRead >> 18) & 0x01) != 0) || (((dataRead >> 19) & 0x01) != 1)) {
+		printk (KERN_INFO
+			"bttv%d: Adlink RTV-24 initialisation(1) ERROR_CPLD_Check_Failed (read %d)\n",
+			btv->c.nr, dataRead);
+	}
+
+	btwrite (0x4400 + watchdog_value, BT848_GPIO_DATA);
+	msleep (10);
+	btwrite (0x4410 + watchdog_value, BT848_GPIO_DATA);
+	msleep (1);
+	btwrite (watchdog_value, BT848_GPIO_DATA);
+	msleep (1);
+	dataRead = btread (BT848_GPIO_DATA);
+
+	if ((((dataRead >> 18) & 0x01) != 0) || (((dataRead >> 19) & 0x01) != 0)) {
+		printk (KERN_INFO
+			"bttv%d: Adlink RTV-24 initialisation(2) ERROR_CPLD_Check_Failed (read %d)\n",
+			btv->c.nr, dataRead);
+
+		return;
+	}
+
+	printk (KERN_INFO
+		"bttv%d: Adlink RTV-24 initialisation complete.\n", btv->c.nr);
+}
+
 
 
 /* ----------------------------------------------------------------------- */

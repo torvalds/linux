@@ -120,6 +120,7 @@ struct subprocess_info {
 	char *path;
 	char **argv;
 	char **envp;
+	struct key *ring;
 	int wait;
 	int retval;
 };
@@ -130,15 +131,20 @@ struct subprocess_info {
 static int ____call_usermodehelper(void *data)
 {
 	struct subprocess_info *sub_info = data;
+	struct key *old_session;
 	int retval;
 
-	/* Unblock all signals. */
+	/* Unblock all signals and set the session keyring. */
+	key_get(sub_info->ring);
 	flush_signals(current);
 	spin_lock_irq(&current->sighand->siglock);
+	old_session = __install_session_keyring(current, sub_info->ring);
 	flush_signal_handlers(current, 1);
 	sigemptyset(&current->blocked);
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
+
+	key_put(old_session);
 
 	/* We can run anywhere, unlike our parent keventd(). */
 	set_cpus_allowed(current, CPU_MASK_ALL);
@@ -211,10 +217,11 @@ static void __call_usermodehelper(void *data)
 }
 
 /**
- * call_usermodehelper - start a usermode application
+ * call_usermodehelper_keys - start a usermode application
  * @path: pathname for the application
  * @argv: null-terminated argument list
  * @envp: null-terminated environment list
+ * @session_keyring: session keyring for process (NULL for an empty keyring)
  * @wait: wait for the application to finish and return status.
  *
  * Runs a user-space application.  The application is started
@@ -224,7 +231,8 @@ static void __call_usermodehelper(void *data)
  * Must be called from process context.  Returns a negative error code
  * if program was not execed successfully, or 0.
  */
-int call_usermodehelper(char *path, char **argv, char **envp, int wait)
+int call_usermodehelper_keys(char *path, char **argv, char **envp,
+			     struct key *session_keyring, int wait)
 {
 	DECLARE_COMPLETION(done);
 	struct subprocess_info sub_info = {
@@ -232,6 +240,7 @@ int call_usermodehelper(char *path, char **argv, char **envp, int wait)
 		.path		= path,
 		.argv		= argv,
 		.envp		= envp,
+		.ring		= session_keyring,
 		.wait		= wait,
 		.retval		= 0,
 	};
@@ -247,7 +256,7 @@ int call_usermodehelper(char *path, char **argv, char **envp, int wait)
 	wait_for_completion(&done);
 	return sub_info.retval;
 }
-EXPORT_SYMBOL(call_usermodehelper);
+EXPORT_SYMBOL(call_usermodehelper_keys);
 
 void __init usermodehelper_init(void)
 {

@@ -55,7 +55,6 @@
 #define EXPORT_SYMTAB_STROPS
 
 extern void transfer_to_handler(void);
-extern void do_syscall_trace(void);
 extern void do_IRQ(struct pt_regs *regs);
 extern void MachineCheckException(struct pt_regs *regs);
 extern void AlignmentException(struct pt_regs *regs);
@@ -74,7 +73,6 @@ extern unsigned long mm_ptov (unsigned long paddr);
 EXPORT_SYMBOL(clear_pages);
 EXPORT_SYMBOL(clear_user_page);
 EXPORT_SYMBOL(do_signal);
-EXPORT_SYMBOL(do_syscall_trace);
 EXPORT_SYMBOL(transfer_to_handler);
 EXPORT_SYMBOL(do_IRQ);
 EXPORT_SYMBOL(MachineCheckException);

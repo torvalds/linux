@@ -280,7 +280,7 @@ xfs_error_report(
 	}
 }
 
-void
+STATIC void
 xfs_hex_dump(void *p, int length)
 {
 	__uint8_t *uip = (__uint8_t*)p;

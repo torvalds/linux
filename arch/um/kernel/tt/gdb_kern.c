@@ -10,7 +10,7 @@
 #ifdef CONFIG_MCONSOLE
 
 extern int gdb_config(char *str);
-extern int gdb_remove(char *unused);
+extern int gdb_remove(int n);
 
 static struct mc_device gdb_mc = {
 	.name		= "gdb",

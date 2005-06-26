@@ -64,3 +64,12 @@ struct timer_opts* __init select_timer(void)
 	panic("select_timer: Cannot find a suitable timer\n");
 	return NULL;
 }
+
+int read_current_timer(unsigned long *timer_val)
+{
+	if (cur_timer->read_timer) {
+		*timer_val = cur_timer->read_timer();
+		return 0;
+	}
+	return -1;
+}

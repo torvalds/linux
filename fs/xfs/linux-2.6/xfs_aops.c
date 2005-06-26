@@ -149,11 +149,12 @@ linvfs_unwritten_convert(
  */
 STATIC void
 linvfs_unwritten_convert_direct(
-	struct inode	*inode,
+	struct kiocb	*iocb,
 	loff_t		offset,
 	ssize_t		size,
 	void		*private)
 {
+	struct inode	*inode = iocb->ki_filp->f_dentry->d_inode;
 	ASSERT(!private || inode == (struct inode *)private);
 
 	/* private indicates an unwritten extent lay beneath this IO */
@@ -886,7 +887,6 @@ xfs_page_state_convert(
 		SetPageUptodate(page);
 
 	if (startio) {
-		WARN_ON(page_dirty);
 		xfs_submit_page(page, wbc, bh_arr, cnt, 0, !page_dirty);
 	}
 

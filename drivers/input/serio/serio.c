@@ -344,7 +344,7 @@ static int serio_thread(void *nothing)
 	do {
 		serio_handle_events();
 		wait_event_interruptible(serio_wait, !list_empty(&serio_event_list));
-		try_to_freeze(PF_FREEZE);
+		try_to_freeze();
 	} while (!signal_pending(current));
 
 	printk(KERN_DEBUG "serio: kseriod exiting\n");
@@ -358,37 +358,55 @@ static int serio_thread(void *nothing)
  * Serio port operations
  */
 
-static ssize_t serio_show_description(struct device *dev, char *buf)
+static ssize_t serio_show_description(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct serio *serio = to_serio_port(dev);
 	return sprintf(buf, "%s\n", serio->name);
 }
 
-static ssize_t serio_show_id_type(struct device *dev, char *buf)
+static ssize_t serio_show_id_type(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct serio *serio = to_serio_port(dev);
 	return sprintf(buf, "%02x\n", serio->id.type);
 }
 
-static ssize_t serio_show_id_proto(struct device *dev, char *buf)
+static ssize_t serio_show_id_proto(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct serio *serio = to_serio_port(dev);
 	return sprintf(buf, "%02x\n", serio->id.proto);
 }
 
-static ssize_t serio_show_id_id(struct device *dev, char *buf)
+static ssize_t serio_show_id_id(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct serio *serio = to_serio_port(dev);
 	return sprintf(buf, "%02x\n", serio->id.id);
 }
 
-static ssize_t serio_show_id_extra(struct device *dev, char *buf)
+static ssize_t serio_show_id_extra(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct serio *serio = to_serio_port(dev);
 	return sprintf(buf, "%02x\n", serio->id.extra);
 }
 
-static ssize_t serio_rebind_driver(struct device *dev, const char *buf, size_t count)
+static DEVICE_ATTR(type, S_IRUGO, serio_show_id_type, NULL);
+static DEVICE_ATTR(proto, S_IRUGO, serio_show_id_proto, NULL);
+static DEVICE_ATTR(id, S_IRUGO, serio_show_id_id, NULL);
+static DEVICE_ATTR(extra, S_IRUGO, serio_show_id_extra, NULL);
+
+static struct attribute *serio_device_id_attrs[] = {
+	&dev_attr_type.attr,
+	&dev_attr_proto.attr,
+	&dev_attr_id.attr,
+	&dev_attr_extra.attr,
+	NULL
+};
+
+static struct attribute_group serio_id_attr_group = {
+	.name	= "id",
+	.attrs	= serio_device_id_attrs,
+};
+
+static ssize_t serio_rebind_driver(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct serio *serio = to_serio_port(dev);
 	struct device_driver *drv;
@@ -419,13 +437,13 @@ static ssize_t serio_rebind_driver(struct device *dev, const char *buf, size_t c
 	return retval;
 }
 
-static ssize_t serio_show_bind_mode(struct device *dev, char *buf)
+static ssize_t serio_show_bind_mode(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct serio *serio = to_serio_port(dev);
 	return sprintf(buf, "%s\n", serio->manual_bind ? "manual" : "auto");
 }
 
-static ssize_t serio_set_bind_mode(struct device *dev, const char *buf, size_t count)
+static ssize_t serio_set_bind_mode(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct serio *serio = to_serio_port(dev);
 	int retval;
@@ -444,10 +462,6 @@ static ssize_t serio_set_bind_mode(struct device *dev, const char *buf, size_t c
 
 static struct device_attribute serio_device_attrs[] = {
 	__ATTR(description, S_IRUGO, serio_show_description, NULL),
-	__ATTR(id_type, S_IRUGO, serio_show_id_type, NULL),
-	__ATTR(id_proto, S_IRUGO, serio_show_id_proto, NULL),
-	__ATTR(id_id, S_IRUGO, serio_show_id_id, NULL),
-	__ATTR(id_extra, S_IRUGO, serio_show_id_extra, NULL),
 	__ATTR(drvctl, S_IWUSR, NULL, serio_rebind_driver),
 	__ATTR(bind_mode, S_IWUSR | S_IRUGO, serio_show_bind_mode, serio_set_bind_mode),
 	__ATTR_NULL
@@ -498,6 +512,7 @@ static void serio_add_port(struct serio *serio)
 	if (serio->start)
 		serio->start(serio);
 	device_add(&serio->dev);
+	sysfs_create_group(&serio->dev.kobj, &serio_id_attr_group);
 	serio->registered = 1;
 }
 
@@ -526,6 +541,7 @@ static void serio_destroy_port(struct serio *serio)
 	}
 
 	if (serio->registered) {
+		sysfs_remove_group(&serio->dev.kobj, &serio_id_attr_group);
 		device_del(&serio->dev);
 		list_del_init(&serio->node);
 		serio->registered = 0;
@@ -779,7 +795,6 @@ static int serio_resume(struct device *dev)
 	struct serio *serio = to_serio_port(dev);
 
 	if (!serio->drv || !serio->drv->reconnect || serio->drv->reconnect(serio)) {
-		serio_disconnect_port(serio);
 		/*
 		 * Driver re-probing can take a while, so better let kseriod
 		 * deal with it.

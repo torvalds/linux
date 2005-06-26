@@ -488,6 +488,20 @@ static int viocd_packet(struct cdrom_device_info *cdi,
 					 & (CDC_DVD_RAM | CDC_RAM)) != 0;
 		}
 		break;
+	case GPCMD_GET_CONFIGURATION:
+		if (cgc->cmd[3] == CDF_RWRT) {
+			struct rwrt_feature_desc *rfd = (struct rwrt_feature_desc *)(cgc->buffer + sizeof(struct feature_header));
+
+			if ((buflen >=
+			     (sizeof(struct feature_header) + sizeof(*rfd))) &&
+			    (cdi->ops->capability & ~cdi->mask
+			     & (CDC_DVD_RAM | CDC_RAM))) {
+				rfd->feature_code = cpu_to_be16(CDF_RWRT);
+				rfd->curr = 1;
+				ret = 0;
+			}
+		}
+		break;
 	default:
 		if (cgc->sense) {
 			/* indicate Unknown code */

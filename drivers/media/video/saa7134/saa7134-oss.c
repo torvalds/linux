@@ -1,5 +1,5 @@
 /*
- * $Id: saa7134-oss.c,v 1.13 2004/12/10 12:33:39 kraxel Exp $
+ * $Id: saa7134-oss.c,v 1.14 2005/05/18 22:45:16 hhackmann Exp $
  *
  * device driver for philips saa7134 based TV cards
  * oss dsp interface
@@ -49,7 +49,6 @@ MODULE_PARM_DESC(oss_rate,"sample rate (valid are: 32000,48000)");
 
 static int dsp_buffer_conf(struct saa7134_dev *dev, int blksize, int blocks)
 {
-	blksize &= ~0xff;
 	if (blksize < 0x100)
 		blksize = 0x100;
 	if (blksize > 0x10000)
@@ -57,8 +56,6 @@ static int dsp_buffer_conf(struct saa7134_dev *dev, int blksize, int blocks)
 
 	if (blocks < 2)
 		blocks = 2;
-        while ((blksize * blocks) & ~PAGE_MASK)
-		blocks++;
 	if ((blksize * blocks) > 1024*1024)
 		blocks = 1024*1024 / blksize;
 
@@ -79,7 +76,7 @@ static int dsp_buffer_init(struct saa7134_dev *dev)
 		BUG();
 	videobuf_dma_init(&dev->oss.dma);
 	err = videobuf_dma_init_kernel(&dev->oss.dma, PCI_DMA_FROMDEVICE,
-				       dev->oss.bufsize >> PAGE_SHIFT);
+				       (dev->oss.bufsize + PAGE_SIZE) >> PAGE_SHIFT);
 	if (0 != err)
 		return err;
 	return 0;
@@ -163,10 +160,11 @@ static int dsp_rec_start(struct saa7134_dev *dev)
 			fmt |= 0x04;
 		fmt |= (TV == dev->oss.input) ? 0xc0 : 0x80;
 
-		saa_writeb(SAA7134_NUM_SAMPLES0, (dev->oss.blksize & 0x0000ff));
-		saa_writeb(SAA7134_NUM_SAMPLES1, (dev->oss.blksize & 0x00ff00) >>  8);
-		saa_writeb(SAA7134_NUM_SAMPLES2, (dev->oss.blksize & 0xff0000) >> 16);
+		saa_writeb(SAA7134_NUM_SAMPLES0, ((dev->oss.blksize - 1) & 0x0000ff));
+		saa_writeb(SAA7134_NUM_SAMPLES1, ((dev->oss.blksize - 1) & 0x00ff00) >>  8);
+		saa_writeb(SAA7134_NUM_SAMPLES2, ((dev->oss.blksize - 1) & 0xff0000) >> 16);
 		saa_writeb(SAA7134_AUDIO_FORMAT_CTRL, fmt);
+
 		break;
 	case PCI_DEVICE_ID_PHILIPS_SAA7133:
 	case PCI_DEVICE_ID_PHILIPS_SAA7135:
@@ -817,7 +815,7 @@ void saa7134_irq_oss_done(struct saa7134_dev *dev, unsigned long status)
 			reg = SAA7134_RS_BA1(6);
 	} else {
 		/* even */
-		if (0 == (dev->oss.dma_blk & 0x00))
+		if (1 == (dev->oss.dma_blk & 0x01))
 			reg = SAA7134_RS_BA2(6);
 	}
 	if (0 == reg) {

@@ -33,7 +33,7 @@ static struct timer_opts timer_tsc;
 
 static inline void cpufreq_delayed_get(void);
 
-int tsc_disable __initdata = 0;
+int tsc_disable __devinitdata = 0;
 
 extern spinlock_t i8253_lock;
 
@@ -256,7 +256,7 @@ static unsigned long loops_per_jiffy_ref = 0;
 
 #ifndef CONFIG_SMP
 static unsigned long fast_gettimeoffset_ref = 0;
-static unsigned long cpu_khz_ref = 0;
+static unsigned int cpu_khz_ref = 0;
 #endif
 
 static int
@@ -319,6 +319,26 @@ core_initcall(cpufreq_tsc);
 #else /* CONFIG_CPU_FREQ */
 static inline void cpufreq_delayed_get(void) { return; }
 #endif 
+
+int recalibrate_cpu_khz(void)
+{
+#ifndef CONFIG_SMP
+	unsigned int cpu_khz_old = cpu_khz;
+
+	if (cpu_has_tsc) {
+		init_cpu_khz();
+		cpu_data[0].loops_per_jiffy =
+		    cpufreq_scale(cpu_data[0].loops_per_jiffy,
+			          cpu_khz_old,
+				  cpu_khz);
+		return 0;
+	} else
+		return -ENODEV;
+#else
+	return -ENODEV;
+#endif
+}
+EXPORT_SYMBOL(recalibrate_cpu_khz);
 
 static void mark_offset_tsc(void)
 {
@@ -514,7 +534,8 @@ static int __init init_tsc(char* override)
 		       		:"=a" (cpu_khz), "=d" (edx)
         	       		:"r" (tsc_quotient),
 	                	"0" (eax), "1" (edx));
-				printk("Detected %lu.%03lu MHz processor.\n", cpu_khz / 1000, cpu_khz % 1000);
+				printk("Detected %u.%03u MHz processor.\n",
+					cpu_khz / 1000, cpu_khz % 1000);
 			}
 			set_cyc2ns_scale(cpu_khz/1000);
 			return 0;
@@ -552,6 +573,7 @@ static struct timer_opts timer_tsc = {
 	.get_offset = get_offset_tsc,
 	.monotonic_clock = monotonic_clock_tsc,
 	.delay = delay_tsc,
+	.read_timer = read_timer_tsc,
 };
 
 struct init_timer_opts __initdata timer_tsc_init = {

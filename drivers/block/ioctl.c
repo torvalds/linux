@@ -133,11 +133,9 @@ static int put_u64(unsigned long arg, u64 val)
 	return put_user(val, (u64 __user *)arg);
 }
 
-int blkdev_ioctl(struct inode *inode, struct file *file, unsigned cmd,
-			unsigned long arg)
+static int blkdev_locked_ioctl(struct file *file, struct block_device *bdev,
+				unsigned cmd, unsigned long arg)
 {
-	struct block_device *bdev = inode->i_bdev;
-	struct gendisk *disk = bdev->bd_disk;
 	struct backing_dev_info *bdi;
 	int ret, n;
 
@@ -190,36 +188,72 @@ int blkdev_ioctl(struct inode *inode, struct file *file, unsigned cmd,
 		return put_ulong(arg, bdev->bd_inode->i_size >> 9);
 	case BLKGETSIZE64:
 		return put_u64(arg, bdev->bd_inode->i_size);
+	}
+	return -ENOIOCTLCMD;
+}
+
+static int blkdev_driver_ioctl(struct inode *inode, struct file *file,
+		struct gendisk *disk, unsigned cmd, unsigned long arg)
+{
+	int ret;
+	if (disk->fops->unlocked_ioctl)
+		return disk->fops->unlocked_ioctl(file, cmd, arg);
+
+	if (disk->fops->ioctl) {
+		lock_kernel();
+		ret = disk->fops->ioctl(inode, file, cmd, arg);
+		unlock_kernel();
+		return ret;
+	}
+
+	return -ENOTTY;
+}
+
+int blkdev_ioctl(struct inode *inode, struct file *file, unsigned cmd,
+			unsigned long arg)
+{
+	struct block_device *bdev = inode->i_bdev;
+	struct gendisk *disk = bdev->bd_disk;
+	int ret, n;
+
+	switch(cmd) {
 	case BLKFLSBUF:
 		if (!capable(CAP_SYS_ADMIN))
 			return -EACCES;
-		if (disk->fops->ioctl) {
-			ret = disk->fops->ioctl(inode, file, cmd, arg);
-			/* -EINVAL to handle old uncorrected drivers */
-			if (ret != -EINVAL && ret != -ENOTTY)
-				return ret;
-		}
+
+		ret = blkdev_driver_ioctl(inode, file, disk, cmd, arg);
+		/* -EINVAL to handle old uncorrected drivers */
+		if (ret != -EINVAL && ret != -ENOTTY)
+			return ret;
+
+		lock_kernel();
 		fsync_bdev(bdev);
 		invalidate_bdev(bdev, 0);
+		unlock_kernel();
 		return 0;
+
 	case BLKROSET:
-		if (disk->fops->ioctl) {
-			ret = disk->fops->ioctl(inode, file, cmd, arg);
-			/* -EINVAL to handle old uncorrected drivers */
-			if (ret != -EINVAL && ret != -ENOTTY)
-				return ret;
-		}
+		ret = blkdev_driver_ioctl(inode, file, disk, cmd, arg);
+		/* -EINVAL to handle old uncorrected drivers */
+		if (ret != -EINVAL && ret != -ENOTTY)
+			return ret;
 		if (!capable(CAP_SYS_ADMIN))
 			return -EACCES;
 		if (get_user(n, (int __user *)(arg)))
 			return -EFAULT;
+		lock_kernel();
 		set_device_ro(bdev, n);
+		unlock_kernel();
 		return 0;
-	default:
-		if (disk->fops->ioctl)
-			return disk->fops->ioctl(inode, file, cmd, arg);
 	}
-	return -ENOTTY;
+
+	lock_kernel();
+	ret = blkdev_locked_ioctl(file, bdev, cmd, arg);
+	unlock_kernel();
+	if (ret != -ENOIOCTLCMD)
+		return ret;
+
+	return blkdev_driver_ioctl(inode, file, disk, cmd, arg);
 }
 
 /* Most of the generic ioctls are handled in the normal fallback path.
@@ -237,3 +271,5 @@ long compat_blkdev_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 	}
 	return ret;
 }
+
+EXPORT_SYMBOL_GPL(blkdev_ioctl);

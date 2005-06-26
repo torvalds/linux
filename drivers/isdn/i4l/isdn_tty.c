@@ -273,7 +273,7 @@ isdn_tty_rcv_skb(int i, int di, int channel, struct sk_buff *skb)
 	return 1;
 }
 
-void
+static void
 isdn_tty_cleanup_xmit(modem_info * info)
 {
 	skb_queue_purge(&info->xmit_queue);
@@ -560,7 +560,7 @@ isdn_tty_modem_ncarrier(modem_info * info)
 /*
  * return the usage calculated by si and layer 2 protocol
  */
-int
+static int
 isdn_calc_usage(int si, int l2)
 {
 	int usg = ISDN_USAGE_MODEM;

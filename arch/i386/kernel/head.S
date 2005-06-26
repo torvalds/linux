@@ -299,7 +299,6 @@ is386:	movl $2,%ecx		# set MP
 	movl %eax,%cr0
 
 	call check_x87
-	incb ready
 	lgdt cpu_gdt_descr
 	lidt idt_descr
 	ljmp $(__KERNEL_CS),$1f
@@ -316,8 +315,9 @@ is386:	movl $2,%ecx		# set MP
 	lldt %ax
 	cld			# gcc2 wants the direction flag cleared at all times
 #ifdef CONFIG_SMP
-	movb ready, %cl	
-	cmpb $1,%cl
+	movb ready, %cl
+	movb $1, ready
+	cmpb $0,%cl
 	je 1f			# the first CPU calls start_kernel
 				# all other CPUs call initialize_secondary
 	call initialize_secondary

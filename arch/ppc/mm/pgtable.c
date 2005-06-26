@@ -66,7 +66,6 @@ void setbat(int index, unsigned long virt, unsigned long phys,
 
 #ifdef HAVE_TLBCAM
 extern unsigned int tlbcam_index;
-extern unsigned int num_tlbcam_entries;
 extern unsigned long v_mapped_by_tlbcam(unsigned long va);
 extern unsigned long p_mapped_by_tlbcam(unsigned long pa);
 #else /* !HAVE_TLBCAM */

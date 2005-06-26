@@ -11,6 +11,7 @@
 #include <linux/vmalloc.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <asm/io.h>
 #include <asm/fixmap.h>
 #include <asm/cacheflush.h>
@@ -165,7 +166,7 @@ void __iomem * __ioremap(unsigned long phys_addr, unsigned long size, unsigned l
 	}
 	return (void __iomem *) (offset + (char __iomem *)addr);
 }
-
+EXPORT_SYMBOL(__ioremap);
 
 /**
  * ioremap_nocache     -   map bus memory into CPU space
@@ -222,6 +223,7 @@ void __iomem *ioremap_nocache (unsigned long phys_addr, unsigned long size)
 
 	return p;					
 }
+EXPORT_SYMBOL(ioremap_nocache);
 
 void iounmap(volatile void __iomem *addr)
 {
@@ -238,21 +240,24 @@ void iounmap(volatile void __iomem *addr)
 			addr < phys_to_virt(ISA_END_ADDRESS))
 		return;
 
-	p = remove_vm_area((void *) (PAGE_MASK & (unsigned long __force) addr));
+	write_lock(&vmlist_lock);
+	p = __remove_vm_area((void *) (PAGE_MASK & (unsigned long __force) addr));
 	if (!p) { 
-		printk("__iounmap: bad address %p\n", addr);
-		return;
+		printk(KERN_WARNING "iounmap: bad address %p\n", addr);
+		goto out_unlock;
 	}
 
 	if ((p->flags >> 20) && p->phys_addr < virt_to_phys(high_memory) - 1) {
-		/* p->size includes the guard page, but cpa doesn't like that */
 		change_page_attr(virt_to_page(__va(p->phys_addr)),
 				 p->size >> PAGE_SHIFT,
 				 PAGE_KERNEL);
 		global_flush_tlb();
 	} 
+out_unlock:
+	write_unlock(&vmlist_lock);
 	kfree(p); 
 }
+EXPORT_SYMBOL(iounmap);
 
 void __init *bt_ioremap(unsigned long phys_addr, unsigned long size)
 {

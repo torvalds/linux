@@ -41,9 +41,6 @@ extern unsigned long highmem;
 extern char host_info[];
 
 extern char saved_command_line[];
-extern char command_line[];
-
-extern char *tempdir;
 
 extern unsigned long _stext, _etext, _sdata, _edata, __bss_start, _end;
 extern unsigned long _unprotected_end;

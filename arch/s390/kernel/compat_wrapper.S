@@ -1441,3 +1441,11 @@ compat_sys_waitid_wrapper:
 	lgfr	%r5,%r5			# int
 	llgtr	%r6,%r6			# struct rusage_emu31 *
 	jg	compat_sys_waitid
+
+	.globl	compat_sys_kexec_load_wrapper
+compat_sys_kexec_load_wrapper:
+	llgfr	%r2,%r2			# unsigned long
+	llgfr	%r3,%r3			# unsigned long
+	llgtr	%r4,%r4			# struct kexec_segment *
+	llgfr	%r5,%r5			# unsigned long
+	jg	compat_sys_kexec_load

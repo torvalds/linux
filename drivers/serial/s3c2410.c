@@ -198,7 +198,7 @@ static inline struct s3c24xx_uart_port *to_ourport(struct uart_port *port)
 
 /* translate a port to the device name */
 
-static inline char *s3c24xx_serial_portname(struct uart_port *port)
+static inline const char *s3c24xx_serial_portname(struct uart_port *port)
 {
 	return to_platform_device(port->dev)->name;
 }
@@ -394,20 +394,7 @@ s3c24xx_serial_rx_chars(int irq, void *dev_id, struct pt_regs *regs)
 		if (uart_handle_sysrq_char(port, ch, regs))
 			goto ignore_char;
 
-		if ((uerstat & port->ignore_status_mask) == 0) {
-			tty_insert_flip_char(tty, ch, flag);
-		}
-
-		if ((uerstat & S3C2410_UERSTAT_OVERRUN) &&
-		    tty->flip.count < TTY_FLIPBUF_SIZE) {
-			/*
-			 * Overrun is special, since it's reported
-			 * immediately, and doesn't affect the current
-			 * character.
-			 */
-
-			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
-		}
+		uart_insert_char(port, uerstat, S3C2410_UERSTAT_OVERRUN, ch, flag);
 
 	ignore_char:
 		continue;
@@ -916,7 +903,7 @@ static void s3c24xx_serial_release_port(struct uart_port *port)
 
 static int s3c24xx_serial_request_port(struct uart_port *port)
 {
-	char *name = s3c24xx_serial_portname(port);
+	const char *name = s3c24xx_serial_portname(port);
 	return request_mem_region(port->mapbase, MAP_SIZE, name) ? 0 : -EBUSY;
 }
 

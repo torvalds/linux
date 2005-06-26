@@ -55,6 +55,13 @@ static int suspend_prepare(suspend_state_t state)
 
 	pm_prepare_console();
 
+	disable_nonboot_cpus();
+
+	if (num_online_cpus() != 1) {
+		error = -EPERM;
+		goto Enable_cpu;
+	}
+
 	if (freeze_processes()) {
 		error = -EAGAIN;
 		goto Thaw;
@@ -75,6 +82,8 @@ static int suspend_prepare(suspend_state_t state)
 		pm_ops->finish(state);
  Thaw:
 	thaw_processes();
+ Enable_cpu:
+	enable_nonboot_cpus();
 	pm_restore_console();
 	return error;
 }
@@ -113,6 +122,7 @@ static void suspend_finish(suspend_state_t state)
 	if (pm_ops && pm_ops->finish)
 		pm_ops->finish(state);
 	thaw_processes();
+	enable_nonboot_cpus();
 	pm_restore_console();
 }
 
@@ -150,20 +160,14 @@ static int enter_state(suspend_state_t state)
 		goto Unlock;
 	}
 
-	/* Suspend is hard to get right on SMP. */
-	if (num_online_cpus() != 1) {
-		error = -EPERM;
-		goto Unlock;
-	}
-
-	pr_debug("PM: Preparing system for suspend\n");
+	pr_debug("PM: Preparing system for %s sleep\n", pm_states[state]);
 	if ((error = suspend_prepare(state)))
 		goto Unlock;
 
-	pr_debug("PM: Entering state.\n");
+	pr_debug("PM: Entering %s sleep\n", pm_states[state]);
 	error = suspend_enter(state);
 
-	pr_debug("PM: Finishing up.\n");
+	pr_debug("PM: Finishing wakeup.\n");
 	suspend_finish(state);
  Unlock:
 	up(&pm_sem);

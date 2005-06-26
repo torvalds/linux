@@ -23,8 +23,10 @@
  * This file handles the architecture-dependent parts of initialization
  */
 
+#include <linux/config.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
+#include <linux/mmzone.h>
 #include <linux/tty.h>
 #include <linux/ioport.h>
 #include <linux/acpi.h>
@@ -41,7 +43,12 @@
 #include <linux/init.h>
 #include <linux/edd.h>
 #include <linux/nodemask.h>
+#include <linux/kexec.h>
+#include <linux/crash_dump.h>
+
 #include <video/edid.h>
+
+#include <asm/apic.h>
 #include <asm/e820.h>
 #include <asm/mpspec.h>
 #include <asm/setup.h>
@@ -53,12 +60,15 @@
 #include "setup_arch_pre.h"
 #include <bios_ebda.h>
 
+/* Forward Declaration. */
+void __init find_max_pfn(void);
+
 /* This value is set up by the early boot code to point to the value
    immediately after the boot time page tables.  It contains a *physical*
    address, and must not be in the .bss segment! */
 unsigned long init_pg_tables_end __initdata = ~0UL;
 
-int disable_pse __initdata = 0;
+int disable_pse __devinitdata = 0;
 
 /*
  * Machine setup..
@@ -73,6 +83,7 @@ EXPORT_SYMBOL(efi_enabled);
 struct cpuinfo_x86 new_cpu_data __initdata = { 0, 0, 0, 0, -1, 1, 0, 0, -1 };
 /* common cpu data for all cpus */
 struct cpuinfo_x86 boot_cpu_data = { 0, 0, 0, 0, -1, 1, 0, 0, -1 };
+EXPORT_SYMBOL(boot_cpu_data);
 
 unsigned long mmu_cr4_features;
 
@@ -90,12 +101,18 @@ extern acpi_interrupt_flags	acpi_sci_flags;
 
 /* for MCA, but anyone else can use it if they want */
 unsigned int machine_id;
+#ifdef CONFIG_MCA
+EXPORT_SYMBOL(machine_id);
+#endif
 unsigned int machine_submodel_id;
 unsigned int BIOS_revision;
 unsigned int mca_pentium_flag;
 
 /* For PCI or other memory-mapped resources */
 unsigned long pci_mem_start = 0x10000000;
+#ifdef CONFIG_PCI
+EXPORT_SYMBOL(pci_mem_start);
+#endif
 
 /* Boot loader ID as an integer, for the benefit of proc_dointvec */
 int bootloader_type;
@@ -107,14 +124,26 @@ static unsigned int highmem_pages = -1;
  * Setup options
  */
 struct drive_info_struct { char dummy[32]; } drive_info;
+#if defined(CONFIG_BLK_DEV_IDE) || defined(CONFIG_BLK_DEV_HD) || \
+    defined(CONFIG_BLK_DEV_IDE_MODULE) || defined(CONFIG_BLK_DEV_HD_MODULE)
+EXPORT_SYMBOL(drive_info);
+#endif
 struct screen_info screen_info;
+#ifdef CONFIG_VT
+EXPORT_SYMBOL(screen_info);
+#endif
 struct apm_info apm_info;
+EXPORT_SYMBOL(apm_info);
 struct sys_desc_table_struct {
 	unsigned short length;
 	unsigned char table[0];
 };
 struct edid_info edid_info;
 struct ist_info ist_info;
+#if defined(CONFIG_X86_SPEEDSTEP_SMI) || \
+	defined(CONFIG_X86_SPEEDSTEP_SMI_MODULE)
+EXPORT_SYMBOL(ist_info);
+#endif
 struct e820map e820;
 
 extern void early_cpu_init(void);
@@ -711,6 +740,15 @@ static void __init parse_cmdline_early (char ** cmdline_p)
 			if (to != command_line)
 				to--;
 			if (!memcmp(from+7, "exactmap", 8)) {
+#ifdef CONFIG_CRASH_DUMP
+				/* If we are doing a crash dump, we
+				 * still need to know the real mem
+				 * size before original memory map is
+				 * reset.
+				 */
+				find_max_pfn();
+				saved_max_pfn = max_pfn;
+#endif
 				from += 8+7;
 				e820.nr_map = 0;
 				userdef = 1;
@@ -813,6 +851,44 @@ static void __init parse_cmdline_early (char ** cmdline_p)
 			disable_ioapic_setup();
 #endif /* CONFIG_X86_LOCAL_APIC */
 #endif /* CONFIG_ACPI_BOOT */
+
+#ifdef CONFIG_X86_LOCAL_APIC
+		/* enable local APIC */
+		else if (!memcmp(from, "lapic", 5))
+			lapic_enable();
+
+		/* disable local APIC */
+		else if (!memcmp(from, "nolapic", 6))
+			lapic_disable();
+#endif /* CONFIG_X86_LOCAL_APIC */
+
+#ifdef CONFIG_KEXEC
+		/* crashkernel=size@addr specifies the location to reserve for
+		 * a crash kernel.  By reserving this memory we guarantee
+		 * that linux never set's it up as a DMA target.
+		 * Useful for holding code to do something appropriate
+		 * after a kernel panic.
+		 */
+		else if (!memcmp(from, "crashkernel=", 12)) {
+			unsigned long size, base;
+			size = memparse(from+12, &from);
+			if (*from == '@') {
+				base = memparse(from+1, &from);
+				/* FIXME: Do I want a sanity check
+				 * to validate the memory range?
+				 */
+				crashk_res.start = base;
+				crashk_res.end   = base + size - 1;
+			}
+		}
+#endif
+#ifdef CONFIG_CRASH_DUMP
+		/* elfcorehdr= specifies the location of elf core header
+		 * stored by the crashed kernel.
+		 */
+		else if (!memcmp(from, "elfcorehdr=", 11))
+			elfcorehdr_addr = memparse(from+11, &from);
+#endif
 
 		/*
 		 * highmem=size forces highmem to be exactly 'size' bytes.
@@ -1022,7 +1098,7 @@ static void __init reserve_ebda_region(void)
 		reserve_bootmem(addr, PAGE_SIZE);	
 }
 
-#ifndef CONFIG_DISCONTIGMEM
+#ifndef CONFIG_NEED_MULTIPLE_NODES
 void __init setup_bootmem_allocator(void);
 static unsigned long __init setup_memory(void)
 {
@@ -1072,9 +1148,9 @@ void __init zone_sizes_init(void)
 	free_area_init(zones_size);
 }
 #else
-extern unsigned long setup_memory(void);
+extern unsigned long __init setup_memory(void);
 extern void zone_sizes_init(void);
-#endif /* !CONFIG_DISCONTIGMEM */
+#endif /* !CONFIG_NEED_MULTIPLE_NODES */
 
 void __init setup_bootmem_allocator(void)
 {
@@ -1092,8 +1168,8 @@ void __init setup_bootmem_allocator(void)
 	 * the (very unlikely) case of us accidentally initializing the
 	 * bootmem allocator with an invalid RAM area.
 	 */
-	reserve_bootmem(HIGH_MEMORY, (PFN_PHYS(min_low_pfn) +
-			 bootmap_size + PAGE_SIZE-1) - (HIGH_MEMORY));
+	reserve_bootmem(__PHYSICAL_START, (PFN_PHYS(min_low_pfn) +
+			 bootmap_size + PAGE_SIZE-1) - (__PHYSICAL_START));
 
 	/*
 	 * reserve physical page 0 - it's a special BIOS page on many boxes,
@@ -1149,6 +1225,11 @@ void __init setup_bootmem_allocator(void)
 		}
 	}
 #endif
+#ifdef CONFIG_KEXEC
+	if (crashk_res.start != crashk_res.end)
+		reserve_bootmem(crashk_res.start,
+			crashk_res.end - crashk_res.start + 1);
+#endif
 }
 
 /*
@@ -1202,6 +1283,9 @@ legacy_init_iomem_resources(struct resource *code_resource, struct resource *dat
 			 */
 			request_resource(res, code_resource);
 			request_resource(res, data_resource);
+#ifdef CONFIG_KEXEC
+			request_resource(res, &crashk_res);
+#endif
 		}
 	}
 }
@@ -1475,6 +1559,7 @@ void __init setup_arch(char **cmdline_p)
 #endif
 	paging_init();
 	remapped_pgdat_init();
+	sparse_init();
 	zone_sizes_init();
 
 	/*
@@ -1502,11 +1587,13 @@ void __init setup_arch(char **cmdline_p)
 	if (efi_enabled)
 		efi_map_memmap();
 
+#ifdef CONFIG_ACPI_BOOT
 	/*
 	 * Parse the ACPI tables for possible boot-time SMP configuration.
 	 */
 	acpi_boot_table_init();
 	acpi_boot_init();
+#endif
 
 #ifdef CONFIG_X86_LOCAL_APIC
 	if (smp_found_config)

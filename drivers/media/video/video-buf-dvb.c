@@ -62,8 +62,7 @@ static int videobuf_dvb_thread(void *data)
 			break;
 		if (kthread_should_stop())
 			break;
-		if (current->flags & PF_FREEZE)
-			refrigerator(PF_FREEZE);
+		try_to_freeze();
 
 		/* feed buffer data to demux */
 		if (buf->state == STATE_DONE)
@@ -149,10 +148,10 @@ int videobuf_dvb_register(struct videobuf_dvb *dvb,
 		       dvb->name, result);
 		goto fail_adapter;
 	}
-	dvb->adapter->priv = adapter_priv;
+	dvb->adapter.priv = adapter_priv;
 
 	/* register frontend */
-	result = dvb_register_frontend(dvb->adapter, dvb->frontend);
+	result = dvb_register_frontend(&dvb->adapter, dvb->frontend);
 	if (result < 0) {
 		printk(KERN_WARNING "%s: dvb_register_frontend failed (errno = %d)\n",
 		       dvb->name, result);
@@ -178,7 +177,7 @@ int videobuf_dvb_register(struct videobuf_dvb *dvb,
 	dvb->dmxdev.filternum    = 256;
 	dvb->dmxdev.demux        = &dvb->demux.dmx;
 	dvb->dmxdev.capabilities = 0;
-	result = dvb_dmxdev_init(&dvb->dmxdev, dvb->adapter);
+	result = dvb_dmxdev_init(&dvb->dmxdev, &dvb->adapter);
 	if (result < 0) {
 		printk(KERN_WARNING "%s: dvb_dmxdev_init failed (errno = %d)\n",
 		       dvb->name, result);
@@ -209,7 +208,7 @@ int videobuf_dvb_register(struct videobuf_dvb *dvb,
 	}
 
 	/* register network adapter */
-	dvb_net_init(dvb->adapter, &dvb->net, &dvb->demux.dmx);
+	dvb_net_init(&dvb->adapter, &dvb->net, &dvb->demux.dmx);
 	return 0;
 
 fail_fe_conn:
@@ -223,7 +222,7 @@ fail_dmxdev:
 fail_dmx:
 	dvb_unregister_frontend(dvb->frontend);
 fail_frontend:
-	dvb_unregister_adapter(dvb->adapter);
+	dvb_unregister_adapter(&dvb->adapter);
 fail_adapter:
 	return result;
 }
@@ -236,7 +235,7 @@ void videobuf_dvb_unregister(struct videobuf_dvb *dvb)
 	dvb_dmxdev_release(&dvb->dmxdev);
 	dvb_dmx_release(&dvb->demux);
 	dvb_unregister_frontend(dvb->frontend);
-	dvb_unregister_adapter(dvb->adapter);
+	dvb_unregister_adapter(&dvb->adapter);
 }
 
 EXPORT_SYMBOL(videobuf_dvb_register);

@@ -30,50 +30,15 @@
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/i2o.h>
-
-#ifdef CONFIG_MTRR
-#include <asm/mtrr.h>
-#endif				// CONFIG_MTRR
-
-/* Module internal functions from other sources */
-extern struct i2o_controller *i2o_iop_alloc(void);
-extern void i2o_iop_free(struct i2o_controller *);
-
-extern int i2o_iop_add(struct i2o_controller *);
-extern void i2o_iop_remove(struct i2o_controller *);
-
-extern int i2o_driver_dispatch(struct i2o_controller *, u32,
-			       struct i2o_message *);
+#include "core.h"
 
 /* PCI device id table for all I2O controllers */
 static struct pci_device_id __devinitdata i2o_pci_ids[] = {
 	{PCI_DEVICE_CLASS(PCI_CLASS_INTELLIGENT_I2O << 8, 0xffff00)},
 	{PCI_DEVICE(PCI_VENDOR_ID_DPT, 0xa511)},
+	{.vendor = PCI_VENDOR_ID_INTEL,.device = 0x1962,
+	 .subvendor = PCI_VENDOR_ID_PROMISE,.subdevice = PCI_ANY_ID},
 	{0}
-};
-
-/**
- *	i2o_dma_realloc - Realloc DMA memory
- *	@dev: struct device pointer to the PCI device of the I2O controller
- *	@addr: pointer to a i2o_dma struct DMA buffer
- *	@len: new length of memory
- *	@gfp_mask: GFP mask
- *
- *	If there was something allocated in the addr, free it first. If len > 0
- *	than try to allocate it and write the addresses back to the addr
- *	structure. If len == 0 set the virtual address to NULL.
- *
- *	Returns the 0 on success or negative error code on failure.
- */
-int i2o_dma_realloc(struct device *dev, struct i2o_dma *addr, size_t len,
-		    unsigned int gfp_mask)
-{
-	i2o_dma_free(dev, addr);
-
-	if (len)
-		return i2o_dma_alloc(dev, addr, len, gfp_mask);
-
-	return 0;
 };
 
 /**
@@ -91,18 +56,10 @@ static void i2o_pci_free(struct i2o_controller *c)
 
 	i2o_dma_free(dev, &c->out_queue);
 	i2o_dma_free(dev, &c->status_block);
-	if (c->lct)
-		kfree(c->lct);
+	kfree(c->lct);
 	i2o_dma_free(dev, &c->dlct);
 	i2o_dma_free(dev, &c->hrt);
 	i2o_dma_free(dev, &c->status);
-
-#ifdef CONFIG_MTRR
-	if (c->mtrr_reg0 >= 0)
-		mtrr_del(c->mtrr_reg0, 0, 0);
-	if (c->mtrr_reg1 >= 0)
-		mtrr_del(c->mtrr_reg1, 0, 0);
-#endif
 
 	if (c->raptor && c->in_queue.virt)
 		iounmap(c->in_queue.virt);
@@ -178,14 +135,15 @@ static int __devinit i2o_pci_alloc(struct i2o_controller *c)
 		       c->name, (unsigned long)c->base.phys,
 		       (unsigned long)c->base.len);
 
-	c->base.virt = ioremap(c->base.phys, c->base.len);
+	c->base.virt = ioremap_nocache(c->base.phys, c->base.len);
 	if (!c->base.virt) {
 		printk(KERN_ERR "%s: Unable to map controller.\n", c->name);
 		return -ENOMEM;
 	}
 
 	if (c->raptor) {
-		c->in_queue.virt = ioremap(c->in_queue.phys, c->in_queue.len);
+		c->in_queue.virt =
+		    ioremap_nocache(c->in_queue.phys, c->in_queue.len);
 		if (!c->in_queue.virt) {
 			printk(KERN_ERR "%s: Unable to map controller.\n",
 			       c->name);
@@ -195,43 +153,10 @@ static int __devinit i2o_pci_alloc(struct i2o_controller *c)
 	} else
 		c->in_queue = c->base;
 
-	c->irq_mask = c->base.virt + 0x34;
-	c->post_port = c->base.virt + 0x40;
-	c->reply_port = c->base.virt + 0x44;
-
-#ifdef CONFIG_MTRR
-	/* Enable Write Combining MTRR for IOP's memory region */
-	c->mtrr_reg0 = mtrr_add(c->in_queue.phys, c->in_queue.len,
-				MTRR_TYPE_WRCOMB, 1);
-	c->mtrr_reg1 = -1;
-
-	if (c->mtrr_reg0 < 0)
-		printk(KERN_WARNING "%s: could not enable write combining "
-		       "MTRR\n", c->name);
-	else
-		printk(KERN_INFO "%s: using write combining MTRR\n", c->name);
-
-	/*
-	 * If it is an INTEL i960 I/O processor then set the first 64K to
-	 * Uncacheable since the region contains the messaging unit which
-	 * shouldn't be cached.
-	 */
-	if ((pdev->vendor == PCI_VENDOR_ID_INTEL ||
-	     pdev->vendor == PCI_VENDOR_ID_DPT) && !c->raptor) {
-		printk(KERN_INFO "%s: MTRR workaround for Intel i960 processor"
-		       "\n", c->name);
-		c->mtrr_reg1 = mtrr_add(c->base.phys, 0x10000,
-					MTRR_TYPE_UNCACHABLE, 1);
-
-		if (c->mtrr_reg1 < 0) {
-			printk(KERN_WARNING "%s: Error in setting "
-			       "MTRR_TYPE_UNCACHABLE\n", c->name);
-			mtrr_del(c->mtrr_reg0, c->in_queue.phys,
-				 c->in_queue.len);
-			c->mtrr_reg0 = -1;
-		}
-	}
-#endif
+	c->irq_status = c->base.virt + I2O_IRQ_STATUS;
+	c->irq_mask = c->base.virt + I2O_IRQ_MASK;
+	c->in_port = c->base.virt + I2O_IN_PORT;
+	c->out_port = c->base.virt + I2O_OUT_PORT;
 
 	if (i2o_dma_alloc(dev, &c->status, 8, GFP_KERNEL)) {
 		i2o_pci_free(c);
@@ -254,7 +179,10 @@ static int __devinit i2o_pci_alloc(struct i2o_controller *c)
 		return -ENOMEM;
 	}
 
-	if (i2o_dma_alloc(dev, &c->out_queue, MSG_POOL_SIZE, GFP_KERNEL)) {
+	if (i2o_dma_alloc
+	    (dev, &c->out_queue,
+	     I2O_MAX_OUTBOUND_MSG_FRAMES * I2O_OUTBOUND_MSG_FRAME_SIZE *
+	     sizeof(u32), GFP_KERNEL)) {
 		i2o_pci_free(c);
 		return -ENOMEM;
 	}
@@ -276,51 +204,30 @@ static int __devinit i2o_pci_alloc(struct i2o_controller *c)
 static irqreturn_t i2o_pci_interrupt(int irq, void *dev_id, struct pt_regs *r)
 {
 	struct i2o_controller *c = dev_id;
-	struct device *dev = &c->pdev->dev;
-	struct i2o_message *m;
-	u32 mv;
+	u32 m;
+	irqreturn_t rc = IRQ_NONE;
 
-	/*
-	 * Old 960 steppings had a bug in the I2O unit that caused
-	 * the queue to appear empty when it wasn't.
-	 */
-	mv = I2O_REPLY_READ32(c);
-	if (mv == I2O_QUEUE_EMPTY) {
-		mv = I2O_REPLY_READ32(c);
-		if (unlikely(mv == I2O_QUEUE_EMPTY)) {
-			return IRQ_NONE;
-		} else
-			pr_debug("%s: 960 bug detected\n", c->name);
-	}
-
-	while (mv != I2O_QUEUE_EMPTY) {
-		/*
-		 * Map the message from the page frame map to kernel virtual.
-		 * Because bus_to_virt is deprecated, we have calculate the
-		 * location by ourself!
-		 */
-		m = i2o_msg_out_to_virt(c, mv);
-
-		/*
-		 *      Ensure this message is seen coherently but cachably by
-		 *      the processor
-		 */
-		dma_sync_single_for_cpu(dev, mv, MSG_FRAME_SIZE * 4,
-					PCI_DMA_FROMDEVICE);
+	while (readl(c->irq_status) & I2O_IRQ_OUTBOUND_POST) {
+		m = readl(c->out_port);
+		if (m == I2O_QUEUE_EMPTY) {
+			/*
+			 * Old 960 steppings had a bug in the I2O unit that
+			 * caused the queue to appear empty when it wasn't.
+			 */
+			m = readl(c->out_port);
+			if (unlikely(m == I2O_QUEUE_EMPTY))
+				break;
+		}
 
 		/* dispatch it */
-		if (i2o_driver_dispatch(c, mv, m))
+		if (i2o_driver_dispatch(c, m))
 			/* flush it if result != 0 */
-			i2o_flush_reply(c, mv);
+			i2o_flush_reply(c, m);
 
-		/*
-		 * That 960 bug again...
-		 */
-		mv = I2O_REPLY_READ32(c);
-		if (mv == I2O_QUEUE_EMPTY)
-			mv = I2O_REPLY_READ32(c);
+		rc = IRQ_HANDLED;
 	}
-	return IRQ_HANDLED;
+
+	return rc;
 }
 
 /**
@@ -336,7 +243,7 @@ static int i2o_pci_irq_enable(struct i2o_controller *c)
 	struct pci_dev *pdev = c->pdev;
 	int rc;
 
-	I2O_IRQ_WRITE32(c, 0xffffffff);
+	writel(0xffffffff, c->irq_mask);
 
 	if (pdev->irq) {
 		rc = request_irq(pdev->irq, i2o_pci_interrupt, SA_SHIRQ,
@@ -348,7 +255,7 @@ static int i2o_pci_irq_enable(struct i2o_controller *c)
 		}
 	}
 
-	I2O_IRQ_WRITE32(c, 0x00000000);
+	writel(0x00000000, c->irq_mask);
 
 	printk(KERN_INFO "%s: Installed at IRQ %d\n", c->name, pdev->irq);
 
@@ -363,7 +270,7 @@ static int i2o_pci_irq_enable(struct i2o_controller *c)
  */
 static void i2o_pci_irq_disable(struct i2o_controller *c)
 {
-	I2O_IRQ_WRITE32(c, 0xffffffff);
+	writel(0xffffffff, c->irq_mask);
 
 	if (c->pdev->irq > 0)
 		free_irq(c->pdev->irq, c);
@@ -385,28 +292,25 @@ static int __devinit i2o_pci_probe(struct pci_dev *pdev,
 {
 	struct i2o_controller *c;
 	int rc;
+	struct pci_dev *i960 = NULL;
 
 	printk(KERN_INFO "i2o: Checking for PCI I2O controllers...\n");
 
 	if ((pdev->class & 0xff) > 1) {
-		printk(KERN_WARNING "i2o: I2O controller found but does not "
-		       "support I2O 1.5 (skipping).\n");
+		printk(KERN_WARNING "i2o: %s does not support I2O 1.5 "
+		       "(skipping).\n", pci_name(pdev));
 		return -ENODEV;
 	}
 
 	if ((rc = pci_enable_device(pdev))) {
-		printk(KERN_WARNING "i2o: I2O controller found but could not be"
-		       " enabled.\n");
+		printk(KERN_WARNING "i2o: couldn't enable device %s\n",
+		       pci_name(pdev));
 		return rc;
 	}
 
-	printk(KERN_INFO "i2o: I2O controller found on bus %d at %d.\n",
-	       pdev->bus->number, pdev->devfn);
-
 	if (pci_set_dma_mask(pdev, DMA_32BIT_MASK)) {
-		printk(KERN_WARNING "i2o: I2O controller on bus %d at %d: No "
-		       "suitable DMA available!\n", pdev->bus->number,
-		       pdev->devfn);
+		printk(KERN_WARNING "i2o: no suitable DMA found for %s\n",
+		       pci_name(pdev));
 		rc = -ENODEV;
 		goto disable;
 	}
@@ -415,14 +319,16 @@ static int __devinit i2o_pci_probe(struct pci_dev *pdev,
 
 	c = i2o_iop_alloc();
 	if (IS_ERR(c)) {
-		printk(KERN_ERR "i2o: memory for I2O controller could not be "
-		       "allocated\n");
+		printk(KERN_ERR "i2o: couldn't allocate memory for %s\n",
+		       pci_name(pdev));
 		rc = PTR_ERR(c);
 		goto disable;
-	}
+	} else
+		printk(KERN_INFO "%s: controller found (%s)\n", c->name,
+		       pci_name(pdev));
 
 	c->pdev = pdev;
-	c->device = pdev->dev;
+	c->device.parent = get_device(&pdev->dev);
 
 	/* Cards that fall apart if you hit them with large I/O loads... */
 	if (pdev->vendor == PCI_VENDOR_ID_NCR && pdev->device == 0x0630) {
@@ -432,16 +338,48 @@ static int __devinit i2o_pci_probe(struct pci_dev *pdev,
 	}
 
 	if (pdev->subsystem_vendor == PCI_VENDOR_ID_PROMISE) {
+		/*
+		 * Expose the ship behind i960 for initialization, or it will
+		 * failed
+		 */
+		i960 =
+		    pci_find_slot(c->pdev->bus->number,
+				  PCI_DEVFN(PCI_SLOT(c->pdev->devfn), 0));
+
+		if (i960)
+			pci_write_config_word(i960, 0x42, 0);
+
 		c->promise = 1;
-		printk(KERN_INFO "%s: Promise workarounds activated.\n",
-		       c->name);
+		c->limit_sectors = 1;
 	}
+
+	if (pdev->subsystem_vendor == PCI_VENDOR_ID_DPT)
+		c->adaptec = 1;
 
 	/* Cards that go bananas if you quiesce them before you reset them. */
 	if (pdev->vendor == PCI_VENDOR_ID_DPT) {
 		c->no_quiesce = 1;
 		if (pdev->device == 0xa511)
 			c->raptor = 1;
+
+		if (pdev->subsystem_device == 0xc05a) {
+			c->limit_sectors = 1;
+			printk(KERN_INFO
+			       "%s: limit sectors per request to %d\n", c->name,
+			       I2O_MAX_SECTORS_LIMITED);
+		}
+#ifdef CONFIG_I2O_EXT_ADAPTEC_DMA64
+		if (sizeof(dma_addr_t) > 4) {
+			if (pci_set_dma_mask(pdev, DMA_64BIT_MASK))
+				printk(KERN_INFO "%s: 64-bit DMA unavailable\n",
+				       c->name);
+			else {
+				c->pae_support = 1;
+				printk(KERN_INFO "%s: using 64-bit DMA\n",
+				       c->name);
+			}
+		}
+#endif
 	}
 
 	if ((rc = i2o_pci_alloc(c))) {
@@ -459,6 +397,11 @@ static int __devinit i2o_pci_probe(struct pci_dev *pdev,
 	if ((rc = i2o_iop_add(c)))
 		goto uninstall;
 
+	get_device(&c->device);
+
+	if (i960)
+		pci_write_config_word(i960, 0x42, 0x03ff);
+
 	return 0;
 
       uninstall:
@@ -469,6 +412,7 @@ static int __devinit i2o_pci_probe(struct pci_dev *pdev,
 
       free_controller:
 	i2o_iop_free(c);
+	put_device(c->device.parent);
 
       disable:
 	pci_disable_device(pdev);
@@ -492,15 +436,17 @@ static void __devexit i2o_pci_remove(struct pci_dev *pdev)
 	i2o_pci_irq_disable(c);
 	i2o_pci_free(c);
 
+	pci_disable_device(pdev);
+
 	printk(KERN_INFO "%s: Controller removed.\n", c->name);
 
-	i2o_iop_free(c);
-	pci_disable_device(pdev);
+	put_device(c->device.parent);
+	put_device(&c->device);
 };
 
 /* PCI driver for I2O controller */
 static struct pci_driver i2o_pci_driver = {
-	.name = "I2O controller",
+	.name = "PCI_I2O",
 	.id_table = i2o_pci_ids,
 	.probe = i2o_pci_probe,
 	.remove = __devexit_p(i2o_pci_remove),
@@ -523,6 +469,4 @@ void __exit i2o_pci_exit(void)
 {
 	pci_unregister_driver(&i2o_pci_driver);
 };
-
-EXPORT_SYMBOL(i2o_dma_realloc);
 MODULE_DEVICE_TABLE(pci, i2o_pci_ids);

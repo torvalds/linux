@@ -44,7 +44,7 @@ extern void smp_message_recv(int, struct pt_regs *);
 #define NO_PROC_ID		0xFF            /* No processor magic marker */
 #define PROC_CHANGE_PENALTY	20
 
-#define smp_processor_id() (current_thread_info()->cpu)
+#define raw_smp_processor_id()	(current_thread_info()->cpu)
 
 extern int __cpu_up(unsigned int cpu);
 

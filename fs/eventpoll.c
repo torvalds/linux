@@ -101,57 +101,6 @@
 /* Maximum number of poll wake up nests we are allowing */
 #define EP_MAX_POLLWAKE_NESTS 4
 
-/* Macro to allocate a "struct epitem" from the slab cache */
-#define EPI_MEM_ALLOC()	(struct epitem *) kmem_cache_alloc(epi_cache, SLAB_KERNEL)
-
-/* Macro to free a "struct epitem" to the slab cache */
-#define EPI_MEM_FREE(p) kmem_cache_free(epi_cache, p)
-
-/* Macro to allocate a "struct eppoll_entry" from the slab cache */
-#define PWQ_MEM_ALLOC()	(struct eppoll_entry *) kmem_cache_alloc(pwq_cache, SLAB_KERNEL)
-
-/* Macro to free a "struct eppoll_entry" to the slab cache */
-#define PWQ_MEM_FREE(p) kmem_cache_free(pwq_cache, p)
-
-/* Fast test to see if the file is an evenpoll file */
-#define IS_FILE_EPOLL(f) ((f)->f_op == &eventpoll_fops)
-
-/* Setup the structure that is used as key for the rb-tree */
-#define EP_SET_FFD(p, f, d) do { (p)->file = (f); (p)->fd = (d); } while (0)
-
-/* Compare rb-tree keys */
-#define EP_CMP_FFD(p1, p2) ((p1)->file > (p2)->file ? +1: \
-			    ((p1)->file < (p2)->file ? -1: (p1)->fd - (p2)->fd))
-
-/* Special initialization for the rb-tree node to detect linkage */
-#define EP_RB_INITNODE(n) (n)->rb_parent = (n)
-
-/* Removes a node from the rb-tree and marks it for a fast is-linked check */
-#define EP_RB_ERASE(n, r) do { rb_erase(n, r); (n)->rb_parent = (n); } while (0)
-
-/* Fast check to verify that the item is linked to the main rb-tree */
-#define EP_RB_LINKED(n) ((n)->rb_parent != (n))
-
-/*
- * Remove the item from the list and perform its initialization.
- * This is useful for us because we can test if the item is linked
- * using "EP_IS_LINKED(p)".
- */
-#define EP_LIST_DEL(p) do { list_del(p); INIT_LIST_HEAD(p); } while (0)
-
-/* Tells us if the item is currently linked */
-#define EP_IS_LINKED(p) (!list_empty(p))
-
-/* Get the "struct epitem" from a wait queue pointer */
-#define EP_ITEM_FROM_WAIT(p) ((struct epitem *) container_of(p, struct eppoll_entry, wait)->base)
-
-/* Get the "struct epitem" from an epoll queue wrapper */
-#define EP_ITEM_FROM_EPQUEUE(p) (container_of(p, struct ep_pqueue, pt)->epi)
-
-/* Tells if the epoll_ctl(2) operation needs an event copy from userspace */
-#define EP_OP_HASH_EVENT(op) ((op) != EPOLL_CTL_DEL)
-
-
 struct epoll_filefd {
 	struct file *file;
 	int fd;
@@ -357,6 +306,82 @@ static struct dentry_operations eventpollfs_dentry_operations = {
 
 
 
+/* Fast test to see if the file is an evenpoll file */
+static inline int is_file_epoll(struct file *f)
+{
+	return f->f_op == &eventpoll_fops;
+}
+
+/* Setup the structure that is used as key for the rb-tree */
+static inline void ep_set_ffd(struct epoll_filefd *ffd,
+			      struct file *file, int fd)
+{
+	ffd->file = file;
+	ffd->fd = fd;
+}
+
+/* Compare rb-tree keys */
+static inline int ep_cmp_ffd(struct epoll_filefd *p1,
+			     struct epoll_filefd *p2)
+{
+	return (p1->file > p2->file ? +1:
+	        (p1->file < p2->file ? -1 : p1->fd - p2->fd));
+}
+
+/* Special initialization for the rb-tree node to detect linkage */
+static inline void ep_rb_initnode(struct rb_node *n)
+{
+	n->rb_parent = n;
+}
+
+/* Removes a node from the rb-tree and marks it for a fast is-linked check */
+static inline void ep_rb_erase(struct rb_node *n, struct rb_root *r)
+{
+	rb_erase(n, r);
+	n->rb_parent = n;
+}
+
+/* Fast check to verify that the item is linked to the main rb-tree */
+static inline int ep_rb_linked(struct rb_node *n)
+{
+	return n->rb_parent != n;
+}
+
+/*
+ * Remove the item from the list and perform its initialization.
+ * This is useful for us because we can test if the item is linked
+ * using "ep_is_linked(p)".
+ */
+static inline void ep_list_del(struct list_head *p)
+{
+	list_del(p);
+	INIT_LIST_HEAD(p);
+}
+
+/* Tells us if the item is currently linked */
+static inline int ep_is_linked(struct list_head *p)
+{
+	return !list_empty(p);
+}
+
+/* Get the "struct epitem" from a wait queue pointer */
+static inline struct epitem * ep_item_from_wait(wait_queue_t *p)
+{
+	return container_of(p, struct eppoll_entry, wait)->base;
+}
+
+/* Get the "struct epitem" from an epoll queue wrapper */
+static inline struct epitem * ep_item_from_epqueue(poll_table *p)
+{
+	return container_of(p, struct ep_pqueue, pt)->epi;
+}
+
+/* Tells if the epoll_ctl(2) operation needs an event copy from userspace */
+static inline int ep_op_hash_event(int op)
+{
+	return op != EPOLL_CTL_DEL;
+}
+
 /* Initialize the poll safe wake up structure */
 static void ep_poll_safewake_init(struct poll_safewake *psw)
 {
@@ -456,7 +481,7 @@ void eventpoll_release_file(struct file *file)
 		epi = list_entry(lsthead->next, struct epitem, fllink);
 
 		ep = epi->ep;
-		EP_LIST_DEL(&epi->fllink);
+		ep_list_del(&epi->fllink);
 		down_write(&ep->sem);
 		ep_remove(ep, epi);
 		up_write(&ep->sem);
@@ -534,7 +559,7 @@ sys_epoll_ctl(int epfd, int op, int fd, struct epoll_event __user *event)
 		     current, epfd, op, fd, event));
 
 	error = -EFAULT;
-	if (EP_OP_HASH_EVENT(op) &&
+	if (ep_op_hash_event(op) &&
 	    copy_from_user(&epds, event, sizeof(struct epoll_event)))
 		goto eexit_1;
 
@@ -560,7 +585,7 @@ sys_epoll_ctl(int epfd, int op, int fd, struct epoll_event __user *event)
 	 * adding an epoll file descriptor inside itself.
 	 */
 	error = -EINVAL;
-	if (file == tfile || !IS_FILE_EPOLL(file))
+	if (file == tfile || !is_file_epoll(file))
 		goto eexit_3;
 
 	/*
@@ -656,7 +681,7 @@ asmlinkage long sys_epoll_wait(int epfd, struct epoll_event __user *events,
 	 * the user passed to us _is_ an eventpoll file.
 	 */
 	error = -EINVAL;
-	if (!IS_FILE_EPOLL(file))
+	if (!is_file_epoll(file))
 		goto eexit_2;
 
 	/*
@@ -831,11 +856,11 @@ static struct epitem *ep_find(struct eventpoll *ep, struct file *file, int fd)
 	struct epitem *epi, *epir = NULL;
 	struct epoll_filefd ffd;
 
-	EP_SET_FFD(&ffd, file, fd);
+	ep_set_ffd(&ffd, file, fd);
 	read_lock_irqsave(&ep->lock, flags);
 	for (rbp = ep->rbr.rb_node; rbp; ) {
 		epi = rb_entry(rbp, struct epitem, rbn);
-		kcmp = EP_CMP_FFD(&ffd, &epi->ffd);
+		kcmp = ep_cmp_ffd(&ffd, &epi->ffd);
 		if (kcmp > 0)
 			rbp = rbp->rb_right;
 		else if (kcmp < 0)
@@ -875,7 +900,7 @@ static void ep_release_epitem(struct epitem *epi)
 {
 
 	if (atomic_dec_and_test(&epi->usecnt))
-		EPI_MEM_FREE(epi);
+		kmem_cache_free(epi_cache, epi);
 }
 
 
@@ -886,10 +911,10 @@ static void ep_release_epitem(struct epitem *epi)
 static void ep_ptable_queue_proc(struct file *file, wait_queue_head_t *whead,
 				 poll_table *pt)
 {
-	struct epitem *epi = EP_ITEM_FROM_EPQUEUE(pt);
+	struct epitem *epi = ep_item_from_epqueue(pt);
 	struct eppoll_entry *pwq;
 
-	if (epi->nwait >= 0 && (pwq = PWQ_MEM_ALLOC())) {
+	if (epi->nwait >= 0 && (pwq = kmem_cache_alloc(pwq_cache, SLAB_KERNEL))) {
 		init_waitqueue_func_entry(&pwq->wait, ep_poll_callback);
 		pwq->whead = whead;
 		pwq->base = epi;
@@ -912,7 +937,7 @@ static void ep_rbtree_insert(struct eventpoll *ep, struct epitem *epi)
 	while (*p) {
 		parent = *p;
 		epic = rb_entry(parent, struct epitem, rbn);
-		kcmp = EP_CMP_FFD(&epi->ffd, &epic->ffd);
+		kcmp = ep_cmp_ffd(&epi->ffd, &epic->ffd);
 		if (kcmp > 0)
 			p = &parent->rb_right;
 		else
@@ -932,17 +957,17 @@ static int ep_insert(struct eventpoll *ep, struct epoll_event *event,
 	struct ep_pqueue epq;
 
 	error = -ENOMEM;
-	if (!(epi = EPI_MEM_ALLOC()))
+	if (!(epi = kmem_cache_alloc(epi_cache, SLAB_KERNEL)))
 		goto eexit_1;
 
 	/* Item initialization follow here ... */
-	EP_RB_INITNODE(&epi->rbn);
+	ep_rb_initnode(&epi->rbn);
 	INIT_LIST_HEAD(&epi->rdllink);
 	INIT_LIST_HEAD(&epi->fllink);
 	INIT_LIST_HEAD(&epi->txlink);
 	INIT_LIST_HEAD(&epi->pwqlist);
 	epi->ep = ep;
-	EP_SET_FFD(&epi->ffd, tfile, fd);
+	ep_set_ffd(&epi->ffd, tfile, fd);
 	epi->event = *event;
 	atomic_set(&epi->usecnt, 1);
 	epi->nwait = 0;
@@ -978,7 +1003,7 @@ static int ep_insert(struct eventpoll *ep, struct epoll_event *event,
 	ep_rbtree_insert(ep, epi);
 
 	/* If the file is already "ready" we drop it inside the ready list */
-	if ((revents & event->events) && !EP_IS_LINKED(&epi->rdllink)) {
+	if ((revents & event->events) && !ep_is_linked(&epi->rdllink)) {
 		list_add_tail(&epi->rdllink, &ep->rdllist);
 
 		/* Notify waiting tasks that events are available */
@@ -1007,11 +1032,11 @@ eexit_2:
 	 * allocated wait queue.
 	 */
 	write_lock_irqsave(&ep->lock, flags);
-	if (EP_IS_LINKED(&epi->rdllink))
-		EP_LIST_DEL(&epi->rdllink);
+	if (ep_is_linked(&epi->rdllink))
+		ep_list_del(&epi->rdllink);
 	write_unlock_irqrestore(&ep->lock, flags);
 
-	EPI_MEM_FREE(epi);
+	kmem_cache_free(epi_cache, epi);
 eexit_1:
 	return error;
 }
@@ -1050,14 +1075,14 @@ static int ep_modify(struct eventpoll *ep, struct epitem *epi, struct epoll_even
 	 * If the item is not linked to the hash it means that it's on its
 	 * way toward the removal. Do nothing in this case.
 	 */
-	if (EP_RB_LINKED(&epi->rbn)) {
+	if (ep_rb_linked(&epi->rbn)) {
 		/*
 		 * If the item is "hot" and it is not registered inside the ready
 		 * list, push it inside. If the item is not "hot" and it is currently
 		 * registered inside the ready list, unlink it.
 		 */
 		if (revents & event->events) {
-			if (!EP_IS_LINKED(&epi->rdllink)) {
+			if (!ep_is_linked(&epi->rdllink)) {
 				list_add_tail(&epi->rdllink, &ep->rdllist);
 
 				/* Notify waiting tasks that events are available */
@@ -1097,9 +1122,9 @@ static void ep_unregister_pollwait(struct eventpoll *ep, struct epitem *epi)
 		while (!list_empty(lsthead)) {
 			pwq = list_entry(lsthead->next, struct eppoll_entry, llink);
 
-			EP_LIST_DEL(&pwq->llink);
+			ep_list_del(&pwq->llink);
 			remove_wait_queue(pwq->whead, &pwq->wait);
-			PWQ_MEM_FREE(pwq);
+			kmem_cache_free(pwq_cache, pwq);
 		}
 	}
 }
@@ -1118,7 +1143,7 @@ static int ep_unlink(struct eventpoll *ep, struct epitem *epi)
 	 * The check protect us from doing a double unlink ( crash ).
 	 */
 	error = -ENOENT;
-	if (!EP_RB_LINKED(&epi->rbn))
+	if (!ep_rb_linked(&epi->rbn))
 		goto eexit_1;
 
 	/*
@@ -1133,14 +1158,14 @@ static int ep_unlink(struct eventpoll *ep, struct epitem *epi)
 	 * This operation togheter with the above check closes the door to
 	 * double unlinks.
 	 */
-	EP_RB_ERASE(&epi->rbn, &ep->rbr);
+	ep_rb_erase(&epi->rbn, &ep->rbr);
 
 	/*
 	 * If the item we are going to remove is inside the ready file descriptors
 	 * we want to remove it from this list to avoid stale events.
 	 */
-	if (EP_IS_LINKED(&epi->rdllink))
-		EP_LIST_DEL(&epi->rdllink);
+	if (ep_is_linked(&epi->rdllink))
+		ep_list_del(&epi->rdllink);
 
 	error = 0;
 eexit_1:
@@ -1174,8 +1199,8 @@ static int ep_remove(struct eventpoll *ep, struct epitem *epi)
 
 	/* Remove the current item from the list of epoll hooks */
 	spin_lock(&file->f_ep_lock);
-	if (EP_IS_LINKED(&epi->fllink))
-		EP_LIST_DEL(&epi->fllink);
+	if (ep_is_linked(&epi->fllink))
+		ep_list_del(&epi->fllink);
 	spin_unlock(&file->f_ep_lock);
 
 	/* We need to acquire the write IRQ lock before calling ep_unlink() */
@@ -1210,7 +1235,7 @@ static int ep_poll_callback(wait_queue_t *wait, unsigned mode, int sync, void *k
 {
 	int pwake = 0;
 	unsigned long flags;
-	struct epitem *epi = EP_ITEM_FROM_WAIT(wait);
+	struct epitem *epi = ep_item_from_wait(wait);
 	struct eventpoll *ep = epi->ep;
 
 	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: poll_callback(%p) epi=%p ep=%p\n",
@@ -1228,7 +1253,7 @@ static int ep_poll_callback(wait_queue_t *wait, unsigned mode, int sync, void *k
 		goto is_disabled;
 
 	/* If this file is already in the ready list we exit soon */
-	if (EP_IS_LINKED(&epi->rdllink))
+	if (ep_is_linked(&epi->rdllink))
 		goto is_linked;
 
 	list_add_tail(&epi->rdllink, &ep->rdllist);
@@ -1307,7 +1332,7 @@ static int ep_collect_ready_items(struct eventpoll *ep, struct list_head *txlist
 		lnk = lnk->next;
 
 		/* If this file is already in the ready list we exit soon */
-		if (!EP_IS_LINKED(&epi->txlink)) {
+		if (!ep_is_linked(&epi->txlink)) {
 			/*
 			 * This is initialized in this way so that the default
 			 * behaviour of the reinjecting code will be to push back
@@ -1322,7 +1347,7 @@ static int ep_collect_ready_items(struct eventpoll *ep, struct list_head *txlist
 			/*
 			 * Unlink the item from the ready list.
 			 */
-			EP_LIST_DEL(&epi->rdllink);
+			ep_list_del(&epi->rdllink);
 		}
 	}
 
@@ -1401,7 +1426,7 @@ static void ep_reinject_items(struct eventpoll *ep, struct list_head *txlist)
 		epi = list_entry(txlist->next, struct epitem, txlink);
 
 		/* Unlink the current item from the transfer list */
-		EP_LIST_DEL(&epi->txlink);
+		ep_list_del(&epi->txlink);
 
 		/*
 		 * If the item is no more linked to the interest set, we don't
@@ -1410,8 +1435,8 @@ static void ep_reinject_items(struct eventpoll *ep, struct list_head *txlist)
 		 * item is set to have an Edge Triggered behaviour, we don't have
 		 * to push it back either.
 		 */
-		if (EP_RB_LINKED(&epi->rbn) && !(epi->event.events & EPOLLET) &&
-		    (epi->revents & epi->event.events) && !EP_IS_LINKED(&epi->rdllink)) {
+		if (ep_rb_linked(&epi->rbn) && !(epi->event.events & EPOLLET) &&
+		    (epi->revents & epi->event.events) && !ep_is_linked(&epi->rdllink)) {
 			list_add_tail(&epi->rdllink, &ep->rdllist);
 			ricnt++;
 		}

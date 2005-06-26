@@ -1,5 +1,5 @@
-#ifndef _ASM_KMAP_TYPES_H
-#define _ASM_KMAP_TYPES_H
+#ifndef _ASM_H8300_KMAP_TYPES_H
+#define _ASM_H8300_KMAP_TYPES_H
 
 enum km_type {
 	KM_BOUNCE_READ,
@@ -13,6 +13,8 @@ enum km_type {
 	KM_PTE1,
 	KM_IRQ0,
 	KM_IRQ1,
+	KM_SOFTIRQ0,
+	KM_SOFTIRQ1,
 	KM_TYPE_NR
 };
 

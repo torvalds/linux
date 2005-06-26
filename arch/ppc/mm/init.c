@@ -96,9 +96,6 @@ extern struct task_struct *current_set[NR_CPUS];
 char *klimit = _end;
 struct mem_pieces phys_avail;
 
-extern char *sysmap;
-extern unsigned long sysmap_size;
-
 /*
  * this tells the system to map all of ram with the segregs
  * (i.e. page tables) instead of the bats.
@@ -179,6 +176,7 @@ void free_initmem(void)
 	if (!have_of)
 		FREESEC(openfirmware);
  	printk("\n");
+	ppc_md.progress = NULL;
 #undef FREESEC
 }
 
@@ -441,12 +439,6 @@ void __init mem_init(void)
 	if (agp_special_page)
 		SetPageReserved(virt_to_page(agp_special_page));
 #endif
-	if ( sysmap )
-		for (addr = (unsigned long)sysmap;
-		     addr < PAGE_ALIGN((unsigned long)sysmap+sysmap_size) ;
-		     addr += PAGE_SIZE)
-			SetPageReserved(virt_to_page(addr));
-
 	for (addr = PAGE_OFFSET; addr < (unsigned long)high_memory;
 	     addr += PAGE_SIZE) {
 		if (!PageReserved(virt_to_page(addr)))
@@ -468,7 +460,6 @@ void __init mem_init(void)
 			struct page *page = mem_map + pfn;
 
 			ClearPageReserved(page);
-			set_bit(PG_highmem, &page->flags);
 			set_page_count(page, 1);
 			__free_page(page);
 			totalhigh_pages++;
@@ -482,9 +473,7 @@ void __init mem_init(void)
 	       codepages<< (PAGE_SHIFT-10), datapages<< (PAGE_SHIFT-10),
 	       initpages<< (PAGE_SHIFT-10),
 	       (unsigned long) (totalhigh_pages << (PAGE_SHIFT-10)));
-	if (sysmap)
-		printk("System.map loaded at 0x%08x for debugger, size: %ld bytes\n",
-			(unsigned int)sysmap, sysmap_size);
+
 #ifdef CONFIG_PPC_PMAC
 	if (agp_special_page)
 		printk(KERN_INFO "AGP special page: 0x%08lx\n", agp_special_page);
@@ -534,9 +523,6 @@ set_phys_avail(unsigned long total_memory)
 	if (rtas_data)
 		mem_pieces_remove(&phys_avail, rtas_data, rtas_size, 1);
 #endif
-	/* remove the sysmap pages from the available memory */
-	if (sysmap)
-		mem_pieces_remove(&phys_avail, __pa(sysmap), sysmap_size, 1);
 #ifdef CONFIG_PPC_PMAC
 	/* Because of some uninorth weirdness, we need a page of
 	 * memory as high as possible (it must be outside of the

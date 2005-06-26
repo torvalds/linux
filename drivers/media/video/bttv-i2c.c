@@ -1,5 +1,5 @@
 /*
-    $Id: bttv-i2c.c,v 1.18 2005/02/16 12:14:10 kraxel Exp $
+    $Id: bttv-i2c.c,v 1.21 2005/06/10 17:20:24 mchehab Exp $
 
     bttv-i2c.c  --  all the i2c code is here
 
@@ -363,6 +363,9 @@ int bttv_I2CWrite(struct bttv *btv, unsigned char addr, unsigned char b1,
 /* read EEPROM content */
 void __devinit bttv_readee(struct bttv *btv, unsigned char *eedata, int addr)
 {
+	memset(eedata, 0, 256);
+	if (0 != btv->i2c_rc)
+		return;
 	btv->i2c_client.addr = addr >> 1;
 	tveeprom_read(&btv->i2c_client, eedata, 256);
 }

@@ -138,7 +138,7 @@ enum machine_type {
 #endif
 #endif
 
-#define _N_SEGMENT_ROUND(x) (((x) + SEGMENT_SIZE - 1) & ~(SEGMENT_SIZE - 1))
+#define _N_SEGMENT_ROUND(x) ALIGN(x, SEGMENT_SIZE)
 
 #define _N_TXTENDADDR(x) (N_TXTADDR(x)+(x).a_text)
 

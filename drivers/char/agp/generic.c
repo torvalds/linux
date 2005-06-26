@@ -153,7 +153,7 @@ void agp_free_memory(struct agp_memory *curr)
 	}
 	if (curr->page_count != 0) {
 		for (i = 0; i < curr->page_count; i++) {
-			curr->bridge->driver->agp_destroy_page(phys_to_virt(curr->memory[i]));
+			curr->bridge->driver->agp_destroy_page(gart_to_virt(curr->memory[i]));
 		}
 	}
 	agp_free_key(curr->key);
@@ -209,7 +209,7 @@ struct agp_memory *agp_allocate_memory(struct agp_bridge_data *bridge,
 			agp_free_memory(new);
 			return NULL;
 		}
-		new->memory[i] = virt_to_phys(addr);
+		new->memory[i] = virt_to_gart(addr);
 		new->page_count++;
 	}
        new->bridge = bridge;
@@ -295,19 +295,6 @@ int agp_num_entries(void)
 EXPORT_SYMBOL_GPL(agp_num_entries);
 
 
-static int check_bridge_mode(struct pci_dev *dev)
-{
-	u32 agp3;
-	u8 cap_ptr;
-
-	cap_ptr = pci_find_capability(dev, PCI_CAP_ID_AGP);
-	pci_read_config_dword(dev, cap_ptr+AGPSTAT, &agp3);
-	if (agp3 & AGPSTAT_MODE_3_0)
-		return 1;
-	return 0;
-}
-
-
 /**
  *	agp_copy_info  -  copy bridge state information
  *
@@ -328,7 +315,7 @@ int agp_copy_info(struct agp_bridge_data *bridge, struct agp_kern_info *info)
 	info->version.minor = bridge->version->minor;
 	info->chipset = SUPPORTED;
 	info->device = bridge->dev;
-	if (check_bridge_mode(bridge->dev))
+	if (bridge->mode & AGPSTAT_MODE_3_0)
 		info->mode = bridge->mode & ~AGP3_RESERVED_MASK;
 	else
 		info->mode = bridge->mode & ~AGP2_RESERVED_MASK;
@@ -661,7 +648,7 @@ u32 agp_collect_device_status(struct agp_bridge_data *bridge, u32 requested_mode
 		bridge_agpstat &= ~AGPSTAT_FW;
 
 	/* Check to see if we are operating in 3.0 mode */
-	if (check_bridge_mode(agp_bridge->dev))
+	if (agp_bridge->mode & AGPSTAT_MODE_3_0)
 		agp_v3_parse_one(&requested_mode, &bridge_agpstat, &vga_agpstat);
 	else
 		agp_v2_parse_one(&requested_mode, &bridge_agpstat, &vga_agpstat);
@@ -732,7 +719,7 @@ void agp_generic_enable(struct agp_bridge_data *bridge, u32 requested_mode)
 
 	/* Do AGP version specific frobbing. */
 	if (bridge->major_version >= 3) {
-		if (check_bridge_mode(bridge->dev)) {
+		if (bridge->mode & AGPSTAT_MODE_3_0) {
 			/* If we have 3.5, we can do the isoch stuff. */
 			if (bridge->minor_version >= 5)
 				agp_3_5_enable(bridge);
@@ -806,8 +793,7 @@ int agp_generic_create_gatt_table(struct agp_bridge_data *bridge)
 				break;
 			}
 
-			table = (char *) __get_free_pages(GFP_KERNEL,
-							  page_order);
+			table = alloc_gatt_pages(page_order);
 
 			if (table == NULL) {
 				i++;
@@ -838,7 +824,7 @@ int agp_generic_create_gatt_table(struct agp_bridge_data *bridge)
 		size = ((struct aper_size_info_fixed *) temp)->size;
 		page_order = ((struct aper_size_info_fixed *) temp)->page_order;
 		num_entries = ((struct aper_size_info_fixed *) temp)->num_entries;
-		table = (char *) __get_free_pages(GFP_KERNEL, page_order);
+		table = alloc_gatt_pages(page_order);
 	}
 
 	if (table == NULL)
@@ -853,7 +839,7 @@ int agp_generic_create_gatt_table(struct agp_bridge_data *bridge)
 	agp_gatt_table = (void *)table;
 
 	bridge->driver->cache_flush();
-	bridge->gatt_table = ioremap_nocache(virt_to_phys(table),
+	bridge->gatt_table = ioremap_nocache(virt_to_gart(table),
 					(PAGE_SIZE * (1 << page_order)));
 	bridge->driver->cache_flush();
 
@@ -861,11 +847,11 @@ int agp_generic_create_gatt_table(struct agp_bridge_data *bridge)
 		for (page = virt_to_page(table); page <= virt_to_page(table_end); page++)
 			ClearPageReserved(page);
 
-		free_pages((unsigned long) table, page_order);
+		free_gatt_pages(table, page_order);
 
 		return -ENOMEM;
 	}
-	bridge->gatt_bus_addr = virt_to_phys(bridge->gatt_table_real);
+	bridge->gatt_bus_addr = virt_to_gart(bridge->gatt_table_real);
 
 	/* AK: bogus, should encode addresses > 4GB */
 	for (i = 0; i < num_entries; i++) {
@@ -919,7 +905,7 @@ int agp_generic_free_gatt_table(struct agp_bridge_data *bridge)
 	for (page = virt_to_page(table); page <= virt_to_page(table_end); page++)
 		ClearPageReserved(page);
 
-	free_pages((unsigned long) bridge->gatt_table_real, page_order);
+	free_gatt_pages(bridge->gatt_table_real, page_order);
 
 	agp_gatt_table = NULL;
 	bridge->gatt_table = NULL;

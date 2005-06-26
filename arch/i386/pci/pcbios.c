@@ -4,6 +4,7 @@
 
 #include <linux/pci.h>
 #include <linux/init.h>
+#include <linux/module.h>
 #include "pci.h"
 #include "pci-functions.h"
 
@@ -456,7 +457,7 @@ struct irq_routing_table * __devinit pcibios_get_irq_routing_table(void)
 	free_page(page);
 	return rt;
 }
-
+EXPORT_SYMBOL(pcibios_get_irq_routing_table);
 
 int pcibios_set_irq_routing(struct pci_dev *dev, int pin, int irq)
 {
@@ -473,6 +474,7 @@ int pcibios_set_irq_routing(struct pci_dev *dev, int pin, int irq)
 		  "S" (&pci_indirect));
 	return !(ret & 0xff00);
 }
+EXPORT_SYMBOL(pcibios_set_irq_routing);
 
 static int __init pci_pcbios_init(void)
 {

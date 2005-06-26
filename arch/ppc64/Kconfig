@@ -77,6 +77,10 @@ config PPC_PSERIES
 	bool "  IBM pSeries & new iSeries"
 	default y
 
+config PPC_BPA
+	bool "  Broadband Processor Architecture"
+	depends on PPC_MULTIPLATFORM
+
 config PPC_PMAC
 	depends on PPC_MULTIPLATFORM
 	bool "  Apple G5 based machines"
@@ -106,6 +110,21 @@ config PPC_OF
 	bool
 	default y
 
+config XICS
+	depends on PPC_PSERIES
+	bool
+	default y
+
+config MPIC
+	depends on PPC_PSERIES || PPC_PMAC || PPC_MAPLE
+	bool
+	default y
+
+config BPA_IIC
+	depends on PPC_BPA
+	bool
+	default y
+
 # VMX is pSeries only for now until somebody writes the iSeries
 # exception vectors for it
 config ALTIVEC
@@ -122,6 +141,23 @@ config PPC_SPLPAR
 	  on logically-partitioned pSeries systems which use shared
 	  processors, that is, which share physical processors between
 	  two or more partitions.
+
+config KEXEC
+	bool "kexec system call (EXPERIMENTAL)"
+	depends on PPC_MULTIPLATFORM && EXPERIMENTAL
+	help
+	  kexec is a system call that implements the ability to shutdown your
+	  current kernel, and to start another kernel.  It is like a reboot
+	  but it is indepedent of the system firmware.  And like a reboot
+	  you can start any kernel with it, not just Linux.
+
+	  The name comes from the similiarity to the exec system call.
+
+	  It is an ongoing process to be certain the hardware in a machine
+	  is properly shutdown, so do not be surprised if this code does not
+	  initially work for you.  It may help to enable device hotplugging
+	  support.  As of this writing the exact hardware interface is
+	  strongly in flux, so no good recommendation can be made.
 
 config IBMVIO
 	depends on PPC_PSERIES || PPC_ISERIES
@@ -198,13 +234,49 @@ config HMT
 	  This option enables hardware multithreading on RS64 cpus.
 	  pSeries systems p620 and p660 have such a cpu type.
 
-config DISCONTIGMEM
-	bool "Discontiguous Memory Support"
+config ARCH_SELECT_MEMORY_MODEL
+	def_bool y
+
+config ARCH_FLATMEM_ENABLE
+       def_bool y
+       depends on !NUMA
+
+config ARCH_DISCONTIGMEM_ENABLE
+	def_bool y
 	depends on SMP && PPC_PSERIES
+
+config ARCH_DISCONTIGMEM_DEFAULT
+	def_bool y
+	depends on ARCH_DISCONTIGMEM_ENABLE
+
+config ARCH_FLATMEM_ENABLE
+	def_bool y
+
+config ARCH_SPARSEMEM_ENABLE
+	def_bool y
+	depends on ARCH_DISCONTIGMEM_ENABLE
+
+source "mm/Kconfig"
+
+config HAVE_ARCH_EARLY_PFN_TO_NID
+	def_bool y
+	depends on NEED_MULTIPLE_NODES
+
+# Some NUMA nodes have memory ranges that span
+# other nodes.  Even though a pfn is valid and
+# between a node's start and end pfns, it may not
+# reside on that node.
+#
+# This is a relatively temporary hack that should
+# be able to go away when sparsemem is fully in
+# place
+config NODES_SPAN_OTHER_NODES
+	def_bool y
+	depends on NEED_MULTIPLE_NODES
 
 config NUMA
 	bool "NUMA support"
-	depends on DISCONTIGMEM
+	default y if DISCONTIGMEM || SPARSEMEM
 
 config SCHED_SMT
 	bool "SMT (Hyperthreading) scheduler support"
@@ -215,26 +287,7 @@ config SCHED_SMT
 	  when dealing with POWER5 cpus at a cost of slightly increased
 	  overhead in some places. If unsure say N here.
 
-config PREEMPT
-	bool "Preemptible Kernel"
-	help
-	  This option reduces the latency of the kernel when reacting to
-	  real-time or interactive events by allowing a low priority process to
-	  be preempted even if it is in kernel mode executing a system call.
-
-	  Say Y here if you are building a kernel for a desktop, embedded
-	  or real-time system.  Say N if you are unsure.
-
-config PREEMPT_BKL
-	bool "Preempt The Big Kernel Lock"
-	depends on PREEMPT
-	default y
-	help
-	  This option reduces the latency of the kernel by making the
-	  big kernel lock preemptible.
-
-	  Say Y here if you are building a kernel for a desktop system.
-	  Say N if you are unsure.
+source "kernel/Kconfig.preempt"
 
 config EEH
 	bool "PCI Extended Error Handling (EEH)" if EMBEDDED
@@ -256,7 +309,7 @@ config MSCHUNKS
 
 config PPC_RTAS
 	bool
-	depends on PPC_PSERIES
+	depends on PPC_PSERIES || PPC_BPA
 	default y
 
 config RTAS_PROC
@@ -323,7 +376,7 @@ config EISA
 	bool
 
 config PCI
-	bool
+	bool "support for PCI devices" if (EMBEDDED && PPC_ISERIES)
 	default y
 	help
 	  Find out whether your system includes a PCI bus. PCI is the name of

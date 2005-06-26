@@ -860,8 +860,8 @@ con3215_init(void)
 
 	/* Set the console mode for VM */
 	if (MACHINE_IS_VM) {
-		cpcmd("TERM CONMODE 3215", NULL, 0);
-		cpcmd("TERM AUTOCR OFF", NULL, 0);
+		cpcmd("TERM CONMODE 3215", NULL, 0, NULL);
+		cpcmd("TERM AUTOCR OFF", NULL, 0, NULL);
 	}
 
 	/* allocate 3215 request structures */

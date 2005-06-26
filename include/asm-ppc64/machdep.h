@@ -76,6 +76,7 @@ struct machdep_calls {
 	void		(*tce_flush)(struct iommu_table *tbl);
 	void		(*iommu_dev_setup)(struct pci_dev *dev);
 	void		(*iommu_bus_setup)(struct pci_bus *bus);
+	void		(*irq_bus_setup)(struct pci_bus *bus);
 
 	int		(*probe)(int platform);
 	void		(*setup_arch)(void);
@@ -85,6 +86,7 @@ struct machdep_calls {
 
 	void		(*init_IRQ)(void);
 	int		(*get_irq)(struct pt_regs *);
+	void		(*cpu_irq_down)(void);
 
 	/* PCI stuff */
 	void		(*pcibios_fixup)(void);

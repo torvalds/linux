@@ -94,6 +94,7 @@
 #include <linux/idr.h>
 #include <linux/wait.h>
 #include <linux/bitops.h>
+#include <linux/delay.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -251,7 +252,7 @@ static void tty_set_termios_ldisc(struct tty_struct *tty, int num)
  
 static DEFINE_SPINLOCK(tty_ldisc_lock);
 static DECLARE_WAIT_QUEUE_HEAD(tty_ldisc_wait);
-static struct tty_ldisc tty_ldiscs[NR_LDISCS];	/* line disc dispatch table	*/
+static struct tty_ldisc tty_ldiscs[NR_LDISCS];	/* line disc dispatch table */
 
 int tty_register_ldisc(int disc, struct tty_ldisc *new_ldisc)
 {
@@ -262,23 +263,34 @@ int tty_register_ldisc(int disc, struct tty_ldisc *new_ldisc)
 		return -EINVAL;
 	
 	spin_lock_irqsave(&tty_ldisc_lock, flags);
-	if (new_ldisc) {
-		tty_ldiscs[disc] = *new_ldisc;
-		tty_ldiscs[disc].num = disc;
-		tty_ldiscs[disc].flags |= LDISC_FLAG_DEFINED;
-		tty_ldiscs[disc].refcount = 0;
-	} else {
-		if(tty_ldiscs[disc].refcount)
-			ret = -EBUSY;
-		else
-			tty_ldiscs[disc].flags &= ~LDISC_FLAG_DEFINED;
-	}
+	tty_ldiscs[disc] = *new_ldisc;
+	tty_ldiscs[disc].num = disc;
+	tty_ldiscs[disc].flags |= LDISC_FLAG_DEFINED;
+	tty_ldiscs[disc].refcount = 0;
 	spin_unlock_irqrestore(&tty_ldisc_lock, flags);
 	
 	return ret;
 }
-
 EXPORT_SYMBOL(tty_register_ldisc);
+
+int tty_unregister_ldisc(int disc)
+{
+	unsigned long flags;
+	int ret = 0;
+
+	if (disc < N_TTY || disc >= NR_LDISCS)
+		return -EINVAL;
+
+	spin_lock_irqsave(&tty_ldisc_lock, flags);
+	if (tty_ldiscs[disc].refcount)
+		ret = -EBUSY;
+	else
+		tty_ldiscs[disc].flags &= ~LDISC_FLAG_DEFINED;
+	spin_unlock_irqrestore(&tty_ldisc_lock, flags);
+
+	return ret;
+}
+EXPORT_SYMBOL(tty_unregister_ldisc);
 
 struct tty_ldisc *tty_ldisc_get(int disc)
 {
@@ -2169,12 +2181,11 @@ static int tiocsetd(struct tty_struct *tty, int __user *p)
 	return tty_set_ldisc(tty, ldisc);
 }
 
-static int send_break(struct tty_struct *tty, int duration)
+static int send_break(struct tty_struct *tty, unsigned int duration)
 {
 	tty->driver->break_ctl(tty, -1);
 	if (!signal_pending(current)) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(duration);
+		msleep_interruptible(duration);
 	}
 	tty->driver->break_ctl(tty, 0);
 	if (signal_pending(current))
@@ -2355,10 +2366,10 @@ int tty_ioctl(struct inode * inode, struct file * file,
 			 * all by anyone?
 			 */
 			if (!arg)
-				return send_break(tty, HZ/4);
+				return send_break(tty, 250);
 			return 0;
 		case TCSBRKP:	/* support for POSIX tcsendbreak() */	
-			return send_break(tty, arg ? arg*(HZ/10) : HZ/4);
+			return send_break(tty, arg ? arg*100 : 250);
 
 		case TIOCMGET:
 			return tty_tiocmget(tty, file, p);
@@ -2654,7 +2665,7 @@ static void tty_default_put_char(struct tty_struct *tty, unsigned char ch)
 	tty->driver->write(tty, &ch, 1);
 }
 
-static struct class_simple *tty_class;
+static struct class *tty_class;
 
 /**
  * tty_register_device - register a tty device
@@ -2687,7 +2698,7 @@ void tty_register_device(struct tty_driver *driver, unsigned index,
 		pty_line_name(driver, index, name);
 	else
 		tty_line_name(driver, index, name);
-	class_simple_device_add(tty_class, dev, device, name);
+	class_device_create(tty_class, dev, device, name);
 }
 
 /**
@@ -2701,7 +2712,7 @@ void tty_register_device(struct tty_driver *driver, unsigned index,
 void tty_unregister_device(struct tty_driver *driver, unsigned index)
 {
 	devfs_remove("%s%d", driver->devfs_name, index + driver->name_base);
-	class_simple_device_remove(MKDEV(driver->major, driver->minor_start) + index);
+	class_device_destroy(tty_class, MKDEV(driver->major, driver->minor_start) + index);
 }
 
 EXPORT_SYMBOL(tty_register_device);
@@ -2918,7 +2929,7 @@ extern int vty_init(void);
 
 static int __init tty_class_init(void)
 {
-	tty_class = class_simple_create(THIS_MODULE, "tty");
+	tty_class = class_create(THIS_MODULE, "tty");
 	if (IS_ERR(tty_class))
 		return PTR_ERR(tty_class);
 	return 0;
@@ -2947,14 +2958,14 @@ static int __init tty_init(void)
 	    register_chrdev_region(MKDEV(TTYAUX_MAJOR, 0), 1, "/dev/tty") < 0)
 		panic("Couldn't register /dev/tty driver\n");
 	devfs_mk_cdev(MKDEV(TTYAUX_MAJOR, 0), S_IFCHR|S_IRUGO|S_IWUGO, "tty");
-	class_simple_device_add(tty_class, MKDEV(TTYAUX_MAJOR, 0), NULL, "tty");
+	class_device_create(tty_class, MKDEV(TTYAUX_MAJOR, 0), NULL, "tty");
 
 	cdev_init(&console_cdev, &console_fops);
 	if (cdev_add(&console_cdev, MKDEV(TTYAUX_MAJOR, 1), 1) ||
 	    register_chrdev_region(MKDEV(TTYAUX_MAJOR, 1), 1, "/dev/console") < 0)
 		panic("Couldn't register /dev/console driver\n");
 	devfs_mk_cdev(MKDEV(TTYAUX_MAJOR, 1), S_IFCHR|S_IRUSR|S_IWUSR, "console");
-	class_simple_device_add(tty_class, MKDEV(TTYAUX_MAJOR, 1), NULL, "console");
+	class_device_create(tty_class, MKDEV(TTYAUX_MAJOR, 1), NULL, "console");
 
 #ifdef CONFIG_UNIX98_PTYS
 	cdev_init(&ptmx_cdev, &ptmx_fops);
@@ -2962,7 +2973,7 @@ static int __init tty_init(void)
 	    register_chrdev_region(MKDEV(TTYAUX_MAJOR, 2), 1, "/dev/ptmx") < 0)
 		panic("Couldn't register /dev/ptmx driver\n");
 	devfs_mk_cdev(MKDEV(TTYAUX_MAJOR, 2), S_IFCHR|S_IRUGO|S_IWUGO, "ptmx");
-	class_simple_device_add(tty_class, MKDEV(TTYAUX_MAJOR, 2), NULL, "ptmx");
+	class_device_create(tty_class, MKDEV(TTYAUX_MAJOR, 2), NULL, "ptmx");
 #endif
 
 #ifdef CONFIG_VT
@@ -2971,7 +2982,7 @@ static int __init tty_init(void)
 	    register_chrdev_region(MKDEV(TTY_MAJOR, 0), 1, "/dev/vc/0") < 0)
 		panic("Couldn't register /dev/tty0 driver\n");
 	devfs_mk_cdev(MKDEV(TTY_MAJOR, 0), S_IFCHR|S_IRUSR|S_IWUSR, "vc/0");
-	class_simple_device_add(tty_class, MKDEV(TTY_MAJOR, 0), NULL, "tty0");
+	class_device_create(tty_class, MKDEV(TTY_MAJOR, 0), NULL, "tty0");
 
 	vty_init();
 #endif

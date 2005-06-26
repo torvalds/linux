@@ -467,14 +467,12 @@ static int pkt_set_speed(struct pktcdvd_device *pd, unsigned write_speed, unsign
  * Queue a bio for processing by the low-level CD device. Must be called
  * from process context.
  */
-static void pkt_queue_bio(struct pktcdvd_device *pd, struct bio *bio, int high_prio_read)
+static void pkt_queue_bio(struct pktcdvd_device *pd, struct bio *bio)
 {
 	spin_lock(&pd->iosched.lock);
 	if (bio_data_dir(bio) == READ) {
 		pkt_add_list_last(bio, &pd->iosched.read_queue,
 				  &pd->iosched.read_queue_tail);
-		if (high_prio_read)
-			pd->iosched.high_prio_read = 1;
 	} else {
 		pkt_add_list_last(bio, &pd->iosched.write_queue,
 				  &pd->iosched.write_queue_tail);
@@ -490,15 +488,16 @@ static void pkt_queue_bio(struct pktcdvd_device *pd, struct bio *bio, int high_p
  * requirements for CDRW drives:
  * - A cache flush command must be inserted before a read request if the
  *   previous request was a write.
- * - Switching between reading and writing is slow, so don't it more often
+ * - Switching between reading and writing is slow, so don't do it more often
  *   than necessary.
+ * - Optimize for throughput at the expense of latency. This means that streaming
+ *   writes will never be interrupted by a read, but if the drive has to seek
+ *   before the next write, switch to reading instead if there are any pending
+ *   read requests.
  * - Set the read speed according to current usage pattern. When only reading
  *   from the device, it's best to use the highest possible read speed, but
  *   when switching often between reading and writing, it's better to have the
  *   same read and write speeds.
- * - Reads originating from user space should have higher priority than reads
- *   originating from pkt_gather_data, because some process is usually waiting
- *   on reads of the first kind.
  */
 static void pkt_iosched_process_queue(struct pktcdvd_device *pd)
 {
@@ -512,21 +511,24 @@ static void pkt_iosched_process_queue(struct pktcdvd_device *pd)
 
 	for (;;) {
 		struct bio *bio;
-		int reads_queued, writes_queued, high_prio_read;
+		int reads_queued, writes_queued;
 
 		spin_lock(&pd->iosched.lock);
 		reads_queued = (pd->iosched.read_queue != NULL);
 		writes_queued = (pd->iosched.write_queue != NULL);
-		if (!reads_queued)
-			pd->iosched.high_prio_read = 0;
-		high_prio_read = pd->iosched.high_prio_read;
 		spin_unlock(&pd->iosched.lock);
 
 		if (!reads_queued && !writes_queued)
 			break;
 
 		if (pd->iosched.writing) {
-			if (high_prio_read || (!writes_queued && reads_queued)) {
+			int need_write_seek = 1;
+			spin_lock(&pd->iosched.lock);
+			bio = pd->iosched.write_queue;
+			spin_unlock(&pd->iosched.lock);
+			if (bio && (bio->bi_sector == pd->iosched.last_write))
+				need_write_seek = 0;
+			if (need_write_seek && reads_queued) {
 				if (atomic_read(&pd->cdrw.pending_bios) > 0) {
 					VPRINTK("pktcdvd: write, waiting\n");
 					break;
@@ -559,8 +561,10 @@ static void pkt_iosched_process_queue(struct pktcdvd_device *pd)
 
 		if (bio_data_dir(bio) == READ)
 			pd->iosched.successive_reads += bio->bi_size >> 10;
-		else
+		else {
 			pd->iosched.successive_reads = 0;
+			pd->iosched.last_write = bio->bi_sector + bio_sectors(bio);
+		}
 		if (pd->iosched.successive_reads >= HI_SPEED_SWITCH) {
 			if (pd->read_speed == pd->write_speed) {
 				pd->read_speed = MAX_SPEED;
@@ -765,7 +769,7 @@ static void pkt_gather_data(struct pktcdvd_device *pd, struct packet_data *pkt)
 
 		atomic_inc(&pkt->io_wait);
 		bio->bi_rw = READ;
-		pkt_queue_bio(pd, bio, 0);
+		pkt_queue_bio(pd, bio);
 		frames_read++;
 	}
 
@@ -914,8 +918,10 @@ static int pkt_handle_queue(struct pktcdvd_device *pd)
 		bio = node->bio;
 		zone = ZONE(bio->bi_sector, pd);
 		list_for_each_entry(p, &pd->cdrw.pkt_active_list, list) {
-			if (p->sector == zone)
+			if (p->sector == zone) {
+				bio = NULL;
 				goto try_next_bio;
+			}
 		}
 		break;
 try_next_bio:
@@ -1060,7 +1066,7 @@ static void pkt_start_write(struct pktcdvd_device *pd, struct packet_data *pkt)
 
 	atomic_set(&pkt->io_wait, 1);
 	pkt->w_bio->bi_rw = WRITE;
-	pkt_queue_bio(pd, pkt->w_bio, 0);
+	pkt_queue_bio(pd, pkt->w_bio);
 }
 
 static void pkt_finish_packet(struct packet_data *pkt, int uptodate)
@@ -1245,8 +1251,7 @@ static int kcdrwd(void *foobar)
 			VPRINTK("kcdrwd: wake up\n");
 
 			/* make swsusp happy with our thread */
-			if (current->flags & PF_FREEZE)
-				refrigerator(PF_FREEZE);
+			try_to_freeze();
 
 			list_for_each_entry(pkt, &pd->cdrw.pkt_active_list, list) {
 				if (!pkt->sleep_time)
@@ -2019,7 +2024,13 @@ static int pkt_open(struct inode *inode, struct file *file)
 	BUG_ON(pd->refcnt < 0);
 
 	pd->refcnt++;
-	if (pd->refcnt == 1) {
+	if (pd->refcnt > 1) {
+		if ((file->f_mode & FMODE_WRITE) &&
+		    !test_bit(PACKET_WRITABLE, &pd->flags)) {
+			ret = -EBUSY;
+			goto out_dec;
+		}
+	} else {
 		if (pkt_open_dev(pd, file->f_mode & FMODE_WRITE)) {
 			ret = -EIO;
 			goto out_dec;
@@ -2112,7 +2123,7 @@ static int pkt_make_request(request_queue_t *q, struct bio *bio)
 		cloned_bio->bi_private = psd;
 		cloned_bio->bi_end_io = pkt_end_io_read_cloned;
 		pd->stats.secs_r += bio->bi_size >> 9;
-		pkt_queue_bio(pd, cloned_bio, 1);
+		pkt_queue_bio(pd, cloned_bio);
 		return 0;
 	}
 
@@ -2406,7 +2417,7 @@ static int pkt_ioctl(struct inode *inode, struct file *file, unsigned int cmd, u
 	case CDROM_LAST_WRITTEN:
 	case CDROM_SEND_PACKET:
 	case SCSI_IOCTL_SEND_COMMAND:
-		return ioctl_by_bdev(pd->bdev, cmd, arg);
+		return blkdev_ioctl(pd->bdev->bd_inode, file, cmd, arg);
 
 	case CDROMEJECT:
 		/*
@@ -2414,7 +2425,7 @@ static int pkt_ioctl(struct inode *inode, struct file *file, unsigned int cmd, u
 		 * have to unlock it or else the eject command fails.
 		 */
 		pkt_lock_door(pd, 0);
-		return ioctl_by_bdev(pd->bdev, cmd, arg);
+		return blkdev_ioctl(pd->bdev->bd_inode, file, cmd, arg);
 
 	default:
 		printk("pktcdvd: Unknown ioctl for %s (%x)\n", pd->name, cmd);

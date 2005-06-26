@@ -347,8 +347,8 @@ address that is created by firmware.  An example vty-server sysfs entry
 looks like the following:
 
 	Pow5:/sys/bus/vio/drivers/hvcs/30000004 # ls
-	.   current_vty   devspec  name          partner_vtys
-	..  detach_state  index    partner_clcs  vterm_state
+	.   current_vty   devspec       name          partner_vtys
+	..  index         partner_clcs  vterm_state
 
 Each entry is provided, by default with a "name" attribute.  Reading the
 "name" attribute will reveal the device type as shown in the following

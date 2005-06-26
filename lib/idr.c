@@ -175,7 +175,7 @@ build_up:
 	 * Add a new layer to the top of the tree if the requested
 	 * id is larger than the currently allocated space.
 	 */
-	while ((layers < MAX_LEVEL) && (id >= (1 << (layers*IDR_BITS)))) {
+	while ((layers < (MAX_LEVEL - 1)) && (id >= (1 << (layers*IDR_BITS)))) {
 		layers++;
 		if (!p->count)
 			continue;

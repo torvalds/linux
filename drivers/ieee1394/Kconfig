@@ -84,11 +84,6 @@ config IEEE1394_PCILYNX
 	  To compile this driver as a module, say M here: the
 	  module will be called pcilynx.
 
-# Non-maintained pcilynx options
-# if [ "$CONFIG_IEEE1394_PCILYNX" != "n" ]; then
-#     bool '    Use PCILynx local RAM' CONFIG_IEEE1394_PCILYNX_LOCALRAM
-#     bool '    Support for non-IEEE1394 local ports' CONFIG_IEEE1394_PCILYNX_PORTS
-# fi
 config IEEE1394_OHCI1394
 	tristate "OHCI-1394 support"
 	depends on PCI && IEEE1394

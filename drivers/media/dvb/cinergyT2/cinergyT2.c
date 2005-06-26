@@ -119,7 +119,7 @@ struct cinergyt2 {
 	struct dvb_demux demux;
 	struct usb_device *udev;
 	struct semaphore sem;
-	struct dvb_adapter *adapter;
+	struct dvb_adapter adapter;
 	struct dvb_device *fedev;
 	struct dmxdev dmxdev;
 	struct dvb_net dvbnet;
@@ -813,15 +813,15 @@ static int cinergyt2_probe (struct usb_interface *intf,
 	cinergyt2->dmxdev.demux = &cinergyt2->demux.dmx;
 	cinergyt2->dmxdev.capabilities = 0;
 
-	if ((err = dvb_dmxdev_init(&cinergyt2->dmxdev, cinergyt2->adapter)) < 0) {
+	if ((err = dvb_dmxdev_init(&cinergyt2->dmxdev, &cinergyt2->adapter)) < 0) {
 		dprintk(1, "dvb_dmxdev_init() failed (err = %d)\n", err);
 		goto bailout;
 	}
 
-	if (dvb_net_init(cinergyt2->adapter, &cinergyt2->dvbnet, &cinergyt2->demux.dmx))
+	if (dvb_net_init(&cinergyt2->adapter, &cinergyt2->dvbnet, &cinergyt2->demux.dmx))
 		dprintk(1, "dvb_net_init() failed!\n");
 
-	dvb_register_device(cinergyt2->adapter, &cinergyt2->fedev,
+	dvb_register_device(&cinergyt2->adapter, &cinergyt2->fedev,
 			    &cinergyt2_fe_template, cinergyt2,
 			    DVB_DEVICE_FRONTEND);
 
@@ -848,7 +848,7 @@ static int cinergyt2_probe (struct usb_interface *intf,
 bailout:
 	dvb_dmxdev_release(&cinergyt2->dmxdev);
 	dvb_dmx_release(&cinergyt2->demux);
-	dvb_unregister_adapter (cinergyt2->adapter);
+	dvb_unregister_adapter (&cinergyt2->adapter);
 	cinergyt2_free_stream_urbs (cinergyt2);
 	kfree(cinergyt2);
 	return -ENOMEM;
@@ -872,7 +872,7 @@ static void cinergyt2_disconnect (struct usb_interface *intf)
 	dvb_dmxdev_release(&cinergyt2->dmxdev);
 	dvb_dmx_release(&cinergyt2->demux);
 	dvb_unregister_device(cinergyt2->fedev);
-	dvb_unregister_adapter(cinergyt2->adapter);
+	dvb_unregister_adapter(&cinergyt2->adapter);
 
 	cinergyt2_free_stream_urbs(cinergyt2);
 	up(&cinergyt2->sem);

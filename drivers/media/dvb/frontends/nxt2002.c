@@ -241,7 +241,7 @@ static void nxt2002_agc_reset(struct nxt2002_state* state)
 static int nxt2002_load_firmware (struct dvb_frontend* fe, const struct firmware *fw)
 {
 
-	struct nxt2002_state* state = (struct nxt2002_state*) fe->demodulator_priv;
+	struct nxt2002_state* state = fe->demodulator_priv;
 	u8 buf[256],written = 0,chunkpos = 0;
 	u16 rambase,position,crc = 0;
 
@@ -309,7 +309,7 @@ static int nxt2002_load_firmware (struct dvb_frontend* fe, const struct firmware
 static int nxt2002_setup_frontend_parameters (struct dvb_frontend* fe,
 					     struct dvb_frontend_parameters *p)
 {
-	struct nxt2002_state* state = (struct nxt2002_state*) fe->demodulator_priv;
+	struct nxt2002_state* state = fe->demodulator_priv;
 	u32 freq = 0;
 	u16 tunerfreq = 0;
 	u8 buf[4];
@@ -342,8 +342,6 @@ static int nxt2002_setup_frontend_parameters (struct dvb_frontend* fe,
 
 	/* reset the agc now that tuning has been completed */
 	nxt2002_agc_reset(state);
-
-
 
 	/* set target power level */
 	switch (p->u.vsb.modulation) {
@@ -453,7 +451,7 @@ static int nxt2002_setup_frontend_parameters (struct dvb_frontend* fe,
 
 static int nxt2002_read_status(struct dvb_frontend* fe, fe_status_t* status)
 {
-	struct nxt2002_state* state = (struct nxt2002_state*) fe->demodulator_priv;
+	struct nxt2002_state* state = fe->demodulator_priv;
 	u8 lock;
 	i2c_readbytes(state,0x31,&lock,1);
 
@@ -470,7 +468,7 @@ static int nxt2002_read_status(struct dvb_frontend* fe, fe_status_t* status)
 
 static int nxt2002_read_ber(struct dvb_frontend* fe, u32* ber)
 {
-	struct nxt2002_state* state = (struct nxt2002_state*) fe->demodulator_priv;
+	struct nxt2002_state* state = fe->demodulator_priv;
 	u8 b[3];
 
 	nxt2002_readreg_multibyte(state,0xE6,b,3);
@@ -482,7 +480,7 @@ static int nxt2002_read_ber(struct dvb_frontend* fe, u32* ber)
 
 static int nxt2002_read_signal_strength(struct dvb_frontend* fe, u16* strength)
 {
-	struct nxt2002_state* state = (struct nxt2002_state*) fe->demodulator_priv;
+	struct nxt2002_state* state = fe->demodulator_priv;
 	u8 b[2];
 	u16 temp = 0;
 
@@ -502,7 +500,7 @@ static int nxt2002_read_signal_strength(struct dvb_frontend* fe, u16* strength)
 static int nxt2002_read_snr(struct dvb_frontend* fe, u16* snr)
 {
 
-	struct nxt2002_state* state = (struct nxt2002_state*) fe->demodulator_priv;
+	struct nxt2002_state* state = fe->demodulator_priv;
 	u8 b[2];
 	u16 temp = 0, temp2;
 	u32 snrdb = 0;
@@ -536,7 +534,7 @@ static int nxt2002_read_snr(struct dvb_frontend* fe, u16* snr)
 
 static int nxt2002_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
 {
-	struct nxt2002_state* state = (struct nxt2002_state*) fe->demodulator_priv;
+	struct nxt2002_state* state = fe->demodulator_priv;
 	u8 b[3];
 
 	nxt2002_readreg_multibyte(state,0xE6,b,3);
@@ -552,7 +550,7 @@ static int nxt2002_sleep(struct dvb_frontend* fe)
 
 static int nxt2002_init(struct dvb_frontend* fe)
 {
-	struct nxt2002_state* state = (struct nxt2002_state*) fe->demodulator_priv;
+	struct nxt2002_state* state = fe->demodulator_priv;
 	const struct firmware *fw;
 	int ret;
 	u8 buf[2];
@@ -624,7 +622,7 @@ static int nxt2002_get_tune_settings(struct dvb_frontend* fe, struct dvb_fronten
 
 static void nxt2002_release(struct dvb_frontend* fe)
 {
-	struct nxt2002_state* state = (struct nxt2002_state*) fe->demodulator_priv;
+	struct nxt2002_state* state = fe->demodulator_priv;
 	kfree(state);
 }
 
@@ -637,7 +635,7 @@ struct dvb_frontend* nxt2002_attach(const struct nxt2002_config* config,
 	u8 buf [] = {0,0,0,0,0};
 
 	/* allocate memory for the internal state */
-	state = (struct nxt2002_state*) kmalloc(sizeof(struct nxt2002_state), GFP_KERNEL);
+	state = kmalloc(sizeof(struct nxt2002_state), GFP_KERNEL);
 	if (state == NULL) goto error;
 
 	/* setup the state */

@@ -765,12 +765,8 @@ void fcp_release(fc_channel *fcchain, int count)  /* count must > 0 */
 
 static void fcp_scsi_done (Scsi_Cmnd *SCpnt)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(SCpnt->device->host->host_lock, flags);
 	if (FCP_CMND(SCpnt)->done)
 		FCP_CMND(SCpnt)->done(SCpnt);
-	spin_unlock_irqrestore(SCpnt->device->host->host_lock, flags);
 }
 
 static int fcp_scsi_queue_it(fc_channel *fc, Scsi_Cmnd *SCpnt, fcp_cmnd *fcmd, int prepare)
@@ -909,12 +905,8 @@ int fcp_scsi_abort(Scsi_Cmnd *SCpnt)
 	 */
 
 	if (++fc->abort_count < (fc->can_queue >> 1)) {
-		unsigned long flags;
-
 		SCpnt->result = DID_ABORT;
-		spin_lock_irqsave(SCpnt->device->host->host_lock, flags);
 		fcmd->done(SCpnt);
-		spin_unlock_irqrestore(SCpnt->device->host->host_lock, flags);
 		printk("FC: soft abort\n");
 		return SUCCESS;
 	} else {
@@ -935,6 +927,7 @@ void fcp_scsi_reset_done(Scsi_Cmnd *SCpnt)
 
 int fcp_scsi_dev_reset(Scsi_Cmnd *SCpnt)
 {
+	unsigned long flags;
 	fcp_cmd *cmd;
 	fcp_cmnd *fcmd;
 	fc_channel *fc = FC_SCMND(SCpnt);
@@ -987,7 +980,10 @@ int fcp_scsi_dev_reset(Scsi_Cmnd *SCpnt)
 	fc->rst_pkt->request->rq_status = RQ_SCSI_BUSY;
 
 	fc->rst_pkt->done = fcp_scsi_reset_done;
+
+	spin_lock_irqsave(SCpnt->device->host->host_lock, flags);
 	fcp_scsi_queue_it(fc, fc->rst_pkt, fcmd, 0);
+	spin_unlock_irqrestore(SCpnt->device->host->host_lock, flags);
 	
 	down(&sem);
 
@@ -1006,13 +1002,7 @@ int fcp_scsi_dev_reset(Scsi_Cmnd *SCpnt)
 	return SUCCESS;
 }
 
-int fcp_scsi_bus_reset(Scsi_Cmnd *SCpnt)
-{
-	printk ("FC: bus reset!\n");
-	return FAILED;
-}
-
-int fcp_scsi_host_reset(Scsi_Cmnd *SCpnt)
+static int __fcp_scsi_host_reset(Scsi_Cmnd *SCpnt)
 {
 	fc_channel *fc = FC_SCMND(SCpnt);
 	fcp_cmnd *fcmd = FCP_CMND(SCpnt);
@@ -1031,6 +1021,18 @@ int fcp_scsi_host_reset(Scsi_Cmnd *SCpnt)
 	fc->abort_count = 0;
 	if (fcp_initialize(fc, 1)) return SUCCESS;
 	else return FAILED;
+}
+
+int fcp_scsi_host_reset(Scsi_Cmnd *SCpnt)
+{
+	unsigned long flags;
+	int rc;
+
+	spin_lock_irqsave(SCpnt->device->host->host_lock, flags);
+	rc = __fcp_scsi_host_reset(SCpnt);
+	spin_unlock_irqrestore(SCpnt->device->host->host_lock, flags);
+
+	return rc;
 }
 
 static int fcp_els_queue_it(fc_channel *fc, fcp_cmnd *fcmd)

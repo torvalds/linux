@@ -1176,8 +1176,8 @@ KERN_INFO "Compressor for zftape (lzrw3 algorithm)\n");
         }
 #else /* !MODULE */
 	/* print a short no-nonsense boot message */
-	printk("zftape compressor v1.00a 970514\n");
-	printk("For use with " FTAPE_VERSION "\n");
+	printk(KERN_INFO "zftape compressor v1.00a 970514\n");
+	printk(KERN_INFO "For use with " FTAPE_VERSION "\n");
 #endif /* MODULE */
 	TRACE(ft_t_info, "zft_compressor_init @ 0x%p", zft_compressor_init);
 	TRACE(ft_t_info, "installing compressor for zftape ...");

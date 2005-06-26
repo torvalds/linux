@@ -1,0 +1,91 @@
+config SELECT_MEMORY_MODEL
+	def_bool y
+	depends on EXPERIMENTAL || ARCH_SELECT_MEMORY_MODEL
+
+choice
+	prompt "Memory model"
+	depends on SELECT_MEMORY_MODEL
+	default DISCONTIGMEM_MANUAL if ARCH_DISCONTIGMEM_DEFAULT
+	default SPARSEMEM_MANUAL if ARCH_SPARSEMEM_DEFAULT
+	default FLATMEM_MANUAL
+
+config FLATMEM_MANUAL
+	bool "Flat Memory"
+	depends on !ARCH_DISCONTIGMEM_ENABLE || ARCH_FLATMEM_ENABLE
+	help
+	  This option allows you to change some of the ways that
+	  Linux manages its memory internally.  Most users will
+	  only have one option here: FLATMEM.  This is normal
+	  and a correct option.
+
+	  Some users of more advanced features like NUMA and
+	  memory hotplug may have different options here.
+	  DISCONTIGMEM is an more mature, better tested system,
+	  but is incompatible with memory hotplug and may suffer
+	  decreased performance over SPARSEMEM.  If unsure between
+	  "Sparse Memory" and "Discontiguous Memory", choose
+	  "Discontiguous Memory".
+
+	  If unsure, choose this option (Flat Memory) over any other.
+
+config DISCONTIGMEM_MANUAL
+	bool "Discontigious Memory"
+	depends on ARCH_DISCONTIGMEM_ENABLE
+	help
+	  This option provides enhanced support for discontiguous
+	  memory systems, over FLATMEM.  These systems have holes
+	  in their physical address spaces, and this option provides
+	  more efficient handling of these holes.  However, the vast
+	  majority of hardware has quite flat address spaces, and
+	  can have degraded performance from extra overhead that
+	  this option imposes.
+
+	  Many NUMA configurations will have this as the only option.
+
+	  If unsure, choose "Flat Memory" over this option.
+
+config SPARSEMEM_MANUAL
+	bool "Sparse Memory"
+	depends on ARCH_SPARSEMEM_ENABLE
+	help
+	  This will be the only option for some systems, including
+	  memory hotplug systems.  This is normal.
+
+	  For many other systems, this will be an alternative to
+	  "Discontigious Memory".  This option provides some potential
+	  performance benefits, along with decreased code complexity,
+	  but it is newer, and more experimental.
+
+	  If unsure, choose "Discontiguous Memory" or "Flat Memory"
+	  over this option.
+
+endchoice
+
+config DISCONTIGMEM
+	def_bool y
+	depends on (!SELECT_MEMORY_MODEL && ARCH_DISCONTIGMEM_ENABLE) || DISCONTIGMEM_MANUAL
+
+config SPARSEMEM
+	def_bool y
+	depends on SPARSEMEM_MANUAL
+
+config FLATMEM
+	def_bool y
+	depends on (!DISCONTIGMEM && !SPARSEMEM) || FLATMEM_MANUAL
+
+config FLAT_NODE_MEM_MAP
+	def_bool y
+	depends on !SPARSEMEM
+
+#
+# Both the NUMA code and DISCONTIGMEM use arrays of pg_data_t's
+# to represent different areas of memory.  This variable allows
+# those dependencies to exist individually.
+#
+config NEED_MULTIPLE_NODES
+	def_bool y
+	depends on DISCONTIGMEM || NUMA
+
+config HAVE_MEMORY_PRESENT
+	def_bool y
+	depends on ARCH_HAVE_MEMORY_PRESENT || SPARSEMEM

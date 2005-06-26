@@ -36,8 +36,6 @@ static void ph_command(struct IsdnCardState *cs, unsigned int command);
 static inline void cic_int(struct IsdnCardState *cs);
 static void dch_l2l1(struct PStack *st, int pr, void *arg);
 static void dbusy_timer_handler(struct IsdnCardState *cs);
-static void ipacx_new_ph(struct IsdnCardState *cs);
-static void dch_bh(struct IsdnCardState *cs);
 static void dch_empty_fifo(struct IsdnCardState *cs, int count);
 static void dch_fill_fifo(struct IsdnCardState *cs);
 static inline void dch_int(struct IsdnCardState *cs);
@@ -229,81 +227,6 @@ dbusy_timer_handler(struct IsdnCardState *cs)
 			cs->writeisac(cs, IPACX_CMDRD, 0x01); // Tx reset, generates XPR
 		}
 	}
-}
-
-//----------------------------------------------------------
-// L1 state machine intermediate layer to isdnl1 module
-//----------------------------------------------------------
-static void
-ipacx_new_ph(struct IsdnCardState *cs)
-{
-	switch (cs->dc.isac.ph_state) {
-		case (IPACX_IND_RES):
-			ph_command(cs, IPACX_CMD_DI);
-			l1_msg(cs, HW_RESET | INDICATION, NULL);
-			break;
-      
-		case (IPACX_IND_DC):
-			l1_msg(cs, HW_DEACTIVATE | CONFIRM, NULL);
-			break;
-      
-		case (IPACX_IND_DR):
-			l1_msg(cs, HW_DEACTIVATE | INDICATION, NULL);
-			break;
-      
-		case (IPACX_IND_PU):
-			l1_msg(cs, HW_POWERUP | CONFIRM, NULL);
-			break;
-
-		case (IPACX_IND_RSY):
-			l1_msg(cs, HW_RSYNC | INDICATION, NULL);
-			break;
-
-		case (IPACX_IND_AR):
-			l1_msg(cs, HW_INFO2 | INDICATION, NULL);
-			break;
-      
-		case (IPACX_IND_AI8):
-			l1_msg(cs, HW_INFO4_P8 | INDICATION, NULL);
-			break;
-      
-		case (IPACX_IND_AI10):
-			l1_msg(cs, HW_INFO4_P10 | INDICATION, NULL);
-			break;
-      
-		default:
-			break;
-	}
-}
-
-//----------------------------------------------------------
-// bottom half handler for D channel
-//----------------------------------------------------------
-static void
-dch_bh(struct IsdnCardState *cs)
-{
-	struct PStack *st;
-	
-	if (!cs) return;
-  
-	if (test_and_clear_bit(D_CLEARBUSY, &cs->event)) {
-		if (cs->debug) debugl1(cs, "D-Channel Busy cleared");
-		for (st = cs->stlist; st; st = st->next) {
-			st->l1.l1l2(st, PH_PAUSE | CONFIRM, NULL);
-		}
-	}
-  
-	if (test_and_clear_bit(D_RCVBUFREADY, &cs->event)) {
-		DChannel_proc_rcv(cs);
-  }  
-  
-	if (test_and_clear_bit(D_XMTBUFREADY, &cs->event)) {
-		DChannel_proc_xmt(cs);
-  }  
-  
-	if (test_and_clear_bit(D_L1STATECHANGE, &cs->event)) {
-    ipacx_new_ph(cs);
-  }  
 }
 
 //----------------------------------------------------------
@@ -991,14 +914,5 @@ init_ipacx(struct IsdnCardState *cs, int part)
 	}
 }
 
-
-void __devinit
-setup_ipacx(struct IsdnCardState *cs)
-{
-	INIT_WORK(&cs->tqueue, (void *)(void *) dch_bh, cs);
-	cs->dbusytimer.function = (void *) dbusy_timer_handler;
-	cs->dbusytimer.data = (long) cs;
-	init_timer(&cs->dbusytimer);
-}
 //----------------- end of file -----------------------
 

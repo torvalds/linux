@@ -318,7 +318,7 @@ void zap_low_mappings(void)
 	flush_tlb_all();
 }
 
-#ifndef CONFIG_DISCONTIGMEM
+#ifndef CONFIG_NUMA
 void __init paging_init(void)
 {
 	{
@@ -427,13 +427,16 @@ void __init mem_init(void)
 	reservedpages = 0;
 
 	/* this will put all low memory onto the freelists */
-#ifdef CONFIG_DISCONTIGMEM
+#ifdef CONFIG_NUMA
 	totalram_pages += numa_free_all_bootmem();
 	tmp = 0;
 	/* should count reserved pages here for all nodes */ 
 #else
+
+#ifdef CONFIG_FLATMEM
 	max_mapnr = end_pfn;
 	if (!mem_map) BUG();
+#endif
 
 	totalram_pages += free_all_bootmem();
 
@@ -515,7 +518,7 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 void __init reserve_bootmem_generic(unsigned long phys, unsigned len) 
 { 
 	/* Should check here against the e820 map to avoid double free */ 
-#ifdef CONFIG_DISCONTIGMEM
+#ifdef CONFIG_NUMA
 	int nid = phys_to_nid(phys);
   	reserve_bootmem_node(NODE_DATA(nid), phys, len);
 #else       		

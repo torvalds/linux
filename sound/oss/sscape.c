@@ -991,7 +991,6 @@ static void __init sscape_pnp_init_hw(sscape_info* devc)
 	unsigned i;
 	static	char code_file_name[23] = "/sndscape/sndscape.cox";
 	
-	int sscape_sb_enable		= 0;
 	int sscape_joystic_enable	= 0x7f;
 	int sscape_mic_enable		= 0;
 	int sscape_ext_midi		= 0;		
@@ -1015,14 +1014,9 @@ static void __init sscape_pnp_init_hw(sscape_info* devc)
 	sscape_write( devc, 2, devc->ic_type == IC_ODIE ? 0x70 : 0x40);
 	sscape_write( devc, 3, ( devc -> dma << 4) | 0x80);
 
-	if ( sscape_sb_enable )
-		sscape_write (devc, 4, 0xF0 | (sb_irq << 2) | midi_irq);
-	else	
-		sscape_write (devc, 4, 0xF0 | (midi_irq<<2) | midi_irq);
+	sscape_write (devc, 4, 0xF0 | (midi_irq<<2) | midi_irq);
 
 	i = 0x10; //sscape_read(devc, 9) & (devc->ic_type == IC_ODIE ? 0xf0 : 0xc0);
-	if ( sscape_sb_enable )
-		i |= devc->ic_type == IC_ODIE ? 0x05 : 0x07;	    
 	if (sscape_joystic_enable) i |= 8;
 	
 	sscape_write (devc, 9, i);

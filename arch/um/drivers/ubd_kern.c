@@ -49,13 +49,12 @@
 #include "irq_user.h"
 #include "irq_kern.h"
 #include "ubd_user.h"
-#include "2_5compat.h"
 #include "os.h"
 #include "mem.h"
 #include "mem_kern.h"
 #include "cow.h"
 
-enum ubd_req { UBD_READ, UBD_WRITE, UBD_MMAP };
+enum ubd_req { UBD_READ, UBD_WRITE };
 
 struct io_thread_req {
 	enum ubd_req op;
@@ -68,8 +67,6 @@ struct io_thread_req {
 	unsigned long sector_mask;
 	unsigned long long cow_offset;
 	unsigned long bitmap_words[2];
-	int map_fd;
-	unsigned long long map_offset;
 	int error;
 };
 
@@ -122,10 +119,6 @@ static int ubd_ioctl(struct inode * inode, struct file * file,
 
 #define MAX_DEV (8)
 
-/* Changed in early boot */
-static int ubd_do_mmap = 0;
-#define UBD_MMAP_BLOCK_SIZE PAGE_SIZE
-
 static struct block_device_operations ubd_blops = {
         .owner		= THIS_MODULE,
         .open		= ubd_open,
@@ -175,12 +168,6 @@ struct ubd {
 	int no_cow;
 	struct cow cow;
 	struct platform_device pdev;
-
-	int map_writes;
-	int map_reads;
-	int nomap_writes;
-	int nomap_reads;
-	int write_maps;
 };
 
 #define DEFAULT_COW { \
@@ -200,11 +187,6 @@ struct ubd {
 	.openflags =		OPEN_FLAGS, \
         .no_cow =               0, \
         .cow =			DEFAULT_COW, \
-	.map_writes		= 0, \
-	.map_reads		= 0, \
-	.nomap_writes		= 0, \
-	.nomap_reads		= 0, \
-	.write_maps		= 0, \
 }
 
 struct ubd ubd_dev[MAX_DEV] = { [ 0 ... MAX_DEV - 1 ] = DEFAULT_UBD };
@@ -314,13 +296,6 @@ static int ubd_setup_common(char *str, int *index_out)
 		int major;
 
 		str++;
-		if(!strcmp(str, "mmap")){
-			CHOOSE_MODE(printk("mmap not supported by the ubd "
-					   "driver in tt mode\n"),
-				    ubd_do_mmap = 1);
-			return(0);
-		}
-
 		if(!strcmp(str, "sync")){
 			global_openflags = of_sync(global_openflags);
 			return(0);
@@ -464,9 +439,9 @@ static int udb_setup(char *str)
 __setup("udb", udb_setup);
 __uml_help(udb_setup,
 "udb\n"
-"    This option is here solely to catch ubd -> udb typos, which can be\n\n"
-"    to impossible to catch visually unless you specifically look for\n\n"
-"    them.  The only result of any option starting with 'udb' is an error\n\n"
+"    This option is here solely to catch ubd -> udb typos, which can be\n"
+"    to impossible to catch visually unless you specifically look for\n"
+"    them.  The only result of any option starting with 'udb' is an error\n"
 "    in the boot output.\n\n"
 );
 
@@ -524,7 +499,7 @@ static void ubd_handler(void)
 {
 	struct io_thread_req req;
 	struct request *rq = elv_next_request(ubd_queue);
-	int n, err;
+	int n;
 
 	do_ubd = NULL;
 	intr_count++;
@@ -538,19 +513,6 @@ static void ubd_handler(void)
 		return;
 	}
         
-	if((req.op != UBD_MMAP) &&
-	   ((req.offset != ((__u64) (rq->sector)) << 9) ||
-	    (req.length != (rq->current_nr_sectors) << 9)))
-		panic("I/O op mismatch");
-	
-	if(req.map_fd != -1){
-		err = physmem_subst_mapping(req.buffer, req.map_fd,
-					    req.map_offset, 1);
-		if(err)
-			printk("ubd_handler - physmem_subst_mapping failed, "
-			       "err = %d\n", -err);
-	}
-
 	ubd_finish(rq, req.error);
 	reactivate_fd(thread_fd, UBD_IRQ);	
 	do_ubd_request(ubd_queue);
@@ -583,14 +545,10 @@ static int ubd_file_size(struct ubd *dev, __u64 *size_out)
 
 static void ubd_close(struct ubd *dev)
 {
-	if(ubd_do_mmap)
-		physmem_forget_descriptor(dev->fd);
 	os_close_file(dev->fd);
 	if(dev->cow.file == NULL)
 		return;
 
-	if(ubd_do_mmap)
-		physmem_forget_descriptor(dev->cow.fd);
 	os_close_file(dev->cow.fd);
 	vfree(dev->cow.bitmap);
 	dev->cow.bitmap = NULL;
@@ -796,24 +754,34 @@ static int ubd_get_config(char *name, char *str, int size, char **error_out)
 	return(len);
 }
 
-static int ubd_remove(char *str)
+static int ubd_id(char **str, int *start_out, int *end_out)
+{
+        int n;
+
+	n = parse_unit(str);
+        *start_out = 0;
+        *end_out = MAX_DEV - 1;
+        return n;
+}
+
+static int ubd_remove(int n)
 {
 	struct ubd *dev;
-	int n, err = -ENODEV;
+	int err = -ENODEV;
 
-	n = parse_unit(&str);
-
-	if((n < 0) || (n >= MAX_DEV))
-		return(err);
-
-	dev = &ubd_dev[n];
-	if(dev->count > 0)
-		return(-EBUSY);	/* you cannot remove a open disk */
-
-	err = 0;
- 	spin_lock(&ubd_lock);
+	spin_lock(&ubd_lock);
 
 	if(ubd_gendisk[n] == NULL)
+		goto out;
+
+	dev = &ubd_dev[n];
+
+	if(dev->file == NULL)
+		goto out;
+
+	/* you cannot remove a open disk */
+	err = -EBUSY;
+	if(dev->count > 0)
 		goto out;
 
 	del_gendisk(ubd_gendisk[n]);
@@ -829,15 +797,16 @@ static int ubd_remove(char *str)
 	platform_device_unregister(&dev->pdev);
 	*dev = ((struct ubd) DEFAULT_UBD);
 	err = 0;
- out:
- 	spin_unlock(&ubd_lock);
-	return(err);
+out:
+	spin_unlock(&ubd_lock);
+	return err;
 }
 
 static struct mc_device ubd_mc = {
 	.name		= "ubd",
 	.config		= ubd_config,
  	.get_config	= ubd_get_config,
+	.id		= ubd_id,
 	.remove		= ubd_remove,
 };
 
@@ -1010,94 +979,13 @@ static void cowify_req(struct io_thread_req *req, unsigned long *bitmap,
 			   req->bitmap_words, bitmap_len);
 }
 
-static int mmap_fd(struct request *req, struct ubd *dev, __u64 offset)
-{
-	__u64 sector;
-	unsigned char *bitmap;
-	int bit, i;
-
-	/* mmap must have been requested on the command line */
-	if(!ubd_do_mmap)
-		return(-1);
-
-	/* The buffer must be page aligned */
-	if(((unsigned long) req->buffer % UBD_MMAP_BLOCK_SIZE) != 0)
-		return(-1);
-
-	/* The request must be a page long */
-	if((req->current_nr_sectors << 9) != PAGE_SIZE)
-		return(-1);
-
-	if(dev->cow.file == NULL)
-		return(dev->fd);
-
-	sector = offset >> 9;
-	bitmap = (unsigned char *) dev->cow.bitmap;
-	bit = ubd_test_bit(sector, bitmap);
-
-	for(i = 1; i < req->current_nr_sectors; i++){
-		if(ubd_test_bit(sector + i, bitmap) != bit)
-			return(-1);
-	}
-
-	if(bit || (rq_data_dir(req) == WRITE))
-		offset += dev->cow.data_offset;
-
-	/* The data on disk must be page aligned */
-	if((offset % UBD_MMAP_BLOCK_SIZE) != 0)
-		return(-1);
-
-	return(bit ? dev->fd : dev->cow.fd);
-}
-
-static int prepare_mmap_request(struct ubd *dev, int fd, __u64 offset,
-				struct request *req,
-				struct io_thread_req *io_req)
-{
-	int err;
-
-	if(rq_data_dir(req) == WRITE){
-		/* Writes are almost no-ops since the new data is already in the
-		 * host page cache
-		 */
-		dev->map_writes++;
-		if(dev->cow.file != NULL)
-			cowify_bitmap(io_req->offset, io_req->length,
-				      &io_req->sector_mask, &io_req->cow_offset,
-				      dev->cow.bitmap, dev->cow.bitmap_offset,
-				      io_req->bitmap_words,
-				      dev->cow.bitmap_len);
-	}
-	else {
-		int w;
-
-		if((dev->cow.file != NULL) && (fd == dev->cow.fd))
-			w = 0;
-		else w = dev->openflags.w;
-
-		if((dev->cow.file != NULL) && (fd == dev->fd))
-			offset += dev->cow.data_offset;
-
-		err = physmem_subst_mapping(req->buffer, fd, offset, w);
-		if(err){
-			printk("physmem_subst_mapping failed, err = %d\n",
-			       -err);
-			return(1);
-		}
-		dev->map_reads++;
-	}
-	io_req->op = UBD_MMAP;
-	io_req->buffer = req->buffer;
-	return(0);
-}
-
 /* Called with ubd_io_lock held */
 static int prepare_request(struct request *req, struct io_thread_req *io_req)
 {
 	struct gendisk *disk = req->rq_disk;
 	struct ubd *dev = disk->private_data;
 	__u64 offset;
-	int len, fd;
+	int len;
 
 	if(req->rq_status == RQ_INACTIVE) return(1);
 
@@ -1114,33 +1002,11 @@ static int prepare_request(struct request *req, struct io_thread_req *io_req)
 
 	io_req->fds[0] = (dev->cow.file != NULL) ? dev->cow.fd : dev->fd;
 	io_req->fds[1] = dev->fd;
-	io_req->map_fd = -1;
 	io_req->cow_offset = -1;
 	io_req->offset = offset;
 	io_req->length = len;
 	io_req->error = 0;
 	io_req->sector_mask = 0;
-
-	fd = mmap_fd(req, dev, io_req->offset);
-	if(fd > 0){
-		/* If mmapping is otherwise OK, but the first access to the
-		 * page is a write, then it's not mapped in yet.  So we have
-		 * to write the data to disk first, then we can map the disk
-		 * page in and continue normally from there.
-		 */
-		if((rq_data_dir(req) == WRITE) && !is_remapped(req->buffer)){
-			io_req->map_fd = dev->fd;
-			io_req->map_offset = io_req->offset +
-				dev->cow.data_offset;
-			dev->write_maps++;
-		}
-		else return(prepare_mmap_request(dev, fd, io_req->offset, req,
-						 io_req));
-	}
-
-	if(rq_data_dir(req) == READ)
-		dev->nomap_reads++;
-	else dev->nomap_writes++;
 
 	io_req->op = (rq_data_dir(req) == READ) ? UBD_READ : UBD_WRITE;
 	io_req->offsets[0] = 0;
@@ -1228,143 +1094,6 @@ static int ubd_ioctl(struct inode * inode, struct file * file,
 	}
 	return(-EINVAL);
 }
-
-static int ubd_check_remapped(int fd, unsigned long address, int is_write,
-			      __u64 offset)
-{
-	__u64 bitmap_offset;
-	unsigned long new_bitmap[2];
-	int i, err, n;
-
-	/* If it's not a write access, we can't do anything about it */
-	if(!is_write)
-		return(0);
-
-	/* We have a write */
-	for(i = 0; i < sizeof(ubd_dev) / sizeof(ubd_dev[0]); i++){
-		struct ubd *dev = &ubd_dev[i];
-
-		if((dev->fd != fd) && (dev->cow.fd != fd))
-			continue;
-
-		/* It's a write to a ubd device */
-
-		/* This should be impossible now */
-		if(!dev->openflags.w){
-			/* It's a write access on a read-only device - probably
-			 * shouldn't happen.  If the kernel is trying to change
-			 * something with no intention of writing it back out,
-			 * then this message will clue us in that this needs
-			 * fixing
-			 */
-			printk("Write access to mapped page from readonly ubd "
-			       "device %d\n", i);
-			return(0);
-		}
-
-		/* It's a write to a writeable ubd device - it must be COWed
-		 * because, otherwise, the page would have been mapped in
-		 * writeable
-		 */
-
-		if(!dev->cow.file)
-			panic("Write fault on writeable non-COW ubd device %d",
-			      i);
-
-		/* It should also be an access to the backing file since the
-		 * COW pages should be mapped in read-write
-		 */
-
-		if(fd == dev->fd)
-			panic("Write fault on a backing page of ubd "
-			      "device %d\n", i);
-
-		/* So, we do the write, copying the backing data to the COW
-		 * file...
-		 */
-
-		err = os_seek_file(dev->fd, offset + dev->cow.data_offset);
-		if(err < 0)
-			panic("Couldn't seek to %lld in COW file of ubd "
-			      "device %d, err = %d",
-			      offset + dev->cow.data_offset, i, -err);
-
-		n = os_write_file(dev->fd, (void *) address, PAGE_SIZE);
-		if(n != PAGE_SIZE)
-			panic("Couldn't copy data to COW file of ubd "
-			      "device %d, err = %d", i, -n);
-
-		/* ... updating the COW bitmap... */
-
-		cowify_bitmap(offset, PAGE_SIZE, NULL, &bitmap_offset,
-			      dev->cow.bitmap, dev->cow.bitmap_offset,
-			      new_bitmap, dev->cow.bitmap_len);
-
-		err = os_seek_file(dev->fd, bitmap_offset);
-		if(err < 0)
-			panic("Couldn't seek to %lld in COW file of ubd "
-			      "device %d, err = %d", bitmap_offset, i, -err);
-
-		n = os_write_file(dev->fd, new_bitmap, sizeof(new_bitmap));
-		if(n != sizeof(new_bitmap))
-			panic("Couldn't update bitmap  of ubd device %d, "
-			      "err = %d", i, -n);
-
-		/* Maybe we can map the COW page in, and maybe we can't.  If
-		 * it is a pre-V3 COW file, we can't, since the alignment will
-		 * be wrong.  If it is a V3 or later COW file which has been
-		 * moved to a system with a larger page size, then maybe we
-		 * can't, depending on the exact location of the page.
-		 */
-
-		offset += dev->cow.data_offset;
-
-		/* Remove the remapping, putting the original anonymous page
-		 * back.  If the COW file can be mapped in, that is done.
-		 * Otherwise, the COW page is read in.
-		 */
-
-		if(!physmem_remove_mapping((void *) address))
-			panic("Address 0x%lx not remapped by ubd device %d",
-			      address, i);
-		if((offset % UBD_MMAP_BLOCK_SIZE) == 0)
-			physmem_subst_mapping((void *) address, dev->fd,
-					      offset, 1);
-		else {
-			err = os_seek_file(dev->fd, offset);
-			if(err < 0)
-				panic("Couldn't seek to %lld in COW file of "
-				      "ubd device %d, err = %d", offset, i,
-				      -err);
-
-			n = os_read_file(dev->fd, (void *) address, PAGE_SIZE);
-			if(n != PAGE_SIZE)
-				panic("Failed to read page from offset %llx of "
-				      "COW file of ubd device %d, err = %d",
-				      offset, i, -n);
-		}
-
-		return(1);
-	}
-
-	/* It's not a write on a ubd device */
-	return(0);
-}
-
-static struct remapper ubd_remapper = {
-	.list	= LIST_HEAD_INIT(ubd_remapper.list),
-	.proc	= ubd_check_remapped,
-};
-
-static int ubd_remapper_setup(void)
-{
-	if(ubd_do_mmap)
-		register_remapper(&ubd_remapper);
-
-	return(0);
-}
-
-__initcall(ubd_remapper_setup);
 
 static int same_backing_files(char *from_cmdline, char *from_cow, char *cow)
 {
@@ -1567,15 +1296,6 @@ void do_io(struct io_thread_req *req)
 	int n, nsectors, start, end, bit;
 	int err;
 	__u64 off;
-
-	if(req->op == UBD_MMAP){
-		/* Touch the page to force the host to do any necessary IO to
-		 * get it into memory
-		 */
-		n = *((volatile int *) req->buffer);
-		req->error = update_bitmap(req);
-		return;
-	}
 
 	nsectors = req->length / req->sectorsize;
 	start = 0;

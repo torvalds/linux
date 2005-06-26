@@ -371,10 +371,8 @@ static int raid0_run (mddev_t *mddev)
 	return 0;
 
 out_free_conf:
-	if (conf->strip_zone)
-		kfree(conf->strip_zone);
-	if (conf->devlist)
-		kfree (conf->devlist);
+	kfree(conf->strip_zone);
+	kfree(conf->devlist);
 	kfree(conf);
 	mddev->private = NULL;
 out:
@@ -386,11 +384,11 @@ static int raid0_stop (mddev_t *mddev)
 	raid0_conf_t *conf = mddev_to_conf(mddev);
 
 	blk_sync_queue(mddev->queue); /* the unplug fn references 'conf'*/
-	kfree (conf->hash_table);
+	kfree(conf->hash_table);
 	conf->hash_table = NULL;
-	kfree (conf->strip_zone);
+	kfree(conf->strip_zone);
 	conf->strip_zone = NULL;
-	kfree (conf);
+	kfree(conf);
 	mddev->private = NULL;
 
 	return 0;

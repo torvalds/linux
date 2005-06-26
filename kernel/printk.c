@@ -160,42 +160,6 @@ static int __init console_setup(char *str)
 
 __setup("console=", console_setup);
 
-/**
- * add_preferred_console - add a device to the list of preferred consoles.
- *
- * The last preferred console added will be used for kernel messages
- * and stdin/out/err for init.  Normally this is used by console_setup
- * above to handle user-supplied console arguments; however it can also
- * be used by arch-specific code either to override the user or more
- * commonly to provide a default console (ie from PROM variables) when
- * the user has not supplied one.
- */
-int __init add_preferred_console(char *name, int idx, char *options)
-{
-	struct console_cmdline *c;
-	int i;
-
-	/*
-	 *	See if this tty is not yet registered, and
-	 *	if we have a slot free.
-	 */
-	for(i = 0; i < MAX_CMDLINECONSOLES && console_cmdline[i].name[0]; i++)
-		if (strcmp(console_cmdline[i].name, name) == 0 &&
-			  console_cmdline[i].index == idx) {
-				selected_console = i;
-				return 0;
-		}
-	if (i == MAX_CMDLINECONSOLES)
-		return -E2BIG;
-	selected_console = i;
-	c = &console_cmdline[i];
-	memcpy(c->name, name, sizeof(c->name));
-	c->name[sizeof(c->name) - 1] = 0;
-	c->options = options;
-	c->index = idx;
-	return 0;
-}
-
 static int __init log_buf_len_setup(char *str)
 {
 	unsigned long size = memparse(str, &str);
@@ -624,8 +588,7 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 			log_level_unknown = 1;
 	}
 
-	if (!cpu_online(smp_processor_id()) &&
-	    system_state != SYSTEM_RUNNING) {
+	if (!cpu_online(smp_processor_id())) {
 		/*
 		 * Some console drivers may assume that per-cpu resources have
 		 * been allocated.  So don't allow them to be called by this
@@ -669,6 +632,42 @@ int do_syslog(int type, char __user * buf, int len) { return 0; }
 static void call_console_drivers(unsigned long start, unsigned long end) {}
 
 #endif
+
+/**
+ * add_preferred_console - add a device to the list of preferred consoles.
+ *
+ * The last preferred console added will be used for kernel messages
+ * and stdin/out/err for init.  Normally this is used by console_setup
+ * above to handle user-supplied console arguments; however it can also
+ * be used by arch-specific code either to override the user or more
+ * commonly to provide a default console (ie from PROM variables) when
+ * the user has not supplied one.
+ */
+int __init add_preferred_console(char *name, int idx, char *options)
+{
+	struct console_cmdline *c;
+	int i;
+
+	/*
+	 *	See if this tty is not yet registered, and
+	 *	if we have a slot free.
+	 */
+	for(i = 0; i < MAX_CMDLINECONSOLES && console_cmdline[i].name[0]; i++)
+		if (strcmp(console_cmdline[i].name, name) == 0 &&
+			  console_cmdline[i].index == idx) {
+				selected_console = i;
+				return 0;
+		}
+	if (i == MAX_CMDLINECONSOLES)
+		return -E2BIG;
+	selected_console = i;
+	c = &console_cmdline[i];
+	memcpy(c->name, name, sizeof(c->name));
+	c->name[sizeof(c->name) - 1] = 0;
+	c->options = options;
+	c->index = idx;
+	return 0;
+}
 
 /**
  * acquire_console_sem - lock the console system for exclusive use.
@@ -876,8 +875,10 @@ void register_console(struct console * console)
 			break;
 		console->flags |= CON_ENABLED;
 		console->index = console_cmdline[i].index;
-		if (i == preferred_console)
+		if (i == selected_console) {
 			console->flags |= CON_CONSDEV;
+			preferred_console = selected_console;
+		}
 		break;
 	}
 
@@ -897,6 +898,8 @@ void register_console(struct console * console)
 	if ((console->flags & CON_CONSDEV) || console_drivers == NULL) {
 		console->next = console_drivers;
 		console_drivers = console;
+		if (console->next)
+			console->next->flags &= ~CON_CONSDEV;
 	} else {
 		console->next = console_drivers->next;
 		console_drivers->next = console;
@@ -937,10 +940,14 @@ int unregister_console(struct console * console)
 	/* If last console is removed, we re-enable picking the first
 	 * one that gets registered. Without that, pmac early boot console
 	 * would prevent fbcon from taking over.
+	 *
+	 * If this isn't the last console and it has CON_CONSDEV set, we
+	 * need to set it on the next preferred console.
 	 */
 	if (console_drivers == NULL)
 		preferred_console = selected_console;
-		
+	else if (console->flags & CON_CONSDEV)
+		console_drivers->flags |= CON_CONSDEV;
 
 	release_console_sem();
 	return res;

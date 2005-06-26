@@ -94,7 +94,7 @@
 #define			SET_APIC_DELIVERY_MODE(x,y)	(((x)&~0x700)|((y)<<8))
 #define				APIC_MODE_FIXED		0x0
 #define				APIC_MODE_NMI		0x4
-#define				APIC_MODE_EXINT		0x7
+#define				APIC_MODE_EXTINT	0x7
 #define 	APIC_LVT1	0x360
 #define		APIC_LVTERR	0x370
 #define		APIC_TMICT	0x380
@@ -112,7 +112,7 @@
 
 #define APIC_BASE (fix_to_virt(FIX_APIC_BASE))
 
-#define MAX_IO_APICS 32
+#define MAX_IO_APICS 128
 
 /*
  * All x86-64 systems are xAPIC compatible.

@@ -65,14 +65,14 @@ static ssize_t acpi_device_attr_show(struct kobject *kobj,
 {
 	struct acpi_device *device = to_acpi_device(kobj);
 	struct acpi_device_attribute *attribute = to_handle_attr(attr);
-	return attribute->show ? attribute->show(device, buf) : 0;
+	return attribute->show ? attribute->show(device, buf) : -EIO;
 }
 static ssize_t acpi_device_attr_store(struct kobject *kobj,
 		struct attribute *attr, const char *buf, size_t len)
 {
 	struct acpi_device *device = to_acpi_device(kobj);
 	struct acpi_device_attribute *attribute = to_handle_attr(attr);
-	return attribute->store ? attribute->store(device, buf, len) : len;
+	return attribute->store ? attribute->store(device, buf, len) : -EIO;
 }
 
 static struct sysfs_ops acpi_device_sysfs_ops = {

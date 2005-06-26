@@ -220,7 +220,7 @@ struct device nodemgr_dev_template_host = {
 
 
 #define fw_attr(class, class_type, field, type, format_string)		\
-static ssize_t fw_show_##class##_##field (struct device *dev, char *buf)\
+static ssize_t fw_show_##class##_##field (struct device *dev, struct device_attribute *attr, char *buf)\
 {									\
 	class_type *class;						\
 	class = container_of(dev, class_type, device);			\
@@ -232,7 +232,7 @@ static struct device_attribute dev_attr_##class##_##field = {		\
 };
 
 #define fw_attr_td(class, class_type, td_kv)				\
-static ssize_t fw_show_##class##_##td_kv (struct device *dev, char *buf)\
+static ssize_t fw_show_##class##_##td_kv (struct device *dev, struct device_attribute *attr, char *buf)\
 {									\
 	int len;							\
 	class_type *class = container_of(dev, class_type, device);	\
@@ -265,7 +265,7 @@ static struct driver_attribute driver_attr_drv_##field = {	\
 };
 
 
-static ssize_t fw_show_ne_bus_options(struct device *dev, char *buf)
+static ssize_t fw_show_ne_bus_options(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct node_entry *ne = container_of(dev, struct node_entry, device);
 
@@ -281,7 +281,7 @@ static ssize_t fw_show_ne_bus_options(struct device *dev, char *buf)
 static DEVICE_ATTR(bus_options,S_IRUGO,fw_show_ne_bus_options,NULL);
 
 
-static ssize_t fw_show_ne_tlabels_free(struct device *dev, char *buf)
+static ssize_t fw_show_ne_tlabels_free(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct node_entry *ne = container_of(dev, struct node_entry, device);
 	return sprintf(buf, "%d\n", atomic_read(&ne->tpool->count.count) + 1);
@@ -289,7 +289,7 @@ static ssize_t fw_show_ne_tlabels_free(struct device *dev, char *buf)
 static DEVICE_ATTR(tlabels_free,S_IRUGO,fw_show_ne_tlabels_free,NULL);
 
 
-static ssize_t fw_show_ne_tlabels_allocations(struct device *dev, char *buf)
+static ssize_t fw_show_ne_tlabels_allocations(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct node_entry *ne = container_of(dev, struct node_entry, device);
 	return sprintf(buf, "%u\n", ne->tpool->allocations);
@@ -297,7 +297,7 @@ static ssize_t fw_show_ne_tlabels_allocations(struct device *dev, char *buf)
 static DEVICE_ATTR(tlabels_allocations,S_IRUGO,fw_show_ne_tlabels_allocations,NULL);
 
 
-static ssize_t fw_show_ne_tlabels_mask(struct device *dev, char *buf)
+static ssize_t fw_show_ne_tlabels_mask(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct node_entry *ne = container_of(dev, struct node_entry, device);
 #if (BITS_PER_LONG <= 32)
@@ -309,7 +309,7 @@ static ssize_t fw_show_ne_tlabels_mask(struct device *dev, char *buf)
 static DEVICE_ATTR(tlabels_mask, S_IRUGO, fw_show_ne_tlabels_mask, NULL);
 
 
-static ssize_t fw_set_ignore_driver(struct device *dev, const char *buf, size_t count)
+static ssize_t fw_set_ignore_driver(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct unit_directory *ud = container_of(dev, struct unit_directory, device);
 	int state = simple_strtoul(buf, NULL, 10);
@@ -324,7 +324,7 @@ static ssize_t fw_set_ignore_driver(struct device *dev, const char *buf, size_t 
 
 	return count;
 }
-static ssize_t fw_get_ignore_driver(struct device *dev, char *buf)
+static ssize_t fw_get_ignore_driver(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct unit_directory *ud = container_of(dev, struct unit_directory, device);
 
@@ -695,14 +695,15 @@ static void nodemgr_remove_ne(struct node_entry *ne)
 	put_device(dev);
 }
 
+static int __nodemgr_remove_host_dev(struct device *dev, void *data)
+{
+	nodemgr_remove_ne(container_of(dev, struct node_entry, device));
+	return 0;
+}
 
 static void nodemgr_remove_host_dev(struct device *dev)
 {
-	struct device *ne_dev, *next;
-
-	list_for_each_entry_safe(ne_dev, next, &dev->children, node)
-		nodemgr_remove_ne(container_of(ne_dev, struct node_entry, device));
-
+	device_for_each_child(dev, NULL, __nodemgr_remove_host_dev);
 	sysfs_remove_link(&dev->kobj, "irm_id");
 	sysfs_remove_link(&dev->kobj, "busmgr_id");
 	sysfs_remove_link(&dev->kobj, "host_id");
@@ -1005,8 +1006,7 @@ static struct unit_directory *nodemgr_process_unit_directory
 	return ud;
 
 unit_directory_error:
-	if (ud != NULL)
-		kfree(ud);
+	kfree(ud);
 	return NULL;
 }
 
@@ -1510,7 +1510,7 @@ static int nodemgr_host_thread(void *__hi)
 
 		if (down_interruptible(&hi->reset_sem) ||
 		    down_interruptible(&nodemgr_serialize)) {
-			if (try_to_freeze(PF_FREEZE))
+			if (try_to_freeze())
 				continue;
 			printk("NodeMgr: received unexpected signal?!\n" );
 			break;

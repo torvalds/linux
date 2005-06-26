@@ -1658,6 +1658,11 @@ xfs_inobt_is_free(xfs_inobt_rec_t *rp, int i)
 {
 	return XFS_INOBT_IS_FREE(rp, i);
 }
+int
+xfs_inobt_is_free_disk(xfs_inobt_rec_t *rp, int i)
+{
+	return XFS_INOBT_IS_FREE_DISK(rp, i);
+}
 #endif
 
 #if XFS_WANT_FUNCS_C || (XFS_WANT_SPACE_C && XFSSO_XFS_INOBT_IS_LAST_REC)

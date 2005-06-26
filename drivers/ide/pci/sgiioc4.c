@@ -34,7 +34,7 @@
 #include <linux/mm.h>
 #include <linux/ioport.h>
 #include <linux/blkdev.h>
-#include <linux/ioc4_common.h>
+#include <linux/ioc4.h>
 #include <asm/io.h>
 
 #include <linux/ide.h>
@@ -715,14 +715,34 @@ static ide_pci_device_t sgiioc4_chipsets[] __devinitdata = {
 };
 
 int
-ioc4_ide_attach_one(struct pci_dev *dev, const struct pci_device_id *id)
+ioc4_ide_attach_one(struct ioc4_driver_data *idd)
 {
-	return pci_init_sgiioc4(dev, &sgiioc4_chipsets[id->driver_data]);
+	return pci_init_sgiioc4(idd->idd_pdev,
+				&sgiioc4_chipsets[idd->idd_pci_id->driver_data]);
 }
 
+static struct ioc4_submodule ioc4_ide_submodule = {
+	.is_name = "IOC4_ide",
+	.is_owner = THIS_MODULE,
+	.is_probe = ioc4_ide_attach_one,
+/*	.is_remove = ioc4_ide_remove_one,	*/
+};
+
+static int __devinit
+ioc4_ide_init(void)
+{
+	return ioc4_register_submodule(&ioc4_ide_submodule);
+}
+
+static void __devexit
+ioc4_ide_exit(void)
+{
+	ioc4_unregister_submodule(&ioc4_ide_submodule);
+}
+
+module_init(ioc4_ide_init);
+module_exit(ioc4_ide_exit);
 
 MODULE_AUTHOR("Aniket Malatpure - Silicon Graphics Inc. (SGI)");
 MODULE_DESCRIPTION("IDE PCI driver module for SGI IOC4 Base-IO Card");
 MODULE_LICENSE("GPL");
-
-EXPORT_SYMBOL(ioc4_ide_attach_one);

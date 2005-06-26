@@ -27,6 +27,7 @@
 #include <linux/highmem.h>
 #include <linux/poll.h>
 #include <linux/net.h>
+#include <linux/textsearch.h>
 #include <net/checksum.h>
 
 #define HAVE_ALLOC_SKB		/* For the drivers to know */
@@ -193,7 +194,6 @@ struct skb_shared_info {
  *	@nfcache: Cache info
  *	@nfct: Associated connection, if any
  *	@nfctinfo: Relationship of this skb to the connection
- *	@nf_debug: Netfilter debugging
  *	@nf_bridge: Saved data about a bridged frame - see br_netfilter.c
  *      @private: Data which is private to the HIPPI implementation
  *	@tc_index: Traffic control index
@@ -264,9 +264,6 @@ struct sk_buff {
 	__u32			nfcache;
 	__u32			nfctinfo;
 	struct nf_conntrack	*nfct;
-#ifdef CONFIG_NETFILTER_DEBUG
-        unsigned int		nf_debug;
-#endif
 #ifdef CONFIG_BRIDGE_NETFILTER
 	struct nf_bridge_info	*nf_bridge;
 #endif
@@ -324,6 +321,28 @@ extern void	      skb_over_panic(struct sk_buff *skb, int len,
 				     void *here);
 extern void	      skb_under_panic(struct sk_buff *skb, int len,
 				      void *here);
+
+struct skb_seq_state
+{
+	__u32		lower_offset;
+	__u32		upper_offset;
+	__u32		frag_idx;
+	__u32		stepped_offset;
+	struct sk_buff	*root_skb;
+	struct sk_buff	*cur_skb;
+	__u8		*frag_data;
+};
+
+extern void	      skb_prepare_seq_read(struct sk_buff *skb,
+					   unsigned int from, unsigned int to,
+					   struct skb_seq_state *st);
+extern unsigned int   skb_seq_read(unsigned int consumed, const u8 **data,
+				   struct skb_seq_state *st);
+extern void	      skb_abort_seq_read(struct skb_seq_state *st);
+
+extern unsigned int   skb_find_text(struct sk_buff *skb, unsigned int from,
+				    unsigned int to, struct ts_config *config,
+				    struct ts_state *state);
 
 /* Internal */
 #define skb_shinfo(SKB)		((struct skb_shared_info *)((SKB)->end))
@@ -1219,15 +1238,6 @@ static inline void nf_reset(struct sk_buff *skb)
 {
 	nf_conntrack_put(skb->nfct);
 	skb->nfct = NULL;
-#ifdef CONFIG_NETFILTER_DEBUG
-	skb->nf_debug = 0;
-#endif
-}
-static inline void nf_reset_debug(struct sk_buff *skb)
-{
-#ifdef CONFIG_NETFILTER_DEBUG
-	skb->nf_debug = 0;
-#endif
 }
 
 #ifdef CONFIG_BRIDGE_NETFILTER

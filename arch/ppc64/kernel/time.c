@@ -107,6 +107,9 @@ void ppc_adjtimex(void);
 
 static unsigned adjusting_time = 0;
 
+unsigned long ppc_proc_freq;
+unsigned long ppc_tb_freq;
+
 static __inline__ void timer_check_rtc(void)
 {
         /*
@@ -325,9 +328,7 @@ int timer_interrupt(struct pt_regs * regs)
 
 	irq_enter();
 
-#ifndef CONFIG_PPC_ISERIES
 	profile_tick(CPU_PROFILING, regs);
-#endif
 
 	lpaca->lppaca.int_dword.fields.decr_int = 0;
 
@@ -474,6 +475,66 @@ int do_settimeofday(struct timespec *tv)
 
 EXPORT_SYMBOL(do_settimeofday);
 
+#if defined(CONFIG_PPC_PSERIES) || defined(CONFIG_PPC_MAPLE) || defined(CONFIG_PPC_BPA)
+void __init generic_calibrate_decr(void)
+{
+	struct device_node *cpu;
+	struct div_result divres;
+	unsigned int *fp;
+	int node_found;
+
+	/*
+	 * The cpu node should have a timebase-frequency property
+	 * to tell us the rate at which the decrementer counts.
+	 */
+	cpu = of_find_node_by_type(NULL, "cpu");
+
+	ppc_tb_freq = DEFAULT_TB_FREQ;		/* hardcoded default */
+	node_found = 0;
+	if (cpu != 0) {
+		fp = (unsigned int *)get_property(cpu, "timebase-frequency",
+						  NULL);
+		if (fp != 0) {
+			node_found = 1;
+			ppc_tb_freq = *fp;
+		}
+	}
+	if (!node_found)
+		printk(KERN_ERR "WARNING: Estimating decrementer frequency "
+				"(not found)\n");
+
+	ppc_proc_freq = DEFAULT_PROC_FREQ;
+	node_found = 0;
+	if (cpu != 0) {
+		fp = (unsigned int *)get_property(cpu, "clock-frequency",
+						  NULL);
+		if (fp != 0) {
+			node_found = 1;
+			ppc_proc_freq = *fp;
+		}
+	}
+	if (!node_found)
+		printk(KERN_ERR "WARNING: Estimating processor frequency "
+				"(not found)\n");
+
+	of_node_put(cpu);
+
+	printk(KERN_INFO "time_init: decrementer frequency = %lu.%.6lu MHz\n",
+	       ppc_tb_freq/1000000, ppc_tb_freq%1000000);
+	printk(KERN_INFO "time_init: processor frequency   = %lu.%.6lu MHz\n",
+	       ppc_proc_freq/1000000, ppc_proc_freq%1000000);
+
+	tb_ticks_per_jiffy = ppc_tb_freq / HZ;
+	tb_ticks_per_sec = tb_ticks_per_jiffy * HZ;
+	tb_ticks_per_usec = ppc_tb_freq / 1000000;
+	tb_to_us = mulhwu_scale_factor(ppc_tb_freq, 1000000);
+	div128_by_32(1024*1024, 0, tb_ticks_per_sec, &divres);
+	tb_to_xs = divres.result_low;
+
+	setup_default_decr();
+}
+#endif
+
 void __init time_init(void)
 {
 	/* This function is only called on the boot processor */
@@ -515,6 +576,7 @@ void __init time_init(void)
 	do_gtod.varp = &do_gtod.vars[0];
 	do_gtod.var_idx = 0;
 	do_gtod.varp->tb_orig_stamp = tb_last_stamp;
+	get_paca()->next_jiffy_update_tb = tb_last_stamp + tb_ticks_per_jiffy;
 	do_gtod.varp->stamp_xsec = xtime.tv_sec * XSEC_PER_SEC;
 	do_gtod.tb_ticks_per_sec = tb_ticks_per_sec;
 	do_gtod.varp->tb_to_xs = tb_to_xs;

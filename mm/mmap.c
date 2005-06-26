@@ -1175,7 +1175,12 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
 		    (!vma || addr + len <= vma->vm_start))
 			return addr;
 	}
-	start_addr = addr = mm->free_area_cache;
+	if (len > mm->cached_hole_size) {
+	        start_addr = addr = mm->free_area_cache;
+	} else {
+	        start_addr = addr = TASK_UNMAPPED_BASE;
+	        mm->cached_hole_size = 0;
+	}
 
 full_search:
 	for (vma = find_vma(mm, addr); ; vma = vma->vm_next) {
@@ -1186,7 +1191,9 @@ full_search:
 			 * some holes.
 			 */
 			if (start_addr != TASK_UNMAPPED_BASE) {
-				start_addr = addr = TASK_UNMAPPED_BASE;
+				addr = TASK_UNMAPPED_BASE;
+			        start_addr = addr;
+				mm->cached_hole_size = 0;
 				goto full_search;
 			}
 			return -ENOMEM;
@@ -1198,19 +1205,22 @@ full_search:
 			mm->free_area_cache = addr + len;
 			return addr;
 		}
+		if (addr + mm->cached_hole_size < vma->vm_start)
+		        mm->cached_hole_size = vma->vm_start - addr;
 		addr = vma->vm_end;
 	}
 }
 #endif	
 
-void arch_unmap_area(struct vm_area_struct *area)
+void arch_unmap_area(struct mm_struct *mm, unsigned long addr)
 {
 	/*
 	 * Is this a new hole at the lowest possible address?
 	 */
-	if (area->vm_start >= TASK_UNMAPPED_BASE &&
-			area->vm_start < area->vm_mm->free_area_cache)
-		area->vm_mm->free_area_cache = area->vm_start;
+	if (addr >= TASK_UNMAPPED_BASE && addr < mm->free_area_cache) {
+		mm->free_area_cache = addr;
+		mm->cached_hole_size = ~0UL;
+	}
 }
 
 /*
@@ -1240,16 +1250,25 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 			return addr;
 	}
 
+	/* check if free_area_cache is useful for us */
+	if (len <= mm->cached_hole_size) {
+ 	        mm->cached_hole_size = 0;
+ 		mm->free_area_cache = mm->mmap_base;
+ 	}
+
 	/* either no address requested or can't fit in requested address hole */
 	addr = mm->free_area_cache;
 
 	/* make sure it can fit in the remaining address space */
-	if (addr >= len) {
+	if (addr > len) {
 		vma = find_vma(mm, addr-len);
 		if (!vma || addr <= vma->vm_start)
 			/* remember the address as a hint for next time */
 			return (mm->free_area_cache = addr-len);
 	}
+
+	if (mm->mmap_base < len)
+		goto bottomup;
 
 	addr = mm->mmap_base-len;
 
@@ -1264,75 +1283,85 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 			/* remember the address as a hint for next time */
 			return (mm->free_area_cache = addr);
 
+ 		/* remember the largest hole we saw so far */
+ 		if (addr + mm->cached_hole_size < vma->vm_start)
+ 		        mm->cached_hole_size = vma->vm_start - addr;
+
 		/* try just below the current vma->vm_start */
 		addr = vma->vm_start-len;
-	} while (len <= vma->vm_start);
+	} while (len < vma->vm_start);
 
+bottomup:
 	/*
 	 * A failed mmap() very likely causes application failure,
 	 * so fall back to the bottom-up function here. This scenario
 	 * can happen with large stack limits and large mmap()
 	 * allocations.
 	 */
-	mm->free_area_cache = TASK_UNMAPPED_BASE;
+	mm->cached_hole_size = ~0UL;
+  	mm->free_area_cache = TASK_UNMAPPED_BASE;
 	addr = arch_get_unmapped_area(filp, addr0, len, pgoff, flags);
 	/*
 	 * Restore the topdown base:
 	 */
 	mm->free_area_cache = mm->mmap_base;
+	mm->cached_hole_size = ~0UL;
 
 	return addr;
 }
 #endif
 
-void arch_unmap_area_topdown(struct vm_area_struct *area)
+void arch_unmap_area_topdown(struct mm_struct *mm, unsigned long addr)
 {
 	/*
 	 * Is this a new hole at the highest possible address?
 	 */
-	if (area->vm_end > area->vm_mm->free_area_cache)
-		area->vm_mm->free_area_cache = area->vm_end;
+	if (addr > mm->free_area_cache)
+		mm->free_area_cache = addr;
 
 	/* dont allow allocations above current base */
-	if (area->vm_mm->free_area_cache > area->vm_mm->mmap_base)
-		area->vm_mm->free_area_cache = area->vm_mm->mmap_base;
+	if (mm->free_area_cache > mm->mmap_base)
+		mm->free_area_cache = mm->mmap_base;
 }
 
 unsigned long
 get_unmapped_area(struct file *file, unsigned long addr, unsigned long len,
 		unsigned long pgoff, unsigned long flags)
 {
-	if (flags & MAP_FIXED) {
-		unsigned long ret;
+	unsigned long ret;
 
-		if (addr > TASK_SIZE - len)
-			return -ENOMEM;
-		if (addr & ~PAGE_MASK)
-			return -EINVAL;
-		if (file && is_file_hugepages(file))  {
-			/*
-			 * Check if the given range is hugepage aligned, and
-			 * can be made suitable for hugepages.
-			 */
-			ret = prepare_hugepage_range(addr, len);
-		} else {
-			/*
-			 * Ensure that a normal request is not falling in a
-			 * reserved hugepage range.  For some archs like IA-64,
-			 * there is a separate region for hugepages.
-			 */
-			ret = is_hugepage_only_range(current->mm, addr, len);
-		}
-		if (ret)
-			return -EINVAL;
-		return addr;
+	if (!(flags & MAP_FIXED)) {
+		unsigned long (*get_area)(struct file *, unsigned long, unsigned long, unsigned long, unsigned long);
+
+		get_area = current->mm->get_unmapped_area;
+		if (file && file->f_op && file->f_op->get_unmapped_area)
+			get_area = file->f_op->get_unmapped_area;
+		addr = get_area(file, addr, len, pgoff, flags);
+		if (IS_ERR_VALUE(addr))
+			return addr;
 	}
 
-	if (file && file->f_op && file->f_op->get_unmapped_area)
-		return file->f_op->get_unmapped_area(file, addr, len,
-						pgoff, flags);
-
-	return current->mm->get_unmapped_area(file, addr, len, pgoff, flags);
+	if (addr > TASK_SIZE - len)
+		return -ENOMEM;
+	if (addr & ~PAGE_MASK)
+		return -EINVAL;
+	if (file && is_file_hugepages(file))  {
+		/*
+		 * Check if the given range is hugepage aligned, and
+		 * can be made suitable for hugepages.
+		 */
+		ret = prepare_hugepage_range(addr, len);
+	} else {
+		/*
+		 * Ensure that a normal request is not falling in a
+		 * reserved hugepage range.  For some archs like IA-64,
+		 * there is a separate region for hugepages.
+		 */
+		ret = is_hugepage_only_range(current->mm, addr, len);
+	}
+	if (ret)
+		return -EINVAL;
+	return addr;
 }
 
 EXPORT_SYMBOL(get_unmapped_area);
@@ -1592,7 +1621,6 @@ static void unmap_vma(struct mm_struct *mm, struct vm_area_struct *area)
 	if (area->vm_flags & VM_LOCKED)
 		area->vm_mm->locked_vm -= len >> PAGE_SHIFT;
 	vm_stat_unaccount(area);
-	area->vm_mm->unmap_area(area);
 	remove_vm_struct(area);
 }
 
@@ -1646,6 +1674,7 @@ detach_vmas_to_be_unmapped(struct mm_struct *mm, struct vm_area_struct *vma,
 {
 	struct vm_area_struct **insertion_point;
 	struct vm_area_struct *tail_vma = NULL;
+	unsigned long addr;
 
 	insertion_point = (prev ? &prev->vm_next : &mm->mmap);
 	do {
@@ -1656,6 +1685,11 @@ detach_vmas_to_be_unmapped(struct mm_struct *mm, struct vm_area_struct *vma,
 	} while (vma && vma->vm_start < end);
 	*insertion_point = vma;
 	tail_vma->vm_next = NULL;
+	if (mm->unmap_area == arch_unmap_area)
+		addr = prev ? prev->vm_end : mm->mmap_base;
+	else
+		addr = vma ?  vma->vm_start : mm->mmap_base;
+	mm->unmap_area(mm, addr);
 	mm->mmap_cache = NULL;		/* Kill the cache. */
 }
 

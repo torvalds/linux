@@ -73,16 +73,20 @@
 
 #define TOSH_MINOR_DEV 181
 
-static int tosh_id = 0x0000;
-static int tosh_bios = 0x0000;
-static int tosh_date = 0x0000;
-static int tosh_sci = 0x0000;
-static int tosh_fan = 0;
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Jonathan Buzzard <jonathan@buzzard.org.uk>");
+MODULE_DESCRIPTION("Toshiba laptop SMM driver");
+MODULE_SUPPORTED_DEVICE("toshiba");
 
-static int tosh_fn = 0;
+static int tosh_fn;
+module_param_named(fn, tosh_fn, int, 0);
+MODULE_PARM_DESC(fn, "User specified Fn key detection port");
 
-module_param(tosh_fn, int, 0);
-
+static int tosh_id;
+static int tosh_bios;
+static int tosh_date;
+static int tosh_sci;
+static int tosh_fan;
 
 static int tosh_ioctl(struct inode *, struct file *, unsigned int,
 	unsigned long);
@@ -359,7 +363,7 @@ static int tosh_get_machine_id(void)
 	unsigned long address;
 
 	id = (0x100*(int) isa_readb(0xffffe))+((int) isa_readb(0xffffa));
-	
+
 	/* do we have a SCTTable machine identication number on our hands */
 
 	if (id==0xfc2f) {
@@ -424,7 +428,7 @@ static int tosh_probe(void)
 	}
 
 	/* call the Toshiba SCI support check routine */
-	
+
 	regs.eax = 0xf0f0;
 	regs.ebx = 0x0000;
 	regs.ecx = 0x0000;
@@ -440,7 +444,7 @@ static int tosh_probe(void)
 	/* if we get this far then we are running on a Toshiba (probably)! */
 
 	tosh_sci = regs.edx & 0xffff;
-	
+
 	/* next get the machine ID of the current laptop */
 
 	tosh_id = tosh_get_machine_id();
@@ -475,16 +479,15 @@ static int tosh_probe(void)
 	return 0;
 }
 
-int __init tosh_init(void)
+static int __init toshiba_init(void)
 {
 	int retval;
 	/* are we running on a Toshiba laptop */
 
-	if (tosh_probe()!=0)
-		return -EIO;
+	if (tosh_probe())
+		return -ENODEV;
 
-	printk(KERN_INFO "Toshiba System Managment Mode driver v"
-		TOSH_VERSION"\n");
+	printk(KERN_INFO "Toshiba System Managment Mode driver v" TOSH_VERSION "\n");
 
 	/* set the port to use for Fn status if not specified as a parameter */
 	if (tosh_fn==0x00)
@@ -492,12 +495,12 @@ int __init tosh_init(void)
 
 	/* register the device file */
 	retval = misc_register(&tosh_device);
-	if(retval < 0)
+	if (retval < 0)
 		return retval;
 
 #ifdef CONFIG_PROC_FS
 	/* register the proc entry */
-	if(create_proc_info_entry("toshiba", 0, NULL, tosh_get_info) == NULL){
+	if (create_proc_info_entry("toshiba", 0, NULL, tosh_get_info) == NULL) {
 		misc_deregister(&tosh_device);
 		return -ENOMEM;
 	}
@@ -506,27 +509,12 @@ int __init tosh_init(void)
 	return 0;
 }
 
-#ifdef MODULE
-int init_module(void)
+static void __exit toshiba_exit(void)
 {
-	return tosh_init();
-}
-
-void cleanup_module(void)
-{
-	/* remove the proc entry */
-
 	remove_proc_entry("toshiba", NULL);
-
-	/* unregister the device file */
-
 	misc_deregister(&tosh_device);
 }
-#endif
 
-MODULE_LICENSE("GPL");
-MODULE_PARM_DESC(tosh_fn, "User specified Fn key detection port");
-MODULE_AUTHOR("Jonathan Buzzard <jonathan@buzzard.org.uk>");
-MODULE_DESCRIPTION("Toshiba laptop SMM driver");
-MODULE_SUPPORTED_DEVICE("toshiba");
+module_init(toshiba_init);
+module_exit(toshiba_exit);
 

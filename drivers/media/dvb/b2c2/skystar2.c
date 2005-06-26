@@ -97,7 +97,7 @@ struct adapter {
 	u8 mac_addr[8];
 	u32 dw_sram_type;
 
-	struct dvb_adapter *dvb_adapter;
+	struct dvb_adapter dvb_adapter;
 	struct dvb_demux demux;
 	struct dmxdev dmxdev;
 	struct dmx_frontend hw_frontend;
@@ -2461,7 +2461,7 @@ static void frontend_init(struct adapter *skystar2)
 		       skystar2->pdev->subsystem_vendor,
 		       skystar2->pdev->subsystem_device);
 	} else {
-		if (dvb_register_frontend(skystar2->dvb_adapter, skystar2->fe)) {
+		if (dvb_register_frontend(&skystar2->dvb_adapter, skystar2->fe)) {
 			printk("skystar2: Frontend registration failed!\n");
 			if (skystar2->fe->ops->release)
 				skystar2->fe->ops->release(skystar2->fe);
@@ -2486,17 +2486,17 @@ static int skystar2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret < 0)
 		goto out;
 
-	ret = dvb_register_adapter(&dvb_adapter, skystar2_pci_driver.name,
+	adapter = pci_get_drvdata(pdev);
+	dvb_adapter = &adapter->dvb_adapter;
+
+	ret = dvb_register_adapter(dvb_adapter, skystar2_pci_driver.name,
 				   THIS_MODULE);
 	if (ret < 0) {
 		printk("%s: Error registering DVB adapter\n", __FUNCTION__);
 		goto err_halt;
 	}
 
-	adapter = pci_get_drvdata(pdev);
-
 	dvb_adapter->priv = adapter;
-	adapter->dvb_adapter = dvb_adapter;
 
 
 	init_MUTEX(&adapter->i2c_sem);
@@ -2541,7 +2541,7 @@ static int skystar2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->dmxdev.demux = dmx;
 	adapter->dmxdev.capabilities = 0;
 
-	ret = dvb_dmxdev_init(&adapter->dmxdev, adapter->dvb_adapter);
+	ret = dvb_dmxdev_init(&adapter->dmxdev, &adapter->dvb_adapter);
 	if (ret < 0)
 		goto err_dmx_release;
 
@@ -2559,7 +2559,7 @@ static int skystar2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret < 0)
 		goto err_remove_mem_frontend;
 
-	dvb_net_init(adapter->dvb_adapter, &adapter->dvbnet, &dvbdemux->dmx);
+	dvb_net_init(&adapter->dvb_adapter, &adapter->dvbnet, &dvbdemux->dmx);
 
 	frontend_init(adapter);
 out:
@@ -2576,7 +2576,7 @@ err_dmx_release:
 err_i2c_del:
 	i2c_del_adapter(&adapter->i2c_adap);
 err_dvb_unregister:
-	dvb_unregister_adapter(adapter->dvb_adapter);
+	dvb_unregister_adapter(&adapter->dvb_adapter);
 err_halt:
 	driver_halt(pdev);
 	goto out;
@@ -2605,7 +2605,7 @@ static void skystar2_remove(struct pci_dev *pdev)
 	if (adapter->fe != NULL)
 		dvb_unregister_frontend(adapter->fe);
 
-	dvb_unregister_adapter(adapter->dvb_adapter);
+	dvb_unregister_adapter(&adapter->dvb_adapter);
 
 			i2c_del_adapter(&adapter->i2c_adap);
 

@@ -29,8 +29,6 @@
 
 #include "pwc.h"
 #include "pwc-uncompress.h"
-#include "pwc-dec1.h"
-#include "pwc-dec23.h"
 
 int pwc_decompress(struct pwc_device *pdev)
 {
@@ -120,6 +118,7 @@ int pwc_decompress(struct pwc_device *pdev)
 		   return -ENXIO; /* No such device or address: missing decompressor */
 		 }
 
+#if 0
 		switch (pdev->type)
 		 {
 		  case 675:
@@ -129,17 +128,17 @@ int pwc_decompress(struct pwc_device *pdev)
 		  case 730:
 		  case 740:
 		  case 750:
-		    pwc_dec23_decompress(&pdev->image, &pdev->view, &pdev->offset,
-				yuv, image,
-				flags,
+		    pwc_dec23_decompress(&pdev->image, &pdev->view,
+				&pdev->offset, yuv, image, flags,
 				pdev->decompress_data, pdev->vbandlength);
 		    break;
 		  case 645:
 		  case 646:
 		    /* TODO & FIXME */
-		    return -ENXIO; /* No such device or address: missing decompressor */
+		    return -ENXIO; /* Missing decompressor */
 		    break;
 		 }
+#endif
 	}
 	return 0;
 }

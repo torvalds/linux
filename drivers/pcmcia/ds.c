@@ -604,14 +604,14 @@ static int pcmcia_bus_match(struct device * dev, struct device_driver * drv) {
 /************************ per-device sysfs output ***************************/
 
 #define pcmcia_device_attr(field, test, format)				\
-static ssize_t field##_show (struct device *dev, char *buf)		\
+static ssize_t field##_show (struct device *dev, struct device_attribute *attr, char *buf)		\
 {									\
 	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);		\
 	return p_dev->test ? sprintf (buf, format, p_dev->field) : -ENODEV; \
 }
 
 #define pcmcia_device_stringattr(name, field)					\
-static ssize_t name##_show (struct device *dev, char *buf)		\
+static ssize_t name##_show (struct device *dev, struct device_attribute *attr, char *buf)		\
 {									\
 	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);		\
 	return p_dev->field ? sprintf (buf, "%s\n", p_dev->field) : -ENODEV; \
@@ -1592,9 +1592,9 @@ static int __init init_pcmcia_bus(void)
 
 	/* Set up character device for user mode clients */
 	i = register_chrdev(0, "pcmcia", &ds_fops);
-	if (i == -EBUSY)
+	if (i < 0)
 		printk(KERN_NOTICE "unable to find a free device # for "
-		       "Driver Services\n");
+		       "Driver Services (error=%d)\n", i);
 	else
 		major_dev = i;
 

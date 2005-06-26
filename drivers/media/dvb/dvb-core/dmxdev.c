@@ -175,8 +175,8 @@ static inline void dvb_dmxdev_dvr_state_set(struct dmxdev_dvr *dmxdevdvr, int st
 
 static int dvb_dvr_open(struct inode *inode, struct file *file)
 {
-	struct dvb_device *dvbdev=(struct dvb_device *) file->private_data;
-	struct dmxdev *dmxdev=(struct dmxdev *) dvbdev->priv;
+	struct dvb_device *dvbdev = file->private_data;
+	struct dmxdev *dmxdev = dvbdev->priv;
 	struct dmx_frontend *front;
 
 	dprintk ("function : %s\n", __FUNCTION__);
@@ -224,8 +224,8 @@ static int dvb_dvr_open(struct inode *inode, struct file *file)
 
 static int dvb_dvr_release(struct inode *inode, struct file *file)
 {
-	struct dvb_device *dvbdev=(struct dvb_device *) file->private_data;
-	struct dmxdev *dmxdev=(struct dmxdev *) dvbdev->priv;
+	struct dvb_device *dvbdev = file->private_data;
+	struct dmxdev *dmxdev = dvbdev->priv;
 
 	if (down_interruptible (&dmxdev->mutex))
 		return -ERESTARTSYS;
@@ -252,8 +252,8 @@ static int dvb_dvr_release(struct inode *inode, struct file *file)
 static ssize_t dvb_dvr_write(struct file *file, const char __user *buf,
 		size_t count, loff_t *ppos)
 {
-	struct dvb_device *dvbdev=(struct dvb_device *) file->private_data;
-	struct dmxdev *dmxdev=(struct dmxdev *) dvbdev->priv;
+	struct dvb_device *dvbdev = file->private_data;
+	struct dmxdev *dmxdev = dvbdev->priv;
 	int ret;
 
 	if (!dmxdev->demux->write)
@@ -270,8 +270,8 @@ static ssize_t dvb_dvr_write(struct file *file, const char __user *buf,
 static ssize_t dvb_dvr_read(struct file *file, char __user *buf, size_t count,
 		loff_t *ppos)
 {
-	struct dvb_device *dvbdev=(struct dvb_device *) file->private_data;
-	struct dmxdev *dmxdev=(struct dmxdev *) dvbdev->priv;
+	struct dvb_device *dvbdev = file->private_data;
+	struct dmxdev *dmxdev = dvbdev->priv;
 	int ret;
 
 	//down(&dmxdev->mutex);
@@ -345,7 +345,7 @@ static int dvb_dmxdev_section_callback(const u8 *buffer1, size_t buffer1_len,
 			    const u8 *buffer2, size_t buffer2_len,
 			    struct dmx_section_filter *filter, enum dmx_success success)
 {
-	struct dmxdev_filter *dmxdevfilter=(struct dmxdev_filter *) filter->priv;
+	struct dmxdev_filter *dmxdevfilter = filter->priv;
 	int ret;
 
 	if (dmxdevfilter->buffer.error) {
@@ -381,7 +381,7 @@ static int dvb_dmxdev_ts_callback(const u8 *buffer1, size_t buffer1_len,
 		       const u8 *buffer2, size_t buffer2_len,
 		       struct dmx_ts_feed *feed, enum dmx_success success)
 {
-	struct dmxdev_filter *dmxdevfilter=(struct dmxdev_filter *) feed->priv;
+	struct dmxdev_filter *dmxdevfilter = feed->priv;
 	struct dmxdev_buffer *buffer;
 	int ret;
 
@@ -684,8 +684,8 @@ static int dvb_dmxdev_filter_start(struct dmxdev_filter *filter)
 
 static int dvb_demux_open(struct inode *inode, struct file *file)
 {
-	struct dvb_device *dvbdev=(struct dvb_device *) file->private_data;
-	struct dmxdev *dmxdev=(struct dmxdev *) dvbdev->priv;
+	struct dvb_device *dvbdev = file->private_data;
+	struct dmxdev *dmxdev = dvbdev->priv;
 	int i;
 	struct dmxdev_filter *dmxdevfilter;
 
@@ -1013,8 +1013,8 @@ static struct dvb_device dvbdev_demux = {
 static int dvb_dvr_do_ioctl(struct inode *inode, struct file *file,
 		     unsigned int cmd, void *parg)
 {
-	struct dvb_device *dvbdev=(struct dvb_device *) file->private_data;
-	struct dmxdev *dmxdev=(struct dmxdev *) dvbdev->priv;
+	struct dvb_device *dvbdev = file->private_data;
+	struct dmxdev *dmxdev = dvbdev->priv;
 
 	int ret=0;
 
@@ -1044,8 +1044,8 @@ static int dvb_dvr_ioctl(struct inode *inode, struct file *file,
 
 static unsigned int dvb_dvr_poll (struct file *file, poll_table *wait)
 {
-	struct dvb_device *dvbdev = (struct dvb_device *) file->private_data;
-	struct dmxdev *dmxdev = (struct dmxdev *) dvbdev->priv;
+	struct dvb_device *dvbdev = file->private_data;
+	struct dmxdev *dmxdev = dvbdev->priv;
 	unsigned int mask = 0;
 
 	dprintk ("function : %s\n", __FUNCTION__);

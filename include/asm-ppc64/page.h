@@ -202,9 +202,7 @@ extern u64 ppc64_pft_size;		/* Log 2 of page table size */
 #define PAGE_OFFSET     ASM_CONST(0xC000000000000000)
 #define KERNELBASE      PAGE_OFFSET
 #define VMALLOCBASE     ASM_CONST(0xD000000000000000)
-#define IOREGIONBASE    ASM_CONST(0xE000000000000000)
 
-#define IO_REGION_ID       (IOREGIONBASE >> REGION_SHIFT)
 #define VMALLOC_REGION_ID  (VMALLOCBASE >> REGION_SHIFT)
 #define KERNEL_REGION_ID   (KERNELBASE >> REGION_SHIFT)
 #define USER_REGION_ID     (0UL)
@@ -219,7 +217,8 @@ extern u64 ppc64_pft_size;		/* Log 2 of page table size */
 #define page_to_pfn(page)	discontigmem_page_to_pfn(page)
 #define pfn_to_page(pfn)	discontigmem_pfn_to_page(pfn)
 #define pfn_valid(pfn)		discontigmem_pfn_valid(pfn)
-#else
+#endif
+#ifdef CONFIG_FLATMEM
 #define pfn_to_page(pfn)	(mem_map + (pfn))
 #define page_to_pfn(page)	((unsigned long)((page) - mem_map))
 #define pfn_valid(pfn)		((pfn) < max_mapnr)

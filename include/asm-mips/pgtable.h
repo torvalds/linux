@@ -350,7 +350,7 @@ static inline void update_mmu_cache(struct vm_area_struct *vma,
 	__update_cache(vma, address, pte);
 }
 
-#ifndef CONFIG_DISCONTIGMEM
+#ifndef CONFIG_NEED_MULTIPLE_NODES
 #define kern_addr_valid(addr)	(1)
 #endif
 

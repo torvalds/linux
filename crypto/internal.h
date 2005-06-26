@@ -38,7 +38,7 @@ static inline void crypto_kunmap(void *vaddr, int out)
 
 static inline void crypto_yield(struct crypto_tfm *tfm)
 {
-	if (!in_softirq())
+	if (!in_atomic())
 		cond_resched();
 }
 

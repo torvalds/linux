@@ -47,9 +47,10 @@
 #define SLB_VSID_KS		ASM_CONST(0x0000000000000800)
 #define SLB_VSID_KP		ASM_CONST(0x0000000000000400)
 #define SLB_VSID_N		ASM_CONST(0x0000000000000200) /* no-execute */
-#define SLB_VSID_L		ASM_CONST(0x0000000000000100) /* largepage 16M */
+#define SLB_VSID_L		ASM_CONST(0x0000000000000100) /* largepage */
 #define SLB_VSID_C		ASM_CONST(0x0000000000000080) /* class */
-
+#define SLB_VSID_LS		ASM_CONST(0x0000000000000070) /* size of largepage */
+ 
 #define SLB_VSID_KERNEL		(SLB_VSID_KP|SLB_VSID_C)
 #define SLB_VSID_USER		(SLB_VSID_KP|SLB_VSID_KS)
 
@@ -178,6 +179,28 @@ static inline void tlbiel(unsigned long va)
 	asm volatile("ptesync": : :"memory");
 	__tlbiel(va);
 	asm volatile("ptesync": : :"memory");
+}
+
+static inline unsigned long slot2va(unsigned long avpn, unsigned long large,
+		unsigned long secondary, unsigned long slot)
+{
+	unsigned long va;
+
+	va = avpn << 23;
+
+	if (!large) {
+		unsigned long vpi, pteg;
+
+		pteg = slot / HPTES_PER_GROUP;
+		if (secondary)
+			pteg = ~pteg;
+
+		vpi = ((va >> 28) ^ pteg) & htab_hash_mask;
+
+		va |= vpi << PAGE_SHIFT;
+	}
+
+	return va;
 }
 
 /*

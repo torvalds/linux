@@ -24,6 +24,7 @@
 #include <linux/vmalloc.h>
 #include <linux/time.h>
 #include <linux/smp_lock.h>
+#include <linux/string.h>
 #include <sound/core.h>
 #include <sound/minors.h>
 #include <sound/info.h>
@@ -754,7 +755,7 @@ static snd_info_entry_t *snd_info_create_entry(const char *name)
 	entry = kcalloc(1, sizeof(*entry), GFP_KERNEL);
 	if (entry == NULL)
 		return NULL;
-	entry->name = snd_kmalloc_strdup(name, GFP_KERNEL);
+	entry->name = kstrdup(name, GFP_KERNEL);
 	if (entry->name == NULL) {
 		kfree(entry);
 		return NULL;

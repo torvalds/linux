@@ -43,6 +43,10 @@ asmlinkage long sys_fadvise64_64(int fd, loff_t offset, loff_t len, int advice)
 		goto out;
 	}
 
+	if (mapping->a_ops->get_xip_page)
+		/* no bad return value, but ignore advice */
+		goto out;
+
 	/* Careful about overflows. Len == 0 means "as much as possible" */
 	endbyte = offset + len;
 	if (!len || endbyte < len)

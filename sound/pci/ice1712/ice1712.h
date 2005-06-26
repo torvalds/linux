@@ -373,6 +373,11 @@ struct _snd_ice1712 {
 			unsigned short master[2];
 			unsigned short vol[8];
 		} aureon;
+		/* AC97 register cache for Phase28 */
+		struct phase28_spec {
+			unsigned short master[2];
+			unsigned short vol[8];
+		} phase28;
 		/* Hoontech-specific setting */
 		struct hoontech_spec {
 			unsigned char boxbits[4];

@@ -307,15 +307,39 @@ static int proc_ide_read_driver
 	(char *page, char **start, off_t off, int count, int *eof, void *data)
 {
 	ide_drive_t	*drive = (ide_drive_t *) data;
-	ide_driver_t	*driver = drive->driver;
+	struct device	*dev = &drive->gendev;
+	ide_driver_t	*ide_drv;
 	int		len;
 
-	if (driver) {
+	down_read(&dev->bus->subsys.rwsem);
+	if (dev->driver) {
+		ide_drv = container_of(dev->driver, ide_driver_t, gen_driver);
 		len = sprintf(page, "%s version %s\n",
-				driver->name, driver->version);
+				dev->driver->name, ide_drv->version);
 	} else
 		len = sprintf(page, "ide-default version 0.9.newide\n");
+	up_read(&dev->bus->subsys.rwsem);
 	PROC_IDE_READ_RETURN(page,start,off,count,eof,len);
+}
+
+static int ide_replace_subdriver(ide_drive_t *drive, const char *driver)
+{
+	struct device *dev = &drive->gendev;
+	int ret = 1;
+
+	down_write(&dev->bus->subsys.rwsem);
+	device_release_driver(dev);
+	/* FIXME: device can still be in use by previous driver */
+	strlcpy(drive->driver_req, driver, sizeof(drive->driver_req));
+	device_attach(dev);
+	drive->driver_req[0] = 0;
+	if (dev->driver == NULL)
+		device_attach(dev);
+	if (dev->driver && !strcmp(dev->driver->name, driver))
+		ret = 0;
+	up_write(&dev->bus->subsys.rwsem);
+
+	return ret;
 }
 
 static int proc_ide_write_driver
@@ -488,16 +512,32 @@ void destroy_proc_ide_interface(ide_hwif_t *hwif)
 	}
 }
 
-extern struct seq_operations ide_drivers_op;
+static int proc_print_driver(struct device_driver *drv, void *data)
+{
+	ide_driver_t *ide_drv = container_of(drv, ide_driver_t, gen_driver);
+	struct seq_file *s = data;
+
+	seq_printf(s, "%s version %s\n", drv->name, ide_drv->version);
+
+	return 0;
+}
+
+static int ide_drivers_show(struct seq_file *s, void *p)
+{
+	bus_for_each_drv(&ide_bus_type, NULL, s, proc_print_driver);
+	return 0;
+}
+
 static int ide_drivers_open(struct inode *inode, struct file *file)
 {
-	return seq_open(file, &ide_drivers_op);
+	return single_open(file, &ide_drivers_show, NULL);
 }
+
 static struct file_operations ide_drivers_operations = {
 	.open		= ide_drivers_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= single_release,
 };
 
 void proc_ide_create(void)
@@ -516,6 +556,6 @@ void proc_ide_create(void)
 
 void proc_ide_destroy(void)
 {
-	remove_proc_entry("ide/drivers", proc_ide_root);
+	remove_proc_entry("drivers", proc_ide_root);
 	remove_proc_entry("ide", NULL);
 }

@@ -3,8 +3,8 @@
  *
  *  Typical I/O routines for Mappi board.
  *
- *  Copyright (c) 2001, 2002  Hiroyuki Kondo, Hirokazu Takata,
- *                            Hitoshi Yamamoto
+ *  Copyright (c) 2001-2005  Hiroyuki Kondo, Hirokazu Takata,
+ *                           Hitoshi Yamamoto
  */
 
 #include <linux/config.h>
@@ -130,57 +130,21 @@ unsigned long _inl(unsigned long port)
 
 unsigned char _inb_p(unsigned long port)
 {
-	unsigned char  v;
-
-	if (port >= 0x300 && port < 0x320)
-		v = _ne_inb(PORT2ADDR_NE(port));
-	else
-#if defined(CONFIG_PCMCIA) && defined(CONFIG_M32R_PCC)
-	if (port >= M32R_PCC_IOSTART0 && port <= M32R_PCC_IOEND0) {
-		unsigned char b;
-		pcc_ioread(0, port, &b, sizeof(b), 1, 0);
-		return b;
-	} else 	if (port >= M32R_PCC_IOSTART1 && port <= M32R_PCC_IOEND1) {
-		unsigned char b;
-		pcc_ioread(1, port, &b, sizeof(b), 1, 0);
-		return b;
-	} else
-#endif
-		v = *(volatile unsigned char *)PORT2ADDR(port);
-
+	unsigned char v = _inb(port);
 	delay();
 	return (v);
 }
 
 unsigned short _inw_p(unsigned long port)
 {
-	unsigned short  v;
-
-	if (port >= 0x300 && port < 0x320)
-		v = _ne_inw(PORT2ADDR_NE(port));
-	else
-#if defined(CONFIG_PCMCIA) && defined(CONFIG_M32R_PCC)
-	if (port >= M32R_PCC_IOSTART0 && port <= M32R_PCC_IOEND0) {
-		unsigned short w;
-		pcc_ioread(0, port, &w, sizeof(w), 1, 0);
-		return w;
-	} else 	if (port >= M32R_PCC_IOSTART1 && port <= M32R_PCC_IOEND1) {
-		unsigned short w;
-		pcc_ioread(1, port, &w, sizeof(w), 1, 0);
-		return w;
-	} else
-#endif
-		v = *(volatile unsigned short *)PORT2ADDR(port);
-
+	unsigned short v = _inw(port);
 	delay();
 	return (v);
 }
 
 unsigned long _inl_p(unsigned long port)
 {
-	unsigned long  v;
-
-	v = *(volatile unsigned long *)PORT2ADDR(port);
+	unsigned long v = _inl(port);
 	delay();
 	return (v);
 }
@@ -229,41 +193,19 @@ void _outl(unsigned long l, unsigned long port)
 
 void _outb_p(unsigned char b, unsigned long port)
 {
-	if (port >= 0x300 && port < 0x320)
-		_ne_outb(b, PORT2ADDR_NE(port));
-	else
-#if defined(CONFIG_PCMCIA) && defined(CONFIG_M32R_PCC)
-	if (port >= M32R_PCC_IOSTART0 && port <= M32R_PCC_IOEND0) {
-		pcc_iowrite(0, port, &b, sizeof(b), 1, 0);
-	} else 	if (port >= M32R_PCC_IOSTART1 && port <= M32R_PCC_IOEND1) {
-		pcc_iowrite(1, port, &b, sizeof(b), 1, 0);
-	} else
-#endif
-		*(volatile unsigned char *)PORT2ADDR(port) = b;
-
+	_outb(b, port);
 	delay();
 }
 
 void _outw_p(unsigned short w, unsigned long port)
 {
-	if (port >= 0x300 && port < 0x320)
-		_ne_outw(w, PORT2ADDR_NE(port));
-	else
-#if defined(CONFIG_PCMCIA) && defined(CONFIG_M32R_PCC)
-	if (port >= M32R_PCC_IOSTART0 && port <= M32R_PCC_IOEND0) {
-		pcc_iowrite(0, port, &w, sizeof(w), 1, 0);
-	} else 	if (port >= M32R_PCC_IOSTART1 && port <= M32R_PCC_IOEND1) {
-		pcc_iowrite(1, port, &w, sizeof(w), 1, 0);
-	} else
-#endif
-		*(volatile unsigned short *)PORT2ADDR(port) = w;
-
+	_outw(w, port);
 	delay();
 }
 
 void _outl_p(unsigned long l, unsigned long port)
 {
-	*(volatile unsigned long *)PORT2ADDR(port) = l;
+	_outl(l, port);
 	delay();
 }
 

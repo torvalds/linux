@@ -166,9 +166,8 @@ static struct super_block *cpuset_sb = NULL;
  * The hooks from fork and exit, cpuset_fork() and cpuset_exit(), don't
  * (usually) grab cpuset_sem.  These are the two most performance
  * critical pieces of code here.  The exception occurs on exit(),
- * if the last task using a cpuset exits, and the cpuset was marked
- * notify_on_release.  In that case, the cpuset_sem is taken, the
- * path to the released cpuset calculated, and a usermode call made
+ * when a task in a notify_on_release cpuset exits.  Then cpuset_sem
+ * is taken, and if the cpuset count is zero, a usermode call made
  * to /sbin/cpuset_release_agent with the name of the cpuset (path
  * relative to the root of cpuset file system) as the argument.
  *
@@ -229,13 +228,7 @@ static struct dentry_operations cpuset_dops = {
 
 static struct dentry *cpuset_get_dentry(struct dentry *parent, const char *name)
 {
-	struct qstr qstr;
-	struct dentry *d;
-
-	qstr.name = name;
-	qstr.len = strlen(name);
-	qstr.hash = full_name_hash(name, qstr.len);
-	d = lookup_hash(&qstr, parent);
+	struct dentry *d = lookup_one_len(name, parent, strlen(name));
 	if (!IS_ERR(d))
 		d->d_op = &cpuset_dops;
 	return d;
@@ -602,10 +595,62 @@ static int validate_change(const struct cpuset *cur, const struct cpuset *trial)
 	return 0;
 }
 
+/*
+ * For a given cpuset cur, partition the system as follows
+ * a. All cpus in the parent cpuset's cpus_allowed that are not part of any
+ *    exclusive child cpusets
+ * b. All cpus in the current cpuset's cpus_allowed that are not part of any
+ *    exclusive child cpusets
+ * Build these two partitions by calling partition_sched_domains
+ *
+ * Call with cpuset_sem held.  May nest a call to the
+ * lock_cpu_hotplug()/unlock_cpu_hotplug() pair.
+ */
+static void update_cpu_domains(struct cpuset *cur)
+{
+	struct cpuset *c, *par = cur->parent;
+	cpumask_t pspan, cspan;
+
+	if (par == NULL || cpus_empty(cur->cpus_allowed))
+		return;
+
+	/*
+	 * Get all cpus from parent's cpus_allowed not part of exclusive
+	 * children
+	 */
+	pspan = par->cpus_allowed;
+	list_for_each_entry(c, &par->children, sibling) {
+		if (is_cpu_exclusive(c))
+			cpus_andnot(pspan, pspan, c->cpus_allowed);
+	}
+	if (is_removed(cur) || !is_cpu_exclusive(cur)) {
+		cpus_or(pspan, pspan, cur->cpus_allowed);
+		if (cpus_equal(pspan, cur->cpus_allowed))
+			return;
+		cspan = CPU_MASK_NONE;
+	} else {
+		if (cpus_empty(pspan))
+			return;
+		cspan = cur->cpus_allowed;
+		/*
+		 * Get all cpus from current cpuset's cpus_allowed not part
+		 * of exclusive children
+		 */
+		list_for_each_entry(c, &cur->children, sibling) {
+			if (is_cpu_exclusive(c))
+				cpus_andnot(cspan, cspan, c->cpus_allowed);
+		}
+	}
+
+	lock_cpu_hotplug();
+	partition_sched_domains(&pspan, &cspan);
+	unlock_cpu_hotplug();
+}
+
 static int update_cpumask(struct cpuset *cs, char *buf)
 {
 	struct cpuset trialcs;
-	int retval;
+	int retval, cpus_unchanged;
 
 	trialcs = *cs;
 	retval = cpulist_parse(buf, trialcs.cpus_allowed);
@@ -615,9 +660,13 @@ static int update_cpumask(struct cpuset *cs, char *buf)
 	if (cpus_empty(trialcs.cpus_allowed))
 		return -ENOSPC;
 	retval = validate_change(cs, &trialcs);
-	if (retval == 0)
-		cs->cpus_allowed = trialcs.cpus_allowed;
-	return retval;
+	if (retval < 0)
+		return retval;
+	cpus_unchanged = cpus_equal(cs->cpus_allowed, trialcs.cpus_allowed);
+	cs->cpus_allowed = trialcs.cpus_allowed;
+	if (is_cpu_exclusive(cs) && !cpus_unchanged)
+		update_cpu_domains(cs);
+	return 0;
 }
 
 static int update_nodemask(struct cpuset *cs, char *buf)
@@ -653,7 +702,7 @@ static int update_flag(cpuset_flagbits_t bit, struct cpuset *cs, char *buf)
 {
 	int turning_on;
 	struct cpuset trialcs;
-	int err;
+	int err, cpu_exclusive_changed;
 
 	turning_on = (simple_strtoul(buf, NULL, 10) != 0);
 
@@ -664,13 +713,18 @@ static int update_flag(cpuset_flagbits_t bit, struct cpuset *cs, char *buf)
 		clear_bit(bit, &trialcs.flags);
 
 	err = validate_change(cs, &trialcs);
-	if (err == 0) {
-		if (turning_on)
-			set_bit(bit, &cs->flags);
-		else
-			clear_bit(bit, &cs->flags);
-	}
-	return err;
+	if (err < 0)
+		return err;
+	cpu_exclusive_changed =
+		(is_cpu_exclusive(cs) != is_cpu_exclusive(&trialcs));
+	if (turning_on)
+		set_bit(bit, &cs->flags);
+	else
+		clear_bit(bit, &cs->flags);
+
+	if (cpu_exclusive_changed)
+                update_cpu_domains(cs);
+	return 0;
 }
 
 static int attach_task(struct cpuset *cs, char *buf)
@@ -1316,12 +1370,14 @@ static int cpuset_rmdir(struct inode *unused_dir, struct dentry *dentry)
 		up(&cpuset_sem);
 		return -EBUSY;
 	}
-	spin_lock(&cs->dentry->d_lock);
 	parent = cs->parent;
 	set_bit(CS_REMOVED, &cs->flags);
+	if (is_cpu_exclusive(cs))
+		update_cpu_domains(cs);
 	list_del(&cs->sibling);	/* delete my sibling from parent->children */
 	if (list_empty(&parent->children))
 		check_for_release(parent);
+	spin_lock(&cs->dentry->d_lock);
 	d = dget(cs->dentry);
 	cs->dentry = NULL;
 	spin_unlock(&d->d_lock);
@@ -1404,6 +1460,18 @@ void cpuset_fork(struct task_struct *tsk)
  *
  * Description: Detach cpuset from @tsk and release it.
  *
+ * Note that cpusets marked notify_on_release force every task
+ * in them to take the global cpuset_sem semaphore when exiting.
+ * This could impact scaling on very large systems.  Be reluctant
+ * to use notify_on_release cpusets where very high task exit
+ * scaling is required on large systems.
+ *
+ * Don't even think about derefencing 'cs' after the cpuset use
+ * count goes to zero, except inside a critical section guarded
+ * by the cpuset_sem semaphore.  If you don't hold cpuset_sem,
+ * then a zero cpuset use count is a license to any other task to
+ * nuke the cpuset immediately.
+ *
  **/
 
 void cpuset_exit(struct task_struct *tsk)
@@ -1415,10 +1483,13 @@ void cpuset_exit(struct task_struct *tsk)
 	tsk->cpuset = NULL;
 	task_unlock(tsk);
 
-	if (atomic_dec_and_test(&cs->count)) {
+	if (notify_on_release(cs)) {
 		down(&cpuset_sem);
-		check_for_release(cs);
+		if (atomic_dec_and_test(&cs->count))
+			check_for_release(cs);
 		up(&cpuset_sem);
+	} else {
+		atomic_dec(&cs->count);
 	}
 }
 

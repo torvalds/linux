@@ -876,10 +876,12 @@
 #define  HOSTCC_STATUS_ERROR_ATTN	 0x00000004
 #define HOSTCC_RXCOL_TICKS		0x00003c08
 #define  LOW_RXCOL_TICKS		 0x00000032
+#define  LOW_RXCOL_TICKS_CLRTCKS	 0x00000014
 #define  DEFAULT_RXCOL_TICKS		 0x00000048
 #define  HIGH_RXCOL_TICKS		 0x00000096
 #define HOSTCC_TXCOL_TICKS		0x00003c0c
 #define  LOW_TXCOL_TICKS		 0x00000096
+#define  LOW_TXCOL_TICKS_CLRTCKS	 0x00000048
 #define  DEFAULT_TXCOL_TICKS		 0x0000012c
 #define  HIGH_TXCOL_TICKS		 0x00000145
 #define HOSTCC_RXMAX_FRAMES		0x00003c10
@@ -892,8 +894,10 @@
 #define  HIGH_TXMAX_FRAMES		 0x00000052
 #define HOSTCC_RXCOAL_TICK_INT		0x00003c18
 #define  DEFAULT_RXCOAL_TICK_INT	 0x00000019
+#define  DEFAULT_RXCOAL_TICK_INT_CLRTCKS 0x00000014
 #define HOSTCC_TXCOAL_TICK_INT		0x00003c1c
 #define  DEFAULT_TXCOAL_TICK_INT	 0x00000019
+#define  DEFAULT_TXCOAL_TICK_INT_CLRTCKS 0x00000014
 #define HOSTCC_RXCOAL_MAXF_INT		0x00003c20
 #define  DEFAULT_RXCOAL_MAXF_INT	 0x00000005
 #define HOSTCC_TXCOAL_MAXF_INT		0x00003c24
@@ -2002,17 +2006,31 @@ struct tg3_ethtool_stats {
 struct tg3 {
 	/* begin "general, frequently-used members" cacheline section */
 
+	/* If the IRQ handler (which runs lockless) needs to be
+	 * quiesced, the following bitmask state is used.  The
+	 * SYNC flag is set by non-IRQ context code to initiate
+	 * the quiescence.
+	 *
+	 * When the IRQ handler notices that SYNC is set, it
+	 * disables interrupts and returns.
+	 *
+	 * When all outstanding IRQ handlers have returned after
+	 * the SYNC flag has been set, the setter can be assured
+	 * that interrupts will no longer get run.
+	 *
+	 * In this way all SMP driver locks are never acquired
+	 * in hw IRQ context, only sw IRQ context or lower.
+	 */
+	unsigned int			irq_sync;
+
 	/* SMP locking strategy:
 	 *
 	 * lock: Held during all operations except TX packet
 	 *       processing.
 	 *
-	 * tx_lock: Held during tg3_start_xmit{,_4gbug} and tg3_tx
+	 * tx_lock: Held during tg3_start_xmit and tg3_tx
 	 *
-	 * If you want to shut up all asynchronous processing you must
-	 * acquire both locks, 'lock' taken before 'tx_lock'.  IRQs must
-	 * be disabled to take 'lock' but only softirq disabling is
-	 * necessary for acquisition of 'tx_lock'.
+	 * Both of these locks are to be held with BH safety.
 	 */
 	spinlock_t			lock;
 	spinlock_t			indirect_lock;
@@ -2023,6 +2041,7 @@ struct tg3 {
 
 	struct tg3_hw_status		*hw_status;
 	dma_addr_t			status_mapping;
+	u32				last_tag;
 
 	u32				msg_enable;
 
@@ -2068,6 +2087,7 @@ struct tg3 {
 
 	u32				rx_offset;
 	u32				tg3_flags;
+#define TG3_FLAG_TAGGED_STATUS		0x00000001
 #define TG3_FLAG_TXD_MBOX_HWBUG		0x00000002
 #define TG3_FLAG_RX_CHECKSUMS		0x00000004
 #define TG3_FLAG_USE_LINKCHG_REG	0x00000008
@@ -2225,7 +2245,7 @@ struct tg3 {
 
 #define SST_25VF0X0_PAGE_SIZE		4098
 
-
+	struct ethtool_coalesce		coal;
 };
 
 #endif /* !(_T3_H) */

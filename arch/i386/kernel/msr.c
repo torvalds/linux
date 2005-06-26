@@ -44,7 +44,7 @@
 #include <asm/uaccess.h>
 #include <asm/system.h>
 
-static struct class_simple *msr_class;
+static struct class *msr_class;
 
 /* Note: "err" is handled in a funny way below.  Otherwise one version
    of gcc or another breaks. */
@@ -260,12 +260,12 @@ static struct file_operations msr_fops = {
 	.open = msr_open,
 };
 
-static int msr_class_simple_device_add(int i)
+static int msr_class_device_create(int i)
 {
 	int err = 0;
 	struct class_device *class_err;
 
-	class_err = class_simple_device_add(msr_class, MKDEV(MSR_MAJOR, i), NULL, "msr%d",i);
+	class_err = class_device_create(msr_class, MKDEV(MSR_MAJOR, i), NULL, "msr%d",i);
 	if (IS_ERR(class_err)) 
 		err = PTR_ERR(class_err);
 	return err;
@@ -277,10 +277,10 @@ static int __devinit msr_class_cpu_callback(struct notifier_block *nfb, unsigned
 
 	switch (action) {
 	case CPU_ONLINE:
-		msr_class_simple_device_add(cpu);
+		msr_class_device_create(cpu);
 		break;
 	case CPU_DEAD:
-		class_simple_device_remove(MKDEV(MSR_MAJOR, cpu));	
+		class_device_destroy(msr_class, MKDEV(MSR_MAJOR, cpu));
 		break;
 	}
 	return NOTIFY_OK;
@@ -302,13 +302,13 @@ static int __init msr_init(void)
 		err = -EBUSY;
 		goto out;
 	}
-	msr_class = class_simple_create(THIS_MODULE, "msr");
+	msr_class = class_create(THIS_MODULE, "msr");
 	if (IS_ERR(msr_class)) {
 		err = PTR_ERR(msr_class);
 		goto out_chrdev;
 	}
 	for_each_online_cpu(i) {
-		err = msr_class_simple_device_add(i);
+		err = msr_class_device_create(i);
 		if (err != 0)
 			goto out_class;
 	}
@@ -320,8 +320,8 @@ static int __init msr_init(void)
 out_class:
 	i = 0;
 	for_each_online_cpu(i)
-		class_simple_device_remove(MKDEV(MSR_MAJOR, i));
-	class_simple_destroy(msr_class);
+		class_device_destroy(msr_class, MKDEV(MSR_MAJOR, i));
+	class_destroy(msr_class);
 out_chrdev:
 	unregister_chrdev(MSR_MAJOR, "cpu/msr");
 out:
@@ -332,8 +332,8 @@ static void __exit msr_exit(void)
 {
 	int cpu = 0;
 	for_each_online_cpu(cpu)
-		class_simple_device_remove(MKDEV(MSR_MAJOR, cpu));
-	class_simple_destroy(msr_class);
+		class_device_destroy(msr_class, MKDEV(MSR_MAJOR, cpu));
+	class_destroy(msr_class);
 	unregister_chrdev(MSR_MAJOR, "cpu/msr");
 	unregister_cpu_notifier(&msr_class_cpu_notifier);
 }

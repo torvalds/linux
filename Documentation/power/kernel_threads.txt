@@ -12,8 +12,7 @@ refrigerator. Code to do this looks like this:
 	do {
 		hub_events();
 		wait_event_interruptible(khubd_wait, !list_empty(&hub_event_list));
-		if (current->flags & PF_FREEZE)
-			refrigerator(PF_FREEZE);
+		try_to_freeze();
 	} while (!signal_pending(current));
 
 from drivers/usb/core/hub.c::hub_thread()

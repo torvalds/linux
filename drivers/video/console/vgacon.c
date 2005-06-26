@@ -95,6 +95,7 @@ static unsigned long vgacon_uni_pagedir[2];
 /* Description of the hardware situation */
 static unsigned long	vga_vram_base;		/* Base of video memory */
 static unsigned long	vga_vram_end;		/* End of video memory */
+static int		vga_vram_size;		/* Size of video memory */
 static u16		vga_video_port_reg;	/* Video register select port */
 static u16		vga_video_port_val;	/* Video register value port */
 static unsigned int	vga_video_num_columns;	/* Number of text columns */
@@ -288,6 +289,7 @@ static const char __init *vgacon_startup(void)
 
 	vga_vram_base = VGA_MAP_MEM(vga_vram_base);
 	vga_vram_end = VGA_MAP_MEM(vga_vram_end);
+	vga_vram_size = vga_vram_end - vga_vram_base;
 
 	/*
 	 *      Find out if there is a graphics card present.
@@ -504,9 +506,13 @@ static int vgacon_switch(struct vc_data *c)
 	 */
 	vga_video_num_columns = c->vc_cols;
 	vga_video_num_lines = c->vc_rows;
+
+	/* We can only copy out the size of the video buffer here,
+	 * otherwise we get into VGA BIOS */
+
 	if (!vga_is_gfx)
 		scr_memcpyw((u16 *) c->vc_origin, (u16 *) c->vc_screenbuf,
-			    c->vc_screenbuf_size);
+			    c->vc_screenbuf_size > vga_vram_size ? vga_vram_size : c->vc_screenbuf_size);
 	return 0;		/* Redrawing not needed */
 }
 
@@ -961,7 +967,6 @@ static int vgacon_scrolldelta(struct vc_data *c, int lines)
 	if (!lines)		/* Turn scrollback off */
 		c->vc_visible_origin = c->vc_origin;
 	else {
-		int vram_size = vga_vram_end - vga_vram_base;
 		int margin = c->vc_size_row * 4;
 		int ul, we, p, st;
 
@@ -971,7 +976,7 @@ static int vgacon_scrolldelta(struct vc_data *c, int lines)
 			we = vga_rolled_over + c->vc_size_row;
 		} else {
 			ul = 0;
-			we = vram_size;
+			we = vga_vram_size;
 		}
 		p = (c->vc_visible_origin - vga_vram_base - ul + we) % we +
 		    lines * c->vc_size_row;
@@ -1012,9 +1017,13 @@ static void vgacon_save_screen(struct vc_data *c)
 		c->vc_x = ORIG_X;
 		c->vc_y = ORIG_Y;
 	}
+
+	/* We can't copy in more then the size of the video buffer,
+	 * or we'll be copying in VGA BIOS */
+
 	if (!vga_is_gfx)
 		scr_memcpyw((u16 *) c->vc_screenbuf, (u16 *) c->vc_origin,
-			    c->vc_screenbuf_size);
+			    c->vc_screenbuf_size > vga_vram_size ? vga_vram_size : c->vc_screenbuf_size);
 }
 
 static int vgacon_scroll(struct vc_data *c, int t, int b, int dir,

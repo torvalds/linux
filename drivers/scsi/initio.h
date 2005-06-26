@@ -719,21 +719,3 @@ typedef struct _HCSinfo {
 #define SCSI_RESET_HOST_RESET 0x200
 #define SCSI_RESET_ACTION   0xff
 
-extern void init_i91uAdapter_table(void);
-extern int Addi91u_into_Adapter_table(WORD, WORD, BYTE, BYTE, BYTE);
-extern int tul_ReturnNumberOfAdapters(void);
-extern void get_tulipPCIConfig(HCS * pHCB, int iChannel_index);
-extern int init_tulip(HCS * pHCB, SCB * pSCB, int tul_num_scb, BYTE * pbBiosAdr, int reset_time);
-extern SCB *tul_alloc_scb(HCS * pHCB);
-extern int tul_abort_srb(HCS * pHCB, struct scsi_cmnd * pSRB);
-extern void tul_exec_scb(HCS * pHCB, SCB * pSCB);
-extern void tul_release_scb(HCS * pHCB, SCB * pSCB);
-extern void tul_stop_bm(HCS * pHCB);
-extern int tul_reset_scsi(HCS * pCurHcb, int seconds);
-extern int tul_isr(HCS * pHCB);
-extern int tul_reset(HCS * pHCB, struct scsi_cmnd * pSRB, unsigned char target);
-extern int tul_reset_scsi_bus(HCS * pCurHcb);
-extern int tul_device_reset(HCS * pCurHcb, struct scsi_cmnd *pSrb,
-		unsigned int target, unsigned int ResetFlags);
-				/* ---- EXTERNAL VARIABLES ---- */
-extern HCS tul_hcs[];

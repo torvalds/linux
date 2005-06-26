@@ -6,7 +6,7 @@ AFLAGS_head.o := -DTEXTADDR=$(TEXTADDR) -DDATAADDR=$(DATAADDR)
 
 # Object file lists.
 
-obj-y		:= arch.o compat.o dma.o entry-armv.o entry-common.o irq.o   \
+obj-y		:= compat.o dma.o entry-armv.o entry-common.o irq.o \
 		   process.o ptrace.o semaphore.o setup.o signal.o sys_arm.o \
 		   time.o traps.o
 

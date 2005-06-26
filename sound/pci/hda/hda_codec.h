@@ -75,6 +75,9 @@ enum {
 #define AC_VERB_GET_DIGI_CONVERT		0x0f0d
 #define AC_VERB_GET_VOLUME_KNOB_CONTROL		0x0f0f
 /* f10-f1a: GPIO */
+#define AC_VERB_GET_GPIO_DATA			0x0f15
+#define AC_VERB_GET_GPIO_MASK			0x0f16
+#define AC_VERB_GET_GPIO_DIRECTION		0x0f17
 #define AC_VERB_GET_CONFIG_DEFAULT		0x0f1c
 
 /*
@@ -97,6 +100,9 @@ enum {
 #define AC_VERB_SET_DIGI_CONVERT_1		0x70d
 #define AC_VERB_SET_DIGI_CONVERT_2		0x70e
 #define AC_VERB_SET_VOLUME_KNOB_CONTROL		0x70f
+#define AC_VERB_SET_GPIO_DATA			0x715
+#define AC_VERB_SET_GPIO_MASK			0x716
+#define AC_VERB_SET_GPIO_DIRECTION		0x717
 #define AC_VERB_SET_CONFIG_DEFAULT_BYTES_0	0x71c
 #define AC_VERB_SET_CONFIG_DEFAULT_BYTES_1	0x71d
 #define AC_VERB_SET_CONFIG_DEFAULT_BYTES_2	0x71e
@@ -176,16 +182,15 @@ enum {
 #define AC_PINCAP_OUT			(1<<4)	/* output capable */
 #define AC_PINCAP_IN			(1<<5)	/* input capable */
 #define AC_PINCAP_BALANCE		(1<<6)	/* balanced I/O capable */
-#define AC_PINCAP_VREF			(7<<8)
+#define AC_PINCAP_VREF			(0x37<<8)
 #define AC_PINCAP_VREF_SHIFT		8
 #define AC_PINCAP_EAPD			(1<<16)	/* EAPD capable */
-/* Vref status (used in pin cap and pin ctl) */
-#define AC_PIN_VREF_HIZ			(1<<0)	/* Hi-Z */
-#define AC_PIN_VREF_50			(1<<1)	/* 50% */
-#define AC_PIN_VREF_GRD			(1<<2)	/* ground */
-#define AC_PIN_VREF_80			(1<<4)	/* 80% */
-#define AC_PIN_VREF_100			(1<<5)	/* 100% */
-
+/* Vref status (used in pin cap) */
+#define AC_PINCAP_VREF_HIZ		(1<<0)	/* Hi-Z */
+#define AC_PINCAP_VREF_50		(1<<1)	/* 50% */
+#define AC_PINCAP_VREF_GRD		(1<<2)	/* ground */
+#define AC_PINCAP_VREF_80		(1<<4)	/* 80% */
+#define AC_PINCAP_VREF_100		(1<<5)	/* 100% */
 
 /* Amplifier capabilities */
 #define AC_AMPCAP_OFFSET		(0x7f<<0)  /* 0dB offset */
@@ -248,6 +253,11 @@ enum {
 
 /* Pin widget control - 8bit */
 #define AC_PINCTL_VREFEN		(0x7<<0)
+#define AC_PINCTL_VREF_HIZ		0	/* Hi-Z */
+#define AC_PINCTL_VREF_50		1	/* 50% */
+#define AC_PINCTL_VREF_GRD		2	/* ground */
+#define AC_PINCTL_VREF_80		4	/* 80% */
+#define AC_PINCTL_VREF_100		5	/* 100% */
 #define AC_PINCTL_IN_EN			(1<<5)
 #define AC_PINCTL_OUT_EN		(1<<6)
 #define AC_PINCTL_HP_EN			(1<<7)
@@ -255,7 +265,9 @@ enum {
 /* configuration default - 32bit */
 #define AC_DEFCFG_SEQUENCE		(0xf<<0)
 #define AC_DEFCFG_DEF_ASSOC		(0xf<<4)
+#define AC_DEFCFG_ASSOC_SHIFT		4
 #define AC_DEFCFG_MISC			(0xf<<8)
+#define AC_DEFCFG_MISC_SHIFT		8
 #define AC_DEFCFG_COLOR			(0xf<<12)
 #define AC_DEFCFG_COLOR_SHIFT		12
 #define AC_DEFCFG_CONN_TYPE		(0xf<<16)
@@ -413,7 +425,7 @@ struct hda_bus {
 
 	/* codec linked list */
 	struct list_head codec_list;
-	struct hda_codec *caddr_tbl[HDA_MAX_CODEC_ADDRESS]; /* caddr -> codec */
+	struct hda_codec *caddr_tbl[HDA_MAX_CODEC_ADDRESS + 1]; /* caddr -> codec */
 
 	struct semaphore cmd_mutex;
 

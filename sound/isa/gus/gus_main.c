@@ -459,7 +459,6 @@ EXPORT_SYMBOL(snd_gf1_write16);
 EXPORT_SYMBOL(snd_gf1_look16);
 EXPORT_SYMBOL(snd_gf1_i_write8);
 EXPORT_SYMBOL(snd_gf1_i_look8);
-EXPORT_SYMBOL(snd_gf1_i_write16);
 EXPORT_SYMBOL(snd_gf1_i_look16);
 EXPORT_SYMBOL(snd_gf1_dram_addr);
 EXPORT_SYMBOL(snd_gf1_write_addr);
@@ -470,8 +469,6 @@ EXPORT_SYMBOL(snd_gf1_alloc_voice);
 EXPORT_SYMBOL(snd_gf1_free_voice);
 EXPORT_SYMBOL(snd_gf1_ctrl_stop);
 EXPORT_SYMBOL(snd_gf1_stop_voice);
-EXPORT_SYMBOL(snd_gf1_start);
-EXPORT_SYMBOL(snd_gf1_stop);
   /* gus_mixer.c */
 EXPORT_SYMBOL(snd_gf1_new_mixer);
   /* gus_pcm.c */

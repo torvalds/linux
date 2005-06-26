@@ -104,6 +104,7 @@
 #include <linux/smp_lock.h>
 #include <linux/gameport.h>
 #include <linux/wait.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/io.h>
 #include <asm/page.h>
@@ -2326,7 +2327,7 @@ static int __devinit solo1_probe(struct pci_dev *pcidev, const struct pci_device
 	 * to 24 bits first, then 32 bits (playback only) if that fails.
 	 */
 	if (pci_set_dma_mask(pcidev, 0x00ffffff) &&
-	    pci_set_dma_mask(pcidev, 0xffffffff)) {
+	    pci_set_dma_mask(pcidev, DMA_32BIT_MASK)) {
 		printk(KERN_WARNING "solo1: architecture does not support 24bit or 32bit PCI busmaster DMA\n");
 		return -ENODEV;
 	}

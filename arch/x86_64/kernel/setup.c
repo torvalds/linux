@@ -40,6 +40,9 @@
 #include <linux/acpi.h>
 #include <linux/kallsyms.h>
 #include <linux/edd.h>
+#include <linux/mmzone.h>
+#include <linux/kexec.h>
+
 #include <asm/mtrr.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -348,7 +351,7 @@ static __init void parse_cmdline_early (char ** cmdline_p)
 		if (!memcmp(from, "mem=", 4))
 			parse_memopt(from+4, &from); 
 
-#ifdef CONFIG_DISCONTIGMEM
+#ifdef CONFIG_NUMA
 		if (!memcmp(from, "numa=", 5))
 			numa_setup(from+5); 
 #endif
@@ -365,6 +368,27 @@ static __init void parse_cmdline_early (char ** cmdline_p)
 		if (!memcmp(from, "noexec=", 7))
 			nonx_setup(from + 7);
 
+#ifdef CONFIG_KEXEC
+		/* crashkernel=size@addr specifies the location to reserve for
+		 * a crash kernel.  By reserving this memory we guarantee
+		 * that linux never set's it up as a DMA target.
+		 * Useful for holding code to do something appropriate
+		 * after a kernel panic.
+		 */
+		else if (!memcmp(from, "crashkernel=", 12)) {
+			unsigned long size, base;
+			size = memparse(from+12, &from);
+			if (*from == '@') {
+				base = memparse(from+1, &from);
+				/* FIXME: Do I want a sanity check
+				 * to validate the memory range?
+				 */
+				crashk_res.start = base;
+				crashk_res.end   = base + size - 1;
+			}
+		}
+#endif
+
 	next_char:
 		c = *(from++);
 		if (!c)
@@ -377,17 +401,20 @@ static __init void parse_cmdline_early (char ** cmdline_p)
 	*cmdline_p = command_line;
 }
 
-#ifndef CONFIG_DISCONTIGMEM
-static void __init contig_initmem_init(void)
+#ifndef CONFIG_NUMA
+static void __init
+contig_initmem_init(unsigned long start_pfn, unsigned long end_pfn)
 {
-        unsigned long bootmap_size, bootmap; 
-        bootmap_size = bootmem_bootmap_pages(end_pfn)<<PAGE_SHIFT;
-        bootmap = find_e820_area(0, end_pfn<<PAGE_SHIFT, bootmap_size);
-        if (bootmap == -1L) 
-                panic("Cannot find bootmem map of size %ld\n",bootmap_size);
-        bootmap_size = init_bootmem(bootmap >> PAGE_SHIFT, end_pfn);
-        e820_bootmem_free(&contig_page_data, 0, end_pfn << PAGE_SHIFT); 
-        reserve_bootmem(bootmap, bootmap_size);
+	unsigned long bootmap_size, bootmap;
+
+	memory_present(0, start_pfn, end_pfn);
+	bootmap_size = bootmem_bootmap_pages(end_pfn)<<PAGE_SHIFT;
+	bootmap = find_e820_area(0, end_pfn<<PAGE_SHIFT, bootmap_size);
+	if (bootmap == -1L)
+		panic("Cannot find bootmem map of size %ld\n",bootmap_size);
+	bootmap_size = init_bootmem(bootmap >> PAGE_SHIFT, end_pfn);
+	e820_bootmem_free(NODE_DATA(0), 0, end_pfn << PAGE_SHIFT);
+	reserve_bootmem(bootmap, bootmap_size);
 } 
 #endif
 
@@ -554,10 +581,10 @@ void __init setup_arch(char **cmdline_p)
 	acpi_numa_init();
 #endif
 
-#ifdef CONFIG_DISCONTIGMEM
+#ifdef CONFIG_NUMA
 	numa_initmem_init(0, end_pfn); 
 #else
-	contig_initmem_init(); 
+	contig_initmem_init(0, end_pfn);
 #endif
 
 	/* Reserve direct mapping */
@@ -618,6 +645,15 @@ void __init setup_arch(char **cmdline_p)
 		}
 	}
 #endif
+
+	sparse_init();
+
+#ifdef CONFIG_KEXEC
+	if (crashk_res.start != crashk_res.end) {
+		reserve_bootmem(crashk_res.start,
+			crashk_res.end - crashk_res.start + 1);
+	}
+#endif
 	paging_init();
 
 	check_ioapic();
@@ -669,7 +705,7 @@ void __init setup_arch(char **cmdline_p)
 #endif
 }
 
-static int __init get_model_name(struct cpuinfo_x86 *c)
+static int __cpuinit get_model_name(struct cpuinfo_x86 *c)
 {
 	unsigned int *v;
 
@@ -685,7 +721,7 @@ static int __init get_model_name(struct cpuinfo_x86 *c)
 }
 
 
-static void __init display_cacheinfo(struct cpuinfo_x86 *c)
+static void __cpuinit display_cacheinfo(struct cpuinfo_x86 *c)
 {
 	unsigned int n, dummy, eax, ebx, ecx, edx;
 
@@ -719,7 +755,6 @@ static void __init display_cacheinfo(struct cpuinfo_x86 *c)
 	}
 }
 
-#ifdef CONFIG_SMP
 /*
  * On a AMD dual core setup the lower bits of the APIC id distingush the cores.
  * Assumes number of cores is a power of two.
@@ -727,17 +762,26 @@ static void __init display_cacheinfo(struct cpuinfo_x86 *c)
 static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_SMP
-	int cpu = c->x86_apicid;
+	int cpu = smp_processor_id();
 	int node = 0;
+	unsigned bits;
 	if (c->x86_num_cores == 1)
 		return;
-	cpu_core_id[cpu] = cpu >> hweight32(c->x86_num_cores - 1);
+
+	bits = 0;
+	while ((1 << bits) < c->x86_num_cores)
+		bits++;
+
+	/* Low order bits define the core id (index of core in socket) */
+	cpu_core_id[cpu] = phys_proc_id[cpu] & ((1 << bits)-1);
+	/* Convert the APIC ID into the socket ID */
+	phys_proc_id[cpu] >>= bits;
 
 #ifdef CONFIG_NUMA
 	/* When an ACPI SRAT table is available use the mappings from SRAT
  	   instead. */
 	if (acpi_numa <= 0) {
-		node = cpu_core_id[cpu];
+		node = phys_proc_id[cpu];
 		if (!node_online(node))
 			node = first_node(node_online_map);
 		cpu_to_node[cpu] = node;
@@ -745,15 +789,11 @@ static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
 		node = cpu_to_node[cpu];
 	}
 #endif
+
 	printk(KERN_INFO "CPU %d(%d) -> Node %d -> Core %d\n",
 			cpu, c->x86_num_cores, node, cpu_core_id[cpu]);
 #endif
 }
-#else
-static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
-{
-}
-#endif
 
 static int __init init_amd(struct cpuinfo_x86 *c)
 {
@@ -792,7 +832,7 @@ static int __init init_amd(struct cpuinfo_x86 *c)
 	return r;
 }
 
-static void __init detect_ht(struct cpuinfo_x86 *c)
+static void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_SMP
 	u32 	eax, ebx, ecx, edx;
@@ -853,7 +893,7 @@ static void __init detect_ht(struct cpuinfo_x86 *c)
 /*
  * find out the number of processor cores on the die
  */
-static int __init intel_num_cpu_cores(struct cpuinfo_x86 *c)
+static int __cpuinit intel_num_cpu_cores(struct cpuinfo_x86 *c)
 {
 	unsigned int eax;
 
@@ -871,7 +911,7 @@ static int __init intel_num_cpu_cores(struct cpuinfo_x86 *c)
 		return 1;
 }
 
-static void __init init_intel(struct cpuinfo_x86 *c)
+static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 {
 	/* Cache sizes */
 	unsigned n;
@@ -891,7 +931,7 @@ static void __init init_intel(struct cpuinfo_x86 *c)
  	c->x86_num_cores = intel_num_cpu_cores(c);
 }
 
-void __init get_cpu_vendor(struct cpuinfo_x86 *c)
+void __cpuinit get_cpu_vendor(struct cpuinfo_x86 *c)
 {
 	char *v = c->x86_vendor_id;
 
@@ -912,7 +952,7 @@ struct cpu_model_info {
 /* Do some early cpuid on the boot CPU to get some parameter that are
    needed before check_bugs. Everything advanced is in identify_cpu
    below. */
-void __init early_identify_cpu(struct cpuinfo_x86 *c)
+void __cpuinit early_identify_cpu(struct cpuinfo_x86 *c)
 {
 	u32 tfms;
 
@@ -925,7 +965,6 @@ void __init early_identify_cpu(struct cpuinfo_x86 *c)
 	c->x86_clflush_size = 64;
 	c->x86_cache_alignment = c->x86_clflush_size;
 	c->x86_num_cores = 1;
-	c->x86_apicid = c == &boot_cpu_data ? 0 : c - cpu_data;
 	c->extended_cpuid_level = 0;
 	memset(&c->x86_capability, 0, sizeof c->x86_capability);
 
@@ -954,17 +993,20 @@ void __init early_identify_cpu(struct cpuinfo_x86 *c)
 		} 
 		if (c->x86_capability[0] & (1<<19)) 
 			c->x86_clflush_size = ((misc >> 8) & 0xff) * 8;
-		c->x86_apicid = misc >> 24;
 	} else {
 		/* Have CPUID level 0 only - unheard of */
 		c->x86 = 4;
 	}
+
+#ifdef CONFIG_SMP
+	phys_proc_id[smp_processor_id()] = (cpuid_ebx(1) >> 24) & 0xff;
+#endif
 }
 
 /*
  * This does the hard work of actually picking apart the CPU stuff...
  */
-void __init identify_cpu(struct cpuinfo_x86 *c)
+void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 {
 	int i;
 	u32 xlvl;
@@ -1041,7 +1083,7 @@ void __init identify_cpu(struct cpuinfo_x86 *c)
 }
  
 
-void __init print_cpu_info(struct cpuinfo_x86 *c)
+void __cpuinit print_cpu_info(struct cpuinfo_x86 *c)
 {
 	if (c->x86_model_id[0])
 		printk("%s", c->x86_model_id);
@@ -1088,7 +1130,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 
 		/* Other (Linux-defined) */
-		"cxmmx", NULL, "cyrix_arr", "centaur_mcr", "k8c+",
+		"cxmmx", NULL, "cyrix_arr", "centaur_mcr", NULL,
 		"constant_tsc", NULL, NULL,
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,

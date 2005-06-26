@@ -50,6 +50,7 @@
 #include <linux/nfs_fs.h>
 
 #include <linux/nfs_idmap.h>
+#include "nfs4_fs.h"
 
 #define IDMAP_HASH_SZ          128
 
