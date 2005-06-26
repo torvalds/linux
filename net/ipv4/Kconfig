@@ -448,7 +448,6 @@ config IP_TCPDIAG_IPV6
 config TCP_CONG_ADVANCED
 	bool "TCP: advanced congestion control"
 	depends on INET
-	default y
 	---help---
 	  Support for selection of various TCP congestion control
 	  modules.
