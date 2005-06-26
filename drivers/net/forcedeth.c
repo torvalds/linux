@@ -84,6 +84,7 @@
  *	0.32: 16 Apr 2005: RX_ERROR4 handling added.
  *	0.33: 16 May 2005: Support for MCP51 added.
  *	0.34: 18 Jun 2005: Add DEV_NEED_LINKTIMER to all nForce nics.
+ *	0.35: 26 Jun 2005: Support for MCP55 added.
  *
  * Known bugs:
  * We suspect that on some hardware no TX done interrupts are generated.
@@ -95,7 +96,7 @@
  * DEV_NEED_TIMERIRQ will not harm you on sane hardware, only generating a few
  * superfluous timer interrupts from the nic.
  */
-#define FORCEDETH_VERSION		"0.34"
+#define FORCEDETH_VERSION		"0.35"
 #define DRV_NAME			"forcedeth"
 
 #include <linux/module.h>
@@ -2280,6 +2281,20 @@ static struct pci_device_id pci_tbl[] = {
 	{	/* MCP51 Ethernet Controller */
 		.vendor = PCI_VENDOR_ID_NVIDIA,
 		.device = PCI_DEVICE_ID_NVIDIA_NVENET_13,
+		.subvendor = PCI_ANY_ID,
+		.subdevice = PCI_ANY_ID,
+		.driver_data = DEV_NEED_LASTPACKET1|DEV_IRQMASK_2|DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER,
+	},
+	{	/* MCP55 Ethernet Controller */
+		.vendor = PCI_VENDOR_ID_NVIDIA,
+		.device = PCI_DEVICE_ID_NVIDIA_NVENET_14,
+		.subvendor = PCI_ANY_ID,
+		.subdevice = PCI_ANY_ID,
+		.driver_data = DEV_NEED_LASTPACKET1|DEV_IRQMASK_2|DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER,
+	},
+	{	/* MCP55 Ethernet Controller */
+		.vendor = PCI_VENDOR_ID_NVIDIA,
+		.device = PCI_DEVICE_ID_NVIDIA_NVENET_15,
 		.subvendor = PCI_ANY_ID,
 		.subdevice = PCI_ANY_ID,
 		.driver_data = DEV_NEED_LASTPACKET1|DEV_IRQMASK_2|DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER,
