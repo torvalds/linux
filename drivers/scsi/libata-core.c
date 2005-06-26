@@ -1408,7 +1408,9 @@ void __sata_phy_reset(struct ata_port *ap)
 	if (ap->flags & ATA_FLAG_SATA_RESET) {
 		/* issue phy wake/reset */
 		scr_write_flush(ap, SCR_CONTROL, 0x301);
-		udelay(400);			/* FIXME: a guess */
+		/* Couldn't find anything in SATA I/II specs, but
+		 * AHCI-1.1 10.4.2 says at least 1 ms. */
+		mdelay(1);
 	}
 	scr_write_flush(ap, SCR_CONTROL, 0x300); /* phy wake/clear reset */
 
