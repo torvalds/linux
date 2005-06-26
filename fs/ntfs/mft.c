@@ -948,20 +948,23 @@ BOOL ntfs_may_write_mft_record(ntfs_volume *vol, const unsigned long mft_no,
 	na.name_len = 0;
 	na.type = AT_UNUSED;
 	/*
-	 * For inode 0, i.e. $MFT itself, we cannot use ilookup5() from here or
-	 * we deadlock because the inode is already locked by the kernel
-	 * (fs/fs-writeback.c::__sync_single_inode()) and ilookup5() waits
-	 * until the inode is unlocked before returning it and it never gets
-	 * unlocked because ntfs_should_write_mft_record() never returns.  )-:
-	 * Fortunately, we have inode 0 pinned in icache for the duration of
-	 * the mount so we can access it directly.
+	 * Optimize inode 0, i.e. $MFT itself, since we have it in memory and
+	 * we get here for it rather often.
 	 */
 	if (!mft_no) {
 		/* Balance the below iput(). */
 		vi = igrab(mft_vi);
 		BUG_ON(vi != mft_vi);
-	} else
-		vi = ilookup5(sb, mft_no, (test_t)ntfs_test_inode, &na);
+	} else {
+		/*
+		 * Have to use ilookup5_nowait() since ilookup5() waits for the
+		 * inode lock which causes ntfs to deadlock when a concurrent
+		 * inode write via the inode dirty code paths and the page
+		 * dirty code path of the inode dirty code path when writing
+		 * $MFT occurs.
+		 */
+		vi = ilookup5_nowait(sb, mft_no, (test_t)ntfs_test_inode, &na);
+	}
 	if (vi) {
 		ntfs_debug("Base inode 0x%lx is in icache.", mft_no);
 		/* The inode is in icache. */
@@ -1016,7 +1019,13 @@ BOOL ntfs_may_write_mft_record(ntfs_volume *vol, const unsigned long mft_no,
 	na.mft_no = MREF_LE(m->base_mft_record);
 	ntfs_debug("Mft record 0x%lx is an extent record.  Looking for base "
 			"inode 0x%lx in icache.", mft_no, na.mft_no);
-	vi = ilookup5(sb, na.mft_no, (test_t)ntfs_test_inode, &na);
+	if (!na.mft_no) {
+		/* Balance the below iput(). */
+		vi = igrab(mft_vi);
+		BUG_ON(vi != mft_vi);
+	} else
+		vi = ilookup5_nowait(sb, na.mft_no, (test_t)ntfs_test_inode,
+				&na);
 	if (!vi) {
 		/*
 		 * The base inode is not in icache, write this extent mft

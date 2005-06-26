@@ -132,6 +132,48 @@ ToDo/Notes:
 	  the already mapped runlist fragment which causes
 	  ntfs_mapping_pairs_decompress() to fail and return error.  Update
 	  ntfs_attr_find_vcn_nolock() accordingly.
+	- Fix a nasty deadlock that appeared in recent kernels.
+	  The situation: VFS inode X on a mounted ntfs volume is dirty.  For
+	  same inode X, the ntfs_inode is dirty and thus corresponding on-disk
+	  inode, i.e. mft record, which is in a dirty PAGE_CACHE_PAGE belonging
+	  to the table of inodes, i.e. $MFT, inode 0.
+	  What happens:
+	  Process 1: sys_sync()/umount()/whatever...  calls
+	  __sync_single_inode() for $MFT -> do_writepages() -> write_page for
+	  the dirty page containing the on-disk inode X, the page is now locked
+	  -> ntfs_write_mst_block() which clears PageUptodate() on the page to
+	  prevent anyone else getting hold of it whilst it does the write out.
+	  This is necessary as the on-disk inode needs "fixups" applied before
+	  the write to disk which are removed again after the write and
+	  PageUptodate is then set again.  It then analyses the page looking
+	  for dirty on-disk inodes and when it finds one it calls
+	  ntfs_may_write_mft_record() to see if it is safe to write this
+	  on-disk inode.  This then calls ilookup5() to check if the
+	  corresponding VFS inode is in icache().  This in turn calls ifind()
+	  which waits on the inode lock via wait_on_inode whilst holding the
+	  global inode_lock.
+	  Process 2: pdflush results in a call to __sync_single_inode for the
+	  same VFS inode X on the ntfs volume.  This locks the inode (I_LOCK)
+	  then calls write-inode -> ntfs_write_inode -> map_mft_record() ->
+	  read_cache_page() for the page (in page cache of table of inodes
+	  $MFT, inode 0) containing the on-disk inode.  This page has
+	  PageUptodate() clear because of Process 1 (see above) so
+	  read_cache_page() blocks when it tries to take the page lock for the
+	  page so it can call ntfs_read_page().
+	  Thus Process 1 is holding the page lock on the page containing the
+	  on-disk inode X and it is waiting on the inode X to be unlocked in
+	  ifind() so it can write the page out and then unlock the page.
+	  And Process 2 is holding the inode lock on inode X and is waiting for
+	  the page to be unlocked so it can call ntfs_readpage() or discover
+	  that Process 1 set PageUptodate() again and use the page.
+	  Thus we have a deadlock due to ifind() waiting on the inode lock.
+	  The solution: The fix is to use the newly introduced
+	  ilookup5_nowait() which does not wait on the inode's lock and hence
+	  avoids the deadlock.  This is safe as we do not care about the VFS
+	  inode and only use the fact that it is in the VFS inode cache and the
+	  fact that the vfs and ntfs inodes are one struct in memory to find
+	  the ntfs inode in memory if present.  Also, the ntfs inode has its
+	  own locking so it does not matter if the vfs inode is locked.
 
 2.1.22 - Many bug and race fixes and error handling improvements.
 

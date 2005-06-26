@@ -451,9 +451,12 @@ Note, a technical ChangeLog aimed at kernel hackers is in fs/ntfs/ChangeLog.
 	- Implement extension of resident files using the normal file write
 	  code paths, i.e. most very small files can be extended to be a little
 	  bit bigger but not by much.
+	- Add new mount option "disable_sparse".  (See list of mount options
+	  above for details.)
 	- Improve handling of ntfs volumes with errors and strange boot sectors
 	  in particular.
-	- Fix various bugs.
+	- Fix various bugs including a nasty deadlock that appeared in recent
+	  kernels (around 2.6.11-2.6.12 timeframe).
 2.1.22:
 	- Improve handling of ntfs volumes with errors.
 	- Fix various bugs and race conditions.
