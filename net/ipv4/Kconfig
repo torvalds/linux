@@ -549,7 +549,7 @@ config TCP_CONG_SCALABLE
 endmenu
 
 config TCP_CONG_BIC
-	boolean
+	tristate
 	depends on !TCP_CONG_ADVANCED
 	default y
 
