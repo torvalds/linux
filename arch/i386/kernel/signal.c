@@ -608,7 +608,7 @@ int fastcall do_signal(struct pt_regs *regs, sigset_t *oldset)
 	if (!user_mode(regs))
 		return 1;
 
-	if (try_to_freeze)
+	if (try_to_freeze())
 		goto no_signal;
 
 	if (!oldset)
