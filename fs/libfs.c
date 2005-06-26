@@ -183,6 +183,7 @@ struct file_operations simple_dir_operations = {
 	.llseek		= dcache_dir_lseek,
 	.read		= generic_read_dir,
 	.readdir	= dcache_readdir,
+	.fsync		= simple_sync_file,
 };
 
 struct inode_operations simple_dir_inode_operations = {

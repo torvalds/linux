@@ -102,6 +102,7 @@ invstr:	mflr	r6				/* Make it accessible */
 	or	r7,r7,r4
 	mtspr	SPRN_MAS6,r7
 	tlbsx	0,r6				/* search MSR[IS], SPID=PID0 */
+#ifndef CONFIG_E200
 	mfspr	r7,SPRN_MAS1
 	andis.	r7,r7,MAS1_VALID@h
 	bne	match_TLB
@@ -118,6 +119,7 @@ invstr:	mflr	r6				/* Make it accessible */
 	or	r7,r7,r4
 	mtspr	SPRN_MAS6,r7
 	tlbsx	0,r6				/* Fall through, we had to match */
+#endif
 match_TLB:
 	mfspr	r7,SPRN_MAS0
 	rlwinm	r3,r7,16,20,31			/* Extract MAS0(Entry) */
@@ -196,8 +198,10 @@ skpinv:	addi	r6,r6,1				/* Increment */
 /* 4. Clear out PIDs & Search info */
 	li	r6,0
 	mtspr	SPRN_PID0,r6
+#ifndef CONFIG_E200
 	mtspr	SPRN_PID1,r6
 	mtspr	SPRN_PID2,r6
+#endif
 	mtspr	SPRN_MAS6,r6
 
 /* 5. Invalidate mapping we started in */
@@ -277,7 +281,9 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	SET_IVOR(32, SPEUnavailable);
 	SET_IVOR(33, SPEFloatingPointData);
 	SET_IVOR(34, SPEFloatingPointRound);
+#ifndef CONFIG_E200
 	SET_IVOR(35, PerformanceMonitor);
+#endif
 
 	/* Establish the interrupt vector base */
 	lis	r4,interrupt_base@h	/* IVPR only uses the high 16-bits */
@@ -285,6 +291,9 @@ skpinv:	addi	r6,r6,1				/* Increment */
 
 	/* Setup the defaults for TLB entries */
 	li	r2,(MAS4_TSIZED(BOOKE_PAGESZ_4K))@l
+#ifdef CONFIG_E200
+	oris	r2,r2,MAS4_TLBSELD(1)@h
+#endif
    	mtspr	SPRN_MAS4, r2
 
 #if 0
@@ -292,6 +301,12 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	mfspr	r2,SPRN_HID0
 	oris	r2,r2,HID0_DOZE@h
 	mtspr	SPRN_HID0, r2
+#endif
+#ifdef CONFIG_E200
+	/* enable dedicated debug exception handling resources (Debug APU) */
+	mfspr	r2,SPRN_HID0
+	ori 	r2,r2,HID0_DAPUEN@l
+	mtspr	SPRN_HID0,r2
 #endif
 
 #if !defined(CONFIG_BDI_SWITCH)
@@ -414,7 +429,12 @@ interrupt_base:
 	CRITICAL_EXCEPTION(0x0100, CriticalInput, UnknownException)
 
 	/* Machine Check Interrupt */
+#ifdef CONFIG_E200
+	/* no RFMCI, MCSRRs on E200 */
+	CRITICAL_EXCEPTION(0x0200, MachineCheck, MachineCheckException)
+#else
 	MCHECK_EXCEPTION(0x0200, MachineCheck, MachineCheckException)
+#endif
 
 	/* Data Storage Interrupt */
 	START_EXCEPTION(DataStorage)
@@ -520,7 +540,12 @@ interrupt_base:
 #ifdef CONFIG_PPC_FPU
 	FP_UNAVAILABLE_EXCEPTION
 #else
+#ifdef CONFIG_E200
+	/* E200 treats 'normal' floating point instructions as FP Unavail exception */
+	EXCEPTION(0x0800, FloatingPointUnavailable, ProgramCheckException, EXC_XFER_EE)
+#else
 	EXCEPTION(0x0800, FloatingPointUnavailable, UnknownException, EXC_XFER_EE)
+#endif
 #endif
 
 	/* System Call Interrupt */
@@ -691,6 +716,7 @@ interrupt_base:
 /*
  * Local functions
  */
+
 	/*
 	 * Data TLB exceptions will bail out to this point
 	 * if they can't resolve the lightweight TLB fault.
@@ -761,6 +787,31 @@ END_FTR_SECTION_IFSET(CPU_FTR_BIG_PHYS)
 2:	rlwimi	r11, r12, 0, 20, 31	/* Extract RPN from PTE and merge with perms */
 	mtspr	SPRN_MAS3, r11
 #endif
+#ifdef CONFIG_E200
+	/* Round robin TLB1 entries assignment */
+	mfspr	r12, SPRN_MAS0
+
+	/* Extract TLB1CFG(NENTRY) */
+	mfspr	r11, SPRN_TLB1CFG
+	andi.	r11, r11, 0xfff
+
+	/* Extract MAS0(NV) */
+	andi.	r13, r12, 0xfff
+	addi	r13, r13, 1
+	cmpw	0, r13, r11
+	addi	r12, r12, 1
+
+	/* check if we need to wrap */
+	blt	7f
+
+	/* wrap back to first free tlbcam entry */
+	lis	r13, tlbcam_index@ha
+	lwz	r13, tlbcam_index@l(r13)
+	rlwimi	r12, r13, 0, 20, 31
+7:
+	mtspr   SPRN_MAS0,r12
+#endif /* CONFIG_E200 */
+
 	tlbwe
 
 	/* Done...restore registers and get out of here.  */

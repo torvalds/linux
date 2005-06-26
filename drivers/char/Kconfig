@@ -940,8 +940,8 @@ config RAW_DRIVER
 	  Once bound, I/O against /dev/raw/rawN uses efficient zero-copy I/O. 
 	  See the raw(8) manpage for more details.
 
-          The raw driver is deprecated and may be removed from 2.7
-          kernels.  Applications should simply open the device (eg /dev/hda1)
+          The raw driver is deprecated and will be removed soon.
+          Applications should simply open the device (eg /dev/hda1)
           with the O_DIRECT flag.
 
 config HPET

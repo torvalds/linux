@@ -35,7 +35,7 @@ export IA32_CC IA32_LD IA32_AS IA32_OBJCOPY IA32_CPP
 
 LDFLAGS		:= -m elf_x86_64
 OBJCOPYFLAGS	:= -O binary -R .note -R .comment -S
-LDFLAGS_vmlinux := -e stext
+LDFLAGS_vmlinux :=
 
 CHECKFLAGS      += -D__x86_64__ -m64
 

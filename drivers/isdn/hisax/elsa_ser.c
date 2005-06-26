@@ -237,7 +237,7 @@ static void mshutdown(struct IsdnCardState *cs)
 #endif
 }
 
-inline int
+static inline int
 write_modem(struct BCState *bcs) {
 	int ret=0;
 	struct IsdnCardState *cs = bcs->cs;
@@ -275,7 +275,7 @@ write_modem(struct BCState *bcs) {
 	return(ret);
 }
 
-inline void
+static inline void
 modem_fill(struct BCState *bcs) {
 		
 	if (bcs->tx_skb) {
@@ -422,7 +422,7 @@ extern int open_hscxstate(struct IsdnCardState *cs, struct BCState *bcs);
 extern void modehscx(struct BCState *bcs, int mode, int bc);
 extern void hscx_l2l1(struct PStack *st, int pr, void *arg);
 
-void
+static void
 close_elsastate(struct BCState *bcs)
 {
 	modehscx(bcs, 0, bcs->channel);
@@ -442,7 +442,7 @@ close_elsastate(struct BCState *bcs)
 	}
 }
 
-void
+static void
 modem_write_cmd(struct IsdnCardState *cs, u_char *buf, int len) {
 	int count, fp;
 	u_char *msg = buf;
@@ -472,7 +472,7 @@ modem_write_cmd(struct IsdnCardState *cs, u_char *buf, int len) {
 	}
 }
 
-void
+static void
 modem_set_init(struct IsdnCardState *cs) {
 	int timeout;
 
@@ -521,7 +521,7 @@ modem_set_init(struct IsdnCardState *cs) {
 	udelay(RCV_DELAY);
 }
 
-void
+static void
 modem_set_dial(struct IsdnCardState *cs, int outgoing) {
 	int timeout;
 #define RCV_DELAY 20000	
@@ -543,7 +543,7 @@ modem_set_dial(struct IsdnCardState *cs, int outgoing) {
 	udelay(RCV_DELAY);
 }
 
-void
+static void
 modem_l2l1(struct PStack *st, int pr, void *arg)
 {
 	struct BCState *bcs = st->l1.bcs;
@@ -579,7 +579,7 @@ modem_l2l1(struct PStack *st, int pr, void *arg)
 	}
 }
 
-int
+static int
 setstack_elsa(struct PStack *st, struct BCState *bcs)
 {
 
@@ -614,7 +614,7 @@ setstack_elsa(struct PStack *st, struct BCState *bcs)
 	return (0);
 }
 
-void
+static void
 init_modem(struct IsdnCardState *cs) {
 
 	cs->bcs[0].BC_SetStack = setstack_elsa;
@@ -641,7 +641,7 @@ init_modem(struct IsdnCardState *cs) {
 	modem_set_init(cs);
 }
 
-void
+static void
 release_modem(struct IsdnCardState *cs) {
 
 	cs->hw.elsa.MFlag = 0;

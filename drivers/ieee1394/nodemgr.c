@@ -1510,7 +1510,7 @@ static int nodemgr_host_thread(void *__hi)
 
 		if (down_interruptible(&hi->reset_sem) ||
 		    down_interruptible(&nodemgr_serialize)) {
-			if (try_to_freeze(PF_FREEZE))
+			if (try_to_freeze())
 				continue;
 			printk("NodeMgr: received unexpected signal?!\n" );
 			break;

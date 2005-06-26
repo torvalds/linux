@@ -23,7 +23,6 @@
 
 /* National definitions */
 enum tpm_nsc_addr{
-	TPM_NSC_BASE = 0x360,
 	TPM_NSC_IRQ = 0x07,
 	TPM_NSC_BASE0_HI = 0x60,
 	TPM_NSC_BASE0_LO = 0x61,
@@ -56,6 +55,7 @@ enum tpm_nsc_status {
 	NSC_STATUS_RDY = 0x10,	/* ready to receive command */
 	NSC_STATUS_IBR = 0x20	/* ready to receive data */
 };
+
 /* command bits */
 enum tpm_nsc_cmd_mode {
 	NSC_COMMAND_NORMAL = 0x01,	/* normal mode */
@@ -150,7 +150,8 @@ static int tpm_nsc_recv(struct tpm_chip *chip, u8 * buf, size_t count)
 		*p = inb(chip->vendor->base + NSC_DATA);
 	}
 
-	if ((data & NSC_STATUS_F0) == 0) {
+	if ((data & NSC_STATUS_F0) == 0 &&
+	(wait_for_stat(chip, NSC_STATUS_F0, NSC_STATUS_F0, &data) < 0)) {
 		dev_err(&chip->pci_dev->dev, "F0 not set\n");
 		return -EIO;
 	}
@@ -259,85 +260,64 @@ static int __devinit tpm_nsc_init(struct pci_dev *pci_dev,
 {
 	int rc = 0;
 	int lo, hi;
+	int nscAddrBase = TPM_ADDR;
 
-	hi = tpm_read_index(TPM_NSC_BASE0_HI);
-	lo = tpm_read_index(TPM_NSC_BASE0_LO);
-
-	tpm_nsc.base = (hi<<8) | lo;
 
 	if (pci_enable_device(pci_dev))
 		return -EIO;
 
+	/* select PM channel 1 */
+	tpm_write_index(nscAddrBase,NSC_LDN_INDEX, 0x12);
+
 	/* verify that it is a National part (SID) */
-	if (tpm_read_index(NSC_SID_INDEX) != 0xEF) {
-		rc = -ENODEV;
-		goto out_err;
+	if (tpm_read_index(TPM_ADDR, NSC_SID_INDEX) != 0xEF) {
+		nscAddrBase = (tpm_read_index(TPM_SUPERIO_ADDR, 0x2C)<<8)|
+			(tpm_read_index(TPM_SUPERIO_ADDR, 0x2B)&0xFE);
+		if (tpm_read_index(nscAddrBase, NSC_SID_INDEX) != 0xF6) {
+			rc = -ENODEV;
+			goto out_err;
+		}
 	}
+
+	hi = tpm_read_index(nscAddrBase, TPM_NSC_BASE0_HI);
+	lo = tpm_read_index(nscAddrBase, TPM_NSC_BASE0_LO);
+	tpm_nsc.base = (hi<<8) | lo;
 
 	dev_dbg(&pci_dev->dev, "NSC TPM detected\n");
 	dev_dbg(&pci_dev->dev,
 		"NSC LDN 0x%x, SID 0x%x, SRID 0x%x\n",
-		tpm_read_index(0x07), tpm_read_index(0x20),
-		tpm_read_index(0x27));
+		tpm_read_index(nscAddrBase,0x07), tpm_read_index(nscAddrBase,0x20),
+		tpm_read_index(nscAddrBase,0x27));
 	dev_dbg(&pci_dev->dev,
 		"NSC SIOCF1 0x%x SIOCF5 0x%x SIOCF6 0x%x SIOCF8 0x%x\n",
-		tpm_read_index(0x21), tpm_read_index(0x25),
-		tpm_read_index(0x26), tpm_read_index(0x28));
+		tpm_read_index(nscAddrBase,0x21), tpm_read_index(nscAddrBase,0x25),
+		tpm_read_index(nscAddrBase,0x26), tpm_read_index(nscAddrBase,0x28));
 	dev_dbg(&pci_dev->dev, "NSC IO Base0 0x%x\n",
-		(tpm_read_index(0x60) << 8) | tpm_read_index(0x61));
+		(tpm_read_index(nscAddrBase,0x60) << 8) | tpm_read_index(nscAddrBase,0x61));
 	dev_dbg(&pci_dev->dev, "NSC IO Base1 0x%x\n",
-		(tpm_read_index(0x62) << 8) | tpm_read_index(0x63));
+		(tpm_read_index(nscAddrBase,0x62) << 8) | tpm_read_index(nscAddrBase,0x63));
 	dev_dbg(&pci_dev->dev, "NSC Interrupt number and wakeup 0x%x\n",
-		tpm_read_index(0x70));
+		tpm_read_index(nscAddrBase,0x70));
 	dev_dbg(&pci_dev->dev, "NSC IRQ type select 0x%x\n",
-		tpm_read_index(0x71));
+		tpm_read_index(nscAddrBase,0x71));
 	dev_dbg(&pci_dev->dev,
 		"NSC DMA channel select0 0x%x, select1 0x%x\n",
-		tpm_read_index(0x74), tpm_read_index(0x75));
+		tpm_read_index(nscAddrBase,0x74), tpm_read_index(nscAddrBase,0x75));
 	dev_dbg(&pci_dev->dev,
 		"NSC Config "
 		"0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
-		tpm_read_index(0xF0), tpm_read_index(0xF1),
-		tpm_read_index(0xF2), tpm_read_index(0xF3),
-		tpm_read_index(0xF4), tpm_read_index(0xF5),
-		tpm_read_index(0xF6), tpm_read_index(0xF7),
-		tpm_read_index(0xF8), tpm_read_index(0xF9));
+		tpm_read_index(nscAddrBase,0xF0), tpm_read_index(nscAddrBase,0xF1),
+		tpm_read_index(nscAddrBase,0xF2), tpm_read_index(nscAddrBase,0xF3),
+		tpm_read_index(nscAddrBase,0xF4), tpm_read_index(nscAddrBase,0xF5),
+		tpm_read_index(nscAddrBase,0xF6), tpm_read_index(nscAddrBase,0xF7),
+		tpm_read_index(nscAddrBase,0xF8), tpm_read_index(nscAddrBase,0xF9));
 
 	dev_info(&pci_dev->dev,
-		 "NSC PC21100 TPM revision %d\n",
-		 tpm_read_index(0x27) & 0x1F);
-
-	if (tpm_read_index(NSC_LDC_INDEX) == 0)
-		dev_info(&pci_dev->dev, ": NSC TPM not active\n");
-
-	/* select PM channel 1 */
-	tpm_write_index(NSC_LDN_INDEX, 0x12);
-	tpm_read_index(NSC_LDN_INDEX);
-
-	/* disable the DPM module */
-	tpm_write_index(NSC_LDC_INDEX, 0);
-	tpm_read_index(NSC_LDC_INDEX);
-
-	/* set the data register base addresses */
-	tpm_write_index(NSC_DIO_INDEX, TPM_NSC_BASE >> 8);
-	tpm_write_index(NSC_DIO_INDEX + 1, TPM_NSC_BASE);
-	tpm_read_index(NSC_DIO_INDEX);
-	tpm_read_index(NSC_DIO_INDEX + 1);
-
-	/* set the command register base addresses */
-	tpm_write_index(NSC_CIO_INDEX, (TPM_NSC_BASE + 1) >> 8);
-	tpm_write_index(NSC_CIO_INDEX + 1, (TPM_NSC_BASE + 1));
-	tpm_read_index(NSC_DIO_INDEX);
-	tpm_read_index(NSC_DIO_INDEX + 1);
-
-	/* set the interrupt number to be used for the host interface */
-	tpm_write_index(NSC_IRQ_INDEX, TPM_NSC_IRQ);
-	tpm_write_index(NSC_ITS_INDEX, 0x00);
-	tpm_read_index(NSC_IRQ_INDEX);
+		 "NSC TPM revision %d\n",
+		 tpm_read_index(nscAddrBase, 0x27) & 0x1F);
 
 	/* enable the DPM module */
-	tpm_write_index(NSC_LDC_INDEX, 0x01);
-	tpm_read_index(NSC_LDC_INDEX);
+	tpm_write_index(nscAddrBase, NSC_LDC_INDEX, 0x01);
 
 	if ((rc = tpm_register_hardware(pci_dev, &tpm_nsc)) < 0)
 		goto out_err;
@@ -355,6 +335,9 @@ static struct pci_device_id tpm_pci_tbl[] __devinitdata = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801DB_0)},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801DB_12)},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801EB_0)},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH6_0)},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH6_1)},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH7_0)},
 	{PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_8111_LPC)},
 	{0,}
 };

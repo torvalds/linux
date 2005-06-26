@@ -903,7 +903,30 @@ struct cpu_spec	cpu_specs[] = {
 		.dcache_bsize		= 32,
 	},
 #endif /* CONFIG_44x */
-#ifdef CONFIG_E500
+#ifdef CONFIG_FSL_BOOKE
+	{ 	/* e200z5 */
+		.pvr_mask		= 0xfff00000,
+		.pvr_value		= 0x81000000,
+		.cpu_name		= "e200z5",
+		/* xxx - galak: add CPU_FTR_MAYBE_CAN_DOZE */
+		.cpu_features		= CPU_FTR_USE_TB,
+		.cpu_user_features	= PPC_FEATURE_32 |
+			PPC_FEATURE_HAS_MMU | PPC_FEATURE_HAS_EFP_SINGLE |
+			PPC_FEATURE_UNIFIED_CACHE,
+		.dcache_bsize		= 32,
+	},
+	{ 	/* e200z6 */
+		.pvr_mask		= 0xfff00000,
+		.pvr_value		= 0x81100000,
+		.cpu_name		= "e200z6",
+		/* xxx - galak: add CPU_FTR_MAYBE_CAN_DOZE */
+		.cpu_features		= CPU_FTR_USE_TB,
+		.cpu_user_features	= PPC_FEATURE_32 |
+			PPC_FEATURE_HAS_MMU | PPC_FEATURE_SPE_COMP |
+			PPC_FEATURE_HAS_EFP_SINGLE |
+			PPC_FEATURE_UNIFIED_CACHE,
+		.dcache_bsize		= 32,
+	},
 	{ 	/* e500 */
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x80200000,

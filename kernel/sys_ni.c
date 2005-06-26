@@ -18,6 +18,8 @@ cond_syscall(sys_acct);
 cond_syscall(sys_lookup_dcookie);
 cond_syscall(sys_swapon);
 cond_syscall(sys_swapoff);
+cond_syscall(sys_kexec_load);
+cond_syscall(compat_sys_kexec_load);
 cond_syscall(sys_init_module);
 cond_syscall(sys_delete_module);
 cond_syscall(sys_socketpair);

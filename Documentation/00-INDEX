@@ -138,6 +138,8 @@ java.txt
 	- info on the in-kernel binary support for Java(tm).
 kbuild/
 	- directory with info about the kernel build process.
+kdumpt.txt
+       - mini HowTo on getting the crash dump code to work.
 kernel-doc-nano-HOWTO.txt
 	- mini HowTo on generation and location of kernel documentation files.
 kernel-docs.txt

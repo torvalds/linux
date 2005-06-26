@@ -874,7 +874,7 @@ release_b_st(struct Channel *chanp)
 	} 
 }
 
-struct Channel
+static struct Channel
 *selectfreechannel(struct PStack *st, int bch)
 {
 	struct IsdnCardState *cs = st->l1.hardware;
@@ -1429,7 +1429,7 @@ capi_debug(struct Channel *chanp, capi_msg *cm)
 	HiSax_putstatus(chanp->cs, "Ch", "%d CAPIMSG %s", chanp->chan, tmpbuf);
 }
 
-void
+static void
 lli_got_fac_req(struct Channel *chanp, capi_msg *cm) {
 	if ((cm->para[0] != 3) || (cm->para[1] != 0))
 		return;
@@ -1454,7 +1454,7 @@ lli_got_fac_req(struct Channel *chanp, capi_msg *cm) {
 	}
 }
 
-void
+static void
 lli_got_manufacturer(struct Channel *chanp, struct IsdnCardState *cs, capi_msg *cm) {
 	if ((cs->typ == ISDN_CTYPE_ELSA) || (cs->typ == ISDN_CTYPE_ELSA_PNP) ||
 		(cs->typ == ISDN_CTYPE_ELSA_PCI)) {

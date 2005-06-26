@@ -241,7 +241,7 @@
 #define PCI_CONTROL_BE_DEI		(1 << 21)	/* Big Endian Data Enable In  */
 #define PCI_CONTROL_BE_BEO		(1 << 20)	/* Big Endian Byte Enable Out */
 #define PCI_CONTROL_BE_BEI		(1 << 19)	/* Big Endian Byte Enable In  */
-#define PCI_CONTROL_PNR			(1 << 17)	/* PCI Not Reset bit */
+#define PCI_CONTROL_IEE			(1 << 17)	/* I/O cycle Endian swap Enable */
 
 #define IXP2000_PCI_RST_REL		(1 << 2)
 #define CFG_RST_DIR			(*IXP2000_PCI_CONTROL & IXP2000_PCICNTL_PCF)

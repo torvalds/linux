@@ -243,7 +243,7 @@ void iounmap(volatile void __iomem *addr)
 	write_lock(&vmlist_lock);
 	p = __remove_vm_area((void *) (PAGE_MASK & (unsigned long __force) addr));
 	if (!p) { 
-		printk("iounmap: bad address %p\n", addr);
+		printk(KERN_WARNING "iounmap: bad address %p\n", addr);
 		goto out_unlock;
 	}
 

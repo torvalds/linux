@@ -198,9 +198,6 @@ static int rs_read_proc(char *page, char **start, off_t off, int count,
 }
 
 
-int register_serial(struct serial_struct*);
-void unregister_serial(int);
-
 static struct tty_operations serial_ops = {
 	.open = rs_open,
 	.close = rs_close,

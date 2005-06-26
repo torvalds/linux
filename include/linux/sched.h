@@ -368,6 +368,11 @@ struct signal_struct {
 #endif
 };
 
+/* Context switch must be unlocked if interrupts are to be enabled */
+#ifdef __ARCH_WANT_INTERRUPTS_ON_CTXSW
+# define __ARCH_WANT_UNLOCKED_CTXSW
+#endif
+
 /*
  * Bits in flags field of signal_struct.
  */
@@ -460,10 +465,11 @@ enum idle_type
 #define SD_LOAD_BALANCE		1	/* Do load balancing on this domain. */
 #define SD_BALANCE_NEWIDLE	2	/* Balance when about to become idle */
 #define SD_BALANCE_EXEC		4	/* Balance on exec */
-#define SD_WAKE_IDLE		8	/* Wake to idle CPU on task wakeup */
-#define SD_WAKE_AFFINE		16	/* Wake task to waking CPU */
-#define SD_WAKE_BALANCE		32	/* Perform balancing at task wakeup */
-#define SD_SHARE_CPUPOWER	64	/* Domain members share cpu power */
+#define SD_BALANCE_FORK		8	/* Balance on fork, clone */
+#define SD_WAKE_IDLE		16	/* Wake to idle CPU on task wakeup */
+#define SD_WAKE_AFFINE		32	/* Wake task to waking CPU */
+#define SD_WAKE_BALANCE		64	/* Perform balancing at task wakeup */
+#define SD_SHARE_CPUPOWER	128	/* Domain members share cpu power */
 
 struct sched_group {
 	struct sched_group *next;	/* Must be a circular list */
@@ -488,6 +494,11 @@ struct sched_domain {
 	unsigned long long cache_hot_time; /* Task considered cache hot (ns) */
 	unsigned int cache_nice_tries;	/* Leave cache hot tasks for # tries */
 	unsigned int per_cpu_gain;	/* CPU % gained by adding domain cpus */
+	unsigned int busy_idx;
+	unsigned int idle_idx;
+	unsigned int newidle_idx;
+	unsigned int wake_idx;
+	unsigned int forkexec_idx;
 	int flags;			/* See SD_* */
 
 	/* Runtime fields. */
@@ -511,9 +522,15 @@ struct sched_domain {
 	unsigned long alb_failed;
 	unsigned long alb_pushed;
 
-	/* sched_balance_exec() stats */
-	unsigned long sbe_attempts;
+	/* SD_BALANCE_EXEC stats */
+	unsigned long sbe_cnt;
+	unsigned long sbe_balanced;
 	unsigned long sbe_pushed;
+
+	/* SD_BALANCE_FORK stats */
+	unsigned long sbf_cnt;
+	unsigned long sbf_balanced;
+	unsigned long sbf_pushed;
 
 	/* try_to_wake_up() stats */
 	unsigned long ttwu_wake_remote;
@@ -522,6 +539,8 @@ struct sched_domain {
 #endif
 };
 
+extern void partition_sched_domains(cpumask_t *partition1,
+				    cpumask_t *partition2);
 #ifdef ARCH_HAS_SCHED_DOMAIN
 /* Useful helpers that arch setup code may use. Defined in kernel/sched.c */
 extern cpumask_t cpu_isolated_map;
@@ -582,6 +601,9 @@ struct task_struct {
 
 	int lock_depth;		/* BKL lock depth */
 
+#if defined(CONFIG_SMP) && defined(__ARCH_WANT_UNLOCKED_CTXSW)
+	int oncpu;
+#endif
 	int prio, static_prio;
 	struct list_head run_list;
 	prio_array_t *array;
@@ -704,8 +726,6 @@ struct task_struct {
 	spinlock_t alloc_lock;
 /* Protection of proc_dentry: nesting proc_lock, dcache_lock, write_lock_irq(&tasklist_lock); */
 	spinlock_t proc_lock;
-/* context-switch lock */
-	spinlock_t switch_lock;
 
 /* journalling filesystem info */
 	void *journal_info;
@@ -912,7 +932,7 @@ extern void FASTCALL(wake_up_new_task(struct task_struct * tsk,
 #else
  static inline void kick_process(struct task_struct *tsk) { }
 #endif
-extern void FASTCALL(sched_fork(task_t * p));
+extern void FASTCALL(sched_fork(task_t * p, int clone_flags));
 extern void FASTCALL(sched_exit(task_t * p));
 
 extern int in_group_p(gid_t);
@@ -1245,33 +1265,78 @@ extern void normalize_rt_tasks(void);
 
 #endif
 
-/* try_to_freeze
- *
- * Checks whether we need to enter the refrigerator
- * and returns 1 if we did so.
- */
 #ifdef CONFIG_PM
-extern void refrigerator(unsigned long);
+/*
+ * Check if a process has been frozen
+ */
+static inline int frozen(struct task_struct *p)
+{
+	return p->flags & PF_FROZEN;
+}
+
+/*
+ * Check if there is a request to freeze a process
+ */
+static inline int freezing(struct task_struct *p)
+{
+	return p->flags & PF_FREEZE;
+}
+
+/*
+ * Request that a process be frozen
+ * FIXME: SMP problem. We may not modify other process' flags!
+ */
+static inline void freeze(struct task_struct *p)
+{
+	p->flags |= PF_FREEZE;
+}
+
+/*
+ * Wake up a frozen process
+ */
+static inline int thaw_process(struct task_struct *p)
+{
+	if (frozen(p)) {
+		p->flags &= ~PF_FROZEN;
+		wake_up_process(p);
+		return 1;
+	}
+	return 0;
+}
+
+/*
+ * freezing is complete, mark process as frozen
+ */
+static inline void frozen_process(struct task_struct *p)
+{
+	p->flags = (p->flags & ~PF_FREEZE) | PF_FROZEN;
+}
+
+extern void refrigerator(void);
 extern int freeze_processes(void);
 extern void thaw_processes(void);
 
-static inline int try_to_freeze(unsigned long refrigerator_flags)
+static inline int try_to_freeze(void)
 {
-	if (unlikely(current->flags & PF_FREEZE)) {
-		refrigerator(refrigerator_flags);
+	if (freezing(current)) {
+		refrigerator();
 		return 1;
 	} else
 		return 0;
 }
 #else
-static inline void refrigerator(unsigned long flag) {}
+static inline int frozen(struct task_struct *p) { return 0; }
+static inline int freezing(struct task_struct *p) { return 0; }
+static inline void freeze(struct task_struct *p) { BUG(); }
+static inline int thaw_process(struct task_struct *p) { return 1; }
+static inline void frozen_process(struct task_struct *p) { BUG(); }
+
+static inline void refrigerator(void) {}
 static inline int freeze_processes(void) { BUG(); return 0; }
 static inline void thaw_processes(void) {}
 
-static inline int try_to_freeze(unsigned long refrigerator_flags)
-{
-	return 0;
-}
+static inline int try_to_freeze(void) { return 0; }
+
 #endif /* CONFIG_PM */
 #endif /* __KERNEL__ */
 

@@ -104,7 +104,7 @@ int main(int argc, const char * argv [])
     /* Read config lines. */
     while (fgets(line, buffer_size, fp_config))
     {
-	const signed char * str_config;
+	const char * str_config;
 	int is_same;
 	int itarget;
 

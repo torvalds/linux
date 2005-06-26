@@ -28,7 +28,7 @@ extern int trap_init_f00f_bug(void);
 struct movsl_mask movsl_mask;
 #endif
 
-void __init early_intel_workaround(struct cpuinfo_x86 *c)
+void __devinit early_intel_workaround(struct cpuinfo_x86 *c)
 {
 	if (c->x86_vendor != X86_VENDOR_INTEL)
 		return;
@@ -43,7 +43,7 @@ void __init early_intel_workaround(struct cpuinfo_x86 *c)
  *	This is called before we do cpu ident work
  */
  
-int __init ppro_with_ram_bug(void)
+int __devinit ppro_with_ram_bug(void)
 {
 	/* Uses data from early_cpu_detect now */
 	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL &&
@@ -61,7 +61,7 @@ int __init ppro_with_ram_bug(void)
  * P4 Xeon errata 037 workaround.
  * Hardware prefetcher may cause stale data to be loaded into the cache.
  */
-static void __init Intel_errata_workarounds(struct cpuinfo_x86 *c)
+static void __devinit Intel_errata_workarounds(struct cpuinfo_x86 *c)
 {
 	unsigned long lo, hi;
 
@@ -80,7 +80,7 @@ static void __init Intel_errata_workarounds(struct cpuinfo_x86 *c)
 /*
  * find out the number of processor cores on the die
  */
-static int __init num_cpu_cores(struct cpuinfo_x86 *c)
+static int __devinit num_cpu_cores(struct cpuinfo_x86 *c)
 {
 	unsigned int eax;
 
@@ -98,7 +98,7 @@ static int __init num_cpu_cores(struct cpuinfo_x86 *c)
 		return 1;
 }
 
-static void __init init_intel(struct cpuinfo_x86 *c)
+static void __devinit init_intel(struct cpuinfo_x86 *c)
 {
 	unsigned int l2 = 0;
 	char *p = NULL;
@@ -204,7 +204,7 @@ static unsigned int intel_size_cache(struct cpuinfo_x86 * c, unsigned int size)
 	return size;
 }
 
-static struct cpu_dev intel_cpu_dev __initdata = {
+static struct cpu_dev intel_cpu_dev __devinitdata = {
 	.c_vendor	= "Intel",
 	.c_ident 	= { "GenuineIntel" },
 	.c_models = {

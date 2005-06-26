@@ -646,7 +646,7 @@ static int w1_control(void *data)
 	while (!control_needs_exit || have_to_wait) {
 		have_to_wait = 0;
 
-		try_to_freeze(PF_FREEZE);
+		try_to_freeze();
 		msleep_interruptible(w1_timeout * 1000);
 
 		if (signal_pending(current))
@@ -725,7 +725,7 @@ int w1_process(void *data)
 	allow_signal(SIGTERM);
 
 	while (!test_bit(W1_MASTER_NEED_EXIT, &dev->flags)) {
-		try_to_freeze(PF_FREEZE);
+		try_to_freeze();
 		msleep_interruptible(w1_timeout * 1000);
 
 		if (signal_pending(current))

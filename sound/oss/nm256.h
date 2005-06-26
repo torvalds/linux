@@ -128,9 +128,6 @@ struct nm256_info
     struct nm256_info *next_card;
 };
 
-/* Debug flag--bigger numbers mean more output. */
-extern int nm256_debug;
-
 /* The BIOS signature. */
 #define NM_SIGNATURE 0x4e4d0000
 /* Signature mask. */
@@ -284,7 +281,7 @@ nm256_readBuffer8 (struct nm256_info *card, u8 *dst, int port, int offset,
 }
 
 /* Returns a non-zero value if we should use the coefficient cache. */
-extern int nm256_cachedCoefficients (struct nm256_info *card);
+static int nm256_cachedCoefficients (struct nm256_info *card);
 
 #endif
 

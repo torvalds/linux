@@ -163,24 +163,24 @@ static int __devinit tpm_atml_init(struct pci_dev *pci_dev,
 	if (pci_enable_device(pci_dev))
 		return -EIO;
 
-	lo = tpm_read_index( TPM_ATMEL_BASE_ADDR_LO );
-	hi = tpm_read_index( TPM_ATMEL_BASE_ADDR_HI );
+	lo = tpm_read_index(TPM_ADDR, TPM_ATMEL_BASE_ADDR_LO);
+	hi = tpm_read_index(TPM_ADDR, TPM_ATMEL_BASE_ADDR_HI);
 
 	tpm_atmel.base = (hi<<8)|lo;
 	dev_dbg( &pci_dev->dev, "Operating with base: 0x%x\n", tpm_atmel.base);
 
 	/* verify that it is an Atmel part */
-	if (tpm_read_index(4) != 'A' || tpm_read_index(5) != 'T'
-	    || tpm_read_index(6) != 'M' || tpm_read_index(7) != 'L') {
+	if (tpm_read_index(TPM_ADDR, 4) != 'A' || tpm_read_index(TPM_ADDR, 5) != 'T'
+	    || tpm_read_index(TPM_ADDR, 6) != 'M' || tpm_read_index(TPM_ADDR, 7) != 'L') {
 		rc = -ENODEV;
 		goto out_err;
 	}
 
 	/* query chip for its version number */
-	if ((version[0] = tpm_read_index(0x00)) != 0xFF) {
-		version[1] = tpm_read_index(0x01);
-		version[2] = tpm_read_index(0x02);
-		version[3] = tpm_read_index(0x03);
+	if ((version[0] = tpm_read_index(TPM_ADDR, 0x00)) != 0xFF) {
+		version[1] = tpm_read_index(TPM_ADDR, 0x01);
+		version[2] = tpm_read_index(TPM_ADDR, 0x02);
+		version[3] = tpm_read_index(TPM_ADDR, 0x03);
 	} else {
 		dev_info(&pci_dev->dev, "version query failed\n");
 		rc = -ENODEV;

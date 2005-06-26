@@ -450,12 +450,8 @@ int st5481_setup_isocpipes(struct urb* urb[2], struct usb_device *dev,
 			   usb_complete_t complete, void *context);
 void st5481_release_isocpipes(struct urb* urb[2]);
 
-int  st5481_isoc_flatten(struct urb *urb);
 void st5481_usb_pipe_reset(struct st5481_adapter *adapter,
 		    u_char pipe, ctrl_complete_t complete, void *context);
-void st5481_usb_ctrl_msg(struct st5481_adapter *adapter,
-		  u8 request, u8 requesttype, u16 value, u16 index,
-		  ctrl_complete_t complete, void *context);
 void st5481_usb_device_ctrl_msg(struct st5481_adapter *adapter,
 			 u8 request, u16 value,
 			 ctrl_complete_t complete, void *context);

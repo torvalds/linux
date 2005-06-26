@@ -128,7 +128,7 @@ static void __init fixrange_init(unsigned long start, unsigned long end,
 #endif /* CONFIG_MIPS64 */
 #endif /* CONFIG_HIGHMEM */
 
-#ifndef CONFIG_DISCONTIGMEM
+#ifndef CONFIG_NEED_MULTIPLE_NODES
 extern void pagetable_init(void);
 
 void __init paging_init(void)
@@ -253,7 +253,7 @@ void __init mem_init(void)
 	       initsize >> 10,
 	       (unsigned long) (totalhigh_pages << (PAGE_SHIFT-10)));
 }
-#endif /* !CONFIG_DISCONTIGMEM */
+#endif /* !CONFIG_NEED_MULTIPLE_NODES */
 
 #ifdef CONFIG_BLK_DEV_INITRD
 void free_initrd_mem(unsigned long start, unsigned long end)

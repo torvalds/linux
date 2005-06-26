@@ -33,7 +33,7 @@ static struct timer_opts timer_tsc;
 
 static inline void cpufreq_delayed_get(void);
 
-int tsc_disable __initdata = 0;
+int tsc_disable __devinitdata = 0;
 
 extern spinlock_t i8253_lock;
 

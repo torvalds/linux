@@ -1000,8 +1000,7 @@ int do_sysctl(int __user *name, int nlen, void __user *oldval, size_t __user *ol
 		int error = parse_table(name, nlen, oldval, oldlenp, 
 					newval, newlen, head->ctl_table,
 					&context);
-		if (context)
-			kfree(context);
+		kfree(context);
 		if (error != -ENOTDIR)
 			return error;
 		tmp = tmp->next;

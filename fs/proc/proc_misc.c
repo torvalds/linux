@@ -44,6 +44,7 @@
 #include <linux/jiffies.h>
 #include <linux/sysrq.h>
 #include <linux/vmalloc.h>
+#include <linux/crash_dump.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/io.h>
@@ -617,6 +618,11 @@ void __init proc_misc_init(void)
 		proc_root_kcore->size =
 				(size_t)high_memory - PAGE_OFFSET + PAGE_SIZE;
 	}
+#endif
+#ifdef CONFIG_PROC_VMCORE
+	proc_vmcore = create_proc_entry("vmcore", S_IRUSR, NULL);
+	if (proc_vmcore)
+		proc_vmcore->proc_fops = &proc_vmcore_operations;
 #endif
 #ifdef CONFIG_MAGIC_SYSRQ
 	entry = create_proc_entry("sysrq-trigger", S_IWUSR, NULL);

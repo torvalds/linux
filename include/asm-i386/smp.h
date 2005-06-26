@@ -42,9 +42,16 @@ extern void smp_message_irq(int cpl, void *dev_id, struct pt_regs *regs);
 extern void smp_invalidate_rcv(void);		/* Process an NMI */
 extern void (*mtrr_hook) (void);
 extern void zap_low_mappings (void);
+extern void lock_ipi_call_lock(void);
+extern void unlock_ipi_call_lock(void);
 
 #define MAX_APICID 256
 extern u8 x86_cpu_to_apicid[];
+
+#ifdef CONFIG_HOTPLUG_CPU
+extern void cpu_exit_clear(void);
+extern void cpu_uninit(void);
+#endif
 
 /*
  * This function is needed by all SMP systems. It must _always_ be valid
@@ -83,6 +90,9 @@ static __inline int logical_smp_processor_id(void)
 }
 
 #endif
+
+extern int __cpu_disable(void);
+extern void __cpu_die(unsigned int cpu);
 #endif /* !__ASSEMBLY__ */
 
 #define NO_PROC_ID		0xFF		/* No processor magic marker */

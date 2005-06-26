@@ -20,8 +20,6 @@ extern void __nvram_write_byte(unsigned char c, int i);
 extern void nvram_write_byte(unsigned char c, int i);
 extern int __nvram_check_checksum(void);
 extern int nvram_check_checksum(void);
-extern void __nvram_set_checksum(void);
-extern void nvram_set_checksum(void);
 #endif
 
 #endif  /* _LINUX_NVRAM_H */

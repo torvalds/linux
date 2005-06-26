@@ -211,12 +211,13 @@ nvram_check_checksum(void)
 	return rv;
 }
 
-void
+static void
 __nvram_set_checksum(void)
 {
 	mach_set_checksum();
 }
 
+#if 0
 void
 nvram_set_checksum(void)
 {
@@ -226,6 +227,7 @@ nvram_set_checksum(void)
 	__nvram_set_checksum();
 	spin_unlock_irqrestore(&rtc_lock, flags);
 }
+#endif  /*  0  */
 
 /*
  * The are the file operation function for user access to /dev/nvram
@@ -921,6 +923,4 @@ EXPORT_SYMBOL(__nvram_write_byte);
 EXPORT_SYMBOL(nvram_write_byte);
 EXPORT_SYMBOL(__nvram_check_checksum);
 EXPORT_SYMBOL(nvram_check_checksum);
-EXPORT_SYMBOL(__nvram_set_checksum);
-EXPORT_SYMBOL(nvram_set_checksum);
 MODULE_ALIAS_MISCDEV(NVRAM_MINOR);

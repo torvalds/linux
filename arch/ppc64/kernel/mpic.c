@@ -792,6 +792,35 @@ void mpic_setup_this_cpu(void)
 #endif /* CONFIG_SMP */
 }
 
+/*
+ * XXX: someone who knows mpic should check this.
+ * do we need to eoi the ipi here (see xics comments)?
+ * or can we reset the mpic in the new kernel?
+ */
+void mpic_teardown_this_cpu(void)
+{
+	struct mpic *mpic = mpic_primary;
+	unsigned long flags;
+	u32 msk = 1 << hard_smp_processor_id();
+	unsigned int i;
+
+	BUG_ON(mpic == NULL);
+
+	DBG("%s: teardown_this_cpu(%d)\n", mpic->name, hard_smp_processor_id());
+	spin_lock_irqsave(&mpic_lock, flags);
+
+	/* let the mpic know we don't want intrs.  */
+	for (i = 0; i < mpic->num_sources ; i++)
+		mpic_irq_write(i, MPIC_IRQ_DESTINATION,
+			mpic_irq_read(i, MPIC_IRQ_DESTINATION) & ~msk);
+
+	/* Set current processor priority to max */
+	mpic_cpu_write(MPIC_CPU_CURRENT_TASK_PRI, 0xf);
+
+	spin_unlock_irqrestore(&mpic_lock, flags);
+}
+
+
 void mpic_send_ipi(unsigned int ipi_no, unsigned int cpu_mask)
 {
 	struct mpic *mpic = mpic_primary;

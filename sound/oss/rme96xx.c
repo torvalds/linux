@@ -1750,9 +1750,7 @@ static unsigned int rme96xx_poll(struct file *file, struct poll_table_struct *wa
 
 
 static struct file_operations rme96xx_audio_fops = {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0)
 	.owner	 = THIS_MODULE,
-#endif
 	.read	 = rme96xx_read,
 	.write	 = rme96xx_write,
 	.poll	 = rme96xx_poll,
@@ -1852,9 +1850,7 @@ static int rme96xx_mixer_release(struct inode *inode, struct file *file)
 }
 
 static /*const*/ struct file_operations rme96xx_mixer_fops = {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0)
 	.owner	 = THIS_MODULE,
-#endif
 	.ioctl	 = rme96xx_mixer_ioctl,
 	.open	 = rme96xx_mixer_open,
 	.release = rme96xx_mixer_release,

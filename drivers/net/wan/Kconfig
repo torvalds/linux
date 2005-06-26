@@ -435,7 +435,7 @@ config VENDOR_SANGOMA
 	  the driver to support.
 
 	  If you have one or more of these cards, say M to this option;
-	  and read <file:Documentation/networking/wanpipe.txt>.
+	  and read <file:Documentation/networking/wan-router.txt>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called wanpipe.

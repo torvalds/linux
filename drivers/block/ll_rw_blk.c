@@ -37,6 +37,7 @@
 
 static void blk_unplug_work(void *data);
 static void blk_unplug_timeout(unsigned long data);
+static void drive_stat_acct(struct request *rq, int nr_sectors, int new_io);
 
 /*
  * For the allocated request tables
@@ -1137,7 +1138,7 @@ new_hw_segment:
 }
 
 
-int blk_phys_contig_segment(request_queue_t *q, struct bio *bio,
+static int blk_phys_contig_segment(request_queue_t *q, struct bio *bio,
 				   struct bio *nxt)
 {
 	if (!(q->queue_flags & (1 << QUEUE_FLAG_CLUSTER)))
@@ -1158,9 +1159,7 @@ int blk_phys_contig_segment(request_queue_t *q, struct bio *bio,
 	return 0;
 }
 
-EXPORT_SYMBOL(blk_phys_contig_segment);
-
-int blk_hw_contig_segment(request_queue_t *q, struct bio *bio,
+static int blk_hw_contig_segment(request_queue_t *q, struct bio *bio,
 				 struct bio *nxt)
 {
 	if (unlikely(!bio_flagged(bio, BIO_SEG_VALID)))
@@ -1175,8 +1174,6 @@ int blk_hw_contig_segment(request_queue_t *q, struct bio *bio,
 
 	return 1;
 }
-
-EXPORT_SYMBOL(blk_hw_contig_segment);
 
 /*
  * map a request to scatterlist, return number of sg entries setup. Caller
@@ -1347,8 +1344,8 @@ static int ll_front_merge_fn(request_queue_t *q, struct request *req,
 static int ll_merge_requests_fn(request_queue_t *q, struct request *req,
 				struct request *next)
 {
-	int total_phys_segments = req->nr_phys_segments +next->nr_phys_segments;
-	int total_hw_segments = req->nr_hw_segments + next->nr_hw_segments;
+	int total_phys_segments;
+	int total_hw_segments;
 
 	/*
 	 * First check if the either of the requests are re-queued
@@ -1358,7 +1355,7 @@ static int ll_merge_requests_fn(request_queue_t *q, struct request *req,
 		return 0;
 
 	/*
-	 * Will it become to large?
+	 * Will it become too large?
 	 */
 	if ((req->nr_sectors + next->nr_sectors) > q->max_sectors)
 		return 0;
@@ -1825,7 +1822,7 @@ static inline int ioc_batching(request_queue_t *q, struct io_context *ioc)
  * is the behaviour we want though - once it gets a wakeup it should be given
  * a nice run.
  */
-void ioc_set_batching(request_queue_t *q, struct io_context *ioc)
+static void ioc_set_batching(request_queue_t *q, struct io_context *ioc)
 {
 	if (!ioc || ioc_batching(q, ioc))
 		return;
@@ -2254,45 +2251,7 @@ int blkdev_issue_flush(struct block_device *bdev, sector_t *error_sector)
 
 EXPORT_SYMBOL(blkdev_issue_flush);
 
-/**
- * blkdev_scsi_issue_flush_fn - issue flush for SCSI devices
- * @q:		device queue
- * @disk:	gendisk
- * @error_sector:	error offset
- *
- * Description:
- *    Devices understanding the SCSI command set, can use this function as
- *    a helper for issuing a cache flush. Note: driver is required to store
- *    the error offset (in case of error flushing) in ->sector of struct
- *    request.
- */
-int blkdev_scsi_issue_flush_fn(request_queue_t *q, struct gendisk *disk,
-			       sector_t *error_sector)
-{
-	struct request *rq = blk_get_request(q, WRITE, __GFP_WAIT);
-	int ret;
-
-	rq->flags |= REQ_BLOCK_PC | REQ_SOFTBARRIER;
-	rq->sector = 0;
-	memset(rq->cmd, 0, sizeof(rq->cmd));
-	rq->cmd[0] = 0x35;
-	rq->cmd_len = 12;
-	rq->data = NULL;
-	rq->data_len = 0;
-	rq->timeout = 60 * HZ;
-
-	ret = blk_execute_rq(q, disk, rq);
-
-	if (ret && error_sector)
-		*error_sector = rq->sector;
-
-	blk_put_request(rq);
-	return ret;
-}
-
-EXPORT_SYMBOL(blkdev_scsi_issue_flush_fn);
-
-void drive_stat_acct(struct request *rq, int nr_sectors, int new_io)
+static void drive_stat_acct(struct request *rq, int nr_sectors, int new_io)
 {
 	int rw = rq_data_dir(rq);
 
@@ -2550,16 +2509,6 @@ void blk_attempt_remerge(request_queue_t *q, struct request *rq)
 }
 
 EXPORT_SYMBOL(blk_attempt_remerge);
-
-/*
- * Non-locking blk_attempt_remerge variant.
- */
-void __blk_attempt_remerge(request_queue_t *q, struct request *rq)
-{
-	attempt_back_merge(q, rq);
-}
-
-EXPORT_SYMBOL(__blk_attempt_remerge);
 
 static int __make_request(request_queue_t *q, struct bio *bio)
 {
@@ -2971,7 +2920,7 @@ void submit_bio(int rw, struct bio *bio)
 
 EXPORT_SYMBOL(submit_bio);
 
-void blk_recalc_rq_segments(struct request *rq)
+static void blk_recalc_rq_segments(struct request *rq)
 {
 	struct bio *bio, *prevbio = NULL;
 	int nr_phys_segs, nr_hw_segs;
@@ -3013,7 +2962,7 @@ void blk_recalc_rq_segments(struct request *rq)
 	rq->nr_hw_segments = nr_hw_segs;
 }
 
-void blk_recalc_rq_sectors(struct request *rq, int nsect)
+static void blk_recalc_rq_sectors(struct request *rq, int nsect)
 {
 	if (blk_fs_request(rq)) {
 		rq->hard_sector += nsect;
@@ -3601,7 +3550,7 @@ static struct sysfs_ops queue_sysfs_ops = {
 	.store	= queue_attr_store,
 };
 
-struct kobj_type queue_ktype = {
+static struct kobj_type queue_ktype = {
 	.sysfs_ops	= &queue_sysfs_ops,
 	.default_attrs	= default_attrs,
 };

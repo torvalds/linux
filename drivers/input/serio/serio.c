@@ -344,7 +344,7 @@ static int serio_thread(void *nothing)
 	do {
 		serio_handle_events();
 		wait_event_interruptible(serio_wait, !list_empty(&serio_event_list));
-		try_to_freeze(PF_FREEZE);
+		try_to_freeze();
 	} while (!signal_pending(current));
 
 	printk(KERN_DEBUG "serio: kseriod exiting\n");

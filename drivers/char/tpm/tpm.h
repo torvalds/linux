@@ -31,8 +31,8 @@ enum tpm_timeout {
 
 /* TPM addresses */
 enum tpm_addr {
+	TPM_SUPERIO_ADDR = 0x2E,
 	TPM_ADDR = 0x4E,
-	TPM_DATA = 0x4F
 };
 
 extern ssize_t tpm_show_pubek(struct device *, struct device_attribute *attr,
@@ -79,16 +79,16 @@ struct tpm_chip {
 	struct list_head list;
 };
 
-static inline int tpm_read_index(int index)
+static inline int tpm_read_index(int base, int index)
 {
-	outb(index, TPM_ADDR);
-	return inb(TPM_DATA) & 0xFF;
+	outb(index, base);
+	return inb(base+1) & 0xFF;
 }
 
-static inline void tpm_write_index(int index, int value)
+static inline void tpm_write_index(int base, int index, int value)
 {
-	outb(index, TPM_ADDR);
-	outb(value & 0xFF, TPM_DATA);
+	outb(index, base);
+	outb(value & 0xFF, base+1);
 }
 
 extern int tpm_register_hardware(struct pci_dev *,

@@ -618,8 +618,8 @@ efivar_create_sysfs_entry(unsigned long variable_name_size,
 	new_efivar = kmalloc(sizeof(struct efivar_entry), GFP_KERNEL);
 
 	if (!short_name || !new_efivar)  {
-		if (short_name)        kfree(short_name);
-		if (new_efivar)        kfree(new_efivar);
+		kfree(short_name);
+		kfree(new_efivar);
 		return 1;
 	}
 	memset(short_name, 0, short_name_size+1);
@@ -644,7 +644,8 @@ efivar_create_sysfs_entry(unsigned long variable_name_size,
 	kobj_set_kset_s(new_efivar, vars_subsys);
 	kobject_register(&new_efivar->kobj);
 
-	kfree(short_name); short_name = NULL;
+	kfree(short_name);
+	short_name = NULL;
 
 	spin_lock(&efivars_lock);
 	list_add(&new_efivar->list, &efivar_list);

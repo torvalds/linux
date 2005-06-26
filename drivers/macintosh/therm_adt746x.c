@@ -328,9 +328,7 @@ static int monitor_task(void *arg)
 	struct thermostat* th = arg;
 
 	while(!kthread_should_stop()) {
-		if (current->flags & PF_FREEZE)
-			refrigerator(PF_FREEZE);
-
+		try_to_freeze();
 		msleep_interruptible(2000);
 
 #ifndef DEBUG

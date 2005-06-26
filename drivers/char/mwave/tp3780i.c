@@ -242,20 +242,14 @@ int tp3780I_ClaimResources(THINKPAD_BD_DATA * pBDData)
 {
 	int retval = 0;
 	DSP_3780I_CONFIG_SETTINGS *pSettings = &pBDData->rDspSettings;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0)
 	struct resource *pres;
-#endif
 
 	PRINTK_2(TRACE_TP3780I,
 		"tp3780i::tp3780I_ClaimResources entry pBDData %p\n", pBDData);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0)
 	pres = request_region(pSettings->usDspBaseIO, 16, "mwave_3780i");
 	if ( pres == NULL ) retval = -EIO;
-#else
-	retval = check_region(pSettings->usDspBaseIO, 16);
-	if (!retval) request_region(pSettings->usDspBaseIO, 16, "mwave_3780i");
-#endif
+
 	if (retval) {
 		PRINTK_ERROR(KERN_ERR_MWAVE "tp3780i::tp3780I_ClaimResources: Error: Could not claim I/O region starting at %x\n", pSettings->usDspBaseIO);
 		retval = -EIO;
@@ -292,7 +286,7 @@ int tp3780I_ReleaseResources(THINKPAD_BD_DATA * pBDData)
 int tp3780I_EnableDSP(THINKPAD_BD_DATA * pBDData)
 {
 	DSP_3780I_CONFIG_SETTINGS *pSettings = &pBDData->rDspSettings;
-	BOOLEAN bDSPPoweredUp = FALSE, bDSPEnabled = FALSE, bInterruptAllocated = FALSE;
+	BOOLEAN bDSPPoweredUp = FALSE, bInterruptAllocated = FALSE;
 
 	PRINTK_2(TRACE_TP3780I, "tp3780i::tp3780I_EnableDSP entry pBDData %p\n", pBDData);
 
@@ -397,8 +391,6 @@ int tp3780I_EnableDSP(THINKPAD_BD_DATA * pBDData)
 	if (dsp3780I_EnableDSP(pSettings, s_ausThinkpadIrqToField, s_ausThinkpadDmaToField)) {
 		PRINTK_ERROR("tp3780i::tp3780I_EnableDSP: Error: dsp7880I_EnableDSP() failed\n");
 		goto exit_cleanup;
-	} else {
-		bDSPEnabled = TRUE;
 	}
 
 	EnableSRAM(pBDData);
@@ -411,8 +403,6 @@ int tp3780I_EnableDSP(THINKPAD_BD_DATA * pBDData)
 
 exit_cleanup:
 	PRINTK_ERROR("tp3780i::tp3780I_EnableDSP: Cleaning up\n");
-	if (bDSPEnabled)
-		dsp3780I_DisableDSP(pSettings);
 	if (bDSPPoweredUp)
 		smapi_set_DSP_power_state(FALSE);
 	if (bInterruptAllocated) {

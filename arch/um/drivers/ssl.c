@@ -49,7 +49,7 @@ static struct chan_opts opts = {
 
 static int ssl_config(char *str);
 static int ssl_get_config(char *dev, char *str, int size, char **error_out);
-static int ssl_remove(char *str);
+static int ssl_remove(int n);
 
 static struct line_driver driver = {
 	.name 			= "UML serial line",
@@ -69,6 +69,7 @@ static struct line_driver driver = {
 		.name  		= "ssl",
 		.config 	= ssl_config,
 		.get_config 	= ssl_get_config,
+                .id		= line_id,
 		.remove 	= ssl_remove,
 	},
 };
@@ -94,10 +95,10 @@ static int ssl_get_config(char *dev, char *str, int size, char **error_out)
 			       str, size, error_out));
 }
 
-static int ssl_remove(char *str)
+static int ssl_remove(int n)
 {
-	return(line_remove(serial_lines, 
-			   sizeof(serial_lines)/sizeof(serial_lines[0]), str));
+        return line_remove(serial_lines,
+                           sizeof(serial_lines)/sizeof(serial_lines[0]), n);
 }
 
 int ssl_open(struct tty_struct *tty, struct file *filp)

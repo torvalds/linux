@@ -87,7 +87,7 @@ struct xpc_rsvd_page {
 	u8 partid;		/* partition ID from SAL */
 	u8 version;
 	u8 pad[6];		/* pad to u64 align */
-	u64 vars_pa;
+	volatile u64 vars_pa;
 	u64 part_nasids[XP_NASID_MASK_WORDS] ____cacheline_aligned;
 	u64 mach_nasids[XP_NASID_MASK_WORDS] ____cacheline_aligned;
 };
@@ -138,7 +138,7 @@ struct xpc_vars {
  * occupies half a cacheline.
  */
 struct xpc_vars_part {
-	u64 magic;
+	volatile u64 magic;
 
 	u64 openclose_args_pa;	/* physical address of open and close args */
 	u64 GPs_pa;		/* physical address of Get/Put values */
@@ -185,8 +185,8 @@ struct xpc_vars_part {
  * Define a Get/Put value pair (pointers) used with a message queue.
  */
 struct xpc_gp {
-	s64 get;	/* Get value */
-	s64 put;	/* Put value */
+	volatile s64 get;	/* Get value */
+	volatile s64 put;	/* Put value */
 };
 
 #define XPC_GP_SIZE \
@@ -231,7 +231,7 @@ struct xpc_openclose_args {
  */
 struct xpc_notify {
 	struct semaphore sema;		/* notify semaphore */
-	u8 type;			/* type of notification */
+	volatile u8 type;			/* type of notification */
 
 	/* the following two fields are only used if type == XPC_N_CALL */
 	xpc_notify_func func;		/* user's notify function */
@@ -439,7 +439,7 @@ struct xpc_partition {
 
 	/* XPC infrastructure referencing and teardown control */
 
-	u8 setup_state;			/* infrastructure setup state */
+	volatile u8 setup_state;			/* infrastructure setup state */
 	wait_queue_head_t teardown_wq;	/* kthread waiting to teardown infra */
 	atomic_t references;		/* #of references to infrastructure */
 

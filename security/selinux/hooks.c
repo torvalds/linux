@@ -1658,9 +1658,8 @@ static int selinux_bprm_secureexec (struct linux_binprm *bprm)
 
 static void selinux_bprm_free_security(struct linux_binprm *bprm)
 {
-	struct bprm_security_struct *bsec = bprm->security;
+	kfree(bprm->security);
 	bprm->security = NULL;
-	kfree(bsec);
 }
 
 extern struct vfsmount *selinuxfs_mount;
@@ -2477,6 +2476,17 @@ static int selinux_file_mprotect(struct vm_area_struct *vma,
 		prot = reqprot;
 
 #ifndef CONFIG_PPC32
+	if ((prot & PROT_EXEC) && !(vma->vm_flags & VM_EXECUTABLE) &&
+	   (vma->vm_start >= vma->vm_mm->start_brk &&
+	    vma->vm_end <= vma->vm_mm->brk)) {
+	    	/*
+		 * We are making an executable mapping in the brk region.
+		 * This has an additional execheap check.
+		 */
+		rc = task_has_perm(current, current, PROCESS__EXECHEAP);
+		if (rc)
+			return rc;
+	}
 	if (vma->vm_file != NULL && vma->anon_vma != NULL && (prot & PROT_EXEC)) {
 		/*
 		 * We are making executable a file mapping that has
@@ -2485,6 +2495,16 @@ static int selinux_file_mprotect(struct vm_area_struct *vma,
 		 * This typically should only occur for text relocations.
 		 */
 		int rc = file_has_perm(current, vma->vm_file, FILE__EXECMOD);
+		if (rc)
+			return rc;
+	}
+	if (!vma->vm_file && (prot & PROT_EXEC) &&
+		vma->vm_start <= vma->vm_mm->start_stack &&
+		vma->vm_end >= vma->vm_mm->start_stack) {
+		/* Attempt to make the process stack executable.
+		 * This has an additional execstack check.
+		 */
+		rc = task_has_perm(current, current, PROCESS__EXECSTACK);
 		if (rc)
 			return rc;
 	}

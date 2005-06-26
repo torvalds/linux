@@ -718,7 +718,7 @@ dcssblk_check_params(void)
 			buf[j-i] = dcssblk_segments[j];
 		}
 		buf[j-i] = '\0';
-		rc = dcssblk_add_store(dcssblk_root_dev, buf, j-i);
+		rc = dcssblk_add_store(dcssblk_root_dev, NULL, buf, j-i);
 		if ((rc >= 0) && (dcssblk_segments[j] == '(')) {
 			for (k = 0; buf[k] != '\0'; k++)
 				buf[k] = toupper(buf[k]);
@@ -728,7 +728,7 @@ dcssblk_check_params(void)
 				up_read(&dcssblk_devices_sem);
 				if (dev_info)
 					dcssblk_shared_store(&dev_info->dev,
-							     "0\n", 2);
+							     NULL, "0\n", 2);
 			}
 		}
 		while ((dcssblk_segments[j] != ',') &&

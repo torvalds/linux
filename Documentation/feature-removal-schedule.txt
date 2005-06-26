@@ -43,6 +43,14 @@ Who:	Randy Dunlap <rddunlap@osdl.org>
 
 ---------------------------
 
+What:	RAW driver (CONFIG_RAW_DRIVER)
+When:	December 2005
+Why:	declared obsolete since kernel 2.6.3
+	O_DIRECT can be used instead
+Who:	Adrian Bunk <bunk@stusta.de>
+
+---------------------------
+
 What:	register_ioctl32_conversion() / unregister_ioctl32_conversion()
 When:	April 2005
 Why:	Replaced by ->compat_ioctl in file_operations and other method

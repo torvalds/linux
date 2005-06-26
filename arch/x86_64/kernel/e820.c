@@ -16,6 +16,7 @@
 #include <linux/bootmem.h>
 #include <linux/ioport.h>
 #include <linux/string.h>
+#include <linux/kexec.h>
 #include <asm/page.h>
 #include <asm/e820.h>
 #include <asm/proto.h>
@@ -191,8 +192,6 @@ void __init e820_reserve_resources(void)
 	int i;
 	for (i = 0; i < e820.nr_map; i++) {
 		struct resource *res;
-		if (e820.map[i].addr + e820.map[i].size > 0x100000000ULL)
-			continue;
 		res = alloc_bootmem_low(sizeof(struct resource));
 		switch (e820.map[i].type) {
 		case E820_RAM:	res->name = "System RAM"; break;
@@ -212,6 +211,9 @@ void __init e820_reserve_resources(void)
 			 */
 			request_resource(res, &code_resource);
 			request_resource(res, &data_resource);
+#ifdef CONFIG_KEXEC
+			request_resource(res, &crashk_res);
+#endif
 		}
 	}
 }

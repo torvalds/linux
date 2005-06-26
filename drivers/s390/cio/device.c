@@ -514,36 +514,39 @@ ccw_device_register(struct ccw_device *cdev)
 	return ret;
 }
 
+struct match_data {
+	unsigned int  devno;
+	struct ccw_device * sibling;
+};
+
+static int
+match_devno(struct device * dev, void * data)
+{
+	struct match_data * d = (struct match_data *)data;
+	struct ccw_device * cdev;
+
+	cdev = to_ccwdev(dev);
+	if ((cdev->private->state == DEV_STATE_DISCONNECTED) &&
+	    (cdev->private->devno == d->devno) &&
+	    (cdev != d->sibling)) {
+		cdev->private->state = DEV_STATE_NOT_OPER;
+		return 1;
+	}
+	return 0;
+}
+
 static struct ccw_device *
 get_disc_ccwdev_by_devno(unsigned int devno, struct ccw_device *sibling)
 {
-	struct ccw_device *cdev;
-	struct list_head *entry;
 	struct device *dev;
+	struct match_data data = {
+		.devno  = devno,
+		.sibling = sibling,
+	};
 
-	if (!get_bus(&ccw_bus_type))
-		return NULL;
-	down_read(&ccw_bus_type.subsys.rwsem);
-	cdev = NULL;
-	list_for_each(entry, &ccw_bus_type.devices.list) {
-		dev = get_device(container_of(entry,
-					      struct device, bus_list));
-		if (!dev)
-			continue;
-		cdev = to_ccwdev(dev);
-		if ((cdev->private->state == DEV_STATE_DISCONNECTED) &&
-		    (cdev->private->devno == devno) &&
-		    (cdev != sibling)) {
-			cdev->private->state = DEV_STATE_NOT_OPER;
-			break;
-		}
-		put_device(dev);
-		cdev = NULL;
-	}
-	up_read(&ccw_bus_type.subsys.rwsem);
-	put_bus(&ccw_bus_type);
+	dev = bus_find_device(&css_bus_type, NULL, &data, match_devno);
 
-	return cdev;
+	return dev ? to_ccwdev(dev) : NULL;
 }
 
 static void
@@ -647,7 +650,7 @@ io_subchannel_register(void *data)
 	cdev = (struct ccw_device *) data;
 	sch = to_subchannel(cdev->dev.parent);
 
-	if (!list_empty(&sch->dev.children)) {
+	if (klist_node_attached(&cdev->dev.knode_parent)) {
 		bus_rescan_devices(&ccw_bus_type);
 		goto out;
 	}
@@ -1019,30 +1022,29 @@ ccw_device_probe_console(void)
 /*
  * get ccw_device matching the busid, but only if owned by cdrv
  */
+static int
+__ccwdev_check_busid(struct device *dev, void *id)
+{
+	char *bus_id;
+
+	bus_id = (char *)id;
+
+	return (strncmp(bus_id, dev->bus_id, BUS_ID_SIZE) == 0);
+}
+
+
 struct ccw_device *
 get_ccwdev_by_busid(struct ccw_driver *cdrv, const char *bus_id)
 {
-	struct device *d, *dev;
+	struct device *dev;
 	struct device_driver *drv;
 
 	drv = get_driver(&cdrv->driver);
 	if (!drv)
-		return 0;
+		return NULL;
 
-	down_read(&drv->bus->subsys.rwsem);
-
-	dev = NULL;
-	list_for_each_entry(d, &drv->devices, driver_list) {
-		dev = get_device(d);
-
-		if (dev && !strncmp(bus_id, dev->bus_id, BUS_ID_SIZE))
-			break;
-		else if (dev) {
-			put_device(dev);
-			dev = NULL;
-		}
-	}
-	up_read(&drv->bus->subsys.rwsem);
+	dev = driver_find_device(drv, NULL, (void *)bus_id,
+				 __ccwdev_check_busid);
 	put_driver(drv);
 
 	return dev ? to_ccwdev(dev) : 0;

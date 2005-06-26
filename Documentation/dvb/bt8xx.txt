@@ -44,26 +44,23 @@ TwinHan (dst) are loaded automatically by the dvb-bt8xx device driver.
    $ modprobe dst
 
 The value 0x71 will override the PCI type detection for dvb-bt8xx,
-which  is necessary for TwinHan cards.
+which is necessary for TwinHan cards.
 
 If you're having an older card (blue color circuit) and card=0x71 locks
 your machine, try using 0x68, too. If that does not work, ask on the
 mailing list.
 
-The DST module takes a couple of useful parameters.
+The DST module takes a couple of useful parameters:
 
-verbose takes values 0 to 5. These values control the verbosity level.
+a. verbose takes values 0 to 5. These values control the verbosity level.
+b. debug takes values 0 and 1. You can either disable or enable debugging.
+c. dst_addons takes values 0 and 0x20:
+- A value of 0 means it is a FTA card.
+- A value of 0x20 means it has a Conditional Access slot.
 
-debug takes values 0 and 1. You can either disable or enable debugging.
-
-dst_addons takes values 0 and 0x20. A value of 0 means it is a FTA card.
-0x20 means it has a Conditional Access slot.
-
-The autodected values are determined bythe cards 'response
-string' which you can see in your logs e.g.
-
-dst_get_device_id: Recognise [DSTMCI]
-
+The autodetected values are determined by the "response string"
+of the card, which you can see in your logs:
+e.g.: dst_get_device_id: Recognize [DSTMCI]
 
 --
-Authors: Richard Walker, Jamie Honan, Michael Hunold, Manu Abraham
+Authors: Richard Walker, Jamie Honan, Michael Hunold, Manu Abraham, Uwe Bugla

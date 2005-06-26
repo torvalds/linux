@@ -1003,9 +1003,6 @@ static task_t *copy_process(unsigned long clone_flags,
 	p->pdeath_signal = 0;
 	p->exit_state = 0;
 
-	/* Perform scheduler related setup */
-	sched_fork(p);
-
 	/*
 	 * Ok, make it visible to the rest of the system.
 	 * We dont wake it up yet.
@@ -1014,18 +1011,24 @@ static task_t *copy_process(unsigned long clone_flags,
 	INIT_LIST_HEAD(&p->ptrace_children);
 	INIT_LIST_HEAD(&p->ptrace_list);
 
+	/* Perform scheduler related setup. Assign this task to a CPU. */
+	sched_fork(p, clone_flags);
+
 	/* Need tasklist lock for parent etc handling! */
 	write_lock_irq(&tasklist_lock);
 
 	/*
-	 * The task hasn't been attached yet, so cpus_allowed mask cannot
-	 * have changed. The cpus_allowed mask of the parent may have
-	 * changed after it was copied first time, and it may then move to
-	 * another CPU - so we re-copy it here and set the child's CPU to
-	 * the parent's CPU. This avoids alot of nasty races.
+	 * The task hasn't been attached yet, so its cpus_allowed mask will
+	 * not be changed, nor will its assigned CPU.
+	 *
+	 * The cpus_allowed mask of the parent may have changed after it was
+	 * copied first time - so re-copy it here, then check the child's CPU
+	 * to ensure it is on a valid CPU (and if not, just force it back to
+	 * parent's CPU). This avoids alot of nasty races.
 	 */
 	p->cpus_allowed = current->cpus_allowed;
-	set_task_cpu(p, smp_processor_id());
+	if (unlikely(!cpu_isset(task_cpu(p), p->cpus_allowed)))
+		set_task_cpu(p, smp_processor_id());
 
 	/*
 	 * Check for pending SIGKILL! The new thread should not be allowed
