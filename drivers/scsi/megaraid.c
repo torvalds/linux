@@ -1938,7 +1938,7 @@ megaraid_abort(Scsi_Cmnd *cmd)
 
 
 static int
-__megaraid_reset(Scsi_Cmnd *cmd)
+megaraid_reset(struct scsi_cmnd *cmd)
 {
 	adapter_t	*adapter;
 	megacmd_t	mc;
@@ -1950,7 +1950,6 @@ __megaraid_reset(Scsi_Cmnd *cmd)
 	mc.cmd = MEGA_CLUSTER_CMD;
 	mc.opcode = MEGA_RESET_RESERVATIONS;
 
-	spin_unlock_irq(&adapter->lock);
 	if( mega_internal_command(adapter, LOCK_INT, &mc, NULL) != 0 ) {
 		printk(KERN_WARNING
 				"megaraid: reservation reset failed.\n");
@@ -1958,8 +1957,9 @@ __megaraid_reset(Scsi_Cmnd *cmd)
 	else {
 		printk(KERN_INFO "megaraid: reservation reset.\n");
 	}
-	spin_lock_irq(&adapter->lock);
 #endif
+
+	spin_lock_irq(&adapter->lock);
 
 	rval =  megaraid_abort_and_reset(adapter, cmd, SCB_RESET);
 
@@ -1968,23 +1968,10 @@ __megaraid_reset(Scsi_Cmnd *cmd)
 	 * to be communicated over to the mid layer.
 	 */
 	mega_rundoneq(adapter);
+	spin_unlock_irq(&adapter->lock);
 
 	return rval;
 }
-
-static int
-megaraid_reset(Scsi_Cmnd *cmd)
-{
-	adapter_t *adapter = (adapter_t *)cmd->device->host->hostdata;
-	int rc;
-
-	spin_lock_irq(&adapter->lock);
-	rc = __megaraid_reset(cmd);
-	spin_unlock_irq(&adapter->lock);
-
-	return rc;
-}
-
 
 /**
  * megaraid_abort_and_reset()
